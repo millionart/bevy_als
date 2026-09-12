@@ -22,7 +22,7 @@ use als_ext::{control_rig_hierarchy::{RigSpace, RigTransform}, control_rig_math:
 
 use crate::animation_context_projection::AlsRootAnimationContextSet;
 use crate::character_assembly::AlsCharacterAvatar;
-use crate::control_rig_apply::{AlsControlRigExecution, AlsControlRigInput, AlsControlRigPrePropagationSet, CrAlsRuntimeProfileTemplate};
+use crate::control_rig_apply::{AlsControlRigExecution, AlsControlRigInput, CrAlsRuntimeProfileTemplate};
 
 #[derive(Component, Debug, Clone, Copy, Default)]
 struct FootLockLifecycleState {
@@ -136,9 +136,6 @@ pub struct FootIkApplyPlugin;
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FootIkApplySet {
     UpdateInputs,
-    Restore,
-    Solve,
-    Propagate,
     Telemetry,
 }
 
@@ -156,11 +153,8 @@ impl Plugin for FootIkApplyPlugin {
                     .before(crate::generated_ab_als_provider::GeneratedAbAlsProviderSet)
                     .after(als_core::motion::AlsRotationResponseSet)
                     .before(als_ext::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
-                FootIkApplySet::Restore.after(AnimationGraphSet::Final)
+                FootIkApplySet::Telemetry.after(AnimationGraphSet::Final)
                     .after(AlsRootAnimationContextSet).after(TransformSystems::Propagate),
-                FootIkApplySet::Solve.after(FootIkApplySet::Restore).after(AlsControlRigPrePropagationSet),
-                FootIkApplySet::Propagate.after(FootIkApplySet::Solve),
-                FootIkApplySet::Telemetry.after(FootIkApplySet::Propagate),
             )).add_systems(PostUpdate, (
                 ensure_foot_lock_components.before(crate::standing_layer::AlsStandingLayerSet).before(FootIkApplySet::UpdateInputs),
                 ensure_foot_lock_lifecycle_state.before(FootIkApplySet::UpdateInputs),
@@ -691,18 +685,23 @@ mod tests {
         for (bone, path) in definition.bones.iter().zip(&paths) { pose.add_bone(BonePose::from_transform(local(bone.initial_local)), EntityPath::from(path.clone()).id()); }
         let mut graph = AnimationGraph::new();
         let source = AnimationNode::new("input", als_ext::GlobalPoseInputNode { key: "input".into(), output: "Pose".into() });
-        let weight = AnimationNode::new("weight", als_ext::GlobalF32InputNode { key: "weight".into() });
+        let curves = AnimationNode::new("source curves", als_ext::source_pose_nodes::SourceCurveModifyNode {
+            source_pose_pin: "Source".into(), curve_names: vec!["FootLeftIk".into(), "FootRightIk".into(), "Unrelated".into()],
+            pin_defaults: vec![1.0, 1.0, 0.37], alpha: 1.0, ..default() });
         let rig = AnimationNode::new("rig", ControlRigBoundaryNode { definition: Some(definition.clone()),
             input_bindings: [2, 7, 8, 9, 10].map(|index| RigInputBinding { external: "RigInput".into(), path: vec![index], property: format!("input_{index}") }).into(),
-            curve_names: vec!["FootLeftIk".into(), "FootRightIk".into()], internalize_time: true, ..default() });
-        for node in [&source, &weight, &rig] { graph.add_node(node.clone()); }
-        graph.add_node_parameter_edge(source.id, "Pose", rig.id, "source_pose");
-        for name in ["FootLeftIk", "FootRightIk"] { graph.add_node_parameter_edge(weight.id, "weight", rig.id, name); }
+            capture_context: true, internalize_time: true, ..default() });
+        for node in [&source, &curves, &rig] { graph.add_node(node.clone()); }
+        graph.add_node_parameter_edge(source.id, "Pose", curves.id, "Source");
+        graph.add_node_parameter_edge(curves.id, "Pose", rig.id, "source_pose");
         graph.add_output_data("pose".into(), DataSpec::Pose);
         graph.add_output_data_edge(rig.id, "Pose", "pose");
+        let original_edges = graph.edges.clone();
+        let original_inputs = graph.edges_inverted.clone();
+        let original_node_count = graph.nodes.len();
         let graph = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(graph);
         let mut player = AnimationGraphPlayer::new(skeleton).with_graph(graph.clone());
-        player.set_global_input_data("input", DataValue::Pose(pose));
+        player.set_global_input_data("input", DataValue::Pose(pose.clone()));
         player.set_global_input_data("animation.delta_seconds", 1.0_f32 / 60.0);
         player.set_global_input_data(RIG_CAPTURE_KEY, true);
         player.set_global_input_data(RIG_GAME_WORLD_KEY, true);
@@ -730,13 +729,23 @@ mod tests {
         app.world_mut().trigger(WorldInstanceReady { entity: avatar, instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
         app.world_mut().flush();
         assert_eq!(app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity(), player_entity);
+        let mut driver = None;
         for (frame, weight) in [1.0_f32, 0.25, 0.0].into_iter().enumerate() {
-            app.world_mut().get_mut::<AnimationGraphPlayer>(player_entity).unwrap().set_global_input_data("weight", weight);
+            let previous_driver = driver;
+            crate::manual_playground_integration::set_manual_foot_ik_curve_input(
+                &mut app.world_mut().resource_mut::<Assets<AnimationGraph>>().get_mut(&graph).unwrap(), &mut driver,
+                AlsFootIkWeightOverride { left: Some(weight), right: Some(weight) });
+            assert!(driver.is_some());
+            if previous_driver.is_some() { assert_eq!(driver, previous_driver); }
             app.world_mut().run_system_once_with(capture, (player_entity, to_world)).unwrap();
             app.world_mut().run_system_once(animation_player).unwrap();
             assert!(app.world().get::<AnimationGraphPlayer>(player_entity).unwrap().get_error().is_none());
             app.world_mut().run_system_once(apply_animation_to_targets).unwrap();
             app.world_mut().run_system_once(observe_rig_results).unwrap();
+            let (context, _, rig_state) = current_control_rig(app.world().get::<AnimationGraphPlayer>(player_entity).unwrap(), app.world().resource::<Assets<AnimationGraph>>()).unwrap();
+            assert_eq!(rig_state.context.curves["Unrelated"], 0.37);
+            let input = context.node_caches.get_output_data(driver.unwrap(), bevy_animation_graph::core::context::node_states::StateKey::Default, "Pose".into()).unwrap().into_pose().unwrap();
+            assert_eq!(format!("{input:?}"), format!("{pose:?}"));
             let execution = app.world().get::<AlsControlRigExecution>(actor).unwrap();
             assert_eq!(execution.initialization_count, 1);
             assert!(execution.executed_steps > 0 && execution.foot_height_m > 0.0 && execution.leg_length_m > 0.0);
@@ -751,6 +760,22 @@ mod tests {
                 if weight > 0.0 { assert!((space.raw_offset - 0.1).abs() < 1e-5, "{space:?}"); }
             }
         }
+        for weights in [AlsFootIkWeightOverride { left: Some(0.5), right: None }, AlsFootIkWeightOverride::default()] {
+            crate::manual_playground_integration::set_manual_foot_ik_curve_input(
+                &mut app.world_mut().resource_mut::<Assets<AnimationGraph>>().get_mut(&graph).unwrap(), &mut driver, weights);
+            app.world_mut().run_system_once_with(capture, (player_entity, to_world)).unwrap();
+            app.world_mut().run_system_once(animation_player).unwrap();
+            app.world_mut().run_system_once(apply_animation_to_targets).unwrap();
+            app.world_mut().run_system_once(observe_rig_results).unwrap();
+            let apply = app.world().get::<AlsFootIkApplyTelemetry>(actor).unwrap();
+            assert_eq!(apply.left.applied_weight, weights.left.unwrap_or(1.0));
+            assert_eq!(apply.right.applied_weight, 1.0);
+        }
+        assert!(driver.is_none());
+        let restored = app.world().resource::<Assets<AnimationGraph>>().get(&graph).unwrap();
+        assert_eq!(restored.nodes.len(), original_node_count);
+        assert_eq!(restored.edges, original_edges);
+        assert_eq!(restored.edges_inverted, original_inputs);
         app.world_mut().get_mut::<Transform>(bones.left).unwrap().translation.x += 0.05;
         app.world_mut().run_system_once(observe_rig_results).unwrap();
         assert!(app.world().get::<AlsFootIkApplyTelemetry>(actor).unwrap().left.effector_error > 0.049);

@@ -12,11 +12,10 @@ use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
-use bevy_animation_graph::core::plugin::AnimationGraphSet;
 
 use bevy_als::animation_context_projection::AlsRootAnimationContext;
 use bevy_als::control_rig_apply::{
-    AlsControlRigExecution, AlsControlRigInput, AlsControlRigPropagationSet, AlsControlRigSet,
+    AlsControlRigExecution, AlsControlRigInput, AlsControlRigPropagationSet,
     AlsControlRigState,
 };
 use bevy_als::foot_ik_apply::AlsFootIkSpaceState;
@@ -61,8 +60,8 @@ fn main() {
         PostUpdate,
         (
             drive_canonical_character
-                .after(AnimationGraphSet::Final)
-                .before(AlsControlRigSet),
+                .after(avian3d::prelude::PhysicsSystems::Last)
+                .before(als_ext::post_physics_animation::PostPhysicsAnimationSet::Inputs),
             observe.after(AlsControlRigPropagationSet),
         ),
     );

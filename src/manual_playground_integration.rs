@@ -36,7 +36,6 @@ use bevy_animation_graph::core::animation_graph::{AnimationGraph, NodeId, Source
 use bevy_animation_graph::core::animation_graph_player::{AnimationGraphPlayer, AnimationSource};
 use bevy_animation_graph::core::context::node_states::StateKey;
 use bevy_animation_graph::core::edge_data::DataValue;
-use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::ragdoll::definition::BodyLabel;
 use bevy_animation_graph::core::{
     pose::Pose, skeleton::Skeleton, state_machine::high_level::StateMachine,
@@ -52,7 +51,7 @@ use crate::animation_events::{
 use crate::animation_visual_validation::AnimationVisualValidationProgress;
 use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar};
 use crate::control_rig_apply::{
-    AlsControlRigExecution, AlsControlRigInput, AlsControlRigSet,
+    AlsControlRigExecution, AlsControlRigInput,
     AlsControlRigState,
 };
 use crate::crouching_layer::{AlsCrouchingGraphTelemetry, AlsCrouchingTelemetrySet};
@@ -511,9 +510,9 @@ impl Plugin for ManualPlaygroundIntegrationPlugin {
             )
             .add_systems(
                 PostUpdate,
-                drive_control_rig_view_offset
-                    .after(AnimationGraphSet::Final)
-                    .before(AlsControlRigSet),
+                (drive_control_rig_view_offset, drive_manual_foot_ik_curves)
+                    .after(avian3d::prelude::PhysicsSystems::Last)
+                    .before(als_ext::post_physics_animation::PostPhysicsAnimationSet::Inputs),
             )
             .add_systems(
                 PostUpdate,
@@ -558,6 +557,69 @@ fn drive_control_rig_view_offset(
     };
     let forward = transform.rotation * Vec3::NEG_Z;
     view_yaw.0 = f32::atan2(forward.x, -forward.z) + 60.0_f32.to_radians();
+}
+
+pub(crate) fn set_manual_foot_ik_curve_input(
+    graph: &mut AnimationGraph,
+    driver: &mut Option<NodeId>,
+    weights: AlsFootIkWeightOverride,
+) {
+    use bevy_animation_graph::core::animation_node::{AnimationNode, dyn_node_like::DynNodeLike};
+    use als_ext::{root_graph_boundaries::ControlRigBoundaryNode, source_pose_nodes::SourceCurveModifyNode};
+    let (curve_names, pin_defaults): (Vec<_>, Vec<_>) = [("FootLeftIk", weights.left), ("FootRightIk", weights.right)]
+        .into_iter().filter_map(|(name, value)| value.map(|value| (name.to_owned(), value))).unzip();
+    if curve_names.is_empty() {
+        if let Some(node) = driver.take() {
+            let target = graph.edges.get(&SourcePin::NodeData(node, "Pose".into())).cloned();
+            let source = graph.remove_edge_by_target(&TargetPin::NodeData(node, "Source".into()));
+            if let (Some(target), Some(source)) = (target, source) {
+                graph.remove_edge_by_target(&target);
+                graph.add_edge(source, target);
+            }
+            graph.remove_node(node);
+        }
+        return;
+    }
+    let modifier = SourceCurveModifyNode { source_pose_pin: "Source".into(), curve_names, pin_defaults, alpha: 1.0, ..default() };
+    if let Some(node) = driver.and_then(|node| graph.nodes.get_mut(&node)) {
+        node.inner = DynNodeLike::new(modifier);
+        return;
+    }
+    let Some(target) = graph.nodes.values().find_map(|node| node.try_inner_downcast_ref::<ControlRigBoundaryNode>()
+        .map(|rig| TargetPin::NodeData(node.id, rig.pose_input.clone()))) else { return; };
+    let Some(source) = graph.remove_edge_by_target(&target) else { return; };
+    let node = AnimationNode::new("Manual foot IK curve input", modifier);
+    graph.add_edge(source, TargetPin::NodeData(node.id, "Source".into()));
+    graph.add_edge(SourcePin::NodeData(node.id, "Pose".into()), target);
+    *driver = Some(node.id);
+    graph.add_node(node);
+}
+
+fn drive_manual_foot_ik_curves(
+    state: Res<ManualIntegrationState>,
+    weights: Res<AlsFootIkWeightOverride>,
+    avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
+    players: Query<&AnimationGraphPlayer>,
+    mut graphs: ResMut<Assets<AnimationGraph>>,
+    mut driver: Local<Option<(bevy::asset::AssetId<AnimationGraph>, NodeId)>>,
+) {
+    let active = state.scenario == IntegrationScenario::FootIk && state.phase == IntegrationPhase::FootIkWeightRamp;
+    if let Some((graph_id, node)) = driver.take() {
+        if let Some(mut graph) = graphs.get_mut(graph_id) {
+            let mut node = Some(node);
+            set_manual_foot_ik_curve_input(&mut graph, &mut node, if active { *weights } else { default() });
+            *driver = node.map(|node| (graph_id, node));
+        }
+        return;
+    }
+    if !active { return; }
+    let Some((_, instance)) = avatars.iter().find(|(parent, _)| Some(parent.parent()) == state.character) else { return; };
+    let Ok(player) = players.get(instance.player_entity()) else { return; };
+    let AnimationSource::Graph(handle) = player.get_animation_source() else { return; };
+    let Some(mut graph) = graphs.get_mut(handle) else { return; };
+    let mut node = None;
+    set_manual_foot_ik_curve_input(&mut graph, &mut node, *weights);
+    *driver = node.map(|node| (handle.id(), node));
 }
 
 fn drive_crouch_direction_reference_frame(
@@ -9356,6 +9418,44 @@ fn observe_manual_integration(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn control_rig_view_driver_runs_after_physics_before_actor_inputs() {
+        use bevy::ecs::schedule::ScheduleCleanupPolicy;
+        use als_ext::post_physics_animation::PostPhysicsAnimationSet;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, ManualPlaygroundIntegrationPlugin))
+            .init_resource::<Assets<AnimationGraph>>().init_resource::<AlsFootIkWeightOverride>()
+            .configure_sets(PostUpdate, (
+                PostPhysicsAnimationSet::Inputs.after(avian3d::prelude::PhysicsSystems::Last),
+                PostPhysicsAnimationSet::Evaluate.after(PostPhysicsAnimationSet::Inputs),
+                bevy_animation_graph::core::plugin::AnimationGraphSet::Final.after(PostPhysicsAnimationSet::Evaluate),
+            ));
+        app.world_mut().schedule_scope(PostUpdate, |world, schedule| {
+            assert_eq!(schedule.remove_systems_in_set(prepare_get_up_physics_fixture, world, ScheduleCleanupPolicy::RemoveSystemsOnly).unwrap(), 1);
+            assert_eq!(schedule.remove_systems_in_set(observe_manual_integration, world, ScheduleCleanupPolicy::RemoveSystemsOnly).unwrap(), 1);
+        });
+        let actor = app.world_mut().spawn((AlsCharacter, Transform::IDENTITY, AlsViewYaw(0.0))).id();
+        {
+            let mut state = app.world_mut().resource_mut::<ManualIntegrationState>();
+            state.character = Some(actor);
+            state.scenario = IntegrationScenario::ControlRig;
+            state.phase = IntegrationPhase::ControlRig;
+        }
+        app.add_systems(PostUpdate, (|mut actors: Query<&mut AlsViewYaw>| {
+            for mut yaw in &mut actors { yaw.0 = -0.8; }
+        }).in_set(avian3d::prelude::PhysicsSystems::Last));
+        let mut frame = 0;
+        app.add_systems(PostUpdate, (move |actors: Query<&AlsViewYaw>| {
+            let expected = [60.0_f32, -30.0][frame].to_radians();
+            assert!((actors.get(actor).unwrap().0 - expected).abs() < 1e-6, "view input must include the current fixture offset");
+            frame += 1;
+        }).in_set(PostPhysicsAnimationSet::Inputs));
+        for rotation in [Quat::IDENTITY, Quat::from_rotation_y(std::f32::consts::FRAC_PI_2)] {
+            app.world_mut().get_mut::<Transform>(actor).unwrap().rotation = rotation;
+            app.world_mut().run_schedule(PostUpdate);
+        }
+    }
 
     #[test]
     fn head_observer_rejects_empty_samples_and_binds_actual_callback_pins() {

@@ -5,9 +5,10 @@ use als_core::state::RotationMode;
 use als_ext::source_instance::source_player_property;
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
-use bevy::transform::{TransformSystems, systems as transform_systems};
+use bevy::transform::systems as transform_systems;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
+#[cfg(test)]
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use serde::Deserialize;
 use std::sync::Arc;
@@ -15,7 +16,7 @@ use avian3d::{collider_tree::ColliderTrees, prelude::{Collider, Position, Rotati
 use als_ext::{control_rig_hierarchy::RigTransform, control_rig_query::{RigQueryContext, RigQueryWorld},
     source_gameplay_tag_input::set_rig_query_context, source_instance::set_source_frame_input};
 
-use crate::animation_context_projection::{AlsRootAnimationContext, AlsRootAnimationContextSet};
+use crate::animation_context_projection::AlsRootAnimationContext;
 use crate::character_assembly::AlsCharacterAvatar;
 use crate::foot_ik_apply::FootIkApplySet;
 use crate::head_layer::{AlsHeadLayerSet, inv_exp_approx, unwind_degrees};
@@ -51,15 +52,6 @@ impl FromWorld for CrAlsRuntimeProfileTemplate {
 pub struct AlsControlRigInputSet;
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct AlsControlRigSet;
-
-#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct AlsControlRigPrePropagationSet;
-
-#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct AlsControlRigHandSet;
-
-#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AlsControlRigPropagationSet;
 
 pub struct ControlRigApplyPlugin;
@@ -69,12 +61,8 @@ impl Plugin for ControlRigApplyPlugin {
         app.configure_sets(PostUpdate, (
             AlsControlRigInputSet.after(AlsHeadLayerSet)
                 .before(als_ext::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
-            AlsControlRigSet.after(AlsControlRigInputSet).after(AnimationGraphSet::Final)
-                .after(AlsRootAnimationContextSet).after(TransformSystems::Propagate),
-            AlsControlRigPrePropagationSet.after(AlsControlRigSet),
-            AlsControlRigHandSet.after(FootIkApplySet::Propagate),
             als_ext::post_physics_animation::PostPhysicsAnimationSet::Readback
-                .after(AlsControlRigHandSet).after(FootIkApplySet::Telemetry),
+                .after(FootIkApplySet::Telemetry),
             AlsControlRigPropagationSet.after(als_ext::post_physics_animation::PostPhysicsAnimationSet::Readback),
         )).add_systems(PostUpdate, (
             initialize_control_rig_input.before(FootIkApplySet::UpdateInputs).before(AlsControlRigInputSet),
