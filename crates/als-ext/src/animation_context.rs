@@ -2,7 +2,7 @@ use bevy::{platform::collections::HashMap, prelude::*};
 use bevy_animation_graph::core::{
     animation_graph::{AnimationGraph, GraphInputPin, NodeId, SourcePin, TargetPin, TimeUpdate},
     animation_graph_player::AnimationGraphPlayer,
-    context::node_states::StateKey,
+    context::node_states::{NodeStates, StateKey},
     context::{
         io_env::GraphIoEnv,
         new_context::{GraphContext, NodeContext},
@@ -234,74 +234,65 @@ pub fn pose_input_context_state(
         .edges_inverted
         .get(&TargetPin::NodeData(ctx.node_id, pose_input.to_owned()))?
     {
-        SourcePin::NodeData(node, _) => node_context_state(&ctx.graph_context, *node),
+        SourcePin::NodeData(node, _) => node_context_state(ctx.graph_context.node_states(), ctx.graph_context.state_key, *node).cloned(),
         SourcePin::InputData(pin) => Some(linked_input_context(&ctx.graph_context, pin)),
         _ => None,
     }
 }
 
-fn node_context_state(ctx: &GraphContext, node: NodeId) -> Option<AnimationContextState> {
-    if let Ok(state) = ctx.node_states().get::<crate::root_graph_boundaries::ControlRigNodeState>(node, ctx.state_key) {
-        return Some(state.context.clone());
+fn node_context_state(states: &NodeStates, key: StateKey, node: NodeId) -> Option<&AnimationContextState> {
+    if let Ok(state) = states.get::<crate::root_graph_boundaries::ControlRigNodeState>(node, key) {
+        return Some(&state.context);
     }
-    if let Ok(state) = ctx
-        .node_states()
-        .get::<crate::normalized_blendspace::NormalizedBlendSpaceState>(node, ctx.state_key)
+    if let Ok(state) = states
+        .get::<crate::normalized_blendspace::NormalizedBlendSpaceState>(node, key)
     {
-        return Some(state.context.clone());
+        return Some(&state.context);
     }
-    if let Ok(state) = ctx
-        .node_states()
-        .get::<AnimationContextState>(node.clone(), ctx.state_key)
+    if let Ok(state) = states
+        .get::<AnimationContextState>(node.clone(), key)
     {
-        return Some(state.clone());
+        return Some(state);
     }
-    if let Ok(state) = ctx
-        .node_states()
-        .get::<SourceInertializationState>(node.clone(), ctx.state_key)
+    if let Ok(state) = states
+        .get::<SourceInertializationState>(node.clone(), key)
     {
-        return Some(state.context.clone());
+        return Some(&state.context);
     }
-    if let Ok(state) = ctx
-        .node_states()
-        .get::<crate::inertialization::InertializationState>(node, ctx.state_key)
+    if let Ok(state) = states
+        .get::<crate::inertialization::InertializationState>(node, key)
     {
-        return Some(state.context.clone());
+        return Some(&state.context);
     }
-    if let Ok(state) = ctx
-        .node_states()
-        .get::<SourceSequencePlayerState>(node.clone(), ctx.state_key)
+    if let Ok(state) = states
+        .get::<SourceSequencePlayerState>(node.clone(), key)
     {
-        return Some(state.context.clone());
+        return Some(&state.context);
     }
-    if let Ok(state) = ctx
-        .node_states()
-        .get::<SourceTwoWayBlendState>(node.clone(), ctx.state_key)
+    if let Ok(state) = states
+        .get::<SourceTwoWayBlendState>(node.clone(), key)
     {
-        return Some(state.context.clone());
+        return Some(&state.context);
     }
-    if let Ok(state) = ctx
-        .node_states()
-        .get::<SourceGameplayTagBlendState>(node.clone(), ctx.state_key)
+    if let Ok(state) = states
+        .get::<SourceGameplayTagBlendState>(node.clone(), key)
     {
-        return Some(state.context.clone());
+        return Some(&state.context);
     }
-    if let Ok(state) = ctx
-        .node_states()
-        .get::<SourceBlendState>(node.clone(), ctx.state_key)
+    if let Ok(state) = states
+        .get::<SourceBlendState>(node.clone(), key)
     {
-        return Some(state.context.clone());
+        return Some(&state.context);
     }
-    if let Ok(state) = ctx
-        .node_states()
-        .get::<crate::source_stop_nodes::SourceEnumPoseBlendState>(node, ctx.state_key)
+    if let Ok(state) = states
+        .get::<crate::source_stop_nodes::SourceEnumPoseBlendState>(node, key)
     {
-        return Some(state.context.clone());
+        return Some(&state.context);
     }
-    ctx.node_states()
-        .get::<InterruptibleFsmState>(node, ctx.state_key)
+    states
+        .get::<InterruptibleFsmState>(node, key)
         .ok()
-        .map(|state| state.context.clone())
+        .map(|state| &state.context)
 }
 
 pub fn graph_output_context_state(
@@ -315,7 +306,7 @@ pub fn graph_output_context_state(
     let SourcePin::NodeData(node, _) = source else {
         return None;
     };
-    node_context_state(ctx, node.clone())
+    node_context_state(ctx.node_states(), ctx.state_key, *node).cloned()
 }
 
 pub fn merge_missing_context_curves(
@@ -415,8 +406,9 @@ fn source_curve_value(
 ) -> Result<f32, GraphError> {
     let state_key = ctx.graph_context.state_key;
     if let Some(state) = node_context_state(
-        &ctx.graph_context.clone().with_state_key(state_key),
-        source_node.clone(),
+        ctx.graph_context.node_states(),
+        state_key,
+        source_node,
     ) && let Some(value) = state.curves.get(curve_name)
     {
         return Ok(*value);
@@ -497,6 +489,39 @@ pub fn capture_context_curve(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn context_curve_lookup_borrows_current_or_previous_node_state() {
+        let node = NodeId::default();
+        let key = StateKey::Default;
+        for rig in [false, true] {
+            let mut states = NodeStates::default();
+            let context = AnimationContextState {
+                curves: HashMap::from([("PoseMoving".to_owned(), 0.75)]),
+                ..default()
+            };
+            if rig {
+                states.get_mut_or_insert_with(node, key, || {
+                    let mut state = crate::root_graph_boundaries::ControlRigNodeState::default();
+                    state.context = context;
+                    state
+                }).unwrap();
+            } else {
+                states.get_mut_or_insert_with(node, key, || context).unwrap();
+            }
+            for _ in 0..2 {
+                let read = node_context_state(&states, key, node).unwrap();
+                let stored = if rig {
+                    &states.get::<crate::root_graph_boundaries::ControlRigNodeState>(node, key).unwrap().context
+                } else {
+                    states.get::<AnimationContextState>(node, key).unwrap()
+                };
+                assert!(std::ptr::eq(&read.curves, &stored.curves), "curve lookup copied node state");
+                assert_eq!(read.curves["PoseMoving"], 0.75);
+                states.next_frame();
+            }
+        }
+    }
 
     #[test]
     fn inertial_requests_merge_by_frame_and_shortest_duration() {
