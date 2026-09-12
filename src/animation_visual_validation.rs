@@ -3936,6 +3936,15 @@ mod tests {
                 let mut manual = app.world_mut().resource_mut::<ManualIntegrationGateReport>();
                 manual.completed = completed;
                 manual.direction_trace.push(serde_json::json!({"final_sample": samples}));
+                manual.camera_trace.push(crate::manual_playground_integration::ManualCameraTraceSample {
+                    phase_elapsed_seconds: samples as f64,
+                    obstacles_present: false,
+                    obstacles_removed: true,
+                    blocked_ratio: Some(0.3),
+                    first_person_requested: false,
+                    actual_first_person: false,
+                    camera: als_camera::AlsCameraDebugInfo { trace_distance_ratio: 0.8, valid: true, ..default() },
+                });
             }
             app.world_mut().write_message(exit);
             app.world_mut().run_schedule(Last);
@@ -3943,6 +3952,7 @@ mod tests {
             assert_eq!(report["frame_time"]["samples"], samples);
             assert_eq!(report["manual_integration"]["completed"], completed);
             assert_eq!(report["manual_integration"]["direction_trace"][samples - 1]["final_sample"], samples);
+            assert_eq!(report["manual_integration"]["camera_trace"][samples - 1]["camera"]["trace_distance_ratio"].as_f64().unwrap() as f32, 0.8_f32);
             fs::remove_file(&report_path).unwrap();
             app.world_mut().run_schedule(Last);
             assert!(!report_path.exists());

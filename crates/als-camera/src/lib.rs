@@ -340,7 +340,7 @@ impl AlsCameraShakeRequest {
     }
 }
 
-#[derive(Component, Debug, Clone, Copy, Default)]
+#[derive(Component, Debug, Clone, Copy, Default, Serialize, PartialEq)]
 pub struct AlsCameraDebugInfo {
     pub pivot_target: Vec3,
     pub pivot_lag: Option<Vec3>,
@@ -1645,6 +1645,24 @@ mod tests {
             trace_fixture(&wall, Vec3::ZERO, Vec3::Z * 2.0, Vec3::ZERO, 1.0, true, 0.9);
         assert!((ratio - 0.375).abs() < 1e-6);
         assert!((trace.location.z - 0.75).abs() < 1e-6);
+    }
+
+    #[test]
+    fn camera_recovery_fixture_requires_a_sweep_blocker_beyond_the_mtd_pair() {
+        let wall = (Vec3::new(0.0, 0.1, 0.0), Vec3::new(0.6, 0.05, 0.6));
+        let (trace, ratio) = trace_fixture(&[wall, wall], Vec3::ZERO, Vec3::Z * 2.0, Vec3::NEG_Y, 1.0, true, 1.0);
+        assert_eq!(trace.adjustment_count, 2);
+        assert!(trace.adjustment_resolved);
+        assert!(!trace.blocking_hit);
+        assert_eq!(ratio, 1.0);
+        let blocker = (Vec3::Z, Vec3::new(0.6, 0.6, 0.05));
+        let (trace, blocked) = trace_fixture(&[wall, wall, blocker], Vec3::ZERO, Vec3::Z * 2.0, Vec3::NEG_Y, 1.0, true, 1.0);
+        assert_eq!(trace.adjustment_count, 2);
+        assert!(trace.adjustment_resolved && trace.blocking_hit);
+        assert!(blocked < 0.98);
+        let (trace, recovered) = trace_fixture(&[], Vec3::ZERO, Vec3::Z * 2.0, Vec3::NEG_Y, 1.0, true, blocked);
+        assert!(!trace.blocking_hit);
+        assert!(recovered > blocked + 0.02);
     }
 
     #[test]

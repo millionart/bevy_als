@@ -465,7 +465,18 @@ pub struct ManualIntegrationGateResult {
     pub detail: String,
 }
 
-#[derive(Resource, Clone, Debug, Default, Serialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, PartialEq)]
+pub struct ManualCameraTraceSample {
+    pub phase_elapsed_seconds: f64,
+    pub obstacles_present: bool,
+    pub obstacles_removed: bool,
+    pub blocked_ratio: Option<f32>,
+    pub first_person_requested: bool,
+    pub actual_first_person: bool,
+    pub camera: AlsCameraDebugInfo,
+}
+
+#[derive(Resource, Clone, Debug, Default, Serialize, PartialEq)]
 pub struct ManualIntegrationGateReport {
     pub scenario: String,
     pub timed_out: bool,
@@ -476,6 +487,8 @@ pub struct ManualIntegrationGateReport {
     pub sprint_trace: Vec<serde_json::Value>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub direction_trace: Vec<serde_json::Value>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub camera_trace: Vec<ManualCameraTraceSample>,
 }
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -2943,7 +2956,7 @@ struct ManualIntegrationState {
     deadline: Instant,
     entered: bool,
     initialized: bool,
-    camera_obstacles: [Option<Entity>; 2],
+    camera_obstacles: [Option<Entity>; 3],
     camera_obstacle_removed: bool,
     camera_blocked_ratio: Option<f32>,
     shake_requested: bool,
@@ -3058,7 +3071,7 @@ impl Default for ManualIntegrationState {
             deadline: now + GATE_TIMEOUT,
             entered: false,
             initialized: false,
-            camera_obstacles: [None, None],
+            camera_obstacles: [None; 3],
             camera_obstacle_removed: false,
             camera_blocked_ratio: None,
             shake_requested: false,
@@ -5402,7 +5415,7 @@ fn drive_manual_integration(
             if entering {
                 state.coverage.camera_collision = false;
                 state.coverage.camera_recovery = false;
-                state.camera_obstacles = [None, None];
+                state.camera_obstacles = [None; 3];
                 state.camera_obstacle_removed = false;
                 state.camera_blocked_ratio = None;
                 state.camera_scenario_armed = false;
@@ -5425,14 +5438,14 @@ fn drive_manual_integration(
                 *overlay = OverlayState::Default;
                 *rotation_mode = RotationMode::ViewDirection;
             }
-            if elapsed < 1.0 {
+            if state.coverage.camera_recovery && elapsed < 2.0 {
                 input.0.look_delta = Vec2::new(8.0, -4.0);
             }
             if !state.camera_shoulder_requested {
                 input.0.switch_shoulder_pressed = true;
                 state.camera_shoulder_requested = true;
             }
-            if elapsed >= 2.0 && !state.camera_view_mode_requested {
+            if elapsed >= 2.0 && state.coverage.camera_recovery && !state.camera_view_mode_requested {
                 input.0.view_mode_pressed = true;
                 state.camera_view_mode_requested = true;
             }
@@ -5457,6 +5470,8 @@ fn drive_manual_integration(
                 if let Some(camera) = state.camera
                     && let Ok(debug) = cameras.get(camera)
                     && debug.valid
+                    && !debug.trace_blocking_hit
+                    && debug.first_person_override <= 1e-5
                     && debug.trace_start.distance(debug.trace_end) > 0.5
                 {
                     let owner_direction =
@@ -5502,14 +5517,24 @@ fn drive_manual_integration(
                         );
                     }
                     state.camera_scenario_armed = true;
-                    info!("[MANUAL-INTEGRATION] camera MTD pair armed");
+                    state.camera_obstacles[2] = Some(commands.spawn((
+                        Name::new("manual_integration_camera_sweep_blocker"),
+                        RigidBody::Static,
+                        CollisionLayers::from_bits(0b0010, 0),
+                        Collider::cuboid(0.05, 0.6, 0.6),
+                        Transform::from_translation(debug.trace_start.lerp(debug.trace_end, 0.5))
+                            .with_rotation(Quat::from_rotation_arc(Vec3::X, trace_direction)),
+                        Mesh3d(fixture.obstacle_mesh.clone()),
+                        MeshMaterial3d(fixture.obstacle_material.clone()),
+                    )).id());
+                    info!("[MANUAL-INTEGRATION] camera MTD pair and sweep blocker armed");
                 }
             }
             if state.coverage.camera_collision && !state.camera_obstacle_removed {
                 for obstacle in state.camera_obstacles.iter_mut().flatten() {
                     commands.entity(*obstacle).despawn();
                 }
-                state.camera_obstacles = [None, None];
+                state.camera_obstacles = [None; 3];
                 state.camera_obstacle_removed = true;
                 info!("[MANUAL-INTEGRATION] camera MTD pair removed after collision probe");
             }
@@ -9032,6 +9057,17 @@ fn observe_manual_integration(
         && let Ok((_camera_transform, debug)) = cameras.get(camera)
     {
         let camera_debug = debug;
+        if state.phase == IntegrationPhase::Camera {
+            gate_report.camera_trace.push(ManualCameraTraceSample {
+                phase_elapsed_seconds: state.phase_elapsed() as f64,
+                obstacles_present: state.camera_obstacles.iter().any(Option::is_some),
+                obstacles_removed: state.camera_obstacle_removed,
+                blocked_ratio: state.camera_blocked_ratio,
+                first_person_requested: state.camera_view_mode_requested,
+                actual_first_person: first_person,
+                camera: *camera_debug,
+            });
+        }
         state.coverage.camera_rig |= camera_debug.valid;
         if state.phase == IntegrationPhase::Camera
             && state.camera_scenario_armed
@@ -9072,6 +9108,7 @@ fn observe_manual_integration(
             }
         }
         if state.camera_obstacle_removed
+            && camera_debug.first_person_override < 1.0 - 1e-5
             && state
                 .camera_blocked_ratio
                 .is_some_and(|blocked| camera_debug.trace_distance_ratio > blocked + 0.02)
@@ -9586,6 +9623,8 @@ fn observe_manual_integration(
                         "source_time_acceleration={:?}; canonical_phase={:?}",
                         state.sprint_samples[index], state.sprint_signature_phase
                     )
+                } else if *name == "camera_collision_recovery" {
+                    format!("samples={} last={:?}", gate_report.camera_trace.len(), gate_report.camera_trace.last())
                 } else if *covered {
                     "covered".to_owned()
                 } else {
@@ -10954,8 +10993,51 @@ mod tests {
     }
 
     #[test]
-    fn foot_ik_gate_preconditions_keep_the_teleport_driver_idle() {
+    fn camera_probe_stays_stable_and_third_person_until_collision_recovers() {
         use bevy::ecs::system::RunSystemOnce;
+        let (mut world, character, _) = manual_driver_fixture();
+        let camera = world.spawn((AlsCameraRig::default(), AlsCameraDebugInfo {
+            valid: true, trace_start: Vec3::Y * 1.6, trace_end: Vec3::new(0.0, 1.57, 2.8), ..default()
+        })).id();
+        for (elapsed, recovered, expected_look, expected_switch) in [
+            (0.8, false, false, false),
+            (2.5, false, false, false),
+            (1.0, true, true, false),
+            (2.5, true, false, true),
+        ] {
+            let mut state = ManualIntegrationState {
+                character: Some(character), camera: Some(camera), initialized: true, entered: false,
+                scenario: IntegrationScenario::Camera, phase: IntegrationPhase::Camera,
+                phase_started_seconds: -elapsed, ..default()
+            };
+            state.coverage.camera_recovery = recovered;
+            state.camera_obstacle_removed = recovered;
+            world.insert_resource(state);
+            world.run_system_once(drive_manual_integration).unwrap();
+            let input = &world.get::<AlsInputOverride>(character).unwrap().0;
+            assert_eq!(input.look_delta != Vec2::ZERO, expected_look, "elapsed={elapsed} recovered={recovered}");
+            assert_eq!(input.view_mode_pressed, expected_switch, "elapsed={elapsed} recovered={recovered}");
+            if !recovered {
+                assert_eq!(world.resource::<ManualIntegrationState>().camera_obstacles.iter().flatten().count(), 3);
+            }
+        }
+        for (blocking, first_person_override) in [(true, 0.0), (false, 1.0)] {
+            {
+                let mut debug = world.get_mut::<AlsCameraDebugInfo>(camera).unwrap();
+                debug.trace_blocking_hit = blocking;
+                debug.first_person_override = first_person_override;
+            }
+            world.insert_resource(ManualIntegrationState {
+                character: Some(character), camera: Some(camera), initialized: true, entered: false,
+                scenario: IntegrationScenario::Camera, phase: IntegrationPhase::Camera,
+                phase_started_seconds: -0.8, ..default()
+            });
+            world.run_system_once(drive_manual_integration).unwrap();
+            assert!(world.resource::<ManualIntegrationState>().camera_obstacles.iter().all(Option::is_none));
+        }
+    }
+
+    fn manual_driver_fixture() -> (World, Entity, Vec3) {
         let mut world = World::new();
         world.init_resource::<ManualAnimationWindowEvidence>();
         world.init_resource::<ManualRuntimePhaseEvidence>();
@@ -11007,6 +11089,13 @@ mod tests {
             phase: IntegrationPhase::FootIkTeleport,
             ..default()
         });
+        (world, character, start)
+    }
+
+    #[test]
+    fn foot_ik_gate_preconditions_keep_the_teleport_driver_idle() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut world, character, start) = manual_driver_fixture();
         for (delta, teleported) in [(0.0, false), (0.5, false), (0.6, true), (0.4, true)] {
             world
                 .resource_mut::<Time<Virtual>>()

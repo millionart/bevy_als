@@ -1181,6 +1181,51 @@ def primary_failure_issues(report):
     }
 
 
+def camera_trace_issues(report):
+    if report.get("case") != "camera":
+        return []
+    trace = (report.get("manual_integration") or {}).get("camera_trace")
+    if not isinstance(trace, list) or len(trace) < 2:
+        return ["camera trace evidence is missing"]
+    previous = -1.0
+    collision = False
+    recovery = False
+    for sample in trace:
+        if not isinstance(sample, dict) or not isinstance(sample.get("camera"), dict):
+            return ["camera trace sample is invalid"]
+        time = sample.get("phase_elapsed_seconds")
+        camera = sample["camera"]
+        if not finite(time) or time < previous:
+            return ["camera trace time is invalid"]
+        previous = time
+        if any(not isinstance(sample.get(key), bool) for key in ["obstacles_present", "obstacles_removed", "first_person_requested", "actual_first_person"]):
+            return ["camera trace lifecycle is invalid"]
+        if any(not finite(camera.get(key)) for key in ["trace_distance_ratio", "trace_radius", "first_person_override", "unscaled_delta_seconds"]):
+            return ["camera trace numeric data is invalid"]
+        for key in ["trace_start", "trace_end"]:
+            vector = camera.get(key)
+            if not isinstance(vector, list) or len(vector) != 3 or not all(finite(value) for value in vector):
+                return ["camera trace position is invalid"]
+        curves = camera.get("curve_values")
+        if not isinstance(curves, list) or len(curves) != 13 or not all(finite(value) for value in curves):
+            return ["camera trace curves are invalid"]
+        collision |= (sample["obstacles_present"] and camera.get("valid") is True
+            and camera.get("trace_blocking_hit") is True and camera.get("trace_adjustment_resolved") is True
+            and isinstance(camera.get("trace_adjustment_count"), int) and camera["trace_adjustment_count"] >= 2
+            and camera["trace_distance_ratio"] < 0.98)
+        blocked = sample.get("blocked_ratio")
+        recovery |= (collision and sample["obstacles_removed"] and not sample["obstacles_present"]
+            and camera.get("valid") is True and camera.get("trace_blocking_hit") is False
+            and camera["first_person_override"] < 1.0 - 1e-5 and finite(blocked)
+            and camera["trace_distance_ratio"] > blocked + 0.02)
+    issues = []
+    if not collision:
+        issues.append("camera trace does not prove collision with resolved MTDs")
+    if not recovery:
+        issues.append("camera trace does not prove third-person recovery after obstacle removal")
+    return issues
+
+
 def manual_integration_issues(report):
     if report.get("case") == "startup":
         return []
@@ -1210,6 +1255,7 @@ def manual_integration_issues(report):
                 issues.append("manual integration result detail is invalid")
             if result.get("covered") is not True:
                 issues.append("manual integration result is not covered")
+    issues.extend(camera_trace_issues(report))
     return issues
 
 
@@ -1753,6 +1799,22 @@ def add_dynamic_window_samples(report, labels):
 
 
 def run_self_test():
+    camera = {"valid": True, "trace_blocking_hit": True, "trace_adjustment_resolved": True,
+        "trace_adjustment_count": 2, "trace_distance_ratio": 0.4, "trace_radius": 0.15,
+        "first_person_override": 0.0, "unscaled_delta_seconds": 0.016,
+        "trace_start": [0.0, 1.6, 0.0], "trace_end": [0.0, 1.6, 2.0], "curve_values": [0.0] * 13}
+    collision = {"phase_elapsed_seconds": 0.5, "obstacles_present": True, "obstacles_removed": False,
+        "first_person_requested": False, "actual_first_person": False, "blocked_ratio": None, "camera": camera}
+    recovered = {**collision, "phase_elapsed_seconds": 0.7, "obstacles_present": False, "obstacles_removed": True,
+        "blocked_ratio": 0.4, "camera": {**camera, "trace_distance_ratio": 0.7, "trace_blocking_hit": False}}
+    camera_report = {"case": "camera", "manual_integration": {"camera_trace": [collision, recovered]}}
+    assert not camera_trace_issues(camera_report)
+    recovered["camera"]["first_person_override"] = 1.0
+    assert camera_trace_issues(camera_report)
+    recovered["camera"]["first_person_override"] = 0.0
+    recovered["camera"]["trace_end"][1] = float("nan")
+    assert camera_trace_issues(camera_report)
+    assert camera_trace_issues({"case": "camera", "manual_integration": {}})
     clip_windows = [
         fixture_motion_window(label, rotation, "Slot variants")
         for label, rotation in [("front", 0.0), ("back", 1.0)]
