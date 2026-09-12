@@ -6,31 +6,85 @@ use avian3d::prelude::{CollisionLayers, LinearVelocity, Rotation};
 use bevy::prelude::*;
 use bevy_animation_graph::core::animation_clip::GraphClip;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
+use bevy_animation_graph::core::pose::Pose;
 use bevy_animation_graph::core::skeleton::Skeleton;
+use serde::Deserialize;
+use std::sync::LazyLock;
 
 use crate::root_motion_link::mesh_to_entity_yaw;
 
 #[derive(Resource)]
-struct MantleAssets([Handle<GraphClip>; 3]);
+struct MantleAssets(Vec<Handle<GraphClip>>);
+
+#[derive(Deserialize)]
+pub(crate) struct MantleMontageSettings {
+    pub source_montage: String,
+    pub source_sequence: String,
+    pub clip: String,
+    pub sequence_length: f32,
+    pub play_rate: f32,
+    pub blend_in_seconds: f32,
+    pub blend_out_seconds: f32,
+    pub blend_out_mode: als_ext::profile_blend::AlphaBlendMode,
+    sequence_curves: als_ext::AlsPoseCurves,
+    montage_curves: als_ext::AlsPoseCurves,
+}
+
+#[derive(Deserialize)]
+struct MantleSourceSettings {
+    montages: Vec<MantleMontageSettings>,
+    stop_blend_out_seconds: f32,
+    start_ragdoll_on_target_destruction: bool,
+}
+
+static MANTLE_SETTINGS: LazyLock<MantleSourceSettings> = LazyLock::new(|| {
+    ron::from_str(als_core::mantle::MANTLE_SOURCE_DATA)
+        .expect("generated mantle montage settings are valid")
+});
+
+pub(crate) fn mantle_montage_settings(kind: MantleKind) -> &'static MantleMontageSettings {
+    &MANTLE_SETTINGS.montages[kind.action_settings().montage_index]
+}
 
 impl MantleAssets {
     fn clip(&self, kind: MantleKind) -> &Handle<GraphClip> {
-        &self.0[if kind.is_high() {
-            0
-        } else if kind == MantleKind::LowLeft {
-            1
-        } else {
-            2
-        }]
+        &self.0[kind.action_settings().montage_index]
     }
 }
 
 fn load_mantle_assets(mut commands: Commands, assets: Res<AssetServer>) {
-    commands.insert_resource(MantleAssets([
-        assets.load("animations/Actions/Mantle/A_Als_Mantle_High.anim.ron"),
-        assets.load("animations/Actions/Mantle/A_Als_Mantle_Low_Left.anim.ron"),
-        assets.load("animations/Actions/Mantle/A_Als_Mantle_Low_Right.anim.ron"),
-    ]));
+    commands.insert_resource(MantleAssets(
+        MANTLE_SETTINGS
+            .montages
+            .iter()
+            .map(|settings| assets.load(&settings.clip))
+            .collect(),
+    ));
+}
+
+fn sample_mantle_pose(
+    clip: &GraphClip,
+    skeleton: &Skeleton,
+    settings: &MantleMontageSettings,
+    time: f32,
+) -> Option<(Pose, als_ext::AnimationContextState)> {
+    let mut pose = als_ext::source_sequence_player::sample_pose(clip, time);
+    als_ext::source_sequence_player::apply_source_root_lock(
+        &mut pose,
+        clip,
+        skeleton,
+        als_ext::source_sequence_player::SourceRootLock::RefPose,
+        false,
+    )?;
+    let mut context = crate::get_up::sampled_curve_context(&settings.sequence_curves, time);
+    context.curves.extend(
+        settings
+            .montage_curves
+            .0
+            .iter()
+            .map(|(name, curve)| (name.to_string(), curve.sample(time))),
+    );
+    Some((pose, context))
 }
 
 fn sample_mantle_root(clip: &GraphClip, skeleton: &Skeleton, time: f32) -> Option<Transform> {
@@ -263,10 +317,10 @@ mod tests {
                 })
                 .count();
             if loaded != previous {
-                eprintln!("mantle clips loaded {loaded}/3");
+                eprintln!("mantle montage clips loaded {loaded}/6");
                 previous = loaded;
             }
-            if loaded == 3 {
+            if loaded == 6 {
                 break;
             }
             assert!(
@@ -278,8 +332,11 @@ mod tests {
         for kind in [
             MantleKind::High,
             MantleKind::InAir,
+            MantleKind::Low,
             MantleKind::LowLeft,
             MantleKind::LowRight,
+            MantleKind::LowBothHands,
+            MantleKind::LowBox,
         ] {
             let start = Vec3::new(-1.0, 0.9, 0.3);
             let target = Vec3::new(2.0, 2.0, -2.0);
@@ -299,6 +356,60 @@ mod tests {
                 let clip = clips.get(assets.clip(kind)).unwrap();
                 let skeletons = app.world().resource::<Assets<Skeleton>>();
                 let skeleton = skeletons.get(&clip.skeleton).unwrap();
+                let settings = mantle_montage_settings(kind);
+                assert!((settings.sequence_length - clip.duration).abs() < 1e-5);
+                assert_eq!(settings.play_rate, kind.action_settings().rate_scale);
+                assert_eq!(
+                    settings.blend_in_seconds,
+                    kind.action_settings().blend_in_seconds
+                );
+                assert_eq!(settings.blend_out_seconds, 0.2);
+                assert_eq!(
+                    settings.blend_out_mode,
+                    if kind.is_high() {
+                        als_ext::profile_blend::AlphaBlendMode::Cubic
+                    } else {
+                        als_ext::profile_blend::AlphaBlendMode::HermiteCubic
+                    }
+                );
+                let (pose, context) =
+                    sample_mantle_pose(clip, skeleton, settings, clip.duration).unwrap();
+                let root_id =
+                    als_ext::root_motion_defaults::derive_default_root_bone(clip, skeleton)
+                        .unwrap()
+                        .id();
+                let locked_root = pose.get_bone(root_id).unwrap();
+                let reference = skeleton.default_transforms(root_id).unwrap().local;
+                assert_eq!(locked_root.translation, Some(reference.translation));
+                assert_eq!(locked_root.rotation, Some(reference.rotation));
+                assert_eq!(pose.paths.len(), 79);
+                assert!(context.curves_are_authoritative && context.curves.len() > 5);
+                if kind == MantleKind::Low {
+                    let (_, low) = sample_mantle_pose(clip, skeleton, settings, 0.8).unwrap();
+                    let right_settings = mantle_montage_settings(MantleKind::LowRight);
+                    let (_, right) =
+                        sample_mantle_pose(clip, skeleton, right_settings, 0.8).unwrap();
+                    assert_eq!(settings.clip, right_settings.clip);
+                    assert_eq!(low.curves["LayerArmRight"], -1.0);
+                    assert!(!right.curves.contains_key("LayerArmRight"));
+                    assert_eq!(low.curves["PoseStanding"], 1.0);
+                    let mut controlled: MantleSourceSettings =
+                        ron::from_str(als_core::mantle::MANTLE_SOURCE_DATA).unwrap();
+                    let controlled = &mut controlled.montages[kind.action_settings().montage_index];
+                    controlled.sequence_curves.0.insert(
+                        "LayerArmRight".into(),
+                        als_ext::als_curves::AlsFloatCurve {
+                            times: vec![0.0],
+                            values: vec![0.5],
+                            interps: vec![als_ext::als_curves::AlsKeyInterp::Linear],
+                            ..default()
+                        },
+                    );
+                    let (_, overridden) =
+                        sample_mantle_pose(clip, skeleton, controlled, 0.8).unwrap();
+                    assert_eq!(overridden.curves["LayerArmRight"], -1.0);
+                    assert_eq!(overridden.curves["PoseStanding"], 1.0);
+                }
                 let root = sample_mantle_root(clip, skeleton, clip.duration).unwrap();
                 assert!(
                     root.translation.distance(Vec3::new(
@@ -375,5 +486,7 @@ mod tests {
             );
             app.world_mut().despawn(entity);
         }
+        assert_eq!(MANTLE_SETTINGS.stop_blend_out_seconds, 0.3);
+        assert!(MANTLE_SETTINGS.start_ragdoll_on_target_destruction);
     }
 }

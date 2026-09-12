@@ -249,7 +249,7 @@ pub enum SourceRootLock {
     Zero,
 }
 
-pub(crate) fn apply_source_root_lock(
+pub fn apply_source_root_lock(
     pose: &mut Pose,
     clip: &GraphClip,
     skeleton: &Skeleton,

@@ -33,22 +33,6 @@ const SOURCE_ROLL_MONTAGE: &str = "/ALS/ALS/Animations/Actions/Roll/AM_Als_Roll.
 const SOURCE_SPRINT: &str = "/ALS/ALS/Animations/Grounded/Sprint/A_Als_Sprint.A_Als_Sprint";
 const SOURCE_SPRINT_ACCELERATION: &str =
     "/ALS/ALS/Animations/Grounded/Sprint/A_Als_Sprint_Acceleration.A_Als_Sprint_Acceleration";
-const SOURCE_MANTLE_HIGH_SEQUENCE: &str =
-    "/ALS/ALS/Animations/Actions/Mantle/A_Als_Mantle_High.A_Als_Mantle_High";
-const SOURCE_MANTLE_HIGH_MONTAGE: &str =
-    "/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_High.AM_Als_Mantle_High";
-const SOURCE_MANTLE_LOW_LEFT_SEQUENCE: &str =
-    "/ALS/ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Left.A_Als_Mantle_Low_Left";
-const SOURCE_MANTLE_LOW_LEFT_MONTAGE: &str =
-    "/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low_Left.AM_Als_Mantle_Low_Left";
-const SOURCE_MANTLE_LOW_RIGHT_SEQUENCE: &str =
-    "/ALS/ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Right.A_Als_Mantle_Low_Right";
-const SOURCE_MANTLE_LOW_RIGHT_MONTAGE: &str =
-    "/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low.AM_Als_Mantle_Low";
-const SOURCE_MANTLE_LOW_BOTH_MONTAGE: &str =
-    "/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low_BothArms.AM_Als_Mantle_Low_BothArms";
-const SOURCE_MANTLE_LOW_BOX_MONTAGE: &str =
-    "/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low_Box.AM_Als_Mantle_Low_Box";
 const ROLL_CROUCH_ON_START: bool = true;
 
 #[derive(Asset, TypePath, Deserialize, Clone, Debug)]
@@ -346,27 +330,8 @@ fn push_playback(
 }
 
 fn mantle_sources(kind: MantleKind) -> (&'static str, &'static str) {
-    match kind {
-        MantleKind::High | MantleKind::InAir => {
-            (SOURCE_MANTLE_HIGH_SEQUENCE, SOURCE_MANTLE_HIGH_MONTAGE)
-        }
-        MantleKind::LowLeft => (
-            SOURCE_MANTLE_LOW_LEFT_SEQUENCE,
-            SOURCE_MANTLE_LOW_LEFT_MONTAGE,
-        ),
-        MantleKind::LowRight => (
-            SOURCE_MANTLE_LOW_RIGHT_SEQUENCE,
-            SOURCE_MANTLE_LOW_RIGHT_MONTAGE,
-        ),
-        MantleKind::LowBothHands => (
-            SOURCE_MANTLE_LOW_RIGHT_SEQUENCE,
-            SOURCE_MANTLE_LOW_BOTH_MONTAGE,
-        ),
-        MantleKind::LowBox => (
-            SOURCE_MANTLE_LOW_RIGHT_SEQUENCE,
-            SOURCE_MANTLE_LOW_BOX_MONTAGE,
-        ),
-    }
+    let settings = crate::mantle_drive::mantle_montage_settings(kind);
+    (&settings.source_sequence, &settings.source_montage)
 }
 
 fn graph_clip_for_source<'a>(
@@ -883,17 +848,32 @@ mod tests {
 
     #[test]
     fn source_paths_select_the_expected_mantle_variants() {
+        let manifest: AlsNotifyManifest = serde_json::from_str(include_str!("../assets/animation_events/als_notify_manifest.json")).unwrap();
+        for kind in [MantleKind::High, MantleKind::InAir, MantleKind::Low, MantleKind::LowLeft, MantleKind::LowRight, MantleKind::LowBothHands, MantleKind::LowBox] {
+            let settings = crate::mantle_drive::mantle_montage_settings(kind);
+            let (sequence, montage) = mantle_sources(kind);
+            for source in [sequence, montage] {
+                let record = source_clip(&manifest, source).unwrap();
+                assert_eq!(record.runtime_segments.len(), 1);
+                assert_eq!(record.runtime_segments[0].graph_clip, settings.clip);
+            }
+            let action = source_clip(&manifest, montage).unwrap().events.iter()
+                .find(|event| event.class_name == "AlsAnimNotifyState_SetLocomotionAction").unwrap();
+            assert_eq!(action.start_time, 0.0);
+            assert!((action.end_time - if kind.is_high() { 2.066667 } else { 0.966667 }).abs() < 1e-6);
+        }
+        assert_ne!(mantle_sources(MantleKind::Low).1, mantle_sources(MantleKind::LowRight).1);
         assert_eq!(
             mantle_sources(MantleKind::High).0,
-            SOURCE_MANTLE_HIGH_SEQUENCE
+            "/ALS/ALS/Animations/Actions/Mantle/A_Als_Mantle_High.A_Als_Mantle_High"
         );
         assert_eq!(
             mantle_sources(MantleKind::LowBothHands).1,
-            SOURCE_MANTLE_LOW_BOTH_MONTAGE
+            "/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low_BothArms.AM_Als_Mantle_Low_BothArms"
         );
         assert_eq!(
             mantle_sources(MantleKind::LowBox).1,
-            SOURCE_MANTLE_LOW_BOX_MONTAGE
+            "/ALS/ALS/Animations/Actions/Mantle/AM_Als_Mantle_Low_Box.AM_Als_Mantle_Low_Box"
         );
     }
 

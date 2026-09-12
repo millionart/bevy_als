@@ -2,6 +2,7 @@ use avian3d::prelude::{
     Collider, LinearVelocity, ShapeCastConfig, SpatialQuery, SpatialQueryFilter,
 };
 use bevy::prelude::*;
+use std::{collections::HashMap, sync::LazyLock};
 
 use crate::character::{
     ALS_CHARACTER_CAPSULE_HALF_HEIGHT, ALS_CHARACTER_CAPSULE_RADIUS, ALS_CHARACTER_FLOOR_CLEARANCE,
@@ -48,10 +49,12 @@ pub const MANTLE_IN_AIR_TRACE: MantleTraceSettings = MantleTraceSettings {
     start_location_offset: 0.55,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Deserialize)]
 pub struct MantleActionSettings {
     pub sequence_length: f32,
     pub rate_scale: f32,
+    pub montage_index: usize,
+    pub blend_in_seconds: f32,
     pub start_time_reference_min_height: f32,
     pub start_time_reference_max_height: f32,
     pub start_time_at_min_height: f32,
@@ -135,44 +138,25 @@ impl Default for AlsMantleStartTimeSettings {
     }
 }
 
-pub const MANTLE_HIGH_ACTION: MantleActionSettings = MantleActionSettings {
-    sequence_length: 2.666_666_7,
-    rate_scale: 1.2,
-    start_time_reference_min_height: 1.25,
-    start_time_reference_max_height: 2.0,
-    start_time_at_min_height: 0.6,
-    start_time_at_max_height: 0.0,
-    motion_warping_start_time: 0.3,
-    motion_warping_end_time: 0.6,
-};
+pub const MANTLE_SOURCE_DATA: &str =
+    include_str!("../../../assets/character/als_mantle_settings.ron");
 
-pub const MANTLE_IN_AIR_ACTION: MantleActionSettings = MantleActionSettings {
-    sequence_length: 2.666_666_7,
-    rate_scale: 1.2,
-    start_time_reference_min_height: 1.25,
-    start_time_reference_max_height: 2.0,
-    start_time_at_min_height: 0.8,
-    start_time_at_max_height: 0.0,
-    motion_warping_start_time: 0.3,
-    motion_warping_end_time: 0.6,
-};
+#[derive(serde::Deserialize)]
+struct MantleSourceSettings {
+    actions: HashMap<MantleKind, MantleActionSettings>,
+    low_kinds: HashMap<OverlayState, MantleKind>,
+}
 
-pub const MANTLE_LOW_ACTION: MantleActionSettings = MantleActionSettings {
-    sequence_length: 1.5,
-    rate_scale: 1.0,
-    start_time_reference_min_height: 0.5,
-    start_time_reference_max_height: 1.0,
-    start_time_at_min_height: 0.5,
-    start_time_at_max_height: 0.0,
-    motion_warping_start_time: 0.3,
-    motion_warping_end_time: 0.7,
-};
+static MANTLE_SETTINGS: LazyLock<MantleSourceSettings> = LazyLock::new(|| {
+    ron::from_str(MANTLE_SOURCE_DATA).expect("generated mantle settings are valid")
+});
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, serde::Deserialize)]
 pub enum MantleKind {
     #[default]
     High,
     InAir,
+    Low,
     LowLeft,
     LowRight,
     LowBothHands,
@@ -181,22 +165,11 @@ pub enum MantleKind {
 
 impl MantleKind {
     pub fn action_settings(self) -> MantleActionSettings {
-        match self {
-            Self::High => MANTLE_HIGH_ACTION,
-            Self::InAir => MANTLE_IN_AIR_ACTION,
-            Self::LowLeft | Self::LowRight | Self::LowBothHands | Self::LowBox => MANTLE_LOW_ACTION,
-        }
+        MANTLE_SETTINGS.actions[&self]
     }
 
     pub fn is_high(self) -> bool {
         matches!(self, Self::High | Self::InAir)
-    }
-
-    pub fn graph_low_right_weight(self) -> f32 {
-        match self {
-            Self::LowLeft => 0.0,
-            Self::High | Self::InAir | Self::LowRight | Self::LowBothHands | Self::LowBox => 1.0,
-        }
     }
 }
 
@@ -205,7 +178,8 @@ impl AlsMantleStartTimeSettings {
         match kind {
             MantleKind::High => &self.high,
             MantleKind::InAir => &self.in_air,
-            MantleKind::LowLeft
+            MantleKind::Low
+            | MantleKind::LowLeft
             | MantleKind::LowRight
             | MantleKind::LowBothHands
             | MantleKind::LowBox => &self.low,
@@ -302,21 +276,11 @@ pub fn mantle_trace_settings(locomotion: LocomotionState) -> MantleTraceSettings
 }
 
 pub fn select_low_mantle_kind(overlay: OverlayState) -> MantleKind {
-    match overlay {
-        OverlayState::Injured => MantleKind::LowLeft,
-        OverlayState::HandsTied => MantleKind::LowBothHands,
-        OverlayState::Box => MantleKind::LowBox,
-        OverlayState::Rifle
-        | OverlayState::Default
-        | OverlayState::Masculine
-        | OverlayState::Feminine
-        | OverlayState::PistolOneHanded
-        | OverlayState::PistolTwoHanded
-        | OverlayState::Bow
-        | OverlayState::Torch
-        | OverlayState::Binoculars
-        | OverlayState::Barrel => MantleKind::LowRight,
-    }
+    MANTLE_SETTINGS
+        .low_kinds
+        .get(&overlay)
+        .copied()
+        .unwrap_or(MANTLE_SETTINGS.low_kinds[&OverlayState::Default])
 }
 
 pub fn select_mantle_kind(
@@ -459,8 +423,14 @@ pub fn mantle_motion_warp_rotation_amount(kind: MantleKind, clip_time: f32) -> f
     alpha * alpha * (3.0 - 2.0 * alpha)
 }
 
-pub fn mantle_blend_in_amount(time: f32) -> f32 {
-    (time / MANTLE_BLEND_IN_SECS).clamp(0.0, 1.0)
+pub fn mantle_blend_in_amount(kind: MantleKind, time: f32) -> f32 {
+    let duration = kind.action_settings().blend_in_seconds;
+    let alpha = if duration > 1e-8 {
+        (time / duration).clamp(0.0, 1.0)
+    } else {
+        1.0
+    };
+    alpha * alpha * (3.0 - 2.0 * alpha)
 }
 
 pub fn mantle_trace_direction(input: &MantleDetectionInput) -> Option<Vec3> {
@@ -915,12 +885,12 @@ impl AlsMantleState {
     }
 
     pub fn location_warp_amount_at(&self, time: f32) -> f32 {
-        mantle_blend_in_amount(time)
+        mantle_blend_in_amount(self.kind, time)
             * mantle_motion_warp_location_amount(self.kind, self.clip_time_at(time))
     }
 
     pub fn rotation_warp_amount_at(&self, time: f32) -> f32 {
-        mantle_blend_in_amount(time)
+        mantle_blend_in_amount(self.kind, time)
             * mantle_motion_warp_rotation_amount(self.kind, self.clip_time_at(time))
     }
 
@@ -995,9 +965,19 @@ mod tests {
 
     #[test]
     fn source_type_selection_uses_strict_high_threshold_and_overlay_route() {
+        for overlay in [
+            OverlayState::Default,
+            OverlayState::Masculine,
+            OverlayState::Feminine,
+        ] {
+            assert_eq!(select_low_mantle_kind(overlay), MantleKind::Low);
+        }
+        for overlay in [OverlayState::Bow, OverlayState::Torch, OverlayState::Barrel] {
+            assert_eq!(select_low_mantle_kind(overlay), MantleKind::LowLeft);
+        }
         assert_eq!(
             select_mantle_kind(LocomotionState::Grounded, OverlayState::Default, 1.25),
-            MantleKind::LowRight
+            MantleKind::Low
         );
         assert_eq!(
             select_mantle_kind(LocomotionState::Grounded, OverlayState::Default, 1.250_01),
@@ -1104,6 +1084,7 @@ mod tests {
 
     #[test]
     fn motion_warp_blend_modes_match_source_windows() {
+        assert!((mantle_blend_in_amount(MantleKind::Low, 0.05) - 0.15625).abs() < 1e-6);
         assert!(mantle_motion_warp_location_amount(MantleKind::High, 0.3) <= 1e-6);
         assert!((mantle_motion_warp_location_amount(MantleKind::High, 0.6) - 1.0).abs() < 1e-6);
         assert!((mantle_motion_warp_rotation_amount(MantleKind::High, 0.45) - 0.5).abs() < 1e-6);

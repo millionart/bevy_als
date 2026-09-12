@@ -8,6 +8,7 @@ license.workspace = true
 [dependencies]
 bevy = { workspace = true }
 serde = { workspace = true }
+ron = { workspace = true }
 
 # 运动基座（M1.4 角色组装 / M3 参数映射消费）
 bevy-tnua = { workspace = true }
@@ -15,6 +16,3 @@ bevy-tnua-avian3d = { workspace = true }
 avian3d = { workspace = true }
 # 输入抽象（M1.3 消费）
 bevy_enhanced_input = { workspace = true }
-
-[dev-dependencies]
-ron = { workspace = true }
