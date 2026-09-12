@@ -1285,3 +1285,13 @@
 
 
   - 08e3完成2026-09-12 12:44:20：control_rig增加真实两手TwoBone权重和spine_01输入/输出差异见证，旧九项条件保留；新全程序fixture先失败25.009s、通过24.487s，移除Spine守卫20.266s失败，最终两项focused19.826s通过。功能审计自测0.563s通过：只延期三个已记录时间预算，未知失败、故障、数据无效及物理步仍拒绝；原report及阈值不改，已有startup10功能通过且full_pass=false。374扩展38.128s、308项目49.843s、实际入口156.769s、247相同规格3.474s及八manifest全部PASS。未添加跳过Mantle场景、未改任何原FootIk路由；Scope和源姿态合同保留。开始12:07:25、预估12:47:25、实际12:44:20，偏差-185s，本段静态完成；下一步先startup/control_rig功能运行，完整FootIk待Mantle完成。
+
+
+- [x] BF115.08e4 CR动作公共功能验收：开始2026-09-12 12:44:41、预估2026-09-12 13:14:41。依赖571f3ab及374/308回归、同入口156.769s、247规格/八manifest；按startup→control_rig验证真实Rig两手权重、Spine输出、足部和原通用骨骼/时间/图错误/进展守卫。使用明确FunctionalOnly范围，保留全部原性能失败；CaptureCount0。依据既有15秒startup/六秒CR窗口及新失败fixture估时；完整foot_ik、ragdoll/get_up与Mantle将在Mantle运动/Slot闭合后收口，不用跳过Mantle的新场景。
+
+  - 08e4 startup前2026-09-12 12:44:41：原Root/Rig源、165指令/79骨/11输入不变，当前入口已去除全部性能探针。功能范围严格检查所有非性能条件，第12号目录先确认无驱动正常输出。
+
+
+  - 08e4 startup后/CR前2026-09-12 12:45:32：startup12公共功能15.425s PASS，manual/functional validator均exit0；原完整verdict仍因frame/eval预算为false，性能暂停而未标通过。骨架、Pose、时间、图错误及进展等功能审计无问题，截图0。接着以同一入口运行control_rig1，要求实际两手Unit权重和Spine前后差异，新observed见证不能被Actor输入镜像替代。
+
+  - 08e4完成2026-09-12 12:48:09：control_rig1公共功能13.420s PASS，manual/validator均exit0；两手实际TwoBoneIK权重均1、spine_01局部旋转变化0.071817rad，十项场景覆盖全部通过，骨骼/姿态/时间/图错误及watchdog审计无问题，截图0。原完整报告仍因eval预算为false，仅功能范围通过，未恢复性能任务。开始12:44:41、预估13:14:41、实际12:48:09，偏差-1592s，本段完成；CR完整足部、ragdoll/get_up及Root收口继续等待Mantle源运动与Slot接入。
