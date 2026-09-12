@@ -1747,7 +1747,7 @@ fn graph_error_pose_classification(root_pose: RootPoseActivity) -> String {
 
 fn graph_evaluation_failure(
     config: &AnimationVisualValidationConfig,
-    error: &GraphError,
+    error: Option<&GraphError>,
     player: &AnimationGraphPlayer,
     asset_server: &AssetServer,
     graphs: &Assets<AnimationGraph>,
@@ -1761,7 +1761,7 @@ fn graph_evaluation_failure(
     rotation_mode: Option<String>,
     reported_before_ready: bool,
 ) -> GraphEvaluationFailure {
-    let node_candidates = graph_error_node_id(error)
+    let node_candidates = error.and_then(graph_error_node_id)
         .map(|node_id| graph_failure_node_candidates(player, asset_server, graphs, node_id))
         .unwrap_or_default();
     let active_context_nodes = graph_failure_context_nodes(player, asset_server, graphs);
@@ -1769,7 +1769,7 @@ fn graph_evaluation_failure(
         .iter()
         .filter(|candidate| candidate.active_context)
         .count();
-    let candidate_resolution = if graph_error_node_id(error).is_none() {
+    let candidate_resolution = if error.and_then(graph_error_node_id).is_none() {
         "not_applicable".to_owned()
     } else if active_node_candidate_count == 1 {
         "resolved_active_context".to_owned()
@@ -1785,10 +1785,12 @@ fn graph_evaluation_failure(
         _ => None,
     };
     GraphEvaluationFailure {
-        category: "graph_evaluation_error".to_owned(),
-        raw_error: format!("{error:?}"),
-        error_kind: graph_error_kind(error),
-        pin: graph_error_pin(error),
+        category: if error.is_some() { "graph_evaluation_error" } else { "root_pose_contract_error" }.to_owned(),
+        raw_error: error.map(|error| format!("{error:?}")).unwrap_or_else(|| format!(
+            "Root pose contract failed after graph evaluation: output_present={}, bone_count={}, active_channel_count={}",
+            root_pose.output_present, root_pose.bone_count, root_pose.active_channel_count)),
+        error_kind: error.map(graph_error_kind).unwrap_or_else(|| if root_pose.output_present { "EmptyRootPose" } else { "MissingRootPose" }.to_owned()),
+        pin: error.and_then(graph_error_pin),
         node_candidates,
         active_context_nodes,
         active_node_candidate_count,
@@ -3090,7 +3092,7 @@ fn record_graph_evaluation_failure(
     state: &mut AnimationVisualValidationState,
     stages: &AnimationVisualStageTiming,
     manual_integration: Option<&ManualIntegrationGateReport>,
-    error: &GraphError,
+    error: Option<&GraphError>,
     player: &AnimationGraphPlayer,
     asset_server: &AssetServer,
     graphs: &Assets<AnimationGraph>,
@@ -3248,44 +3250,13 @@ fn collect_animation_visual_evidence(
     >,
     children: Query<&Children>,
     named_transforms: Query<(&Name, &GlobalTransform, &Transform)>,
-    cameras: Query<Entity, With<Camera3d>>,
+    cameras: (Query<Entity, With<Camera3d>>, Query<(&crate::camera_component::AlsSourceCameraComponent, &AnimatedSceneInstance)>),
 ) {
-    let Ok((_avatar, instance, avatar_transform, avatar_local)) = avatars.single() else {
-        return;
-    };
-    let Ok((player, context, player_world, player_local)) = players.get(instance.player_entity())
-    else {
-        return;
-    };
-    if state.fatal_exit_frames_remaining.is_some() {
-        return;
-    }
-    let graph_asset = match player.get_animation_source() {
-        AnimationSource::Graph(handle) => graphs.get(handle),
-        _ => None,
-    };
-    let graph_ready = graph_asset.is_some();
-    let graph_error = player.get_error();
-    let root_pose = root_pose_activity(player);
-    let root_pose_value = player.get_default_output_pose();
+    if state.primary_failure.is_some() { return; }
     let direction_case = animation_window
         .as_deref()
         .and_then(|evidence| evidence.label)
         .map(str::to_owned);
-    let direction_settled = animation_window
-        .as_deref()
-        .is_some_and(|evidence| evidence.settled);
-    if let Some(evidence) = animation_window.as_deref()
-        && let Some(label) = evidence.label
-        && (evidence.requires_pre_rig_motion
-            || evidence.requires_final_pose_motion
-            || evidence.requires_non_reference_root_pose
-            || evidence.requires_source_pose_chain
-            || evidence.requires_actor_yaw_motion
-            || !evidence.expected_lifecycle_stages.is_empty())
-    {
-        state.required_motion_windows.insert(label.to_owned());
-    }
     let phase = phase_evidence
         .as_deref()
         .and_then(|evidence| (!evidence.phase.is_empty()).then_some(evidence.phase.as_str()));
@@ -3305,6 +3276,55 @@ fn collect_animation_visual_evidence(
     let rotation_mode = phase_evidence.as_deref().and_then(|evidence| {
         (!evidence.rotation_mode.is_empty()).then_some(evidence.rotation_mode.as_str())
     });
+    let body_has_error = avatars.single().ok()
+        .and_then(|(_, instance, _, _)| players.get(instance.player_entity()).ok())
+        .is_some_and(|(player, _, _, _)| player.get_error().is_some());
+    if !body_has_error {
+        for (component, instance) in &cameras.1 {
+            if !component.is_active() { continue; }
+            let Ok((player, _, _, _)) = players.get(instance.player_entity()) else { continue; };
+            let error = player.get_error();
+            let root_pose = root_pose_activity(player);
+            let evaluated = player.get_context_arena().is_some_and(|arena| arena.frame_index() > 0);
+            if error.is_none() && (!evaluated || root_pose_has_animation_channels(root_pose)) { continue; }
+            record_graph_evaluation_failure(
+                &mut commands, &config, &mut state, &stages, manual_integration.as_deref(),
+                error.as_ref(), player, &asset_server, &graphs, root_pose,
+                direction_case.as_deref(), phase, phase_elapsed_secs, locomotion, gait, stance, rotation_mode,
+                None, &BTreeMap::new(), cameras.0.iter().next().is_some(),
+            );
+            return;
+        }
+    }
+    let Ok((_avatar, instance, avatar_transform, avatar_local)) = avatars.single() else {
+        return;
+    };
+    let Ok((player, context, player_world, player_local)) = players.get(instance.player_entity())
+    else {
+        return;
+    };
+    let graph_asset = match player.get_animation_source() {
+        AnimationSource::Graph(handle) => graphs.get(handle),
+        _ => None,
+    };
+    let graph_ready = graph_asset.is_some();
+    let graph_error = player.get_error();
+    let root_pose = root_pose_activity(player);
+    let root_pose_value = player.get_default_output_pose();
+    let direction_settled = animation_window
+        .as_deref()
+        .is_some_and(|evidence| evidence.settled);
+    if let Some(evidence) = animation_window.as_deref()
+        && let Some(label) = evidence.label
+        && (evidence.requires_pre_rig_motion
+            || evidence.requires_final_pose_motion
+            || evidence.requires_non_reference_root_pose
+            || evidence.requires_source_pose_chain
+            || evidence.requires_actor_yaw_motion
+            || !evidence.expected_lifecycle_stages.is_empty())
+    {
+        state.required_motion_windows.insert(label.to_owned());
+    }
     let temporal_rebase_epoch = phase_evidence
         .as_deref()
         .map(|evidence| evidence.temporal_rebase_epoch)
@@ -3409,7 +3429,7 @@ fn collect_animation_visual_evidence(
             &mut state,
             &stages,
             manual_integration.as_deref(),
-            error,
+            Some(error),
             player,
             &asset_server,
             &graphs,
@@ -3423,7 +3443,7 @@ fn collect_animation_visual_evidence(
             rotation_mode,
             foot_ik_sample.as_ref(),
             &bones,
-            cameras.iter().next().is_some(),
+            cameras.0.iter().next().is_some(),
         );
         return;
     }
@@ -3681,7 +3701,7 @@ fn collect_animation_visual_evidence(
         && state
             .next_capture
             .is_some_and(|next_capture| now >= next_capture)
-        && let Some(camera) = cameras.iter().next()
+        && let Some(camera) = cameras.0.iter().next()
     {
         let path = config
             .directory
@@ -3715,7 +3735,7 @@ fn collect_animation_visual_evidence(
         && state
             .captured_direction_cases
             .insert(direction_case.clone())
-        && let Some(camera) = cameras.iter().next()
+        && let Some(camera) = cameras.0.iter().next()
     {
         let path = config
             .directory
@@ -3742,7 +3762,7 @@ fn collect_animation_visual_evidence(
     if config.capture_count > 0
         && nonfault_capture_allowed(fault_detected, teleport_detected)
         && state.teleport_captures < 4
-        && let Some(camera) = cameras.iter().next()
+        && let Some(camera) = cameras.0.iter().next()
     {
         let path = config
             .directory
@@ -4116,6 +4136,79 @@ mod tests {
             graph_error_pose_classification(RootPoseActivity::default()),
             "missing_root_pose_likely_reference_or_a_pose"
         );
+    }
+
+    #[test]
+    fn camera_graph_failure_is_reported_before_body_ready_and_exits() {
+        use bevy_animation_graph::core::animation_node::AnimationNode;
+        use bevy::ecs::system::RunSystemOnce;
+        for failure_case in ["edge", "missing", "empty"] {
+            let (mut app, _, component, _) = crate::camera_component::tests::loaded_camera_scene();
+            let directory = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/bf115_camera").join(format!("c4c_camera_fault_{failure_case}"));
+            fs::create_dir_all(&directory).unwrap();
+            let report_path = directory.join("report.json");
+            if report_path.exists() { fs::remove_file(&report_path).unwrap(); }
+            app.insert_resource(AnimationVisualValidationConfig {
+                directory, case: "camera".into(), capture_count: 0, capture_interval: Duration::from_secs(1),
+                min_pose_samples: 1, warmup: Duration::ZERO, max_frame_p95_ms: 25.0, max_frame_ms: 75.0,
+                max_eval_p95_ms: 4.0, max_physics_steps_per_render: 3.0,
+            }).init_resource::<AnimationVisualValidationState>()
+                .init_resource::<AnimationVisualStageTiming>()
+                .init_resource::<AnimationVisualPreRigPose>()
+                .insert_resource(ManualRuntimePhaseEvidence { phase: "Camera".into(), gait: "Walking".into(), ..default() })
+                .add_systems(PostUpdate, (collect_animation_visual_evidence, finish_fatal_animation_visual_failure).chain().after(AlsCameraSet));
+            let player_entity = app.world().get::<AnimatedSceneInstance>(component).unwrap().player_entity();
+            let handle = match app.world().get::<AnimationGraphPlayer>(player_entity).unwrap().get_animation_source() {
+                AnimationSource::Graph(handle) => handle.clone(),
+                _ => panic!("Camera must use its source graph"),
+            };
+            app.world_mut().run_system_once(collect_animation_visual_evidence).unwrap();
+            assert!(!report_path.exists(), "Valid camera reference pose was rejected");
+            let skeleton = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap().skeleton().clone();
+            let mut fresh_player = AnimationGraphPlayer::new(skeleton);
+            fresh_player.start(handle.clone());
+            app.world_mut().entity_mut(player_entity).insert(fresh_player);
+            app.world_mut().run_system_once(collect_animation_visual_evidence).unwrap();
+            assert!(!report_path.exists(), "Unevaluated camera was rejected");
+            let mut graph = AnimationGraph::new();
+            if failure_case != "missing" { graph.add_output_data("pose".into(), bevy_animation_graph::core::edge_data::DataSpec::Pose); }
+            if failure_case == "empty" {
+                let node = AnimationNode::new("Empty camera pose fixture", als_ext::LocalRefPoseNode { internalize_time: true });
+                graph.add_output_data_edge(node.id, "pose", "pose");
+                graph.add_node(node);
+            }
+            *app.world_mut().resource_mut::<Assets<AnimationGraph>>().get_mut(&handle).unwrap() = graph;
+            app.world_mut().get_mut::<AnimationGraphPlayer>(player_entity).unwrap().start(handle);
+            app.world_mut().get_mut::<crate::camera_component::AlsSourceCameraComponent>(component).unwrap().deactivate();
+            app.update();
+            assert!(!report_path.exists(), "Inactive camera was evaluated as a failure");
+            app.world_mut().get_mut::<crate::camera_component::AlsSourceCameraComponent>(component).unwrap().activate(true);
+            app.update();
+            assert!(report_path.exists(), "Camera {failure_case} failure was hidden by missing body Avatar");
+            let report: serde_json::Value = serde_json::from_slice(&fs::read(&report_path).unwrap()).unwrap();
+            let failure = &report["primary_failure"];
+            assert_eq!(failure["case"], "camera");
+            assert_eq!(failure["phase"], "Camera");
+            assert_eq!(failure["reported_before_ready"], true);
+            assert_eq!(failure["screenshot_status"], "disabled_by_configuration");
+            assert!(failure["screenshot_path"].is_null());
+            assert_eq!(failure["root_graph_path"], "graphs/runtime/als_generated_camera.animgraph.ron");
+            if failure_case == "edge" {
+                assert_eq!(failure["category"], "graph_evaluation_error");
+                assert!(failure["raw_error"].as_str().unwrap().contains("pose"));
+                assert_eq!(failure["pin"]["pin_id"], "pose");
+            } else {
+                assert!(app.world().get::<AnimationGraphPlayer>(player_entity).unwrap().get_error().is_none());
+                assert_eq!(failure["category"], "root_pose_contract_error");
+                assert_eq!(failure["error_kind"], if failure_case == "missing" { "MissingRootPose" } else { "EmptyRootPose" });
+            }
+            let mut exits = app.world().resource::<Messages<AppExit>>().get_cursor();
+            assert!(exits.read(app.world().resource::<Messages<AppExit>>()).next().is_none());
+            app.update();
+            assert!(exits.read(app.world().resource::<Messages<AppExit>>()).any(|event| matches!(event, AppExit::Error(code) if code.get() == 92)));
+            let final_report: serde_json::Value = serde_json::from_slice(&fs::read(&report_path).unwrap()).unwrap();
+            assert_eq!(final_report["primary_failure"], *failure);
+        }
     }
 
     #[test]

@@ -1797,7 +1797,21 @@
         "2",
         "actual_camera_scene"
       ],
-      "evidence": "target/bf115_camera/c4b_actual_scene_contract.watchdog.json"
+      "evidence": "target/bf115_camera/c4c_regression.watchdog.json"
+    },
+    {
+      "label": "camera_graph_failure_report_before_body_ready",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--lib",
+        "--jobs",
+        "2",
+        "camera_graph_failure_is_reported"
+      ],
+      "evidence": "target/bf115_camera/c4c_regression.watchdog.json"
     }
   ]
 }

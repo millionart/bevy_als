@@ -274,13 +274,12 @@ fn update_camera_animation(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use bevy::world_serialization::WorldSerializationPlugin;
     use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
 
-    #[test]
-    fn actual_camera_scene_loads_binds_and_evaluates_once_with_source_inputs() {
+    pub(crate) fn loaded_camera_scene() -> (App, Entity, Entity, Handle<bevy_animation_graph::core::animated_scene::AnimatedScene>) {
         let mut app = App::new();
         app.add_plugins((
             MinimalPlugins,
@@ -387,6 +386,12 @@ mod tests {
             );
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
+        (app, character, component, scene)
+    }
+
+    #[test]
+    fn actual_camera_scene_loads_binds_and_evaluates_once_with_source_inputs() {
+        let (mut app, character, component, scene) = loaded_camera_scene();
         app.world_mut()
             .resource_mut::<Time<Virtual>>()
             .set_relative_speed(0.2);

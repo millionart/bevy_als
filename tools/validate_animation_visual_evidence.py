@@ -1023,7 +1023,7 @@ def primary_failure_issues(report):
     if not isinstance(failure, dict):
         return ["graph failure diagnostics are missing: primary_failure"], None
     issues = []
-    if failure.get("category") != "graph_evaluation_error":
+    if failure.get("category") not in {"graph_evaluation_error", "root_pose_contract_error"}:
         issues.append("primary failure category is invalid")
     for key in ("raw_error", "error_kind", "root_graph_recursive_dependencies", "case", "pose_classification", "screenshot_status", "candidate_resolution"):
         if not isinstance(failure.get(key), str) or not failure.get(key):
@@ -1131,6 +1131,10 @@ def primary_failure_issues(report):
             issues.append("primary failure reference root pose classification is invalid")
         elif root_pose.get("output_present") is True and root_pose.get("active_channel_count", 0) > 0 and classification != "root_pose_channels_present_graph_error":
             issues.append("primary failure active root pose classification is invalid")
+        if failure.get("category") == "root_pose_contract_error":
+            expected_kind = "EmptyRootPose" if root_pose.get("output_present") else "MissingRootPose"
+            if failure.get("error_kind") != expected_kind or root_pose.get("active_channel_count") != 0:
+                issues.append("primary failure root pose contract is inconsistent")
     status = failure.get("screenshot_status")
     allowed_status = {
         "capture_scheduled",
@@ -1936,6 +1940,20 @@ def run_self_test():
         report["primary_failure"]["pose_classification"] = "root_pose_channels_present_graph_error"
         result = audit(report, 2)
         assert any("missing root pose classification" in issue for issue in result["issues"])
+        for present, kind in [(False, "MissingRootPose"), (True, "EmptyRootPose")]:
+            report = fixture_report(paths)
+            report["graph_errors"] = ["Root pose contract failed after evaluation"]
+            report["primary_failure"] = fixture_graph_failure()
+            failure = report["primary_failure"]
+            failure.update(category="root_pose_contract_error", error_kind=kind,
+                raw_error="Root pose contract failed after evaluation", pin=None,
+                node_candidates=[], active_node_candidate_count=0, candidate_resolution="not_applicable")
+            failure["root_pose"]["output_present"] = present
+            failure["pose_classification"] = "reference_root_pose_likely_a_pose" if present else "missing_root_pose_likely_reference_or_a_pose"
+            assert not primary_failure_issues(report)[0]
+            assert not audit(report, 2)["pass"]
+            failure["root_pose"]["active_channel_count"] = 1
+            assert primary_failure_issues(report)[0]
         report = fixture_report(paths)
         report["stage_time"].pop("physics_step")
         assert not audit(report, 2)["pass"]
