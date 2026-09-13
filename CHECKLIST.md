@@ -43,7 +43,7 @@
 | 编号 | 任务 | 验收边界 | 状态 |
 |---|---|---|---|
 | BF116.01 | `/ALS/ALSCamera` 全目录及 Actor 相机链 | 覆盖 `AB_Als_Camera`、`B_Als_CameraComponent`、`PA_Als_Camera`、骨架/网格、设置、混合曲线、震动等全部9个资产；完成 Actor 挂载、摇臂距离/偏移、滞后、碰撞回缩、视图切换、FOV和生命周期，并通过真实入口。 | 功能完成；性能暂停 |
-| BF116.02 | `SM_Als_Stair` 上下楼梯 | 修复速度和动画表现；明确避免源版本上楼后永久改写并锁住 `rotation mode` 的 bug，进入/离开楼梯后快捷键仍可正常切换。 | 待执行 |
+| BF116.02 | `SM_Als_Stair` 上下楼梯 | 修复速度和动画表现；明确避免源版本上楼后永久改写并锁住 `rotation mode` 的 bug，进入/离开楼梯后快捷键仍可正常切换。 | 进行中 |
 | BF116.03 | `B_Als_MovingObject2` 移动平台跟随 | 角色站在移动平台上能按源规则正确跟随，核对平台、运动基座与角色调用链。 | 待执行 |
 | BF116.04 | `B_Als_RotatingObject` 旋转平台 | 平台旋转而角色未主动移动时，按源表现原地踏步保持位置，修复脚在平台上滑动的表现。 | 待执行 |
 | BF116.05 | 弓箭 Overlay 与物件动画整套 | 一并移植 `Overlays/AB_Als_Bow` 和 `OverlayObjects/Bow/AB_Als_Bow`，核对两图联动、实际动画/曲线/层混合，以及弓物件引用、挂载、输入、生命周期与 Actor 调用链。 | 待执行 |
@@ -130,3 +130,9 @@
 - 标准Actor实际挂在Mesh下的Camera组件、90度相对旋转、隐藏时图/骨更新、显式视图源、同帧曲线/时钟、激活/停用/重绑/销毁、眼位/FOV回退均有实际场景测试；源偏移/阻尼/基座/trace/FP/FOV/命名socket及独立视图多实例震动已逐项闭合。静态与实际加载合同覆盖图、骨架、网格和材质关系。
 - 公开真实入口使用run_manual.bat实际target_game/play：无驱动startup之后camera完成，22相机/326项目测试、381扩展材质回归、14图最终审计和真实首帧故障/退出协议通过。结果记录在 `target/animation_visual/bf116_01_source_camera_startup_material_fixed` 与 `target/animation_visual/bf116_01_source_camera_final`，最终报告独立核对collision→移除→TP恢复，不能由FP停trace冒充恢复。
 - 本项以功能范围结项：截图0、性能暂停，保留原始性能阈值与max_eval_p95_ms延期；全仓旧cmc_adapter_gate字段编译问题另有边界记录，不纳入本项的通过声明。下一项按用户顺序进入BF116.02楼梯速度/动画和rotation mode退出恢复；其实现尚未开始。
+
+### BF116.02 楼梯执行子项
+
+- [x] BF116.02a 楼梯、关卡事件与移动输入源闭包：开始2026-09-13 07:54:00、预估2026-09-13 08:44:00。依赖521f4bb的相机功能结项；按用户要求处理实际SM_Als_Stairs_01/02/03、上下楼速度/动画及源版rotation mode永久锁定风险。本轮已定位3个源静态网格、Playground关卡、源CMC步高/坡面行为和目标TriMesh/sensor链；先健康检查Editor并提取当次网格/关卡事件/角色设置，逐项比较碰撞几何、台阶处理、速度/动画输入、模式锁定与快捷键生命周期。源关卡事件由原生reader的同package图闭包读取，不能把旧手工场景/Actor当事实；源码明确前不改运动算法、动画图或已完相机。估时依据为3网格+1关卡+角色设置直接闭包、既有读取器与场景219Actor表、约32–48秒单份native记录；确认根因后拆成独立实现/Gate段，真实入口保持原Playground，性能/截图暂停设置延续。
+
+  - 02a完成2026-09-13 08:06:20：MCP健康2.637s连接拒绝后，本轮5份native分别70.663/32.307/32.268/39.914/35.516s通过；原生reader已有World同package图读取能力，未增加读取器分支。关卡1007对象、唯一LevelScript EventGraph为0节点，3楼梯实例均Static/BlockAll/CanStepUp；3网格均空AggGeom、ComplexAsSimple。95.056s重新导出三网格后，全部几何、索引、accessor和节点与现有原始导出完全一致，0.823s源审计PASS，阶高18/26/36cm、每份728顶点。角色CDO证实MaxStepHeight45cm、WalkableFloorZ0.71、perch15cm/0、保持水平速度。新读本地CMC MoveAlongFloor/StepUp/FindFloor/AdjustFloorHeight与角色RefreshLocomotion证明连续碰撞跨阶、下阶保持地面支撑、速度与动画读水平实际移动；目标旧辅助却以速度≤1.2m/s、0.3秒冷却和固定4cm前移触发，下阶只给Tnua额外5mm支撑距离。源与目标均无楼梯专用rotation-mode写入，尚未证实用户所述源bug的具体触发点，不移植猜测的模式覆盖；后续实际上下楼验证快捷键和原desired模式独立性。开始07:54:00、预估08:44:00、实际08:06:20、偏差-2260s；源闭包段完成，原始资产、生产代码和动画图均未改。实现分成连续跨阶/支撑的focused闭环及原Playground公共验收，沿真实速度→既有动画consumer验证，不预先复开动画图。
