@@ -585,7 +585,7 @@ pub(crate) mod tests {
         }
         let values = app.world().get::<AlsCameraCurveValues>(character).unwrap();
         assert!((values.get(als_camera::AlsCameraCurve::FirstPersonOverride) - 1.0).abs() < 1e-6);
-        assert!(values.get(als_camera::AlsCameraCurve::CameraOffsetX).abs() < 1e-5);
+        assert!(values.get(als_camera::AlsCameraCurve::CameraOffsetX).abs() < 1e-5, "first-person curves: {:?}", values.values);
         assert!((values.get(als_camera::AlsCameraCurve::CameraOffsetZ) - 3.25).abs() < 1e-5);
         assert_eq!(
             *app.world().get::<RotationMode>(character).unwrap(),

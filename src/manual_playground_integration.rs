@@ -1,6 +1,8 @@
 use std::num::NonZeroU8;
 use std::time::{Duration, Instant};
 
+mod stairs;
+
 use als_camera::{AlsCameraDebugInfo, AlsCameraRig, AlsCameraSet, AlsCameraShakeRequest};
 use als_core::character::{AlsCharacter, AlsMovementParamsHandle};
 use als_core::dynamics::AlsMovementBaseDynamicsState;
@@ -523,6 +525,7 @@ impl Plugin for ManualPlaygroundIntegrationPlugin {
                     .after(drive_manual_integration)
                     .after(bevy_enhanced_input::prelude::EnhancedInputSystems::Apply),
             )
+            .add_systems(PreUpdate, stairs::drive.after(drive_manual_integration))
             .add_systems(
                 PostUpdate,
                 (drive_control_rig_view_offset, drive_manual_rig_curves)
@@ -761,6 +764,7 @@ enum IntegrationPhase {
     LocomotionActions,
     Ragdoll,
     Camera,
+    Stairs,
     Interface,
     Notify,
     Finish,
@@ -803,6 +807,7 @@ enum IntegrationScenario {
     Ragdoll,
     GetUp,
     Camera,
+    Stairs,
     Interface,
     Notify,
 }
@@ -829,6 +834,7 @@ impl IntegrationScenario {
             Some("ragdoll") => Self::Ragdoll,
             Some("get_up") => Self::GetUp,
             Some("camera") => Self::Camera,
+            Some("stairs") => Self::Stairs,
             Some("interface") => Self::Interface,
             Some("notify") => Self::Notify,
             _ => Self::Base,
@@ -858,6 +864,7 @@ fn initial_phase(scenario: IntegrationScenario) -> IntegrationPhase {
         IntegrationScenario::Crouching => IntegrationPhase::CrouchDirectionRegression,
         IntegrationScenario::Ragdoll | IntegrationScenario::GetUp => IntegrationPhase::Ragdoll,
         IntegrationScenario::Camera => IntegrationPhase::Camera,
+        IntegrationScenario::Stairs => IntegrationPhase::Stairs,
         IntegrationScenario::Interface => IntegrationPhase::Interface,
         IntegrationScenario::Notify => IntegrationPhase::Notify,
     }
@@ -3050,6 +3057,7 @@ struct ManualIntegrationState {
     locomotion_probe: LocomotionActionProbe,
     default_overlay_probe: DefaultOverlayProbe,
     head_probe: HeadProbe,
+    stairs_probe: stairs::Probe,
     timed_out: bool,
     final_logged: bool,
     exit_requested: bool,
@@ -3165,6 +3173,7 @@ impl Default for ManualIntegrationState {
             locomotion_probe: default(),
             default_overlay_probe: default(),
             head_probe: default(),
+            stairs_probe: default(),
             timed_out: false,
             final_logged: false,
             exit_requested: false,
@@ -3625,7 +3634,7 @@ fn drive_manual_integration(
     }
 
     match state.phase {
-        IntegrationPhase::Await => {}
+        IntegrationPhase::Await | IntegrationPhase::Stairs => {}
         IntegrationPhase::LocomotionActions => {
             let index = state.locomotion_probe.case_index;
             if entering {
@@ -9532,6 +9541,17 @@ fn observe_manual_integration(
                 ("camera_shake", coverage.camera_shake),
                 ("camera_unscaled_time", coverage.camera_unscaled_time),
             ],
+            IntegrationScenario::Stairs => vec![
+                ("runtime_assembly", coverage.assembly),
+                ("animation_graph", coverage.graph),
+                ("stairs_01_up", state.stairs_probe.completed[0]),
+                ("stairs_01_down", state.stairs_probe.completed[1]),
+                ("stairs_02_up", state.stairs_probe.completed[2]),
+                ("stairs_02_down", state.stairs_probe.completed[3]),
+                ("stairs_03_up", state.stairs_probe.completed[4]),
+                ("stairs_03_down", state.stairs_probe.completed[5]),
+                ("stairs_progress", state.stairs_probe.failure.is_none()),
+            ],
             IntegrationScenario::Interface => vec![
                 ("runtime_assembly", coverage.assembly),
                 ("animation_graph", coverage.graph),
@@ -9628,6 +9648,8 @@ fn observe_manual_integration(
                     )
                 } else if *name == "camera_collision_recovery" {
                     format!("samples={} last={:?}", gate_report.camera_trace.len(), gate_report.camera_trace.last())
+                } else if *name == "stairs_progress" {
+                    state.stairs_probe.failure.clone().unwrap_or_else(|| "all routes completed without stalls".to_owned())
                 } else if *covered {
                     "covered".to_owned()
                 } else {
