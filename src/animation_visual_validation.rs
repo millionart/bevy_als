@@ -3943,6 +3943,7 @@ mod tests {
                     blocked_ratio: Some(0.3),
                     first_person_requested: false,
                     actual_first_person: false,
+                    ragdoll_active: false,
                     camera: als_camera::AlsCameraDebugInfo { trace_distance_ratio: 0.8, valid: true, ..default() },
                 });
             }

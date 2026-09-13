@@ -1857,6 +1857,38 @@
         "character_material_probe_ignores"
       ],
       "evidence": "target/bf115_camera/c4d_character_probe_green.watchdog.json"
+    },
+    {
+      "label": "ragdoll_camera_owned_collision_filter",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "-p",
+        "bevy_als",
+        "--lib",
+        "--jobs",
+        "2",
+        "ragdoll_collision_ownership_does_not_collapse_third_person_camera"
+      ],
+      "evidence": "target/bf116_camera_ragdoll/final_camera_project.watchdog.json"
+    },
+    {
+      "label": "ragdoll_camera_actual_actor_owner",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "-p",
+        "bevy_als",
+        "--lib",
+        "--jobs",
+        "2",
+        "actual_ragdoll_root_retains_camera_actor_ownership_after_detachment"
+      ],
+      "evidence": "target/bf116_camera_ragdoll/final_camera_project.watchdog.json"
     }
   ]
 }

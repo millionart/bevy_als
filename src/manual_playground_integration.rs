@@ -473,6 +473,7 @@ pub struct ManualCameraTraceSample {
     pub blocked_ratio: Option<f32>,
     pub first_person_requested: bool,
     pub actual_first_person: bool,
+    pub ragdoll_active: bool,
     pub camera: AlsCameraDebugInfo,
 }
 
@@ -5380,7 +5381,7 @@ fn drive_manual_integration(
                 && state.coverage.ragdoll_joint_drive
                 && ground_follow.is_some_and(|follow| follow.grounded);
             if state.ragdoll_exit_requested {
-            } else if state.scenario == IntegrationScenario::GetUp && elapsed < 0.3 {
+            } else if matches!(state.scenario, IntegrationScenario::Ragdoll | IntegrationScenario::GetUp) && elapsed < 0.3 {
                 request.locomotion_state = Some(LocomotionState::Grounded);
             } else if elapsed < 1.0
                 && !matches!(
@@ -9057,7 +9058,8 @@ fn observe_manual_integration(
         && let Ok((_camera_transform, debug)) = cameras.get(camera)
     {
         let camera_debug = debug;
-        if state.phase == IntegrationPhase::Camera {
+        if state.phase == IntegrationPhase::Camera
+            || (state.phase == IntegrationPhase::Ragdoll && state.scenario == IntegrationScenario::Ragdoll) {
             gate_report.camera_trace.push(ManualCameraTraceSample {
                 phase_elapsed_seconds: state.phase_elapsed() as f64,
                 obstacles_present: state.camera_obstacles.iter().any(Option::is_some),
@@ -9065,6 +9067,7 @@ fn observe_manual_integration(
                 blocked_ratio: state.camera_blocked_ratio,
                 first_person_requested: state.camera_view_mode_requested,
                 actual_first_person: first_person,
+                ragdoll_active: notify_action == Some(&AlsNotifyLocomotionAction::Ragdolling),
                 camera: *camera_debug,
             });
         }

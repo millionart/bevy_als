@@ -1182,7 +1182,7 @@ def primary_failure_issues(report):
 
 
 def camera_trace_issues(report):
-    if report.get("case") != "camera":
+    if report.get("case") not in ("camera", "ragdoll"):
         return []
     trace = (report.get("manual_integration") or {}).get("camera_trace")
     if not isinstance(trace, list) or len(trace) < 2:
@@ -1190,6 +1190,8 @@ def camera_trace_issues(report):
     previous = -1.0
     collision = False
     recovery = False
+    ragdoll_baseline = False
+    ragdoll_frames = 0
     for sample in trace:
         if not isinstance(sample, dict) or not isinstance(sample.get("camera"), dict):
             return ["camera trace sample is invalid"]
@@ -1209,6 +1211,22 @@ def camera_trace_issues(report):
         curves = camera.get("curve_values")
         if not isinstance(curves, list) or len(curves) != 13 or not all(finite(value) for value in curves):
             return ["camera trace curves are invalid"]
+        if report.get("case") == "ragdoll":
+            active = sample.get("ragdoll_active")
+            if not isinstance(active, bool):
+                return ["ragdoll camera lifecycle evidence is invalid"]
+            clear_third_person = (camera.get("valid") is True and not sample["actual_first_person"]
+                and not sample["first_person_requested"] and camera["first_person_override"] <= 1e-5
+                and camera.get("trace_blocking_hit") is False and camera["trace_distance_ratio"] >= 0.99)
+            if active:
+                if not ragdoll_baseline:
+                    return ["ragdoll camera clear third-person precondition is missing"]
+                if not clear_third_person:
+                    return ["ragdoll entry changed or retracted the clear third-person camera"]
+                ragdoll_frames += 1
+            else:
+                ragdoll_baseline |= clear_third_person
+            continue
         collision |= (sample["obstacles_present"] and camera.get("valid") is True
             and camera.get("trace_blocking_hit") is True and camera.get("trace_adjustment_resolved") is True
             and isinstance(camera.get("trace_adjustment_count"), int) and camera["trace_adjustment_count"] >= 2
@@ -1219,6 +1237,8 @@ def camera_trace_issues(report):
             and camera["first_person_override"] < 1.0 - 1e-5 and finite(blocked)
             and camera["trace_distance_ratio"] > blocked + 0.02)
     issues = []
+    if report.get("case") == "ragdoll":
+        return [] if ragdoll_frames >= 2 else ["ragdoll camera active frame evidence is missing"]
     if not collision:
         issues.append("camera trace does not prove collision with resolved MTDs")
     if not recovery:
@@ -1808,6 +1828,20 @@ def run_self_test():
     recovered = {**collision, "phase_elapsed_seconds": 0.7, "obstacles_present": False, "obstacles_removed": True,
         "blocked_ratio": 0.4, "camera": {**camera, "trace_distance_ratio": 0.7, "trace_blocking_hit": False}}
     camera_report = {"case": "camera", "manual_integration": {"camera_trace": [collision, recovered]}}
+    ragdoll_baseline = {**collision, "ragdoll_active": False,
+        "camera": {**camera, "trace_distance_ratio": 1.0, "trace_blocking_hit": False}}
+    ragdoll_active = {**ragdoll_baseline, "phase_elapsed_seconds": 0.6, "ragdoll_active": True,
+        "camera": dict(ragdoll_baseline["camera"])}
+    ragdoll_report = {"case": "ragdoll", "manual_integration": {"camera_trace": [ragdoll_baseline, ragdoll_active, ragdoll_active]}}
+    assert not camera_trace_issues(ragdoll_report)
+    ragdoll_active["camera"]["trace_distance_ratio"] = 0.09
+    assert camera_trace_issues(ragdoll_report)
+    ragdoll_active["camera"]["trace_distance_ratio"] = 1.0
+    ragdoll_active["actual_first_person"] = True
+    assert camera_trace_issues(ragdoll_report)
+    ragdoll_active["actual_first_person"] = False
+    assert camera_trace_issues({"case": "ragdoll", "manual_integration": {"camera_trace": [ragdoll_active, ragdoll_active]}})
+    assert camera_trace_issues({"case": "ragdoll", "manual_integration": {}})
     assert not camera_trace_issues(camera_report)
     recovered["camera"]["first_person_override"] = 1.0
     assert camera_trace_issues(camera_report)

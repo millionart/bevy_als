@@ -42,7 +42,7 @@
 
 | 编号 | 任务 | 验收边界 | 状态 |
 |---|---|---|---|
-| BF116.01 | `/ALS/ALSCamera` 全目录及 Actor 相机链 | 覆盖 `AB_Als_Camera`、`B_Als_CameraComponent`、`PA_Als_Camera`、骨架/网格、设置、混合曲线、震动等全部9个资产；完成 Actor 挂载、摇臂距离/偏移、滞后、碰撞回缩、视图切换、FOV和生命周期，并通过真实入口。 | 有限复开：ragdoll进入相机；性能暂停 |
+| BF116.01 | `/ALS/ALSCamera` 全目录及 Actor 相机链 | 覆盖 `AB_Als_Camera`、`B_Als_CameraComponent`、`PA_Als_Camera`、骨架/网格、设置、混合曲线、震动等全部9个资产；完成 Actor 挂载、摇臂距离/偏移、滞后、碰撞回缩、视图切换、FOV和生命周期，并通过真实入口。 | 功能完成；性能暂停 |
 | BF116.02 | `SM_Als_Stair` 上下楼梯 | 修复速度和动画表现；明确避免源版本上楼后永久改写并锁住 `rotation mode` 的 bug，进入/离开楼梯后快捷键仍可正常切换。 | 进行中 |
 | BF116.03 | `B_Als_MovingObject2` 移动平台跟随 | 角色站在移动平台上能按源规则正确跟随，核对平台、运动基座与角色调用链。 | 待执行 |
 | BF116.04 | `B_Als_RotatingObject` 旋转平台 | 平台旋转而角色未主动移动时，按源表现原地踏步保持位置，修复脚在平台上滑动的表现。 | 待执行 |
@@ -131,6 +131,14 @@
 - 公开真实入口使用run_manual.bat实际target_game/play：无驱动startup之后camera完成，22相机/326项目测试、381扩展材质回归、14图最终审计和真实首帧故障/退出协议通过。结果记录在 `target/animation_visual/bf116_01_source_camera_startup_material_fixed` 与 `target/animation_visual/bf116_01_source_camera_final`，最终报告独立核对collision→移除→TP恢复，不能由FP停trace冒充恢复。
 - 本项以功能范围结项：截图0、性能暂停，保留原始性能阈值与max_eval_p95_ms延期；全仓旧cmc_adapter_gate字段编译问题另有边界记录，不纳入本项的通过声明。下一项按用户顺序进入BF116.02楼梯速度/动画和rotation mode退出恢复；其实现尚未开始。
 
+### BF116.01 ragdoll进入相机有限复开
+
+- [x] BF116.01d1 第三人称进入ragdoll的瞬时回缩：开始2026-09-13 10:58:45、预估2026-09-13 11:48:45。用户报告TP进入ragdoll瞬间贴成FP再恢复，源版无此表现；BF116.02c1暂挂在已有清单，尚未修改其driver。fresh本地CameraComponent的main/adjusted sweep和MTD overlap均以GetOwner忽略整个Actor，CameraAnimationInstance只读取角色ViewMode；目标camera_rig仅排除Children子树，而实际BAG ragdoll生成独立根、项目进入ragdoll还会detach播放器。该源→独立物理根→相机过滤链证明旧01c3b的Actor过滤合同遗漏，现有限取消勾选，仅修此范围。旧Gate覆盖障碍回缩/恢复和组件装配，没有覆盖自身ragdoll的独立物理实体。先用实际图/物理最小反例记录FirstPersonOverride和trace比例区分视图切换与自身碰撞，再复用明确所有权、完成消融与对应回归；不全局忽略其它角色、不修改ragdoll物理/动画算法或移植新图。估时依据为已证实的两个过滤入口、既有RagdollColliderSpawned observer、实际Camera加载fixture及约20–60秒编译。公共原Playground复验另段登记，保持截图0/性能暂停。
+
+  - 01d1完成2026-09-13 11:44:14：MCP健康0.569s、Open/get/read3.497/0.574/0.578s，DSL为空后同次native33.473s通过；fresh源码三条相机query都忽略GetOwner，实际Camera图在ragdoll/TP的FirstPersonOverride为0。38.730s物理反例把自身独立碰撞体启用后trace比例压至0.09382626，证实视觉贴近来自自身碰撞，不是视图状态切换。新增一个明确Actor所有权标记，由实际RagdollSpawned事件按Avatar/SceneInstance玩家身份登记到物理根；共同trace filter排除该owner的根及后代，覆盖main/adjusted sweep与MTD，保持独立物理根和播放器detach原语义。实际相机图的扫掠/初始重叠与其它Actor仍阻挡通过，真实标准角色生成/进入ragdoll/detach后的所有权23.522s通过；两个消融33.034/37.571s均稳定FAIL，恢复后22相机+328项目34.018s全部通过。开始10:58:45、预估11:48:45、实际11:44:14、偏差-271s，01c3b本次静态复开关闭；主项等待以下原Playground复验，楼梯c1继续保持暂停并在恢复时重估。
+
+- [x] BF116.01d2 原Playground的TP→ragdoll相机复验：开始2026-09-13 11:45:00、预估2026-09-13 12:35:00。依赖01d1；复用现有公共ragdoll场景、camera_trace与标准Actor，覆盖进入帧实际视图权重、trace/相机位置及独立物理根所有权；必要报告接线先做focused self-test，然后按同target_game/play预构建、无驱动startup→ragdoll验收。估时依据为已有Ragdoll/Camera driver和报告、22+328回归、最近187.888s实际入口构建与20–40秒场景记录；保持原环境、CaptureCount0、FunctionalOnly，不以静态通过代替真实结果。
+
 ### BF116.02 楼梯执行子项
 
 - [x] BF116.02a 楼梯、关卡事件与移动输入源闭包：开始2026-09-13 07:54:00、预估2026-09-13 08:44:00。依赖521f4bb的相机功能结项；按用户要求处理实际SM_Als_Stairs_01/02/03、上下楼速度/动画及源版rotation mode永久锁定风险。本轮已定位3个源静态网格、Playground关卡、源CMC步高/坡面行为和目标TriMesh/sensor链；先健康检查Editor并提取当次网格/关卡事件/角色设置，逐项比较碰撞几何、台阶处理、速度/动画输入、模式锁定与快捷键生命周期。源关卡事件由原生reader的同package图闭包读取，不能把旧手工场景/Actor当事实；源码明确前不改运动算法、动画图或已完相机。估时依据为3网格+1关卡+角色设置直接闭包、既有读取器与场景219Actor表、约32–48秒单份native记录；确认根因后拆成独立实现/Gate段，真实入口保持原Playground，性能/截图暂停设置延续。
@@ -156,10 +164,10 @@
 
 - [ ] BF116.02c1 原Playground楼梯/模式/动画验证入口：开始2026-09-13 10:55:00、预估2026-09-13 11:45:00。依赖b2及b1的source/static/消融闭环；复用公共manual_playground driver与视觉报告，在实际3组楼梯位置定义上下行、步态及rotation-mode快捷键窗口，采集真实位移/速度、locomotion、动画状态/姿态和desired/current模式，验证离开楼梯后仍可切换。先核对现有入口与源输入调用链、建立focused driver/报告自测，随后另段执行无驱动startup→stairs实际Gate。估时依据为3个已核对原场景实例、48核心fixture、既有公共collector/输入场景和187.888s实际构建；保持原环境/角色/相机、CaptureCount0及FunctionalOnly。
 
-### BF116.01 ragdoll进入相机有限复开
+  - 01d2静态闭环2026-09-13 12:01:00：复用现有Ragdoll case，在原角色入口前保留0.3秒TP基线，并把实际ragdoll action与每帧CameraDebug写入同一camera_trace。公共validator新反例0.303s FAIL后0.563s PASS，拒绝缺失入场基线、缺失ragdoll帧、第一人称输入/权重变化及无遮挡场景中的摇臂回缩；不新增报告格式或改真实相机参数。328项目38.546s和14图authoring3.458s通过，manifest固化独立物理根的consumer/producer回归证据。正在同target_game/play预构建，通过后先原Playground startup，再ragdoll；每个真实Gate后先读report/runner与逐帧数据，截图0/性能暂停。
 
-- [x] BF116.01d1 第三人称进入ragdoll的瞬时回缩：开始2026-09-13 10:58:45、预估2026-09-13 11:48:45。用户报告TP进入ragdoll瞬间贴成FP再恢复，源版无此表现；BF116.02c1暂挂在已有清单，尚未修改其driver。fresh本地CameraComponent的main/adjusted sweep和MTD overlap均以GetOwner忽略整个Actor，CameraAnimationInstance只读取角色ViewMode；目标camera_rig仅排除Children子树，而实际BAG ragdoll生成独立根、项目进入ragdoll还会detach播放器。该源→独立物理根→相机过滤链证明旧01c3b的Actor过滤合同遗漏，现有限取消勾选，仅修此范围。旧Gate覆盖障碍回缩/恢复和组件装配，没有覆盖自身ragdoll的独立物理实体。先用实际图/物理最小反例记录FirstPersonOverride和trace比例区分视图切换与自身碰撞，再复用明确所有权、完成消融与对应回归；不全局忽略其它角色、不修改ragdoll物理/动画算法或移植新图。估时依据为已证实的两个过滤入口、既有RagdollColliderSpawned observer、实际Camera加载fixture及约20–60秒编译。公共原Playground复验另段登记，保持截图0/性能暂停。
+  - 01d2 startup入口前2026-09-13 12:03:30：原环境target_game/play新构建78.684s通过；相机所有权、实际生成/脱离、两次消融、22/328回归及公共报告反例均已闭合，14图authoring3.458s通过。现以新输出目录执行无驱动startup，核对当前角色/相机/材料/图与数值状态；随后才进入ragdoll，CaptureCount0/FunctionalOnly保持。
 
-  - 01d1完成2026-09-13 11:44:14：MCP健康0.569s、Open/get/read3.497/0.574/0.578s，DSL为空后同次native33.473s通过；fresh源码三条相机query都忽略GetOwner，实际Camera图在ragdoll/TP的FirstPersonOverride为0。38.730s物理反例把自身独立碰撞体启用后trace比例压至0.09382626，证实视觉贴近来自自身碰撞，不是视图状态切换。新增一个明确Actor所有权标记，由实际RagdollSpawned事件按Avatar/SceneInstance玩家身份登记到物理根；共同trace filter排除该owner的根及后代，覆盖main/adjusted sweep与MTD，保持独立物理根和播放器detach原语义。实际相机图的扫掠/初始重叠与其它Actor仍阻挡通过，真实标准角色生成/进入ragdoll/detach后的所有权23.522s通过；两个消融33.034/37.571s均稳定FAIL，恢复后22相机+328项目34.018s全部通过。开始10:58:45、预估11:48:45、实际11:44:14、偏差-271s，01c3b本次静态复开关闭；主项等待以下原Playground复验，楼梯c1继续保持暂停并在恢复时重估。
+  - 01d2 startup通过/ragdoll入口前2026-09-13 12:04:30：公共原Playground startup16.012s功能PASS，game/validator均0、faults/graph_errors为空、日志无ERROR/材质失败。性能max_eval_p95_ms仅按暂停范围延期。当前二进制已包括所有权修复与Ragdoll逐帧camera_trace，下面执行同一真实入口Ragdoll case，以无遮挡TP基线和实际ragdoll帧验证没有视图权重变化或瞬间回缩，不改相机算法/阈值，截图0。
 
-- [ ] BF116.01d2 原Playground的TP→ragdoll相机复验：开始2026-09-13 11:45:00、预估2026-09-13 12:35:00。依赖01d1；复用现有公共ragdoll场景、camera_trace与标准Actor，覆盖进入帧实际视图权重、trace/相机位置及独立物理根所有权；必要报告接线先做focused self-test，然后按同target_game/play预构建、无驱动startup→ragdoll验收。估时依据为已有Ragdoll/Camera driver和报告、22+328回归、最近187.888s实际入口构建与20–40秒场景记录；保持原环境、CaptureCount0、FunctionalOnly，不以静态通过代替真实结果。
+  - 01d2完成/相机复开关闭2026-09-13 12:07:31：同一原Playground公共Ragdoll10.471s功能PASS，game/validator均0、10/10覆盖、18骨、faults/graph_errors为空、日志无ERROR。camera_trace共338帧，其中实际ragdoll166帧，从0.303秒进入起FirstPersonOverride和actual_first_person始终0/false，trace比例全程1、blocking帧0；保留进入前无遮挡TP基线，公开validator独立核对，没有用手工状态或截图替代实测。已有startup16.012s、22/328回归34.018s、所有权双消融和78.684s真实入口构建形成闭环。开始11:45:00、预估12:35:00、实际12:07:31、偏差-1649s，BF116.01本次用户回归已修复并关闭，性能max_eval_p95_ms仍仅延期；恢复楼梯c1前先重列暂停后的窗口，当前未开始楼梯真实运行。
