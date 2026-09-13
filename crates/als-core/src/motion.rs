@@ -20,7 +20,7 @@ use crate::control_scheme::{AlsControlScheme, AlsControlSchemeActionDiscriminant
 use crate::gait::AlsMaxAllowedGait;
 use crate::generated_movement_constants::{
     EDGE_REJECT_DISTANCE, FLOOR_RETRY_SHRINK_FRACTION, FLOOR_SWEEP_SHRINK_FRACTION,
-    MAX_FLOOR_DISTANCE, MAX_SLOPE_DEGREES, MAX_STEP_HEIGHT, PULLBACK_MAX_DISTANCE,
+    MIN_FLOOR_DISTANCE, MAX_FLOOR_DISTANCE, MAX_SLOPE_DEGREES, MAX_STEP_HEIGHT, PULLBACK_MAX_DISTANCE,
     PULLBACK_MIN_DISTANCE, PULLBACK_PROPORTION, PULLBACK_TIME_BIAS, SWEEP_EDGE_MIN_RADIUS,
 };
 use crate::input::AlsInputCommand;
@@ -1864,7 +1864,7 @@ impl Plugin for AlsMotionPlugin {
             )
             .add_systems(
                 PostUpdate,
-                (grounded_floor_adjustment_system, locomotion_state_sync_system, snapshot_actual_velocity_system)
+                (locomotion_state_sync_system, snapshot_actual_velocity_system)
                     .chain().in_set(AlsActualVelocitySet),
             )
             .add_systems(
@@ -2556,39 +2556,6 @@ fn find_ground_floor(spatial: &SpatialQuery, origin: Vec3, half: f32, radius: f3
     None
 }
 
-fn grounded_floor_adjustment_system(
-    mut commands: Commands,
-    spatial: SpatialQuery,
-    params_assets: Res<Assets<AlsMovementParams>>,
-    blocked: Query<(), With<AlsMovementInputBlocked>>,
-    mut characters: Query<(Entity, &Transform, &Position, &mut LinearVelocity,
-        &LocomotionState, &TnuaController<AlsControlScheme>, &AlsMovementParamsHandle, &Stance), With<AlsCharacter>>,
-) {
-    for (entity, transform, position, mut velocity, locomotion, controller, handle, stance) in &mut characters {
-        if *locomotion != LocomotionState::Grounded || blocked.contains(entity)
-            || controller.action_flow_status().ongoing() == Some(AlsControlSchemeActionDiscriminant::Jump) {
-            continue;
-        }
-        let Some(params) = params_assets.get(handle.id()) else { continue };
-        let half = match *stance {
-            Stance::Crouching => params.crouch.crouched_capsule_half_height,
-            Stance::Standing => params.crouch.standing_capsule_half_height,
-        } * transform.scale.y;
-        let radius = params.crouch.standing_capsule_radius * transform.scale.x.min(transform.scale.z);
-        let clearance = ALS_CHARACTER_FLOOR_CLEARANCE + ALS_CHARACTER_TNUA_FLOAT_EPSILON;
-        let filter = SpatialQueryFilter::from_excluded_entities([entity]);
-        let Some((floor_center_y, _)) = find_ground_floor(&spatial, position.0, half, radius, &filter) else { continue };
-        let next_y = floor_center_y + clearance;
-        if (next_y - position.y).abs() > MAX_STEP_HEIGHT {
-            continue;
-        }
-        let mut next_transform = *transform;
-        next_transform.translation = Vec3::new(position.x, next_y, position.z);
-        commands.entity(entity).insert((Position(next_transform.translation), next_transform));
-        velocity.0.y = 0.0;
-    }
-}
-
 fn resolved_walkable_contact(contact: &ContactPair, character: Entity) -> bool {
     contact.flags.contains(ContactPairFlags::GENERATE_CONSTRAINTS)
         && contact.manifolds.iter().any(|manifold| {
@@ -2599,21 +2566,30 @@ fn resolved_walkable_contact(contact: &ContactPair, character: Entity) -> bool {
 }
 
 pub(crate) fn locomotion_state_sync_system(
+    mut commands: Commands,
+    spatial: SpatialQuery,
+    params_assets: Res<Assets<AlsMovementParams>>,
+    blocked: Query<(), With<AlsMovementInputBlocked>>,
     collisions: Collisions,
     mut transitions: MessageWriter<StateTransitionEvent>,
     mut q: Query<
         (
             Entity,
+            &Transform,
+            &Position,
+            &mut LinearVelocity,
             &TnuaController<AlsControlScheme>,
             &mut LocomotionState,
             &AlsStateRequest,
             Has<AlsRagdollAirExit>,
             Option<&crate::state::AlsNotifyLocomotionAction>,
+            &AlsMovementParamsHandle,
+            &Stance,
         ),
         With<AlsCharacter>,
     >,
 ) {
-    for (entity, controller, mut current, request, ragdoll_air_exit, action) in &mut q {
+    for (entity, transform, position, mut velocity, controller, mut current, request, ragdoll_air_exit, action, handle, stance) in &mut q {
         if !matches!(*current, LocomotionState::Grounded | LocomotionState::Air) || ragdoll_air_exit
             || action == Some(&crate::state::AlsNotifyLocomotionAction::Ragdolling) {
             continue;
@@ -2621,11 +2597,37 @@ pub(crate) fn locomotion_state_sync_system(
         let Ok(basis) = controller.basis_access() else {
             continue;
         };
+        let jumping = controller.action_flow_status().ongoing() == Some(AlsControlSchemeActionDiscriminant::Jump);
+        let mut floor_supported = false;
+        if *current == LocomotionState::Grounded && !blocked.contains(entity) && !jumping
+            && let Some(params) = params_assets.get(handle.id()) {
+            let half = match *stance {
+                Stance::Crouching => params.crouch.crouched_capsule_half_height,
+                Stance::Standing => params.crouch.standing_capsule_half_height,
+            } * transform.scale.y;
+            let radius = params.crouch.standing_capsule_radius * transform.scale.x.min(transform.scale.z);
+            let filter = SpatialQueryFilter::from_excluded_entities([entity]);
+            if let Some((floor_center_y, _)) = find_ground_floor(&spatial, position.0, half, radius, &filter) {
+                let floor_distance = position.y - floor_center_y;
+                let next_y = if (MIN_FLOOR_DISTANCE..=MAX_FLOOR_DISTANCE).contains(&floor_distance) {
+                    position.y
+                } else {
+                    floor_center_y + (MIN_FLOOR_DISTANCE + MAX_FLOOR_DISTANCE) * 0.5
+                };
+                if (next_y - position.y).abs() <= MAX_STEP_HEIGHT {
+                    let mut next_transform = *transform;
+                    next_transform.translation = Vec3::new(position.x, next_y, position.z);
+                    commands.entity(entity).insert((Position(next_transform.translation), next_transform));
+                    velocity.0.y = 0.0;
+                    floor_supported = true;
+                }
+            }
+        }
         let airborne = TnuaBuiltinWalk::displacement(&basis).is_none()
-            || controller.action_flow_status().ongoing() == Some(AlsControlSchemeActionDiscriminant::Jump);
+            || jumping;
         let landed_on_contact = airborne && collisions.collisions_with(entity)
             .any(|contact| resolved_walkable_contact(contact, entity));
-        let target = if airborne && !landed_on_contact {
+        let target = if airborne && !landed_on_contact && !floor_supported {
             LocomotionState::Air
         } else {
             LocomotionState::Grounded
@@ -2757,6 +2759,61 @@ mod tests {
     }
 
     #[test]
+    fn current_capsule_floor_wins_over_missing_pre_move_sensor_feedback() {
+        let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+        app.add_systems(Update, (move |entities: Query<&TnuaSensorsEntities<AlsControlScheme>>, mut sensors: Query<&mut TnuaProximitySensor>, mut injected: Local<bool>| {
+            if *injected { return; }
+            *injected = true;
+            let sensor = entities.get(character).unwrap().ground.unwrap();
+            sensors.get_mut(sensor).unwrap().output = None;
+        }).after(TnuaPipelineSystems::Sensors).before(TnuaPipelineSystems::Logic));
+        app.update();
+        let position = app.world().get::<Position>(character).unwrap().0;
+        let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
+        assert!(TnuaBuiltinWalk::displacement(&app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().basis_access().unwrap()).is_none());
+        assert!((MIN_FLOOR_DISTANCE..=MAX_FLOOR_DISTANCE).contains(&(position.y - 0.9)) && velocity.y.abs() < 1e-5);
+        assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Grounded,
+            "Current capsule floor was discarded after the floor adjustment");
+        for _ in 0..30 { app.update(); }
+        let sensor = app.world().get::<TnuaSensorsEntities<AlsControlScheme>>(character).unwrap().ground.unwrap();
+        let controller = app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap();
+        assert!(TnuaBuiltinWalk::displacement(&app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().basis_access().unwrap()).is_some(),
+            "The walking basis did not reacquire the supported capsule: position={:?} float_height={} sensor={:?}",
+            app.world().get::<Position>(character).unwrap().0, controller.basis_access().unwrap().config.float_height,
+            app.world().get::<TnuaProximitySensor>(sensor).unwrap());
+    }
+
+    #[test]
+    fn walking_down_stairs_keeps_current_capsule_support_grounded() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::time::TimeUpdateStrategy;
+        let mut failures = Vec::new();
+        for rise in [0.18, 0.26, 0.36] {
+            for delta in [1.0 / 60.0, 1.0 / 120.0, 0.0119908] {
+                let (mut app, character, _) = stair_motion_fixture(rise, false, true, 0.0);
+                *app.world_mut().resource_mut::<TimeUpdateStrategy>() = TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta));
+                app.world_mut().get_mut::<crate::gait::AlsDesiredGait>(character).unwrap().0 = Gait::Walking;
+                app.world_mut().get_mut::<AlsViewYaw>(character).unwrap().0 = std::f32::consts::PI;
+                app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = Vec2::Y;
+                for frame in 0..600 {
+                    app.update();
+                    let position = app.world().get::<Position>(character).unwrap().0;
+                    if position.z > 0.5 { break; }
+                    if *app.world().get::<LocomotionState>(character).unwrap() == LocomotionState::Air {
+                        let floor = app.world_mut().run_system_once(move |spatial: SpatialQuery| {
+                            find_ground_floor(&spatial, position, 0.9, 0.3, &SpatialQueryFilter::from_excluded_entities([character]))
+                        }).unwrap();
+                        let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
+                        failures.push((rise, delta, frame, position, velocity, floor));
+                        break;
+                    }
+                }
+            }
+        }
+        assert!(failures.is_empty(), "Supported stair descent became airborne: {failures:?}");
+    }
+
+    #[test]
     fn continuous_stairs_preserve_grounded_horizontal_motion() {
         use bevy::time::TimeUpdateStrategy;
 
@@ -2795,13 +2852,10 @@ mod tests {
                             let moved_speed = (position.z - previous.z).abs() / app.world().resource::<Time>().delta_secs();
                             max_displacement_speed_error = max_displacement_speed_error.max((moved_speed - 3.75).abs());
                             let source_sweep = app.world().get::<AlsCmcAdapterRuntime>(character).unwrap().grounded_move_start.is_some();
-                            let delta_seconds = app.world().resource::<Time>().delta_secs();
-                            let requested_distance = 3.75 * delta_seconds;
-                            let allowed_loss = if source_sweep {
-                                (((requested_distance * 0.1).clamp(0.001, 0.01) + requested_distance * 0.001 + 0.0015) / delta_seconds + 0.001).max(0.1)
-                            } else { 0.1 };
+                            let dynamics = app.world().get::<crate::dynamics::AlsMovementBaseDynamicsState>(character).unwrap();
+                            let requested_speed = (dynamics.world_velocity + dynamics.motor_boost).with_y(0.0).length();
                             source_motion_violation |= speed > 3.85 || moved_speed > 3.85
-                                || speed < 3.75 - allowed_loss || moved_speed < 3.75 - allowed_loss
+                                || (!source_sweep && ((speed - requested_speed).abs() > 0.1 || (moved_speed - requested_speed).abs() > 0.1))
                                 || (source_sweep && (speed - moved_speed).abs() > 0.001);
                         }
                     }

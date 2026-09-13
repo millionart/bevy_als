@@ -327,6 +327,7 @@ mod tests {
             AlsCmcAdapterRuntime { simulation_delta_seconds: 0.1, ..default() }, AlsMovementParamsHandle(handle),
             AlsStandingGraphTelemetry { actual_movement_state: Some(0), actual_movement_pose_ready: Some(true),
                 actual_standing_pose_ready: Some(true), ..default() })).id();
+        world.entity_mut(character).insert(AlsMovementBaseDynamicsState { world_velocity: Vec3::NEG_Z * 1.75, ..default() });
         world.insert_resource(ManualIntegrationState { character: Some(character), phase: IntegrationPhase::Stairs,
             stairs_probe: Probe { route: Some(Route { bottom: Vec3::Y * 0.9, top: Vec3::new(0.0, 9.0, -17.215) }),
                 stage: Stage::Traverse, ..default() }, ..default() });
@@ -444,6 +445,7 @@ pub struct Sample {
     #[serde(flatten)]
     frame: Frame,
     expected_speed: f32,
+    requested_speed: f32,
     animation_speed: f32,
     safe_move: bool,
     safe_move_prefix_speed: Option<f32>,
@@ -472,12 +474,12 @@ pub(super) fn observe(
     mut window: ResMut<ManualAnimationWindowEvidence>,
     characters: Query<(&Position, &LinearVelocity, &LocomotionState, &Stance, &AlsDesiredGait, &Gait,
         &AlsLastFreeRotationMode, &RotationMode, &AlsViewYaw, &AlsInputOverride, &AlsActualMotion,
-        &als_core::character::AlsCmcAdapterRuntime, &AlsMovementParamsHandle, &AlsStandingGraphTelemetry), With<AlsCharacter>>,
+        &als_core::character::AlsCmcAdapterRuntime, &AlsMovementParamsHandle, &AlsStandingGraphTelemetry, &AlsMovementBaseDynamicsState), With<AlsCharacter>>,
     params: Res<Assets<AlsMovementParams>>,
 ) {
     if state.stairs_probe.index >= 6 { return; }
     let Some(character) = state.character else { return; };
-    let Ok((position, velocity, locomotion, stance, desired_gait, gait, desired_mode, mode, yaw, input, motion, cmc, handle, telemetry)) = characters.get(character) else { return; };
+    let Ok((position, velocity, locomotion, stance, desired_gait, gait, desired_mode, mode, yaw, input, motion, cmc, handle, telemetry, dynamics)) = characters.get(character) else { return; };
     let Some(route) = state.stairs_probe.route else { return; };
     let Some(params) = params.get(handle.id()) else { return; };
     let index = state.stairs_probe.index;
@@ -494,6 +496,7 @@ pub(super) fn observe(
         frame: Frame { position: position.0, velocity: velocity.0, locomotion: *locomotion, stance: *stance,
             desired_gait: desired_gait.0, desired_mode: desired_mode.0, current_mode: *mode, view_yaw: yaw.0 },
         expected_speed: als_core::motion::gait_max_speed(params, stance, &desired_gait.0),
+        requested_speed: (dynamics.world_velocity + dynamics.motor_boost).with_y(0.0).length(),
         animation_speed: motion.horizontal_speed, safe_move: cmc.grounded_move_start.is_some(),
         safe_move_prefix_speed: state.stairs_probe.move_prefix_speed,
         displacement_speed: previous.filter(|_| cmc.simulation_delta_seconds > 0.0)

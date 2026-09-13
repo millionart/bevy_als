@@ -54,6 +54,7 @@ def extract(actor, character_cpp, floor_cpp, primitive_cpp, movement_cpp, math_h
     return {
         'MAX_STEP_HEIGHT': property_number('MaxStepHeight') * scale,
         'MAX_SLOPE_DEGREES': property_number('WalkableFloorAngle'),
+        'MIN_FLOOR_DISTANCE': literal(character_cpp, rf'MIN_FLOOR_DIST\s*=\s*{NUMBER}f?\s*;', 'minimum floor distance') * scale,
         'MAX_FLOOR_DISTANCE': literal(character_cpp, rf'MAX_FLOOR_DIST\s*=\s*{NUMBER}f?\s*;', 'floor distance') * scale,
         'EDGE_REJECT_DISTANCE': edge * scale,
         'SWEEP_EDGE_MIN_RADIUS': (edge + small) * scale,
@@ -75,12 +76,13 @@ def self_test():
     actor = {'blueprint_cdo_subobjects': [{'class_path': '/Script/ALS.AlsCharacterMovementComponent',
         'properties': [{'name': 'MaxStepHeight', 'exported_text': '45.000000'},
                        {'name': 'WalkableFloorAngle', 'exported_text': '44.765083'}]}]}
-    character = 'SWEEP_EDGE_REJECT_DISTANCE = 0.15f; MAX_FLOOR_DIST = 2.4f; const float ShrinkScale = 0.9f; const float ShrinkScaleOverlap = 0.1f;'
+    character = 'SWEEP_EDGE_REJECT_DISTANCE = 0.15f; MIN_FLOOR_DIST = 1.9f; MAX_FLOOR_DIST = 2.4f; const float ShrinkScale = 0.9f; const float ShrinkScaleOverlap = 0.1f;'
     primitive = 'const float DesiredTimeBack = FMath::Clamp(0.1f, 0.1f/Dist, 1.f/Dist) + 0.001f;'
     movement = 'const float OverVelocityPercent = 1.01f;'
     header = '#define UE_KINDA_SMALL_NUMBER (1.e-4f)'
     values = extract(actor, character, character, primitive, movement, header)
     assert values['MAX_STEP_HEIGHT'] == 0.45
+    assert values['MIN_FLOOR_DISTANCE'] == 0.019
     assert values['EDGE_REJECT_DISTANCE'] == 0.0015
     assert abs(values['SWEEP_EDGE_MIN_RADIUS'] - 0.001501) < 1e-12
     assert values['PULLBACK_MIN_DISTANCE'] == 0.001
@@ -97,7 +99,7 @@ def self_test():
             pass
         else:
             raise AssertionError('Invalid source must block generation')
-    assert len(render(values).splitlines()) == 12
+    assert len(render(values).splitlines()) == 13
     print('Movement constants self-test PASS')
 
 

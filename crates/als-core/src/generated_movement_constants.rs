@@ -1,5 +1,6 @@
 pub(crate) const MAX_STEP_HEIGHT: f32 = 0.45;
 pub(crate) const MAX_SLOPE_DEGREES: f32 = 44.765083;
+pub(crate) const MIN_FLOOR_DISTANCE: f32 = 0.019;
 pub(crate) const MAX_FLOOR_DISTANCE: f32 = 0.024;
 pub(crate) const EDGE_REJECT_DISTANCE: f32 = 0.0015;
 pub(crate) const SWEEP_EDGE_MIN_RADIUS: f32 = 0.001501;
