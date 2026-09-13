@@ -34,8 +34,7 @@ def compose(parent, local):
         scale=[a*b for a, b in zip(parent['scale'], local['scale'])])
 
 
-def compile_definitions(world, blueprint, mesh):
-    objects = {item['object_path']: item for item in world['asset_objects']}
+def box_definition(mesh):
     mesh_objects = {item['object_path']: item for item in mesh['asset_objects']}
     setup = mesh_objects[source_object_path(asset_property(mesh, 'BodySetup'))]
     geometry = parse_struct(object_property(setup, 'AggGeom'))
@@ -48,6 +47,12 @@ def compile_definitions(world, blueprint, mesh):
     center = source_point_to_runtime(vector(box.get('Center', '()')))
     rotation = source_rotator_to_runtime_rotation(vector(box.get('Rotation', '()'), ['Pitch', 'Yaw', 'Roll']))
     half_extents = [v*0.5 for v in source_point_to_runtime([parse_number(box[axis]) for axis in 'XYZ'])]
+    return dict(collider_center=center, collider_rotation=rotation, half_extents=half_extents)
+
+
+def compile_definitions(world, blueprint, mesh):
+    objects = {item['object_path']: item for item in world['asset_objects']}
+    collider = box_definition(mesh)
     actors = []
     for actor in world['asset_objects']:
         if actor['class_path'] != blueprint['asset_path'] + '_C':
@@ -88,7 +93,7 @@ def compile_definitions(world, blueprint, mesh):
         spline_frame = compose(actor_frame, transform(spline))
         actors.append(dict(name=actor['object_path'].rsplit('.', 1)[1], actor=actor_frame, primitive=transform(primitive),
             mesh_scene='models/playground/' + mesh['asset_path'].rsplit('.', 1)[1] + '.gltf#Scene0',
-            mesh_base=mesh['asset_path'].rsplit('.', 1)[1], collider_center=center, collider_rotation=rotation, half_extents=half_extents,
+            mesh_base=mesh['asset_path'].rsplit('.', 1)[1], **collider,
             start=point(spline_frame, source_point_to_runtime(positions[0])), end=point(spline_frame, source_point_to_runtime(positions[1])), duration=duration))
     if not actors:
         raise ValueError('No source moving actors were found')
