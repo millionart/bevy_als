@@ -1,6 +1,6 @@
 use avian3d::prelude::{
     Collider, Collisions, ContactPair, ContactPairFlags, Gravity, GravityScale, LinearVelocity, PhysicsSystems, Position, Rotation,
-    RigidBody, SpatialQuery, SpatialQueryFilter,
+    RigidBody, ShapeCastConfig, ShapeHitData, SpatialQuery, SpatialQueryFilter, SpeculativeMargin,
 };
 use bevy::asset::Assets;
 use bevy::prelude::*;
@@ -9,11 +9,11 @@ use bevy_tnua::builtins::{
 };
 use bevy_tnua::controller::TnuaConfig;
 use bevy_tnua::basis_capabilities::TnuaBasisWithDisplacement;
-use bevy_tnua::{TnuaController, TnuaGravity, TnuaPipelineSystems, TnuaRigidBodyTracker};
+use bevy_tnua::{TnuaController, TnuaGravity, TnuaMotor, TnuaPipelineSystems, TnuaProximitySensor, TnuaRigidBodyTracker, TnuaSensorsEntities};
 
 use crate::character::{
     ALS_CHARACTER_CAPSULE_HALF_HEIGHT, ALS_CHARACTER_FLOOR_CLEARANCE,
-    ALS_CHARACTER_TNUA_FLOAT_EPSILON, AlsCharacter, AlsEffectiveGravity, AlsMovementParamsHandle,
+    ALS_CHARACTER_TNUA_FLOAT_EPSILON, AlsCharacter, AlsCmcAdapterRuntime, AlsEffectiveGravity, AlsMovementParamsHandle,
     als_character_capsule,
 };
 use crate::control_scheme::{AlsControlScheme, AlsControlSchemeActionDiscriminant, AlsControlSchemeConfig};
@@ -38,10 +38,7 @@ const WALK_CLING_DISTANCE: f32 = ALS_CHARACTER_TNUA_FLOAT_EPSILON;
 const AIR_CONTROL: f32 = 0.15;
 const AIR_CONTROL_BOOST_MULTIPLIER: f32 = 2.0;
 const AIR_CONTROL_BOOST_SPEED: f32 = 0.25;
-const HEADROOM_SKIN: f32 = 0.01;
 const MAX_STEP_HEIGHT: f32 = 0.45;
-const STEP_ASSIST_COOLDOWN: f32 = 0.3;
-const STALL_SPEED_EPSILON: f32 = 1.2;
 
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
 pub struct AlsActualVelocity {
@@ -205,10 +202,6 @@ pub fn view_relative_move_axes(move_dir: Vec2, view_yaw: f32) -> Vec2 {
 pub fn view_relative_move_direction(move_dir: Vec2, view_yaw: f32) -> Vec3 {
     let axes = view_relative_move_axes(move_dir, view_yaw);
     Vec3::new(axes.x, 0.0, -axes.y).normalize_or_zero()
-}
-
-fn step_assist_world_direction(move_dir: Vec2, view_yaw: f32) -> Vec3 {
-    view_relative_move_direction(move_dir, view_yaw)
 }
 
 pub fn wrap_yaw_radians(yaw: f32) -> f32 {
@@ -564,13 +557,13 @@ fn rotation_response_system(
 #[cfg(test)]
 mod rotation_cap_tests {
     use crate::character::{
-        ALS_CHARACTER_CAPSULE_RADIUS, AlsCharacterBundle, AlsCharacterPlugin, als_character_capsule,
+        AlsCharacterBundle, AlsCharacterPlugin, als_character_capsule,
     };
     use crate::transition::AlsStateTransitionPlugin;
     use avian3d::prelude::{GravityScale, PhysicsPlugins, Position, RigidBody};
     use bevy::asset::{AssetEvent, AssetPlugin};
     use bevy::transform::TransformPlugin;
-    use bevy_tnua::{TnuaController, TnuaControllerPlugin};
+    use bevy_tnua::TnuaControllerPlugin;
     use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
     use super::*;
@@ -839,18 +832,6 @@ mod rotation_cap_tests {
     }
 
     #[derive(Component)]
-    struct StepAssistPhysicsCase {
-        origin: Vec3,
-        expected: Vec3,
-    }
-
-    #[derive(Resource)]
-    struct StepAssistPhysicsProbe {
-        ground_distance: f32,
-        step_distance: f32,
-    }
-
-    #[derive(Component)]
     struct StandingCapsulePhysicsCase {
         beam: Entity,
     }
@@ -872,26 +853,6 @@ mod rotation_cap_tests {
         transaction_center: Vec3,
         transaction_controller_crouch: bool,
         transaction_headroom_blocked: bool,
-    }
-
-    fn record_step_assist_physics_probe(
-        spatial_query: SpatialQuery,
-        cases: Query<(Entity, &StepAssistPhysicsCase)>,
-        mut probe: ResMut<StepAssistPhysicsProbe>,
-    ) {
-        let Ok((entity, case)) = cases.single() else {
-            return;
-        };
-        let filter = SpatialQueryFilter::from_excluded_entities([entity]);
-        probe.ground_distance = spatial_query
-            .cast_ray(case.origin, Dir3::NEG_Y, 2.0, false, &filter)
-            .map(|hit| hit.distance)
-            .unwrap_or(f32::NAN);
-        let probe_origin = case.origin + case.expected * 0.45 + Vec3::Y * MAX_STEP_HEIGHT;
-        probe.step_distance = spatial_query
-            .cast_ray(probe_origin, Dir3::NEG_Y, 2.0, false, &filter)
-            .map(|hit| hit.distance)
-            .unwrap_or(f32::NAN);
     }
 
     fn record_standing_capsule_physics_probe(
@@ -1037,7 +998,7 @@ mod rotation_cap_tests {
     }
 
     #[test]
-    fn step_assist_direction_matches_locomotion_across_view_yaws() {
+    fn view_relative_move_direction_matches_source_axes() {
         let cases = [
             (0.0, Vec3::NEG_Z),
             (std::f32::consts::FRAC_PI_2, Vec3::NEG_X),
@@ -1046,112 +1007,7 @@ mod rotation_cap_tests {
         ];
         for (yaw, expected) in cases {
             let locomotion = view_relative_move_direction(Vec2::Y, yaw);
-            let assist = step_assist_world_direction(Vec2::Y, yaw);
-            assert!(assist.distance(expected) < 1e-5, "yaw={yaw}");
-            assert!(assist.distance(locomotion) < 1e-5, "yaw={yaw}");
-        }
-    }
-
-    #[test]
-    #[ignore]
-    fn step_assist_uses_default_motion_plugin_with_physics_queries() {
-        let cases = [
-            (0.0, Vec3::NEG_Z),
-            (std::f32::consts::FRAC_PI_2, Vec3::NEG_X),
-            (std::f32::consts::PI, Vec3::Z),
-            (-std::f32::consts::FRAC_PI_2, Vec3::X),
-        ];
-        for (index, (yaw, expected)) in cases.into_iter().enumerate() {
-            let origin = Vec3::new(index as f32 * 4.0, ALS_CHARACTER_CAPSULE_HALF_HEIGHT, 0.0);
-            let mut app = App::new();
-            app.add_plugins((
-                MinimalPlugins,
-                AssetPlugin::default(),
-                PhysicsPlugins::new(FixedPostUpdate),
-                TransformPlugin,
-                TnuaAvian3dPlugin::new(FixedUpdate),
-                TnuaControllerPlugin::<AlsControlScheme>::new(FixedUpdate),
-                AlsMotionPlugin,
-            ))
-            .init_resource::<Assets<Mesh>>()
-            .add_message::<AssetEvent<Mesh>>()
-            .insert_resource(Assets::<AlsMovementParams>::default())
-            .insert_resource(StepAssistPhysicsProbe {
-                ground_distance: f32::NAN,
-                step_distance: f32::NAN,
-            })
-            .add_systems(
-                Update,
-                record_step_assist_physics_probe.after(step_up_assist_system),
-            );
-            app.finish();
-            let params = app
-                .world_mut()
-                .resource_mut::<Assets<AlsMovementParams>>()
-                .add(AlsMovementParams::default());
-            let mut input = AlsInputCommand::default();
-            input.move_dir = Vec2::Y;
-            app.world_mut().spawn((
-                RigidBody::Static,
-                Collider::cuboid(40.0, 0.2, 20.0),
-                Transform::from_xyz(0.0, -0.1, 0.0),
-            ));
-            let step_center = Vec3::new(origin.x, 0.15, origin.z) + expected * 0.7;
-            app.world_mut().spawn((
-                RigidBody::Static,
-                Collider::cuboid(0.6, 0.3, 0.6),
-                Transform::from_translation(step_center),
-            ));
-            let character = app
-                .world_mut()
-                .spawn((
-                    AlsCharacter,
-                    RigidBody::Dynamic,
-                    GravityScale(0.0),
-                    Collider::capsule(ALS_CHARACTER_CAPSULE_RADIUS, 1.2),
-                    Position(origin),
-                    Transform::from_translation(origin),
-                    LinearVelocity::ZERO,
-                    TnuaController::<AlsControlScheme>::default(),
-                    LocomotionState::Grounded,
-                    Stance::Standing,
-                    AlsViewYaw(yaw),
-                    StepAssistCooldown(0.0),
-                    AlsMovementParamsHandle(params),
-                    input,
-                    StepAssistPhysicsCase { origin, expected },
-                ))
-                .id();
-
-            for _ in 0..8 {
-                app.update();
-                app.world_mut().run_schedule(FixedUpdate);
-                app.world_mut().run_schedule(FixedPostUpdate);
-            }
-            app.update();
-
-            let probe = app.world().resource::<StepAssistPhysicsProbe>();
-            let ground_distance = probe.ground_distance;
-            let step_distance = probe.step_distance;
-            let entity = app.world().entity(character);
-            let transform = entity.get::<Transform>().unwrap();
-            let position = entity.get::<Position>().unwrap();
-            let displacement = transform.translation - origin;
-            let horizontal = Vec3::new(displacement.x, 0.0, displacement.z);
-            let direction = horizontal.normalize_or_zero();
-            let direction_dot = direction.dot(expected);
-            let sync_error = transform.translation.distance(position.0);
-            let capsule_bottom = transform.translation.y - ALS_CHARACTER_CAPSULE_HALF_HEIGHT;
-            let step_top = step_center.y + 0.15;
-            println!(
-                "[BF102.01] yaw={yaw:.6} ground_distance={ground_distance:.6} step_distance={step_distance:.6} direction_dot={direction_dot:.6} rise={:.6} sync_error={sync_error:.6} floor_gap={:.6}",
-                displacement.y,
-                capsule_bottom - step_top
-            );
-            assert!(direction_dot > 0.99, "yaw={yaw}");
-            assert!(displacement.y > 0.25, "yaw={yaw}");
-            assert!(sync_error < 1e-4, "yaw={yaw}");
-            assert!(capsule_bottom >= step_top - 0.01, "yaw={yaw}");
+            assert!(locomotion.distance(expected) < 1e-5, "yaw={yaw}");
         }
     }
 
@@ -1920,9 +1776,6 @@ pub struct CharacterDebugFrameInner {
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct CapsuleReshapeDeferred;
 
-#[derive(Component, Debug, Default, Clone, Copy)]
-pub struct StepAssistCooldown(pub f32);
-
 pub(crate) fn effective_input<'a>(
     cmd: &'a AlsInputCommand,
     ovr: Option<&'a AlsInputOverride>,
@@ -1980,14 +1833,16 @@ impl Plugin for AlsMotionPlugin {
                     tnua_config_sync_system
                         .after(crate::gait::refresh_gait_system)
                         .after(crate::transition::state_transition_system)
-                        .after(capsule_reshape_system),
+                        .after(capsule_reshape_system)
+                        .before(TnuaPipelineSystems::Sensors),
                     locomotion_drive_system
                         .after(crate::view::AlsViewInputSet)
                         .before(crate::transition::state_transition_system),
                     crouch_controller_transaction_system
                         .after(locomotion_drive_system)
                         .after(capsule_reshape_system),
-                    step_up_assist_system,
+                    grounded_step_up_system.after(crate::dynamics::grounded_dynamics_motor_system)
+                        .before(TnuaPipelineSystems::Motors),
                     capsule_reshape_system.after(crate::transition::state_transition_system),
                 ),
             )
@@ -2006,7 +1861,7 @@ impl Plugin for AlsMotionPlugin {
             )
             .add_systems(
                 PostUpdate,
-                (locomotion_state_sync_system, snapshot_actual_velocity_system)
+                (grounded_floor_adjustment_system, locomotion_state_sync_system, snapshot_actual_velocity_system)
                     .chain().in_set(AlsActualVelocitySet),
             )
             .add_systems(
@@ -2017,9 +1872,15 @@ impl Plugin for AlsMotionPlugin {
 }
 
 fn snapshot_actual_velocity_system(
-    mut characters: Query<(&LinearVelocity, &mut AlsActualVelocity), With<AlsCharacter>>,
+    mut characters: Query<(&mut LinearVelocity, &mut AlsActualVelocity, Option<&Position>, &AlsCmcAdapterRuntime), With<AlsCharacter>>,
 ) {
-    for (velocity, mut actual) in &mut characters {
+    for (mut velocity, mut actual, position, runtime) in &mut characters {
+        if let Some(start) = runtime.grounded_move_start
+            && let Some(position) = position
+            && runtime.simulation_delta_seconds > 0.0 {
+            velocity.x = (position.x - start.x) / runtime.simulation_delta_seconds;
+            velocity.z = (position.z - start.z) / runtime.simulation_delta_seconds;
+        }
         *actual = AlsActualVelocity::from_physics_velocity(velocity.0);
     }
 }
@@ -2062,11 +1923,15 @@ fn tnua_config_sync_system(
         &RotationMode,
         &AlsViewYaw,
         &LinearVelocity,
+        &LocomotionState,
+        &TnuaController<AlsControlScheme>,
+        &TnuaSensorsEntities<AlsControlScheme>,
     )>,
     mut configs: ResMut<Assets<AlsControlSchemeConfig>>,
     params_assets: Res<Assets<AlsMovementParams>>,
+    mut sensors: Query<&mut TnuaProximitySensor>,
 ) {
-    for (config, handle, max_allowed, stance, rotation_mode, view_yaw, velocity) in &q {
+    for (config, handle, max_allowed, stance, rotation_mode, view_yaw, velocity, locomotion, controller, sensor_entities) in &q {
         let Some(params) = params_assets.get(handle.id()) else {
             continue;
         };
@@ -2083,6 +1948,17 @@ fn tnua_config_sync_system(
             velocity.0,
             view_yaw.0,
         );
+        if *locomotion == LocomotionState::Grounded {
+            cfg.basis.cling_distance = MAX_STEP_HEIGHT;
+        }
+        if let Some(entity) = sensor_entities.ground
+            && let Ok(mut sensor) = sensors.get_mut(entity) {
+            let mut basis_config = cfg.basis.clone();
+            if let Some(action) = &controller.current_action {
+                bevy_tnua::TnuaActionState::modify_basis_config(action, &mut basis_config);
+            }
+            sensor.cast_range = basis_config.float_height + basis_config.cling_distance;
+        }
     }
 }
 
@@ -2533,7 +2409,7 @@ fn apply_actual_stance(
     });
 }
 
-fn step_up_assist_system(
+fn grounded_step_up_system(
     time: Res<Time>,
     mut commands: Commands,
     spatial_query: SpatialQuery,
@@ -2543,89 +2419,169 @@ fn step_up_assist_system(
         (
             Entity,
             &mut Transform,
+            &Position,
+            &Collider,
             &LinearVelocity,
+            &mut TnuaMotor,
+            &mut SpeculativeMargin,
+            &mut AlsCmcAdapterRuntime,
+            &AlsEffectiveGravity,
             &LocomotionState,
-            &AlsViewYaw,
-            Option<&mut StepAssistCooldown>,
+            &TnuaController<AlsControlScheme>,
             &AlsMovementParamsHandle,
             &Stance,
-            Option<&AlsInputOverride>,
-            &AlsInputCommand,
         ),
         With<AlsCharacter>,
     >,
 ) {
-    let dt = time.delta_secs();
-    for (entity, mut transform, vel, loco, view_yaw, cooldown, handle, stance, override_cmd, cmd) in
-        &mut q
-    {
-        if cooldown.is_none() {
-            commands.entity(entity).insert(StepAssistCooldown(0.0));
-            continue;
-        }
-        let mut cd = cooldown.unwrap();
-        cd.0 -= dt;
-        if cd.0 > 0.0 || *loco != LocomotionState::Grounded || blocked.contains(entity) {
-            continue;
-        }
-        let input = effective_input(cmd, override_cmd);
-        let want = input.move_dir;
-        if want.length() < 0.7 || Vec2::new(vel.x, vel.z).length() > STALL_SPEED_EPSILON {
+    for (entity, mut transform, position, capsule, velocity, mut motor, mut margin, mut runtime, gravity, loco, controller, handle, stance) in &mut q {
+        *margin = SpeculativeMargin::MAX;
+        runtime.grounded_move_start = None;
+        if *loco != LocomotionState::Grounded || blocked.contains(entity)
+            || controller.action_flow_status().ongoing() == Some(AlsControlSchemeActionDiscriminant::Jump) {
             continue;
         }
         let Some(params) = params_assets.get(handle.id()) else {
             continue;
         };
-        let radius = params.crouch.standing_capsule_radius;
         let half = match *stance {
             Stance::Crouching => params.crouch.crouched_capsule_half_height,
             Stance::Standing => params.crouch.standing_capsule_half_height,
+        } * transform.scale.y;
+        let radius = params.crouch.standing_capsule_radius * transform.scale.x.min(transform.scale.z);
+        let next_velocity = velocity.0 + motor.lin.boost + motor.lin.acceleration * time.delta_secs();
+        let delta = Vec3::new(next_velocity.x, 0.0, next_velocity.z) * time.delta_secs();
+        let Ok((direction, distance)) = Dir3::new_and_length(delta) else {
+            continue;
         };
-        let center = transform.translation;
-        let world_dir = step_assist_world_direction(want, view_yaw.0);
+        let center = position.0;
         let filter = SpatialQueryFilter::from_excluded_entities([entity]);
-        let Some(cur_hit) =
-            spatial_query.cast_ray(center, Dir3::NEG_Y, MAX_STEP_HEIGHT + 1.5, false, &filter)
-        else {
+        let mut forward_config = ShapeCastConfig::from_max_distance(distance);
+        let clearance = ALS_CHARACTER_FLOOR_CLEARANCE + ALS_CHARACTER_TNUA_FLOAT_EPSILON;
+        let mut raised = center;
+        let mut remaining_delta = delta;
+        let mut initial_floor_y = None;
+        if let Some(hit) = spatial_query.cast_shape(capsule, center, Quat::IDENTITY, direction, &forward_config, &filter) {
+            let pullback = (distance * 0.1).clamp(0.001, 0.01) + distance * 0.001;
+            let advance = *direction * (hit.distance - pullback).max(0.0);
+            raised += advance;
+            remaining_delta -= advance;
+            forward_config.max_distance = remaining_delta.length();
+            runtime.grounded_move_start = Some(center);
+            transform.translation = raised;
+            commands.entity(entity).insert(Position(raised));
+            let slide_normal = Vec3::new(hit.normal1.x, 0.0, hit.normal1.z).normalize_or_zero();
+            let slide = remaining_delta - slide_normal * remaining_delta.dot(slide_normal);
+            let remaining_velocity = slide / time.delta_secs();
+            motor.lin.boost.x = remaining_velocity.x - velocity.x;
+            motor.lin.boost.z = remaining_velocity.z - velocity.z;
+            motor.lin.acceleration.x = 0.0;
+            motor.lin.acceleration.z = 0.0;
+            if hit.point1.y <= center.y - half - clearance || hit.point1.y > center.y + half - radius {
+                continue;
+            }
+            let Some((_, impact_y)) = find_ground_floor(&spatial_query, center, half, radius, &filter) else { continue };
+            initial_floor_y = Some(impact_y);
+            let up_config = ShapeCastConfig {
+                ignore_origin_penetration: true,
+                ..ShapeCastConfig::from_max_distance(MAX_STEP_HEIGHT - clearance)
+            };
+            let lift = spatial_query.cast_shape(capsule, raised, Quat::IDENTITY, Dir3::Y, &up_config, &filter)
+                .map_or(up_config.max_distance, |hit| hit.distance);
+            raised.y += lift;
+            if spatial_query.cast_shape(capsule, raised, Quat::IDENTITY, direction, &forward_config, &filter).is_some() {
+                continue;
+            }
+        }
+        let destination = raised + remaining_delta;
+        let Some(floor) = walkable_floor_hit(&spatial_query, capsule, radius, destination,
+            MAX_STEP_HEIGHT + clearance * 2.0, &filter) else {
             continue;
         };
-        let cur_ground_y = center.y - cur_hit.distance;
-        let ahead_xz = center + world_dir * (radius + 0.15);
-        let probe_origin = Vec3::new(ahead_xz.x, center.y + MAX_STEP_HEIGHT, ahead_xz.z);
-        let Some(probe_hit) = spatial_query.cast_ray(
-            probe_origin,
-            Dir3::NEG_Y,
-            cur_hit.distance + MAX_STEP_HEIGHT + 0.05,
-            false,
-            &filter,
-        ) else {
-            continue;
-        };
-        let next_ground_y = probe_origin.y - probe_hit.distance;
-        let dh = next_ground_y - cur_ground_y;
-        if dh <= 0.03 || dh > MAX_STEP_HEIGHT {
+        let next_y = destination.y - floor.distance + clearance;
+        if (next_y - center.y).abs() > MAX_STEP_HEIGHT
+            || initial_floor_y.is_some_and(|initial| floor.point1.y - initial > MAX_STEP_HEIGHT) {
             continue;
         }
-        let dest_center_y = next_ground_y + half;
-        let headroom_ok = spatial_query
-            .cast_ray(
-                Vec3::new(ahead_xz.x, dest_center_y, ahead_xz.z),
-                Dir3::Y,
-                half,
-                true,
-                &filter,
-            )
-            .is_none_or(|hit| hit.distance >= half - HEADROOM_SKIN);
-        if !headroom_ok {
+        if next_y > center.y {
+            transform.translation.y = next_y;
+            commands.entity(entity).insert(Position(transform.translation));
+        }
+        if runtime.grounded_move_start.is_some() {
+            let remaining_velocity = remaining_delta / time.delta_secs();
+            motor.lin.boost.x = remaining_velocity.x - velocity.x;
+            motor.lin.boost.z = remaining_velocity.z - velocity.z;
+        }
+        motor.lin.boost.y = -velocity.y;
+        motor.lin.acceleration.y = -gravity.value.y;
+        *margin = SpeculativeMargin::ZERO;
+    }
+}
+
+fn walkable_floor_hit(spatial: &SpatialQuery, capsule: &Collider, radius: f32, origin: Vec3,
+    distance: f32, filter: &SpatialQueryFilter) -> Option<ShapeHitData> {
+    let hit = spatial.cast_shape(capsule, origin, Quat::IDENTITY, Dir3::NEG_Y,
+        &ShapeCastConfig::from_max_distance(distance), filter)?;
+    let reduced_radius = (radius - 0.0015).max(0.001501);
+    if Vec2::new(hit.point1.x - origin.x, hit.point1.z - origin.z).length_squared() >= reduced_radius * reduced_radius {
+        return None;
+    }
+    let mut normal = hit.normal1;
+    if normal.y < deg_to_rad(MAX_SLOPE_DEGREES).cos() {
+        let edge_tolerance = 0.0015;
+        let ray_origin = hit.point1 + (Vec3::Y - Vec3::new(normal.x, 0.0, normal.z)) * edge_tolerance;
+        if let Some(surface) = spatial.cast_ray(ray_origin, Dir3::NEG_Y, edge_tolerance * 2.0, false, filter)
+            .filter(|surface| surface.entity == hit.entity) {
+            normal = surface.normal;
+        }
+    }
+    (normal.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos()).then_some(hit)
+}
+
+fn find_ground_floor(spatial: &SpatialQuery, origin: Vec3, half: f32, radius: f32,
+    filter: &SpatialQueryFilter) -> Option<(f32, f32)> {
+    for (shrink_scale, radius_reduction) in [(0.1, 0.0), (0.9, 0.001501)] {
+        let shrink_height = (half - radius) * shrink_scale;
+        let sweep_radius = radius - radius_reduction;
+        let capsule = als_character_capsule((half - shrink_height).max(sweep_radius), sweep_radius);
+        if let Some(hit) = walkable_floor_hit(spatial, &capsule, sweep_radius, origin,
+            MAX_STEP_HEIGHT + 0.024 + shrink_height, filter) {
+            return Some((origin.y - hit.distance + shrink_height, hit.point1.y));
+        }
+    }
+    None
+}
+
+fn grounded_floor_adjustment_system(
+    mut commands: Commands,
+    spatial: SpatialQuery,
+    params_assets: Res<Assets<AlsMovementParams>>,
+    blocked: Query<(), With<AlsMovementInputBlocked>>,
+    mut characters: Query<(Entity, &Transform, &Position, &mut LinearVelocity,
+        &LocomotionState, &TnuaController<AlsControlScheme>, &AlsMovementParamsHandle, &Stance), With<AlsCharacter>>,
+) {
+    for (entity, transform, position, mut velocity, locomotion, controller, handle, stance) in &mut characters {
+        if *locomotion != LocomotionState::Grounded || blocked.contains(entity)
+            || controller.action_flow_status().ongoing() == Some(AlsControlSchemeActionDiscriminant::Jump) {
             continue;
         }
-        transform.translation = Vec3::new(
-            center.x + world_dir.x * 0.04,
-            dest_center_y + 0.005,
-            center.z + world_dir.z * 0.04,
-        );
-        cd.0 = STEP_ASSIST_COOLDOWN;
-        info!("[MOTION] entity={entity:?} step-up assist +{dh:.2}m");
+        let Some(params) = params_assets.get(handle.id()) else { continue };
+        let half = match *stance {
+            Stance::Crouching => params.crouch.crouched_capsule_half_height,
+            Stance::Standing => params.crouch.standing_capsule_half_height,
+        } * transform.scale.y;
+        let radius = params.crouch.standing_capsule_radius * transform.scale.x.min(transform.scale.z);
+        let clearance = ALS_CHARACTER_FLOOR_CLEARANCE + ALS_CHARACTER_TNUA_FLOAT_EPSILON;
+        let filter = SpatialQueryFilter::from_excluded_entities([entity]);
+        let Some((floor_center_y, _)) = find_ground_floor(&spatial, position.0, half, radius, &filter) else { continue };
+        let next_y = floor_center_y + clearance;
+        if (next_y - position.y).abs() > MAX_STEP_HEIGHT {
+            continue;
+        }
+        let mut next_transform = *transform;
+        next_transform.translation = Vec3::new(position.x, next_y, position.z);
+        commands.entity(entity).insert((Position(next_transform.translation), next_transform));
+        velocity.0.y = 0.0;
     }
 }
 
@@ -2689,6 +2645,121 @@ pub(crate) fn locomotion_state_sync_system(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn continuous_stairs_preserve_grounded_horizontal_motion() {
+        use crate::character::{AlsCharacterBundle, AlsCharacterPlugin};
+        use crate::transition::AlsStateTransitionPlugin;
+        use avian3d::prelude::PhysicsPlugins;
+        use bevy::asset::AssetEvent;
+        use bevy::time::TimeUpdateStrategy;
+        use bevy_tnua::TnuaControllerPlugin;
+        use bevy_tnua_avian3d::TnuaAvian3dPlugin;
+
+        let mut failures = Vec::new();
+        for (rise, ceiling) in [(0.18_f32, false), (0.26, false), (0.36, false), (0.6, false), (0.18, true)] {
+            for descending in [false, true] {
+                let blocked = rise > MAX_STEP_HEIGHT || ceiling;
+                if descending && blocked { continue }
+                for (yaw, variable_step) in [(0.0_f32, false), (std::f32::consts::FRAC_PI_2, false),
+                    (std::f32::consts::PI, false), (-std::f32::consts::FRAC_PI_2, false),
+                    (0.0, true), (-std::f32::consts::FRAC_PI_2, true)] {
+                    let frame_rotation = Quat::from_rotation_y(yaw);
+                    let mut app = App::new();
+                    app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+                        PhysicsPlugins::new(PostUpdate), TnuaAvian3dPlugin::new(Update),
+                        TnuaControllerPlugin::<AlsControlScheme>::new(Update),
+                        AlsStateTransitionPlugin, AlsCharacterPlugin, AlsMotionPlugin))
+                        .init_resource::<Assets<Mesh>>()
+                        .add_message::<AssetEvent<Mesh>>()
+                        .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
+                    app.finish();
+                    let params_value = AlsMovementParams::default();
+                    let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(params_value.clone());
+                    let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>().add(initial_als_control_scheme_config(&params_value));
+                    let mut bundle = AlsCharacterBundle::new(params, config);
+                    let start_z = if descending { -5.44 } else { 1.0 };
+                    let floor_y = if descending { 12.0 * rise } else { 0.0 };
+                    bundle.transform = Transform::from_translation(frame_rotation * Vec3::new(0.0, floor_y + 0.924, start_z))
+                        .with_rotation(frame_rotation);
+                    let character = app.world_mut().spawn(bundle).id();
+                    app.world_mut().spawn((RigidBody::Static, Collider::cuboid(20.0, 0.2, 30.0), Transform::from_xyz(0.0, -0.1, 0.0)));
+                    let mut vertices = Vec::new();
+                    let mut triangles = Vec::new();
+                    for step in 0..12 {
+                        let front = -(step as f32) * 0.37;
+                        let bottom = step as f32 * rise;
+                        let top = bottom + rise;
+                        let index = vertices.len() as u32;
+                        vertices.extend([
+                            Vec3::new(-3.335, bottom, front), Vec3::new(3.335, bottom, front),
+                            Vec3::new(-3.335, top, front), Vec3::new(3.335, top, front),
+                            Vec3::new(-3.335, top, front - 0.37), Vec3::new(3.335, top, front - 0.37),
+                        ].map(|vertex| frame_rotation * vertex));
+                        triangles.extend([[index, index + 1, index + 2], [index + 1, index + 3, index + 2],
+                            [index + 2, index + 3, index + 4], [index + 3, index + 5, index + 4]]);
+                    }
+                    app.world_mut().spawn((RigidBody::Static, Collider::try_trimesh(vertices, triangles).unwrap(), Transform::default()));
+                    app.world_mut().spawn((RigidBody::Static, Collider::cuboid(6.67, 12.0 * rise, 6.0),
+                        Transform::from_translation(frame_rotation * Vec3::new(0.0, 6.0 * rise, -7.44))
+                            .with_rotation(frame_rotation)));
+                    if ceiling {
+                        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(6.67, 0.2, 6.0),
+                            Transform::from_translation(frame_rotation * Vec3::new(0.0, 2.0, -3.0))
+                                .with_rotation(frame_rotation)));
+                    }
+                    for _ in 0..30 {
+                        app.update();
+                    }
+                    app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = Vec2::Y;
+                    app.world_mut().get_mut::<AlsViewYaw>(character).unwrap().0 = yaw + if descending { std::f32::consts::PI } else { 0.0 };
+                    let mut samples = 0;
+                    let mut air_frames = 0;
+                    let mut max_speed_error = 0.0_f32;
+                    let mut max_displacement_speed_error = 0.0_f32;
+                    let mut source_motion_violation = false;
+                    for frame in 0..180 {
+                        if variable_step {
+                            *app.world_mut().resource_mut::<TimeUpdateStrategy>() = TimeUpdateStrategy::ManualDuration(
+                                std::time::Duration::from_secs_f32([1.0 / 120.0, 1.0 / 60.0, 1.0 / 30.0, 0.05][frame % 4]));
+                        }
+                        let previous = frame_rotation.inverse() * app.world().get::<Position>(character).unwrap().0;
+                        app.update();
+                        let world_position = app.world().get::<Position>(character).unwrap().0;
+                        let position = frame_rotation.inverse() * world_position;
+                        assert!(world_position.distance(app.world().get::<Transform>(character).unwrap().translation) < 0.001);
+                        if (-3.7..-0.74).contains(&position.z) {
+                            samples += 1;
+                            air_frames += usize::from(*app.world().get::<LocomotionState>(character).unwrap() != LocomotionState::Grounded);
+                            let speed = app.world().get::<AlsActualVelocity>(character).unwrap().horizontal_speed;
+                            max_speed_error = max_speed_error.max((speed - 3.75).abs());
+                            let moved_speed = (position.z - previous.z).abs() / app.world().resource::<Time>().delta_secs();
+                            max_displacement_speed_error = max_displacement_speed_error.max((moved_speed - 3.75).abs());
+                            let source_sweep = app.world().get::<AlsCmcAdapterRuntime>(character).unwrap().grounded_move_start.is_some();
+                            let delta_seconds = app.world().resource::<Time>().delta_secs();
+                            let requested_distance = 3.75 * delta_seconds;
+                            let allowed_loss = if source_sweep {
+                                (((requested_distance * 0.1).clamp(0.001, 0.01) + requested_distance * 0.001 + 0.0015) / delta_seconds + 0.001).max(0.1)
+                            } else { 0.1 };
+                            source_motion_violation |= speed > 3.85 || moved_speed > 3.85
+                                || speed < 3.75 - allowed_loss || moved_speed < 3.75 - allowed_loss
+                                || (source_sweep && (speed - moved_speed).abs() > 0.001);
+                        }
+                    }
+                    let position = frame_rotation.inverse() * app.world().get::<Position>(character).unwrap().0;
+                    let distance = (position.z - start_z).abs();
+                    println!("[STAIRS] rise={rise} descending={descending} ceiling={ceiling} yaw={yaw} variable_step={variable_step} distance={distance:.4} samples={samples} air_frames={air_frames} max_speed_error={max_speed_error:.4} max_displacement_speed_error={max_displacement_speed_error:.4} position={position:?}");
+                    let failed = if blocked { distance > 1.5 } else {
+                        distance < 6.44 || samples < 20 || air_frames != 0 || source_motion_violation
+                    };
+                    if failed {
+                        failures.push((rise, descending, ceiling, yaw, distance, air_frames, max_speed_error, max_displacement_speed_error));
+                    }
+                }
+            }
+        }
+        assert!(failures.is_empty(), "Continuous stair movement failed: {failures:?}");
+    }
 
     #[test]
     fn physical_locomotion_matches_the_current_controller_before_animation() {

@@ -1,6 +1,6 @@
 use avian3d::prelude::{
     Collider, CollisionLayers, LinearVelocity, LockedAxes, PhysicsSystems, Position, RigidBody,
-    SweptCcd,
+    SpeculativeMargin,
 };
 use bevy::asset::Handle;
 use bevy::prelude::*;
@@ -143,6 +143,7 @@ pub struct AlsCmcAdapterRuntime {
     pub simulation_delta_seconds: f32,
     pub simulation_substeps: u32,
     pub min_analog_speed_applied: bool,
+    pub grounded_move_start: Option<Vec3>,
 }
 
 impl Default for AlsCmcAdapterRuntime {
@@ -152,6 +153,7 @@ impl Default for AlsCmcAdapterRuntime {
             simulation_delta_seconds: 0.0,
             simulation_substeps: 0,
             min_analog_speed_applied: false,
+            grounded_move_start: None,
         }
     }
 }
@@ -307,7 +309,7 @@ pub struct AlsCharacterBundle {
     pub collider: Collider,
     pub sensor_shape: TnuaAvian3dSensorShape,
     pub locked_axes: LockedAxes,
-    pub swept_ccd: SweptCcd,
+    pub speculative_margin: SpeculativeMargin,
     pub controller: TnuaController<AlsControlScheme>,
     pub tnua_config: TnuaConfig<AlsControlScheme>,
     pub params: AlsMovementParamsHandle,
@@ -342,7 +344,7 @@ impl AlsCharacterBundle {
             ),
             sensor_shape: als_character_ground_sensor(ALS_CHARACTER_CAPSULE_RADIUS, 0.15, 0.0),
             locked_axes: LockedAxes::ROTATION_LOCKED,
-            swept_ccd: SweptCcd::LINEAR,
+            speculative_margin: SpeculativeMargin::MAX,
             controller: TnuaController::default(),
             tnua_config: TnuaConfig(tnua_config),
             params: AlsMovementParamsHandle(params),

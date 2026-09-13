@@ -157,9 +157,11 @@ pub fn grounded_velocity_step_with_braking_friction(
     let accelerated = direction_adjusted
         + desired_direction * dynamics.acceleration.max(0.0) * desired_amount * delta_seconds;
     let target_speed = analog_target_speed(max_speed, desired_amount, min_analog_walk_speed);
-    if speed > target_speed && accelerated.dot(horizontal_velocity) > 0.0 {
+    if horizontal_velocity.length_squared() > target_speed * target_speed * 1.01
+        && accelerated.dot(horizontal_velocity) > 0.0 {
         let braking_delta = (dynamics.braking_deceleration.max(0.0) * delta_seconds).min(speed);
-        return horizontal_velocity - horizontal_velocity.normalize_or_zero() * braking_delta;
+        let minimum_speed = if desired_direction.dot(horizontal_velocity) > 0.0 { target_speed } else { 0.0 };
+        return horizontal_velocity.normalize_or_zero() * (speed - braking_delta).max(minimum_speed);
     }
     accelerated.clamp_length_max(target_speed)
 }
@@ -530,6 +532,15 @@ impl Plugin for AlsGroundedDynamicsPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_speed_tolerance_does_not_brake_below_the_requested_limit() {
+        let dynamics = GroundedDynamics { acceleration: 20.0, braking_deceleration: 15.0, ground_friction: 4.0 };
+        for speed in [f32::from_bits(3.75_f32.to_bits() + 1), 4.0] {
+            let next = grounded_velocity_step(Vec3::X * speed, Vec3::X, 3.75, dynamics, 0.25, 0.05);
+            assert!(next.distance(Vec3::X * 3.75) < 0.00001, "speed={speed:?} next={next:?}");
+        }
+    }
 
     #[test]
     fn roll_blend_out_restores_the_grounded_velocity_motor() {
