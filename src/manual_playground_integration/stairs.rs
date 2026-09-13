@@ -227,6 +227,9 @@ mod tests {
             Transform::from_xyz(0.0, 2.5, -4.29))).id();
         app.finish();
         for _ in 0..3 { app.update(); }
+        app.init_resource::<ManualIntegrationState>().init_resource::<ManualRuntimePhaseEvidence>()
+            .init_resource::<Assets<AlsMovementParams>>();
+        app.world_mut().run_system_once(drive).unwrap();
         let (route, intersections, supported) = app.world_mut().run_system_once(move |spatial: SpatialQuery, colliders: Query<&Collider>| {
             let capsule = als_core::character::als_character_capsule(0.9, 0.3);
             let route = Route::from_collider(colliders.get(stairs).unwrap(), &GlobalTransform::IDENTITY, 0.9,
@@ -354,28 +357,34 @@ mod tests {
 pub(super) fn drive(
     mut state: ResMut<ManualIntegrationState>,
     mut phase_evidence: ResMut<ManualRuntimePhaseEvidence>,
-    spatial: SpatialQuery,
     stairs: Query<(Entity, &Collider, &GlobalTransform, &PlaygroundMeshColliderBuilt)>,
-    mut characters: Query<(&mut AlsInputOverride, &mut Transform, &mut Position, Option<&mut Rotation>, &mut LinearVelocity,
-        &mut AlsViewYaw, &mut AlsViewPitch, &Stance, &LocomotionState, &AlsDesiredGait, &AlsLastFreeRotationMode, &RotationMode, &Collider), With<AlsCharacter>>,
+    mut actors: ParamSet<(SpatialQuery, Query<(&mut AlsInputOverride, &mut Transform, &mut Position, Option<&mut Rotation>, &mut LinearVelocity,
+        &mut AlsViewYaw, &mut AlsViewPitch, &Stance, &LocomotionState, &AlsDesiredGait, &AlsLastFreeRotationMode, &RotationMode, &Collider), With<AlsCharacter>>)>,
     mut rotation_state: Query<(&AlsMovementParamsHandle, Option<&mut AlsRotationResponseState>, &mut AlsAimingYawConstraint, Option<&mut AlsRotationAnimationState>)>,
     params: Res<Assets<AlsMovementParams>>,
 ) {
     let Some(character) = state.character else { return; };
-    let Ok((mut input, mut transform, mut position, rotation, mut velocity, mut yaw, mut pitch, stance, locomotion, gait, desired_mode, mode, capsule)) = characters.get_mut(character) else { return; };
     let now = state.game_time_seconds;
     if state.stairs_probe.index == 6 {
         begin_phase(&mut state, IntegrationPhase::Finish);
         return;
     }
-    if state.stairs_probe.route.is_none() {
+    let pending_route = if state.stairs_probe.route.is_none() {
         let name = MESHES[state.stairs_probe.index / 2];
         let Some((stairs_entity, collider, global, _)) = stairs.iter().find(|(_, _, _, source)| source.mesh_base == name) else { return; };
-        let Ok((handle, response, mut constraint, animation)) = rotation_state.get_mut(character) else { return; };
+        let Ok((handle, _, _, _)) = rotation_state.get(character) else { return; };
         let Some(params) = params.get(handle.id()) else { return; };
         let half_height = params.crouch.standing_capsule_half_height;
+        let Ok(capsule) = actors.p1().get(character).map(|parts| parts.12.clone()) else { return; };
+        let spatial = actors.p0();
         let Some(route) = Route::from_collider(collider, global, half_height,
-            |candidate| supported_tread_center(&spatial, capsule, character, stairs_entity, candidate, half_height)) else { return; };
+            |candidate| supported_tread_center(&spatial, &capsule, character, stairs_entity, candidate, half_height)) else { return; };
+        Some(route)
+    } else { None };
+    let mut characters = actors.p1();
+    let Ok((mut input, mut transform, mut position, rotation, mut velocity, mut yaw, mut pitch, stance, locomotion, gait, desired_mode, mode, _)) = characters.get_mut(character) else { return; };
+    if let Some(route) = pending_route {
+        let Ok((_, response, mut constraint, animation)) = rotation_state.get_mut(character) else { return; };
         reset_character(&mut transform, &mut position, rotation, &mut velocity, &mut yaw, &mut pitch,
             route.bottom + Vec3::Y * 0.05, world_forward_to_yaw((route.top - route.bottom).with_y(0.0)));
         reinitialize_fixture_rotation_response(response, &mut constraint, animation);
