@@ -230,6 +230,10 @@ impl Plugin for AlsMantleDrivePlugin {
         .add_systems(
             PostUpdate,
             (
+                update_mantle_movement_base
+                    .after(PhysicsSystems::Last)
+                    .before(als_core::motion::AlsActualVelocitySet)
+                    .before(release_mantle_physics),
                 release_mantle_physics
                     .after(PhysicsSystems::Last)
                     .after(als_core::motion::AlsRotationResponseSet)
@@ -727,6 +731,36 @@ fn release_mantle_physics(
             AlsCollisionLayerOwner::Mantle,
             false,
         );
+    }
+}
+
+fn update_mantle_movement_base(
+    mut mantles: Query<(Entity, &mut AlsMantleState), With<AlsMantlePhysicsFrame>>,
+    mut transforms: ParamSet<(
+        bevy::transform::helper::TransformHelper,
+        Query<(&mut Transform, Option<&mut Position>, Option<&mut Rotation>), With<AlsCharacter>>,
+    )>,
+    assets: Res<MantleAssets>,
+    clips: Res<Assets<GraphClip>>,
+    skeletons: Res<Assets<Skeleton>>,
+) {
+    for (entity, mut mantle) in &mut mantles {
+        let Some(base) = mantle.target_base else { continue; };
+        if !mantle.root_motion_ready { continue; }
+        let Ok(latest) = transforms.p0().compute_global_transform(base.entity) else { continue; };
+        let Some(clip) = clips.get(assets.clip(mantle.kind)) else { continue; };
+        let Some(skeleton) = skeletons.get(&clip.skeleton) else { continue; };
+        let Some(root) = sample_mantle_root(clip, skeleton, mantle.clip_time()) else { continue; };
+        mantle.refresh_target_base(Some(AlsMantleTargetBase {
+            translation: latest.translation(), rotation: latest.rotation(), scale: latest.scale(), ..base
+        }));
+        let target = mantle.target_actor_transform_at(mantle.time, root);
+        let mut query = transforms.p1();
+        let Ok((mut transform, position, rotation)) = query.get_mut(entity) else { continue; };
+        transform.translation = target.translation;
+        transform.rotation = target.rotation;
+        if let Some(mut position) = position { position.0 = target.translation; }
+        if let Some(mut rotation) = rotation { rotation.0 = target.rotation; }
     }
 }
 
@@ -1413,8 +1447,7 @@ mod tests {
         assert!((montages.entries[0].clip_time - previous - 0.12).abs() < 1e-6);
     }
 
-    #[test]
-    fn mantle_absolute_root_drives_actual_clips_to_source_endpoints() {
+    fn mantle_clip_test_app() -> App {
         let mut app = App::new();
         app.add_plugins((
             MinimalPlugins,
@@ -1423,6 +1456,9 @@ mod tests {
             TransformPlugin,
             bevy::gizmos::GizmoPlugin,
             bevy_animation_graph::AnimationGraphPlugin::default(),
+            avian3d::prelude::PhysicsPlugins::new(PostUpdate),
+            AlsMantleDrivePlugin,
+            crate::source_physics_timing::SourcePhysicsTimingPlugin,
         ))
         .init_asset::<bevy::world_serialization::WorldAsset>()
         .init_asset::<bevy::animation::AnimationClip>()
@@ -1430,7 +1466,7 @@ mod tests {
         .init_asset::<Mesh>()
         .init_asset::<Image>()
         .add_message::<als_core::transition::StateTransitionEvent>()
-        .add_systems(Startup, load_mantle_assets);
+        .add_message::<crate::animation_events::AlsAnimationEvent>();
         app.finish();
         app.cleanup();
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
@@ -1463,6 +1499,80 @@ mod tests {
             );
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
+        app
+    }
+
+    #[test]
+    fn moving_mantle_targets_are_sampled_after_their_current_frame_motion() {
+        use avian3d::prelude::*;
+        use bevy::time::TimeUpdateStrategy;
+        let mut app = mantle_clip_test_app();
+        let mut failures = Vec::new();
+        for child in [false, true] {
+            for (linear, angular) in [(Vec3::X, Vec3::ZERO), (Vec3::ZERO, Vec3::Y)] {
+                let transform = Transform::from_xyz(0.0, 4.0, 0.0);
+                let body = app.world_mut().spawn((RigidBody::Kinematic, transform, GlobalTransform::from(transform),
+                    LinearVelocity(linear), AngularVelocity(angular))).id();
+                let target = if child {
+                    app.world_mut().spawn((ChildOf(body), Transform::from_xyz(0.2, 0.0, 0.0),
+                        GlobalTransform::from(Transform::from_xyz(0.2, 4.0, 0.0)), Collider::cuboid(2.0, 0.4, 2.0))).id()
+                } else {
+                    app.world_mut().entity_mut(body).insert(Collider::cuboid(2.0, 0.4, 2.0));
+                    body
+                };
+                let base_transform = *app.world().get::<GlobalTransform>(target).unwrap();
+                let start = Vec3::new(-0.5, 4.9, 1.5);
+                let mut mantle = AlsMantleState::default();
+                mantle.begin_with_target_base(MantleKind::Low, start, Vec3::new(0.0, 5.2, 0.0), 0.75, 0.0, 0.0,
+                    AlsMantleTargetBase { entity:target, translation:base_transform.translation(), rotation:base_transform.rotation(),
+                        scale:base_transform.scale(), relative_location:true });
+                let clip_handle = app.world().resource::<MantleAssets>().clip(MantleKind::Low).clone();
+                let clip = app.world().resource::<Assets<GraphClip>>().get(&clip_handle).unwrap();
+                let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
+                let mut reference = mantle.clone();
+                reference.prepare_root_motion(sample_mantle_root(clip, skeleton, mantle.start_offset).unwrap(),
+                    sample_mantle_root(clip, skeleton, clip.duration).unwrap());
+                let actor = app.world_mut().spawn((AlsCharacter, mantle, LocomotionState::Grounded,
+                    RigidBody::Dynamic, Transform::from_translation(start), GlobalTransform::from(Transform::from_translation(start)),
+                    Collider::sphere(0.3))).id();
+                let mut maximum = 0.0_f32;
+                let mut elapsed = 0.0_f32;
+                for frame in 0..120 {
+                    let delta = [1.0/60.0, 0.05][frame % 2];
+                    elapsed += delta;
+                    app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
+                    app.update();
+                    let current = app.world().get::<AlsMantleState>(actor).unwrap();
+                    assert!((current.time - elapsed.min(current.action_end())).abs() < 1e-5);
+                    let latest = app.world().get::<GlobalTransform>(target).unwrap();
+                    reference.refresh_target_base(Some(AlsMantleTargetBase { entity:target, translation:latest.translation(),
+                        rotation:latest.rotation(), scale:latest.scale(), relative_location:true }));
+                    let clip = app.world().resource::<Assets<GraphClip>>().get(&clip_handle).unwrap();
+                    let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
+                    let root = sample_mantle_root(clip, skeleton, current.clip_time()).unwrap();
+                    let expected = reference.target_actor_transform_at(current.time, root);
+                    let actual = app.world().get::<Transform>(actor).unwrap();
+                    maximum = maximum.max(actual.translation.distance(expected.translation));
+                    assert!(actual.rotation.angle_between(expected.rotation) < 1e-3);
+                    if !current.active { break; }
+                }
+                assert!(!app.world().get::<AlsMantleState>(actor).unwrap().active);
+                if maximum > 1e-4 { failures.push((child, linear, angular, maximum)); }
+                app.world_mut().entity_mut(actor).insert(AlsNotifyLocomotionAction::None);
+                app.update();
+                assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), LocomotionState::Grounded);
+                assert!(app.world().get::<CustomPositionIntegration>(actor).is_none());
+                assert!(app.world().get::<CustomVelocityIntegration>(actor).is_none());
+                app.world_mut().despawn(actor);
+                app.world_mut().despawn(body);
+            }
+        }
+        assert!(failures.is_empty(), "Mantle used an old movement-base transform: {failures:?}");
+    }
+
+    #[test]
+    fn mantle_absolute_root_drives_actual_clips_to_source_endpoints() {
+        let mut app = mantle_clip_test_app();
         for kind in [
             MantleKind::High,
             MantleKind::InAir,

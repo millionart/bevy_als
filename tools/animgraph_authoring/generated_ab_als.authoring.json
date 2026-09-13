@@ -440,6 +440,18 @@
   },
   "focused_tests": [
     {
+      "label": "mantle_current_moving_target_transform",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "--lib",
+        "moving_mantle_targets_are_sampled_after_their_current_frame_motion"
+      ],
+      "evidence": "target/bf116_stairs/pre_rig_component_final.watchdog.json"
+    },
+    {
       "label": "component_root_input",
       "argv": [
         "cargo",
