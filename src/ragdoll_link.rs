@@ -25,7 +25,7 @@ use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::pose::{BonePose, Pose};
-use bevy_animation_graph::core::ragdoll::spawning::{RagdollColliderSpawned, SpawnedRagdoll};
+use bevy_animation_graph::core::ragdoll::spawning::{RagdollColliderSpawned, RagdollSpawned, SpawnedRagdoll};
 use bevy_animation_graph::core::ragdoll::{
     bone_mapping::RagdollBoneMap,
     definition::{BodyLabel, BodyMode},
@@ -132,7 +132,8 @@ pub struct AlsRagdollLinkPlugin;
 impl Plugin for AlsRagdollLinkPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<StateTransitionEvent>()
-            .add_observer(disable_spawned_ragdoll_collider);
+            .add_observer(disable_spawned_ragdoll_collider)
+            .add_observer(register_ragdoll_camera_trace_owner);
         app.add_systems(
             Update,
             (
@@ -199,6 +200,16 @@ impl Plugin for AlsRagdollLinkPlugin {
             sync_animated_ragdoll_bodies
                 .after(crate::control_rig_apply::AlsControlRigPropagationSet),
         );
+    }
+}
+
+fn register_ragdoll_camera_trace_owner(
+    event: On<RagdollSpawned>,
+    avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
+    mut commands: Commands,
+) {
+    if let Some((avatar, _)) = avatars.iter().find(|(_, scene)| scene.player_entity() == event.animation_player) {
+        commands.entity(event.ragdoll).insert(als_camera::AlsCameraTraceOwner(avatar.character));
     }
 }
 

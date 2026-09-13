@@ -390,6 +390,87 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn actual_ragdoll_root_retains_camera_actor_ownership_after_detachment() {
+        use bevy::ecs::system::RunSystemOnce;
+        use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterBlueprint, spawn_als_character};
+        let (mut app, _, _, _) = loaded_camera_scene();
+        let character = app.world_mut().run_system_once(|
+            mut commands: Commands, assets: Res<AssetServer>,
+            mut params: ResMut<Assets<als_core::params::AlsMovementParams>>,
+            mut configs: ResMut<Assets<als_core::control_scheme::AlsControlSchemeConfig>>,
+        | spawn_als_character(&mut commands, &assets, &mut params, &mut configs,
+            AlsCharacterBlueprint { spawn_input: false, ..AlsCharacterBlueprint::new(Transform::from_xyz(0.0, 3.0, 0.0)) }))
+            .unwrap();
+        app.world_mut().entity_mut(character).insert((avian3d::prelude::RigidBody::Kinematic, bevy_tnua::TnuaToggle::Disabled));
+        let avatar = app.world().get::<AlsCharacterAssembly>(character).unwrap().avatar;
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(40);
+        let player = loop {
+            app.update();
+            if let Some(scene) = app.world().get::<AnimatedSceneInstance>(avatar) {
+                let player = app.world().get::<AnimationGraphPlayer>(scene.player_entity()).unwrap();
+                let ready = match player.get_animation_source() {
+                    bevy_animation_graph::core::animation_graph_player::AnimationSource::Graph(graph) =>
+                        app.world().resource::<AssetServer>().is_loaded_with_dependencies(graph),
+                    _ => false,
+                };
+                if ready {
+                    assert!(player.get_error().is_none(), "{:?}", player.get_error());
+                    if player.get_default_output_pose().is_some() { break scene.player_entity() }
+                }
+            }
+            assert!(std::time::Instant::now() < deadline, "Character scene did not become ready");
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        };
+        app.world_mut().entity_mut(character).insert(als_core::motion::AlsInputOverride(
+            als_core::input::AlsInputCommand { ragdoll_pressed: true, ..default() }));
+        app.update();
+        app.world_mut().get_mut::<als_core::motion::AlsInputOverride>(character).unwrap().0.ragdoll_pressed = false;
+        for _ in 0..4 { app.update(); }
+        assert!(app.world().get::<ChildOf>(player).is_none(), "Ragdoll player must use its source world-space handoff");
+        let root = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll()
+            .expect("Actual character must spawn its ragdoll").root;
+        assert!(app.world().get::<ChildOf>(root).is_none());
+        assert_eq!(app.world().get::<als_camera::AlsCameraTraceOwner>(root), Some(&als_camera::AlsCameraTraceOwner(character)));
+    }
+
+    #[test]
+    fn ragdoll_collision_ownership_does_not_collapse_third_person_camera() {
+        use avian3d::prelude::{Collider, CollisionLayers, RigidBody};
+        let (mut app, character, component, _) = loaded_camera_scene();
+        app.world_mut().entity_mut(character).insert((
+            crate::animation_events::AlsNotifyLocomotionAction::Ragdolling,
+            LocomotionState::None,
+        ));
+        for _ in 0..12 { app.update(); }
+        let before = *app.world().get::<als_camera::AlsCameraDebugInfo>(component).unwrap();
+        assert!(before.valid && !before.trace_blocking_hit);
+        assert_eq!(before.first_person_override, 0.0);
+        let root = app.world_mut().spawn((Transform::IDENTITY, als_camera::AlsCameraTraceOwner(character))).id();
+        let collider = app.world_mut().spawn((
+            ChildOf(root), RigidBody::Static, Collider::sphere(0.35),
+            Transform::from_translation(before.trace_start.lerp(before.trace_end, 0.25)), CollisionLayers::NONE,
+        )).id();
+        app.update();
+        app.world_mut().entity_mut(collider).insert(CollisionLayers::default());
+        for along_boom in [0.25, 0.0] {
+            app.world_mut().get_mut::<Transform>(collider).unwrap().translation = before.trace_start.lerp(before.trace_end, along_boom);
+            for _ in 0..4 {
+                app.update();
+                let debug = app.world().get::<als_camera::AlsCameraDebugInfo>(component).unwrap();
+                assert_eq!(debug.first_person_override, 0.0);
+                assert!(!debug.trace_blocking_hit && !debug.trace_adjusted_start && debug.trace_distance_ratio > 0.99,
+                    "Owned ragdoll collider changed third-person camera: {debug:?}");
+            }
+        }
+        let other_actor = app.world_mut().spawn_empty().id();
+        app.world_mut().get_mut::<Transform>(collider).unwrap().translation = before.trace_start.lerp(before.trace_end, 0.25);
+        app.world_mut().entity_mut(root).insert(als_camera::AlsCameraTraceOwner(other_actor));
+        app.update();
+        let debug = app.world().get::<als_camera::AlsCameraDebugInfo>(component).unwrap();
+        assert!(debug.trace_blocking_hit, "Other actor colliders must still block the camera");
+    }
+
+    #[test]
     fn actual_camera_scene_loads_binds_and_evaluates_once_with_source_inputs() {
         let (mut app, character, component, scene) = loaded_camera_scene();
         app.world_mut()

@@ -303,6 +303,9 @@ pub struct AlsCameraMovementBase {
 #[derive(Component, Debug, Default, Clone, Copy)]
 pub struct AlsCameraTraceIgnore;
 
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AlsCameraTraceOwner(pub Entity);
+
 #[derive(Component, Debug, Clone, Copy)]
 pub struct AlsCameraRuntime {
     pub previous_pivot_target: Vec3,
@@ -946,6 +949,7 @@ fn camera_rig_system(
     definitions: Res<Assets<AlsCameraDefinition>>,
     ignored: Query<(), With<AlsCameraTraceIgnore>>,
     children: Query<&Children>,
+    trace_owners: Query<(Entity, &AlsCameraTraceOwner)>,
     movement_base_transforms: Query<&GlobalTransform>,
 ) {
     for (
@@ -1146,6 +1150,11 @@ fn camera_rig_system(
         );
         let mut excluded = collect_descendants(target_entity, &children);
         excluded.extend(collect_descendants(camera_entity, &children));
+        for (root, trace_owner) in &trace_owners {
+            if trace_owner.0 == target_entity {
+                excluded.extend(collect_descendants(root, &children));
+            }
+        }
         let filter = SpatialQueryFilter::from_excluded_entities(excluded);
         let trace = calculate_camera_trace(
             &mut runtime,
