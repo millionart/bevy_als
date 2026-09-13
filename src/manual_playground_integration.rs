@@ -533,6 +533,9 @@ impl Plugin for ManualPlaygroundIntegrationPlugin {
                 .run_if(|state: Res<ManualIntegrationState>| state.phase == IntegrationPhase::Stairs)
                 .after(AlsCameraSet).after(AlsRotationResponseSet).after(FootIkApplySet::Telemetry)
                 .before(observe_manual_integration).in_set(ManualIntegrationObservationSet))
+            .add_systems(PostUpdate, stairs::capture_move_prefix
+                .run_if(|state: Res<ManualIntegrationState>| state.phase == IntegrationPhase::Stairs)
+                .before(avian3d::prelude::PhysicsSystems::First))
             .add_systems(
                 PostUpdate,
                 (drive_control_rig_view_offset, drive_manual_rig_curves)

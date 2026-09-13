@@ -1308,14 +1308,17 @@ def stairs_trace_issues(report):
                     break
                 speed = math.hypot(frame["velocity"][0], frame["velocity"][2])
                 moved = math.hypot(frame["position"][0] - previous["position"][0], frame["position"][2] - previous["position"][2]) / delta
-                loss = 0.1
+                minimum_speed = expected - 0.1
                 if frame.get("safe_move") is True:
-                    distance = expected * delta
-                    loss = max(loss, (min(max(distance * 0.1, 0.001), 0.01) + distance * 0.001 + 0.0015) / delta + 0.001)
+                    prefix_speed = frame.get("safe_move_prefix_speed")
+                    if not finite(prefix_speed) or not 0.0 <= prefix_speed <= expected + 0.1:
+                        issues.append(f"{prefix}: source SafeMove prefix evidence is missing or invalid")
+                        break
+                    minimum_speed = prefix_speed - 0.001
                 if not finite(frame.get("displacement_speed")) or abs(frame["displacement_speed"] - moved) > 0.001 or abs(frame["animation_speed"] - speed) > 0.001:
                     issues.append(f"{prefix}: displacement, physics and animation speeds disagree")
                     break
-                if not all(expected - loss <= value <= expected + 0.1 for value in (speed, moved)) or (frame.get("safe_move") is True and abs(speed - moved) > 0.001):
+                if not all(minimum_speed <= value <= expected + 0.1 for value in (speed, moved)) or (frame.get("safe_move") is True and abs(speed - moved) > 0.001):
                     issues.append(f"{prefix}: {desired} speed exceeds the source sweep bounds")
                     break
                 counts[desired] += 1
@@ -1945,6 +1948,19 @@ def run_self_test():
     stairs = fixture_stairs_report()
     assert not stairs_trace_issues(stairs), stairs_trace_issues(stairs)
     assert not manual_integration_issues(stairs), manual_integration_issues(stairs)
+    for speed in (1.42, 1.40):
+        clipped = copy.deepcopy(stairs)
+        trace = clipped["manual_integration"]["stairs_trace"]
+        frame = trace[8]
+        frame.update(safe_move=True, safe_move_prefix_speed=1.42, velocity=[0.0, 0.0, -speed], animation_speed=speed, displacement_speed=speed)
+        for later in trace[8:]:
+            if later["route_index"] == 0:
+                later["position"][2] += (1.75 - speed) * 0.1
+                later["distance_m"] -= (1.75 - speed) * 0.1
+        assert bool(stairs_trace_issues(clipped)) == (speed < 1.42), stairs_trace_issues(clipped)
+        if speed == 1.42:
+            frame.pop("safe_move_prefix_speed")
+            assert stairs_trace_issues(clipped)
     for key, value in (("animation_speed", 0.0), ("movement_pose_ready", False),
         ("locomotion", "Air"), ("position", [0.0, 0.9, -100.0]), ("expected_speed", 100.0), ("velocity", [0.0, 0.0, 0.0])):
         invalid = copy.deepcopy(stairs)

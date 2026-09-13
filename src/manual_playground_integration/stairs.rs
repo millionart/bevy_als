@@ -77,6 +77,7 @@ pub(super) struct Probe {
     stage_started: f64,
     last_progress_at: f64,
     furthest: f32,
+    move_prefix_speed: Option<f32>,
     pub(super) completed: [bool; 6],
     pub(super) failure: Option<String>,
 }
@@ -136,7 +137,7 @@ impl Probe {
                 } else if remaining <= 0.03 {
                     self.begin(Stage::Settle, now);
                 } else {
-                    command.move_dir = Vec2::Y * remaining.clamp(0.0, 1.0);
+                    command.move_dir = Vec2::Y;
                     if distance > self.furthest + 0.1 {
                         if distance.floor() > self.furthest.floor() {
                             info!("[MANUAL-INTEGRATION][STAIRS] route={} distance={distance:.3}", self.index);
@@ -290,6 +291,10 @@ mod tests {
         let command = probe.command(2.0, sample);
         assert!((command.look_delta.x.abs() * als_core::view::LOOK_MOUSE_RADIANS_PER_COUNT - std::f32::consts::PI).abs() < 1e-5);
         assert_eq!(command.move_dir, Vec2::ZERO);
+        probe.index = 0;
+        probe.stage = Stage::Traverse;
+        sample.position = route.top + Vec3::Z * 0.115;
+        assert_eq!(probe.command(2.1, sample).move_dir, Vec2::Y);
     }
 
     #[test]
@@ -351,6 +356,17 @@ mod tests {
         let sample = world.resource::<ManualIntegrationGateReport>().stairs_trace.last().unwrap();
         assert_eq!(sample.frame.velocity.z, -2.0);
         assert_eq!(sample.animation_speed, 1.75);
+        let start = world.get::<Position>(character).unwrap().0;
+        world.get_mut::<als_core::character::AlsCmcAdapterRuntime>(character).unwrap().grounded_move_start = Some(start);
+        world.get_mut::<Position>(character).unwrap().0.z -= 0.1;
+        world.run_system_once(capture_move_prefix).unwrap();
+        world.get_mut::<Position>(character).unwrap().0.z -= 0.075;
+        world.get_mut::<LinearVelocity>(character).unwrap().0.z = -1.75;
+        world.resource_mut::<ManualIntegrationState>().game_time_seconds = 0.9;
+        world.run_system_once(observe).unwrap();
+        let sample = world.resource::<ManualIntegrationGateReport>().stairs_trace.last().unwrap();
+        assert!((sample.safe_move_prefix_speed.unwrap() - 1.0).abs() < 1e-5);
+        assert!((sample.displacement_speed.unwrap() - 1.75).abs() < 1e-5);
     }
 }
 
@@ -430,6 +446,7 @@ pub struct Sample {
     expected_speed: f32,
     animation_speed: f32,
     safe_move: bool,
+    safe_move_prefix_speed: Option<f32>,
     displacement_speed: Option<f32>,
     movement_state: Option<u8>,
     movement_pose_ready: Option<bool>,
@@ -478,6 +495,7 @@ pub(super) fn observe(
             desired_gait: desired_gait.0, desired_mode: desired_mode.0, current_mode: *mode, view_yaw: yaw.0 },
         expected_speed: als_core::motion::gait_max_speed(params, stance, &desired_gait.0),
         animation_speed: motion.horizontal_speed, safe_move: cmc.grounded_move_start.is_some(),
+        safe_move_prefix_speed: state.stairs_probe.move_prefix_speed,
         displacement_speed: previous.filter(|_| cmc.simulation_delta_seconds > 0.0)
             .map(|previous| (position.0 - previous.frame.position).with_y(0.0).length() / cmc.simulation_delta_seconds),
         movement_state: telemetry.actual_movement_state, movement_pose_ready: telemetry.actual_movement_pose_ready,
@@ -505,4 +523,13 @@ pub(super) fn observe(
         };
     }
     report.stairs_trace.push(sample);
+}
+
+pub(super) fn capture_move_prefix(
+    mut state: ResMut<ManualIntegrationState>,
+    characters: Query<(&Position, &als_core::character::AlsCmcAdapterRuntime), With<AlsCharacter>>,
+) {
+    state.stairs_probe.move_prefix_speed = state.character.and_then(|character| characters.get(character).ok())
+        .and_then(|(position, cmc)| cmc.grounded_move_start.filter(|_| cmc.simulation_delta_seconds > 0.0)
+            .map(|start| (position.0 - start).with_y(0.0).length() / cmc.simulation_delta_seconds));
 }

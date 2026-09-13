@@ -2650,8 +2650,8 @@ pub(crate) fn locomotion_state_sync_system(
 mod tests {
     use super::*;
 
-    #[test]
-    fn continuous_stairs_preserve_grounded_horizontal_motion() {
+
+    fn stair_motion_fixture(rise: f32, ceiling: bool, descending: bool, yaw: f32) -> (App, Entity, f32) {
         use crate::character::{AlsCharacterBundle, AlsCharacterPlugin};
         use crate::transition::AlsStateTransitionPlugin;
         use avian3d::prelude::PhysicsPlugins;
@@ -2659,6 +2659,106 @@ mod tests {
         use bevy::time::TimeUpdateStrategy;
         use bevy_tnua::TnuaControllerPlugin;
         use bevy_tnua_avian3d::TnuaAvian3dPlugin;
+        let frame_rotation = Quat::from_rotation_y(yaw);
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+            PhysicsPlugins::new(PostUpdate), TnuaAvian3dPlugin::new(Update),
+            TnuaControllerPlugin::<AlsControlScheme>::new(Update),
+            AlsStateTransitionPlugin, AlsCharacterPlugin, AlsMotionPlugin))
+            .init_resource::<Assets<Mesh>>()
+            .add_message::<AssetEvent<Mesh>>()
+            .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
+        app.finish();
+        let params_value = AlsMovementParams::default();
+        let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(params_value.clone());
+        let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>().add(initial_als_control_scheme_config(&params_value));
+        let mut bundle = AlsCharacterBundle::new(params, config);
+        let start_z = if descending { -5.44 } else { 1.0 };
+        let floor_y = if descending { 12.0 * rise } else { 0.0 };
+        bundle.transform = Transform::from_translation(frame_rotation * Vec3::new(0.0, floor_y + 0.924, start_z))
+            .with_rotation(frame_rotation);
+        let character = app.world_mut().spawn(bundle).id();
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(20.0, 0.2, 30.0), Transform::from_xyz(0.0, -0.1, 0.0)));
+        let mut vertices = Vec::new();
+        let mut triangles = Vec::new();
+        for step in 0..12 {
+            let front = -(step as f32) * 0.37;
+            let bottom = step as f32 * rise;
+            let top = bottom + rise;
+            let index = vertices.len() as u32;
+            vertices.extend([
+                Vec3::new(-3.335, bottom, front), Vec3::new(3.335, bottom, front),
+                Vec3::new(-3.335, top, front), Vec3::new(3.335, top, front),
+                Vec3::new(-3.335, top, front - 0.37), Vec3::new(3.335, top, front - 0.37),
+            ].map(|vertex| frame_rotation * vertex));
+            triangles.extend([[index, index + 1, index + 2], [index + 1, index + 3, index + 2],
+                [index + 2, index + 3, index + 4], [index + 3, index + 5, index + 4]]);
+        }
+        app.world_mut().spawn((RigidBody::Static, Collider::try_trimesh(vertices, triangles).unwrap(), Transform::default()));
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(6.67, 12.0 * rise, 6.0),
+            Transform::from_translation(frame_rotation * Vec3::new(0.0, 6.0 * rise, -7.44))
+                .with_rotation(frame_rotation)));
+        if ceiling {
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(6.67, 0.2, 6.0),
+                Transform::from_translation(frame_rotation * Vec3::new(0.0, 2.0, -3.0))
+                    .with_rotation(frame_rotation)));
+        }
+        for _ in 0..30 {
+            app.update();
+        }
+        (app, character, start_z)
+    }
+
+    #[test]
+    fn stair_contact_reproduces_the_terminal_low_input_boundary() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::time::TimeUpdateStrategy;
+        let (mut app, character, _) = stair_motion_fixture(0.36, false, false, 0.0);
+        let offset = Vec3::new(-26.665, 15.48, -45.91);
+        let mut roots = app.world_mut().query_filtered::<(&mut Transform, &mut Position), Without<ChildOf>>();
+        for (mut transform, mut position) in roots.iter_mut(app.world_mut()) {
+            transform.translation += offset;
+            position.0 += offset;
+        }
+        let start = offset + Vec3::new(0.0, 0.924, 0.3);
+        app.world_mut().get_mut::<Transform>(character).unwrap().translation = start;
+        app.world_mut().get_mut::<Position>(character).unwrap().0 = start;
+        app.world_mut().get_mut::<crate::gait::AlsDesiredGait>(character).unwrap().0 = Gait::Walking;
+        *app.world_mut().resource_mut::<TimeUpdateStrategy>() = TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.0093024));
+        for _ in 0..30 { app.update(); }
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = Vec2::Y * 0.11500549;
+        for _ in 0..240 { app.update(); }
+        let position = app.world().get::<Position>(character).unwrap().0;
+        let base = *app.world().get::<crate::dynamics::AlsMovementBaseDynamicsState>(character).unwrap();
+        let delta = (base.world_velocity + base.motor_boost) * 0.0093024;
+        let (forward, floor) = app.world_mut().run_system_once(move |spatial: SpatialQuery, colliders: Query<&Collider>| {
+            let capsule = colliders.get(character).unwrap();
+            let filter = SpatialQueryFilter::from_excluded_entities([character]);
+            let forward = spatial.cast_shape(capsule, position, Quat::IDENTITY, Dir3::NEG_Z,
+                &ShapeCastConfig::from_max_distance(delta.length()), &filter);
+            let destination = position + delta + Vec3::Y * (MAX_STEP_HEIGHT - 0.024);
+            let floor = spatial.cast_shape(capsule, destination, Quat::IDENTITY, Dir3::NEG_Y,
+                &ShapeCastConfig::from_max_distance(MAX_STEP_HEIGHT + 0.048), &filter);
+            (forward, floor)
+        }).unwrap();
+        let floor = floor.unwrap();
+        let floor_offset = (floor.point1 - position - delta).with_y(0.0).length();
+        assert!(floor_offset >= 0.3 - EDGE_REJECT_DISTANCE);
+        assert!(forward.is_some_and(|hit| hit.distance == 0.0));
+        assert!((position.z - start.z).abs() < 0.001);
+        println!("[STAIR-CONTACT] source_edge_rejected distance={floor_offset} delta={delta:?}");
+        assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Grounded);
+        let after_low = position;
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = Vec2::Y;
+        for _ in 0..120 { app.update(); }
+        let after_full = app.world().get::<Position>(character).unwrap().0;
+        println!("[STAIR-CONTACT] full_input position={after_full:?} distance={}", after_low.z - after_full.z);
+        assert!(after_low.z - after_full.z > 0.37, "Full keyboard input did not clear the next stair");
+    }
+
+    #[test]
+    fn continuous_stairs_preserve_grounded_horizontal_motion() {
+        use bevy::time::TimeUpdateStrategy;
 
         let mut failures = Vec::new();
         for (rise, ceiling) in [(0.18_f32, false), (0.26, false), (0.36, false), (0.6, false), (0.18, true)] {
@@ -2669,52 +2769,7 @@ mod tests {
                     (std::f32::consts::PI, false), (-std::f32::consts::FRAC_PI_2, false),
                     (0.0, true), (-std::f32::consts::FRAC_PI_2, true)] {
                     let frame_rotation = Quat::from_rotation_y(yaw);
-                    let mut app = App::new();
-                    app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
-                        PhysicsPlugins::new(PostUpdate), TnuaAvian3dPlugin::new(Update),
-                        TnuaControllerPlugin::<AlsControlScheme>::new(Update),
-                        AlsStateTransitionPlugin, AlsCharacterPlugin, AlsMotionPlugin))
-                        .init_resource::<Assets<Mesh>>()
-                        .add_message::<AssetEvent<Mesh>>()
-                        .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
-                    app.finish();
-                    let params_value = AlsMovementParams::default();
-                    let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(params_value.clone());
-                    let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>().add(initial_als_control_scheme_config(&params_value));
-                    let mut bundle = AlsCharacterBundle::new(params, config);
-                    let start_z = if descending { -5.44 } else { 1.0 };
-                    let floor_y = if descending { 12.0 * rise } else { 0.0 };
-                    bundle.transform = Transform::from_translation(frame_rotation * Vec3::new(0.0, floor_y + 0.924, start_z))
-                        .with_rotation(frame_rotation);
-                    let character = app.world_mut().spawn(bundle).id();
-                    app.world_mut().spawn((RigidBody::Static, Collider::cuboid(20.0, 0.2, 30.0), Transform::from_xyz(0.0, -0.1, 0.0)));
-                    let mut vertices = Vec::new();
-                    let mut triangles = Vec::new();
-                    for step in 0..12 {
-                        let front = -(step as f32) * 0.37;
-                        let bottom = step as f32 * rise;
-                        let top = bottom + rise;
-                        let index = vertices.len() as u32;
-                        vertices.extend([
-                            Vec3::new(-3.335, bottom, front), Vec3::new(3.335, bottom, front),
-                            Vec3::new(-3.335, top, front), Vec3::new(3.335, top, front),
-                            Vec3::new(-3.335, top, front - 0.37), Vec3::new(3.335, top, front - 0.37),
-                        ].map(|vertex| frame_rotation * vertex));
-                        triangles.extend([[index, index + 1, index + 2], [index + 1, index + 3, index + 2],
-                            [index + 2, index + 3, index + 4], [index + 3, index + 5, index + 4]]);
-                    }
-                    app.world_mut().spawn((RigidBody::Static, Collider::try_trimesh(vertices, triangles).unwrap(), Transform::default()));
-                    app.world_mut().spawn((RigidBody::Static, Collider::cuboid(6.67, 12.0 * rise, 6.0),
-                        Transform::from_translation(frame_rotation * Vec3::new(0.0, 6.0 * rise, -7.44))
-                            .with_rotation(frame_rotation)));
-                    if ceiling {
-                        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(6.67, 0.2, 6.0),
-                            Transform::from_translation(frame_rotation * Vec3::new(0.0, 2.0, -3.0))
-                                .with_rotation(frame_rotation)));
-                    }
-                    for _ in 0..30 {
-                        app.update();
-                    }
+                    let (mut app, character, start_z) = stair_motion_fixture(rise, ceiling, descending, yaw);
                     app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = Vec2::Y;
                     app.world_mut().get_mut::<AlsViewYaw>(character).unwrap().0 = yaw + if descending { std::f32::consts::PI } else { 0.0 };
                     let mut samples = 0;
