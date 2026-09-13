@@ -2168,7 +2168,7 @@ fn locomotion_drive_system(
                 }
                 JumpChain::Jump => {
                     if !action_active && *loco == LocomotionState::Grounded {
-                        controller.action(AlsControlScheme::Jump(TnuaBuiltinJump::default()));
+                        controller.action(AlsControlScheme::Jump(TnuaBuiltinJump { allow_in_air: true, ..default() }));
                     }
                 }
             }
@@ -2627,7 +2627,24 @@ pub(crate) fn locomotion_state_sync_system(
             || jumping;
         let landed_on_contact = airborne && collisions.collisions_with(entity)
             .any(|contact| resolved_walkable_contact(contact, entity));
-        let target = if airborne && !landed_on_contact && !floor_supported {
+        let landed_on_capsule = airborne && !landed_on_contact && !floor_supported
+            && collisions.collisions_with(entity).any(|contact| {
+                contact.flags.contains(ContactPairFlags::GENERATE_CONSTRAINTS)
+                    && contact.manifolds.iter().any(|manifold| {
+                        let normal = if contact.collider1 == entity { -manifold.normal } else { manifold.normal };
+                        normal.y > 0.0 && manifold.points.iter().any(|point| point.normal_impulse > 0.0)
+                    })
+            }) && params_assets.get(handle.id()).is_some_and(|params| {
+                let half = match *stance {
+                    Stance::Standing => params.crouch.standing_capsule_half_height,
+                    Stance::Crouching => params.crouch.crouched_capsule_half_height,
+                } * transform.scale.y;
+                let radius = params.crouch.standing_capsule_radius * transform.scale.x.min(transform.scale.z);
+                find_ground_floor(&spatial, position.0, half, radius, &SpatialQueryFilter::from_excluded_entities([entity]))
+                    .is_some_and(|(center, impact)| (position.y - center).abs() <= MAX_FLOOR_DISTANCE
+                        && impact < position.y - half + radius)
+            });
+        let target = if airborne && !landed_on_contact && !floor_supported && !landed_on_capsule {
             LocomotionState::Air
         } else {
             LocomotionState::Grounded
@@ -2756,6 +2773,143 @@ mod tests {
         let after_full = app.world().get::<Position>(character).unwrap().0;
         println!("[STAIR-CONTACT] full_input position={after_full:?} distance={}", after_low.z - after_full.z);
         assert!(after_low.z - after_full.z > 0.37, "Full keyboard input did not clear the next stair");
+    }
+
+    #[test]
+    fn uphill_jump_landing_keeps_supported_capsules_out_of_air() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::time::TimeUpdateStrategy;
+        let mut failures = Vec::new();
+        for rise in [0.18, 0.26, 0.36] {
+            for gait in [Gait::Running, Gait::Sprinting] {
+                for launch_z in [0.55, 0.15, -0.22] {
+                    for delta in [1.0 / 60.0, 1.0 / 120.0] {
+                        let (mut app, character, _) = stair_motion_fixture(rise, false, false, 0.0);
+                        *app.world_mut().resource_mut::<TimeUpdateStrategy>() = TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta));
+                        app.world_mut().get_mut::<crate::gait::AlsDesiredGait>(character).unwrap().0 = gait;
+                        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = Vec2::Y;
+                        for _ in 0..180 {
+                            app.update();
+                            if app.world().get::<Position>(character).unwrap().z <= launch_z { break; }
+                        }
+                        let launch = app.world().get::<Position>(character).unwrap().0;
+                        let mut airborne = false;
+                        let mut landed = false;
+                        let mut supported_air_frames = 0;
+                        for frame in 0..180 {
+                            app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().jump_pressed = frame == 0;
+                            app.update();
+                            let mode = *app.world().get::<LocomotionState>(character).unwrap();
+                            airborne |= mode == LocomotionState::Air;
+                            let position = app.world().get::<Position>(character).unwrap().0;
+                            let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
+                            if airborne && mode == LocomotionState::Grounded {
+                                landed = position.y > launch.y + 0.05;
+                                break;
+                            }
+                            if airborne && velocity.y.abs() < 0.001 {
+                                let supported = app.world_mut().run_system_once(move |spatial: SpatialQuery, collisions: Collisions| {
+                                    let floor = find_ground_floor(&spatial, position, 0.9, 0.3, &SpatialQueryFilter::from_excluded_entities([character]));
+                                    let contact = collisions.collisions_with(character).any(|pair| pair.manifolds.iter().any(|manifold| {
+                                        let normal = if pair.collider1 == character { -manifold.normal } else { manifold.normal };
+                                        normal.y > 0.0 && manifold.points.iter().any(|point| point.normal_impulse > 0.0)
+                                    }));
+                                    contact && floor.is_some_and(|(center, _)| (position.y - center).abs() <= MAX_FLOOR_DISTANCE)
+                                }).unwrap();
+                                supported_air_frames = if supported { supported_air_frames + 1 } else { 0 };
+                                if supported_air_frames >= 2 {
+                                    let evidence = app.world_mut().run_system_once(move |spatial: SpatialQuery, collisions: Collisions| {
+                                        let floor = find_ground_floor(&spatial, position, 0.9, 0.3, &SpatialQueryFilter::from_excluded_entities([character]));
+                                        let normals: Vec<_> = collisions.collisions_with(character).flat_map(|pair| pair.manifolds.iter().map(|manifold| {
+                                            let normal = if pair.collider1 == character { -manifold.normal } else { manifold.normal };
+                                            (normal, manifold.points.iter().map(|point| (point.normal_speed, point.normal_impulse)).collect::<Vec<_>>())
+                                        })).collect();
+                                        (floor, normals)
+                                    }).unwrap();
+                                    println!("[UPHILL-SUPPORT] rise={rise} gait={gait:?} launch_z={launch_z} position={position:?} evidence={evidence:?}");
+                                    failures.push((rise, gait, launch_z, delta, frame, position, velocity, "supported capsule remained Air"));
+                                    break;
+                                }
+                            }
+                        }
+                        if !airborne || (!landed && supported_air_frames < 2) {
+                            failures.push((rise, gait, launch_z, delta, 180, app.world().get::<Position>(character).unwrap().0,
+                                app.world().get::<LinearVelocity>(character).unwrap().0, "uphill jump or landing was not observed"));
+                        }
+                        if landed {
+                            app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = Vec2::ZERO;
+                            for rest in 0..30 {
+                                app.update();
+                                if *app.world().get::<LocomotionState>(character).unwrap() != LocomotionState::Grounded {
+                                    failures.push((rise, gait, launch_z, delta, 180 + rest, app.world().get::<Position>(character).unwrap().0,
+                                        app.world().get::<LinearVelocity>(character).unwrap().0, "landed capsule returned to Air"));
+                                    break;
+                                }
+                            }
+                            let controller = app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap();
+                            if controller.action_flow_status().ongoing() == Some(AlsControlSchemeActionDiscriminant::Jump) {
+                                failures.push((rise, gait, launch_z, delta, 210, app.world().get::<Position>(character).unwrap().0,
+                                    app.world().get::<LinearVelocity>(character).unwrap().0, "landed controller remained in Jump action"));
+                            }
+                            app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().jump_pressed = true;
+                            app.update();
+                            if app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().action_flow_status().ongoing()
+                                != Some(AlsControlSchemeActionDiscriminant::Jump) {
+                                println!("[UPHILL-REJUMP] rise={rise} gait={gait:?} launch_z={launch_z} delta={delta} mantle={:?} mode={:?} controller={:?}",
+                                    app.world().get::<AlsMantleState>(character), app.world().get::<LocomotionState>(character),
+                                    app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().action_flow_status());
+                                failures.push((rise, gait, launch_z, delta, 211, app.world().get::<Position>(character).unwrap().0,
+                                    app.world().get::<LinearVelocity>(character).unwrap().0, "jump was unavailable after landing"));
+                            }
+                            app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().jump_pressed = false;
+                            app.update();
+                            let was_air = *app.world().get::<LocomotionState>(character).unwrap() == LocomotionState::Air;
+                            app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().jump_pressed = true;
+                            app.update();
+                            if was_air {
+                                assert_ne!(app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().action_flow_status().just_starting(),
+                                    Some(AlsControlSchemeActionDiscriminant::Jump),
+                                    "An airborne input started an extra jump: rise={rise} gait={gait:?} launch_z={launch_z} delta={delta}");
+                            }
+                        }
+                        println!("[UPHILL-JUMP] rise={rise} gait={gait:?} launch_z={launch_z} delta={delta} airborne={airborne} landed={landed} supported_air_frames={supported_air_frames}");
+                    }
+                }
+            }
+        }
+        assert!(failures.is_empty(), "Uphill landing failed: {failures:?}");
+    }
+
+    #[test]
+    fn steep_contact_does_not_pass_capsule_landing_validation() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+        let mut bodies = app.world_mut().query::<(Entity, &RigidBody)>();
+        let remove: Vec<_> = bodies.iter(app.world()).filter_map(|(entity, body)| (*body == RigidBody::Static).then_some(entity)).collect();
+        for entity in remove { app.world_mut().despawn(entity); }
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(20.0, 0.2, 20.0),
+            Transform::from_rotation(Quat::from_rotation_x(60.0_f32.to_radians()))));
+        let start = Vec3::Y * 4.0;
+        app.world_mut().get_mut::<Transform>(character).unwrap().translation = start;
+        app.world_mut().get_mut::<Position>(character).unwrap().0 = start;
+        *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = LocomotionState::Air;
+        let mut contact_seen = false;
+        for _ in 0..180 {
+            app.update();
+            let has_contact = app.world_mut().run_system_once(move |collisions: Collisions| {
+                collisions.collisions_with(character).any(|pair| pair.manifolds.iter().any(|manifold| {
+                    let normal = if pair.collider1 == character { -manifold.normal } else { manifold.normal };
+                    normal.y > 0.0 && manifold.points.iter().any(|point| point.normal_impulse > 0.0)
+                }))
+            }).unwrap();
+            if has_contact {
+                contact_seen = true;
+                assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Air,
+                    "An unwalkable surface was classified as a landing");
+                break;
+            }
+        }
+        assert!(contact_seen, "The steep-surface fixture did not contact the capsule");
     }
 
     #[test]
