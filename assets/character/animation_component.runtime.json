@@ -1,0 +1,5 @@
+{
+  "source_mesh": "/ALS/ALS/Character/SKM_Als.SKM_Als",
+  "root_bone": "root",
+  "teleport_distance_threshold": 3.0
+}

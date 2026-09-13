@@ -2839,6 +2839,18 @@ fn actual_velocity_branch_mask(motion: &AlsActualMotion) -> u8 {
         .fold(0, |mask, (index, _)| mask | (1 << index))
 }
 
+fn foot_ik_terrain_command(elapsed: f32, delta: f32) -> als_core::input::AlsInputCommand {
+    let pressed = |at| elapsed >= at && elapsed - delta < at;
+    als_core::input::AlsInputCommand {
+        move_dir: if (1.0..3.0).contains(&elapsed) || (3.2..4.2).contains(&elapsed) { Vec2::Y } else { Vec2::ZERO },
+        crouch_pressed: pressed(3.0) || pressed(4.2),
+        jump_pressed: pressed(5.0),
+        jump_held: (5.0..5.6).contains(&elapsed),
+        roll_pressed: pressed(8.0),
+        ..default()
+    }
+}
+
 fn foot_ik_baseline_bit(index: usize) -> Option<u8> {
     match index {
         0 => Some(1 << 0),
@@ -4303,13 +4315,7 @@ fn drive_manual_integration(
                     fixture.locomotion_start.z + forward.z * 3.5,
                 );
             }
-            if (1.0..3.0).contains(&elapsed) || (3.2..4.2).contains(&elapsed) {
-                input.0.move_dir = Vec2::Y;
-            }
-            input.0.crouch_pressed = (3.0..3.2).contains(&elapsed) || (4.2..4.4).contains(&elapsed);
-            input.0.jump_pressed = (5.0..5.2).contains(&elapsed);
-            input.0.jump_held = (5.0..5.6).contains(&elapsed);
-            input.0.roll_pressed = (8.0..8.2).contains(&elapsed);
+            input.0 = foot_ik_terrain_command(elapsed, virtual_time.delta_secs());
             if elapsed >= 10.0 {
                 commands
                     .entity(character)
@@ -9720,6 +9726,26 @@ fn observe_manual_integration(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn foot_ik_terrain_emits_one_press_per_action_at_variable_frame_rates() {
+        for deltas in [&[1.0_f32 / 60.0][..], &[0.011, 0.017, 0.008][..]] {
+            let mut elapsed = 0.0;
+            let mut frame = 0;
+            let mut presses = [0; 3];
+            let mut crouching = false;
+            while elapsed < 10.0 {
+                let delta = deltas[frame % deltas.len()];
+                elapsed += delta;
+                let command = super::foot_ik_terrain_command(elapsed, delta);
+                if command.crouch_pressed { presses[0] += 1; crouching = !crouching; }
+                if command.jump_pressed { presses[1] += 1; assert!(!crouching, "The jump input only stands up from crouch"); }
+                if command.roll_pressed { presses[2] += 1; }
+                frame += 1;
+            }
+            assert_eq!(presses, [2, 1, 1]);
+        }
+    }
+
     use super::*;
 
     #[test]

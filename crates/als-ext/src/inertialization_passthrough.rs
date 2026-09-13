@@ -72,6 +72,7 @@ pub(crate) struct SourceInertializationState {
     previous: Option<Pose>,
     previous_previous: Option<Pose>,
     previous_delta: f32,
+    previous_root_world: Option<Vec3>,
     last_update_frame: Option<u64>,
     last_request_epoch: f32,
     duration: f32,
@@ -353,12 +354,30 @@ impl NodeLike for InertializationPassthroughNode {
         let request_duration = optional_global_f32(&ctx, &self.request_duration_key);
         let frame = ctx.graph_context.frame_index();
         let graph_request = source_context.inertialization_request.take().filter(|request| request.frame == frame);
+        let threshold = optional_global_f32(&ctx, "component.teleport_distance_threshold");
+        let root = ctx.graph_context.global_input_data.get("component.root_bone")
+            .and_then(|value| value.as_entity_path().ok()).map(|path| path.id());
+        let resources = &ctx.graph_context.resources;
+        let component = resources.transform_query.get(ctx.graph_context.root_entity).ok().and_then(|(local, _)| {
+            resources.parent_query.iter_ancestors(ctx.graph_context.root_entity)
+                .try_fold(GlobalTransform::from(*local), |global, parent| {
+                    resources.transform_query.get(parent).ok().map(|(local, _)| *local * global)
+                })
+        });
+        let reference_root = root.and_then(|root| ctx.graph_context.resources.skeleton_assets.get(&source_pose.skeleton)
+            .and_then(|skeleton| skeleton.default_transforms(root)).map(|value| value.local.translation));
+        let root_world = |pose: &Pose| root.zip(component).and_then(|(root, component)| {
+            pose.get_bone(root).and_then(|bone| bone.translation).or(reference_root)
+                .map(|location| component.transform_point(location))
+        });
+        let current_root_world = root_world(&source_pose);
         let pose = {
             let state = ctx.state_mut_or_else(SourceInertializationState::default)?;
             if self.reset_on_becoming_relevant && became_relevant(state.last_update_frame, frame) {
                 state.previous = None;
                 state.previous_previous = None;
                 state.previous_delta = 0.0;
+                state.previous_root_world = None;
                 state.duration = 0.0;
                 state.elapsed = 0.0;
                 state.deficit = 0.0;
@@ -369,12 +388,19 @@ impl NodeLike for InertializationPassthroughNode {
                 state.context = default();
             }
             state.last_update_frame = Some(frame);
+            let teleported = threshold > 0.0 && current_root_world.zip(state.previous_root_world)
+                .is_some_and(|(current, previous)| current.distance_squared(previous) > threshold * threshold);
             let mut duration = graph_request.map(|request| request.duration);
             if request_epoch > state.last_request_epoch + f32::EPSILON {
                 state.last_request_epoch = request_epoch;
                 duration = Some(duration.map_or(request_duration, |value| value.min(request_duration)));
             }
-            if let Some(duration) = duration {
+            if teleported && duration.is_some() {
+                state.active = false;
+                state.deficit = 0.0;
+                state.bones.clear();
+                state.curve_differences.clear();
+            } else if let Some(duration) = duration {
                 let has_history = state.previous.is_some();
                 begin_source_inertialization(state, &source_pose, duration);
                 state.curve_differences.clear();
@@ -410,7 +436,8 @@ impl NodeLike for InertializationPassthroughNode {
             } else {
                 source_pose
             };
-            record_source_inertial_history(state, &output, delta);
+            record_source_inertial_history(state, &output, if teleported { 0.0 } else { delta });
+            state.previous_root_world = root_world(&output);
             state.previous_curves = state.context.curves.clone();
             output
         };
@@ -449,6 +476,80 @@ impl NodeLike for InertializationPassthroughNode {
 mod tests {
     use super::*;
     use bevy_animation_graph::core::pose::BonePose;
+
+    #[test]
+    fn source_teleport_uses_world_root_motion_and_invalidates_velocity_history() {
+        use bevy::ecs::system::SystemState;
+        use bevy_animation_graph::core::{animation_clip::{EntityPath, GraphClip}, animation_graph::AnimationGraph,
+            animation_node::AnimationNode, context::{deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+                graph_context_arena::GraphContextArena, new_context::GraphContext, node_states::StateKey, system_resources::SystemResources},
+            edge_data::DataValue, skeleton::Skeleton, state_machine::high_level::StateMachine, utils::testing::TestIoEnv};
+        let path = EntityPath::default().child("root");
+        let bone = path.id();
+        let mut world = World::new();
+        world.init_resource::<Assets<AnimationGraph>>();
+        world.init_resource::<Assets<GraphClip>>();
+        world.init_resource::<Assets<Skeleton>>();
+        world.init_resource::<Assets<StateMachine>>();
+        let parent = world.spawn((Transform::from_translation(Vec3::NEG_X), GlobalTransform::IDENTITY)).id();
+        let entity = world.spawn((ChildOf(parent), Transform::from_translation(Vec3::X), GlobalTransform::IDENTITY)).id();
+        let mut skeleton = Skeleton::default();
+        skeleton.set_root(bone);
+        skeleton.add_bone(path.clone(), Transform::IDENTITY, Transform::IDENTITY);
+        let skeleton = world.resource_mut::<Assets<Skeleton>>().add(skeleton);
+        let source = AnimationNode::new("Source", crate::GlobalPoseInputNode { key:"input".into(), output:"Pose".into() });
+        let inertial = AnimationNode::new("Inertialization", InertializationPassthroughNode {
+            internalize_time:true, request_epoch_key:"epoch".into(), request_duration_key:"duration".into(), ..default() });
+        let mut graph = AnimationGraph::new();
+        graph.add_node(source.clone());
+        graph.add_node(inertial.clone());
+        graph.add_node_parameter_edge(source.id, "Pose", inertial.id, "Source");
+        graph.add_output_data("Pose".into(), DataSpec::Pose);
+        graph.add_output_data_edge(inertial.id, "pose", "Pose");
+        let handle = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
+        let mut resources = SystemState::<SystemResources>::new(&mut world);
+        for (threshold, component_jump, root_jump, request_on_jump, teleported) in [
+            (3.0, 4.0, 0.0, true, true), (3.0, 3.0, 0.0, true, false),
+            (0.0, 4.0, 0.0, true, false), (3.0, 4.0, -4.0, true, false),
+            (3.0, 0.0, 4.0, true, true),
+            (3.0, 4.0, 0.0, false, true),
+        ] {
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::from([(bone, entity)]);
+            let env = TestIoEnv::default();
+            for frame in 0..5 {
+                let jump = frame >= 3;
+                world.entity_mut(parent).insert(Transform::from_translation(Vec3::X * (if jump { component_jump } else { 0.0 } - 1.0)));
+                let rotation = Quat::from_rotation_y(if frame == 4 { 2.0 } else if frame >= 2 { 1.0 } else { 0.0 });
+                let mut input = Pose { skeleton:skeleton.clone(), ..default() };
+                input.add_bone(BonePose::from_transform(Transform::from_translation(Vec3::X * if jump { root_jump } else { 0.0 }).with_rotation(rotation)), bone);
+                let inputs = HashMap::from([
+                    ("input".into(), DataValue::Pose(input)), ("epoch".into(), DataValue::F32(if frame == 4 { 3.0 } else if frame < 2 { 0.0 } else if jump && request_on_jump { 2.0 } else { 1.0 })),
+                    ("duration".into(), DataValue::F32(0.2)), ("component.teleport_distance_threshold".into(), DataValue::F32(threshold)),
+                    ("component.root_bone".into(), DataValue::EntityPath(path.clone())),
+                ]);
+                let resources = resources.get_mut(&mut world).unwrap();
+                let graph = resources.animation_graph_assets.get(&handle).unwrap();
+                let result = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)),
+                    GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources, &env, entity, &entities, &mut gizmos, &inputs)).unwrap();
+                if frame == 3 {
+                    let state = arena.get_toplevel().node_states.get::<SourceInertializationState>(inertial.id, StateKey::Default).unwrap();
+                    assert_eq!(state.previous_delta, if teleported { 0.0 } else { 0.02 });
+                    assert_eq!(state.active, !(teleported && request_on_jump));
+                    if teleported && request_on_jump {
+                        let output = result["Pose"].clone().into_pose().unwrap();
+                        assert!(output.get_bone(bone).unwrap().rotation.unwrap().angle_between(rotation) < 1e-5);
+                        assert_eq!(output.get_bone(bone).unwrap().translation, Some(Vec3::X * root_jump));
+                    }
+                }
+                if frame == 4 && teleported {
+                    let state = arena.get_toplevel().node_states.get::<SourceInertializationState>(inertial.id, StateKey::Default).unwrap();
+                    assert!(state.bones.iter().all(|bone| bone.rotation_speed.abs() < 1e-5));
+                }
+            }
+        }
+    }
 
     #[test]
     fn source_rotation_difference_uses_short_arc_and_twist_velocity() {

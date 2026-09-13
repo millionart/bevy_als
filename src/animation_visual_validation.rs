@@ -1386,7 +1386,8 @@ fn capture_animation_visual_pre_rig_pose(
     time: Res<Time>,
     mut pre_rig: ResMut<AnimationVisualPreRigPose>,
     avatars: Query<&AnimatedSceneInstance, With<AlsCharacterAvatar>>,
-    players: Query<(&AnimationGraphPlayer, &GlobalTransform)>,
+    players: Query<&AnimationGraphPlayer>,
+    transforms: bevy::transform::helper::TransformHelper,
     graphs: Res<Assets<AnimationGraph>>,
     skeletons: Res<Assets<Skeleton>>,
 ) {
@@ -1394,14 +1395,15 @@ fn capture_animation_visual_pre_rig_pose(
     pre_rig.global_bones.clear();
     pre_rig.delta_seconds = time.delta_secs();
     let Ok(instance) = avatars.single() else { return; };
-    let Ok((player, player_world)) = players.get(instance.player_entity()) else { return; };
+    let Ok(player) = players.get(instance.player_entity()) else { return; };
+    let Ok(player_world) = transforms.compute_global_transform(instance.player_entity()) else { return; };
     let Some((context, node, _)) = als_ext::root_graph_boundaries::current_control_rig(player, &graphs) else { return; };
     let rig = node.try_inner_downcast_ref::<als_ext::root_graph_boundaries::ControlRigBoundaryNode>().unwrap();
     let Some(graph) = graphs.get(context.get_graph_id()) else { return; };
     let Some(SourcePin::NodeData(source, pin)) = graph.edges_inverted.get(&TargetPin::NodeData(node.id, rig.pose_input.clone())) else { return; };
     let Some(DataValue::Pose(pose)) = context.node_caches.get_output_data(*source, StateKey::Default, pin.clone()) else { return; };
     let Some(skeleton) = skeletons.get(&pose.skeleton) else { return; };
-    pre_rig.global_bones = pose_global_bones(&pose, skeleton, player_world);
+    pre_rig.global_bones = pose_global_bones(&pose, skeleton, &player_world);
     pre_rig.root_position = player_world.translation();
     for path in skeleton.iter_paths() {
         let Some(name) = path.parts.last() else { continue; };
@@ -3932,6 +3934,13 @@ mod tests {
         assert_eq!(app.world().resource::<AnimationVisualPreRigPose>().bones["spine_01"].rotation, spine_reference);
         let output = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap().get_default_output_pose().unwrap();
         assert!(rotation_delta_radians(spine_reference, output.get_bone(spine.id()).unwrap().rotation.unwrap()) > 0.05);
+        let previous = app.world().resource::<AnimationVisualPreRigPose>().global_bones["hand_l"].0;
+        let moved = Transform::from_xyz(6.0, 2.0, -3.0).with_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_2));
+        app.world_mut().entity_mut(avatar).insert(moved);
+        app.world_mut().run_system_once(capture_animation_visual_pre_rig_pose).unwrap();
+        let captured = app.world().resource::<AnimationVisualPreRigPose>();
+        assert!(captured.global_bones["hand_l"].0.abs_diff_eq(moved.transform_point(previous), 1e-5));
+        assert!(captured.root_position.abs_diff_eq(moved.translation, 1e-5));
         app.world_mut().get_mut::<AnimationGraphPlayer>(player_entity).unwrap().start(graph);
         app.world_mut().run_system_once(capture_animation_visual_pre_rig_pose).unwrap();
         assert!(app.world().resource::<AnimationVisualPreRigPose>().bones.is_empty());

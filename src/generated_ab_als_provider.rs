@@ -17,6 +17,29 @@ use bevy_animation_graph::core::{
     animated_scene::AnimatedSceneInstance, animation_graph_player::AnimationGraphPlayer,
 };
 use bevy_gameplay_tag::GameplayTag;
+use serde::Deserialize;
+use std::sync::LazyLock;
+
+#[derive(Deserialize)]
+struct AnimationComponentDefinition {
+    root_bone: String,
+    teleport_distance_threshold: f32,
+}
+
+static ANIMATION_COMPONENT: LazyLock<AnimationComponentDefinition> = LazyLock::new(|| {
+    serde_json::from_str(include_str!("../assets/character/animation_component.runtime.json"))
+        .expect("Generated animation component definition must be valid")
+});
+
+fn write_animation_component_inputs(
+    player: &mut AnimationGraphPlayer,
+    skeleton: &bevy_animation_graph::core::skeleton::Skeleton,
+) {
+    if let Some(root) = skeleton.iter_paths().find(|path| path.parts.last().is_some_and(|name| name.as_str() == ANIMATION_COMPONENT.root_bone)) {
+        player.set_global_input_data("component.root_bone", root.clone());
+        player.set_global_input_data("component.teleport_distance_threshold", ANIMATION_COMPONENT.teleport_distance_threshold);
+    }
+}
 
 use crate::{
     ab_als_root::AlsRootGraphSet,
@@ -194,6 +217,7 @@ fn set_source_slot_defaults(player: &mut AnimationGraphPlayer) {
 fn generated_ab_als_input_writer(
     time: Res<Time>,
     params_assets: Res<Assets<AlsMovementParams>>,
+    skeletons: Res<Assets<bevy_animation_graph::core::skeleton::Skeleton>>,
     characters: Query<
         (
             Entity,
@@ -243,6 +267,9 @@ fn generated_ab_als_input_writer(
             let Ok((mut player, context)) = players.get_mut(instance.player_entity()) else {
                 continue;
             };
+            if let Some(skeleton) = skeletons.get(player.skeleton()) {
+                write_animation_component_inputs(&mut player, skeleton);
+            }
             let velocity_yaw_angle_view_space =
                 source_velocity_yaw_angle_view_space(motion, view_yaw.0);
             let (forward, backward, left, right) =
@@ -422,6 +449,21 @@ fn generated_ab_als_input_writer(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn component_inputs_bind_the_source_bone_below_the_scene_container() {
+        use bevy_animation_graph::core::{animation_clip::EntityPath, skeleton::Skeleton};
+        let container = EntityPath::default().child("SceneContainer");
+        let root = container.child("root");
+        let mut skeleton = Skeleton::default();
+        skeleton.set_root(container.id());
+        skeleton.add_bone(container, Transform::IDENTITY, Transform::IDENTITY);
+        skeleton.add_bone(root.clone(), Transform::IDENTITY, Transform::IDENTITY);
+        let mut player = AnimationGraphPlayer::new(Handle::default());
+        write_animation_component_inputs(&mut player, &skeleton);
+        assert_eq!(player.get_global_input_data("component.root_bone").unwrap().as_entity_path().unwrap(), &root);
+        assert_eq!(player.get_global_input_data("component.teleport_distance_threshold").unwrap().as_f32().unwrap(), 3.0);
+    }
 
     #[test]
     fn source_input_yaw_uses_current_control_input_and_the_native_yaw_basis() {

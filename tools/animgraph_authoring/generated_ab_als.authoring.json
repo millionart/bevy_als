@@ -437,5 +437,57 @@
   "runtime_gate": {
     "contract_gate": "generated_animgraph_assets",
     "manual_case": "ragdoll"
-  }
+  },
+  "focused_tests": [
+    {
+      "label": "component_root_input",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "--lib",
+        "component_inputs_bind_the_source_bone_below_the_scene_container"
+      ],
+      "evidence": "target/bf116_stairs/teleport_final_project.watchdog.json"
+    },
+    {
+      "label": "inertial_world_root_teleport",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "-p",
+        "als-ext",
+        "--lib",
+        "source_teleport_uses_world_root_motion_and_invalidates_velocity_history"
+      ],
+      "evidence": "target/bf116_platform/teleport_parent_final.watchdog.json"
+    },
+    {
+      "label": "pre_rig_current_component",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "--lib",
+        "pre_rig_capture_uses_current_graph_input_and_skeleton_defaults"
+      ],
+      "evidence": "target/bf116_stairs/pre_rig_component_final.watchdog.json"
+    },
+    {
+      "label": "foot_ik_action_pulses",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "--lib",
+        "foot_ik_terrain_emits_one_press_per_action_at_variable_frame_rates"
+      ],
+      "evidence": "target/bf116_stairs/teleport_final_project.watchdog.json"
+    }
+  ]
 }
