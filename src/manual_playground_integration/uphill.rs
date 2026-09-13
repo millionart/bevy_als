@@ -171,14 +171,14 @@ pub(super) fn observe(
         let normal = if pair.collider1 == character { -manifold.normal } else { manifold.normal };
         normal.y > 0.0 && manifold.points.iter().any(|point| point.normal_impulse > 0.0)
     }));
-    let supported = floor.is_some_and(|(center, impact)| (position.y - center).abs() <= 0.024 && impact < position.y - half + radius)
+    let supported = floor.is_some_and(|(center, impact, _)| (position.y - center).abs() <= 0.024 && impact < position.y - half + radius)
         && (*mode == LocomotionState::Grounded || contact);
     probe.record(now, *mode, position.0, velocity.0, supported, &graph, controller.action_flow_status().ongoing().is_none());
     report.uphill_trace.push(serde_json::json!({
         "case_index":probe.index,"mesh":MESHES[probe.index/6],"stage":probe.stage,"time":now,
         "requested_gait":probe.gait(),"actual_gait":gait,"launch_distance":probe.launch_distance(),
         "launch_y":probe.launch_y,"position":position.0,"velocity":velocity.0,"mode":mode,
-        "input":input.0.move_dir,"jump_pressed":input.0.jump_pressed,"supported":supported,"floor":floor,
+        "input":input.0.move_dir,"jump_pressed":input.0.jump_pressed,"supported":supported,"floor":floor.map(|(center, impact, _)| [center, impact]),
         "contact":contact,"controller_action":format!("{:?}",controller.action_flow_status().ongoing()),
         "air_seen":probe.air_seen,"landed_seen":probe.landed_seen,"done":probe.done,"graph":graph,
     }));

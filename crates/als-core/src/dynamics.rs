@@ -57,13 +57,20 @@ pub struct AlsMovementBaseDynamicsState {
     pub motor_boost: Vec3,
 }
 
+#[derive(Component, Debug, Default, Clone, Copy)]
+pub struct AlsMovementBase {
+    pub entity: Option<Entity>,
+    pub location: Vec3,
+    pub rotation: Quat,
+}
+
 pub fn locomotion_velocity(
     world_velocity: Vec3,
     locomotion: LocomotionState,
     base: Option<&AlsMovementBaseDynamicsState>,
 ) -> Vec3 {
     world_velocity - base.filter(|base| locomotion == LocomotionState::Grounded && base.entity.is_some())
-        .map_or(Vec3::ZERO, |base| base.support_velocity)
+        .map_or(Vec3::ZERO, |base| base.support_velocity.with_y(0.0))
 }
 
 pub fn support_point_velocity(
@@ -450,7 +457,7 @@ pub fn grounded_dynamics_motor_system(
         let base_state = AlsMovementBaseDynamicsState {
             entity: base_entity,
             world_velocity,
-            support_velocity: Vec3::new(support_velocity.x, 0.0, support_velocity.z),
+            support_velocity,
             relative_velocity: current,
             motor_boost,
         };

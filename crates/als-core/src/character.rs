@@ -33,6 +33,7 @@ impl std::ops::Deref for AlsMovementParamsHandle {
 #[require(crate::gait::AlsMaxAllowedGait)]
 #[require(crate::gait::AlsGaitAmount)]
 #[require(crate::dynamics::AlsGroundedDynamics)]
+#[require(crate::dynamics::AlsMovementBase)]
 #[require(crate::dynamics::AlsLandingBrakingFriction)]
 #[require(AlsCmcAdapterRuntime)]
 #[require(crate::motion::AlsAimingYawConstraint)]
@@ -197,7 +198,21 @@ impl Plugin for AlsCharacterPlugin {
             )
             .add_systems(Update, character_sensor_shape_sync_system)
             .add_systems(PhysicsSchedule, character_contact_friction_system
-                .after(PhysicsStepSystems::NarrowPhase).before(PhysicsStepSystems::Solver));
+                .after(PhysicsStepSystems::NarrowPhase).before(PhysicsStepSystems::Solver))
+            .add_systems(PhysicsSchedule, sync_child_collider_poses
+                .in_set(PhysicsStepSystems::Last));
+    }
+}
+
+fn sync_child_collider_poses(
+    mut colliders: Query<(&avian3d::prelude::ColliderTransform, &avian3d::prelude::ColliderOf,
+        &mut Position, &mut avian3d::prelude::Rotation), Without<RigidBody>>,
+    bodies: Query<(&Position, &avian3d::prelude::Rotation), With<RigidBody>>,
+) {
+    for (local, owner, mut position, mut rotation) in &mut colliders {
+        let Ok((body_position, body_rotation)) = bodies.get(owner.body) else { continue; };
+        position.0 = body_position.0 + body_rotation.0 * local.translation;
+        rotation.0 = (body_rotation.0 * local.rotation.0).normalize();
     }
 }
 

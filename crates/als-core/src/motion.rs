@@ -1848,6 +1848,8 @@ impl Plugin for AlsMotionPlugin {
                         .after(capsule_reshape_system),
                     grounded_step_up_system.after(crate::dynamics::grounded_dynamics_motor_system)
                         .before(TnuaPipelineSystems::Motors),
+                    (|| false).pipe(follow_movement_base_system)
+                        .after(capsule_reshape_system).before(TnuaPipelineSystems::Sensors),
                     refine_ground_sensor_system.after(TnuaPipelineSystems::Sensors)
                         .before(TnuaPipelineSystems::Logic),
                     capsule_reshape_system.after(crate::transition::state_transition_system),
@@ -1868,7 +1870,7 @@ impl Plugin for AlsMotionPlugin {
             )
             .add_systems(
                 PostUpdate,
-                (locomotion_state_sync_system, snapshot_actual_velocity_system)
+                ((|| true).pipe(follow_movement_base_system), locomotion_state_sync_system, snapshot_actual_velocity_system)
                     .chain().in_set(AlsActualVelocitySet),
             )
             .add_systems(
@@ -1895,6 +1897,63 @@ fn snapshot_actual_velocity_system(
         }
         *actual = AlsActualVelocity::from_physics_velocity(
             crate::dynamics::locomotion_velocity(velocity.0, *locomotion, base.as_deref()));
+    }
+}
+
+fn follow_movement_base_system(
+    In(after_physics): In<bool>,
+    time: Res<Time<avian3d::prelude::Physics>>,
+    mut characters: Query<(Entity, &LocomotionState, &mut crate::dynamics::AlsMovementBase,
+        Option<&AlsMantleState>, Option<&crate::dynamics::AlsMovementBaseDynamicsState>,
+        &mut AlsCmcAdapterRuntime, &Collider, Has<avian3d::prelude::CustomPositionIntegration>), With<AlsCharacter>>,
+    mut space: ParamSet<(bevy::transform::helper::TransformHelper, SpatialQuery,
+        Query<(&mut Position, &mut Transform), With<AlsCharacter>>)>,
+    owners: Query<&avian3d::prelude::ColliderOf>,
+    bodies: Query<&RigidBody>,
+    children: Query<&Children>,
+) {
+    for (entity, mode, mut base, mantle, dynamics, mut runtime, capsule, custom_position) in &mut characters {
+        let target = if *mode == LocomotionState::Custom {
+            mantle.and_then(|mantle| mantle.target_base.map(|target| target.entity))
+        } else if *mode == LocomotionState::Grounded {
+            base.entity
+        } else {
+            None
+        };
+        let Some(target) = target else { base.entity = None; continue; };
+        let Ok(current) = space.p0().compute_global_transform(target) else { base.entity = None; continue; };
+        let owner = owners.get(target).map_or(target, |owner| owner.body);
+        if *mode == LocomotionState::Grounded
+            && bodies.get(owner).is_ok_and(|body| *body != RigidBody::Static) {
+            let carried = if !after_physics || custom_position { Vec3::ZERO } else {
+                dynamics.filter(|dynamics| dynamics.entity == Some(target))
+                    .map_or(Vec3::ZERO, |dynamics| dynamics.support_velocity) * time.delta_secs()
+            };
+            let origin = space.p2().get(entity).unwrap().0.0;
+            let offset = Vec3::Y * capsule.shape_scaled().compute_local_aabb().half_extents().y;
+            let delta = current.rotation() * base.rotation.conjugate()
+                * (origin - carried - offset - base.location) + current.translation() + offset - origin;
+            if let Ok((direction, distance)) = Dir3::new_and_length(delta) {
+                let filter = SpatialQueryFilter::from_excluded_entities(
+                    [entity, owner, target].into_iter().chain(children.iter_descendants(owner)));
+                let config = ShapeCastConfig { ignore_origin_penetration: true,
+                    ..ShapeCastConfig::from_max_distance(distance) };
+                let hit = space.p1().cast_shape(capsule, origin, Quat::IDENTITY, direction, &config, &filter);
+                let applied = *direction * hit.map_or(distance, |hit| {
+                    let pullback = (distance * PULLBACK_PROPORTION).clamp(PULLBACK_MIN_DISTANCE, PULLBACK_MAX_DISTANCE)
+                        + distance * PULLBACK_TIME_BIAS;
+                    (hit.distance - pullback).max(0.0)
+                });
+                let mut query = space.p2();
+                let (mut position, mut transform) = query.get_mut(entity).unwrap();
+                position.0 += applied;
+                transform.translation = position.0;
+                if let Some(start) = runtime.grounded_move_start.as_mut() { *start += applied; }
+            }
+        }
+        base.entity = Some(target);
+        base.location = current.translation();
+        base.rotation = current.rotation();
     }
 }
 
@@ -2532,7 +2591,7 @@ fn grounded_step_up_system(
             if hit.point1.y <= center.y - half - clearance || hit.point1.y > center.y + half - radius {
                 continue;
             }
-            let Some((_, impact_y)) = find_ground_floor(&spatial_query, center, half, radius, &filter) else { continue };
+            let Some((_, impact_y, _)) = find_ground_floor(&spatial_query, center, half, radius, &filter) else { continue };
             initial_floor_y = Some(impact_y);
             let up_config = ShapeCastConfig {
                 ignore_origin_penetration: true,
@@ -2590,7 +2649,7 @@ fn walkable_floor_hit(spatial: &SpatialQuery, capsule: &Collider, radius: f32, o
 }
 
 pub fn find_ground_floor(spatial: &SpatialQuery, origin: Vec3, half: f32, radius: f32,
-    filter: &SpatialQueryFilter) -> Option<(f32, f32)> {
+    filter: &SpatialQueryFilter) -> Option<(f32, f32, Entity)> {
     for (shrink_scale, radius_reduction) in [(FLOOR_SWEEP_SHRINK_FRACTION, 0.0),
         (FLOOR_RETRY_SHRINK_FRACTION, SWEEP_EDGE_MIN_RADIUS)] {
         let shrink_height = (half - radius) * shrink_scale;
@@ -2598,7 +2657,7 @@ pub fn find_ground_floor(spatial: &SpatialQuery, origin: Vec3, half: f32, radius
         let capsule = als_character_capsule((half - shrink_height).max(sweep_radius), sweep_radius);
         if let Some(hit) = walkable_floor_hit(spatial, &capsule, sweep_radius, origin,
             MAX_STEP_HEIGHT + MAX_FLOOR_DISTANCE + shrink_height, filter) {
-            return Some((origin.y - hit.distance + shrink_height, hit.point1.y));
+            return Some((origin.y - hit.distance + shrink_height, hit.point1.y, hit.entity));
         }
     }
     None
@@ -2620,6 +2679,8 @@ pub(crate) fn locomotion_state_sync_system(
     blocked: Query<(), With<AlsMovementInputBlocked>>,
     collisions: Collisions,
     mut transitions: MessageWriter<StateTransitionEvent>,
+    transforms: bevy::transform::helper::TransformHelper,
+    mut movement_bases: Query<(&mut crate::dynamics::AlsMovementBase, Option<&mut crate::dynamics::AlsMovementBaseDynamicsState>), With<AlsCharacter>>,
     mut q: Query<
         (
             Entity,
@@ -2647,6 +2708,7 @@ pub(crate) fn locomotion_state_sync_system(
         };
         let jumping = controller.action_flow_status().ongoing() == Some(AlsControlSchemeActionDiscriminant::Jump);
         let mut floor_supported = false;
+        let mut floor_entity = None;
         if *current == LocomotionState::Grounded && !blocked.contains(entity) && !jumping
             && let Some(params) = params_assets.get(handle.id()) {
             let half = match *stance {
@@ -2655,7 +2717,7 @@ pub(crate) fn locomotion_state_sync_system(
             } * transform.scale.y;
             let radius = params.crouch.standing_capsule_radius * transform.scale.x.min(transform.scale.z);
             let filter = SpatialQueryFilter::from_excluded_entities([entity]);
-            if let Some((floor_center_y, _)) = find_ground_floor(&spatial, position.0, half, radius, &filter) {
+            if let Some((floor_center_y, _, floor)) = find_ground_floor(&spatial, position.0, half, radius, &filter) {
                 let floor_distance = position.y - floor_center_y;
                 let next_y = if (MIN_FLOOR_DISTANCE..=MAX_FLOOR_DISTANCE).contains(&floor_distance) {
                     position.y
@@ -2668,6 +2730,7 @@ pub(crate) fn locomotion_state_sync_system(
                     commands.entity(entity).insert((Position(next_transform.translation), next_transform));
                     velocity.0.y = 0.0;
                     floor_supported = true;
+                    floor_entity = Some(floor);
                 }
             }
         }
@@ -2689,7 +2752,7 @@ pub(crate) fn locomotion_state_sync_system(
                 } * transform.scale.y;
                 let radius = params.crouch.standing_capsule_radius * transform.scale.x.min(transform.scale.z);
                 find_ground_floor(&spatial, position.0, half, radius, &SpatialQueryFilter::from_excluded_entities([entity]))
-                    .is_some_and(|(center, impact)| (position.y - center).abs() <= MAX_FLOOR_DISTANCE
+                    .is_some_and(|(center, impact, _)| (position.y - center).abs() <= MAX_FLOOR_DISTANCE
                         && impact < position.y - half + radius)
             });
         let target = if airborne && !landed_on_contact && !floor_supported && !landed_on_capsule {
@@ -2709,6 +2772,30 @@ pub(crate) fn locomotion_state_sync_system(
                 to: StateValue::LocomotionState(target),
             });
             *current = target;
+        }
+        if let Ok((mut base, dynamics)) = movement_bases.get_mut(entity) {
+            if *current == LocomotionState::Grounded && floor_entity.is_none()
+                && let Some(params) = params_assets.get(handle.id()) {
+                let half = match *stance {
+                    Stance::Standing => params.crouch.standing_capsule_half_height,
+                    Stance::Crouching => params.crouch.crouched_capsule_half_height,
+                } * transform.scale.y;
+                let radius = params.crouch.standing_capsule_radius * transform.scale.x.min(transform.scale.z);
+                floor_entity = find_ground_floor(&spatial, position.0, half, radius,
+                    &SpatialQueryFilter::from_excluded_entities([entity])).map(|(_, _, entity)| entity);
+            }
+            base.entity = if *current == LocomotionState::Grounded { floor_entity } else { None };
+            if let Some(entity) = base.entity && let Ok(global) = transforms.compute_global_transform(entity) {
+                base.location = global.translation();
+                base.rotation = global.rotation();
+            }
+            if let Some(mut dynamics) = dynamics {
+                dynamics.entity = base.entity;
+            } else {
+                commands.entity(entity).insert(crate::dynamics::AlsMovementBaseDynamicsState {
+                    entity: base.entity, world_velocity: velocity.0, relative_velocity: velocity.0, ..default()
+                });
+            }
         }
     }
 }
@@ -2862,7 +2949,7 @@ mod tests {
                                         let normal = if pair.collider1 == character { -manifold.normal } else { manifold.normal };
                                         normal.y > 0.0 && manifold.points.iter().any(|point| point.normal_impulse > 0.0)
                                     }));
-                                    contact && floor.is_some_and(|(center, _)| (position.y - center).abs() <= MAX_FLOOR_DISTANCE)
+                                    contact && floor.is_some_and(|(center, _, _)| (position.y - center).abs() <= MAX_FLOOR_DISTANCE)
                                 }).unwrap();
                                 supported_air_frames = if supported { supported_air_frames + 1 } else { 0 };
                                 if supported_air_frames >= 2 {
@@ -2963,9 +3050,11 @@ mod tests {
     #[test]
     fn moving_support_keeps_an_idle_character_on_root_and_child_colliders() {
         let mut failures = Vec::new();
-        for child in [false, true] {
+        for (child, velocity) in [false, true].into_iter().flat_map(|child| {
+            [Vec3::X * 2.0, Vec3::Y * 50.0, Vec3::NEG_Y * 50.0].map(move |velocity| (child, velocity))
+        }) {
             let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
-            let transform = Transform::from_xyz(0.0, 2.0, 5.0);
+            let transform = Transform::from_xyz(0.0, 20.0, 5.0);
             let platform = app.world_mut().spawn((RigidBody::Kinematic, transform, GlobalTransform::from(transform))).id();
             let collider = if child {
                 app.world_mut().spawn((ChildOf(platform), Collider::cuboid(4.0,0.5,4.0), Transform::IDENTITY, GlobalTransform::from(transform))).id()
@@ -2973,25 +3062,176 @@ mod tests {
                 app.world_mut().entity_mut(platform).insert(Collider::cuboid(4.0,0.5,4.0));
                 platform
             };
-            let initial = Vec3::new(0.0, 3.174, 5.0);
+            let initial = Vec3::new(0.0, 21.174, 5.0);
             app.world_mut().get_mut::<Position>(character).unwrap().0 = initial;
             app.world_mut().get_mut::<Transform>(character).unwrap().translation = initial;
             for _ in 0..60 { app.update(); }
             let controller = app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap();
             assert_eq!(controller.basis_memory.standing_on_entity(), Some(collider));
             let initial_offset = app.world().get::<Position>(character).unwrap().0 - app.world().get::<Position>(platform).unwrap().0;
-            app.world_mut().get_mut::<LinearVelocity>(platform).unwrap().0 = Vec3::X * 2.0;
+            app.world_mut().get_mut::<LinearVelocity>(platform).unwrap().0 = velocity;
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.05)));
             let mut max_error = 0.0_f32;
-            for _ in 0..120 {
+            for frame in 0..if velocity.y == 0.0 { 120 } else { 4 } {
                 app.update();
                 let offset = app.world().get::<Position>(character).unwrap().0 - app.world().get::<Position>(platform).unwrap().0;
                 max_error = max_error.max((offset - initial_offset).with_y(0.0).length());
+                let clearance = offset.y - 0.25 - ALS_CHARACTER_CAPSULE_HALF_HEIGHT;
+                assert!(app.world().get::<Position>(collider).unwrap().0.abs_diff_eq(
+                    app.world().get::<Position>(platform).unwrap().0, 1e-5));
+                assert!(app.world().get::<AlsActualVelocity>(character).unwrap().world_velocity.y.abs() < 1e-4);
+                if !(MIN_FLOOR_DISTANCE - 1e-5..=MAX_FLOOR_DISTANCE + 1e-5).contains(&clearance)
+                    || *app.world().get::<LocomotionState>(character).unwrap() != LocomotionState::Grounded {
+                    failures.push((child, velocity, frame, clearance, max_error));
+                    break;
+                }
             }
             let base = app.world().get::<crate::dynamics::AlsMovementBaseDynamicsState>(character).unwrap();
             println!("[MOVING-BASE] child={child} max_relative_error={max_error} dynamics={base:?}");
-            if max_error > 0.02 { failures.push((child, max_error)); }
+            if max_error > 1e-4 { failures.push((child, velocity, 120, 0.0, max_error)); }
         }
         assert!(failures.is_empty(), "Idle characters lost their moving support: {failures:?}");
+    }
+
+    #[test]
+    fn moving_support_uses_component_displacement_without_reported_velocity() {
+        let mut failures = Vec::new();
+        for (child, step) in [false, true].into_iter().flat_map(|child| {
+            [Vec3::new(0.02, 0.0, -0.01), Vec3::Y * 0.01, Vec3::NEG_Y * 0.01, Vec3::ZERO].map(move |step| (child, step))
+        }) {
+            let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+            let start = Vec3::new(0.0, 2.0, 5.0);
+            let platform = app.world_mut().spawn((RigidBody::Kinematic, Transform::from_translation(start))).id();
+            let collider = if child {
+                app.world_mut().spawn((ChildOf(platform), Collider::cuboid(4.0, 0.5, 4.0), Transform::IDENTITY)).id()
+            } else {
+                app.world_mut().entity_mut(platform).insert(Collider::cuboid(4.0, 0.5, 4.0));
+                platform
+            };
+            let position = start + Vec3::new(0.5, 1.174, 0.0);
+            app.world_mut().entity_mut(character).insert((Position(position), Transform::from_translation(position)));
+            for _ in 0..60 { app.update(); }
+            assert_eq!(app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().basis_memory.standing_on_entity(), Some(collider));
+            let offset = app.world().get::<Position>(character).unwrap().0 - start;
+            let mut maximum = 0.0_f32;
+            for frame in 1..=30 {
+                let target = start + step * frame as f32;
+                let rotation = if step == Vec3::ZERO { Quat::from_rotation_y(frame as f32 * 0.02) } else { Quat::IDENTITY };
+                app.world_mut().entity_mut(platform).insert((Position(target), Rotation(rotation), Transform::from_translation(target).with_rotation(rotation)));
+                app.update();
+                assert_eq!(app.world().get::<LinearVelocity>(platform).unwrap().0, Vec3::ZERO);
+                let actual = app.world().get::<Position>(character).unwrap().0 - target;
+                let clearance = actual.y - 0.25 - ALS_CHARACTER_CAPSULE_HALF_HEIGHT;
+                assert!((MIN_FLOOR_DISTANCE - 1e-5..=MAX_FLOOR_DISTANCE + 1e-5).contains(&clearance),
+                    "Movement-base floor clearance differs: child={child} step={step:?} frame={frame} clearance={clearance}");
+                assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Grounded);
+                assert_eq!(app.world().get::<crate::dynamics::AlsMovementBase>(character).unwrap().entity, Some(collider));
+                assert!(app.world().get::<Transform>(character).unwrap().rotation.angle_between(Quat::IDENTITY) < 1e-4);
+                maximum = maximum.max((actual - rotation * offset).with_y(0.0).length());
+            }
+            if maximum > 1e-4 { failures.push((child, step, maximum)); }
+        }
+        assert!(failures.is_empty(), "Component movement was discarded without a velocity: {failures:?}");
+    }
+
+    #[test]
+    fn movement_base_rotation_keeps_the_capsule_bottom_anchor() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+        let center = Vec3::new(0.0, 2.0, 5.0);
+        let platform = app.world_mut().spawn((RigidBody::Kinematic, Collider::cuboid(4.0, 0.5, 4.0), Transform::from_translation(center))).id();
+        let position = center + Vec3::new(0.5, 1.174, 0.0);
+        app.world_mut().entity_mut(character).insert((Position(position), Transform::from_translation(position)));
+        for _ in 0..60 { app.update(); }
+        let before = app.world().get::<Position>(character).unwrap().0 - center - Vec3::Y * ALS_CHARACTER_CAPSULE_HALF_HEIGHT;
+        let target = center + Vec3::new(0.1, 0.05, -0.05);
+        let rotation = Quat::from_rotation_x(0.3);
+        app.world_mut().entity_mut(platform).insert((Position(target), Rotation(rotation),
+            Transform::from_translation(target).with_rotation(rotation).with_scale(Vec3::splat(2.0))));
+        app.world_mut().run_system_once((|| false).pipe(follow_movement_base_system)).unwrap();
+        let after = app.world().get::<Position>(character).unwrap().0 - target - Vec3::Y * ALS_CHARACTER_CAPSULE_HALF_HEIGHT;
+        assert!((rotation.conjugate() * after).abs_diff_eq(before, 1e-5));
+        assert_eq!(app.world().get::<Transform>(character).unwrap().rotation, Quat::IDENTITY);
+    }
+
+    #[test]
+    fn component_transport_precedes_the_character_movement_sweep() {
+        let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+        let center = Vec3::new(0.0, 2.0, 5.0);
+        let platform = app.world_mut().spawn((RigidBody::Kinematic, Collider::cuboid(4.0, 0.5, 4.0), Transform::from_translation(center))).id();
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.2, 4.0, 4.0), Transform::from_xyz(1.0, 3.0, 5.0)));
+        let start = Vec3::new(0.5, 3.174, 5.0);
+        app.world_mut().entity_mut(character).insert((Position(start), Transform::from_translation(start)));
+        for _ in 0..60 { app.update(); }
+        let start = app.world().get::<Position>(character).unwrap().0.with_x(0.6);
+        app.world_mut().entity_mut(character).insert((Position(start), Transform::from_translation(start), LinearVelocity(Vec3::X * 3.75)));
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = Vec2::X;
+        let target = center - Vec3::X * 0.5;
+        app.world_mut().entity_mut(platform).insert((Position(target), Transform::from_translation(target)));
+        app.update();
+        let actual = app.world().get::<Position>(character).unwrap().0;
+        let expected_x = start.x - 0.5 + 3.75 * app.world().resource::<Time>().delta_secs();
+        assert!((actual.x - expected_x).abs() < 1e-4,
+            "Character movement ran before its base displacement: actual={actual:?} expected_x={expected_x}");
+        assert!((app.world().get::<AlsActualVelocity>(character).unwrap().horizontal_speed - 3.75).abs() < 1e-4);
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = Vec2::ZERO;
+        app.world_mut().get_mut::<LinearVelocity>(character).unwrap().0 = Vec3::ZERO;
+        let target = center + Vec3::X * 0.5;
+        app.world_mut().entity_mut(platform).insert((Position(target), Transform::from_translation(target)));
+        app.update();
+        let blocked = app.world().get::<Position>(character).unwrap().0;
+        assert!(blocked.x > actual.x + 0.3 && blocked.x <= 0.6001,
+            "Movement-base transport did not sweep the blocking wall: {blocked:?}");
+    }
+
+    #[test]
+    fn deferred_base_motion_does_not_enter_the_character_sweep_velocity() {
+        let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+        let platform = app.world_mut().spawn((RigidBody::Dynamic, Collider::cuboid(4.0, 0.5, 4.0),
+            avian3d::prelude::LockedAxes::ALL_LOCKED, GravityScale(0.0), Transform::from_xyz(0.0, 2.0, 5.0))).id();
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.2, 4.0, 4.0), Transform::from_xyz(1.0, 3.0, 5.0)));
+        let position = Vec3::new(0.5, 3.174, 5.0);
+        app.world_mut().entity_mut(character).insert((Position(position), Transform::from_translation(position)));
+        for _ in 0..60 { app.update(); }
+        let start = app.world().get::<Position>(character).unwrap().0.with_x(0.6);
+        app.world_mut().entity_mut(character).insert((Position(start), Transform::from_translation(start), LinearVelocity(Vec3::X * 3.75)));
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = Vec2::X;
+        app.add_systems(PostUpdate, (move |mut bodies: Query<(&mut Position, &mut Transform), Without<AlsCharacter>>| {
+            let (mut position, mut transform) = bodies.get_mut(platform).unwrap();
+            position.x -= 0.5;
+            transform.translation = position.0;
+        }).after(PhysicsSystems::Last).before(AlsActualVelocitySet));
+        app.update();
+        assert!(app.world().get::<AlsCmcAdapterRuntime>(character).unwrap().grounded_move_start.is_some());
+        let velocity = app.world().get::<AlsActualVelocity>(character).unwrap().world_velocity;
+        assert!(velocity.x.abs() < 1e-4, "Deferred movement-base displacement entered the character velocity: {velocity:?}");
+    }
+
+    #[test]
+    fn replacing_moving_support_keeps_the_character_velocity_and_updates_the_base() {
+        let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+        let platform = app.world_mut().spawn((RigidBody::Kinematic, Collider::cuboid(4.0, 0.5, 4.0),
+            Transform::from_xyz(0.0, 2.0, 5.0))).id();
+        let position = Vec3::new(0.0, 3.174, 5.0);
+        app.world_mut().entity_mut(character).insert((Position(position), Transform::from_translation(position)));
+        for _ in 0..60 { app.update(); }
+        app.world_mut().get_mut::<LinearVelocity>(platform).unwrap().0 = Vec3::X * 2.0;
+        for _ in 0..30 { app.update(); }
+        let center = app.world().get::<Position>(platform).unwrap().0;
+        app.world_mut().despawn(platform);
+        let replacement = app.world_mut().spawn((RigidBody::Kinematic, Collider::cuboid(4.0, 0.5, 4.0),
+            Transform::from_translation(center))).id();
+        app.update();
+        assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Grounded);
+        assert_eq!(app.world().get::<crate::dynamics::AlsMovementBase>(character).unwrap().entity, Some(replacement));
+        let velocity = app.world().get::<AlsActualVelocity>(character).unwrap().world_velocity;
+        assert!(velocity.with_y(0.0).length() < 1e-4, "Replacing the base changed the character velocity: {velocity:?}");
+        app.world_mut().despawn(replacement);
+        app.update();
+        assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Air);
+        assert!(app.world().get::<crate::dynamics::AlsMovementBase>(character).unwrap().entity.is_none());
+        for _ in 0..5 { app.update(); }
+        assert!(app.world().get::<AlsActualVelocity>(character).unwrap().horizontal_speed < 1e-4);
     }
 
     #[test]
@@ -3224,6 +3464,9 @@ mod tests {
         assert!((MIN_FLOOR_DISTANCE..=MAX_FLOOR_DISTANCE).contains(&(position.y - 0.9)) && velocity.y.abs() < 1e-5);
         assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Grounded,
             "Current capsule floor was discarded after the floor adjustment");
+        let base = app.world().get::<crate::dynamics::AlsMovementBase>(character).unwrap().entity;
+        assert!(base.is_some(), "The current floor did not establish a movement base");
+        assert_eq!(app.world().get::<crate::dynamics::AlsMovementBaseDynamicsState>(character).unwrap().entity, base);
         for _ in 0..30 { app.update(); }
         let sensor = app.world().get::<TnuaSensorsEntities<AlsControlScheme>>(character).unwrap().ground.unwrap();
         let controller = app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap();

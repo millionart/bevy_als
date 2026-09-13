@@ -1459,6 +1459,11 @@ mod tests {
             avian3d::prelude::PhysicsPlugins::new(PostUpdate),
             AlsMantleDrivePlugin,
             crate::source_physics_timing::SourcePhysicsTimingPlugin,
+            bevy_tnua_avian3d::TnuaAvian3dPlugin::new(Update),
+            bevy_tnua::TnuaControllerPlugin::<als_core::control_scheme::AlsControlScheme>::new(Update),
+            als_core::transition::AlsStateTransitionPlugin,
+            als_core::character::AlsCharacterPlugin,
+            als_core::motion::AlsMotionPlugin,
         ))
         .init_asset::<bevy::world_serialization::WorldAsset>()
         .init_asset::<bevy::animation::AnimationClip>()
@@ -1500,6 +1505,60 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
         app
+    }
+
+    #[test]
+    fn mantle_completion_keeps_the_current_moving_support() {
+        use avian3d::prelude::*;
+        use als_core::{character::AlsCharacterBundle, control_scheme::AlsControlSchemeConfig, params::AlsMovementParams};
+        let mut app = mantle_clip_test_app();
+        let mut failures = Vec::new();
+        for (child, delta) in [false, true].into_iter().flat_map(|child| [1.0 / 60.0, 0.05_f32].map(move |delta| (child, delta))) {
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
+            let center = Vec3::Y * 2.0;
+            let body = app.world_mut().spawn((RigidBody::Kinematic, Transform::from_translation(center), GlobalTransform::from_translation(center))).id();
+            let target = if child {
+                app.world_mut().spawn((ChildOf(body), Collider::cuboid(4.0, 0.5, 4.0), Transform::IDENTITY, GlobalTransform::from_translation(center))).id()
+            } else {
+                app.world_mut().entity_mut(body).insert(Collider::cuboid(4.0, 0.5, 4.0));
+                body
+            };
+            let params = AlsMovementParams::default();
+            let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>().add(als_core::motion::initial_als_control_scheme_config(&params));
+            let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(params);
+            let start = Vec3::new(0.0, 2.424, 1.5);
+            let mut actor_bundle = AlsCharacterBundle::new(params, config);
+            actor_bundle.transform.translation = start;
+            let actor = app.world_mut().spawn(actor_bundle).id();
+            let mut mantle = AlsMantleState::default();
+            mantle.begin_with_target_base(MantleKind::Low, start, Vec3::new(0.0, 3.174, 0.0), 0.75, 0.0, 0.0,
+                AlsMantleTargetBase { entity:target, translation:center, rotation:Quat::IDENTITY, scale:Vec3::ONE, relative_location:true });
+            app.world_mut().entity_mut(actor).insert(mantle);
+            app.update();
+            app.world_mut().get_mut::<LinearVelocity>(body).unwrap().0 = Vec3::X;
+            for _ in 0..240 {
+                app.update();
+                if !app.world().get::<AlsMantleState>(actor).unwrap().active { break; }
+            }
+            assert!(!app.world().get::<AlsMantleState>(actor).unwrap().active);
+            app.update();
+            let offset = app.world().get::<Position>(actor).unwrap().0 - app.world().get::<Position>(body).unwrap().0;
+            app.world_mut().entity_mut(actor).insert(AlsNotifyLocomotionAction::None);
+            for frame in 0..20 {
+                app.update();
+                let actual = app.world().get::<Position>(actor).unwrap().0 - app.world().get::<Position>(body).unwrap().0;
+                let error = (actual - offset).with_y(0.0).length();
+                let mode = *app.world().get::<LocomotionState>(actor).unwrap();
+                let base = app.world().get::<als_core::dynamics::AlsMovementBaseDynamicsState>(actor).and_then(|base| base.entity);
+                if error > 1e-4 || mode != LocomotionState::Grounded || base != Some(target) {
+                    failures.push((child, delta, frame, error, mode, base == Some(target)));
+                    break;
+                }
+            }
+            app.world_mut().despawn(actor);
+            app.world_mut().despawn(body);
+        }
+        assert!(failures.is_empty(), "Mantle lost the current movement base at completion: {failures:?}");
     }
 
     #[test]

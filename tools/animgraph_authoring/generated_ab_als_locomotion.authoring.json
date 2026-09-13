@@ -2293,6 +2293,142 @@
         "pre_rig_capture_uses_current_graph_input_and_skeleton_defaults"
       ],
       "evidence": "target/bf116_stairs/pre_rig_component_final.watchdog.json"
+    },
+    {
+      "label": "movement_base_components",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "-p",
+        "als-core",
+        "--lib",
+        "moving_support_uses_component_displacement_without_reported_velocity",
+        "--",
+        "--test-threads",
+        "1"
+      ],
+      "evidence": "target/bf116_stairs/c3b_ablations_restored.watchdog.json"
+    },
+    {
+      "label": "movement_base_current_physics",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "-p",
+        "als-core",
+        "--lib",
+        "moving_support_keeps_an_idle_character_on_root_and_child_colliders",
+        "--",
+        "--test-threads",
+        "1"
+      ],
+      "evidence": "target/bf116_stairs/c3b_ablations_restored.watchdog.json"
+    },
+    {
+      "label": "movement_base_capsule_bottom",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "-p",
+        "als-core",
+        "--lib",
+        "movement_base_rotation_keeps_the_capsule_bottom_anchor",
+        "--",
+        "--test-threads",
+        "1"
+      ],
+      "evidence": "target/bf116_stairs/c3b_ablations_restored.watchdog.json"
+    },
+    {
+      "label": "movement_base_sweep_order",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "-p",
+        "als-core",
+        "--lib",
+        "component_transport_precedes_the_character_movement_sweep",
+        "--",
+        "--test-threads",
+        "1"
+      ],
+      "evidence": "target/bf116_stairs/c3b_ablations_restored.watchdog.json"
+    },
+    {
+      "label": "movement_base_deferred_velocity",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "-p",
+        "als-core",
+        "--lib",
+        "deferred_base_motion_does_not_enter_the_character_sweep_velocity",
+        "--",
+        "--test-threads",
+        "1"
+      ],
+      "evidence": "target/bf116_stairs/c3b_ablations_restored.watchdog.json"
+    },
+    {
+      "label": "movement_base_floor_binding",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "-p",
+        "als-core",
+        "--lib",
+        "current_capsule_floor_wins_over_missing_pre_move_sensor_feedback",
+        "--",
+        "--test-threads",
+        "1"
+      ],
+      "evidence": "target/bf116_stairs/c3b_ablations_restored.watchdog.json"
+    },
+    {
+      "label": "movement_base_replacement",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "-p",
+        "als-core",
+        "--lib",
+        "replacing_moving_support_keeps_the_character_velocity_and_updates_the_base",
+        "--",
+        "--test-threads",
+        "1"
+      ],
+      "evidence": "target/bf116_stairs/c3b_ablations_restored.watchdog.json"
+    },
+    {
+      "label": "movement_base_mantle_handoff",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "-p",
+        "bevy_als",
+        "--lib",
+        "mantle_completion_keeps_the_current_moving_support",
+        "--",
+        "--test-threads",
+        "1"
+      ],
+      "evidence": "target/bf116_stairs/c3b_ablations_restored.watchdog.json"
     }
   ]
 }
