@@ -311,3 +311,87 @@ fn select_stair_surface_probes(vertices: &[Vec3], triangles: &[[u32; 3]]) -> Vec
     };
     vec![low, high]
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use als_core::{character::{AlsCharacterBundle, AlsCharacterPlugin}, control_scheme::{AlsControlScheme, AlsControlSchemeConfig},
+        gait::AlsDesiredGait, input::AlsInputCommand, motion::{AlsMotionPlugin, initial_als_control_scheme_config},
+        params::AlsMovementParams, state::{Gait, LocomotionState}, transition::AlsStateTransitionPlugin};
+    use bevy::{asset::AssetEvent, ecs::system::RunSystemOnce, time::TimeUpdateStrategy};
+
+    #[test]
+    fn imported_stair_descent_exits_initial_contact_without_entering_the_stair() {
+        let data: serde_json::Value = serde_json::from_str(include_str!("../assets/models/playground/SM_Als_Stairs_03.gltf")).unwrap();
+        let bytes = include_bytes!("../assets/models/playground/SM_Als_Stairs_03.bin");
+        let primitive = &data["meshes"][0]["primitives"][0];
+        let accessor_bytes = |index: usize, width: usize| {
+            let accessor = &data["accessors"][index];
+            let view = &data["bufferViews"][accessor["bufferView"].as_u64().unwrap() as usize];
+            let offset = view["byteOffset"].as_u64().unwrap_or(0) as usize + accessor["byteOffset"].as_u64().unwrap_or(0) as usize;
+            assert_eq!(view["byteStride"].as_u64().unwrap_or(width as u64) as usize, width);
+            &bytes[offset..offset + accessor["count"].as_u64().unwrap() as usize * width]
+        };
+        let positions = accessor_bytes(primitive["attributes"]["POSITION"].as_u64().unwrap() as usize, 12)
+            .chunks_exact(12).map(|point| std::array::from_fn::<_,3,_>(|i| f32::from_le_bytes(point[i*4..i*4+4].try_into().unwrap()))).collect::<Vec<_>>();
+        let indices = accessor_bytes(primitive["indices"].as_u64().unwrap() as usize, 2).chunks_exact(2)
+            .map(|index| u16::from_le_bytes(index.try_into().unwrap()) as u32).collect();
+        let mut mesh = Mesh::new(bevy::render::render_resource::PrimitiveTopology::TriangleList, default());
+        mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
+        mesh.insert_indices(bevy::render::mesh::Indices::U32(indices));
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+            PhysicsPlugins::new(PostUpdate), bevy_tnua_avian3d::TnuaAvian3dPlugin::new(Update),
+            bevy_tnua::TnuaControllerPlugin::<AlsControlScheme>::new(Update), AlsStateTransitionPlugin,
+            AlsCharacterPlugin, AlsMotionPlugin, PlaygroundCollisionPlugin, crate::source_physics_timing::SourcePhysicsTimingPlugin))
+            .init_resource::<Assets<Mesh>>().add_message::<AssetEvent<Mesh>>()
+            .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.0170989)));
+        app.finish();
+        let source = Transform::from_xyz(-30.0, 0.36, -30.0);
+        let mesh = app.world_mut().resource_mut::<Assets<Mesh>>().add(mesh);
+        let root = app.world_mut().spawn((PlaygroundCollisionSource::new("SM_Als_Stairs_03"), source, GlobalTransform::from(source))).id();
+        app.world_mut().spawn((ChildOf(root), Mesh3d(mesh), Transform::IDENTITY, GlobalTransform::from(source)));
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(80.0,0.2,80.0), Transform::from_xyz(0.0,-0.1,-30.0)));
+        let barrier = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(6.67,3.0,0.2), Transform::from_xyz(-26.665,6.4,-34.5))).id();
+        let params = AlsMovementParams::default();
+        let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>().add(initial_als_control_scheme_config(&params));
+        let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(params);
+        let start = Vec3::new(-26.665, 6.321502, -35.25028);
+        let mut bundle = AlsCharacterBundle::new(params, config);
+        bundle.transform.translation = start;
+        let actor = app.world_mut().spawn(bundle).id();
+        for _ in 0..30 { app.update(); }
+        assert!(app.world().get::<PlaygroundMeshColliderBuilt>(root).is_some());
+        let capsule = app.world().get::<Collider>(actor).unwrap().clone();
+        app.world_mut().run_system_once(move |spatial: SpatialQuery| {
+            let filter = SpatialQueryFilter::from_excluded_entities([actor]);
+            let config = ShapeCastConfig::from_max_distance(6.5*0.012236);
+            let hit = spatial.cast_shape(&capsule, start, Quat::IDENTITY, Dir3::Z, &config, &filter).unwrap();
+            assert_eq!(hit.distance, 0.0);
+            assert!(hit.normal1.z > 0.99);
+            assert!(((hit.point1 - hit.point2).dot(hit.normal1) - 0.000278).abs() < 1e-5);
+            let outward = ShapeCastConfig { ignore_origin_penetration:true, ..config };
+            assert!(spatial.cast_shape(&capsule, start, Quat::IDENTITY, Dir3::Z, &outward, &filter).is_none());
+            assert!(spatial.cast_shape(&capsule, start, Quat::IDENTITY, Dir3::NEG_Z, &outward, &filter).is_some());
+            let onward = ShapeCastConfig { max_distance:1.0, ..outward };
+            let hit = spatial.cast_shape(&capsule, start, Quat::IDENTITY, Dir3::Z, &onward, &filter).unwrap();
+            assert_eq!(hit.entity, barrier);
+            assert!(hit.distance > 0.3 && hit.distance < 0.4);
+        }).unwrap();
+        app.world_mut().get_mut::<Transform>(actor).unwrap().translation = start;
+        app.world_mut().get_mut::<Position>(actor).unwrap().0 = start;
+        app.world_mut().get_mut::<LinearVelocity>(actor).unwrap().0 = Vec3::Z * 6.5;
+        *app.world_mut().get_mut::<LocomotionState>(actor).unwrap() = LocomotionState::Grounded;
+        app.world_mut().get_mut::<AlsDesiredGait>(actor).unwrap().0 = Gait::Sprinting;
+        app.world_mut().get_mut::<AlsInputCommand>(actor).unwrap().move_dir = Vec2::Y;
+        app.world_mut().get_mut::<AlsInputCommand>(actor).unwrap().sprint_held = true;
+        app.world_mut().get_mut::<als_core::motion::AlsViewYaw>(actor).unwrap().0 = std::f32::consts::PI;
+        *app.world_mut().resource_mut::<TimeUpdateStrategy>() = TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.012236));
+        app.update();
+        let velocity = app.world().get::<LinearVelocity>(actor).unwrap().0;
+        let position = app.world().get::<Position>(actor).unwrap().0;
+        assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), LocomotionState::Grounded);
+        assert!((velocity.z - 6.5).abs() < 0.1 && position.z - start.z > 0.075,
+            "Recorded overlap stopped motion: position={position:?} velocity={velocity:?}");
+    }
+}

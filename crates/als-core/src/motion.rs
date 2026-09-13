@@ -1846,6 +1846,8 @@ impl Plugin for AlsMotionPlugin {
                         .after(capsule_reshape_system),
                     grounded_step_up_system.after(crate::dynamics::grounded_dynamics_motor_system)
                         .before(TnuaPipelineSystems::Motors),
+                    refine_ground_sensor_normal_system.after(TnuaPipelineSystems::Sensors)
+                        .before(TnuaPipelineSystems::Logic),
                     capsule_reshape_system.after(crate::transition::state_transition_system),
                 ),
             )
@@ -1914,6 +1916,28 @@ fn sync_effective_gravity_system(
             gravity_scale,
             tnua_gravity,
         };
+    }
+}
+
+fn refine_ground_sensor_normal_system(
+    spatial: SpatialQuery,
+    characters: Query<(Entity, &Position, &Rotation, &Collider, &LocomotionState, &TnuaSensorsEntities<AlsControlScheme>), With<AlsCharacter>>,
+    mut sensors: Query<&mut TnuaProximitySensor>,
+) {
+    let walkable_y = deg_to_rad(MAX_SLOPE_DEGREES).cos();
+    for (entity, position, rotation, collider, locomotion, entities) in &characters {
+        if *locomotion != LocomotionState::Grounded { continue; }
+        let Some(sensor_entity) = entities.ground else { continue; };
+        let Ok(mut sensor) = sensors.get_mut(sensor_entity) else { continue; };
+        let origin = position.0 + rotation.0 * (collider.scale() * sensor.cast_origin);
+        let direction = sensor.cast_direction;
+        let range = sensor.cast_range;
+        let Some(output) = sensor.output.as_mut() else { continue; };
+        if output.normal.y >= walkable_y { continue; }
+        if let Some(hit) = spatial.cast_ray(origin, direction, range, false, &SpatialQueryFilter::from_excluded_entities([entity]))
+            .filter(|hit| hit.entity == output.entity && hit.distance > 0.0 && hit.normal.y >= walkable_y) {
+            output.normal = Dir3::new(hit.normal).unwrap();
+        }
     }
 }
 
@@ -2459,7 +2483,10 @@ fn grounded_step_up_system(
         };
         let center = position.0;
         let filter = SpatialQueryFilter::from_excluded_entities([entity]);
-        let mut forward_config = ShapeCastConfig::from_max_distance(distance);
+        let mut forward_config = ShapeCastConfig {
+            ignore_origin_penetration: true,
+            ..ShapeCastConfig::from_max_distance(distance)
+        };
         let clearance = ALS_CHARACTER_FLOOR_CLEARANCE + ALS_CHARACTER_TNUA_FLOAT_EPSILON;
         let mut raised = center;
         let mut remaining_delta = delta;
@@ -2910,6 +2937,58 @@ mod tests {
             }
         }
         assert!(contact_seen, "The steep-surface fixture did not contact the capsule");
+    }
+
+    #[test]
+    fn ground_sensor_surface_fallback_prevents_the_recorded_slipping_impulse() {
+        let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+        app.world_mut().get_mut::<crate::gait::AlsDesiredGait>(character).unwrap().0 = Gait::Walking;
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = Vec2::Y;
+        app.world_mut().get_mut::<LinearVelocity>(character).unwrap().0 = Vec3::NEG_Z * 1.75;
+        app.add_systems(Update, (move |entities: Query<&TnuaSensorsEntities<AlsControlScheme>>, mut sensors: Query<&mut TnuaProximitySensor>| {
+            let sensor = entities.get(character).unwrap().ground.unwrap();
+            sensors.get_mut(sensor).unwrap().output.as_mut().unwrap().normal =
+                Dir3::new(Vec3::new(-0.046057902, 0.5598525, 0.8273112)).unwrap();
+        }).after(TnuaPipelineSystems::Sensors).before(refine_ground_sensor_normal_system));
+        app.update();
+        let sensor = app.world().get::<TnuaSensorsEntities<AlsControlScheme>>(character).unwrap().ground.unwrap();
+        assert_eq!(app.world().get::<TnuaProximitySensor>(sensor).unwrap().output.as_ref().unwrap().normal, Dir3::Y);
+        assert!(app.world().get::<LinearVelocity>(character).unwrap().0.abs_diff_eq(Vec3::NEG_Z * 1.75, 1e-4));
+    }
+
+    #[test]
+    fn ground_sensor_surface_fallback_preserves_air_foreign_hits_and_steep_surfaces() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+        let sensor = app.world().get::<TnuaSensorsEntities<AlsControlScheme>>(character).unwrap().ground.unwrap();
+        let mut original = app.world().get::<TnuaProximitySensor>(sensor).unwrap().output.clone().unwrap();
+        original.normal = Dir3::new(Vec3::new(-0.046057902, 0.5598525, 0.8273112)).unwrap();
+        let foreign = app.world_mut().spawn_empty().id();
+        for (mode, entity, normal) in [(LocomotionState::Air, original.entity, original.normal),
+            (LocomotionState::Grounded, foreign, original.normal),
+            (LocomotionState::Grounded, original.entity, Dir3::new(Vec3::new(0.6, 0.8, 0.0)).unwrap())] {
+            *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = mode;
+            let mut output = original.clone();
+            output.entity = entity;
+            output.normal = normal;
+            app.world_mut().get_mut::<TnuaProximitySensor>(sensor).unwrap().output = Some(output);
+            app.world_mut().run_system_once(refine_ground_sensor_normal_system).unwrap();
+            let output = app.world().get::<TnuaProximitySensor>(sensor).unwrap().output.as_ref().unwrap();
+            assert_eq!(output.normal, normal);
+            assert_eq!(output.entity, entity);
+        }
+        app.world_mut().get_mut::<Rotation>(original.entity).unwrap().0 = Quat::from_rotation_z(60.0_f32.to_radians());
+        app.world_mut().get_mut::<Transform>(original.entity).unwrap().rotation = Quat::from_rotation_z(60.0_f32.to_radians());
+        app.update();
+        *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = LocomotionState::Grounded;
+        app.world_mut().get_mut::<TnuaProximitySensor>(sensor).unwrap().output = Some(original.clone());
+        let position = app.world().get::<Position>(character).unwrap().0;
+        let hit = app.world_mut().run_system_once(move |spatial: SpatialQuery| spatial.cast_ray(position, Dir3::NEG_Y, 1.374, false,
+            &SpatialQueryFilter::from_excluded_entities([character]))).unwrap().unwrap();
+        assert_eq!(hit.entity, original.entity);
+        assert!((hit.normal.y - 0.5).abs() < 1e-4);
+        app.world_mut().run_system_once(refine_ground_sensor_normal_system).unwrap();
+        assert_eq!(app.world().get::<TnuaProximitySensor>(sensor).unwrap().output.as_ref().unwrap().normal, original.normal);
     }
 
     #[test]
