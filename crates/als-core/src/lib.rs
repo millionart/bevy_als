@@ -12,6 +12,7 @@ pub mod dynamics;
 pub mod flail;
 pub mod foot_ik;
 pub mod gait;
+mod generated_movement_constants;
 pub mod graph_router;
 pub mod head;
 pub mod input;

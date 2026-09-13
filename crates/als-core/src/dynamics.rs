@@ -5,6 +5,7 @@ use bevy_tnua::{TnuaController, TnuaMotor, TnuaPipelineSystems};
 use crate::character::{AlsCharacter, AlsCmcAdapterRuntime, AlsMovementParamsHandle};
 use crate::control_scheme::AlsControlScheme;
 use crate::gait::{AlsGaitAmount, AlsMaxAllowedGait, calculate_gait_amount_for_thresholds};
+use crate::generated_movement_constants::MAX_SPEED_SQUARED_RATIO;
 use crate::input::AlsInputCommand;
 use crate::mantle::AlsMantleState;
 use crate::motion::{AlsInputOverride, AlsViewYaw};
@@ -157,7 +158,7 @@ pub fn grounded_velocity_step_with_braking_friction(
     let accelerated = direction_adjusted
         + desired_direction * dynamics.acceleration.max(0.0) * desired_amount * delta_seconds;
     let target_speed = analog_target_speed(max_speed, desired_amount, min_analog_walk_speed);
-    if horizontal_velocity.length_squared() > target_speed * target_speed * 1.01
+    if horizontal_velocity.length_squared() > target_speed * target_speed * MAX_SPEED_SQUARED_RATIO
         && accelerated.dot(horizontal_velocity) > 0.0 {
         let braking_delta = (dynamics.braking_deceleration.max(0.0) * delta_seconds).min(speed);
         let minimum_speed = if desired_direction.dot(horizontal_velocity) > 0.0 { target_speed } else { 0.0 };

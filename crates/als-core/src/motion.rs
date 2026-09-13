@@ -18,6 +18,11 @@ use crate::character::{
 };
 use crate::control_scheme::{AlsControlScheme, AlsControlSchemeActionDiscriminant, AlsControlSchemeConfig};
 use crate::gait::AlsMaxAllowedGait;
+use crate::generated_movement_constants::{
+    EDGE_REJECT_DISTANCE, FLOOR_RETRY_SHRINK_FRACTION, FLOOR_SWEEP_SHRINK_FRACTION,
+    MAX_FLOOR_DISTANCE, MAX_SLOPE_DEGREES, MAX_STEP_HEIGHT, PULLBACK_MAX_DISTANCE,
+    PULLBACK_MIN_DISTANCE, PULLBACK_PROPORTION, PULLBACK_TIME_BIAS, SWEEP_EDGE_MIN_RADIUS,
+};
 use crate::input::AlsInputCommand;
 use crate::mantle::{
     AlsMantleControlSettings, AlsMantleStartTimeSettings, AlsMantleState, AlsMantleTargetBase,
@@ -33,12 +38,10 @@ use crate::transition::{
     StateValue,
 };
 
-const MAX_SLOPE_DEGREES: f32 = 44.765_083;
 const WALK_CLING_DISTANCE: f32 = ALS_CHARACTER_TNUA_FLOAT_EPSILON;
 const AIR_CONTROL: f32 = 0.15;
 const AIR_CONTROL_BOOST_MULTIPLIER: f32 = 2.0;
 const AIR_CONTROL_BOOST_SPEED: f32 = 0.25;
-const MAX_STEP_HEIGHT: f32 = 0.45;
 
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
 pub struct AlsActualVelocity {
@@ -2462,7 +2465,8 @@ fn grounded_step_up_system(
         let mut remaining_delta = delta;
         let mut initial_floor_y = None;
         if let Some(hit) = spatial_query.cast_shape(capsule, center, Quat::IDENTITY, direction, &forward_config, &filter) {
-            let pullback = (distance * 0.1).clamp(0.001, 0.01) + distance * 0.001;
+            let pullback = (distance * PULLBACK_PROPORTION).clamp(PULLBACK_MIN_DISTANCE, PULLBACK_MAX_DISTANCE)
+                + distance * PULLBACK_TIME_BIAS;
             let advance = *direction * (hit.distance - pullback).max(0.0);
             raised += advance;
             remaining_delta -= advance;
@@ -2522,15 +2526,14 @@ fn walkable_floor_hit(spatial: &SpatialQuery, capsule: &Collider, radius: f32, o
     distance: f32, filter: &SpatialQueryFilter) -> Option<ShapeHitData> {
     let hit = spatial.cast_shape(capsule, origin, Quat::IDENTITY, Dir3::NEG_Y,
         &ShapeCastConfig::from_max_distance(distance), filter)?;
-    let reduced_radius = (radius - 0.0015).max(0.001501);
+    let reduced_radius = (radius - EDGE_REJECT_DISTANCE).max(SWEEP_EDGE_MIN_RADIUS);
     if Vec2::new(hit.point1.x - origin.x, hit.point1.z - origin.z).length_squared() >= reduced_radius * reduced_radius {
         return None;
     }
     let mut normal = hit.normal1;
     if normal.y < deg_to_rad(MAX_SLOPE_DEGREES).cos() {
-        let edge_tolerance = 0.0015;
-        let ray_origin = hit.point1 + (Vec3::Y - Vec3::new(normal.x, 0.0, normal.z)) * edge_tolerance;
-        if let Some(surface) = spatial.cast_ray(ray_origin, Dir3::NEG_Y, edge_tolerance * 2.0, false, filter)
+        let ray_origin = hit.point1 + (Vec3::Y - Vec3::new(normal.x, 0.0, normal.z)) * EDGE_REJECT_DISTANCE;
+        if let Some(surface) = spatial.cast_ray(ray_origin, Dir3::NEG_Y, EDGE_REJECT_DISTANCE * 2.0, false, filter)
             .filter(|surface| surface.entity == hit.entity) {
             normal = surface.normal;
         }
@@ -2540,12 +2543,13 @@ fn walkable_floor_hit(spatial: &SpatialQuery, capsule: &Collider, radius: f32, o
 
 fn find_ground_floor(spatial: &SpatialQuery, origin: Vec3, half: f32, radius: f32,
     filter: &SpatialQueryFilter) -> Option<(f32, f32)> {
-    for (shrink_scale, radius_reduction) in [(0.1, 0.0), (0.9, 0.001501)] {
+    for (shrink_scale, radius_reduction) in [(FLOOR_SWEEP_SHRINK_FRACTION, 0.0),
+        (FLOOR_RETRY_SHRINK_FRACTION, SWEEP_EDGE_MIN_RADIUS)] {
         let shrink_height = (half - radius) * shrink_scale;
         let sweep_radius = radius - radius_reduction;
         let capsule = als_character_capsule((half - shrink_height).max(sweep_radius), sweep_radius);
         if let Some(hit) = walkable_floor_hit(spatial, &capsule, sweep_radius, origin,
-            MAX_STEP_HEIGHT + 0.024 + shrink_height, filter) {
+            MAX_STEP_HEIGHT + MAX_FLOOR_DISTANCE + shrink_height, filter) {
             return Some((origin.y - hit.distance + shrink_height, hit.point1.y));
         }
     }

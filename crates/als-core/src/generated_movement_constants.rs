@@ -1,0 +1,12 @@
+pub(crate) const MAX_STEP_HEIGHT: f32 = 0.45;
+pub(crate) const MAX_SLOPE_DEGREES: f32 = 44.765083;
+pub(crate) const MAX_FLOOR_DISTANCE: f32 = 0.024;
+pub(crate) const EDGE_REJECT_DISTANCE: f32 = 0.0015;
+pub(crate) const SWEEP_EDGE_MIN_RADIUS: f32 = 0.001501;
+pub(crate) const PULLBACK_PROPORTION: f32 = 0.1;
+pub(crate) const PULLBACK_MIN_DISTANCE: f32 = 0.001;
+pub(crate) const PULLBACK_MAX_DISTANCE: f32 = 0.01;
+pub(crate) const PULLBACK_TIME_BIAS: f32 = 0.001;
+pub(crate) const FLOOR_SWEEP_SHRINK_FRACTION: f32 = 0.10000002384185791;
+pub(crate) const FLOOR_RETRY_SHRINK_FRACTION: f32 = 0.8999999761581421;
+pub(crate) const MAX_SPEED_SQUARED_RATIO: f32 = 1.01;
