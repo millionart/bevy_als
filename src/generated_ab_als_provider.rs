@@ -494,6 +494,7 @@ mod tests {
                 AlsCharacter,
                 Transform::default(),
                 avian3d::prelude::LinearVelocity::default(),
+                als_core::state::LocomotionState::Grounded,
             ))
             .id();
         for (velocity, view_yaw, expected) in [
@@ -537,6 +538,7 @@ mod tests {
             AlsCharacter,
             Transform::default(),
             LinearVelocity(Vec3::NEG_Z * 1.315),
+            als_core::state::LocomotionState::Grounded,
             AlsActualVelocity {
                 world_velocity: Vec3::NEG_Z * 1.689,
                 horizontal_speed: 1.689,

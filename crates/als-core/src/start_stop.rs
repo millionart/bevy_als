@@ -1,4 +1,4 @@
-use avian3d::prelude::LinearVelocity;
+use crate::motion::AlsActualVelocity;
 use bevy::prelude::*;
 
 use crate::input::AlsInputCommand;
@@ -173,7 +173,7 @@ pub fn start_stop_detector_system(
     time: Res<Time>,
     mut q: Query<
         (
-            &LinearVelocity,
+            &AlsActualVelocity,
             &AlsInputCommand,
             Option<&AlsInputOverride>,
             &AlsViewYaw,
@@ -187,7 +187,7 @@ pub fn start_stop_detector_system(
     };
     let _ = time;
     let input = ovr.map(|o| &o.0).unwrap_or(cmd);
-    let hspeed = Vec2::new(vel.x, vel.z).length();
+    let hspeed = vel.horizontal_speed;
     let dir = classify(view_relative_move_axes(input.move_dir, view.0), view.0);
     update_start_stop(&mut ss, &StartStopConfig::default(), hspeed, dir);
 }

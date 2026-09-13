@@ -1,5 +1,7 @@
 use als_core::character::AlsCharacter;
+use als_core::dynamics::{AlsMovementBaseDynamicsState, locomotion_velocity};
 use als_core::orientation::world_forward_to_yaw;
+use als_core::state::LocomotionState;
 use als_ext::{HorizontalVelocityBlend, horizontal_motion_from_world_velocity};
 use avian3d::prelude::LinearVelocity;
 use bevy::prelude::*;
@@ -63,14 +65,17 @@ fn snapshot_actual_motion_system(
             Entity,
             &LinearVelocity,
             &Transform,
+            &LocomotionState,
+            Option<&AlsMovementBaseDynamicsState>,
             Option<&mut AlsActualMotion>,
         ),
         With<AlsCharacter>,
     >,
 ) {
-    for (entity, velocity, transform, current) in &mut characters {
+    for (entity, velocity, transform, locomotion, base, current) in &mut characters {
         let mut next =
-            AlsActualMotion::from_physics_velocity(velocity.0, transform.rotation);
+            AlsActualMotion::from_physics_velocity(
+                locomotion_velocity(velocity.0, *locomotion, base), transform.rotation);
         if let Some(previous) = current.as_deref().filter(|_| time.delta_secs() > 1e-8) {
             next.world_acceleration =
                 (next.world_velocity - previous.world_velocity) / time.delta_secs();
@@ -93,6 +98,26 @@ mod tests {
     use super::*;
 
     #[test]
+    fn snapshot_excludes_passive_base_transport_and_preserves_air_velocity() {
+        use als_core::{dynamics::AlsMovementBaseDynamicsState, state::LocomotionState};
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins).add_systems(PostUpdate, snapshot_actual_motion_system);
+        let base = app.world_mut().spawn_empty().id();
+        let character = app.world_mut().spawn((AlsCharacter, Transform::IDENTITY,
+            LocomotionState::Grounded, LinearVelocity(Vec3::X * 2.0),
+            AlsMovementBaseDynamicsState { entity:Some(base), support_velocity:Vec3::X * 2.0, ..default() })).id();
+        app.world_mut().run_schedule(PostUpdate);
+        assert_eq!(app.world().get::<AlsActualMotion>(character).unwrap().world_velocity, Vec3::ZERO);
+        app.world_mut().get_mut::<LinearVelocity>(character).unwrap().0 += Vec3::NEG_Z;
+        app.world_mut().run_schedule(PostUpdate);
+        assert_eq!(app.world().get::<AlsActualMotion>(character).unwrap().world_velocity, Vec3::NEG_Z);
+        *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = LocomotionState::Air;
+        app.world_mut().get_mut::<LinearVelocity>(character).unwrap().0 = Vec3::new(2.0, 3.0, -1.0);
+        app.world_mut().run_schedule(PostUpdate);
+        assert_eq!(app.world().get::<AlsActualMotion>(character).unwrap().world_velocity, Vec3::new(2.0, 3.0, -1.0));
+    }
+
+    #[test]
     fn standing_source_motion_retains_full_velocity_for_three_axis_blend() {
         let velocity = Vec3::new(1.0, 2.0, -1.0);
         let motion = AlsActualMotion::from_physics_velocity(velocity, Quat::IDENTITY);
@@ -113,6 +138,7 @@ mod tests {
                 AlsCharacter,
                 Transform::default(),
                 LinearVelocity(Vec3::NEG_Z),
+                LocomotionState::Grounded,
             ))
             .id();
         let second = app
@@ -121,6 +147,7 @@ mod tests {
                 AlsCharacter,
                 Transform::from_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_2)),
                 LinearVelocity(Vec3::NEG_X),
+                LocomotionState::Grounded,
             ))
             .id();
 
@@ -165,6 +192,7 @@ mod tests {
                 AlsCharacter,
                 Transform::default(),
                 LinearVelocity(Vec3::NEG_Z),
+                LocomotionState::Grounded,
                 AlsMovementBaseDynamicsState {
                     entity: Some(base),
                     ..default()

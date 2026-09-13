@@ -91,11 +91,11 @@ const LIMB_CHAINS: &[(&str, &str, &str, &str)] = &[
     ("right_arm", "upperarm_r", "lowerarm_r", "hand_r"),
 ];
 
-const TEMPORAL_GLOBAL_POSITION_SPEED_METERS_PER_SECOND: f32 = 32.0;
+const TEMPORAL_GLOBAL_POSITION_SPEED_METERS_PER_SECOND: f32 = 40.0;
 const TEMPORAL_LOCAL_TRANSLATION_JUMP_METERS: f32 = 0.35;
 const TEMPORAL_LOCAL_TRANSLATION_SPEED_METERS_PER_SECOND: f32 = 14.0;
 const TEMPORAL_LOCAL_ROTATION_JUMP_RADIANS: f32 = 2.2;
-const TEMPORAL_LOCAL_ROTATION_SPEED_RADIANS_PER_SECOND: f32 = 64.0;
+const TEMPORAL_LOCAL_ROTATION_SPEED_RADIANS_PER_SECOND: f32 = 80.0;
 const TEMPORAL_LOCAL_ROTATION_SPEED_MIN_DELTA_RADIANS: f32 = 0.75;
 const TEMPORAL_SCALE_RATIO: f32 = 1.5;
 const TEMPORAL_SEGMENT_RATIO: f32 = 0.35;
@@ -4491,19 +4491,25 @@ mod tests {
         for (name, previous, current, delta) in [
             ("hand_l", Vec3::new(0.5178596, 1.4902093, 0.566879), Vec3::new(0.46625707, 1.1090595, 0.687198), 0.0148442),
             ("calf_l", Vec3::new(-0.1704133, 0.4692102, -0.2130673), Vec3::new(-0.15643789, 0.39046794, 0.07042244), 0.0100415),
+            ("hand_r", Vec3::new(-0.66575725, 1.2844432, 0.060162455), Vec3::new(-0.6196818, 1.1758767, 0.5142271), 0.0141097),
         ] {
             let bones = |position| BTreeMap::from([(name.to_owned(), (position, Quat::IDENTITY, Vec3::ONE, Vec3::ONE))]);
             let mut guard = TemporalSkeletonGuard::default();
             guard.observe(&BTreeMap::new(), &bones(previous), Vec3::ZERO, delta);
             rejected.extend(guard.observe(&BTreeMap::new(), &bones(current), Vec3::ZERO, delta).metrics);
         }
-        let poses = [
+        for (rotations, delta) in [([
             Quat::from_xyzw(-0.0029632404, -0.24226911, 0.007246189, 0.9701775),
             Quat::from_xyzw(-0.00900114, -0.61373883, 0.02740959, 0.78898185),
-        ].map(|rotation| BTreeMap::from([("calf_r".to_owned(), LocalBonePose { rotation, scale:Vec3::ONE, ..default() })]));
-        let mut guard = TemporalSkeletonGuard::default();
-        guard.observe(&poses[0], &BTreeMap::new(), Vec3::ZERO, 0.0159982);
-        rejected.extend(guard.observe(&poses[1], &BTreeMap::new(), Vec3::ZERO, 0.0159982).metrics);
+        ], 0.0159982), ([
+            Quat::from_xyzw(-0.006461881, -0.40865546, 0.017139463, 0.9125049),
+            Quat::from_xyzw(-0.012386095, -0.73553616, 0.040971845, 0.676132),
+        ], 0.0122713)] {
+            let poses = rotations.map(|rotation| BTreeMap::from([("calf_r".to_owned(), LocalBonePose { rotation, scale:Vec3::ONE, ..default() })]));
+            let mut guard = TemporalSkeletonGuard::default();
+            guard.observe(&poses[0], &BTreeMap::new(), Vec3::ZERO, delta);
+            rejected.extend(guard.observe(&poses[1], &BTreeMap::new(), Vec3::ZERO, delta).metrics);
+        }
         assert!(rejected.is_empty(), "native motion was rejected: {:?}", rejected.iter().map(|metric| (metric.subject.as_str(), metric.current)).collect::<Vec<_>>());
     }
 

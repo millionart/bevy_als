@@ -4,14 +4,13 @@ use als_core::dynamics::{
 };
 use als_core::input::AlsInputCommand;
 use als_core::motion::{
-    AlsInputOverride, AlsRotationResponseState, AlsViewYaw, view_relative_move_direction,
+    AlsActualVelocity, AlsInputOverride, AlsRotationResponseState, AlsViewYaw, view_relative_move_direction,
 };
 use als_core::orientation::world_forward_to_yaw;
 use als_core::params::AlsMovementParams;
 use als_core::start_stop::predict_stop_distance;
 use als_core::state::{LocomotionState, RotationMode, Stance};
 use als_core::transitions::{TransitionConfig, select_quick_stop};
-use avian3d::prelude::LinearVelocity;
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::ecs::message::{Message, MessageReader};
 use bevy::prelude::*;
@@ -673,7 +672,7 @@ pub fn stop_link_system(
     time: Res<Time>,
     mut q: Query<
         (
-            &LinearVelocity,
+            &AlsActualVelocity,
             &LocomotionState,
             &Stance,
             &RotationMode,
@@ -714,7 +713,7 @@ pub fn stop_link_system(
         return;
     };
     let effective = ovr.map(|o| &o.0).unwrap_or(cmd);
-    let hspeed = Vec2::new(vel.x, vel.z).length();
+    let hspeed = vel.horizontal_speed;
     let input_move = effective.move_dir.length();
     if input_move > STOP_RELEASE_INPUT_EPSILON {
         let direction = view_relative_move_direction(effective.move_dir, view_yaw.0);

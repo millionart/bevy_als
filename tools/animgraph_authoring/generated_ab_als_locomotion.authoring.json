@@ -2198,7 +2198,63 @@
         "--jobs",
         "2"
       ],
-      "evidence": "target/bf115_overlays/takeoff_tap_mode_pass.watchdog.json"
+      "evidence": "target/bf116_stairs/b3_sensor_landing_regression.watchdog.json"
+    },
+    {
+      "label": "source_movement_base_relative_velocity",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "--lib",
+        "-p",
+        "als-core",
+        "accelerating_support_preserves_idle_position_and_character_velocity"
+      ],
+      "evidence": "target/bf116_stairs/b3_sensor_landing_regression.watchdog.json"
+    },
+    {
+      "label": "animation_velocity_excludes_passive_transport",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "--lib",
+        "-p",
+        "bevy_als",
+        "snapshot_excludes_passive_base_transport_and_preserves_air_velocity"
+      ],
+      "evidence": "target/bf116_stairs/b3_sensor_landing_regression.watchdog.json"
+    },
+    {
+      "label": "ascending_capsule_requires_physical_landing",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "--lib",
+        "-p",
+        "als-core",
+        "an_ascending_capsule_does_not_land_from_the_controller_sensor_alone"
+      ],
+      "evidence": "target/bf116_stairs/b3_sensor_landing_regression.watchdog.json"
+    },
+    {
+      "label": "native_landing_motion_speed_calibration",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "--lib",
+        "-p",
+        "bevy_als",
+        "temporal_guard_accepts_native_uphill_landing_motion"
+      ],
+      "evidence": "target/bf116_stairs/b3_native_temporal_regression.watchdog.json"
     }
   ]
 }

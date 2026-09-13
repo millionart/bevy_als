@@ -1,5 +1,6 @@
 use avian3d::prelude::{
-    Collider, CollisionLayers, LinearVelocity, LockedAxes, PhysicsSystems, Position, RigidBody,
+    Collider, CollisionLayers, ContactGraph, LinearVelocity, LockedAxes, PhysicsSchedule,
+    PhysicsStepSystems, PhysicsSystems, Position, RigidBody,
     SpeculativeMargin,
 };
 use bevy::asset::Handle;
@@ -194,7 +195,23 @@ impl Plugin for AlsCharacterPlugin {
                 PostUpdate,
                 character_crush_recovery_system.in_set(PhysicsSystems::Last),
             )
-            .add_systems(Update, character_sensor_shape_sync_system);
+            .add_systems(Update, character_sensor_shape_sync_system)
+            .add_systems(PhysicsSchedule, character_contact_friction_system
+                .after(PhysicsStepSystems::NarrowPhase).before(PhysicsStepSystems::Solver));
+    }
+}
+
+fn character_contact_friction_system(
+    characters: Query<(), With<AlsCharacter>>,
+    mut contacts: ResMut<ContactGraph>,
+) {
+    for pair in contacts.iter_active_mut() {
+        if characters.contains(pair.body1.unwrap_or(pair.collider1))
+            || characters.contains(pair.body2.unwrap_or(pair.collider2)) {
+            for manifold in &mut pair.manifolds {
+                manifold.friction = 0.0;
+            }
+        }
     }
 }
 

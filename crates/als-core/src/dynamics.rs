@@ -57,6 +57,15 @@ pub struct AlsMovementBaseDynamicsState {
     pub motor_boost: Vec3,
 }
 
+pub fn locomotion_velocity(
+    world_velocity: Vec3,
+    locomotion: LocomotionState,
+    base: Option<&AlsMovementBaseDynamicsState>,
+) -> Vec3 {
+    world_velocity - base.filter(|base| locomotion == LocomotionState::Grounded && base.entity.is_some())
+        .map_or(Vec3::ZERO, |base| base.support_velocity)
+}
+
 pub fn support_point_velocity(
     base_position: Vec3,
     base_linear_velocity: Vec3,
@@ -281,65 +290,6 @@ pub fn predict_grounded_stop_distance_with_braking_friction(
     distance
 }
 
-pub fn refresh_grounded_dynamics_system(
-    mut q: Query<
-        (
-            &LocomotionState,
-            &Stance,
-            &RotationMode,
-            &AlsViewYaw,
-            &Position,
-            &LinearVelocity,
-            &TnuaController<AlsControlScheme>,
-            &AlsMovementParamsHandle,
-            &mut AlsGaitAmount,
-            &mut AlsGroundedDynamics,
-        ),
-        With<AlsCharacter>,
-    >,
-    params_assets: Res<Assets<AlsMovementParams>>,
-    bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
-    colliders: Query<&ColliderOf>,
-) {
-    for (
-        locomotion,
-        stance,
-        rotation_mode,
-        view_yaw,
-        position,
-        velocity,
-        controller,
-        params_handle,
-        mut gait_amount,
-        mut dynamics,
-    ) in &mut q
-    {
-        if *locomotion != LocomotionState::Grounded {
-            continue;
-        }
-        let Some(params) = params_assets.get(params_handle.id()) else {
-            continue;
-        };
-        let contact_point = character_contact_point(params, *stance, position.0);
-        let (_, support_velocity) = support_velocity_from_base(
-            controller.basis_memory.standing_on_entity(),
-            contact_point,
-            &bases,
-            &colliders,
-        );
-        let relative_velocity = Vec3::new(
-            velocity.x - support_velocity.x,
-            0.0,
-            velocity.z - support_velocity.z,
-        );
-        let horizontal_speed = relative_velocity.length();
-        let thresholds =
-            params.gait_speed_thresholds(*stance, *rotation_mode, relative_velocity, view_yaw.0);
-        gait_amount.0 = calculate_gait_amount_for_thresholds(horizontal_speed, thresholds);
-        dynamics.0 = params.grounded_dynamics(*stance, *rotation_mode, gait_amount.0);
-    }
-}
-
 fn landing_braking_friction_system(
     time: Res<Time>,
     mut q: Query<
@@ -464,11 +414,8 @@ pub fn grounded_dynamics_motor_system(
             &bases,
             &colliders,
         );
-        let current = Vec3::new(
-            world_velocity.x - support_velocity.x,
-            0.0,
-            world_velocity.z - support_velocity.z,
-        );
+        let current = locomotion_velocity(world_velocity, *locomotion,
+            current_base_state.as_deref().filter(|_| base_entity.is_some()));
         let thresholds = params.gait_speed_thresholds(*stance, *rotation_mode, current, view_yaw.0);
         gait_amount.0 = calculate_gait_amount_for_thresholds(current.length(), thresholds);
         dynamics.0 = params.grounded_dynamics(*stance, *rotation_mode, gait_amount.0);
@@ -498,7 +445,8 @@ pub fn grounded_dynamics_motor_system(
         cmc_runtime.min_analog_speed_applied = desired_motion.length_squared() > 1e-6
             && max_speed * desired_motion.length().min(1.0) < params.cmc.min_analog_walk_speed;
         let motor_boost = next - current;
-        motor.lin.boost += motor_boost;
+        motor.lin.boost.x = next.x + support_velocity.x - world_velocity.x;
+        motor.lin.boost.z = next.z + support_velocity.z - world_velocity.z;
         let base_state = AlsMovementBaseDynamicsState {
             entity: base_entity,
             world_velocity,
@@ -521,14 +469,11 @@ impl Plugin for AlsGroundedDynamicsPlugin {
         app.add_systems(
             Update,
             (
-                refresh_grounded_dynamics_system
-                    .after(crate::gait::refresh_gait_system)
-                    .before(TnuaPipelineSystems::Logic),
                 landing_braking_friction_system
                     .after(crate::motion::locomotion_state_sync_system)
                     .before(grounded_dynamics_motor_system),
                 grounded_dynamics_motor_system
-                    .after(refresh_grounded_dynamics_system)
+                    .after(crate::gait::refresh_gait_system)
                     .after(TnuaPipelineSystems::Logic)
                     .before(TnuaPipelineSystems::Motors),
             ),

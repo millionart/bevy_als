@@ -373,7 +373,7 @@ fn rotation_response_system(
             &RotationMode,
             &AlsViewYaw,
             &AlsMovementParamsHandle,
-            &LinearVelocity,
+            (&LinearVelocity, Option<&crate::dynamics::AlsMovementBaseDynamicsState>),
             Option<&AlsInputOverride>,
             &AlsInputCommand,
             Option<&AlsRotationAnimationState>,
@@ -394,7 +394,7 @@ fn rotation_response_system(
         rotation_mode,
         view_yaw,
         params_handle,
-        velocity,
+        (velocity, base),
         input_override,
         input,
         animation,
@@ -426,6 +426,7 @@ fn rotation_response_system(
         let input_yaw = (effective.move_dir.length_squared() > f32::EPSILON).then(|| {
             world_forward_to_yaw(view_relative_move_direction(effective.move_dir, view_yaw.0))
         });
+        let velocity = LinearVelocity(crate::dynamics::locomotion_velocity(velocity.0, *locomotion, base));
         let horizontal_speed = Vec2::new(velocity.x, velocity.z).length();
         let (has_velocity, moving) = locomotion_movement_flags(has_input, horizontal_speed);
         let velocity_yaw = has_velocity.then(|| world_forward_to_yaw(velocity.0));
@@ -814,6 +815,7 @@ mod rotation_cap_tests {
             .spawn((
                 AlsCharacter,
                 LinearVelocity(Vec3::new(3.0, 7.0, -4.0)),
+                LocomotionState::Air,
                 AlsActualVelocity::default(),
             ))
             .id();
@@ -1846,7 +1848,7 @@ impl Plugin for AlsMotionPlugin {
                         .after(capsule_reshape_system),
                     grounded_step_up_system.after(crate::dynamics::grounded_dynamics_motor_system)
                         .before(TnuaPipelineSystems::Motors),
-                    refine_ground_sensor_normal_system.after(TnuaPipelineSystems::Sensors)
+                    refine_ground_sensor_system.after(TnuaPipelineSystems::Sensors)
                         .before(TnuaPipelineSystems::Logic),
                     capsule_reshape_system.after(crate::transition::state_transition_system),
                 ),
@@ -1877,16 +1879,22 @@ impl Plugin for AlsMotionPlugin {
 }
 
 fn snapshot_actual_velocity_system(
-    mut characters: Query<(&mut LinearVelocity, &mut AlsActualVelocity, Option<&Position>, &AlsCmcAdapterRuntime), With<AlsCharacter>>,
+    mut characters: Query<(&mut LinearVelocity, &mut AlsActualVelocity, Option<&Position>, &AlsCmcAdapterRuntime,
+        &LocomotionState, Option<&mut crate::dynamics::AlsMovementBaseDynamicsState>), With<AlsCharacter>>,
 ) {
-    for (mut velocity, mut actual, position, runtime) in &mut characters {
+    for (mut velocity, mut actual, position, runtime, locomotion, mut base) in &mut characters {
         if let Some(start) = runtime.grounded_move_start
             && let Some(position) = position
             && runtime.simulation_delta_seconds > 0.0 {
             velocity.x = (position.x - start.x) / runtime.simulation_delta_seconds;
             velocity.z = (position.z - start.z) / runtime.simulation_delta_seconds;
         }
-        *actual = AlsActualVelocity::from_physics_velocity(velocity.0);
+        if *locomotion != LocomotionState::Grounded
+            && let Some(base) = base.as_deref_mut() {
+            *base = default();
+        }
+        *actual = AlsActualVelocity::from_physics_velocity(
+            crate::dynamics::locomotion_velocity(velocity.0, *locomotion, base.as_deref()));
     }
 }
 
@@ -1919,16 +1927,20 @@ fn sync_effective_gravity_system(
     }
 }
 
-fn refine_ground_sensor_normal_system(
+fn refine_ground_sensor_system(
     spatial: SpatialQuery,
     characters: Query<(Entity, &Position, &Rotation, &Collider, &LocomotionState, &TnuaSensorsEntities<AlsControlScheme>), With<AlsCharacter>>,
     mut sensors: Query<&mut TnuaProximitySensor>,
 ) {
     let walkable_y = deg_to_rad(MAX_SLOPE_DEGREES).cos();
     for (entity, position, rotation, collider, locomotion, entities) in &characters {
-        if *locomotion != LocomotionState::Grounded { continue; }
         let Some(sensor_entity) = entities.ground else { continue; };
         let Ok(mut sensor) = sensors.get_mut(sensor_entity) else { continue; };
+        if *locomotion == LocomotionState::Air {
+            sensor.output = None;
+            continue;
+        }
+        if *locomotion != LocomotionState::Grounded { continue; }
         let origin = position.0 + rotation.0 * (collider.scale() * sensor.cast_origin);
         let direction = sensor.cast_direction;
         let range = sensor.cast_range;
@@ -1953,12 +1965,13 @@ fn tnua_config_sync_system(
         &LocomotionState,
         &TnuaController<AlsControlScheme>,
         &TnuaSensorsEntities<AlsControlScheme>,
+        Option<&crate::dynamics::AlsMovementBaseDynamicsState>,
     )>,
     mut configs: ResMut<Assets<AlsControlSchemeConfig>>,
     params_assets: Res<Assets<AlsMovementParams>>,
     mut sensors: Query<&mut TnuaProximitySensor>,
 ) {
-    for (config, handle, max_allowed, stance, rotation_mode, view_yaw, velocity, locomotion, controller, sensor_entities) in &q {
+    for (config, handle, max_allowed, stance, rotation_mode, view_yaw, velocity, locomotion, controller, sensor_entities, base) in &q {
         let Some(params) = params_assets.get(handle.id()) else {
             continue;
         };
@@ -1972,9 +1985,12 @@ fn tnua_config_sync_system(
             *stance,
             *rotation_mode,
             *stance == Stance::Crouching,
-            velocity.0,
+            crate::dynamics::locomotion_velocity(velocity.0, *locomotion, base),
             view_yaw.0,
         );
+        if controller.basis.desired_motion == Vec3::ZERO {
+            cfg.basis.air_acceleration = 0.0;
+        }
         if *locomotion == LocomotionState::Grounded {
             cfg.basis.cling_distance = MAX_STEP_HEIGHT;
         }
@@ -2974,6 +2990,107 @@ mod tests {
     }
 
     #[test]
+    fn accelerating_support_preserves_idle_position_and_character_velocity() {
+        let mut failures = Vec::new();
+        for child in [false, true] {
+            let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+            *app.world_mut().get_mut::<RotationMode>(character).unwrap() = RotationMode::VelocityDirection;
+            let transform = Transform::from_xyz(0.0, 2.0, 5.0);
+            let platform = app.world_mut().spawn((RigidBody::Kinematic, transform, GlobalTransform::from(transform))).id();
+            if child {
+                app.world_mut().spawn((ChildOf(platform), Collider::cuboid(4.0, 0.5, 4.0), Transform::IDENTITY, GlobalTransform::from(transform)));
+            } else {
+                app.world_mut().entity_mut(platform).insert(Collider::cuboid(4.0, 0.5, 4.0));
+            }
+            let initial = Vec3::new(0.0, 3.174, 5.0);
+            app.world_mut().get_mut::<Position>(character).unwrap().0 = initial;
+            app.world_mut().get_mut::<Transform>(character).unwrap().translation = initial;
+            for _ in 0..60 { app.update(); }
+            let initial_offset = app.world().get::<Position>(character).unwrap().0 - app.world().get::<Position>(platform).unwrap().0;
+            let mut max_error = 0.0_f32;
+            let mut max_speed = 0.0_f32;
+            let initial_rotation = app.world().get::<Transform>(character).unwrap().rotation;
+            let mut max_yaw_error = 0.0_f32;
+            for frame in 0..180 {
+                let velocity = match frame / 30 {
+                    0 => Vec3::X * 2.0,
+                    1 => Vec3::new(1.0, 0.0, -1.0),
+                    2 | 5 => Vec3::ZERO,
+                    3 => Vec3::NEG_X * 2.0,
+                    _ => Vec3::X * ((frame - 120) as f32 / 30.0),
+                };
+                app.world_mut().get_mut::<LinearVelocity>(platform).unwrap().0 = velocity;
+                app.update();
+                let offset = app.world().get::<Position>(character).unwrap().0 - app.world().get::<Position>(platform).unwrap().0;
+                max_error = max_error.max((offset - initial_offset).with_y(0.0).length());
+                max_speed = max_speed.max(app.world().get::<AlsActualVelocity>(character).unwrap().horizontal_speed);
+                max_yaw_error = max_yaw_error.max(initial_rotation.angle_between(app.world().get::<Transform>(character).unwrap().rotation));
+            }
+            assert!(max_yaw_error < 1e-4, "Passive transport turned the character: child={child} error={max_yaw_error}");
+            if max_error > 1e-4 || max_speed > 1e-4 { failures.push((child, max_error, max_speed)); }
+            app.world_mut().get_mut::<LinearVelocity>(platform).unwrap().0 = Vec3::X * 2.0;
+            app.update();
+            app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().jump_pressed = true;
+            app.update();
+            assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Air);
+            assert_eq!(app.world().get::<crate::dynamics::AlsMovementBaseDynamicsState>(character).unwrap().entity, None);
+            assert!((app.world().get::<AlsActualVelocity>(character).unwrap().world_velocity.x - 2.0).abs() < 1e-4);
+            app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().jump_pressed = false;
+            app.world_mut().get_mut::<LinearVelocity>(platform).unwrap().0 = Vec3::NEG_X * 2.0;
+            for _ in 0..5 { app.update(); }
+            assert!((app.world().get::<AlsActualVelocity>(character).unwrap().world_velocity.x - 2.0).abs() < 1e-4,
+                "Detached character lost its imparted velocity: {:?}", app.world().get::<AlsActualVelocity>(character));
+        }
+        assert!(failures.is_empty(), "Support transport changed the idle character motion: {failures:?}");
+    }
+
+    #[test]
+    fn landing_on_moving_support_preserves_the_character_velocity() {
+        let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+        let platform = app.world_mut().spawn((RigidBody::Kinematic, Collider::cuboid(8.0, 0.5, 4.0),
+            Transform::from_xyz(0.0, 2.0, 5.0), LinearVelocity(Vec3::X * 2.0),
+            avian3d::prelude::Friction::new(0.8).with_combine_rule(avian3d::prelude::CoefficientCombine::Max))).id();
+        let prop = app.world_mut().spawn((RigidBody::Dynamic, Collider::cuboid(0.5, 0.5, 0.5),
+            Transform::from_xyz(2.0, 2.5, 6.2))).id();
+        let initial = Vec3::new(0.0, 4.5, 5.0);
+        app.world_mut().get_mut::<Position>(character).unwrap().0 = initial;
+        app.world_mut().get_mut::<Transform>(character).unwrap().translation = initial;
+        *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = LocomotionState::Air;
+        app.world_mut().get_mut::<LinearVelocity>(character).unwrap().0 = Vec3::ZERO;
+        let mut based_frames = 0;
+        for frame in 0..100 {
+            app.update();
+            let base = app.world().get::<crate::dynamics::AlsMovementBaseDynamicsState>(character).unwrap();
+            if base.entity == Some(platform) {
+                based_frames += 1;
+                let velocity = app.world().get::<AlsActualVelocity>(character).unwrap().world_velocity;
+                assert!(velocity.with_y(0.0).length() < 1e-4,
+                    "Landing changed the character velocity: frame={frame} velocity={velocity:?}");
+            }
+            if based_frames == 20 { break; }
+        }
+        assert_eq!(based_frames, 20, "The character did not remain on its acquired movement base");
+        assert!(app.world().get::<LinearVelocity>(prop).unwrap().x > 0.5,
+            "The character adapter removed friction from an ordinary physics object");
+    }
+
+    #[test]
+    fn an_ascending_capsule_does_not_land_from_the_controller_sensor_alone() {
+        let (mut app, character, _) = stair_motion_fixture(0.26, false, false, 0.0);
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.26, 4.0), Transform::from_xyz(0.0, 0.13, 5.0)));
+        app.update();
+        let position = Vec3::new(0.0, 1.1873851, 5.0);
+        app.world_mut().entity_mut(character).insert((Position(position),
+            Transform::from_translation(position), LocomotionState::Air,
+            LinearVelocity(Vec3::new(0.0, 4.192001, -3.75))));
+        let controller = app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap();
+        assert!(TnuaBuiltinWalk::displacement(&controller.basis_access().unwrap()).is_some());
+        app.update();
+        assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Air,
+            "The capsule is still ascending above its physical floor");
+    }
+
+    #[test]
     fn ground_sensor_surface_fallback_prevents_the_recorded_slipping_impulse() {
         let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
         app.world_mut().get_mut::<crate::gait::AlsDesiredGait>(character).unwrap().0 = Gait::Walking;
@@ -2983,7 +3100,7 @@ mod tests {
             let sensor = entities.get(character).unwrap().ground.unwrap();
             sensors.get_mut(sensor).unwrap().output.as_mut().unwrap().normal =
                 Dir3::new(Vec3::new(-0.046057902, 0.5598525, 0.8273112)).unwrap();
-        }).after(TnuaPipelineSystems::Sensors).before(refine_ground_sensor_normal_system));
+        }).after(TnuaPipelineSystems::Sensors).before(refine_ground_sensor_system));
         app.update();
         let sensor = app.world().get::<TnuaSensorsEntities<AlsControlScheme>>(character).unwrap().ground.unwrap();
         assert_eq!(app.world().get::<TnuaProximitySensor>(sensor).unwrap().output.as_ref().unwrap().normal, Dir3::Y);
@@ -2991,7 +3108,7 @@ mod tests {
     }
 
     #[test]
-    fn ground_sensor_surface_fallback_preserves_air_foreign_hits_and_steep_surfaces() {
+    fn ground_sensor_rejects_air_and_preserves_foreign_hits_and_steep_surfaces() {
         use bevy::ecs::system::RunSystemOnce;
         let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
         let sensor = app.world().get::<TnuaSensorsEntities<AlsControlScheme>>(character).unwrap().ground.unwrap();
@@ -3006,7 +3123,11 @@ mod tests {
             output.entity = entity;
             output.normal = normal;
             app.world_mut().get_mut::<TnuaProximitySensor>(sensor).unwrap().output = Some(output);
-            app.world_mut().run_system_once(refine_ground_sensor_normal_system).unwrap();
+            app.world_mut().run_system_once(refine_ground_sensor_system).unwrap();
+            if mode == LocomotionState::Air {
+                assert!(app.world().get::<TnuaProximitySensor>(sensor).unwrap().output.is_none());
+                continue;
+            }
             let output = app.world().get::<TnuaProximitySensor>(sensor).unwrap().output.as_ref().unwrap();
             assert_eq!(output.normal, normal);
             assert_eq!(output.entity, entity);
@@ -3021,7 +3142,7 @@ mod tests {
             &SpatialQueryFilter::from_excluded_entities([character]))).unwrap().unwrap();
         assert_eq!(hit.entity, original.entity);
         assert!((hit.normal.y - 0.5).abs() < 1e-4);
-        app.world_mut().run_system_once(refine_ground_sensor_normal_system).unwrap();
+        app.world_mut().run_system_once(refine_ground_sensor_system).unwrap();
         assert_eq!(app.world().get::<TnuaProximitySensor>(sensor).unwrap().output.as_ref().unwrap().normal, original.normal);
     }
 
