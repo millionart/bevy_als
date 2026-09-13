@@ -106,7 +106,7 @@ impl AlsMantleMontages {
 }
 
 #[derive(Resource)]
-struct MantleAssets(Vec<Handle<GraphClip>>);
+pub(crate) struct MantleAssets(Vec<Handle<GraphClip>>);
 
 #[derive(Component)]
 struct AlsMantlePhysicsFrame {
@@ -145,7 +145,7 @@ pub(crate) fn mantle_montage_settings(kind: MantleKind) -> &'static MantleMontag
 }
 
 impl MantleAssets {
-    fn clip(&self, kind: MantleKind) -> &Handle<GraphClip> {
+    pub(crate) fn clip(&self, kind: MantleKind) -> &Handle<GraphClip> {
         &self.0[kind.action_settings().montage_index]
     }
 }
@@ -185,7 +185,7 @@ fn sample_mantle_pose(
     Some((pose, context))
 }
 
-fn sample_mantle_root(clip: &GraphClip, skeleton: &Skeleton, time: f32) -> Option<Transform> {
+pub(crate) fn sample_mantle_root(clip: &GraphClip, skeleton: &Skeleton, time: f32) -> Option<Transform> {
     let pose = als_ext::source_sequence_player::sample_pose(clip, time);
     let root = als_ext::root_motion_defaults::derive_default_root_bone(clip, skeleton)?.id();
     let bone = pose.get_bone(root)?;

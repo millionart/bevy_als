@@ -636,6 +636,21 @@
         "1"
       ],
       "evidence": "target/bf116_stairs/c3b_ablations_restored.watchdog.json"
+    },
+    {
+      "label": "source_moving_object_driver",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "--lib",
+        "manual_playground_integration::moving_base",
+        "--",
+        "--test-threads",
+        "1"
+      ],
+      "evidence": "target/bf116_stairs/d1_driver_restored.watchdog.json"
     }
   ]
 }

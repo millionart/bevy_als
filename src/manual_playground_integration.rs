@@ -3,6 +3,7 @@ use std::time::{Duration, Instant};
 
 mod stairs;
 mod uphill;
+mod moving_base;
 
 use als_camera::{AlsCameraDebugInfo, AlsCameraRig, AlsCameraSet, AlsCameraShakeRequest};
 use als_core::character::{AlsCharacter, AlsMovementParamsHandle};
@@ -497,6 +498,8 @@ pub struct ManualIntegrationGateReport {
     pub stairs_trace: Vec<stairs::Sample>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub uphill_trace: Vec<serde_json::Value>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub moving_base_trace: Vec<serde_json::Value>,
 }
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -568,6 +571,7 @@ impl Plugin for ManualPlaygroundIntegrationPlugin {
                     .after(AlsRotationResponseSet)
                     .in_set(ManualIntegrationObservationSet),
             );
+        moving_base::install(app);
     }
 }
 
@@ -785,6 +789,7 @@ enum IntegrationPhase {
     Camera,
     Stairs,
     UphillJump,
+    MovingBase,
     Interface,
     Notify,
     Finish,
@@ -829,6 +834,7 @@ enum IntegrationScenario {
     Camera,
     Stairs,
     UphillJump,
+    MovingBase,
     Interface,
     Notify,
 }
@@ -857,6 +863,7 @@ impl IntegrationScenario {
             Some("camera") => Self::Camera,
             Some("stairs") => Self::Stairs,
             Some("uphill_jump") => Self::UphillJump,
+            Some("moving_base") => Self::MovingBase,
             Some("interface") => Self::Interface,
             Some("notify") => Self::Notify,
             _ => Self::Base,
@@ -888,6 +895,7 @@ fn initial_phase(scenario: IntegrationScenario) -> IntegrationPhase {
         IntegrationScenario::Camera => IntegrationPhase::Camera,
         IntegrationScenario::Stairs => IntegrationPhase::Stairs,
         IntegrationScenario::UphillJump => IntegrationPhase::UphillJump,
+        IntegrationScenario::MovingBase => IntegrationPhase::MovingBase,
         IntegrationScenario::Interface => IntegrationPhase::Interface,
         IntegrationScenario::Notify => IntegrationPhase::Notify,
     }
@@ -3094,6 +3102,7 @@ struct ManualIntegrationState {
     head_probe: HeadProbe,
     stairs_probe: stairs::Probe,
     uphill_probe: uphill::Probe,
+    moving_base_probe: moving_base::Probe,
     timed_out: bool,
     final_logged: bool,
     exit_requested: bool,
@@ -3211,6 +3220,7 @@ impl Default for ManualIntegrationState {
             head_probe: default(),
             stairs_probe: default(),
             uphill_probe: default(),
+            moving_base_probe: default(),
             timed_out: false,
             final_logged: false,
             exit_requested: false,
@@ -3671,7 +3681,7 @@ fn drive_manual_integration(
     }
 
     match state.phase {
-        IntegrationPhase::Await | IntegrationPhase::Stairs | IntegrationPhase::UphillJump => {}
+        IntegrationPhase::Await | IntegrationPhase::Stairs | IntegrationPhase::UphillJump | IntegrationPhase::MovingBase => {}
         IntegrationPhase::LocomotionActions => {
             let index = state.locomotion_probe.case_index;
             if entering {
@@ -6089,7 +6099,8 @@ fn observe_mantle(
         && position.y >= mantle.target.y - 0.3;
     state.coverage.mantle_completed |=
         state.mantle_root_released && montages.is_none_or(|montages| montages.entries.is_empty());
-    if state.phase != IntegrationPhase::Mantle {
+    if state.phase != IntegrationPhase::Mantle
+        && !(state.phase == IntegrationPhase::MovingBase && state.moving_base_probe.mantle_requested) {
         return;
     }
     let variant = montage.and_then(|_| settings.source_sequence.rsplit('.').next());
@@ -9591,6 +9602,18 @@ fn observe_manual_integration(
                 ("uphill_03", state.uphill_probe.completed[12..].iter().all(|value| *value)),
                 ("uphill_landing_consistency", state.uphill_probe.failure.is_none()),
             ],
+            IntegrationScenario::MovingBase => vec![
+                ("runtime_assembly", coverage.assembly),
+                ("animation_graph", coverage.graph),
+                ("moving_base_ride", state.moving_base_probe.ride),
+                ("moving_base_jump", state.moving_base_probe.air),
+                ("moving_base_new_support", state.moving_base_probe.landing),
+                ("moving_base_mantle", state.moving_base_probe.moving_mantle),
+                ("mantle_start", coverage.mantle_started),
+                ("mantle_complete", coverage.mantle_completed),
+                ("moving_base_after_mantle", state.moving_base_probe.after_mantle),
+                ("moving_base_progress", state.moving_base_probe.failure.is_none()),
+            ],
             IntegrationScenario::Interface => vec![
                 ("runtime_assembly", coverage.assembly),
                 ("animation_graph", coverage.graph),
@@ -9691,6 +9714,8 @@ fn observe_manual_integration(
                     state.stairs_probe.failure.clone().unwrap_or_else(|| "all routes completed without stalls".to_owned())
                 } else if *name == "uphill_landing_consistency" {
                     state.uphill_probe.failure.clone().unwrap_or_else(|| "all uphill landings returned to grounded animation".to_owned())
+                } else if *name == "moving_base_progress" {
+                    state.moving_base_probe.failure.clone().unwrap_or_else(|| "source object traversal completed".to_owned())
                 } else if *covered {
                     "covered".to_owned()
                 } else {
