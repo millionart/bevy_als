@@ -1386,9 +1386,9 @@ def uphill_trace_issues(report):
             if supported_air >= 2:
                 issues.append(f"{prefix}: supported capsule remains in Air")
                 break
-            if airborne and frame.get("mode") == "Grounded" and landed_at is None:
+            if airborne and frame.get("mode") == "Grounded" and frame.get("supported") is True and landed_at is None:
                 landed_at = frame["time"]
-                if frame["position"][1] <= launch_y + 0.05 or frame.get("supported") is not True:
+                if frame["position"][1] <= launch_y + 0.05:
                     issues.append(f"{prefix}: higher supported landing is missing")
                     break
             if landed_at is not None:
@@ -2042,6 +2042,11 @@ def fixture_uphill_report():
 def run_self_test():
     uphill = fixture_uphill_report()
     assert not manual_integration_issues(uphill), manual_integration_issues(uphill)
+    delayed_support = copy.deepcopy(uphill)
+    early_grounded = copy.deepcopy(delayed_support["manual_integration"]["uphill_trace"][3])
+    early_grounded.update(time=0.38,supported=False)
+    delayed_support["manual_integration"]["uphill_trace"].insert(3,early_grounded)
+    assert not uphill_trace_issues(delayed_support), uphill_trace_issues(delayed_support)
     for issue in ("supported_air", "fall_animation", "lower_landing", "missing_case", "missing_window", "action_stuck", "no_jump_input"):
         invalid = copy.deepcopy(uphill)
         frames = invalid["manual_integration"]["uphill_trace"]

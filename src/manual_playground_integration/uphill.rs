@@ -46,7 +46,7 @@ impl Probe {
         let air_weight = graph.outer_weights[1] + graph.outer_weights[2];
         self.ready = graph.outer == Some(0) && graph.outer_transition == Some(false);
         self.air_seen |= self.launch_y.is_some() && mode == LocomotionState::Air && air_weight > 0.05;
-        if self.stage == Stage::Flight && self.air_seen && mode == LocomotionState::Grounded {
+        if self.stage == Stage::Flight && self.air_seen && supported && mode == LocomotionState::Grounded {
             if position.y <= self.launch_y.unwrap() + 0.05 {
                 self.failure = Some(format!("case={} landing was not above the launch", self.index));
             }
@@ -128,6 +128,7 @@ pub(super) fn drive(
         }
         Stage::Flight => { input.0.move_dir = Vec2::Y; }
         Stage::Landing => {
+            input.0.move_dir = Vec2::Y;
             if probe.done {
                 probe.completed[probe.index] = true;
                 let completed = probe.completed;
@@ -209,6 +210,8 @@ mod tests {
         assert!(stuck.failure.as_deref().unwrap().contains("supported capsule remained Air"));
         let mut probe = make();
         probe.record(0.1, LocomotionState::Air, Vec3::Y*1.5, Vec3::NEG_Y, false, &air, false);
+        probe.record(0.15, LocomotionState::Grounded, Vec3::Y*1.5, Vec3::ZERO, false, &land, false);
+        assert_eq!(probe.stage,Stage::Flight);
         probe.record(0.2, LocomotionState::Grounded, Vec3::Y*1.5, Vec3::ZERO, true, &land, false);
         assert_eq!(probe.stage,Stage::Landing);
         probe.record(0.4, LocomotionState::Grounded, Vec3::Y*1.5, Vec3::ZERO, true, &grounded, true);
@@ -247,6 +250,11 @@ mod tests {
         world.run_system_once(drive).unwrap();
         assert!(world.get::<AlsInputOverride>(character).unwrap().0.jump_pressed);
         assert_eq!(world.resource::<ManualIntegrationState>().uphill_probe.stage, Stage::Flight);
+        world.resource_mut::<ManualIntegrationState>().uphill_probe.stage = Stage::Landing;
+        world.get_mut::<AlsInputOverride>(character).unwrap().0.reset();
+        world.run_system_once(drive).unwrap();
+        assert_eq!(world.get::<AlsInputOverride>(character).unwrap().0.move_dir, Vec2::Y);
+        world.resource_mut::<ManualIntegrationState>().uphill_probe.stage = Stage::Flight;
         world.resource_mut::<ManualIntegrationState>().game_time_seconds = 6.0;
         world.run_system_once(drive).unwrap();
         assert!(world.resource::<ManualIntegrationState>().uphill_probe.failure.as_deref().unwrap().contains("no_progress_seconds"));
