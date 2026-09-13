@@ -2,7 +2,8 @@ use std::collections::HashMap;
 
 use als_ext::{
     PlaygroundBoxCollider, PlaygroundColliderKind, PlaygroundCollisionSource,
-    PlaygroundMovingObject, PlaygroundPhysicsDriven,
+    PlaygroundKinematic, PlaygroundKinematicKind, PlaygroundMovingCurve, PlaygroundMovingObject,
+    PlaygroundPhysicsDriven, playground_moving_object_system,
 };
 use avian3d::prelude::*;
 use bevy::prelude::*;
@@ -12,11 +13,15 @@ pub struct PlaygroundCollisionPlugin;
 impl Plugin for PlaygroundCollisionPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PlaygroundMeshColliderCache>()
+            .init_resource::<PlaygroundMovingCurve>()
             .add_systems(
                 Update,
                 (
                     playground_moving_box_physics_bridge,
                     playground_mesh_physics_bridge,
+                    playground_kinematic_velocity_bridge
+                        .after(playground_moving_object_system)
+                        .before(bevy_tnua::TnuaPipelineSystems::Sensors),
                 ),
             );
     }
@@ -45,6 +50,38 @@ struct PlaygroundMeshColliderCache(HashMap<String, PlaygroundMeshColliderTemplat
 struct PlaygroundMeshGeometry {
     vertices: Vec<Vec3>,
     triangles: Vec<[u32; 3]>,
+}
+
+pub fn playground_kinematic_velocity_bridge(
+    time: Res<Time>,
+    curve: Res<PlaygroundMovingCurve>,
+    mut platforms: Query<
+        (&PlaygroundKinematic, &Position, &mut LinearVelocity, &mut AngularVelocity),
+        With<PlaygroundMovingObject>,
+    >,
+) {
+    let delta = time.delta()
+        .min(crate::source_physics_timing::SOURCE_MAX_PHYSICS_DELTA)
+        .as_secs_f32();
+    for (kinematic, position, mut linear, mut angular) in &mut platforms {
+        match kinematic.kind {
+            PlaygroundKinematicKind::MoveSpline { duration, start, end } => {
+                let target = als_ext::playground::moving_object_position(
+                    &curve, start, end, time.elapsed_secs(), duration,
+                );
+                linear.0 = if delta > 0.0 {
+                    (target - position.0) / delta
+                } else {
+                    Vec3::ZERO
+                };
+                angular.0 = Vec3::ZERO;
+            }
+            PlaygroundKinematicKind::SpinYawDegPerSec { speed_deg } => {
+                linear.0 = Vec3::ZERO;
+                angular.0 = Vec3::Y * speed_deg.to_radians();
+            }
+        }
+    }
 }
 
 fn playground_moving_box_physics_bridge(
@@ -319,6 +356,36 @@ mod tests {
         gait::AlsDesiredGait, input::AlsInputCommand, motion::{AlsMotionPlugin, initial_als_control_scheme_config},
         params::AlsMovementParams, state::{Gait, LocomotionState}, transition::AlsStateTransitionPlugin};
     use bevy::{asset::AssetEvent, ecs::system::RunSystemOnce, time::TimeUpdateStrategy};
+
+    #[test]
+    fn moving_platform_reaches_the_source_position_after_late_start_and_variable_steps() {
+        use als_ext::{PlaygroundKinematic, PlaygroundKinematicKind};
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin, PhysicsPlugins::new(PostUpdate),
+            PlaygroundCollisionPlugin, crate::source_physics_timing::SourcePhysicsTimingPlugin))
+            .init_resource::<Assets<Mesh>>().add_message::<AssetEvent<Mesh>>()
+            .insert_resource(als_ext::playground::load_moving_object_curve().unwrap())
+            .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.025)))
+            .add_systems(Update, playground_moving_object_system);
+        app.finish();
+        for _ in 0..40 { app.update(); }
+        let start = Vec3::new(19.0, 1.0, -28.75);
+        let end = start - Vec3::X * 6.5;
+        let transform = Transform::from_translation(start);
+        let platform = app.world_mut().spawn((PlaygroundMovingObject, PlaygroundPhysicsDriven,
+            PlaygroundKinematic { base_transform:transform,
+                kind:PlaygroundKinematicKind::MoveSpline { duration:1.75, start, end } },
+            RigidBody::Kinematic, transform, GlobalTransform::from(transform))).id();
+        for frame in 0..240 {
+            let delta = [1.0/120.0, 1.0/60.0, 0.05, 0.013, 0.0][frame % 5];
+            *app.world_mut().resource_mut::<TimeUpdateStrategy>() = TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta));
+            app.update();
+            let t = app.world().resource::<Time>().elapsed_secs();
+            let expected = als_ext::playground::moving_object_position(app.world().resource::<als_ext::PlaygroundMovingCurve>(), start, end, t, 1.75);
+            let actual = app.world().get::<Position>(platform).unwrap().0;
+            assert!(actual.abs_diff_eq(expected, 1e-4), "Platform drifted at frame={frame}: actual={actual:?} expected={expected:?}");
+        }
+    }
 
     #[test]
     fn imported_stair_descent_exits_initial_contact_without_entering_the_stair() {

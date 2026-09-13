@@ -23,8 +23,7 @@ use als_ext::overlay_materials::{
 use als_ext::playground::PlaygroundLandscape;
 use als_ext::{
     PlaygroundBoxCollider, PlaygroundColliderKind, PlaygroundCollisionSource,
-    PlaygroundKinematicVelocity, PlaygroundMovingObject, PlaygroundPlugin,
-    playground_moving_object_system,
+    PlaygroundMovingObject, PlaygroundPlugin,
 };
 use bevy_als::character_assembly::AlsCharacterAvatar;
 use bevy_als::debug_display::AlsDebugDisplayPlugin;
@@ -34,7 +33,9 @@ use bevy_als::game_mode::{
 };
 use bevy_als::overlay_object::OverlayObjectPlugin;
 use bevy_als::playable_character::AlsPlayableCharacterPlugin;
-use bevy_als::playground_collision::{PlaygroundCollisionPlugin, PlaygroundMeshColliderBuilt};
+use bevy_als::playground_collision::{
+    PlaygroundCollisionPlugin, PlaygroundMeshColliderBuilt, playground_kinematic_velocity_bridge,
+};
 use bevy_als::show_debug_hud::AlsShowDebugHudPlugin;
 use bevy_als::{
     anim_probe::AnimProbePlugin,
@@ -114,10 +115,6 @@ fn main() {
             auto_quit,
             screenshot_runner,
         ),
-    )
-    .add_systems(
-        Update,
-        playground_kinematic_velocity_bridge.after(playground_moving_object_system),
     )
     .add_systems(PostUpdate, grounded_spawn_probe.after(PhysicsSystems::Last));
 
@@ -932,22 +929,6 @@ fn collision_parity_probe(
         if pass { "PASS" } else { "FAIL" }
     );
     probe.done = true;
-}
-
-fn playground_kinematic_velocity_bridge(
-    mut platforms: Query<
-        (
-            &PlaygroundKinematicVelocity,
-            &mut LinearVelocity,
-            &mut AngularVelocity,
-        ),
-        With<PlaygroundMovingObject>,
-    >,
-) {
-    for (source, mut linear, mut angular) in &mut platforms {
-        linear.0 = source.linear;
-        angular.0 = source.angular;
-    }
 }
 
 fn platform_physics_probe(
