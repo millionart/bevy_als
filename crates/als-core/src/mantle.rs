@@ -1,5 +1,5 @@
 use avian3d::prelude::{
-    Collider, LinearVelocity, ShapeCastConfig, SpatialQuery, SpatialQueryFilter,
+    Collider, ColliderOf, LinearVelocity, ShapeCastConfig, SpatialQuery, SpatialQueryFilter,
 };
 use bevy::prelude::*;
 use std::{collections::HashMap, sync::LazyLock};
@@ -468,6 +468,7 @@ pub fn detect_mantle(
         Option<&AlsMantleTargetPermission>,
         Without<crate::character::AlsCharacter>,
     >,
+    colliders: &Query<&ColliderOf>,
 ) -> MantleDetection {
     let mut trace = MantleProbeTrace::default();
     if !matches!(
@@ -525,16 +526,18 @@ pub fn detect_mantle(
         };
     };
     trace.forward_hit = Some(forward_hit.point1);
+    let body = colliders.get(forward_hit.entity).map_or(forward_hit.entity, |collider| collider.body);
     let target_allows_step_up = target_permissions
         .get(forward_hit.entity)
         .ok()
         .flatten()
+        .or_else(|| target_permissions.get(body).ok().flatten())
         .map(|permission| permission.allows_step_up)
         .unwrap_or(true);
     if forward_hit.normal1.y >= MANTLE_WALKABLE_FLOOR_COS
         || !target_allows_step_up
         || velocities
-            .get(forward_hit.entity)
+            .get(body)
             .ok()
             .is_some_and(|velocity| velocity.0.length() > MANTLE_TARGET_SPEED_THRESHOLD)
     {

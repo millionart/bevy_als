@@ -2029,7 +2029,9 @@ fn locomotion_drive_system(
     spatial: SpatialQuery,
     velocities: Query<&LinearVelocity, Without<AlsCharacter>>,
     target_permissions: Query<Option<&AlsMantleTargetPermission>, Without<AlsCharacter>>,
-    target_transforms: Query<(&GlobalTransform, Option<&RigidBody>), Without<AlsCharacter>>,
+    target_transforms: Query<&GlobalTransform, Without<AlsCharacter>>,
+    target_bodies: Query<&RigidBody, Without<AlsCharacter>>,
+    target_colliders: Query<&avian3d::prelude::ColliderOf>,
     mantle_controls: Query<Option<&AlsMantleControlSettings>, With<AlsCharacter>>,
     mantle_start_time_settings: Query<Option<&AlsMantleStartTimeSettings>, With<AlsCharacter>>,
     params_assets: Res<Assets<AlsMovementParams>>,
@@ -2148,6 +2150,7 @@ fn locomotion_drive_system(
                 },
                 &velocities,
                 &target_permissions,
+                &target_colliders,
             ))
         } else {
             None
@@ -2160,7 +2163,9 @@ fn locomotion_drive_system(
                 target_transforms
                     .get(intent.target_entity)
                     .ok()
-                    .map(|(transform, body)| {
+                    .map(|transform| {
+                        let body = target_colliders.get(intent.target_entity)
+                            .map_or(intent.target_entity, |collider| collider.body);
                         (
                             intent,
                             AlsMantleTargetBase {
@@ -2168,7 +2173,7 @@ fn locomotion_drive_system(
                                 translation: transform.translation(),
                                 rotation: transform.rotation(),
                                 scale: transform.scale(),
-                                relative_location: body.is_some_and(|body| *body != RigidBody::Static),
+                                relative_location: target_bodies.get(body).is_ok_and(|body| *body != RigidBody::Static),
                             },
                         )
                     })
@@ -3105,6 +3110,63 @@ mod tests {
         let sensor = app.world().get::<TnuaSensorsEntities<AlsControlScheme>>(character).unwrap().ground.unwrap();
         assert_eq!(app.world().get::<TnuaProximitySensor>(sensor).unwrap().output.as_ref().unwrap().normal, Dir3::Y);
         assert!(app.world().get::<LinearVelocity>(character).unwrap().0.abs_diff_eq(Vec3::NEG_Z * 1.75, 1e-4));
+    }
+
+    #[test]
+    fn mantle_targets_resolve_motion_and_permissions_from_compound_bodies() {
+        use crate::mantle::AlsMantleTargetPermission;
+        let mut failures = Vec::new();
+        for child in [false, true] {
+            for (kind, speed, allowed, override_permission) in [(RigidBody::Static, 0.0, true, None),
+                (RigidBody::Kinematic, 0.04, true, None), (RigidBody::Dynamic, 0.04, true, None),
+                (RigidBody::Kinematic, 0.1, true, None), (RigidBody::Kinematic, 0.2, true, None),
+                (RigidBody::Kinematic, 0.04, false, None), (RigidBody::Kinematic, 0.04, false, Some(true)),
+                (RigidBody::Kinematic, 0.04, true, Some(false))] {
+                let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+                let offset = if child { Vec3::X * 0.25 } else { Vec3::ZERO };
+                let body = app.world_mut().spawn((kind, Transform::from_translation(Vec3::new(0.0, 0.4, 4.6) - offset),
+                    avian3d::prelude::GravityScale(0.0), AlsMantleTargetPermission { allows_step_up: allowed })).id();
+                let target = if child {
+                    app.world_mut().spawn((ChildOf(body), Transform::from_translation(offset), Collider::cuboid(2.4, 0.8, 1.2))).id()
+                } else {
+                    app.world_mut().entity_mut(body).insert(Collider::cuboid(2.4, 0.8, 1.2));
+                    body
+                };
+                if let Some(allows_step_up) = override_permission {
+                    app.world_mut().entity_mut(target).insert(AlsMantleTargetPermission { allows_step_up });
+                }
+                let start = Vec3::new(0.0, 0.924, 6.0);
+                app.world_mut().entity_mut(character).insert((Position(start), Transform::from_translation(start), AlsMantleState::default()));
+                for _ in 0..3 { app.update(); }
+                app.world_mut().get_mut::<LinearVelocity>(body).unwrap().0 = Vec3::X * speed;
+                let input = &mut *app.world_mut().get_mut::<AlsInputCommand>(character).unwrap();
+                input.move_dir = Vec2::Y;
+                input.jump_pressed = true;
+                app.update();
+                let mantle = app.world().get::<AlsMantleState>(character).unwrap();
+                let expected = override_permission.unwrap_or(allowed) && speed <= crate::mantle::MANTLE_TARGET_SPEED_THRESHOLD;
+                if mantle.active != expected {
+                    failures.push(format!("child={child} kind={kind:?} speed={speed} allowed={allowed} active={}", mantle.active));
+                    continue;
+                }
+                if !expected { continue; }
+                let base = mantle.target_base.unwrap();
+                assert_eq!(base.entity, target);
+                if base.relative_location != (kind != RigidBody::Static) {
+                    failures.push(format!("child={child} kind={kind:?} relative_location={}", base.relative_location));
+                    continue;
+                }
+                let mut moving = mantle.clone();
+                let rotation = Quat::from_rotation_y(0.3);
+                let latest = AlsMantleTargetBase { translation: base.translation + Vec3::new(0.4, 0.7, -0.2), rotation, ..base };
+                let expected_target = if base.relative_location {
+                    latest.translation + rotation * (moving.target - base.translation)
+                } else { moving.target };
+                assert!(moving.refresh_target_base(Some(latest)));
+                assert!(moving.target.abs_diff_eq(expected_target, 1e-5));
+            }
+        }
+        assert!(failures.is_empty(), "Mantle component ownership differs from the source: {failures:?}");
     }
 
     #[test]

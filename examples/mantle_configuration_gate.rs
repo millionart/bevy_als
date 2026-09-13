@@ -110,6 +110,7 @@ fn verify(
     spatial: SpatialQuery,
     velocities: Query<&LinearVelocity, Without<AlsCharacter>>,
     permissions: Query<Option<&AlsMantleTargetPermission>, Without<AlsCharacter>>,
+    colliders: Query<&ColliderOf>,
     mut exit: MessageWriter<AppExit>,
 ) {
     if state.done {
@@ -133,6 +134,7 @@ fn verify(
         input_for(0.0, 1.0),
         &velocities,
         &permissions,
+        &colliders,
     );
     let scaled = detect_mantle(
         &spatial,
@@ -140,6 +142,7 @@ fn verify(
         input_for(5.0, 2.0),
         &velocities,
         &permissions,
+        &colliders,
     );
     let denied = detect_mantle(
         &spatial,
@@ -147,6 +150,7 @@ fn verify(
         input_for(-5.0, 1.0),
         &velocities,
         &permissions,
+        &colliders,
     );
 
     let Some(allowed_intent) = allowed.intent else {
