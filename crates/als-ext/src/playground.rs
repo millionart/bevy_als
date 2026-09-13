@@ -304,6 +304,44 @@ pub struct PlaygroundKinematic {
     pub kind: PlaygroundKinematicKind,
 }
 
+#[derive(Deserialize)]
+struct MovingTransformDefinition {
+    translation: [f32; 3],
+    rotation: [f32; 4],
+    scale: [f32; 3],
+}
+
+impl MovingTransformDefinition {
+    fn transform(&self) -> Transform {
+        Transform::from_translation(Vec3::from_array(self.translation))
+            .with_rotation(Quat::from_array(self.rotation))
+            .with_scale(Vec3::from_array(self.scale))
+    }
+}
+
+#[derive(Deserialize)]
+struct MovingActorDefinition {
+    name: String,
+    actor: MovingTransformDefinition,
+    primitive: MovingTransformDefinition,
+    mesh_scene: String,
+    mesh_base: String,
+    collider_center: [f32; 3],
+    collider_rotation: [f32; 4],
+    half_extents: [f32; 3],
+    start: [f32; 3],
+    end: [f32; 3],
+    duration: f32,
+}
+
+#[derive(Deserialize)]
+struct MovingActorDefinitions {
+    actors: Vec<MovingActorDefinition>,
+}
+
+const MOVING_ACTOR_DEFINITIONS: &str = include_str!(
+    "../../../assets/models/playground/moving_actors.runtime.json");
+
 const MOVING_OBJECT_CURVE_PATH: &str =
     "assets/curves/ALSExtras/Environment/CF_Als_MovingObject.rich.json";
 const MOVING_OBJECT_CURVE_JSON: &str = include_str!(concat!(
@@ -757,6 +795,8 @@ pub fn playground_setup_system(
             return;
         }
     };
+    let moving_definitions: MovingActorDefinitions = serde_json::from_str(MOVING_ACTOR_DEFINITIONS)
+        .expect("Generated moving actor definitions must be valid");
 
     let main_material = materials.add(StandardMaterial {
         base_color: Color::linear_rgb(1.0, 1.0, 1.0),
@@ -832,101 +872,40 @@ pub fn playground_setup_system(
                 continue;
             }
             "B_Als_MovingObject_C" => {
-                let plan = actor
-                    .components
-                    .first()
-                    .and_then(|c| {
-                        body_plan_from_comp(c, actor.location, actor.scale, actor_rotator(actor))
-                    })
-                    .or_else(|| body_plan_from_actor_bounds(actor));
-                if let Some(plan) = plan {
-                    let base_transform = if plan.obb {
-                        Transform::from_translation(
-                            ue_point_to_bevy(plan.loc_cm) + plan.quat * plan.center_offset_model,
-                        )
-                        .with_rotation(plan.quat)
-                    } else {
-                        Transform::from_translation(plan.center_world)
-                    };
-                    let mesh_base = plan.mesh_base.clone().or_else(|| infer_block_mesh(actor));
-                    let mesh_scene = mesh_base
-                        .as_deref()
-                        .map(|base| assets.load(format!("models/playground/{base}.gltf#Scene0")));
-                    let has_mesh_scene = mesh_scene.is_some();
-                    let mut transform = base_transform.with_scale(if has_mesh_scene {
-                        plan.visual_scale
-                    } else {
-                        Vec3::ONE
-                    });
-                    let collider_scale = if has_mesh_scene {
-                        inverse_scale(plan.visual_scale)
-                    } else {
-                        Vec3::ONE
-                    };
-                    let duration = actor.move_duration.unwrap_or(2.0);
-                    let actor_origin = ue_point_to_bevy(Vec3::from(actor.location));
-                    let transform_offset = transform.translation - actor_origin;
-                    let spline_start = Vec3::from(actor.movement_spline_start.unwrap_or([0.0; 3]));
-                    let spline_end = Vec3::from(actor.movement_spline_end.unwrap_or([0.0; 3]));
-                    let start = ue_point_to_bevy(Vec3::from(actor.location) + spline_start)
-                        + transform_offset;
-                    let end = ue_point_to_bevy(Vec3::from(actor.location) + spline_end)
-                        + transform_offset;
-                    transform.translation = start;
-                    let visual_material = tiles_material_for_actor(
-                        actor,
-                        &material_library,
-                        &mut tiles_materials,
-                        &main_material,
-                    );
-                    let entity = commands
-                        .spawn((
-                            Name::new(format!("Moving:{}", actor.name)),
-                            transform,
-                            PlaygroundStatic,
-                            PlaygroundMovingObject,
-                            PlaygroundKinematic {
-                                base_transform: transform,
-                                kind: PlaygroundKinematicKind::MoveSpline {
-                                    duration,
-                                    start,
-                                    end,
-                                },
-                            },
-                        ))
-                        .id();
-                    if let Some(base) = mesh_base.as_deref() {
-                        commands
-                            .entity(entity)
-                            .insert(PlaygroundCollisionSource::new(base));
-                    }
-                    match mesh_scene {
-                        Some(scene) => {
-                            commands
-                                .entity(entity)
-                                .insert((WorldAssetRoot(scene), visual_material));
-                        }
-                        None => {
-                            insert_fallback_box_visual(
-                                &mut commands,
-                                &mut meshes,
-                                entity,
-                                plan.half_extents_model,
-                                visual_material,
-                            );
-                        }
-                    }
-                    commands.entity(entity).with_children(|p| {
-                        p.spawn((
-                            Name::new("Moving:collider"),
-                            Transform::from_scale(collider_scale),
-                            PlaygroundBoxCollider {
-                                half_extents: plan.half_extents_model,
-                            },
-                        ));
-                    });
-                    spawned_moving += 1;
-                }
+                let Some(definition) = moving_definitions.actors.iter().find(|value| value.name == actor.name) else {
+                    error!("PLAYGROUND moving actor definition missing: {}", actor.name);
+                    continue;
+                };
+                let anchor_transform = definition.actor.transform();
+                let anchor = commands.spawn((Name::new(format!("Actor:{}", actor.name)),
+                    anchor_transform, GlobalTransform::from(anchor_transform), Visibility::Inherited)).id();
+                let transform = definition.primitive.transform();
+                let global = GlobalTransform::from(anchor_transform).mul_transform(transform);
+                let visual_material = tiles_material_for_actor(
+                    actor, &material_library, &mut tiles_materials, &main_material,
+                );
+                let entity = commands.spawn((
+                    Name::new(format!("Moving:{}", actor.name)), ChildOf(anchor), transform, global,
+                    PlaygroundStatic, PlaygroundMovingObject,
+                    WorldAssetRoot(assets.load(definition.mesh_scene.clone())), visual_material,
+                    PlaygroundCollisionSource::new(&definition.mesh_base),
+                    PlaygroundKinematic {
+                        base_transform: global.compute_transform(),
+                        kind: PlaygroundKinematicKind::MoveSpline {
+                            duration: definition.duration,
+                            start: Vec3::from_array(definition.start),
+                            end: Vec3::from_array(definition.end),
+                        },
+                    },
+                )).id();
+                commands.entity(entity).with_children(|children| {
+                    children.spawn((Name::new("Moving:collider"),
+                        Transform::from_translation(Vec3::from_array(definition.collider_center))
+                            .with_rotation(Quat::from_array(definition.collider_rotation)),
+                        PlaygroundBoxCollider { half_extents: Vec3::from_array(definition.half_extents) },
+                    ));
+                });
+                spawned_moving += 1;
                 continue;
             }
             "B_Als_RotatingObject_C" => {
@@ -1286,21 +1265,26 @@ fn playground_camera_exposure_system(
 pub fn playground_moving_object_system(
     time: Res<Time>,
     moving_curve: Res<PlaygroundMovingCurve>,
+    parents: Query<&GlobalTransform>,
     mut objects: Query<
-        (&mut Transform, &PlaygroundKinematic),
+        (&mut Transform, &PlaygroundKinematic, Option<&ChildOf>),
         (With<PlaygroundMovingObject>, Without<PlaygroundPhysicsDriven>),
     >,
 ) {
     let t = time.elapsed_secs();
-    for (mut transform, kinematic) in &mut objects {
+    for (mut transform, kinematic, parent) in &mut objects {
+        let parent = parent.and_then(|parent| parents.get(parent.parent()).ok());
         match kinematic.kind {
             PlaygroundKinematicKind::SpinYawDegPerSec { speed_deg } => {
-                transform.rotation = kinematic.base_transform.rotation
+                let rotation = kinematic.base_transform.rotation
                     * Quat::from_rotation_y((speed_deg * t).to_radians());
+                transform.rotation = parent.map_or(rotation,
+                    |parent| parent.compute_transform().rotation.inverse() * rotation);
             }
             PlaygroundKinematicKind::MoveSpline { duration, start, end } => {
-                transform.translation =
-                    moving_object_position(&moving_curve, start, end, t, duration);
+                let position = moving_object_position(&moving_curve, start, end, t, duration);
+                transform.translation = parent.map_or(position,
+                    |parent| parent.affine().inverse().transform_point3(position));
             }
         }
     }
@@ -2234,6 +2218,60 @@ mod tests {
         let offset = ue_point_to_bevy(Vec3::new(0.0, 0.0, 100.0));
         let center_y = offset.y;
         assert!((center_y - half.y).abs() < 1e-5);
+    }
+
+    #[test]
+    fn moving_actor_scene_keeps_the_source_actor_anchor_separate_from_its_mesh() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::world_serialization::WorldAsset;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default()))
+            .init_asset::<WorldAsset>()
+            .init_resource::<Assets<Mesh>>()
+            .init_resource::<Assets<StandardMaterial>>()
+            .init_resource::<Assets<PlaygroundTilesMaterial>>()
+            .init_resource::<PlaygroundMaterialLibrary>()
+            .insert_resource(PlaygroundManifestPath(PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../assets/models/playground/playground_scene.ron")));
+        app.finish();
+        app.world_mut().run_system_once(playground_setup_system).unwrap();
+        let actors: Vec<_> = app.world_mut().query_filtered::<(Entity, &Name, Option<&ChildOf>), With<PlaygroundMovingObject>>()
+            .iter(app.world()).filter(|(_, name, _)| name.as_str().starts_with("Moving:"))
+            .map(|(entity, name, parent)| (entity, name.to_string(), parent.map(ChildOf::parent))).collect();
+        assert_eq!(actors.len(), 2);
+        for (mesh, name, parent) in &actors {
+            let root = parent.expect("The moving mesh has no independent actor anchor");
+            assert_eq!(app.world().get::<Name>(root).unwrap().as_str(), name.replace("Moving:", "Actor:"));
+            assert!(app.world().get::<PlaygroundKinematic>(root).is_none());
+            assert!(app.world().get::<InheritedVisibility>(root).is_some(), "The actor anchor breaks inherited visibility");
+            assert!(app.world().get::<WorldAssetRoot>(*mesh).is_some());
+            assert_eq!(app.world().get::<Transform>(*mesh).unwrap().translation, Vec3::ZERO);
+            let before = *app.world().get::<GlobalTransform>(root).unwrap();
+            let anchor = app.world().get::<Transform>(root).unwrap().clone()
+                .with_rotation(Quat::from_rotation_y(0.7)).with_scale(Vec3::new(2.0, 1.5, 0.5));
+            let after = GlobalTransform::from(anchor);
+            let mut kinematic = app.world_mut().get_mut::<PlaygroundKinematic>(*mesh).unwrap();
+            if let PlaygroundKinematicKind::MoveSpline { start, end, .. } = &mut kinematic.kind {
+                *start = after.transform_point(before.affine().inverse().transform_point3(*start));
+                *end = after.transform_point(before.affine().inverse().transform_point3(*end));
+            }
+            app.world_mut().entity_mut(root).insert((anchor, after));
+        }
+        for delta in [0.25, 1.3, 0.8] {
+            app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(delta));
+            app.world_mut().run_system_once(playground_moving_object_system).unwrap();
+            for (mesh, _, parent) in &actors {
+                let parent = parent.unwrap();
+                let anchor = app.world().get::<GlobalTransform>(parent).unwrap();
+                let transform = app.world().get::<Transform>(*mesh).unwrap();
+                let PlaygroundKinematicKind::MoveSpline { duration, start, end } = app.world().get::<PlaygroundKinematic>(*mesh).unwrap().kind else { unreachable!() };
+                let expected = moving_object_position(app.world().resource::<PlaygroundMovingCurve>(), start, end,
+                    app.world().resource::<Time>().elapsed_secs(), duration);
+                assert!(anchor.transform_point(transform.translation).abs_diff_eq(expected, 1e-5));
+                assert_eq!(transform.rotation, Quat::IDENTITY);
+                assert_eq!(anchor.translation(), app.world().get::<Transform>(parent).unwrap().translation);
+            }
+        }
     }
 
     #[test]

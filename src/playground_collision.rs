@@ -372,10 +372,11 @@ mod tests {
         let start = Vec3::new(19.0, 1.0, -28.75);
         let end = start - Vec3::X * 6.5;
         let transform = Transform::from_translation(start);
+        let anchor = app.world_mut().spawn((transform, GlobalTransform::from(transform))).id();
         let platform = app.world_mut().spawn((PlaygroundMovingObject, PlaygroundPhysicsDriven,
             PlaygroundKinematic { base_transform:transform,
                 kind:PlaygroundKinematicKind::MoveSpline { duration:1.75, start, end } },
-            RigidBody::Kinematic, transform, GlobalTransform::from(transform))).id();
+            RigidBody::Kinematic, ChildOf(anchor), Transform::IDENTITY, GlobalTransform::from(transform))).id();
         for frame in 0..240 {
             let delta = [1.0/120.0, 1.0/60.0, 0.05, 0.013, 0.0][frame % 5];
             *app.world_mut().resource_mut::<TimeUpdateStrategy>() = TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta));
@@ -384,6 +385,7 @@ mod tests {
             let expected = als_ext::playground::moving_object_position(app.world().resource::<als_ext::PlaygroundMovingCurve>(), start, end, t, 1.75);
             let actual = app.world().get::<Position>(platform).unwrap().0;
             assert!(actual.abs_diff_eq(expected, 1e-4), "Platform drifted at frame={frame}: actual={actual:?} expected={expected:?}");
+            assert_eq!(app.world().get::<Transform>(anchor).unwrap().translation, start);
         }
     }
 
