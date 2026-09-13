@@ -2,6 +2,7 @@ use super::*;
 use als_core::aim::AlsLastFreeRotationMode;
 use als_core::input::AlsInputCommand;
 use als_core::turn_in_place::wrap_angle_degrees;
+use avian3d::prelude::{ShapeCastConfig, SpatialQuery, SpatialQueryFilter};
 use crate::playground_collision::PlaygroundMeshColliderBuilt;
 
 const MESHES: [&str; 3] = ["SM_Als_Stairs_01", "SM_Als_Stairs_02", "SM_Als_Stairs_03"];
@@ -14,25 +15,48 @@ struct Route {
 }
 
 impl Route {
-    fn from_collider(collider: &Collider, transform: &GlobalTransform, half_height: f32) -> Option<Self> {
+    fn from_collider(collider: &Collider, transform: &GlobalTransform, half_height: f32,
+        mut supported_center: impl FnMut(Vec3) -> Option<Vec3>) -> Option<Self> {
         let mesh = collider.shape().as_trimesh()?;
         let vertices = mesh.vertices();
         let min = vertices.iter().map(|point| Vec3::new(point.x, point.y, point.z)).reduce(Vec3::min)?;
         let max = vertices.iter().map(|point| Vec3::new(point.x, point.y, point.z)).reduce(Vec3::max)?;
-        let top_vertices = vertices.iter().filter(|point| (point.y - max.y).abs() < 1e-4);
-        let top_z_min = top_vertices.clone().map(|point| point.z).reduce(f32::min)?;
-        let top_z_max = top_vertices.map(|point| point.z).reduce(f32::max)?;
+        let mut treads: Vec<_> = mesh.indices().iter().filter_map(|triangle| {
+            let points = triangle.map(|index| { let point = vertices[index as usize]; Vec3::new(point.x, point.y, point.z) });
+            ((points[1] - points[0]).cross(points[2] - points[0]).y > 1e-4).then_some((points[0].y,
+                points.iter().map(|point| point.z).reduce(f32::min).unwrap(),
+                points.iter().map(|point| point.z).reduce(f32::max).unwrap()))
+        }).collect();
+        treads.sort_by(|left, right| right.0.total_cmp(&left.0));
+        treads.dedup_by(|next, previous| {
+            if (next.0 - previous.0).abs() >= 1e-4 { return false; }
+            previous.1 = previous.1.min(next.1);
+            previous.2 = previous.2.max(next.2);
+            true
+        });
         let center_x = (min.x + max.x) * 0.5;
         let center_offset = Vec3::Y * half_height;
         Some(Self {
             bottom: transform.transform_point(Vec3::new(center_x, min.y, max.z + 0.75)) + center_offset,
-            top: transform.transform_point(Vec3::new(center_x, max.y, (top_z_min + top_z_max) * 0.5)) + center_offset,
+            top: treads.into_iter().find_map(|(height, start_z, end_z)|
+                supported_center(transform.transform_point(Vec3::new(center_x, height, (start_z + end_z) * 0.5)) + center_offset))?,
         })
     }
 
     fn endpoints(self, index: usize) -> (Vec3, Vec3) {
         if index % 2 == 0 { (self.bottom, self.top) } else { (self.top, self.bottom) }
     }
+}
+
+fn supported_tread_center(spatial: &SpatialQuery, capsule: &Collider, character: Entity, stairs: Entity,
+    candidate: Vec3, half_height: f32) -> Option<Vec3> {
+    let origin = candidate + Vec3::Y * half_height;
+    let floor = spatial.cast_shape_predicate(capsule, origin, Quat::IDENTITY, Dir3::NEG_Y,
+        &ShapeCastConfig::from_max_distance(half_height * 2.0), &SpatialQueryFilter::default(), &|entity| entity == stairs)?;
+    let center = origin + Vec3::Y * (als_core::character::ALS_CHARACTER_FLOOR_CLEARANCE
+        + als_core::character::ALS_CHARACTER_TNUA_FLOAT_EPSILON - floor.distance);
+    spatial.shape_intersections(capsule, center, Quat::IDENTITY,
+        &SpatialQueryFilter::from_excluded_entities([character, stairs])).is_empty().then_some(center)
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
@@ -168,14 +192,56 @@ mod tests {
         let collider = Collider::trimesh(vec![
             Vec3::new(0.0, -0.18, 0.0), Vec3::new(6.67, -0.18, 0.0), Vec3::new(0.0, -0.18, -0.37),
             Vec3::new(0.0, 7.92, -16.65), Vec3::new(6.67, 7.92, -16.65), Vec3::new(0.0, 7.92, -16.28),
-        ], vec![[0, 1, 2], [3, 4, 5]]);
+        ], vec![[0, 1, 2], [3, 5, 4]]);
         let transform = GlobalTransform::from(Transform::from_xyz(-3.333333, 0.18, -30.0)
             .with_rotation(Quat::from_rotation_y(0.7)).with_scale(Vec3::splat(1.5)));
-        let route = Route::from_collider(&collider, &transform, 0.9).unwrap();
+        let route = Route::from_collider(&collider, &transform, 0.9, Some).unwrap();
         assert!(route.bottom.abs_diff_eq(transform.transform_point(Vec3::new(3.335, -0.18, 0.75)) + Vec3::Y * 0.9, 1e-5));
         assert!(route.top.abs_diff_eq(transform.transform_point(Vec3::new(3.335, 7.92, -16.465)) + Vec3::Y * 0.9, 1e-5));
         assert_eq!(route.endpoints(1), (route.top, route.bottom));
-        assert!(Route::from_collider(&Collider::sphere(1.0), &transform, 0.9).is_none());
+        assert!(Route::from_collider(&Collider::sphere(1.0), &transform, 0.9, Some).is_none());
+    }
+
+    #[test]
+    fn stairs_route_ends_on_a_supported_tread_before_the_original_terminal_wall() {
+        use avian3d::prelude::{PhysicsPlugins, SpatialQuery, SpatialQueryFilter};
+        use bevy::ecs::system::RunSystemOnce;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin, PhysicsPlugins::new(PostUpdate)))
+            .init_resource::<Assets<Mesh>>().add_message::<bevy::asset::AssetEvent<Mesh>>();
+        let mut vertices = Vec::new();
+        let mut triangles = Vec::new();
+        for step in 0..12 {
+            let front = -(step as f32) * 0.37;
+            let bottom = step as f32 * 0.18;
+            let top = bottom + 0.18;
+            let index = vertices.len() as u32;
+            vertices.extend([Vec3::new(-3.335, bottom, front), Vec3::new(3.335, bottom, front),
+                Vec3::new(-3.335, top, front), Vec3::new(3.335, top, front),
+                Vec3::new(-3.335, top, front - 0.37), Vec3::new(3.335, top, front - 0.37)]);
+            triangles.extend([[index, index + 1, index + 2], [index + 1, index + 3, index + 2],
+                [index + 2, index + 3, index + 4], [index + 3, index + 5, index + 4]]);
+        }
+        let stairs = app.world_mut().spawn((RigidBody::Static, Collider::trimesh(vertices, triangles), Transform::default())).id();
+        let wall = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(20.0, 2.0, 0.5),
+            Transform::from_xyz(0.0, 2.5, -4.29))).id();
+        app.finish();
+        for _ in 0..3 { app.update(); }
+        let (route, intersections, supported) = app.world_mut().run_system_once(move |spatial: SpatialQuery, colliders: Query<&Collider>| {
+            let capsule = als_core::character::als_character_capsule(0.9, 0.3);
+            let route = Route::from_collider(colliders.get(stairs).unwrap(), &GlobalTransform::IDENTITY, 0.9,
+                |candidate| supported_tread_center(&spatial, &capsule, Entity::PLACEHOLDER, stairs, candidate, 0.9)).unwrap();
+            let intersections = spatial.shape_intersections(&capsule, route.top, Quat::IDENTITY,
+                &SpatialQueryFilter::default());
+            let supported = spatial.cast_shape(&capsule, route.top, Quat::IDENTITY, Dir3::NEG_Y,
+                &ShapeCastConfig::from_max_distance(0.1), &SpatialQueryFilter::default())
+                .is_some_and(|hit| hit.entity == stairs && (hit.distance - 0.024).abs() < 1e-4);
+            (route, intersections, supported)
+        }).unwrap();
+        assert!(!intersections.contains(&wall), "route endpoint intersects terminal wall: {:?}", route.top);
+        assert!(intersections.is_empty(), "route endpoint intersects the stair tread");
+        assert!(supported, "route endpoint has no capsule floor support");
+        assert!(route.top.z < -3.0 && route.top.z > -3.74);
     }
 
     #[test]
@@ -288,15 +354,15 @@ mod tests {
 pub(super) fn drive(
     mut state: ResMut<ManualIntegrationState>,
     mut phase_evidence: ResMut<ManualRuntimePhaseEvidence>,
-    stairs: Query<(&Collider, &GlobalTransform, &PlaygroundMeshColliderBuilt)>,
+    spatial: SpatialQuery,
+    stairs: Query<(Entity, &Collider, &GlobalTransform, &PlaygroundMeshColliderBuilt)>,
     mut characters: Query<(&mut AlsInputOverride, &mut Transform, &mut Position, Option<&mut Rotation>, &mut LinearVelocity,
-        &mut AlsViewYaw, &mut AlsViewPitch, &Stance, &LocomotionState, &AlsDesiredGait, &AlsLastFreeRotationMode, &RotationMode), With<AlsCharacter>>,
+        &mut AlsViewYaw, &mut AlsViewPitch, &Stance, &LocomotionState, &AlsDesiredGait, &AlsLastFreeRotationMode, &RotationMode, &Collider), With<AlsCharacter>>,
     mut rotation_state: Query<(&AlsMovementParamsHandle, Option<&mut AlsRotationResponseState>, &mut AlsAimingYawConstraint, Option<&mut AlsRotationAnimationState>)>,
     params: Res<Assets<AlsMovementParams>>,
 ) {
-    if state.phase != IntegrationPhase::Stairs { return; }
     let Some(character) = state.character else { return; };
-    let Ok((mut input, mut transform, mut position, rotation, mut velocity, mut yaw, mut pitch, stance, locomotion, gait, desired_mode, mode)) = characters.get_mut(character) else { return; };
+    let Ok((mut input, mut transform, mut position, rotation, mut velocity, mut yaw, mut pitch, stance, locomotion, gait, desired_mode, mode, capsule)) = characters.get_mut(character) else { return; };
     let now = state.game_time_seconds;
     if state.stairs_probe.index == 6 {
         begin_phase(&mut state, IntegrationPhase::Finish);
@@ -304,10 +370,12 @@ pub(super) fn drive(
     }
     if state.stairs_probe.route.is_none() {
         let name = MESHES[state.stairs_probe.index / 2];
-        let Some((collider, global, _)) = stairs.iter().find(|(_, _, source)| source.mesh_base == name) else { return; };
+        let Some((stairs_entity, collider, global, _)) = stairs.iter().find(|(_, _, _, source)| source.mesh_base == name) else { return; };
         let Ok((handle, response, mut constraint, animation)) = rotation_state.get_mut(character) else { return; };
         let Some(params) = params.get(handle.id()) else { return; };
-        let Some(route) = Route::from_collider(collider, global, params.crouch.standing_capsule_half_height) else { return; };
+        let half_height = params.crouch.standing_capsule_half_height;
+        let Some(route) = Route::from_collider(collider, global, half_height,
+            |candidate| supported_tread_center(&spatial, capsule, character, stairs_entity, candidate, half_height)) else { return; };
         reset_character(&mut transform, &mut position, rotation, &mut velocity, &mut yaw, &mut pitch,
             route.bottom + Vec3::Y * 0.05, world_forward_to_yaw((route.top - route.bottom).with_y(0.0)));
         reinitialize_fixture_rotation_response(response, &mut constraint, animation);

@@ -527,7 +527,8 @@ impl Plugin for ManualPlaygroundIntegrationPlugin {
                     .after(drive_manual_integration)
                     .after(bevy_enhanced_input::prelude::EnhancedInputSystems::Apply),
             )
-            .add_systems(PreUpdate, stairs::drive.after(drive_manual_integration))
+            .add_systems(PreUpdate, stairs::drive.after(drive_manual_integration)
+                .run_if(|state: Res<ManualIntegrationState>| state.phase == IntegrationPhase::Stairs))
             .add_systems(PostUpdate, stairs::observe
                 .run_if(|state: Res<ManualIntegrationState>| state.phase == IntegrationPhase::Stairs)
                 .after(AlsCameraSet).after(AlsRotationResponseSet).after(FootIkApplySet::Telemetry)
