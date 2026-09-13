@@ -44,7 +44,7 @@
 |---|---|---|---|
 | BF116.01 | `/ALS/ALSCamera` 全目录及 Actor 相机链 | 覆盖 `AB_Als_Camera`、`B_Als_CameraComponent`、`PA_Als_Camera`、骨架/网格、设置、混合曲线、震动等全部9个资产；完成 Actor 挂载、摇臂距离/偏移、滞后、碰撞回缩、视图切换、FOV和生命周期，并通过真实入口。 | 功能完成；性能暂停 |
 | BF116.02 | `SM_Als_Stair` 上下楼梯 | 修复速度和动画表现；明确避免源版本上楼后永久改写并锁住 `rotation mode` 的 bug，进入/离开楼梯后快捷键仍可正常切换。 | 功能完成；性能暂停 |
-| BF116.03 | `B_Als_MovingObject2` 移动平台跟随 | 角色站在移动平台上能按源规则正确跟随，核对平台、运动基座与角色调用链。 | 待执行 |
+| BF116.03 | `B_Als_MovingObject2` 移动平台跟随 | 角色站在移动平台上能按源规则正确跟随，核对平台、运动基座与角色调用链。 | 进行中 |
 | BF116.04 | `B_Als_RotatingObject` 旋转平台 | 平台旋转而角色未主动移动时，按源表现原地踏步保持位置，修复脚在平台上滑动的表现。 | 待执行 |
 | BF116.05 | 弓箭 Overlay 与物件动画整套 | 一并移植 `Overlays/AB_Als_Bow` 和 `OverlayObjects/Bow/AB_Als_Bow`，核对两图联动、实际动画/曲线/层混合，以及弓物件引用、挂载、输入、生命周期与 Actor 调用链。 | 待执行 |
 | BF116.06 | 剩余11个 overlays 的移植和修复 | 除前项弓箭 Overlay 外，逐图对照本地源，完成转换、实际动画/曲线/层混合及对应 Actor 消费和功能验收。 | 待执行 |
@@ -244,3 +244,11 @@
   - c2r第二次startup通过/stairs入口前2026-09-13 21:17:00：startup15.540s功能PASS，game/validator均0，fault/graph_error为空。开始六条普通楼梯路线的最终复验，保持速度、实际步态、位移、模式切换和姿态判据。
   - c2r普通楼梯通过/uphill入口前2026-09-13 21:19:00：stairs48.460s功能PASS，game/validator均0，六路线和走/跑/冲刺窗口、模式恢复及姿态检查全部通过，无temporal/fault/graph_error。开始同二进制18组uphill回归，核对新法线与起点接触处理没有破坏已完成的上跳落地修复。
   - c2r/02b1/02c2完成2026-09-13 21:20:00：最终startup15.540s、stairs48.460s、uphill34.990s均功能PASS，三次game/validator均0；普通楼梯3486帧、六路线/18姿态窗口、12次快捷键切换全部通过，通行Air帧0。18组上跳/较高位置落地/空中图退出再次通过，所有最终报告的temporal/fault/graph_error为空。258核心/338项目、真实原序列/快照及六项消融共同关闭法线误判与初始接触阻停两个边界，正式代码只补源缺失的传感器法线回退和方向性起点接触选项，保留三个必要回归。原开始19:42、预估21:57、实际21:20、偏差-2220s；本轮源/反例→修复消融→实际验收完成，未延长估时。BF116.02按功能范围结项，性能继续按用户要求暂停；下一项按用户顺序为BF116.03移动平台跟随，尚未实现。
+
+### BF116.03 移动平台执行子项
+
+- [x] BF116.03a 平台Actor与角色运动基座源闭包：开始2026-09-13 21:24:00、预估2026-09-13 22:09:00。依赖27854cd的BF116.02功能结项；本地实际资产为B_Als_MovingObject与CF_Als_MovingObject，用户的MovingObject2是关卡实例。先复用健康Editor提取蓝图/曲线及Playground实例参数，再核对角色SetBase/UpdateBasedMovement/SaveBaseLocation与目标Collider子实体、刚体根、support velocity和运动时序。估时依据为两个直接资产、关卡实例及三个引擎函数闭包，既有原生reader约35–70秒/份、现有平台和核心运动测试；确认差异后分别建立最小反例、必要修复/消融与真实入口Gate。旧手工Actor/曲线实现仅作为target，不作事实；不提前实现旋转踏步、Bow或其它后续模块，真实入口继续原Playground、截图0/性能暂停。
+  - 03a首轮source闭包2026-09-13 21:36:00：MCP健康2.677s拒绝连接，使用同轮native读取Moving Actor73.314s、Curve36.336s、Playground43.001s及实际父类B_Als_StaticObject34.353s，均通过。源BeginPlay把MovementDuration写入Spline.Duration；Tick调用RefreshMeshLocation，经世界时间/时长、floor奇偶和余数得到往返相位，采样4个cubic曲线键，再以constant-velocity spline取World位置，SetWorldLocation到StaticMesh组件（sweep=false、teleport=false），Actor根与Spline保持静态。MovingObject2实例时长1.75、Spline从0到(-650,0,0)cm、根位置(1900,-2875,0)cm，mesh Movable且不模拟。目标当前为129点线性曲线、刚体根速度积分，角色动力学直接用sensor的碰撞实体查询Position/LinearVelocity。源CMC则用基座前后transform搬移胶囊底点并保存基座，ALS忽略基座自动转向。先用实际物理根/子Collider的最小fixture验证身份与跟随边界，再处理已证实的Actor位置/曲线差异；旋转踏步仍留04。
+  - 03a完成2026-09-13 21:49:00：4/4直接资产及基座相关C++闭包已读取；父类EventGraph为空，construction结果以当前关卡StaticMesh/Spline组件参数核对。已明确三条待处理target差异：子Collider的速度数据归属、平台绝对位置/精确cubic曲线，以及角色运动输入与被平台携带的速度区分。现有RichCurveKey/sample_rich_curve可复用，无需新增曲线求值器。开始21:24、预估22:09、实际21:49、偏差-1200s；source阶段完成，主项仍待各修复与真实Gate。
+- [x] BF116.03b1 运动基座的物理所有者：开始2026-09-13 21:40:00、预估2026-09-13 22:05:00。用同一真实Tnua/Avian控制器及根/子Collider装配建立静止角色跟随反例：29.953s失败，根Collider最大相对误差0.004079938m、子Collider3.8492906m；旧测试只验证速度差和角速度公式，未覆盖ColliderOf实际装配。共享support_velocity_from_base及其两个caller改为通过ColliderOf读取刚体Position/LinearVelocity/AngularVelocity，保留原碰撞实体作为基座身份供足部变换消费；21.917s两种装配都收敛到0.004079938m，证明数据归属是该症状的根因。接下来消融及完整core/项目回归；Actor轨迹和角色动画输入仍在后续子项，不提前宣称03完成。
+  - 03b1完成2026-09-13 22:01:00：移除ColliderOf归属解析20.387s按预期恢复子Collider跟随失败；恢复后259核心/338项目联合回归108.006s全部通过。保留8行共享修正及一个实际装配回归，没有新增状态或替代基座身份；当前仅关闭物理数据归属，尚未启动03的Playground Gate。开始21:40、预估22:05、实际22:01、偏差-240s。下一段处理native4键曲线、目标位置/组件生命周期，再核对被携带时的动画与跳离输入，目标仍为完整BF116.03。

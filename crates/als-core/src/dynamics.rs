@@ -1,4 +1,4 @@
-use avian3d::prelude::{AngularVelocity, LinearVelocity, Position};
+use avian3d::prelude::{AngularVelocity, ColliderOf, LinearVelocity, Position};
 use bevy::prelude::*;
 use bevy_tnua::{TnuaController, TnuaMotor, TnuaPipelineSystems};
 
@@ -78,11 +78,13 @@ fn support_velocity_from_base(
     base_entity: Option<Entity>,
     contact_point: Vec3,
     bases: &Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+    colliders: &Query<&ColliderOf>,
 ) -> (Option<Entity>, Vec3) {
     let Some(entity) = base_entity else {
         return (None, Vec3::ZERO);
     };
-    let Ok((position, linear_velocity, angular_velocity)) = bases.get(entity) else {
+    let body = colliders.get(entity).map_or(entity, |collider| collider.body);
+    let Ok((position, linear_velocity, angular_velocity)) = bases.get(body) else {
         return (None, Vec3::ZERO);
     };
     (
@@ -297,6 +299,7 @@ pub fn refresh_grounded_dynamics_system(
     >,
     params_assets: Res<Assets<AlsMovementParams>>,
     bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+    colliders: Query<&ColliderOf>,
 ) {
     for (
         locomotion,
@@ -322,6 +325,7 @@ pub fn refresh_grounded_dynamics_system(
             controller.basis_memory.standing_on_entity(),
             contact_point,
             &bases,
+            &colliders,
         );
         let relative_velocity = Vec3::new(
             velocity.x - support_velocity.x,
@@ -420,6 +424,7 @@ pub fn grounded_dynamics_motor_system(
     actions: Query<(Option<&AlsRollState>, Option<&AlsMantleState>), With<AlsCharacter>>,
     landing_braking: Query<&AlsLandingBrakingFriction, With<AlsCharacter>>,
     bases: Query<(&Position, &LinearVelocity, Option<&AngularVelocity>), Without<AlsCharacter>>,
+    colliders: Query<&ColliderOf>,
 ) {
     for (
         entity,
@@ -457,6 +462,7 @@ pub fn grounded_dynamics_motor_system(
             controller.basis_memory.standing_on_entity(),
             contact_point,
             &bases,
+            &colliders,
         );
         let current = Vec3::new(
             world_velocity.x - support_velocity.x,

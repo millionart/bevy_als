@@ -2940,6 +2940,40 @@ mod tests {
     }
 
     #[test]
+    fn moving_support_keeps_an_idle_character_on_root_and_child_colliders() {
+        let mut failures = Vec::new();
+        for child in [false, true] {
+            let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+            let transform = Transform::from_xyz(0.0, 2.0, 5.0);
+            let platform = app.world_mut().spawn((RigidBody::Kinematic, transform, GlobalTransform::from(transform))).id();
+            let collider = if child {
+                app.world_mut().spawn((ChildOf(platform), Collider::cuboid(4.0,0.5,4.0), Transform::IDENTITY, GlobalTransform::from(transform))).id()
+            } else {
+                app.world_mut().entity_mut(platform).insert(Collider::cuboid(4.0,0.5,4.0));
+                platform
+            };
+            let initial = Vec3::new(0.0, 3.174, 5.0);
+            app.world_mut().get_mut::<Position>(character).unwrap().0 = initial;
+            app.world_mut().get_mut::<Transform>(character).unwrap().translation = initial;
+            for _ in 0..60 { app.update(); }
+            let controller = app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap();
+            assert_eq!(controller.basis_memory.standing_on_entity(), Some(collider));
+            let initial_offset = app.world().get::<Position>(character).unwrap().0 - app.world().get::<Position>(platform).unwrap().0;
+            app.world_mut().get_mut::<LinearVelocity>(platform).unwrap().0 = Vec3::X * 2.0;
+            let mut max_error = 0.0_f32;
+            for _ in 0..120 {
+                app.update();
+                let offset = app.world().get::<Position>(character).unwrap().0 - app.world().get::<Position>(platform).unwrap().0;
+                max_error = max_error.max((offset - initial_offset).with_y(0.0).length());
+            }
+            let base = app.world().get::<crate::dynamics::AlsMovementBaseDynamicsState>(character).unwrap();
+            println!("[MOVING-BASE] child={child} max_relative_error={max_error} dynamics={base:?}");
+            if max_error > 0.02 { failures.push((child, max_error)); }
+        }
+        assert!(failures.is_empty(), "Idle characters lost their moving support: {failures:?}");
+    }
+
+    #[test]
     fn ground_sensor_surface_fallback_prevents_the_recorded_slipping_impulse() {
         let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
         app.world_mut().get_mut::<crate::gait::AlsDesiredGait>(character).unwrap().0 = Gait::Walking;
