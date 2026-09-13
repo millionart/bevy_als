@@ -2541,7 +2541,7 @@ fn walkable_floor_hit(spatial: &SpatialQuery, capsule: &Collider, radius: f32, o
     (normal.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos()).then_some(hit)
 }
 
-fn find_ground_floor(spatial: &SpatialQuery, origin: Vec3, half: f32, radius: f32,
+pub fn find_ground_floor(spatial: &SpatialQuery, origin: Vec3, half: f32, radius: f32,
     filter: &SpatialQueryFilter) -> Option<(f32, f32)> {
     for (shrink_scale, radius_reduction) in [(FLOOR_SWEEP_SHRINK_FRACTION, 0.0),
         (FLOOR_RETRY_SHRINK_FRACTION, SWEEP_EDGE_MIN_RADIUS)] {

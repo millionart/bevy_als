@@ -1339,6 +1339,73 @@ def stairs_trace_issues(report):
     return issues
 
 
+def uphill_trace_issues(report):
+    if report.get("case") != "uphill_jump":
+        return []
+    frames = report.get("manual_integration", {}).get("uphill_trace")
+    if not isinstance(frames, list) or not frames or not all(isinstance(frame, dict) for frame in frames):
+        return ["uphill jump frame evidence is missing"]
+    windows = {window.get("label") for window in report.get("motion_windows", []) if isinstance(window, dict)}
+    issues = []
+    for index in range(18):
+        samples = [frame for frame in frames if frame.get("case_index") == index]
+        prefix = f"uphill_{index // 6 + 1:02}_{'run' if index % 6 < 3 else 'sprint'}_{index % 3}"
+        if not samples:
+            issues.append(f"{prefix}: frame evidence is missing")
+            continue
+        if prefix not in windows:
+            issues.append(f"{prefix}: source pose window is missing")
+        airborne = False
+        launch_y = None
+        landed_at = None
+        landing_pose = False
+        completed = False
+        supported_air = 0
+        previous_time = -math.inf
+        for frame in samples:
+            graph = frame.get("graph")
+            if not finite(frame.get("time")) or frame["time"] <= previous_time or not isinstance(graph, dict) or not all(
+                isinstance(frame.get(key), list) and len(frame[key]) == size and all(finite(value) for value in frame[key])
+                for key, size in (("position", 3), ("velocity", 3), ("input", 2))
+            ) or not isinstance(graph.get("outer_weights"), list) or len(graph["outer_weights"]) != 5 or not all(finite(value) for value in graph["outer_weights"]):
+                issues.append(f"{prefix}: frame values are invalid")
+                break
+            previous_time = frame["time"]
+            gait = "Running" if index % 6 < 3 else "Sprinting"
+            if frame.get("mesh") != f"SM_Als_Stairs_{index // 6 + 1:02}" or frame.get("requested_gait") != gait:
+                issues.append(f"{prefix}: original stair or requested gait is invalid")
+                break
+            if frame.get("jump_pressed") is True:
+                if not finite(frame.get("launch_y")):
+                    issues.append(f"{prefix}: launch height is missing")
+                    break
+                launch_y = frame["launch_y"]
+            air_weight = graph["outer_weights"][1] + graph["outer_weights"][2]
+            airborne |= launch_y is not None and frame.get("mode") == "Air" and air_weight > 0.05
+            supported_air = supported_air + 1 if airborne and frame.get("supported") is True and frame.get("mode") == "Air" and abs(frame["velocity"][1]) < 0.001 else 0
+            if supported_air >= 2:
+                issues.append(f"{prefix}: supported capsule remains in Air")
+                break
+            if airborne and frame.get("mode") == "Grounded" and landed_at is None:
+                landed_at = frame["time"]
+                if frame["position"][1] <= launch_y + 0.05 or frame.get("supported") is not True:
+                    issues.append(f"{prefix}: higher supported landing is missing")
+                    break
+            if landed_at is not None:
+                landing_pose |= graph["outer_weights"][3] + graph["outer_weights"][4] > 0.01
+                if frame.get("mode") != "Grounded":
+                    issues.append(f"{prefix}: landed capsule returned to Air")
+                    break
+                if frame["time"] - landed_at >= 0.35:
+                    if air_weight > 0.01:
+                        issues.append(f"{prefix}: airborne animation persists after landing")
+                        break
+                    completed |= landing_pose and graph.get("outer") == 0 and graph.get("outer_transition") is False and frame.get("controller_action") == "None"
+        if not airborne or not completed:
+            issues.append(f"{prefix}: actual air, landing and grounded recovery evidence is incomplete")
+    return issues
+
+
 def manual_integration_issues(report):
     if report.get("case") == "startup":
         return []
@@ -1370,6 +1437,7 @@ def manual_integration_issues(report):
                 issues.append("manual integration result is not covered")
     issues.extend(camera_trace_issues(report))
     issues.extend(stairs_trace_issues(report))
+    issues.extend(uphill_trace_issues(report))
     return issues
 
 
@@ -1949,7 +2017,50 @@ def fixture_stairs_report():
         "stairs_trace": frames}, "motion_windows": windows}
 
 
+def fixture_uphill_report():
+    frames = []
+    windows = []
+    for index in range(18):
+        gait = "Running" if index % 6 < 3 else "Sprinting"
+        prefix = f"uphill_{index // 6 + 1:02}_{'run' if index % 6 < 3 else 'sprint'}_{index % 3}"
+        windows.append({"label": prefix})
+        for time, mode, state, height, jumped, supported in ((0.0,"Grounded",0,0.92,False,True),
+            (0.2,"Air",2,1.1,True,False),(0.3,"Air",1,1.5,False,False),
+            (0.4,"Grounded",4,1.6,False,True),(0.8,"Grounded",0,1.6,False,True)):
+            weights = [0.0] * 5
+            weights[state] = 1.0
+            frames.append({"case_index":index,"mesh":f"SM_Als_Stairs_{index // 6 + 1:02}","requested_gait":gait,
+                "time":index * 2.0 + time,"position":[0.0,height,-time],"velocity":[0.0,0.0 if supported else 1.0,0.0],
+                "input":[0.0,1.0],"jump_pressed":jumped,"launch_y":0.92,"supported":supported,"mode":mode,
+                "controller_action":"None" if supported else "Some(Jump)",
+                "graph":{"outer":state,"outer_transition":False,"outer_weights":weights}})
+    return {"case":"uphill_jump","manual_integration":{"scenario":"UphillJump","timed_out":False,"completed":True,
+        "passed":True,"results":[{"name":"uphill_landing_consistency","covered":True,"detail":"covered"}],"uphill_trace":frames},
+        "motion_windows":windows}
+
+
 def run_self_test():
+    uphill = fixture_uphill_report()
+    assert not manual_integration_issues(uphill), manual_integration_issues(uphill)
+    for issue in ("supported_air", "fall_animation", "lower_landing", "missing_case", "missing_window", "action_stuck", "no_jump_input"):
+        invalid = copy.deepcopy(uphill)
+        frames = invalid["manual_integration"]["uphill_trace"]
+        if issue == "supported_air":
+            for frame in frames[1:3]:
+                frame.update(supported=True,velocity=[0.0,0.0,0.0])
+        elif issue == "fall_animation":
+            frames[4]["graph"].update(outer=1,outer_weights=[0.0,1.0,0.0,0.0,0.0])
+        elif issue == "lower_landing":
+            frames[3]["position"][1] = 0.9
+        elif issue == "missing_case":
+            frames[:] = [frame for frame in frames if frame["case_index"] != 17]
+        elif issue == "missing_window":
+            invalid["motion_windows"].pop()
+        elif issue == "action_stuck":
+            frames[4]["controller_action"] = "Some(Jump)"
+        else:
+            frames[1]["jump_pressed"] = False
+        assert manual_integration_issues(invalid), issue
     stairs = fixture_stairs_report()
     assert not stairs_trace_issues(stairs), stairs_trace_issues(stairs)
     assert not manual_integration_issues(stairs), manual_integration_issues(stairs)
@@ -2662,6 +2773,7 @@ def run_self_test():
     return {
         "runtime_report_and_png_checked": "PASS",
         "stairs_source_speed_and_pose_windows_checked": "PASS",
+        "uphill_capsule_landing_and_animation_recovery_checked": "PASS",
         "stairs_missing_routes_gaits_and_hotkey_recovery_rejected": "PASS",
         "fault_rejected": "PASS",
         "startup_graph_error_rejected": "PASS",

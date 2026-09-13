@@ -2,6 +2,7 @@ use std::num::NonZeroU8;
 use std::time::{Duration, Instant};
 
 mod stairs;
+mod uphill;
 
 use als_camera::{AlsCameraDebugInfo, AlsCameraRig, AlsCameraSet, AlsCameraShakeRequest};
 use als_core::character::{AlsCharacter, AlsMovementParamsHandle};
@@ -494,6 +495,8 @@ pub struct ManualIntegrationGateReport {
     pub camera_trace: Vec<ManualCameraTraceSample>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub stairs_trace: Vec<stairs::Sample>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub uphill_trace: Vec<serde_json::Value>,
 }
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -536,6 +539,12 @@ impl Plugin for ManualPlaygroundIntegrationPlugin {
             .add_systems(PostUpdate, stairs::capture_move_prefix
                 .run_if(|state: Res<ManualIntegrationState>| state.phase == IntegrationPhase::Stairs)
                 .before(avian3d::prelude::PhysicsSystems::First))
+            .add_systems(PreUpdate, uphill::drive.after(drive_manual_integration)
+                .run_if(|state: Res<ManualIntegrationState>| state.phase == IntegrationPhase::UphillJump))
+            .add_systems(PostUpdate, uphill::observe
+                .run_if(|state: Res<ManualIntegrationState>| state.phase == IntegrationPhase::UphillJump)
+                .after(AlsCameraSet).after(AlsRotationResponseSet).after(FootIkApplySet::Telemetry)
+                .before(observe_manual_integration).in_set(ManualIntegrationObservationSet))
             .add_systems(
                 PostUpdate,
                 (drive_control_rig_view_offset, drive_manual_rig_curves)
@@ -775,6 +784,7 @@ enum IntegrationPhase {
     Ragdoll,
     Camera,
     Stairs,
+    UphillJump,
     Interface,
     Notify,
     Finish,
@@ -818,6 +828,7 @@ enum IntegrationScenario {
     GetUp,
     Camera,
     Stairs,
+    UphillJump,
     Interface,
     Notify,
 }
@@ -845,6 +856,7 @@ impl IntegrationScenario {
             Some("get_up") => Self::GetUp,
             Some("camera") => Self::Camera,
             Some("stairs") => Self::Stairs,
+            Some("uphill_jump") => Self::UphillJump,
             Some("interface") => Self::Interface,
             Some("notify") => Self::Notify,
             _ => Self::Base,
@@ -875,6 +887,7 @@ fn initial_phase(scenario: IntegrationScenario) -> IntegrationPhase {
         IntegrationScenario::Ragdoll | IntegrationScenario::GetUp => IntegrationPhase::Ragdoll,
         IntegrationScenario::Camera => IntegrationPhase::Camera,
         IntegrationScenario::Stairs => IntegrationPhase::Stairs,
+        IntegrationScenario::UphillJump => IntegrationPhase::UphillJump,
         IntegrationScenario::Interface => IntegrationPhase::Interface,
         IntegrationScenario::Notify => IntegrationPhase::Notify,
     }
@@ -3068,6 +3081,7 @@ struct ManualIntegrationState {
     default_overlay_probe: DefaultOverlayProbe,
     head_probe: HeadProbe,
     stairs_probe: stairs::Probe,
+    uphill_probe: uphill::Probe,
     timed_out: bool,
     final_logged: bool,
     exit_requested: bool,
@@ -3184,6 +3198,7 @@ impl Default for ManualIntegrationState {
             default_overlay_probe: default(),
             head_probe: default(),
             stairs_probe: default(),
+            uphill_probe: default(),
             timed_out: false,
             final_logged: false,
             exit_requested: false,
@@ -3644,7 +3659,7 @@ fn drive_manual_integration(
     }
 
     match state.phase {
-        IntegrationPhase::Await | IntegrationPhase::Stairs => {}
+        IntegrationPhase::Await | IntegrationPhase::Stairs | IntegrationPhase::UphillJump => {}
         IntegrationPhase::LocomotionActions => {
             let index = state.locomotion_probe.case_index;
             if entering {
@@ -9562,6 +9577,14 @@ fn observe_manual_integration(
                 ("stairs_03_down", state.stairs_probe.completed[5]),
                 ("stairs_progress", state.stairs_probe.failure.is_none()),
             ],
+            IntegrationScenario::UphillJump => vec![
+                ("runtime_assembly", coverage.assembly),
+                ("animation_graph", coverage.graph),
+                ("uphill_01", state.uphill_probe.completed[..6].iter().all(|value| *value)),
+                ("uphill_02", state.uphill_probe.completed[6..12].iter().all(|value| *value)),
+                ("uphill_03", state.uphill_probe.completed[12..].iter().all(|value| *value)),
+                ("uphill_landing_consistency", state.uphill_probe.failure.is_none()),
+            ],
             IntegrationScenario::Interface => vec![
                 ("runtime_assembly", coverage.assembly),
                 ("animation_graph", coverage.graph),
@@ -9660,6 +9683,8 @@ fn observe_manual_integration(
                     format!("samples={} last={:?}", gate_report.camera_trace.len(), gate_report.camera_trace.last())
                 } else if *name == "stairs_progress" {
                     state.stairs_probe.failure.clone().unwrap_or_else(|| "all routes completed without stalls".to_owned())
+                } else if *name == "uphill_landing_consistency" {
+                    state.uphill_probe.failure.clone().unwrap_or_else(|| "all uphill landings returned to grounded animation".to_owned())
                 } else if *covered {
                     "covered".to_owned()
                 } else {

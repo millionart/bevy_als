@@ -9,13 +9,13 @@ const MESHES: [&str; 3] = ["SM_Als_Stairs_01", "SM_Als_Stairs_02", "SM_Als_Stair
 const NO_PROGRESS_SECONDS: f64 = 5.0;
 
 #[derive(Clone, Copy, Debug)]
-struct Route {
-    bottom: Vec3,
-    top: Vec3,
+pub(super) struct Route {
+    pub(super) bottom: Vec3,
+    pub(super) top: Vec3,
 }
 
 impl Route {
-    fn from_collider(collider: &Collider, transform: &GlobalTransform, half_height: f32,
+    pub(super) fn from_collider(collider: &Collider, transform: &GlobalTransform, half_height: f32,
         mut supported_center: impl FnMut(Vec3) -> Option<Vec3>) -> Option<Self> {
         let mesh = collider.shape().as_trimesh()?;
         let vertices = mesh.vertices();
