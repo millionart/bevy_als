@@ -35,7 +35,7 @@ impl Route {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
 enum Stage {
     #[default]
     Ready,
@@ -57,7 +57,7 @@ pub(super) struct Probe {
     pub(super) failure: Option<String>,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, PartialEq)]
 struct Frame {
     position: Vec3,
     velocity: Vec3,
@@ -236,12 +236,58 @@ mod tests {
             assert!(!probe.completed.into_iter().any(|value| value));
         }
     }
+
+    #[test]
+    fn stairs_observer_records_actual_frame_before_qualifying_animation_windows() {
+        use bevy::ecs::system::RunSystemOnce;
+        use als_core::character::AlsCmcAdapterRuntime;
+        let mut world = World::new();
+        let mut assets = Assets::<AlsMovementParams>::default();
+        let handle = assets.add(AlsMovementParams::default());
+        world.insert_resource(assets);
+        let character = world.spawn((AlsCharacter, Position(Vec3::Y * 0.9), LinearVelocity(Vec3::NEG_Z * 1.75),
+            LocomotionState::Grounded, Stance::Standing, AlsDesiredGait(Gait::Walking), Gait::Walking,
+            AlsLastFreeRotationMode(RotationMode::ViewDirection), RotationMode::ViewDirection, AlsViewYaw(0.0),
+            AlsInputOverride(AlsInputCommand { move_dir: Vec2::Y, ..default() }),
+            AlsActualMotion { horizontal_speed: 1.75, ..default() },
+            AlsCmcAdapterRuntime { simulation_delta_seconds: 0.1, ..default() }, AlsMovementParamsHandle(handle),
+            AlsStandingGraphTelemetry { actual_movement_state: Some(0), actual_movement_pose_ready: Some(true),
+                actual_standing_pose_ready: Some(true), ..default() })).id();
+        world.insert_resource(ManualIntegrationState { character: Some(character), phase: IntegrationPhase::Stairs,
+            stairs_probe: Probe { route: Some(Route { bottom: Vec3::Y * 0.9, top: Vec3::new(0.0, 9.0, -17.215) }),
+                stage: Stage::Traverse, ..default() }, ..default() });
+        world.init_resource::<ManualIntegrationGateReport>();
+        world.init_resource::<ManualAnimationWindowEvidence>();
+        for index in 0..8 {
+            world.resource_mut::<ManualIntegrationState>().game_time_seconds = index as f64 * 0.1;
+            world.get_mut::<Position>(character).unwrap().0.z = -index as f32 * 0.175;
+            world.run_system_once(observe).unwrap();
+            if index < 5 {
+                assert!(world.resource::<ManualAnimationWindowEvidence>().label.is_none());
+            }
+        }
+        let window = world.resource::<ManualAnimationWindowEvidence>();
+        assert_eq!(window.label, Some("stairs_01_up_walk"));
+        assert!(window.requires_source_pose_chain && !window.source_pose_chain.is_empty());
+        let report = world.resource::<ManualIntegrationGateReport>();
+        let sample = report.stairs_trace.last().unwrap();
+        assert!((sample.displacement_speed.unwrap() - 1.75).abs() < 1e-5);
+        let json = serde_json::to_value(sample).unwrap();
+        assert_eq!(json["position"][2], sample.frame.position.z);
+        assert_eq!(json["desired_mode"], "ViewDirection");
+        assert_eq!(json["movement_pose_ready"], true);
+        world.get_mut::<LinearVelocity>(character).unwrap().0.z = -2.0;
+        world.resource_mut::<ManualIntegrationState>().game_time_seconds = 0.8;
+        world.run_system_once(observe).unwrap();
+        let sample = world.resource::<ManualIntegrationGateReport>().stairs_trace.last().unwrap();
+        assert_eq!(sample.frame.velocity.z, -2.0);
+        assert_eq!(sample.animation_speed, 1.75);
+    }
 }
 
 pub(super) fn drive(
     mut state: ResMut<ManualIntegrationState>,
     mut phase_evidence: ResMut<ManualRuntimePhaseEvidence>,
-    mut animation_window: ResMut<ManualAnimationWindowEvidence>,
     stairs: Query<(&Collider, &GlobalTransform, &PlaygroundMeshColliderBuilt)>,
     mut characters: Query<(&mut AlsInputOverride, &mut Transform, &mut Position, Option<&mut Rotation>, &mut LinearVelocity,
         &mut AlsViewYaw, &mut AlsViewPitch, &Stance, &LocomotionState, &AlsDesiredGait, &AlsLastFreeRotationMode, &RotationMode), With<AlsCharacter>>,
@@ -274,16 +320,112 @@ pub(super) fn drive(
         position: position.0, velocity: velocity.0, locomotion: *locomotion, stance: *stance,
         desired_gait: gait.0, desired_mode: desired_mode.0, current_mode: *mode, view_yaw: yaw.0,
     });
-    let traversing = state.stairs_probe.stage == Stage::Traverse;
-    *animation_window = ManualAnimationWindowEvidence {
-        label: Some("stairs"), settled: traversing, capture_source_window: traversing,
-        requires_pre_rig_motion: traversing, requires_final_pose_motion: traversing,
-        requires_non_reference_root_pose: true, source_node: Some("AB_Als_Standing/Standing States"),
-        source_state: Some("Grounded stair traversal"), ..default()
-    };
     if let Some(failure) = &state.stairs_probe.failure {
         error!("[MANUAL-INTEGRATION][STAIRS] {failure}");
         state.timed_out = true;
         begin_phase(&mut state, IntegrationPhase::Finish);
     }
+}
+
+const WINDOWS: [[&str; 3]; 6] = [
+    ["stairs_01_up_walk", "stairs_01_up_run", "stairs_01_up_sprint"],
+    ["stairs_01_down_walk", "stairs_01_down_run", "stairs_01_down_sprint"],
+    ["stairs_02_up_walk", "stairs_02_up_run", "stairs_02_up_sprint"],
+    ["stairs_02_down_walk", "stairs_02_down_run", "stairs_02_down_sprint"],
+    ["stairs_03_up_walk", "stairs_03_up_run", "stairs_03_up_sprint"],
+    ["stairs_03_down_walk", "stairs_03_down_run", "stairs_03_down_sprint"],
+];
+
+#[derive(Clone, Debug, Serialize, PartialEq)]
+pub struct Sample {
+    route_index: usize,
+    mesh: &'static str,
+    stage: Stage,
+    elapsed_seconds: f64,
+    simulation_delta_seconds: f32,
+    distance_m: f32,
+    route_length_m: f32,
+    input: Vec2,
+    rotation_hotkey: bool,
+    actual_gait: Gait,
+    #[serde(flatten)]
+    frame: Frame,
+    expected_speed: f32,
+    animation_speed: f32,
+    safe_move: bool,
+    displacement_speed: Option<f32>,
+    movement_state: Option<u8>,
+    movement_pose_ready: Option<bool>,
+    standing_pose_ready: Option<bool>,
+    gait_started_seconds: f64,
+}
+
+impl Sample {
+    fn stable(&self) -> bool {
+        self.stage == Stage::Traverse && self.input.length() >= 0.999
+            && self.elapsed_seconds - self.gait_started_seconds >= 0.5
+    }
+
+    fn gait_index(&self) -> usize {
+        match self.frame.desired_gait { Gait::Walking => 0, Gait::Running => 1, Gait::Sprinting => 2 }
+    }
+
+}
+
+pub(super) fn observe(
+    state: Res<ManualIntegrationState>,
+    mut report: ResMut<ManualIntegrationGateReport>,
+    mut window: ResMut<ManualAnimationWindowEvidence>,
+    characters: Query<(&Position, &LinearVelocity, &LocomotionState, &Stance, &AlsDesiredGait, &Gait,
+        &AlsLastFreeRotationMode, &RotationMode, &AlsViewYaw, &AlsInputOverride, &AlsActualMotion,
+        &als_core::character::AlsCmcAdapterRuntime, &AlsMovementParamsHandle, &AlsStandingGraphTelemetry), With<AlsCharacter>>,
+    params: Res<Assets<AlsMovementParams>>,
+) {
+    if state.stairs_probe.index >= 6 { return; }
+    let Some(character) = state.character else { return; };
+    let Ok((position, velocity, locomotion, stance, desired_gait, gait, desired_mode, mode, yaw, input, motion, cmc, handle, telemetry)) = characters.get(character) else { return; };
+    let Some(route) = state.stairs_probe.route else { return; };
+    let Some(params) = params.get(handle.id()) else { return; };
+    let index = state.stairs_probe.index;
+    let stage = state.stairs_probe.stage;
+    let now = state.game_time_seconds;
+    let (start, end) = route.endpoints(index);
+    let direction = (end - start).with_y(0.0).normalize();
+    let previous = report.stairs_trace.last().filter(|sample| sample.route_index == index);
+    let sample = Sample {
+        route_index: index, mesh: MESHES[index / 2], stage, elapsed_seconds: now,
+        simulation_delta_seconds: cmc.simulation_delta_seconds,
+        distance_m: (position.0 - start).dot(direction), route_length_m: (end - start).with_y(0.0).length(),
+        input: input.0.move_dir, rotation_hotkey: input.0.rotation_mode_pressed, actual_gait: *gait,
+        frame: Frame { position: position.0, velocity: velocity.0, locomotion: *locomotion, stance: *stance,
+            desired_gait: desired_gait.0, desired_mode: desired_mode.0, current_mode: *mode, view_yaw: yaw.0 },
+        expected_speed: als_core::motion::gait_max_speed(params, stance, &desired_gait.0),
+        animation_speed: motion.horizontal_speed, safe_move: cmc.grounded_move_start.is_some(),
+        displacement_speed: previous.filter(|_| cmc.simulation_delta_seconds > 0.0)
+            .map(|previous| (position.0 - previous.frame.position).with_y(0.0).length() / cmc.simulation_delta_seconds),
+        movement_state: telemetry.actual_movement_state, movement_pose_ready: telemetry.actual_movement_pose_ready,
+        standing_pose_ready: telemetry.actual_standing_pose_ready,
+        gait_started_seconds: previous.filter(|sample| sample.frame.desired_gait == desired_gait.0
+            && sample.stage == Stage::Traverse && stage == Stage::Traverse)
+            .map_or(now, |sample| sample.gait_started_seconds),
+    };
+    if sample.stable() {
+        *window = ManualAnimationWindowEvidence {
+            label: Some(WINDOWS[index][sample.gait_index()]), settled: true,
+            capture_source_window: true, capture_every_frame: true,
+            requires_pre_rig_motion: true, requires_final_pose_motion: true,
+            requires_non_reference_root_pose: true, requires_source_pose_chain: true,
+            source_node: Some("AB_Als_Standing/AnimGraph"), source_state: Some("Grounded stair traversal"),
+            source_pose_chain: generated_standing_source_pose_chain(),
+            minimum_pre_rig_rotation_span_radians: 0.05, minimum_final_rotation_span_radians: 0.05,
+            minimum_observation_seconds: 0.12,
+            expected_runtime_state: Some(0), observed_runtime_state: telemetry.actual_movement_state,
+            expected_direction: Some("Forward"), observed_direction: telemetry.actual_movement_state
+                .and_then(movement_direction_from_fsm_index).map(movement_direction_name),
+            observed_parent_runtime_state: telemetry.actual_standing_state,
+            observed_parent_transition_active: telemetry.actual_standing_transition_active,
+            ..default()
+        };
+    }
+    report.stairs_trace.push(sample);
 }

@@ -1246,6 +1246,91 @@ def camera_trace_issues(report):
     return issues
 
 
+def stairs_trace_issues(report):
+    if report.get("case") != "stairs":
+        return []
+    samples = report.get("manual_integration", {}).get("stairs_trace")
+    if not isinstance(samples, list) or not samples or not all(isinstance(value, dict) for value in samples):
+        return ["stairs frame evidence is missing"]
+    issues = []
+    speeds = {"Walking": 1.75, "Running": 3.75, "Sprinting": 6.5}
+    windows = {value.get("label") for value in report.get("motion_windows", [])}
+    for route in range(6):
+        frames = [value for value in samples if value.get("route_index") == route]
+        prefix = f"stairs_{route // 2 + 1:02}_{'up' if route % 2 == 0 else 'down'}"
+        if not frames:
+            issues.append(f"{prefix}: route evidence is missing")
+            continue
+        if not all(value.get("mesh") == f"SM_Als_Stairs_{route // 2 + 1:02}" for value in frames):
+            issues.append(f"{prefix}: source mesh does not match")
+        counts = dict.fromkeys(speeds, 0)
+        modes = set()
+        hotkeys = set()
+        previous = None
+        gait_started = 0.0
+        distances = []
+        route_length = None
+        for frame in frames:
+            required = ("elapsed_seconds", "simulation_delta_seconds", "distance_m", "route_length_m", "expected_speed", "animation_speed")
+            if not all(finite(frame.get(key)) for key in required) or not all(
+                isinstance(frame.get(key), list) and len(frame[key]) == length and all(finite(value) for value in frame[key])
+                for key, length in (("position", 3), ("velocity", 3), ("input", 2))
+            ):
+                issues.append(f"{prefix}: frame values are invalid")
+                break
+            now = frame["elapsed_seconds"]
+            delta = frame["simulation_delta_seconds"]
+            if delta <= 0.0 or frame["route_length_m"] <= 0.0 or (previous and now <= previous["elapsed_seconds"]):
+                issues.append(f"{prefix}: frame time or route length is invalid")
+                break
+            route_length = frame["route_length_m"]
+            distances.append(frame["distance_m"])
+            desired = frame.get("desired_gait")
+            traversing = frame.get("stage") == "Traverse"
+            if not previous or previous.get("desired_gait") != desired or previous.get("stage") != "Traverse" or not traversing:
+                gait_started = now
+            if traversing and frame.get("locomotion") != "Grounded":
+                issues.append(f"{prefix}: stair traversal became airborne")
+                break
+            if frame.get("stage") in ("VelocityMode", "ViewMode"):
+                mode = frame.get("current_mode")
+                if mode == frame.get("desired_mode") and frame.get("locomotion") == "Grounded":
+                    modes.add(mode)
+                    if frame.get("rotation_hotkey") is True:
+                        hotkeys.add(mode)
+            if traversing and math.hypot(*frame["input"]) >= 0.999 and now - gait_started >= 0.5 - 1e-8:
+                expected = speeds.get(desired)
+                if expected is None or abs(frame["expected_speed"] - expected) > 1e-5:
+                    issues.append(f"{prefix}: source gait speed does not match")
+                    break
+                if frame.get("actual_gait") != desired or frame.get("movement_state") != 0 or frame.get("movement_pose_ready") is not True or frame.get("standing_pose_ready") is not True:
+                    issues.append(f"{prefix}: {desired} animation state or pose is invalid")
+                    break
+                speed = math.hypot(frame["velocity"][0], frame["velocity"][2])
+                moved = math.hypot(frame["position"][0] - previous["position"][0], frame["position"][2] - previous["position"][2]) / delta
+                loss = 0.1
+                if frame.get("safe_move") is True:
+                    distance = expected * delta
+                    loss = max(loss, (min(max(distance * 0.1, 0.001), 0.01) + distance * 0.001 + 0.0015) / delta + 0.001)
+                if not finite(frame.get("displacement_speed")) or abs(frame["displacement_speed"] - moved) > 0.001 or abs(frame["animation_speed"] - speed) > 0.001:
+                    issues.append(f"{prefix}: displacement, physics and animation speeds disagree")
+                    break
+                if not all(expected - loss <= value <= expected + 0.1 for value in (speed, moved)) or (frame.get("safe_move") is True and abs(speed - moved) > 0.001):
+                    issues.append(f"{prefix}: {desired} speed exceeds the source sweep bounds")
+                    break
+                counts[desired] += 1
+            previous = frame
+        if not distances or min(distances) > 0.15 or max(distances) < route_length - 0.15:
+            issues.append(f"{prefix}: complete stair travel is missing")
+        if modes != {"VelocityDirection", "ViewDirection"} or hotkeys != modes:
+            issues.append(f"{prefix}: rotation hotkey recovery is missing")
+        if any(count < 3 for count in counts.values()):
+            issues.append(f"{prefix}: stable walk, run or sprint evidence is missing")
+        if not all(f"{prefix}_{gait}" in windows for gait in ("walk", "run", "sprint")):
+            issues.append(f"{prefix}: source pose windows are missing")
+    return issues
+
+
 def manual_integration_issues(report):
     if report.get("case") == "startup":
         return []
@@ -1276,6 +1361,7 @@ def manual_integration_issues(report):
             if result.get("covered") is not True:
                 issues.append("manual integration result is not covered")
     issues.extend(camera_trace_issues(report))
+    issues.extend(stairs_trace_issues(report))
     return issues
 
 
@@ -1818,7 +1904,68 @@ def add_dynamic_window_samples(report, labels):
         )
 
 
+def fixture_stairs_report():
+    frames = []
+    windows = []
+    for route in range(6):
+        now = route * 20.0
+        distance = 0.0
+        base = {
+            "route_index": route, "mesh": f"SM_Als_Stairs_{route // 2 + 1:02}",
+            "stage": "Ready", "elapsed_seconds": now, "simulation_delta_seconds": 0.1,
+            "distance_m": 0.0, "route_length_m": 17.3, "input": [0.0, 0.0],
+            "rotation_hotkey": False, "actual_gait": "Walking", "desired_gait": "Walking",
+            "position": [0.0, 0.9, 0.0], "velocity": [0.0, 0.0, 0.0],
+            "locomotion": "Grounded", "desired_mode": "ViewDirection", "current_mode": "ViewDirection",
+            "expected_speed": 1.75, "animation_speed": 0.0, "safe_move": False,
+            "displacement_speed": None, "movement_state": 0, "movement_pose_ready": True, "standing_pose_ready": True,
+        }
+        frames.append(base.copy())
+        for gait, speed, count in (("Walking", 1.75, 22), ("Running", 3.75, 12), ("Sprinting", 6.5, 10), ("Walking", 1.75, 14)):
+            for _ in range(count):
+                now += 0.1
+                distance += speed * 0.1
+                frames.append({**base, "stage": "Traverse", "elapsed_seconds": now, "distance_m": distance,
+                    "input": [0.0, 1.0], "actual_gait": gait, "desired_gait": gait, "expected_speed": speed,
+                    "position": [0.0, 0.9, -distance], "velocity": [0.0, 0.0, -speed],
+                    "animation_speed": speed, "displacement_speed": speed})
+        for mode in ("VelocityDirection", "ViewDirection"):
+            now += 0.1
+            frames.append({**base, "stage": "VelocityMode" if mode == "VelocityDirection" else "ViewMode",
+                "elapsed_seconds": now, "distance_m": distance, "position": [0.0, 0.9, -distance],
+                "desired_mode": mode, "current_mode": mode, "rotation_hotkey": True})
+        prefix = f"stairs_{route // 2 + 1:02}_{'up' if route % 2 == 0 else 'down'}"
+        windows.extend({"label": f"{prefix}_{gait}"} for gait in ("walk", "run", "sprint"))
+    return {"case": "stairs", "manual_integration": {"scenario": "Stairs", "timed_out": False,
+        "completed": True, "passed": True, "results": [{"name": "stairs_progress", "covered": True, "detail": "covered"}],
+        "stairs_trace": frames}, "motion_windows": windows}
+
+
 def run_self_test():
+    stairs = fixture_stairs_report()
+    assert not stairs_trace_issues(stairs), stairs_trace_issues(stairs)
+    assert not manual_integration_issues(stairs), manual_integration_issues(stairs)
+    for key, value in (("animation_speed", 0.0), ("movement_pose_ready", False),
+        ("locomotion", "Air"), ("position", [0.0, 0.9, -100.0]), ("expected_speed", 100.0), ("velocity", [0.0, 0.0, 0.0])):
+        invalid = copy.deepcopy(stairs)
+        invalid["manual_integration"]["stairs_trace"][8][key] = value
+        assert stairs_trace_issues(invalid), key
+        assert manual_integration_issues(invalid), key
+    for missing in ("route", "sprint", "hotkey", "window", "frames"):
+        invalid = copy.deepcopy(stairs)
+        trace = invalid["manual_integration"]["stairs_trace"]
+        if missing == "route":
+            trace[:] = [frame for frame in trace if frame["route_index"] != 5]
+        elif missing == "sprint":
+            trace[:] = [frame for frame in trace if frame["desired_gait"] != "Sprinting"]
+        elif missing == "hotkey":
+            for frame in trace:
+                frame["rotation_hotkey"] = False
+        elif missing == "window":
+            invalid["motion_windows"].pop()
+        else:
+            trace.clear()
+        assert stairs_trace_issues(invalid), missing
     camera = {"valid": True, "trace_blocking_hit": True, "trace_adjustment_resolved": True,
         "trace_adjustment_count": 2, "trace_distance_ratio": 0.4, "trace_radius": 0.15,
         "first_person_override": 0.0, "unscaled_delta_seconds": 0.016,
@@ -2492,6 +2639,8 @@ def run_self_test():
         assert not audit(report, 2)["pass"]
     return {
         "runtime_report_and_png_checked": "PASS",
+        "stairs_source_speed_and_pose_windows_checked": "PASS",
+        "stairs_missing_routes_gaits_and_hotkey_recovery_rejected": "PASS",
         "fault_rejected": "PASS",
         "startup_graph_error_rejected": "PASS",
         "structured_graph_failure_reported": "PASS",

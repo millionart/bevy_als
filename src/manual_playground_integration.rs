@@ -492,6 +492,8 @@ pub struct ManualIntegrationGateReport {
     pub direction_trace: Vec<serde_json::Value>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub camera_trace: Vec<ManualCameraTraceSample>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub stairs_trace: Vec<stairs::Sample>,
 }
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -526,6 +528,10 @@ impl Plugin for ManualPlaygroundIntegrationPlugin {
                     .after(bevy_enhanced_input::prelude::EnhancedInputSystems::Apply),
             )
             .add_systems(PreUpdate, stairs::drive.after(drive_manual_integration))
+            .add_systems(PostUpdate, stairs::observe
+                .run_if(|state: Res<ManualIntegrationState>| state.phase == IntegrationPhase::Stairs)
+                .after(AlsCameraSet).after(AlsRotationResponseSet).after(FootIkApplySet::Telemetry)
+                .before(observe_manual_integration).in_set(ManualIntegrationObservationSet))
             .add_systems(
                 PostUpdate,
                 (drive_control_rig_view_offset, drive_manual_rig_curves)
