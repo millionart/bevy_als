@@ -349,6 +349,8 @@ struct LocalMotionBoneSample {
 #[derive(Resource, Default)]
 struct AnimationVisualPreRigPose {
     bones: BTreeMap<String, LocalBonePose>,
+    global_bones: BTreeMap<String, FinalBone>,
+    root_position: Vec3,
     delta_seconds: f32,
 }
 
@@ -624,6 +626,8 @@ struct PoseSample {
     stance: Option<String>,
     rotation_mode: Option<String>,
     bones: BTreeMap<String, BoneSample>,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pre_rig_bones: BTreeMap<String, BoneSample>,
     segments: BTreeMap<String, f32>,
     foot_ik: Option<FootIkSample>,
     ragdoll_root_space: Option<RagdollRootSpaceSample>,
@@ -1382,20 +1386,23 @@ fn capture_animation_visual_pre_rig_pose(
     time: Res<Time>,
     mut pre_rig: ResMut<AnimationVisualPreRigPose>,
     avatars: Query<&AnimatedSceneInstance, With<AlsCharacterAvatar>>,
-    players: Query<&AnimationGraphPlayer>,
+    players: Query<(&AnimationGraphPlayer, &GlobalTransform)>,
     graphs: Res<Assets<AnimationGraph>>,
     skeletons: Res<Assets<Skeleton>>,
 ) {
     pre_rig.bones.clear();
+    pre_rig.global_bones.clear();
     pre_rig.delta_seconds = time.delta_secs();
     let Ok(instance) = avatars.single() else { return; };
-    let Ok(player) = players.get(instance.player_entity()) else { return; };
+    let Ok((player, player_world)) = players.get(instance.player_entity()) else { return; };
     let Some((context, node, _)) = als_ext::root_graph_boundaries::current_control_rig(player, &graphs) else { return; };
     let rig = node.try_inner_downcast_ref::<als_ext::root_graph_boundaries::ControlRigBoundaryNode>().unwrap();
     let Some(graph) = graphs.get(context.get_graph_id()) else { return; };
     let Some(SourcePin::NodeData(source, pin)) = graph.edges_inverted.get(&TargetPin::NodeData(node.id, rig.pose_input.clone())) else { return; };
     let Some(DataValue::Pose(pose)) = context.node_caches.get_output_data(*source, StateKey::Default, pin.clone()) else { return; };
     let Some(skeleton) = skeletons.get(&pose.skeleton) else { return; };
+    pre_rig.global_bones = pose_global_bones(&pose, skeleton, player_world);
+    pre_rig.root_position = player_world.translation();
     for path in skeleton.iter_paths() {
         let Some(name) = path.parts.last() else { continue; };
         if !REQUIRED_BONES.contains(&name.as_str()) { continue; }
@@ -1407,6 +1414,32 @@ fn capture_animation_visual_pre_rig_pose(
             scale: bone.and_then(|bone| bone.scale).unwrap_or(reference.local.scale),
         });
     }
+}
+
+fn pose_global_bones(pose: &Pose, skeleton: &Skeleton, root: &GlobalTransform) -> BTreeMap<String, FinalBone> {
+    let mut output = BTreeMap::new();
+    for path in skeleton.iter_paths() {
+        let Some(name) = path.parts.last() else { continue; };
+        if !REQUIRED_BONES.contains(&name.as_str()) { continue; }
+        let mut chain = Vec::new();
+        let mut current = Some(path.id());
+        for _ in 0..path.parts.len() {
+            let Some(id) = current else { break; };
+            chain.push(id);
+            current = skeleton.parent(&id);
+        }
+        let mut matrix = root.to_matrix();
+        let mut local_scale = Vec3::ONE;
+        for id in chain.into_iter().rev() {
+            let Some(reference) = skeleton.default_transforms(id) else { continue; };
+            let local = pose.get_bone(id).map_or(reference.local, |bone| bone.to_transform_with_base(reference.local));
+            matrix *= local.to_matrix();
+            local_scale = local.scale;
+        }
+        let (scale, rotation, translation) = matrix.to_scale_rotation_translation();
+        output.insert(name.to_string(), (translation, rotation, scale, local_scale));
+    }
+    output
 }
 
 fn rotation_delta_radians(previous: Quat, current: Quat) -> f32 {
@@ -2740,6 +2773,13 @@ fn segment_name(first: &str, second: &str) -> String {
     format!("{first}->{second}")
 }
 
+fn bone_samples(bones: &BTreeMap<String, FinalBone>) -> BTreeMap<String, BoneSample> {
+    bones.iter().map(|(name, (translation, rotation, scale, local_scale))| (name.clone(), BoneSample {
+        translation: translation.to_array().map(safe), rotation: rotation.to_array().map(safe),
+        scale: scale.to_array().map(safe), local_scale: local_scale.to_array().map(safe),
+    })).collect()
+}
+
 fn snapshot(
     elapsed_secs: f64,
     frame_ms: f64,
@@ -2755,33 +2795,7 @@ fn snapshot(
     ragdoll_root_space: Option<&RagdollRootSpaceSample>,
     root_pose: RootPoseActivity,
 ) -> PoseSample {
-    let bones = bones
-        .iter()
-        .map(|(name, (translation, rotation, scale, local_scale))| {
-            (
-                name.clone(),
-                BoneSample {
-                    translation: [
-                        safe(translation.x),
-                        safe(translation.y),
-                        safe(translation.z),
-                    ],
-                    rotation: [
-                        safe(rotation.x),
-                        safe(rotation.y),
-                        safe(rotation.z),
-                        safe(rotation.w),
-                    ],
-                    scale: [safe(scale.x), safe(scale.y), safe(scale.z)],
-                    local_scale: [
-                        safe(local_scale.x),
-                        safe(local_scale.y),
-                        safe(local_scale.z),
-                    ],
-                },
-            )
-        })
-        .collect::<BTreeMap<_, _>>();
+    let bones = bone_samples(bones);
     let segments = SEGMENTS
         .iter()
         .filter_map(|(first, second)| {
@@ -2806,6 +2820,7 @@ fn snapshot(
         stance: stance.map(str::to_owned),
         rotation_mode: rotation_mode.map(str::to_owned),
         bones,
+        pre_rig_bones: BTreeMap::new(),
         segments,
         foot_ik: foot_ik.cloned(),
         ragdoll_root_space: ragdoll_root_space.cloned(),
@@ -3536,8 +3551,8 @@ fn collect_animation_visual_evidence(
     let (pre_rig_metrics, final_metrics) = if temporal_observable {
         let pre_rig = state.temporal_pre_rig_guard.observe(
             &pre_rig.bones,
-            &BTreeMap::<String, FinalBone>::new(),
-            Vec3::ZERO,
+            &pre_rig.global_bones,
+            pre_rig.root_position,
             frame_seconds,
         );
         let final_pose =
@@ -3630,6 +3645,7 @@ fn collect_animation_visual_evidence(
                 root_pose,
             );
             sample.segments = segments.clone();
+            sample.pre_rig_bones = bone_samples(&pre_rig.global_bones);
             state.pose_samples.push(sample);
             if let Some(evidence) = animation_window.as_deref() {
                 if record_motion_window(
@@ -3821,6 +3837,35 @@ mod tests {
     use super::*;
 
     #[test]
+    fn pre_rig_global_motion_includes_current_ancestor_rotations() {
+        use bevy_animation_graph::core::animation_clip::EntityPath;
+        let root_path = EntityPath::from(vec!["pelvis".to_owned()]);
+        let spine_path = EntityPath::from(vec!["pelvis".to_owned(), "spine_01".to_owned()]);
+        let hand_path = EntityPath::from(vec!["pelvis".to_owned(), "spine_01".to_owned(), "hand_l".to_owned()]);
+        let mut skeleton = Skeleton::default();
+        skeleton.add_bone(root_path.clone(), Transform::IDENTITY, Transform::IDENTITY);
+        skeleton.add_bone(spine_path.clone(), Transform::from_translation(Vec3::X), Transform::from_translation(Vec3::X));
+        skeleton.add_bone(hand_path.clone(), Transform::from_translation(Vec3::X), Transform::from_translation(Vec3::X * 2.0));
+        skeleton.set_root(root_path.id());
+        let world = GlobalTransform::from(Transform::from_xyz(8.0,2.0,-4.0).with_rotation(Quat::from_rotation_y(0.3)).with_scale(Vec3::splat(1.2)));
+        let mut pose = Pose::default();
+        let before = pose_global_bones(&pose, &skeleton, &world);
+        assert!(before["hand_l"].0.abs_diff_eq(world.transform_point(Vec3::X * 2.0), 1e-5));
+        let rotation = Quat::from_rotation_z(0.7);
+        pose.add_bone(BonePose { rotation:Some(rotation), ..default() }, root_path.id());
+        pose.add_bone(BonePose { rotation:Some(rotation), ..default() }, spine_path.id());
+        let after = pose_global_bones(&pose, &skeleton, &world);
+        let expected = rotation * Vec3::X + rotation * rotation * Vec3::X;
+        assert!(after["hand_l"].0.abs_diff_eq(world.transform_point(expected), 1e-5));
+        let mut guard = TemporalSkeletonGuard::default();
+        guard.observe(&BTreeMap::new(), &before, world.translation(), 0.08);
+        let metrics = guard.observe(&BTreeMap::new(), &after, world.translation(), 0.08).metrics;
+        assert!(metrics.iter().any(|metric| metric.kind == "global_position_speed" && metric.subject == "hand_l"));
+        let sample = bone_samples(&after);
+        assert_eq!(sample["hand_l"].translation, after["hand_l"].0.to_array());
+    }
+
+    #[test]
     fn pre_rig_capture_uses_current_graph_input_and_skeleton_defaults() {
         use bevy::{ecs::system::RunSystemOnce, world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner}};
         use bevy_animation_graph::{AnimationGraphPlugin, core::{animated_scene::AnimatedSceneHandle,
@@ -3879,12 +3924,14 @@ mod tests {
         assert_eq!(captured.translation, Vec3::new(0.2, 0.4, 0.0));
         assert_eq!(captured.rotation, reference.rotation);
         assert_eq!(captured.scale, reference.scale);
+        assert!(app.world().resource::<AnimationVisualPreRigPose>().global_bones.contains_key("hand_l"));
         assert_eq!(app.world().resource::<AnimationVisualPreRigPose>().bones["spine_01"].rotation, spine_reference);
         let output = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap().get_default_output_pose().unwrap();
         assert!(rotation_delta_radians(spine_reference, output.get_bone(spine.id()).unwrap().rotation.unwrap()) > 0.05);
         app.world_mut().get_mut::<AnimationGraphPlayer>(player_entity).unwrap().start(graph);
         app.world_mut().run_system_once(capture_animation_visual_pre_rig_pose).unwrap();
         assert!(app.world().resource::<AnimationVisualPreRigPose>().bones.is_empty());
+        assert!(app.world().resource::<AnimationVisualPreRigPose>().global_bones.is_empty());
     }
 
     #[test]
