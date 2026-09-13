@@ -253,7 +253,8 @@ pub(super) fn observe(
         "platform_velocity":platform_velocity.0,"position":position.0,"rotation":transform.rotation,"local":local,
         "velocity":velocity.0,"own_velocity":own.world_velocity,"mode":mode,"base_matches":same_base,"has_base":base.entity.is_some(),
         "jump_pressed":input.0.jump_pressed,"input":input.0.move_dir,"mantle_active":mantle.active,"root_motion_ready":mantle.root_motion_ready,
-        "mantle_time":mantle.time,"expected_position":expected.map(|value| value.translation),"graph":graph,
+        "mantle_time":mantle.time,"expected_position":expected.map(|value| value.translation),
+        "expected_rotation":expected.map(|value| value.rotation),"graph":graph,
     }));
     if matches!(stage, Stage::Exit | Stage::Flight) {
         *window = ManualAnimationWindowEvidence {

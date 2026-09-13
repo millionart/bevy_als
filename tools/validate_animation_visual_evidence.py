@@ -1406,6 +1406,88 @@ def uphill_trace_issues(report):
     return issues
 
 
+def moving_base_trace_issues(report):
+    if report.get("case") != "moving_base":
+        return []
+    rows = report.get("manual_integration", {}).get("moving_base_trace")
+    if not isinstance(rows, list) or len(rows) < 2:
+        return ["moving base frame evidence is missing"]
+    vectors = ("platform", "position", "local", "velocity", "own_velocity", "platform_velocity")
+    for row in rows:
+        if not isinstance(row, dict) or not finite(row.get("time")) or any(
+            not isinstance(row.get(key), list) or len(row[key]) != 3 or not all(finite(value) for value in row[key]) for key in vectors
+        ):
+            return ["moving base frame data is invalid"]
+    if any(second["time"] <= first["time"] for first, second in zip(rows, rows[1:])):
+        return ["moving base frame time is not increasing"]
+    source = read_json(Path(__file__).resolve().parents[1] / "assets/models/playground/moving_actors.runtime.json")
+    actor = next(actor for actor in source["actors"] if actor["name"] == "BP_SimpleMovingObject2")
+    period = actor["duration"] * 2.0
+    span = math.dist(actor["start"], actor["end"])
+    issues = []
+    stages = {name: index for index, name in enumerate(("Place", "Settle", "Ride", "Exit", "Flight", "PrepareMantle", "WaitMantle", "Mantle", "AfterMantle", "Done"))}
+    if any(row.get("stage") not in stages for row in rows) or any(stages[second["stage"]] < stages[first["stage"]] for first, second in zip(rows, rows[1:])):
+        issues.append("moving base phase order differs")
+    if any(row.get("object") != "Moving:BP_SimpleMovingObject2" or row.get("body") != rows[0].get("body")
+           or row.get("collider") != rows[0].get("collider") or not row.get("body") or not row.get("collider") for row in rows):
+        issues.append("moving base source object identity differs")
+    if any(not finite(row.get("period")) or abs(row["period"] - period) > 1e-5
+           or not finite(row.get("span")) or abs(row["span"] - span) > 1e-5 for row in rows):
+        issues.append("moving base source period or span differs")
+    if any(math.dist([p - b for p, b in zip(row["position"], row["platform"])], row["local"]) > 0.001
+           or (angle := quaternion_distance(row.get("platform_rotation"), [0.0, 0.0, 0.0, 1.0])) is None or angle > 1e-5 for row in rows):
+        issues.append("moving base coordinate evidence differs")
+    direction = [end - start for start, end in zip(actor["start"], actor["end"])]
+    for row in rows:
+        fraction = sum((value - start) * delta for value, start, delta in zip(row["platform"], actor["start"], direction)) / (span * span)
+        if not -1e-5 <= fraction <= 1.00001 or math.dist(row["platform"], [start + delta * fraction for start, delta in zip(actor["start"], direction)]) > 0.001:
+            issues.append("moving base left the source spline")
+            break
+    for stage in ("Ride", "AfterMantle"):
+        selected = [row for row in rows if row.get("stage") == stage]
+        if not selected or any(row.get("base_matches") is not True or row.get("mode") != "Grounded" for row in selected):
+            issues.append(f"moving base {stage} support evidence is incomplete")
+            continue
+        if stage == "AfterMantle":
+            last_moving = max((index for index, row in enumerate(selected) if math.hypot(row["own_velocity"][0], row["own_velocity"][2]) >= 0.01), default=-1)
+            selected = selected[last_moving + 1:]
+        if not selected or selected[-1]["time"] - selected[0]["time"] < period:
+            issues.append(f"moving base {stage} did not cover a full source cycle")
+            continue
+        travel = math.sqrt(sum((max(row["platform"][axis] for row in selected) - min(row["platform"][axis] for row in selected)) ** 2 for axis in range(3)))
+        anchor = selected[0]["local"]
+        if travel < span * 0.9 or any(math.hypot(row["local"][0] - anchor[0], row["local"][2] - anchor[2]) > 0.001
+            or math.hypot(row["own_velocity"][0], row["own_velocity"][2]) > 0.01 for row in selected):
+            issues.append(f"moving base {stage} transport differs")
+    flight = [row for row in rows if row.get("stage") == "Flight"]
+    if sum(row.get("jump_pressed") is True for row in flight) != 1 or not any(
+        row.get("mode") == "Air" and row.get("has_base") is False for row in flight
+    ) or not any(row.get("mode") == "Grounded" and row.get("has_base") is True and row.get("base_matches") is False for row in flight):
+        issues.append("moving base jump and new support evidence is incomplete")
+    mantle = [row for row in rows if row.get("stage") == "Mantle"]
+    triggers = [row for row in mantle if row.get("jump_pressed") is True]
+    if len(triggers) != 1 or math.dist(triggers[0]["platform_velocity"], [0.0, 0.0, 0.0]) > 0.10001:
+        issues.append("moving base mantle source input or speed differs")
+    active = [row for row in mantle if row.get("root_motion_ready") is True and row.get("mode") == "Custom"]
+    if len(active) < 2 or active[-1]["time"] - active[0]["time"] < 0.2 or max(
+        (math.dist(row["platform"], active[0]["platform"]) for row in active), default=0.0
+    ) < 0.25:
+        issues.append("mantle did not follow a moving source target")
+    for row in active:
+        expected = row.get("expected_position")
+        angle = quaternion_distance(row.get("rotation"), row.get("expected_rotation"))
+        if not isinstance(expected, list) or len(expected) != 3 or not all(finite(value) for value in expected) \
+            or math.dist(row["position"], expected) > 0.001 or angle is None or angle > 0.001:
+            issues.append("mantle differs from the current target root transform")
+            break
+    if not any(row.get("mode") == "Grounded" and row.get("root_motion_ready") is False and row.get("base_matches") is True for row in mantle):
+        issues.append("mantle did not hand off to the current target")
+    labels = {window.get("label") for window in report.get("motion_windows", [])}
+    if not {"moving_base_jump", "mantle"}.issubset(labels):
+        issues.append("moving base source animation windows are missing")
+    return issues
+
+
 def manual_integration_issues(report):
     if report.get("case") == "startup":
         return []
@@ -1438,6 +1520,7 @@ def manual_integration_issues(report):
     issues.extend(camera_trace_issues(report))
     issues.extend(stairs_trace_issues(report))
     issues.extend(uphill_trace_issues(report))
+    issues.extend(moving_base_trace_issues(report))
     return issues
 
 
@@ -2040,7 +2123,86 @@ def fixture_uphill_report():
         "motion_windows":windows}
 
 
+def fixture_moving_base_report():
+    rows = []
+    def add(stage, time, distance, **changes):
+        platform = [19.0 - distance, 0.0, -28.75]
+        position = [platform[0], 1.924, platform[2] + 0.7]
+        row = dict(stage=stage, time=time, body="body", collider="collider", object="Moving:BP_SimpleMovingObject2",
+            period=3.5, span=6.5, platform=platform, platform_rotation=[0.0, 0.0, 0.0, 1.0], position=position,
+            rotation=[0.0, 0.0, 0.0, 1.0], velocity=[0.0, 0.0, 0.0], own_velocity=[0.0, 0.0, 0.0],
+            platform_velocity=[0.05, 0.0, 0.0], mode="Grounded", base_matches=True, has_base=True,
+            jump_pressed=False, root_motion_ready=False, expected_position=position[:], expected_rotation=[0.0, 0.0, 0.0, 1.0])
+        row.update(changes)
+        row["local"] = [value - base for value, base in zip(row["position"], row["platform"])]
+        rows.append(row)
+    for time, distance in enumerate([0.0, 3.25, 6.5, 3.25, 0.0]):
+        add("Ride", time, distance)
+    add("Flight", 5.0, 0.2, jump_pressed=True, mode="Air", has_base=False, base_matches=False)
+    add("Flight", 5.5, 0.5, mode="Air", has_base=False, base_matches=False)
+    add("Flight", 6.0, 1.0, has_base=True, base_matches=False)
+    add("Mantle", 7.0, 1.1, jump_pressed=True, root_motion_ready=True, mode="Custom")
+    add("Mantle", 7.3, 1.5, root_motion_ready=True, mode="Custom")
+    add("Mantle", 7.8, 2.0, root_motion_ready=True, mode="Custom")
+    add("Mantle", 8.0, 2.2)
+    for time, distance in enumerate([2.2, 0.0, 4.0, 6.5, 2.2], 9):
+        add("AfterMantle", time, distance)
+    return {"case":"moving_base", "manual_integration":{"scenario":"MovingBase", "timed_out":False,
+        "completed":True, "passed":True, "results":[{"name":"moving_base_progress","covered":True,"detail":"covered"}],
+        "moving_base_trace":rows}, "motion_windows":[{"label":"moving_base_jump"},{"label":"mantle"}]}
+
+
 def run_self_test():
+    moving = fixture_moving_base_report()
+    assert not manual_integration_issues(moving), manual_integration_issues(moving)
+    for issue in ("missing", "identity", "stationary", "drift", "support", "no_jump", "no_new_base", "speed",
+                  "frozen_actor", "missing_expected", "rotation", "no_handoff", "duplicate_input", "short_cycle", "window", "source_path", "phase_order", "source_period", "invalid_rotation"):
+        invalid = copy.deepcopy(moving)
+        rows = invalid["manual_integration"]["moving_base_trace"]
+        if issue == "missing":
+            invalid["manual_integration"].pop("moving_base_trace")
+        elif issue == "identity":
+            rows[0]["object"] = "replacement"
+        elif issue == "stationary":
+            for row in rows[:5]:
+                row["platform"] = rows[0]["platform"][:]
+                row["position"] = rows[0]["position"][:]
+        elif issue == "drift":
+            rows[1]["position"][0] += 0.1
+            rows[1]["local"][0] += 0.1
+        elif issue == "support":
+            rows[1]["base_matches"] = False
+        elif issue == "no_jump":
+            rows[5]["jump_pressed"] = False
+        elif issue == "no_new_base":
+            rows[7]["base_matches"] = True
+        elif issue == "speed":
+            rows[8]["platform_velocity"] = [1.0, 0.0, 0.0]
+        elif issue == "frozen_actor":
+            rows[9]["position"] = rows[8]["position"][:]
+            rows[9]["local"] = [p-b for p,b in zip(rows[9]["position"], rows[9]["platform"])]
+        elif issue == "missing_expected":
+            rows[9]["expected_position"] = None
+        elif issue == "rotation":
+            rows[9]["rotation"] = [0.0, 1.0, 0.0, 0.0]
+        elif issue == "no_handoff":
+            rows[11]["base_matches"] = False
+        elif issue == "duplicate_input":
+            rows[9]["jump_pressed"] = True
+        elif issue == "short_cycle":
+            rows.pop()
+        elif issue == "window":
+            invalid["motion_windows"].pop()
+        elif issue == "source_path":
+            rows[0]["platform"][2] += 10.0
+            rows[0]["position"][2] += 10.0
+        elif issue == "phase_order":
+            rows[3]["stage"] = "AfterMantle"
+        elif issue == "source_period":
+            rows[0]["period"] = 0.1
+        else:
+            rows[0]["platform_rotation"] = None
+        assert manual_integration_issues(invalid), issue
     uphill = fixture_uphill_report()
     assert not manual_integration_issues(uphill), manual_integration_issues(uphill)
     delayed_support = copy.deepcopy(uphill)
@@ -2780,6 +2942,7 @@ def run_self_test():
         "runtime_report_and_png_checked": "PASS",
         "stairs_source_speed_and_pose_windows_checked": "PASS",
         "uphill_capsule_landing_and_animation_recovery_checked": "PASS",
+        "moving_base_source_path_ride_jump_mantle_and_handoff_checked": "PASS",
         "stairs_missing_routes_gaits_and_hotkey_recovery_rejected": "PASS",
         "fault_rejected": "PASS",
         "startup_graph_error_rejected": "PASS",
