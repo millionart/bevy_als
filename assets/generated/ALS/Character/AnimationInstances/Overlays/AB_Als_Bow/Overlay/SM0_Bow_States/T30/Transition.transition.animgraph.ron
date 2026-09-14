@@ -1,0 +1,17 @@
+(
+    nodes: [
+        (id: "b10e275b-ff1c-520e-a55d-fbaf4b774d1b", name: "Ready to Relaxed", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [], alpha_blend_mode: Cubic, custom_curve: []) }, should_debug: false),
+    ],
+    edges_inverted: {
+        NodeData("b10e275b-ff1c-520e-a55d-fbaf4b774d1b", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),
+        NodeData("b10e275b-ff1c-520e-a55d-fbaf4b774d1b", "pose_a"): InputData(FromFsmSource("pose")),
+        NodeTime("b10e275b-ff1c-520e-a55d-fbaf4b774d1b", "time_a"): InputTime(FromFsmSource("time")),
+        NodeData("b10e275b-ff1c-520e-a55d-fbaf4b774d1b", "pose_b"): InputData(FromFsmTarget("pose")),
+        NodeTime("b10e275b-ff1c-520e-a55d-fbaf4b774d1b", "time_b"): InputTime(FromFsmTarget("time")),
+        OutputData("pose"): NodeData("b10e275b-ff1c-520e-a55d-fbaf4b774d1b", "pose"),
+        OutputTime: NodeTime("b10e275b-ff1c-520e-a55d-fbaf4b774d1b"),
+    },
+    io_spec: (input_times: [FromFsmSource("time"), FromFsmTarget("time")], input_data: { FsmBuiltin(PercentThroughDuration): F32, FromFsmSource("pose"): Pose, FromFsmTarget("pose"): Pose }, output_time: true, output_data: { "pose": Pose }, input_order: { Time(FromFsmSource("time")): 0, Time(FromFsmTarget("time")): 1, Data(FsmBuiltin(PercentThroughDuration)): 2, Data(FromFsmSource("pose")): 3, Data(FromFsmTarget("pose")): 4 }, output_order: { Data("pose"): 0, Time: 1 }),
+    default_data: {},
+    editor_metadata: (node_positions: { "b10e275b-ff1c-520e-a55d-fbaf4b774d1b": (328.000, 35.000) }, input_position: (0.0, 0.0), output_position: (0.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
+)

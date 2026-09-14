@@ -1,0 +1,32 @@
+(
+    nodes: [
+        (id: "82e8f763-4bc3-9ef3-4446-dfa9b1b73785", name: "AND Boolean", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [(name: "A", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "false", global_key: ""), (name: "B", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "false", global_key: "")], output_pins: [(name: "ReturnValue", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "false", global_key: "")], operation: "and", source_class: "/Script/BlueprintGraph.K2Node_CommutativeAssociativeBinaryOperator", source_properties: ["0", "True", "False", "(MemberParent=\"/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'\",MemberName=\"BooleanAND\",MemberGuid=00000000000000000000000000000000)", "Unset", "-208", "0", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "82E8F7634BC39EF34446DFA9B1B73785"]) }, should_debug: false),
+        (id: "6e26cf63-4f9f-f07f-f69e-c799ac133a07", name: "Current State Time (Bow States)", inner: { "als_ext::SourceAnimationStateGetterNode": (source_function: "GetInstanceCurrentStateElapsedTime", fsm_node: "d0197c96-4f9c-4a39-bc30-5d8d6f508036", state_id: "", output: "ReturnValue") }, should_debug: false),
+        (id: "8c95730a-4b04-6ac9-a1ee-cd9035939109", name: "float >= float", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [(name: "A", data_type: F32, f32_default: 0.0, bool_default: false, source_default: "", global_key: ""), (name: "B", data_type: F32, f32_default: 3.0, bool_default: false, source_default: "3.000000", global_key: "")], output_pins: [(name: "ReturnValue", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "", global_key: "")], operation: "greater_equal", source_class: "/Script/BlueprintGraph.K2Node_PromotableOperator", source_properties: ["GreaterEqual", "0", "True", "False", "(MemberParent=\"/Script/CoreUObject.Class'/Script/Engine.KismetMathLibrary'\",MemberName=\"GreaterEqual_DoubleDouble\",MemberGuid=00000000000000000000000000000000)", "Unset", "-432", "48", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "0", "8C95730A4B046AC9A1EECD9035939109"]) }, should_debug: false),
+        (id: "d8cfe1ea-47e2-2e8e-43a4-edbea302f91c", name: "Property Access", inner: { "als_ext::SourceScalarExpressionNode": (input_pins: [], output_pins: [(name: "Value", data_type: Bool, f32_default: 0.0, bool_default: false, source_default: "", global_key: "transitions_state.b_transitions_allowed")], operation: "global", source_class: "/Script/PropertyAccessNode.K2Node_PropertyAccess", source_properties: ["(\"GetParent\",\"TransitionsState\",\"bTransitionsAllowed\")", "GetParent.TransitionsState.bTransitionsAllowed", "(PinCategory=\"bool\",PinSubCategoryMemberReference=(MemberGuid=00000000000000000000000000000000),PinValueType=())", "None", "None", "-608", "-32", "0", "0", "NoPins", "Enabled", "False", "False", "False", "False", "False", "False", "False", "False", "False", "1", "D8CFE1EA47E22E8E43A4EDBEA302F91C"]) }, should_debug: false),
+    ],
+    edges_inverted: {
+        OutputData("bCanEnterTransition"): NodeData("82e8f763-4bc3-9ef3-4446-dfa9b1b73785", "ReturnValue"),
+        NodeData("82e8f763-4bc3-9ef3-4446-dfa9b1b73785", "A"): NodeData("d8cfe1ea-47e2-2e8e-43a4-edbea302f91c", "Value"),
+        NodeData("82e8f763-4bc3-9ef3-4446-dfa9b1b73785", "B"): NodeData("8c95730a-4b04-6ac9-a1ee-cd9035939109", "ReturnValue"),
+        NodeData("8c95730a-4b04-6ac9-a1ee-cd9035939109", "A"): NodeData("6e26cf63-4f9f-f07f-f69e-c799ac133a07", "ReturnValue"),
+    },
+    io_spec: (
+        input_times: [],
+        input_data: {},
+        output_time: false,
+        output_data: { "bCanEnterTransition": Bool },
+        input_order: {},
+        output_order: { Data("bCanEnterTransition"): 0 },
+    ),
+    default_data: {},
+    editor_metadata: (
+        node_positions: { "82e8f763-4bc3-9ef3-4446-dfa9b1b73785": (-208.000, 0.000), "6e26cf63-4f9f-f07f-f69e-c799ac133a07": (-736.000, 48.000), "8c95730a-4b04-6ac9-a1ee-cd9035939109": (-432.000, 48.000), "d8cfe1ea-47e2-2e8e-43a4-edbea302f91c": (-608.000, -32.000) },
+        input_position: (0.0, 0.0),
+        output_position: (0.0, 0.0),
+        input_param_order: {},
+        input_time_order: {},
+        output_data_order: {},
+        output_pose_order: {},
+    ),
+)

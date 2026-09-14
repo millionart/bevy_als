@@ -17,6 +17,7 @@ struct SourceInputValues {
     tags: HashMap<String, GameplayTag>,
     slots: HashMap<String, crate::animation_context::AnimationContextState>,
     rig_query: Option<crate::control_rig_query::RigQueryContext>,
+    graphs: HashMap<String, Handle<bevy_animation_graph::core::animation_graph::AnimationGraph>>,
 }
 
 type GameplayTagInputs = HashMap<Entity, SourceInputValues>;
@@ -25,6 +26,19 @@ static INPUTS: OnceLock<RwLock<GameplayTagInputs>> = OnceLock::new();
 
 fn inputs() -> &'static RwLock<GameplayTagInputs> {
     INPUTS.get_or_init(Default::default)
+}
+
+pub fn set_linked_graph_input(entity: Entity, key: &str, graph: Option<Handle<bevy_animation_graph::core::animation_graph::AnimationGraph>>) {
+    let mut values = inputs().write().expect("source input registry is poisoned");
+    if let Some(graph) = graph {
+        values.entry(entity).or_default().graphs.insert(key.to_owned(), graph);
+    } else if let Some(values) = values.get_mut(&entity) {
+        values.graphs.remove(key);
+    }
+}
+
+pub(crate) fn linked_graph_input(entity: Entity, key: &str) -> Option<Handle<bevy_animation_graph::core::animation_graph::AnimationGraph>> {
+    inputs().read().expect("source input registry is poisoned").get(&entity).and_then(|values| values.graphs.get(key)).cloned()
 }
 
 pub fn set_rig_query_context(entity: Entity, context: Option<crate::control_rig_query::RigQueryContext>) {

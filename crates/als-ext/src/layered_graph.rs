@@ -69,6 +69,8 @@ pub struct NamedPoseOutput {
 #[type_path = "als_ext"]
 pub struct LayeredGraphNode {
     pub graph: Handle<AnimationGraph>,
+    #[reflect(default)]
+    pub graph_binding: String,
     pub context_inputs: Vec<AnimationContextInput>,
     pub input_aliases: Vec<AnimationContextInputAlias>,
     pub global_input_pins: Vec<GlobalF32InputPin>,
@@ -87,9 +89,15 @@ pub struct LayeredGraphNode {
 }
 
 impl LayeredGraphNode {
+    fn selected_graph(&self, ctx: &NodeContext) -> Handle<AnimationGraph> {
+        if self.graph_binding.is_empty() { return self.graph.clone(); }
+        crate::source_gameplay_tag_input::linked_graph_input(ctx.graph_context.root_entity, &self.graph_binding).unwrap_or_else(|| self.graph.clone())
+    }
+
     pub fn new(graph: Handle<AnimationGraph>) -> Self {
         Self {
             graph,
+            graph_binding: default(),
             context_inputs: default(),
             input_aliases: default(),
             global_input_pins: default(),
@@ -328,11 +336,12 @@ fn source_curve_name(value: &str) -> String {
 
 impl NodeLike for LayeredGraphNode {
     fn duration(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+        let graph_handle = self.selected_graph(&ctx);
         let Some(graph) = ctx
             .graph_context
             .resources
             .animation_graph_assets
-            .get(&self.graph)
+            .get(&graph_handle)
         else {
             return Ok(());
         };
@@ -346,7 +355,7 @@ impl NodeLike for LayeredGraphNode {
         };
 
         let sub_ctx = ctx
-            .create_child_context(self.graph.id(), graph, None)
+            .create_child_context(graph_handle.id(), graph, None)
             .with_io(&sub_ctx_io);
 
         if self.named_pose_output.is_some() {
@@ -362,11 +371,12 @@ impl NodeLike for LayeredGraphNode {
     }
 
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+        let graph_handle = self.selected_graph(&ctx);
         let Some(graph) = ctx
             .graph_context
             .resources
             .animation_graph_assets
-            .get(&self.graph)
+            .get(&graph_handle)
         else {
             return Ok(());
         };
@@ -399,7 +409,7 @@ impl NodeLike for LayeredGraphNode {
         };
 
         let mut sub_ctx = ctx
-            .create_child_context(self.graph.id(), graph, None)
+            .create_child_context(graph_handle.id(), graph, None)
             .with_io(&sub_ctx_io);
 
         if let Some(output) = &self.named_pose_output {
@@ -510,6 +520,77 @@ impl NodeLike for LayeredGraphNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn instance_graph_binding_switches_and_resets_only_the_linked_subtree() {
+        use bevy::{ecs::system::RunSystemOnce, platform::collections::HashMap};
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip, animation_graph::TimeUpdate, animation_node::AnimationNode,
+            context::{deferred_gizmos::DeferredGizmos, graph_context_arena::GraphContextArena, system_resources::SystemResources},
+            skeleton::Skeleton, state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
+        };
+        use crate::source_gameplay_tag_input::{clear_gameplay_tag_inputs, set_linked_graph_input};
+        fn query(In((root, implementation, entities)): In<(Handle<AnimationGraph>, Handle<AnimationGraph>, [Entity;2])>, resources: SystemResources) {
+            let graph = resources.animation_graph_assets.get(&root).unwrap();
+            let mut arenas = [GraphContextArena::new(root.id()), GraphContextArena::new(root.id())];
+            let mut gizmos = DeferredGizmos::default();
+            let entity_map = HashMap::new();
+            let inputs = HashMap::new();
+            let env = TestIoEnv::default();
+            for (frame, (selected, expected)) in [(false,0.1),(false,0.2),(true,1.1),(true,1.2),(false,0.1),(false,0.2),(true,1.1)].into_iter().enumerate() {
+                set_linked_graph_input(entities[0], "layer", selected.then(|| implementation.clone()));
+                set_linked_graph_input(entities[1], "layer", Some(implementation.clone()));
+                for index in 0..2 {
+                    let arena = &mut arenas[index];
+                    let context = GraphContext::new(arena.get_toplevel_id(), graph, arena, &resources, &env, entities[index], &entity_map, &mut gizmos, &inputs);
+                    let output = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.1)), context.clone()).unwrap();
+                    let expected = if index == 0 { expected } else { 1.0 + (frame + 1) as f32 * 0.1 };
+                    assert!((output["selected"].as_pose().unwrap().timestamp - expected).abs() < 1e-5, "actor {index}, frame {frame}");
+                    assert!((output["sibling"].as_pose().unwrap().timestamp - (frame + 1) as f32 * 0.1).abs() < 1e-5);
+                    let state = graph_output_context_state(graph, &context, "selected").unwrap();
+                    assert_eq!(state.curves["Layer"], if index == 1 || selected { 0.75 } else { 0.25 });
+                }
+            }
+            assert_eq!(arenas[0].iter_context_ids().count(), 4);
+            for entity in entities { clear_gameplay_tag_inputs(entity); }
+        }
+        let mut graphs = Assets::<AnimationGraph>::default();
+        let mut clips = Assets::<GraphClip>::default();
+        let clip = clips.add(GraphClip { duration:4.0, ..default() });
+        let mut implementations = Vec::new();
+        for (start, value) in [(0.0,0.25),(1.0,0.75)] {
+            let player = AnimationNode::new("player", crate::SourceSequencePlayerNode {
+                clip:clip.clone(), start_position:start, expose_start_position_pin:false, expose_play_rate_pin:false, expose_loop_animation_pin:false,
+                curves:crate::als_curves::parse_curves(&serde_json::json!({"curves":[{"name":"Layer","times":[0.0],"values":[value],"interps":["CONSTANT"]}]})).unwrap(), ..default()
+            });
+            let mut inner = AnimationGraph::new();
+            inner.add_node(player.clone());
+            inner.add_output_data("Pose".to_owned(), DataSpec::Pose);
+            inner.add_output_data_edge(player.id, "Pose", "Pose");
+            let linked = AnimationNode::new("nested", LayeredGraphNode { capture_context:true, internalize_time:true, ..LayeredGraphNode::new(graphs.add(inner)) });
+            let mut outer = AnimationGraph::new();
+            outer.add_node(linked.clone());
+            outer.add_output_data("Pose".to_owned(), DataSpec::Pose);
+            outer.add_output_data_edge(linked.id, "Pose", "Pose");
+            implementations.push(graphs.add(outer));
+        }
+        let selected = AnimationNode::new("layer", LayeredGraphNode { graph_binding:"layer".to_owned(), capture_context:true, internalize_time:true, ..LayeredGraphNode::new(implementations[0].clone()) });
+        let sibling = AnimationNode::new("sibling", crate::SourceSequencePlayerNode { clip, expose_start_position_pin:false, expose_play_rate_pin:false, expose_loop_animation_pin:false, ..default() });
+        let mut root = AnimationGraph::new();
+        for (node, output) in [(&selected,"selected"), (&sibling,"sibling")] {
+            root.add_node(node.clone());
+            root.add_output_data(output.to_owned(), DataSpec::Pose);
+            root.add_output_data_edge(node.id, "Pose", output);
+        }
+        let root = graphs.add(root);
+        let mut world = World::new();
+        let entities = [world.spawn_empty().id(), world.spawn_empty().id()];
+        world.insert_resource(graphs);
+        world.insert_resource(clips);
+        world.insert_resource(Assets::<Skeleton>::default());
+        world.insert_resource(Assets::<StateMachine>::default());
+        world.run_system_once_with(query, (root, implementations[1].clone(), entities)).unwrap();
+    }
 
     #[test]
     fn auxiliary_outputs_can_be_hidden_without_hiding_pose_or_explicit_data() {

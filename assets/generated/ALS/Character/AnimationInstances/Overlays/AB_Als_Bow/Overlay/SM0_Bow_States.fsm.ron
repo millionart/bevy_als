@@ -1,0 +1,18 @@
+(
+    states: [
+        (id: "5f92893b-40f5-2d48-b6b3-e0a3d87336c4", label: "Relaxed", graph: "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/S2_Relaxed.animgraph.ron", state_transition: None),
+        (id: "c06b9168-48ec-91b2-2982-bd8ae2ebbe99", label: "Aiming", graph: "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/S9_Aiming.animgraph.ron", state_transition: None),
+        (id: "969da568-43dd-e13a-55e1-5a9ff96873c8", label: "Ready", graph: "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/S13_Ready.animgraph.ron", state_transition: None),
+    ],
+    transitions: [
+        (id: "0ab6cd87-4a47-8ad2-8321-53a2e4da8582", source: "969da568-43dd-e13a-55e1-5a9ff96873c8", target: "5f92893b-40f5-2d48-b6b3-e0a3d87336c4", data: (kind: Graph(graph: "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T28/Transition.transition.animgraph.ron", timed: Some(0.75)), ignore_external_events: false, reset_target_state: true)),
+        (id: "18d8d39a-4b55-ab9b-fdf9-abae458dd307", source: "5f92893b-40f5-2d48-b6b3-e0a3d87336c4", target: "969da568-43dd-e13a-55e1-5a9ff96873c8", data: (kind: Graph(graph: "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T29/Transition.transition.animgraph.ron", timed: Some(0.2)), ignore_external_events: false, reset_target_state: true)),
+        (id: "d1939b83-4bbf-a32a-231a-9eba3e462942", source: "c06b9168-48ec-91b2-2982-bd8ae2ebbe99", target: "969da568-43dd-e13a-55e1-5a9ff96873c8", data: (kind: Graph(graph: "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T5/Transition.transition.animgraph.ron", timed: Some(1.0)), ignore_external_events: false, reset_target_state: true)),
+        (id: "9b5a6abe-4277-c313-1d9e-279bdc71dfe0", source: "969da568-43dd-e13a-55e1-5a9ff96873c8", target: "5f92893b-40f5-2d48-b6b3-e0a3d87336c4", data: (kind: Graph(graph: "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T30/Transition.transition.animgraph.ron", timed: Some(0.75)), ignore_external_events: false, reset_target_state: true)),
+        (id: "71114d5e-47e6-e8ad-a8b3-0ebd5ebdde52", source: "969da568-43dd-e13a-55e1-5a9ff96873c8", target: "c06b9168-48ec-91b2-2982-bd8ae2ebbe99", data: (kind: Graph(graph: "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T22/Transition.transition.animgraph.ron", timed: Some(0.5)), ignore_external_events: false, reset_target_state: true)),
+        (id: "e5220a75-4e9d-7c76-55db-00a4c2e479f9", source: "969da568-43dd-e13a-55e1-5a9ff96873c8", target: "5f92893b-40f5-2d48-b6b3-e0a3d87336c4", data: (kind: Graph(graph: "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T31/Transition.transition.animgraph.ron", timed: Some(0.4)), ignore_external_events: false, reset_target_state: true)),
+    ],
+    start_state: "5f92893b-40f5-2d48-b6b3-e0a3d87336c4",
+    node_spec: (input_times: [], input_data: {}, output_time: false, output_data: { "Pose": Pose }, input_order: {}, output_order: { Data("Pose"): 0 }),
+    editor_metadata: (states: { "5f92893b-40f5-2d48-b6b3-e0a3d87336c4": (176, 0), "c06b9168-48ec-91b2-2982-bd8ae2ebbe99": (576, 0), "969da568-43dd-e13a-55e1-5a9ff96873c8": (384, 0) }),
+)

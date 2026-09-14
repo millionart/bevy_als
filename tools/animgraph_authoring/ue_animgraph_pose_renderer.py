@@ -1022,10 +1022,13 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
         if not isinstance(target, str) or not target:
             raise PoseRenderError("source linked animation layer graph is unavailable")
         if value.get("external_instance"):
+            if not all(isinstance(value.get(key), str) and value[key] for key in ("interface", "layer")):
+                raise PoseRenderError("source linked animation layer identity is unavailable")
             return (
                 "als_ext::LayeredGraphNode",
                 "(graph: "
                 + quoted(target)
+                + ", graph_binding: " + quoted(value["interface"] + ":" + value["layer"])
                 + ", input_aliases: [], output_aliases: [(child_output: \"Result\", outer_output: \"Pose\")], capture_context: true, expose_context_curves: false, exposed_output_data: [], internalize_time: true)",
             )
         return (
@@ -1992,8 +1995,10 @@ def run_self_test():
     assert 'name: "Linked layer selection"' in text
     assert 'name: "Comment"' not in text
     linked_ir["nodes"][0]["semantic"]["external_instance"] = True
+    linked_ir["nodes"][0]["semantic"].update(interface="/Asset/Layer.Layer_C", layer="Overlay")
     text = render(linked_contract, linked_ir, [])
     assert '"als_ext::LayeredGraphNode"' in text
+    assert 'graph_binding: "/Asset/Layer.Layer_C:Overlay"' in text
     assert 'name: "Linked layer selection"' not in text
     assert 'NodeData("10000000-0000-4000-8000-000000000032", "Source"): NodeData("10000000-0000-4000-8000-000000000031", "Pose")' in text
     linked_ir["nodes"][0] = {

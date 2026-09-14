@@ -1160,6 +1160,17 @@ fn default_overlay_pose_error(actual: &Pose, expected: &Pose) -> Option<f32> {
     Some(error)
 }
 
+fn active_layer_pose(player: &AnimationGraphPlayer, probe: &MotionProbe, path: &str) -> bool {
+    let Some(arena) = player.get_context_arena() else { return false; };
+    arena.iter_context_ids().filter_map(|id| arena.get_context(id)).any(|context| {
+        if probe.asset_server.get_path(context.get_graph_id()).is_none_or(|asset| asset.path() != std::path::Path::new(path)) { return false; }
+        let Some(graph) = probe.graphs.get(context.get_graph_id()) else { return false; };
+        let Some(SourcePin::NodeData(node, pin)) = graph.edges_inverted.get(&TargetPin::OutputData("Result".to_owned())) else { return false; };
+        context.node_caches.is_updated(*node, StateKey::Default)
+            && context.node_caches.get_output_data(*node, StateKey::Default, pin.clone()).and_then(|value| value.into_pose().ok()).is_some_and(|pose| !pose.paths.is_empty())
+    })
+}
+
 #[derive(Default, Debug, Serialize)]
 struct LayeringGraphSample {
     ready: bool,
@@ -3043,9 +3054,11 @@ struct ManualIntegrationState {
     interface_slomo_restored_seen: bool,
     interface_menu_open_seen: bool,
     interface_menu_closed_seen: bool,
-    interface_overlay_rifle_seen: bool,
-    interface_overlay_default_after_rifle_seen: bool,
+    interface_overlay_bow_seen: bool,
+    interface_overlay_default_after_bow_seen: bool,
     interface_overlay_reentry_seen: bool,
+    interface_parent_instance: Option<u64>,
+    interface_parent_preserved: bool,
     notify_roll_armed: bool,
     notify_mantle_armed: bool,
     direction_case_index: usize,
@@ -3161,9 +3174,11 @@ impl Default for ManualIntegrationState {
             interface_slomo_restored_seen: false,
             interface_menu_open_seen: false,
             interface_menu_closed_seen: false,
-            interface_overlay_rifle_seen: false,
-            interface_overlay_default_after_rifle_seen: false,
+            interface_overlay_bow_seen: false,
+            interface_overlay_default_after_bow_seen: false,
             interface_overlay_reentry_seen: false,
+            interface_parent_instance: None,
+            interface_parent_preserved: true,
             notify_roll_armed: false,
             notify_mantle_armed: false,
             direction_case_index: usize::MAX,
@@ -5606,9 +5621,11 @@ fn drive_manual_integration(
                 state.interface_slomo_restored_seen = false;
                 state.interface_menu_open_seen = false;
                 state.interface_menu_closed_seen = false;
-                state.interface_overlay_rifle_seen = false;
-                state.interface_overlay_default_after_rifle_seen = false;
+                state.interface_overlay_bow_seen = false;
+                state.interface_overlay_default_after_bow_seen = false;
                 state.interface_overlay_reentry_seen = false;
+                state.interface_parent_instance = None;
+                state.interface_parent_preserved = true;
                 state.coverage.hud_layout = false;
                 state.coverage.hud_toggle = false;
                 state.coverage.hud_slomo = false;
@@ -5648,7 +5665,7 @@ fn drive_manual_integration(
             drive_key_interval(&mut keys, KeyCode::KeyQ, elapsed, 2.9, 3.9);
             request.overlay_state = Some(
                 if (0.6..1.4).contains(&elapsed) || (2.6..3.4).contains(&elapsed) {
-                    OverlayState::Rifle
+                    OverlayState::Bow
                 } else {
                     OverlayState::Default
                 },
@@ -9013,6 +9030,11 @@ fn observe_manual_integration(
     }
 
     if state.scenario == IntegrationScenario::Interface {
+        let parent_instance = player.get_context_arena().and_then(|arena| arena.get_toplevel().node_states.get::<als_ext::source_instance::SourceInstanceProperties>(bevy_animation_graph::core::animation_graph::NodeId::default(), StateKey::Default).ok()).map(|source| source.instance_id);
+        if let Some(instance) = parent_instance {
+            state.interface_parent_preserved &= state.interface_parent_instance.is_none_or(|previous| previous == instance);
+            state.interface_parent_instance = Some(instance);
+        }
         let hud_nodes_hidden = !interface.hud_debug_nodes.is_empty()
             && !interface.hud_input_nodes.is_empty()
             && interface
@@ -9061,42 +9083,41 @@ fn observe_manual_integration(
             state.interface_menu_open_seen && state.interface_menu_closed_seen;
 
         let selector = graph_global_f32(player, "als_root_overlay_index");
-        let rifle_bound = *overlay == OverlayState::Rifle
-            && selector.is_some_and(|value| (value - 5.0).abs() <= 1e-4)
-            && overlay_object.is_some_and(|value| {
-                value.visible && value.applied_overlay == Some(OverlayState::Rifle)
-            });
+        let bow_bound = *overlay == OverlayState::Bow
+            && selector.is_some_and(|value| (value - 8.0).abs() <= 1e-4)
+            && active_layer_pose(player, &motion_probe, "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/AnimGraph.animgraph.ron");
         let default_bound = *overlay == OverlayState::Default
             && selector.is_some_and(|value| value.abs() <= 1e-4)
-            && overlay_object.is_none_or(|value| !value.visible);
-        if rifle_bound && !state.interface_overlay_rifle_seen {
+            && active_layer_pose(player, &motion_probe, "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Default/AnimGraph.animgraph.ron");
+        if bow_bound && !state.interface_overlay_bow_seen {
             info!(
-                "[MANUAL-INTEGRATION][ALI] selector=5 state=Rifle object_visible=true binding=PASS"
+                "[MANUAL-INTEGRATION][ALI] selector=8 state=Bow generated_pose=true binding=PASS"
             );
         }
-        if state.interface_overlay_rifle_seen
+        if state.interface_overlay_bow_seen
             && default_bound
-            && !state.interface_overlay_default_after_rifle_seen
+            && !state.interface_overlay_default_after_bow_seen
         {
             info!(
-                "[MANUAL-INTEGRATION][ALI] selector=0 state=Default object_visible=false fallback=PASS"
+                "[MANUAL-INTEGRATION][ALI] selector=0 state=Default generated_pose=true fallback=PASS"
             );
         }
-        if state.interface_overlay_default_after_rifle_seen
-            && rifle_bound
+        if state.interface_overlay_default_after_bow_seen
+            && bow_bound
             && !state.interface_overlay_reentry_seen
         {
-            info!("[MANUAL-INTEGRATION][ALI] selector=5 state=Rifle reentry=PASS");
+            info!("[MANUAL-INTEGRATION][ALI] selector=8 state=Bow reentry=PASS");
         }
-        state.interface_overlay_rifle_seen |= rifle_bound;
-        state.interface_overlay_default_after_rifle_seen |=
-            state.interface_overlay_rifle_seen && default_bound;
+        state.interface_overlay_bow_seen |= bow_bound;
+        state.interface_overlay_default_after_bow_seen |=
+            state.interface_overlay_bow_seen && default_bound;
         state.interface_overlay_reentry_seen |=
-            state.interface_overlay_default_after_rifle_seen && rifle_bound;
-        state.coverage.overlay_interface_binding = state.interface_overlay_rifle_seen;
+            state.interface_overlay_default_after_bow_seen && bow_bound;
+        state.coverage.overlay_interface_binding = state.interface_overlay_bow_seen;
         state.coverage.overlay_interface_fallback =
-            state.interface_overlay_default_after_rifle_seen;
+            state.interface_overlay_default_after_bow_seen;
         state.coverage.overlay_interface_reentry = state.interface_overlay_reentry_seen;
+        gate_report.direction_trace.push(serde_json::json!({"time":state.game_time_seconds, "bow_bound":bow_bound, "default_bound":default_bound, "parent_instance":parent_instance, "parent_preserved":state.interface_parent_preserved}));
 
         let all_debug_categories_active = DebugCategory::ALL
             .into_iter()
@@ -9626,6 +9647,7 @@ fn observe_manual_integration(
             IntegrationScenario::Interface => vec![
                 ("runtime_assembly", coverage.assembly),
                 ("animation_graph", coverage.graph),
+                ("overlay_parent_instance_preserved", state.interface_parent_instance.is_some() && state.interface_parent_preserved),
                 ("hud_layout", coverage.hud_layout),
                 ("hud_toggle", coverage.hud_toggle),
                 ("hud_slomo", coverage.hud_slomo),

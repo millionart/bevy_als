@@ -1,0 +1,1486 @@
+{
+  "format": "als_animgraph_authoring_gate_v1",
+  "id": "generated_ab_als_bow_character",
+  "source_evidence": [
+    {
+      "path": "target/bf116_bow/source/character_bow.json",
+      "sha256": "60a5240938cfb9b05d83a2c77d9f1762cc614ca3e3f674764d07ce3f5a65a4fa"
+    },
+    {
+      "path": "target/bf116_bow/source/c2_character_actor.json",
+      "sha256": "1e55a8064a025defd1bf641aba818ae5ed30f3b6fdc45f0d154b1fbabc5b7e94"
+    }
+  ],
+  "graphs": [
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/AnimGraph.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "8804790a-4323-c365-2698-3ea6b5b67761",
+          "name": "Output Pose\nAnimGraph",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "0ed93e75-4bdd-7289-953f-4b9260a8c7e0",
+          "name": "ALI_Overlay - Overlay\nLinked Anim Layer",
+          "position": [
+            -192.0,
+            48.0
+          ]
+        },
+        {
+          "id": "00de3522-81f5-5fb6-9e6d-79d664494753",
+          "name": "Linked layer selection",
+          "position": [
+            -288.0,
+            144.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"8804790a-4323-c365-2698-3ea6b5b67761\", \"Source\")",
+          "source": "NodeData(\"0ed93e75-4bdd-7289-953f-4b9260a8c7e0\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"0ed93e75-4bdd-7289-953f-4b9260a8c7e0\", \"layer_index\")",
+          "source": "NodeData(\"00de3522-81f5-5fb6-9e6d-79d664494753\", \"value\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"8804790a-4323-c365-2698-3ea6b5b67761\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/S13_Ready.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "04e925de-486e-8059-25a4-46bfbc3aefc5",
+          "name": "Output Animation Pose",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6e668c01-417b-4c2e-82a9-72a831fb6f1c",
+          "name": "Two Way Blend",
+          "position": [
+            -1152.0,
+            -176.0
+          ]
+        },
+        {
+          "id": "ffcc9cff-41e0-bee6-6609-2ba684d8245c",
+          "name": "A_Als_Bow_Poses\nSequence Evaluator (by frame)",
+          "position": [
+            -1104.0,
+            96.0
+          ]
+        },
+        {
+          "id": "cca50eed-4b2b-2f42-9c48-91afac086e9a",
+          "name": "A_Als_Bow_Poses\nSequence Evaluator (by frame)",
+          "position": [
+            -1440.0,
+            -240.0
+          ]
+        },
+        {
+          "id": "797b362b-4c94-246d-f1d8-90b3f321c2d4",
+          "name": "A_Als_Bow_Poses\nSequence Evaluator (by frame)",
+          "position": [
+            -1440.0,
+            -112.0
+          ]
+        },
+        {
+          "id": "ee225fb2-4e40-5d4a-b7b7-d1b89ffb7492",
+          "name": "Apply Additive",
+          "position": [
+            -224.0,
+            0.0
+          ]
+        },
+        {
+          "id": "b1f42125-4fab-8b2c-6964-39b7a043a5af",
+          "name": "A_Als_Idle\nSequence Player\nSync group Secondary Motion",
+          "position": [
+            -480.0,
+            32.0
+          ]
+        },
+        {
+          "id": "d310e2f5-4250-d553-b993-eeb4ce86ecab",
+          "name": "Blend Multi",
+          "position": [
+            -816.0,
+            -48.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"ee225fb2-4e40-5d4a-b7b7-d1b89ffb7492\", \"Base\")",
+          "source": "NodeData(\"d310e2f5-4250-d553-b993-eeb4ce86ecab\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"d310e2f5-4250-d553-b993-eeb4ce86ecab\", \"Poses_1\")",
+          "source": "NodeData(\"ffcc9cff-41e0-bee6-6609-2ba684d8245c\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"04e925de-486e-8059-25a4-46bfbc3aefc5\", \"Source\")",
+          "source": "NodeData(\"ee225fb2-4e40-5d4a-b7b7-d1b89ffb7492\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"6e668c01-417b-4c2e-82a9-72a831fb6f1c\", \"A\")",
+          "source": "NodeData(\"cca50eed-4b2b-2f42-9c48-91afac086e9a\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"d310e2f5-4250-d553-b993-eeb4ce86ecab\", \"Poses_0\")",
+          "source": "NodeData(\"6e668c01-417b-4c2e-82a9-72a831fb6f1c\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"6e668c01-417b-4c2e-82a9-72a831fb6f1c\", \"B\")",
+          "source": "NodeData(\"797b362b-4c94-246d-f1d8-90b3f321c2d4\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"ee225fb2-4e40-5d4a-b7b7-d1b89ffb7492\", \"Additive\")",
+          "source": "NodeData(\"b1f42125-4fab-8b2c-6964-39b7a043a5af\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"04e925de-486e-8059-25a4-46bfbc3aefc5\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/S2_Relaxed.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "974147f2-4d34-abf9-367a-8ca5d1aab608",
+          "name": "Output Animation Pose",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6b1e691e-4317-2e23-4e14-d6a5949a5c0e",
+          "name": "Two Way Blend",
+          "position": [
+            -1152.0,
+            -240.0
+          ]
+        },
+        {
+          "id": "c4d5e67f-4824-54cc-18a5-18aff876e2b5",
+          "name": "A_Als_Bow_Poses\nSequence Evaluator (by frame)",
+          "position": [
+            -1424.0,
+            -304.0
+          ]
+        },
+        {
+          "id": "0f4ce4d8-4204-0b02-1263-7c9b207b8510",
+          "name": "A_Als_Bow_Poses\nSequence Evaluator (by frame)",
+          "position": [
+            -2128.0,
+            -176.0
+          ]
+        },
+        {
+          "id": "178b5118-412a-a1ef-a2b8-338d6ce77d81",
+          "name": "A_Als_Bow_Poses\nSequence Evaluator (by frame)",
+          "position": [
+            -1104.0,
+            160.0
+          ]
+        },
+        {
+          "id": "5d0a7a17-4b5c-d350-0a73-eb8f16d8309b",
+          "name": "Two Way Blend",
+          "position": [
+            -1488.0,
+            -176.0
+          ]
+        },
+        {
+          "id": "9a710ec1-4c0e-a131-d606-cf85431e3228",
+          "name": "A_Als_Bow_Poses\nSequence Evaluator (by frame)",
+          "position": [
+            -2128.0,
+            -48.0
+          ]
+        },
+        {
+          "id": "1da0a8d8-43b0-bf51-b449-e8a65942115b",
+          "name": "Apply Additive",
+          "position": [
+            -224.0,
+            0.0
+          ]
+        },
+        {
+          "id": "2b705c1c-480b-bccb-7d78-a789f5f5a4ab",
+          "name": "A_Als_Idle\nSequence Player\nSync group Secondary Motion",
+          "position": [
+            -480.0,
+            32.0
+          ]
+        },
+        {
+          "id": "c0d138c5-408b-2ab0-85ba-f082fb95a93a",
+          "name": "Two Way Blend",
+          "position": [
+            -1840.0,
+            -112.0
+          ]
+        },
+        {
+          "id": "3f57cb97-4fd6-daa4-53c6-0da3f6ec0d39",
+          "name": "A_Als_Bow_Poses\nSequence Evaluator (by frame)",
+          "position": [
+            -1776.0,
+            -240.0
+          ]
+        },
+        {
+          "id": "296d4382-4e2f-f785-fd74-a988f744be69",
+          "name": "Blend Multi",
+          "position": [
+            -816.0,
+            -48.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"1da0a8d8-43b0-bf51-b449-e8a65942115b\", \"Base\")",
+          "source": "NodeData(\"296d4382-4e2f-f785-fd74-a988f744be69\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"c0d138c5-408b-2ab0-85ba-f082fb95a93a\", \"A\")",
+          "source": "NodeData(\"0f4ce4d8-4204-0b02-1263-7c9b207b8510\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"6b1e691e-4317-2e23-4e14-d6a5949a5c0e\", \"A\")",
+          "source": "NodeData(\"c4d5e67f-4824-54cc-18a5-18aff876e2b5\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"296d4382-4e2f-f785-fd74-a988f744be69\", \"Poses_1\")",
+          "source": "NodeData(\"178b5118-412a-a1ef-a2b8-338d6ce77d81\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"974147f2-4d34-abf9-367a-8ca5d1aab608\", \"Source\")",
+          "source": "NodeData(\"1da0a8d8-43b0-bf51-b449-e8a65942115b\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"5d0a7a17-4b5c-d350-0a73-eb8f16d8309b\", \"B\")",
+          "source": "NodeData(\"c0d138c5-408b-2ab0-85ba-f082fb95a93a\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"6b1e691e-4317-2e23-4e14-d6a5949a5c0e\", \"B\")",
+          "source": "NodeData(\"5d0a7a17-4b5c-d350-0a73-eb8f16d8309b\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"5d0a7a17-4b5c-d350-0a73-eb8f16d8309b\", \"A\")",
+          "source": "NodeData(\"3f57cb97-4fd6-daa4-53c6-0da3f6ec0d39\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"c0d138c5-408b-2ab0-85ba-f082fb95a93a\", \"B\")",
+          "source": "NodeData(\"9a710ec1-4c0e-a131-d606-cf85431e3228\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"296d4382-4e2f-f785-fd74-a988f744be69\", \"Poses_0\")",
+          "source": "NodeData(\"6b1e691e-4317-2e23-4e14-d6a5949a5c0e\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"1da0a8d8-43b0-bf51-b449-e8a65942115b\", \"Additive\")",
+          "source": "NodeData(\"2b705c1c-480b-bccb-7d78-a789f5f5a4ab\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"974147f2-4d34-abf9-367a-8ca5d1aab608\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/S9_Aiming.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "cfe144b4-4264-a5f3-7a50-799b060089f8",
+          "name": "Output Animation Pose",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "8bd795fc-43c2-e7ce-c233-d2b33b8cde12",
+          "name": "Apply Mesh Space Additive",
+          "position": [
+            -1072.0,
+            -224.0
+          ]
+        },
+        {
+          "id": "295310ad-4cb6-97a0-6b26-5998386da4d3",
+          "name": "A_Als_Bow_Aim\nSequence Evaluator (by time)",
+          "position": [
+            -1456.0,
+            -128.0
+          ]
+        },
+        {
+          "id": "6b1ba51e-421d-3b68-4ae4-bbb9d1b4bd8e",
+          "name": "Apply Mesh Space Additive",
+          "position": [
+            -1072.0,
+            160.0
+          ]
+        },
+        {
+          "id": "121ad0c7-4356-5aab-4de4-ebb9f5a22fe6",
+          "name": "A_Als_Bow_Aim_Crouch\nSequence Evaluator (by time)",
+          "position": [
+            -1456.0,
+            224.0
+          ]
+        },
+        {
+          "id": "6ff16a72-465c-7f66-4334-3497b7fc3842",
+          "name": "Two Way Blend",
+          "position": [
+            -1408.0,
+            -320.0
+          ]
+        },
+        {
+          "id": "2ae1da2a-47e6-927a-8c49-e2bb6754c997",
+          "name": "A_Als_Bow_Poses\nSequence Evaluator (by frame)",
+          "position": [
+            -1696.0,
+            -384.0
+          ]
+        },
+        {
+          "id": "ea214732-4653-c717-7d9b-6b97c76e2cd6",
+          "name": "A_Als_Bow_Poses\nSequence Evaluator (by frame)",
+          "position": [
+            -1696.0,
+            -256.0
+          ]
+        },
+        {
+          "id": "5724ac05-480c-b868-1301-cca174e05b13",
+          "name": "A_Als_Bow_Poses\nSequence Evaluator (by frame)",
+          "position": [
+            -1360.0,
+            96.0
+          ]
+        },
+        {
+          "id": "5f8fc0fc-4334-45c0-affc-0aaf9908e8df",
+          "name": "Apply Additive",
+          "position": [
+            -208.0,
+            0.0
+          ]
+        },
+        {
+          "id": "dfdcef79-4f10-aaf1-d3f8-748bf26a13c9",
+          "name": "A_Als_Idle\nSequence Player\nSync group Secondary Motion",
+          "position": [
+            -464.0,
+            32.0
+          ]
+        },
+        {
+          "id": "3e4d10a4-4555-e00d-8f21-e9b43360c0ab",
+          "name": "Blend Multi",
+          "position": [
+            -800.0,
+            -48.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"5f8fc0fc-4334-45c0-affc-0aaf9908e8df\", \"Additive\")",
+          "source": "NodeData(\"dfdcef79-4f10-aaf1-d3f8-748bf26a13c9\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"3e4d10a4-4555-e00d-8f21-e9b43360c0ab\", \"Poses_1\")",
+          "source": "NodeData(\"6b1ba51e-421d-3b68-4ae4-bbb9d1b4bd8e\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"5f8fc0fc-4334-45c0-affc-0aaf9908e8df\", \"Base\")",
+          "source": "NodeData(\"3e4d10a4-4555-e00d-8f21-e9b43360c0ab\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"6b1ba51e-421d-3b68-4ae4-bbb9d1b4bd8e\", \"Additive\")",
+          "source": "NodeData(\"121ad0c7-4356-5aab-4de4-ebb9f5a22fe6\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"8bd795fc-43c2-e7ce-c233-d2b33b8cde12\", \"Base\")",
+          "source": "NodeData(\"6ff16a72-465c-7f66-4334-3497b7fc3842\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"8bd795fc-43c2-e7ce-c233-d2b33b8cde12\", \"Additive\")",
+          "source": "NodeData(\"295310ad-4cb6-97a0-6b26-5998386da4d3\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"3e4d10a4-4555-e00d-8f21-e9b43360c0ab\", \"Poses_0\")",
+          "source": "NodeData(\"8bd795fc-43c2-e7ce-c233-d2b33b8cde12\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"6b1ba51e-421d-3b68-4ae4-bbb9d1b4bd8e\", \"Base\")",
+          "source": "NodeData(\"5724ac05-480c-b868-1301-cca174e05b13\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"cfe144b4-4264-a5f3-7a50-799b060089f8\", \"Source\")",
+          "source": "NodeData(\"5f8fc0fc-4334-45c0-affc-0aaf9908e8df\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"6ff16a72-465c-7f66-4334-3497b7fc3842\", \"B\")",
+          "source": "NodeData(\"ea214732-4653-c717-7d9b-6b97c76e2cd6\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"6ff16a72-465c-7f66-4334-3497b7fc3842\", \"A\")",
+          "source": "NodeData(\"2ae1da2a-47e6-927a-8c49-e2bb6754c997\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"cfe144b4-4264-a5f3-7a50-799b060089f8\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T22/Transition.transition.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "3a8f804f-7b29-5b80-8d12-04e006e20d0d",
+          "name": "Ready to Aiming",
+          "position": [
+            522.0,
+            -12.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"3a8f804f-7b29-5b80-8d12-04e006e20d0d\", \"factor\")",
+          "source": "InputData(FsmBuiltin(PercentThroughDuration))"
+        },
+        {
+          "target": "NodeData(\"3a8f804f-7b29-5b80-8d12-04e006e20d0d\", \"pose_a\")",
+          "source": "InputData(FromFsmSource(\"pose\"))"
+        },
+        {
+          "target": "NodeTime(\"3a8f804f-7b29-5b80-8d12-04e006e20d0d\", \"time_a\")",
+          "source": "InputTime(FromFsmSource(\"time\"))"
+        },
+        {
+          "target": "NodeData(\"3a8f804f-7b29-5b80-8d12-04e006e20d0d\", \"pose_b\")",
+          "source": "InputData(FromFsmTarget(\"pose\"))"
+        },
+        {
+          "target": "NodeTime(\"3a8f804f-7b29-5b80-8d12-04e006e20d0d\", \"time_b\")",
+          "source": "InputTime(FromFsmTarget(\"time\"))"
+        },
+        {
+          "target": "OutputData(\"pose\")",
+          "source": "NodeData(\"3a8f804f-7b29-5b80-8d12-04e006e20d0d\", \"pose\")"
+        },
+        {
+          "target": "OutputTime",
+          "source": "NodeTime(\"3a8f804f-7b29-5b80-8d12-04e006e20d0d\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {
+          "FsmBuiltin(PercentThroughDuration)": "F32",
+          "FromFsmSource(\"pose\")": "Pose",
+          "FromFsmTarget(\"pose\")": "Pose"
+        },
+        "input_times": [
+          "FromFsmSource(\"time\")",
+          "FromFsmTarget(\"time\")"
+        ],
+        "output_time": true,
+        "output_data": {
+          "pose": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T22_AnimationTransitionGraph_0.condition.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "6e97d424-4fd4-d339-e38a-1fb94372ef55",
+          "name": "Property Access",
+          "position": [
+            -656.0,
+            0.0
+          ]
+        },
+        {
+          "id": "b3399c1a-4d19-4545-5834-7a8b5f93db7e",
+          "name": "Equal (GameplayTag)",
+          "position": [
+            -352.0,
+            0.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "OutputData(\"bCanEnterTransition\")",
+          "source": "NodeData(\"b3399c1a-4d19-4545-5834-7a8b5f93db7e\", \"ReturnValue\")"
+        },
+        {
+          "target": "NodeData(\"b3399c1a-4d19-4545-5834-7a8b5f93db7e\", \"A\")",
+          "source": "NodeData(\"6e97d424-4fd4-d339-e38a-1fb94372ef55\", \"Value\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "bCanEnterTransition": "Bool"
+        }
+      },
+      "root_output_exceptions": [
+        {
+          "name": "bCanEnterTransition",
+          "reason": "Declared graph boundary data output.",
+          "evidence": "target/bf116_bow/source/character_bow.json"
+        }
+      ]
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T28/Transition.transition.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "92933f22-9b80-56b8-9afa-3e56105a7bc5",
+          "name": "Ready to Relaxed",
+          "position": [
+            361.0,
+            35.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"92933f22-9b80-56b8-9afa-3e56105a7bc5\", \"factor\")",
+          "source": "InputData(FsmBuiltin(PercentThroughDuration))"
+        },
+        {
+          "target": "NodeData(\"92933f22-9b80-56b8-9afa-3e56105a7bc5\", \"pose_a\")",
+          "source": "InputData(FromFsmSource(\"pose\"))"
+        },
+        {
+          "target": "NodeTime(\"92933f22-9b80-56b8-9afa-3e56105a7bc5\", \"time_a\")",
+          "source": "InputTime(FromFsmSource(\"time\"))"
+        },
+        {
+          "target": "NodeData(\"92933f22-9b80-56b8-9afa-3e56105a7bc5\", \"pose_b\")",
+          "source": "InputData(FromFsmTarget(\"pose\"))"
+        },
+        {
+          "target": "NodeTime(\"92933f22-9b80-56b8-9afa-3e56105a7bc5\", \"time_b\")",
+          "source": "InputTime(FromFsmTarget(\"time\"))"
+        },
+        {
+          "target": "OutputData(\"pose\")",
+          "source": "NodeData(\"92933f22-9b80-56b8-9afa-3e56105a7bc5\", \"pose\")"
+        },
+        {
+          "target": "OutputTime",
+          "source": "NodeTime(\"92933f22-9b80-56b8-9afa-3e56105a7bc5\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {
+          "FsmBuiltin(PercentThroughDuration)": "F32",
+          "FromFsmSource(\"pose\")": "Pose",
+          "FromFsmTarget(\"pose\")": "Pose"
+        },
+        "input_times": [
+          "FromFsmSource(\"time\")",
+          "FromFsmTarget(\"time\")"
+        ],
+        "output_time": true,
+        "output_data": {
+          "pose": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T28_AnimationTransitionGraph_0.condition.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "82e8f763-4bc3-9ef3-4446-dfa9b1b73785",
+          "name": "AND Boolean",
+          "position": [
+            -208.0,
+            0.0
+          ]
+        },
+        {
+          "id": "6e26cf63-4f9f-f07f-f69e-c799ac133a07",
+          "name": "Current State Time (Bow States)",
+          "position": [
+            -736.0,
+            48.0
+          ]
+        },
+        {
+          "id": "8c95730a-4b04-6ac9-a1ee-cd9035939109",
+          "name": "float >= float",
+          "position": [
+            -432.0,
+            48.0
+          ]
+        },
+        {
+          "id": "d8cfe1ea-47e2-2e8e-43a4-edbea302f91c",
+          "name": "Property Access",
+          "position": [
+            -608.0,
+            -32.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "OutputData(\"bCanEnterTransition\")",
+          "source": "NodeData(\"82e8f763-4bc3-9ef3-4446-dfa9b1b73785\", \"ReturnValue\")"
+        },
+        {
+          "target": "NodeData(\"82e8f763-4bc3-9ef3-4446-dfa9b1b73785\", \"A\")",
+          "source": "NodeData(\"d8cfe1ea-47e2-2e8e-43a4-edbea302f91c\", \"Value\")"
+        },
+        {
+          "target": "NodeData(\"82e8f763-4bc3-9ef3-4446-dfa9b1b73785\", \"B\")",
+          "source": "NodeData(\"8c95730a-4b04-6ac9-a1ee-cd9035939109\", \"ReturnValue\")"
+        },
+        {
+          "target": "NodeData(\"8c95730a-4b04-6ac9-a1ee-cd9035939109\", \"A\")",
+          "source": "NodeData(\"6e26cf63-4f9f-f07f-f69e-c799ac133a07\", \"ReturnValue\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "bCanEnterTransition": "Bool"
+        }
+      },
+      "root_output_exceptions": [
+        {
+          "name": "bCanEnterTransition",
+          "reason": "Declared graph boundary data output.",
+          "evidence": "target/bf116_bow/source/character_bow.json"
+        }
+      ]
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T29/Transition.transition.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "28edb4fc-144d-5f9d-b620-e227e24e6b2f",
+          "name": "Relaxed to Ready",
+          "position": [
+            328.0,
+            -12.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"28edb4fc-144d-5f9d-b620-e227e24e6b2f\", \"factor\")",
+          "source": "InputData(FsmBuiltin(PercentThroughDuration))"
+        },
+        {
+          "target": "NodeData(\"28edb4fc-144d-5f9d-b620-e227e24e6b2f\", \"pose_a\")",
+          "source": "InputData(FromFsmSource(\"pose\"))"
+        },
+        {
+          "target": "NodeTime(\"28edb4fc-144d-5f9d-b620-e227e24e6b2f\", \"time_a\")",
+          "source": "InputTime(FromFsmSource(\"time\"))"
+        },
+        {
+          "target": "NodeData(\"28edb4fc-144d-5f9d-b620-e227e24e6b2f\", \"pose_b\")",
+          "source": "InputData(FromFsmTarget(\"pose\"))"
+        },
+        {
+          "target": "NodeTime(\"28edb4fc-144d-5f9d-b620-e227e24e6b2f\", \"time_b\")",
+          "source": "InputTime(FromFsmTarget(\"time\"))"
+        },
+        {
+          "target": "OutputData(\"pose\")",
+          "source": "NodeData(\"28edb4fc-144d-5f9d-b620-e227e24e6b2f\", \"pose\")"
+        },
+        {
+          "target": "OutputTime",
+          "source": "NodeTime(\"28edb4fc-144d-5f9d-b620-e227e24e6b2f\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {
+          "FsmBuiltin(PercentThroughDuration)": "F32",
+          "FromFsmSource(\"pose\")": "Pose",
+          "FromFsmTarget(\"pose\")": "Pose"
+        },
+        "input_times": [
+          "FromFsmSource(\"time\")",
+          "FromFsmTarget(\"time\")"
+        ],
+        "output_time": true,
+        "output_data": {
+          "pose": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T29_AnimationTransitionGraph_0.condition.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "f452d8cb-42d2-960e-dcbe-3bae676e669c",
+          "name": "Property Access",
+          "position": [
+            -656.0,
+            0.0
+          ]
+        },
+        {
+          "id": "36957429-4608-b3cf-77fc-96bdfc21ca2c",
+          "name": "Equal (GameplayTag)",
+          "position": [
+            -352.0,
+            0.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "OutputData(\"bCanEnterTransition\")",
+          "source": "NodeData(\"36957429-4608-b3cf-77fc-96bdfc21ca2c\", \"ReturnValue\")"
+        },
+        {
+          "target": "NodeData(\"36957429-4608-b3cf-77fc-96bdfc21ca2c\", \"A\")",
+          "source": "NodeData(\"f452d8cb-42d2-960e-dcbe-3bae676e669c\", \"Value\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "bCanEnterTransition": "Bool"
+        }
+      },
+      "root_output_exceptions": [
+        {
+          "name": "bCanEnterTransition",
+          "reason": "Declared graph boundary data output.",
+          "evidence": "target/bf116_bow/source/character_bow.json"
+        }
+      ]
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T30/Transition.transition.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "b10e275b-ff1c-520e-a55d-fbaf4b774d1b",
+          "name": "Ready to Relaxed",
+          "position": [
+            328.0,
+            35.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"b10e275b-ff1c-520e-a55d-fbaf4b774d1b\", \"factor\")",
+          "source": "InputData(FsmBuiltin(PercentThroughDuration))"
+        },
+        {
+          "target": "NodeData(\"b10e275b-ff1c-520e-a55d-fbaf4b774d1b\", \"pose_a\")",
+          "source": "InputData(FromFsmSource(\"pose\"))"
+        },
+        {
+          "target": "NodeTime(\"b10e275b-ff1c-520e-a55d-fbaf4b774d1b\", \"time_a\")",
+          "source": "InputTime(FromFsmSource(\"time\"))"
+        },
+        {
+          "target": "NodeData(\"b10e275b-ff1c-520e-a55d-fbaf4b774d1b\", \"pose_b\")",
+          "source": "InputData(FromFsmTarget(\"pose\"))"
+        },
+        {
+          "target": "NodeTime(\"b10e275b-ff1c-520e-a55d-fbaf4b774d1b\", \"time_b\")",
+          "source": "InputTime(FromFsmTarget(\"time\"))"
+        },
+        {
+          "target": "OutputData(\"pose\")",
+          "source": "NodeData(\"b10e275b-ff1c-520e-a55d-fbaf4b774d1b\", \"pose\")"
+        },
+        {
+          "target": "OutputTime",
+          "source": "NodeTime(\"b10e275b-ff1c-520e-a55d-fbaf4b774d1b\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {
+          "FsmBuiltin(PercentThroughDuration)": "F32",
+          "FromFsmSource(\"pose\")": "Pose",
+          "FromFsmTarget(\"pose\")": "Pose"
+        },
+        "input_times": [
+          "FromFsmSource(\"time\")",
+          "FromFsmTarget(\"time\")"
+        ],
+        "output_time": true,
+        "output_data": {
+          "pose": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T30_AnimationTransitionGraph_0.condition.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "1a0868d3-4f4c-fe2a-25d2-1696fa1aa627",
+          "name": "AND Boolean",
+          "position": [
+            -208.0,
+            0.0
+          ]
+        },
+        {
+          "id": "13805cc5-47b1-f86b-5746-c1904ef05b13",
+          "name": "Current State Time (Bow States)",
+          "position": [
+            -736.0,
+            48.0
+          ]
+        },
+        {
+          "id": "981525af-4168-c684-4626-c4b5dcd49b8d",
+          "name": "float >= float",
+          "position": [
+            -432.0,
+            48.0
+          ]
+        },
+        {
+          "id": "ba1a92e9-41f9-dfb3-8382-9ea5a230283a",
+          "name": "Property Access",
+          "position": [
+            -560.0,
+            -32.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"1a0868d3-4f4c-fe2a-25d2-1696fa1aa627\", \"A\")",
+          "source": "NodeData(\"ba1a92e9-41f9-dfb3-8382-9ea5a230283a\", \"Value\")"
+        },
+        {
+          "target": "NodeData(\"1a0868d3-4f4c-fe2a-25d2-1696fa1aa627\", \"B\")",
+          "source": "NodeData(\"981525af-4168-c684-4626-c4b5dcd49b8d\", \"ReturnValue\")"
+        },
+        {
+          "target": "OutputData(\"bCanEnterTransition\")",
+          "source": "NodeData(\"1a0868d3-4f4c-fe2a-25d2-1696fa1aa627\", \"ReturnValue\")"
+        },
+        {
+          "target": "NodeData(\"981525af-4168-c684-4626-c4b5dcd49b8d\", \"A\")",
+          "source": "NodeData(\"13805cc5-47b1-f86b-5746-c1904ef05b13\", \"ReturnValue\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "bCanEnterTransition": "Bool"
+        }
+      },
+      "root_output_exceptions": [
+        {
+          "name": "bCanEnterTransition",
+          "reason": "Declared graph boundary data output.",
+          "evidence": "target/bf116_bow/source/character_bow.json"
+        }
+      ]
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T31/Transition.transition.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "d125ba94-8066-5ba3-89b4-c1898ae00b5a",
+          "name": "Ready to Relaxed",
+          "position": [
+            295.0,
+            35.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"d125ba94-8066-5ba3-89b4-c1898ae00b5a\", \"factor\")",
+          "source": "InputData(FsmBuiltin(PercentThroughDuration))"
+        },
+        {
+          "target": "NodeData(\"d125ba94-8066-5ba3-89b4-c1898ae00b5a\", \"pose_a\")",
+          "source": "InputData(FromFsmSource(\"pose\"))"
+        },
+        {
+          "target": "NodeTime(\"d125ba94-8066-5ba3-89b4-c1898ae00b5a\", \"time_a\")",
+          "source": "InputTime(FromFsmSource(\"time\"))"
+        },
+        {
+          "target": "NodeData(\"d125ba94-8066-5ba3-89b4-c1898ae00b5a\", \"pose_b\")",
+          "source": "InputData(FromFsmTarget(\"pose\"))"
+        },
+        {
+          "target": "NodeTime(\"d125ba94-8066-5ba3-89b4-c1898ae00b5a\", \"time_b\")",
+          "source": "InputTime(FromFsmTarget(\"time\"))"
+        },
+        {
+          "target": "OutputData(\"pose\")",
+          "source": "NodeData(\"d125ba94-8066-5ba3-89b4-c1898ae00b5a\", \"pose\")"
+        },
+        {
+          "target": "OutputTime",
+          "source": "NodeTime(\"d125ba94-8066-5ba3-89b4-c1898ae00b5a\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {
+          "FsmBuiltin(PercentThroughDuration)": "F32",
+          "FromFsmSource(\"pose\")": "Pose",
+          "FromFsmTarget(\"pose\")": "Pose"
+        },
+        "input_times": [
+          "FromFsmSource(\"time\")",
+          "FromFsmTarget(\"time\")"
+        ],
+        "output_time": true,
+        "output_data": {
+          "pose": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T31_AnimationTransitionGraph_0.condition.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "fc030fc1-4a4d-ed09-bd4e-e1a911d402fb",
+          "name": "OR Boolean",
+          "position": [
+            -192.0,
+            0.0
+          ]
+        },
+        {
+          "id": "c966f57b-4499-3360-e602-cd8f546be6b5",
+          "name": "Equal (GameplayTag)",
+          "position": [
+            -560.0,
+            -48.0
+          ]
+        },
+        {
+          "id": "4e93706e-4210-37b2-44eb-84b605033948",
+          "name": "Property Access",
+          "position": [
+            -880.0,
+            -48.0
+          ]
+        },
+        {
+          "id": "8c013b71-43b6-0539-34e6-8a84312ba9bc",
+          "name": "Property Access",
+          "position": [
+            -768.0,
+            48.0
+          ]
+        },
+        {
+          "id": "d9df8cb6-4d79-1fec-f7b3-eeaea35b1a9a",
+          "name": "Equal (GameplayTag)",
+          "position": [
+            -512.0,
+            48.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"c966f57b-4499-3360-e602-cd8f546be6b5\", \"A\")",
+          "source": "NodeData(\"4e93706e-4210-37b2-44eb-84b605033948\", \"Value\")"
+        },
+        {
+          "target": "NodeData(\"fc030fc1-4a4d-ed09-bd4e-e1a911d402fb\", \"A\")",
+          "source": "NodeData(\"c966f57b-4499-3360-e602-cd8f546be6b5\", \"ReturnValue\")"
+        },
+        {
+          "target": "NodeData(\"fc030fc1-4a4d-ed09-bd4e-e1a911d402fb\", \"B\")",
+          "source": "NodeData(\"d9df8cb6-4d79-1fec-f7b3-eeaea35b1a9a\", \"ReturnValue\")"
+        },
+        {
+          "target": "OutputData(\"bCanEnterTransition\")",
+          "source": "NodeData(\"fc030fc1-4a4d-ed09-bd4e-e1a911d402fb\", \"ReturnValue\")"
+        },
+        {
+          "target": "NodeData(\"d9df8cb6-4d79-1fec-f7b3-eeaea35b1a9a\", \"A\")",
+          "source": "NodeData(\"8c013b71-43b6-0539-34e6-8a84312ba9bc\", \"Value\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "bCanEnterTransition": "Bool"
+        }
+      },
+      "root_output_exceptions": [
+        {
+          "name": "bCanEnterTransition",
+          "reason": "Declared graph boundary data output.",
+          "evidence": "target/bf116_bow/source/character_bow.json"
+        }
+      ]
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T5/Transition.transition.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "67d43394-ba69-5c0c-9659-629ebe4f2eab",
+          "name": "Aiming to Ready",
+          "position": [
+            522.0,
+            35.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"67d43394-ba69-5c0c-9659-629ebe4f2eab\", \"factor\")",
+          "source": "InputData(FsmBuiltin(PercentThroughDuration))"
+        },
+        {
+          "target": "NodeData(\"67d43394-ba69-5c0c-9659-629ebe4f2eab\", \"pose_a\")",
+          "source": "InputData(FromFsmSource(\"pose\"))"
+        },
+        {
+          "target": "NodeTime(\"67d43394-ba69-5c0c-9659-629ebe4f2eab\", \"time_a\")",
+          "source": "InputTime(FromFsmSource(\"time\"))"
+        },
+        {
+          "target": "NodeData(\"67d43394-ba69-5c0c-9659-629ebe4f2eab\", \"pose_b\")",
+          "source": "InputData(FromFsmTarget(\"pose\"))"
+        },
+        {
+          "target": "NodeTime(\"67d43394-ba69-5c0c-9659-629ebe4f2eab\", \"time_b\")",
+          "source": "InputTime(FromFsmTarget(\"time\"))"
+        },
+        {
+          "target": "OutputData(\"pose\")",
+          "source": "NodeData(\"67d43394-ba69-5c0c-9659-629ebe4f2eab\", \"pose\")"
+        },
+        {
+          "target": "OutputTime",
+          "source": "NodeTime(\"67d43394-ba69-5c0c-9659-629ebe4f2eab\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {
+          "FsmBuiltin(PercentThroughDuration)": "F32",
+          "FromFsmSource(\"pose\")": "Pose",
+          "FromFsmTarget(\"pose\")": "Pose"
+        },
+        "input_times": [
+          "FromFsmSource(\"time\")",
+          "FromFsmTarget(\"time\")"
+        ],
+        "output_time": true,
+        "output_data": {
+          "pose": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T5_AnimationTransitionGraph_0.condition.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "a82a215b-4b7d-116d-087b-83b38a3f568b",
+          "name": "Property Access",
+          "position": [
+            -656.0,
+            0.0
+          ]
+        },
+        {
+          "id": "bef48f2b-4199-310f-4490-e694268b6faa",
+          "name": "Not Equal (GameplayTag)",
+          "position": [
+            -352.0,
+            0.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"bef48f2b-4199-310f-4490-e694268b6faa\", \"A\")",
+          "source": "NodeData(\"a82a215b-4b7d-116d-087b-83b38a3f568b\", \"Value\")"
+        },
+        {
+          "target": "OutputData(\"bCanEnterTransition\")",
+          "source": "NodeData(\"bef48f2b-4199-310f-4490-e694268b6faa\", \"ReturnValue\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "bCanEnterTransition": "Bool"
+        }
+      },
+      "root_output_exceptions": [
+        {
+          "name": "bCanEnterTransition",
+          "reason": "Declared graph boundary data output.",
+          "evidence": "target/bf116_bow/source/character_bow.json"
+        }
+      ]
+    },
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "18a4146a-4cc3-2383-7131-a2bf45866794",
+          "name": "Output Pose\nOverlay",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "d0197c96-4f9c-4a39-bc30-5d8d6f508036",
+          "name": "Bow States\nState Machine",
+          "position": [
+            -496.0,
+            -112.0
+          ]
+        },
+        {
+          "id": "c9ca9436-4ae7-bd35-9f8e-c48dce7cb7cd",
+          "name": "A_Als_Bow_Poses\nSequence Evaluator (by frame)",
+          "position": [
+            -896.0,
+            -16.0
+          ]
+        },
+        {
+          "id": "a0062856-4b6e-1703-f52c-0f93bf34f31d",
+          "name": "A_Als_Bow_Poses\nSequence Evaluator (by frame)",
+          "position": [
+            -880.0,
+            288.0
+          ]
+        },
+        {
+          "id": "f4e3b762-4490-2f83-673e-77b57d9c40a3",
+          "name": "A_Als_Bow_Poses\nSequence Evaluator (by frame)",
+          "position": [
+            -880.0,
+            144.0
+          ]
+        },
+        {
+          "id": "87be2447-4019-4f46-a710-44975f1426f4",
+          "name": "Blend Poses by Gameplay Tag",
+          "position": [
+            -336.0,
+            64.0
+          ]
+        },
+        {
+          "id": "ae74a763-4433-6888-151e-7fa035b159ae",
+          "name": "Modify Curve",
+          "position": [
+            -592.0,
+            304.0
+          ]
+        },
+        {
+          "id": "9443a538-453b-b306-db6f-a5bca6f0277f",
+          "name": "Modify Curve",
+          "position": [
+            -592.0,
+            160.0
+          ]
+        },
+        {
+          "id": "a80088ae-423f-d449-417e-9ca369828346",
+          "name": "Modify Curve",
+          "position": [
+            -608.0,
+            0.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"ae74a763-4433-6888-151e-7fa035b159ae\", \"SourcePose\")",
+          "source": "NodeData(\"a0062856-4b6e-1703-f52c-0f93bf34f31d\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"87be2447-4019-4f46-a710-44975f1426f4\", \"BlendPose_3\")",
+          "source": "NodeData(\"ae74a763-4433-6888-151e-7fa035b159ae\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"87be2447-4019-4f46-a710-44975f1426f4\", \"BlendPose_1\")",
+          "source": "NodeData(\"a80088ae-423f-d449-417e-9ca369828346\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"87be2447-4019-4f46-a710-44975f1426f4\", \"BlendPose_2\")",
+          "source": "NodeData(\"9443a538-453b-b306-db6f-a5bca6f0277f\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"87be2447-4019-4f46-a710-44975f1426f4\", \"BlendPose_0\")",
+          "source": "NodeData(\"d0197c96-4f9c-4a39-bc30-5d8d6f508036\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"9443a538-453b-b306-db6f-a5bca6f0277f\", \"SourcePose\")",
+          "source": "NodeData(\"f4e3b762-4490-2f83-673e-77b57d9c40a3\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"18a4146a-4cc3-2383-7131-a2bf45866794\", \"Source\")",
+          "source": "NodeData(\"87be2447-4019-4f46-a710-44975f1426f4\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"a80088ae-423f-d449-417e-9ca369828346\", \"SourcePose\")",
+          "source": "NodeData(\"c9ca9436-4ae7-bd35-9f8e-c48dce7cb7cd\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"18a4146a-4cc3-2383-7131-a2bf45866794\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    }
+  ],
+  "fsms": [
+    {
+      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States.fsm.ron",
+      "expected_states": [
+        {
+          "id": "5f92893b-40f5-2d48-b6b3-e0a3d87336c4",
+          "label": "Relaxed",
+          "graph": "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/S2_Relaxed.animgraph.ron",
+          "position": [
+            176.0,
+            0.0
+          ]
+        },
+        {
+          "id": "c06b9168-48ec-91b2-2982-bd8ae2ebbe99",
+          "label": "Aiming",
+          "graph": "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/S9_Aiming.animgraph.ron",
+          "position": [
+            576.0,
+            0.0
+          ]
+        },
+        {
+          "id": "969da568-43dd-e13a-55e1-5a9ff96873c8",
+          "label": "Ready",
+          "graph": "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/S13_Ready.animgraph.ron",
+          "position": [
+            384.0,
+            0.0
+          ]
+        }
+      ],
+      "expected_transitions": [
+        {
+          "id": "0ab6cd87-4a47-8ad2-8321-53a2e4da8582",
+          "source": "969da568-43dd-e13a-55e1-5a9ff96873c8",
+          "target": "5f92893b-40f5-2d48-b6b3-e0a3d87336c4"
+        },
+        {
+          "id": "18d8d39a-4b55-ab9b-fdf9-abae458dd307",
+          "source": "5f92893b-40f5-2d48-b6b3-e0a3d87336c4",
+          "target": "969da568-43dd-e13a-55e1-5a9ff96873c8"
+        },
+        {
+          "id": "d1939b83-4bbf-a32a-231a-9eba3e462942",
+          "source": "c06b9168-48ec-91b2-2982-bd8ae2ebbe99",
+          "target": "969da568-43dd-e13a-55e1-5a9ff96873c8"
+        },
+        {
+          "id": "9b5a6abe-4277-c313-1d9e-279bdc71dfe0",
+          "source": "969da568-43dd-e13a-55e1-5a9ff96873c8",
+          "target": "5f92893b-40f5-2d48-b6b3-e0a3d87336c4"
+        },
+        {
+          "id": "71114d5e-47e6-e8ad-a8b3-0ebd5ebdde52",
+          "source": "969da568-43dd-e13a-55e1-5a9ff96873c8",
+          "target": "c06b9168-48ec-91b2-2982-bd8ae2ebbe99"
+        },
+        {
+          "id": "e5220a75-4e9d-7c76-55db-00a4c2e479f9",
+          "source": "969da568-43dd-e13a-55e1-5a9ff96873c8",
+          "target": "5f92893b-40f5-2d48-b6b3-e0a3d87336c4"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Pose": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    }
+  ],
+  "verification_commands": [
+    {
+      "label": "native_bow_closure",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/audit_generated_source_closure.py",
+        "--source-directory",
+        "target/bf116_bow/05b2_source",
+        "--materialized-directory",
+        "target/bf116_bow/05c2_character_install",
+        "--spec",
+        "target/bf116_bow/05c2_spec.json"
+      ]
+    },
+    {
+      "label": "generated_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow"
+      ]
+    },
+    {
+      "label": "generated_editor",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow"
+      ]
+    },
+    {
+      "label": "runtime_boundary",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/validate_runtime_graph_asset_boundary.py",
+        "--assets-root",
+        "assets",
+        "--check"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "generated_animgraph_assets",
+    "manual_case": "interface"
+  },
+  "recursive_inventory": null,
+  "focused_tests": [
+    {
+      "label": "instance_linking_lifecycle",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "-p",
+        "als-ext",
+        "--lib",
+        "--jobs",
+        "2",
+        "instance_graph_binding_switches_and_resets_only_the_linked_subtree",
+        "--",
+        "--test-threads",
+        "1"
+      ],
+      "evidence": "target/bf116_bow/05c2_ext_restored.watchdog.json"
+    }
+  ]
+}

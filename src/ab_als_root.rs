@@ -32,6 +32,8 @@ pub struct AlsRootGraphPlugin;
 
 const SECONDARY_MOTION_DURATION: f32 = 2.666667;
 const FULL_WEIGHT_EPSILON: f32 = 1e-4;
+const OVERLAY_LAYER_BINDING: &str = "/ALS/ALS/Character/ALI_Overlay.ALI_Overlay_C:Overlay";
+const GENERATED_BOW_GRAPH: &str = "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/AnimGraph.animgraph.ron";
 
 #[derive(Resource, Default)]
 struct SecondaryMotionPhases {
@@ -221,6 +223,8 @@ fn overlay_runtime_inputs(
 #[allow(clippy::type_complexity)]
 fn root_graph_writer(
     time: Res<Time>,
+    assets: Res<AssetServer>,
+    mut bow_graph: Local<Option<Handle<bevy_animation_graph::core::animation_graph::AnimationGraph>>>,
     mut secondary_motion: ResMut<SecondaryMotionPhases>,
     characters: Query<
         (
@@ -251,6 +255,7 @@ fn root_graph_writer(
     >,
     mut players: Query<(&mut AnimationGraphPlayer, Option<&AlsRootAnimationContext>)>,
 ) {
+    let bow_graph = bow_graph.get_or_insert_with(|| assets.load(GENERATED_BOW_GRAPH)).clone();
     for (
         entity,
         overlay,
@@ -274,6 +279,10 @@ fn root_graph_writer(
             let Ok((mut player, context)) = players.get_mut(instance.player_entity()) else {
                 continue;
             };
+            als_ext::source_gameplay_tag_input::set_linked_graph_input(
+                instance.player_entity(), OVERLAY_LAYER_BINDING,
+                (*overlay == OverlayState::Bow && assets.is_loaded_with_dependencies(bow_graph.id())).then(|| bow_graph.clone()),
+            );
             set_gameplay_tag_input(instance.player_entity(), "gait", gait_tag(*gait));
             set_gameplay_tag_input(
                 instance.player_entity(),

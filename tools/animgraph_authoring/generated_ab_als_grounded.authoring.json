@@ -691,9 +691,9 @@
         "--source-directory",
         "target/bf116_bow/05b2_source",
         "--materialized-directory",
-        "target/bf116_bow/05b5_corpus_root",
+        "target/bf116_bow/05c2_corpus_root",
         "--spec",
-        "target/bf116_bow/05b5_spec.json",
+        "target/bf116_bow/05c2_spec.json",
         "--source-asset",
         "/ALS/ALS/Character/AnimationInstances/AB_Als_Grounded.AB_Als_Grounded"
       ]
@@ -780,9 +780,9 @@
         "--source-directory",
         "target/bf116_bow/05b2_source",
         "--materialized-directory",
-        "target/bf116_bow/05b5_corpus_root",
+        "target/bf116_bow/05c2_corpus_root",
         "--spec",
-        "target/bf116_bow/05b5_spec.json",
+        "target/bf116_bow/05c2_spec.json",
         "--source-asset",
         "/ALS/ALS/Character/AB_Als.AB_Als"
       ]
