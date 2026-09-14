@@ -2,7 +2,7 @@
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use als_core::{
     character::{AlsCharacter, AlsMovementParamsHandle},
-    dynamics::AlsGroundedDynamics,
+    dynamics::{AlsGroundedDynamics, AlsMovementBase},
     foot_ik::AlsFootLockState,
     input::AlsInputCommand,
     input_request::AlsFirstPersonView,
@@ -12,6 +12,7 @@ use als_core::{
     state::{Gait, RotationMode, Stance},
 };
 use bevy::ecs::hierarchy::ChildOf;
+use avian3d::prelude::{ColliderOf, RigidBody};
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
     animated_scene::AnimatedSceneInstance, animation_graph_player::AnimationGraphPlayer,
@@ -48,7 +49,6 @@ use crate::{
     character_assembly::AlsCharacterAvatar,
     direction_layer::view_space_direction_angle_from_radians,
     grounded_layer::AlsGroundedEntryMode,
-    locomotion_layer::AlsMovementBaseAnimationState,
     ragdolling_layer::AlsRagdollingLayerSet,
     standing_layer::{AlsStandingLayerSet, source_moving_smooth},
     standing_source::standing_rotation_yaw_offsets,
@@ -228,7 +228,7 @@ fn generated_ab_als_input_writer(
             &AlsViewYaw,
             Option<&AlsInputCommand>,
             Option<&AlsInputOverride>,
-            Option<&AlsMovementBaseAnimationState>,
+            Option<&AlsMovementBase>,
             Option<&AlsGroundedEntryMode>,
             &Transform,
             Option<&AlsFirstPersonView>,
@@ -239,6 +239,8 @@ fn generated_ab_als_input_writer(
     >,
     avatars: Query<(&ChildOf, &AnimatedSceneInstance, &GlobalTransform), With<AlsCharacterAvatar>>,
     mut players: Query<(&mut AnimationGraphPlayer, Option<&AlsRootAnimationContext>)>,
+    owners: Query<&ColliderOf>,
+    bodies: Query<&RigidBody>,
 ) {
     for (
         character,
@@ -381,8 +383,10 @@ fn generated_ab_als_input_writer(
                     }),
                 );
             }
-            let has_relative_location =
-                movement_base.is_some_and(|state| state.has_relative_location);
+            let has_relative_location = movement_base.and_then(|base| base.entity).is_some_and(|entity| {
+                let owner = owners.get(entity).map_or(entity, |collider| collider.body);
+                bodies.get(owner).is_ok_and(|body| *body != RigidBody::Static)
+            });
             let hips_direction_lock = context
                 .and_then(|state| state.f32("HipsDirectionLock"))
                 .unwrap_or(0.0)
@@ -449,6 +453,50 @@ fn generated_ab_als_input_writer(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn animation_movement_base_input_reads_the_actual_physics_owner() {
+        use als_core::{dynamics::AlsMovementBase, state::LocomotionState};
+        use avian3d::prelude::*;
+        use bevy::{ecs::system::RunSystemOnce, world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner}};
+        use bevy_animation_graph::{AnimationGraphPlugin, core::animated_scene::AnimatedSceneHandle};
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin, bevy::mesh::MeshPlugin,
+            bevy::gizmos::GizmoPlugin, PhysicsPlugins::new(PostUpdate), AnimationGraphPlugin::from_physics_schedule(PostUpdate)))
+            .init_asset::<WorldAsset>().init_asset::<AlsMovementParams>();
+        app.finish();
+        app.cleanup();
+        let body = app.world_mut().spawn((RigidBody::Kinematic, Transform::IDENTITY)).id();
+        let child = app.world_mut().spawn((Collider::cuboid(3.0, 1.0, 3.0), ChildOf(body), Transform::IDENTITY)).id();
+        app.update();
+        assert_eq!(app.world().get::<ColliderOf>(child).unwrap().body, body);
+        let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(AlsMovementParams::default());
+        let character = app.world_mut().spawn((AlsCharacter, Transform::IDENTITY, Gait::Walking,
+            Stance::Standing, RotationMode::ViewDirection, AlsActualMotion::default(), AlsViewYaw(0.0),
+            AlsMovementParamsHandle(params))).id();
+        let avatar = app.world_mut().spawn((AlsCharacterAvatar { character }, ChildOf(character),
+            Transform::IDENTITY, AnimatedSceneHandle::default())).id();
+        let player = app.world_mut().spawn((AnimationGraphPlayer::new(Handle::default()), ChildOf(avatar))).id();
+        app.world_mut().trigger(WorldInstanceReady { entity:avatar,
+            instance_id:WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
+        app.world_mut().flush();
+        assert_eq!(app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity(), player);
+        let invalid = app.world_mut().spawn(Transform::IDENTITY).id();
+        for mode in [LocomotionState::Grounded, LocomotionState::Custom] {
+            app.world_mut().entity_mut(character).insert(mode);
+            for kind in [RigidBody::Static, RigidBody::Kinematic, RigidBody::Dynamic] {
+                app.world_mut().entity_mut(body).insert(kind);
+                for target in [None, Some(body), Some(child), Some(invalid)] {
+                    app.world_mut().get_mut::<AlsMovementBase>(character).unwrap().entity = target;
+                    app.world_mut().run_system_once(generated_ab_als_input_writer).unwrap();
+                    let actual = app.world().get::<AnimationGraphPlayer>(player).unwrap()
+                        .get_global_input_data("movement_base.b_has_relative_location").unwrap().as_bool().unwrap();
+                    let expected = kind != RigidBody::Static && target.is_some_and(|entity| entity == body || entity == child);
+                    assert_eq!(actual, expected, "Source movement-base input differs: {mode:?}, {kind:?}, {target:?}");
+                }
+            }
+        }
+    }
 
     #[test]
     fn component_inputs_bind_the_source_bone_below_the_scene_container() {

@@ -1,4 +1,4 @@
-use als_core::dynamics::AlsMovementBaseDynamicsState;
+use als_core::dynamics::AlsMovementBase;
 use als_core::foot_ik::{
     AlsDynamicTransitionState, AlsFootBones, AlsFootLockFootState, AlsFootLockInput,
     AlsFootLockMovementBase, AlsFootLockSettings, AlsFootLockState, AlsFootLockTeleported,
@@ -14,6 +14,7 @@ use als_ext::ik_space::{
     armature_rotation_from_world, world_point_from_armature, world_rotation_from_armature,
 };
 use bevy::prelude::*;
+use avian3d::prelude::{ColliderOf, RigidBody};
 use bevy::transform::{TransformSystems, helper::TransformHelper};
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::{animated_scene::AnimatedSceneInstance, animation_graph::AnimationGraph, animation_graph_player::AnimationGraphPlayer};
@@ -503,7 +504,7 @@ fn refresh_foot_lock_inputs(
     profile: Res<CrAlsRuntimeProfileTemplate>,
     mut characters: Query<(
         Entity, &AlsFootBones, Option<&AlsFootTargetSelection>, &LocomotionState,
-        &AlsFootLockInput, &Stance, &AlsFootLockSettings, Option<&AlsMovementBaseDynamicsState>,
+        &AlsFootLockInput, &Stance, &AlsFootLockSettings, Option<&AlsMovementBase>,
         &mut FootLockLifecycleState, &mut AlsFootLockState, &mut AlsDynamicTransitionState,
         Option<&mut AlsControlRigInput>,
     ), With<als_core::character::AlsCharacter>>,
@@ -512,6 +513,8 @@ fn refresh_foot_lock_inputs(
     parents: Query<&ChildOf>,
     bone_globals: Query<&GlobalTransform, Without<als_core::character::AlsCharacter>>,
     mut telemetry: Query<&mut AlsFootLockTeleportTelemetry>,
+    owners: Query<&ColliderOf>,
+    bodies: Query<&RigidBody>,
 ) {
     let dt = time.delta_secs();
     for (entity, bones, selection, locomotion, lock_input, stance, settings, movement_base,
@@ -544,7 +547,7 @@ fn refresh_foot_lock_inputs(
         let current_base = movement_base.and_then(|state| {
             state
                 .entity
-                .and_then(|entity| foot_lock_movement_base(entity, &transforms))
+                .and_then(|entity| foot_lock_movement_base(entity, &transforms, &owners, &bodies))
         });
         if let Some(previous_character_transform) = lifecycle.previous_character_transform {
             for (side, ik_amount) in [left_ik_amount, right_ik_amount].into_iter().enumerate() {
@@ -627,7 +630,11 @@ fn refresh_foot_lock_inputs(
 fn foot_lock_movement_base(
     entity: Entity,
     transforms: &TransformHelper,
+    owners: &Query<&ColliderOf>,
+    bodies: &Query<&RigidBody>,
 ) -> Option<AlsFootLockMovementBase> {
+    let owner = owners.get(entity).map_or(entity, |collider| collider.body);
+    if !bodies.get(owner).is_ok_and(|body| *body != RigidBody::Static) { return None; }
     let transform = transforms.compute_global_transform(entity).ok()?;
     Some(AlsFootLockMovementBase {
         entity,
@@ -639,6 +646,49 @@ fn foot_lock_movement_base(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn animation_movement_base_foot_lock_keeps_custom_targets_and_rejects_static_owners() {
+        use als_core::dynamics::AlsMovementBase;
+        use avian3d::prelude::*;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin,
+            TransformPlugin, PhysicsPlugins::new(PostUpdate), FootIkApplyPlugin));
+        app.finish();
+        app.cleanup();
+        let body = app.world_mut().spawn((RigidBody::Kinematic, Transform::IDENTITY)).id();
+        let child = app.world_mut().spawn((Collider::cuboid(3.0, 1.0, 3.0), ChildOf(body), Transform::IDENTITY)).id();
+        app.update();
+        assert_eq!(app.world().get::<ColliderOf>(child).unwrap().body, body);
+        let character = app.world_mut().spawn((als_core::character::AlsCharacter, Transform::from_xyz(0.0, 2.0, 0.0),
+            LocomotionState::Grounded, Stance::Standing, AlsFootLockSettings::default(),
+            AlsFootLockInput { left_ik_amount:1.0, right_ik_amount:1.0, left_lock_amount:1.0, right_lock_amount:1.0, ..default() },
+            AlsControlRigInput::default())).id();
+        let avatar = app.world_mut().spawn((AlsCharacterAvatar { character }, Transform::IDENTITY, ChildOf(character))).id();
+        let pelvis = app.world_mut().spawn((Transform::from_xyz(0.0, 0.9, 0.0), ChildOf(avatar))).id();
+        let thigh = app.world_mut().spawn((Transform::IDENTITY, ChildOf(pelvis))).id();
+        let calf = app.world_mut().spawn((Transform::from_xyz(0.0, -0.4, 0.0), ChildOf(thigh))).id();
+        let foot = app.world_mut().spawn((Transform::from_xyz(0.0, -0.4, 0.0), ChildOf(calf))).id();
+        app.world_mut().entity_mut(character).insert(AlsFootBones {
+            left_thigh:thigh, left_calf:calf, left:foot, left_target:Some(foot), left_virtual_target:None,
+            right_thigh:thigh, right_calf:calf, right:foot, right_target:Some(foot), right_virtual_target:None,
+        });
+        for (kind, target, mode) in [(RigidBody::Kinematic, Some(child), LocomotionState::Grounded),
+            (RigidBody::Kinematic, Some(child), LocomotionState::Custom),
+            (RigidBody::Static, Some(child), LocomotionState::Grounded),
+            (RigidBody::Dynamic, Some(body), LocomotionState::Grounded),
+            (RigidBody::Dynamic, None, LocomotionState::Air)] {
+            app.world_mut().entity_mut(body).insert(kind);
+            app.world_mut().entity_mut(character).insert(mode);
+            app.world_mut().get_mut::<AlsMovementBase>(character).unwrap().entity = target;
+            app.update();
+            let feet = app.world().get::<AlsFootLockState>(character).unwrap();
+            assert!(feet.valid && feet.left.lock_amount > 0.0);
+            let expected = if kind == RigidBody::Static { None } else { target };
+            assert_eq!(feet.left.movement_base.map(|base| base.entity), expected, "Foot base differs: {kind:?}, {mode:?}");
+            assert_eq!(feet.right.movement_base.map(|base| base.entity), expected);
+        }
+    }
 
     #[test]
     fn rotating_base_reversal_keeps_unclamped_rotation_history() {

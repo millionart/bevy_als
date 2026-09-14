@@ -45,11 +45,6 @@ static IN_AIR_SETTINGS: LazyLock<InAirSettings> = LazyLock::new(|| {
         .expect("generated in-air settings are valid")
 });
 
-#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct AlsMovementBaseAnimationState {
-    pub has_relative_location: bool,
-}
-
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq)]
 pub struct AlsGroundPredictionState {
     pub amount: f32,
