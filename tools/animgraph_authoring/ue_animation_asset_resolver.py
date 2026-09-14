@@ -12,9 +12,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "uasset_curve_expor
 
 from uasset_base import UAsset
 from uasset_reader import PropReader
-from uasset import UAsset as CurveUAsset
-from extract_curves import extract_float_curves, is_anim_sequence
-from export_curve_gltf import curve_to_json
+from uasset import UAsset as CurveUAsset, ParseError as CurveParseError
+from extract_curves import CurveKey, FloatCurve, extract_float_curves, is_anim_sequence
+from export_curve_gltf import FLT_MAX_MARKER, curve_to_json
 from ue_exported_text import (
     ExportedTextError,
     field as struct_field,
@@ -335,7 +335,7 @@ def source_sequence_timing(content_root, mount, source_path, source_reader=None)
         raise AssetResolutionError("source animation sequence export is missing or ambiguous")
     properties, ok, _ = reader.read_export(matches[0])
     if not ok:
-        raise AssetResolutionError("source animation sequence properties are unreadable")
+        return sequence_timing_contract(native_source_asset(source_path, source_reader))
     duration = properties.get("SequenceLength")
     if not isinstance(duration, (int, float)) or isinstance(duration, bool) or duration <= 0.0:
         raise AssetResolutionError("source animation sequence duration is invalid")
@@ -356,16 +356,61 @@ def source_sequence_timing(content_root, mount, source_path, source_reader=None)
     return {"duration": float(duration), "markers": markers, "frames_per_second": frames_per_second, "root_lock": root_lock}
 
 
-def source_sequence_curves(content_root, mount, source_path):
+def sequence_curves_contract(source):
+    if not isinstance(source, dict) or source.get("format") != "ue_asset_source_v1" or source.get("asset_class") != "/Script/Engine.AnimSequence":
+        raise AssetResolutionError("source animation sequence curves are invalid")
+    try:
+        raw = parse_struct(asset_property(source, "RawCurveData"))
+        reject_unknown_fields(raw, {"FloatCurves", "TransformCurves"})
+        curves = []
+        for value in parse_list(struct_field(raw, "FloatCurves", "()")):
+            fields = parse_struct(value)
+            curve = FloatCurve()
+            curve.name = parse_quoted(struct_field(fields, "CurveName"))
+            flags = parse_number(struct_field(fields, "CurveTypeFlags", "4"))
+            if not flags.is_integer():
+                raise AssetResolutionError("source animation curve flags are invalid")
+            curve.flags = int(flags)
+            rich = parse_struct(struct_field(fields, "FloatCurve", "()"))
+            reject_unknown_fields(rich, {"DefaultValue", "PreInfinityExtrap", "PostInfinityExtrap", "Keys"})
+            curve.default_value = parse_number(rich["DefaultValue"]) if "DefaultValue" in rich else FLT_MAX_MARKER
+            for name, attribute in (("PreInfinityExtrap", "pre_infinity"), ("PostInfinityExtrap", "post_infinity")):
+                mode = struct_field(rich, name, "RCCE_Constant")
+                if mode not in {"RCCE_Cycle", "RCCE_CycleWithOffset", "RCCE_Oscillate", "RCCE_Linear", "RCCE_Constant", "RCCE_None"}:
+                    raise AssetResolutionError("source animation curve extrapolation is unsupported")
+                setattr(curve, attribute, mode)
+            for raw_key in parse_list(struct_field(rich, "Keys", "()")):
+                value = rich_curve_key(raw_key)
+                key = CurveKey()
+                key.interp = ("Linear", "Constant", "Cubic").index(value["interpolation"])
+                key.tangent_mode = ("Auto", "User", "Break", "None", "SmartAuto").index(value["tangent_mode"])
+                key.weight_mode = ("None", "Arrive", "Leave", "Both").index(value["tangent_weight_mode"])
+                for attribute, field in (("time", "t"), ("value", "v"), ("arrive_tangent", "arrive_tangent"),
+                    ("leave_tangent", "leave_tangent"), ("arrive_weight", "arrive_weight"), ("leave_weight", "leave_weight")):
+                    setattr(key, attribute, value[field])
+                curve.keys.append(key)
+            curves.append(curve_to_json(curve))
+    except ExportedTextError as error:
+        raise AssetResolutionError("source animation sequence curve properties are unreadable") from error
+    names = [curve["name"] for curve in curves]
+    if any(not name for name in names) or len(names) != len(set(names)):
+        raise AssetResolutionError("source animation curve names are invalid")
+    return curves
+
+
+def source_sequence_curves(content_root, mount, source_path, source_reader=None):
     path = source_uasset_path(content_root, mount, source_path)
-    asset = CurveUAsset(str(path))
-    indices = [
-        index for index, export in enumerate(asset.exports)
-        if is_anim_sequence(asset, index) and export.object_name == source_asset_name(source_path)
-    ]
-    if len(indices) != 1:
-        raise AssetResolutionError("source animation curve export is missing or ambiguous")
-    curves = [curve_to_json(curve) for curve in extract_float_curves(asset, indices[0])]
+    try:
+        asset = CurveUAsset(str(path))
+        indices = [
+            index for index, export in enumerate(asset.exports)
+            if is_anim_sequence(asset, index) and export.object_name == source_asset_name(source_path)
+        ]
+        if len(indices) != 1:
+            raise AssetResolutionError("source animation curve export is missing or ambiguous")
+        curves = [curve_to_json(curve) for curve in extract_float_curves(asset, indices[0])]
+    except CurveParseError:
+        return sequence_curves_contract(native_source_asset(source_path, source_reader))
     names = [curve["name"] for curve in curves]
     if any(not name for name in names) or len(names) != len(set(names)):
         raise AssetResolutionError("source animation curve names are invalid")
@@ -1093,7 +1138,7 @@ def resolve_graph_animation_assets(
                 for sample in samples:
                     animation = sample.get("source_animation", source_path)
                     if animation not in curves:
-                        curves[animation] = source_sequence_curves(source_content_root, source_mount, animation)
+                        curves[animation] = source_sequence_curves(source_content_root, source_mount, animation, source_reader)
                     sample["source_curves"] = curves[animation]
             if class_path == "/Script/AnimGraph.AnimGraphNode_BlendSpaceEvaluator":
                 row["blendspace"] = blendspace
@@ -1114,6 +1159,52 @@ def resolve_graph_animation_assets(
 
 
 def run_self_test():
+    from unittest.mock import patch
+    from types import SimpleNamespace
+    with tempfile.TemporaryDirectory() as directory:
+        content = Path(directory)
+        (content / "Sequence.uasset").write_bytes(b"fixture")
+        legacy_source = {"format":"ue_asset_source_v1", "asset_path":"/ALS/Sequence.Sequence",
+            "asset_class":"/Script/Engine.AnimSequence", "asset_properties":[
+                {"name":"RawCurveData", "exported_text":"()"},
+                {"name":"SequenceLength", "exported_text":"1.0"},
+                {"name":"SamplingFrameRate", "exported_text":"(Numerator=30,Denominator=1)"},
+                {"name":"AuthoredSyncMarkers", "exported_text":""}]}
+        with patch(__name__ + ".CurveUAsset", side_effect=CurveParseError("legacy property format")), \
+             patch(__name__ + ".native_source_asset", return_value=legacy_source) as native:
+            assert source_sequence_curves(content, "/ALS", legacy_source["asset_path"], "fixture_reader") == []
+            native.assert_called_once_with(legacy_source["asset_path"], "fixture_reader")
+        with patch(__name__ + ".CurveUAsset", side_effect=CurveParseError("legacy property format")), \
+             patch(__name__ + ".native_source_asset", side_effect=AssetResolutionError("native failed")):
+            try:
+                source_sequence_curves(content, "/ALS", legacy_source["asset_path"])
+            except AssetResolutionError:
+                pass
+            else:
+                raise AssertionError("A failed native curve read was accepted as an empty curve list")
+        weighted = '(CurveName="Weighted",CurveTypeFlags=20,FloatCurve=(DefaultValue=0.25,PreInfinityExtrap=RCCE_Linear,PostInfinityExtrap=RCCE_Cycle,Keys=((Time=0.5,Value=0.75,InterpMode=RCIM_Cubic,TangentMode=RCTM_User,TangentWeightMode=RCTWM_WeightedBoth,ArriveTangent=2.0,LeaveTangent=3.0,ArriveTangentWeight=0.1,LeaveTangentWeight=0.2))))'
+        weighted_source = {**legacy_source, "asset_properties":[{"name":"RawCurveData", "exported_text":"(FloatCurves=(" + weighted + "))"}]}
+        curve = sequence_curves_contract(weighted_source)[0]
+        assert curve == {"name":"Weighted", "flags":20, "default":0.25, "pre_infinity":"RCCE_Linear", "post_infinity":"RCCE_Cycle",
+            "interps":["CUBIC"], "times":[0.5], "values":[0.75], "tangent_modes":[1], "weight_modes":[3],
+            "arrive_tangents":[2.0], "leave_tangents":[3.0], "arrive_weights":[0.1], "leave_weights":[0.2]}
+        for invalid in ({**weighted_source, "asset_class":"/Script/Engine.Skeleton"},
+            {**weighted_source, "asset_properties":[]},
+            {**weighted_source, "asset_properties":[{"name":"RawCurveData", "exported_text":"(FloatCurves=(" + weighted + "," + weighted + "))"}]},
+            {**weighted_source, "asset_properties":[{"name":"RawCurveData", "exported_text":"(FloatCurves=(" + weighted.replace('RCIM_Cubic', 'RCIM_Invalid') + "))"}]}):
+            try:
+                sequence_curves_contract(invalid)
+            except AssetResolutionError:
+                pass
+            else:
+                raise AssertionError("Invalid native sequence curves were accepted")
+        asset = SimpleNamespace(exports=[SimpleNamespace(class_index=-1, object_name="Sequence")],
+            imports=[SimpleNamespace(class_name="Class", object_name="AnimSequence")])
+        with patch(__name__ + ".UAsset", return_value=asset), \
+             patch(__name__ + ".PropReader") as reader, \
+             patch(__name__ + ".native_source_asset", return_value=legacy_source):
+            reader.return_value.read_export.return_value = ({}, False, "legacy tag")
+            assert source_sequence_timing(content, "/ALS", legacy_source["asset_path"])["duration"] == 1.0
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         skeleton = root / "Reference.static.skn.ron"
@@ -1162,7 +1253,17 @@ def run_self_test():
     fixture_root = Path(__file__).parent / "fixtures"
     for fixture in ("ue_standing_walk_forward_curves", "ue_standing_rotate_left_curves"):
         curves = json.loads((fixture_root / f"{fixture}.json").read_text())["curves"]
-        native = parse_struct((fixture_root / f"{fixture}.ue.txt").read_text().strip())
+        native_text = (fixture_root / f"{fixture}.ue.txt").read_text().strip()
+        native = parse_struct(native_text)
+        converted = sequence_curves_contract({"format":"ue_asset_source_v1", "asset_class":"/Script/Engine.AnimSequence",
+            "asset_properties":[{"name":"RawCurveData", "exported_text":native_text}]})
+        assert len(converted) == len(curves)
+        for actual, expected in zip(converted, curves, strict=True):
+            for field in ("name", "flags", "default", "pre_infinity", "post_infinity", "interps"):
+                assert actual[field] == expected[field], (fixture, field, actual[field], expected[field])
+            for field in ("times", "values"):
+                assert len(actual[field]) == len(expected[field])
+                assert all(abs(a-b) < 5e-7 for a,b in zip(actual[field], expected[field], strict=True))
         for raw_curve, curve in zip(parse_list(struct_field(native, "FloatCurves")), curves, strict=True):
             fields = parse_struct(raw_curve)
             assert parse_quoted(struct_field(fields, "CurveName")) == curve["name"]
@@ -1677,6 +1778,8 @@ def run_self_test():
         "empty_skeleton_blend_profile_preserved": "PASS",
         "unsupported_blend_profile_rejected": "PASS",
         "cooked_sequence_and_blend_profile_native_fallback_preserved": "PASS",
+        "legacy_sequence_native_timing_and_curves_preserved": "PASS",
+        "native_sequence_curve_fields_and_read_failures_preserved": "PASS",
         "source_rich_curve_keys_preserved": "PASS",
         "unsupported_curve_float_extrapolation_rejected": "PASS",
     }
