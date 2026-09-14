@@ -143,6 +143,7 @@ fn write_head_inputs(
             input.body_yaw_velocity_world,
         ),
         ("view_state.pitch_angle", input.view_pitch_angle),
+        ("view_state.pitch_amount", 0.5 - input.view_pitch_angle / 180.0),
         ("view_state.head_blend_amount", head_blend_amount(context)),
     ] {
         player.set_global_input_data(key, value);
@@ -493,5 +494,18 @@ mod tests {
             AlsHeadSettings::default(),
         );
         assert!(!state.switching_look_sides);
+    }
+
+    #[test]
+    fn generated_pitch_amount_uses_the_retained_source_pitch_angle() {
+        let mut player = AnimationGraphPlayer::new(Handle::default());
+        for angle in [-90.0_f32, 0.0, 65.0, 90.0] {
+            let input = head_frame_inputs(&player, &Transform::IDENTITY, None, angle.to_radians(), (0.01, 0.01), RotationMode::ViewDirection, false, false);
+            write_head_inputs(&mut player, input, None);
+            assert!((player.get_global_input_data("view_state.pitch_amount").unwrap().as_f32().unwrap() - (0.5 - angle / 180.0)).abs() < 1e-6);
+            let held = head_frame_inputs(&player, &Transform::IDENTITY, None, -0.7, (0.01, 0.01), RotationMode::ViewDirection, false, true);
+            write_head_inputs(&mut player, held, None);
+            assert!((player.get_global_input_data("view_state.pitch_amount").unwrap().as_f32().unwrap() - (0.5 - angle / 180.0)).abs() < 1e-6);
+        }
     }
 }

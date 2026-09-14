@@ -52,10 +52,13 @@
     "lean_state.right_amount": "als_ext::AlsSourceRefreshNode / als_ext::SourcePropertyWriteNode",
     "locomotion_state.b_has_input": "crate::generated_ab_als_provider::GeneratedAbAlsProviderPlugin",
     "locomotion_state.b_moving_smooth": "crate::generated_ab_als_provider::GeneratedAbAlsProviderPlugin",
+    "locomotion_state.b_moving": "crate::generated_ab_als_provider::GeneratedAbAlsProviderPlugin",
     "locomotion_state.speed": "crate::generated_ab_als_provider::GeneratedAbAlsProviderPlugin",
     "movement_base.b_has_relative_location": "crate::generated_ab_als_provider::GeneratedAbAlsProviderPlugin",
     "pose_state.crouching_amount": "crate::generated_ab_als_provider::GeneratedAbAlsProviderPlugin",
     "pose_state.gait_walking_amount": "crate::generated_ab_als_provider::GeneratedAbAlsProviderPlugin",
+    "pose_state.gait_running_amount": "crate::generated_ab_als_provider::GeneratedAbAlsProviderPlugin",
+    "pose_state.gait_sprinting_amount": "crate::generated_ab_als_provider::GeneratedAbAlsProviderPlugin",
     "pose_state.grounded_amount": "crate::generated_ab_als_provider::GeneratedAbAlsProviderPlugin",
     "pose_state.in_air_amount": "crate::generated_ab_als_provider::GeneratedAbAlsProviderPlugin",
     "pose_state.standing_amount": "crate::generated_ab_als_provider::GeneratedAbAlsProviderPlugin",
@@ -72,7 +75,9 @@
     "standing_state.stride_blend_amount": "crate::standing_layer::StandingLayerPlugin",
     "standing_state.walk_run_blend_amount": "crate::standing_layer::StandingLayerPlugin",
     "turn_in_place_state.play_rate": "crate::standing_layer::StandingLayerPlugin / crate::crouching_layer::CrouchingLayerPlugin",
-    "view_state.head_blend_amount": "crate::head_layer::HeadLayerPlugin"
+    "view_state.head_blend_amount": "crate::head_layer::HeadLayerPlugin",
+    "view_state.pitch_amount": "crate::head_layer::HeadLayerPlugin",
+    "transitions_state.b_transitions_allowed": "crate::generated_ab_als_provider::GeneratedAbAlsProviderPlugin"
   },
   "sync_phase_providers": {
     "sync_groups.ab_als_crouching.movement.phase": "crate::crouching_layer::CrouchingLayerPlugin",

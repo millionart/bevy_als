@@ -149,7 +149,7 @@ fn source_locomotion_flags(has_input: bool, speed: f32) -> [(&'static str, bool)
     ]
 }
 
-fn source_pose_curve_inputs(context: Option<&AlsRootAnimationContext>) -> [(&'static str, f32); 7] {
+fn source_pose_curve_inputs(context: Option<&AlsRootAnimationContext>) -> [(&'static str, f32); 9] {
     let curve = |name| context.and_then(|state| state.f32(name)).unwrap_or(0.0);
     [
         (
@@ -168,6 +168,8 @@ fn source_pose_curve_inputs(context: Option<&AlsRootAnimationContext>) -> [(&'st
             "pose_state.gait_walking_amount",
             curve("PoseGait").clamp(0.0, 1.0),
         ),
+        ("pose_state.gait_running_amount", (curve("PoseGait") - 1.0).clamp(0.0, 1.0)),
+        ("pose_state.gait_sprinting_amount", (curve("PoseGait") - 2.0).clamp(0.0, 1.0)),
     ]
 }
 
@@ -651,6 +653,16 @@ mod tests {
     }
 
     #[test]
+    fn generated_overlay_gait_inputs_follow_pose_curve_weights() {
+        for gait in [-1.0_f32, 0.0, 1.4, 2.4, 4.0] {
+            let context = AlsRootAnimationContext { curves: [("PoseGait".to_owned(), gait)].into_iter().collect() };
+            let inputs: std::collections::HashMap<_,_> = source_pose_curve_inputs(Some(&context)).into_iter().collect();
+            assert!((inputs["pose_state.gait_running_amount"] - (gait.clamp(0.0,3.0) - 1.0).clamp(0.0,1.0)).abs() < 1e-6);
+            assert!((inputs["pose_state.gait_sprinting_amount"] - (gait.clamp(0.0,3.0) - 2.0).clamp(0.0,1.0)).abs() < 1e-6);
+        }
+    }
+
+    #[test]
     fn generated_pose_inputs_preserve_actual_curve_weights_and_source_defaults() {
         let context = AlsRootAnimationContext {
             curves: [
@@ -668,11 +680,11 @@ mod tests {
         };
         assert_eq!(
             source_pose_curve_inputs(Some(&context)).map(|(_, value)| value),
-            [-1.0, 0.3, 0.4, 0.2, 0.4, 0.6, 1.0]
+            [-1.0, 0.3, 0.4, 0.2, 0.4, 0.6, 1.0, 1.0, 2.4 - 2.0]
         );
         assert_eq!(
             source_pose_curve_inputs(None).map(|(_, value)| value),
-            [0.0; 7]
+            [0.0; 9]
         );
     }
 
