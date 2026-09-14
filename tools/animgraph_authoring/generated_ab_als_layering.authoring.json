@@ -3,8 +3,8 @@
   "id": "generated_ab_als_layering_assets",
   "source_evidence": [
     {
-      "path": "target/bf115_head/native_source/0015_AB_Als_Layering.ue.json",
-      "sha256": "98d4712ca186ad6d1e17bd28e2dab5fd881872f4eb1cd3f595913105a9990fb7"
+      "path": "target/bf116_bow/05b2_source/ALS_ALS_Character_AnimationInstances_AB_Als_Layering.AB_Als_Layering.ue.json",
+      "sha256": "debedb423dda48036fd4363f660da818c15f45b9c833b43321021857286ea2c2"
     },
     {
       "path": "target/bf115_layering/source_cpp/AlsAnimationInstance.cpp",
@@ -55,8 +55,8 @@
       "sha256": "36b9822cf36ab2dcc2301c7c3b2474477302f9f9efa56f083af66013c5fa61a1"
     },
     {
-      "path": "target/bf115_head/native_source/0002_AB_Als.ue.json",
-      "sha256": "9dc2d84e794d867b4b70d3df1736251c5b318bf958472eda06cbb99e59a47f84"
+      "path": "target/bf116_bow/05b2_source/ALS_ALS_Character_AB_Als.AB_Als.ue.json",
+      "sha256": "b468719adaf1754d43b4e8e87ad9e0fd24bc06bba8c6a34fa077b8329ae091b0"
     },
     {
       "path": "target/bf115_layering/source_cpp/AnimSync.cpp",
@@ -1283,11 +1283,11 @@
         "python",
         "tools/animgraph_authoring/audit_generated_source_closure.py",
         "--source-directory",
-        "target/bf115_head/native_source",
+        "target/bf116_bow/05b2_source",
         "--materialized-directory",
-        "target/bf115_head/final_conversion",
+        "target/bf116_bow/05b2_corpus_root",
         "--spec",
-        "target/bf115_head/spec.json",
+        "target/bf116_bow/05b2_spec.json",
         "--source-asset",
         "/ALS/ALS/Character/AnimationInstances/AB_Als_Layering.AB_Als_Layering"
       ]
@@ -1341,5 +1341,26 @@
   "runtime_gate": {
     "contract_gate": "generated_animgraph_assets",
     "manual_case": "default_overlay"
-  }
+  },
+  "focused_tests": [
+    {
+      "label": "layered_blend_curve_context_observer",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "-p",
+        "bevy_als",
+        "--lib",
+        "--jobs",
+        "2",
+        "layering_observer_reads_loaded_layered_blend_curve_context",
+        "--",
+        "--test-threads",
+        "1"
+      ],
+      "evidence": "target/bf115_camera/bf116_05b2_layering_reader_after.watchdog.json"
+    }
+  ]
 }

@@ -419,16 +419,18 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
         return "als_ext::SourceSequencePlayerNode", "(" + ", ".join(fields) + ")"
     if renderer == "sequence_evaluator":
         pins = input_names(value)
-        explicit_frame_pin = value.get("explicit_frame_pin")
-        if not isinstance(explicit_frame_pin, str) or not explicit_frame_pin:
+        explicit_value_pin = value.get("explicit_value_pin")
+        explicit_value_key = value.get("explicit_value_key")
+        if not isinstance(explicit_value_pin, str) or not explicit_value_pin or not isinstance(explicit_value_key, str):
             raise PoseRenderError("source sequence evaluator pin is unavailable")
         fields = [
             field("clip", quoted(asset_for_node(asset_by_node, semantic["source_node"], "sequence"))),
             field("curves", pose_curves_ron(asset_by_node[semantic["source_node"]].get("source_curves", []))),
-            field("explicit_frame", repr(value["explicit_frame"])),
-            field("explicit_frame_key", quoted("")),
-            field("explicit_frame_pin", quoted(explicit_frame_pin)),
-            field("expose_explicit_frame_pin", bool_ron(explicit_frame_pin in pins)),
+            field("use_explicit_frame", bool_ron(value["use_explicit_frame"])),
+            field("explicit_value", repr(value["explicit_value"])),
+            field("explicit_value_key", quoted(explicit_value_key)),
+            field("explicit_value_pin", quoted(explicit_value_pin)),
+            field("expose_explicit_value_pin", bool_ron(explicit_value_pin in pins)),
             field("frames_per_second", repr(asset_by_node[semantic["source_node"]]["source_timing"]["frames_per_second"])),
             field("should_loop", bool_ron(value["loop"])),
             field("teleport_to_explicit_time", bool_ron(value["teleport_to_explicit_time"])),
@@ -1818,17 +1820,22 @@ def run_self_test():
         assert "use_constant_alpha: false" in inner
     evaluator = {
         "source_node": assets[0]["source_node"], "renderer": "sequence_evaluator",
-        "semantic": {"input_pins": ["ExplicitFrame"], "explicit_frame_pin": "ExplicitFrame",
-                     "explicit_frame": 2.0, "loop": True, "teleport_to_explicit_time": True,
+        "semantic": {"input_pins": ["ExplicitFrame"], "explicit_value_pin": "ExplicitFrame",
+                     "use_explicit_frame": True, "explicit_value_key": "",
+                     "explicit_value": 2.0, "loop": True, "teleport_to_explicit_time": True,
                      "reinitialization_behavior": "ExplicitTime"},
     }
     evaluator_assets = copy.deepcopy(assets)
     evaluator_assets[0]["source_timing"]["frames_per_second"] = 60.0
     evaluator_assets[0]["source_timing"]["root_lock"] = "RefPose"
     _, inner = rendered_inner(graph_contract, {}, evaluator, asset_index(evaluator_assets), {})
-    assert "explicit_frame: 2.0" in inner and "expose_explicit_frame_pin: true" in inner
+    assert "explicit_value: 2.0" in inner and "expose_explicit_value_pin: true" in inner and "use_explicit_frame: true" in inner
     assert "frames_per_second: 60.0" in inner
     assert "root_lock: Some(RefPose)" in inner
+    evaluator["semantic"].update(use_explicit_frame=False, explicit_value_pin="ExplicitTime", input_pins=["ExplicitTime"], explicit_value=0.75, explicit_value_key="view_state.pitch_amount")
+    _, inner = rendered_inner(graph_contract, {}, evaluator, asset_index(evaluator_assets), {})
+    assert 'use_explicit_frame: false' in inner and 'explicit_value: 0.75' in inner
+    assert 'explicit_value_key: "view_state.pitch_amount"' in inner and 'explicit_value_pin: "ExplicitTime"' in inner
     _, inner = rendered_inner(graph_contract, {}, graph_ir["nodes"][0], asset_index(evaluator_assets), {})
     assert "root_lock: Some(RefPose)" in inner
     unit_contract, unit_ir, unit_assets = fixture_graph()

@@ -649,6 +649,13 @@ def resolve_property_bindings(node, semantic, registry):
         semantic["blend_weight_keys"] = keys
         record_resolved_bindings(semantic, pins, paths, keys)
         return issues
+    if renderer == "sequence_evaluator":
+        pins = [semantic["explicit_value_pin"]]
+        paths = [semantic["explicit_value_path"]]
+        keys, issues = resolve_bound_keys(node, renderer, pins, paths)
+        semantic["explicit_value_key"] = keys[0] if len(keys) == 1 else ""
+        record_resolved_bindings(semantic, pins, paths, keys)
+        return issues
     if renderer == "sequence_player":
         keys, issues = resolve_bound_keys(
             node,
@@ -805,6 +812,8 @@ def handled_bound_pins(prefix, paths, keys):
 def handled_property_binding_pins(renderer, semantic):
     if not isinstance(semantic, dict):
         return set()
+    if renderer == "sequence_evaluator":
+        return {semantic["explicit_value_pin"]} if semantic.get("explicit_value_path") else set()
     if renderer == "multi_way_blend":
         return handled_bound_pins(
             "DesiredAlphas_",
@@ -3076,6 +3085,11 @@ def run_self_test():
         binding_registry,
     )
     assert sequence_semantic["play_rate_key"] == "in_air_state.jump_play_rate"
+    evaluator_semantic = {"renderer":"sequence_evaluator", "explicit_value_pin":"ExplicitTime", "explicit_value_path":"DrawAmount"}
+    assert not resolve_property_bindings(binding_node, evaluator_semantic, binding_registry)
+    assert evaluator_semantic["explicit_value_key"] == "draw_amount"
+    assert handled_property_binding_pins("sequence_evaluator", evaluator_semantic) == {"ExplicitTime"}
+    assert evaluator_semantic["resolved_property_bindings"] == [{"source_pin":"ExplicitTime", "source_property_path":"DrawAmount", "target_key":"draw_amount"}]
     transition_node = {
         "object_path": "/Asset:Transition.Result",
         "class_path": "/Script/AnimGraph.AnimGraphNode_TransitionResult",
@@ -3091,7 +3105,7 @@ def run_self_test():
             "properties": [
                 {
                     "name": "PropertyBindings",
-                    "exported_text": '(("bCanEnterTransition", (PropertyName="bCanEnterTransition",PathAsText="RotateInPlaceState.bRotatingLeft",bIsBound=True)))',
+                    "exported_text": '(("bCanEnterTransition", (PropertyName="bCanEnterTransition",PropertyPath=("RotateInPlaceState","bRotatingLeft"),PathAsText="RotateInPlaceState.bRotatingLeft",bIsBound=True)))',
                 }
             ]
         },
@@ -3208,7 +3222,7 @@ def run_self_test():
         "properties": [
             {
                 "name": "PropertyBindings",
-                "exported_text": '(("X", (PropertyName="X",PathAsText="GetParent.LeanState.RightAmount",bIsBound=True)),("Y", (PropertyName="Y",PathAsText="GetParent.LeanState.ForwardAmount",bIsBound=True)))',
+                "exported_text": '(("X", (PropertyName="X",PropertyPath=("GetParent","LeanState","RightAmount"),PathAsText="GetParent.LeanState.RightAmount",bIsBound=True)),("Y", (PropertyName="Y",PropertyPath=("GetParent","LeanState","ForwardAmount"),PathAsText="GetParent.LeanState.ForwardAmount",bIsBound=True)))',
             }
         ]
     }
@@ -3230,7 +3244,7 @@ def run_self_test():
         "lean_state.right_amount",
         "lean_state.forward_amount",
     ]
-    binding_node["binding"]["properties"][0]["exported_text"] = '(("X", (PropertyName="X",PathAsText="GetParent.StandingState.StrideBlendAmount",bIsBound=True)),("Y", (PropertyName="Y",PathAsText="GetParent.StandingState.WalkRunBlendAmount",bIsBound=True)),("PlayRate", (PropertyName="PlayRate",PathAsText="GetParent.StandingState.PlayRate",bIsBound=True)))'
+    binding_node["binding"]["properties"][0]["exported_text"] = '(("X", (PropertyName="X",PropertyPath=("GetParent","StandingState","StrideBlendAmount"),PathAsText="GetParent.StandingState.StrideBlendAmount",bIsBound=True)),("Y", (PropertyName="Y",PropertyPath=("GetParent","StandingState","WalkRunBlendAmount"),PathAsText="GetParent.StandingState.WalkRunBlendAmount",bIsBound=True)),("PlayRate", (PropertyName="PlayRate",PropertyPath=("GetParent","StandingState","PlayRate"),PathAsText="GetParent.StandingState.PlayRate",bIsBound=True)))'
     player_semantic = {
         "renderer": "blendspace_player",
         "sync_group": "Movement",
@@ -3254,13 +3268,13 @@ def run_self_test():
         player_semantic,
         binding_registry,
     )
-    binding_node["binding"]["properties"][0]["exported_text"] = '(("Alpha", (PropertyName="Alpha",PathAsText="GetParent.InAirState.GroundPredictionAmount",bIsBound=True)))'
+    binding_node["binding"]["properties"][0]["exported_text"] = '(("Alpha", (PropertyName="Alpha",PropertyPath=("GetParent","InAirState","GroundPredictionAmount"),PathAsText="GetParent.InAirState.GroundPredictionAmount",bIsBound=True)))'
     assert unhandled_property_binding_issues(
         binding_node,
         "two_way_blend",
         {"renderer": "two_way_blend"},
     )[0]["kind"] == "source_property_binding_unhandled"
-    binding_node["binding"]["properties"][0]["exported_text"] = '(("DesiredAlphas_0", (PropertyName="DesiredAlphas_0",PathAsText="GetParent.GroundedState.VelocityBlend.ForwardAmount",bIsBound=True)))'
+    binding_node["binding"]["properties"][0]["exported_text"] = '(("DesiredAlphas_0", (PropertyName="DesiredAlphas_0",PropertyPath=("GetParent","GroundedState","VelocityBlend","ForwardAmount"),PathAsText="GetParent.GroundedState.VelocityBlend.ForwardAmount",bIsBound=True)))'
     assert not unhandled_property_binding_issues(
         binding_node,
         "multi_way_blend",
@@ -3270,7 +3284,7 @@ def run_self_test():
             "desired_alpha_keys": ["grounded_state.velocity_blend.forward_amount"],
         },
     )
-    binding_node["binding"]["properties"][0]["exported_text"] = '(("CurveValues_0", (PropertyName="CurveValues_0",PathAsText="GetParent.GroundedState.RotationYawOffsets.ForwardAngle",bIsBound=True)))'
+    binding_node["binding"]["properties"][0]["exported_text"] = '(("CurveValues_0", (PropertyName="CurveValues_0",PropertyPath=("GetParent","GroundedState","RotationYawOffsets","ForwardAngle"),PathAsText="GetParent.GroundedState.RotationYawOffsets.ForwardAngle",bIsBound=True)))'
     assert not unhandled_property_binding_issues(
         binding_node,
         "modify_curve",

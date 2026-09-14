@@ -3,12 +3,12 @@
   "id": "generated_ab_als_crouching_assets",
   "source_evidence": [
     {
-      "path": "target/bf115_crouching/source/CR_Als.foot.fresh.ue.json",
-      "sha256": "42cfbaae5c999aba7ac10f1830194ce4886d0bbd8826e5fd92d06904938b6d03"
+      "path": "target/bf116_bow/05b2_source/ALS_ALS_Character_CR_Als.CR_Als.ue.json",
+      "sha256": "dcce6822c8dead1bfabcf8aef23d9a07879446b0745f3b2ed4ddadd64a77b0cb"
     },
     {
-      "path": "target/bf115_head/native_source/0011_AB_Als_Crouching.ue.json",
-      "sha256": "d51008ff0417cbdd15028e9eea84c3e3a5fdc01966ed94216a55bd48bf798ec7"
+      "path": "target/bf116_bow/05b2_source/ALS_ALS_Character_AnimationInstances_Stances_AB_Als_Crouching.AB_Als_Crouching.ue.json",
+      "sha256": "af54a2caed90f04d1f80bb9a0ea0287d93096bb0280ea6295f8520e04f334efc"
     },
     {
       "path": "target/bf115_crouching/source/AIS.actions.fresh.ue.json",
@@ -27,28 +27,20 @@
       "sha256": "8b9dcaca9cda8e2398476d1c67f4a5a606de0fca4f5d10f35f9421bdd6e39218"
     },
     {
-      "path": "target/bf115_overlays/source/CR_Als.initial_hierarchy.ue.json",
-      "sha256": "588ed6aa0a2be3e57ce5fff020c9ad3e493edbbf3e6112247e442c094c5125bf"
-    },
-    {
-      "path": "target/bf115_head/native_source/0017_BS_Als_Look.ue.json",
+      "path": "target/bf116_bow/05b2_source/ALS_ALS_Animations_View_BS_Als_Look.BS_Als_Look.ue.json",
       "sha256": "d47911ff00227747f85aae3912c06eb245bbebc573eec61dc197836bedcb0181"
     },
     {
-      "path": "target/bf115_head/native_source/0018_BS_Als_Lean.ue.json",
+      "path": "target/bf116_bow/05b2_source/ALS_ALS_Animations_Grounded_Lean_BS_Als_Lean.BS_Als_Lean.ue.json",
       "sha256": "17556db4da564122f48ec27fdb7950a1fb7957f037d36785114a9bdcd0846ddf"
     },
     {
-      "path": "target/bf115_head/native_source/0019_BS_Als_Air_Lean.ue.json",
+      "path": "target/bf116_bow/05b2_source/ALS_ALS_Animations_Air_Lean_BS_Als_Air_Lean.BS_Als_Air_Lean.ue.json",
       "sha256": "2bc7aa3d9be47e97d1a0aecbfdc7e7976696633afc32a2c1969ea825ae9aa7e8"
     },
     {
-      "path": "target/bf115_control_rig/assembly_source/AB_Als.ue.json",
-      "sha256": "415b707571499ac76a480a0671123201b45b7441d8274d4355afb8c026c5a239"
-    },
-    {
-      "path": "target/bf115_control_rig/assembly_source/CR_Als.ue.json",
-      "sha256": "fecc5b30d190724d76d1697cf5dc0cc3884e7275c67cbcb2d6059048f4c2c296"
+      "path": "target/bf116_bow/05b2_source/ALS_ALS_Character_AB_Als.AB_Als.ue.json",
+      "sha256": "b468719adaf1754d43b4e8e87ad9e0fd24bc06bba8c6a34fa077b8329ae091b0"
     }
   ],
   "graphs": [
@@ -1831,11 +1823,11 @@
         "python",
         "tools/animgraph_authoring/audit_generated_source_closure.py",
         "--source-directory",
-        "target/bf115_head/native_source",
+        "target/bf116_bow/05b2_source",
         "--materialized-directory",
-        "target/bf115_head/final_conversion",
+        "target/bf116_bow/05b2_corpus_root",
         "--spec",
-        "target/bf115_head/spec.json",
+        "target/bf116_bow/05b2_spec.json",
         "--source-asset",
         "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching"
       ]

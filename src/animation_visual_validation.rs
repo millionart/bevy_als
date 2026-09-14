@@ -4037,7 +4037,7 @@ mod tests {
     fn source_pose_node_selects_repeated_titles_by_source_identity() {
         use bevy_animation_graph::core::animation_node::AnimationNode;
         let mut graph = AnimationGraph::new();
-        let nodes = [0.0, 1.0].map(|explicit_frame| AnimationNode::new("Sequence Evaluator", als_ext::SourceSequenceEvaluatorNode { explicit_frame, ..default() }));
+        let nodes = [0.0, 1.0].map(|explicit_value| AnimationNode::new("Sequence Evaluator", als_ext::SourceSequenceEvaluatorNode { explicit_value, ..default() }));
         for node in &nodes { graph.add_node(node.clone()); }
         for node in &nodes {
             assert_eq!(source_pose_node(&graph, &node.id.uuid().to_string()), Some(node.id));

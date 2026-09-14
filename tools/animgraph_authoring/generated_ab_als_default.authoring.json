@@ -3,12 +3,12 @@
   "id": "generated_ab_als_default_assets",
   "source_evidence": [
     {
-      "path": "target/bf115_head/native_source/0003_AB_Als_Default.ue.json",
-      "sha256": "8c13debe8251d6cb75b9a033dcbe0833c10a931e48ad0b41e6f425dcc5c3c996"
+      "path": "target/bf116_bow/05b2_source/ALS_ALS_Character_AnimationInstances_Overlays_AB_Als_Default.AB_Als_Default.ue.json",
+      "sha256": "27430c48588d3c34e9b20047fdd08199386e50229b9babfb5efc84eb9edeb004"
     },
     {
-      "path": "target/bf115_head/native_source/0002_AB_Als.ue.json",
-      "sha256": "9dc2d84e794d867b4b70d3df1736251c5b318bf958472eda06cbb99e59a47f84"
+      "path": "target/bf116_bow/05b2_source/ALS_ALS_Character_AB_Als.AB_Als.ue.json",
+      "sha256": "b468719adaf1754d43b4e8e87ad9e0fd24bc06bba8c6a34fa077b8329ae091b0"
     },
     {
       "path": "target/bf115_overlays/source/AlsAnimationInstance.cpp",
@@ -27,7 +27,7 @@
       "sha256": "ff251f7ed8a098cd719cc25bf53b98d67f9ff9886a41b8edf19c21a083ce8737"
     },
     {
-      "path": "target/bf115_overlays/source/UE_AnimNode_SequenceEvaluator.cpp",
+      "path": "target/bf116_bow/05b2_source/UE_AnimNode_SequenceEvaluator.cpp",
       "sha256": "38f0bffce84384d63ad82270a7a073b5f58322855237bbd42a85239ae98a9f1b"
     },
     {
@@ -51,8 +51,8 @@
       "sha256": "73d5bdb25a4b33db5e762f0671a7e9e6777ec33b654d258bc4ce6bb3c8e014d3"
     },
     {
-      "path": "target/bf115_overlays/default_cr_foot_source.ue.json",
-      "sha256": "3338c0f900ef4c9a3656ee4599d7357fa9a09d29af60a745f66725d139fbd766"
+      "path": "target/bf116_bow/05b2_source/ALS_ALS_Character_CR_Als.CR_Als.ue.json",
+      "sha256": "dcce6822c8dead1bfabcf8aef23d9a07879446b0745f3b2ed4ddadd64a77b0cb"
     },
     {
       "path": "target/bf115_overlays/source/UE_AnimInstanceProxy.cpp",
@@ -83,8 +83,8 @@
       "sha256": "249fb20269a254329c326e881d20e9664a5619d1e955c3bb2f3e96476169d5e4"
     },
     {
-      "path": "target/bf115_head/native_source/0015_AB_Als_Layering.ue.json",
-      "sha256": "98d4712ca186ad6d1e17bd28e2dab5fd881872f4eb1cd3f595913105a9990fb7"
+      "path": "target/bf116_bow/05b2_source/ALS_ALS_Character_AnimationInstances_AB_Als_Layering.AB_Als_Layering.ue.json",
+      "sha256": "debedb423dda48036fd4363f660da818c15f45b9c833b43321021857286ea2c2"
     },
     {
       "path": "target/bf115_overlays/source/UE_AnimationRuntime.cpp",
@@ -139,8 +139,8 @@
       "sha256": "e3c78546a8b39d1873b1fc004870035cd60d2c1ffe85b4245ee7e33f42253a37"
     },
     {
-      "path": "target/bf115_head/native_source/0012_AB_Als_Grounded.ue.json",
-      "sha256": "26388ea6bd3c1a686b995ce3e5bfcda42db95faeb68b1da5f3c8efb0121d27b1"
+      "path": "target/bf116_bow/05b2_source/ALS_ALS_Character_AnimationInstances_AB_Als_Grounded.AB_Als_Grounded.ue.json",
+      "sha256": "ab30279c7198aca00a7eaa98da05093c318ffc157e6dd5c517498aa9a099b151"
     },
     {
       "path": "target/bf115_overlays/source/AM_Als_Roll.clock.ue.json",
@@ -149,18 +149,6 @@
     {
       "path": "target/bf115_overlays/source/AnimMontage.roll_clock.cpp",
       "sha256": "fc1ab305be72785401c0ad873558008145125f691cc41670dfebe982fbd61842"
-    },
-    {
-      "path": "target/bf115_overlays/source/CR_Als.initial_hierarchy.ue.json",
-      "sha256": "588ed6aa0a2be3e57ce5fff020c9ad3e493edbbf3e6112247e442c094c5125bf"
-    },
-    {
-      "path": "target/bf115_control_rig/assembly_source/AB_Als.ue.json",
-      "sha256": "415b707571499ac76a480a0671123201b45b7441d8274d4355afb8c026c5a239"
-    },
-    {
-      "path": "target/bf115_control_rig/assembly_source/CR_Als.ue.json",
-      "sha256": "fecc5b30d190724d76d1697cf5dc0cc3884e7275c67cbcb2d6059048f4c2c296"
     }
   ],
   "graphs": [
@@ -383,11 +371,11 @@
         "python",
         "tools/animgraph_authoring/audit_generated_source_closure.py",
         "--source-directory",
-        "target/bf115_head/native_source",
+        "target/bf116_bow/05b2_source",
         "--materialized-directory",
-        "target/bf115_head/final_conversion",
+        "target/bf116_bow/05b2_corpus_root",
         "--spec",
-        "target/bf115_head/spec.json",
+        "target/bf116_bow/05b2_spec.json",
         "--source-asset",
         "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Default.AB_Als_Default"
       ]
@@ -498,7 +486,7 @@
         "2",
         "source_graph_samples_curves_at_pose_time_and_blends_actual_weights"
       ],
-      "evidence": "target/bf115_overlays/ext_regression.watchdog.json"
+      "evidence": "target/bf116_bow/05b2_als-ext_serial.watchdog.json"
     },
     {
       "label": "source_root_lock_and_sampling_boundaries",
@@ -708,6 +696,25 @@
         "2"
       ],
       "evidence": "target/bf115_overlays/roll_sample_clock_regression.watchdog.json"
+    },
+    {
+      "label": "layered_blend_curve_context_observer",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "-p",
+        "bevy_als",
+        "--lib",
+        "--jobs",
+        "2",
+        "layering_observer_reads_loaded_layered_blend_curve_context",
+        "--",
+        "--test-threads",
+        "1"
+      ],
+      "evidence": "target/bf115_camera/bf116_05b2_layering_reader_after.watchdog.json"
     }
   ]
 }

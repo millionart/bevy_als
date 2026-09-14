@@ -1221,7 +1221,7 @@ fn layering_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe, pre
             let Some(actual) = pose(node.id) else { continue; };
             if let Some(sequence) = node.try_inner_downcast_ref::<als_ext::SourceSequenceEvaluatorNode>() {
                 if let Some(clip) = probe.clips.get(&sequence.clip) {
-                    let time = (sequence.explicit_frame / sequence.frames_per_second).clamp(0.0, clip.duration);
+                    let time = (sequence.explicit_value / sequence.frames_per_second).clamp(0.0, clip.duration);
                     let expected = als_ext::source_sequence_player::sample_pose(clip, time);
                     if (actual.timestamp - time).abs() > 1e-5 || default_overlay_pose_error(&actual, &expected).is_none_or(|error| error > 2e-5) {
                         sample.errors.push(format!("{}: source base pose frame mismatch", node.id.uuid()));
@@ -1244,8 +1244,8 @@ fn layering_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe, pre
             let Some(base_id) = input_id(node.id, base_pin) else { sample.errors.push("missing curve base edge".into()); continue; };
             let Some(base) = pose(base_id) else { sample.errors.push("missing curve base pose".into()); continue; };
             if default_overlay_pose_error(&actual, &base).is_none_or(|error| error > 2e-5) { sample.errors.push("curve operator changed its source pose".into()); }
-            let Ok(base_context) = context.node_states.get::<als_ext::AnimationContextState>(base_id, StateKey::Default) else { sample.errors.push("missing base curve context".into()); continue; };
-            let Ok(output_context) = context.node_states.get::<als_ext::AnimationContextState>(node.id, StateKey::Default) else { sample.errors.push("missing output curve context".into()); continue; };
+            let Some(base_context) = als_ext::animation_context::node_context_state(&context.node_states, StateKey::Default, base_id) else { sample.errors.push("missing base curve context".into()); continue; };
+            let Some(output_context) = als_ext::animation_context::node_context_state(&context.node_states, StateKey::Default, node.id) else { sample.errors.push("missing output curve context".into()); continue; };
             let mut expected = base_context.curves.clone();
             if let Some(modify) = modify {
                 for (name, value) in modify.curve_names.iter().zip(&modify.pin_defaults) {
@@ -1255,7 +1255,7 @@ fn layering_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe, pre
             }
             if let Some(blend) = blend {
                 let Some(curve_id) = input_id(node.id, "CurvePose") else { sample.errors.push("missing curve input edge".into()); continue; };
-                let Ok(curve_context) = context.node_states.get::<als_ext::AnimationContextState>(curve_id, StateKey::Default) else { sample.errors.push("missing source curve context".into()); continue; };
+                let Some(curve_context) = als_ext::animation_context::node_context_state(&context.node_states, StateKey::Default, curve_id) else { sample.errors.push("missing source curve context".into()); continue; };
                 if blend.blend_mode == als_ext::source_pose_nodes::SourceCurvesBlendMode::Override { expected.clear(); }
                 for (name, value) in &curve_context.curves { *expected.entry(name.clone()).or_default() += value * blend.blend_amount; }
             }
@@ -1333,7 +1333,7 @@ fn default_overlay_graph_sample(player: &AnimationGraphPlayer, probe: &MotionPro
             if let Some(sequence) = node.try_inner_downcast_ref::<als_ext::SourceSequenceEvaluatorNode>() {
                 let Some(index) = DEFAULT_OVERLAY_EVALUATORS.iter().position(|id| *id == node.id.uuid().to_string()) else { continue; };
                 let Some(clip) = probe.clips.get(&sequence.clip) else { continue; };
-                let expected_time = (sequence.explicit_frame / sequence.frames_per_second).clamp(0.0, clip.duration);
+                let expected_time = (sequence.explicit_value / sequence.frames_per_second).clamp(0.0, clip.duration);
                 sample.evaluator_times[index] = Some(actual.timestamp);
                 sample.expected_times[index] = Some(expected_time);
                 if (actual.timestamp - expected_time).abs() > 1e-5 { sample.errors.push(format!("evaluator_{index}: sample time mismatch")); }
@@ -9992,6 +9992,78 @@ mod tests {
             if alpha > 1e-5 { assert!(sample.additive_effect.is_some_and(|effect| effect > 1e-4), "Head additive effect was not observed: {sample:?}"); }
             let state = crate::head_layer::head_state_from_player(app.world().get::<AnimationGraphPlayer>(entity).unwrap());
             previous = Some((sample.frame, state, sample.refreshed, alpha));
+        }
+    }
+
+    #[test]
+    fn layering_observer_reads_loaded_layered_blend_curve_context() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy_animation_graph::{builtin_nodes::clip_node::ClipNode, core::{
+            animation_clip::{GraphClip, loader::GraphClipLoader}, animation_graph::{GraphInputPin, loader::AnimationGraphLoader},
+            animation_node::AnimationNode, edge_data::DataSpec,
+            skeleton::loader::SkeletonLoader, systems::animation_player,
+        }};
+        fn observe(In((entity, previous)): In<(Entity, Option<(u64, AlsLayeringState)>)>, players: Query<&AnimationGraphPlayer>, probe: MotionProbe) -> LayeringGraphSample {
+            layering_graph_sample(players.get(entity).unwrap(), &probe, previous.as_ref())
+        }
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::gltf::GltfPlugin::default()))
+            .init_asset::<bevy::world_serialization::WorldAsset>().init_asset::<bevy::animation::AnimationClip>()
+            .init_asset::<bevy::mesh::skinning::SkinnedMeshInverseBindposes>().init_asset::<Mesh>().init_asset::<Image>()
+            .init_asset::<GraphClip>().init_asset_loader::<GraphClipLoader>().init_asset::<Skeleton>().init_asset_loader::<SkeletonLoader>()
+            .init_asset::<AnimationGraph>().init_asset_loader::<AnimationGraphLoader>().init_asset::<StateMachine>()
+            .init_resource::<ButtonInput<KeyCode>>().add_plugins(als_ext::AlsExtPlugin).register_type::<ClipNode>();
+        app.finish();
+        app.cleanup();
+        let server = app.world().resource::<AssetServer>();
+        let graph: Handle<AnimationGraph> = server.load(LAYERING_GRAPH);
+        let base: Handle<GraphClip> = server.load("animations/Overlays/Other/A_Als_Default_Poses.anim.ron");
+        let deadline = Instant::now() + Duration::from_secs(30);
+        let mut previous_loaded = 0;
+        loop {
+            app.update();
+            let server = app.world().resource::<AssetServer>();
+            let loaded = usize::from(server.is_loaded_with_dependencies(graph.id())) + usize::from(server.is_loaded_with_dependencies(base.id()));
+            if loaded != previous_loaded { eprintln!("Layering observer assets loaded {loaded}/2"); previous_loaded = loaded; }
+            if loaded == 2 { break; }
+            assert!(Instant::now() < deadline, "Layering observer assets did not load within 30 seconds: {loaded}");
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        let linked = AnimationNode::new("Layering", als_ext::LayeredGraphNode {
+            capture_context: true, internalize_time: true,
+            output_aliases: vec![als_ext::layered_graph::OutputDataAlias { child_output: "Result".into(), outer_output: "Pose".into() }],
+            ..als_ext::LayeredGraphNode::new(graph)
+        });
+        let mut root = AnimationGraph::new();
+        for name in ["Locomotion Input", "Overlay Input"] {
+            root.add_input_data(GraphInputPin::Passthrough(name.into()), DataSpec::Pose);
+            root.add_edge(SourcePin::InputData(GraphInputPin::Passthrough(name.into())), TargetPin::NodeData(linked.id, name.into()));
+        }
+        root.add_output_data("pose".into(), DataSpec::Pose);
+        root.add_edge(SourcePin::NodeData(linked.id, "Pose".into()), TargetPin::OutputData("pose".into()));
+        root.add_node(linked);
+        let root = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(root);
+        let clip = app.world().resource::<Assets<GraphClip>>().get(&base).unwrap();
+        let mut player = AnimationGraphPlayer::new(clip.skeleton.clone()).with_graph(root);
+        for name in ["Locomotion Input", "Overlay Input"] {
+            player.set_input_data(name, als_ext::source_sequence_player::sample_pose(clip, 0.0).into());
+        }
+        player.set_global_input_data("animation.delta_seconds", 1.0_f32 / 60.0);
+        player.set_global_input_data(als_ext::global_f32_input::ROOT_DEFAULTS_ENABLED_KEY, true);
+        for (key, value) in crate::layering_layer::layering_state_inputs(AlsLayeringState::default()) {
+            player.set_global_input_data(key, value);
+        }
+        let entity = app.world_mut().spawn((player, Name::new("Layering observer"), Transform::default(), GlobalTransform::default())).id();
+        app.world_mut().spawn((Name::new("root"), ChildOf(entity)));
+        let mut previous = None;
+        for _ in 0..2 {
+            app.world_mut().run_system_once(animation_player).unwrap();
+            assert!(app.world().get::<AnimationGraphPlayer>(entity).unwrap().get_error().is_none());
+            let sample = app.world_mut().run_system_once_with(observe, (entity, previous)).unwrap();
+            assert!(sample.errors.is_empty(), "Layering observer failed: {sample:?}");
+            assert_eq!(sample.curve_operators, 3);
+            assert_eq!(sample.input_curve_frame, previous.map(|(frame, _)| frame));
+            previous = Some((sample.evaluation_frame.unwrap(), AlsLayeringState::default()));
         }
     }
 

@@ -23,12 +23,12 @@
       "sha256": "1659c7d63cc7341ece055dc8ee570a2578bf16659bb44b211da2e5e011410fe0"
     },
     {
-      "path": "target/bf115_head/native_source/0004_AB_Als_Standing.ue.json",
-      "sha256": "62693a2de8d43a026b8d298715fca413c9d3001bce21b89bb3da30d3fa872371"
+      "path": "target/bf116_bow/05b2_source/ALS_ALS_Character_AnimationInstances_Stances_AB_Als_Standing.AB_Als_Standing.ue.json",
+      "sha256": "215b7f04ed2dff71de4d6e94573f50f7652d99c770c7f61f70779077642e91bd"
     },
     {
-      "path": "target/bf115_head/native_source/0002_AB_Als.ue.json",
-      "sha256": "9dc2d84e794d867b4b70d3df1736251c5b318bf958472eda06cbb99e59a47f84"
+      "path": "target/bf116_bow/05b2_source/ALS_ALS_Character_AB_Als.AB_Als.ue.json",
+      "sha256": "b468719adaf1754d43b4e8e87ad9e0fd24bc06bba8c6a34fa077b8329ae091b0"
     },
     {
       "path": "target/bf115_standing/actor/AIS.fresh.ue.json",
@@ -63,27 +63,27 @@
       "sha256": "870faa9c71896f207585d8e996844a7383fab890e8d93162ac975e6cee588c0a"
     },
     {
-      "path": "target/bf115_head/native_source/0005_BS_Als_WalkRun_Right_Forward.ue.json",
+      "path": "target/bf116_bow/05b2_source/ALS_ALS_Animations_Grounded_WalkRun_BS_Als_WalkRun_Right_Forward.BS_Als_WalkRun_Right_Forward.ue.json",
       "sha256": "8f08a0207f694f67f2867ea942c36254c6e5f02a3d16d8fc2d12fe1989eb33a2"
     },
     {
-      "path": "target/bf115_head/native_source/0006_BS_Als_WalkRun_Right_Backward.ue.json",
+      "path": "target/bf116_bow/05b2_source/ALS_ALS_Animations_Grounded_WalkRun_BS_Als_WalkRun_Right_Backward.BS_Als_WalkRun_Right_Backward.ue.json",
       "sha256": "ba3e9cd272df27750fe80c40294653c404ab8396b45dd1ff09df29f364fa4d67"
     },
     {
-      "path": "target/bf115_head/native_source/0007_BS_Als_WalkRun_Left_Forward.ue.json",
+      "path": "target/bf116_bow/05b2_source/ALS_ALS_Animations_Grounded_WalkRun_BS_Als_WalkRun_Left_Forward.BS_Als_WalkRun_Left_Forward.ue.json",
       "sha256": "64babd62f162a25e36d3234cbc8f3c36c8412f877444e0f4b27382f4195b7f86"
     },
     {
-      "path": "target/bf115_head/native_source/0008_BS_Als_WalkRun_Left_Backward.ue.json",
+      "path": "target/bf116_bow/05b2_source/ALS_ALS_Animations_Grounded_WalkRun_BS_Als_WalkRun_Left_Backward.BS_Als_WalkRun_Left_Backward.ue.json",
       "sha256": "7413849638c4ec0204162d26251ce3b2072699cf858586d0d53c7e0a1b3f36cb"
     },
     {
-      "path": "target/bf115_head/native_source/0009_BS_Als_WalkRun_Forward.ue.json",
+      "path": "target/bf116_bow/05b2_source/ALS_ALS_Animations_Grounded_WalkRun_BS_Als_WalkRun_Forward.BS_Als_WalkRun_Forward.ue.json",
       "sha256": "d9cb13ec1ad8f617bcb831c20da1cb2b5feae52f8ef0ff3cb252843332060d15"
     },
     {
-      "path": "target/bf115_head/native_source/0010_BS_Als_WalkRun_Backward.ue.json",
+      "path": "target/bf116_bow/05b2_source/ALS_ALS_Animations_Grounded_WalkRun_BS_Als_WalkRun_Backward.BS_Als_WalkRun_Backward.ue.json",
       "sha256": "e65b63d52e76398ccba8c236b0325ab11aa3536b4ac8aabed1356d81d9c8a373"
     },
     {
@@ -91,16 +91,16 @@
       "sha256": "7394ef1458ebed555020d026f5335f71c1c44bb0143f40f5fe4f5fec6eba240d"
     },
     {
-      "path": "target/bf115_standing/sprint/CR_Als.pole_space.ue.json",
-      "sha256": "25cd1b554fe16f0dd8e82fcea1a89a8331da132e01b1633299a8cdf338307c0d"
+      "path": "target/bf116_bow/05b2_source/ALS_ALS_Character_CR_Als.CR_Als.ue.json",
+      "sha256": "dcce6822c8dead1bfabcf8aef23d9a07879446b0745f3b2ed4ddadd64a77b0cb"
     },
     {
       "path": "target/bf115_standing/sprint/CR_Als.pole_space.profile.json",
       "sha256": "ed70c90bb4c40342987472321732da8cbd7ae974e6c377e7a0db17a8e3c92644"
     },
     {
-      "path": "target/bf115_head/native_source/0011_AB_Als_Crouching.ue.json",
-      "sha256": "d51008ff0417cbdd15028e9eea84c3e3a5fdc01966ed94216a55bd48bf798ec7"
+      "path": "target/bf116_bow/05b2_source/ALS_ALS_Character_AnimationInstances_Stances_AB_Als_Crouching.AB_Als_Crouching.ue.json",
+      "sha256": "af54a2caed90f04d1f80bb9a0ea0287d93096bb0280ea6295f8520e04f334efc"
     },
     {
       "path": "target/bf115_standing/stop_actions/AIS.fresh.ue.json",
@@ -143,28 +143,16 @@
       "sha256": "8b9dcaca9cda8e2398476d1c67f4a5a606de0fca4f5d10f35f9421bdd6e39218"
     },
     {
-      "path": "target/bf115_overlays/source/CR_Als.initial_hierarchy.ue.json",
-      "sha256": "588ed6aa0a2be3e57ce5fff020c9ad3e493edbbf3e6112247e442c094c5125bf"
-    },
-    {
-      "path": "target/bf115_head/native_source/0017_BS_Als_Look.ue.json",
+      "path": "target/bf116_bow/05b2_source/ALS_ALS_Animations_View_BS_Als_Look.BS_Als_Look.ue.json",
       "sha256": "d47911ff00227747f85aae3912c06eb245bbebc573eec61dc197836bedcb0181"
     },
     {
-      "path": "target/bf115_head/native_source/0018_BS_Als_Lean.ue.json",
+      "path": "target/bf116_bow/05b2_source/ALS_ALS_Animations_Grounded_Lean_BS_Als_Lean.BS_Als_Lean.ue.json",
       "sha256": "17556db4da564122f48ec27fdb7950a1fb7957f037d36785114a9bdcd0846ddf"
     },
     {
-      "path": "target/bf115_head/native_source/0019_BS_Als_Air_Lean.ue.json",
+      "path": "target/bf116_bow/05b2_source/ALS_ALS_Animations_Air_Lean_BS_Als_Air_Lean.BS_Als_Air_Lean.ue.json",
       "sha256": "2bc7aa3d9be47e97d1a0aecbfdc7e7976696633afc32a2c1969ea825ae9aa7e8"
-    },
-    {
-      "path": "target/bf115_control_rig/assembly_source/AB_Als.ue.json",
-      "sha256": "415b707571499ac76a480a0671123201b45b7441d8274d4355afb8c026c5a239"
-    },
-    {
-      "path": "target/bf115_control_rig/assembly_source/CR_Als.ue.json",
-      "sha256": "fecc5b30d190724d76d1697cf5dc0cc3884e7275c67cbcb2d6059048f4c2c296"
     }
   ],
   "graphs": [
@@ -1760,11 +1748,11 @@
         "python",
         "tools/animgraph_authoring/audit_generated_source_closure.py",
         "--source-directory",
-        "target/bf115_head/native_source",
+        "target/bf116_bow/05b2_source",
         "--materialized-directory",
-        "target/bf115_head/final_conversion",
+        "target/bf116_bow/05b2_corpus_root",
         "--spec",
-        "target/bf115_head/spec.json",
+        "target/bf116_bow/05b2_spec.json",
         "--source-asset",
         "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing"
       ]

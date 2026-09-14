@@ -21,10 +21,11 @@ pub struct SourceSequenceEvaluatorNode {
     pub clip: Handle<GraphClip>,
     pub curves: crate::als_curves::AlsPoseCurves,
     pub root_lock: Option<crate::source_sequence_player::SourceRootLock>,
-    pub explicit_frame: f32,
-    pub explicit_frame_key: String,
-    pub explicit_frame_pin: String,
-    pub expose_explicit_frame_pin: bool,
+    pub use_explicit_frame: bool,
+    pub explicit_value: f32,
+    pub explicit_value_key: String,
+    pub explicit_value_pin: String,
+    pub expose_explicit_value_pin: bool,
     pub frames_per_second: f32,
     pub should_loop: bool,
     pub teleport_to_explicit_time: bool,
@@ -37,10 +38,11 @@ impl Default for SourceSequenceEvaluatorNode {
             clip: default(),
             curves: default(),
             root_lock: None,
-            explicit_frame: 0.0,
-            explicit_frame_key: default(),
-            explicit_frame_pin: "Explicit Frame".to_owned(),
-            expose_explicit_frame_pin: true,
+            use_explicit_frame: false,
+            explicit_value: 0.0,
+            explicit_value_key: default(),
+            explicit_value_pin: "ExplicitTime".to_owned(),
+            expose_explicit_value_pin: true,
             frames_per_second: 30.0,
             should_loop: true,
             teleport_to_explicit_time: true,
@@ -50,24 +52,24 @@ impl Default for SourceSequenceEvaluatorNode {
 }
 
 impl SourceSequenceEvaluatorNode {
-    fn explicit_frame_value(&self, ctx: &NodeContext) -> Result<f32, GraphError> {
-        if self.expose_explicit_frame_pin {
-            if let Ok(value) = ctx.data_back(self.explicit_frame_pin.clone()) {
+    fn input_value(&self, ctx: &NodeContext) -> Result<f32, GraphError> {
+        if self.expose_explicit_value_pin {
+            if let Ok(value) = ctx.data_back(self.explicit_value_pin.clone()) {
                 return value.as_f32();
             }
         }
-        if self.explicit_frame_key.is_empty() {
-            return Ok(self.explicit_frame);
+        if self.explicit_value_key.is_empty() {
+            return Ok(self.explicit_value);
         }
         match ctx
             .graph_context
             .global_input_data
-            .get(&self.explicit_frame_key)
+            .get(&self.explicit_value_key)
         {
             Some(value) => value.as_f32(),
-            None if root_defaults_enabled(ctx) => Ok(self.explicit_frame),
+            None if root_defaults_enabled(ctx) => Ok(self.explicit_value),
             None => Err(GraphError::GlobalInputDataMissing(
-                self.explicit_frame_key.clone(),
+                self.explicit_value_key.clone(),
             )),
         }
     }
@@ -84,7 +86,8 @@ impl NodeLike for SourceSequenceEvaluatorNode {
             ctx.set_data_fwd("Pose", DataValue::Pose(default()));
             return Ok(());
         };
-        let time = frame_to_time(self.explicit_frame_value(&ctx)?, self.frames_per_second)
+        let value = self.input_value(&ctx)?;
+        let time = if self.use_explicit_frame { frame_to_time(value, self.frames_per_second) } else { value }
             .clamp(0.0, clip.duration().max(0.0));
         let mut pose = sample_pose(clip, time);
         if let Some(mode) = self.root_lock {
@@ -105,8 +108,8 @@ impl NodeLike for SourceSequenceEvaluatorNode {
     }
 
     fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
-        if self.expose_explicit_frame_pin {
-            ctx.add_input_data(self.explicit_frame_pin.clone(), DataSpec::F32);
+        if self.expose_explicit_value_pin {
+            ctx.add_input_data(self.explicit_value_pin.clone(), DataSpec::F32);
         }
         ctx.add_output_data("Pose", DataSpec::Pose);
         Ok(())
@@ -131,20 +134,20 @@ mod tests {
     }
 
     #[test]
-    fn source_explicit_frame_pin_name_can_be_preserved() {
+    fn source_explicit_value_pin_name_can_be_preserved() {
         let node = SourceSequenceEvaluatorNode {
-            explicit_frame_pin: "ExplicitFrame".to_owned(),
+            explicit_value_pin: "ExplicitFrame".to_owned(),
             ..default()
         };
-        assert_eq!(node.explicit_frame_pin, "ExplicitFrame");
+        assert_eq!(node.explicit_value_pin, "ExplicitFrame");
     }
 
     #[test]
     fn source_sequence_evaluator_can_hide_an_unexposed_frame_pin() {
         let node = SourceSequenceEvaluatorNode {
-            expose_explicit_frame_pin: false,
+            expose_explicit_value_pin: false,
             ..default()
         };
-        assert!(!node.expose_explicit_frame_pin);
+        assert!(!node.expose_explicit_value_pin);
     }
 }

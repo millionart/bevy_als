@@ -54,11 +54,11 @@ def source_runtime_field_mismatches(node, target):
                 failures.append(source_name)
     elif node["class_path"].endswith("AnimGraphNode_SequenceEvaluator"):
         fields = node_struct_fields(node, "Node")
-        if parse_bool(field(fields, "bUseExplicitFrame", "False")):
-            expected = visible_input_default(node, "ExplicitFrame", parse_number(field(fields, "ExplicitFrame", "0")))
-            actual = re.search(r"\bexplicit_frame:\s*([-+0-9.eE]+)", target)
-            if actual is None or float(actual.group(1)) != expected:
-                failures.append("ExplicitFrame")
+        use_frame = parse_bool(field(fields, "bUseExplicitFrame", "False"))
+        if f"use_explicit_frame: {str(use_frame).lower()}" not in target:
+            failures.append("bUseExplicitFrame")
+        name = "ExplicitFrame" if use_frame else "ExplicitTime"
+        expected_values = [(name, "explicit_value", visible_input_default(node, name, parse_number(field(fields, name, "0"))))]
     elif node["class_path"].endswith("AnimGraphNode_SequencePlayer"):
         fields = node_struct_fields(node, "Node")
         expected_values = [
@@ -187,8 +187,13 @@ def main():
         evaluator = {"class_path": "/Script/AnimGraph.AnimGraphNode_SequenceEvaluator", "properties": [{
             "name": "Node", "exported_text": "(ExplicitFrame=21,bUseExplicitFrame=True)",
         }], "pins": [{"name": "ExplicitFrame", "direction": "Input", "hidden": False, "default_value": "21"}]}
-        assert source_runtime_field_mismatches(evaluator, "explicit_frame: 0.0") == ["ExplicitFrame"]
-        assert not source_runtime_field_mismatches(evaluator, "explicit_frame: 21.0")
+        assert source_runtime_field_mismatches(evaluator, "use_explicit_frame: true, explicit_value: 0.0") == ["ExplicitFrame"]
+        assert not source_runtime_field_mismatches(evaluator, "use_explicit_frame: true, explicit_value: 21.0")
+        assert source_runtime_field_mismatches(evaluator, "use_explicit_frame: false, explicit_value: 21.0") == ["bUseExplicitFrame"]
+        evaluator["properties"][0]["exported_text"] = "(ExplicitTime=0.75)"
+        evaluator["pins"][0].update(name="ExplicitTime", default_value="0.75")
+        assert not source_runtime_field_mismatches(evaluator, "use_explicit_frame: false, explicit_value: 0.75")
+        assert source_runtime_field_mismatches(evaluator, "use_explicit_frame: false, explicit_value: 0.025") == ["ExplicitTime"]
         player = {"class_path": "/Script/AnimGraph.AnimGraphNode_SequencePlayer", "properties": [{
             "name": "Node", "exported_text": "(StartPosition=0.25,PlayRate=0)",
         }]}

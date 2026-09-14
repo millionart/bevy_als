@@ -553,7 +553,7 @@ mod tests {
             utils::testing::TestIoEnv,
         };
         fn query(
-            In(handle): In<Handle<AnimationGraph>>,
+            In((handle, explicit_time)): In<(Handle<AnimationGraph>, f32)>,
             resources: SystemResources,
         ) -> Vec<AnimationContextState> {
             let graph = resources.animation_graph_assets.get(&handle).unwrap();
@@ -561,7 +561,7 @@ mod tests {
             let mut gizmos = DeferredGizmos::default();
             let entities = GraphMap::new();
             let env = TestIoEnv::default();
-            let inputs = GraphMap::new();
+            let inputs = GraphMap::from([("draw_amount".to_owned(), DataValue::F32(explicit_time))]);
             let context = GraphContext::new(
                 arena.get_toplevel_id(),
                 graph,
@@ -581,6 +581,12 @@ mod tests {
                 .unwrap();
             assert_eq!(output["evaluator"].as_pose().unwrap().timestamp, 1.0);
             let root = EntityPath::default().child("root").id();
+            let expected_time = explicit_time.clamp(0.0, 1.0);
+            let time_pose = output["time_evaluator"].as_pose().unwrap();
+            assert_eq!(time_pose.timestamp, expected_time);
+            assert_eq!(time_pose.get_bone(root).unwrap().translation, Some(Vec3::Z * (2.75 * expected_time)));
+            let time_context = crate::animation_context::graph_output_context_state(graph, &context, "time_evaluator").unwrap();
+            assert_eq!(time_context.curves["SourceClock"], expected_time);
             for name in ["sequence", "evaluator"] {
                 assert_eq!(output[name].as_pose().unwrap().get_bone(root).unwrap().translation, Some(Vec3::Z * 0.2));
             }
@@ -634,13 +640,21 @@ mod tests {
         let evaluator = AnimationNode::new(
             "evaluator",
             SourceSequenceEvaluatorNode {
-                clip,
+                clip: clip.clone(),
                 curves: curves.clone(),
                 root_lock: Some(crate::source_sequence_player::SourceRootLock::RefPose),
-                explicit_frame: 30.0,
+                explicit_value: 30.0,
+                use_explicit_frame: true,
                 ..default()
             },
         );
+        let time_evaluator = AnimationNode::new("time_evaluator", SourceSequenceEvaluatorNode {
+            clip,
+            curves: parse_curves(&serde_json::json!({"curves":[{"name":"SourceClock", "times":[0.0,1.0], "values":[0.0,1.0], "interps":["LINEAR","LINEAR"]}]})).unwrap(),
+            explicit_value_key: "draw_amount".to_owned(),
+            frames_per_second: 60.0,
+            ..default()
+        });
         let blendspace = AnimationNode::new(
             "blendspace",
             NormalizedBlendSpaceNode {
@@ -714,6 +728,7 @@ mod tests {
         for (node, output) in [
             (&sequence, "Pose"),
             (&evaluator, "Pose"),
+            (&time_evaluator, "Pose"),
             (&blendspace, "pose"),
             (&two_way, "Pose"),
             (&additive, "Pose"),
@@ -749,7 +764,10 @@ mod tests {
         world.insert_resource(clips);
         world.insert_resource(skeletons);
         world.insert_resource(Assets::<StateMachine>::default());
-        let actual = world.run_system_once_with(query, handle).unwrap();
+        for time in [-0.5, 0.25, 0.75, 1.5] {
+            world.run_system_once_with(query, (handle.clone(), time)).unwrap();
+        }
+        let actual = world.run_system_once_with(query, (handle, 0.5)).unwrap();
         for (context, (foot, gait)) in actual.iter().zip([
             (-0.7, 1.0),
             (-0.25, 1.0),

@@ -147,7 +147,7 @@ def property_binding_paths(node):
             raise PoseContractError("source property binding pin name is invalid")
         if not parse_bool(field(fields, "bIsBound")):
             continue
-        path = parse_quoted(field(fields, "PathAsText"))
+        path = ".".join(parse_quoted(part) for part in parse_list(field(fields, "PropertyPath")))
         if path.startswith("GetParent."):
             path = path[len("GetParent.") :]
         if not path or pin in result:
@@ -337,10 +337,10 @@ def sequence_evaluator_contract(node):
         )
     )
     use_explicit_frame = parse_bool(field(fields, "bUseExplicitFrame", "False"))
-    if not use_explicit_frame:
-        issues.append(issue(node, renderer, "source_evaluator_time_mode_unsupported", "ExplicitTime"))
-    if "ExplicitTime" in names:
-        issues.append(issue(node, renderer, "source_evaluator_time_pin_unsupported", "ExplicitTime"))
+    explicit_pin = "ExplicitFrame" if use_explicit_frame else "ExplicitTime"
+    for name in names:
+        if name != explicit_pin:
+            issues.append(issue(node, renderer, "source_evaluator_inactive_pin_unsupported", name))
     teleport = parse_bool(field(fields, "bTeleportToExplicitTime", "True"))
     if not teleport:
         issues.append(issue(node, renderer, "source_evaluator_tick_unsupported", "bTeleportToExplicitTime"))
@@ -348,7 +348,10 @@ def sequence_evaluator_contract(node):
         issues.append(issue(node, renderer, "source_evaluator_sync_unsupported", "GroupName/Method"))
     if parse_bool(field(fields, "bIgnoreForRelevancyTest", "False")):
         issues.append(issue(node, renderer, "source_evaluator_relevancy_unsupported", "bIgnoreForRelevancyTest"))
-    explicit_frame = visible_input_default(node, "ExplicitFrame", parse_number(field(fields, "ExplicitFrame", "0.0")))
+    explicit_value = visible_input_default(node, explicit_pin, parse_number(field(fields, explicit_pin, "0.0")))
+    explicit_path = property_binding_paths(node).get(explicit_pin, "")
+    if explicit_path and input_is_linked(node, explicit_pin):
+        issues.append(issue(node, renderer, "source_property_binding_link_unsupported", explicit_pin))
     return {
         "renderer": renderer,
         "input_pins": names,
@@ -359,8 +362,9 @@ def sequence_evaluator_contract(node):
         "reinitialization_behavior": parse_name(
             field(fields, "ReinitializationBehavior", "ExplicitTime")
         ),
-        "explicit_frame_pin": "ExplicitFrame",
-        "explicit_frame": explicit_frame,
+        "explicit_value_pin": explicit_pin,
+        "explicit_value": explicit_value,
+        "explicit_value_path": explicit_path,
     }, issues
 
 
@@ -1598,6 +1602,7 @@ def output_pin(name):
 
 
 def run_self_test():
+    import copy
     reference = fixture_node("local_ref_pose", "Node", "(RefPoseType=EIT_LocalSpace,InitialUpdateFunction=(),BecomeRelevantFunction=(),UpdateFunction=())", [output_pin("Pose")])
     reference_semantic, issues = pose_contract(reference, "local_ref_pose")
     assert reference_semantic is not None and not issues
@@ -1627,7 +1632,7 @@ def run_self_test():
         constant, issues = pose_contract(additive, "apply_additive")
         assert not issues and constant["alpha_default"] == 1.0
         additive["pins"][2] = pin
-    additive["binding"] = {"properties": [{"name": "PropertyBindings", "exported_text": '(("Alpha",(PropertyName="Alpha",PathAsText="GetParent.PoseState.InAirAmount",bIsBound=True)))'}]}
+    additive["binding"] = {"properties": [{"name": "PropertyBindings", "exported_text": '(("Alpha",(PropertyName="Alpha",PropertyPath=("GetParent","PoseState","InAirAmount"),PathAsText="GetParent.PoseState.InAirAmount",bIsBound=True)))'}]}
     constant, issues = pose_contract(additive, "apply_additive")
     assert not issues and constant["alpha_default"] == 1.0 and constant["alpha_path"] == "PoseState.InAirAmount"
     evaluator = fixture_node(
@@ -1636,10 +1641,10 @@ def run_self_test():
         [input_pin("ExplicitFrame")],
     )
     constant, issues = pose_contract(evaluator, "sequence_evaluator")
-    assert not issues and constant["explicit_frame"] == 1.0
+    assert not issues and constant["explicit_value"] == 1.0
     evaluator["pins"][0]["hidden"] = True
     constant, issues = pose_contract(evaluator, "sequence_evaluator")
-    assert not issues and constant["explicit_frame"] == 2.0
+    assert not issues and constant["explicit_value"] == 2.0
     evaluator["properties"][0]["fields"] = [{"name": "bShouldLoop", "exported_text": "False", "flags": "0x201"}]
     constant, issues = pose_contract(evaluator, "sequence_evaluator")
     assert not issues and not constant["loop"]
@@ -1651,10 +1656,28 @@ def run_self_test():
         {"name": "bIgnoreForRelevancyTest", "exported_text": "False", "flags": "0x201"},
     ])
     constant, issues = pose_contract(evaluator, "sequence_evaluator")
-    assert not issues and constant["explicit_frame"] == 2.0
+    assert not issues and constant["explicit_value"] == 2.0
     evaluator["properties"][0]["fields"].append({"name": "bTeleportToExplicitTime", "exported_text": "False", "flags": "0x201"})
     _, issues = pose_contract(evaluator, "sequence_evaluator")
     assert issues[0]["kind"] == "source_evaluator_tick_unsupported"
+    time_evaluator = fixture_node("sequence_evaluator", "Node", '(Sequence="/Asset/A.A",ExplicitTime=0.25)', [input_pin("ExplicitTime")])
+    time_evaluator["pins"][0]["default_value"] = "0.75"
+    constant, issues = pose_contract(time_evaluator, "sequence_evaluator")
+    assert not issues and not constant["use_explicit_frame"] and constant["explicit_value"] == 0.75
+    assert constant["explicit_value_pin"] == "ExplicitTime"
+    time_evaluator["binding"] = {"properties": [{"name":"PropertyBindings", "exported_text": '(("ExplicitTime",(PropertyName="ExplicitTime",PathAsText="Draw Amount",PropertyPath=("DrawAmount"),bIsBound=True)))'}]}
+    constant, issues = pose_contract(time_evaluator, "sequence_evaluator")
+    assert not issues and constant["explicit_value"] == 0.25 and constant["explicit_value_path"] == "DrawAmount"
+    renamed = copy.deepcopy(time_evaluator)
+    renamed["object_path"] = "/Different:Renamed.Evaluator"
+    renamed["node_guid"] = "ffffffff-0000-4000-8000-000000000002"
+    assert pose_contract(renamed, "sequence_evaluator") == (constant, [])
+    renamed["binding"]["properties"][0]["exported_text"] = '(("ExplicitTime",(PropertyName="ExplicitTime",PathAsText="Localized Display",PropertyPath=("GetParent","ViewState","PitchAmount"),bIsBound=True)))'
+    changed, issues = pose_contract(renamed, "sequence_evaluator")
+    assert not issues and changed["explicit_value_path"] == "ViewState.PitchAmount"
+    time_evaluator["pins"][0]["linked_to"] = [{"node_object_path":"/Asset:Input"}]
+    _, issues = pose_contract(time_evaluator, "sequence_evaluator")
+    assert issues[0]["kind"] == "source_property_binding_link_unsupported"
     two_way = fixture_node(
         "two_way_blend",
         "BlendNode",
@@ -1706,7 +1729,7 @@ def run_self_test():
         "properties": [
             {
                 "name": "PropertyBindings",
-                "exported_text": '(("CurveValues_0", (PropertyName="CurveValues_0",PathAsText="GetParent.GroundedState.RotationYawOffsets.ForwardAngle",bIsBound=True)))',
+                "exported_text": '(("CurveValues_0", (PropertyName="CurveValues_0",PropertyPath=("GetParent","GroundedState","RotationYawOffsets","ForwardAngle"),PathAsText="GetParent.GroundedState.RotationYawOffsets.ForwardAngle",bIsBound=True)))',
             }
         ]
     }
@@ -1731,7 +1754,7 @@ def run_self_test():
         "properties": [
             {
                 "name": "PropertyBindings",
-                "exported_text": '(("DesiredAlphas_0", (PropertyName="DesiredAlphas_0",PathAsText="GetParent.GroundedState.VelocityBlend.ForwardAmount",bIsBound=True)),("DesiredAlphas_1", (PropertyName="DesiredAlphas_1",PathAsText="GetParent.GroundedState.VelocityBlend.BackwardAmount",bIsBound=True)))',
+                "exported_text": '(("DesiredAlphas_0", (PropertyName="DesiredAlphas_0",PropertyPath=("GetParent","GroundedState","VelocityBlend","ForwardAmount"),PathAsText="GetParent.GroundedState.VelocityBlend.ForwardAmount",bIsBound=True)),("DesiredAlphas_1", (PropertyName="DesiredAlphas_1",PropertyPath=("GetParent","GroundedState","VelocityBlend","BackwardAmount"),PathAsText="GetParent.GroundedState.VelocityBlend.BackwardAmount",bIsBound=True)))',
             }
         ]
     }
@@ -1800,7 +1823,7 @@ def run_self_test():
         "properties": [
             {
                 "name": "PropertyBindings",
-                "exported_text": '(("ActiveEnumValue", (PropertyName="ActiveEnumValue",PathAsText="GetParent.GroundedState.HipsDirection",bIsBound=True)))',
+                "exported_text": '(("ActiveEnumValue", (PropertyName="ActiveEnumValue",PropertyPath=("GetParent","GroundedState","HipsDirection"),PathAsText="GetParent.GroundedState.HipsDirection",bIsBound=True)))',
             }
         ]
     }
@@ -1848,7 +1871,7 @@ def run_self_test():
         "properties": [
             {
                 "name": "PropertyBindings",
-                "exported_text": '(("ActiveTag", (PropertyName="ActiveTag",PathAsText="GetParent.Gait",bIsBound=True)))',
+                "exported_text": '(("ActiveTag", (PropertyName="ActiveTag",PropertyPath=("GetParent","Gait"),PathAsText="GetParent.Gait",bIsBound=True)))',
             }
         ]
     }
@@ -1869,7 +1892,7 @@ def run_self_test():
     for pin in bool_blend["pins"][2:4]:
         pin["default_value"] = "0.5"
     bool_blend["pins"][4]["default_value"] = "False"
-    bool_blend["binding"] = {"properties": [{"name": "PropertyBindings", "exported_text": '(("bActiveValue", (PropertyName="bActiveValue",PathAsText="bUseAlternate",bIsBound=True)))'}]}
+    bool_blend["binding"] = {"properties": [{"name": "PropertyBindings", "exported_text": '(("bActiveValue", (PropertyName="bActiveValue",PropertyPath=("bUseAlternate"),PathAsText="bUseAlternate",bIsBound=True)))'}]}
     bool_semantic, issues = pose_contract(bool_blend, "bool_blend")
     assert bool_semantic is not None and not issues, issues
     assert bool_semantic["blend_times"] == [0.5, 0.5]
@@ -1967,7 +1990,7 @@ def run_self_test():
         "properties": [
             {
                 "name": "PropertyBindings",
-                "exported_text": '(("Snapshot",(PropertyName="Snapshot",bIsBound=True,PathAsText="GetParent.RagdollingState.FinalRagdollPose")))',
+                "exported_text": '(("Snapshot",(PropertyName="Snapshot",bIsBound=True,PropertyPath=("GetParent","RagdollingState","FinalRagdollPose"),PathAsText="GetParent.RagdollingState.FinalRagdollPose")))',
             }
         ]
     }
@@ -2019,7 +2042,7 @@ def run_self_test():
         "properties": [
             {
                 "name": "PropertyBindings",
-                "exported_text": '(("__CustomProperty_RigInput",(PropertyName="__CustomProperty_RigInput",PathAsText="GetControlRigInput",bIsBound=True)))',
+                "exported_text": '(("__CustomProperty_RigInput",(PropertyName="__CustomProperty_RigInput",PropertyPath=("GetControlRigInput"),PathAsText="GetControlRigInput",bIsBound=True)))',
             }
         ]
     }
@@ -2125,6 +2148,7 @@ def run_self_test():
         "two_way_child_reset_contract_parsed": "PASS",
         "sequence_sync_group_blocked": "PASS",
         "sequence_reflected_default_fields_preserved": "PASS",
+        "sequence_evaluator_frame_time_and_canonical_binding_preserved": "PASS",
         "modify_curve_alpha_pin_contract_parsed": "PASS",
         "modify_curve_property_binding_paths_preserved": "PASS",
         "state_result_lifecycle_blocked": "PASS",
