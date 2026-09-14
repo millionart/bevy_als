@@ -295,7 +295,7 @@ def bind_animation_getter(semantic, state_machine_plans):
     function = semantic.get("source_function")
     machine = semantic.get("source_machine")
     state = semantic.get("source_state")
-    if function not in {"GetInstanceStateWeight", "GetInstanceMachineWeight"}:
+    if function not in {"GetInstanceStateWeight", "GetInstanceMachineWeight", "GetInstanceCurrentStateElapsedTime"}:
         raise ConversionError("source animation getter function is unsupported")
     if not isinstance(machine, str) or not machine:
         raise ConversionError("source animation getter machine is unavailable")
@@ -311,7 +311,7 @@ def bind_animation_getter(semantic, state_machine_plans):
             raise ConversionError("source animation getter state target is unavailable")
         semantic["target_state_id"] = target_state
     elif state:
-        raise ConversionError("source machine weight getter unexpectedly references a state")
+        raise ConversionError("source machine getter unexpectedly references a state")
 
 
 def validate_registry(value):
@@ -1684,7 +1684,7 @@ def integration_anim_getter_providers(ir):
                     "status": "mapped"
                     if target_fsm_node
                     and (
-                        semantic["source_function"] == "GetInstanceMachineWeight"
+                        semantic["source_function"] in {"GetInstanceMachineWeight", "GetInstanceCurrentStateElapsedTime"}
                         or target_state_id
                     )
                     else "requires_animation_state_provider",
@@ -2966,6 +2966,11 @@ def run_self_test():
     bind_animation_getter(getter_semantic, getter_plans)
     assert getter_semantic["target_fsm_node"] == "10000000-0000-4000-8000-000000000001"
     assert getter_semantic["target_state_id"] == "10000000-0000-4000-8000-000000000002"
+    elapsed_semantic = {"source_function":"GetInstanceCurrentStateElapsedTime", "source_machine":getter_machine, "source_state":"", "target_key":"elapsed"}
+    bind_animation_getter(elapsed_semantic, getter_plans)
+    assert elapsed_semantic["target_fsm_node"] == getter_semantic["target_fsm_node"] and "target_state_id" not in elapsed_semantic
+    elapsed_providers = integration_anim_getter_providers({"graphs":[{"nodes":[{"source_node":"/Asset:Elapsed", "renderer":"anim_getter", "semantic":elapsed_semantic}]}]})
+    assert len(elapsed_providers) == 1 and elapsed_providers[0]["status"] == "mapped"
     try:
         validate_registry(
             {

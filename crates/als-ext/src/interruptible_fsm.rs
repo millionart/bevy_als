@@ -113,6 +113,7 @@ pub struct InterruptibleFsmState {
     pub interrupted_sources: Vec<InterruptibleFsmSource>,
     pub context: AnimationContextState,
     recorded_machine_weight: f32,
+    current_state_elapsed_time: f32,
     recorded_state_weights: Vec<SourceFsmStateWeight>,
     source_pose: Option<(Pose, AnimationContextState)>,
     last_pose: Option<Pose>,
@@ -190,6 +191,10 @@ fn became_relevant(previous_frame: Option<u64>, frame: u64) -> bool {
 }
 
 impl InterruptibleFsmState {
+    pub fn current_state_elapsed_time(&self) -> f32 {
+        self.current_state_elapsed_time
+    }
+
     pub fn cached_source_pose(&self) -> Option<&Pose> {
         self.source_pose.as_ref().map(|(pose, _)| pose)
     }
@@ -737,6 +742,7 @@ impl InterruptibleFsmNode {
                     );
                 }
                 if !ending && Self::source_condition_state(machine, &state.state) != Some(transition.hl_target) {
+                    state.current_state_elapsed_time = 0.0;
                     if let Some(previous) = Self::source_condition_state(machine, &state.state) {
                         state
                             .transition_notifications
@@ -1049,6 +1055,7 @@ impl InterruptibleFsmNode {
             interrupted_sources: Vec::new(),
             context: AnimationContextState::default(),
             recorded_machine_weight: 1.0,
+            current_state_elapsed_time: 0.0,
             recorded_state_weights: initial_weights,
             source_pose: None,
             last_pose: None,
@@ -1331,6 +1338,7 @@ impl NodeLike for InterruptibleFsmNode {
         let time = update
             .partial_update_basic(ctx.prev_time())
             .unwrap_or_else(|| ctx.prev_time());
+        let elapsed_delta = if let TimeUpdate::Delta(delta) = &update { *delta } else { time - ctx.prev_time() }.max(0.0);
         ctx.set_time(time);
         ctx.set_time_update_back(LowLevelStateMachine::DRIVER_TIME, update.clone());
         let start_state = machine
@@ -1443,8 +1451,11 @@ impl NodeLike for InterruptibleFsmNode {
             &mut ctx,
         )
         .map_err(|error| entry_error("internal event processing", error))?;
-        ctx.state_mut_or_else(|| initial_state.clone())?
-            .first_update = false;
+        {
+            let state = ctx.state_mut_or_else(|| initial_state.clone())?;
+            state.first_update = false;
+            state.current_state_elapsed_time += elapsed_delta;
+        }
         if self.expose_telemetry {
             let state = ctx.state::<InterruptibleFsmState>()?;
             let actual_state = self.telemetry_state_index(&state.state);
@@ -2188,6 +2199,116 @@ mod tests {
     }
 
     #[test]
+    fn source_current_state_elapsed_getter_follows_native_update_and_entry_order() {
+        use crate::source_scalar_expression::{SourceScalarDataType, SourceScalarExpressionNode, SourceScalarPin};
+        fn query(In((root, getters)): In<(Handle<AnimationGraph>, [(Handle<AnimationGraph>, NodeId); 3])>, resources: SystemResources) {
+            let graph = resources.animation_graph_assets.get(&root).unwrap();
+            let mut arena = GraphContextArena::new(root.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            let expected = [
+                [Some(0.0), None, None], [Some(0.25), None, None], [Some(0.75), None, None],
+                [Some(1.0), None, None], [Some(1.5), None, None], [Some(1.75), None, None],
+                [Some(2.25), None, None], [Some(2.5), None, None], [Some(3.0), Some(0.0), None],
+                [None, Some(0.25), Some(0.0)], [None, None, Some(0.5)], [None, None, Some(0.75)],
+                [None, None, Some(1.25)], [Some(0.0), None, None], [Some(0.5), None, None],
+                [Some(0.75), None, None], [Some(1.25), None, None],
+            ];
+            for (frame, expected) in expected.into_iter().enumerate() {
+                if frame == 13 { arena = GraphContextArena::new(root.id()); }
+                let delta = if frame % 2 == 0 { 0.25 } else { 0.5 };
+                let inputs = HashMap::from([("delta".to_owned(), DataValue::F32(delta)), ("pose".to_owned(), DataValue::Pose(fixture_pose(1.0)))]);
+                graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(delta)), GraphContext::new(
+                    arena.get_toplevel_id(), graph, &mut arena, &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs,
+                )).unwrap();
+                for (index, (handle, node)) in getters.iter().enumerate() {
+                    let actual = arena.iter_context_ids().filter_map(|id| arena.get_context(id))
+                        .filter(|context| context.get_graph_id() == handle.id() && context.node_caches.is_updated(*node, StateKey::Default))
+                        .filter_map(|context| context.node_caches.get_output_data(*node, StateKey::Default, "ReturnValue".into()))
+                        .map(|value| value.as_f32().unwrap()).collect::<Vec<_>>();
+                    assert_eq!(actual, expected[index].into_iter().collect::<Vec<_>>(), "frame {frame}, getter {index}");
+                }
+            }
+        }
+        let mut graphs = Assets::<AnimationGraph>::default();
+        let machine_node_id: NodeId = serde_json::from_str("\"90000000-0000-4000-8000-000000000001\"").unwrap();
+        let states = [1, 2, 3].map(|id| serde_json::from_str::<StateId>(&format!("\"10000000-0000-4000-8000-{id:012}\"")).unwrap());
+        let getter = crate::SourceAnimationStateGetterNode {
+            source_function: "GetInstanceCurrentStateElapsedTime".to_owned(), fsm_node: machine_node_id.uuid().to_string(), state_id: String::new(), output: "ReturnValue".to_owned(),
+        };
+        let pose = AnimationNode::new("pose", GlobalPoseInputNode { key: "pose".to_owned(), output: "pose".to_owned() });
+        let mut state_graph = AnimationGraph::new();
+        state_graph.add_node(pose.clone());
+        state_graph.add_output_data("pose".to_owned(), DataSpec::Pose);
+        state_graph.add_output_data_edge(pose.id, "pose", "pose");
+        let state_graph = graphs.add(state_graph);
+        let mut machine = StateMachine::default();
+        machine.start_state = states[0];
+        machine.node_spec.add_output_data("pose".to_owned(), DataSpec::Pose);
+        for (index, state) in states.iter().enumerate() {
+            machine.add_state(State { id: *state, label: index.to_string(), graph: state_graph.clone(), ..default() });
+        }
+        let blend = AnimationNode::new("blend", crate::ProfiledBlendNode::default());
+        let mut transition = AnimationGraph::new();
+        transition.add_node(blend.clone());
+        for (pin, input, spec) in [
+            ("factor", GraphInputPin::FsmBuiltin(FsmBuiltinPin::PercentThroughDuration), DataSpec::F32),
+            ("pose_a", GraphInputPin::FromFsmSource("pose".to_owned()), DataSpec::Pose),
+            ("pose_b", GraphInputPin::FromFsmTarget("pose".to_owned()), DataSpec::Pose),
+        ] {
+            transition.add_input_data(input.clone(), spec);
+            transition.add_input_data_edge(input, blend.id, pin);
+        }
+        for (pin, input) in [("time_a", GraphInputPin::FromFsmSource("time".to_owned())), ("time_b", GraphInputPin::FromFsmTarget("time".to_owned()))] {
+            transition.add_input_time(input.clone());
+            transition.add_input_time_edge(input, blend.id, pin);
+        }
+        transition.add_output_time();
+        transition.add_output_pose_edge(blend.id);
+        transition.add_output_data("pose".to_owned(), DataSpec::Pose);
+        transition.add_output_data_edge(blend.id, "pose", "pose");
+        let transition = graphs.add(transition);
+        let mut conditions = Vec::new();
+        let mut getters = Vec::new();
+        for (index, threshold) in [3.0, 0.25, 1000.0].into_iter().enumerate() {
+            let mut condition = AnimationGraph::new();
+            let read = AnimationNode::new("elapsed", getter.clone());
+            let compare = AnimationNode::new("threshold", SourceScalarExpressionNode {
+                input_pins: vec![SourceScalarPin { name: "A".to_owned(), ..default() }, SourceScalarPin { name: "B".to_owned(), f32_default: threshold, ..default() }],
+                output_pins: vec![SourceScalarPin { name: "Result".to_owned(), data_type: SourceScalarDataType::Bool, ..default() }], operation: "greater_equal".to_owned(), ..default()
+            });
+            condition.add_node(read.clone());
+            condition.add_node(compare.clone());
+            condition.add_node_parameter_edge(read.id, "ReturnValue", compare.id, "A");
+            condition.add_output_data("Result".to_owned(), DataSpec::Bool);
+            condition.add_output_data_edge(compare.id, "Result", "Result");
+            let condition = graphs.add(condition);
+            getters.push((condition.clone(), read.id));
+            let id: DirectTransitionId = serde_json::from_str(&format!("\"20000000-0000-4000-8000-{index:012}\"")).unwrap();
+            conditions.push(SourceTransitionCondition { transition_id: id.uuid().to_string(), source_state_id: states[index].uuid().to_string(), condition, output: "Result".to_owned(), context_state: states[index], ..default() });
+            machine.add_transition_unchecked(DirectTransition { id, source: states[index], target: states[(index + 1) % 3], data: TransitionData {
+                kind: bevy_animation_graph::core::state_machine::high_level::TransitionKind::Graph { graph: transition.clone(), timed: Some(if index == 0 { 2.0 } else { 1.0 }) }, reset_target_state: true, ..default()
+            }});
+        }
+        machine.update_low_level_fsm();
+        let mut machines = Assets::<StateMachine>::default();
+        let mut node = AnimationNode::new("fsm", InterruptibleFsmNode { fsm: machines.add(machine), source_transition_conditions: conditions, internal_time_key: "delta".to_owned(), expose_telemetry: false, ..default() });
+        node.id = machine_node_id;
+        let mut root = AnimationGraph::new();
+        root.add_node(node.clone());
+        root.add_output_data("pose".to_owned(), DataSpec::Pose);
+        root.add_output_data_edge(node.id, "pose", "pose");
+        let root = graphs.add(root);
+        let mut world = World::new();
+        world.insert_resource(graphs);
+        world.insert_resource(machines);
+        world.insert_resource(Assets::<GraphClip>::default());
+        world.insert_resource(Assets::<Skeleton>::default());
+        world.run_system_cached_with(query, (root, getters.try_into().unwrap())).unwrap();
+    }
+
+    #[test]
     fn shared_cache_and_nested_fsm_follow_source_initialization_boundaries() {
         fn query(In(root): In<Handle<AnimationGraph>>, resources: SystemResources) -> Vec<f32> {
             let graph = resources.animation_graph_assets.get(&root).unwrap();
@@ -2844,6 +2965,7 @@ mod tests {
             interrupted_sources: Vec::new(),
             context: default(),
             recorded_machine_weight: 1.0,
+            current_state_elapsed_time: 0.0,
             recorded_state_weights: default(),
             source_pose: None,
             last_pose: None,
@@ -2974,6 +3096,7 @@ mod tests {
             interrupted_sources: Vec::new(),
             context: default(),
             recorded_machine_weight: 1.0,
+            current_state_elapsed_time: 0.0,
             recorded_state_weights: default(),
             source_pose: None,
             last_pose: None,
@@ -3021,6 +3144,7 @@ mod tests {
             interrupted_sources: Vec::new(),
             context: default(),
             recorded_machine_weight: 1.0,
+            current_state_elapsed_time: 0.0,
             recorded_state_weights: default(),
             source_pose: None,
             last_pose: None,
@@ -3329,6 +3453,7 @@ mod tests {
             interrupted_sources: Vec::new(),
             context: default(),
             recorded_machine_weight: 0.75,
+            current_state_elapsed_time: 0.0,
             recorded_state_weights: vec![SourceFsmStateWeight {
                 state_id: state_id.clone(),
                 value: 0.25,
@@ -3382,6 +3507,7 @@ mod tests {
             interrupted_sources: Vec::new(),
             context: default(),
             recorded_machine_weight: 1.0,
+            current_state_elapsed_time: 0.0,
             recorded_state_weights: default(),
             source_pose: None,
             last_pose: None,

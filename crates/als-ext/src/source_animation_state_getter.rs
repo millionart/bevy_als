@@ -105,6 +105,9 @@ impl SourceAnimationStateGetterNode {
             "GetInstanceMachineWeight" if self.state_id.is_empty() => {
                 Ok(state.recorded_machine_weight())
             }
+            "GetInstanceCurrentStateElapsedTime" if self.state_id.is_empty() => {
+                Ok(state.current_state_elapsed_time())
+            }
             "GetInstanceStateWeight" if !self.state_id.is_empty() => {
                 Ok(state.recorded_state_weight(&self.state_id))
             }

@@ -136,6 +136,7 @@ def anim_getter_config(node):
     if match is None or match.group(1) not in {
         "GetInstanceStateWeight",
         "GetInstanceMachineWeight",
+        "GetInstanceCurrentStateElapsedTime",
     }:
         raise ValueError("source animation getter is unsupported")
     getter = match.group(1)
@@ -551,8 +552,8 @@ def anim_getter_node(identifier, node, config, binding, validate_only):
             raise ValueError("source animation getter state target is invalid")
     if config["source_function"] == "GetInstanceStateWeight" and not state_id and not validate_only:
         raise ValueError("source animation getter state target is unavailable")
-    if config["source_function"] == "GetInstanceMachineWeight" and state_id:
-        raise ValueError("source machine weight getter unexpectedly references a state")
+    if config["source_function"] != "GetInstanceStateWeight" and state_id:
+        raise ValueError("source machine getter unexpectedly references a state")
     inner = ", ".join(
         (
             "source_function: " + quoted(config["source_function"]),
@@ -1190,6 +1191,13 @@ def run_self_test():
         assert '"als_ext::SourceAnimationStateGetterNode"' in getter_text
         assert 'fsm_node: "20000000-0000-4000-8000-000000000003"' in getter_text
         assert 'OutputData("Result"): NodeData("20000000-0000-4000-8000-000000000002", "ReturnValue")' in getter_text
+        getter_node = getter_contract["source_graph"]["nodes"][1]
+        getter_node["properties"][1]["exported_text"] = "None"
+        getter_node["properties"][2]["exported_text"] = '(MemberName="GetInstanceCurrentStateElapsedTime")'
+        elapsed = anim_getter_config(getter_node)
+        assert elapsed["source_state"] == "" and elapsed["source_function"] == "GetInstanceCurrentStateElapsedTime"
+        elapsed_text = graph_text(getter_contract, {getter_node["object_path"]:{"target_fsm_node":"20000000-0000-4000-8000-000000000003", "target_state_id":""}})
+        assert 'source_function: "GetInstanceCurrentStateElapsedTime"' in elapsed_text and 'state_id: ""' in elapsed_text
     return {
         "transition_scalar_node_generation": "PASS",
         "source_pin_default_and_type_mapping": "PASS",

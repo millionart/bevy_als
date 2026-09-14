@@ -684,7 +684,7 @@ def animation_getter_bindings(ir):
             function = semantic.get("source_function")
             fsm_node = semantic.get("target_fsm_node")
             state_id = semantic.get("target_state_id", "")
-            if function not in {"GetInstanceStateWeight", "GetInstanceMachineWeight"}:
+            if function not in {"GetInstanceStateWeight", "GetInstanceMachineWeight", "GetInstanceCurrentStateElapsedTime"}:
                 raise MaterializationError("source animation getter function is unsupported")
             if not isinstance(fsm_node, str) or not fsm_node or not isinstance(state_id, str):
                 raise MaterializationError("source animation getter target is unavailable")
@@ -931,6 +931,15 @@ def run_self_test():
             "target_state_id": "10000000-0000-4000-8000-000000000002",
         }
     }
+    elapsed_node = {"source_node":"/Asset:Elapsed", "renderer":"anim_getter", "semantic":{"source_function":"GetInstanceCurrentStateElapsedTime", "target_fsm_node":"10000000-0000-4000-8000-000000000001", "target_state_id":""}}
+    assert animation_getter_bindings({"graphs":[{"nodes":[elapsed_node]}]})["/Asset:Elapsed"]["target_state_id"] == ""
+    elapsed_node["semantic"]["target_state_id"] = "10000000-0000-4000-8000-000000000002"
+    try:
+        animation_getter_bindings({"graphs":[{"nodes":[elapsed_node]}]})
+    except MaterializationError:
+        pass
+    else:
+        raise AssertionError("A current state elapsed getter accepted a fixed state binding")
     standard = {
         "id": "10000000-0000-4000-8000-000000000001",
         "title": "Standard",
