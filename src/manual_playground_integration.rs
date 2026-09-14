@@ -835,6 +835,7 @@ enum IntegrationScenario {
     Stairs,
     UphillJump,
     MovingBase,
+    RotatingBase,
     Interface,
     Notify,
 }
@@ -864,6 +865,7 @@ impl IntegrationScenario {
             Some("stairs") => Self::Stairs,
             Some("uphill_jump") => Self::UphillJump,
             Some("moving_base") => Self::MovingBase,
+            Some("rotating_base") => Self::RotatingBase,
             Some("interface") => Self::Interface,
             Some("notify") => Self::Notify,
             _ => Self::Base,
@@ -895,7 +897,7 @@ fn initial_phase(scenario: IntegrationScenario) -> IntegrationPhase {
         IntegrationScenario::Camera => IntegrationPhase::Camera,
         IntegrationScenario::Stairs => IntegrationPhase::Stairs,
         IntegrationScenario::UphillJump => IntegrationPhase::UphillJump,
-        IntegrationScenario::MovingBase => IntegrationPhase::MovingBase,
+        IntegrationScenario::MovingBase | IntegrationScenario::RotatingBase => IntegrationPhase::MovingBase,
         IntegrationScenario::Interface => IntegrationPhase::Interface,
         IntegrationScenario::Notify => IntegrationPhase::Notify,
     }
@@ -9602,7 +9604,8 @@ fn observe_manual_integration(
                 ("uphill_03", state.uphill_probe.completed[12..].iter().all(|value| *value)),
                 ("uphill_landing_consistency", state.uphill_probe.failure.is_none()),
             ],
-            IntegrationScenario::MovingBase => vec![
+            IntegrationScenario::MovingBase | IntegrationScenario::RotatingBase => {
+                let mut results = vec![
                 ("runtime_assembly", coverage.assembly),
                 ("animation_graph", coverage.graph),
                 ("moving_base_ride", state.moving_base_probe.ride),
@@ -9613,7 +9616,13 @@ fn observe_manual_integration(
                 ("mantle_complete", coverage.mantle_completed),
                 ("moving_base_after_mantle", state.moving_base_probe.after_mantle),
                 ("moving_base_progress", state.moving_base_probe.failure.is_none()),
-            ],
+                ];
+                if state.scenario == IntegrationScenario::RotatingBase {
+                    results.extend([("rotating_base_left_step", state.moving_base_probe.steps[0]),
+                        ("rotating_base_right_step", state.moving_base_probe.steps[1])]);
+                }
+                results
+            },
             IntegrationScenario::Interface => vec![
                 ("runtime_assembly", coverage.assembly),
                 ("animation_graph", coverage.graph),

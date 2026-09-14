@@ -5,8 +5,28 @@ use als_core::motion::AlsActualVelocity;
 use als_ext::{PlaygroundKinematic, PlaygroundKinematicKind};
 use avian3d::prelude::{ColliderOf, SpatialQuery, SpatialQueryFilter};
 
-const OBJECT: &str = "Moving:BP_SimpleMovingObject2";
 const POSITION_TOLERANCE: f32 = 0.001;
+
+fn object(scenario: IntegrationScenario) -> &'static str {
+    if scenario == IntegrationScenario::RotatingBase { "Rotating:BP_SimpleRotatingObject_2" }
+    else { "Moving:BP_SimpleMovingObject2" }
+}
+
+fn motion_sample(kind: PlaygroundKinematicKind, global: &GlobalTransform) -> (f32, f32, Vec3) {
+    match kind {
+        PlaygroundKinematicKind::MoveSpline { duration, start, end } => (duration * 2.0, start.distance(end), global.translation()),
+        PlaygroundKinematicKind::RotateWorldTime { rate_yzx_radians } =>
+            ((std::f64::consts::TAU / rate_yzx_radians.x.abs()) as f32, 2.0, global.transform_point(Vec3::Z)),
+    }
+}
+
+fn mantle_approach(kind: PlaygroundKinematicKind, global: &GlobalTransform, extent: Vec3, radius: f32) -> Vec3 {
+    let (center, reach) = match kind {
+        PlaygroundKinematicKind::MoveSpline { start, .. } => (start, extent.z),
+        PlaygroundKinematicKind::RotateWorldTime { .. } => (global.translation(), extent.x.hypot(extent.z)),
+    };
+    center + Vec3::Z * (reach + radius + 0.1)
+}
 
 pub(super) fn install(app: &mut App) {
     app.add_systems(Update, drive
@@ -31,6 +51,9 @@ pub(super) struct Probe {
     maximum: Vec3,
     ride_since: Option<f64>,
     mantle_start: Option<Vec3>,
+    step_playback: [Option<AlsTransitionPlayback>; 2],
+    step_unlocked: [bool; 2],
+    pub(super) steps: [bool; 2],
     pub(super) mantle_requested: bool,
     pub(super) ride: bool,
     pub(super) air: bool,
@@ -47,12 +70,12 @@ impl Probe {
         info!("[MANUAL-INTEGRATION][MOVING-BASE] stage={stage:?}");
     }
 
-    fn command(&mut self, now: f64, relative_z: f32, mantle_candidate: bool) -> als_core::input::AlsInputCommand {
+    fn command(&mut self, now: f64, exit_distance: f32, mantle_candidate: bool) -> als_core::input::AlsInputCommand {
         let mut input = als_core::input::AlsInputCommand::default();
         match self.stage {
             Stage::Exit => {
                 input.move_dir = Vec2::NEG_Y;
-                if relative_z >= 0.45 {
+                if exit_distance >= 0.45 {
                     input.jump_pressed = true;
                     input.jump_held = true;
                     self.begin(Stage::Flight, now);
@@ -71,6 +94,25 @@ impl Probe {
             _ => {}
         }
         input
+    }
+
+    fn observe_steps(&mut self, feet: Option<&AlsFootLockState>, playback: Option<&AlsTransitionPlayback>,
+        slot: Option<&AlsRootTransitionSlotRuntime>, scale: f32) {
+        for side in 0..2 {
+            let current = playback.filter(|playback| playback.kind == AlsTransitionKind::StandingDynamic && playback.index == side as f32);
+            if let Some(playback) = current.filter(|playback| playback.active
+                && slot.is_some_and(|slot| slot.active && slot.pose_ready && slot.weight > 0.05)) {
+                if playback.start_time != 0.0 || playback.play_rate != 1.5 || playback.blend_in != 0.2 || playback.blend_out != 0.2 {
+                    self.failure = Some("Rotating base dynamic transition playback differs from source".to_owned());
+                }
+                self.step_playback[side] = Some(*playback);
+            }
+            let foot = feet.map(|feet| if side == 0 { &feet.left } else { &feet.right });
+            self.step_unlocked[side] |= self.step_playback[side].is_some() && foot.is_some_and(|foot| foot.lock_amount < 0.1);
+            self.steps[side] |= standing_dynamic_foot_restored(self.step_unlocked[side], foot, scale)
+                && standing_stop_completed(true, self.step_playback[side].as_ref(), current, true)
+                && slot.is_some_and(|slot| !slot.active);
+        }
     }
 
     fn riding(&mut self, local: Vec3, platform: Vec3, own_speed: f32, same_base: bool, now: f64, period: f32, span: f32) -> bool {
@@ -117,24 +159,27 @@ pub(super) fn drive(
     let Some(character) = state.character else { return; };
     let now = time.elapsed_secs_f64();
     state.game_time_seconds = now;
-    state.moving_base_probe.watchdog(now, 3.5);
+    let object = object(state.scenario);
+    let platform = platforms.iter().find(|(_, name, _, _)| name.as_str() == object);
+    let period = platform.map_or(3.5, |(_, _, path, global)| motion_sample(path.kind, global).0);
+    state.moving_base_probe.watchdog(now, period);
     if state.moving_base_probe.failure.is_some() || state.moving_base_probe.stage == Stage::Done {
         state.timed_out = state.moving_base_probe.failure.is_some();
         begin_phase(&mut state, IntegrationPhase::Finish);
         return;
     }
-    let Some((body, _, path, global)) = platforms.iter().find(|(_, name, _, _)| name.as_str() == OBJECT) else { return; };
+    let Some((body, _, path, global)) = platform else { return; };
     let Some((collider, shape, _)) = colliders.iter().find(|(_, _, owner)| owner.body == body) else { return; };
-    let PlaygroundKinematicKind::MoveSpline { start, .. } = path.kind else { return; };
     let Ok((transform, position, velocity, yaw, pitch, stance, mode, handle)) = characters.get(character) else { return; };
     let Some(params) = params.get(handle.id()) else { return; };
     let half = params.crouch.standing_capsule_half_height * transform.scale.y;
     let radius = params.crouch.standing_capsule_radius * transform.scale.x.min(transform.scale.z);
     let bounds = shape.shape_scaled().compute_local_aabb();
     let spawn = match state.moving_base_probe.stage {
-        Stage::Place => Some(global.translation() + Vec3::Y * (bounds.maxs.y + half + 0.024)),
+        Stage::Place => Some(global.translation() + Vec3::Y * (bounds.maxs.y + half + 0.024)
+            + if state.scenario == IntegrationScenario::RotatingBase { global.rotation() * Vec3::X * 0.65 } else { Vec3::ZERO }),
         Stage::PrepareMantle => {
-            let horizontal = start + Vec3::Z * (bounds.half_extents().z + radius + 0.1);
+            let horizontal = mantle_approach(path.kind, global, bounds.half_extents(), radius);
             als_core::motion::find_ground_floor(&spatial, horizontal + Vec3::Y * (half + 0.024), half, radius,
                 &SpatialQueryFilter::from_excluded_entities([character, body, collider]))
                 .map(|(floor, _, _)| horizontal.with_y(floor + 0.024))
@@ -160,7 +205,8 @@ pub(super) fn drive(
             capsule_half_height: half, capsule_radius: radius, capsule_scale: transform.scale.y,
         }, &velocities, &permissions, &owners).intent.is_some_and(|intent| intent.target_entity == collider);
     let local = global.affine().inverse().transform_point3(position.0);
-    let input = state.moving_base_probe.command(now, local.z, candidate);
+    let exit_distance = state.moving_base_probe.anchor.map_or(0.0, |anchor| (local - anchor).with_y(0.0).length());
+    let input = state.moving_base_probe.command(now, exit_distance, candidate);
     commands.entity(character).insert(AlsInputOverride(input));
     phase.phase = "MovingBase".to_owned();
     phase.elapsed_seconds = (now - state.moving_base_probe.since.unwrap_or(now)) as f32;
@@ -175,23 +221,24 @@ pub(super) fn observe(
     platforms: Query<(Entity, &Name, &PlaygroundKinematic, &GlobalTransform, &LinearVelocity), Without<AlsCharacter>>,
     colliders: Query<(Entity, &ColliderOf), Without<AlsCharacter>>,
     characters: Query<(&Position, &Transform, &LocomotionState, &AlsMovementBase, &AlsActualVelocity,
-        &LinearVelocity, &AlsMantleState, Option<&AlsNotifyLocomotionAction>, &AlsInputOverride), With<AlsCharacter>>,
+        &LinearVelocity, &AlsMantleState, Option<&AlsNotifyLocomotionAction>, &AlsInputOverride,
+        Option<&AlsFootLockState>, Option<&AlsTransitionPlayback>, Option<&AlsRootTransitionSlotRuntime>), With<AlsCharacter>>,
     avatars: Query<&AnimatedSceneInstance, With<AlsCharacterAvatar>>,
     players: Query<&AnimationGraphPlayer>,
 ) {
     let (Some(character), Some(avatar)) = (state.character, state.avatar) else { return; };
-    let Some((body, _, path, global, platform_velocity)) = platforms.iter().find(|(_, name, _, _, _)| name.as_str() == OBJECT) else { return; };
+    let object = object(state.scenario);
+    let rotating = state.scenario == IntegrationScenario::RotatingBase;
+    let Some((body, _, path, global, platform_velocity)) = platforms.iter().find(|(_, name, _, _, _)| name.as_str() == object) else { return; };
     let Some((collider, _)) = colliders.iter().find(|(_, owner)| owner.body == body) else { return; };
-    let PlaygroundKinematicKind::MoveSpline { duration, start, end } = path.kind else { return; };
-    let Ok((position, transform, mode, base, own, velocity, mantle, action, input)) = characters.get(character) else { return; };
+    let Ok((position, transform, mode, base, own, velocity, mantle, action, input, feet, playback, slot)) = characters.get(character) else { return; };
     let Ok(scene) = avatars.get(avatar) else { return; };
     let Ok(player) = players.get(scene.player_entity()) else { return; };
     let graph = locomotion_graph_sample(player, &motion);
     let now = state.game_time_seconds;
     let local = global.affine().inverse().transform_point3(position.0);
     let same_base = base.entity == Some(collider);
-    let period = duration * 2.0;
-    let span = start.distance(end);
+    let (period, span, motion_point) = motion_sample(path.kind, global);
     let stage = state.moving_base_probe.stage;
     let mut expected = None;
     if mantle.root_motion_ready && *mode == LocomotionState::Custom
@@ -208,7 +255,14 @@ pub(super) fn observe(
         Stage::Settle if *mode == LocomotionState::Grounded && same_base && own.horizontal_speed < 0.01
             && now - probe.since.unwrap_or(now) >= 0.35 => probe.begin(Stage::Ride, now),
         Stage::Ride => {
-            if probe.riding(local, global.translation(), own.horizontal_speed, same_base, now, period, span) {
+            if rotating {
+                if transform.rotation.angle_between(Quat::IDENTITY) > 0.001 {
+                    probe.failure = Some("Rotating base changed the source world-facing character orientation".to_owned());
+                }
+                probe.observe_steps(feet, playback, slot, transform.scale.y);
+            }
+            if probe.riding(local, motion_point, own.horizontal_speed, same_base, now, period, span)
+                && (!rotating || probe.steps.iter().all(|value| *value)) {
                 probe.ride = true;
                 probe.begin(Stage::Exit, now);
             }
@@ -223,12 +277,12 @@ pub(super) fn observe(
         }
         Stage::Mantle => {
             if let Some(expected) = expected {
-                let initial = *probe.mantle_start.get_or_insert(global.translation());
+                let initial = *probe.mantle_start.get_or_insert(motion_point);
                 let error = position.0.distance(expected.translation);
                 if error > POSITION_TOLERANCE || transform.rotation.angle_between(expected.rotation) > 0.001 {
                     probe.failure = Some(format!("moving_mantle_target_error={error} position={:?} expected={:?}", position.0, expected.translation));
                 }
-                probe.moving_mantle |= global.translation().distance(initial) > 0.25 && mantle.time > 0.2;
+                probe.moving_mantle |= motion_point.distance(initial) > 0.25 && mantle.time > 0.2;
             }
             if probe.moving_mantle && !mantle.active && !mantle.root_motion_ready && *mode == LocomotionState::Grounded
                 && action == Some(&AlsNotifyLocomotionAction::None) {
@@ -240,7 +294,7 @@ pub(super) fn observe(
         }
         Stage::AfterMantle => {
             if now - probe.since.unwrap_or(now) >= 0.35 && own.horizontal_speed < 0.01
-                && probe.riding(local, global.translation(), own.horizontal_speed, same_base, now, period, span) {
+                && probe.riding(local, motion_point, own.horizontal_speed, same_base, now, period, span) {
                 probe.after_mantle = true;
                 probe.begin(Stage::Done, now);
             }
@@ -248,14 +302,52 @@ pub(super) fn observe(
         _ => {}
     }
     report.moving_base_trace.push(serde_json::json!({
-        "stage":stage,"time":now,"body":format!("{body:?}"),"collider":format!("{collider:?}"),"object":OBJECT,
+        "stage":stage,"time":now,"body":format!("{body:?}"),"collider":format!("{collider:?}"),"object":object,
         "period":period,"span":span,"platform":global.translation(),"platform_rotation":global.rotation(),
         "platform_velocity":platform_velocity.0,"position":position.0,"rotation":transform.rotation,"local":local,
         "velocity":velocity.0,"own_velocity":own.world_velocity,"mode":mode,"base_matches":same_base,"has_base":base.entity.is_some(),
         "jump_pressed":input.0.jump_pressed,"input":input.0.move_dir,"mantle_active":mantle.active,"root_motion_ready":mantle.root_motion_ready,
         "mantle_time":mantle.time,"expected_position":expected.map(|value| value.translation),
         "expected_rotation":expected.map(|value| value.rotation),"graph":graph,
+        "motion_point":motion_point,
+        "feet":feet.map(|feet| [&feet.left, &feet.right].map(|foot| serde_json::json!({
+            "lock_amount":foot.lock_amount,"target":foot.target_location,"lock":foot.lock_location
+        }))),
+        "step":playback.map(|playback| serde_json::json!({"kind":format!("{:?}", playback.kind),"side":playback.index,
+            "active":playback.active,"clip_time":playback.clip_time,"duration":playback.duration,"weight":playback.weight,
+            "play_rate":playback.play_rate,"start_time":playback.start_time,"blend_in":playback.blend_in,"blend_out":playback.blend_out})),
+        "slot":slot.map(|slot| serde_json::json!({"active":slot.active,"pose_ready":slot.pose_ready,"weight":slot.weight})),
     }));
+    if rotating && stage == Stage::Ride
+        && let Some(playback) = playback.filter(|playback| playback.kind == AlsTransitionKind::StandingDynamic) {
+        let side = usize::from(playback.index > 0.5);
+        let ready = slot.is_some_and(|slot| slot.active && slot.pose_ready && slot.weight > 0.05);
+        let completed = probe.steps[side] && !playback.active && playback.clip_time == playback.duration;
+        let mut chain = generated_stop_quick_source_pose_chain(false);
+        chain.push(ManualAnimationPoseBoundary { label:"root_transition_slot",
+            graph:"generated/ALS/Character/AB_Als/AnimGraph.animgraph.ron",
+            node:"Slot 'Transition'\nGroup 'Grounded'", output:"Pose",
+            minimum_translation_span:0.0, minimum_rotation_span_radians:0.05 });
+        *window = ManualAnimationWindowEvidence {
+            label:Some(if side == 0 { "rotating_base_step_left" } else { "rotating_base_step_right" }),
+            settled:ready || completed, capture_source_window:true, capture_every_frame:true,
+            requires_pre_rig_motion:true, requires_final_pose_motion:true, requires_non_reference_root_pose:true,
+            requires_source_pose_chain:true, source_node:Some("AB_Als_Standing/Idle/RefreshDynamicTransitions"),
+            source_state:Some("Idle"), source_pose_chain:chain,
+            expected_animation_variant:Some(if side == 0 { "A_Als_Stand_DynamicTransition_Left" } else { "A_Als_Stand_DynamicTransition_Right" }),
+            observed_animation_variant:crate::stop_link::source_transition_sequence(playback),
+            observed_animation_clip_time:Some(playback.clip_time), observed_animation_weight:Some(playback.weight),
+            observed_animation_play_rate:Some(playback.play_rate),
+            expected_lifecycle_stages:&["playing", "completed", "foot_relocked"],
+            observed_lifecycle_stages:if completed { &["completed", "foot_relocked"] } else if ready { &["playing"] } else { &[] },
+            minimum_pre_rig_rotation_span_radians:0.05, minimum_final_rotation_span_radians:0.05,
+            minimum_observation_seconds:0.12, canonical_clip_time:Some(0.4), maximum_clip_time_distance:0.06,
+            expected_direction:Some(if side == 0 { "Left" } else { "Right" }),
+            observed_direction:Some(if side == 0 { "Left" } else { "Right" }),
+            direction_signature_group:Some("rotating_base_step"), required_direction_signature_members:2,
+            minimum_direction_signature_rotation_radians:1e-4, ..default()
+        };
+    }
     if matches!(stage, Stage::Exit | Stage::Flight) {
         *window = ManualAnimationWindowEvidence {
             label:Some("moving_base_jump"), settled:true, capture_source_window:true, capture_every_frame:true,
@@ -272,6 +364,92 @@ pub(super) fn observe(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rotating_mantle_approach_stays_clear_and_reaches_the_actual_component() {
+        use bevy::ecs::system::RunSystemOnce;
+        fn candidate(In((character, origin, target, half, radius)): In<(Entity, Vec3, Entity, f32, f32)>,
+            spatial: SpatialQuery, velocities: Query<&LinearVelocity, Without<AlsCharacter>>,
+            permissions: Query<Option<&AlsMantleTargetPermission>, Without<AlsCharacter>>, owners: Query<&ColliderOf>) -> bool {
+            detect_mantle(&spatial, character, MantleDetectionInput {
+                origin, actor_yaw:0.0, velocity:Vec3::ZERO, input_direction:Vec3::NEG_Z,
+                locomotion:LocomotionState::Grounded, stance:Stance::Standing, overlay:OverlayState::Default,
+                capsule_half_height:half, capsule_radius:radius, capsule_scale:1.0,
+            }, &velocities, &permissions, &owners).intent.is_some_and(|intent| intent.target_entity == target)
+        }
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin,
+            TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+        app.finish();
+        app.cleanup();
+        let body = app.world_mut().spawn((RigidBody::Kinematic, Transform::from_xyz(0.0, -0.5, 0.0))).id();
+        let collider = app.world_mut().spawn((ChildOf(body), Collider::cuboid(3.0, 3.0, 3.0), Transform::IDENTITY)).id();
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(20.0, 0.2, 20.0), Transform::from_xyz(0.0, -0.1, 0.0)));
+        let character = app.world_mut().spawn_empty().id();
+        let params = AlsMovementParams::default();
+        let (half, radius) = (params.crouch.standing_capsule_half_height, params.crouch.standing_capsule_radius);
+        let kind = PlaygroundKinematicKind::RotateWorldTime { rate_yzx_radians:bevy::math::DVec3::new(-100.0_f64.to_radians(), 0.0, 0.0) };
+        let mut candidates = 0;
+        for sample in 0..72 {
+            let transform = Transform::from_xyz(0.0, -0.5, 0.0).with_rotation(Quat::from_rotation_y(sample as f32 * 5.0_f32.to_radians()));
+            app.world_mut().entity_mut(body).insert((transform, Rotation(transform.rotation)));
+            app.update();
+            let global = app.world().get::<GlobalTransform>(body).unwrap();
+            let origin = mantle_approach(kind, global, Vec3::splat(1.5), radius).with_y(half + 0.024);
+            let local = global.affine().inverse().transform_point3(origin);
+            assert!(local.distance(local.clamp(Vec3::splat(-1.5), Vec3::splat(1.5))) >= radius + 0.099);
+            candidates += usize::from(app.world_mut().run_system_once_with(candidate, (character, origin, collider, half, radius)).unwrap());
+        }
+        assert!(candidates > 1, "The original rotating mesh never becomes a valid mantle target");
+    }
+
+    #[test]
+    fn rotating_source_cycle_uses_a_moving_point_and_rejects_a_frozen_mesh() {
+        let kind = PlaygroundKinematicKind::RotateWorldTime { rate_yzx_radians:bevy::math::DVec3::new(-100.0_f64.to_radians(), 0.0, 0.0) };
+        for frozen in [false, true] {
+            let mut probe = Probe::default();
+            probe.begin(Stage::Ride, 0.0);
+            let mut complete = false;
+            for frame in 0..=370 {
+                let time = frame as f32 / 100.0;
+                let global = GlobalTransform::from(Transform::from_xyz(13.5, -0.5, -24.0)
+                    .with_rotation(Quat::from_rotation_y(if frozen { 0.0 } else { -100.0_f32.to_radians() * time })));
+                let (period, span, point) = motion_sample(kind, &global);
+                assert!((period - 3.6).abs() < 1e-5);
+                complete |= probe.riding(Vec3::X * 0.65, point, 0.0, true, f64::from(time), period, span);
+            }
+            assert_eq!(complete, !frozen);
+            assert!(probe.failure.is_none());
+        }
+        assert_eq!(object(IntegrationScenario::RotatingBase), "Rotating:BP_SimpleRotatingObject_2");
+        assert_eq!(initial_phase(IntegrationScenario::RotatingBase), IntegrationPhase::MovingBase);
+    }
+
+    #[test]
+    fn rotating_steps_require_real_playback_unlock_completion_and_relock() {
+        for missing in ["none", "pose", "unlock", "completion", "relock", "slot_end", "source_rate"] {
+            let mut probe = Probe::default();
+            for side in 0..2 {
+                let mut feet = AlsFootLockState::default();
+                let foot = if side == 0 { &mut feet.left } else { &mut feet.right };
+                foot.lock_amount = if missing == "unlock" { 1.0 } else { 0.0 };
+                let mut playback = AlsTransitionPlayback::standing_dynamic(side as f32);
+                playback.clip_time = 0.9;
+                playback.weight = 1.0;
+                if missing == "source_rate" { playback.play_rate = 1.0; }
+                let mut slot = AlsRootTransitionSlotRuntime { active:true, pose_ready:missing != "pose", weight:1.0 };
+                probe.observe_steps(Some(&feet), Some(&playback), Some(&slot), 1.0);
+                let foot = if side == 0 { &mut feet.left } else { &mut feet.right };
+                foot.lock_amount = 1.0;
+                if missing == "relock" { foot.lock_location = Vec3::X; }
+                playback.active = missing == "completion";
+                playback.clip_time = playback.duration;
+                slot.active = missing == "slot_end";
+                probe.observe_steps(Some(&feet), Some(&playback), Some(&slot), 1.0);
+            }
+            assert_eq!(probe.steps.iter().all(|value| *value) && probe.failure.is_none(), missing == "none", "Missing step evidence: {missing}");
+        }
+    }
 
     #[test]
     fn driver_and_observer_initialize_with_the_public_character_resources() {
