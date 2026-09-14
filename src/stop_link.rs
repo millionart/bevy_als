@@ -62,7 +62,7 @@ impl Default for AlsStopMatch {
 pub enum AlsTransitionKind {
     Stop,
     QuickStop,
-    StandingTransitionRight,
+    StandingTransition,
     StandingDynamic,
     CrouchingStop,
     CrouchingQuickStop,
@@ -139,7 +139,7 @@ impl AlsTransitionPlayback {
 
     pub fn standing_transition_right() -> Self {
         Self::new(
-            AlsTransitionKind::StandingTransitionRight,
+            AlsTransitionKind::StandingTransition,
             6.0,
             STOP_TRANSITION_BLEND_IN,
             STOP_TRANSITION_BLEND_OUT,
@@ -159,6 +159,15 @@ impl AlsTransitionPlayback {
             RIGHT_TRANSITION_START_TIME,
             TRANSITION_SEQUENCE_DURATION,
         )
+    }
+
+    pub fn transition_animation(crouching: bool, left: bool, blend_in: f32, blend_out: f32, play_rate: f32, start_time: f32) -> Self {
+        let mut playback = Self::new(
+            if crouching { AlsTransitionKind::CrouchingStop } else { AlsTransitionKind::StandingTransition },
+            if left { 0.0 } else { 1.0 }, blend_in, blend_out, play_rate, start_time, TRANSITION_SEQUENCE_DURATION,
+        );
+        playback.duration = crate::standing_source::MONTAGES[source_transition_sequence(&playback).unwrap()].duration;
+        playback
     }
 
     pub fn roll_to_grounded_right(crouching: bool) -> Self {
@@ -414,7 +423,7 @@ fn root_transition_slot_active(playback: &AlsTransitionPlayback) -> bool {
             playback.kind,
             AlsTransitionKind::Stop
                 | AlsTransitionKind::QuickStop
-                | AlsTransitionKind::StandingTransitionRight
+                | AlsTransitionKind::StandingTransition
                 | AlsTransitionKind::StandingDynamic
                 | AlsTransitionKind::CrouchingStop
                 | AlsTransitionKind::CrouchingQuickStop
@@ -425,7 +434,7 @@ fn root_transition_slot_active(playback: &AlsTransitionPlayback) -> bool {
 fn root_transition_slot_index(playback: &AlsTransitionPlayback) -> f32 {
     match playback.kind {
         AlsTransitionKind::Stop | AlsTransitionKind::QuickStop => playback.index,
-        AlsTransitionKind::StandingTransitionRight => 6.0,
+        AlsTransitionKind::StandingTransition => 6.0,
         AlsTransitionKind::StandingDynamic => 7.0 + playback.index,
         AlsTransitionKind::CrouchingStop | AlsTransitionKind::CrouchingQuickStop => {
             2.0 + playback.index
@@ -452,7 +461,7 @@ pub(crate) fn source_transition_sequence(playback: &AlsTransitionPlayback) -> Op
         } else {
             "A_Als_Stand_DynamicTransition_Right"
         }),
-        AlsTransitionKind::StandingTransitionRight => Some("A_Als_Stand_Transition_Right"),
+        AlsTransitionKind::StandingTransition => Some(if left { "A_Als_Stand_Transition_Left" } else { "A_Als_Stand_Transition_Right" }),
         AlsTransitionKind::CrouchingDynamic => Some(if left {
             "A_Als_Crouch_DynamicTransition_Left"
         } else {
@@ -994,7 +1003,7 @@ mod tests {
     #[test]
     fn roll_to_grounded_transition_selects_the_source_stance_asset_and_parameters() {
         let standing = AlsTransitionPlayback::roll_to_grounded_right(false);
-        assert_eq!(standing.kind, AlsTransitionKind::StandingTransitionRight);
+        assert_eq!(standing.kind, AlsTransitionKind::StandingTransition);
         assert_eq!(root_transition_slot_index(&standing), 6.0);
         assert_eq!(standing.blend_in, 0.2);
         assert_eq!(standing.blend_out, 0.2);

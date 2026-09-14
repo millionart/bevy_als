@@ -125,6 +125,18 @@
     {
       "path": "target/bf116_bow/05b2_source/UE_AnimGraphNodeBinding_Base.cpp",
       "sha256": "c4b837b35a981d67d7b927630e90c2e31a066aa2369202ba3b1608bc874a703a"
+    },
+    {
+      "path": "target/bf116_bow/source/character_bow.json",
+      "sha256": "60a5240938cfb9b05d83a2c77d9f1762cc614ca3e3f674764d07ce3f5a65a4fa"
+    },
+    {
+      "path": "target/bf116_bow/source/animation_settings.json",
+      "sha256": "0b4866a78bd5775ee0f9407b676734e157788a64063024d825a1287364d4ed76"
+    },
+    {
+      "path": "target/bf116_bow/source/animation_instance.cpp",
+      "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c"
     }
   ],
   "graphs": [
@@ -395,9 +407,9 @@
         "--source-directory",
         "target/bf116_bow/05b2_source",
         "--materialized-directory",
-        "target/bf116_bow/05b2_corpus_root",
+        "target/bf116_bow/05b4_corpus_root",
         "--spec",
-        "target/bf116_bow/05b2_spec.json"
+        "target/bf116_bow/05b4_spec.json"
       ]
     },
     {
@@ -710,6 +722,44 @@
         "1"
       ],
       "evidence": "target/bf116_platform/bf116_04_actor_restored.watchdog.json"
+    },
+    {
+      "label": "source_notification_arguments_and_guard",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "-p",
+        "bevy_als",
+        "--lib",
+        "--jobs",
+        "2",
+        "source_transition_call_preserves_arguments_and_standing_idle_guard",
+        "--",
+        "--test-threads",
+        "1"
+      ],
+      "evidence": "target/bf116_bow/05b4_bevy_als_restored.watchdog.json"
+    },
+    {
+      "label": "source_notification_phase_and_payload",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "-p",
+        "als-ext",
+        "--lib",
+        "--jobs",
+        "2",
+        "source_transition_notifications_follow_the_matching_phase",
+        "--",
+        "--test-threads",
+        "1"
+      ],
+      "evidence": "target/bf116_bow/05b4_als-ext_restored.watchdog.json"
     }
   ]
 }

@@ -27,6 +27,8 @@ pub struct GeneratedTransitionNotifyTelemetry {
     pub roll_to_grounded_stance: Option<als_core::state::Stance>,
     pub stop_animations_count: u32,
     pub crouching_stop_count: u32,
+    pub transition_animation_call_count: u32,
+    pub transition_animation_play_count: u32,
     pub observed_named_fsm_state_ids: Vec<String>,
     pub active_named_source_state_count: u32,
     pub last_active_named_source_state_id: String,
@@ -82,6 +84,23 @@ fn transition_notify_action(name: &str) -> Option<TransitionNotifyAction> {
         }
         _ => None,
     }
+}
+
+fn transition_animation_call(notification: &als_ext::interruptible_fsm::SourceTransitionNotification, stance: als_core::state::Stance, moving: bool) -> Option<AlsTransitionPlayback> {
+    let left = match notification.function.as_str() {
+        "PlayTransitionLeftAnimation" => true,
+        "PlayTransitionRightAnimation" => false,
+        _ => return None,
+    };
+    let argument = |name: &str| notification.arguments.iter().find(|argument| argument.property == name).map(|argument| &argument.value);
+    if argument("bFromStandingIdleOnly")?.as_bool().ok()? && (moving || stance != als_core::state::Stance::Standing) {
+        return None;
+    }
+    Some(AlsTransitionPlayback::transition_animation(
+        stance == als_core::state::Stance::Crouching, left,
+        argument("BlendInDuration")?.as_f32().ok()?, argument("BlendOutDuration")?.as_f32().ok()?,
+        argument("PlayRate")?.as_f32().ok()?, argument("StartTime")?.as_f32().ok()?,
+    ))
 }
 
 fn grounded_entry_reset_requested(source: &SourceInstanceProperties, frame: u64) -> bool {
@@ -225,6 +244,16 @@ fn dispatch_generated_transition_notifications(
                     .generations
                     .insert(key, state.notification_generation());
                 for notification in state.transition_notifications() {
+                    if !notification.function.is_empty() {
+                        if let Ok(mut telemetry) = telemetry.get_mut(avatar.character) { telemetry.transition_animation_call_count += 1; }
+                        if let Ok(stance) = stances.get(avatar.character)
+                            && let Some(moving) = player.get_global_input_data("locomotion_state.b_moving").and_then(|value| value.as_bool().ok())
+                            && let Some(playback) = transition_animation_call(notification, *stance, moving) {
+                            cursor.queued_transitions.insert(avatar.character, playback);
+                            if let Ok(mut telemetry) = telemetry.get_mut(avatar.character) { telemetry.transition_animation_play_count += 1; }
+                        }
+                        continue;
+                    }
                     match transition_notify_action(&notification.name) {
                         Some(TransitionNotifyAction::ActivatePivot) => {
                             if let Ok(mut telemetry) = telemetry.get_mut(avatar.character) {
@@ -401,6 +430,33 @@ fn dispatch_generated_transition_notifications(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_transition_call_preserves_arguments_and_standing_idle_guard() {
+        use als_core::state::Stance;
+        use als_ext::interruptible_fsm::SourceTransitionNotification;
+        use bevy_animation_graph::core::edge_data::DataValue;
+        let mut registry = bevy::reflect::TypeRegistry::default();
+        registry.register::<SourceTransitionNotification>();
+        let mut deserializer = ron::de::Deserializer::from_str("(phase: \"TransitionStart\", name: \"CustomNotification\", function: \"PlayTransitionLeftAnimation\", arguments: [(property: \"BlendInDuration\", value: F32(0.2)), (property: \"BlendOutDuration\", value: F32(0.2)), (property: \"PlayRate\", value: F32(1.5)), (property: \"StartTime\", value: F32(0.3)), (property: \"bFromStandingIdleOnly\", value: Bool(true))])").unwrap();
+        let reflected = serde::de::DeserializeSeed::deserialize(bevy::reflect::serde::TypedReflectDeserializer::new(registry.get(std::any::TypeId::of::<SourceTransitionNotification>()).unwrap(), &registry), &mut deserializer).unwrap();
+        let mut notification = SourceTransitionNotification::from_reflect(reflected.as_partial_reflect()).unwrap();
+        let playback = transition_animation_call(&notification, Stance::Standing, false).unwrap();
+        assert_eq!(crate::stop_link::source_transition_sequence(&playback), Some("A_Als_Stand_Transition_Left"));
+        assert_eq!((playback.blend_in, playback.blend_out, playback.play_rate, playback.start_time, playback.clip_time), (0.2, 0.2, 1.5, 0.3, 0.3));
+        assert!(transition_animation_call(&notification, Stance::Standing, true).is_none());
+        assert!(transition_animation_call(&notification, Stance::Crouching, false).is_none());
+        notification.name = "AnotherNotification".to_owned();
+        assert_eq!(transition_animation_call(&notification, Stance::Standing, false), Some(playback));
+        notification.arguments[4].value = DataValue::Bool(false);
+        notification.arguments[3].value = DataValue::F32(0.65);
+        notification.function = "PlayTransitionRightAnimation".to_owned();
+        let crouching = transition_animation_call(&notification, Stance::Crouching, true).unwrap();
+        assert_eq!(crate::stop_link::source_transition_sequence(&crouching), Some("A_Als_Crouch_Transition_Right"));
+        assert_eq!((crouching.start_time, crouching.clip_time), (0.65, 0.65));
+        notification.arguments.pop();
+        assert!(transition_animation_call(&notification, Stance::Standing, false).is_none());
+    }
 
     #[test]
     fn state_function_transition_waits_until_the_source_stop_request_is_consumed() {

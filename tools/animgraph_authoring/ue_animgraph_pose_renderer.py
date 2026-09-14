@@ -132,6 +132,26 @@ def field(name, value):
     return f"{name}: {value}"
 
 
+def notification_ron(notification):
+    function = notification.get("function", "")
+    arguments = notification.get("arguments", [])
+    if not isinstance(function, str) or not isinstance(arguments, list) or arguments and not function:
+        raise PoseRenderError("source notification call is invalid")
+    values = []
+    for argument in arguments:
+        name, kind, value = argument.get("property"), argument.get("type"), argument.get("value")
+        if not isinstance(name, str) or not name:
+            raise PoseRenderError("source notification argument name is invalid")
+        if kind == "Bool" and isinstance(value, bool):
+            literal = "Bool(" + bool_ron(value) + ")"
+        elif kind == "F32" and isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value):
+            literal = "F32(" + repr(float(value)) + ")"
+        else:
+            raise PoseRenderError("source notification argument type is unsupported")
+        values.append("(property: " + quoted(name) + ", value: " + literal + ")")
+    return "(phase: " + quoted(notification["phase"]) + ", name: " + quoted(notification["name"]) + ", function: " + quoted(function) + ", arguments: [" + ", ".join(values) + "])"
+
+
 def bool_ron(value):
     return "true" if value else "false"
 
@@ -682,14 +702,7 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             )
             + "]"
             + ", notifications: ["
-            + ", ".join(
-                "(phase: "
-                + quoted(notification["phase"])
-                + ", name: "
-                + quoted(notification["name"])
-                + ")"
-                for notification in condition.get("notifications", [])
-            )
+            + ", ".join(notification_ron(notification) for notification in condition.get("notifications", []))
             + "]"
             + ")"
             for condition in conditions
@@ -2223,7 +2236,11 @@ def run_self_test():
     assert "always_reset_target_on_entry: Some(true)" in fsm_inner
     assert 'context_state: ("10000000-0000-4000-8000-000000000002")' in fsm_inner
     assert 'gates: [(condition: "conditions/conduit.animgraph.ron"' in fsm_inner
-    assert 'notifications: [(phase: "TransitionStart", name: "Notify")]' in fsm_inner
+    assert 'notifications: [(phase: "TransitionStart", name: "Notify", function: "", arguments: [])]' in fsm_inner
+    call_text = notification_ron({"phase":"TransitionStart", "name":"Renamed", "function":"PlayTransitionLeftAnimation", "arguments":[
+        {"property":"StartTime", "type":"F32", "value":0.3}, {"property":"bFromStandingIdleOnly", "type":"Bool", "value":True}]})
+    assert 'function: "PlayTransitionLeftAnimation"' in call_text
+    assert '(property: "StartTime", value: F32(0.3))' in call_text and '(property: "bFromStandingIdleOnly", value: Bool(true))' in call_text
     assert 'source_entry_conditions: [(target_state_id: "entry", gates: [(condition: "conditions/entry.animgraph.ron"' in fsm_inner
     hips_type, hips_inner = rendered_inner(
         graph_contract,

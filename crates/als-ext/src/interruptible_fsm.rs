@@ -87,6 +87,8 @@ pub struct SourceEntryCondition {
 pub struct SourceTransitionNotification {
     pub phase: String,
     pub name: String,
+    pub function: String,
+    pub arguments: Vec<crate::source_instance::SourcePropertyAssignment>,
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -476,6 +478,7 @@ impl InterruptibleFsmNode {
                     SourceTransitionNotification {
                         phase: phase.to_owned(),
                         name: node.source_function.clone(),
+                        ..default()
                     }
                 })
             })
@@ -3326,10 +3329,13 @@ mod tests {
                     SourceTransitionNotification {
                         phase: "TransitionStart".to_owned(),
                         name: "ActivatePivot".to_owned(),
+                        function: "PlayTransitionLeftAnimation".to_owned(),
+                        arguments: vec![crate::source_instance::SourcePropertyAssignment { property: "StartTime".to_owned(), value: DataValue::F32(0.3) }],
                     },
                     SourceTransitionNotification {
                         phase: "TransitionEnd".to_owned(),
                         name: "StopQuick".to_owned(),
+                        ..default()
                     },
                 ],
                 ..default()
@@ -3348,6 +3354,8 @@ mod tests {
         );
         assert_eq!(state.transition_notifications().len(), 1);
         assert_eq!(state.transition_notifications()[0].name, "ActivatePivot");
+        assert_eq!(state.transition_notifications()[0].function, "PlayTransitionLeftAnimation");
+        assert_eq!(state.transition_notifications()[0].arguments[0].value.as_f32().unwrap(), 0.3);
         node.append_transition_notifications(
             &mut state,
             &TransitionId::Direct(transition),

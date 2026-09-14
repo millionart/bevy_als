@@ -1285,9 +1285,9 @@
         "--source-directory",
         "target/bf116_bow/05b2_source",
         "--materialized-directory",
-        "target/bf116_bow/05b2_corpus_root",
+        "target/bf116_bow/05b4_corpus_root",
         "--spec",
-        "target/bf116_bow/05b2_spec.json",
+        "target/bf116_bow/05b4_spec.json",
         "--source-asset",
         "/ALS/ALS/Character/AnimationInstances/AB_Als_Layering.AB_Als_Layering"
       ]

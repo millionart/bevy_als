@@ -25,7 +25,7 @@ from ue_animgraph_fsm_contract import (
     graph_for_suffix,
     fixture_source,
 )
-from ue_animgraph_lifecycle import TRANSITION_NOTIFY_FUNCTIONS
+from ue_animgraph_lifecycle import LifecycleRenderError, TRANSITION_NOTIFY_FUNCTIONS, validate_transition_notify_function
 
 
 class FsmRenderError(ValueError):
@@ -182,9 +182,19 @@ def render_plan(source, suffix, source_content_root=None, source_mount=None, sou
             raise FsmRenderError("source FSM transition endpoint is unavailable")
         bool_condition_contract(source, transition["condition_graph"])
         conditions[transition["id"]] = transition["condition_graph"]
+        notifies = []
+        for notify in transition["notifies"]:
+            native_call = None
+            if notify["name"] not in SUPPORTED_TRANSITION_NOTIFY_NAMES:
+                try:
+                    _, native_call = validate_transition_notify_function(source, "AnimNotify_" + notify["name"], "AnimNotify_" + notify["name"])
+                except LifecycleRenderError:
+                    pass
+            notifies.append({**notify, **native_call} if native_call is not None else notify)
         transitions.append(
             {
                 **transition,
+                "notifies": notifies,
                 "render": profile_plan(
                     transition,
                     source_content_root,
@@ -205,7 +215,7 @@ def render_plan(source, suffix, source_content_root=None, source_mount=None, sou
         }
         for transition in transitions
         for notify in transition["notifies"]
-        if notify["name"] not in SUPPORTED_TRANSITION_NOTIFY_NAMES
+        if notify["name"] not in SUPPORTED_TRANSITION_NOTIFY_NAMES and not notify.get("function")
     )
     return {
         "format": "ue_animgraph_fsm_render_plan_v1",

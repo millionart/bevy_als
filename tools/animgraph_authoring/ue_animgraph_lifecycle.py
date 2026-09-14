@@ -1,5 +1,7 @@
 import json
 
+from ue_exported_text import ExportedTextError, parse_bool, parse_number
+
 
 FUNCTION_ENTRY_CLASS = "/Script/BlueprintGraph.K2Node_FunctionEntry"
 FUNCTION_CALL_CLASS = "/Script/BlueprintGraph.K2Node_CallFunction"
@@ -196,7 +198,7 @@ def validate_transition_function(source, suffix, source_function):
 
 
 def validate_transition_notify_function(source, suffix, source_function):
-    specification = TRANSITION_NOTIFY_FUNCTIONS[source_function]
+    specification = TRANSITION_NOTIFY_FUNCTIONS.get(source_function)
     graph = graph_for_suffix(source, suffix)
     function_nodes = graph.get("nodes", [])
     entry = [
@@ -233,12 +235,13 @@ def validate_transition_notify_function(source, suffix, source_function):
         node
         for node in nodes
         if node.get("class_path") == FUNCTION_CALL_CLASS
-        and signature(node) == specification["call"]
         and linked(event, "then", node["object_path"], "execute")
     ]
     if len(target) != 1:
         raise LifecycleRenderError("source transition notify target is unsupported")
     target = target[0]
+    if sum(len(pin.get("linked_to", [])) for pin in event.get("pins", []) if pin.get("direction") == "Output" and pin.get("name") == "then") != 1:
+        raise LifecycleRenderError("source transition notify execution fanout is unsupported")
     parent = [
         node
         for node in nodes
@@ -248,17 +251,35 @@ def validate_transition_notify_function(source, suffix, source_function):
     ]
     if len(parent) != 1:
         raise LifecycleRenderError("source transition notify parent link is unsupported")
-    if not has_member(target, specification["member"]):
+    if specification is not None and (signature(target) != specification["call"] or not has_member(target, specification["member"])):
         raise LifecycleRenderError("source transition notify target is unsupported")
-    if not linked(parent[0], "ReturnValue", target["object_path"], "self"):
-        raise LifecycleRenderError("source transition notify parent link is unsupported")
-    return [
+    handled = [
         entry[0]["object_path"],
         bridge[0]["object_path"],
         event["object_path"],
         parent[0]["object_path"],
         target["object_path"],
     ]
+    return handled, None if specification is not None else transition_animation_call(target)
+
+
+def transition_animation_call(target):
+    functions = [name for name in ("PlayTransitionLeftAnimation", "PlayTransitionRightAnimation") if has_member(target, name)]
+    if len(functions) != 1 or not any('MemberParent="/Script/CoreUObject.Class\'/Script/ALS.AlsAnimationInstance\'"' in value.get("exported_text", "") for value in target.get("properties", [])):
+        raise LifecycleRenderError("source transition notify native signature is unsupported")
+    names = ("BlendInDuration", "BlendOutDuration", "PlayRate", "StartTime", "bFromStandingIdleOnly")
+    inputs = [pin for pin in target.get("pins", []) if pin.get("direction") == "Input"]
+    if {pin.get("name") for pin in inputs} != {"execute", "self", *names} or len(inputs) != len(names) + 2:
+        raise LifecycleRenderError("source transition notify arguments are unsupported")
+    if any(pin.get("linked_to") or pin.get("default_value_ignored") for pin in inputs if pin.get("name") in names):
+        raise LifecycleRenderError("source transition notify arguments must be constant")
+    if any(pin.get("linked_to") for pin in target.get("pins", []) if pin.get("direction") == "Output" and pin.get("name") == "then"):
+        raise LifecycleRenderError("source transition notify continuation is unsupported")
+    try:
+        arguments = [{"property":name, "type":"Bool" if name == "bFromStandingIdleOnly" else "F32", "value":parse_bool(input_default(target, name).capitalize()) if name == "bFromStandingIdleOnly" else parse_number(input_default(target, name))} for name in names]
+    except ExportedTextError as error:
+        raise LifecycleRenderError("source transition notify argument value is invalid") from error
+    return {"function":functions[0], "arguments":arguments}
 
 
 def resolve_lifecycle(source, function_dependencies):
@@ -311,20 +332,20 @@ def resolve_lifecycle(source, function_dependencies):
                 }
             )
             continue
-        if resolution == "graph" and source_function in TRANSITION_NOTIFY_FUNCTIONS:
+        if resolution == "graph" and source_function.startswith("AnimNotify_"):
             graph = dependency.get("source_graph")
             if not isinstance(graph, str):
                 raise LifecycleRenderError("source transition notify graph is missing")
             handled_nodes.add(source_node)
-            handled_nodes.update(
-                validate_transition_notify_function(source, graph, source_function)
-            )
+            nodes, native_call = validate_transition_notify_function(source, graph, source_function)
+            handled_nodes.update(nodes)
             dispatches.append(
                 {
                     "source_function": source_function,
                     "call_site": dependency.get("call_site"),
                     "source_node": source_node,
                     "provider": TRANSITION_NOTIFY_PROVIDER,
+                    **({"native_call": native_call} if native_call is not None else {}),
                 }
             )
     return {
@@ -509,6 +530,39 @@ def run_self_test():
         notify_parent,
         notify_target,
     }
+    import copy
+    call_source = copy.deepcopy(notify_source)
+    call_function = "AnimNotify_CustomTransition"
+    call_source["graphs"][0]["object_path"] = "/Asset:" + call_function
+    call_source["graphs"][0]["nodes"][0]["title"] = call_function
+    call_source["graphs"][1]["nodes"][0]["title"] = call_function
+    target = call_source["graphs"][1]["nodes"][1]
+    target["title"] = "Play Transition Left Animation"
+    target["properties"] = [{"exported_text": '(MemberParent="/Script/CoreUObject.Class\'/Script/ALS.AlsAnimationInstance\'",MemberName="PlayTransitionLeftAnimation")'}]
+    target["pins"] = [{"name":name,"direction":"Input","default_value":value,"linked_to":[]} for name,value in (
+        ("execute",""),("self",""),("BlendInDuration","0.2"),("BlendOutDuration","0.2"),("PlayRate","1.5"),("StartTime","0.3"),("bFromStandingIdleOnly","true"))]
+    dependency = {"source_function":call_function,"call_site":"TransitionStart","source_node":"/Asset:State.Transition","source_graph":call_function,"resolution":"graph"}
+    call_plan = resolve_lifecycle(call_source, [dependency])
+    call = call_plan["dispatches"][0]["native_call"]
+    assert call == {"function":"PlayTransitionLeftAnimation", "arguments":[{"property":name,"type":kind,"value":value} for name,kind,value in (
+        ("BlendInDuration","F32",0.2),("BlendOutDuration","F32",0.2),("PlayRate","F32",1.5),("StartTime","F32",0.3),("bFromStandingIdleOnly","Bool",True))]}
+    target["pins"][5]["default_value"] = "0.65"
+    changed = resolve_lifecycle(call_source, [dependency])["dispatches"][0]["native_call"]
+    assert changed["arguments"][3]["value"] == 0.65
+    target["properties"][0]["exported_text"] = target["properties"][0]["exported_text"].replace("PlayTransitionLeftAnimation", "PlayTransitionRightAnimation")
+    assert resolve_lifecycle(call_source, [dependency])["dispatches"][0]["native_call"]["function"] == "PlayTransitionRightAnimation"
+    for corruption in ("argument_link", "wrong_parent", "extra_execution"):
+        invalid = copy.deepcopy(call_source)
+        target = invalid["graphs"][1]["nodes"][1]
+        if corruption == "argument_link": target["pins"][5]["linked_to"] = [{"node_object_path":"/Asset:Other"}]
+        elif corruption == "wrong_parent": target["properties"][0]["exported_text"] = target["properties"][0]["exported_text"].replace("/Script/ALS.AlsAnimationInstance", "/Script/Other.Instance")
+        else: invalid["graphs"][1]["nodes"][0]["pins"][0]["linked_to"].append({"node_object_path":"/Asset:Other","pin_name":"execute"})
+        try:
+            resolve_lifecycle(invalid, [dependency])
+        except LifecycleRenderError:
+            pass
+        else:
+            raise AssertionError("An unsupported transition notify chain was accepted")
     assert {
         "InitializeHead",
         "RefreshHead",
