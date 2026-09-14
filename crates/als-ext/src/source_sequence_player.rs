@@ -107,6 +107,36 @@ pub fn sample_pose(clip: &GraphClip, time: f32) -> Pose {
     pose
 }
 
+pub(crate) fn sample_source_pose(
+    ctx: &NodeContext,
+    clip: &GraphClip,
+    time: f32,
+    additive_reference: Option<&Handle<GraphClip>>,
+    reference_position: f32,
+    mesh_space: bool,
+    root_lock: Option<SourceRootLock>,
+) -> Result<Pose, GraphError> {
+    let target = sample_pose(clip, time);
+    let mut pose = if let Some(reference_handle) = additive_reference {
+        let reference_clip = ctx.graph_context.resources.graph_clip_assets.get(reference_handle)
+            .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
+        let reference = sample_pose(reference_clip, reference_position.max(0.0));
+        let skeleton = ctx.graph_context.resources.skeleton_assets.get(&reference.skeleton)
+            .or_else(|| ctx.graph_context.resources.skeleton_assets.get(&target.skeleton))
+            .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
+        if mesh_space { make_mesh_space_difference(&reference, &target, skeleton) }
+        else { make_local_difference(&reference, &target, skeleton) }
+    } else { target };
+    pose.timestamp = time;
+    if let Some(mode) = root_lock {
+        let skeleton = ctx.graph_context.resources.skeleton_assets.get(&pose.skeleton)
+            .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
+        apply_source_root_lock(&mut pose, clip, skeleton, mode, additive_reference.is_some())
+            .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
+    }
+    Ok(pose)
+}
+
 fn next_position(
     state: &mut SourceSequencePlayerState,
     update: TimeUpdate,
@@ -421,41 +451,7 @@ impl NodeLike for SourceSequencePlayerNode {
             sync_players,
             ..Default::default()
         };
-        let target = sample_pose(clip, position);
-        let mut pose = if let Some(reference_handle) = &self.additive_reference {
-            let reference_clip = ctx
-                .graph_context
-                .resources
-                .graph_clip_assets
-                .get(reference_handle)
-                .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
-            let reference = sample_pose(reference_clip, self.additive_reference_position.max(0.0));
-            let skeleton = ctx
-                .graph_context
-                .resources
-                .skeleton_assets
-                .get(&reference.skeleton)
-                .or_else(|| {
-                    ctx.graph_context
-                        .resources
-                        .skeleton_assets
-                        .get(&target.skeleton)
-                })
-                .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
-            if self.additive_mesh_space {
-                make_mesh_space_difference(&reference, &target, skeleton)
-            } else {
-                make_local_difference(&reference, &target, skeleton)
-            }
-        } else {
-            target
-        };
-        if let Some(mode) = self.root_lock {
-            let skeleton = ctx.graph_context.resources.skeleton_assets.get(&pose.skeleton)
-                .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
-            apply_source_root_lock(&mut pose, clip, skeleton, mode, self.additive_reference.is_some())
-                .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
-        }
+        let pose = sample_source_pose(&ctx, clip, position, self.additive_reference.as_ref(), self.additive_reference_position, self.additive_mesh_space, self.root_lock)?;
         ctx.set_time(position);
         ctx.set_data_fwd("Pose", pose);
         Ok(())

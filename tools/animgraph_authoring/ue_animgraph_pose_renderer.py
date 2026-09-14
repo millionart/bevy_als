@@ -446,6 +446,8 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
         fields = [
             field("clip", quoted(asset_for_node(asset_by_node, semantic["source_node"], "sequence"))),
             field("curves", pose_curves_ron(asset_by_node[semantic["source_node"]].get("source_curves", []))),
+            field("additive_reference", "None"),
+            field("additive_reference_position", "0.0"),
             field("use_explicit_frame", bool_ron(value["use_explicit_frame"])),
             field("explicit_value", repr(value["explicit_value"])),
             field("explicit_value_key", quoted(explicit_value_key)),

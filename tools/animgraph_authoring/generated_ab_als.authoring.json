@@ -137,6 +137,30 @@
     {
       "path": "target/bf116_bow/source/animation_instance.cpp",
       "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c"
+    },
+    {
+      "path": "target/bf116_bow/source/bow_aim.json",
+      "sha256": "3514b333c52477f776dd8ac90eda40a9a69ee44e1384d510ceb84edf25a816f0"
+    },
+    {
+      "path": "target/bf116_bow/source/bow_aim_crouch.json",
+      "sha256": "4f2c9850c8cb68ee2654a1b77e27e5355dbc49cc1d38e11d30d60e3b76e6afd1"
+    },
+    {
+      "path": "target/bf116_bow/source/bow_poses_no_curves.json",
+      "sha256": "c6e8fd3ac72aad4b344cb6f62e91cd88d3d460ceef537de559237e59364cec7f"
+    },
+    {
+      "path": "target/bf116_bow/source/b5_SequencePlayer.cpp",
+      "sha256": "d7e79c8bb2fec68ecabc1aa9117b70be206def5c37e82ee5b7b47f990bf7a43a"
+    },
+    {
+      "path": "target/bf116_bow/source/b5_SequenceEvaluator.cpp",
+      "sha256": "38f0bffce84384d63ad82270a7a073b5f58322855237bbd42a85239ae98a9f1b"
+    },
+    {
+      "path": "target/bf116_bow/source/b5_AnimSequence.cpp",
+      "sha256": "08986b39c6e9d933d523b5ede2e7bbc110bf6ee1d532ed21241d173d0040799c"
     }
   ],
   "graphs": [
@@ -407,9 +431,9 @@
         "--source-directory",
         "target/bf116_bow/05b2_source",
         "--materialized-directory",
-        "target/bf116_bow/05b4_corpus_root",
+        "target/bf116_bow/05b5_corpus_root",
         "--spec",
-        "target/bf116_bow/05b4_spec.json"
+        "target/bf116_bow/05b5_spec.json"
       ]
     },
     {
@@ -760,6 +784,25 @@
         "1"
       ],
       "evidence": "target/bf116_bow/05b4_als-ext_restored.watchdog.json"
+    },
+    {
+      "label": "source_additive_sampling_space_and_time",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "-p",
+        "als-ext",
+        "--lib",
+        "--jobs",
+        "2",
+        "additive_sequence_nodes_preserve_sample_time_and_reference_space",
+        "--",
+        "--test-threads",
+        "1"
+      ],
+      "evidence": "target/bf116_bow/05b5_als-ext_restored.watchdog.json"
     }
   ]
 }

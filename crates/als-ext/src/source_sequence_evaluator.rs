@@ -8,7 +8,7 @@ use bevy_animation_graph::core::{
 };
 
 use crate::global_f32_input::root_defaults_enabled;
-use crate::source_sequence_player::sample_pose;
+use crate::source_sequence_player::sample_source_pose;
 
 fn frame_to_time(frame: f32, frames_per_second: f32) -> f32 {
     frame.max(0.0) / frames_per_second.max(f32::EPSILON)
@@ -20,6 +20,9 @@ fn frame_to_time(frame: f32, frames_per_second: f32) -> f32 {
 pub struct SourceSequenceEvaluatorNode {
     pub clip: Handle<GraphClip>,
     pub curves: crate::als_curves::AlsPoseCurves,
+    pub additive_reference: Option<Handle<GraphClip>>,
+    pub additive_reference_position: f32,
+    pub additive_mesh_space: bool,
     pub root_lock: Option<crate::source_sequence_player::SourceRootLock>,
     pub use_explicit_frame: bool,
     pub explicit_value: f32,
@@ -37,6 +40,9 @@ impl Default for SourceSequenceEvaluatorNode {
         Self {
             clip: default(),
             curves: default(),
+            additive_reference: None,
+            additive_reference_position: 0.0,
+            additive_mesh_space: false,
             root_lock: None,
             use_explicit_frame: false,
             explicit_value: 0.0,
@@ -89,13 +95,7 @@ impl NodeLike for SourceSequenceEvaluatorNode {
         let value = self.input_value(&ctx)?;
         let time = if self.use_explicit_frame { frame_to_time(value, self.frames_per_second) } else { value }
             .clamp(0.0, clip.duration().max(0.0));
-        let mut pose = sample_pose(clip, time);
-        if let Some(mode) = self.root_lock {
-            let skeleton = ctx.graph_context.resources.skeleton_assets.get(&clip.skeleton)
-                .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
-            crate::source_sequence_player::apply_source_root_lock(&mut pose, clip, skeleton, mode, false)
-                .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
-        }
+        let pose = sample_source_pose(&ctx, clip, time, self.additive_reference.as_ref(), self.additive_reference_position, self.additive_mesh_space, self.root_lock)?;
         *ctx.state_mut_or_else(crate::AnimationContextState::default)? =
             crate::AnimationContextState {
                 curves: self.curves.sample_all(time),
@@ -123,6 +123,100 @@ impl NodeLike for SourceSequenceEvaluatorNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn additive_sequence_nodes_preserve_sample_time_and_reference_space() {
+        use bevy::animation::animated_field;
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_clip::EntityPath, animation_graph::{AnimationGraph, TimeUpdate}, animation_node::AnimationNode,
+            context::{deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime, graph_context_arena::GraphContextArena, new_context::GraphContext, system_resources::SystemResources},
+            skeleton::Skeleton, state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
+        };
+        fn query(In(handle): In<Handle<AnimationGraph>>, resources: SystemResources) {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            let child = EntityPath::default().child("root").child("child").id();
+            for position in [-0.5_f32, 0.0, 0.25, 0.75, 1.5] {
+                let inputs = HashMap::from([("position".to_owned(), DataValue::F32(position)), ("frame".to_owned(), DataValue::F32(position * 60.0))]);
+                let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+                let outputs = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context.clone()).unwrap();
+                for (name, mesh, reference_time, time) in [
+                    ("player", true, 7.0/30.0, 0.75),
+                    ("mesh_7", true, 7.0/30.0, position.clamp(0.0, 1.0)),
+                    ("local_7", false, 7.0/30.0, position.clamp(0.0, 1.0)),
+                    ("mesh_11", true, 11.0/30.0, position.clamp(0.0, 1.0)),
+                    ("frame_11", true, 11.0/30.0, position.clamp(0.0, 1.0)),
+                ] {
+                    let pose = outputs[name].as_pose().unwrap();
+                    assert!((pose.timestamp - time).abs() < 1e-6, "{name}: reference time leaked into sampled pose");
+                    let bone = pose.get_bone(child).unwrap();
+                    let target = Quat::from_rotation_x(-0.4 + 0.9 * time);
+                    let reference = Quat::from_rotation_x(0.25);
+                    let expected = if mesh {
+                        (Quat::from_rotation_y(0.1 + 0.5 * time) * target) * (Quat::from_rotation_y(0.7) * reference).inverse()
+                    } else { target * reference.inverse() };
+                    let rotation = bone.rotation.unwrap();
+                    assert!((rotation - expected).length().min((rotation + expected).length()) < 1e-5, "{name}: incorrect reference space");
+                    assert!(bone.translation.unwrap().distance(Vec3::X * (2.0 + time - reference_time)) < 1e-5);
+                    assert!(bone.scale.unwrap().distance(Vec3::splat(0.2)) < 1e-5);
+                    if name != "player" {
+                        let curves = crate::animation_context::graph_output_context_state(graph, &context, name).unwrap();
+                        assert!((curves.curves["Aim"] - time).abs() < 1e-6);
+                    }
+                }
+            }
+        }
+        let root = EntityPath::default().child("root");
+        let child = root.child("child");
+        let mut skeleton = Skeleton::default();
+        skeleton.set_root(root.id());
+        skeleton.add_bone(root.clone(), Transform::IDENTITY, Transform::IDENTITY);
+        skeleton.add_bone(child.clone(), Transform::IDENTITY, Transform::IDENTITY);
+        let mut skeletons = Assets::<Skeleton>::default();
+        let skeleton = skeletons.add(skeleton);
+        let mut clips = Assets::<GraphClip>::default();
+        let mut make_clip = |reference: bool| {
+            let mut clip = bevy::animation::AnimationClip::default();
+            let root_angles = if reference { [0.7,0.7] } else { [0.1,0.6] };
+            let child_angles = if reference { [0.25,0.25] } else { [-0.4,0.5] };
+            clip.add_curve_to_target(root.id().animation_target_id(), AnimatableCurve::new(animated_field!(Transform::rotation), UnevenSampleAutoCurve::new([(0.0,Quat::from_rotation_y(root_angles[0])),(1.0,Quat::from_rotation_y(root_angles[1]))]).unwrap()));
+            clip.add_curve_to_target(child.id().animation_target_id(), AnimatableCurve::new(animated_field!(Transform::rotation), UnevenSampleAutoCurve::new([(0.0,Quat::from_rotation_x(child_angles[0])),(1.0,Quat::from_rotation_x(child_angles[1]))]).unwrap()));
+            let offset = if reference { 0.0 } else { 2.0 };
+            clip.add_curve_to_target(child.id().animation_target_id(), AnimatableCurve::new(animated_field!(Transform::translation), UnevenSampleAutoCurve::new([(0.0,Vec3::X * offset),(1.0,Vec3::X * (offset + 1.0))]).unwrap()));
+            let scale = if reference { 1.0 } else { 1.2 };
+            clip.add_curve_to_target(child.id().animation_target_id(), AnimatableCurve::new(animated_field!(Transform::scale), UnevenSampleAutoCurve::new([(0.0,Vec3::splat(scale)),(1.0,Vec3::splat(scale))]).unwrap()));
+            clips.add(GraphClip::from_bevy_clip(clip, skeleton.clone(), default(), None))
+        };
+        let reference = make_clip(true);
+        let target = make_clip(false);
+        let mut graph = AnimationGraph::new();
+        let player = AnimationNode::new("player", crate::SourceSequencePlayerNode { clip:target.clone(), additive_reference:Some(reference.clone()), additive_reference_position:7.0/30.0, additive_mesh_space:true, play_rate:0.0, start_position:0.75, loop_animation:false, expose_play_rate_pin:false, expose_start_position_pin:false, expose_loop_animation_pin:false, ..default() });
+        graph.add_node(player.clone());
+        graph.add_output_data("player".to_owned(), DataSpec::Pose);
+        graph.add_output_data_edge(player.id, "Pose", "player");
+        for (name, mesh, frame) in [("mesh_7",true,7.0),("local_7",false,7.0),("mesh_11",true,11.0),("frame_11",true,11.0)] {
+            let evaluator = AnimationNode::new(name, SourceSequenceEvaluatorNode {
+                clip:target.clone(), additive_reference:Some(reference.clone()), additive_reference_position:frame/30.0, additive_mesh_space:mesh,
+                use_explicit_frame: name == "frame_11", frames_per_second: 60.0, explicit_value_key:if name == "frame_11" { "frame" } else { "position" }.to_owned(), curves:crate::als_curves::parse_curves(&serde_json::json!({"curves":[{"name":"Aim","times":[0.0,1.0],"values":[0.0,1.0],"interps":["LINEAR","LINEAR"]}]})).unwrap(), ..default()
+            });
+            graph.add_node(evaluator.clone());
+            graph.add_output_data(name.to_owned(), DataSpec::Pose);
+            graph.add_output_data_edge(evaluator.id, "Pose", name);
+        }
+        let mut graphs = Assets::<AnimationGraph>::default();
+        let handle = graphs.add(graph);
+        let mut world = World::new();
+        world.insert_resource(graphs);
+        world.insert_resource(clips);
+        world.insert_resource(skeletons);
+        world.insert_resource(Assets::<StateMachine>::default());
+        world.run_system_once_with(query, handle).unwrap();
+    }
 
     #[test]
     fn source_explicit_frame_uses_the_configured_source_rate() {

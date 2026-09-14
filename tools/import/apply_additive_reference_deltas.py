@@ -32,12 +32,12 @@ NODE_PATTERN = re.compile(
     + r'"\s*:\s*\(\s*clip:\s*"(?P<clip>[^"]+)"',
     re.DOTALL,
 )
-SEQUENCE_PLAYER_PATTERN = re.compile(
-    r'(?P<prefix>"als_ext::SourceSequencePlayerNode"\s*:\s*\(\s*clip:\s*"(?P<clip>[^"]+)"\s*,\s*(?:curves:\s*\(\{.*?\}\)\s*,\s*)?additive_reference:\s*)(?P<reference>None|Some\("[^"]+"\))(?P<middle>\s*,\s*additive_reference_position:\s*)(?P<position>-?[0-9.]+)(?:\s*,\s*additive_mesh_space:\s*(?P<mesh>true|false))?',
+SEQUENCE_NODE_PATTERN = re.compile(
+    r'(?P<prefix>"als_ext::SourceSequence(?P<kind>Player|Evaluator)Node"\s*:\s*\(\s*clip:\s*"(?P<clip>[^"]+)"\s*,\s*(?:curves:\s*\(\{.*?\}\)\s*,\s*)?additive_reference:\s*)(?P<reference>None|Some\("[^"]+"\))(?P<middle>\s*,\s*additive_reference_position:\s*)(?P<position>-?[0-9.]+)(?:\s*,\s*additive_mesh_space:\s*(?P<mesh>true|false))?',
     re.DOTALL,
 )
-SEQUENCE_EVALUATOR_PATTERN = re.compile(
-    r'"als_ext::SourceSequenceEvaluatorNode"\s*:\s*\(\s*clip:\s*"(?P<clip>[^"]+)"'
+SEQUENCE_CLIP_PATTERN = re.compile(
+    r'"als_ext::SourceSequence(?:Player|Evaluator)Node"\s*:\s*\(\s*clip:\s*"(?P<clip>[^"]+)"'
 )
 
 
@@ -377,7 +377,7 @@ def source_clip_metadata(source_assets, paths, graph, clip_path):
     return clip, merged, reference_paths[0], frame_time(merged)
 
 
-def patch_sequence_player_references(graph_path, graph, source_assets, paths, asset_root, write):
+def patch_sequence_references(graph_path, graph, source_assets, paths, asset_root, write):
     text, _ = read_graph(graph_path)
     original_text = text
     rows = []
@@ -389,7 +389,7 @@ def patch_sequence_player_references(graph_path, graph, source_assets, paths, as
             return match.group(0)
         clip, metadata, reference_path, reference_time = resolved
         if metadata["additive_type"] not in {LOCAL_ADDITIVE, MESH_ADDITIVE}:
-            raise ValueError(f"{graph}: {clip} additive type is unsupported for SourceSequencePlayer")
+            raise ValueError(f"{graph}: {clip} additive type is unsupported for SourceSequence{match.group('kind')}")
         gltf_paths = list(Path(asset_root).rglob(f"{clip}.gltf"))
         summary = raw_scale_summary(gltf_paths[0]) if len(gltf_paths) == 1 else {
             "scale_keys": 0,
@@ -412,7 +412,7 @@ def patch_sequence_player_references(graph_path, graph, source_assets, paths, as
                 "reference_time": reference_time,
                 "pose_consumers": 1,
                 "unit": summary["unit"],
-                "kind": "sequence_player",
+                "kind": "sequence_" + match.group("kind").lower(),
                 "requires_single_pose_consumer": False,
             }
         )
@@ -425,11 +425,7 @@ def patch_sequence_player_references(graph_path, graph, source_assets, paths, as
             + str(mesh_space).lower()
         )
 
-    text = SEQUENCE_PLAYER_PATTERN.sub(replace, text)
-    for match in SEQUENCE_EVALUATOR_PATTERN.finditer(text):
-        resolved = source_clip_metadata(source_assets, paths, graph, match.group("clip"))
-        if resolved is not None:
-            raise ValueError(f"{graph}: {resolved[0]} additive type is unsupported for SourceSequenceEvaluator")
+    text = SEQUENCE_NODE_PATTERN.sub(replace, text)
     if write and text != original_text:
         graph_path.write_bytes(text.encode("utf-8"))
     return rows
@@ -441,11 +437,7 @@ def referenced_animation_names(graph_root):
         text = path.read_text(encoding="utf-8")
         names.update(
             Path(match.group("clip")).name.removesuffix(".anim.ron")
-            for match in SEQUENCE_PLAYER_PATTERN.finditer(text)
-        )
-        names.update(
-            Path(match.group("clip")).name.removesuffix(".anim.ron")
-            for match in SEQUENCE_EVALUATOR_PATTERN.finditer(text)
+            for match in SEQUENCE_CLIP_PATTERN.finditer(text)
         )
     return names
 
@@ -661,16 +653,22 @@ def run_self_test():
                 encoding="utf-8",
             )
             assert referenced_animation_names(root) == {"A_Add"}
-            rows = patch_sequence_player_references(
+            rows = patch_sequence_references(
                 graph, graph.name, assets, {"A_Base": ["A_Base.anim.ron"]}, root, True
             )
             assert len(rows) == 1 and rows[0]["converted"]
             text = graph.read_text(encoding="utf-8")
             assert curves in text and 'additive_reference: Some("A_Base.anim.ron")' in text
-            rows = patch_sequence_player_references(
+            rows = patch_sequence_references(
                 graph, graph.name, assets, {"A_Base": ["A_Base.anim.ron"]}, root, False
             )
             assert len(rows) == 1 and rows[0]["converted"] and not rows[0]["planned"]
+        graph.write_text('"als_ext::SourceSequenceEvaluatorNode": (clip: "A_Add.anim.ron", additive_reference: None, additive_reference_position: 0.0)', encoding="utf-8")
+        assert referenced_animation_names(root) == {"A_Add"}
+        rows = patch_sequence_references(graph, graph.name, assets, {"A_Base":["A_Base.anim.ron"]}, root, True)
+        assert len(rows) == 1 and rows[0]["converted"]
+        assert 'additive_reference: Some("A_Base.anim.ron")' in graph.read_text(encoding="utf-8")
+        assert rows[0]["kind"] == "sequence_evaluator"
     return {
         "native_additive_metadata_preserved": "PASS",
         "cooked_additive_reference_fallback_reuses_native_source_records": "PASS",

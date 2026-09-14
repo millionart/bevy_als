@@ -373,9 +373,9 @@
         "--source-directory",
         "target/bf116_bow/05b2_source",
         "--materialized-directory",
-        "target/bf116_bow/05b4_corpus_root",
+        "target/bf116_bow/05b5_corpus_root",
         "--spec",
-        "target/bf116_bow/05b4_spec.json",
+        "target/bf116_bow/05b5_spec.json",
         "--source-asset",
         "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Default.AB_Als_Default"
       ]

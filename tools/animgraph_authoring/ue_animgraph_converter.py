@@ -17,7 +17,7 @@ from apply_additive_reference_deltas import (
     asset_paths as additive_asset_paths,
     graph_clip_uses as additive_graph_clip_uses,
     patch_graph as patch_additive_graph,
-    patch_sequence_player_references,
+    patch_sequence_references,
     raw_scale_summary,
     referenced_animation_names,
     source_animation_assets,
@@ -2520,7 +2520,7 @@ def materialize_additive_reference_deltas(
             )
         for path in sorted(graph_root.rglob("*.ron")):
             rows.extend(
-                patch_sequence_player_references(
+                patch_sequence_references(
                     path,
                     path.relative_to(graph_root).as_posix(),
                     source_assets,
@@ -2542,9 +2542,11 @@ def materialize_additive_reference_deltas(
                 materialized[name] = (graph_root / name).read_text(encoding="utf-8")
     clips = [row for row in rows if row["kind"] == "clip"]
     players = [row for row in rows if row["kind"] == "sequence_player"]
+    evaluators = [row for row in rows if row["kind"] == "sequence_evaluator"]
     return materialized, {
         "additive_clip_uses": len(clips),
         "additive_sequence_player_uses": len(players),
+        "additive_sequence_evaluator_uses": len(evaluators),
         "converted_inputs": sum(row["converted"] for row in rows),
         "unit_raw_scale_inputs": sum(row["unit"] for row in rows),
         "single_pose_consumers": sum(row["pose_consumers"] == 1 for row in clips),
