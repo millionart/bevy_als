@@ -40,7 +40,7 @@ pub(super) fn install(app: &mut App) {
         .add_systems(PostUpdate, observe
             .run_if(|state: Res<ManualIntegrationState>| state.phase == IntegrationPhase::MovingBase)
             .after(AlsCameraSet).after(AlsRotationResponseSet).after(FootIkApplySet::Telemetry)
-            .before(observe_manual_integration).in_set(ManualIntegrationObservationSet));
+            .after(observe_manual_integration).in_set(ManualIntegrationObservationSet));
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
@@ -56,7 +56,7 @@ pub(super) struct Probe {
     maximum: Vec3,
     ride_since: Option<f64>,
     mantle_start: Option<Vec3>,
-    step_playback: [Option<AlsTransitionPlayback>; 2],
+    step_released: [bool; 2],
     step_unlocked: [bool; 2],
     pub(super) steps: [bool; 2],
     pub(super) mantle_requested: bool,
@@ -111,19 +111,17 @@ impl Probe {
     fn observe_steps(&mut self, feet: Option<&AlsFootLockState>, playback: Option<&AlsTransitionPlayback>,
         slot: Option<&AlsRootTransitionSlotRuntime>, scale: f32) {
         for side in 0..2 {
+            let foot = feet.map(|feet| if side == 0 { &feet.left } else { &feet.right });
             let current = playback.filter(|playback| playback.kind == AlsTransitionKind::StandingDynamic && playback.index == side as f32);
             if let Some(playback) = current.filter(|playback| playback.active
                 && slot.is_some_and(|slot| slot.active && slot.pose_ready && slot.weight > 0.05)) {
                 if playback.start_time != 0.0 || playback.play_rate != 1.5 || playback.blend_in != 0.2 || playback.blend_out != 0.2 {
                     self.failure = Some("Rotating base dynamic transition playback differs from source".to_owned());
                 }
-                self.step_playback[side] = Some(*playback);
+                self.step_unlocked[side] |= foot.is_some_and(|foot| foot.lock_amount < 0.1);
+                self.step_released[side] |= self.step_unlocked[side] && step_replacement_allowed(playback);
             }
-            let foot = feet.map(|feet| if side == 0 { &feet.left } else { &feet.right });
-            self.step_unlocked[side] |= self.step_playback[side].is_some() && foot.is_some_and(|foot| foot.lock_amount < 0.1);
-            self.steps[side] |= standing_dynamic_foot_restored(self.step_unlocked[side], foot, scale)
-                && standing_stop_completed(true, self.step_playback[side].as_ref(), current, true)
-                && slot.is_some_and(|slot| !slot.active);
+            self.steps[side] |= standing_dynamic_foot_restored(self.step_released[side], foot, scale);
         }
     }
 
@@ -151,6 +149,12 @@ impl Probe {
             self.failure = Some(format!("exit_reason=stage_progress_timeout stage={:?} no_progress_seconds={elapsed:.3} limit_seconds={limit:.3}", self.stage));
         }
     }
+}
+
+fn step_replacement_allowed(playback: &AlsTransitionPlayback) -> bool {
+    crate::stop_link::source_transition_sequence(playback).is_some_and(|name|
+        crate::standing_source::MONTAGES[name].curves.sample("AllowTransitions", playback.clip_time)
+            .is_some_and(|value| value.abs() <= 1e-5))
 }
 
 pub(super) fn drive(
@@ -334,7 +338,7 @@ pub(super) fn observe(
         && let Some(playback) = playback.filter(|playback| playback.kind == AlsTransitionKind::StandingDynamic) {
         let side = usize::from(playback.index > 0.5);
         let ready = slot.is_some_and(|slot| slot.active && slot.pose_ready && slot.weight > 0.05);
-        let completed = probe.steps[side] && !playback.active && playback.clip_time == playback.duration;
+        let completed = probe.steps[side] && step_replacement_allowed(playback);
         let mut chain = generated_stop_quick_source_pose_chain(false);
         chain.push(ManualAnimationPoseBoundary { label:"root_transition_slot",
             graph:"generated/ALS/Character/AB_Als/AnimGraph.animgraph.ron",
@@ -350,8 +354,9 @@ pub(super) fn observe(
             observed_animation_variant:crate::stop_link::source_transition_sequence(playback),
             observed_animation_clip_time:Some(playback.clip_time), observed_animation_weight:Some(playback.weight),
             observed_animation_play_rate:Some(playback.play_rate),
-            expected_lifecycle_stages:&["playing", "completed", "foot_relocked"],
-            observed_lifecycle_stages:if completed { &["completed", "foot_relocked"] } else if ready { &["playing"] } else { &[] },
+            expected_lifecycle_stages:&["playing", "foot_unlocked", "foot_relocked", "replacement_allowed"],
+            observed_lifecycle_stages:if completed { &["playing", "foot_unlocked", "foot_relocked", "replacement_allowed"] }
+                else if probe.step_unlocked[side] { &["playing", "foot_unlocked"] } else if ready { &["playing"] } else { &[] },
             minimum_pre_rig_rotation_span_radians:0.05, minimum_final_rotation_span_radians:0.05,
             minimum_observation_seconds:0.12, canonical_clip_time:Some(0.4), maximum_clip_time_distance:0.06,
             expected_direction:Some(if side == 0 { "Left" } else { "Right" }),
@@ -462,25 +467,23 @@ mod tests {
     }
 
     #[test]
-    fn rotating_steps_require_real_playback_unlock_completion_and_relock() {
-        for missing in ["none", "pose", "unlock", "completion", "relock", "slot_end", "source_rate"] {
+    fn rotating_steps_require_real_playback_unlock_source_release_and_relock() {
+        for missing in ["none", "pose", "unlock", "release", "relock", "source_rate"] {
             let mut probe = Probe::default();
             for side in 0..2 {
                 let mut feet = AlsFootLockState::default();
                 let foot = if side == 0 { &mut feet.left } else { &mut feet.right };
                 foot.lock_amount = if missing == "unlock" { 1.0 } else { 0.0 };
                 let mut playback = AlsTransitionPlayback::standing_dynamic(side as f32);
-                playback.clip_time = 0.9;
+                playback.clip_time = 0.4;
                 playback.weight = 1.0;
                 if missing == "source_rate" { playback.play_rate = 1.0; }
-                let mut slot = AlsRootTransitionSlotRuntime { active:true, pose_ready:missing != "pose", weight:1.0 };
+                let slot = AlsRootTransitionSlotRuntime { active:true, pose_ready:missing != "pose", weight:1.0 };
                 probe.observe_steps(Some(&feet), Some(&playback), Some(&slot), 1.0);
                 let foot = if side == 0 { &mut feet.left } else { &mut feet.right };
                 foot.lock_amount = 1.0;
                 if missing == "relock" { foot.lock_location = Vec3::X; }
-                playback.active = missing == "completion";
-                playback.clip_time = playback.duration;
-                slot.active = missing == "slot_end";
+                playback.clip_time = if missing == "release" { 0.5 } else { 0.55 };
                 probe.observe_steps(Some(&feet), Some(&playback), Some(&slot), 1.0);
             }
             assert_eq!(probe.steps.iter().all(|value| *value) && probe.failure.is_none(), missing == "none", "Missing step evidence: {missing}");
@@ -500,6 +503,7 @@ mod tests {
             .init_resource::<ManualIntegrationState>().init_resource::<ManualRuntimePhaseEvidence>()
             .init_resource::<ManualIntegrationGateReport>().init_resource::<ManualAnimationWindowEvidence>();
         install(&mut app);
+        app.add_systems(PostUpdate, observe_manual_integration.in_set(ManualIntegrationObservationSet));
         app.finish();
         app.cleanup();
         app.world_mut().run_schedule(Startup);
@@ -513,7 +517,13 @@ mod tests {
         }
         app.world_mut().run_schedule(Update);
         assert_eq!(app.world().resource::<ManualIntegrationState>().phase, IntegrationPhase::Finish);
-        app.world_mut().schedule_scope(PostUpdate, |world, schedule| schedule.initialize(world).unwrap());
+        app.world_mut().schedule_scope(PostUpdate, |world, schedule| {
+            schedule.initialize(world).unwrap();
+            let names = schedule.systems().unwrap().map(|(_, system)| system.name().to_string()).collect::<Vec<_>>();
+            let generic = names.iter().position(|name| name.ends_with("::observe_manual_integration")).unwrap();
+            let specific = names.iter().position(|name| name.ends_with("::moving_base::observe")).unwrap();
+            assert!(specific > generic, "The generic turn fallback must not overwrite the source step window");
+        });
     }
 
     #[test]

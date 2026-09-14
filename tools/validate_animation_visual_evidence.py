@@ -1431,7 +1431,12 @@ def rotating_source_transform(actor, time):
 
 
 def rotating_step_issues(rows):
-    played, unlocked, completed = [False]*2, [False]*2, [False]*2
+    released, unlocked, completed = [False]*2, [False]*2, [False]*2
+    release_times = []
+    for side in ("Left", "Right"):
+        asset = read_json(Path(__file__).resolve().parents[1] / "assets/animations/Transitions" / f"A_Als_Stand_DynamicTransition_{side}.gltf")
+        curve = next(curve for curve in asset["animations"][0]["extensions"]["ALS_float_curves"]["curves"] if curve["name"] == "AllowTransitions")
+        release_times.append(max(time for time, value in zip(curve["times"], curve["values"]) if abs(value) <= 1e-6))
     issues = []
     for row in rows:
         if row.get("stage") != "Ride":
@@ -1443,22 +1448,20 @@ def rotating_step_issues(rows):
             return ["rotating base foot evidence is invalid"]
         if step is not None and not isinstance(step, dict):
             return ["rotating base step playback evidence is invalid"]
-        if step is None or step.get("kind") != "StandingDynamic":
-            continue
-        if step.get("side") not in (0.0, 1.0) or any(not finite(step.get(key)) for key in ("clip_time", "duration", "play_rate", "start_time", "blend_in", "blend_out")):
-            return ["rotating base step playback evidence is invalid"]
-        if any(abs(step[key] - expected) > 1e-6 for key, expected in (("play_rate", 1.5), ("start_time", 0.0), ("blend_in", 0.2), ("blend_out", 0.2))) \
-            or not 0.0 <= step["clip_time"] <= step["duration"] + 1e-5:
-            issues.append("rotating base step playback differs from source")
-        side = int(step["side"])
-        ready = isinstance(slot, dict) and slot.get("active") is True and slot.get("pose_ready") is True and finite(slot.get("weight")) and slot["weight"] > 0.05
-        if step.get("active") is True and ready:
-            played[side] |= step["clip_time"] > 0.8
-            unlocked[side] |= feet[side]["lock_amount"] < 0.1
-        completed[side] |= played[side] and unlocked[side] and step.get("active") is False \
-            and step["duration"] > 0.8 and abs(step["clip_time"] - step["duration"]) < 1e-5 \
-            and isinstance(slot, dict) and slot.get("active") is False \
-            and feet[side]["lock_amount"] >= 1.0-1e-5 and math.dist(feet[side]["target"], feet[side]["lock"]) <= 0.08
+        if step is not None and step.get("kind") == "StandingDynamic":
+            if step.get("side") not in (0.0, 1.0) or any(not finite(step.get(key)) for key in ("clip_time", "duration", "play_rate", "start_time", "blend_in", "blend_out")):
+                return ["rotating base step playback evidence is invalid"]
+            if any(abs(step[key] - expected) > 1e-6 for key, expected in (("play_rate", 1.5), ("start_time", 0.0), ("blend_in", 0.2), ("blend_out", 0.2))) \
+                or not 0.0 <= step["clip_time"] <= step["duration"] + 1e-5:
+                issues.append("rotating base step playback differs from source")
+            side = int(step["side"])
+            ready = isinstance(slot, dict) and slot.get("active") is True and slot.get("pose_ready") is True and finite(slot.get("weight")) and slot["weight"] > 0.05
+            if step.get("active") is True and ready:
+                unlocked[side] |= feet[side]["lock_amount"] < 0.1
+                released[side] |= unlocked[side] and step["clip_time"] >= release_times[side] - 1e-5
+        for side in range(2):
+            completed[side] |= released[side] and feet[side]["lock_amount"] >= 1.0-1e-5 \
+                and math.dist(feet[side]["target"], feet[side]["lock"]) <= 0.08
     if not all(completed):
         issues.append("rotating base left and right step lifecycles are incomplete")
     return issues
@@ -2260,11 +2263,11 @@ def fixture_rotating_base_report():
             row["rotation"] = row["platform_rotation"][:]
             row["expected_rotation"] = row["rotation"][:]
         if index < 4:
-            side, active = index // 2, index % 2 == 0
-            row["step"] = dict(kind="StandingDynamic", side=float(side), active=active, clip_time=0.9 if active else 1.1,
-                duration=1.1, play_rate=1.5, start_time=0.0, blend_in=0.2, blend_out=0.2)
-            row["slot"] = dict(active=active, pose_ready=active, weight=1.0 if active else 0.0)
-            row["feet"][side]["lock_amount"] = 0.0 if active else 1.0
+            side, beginning = index // 2, index % 2 == 0
+            row["step"] = dict(kind="StandingDynamic", side=float(side), active=True, clip_time=0.4 if beginning else 0.55,
+                duration=1.533333, play_rate=1.5, start_time=0.0, blend_in=0.2, blend_out=0.2)
+            row["slot"] = dict(active=True, pose_ready=True, weight=1.0)
+            row["feet"][side]["lock_amount"] = 0.0 if beginning else 1.0
     return report
 
 
@@ -2282,8 +2285,8 @@ def run_self_test():
     rotating = fixture_rotating_base_report()
     assert not manual_integration_issues(rotating), manual_integration_issues(rotating)
     for issue in ("missing", "identity", "frozen", "yaw_direction", "clock", "pivot", "coordinates", "motion_point",
-                  "facing", "input", "own_velocity", "missing_step", "missing_feet", "invalid_step", "pose", "unlock", "relock", "completion", "slot_end", "source_rate",
-                  "frozen_mantle", "mantle_rotation", "no_handoff", "step_window", "cycle", "both_sides", "duration", "short_playback", "short_completion", "lock_amount"):
+                  "facing", "input", "own_velocity", "missing_step", "missing_feet", "invalid_step", "pose", "unlock", "relock", "release", "release_pose", "source_rate",
+                  "frozen_mantle", "mantle_rotation", "no_handoff", "step_window", "cycle", "both_sides", "duration", "release_inactive", "lock_amount"):
         invalid = copy.deepcopy(rotating)
         rows = invalid["manual_integration"]["moving_base_trace"]
         if issue == "missing":
@@ -2321,11 +2324,12 @@ def run_self_test():
         elif issue == "unlock":
             rows[0]["feet"][0]["lock_amount"] = 1.0
         elif issue == "relock":
-            rows[1]["feet"][0]["lock"][0] = 0.2
-        elif issue == "completion":
-            rows[1]["step"]["active"] = True
-        elif issue == "slot_end":
-            rows[1]["slot"]["active"] = True
+            for row in rows[1:5]:
+                row["feet"][0]["lock"][0] = 0.2
+        elif issue == "release":
+            rows[1]["step"]["clip_time"] = 0.5
+        elif issue == "release_pose":
+            rows[1]["slot"]["pose_ready"] = False
         elif issue == "source_rate":
             rows[0]["step"]["play_rate"] = 1.0
         elif issue == "frozen_mantle":
@@ -2343,12 +2347,11 @@ def run_self_test():
             rows.pop()
         elif issue == "both_sides":
             rows[2]["step"]["side"] = rows[3]["step"]["side"] = 0.0
-        elif issue == "short_playback":
-            rows[0]["step"]["clip_time"] = 0.1
-        elif issue == "short_completion":
-            rows[1]["step"]["clip_time"] = 0.95
+        elif issue == "release_inactive":
+            rows[1]["step"]["active"] = False
         elif issue == "lock_amount":
-            rows[1]["feet"][0]["lock_amount"] = 0.25
+            for row in rows[1:5]:
+                row["feet"][0]["lock_amount"] = 0.25
         else:
             rows[0]["step"]["duration"] = 0.0
         assert manual_integration_issues(invalid), issue
