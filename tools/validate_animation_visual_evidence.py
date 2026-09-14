@@ -1471,7 +1471,7 @@ def moving_base_trace_issues(report):
     rows = report.get("manual_integration", {}).get("moving_base_trace")
     if not isinstance(rows, list) or len(rows) < 2:
         return ["moving base frame evidence is missing"]
-    vectors = ("platform", "position", "local", "velocity", "own_velocity", "platform_velocity")
+    vectors = ("platform", "position", "local", "velocity", "own_velocity", "platform_velocity", "target_velocity")
     if rotating:
         vectors += ("motion_point",)
     for row in rows:
@@ -1550,8 +1550,10 @@ def moving_base_trace_issues(report):
         issues.append("moving base jump and new support evidence is incomplete")
     mantle = [row for row in rows if row.get("stage") == "Mantle"]
     triggers = [row for row in mantle if row.get("jump_pressed") is True]
-    if len(triggers) != 1 or math.dist(triggers[0]["platform_velocity"], [0.0, 0.0, 0.0]) > 0.10001:
+    if len(triggers) != 1 or math.dist(triggers[0]["target_velocity"], [0.0, 0.0, 0.0]) > 0.10001:
         issues.append("moving base mantle source input or speed differs")
+    if not rotating and triggers and math.dist(triggers[0]["platform_velocity"], [0.0, 0.0, 0.0]) <= 1.0:
+        issues.append("moving base mantle only covered an endpoint speed window")
     active = [row for row in mantle if row.get("root_motion_ready") is True and row.get("mode") == "Custom"]
     if len(active) < 2 or active[-1]["time"] - active[0]["time"] < 0.2 or max(
         (math.dist(row["motion_point" if rotating else "platform"], active[0]["motion_point" if rotating else "platform"]) for row in active), default=0.0
@@ -2217,7 +2219,7 @@ def fixture_moving_base_report():
         row = dict(stage=stage, time=time, body="body", collider="collider", object="Moving:BP_SimpleMovingObject2",
             period=3.5, span=6.5, platform=platform, platform_rotation=[0.0, 0.0, 0.0, 1.0], position=position,
             rotation=[0.0, 0.0, 0.0, 1.0], velocity=[0.0, 0.0, 0.0], own_velocity=[0.0, 0.0, 0.0],
-            platform_velocity=[0.05, 0.0, 0.0], mode="Grounded", base_matches=True, has_base=True,
+            platform_velocity=[4.0, 0.0, 0.0], target_velocity=[0.0, 0.0, 0.0], mode="Grounded", base_matches=True, has_base=True,
             jump_pressed=False, root_motion_ready=False, expected_position=position[:], expected_rotation=[0.0, 0.0, 0.0, 1.0])
         row.update(changes)
         row["local"] = [value - base for value, base in zip(row["position"], row["platform"])]
@@ -2353,7 +2355,7 @@ def run_self_test():
     moving = fixture_moving_base_report()
     assert not manual_integration_issues(moving), manual_integration_issues(moving)
     for issue in ("missing", "identity", "stationary", "drift", "support", "no_jump", "no_new_base", "speed",
-                  "frozen_actor", "missing_expected", "rotation", "no_handoff", "duplicate_input", "short_cycle", "window", "source_path", "phase_order", "source_period", "invalid_rotation"):
+                  "frozen_actor", "missing_expected", "rotation", "no_handoff", "duplicate_input", "short_cycle", "window", "source_path", "phase_order", "source_period", "invalid_rotation", "endpoint_speed", "missing_target_velocity"):
         invalid = copy.deepcopy(moving)
         rows = invalid["manual_integration"]["moving_base_trace"]
         if issue == "missing":
@@ -2374,7 +2376,7 @@ def run_self_test():
         elif issue == "no_new_base":
             rows[7]["base_matches"] = True
         elif issue == "speed":
-            rows[8]["platform_velocity"] = [1.0, 0.0, 0.0]
+            rows[8]["target_velocity"] = [1.0, 0.0, 0.0]
         elif issue == "frozen_actor":
             rows[9]["position"] = rows[8]["position"][:]
             rows[9]["local"] = [p-b for p,b in zip(rows[9]["position"], rows[9]["platform"])]
@@ -2397,6 +2399,10 @@ def run_self_test():
             rows[3]["stage"] = "AfterMantle"
         elif issue == "source_period":
             rows[0]["period"] = 0.1
+        elif issue == "endpoint_speed":
+            rows[8]["platform_velocity"] = [0.09, 0.0, 0.0]
+        elif issue == "missing_target_velocity":
+            rows[8].pop("target_velocity")
         else:
             rows[0]["platform_rotation"] = None
         assert manual_integration_issues(invalid), issue

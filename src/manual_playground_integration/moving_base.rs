@@ -1,5 +1,5 @@
 use super::*;
-use als_core::dynamics::{AlsMovementBase, AlsComponentVelocity};
+use als_core::dynamics::{AlsMovementBase, AlsComponentVelocity, component_velocity};
 use als_core::mantle::{AlsMantleTargetBase, AlsMantleTargetPermission, MantleDetectionInput, detect_mantle};
 use als_core::motion::AlsActualVelocity;
 use als_ext::{PlaygroundKinematic, PlaygroundKinematicKind};
@@ -22,10 +22,14 @@ fn motion_sample(kind: PlaygroundKinematicKind, global: &GlobalTransform) -> (f3
 
 fn mantle_approach(kind: PlaygroundKinematicKind, global: &GlobalTransform, extent: Vec3, radius: f32) -> Vec3 {
     let (center, reach) = match kind {
-        PlaygroundKinematicKind::MoveSpline { start, .. } => (start, extent.z),
+        PlaygroundKinematicKind::MoveSpline { start, end, .. } => (start.lerp(end, 0.5), extent.z),
         PlaygroundKinematicKind::RotateWorldTime { .. } => (global.translation(), extent.x.hypot(extent.z)),
     };
     center + Vec3::Z * (reach + radius + 0.1)
+}
+
+fn moving_mantle_candidate(kind: PlaygroundKinematicKind, velocity: Vec3) -> bool {
+    matches!(kind, PlaygroundKinematicKind::RotateWorldTime { .. }) || velocity.length() > 1.0
 }
 
 pub(super) fn install(app: &mut App) {
@@ -207,6 +211,7 @@ pub(super) fn drive(
         return;
     }
     let candidate = state.moving_base_probe.stage == Stage::WaitMantle && *mode == LocomotionState::Grounded
+        && velocities.get(body).is_ok_and(|(_, velocity, _)| moving_mantle_candidate(path.kind, velocity.0))
         && detect_mantle(&spatial, character, MantleDetectionInput {
             origin: position.0, actor_yaw: world_forward_to_yaw(*transform.forward()), velocity: velocity.0,
             input_direction: Vec3::NEG_Z, locomotion: *mode, stance: *stance, overlay: OverlayState::Default,
@@ -226,7 +231,7 @@ pub(super) fn observe(
     mut window: ResMut<ManualAnimationWindowEvidence>,
     motion: MotionProbe,
     assets: Res<crate::mantle_drive::MantleAssets>,
-    platforms: Query<(Entity, &Name, &PlaygroundKinematic, &GlobalTransform, &LinearVelocity), Without<AlsCharacter>>,
+    platforms: Query<(Entity, &Name, &PlaygroundKinematic, &GlobalTransform, &LinearVelocity, &RigidBody, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
     colliders: Query<(Entity, &ColliderOf), Without<AlsCharacter>>,
     characters: Query<(&Position, &Transform, &LocomotionState, &AlsMovementBase, &AlsActualVelocity,
         &LinearVelocity, &AlsMantleState, Option<&AlsNotifyLocomotionAction>, &AlsInputOverride,
@@ -237,7 +242,7 @@ pub(super) fn observe(
     let (Some(character), Some(avatar)) = (state.character, state.avatar) else { return; };
     let object = object(state.scenario);
     let rotating = state.scenario == IntegrationScenario::RotatingBase;
-    let Some((body, _, path, global, platform_velocity)) = platforms.iter().find(|(_, name, _, _, _)| name.as_str() == object) else { return; };
+    let Some((body, _, path, global, platform_velocity, kind, reported_velocity)) = platforms.iter().find(|(_, name, _, _, _, _, _)| name.as_str() == object) else { return; };
     let Some((collider, _)) = colliders.iter().find(|(_, owner)| owner.body == body) else { return; };
     let Ok((position, transform, mode, base, own, velocity, mantle, action, input, feet, playback, slot)) = characters.get(character) else { return; };
     let Ok(scene) = avatars.get(avatar) else { return; };
@@ -311,6 +316,7 @@ pub(super) fn observe(
         "stage":stage,"time":now,"body":format!("{body:?}"),"collider":format!("{collider:?}"),"object":object,
         "period":period,"span":span,"platform":global.translation(),"platform_rotation":global.rotation(),
         "platform_velocity":platform_velocity.0,"position":position.0,"rotation":transform.rotation,"local":local,
+        "target_velocity":component_velocity(kind, platform_velocity, reported_velocity),
         "velocity":velocity.0,"own_velocity":own.world_velocity,"mode":mode,"base_matches":same_base,"has_base":base.entity.is_some(),
         "jump_pressed":input.0.jump_pressed,"input":input.0.move_dir,"mantle_active":mantle.active,"root_motion_ready":mantle.root_motion_ready,
         "mantle_time":mantle.time,"expected_position":expected.map(|value| value.translation),
@@ -370,6 +376,19 @@ pub(super) fn observe(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn translating_mantle_requires_normal_motion_and_a_midpath_approach() {
+        let kind = PlaygroundKinematicKind::MoveSpline { start:Vec3::new(19.0, 0.0, -28.75),
+            end:Vec3::new(12.5, 0.0, -28.75), duration:1.75 };
+        let approach = mantle_approach(kind, &GlobalTransform::IDENTITY, Vec3::ONE, 0.3);
+        assert!(approach.distance(Vec3::new(15.75, 0.0, -27.35)) < 1e-5);
+        assert!(!moving_mantle_candidate(kind, Vec3::X * 0.09));
+        assert!(!moving_mantle_candidate(kind, Vec3::X));
+        assert!(moving_mantle_candidate(kind, Vec3::X * 4.0));
+        assert!(moving_mantle_candidate(PlaygroundKinematicKind::RotateWorldTime {
+            rate_yzx_radians:bevy::math::DVec3::new(-100.0_f64.to_radians(), 0.0, 0.0) }, Vec3::ZERO));
+    }
 
     #[test]
     fn riding_preserves_the_settled_world_orientation_instead_of_forcing_zero() {
