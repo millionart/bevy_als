@@ -23,7 +23,9 @@ impl Plugin for PlaygroundCollisionPlugin {
                         .after(playground_moving_object_system)
                         .before(bevy_tnua::TnuaPipelineSystems::Sensors),
                 ),
-            );
+            )
+            .add_systems(PostUpdate, playground_kinematic_velocity_bridge
+                .after(PhysicsSystems::Prepare).before(PhysicsSystems::StepSimulation));
     }
 }
 
@@ -53,17 +55,18 @@ struct PlaygroundMeshGeometry {
 }
 
 pub fn playground_kinematic_velocity_bridge(
-    time: Res<Time>,
+    time: Res<Time<Virtual>>,
     curve: Res<PlaygroundMovingCurve>,
+    transforms: bevy::transform::helper::TransformHelper,
     mut platforms: Query<
-        (&PlaygroundKinematic, &Position, &mut LinearVelocity, &mut AngularVelocity),
+        (&PlaygroundKinematic, &Position, &mut Rotation, Option<&ChildOf>, &mut LinearVelocity, &mut AngularVelocity),
         With<PlaygroundMovingObject>,
     >,
 ) {
     let delta = time.delta()
         .min(crate::source_physics_timing::SOURCE_MAX_PHYSICS_DELTA)
         .as_secs_f32();
-    for (kinematic, position, mut linear, mut angular) in &mut platforms {
+    for (kinematic, position, mut rotation, parent, mut linear, mut angular) in &mut platforms {
         match kinematic.kind {
             PlaygroundKinematicKind::MoveSpline { duration, start, end } => {
                 let target = als_ext::playground::moving_object_position(
@@ -76,9 +79,19 @@ pub fn playground_kinematic_velocity_bridge(
                 };
                 angular.0 = Vec3::ZERO;
             }
-            PlaygroundKinematicKind::SpinYawDegPerSec { speed_deg } => {
+            PlaygroundKinematicKind::RotateWorldTime { rate_yzx_radians } => {
                 linear.0 = Vec3::ZERO;
-                angular.0 = Vec3::Y * speed_deg.to_radians();
+                let parent_rotation = parent.and_then(|parent| transforms.compute_global_transform(parent.parent()).ok())
+                    .map_or(kinematic.base_transform.rotation, |parent| parent.rotation());
+                let target = parent_rotation * als_ext::playground::rotating_object_rotation(rate_yzx_radians, time.elapsed_secs());
+                let mut difference = (target * rotation.0.conjugate()).normalize();
+                if difference.w < 0.0 { difference = -difference; }
+                if delta > 0.0 {
+                    angular.0 = difference.to_scaled_axis() / delta;
+                } else {
+                    angular.0 = Vec3::ZERO;
+                    rotation.0 = target;
+                }
             }
         }
     }
@@ -356,6 +369,45 @@ mod tests {
         gait::AlsDesiredGait, input::AlsInputCommand, motion::{AlsMotionPlugin, initial_als_control_scheme_config},
         params::AlsMovementParams, state::{Gait, LocomotionState}, transition::AlsStateTransitionPlugin};
     use bevy::{asset::AssetEvent, ecs::system::RunSystemOnce, time::TimeUpdateStrategy};
+
+    #[test]
+    fn rotating_actor_world_time_and_yaw_match_source() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin, PhysicsPlugins::new(PostUpdate),
+            PlaygroundCollisionPlugin, crate::source_physics_timing::SourcePhysicsTimingPlugin))
+            .init_resource::<Assets<Mesh>>().add_message::<AssetEvent<Mesh>>()
+            .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.025)));
+        app.finish();
+        for _ in 0..40 { app.update(); }
+        let transform = Transform::from_xyz(13.5, -0.5, -24.0)
+            .with_rotation(Quat::from_rotation_y(0.3) * Quat::from_rotation_z(0.2))
+            .with_scale(Vec3::new(1.5, 0.8, 2.0));
+        let anchor = app.world_mut().spawn((transform, GlobalTransform::from(transform))).id();
+        let mesh = app.world_mut().spawn((PlaygroundMovingObject, PlaygroundPhysicsDriven, RigidBody::Kinematic,
+            PlaygroundKinematic { base_transform: transform, kind: PlaygroundKinematicKind::RotateWorldTime {
+                rate_yzx_radians: bevy::math::DVec3::new(-100.0_f64.to_radians(), 0.0, 0.0) } },
+            ChildOf(anchor), Transform::IDENTITY, GlobalTransform::from(transform))).id();
+        for frame in 0..240 {
+            let delta = [1.0/120.0, 1.0/60.0, 0.05, 0.013, 0.0][frame % 5];
+            if frame == 50 {
+                let mut rotation = app.world_mut().get_mut::<Rotation>(mesh).unwrap();
+                rotation.0 = -rotation.0;
+            }
+            app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
+            app.update();
+            let time = app.world().resource::<Time>().elapsed_secs();
+            let expected = transform.rotation * Quat::from_rotation_y(-100.0_f32.to_radians() * time);
+            let actual = app.world().get::<Rotation>(mesh).unwrap().0;
+            let angular_step = app.world().get::<AngularVelocity>(mesh).unwrap().length()
+                * delta.min(crate::source_physics_timing::SOURCE_MAX_PHYSICS_DELTA.as_secs_f32());
+            assert!(angular_step <= std::f32::consts::PI + 1e-4, "Rotation did not use the shortest quaternion arc");
+            for axis in [Vec3::X, Vec3::Y, Vec3::Z] {
+                assert!((actual * axis).abs_diff_eq(expected * axis, 1e-4),
+                    "Rotating mesh differs from source world time: time={time} actual={actual:?} expected={expected:?}");
+            }
+            assert_eq!(app.world().get::<Transform>(anchor).unwrap().rotation, transform.rotation);
+        }
+    }
 
     #[test]
     fn moving_platform_reaches_the_source_position_after_late_start_and_variable_steps() {

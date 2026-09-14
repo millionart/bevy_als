@@ -670,9 +670,9 @@ fn kinematic_probe(
                     moving += 1;
                 }
             }
-            PlaygroundKinematicKind::SpinYawDegPerSec { speed_deg } => {
+            PlaygroundKinematicKind::RotateWorldTime { rate_yzx_radians } => {
                 let dt = time.delta_secs();
-                stats.spin_yaw_abs_deg += (speed_deg * dt).abs();
+                stats.spin_yaw_abs_deg += (rate_yzx_radians.x.to_degrees() as f32 * dt).abs();
                 if stats.spin_yaw_abs_deg > 1.0 {
                     moving += 1;
                 }
@@ -703,17 +703,16 @@ fn kinematic_probe(
                         .max(end.distance(expected_end))
                         .max(transform.translation.distance(expected_position))
                 }
-                PlaygroundKinematicKind::SpinYawDegPerSec { .. } => f32::INFINITY,
+                PlaygroundKinematicKind::RotateWorldTime { .. } => f32::INFINITY,
             };
             profile_error = Some(error);
         } else if name.as_str() == "Rotating:BP_SimpleRotatingObject_2" {
             stats.mover_profile_total += 1;
             let error = match kinematic.kind {
-                PlaygroundKinematicKind::SpinYawDegPerSec { speed_deg } => {
+                PlaygroundKinematicKind::RotateWorldTime { rate_yzx_radians } => {
                     let expected_rotation = kinematic.base_transform.rotation
-                        * Quat::from_rotation_y((100.0 * time.elapsed_secs()).to_radians());
-                    (speed_deg - 100.0)
-                        .abs()
+                        * Quat::from_rotation_y((-100.0 * time.elapsed_secs()).to_radians());
+                    ((rate_yzx_radians.x.to_degrees() + 100.0).abs() as f32)
                         .max(1.0 - transform.rotation.dot(expected_rotation).abs())
                 }
                 PlaygroundKinematicKind::MoveSpline { .. } => f32::INFINITY,

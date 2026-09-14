@@ -651,6 +651,57 @@
         "1"
       ],
       "evidence": "target/bf116_stairs/d1_driver_restored.watchdog.json"
+    },
+    {
+      "label": "rotating_actor_world_time",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "-p",
+        "bevy_als",
+        "--lib",
+        "rotating_actor_world_time_and_yaw_match_source",
+        "--",
+        "--test-threads",
+        "1"
+      ],
+      "evidence": "target/bf116_platform/bf116_04_actor_restored.watchdog.json"
+    },
+    {
+      "label": "rotating_actor_axis_precision",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "-p",
+        "als-ext",
+        "--lib",
+        "rotating_object_rotation_preserves_source_axes_and_large_world_time",
+        "--",
+        "--test-threads",
+        "1"
+      ],
+      "evidence": "target/bf116_platform/bf116_04_actor_restored.watchdog.json"
+    },
+    {
+      "label": "source_motion_actor_assembly",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "-p",
+        "als-ext",
+        "--lib",
+        "moving_actor_scene_keeps_the_source_actor_anchor_separate_from_its_mesh",
+        "--",
+        "--test-threads",
+        "1"
+      ],
+      "evidence": "target/bf116_platform/bf116_04_actor_restored.watchdog.json"
     }
   ]
 }

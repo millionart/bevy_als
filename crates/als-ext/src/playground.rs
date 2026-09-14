@@ -293,8 +293,8 @@ pub enum PlaygroundKinematicKind {
         start: Vec3,
         end: Vec3,
     },
-    SpinYawDegPerSec {
-        speed_deg: f32,
+    RotateWorldTime {
+        rate_yzx_radians: bevy::math::DVec3,
     },
 }
 
@@ -329,9 +329,15 @@ struct MovingActorDefinition {
     collider_center: [f32; 3],
     collider_rotation: [f32; 4],
     half_extents: [f32; 3],
-    start: [f32; 3],
-    end: [f32; 3],
-    duration: f32,
+    #[serde(flatten)]
+    motion: MovingMotionDefinition,
+}
+
+#[derive(Deserialize, Clone, Copy)]
+#[serde(untagged)]
+enum MovingMotionDefinition {
+    Spline { start: [f32; 3], end: [f32; 3], duration: f32 },
+    Rotation { rotation_rate_yzx_radians: [f64; 3] },
 }
 
 #[derive(Deserialize)]
@@ -341,6 +347,13 @@ struct MovingActorDefinitions {
 
 const MOVING_ACTOR_DEFINITIONS: &str = include_str!(
     "../../../assets/models/playground/moving_actors.runtime.json");
+const ROTATING_ACTOR_DEFINITIONS: &str = include_str!(
+    "../../../assets/models/playground/rotating_actors.runtime.json");
+
+pub fn rotating_object_rotation(rate_yzx_radians: bevy::math::DVec3, elapsed_seconds: f32) -> Quat {
+    let angles = rate_yzx_radians * f64::from(elapsed_seconds);
+    bevy::math::DQuat::from_euler(EulerRot::YZX, angles.x, angles.y, angles.z).as_quat().normalize()
+}
 
 const MOVING_OBJECT_CURVE_PATH: &str =
     "assets/curves/ALSExtras/Environment/CF_Als_MovingObject.rich.json";
@@ -608,16 +621,6 @@ fn inverse_scale(scale: Vec3) -> Vec3 {
     Vec3::new(scale.x.recip(), scale.y.recip(), scale.z.recip())
 }
 
-fn infer_block_mesh(actor: &PlaygroundActor) -> Option<String> {
-    let ext = actor.bounds_extent?;
-    let max_cm = ext[0].max(ext[1]).max(ext[2]);
-    if max_cm <= 125.0 {
-        Some("SM_Als_Block_2x2".to_string())
-    } else {
-        Some("SM_Als_Block_3x3".to_string())
-    }
-}
-
 fn spawn_box_visual(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
@@ -654,37 +657,6 @@ fn spawn_box_visual(
         }
     }
     entity
-}
-
-fn insert_fallback_box_visual(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    entity: Entity,
-    half_extents: Vec3,
-    material: PlaygroundMaterialTint,
-) {
-    let mesh = Mesh3d(meshes.add(Mesh::from(Cuboid::new(
-        half_extents.x * 2.0,
-        half_extents.y * 2.0,
-        half_extents.z * 2.0,
-    ))));
-    let role = material.role();
-    match material {
-        PlaygroundMaterialTint::Main(handle) => {
-            commands.entity(entity).insert((
-                mesh,
-                MeshMaterial3d(handle),
-                PlaygroundMaterialApplied(role),
-            ));
-        }
-        PlaygroundMaterialTint::Tiles(handle) | PlaygroundMaterialTint::Translucent(handle) => {
-            commands.entity(entity).insert((
-                mesh,
-                MeshMaterial3d(handle),
-                PlaygroundMaterialApplied(role),
-            ));
-        }
-    }
 }
 
 fn color_parameter(value: [f32; 3]) -> Vec4 {
@@ -795,8 +767,11 @@ pub fn playground_setup_system(
             return;
         }
     };
-    let moving_definitions: MovingActorDefinitions = serde_json::from_str(MOVING_ACTOR_DEFINITIONS)
+    let mut moving_definitions: MovingActorDefinitions = serde_json::from_str(MOVING_ACTOR_DEFINITIONS)
         .expect("Generated moving actor definitions must be valid");
+    let rotating_definitions: MovingActorDefinitions = serde_json::from_str(ROTATING_ACTOR_DEFINITIONS)
+        .expect("Generated rotating actor definitions must be valid");
+    moving_definitions.actors.extend(rotating_definitions.actors);
 
     let main_material = materials.add(StandardMaterial {
         base_color: Color::linear_rgb(1.0, 1.0, 1.0),
@@ -871,7 +846,7 @@ pub fn playground_setup_system(
                 spawn_point_found = true;
                 continue;
             }
-            "B_Als_MovingObject_C" => {
+            "B_Als_MovingObject_C" | "B_Als_RotatingObject_C" => {
                 let Some(definition) = moving_definitions.actors.iter().find(|value| value.name == actor.name) else {
                     error!("PLAYGROUND moving actor definition missing: {}", actor.name);
                     continue;
@@ -881,111 +856,34 @@ pub fn playground_setup_system(
                     anchor_transform, GlobalTransform::from(anchor_transform), Visibility::Inherited)).id();
                 let transform = definition.primitive.transform();
                 let global = GlobalTransform::from(anchor_transform).mul_transform(transform);
+                let (prefix, kind) = match definition.motion {
+                    MovingMotionDefinition::Spline { duration, start, end } => ("Moving", PlaygroundKinematicKind::MoveSpline {
+                        duration, start: Vec3::from_array(start), end: Vec3::from_array(end),
+                    }),
+                    MovingMotionDefinition::Rotation { rotation_rate_yzx_radians } => ("Rotating", PlaygroundKinematicKind::RotateWorldTime {
+                        rate_yzx_radians: bevy::math::DVec3::from_array(rotation_rate_yzx_radians),
+                    }),
+                };
                 let visual_material = tiles_material_for_actor(
                     actor, &material_library, &mut tiles_materials, &main_material,
                 );
                 let entity = commands.spawn((
-                    Name::new(format!("Moving:{}", actor.name)), ChildOf(anchor), transform, global,
+                    Name::new(format!("{prefix}:{}", actor.name)), ChildOf(anchor), transform, global,
                     PlaygroundStatic, PlaygroundMovingObject,
                     WorldAssetRoot(assets.load(definition.mesh_scene.clone())), visual_material,
                     PlaygroundCollisionSource::new(&definition.mesh_base),
                     PlaygroundKinematic {
-                        base_transform: global.compute_transform(),
-                        kind: PlaygroundKinematicKind::MoveSpline {
-                            duration: definition.duration,
-                            start: Vec3::from_array(definition.start),
-                            end: Vec3::from_array(definition.end),
-                        },
+                        base_transform: Transform { rotation:anchor_transform.rotation, ..global.compute_transform() }, kind,
                     },
                 )).id();
                 commands.entity(entity).with_children(|children| {
-                    children.spawn((Name::new("Moving:collider"),
+                    children.spawn((Name::new(format!("{prefix}:collider")),
                         Transform::from_translation(Vec3::from_array(definition.collider_center))
                             .with_rotation(Quat::from_array(definition.collider_rotation)),
                         PlaygroundBoxCollider { half_extents: Vec3::from_array(definition.half_extents) },
                     ));
                 });
                 spawned_moving += 1;
-                continue;
-            }
-            "B_Als_RotatingObject_C" => {
-                let plan = actor
-                    .components
-                    .first()
-                    .and_then(|c| {
-                        body_plan_from_comp(c, actor.location, actor.scale, actor_rotator(actor))
-                    })
-                    .or_else(|| body_plan_from_actor_bounds(actor));
-                if let Some(plan) = plan {
-                    let center = plan.center_world + plan.quat * plan.center_offset_model;
-                    let speed_deg = actor.rotate_speed_deg.unwrap_or(100.0);
-                    let mesh_base = plan.mesh_base.clone().or_else(|| infer_block_mesh(actor));
-                    let mesh_scene = mesh_base
-                        .as_deref()
-                        .map(|base| assets.load(format!("models/playground/{base}.gltf#Scene0")));
-                    let has_mesh_scene = mesh_scene.is_some();
-                    let transform = Transform::from_translation(center)
-                        .with_rotation(plan.quat)
-                        .with_scale(if has_mesh_scene {
-                            plan.visual_scale
-                        } else {
-                            Vec3::ONE
-                        });
-                    let collider_scale = if has_mesh_scene {
-                        inverse_scale(plan.visual_scale)
-                    } else {
-                        Vec3::ONE
-                    };
-                    let visual_material = tiles_material_for_actor(
-                        actor,
-                        &material_library,
-                        &mut tiles_materials,
-                        &main_material,
-                    );
-                    let entity = commands
-                        .spawn((
-                            Name::new(format!("Rotating:{}", actor.name)),
-                            transform,
-                            PlaygroundStatic,
-                            PlaygroundMovingObject,
-                            PlaygroundKinematic {
-                                base_transform: transform,
-                                kind: PlaygroundKinematicKind::SpinYawDegPerSec { speed_deg },
-                            },
-                        ))
-                        .id();
-                    if let Some(base) = mesh_base.as_deref() {
-                        commands
-                            .entity(entity)
-                            .insert(PlaygroundCollisionSource::new(base));
-                    }
-                    match mesh_scene {
-                        Some(scene) => {
-                            commands
-                                .entity(entity)
-                                .insert((WorldAssetRoot(scene), visual_material));
-                        }
-                        None => {
-                            insert_fallback_box_visual(
-                                &mut commands,
-                                &mut meshes,
-                                entity,
-                                plan.half_extents_model,
-                                visual_material,
-                            );
-                        }
-                    }
-                    commands.entity(entity).with_children(|p| {
-                        p.spawn((
-                            Name::new("Rotating:collider"),
-                            Transform::from_scale(collider_scale),
-                            PlaygroundBoxCollider {
-                                half_extents: plan.half_extents_model,
-                            },
-                        ));
-                    });
-                    spawned_moving += 1;
-                }
                 continue;
             }
             _ => {}
@@ -1275,11 +1173,9 @@ pub fn playground_moving_object_system(
     for (mut transform, kinematic, parent) in &mut objects {
         let parent = parent.and_then(|parent| parents.get(parent.parent()).ok());
         match kinematic.kind {
-            PlaygroundKinematicKind::SpinYawDegPerSec { speed_deg } => {
-                let rotation = kinematic.base_transform.rotation
-                    * Quat::from_rotation_y((speed_deg * t).to_radians());
-                transform.rotation = parent.map_or(rotation,
-                    |parent| parent.compute_transform().rotation.inverse() * rotation);
+            PlaygroundKinematicKind::RotateWorldTime { rate_yzx_radians } => {
+                let rotation = rotating_object_rotation(rate_yzx_radians, t);
+                transform.rotation = if parent.is_some() { rotation } else { kinematic.base_transform.rotation * rotation };
             }
             PlaygroundKinematicKind::MoveSpline { duration, start, end } => {
                 let position = moving_object_position(&moving_curve, start, end, t, duration);
@@ -2236,12 +2132,12 @@ mod tests {
         app.finish();
         app.world_mut().run_system_once(playground_setup_system).unwrap();
         let actors: Vec<_> = app.world_mut().query_filtered::<(Entity, &Name, Option<&ChildOf>), With<PlaygroundMovingObject>>()
-            .iter(app.world()).filter(|(_, name, _)| name.as_str().starts_with("Moving:"))
+            .iter(app.world())
             .map(|(entity, name, parent)| (entity, name.to_string(), parent.map(ChildOf::parent))).collect();
-        assert_eq!(actors.len(), 2);
+        assert_eq!(actors.len(), 3);
         for (mesh, name, parent) in &actors {
             let root = parent.expect("The moving mesh has no independent actor anchor");
-            assert_eq!(app.world().get::<Name>(root).unwrap().as_str(), name.replace("Moving:", "Actor:"));
+            assert_eq!(app.world().get::<Name>(root).unwrap().as_str(), name.replace("Moving:", "Actor:").replace("Rotating:", "Actor:"));
             assert!(app.world().get::<PlaygroundKinematic>(root).is_none());
             assert!(app.world().get::<InheritedVisibility>(root).is_some(), "The actor anchor breaks inherited visibility");
             assert!(app.world().get::<WorldAssetRoot>(*mesh).is_some());
@@ -2264,13 +2160,40 @@ mod tests {
                 let parent = parent.unwrap();
                 let anchor = app.world().get::<GlobalTransform>(parent).unwrap();
                 let transform = app.world().get::<Transform>(*mesh).unwrap();
-                let PlaygroundKinematicKind::MoveSpline { duration, start, end } = app.world().get::<PlaygroundKinematic>(*mesh).unwrap().kind else { unreachable!() };
-                let expected = moving_object_position(app.world().resource::<PlaygroundMovingCurve>(), start, end,
-                    app.world().resource::<Time>().elapsed_secs(), duration);
-                assert!(anchor.transform_point(transform.translation).abs_diff_eq(expected, 1e-5));
-                assert_eq!(transform.rotation, Quat::IDENTITY);
+                let time = app.world().resource::<Time>().elapsed_secs();
+                match app.world().get::<PlaygroundKinematic>(*mesh).unwrap().kind {
+                    PlaygroundKinematicKind::MoveSpline { duration, start, end } => {
+                        let expected = moving_object_position(app.world().resource::<PlaygroundMovingCurve>(), start, end, time, duration);
+                        assert!(anchor.transform_point(transform.translation).abs_diff_eq(expected, 1e-5));
+                        assert_eq!(transform.rotation, Quat::IDENTITY);
+                    }
+                    PlaygroundKinematicKind::RotateWorldTime { rate_yzx_radians } => {
+                        let expected = rotating_object_rotation(rate_yzx_radians, time);
+                        assert!((transform.rotation * Vec3::X).abs_diff_eq(expected * Vec3::X, 1e-5));
+                        assert_eq!(transform.translation, Vec3::ZERO);
+                    }
+                }
                 assert_eq!(anchor.translation(), app.world().get::<Transform>(parent).unwrap().translation);
             }
+        }
+    }
+
+    #[test]
+    fn rotating_object_rotation_preserves_source_axes_and_large_world_time() {
+        use bevy::math::DVec3;
+        for (pitch, yaw, roll) in [(90.0_f32, 0.0_f32, 0.0_f32), (0.0, 90.0, 0.0), (0.0, 0.0, 90.0), (23.0, 67.0, -41.0)] {
+            let rate = DVec3::new(-f64::from(yaw).to_radians(), f64::from(pitch).to_radians(), f64::from(roll).to_radians());
+            for time in [0.0, 0.13, 1.0, 3.27] {
+                let actual = rotating_object_rotation(rate, time);
+                let expected = ue_rotator_to_bevy_quat(pitch*time, yaw*time, roll*time);
+                for axis in [Vec3::X, Vec3::Y, Vec3::Z] { assert!((actual * axis).abs_diff_eq(expected * axis, 1e-5)); }
+            }
+        }
+        for time in [10_000.13_f32, 1_000_000.25_f32] {
+            let actual = rotating_object_rotation(DVec3::new(-100.0_f64.to_radians(), 0.0, 0.0), time);
+            let angle = (100.0_f64 * f64::from(time)).rem_euclid(360.0);
+            let expected = Quat::from_rotation_y(-angle.to_radians() as f32);
+            assert!((actual * Vec3::X).abs_diff_eq(expected * Vec3::X, 1e-5));
         }
     }
 
