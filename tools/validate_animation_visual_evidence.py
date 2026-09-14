@@ -1509,8 +1509,9 @@ def moving_base_trace_issues(report):
             if math.dist(row["motion_point"], expected_point) > 0.001 or math.dist(row["local"], local) > 0.001:
                 issues.append("rotating base coordinate evidence differs")
                 break
+        initial_facing = next((row.get("rotation") for row in rows if row.get("stage") == "Ride"), None)
         for row in rows:
-            if row.get("stage") == "Ride" and ((angle := quaternion_distance(row.get("rotation"), [0.0, 0.0, 0.0, 1.0])) is None or angle > 0.001
+            if row.get("stage") == "Ride" and ((angle := quaternion_distance(row.get("rotation"), initial_facing)) is None or angle > 0.001
                 or row.get("input") != [0.0, 0.0] or row.get("jump_pressed") is not False):
                 issues.append("rotating base changed the source world-facing idle character")
                 break
@@ -2250,6 +2251,8 @@ def fixture_rotating_base_report():
             platform_velocity=[0.0, 0.0, 0.0], input=[0.0, 0.0], local=[0.65, 2.424, 0.0],
             motion_point=[13.5+sine, -0.5, -24.0+cosine], position=[13.5+0.65*cosine, 1.924, -24.0-0.65*sine],
             feet=[{"lock_amount":1.0, "target":[0.0, 0.0, 0.0], "lock":[0.0, 0.0, 0.0]} for _ in range(2)], step=None, slot=None)
+        if row["stage"] == "Ride":
+            row["rotation"] = [0.0, math.sin(-math.radians(4.72)/2), 0.0, math.cos(-math.radians(4.72)/2)]
         row["expected_position"] = row["position"][:]
         if row["stage"] == "Mantle":
             row["rotation"] = row["platform_rotation"][:]

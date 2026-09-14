@@ -47,6 +47,7 @@ pub(super) struct Probe {
     stage: Stage,
     since: Option<f64>,
     anchor: Option<Vec3>,
+    ride_rotation: Option<Quat>,
     minimum: Vec3,
     maximum: Vec3,
     ride_since: Option<f64>,
@@ -64,6 +65,13 @@ pub(super) struct Probe {
 }
 
 impl Probe {
+    fn observe_ride_rotation(&mut self, rotation: Quat) {
+        let initial = *self.ride_rotation.get_or_insert(rotation);
+        if rotation.angle_between(initial) > 0.001 {
+            self.failure = Some("Rotating base changed the source world-facing character orientation".to_owned());
+        }
+    }
+
     fn begin(&mut self, stage: Stage, now: f64) {
         self.stage = stage;
         self.since = Some(now);
@@ -256,9 +264,7 @@ pub(super) fn observe(
             && now - probe.since.unwrap_or(now) >= 0.35 => probe.begin(Stage::Ride, now),
         Stage::Ride => {
             if rotating {
-                if transform.rotation.angle_between(Quat::IDENTITY) > 0.001 {
-                    probe.failure = Some("Rotating base changed the source world-facing character orientation".to_owned());
-                }
+                probe.observe_ride_rotation(transform.rotation);
                 probe.observe_steps(feet, playback, slot, transform.scale.y);
             }
             if probe.riding(local, motion_point, own.horizontal_speed, same_base, now, period, span)
@@ -364,6 +370,17 @@ pub(super) fn observe(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn riding_preserves_the_settled_world_orientation_instead_of_forcing_zero() {
+        let mut probe = Probe::default();
+        let initial = Quat::from_rotation_y(-4.72_f32.to_radians());
+        probe.observe_ride_rotation(initial);
+        probe.observe_ride_rotation(initial);
+        assert!(probe.failure.is_none());
+        probe.observe_ride_rotation(Quat::from_rotation_y(0.1) * initial);
+        assert!(probe.failure.is_some());
+    }
 
     #[test]
     fn rotating_mantle_approach_stays_clear_and_reaches_the_actual_component() {
