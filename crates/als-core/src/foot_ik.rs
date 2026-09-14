@@ -195,6 +195,7 @@ pub struct AlsFootLockFootState {
     pub target_rotation: Quat,
     pub lock_location: Vec3,
     pub lock_rotation: Quat,
+    pub lock_rotation_before_foot_limit: Quat,
     pub movement_base: Option<AlsFootLockMovementBase>,
     pub lock_location_movement_base: Vec3,
     pub lock_rotation_movement_base: Quat,
@@ -210,6 +211,7 @@ impl Default for AlsFootLockFootState {
             target_rotation: Quat::IDENTITY,
             lock_location: Vec3::ZERO,
             lock_rotation: Quat::IDENTITY,
+            lock_rotation_before_foot_limit: Quat::IDENTITY,
             movement_base: None,
             lock_location_movement_base: Vec3::ZERO,
             lock_rotation_movement_base: Quat::IDENTITY,
@@ -229,6 +231,7 @@ pub fn reset_foot_lock_to_target(
         target_rotation,
         lock_location: target_location,
         lock_rotation: target_rotation,
+        lock_rotation_before_foot_limit: target_rotation,
         final_location: target_location,
         final_rotation: target_rotation,
         ..Default::default()
@@ -247,6 +250,7 @@ pub fn advance_foot_lock_movement_base(
         .unwrap_or(saved_base);
     state.lock_location = base.translation + base.rotation * state.lock_location_movement_base;
     state.lock_rotation = (base.rotation * state.lock_rotation_movement_base).normalize();
+    state.movement_base = Some(base);
 }
 
 pub fn capture_foot_lock_movement_base(
@@ -301,9 +305,20 @@ pub fn refresh_foot_lock(
     grounded: bool,
     became_valid: bool,
     delta_seconds: f32,
+    current_base: Option<AlsFootLockMovementBase>,
 ) {
     state.target_location = target_location;
     state.target_rotation = target_rotation;
+
+    if (became_valid || state.movement_base.map(|base| base.entity) != current_base.map(|base| base.entity))
+        && is_relevant_animation_weight(ik_amount * state.lock_amount)
+    {
+        if became_valid {
+            state.lock_location = target_location;
+            state.lock_rotation = target_rotation;
+        }
+        capture_foot_lock_movement_base(state, current_base);
+    }
 
     let mut new_lock_amount = requested_lock_amount.clamp(0.0, 1.0);
     if moving_smooth || !grounded {
@@ -326,6 +341,7 @@ pub fn refresh_foot_lock(
         state.lock_amount = 0.0;
         state.lock_location = Vec3::ZERO;
         state.lock_rotation = Quat::IDENTITY;
+        state.lock_rotation_before_foot_limit = Quat::IDENTITY;
         state.movement_base = None;
         state.lock_location_movement_base = Vec3::ZERO;
         state.lock_rotation_movement_base = Quat::IDENTITY;
@@ -337,7 +353,7 @@ pub fn refresh_foot_lock(
     let full_weight = is_full_animation_weight(new_lock_amount);
     let greater_than_previous = new_lock_amount > state.lock_amount;
     if full_weight {
-        if greater_than_previous && state.lock_amount <= 0.9 {
+        if greater_than_previous && (state.lock_amount <= 0.9 || current_base.is_some()) {
             let (location, rotation) = if became_valid {
                 (target_location, target_rotation)
             } else {
@@ -347,10 +363,15 @@ pub fn refresh_foot_lock(
             state.lock_rotation = rotation;
         }
         state.lock_amount = 1.0;
+        if greater_than_previous {
+            capture_foot_lock_movement_base(state, current_base);
+        }
     } else if !greater_than_previous {
         state.lock_amount = new_lock_amount;
     }
 
+    advance_foot_lock_movement_base(state, current_base);
+    state.lock_rotation_before_foot_limit = state.lock_rotation;
     state.final_location = target_location.lerp(state.lock_location, state.lock_amount);
     state.final_rotation = target_rotation
         .lerp(state.lock_rotation, state.lock_amount)
@@ -1196,6 +1217,46 @@ mod tests {
         capture_foot_lock_movement_base(&mut state, None);
         assert_eq!(state.movement_base, None);
         assert!(state.lock_location.distance(Vec3::new(3.0, 0.0, 0.0)) < 1e-5);
+    }
+
+    #[test]
+    fn foot_lock_refresh_captures_relocks_and_base_changes_at_source_boundaries() {
+        let base = AlsFootLockMovementBase {
+            entity: Entity::from_raw_u32(1).unwrap(),
+            translation: Vec3::new(2.0, 0.0, 3.0),
+            rotation: Quat::from_rotation_y(0.4),
+        };
+        for current_base in [None, Some(base)] {
+            for previous_amount in [0.0, 0.5, 0.95] {
+                for became_valid in [false, true] {
+                    let mut state = AlsFootLockFootState {
+                        lock_amount: previous_amount,
+                        lock_location: Vec3::X,
+                        final_location: Vec3::Z,
+                        final_rotation: Quat::from_rotation_y(0.3),
+                        ..default()
+                    };
+                    refresh_foot_lock(&mut state, Vec3::Y, Quat::IDENTITY, 1.0, 1.0, true, false, true, became_valid, 0.01, current_base);
+                    let captured = became_valid.then_some(Vec3::Y).unwrap_or(Vec3::Z);
+                    let expected = if became_valid || previous_amount <= 0.9 || current_base.is_some() { captured } else { Vec3::X };
+                    assert!(state.lock_location.distance(expected) < 1e-5, "Relock differs: {previous_amount}, {became_valid}, {current_base:?}");
+                    assert_eq!(state.movement_base, current_base);
+                    let location = state.lock_location;
+                    let rotation = state.lock_rotation;
+                    let second = AlsFootLockMovementBase { entity:Entity::from_raw_u32(2).unwrap(), rotation:Quat::from_rotation_y(-1.0), ..base };
+                    refresh_foot_lock(&mut state, Vec3::Y, Quat::IDENTITY, 1.0, 1.0, true, false, true, false, 0.01, Some(second));
+                    assert!(state.lock_location.distance(location) < 1e-5);
+                    assert!(state.lock_rotation.angle_between(rotation) < 1e-5);
+                    refresh_foot_lock(&mut state, Vec3::Y, Quat::IDENTITY, 1.0, 1.0, true, false, true, false, 0.01, None);
+                    assert!(state.lock_location.distance(location) < 1e-5);
+                    assert_eq!(state.movement_base, None);
+                    refresh_foot_lock(&mut state, Vec3::Y, Quat::IDENTITY, 1.0, 1.0, false, false, true, false, 0.01, Some(base));
+                    assert_eq!(state.lock_amount, 0.0);
+                    assert_eq!(state.movement_base, None);
+                    assert_eq!(state.lock_rotation_before_foot_limit, Quat::IDENTITY);
+                }
+            }
+        }
     }
 
     #[test]
