@@ -1406,13 +1406,74 @@ def uphill_trace_issues(report):
     return issues
 
 
+def quaternion_product(a, b):
+    x, y, z, w = a
+    xx, yy, zz, ww = b
+    return [w*xx+x*ww+y*zz-z*yy, w*yy-x*zz+y*ww+z*xx, w*zz+x*yy-y*xx+z*ww, w*ww-x*xx-y*yy-z*zz]
+
+
+def quaternion_vector(rotation, vector):
+    length = math.sqrt(sum(value*value for value in rotation))
+    q = [value / length for value in rotation]
+    return quaternion_product(quaternion_product(q, [*vector, 0.0]), [-q[0], -q[1], -q[2], q[3]])[:3]
+
+
+def rotating_source_transform(actor, time):
+    rotation = actor["actor"]["rotation"]
+    for axis, rate in zip((1, 2, 0), actor["rotation_rate_yzx_radians"]):
+        delta = [0.0, 0.0, 0.0, math.cos(rate * time / 2.0)]
+        delta[axis] = math.sin(rate * time / 2.0)
+        rotation = quaternion_product(rotation, delta)
+    offset = quaternion_vector(actor["actor"]["rotation"], [value*scale for value, scale in zip(actor["primitive"]["translation"], actor["actor"]["scale"])])
+    position = [value+delta for value, delta in zip(actor["actor"]["translation"], offset)]
+    scale = [a*b for a, b in zip(actor["actor"]["scale"], actor["primitive"]["scale"])]
+    return position, rotation, scale
+
+
+def rotating_step_issues(rows):
+    played, unlocked, completed = [False]*2, [False]*2, [False]*2
+    issues = []
+    for row in rows:
+        if row.get("stage") != "Ride":
+            continue
+        feet, step, slot = row.get("feet"), row.get("step"), row.get("slot")
+        if not isinstance(feet, list) or len(feet) != 2 or any(not isinstance(foot, dict)
+            or not finite(foot.get("lock_amount")) or not 0.0 <= foot["lock_amount"] <= 1.0
+            or any(not isinstance(foot.get(key), list) or len(foot[key]) != 3 or not all(finite(value) for value in foot[key]) for key in ("target", "lock")) for foot in feet):
+            return ["rotating base foot evidence is invalid"]
+        if step is not None and not isinstance(step, dict):
+            return ["rotating base step playback evidence is invalid"]
+        if step is None or step.get("kind") != "StandingDynamic":
+            continue
+        if step.get("side") not in (0.0, 1.0) or any(not finite(step.get(key)) for key in ("clip_time", "duration", "play_rate", "start_time", "blend_in", "blend_out")):
+            return ["rotating base step playback evidence is invalid"]
+        if any(abs(step[key] - expected) > 1e-6 for key, expected in (("play_rate", 1.5), ("start_time", 0.0), ("blend_in", 0.2), ("blend_out", 0.2))) \
+            or not 0.0 <= step["clip_time"] <= step["duration"] + 1e-5:
+            issues.append("rotating base step playback differs from source")
+        side = int(step["side"])
+        ready = isinstance(slot, dict) and slot.get("active") is True and slot.get("pose_ready") is True and finite(slot.get("weight")) and slot["weight"] > 0.05
+        if step.get("active") is True and ready:
+            played[side] |= step["clip_time"] > 0.8
+            unlocked[side] |= feet[side]["lock_amount"] < 0.1
+        completed[side] |= played[side] and unlocked[side] and step.get("active") is False \
+            and step["duration"] > 0.8 and abs(step["clip_time"] - step["duration"]) < 1e-5 \
+            and isinstance(slot, dict) and slot.get("active") is False \
+            and feet[side]["lock_amount"] >= 1.0-1e-5 and math.dist(feet[side]["target"], feet[side]["lock"]) <= 0.08
+    if not all(completed):
+        issues.append("rotating base left and right step lifecycles are incomplete")
+    return issues
+
+
 def moving_base_trace_issues(report):
-    if report.get("case") != "moving_base":
+    if report.get("case") not in ("moving_base", "rotating_base"):
         return []
+    rotating = report.get("case") == "rotating_base"
     rows = report.get("manual_integration", {}).get("moving_base_trace")
     if not isinstance(rows, list) or len(rows) < 2:
         return ["moving base frame evidence is missing"]
     vectors = ("platform", "position", "local", "velocity", "own_velocity", "platform_velocity")
+    if rotating:
+        vectors += ("motion_point",)
     for row in rows:
         if not isinstance(row, dict) or not finite(row.get("time")) or any(
             not isinstance(row.get(key), list) or len(row[key]) != 3 or not all(finite(value) for value in row[key]) for key in vectors
@@ -1420,29 +1481,50 @@ def moving_base_trace_issues(report):
             return ["moving base frame data is invalid"]
     if any(second["time"] <= first["time"] for first, second in zip(rows, rows[1:])):
         return ["moving base frame time is not increasing"]
-    source = read_json(Path(__file__).resolve().parents[1] / "assets/models/playground/moving_actors.runtime.json")
-    actor = next(actor for actor in source["actors"] if actor["name"] == "BP_SimpleMovingObject2")
-    period = actor["duration"] * 2.0
-    span = math.dist(actor["start"], actor["end"])
+    source = read_json(Path(__file__).resolve().parents[1] / "assets/models/playground" / ("rotating_actors.runtime.json" if rotating else "moving_actors.runtime.json"))
+    actor = next(actor for actor in source["actors"] if actor["name"] == ("BP_SimpleRotatingObject_2" if rotating else "BP_SimpleMovingObject2"))
+    period = 2.0 * math.pi / abs(actor["rotation_rate_yzx_radians"][0]) if rotating else actor["duration"] * 2.0
+    span = 2.0 if rotating else math.dist(actor["start"], actor["end"])
     issues = []
     stages = {name: index for index, name in enumerate(("Place", "Settle", "Ride", "Exit", "Flight", "PrepareMantle", "WaitMantle", "Mantle", "AfterMantle", "Done"))}
     if any(row.get("stage") not in stages for row in rows) or any(stages[second["stage"]] < stages[first["stage"]] for first, second in zip(rows, rows[1:])):
         issues.append("moving base phase order differs")
-    if any(row.get("object") != "Moving:BP_SimpleMovingObject2" or row.get("body") != rows[0].get("body")
+    object_name = "Rotating:BP_SimpleRotatingObject_2" if rotating else "Moving:BP_SimpleMovingObject2"
+    if any(row.get("object") != object_name or row.get("body") != rows[0].get("body")
            or row.get("collider") != rows[0].get("collider") or not row.get("body") or not row.get("collider") for row in rows):
         issues.append("moving base source object identity differs")
     if any(not finite(row.get("period")) or abs(row["period"] - period) > 1e-5
            or not finite(row.get("span")) or abs(row["span"] - span) > 1e-5 for row in rows):
         issues.append("moving base source period or span differs")
-    if any(math.dist([p - b for p, b in zip(row["position"], row["platform"])], row["local"]) > 0.001
+    if rotating:
+        for row in rows:
+            platform, rotation, scale = rotating_source_transform(actor, row["time"])
+            angle = quaternion_distance(row.get("platform_rotation"), rotation)
+            if angle is None or angle > 0.001 or math.dist(row["platform"], platform) > 0.001:
+                issues.append("rotating base differs from the source world clock and transform")
+                break
+            offset = quaternion_vector(rotation, [0.0, 0.0, scale[2]])
+            expected_point = [a+b for a,b in zip(platform, offset)]
+            local = [value / size for value, size in zip(quaternion_vector([-rotation[0], -rotation[1], -rotation[2], rotation[3]], [a-b for a,b in zip(row["position"], platform)]), scale)]
+            if math.dist(row["motion_point"], expected_point) > 0.001 or math.dist(row["local"], local) > 0.001:
+                issues.append("rotating base coordinate evidence differs")
+                break
+        for row in rows:
+            if row.get("stage") == "Ride" and ((angle := quaternion_distance(row.get("rotation"), [0.0, 0.0, 0.0, 1.0])) is None or angle > 0.001
+                or row.get("input") != [0.0, 0.0] or row.get("jump_pressed") is not False):
+                issues.append("rotating base changed the source world-facing idle character")
+                break
+        issues.extend(rotating_step_issues(rows))
+    elif any(math.dist([p - b for p, b in zip(row["position"], row["platform"])], row["local"]) > 0.001
            or (angle := quaternion_distance(row.get("platform_rotation"), [0.0, 0.0, 0.0, 1.0])) is None or angle > 1e-5 for row in rows):
         issues.append("moving base coordinate evidence differs")
-    direction = [end - start for start, end in zip(actor["start"], actor["end"])]
-    for row in rows:
-        fraction = sum((value - start) * delta for value, start, delta in zip(row["platform"], actor["start"], direction)) / (span * span)
-        if not -1e-5 <= fraction <= 1.00001 or math.dist(row["platform"], [start + delta * fraction for start, delta in zip(actor["start"], direction)]) > 0.001:
-            issues.append("moving base left the source spline")
-            break
+    if not rotating:
+        direction = [end - start for start, end in zip(actor["start"], actor["end"])]
+        for row in rows:
+            fraction = sum((value - start) * delta for value, start, delta in zip(row["platform"], actor["start"], direction)) / (span * span)
+            if not -1e-5 <= fraction <= 1.00001 or math.dist(row["platform"], [start + delta * fraction for start, delta in zip(actor["start"], direction)]) > 0.001:
+                issues.append("moving base left the source spline")
+                break
     for stage in ("Ride", "AfterMantle"):
         selected = [row for row in rows if row.get("stage") == stage]
         if not selected or any(row.get("base_matches") is not True or row.get("mode") != "Grounded" for row in selected):
@@ -1454,7 +1536,8 @@ def moving_base_trace_issues(report):
         if not selected or selected[-1]["time"] - selected[0]["time"] < period:
             issues.append(f"moving base {stage} did not cover a full source cycle")
             continue
-        travel = math.sqrt(sum((max(row["platform"][axis] for row in selected) - min(row["platform"][axis] for row in selected)) ** 2 for axis in range(3)))
+        point = "motion_point" if rotating else "platform"
+        travel = math.sqrt(sum((max(row[point][axis] for row in selected) - min(row[point][axis] for row in selected)) ** 2 for axis in range(3)))
         anchor = selected[0]["local"]
         if travel < span * 0.9 or any(math.hypot(row["local"][0] - anchor[0], row["local"][2] - anchor[2]) > 0.001
             or math.hypot(row["own_velocity"][0], row["own_velocity"][2]) > 0.01 for row in selected):
@@ -1470,7 +1553,7 @@ def moving_base_trace_issues(report):
         issues.append("moving base mantle source input or speed differs")
     active = [row for row in mantle if row.get("root_motion_ready") is True and row.get("mode") == "Custom"]
     if len(active) < 2 or active[-1]["time"] - active[0]["time"] < 0.2 or max(
-        (math.dist(row["platform"], active[0]["platform"]) for row in active), default=0.0
+        (math.dist(row["motion_point" if rotating else "platform"], active[0]["motion_point" if rotating else "platform"]) for row in active), default=0.0
     ) < 0.25:
         issues.append("mantle did not follow a moving source target")
     for row in active:
@@ -1485,6 +1568,8 @@ def moving_base_trace_issues(report):
     labels = {window.get("label") for window in report.get("motion_windows", [])}
     if not {"moving_base_jump", "mantle"}.issubset(labels):
         issues.append("moving base source animation windows are missing")
+    if rotating and not {"rotating_base_step_left", "rotating_base_step_right"}.issubset(labels):
+        issues.append("rotating base source step windows are missing")
     return issues
 
 
@@ -2152,7 +2237,116 @@ def fixture_moving_base_report():
         "moving_base_trace":rows}, "motion_windows":[{"label":"moving_base_jump"},{"label":"mantle"}]}
 
 
+def fixture_rotating_base_report():
+    report = fixture_moving_base_report()
+    report["case"] = "rotating_base"
+    report["manual_integration"]["scenario"] = "RotatingBase"
+    report["motion_windows"].extend([{"label":"rotating_base_step_left"}, {"label":"rotating_base_step_right"}])
+    for index, row in enumerate(report["manual_integration"]["moving_base_trace"]):
+        angle = -math.radians(100.0) * row["time"]
+        sine, cosine = math.sin(angle), math.cos(angle)
+        row.update(object="Rotating:BP_SimpleRotatingObject_2", period=3.6, span=2.0,
+            platform=[13.5, -0.5, -24.0], platform_rotation=[0.0, math.sin(angle/2), 0.0, math.cos(angle/2)],
+            platform_velocity=[0.0, 0.0, 0.0], input=[0.0, 0.0], local=[0.65, 2.424, 0.0],
+            motion_point=[13.5+sine, -0.5, -24.0+cosine], position=[13.5+0.65*cosine, 1.924, -24.0-0.65*sine],
+            feet=[{"lock_amount":1.0, "target":[0.0, 0.0, 0.0], "lock":[0.0, 0.0, 0.0]} for _ in range(2)], step=None, slot=None)
+        row["expected_position"] = row["position"][:]
+        if row["stage"] == "Mantle":
+            row["rotation"] = row["platform_rotation"][:]
+            row["expected_rotation"] = row["rotation"][:]
+        if index < 4:
+            side, active = index // 2, index % 2 == 0
+            row["step"] = dict(kind="StandingDynamic", side=float(side), active=active, clip_time=0.9 if active else 1.1,
+                duration=1.1, play_rate=1.5, start_time=0.0, blend_in=0.2, blend_out=0.2)
+            row["slot"] = dict(active=active, pose_ready=active, weight=1.0 if active else 0.0)
+            row["feet"][side]["lock_amount"] = 0.0 if active else 1.0
+    return report
+
+
 def run_self_test():
+    half = math.sqrt(0.5)
+    transform_fixture = {"actor":{"translation":[10.0, 20.0, 30.0], "rotation":[0.0, half, 0.0, half], "scale":[2.0]*3},
+        "primitive":{"translation":[1.0, 0.0, 0.0], "scale":[0.5]*3}, "rotation_rate_yzx_radians":[-math.pi/2, 0.0, 0.0]}
+    position, rotation, scale = rotating_source_transform(transform_fixture, 1.0)
+    assert math.dist(position, [10.0, 20.0, 28.0]) < 1e-10 and quaternion_distance(rotation, [0.0, 0.0, 0.0, 1.0]) < 1e-7 and scale == [1.0]*3
+    transform_fixture["actor"]["rotation"] = [0.0, 0.0, 0.0, 1.0]
+    transform_fixture["rotation_rate_yzx_radians"] = [math.pi/2]*3
+    rotation = rotating_source_transform(transform_fixture, 1.0)[1]
+    for axis, expected in zip(([1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]), ([0.0, 1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, -1.0])):
+        assert math.dist(quaternion_vector(rotation, axis), expected) < 1e-10
+    rotating = fixture_rotating_base_report()
+    assert not manual_integration_issues(rotating), manual_integration_issues(rotating)
+    for issue in ("missing", "identity", "frozen", "yaw_direction", "clock", "pivot", "coordinates", "motion_point",
+                  "facing", "input", "own_velocity", "missing_step", "missing_feet", "invalid_step", "pose", "unlock", "relock", "completion", "slot_end", "source_rate",
+                  "frozen_mantle", "mantle_rotation", "no_handoff", "step_window", "cycle", "both_sides", "duration", "short_playback", "short_completion", "lock_amount"):
+        invalid = copy.deepcopy(rotating)
+        rows = invalid["manual_integration"]["moving_base_trace"]
+        if issue == "missing":
+            invalid["manual_integration"].pop("moving_base_trace")
+        elif issue == "identity":
+            rows[0]["object"] = "replacement"
+        elif issue == "frozen":
+            for row in rows[:5]:
+                row["platform_rotation"] = rows[0]["platform_rotation"][:]
+                row["motion_point"] = rows[0]["motion_point"][:]
+        elif issue == "yaw_direction":
+            rows[1]["platform_rotation"][1] *= -1
+        elif issue == "clock":
+            rows[1]["time"] += 0.05
+        elif issue == "pivot":
+            rows[0]["platform"][1] += 0.1
+        elif issue == "coordinates":
+            rows[1]["local"][0] += 0.1
+        elif issue == "motion_point":
+            rows[1]["motion_point"] = rows[1]["platform"][:]
+        elif issue == "facing":
+            rows[1]["rotation"] = rows[1]["platform_rotation"][:]
+        elif issue == "input":
+            rows[1]["input"] = [1.0, 0.0]
+        elif issue == "own_velocity":
+            rows[1]["own_velocity"][0] = 0.5
+        elif issue == "missing_step":
+            rows[0]["step"] = None
+        elif issue == "missing_feet":
+            rows[0]["feet"] = None
+        elif issue == "invalid_step":
+            rows[0]["step"] = []
+        elif issue == "pose":
+            rows[0]["slot"]["pose_ready"] = False
+        elif issue == "unlock":
+            rows[0]["feet"][0]["lock_amount"] = 1.0
+        elif issue == "relock":
+            rows[1]["feet"][0]["lock"][0] = 0.2
+        elif issue == "completion":
+            rows[1]["step"]["active"] = True
+        elif issue == "slot_end":
+            rows[1]["slot"]["active"] = True
+        elif issue == "source_rate":
+            rows[0]["step"]["play_rate"] = 1.0
+        elif issue == "frozen_mantle":
+            rows[9]["position"] = rows[8]["position"][:]
+            angle = -math.radians(100.0) * rows[9]["time"]
+            delta = [a-b for a,b in zip(rows[9]["position"], rows[9]["platform"])]
+            rows[9]["local"] = [math.cos(angle)*delta[0]-math.sin(angle)*delta[2], delta[1], math.sin(angle)*delta[0]+math.cos(angle)*delta[2]]
+        elif issue == "mantle_rotation":
+            rows[9]["rotation"] = rows[8]["rotation"][:]
+        elif issue == "no_handoff":
+            rows[11]["base_matches"] = False
+        elif issue == "step_window":
+            invalid["motion_windows"].pop()
+        elif issue == "cycle":
+            rows.pop()
+        elif issue == "both_sides":
+            rows[2]["step"]["side"] = rows[3]["step"]["side"] = 0.0
+        elif issue == "short_playback":
+            rows[0]["step"]["clip_time"] = 0.1
+        elif issue == "short_completion":
+            rows[1]["step"]["clip_time"] = 0.95
+        elif issue == "lock_amount":
+            rows[1]["feet"][0]["lock_amount"] = 0.25
+        else:
+            rows[0]["step"]["duration"] = 0.0
+        assert manual_integration_issues(invalid), issue
     moving = fixture_moving_base_report()
     assert not manual_integration_issues(moving), manual_integration_issues(moving)
     for issue in ("missing", "identity", "stationary", "drift", "support", "no_jump", "no_new_base", "speed",
@@ -2943,6 +3137,7 @@ def run_self_test():
         "stairs_source_speed_and_pose_windows_checked": "PASS",
         "uphill_capsule_landing_and_animation_recovery_checked": "PASS",
         "moving_base_source_path_ride_jump_mantle_and_handoff_checked": "PASS",
+        "rotating_base_clock_coordinates_steps_and_mantle_checked": "PASS",
         "stairs_missing_routes_gaits_and_hotkey_recovery_rejected": "PASS",
         "fault_rejected": "PASS",
         "startup_graph_error_rejected": "PASS",
