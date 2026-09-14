@@ -2086,7 +2086,7 @@ type DriveQueryItem<'a> = (
 fn locomotion_drive_system(
     mut commands: Commands,
     spatial: SpatialQuery,
-    velocities: Query<&LinearVelocity, Without<AlsCharacter>>,
+    velocities: Query<(&RigidBody, &LinearVelocity, Option<&crate::dynamics::AlsComponentVelocity>), Without<AlsCharacter>>,
     target_permissions: Query<Option<&AlsMantleTargetPermission>, Without<AlsCharacter>>,
     target_transforms: Query<&GlobalTransform, Without<AlsCharacter>>,
     target_bodies: Query<&RigidBody, Without<AlsCharacter>>,
@@ -3357,15 +3357,22 @@ mod tests {
         use crate::mantle::AlsMantleTargetPermission;
         let mut failures = Vec::new();
         for child in [false, true] {
-            for (kind, speed, allowed, override_permission) in [(RigidBody::Static, 0.0, true, None),
-                (RigidBody::Kinematic, 0.04, true, None), (RigidBody::Dynamic, 0.04, true, None),
-                (RigidBody::Kinematic, 0.1, true, None), (RigidBody::Kinematic, 0.2, true, None),
-                (RigidBody::Kinematic, 0.04, false, None), (RigidBody::Kinematic, 0.04, false, Some(true)),
-                (RigidBody::Kinematic, 0.04, true, Some(false))] {
+            for (kind, speed, allowed, override_permission, reported) in [(RigidBody::Static, 0.0, true, None, None),
+                (RigidBody::Kinematic, 0.04, true, None, None), (RigidBody::Dynamic, 0.04, true, None, None),
+                (RigidBody::Kinematic, 0.1, true, None, None), (RigidBody::Kinematic, 0.2, true, None, None),
+                (RigidBody::Kinematic, 4.0, true, None, None), (RigidBody::Dynamic, 0.2, true, None, None),
+                (RigidBody::Dynamic, 4.0, true, None, None), (RigidBody::Kinematic, 4.0, true, None, Some(0.04)),
+                (RigidBody::Kinematic, 4.0, true, None, Some(0.2)), (RigidBody::Dynamic, 0.04, true, None, Some(4.0)),
+                (RigidBody::Dynamic, 4.0, true, None, Some(0.0)),
+                (RigidBody::Kinematic, 0.04, false, None, None), (RigidBody::Kinematic, 0.04, false, Some(true), None),
+                (RigidBody::Kinematic, 0.04, true, Some(false), None)] {
                 let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
                 let offset = if child { Vec3::X * 0.25 } else { Vec3::ZERO };
                 let body = app.world_mut().spawn((kind, Transform::from_translation(Vec3::new(0.0, 0.4, 4.6) - offset),
                     avian3d::prelude::GravityScale(0.0), AlsMantleTargetPermission { allows_step_up: allowed })).id();
+                if let Some(speed) = reported {
+                    app.world_mut().entity_mut(body).insert(crate::dynamics::AlsComponentVelocity(Vec3::X * speed));
+                }
                 let target = if child {
                     app.world_mut().spawn((ChildOf(body), Transform::from_translation(offset), Collider::cuboid(2.4, 0.8, 1.2))).id()
                 } else {
@@ -3384,9 +3391,10 @@ mod tests {
                 input.jump_pressed = true;
                 app.update();
                 let mantle = app.world().get::<AlsMantleState>(character).unwrap();
-                let expected = override_permission.unwrap_or(allowed) && speed <= crate::mantle::MANTLE_TARGET_SPEED_THRESHOLD;
+                let expected = override_permission.unwrap_or(allowed)
+                    && (if kind == RigidBody::Dynamic { speed } else { reported.unwrap_or(0.0) }) <= crate::mantle::MANTLE_TARGET_SPEED_THRESHOLD;
                 if mantle.active != expected {
-                    failures.push(format!("child={child} kind={kind:?} speed={speed} allowed={allowed} active={}", mantle.active));
+                    failures.push(format!("child={child} kind={kind:?} speed={speed} reported={reported:?} allowed={allowed} active={}", mantle.active));
                     continue;
                 }
                 if !expected { continue; }

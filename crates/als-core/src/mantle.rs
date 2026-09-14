@@ -1,7 +1,8 @@
 use avian3d::prelude::{
-    Collider, ColliderOf, LinearVelocity, ShapeCastConfig, SpatialQuery, SpatialQueryFilter,
+    Collider, ColliderOf, LinearVelocity, RigidBody, ShapeCastConfig, SpatialQuery, SpatialQueryFilter,
 };
 use bevy::prelude::*;
+use crate::dynamics::{AlsComponentVelocity, component_velocity};
 use std::{collections::HashMap, sync::LazyLock};
 
 use crate::character::{
@@ -463,7 +464,7 @@ pub fn detect_mantle(
     spatial: &SpatialQuery,
     excluded: Entity,
     input: MantleDetectionInput,
-    velocities: &Query<&LinearVelocity, Without<crate::character::AlsCharacter>>,
+    velocities: &Query<(&RigidBody, &LinearVelocity, Option<&AlsComponentVelocity>), Without<crate::character::AlsCharacter>>,
     target_permissions: &Query<
         Option<&AlsMantleTargetPermission>,
         Without<crate::character::AlsCharacter>,
@@ -539,7 +540,7 @@ pub fn detect_mantle(
         || velocities
             .get(body)
             .ok()
-            .is_some_and(|velocity| velocity.0.length() > MANTLE_TARGET_SPEED_THRESHOLD)
+            .is_some_and(|(kind, physical, component)| component_velocity(kind, physical, component).length() > MANTLE_TARGET_SPEED_THRESHOLD)
     {
         return MantleDetection {
             intent: None,

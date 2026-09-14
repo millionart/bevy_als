@@ -1,5 +1,5 @@
 use super::*;
-use als_core::dynamics::AlsMovementBase;
+use als_core::dynamics::{AlsMovementBase, AlsComponentVelocity};
 use als_core::mantle::{AlsMantleTargetBase, AlsMantleTargetPermission, MantleDetectionInput, detect_mantle};
 use als_core::motion::AlsActualVelocity;
 use als_ext::{PlaygroundKinematic, PlaygroundKinematicKind};
@@ -160,7 +160,7 @@ pub(super) fn drive(
         &LocomotionState, &AlsMovementParamsHandle), With<AlsCharacter>>,
     params: Res<Assets<AlsMovementParams>>,
     spatial: SpatialQuery,
-    velocities: Query<&LinearVelocity, Without<AlsCharacter>>,
+    velocities: Query<(&RigidBody, &LinearVelocity, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
     permissions: Query<Option<&AlsMantleTargetPermission>, Without<AlsCharacter>>,
     owners: Query<&ColliderOf>,
 ) {
@@ -386,7 +386,7 @@ mod tests {
     fn rotating_mantle_approach_stays_clear_and_reaches_the_actual_component() {
         use bevy::ecs::system::RunSystemOnce;
         fn candidate(In((character, origin, target, half, radius)): In<(Entity, Vec3, Entity, f32, f32)>,
-            spatial: SpatialQuery, velocities: Query<&LinearVelocity, Without<AlsCharacter>>,
+            spatial: SpatialQuery, velocities: Query<(&RigidBody, &LinearVelocity, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
             permissions: Query<Option<&AlsMantleTargetPermission>, Without<AlsCharacter>>, owners: Query<&ColliderOf>) -> bool {
             detect_mantle(&spatial, character, MantleDetectionInput {
                 origin, actor_yaw:0.0, velocity:Vec3::ZERO, input_direction:Vec3::NEG_Z,

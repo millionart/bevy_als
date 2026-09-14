@@ -1,4 +1,4 @@
-use avian3d::prelude::{AngularVelocity, ColliderOf, LinearVelocity, Position};
+use avian3d::prelude::{AngularVelocity, ColliderOf, LinearVelocity, Position, RigidBody};
 use bevy::prelude::*;
 use bevy_tnua::{TnuaController, TnuaMotor, TnuaPipelineSystems};
 
@@ -62,6 +62,13 @@ pub struct AlsMovementBase {
     pub entity: Option<Entity>,
     pub location: Vec3,
     pub rotation: Quat,
+}
+
+#[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
+pub struct AlsComponentVelocity(pub Vec3);
+
+pub fn component_velocity(body: &RigidBody, physical: &LinearVelocity, component: Option<&AlsComponentVelocity>) -> Vec3 {
+    if *body == RigidBody::Dynamic { physical.0 } else { component.map_or(Vec3::ZERO, |velocity| velocity.0) }
 }
 
 pub fn locomotion_velocity(
