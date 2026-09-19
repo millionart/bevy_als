@@ -111,12 +111,11 @@ pub(crate) fn standing_rotation_yaw_offsets(runtime_angle: f32) -> (f32, f32, f3
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use bevy_animation_graph::core::{animation_clip::GraphClip, skeleton::Skeleton};
 
-    #[test]
-    fn native_montage_assets_sample_actual_poses_and_signed_curves() {
+    pub(crate) fn loaded_montage_app() -> App {
         use bevy_animation_graph::core::{
             animation_clip::loader::GraphClipLoader, skeleton::loader::SkeletonLoader,
         };
@@ -163,6 +162,12 @@ mod tests {
             );
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
+        app
+    }
+
+    #[test]
+    fn native_montage_assets_sample_actual_poses_and_signed_curves() {
+        let app = loaded_montage_app();
         let assets = app.world().resource::<SourceMontageAssets>();
         let clips = app.world().resource::<Assets<GraphClip>>();
         let skeletons = app.world().resource::<Assets<Skeleton>>();

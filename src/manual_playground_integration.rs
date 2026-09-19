@@ -84,7 +84,7 @@ use crate::show_debug_hud::{
 use crate::stance_layer::AlsStanceBlend;
 use crate::standing_layer::{AlsPivotNotify, AlsStandingGraphTelemetry};
 use crate::stop_link::{
-    AlsRootTransitionSlotRuntime, AlsTransitionKind, AlsTransitionPlayback,
+    AlsRootTransitionSlotRuntime, AlsTransitionKind, AlsTransitionPlayback, AlsTransitionMontageStack,
     RIGHT_TRANSITION_START_TIME, STOP_TRANSITION_BLEND_IN, STOP_TRANSITION_BLEND_OUT,
     STOP_TRANSITION_PLAY_RATE,
 };
@@ -6386,7 +6386,7 @@ fn observe_manual_integration(
             Option<&AlsNotifyRootMotionScale>,
             Option<&AlsNotifyEarlyBlendOut>,
             Option<&AlsGroundedEntryMode>,
-            Option<&AlsTransitionPlayback>,
+            Option<&AlsTransitionMontageStack>,
             Option<&AlsRootTransitionSlotRuntime>,
             Option<&AlsDesiredStance>,
             Option<&AlsMantleMontages>,
@@ -6490,6 +6490,7 @@ fn observe_manual_integration(
     else {
         return;
     };
+    let transition_playback = transition_playback.and_then(AlsTransitionMontageStack::latest);
     let Some((
         _,
         instance,

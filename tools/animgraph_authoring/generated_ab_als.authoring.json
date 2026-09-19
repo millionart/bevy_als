@@ -3,8 +3,8 @@
   "id": "generated_ab_als_actor",
   "source_evidence": [
     {
-      "path": "target/bf116_finish/source/ALS_ALS_Character_AB_Als.AB_Als.ue.json",
-      "sha256": "d203351b83f97bec3754968555b53f6f3043693ce931acb9758ae15dbb0a0d15"
+      "path": "target/bf116_04e/AB_Als.source.json",
+      "sha256": "5ac4302e8a06c290dcea522120e8d103cfa94a5cdd63924ee8898497678b506a"
     },
     {
       "path": "target/bf116_finish/source/ALS_ALS_Character_AnimationInstances_Overlays_AB_Als_Default.AB_Als_Default.ue.json",
@@ -461,11 +461,11 @@
         "python",
         "tools/animgraph_authoring/audit_generated_source_closure.py",
         "--source-directory",
-        "target/bf116_finish/source",
+        "target/bf116_04e/source",
         "--materialized-directory",
         "target/bf116_finish/corpus_root",
         "--spec",
-        "target/bf116_finish/spec.json"
+        "target/bf116_04e/spec.json"
       ]
     },
     {
@@ -512,7 +512,7 @@
   ],
   "runtime_gate": {
     "contract_gate": "generated_animgraph_assets",
-    "manual_case": "default_overlay"
+    "manual_case": "rotating_base"
   },
   "focused_tests": [
     {
@@ -873,6 +873,34 @@
         "1"
       ],
       "evidence": "target/bf116_projection/native_step_ext_restored.watchdog.json"
+    },
+    {
+      "label": "transition_instance_interruption",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "-p",
+        "bevy_als",
+        "--lib",
+        "stop_link::tests"
+      ],
+      "evidence": "target/bf116_04e/project_restored.watchdog.json"
+    },
+    {
+      "label": "additive_slot_composition",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "-p",
+        "als-ext",
+        "--lib",
+        "mesh_space_additive::tests"
+      ],
+      "evidence": "target/bf116_04e/ext_restored.watchdog.json"
     }
   ]
 }

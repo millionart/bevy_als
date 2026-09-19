@@ -386,6 +386,20 @@ BF116.03/04/08共同验收补充（用户2026-09-13 23:08明确）：每项都�
   - 04d3c完成/BF116.04功能关闭2026-09-14 11:27:40：同target_game/play65.666s重建后，原startup15.488s、rotating_base18.660s与共享moving_base18.266s均功能PASS，game/validator全为0、issues为空，fault/graph_error/temporal为0且日志无ERROR/B0004/panic。原旋转对象攀爬前361帧/3.606509秒和攀爬后388帧/3.952261秒完成整周期，相对水平误差最大9.73e-6/2.60e-5m、自身速度不超过1.87e-9m/s。旋转Mantle92帧/0.954006秒内目标转动1.665057rad（95.40度），实际位置与当帧目标/源root期望最大误差0，朝向误差4.22e-8rad，结束后同基座接续通过。左右脚真实播放、松锁、源允许接替、重锁及完整公共pose链/方向签名通过，canonical clip时间差0.002650/0.002804秒；12项实际覆盖全部满足。
   - 04时间与边界结项：d3原开始09:59:15、预估10:44:15、实际11:27:40、总偏差+2605s，期间用户03拒攀复测优先处理，剩余旋转验收拆为d3b/d3c；d3b开始10:53、预估11:23、实际11:27:40、偏差+280s，失败来自完整蒙太奇/通用trace覆盖两处观测假设；d3c开始11:09:40、预估11:54:40、实际11:27:40、偏差-1620s。三项历史FootLock/真实基座输入consumer和04d1/d2有限复开均关闭，未改源动画曲线或倍率，未放宽位置/姿态/角度判据。BF116.03/04功能完成，性能保持暂停；BF116.08仍须后续升降对象自身动态Mantle Gate。下一项按用户顺序是BF116.05两套弓箭AnimBP/物件联动，其实现尚未开始。
 
+### BF116.04 旋转平台连续换脚抖动有限复开
+
+- [x] BF116.04e Transition 中断实例与 additive 混合：开始2026-09-19 20:01:00 +08:00；预估结束2026-09-19 20:56:00 +08:00。用户选定浏览器对话所述旋转平台手部抽帧问题。当前17a6a33仍直接覆盖单个AlsTransitionPlayback；fresh本地AlsAnimationInstance→PlaySlotAnimationAsDynamicMontage→Montage_PlayInternal→StopAllMontagesByGroupName→SlotEvaluatePose证实同组旧实例须按新请求blend-in退场，全部additive pose/curve按相同权重顺序叠加，权重和超过1才归一化。有限复开04d3c：旧Gate虽允许源曲线恢复后换脚，却没有验证重叠实例的旧pose/curve贡献，通用姿态阈值也不能证明混合等价。范围只含共用Transition入口、停止/自然结束、采样与Slot输出及原rotating_base观测，不修改图转换规则、脚锁算法或相邻Overlay。
+  - 估时依据：一个共用播放生命周期、三处请求入口、既有mesh additive/curve工具与原旋转driver；同类04d3c实际18分钟、入口构建约66–152秒、startup/rotating各约15–19秒。先真实采样失败回归，再最小实现/消融、声明式静态Gate和同target_game真实startup→rotating_base；性能按当前批次继续暂停。源资产使用仓库原生reader重取，不使用UE MCP。
+  - source/static闭环2026-09-19 20:18：fresh AB_Als、AIS_Default及四份DynamicTransition原生读取完成；四份长度/引用/完整曲线与当前target逐项一致，0.2秒/1.5倍率和0.533333动画秒解禁均确认。UE当前FAlphaBlend默认HermiteCubic，ALS显式BlendOutTriggerTime=0，故自然结束在末帧开始淡出，提前淡出与线性权重也一并在同生命周期内修正。闭包为Root Transition Slot、全部三处共用请求入口、退出停止、6份直接资产与其既有参考姿态采样；相邻Turn/IK/Overlay算法不展开。真实资产失败回归记录旧Slot权重1→0；修复后Pose/Curve接替、22项Transition与9项mesh additive测试通过。删旧实例、删旧曲线、删多实例姿态合成三项消融分别触发权重、AllowTransitions与骨骼旋转失败，源码均恢复；保留最后一个inactive实例仅供既有完成观测读取，旧淡出实例归零即移除。新validator自测及watchdog自测通过，Root声明式Gate含fresh根图/完整已安装生成闭包、当前位置、编辑器和runtime资产边界全部通过。恢复版388项als-ext及369项项目测试全部通过；下一步为同target_game构建和原startup/rotating_base功能Gate，并以standing_stop复验共用入口的自然结束与停止观测。
+
+  - 真实入口前2026-09-19 20:23：757项恢复回归、三项必要消融、validator/watchdog自测与Root声明式静态闭环通过；run_manual.bat同target_game/play二进制构建136.748秒通过。使用原Playground、截图0、FunctionalOnly，依次startup→rotating_base→standing_stop；新增逐帧实例/源Hermite权重/Slot贡献审计，保持原骨架连续性、足锁、方向签名、平台及Mantle判据。
+
+  - startup通过/旋转入口前2026-09-19 20:24：同二进制startup功能PASS，game/validator均0、issues为空；动画求值性能预算仍按既有范围延期。开始原rotating_base，核对实际新旧实例重叠、全部源权重及Slot贡献，同时保留原换脚/脚锁/姿态/搭乘与动态Mantle Gate。
+
+  - 旋转通过/共用停止入口前2026-09-19 20:25：原rotating_base18.602秒功能PASS，game/validator均0、issues为空；新增旧实例保留、Hermite权重与Slot贡献审计及原左右脚锁/姿态/旋转搭乘/跳离/动态Mantle均通过。使用同一二进制继续standing_stop，确认共用入口的自然淡出及完成观测；不重复启动或已通过的旋转场景。
+
+  - 完成/有限复开关闭2026-09-19 20:27:02 +08:00：原startup15.703秒、rotating_base18.602秒、standing_stop25.988秒均功能PASS，game/validator全部0、issues为空，fault/graph_error/temporal均0。旋转Ride340帧含132帧实际新旧实例重叠，最多2个实例，重叠Slot权重最低1.0，源权重和与实际Slot最大误差8.35e-7；左右脚及完整原12项覆盖通过。共用停止动作的末帧淡出/完成观测同时通过。BF116.04d3c仅本次混合漏检边界关闭；所有原始资产、生成图和IK规则保持原合同。时间记录：开始20:01:00、预估20:56:00、实际20:27:02、偏差-28m58s；结果为功能完成，未拆分，性能max_eval_p95_ms仍按既有暂停范围延期。估时校准：此次共用播放生命周期+实际资产回归+三次公共入口合计26m02s，同类任务可结合约137秒预构建记录收紧后续首轮估时。证据集中于target/bf116_04e和target/animation_visual/bf116_04e_*，未扩展相邻任务。
+
 ### BF116.05 弓箭执行子项
 
 - [x] BF116.05a 两套弓箭AnimBP与Actor对象源闭包：开始2026-09-14 11:33:30、预估2026-09-14 12:23:30。依赖d40c0b0的03/04功能闭合；以本地源Overlays/AB_Als_Bow及OverlayObjects/Bow/AB_Als_Bow为入口，完整提取递归图、原生父类/接口、动画/曲线/骨架/网格/物理/材质引用，以及B_Als_Character的弓挂载/移除、输入与对象动画更新链。沿源证实的引用收敛边界，旧手工图和overlay_object仅作目标差异定位；本段不提前修改其它11个Overlay或新增游戏行为。Gate为fresh source closure、当前target差异/阻塞报告和可独立验收的实施拆分；依animation-graph-equivalence流程，后续转换规则修复必须重转全部已生成AnimBP及依赖。估时依据为两AnimBP和既有Actor/资产reader、约33–70秒单份native取证及已建立的完整转换基线，本段先源/静态，不启动Playground，性能/截图暂停设置延续。

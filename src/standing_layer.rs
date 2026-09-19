@@ -36,7 +36,7 @@ use crate::animation_events::AlsStandingEventClock;
 use crate::character_assembly::AlsCharacterAvatar;
 use crate::direction_layer::view_space_direction_angle_from_radians;
 use crate::standing_source::{standing_rotation_yaw_offsets, standing_stride_amount};
-use crate::stop_link::{AlsTransitionKind, AlsTransitionPlayback};
+use crate::stop_link::{AlsTransitionKind, AlsTransitionPlayback, AlsTransitionMontageStack};
 use crate::turn_layer::{AlsTurnDrive, AlsTurnMontageStack};
 
 const VELOCITY_EPSILON: f32 = 0.01;
@@ -2250,7 +2250,7 @@ fn standing_layer_writer(
             &AlsInputCommand,
             Option<&AlsInputOverride>,
             Option<&AlsMovementDirectionState>,
-            Option<&AlsTransitionPlayback>,
+            Option<&AlsTransitionMontageStack>,
             Option<&AlsPivotRequest>,
         ),
         With<AlsCharacter>,
@@ -2298,6 +2298,7 @@ fn standing_layer_writer(
         else {
             continue;
         };
+        let transition = transition.and_then(AlsTransitionMontageStack::latest);
         if *stance != Stance::Standing {
             if let Ok(mut clock) = event_clocks.get_mut(parent.parent()) {
                 *clock = AlsStandingEventClock::default();

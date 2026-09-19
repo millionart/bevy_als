@@ -14,7 +14,7 @@ use als_ext::{
 
 use crate::character_assembly::AlsCharacterAvatar;
 use crate::standing_layer::AlsPivotNotify;
-use crate::stop_link::{AlsQuickStopNotify, AlsTransitionPlayback};
+use crate::stop_link::{AlsQuickStopNotify, AlsTransitionPlayback, AlsTransitionMontageStack, play_transition};
 use crate::turn_layer::{AlsTurnDrive, AlsTurnMontageStack, SourceTurnRequest};
 
 #[derive(Component, Debug, Default, Clone, PartialEq, Eq)]
@@ -153,7 +153,7 @@ fn dispatch_generated_transition_notifications(
     mut telemetry: Query<&mut GeneratedTransitionNotifyTelemetry>,
     mut pivot_notices: MessageWriter<AlsPivotNotify>,
     mut quick_stop_notices: MessageWriter<AlsQuickStopNotify>,
-    mut playbacks: Query<&mut AlsTransitionPlayback>,
+    mut playbacks: Query<&mut AlsTransitionMontageStack>,
     mut turn_stacks: Query<&mut AlsTurnMontageStack>,
     mut turn_drives: Query<&mut AlsTurnDrive>,
     stances: Query<&als_core::state::Stance>,
@@ -275,9 +275,7 @@ fn dispatch_generated_transition_notifications(
                             if let Ok(mut telemetry) = telemetry.get_mut(avatar.character) {
                                 telemetry.land_to_grounded_count += 1;
                             }
-                            commands
-                                .entity(avatar.character)
-                                .insert(AlsTransitionPlayback::standing_transition_right());
+                            cursor.queued_transitions.insert(avatar.character, AlsTransitionPlayback::standing_transition_right());
                         }
                         Some(TransitionNotifyAction::StopLeft) => {
                             cursor
@@ -415,7 +413,7 @@ fn dispatch_generated_transition_notifications(
             }
         }
         if let Some(playback) = cursor.take_transition(avatar.character, stop_requested) {
-            commands.entity(avatar.character).insert(playback);
+            play_transition(&mut commands, avatar.character, playback);
         }
         if !stop_requested
             && let Ok(mut stack) = turn_stacks.get_mut(avatar_entity)

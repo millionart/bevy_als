@@ -260,6 +260,47 @@ pub fn apply_mesh_space_additive(
     );
 }
 
+pub fn compose_mesh_space_additives<'a>(
+    samples: impl IntoIterator<Item = (&'a Pose, f32)>,
+) -> Option<Pose> {
+    let mut output: Option<Pose> = None;
+    for (pose, weight) in samples {
+        if weight <= ALPHA_THRESHOLD { continue; }
+        let output = output.get_or_insert_with(|| Pose {
+            skeleton: pose.skeleton.clone(),
+            ..default()
+        });
+        output.timestamp = pose.timestamp;
+        for (bone, index) in &pose.paths {
+            let additive = &pose.bones[*index];
+            if !output.paths.contains_key(bone) {
+                output.add_bone(BonePose {
+                    translation: Some(Vec3::ZERO),
+                    rotation: Some(Quat::IDENTITY),
+                    scale: Some(Vec3::ONE),
+                    weights: None,
+                }, *bone);
+            }
+            let index = output.paths[bone];
+            let target = &mut output.bones[index];
+            if let Some(rotation) = additive.rotation {
+                target.rotation = Some(blend_additive_rotation(target.rotation.unwrap(), rotation, weight));
+            }
+            if target.weights.is_none() {
+                target.weights = additive.weights.as_ref().map(|weights| vec![0.0; weights.len()]);
+            }
+            merge_non_rotation(target, additive, weight);
+        }
+        output.root_motion = merge_root_motion(output.root_motion.take(), pose.root_motion.clone(), weight);
+    }
+    if let Some(output) = output.as_mut() {
+        for bone in &mut output.bones {
+            bone.scale = bone.scale.map(|scale| scale - Vec3::ONE);
+        }
+    }
+    output
+}
+
 impl NodeLike for MeshSpaceAdditiveNode {
     fn duration(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
         ctx.set_duration_fwd(ctx.duration_back(Self::IN_TIME_A)?);
@@ -344,6 +385,51 @@ mod tests {
             Transform::IDENTITY,
         );
         (skeleton, root, child)
+    }
+
+    #[test]
+    fn composed_mesh_additives_match_sequential_slot_accumulation() {
+        let (skeleton, root, child) = test_skeleton();
+        let mut base = Pose::default();
+        let mut first = Pose::default();
+        let mut second = Pose::default();
+        for bone in [root, child] {
+            base.add_bone(BonePose::from_transform(Transform {
+                translation: Vec3::new(0.4, 1.2, -0.8),
+                rotation: Quat::from_rotation_z(0.7),
+                scale: Vec3::new(0.8, 1.2, 1.1),
+            }), bone);
+            first.add_bone(BonePose {
+                translation: Some(Vec3::new(0.2, -0.1, 0.3)),
+                rotation: Some(Quat::from_rotation_x(0.8)),
+                scale: Some(Vec3::new(0.1, -0.2, 0.3)),
+                weights: Some(vec![0.3]),
+            }, bone);
+            second.add_bone(BonePose {
+                translation: Some(Vec3::new(-0.3, 0.4, 0.1)),
+                rotation: Some(-Quat::from_rotation_y(0.6)),
+                scale: Some(Vec3::new(-0.2, 0.3, 0.1)),
+                weights: Some(vec![-0.1]),
+            }, bone);
+            base.bones.last_mut().unwrap().weights = Some(vec![0.5]);
+        }
+        for (left, right) in [(1.0, 0.0), (0.84375, 0.15625), (0.5, 0.5), (0.0, 1.0), (0.2, 0.3)] {
+            let combined = compose_mesh_space_additives([(&first, left), (&second, right)]).unwrap();
+            let mut expected = base.clone();
+            apply_mesh_space_additive(&mut expected, &first, left, &skeleton);
+            apply_mesh_space_additive(&mut expected, &second, right, &skeleton);
+            let mut actual = base.clone();
+            apply_mesh_space_additive(&mut actual, &combined, 1.0, &skeleton);
+            for bone in [root, child] {
+                let expected = expected.get_bone(bone).unwrap();
+                let actual = actual.get_bone(bone).unwrap();
+                assert!(close_rotation(expected.rotation.unwrap(), actual.rotation.unwrap()));
+                assert!(expected.translation.unwrap().distance(actual.translation.unwrap()) < 1e-6);
+                assert!(expected.scale.unwrap().distance(actual.scale.unwrap()) < 1e-6);
+                assert!((expected.weights.as_ref().unwrap()[0] - actual.weights.as_ref().unwrap()[0]).abs() < 1e-6);
+            }
+        }
+        assert!(compose_mesh_space_additives([(&first, 0.0)]).is_none());
     }
 
     #[test]

@@ -69,7 +69,7 @@ pub enum AlsTransitionKind {
     CrouchingDynamic,
 }
 
-#[derive(Component, Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct AlsTransitionPlayback {
     pub active: bool,
     pub kind: AlsTransitionKind,
@@ -84,6 +84,7 @@ pub struct AlsTransitionPlayback {
     pub weight: f32,
     pub stop_elapsed: Option<f32>,
     pub stop_start_weight: f32,
+    pub stop_duration: f32,
 }
 
 impl AlsTransitionPlayback {
@@ -107,9 +108,10 @@ impl AlsTransitionPlayback {
             blend_out,
             start_time,
             duration,
-            weight: 0.0,
+            weight: if blend_in <= 0.0 { 1.0 } else { 0.0 },
             stop_elapsed: None,
             stop_start_weight: 0.0,
+            stop_duration: 0.0,
         }
     }
 
@@ -224,19 +226,20 @@ impl AlsTransitionPlayback {
     }
 
     pub fn request_stop(&mut self) {
-        if !self.active || self.stop_elapsed.is_some() {
+        self.stop_with_duration(self.blend_out);
+    }
+
+    fn stop_with_duration(&mut self, duration: f32) {
+        if !self.active || (self.stop_elapsed.is_some() && duration >= self.stop_duration) {
             return;
         }
-        self.stop_start_weight = transition_weight(
-            self.elapsed,
-            self.duration,
-            self.start_time,
-            self.play_rate,
-            self.blend_in,
-            self.blend_out,
-        )
-        .max(self.weight);
+        self.stop_start_weight = self.weight;
+        self.stop_duration = duration.max(0.0);
         self.stop_elapsed = Some(0.0);
+        if duration <= 0.0 {
+            self.active = false;
+            self.weight = 0.0;
+        }
     }
 
     pub fn advance(&mut self, delta_seconds: f32) {
@@ -246,31 +249,67 @@ impl AlsTransitionPlayback {
         self.elapsed += delta_seconds.max(0.0);
         let play_rate = self.play_rate.max(f32::EPSILON);
         self.clip_time = (self.start_time + self.elapsed * play_rate).min(self.duration);
+        let playback_duration = (self.duration - self.start_time).max(0.0) / play_rate;
         if let Some(stop_elapsed) = &mut self.stop_elapsed {
             *stop_elapsed += delta_seconds.max(0.0);
-            let duration = self.blend_out.max(f32::EPSILON);
-            self.weight = self.stop_start_weight * (1.0 - *stop_elapsed / duration).clamp(0.0, 1.0);
-            if *stop_elapsed >= duration {
-                self.active = false;
-                self.weight = 0.0;
+        } else {
+            self.weight = transition_blend_amount(self.elapsed.min(playback_duration), self.blend_in);
+            if self.elapsed < playback_duration {
+                return;
             }
-            return;
+            self.request_stop();
+            self.stop_elapsed = Some(self.elapsed - playback_duration);
         }
-        let playback_duration = (self.duration - self.start_time).max(0.0) / play_rate;
-        self.weight = transition_weight(
-            self.elapsed,
-            self.duration,
-            self.start_time,
-            play_rate,
-            self.blend_in,
-            self.blend_out,
-        );
-        if self.elapsed >= playback_duration {
+        let stop_elapsed = self.stop_elapsed.unwrap();
+        self.weight = self.stop_start_weight * (1.0 - transition_blend_amount(stop_elapsed, self.stop_duration));
+        if stop_elapsed >= self.stop_duration {
             self.active = false;
-            self.clip_time = self.duration;
             self.weight = 0.0;
         }
     }
+}
+
+#[derive(Component, Debug, Default)]
+pub struct AlsTransitionMontageStack {
+    pub entries: Vec<AlsTransitionPlayback>,
+}
+
+impl AlsTransitionMontageStack {
+    pub fn latest(&self) -> Option<&AlsTransitionPlayback> { self.entries.last() }
+
+    fn begin(&mut self, playback: AlsTransitionPlayback) {
+        for entry in &mut self.entries {
+            entry.stop_with_duration(playback.blend_in);
+        }
+        self.entries.retain(|entry| entry.active && entry.weight > 0.0);
+        self.entries.push(playback);
+    }
+
+    pub fn request_stop(&mut self) {
+        for entry in &mut self.entries { entry.request_stop(); }
+    }
+
+    fn advance(&mut self, delta_seconds: f32) {
+        for entry in &mut self.entries { entry.advance(delta_seconds); }
+        let last = self.entries.len().saturating_sub(1);
+        let mut index = 0;
+        self.entries.retain(|entry| {
+            let keep = entry.active || index == last;
+            index += 1;
+            keep
+        });
+    }
+}
+
+pub(crate) fn play_transition(commands: &mut Commands, character: Entity, playback: AlsTransitionPlayback) {
+    commands.queue(move |world: &mut World| {
+        let Ok(mut entity) = world.get_entity_mut(character) else { return; };
+        if let Some(mut stack) = entity.get_mut::<AlsTransitionMontageStack>() {
+            stack.begin(playback);
+        } else {
+            entity.insert(AlsTransitionMontageStack { entries: vec![playback] });
+        }
+    });
 }
 
 #[derive(Message, Debug, Clone, Copy, PartialEq)]
@@ -356,18 +395,10 @@ pub fn quick_stop_selection(
     (if selection.right { 1.0 } else { 0.0 }, selection.play_rate)
 }
 
-pub fn transition_weight(
-    elapsed: f32,
-    duration: f32,
-    start_time: f32,
-    play_rate: f32,
-    blend_in: f32,
-    blend_out: f32,
-) -> f32 {
-    let playback_duration = (duration - start_time).max(0.0) / play_rate.max(f32::EPSILON);
-    (elapsed / blend_in.max(f32::EPSILON))
-        .min((playback_duration - elapsed) / blend_out.max(f32::EPSILON))
-        .clamp(0.0, 1.0)
+fn transition_blend_amount(elapsed: f32, duration: f32) -> f32 {
+    if duration <= 0.0 { return 1.0; }
+    let alpha = (elapsed / duration.max(f32::EPSILON)).clamp(0.0, 1.0);
+    alpha * alpha * (3.0 - 2.0 * alpha)
 }
 
 fn move_toward(current: f32, target: f32, max_delta: f32) -> f32 {
@@ -509,13 +540,14 @@ fn ensure_root_transition_slot_samplers(
 }
 
 fn prepare_root_transition_slot_samples(
-    playbacks: Query<&AlsTransitionPlayback>,
+    playbacks: Query<&AlsTransitionMontageStack>,
     mut samplers: Query<(&AlsRootTransitionSlotSampler, &mut AnimationGraphPlayer)>,
 ) {
     for (sampler, mut player) in &mut samplers {
         let playback = playbacks
             .get(sampler.character)
             .ok()
+            .and_then(AlsTransitionMontageStack::latest)
             .filter(|playback| root_transition_slot_active(playback));
         player.set_global_input_data(
             "als_root_transition_slot_index",
@@ -567,11 +599,33 @@ fn write_root_transition_slot_curves(player: &mut AnimationGraphPlayer, crouchin
     }
 }
 
+fn sample_transition_stack(
+    stack: &AlsTransitionMontageStack,
+    assets: &crate::standing_source::SourceMontageAssets,
+    clips: &Assets<bevy_animation_graph::core::animation_clip::GraphClip>,
+    skeletons: &Assets<bevy_animation_graph::core::skeleton::Skeleton>,
+) -> Option<(bevy_animation_graph::core::pose::Pose, als_ext::AnimationContextState, f32)> {
+    let samples = stack.entries.iter().filter(|entry| entry.active && entry.weight > 1e-6)
+        .map(|entry| crate::standing_source::sample_source_montage(
+            source_transition_sequence(entry)?, entry.clip_time, assets, clips, skeletons,
+        ).map(|(pose, context)| (pose, context, entry.weight)))
+        .collect::<Option<Vec<_>>>()?;
+    let total = samples.iter().map(|(_, _, weight)| weight).sum::<f32>();
+    let denominator = total.max(1.0);
+    let pose = als_ext::mesh_space_additive::compose_mesh_space_additives(
+        samples.iter().map(|(pose, _, weight)| (pose, weight / denominator)),
+    )?;
+    let context = als_ext::source_pose_nodes::blend_animation_contexts(
+        samples.into_iter().map(|(_, context, weight)| (context, weight / denominator)),
+    );
+    Some((pose, context, total.min(1.0)))
+}
+
 fn bridge_root_transition_slot_samples(
     montage_assets: Res<crate::standing_source::SourceMontageAssets>,
     clips: Res<Assets<bevy_animation_graph::core::animation_clip::GraphClip>>,
     skeletons: Res<Assets<bevy_animation_graph::core::skeleton::Skeleton>>,
-    playbacks: Query<&AlsTransitionPlayback>,
+    playbacks: Query<&AlsTransitionMontageStack>,
     stances: Query<&Stance>,
     mut samplers: Query<(&mut AlsRootTransitionSlotSampler, &AnimationGraphPlayer)>,
     mut target_players: Query<&mut AnimationGraphPlayer, Without<AlsRootTransitionSlotSampler>>,
@@ -581,15 +635,16 @@ fn bridge_root_transition_slot_samples(
         let Ok(mut target_player) = target_players.get_mut(sampler.target_player) else {
             continue;
         };
-        let playback = playbacks
+        let stack = playbacks
             .get(sampler.character)
             .ok()
-            .filter(|playback| root_transition_slot_active(playback));
+            .filter(|stack| stack.entries.iter().any(root_transition_slot_active));
+        let playback = stack.and_then(AlsTransitionMontageStack::latest);
         let crouching = playback.is_some_and(|value| value.is_crouching())
             || stances
                 .get(sampler.character)
                 .is_ok_and(|stance| *stance == Stance::Crouching);
-        let Some(playback) = playback else {
+        let Some(stack) = stack else {
             als_ext::source_gameplay_tag_input::set_slot_input_context(
                 sampler.target_player,
                 GENERATED_TRANSITION_SLOT_POSE_KEY,
@@ -608,23 +663,9 @@ fn bridge_root_transition_slot_samples(
                 .insert(AlsRootTransitionSlotRuntime::default());
             continue;
         };
-        let source_sequence = source_transition_sequence(playback);
-        let sample = source_sequence.and_then(|name| {
-            crate::standing_source::sample_source_montage(
-                name,
-                playback.clip_time,
-                &montage_assets,
-                &clips,
-                &skeletons,
-            )
-        });
-        let pose = if source_sequence.is_some() {
-            sample.as_ref().map(|(pose, _)| pose.clone())
-        } else {
-            source_player.get_default_output_pose().cloned()
-        };
-        let Some(pose) = pose else {
-            if !sampler.reported_unready {
+        let sample = sample_transition_stack(stack, &montage_assets, &clips, &skeletons);
+        let Some((pose, context, weight)) = sample else {
+            if stack.entries.iter().any(|entry| entry.weight > 1e-6) && !sampler.reported_unready {
                 warn!(
                     "[TRANSITION-SLOT] sampler unavailable character={:?} error={:?}",
                     sampler.character,
@@ -651,11 +692,11 @@ fn bridge_root_transition_slot_samples(
         };
         target_player
             .set_global_input_data(ROOT_TRANSITION_SLOT_POSE_KEY, DataValue::Pose(pose.clone()));
-        target_player.set_global_input_data(ROOT_TRANSITION_SLOT_WEIGHT_KEY, playback.weight);
+        target_player.set_global_input_data(ROOT_TRANSITION_SLOT_WEIGHT_KEY, 1.0_f32);
         target_player.set_global_input_data(ROOT_TRANSITION_SLOT_LAYER_WEIGHT_KEY, 1.0_f32);
         target_player
             .set_global_input_data(GENERATED_TRANSITION_SLOT_POSE_KEY, DataValue::Pose(pose));
-        target_player.set_global_input_data(GENERATED_TRANSITION_SLOT_WEIGHT_KEY, playback.weight);
+        target_player.set_global_input_data(GENERATED_TRANSITION_SLOT_WEIGHT_KEY, 1.0_f32);
         target_player.set_global_input_data(GENERATED_TRANSITION_SLOT_LAYER_WEIGHT_KEY, 1.0_f32);
         target_player
             .set_global_input_data(GENERATED_TRANSITION_SLOT_MESH_SPACE_ADDITIVE_KEY, 1.0_f32);
@@ -664,13 +705,13 @@ fn bridge_root_transition_slot_samples(
         als_ext::source_gameplay_tag_input::set_slot_input_context(
             sampler.target_player,
             GENERATED_TRANSITION_SLOT_POSE_KEY,
-            sample.map(|(_, context)| context),
+            Some(context),
         );
         commands
             .entity(sampler.character)
             .insert(AlsRootTransitionSlotRuntime {
                 active: true,
-                weight: playback.weight,
+                weight,
                 pose_ready: true,
             });
     }
@@ -841,11 +882,11 @@ fn quick_stop_notify_system(
         } else {
             AlsTransitionPlayback::quick_stop(index, play_rate)
         };
-        commands.entity(notice.character).insert(playback);
+        play_transition(&mut commands, notice.character, playback);
     }
 }
 
-fn transition_playback_system(time: Res<Time>, mut playbacks: Query<&mut AlsTransitionPlayback>) {
+fn transition_playback_system(time: Res<Time>, mut playbacks: Query<&mut AlsTransitionMontageStack>) {
     for mut playback in &mut playbacks {
         playback.advance(time.delta_secs());
     }
@@ -854,6 +895,113 @@ fn transition_playback_system(time: Res<Time>, mut playbacks: Query<&mut AlsTran
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn transition_stack_preserves_interruptions_shorter_fades_and_natural_end() {
+        let mut stack = AlsTransitionMontageStack::default();
+        stack.begin(AlsTransitionPlayback::standing_dynamic(0.0));
+        stack.advance(0.05);
+        assert!((stack.latest().unwrap().weight - 0.15625).abs() < 1e-6);
+        stack.advance(0.31);
+        stack.begin(AlsTransitionPlayback::standing_dynamic(1.0));
+        assert_eq!(stack.entries.len(), 2);
+        assert_eq!(stack.entries[0].weight, 1.0);
+        assert_eq!(stack.latest().unwrap().weight, 0.0);
+        stack.advance(0.05);
+        assert!((stack.entries[0].weight - 0.84375).abs() < 1e-6);
+        assert!((stack.latest().unwrap().weight - 0.15625).abs() < 1e-6);
+        let retained = stack.entries.iter().map(|entry| (entry.clip_time, entry.weight)).collect::<Vec<_>>();
+        stack.begin(AlsTransitionPlayback::quick_stop(0.0, 1.75));
+        assert_eq!(stack.entries.len(), 3);
+        for (entry, (time, weight)) in stack.entries.iter().zip(retained) {
+            assert_eq!(entry.clip_time, time);
+            assert_eq!(entry.stop_start_weight, weight);
+            assert_eq!(entry.stop_duration, 0.1);
+        }
+        stack.advance(0.05);
+        assert!((stack.entries[0].weight - 0.84375 * 0.5).abs() < 1e-6);
+        stack.advance(0.05);
+        assert_eq!(stack.entries.len(), 1);
+        assert_eq!(stack.latest().unwrap().weight, 1.0);
+        stack.request_stop();
+        stack.advance(0.2);
+        assert!(!stack.latest().unwrap().active);
+        stack.begin(AlsTransitionPlayback::crouching_dynamic(1.0));
+        let end = stack.latest().unwrap().duration / stack.latest().unwrap().play_rate;
+        stack.advance(end);
+        assert_eq!(stack.latest().unwrap().weight, 1.0);
+        assert_eq!(stack.latest().unwrap().clip_time, stack.latest().unwrap().duration);
+        stack.advance(0.05);
+        assert!((stack.latest().unwrap().weight - 0.84375).abs() < 1e-6);
+        stack.advance(0.15);
+        assert!(!stack.latest().unwrap().active);
+        let instant = AlsTransitionPlayback::transition_animation(false, true, 0.0, 0.2, 1.5, 0.0);
+        stack.begin(instant);
+        stack.advance(0.0);
+        assert_eq!(stack.latest().unwrap().weight, 1.0);
+    }
+
+    #[test]
+    fn interrupted_transition_keeps_its_sampled_slot_contribution() {
+        let mut app = crate::standing_source::tests::loaded_montage_app();
+        app.add_message::<AlsQuickStopNotify>().add_systems(
+            Update,
+            (quick_stop_notify_system, bridge_root_transition_slot_samples).chain(),
+        );
+        let mut previous = AlsTransitionPlayback::standing_dynamic(0.0);
+        previous.advance(0.24);
+        let character = app.world_mut().spawn((
+            als_core::character::AlsCharacter,
+            Transform::IDENTITY,
+            RotationMode::VelocityDirection,
+            Stance::Standing,
+            AlsViewYaw(0.0),
+            AlsInputCommand::default(),
+            AlsTransitionMontageStack { entries: vec![previous] },
+        )).id();
+        let player = app.world_mut().spawn(AnimationGraphPlayer::new(Handle::default())).id();
+        app.world_mut().spawn((
+            AlsRootTransitionSlotSampler { character, target_player: player, reported_unready: false },
+            AnimationGraphPlayer::new(Handle::default()),
+        ));
+        app.update();
+        let before = *app.world().get::<AlsRootTransitionSlotRuntime>(character).unwrap();
+        assert_eq!(before.weight, 1.0);
+        let curves_before = als_ext::source_gameplay_tag_input::slot_input_context(player, GENERATED_TRANSITION_SLOT_POSE_KEY).unwrap().curves;
+        assert!(curves_before.values().any(|value| value.abs() > 0.5));
+        let pose_before = app.world().get::<AnimationGraphPlayer>(player).unwrap()
+            .get_global_input_data(GENERATED_TRANSITION_SLOT_POSE_KEY).unwrap().clone().into_pose().unwrap();
+        app.world_mut().write_message(AlsQuickStopNotify { character });
+        app.update();
+        let after = app.world().get::<AlsRootTransitionSlotRuntime>(character).unwrap();
+        assert_eq!(after.weight, before.weight, "interrupting a full-weight transition discarded its contribution");
+        assert_eq!(als_ext::source_gameplay_tag_input::slot_input_context(player, GENERATED_TRANSITION_SLOT_POSE_KEY).unwrap().curves, curves_before);
+        let pose_after = app.world().get::<AnimationGraphPlayer>(player).unwrap()
+            .get_global_input_data(GENERATED_TRANSITION_SLOT_POSE_KEY).unwrap().clone().into_pose().unwrap();
+        for bone in pose_before.paths.keys() {
+            let before = pose_before.get_bone(*bone).unwrap();
+            let after = pose_after.get_bone(*bone).unwrap();
+            assert_eq!(before.translation, after.translation);
+            assert_eq!(before.rotation, after.rotation);
+            assert_eq!(before.scale, after.scale);
+        }
+        app.world_mut().get_mut::<AlsTransitionMontageStack>(character).unwrap().advance(0.05);
+        app.update();
+        let stack = app.world().get::<AlsTransitionMontageStack>(character).unwrap();
+        assert_eq!(stack.entries.len(), 2);
+        let actual = als_ext::source_gameplay_tag_input::slot_input_context(player, GENERATED_TRANSITION_SLOT_POSE_KEY).unwrap();
+        let mut expected = std::collections::HashMap::<String, f32>::new();
+        let total = stack.entries.iter().map(|entry| entry.weight).sum::<f32>().max(1.0);
+        for entry in &stack.entries {
+            let settings = &crate::standing_source::MONTAGES[source_transition_sequence(entry).unwrap()];
+            for (name, value) in crate::get_up::sampled_curve_context(&settings.curves, entry.clip_time).curves {
+                *expected.entry(name).or_default() += value * entry.weight / total;
+            }
+        }
+        for (name, value) in expected {
+            assert!((actual.curves[&name] - value).abs() < 1e-6, "curve {name} discarded a fading instance");
+        }
+    }
 
     #[test]
     fn stop_transition_uses_the_source_blueprint_pin_values() {
@@ -913,7 +1061,7 @@ mod tests {
             app.world_mut()
                 .write_message(AlsQuickStopNotify { character });
             app.update();
-            let playback = app.world().get::<AlsTransitionPlayback>(character).unwrap();
+            let playback = app.world().get::<AlsTransitionMontageStack>(character).unwrap().latest().unwrap();
             assert_eq!(playback.index, index, "quick stop target yaw {target_yaw}");
             assert!(
                 (playback.play_rate - rate).abs() < 1e-5,

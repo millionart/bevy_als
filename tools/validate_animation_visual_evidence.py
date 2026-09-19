@@ -1467,6 +1467,38 @@ def rotating_step_issues(rows):
     return issues
 
 
+def transition_overlap_issues(rows):
+    overlap = False
+    for row in rows:
+        if row.get("stage") != "Ride":
+            continue
+        entries = row.get("transitions")
+        if not isinstance(entries, list):
+            return ["rotating base transition instances are missing"]
+        for entry in entries:
+            if not isinstance(entry, dict) or any(not finite(entry.get(key)) for key in
+                ("elapsed", "clip_time", "weight", "blend_in", "stop_start_weight", "stop_duration")):
+                return ["rotating base transition instance is invalid"]
+            stopped = entry.get("stop_elapsed") is not None
+            elapsed = entry["stop_elapsed"] if stopped else entry["elapsed"]
+            if not finite(elapsed) or elapsed < 0:
+                return ["rotating base transition blend time is invalid"]
+            duration = entry["stop_duration"] if stopped else entry["blend_in"]
+            alpha = min(1.0, max(0.0, elapsed / duration)) if duration > 0 else 1.0
+            blend = alpha * alpha * (3.0 - 2.0 * alpha)
+            expected = entry["stop_start_weight"] * (1.0 - blend) if stopped else blend
+            if abs(entry["weight"] - expected) > 1e-4:
+                return ["rotating base transition weight differs from source Hermite blend"]
+        total = min(1.0, sum(entry["weight"] for entry in entries))
+        slot = row.get("slot")
+        if total > 1e-5 and (not isinstance(slot, dict) or slot.get("pose_ready") is not True
+            or not finite(slot.get("weight")) or abs(slot["weight"] - total) > 1e-4):
+            return ["rotating base slot discarded an overlapping transition contribution"]
+        overlap |= (any(entry.get("stop_elapsed") is not None and entry["weight"] > 0.1 for entry in entries)
+            and any(entry.get("stop_elapsed") is None and entry["weight"] > 0.1 for entry in entries))
+    return [] if overlap else ["rotating base overlapping transition fade was not observed"]
+
+
 def moving_base_trace_issues(report):
     if report.get("case") not in ("moving_base", "rotating_base"):
         return []
@@ -1519,6 +1551,7 @@ def moving_base_trace_issues(report):
                 issues.append("rotating base changed the source world-facing idle character")
                 break
         issues.extend(rotating_step_issues(rows))
+        issues.extend(transition_overlap_issues(rows))
     elif any(math.dist([p - b for p, b in zip(row["position"], row["platform"])], row["local"]) > 0.001
            or (angle := quaternion_distance(row.get("platform_rotation"), [0.0, 0.0, 0.0, 1.0])) is None or angle > 1e-5 for row in rows):
         issues.append("moving base coordinate evidence differs")
@@ -2255,7 +2288,7 @@ def fixture_rotating_base_report():
             platform=[13.5, -0.5, -24.0], platform_rotation=[0.0, math.sin(angle/2), 0.0, math.cos(angle/2)],
             platform_velocity=[0.0, 0.0, 0.0], input=[0.0, 0.0], local=[0.65, 2.424, 0.0],
             motion_point=[13.5+sine, -0.5, -24.0+cosine], position=[13.5+0.65*cosine, 1.924, -24.0-0.65*sine],
-            feet=[{"lock_amount":1.0, "target":[0.0, 0.0, 0.0], "lock":[0.0, 0.0, 0.0]} for _ in range(2)], step=None, slot=None)
+            feet=[{"lock_amount":1.0, "target":[0.0, 0.0, 0.0], "lock":[0.0, 0.0, 0.0]} for _ in range(2)], step=None, slot=None, transitions=[])
         if row["stage"] == "Ride":
             row["rotation"] = [0.0, math.sin(-math.radians(4.72)/2), 0.0, math.cos(-math.radians(4.72)/2)]
         row["expected_position"] = row["position"][:]
@@ -2267,6 +2300,11 @@ def fixture_rotating_base_report():
             row["step"] = dict(kind="StandingDynamic", side=float(side), active=True, clip_time=0.4 if beginning else 0.55,
                 duration=1.533333, play_rate=1.5, start_time=0.0, blend_in=0.2, blend_out=0.2)
             row["slot"] = dict(active=True, pose_ready=True, weight=1.0)
+            row["transitions"] = [dict(elapsed=0.3, clip_time=0.45, weight=1.0, blend_in=0.2,
+                stop_elapsed=None, stop_start_weight=0.0, stop_duration=0.0)]
+            if index == 2:
+                row["transitions"].insert(0, dict(elapsed=0.5, clip_time=0.75, weight=0.5,
+                    blend_in=0.2, stop_elapsed=0.1, stop_start_weight=1.0, stop_duration=0.2))
             row["feet"][side]["lock_amount"] = 0.0 if beginning else 1.0
     return report
 
@@ -2284,6 +2322,17 @@ def run_self_test():
         assert math.dist(quaternion_vector(rotation, axis), expected) < 1e-10
     rotating = fixture_rotating_base_report()
     assert not manual_integration_issues(rotating), manual_integration_issues(rotating)
+    for issue in ("missing", "discarded", "weight", "no_overlap"):
+        invalid = copy.deepcopy(rotating["manual_integration"]["moving_base_trace"])
+        if issue == "missing":
+            invalid[0].pop("transitions")
+        elif issue == "discarded":
+            invalid[2]["slot"]["weight"] = 0.5
+        elif issue == "weight":
+            invalid[2]["transitions"][0]["weight"] = 0.8
+        else:
+            invalid[2]["transitions"].pop(0)
+        assert transition_overlap_issues(invalid), issue
     for issue in ("missing", "identity", "frozen", "yaw_direction", "clock", "pivot", "coordinates", "motion_point",
                   "facing", "input", "own_velocity", "missing_step", "missing_feet", "invalid_step", "pose", "unlock", "relock", "release", "release_pose", "source_rate",
                   "frozen_mantle", "mantle_rotation", "no_handoff", "step_window", "cycle", "both_sides", "duration", "release_inactive", "lock_amount"):

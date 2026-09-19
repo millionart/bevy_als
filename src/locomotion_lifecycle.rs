@@ -5,7 +5,7 @@ use bevy::prelude::*;
 
 use crate::character_assembly::AlsCharacterAvatar;
 use crate::locomotion_layer::AlsLocomotionLayerSet;
-use crate::stop_link::AlsTransitionPlayback;
+use crate::stop_link::AlsTransitionMontageStack;
 use crate::turn_layer::AlsTurnMontageStack;
 
 #[derive(Component, Clone, Copy)]
@@ -40,7 +40,7 @@ fn stop_transition_and_turn_on_locomotion_exit(
             Entity,
             &LocomotionState,
             Option<&mut SourceLocomotionLifecycleState>,
-            Option<&mut AlsTransitionPlayback>,
+            Option<&mut AlsTransitionMontageStack>,
         ),
         With<AlsCharacter>,
     >,

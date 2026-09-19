@@ -239,7 +239,7 @@ pub(super) fn observe(
     colliders: Query<(Entity, &ColliderOf), Without<AlsCharacter>>,
     characters: Query<(&Position, &Transform, &LocomotionState, &AlsMovementBase, &AlsActualVelocity,
         &LinearVelocity, &AlsMantleState, Option<&AlsNotifyLocomotionAction>, &AlsInputOverride,
-        Option<&AlsFootLockState>, Option<&AlsTransitionPlayback>, Option<&AlsRootTransitionSlotRuntime>), With<AlsCharacter>>,
+        Option<&AlsFootLockState>, Option<&AlsTransitionMontageStack>, Option<&AlsRootTransitionSlotRuntime>), With<AlsCharacter>>,
     avatars: Query<&AnimatedSceneInstance, With<AlsCharacterAvatar>>,
     players: Query<&AnimationGraphPlayer>,
 ) {
@@ -249,6 +249,8 @@ pub(super) fn observe(
     let Some((body, _, path, global, platform_velocity, kind, reported_velocity)) = platforms.iter().find(|(_, name, _, _, _, _, _)| name.as_str() == object) else { return; };
     let Some((collider, _)) = colliders.iter().find(|(_, owner)| owner.body == body) else { return; };
     let Ok((position, transform, mode, base, own, velocity, mantle, action, input, feet, playback, slot)) = characters.get(character) else { return; };
+    let transition_stack = playback;
+    let playback = transition_stack.and_then(AlsTransitionMontageStack::latest);
     let Ok(scene) = avatars.get(avatar) else { return; };
     let Ok(player) = players.get(scene.player_entity()) else { return; };
     let graph = locomotion_graph_sample(player, &motion);
@@ -332,6 +334,10 @@ pub(super) fn observe(
         "step":playback.map(|playback| serde_json::json!({"kind":format!("{:?}", playback.kind),"side":playback.index,
             "active":playback.active,"clip_time":playback.clip_time,"duration":playback.duration,"weight":playback.weight,
             "play_rate":playback.play_rate,"start_time":playback.start_time,"blend_in":playback.blend_in,"blend_out":playback.blend_out})),
+        "transitions":transition_stack.map(|stack| stack.entries.iter().filter(|entry| entry.active).map(|entry| serde_json::json!({
+            "side":entry.index,"elapsed":entry.elapsed,"clip_time":entry.clip_time,"weight":entry.weight,
+            "blend_in":entry.blend_in,"stop_elapsed":entry.stop_elapsed,"stop_start_weight":entry.stop_start_weight,"stop_duration":entry.stop_duration
+        })).collect::<Vec<_>>()).unwrap_or_default(),
         "slot":slot.map(|slot| serde_json::json!({"active":slot.active,"pose_ready":slot.pose_ready,"weight":slot.weight})),
     }));
     if rotating && stage == Stage::Ride
