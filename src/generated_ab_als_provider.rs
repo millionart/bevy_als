@@ -457,6 +457,86 @@ mod tests {
     use super::*;
 
     #[test]
+    fn animation_input_projection_uses_source_state_through_the_actual_writers() {
+        use als_core::{motion::AlsRotationResponseState, state::LocomotionState};
+        use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner};
+        use bevy_animation_graph::{AnimationGraphPlugin, core::animated_scene::AnimatedSceneHandle};
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+            bevy::mesh::MeshPlugin, bevy::gizmos::GizmoPlugin,
+            avian3d::prelude::PhysicsPlugins::new(PostUpdate),
+            AnimationGraphPlugin::from_physics_schedule(PostUpdate),
+            crate::ab_als_root::AlsRootGraphPlugin, GeneratedAbAlsProviderPlugin,
+            crate::layering_layer::LayeringLayerPlugin, crate::head_layer::HeadLayerPlugin))
+            .init_asset::<WorldAsset>().init_asset::<AlsMovementParams>();
+        app.finish();
+        app.cleanup();
+        let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(AlsMovementParams::default());
+        let character = app.world_mut().spawn((AlsCharacter, Transform::IDENTITY,
+            Gait::Sprinting, Stance::Standing, RotationMode::VelocityDirection,
+            LocomotionState::Air, als_core::state::OverlayState::Default,
+            AlsActualMotion { horizontal_speed: 0.2, ..default() }, AlsViewYaw(0.0),
+            AlsInputCommand { move_dir: Vec2::Y, ..default() },
+            AlsRotationResponseState { initialized: true, target_yaw: 55.0_f32.to_radians(), ..default() },
+            AlsMovementParamsHandle(params))).id();
+        let avatar = app.world_mut().spawn((AlsCharacterAvatar { character }, ChildOf(character),
+            Transform::IDENTITY, AnimatedSceneHandle::default(),
+            crate::stance_layer::AlsStanceBlend::with_weight(0.9),
+            crate::gait_layer::AlsGaitBlend { weights: als_core::gait::GaitWeights::from_gait_amount(3.0) })).id();
+        let player = app.world_mut().spawn((AnimationGraphPlayer::new(Handle::default()),
+            Name::new("root"), Transform::IDENTITY, ChildOf(avatar))).id();
+        app.world_mut().spawn((Name::new("bone"), Transform::IDENTITY, ChildOf(player)));
+        app.world_mut().trigger(WorldInstanceReady { entity: avatar,
+            instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
+        app.world_mut().flush();
+        assert_eq!(app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity(), player);
+        for (stance, moving, curve_values) in [
+            (Stance::Standing, false, Some([0.35, 0.2, 0.25, 1.25, 0.9998])),
+            (Stance::Crouching, true, Some([0.1, 0.6, 0.3, 2.25, 0.999995])),
+            (Stance::Standing, false, None),
+        ] {
+            app.world_mut().entity_mut(character).insert((stance, AlsInputOverride(AlsInputCommand {
+                move_dir: if moving { Vec2::Y } else { Vec2::ZERO }, ..default()
+            })));
+            let values = curve_values.unwrap_or([0.0; 5]);
+            let curves = curve_values.map(|values| ["PoseStanding", "PoseCrouching", "PoseInAir", "PoseGait", "AllowTransitions"]
+                .into_iter().zip(values).map(|(key, value)| (key.to_owned(), value)).collect()).unwrap_or_default();
+            app.world_mut().entity_mut(player).insert(AlsRootAnimationContext { curves });
+            app.world_mut().get_mut::<AnimationGraphPlayer>(player).unwrap()
+                .set_global_input_data("als_standing_curve_allow_transitions", 1.0_f32);
+            app.world_mut().run_schedule(PostUpdate);
+            let player = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+            for (key, expected) in [
+                ("pose_state.standing_amount", values[0]),
+                ("pose_state.crouching_amount", values[1]),
+                ("pose_state.in_air_amount", values[2]),
+                ("pose_state.gait_walking_amount", values[3].clamp(0.0, 1.0)),
+                ("pose_state.gait_running_amount", (values[3] - 1.0).clamp(0.0, 1.0)),
+                ("pose_state.gait_sprinting_amount", (values[3] - 2.0).clamp(0.0, 1.0)),
+                ("locomotion_state.target_yaw_angle_world_space", -55.0),
+            ] {
+                let actual = player.get_global_input_data(key).unwrap().as_f32().unwrap();
+                assert!((actual - expected).abs() < 1e-5, "{key}: {actual} != {expected}");
+            }
+            for (key, expected) in [
+                ("locomotion_state.b_has_input", moving),
+                ("locomotion_state.b_moving", moving),
+                ("transitions_state.b_transitions_allowed", values[4] >= 1.0 - 1e-5),
+            ] {
+                assert_eq!(player.get_global_input_data(key).unwrap().as_bool().unwrap(), expected, "{key}");
+            }
+            for key in ["als_overlay_standing_amount", "als_overlay_crouching_amount",
+                "als_overlay_gait_walking_amount", "als_overlay_gait_running_amount",
+                "als_overlay_gait_sprinting_amount", "als_overlay_in_air_amount", "als_overlay_is_in_air",
+                "als_overlay_is_moving", "als_overlay_is_sprinting", "als_overlay_transitions_allowed",
+                "als_overlay_velocity_forward_amount", "als_overlay_velocity_backward_amount",
+                "als_overlay_velocity_left_amount", "als_overlay_velocity_right_amount", "als_root_has_input"] {
+                assert!(player.get_global_input_data(key).is_none(), "Obsolete projection remains: {key}");
+            }
+        }
+    }
+
+    #[test]
     fn animation_movement_base_input_reads_the_actual_physics_owner() {
         use als_core::{dynamics::AlsMovementBase, state::LocomotionState};
         use avian3d::prelude::*;
