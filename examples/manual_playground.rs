@@ -12,7 +12,7 @@ use bevy::render::view::screenshot::{Screenshot, save_to_disk};
 use bevy::window::{PresentMode, WindowPlugin};
 use bevy_tnua::{TnuaMotor, TnuaProximitySensor, TnuaSensorsEntities, TnuaToggle};
 
-use als_camera::AlsCameraRig;
+use als_camera::AlsCameraViewSource;
 use als_core::character::{AlsCharacter, AlsCrushRecovery, AlsCrushRecoveryFloor};
 use als_core::control_scheme::AlsControlScheme;
 use als_core::params::AlsMovementParams;
@@ -75,6 +75,9 @@ fn main() {
     if std::env::var_os("ALS_MANUAL_INTEGRATION_GATE").is_some() {
         app.add_plugins((AnimProbePlugin, ManualPlaygroundIntegrationPlugin));
     }
+    if std::env::var_os("ALS_ANIMATION_VISUAL_EVIDENCE_DIR").is_some() {
+        app.add_plugins(bevy::render::diagnostic::RenderDiagnosticsPlugin);
+    }
     app.add_plugins((
         bevy_als::als_hud::AlsHudPlugin,
         bevy_als::overlay_mode_menu::OverlayModeMenuPlugin,
@@ -87,8 +90,10 @@ fn main() {
     .init_resource::<SpawnOnce>()
     .init_resource::<CharacterMaterialProbe>()
     .init_resource::<PlatformPhysicsProbe>()
-    .init_resource::<AmbientOcclusionProbe>()
-    .init_resource::<TemporalAntiAliasingProbe>()
+    .insert_resource(RenderEffectsProbe {
+        directory: std::env::var_os("ALS_ANIMATION_VISUAL_EVIDENCE_DIR").map(PathBuf::from),
+        ..default()
+    })
     .init_resource::<CollisionParityProbe>()
     .init_resource::<GroundedSpawnProbe>()
     .init_resource::<ManualPlaygroundStartupReady>()
@@ -106,9 +111,7 @@ fn main() {
             scene_physics_ready.after(landscape_collider_bridge),
             spawn_character_once.after(scene_physics_ready),
             admit_completed_player.after(spawn_character_once),
-            enable_character_ssao_taa,
-            ambient_occlusion_probe,
-            temporal_anti_aliasing_probe,
+            (enable_character_ssao_taa, render_effects_probe).chain(),
             character_material_probe,
             platform_physics_probe.after(playground_kinematic_velocity_bridge),
             collision_parity_probe,
@@ -133,10 +136,11 @@ struct CharacterMaterialProbe(bool);
 struct PlatformPhysicsProbe(bool);
 
 #[derive(Resource, Default)]
-struct AmbientOcclusionProbe(bool);
-
-#[derive(Resource, Default)]
-struct TemporalAntiAliasingProbe(bool);
+struct RenderEffectsProbe {
+    ready_at: Option<f64>,
+    passed: Option<bool>,
+    directory: Option<PathBuf>,
+}
 
 #[derive(Resource, Default)]
 struct CollisionParityProbe {
@@ -210,6 +214,7 @@ fn arm_auto_quit(mut commands: Commands) {
 fn auto_quit(
     timer: Option<Res<AutoQuit>>,
     ground_probe: Res<GroundedSpawnProbe>,
+    render_probe: Res<RenderEffectsProbe>,
     mut exit: MessageWriter<AppExit>,
 ) {
     let Some(t) = timer else {
@@ -217,12 +222,12 @@ fn auto_quit(
     };
     if Instant::now() >= t.0 {
         match ground_probe.passed {
-            Some(true) => {
-                info!("[MANUAL] auto quit reached after grounded spawn PASS");
+            Some(true) if render_probe.passed == Some(true) => {
+                info!("[MANUAL] auto quit reached after grounded spawn and render effects PASS");
                 exit.write(AppExit::Success);
             }
-            Some(false) => {
-                error!("[MANUAL] auto quit reached after grounded spawn FAIL");
+            Some(_) => {
+                error!("[MANUAL] auto quit reached without grounded spawn and render effects PASS");
                 exit.write(AppExit::Error(NonZeroU8::new(12).unwrap()));
             }
             None => {
@@ -617,82 +622,96 @@ fn grounded_spawn_probe(
 fn enable_character_ssao_taa(
     mut commands: Commands,
     cameras: Query<
-        Entity,
         (
-            With<Camera3d>,
-            With<AlsCameraRig>,
-            Without<ScreenSpaceAmbientOcclusion>,
-            Without<TemporalAntiAliasing>,
+            Entity,
+            Option<&Msaa>,
+            Has<ScreenSpaceAmbientOcclusion>,
+            Has<TemporalAntiAliasing>,
         ),
+        (With<Camera3d>, With<AlsCameraViewSource>),
     >,
 ) {
-    for camera in &cameras {
-        commands.entity(camera).insert((
-            Msaa::Off,
-            ScreenSpaceAmbientOcclusion::default(),
-            TemporalAntiAliasing::default(),
-        ));
+    for (camera, msaa, ssao, taa) in &cameras {
+        let mut camera = commands.entity(camera);
+        if msaa != Some(&Msaa::Off) {
+            camera.insert(Msaa::Off);
+        }
+        if !ssao {
+            camera.insert(ScreenSpaceAmbientOcclusion::default());
+        }
+        if !taa {
+            camera.insert(TemporalAntiAliasing::default());
+        }
     }
 }
 
-fn temporal_anti_aliasing_probe(
-    mut probe: ResMut<TemporalAntiAliasingProbe>,
-    cameras: Query<(&TemporalAntiAliasing, &Msaa), (With<Camera3d>, With<AlsCameraRig>)>,
+fn render_effects_probe(
+    mut probe: ResMut<RenderEffectsProbe>,
+    ready: Res<ManualPlaygroundStartupReady>,
+    time: Res<Time<Real>>,
+    diagnostics: Option<Res<bevy::diagnostic::DiagnosticsStore>>,
+    cameras: Query<
+        (
+            Has<ScreenSpaceAmbientOcclusion>,
+            Has<TemporalAntiAliasing>,
+            Option<&Msaa>,
+        ),
+        (With<Camera3d>, With<AlsCameraViewSource>),
+    >,
+    mut exit: MessageWriter<AppExit>,
 ) {
-    if probe.0 {
+    if probe.passed.is_some() || !ready.passed {
         return;
     }
+    let waited = time.elapsed_secs_f64() - *probe.ready_at.get_or_insert(time.elapsed_secs_f64());
     let camera_count = cameras.iter().count();
-    if camera_count == 0 {
-        return;
-    }
+    let ssao_count = cameras.iter().filter(|(ssao, _, _)| *ssao).count();
+    let taa_count = cameras.iter().filter(|(_, taa, _)| *taa).count();
     let msaa_off_count = cameras
         .iter()
-        .filter(|(_, msaa)| **msaa == Msaa::Off)
+        .filter(|(_, _, msaa)| *msaa == Some(&Msaa::Off))
         .count();
-    if camera_count == 1 && msaa_off_count == 1 {
-        info!("[TAA][VERDICT] camera={camera_count}/1 msaa_off={msaa_off_count}/1 -> PASS");
-    } else {
-        error!("[TAA][VERDICT] camera={camera_count}/1 msaa_off={msaa_off_count}/1 -> FAIL");
-    }
-    probe.0 = true;
-}
-
-fn ambient_occlusion_probe(
-    mut probe: ResMut<AmbientOcclusionProbe>,
-    cameras: Query<(&ScreenSpaceAmbientOcclusion, &Msaa), (With<Camera3d>, With<AlsCameraRig>)>,
-) {
-    if probe.0 {
+    let components_ready =
+        camera_count == 1 && ssao_count == 1 && taa_count == 1 && msaa_off_count == 1;
+    let passes: Vec<_> = diagnostics
+        .iter()
+        .flat_map(|store| store.iter())
+        .filter(|diagnostic| {
+            let path = diagnostic.path().as_str();
+            (path.contains("/ssao/") || path.contains("/taa/")) && diagnostic.value().is_some()
+        })
+        .map(|diagnostic| (diagnostic.path().as_str().to_owned(), diagnostic.value()))
+        .collect();
+    let passes_ready = ["/ssao/", "/taa/"]
+        .iter()
+        .all(|name| passes.iter().any(|(path, _)| path.contains(name)));
+    if components_ready && probe.directory.is_some() && !passes_ready && waited < 5.0 {
         return;
     }
-    let expected = ScreenSpaceAmbientOcclusion::default();
-    let camera_count = cameras.iter().count();
-    if camera_count == 0 {
-        return;
+    let passed = components_ready && (probe.directory.is_none() || passes_ready);
+    probe.passed = Some(passed);
+    let report = serde_json::json!({
+        "passed": passed, "cameras": camera_count, "ssao": ssao_count, "taa": taa_count,
+        "msaa_off": msaa_off_count, "executed_passes": passes, "waited_seconds": waited,
+        "no_progress_limit_seconds": 5.0,
+        "exit_reason": if passed { "completed" } else if !components_ready { "missing_render_components" } else { "render_pass_timeout" },
+    });
+    info!("[RENDER-EFFECTS][VERDICT] {report}");
+    if let Some(directory) = &probe.directory {
+        std::fs::write(directory.join("render_effects.json"), report.to_string())
+            .expect("render effects report must be writable");
     }
-    let default_count = cameras
-        .iter()
-        .filter(|(settings, _)| **settings == expected)
-        .count();
-    let msaa_off_count = cameras
-        .iter()
-        .filter(|(_, msaa)| **msaa == Msaa::Off)
-        .count();
-    if camera_count == 1 && default_count == 1 && msaa_off_count == 1 {
-        info!(
-            "[SSAO][VERDICT] camera={camera_count}/1 default={default_count}/1 msaa_off={msaa_off_count}/1 -> PASS"
-        );
-    } else {
-        error!(
-            "[SSAO][VERDICT] camera={camera_count}/1 default={default_count}/1 msaa_off={msaa_off_count}/1 -> FAIL"
-        );
+    if !passed {
+        exit.write(AppExit::Error(NonZeroU8::new(1).unwrap()));
     }
-    probe.0 = true;
 }
 
 fn character_material_probe(
     mut probe: ResMut<CharacterMaterialProbe>,
-    avatars: Query<(&AvatarMaterialOverride, &AvatarMaterialApplied), With<bevy_als::character_assembly::AlsCharacterAvatar>>,
+    avatars: Query<
+        (&AvatarMaterialOverride, &AvatarMaterialApplied),
+        With<bevy_als::character_assembly::AlsCharacterAvatar>,
+    >,
     materials: Res<Assets<StandardMaterial>>,
 ) {
     if probe.0 {
@@ -795,11 +814,173 @@ mod tests {
         let mut world = World::new();
         world.init_resource::<CharacterMaterialProbe>();
         world.init_resource::<Assets<StandardMaterial>>();
-        world.spawn((AvatarMaterialOverride(vec![Handle::default()]), AvatarMaterialApplied {
-            slots: 1, body_slots: 1, main_slots: 0, source_slot_pattern: true,
-        }));
+        world.spawn((
+            AvatarMaterialOverride(vec![Handle::default()]),
+            AvatarMaterialApplied {
+                slots: 1,
+                body_slots: 1,
+                main_slots: 0,
+                source_slot_pattern: true,
+            },
+        ));
         world.run_system_once(character_material_probe).unwrap();
         assert!(!world.resource::<CharacterMaterialProbe>().0);
+    }
+    #[test]
+    fn render_effects_follow_the_view_and_preserve_existing_settings() {
+        for (has_ssao, has_taa) in [(false, false), (true, false), (false, true), (true, true)] {
+            let mut world = World::new();
+            let source = world.spawn(als_camera::AlsCameraRig::default()).id();
+            let view = world
+                .spawn((Camera3d::default(), als_camera::AlsCameraViewSource(source)))
+                .id();
+            if has_ssao {
+                world.entity_mut(view).insert(ScreenSpaceAmbientOcclusion {
+                    constant_object_thickness: 0.37,
+                    ..default()
+                });
+            }
+            if has_taa {
+                world
+                    .entity_mut(view)
+                    .insert(TemporalAntiAliasing { reset: false });
+            }
+            world.run_system_once(enable_character_ssao_taa).unwrap();
+            assert_eq!(world.get::<Msaa>(view), Some(&Msaa::Off));
+            assert!(world.get::<ScreenSpaceAmbientOcclusion>(view).is_some());
+            assert!(world.get::<TemporalAntiAliasing>(view).is_some());
+            assert!(
+                world
+                    .get::<bevy::core_pipeline::prepass::DepthPrepass>(view)
+                    .is_some()
+            );
+            assert!(
+                world
+                    .get::<bevy::core_pipeline::prepass::NormalPrepass>(view)
+                    .is_some()
+            );
+            assert!(
+                world
+                    .get::<bevy::core_pipeline::prepass::MotionVectorPrepass>(view)
+                    .is_some()
+            );
+            assert!(world.get::<ScreenSpaceAmbientOcclusion>(source).is_none());
+            assert!(world.get::<als_camera::AlsCameraRig>(view).is_none());
+            if has_ssao {
+                assert_eq!(
+                    world
+                        .get::<ScreenSpaceAmbientOcclusion>(view)
+                        .unwrap()
+                        .constant_object_thickness,
+                    0.37
+                );
+            }
+            if has_taa {
+                assert!(!world.get::<TemporalAntiAliasing>(view).unwrap().reset);
+            }
+            world.get_mut::<TemporalAntiAliasing>(view).unwrap().reset = false;
+            world.run_system_once(enable_character_ssao_taa).unwrap();
+            assert!(!world.get::<TemporalAntiAliasing>(view).unwrap().reset);
+        }
+    }
+
+    #[test]
+    fn render_effects_probe_rejects_missing_views_and_partial_effects() {
+        for missing in ["view", "ssao", "taa", "msaa", "none"] {
+            let mut world = World::new();
+            world.init_resource::<RenderEffectsProbe>();
+            world.init_resource::<Time<Real>>();
+            world.init_resource::<Messages<AppExit>>();
+            world.init_resource::<ManualPlaygroundStartupReady>();
+            world.run_system_once(render_effects_probe).unwrap();
+            assert_eq!(world.resource::<RenderEffectsProbe>().passed, None);
+            if missing != "view" {
+                let source = world.spawn_empty().id();
+                let mut view = world.spawn((Camera3d::default(), AlsCameraViewSource(source)));
+                if missing != "ssao" {
+                    view.insert(ScreenSpaceAmbientOcclusion::default());
+                }
+                if missing != "taa" {
+                    view.insert(TemporalAntiAliasing::default());
+                }
+                if missing != "msaa" {
+                    view.insert(Msaa::Off);
+                }
+            }
+            world.resource_mut::<ManualPlaygroundStartupReady>().passed = true;
+            world.run_system_once(render_effects_probe).unwrap();
+            assert_eq!(
+                world.resource::<RenderEffectsProbe>().passed,
+                Some(missing == "none")
+            );
+            assert_eq!(
+                world.resource::<Messages<AppExit>>().is_empty(),
+                missing == "none"
+            );
+        }
+    }
+
+    #[test]
+    fn render_pass_probe_requires_executed_passes_and_has_a_fixed_deadline() {
+        use bevy::diagnostic::{Diagnostic, DiagnosticMeasurement, DiagnosticsStore};
+        let directory =
+            std::env::temp_dir().join(format!("als-render-pass-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).unwrap();
+        for passes_ready in [false, true] {
+            let mut world = World::new();
+            world.insert_resource(RenderEffectsProbe {
+                directory: Some(directory.clone()),
+                ..default()
+            });
+            world.init_resource::<Time<Real>>();
+            world.init_resource::<Messages<AppExit>>();
+            world.insert_resource(ManualPlaygroundStartupReady { passed: true });
+            let source = world.spawn_empty().id();
+            world.spawn((Camera3d::default(), AlsCameraViewSource(source)));
+            world.run_system_once(enable_character_ssao_taa).unwrap();
+            world.run_system_once(render_effects_probe).unwrap();
+            assert_eq!(world.resource::<RenderEffectsProbe>().passed, None);
+            if passes_ready {
+                let mut store = DiagnosticsStore::default();
+                for name in [
+                    "render/view/ssao/elapsed_cpu",
+                    "render/view/taa/elapsed_cpu",
+                ] {
+                    let mut diagnostic =
+                        Diagnostic::new(bevy::diagnostic::DiagnosticPath::new(name));
+                    diagnostic.add_measurement(DiagnosticMeasurement {
+                        time: Instant::now(),
+                        value: 0.1,
+                    });
+                    store.add(diagnostic);
+                }
+                world.insert_resource(store);
+            }
+            world
+                .resource_mut::<Time<Real>>()
+                .advance_by(Duration::from_secs(5));
+            world.run_system_once(render_effects_probe).unwrap();
+            assert_eq!(
+                world.resource::<RenderEffectsProbe>().passed,
+                Some(passes_ready)
+            );
+            let report: serde_json::Value = serde_json::from_slice(
+                &std::fs::read(directory.join("render_effects.json")).unwrap(),
+            )
+            .unwrap();
+            assert_eq!(report["passed"], passes_ready);
+            assert_eq!(report["waited_seconds"], 5.0);
+            assert_eq!(
+                report["exit_reason"],
+                if passes_ready {
+                    "completed"
+                } else {
+                    "render_pass_timeout"
+                }
+            );
+        }
+        std::fs::remove_file(directory.join("render_effects.json")).unwrap();
+        std::fs::remove_dir(directory).unwrap();
     }
 }
 

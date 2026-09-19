@@ -142,6 +142,13 @@ BF116.03/04/08共同验收补充（用户2026-09-13 23:08明确）：每项都�
 
 - [x] BF116.01d2 原Playground的TP→ragdoll相机复验：开始2026-09-13 11:45:00、预估2026-09-13 12:35:00。依赖01d1；复用现有公共ragdoll场景、camera_trace与标准Actor，覆盖进入帧实际视图权重、trace/相机位置及独立物理根所有权；必要报告接线先做focused self-test，然后按同target_game/play预构建、无驱动startup→ragdoll验收。估时依据为已有Ragdoll/Camera driver和报告、22+328回归、最近187.888s实际入口构建与20–40秒场景记录；保持原环境、CaptureCount0、FunctionalOnly，不以静态通过代替真实结果。
 
+### BF116.01 浏览器审计后的有限复开（2026-09-19）
+
+- [x] BF116.01e1 渲染相机 SSAO/TAA 装配与检测：开始2026-09-19 23:53:00、预估2026-09-20 00:38:00。用户要求修复浏览器相机审计结论；当前2312ffe仍保留以Camera3d+Rig筛选启用器及两个probe，而Actor装配已拆成Rig源和ViewSource渲染实体，明确复现链足以有限复开01c4d的渲染验收。旧Gate只验证运动/姿态，未要求效果组件和实际pass。fresh本地Bevy TAA默认reset=true、要求Msaa Off和depth/motion prepass，SSAO要求depth/normal prepass；ALS组件在PostPhysics算视图，画质属于渲染接收者。先最小失败测试覆盖源/渲染实体、部分组件缺失和重复更新，再修共享筛选/检测，检查全部同类调用者，复用原Playground和现有watchdog验收实际pass。估时依据为三个短system、已有装配合同、最近约30秒focused测试及约2分钟同target构建；性能暂停，不改动画图。
+  - e1静态/运行前摘要2026-09-20 00:01：原查询的真实分离实体测试因Msaa缺失FAIL；修复后四项example测试PASS。合并两个重复probe，按ViewSource找渲染相机，分别补缺失效果且保留已有TAA/reset和SSAO设置；修正唯一同类sprint_stress观察者。部分组件AND、强制每帧reset、零相机静默、省略pass证据四次消融均FAIL，恢复后PASS；watchdog的父/子进程停滞自测PASS。Bevy自身ssao/taa diagnostic span位于真实pass执行内部，公共runner现在同时要求机器可读render_effects结果；等待上限5秒的反例通过。同target_game/play构建14.54s完成，接下来以原Playground startup验证组件与实际pass，尚不宣称runtime通过。
+  - e1完成2026-09-20 00:03：原Playground startup公共Gate PASS，render_effects记录唯一渲染相机的SSAO/TAA/Msaa Off及真实ssao/taa GPU elapsed与TAA shader invocation；runtime/validator均退出0，完整姿态报告PASS。最终四项example测试和sprint_stress定向编译PASS；四次消融失败均已恢复。开始23:53、预估00:38、实际00:03、偏差-35分钟；01c4d仅补齐此次漏掉的渲染Gate后关闭，不声称浏览器其余边界已修复。
+- 后续已授权边界：e1完成后按本地source和失败测试核实投影缓存/resize/视锥、源失效/重绑定与TAA切换、TraceChannel对象响应；每组进入实现前独立登记估时及旧Gate漏检边界。Activate同步语义、post-process和movement-base仅按当前源资产/实际调用链判定，不把网页风险直接当作实现事实。
+
 ### BF116.02 楼梯执行子项
 
 - [x] BF116.02a 楼梯、关卡事件与移动输入源闭包：开始2026-09-13 07:54:00、预估2026-09-13 08:44:00。依赖521f4bb的相机功能结项；按用户要求处理实际SM_Als_Stairs_01/02/03、上下楼速度/动画及源版rotation mode永久锁定风险。本轮已定位3个源静态网格、Playground关卡、源CMC步高/坡面行为和目标TriMesh/sensor链；先健康检查Editor并提取当次网格/关卡事件/角色设置，逐项比较碰撞几何、台阶处理、速度/动画输入、模式锁定与快捷键生命周期。源关卡事件由原生reader的同package图闭包读取，不能把旧手工场景/Actor当事实；源码明确前不改运动算法、动画图或已完相机。估时依据为3网格+1关卡+角色设置直接闭包、既有读取器与场景219Actor表、约32–48秒单份native记录；确认根因后拆成独立实现/Gate段，真实入口保持原Playground，性能/截图暂停设置延续。

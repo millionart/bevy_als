@@ -80,6 +80,7 @@ try {
             report_exists = Test-Path -LiteralPath $reportPath -PathType Leaf
             validation_exit_code = $null
             validation_scope = if ($FunctionalOnly) { "functional" } else { "full" }
+            render_effects_passed = $false
         }
         if (-not (Test-Path -LiteralPath $reportPath -PathType Leaf)) {
             $runner | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $runnerPath -Encoding utf8
@@ -90,12 +91,20 @@ try {
         python @validationArguments
         $validationExitCode = $LASTEXITCODE
         $runner.validation_exit_code = $validationExitCode
+        $effectsPath = Join-Path $candidate "render_effects.json"
+        if (Test-Path -LiteralPath $effectsPath -PathType Leaf) {
+            $effects = Get-Content -Raw -LiteralPath $effectsPath | ConvertFrom-Json
+            $runner.render_effects_passed = $effects.passed -eq $true
+        }
         $runner | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $runnerPath -Encoding utf8
         if ($manualExitCode -ne 0) {
             throw "manual_playground exited with code $manualExitCode; visual diagnosis was written to $reportPath."
         }
         if ($validationExitCode -ne 0) {
             throw "Animation visual evidence validation failed."
+        }
+        if (-not $runner.render_effects_passed) {
+            throw "SSAO/TAA component and executed pass validation failed or is missing."
         }
     } finally {
         Pop-Location

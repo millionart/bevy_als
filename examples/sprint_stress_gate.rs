@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use als_camera::AlsCameraRig;
+use als_camera::AlsCameraViewSource;
 use als_core::character::AlsCharacter;
 use als_core::control_scheme::AlsControlSchemeConfig;
 use als_core::input::AlsInputCommand;
@@ -184,7 +184,7 @@ fn observe(
     characters: Query<(&Gait, &AlsInputOverride, &LinearVelocity), With<AlsCharacter>>,
     avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
     players: Query<&AnimationGraphPlayer>,
-    cameras: Query<(), (With<Camera3d>, With<AlsCameraRig>)>,
+    cameras: Query<(), (With<Camera3d>, With<AlsCameraViewSource>)>,
     mut exit: MessageWriter<AppExit>,
 ) {
     if probe.finished {
