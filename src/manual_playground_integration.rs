@@ -5,6 +5,7 @@ mod stairs;
 mod uphill;
 mod moving_base;
 mod bow;
+mod overlays;
 
 use als_camera::{AlsCameraDebugInfo, AlsCameraRig, AlsCameraSet, AlsCameraShakeRequest};
 use als_core::character::{AlsCharacter, AlsMovementParamsHandle};
@@ -772,6 +773,7 @@ enum IntegrationPhase {
     ControlRig,
     DefaultOverlay,
     BowOverlay,
+    Overlays,
     Head,
     StateMachineGrounded,
     StateMachineAir,
@@ -827,6 +829,7 @@ enum IntegrationScenario {
     ControlRig,
     DefaultOverlay,
     BowOverlay,
+    Overlays,
     Head,
     StateMachine,
     GeneratedTransitionNotify,
@@ -858,6 +861,7 @@ impl IntegrationScenario {
             Some("control_rig") => Self::ControlRig,
             Some("default_overlay") => Self::DefaultOverlay,
             Some("bow") => Self::BowOverlay,
+            Some("overlays") => Self::Overlays,
             Some("head") => Self::Head,
             Some("state_machine") => Self::StateMachine,
             Some("transition_notify") => Self::GeneratedTransitionNotify,
@@ -896,6 +900,7 @@ fn initial_phase(scenario: IntegrationScenario) -> IntegrationPhase {
         IntegrationScenario::ControlRig => IntegrationPhase::ControlRig,
         IntegrationScenario::DefaultOverlay => IntegrationPhase::DefaultOverlay,
         IntegrationScenario::BowOverlay => IntegrationPhase::BowOverlay,
+        IntegrationScenario::Overlays => IntegrationPhase::Overlays,
         IntegrationScenario::Head => IntegrationPhase::Head,
         IntegrationScenario::Crouching => IntegrationPhase::CrouchDirectionRegression,
         IntegrationScenario::Ragdoll | IntegrationScenario::GetUp => IntegrationPhase::Ragdoll,
@@ -3120,6 +3125,7 @@ struct ManualIntegrationState {
     locomotion_probe: LocomotionActionProbe,
     default_overlay_probe: DefaultOverlayProbe,
     bow_probe: bow::Probe,
+    overlays_probe: overlays::Probe,
     head_probe: HeadProbe,
     stairs_probe: stairs::Probe,
     uphill_probe: uphill::Probe,
@@ -3241,6 +3247,7 @@ impl Default for ManualIntegrationState {
             locomotion_probe: default(),
             default_overlay_probe: default(),
             bow_probe: default(),
+            overlays_probe: default(),
             head_probe: default(),
             stairs_probe: default(),
             uphill_probe: default(),
@@ -3308,6 +3315,9 @@ struct MotionProbe<'w, 's> {
     object_scenes: Query<'w, 's, &'static AnimatedSceneInstance>,
     object_players: Query<'w, 's, &'static AnimationGraphPlayer>,
     object_transforms: Query<'w, 's, &'static Transform>,
+    object_children: Query<'w, 's, &'static Children>,
+    object_mesh_materials: Query<'w, 's, &'static MeshMaterial3d<StandardMaterial>, With<Mesh3d>>,
+    object_material_assets: Res<'w, Assets<StandardMaterial>>,
 }
 
 #[derive(SystemParam)]
@@ -4422,6 +4432,35 @@ fn drive_manual_integration(
                 state.head_probe.sample.elapsed_seconds = elapsed;
                 state.timed_out = true;
                 virtual_time.set_relative_speed(1.0);
+                begin_phase(&mut state, IntegrationPhase::Finish);
+            }
+        }
+        IntegrationPhase::Overlays => {
+            let mode = state.overlays_probe.mode;
+            let stage = state.overlays_probe.stage;
+            state.overlays_probe.waited = elapsed;
+            if entering {
+                commands.entity(character).insert(crate::overlay_object::AlsOverlayObjectConfig { use_gun_bones: stage != 9 });
+                if stage == 0 {
+                    reset_character(&mut transform, &mut position, rotation, &mut velocity, &mut view_yaw, &mut view_pitch,
+                        GROUNDED_START.with_y(fixture.locomotion_start.y), SPRINT_YAW);
+                    rebase_temporal_fixture(&mut state, &mut phase_evidence, "overlay_source_class_boundary");
+                    *gait = Gait::Walking;
+                    *rotation_mode = RotationMode::ViewDirection;
+                    request.rotation_mode = Some(RotationMode::ViewDirection);
+                }
+            }
+            request.overlay_state = Some(overlays::MODES[mode]);
+            request.gait = Some(if stage == 6 { Gait::Sprinting } else { Gait::Walking });
+            request.stance = Some(if matches!(stage, 2 | 4) { Stance::Crouching } else { Stance::Standing });
+            input.0 = overlays::command(stage);
+            input.0.jump_pressed = stage == 8 && entering;
+            view_pitch.0 = overlays::pitch(stage, elapsed);
+            if state.overlays_probe.covered[mode][stage] {
+                let complete = state.overlays_probe.advance();
+                begin_phase(&mut state, if complete { IntegrationPhase::Finish } else { IntegrationPhase::Overlays });
+            } else if default_overlay_should_timeout(false, elapsed) {
+                state.timed_out = true;
                 begin_phase(&mut state, IntegrationPhase::Finish);
             }
         }
@@ -6910,6 +6949,12 @@ fn observe_manual_integration(
         gate_report.direction_trace.push(serde_json::json!({"case": index, "time": now, "covered": probe.covered, "valid": probe.valid,
             "first_person": first_person, "speed": speed, "unscaled_pitch_seen": probe.unscaled_pitch_seen, "source": sample}));
         probe.sample = sample;
+    }
+    if state.scenario == IntegrationScenario::Overlays && state.phase == IntegrationPhase::Overlays && !state.entered {
+        let rotation = motion_probe.rotation_mode.get(character).copied().unwrap_or(RotationMode::ViewDirection);
+        let probe = &mut state.overlays_probe;
+        overlays::observe(probe, player, &motion_probe, overlay_object, context, *stance, rotation, *locomotion, speed, &mut animation_window);
+        gate_report.direction_trace.push(serde_json::json!({"mode": probe.mode, "stage": probe.stage, "sample": probe.sample}));
     }
     if state.scenario == IntegrationScenario::BowOverlay && !state.entered {
         let phase = state.phase;
@@ -9571,6 +9616,22 @@ fn observe_manual_integration(
                 results.extend(HEAD_WINDOWS.iter().enumerate().map(|(index, label)| (*label, probe.covered[index])));
                 results.extend([("head_source_contract", probe.valid), ("head_look_samples", probe.samples_seen.iter().all(|seen| *seen)),
                     ("head_mesh_additive", probe.additive_seen), ("head_first_person_clock", probe.unscaled_pitch_seen), ("head_complete", probe.case_index == HEAD_WINDOWS.len())]);
+                results
+            }
+            IntegrationScenario::Overlays => {
+                let probe = &state.overlays_probe;
+                if state.timed_out {
+                    gate_report.direction_trace.push(serde_json::json!({"watchdog":{"exit_reason":"case_progress_timeout","mode":probe.mode,
+                        "stage":probe.stage,"waited_game_seconds":probe.waited,"no_progress_limit_seconds":12.0,"current_conditions":probe.sample}}));
+                }
+                let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph)];
+                for (mode, labels) in overlays::LABELS.iter().enumerate() {
+                    results.extend(labels.iter().enumerate().map(|(stage, label)| (*label, probe.covered[mode][stage])));
+                }
+                results.push(("overlay_gun_states", probe.fsm_states.iter().flatten().all(|value| *value)));
+                results.push(("overlay_source_consistency", !gate_report.direction_trace.is_empty()
+                    && gate_report.direction_trace.iter().all(|entry| entry["sample"]["errors"].as_array().is_some_and(Vec::is_empty))));
+                results.push(("overlays_complete", probe.mode == overlays::MODES.len()));
                 results
             }
             IntegrationScenario::BowOverlay => {

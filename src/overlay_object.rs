@@ -22,31 +22,31 @@ pub const LEFT_GUN_BONE: &str = "VB hand_l_to_ik_hand_gun";
 pub const RIGHT_GUN_BONE: &str = "VB hand_r_to_ik_hand_gun";
 
 #[derive(Deserialize)]
-struct ObjectMaterial {
-    linear_rgba: [f32; 4],
-    metallic: f32,
-    roughness: f32,
-    reflectance: f32,
+pub(crate) struct ObjectMaterial {
+    pub(crate) linear_rgba: [f32; 4],
+    pub(crate) metallic: f32,
+    pub(crate) roughness: f32,
+    pub(crate) reflectance: f32,
 }
 
 #[derive(Deserialize)]
-struct ObjectDefinition {
+pub(crate) struct ObjectDefinition {
     kind: OverlayObjectKind,
     mesh: String,
     scene: Option<String>,
     socket_name: String,
     socket_bone: String,
     use_left_gun_bone: bool,
-    socket_translation: Vec3,
-    socket_rotation: Quat,
-    socket_scale: Vec3,
-    materials: Vec<ObjectMaterial>,
+    pub(crate) socket_translation: Vec3,
+    pub(crate) socket_rotation: Quat,
+    pub(crate) socket_scale: Vec3,
+    pub(crate) materials: Vec<ObjectMaterial>,
 }
 
 #[derive(Deserialize)]
 pub(crate) struct OverlayDefinition {
     pub(crate) graph: String,
-    object: Option<ObjectDefinition>,
+    pub(crate) object: Option<ObjectDefinition>,
 }
 
 pub(crate) static OVERLAYS: LazyLock<HashMap<OverlayState, OverlayDefinition>> = LazyLock::new(|| {

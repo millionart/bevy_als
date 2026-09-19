@@ -157,6 +157,18 @@
     {
       "path": "target/bf116_overlays/source/ALS_ALS_OverlayObjects_Torch_SM_Als_Torch.SM_Als_Torch.ue.json",
       "sha256": "3cf582d72a1e335e7aaf01ffab4d6b804adce4d627db5e3c6648fc33fde06b52"
+    },
+    {
+      "path": "target/bf116_overlays/pistol_two_recheck.ue.json",
+      "sha256": "bf01af1b65482e211211ff367deffdd1402d38bf15abdfc1cfd503c9a031b4a3"
+    },
+    {
+      "path": "target/bf116_overlays/layering_recheck.ue.json",
+      "sha256": "42651bd6bf0a6a9744ed2d38a139df98dac4c7cbdb41d38253984106aca48d6c"
+    },
+    {
+      "path": "target/bf116_overlays/pistol_two_poses_recheck.ue.json",
+      "sha256": "f1b88bfb499c14f3b6fd35525188654d0ee6a2c1b5ee68e0001a958f2b155d8d"
     }
   ],
   "graphs": [
@@ -6829,6 +6841,36 @@
         "assets",
         "--check"
       ]
+    },
+    {
+      "label": "pistol_two_source_recheck",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/audit_generated_source_closure.py",
+        "--source-directory",
+        "target/bf116_overlays/recheck_source",
+        "--materialized-directory",
+        "target/bf116_overlays/installed_PistolTwoHanded",
+        "--spec",
+        "target/bf116_overlays/spec.json"
+      ]
+    },
+    {
+      "label": "layering_source_recheck",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/audit_generated_source_closure.py",
+        "--source-directory",
+        "target/bf116_overlays/recheck_source",
+        "--materialized-directory",
+        "target/bf116_projection/native_root",
+        "--spec",
+        "target/bf116_projection/spec.json",
+        "--source-asset",
+        "/ALS/ALS/Character/AnimationInstances/AB_Als_Layering.AB_Als_Layering"
+      ]
     }
   ],
   "runtime_gate": {
@@ -6855,6 +6897,44 @@
         "1"
       ],
       "evidence": "target/bf116_finish/generated_overlay_selection_ready.watchdog.json"
+    },
+    {
+      "label": "overlay_source_state_pose_and_object_fixture",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--package",
+        "bevy_als",
+        "--lib",
+        "--jobs",
+        "2",
+        "overlay_fixture_requires_real_pose_object_and_source_state",
+        "--",
+        "--test-threads",
+        "1"
+      ],
+      "evidence": "target/bf116_finish/overlays_restored.watchdog.json"
+    },
+    {
+      "label": "overlay_sprint_exit_source_composition",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--package",
+        "bevy_als",
+        "--lib",
+        "--jobs",
+        "2",
+        "overlay_sprint_exit_matches_source_local_additive_chain",
+        "--",
+        "--test-threads",
+        "1"
+      ],
+      "evidence": "target/bf116_finish/overlays_source_restored.watchdog.json"
     }
   ]
 }
