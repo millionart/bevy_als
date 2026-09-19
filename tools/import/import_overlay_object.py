@@ -32,13 +32,18 @@ def compile_definition(sources, overlay):
     call = next(n for n in graph['nodes'] if any(link['pin_name'] == 'Als.OverlayMode.' + overlay for p in n['pins'] for link in p['linked_to']))
     pins = {p['name']: p for p in call['pins']}
     mesh_path = pins['NewSkeletalMesh']['default_object']
+    if mesh_path == 'None':
+        mesh_path = pins['NewStaticMesh']['default_object']
     mesh = sources[mesh_path]
     animation = pins['NewAnimationClass']['default_object'].removesuffix('_C')
-    sources[animation]
+    if animation == 'None':
+        animation = None
+    else:
+        sources[animation]
     skeleton = sources['/ALS/ALS/Character/SK_Als.SK_Als']
     socket = next(o for o in skeleton['asset_objects'] if o['class_path'].endswith('SkeletalMeshSocket') and object_property(o, 'SocketName') == pins['SocketName']['default_value'])
     materials = []
-    for slot in parse_list(asset_property(mesh, 'Materials')):
+    for slot in parse_list(asset_property(mesh, 'Materials' if mesh['asset_class'].endswith('.SkeletalMesh') else 'StaticMaterials')):
         material = sources[source_object_path(parse_struct(slot)['MaterialInterface'])]
         parent = sources[source_object_path(asset_property(material, 'Parent'))]
         if (asset_property(parent, 'BlendMode'), asset_property(parent, 'ShadingModel'), asset_property(parent, 'TwoSided')) != ('BLEND_Opaque', 'MSM_DefaultLit', 'False'):
@@ -67,7 +72,7 @@ def compile_definition(sources, overlay):
     return {
         'source_mesh': mesh_path,
         'source_animation': animation,
-        'graph': graph_path(animation, 'AnimGraph', 'generated'),
+        'graph': graph_path(animation, 'AnimGraph', 'generated') if animation else None,
         'use_left_gun_bone': parse_bool(pins['bUseLeftGunBone']['default_value'].title()),
         'socket_name': pins['SocketName']['default_value'],
         'socket_bone': object_property(socket, 'BoneName'),

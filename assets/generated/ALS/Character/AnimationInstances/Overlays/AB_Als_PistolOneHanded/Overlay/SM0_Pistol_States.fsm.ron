@@ -1,0 +1,18 @@
+(
+    states: [
+        (id: "bbf676c3-4dcb-2bac-ea2f-fc896a02155c", label: "Relaxed", graph: "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/S2_Relaxed.animgraph.ron", state_transition: None),
+        (id: "fec2310f-45f1-cd4b-3c7f-8790017c5906", label: "Aiming", graph: "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/S9_Aiming.animgraph.ron", state_transition: None),
+        (id: "7af380aa-40dc-7590-86f6-9cb9e0e90cb5", label: "Ready", graph: "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/S13_Ready.animgraph.ron", state_transition: None),
+    ],
+    transitions: [
+        (id: "156608fd-4c64-a1e0-be3f-a1bf97a80cdb", source: "fec2310f-45f1-cd4b-3c7f-8790017c5906", target: "7af380aa-40dc-7590-86f6-9cb9e0e90cb5", data: (kind: Graph(graph: "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T5/Transition.transition.animgraph.ron", timed: Some(1.0)), ignore_external_events: false, reset_target_state: true)),
+        (id: "293ae4b2-48b3-0f09-ec7d-c7940945d2cf", source: "7af380aa-40dc-7590-86f6-9cb9e0e90cb5", target: "bbf676c3-4dcb-2bac-ea2f-fc896a02155c", data: (kind: Graph(graph: "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T28/Transition.transition.animgraph.ron", timed: Some(0.75)), ignore_external_events: false, reset_target_state: true)),
+        (id: "c0c5e69c-48d8-5eff-ba84-79a1023cf0d1", source: "bbf676c3-4dcb-2bac-ea2f-fc896a02155c", target: "7af380aa-40dc-7590-86f6-9cb9e0e90cb5", data: (kind: Graph(graph: "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T29/Transition.transition.animgraph.ron", timed: Some(0.2)), ignore_external_events: false, reset_target_state: true)),
+        (id: "1883a8ed-48b9-3868-1fab-90be6c30478a", source: "7af380aa-40dc-7590-86f6-9cb9e0e90cb5", target: "bbf676c3-4dcb-2bac-ea2f-fc896a02155c", data: (kind: Graph(graph: "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T30/Transition.transition.animgraph.ron", timed: Some(0.75)), ignore_external_events: false, reset_target_state: true)),
+        (id: "d99f1fb4-4d36-6a46-7168-ea8e91b4c778", source: "7af380aa-40dc-7590-86f6-9cb9e0e90cb5", target: "fec2310f-45f1-cd4b-3c7f-8790017c5906", data: (kind: Graph(graph: "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T22/Transition.transition.animgraph.ron", timed: Some(0.2)), ignore_external_events: false, reset_target_state: true)),
+        (id: "f005dc1b-40a3-ae76-4af2-8c8c2cf6cea0", source: "7af380aa-40dc-7590-86f6-9cb9e0e90cb5", target: "bbf676c3-4dcb-2bac-ea2f-fc896a02155c", data: (kind: Graph(graph: "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T31/Transition.transition.animgraph.ron", timed: Some(0.2)), ignore_external_events: false, reset_target_state: true)),
+    ],
+    start_state: "bbf676c3-4dcb-2bac-ea2f-fc896a02155c",
+    node_spec: (input_times: [], input_data: {}, output_time: false, output_data: { "Pose": Pose }, input_order: {}, output_order: { Data("Pose"): 0 }),
+    editor_metadata: (states: { "bbf676c3-4dcb-2bac-ea2f-fc896a02155c": (176, 0), "fec2310f-45f1-cd4b-3c7f-8790017c5906": (576, 0), "7af380aa-40dc-7590-86f6-9cb9e0e90cb5": (384, 0) }),
+)

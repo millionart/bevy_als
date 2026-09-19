@@ -1,0 +1,17 @@
+(
+    nodes: [
+        (id: "c6e52d3e-ad34-53ec-a95a-901a6b2aaefe", name: "Aiming to Ready", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [], alpha_blend_mode: Custom, custom_curve: [(interpolation: Cubic, tangent_mode: Auto, tangent_weight_mode: None, t: 0.0, v: 0.0, arrive_tangent: 0.0, arrive_weight: 0.0, leave_tangent: 0.0, leave_weight: 0.0), (interpolation: Cubic, tangent_mode: User, tangent_weight_mode: None, t: 0.5, v: 0.5, arrive_tangent: 3.123493, arrive_weight: 0.0, leave_tangent: 3.123493, leave_weight: 0.0), (interpolation: Linear, tangent_mode: Auto, tangent_weight_mode: None, t: 1.0, v: 1.0, arrive_tangent: 0.0, arrive_weight: 0.0, leave_tangent: 0.0, leave_weight: 0.0)]) }, should_debug: false),
+    ],
+    edges_inverted: {
+        NodeData("c6e52d3e-ad34-53ec-a95a-901a6b2aaefe", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),
+        NodeData("c6e52d3e-ad34-53ec-a95a-901a6b2aaefe", "pose_a"): InputData(FromFsmSource("pose")),
+        NodeTime("c6e52d3e-ad34-53ec-a95a-901a6b2aaefe", "time_a"): InputTime(FromFsmSource("time")),
+        NodeData("c6e52d3e-ad34-53ec-a95a-901a6b2aaefe", "pose_b"): InputData(FromFsmTarget("pose")),
+        NodeTime("c6e52d3e-ad34-53ec-a95a-901a6b2aaefe", "time_b"): InputTime(FromFsmTarget("time")),
+        OutputData("pose"): NodeData("c6e52d3e-ad34-53ec-a95a-901a6b2aaefe", "pose"),
+        OutputTime: NodeTime("c6e52d3e-ad34-53ec-a95a-901a6b2aaefe"),
+    },
+    io_spec: (input_times: [FromFsmSource("time"), FromFsmTarget("time")], input_data: { FsmBuiltin(PercentThroughDuration): F32, FromFsmSource("pose"): Pose, FromFsmTarget("pose"): Pose }, output_time: true, output_data: { "pose": Pose }, input_order: { Time(FromFsmSource("time")): 0, Time(FromFsmTarget("time")): 1, Data(FsmBuiltin(PercentThroughDuration)): 2, Data(FromFsmSource("pose")): 3, Data(FromFsmTarget("pose")): 4 }, output_order: { Data("pose"): 0, Time: 1 }),
+    default_data: {},
+    editor_metadata: (node_positions: { "c6e52d3e-ad34-53ec-a95a-901a6b2aaefe": (522.000, 35.000) }, input_position: (0.0, 0.0), output_position: (0.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
+)

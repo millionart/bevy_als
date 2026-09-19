@@ -27,7 +27,6 @@ pub struct AlsRootGraphPlugin;
 
 const SECONDARY_MOTION_DURATION: f32 = 2.666667;
 const OVERLAY_LAYER_BINDING: &str = "/ALS/ALS/Character/ALI_Overlay.ALI_Overlay_C:Overlay";
-const GENERATED_BOW_GRAPH: &str = "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/AnimGraph.animgraph.ron";
 
 #[derive(Resource, Default)]
 struct SecondaryMotionPhases {
@@ -186,7 +185,7 @@ fn set_missing_f32(player: &mut AnimationGraphPlayer, key: &str) {
 fn root_graph_writer(
     time: Res<Time>,
     assets: Res<AssetServer>,
-    mut bow_graph: Local<Option<Handle<bevy_animation_graph::core::animation_graph::AnimationGraph>>>,
+    mut overlay_graphs: Local<HashMap<OverlayState, Handle<bevy_animation_graph::core::animation_graph::AnimationGraph>>>,
     mut secondary_motion: ResMut<SecondaryMotionPhases>,
     characters: Query<
         (
@@ -205,7 +204,9 @@ fn root_graph_writer(
     avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
-    let bow_graph = bow_graph.get_or_insert_with(|| assets.load(GENERATED_BOW_GRAPH)).clone();
+    if overlay_graphs.is_empty() {
+        overlay_graphs.extend(crate::overlay_object::OVERLAYS.iter().map(|(overlay, definition)| (*overlay, assets.load(definition.graph.clone()))));
+    }
     for (
         entity,
         overlay,
@@ -227,7 +228,7 @@ fn root_graph_writer(
             };
             als_ext::source_gameplay_tag_input::set_linked_graph_input(
                 instance.player_entity(), OVERLAY_LAYER_BINDING,
-                (*overlay == OverlayState::Bow && assets.is_loaded_with_dependencies(bow_graph.id())).then(|| bow_graph.clone()),
+                overlay_graphs.get(overlay).filter(|graph| assets.is_loaded_with_dependencies(graph.id())).cloned(),
             );
             set_gameplay_tag_input(instance.player_entity(), "gait", gait_tag(*gait));
             set_gameplay_tag_input(
@@ -298,6 +299,60 @@ fn root_graph_writer(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_overlay_map_selects_every_generated_class_without_restarting_the_parent() {
+        use bevy::ecs::system::RunSystemOnce;
+        use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterBlueprint, spawn_als_character};
+        let (mut app, _, _, _) = crate::camera_component::tests::loaded_camera_scene();
+        let character = app.world_mut().run_system_once(|mut commands: Commands, assets: Res<AssetServer>,
+            mut params: ResMut<Assets<als_core::params::AlsMovementParams>>,
+            mut configs: ResMut<Assets<als_core::control_scheme::AlsControlSchemeConfig>>| {
+            spawn_als_character(&mut commands, &assets, &mut params, &mut configs,
+                AlsCharacterBlueprint { spawn_input: false, ..AlsCharacterBlueprint::new(Transform::from_xyz(0.0, 3.0, 0.0)) })
+        }).unwrap();
+        app.world_mut().entity_mut(character).insert((avian3d::prelude::RigidBody::Kinematic, bevy_tnua::TnuaToggle::Disabled));
+        let avatar = app.world().get::<AlsCharacterAssembly>(character).unwrap().avatar;
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(40);
+        let player_entity = loop {
+            app.update();
+            let server = app.world().resource::<AssetServer>();
+            let all_ready = crate::overlay_object::OVERLAYS.values().all(|definition| server.get_handle::<bevy_animation_graph::core::animation_graph::AnimationGraph>(&definition.graph)
+                .is_some_and(|handle| server.is_loaded_with_dependencies(handle.id())));
+            if all_ready && let Some(instance) = app.world().get::<AnimatedSceneInstance>(avatar)
+                && app.world().get::<AnimationGraphPlayer>(instance.player_entity()).unwrap().get_default_output_pose().is_some() {
+                break instance.player_entity();
+            }
+            assert!(std::time::Instant::now() < deadline, "Generated overlay dependencies did not become ready");
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        };
+        let mut parent_instance = None;
+        let mut frame = 0;
+        for overlay in crate::overlay_mode_menu::OVERLAY_TAG_CHILD_NODES.into_iter().chain([OverlayState::Rifle, OverlayState::Bow, OverlayState::Default]) {
+            *app.world_mut().get_mut::<OverlayState>(character).unwrap() = overlay;
+            app.update();
+            app.update();
+            assert_eq!(app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity(), player_entity);
+            let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+            assert!(player.get_error().is_none(), "{overlay:?}: {:?}", player.get_error());
+            let expected = &crate::overlay_object::OVERLAYS[&overlay].graph;
+            let arena = player.get_context_arena().unwrap();
+            assert!(arena.frame_index() > frame);
+            frame = arena.frame_index();
+            let instance = arena.get_toplevel().node_states.get::<als_ext::source_instance::SourceInstanceProperties>(
+                bevy_animation_graph::core::animation_graph::NodeId::default(), bevy_animation_graph::core::context::node_states::StateKey::Default).unwrap().instance_id;
+            assert_eq!(*parent_instance.get_or_insert(instance), instance, "Parent animation restarted for {overlay:?}");
+            let server = app.world().resource::<AssetServer>();
+            let graphs = app.world().resource::<Assets<bevy_animation_graph::core::animation_graph::AnimationGraph>>();
+            assert!(arena.iter_context_ids().any(|id| {
+                let Some(context) = arena.get_context(id) else { return false; };
+                if server.get_path(context.get_graph_id()).is_none_or(|path| path.path() != std::path::Path::new(expected)) { return false; }
+                graphs.get(context.get_graph_id()).is_some_and(|graph| graph.nodes.values().any(|node| context.node_caches.is_updated(node.id, bevy_animation_graph::core::context::node_states::StateKey::Default)))
+            }), "Requested generated overlay was not evaluated: {overlay:?}");
+            let pose = player.get_default_output_pose().unwrap();
+            assert!(pose.bones.len() > 50 && root_pose_is_valid(pose));
+        }
+    }
 
     #[test]
     fn overlay_indices_follow_the_root_implementation_order() {

@@ -1,0 +1,15 @@
+(
+    nodes: [
+        (id: "d978e006-42fc-d5f5-d338-8e9348182db1", name: "Output Pose\nAnimGraph", inner: { "als_ext::SourcePosePassthroughNode": (input: "Source", output: "Pose", input_time: "source_time", output_time: false, source_function: "", call_site: "", synchronize_groups: true) }, should_debug: false),
+        (id: "0302967d-4769-2540-7207-349673121bf9", name: "ALI_Overlay - Overlay\nLinked Anim Layer", inner: { "als_ext::LinkedAnimLayerNode": (interface: "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Box/Overlay.animgraph.ron", implementations: ["generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Box/Overlay.animgraph.ron"], selector: "layer_index") }, should_debug: false),
+        (id: "0cf9ac10-dd6c-5e94-890b-3306eb3e580e", name: "Linked layer selection", inner: { "als_ext::ConstantF32Node": (value: 0.0) }, should_debug: false),
+    ],
+    edges_inverted: {
+        NodeData("d978e006-42fc-d5f5-d338-8e9348182db1", "Source"): NodeData("0302967d-4769-2540-7207-349673121bf9", "Pose"),
+        NodeData("0302967d-4769-2540-7207-349673121bf9", "layer_index"): NodeData("0cf9ac10-dd6c-5e94-890b-3306eb3e580e", "value"),
+        OutputData("Result"): NodeData("d978e006-42fc-d5f5-d338-8e9348182db1", "Pose"),
+    },
+    io_spec: (input_times: [], input_data: {  }, output_time: false, output_data: { "Result": Pose }, input_order: {  }, output_order: { Data("Result"): 0 }),
+    default_data: {},
+    editor_metadata: (node_positions: { "d978e006-42fc-d5f5-d338-8e9348182db1": (0.000, 0.000), "0302967d-4769-2540-7207-349673121bf9": (-192.000, 48.000), "0cf9ac10-dd6c-5e94-890b-3306eb3e580e": (-288.000, 144.000) }, input_position: (0.0, 0.0), output_position: (0.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
+)

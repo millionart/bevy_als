@@ -1,0 +1,13 @@
+{
+  "format": "ue_animgraph_installation_manifest_v1",
+  "source": {
+    "uasset_name": "AB_Als_Feminine.uasset",
+    "package_path": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Feminine.AB_Als_Feminine"
+  },
+  "namespace": "generated",
+  "root_graph": "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Feminine/AnimGraph.animgraph.ron",
+  "files": [
+    "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Feminine/AnimGraph.animgraph.ron",
+    "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Feminine/Overlay.animgraph.ron"
+  ]
+}
