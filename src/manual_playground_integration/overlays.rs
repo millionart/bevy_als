@@ -63,6 +63,19 @@ fn settled(stage: usize, stance: Stance, rotation: RotationMode, locomotion: Loc
         && (!gun || (sample.transition.is_none() && sample.state.as_deref() == Some(if command(stage).aim_held { "Aiming" } else { "Relaxed" })))
 }
 
+fn window(mode: usize, stage: usize, ready: bool) -> ManualAnimationWindowEvidence {
+    if !ready && stage != 0 { return default(); }
+    let label = LABELS[mode][stage];
+    ManualAnimationWindowEvidence { label: Some(label), index: Some(mode * LABELS[0].len() + stage), settled: ready,
+        capture_source_window: ready, capture_every_frame: true, requires_non_reference_root_pose: true, requires_source_pose_chain: true,
+        expected_direction: Some(label), observed_direction: ready.then_some(label),
+        source_node: Some("Output Pose\nAnimGraph"), minimum_observation_seconds: if stage == 8 { 0.1 } else { 0.25 },
+        source_pose_chain: vec![ManualAnimationPoseBoundary { label: "overlay", graph: &crate::overlay_object::OVERLAYS[&MODES[mode]].graph,
+            node: "Output Pose\nAnimGraph", output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.0 },
+            ManualAnimationPoseBoundary { label: "layering", graph: "generated/ALS/Character/AB_Als/AnimGraph.animgraph.ron", node: "AB_Als_Layering\nLinked Anim Graph",
+                output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.0 }], ..default() }
+}
+
 pub(super) fn observe(probe: &mut Probe, player: &AnimationGraphPlayer, motion: &MotionProbe,
     object_state: Option<&AlsOverlayObjectState>, context: Option<&AlsRootAnimationContext>, stance: Stance,
     rotation: RotationMode, locomotion: LocomotionState, speed: f32, window: &mut ManualAnimationWindowEvidence) {
@@ -164,14 +177,8 @@ pub(super) fn observe(probe: &mut Probe, player: &AnimationGraphPlayer, motion: 
                 && materials_match && sample.materials.len() == expected.materials.len() && transform_matches
         }));
     let ready = settled(probe.stage, stance, rotation, locomotion, speed, &sample, (4..=6).contains(&probe.mode), context);
+    *window = self::window(probe.mode, probe.stage, ready);
     if ready {
-        let label = LABELS[probe.mode][probe.stage];
-        *window = ManualAnimationWindowEvidence { label: Some(label), index: Some(probe.mode * LABELS[0].len() + probe.stage), settled: true,
-            capture_source_window: true, capture_every_frame: true, requires_non_reference_root_pose: true, requires_source_pose_chain: true,
-            expected_direction: Some(label), observed_direction: Some(label),
-            source_node: Some("Output Pose\nAnimGraph"), minimum_observation_seconds: if probe.stage == 8 { 0.1 } else { 0.25 },
-            source_pose_chain: vec![ManualAnimationPoseBoundary { label: "overlay", graph: &definition.graph, node: "Output Pose\nAnimGraph", output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.0 },
-                ManualAnimationPoseBoundary { label: "layering", graph: "generated/ALS/Character/AB_Als/AnimGraph.animgraph.ron", node: "AB_Als_Layering\nLinked Anim Graph", output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.0 }], ..default() };
         probe.seconds += graph_global_f32(player, "animation.delta_seconds").unwrap_or(0.0);
         probe.covered[probe.mode][probe.stage] |= probe.seconds >= if probe.stage == 8 { 0.15 } else { 0.35 };
     } else { probe.seconds = 0.0; }
@@ -190,6 +197,20 @@ impl Probe {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn overlay_class_fixture_prepares_before_temporal_observation() {
+        for mode in 0..MODES.len() {
+            let preparing = window(mode, 0, false);
+            assert!(preparing.requires_source_pose_chain && !preparing.settled && !preparing.capture_source_window);
+            let ready = window(mode, 0, true);
+            assert_eq!(preparing.label, ready.label);
+            assert!(ready.settled && ready.capture_source_window);
+            for stage in 1..LABELS[mode].len() {
+                assert!(!window(mode, stage, false).requires_source_pose_chain);
+                assert!(window(mode, stage, true).settled);
+            }
+        }
+    }
     #[test]
     fn overlay_sprint_exit_matches_source_local_additive_chain() {
         use bevy::ecs::system::RunSystemOnce;
