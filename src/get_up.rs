@@ -249,6 +249,11 @@ fn update_get_up_pose(
             looping: false,
             weight: 1.0,
         });
+        let mut clock = context.relevant_asset.clone().unwrap();
+        clock.weight = state.weight;
+        context.asset_samples.push(als_ext::animation_context::SourceAssetSample {
+            identity: "get_up".to_owned(), clip: assets.clips[index].clone(), clock, montage: true, ..default()
+        });
         let roll_weight = roll
             .filter(|roll| roll.active)
             .and_then(|_| player.get_global_input_data("roll.weight"))

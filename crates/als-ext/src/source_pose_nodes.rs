@@ -11,7 +11,7 @@ use bevy_animation_graph::core::{
 use serde::{Deserialize, Serialize};
 
 use crate::animation_context::{
-    AnimationContextState, merge_inertialization_request, merge_sync_players, pose_input_context_state, select_relevant_asset,
+    AnimationContextState, merge_asset_samples, merge_inertialization_request, merge_sync_players, pose_input_context_state, select_relevant_asset,
 };
 use crate::curve_bundle::blend_curve_value;
 use crate::global_f32_input::{global_f32_or_root_default, global_f32_or_root_default_value};
@@ -683,6 +683,7 @@ impl NodeLike for SourceMakeDynamicAdditiveNode {
         let base_context = pose_input_context_state(&ctx, "Base").unwrap_or_default();
         let mut context = pose_input_context_state(&ctx, "Additive").unwrap_or_default();
         merge_sync_players(&mut context.sync_players, &base_context.sync_players, 1.0);
+        merge_asset_samples(&mut context.asset_samples, &base_context.asset_samples, 1.0);
         merge_inertialization_request(&mut context.inertialization_request, base_context.inertialization_request.as_ref());
         context.relevant_asset = select_relevant_asset([(base_context.relevant_asset, 1.0), (context.relevant_asset, 1.0)]);
         context.curves_are_authoritative |= base_context.curves_are_authoritative;
@@ -720,6 +721,7 @@ fn blend_source_curve_context(
     blend_mode: SourceCurvesBlendMode,
 ) -> AnimationContextState {
     merge_sync_players(&mut base.sync_players, &curve.sync_players, blend_amount);
+    merge_asset_samples(&mut base.asset_samples, &curve.asset_samples, blend_amount);
     if blend_amount > 1e-5 {
         merge_inertialization_request(&mut base.inertialization_request, curve.inertialization_request.as_ref());
     }
@@ -740,6 +742,7 @@ fn blend_source_curve_context(
             relevant_asset: curve.relevant_asset.clone(),
             curves_are_authoritative: curve.curves_are_authoritative,
             sync_players: base.sync_players,
+            asset_samples: base.asset_samples,
             inertialization_request: base.inertialization_request,
         },
     }
@@ -888,6 +891,7 @@ pub fn blend_animation_contexts(
             merge_inertialization_request(&mut output.inertialization_request, context.inertialization_request.as_ref());
         }
         merge_sync_players(&mut output.sync_players, &context.sync_players, weight);
+        merge_asset_samples(&mut output.asset_samples, &context.asset_samples, weight);
         output.curves_are_authoritative |= context.curves_are_authoritative;
         for (name, value) in context.curves {
             *output.curves.entry(name).or_default() += value * weight;

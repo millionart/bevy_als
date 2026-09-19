@@ -48,6 +48,17 @@ pub struct SourceRelevantAsset {
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
+pub struct SourceAssetSample {
+    pub identity: String,
+    pub clip: Handle<bevy_animation_graph::core::animation_clip::GraphClip>,
+    pub clock: SourceRelevantAsset,
+    pub sync_group: String,
+    pub sync_identity: Option<(bevy_animation_graph::core::context::graph_context_arena::GraphContextId, NodeId)>,
+    pub montage: bool,
+    pub slot_key: String,
+}
+
+#[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default)]
 pub struct SourceInertializationRequest {
     pub frame: u64,
@@ -61,6 +72,7 @@ pub struct AnimationContextState {
     pub relevant_asset: Option<SourceRelevantAsset>,
     pub curves_are_authoritative: bool,
     pub sync_players: Vec<crate::sync_group_phase::SourceSyncPlayerTick>,
+    pub asset_samples: Vec<SourceAssetSample>,
     pub inertialization_request: Option<SourceInertializationRequest>,
 }
 
@@ -319,6 +331,7 @@ pub fn merge_missing_context_curves(
     }
     target.curves_are_authoritative |= source.curves_are_authoritative;
     merge_sync_players(&mut target.sync_players, &source.sync_players, 1.0);
+    merge_asset_samples(&mut target.asset_samples, &source.asset_samples, 1.0);
     merge_inertialization_request(&mut target.inertialization_request, source.inertialization_request.as_ref());
 }
 
@@ -364,6 +377,23 @@ pub fn merge_linked_input_context(
     merge_inertialization_request(&mut target.inertialization_request, source.inertialization_request.as_ref());
     if !target.curves_are_authoritative {
         merge_missing_context_curves(target, source);
+    } else {
+        merge_asset_samples(&mut target.asset_samples, &source.asset_samples, 1.0);
+    }
+}
+
+pub fn merge_asset_samples(target: &mut Vec<SourceAssetSample>, source: &[SourceAssetSample], weight: f32) {
+    for sample in source {
+        if weight <= 1e-5 { continue; }
+        let weight = sample.clock.weight * if sample.montage { 1.0 } else { weight.max(0.0) };
+        if weight <= 1e-5 { continue; }
+        if let Some(existing) = target.iter_mut().find(|existing| existing.identity == sample.identity) {
+            existing.clock.weight = existing.clock.weight.max(weight);
+        } else {
+            let mut sample = sample.clone();
+            sample.clock.weight = weight;
+            target.push(sample);
+        }
     }
 }
 
@@ -487,6 +517,31 @@ pub fn capture_context_curve(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_asset_samples_preserve_notify_weights_and_cache_scope() {
+        let sample = |identity: &str, montage| AnimationContextState {
+            asset_samples: vec![SourceAssetSample {
+                identity: identity.to_owned(), montage,
+                clock: SourceRelevantAsset { weight: 0.8, ..default() }, ..default()
+            }], ..default()
+        };
+        let blended = crate::source_pose_nodes::blend_animation_contexts([
+            (sample("cached", false), 0.25), (sample("cached", false), 0.75),
+            (sample("montage", true), 0.1), (sample("unrelated", false), 0.0),
+        ]);
+        assert_eq!(blended.asset_samples.len(), 2);
+        assert!((blended.asset_samples[0].clock.weight - 0.6).abs() < 1e-6);
+        assert_eq!(blended.asset_samples[1].clock.weight, 0.8);
+        let independent = crate::source_pose_nodes::blend_animation_contexts([
+            (sample("first instance", true), 1.0), (sample("second instance", true), 1.0),
+        ]);
+        assert_eq!(independent.asset_samples.len(), 2);
+        let mut authoritative = AnimationContextState { curves_are_authoritative: true, ..default() };
+        merge_linked_input_context(&mut authoritative, &blended);
+        assert_eq!(authoritative.asset_samples.len(), 2);
+        assert!(authoritative.curves.is_empty());
+    }
 
     #[test]
     fn context_curve_lookup_borrows_current_or_previous_node_state() {

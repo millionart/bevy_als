@@ -451,6 +451,19 @@ impl NodeLike for SourceSequencePlayerNode {
             sync_players,
             ..Default::default()
         };
+        if delta > 0.0 {
+            let mut clock = state.context.relevant_asset.clone().unwrap();
+            if !clock.has_previous_position { clock.previous_position = start_position; }
+            clock.has_previous_position = true;
+            state.context.asset_samples.push(crate::animation_context::SourceAssetSample {
+                identity: format!("{:?}:{:?}", identity.0, identity.1),
+                clip: self.clip.clone(), clock,
+                sync_group: self.synchronization.as_ref().map_or_else(String::new, |sync| sync.key.clone()),
+                sync_identity: self.synchronization.as_ref().map(|_| identity),
+                montage: false,
+                slot_key: String::new(),
+            });
+        }
         let pose = sample_source_pose(&ctx, clip, position, self.additive_reference.as_ref(), self.additive_reference_position, self.additive_mesh_space, self.root_lock)?;
         ctx.set_time(position);
         ctx.set_data_fwd("Pose", pose);

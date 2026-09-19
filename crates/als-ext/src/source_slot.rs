@@ -105,13 +105,16 @@ impl NodeLike for SourceSlotNode {
             && slot_weight * layer_weight >= 1.0 - 1e-5
             && let Some(pose) = overlay.as_ref()
         {
-            let context = slot_context(
+            let mut context = slot_context(
                 pose_input_context_state(&ctx, "Source"),
                 slot_input_context(ctx.graph_context.root_entity, &self.pose_key),
                 1.0,
                 false,
             )
             .unwrap_or_default();
+            for sample in context.asset_samples.iter_mut().filter(|sample| sample.montage && sample.slot_key.is_empty()) {
+                sample.slot_key.clone_from(&self.pose_key);
+            }
             ctx.set_time(pose.timestamp);
             ctx.set_data_fwd("Pose", pose.clone());
             *ctx.state_mut_or_else(AnimationContextState::default)? = context;
@@ -156,7 +159,10 @@ impl NodeLike for SourceSlotNode {
         };
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd("Pose", pose);
-        if let Some(context) = context {
+        if let Some(mut context) = context {
+            for sample in context.asset_samples.iter_mut().filter(|sample| sample.montage && sample.slot_key.is_empty()) {
+                sample.slot_key.clone_from(&self.pose_key);
+            }
             *ctx.state_mut_or_else(AnimationContextState::default)? = context;
         }
         Ok(())

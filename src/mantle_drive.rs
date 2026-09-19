@@ -455,6 +455,11 @@ fn publish_mantle_slot(
                 looping: false,
                 weight: 1.0,
             });
+            let mut clock = context.relevant_asset.clone().unwrap();
+            clock.weight = entry.weight;
+            context.asset_samples.push(als_ext::animation_context::SourceAssetSample {
+                identity: format!("mantle:{}", entry.id), clip: assets.clip(entry.kind).clone(), clock, montage: true, ..default()
+            });
             poses.push((pose, entry.weight));
             contexts.push((context, entry.weight));
             entry.pose_ready = true;

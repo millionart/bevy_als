@@ -73,10 +73,13 @@ pub(crate) fn sample_source_montage(
         );
         pose.timestamp = time;
     }
-    Some((
-        pose,
-        crate::get_up::sampled_curve_context(&settings.curves, time),
-    ))
+    let mut context = crate::get_up::sampled_curve_context(&settings.curves, time);
+    context.asset_samples.push(als_ext::animation_context::SourceAssetSample {
+        identity: name.to_owned(), clip: clip.clone(), montage: true,
+        clock: als_ext::SourceRelevantAsset { duration: settings.duration, position: time, weight: 1.0, ..default() },
+        ..default()
+    });
+    Some((pose, context))
 }
 
 #[derive(Deserialize)]

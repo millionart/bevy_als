@@ -501,13 +501,17 @@ fn bridge_turn_slot_samples(
         let mut poses = HashMap::new();
         let mut contexts = HashMap::new();
         for entry in &mut stack.entries {
-            if let Some((pose, context)) = crate::standing_source::sample_source_montage(
+            if let Some((pose, mut context)) = crate::standing_source::sample_source_montage(
                 source_turn_sequence(entry.crouching, entry.is_180, entry.lr),
                 entry.elapsed,
                 &montage_assets,
                 &clips,
                 &skeletons,
             ) {
+                for sample in &mut context.asset_samples {
+                    sample.identity = format!("turn:{}", entry.id);
+                    sample.clock.weight = entry.weight();
+                }
                 entry.sampling_ready = true;
                 poses.insert(entry.id, pose);
                 contexts.insert(entry.id, context);

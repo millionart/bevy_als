@@ -663,9 +663,39 @@ impl NodeLike for NormalizedBlendSpaceNode {
                 *curves.entry(name).or_insert(0.0) += value * weight;
             }
         }
+        let sample_clip = ctx.graph_context.graph.edges_inverted
+            .get(&bevy_animation_graph::core::animation_graph::TargetPin::NodeData(ctx.node_id, Self::pose_pin(&leader.id)))
+            .and_then(|source| match source {
+                bevy_animation_graph::core::animation_graph::SourcePin::NodeData(node, _) => ctx.graph_context.graph.nodes.get(node),
+                _ => None,
+            })
+            .and_then(|node| node.try_inner_downcast_ref::<bevy_animation_graph::builtin_nodes::clip_node::ClipNode>())
+            .and_then(|node| node.reflect_ref().as_struct().ok()?.field("clip"))
+            .and_then(|value| value.try_downcast_ref::<Handle<bevy_animation_graph::core::animation_clip::GraphClip>>())
+            .cloned();
         let context = &mut ctx.state_mut::<NormalizedBlendSpaceState>()?.context;
         context.curves = curves;
         context.curves_are_authoritative = true;
+        context.asset_samples.clear();
+        if !self.teleport_to_normalized_time && let Some(tick) = context.sync_players.first()
+            && tick.delta_seconds > 0.0 && let Some(clip) = sample_clip {
+            context.asset_samples.push(crate::animation_context::SourceAssetSample {
+                identity: format!("{:?}:{:?}", tick.identity.0, tick.identity.1),
+                clip,
+                clock: crate::SourceRelevantAsset {
+                    duration: leader_duration,
+                    position: leader_time,
+                    previous_position: marker_phase_sample_time(tick.previous_phase, self.phase_duration, &self.phase_markers, leader_duration, &leader.markers, sample_looped),
+                    has_previous_position: true,
+                    delta_seconds: tick.delta_seconds,
+                    looping: sample_looped,
+                    weight: 1.0,
+                },
+                sync_group: tick.key.clone(), sync_identity: Some(tick.identity),
+                montage: false,
+                slot_key: String::new(),
+            });
+        }
         let root_motion = blend_normalized_root_motion(
             &poses
                 .iter()

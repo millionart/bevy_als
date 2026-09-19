@@ -53,7 +53,7 @@ mod tests {
         let mut app = App::new();
         app.add_plugins(AlsRollDrivePlugin)
             .insert_resource(Time::<()>::default())
-            .insert_resource(RollSlotCurveHandle(default()))
+            .insert_resource(RollSlotCurveHandle(default(), default()))
             .init_resource::<Assets<AlsAnimCurves>>();
         let character = app.world_mut().spawn((
             als_core::character::AlsCharacter,
@@ -222,7 +222,7 @@ pub struct AlsRollSlotRuntime {
 }
 
 #[derive(Resource)]
-struct RollSlotCurveHandle(Handle<AlsAnimCurves>);
+struct RollSlotCurveHandle(Handle<AlsAnimCurves>, Handle<bevy_animation_graph::core::animation_clip::GraphClip>);
 
 #[derive(Component, Debug, Clone, Copy)]
 pub(crate) struct AlsRollBlendOut {
@@ -287,7 +287,7 @@ impl Plugin for AlsRollDrivePlugin {
 }
 
 fn load_roll_slot_curve_asset(mut commands: Commands, assets: Res<AssetServer>) {
-    commands.insert_resource(RollSlotCurveHandle(assets.load(ROLL_SLOT_CURVES)));
+    commands.insert_resource(RollSlotCurveHandle(assets.load(ROLL_SLOT_CURVES), assets.load("animations/Actions/Roll/A_Als_Roll.anim.ron")));
 }
 
 fn ensure_roll_state(
@@ -460,7 +460,15 @@ fn bridge_roll_slot_samples(
         let context = curves
             .get(&curve_handle.0)
             .and_then(AlsAnimCurves::first)
-            .map(|curves| crate::get_up::sampled_curve_context(curves, clip_time));
+            .map(|curves| {
+                let mut context = crate::get_up::sampled_curve_context(curves, clip_time);
+                context.asset_samples.push(als_ext::animation_context::SourceAssetSample {
+                    identity: "roll".to_owned(), clip: curve_handle.1.clone(), montage: true,
+                    clock: als_ext::SourceRelevantAsset { duration: ROLL_MONTAGE_SEQUENCE_LENGTH_SECS, position: clip_time, weight, ..default() },
+                    ..default()
+                });
+                context
+            });
         als_ext::source_gameplay_tag_input::set_slot_input_context(
             sampler.target_player,
             "roll.pose",

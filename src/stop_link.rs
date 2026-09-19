@@ -71,10 +71,12 @@ pub enum AlsTransitionKind {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct AlsTransitionPlayback {
+    pub instance_id: u64,
     pub active: bool,
     pub kind: AlsTransitionKind,
     pub elapsed: f32,
     pub clip_time: f32,
+    pub previous_clip_time: f32,
     pub index: f32,
     pub play_rate: f32,
     pub blend_in: f32,
@@ -97,11 +99,14 @@ impl AlsTransitionPlayback {
         start_time: f32,
         duration: f32,
     ) -> Self {
+        static NEXT_INSTANCE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
         Self {
+            instance_id: NEXT_INSTANCE.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             active: true,
             kind,
             elapsed: 0.0,
             clip_time: start_time,
+            previous_clip_time: start_time,
             index,
             play_rate,
             blend_in,
@@ -246,6 +251,7 @@ impl AlsTransitionPlayback {
         if !self.active {
             return;
         }
+        self.previous_clip_time = self.clip_time;
         self.elapsed += delta_seconds.max(0.0);
         let play_rate = self.play_rate.max(f32::EPSILON);
         self.clip_time = (self.start_time + self.elapsed * play_rate).min(self.duration);
@@ -608,7 +614,15 @@ fn sample_transition_stack(
     let samples = stack.entries.iter().filter(|entry| entry.active && entry.weight > 1e-6)
         .map(|entry| crate::standing_source::sample_source_montage(
             source_transition_sequence(entry)?, entry.clip_time, assets, clips, skeletons,
-        ).map(|(pose, context)| (pose, context, entry.weight)))
+        ).map(|(pose, mut context)| {
+            for sample in &mut context.asset_samples {
+                sample.identity = format!("transition:{}", entry.instance_id);
+                sample.clock.previous_position = entry.previous_clip_time;
+                sample.clock.has_previous_position = true;
+                sample.clock.weight = entry.weight;
+            }
+            (pose, context, entry.weight)
+        }))
         .collect::<Option<Vec<_>>>()?;
     let total = samples.iter().map(|(_, _, weight)| weight).sum::<f32>();
     let denominator = total.max(1.0);

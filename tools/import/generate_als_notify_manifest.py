@@ -117,6 +117,7 @@ def manifest(audit, assets_root):
                     "track_index": event.get("track_index"),
                     "start_time": start,
                     "end_time": end,
+                    "trigger_time_offset": event.get("trigger_time_offset", 0.0),
                     "weight_threshold": event.get("weight_threshold"),
                     "filter": {
                         "type": event.get("filter_type"),
