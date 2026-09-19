@@ -4440,7 +4440,7 @@ fn drive_manual_integration(
             request.stance = Some(if index == 4 { Stance::Crouching } else { Stance::Standing });
             input.0 = bow::command(index);
             input.0.jump_pressed = index == 9 && entering;
-            view_pitch.0 = match index { 6 => (elapsed * 60.0).min(60.0).to_radians(), 7 => (60.0 - elapsed * 120.0).max(-60.0).to_radians(), _ => 0.0 };
+            view_pitch.0 = bow::pitch(index, elapsed);
             if state.bow_probe.covered[index] {
                 state.bow_probe.index += 1;
                 begin_phase(&mut state, if index == bow::LABELS.len() - 1 { IntegrationPhase::Mantle } else { IntegrationPhase::BowOverlay });

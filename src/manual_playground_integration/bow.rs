@@ -105,6 +105,10 @@ pub(super) fn command(index: usize) -> AlsInputCommand {
     }
 }
 
+pub(super) fn pitch(index: usize, elapsed: f32) -> f32 {
+    match index { 6 => (elapsed * 60.0).min(60.0).to_radians(), 7 => (60.0 - elapsed * 120.0).max(-60.0).to_radians(), 8 => (-60.0 + elapsed * 120.0).min(0.0).to_radians(), _ => 0.0 }
+}
+
 fn expected_state(index: usize) -> &'static str {
     if matches!(index, 0 | 2 | 8 | 9) { "Relaxed" } else { "Aiming" }
 }
@@ -221,6 +225,17 @@ pub(super) fn observe(probe: &mut Probe, player: &AnimationGraphPlayer, motion: 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bow_pitch_fixture_is_continuous_between_windows() {
+        for index in 6..=9 {
+            assert!((pitch(index, 0.0) - pitch(index - 1, 4.0)).abs() < 1e-6, "Pitch fixture jumped at window {index}");
+            assert!((pitch(index, 0.01) - pitch(index, 0.0)).abs() <= 1.21_f32.to_radians());
+        }
+        assert!((pitch(6, 4.0) - 60.0_f32.to_radians()).abs() < 1e-6);
+        assert!((pitch(7, 4.0) + 60.0_f32.to_radians()).abs() < 1e-6);
+        assert_eq!(pitch(8, 4.0), 0.0);
+    }
 
     #[test]
     fn bow_fixture_requires_actual_state_curve_and_normal_held_input() {
