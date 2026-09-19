@@ -246,6 +246,7 @@ pub struct AlsCameraViewInfo {
     pub rotation: Quat,
     pub field_of_view_deg: f32,
     pub valid: bool,
+    pub camera_cut: bool,
 }
 
 #[derive(Component, Debug, Clone, Copy)]
@@ -961,6 +962,7 @@ fn camera_rig_system(
         owner,
     ) in &mut cameras
     {
+        view_info.camera_cut = false;
         let Ok((
             target_entity,
             target_transform,
@@ -979,6 +981,7 @@ fn camera_rig_system(
         };
         if !animation_frame.active {
             debug.valid = false;
+            view_info.valid = false;
             continue;
         }
         let Some(definition) = definitions.get(&definition_handle.0) else {
@@ -1027,6 +1030,7 @@ fn camera_rig_system(
             && (params.teleport_distance_threshold <= 0.0
                 || runtime.previous_pivot_target.distance_squared(pivot_target)
                     <= params.teleport_distance_threshold.powi(2));
+        view_info.camera_cut = !view_info.valid || !allow_lag;
         runtime.previous_pivot_target = pivot_target;
         let first_person_override = curves
             .get(AlsCameraCurve::FirstPersonOverride)
@@ -1211,8 +1215,9 @@ fn apply_camera_view(
             &mut Transform,
             &mut Projection,
             &mut AlsCameraFieldOfView,
-            &AlsCameraViewSource,
+            Ref<AlsCameraViewSource>,
             &AlsCharacterCamera,
+            Option<&mut bevy::anti_alias::taa::TemporalAntiAliasing>,
         ),
         With<Camera3d>,
     >,
@@ -1227,13 +1232,18 @@ fn apply_camera_view(
         &AlsCameraAnimationFrame,
     )>,
 ) {
-    for (mut transform, mut projection, mut field_of_view, source, owner) in &mut cameras {
+    for (mut transform, mut projection, mut field_of_view, source, owner, taa) in &mut cameras {
         let Ok((position, yaw, pitch, stance, handle, frame)) = owners.get(owner.character) else {
             continue;
         };
         let Some(definition) = definitions.get(&handle.0) else {
             continue;
         };
+        if let Some(mut taa) = taa {
+            taa.reset |= source.is_changed()
+                || frame.force_no_lag
+                || views.get(source.0).is_ok_and(|view| view.camera_cut);
+        }
         if !frame.active {
             let height = if *stance == als_core::state::Stance::Crouching {
                 definition.crouching_eye_height
@@ -1994,6 +2004,7 @@ mod tests {
                 rotation: Quat::from_rotation_y(0.7),
                 field_of_view_deg: 90.0,
                 valid: true,
+                ..default()
             })
             .id();
         let view = app
@@ -2064,6 +2075,30 @@ mod tests {
                 assert!(actual.normal_d().abs_diff_eq(expected.normal_d(), 1e-5));
             }
         }
+        let info = *app.world().get::<AlsCameraViewInfo>(source).unwrap();
+        let replacement = app.world_mut().spawn(info).id();
+        app.world_mut().entity_mut(view).insert((
+            AlsCameraViewSource(replacement),
+            bevy::anti_alias::taa::TemporalAntiAliasing { reset: false },
+        ));
+        app.update();
+        assert!(
+            app.world()
+                .get::<bevy::anti_alias::taa::TemporalAntiAliasing>(view)
+                .unwrap()
+                .reset
+        );
+        app.world_mut()
+            .get_mut::<bevy::anti_alias::taa::TemporalAntiAliasing>(view)
+            .unwrap()
+            .reset = false;
+        app.update();
+        assert!(
+            !app.world()
+                .get::<bevy::anti_alias::taa::TemporalAntiAliasing>(view)
+                .unwrap()
+                .reset
+        );
     }
 
     #[test]

@@ -50,6 +50,7 @@ impl AlsSourceCameraComponent {
     }
 
     pub fn deactivate(&mut self) {
+        self.refresh_view |= self.active;
         self.active = false;
     }
 }
@@ -192,6 +193,7 @@ fn update_camera_animation(
         frame.active = component.bound_player == Some(scene.player_entity()) && component.active;
         frame.force_no_lag = false;
         if !frame.active {
+            frame.force_no_lag = std::mem::take(&mut component.refresh_view);
             continue;
         }
         let Some(definition) = definitions.get(&handle.0) else {
@@ -387,6 +389,67 @@ pub(crate) mod tests {
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
         (app, character, component, scene)
+    }
+
+    #[test]
+    fn camera_view_cleanup_tracks_source_lifetime_and_owner() {
+        use bevy::ecs::system::RunSystemOnce;
+        for case in ["live", "deleted", "removed", "foreign", "rebound"] {
+            let mut world = World::new();
+            let character = world.spawn_empty().id();
+            let source = world.spawn((AlsSourceCameraComponent::default(), AlsCharacterCamera { character })).id();
+            let view = world.spawn((Camera3d::default(), als_camera::AlsCameraViewSource(source), AlsCharacterCamera { character })).id();
+            world.entity_mut(character).insert(crate::character_assembly::AlsCharacterAssembly { avatar: source, camera: Some(view) });
+            match case {
+                "deleted" => { world.entity_mut(source).despawn(); }
+                "removed" => { world.entity_mut(source).remove::<AlsSourceCameraComponent>(); }
+                "foreign" => {
+                    let other = world.spawn_empty().id();
+                    world.entity_mut(source).insert(AlsCharacterCamera { character: other });
+                }
+                "rebound" => {
+                    let replacement = world.spawn((AlsSourceCameraComponent::default(), AlsCharacterCamera { character })).id();
+                    world.entity_mut(view).insert(als_camera::AlsCameraViewSource(replacement));
+                    world.entity_mut(source).despawn();
+                }
+                _ => {}
+            }
+            world.run_system_once(remove_orphaned_views).unwrap();
+            assert_eq!(world.get_entity(view).is_ok(), matches!(case, "live" | "rebound"), "{case}");
+            assert_eq!(world.get::<crate::character_assembly::AlsCharacterAssembly>(character).unwrap().camera.is_some(), matches!(case, "live" | "rebound"));
+            assert!(world.get_entity(character).is_ok());
+        }
+    }
+
+    #[test]
+    fn camera_view_history_resets_on_cuts_and_preserves_stable_frames() {
+        use bevy::anti_alias::taa::TemporalAntiAliasing;
+        let (mut app, character, component, _) = loaded_camera_scene();
+        let view = app.world_mut().spawn((
+            Camera3d::default(),
+            als_camera::AlsCameraViewSource(component),
+            AlsCharacterCamera { character },
+            TemporalAntiAliasing { reset: false },
+        )).id();
+        for event in ["bind", "steady", "teleport", "steady", "deactivate", "steady", "activate", "steady", "reset", "steady"] {
+            app.world_mut().get_mut::<TemporalAntiAliasing>(view).unwrap().reset = false;
+            match event {
+                "teleport" => {
+                    let mut sockets = app.world_mut().get_mut::<als_camera::AlsCameraSocketLocations>(character).unwrap();
+                    sockets.root += Vec3::X * 3.0;
+                    sockets.head += Vec3::X * 3.0;
+                    sockets.first_person += Vec3::X * 3.0;
+                    sockets.trace_shoulder_left += Vec3::X * 3.0;
+                    sockets.trace_shoulder_right += Vec3::X * 3.0;
+                }
+                "deactivate" => app.world_mut().get_mut::<AlsSourceCameraComponent>(component).unwrap().deactivate(),
+                "activate" => app.world_mut().get_mut::<AlsSourceCameraComponent>(component).unwrap().activate(false),
+                "reset" => app.world_mut().get_mut::<AlsSourceCameraComponent>(component).unwrap().activate(true),
+                _ => {}
+            }
+            app.update();
+            assert_eq!(app.world().get::<TemporalAntiAliasing>(view).unwrap().reset, event != "steady", "{event}");
+        }
     }
 
     #[test]
@@ -785,10 +848,19 @@ pub(crate) mod tests {
 fn remove_orphaned_views(
     mut commands: Commands,
     characters: Query<()>,
-    views: Query<(Entity, &AlsCharacterCamera), With<Camera3d>>,
+    sources: Query<&AlsCharacterCamera, With<AlsSourceCameraComponent>>,
+    mut assemblies: Query<&mut crate::character_assembly::AlsCharacterAssembly>,
+    views: Query<(Entity, &AlsCharacterCamera, &als_camera::AlsCameraViewSource), With<Camera3d>>,
 ) {
-    for (entity, owner) in &views {
-        if characters.get(owner.character).is_err() {
+    for (entity, owner, source) in &views {
+        if characters.get(owner.character).is_err()
+            || !sources.get(source.0).is_ok_and(|source_owner| source_owner.character == owner.character)
+        {
+            if let Ok(mut assembly) = assemblies.get_mut(owner.character)
+                && assembly.camera == Some(entity)
+            {
+                assembly.camera = None;
+            }
             commands.entity(entity).despawn();
         }
     }
