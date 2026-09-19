@@ -12,6 +12,7 @@ pub struct DecalPipelines {
     pub decal_ready: bool,
     pub receiver_ready: bool,
     pub errors: Vec<String>,
+    pub pipeline_labels: Vec<String>,
 }
 
 #[derive(Resource, Clone, Default)]
@@ -29,9 +30,13 @@ impl Plugin for PackedDecalPlugin {
             render.insert_resource(status).add_systems(bevy::render::Render, capture_decal_pipelines.in_set(bevy::render::RenderSystems::Cleanup));
         }
         if let Some(directory) = std::env::var_os("ALS_ANIMATION_VISUAL_EVIDENCE_DIR").map(std::path::PathBuf::from) {
-            app.add_systems(Last, move |mut exit: MessageReader<AppExit>, status: Res<DecalRenderStatus>| {
+            app.add_systems(Last, move |mut exit: MessageReader<AppExit>, status: Res<DecalRenderStatus>,
+                receivers: Query<&MeshMaterial3d<NoDecalMaterial>>, markers: Query<Entity, With<NoDecalReceiver>>| {
                 if exit.read().next().is_none() { return; }
-                std::fs::write(directory.join("decal_render.json"), serde_json::to_vec(&*status.0.lock().unwrap()).unwrap())
+                let mut report = serde_json::to_value(&*status.0.lock().unwrap()).unwrap();
+                report["receiver_entities"] = receivers.iter().count().into();
+                report["receiver_markers"] = markers.iter().count().into();
+                std::fs::write(directory.join("decal_render.json"), serde_json::to_vec(&report).unwrap())
                     .expect("Decal render report must be writable");
             });
         }
@@ -44,11 +49,12 @@ fn capture_decal_pipelines(cache: Res<bevy::render::render_resource::PipelineCac
     for pipeline in cache.pipelines() {
         let PipelineDescriptor::RenderPipelineDescriptor(descriptor) = &pipeline.descriptor else { continue; };
         let label = descriptor.label.as_deref().unwrap_or_default();
+        current.pipeline_labels.push(label.to_owned());
         if label != "als_packed_decal" && !label.starts_with("als_no_decal_receiver") { continue; }
         match &pipeline.state {
             CachedPipelineState::Ok(_) => {
                 current.decal_ready |= label == "als_packed_decal";
-                current.receiver_ready |= label == "als_no_decal_receiver_prepass_pipeline";
+                current.receiver_ready |= label == "als_no_decal_receiver_pbr_prepass_pipeline";
             }
             CachedPipelineState::Err(error) => current.errors.push(format!("{label}: {error}")),
             _ => {}
