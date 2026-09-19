@@ -52,7 +52,16 @@ def camera_sockets(mesh, skeleton):
     return list(result.values())
 
 
-def compile_definition(actor, mesh, settings, physics, shake, character_mesh, character_skeleton):
+def compile_definition(actor, mesh, settings, physics, shake, character_mesh, character_skeleton, controller, manager, local_player):
+    if object_property({'properties': controller['blueprint_cdo_properties']}, 'PlayerCameraManagerClass') != 'None':
+        raise ValueError('Custom player camera manager is unsupported')
+    if parse_bool(asset_property(manager, 'bIsOrthographic')) or parse_bool(asset_property(manager, 'bDefaultConstrainAspectRatio')):
+        raise ValueError('Camera projection mode is unsupported')
+    if asset_property(local_player, 'AspectRatioAxisConstraint') != 'AspectRatio_MaintainYFOV':
+        raise ValueError('Camera aspect ratio constraint is unsupported')
+    view_aspect_ratio = parse_number(asset_property(manager, 'DefaultAspectRatio'))
+    if not math.isfinite(view_aspect_ratio) or view_aspect_ratio <= 0:
+        raise ValueError('Camera view aspect ratio must be positive')
     cdo = {'properties': actor['blueprint_cdo_properties']}
     component_path = source_object_path(object_property(cdo, 'Camera'))
     component = next(item for item in actor['blueprint_cdo_subobjects'] if item['object_path'] == component_path)
@@ -112,6 +121,7 @@ def compile_definition(actor, mesh, settings, physics, shake, character_mesh, ch
     material = parse_struct(parse_list(asset_property(mesh, 'Materials'))[0])['MaterialInterface']
     graph = generated_anim_blueprint_asset(json.dumps(object_property(component, 'AnimClass')))
     return {
+        'view_aspect_ratio': view_aspect_ratio,
         'settings': {'ignore_time_dilation': parse_bool(asset_property(settings, 'bIgnoreTimeDilation')),
             'teleport_distance_threshold': parse_number(asset_property(settings, 'TeleportDistanceThreshold')) * SOURCE_LENGTH_TO_RUNTIME_SCALE,
             'trace_radius': parse_number(third['TraceRadius']) * SOURCE_LENGTH_TO_RUNTIME_SCALE,
@@ -176,11 +186,20 @@ def main():
     args = parser.parse_args()
     def read(name):
         return json.loads((args.source_directory / (name + '.ue.json')).read_text(encoding='utf-8-sig'))
-    sources = [read(name) for name in ['B_Als_Character', 'SKM_Als_Camera', 'CS_Als_Default', 'PA_Als_Camera', 'B_Als_CameraShake_Sprint', 'SKM_Als', 'SK_Als']]
+    sources = [read(name) for name in ['B_Als_Character', 'SKM_Als_Camera', 'CS_Als_Default', 'PA_Als_Camera', 'B_Als_CameraShake_Sprint', 'SKM_Als', 'SK_Als', 'B_Als_PlayerController', 'PlayerCameraManager', 'LocalPlayer']]
     result = compile_definition(*sources)
     if args.self_test:
         before = deepcopy(sources)
         assert result['settings']['trace_radius'] == 0.15
+        assert result['view_aspect_ratio'] == 1.33333
+        changed = deepcopy(sources)
+        record(changed[9]['asset_properties'], 'AspectRatioAxisConstraint')['exported_text'] = 'AspectRatio_MaintainXFOV'
+        try:
+            compile_definition(*changed)
+        except ValueError as error:
+            assert 'aspect ratio constraint' in str(error)
+        else:
+            raise AssertionError('Unsupported projection constraint was accepted')
         assert result['physics_body']['half_extents'] == (0.3, 0.15, 0.17500000000000002)
         assert result['physics_body']['center'] == (-0.2, 0.0, 0.0)
         assert result['sprint_shake']['location'][2]['amplitude'] == -0.01

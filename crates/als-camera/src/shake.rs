@@ -143,15 +143,17 @@ pub(super) fn apply_camera_shakes(
     let requests: Vec<_> = requests.read().copied().collect();
     for (owner, mut shakes, mut transform, mut projection, mut field_of_view, source) in &mut views
     {
-        if let Ok(handle) = owners.get(owner.character)
-            && let Some(definition) = definitions.get(&handle.0)
+        let Ok(handle) = owners.get(owner.character) else {
+            continue;
+        };
+        let Some(definition) = definitions.get(&handle.0) else {
+            continue;
+        };
+        for request in requests
+            .iter()
+            .filter(|request| request.target == owner.character)
         {
-            for request in requests
-                .iter()
-                .filter(|request| request.target == owner.character)
-            {
-                shakes.start(&definition.sprint_shake, request.scale);
-            }
+            shakes.start(&definition.sprint_shake, request.scale);
         }
         let before = *transform;
         let mut fov = field_of_view.0;
@@ -172,7 +174,12 @@ pub(super) fn apply_camera_shakes(
             fov += fov_offset;
             true
         });
-        set_field_of_view(&mut projection, &mut field_of_view, fov);
+        set_field_of_view(
+            &mut projection,
+            &mut field_of_view,
+            fov,
+            definition.view_aspect_ratio,
+        );
         if let Some(source) = source
             && let Ok(mut debug) = diagnostics.get_mut(source.0)
         {
@@ -267,7 +274,15 @@ mod tests {
         world
             .resource_mut::<Time<Virtual>>()
             .advance_by(std::time::Duration::from_millis(20));
-        let character = world.spawn_empty().id();
+        let definition_handle = world.resource_mut::<Assets<AlsCameraDefinition>>().add(
+            ron::from_str::<AlsCameraDefinition>(include_str!(
+                "../../../assets/params/als_camera.camera_component.ron"
+            ))
+            .unwrap(),
+        );
+        let character = world
+            .spawn(AlsCameraDefinitionHandle(definition_handle))
+            .id();
         let mut settings = definition();
         settings.blend_in = 0.0;
         settings.blend_out = 0.0;

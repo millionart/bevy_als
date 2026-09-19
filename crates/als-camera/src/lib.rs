@@ -398,7 +398,8 @@ impl Plugin for AlsCameraPlugin {
                     shake::apply_camera_shakes,
                 )
                     .chain()
-                    .in_set(AlsCameraSet),
+                    .in_set(AlsCameraSet)
+                    .before(bevy::camera::CameraUpdateSystems),
             )
             .add_systems(
                 PostUpdate,
@@ -408,7 +409,8 @@ impl Plugin for AlsCameraPlugin {
                     transform_systems::sync_simple_transforms,
                 )
                     .chain()
-                    .after(shake::apply_camera_shakes),
+                    .after(shake::apply_camera_shakes)
+                    .before(bevy::camera::visibility::VisibilitySystems::UpdateFrusta),
             );
     }
 }
@@ -894,20 +896,17 @@ fn set_field_of_view(
     projection: &mut Projection,
     field_of_view: &mut AlsCameraFieldOfView,
     value_degrees: f32,
+    view_aspect_ratio: f32,
 ) {
     match projection {
         Projection::Perspective(perspective) => {
-            perspective.fov = vertical_fov_radians_from_horizontal_degrees(
-                value_degrees,
-                perspective.aspect_ratio,
-            );
+            perspective.fov =
+                vertical_fov_radians_from_horizontal_degrees(value_degrees, view_aspect_ratio);
         }
         _ => {
             let mut perspective = PerspectiveProjection::default();
-            perspective.fov = vertical_fov_radians_from_horizontal_degrees(
-                value_degrees,
-                perspective.aspect_ratio,
-            );
+            perspective.fov =
+                vertical_fov_radians_from_horizontal_degrees(value_degrees, view_aspect_ratio);
             *projection = Projection::Perspective(perspective);
         }
     }
@@ -1229,10 +1228,13 @@ fn apply_camera_view(
     )>,
 ) {
     for (mut transform, mut projection, mut field_of_view, source, owner) in &mut cameras {
-        if let Ok((position, yaw, pitch, stance, handle, frame)) = owners.get(owner.character)
-            && !frame.active
-            && let Some(definition) = definitions.get(&handle.0)
-        {
+        let Ok((position, yaw, pitch, stance, handle, frame)) = owners.get(owner.character) else {
+            continue;
+        };
+        let Some(definition) = definitions.get(&handle.0) else {
+            continue;
+        };
+        if !frame.active {
             let height = if *stance == als_core::state::Stance::Crouching {
                 definition.crouching_eye_height
             } else {
@@ -1245,7 +1247,12 @@ fn apply_camera_view(
                 pitch.map_or(0.0, |value| value.0),
                 0.0,
             );
-            set_field_of_view(&mut projection, &mut field_of_view, 90.0);
+            set_field_of_view(
+                &mut projection,
+                &mut field_of_view,
+                90.0,
+                definition.view_aspect_ratio,
+            );
             continue;
         }
         let Ok(info) = views.get(source.0) else {
@@ -1256,7 +1263,12 @@ fn apply_camera_view(
         }
         transform.translation = info.location;
         transform.rotation = info.rotation;
-        set_field_of_view(&mut projection, &mut field_of_view, info.field_of_view_deg);
+        set_field_of_view(
+            &mut projection,
+            &mut field_of_view,
+            info.field_of_view_deg,
+            definition.view_aspect_ratio,
+        );
     }
 }
 
@@ -1659,17 +1671,41 @@ mod tests {
     #[test]
     fn camera_recovery_fixture_requires_a_sweep_blocker_beyond_the_mtd_pair() {
         let wall = (Vec3::new(0.0, 0.1, 0.0), Vec3::new(0.6, 0.05, 0.6));
-        let (trace, ratio) = trace_fixture(&[wall, wall], Vec3::ZERO, Vec3::Z * 2.0, Vec3::NEG_Y, 1.0, true, 1.0);
+        let (trace, ratio) = trace_fixture(
+            &[wall, wall],
+            Vec3::ZERO,
+            Vec3::Z * 2.0,
+            Vec3::NEG_Y,
+            1.0,
+            true,
+            1.0,
+        );
         assert_eq!(trace.adjustment_count, 2);
         assert!(trace.adjustment_resolved);
         assert!(!trace.blocking_hit);
         assert_eq!(ratio, 1.0);
         let blocker = (Vec3::Z, Vec3::new(0.6, 0.6, 0.05));
-        let (trace, blocked) = trace_fixture(&[wall, wall, blocker], Vec3::ZERO, Vec3::Z * 2.0, Vec3::NEG_Y, 1.0, true, 1.0);
+        let (trace, blocked) = trace_fixture(
+            &[wall, wall, blocker],
+            Vec3::ZERO,
+            Vec3::Z * 2.0,
+            Vec3::NEG_Y,
+            1.0,
+            true,
+            1.0,
+        );
         assert_eq!(trace.adjustment_count, 2);
         assert!(trace.adjustment_resolved && trace.blocking_hit);
         assert!(blocked < 0.98);
-        let (trace, recovered) = trace_fixture(&[], Vec3::ZERO, Vec3::Z * 2.0, Vec3::NEG_Y, 1.0, true, blocked);
+        let (trace, recovered) = trace_fixture(
+            &[],
+            Vec3::ZERO,
+            Vec3::Z * 2.0,
+            Vec3::NEG_Y,
+            1.0,
+            true,
+            blocked,
+        );
         assert!(!trace.blocking_hit);
         assert!(recovered > blocked + 0.02);
     }
@@ -1881,13 +1917,13 @@ mod tests {
     }
 
     #[test]
-    fn field_of_view_recomputes_for_projection_aspect_ratio() {
+    fn field_of_view_preserves_source_vertical_constraint_across_aspect_ratios() {
         let mut projection = Projection::Perspective(PerspectiveProjection {
             aspect_ratio: 4.0 / 3.0,
             ..default()
         });
         let mut field_of_view = AlsCameraFieldOfView::default();
-        set_field_of_view(&mut projection, &mut field_of_view, 90.0);
+        set_field_of_view(&mut projection, &mut field_of_view, 90.0, 1.33333);
         let first_vertical = match projection {
             Projection::Perspective(ref perspective) => perspective.fov,
             _ => unreachable!(),
@@ -1895,18 +1931,139 @@ mod tests {
         if let Projection::Perspective(ref mut perspective) = projection {
             perspective.aspect_ratio = 16.0 / 9.0;
         }
-        set_field_of_view(&mut projection, &mut field_of_view, 90.0);
+        set_field_of_view(&mut projection, &mut field_of_view, 90.0, 1.33333);
         let second_vertical = match projection {
             Projection::Perspective(ref perspective) => perspective.fov,
             _ => unreachable!(),
         };
-        assert!(second_vertical < first_vertical);
+        assert_eq!(second_vertical, first_vertical);
         assert_eq!(field_of_view.0, 90.0);
         assert!(
-            (horizontal_fov_degrees_from_vertical_radians(second_vertical, 16.0 / 9.0) - 90.0)
-                .abs()
+            (horizontal_fov_degrees_from_vertical_radians(second_vertical, 1.33333) - 90.0).abs()
                 < 1e-4
         );
+    }
+
+    #[test]
+    fn render_projection_uses_current_fov_viewport_and_final_transform() {
+        use bevy::camera::{CameraProjection, primitives::Frustum};
+        use bevy::window::{PrimaryWindow, WindowCreated, WindowResized, WindowScaleFactorChanged};
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin))
+            .init_asset::<Image>()
+            .init_resource::<bevy::render::texture::ManualTextureViews>()
+            .init_resource::<avian3d::collider_tree::ColliderTrees>()
+            .add_message::<WindowCreated>()
+            .add_message::<WindowResized>()
+            .add_message::<WindowScaleFactorChanged>()
+            .add_plugins((
+                bevy::render::camera::CameraPlugin,
+                bevy::camera::CameraProjectionPlugin,
+                AlsCameraPlugin,
+            ));
+        let window = app
+            .world_mut()
+            .spawn((Window::default(), PrimaryWindow))
+            .id();
+        let definition = app
+            .world_mut()
+            .resource_mut::<Assets<AlsCameraDefinition>>()
+            .add(
+                ron::from_str::<AlsCameraDefinition>(include_str!(
+                    "../../../assets/params/als_camera.camera_component.ron"
+                ))
+                .unwrap(),
+            );
+        let owner = app
+            .world_mut()
+            .spawn((
+                GlobalTransform::IDENTITY,
+                AlsViewYaw(0.0),
+                als_core::state::Stance::Standing,
+                AlsCameraDefinitionHandle(definition),
+                AlsCameraAnimationFrame {
+                    active: true,
+                    ..default()
+                },
+            ))
+            .id();
+        let source = app
+            .world_mut()
+            .spawn(AlsCameraViewInfo {
+                location: Vec3::new(3.0, 2.0, 5.0),
+                rotation: Quat::from_rotation_y(0.7),
+                field_of_view_deg: 90.0,
+                valid: true,
+            })
+            .id();
+        let view = app
+            .world_mut()
+            .spawn((
+                Camera3d::default(),
+                Projection::Perspective(PerspectiveProjection {
+                    near: 0.17,
+                    far: 500.0,
+                    ..default()
+                }),
+                AlsCameraViewSource(source),
+                AlsCharacterCamera { character: owner },
+            ))
+            .id();
+        for (width, height, fov, viewport) in [
+            (1600, 900, 90.0, None),
+            (900, 1200, 65.0, None),
+            (1600, 900, 105.0, Some(UVec2::new(800, 600))),
+        ] {
+            app.world_mut()
+                .get_mut::<Window>(window)
+                .unwrap()
+                .resolution
+                .set_physical_resolution(width, height);
+            app.world_mut().write_message(WindowResized {
+                window,
+                width: width as f32,
+                height: height as f32,
+            });
+            app.world_mut().get_mut::<Camera>(view).unwrap().viewport =
+                viewport.map(|physical_size| bevy::camera::Viewport {
+                    physical_size,
+                    ..default()
+                });
+            let mut info = app
+                .world_mut()
+                .get_mut::<AlsCameraViewInfo>(source)
+                .unwrap();
+            info.field_of_view_deg = fov;
+            info.location.x += 1.0;
+            let expected_transform =
+                Transform::from_translation(info.location).with_rotation(info.rotation);
+            app.update();
+            let size = viewport.unwrap_or(UVec2::new(width, height)).as_vec2();
+            let expected = PerspectiveProjection {
+                fov: vertical_fov_radians_from_horizontal_degrees(fov, 1.33333),
+                aspect_ratio: size.x / size.y,
+                near: 0.17,
+                far: 500.0,
+                ..default()
+            };
+            let actual = app.world().get::<Camera>(view).unwrap().clip_from_view();
+            assert!(
+                actual.abs_diff_eq(expected.get_clip_from_view(), 1e-5),
+                "Current projection: {actual:?}"
+            );
+            let global = app.world().get::<GlobalTransform>(view).unwrap();
+            assert!(
+                global
+                    .translation()
+                    .abs_diff_eq(expected_transform.translation, 1e-5)
+            );
+            let frustum = app.world().get::<Frustum>(view).unwrap();
+            let expected_frustum =
+                expected.compute_frustum(&GlobalTransform::from(expected_transform));
+            for (actual, expected) in frustum.half_spaces.iter().zip(expected_frustum.half_spaces) {
+                assert!(actual.normal_d().abs_diff_eq(expected.normal_d(), 1e-5));
+            }
+        }
     }
 
     #[test]

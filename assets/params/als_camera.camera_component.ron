@@ -1,4 +1,5 @@
 (
+    view_aspect_ratio: 1.33333,
     settings: (
         ignore_time_dilation: true,
         teleport_distance_threshold: 2.0,

@@ -8,6 +8,7 @@ use crate::{AlsCameraParams, CameraLoaderError, load_ron};
 
 #[derive(Asset, Reflect, Serialize, Deserialize, Clone, Debug)]
 pub struct AlsCameraDefinition {
+    pub view_aspect_ratio: f32,
     pub settings: AlsCameraParams,
     pub first_person_socket: String,
     pub pivot_sockets: [String; 2],
