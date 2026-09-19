@@ -4,6 +4,7 @@ use std::time::{Duration, Instant};
 mod stairs;
 mod uphill;
 mod moving_base;
+mod bow;
 
 use als_camera::{AlsCameraDebugInfo, AlsCameraRig, AlsCameraSet, AlsCameraShakeRequest};
 use als_core::character::{AlsCharacter, AlsMovementParamsHandle};
@@ -770,6 +771,7 @@ enum IntegrationPhase {
     FootIkTerrain,
     ControlRig,
     DefaultOverlay,
+    BowOverlay,
     Head,
     StateMachineGrounded,
     StateMachineAir,
@@ -824,6 +826,7 @@ enum IntegrationScenario {
     LocomotionActions,
     ControlRig,
     DefaultOverlay,
+    BowOverlay,
     Head,
     StateMachine,
     GeneratedTransitionNotify,
@@ -854,6 +857,7 @@ impl IntegrationScenario {
             Some("locomotion") => Self::LocomotionActions,
             Some("control_rig") => Self::ControlRig,
             Some("default_overlay") => Self::DefaultOverlay,
+            Some("bow") => Self::BowOverlay,
             Some("head") => Self::Head,
             Some("state_machine") => Self::StateMachine,
             Some("transition_notify") => Self::GeneratedTransitionNotify,
@@ -891,6 +895,7 @@ fn initial_phase(scenario: IntegrationScenario) -> IntegrationPhase {
         IntegrationScenario::Sprint => IntegrationPhase::Sprint,
         IntegrationScenario::ControlRig => IntegrationPhase::ControlRig,
         IntegrationScenario::DefaultOverlay => IntegrationPhase::DefaultOverlay,
+        IntegrationScenario::BowOverlay => IntegrationPhase::BowOverlay,
         IntegrationScenario::Head => IntegrationPhase::Head,
         IntegrationScenario::Crouching => IntegrationPhase::CrouchDirectionRegression,
         IntegrationScenario::Ragdoll | IntegrationScenario::GetUp => IntegrationPhase::Ragdoll,
@@ -3114,6 +3119,7 @@ struct ManualIntegrationState {
     grounded_joint_probe: GroundedJointProbe,
     locomotion_probe: LocomotionActionProbe,
     default_overlay_probe: DefaultOverlayProbe,
+    bow_probe: bow::Probe,
     head_probe: HeadProbe,
     stairs_probe: stairs::Probe,
     uphill_probe: uphill::Probe,
@@ -3234,6 +3240,7 @@ impl Default for ManualIntegrationState {
             grounded_joint_probe: default(),
             locomotion_probe: default(),
             default_overlay_probe: default(),
+            bow_probe: default(),
             head_probe: default(),
             stairs_probe: default(),
             uphill_probe: default(),
@@ -4408,6 +4415,28 @@ fn drive_manual_integration(
                 state.head_probe.sample.elapsed_seconds = elapsed;
                 state.timed_out = true;
                 virtual_time.set_relative_speed(1.0);
+                begin_phase(&mut state, IntegrationPhase::Finish);
+            }
+        }
+        IntegrationPhase::BowOverlay => {
+            let index = state.bow_probe.index;
+            state.bow_probe.waited_seconds = elapsed;
+            if entering && index == 0 {
+                reset_character(&mut transform, &mut position, rotation, &mut velocity, &mut view_yaw, &mut view_pitch, GROUNDED_START.with_y(fixture.locomotion_start.y), SPRINT_YAW);
+                rebase_temporal_fixture(&mut state, &mut phase_evidence, "bow_start");
+                *gait = Gait::Walking;
+                *rotation_mode = RotationMode::ViewDirection;
+                request.rotation_mode = Some(RotationMode::ViewDirection);
+            }
+            request.overlay_state = Some(OverlayState::Bow);
+            request.gait = Some(Gait::Walking);
+            request.stance = Some(if index == 4 { Stance::Crouching } else { Stance::Standing });
+            input.0 = bow::command(index);
+            if state.bow_probe.covered[index] {
+                state.bow_probe.index += 1;
+                begin_phase(&mut state, if index == bow::LABELS.len() - 1 { IntegrationPhase::Finish } else { IntegrationPhase::BowOverlay });
+            } else if default_overlay_should_timeout(false, elapsed) {
+                state.timed_out = true;
                 begin_phase(&mut state, IntegrationPhase::Finish);
             }
         }
@@ -6867,6 +6896,17 @@ fn observe_manual_integration(
         gate_report.direction_trace.push(serde_json::json!({"case": index, "time": now, "covered": probe.covered, "valid": probe.valid,
             "first_person": first_person, "speed": speed, "unscaled_pitch_seen": probe.unscaled_pitch_seen, "source": sample}));
         probe.sample = sample;
+    }
+    if state.scenario == IntegrationScenario::BowOverlay && state.phase == IntegrationPhase::BowOverlay && !state.entered {
+        let now = state.game_time_seconds;
+        let mode = motion_probe.rotation_mode.get(character).copied().unwrap_or(RotationMode::ViewDirection);
+        let notify = motion_probe.generated_transition_notify.get(character).ok().flatten();
+        let probe = &mut state.bow_probe;
+        bow::observe(probe, player, &motion_probe, context, *stance, mode, speed, &mut animation_window);
+        gate_report.direction_trace.push(serde_json::json!({"case": probe.index, "time": now, "covered": probe.covered,
+            "rotation_mode": format!("{mode:?}"), "stance": format!("{stance:?}"), "speed": speed, "source": probe.sample,
+            "transition_playback": transition_playback.map(|value| (crate::stop_link::source_transition_sequence(value), value.active, value.clip_time, value.weight)),
+            "transition_notifications": notify.map(|value| (value.transition_animation_call_count, value.transition_animation_play_count))}));
     }
     if state.scenario == IntegrationScenario::DefaultOverlay && state.phase == IntegrationPhase::DefaultOverlay && !state.entered {
         let delta = graph_global_f32(player, "animation.delta_seconds").unwrap_or(0.0);
@@ -9509,6 +9549,17 @@ fn observe_manual_integration(
                 results.extend(HEAD_WINDOWS.iter().enumerate().map(|(index, label)| (*label, probe.covered[index])));
                 results.extend([("head_source_contract", probe.valid), ("head_look_samples", probe.samples_seen.iter().all(|seen| *seen)),
                     ("head_mesh_additive", probe.additive_seen), ("head_first_person_clock", probe.unscaled_pitch_seen), ("head_complete", probe.case_index == HEAD_WINDOWS.len())]);
+                results
+            }
+            IntegrationScenario::BowOverlay => {
+                if state.timed_out {
+                    gate_report.direction_trace.push(serde_json::json!({"watchdog": {"exit_reason": "case_progress_timeout",
+                        "last_progress": state.bow_probe.index, "no_progress_limit_seconds": 12.0, "waited_game_seconds": state.bow_probe.waited_seconds,
+                        "current_conditions": state.bow_probe.sample}}));
+                }
+                let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph)];
+                results.extend(bow::LABELS.iter().enumerate().map(|(index, label)| (*label, state.bow_probe.covered[index])));
+                results.push(("bow_complete", state.bow_probe.index == bow::LABELS.len()));
                 results
             }
             IntegrationScenario::DefaultOverlay => {

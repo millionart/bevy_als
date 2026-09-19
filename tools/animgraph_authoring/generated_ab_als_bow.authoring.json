@@ -1459,7 +1459,7 @@
   ],
   "runtime_gate": {
     "contract_gate": "generated_animgraph_assets",
-    "manual_case": "interface"
+    "manual_case": "bow"
   },
   "recursive_inventory": null,
   "focused_tests": [
@@ -1481,6 +1481,25 @@
         "1"
       ],
       "evidence": "target/bf116_bow/05c2_ext_restored.watchdog.json"
+    },
+    {
+      "label": "bow_actual_state_and_curve_reader",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "-p",
+        "bevy_als",
+        "--lib",
+        "--jobs",
+        "2",
+        "bow::tests",
+        "--",
+        "--test-threads",
+        "1"
+      ],
+      "evidence": "target/bf116_projection/bow_driver_restored.watchdog.json"
     }
   ]
 }
