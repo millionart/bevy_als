@@ -16,6 +16,7 @@
 #include "Animation/Skeleton.h"
 #include "Engine/Blueprint.h"
 #include "Engine/SkeletalMesh.h"
+#include "Components/PrimitiveComponent.h"
 #include "PhysicsEngine/AggregateGeom.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
@@ -461,6 +462,22 @@ TSharedRef<FJsonObject> CaptureObject(const UObject* Object, int32 Index)
     Value->SetStringField(TEXT("object_path"), ObjectPath(Object));
     Value->SetStringField(TEXT("class_path"), ObjectPath(Object->GetClass()));
     Value->SetArrayField(TEXT("properties"), CaptureProperties(Object->GetClass(), Object, const_cast<UObject*>(Object)));
+    if (const UPrimitiveComponent* Primitive = Cast<UPrimitiveComponent>(Object))
+    {
+        TArray<TSharedPtr<FJsonValue>> BlockingChannels;
+        if (Primitive->IsQueryCollisionEnabled())
+        {
+            for (int32 Channel = 0; Channel < ECC_OverlapAll_Deprecated; ++Channel)
+            {
+                if (Primitive->GetCollisionResponseToChannel(static_cast<ECollisionChannel>(Channel)) == ECR_Block)
+                {
+                    BlockingChannels.Add(MakeShared<FJsonValueString>(
+                        StaticEnum<ECollisionChannel>()->GetNameStringByValue(Channel).RightChop(4)));
+                }
+            }
+        }
+        Value->SetArrayField(TEXT("blocking_query_channels"), BlockingChannels);
+    }
     return Value;
 }
 
