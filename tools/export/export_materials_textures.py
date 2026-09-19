@@ -1,5 +1,6 @@
 import json
 import os
+import subprocess
 
 import unreal
 
@@ -108,19 +109,14 @@ def walk_graph(mat):
 
 
 def export_texture(tex_obj, out_base):
-    try:
-        task = unreal.AssetExportTask()
-        task.object = tex_obj
-        task.exporter = unreal.TextureExporterTGA()
-        task.filename = out_base + ".tga"
-        task.automated = True
-        task.errors = []
-        if unreal.Exporter.run_asset_export_task(task) and not task.errors and os.path.isfile(task.filename):
-            return os.path.basename(task.filename)
-        raise RuntimeError('Source TGA export failed: ' + tex_obj.get_path_name())
-    except Exception as exc:
-        log("tex export fail %s: %s" % (tex_obj.get_name(), exc))
-        raise
+    record_path = out_base + '.json'
+    subprocess.run(['pwsh', '-NoProfile', '-File', os.path.join(ROOT, 'tools', 'run_ue_source_reader.ps1'),
+                    '-Asset', tex_obj.get_path_name(), '-Output', record_path], check=True)
+    with open(record_path, encoding='utf-8-sig') as stream:
+        record = json.load(stream)
+    if not record.get('source_image_pixel_exact'):
+        raise RuntimeError('Source texture pixels were not verified')
+    return record['source_image']
 
 
 def main():

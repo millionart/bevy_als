@@ -976,18 +976,30 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
     }
     if (UTexture2D* Texture = Cast<UTexture2D>(Asset))
     {
-        const FString ImagePath = FPaths::ChangeExtension(OutputPath, TEXT("tga"));
+        FImage SourceImage;
+        if (!Texture->Source.GetMipImage(SourceImage, 0))
+        {
+            UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Source texture mip is unavailable."));
+            return 7;
+        }
+        const int32 SourceChannels = ERawImageFormat::NumChannels(SourceImage.Format);
+        if (SourceChannels != 3 && SourceChannels != 4)
+        {
+            UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Unsupported source texture channel count: %d."), SourceChannels);
+            return 7;
+        }
+        const FString ImagePath = FPaths::ChangeExtension(OutputPath, SourceChannels == 4 ? TEXT("tga") : TEXT("png"));
         if (UExporter::ExportToFile(Texture, nullptr, *ImagePath, false, false, false) != 1)
         {
             UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Unable to export source texture."));
             return 7;
         }
-        FImage SourceImage;
         FImage ExportedImage;
         TArray<uint8> EncodedImage;
-        if (!Texture->Source.GetMipImage(SourceImage, 0) || !FImageUtils::LoadImage(*ImagePath, ExportedImage)
-            || !FFileHelper::LoadFileToArray(EncodedImage, *ImagePath) || EncodedImage.Num() < 18
-            || EncodedImage[16] != 32 || (EncodedImage[17] & 15) != 8
+        if (!FImageUtils::LoadImage(*ImagePath, ExportedImage)
+            || !FFileHelper::LoadFileToArray(EncodedImage, *ImagePath) || EncodedImage.Num() < 26
+            || (SourceChannels == 4 && (EncodedImage[16] != 32 || (EncodedImage[17] & 15) != 8))
+            || (SourceChannels == 3 && EncodedImage[25] != 2)
             || SourceImage.SizeX != ExportedImage.SizeX || SourceImage.SizeY != ExportedImage.SizeY
             || SourceImage.NumSlices != ExportedImage.NumSlices || SourceImage.Format != ExportedImage.Format
             || SourceImage.RawData != ExportedImage.RawData)
@@ -999,8 +1011,8 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
         Root->SetNumberField(TEXT("source_width"), Texture->Source.GetSizeX());
         Root->SetNumberField(TEXT("source_height"), Texture->Source.GetSizeY());
         Root->SetStringField(TEXT("source_pixel_format"), ERawImageFormat::GetName(SourceImage.Format));
-        Root->SetNumberField(TEXT("source_channels"), ERawImageFormat::NumChannels(SourceImage.Format));
-        Root->SetNumberField(TEXT("exported_channels"), EncodedImage[16] / 8);
+        Root->SetNumberField(TEXT("source_channels"), SourceChannels);
+        Root->SetNumberField(TEXT("exported_channels"), SourceChannels);
         Root->SetBoolField(TEXT("source_image_pixel_exact"), true);
     }
     Root->SetStringField(TEXT("blueprint_cdo_path"), TEXT("None"));
