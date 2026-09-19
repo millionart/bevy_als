@@ -1,3 +1,4 @@
+use als_core::character::AlsCollisionLayer;
 use std::collections::HashMap;
 
 use als_ext::{
@@ -109,11 +110,11 @@ fn playground_moving_box_physics_bridge(
         if !moving_roots.contains(root) {
             continue;
         }
-        commands.entity(entity).insert(Collider::cuboid(
+        commands.entity(entity).insert((Collider::cuboid(
             collider.half_extents.x * 2.0,
             collider.half_extents.y * 2.0,
             collider.half_extents.z * 2.0,
-        ));
+        ), CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Camera], LayerMask::ALL)));
         commands
             .entity(root)
             .insert((RigidBody::Kinematic, PlaygroundPhysicsDriven));
@@ -161,6 +162,7 @@ fn playground_mesh_physics_bridge(
         commands.entity(root).insert((
             RigidBody::Static,
             template.collider,
+            CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Camera], LayerMask::ALL),
             PlaygroundMeshColliderBuilt {
                 mesh_base: source.mesh_base.clone(),
                 kind: source.kind,

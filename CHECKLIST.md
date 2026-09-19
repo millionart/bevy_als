@@ -160,6 +160,14 @@ BF116.03/04/08共同验收补充（用户2026-09-13 23:08明确）：每项都�
 
   - e4a完成2026-09-20 00:52：reader增量构建83.649s、新Playground/Character读取38.558s/37.527s PASS；通道上限直接来自当前UE枚举（当前包含GameTraceChannel50），未固定32。旧记录缺有效query数据的反例FAIL，新记录的导入self-test PASS：177个静态网格Actor、9份相对公共响应的差异、90个禁用查询primitive，缺数据/同actor歧义均拒绝。角色Capsule和Mesh的Visibility Ignore、关卡Cube的Camera Ignore、NoCollision均有原生API输出；只扩展primitive取证字段，没有修改AnimBP转换规则。已有运动基座保持当前实体/静态网格支持，未发现本轮症状指向骨骼基座，不复开已验收平台或扩展任意skeletal-base。开始00:31、预估00:56、实际00:52、偏差-4分钟；后处理当前no-op与激活调度适配已明确，下一段只接通已证明的碰撞响应消费。
 
+- [x] BF116.01e4b Avian原生相机过滤与最终Gate：开始2026-09-20 00:53、预估2026-09-20 01:43。依赖e4a；有限复开01c3b的对象过滤，旧Gate未覆盖源Visibility阻挡关系。按用户01:00纠正，只把当前必要关系映射到Avian CollisionLayers：场景几何保留默认物理membership并加入相机查询位，角色胶囊/ragdoll沿用已有层；相机以Avian PhysicsLayer枚举自动生成Camera层查询掩码，通过既有统一SpatialQueryFilter作用于主/调整sweep、MTD及free-space检查。撤销未提交的通道字符串表、通用组件及生成器，不把UE通道枚举带入运行时。Gate为同几何切换native layers的主sweep/MTD反例、PhysicsLayer枚举分配、实际场景装配、必要消融和原Playground camera；当前后处理no-op与实体基座不扩展。
+
+  - e4b收敛/静态摘要2026-09-20 01:21：按用户明确要求删除通道字符串列表、通用响应组件/生成器和数字mask配置，运行时仅用Avian PhysicsLayer自动分配Default/Camera两层；用法对照本地bevy-tnua的for_3d_platformer LayerNames与CollisionLayers::new枚举数组，以及Avian适配器interacts_with。四个实际场景collider入口只增Camera membership，原物理Default membership/filters保留，角色和ragdoll已有层不动；既有过滤器以Camera枚举选择层，全部trace路径共用。24项相机测试与11项项目camera测试PASS；移除相机mask的消融按预期FAIL，恢复通过。公共camera由删除障碍改为保留实体、切换到Default层验证Ignore恢复，validator含伪造删除证据的反例并通过。当前按最终枚举版本完成项目复验和同target_game/play构建，随后一次真实camera。
+
+  - e4b运行前2026-09-20 01:30：最终PhysicsLayer枚举版本24项相机测试/11项项目camera回归PASS；同target_game/play最终构建70.019s PASS。Default/Camera均自动分配位，目标资产和运行时均无UE通道字符串或手写mask，已删除多余通道生成器。接下来原Playground camera在保留原环境/角色/相机下，用同一MTD pair+sweep blocker从Camera层切到Default层证明恢复，实体在验收后才清理；保持CaptureCount0与FunctionalOnly。
+
+  - e4b完成2026-09-20 01:33:34：原Playground camera 21.485s功能Gate PASS，887条实际记录中66条blocking、57条第三人称同几何Ignored且无blocking，障碍在恢复证据中仍存在；SSAO/TAA实际GPU pass PASS，runtime/validator退出0。最终按bevy-tnua示例使用PhysicsLayer枚举及CollisionLayers::new枚举数组，完全去掉新增UE通道运行时表示和手写mask；保持现有物理接触关系。24项相机/11项项目相关测试及validator self-test通过，原生mask消融FAIL后恢复；01c3b过滤边界关闭。开始00:53、预估01:43、实际2026-09-20 01:33:34、偏差-565s；性能按已有约定暂停，本次eval预算超出仅记录为deferred，不计作性能通过。浏览器指出的当前可证实渲染、投影、生命周期和碰撞问题已闭合。
+
 ### BF116.02 楼梯执行子项
 
 - [x] BF116.02a 楼梯、关卡事件与移动输入源闭包：开始2026-09-13 07:54:00、预估2026-09-13 08:44:00。依赖521f4bb的相机功能结项；按用户要求处理实际SM_Als_Stairs_01/02/03、上下楼速度/动画及源版rotation mode永久锁定风险。本轮已定位3个源静态网格、Playground关卡、源CMC步高/坡面行为和目标TriMesh/sensor链；先健康检查Editor并提取当次网格/关卡事件/角色设置，逐项比较碰撞几何、台阶处理、速度/动画输入、模式锁定与快捷键生命周期。源关卡事件由原生reader的同package图闭包读取，不能把旧手工场景/Actor当事实；源码明确前不改运动算法、动画图或已完相机。估时依据为3网格+1关卡+角色设置直接闭包、既有读取器与场景219Actor表、约32–48秒单份native记录；确认根因后拆成独立实现/Gate段，真实入口保持原Playground，性能/截图暂停设置延续。

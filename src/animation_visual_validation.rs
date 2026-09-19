@@ -4000,7 +4000,7 @@ mod tests {
                 manual.camera_trace.push(crate::manual_playground_integration::ManualCameraTraceSample {
                     phase_elapsed_seconds: samples as f64,
                     obstacles_present: false,
-                    obstacles_removed: true,
+                    obstacles_ignored: true,
                     blocked_ratio: Some(0.3),
                     first_person_requested: false,
                     actual_first_person: false,

@@ -135,7 +135,6 @@ def compile_definition(actor, mesh, settings, physics, shake, character_mesh, ch
         'pivot_sockets': tuple(parse_quoted(third[key]) for key in ['FirstPivotSocketName', 'SecondPivotSocketName']),
         'shoulder_sockets': tuple(parse_quoted(third[key]) for key in ['TraceShoulderLeftSocketName', 'TraceShoulderRightSocketName']),
         'sockets': camera_sockets(character_mesh, character_skeleton),
-        'trace_channel': 'Visibility',
         'standing_eye_height': parse_number(object_property(cdo, 'BaseEyeHeight')) * SOURCE_LENGTH_TO_RUNTIME_SCALE,
         'crouching_eye_height': parse_number(object_property(cdo, 'CrouchedEyeHeight')) * SOURCE_LENGTH_TO_RUNTIME_SCALE,
         'graph': graph_path(graph, 'AnimGraph', 'generated'),

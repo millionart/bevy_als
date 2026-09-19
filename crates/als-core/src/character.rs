@@ -1,5 +1,5 @@
 use avian3d::prelude::{
-    Collider, CollisionLayers, ContactGraph, LinearVelocity, LockedAxes, PhysicsSchedule,
+    Collider, CollisionLayers, ContactGraph, LinearVelocity, LockedAxes, PhysicsLayer, PhysicsSchedule,
     PhysicsStepSystems, PhysicsSystems, Position, RigidBody,
     SpeculativeMargin,
 };
@@ -51,6 +51,13 @@ pub const ALS_CHARACTER_CAPSULE_RADIUS: f32 = 0.3;
 pub const ALS_CHARACTER_FLOOR_CLEARANCE: f32 = 0.019;
 pub const ALS_CHARACTER_TNUA_FLOAT_EPSILON: f32 = 0.005;
 const CRUSH_RECOVERY_SKIN: f32 = 0.001;
+
+#[derive(PhysicsLayer, Default)]
+pub enum AlsCollisionLayer {
+    #[default]
+    Default,
+    Camera,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AlsCollisionLayerOwner {

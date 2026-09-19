@@ -1,3 +1,4 @@
+use als_core::character::AlsCollisionLayer;
 use avian3d::prelude::{
     Collider, Position, Rotation, ShapeCastConfig, SimpleCollider, SpatialQuery, SpatialQueryFilter,
 };
@@ -1158,7 +1159,8 @@ fn camera_rig_system(
                 excluded.extend(collect_descendants(root, &children));
             }
         }
-        let filter = SpatialQueryFilter::from_excluded_entities(excluded);
+        let filter = SpatialQueryFilter::from_excluded_entities(excluded)
+            .with_mask(AlsCollisionLayer::Camera);
         let trace = calculate_camera_trace(
             &mut runtime,
             &spatial,
@@ -1584,6 +1586,113 @@ mod tests {
                 },
             )
             .unwrap()
+    }
+
+    #[test]
+    fn camera_collision_layers_control_sweep_and_penetration() {
+        use avian3d::prelude::{CollisionLayers, LayerMask};
+        use bevy::ecs::system::RunSystemOnce;
+        for penetrating in [false, true] {
+            let mut app = App::new();
+            app.add_plugins((
+                MinimalPlugins,
+                AssetPlugin::default(),
+                bevy::mesh::MeshPlugin,
+                TransformPlugin,
+                avian3d::prelude::PhysicsPlugins::new(PostUpdate),
+            ))
+            .init_asset::<AlsCameraDefinition>();
+            app.finish();
+            app.cleanup();
+            let obstacle = app.world_mut().spawn(Transform::IDENTITY).id();
+            let collider = app
+                .world_mut()
+                .spawn((
+                    avian3d::prelude::RigidBody::Static,
+                    Collider::cuboid(0.1, 0.6, 0.6),
+                    Transform::from_translation(if penetrating {
+                        Vec3::new(-0.1, 0.0, 0.0)
+                    } else {
+                        Vec3::Z
+                    }),
+                    ChildOf(obstacle),
+                ))
+                .id();
+            app.update();
+            app.update();
+            let mut settings: AlsCameraDefinition = ron::from_str(include_str!(
+                "../../../assets/params/als_camera.camera_component.ron"
+            ))
+            .unwrap();
+            settings.settings.trace_distance_smoothing = false;
+            let definition = app
+                .world_mut()
+                .resource_mut::<Assets<AlsCameraDefinition>>()
+                .add(settings);
+            let owner = app
+                .world_mut()
+                .spawn((
+                    AlsCameraTarget,
+                    GlobalTransform::IDENTITY,
+                    RotationMode::ViewDirection,
+                    AlsViewYaw(0.0),
+                    AlsCameraCurveValues::from_pairs([(AlsCameraCurve::CameraOffsetZ, 2.0)]),
+                    AlsCameraSocketLocations {
+                        root: Vec3::ZERO,
+                        head: Vec3::ZERO,
+                        first_person: Vec3::ZERO,
+                        trace_shoulder_left: Vec3::ZERO,
+                        trace_shoulder_right: Vec3::ZERO,
+                        valid: true,
+                        ..default()
+                    },
+                    AlsCameraDefinitionHandle(definition.clone()),
+                    AlsCameraAnimationFrame {
+                        active: true,
+                        force_no_lag: true,
+                        delta_seconds: 0.1,
+                    },
+                ))
+                .id();
+            let camera = app
+                .world_mut()
+                .spawn((
+                    AlsCameraRig::default(),
+                    AlsCharacterCamera { character: owner },
+                ))
+                .id();
+            for (memberships, expected) in [
+                (LayerMask::from(AlsCollisionLayer::Default), false),
+                (
+                    LayerMask::from([AlsCollisionLayer::Default, AlsCollisionLayer::Camera]),
+                    true,
+                ),
+                (LayerMask::from(AlsCollisionLayer::Camera), true),
+                (LayerMask::NONE, false),
+            ] {
+                app.world_mut()
+                    .entity_mut(collider)
+                    .insert(CollisionLayers::new(memberships, LayerMask::ALL));
+                app.update();
+                app.world_mut().run_system_once(camera_rig_system).unwrap();
+                let debug = app.world().get::<AlsCameraDebugInfo>(camera).unwrap();
+                assert_eq!(
+                    debug.trace_blocking_hit, expected,
+                    "{memberships:?}, penetrating={penetrating}: {debug:?}"
+                );
+                assert_eq!(debug.trace_adjusted_start, expected && penetrating);
+                if !expected {
+                    assert_eq!(debug.trace_adjustment_count, 0);
+                    assert!(
+                        app.world()
+                            .get::<AlsCameraViewInfo>(camera)
+                            .unwrap()
+                            .location
+                            .abs_diff_eq(Vec3::Z * 2.0, 1e-5)
+                    );
+                }
+            }
+        }
     }
 
     #[test]

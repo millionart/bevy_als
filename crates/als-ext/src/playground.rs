@@ -1,3 +1,4 @@
+use als_core::character::AlsCollisionLayer;
 use std::{collections::HashMap, path::PathBuf};
 
 use bevy::asset::AssetId;
@@ -15,7 +16,7 @@ use serde::Deserialize;
 
 use als_core::character::AlsCrushRecoveryFloor;
 use als_core::player_start::{AlsPlayerStart, AlsPlayerStartPlugin};
-use avian3d::prelude::{Collider, RigidBody};
+use avian3d::prelude::{Collider, CollisionLayers, LayerMask, RigidBody};
 
 use crate::playground_materials::PlaygroundMaterialsPlugin;
 use crate::playground_materials::{
@@ -86,7 +87,9 @@ fn playground_box_physics_bridge(
             });
             let is_floor = parent_is_floor || name.as_str() == "BP_SimpleObject5:aabb";
             let mut entity_commands = commands.entity(entity);
-            entity_commands.insert((RigidBody::Static, shape));
+            entity_commands.insert((RigidBody::Static, shape, CollisionLayers::new(
+                [AlsCollisionLayer::Default, AlsCollisionLayer::Camera], LayerMask::ALL,
+            )));
             if is_floor {
                 entity_commands.insert(AlsCrushRecoveryFloor {
                     half_extents: collider.half_extents,

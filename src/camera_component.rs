@@ -1,3 +1,5 @@
+#[cfg(test)]
+use als_core::character::AlsCollisionLayer;
 use crate::ab_als_root::{
     gait_tag, locomotion_action_tag, locomotion_mode_tag, rotation_mode_tag, stance_tag,
 };
@@ -514,7 +516,10 @@ pub(crate) mod tests {
             Transform::from_translation(before.trace_start.lerp(before.trace_end, 0.25)), CollisionLayers::NONE,
         )).id();
         app.update();
-        app.world_mut().entity_mut(collider).insert(CollisionLayers::default());
+        app.world_mut().entity_mut(collider).insert(CollisionLayers::new(
+            [AlsCollisionLayer::Default, AlsCollisionLayer::Camera],
+            avian3d::prelude::LayerMask::ALL,
+        ));
         for along_boom in [0.25, 0.0] {
             app.world_mut().get_mut::<Transform>(collider).unwrap().translation = before.trace_start.lerp(before.trace_end, along_boom);
             for _ in 0..4 {

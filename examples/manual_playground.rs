@@ -1,3 +1,4 @@
+use als_core::character::AlsCollisionLayer;
 use std::collections::HashSet;
 use std::num::NonZeroU8;
 use std::path::PathBuf;
@@ -370,6 +371,10 @@ fn landscape_collider_bridge(
             RigidBody::Static,
             Collider::trimesh(vertices, triangles),
             LandscapeColliderBuilt,
+            CollisionLayers::new(
+                [AlsCollisionLayer::Default, AlsCollisionLayer::Camera],
+                LayerMask::ALL,
+            ),
         ));
     }
 }

@@ -1,3 +1,4 @@
+use als_core::character::AlsCollisionLayer;
 use std::num::NonZeroU8;
 use std::time::{Duration, Instant};
 
@@ -475,7 +476,7 @@ pub struct ManualIntegrationGateResult {
 pub struct ManualCameraTraceSample {
     pub phase_elapsed_seconds: f64,
     pub obstacles_present: bool,
-    pub obstacles_removed: bool,
+    pub obstacles_ignored: bool,
     pub blocked_ratio: Option<f32>,
     pub first_person_requested: bool,
     pub actual_first_person: bool,
@@ -3031,7 +3032,7 @@ struct ManualIntegrationState {
     entered: bool,
     initialized: bool,
     camera_obstacles: [Option<Entity>; 3],
-    camera_obstacle_removed: bool,
+    camera_obstacle_ignored: bool,
     camera_blocked_ratio: Option<f32>,
     shake_requested: bool,
     dilation_active: bool,
@@ -3153,7 +3154,7 @@ impl Default for ManualIntegrationState {
             entered: false,
             initialized: false,
             camera_obstacles: [None; 3],
-            camera_obstacle_removed: false,
+            camera_obstacle_ignored: false,
             camera_blocked_ratio: None,
             shake_requested: false,
             dilation_active: false,
@@ -5565,7 +5566,7 @@ fn drive_manual_integration(
                 state.coverage.camera_collision = false;
                 state.coverage.camera_recovery = false;
                 state.camera_obstacles = [None; 3];
-                state.camera_obstacle_removed = false;
+                state.camera_obstacle_ignored = false;
                 state.camera_blocked_ratio = None;
                 state.camera_scenario_armed = false;
                 state.camera_last_probe_secs = -1.0;
@@ -5614,7 +5615,7 @@ fn drive_manual_integration(
             }
             if elapsed >= 0.5
                 && state.camera_obstacles.iter().all(Option::is_none)
-                && !state.camera_obstacle_removed
+                && !state.camera_obstacle_ignored
             {
                 if let Some(camera) = state.camera
                     && let Ok(debug) = cameras.get(camera)
@@ -5655,7 +5656,7 @@ fn drive_manual_integration(
                                         "manual_integration_camera_obstacle_{index}"
                                     )),
                                     RigidBody::Static,
-                                    CollisionLayers::from_bits(0b0010, 0),
+                                    CollisionLayers::new(AlsCollisionLayer::Camera, avian3d::prelude::LayerMask::NONE),
                                     Collider::cuboid(0.05, 0.6, 0.6),
                                     Transform::from_translation(center)
                                         .with_rotation(Quat::from_rotation_arc(Vec3::X, direction)),
@@ -5669,7 +5670,7 @@ fn drive_manual_integration(
                     state.camera_obstacles[2] = Some(commands.spawn((
                         Name::new("manual_integration_camera_sweep_blocker"),
                         RigidBody::Static,
-                        CollisionLayers::from_bits(0b0010, 0),
+                        CollisionLayers::new(AlsCollisionLayer::Camera, avian3d::prelude::LayerMask::NONE),
                         Collider::cuboid(0.05, 0.6, 0.6),
                         Transform::from_translation(debug.trace_start.lerp(debug.trace_end, 0.5))
                             .with_rotation(Quat::from_rotation_arc(Vec3::X, trace_direction)),
@@ -5679,15 +5680,18 @@ fn drive_manual_integration(
                     info!("[MANUAL-INTEGRATION] camera MTD pair and sweep blocker armed");
                 }
             }
-            if state.coverage.camera_collision && !state.camera_obstacle_removed {
+            if state.coverage.camera_collision && !state.camera_obstacle_ignored {
                 for obstacle in state.camera_obstacles.iter_mut().flatten() {
+                    commands.entity(*obstacle).insert(CollisionLayers::new(AlsCollisionLayer::Default, avian3d::prelude::LayerMask::NONE));
+                }
+                state.camera_obstacle_ignored = true;
+                info!("[MANUAL-INTEGRATION] camera obstacles removed from camera query layer");
+            }
+            if elapsed >= 9.0 {
+                for obstacle in state.camera_obstacles.iter().flatten() {
                     commands.entity(*obstacle).despawn();
                 }
                 state.camera_obstacles = [None; 3];
-                state.camera_obstacle_removed = true;
-                info!("[MANUAL-INTEGRATION] camera MTD pair removed after collision probe");
-            }
-            if elapsed >= 9.0 {
                 virtual_time.set_relative_speed(1.0);
                 state.dilation_active = false;
                 begin_phase(&mut state, IntegrationPhase::Finish);
@@ -9244,7 +9248,7 @@ fn observe_manual_integration(
             gate_report.camera_trace.push(ManualCameraTraceSample {
                 phase_elapsed_seconds: state.phase_elapsed() as f64,
                 obstacles_present: state.camera_obstacles.iter().any(Option::is_some),
-                obstacles_removed: state.camera_obstacle_removed,
+                obstacles_ignored: state.camera_obstacle_ignored,
                 blocked_ratio: state.camera_blocked_ratio,
                 first_person_requested: state.camera_view_mode_requested,
                 actual_first_person: first_person,
@@ -9291,7 +9295,7 @@ fn observe_manual_integration(
                 );
             }
         }
-        if state.camera_obstacle_removed
+        if state.camera_obstacle_ignored
             && camera_debug.first_person_override < 1.0 - 1e-5
             && state
                 .camera_blocked_ratio
@@ -11382,7 +11386,7 @@ mod tests {
                 phase_started_seconds: -elapsed, ..default()
             };
             state.coverage.camera_recovery = recovered;
-            state.camera_obstacle_removed = recovered;
+            state.camera_obstacle_ignored = recovered;
             world.insert_resource(state);
             world.run_system_once(drive_manual_integration).unwrap();
             let input = &world.get::<AlsInputOverride>(character).unwrap().0;

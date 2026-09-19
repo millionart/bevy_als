@@ -1200,7 +1200,7 @@ def camera_trace_issues(report):
         if not finite(time) or time < previous:
             return ["camera trace time is invalid"]
         previous = time
-        if any(not isinstance(sample.get(key), bool) for key in ["obstacles_present", "obstacles_removed", "first_person_requested", "actual_first_person"]):
+        if any(not isinstance(sample.get(key), bool) for key in ["obstacles_present", "obstacles_ignored", "first_person_requested", "actual_first_person"]):
             return ["camera trace lifecycle is invalid"]
         if any(not finite(camera.get(key)) for key in ["trace_distance_ratio", "trace_radius", "first_person_override", "unscaled_delta_seconds"]):
             return ["camera trace numeric data is invalid"]
@@ -1232,7 +1232,7 @@ def camera_trace_issues(report):
             and isinstance(camera.get("trace_adjustment_count"), int) and camera["trace_adjustment_count"] >= 2
             and camera["trace_distance_ratio"] < 0.98)
         blocked = sample.get("blocked_ratio")
-        recovery |= (collision and sample["obstacles_removed"] and not sample["obstacles_present"]
+        recovery |= (collision and sample["obstacles_ignored"] and sample["obstacles_present"]
             and camera.get("valid") is True and camera.get("trace_blocking_hit") is False
             and camera["first_person_override"] < 1.0 - 1e-5 and finite(blocked)
             and camera["trace_distance_ratio"] > blocked + 0.02)
@@ -1242,7 +1242,7 @@ def camera_trace_issues(report):
     if not collision:
         issues.append("camera trace does not prove collision with resolved MTDs")
     if not recovery:
-        issues.append("camera trace does not prove third-person recovery after obstacle removal")
+        issues.append("camera trace does not prove third-person recovery after camera-layer exclusion with obstacles still present")
     return issues
 
 
@@ -2526,9 +2526,9 @@ def run_self_test():
         "trace_adjustment_count": 2, "trace_distance_ratio": 0.4, "trace_radius": 0.15,
         "first_person_override": 0.0, "unscaled_delta_seconds": 0.016,
         "trace_start": [0.0, 1.6, 0.0], "trace_end": [0.0, 1.6, 2.0], "curve_values": [0.0] * 13}
-    collision = {"phase_elapsed_seconds": 0.5, "obstacles_present": True, "obstacles_removed": False,
+    collision = {"phase_elapsed_seconds": 0.5, "obstacles_present": True, "obstacles_ignored": False,
         "first_person_requested": False, "actual_first_person": False, "blocked_ratio": None, "camera": camera}
-    recovered = {**collision, "phase_elapsed_seconds": 0.7, "obstacles_present": False, "obstacles_removed": True,
+    recovered = {**collision, "phase_elapsed_seconds": 0.7, "obstacles_present": True, "obstacles_ignored": True,
         "blocked_ratio": 0.4, "camera": {**camera, "trace_distance_ratio": 0.7, "trace_blocking_hit": False}}
     camera_report = {"case": "camera", "manual_integration": {"camera_trace": [collision, recovered]}}
     ragdoll_baseline = {**collision, "ragdoll_active": False,
@@ -2546,6 +2546,9 @@ def run_self_test():
     assert camera_trace_issues({"case": "ragdoll", "manual_integration": {"camera_trace": [ragdoll_active, ragdoll_active]}})
     assert camera_trace_issues({"case": "ragdoll", "manual_integration": {}})
     assert not camera_trace_issues(camera_report)
+    recovered["obstacles_present"] = False
+    assert camera_trace_issues(camera_report)
+    recovered["obstacles_present"] = True
     recovered["camera"]["first_person_override"] = 1.0
     assert camera_trace_issues(camera_report)
     recovered["camera"]["first_person_override"] = 0.0

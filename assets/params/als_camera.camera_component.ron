@@ -56,7 +56,6 @@
         bone: "hand_r",
         location: (-0.15331554, 0.01091224, 0.14619777),
     )],
-    trace_channel: "Visibility",
     standing_eye_height: 0.64,
     crouching_eye_height: 0.44799999,
     graph: "generated/ALSCamera/AB_Als_Camera/AnimGraph.animgraph.ron",
