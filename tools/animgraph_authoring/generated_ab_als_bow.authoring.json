@@ -3,12 +3,12 @@
   "id": "generated_ab_als_bow_character",
   "source_evidence": [
     {
-      "path": "target/bf116_projection/source/ALS_ALS_Character_AnimationInstances_Overlays_AB_Als_Bow.AB_Als_Bow.ue.json",
-      "sha256": "80d39d336f830e193ca3d81219ab7f5b11688e548a4f7b5951e2cbe89746a8be"
+      "path": "target/bf116_finish/source/ALS_ALS_Character_AnimationInstances_Overlays_AB_Als_Bow.AB_Als_Bow.ue.json",
+      "sha256": "b80d43cc411a0ec05e2c739b124bdf1f117ee12cf49ca2dec573c2ee751d17f3"
     },
     {
-      "path": "target/bf116_bow/source/c2_character_actor.json",
-      "sha256": "1e55a8064a025defd1bf641aba818ae5ed30f3b6fdc45f0d154b1fbabc5b7e94"
+      "path": "target/bf116_finish/source/character_actor.json",
+      "sha256": "eb16fe22a6e2a435e1a7aa896c84dafa6817d86ee38998076f08b3b60b3dd734"
     },
     {
       "path": "target/bf116_projection/source/AnimNode_SequenceEvaluator.cpp",
@@ -1438,11 +1438,11 @@
         "python",
         "tools/animgraph_authoring/audit_generated_source_closure.py",
         "--source-directory",
-        "target/bf116_projection/source",
+        "target/bf116_finish/source",
         "--materialized-directory",
-        "target/bf116_projection/native_bow",
+        "target/bf116_finish/corpus_character_bow",
         "--spec",
-        "target/bf116_projection/spec.json"
+        "target/bf116_finish/spec.json"
       ]
     },
     {
@@ -1509,17 +1509,16 @@
         "test",
         "--locked",
         "--offline",
-        "-p",
+        "--package",
         "bevy_als",
         "--lib",
         "--jobs",
         "2",
-        "bow::tests",
         "--",
         "--test-threads",
         "1"
       ],
-      "evidence": "target/bf116_projection/bow_native_tests.watchdog.json"
+      "evidence": "target/bf116_finish/restored_project_tests.watchdog.json"
     },
     {
       "label": "native_sequence_sampling",

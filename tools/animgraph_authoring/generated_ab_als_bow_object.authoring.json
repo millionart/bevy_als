@@ -1,0 +1,227 @@
+{
+  "format": "als_animgraph_authoring_gate_v1",
+  "id": "generated_ab_als_bow_object",
+  "source_evidence": [
+    {
+      "path": "target/bf116_finish/source/object_bow.json",
+      "sha256": "3de234d267a10882ac6aa8cc094e209738856f153c94c49cc34410abd73c6eb9"
+    },
+    {
+      "path": "target/bf116_finish/source/character_actor.json",
+      "sha256": "eb16fe22a6e2a435e1a7aa896c84dafa6817d86ee38998076f08b3b60b3dd734"
+    },
+    {
+      "path": "target/bf116_finish/source/character_class.json",
+      "sha256": "ddfc5c14a5675ea62428cc03cbc520b90ac646797eae0c170b5e8a864d9d7300"
+    },
+    {
+      "path": "target/bf116_finish/source/bow_mesh.json",
+      "sha256": "c4fe760757cf41b3c696ed23bee3c4cb1c1ab98390815d87367f70822e167be7"
+    },
+    {
+      "path": "target/bf116_finish/source/bow_skeleton.json",
+      "sha256": "6889fed28d661261a2aedc41caab5e40e7c8d85cc82fe666d4dba80b608ca824"
+    },
+    {
+      "path": "target/bf116_finish/source/bow_draw.json",
+      "sha256": "a9cb5b34b3337d203c06902449d8ced47063576bd1eac4baac96a5f3fba7512f"
+    },
+    {
+      "path": "target/bf116_finish/source/character_skeleton.json",
+      "sha256": "1400a190142d940087f282fc717d2f0aa69db7b0d70632203f8e75a91faa1126"
+    },
+    {
+      "path": "target/bf116_finish/source/main_material.json",
+      "sha256": "f9fe74c87f20025e521c33e595a98a273f3eed8b6e1152daae45c350684cda84"
+    },
+    {
+      "path": "target/bf116_finish/source/bow_material_01.json",
+      "sha256": "25d317c138fefe4c4e163cdb99241e345544d1223615a4e077456c3ff48e43c8"
+    },
+    {
+      "path": "target/bf116_finish/source/bow_material_02.json",
+      "sha256": "1b6129af91aef670af19a755725d63be511f7049e1e8571addfccb763d70bde2"
+    },
+    {
+      "path": "target/bf116_finish/source/bow_material_03.json",
+      "sha256": "6ce45154a1fe7fa5c023ad0370cdab37376b3682a8cd0379b455bff496407e33"
+    },
+    {
+      "path": "target/bf116_finish/source/AlsUtility.cpp",
+      "sha256": "64db92c7f84d243b129ce66273be378f209162866fba8424fd32d929b63beab6"
+    },
+    {
+      "path": "target/bf116_finish/source/SceneComponent.cpp",
+      "sha256": "58c6337430d41c3fb9acd8060221a8b46696e0f372c2cc590bc2b865ed89b757"
+    },
+    {
+      "path": "target/bf116_finish/source/ShadingCommon.ush",
+      "sha256": "0306b0c96ca70c6f74bbf51bb7ca63e5f45f32becb492640b306b1bf49d17fba"
+    },
+    {
+      "path": "target/bf116_finish/source/pbr_functions.wgsl",
+      "sha256": "13a5344ef4e0fa967e05978489d0909dd0c1862cf7a989ce0882dbc8de9a55dd"
+    }
+  ],
+  "graphs": [
+    {
+      "path": "assets/generated/ALS/OverlayObjects/Bow/AB_Als_Bow/AnimGraph.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "e05be058-4323-95fc-e0ac-bb87ce5a2fb0",
+          "name": "Output Pose\nAnimGraph",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "125d6bdb-4f97-a34b-63d3-7991e148bcab",
+          "name": "A_Als_Bow_Draw\nSequence Evaluator (by time)",
+          "position": [
+            -304.0,
+            48.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"e05be058-4323-95fc-e0ac-bb87ce5a2fb0\", \"Source\")",
+          "source": "NodeData(\"125d6bdb-4f97-a34b-63d3-7991e148bcab\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"e05be058-4323-95fc-e0ac-bb87ce5a2fb0\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    },
+    {
+      "path": "assets/graphs/runtime/als_bow_object.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "76437eb3-76ba-52b9-99a0-e5e9315728b7",
+          "name": "Generated object animation",
+          "position": [
+            -240.0,
+            0.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "OutputData(\"pose\")",
+          "source": "NodeData(\"76437eb3-76ba-52b9-99a0-e5e9315728b7\", \"pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "pose": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    }
+  ],
+  "fsms": [],
+  "verification_commands": [
+    {
+      "label": "native_object_closure",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/audit_generated_source_closure.py",
+        "--source-directory",
+        "target/bf116_finish/source",
+        "--materialized-directory",
+        "target/bf116_finish/corpus_object_bow",
+        "--spec",
+        "target/bf116_finish/spec.json"
+      ]
+    },
+    {
+      "label": "object_source_assets",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/import/import_overlay_object.py",
+        "--source-directory",
+        "target/bf116_finish/source",
+        "--mesh",
+        "assets/models/SKM_Als_Bow.gltf",
+        "--scene-source",
+        "assets/animations/Overlays/Bow/A_Als_Bow_Draw.gltf",
+        "--skeleton",
+        "skeletons/SKM_Als_Bow.skn.ron",
+        "--self-test",
+        "--check"
+      ]
+    },
+    {
+      "label": "generated_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets/generated/ALS/OverlayObjects/Bow/AB_Als_Bow"
+      ]
+    },
+    {
+      "label": "generated_editor",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets/generated/ALS/OverlayObjects/Bow/AB_Als_Bow"
+      ]
+    },
+    {
+      "label": "runtime_boundary",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/validate_runtime_graph_asset_boundary.py",
+        "--assets-root",
+        "assets",
+        "--check"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "generated_animgraph_assets",
+    "manual_case": "bow"
+  },
+  "recursive_inventory": null,
+  "focused_tests": [
+    {
+      "label": "object_inputs_assets_lifecycle_and_failure_reports",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--package",
+        "bevy_als",
+        "--lib",
+        "--jobs",
+        "2",
+        "--",
+        "--test-threads",
+        "1"
+      ],
+      "evidence": "target/bf116_finish/restored_project_tests.watchdog.json"
+    }
+  ]
+}

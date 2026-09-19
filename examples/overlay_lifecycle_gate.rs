@@ -16,6 +16,7 @@ fn main() {
                 file_path: "assets".into(),
                 ..default()
             }),
+            bevy_als::playable_character::AlsPlayableCharacterPlugin,
             OverlayObjectPlugin,
         ))
         .add_systems(Startup, setup)

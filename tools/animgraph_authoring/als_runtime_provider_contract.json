@@ -2,6 +2,7 @@
   "format": "als_runtime_provider_contract_v1",
   "runtime_inputs": {
     "b_right_shoulder": "crate::camera_component::AlsSourceCameraPlugin",
+    "draw_amount": "crate::overlay_object::OverlayObjectPlugin",
     "crouching_state.play_rate": "crate::crouching_layer::CrouchingLayerPlugin",
     "crouching_state.stride_blend_amount": "crate::crouching_layer::CrouchingLayerPlugin",
     "feet_state.feet_crossing_amount": "crate::generated_ab_als_provider::GeneratedAbAlsProviderPlugin",

@@ -3271,7 +3271,7 @@ fn collect_animation_visual_evidence(
     >,
     children: Query<&Children>,
     named_transforms: Query<(&Name, &GlobalTransform, &Transform)>,
-    cameras: (Query<Entity, With<Camera3d>>, Query<(&crate::camera_component::AlsSourceCameraComponent, &AnimatedSceneInstance)>, Query<&als_ext::overlay_materials::AvatarMaterialApplied>),
+    cameras: (Query<Entity, With<Camera3d>>, Query<(&crate::camera_component::AlsSourceCameraComponent, &AnimatedSceneInstance)>, Query<&als_ext::overlay_materials::AvatarMaterialApplied>, Query<&crate::overlay_object::AlsOverlayObject>, Query<&AnimatedSceneInstance>),
 ) {
     if state.primary_failure.is_some() { return; }
     if cameras.2.iter().any(|applied| !applied.source_slot_pattern) {
@@ -3304,9 +3304,10 @@ fn collect_animation_visual_evidence(
         .and_then(|(_, instance, _, _)| players.get(instance.player_entity()).ok())
         .is_some_and(|(player, _, _, _)| player.get_error().is_some());
     if !body_has_error {
-        for (component, instance) in &cameras.1 {
-            if !component.is_active() { continue; }
-            let Ok((player, _, _, _)) = players.get(instance.player_entity()) else { continue; };
+        let secondary_players = cameras.1.iter().filter(|(component, _)| component.is_active()).map(|(_, instance)| instance.player_entity())
+            .chain(cameras.3.iter().filter_map(|object| cameras.4.get(object.content).ok().map(AnimatedSceneInstance::player_entity)));
+        for entity in secondary_players {
+            let Ok((player, _, _, _)) = players.get(entity) else { continue; };
             let error = player.get_error();
             let root_pose = root_pose_activity(player);
             let evaluated = player.get_context_arena().is_some_and(|arena| arena.frame_index() > 0);
@@ -4210,6 +4211,46 @@ mod tests {
             graph_error_pose_classification(RootPoseActivity::default()),
             "missing_root_pose_likely_reference_or_a_pose"
         );
+    }
+
+    #[test]
+    fn overlay_object_graph_failure_uses_the_public_failure_report() {
+        let (mut app, object, player_entity) = crate::overlay_object::tests::loaded_bow_scene();
+        app.world_mut().spawn(crate::overlay_object::AlsOverlayObject {
+            character: Entity::PLACEHOLDER, content: object, overlay: als_core::state::OverlayState::Bow,
+            kind: crate::overlay_object::OverlayObjectKind::Skeletal, attachment_bone: crate::overlay_object::LEFT_GUN_BONE,
+        });
+        let directory = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/bf116_finish/object_fault");
+        fs::create_dir_all(&directory).unwrap();
+        let report_path = directory.join("report.json");
+        if report_path.exists() { fs::remove_file(&report_path).unwrap(); }
+        app.insert_resource(AnimationVisualValidationConfig {
+            directory, case: "bow".into(), capture_count: 0, capture_interval: Duration::from_secs(1),
+            min_pose_samples: 1, warmup: Duration::ZERO, max_frame_p95_ms: 25.0, max_frame_ms: 75.0,
+            max_eval_p95_ms: 4.0, max_physics_steps_per_render: 3.0,
+        }).init_resource::<AnimationVisualValidationState>().init_resource::<AnimationVisualStageTiming>()
+            .init_resource::<AnimationVisualPreRigPose>()
+            .insert_resource(ManualRuntimePhaseEvidence { phase: "BowOverlay".into(), ..default() })
+            .add_systems(PostUpdate, (collect_animation_visual_evidence, finish_fatal_animation_visual_failure).chain().after(AlsCameraSet));
+        let handle = match app.world().get::<AnimationGraphPlayer>(player_entity).unwrap().get_animation_source() {
+            AnimationSource::Graph(handle) => handle.clone(), _ => panic!("Object must use its generated graph"),
+        };
+        let mut graph = AnimationGraph::new();
+        graph.add_output_data("pose".into(), bevy_animation_graph::core::edge_data::DataSpec::Pose);
+        *app.world_mut().resource_mut::<Assets<AnimationGraph>>().get_mut(&handle).unwrap() = graph;
+        app.world_mut().get_mut::<AnimationGraphPlayer>(player_entity).unwrap().start(handle);
+        app.update();
+        let report: serde_json::Value = serde_json::from_slice(&fs::read(report_path).expect("Object graph failure must write a report on its first frame")).unwrap();
+        let failure = &report["primary_failure"];
+        assert_eq!(failure["root_graph_path"], "graphs/runtime/als_bow_object.animgraph.ron");
+        assert_eq!(failure["phase"], "BowOverlay");
+        assert_eq!(failure["category"], "graph_evaluation_error");
+        assert_eq!(failure["pin"]["pin_id"], "pose");
+        assert!(failure["raw_error"].as_str().unwrap().contains("pose"));
+        assert_eq!(failure["screenshot_status"], "disabled_by_configuration");
+        let mut exits = app.world().resource::<Messages<AppExit>>().get_cursor();
+        app.update();
+        assert!(exits.read(app.world().resource::<Messages<AppExit>>()).any(|event| matches!(event, AppExit::Error(code) if code.get() == 92)));
     }
 
     #[test]

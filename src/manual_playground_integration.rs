@@ -3304,6 +3304,10 @@ struct MotionProbe<'w, 's> {
         Query<'w, 's, Option<&'static AlsRotationAnimationState>, With<AlsCharacter>>,
     generated_transition_notify:
         Query<'w, 's, Option<&'static GeneratedTransitionNotifyTelemetry>, With<AlsCharacter>>,
+    overlay_objects: Query<'w, 's, (&'static AlsOverlayObject, Option<&'static als_ext::overlay_materials::AvatarMaterialApplied>)>,
+    object_scenes: Query<'w, 's, &'static AnimatedSceneInstance>,
+    object_players: Query<'w, 's, &'static AnimationGraphPlayer>,
+    object_transforms: Query<'w, 's, &'static Transform>,
 }
 
 #[derive(SystemParam)]
@@ -3433,12 +3437,14 @@ fn spawn_manual_integration_fixture(
     materials: &mut Assets<StandardMaterial>,
     origin: Vec3,
     facing_yaw: f32,
+    scenario: IntegrationScenario,
 ) {
     let facing = Quat::from_rotation_y(facing_yaw);
     let forward = facing * Vec3::NEG_Z;
     let right = facing * Vec3::X;
     let ground_y = origin.y - 0.92;
-    let ledge_center = origin + forward * 6.0 + Vec3::Y * (ground_y + 0.4 - origin.y);
+    let mantle_height = if scenario == IntegrationScenario::BowOverlay { 1.6 } else { 0.8 };
+    let ledge_center = origin + forward * 6.0 + Vec3::Y * (ground_y + mantle_height * 0.5 - origin.y);
     let mantle_start = origin - forward * 1.5;
     let platform_home =
         origin + right * 9.0 + forward * 2.0 + Vec3::Y * (ground_y + 0.25 - origin.y);
@@ -3462,7 +3468,7 @@ fn spawn_manual_integration_fixture(
     commands.spawn((
         Name::new("manual_integration_mantle_ledge"),
         RigidBody::Static,
-        Collider::cuboid(2.4, 0.8, 1.2),
+        Collider::cuboid(2.4, mantle_height, 1.2),
         Transform::from_translation(ledge_center),
         Mesh3d(meshes.add(Mesh::from(Cuboid::new(4.8, 1.6, 2.4)))),
         MeshMaterial3d(ledge_material),
@@ -3561,6 +3567,7 @@ fn initialize_manual_integration(
         &mut materials,
         transform.translation,
         spawn_yaw,
+        state.scenario,
     );
     state.character = Some(character);
     state.avatar = Some(assembly.avatar);
@@ -4429,12 +4436,14 @@ fn drive_manual_integration(
                 request.rotation_mode = Some(RotationMode::ViewDirection);
             }
             request.overlay_state = Some(OverlayState::Bow);
-            request.gait = Some(Gait::Walking);
+            request.gait = Some(if index == 8 { Gait::Sprinting } else { Gait::Walking });
             request.stance = Some(if index == 4 { Stance::Crouching } else { Stance::Standing });
             input.0 = bow::command(index);
+            input.0.jump_pressed = index == 9 && entering;
+            view_pitch.0 = match index { 6 => (elapsed * 60.0).min(60.0).to_radians(), 7 => (60.0 - elapsed * 120.0).max(-60.0).to_radians(), _ => 0.0 };
             if state.bow_probe.covered[index] {
                 state.bow_probe.index += 1;
-                begin_phase(&mut state, if index == bow::LABELS.len() - 1 { IntegrationPhase::Finish } else { IntegrationPhase::BowOverlay });
+                begin_phase(&mut state, if index == bow::LABELS.len() - 1 { IntegrationPhase::Mantle } else { IntegrationPhase::BowOverlay });
             } else if default_overlay_should_timeout(false, elapsed) {
                 state.timed_out = true;
                 begin_phase(&mut state, IntegrationPhase::Finish);
@@ -5271,7 +5280,8 @@ fn drive_manual_integration(
                     fixture.facing_yaw,
                 );
                 *gait = Gait::Running;
-                *overlay = OverlayState::Default;
+                *overlay = if state.scenario == IntegrationScenario::BowOverlay { OverlayState::Bow } else { OverlayState::Default };
+                if state.scenario == IntegrationScenario::BowOverlay { rebase_temporal_fixture(&mut state, &mut phase_evidence, "bow_mantle_start"); }
                 *rotation_mode = RotationMode::ViewDirection;
                 request.locomotion_state = Some(LocomotionState::Grounded);
                 request.stance = Some(Stance::Standing);
@@ -5281,7 +5291,9 @@ fn drive_manual_integration(
             input.0.move_dir = Vec2::Y;
             input.0.jump_pressed = (5.85..7.1).contains(&progress) && elapsed < 7.0;
             if elapsed >= 10.0 {
-                if state.scenario == IntegrationScenario::FootIk {
+                if state.scenario == IntegrationScenario::BowOverlay {
+                    begin_phase(&mut state, IntegrationPhase::Ragdoll);
+                } else if state.scenario == IntegrationScenario::FootIk {
                     begin_phase(&mut state, IntegrationPhase::Roll);
                 } else {
                     begin_phase(&mut state, IntegrationPhase::Platform);
@@ -5456,7 +5468,8 @@ fn drive_manual_integration(
                     spawn_yaw,
                 );
                 *gait = Gait::Running;
-                *overlay = OverlayState::Default;
+                *overlay = if state.scenario == IntegrationScenario::BowOverlay { OverlayState::Bow } else { OverlayState::Default };
+                if state.scenario == IntegrationScenario::BowOverlay { rebase_temporal_fixture(&mut state, &mut phase_evidence, "bow_ragdoll_start"); }
                 request.locomotion_state = Some(LocomotionState::Grounded);
                 request.stance = Some(Stance::Standing);
                 if state.scenario == IntegrationScenario::GetUp {
@@ -6896,6 +6909,14 @@ fn observe_manual_integration(
         gate_report.direction_trace.push(serde_json::json!({"case": index, "time": now, "covered": probe.covered, "valid": probe.valid,
             "first_person": first_person, "speed": speed, "unscaled_pitch_seen": probe.unscaled_pitch_seen, "source": sample}));
         probe.sample = sample;
+    }
+    if state.scenario == IntegrationScenario::BowOverlay && !state.entered {
+        let phase = state.phase;
+        bow::observe_object(&mut state.bow_probe, overlay_object, context, &motion_probe, notify_action, mantle, phase);
+        if phase != IntegrationPhase::BowOverlay {
+            gate_report.direction_trace.push(serde_json::json!({"phase": format!("{phase:?}"), "object": state.bow_probe.sample.object,
+                "cleared": state.bow_probe.cleared, "restored": state.bow_probe.restored}));
+        }
     }
     if state.scenario == IntegrationScenario::BowOverlay && state.phase == IntegrationPhase::BowOverlay && !state.entered {
         let now = state.game_time_seconds;
@@ -9560,6 +9581,10 @@ fn observe_manual_integration(
                 let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph)];
                 results.extend(bow::LABELS.iter().enumerate().map(|(index, label)| (*label, state.bow_probe.covered[index])));
                 results.push(("bow_complete", state.bow_probe.index == bow::LABELS.len()));
+                results.extend([("bow_object_material", state.bow_probe.material_seen),
+                    ("bow_object_mantle_clear", state.bow_probe.cleared[0]), ("bow_object_mantle_restore", state.bow_probe.restored[0]),
+                    ("bow_object_ragdoll_clear", state.bow_probe.cleared[1]), ("bow_object_ragdoll_restore", state.bow_probe.restored[1]),
+                    ("bow_mantle_complete", coverage.mantle_completed), ("bow_ragdoll_recovered", coverage.ragdoll_recovered)]);
                 results
             }
             IntegrationScenario::DefaultOverlay => {
@@ -10512,6 +10537,25 @@ mod tests {
     }
 
     #[test]
+    fn bow_mantle_fixture_reaches_the_source_non_low_boundary() {
+        use avian3d::prelude::SimpleCollider;
+        use bevy::ecs::system::RunSystemOnce;
+        for scenario in [IntegrationScenario::Base, IntegrationScenario::BowOverlay] {
+            let mut world = World::new();
+            world.init_resource::<Assets<Mesh>>();
+            world.init_resource::<Assets<StandardMaterial>>();
+            world.run_system_once(move |mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<StandardMaterial>>| {
+                spawn_manual_integration_fixture(&mut commands, &mut meshes, &mut materials, Vec3::Y * 0.92, 0.0, scenario);
+            }).unwrap();
+            let mut query = world.query::<(&Name, &Collider, &Transform)>();
+            let (_, collider, transform) = query.iter(&world).find(|(name, _, _)| name.as_str() == "manual_integration_mantle_ledge").unwrap();
+            let top = collider.aabb(transform.translation, transform.rotation).max.y;
+            assert_eq!(top > 1.25, scenario == IntegrationScenario::BowOverlay);
+            assert!((top - if scenario == IntegrationScenario::BowOverlay { 1.6 } else { 0.8 }).abs() < 1e-5);
+        }
+    }
+
+    #[test]
     fn locomotion_platform_physics_matches_its_visible_support_surface() {
         use avian3d::prelude::SimpleCollider;
         use bevy::ecs::system::RunSystemOnce;
@@ -10519,7 +10563,7 @@ mod tests {
         world.init_resource::<Assets<Mesh>>();
         world.init_resource::<Assets<StandardMaterial>>();
         world.run_system_once(|mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<StandardMaterial>>| {
-            spawn_manual_integration_fixture(&mut commands, &mut meshes, &mut materials, Vec3::Y * 0.92, 0.0);
+            spawn_manual_integration_fixture(&mut commands, &mut meshes, &mut materials, Vec3::Y * 0.92, 0.0, IntegrationScenario::Base);
         }).unwrap();
         let entity = world.entity(world.resource::<ManualIntegrationFixture>().platform);
         let transform = entity.get::<Transform>().unwrap();
@@ -11744,7 +11788,7 @@ mod tests {
         world.init_resource::<Assets<Mesh>>();
         world.init_resource::<Assets<StandardMaterial>>();
         world.run_system_once(move |mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>, mut materials: ResMut<Assets<StandardMaterial>>| {
-            spawn_manual_integration_fixture(&mut commands, &mut meshes, &mut materials, origin, yaw);
+            spawn_manual_integration_fixture(&mut commands, &mut meshes, &mut materials, origin, yaw, IntegrationScenario::Base);
         }).unwrap();
         let extra_bounds: Vec<(Vec3, Vec3)> = world.query::<(&Mesh3d, &Transform)>().iter(&world).map(|(mesh, transform)| {
             let meshes = world.resource::<Assets<Mesh>>();

@@ -55,7 +55,7 @@ impl Plugin for AlsRootAnimationContextPlugin {
     }
 }
 
-fn root_pose_source_node(graph: &AnimationGraph) -> Option<NodeId> {
+pub(crate) fn root_pose_source_node(graph: &AnimationGraph) -> Option<NodeId> {
     let mut pose_outputs = graph
         .io_spec
         .iter_output_data()
