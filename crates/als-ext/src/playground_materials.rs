@@ -120,10 +120,10 @@ fn copy_green_to_red(data: &mut [u8]) {
     }
 }
 
-fn decode_png(bytes: &[u8], green_to_red: bool) -> Option<Image> {
+fn decode_image(bytes: &[u8], extension: &str, green_to_red: bool) -> Option<Image> {
     let mut image = Image::from_buffer(
         bytes,
-        ImageType::Extension("png".into()),
+        ImageType::Extension(extension),
         CompressedImageFormats::NONE,
         false,
         ImageSampler::Descriptor(repeating_sampler_descriptor()),
@@ -141,21 +141,21 @@ fn decode_png(bytes: &[u8], green_to_red: bool) -> Option<Image> {
     Some(image)
 }
 
-fn add_png(server: &AssetServer, bytes: &[u8], green_to_red: bool) -> Option<Handle<Image>> {
-    decode_png(bytes, green_to_red).map(|image| server.add(image))
+fn add_image(server: &AssetServer, bytes: &[u8], extension: &str, green_to_red: bool) -> Option<Handle<Image>> {
+    decode_image(bytes, extension, green_to_red).map(|image| server.add(image))
 }
 
 fn load_playground_textures(mut commands: Commands, server: Res<AssetServer>) {
-    let grid = std::fs::read("assets/textures/playground/T_Default_Material_Grid_M.png");
+    let grid = std::fs::read("assets/textures/playground/T_Default_Material_Grid_M.tga");
     let normal = std::fs::read("assets/textures/playground/T_Als_Tiles_N.png");
     let masks = std::fs::read("assets/textures/playground/T_Als_Tiles_M.png");
 
     let library = PlaygroundMaterialLibrary {
-        tiles_grid: grid.ok().and_then(|bytes| add_png(&server, &bytes, false)),
+        tiles_grid: grid.ok().and_then(|bytes| add_image(&server, &bytes, "tga", false)),
         tiles_normal: normal
             .ok()
-            .and_then(|bytes| add_png(&server, &bytes, false)),
-        tiles_occlusion: masks.ok().and_then(|bytes| add_png(&server, &bytes, true)),
+            .and_then(|bytes| add_image(&server, &bytes, "png", false)),
+        tiles_occlusion: masks.ok().and_then(|bytes| add_image(&server, &bytes, "png", true)),
     };
     info!(
         "[PGMAT] textures loaded grid={} normal={} occlusion={}",
@@ -169,6 +169,19 @@ fn load_playground_textures(mut commands: Commands, server: Res<AssetServer>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_grid_tga_preserves_every_rgba_pixel() {
+        let bytes = include_bytes!("../../../assets/textures/playground/T_Default_Material_Grid_M.tga");
+        assert_eq!(&bytes[16..18], [32, 8]);
+        let image = decode_image(bytes, "tga", false).unwrap();
+        assert_eq!(image.size(), UVec2::splat(512));
+        let pixels = image.data.unwrap();
+        for (index, bgra) in bytes[18..18 + 512 * 512 * 4].chunks_exact(4).enumerate() {
+            let target = ((511 - index / 512) * 512 + index % 512) * 4;
+            assert_eq!(&pixels[target..target + 4], [bgra[2], bgra[1], bgra[0], bgra[3]]);
+        }
+    }
 
     #[test]
     fn green_mask_becomes_occlusion_red_channel() {

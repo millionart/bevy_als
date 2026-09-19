@@ -330,7 +330,7 @@ python tools/uasset_root_export/validate_root_tracks.py --repo-root <repo-root>
   - `assets/textures/playground/T_Als_Tiles_M.png` ← `/ALS/ALSExtras/Environment/Materials/T_Als_Tiles_M`
     （2048² 线性 Mask；G 通道为 M_Als_Tiles Ambient Occlusion，运行时映射到 Bevy occlusion R）
   - `assets/textures/playground/T_Als_Tiles_N.png` ← 同目录 `T_Als_Tiles_N`（2048² 线性 DirectX 法线贴图，运行时启用 Y 翻转）
-  - `assets/textures/playground/T_Default_Material_Grid_M.png` ← `/Engine/EngineMaterials/T_Default_Material_Grid_M`
+  - `assets/textures/playground/T_Default_Material_Grid_M.tga` ← `/Engine/EngineMaterials/T_Default_Material_Grid_M`（2026-09-20 从Texture.Source重新导出，BGRA8/32位TGA/8位Alpha，全像素与源及旧PNG一致）
     （512² 线性网格；M_Als_Tiles 以 UV×Tiling×2 采样其 G 作为两组颜色插值、A 乘到底色）
   - `tmp/export/playground/materials/materials.json` — M_Als_Tiles/M_Als_Main/M_Als_Transluent 全节点图
     （M_Als_Tiles: Tiling 标量、SideColorA/B+TopColorA/B、Grid G/A、T_Als_Tiles_N、T_Als_Tiles_M.G；

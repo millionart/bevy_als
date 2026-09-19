@@ -679,6 +679,7 @@ fn make_tiles_material(
             base_color: Color::linear_rgb(1.0, 1.0, 1.0),
             normal_map_texture: library.tiles_normal.clone(),
             occlusion_texture: library.tiles_occlusion.clone(),
+            uv_transform: bevy::math::Affine2::from_scale(Vec2::splat(tiling)),
             flip_normal_map_y: true,
             perceptual_roughness: 0.5,
             ..default()
@@ -1990,6 +1991,16 @@ fn spawn_sky(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tiles_texture_uvs_follow_the_source_shared_tiling_input() {
+        let library = PlaygroundMaterialLibrary { tiles_grid: Some(Handle::default()), ..default() };
+        for tiling in [0.5, 2.0, 5.0] {
+            let material = make_tiles_material(&library, [1.0; 3], [0.5; 3], [0.25; 3], [0.75; 3], tiling).unwrap();
+            assert_eq!(material.base.uv_transform.transform_point2(Vec2::new(0.2, 0.4)), Vec2::new(0.2, 0.4) * tiling);
+            assert_eq!(material.extension.settings.tiling_and_mode.x, tiling);
+        }
+    }
 
     fn map_dir(v: Vec3) -> Vec3 {
         ue_point_to_bevy(v) * 100.0
