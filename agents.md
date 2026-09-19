@@ -45,8 +45,8 @@
 1. **隐私**：提交内容不得含本地绝对路径、账户或引擎位置；用 gitignored 配置、环境变量或参数注入。提交前检查暂存 diff 的路径泄露。
 2. **代码纪律**：可执行源码、字符串、日志、断言和资产语义字段只用英文且不写注释；Markdown 可使用中文。
 3. **构建**：大型 cargo 命令必须限流（本机通常 `--jobs 2`）；每个 worktree 使用自己的 target，并用 `pwsh tools/new-worktree.ps1 -Name <name>` 创建。运行/性能 Gate 的预构建必须使用启动器实际使用的同一 `CARGO_TARGET_DIR`（`run_manual.bat` 为 `target_game`）；默认 target 的构建不能充当该入口的二进制证据。排查锁前先确认进程和 target 归属，不能误杀其他 worktree 或 rust-analyzer。
-4. **UE/MCP**：优先复用健康的持久 Editor，通过 `OpenEditorForAsset` 和只读 MCP 读取；无可用实例才按 `docs/env.md` 恢复项目。空 DSL/截图先做健康检查，不等于图为空；MCP 失败后才用同次 native contract，Computer Use 最后使用。
-5. **工具调用**：UE toolset 经仓库 MCP 封装调用。复杂长命令改为短命令加脚本；超时或错误时先读取报告、改变诊断路径，不盲目重复同一调用。
+4. **UE/uasset**：禁止使用 UE MCP。通过本地 UE 源码实现、维护并使用仓库的 uasset 读取工具，直接提取资产、图、属性与递归依赖；优先复用已有原生读取能力，缺失字段先对照 UE 源码补齐工具，再重新读取，不能用猜测或手工补写代替源事实。
+5. **工具调用**：UE 源资产统一经仓库 uasset 读取工具调用。复杂长命令改为短命令加脚本；超时或错误时先读取报告、改变诊断路径，不盲目重复同一调用。
 
 ## 文档与历史
 
