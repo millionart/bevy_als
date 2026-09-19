@@ -89,7 +89,7 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
         Collider::cuboid(100.0, 0.1, 100.0),
         Transform::from_xyz(0.0, -0.1, 0.0),
     ));
-    commands.insert_resource(RootGraph(assets.load("graphs/ab_als/ab_als.animgraph.ron")));
+    commands.insert_resource(RootGraph(assets.load("graphs/runtime/als_generated_ab_als_ragdoll_wrapper.animgraph.ron")));
     info!("[SPRINT-STRESS] waiting for AB_Als recursive dependencies");
 }
 

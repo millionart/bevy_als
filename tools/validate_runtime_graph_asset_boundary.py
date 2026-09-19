@@ -6,6 +6,7 @@ from pathlib import Path
 
 AUDIT_DIRECTORY_NAMES = {"source_conditions"}
 AUDIT_FILE_PREFIXES = ("ue_source_transition_",)
+RETIRED_OVERLAY_PATHS = ("graphs/ab_als/overlays/", "graphs/overlay_objects/bow.animgraph.ron", "graphs/ab_als/ab_als.animgraph.ron")
 
 
 def audit(assets_root: Path) -> list[str]:
@@ -18,12 +19,16 @@ def audit(assets_root: Path) -> list[str]:
             issues.append(f"audit directory is inside runtime assets: {relative}")
         if path.is_file() and path.suffix == ".ron" and path.name.startswith(AUDIT_FILE_PREFIXES):
             issues.append(f"audit graph is inside runtime assets: {relative}")
+        if path.is_file() and any(relative.startswith(prefix) for prefix in RETIRED_OVERLAY_PATHS):
+            issues.append(f"retired manual overlay asset: {relative}")
     for path in assets_root.rglob("*.ron"):
         text = path.read_text(encoding="utf-8")
         if "source_conditions/" in text or "source_conditions\\" in text:
             issues.append(f"runtime asset references audit directory: {path.relative_to(assets_root).as_posix()}")
         if "ue_source_transition_" in text:
             issues.append(f"runtime asset references audit graph: {path.relative_to(assets_root).as_posix()}")
+        if any(prefix in text for prefix in RETIRED_OVERLAY_PATHS):
+            issues.append(f"runtime asset references retired manual overlay: {path.relative_to(assets_root).as_posix()}")
     return sorted(set(issues))
 
 
@@ -42,9 +47,16 @@ def run_self_test() -> dict:
         runtime.parent.mkdir(parents=True, exist_ok=True)
         runtime.write_text('graph: "source_conditions/test"\n', encoding="utf-8")
         assert any("references audit directory" in issue for issue in audit(root))
+        old = root / "graphs/ab_als/overlays/old.animgraph.ron"
+        old.parent.mkdir(parents=True)
+        old.write_text("()\n", encoding="utf-8")
+        runtime.write_text('graph: "graphs/ab_als/overlays/old.animgraph.ron"\n', encoding="utf-8")
+        assert any("retired manual overlay asset" in issue for issue in audit(root))
+        assert any("references retired manual overlay" in issue for issue in audit(root))
     return {
         "audit_only_graphs_rejected_from_runtime_assets": "PASS",
         "runtime_reference_to_audit_graph_rejected": "PASS",
+        "retired_manual_overlay_and_reference_rejected": "PASS",
     }
 
 

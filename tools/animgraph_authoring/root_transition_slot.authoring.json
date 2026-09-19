@@ -142,7 +142,7 @@
   ],
   "fsms": [],
   "verification_commands": [
-    {"label":"root_transition_source_contract","scope":"source","argv":["python","tools/import/audit_ab_als_root.py","--check"]},
+    {"label":"root_transition_source_contract","scope":"source","argv":["python","tools/validate_animgraph_authoring.py","--manifest","tools/animgraph_authoring/generated_ab_als.authoring.json","--check","--summary"]},
     {"label":"root_transition_slot_positions","scope":"layout","argv":["python","tools/verify_animgraph_node_positions.py","--root","assets/graphs","--include","ab_als/root_transition_slot.animgraph.ron"]},
     {"label":"root_transition_slot_editor","scope":"editor","argv":["python","tools/validate_animgraph_editor_assets.py","--root","assets/graphs"]}
   ],

@@ -364,6 +364,12 @@ pub(crate) mod tests {
         use bevy_animation_graph::core::animation_clip::GraphClip;
         let (mut app, _, player) = loaded_bow_scene();
         let clip = app.world().resource::<AssetServer>().load::<GraphClip>("animations/Overlays/Bow/A_Als_Bow_Draw.anim.ron");
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        while !app.world().resource::<Assets<GraphClip>>().contains(&clip) {
+            app.update();
+            assert!(std::time::Instant::now() < deadline, "Bow source clip load timed out");
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
         let mut string_positions = Vec::new();
         for amount in [0.0, 0.5, 1.0] {
             app.world_mut().get_mut::<AnimationGraphPlayer>(player).unwrap().set_global_input_data("draw_amount", amount);

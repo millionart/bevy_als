@@ -29,7 +29,6 @@ pub mod locomotion_lifecycle;
 pub mod mantle_drive;
 pub mod manual_playground_integration;
 pub mod motion_graph_link;
-pub mod overlay_layer;
 pub mod overlay_mode_menu;
 pub mod overlay_object;
 pub mod pa_als;
