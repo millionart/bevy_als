@@ -17,6 +17,7 @@ public class AlsGraphSourceReader : ModuleRules
         PrivateDependencyModuleNames.AddRange(new[]
         {
             "UnrealEd",
+            "ImageCore",
             "BlueprintGraph",
             "Kismet",
             "AnimGraph",

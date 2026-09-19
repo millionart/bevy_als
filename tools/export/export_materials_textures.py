@@ -111,30 +111,16 @@ def export_texture(tex_obj, out_base):
     try:
         task = unreal.AssetExportTask()
         task.object = tex_obj
-        exp_cls = None
-        for n in dir(unreal):
-            if n.lower().endswith("textureexporterpng"):
-                exp_cls = getattr(unreal, n)
-                break
-        if exp_cls is None:
-            for suffix in ("textureexportertga", "textureexporterbmp"):
-                for n in dir(unreal):
-                    if n.lower().endswith(suffix):
-                        exp_cls = getattr(unreal, n)
-                        break
-                if exp_cls:
-                    break
-        ext = ".tga" if "tga" in str(exp_cls).lower() else ".png"
-        task.exporter = exp_cls() if exp_cls else None
-        task.filename = out_base + ext
+        task.exporter = unreal.TextureExporterTGA()
+        task.filename = out_base + ".tga"
         task.automated = True
         task.errors = []
-        unreal.Exporter.run_asset_export_task(task)
-        if os.path.isfile(out_base + ext):
-            return os.path.basename(out_base + ext)
+        if unreal.Exporter.run_asset_export_task(task) and not task.errors and os.path.isfile(task.filename):
+            return os.path.basename(task.filename)
+        raise RuntimeError('Source TGA export failed: ' + tex_obj.get_path_name())
     except Exception as exc:
         log("tex export fail %s: %s" % (tex_obj.get_name(), exc))
-    return None
+        raise
 
 
 def main():

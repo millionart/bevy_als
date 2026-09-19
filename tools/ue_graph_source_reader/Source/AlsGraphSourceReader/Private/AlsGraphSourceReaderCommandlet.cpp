@@ -18,6 +18,8 @@
 #include "Engine/SkeletalMesh.h"
 #include "Engine/Texture2D.h"
 #include "Exporters/Exporter.h"
+#include "ImageCore.h"
+#include "ImageUtils.h"
 #include "Components/PrimitiveComponent.h"
 #include "PhysicsEngine/AggregateGeom.h"
 #include "PhysicsEngine/PhysicsAsset.h"
@@ -974,15 +976,32 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
     }
     if (UTexture2D* Texture = Cast<UTexture2D>(Asset))
     {
-        const FString ImagePath = FPaths::ChangeExtension(OutputPath, TEXT("png"));
+        const FString ImagePath = FPaths::ChangeExtension(OutputPath, TEXT("tga"));
         if (UExporter::ExportToFile(Texture, nullptr, *ImagePath, false, false, false) != 1)
         {
             UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Unable to export source texture."));
             return 7;
         }
+        FImage SourceImage;
+        FImage ExportedImage;
+        TArray<uint8> EncodedImage;
+        if (!Texture->Source.GetMipImage(SourceImage, 0) || !FImageUtils::LoadImage(*ImagePath, ExportedImage)
+            || !FFileHelper::LoadFileToArray(EncodedImage, *ImagePath) || EncodedImage.Num() < 18
+            || EncodedImage[16] != 32 || (EncodedImage[17] & 15) != 8
+            || SourceImage.SizeX != ExportedImage.SizeX || SourceImage.SizeY != ExportedImage.SizeY
+            || SourceImage.NumSlices != ExportedImage.NumSlices || SourceImage.Format != ExportedImage.Format
+            || SourceImage.RawData != ExportedImage.RawData)
+        {
+            UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Exported texture differs from its source mip pixels or format."));
+            return 8;
+        }
         Root->SetStringField(TEXT("source_image"), FPaths::GetCleanFilename(ImagePath));
         Root->SetNumberField(TEXT("source_width"), Texture->Source.GetSizeX());
         Root->SetNumberField(TEXT("source_height"), Texture->Source.GetSizeY());
+        Root->SetStringField(TEXT("source_pixel_format"), ERawImageFormat::GetName(SourceImage.Format));
+        Root->SetNumberField(TEXT("source_channels"), ERawImageFormat::NumChannels(SourceImage.Format));
+        Root->SetNumberField(TEXT("exported_channels"), EncodedImage[16] / 8);
+        Root->SetBoolField(TEXT("source_image_pixel_exact"), true);
     }
     Root->SetStringField(TEXT("blueprint_cdo_path"), TEXT("None"));
     Root->SetArrayField(TEXT("blueprint_cdo_properties"), {});
