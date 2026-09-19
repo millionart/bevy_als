@@ -8,7 +8,7 @@ use avian3d::prelude::{ColliderOf, SpatialQuery, SpatialQueryFilter};
 const POSITION_TOLERANCE: f32 = 0.001;
 
 fn object(scenario: IntegrationScenario) -> &'static str {
-    if scenario == IntegrationScenario::RotatingBase { "Rotating:BP_SimpleRotatingObject_2" }
+    if matches!(scenario, IntegrationScenario::RotatingBase | IntegrationScenario::Footprint) { "Rotating:BP_SimpleRotatingObject_2" }
     else { "Moving:BP_SimpleMovingObject2" }
 }
 
@@ -193,7 +193,7 @@ pub(super) fn drive(
     let bounds = shape.shape_scaled().compute_local_aabb();
     let spawn = match state.moving_base_probe.stage {
         Stage::Place => Some(global.translation() + Vec3::Y * (bounds.maxs.y + half + 0.024)
-            + if state.scenario == IntegrationScenario::RotatingBase { global.rotation() * Vec3::X * 0.65 } else { Vec3::ZERO }),
+            + if matches!(state.scenario, IntegrationScenario::RotatingBase | IntegrationScenario::Footprint) { global.rotation() * Vec3::X * 0.65 } else { Vec3::ZERO }),
         Stage::PrepareMantle => {
             let horizontal = mantle_approach(path.kind, global, bounds.half_extents(), radius);
             als_core::motion::find_ground_floor(&spatial, horizontal + Vec3::Y * (half + 0.024), half, radius,
@@ -245,7 +245,8 @@ pub(super) fn observe(
 ) {
     let (Some(character), Some(avatar)) = (state.character, state.avatar) else { return; };
     let object = object(state.scenario);
-    let rotating = state.scenario == IntegrationScenario::RotatingBase;
+    let rotating = matches!(state.scenario, IntegrationScenario::RotatingBase | IntegrationScenario::Footprint);
+    let footprints = state.scenario == IntegrationScenario::Footprint;
     let Some((body, _, path, global, platform_velocity, kind, reported_velocity)) = platforms.iter().find(|(_, name, _, _, _, _, _)| name.as_str() == object) else { return; };
     let Some((collider, _)) = colliders.iter().find(|(_, owner)| owner.body == body) else { return; };
     let Ok((position, transform, mode, base, own, velocity, mantle, action, input, feet, playback, slot)) = characters.get(character) else { return; };
@@ -281,7 +282,7 @@ pub(super) fn observe(
             if probe.riding(local, motion_point, own.horizontal_speed, same_base, now, period, span)
                 && (!rotating || probe.steps.iter().all(|value| *value)) {
                 probe.ride = true;
-                probe.begin(Stage::Exit, now);
+                probe.begin(if footprints { Stage::Done } else { Stage::Exit }, now);
             }
         }
         Stage::Flight => {

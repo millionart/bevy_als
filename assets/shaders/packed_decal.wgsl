@@ -2,9 +2,10 @@
     forward_io::{VertexOutput, FragmentOutput},
     mesh_functions::get_local_from_world,
     mesh_view_bindings::view,
+    mesh_view_bindings::normal_prepass_texture,
     pbr_fragment::pbr_input_from_standard_material,
     pbr_functions::{apply_pbr_lighting, main_pass_post_lighting_processing},
-    prepass_utils::{prepass_depth, prepass_normal},
+    prepass_utils::prepass_depth,
     view_transformations::position_ndc_to_world,
 }
 
@@ -23,12 +24,17 @@ fn fragment(in: VertexOutput) -> FragmentOutput {
     let local = (get_local_from_world(in.instance_index) * vec4(world, 1.0)).xyz;
     let uv = local.yz + vec2(0.5);
     let packed = textureSampleGrad(packed_texture, packed_sampler, uv, dpdx(uv), dpdy(uv));
-    if (depth == 0.0 || any(abs(local) > vec3(0.5))) {
+#ifdef MULTISAMPLED
+    let normal = textureLoad(normal_prepass_texture, vec2<i32>(in.position.xy), 0i);
+#else
+    let normal = textureLoad(normal_prepass_texture, vec2<i32>(in.position.xy), 0);
+#endif
+    if (depth == 0.0 || normal.a == 0.0 || any(abs(local) > vec3(0.5))) {
         discard;
     }
     var surface = in;
     surface.world_position = vec4(world, 1.0);
-    surface.world_normal = prepass_normal(in.position, 0u);
+    surface.world_normal = normalize(normal.xyz * 2.0 - vec3(1.0));
     var pbr_input = pbr_input_from_standard_material(surface, true);
     pbr_input.material.base_color.a *= packed.a * clamp(4.0 - 8.0 * abs(local.x), 0.0, 1.0);
     pbr_input.material.perceptual_roughness = packed.g * roughness_scale;

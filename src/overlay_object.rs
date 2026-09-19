@@ -417,6 +417,7 @@ pub(crate) mod tests {
         graph.add_node(node);
         let graph = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(graph);
         app.world_mut().get_mut::<AnimationGraphPlayer>(owner_player).unwrap().start(graph);
+        app.world_mut().get_mut::<AnimationGraphPlayer>(owner_player).unwrap().set_global_input_data("owner_aiming", 0.0);
         app.world_mut().entity_mut(owner_player).insert(als_ext::post_physics_animation::PostPhysicsAnimation);
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
         let (prop, object_player) = loop {
@@ -424,7 +425,8 @@ pub(crate) mod tests {
             if let Some(prop) = app.world().get::<AlsOverlayObjectState>(character).and_then(|state| state.prop)
                 && let Some(object) = app.world().get::<AlsOverlayObject>(prop)
                 && let Some(scene) = app.world().get::<AnimatedSceneInstance>(object.content)
-                && app.world().get::<AvatarMaterialOverride>(prop).is_some() {
+                && app.world().get::<AvatarMaterialOverride>(prop).is_some()
+                && app.world().get::<AnimationGraphPlayer>(scene.player_entity()).is_some_and(|player| player.get_default_output_pose().is_some()) {
                 break (prop, scene.player_entity());
             }
             assert!(std::time::Instant::now() < deadline, "Bow actor assembly timed out: state={:?}, object={:?}, scene={}, material={:?}",

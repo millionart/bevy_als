@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet("startup", "base", "grounded", "standing_direction", "standing_response", "standing_stop", "standing_turn", "standing_dynamic", "crouching", "crouching_actions", "locomotion", "control_rig", "default_overlay", "bow", "overlays", "head", "state_machine", "transition_notify", "foot_ik", "sprint", "ragdoll", "get_up", "camera", "stairs", "uphill_jump", "moving_base", "rotating_base", "interface", "notify")]
+    [ValidateSet("startup", "base", "grounded", "standing_direction", "standing_response", "standing_stop", "standing_turn", "standing_dynamic", "crouching", "crouching_actions", "locomotion", "control_rig", "default_overlay", "bow", "overlays", "footprint", "head", "state_machine", "transition_notify", "foot_ik", "sprint", "ragdoll", "get_up", "camera", "stairs", "uphill_jump", "moving_base", "rotating_base", "interface", "notify")]
     [string]$Case = "state_machine",
     [string]$OutputDirectory,
     [int]$CaptureCount = 0,
@@ -81,6 +81,7 @@ try {
             validation_exit_code = $null
             validation_scope = if ($FunctionalOnly) { "functional" } else { "full" }
             render_effects_passed = $false
+            decal_renderer_passed = $false
         }
         if (-not (Test-Path -LiteralPath $reportPath -PathType Leaf)) {
             $runner | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $runnerPath -Encoding utf8
@@ -96,6 +97,11 @@ try {
             $effects = Get-Content -Raw -LiteralPath $effectsPath | ConvertFrom-Json
             $runner.render_effects_passed = $effects.passed -eq $true
         }
+        $decalPath = Join-Path $candidate "decal_render.json"
+        if (Test-Path -LiteralPath $decalPath -PathType Leaf) {
+            $decal = Get-Content -Raw -LiteralPath $decalPath | ConvertFrom-Json
+            $runner.decal_renderer_passed = $decal.receiver_ready -eq $true -and @($decal.errors).Count -eq 0 -and ($Case -ne 'footprint' -or $decal.decal_ready -eq $true)
+        }
         $runner | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $runnerPath -Encoding utf8
         if ($manualExitCode -ne 0) {
             throw "manual_playground exited with code $manualExitCode; visual diagnosis was written to $reportPath."
@@ -106,6 +112,7 @@ try {
         if (-not $runner.render_effects_passed) {
             throw "SSAO/TAA component and executed pass validation failed or is missing."
         }
+        if (-not $runner.decal_renderer_passed) { throw "Decal receiver or footprint GPU pipeline validation failed or is missing." }
     } finally {
         Pop-Location
     }

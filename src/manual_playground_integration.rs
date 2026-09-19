@@ -7,6 +7,7 @@ mod uphill;
 mod moving_base;
 mod bow;
 mod overlays;
+mod footprints;
 
 use als_camera::{AlsCameraDebugInfo, AlsCameraRig, AlsCameraSet, AlsCameraShakeRequest};
 use als_core::character::{AlsCharacter, AlsMovementParamsHandle};
@@ -575,6 +576,7 @@ impl Plugin for ManualPlaygroundIntegrationPlugin {
                     .in_set(ManualIntegrationObservationSet),
             );
         moving_base::install(app);
+        footprints::install(app);
     }
 }
 
@@ -775,6 +777,7 @@ enum IntegrationPhase {
     DefaultOverlay,
     BowOverlay,
     Overlays,
+    Footprints,
     Head,
     StateMachineGrounded,
     StateMachineAir,
@@ -831,6 +834,7 @@ enum IntegrationScenario {
     DefaultOverlay,
     BowOverlay,
     Overlays,
+    Footprint,
     Head,
     StateMachine,
     GeneratedTransitionNotify,
@@ -863,6 +867,7 @@ impl IntegrationScenario {
             Some("default_overlay") => Self::DefaultOverlay,
             Some("bow") => Self::BowOverlay,
             Some("overlays") => Self::Overlays,
+            Some("footprint") => Self::Footprint,
             Some("head") => Self::Head,
             Some("state_machine") => Self::StateMachine,
             Some("transition_notify") => Self::GeneratedTransitionNotify,
@@ -902,6 +907,7 @@ fn initial_phase(scenario: IntegrationScenario) -> IntegrationPhase {
         IntegrationScenario::DefaultOverlay => IntegrationPhase::DefaultOverlay,
         IntegrationScenario::BowOverlay => IntegrationPhase::BowOverlay,
         IntegrationScenario::Overlays => IntegrationPhase::Overlays,
+        IntegrationScenario::Footprint => IntegrationPhase::Footprints,
         IntegrationScenario::Head => IntegrationPhase::Head,
         IntegrationScenario::Crouching => IntegrationPhase::CrouchDirectionRegression,
         IntegrationScenario::Ragdoll | IntegrationScenario::GetUp => IntegrationPhase::Ragdoll,
@@ -3127,6 +3133,7 @@ struct ManualIntegrationState {
     default_overlay_probe: DefaultOverlayProbe,
     bow_probe: bow::Probe,
     overlays_probe: overlays::Probe,
+    footprint_probe: footprints::Probe,
     head_probe: HeadProbe,
     stairs_probe: stairs::Probe,
     uphill_probe: uphill::Probe,
@@ -3249,6 +3256,7 @@ impl Default for ManualIntegrationState {
             default_overlay_probe: default(),
             bow_probe: default(),
             overlays_probe: default(),
+            footprint_probe: default(),
             head_probe: default(),
             stairs_probe: default(),
             uphill_probe: default(),
@@ -4433,6 +4441,31 @@ fn drive_manual_integration(
                 state.head_probe.sample.elapsed_seconds = elapsed;
                 state.timed_out = true;
                 virtual_time.set_relative_speed(1.0);
+                begin_phase(&mut state, IntegrationPhase::Finish);
+            }
+        }
+        IntegrationPhase::Footprints => {
+            let stage = state.footprint_probe.stage;
+            state.footprint_probe.waited = elapsed;
+            if entering && stage == 0 {
+                reset_character(&mut transform, &mut position, rotation, &mut velocity, &mut view_yaw, &mut view_pitch,
+                    GROUNDED_START.with_y(fixture.locomotion_start.y), SPRINT_YAW);
+                rebase_temporal_fixture(&mut state, &mut phase_evidence, "footprint_start");
+                *gait = Gait::Walking;
+                *rotation_mode = RotationMode::ViewDirection;
+            }
+            request.rotation_mode = Some(RotationMode::ViewDirection);
+            request.overlay_state = Some(OverlayState::Default);
+            request.gait = Some(if stage == 3 { Gait::Running } else { Gait::Walking });
+            request.stance = Some(if stage == 5 { Stance::Crouching } else { Stance::Standing });
+            if matches!(stage, 1 | 3 | 5) { input.0.move_dir = Vec2::Y; }
+            if state.footprint_probe.covered[stage] {
+                state.footprint_probe.stage += 1;
+                let next = if state.footprint_probe.stage == footprints::LABELS.len() { IntegrationPhase::MovingBase } else { IntegrationPhase::Footprints };
+                begin_phase(&mut state, next);
+            } else if default_overlay_should_timeout(false, elapsed) {
+                state.timed_out = true;
+                state.footprint_probe.errors.push(format!("Footprint stage {stage} made no progress for 12 seconds"));
                 begin_phase(&mut state, IntegrationPhase::Finish);
             }
         }
@@ -9620,6 +9653,21 @@ fn observe_manual_integration(
                 results.extend(HEAD_WINDOWS.iter().enumerate().map(|(index, label)| (*label, probe.covered[index])));
                 results.extend([("head_source_contract", probe.valid), ("head_look_samples", probe.samples_seen.iter().all(|seen| *seen)),
                     ("head_mesh_additive", probe.additive_seen), ("head_first_person_clock", probe.unscaled_pitch_seen), ("head_complete", probe.case_index == HEAD_WINDOWS.len())]);
+                results
+            }
+            IntegrationScenario::Footprint => {
+                let probe = &state.footprint_probe;
+                if state.timed_out {
+                    gate_report.direction_trace.push(serde_json::json!({"watchdog": {
+                        "exit_reason":"case_progress_timeout","last_progress":probe.stage,"no_progress_limit_seconds":12.0,
+                        "waited_game_seconds":probe.waited,"current_conditions":probe.errors}}));
+                }
+                let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph)];
+                results.extend(footprints::LABELS.iter().enumerate().map(|(index, label)| (*label, probe.covered[index])));
+                results.extend([("footprint_visible", probe.visible), ("footprint_fade", probe.faded), ("footprint_expired", probe.expired),
+                    ("footprint_moving_surface", probe.moving), ("footprint_character_receiver", probe.receiver),
+                    ("footprint_gpu_pipelines", probe.pipelines),
+                    ("footprint_source_consistency", probe.errors.is_empty()), ("footprint_rotating_ride", state.moving_base_probe.ride)]);
                 results
             }
             IntegrationScenario::Overlays => {

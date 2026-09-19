@@ -52,6 +52,8 @@ def source_contract(directory):
     assert audit['summary']['event_classes']['AlsAnimNotify_FootstepEffects'] == 154
     generated = manifest(audit, Path('assets'))
     assert generated == json.loads(Path('assets/animation_events/als_notify_manifest.json').read_text())
+    references = {event['parameters'].get('FootstepEffectsSettings') for clip in generated['clips'] for event in clip['events'] if event['class'] == 'AlsAnimNotify_FootstepEffects'}
+    assert references == {'None/' + settings['asset_path'].replace('.', '/')}
     return sources
 
 
@@ -62,6 +64,7 @@ def compile_definition(sources):
     effects = record(properties, 'Effects')['elements']
     result = {
         'source_settings': settings['asset_path'],
+        'notify_settings_reference': 'None/' + settings['asset_path'].replace('.', '/'),
         'trace_channel': asset_property(settings, 'SurfaceTraceChannel'),
         'trace_distance': float(asset_property(settings, 'SurfaceTraceDistance')) * 0.01,
         'spawn_angle_cos': float(asset_property(settings, 'DecalSpawnAngleThresholdCos')),
@@ -70,6 +73,11 @@ def compile_definition(sources):
         'notify_defaults': {p['name']: (parse_bool(p['exported_text']) if p['property_class'] == 'BoolProperty' else float(p['exported_text']) if p['property_class'] == 'FloatProperty' else p['exported_text']) for p in defaults if p['name'] not in ('NotifyColor', 'bShouldFireInEditor')},
         'effects': [],
     }
+    actor = sources['B_Als_Character']
+    mesh = next(obj for obj in actor['blueprint_cdo_subobjects'] if obj['object_path'].endswith(':CharacterMesh0'))
+    capsule = next(obj for obj in actor['blueprint_cdo_subobjects'] if obj['object_path'].endswith(':CollisionCylinder'))
+    result['character_receives_decals'] = parse_bool(record(mesh['properties'], 'bReceivesDecals')['exported_text'])
+    assert 'Visibility' not in mesh['blocking_query_channels'] and 'Visibility' not in capsule['blocking_query_channels']
     for effect in effects:
         decal = record(effect['fields'], 'Decal')['fields']
         read = lambda name: record(decal, name)['exported_text']

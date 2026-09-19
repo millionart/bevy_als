@@ -40,6 +40,7 @@ impl Plugin for AlsCharacterRuntimePlugin {
         ))
         .add_plugins(AlsActualMotionPlugin)
         .add_plugins(crate::camera_component::AlsSourceCameraPlugin)
+        .add_plugins(crate::footprint::FootprintPlugin)
         .add_plugins(SourcePhysicsTimingPlugin)
         .add_plugins((
             ControlRigApplyPlugin,
