@@ -1237,7 +1237,7 @@ fn layering_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe, pre
             let Some(actual) = pose(node.id) else { continue; };
             if let Some(sequence) = node.try_inner_downcast_ref::<als_ext::SourceSequenceEvaluatorNode>() {
                 if let Some(clip) = probe.clips.get(&sequence.clip) {
-                    let time = (sequence.explicit_value / sequence.frames_per_second).clamp(0.0, clip.duration);
+                    let time = ((sequence.explicit_value as f64 / sequence.frames_per_second) as f32).clamp(0.0, clip.duration);
                     let expected = als_ext::source_sequence_player::sample_pose(clip, time);
                     if (actual.timestamp - time).abs() > 1e-5 || default_overlay_pose_error(&actual, &expected).is_none_or(|error| error > 2e-5) {
                         sample.errors.push(format!("{}: source base pose frame mismatch", node.id.uuid()));
@@ -1349,7 +1349,7 @@ fn default_overlay_graph_sample(player: &AnimationGraphPlayer, probe: &MotionPro
             if let Some(sequence) = node.try_inner_downcast_ref::<als_ext::SourceSequenceEvaluatorNode>() {
                 let Some(index) = DEFAULT_OVERLAY_EVALUATORS.iter().position(|id| *id == node.id.uuid().to_string()) else { continue; };
                 let Some(clip) = probe.clips.get(&sequence.clip) else { continue; };
-                let expected_time = (sequence.explicit_value / sequence.frames_per_second).clamp(0.0, clip.duration);
+                let expected_time = ((sequence.explicit_value as f64 / sequence.frames_per_second) as f32).clamp(0.0, clip.duration);
                 sample.evaluator_times[index] = Some(actual.timestamp);
                 sample.expected_times[index] = Some(expected_time);
                 if (actual.timestamp - expected_time).abs() > 1e-5 { sample.errors.push(format!("evaluator_{index}: sample time mismatch")); }

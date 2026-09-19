@@ -251,14 +251,9 @@ def stable_id(graph, role):
 
 def frame_time(metadata):
     frame = metadata["reference_frame"]
-    if frame == 0:
-        return 0.0
-    reference_rate = metadata["reference_sample_rate"]
-    if reference_rate > 0.0:
-        return frame / reference_rate
     reference_length = metadata["reference_sequence_length"]
     reference_frames = metadata["reference_frame_count"]
-    return reference_length * frame / max(reference_frames - 1, 1)
+    return reference_length * min(max(frame / reference_frames, 0.0), 1.0) if reference_frames > 0 else 0.0
 
 
 def node_line(node_id, name, node_type, fields):
@@ -572,6 +567,11 @@ def markdown(rows):
 
 
 def run_self_test():
+    reference_timing = {"reference_frame": 7, "reference_sample_rate": 30.0, "reference_sequence_length": 11.0 / 30.0, "reference_frame_count": 12}
+    assert abs(frame_time(reference_timing) - (11.0 / 30.0) * (7.0 / 12.0)) < 1e-9
+    assert frame_time(reference_timing | {"reference_frame": -1}) == 0.0
+    assert frame_time(reference_timing | {"reference_frame": 20}) == reference_timing["reference_sequence_length"]
+    assert frame_time(reference_timing | {"reference_frame_count": 0}) == 0.0
     assert sampling_frame_rate({"__tagged__": {"Numerator": 30000, "Denominator": 1001}}) == 30000.0 / 1001.0
     def native_sequence(path, additive_type="AAT_None", reference="None"):
         return {

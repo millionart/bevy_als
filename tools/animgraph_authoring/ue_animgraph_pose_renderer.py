@@ -454,6 +454,7 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             field("explicit_value_pin", quoted(explicit_value_pin)),
             field("expose_explicit_value_pin", bool_ron(explicit_value_pin in pins)),
             field("frames_per_second", repr(asset_by_node[semantic["source_node"]]["source_timing"]["frames_per_second"])),
+            field("step_interpolation", bool_ron(asset_by_node[semantic["source_node"]]["source_timing"]["step_interpolation"])),
             field("should_loop", bool_ron(value["loop"])),
             field("teleport_to_explicit_time", bool_ron(value["teleport_to_explicit_time"])),
             field("reinitialization_behavior", quoted(value["reinitialization_behavior"])),
@@ -1845,10 +1846,21 @@ def run_self_test():
     }
     evaluator_assets = copy.deepcopy(assets)
     evaluator_assets[0]["source_timing"]["frames_per_second"] = 60.0
+    evaluator_assets[0]["source_timing"]["step_interpolation"] = True
     evaluator_assets[0]["source_timing"]["root_lock"] = "RefPose"
     _, inner = rendered_inner(graph_contract, {}, evaluator, asset_index(evaluator_assets), {})
     assert "explicit_value: 2.0" in inner and "expose_explicit_value_pin: true" in inner and "use_explicit_frame: true" in inner
     assert "frames_per_second: 60.0" in inner
+    assert "step_interpolation: true" in inner
+    renamed_evaluator = copy.deepcopy(evaluator)
+    renamed_assets = copy.deepcopy(evaluator_assets)
+    renamed_graph = copy.deepcopy(graph_contract)
+    renamed_graph["source_graph"]["object_path"] = "/Fixture/RenamedGraph"
+    renamed_evaluator["source_node"] = "/Fixture/RenamedGraph.DifferentNode"
+    renamed_assets[0]["source_node"] = renamed_evaluator["source_node"]
+    assert rendered_inner(renamed_graph, {}, renamed_evaluator, asset_index(renamed_assets), {})[1] == inner
+    renamed_assets[0]["source_timing"]["step_interpolation"] = False
+    assert rendered_inner(renamed_graph, {}, renamed_evaluator, asset_index(renamed_assets), {})[1] == inner.replace("step_interpolation: true", "step_interpolation: false")
     assert "root_lock: Some(RefPose)" in inner
     evaluator["semantic"].update(use_explicit_frame=False, explicit_value_pin="ExplicitTime", input_pins=["ExplicitTime"], explicit_value=0.75, explicit_value_key="view_state.pitch_amount")
     _, inner = rendered_inner(graph_contract, {}, evaluator, asset_index(evaluator_assets), {})

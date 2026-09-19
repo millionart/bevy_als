@@ -19,7 +19,7 @@
       "sha256": "67ab2e0bf0557bc1c3c433c2c97f6e9932f60750593fd8dbb8fa49a8de034215"
     },
     {
-      "path": "target/bf115_head/source_cpp/AlsAnimationInstance.cpp",
+      "path": "target/bf116_projection/source/AlsAnimationInstance.cpp",
       "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c"
     },
     {
@@ -31,7 +31,7 @@
       "sha256": "55cebe93625b590ad74704511ae959822e1eb9a849d4b39297a57be965754614"
     },
     {
-      "path": "target/bf115_head/source_cpp/AlsCharacter.cpp",
+      "path": "target/bf116_projection/source/AlsCharacter.cpp",
       "sha256": "779192e94d0a1ac13ccf95cfa9db540cc4f6230a2dc3ab9113848f8d983ace84"
     },
     {
@@ -476,11 +476,11 @@
         "python",
         "tools/animgraph_authoring/audit_generated_source_closure.py",
         "--source-directory",
-        "target/bf115_head/native_source",
+        "target/bf116_projection/source",
         "--materialized-directory",
-        "target/bf115_head/final_conversion",
+        "target/bf116_projection/native_root",
         "--spec",
-        "target/bf115_head/spec.json",
+        "target/bf116_projection/spec.json",
         "--source-asset",
         "/ALS/ALS/Character/AnimationInstances/AB_Als_Head.AB_Als_Head"
       ]

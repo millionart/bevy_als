@@ -3,12 +3,12 @@
   "id": "generated_ab_als_crouching_assets",
   "source_evidence": [
     {
-      "path": "target/bf116_bow/05b2_source/ALS_ALS_Character_CR_Als.CR_Als.ue.json",
-      "sha256": "dcce6822c8dead1bfabcf8aef23d9a07879446b0745f3b2ed4ddadd64a77b0cb"
+      "path": "target/bf116_projection/source/ALS_ALS_Character_CR_Als.CR_Als.ue.json",
+      "sha256": "41156c24a7293ac8d6c7c69322b1b5f79a78ee4682b526285a0258a22d6e7645"
     },
     {
-      "path": "target/bf116_bow/05b2_source/ALS_ALS_Character_AnimationInstances_Stances_AB_Als_Crouching.AB_Als_Crouching.ue.json",
-      "sha256": "af54a2caed90f04d1f80bb9a0ea0287d93096bb0280ea6295f8520e04f334efc"
+      "path": "target/bf116_projection/source/ALS_ALS_Character_AnimationInstances_Stances_AB_Als_Crouching.AB_Als_Crouching.ue.json",
+      "sha256": "31a28eb61f0813fe895d9e8ff8de6ad7f38ff28a527b01df2ec906ba415d80d2"
     },
     {
       "path": "target/bf115_crouching/source/AIS.actions.fresh.ue.json",
@@ -27,20 +27,20 @@
       "sha256": "8b9dcaca9cda8e2398476d1c67f4a5a606de0fca4f5d10f35f9421bdd6e39218"
     },
     {
-      "path": "target/bf116_bow/05b2_source/ALS_ALS_Animations_View_BS_Als_Look.BS_Als_Look.ue.json",
+      "path": "target/bf116_projection/source/ALS_ALS_Animations_View_BS_Als_Look.BS_Als_Look.ue.json",
       "sha256": "d47911ff00227747f85aae3912c06eb245bbebc573eec61dc197836bedcb0181"
     },
     {
-      "path": "target/bf116_bow/05b2_source/ALS_ALS_Animations_Grounded_Lean_BS_Als_Lean.BS_Als_Lean.ue.json",
+      "path": "target/bf116_projection/source/ALS_ALS_Animations_Grounded_Lean_BS_Als_Lean.BS_Als_Lean.ue.json",
       "sha256": "17556db4da564122f48ec27fdb7950a1fb7957f037d36785114a9bdcd0846ddf"
     },
     {
-      "path": "target/bf116_bow/05b2_source/ALS_ALS_Animations_Air_Lean_BS_Als_Air_Lean.BS_Als_Air_Lean.ue.json",
+      "path": "target/bf116_projection/source/ALS_ALS_Animations_Air_Lean_BS_Als_Air_Lean.BS_Als_Air_Lean.ue.json",
       "sha256": "2bc7aa3d9be47e97d1a0aecbfdc7e7976696633afc32a2c1969ea825ae9aa7e8"
     },
     {
-      "path": "target/bf116_bow/05b2_source/ALS_ALS_Character_AB_Als.AB_Als.ue.json",
-      "sha256": "b468719adaf1754d43b4e8e87ad9e0fd24bc06bba8c6a34fa077b8329ae091b0"
+      "path": "target/bf116_projection/source/ALS_ALS_Character_AB_Als.AB_Als.ue.json",
+      "sha256": "81b25ab5c02f1fb356868b88dcb38285a4aa5c731ca761b9aa79a4fb45cd42b6"
     }
   ],
   "graphs": [
@@ -1823,11 +1823,11 @@
         "python",
         "tools/animgraph_authoring/audit_generated_source_closure.py",
         "--source-directory",
-        "target/bf116_bow/05b2_source",
+        "target/bf116_projection/source",
         "--materialized-directory",
-        "target/bf116_bow/05c2_corpus_root",
+        "target/bf116_projection/native_root",
         "--spec",
-        "target/bf116_bow/05c2_spec.json",
+        "target/bf116_projection/spec.json",
         "--source-asset",
         "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching"
       ]

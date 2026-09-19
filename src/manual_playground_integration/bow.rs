@@ -26,6 +26,8 @@ pub(super) struct Sample {
     aiming: [Option<f32>; 2],
     fsm_arms: Vec<(String, [f32; 4])>,
     root_arms: Vec<(String, [f32; 4])>,
+    frames: Vec<(f32, f32, f32)>,
+    frame_errors: Vec<String>,
 }
 
 pub(super) fn command(index: usize) -> AlsInputCommand {
@@ -47,6 +49,7 @@ fn settled(index: usize, stance: Stance, mode: RotationMode, speed: f32, sample:
         && if index == 3 { speed > 0.5 } else { speed < 0.1 }
         && sample.aiming.iter().all(|value| value.is_some_and(|value| (value - command(index).aim_held as u8 as f32).abs() < 1e-4))
         && sample.fsm_arms.len() == 4 && sample.root_arms.len() == 4
+        && sample.frame_errors.is_empty()
 }
 
 fn arms(pose: &Pose, skeletons: &Assets<Skeleton>) -> Vec<(String, [f32; 4])> {
@@ -69,8 +72,25 @@ fn sample(player: &AnimationGraphPlayer, probe: &MotionProbe, root_context: Opti
     sample.phase = als_ext::sync_group_phase::source_sync_phase(arena, &probe.graphs, SYNC);
     for id in arena.iter_context_ids() {
         let Some(context) = arena.get_context(id) else { continue; };
-        if probe.asset_server.get_path(context.get_graph_id()).is_none_or(|path| path.path() != std::path::Path::new(GRAPH)) { continue; }
+        let Some(path) = probe.asset_server.get_path(context.get_graph_id()) else { continue; };
+        if !path.path().starts_with("generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow") { continue; }
         let Some(graph) = probe.graphs.get(context.get_graph_id()) else { continue; };
+        for node in graph.nodes.values() {
+            if !context.node_caches.is_updated(node.id, StateKey::Default) { continue; }
+            let Some(sequence) = node.try_inner_downcast_ref::<als_ext::SourceSequenceEvaluatorNode>() else { continue; };
+            if !sequence.use_explicit_frame { continue; }
+            let Some(clip) = probe.clips.get(&sequence.clip) else { continue; };
+            let Some(DataValue::Pose(actual)) = context.node_caches.get_output_data(node.id, StateKey::Default, "Pose".into()) else { continue; };
+            let source_time = (sequence.explicit_value as f64 / 30.0) as f32;
+            let frame = (source_time * 30.0).floor();
+            let time = (frame * (clip.duration() / 11.0)).clamp(0.0, clip.duration());
+            let expected = als_ext::source_sequence_player::sample_pose(clip, time);
+            sample.frames.push((sequence.explicit_value, actual.timestamp, time));
+            if actual.timestamp != source_time || default_overlay_pose_error(&actual, &expected).is_none_or(|error| error > 2e-5) {
+                sample.frame_errors.push(format!("frame {} sampled {} instead of {}", sequence.explicit_value, actual.timestamp, time));
+            }
+        }
+        if path.path() != std::path::Path::new(GRAPH) { continue; }
         let Some(node) = graph.nodes.values().find(|node| node.name == "Bow States\nState Machine") else { continue; };
         if !context.node_caches.is_updated(node.id, StateKey::Default) { continue; }
         let Some(fsm) = node.try_inner_downcast_ref::<als_ext::InterruptibleFsmNode>() else { continue; };
@@ -135,6 +155,9 @@ mod tests {
         assert!(!settled(1, Stance::Standing, RotationMode::Aiming, 0.0, &sample));
         sample.state = Some("Aiming".into());
         sample.aiming[1] = Some(0.0);
+        assert!(!settled(1, Stance::Standing, RotationMode::Aiming, 0.0, &sample));
+        sample.aiming[1] = Some(1.0);
+        sample.frame_errors.push("previous step key was sampled".into());
         assert!(!settled(1, Stance::Standing, RotationMode::Aiming, 0.0, &sample));
         assert!(!settled(4, Stance::Standing, RotationMode::Aiming, 0.0, &sample));
         assert!(!default_overlay_should_timeout(false, 11.9));

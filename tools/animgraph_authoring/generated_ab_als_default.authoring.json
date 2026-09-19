@@ -3,15 +3,15 @@
   "id": "generated_ab_als_default_assets",
   "source_evidence": [
     {
-      "path": "target/bf116_bow/05b2_source/ALS_ALS_Character_AnimationInstances_Overlays_AB_Als_Default.AB_Als_Default.ue.json",
-      "sha256": "27430c48588d3c34e9b20047fdd08199386e50229b9babfb5efc84eb9edeb004"
+      "path": "target/bf116_projection/source/ALS_ALS_Character_AnimationInstances_Overlays_AB_Als_Default.AB_Als_Default.ue.json",
+      "sha256": "5bd0e84fd7a6c5a4fc282ae08f7d89fd71912a7d83c3f9e2acc3a94b574adc68"
     },
     {
-      "path": "target/bf116_bow/05b2_source/ALS_ALS_Character_AB_Als.AB_Als.ue.json",
-      "sha256": "b468719adaf1754d43b4e8e87ad9e0fd24bc06bba8c6a34fa077b8329ae091b0"
+      "path": "target/bf116_projection/source/ALS_ALS_Character_AB_Als.AB_Als.ue.json",
+      "sha256": "81b25ab5c02f1fb356868b88dcb38285a4aa5c731ca761b9aa79a4fb45cd42b6"
     },
     {
-      "path": "target/bf115_overlays/source/AlsAnimationInstance.cpp",
+      "path": "target/bf116_projection/source/AlsAnimationInstance.cpp",
       "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c"
     },
     {
@@ -51,8 +51,8 @@
       "sha256": "73d5bdb25a4b33db5e762f0671a7e9e6777ec33b654d258bc4ce6bb3c8e014d3"
     },
     {
-      "path": "target/bf116_bow/05b2_source/ALS_ALS_Character_CR_Als.CR_Als.ue.json",
-      "sha256": "dcce6822c8dead1bfabcf8aef23d9a07879446b0745f3b2ed4ddadd64a77b0cb"
+      "path": "target/bf116_projection/source/ALS_ALS_Character_CR_Als.CR_Als.ue.json",
+      "sha256": "41156c24a7293ac8d6c7c69322b1b5f79a78ee4682b526285a0258a22d6e7645"
     },
     {
       "path": "target/bf115_overlays/source/UE_AnimInstanceProxy.cpp",
@@ -83,8 +83,8 @@
       "sha256": "249fb20269a254329c326e881d20e9664a5619d1e955c3bb2f3e96476169d5e4"
     },
     {
-      "path": "target/bf116_bow/05b2_source/ALS_ALS_Character_AnimationInstances_AB_Als_Layering.AB_Als_Layering.ue.json",
-      "sha256": "debedb423dda48036fd4363f660da818c15f45b9c833b43321021857286ea2c2"
+      "path": "target/bf116_projection/source/ALS_ALS_Character_AnimationInstances_AB_Als_Layering.AB_Als_Layering.ue.json",
+      "sha256": "2f939fc7a379c56e8eb65c2ffbc24b7cfe2c7cb381b66cb972574cf7373fa530"
     },
     {
       "path": "target/bf115_overlays/source/UE_AnimationRuntime.cpp",
@@ -131,7 +131,7 @@
       "sha256": "7fb9f39a98ae2e6769f7aed5a593ec6afe71512268d2597bbf1410bcb36c5757"
     },
     {
-      "path": "target/bf115_overlays/source/AlsCharacter.cpp",
+      "path": "target/bf116_projection/source/AlsCharacter.cpp",
       "sha256": "779192e94d0a1ac13ccf95cfa9db540cc4f6230a2dc3ab9113848f8d983ace84"
     },
     {
@@ -139,8 +139,8 @@
       "sha256": "e3c78546a8b39d1873b1fc004870035cd60d2c1ffe85b4245ee7e33f42253a37"
     },
     {
-      "path": "target/bf116_bow/05b2_source/ALS_ALS_Character_AnimationInstances_AB_Als_Grounded.AB_Als_Grounded.ue.json",
-      "sha256": "ab30279c7198aca00a7eaa98da05093c318ffc157e6dd5c517498aa9a099b151"
+      "path": "target/bf116_projection/source/ALS_ALS_Character_AnimationInstances_AB_Als_Grounded.AB_Als_Grounded.ue.json",
+      "sha256": "9ae89f1a9cae71b3097c9322c1ea0c30121f0104aa08e3a064a21a981db51568"
     },
     {
       "path": "target/bf115_overlays/source/AM_Als_Roll.clock.ue.json",
@@ -371,11 +371,11 @@
         "python",
         "tools/animgraph_authoring/audit_generated_source_closure.py",
         "--source-directory",
-        "target/bf116_bow/05b2_source",
+        "target/bf116_projection/source",
         "--materialized-directory",
-        "target/bf116_bow/05c2_corpus_root",
+        "target/bf116_projection/native_root",
         "--spec",
-        "target/bf116_bow/05c2_spec.json",
+        "target/bf116_projection/spec.json",
         "--source-asset",
         "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Default.AB_Als_Default"
       ]

@@ -9,6 +9,26 @@
     {
       "path": "target/bf116_bow/source/c2_character_actor.json",
       "sha256": "1e55a8064a025defd1bf641aba818ae5ed30f3b6fdc45f0d154b1fbabc5b7e94"
+    },
+    {
+      "path": "target/bf116_projection/source/AnimNode_SequenceEvaluator.cpp",
+      "sha256": "38f0bffce84384d63ad82270a7a073b5f58322855237bbd42a85239ae98a9f1b"
+    },
+    {
+      "path": "target/bf116_projection/source/ACL_interpolation_utils.impl.h",
+      "sha256": "0ea8f5c3d45992473aa2b4ec0e0eb8d3ae772a32eeb1fc5e23cfab06b8eb415f"
+    },
+    {
+      "path": "target/bf116_projection/source/GLTFBoneUtilities.cpp",
+      "sha256": "98228ce84724be8d5618a3ac51ebdcd61bd73e3758b6794fe30cbce153ff872f"
+    },
+    {
+      "path": "target/bf116_projection/source/AnimSequence.cpp",
+      "sha256": "08986b39c6e9d933d523b5ede2e7bbc110bf6ee1d532ed21241d173d0040799c"
+    },
+    {
+      "path": "target/bf116_projection/source/bow_reference_current.ue.json",
+      "sha256": "9ee272757914cea74c89cf67641d0e4a2e3c61823d34c18e64955518e639cd1f"
     }
   ],
   "graphs": [
@@ -1420,7 +1440,7 @@
         "--source-directory",
         "target/bf116_projection/source",
         "--materialized-directory",
-        "target/bf116_projection/corpus_bow",
+        "target/bf116_projection/native_bow",
         "--spec",
         "target/bf116_projection/spec.json"
       ]
@@ -1499,7 +1519,26 @@
         "--test-threads",
         "1"
       ],
-      "evidence": "target/bf116_projection/bow_driver_restored.watchdog.json"
+      "evidence": "target/bf116_projection/bow_native_tests.watchdog.json"
+    },
+    {
+      "label": "native_sequence_sampling",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "-p",
+        "als-ext",
+        "--lib",
+        "--jobs",
+        "2",
+        "source_sequence_evaluator::tests",
+        "--",
+        "--test-threads",
+        "1"
+      ],
+      "evidence": "target/bf116_projection/native_step_ext_restored.watchdog.json"
     }
   ]
 }

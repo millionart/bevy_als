@@ -268,7 +268,7 @@ fn has_stop_plant_contract(
             source_evaluators.iter().any(|(actual_name, evaluator)| {
                 *actual_name == *name
                     && close(evaluator.explicit_frame, *frame)
-                    && close(evaluator.frames_per_second, 30.0)
+                    && (evaluator.frames_per_second - 30.0).abs() < 1e-6
                     && evaluator.should_loop
                     && evaluator.teleport_to_explicit_time
                     && evaluator.reinitialization_behavior == "ExplicitTime"

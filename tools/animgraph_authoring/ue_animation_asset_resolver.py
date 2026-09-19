@@ -288,6 +288,17 @@ def sequence_root_lock(forced, mode):
     return mode
 
 
+def sequence_sampling_frame_rate(properties):
+    value = properties.get("PlatformTargetFrameRate") or properties.get("TargetFrameRate")
+    if isinstance(value, str):
+        value = parse_struct(value)
+    elif isinstance(value, dict):
+        value = value.get("__tagged__", value)
+    if isinstance(value, dict):
+        value = value.get("Default", value)
+    return sampling_frame_rate(value)
+
+
 def sequence_timing_contract(source):
     if (
         not isinstance(source, dict)
@@ -297,8 +308,8 @@ def sequence_timing_contract(source):
         raise AssetResolutionError("source animation sequence is invalid")
     try:
         duration = parse_number(asset_property(source, "SequenceLength"))
-        frames_per_second = sampling_frame_rate(asset_property(source, "SamplingFrameRate"))
         properties = {row["name"]: row["exported_text"] for row in source["asset_properties"]}
+        frames_per_second = sequence_sampling_frame_rate(properties)
         root_lock = sequence_root_lock(properties.get("bForceRootLock", "False"), properties.get("RootMotionRootLock", "RefPose"))
         raw_markers = asset_property(source, "AuthoredSyncMarkers")
         markers = []
@@ -315,7 +326,17 @@ def sequence_timing_contract(source):
         raise AssetResolutionError("source animation sequence properties are unreadable") from error
     if duration <= 0.0 or any(not marker["name"] for marker in markers):
         raise AssetResolutionError("source animation sequence duration or markers are invalid")
-    return {"duration": duration, "markers": markers, "frames_per_second": frames_per_second, "root_lock": root_lock}
+    return {"duration": duration, "markers": markers, "frames_per_second": frames_per_second, "root_lock": root_lock,
+            "step_interpolation": sequence_step_interpolation(properties.get("Interpolation", "Linear"))}
+
+
+def sequence_step_interpolation(value):
+    if isinstance(value, dict):
+        value = value.get("value", value.get("enum_name"))
+    value = value.rsplit("::", 1)[-1] if isinstance(value, str) else value
+    if value not in {"Linear", "Step"}:
+        raise AssetResolutionError("source sequence interpolation is unsupported")
+    return value == "Step"
 
 
 def source_sequence_timing(content_root, mount, source_path, source_reader=None):
@@ -349,11 +370,12 @@ def source_sequence_timing(content_root, mount, source_path, source_reader=None)
             raise AssetResolutionError("source animation sync marker fields are invalid")
         markers.append({"name": marker_name, "time": float(time)})
     try:
-        frames_per_second = sampling_frame_rate(properties.get("SamplingFrameRate"))
+        frames_per_second = sequence_sampling_frame_rate(properties)
         root_lock = sequence_root_lock(properties.get("bForceRootLock", False), properties.get("RootMotionRootLock", "RefPose"))
     except (AssetResolutionError, ExportedTextError):
         return sequence_timing_contract(native_source_asset(source_path, source_reader))
-    return {"duration": float(duration), "markers": markers, "frames_per_second": frames_per_second, "root_lock": root_lock}
+    return {"duration": float(duration), "markers": markers, "frames_per_second": frames_per_second, "root_lock": root_lock,
+            "step_interpolation": sequence_step_interpolation(properties.get("Interpolation", "Linear"))}
 
 
 def sequence_curves_contract(source):
@@ -1169,6 +1191,7 @@ def run_self_test():
                 {"name":"RawCurveData", "exported_text":"()"},
                 {"name":"SequenceLength", "exported_text":"1.0"},
                 {"name":"SamplingFrameRate", "exported_text":"(Numerator=30,Denominator=1)"},
+                {"name":"PlatformTargetFrameRate", "exported_text":"(Default=(Numerator=30,Denominator=1))"},
                 {"name":"AuthoredSyncMarkers", "exported_text":""}]}
         with patch(__name__ + ".CurveUAsset", side_effect=CurveParseError("legacy property format")), \
              patch(__name__ + ".native_source_asset", return_value=legacy_source) as native:
@@ -1640,7 +1663,8 @@ def run_self_test():
         "asset_class": "/Script/Engine.AnimSequence",
         "asset_properties": [
             {"name": "SequenceLength", "exported_text": "0.800000"},
-            {"name": "SamplingFrameRate", "exported_text": "(Numerator=30000,Denominator=1001)"},
+            {"name": "SamplingFrameRate", "exported_text": "(Numerator=60,Denominator=1)"},
+            {"name": "PlatformTargetFrameRate", "exported_text": "(Default=(Numerator=30000,Denominator=1001))"},
             {"name": "bForceRootLock", "exported_text": "True"},
             {"name": "RootMotionRootLock", "exported_text": "Zero"},
             {
@@ -1652,12 +1676,17 @@ def run_self_test():
     assert sequence_timing_contract(sequence_source) == {
         "duration": 0.8,
         "frames_per_second": 30000.0 / 1001.0,
+        "step_interpolation": False,
         "root_lock": "Zero",
         "markers": [
             {"name": "Left", "time": 0.033333},
             {"name": "Right", "time": 0.433333},
         ],
     }
+    sequence_source["asset_properties"].append({"name": "Interpolation", "exported_text": "Step"})
+    assert sequence_timing_contract(sequence_source)["step_interpolation"]
+    assert sequence_step_interpolation({"value": "EAnimInterpolationType::Step"})
+    assert sequence_sampling_frame_rate({"SamplingFrameRate": {"__tagged__": {"Numerator": 60}}, "TargetFrameRate": {"__tagged__": {"Numerator": 30}}}) == 30.0
     profile_source = {
         "format": "ue_asset_source_v1",
         "asset_path": "/ALS/ALS/Character/SK_Test.SK_Test",

@@ -10,8 +10,14 @@ use bevy_animation_graph::core::{
 use crate::global_f32_input::root_defaults_enabled;
 use crate::source_sequence_player::sample_source_pose;
 
-fn frame_to_time(frame: f32, frames_per_second: f32) -> f32 {
-    frame.max(0.0) / frames_per_second.max(f32::EPSILON)
+fn frame_to_time(frame: f32, frames_per_second: f64) -> f32 {
+    (frame.max(0.0) as f64 / frames_per_second.max(f64::EPSILON)) as f32
+}
+
+fn step_sample_time(time: f32, frames_per_second: f64, duration: f32) -> f32 {
+    let intervals = (duration as f64 * frames_per_second).round().max(1.0) as f32;
+    let frame = (time * frames_per_second as f32).floor().clamp(0.0, intervals);
+    (frame * (duration / intervals)).min(duration)
 }
 
 #[derive(Reflect, Clone, Debug)]
@@ -29,7 +35,8 @@ pub struct SourceSequenceEvaluatorNode {
     pub explicit_value_key: String,
     pub explicit_value_pin: String,
     pub expose_explicit_value_pin: bool,
-    pub frames_per_second: f32,
+    pub frames_per_second: f64,
+    pub step_interpolation: bool,
     pub should_loop: bool,
     pub teleport_to_explicit_time: bool,
     pub reinitialization_behavior: String,
@@ -50,6 +57,7 @@ impl Default for SourceSequenceEvaluatorNode {
             explicit_value_pin: "ExplicitTime".to_owned(),
             expose_explicit_value_pin: true,
             frames_per_second: 30.0,
+            step_interpolation: false,
             should_loop: true,
             teleport_to_explicit_time: true,
             reinitialization_behavior: "ExplicitTime".to_owned(),
@@ -95,7 +103,9 @@ impl NodeLike for SourceSequenceEvaluatorNode {
         let value = self.input_value(&ctx)?;
         let time = if self.use_explicit_frame { frame_to_time(value, self.frames_per_second) } else { value }
             .clamp(0.0, clip.duration().max(0.0));
-        let pose = sample_source_pose(&ctx, clip, time, self.additive_reference.as_ref(), self.additive_reference_position, self.additive_mesh_space, self.root_lock)?;
+        let sample_time = if self.step_interpolation { step_sample_time(time, self.frames_per_second, clip.duration()) } else { time };
+        let mut pose = sample_source_pose(&ctx, clip, sample_time, self.additive_reference.as_ref(), self.additive_reference_position, self.additive_mesh_space, self.root_lock)?;
+        pose.timestamp = time;
         *ctx.state_mut_or_else(crate::AnimationContextState::default)? =
             crate::AnimationContextState {
                 curves: self.curves.sample_all(time),
@@ -123,6 +133,30 @@ impl NodeLike for SourceSequenceEvaluatorNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn step_sampling_matches_native_acl_frame_selection() {
+        use bevy::animation::gltf_curves::SteppedKeyframeCurve;
+        for (frames_per_second, intervals) in [(30.0_f64, 11), (24.0, 5), (30.0, 23), (60.0, 59), (30000.0 / 1001.0, 37)] {
+            let duration = (intervals as f64 / frames_per_second) as f32;
+            let frame_length = duration / intervals as f32;
+            let curve = SteppedKeyframeCurve::new((0..=intervals).map(|frame| {
+                ((frame as f32 * frame_length).min(duration), frame)
+            })).unwrap();
+            for frame in 0..=intervals {
+                let native_time = ((frame as f64 / frames_per_second) as f32).clamp(0.0, duration);
+                let native_frame = (native_time * frames_per_second as f32).floor().min(intervals as f32) as i32;
+                let time = frame_to_time(frame as f32, frames_per_second).clamp(0.0, duration);
+                assert_eq!(time, native_time);
+                assert_eq!(curve.sample_clamped(step_sample_time(time, frames_per_second, duration)), native_frame,
+                    "rate={frames_per_second}, intervals={intervals}, frame={frame}, time={time:?}");
+                for time in [time.next_down().max(0.0), time, time.next_up().min(duration)] {
+                    let native_frame = (time * frames_per_second as f32).floor().min(intervals as f32) as i32;
+                    assert_eq!(curve.sample_clamped(step_sample_time(time, frames_per_second, duration)), native_frame);
+                }
+            }
+        }
+    }
 
     #[test]
     fn additive_sequence_nodes_preserve_sample_time_and_reference_space() {
@@ -169,6 +203,12 @@ mod tests {
                         assert!((curves.curves["Aim"] - time).abs() < 1e-6);
                     }
                 }
+                for name in ["step_frame", "step_time"] {
+                    let pose = outputs[name].as_pose().unwrap();
+                    assert_eq!(pose.get_bone(child).unwrap().translation, Some(Vec3::X * 6.0));
+                    assert_eq!(pose.timestamp, 0.2);
+                    assert_eq!(crate::animation_context::graph_output_context_state(graph, &context, name).unwrap().curves["Aim"], 0.2);
+                }
             }
         }
         let root = EntityPath::default().child("root");
@@ -195,6 +235,17 @@ mod tests {
         let reference = make_clip(true);
         let target = make_clip(false);
         let mut graph = AnimationGraph::new();
+        let mut step_clip = bevy::animation::AnimationClip::default();
+        step_clip.add_curve_to_target(child.id().animation_target_id(), AnimatableCurve::new(animated_field!(Transform::translation),
+            bevy::animation::gltf_curves::SteppedKeyframeCurve::new((0..12).map(|frame| (frame as f32 * ((11.0_f32 / 30.0) / 11.0), Vec3::X * frame as f32))).unwrap()));
+        let step_clip = clips.add(GraphClip::from_bevy_clip(step_clip, skeleton.clone(), default(), None));
+        for (name, use_explicit_frame, explicit_value) in [("step_frame", true, 6.0), ("step_time", false, 0.2)] {
+            let evaluator = AnimationNode::new(name, SourceSequenceEvaluatorNode { clip: step_clip.clone(), use_explicit_frame,
+                explicit_value, step_interpolation: true, curves:crate::als_curves::parse_curves(&serde_json::json!({"curves":[{"name":"Aim","times":[0.0,1.0],"values":[0.0,1.0],"interps":["LINEAR","LINEAR"]}]})).unwrap(), ..default() });
+            graph.add_node(evaluator.clone());
+            graph.add_output_data(name.to_owned(), DataSpec::Pose);
+            graph.add_output_data_edge(evaluator.id, "Pose", name);
+        }
         let player = AnimationNode::new("player", crate::SourceSequencePlayerNode { clip:target.clone(), additive_reference:Some(reference.clone()), additive_reference_position:7.0/30.0, additive_mesh_space:true, play_rate:0.0, start_position:0.75, loop_animation:false, expose_play_rate_pin:false, expose_start_position_pin:false, expose_loop_animation_pin:false, ..default() });
         graph.add_node(player.clone());
         graph.add_output_data("player".to_owned(), DataSpec::Pose);
@@ -225,6 +276,8 @@ mod tests {
         assert!((frame_to_time(23.0, 30.0) - 23.0 / 30.0).abs() < 1e-6);
         assert_eq!(frame_to_time(15.0, 60.0), 0.25);
         assert!((frame_to_time(15.0, 30000.0 / 1001.0) - 0.5005).abs() < 1e-6);
+        assert_eq!(frame_to_time(-1.0, 30.0), 0.0);
+        assert_eq!(step_sample_time(0.2, 30.0, 0.0), 0.0);
     }
 
     #[test]
