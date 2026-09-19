@@ -19,7 +19,7 @@ license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
 # 基座：Bevy 0.19（本地源码调试时用 [patch.crates-io] 指向本机 clone，路径经 gitignored 本地配置管理，勿提交）
-bevy = { version = "0.19", features = ["file_watcher"] }
+bevy = { version = "0.19", features = ["file_watcher", "tga"] }
 
 # 基座插件 fork（M0.2 配置；upstream 与 fork 地址见 README.md，均为公开 git 依赖）
 bevy_animation_graph = { git = "https://github.com/millionart/bevy_animation_graph", branch = "master", features = [

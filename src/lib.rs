@@ -16,6 +16,7 @@ pub mod crouching_layer;
 pub mod debug_display;
 pub mod direction_layer;
 pub mod foot_ik_apply;
+pub mod footprint;
 pub mod gait_layer;
 pub mod game_mode;
 pub mod generated_ab_als_provider;

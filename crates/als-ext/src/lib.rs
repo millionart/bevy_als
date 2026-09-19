@@ -50,6 +50,7 @@ pub mod overlay_materials;
 pub mod penetration_recovery;
 pub mod playground;
 pub mod playground_materials;
+pub mod projected_decal;
 pub mod pose_timestamp;
 pub mod profile_blend;
 pub mod ragdoll_angular_drive;
