@@ -47,7 +47,7 @@
 | BF116.03 | 通用运动基座平移跟随 | 角色按源规则跟随当前所踩对象的平移，覆盖不同碰撞层级、换基座、跳离和失去支撑；mantle期间持续跟随平移中的目标及当前落点。`B_Als_MovingObject2` 仅为场景用例，不按平台名称特修。 | 功能完成；性能暂停 |
 | BF116.04 | 通用运动基座旋转跟随 | 角色按源规则跟随当前所踩对象的旋转，核对相对位置、朝向及原地踏步/足锁表现；mantle期间持续按旋转目标的当前变换更新轨迹、朝向和落点。`B_Als_RotatingObject` 仅为场景用例，不按平台名称特修。 | 功能完成；性能暂停 |
 | BF116.05 | 弓箭 Overlay 与物件动画整套 | 一并移植 `Overlays/AB_Als_Bow` 和 `OverlayObjects/Bow/AB_Als_Bow`，核对两图联动、实际动画/曲线/层混合，以及弓物件引用、挂载、输入、生命周期与 Actor 调用链。 | 功能完成；性能暂停 |
-| BF116.06 | 剩余11个 overlays 的移植和修复 | 除前项弓箭 Overlay 外，逐图对照本地源，完成转换、实际动画/曲线/层混合及对应 Actor 消费和功能验收。 | 待执行 |
+| BF116.06 | 剩余11个 overlays 的移植和修复 | 除前项弓箭 Overlay 外，逐图对照本地源，完成转换、实际动画/曲线/层混合及对应 Actor 消费和功能验收。 | 进行中 |
 | BF116.07 | Footprint 移植 | 对照本地源完成 Footprint 资源、触发与足迹显示、Actor/通知消费及生成/清理生命周期，并通过真实场景验收。 | 待执行 |
 | BF116.08 | `B_Als_MovingObject1` 陷地 | 核对平台自身运动、位置和碰撞的源生命周期，修复陷入地面，与源场景表现一致；验证mantle可攀上持续升降的目标，过程和结束位置均跟随目标当前变换。 | 待执行 |
 
@@ -482,3 +482,14 @@ BF116.03/04/08共同验收补充（用户2026-09-13 23:08明确）：每项都�
   - 05c4r2再次启动后2026-09-19 19:46：startup15.161s功能通过，manual/validator均0、无功能issue，继续同一二进制bow完整复验。
   - 05c4r2弓箭复验后/界面Gate前2026-09-19 19:51：修正fixture输入后bow36.946s完整功能通过，20/20覆盖、manual/validator均0、fault/graph error/temporal anomaly均0；当帧Draw/实际弓弦、三材质槽、十个窗口和非Low mantle/ragdoll清除恢复成立。生产动画及公共阈值未改，继续同一二进制interface验证Default↔Bow切换、父实例保持及物件销毁重建。
   - 05c4r2/05完成2026-09-19 19:54：startup复验15.161s、Bow36.946s、interface17.226s均功能通过，manual/validator均0，零fault/graph error/temporal anomaly；Bow20/20覆盖、921次有效物件样本与源Draw Pose误差全0、三槽材质实装、两类清除/恢复均成立，界面Default↔Bow保持父实例并重建物件内容。保留两常驻组件与现成AnimatedScene/材质桥，原始导出未改，没有新的运行时采样算法、缓存或依赖。首次失败只修复fixture窗口8的输入突变，六项连续性/源状态/对象检查通过，生产曲线和守卫阈值保持。r2开始19:33、预估20:20:30、实际19:54、偏差-1590s；05c4开始18:18、首轮预估19:03、实际19:54，首轮超时及拆分见上，最终功能完成。BF116.05整套角色/物件图与Actor链闭合；性能继续按用户原暂停范围保留，下一项为BF116.06。
+
+### BF116.06 剩余Overlay执行子项
+
+- [ ] BF116.06a 十一图与Actor引用源闭包：开始2026-09-19 20:30:00、预估2026-09-19 21:15:00。依赖17a6a33的Bow完整功能闭合；当前HEAD另有9b74911的过渡蒙太奇修复，保持该已提交工作。以源Actor的OverlayAnimationInstanceClasses映射为清单，重新读取Masculine、Feminine、Injured、HandsTied、Rifle、PistolOneHanded、PistolTwoHanded、Torch、Binoculars、Box、Barrel十一AnimBP及其递归依赖，通过公开uasset转换入口逐图生成完整候选或明确阻断报告；同时核对Actor挂载/材质/Socket/生命周期引用与当前目标消费者。禁止UE MCP，沿现有原生reader及watchdog，不安装不完整图。Gate为fresh源库存、十一份转换/集成报告及按真实阻断拆分后续实现。估时依据为05的37份原生闭包和单份33–78秒、已有通用Evaluator/FSM/Blend/事件支持及素材库；未证明的共享差异不预先改动。当前只做06的源/静态闭环，不启动新Playground或展开07/08。
+  - 06a首轮图闭环2026-09-19 20:43：fresh Actor映射确认13类（Default/Bow及本项11类），当前11个公开uasset转换全部pass且integration=ready，58个源子图，零未映射输入；三种枪械各为三状态/六转换，八个无FSM图复用已有Evaluator/Blend/曲线/Secondary Motion。现有通用规则已覆盖全部，未改转换器或安装候选图。当前真实入口仍只绑定Default/Bow，Actor物件侧只有Bow应用源材质与Socket；源映射证明需要统一图选择及七类物件数据，并删除旧手工Overlay及其旧合同调用。正在沿fresh Actor引用递归读取网格、骨架和材质；只纳入明确引用，原Bow语义在统一Actor数据迁移时逐字段对比保持，尚无复开生产动画理由。
+  - 06a生命周期边界2026-09-19 20:53：fresh Actor证明两Pistol使用相同SKM/Socket且AnimClass均None；当次Engine SetSkeletalMesh在同资产时直接返回，SetAnimInstanceClass在同非空类且Blueprint模式时不重新初始化。目标sync_overlay_object只要Overlay枚举或config变化就销毁内容；05c4的fixture甚至断言仅更改Gun选项应销毁player，旧Gate验证了错误生命周期。source-target链与既有实际测试共同证明该共享根因，现有限取消05c4勾选，仅复开同网格/同类保持边界；其余已通过Bow图算法、材料和姿态不复开。继续06源资产只读收集，暂停06接入实现，先关闭以下依赖修复。
+- [x] BF116.05c4r3 同资产物件实例保持：开始2026-09-19 20:53:00、预估2026-09-19 21:23:00。以fresh SetSkeletalMesh/SetAnimInstanceClass早退和Actor两Pistol映射为合同，先对真实Actor装配加入Pistol切换与Bow挂载变化保留内容/player的失败检查，再按网格及动画实现身份决定重建。清除/恢复仍须销毁/重建；变更挂载只更新两常驻组件。Gate为最小反例、清除恢复回归、消融、同入口startup/Bow复验。估时依据为已有完整场景fixture、源身份已明确、近期25–48秒测试和约70秒入口构建；完成后自动继续06。
+  - 05c4r3静态闭环2026-09-19 21:00：同资产反例39.681s稳定FAIL，Bow挂载改变与两Pistol切换均销毁了应保留的实例；按实际网格类别、资产及动画实现场景身份复用内容后29.503s通过，补清除必须销毁/换Rifle必须重建的边界后七项24.678s通过。恒定重建即前述失败对照；仅增加源身份数据和当次复用判断，没有新持久状态。挂载仍更新两常驻组件，清除/恢复仍重建。06源闭包已收齐38份当次记录、11份ready转换、70候选RON与22物件依赖；无转换规则修改，待本复开项真实Gate关闭后继续06接入。
+  - 05c4r3真实Gate前2026-09-19 21:01：同target_game/play构建71.832s及更新的物件声明式通过，源时序/同资产早退合同与focused证据已登记；未改RON、转换器或源曲线，沿用完整已通过图闭包。现在原Playground startup→bow，继续CaptureCount0/FunctionalOnly和全部公共守卫。
+  - 05c4r3启动后2026-09-19 21:02：startup15.211s功能通过，manual/validator均0、无功能issue，继续同一二进制完整bow回归。
+  - 05c4r3完成2026-09-19 21:04：startup15.211s与完整Bow36.841s功能通过，manual/validator均0、零fault/graph error/temporal anomaly；七项focused同时证明同Pistol资产保留、Bow挂载变化保留player、换网格重建及ragdoll清除销毁。旧的恒定重建反例与真实Native早退已闭合，未改采样/曲线/转换规则/原始资产，有限复开关闭。开始20:53、预估21:23、实际21:04、偏差-1140s；BF116.05恢复功能完成，继续06，性能保持原暂停范围。

@@ -61,6 +61,10 @@
     {
       "path": "target/bf116_finish/source/pbr_functions.wgsl",
       "sha256": "13a5344ef4e0fa967e05978489d0909dd0c1862cf7a989ce0882dbc8de9a55dd"
+    },
+    {
+      "path": "target/bf116_overlays/source/SkeletalMeshComponent.cpp",
+      "sha256": "06179d38ebff3138b6412fe14b14331c0a9e8c1623b760801ba6276602223378"
     }
   ],
   "graphs": [
@@ -206,7 +210,7 @@
   "recursive_inventory": null,
   "focused_tests": [
     {
-      "label": "object_inputs_assets_lifecycle_and_failure_reports",
+      "label": "same_asset_and_cleared_object_lifecycle",
       "argv": [
         "cargo",
         "test",
@@ -217,11 +221,12 @@
         "--lib",
         "--jobs",
         "2",
+        "overlay_object::tests",
         "--",
         "--test-threads",
         "1"
       ],
-      "evidence": "target/bf116_finish/restored_project_tests.watchdog.json"
+      "evidence": "target/bf116_finish/same_object_boundaries.watchdog.json"
     }
   ]
 }

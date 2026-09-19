@@ -56,6 +56,7 @@ pub enum OverlayObjectKind {
 pub struct OverlayObjectSpec {
     pub kind: OverlayObjectKind,
     pub asset_path: &'static str,
+    pub animation_scene: Option<&'static str>,
     pub socket_name: &'static str,
     pub use_left_gun_bone: bool,
 }
@@ -70,42 +71,49 @@ pub fn overlay_object_spec(overlay: OverlayState) -> Option<OverlayObjectSpec> {
         OverlayState::Rifle => Some(OverlayObjectSpec {
             kind: OverlayObjectKind::Skeletal,
             asset_path: "models/SKM_Als_Rifle.gltf",
+            animation_scene: None,
             socket_name: "Rifle",
             use_left_gun_bone: false,
         }),
         OverlayState::PistolOneHanded | OverlayState::PistolTwoHanded => Some(OverlayObjectSpec {
             kind: OverlayObjectKind::Skeletal,
             asset_path: "models/SKM_Als_Pistol.gltf",
+            animation_scene: None,
             socket_name: "Pistol",
             use_left_gun_bone: false,
         }),
         OverlayState::Bow => Some(OverlayObjectSpec {
             kind: OverlayObjectKind::Skeletal,
             asset_path: &BOW_OBJECT.mesh,
+            animation_scene: Some(&BOW_OBJECT.scene),
             socket_name: &BOW_OBJECT.socket_name,
             use_left_gun_bone: BOW_OBJECT.use_left_gun_bone,
         }),
         OverlayState::Torch => Some(OverlayObjectSpec {
             kind: OverlayObjectKind::Static,
             asset_path: "models/overlay/SM_Als_Torch.gltf",
+            animation_scene: None,
             socket_name: "Torch",
             use_left_gun_bone: true,
         }),
         OverlayState::Binoculars => Some(OverlayObjectSpec {
             kind: OverlayObjectKind::Static,
             asset_path: "models/overlay/SM_Als_Binoculars.gltf",
+            animation_scene: None,
             socket_name: "Binoculars",
             use_left_gun_bone: false,
         }),
         OverlayState::Box => Some(OverlayObjectSpec {
             kind: OverlayObjectKind::Static,
             asset_path: "models/overlay/SM_Als_Box.gltf",
+            animation_scene: None,
             socket_name: "Box",
             use_left_gun_bone: false,
         }),
         OverlayState::Barrel => Some(OverlayObjectSpec {
             kind: OverlayObjectKind::Static,
             asset_path: "models/overlay/SM_Als_Barrel.gltf",
+            animation_scene: None,
             socket_name: "Barrel",
             use_left_gun_bone: true,
         }),
@@ -259,43 +267,46 @@ fn sync_overlay_object(
         {
             continue;
         }
+        let attachment = desired_overlay.and_then(|overlay| {
+            let spec = overlay_object_spec(overlay)?;
+            let bone_name = attachment_bone(spec, config.use_gun_bones);
+            let bone = find_named_descendant(assembly.avatar, bone_name, &children, &names)?;
+            Some((overlay, spec, bone_name, bone))
+        });
+        let retained = attachment.and_then(|(_, spec, _, _)| {
+            let object = props.get(state.prop?).ok()?;
+            let previous = overlay_object_spec(object.overlay)?;
+            (previous.kind == spec.kind && previous.asset_path == spec.asset_path
+                && previous.animation_scene == spec.animation_scene).then_some(object.content)
+        });
         if let Some(prop) = state.prop.take()
             && let Ok(object) = props.get(prop)
+            && retained.is_none()
         {
             commands.entity(object.content).despawn();
             commands.entity(prop).remove::<(AlsOverlayObject, AvatarMaterialOverride, AvatarMaterialApplied)>();
         }
-        state.applied_overlay = desired_overlay;
-        state.visible = visible;
-        let Some(overlay) = desired_overlay else {
-            continue;
-        };
-        let Some(spec) = overlay_object_spec(overlay) else {
-            continue;
-        };
-        let bone_name = attachment_bone(spec, config.use_gun_bones);
-        let Some(bone) = find_named_descendant(assembly.avatar, bone_name, &children, &names)
-        else {
-            state.applied_overlay = None;
-            state.visible = false;
-            continue;
-        };
+        state.applied_overlay = attachment.map(|(overlay, _, _, _)| overlay);
+        state.visible = attachment.is_some();
+        let Some((overlay, spec, bone_name, bone)) = attachment else { continue; };
         let prop = state.components[usize::from(spec.kind == OverlayObjectKind::Skeletal)];
         let transform = if overlay == OverlayState::Bow && !config.use_gun_bones {
             Transform { translation: BOW_OBJECT.socket_translation, rotation: BOW_OBJECT.socket_rotation, scale: BOW_OBJECT.socket_scale }
         } else { Transform::IDENTITY };
-        let mut content = commands.spawn((Name::new(format!("AlsOverlayProp::{overlay:?}")), Transform::IDENTITY, Visibility::Inherited, ChildOf(prop)));
-        if overlay == OverlayState::Bow {
-            content.insert(AnimatedSceneHandle::new(assets.load(BOW_OBJECT.scene.clone())));
-        } else {
-            content.insert(WorldAssetRoot(assets.load(GltfAssetLabel::Scene(0).from_asset(spec.asset_path))));
-        }
-        let content = content.id();
+        let content = retained.unwrap_or_else(|| {
+            let mut content = commands.spawn((Name::new(format!("AlsOverlayProp::{overlay:?}")), Transform::IDENTITY, Visibility::Inherited, ChildOf(prop)));
+            if let Some(scene) = spec.animation_scene {
+                content.insert(AnimatedSceneHandle::new(assets.load(scene)));
+            } else {
+                content.insert(WorldAssetRoot(assets.load(GltfAssetLabel::Scene(0).from_asset(spec.asset_path))));
+            }
+            content.id()
+        });
         for component in state.components { commands.entity(component).insert((ChildOf(bone), transform)); }
         commands.entity(prop).insert(AlsOverlayObject {
             character, content, overlay, kind: spec.kind, attachment_bone: bone_name,
         });
-        if overlay == OverlayState::Bow {
+        if overlay == OverlayState::Bow && retained.is_none() {
             let handles = BOW_OBJECT.materials.iter().map(|value| materials.add(StandardMaterial {
                 base_color: Color::linear_rgba(value.linear_rgba[0], value.linear_rgba[1], value.linear_rgba[2], value.linear_rgba[3]),
                 metallic: value.metallic, perceptual_roughness: value.roughness, reflectance: value.reflectance, ..default()
@@ -498,7 +509,7 @@ pub(crate) mod tests {
             assert_eq!(app.world().get::<ChildOf>(component).unwrap().parent(), socket);
             assert_eq!(app.world().get::<Transform>(component), app.world().get::<Transform>(prop));
         }
-        assert!(app.world().get_entity(object_player).is_err());
+        assert_eq!(app.world().get::<AnimatedSceneInstance>(app.world().get::<AlsOverlayObject>(prop).unwrap().content).unwrap().player_entity(), object_player);
         for (ragdoll, mantle, kind, visible) in [(true, false, MantleKind::Low, false), (false, false, MantleKind::Low, true),
             (false, true, MantleKind::High, false), (false, true, MantleKind::Low, true), (false, false, MantleKind::Low, true)] {
             app.world_mut().entity_mut(character).insert((if ragdoll { AlsNotifyLocomotionAction::Ragdolling } else { AlsNotifyLocomotionAction::None },
@@ -508,10 +519,34 @@ pub(crate) mod tests {
             assert_eq!(state.components, components);
             assert_eq!(state.prop, visible.then_some(prop));
             assert_eq!(app.world().get::<AlsOverlayObject>(prop).is_some(), visible);
+            if ragdoll { assert!(app.world().get_entity(object_player).is_err()); }
         }
         app.world_mut().entity_mut(character).despawn();
         app.update();
         assert!(components.iter().all(|entity| app.world().get_entity(*entity).is_err()));
+    }
+
+    #[test]
+    fn pistol_mode_switch_keeps_the_same_mesh_content() {
+        let (mut app, _, _, _) = crate::camera_component::tests::loaded_camera_scene();
+        OverlayObjectPlugin.build(&mut app);
+        let avatar = app.world_mut().spawn(Transform::IDENTITY).id();
+        app.world_mut().spawn((Name::new(RIGHT_GUN_BONE), Transform::IDENTITY, ChildOf(avatar)));
+        let character = app.world_mut().spawn((AlsCharacter, OverlayState::PistolOneHanded, AlsCharacterAssembly { avatar, camera: None })).id();
+        app.update();
+        app.update();
+        let prop = app.world().get::<AlsOverlayObjectState>(character).unwrap().prop.unwrap();
+        let content = app.world().get::<AlsOverlayObject>(prop).unwrap().content;
+        *app.world_mut().get_mut::<OverlayState>(character).unwrap() = OverlayState::PistolTwoHanded;
+        app.update();
+        let object = app.world().get::<AlsOverlayObject>(prop).unwrap();
+        assert_eq!(object.overlay, OverlayState::PistolTwoHanded);
+        assert_eq!(object.content, content);
+        assert!(app.world().get_entity(content).is_ok());
+        *app.world_mut().get_mut::<OverlayState>(character).unwrap() = OverlayState::Rifle;
+        app.update();
+        assert_ne!(app.world().get::<AlsOverlayObject>(prop).unwrap().content, content);
+        assert!(app.world().get_entity(content).is_err());
     }
 
     #[test]
