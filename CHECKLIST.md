@@ -48,7 +48,7 @@
 | BF116.04 | 通用运动基座旋转跟随 | 角色按源规则跟随当前所踩对象的旋转，核对相对位置、朝向及原地踏步/足锁表现；mantle期间持续按旋转目标的当前变换更新轨迹、朝向和落点。`B_Als_RotatingObject` 仅为场景用例，不按平台名称特修。 | 功能完成；性能暂停 |
 | BF116.05 | 弓箭 Overlay 与物件动画整套 | 一并移植 `Overlays/AB_Als_Bow` 和 `OverlayObjects/Bow/AB_Als_Bow`，核对两图联动、实际动画/曲线/层混合，以及弓物件引用、挂载、输入、生命周期与 Actor 调用链。 | 功能完成；性能暂停 |
 | BF116.06 | 剩余11个 overlays 的移植和修复 | 除前项弓箭 Overlay 外，逐图对照本地源，完成转换、实际动画/曲线/层混合及对应 Actor 消费和功能验收。 | 功能完成；性能暂停 |
-| BF116.07 | Footprint 移植 | 对照本地源完成 Footprint 资源、触发与足迹显示、Actor/通知消费及生成/清理生命周期，并通过真实场景验收。 | 待执行 |
+| BF116.07 | Footprint 移植 | 对照本地源完成 Footprint 资源、触发与足迹显示、Actor/通知消费及生成/清理生命周期，并通过真实场景验收。 | 进行中 |
 
 BF116.05/06共同执行边界（用户2026-09-14 12:22明确）：只使用当前AnimBP转换器生成图并补齐源Actor逻辑；直接替换相应旧手工图和重复Actor实现，不保留旧手工版本兼容路径。
 
@@ -543,3 +543,9 @@ BF116.03/04/08共同验收补充（用户2026-09-13 23:08明确）：每项都�
   - 06d2再次真实Gate前2026-09-19 23:44：同target_game/play入口68.738s构建通过；源/图合同未变，25项Overlay与10项公共时序检查、声明式和watchdog正常/停滞/子进程回收自测齐全。现原Playground startup→110窗口overlays，启用实际阶段日志作为外层进展信号，CaptureCount0/FunctionalOnly及原阈值保持。
   - 06d2再次启动后2026-09-19 23:45：startup15.191s功能通过，manual/validator均0、无功能issue，性能预算仍保留deferred。继续同一二进制完整overlays，准备窗口只作用于显式类fixture边界，其余动作转换与源逐帧一致性检查保持。
   - 06d2/06d/06完成2026-09-19 23:47：startup15.191s、完整overlays104.099s均功能通过，manual/validator均0；11类/110窗口/115项覆盖全部通过，5647实际样本、10562次Evaluator Pose/曲线检查零差异，三枪械实际FSM状态、物件材质/完整Socket、父实例保持及公共时序守卫成立，零fault/graph error/temporal anomaly/watchdog。保留源快速组合输入的约1.03rad受控证明，只修fixture的停止前提与新类准备窗口声明，未改生产动画、转换器、原始导出或阈值。25项Overlay、10项公共守卫、两类消融/失败恢复、源静态及watchdog自测齐全；最终证据在target/animation_visual/bf116_overlays_prepared。d2开始23:27、预估次日00:04:30、实际23:47、偏差-1050s；06d开始21:54、首轮预估22:49、实际23:47、首轮偏差+3480s，超时复盘与拆分结果见上。BF116.06功能关闭，性能预算继续deferred，截图仍暂停；未启动BF116.07。
+
+### BF116.07 Footprint 执行子项
+
+- [x] BF116.07a 足迹资源与通知源闭包：开始2026-09-20 01:41:00、预估2026-09-20 02:26:00。依赖BF116.06功能完成；用户本轮选定07。fresh本地C++已定位UAlsAnimNotify_FootstepEffects→足骨世界变换→双向trace/物理材质→SpawnDecal→SetFadeOut链，三个直接资产为FES_Als_Default、M_Als_Footprint_Decal及T_Als_Footprint_M。通过仓库原生reader重新提取设置/材质/纹理及相关通知与Actor事实，复核现有通知导出/分发入口，明确坐标单位、附着对象、左右脚、角度拒绝、淡出销毁和音频/Niagara挂钩边界。Gate为完整源库存和source-target失败合同，按已证实缺口拆出后续实现/真实入口子项。估时依据为三个直接资产、单一通知C++及既有事件框架、最近原生读取33–78秒记录；本段不启动Playground、不改转换器或相邻已完成图。性能与截图沿用已暂停范围。
+  - 07a完成2026-09-20 01:54：五份原生资产/类记录与137个动画重新提取，154条FootstepEffects及完整177通知/60marker清单与既有manifest逐字段一致；九个BlendSpace均沿用HighestWeightedAnimation，Native代表资产与本地引擎默认一致。源通知直接读取Owner locomotion mode和最终足骨，按足up轴→世界向下fallback做50cm Visibility复杂trace，默认Surface条目，35°拒绝、左右脚完整旋转/偏移、附着命中组件、4s+2s淡出并只销毁Decal组件；材质black/metallic0/specular0.5、G×0.2粗糙度、A×0.3×lifetime透明度。原生reader补通用Map结构值完整字段、UClass默认值和Texture2D原图导出，原始资产未改；完整源合同0.555s、删除每项新增读取能力的三类消融、watchdog正常/停滞/子进程回收均通过。旧事件Gate明确只覆盖Sprint/Roll/Mantle/GetUp且当时排除了decal，本项扩展足迹消费边界，不复开原已验收动作逻辑。开始01:41、预估02:26、实际01:54、偏差-1920s，源段完成；余项拆为目标资源、通用图通知时钟/权重、Actor足迹消费/显示生命周期与公共功能Gate。
+- [ ] BF116.07b 目标足迹设置与材质资源：开始2026-09-20 01:54:00、预估2026-09-20 02:24:00。依赖07a；基于五份native与完整通知source，复用坐标工具离线生成独立target设置、左右脚轴/四元数/米制偏移和尺寸，以及原纹理对应的透明度/粗糙度材质输入；保留原图不修改。Gate为逐字段/基向量/材质通道复算、实际资产加载及消融。估时依据为单材质七表达式、单512纹理、单Surface配置和已有坐标/资源加载工具；完成后再接通生成图的实际notify链与真实入口。

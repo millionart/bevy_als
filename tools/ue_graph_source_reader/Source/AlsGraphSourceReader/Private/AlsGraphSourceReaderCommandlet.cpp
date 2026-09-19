@@ -16,6 +16,8 @@
 #include "Animation/Skeleton.h"
 #include "Engine/Blueprint.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/Texture2D.h"
+#include "Exporters/Exporter.h"
 #include "Components/PrimitiveComponent.h"
 #include "PhysicsEngine/AggregateGeom.h"
 #include "PhysicsEngine/PhysicsAsset.h"
@@ -126,6 +128,25 @@ TArray<TSharedPtr<FJsonValue>> CaptureProperties(const UStruct* Struct, const vo
             if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
             {
                 Entry->SetArrayField(TEXT("fields"), CaptureProperties(StructProperty->Struct, Value, Parent, bIncludeUnitMetadata));
+            }
+            if (const FMapProperty* MapProperty = CastField<FMapProperty>(Property))
+            {
+                if (const FStructProperty* ValueStruct = CastField<FStructProperty>(MapProperty->ValueProp))
+                {
+                    FScriptMapHelper Map(MapProperty, Value);
+                    TArray<TSharedPtr<FJsonValue>> Elements;
+                    for (int32 Index = 0; Index < Map.GetMaxIndex(); ++Index)
+                    {
+                        if (!Map.IsValidIndex(Index)) { continue; }
+                        TSharedRef<FJsonObject> Element = MakeShared<FJsonObject>();
+                        FString Key;
+                        MapProperty->KeyProp->ExportTextItem_Direct(Key, Map.GetKeyPtr(Index), nullptr, Parent, PPF_None);
+                        Element->SetStringField(TEXT("key"), Key);
+                        Element->SetArrayField(TEXT("fields"), CaptureProperties(ValueStruct->Struct, Map.GetValuePtr(Index), Parent, bIncludeUnitMetadata));
+                        Elements.Add(MakeShared<FJsonValueObject>(Element));
+                    }
+                    Entry->SetArrayField(TEXT("elements"), Elements);
+                }
             }
             Values.Add(MakeShared<FJsonValueObject>(Entry));
         }
@@ -946,6 +967,23 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
     Root->SetStringField(TEXT("asset_path"), Asset->GetPathName());
     Root->SetStringField(TEXT("asset_class"), Asset->GetClass()->GetPathName());
     Root->SetArrayField(TEXT("asset_properties"), CaptureProperties(Asset->GetClass(), Asset, Asset));
+    if (UClass* Class = Cast<UClass>(Asset))
+    {
+        UObject* DefaultObject = Class->GetDefaultObject();
+        Root->SetArrayField(TEXT("class_default_properties"), CaptureProperties(Class, DefaultObject, DefaultObject));
+    }
+    if (UTexture2D* Texture = Cast<UTexture2D>(Asset))
+    {
+        const FString ImagePath = FPaths::ChangeExtension(OutputPath, TEXT("png"));
+        if (UExporter::ExportToFile(Texture, nullptr, *ImagePath, false, false, false) != 1)
+        {
+            UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Unable to export source texture."));
+            return 7;
+        }
+        Root->SetStringField(TEXT("source_image"), FPaths::GetCleanFilename(ImagePath));
+        Root->SetNumberField(TEXT("source_width"), Texture->Source.GetSizeX());
+        Root->SetNumberField(TEXT("source_height"), Texture->Source.GetSizeY());
+    }
     Root->SetStringField(TEXT("blueprint_cdo_path"), TEXT("None"));
     Root->SetArrayField(TEXT("blueprint_cdo_properties"), {});
     TArray<TSharedPtr<FJsonValue>> DefaultSubobjectValues;
