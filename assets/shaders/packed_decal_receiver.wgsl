@@ -20,7 +20,7 @@ fn fragment(in: VertexOutput, @builtin(front_facing) is_front: bool) -> Fragment
     var pbr_input = pbr_input_from_standard_material(in, is_front);
     pbr_input.material.base_color = alpha_discard(pbr_input.material, pbr_input.material.base_color);
     apply_decals(&pbr_input);
-    apply_packed_decals(&pbr_input);
+    apply_packed_decals(&pbr_input, 1u);
 #ifdef PREPASS_PIPELINE
     return deferred_output(in, pbr_input);
 #else

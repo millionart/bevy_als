@@ -4495,11 +4495,11 @@ fn drive_manual_integration(
             request.gait = Some(if stage == 3 { Gait::Running } else { Gait::Walking });
             request.stance = Some(if stage == 5 { Stance::Crouching } else { Stance::Standing });
             if matches!(stage, 1 | 3 | 5) { input.0.move_dir = Vec2::Y; }
-            if state.footprint_probe.covered[stage] {
+            if state.footprint_probe.covered[stage] && (stage != 0 || state.footprint_probe.gpu.complete) {
                 state.footprint_probe.stage += 1;
                 let next = if state.footprint_probe.stage == footprints::LABELS.len() { IntegrationPhase::MovingBase } else { IntegrationPhase::Footprints };
                 begin_phase(&mut state, next);
-            } else if default_overlay_should_timeout(false, elapsed) {
+            } else if (stage != 0 || state.footprint_probe.gpu.complete) && default_overlay_should_timeout(false, elapsed) {
                 state.timed_out = true;
                 state.footprint_probe.errors.push(format!("Footprint stage {stage} made no progress for 12 seconds"));
                 begin_phase(&mut state, IntegrationPhase::Finish);
@@ -9700,13 +9700,16 @@ fn observe_manual_integration(
                 if state.timed_out {
                     gate_report.direction_trace.push(serde_json::json!({"watchdog": {
                         "exit_reason":"case_progress_timeout","last_progress":probe.stage,"no_progress_limit_seconds":12.0,
-                        "waited_game_seconds":probe.waited,"current_conditions":probe.errors}}));
+                        "waited_game_seconds":probe.waited,"current_conditions":probe.errors,
+                        "gpu_request":probe.gpu.cursor + 1,"waited_gpu_seconds":probe.gpu.last_progress.map(|last| last.elapsed().as_secs_f32())}}));
                 }
                 let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph)];
                 results.extend(footprints::LABELS.iter().enumerate().map(|(index, label)| (*label, probe.covered[index])));
                 results.extend([("footprint_visible", probe.visible), ("footprint_fade", probe.faded), ("footprint_expired", probe.expired),
                     ("footprint_moving_surface", probe.moving), ("footprint_character_receiver", probe.receiver),
                     ("footprint_gpu_pipelines", probe.pipelines),
+                    ("footprint_gpu_lifecycle", probe.gpu.complete),
+                    ("footprint_moving_gpu", probe.moving_gpu),
                     ("footprint_source_consistency", probe.errors.is_empty()), ("footprint_rotating_ride", state.moving_base_probe.ride)]);
                 results
             }

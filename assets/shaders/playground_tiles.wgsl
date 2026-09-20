@@ -51,7 +51,7 @@ fn fragment(
         pbr_input.material.base_color.a = clamp(in.world_normal.y * 0.5, 0.0, 1.0);
     }
 
-    if (playground_tiles.tiling_and_mode.y < 0.5) { apply_packed_decals(&pbr_input); }
+    if (playground_tiles.tiling_and_mode.y < 0.5) { apply_packed_decals(&pbr_input, 2u); }
 
     pbr_input.material.base_color = alpha_discard(pbr_input.material, pbr_input.material.base_color);
 

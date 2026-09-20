@@ -10,7 +10,35 @@ use std::{collections::{HashMap, HashSet}, sync::{Arc, Mutex}};
 
 pub const PACKED_DECAL_TAG: u32 = 1 << 31;
 pub const DECAL_PROBE_SAMPLES: usize = 16;
-pub const DECAL_PROBE_WORDS: usize = 4 + DECAL_PROBE_SAMPLES * 28;
+pub const DECAL_PROBE_WORDS: usize = 12 + DECAL_PROBE_SAMPLES * 40;
+
+#[derive(Resource, Clone, Copy, Default, Debug, PartialEq)]
+pub struct DecalProbeRequest {
+    pub id: u32,
+    pub receiver: u32,
+    pub index: Option<u32>,
+    pub plane: Vec4,
+}
+
+#[derive(Clone, Debug, Default, serde::Serialize)]
+pub struct DecalProbeResult {
+    pub id: u32,
+    pub receiver: u32,
+    pub index: Option<u32>,
+    pub count: usize,
+    pub max_error: f32,
+    pub samples: Vec<Vec<f32>>,
+    pub plane: [f32; 4],
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+pub struct DecalBindingSnapshot {
+    pub frame: u32,
+    pub logical_buffer: String,
+    pub gpu_buffer: String,
+    pub bytes: u64,
+    pub receiver_bind_groups: Vec<String>,
+}
 
 #[derive(Clone, Debug, Default, serde::Serialize)]
 pub struct DecalPipelines {
@@ -20,6 +48,10 @@ pub struct DecalPipelines {
     pub native_decals: usize,
     pub material_response_samples: usize,
     pub material_response_max_error: f32,
+    pub positive_frame: u32,
+    pub probes: Vec<DecalProbeResult>,
+    pub probe_errors: Vec<String>,
+    pub bindings: Vec<DecalBindingSnapshot>,
     pub errors: Vec<String>,
     pub pipeline_labels: Vec<String>,
 }
@@ -56,18 +88,34 @@ pub struct PackedDecalData {
     pub material: Vec4,
 }
 
-#[derive(Resource, Clone, Default)]
+#[derive(Resource, Clone, Default, bevy::render::extract_resource::ExtractResource)]
 pub struct PackedDecalBuffers {
     pub materials: Handle<ShaderBuffer>,
     pub probe: Handle<ShaderBuffer>,
     capacity: usize,
+    probe_enabled: bool,
 }
 
 impl PackedDecalBuffers {
     fn new(buffers: &mut Assets<ShaderBuffer>, enabled: bool) -> Self {
-        let mut words = vec![0_u32; DECAL_PROBE_WORDS];
-        words[0] = u32::from(enabled);
-        Self { materials: buffers.add(ShaderBuffer::from(vec![PackedDecalData::default()])), probe: buffers.add(ShaderBuffer::from(words)), capacity: 1 }
+        Self { materials: buffers.add(ShaderBuffer::from(vec![PackedDecalData::default()])),
+            probe: buffers.add(ShaderBuffer::from(probe_words(enabled, &DecalProbeRequest::default()))), capacity: 1, probe_enabled: enabled }
+    }
+}
+
+fn probe_words(enabled: bool, request: &DecalProbeRequest) -> Vec<u32> {
+    let mut words = vec![0; DECAL_PROBE_WORDS];
+    words[0] = u32::from(enabled);
+    words[2] = request.id;
+    words[3] = request.index.unwrap_or(u32::MAX);
+    words[4] = request.receiver;
+    for (word, value) in words[8..12].iter_mut().zip(request.plane.to_array()) { *word = value.to_bits(); }
+    words
+}
+
+fn prepare_probe_request(request: Res<DecalProbeRequest>, handles: Res<PackedDecalBuffers>, mut buffers: ResMut<Assets<ShaderBuffer>>) {
+    if request.is_changed() && handles.probe_enabled {
+        buffers.get_mut(&handles.probe).unwrap().set_data(probe_words(true, &request));
     }
 }
 
@@ -120,9 +168,11 @@ impl Plugin for PackedDecalPlugin {
         if !app.world().contains_resource::<Assets<ShaderBuffer>>() { app.init_asset::<ShaderBuffer>(); }
         let probe_enabled = std::env::var("ALS_MANUAL_INTEGRATION_CASE").is_ok_and(|case| case == "footprint");
         let buffers = PackedDecalBuffers::new(&mut app.world_mut().resource_mut::<Assets<ShaderBuffer>>(), probe_enabled);
-        app.insert_resource(buffers)
+        app.insert_resource(buffers).init_resource::<DecalProbeRequest>()
+            .add_plugins(bevy::render::extract_resource::ExtractResourcePlugin::<PackedDecalBuffers>::default())
             .add_systems(Update, prepare_receivers.in_set(PackedDecalPrepareSet))
             .add_systems(PostUpdate, prepare_decals.after(bevy::transform::TransformSystems::Propagate).in_set(PackedDecalPrepareSet));
+        app.add_systems(PostUpdate, prepare_probe_request.after(PackedDecalPrepareSet).before(bevy::asset::AssetEventSystems));
         install_decal_receiver_bindings::<PackedDecalReceiverMaterial>(app);
         let status = DecalRenderStatus::default();
         app.insert_resource(status.clone());
@@ -151,7 +201,7 @@ fn material_probe_error(words: &[u32]) -> Option<(usize, f32)> {
     if words.len() != DECAL_PROBE_WORDS || words[0] != 1 || words[1] == 0 { return None; }
     let count = (words[1] as usize).min(DECAL_PROBE_SAMPLES);
     let mut error = 0.0_f32;
-    for sample in words[4..].chunks_exact(28).take(count) {
+    for sample in words[12..].chunks_exact(40).take(count) {
         let value: Vec<_> = sample.iter().map(|word| f32::from_bits(*word)).collect();
         if value.iter().any(|value| !value.is_finite()) { return Some((count, f32::MAX)); }
         let alpha = (value[11] * value[15]).clamp(0.0, 1.0);
@@ -161,23 +211,40 @@ fn material_probe_error(words: &[u32]) -> Option<(usize, f32)> {
         expected[3] = blend(value[3], value[9] * value[16]);
         expected[4] = blend(value[4], value[17]);
         for channel in 0..3 { expected[5 + channel] = blend(value[5 + channel].powi(2), value[18] * 0.5).sqrt(); }
-        for (actual, expected) in value[20..].iter().zip(expected) { error = error.max((actual - expected).abs()); }
+        for (actual, expected) in value[20..28].iter().zip(expected) { error = error.max((actual - expected).abs()); }
+        if value[28] != value[19] + 1.0 { error = f32::MAX; }
+        if words[3] == u32::MAX {
+            if value[29] != -1.0 || value[31] != 0.0 { error = f32::MAX; }
+        } else {
+            if value[29] != words[3] as f32 || value[30] <= value[29] || alpha <= 0.0001 { error = f32::MAX; }
+            if (value[32] - value[34]).abs().max((value[33] - value[35]).abs()) > 1e-4 { error = f32::MAX; }
+        }
     }
     Some((count, error))
 }
 
-fn read_material_probe(event: On<bevy::render::gpu_readback::ReadbackComplete>, mut commands: Commands, status: Res<DecalRenderStatus>) {
+fn read_material_probe(event: On<bevy::render::gpu_readback::ReadbackComplete>, status: Res<DecalRenderStatus>) {
     let words: Vec<u32> = event.to_shader_type();
-    let Some((count, error)) = material_probe_error(&words) else { return; };
+    if words.len() != DECAL_PROBE_WORDS || words[0] == 0 { return; }
     let mut status = status.0.lock().unwrap();
+    if words[5] > 0 && status.probe_errors.is_empty() { status.probe_errors.push("Packed decal data is stale, out of bounds, or differs from the native projection".into()); }
+    status.positive_frame = status.positive_frame.max(words[7]);
+    let Some((count, error)) = material_probe_error(&words) else { return; };
     status.material_response_samples = count;
-    status.material_response_max_error = error;
-    if count == DECAL_PROBE_SAMPLES { commands.entity(event.entity).despawn(); }
+    status.material_response_max_error = status.material_response_max_error.max(error);
+    if words[2] == 0 { return; }
+    let result = DecalProbeResult { id: words[2], receiver: words[4], index: (words[3] != u32::MAX).then_some(words[3]),
+        count, max_error: error, samples: words[12..].chunks_exact(40).take(count).map(|sample| sample.iter().map(|value| f32::from_bits(*value)).collect()).collect(),
+        plane: std::array::from_fn(|index| f32::from_bits(words[8 + index])) };
+    if let Some(existing) = status.probes.iter_mut().find(|probe| probe.id == result.id) {
+        if existing.count < DECAL_PROBE_SAMPLES { *existing = result; }
+    } else { status.probes.push(result); }
 }
 
 fn prepare_decals(
     mut decals: Query<(Entity, &PackedDecal, &GlobalTransform, &mut ClusteredDecal)>,
     materials: Res<Assets<PackedDecalMaterial>>, mut handles: ResMut<PackedDecalBuffers>, mut buffers: ResMut<Assets<ShaderBuffer>>,
+    frame: Res<bevy::diagnostic::FrameCount>,
 ) {
     let mut entities: Vec<_> = decals.iter().map(|(entity, _, _, _)| entity).collect();
     entities.sort_unstable();
@@ -197,6 +264,7 @@ fn prepare_decals(
     let required = values.len().max(1);
     if required > handles.capacity { handles.capacity = required.next_power_of_two(); }
     values.resize(handles.capacity, default());
+    if handles.probe_enabled { for value in &mut values { value.material.w = frame.0 as f32; } }
     buffers.get_mut(&handles.materials).unwrap().set_data(values);
 }
 
@@ -240,6 +308,11 @@ fn capture_decal_pipelines(
     cache: Res<bevy::render::render_resource::PipelineCache>, status: Res<DecalRenderStatus>,
     device: Res<bevy::render::renderer::RenderDevice>, adapter: Res<bevy::render::renderer::RenderAdapter>,
     decals: Res<bevy::pbr::decal::clustered::RenderClusteredDecals>,
+    buffers: Res<PackedDecalBuffers>,
+    gpu_buffers: Res<bevy::render::render_asset::RenderAssets<bevy::render::storage::GpuShaderBuffer>>,
+    material_bindings: Res<bevy::pbr::RenderMaterialBindings>,
+    allocators: Res<bevy::pbr::MaterialBindGroupAllocators>,
+    frame: Res<bevy::diagnostic::FrameCount>,
 ) {
     use bevy::render::render_resource::{CachedPipelineState, PipelineDescriptor};
     let mut current = status.0.lock().unwrap();
@@ -259,7 +332,27 @@ fn capture_decal_pipelines(
             _ => {}
         }
     }
-    current.decal_ready = current.clustered_supported && current.receiver_ready && current.material_response_samples == DECAL_PROBE_SAMPLES && current.material_response_max_error <= 1e-5;
+    if buffers.probe_enabled && let Some(gpu) = gpu_buffers.get(&buffers.materials) {
+        let mut groups = Vec::new();
+        for (kind, name) in [(std::any::TypeId::of::<PackedDecalReceiverMaterial>(), "standard"),
+            (std::any::TypeId::of::<crate::playground_materials::PlaygroundTilesMaterial>(), "playground")] {
+            if let Some(allocator) = allocators.get(&kind) {
+                for (asset, binding) in material_bindings.iter().filter(|(asset, _)| asset.type_id() == kind) {
+                    if let Some(group) = allocator.get(binding.group).and_then(|slab| slab.bind_group()) {
+                        groups.push(format!("{name}:{asset:?}:{:?}", group.id()));
+                    }
+                }
+            }
+        }
+        groups.sort_unstable();
+        let snapshot = DecalBindingSnapshot { frame: frame.0, logical_buffer: format!("{:?}", buffers.materials.id()),
+            gpu_buffer: format!("{:?}", gpu.buffer.id()), bytes: gpu.buffer_descriptor.size, receiver_bind_groups: groups };
+        if current.bindings.last().is_none_or(|last| last.gpu_buffer != snapshot.gpu_buffer || last.receiver_bind_groups != snapshot.receiver_bind_groups) {
+            current.bindings.push(snapshot);
+        }
+    }
+    current.decal_ready = current.clustered_supported && current.receiver_ready && current.positive_frame > 0
+        && current.material_response_samples == DECAL_PROBE_SAMPLES && current.material_response_max_error <= 1e-5 && current.probe_errors.is_empty();
 }
 
 #[cfg(test)]
@@ -358,20 +451,51 @@ mod tests {
 
     #[test]
     fn gpu_material_probe_rejects_wrong_blend_values() {
-        let mut words = vec![0_u32; DECAL_PROBE_WORDS];
-        words[0] = 1;
+        let mut words = probe_words(true, &DecalProbeRequest { id: 1, receiver: 1, index: Some(0), ..default() });
         assert!(material_probe_error(&words).is_none());
         words[1] = 1;
-        let values: [f32; 28] = [0.8, 0.4, 0.2, 0.9, 0.6, 0.9, 0.7, 0.5,
-            0.1, 0.8, 0.3, 0.5, 0.0, 0.0, 0.0, 0.6, 0.2, 0.0, 0.5, 0.0,
-            0.56, 0.28, 0.14, 0.678, 0.42, 0.642_f32.sqrt(), 0.418_f32.sqrt(), 0.5];
-        for (word, value) in words[4..].iter_mut().zip(values) { *word = value.to_bits(); }
+        let values: [f32; 40] = [0.8, 0.4, 0.2, 0.9, 0.6, 0.9, 0.7, 0.5,
+            0.1, 0.8, 0.3, 0.5, 0.0, 0.0, 0.0, 0.6, 0.2, 0.0, 0.5, 41.0,
+            0.56, 0.28, 0.14, 0.678, 0.42, 0.642_f32.sqrt(), 0.418_f32.sqrt(), 0.5,
+            42.0, 0.0, 4.0, 1.0, 0.3, 0.4, 0.3, 0.4, 0.0, 0.0, 0.0, 1.0];
+        for (word, value) in words[12..].iter_mut().zip(values) { *word = value.to_bits(); }
         assert!(material_probe_error(&words).unwrap().1 < 1e-6);
-        for index in 20..28 {
+        for index in (20..28).chain([19, 28, 30, 32, 33]) {
             let mut invalid = words.clone();
-            invalid[4 + index] = 0.0_f32.to_bits();
+            invalid[12 + index] = 0.0_f32.to_bits();
             assert!(material_probe_error(&invalid).unwrap().1 > 0.1);
         }
+        let mut wrong_index = words.clone();
+        wrong_index[3] = 1;
+        assert!(material_probe_error(&wrong_index).unwrap().1 > 0.1);
+    }
+
+    #[test]
+    fn gpu_readback_survives_completed_requests_and_reports_late_failures() {
+        use bevy::render::gpu_readback::{Readback, ReadbackComplete};
+        let mut app = App::new();
+        app.init_resource::<DecalRenderStatus>().add_observer(read_material_probe);
+        let entity = app.world_mut().spawn(Readback::buffer(Handle::default())).id();
+        for id in [1, 2] {
+            let mut words = probe_words(true, &DecalProbeRequest { id, receiver: 1, ..default() });
+            words[1] = DECAL_PROBE_SAMPLES as u32;
+            for sample in words[12..].chunks_exact_mut(40) {
+                sample[19] = 41.0_f32.to_bits();
+                sample[28] = 42.0_f32.to_bits();
+                sample[29] = (-1.0_f32).to_bits();
+                sample[30] = 1.0_f32.to_bits();
+            }
+            app.world_mut().trigger(ReadbackComplete { entity, data: words.into_iter().flat_map(u32::to_le_bytes).collect() });
+            app.world_mut().flush();
+            assert!(app.world().get::<Readback>(entity).is_some(), "Readback stopped after the first completed request");
+        }
+        let mut words = probe_words(true, &DecalProbeRequest { id: 3, ..default() });
+        words[5] = 1;
+        app.world_mut().trigger(ReadbackComplete { entity, data: words.into_iter().flat_map(u32::to_le_bytes).collect() });
+        app.world_mut().flush();
+        let status = app.world().resource::<DecalRenderStatus>().0.lock().unwrap();
+        assert_eq!(status.probes.len(), 2);
+        assert_eq!(status.probe_errors.len(), 1);
     }
 
     #[test]
@@ -379,7 +503,7 @@ mod tests {
         let decal = include_str!("../../../assets/shaders/packed_decal.wgsl");
         assert!(!decal.contains("apply_pbr_lighting("), "Decal still computes independent lighting before alpha blending");
         let receiver = include_str!("../../../assets/shaders/playground_tiles.wgsl");
-        let blend = receiver.find("apply_packed_decals(&pbr_input)").expect("Receiving material does not consume packed decals");
+        let blend = receiver.find("apply_packed_decals(&pbr_input,").expect("Receiving material does not consume packed decals");
         let lighting = receiver.find("apply_pbr_lighting(pbr_input)").unwrap();
         assert!(blend < lighting, "Decal material properties were blended after lighting");
     }

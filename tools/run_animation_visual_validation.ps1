@@ -101,6 +101,10 @@ try {
         if (Test-Path -LiteralPath $decalPath -PathType Leaf) {
             $decal = Get-Content -Raw -LiteralPath $decalPath | ConvertFrom-Json
             $runner.decal_renderer_passed = $decal.receiver_ready -eq $true -and @($decal.errors).Count -eq 0 -and ($Case -ne 'footprint' -or $decal.decal_ready -eq $true)
+            if ($Case -eq 'footprint') {
+                python tools/validate_decal_evidence.py --report $decalPath
+                $runner.decal_renderer_passed = $runner.decal_renderer_passed -and $LASTEXITCODE -eq 0
+            }
         }
         $runner | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $runnerPath -Encoding utf8
         if ($manualExitCode -ne 0) {
