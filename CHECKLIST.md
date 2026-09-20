@@ -36,6 +36,23 @@
 - ALSExtras（AI 控制器示例）不在范围内。
 - 音频（Metasound）、Niagara 特效仅保留挂钩点。ALSCamera 完整移植已纳入 BF116.01。
 
+## BF119 输入分支与Roll采样器审阅反馈
+
+用户2026-09-20授权复核5e3508a的新反馈。保留BF117/BF118已修复合同与明确接受的移植边界；截图和性能仍暂停。新报告指向三个输入默认分支与Roll辅助播放器归属，后者须先复现再判断，不扩展其他相邻模块。
+
+- [x] BF119.01 输入动作的开放状态分支：开始2026-09-20 22:50、预估结束2026-09-20 23:25。fresh本地AlsCharacterExample.cpp的Input_OnWalk只切Walking/Running，Input_OnCrouch只切Standing/Crouching，其余均不写；Input_OnRotationMode只在VelocityDirection时切ViewDirection，其余切VelocityDirection。目标三个默认分支分别覆盖Sprinting/自定义值或反向选择。有限复开BF117.03a的输入consumer边界，旧Gate只覆盖已知二值切换与开放值保存，未组合输入和自定义值。先保留冲刺+Walk、自定义Gait/Stance、空Tag与保存自由RotationMode/瞄准中的反例，再最小修改共享输入函数、回归和startup/interface/base功能Gate。估时依据为三个分支、现成ECS输入fixture、约150秒编译和现成真实入口；不改图、物理策略或源资产。
+  - 01反例与有限复开2026-09-20 22:57：三个176.539s反例均实际FAIL：Crouch从无请求写入Standing、RotationMode把自定义保存模式写ViewDirection、Walk把持续冲刺改Walking；fresh三段源函数确认期望。取消BF117.03a及父03的完成标记，仅复开输入consumer边界，旧11项输入测试只验证内置两值，瞄准夹具还把缺保存值时的错误回退固化成ViewDirection。按源精确比较改三处分支，其余输入/物理/图逻辑不变，删除冗余目标相等判断，不加状态或配置。接着匹配范围回归、三分支消融与最终真实入口。
+  - 01静态修复后2026-09-20 23:01：78项输入/瞄准/步态/状态转换/实际运动回归194.714s PASS，包含三项新反例、空Tag与已有挂起请求保持，内置二值切换仍正确。未新增类型、状态、配置或图节点；现在恢复旧生产分支执行三项独立消融，脚本finally恢复修复，再做最小恢复验证与同target_game入口构建，最后startup/base；interface也沿原计划核对既有输入控件。Roll条目尚未开始实现。
+  - 01消融2026-09-20 23:04：恢复旧生产函数的172.892s消融同时稳定检出三项独立错误，分别为覆盖Sprinting、制造Standing请求及错误ViewDirection回退；已恢复原修复。没有新增抽象/状态，保留的显式分支均有不同失败边界；78项相关回归已通过，现在最小14项输入恢复验证，再同入口预构建与startup/interface/base。
+  - 01恢复/构建2026-09-20 23:07：恢复后的14项输入测试123.515s全PASS；此前78项匹配范围回归保持有效，三处分支的源事实、原始失败与消融完整闭合。当前构建实际target_game/play入口，不改图或配置；随后只运行既定公共功能场景，截图/性能仍暂停。
+  - 01真实入口前2026-09-20 23:09：实际target_game/play入口149.300s构建PASS，78项相关回归/14项恢复、三项原始失败和分支消融闭合，修复已完整恢复。开始公共startup，再同二进制interface/base，原姿态/图错误/物理/进展阈值不变，CaptureCount0/FunctionalOnly。
+  - 01启动后/interface前2026-09-20 23:10：startup15.519s功能PASS，manual/validator0、GPU通过，无功能issue。源输入合同与静态反例保持闭合，继续同二进制interface后base。
+  - 01界面后/base前2026-09-20 23:11：interface17.580s功能PASS，HUD/Overlay/显示输入及GPU通过，manual/validator0，无功能issue；最后运行base核对默认姿态/步态/旋转/动作组合，原Scene及全部功能守卫保持。
+  - 01完成2026-09-20 23:14：startup15.519s、interface17.580s和base125.073s公共功能全PASS，manual/validator0、GPU通过，无功能issue；默认动作、姿态和状态切换保持。78项匹配范围回归、14项恢复与三个原始/消融反例闭合，仅修改三个源输入分支，未新增状态、配置、图或物理补偿。开始22:50、预估23:25、实际23:14、偏差-11分钟，完成，无拆分；BF117.03a及父03的输入consumer有限复开关闭。继续BF119.02验证Roll，截图/性能暂停保持。
+- [ ] BF119.02 Roll辅助采样器生命周期：依赖01，进入时按实际source与fixture规模登记估时。重读本地Roll/AnimInstance生命周期，覆盖保留Avatar替换Player、同实体移除重插、保留旧Avatar窗口及当前根运动来源；先实际反例，再按最小归属关系修复与消融，最后公共Roll功能Gate。当前仅确认代码关联结构，尚未认定运行后果。
+
+
+
 ## BF118 最新审阅反馈复核
 
 用户2026-09-20授权核查be114ae最新反馈。仅处理当次source与反例确认的问题；BF117原有修复及已明确排除的范围保持，截图/性能仍暂停。19:31开始审阅，报告指向四条独立合同；先补生命周期，再补状态入口与材质合成。
