@@ -36,6 +36,23 @@
 - ALSExtras（AI 控制器示例）不在范围内。
 - 音频（Metasound）、Niagara 特效仅保留挂钩点。ALSCamera 完整移植已纳入 BF116.01。
 
+## BF118 最新审阅反馈复核
+
+用户2026-09-20授权核查be114ae最新反馈。仅处理当次source与反例确认的问题；BF117原有修复及已明确排除的范围保持，截图/性能仍暂停。19:31开始审阅，报告指向四条独立合同；先补生命周期，再补状态入口与材质合成。
+
+- [x] BF118.01 Avatar/骨架重建后的Overlay挂载恢复：开始2026-09-20 19:40、预估结束2026-09-20 20:25。fresh角色原生37.968s和本地AttachOverlayObject/SceneComponent::CalcNewComponentToWorld确认源挂在Mesh组件的命名socket，每次按当前骨架取变换；目标将两个持久组件直接挂到骨骼实体，初始化仅Without<State>，无失效引用重建且提前返回未检查新骨归属。先真实加载角色的保留/删除旧Avatar两类反例，再在同一装配/同步入口恢复失效组件和骨归属；保持同Mesh内容身份与已验证材质/动画生命周期。Gate为反复替换Avatar、同Avatar骨架替换、Rifle/Bow切换/旧实体清理、消融/最小回归与公共startup/overlays/bow。估时依据为两处共享入口、现成实际角色加载fixture和近期80秒编译/104秒overlays记录；不改图或依赖。
+  - 01反例/有限复开2026-09-20 19:46：真实加载角色保留旧Avatar、切到已正常求值的新Avatar后，100.377s反例稳定FAIL于Overlay仍挂旧身体。与fresh角色AttachOverlayObject及SceneComponent命名socket更新链共同确认目标实体身份边界遗漏；有限复开BF117.03b及父03，仅修挂载恢复，旧Gate覆盖角色销毁/常规切换而未替换Avatar/骨骼实体。保留旧组件与失效组件分别走重新挂接/补建，不扩展相机或图算法；接着验证先删除旧Avatar与同Avatar骨身份改变。
+  - 01静态闭环2026-09-20 19:51：现有9项Overlay回归通过，真实角色反复4次保留/先删旧Avatar、Rifle/Bow切换、旧player清理、Bow继续求值，以及同Avatar新骨身份均通过。初始化仅补不存在的挂载组件，同步先解析当前骨再判断是否可跳过；没有新增Avatar代次/缓存/替代装配器。额外跨帧缺Avatar窗口76.691s亦PASS，没有据猜测增加空窗口分支。开始组件存在性和实际骨归属两项独立消融，再恢复最小回归与入口构建/公共场景。
+  - 01消融2026-09-20 19:55：组件存在性消融76.553s稳定触发向despawn实体写组件的错误；挂载骨身份消融76.033s稳定检出仍挂旧Avatar，两项均恢复。它们对应不同生命周期边界，不能合并成仅监听Overlay变化；当前实现没有新增状态。恢复定向Overlay/实际13类图/物件首帧错误报告回归后，同target_game/play预构建，按startup→overlays→bow验证真实入口。
+  - 01回归/入口构建2026-09-20 19:58：恢复后11项80.965s全部PASS，涵盖真实重复Avatar/骨替换、13类图选择、同Mesh/材质实例保持和物件图首帧错误报告。两项消融已逐字恢复，diff检查通过；当前同target_game/play限流构建，随后startup/overlays/bow原Playground功能复验，未改源数据或图规则。
+  - 01真实入口前2026-09-20 20:00：同target_game/play最终预构建70.007s PASS，源码/反例/两项消融及11项回归闭合；开始startup，随后同二进制overlays/bow，继续CaptureCount0/FunctionalOnly与原姿态/物理/GPU阈值。
+  - 01启动后/Overlay前2026-09-20 20:03：startup16.012s功能PASS，manual/validator0、GPU通过，无功能issue。用同二进制继续overlays，再bow；源挂载语义/两项消融与11项focused回归保持闭合，性能仍deferred。
+  - 01综合Overlay后/Bow前2026-09-20 20:06：overlays104.183s功能PASS，115项/110窗口及GPU通过，源物件/枪械状态/插槽与生命周期检查成立，无功能issue；继续最后bow专用case确认动画物件曲线与清理。
+  - 01完成2026-09-20 20:07：startup16.012s、overlays104.183s与bow37.121s公共功能PASS，manual/validator0、GPU通过，faults/graph_errors/temporal_anomalies为空。11项focused回归、真实重复替换、跨帧无Avatar窗口和两项消融闭合；仅恢复失效挂载实体和当前骨归属，无新增状态/图规则/依赖。BF117.03b及父03的挂载恢复有限复开关闭。开始19:40、预估20:25、实际20:07、偏差-18分钟，完成，无拆分；BF118其余三条仍继续，性能与截图保持暂停。
+- [ ] BF118.02 动画输入的实例结束时序与World隔离：进入时登记源闭包/估时；核对所有Tag、Slot、Rig和Linked Graph输入的发布与求值入口，优先用现有公开扩展点去掉进程级Entity命名空间；包含同实体移除重建、两个World相同实体ID、销毁回收和必要消融。
+- [ ] BF118.03 自定义LocomotionMode身份：进入时登记源闭包/估时；核对SetLocomotionMode与OnMovementModeChanged的实际语义，保留普通未知物理模式→空Tag，同时让显式自定义Tag经过请求、角色状态和图输入；不增加游泳/飞行等新动作。
+- [ ] BF118.04 足迹接收面材质合成：进入时先拆分源/原生扩展点静态合同与运行时验收；核对当前UE真实DBuffer设置、材质表达式/混合顺序，再复用Bevy原生贴花/材质扩展，在光照前混合接收材质。保留RGBA原始纹理、通道/坐标/透明度/生命周期及NoDecalReceiver边界，不写另一套渲染器或放宽验收。
+
 ## BF117 浏览器对比报告复核与修复
 
 用户2026-09-20授权逐项核查13b0cc2对比报告，修复除明确保留差异以外的确认缺口，并明确纳入多Surface、多Settings和自定义Tag入口。保留已记录的网络/AI/音频与Niagara边界、HUD/字体决策、实体运动基座、当帧激活调度及当前相机预设合同；截图与性能继续暂停，不把功能通过写成完全视觉/性能等价。

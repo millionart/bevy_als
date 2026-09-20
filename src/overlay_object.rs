@@ -177,14 +177,20 @@ impl Plugin for OverlayObjectPlugin {
 
 fn ensure_overlay_object_state(
     mut commands: Commands,
-    characters: Query<(Entity, &AlsCharacterAssembly, Option<&AlsOverlayObjectConfig>), (With<AlsCharacter>, Without<AlsOverlayObjectState>)>,
+    mut characters: Query<(Entity, &AlsCharacterAssembly, Option<&AlsOverlayObjectConfig>, Option<&mut AlsOverlayObjectState>), With<AlsCharacter>>,
+    entities: Query<()>,
 ) {
-    for (entity, assembly, config) in &characters {
-        let components = ["OverlayStaticMesh", "OverlaySkeletalMesh"].map(|name| commands.spawn((Name::new(name), Transform::IDENTITY, Visibility::Inherited, ChildOf(assembly.avatar))).id());
-        commands.entity(entity).insert((
-            config.copied().unwrap_or_default(),
-            AlsOverlayObjectState { components, prop: None, applied_overlay: None, visible: false },
-        ));
+    for (entity, assembly, config, state) in &mut characters {
+        let components = [(0, "OverlayStaticMesh"), (1, "OverlaySkeletalMesh")].map(|(index, name)| {
+            state.as_ref().map(|state| state.components[index]).filter(|component| entities.contains(*component))
+                .unwrap_or_else(|| commands.spawn((Name::new(name), Transform::IDENTITY, Visibility::Inherited, ChildOf(assembly.avatar))).id())
+        });
+        if let Some(mut state) = state {
+            if state.components != components { state.components = components; }
+        } else {
+            commands.entity(entity).insert(AlsOverlayObjectState { components, prop: None, applied_overlay: None, visible: false });
+        }
+        if config.is_none() { commands.entity(entity).insert(AlsOverlayObjectConfig::default()); }
     }
 }
 
@@ -215,6 +221,7 @@ fn sync_overlay_object(
     library_handle: Res<OverlayLibraryHandle>,
     libraries: Res<Assets<OverlayLibrary>>,
     children: Query<&Children>,
+    parents: Query<&ChildOf>,
     names: Query<&Name>,
     props: Query<&AlsOverlayObject>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -241,6 +248,12 @@ fn sync_overlay_object(
             mantle.map(|state| state.kind),
         );
         let desired_overlay = visible.then_some(*overlay);
+        let attachment = desired_overlay.and_then(|overlay| {
+            let spec = overlay_object_spec(library, overlay)?;
+            let bone_name = attachment_bone(spec, config.use_gun_bones);
+            let bone = find_named_descendant(assembly.avatar, bone_name, &children, &names)?;
+            Some((overlay, spec, bone_name, bone))
+        });
         let prop_exists = state.prop.is_some_and(|prop| props.get(prop).is_ok());
         let definition_matches = state.prop.and_then(|prop| props.get(prop).ok())
             .is_some_and(|object| overlay_object_spec(library, *overlay) == Some(&object.definition));
@@ -248,6 +261,7 @@ fn sync_overlay_object(
             && state.visible == visible
             && prop_exists
             && definition_matches
+            && attachment.is_some_and(|(_, _, _, bone)| state.components.iter().all(|component| parents.get(*component).is_ok_and(|parent| parent.parent() == bone)))
             && !config.is_changed()
         {
             continue;
@@ -259,12 +273,6 @@ fn sync_overlay_object(
         {
             continue;
         }
-        let attachment = desired_overlay.and_then(|overlay| {
-            let spec = overlay_object_spec(library, overlay)?;
-            let bone_name = attachment_bone(spec, config.use_gun_bones);
-            let bone = find_named_descendant(assembly.avatar, bone_name, &children, &names)?;
-            Some((overlay, spec, bone_name, bone))
-        });
         let retained = attachment.and_then(|(_, spec, _, _)| {
             let object = props.get(state.prop?).ok()?;
             (object.definition.kind == spec.kind && object.definition.mesh == spec.mesh
@@ -358,6 +366,90 @@ pub(crate) mod tests {
     pub(crate) static SOURCE_LIBRARY: std::sync::LazyLock<OverlayLibrary> = std::sync::LazyLock::new(|| {
         serde_json::from_str(include_str!("../assets/character/overlay_actor.runtime.json")).unwrap()
     });
+
+    #[test]
+    fn retained_character_rebinds_overlay_across_avatar_and_bone_replacements() {
+        use bevy::ecs::system::RunSystemOnce;
+        use crate::character_assembly::{AlsCharacterAvatar, AlsCharacterBlueprint, ALS_LINKED_ANIMATED_SCENE, attach_avatar, spawn_als_character};
+        fn below(world: &World, mut entity: Entity, root: Entity) -> bool {
+            while let Some(parent) = world.get::<ChildOf>(entity) {
+                entity = parent.parent();
+                if entity == root { return true; }
+            }
+            false
+        }
+        fn ready(app: &mut App, avatar: Entity) -> Entity {
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(40);
+            loop {
+                app.update();
+                if let Some(instance) = app.world().get::<AnimatedSceneInstance>(avatar)
+                    && let Some(player) = app.world().get::<AnimationGraphPlayer>(instance.player_entity())
+                    && player.get_default_output_pose().is_some() {
+                    return instance.player_entity();
+                }
+                assert!(std::time::Instant::now() < deadline, "Replacement avatar did not evaluate a pose");
+                std::thread::sleep(std::time::Duration::from_millis(5));
+            }
+        }
+        let (mut app, _, _, _) = crate::camera_component::tests::loaded_camera_scene();
+        OverlayObjectPlugin.build(&mut app);
+        let character = app.world_mut().run_system_once(|mut commands: Commands, assets: Res<AssetServer>,
+            mut params: ResMut<Assets<als_core::params::AlsMovementParams>>, mut configs: ResMut<Assets<als_core::control_scheme::AlsControlSchemeConfig>>| {
+            spawn_als_character(&mut commands, &assets, &mut params, &mut configs,
+                AlsCharacterBlueprint { spawn_input: false, ..AlsCharacterBlueprint::new(Transform::from_xyz(0.0, 3.0, 0.0)) })
+        }).unwrap();
+        app.world_mut().entity_mut(character).insert((OverlayState::Bow, avian3d::prelude::RigidBody::Kinematic, bevy_tnua::TnuaToggle::Disabled));
+        let mut avatar = app.world().get::<AlsCharacterAssembly>(character).unwrap().avatar;
+        ready(&mut app, avatar);
+        app.update();
+        for delete_first in [false, true, false, true] {
+            let old_avatar = avatar;
+            let old_player = app.world().get::<AnimatedSceneInstance>(old_avatar).unwrap().player_entity();
+            let old_components = app.world().get::<AlsOverlayObjectState>(character).unwrap().components;
+            if delete_first {
+                app.world_mut().despawn(old_avatar);
+                app.update();
+            } else {
+                app.world_mut().entity_mut(old_avatar).remove::<AlsCharacterAvatar>();
+                app.world_mut().get_mut::<AnimationGraphPlayer>(old_player).unwrap().pause();
+            }
+            avatar = app.world_mut().run_system_once_with(|In(character): In<Entity>, mut commands: Commands, assets: Res<AssetServer>| {
+                attach_avatar(&mut commands, &assets, character, ALS_LINKED_ANIMATED_SCENE)
+            }, character).unwrap();
+            app.world_mut().get_mut::<AlsCharacterAssembly>(character).unwrap().avatar = avatar;
+            ready(&mut app, avatar);
+            app.update();
+            app.update();
+            let state = *app.world().get::<AlsOverlayObjectState>(character).unwrap();
+            assert!(state.components.iter().all(|component| app.world().get_entity(*component).is_ok()), "Replacement retained destroyed mount entities");
+            assert!(state.components.iter().all(|component| below(app.world(), *component, avatar)), "Overlay mounts remained on the old avatar");
+            if !delete_first {
+                assert_eq!(state.components, old_components);
+                app.world_mut().despawn(old_avatar);
+            }
+            assert!(app.world().get_entity(old_player).is_err());
+            for overlay in [OverlayState::Rifle, OverlayState::Bow] {
+                *app.world_mut().get_mut::<OverlayState>(character).unwrap() = overlay;
+                for _ in 0..4 { app.update(); }
+                let state = app.world().get::<AlsOverlayObjectState>(character).unwrap();
+                let object = app.world().get::<AlsOverlayObject>(state.prop.unwrap()).unwrap();
+                assert_eq!(object.overlay, overlay);
+                assert!(below(app.world(), object.content, avatar));
+                if overlay == OverlayState::Bow {
+                    let instance = app.world().get::<AnimatedSceneInstance>(object.content).unwrap();
+                    let player = app.world().get::<AnimationGraphPlayer>(instance.player_entity()).unwrap();
+                    assert!(player.get_error().is_none() && player.get_default_output_pose().is_some());
+                }
+            }
+        }
+        let mounts = app.world().get::<AlsOverlayObjectState>(character).unwrap().components;
+        let replacement_bone = app.world_mut().spawn((Name::new(LEFT_GUN_BONE), Transform::IDENTITY, ChildOf(avatar))).id();
+        app.update();
+        assert!(mounts.iter().all(|component| app.world().get::<ChildOf>(*component).unwrap().parent() == replacement_bone), "Unchanged overlay ignored replacement bone identity");
+        app.world_mut().despawn(character);
+        app.update();
+        assert!(mounts.iter().all(|component| app.world().get_entity(*component).is_err()));
+    }
 
     #[test]
     fn bow_actor_installs_the_object_animation_scene() {
