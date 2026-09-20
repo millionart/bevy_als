@@ -228,7 +228,7 @@ fn generated_ab_als_input_writer(
             &Stance,
             &RotationMode,
             &AlsActualMotion,
-            &AlsViewYaw,
+            (&AlsViewYaw, Option<&als_core::view::AlsPlayerViewYaw>),
             Option<&AlsInputCommand>,
             Option<&AlsInputOverride>,
             Option<&AlsMovementBase>,
@@ -251,7 +251,7 @@ fn generated_ab_als_input_writer(
         stance,
         rotation_mode,
         motion,
-        view_yaw,
+        (view_yaw, player_view),
         input,
         input_override,
         movement_base,
@@ -296,7 +296,7 @@ fn generated_ab_als_input_writer(
             player.set_global_input_data("view_state.rotation_yaw", view_degrees);
             let body_degrees =
                 als_core::orientation::world_forward_to_yaw(*transform.forward()).to_degrees();
-            if let Some(yaw) = source_input_yaw(input, input_override, view_yaw.0) {
+            if let Some(yaw) = source_input_yaw(input, input_override, player_view.map_or(view_yaw.0, |view| view.0)) {
                 player.set_global_input_data("locomotion_state.input_yaw_angle_world_space", yaw);
             } else if player.get_global_input_data("locomotion_state.input_yaw_angle_world_space").is_none() {
                 player.set_global_input_data("locomotion_state.input_yaw_angle_world_space", -body_degrees);

@@ -36,6 +36,21 @@
 - ALSExtras（AI 控制器示例）不在范围内。
 - 音频（Metasound）、Niagara 特效仅保留挂钩点。ALSCamera 完整移植已纳入 BF116.01。
 
+## BF120 玩家视图移动基准与动作实例归属
+
+用户2026-09-21授权复核58c0119的新反馈。已修复的输入守卫、Roll、相机投影与材质合同保持；当前新增闭包为实际玩家视图的移动基准、GetUp与Transition的主体实例结束，不扩展已明确排除功能。截图/性能仍暂停。
+
+- [ ] BF120.01 玩家视图移动基准：
+  - [x] BF120.01a 源时序、输入consumer与静态实现：开始2026-09-21 01:05、预估结束2026-09-21 02:00。fresh Input_OnMove优先Controller.GetPlayerViewPoint；PlayerController读取已更新CameraManager缓存，LevelTick在全部Actor后更新相机，故输入使用上一轮完成的视图，不要求本帧最终相机。目标控制AlsViewYaw仍作为相机滞后目标，另在输入阶段取得已完成渲染视图的朝向，无有效视图则回退。沿实际world input调用闭包核对移动/Mantle、最后输入朝向及动作方向；旧相机投影/解算不变。先相机滞后+同时移动的反例，再消费同一输入基准、生命周期/无视图回退和消融/范围回归。估时依据为相机与core边界、现有8个方向转换caller、已安装的相机/实际角色fixture和70–190秒编译，静态段55分钟。
+  - [ ] BF120.01b 原Playground功能验收：开始2026-09-21 01:56、预估结束2026-09-21 02:26。依赖01a已通过；估时依据为既有约70秒入口构建、startup/camera/base约160秒及新增滞后移动观测，窗口30分钟；使用已有startup/camera及相机转动中移动的原场景case，验证实际输入方向、控制目标独立和回退，保持原姿态/物理/进展守卫。
+  - 01a反例与闭包2026-09-21 01:20：185.438s实际Tnua驱动反例确认控制60°/玩家视图30°时仍沿60°，有限复开归档BF-Char3的实际玩家视图来源，旧Gate仅在控制与相机一致时验证轴运算。输入阶段发布上一帧完成的实际render-view yaw，控制AlsViewYaw独立；新相机尚未完成、失活/删除/失去来源时回退。共享world-input闭包包含移动/Mantle、rotation input yaw、生成图input_yaw、Stop/QuickStop方向和第一人称Sprint角度；后者fresh CanSprint比较世界InputYaw与控制ViewYaw。fresh StartRollingGrounded有输入用InputYaw，无输入用ActorYaw，补独立反例后统一修正该直接consumer，不改Roll生命周期/采样或任何图资产。
+  - 01a消费迁移2026-09-21 01:28：Roll方向反例183.244s实际FAIL，输入/无输入两种情况都错误采用控制1.2rad，而源分别要求玩家视图0.4rad/Actor0.7rad；首次夹具误入函数作用域的编译失败不作语义证据，已移入测试模块。生产publisher在输入前读取完成的GlobalTransform，失效view与缓存同批清理；所有world-input消费者改用可选AlsPlayerViewYaw，控制/瞄准/相机目标继续用AlsViewYaw。第一人称Sprint只将输入换算到控制视图相对空间，Roll无输入按当前Actor，未新增时钟、图节点或相机解算分支。正在定向回归与实际视图缓存/回退测试，真实camera-lag Gate待静态闭环后执行。
+  - 01a静态回归2026-09-21 01:38：43项方向/步态/生成输入/Stop与Roll定向回归82.977s通过，四项真实Tnua/视图生命周期/观察器/方向合同79.778s通过。实际render-view Transform与下一输入阶段GlobalTransform分别观测，证实读取上一轮完成视图，控制Yaw随Look独立变化；失活、删除来源与无视图回退成立。原camera case加入第三人称旋转滞后期间移动，直接比较前一完成视图、本帧快照和Tnua请求；方向/蹲行Gate同步使用该输入基准，不改速度阈值。接着消融消费、首次就绪、失效清理和Roll方向，再恢复完整回归，尚未运行新runtime。
+  - 01a消融2026-09-21 01:48：消费180.836s、首次就绪188.651s、失效清理81.520s、Roll方向81.986s四项消融分别检出控制朝向误用、首帧未完成视图提前发布、失活后缓存未清、Roll有/无输入均误用控制朝向，已全部恢复。新增快照只保存本次输入使用的完成视图yaw，无相机反馈写回、注册表或独立时钟；第一人称Sprint补入60°/0°与同向实际消费断言。开始完整回归，随后静态提交与真实入口；本轮不更改相机阻尼/投影、碰撞响应或生成图。
+  - 01a完成/01b入口前2026-09-21 01:56：1090项118.580s完整回归PASS（camera24/core277/扩展397/项目392），四组消融全部恢复；首轮115.842s仅旧camera夹具未等待新移动probe，已补等待合同后全部通过，没有修改生产阈值。源Controller完成视图缓存、全部world-input consumer、无有效view回退及Roll无输入Actor朝向闭合；未新增图资产、时钟或相机解算算法。01a开始01:05、预估02:00、实际01:56、偏差-4分钟，静态段完成；现在同target_game/play预构建，之后公共startup/camera/base，BF-Char3待真实Gate后关闭。
+- [ ] BF120.02 GetUp实例生命周期：依赖01，进入时登记估时；fresh RagDoll结束/GetUp Montage与AnimInstance清理合同，实际起身中替换/销毁主体Player，不发新请求，验证旧状态、Slot输入、通知和输入阻塞结束，保留正常Overlay切换。
+- [ ] BF120.03 Transition实例生命周期：依赖02，进入时登记估时；fresh Montage/Slot归属与当前采样链，实际播放中同实体覆盖、旧Avatar保留、目标销毁，验证旧栈/采样器/Slot不向新实例重新发布，沿现有Roll方法保留最小生命周期实现。
+
 ## BF119 输入分支与Roll采样器审阅反馈
 
 用户2026-09-20授权复核5e3508a的新反馈。保留BF117/BF118已修复合同与明确接受的移植边界；截图和性能仍暂停。新报告指向三个输入默认分支与Roll辅助播放器归属，后者须先复现再判断，不扩展其他相邻模块。

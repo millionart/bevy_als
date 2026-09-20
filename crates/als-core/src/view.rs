@@ -20,6 +20,9 @@ pub struct AlsViewPitch(pub f32);
 #[reflect(Default)]
 pub struct AlsViewSmoothed(pub f32);
 
+#[derive(Component, Debug, Clone, Copy, PartialEq)]
+pub struct AlsPlayerViewYaw(pub f32);
+
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AlsViewInputSet;
 

@@ -257,7 +257,7 @@ pub fn refresh_gait_system(
             &LocomotionState,
             &Stance,
             &RotationMode,
-            &AlsViewYaw,
+            (&AlsViewYaw, Option<&crate::view::AlsPlayerViewYaw>),
             Option<&AlsLastFreeRotationMode>,
             Has<AlsFirstPersonView>,
             &AlsInputCommand,
@@ -279,7 +279,7 @@ pub fn refresh_gait_system(
         locomotion,
         stance,
         rotation_mode,
-        view_yaw,
+        (view_yaw, player_view),
         last_free,
         first_person,
         command,
@@ -308,7 +308,7 @@ pub fn refresh_gait_system(
             *stance,
             first_person,
             desired_rotation_mode,
-            input.move_dir,
+            crate::motion::view_relative_move_axes(input.move_dir, player_view.map_or(view_yaw.0, |view| view.0) - view_yaw.0),
             input.aim_held,
         );
         let speed = actual_velocity.horizontal_speed;

@@ -376,7 +376,7 @@ fn rotation_response_system(
             &Gait,
             &LocomotionState,
             &RotationMode,
-            &AlsViewYaw,
+            (&AlsViewYaw, Option<&crate::view::AlsPlayerViewYaw>),
             &AlsMovementParamsHandle,
             (&LinearVelocity, Option<&crate::dynamics::AlsMovementBaseDynamicsState>),
             Option<&AlsInputOverride>,
@@ -397,7 +397,7 @@ fn rotation_response_system(
         gait,
         locomotion,
         rotation_mode,
-        view_yaw,
+        (view_yaw, player_view),
         params_handle,
         (velocity, base),
         input_override,
@@ -430,7 +430,7 @@ fn rotation_response_system(
         let effective = effective_input(input, input_override);
         let has_input = effective.move_dir.length_squared() > f32::EPSILON;
         let input_yaw = (effective.move_dir.length_squared() > f32::EPSILON).then(|| {
-            world_forward_to_yaw(view_relative_move_direction(effective.move_dir, view_yaw.0))
+            world_forward_to_yaw(view_relative_move_direction(effective.move_dir, player_view.map_or(view_yaw.0, |view| view.0)))
         });
         let velocity = LinearVelocity(crate::dynamics::locomotion_velocity(velocity.0, *locomotion, base));
         let horizontal_speed = Vec2::new(velocity.x, velocity.z).length();
@@ -1840,7 +1840,7 @@ impl Plugin for AlsMotionPlugin {
                 Update,
                 (
                     crate::gait::refresh_gait_system
-                        .after(crate::gait::gait_request_system),
+                        .after(crate::gait::gait_request_system).after(crate::view::AlsViewInputSet),
                     tnua_config_sync_system
                         .after(crate::gait::refresh_gait_system)
                         .after(crate::transition::state_transition_system)
@@ -2073,7 +2073,7 @@ fn tnua_config_sync_system(
 type DriveQueryItem<'a> = (
     Entity,
     &'a mut TnuaController<AlsControlScheme>,
-    &'a AlsViewYaw,
+    (&'a AlsViewYaw, Option<&'a crate::view::AlsPlayerViewYaw>),
     &'a GlobalTransform,
     &'a LocomotionState,
     &'a LinearVelocity,
@@ -2108,7 +2108,7 @@ fn locomotion_drive_system(
     for (
         entity,
         mut controller,
-        view_yaw,
+        (view_yaw, player_view),
         gtf,
         loco,
         velocity,
@@ -2132,7 +2132,7 @@ fn locomotion_drive_system(
 
         let move_len = effective.move_dir.length().min(1.0);
         let world_dir = if move_len > 1e-4 {
-            view_relative_move_direction(effective.move_dir, view_yaw.0)
+            view_relative_move_direction(effective.move_dir, player_view.map_or(view_yaw.0, |view| view.0))
         } else {
             Vec3::ZERO
         };
@@ -3359,6 +3359,30 @@ mod tests {
         let sensor = app.world().get::<TnuaSensorsEntities<AlsControlScheme>>(character).unwrap().ground.unwrap();
         assert_eq!(app.world().get::<TnuaProximitySensor>(sensor).unwrap().output.as_ref().unwrap().normal, Dir3::Y);
         assert!(app.world().get::<LinearVelocity>(character).unwrap().0.abs_diff_eq(Vec3::NEG_Z * 1.75, 1e-4));
+    }
+
+    #[test]
+    fn movement_uses_player_view_without_overwriting_the_control_target() {
+        let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+        let control = 60.0_f32.to_radians();
+        let rendered = 30.0_f32.to_radians();
+        app.world_mut().entity_mut(character).insert((AlsViewYaw(control), crate::view::AlsPlayerViewYaw(rendered)));
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = Vec2::Y;
+        app.update();
+        let desired = app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().basis.desired_motion;
+        assert!(desired.abs_diff_eq(Vec3::new(-0.5, 0.0, -3.0_f32.sqrt() * 0.5), 1e-5), "Movement used the control target instead of the player view: {desired:?}");
+        assert_eq!(app.world().get::<AlsViewYaw>(character).unwrap().0, control);
+        app.world_mut().entity_mut(character).remove::<crate::view::AlsPlayerViewYaw>();
+        app.update();
+        let desired = app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().basis.desired_motion;
+        assert!(desired.abs_diff_eq(Vec3::new(-3.0_f32.sqrt() * 0.5, 0.0, -0.5), 1e-5));
+        app.world_mut().entity_mut(character).insert((crate::input_request::AlsFirstPersonView, crate::view::AlsPlayerViewYaw(0.0)));
+        app.world_mut().get_mut::<crate::gait::AlsDesiredGait>(character).unwrap().0 = Gait::Sprinting;
+        app.update();
+        assert_eq!(app.world().get::<crate::gait::AlsMaxAllowedGait>(character).unwrap().0, Gait::Running);
+        app.world_mut().get_mut::<crate::view::AlsPlayerViewYaw>(character).unwrap().0 = control;
+        app.update();
+        assert_eq!(app.world().get::<crate::gait::AlsMaxAllowedGait>(character).unwrap().0, Gait::Sprinting);
     }
 
     #[test]

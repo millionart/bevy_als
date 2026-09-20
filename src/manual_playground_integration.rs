@@ -485,6 +485,29 @@ pub struct ManualCameraTraceSample {
     pub camera: AlsCameraDebugInfo,
 }
 
+#[derive(Default)]
+struct CameraMovementProbe {
+    previous_view: Option<f32>,
+    samples: usize,
+    lagged: bool,
+    invalid: bool,
+}
+
+impl CameraMovementProbe {
+    fn observe(&mut self, view: Option<f32>, control: f32, input: Vec2, snapshot: Option<f32>, desired: Option<Vec3>) {
+        if input.length_squared() > 1e-6 && let Some(previous) = self.previous_view {
+            self.samples += 1;
+            let expected = als_core::motion::view_relative_move_direction(input, previous) * input.length().min(1.0);
+            self.invalid |= snapshot.is_none_or(|value| als_core::motion::wrap_yaw_radians(value - previous).abs() > 1e-5)
+                || desired.is_none_or(|value| !value.abs_diff_eq(expected, 1e-5));
+            self.lagged |= view.is_some_and(|value| als_core::motion::wrap_yaw_radians(value - control).abs() > 0.01);
+        }
+        self.previous_view = view;
+    }
+
+    fn passed(&self) -> bool { self.samples >= 8 && self.lagged && !self.invalid }
+}
+
 #[derive(Resource, Clone, Debug, Default, Serialize, PartialEq)]
 pub struct ManualIntegrationGateReport {
     pub scenario: String,
@@ -3064,6 +3087,7 @@ struct ManualIntegrationState {
     camera_last_probe_secs: f32,
     camera_view_mode_requested: bool,
     camera_shoulder_requested: bool,
+    camera_movement: CameraMovementProbe,
     interface_debug_armed: bool,
     interface_hud_hidden_seen: bool,
     interface_hud_restored_seen: bool,
@@ -3187,6 +3211,7 @@ impl Default for ManualIntegrationState {
             camera_last_probe_secs: -1.0,
             camera_view_mode_requested: false,
             camera_shoulder_requested: false,
+            camera_movement: default(),
             interface_debug_armed: false,
             interface_hud_hidden_seen: false,
             interface_hud_restored_seen: false,
@@ -3292,6 +3317,9 @@ struct InterfaceProbe<'w, 's> {
 
 #[derive(SystemParam)]
 struct MotionProbe<'w, 's> {
+    player_views: Query<'w, 's, &'static als_core::view::AlsPlayerViewYaw>,
+    controllers: Query<'w, 's, &'static bevy_tnua::TnuaController<als_core::control_scheme::AlsControlScheme>>,
+    rendered_views: Query<'w, 's, (&'static Camera, &'static Transform, &'static als_camera::AlsCharacterCamera), (With<Camera3d>, With<als_camera::AlsCameraViewSource>)>,
     source_inputs: Query<'w, 's, &'static als_ext::SourceAnimationInputs>,
     asset_server: Res<'w, AssetServer>,
     graphs: Res<'w, Assets<AnimationGraph>>,
@@ -5601,6 +5629,7 @@ fn drive_manual_integration(
                 state.camera_last_probe_secs = -1.0;
                 state.camera_view_mode_requested = false;
                 state.camera_shoulder_requested = false;
+                state.camera_movement = default();
                 let camera_spawn = state.spawn_translation.unwrap_or(transform.translation);
                 let camera_yaw = state.spawn_yaw.unwrap_or(fixture.facing_yaw);
                 reset_character(
@@ -5617,14 +5646,15 @@ fn drive_manual_integration(
                 *overlay = OverlayState::Default;
                 *rotation_mode = RotationMode::ViewDirection;
             }
-            if state.coverage.camera_recovery && elapsed < 2.0 {
+            if state.coverage.camera_recovery && !state.camera_movement.passed() {
                 input.0.look_delta = Vec2::new(8.0, -4.0);
+                input.0.move_dir = Vec2::Y * 0.3;
             }
             if !state.camera_shoulder_requested {
                 input.0.switch_shoulder_pressed = true;
                 state.camera_shoulder_requested = true;
             }
-            if elapsed >= 2.0 && state.coverage.camera_recovery && !state.camera_view_mode_requested {
+            if elapsed >= 2.0 && state.coverage.camera_recovery && state.camera_movement.passed() && !state.camera_view_mode_requested {
                 input.0.view_mode_pressed = true;
                 state.camera_view_mode_requested = true;
             }
@@ -7127,7 +7157,7 @@ fn observe_manual_integration(
             && state_index < 6
         {
             let expected_world =
-                als_core::motion::view_relative_move_direction(case.move_dir, view_yaw.0);
+                als_core::motion::view_relative_move_direction(case.move_dir, motion_probe.player_views.get(character).map_or(view_yaw.0, |view| view.0));
             let expected_local = Vec2::new(
                 expected_world.dot(transform.rotation * Vec3::NEG_Z),
                 expected_world.dot(transform.rotation * Vec3::X),
@@ -7565,7 +7595,7 @@ fn observe_manual_integration(
         )
     {
         let expected_world =
-            als_core::motion::view_relative_move_direction(case.move_dir, view_yaw.0);
+            als_core::motion::view_relative_move_direction(case.move_dir, motion_probe.player_views.get(character).map_or(view_yaw.0, |view| view.0));
         let expected_local = Vec2::new(
             expected_world.dot(transform.rotation * Vec3::NEG_Z),
             expected_world.dot(transform.rotation * Vec3::X),
@@ -9265,6 +9295,18 @@ fn observe_manual_integration(
         state.coverage.debug_draw |= state.coverage.show_debug && interface.debug_stats.total() > 0;
     }
 
+    if state.phase == IntegrationPhase::Camera {
+        let view = motion_probe.rendered_views.iter().find_map(|(camera, transform, owner)|
+            (camera.is_active && owner.character == character).then(|| transform.rotation.to_euler(EulerRot::YXZ).0));
+        let input = motion_probe.inputs.get(character).ok().and_then(|(input, override_input)|
+            override_input.map(|value| &value.0).or(input)).map_or(Vec2::ZERO, |input| input.move_dir);
+        let snapshot = motion_probe.player_views.get(character).ok().map(|view| view.0);
+        let desired = motion_probe.controllers.get(character).ok().map(|controller| controller.basis.desired_motion);
+        state.camera_movement.observe(view, view_yaw.0, input, snapshot, desired);
+        gate_report.direction_trace.push(serde_json::json!({"player_view_yaw":snapshot,"rendered_yaw":view,"control_yaw":view_yaw.0,
+            "input":input.to_array(),"desired":desired.map(|value| value.to_array()),"movement_samples":state.camera_movement.samples,
+            "movement_lagged":state.camera_movement.lagged,"movement_invalid":state.camera_movement.invalid}));
+    }
     if let Some(camera) = state.camera
         && let Ok((_camera_transform, debug)) = cameras.get(camera)
     {
@@ -9788,6 +9830,7 @@ fn observe_manual_integration(
                 ("camera_shoulder", coverage.camera_shoulder),
                 ("camera_shake", coverage.camera_shake),
                 ("camera_unscaled_time", coverage.camera_unscaled_time),
+                ("camera_player_view_movement", state.camera_movement.passed()),
             ],
             IntegrationScenario::Stairs => vec![
                 ("runtime_assembly", coverage.assembly),
@@ -9965,6 +10008,25 @@ fn observe_manual_integration(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn camera_movement_probe_rejects_control_and_current_frame_substitution() {
+        use super::CameraMovementProbe;
+        use bevy::prelude::{Quat, Vec2, Vec3};
+        for wrong in [None, Some(0.6_f32), Some(1.2)] {
+            let mut probe = CameraMovementProbe::default();
+            probe.observe(Some(0.4), 1.2, Vec2::ZERO, None, None);
+            for _ in 0..8 {
+                let desired = Quat::from_rotation_y(wrong.unwrap_or(0.4)) * Vec3::NEG_Z * 0.3;
+                probe.observe(Some(0.4), 1.2, Vec2::Y * 0.3, Some(wrong.unwrap_or(0.4)), Some(desired));
+            }
+            assert_eq!(probe.passed(), wrong.is_none());
+        }
+        let mut missing = CameraMovementProbe::default();
+        missing.observe(Some(0.4), 1.2, Vec2::ZERO, None, None);
+        missing.observe(Some(0.5), 1.2, Vec2::Y, None, None);
+        assert!(missing.invalid && !missing.passed());
+    }
+
     #[test]
     fn foot_ik_terrain_emits_one_press_per_action_at_variable_frame_rates() {
         for deltas in [&[1.0_f32 / 60.0][..], &[0.011, 0.017, 0.008][..]] {
@@ -11417,11 +11479,12 @@ mod tests {
         let camera = world.spawn((AlsCameraRig::default(), AlsCameraDebugInfo {
             valid: true, trace_start: Vec3::Y * 1.6, trace_end: Vec3::new(0.0, 1.57, 2.8), ..default()
         })).id();
-        for (elapsed, recovered, expected_look, expected_switch) in [
-            (0.8, false, false, false),
-            (2.5, false, false, false),
-            (1.0, true, true, false),
-            (2.5, true, false, true),
+        for (elapsed, recovered, movement_passed, expected_look, expected_switch) in [
+            (0.8, false, false, false, false),
+            (2.5, false, false, false, false),
+            (1.0, true, false, true, false),
+            (2.5, true, false, true, false),
+            (2.5, true, true, false, true),
         ] {
             let mut state = ManualIntegrationState {
                 character: Some(character), camera: Some(camera), initialized: true, entered: false,
@@ -11430,6 +11493,8 @@ mod tests {
             };
             state.coverage.camera_recovery = recovered;
             state.camera_obstacle_ignored = recovered;
+            state.camera_movement.samples = usize::from(movement_passed) * 8;
+            state.camera_movement.lagged = movement_passed;
             world.insert_resource(state);
             world.run_system_once(drive_manual_integration).unwrap();
             let input = &world.get::<AlsInputOverride>(character).unwrap().0;

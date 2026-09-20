@@ -47,6 +47,25 @@ mod tests {
     use super::*;
     use bevy::ecs::system::RunSystemOnce;
 
+    #[test]
+    fn roll_direction_uses_player_view_for_input_and_actor_yaw_without_input() {
+        let mut failures = Vec::new();
+        for (input, expected) in [(Vec2::Y, 0.4_f32), (Vec2::ZERO, 0.7)] {
+            let mut world = World::new();
+            let mut time = Time::<()>::default();
+            time.advance_by(std::time::Duration::from_secs_f32(1.0 / 60.0));
+            world.insert_resource(time);
+            let character = world.spawn((als_core::character::AlsCharacter, AlsRollState::default(),
+                LocomotionState::Grounded, Stance::Standing, AlsViewYaw(1.2), als_core::view::AlsPlayerViewYaw(0.4),
+                Transform::from_rotation(Quat::from_rotation_y(0.7)), LinearVelocity::ZERO,
+                AlsInputCommand { roll_pressed: true, move_dir: input, ..default() })).id();
+            world.run_system_once(advance_rolls).unwrap();
+            let actual = world.get::<AlsRollState>(character).unwrap().direction_yaw;
+            if als_core::motion::wrap_yaw_radians(actual - expected).abs() > 1e-5 { failures.push((input, expected, actual)); }
+        }
+        assert!(failures.is_empty(), "Roll used the wrong input or actor basis: {failures:?}");
+    }
+
     fn ready_roll_player(app: &mut App, avatar: Entity) -> Entity {
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(40);
         loop {
@@ -680,7 +699,7 @@ fn advance_rolls(
             &mut AlsRollState,
             &LocomotionState,
             &Stance,
-            &AlsViewYaw,
+            (&AlsViewYaw, Option<&als_core::view::AlsPlayerViewYaw>),
             &Transform,
             &LinearVelocity,
             Option<&AlsAirState>,
@@ -696,7 +715,7 @@ fn advance_rolls(
         mut roll,
         loco,
         stance,
-        view,
+        (view, player_view),
         transform,
         vel,
         air,
@@ -721,7 +740,10 @@ fn advance_rolls(
             continue;
         }
 
-        let mut lifecycle = roll.update(&effective, view, loco, stance, dt);
+        let direction_basis = AlsViewYaw(if effective.move_dir.length_squared() > 1e-6 {
+            player_view.map_or(view.0, |view| view.0)
+        } else { transform.rotation.to_euler(EulerRot::YXZ).0 });
+        let mut lifecycle = roll.update(&effective, &direction_basis, loco, stance, dt);
         if !lifecycle.started
             && !roll.active
             && *loco == LocomotionState::Grounded

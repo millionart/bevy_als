@@ -75,7 +75,7 @@ impl Plugin for AlsSourceCameraPlugin {
                 .after(als_ext::post_physics_animation::PostPhysicsAnimationSet::Evaluate)
                 .before(AnimationGraphSet::PostPhysics),
         )
-        .add_systems(Update, remove_orphaned_views);
+        .add_systems(Update, (remove_orphaned_views, publish_player_view_yaw).chain().before(als_core::view::AlsViewInputSet));
     }
 }
 
@@ -283,6 +283,39 @@ pub(crate) mod tests {
     use super::*;
     use bevy::world_serialization::WorldSerializationPlugin;
     use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
+
+    #[test]
+    fn movement_view_uses_the_completed_render_transform_and_clears_invalid_views() {
+        use als_core::{character::AlsCharacter, input::AlsInputCommand, motion::AlsViewYaw, view::{AlsPlayerViewYaw, AlsViewInputPlugin, AlsViewInputSet, AlsViewPitch}};
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, TransformPlugin, AlsViewInputPlugin))
+            .add_systems(Update, (remove_orphaned_views, publish_player_view_yaw).chain().before(AlsViewInputSet));
+        let character = app.world_mut().spawn((AlsCharacter, AlsViewYaw(1.2), AlsViewPitch::default(),
+            AlsInputCommand { look_delta: Vec2::new(20.0, 0.0), ..default() })).id();
+        let source = app.world_mut().spawn((AlsSourceCameraComponent::default(), AlsCharacterCamera { character })).id();
+        let view = app.world_mut().spawn((Camera3d::default(), als_camera::AlsCameraViewSource(source),
+            AlsCharacterCamera { character }, Transform::from_rotation(Quat::from_rotation_y(0.4)))).id();
+        app.update();
+        assert!(app.world().get::<AlsPlayerViewYaw>(character).is_none());
+        app.update();
+        assert!((app.world().get::<AlsPlayerViewYaw>(character).unwrap().0 - 0.4).abs() < 1e-6);
+        assert!((app.world().get::<AlsViewYaw>(character).unwrap().0 - 1.1).abs() < 1e-6);
+        app.world_mut().get_mut::<Transform>(view).unwrap().rotation = Quat::from_rotation_y(0.8);
+        app.update();
+        assert!((app.world().get::<AlsPlayerViewYaw>(character).unwrap().0 - 0.4).abs() < 1e-6);
+        app.update();
+        assert!((app.world().get::<AlsPlayerViewYaw>(character).unwrap().0 - 0.8).abs() < 1e-6);
+        app.world_mut().get_mut::<Camera>(view).unwrap().is_active = false;
+        app.update();
+        assert!(app.world().get::<AlsPlayerViewYaw>(character).is_none());
+        app.world_mut().get_mut::<Camera>(view).unwrap().is_active = true;
+        app.update();
+        assert!(app.world().get::<AlsPlayerViewYaw>(character).is_some());
+        app.world_mut().despawn(source);
+        app.update();
+        assert!(app.world().get_entity(view).is_err());
+        assert!(app.world().get::<AlsPlayerViewYaw>(character).is_none());
+    }
 
     pub(crate) fn loaded_camera_scene() -> (App, Entity, Entity, Handle<bevy_animation_graph::core::animated_scene::AnimatedScene>) {
         let mut app = App::new();
@@ -868,6 +901,25 @@ fn remove_orphaned_views(
                 assembly.camera = None;
             }
             commands.entity(entity).despawn();
+        }
+    }
+}
+
+fn publish_player_view_yaw(
+    mut commands: Commands,
+    mut characters: Query<(Entity, Option<&mut als_core::view::AlsPlayerViewYaw>), With<als_core::character::AlsCharacter>>,
+    views: Query<(&Camera, Ref<GlobalTransform>, &AlsCharacterCamera), (With<Camera3d>, With<als_camera::AlsCameraViewSource>)>,
+) {
+    for (character, current) in &mut characters {
+        let yaw = views.iter().find_map(|(camera, transform, owner)| {
+            (owner.character == character && camera.is_active && !transform.is_added())
+                .then(|| transform.rotation().to_euler(EulerRot::YXZ).0).filter(|yaw| yaw.is_finite())
+        });
+        match (current, yaw) {
+            (Some(mut current), Some(yaw)) => current.0 = yaw,
+            (None, Some(yaw)) => { commands.entity(character).insert(als_core::view::AlsPlayerViewYaw(yaw)); }
+            (Some(_), None) => { commands.entity(character).remove::<als_core::view::AlsPlayerViewYaw>(); }
+            (None, None) => {}
         }
     }
 }

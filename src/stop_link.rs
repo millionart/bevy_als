@@ -736,7 +736,7 @@ pub fn stop_link_system(
             &Stance,
             &RotationMode,
             &Transform,
-            &AlsViewYaw,
+            (&AlsViewYaw, Option<&als_core::view::AlsPlayerViewYaw>),
             &als_core::character::AlsMovementParamsHandle,
             Option<&AlsGroundedDynamics>,
             Option<&AlsLandingBrakingFriction>,
@@ -757,7 +757,7 @@ pub fn stop_link_system(
         stance,
         rotation_mode,
         transform,
-        view_yaw,
+        (view_yaw, player_view),
         handle,
         dynamics,
         landing_braking,
@@ -775,7 +775,7 @@ pub fn stop_link_system(
     let hspeed = vel.horizontal_speed;
     let input_move = effective.move_dir.length();
     if input_move > STOP_RELEASE_INPUT_EPSILON {
-        let direction = view_relative_move_direction(effective.move_dir, view_yaw.0);
+        let direction = view_relative_move_direction(effective.move_dir, player_view.map_or(view_yaw.0, |view| view.0));
         if direction.length_squared() > 1e-6 {
             m.last_input_yaw = Some(world_forward_to_yaw(direction));
         }
@@ -862,7 +862,7 @@ fn quick_stop_notify_system(
             &Transform,
             &RotationMode,
             &Stance,
-            &AlsViewYaw,
+            (&AlsViewYaw, Option<&als_core::view::AlsPlayerViewYaw>),
             &AlsInputCommand,
             Option<&AlsInputOverride>,
             Option<&AlsRotationResponseState>,
@@ -872,7 +872,7 @@ fn quick_stop_notify_system(
     mut commands: Commands,
 ) {
     for notice in notices.read() {
-        let Ok((body, rotation_mode, stance, view_yaw, command, override_command, rotation)) =
+        let Ok((body, rotation_mode, stance, (view_yaw, player_view), command, override_command, rotation)) =
             characters.get(notice.character)
         else {
             continue;
@@ -885,7 +885,7 @@ fn quick_stop_notify_system(
                 |rotation| rotation.target_yaw,
             );
         let (index, play_rate) =
-            quick_stop_selection(*rotation_mode, input, view_yaw.0, body, target_yaw);
+            quick_stop_selection(*rotation_mode, input, player_view.map_or(view_yaw.0, |view| view.0), body, target_yaw);
         let playback = if *stance == Stance::Crouching {
             AlsTransitionPlayback::crouching_quick_stop(index, play_rate)
         } else {
