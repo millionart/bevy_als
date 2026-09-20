@@ -507,6 +507,7 @@ fn apply_profile_to_spawned_ragdoll(
         }
         applied.joint_count += 1;
     }
+    commands.entity(spawned.root).insert_children(0, &spawned.joints.values().copied().collect::<Vec<_>>());
     applied
 }
 

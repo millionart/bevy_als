@@ -156,12 +156,22 @@ fn dispatch_generated_transition_notifications(
     mut playbacks: Query<&mut AlsTransitionMontageStack>,
     mut turn_stacks: Query<&mut AlsTurnMontageStack>,
     mut turn_drives: Query<&mut AlsTurnDrive>,
-    stances: Query<&als_core::state::Stance>,
+    stances: Query<&als_core::state::Stance, With<als_core::character::AlsCharacter>>,
     mut commands: Commands,
 ) {
+    let active: HashMap<_, _> = avatars.iter()
+        .filter(|(_, avatar, instance)| stances.contains(avatar.character) && players.contains(instance.player_entity()))
+        .map(|(_, avatar, instance)| (instance.player_entity(), avatar.character)).collect();
+    cursor.source_frames.retain(|player, _| active.contains_key(player));
+    cursor.generations.retain(|(player, context, _), _| active.contains_key(player)
+        && players.get(*player).ok().and_then(|player| player.get_context_arena())
+            .is_some_and(|arena| arena.get_context(*context).is_some()));
+    cursor.queued_transitions.retain(|character, _| active.values().any(|owner| owner == character));
+    cursor.queued_turns.retain(|character, _| active.values().any(|owner| owner == character));
     for (avatar_entity, avatar, instance) in &avatars {
         let mut stop_requested = false;
         let player_entity = instance.player_entity();
+        if !active.contains_key(&player_entity) { continue; }
         let Ok(mut player) = players.get_mut(player_entity) else {
             continue;
         };
@@ -183,6 +193,7 @@ fn dispatch_generated_transition_notifications(
                 continue;
             }
             if previous.is_some_and(|previous| previous.0 != frame.0) {
+                cursor.generations.retain(|key, _| key.0 != player_entity);
                 cursor.queued_transitions.remove(&avatar.character);
                 cursor.queued_turns.remove(&avatar.character);
             }
@@ -430,6 +441,67 @@ mod tests {
     use super::*;
 
     #[test]
+    fn destroyed_animation_instances_release_all_notification_cursors() {
+        use bevy::ecs::system::RunSystemOnce;
+        use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterBlueprint, spawn_als_character};
+        let (mut app, _, _, _) = crate::camera_component::tests::loaded_camera_scene();
+        for removal in 0..4 {
+            let character = app.world_mut().run_system_once(|mut commands: Commands, assets: Res<AssetServer>,
+                mut params: ResMut<Assets<als_core::params::AlsMovementParams>>,
+                mut configs: ResMut<Assets<als_core::control_scheme::AlsControlSchemeConfig>>| {
+                spawn_als_character(&mut commands, &assets, &mut params, &mut configs,
+                    AlsCharacterBlueprint { spawn_input: false, ..AlsCharacterBlueprint::new(Transform::from_xyz(0.0, 3.0, 0.0)) })
+            }).unwrap();
+            app.world_mut().entity_mut(character).insert((avian3d::prelude::RigidBody::Kinematic, bevy_tnua::TnuaToggle::Disabled));
+            let avatar = app.world().get::<AlsCharacterAssembly>(character).unwrap().avatar;
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(40);
+            let player = loop {
+                app.update();
+                if let Some(instance) = app.world().get::<AnimatedSceneInstance>(avatar)
+                    && app.world().get::<AnimationGraphPlayer>(instance.player_entity()).unwrap().get_default_output_pose().is_some() {
+                    break instance.player_entity();
+                }
+                assert!(std::time::Instant::now() < deadline, "Character animation did not load");
+                std::thread::sleep(std::time::Duration::from_millis(5));
+            };
+            let previous_instance = app.world().resource::<GeneratedTransitionNotifyCursor>().source_frames[&player].0;
+            let instance = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+            let bevy_animation_graph::core::animation_graph_player::AnimationSource::Graph(graph) = instance.get_animation_source() else { panic!("Character graph is missing"); };
+            let graph = graph.clone();
+            let stale = (player, instance.get_context_arena().unwrap().get_toplevel_id(), NodeId::default());
+            app.world_mut().resource_mut::<GeneratedTransitionNotifyCursor>().generations.insert(stale, 1);
+            app.world_mut().get_mut::<AnimationGraphPlayer>(player).unwrap().start(graph);
+            app.update();
+            let cursor = app.world().resource::<GeneratedTransitionNotifyCursor>();
+            assert_ne!(cursor.source_frames[&player].0, previous_instance);
+            assert!(!cursor.generations.contains_key(&stale), "Reinitialized instance retained old FSM generations");
+            {
+                let mut cursor = app.world_mut().resource_mut::<GeneratedTransitionNotifyCursor>();
+                assert!(cursor.source_frames.contains_key(&player));
+                assert!(cursor.generations.keys().any(|key| key.0 == player));
+                cursor.queued_transitions.insert(character, AlsTransitionPlayback::stop(0.0));
+                cursor.queued_turns.insert(character, SourceTurnRequest {
+                    variant: als_core::turn_in_place::TurnVariant::Left90, yaw: -90.0, crouching: false,
+                });
+            }
+            match removal {
+                0 => { app.world_mut().despawn(character); }
+                1 => { app.world_mut().despawn(avatar); }
+                2 => { app.world_mut().despawn(player); }
+                _ => { app.world_mut().entity_mut(player).remove::<AnimationGraphPlayer>(); }
+            }
+            app.world_mut().run_system_once(dispatch_generated_transition_notifications).unwrap();
+            let cursor = app.world().resource::<GeneratedTransitionNotifyCursor>();
+            assert!(!cursor.source_frames.contains_key(&player), "Removed instance retained its source frame: {removal}");
+            assert!(!cursor.generations.keys().any(|key| key.0 == player), "Removed instance retained FSM generations: {removal}");
+            assert!(!cursor.queued_transitions.contains_key(&character));
+            assert!(!cursor.queued_turns.contains_key(&character));
+            if app.world().get_entity(character).is_ok() { app.world_mut().despawn(character); }
+            app.update();
+        }
+    }
+
+    #[test]
     fn source_transition_call_preserves_arguments_and_standing_idle_guard() {
         use als_core::state::Stance;
         use als_ext::interruptible_fsm::SourceTransitionNotification;
@@ -445,7 +517,9 @@ mod tests {
         assert!(transition_animation_call(&notification, Stance::Standing, true).is_none());
         assert!(transition_animation_call(&notification, Stance::Crouching, false).is_none());
         notification.name = "AnotherNotification".to_owned();
-        assert_eq!(transition_animation_call(&notification, Stance::Standing, false), Some(playback));
+        let renamed = transition_animation_call(&notification, Stance::Standing, false).unwrap();
+        assert_ne!(renamed.instance_id, playback.instance_id);
+        assert_eq!(renamed, AlsTransitionPlayback { instance_id: renamed.instance_id, ..playback });
         notification.arguments[4].value = DataValue::Bool(false);
         notification.arguments[3].value = DataValue::F32(0.65);
         notification.function = "PlayTransitionRightAnimation".to_owned();

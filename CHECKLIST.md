@@ -36,6 +36,19 @@
 - ALSExtras（AI 控制器示例）不在范围内。
 - 音频（Metasound）、Niagara 特效仅保留挂钩点。ALSCamera 完整移植已纳入 BF116.01。
 
+## BF117 浏览器对比报告复核与修复
+
+用户2026-09-20授权逐项核查13b0cc2对比报告，修复除明确保留差异以外的确认缺口，并明确纳入多Surface、多Settings和自定义Tag入口。保留已记录的网络/AI/音频与Niagara边界、HUD/字体决策、实体运动基座、当帧激活调度及当前相机预设合同；截图与性能继续暂停，不把功能通过写成完全视觉/性能等价。
+
+- [x] BF117.01 动画实例运行时缓存生命周期：开始2026-09-20 14:06、预估结束2026-09-20 14:56。fresh本地Engine的SkeletalMeshComponent::OnUnregister、AnimInstance::InitializeAnimation/UninitializeAnimation证明实例结束须释放通知/节点状态，目标GeneratedTransitionNotifyCursor的四张表无回收。复开对应通知桥销毁边界，旧Gate只验证播放/暂停和实体清理，漏查全局资源；SecondaryMotionPhases先核对真实consumer，死状态直接删除。Gate为真实加载图的生成/销毁、移除player与同实体重建反例、最小回归/消融及原Playground功能检查。估时依据为两处共享资源、既有实际角色加载fixture与近期约70秒构建，原图/转换规则不变。
+  - 01源/反例边界2026-09-20 14:22：当次Default原生74.582s证明Secondary Motion由生成图SourceSequencePlayer的sync group逐实例维护；1485份代码/资产搜索确认旧phase仅有已移除调试consumer。真实加载角色的销毁反例先触发Avian JointDisabled移除观察器在刚体已销毁后重新注册关节的panic（调用栈已记录），不是缓存失败证据；本地Engine TermArticulated确认结束时清空全部body/constraint，目标graph-player discard按ragdoll root层级销毁，原层级将body排在joint前。将现有profile装配的joint排到body前以保留销毁依赖，并继续用同一真实实例反例验证四张缓存表；有限复开仅涉及销毁顺序，不变更source joint solver。此前physics暂停/绕过后续update均未改变同步despawn回调，已删除无效fixture改动。用户14:19补充要求Foot IK/footprints等查询统一使用自动分配的PhysicsLayer枚举，已固化到animation-graph-equivalence skill，纳入02的source查询闭包。
+  - 01静态闭环2026-09-20 14:25：关节排序后同一真实加载角色稳定检出旧source_frames残留（135.699s含依赖编译）；缓存按有效Avatar→Character/Player关系清理，并在source instance更换时清除旧FSM generation。删除无consumer的SecondaryMotionPhases及调试读取；原生成图/同步算法不变。运行时资产边界、Default及Root声明式审计通过；现在验证四种实例结束与同实体重建，随后同target_game/play预构建并按startup→transition_notify进行公共功能验收。
+  - 01真实入口前2026-09-20 14:33：13项通知/Root回归73.455s全部通过，真实同World反复加载、角色/Avatar/player删除、移除player组件和同实体重建均清空旧记录；原13类Overlay实际图与非空Pose保持通过。移除重建清理71.211s稳定检出旧FSM generation，已恢复。旧通知参数fixture曾误把两次独立montage的instance_id也要求相等，按既有唯一实例语义改为身份不同、其余参数相等；生产montage逻辑未改。同target_game/play入口构建68.397s通过，接下来同二进制startup与transition_notify功能验收，截图/性能继续暂停。
+  - 01启动后/动作Gate前2026-09-20 14:34：startup16.312s功能PASS，manual/validator退出0、SSAO/TAA与decal renderer检查通过，无功能issue。原始性能超限仍记deferred；继续同二进制transition_notify，核对实际FSM/通知消费与姿态守卫。
+  - 01完成2026-09-20 14:35：真实transition_notify8.554s功能PASS，manual/validator退出0、GPU检查通过，无功能issue；性能仍deferred。13项focused回归、三项静态审计、销毁顺序与缓存/重建反例和消融闭合；仅保留有效实例过滤与必要重建清理，删除旧secondary phase资源/推进/测试和无用probe读取。开始14:06、预估14:56、实际14:35、偏差-21分钟，本项完成，无新增依赖、图算法或转换规则。
+- [ ] BF117.02 足迹查询通道、多Surface与多Settings：依赖01；进入时登记源闭包与估时，复用Avian层与现有离线数据入口，不引入UE通道框架。
+- [ ] BF117.03 开放Tag状态与Overlay资产消费：依赖02；进入时登记源/目标完整调用链及独立验收拆分，确保新增Tag/映射可从角色入口到达图和物件。
+
 ## BF116 相机、Overlay 与场景 Actor 移植
 
 以下为用户已明确授权的完整模块清单，按依赖顺序执行。未启动模块的开始/预估结束时间在进入 source 阶段时登记，并拆成可独立验收的执行子项；登记不代表已调研或完成。

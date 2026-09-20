@@ -127,13 +127,6 @@ fn read_f32(player: &AnimationGraphPlayer, pin: &str) -> Option<f32> {
     }
 }
 
-fn read_global_f32(player: &AnimationGraphPlayer, key: &str) -> Option<f32> {
-    match player.get_global_input_data(key) {
-        Some(DataValue::F32(v)) => Some(*v),
-        _ => None,
-    }
-}
-
 fn anim_probe_logger(
     time: Res<Time>,
     config: Res<AnimProbeConfig>,
@@ -255,7 +248,7 @@ fn anim_probe_logger(
     if t - state.last_log >= config.interval_secs {
         state.last_log = t;
         info!(
-            "[PROBE] t={t:.2} pos=({:.2},{:.2},{:.2}) cap_h={} stance={stance:?} crouch_tx=({crouch_transaction_text}) gait=(desired={:?},allowed={:?},actual={gait:?}) loco={loco:?} rot={rot:?} face={face:.0} view={:.0} velyaw={velyaw:.0} hspd={hspeed:.2} world_v=({:.2},{:.2},{:.2}) local_v=({:.2},{:.2}) local_ang={:.1} blend=({:.2},{:.2},{:.2},{:.2}) dir={dir_name} dir_ang={dir_angle:.0} grounded_fsm={grounded_state} grounded_transition_active={grounded_transition_active} grounded_pose_ready={grounded_pose_ready} movement_fsm={fsm_state} transition_active={fsm_transition_active} pose_ready={fsm_pose_ready} dominant_branch={fsm_detail} dominant_weight={dominant_weight} src={src_name} graph_err={err_text} secondary_phase={} pins(speed={},rate={},dir_ang={},stance_w={},air_w={},land_w={})",
+            "[PROBE] t={t:.2} pos=({:.2},{:.2},{:.2}) cap_h={} stance={stance:?} crouch_tx=({crouch_transaction_text}) gait=(desired={:?},allowed={:?},actual={gait:?}) loco={loco:?} rot={rot:?} face={face:.0} view={:.0} velyaw={velyaw:.0} hspd={hspeed:.2} world_v=({:.2},{:.2},{:.2}) local_v=({:.2},{:.2}) local_ang={:.1} blend=({:.2},{:.2},{:.2},{:.2}) dir={dir_name} dir_ang={dir_angle:.0} grounded_fsm={grounded_state} grounded_transition_active={grounded_transition_active} grounded_pose_ready={grounded_pose_ready} movement_fsm={fsm_state} transition_active={fsm_transition_active} pose_ready={fsm_pose_ready} dominant_branch={fsm_detail} dominant_weight={dominant_weight} src={src_name} graph_err={err_text} pins(speed={},rate={},dir_ang={},stance_w={},air_w={},land_w={})",
             tf.translation.x,
             tf.translation.y,
             tf.translation.z,
@@ -275,9 +268,6 @@ fn anim_probe_logger(
             motion.velocity_blend.backward,
             motion.velocity_blend.left,
             motion.velocity_blend.right,
-            read_global_f32(player, "als_secondary_motion_phase")
-                .map(|value| format!("{value:.3}"))
-                .unwrap_or_else(|| "?".into()),
             fmt_pin("speed"),
             fmt_pin("play_rate"),
             fmt_pin("direction_angle"),
