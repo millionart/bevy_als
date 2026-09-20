@@ -64,15 +64,20 @@
   - 01b路线修复startup后/camera前2026-09-21 02:29：startup15.520s公共功能PASS，manual/validator0，无功能issue；继续camera后base。
   - 01b路线修复camera后/base前2026-09-21 02:30：camera20.804s公共功能PASS，滞后移动及原相机合同完整通过；同二进制base验证修复的固定路径与全部默认动作组合。
   - 01b/01完成2026-09-21 02:32：最终startup15.520s、camera20.804s、base127.527s公共功能全PASS，manual/validator0、GPU通过，无功能issue；滞后移动、旋转方向连续图链、Mantle开始/完成及默认动作组合闭合。1090项完整回归、82项驱动器/几何审计和六组必要消融均通过或正确拒绝；两个旧夹具前置条件已修复，不改生产图/相机阻尼/物理或验收阈值。01b开始01:56、预估02:26、实际02:32、偏差+6分钟，完成；01按静态/真实入口拆分闭合，BF-Char3有限复开关闭，继续02 GetUp。
-- [ ] BF120.02 GetUp实例生命周期：依赖01已通过。
+- [x] BF120.02 GetUp实例生命周期：依赖01已通过。
   - [x] BF120.02a 源与实例终止静态闭环：开始2026-09-21 02:33、预估结束2026-09-21 03:28。fresh ALS StopRagdolling在当前Mesh.AnimInstance上播放GetUp并阻塞输入；UE UninitializeAnimation立即停止/清空montage和NotifyState，SetLocomotionAction.NotifyEnd仅清仍匹配动作，空动作解除输入阻塞。当前GetUp状态仅挂Character，pose按任意Avatar取目标，需实际播放中覆盖/移除重插/销毁Player、保留旧Avatar与普通Overlay对照；先反例，再最小归属和清理、通知/Slot/输入回归与消融。估时依据为已定位4段source、3处GetUp入口及Notify消费者、现成实际角色fixture和80–115秒编译，静态55分钟。
-  - [ ] BF120.02b 原Playground功能验收：开始2026-09-21 03:04、预估结束2026-09-21 03:29。依赖02a已通过；估时依据为1094项回归、既有约80秒入口构建和GetUp/Ragdoll/base场景记录，窗口25分钟；同target_game/play入口构建，startup/get_up/ragdoll及必要动作组合，保持全部原功能守卫。
+  - [x] BF120.02b 原Playground功能验收：开始2026-09-21 03:04、预估结束2026-09-21 03:29。依赖02a已通过；估时依据为1094项回归、既有约80秒入口构建和GetUp/Ragdoll/base场景记录，窗口25分钟；同target_game/play入口构建，startup/get_up/ragdoll及必要动作组合，保持全部原功能守卫。
   - 02a反例/有限复开2026-09-21 02:40：真实角色已经采样GetUp Pose/曲线并阻塞输入后，110.675s两项反例分别证实同实体Player覆盖后旧状态存活，以及当前Avatar替换、保留旧Avatar后旧起身继续；首轮夹具引用错误模块的编译失败已修正，不作语义证据。有限复开归档BF114.03/03a的实例终止边界，旧Gate覆盖正常时间、通知、混合与输入，未替换主体Player。现在绑定启动时当前装配Player，采样前校验当前关系，Discard同步结束旧状态/动作/输入，旧Slot与通知沿既有消费者清理，不修改GetUp采样/混合或普通Overlay规则。
   - 02a静态回归2026-09-21 02:45：24项GetUp/Notify/Mantle定向回归117.471s全PASS；真实同实体覆盖/移除重插/主体销毁/Avatar反序销毁后状态与输入结束，实际NotifyEnd发出且不重新发布；保留旧Avatar、恢复新GetUp后删除旧Avatar不误停新实例，普通Rifle Overlay切换保持clip推进。复用现有实际角色fixture并删除旧资产测试的重复装配。补验保留/移除旧Owner标记及目标已失效时请求拒绝，再消融必要归属/即时清理/Slot结束并完整回归；图、源资产及采样算法未改。
   - 02a接替通知反例2026-09-21 02:51：85.739s实际三项实例/Slot检查通过后，增加接替后的真实动作/阻塞断言，81.485s稳定FAIL于新GetUp动作被清为None。fresh UE TriggerAnimNotifies在1978附近结束旧NotifyState，2005附近才Begin新状态；目标dispatcher反向先Begin新来源，再结束失活旧来源，旧GettingUp End覆盖新GettingUp Begin。该调用链确实参与当前实例接替，纳入同项仅调整共享dispatcher已有两个阶段的顺序，不新增通知队列或计数器；旧状态时间/插值、事件参数与其他通知算法不变，随后通知/Mantle/GetUp回归与顺序消融。
   - 02a通知修复后2026-09-21 02:53：25项GetUp/Notify/Mantle回归89.986s全PASS，新GetUp接替时旧Slot清零，旧End先于新Begin，新的GettingUp和输入阻塞保持；同实体替换/移除重插/销毁与无有效目标拒绝、两种旧Owner保留方式及普通Overlay切换均通过。现在依次消融Discard、当前归属/入口有效性、状态/Slot终止、接替旧Slot清理和通知阶段顺序，再恢复完整回归。
   - 02a消融闭环2026-09-21 03:02：Discard83.011s、归属/有效目标83.806s、状态/Slot结束80.774s、接替旧Slot清理84.459s、通知顺序82.432s五组消融均实际触发对应断言，分别检出旧实例状态存活、失效目标启动/旧Avatar续播、输入阻塞与旧权重残留、接替漏清Slot、新GettingUp被旧End清空。全部已恢复；通知活跃来源用标准HashSet替代无用bool值，无新队列/代次/注册表。开始完整回归，再按原入口构建及GetUp/Ragdoll功能Gate收口。
   - 02a完成2026-09-21 03:04：1094项122.831s完整回归PASS（camera24/core277/扩展397/项目396），五组消融全部恢复。GetUp当前实例绑定、覆盖/移除重插/销毁/旧Avatar保留、无目标请求拒绝、旧Slot清理、NotifyEnd与动作/输入结束、同帧新请求接替及普通Overlay保持均闭合；通知先End后Begin按fresh UE顺序，无新队列/注册表，源资产/图及采样算法未改。开始02:33、预估03:28、实际03:04、偏差-24分钟，静态段完成，归档BF114.03/03a待02b真实Gate关闭。接着同入口构建，startup/get_up/ragdoll/base验证源通知共享消费和实际动作。
+  - 02b真实入口前2026-09-21 03:07：target_game/play74.425s预构建PASS，1094项完整回归与五组消融闭合，所有修复已恢复。开始公共startup，再get_up/ragdoll/base覆盖两种起身、布娃娃恢复与共享通知的默认动作组合，保持原Pose/图错误/物理/进展守卫，截图0、仅性能deferred。
+  - 02b启动后/GetUp前2026-09-21 03:07：startup15.780s公共功能PASS，manual/validator0、GPU通过，无功能issue；继续同二进制get_up后ragdoll/base。
+  - 02b GetUp后/Ragdoll前2026-09-21 03:08：get_up13.917s公共功能PASS，manual/validator0、GPU通过，无功能issue；两种起身与原通知/输入恢复合同通过，继续ragdoll核对物理/动画交接，再base验证共享通知消费。
+  - 02b Ragdoll后/base前2026-09-21 03:09：ragdoll11.287s公共功能PASS，manual/validator0、GPU通过，无功能issue；原物理/动画交接合同保持。最后同二进制base核对Roll/Mantle等共享通知的默认动作组合，所有原阈值保持。
+  - 02b/02完成2026-09-21 03:11：startup15.780s、get_up13.917s、ragdoll11.287s、base126.968s公共功能全部PASS，manual/validator0、GPU通过，无功能issue；两种起身、输入/通知结束、物理交接和默认Roll/Mantle组合保持。1094项完整回归、五组必要消融、实际Player/Avatar替换与同帧接替闭合；原source资产/图及姿态/物理阈值未改。02b开始03:04、预估03:29、实际03:11、偏差-18分钟，完成；02按静态/真实入口拆分闭合，归档BF114.03/03a有限复开关闭，接着03 Transition。
 - [ ] BF120.03 Transition实例生命周期：依赖02，进入时登记估时；fresh Montage/Slot归属与当前采样链，实际播放中同实体覆盖、旧Avatar保留、目标销毁，验证旧栈/采样器/Slot不向新实例重新发布，沿现有Roll方法保留最小生命周期实现。
 
 ## BF119 输入分支与Roll采样器审阅反馈
