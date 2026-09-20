@@ -3667,7 +3667,7 @@ fn drive_manual_integration(
             &mut Gait,
             &mut OverlayState,
             &mut RotationMode,
-            &mut AlsViewYaw,
+            (&mut AlsViewYaw, Option<&als_core::view::AlsPlayerViewYaw>),
             &mut AlsViewPitch,
             Option<&AlsRagdollGroundFollow>,
             Option<&AlsStandingGraphTelemetry>,
@@ -3725,7 +3725,7 @@ fn drive_manual_integration(
         mut gait,
         mut overlay,
         mut rotation_mode,
-        mut view_yaw,
+        (mut view_yaw, player_view),
         mut view_pitch,
         ground_follow,
         standing_graph,
@@ -4123,6 +4123,9 @@ fn drive_manual_integration(
             };
             if state.direction_case_index != case_index {
                 let yaw = fixture.facing_yaw + case.yaw_offset;
+                let start = if case.yaw_offset.abs() > f32::EPSILON {
+                    Vec3::new(-10.0, fixture.locomotion_start.y, -26.0)
+                } else { fixture.locomotion_start };
                 if entering || case.yaw_offset.abs() > f32::EPSILON {
                     reset_character_without_rotation(
                         &mut transform,
@@ -4130,7 +4133,7 @@ fn drive_manual_integration(
                         &mut velocity,
                         &mut view_yaw,
                         &mut view_pitch,
-                        fixture.locomotion_start,
+                        start,
                         yaw,
                     );
                     rebase_temporal_fixture(&mut state, &mut phase_evidence, "direction_fixture");
@@ -5396,7 +5399,9 @@ fn drive_manual_integration(
             }
             let forward = Quat::from_rotation_y(fixture.facing_yaw) * Vec3::NEG_Z;
             let progress = (transform.translation - fixture.mantle_start).dot(forward);
-            input.0.move_dir = Vec2::Y;
+            if player_view.is_some_and(|view| als_core::motion::wrap_yaw_radians(view.0 - fixture.facing_yaw).abs() < 0.001) {
+                input.0.move_dir = Vec2::Y;
+            }
             input.0.jump_pressed = (5.85..7.1).contains(&progress) && elapsed < 7.0;
             if elapsed >= 10.0 {
                 if state.scenario == IntegrationScenario::BowOverlay {
@@ -11520,6 +11525,22 @@ mod tests {
         }
     }
 
+    #[test]
+    fn mantle_fixture_waits_for_the_player_view_before_approaching() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut world, character, _) = manual_driver_fixture();
+        for (yaw, expected) in [(1.0, Vec2::ZERO), (0.0, Vec2::Y)] {
+            world.entity_mut(character).insert(als_core::view::AlsPlayerViewYaw(yaw));
+            world.insert_resource(ManualIntegrationState {
+                character: Some(character), initialized: true, entered: false,
+                scenario: IntegrationScenario::Base, phase: IntegrationPhase::Mantle,
+                ..default()
+            });
+            world.run_system_once(drive_manual_integration).unwrap();
+            assert_eq!(world.get::<AlsInputOverride>(character).unwrap().0.move_dir, expected);
+        }
+    }
+
     fn manual_driver_fixture() -> (World, Entity, Vec3) {
         let mut world = World::new();
         world.init_resource::<ManualAnimationWindowEvidence>();
@@ -11968,6 +11989,16 @@ mod tests {
             let points = meshes.get(&mesh.0).unwrap().attribute(Mesh::ATTRIBUTE_POSITION).unwrap().as_float3().unwrap();
             points.iter().map(|point| transform.transform_point(Vec3::from(*point))).fold((Vec3::splat(f32::INFINITY), Vec3::splat(f32::NEG_INFINITY)), |(min, max), point| (min.min(point), max.max(point)))
         }).collect();
+        let (mut driver, character, _) = manual_driver_fixture();
+        driver.resource_mut::<ManualIntegrationFixture>().locomotion_start = world.resource::<ManualIntegrationFixture>().locomotion_start;
+        driver.insert_resource(ManualIntegrationState {
+            character: Some(character), initialized: true, entered: false,
+            phase: IntegrationPhase::DirectionRegression,
+            phase_started_seconds: -10.0 * DIRECTION_CASE_SECONDS as f64,
+            ..default()
+        });
+        driver.run_system_once(drive_manual_integration).unwrap();
+        let rotated_start = driver.get::<Position>(character).unwrap().0;
         let sprint_end = SPRINT_START + Quat::from_rotation_y(SPRINT_YAW) * Vec3::NEG_Z * (6.5 * 8.5);
         for (min, max) in [
             (
@@ -11979,6 +12010,7 @@ mod tests {
                 Vec3::new(-23.0, 0.0, -25.65),
             ),
             (Vec3::new(-26.0, 0.0, -28.5), Vec3::new(-6.0, 0.0, -21.0)),
+            (rotated_start - Vec3::new(14.0, 0.0, 2.0), rotated_start + Vec3::new(2.0, 0.0, 5.0)),
         ] {
             for (lower, upper) in &extra_bounds {
                 assert!(upper.x < min.x || lower.x > max.x || upper.z < min.z || lower.z > max.z, "Movement path intersects an attached integration fixture");
