@@ -389,11 +389,7 @@ fn bool_value(value: bool) -> &'static str {
 }
 
 fn locomotion_mode_tag(locomotion_state: LocomotionState) -> &'static str {
-    match locomotion_state {
-        LocomotionState::Grounded => "Grounded",
-        LocomotionState::Air => "InAir",
-        LocomotionState::Custom | LocomotionState::None => "",
-    }
+    locomotion_state.as_str().rsplit('.').next().unwrap_or("")
 }
 
 fn rotation_mode_tag(mode: RotationMode) -> &'static str { mode.leaf_name() }

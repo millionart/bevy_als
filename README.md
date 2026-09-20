@@ -50,6 +50,8 @@ pwsh tools/run_animation_visual_validation.ps1 -Case camera -CaptureCount 0 -Fun
 
 重新启动 `run_manual.bat` 后，Q 菜单会从 Tag 管理器枚举标签；无需新增 Rust 枚举变体。代码入口使用 `OverlayState::new` 和 `AlsStateRequest.overlay_state`，库由 `OverlayLibraryHandle` 选择。图和物件共同消费加载后的库，更新同一标签的配置也会刷新物件及图绑定。
 
+自定义 LocomotionMode 使用 `LocomotionState::new("Als.LocomotionMode.Climbing")`，通过 `AlsStateRequest.locomotion_state` 传入；RON 数据使用 `Named("Als.LocomotionMode.Climbing")`。原有 `LocomotionState::Custom` 保留物理控制含义并映射为空 Tag。命名入口保留身份，不自动实现对应的物理动作或动画分支。
+
 ## 许可
 
 ALS-Refactored 为商业资产，其内容不进入本仓库；本仓库自有代码 MIT OR Apache-2.0。

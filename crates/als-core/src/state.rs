@@ -59,7 +59,6 @@ tag_state!(AlsNotifyLocomotionAction, None, {
     Hash,
     Reflect,
     serde::Serialize,
-    serde::Deserialize,
 )]
 #[reflect(Default)]
 pub enum LocomotionState {
@@ -68,6 +67,46 @@ pub enum LocomotionState {
     Air,
     Custom,
     None,
+    Named(&'static str),
+}
+
+impl LocomotionState {
+    pub fn new(name: &str) -> Result<Self, InvalidTagName> {
+        if !name.is_empty() { GameplayTag::try_new(name)?; }
+        Ok(match name {
+            "Als.LocomotionMode.Grounded" => Self::Grounded,
+            "Als.LocomotionMode.InAir" => Self::Air,
+            "" => Self::None,
+            _ => Self::Named(TAG_NAMES.intern(name).0),
+        })
+    }
+
+    pub fn from_tag(tag: &GameplayTag) -> Self { Self::new(tag.as_str()).expect("GameplayTag must contain a valid name") }
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Grounded => "Als.LocomotionMode.Grounded",
+            Self::Air => "Als.LocomotionMode.InAir",
+            Self::Custom | Self::None => "",
+            Self::Named(name) => name,
+        }
+    }
+
+    pub fn tag(self) -> GameplayTag { GameplayTag::new(self.as_str()) }
+}
+
+impl<'de> serde::Deserialize<'de> for LocomotionState {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(serde::Deserialize)]
+        enum Value { Grounded, Air, Custom, None, Named(String) }
+        match Value::deserialize(deserializer)? {
+            Value::Grounded => Ok(Self::Grounded),
+            Value::Air => Ok(Self::Air),
+            Value::Custom => Ok(Self::Custom),
+            Value::None => Ok(Self::None),
+            Value::Named(name) => Self::new(&name).map_err(serde::de::Error::custom),
+        }
+    }
 }
 
 tag_state!(RotationMode, VelocityDirection, {
@@ -102,6 +141,21 @@ mod tests {
         assert_eq!(Gait::new("Als.Gait.Walking").unwrap(), Gait::Walking);
         assert!(Gait::new("Als..Gait").is_err());
         assert!(Gait::new("Als.Gait.Custom").unwrap().tag().matches_tag_exact(&GameplayTag::new("Als.Gait.Custom")));
+    }
+
+    #[test]
+    fn locomotion_state_preserves_named_mode_data() {
+        let serialized = "Named(\"Als.LocomotionMode.Climbing\")";
+        let value: LocomotionState = ron::from_str(serialized).expect("Custom locomotion mode was rejected");
+        assert_eq!(ron::to_string(&value).unwrap(), serialized);
+        assert_eq!(value, LocomotionState::new("Als.LocomotionMode.Climbing").unwrap());
+        assert_eq!(value.tag().as_str(), "Als.LocomotionMode.Climbing");
+        assert_eq!(LocomotionState::new("Als.LocomotionMode.Grounded").unwrap(), LocomotionState::Grounded);
+        assert_eq!(LocomotionState::new("Als.LocomotionMode.InAir").unwrap(), LocomotionState::Air);
+        assert_eq!(ron::from_str::<LocomotionState>("Named(\"Als.LocomotionMode.Grounded\")").unwrap(), LocomotionState::Grounded);
+        assert!(ron::from_str::<LocomotionState>("Named(\"Als..Invalid\")").is_err());
+        assert!(!LocomotionState::Custom.tag().is_valid());
+        assert!(!LocomotionState::None.tag().is_valid());
     }
 
     #[test]

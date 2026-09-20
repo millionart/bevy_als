@@ -59,7 +59,13 @@
   - 02 base后/Foot IK前2026-09-20 20:47：base125.902s功能PASS，48项覆盖及GPU通过，无功能issue；继续foot_ik核对真实Rig查询快照、地形与动作边界，随后camera核对独立播放器入口。
   - 02 Foot IK后/camera前2026-09-20 20:49：foot_ik80.052s功能PASS，实际Rig查询/斜坡台阶/蹲行/空中落地/翻滚攀越/清理及GPU全部通过，无功能issue。最后执行camera，验证独立输入组件和手动求值入口，性能仍deferred。
   - 02完成2026-09-20 20:51：startup15.768s、base125.902s、foot_ik80.052s和camera20.273s全部公共功能PASS，manual/validator0、GPU通过，faults/graph_errors/temporal_anomalies为空。1075回归、5入口编译、同World重建与覆盖/两World同ID/输入释放/嵌套及异常退出反例、两项消融闭合。所有输入归播放器组件，丢弃同步清空，求值作用域仅持快照；已移除持久全局表和延迟清理，未改依赖或图产物。开始20:12、预估21:12、实际20:51、偏差-21分钟，完成，无拆分；BF118.03/.04继续，性能及截图仍暂停。
-- [ ] BF118.03 自定义LocomotionMode身份：进入时登记源闭包/估时；核对SetLocomotionMode与OnMovementModeChanged的实际语义，保留普通未知物理模式→空Tag，同时让显式自定义Tag经过请求、角色状态和图输入；不增加游泳/飞行等新动作。
+- [x] BF118.03 自定义LocomotionMode身份：开始2026-09-20 20:51、预估结束2026-09-20 21:41。fresh本地AlsCharacter::SetLocomotionMode只保存完整Tag并触发通知，OnMovementModeChanged默认Walking/NavWalking→Grounded、Falling→InAir，其余空；Setter为protected扩展入口。目标Custom还标记mantle的物理控制，不能改为命名Tag或并入None。保留现有四种适配状态，增加可表达任意命名Tag的值与统一tag访问，接通请求/实际角色/主体与相机图输入/通知匹配；既有未映射物理模式仍为空。估时依据为一个状态类型、三个固定Tag桥及有限exhaustive match、现成请求/真实角色与base Gate，预计最多50分钟；核对SetLocomotionMode与OnMovementModeChanged的实际语义，保留普通未知物理模式→空Tag，同时让显式自定义Tag经过请求、角色状态和图输入；不增加游泳/飞行等新动作。
+  - 03静态闭环2026-09-20 21:10：174.323s旧序列化反例拒绝Named模式；新增命名载荷由既有Bevy Interner保存，兼容原Grounded/Air/Custom/None值，统一as_str/tag保留身份，已删Root/HUD/early-blend固定映射。工作区类型检查28.850s通过；5项请求/序列化/实际角色输入及通知条件180.268s PASS，重复同值不产生状态事件，命名模式可切回既有状态，内置物理Custom/None继续空Tag。没有新增物理动作/默认映射或图分支；实际默认图未宣称实现Climbing动作，只验证完整Tag进入现有图输入入口。正在移除命名Tag消费做消融，随后恢复完整回归及startup/base功能Gate。
+  - 03消融2026-09-20 21:13：将Named重新映射为空的177.271s消融稳定检出实际Tag为空而非Climbing，已恢复；新增数据解析会规范化已知Tag且拒绝非法名字，不改变四种已有适配值。实际角色请求→Root输入及通知条件断言使用明确源Tag常量，避免从实现反推期望。现在完整回归，随后入口编译/预构建与startup/base，未新增物理状态机或图算法。
+  - 03最终回归2026-09-20 21:17：全部1077项166.036s PASS（camera24/core273/扩展394/项目386），涵盖已有Custom控制/空Tag和Grounded/InAir默认路径。命名身份、请求消费/重复不发事件、已知名规范化、非法名拒绝、实际角色图输入与通知匹配闭合，消融已恢复。README补充明确入口与能力边界；当前入口编译/同target预构建，随后startup/base公共功能复验。
+  - 03真实入口前2026-09-20 21:20：5入口编译28.316s PASS，实际target_game/play预构建159.514s PASS；1077回归、原始拒绝反例、身份丢失消融及完整输入链闭合。现在用新报告执行startup→base，核对既有默认动作/状态未受影响；命名值扩展仍以完整输入合同验收，不冒称新增动作已实现，性能/截图继续暂停。
+  - 03启动后/base前2026-09-20 21:21：startup15.918s功能PASS，manual/validator0、GPU通过，无功能issue；继续同二进制base确认默认Grounded/InAir、mantle自定义控制和动作通知链，性能仍deferred。
+  - 03完成2026-09-20 21:23：startup15.918s与base125.829s全部公共功能PASS，48项默认动作/状态覆盖和GPU通过，manual/validator0，faults/graph_errors/temporal_anomalies为空。1077回归、数据拒绝反例、命名身份消融、实际请求/变更事件/图输入/通知链与5入口编译闭合；四种原有适配值及其Custom控制保持，命名值使用完整Tag，未新增动作或图规则。开始20:51、预估21:41、实际21:23、偏差-18分钟，完成，无拆分；仅BF118.04材质合成待继续，性能及截图暂停范围保持。
 - [ ] BF118.04 足迹接收面材质合成：进入时先拆分源/原生扩展点静态合同与运行时验收；核对当前UE真实DBuffer设置、材质表达式/混合顺序，再复用Bevy原生贴花/材质扩展，在光照前混合接收材质。保留RGBA原始纹理、通道/坐标/透明度/生命周期及NoDecalReceiver边界，不写另一套渲染器或放宽验收。
 
 ## BF117 浏览器对比报告复核与修复

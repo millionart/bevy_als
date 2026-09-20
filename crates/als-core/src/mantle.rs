@@ -270,9 +270,7 @@ pub fn wrap_angle(angle: f32) -> f32 {
 pub fn mantle_trace_settings(locomotion: LocomotionState) -> MantleTraceSettings {
     match locomotion {
         LocomotionState::Air => MANTLE_IN_AIR_TRACE,
-        LocomotionState::Grounded | LocomotionState::Custom | LocomotionState::None => {
-            MANTLE_GROUNDED_TRACE
-        }
+        _ => MANTLE_GROUNDED_TRACE
     }
 }
 

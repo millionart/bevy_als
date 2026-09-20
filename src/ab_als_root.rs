@@ -88,11 +88,7 @@ pub(crate) fn gait_tag(gait: Gait) -> GameplayTag {
 }
 
 pub(crate) fn locomotion_mode_tag(locomotion: LocomotionState) -> GameplayTag {
-    GameplayTag::new(match locomotion {
-        LocomotionState::Grounded => "Als.LocomotionMode.Grounded",
-        LocomotionState::Air => "Als.LocomotionMode.InAir",
-        LocomotionState::Custom | LocomotionState::None => "",
-    })
+    locomotion.tag()
 }
 
 pub(crate) fn stance_tag(stance: Stance) -> GameplayTag {
@@ -294,6 +290,18 @@ mod tests {
                 assert_eq!(&object.definition, library.0[&custom].object.as_ref().unwrap());
             }
         }
+        let named_mode = LocomotionState::new("Als.LocomotionMode.Climbing").unwrap();
+        app.world_mut().get_mut::<als_core::transition::AlsStateRequest>(character).unwrap().locomotion_state = Some(named_mode);
+        app.world_mut().run_system_once(als_core::transition::state_transition_system).unwrap();
+        app.world_mut().run_system_once(root_graph_writer).unwrap();
+        assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), named_mode);
+        let inputs = app.world().get::<als_ext::SourceAnimationInputs>(player_entity).unwrap();
+        assert_eq!(inputs.gameplay_tag_input("locomotion_mode").unwrap().as_str(), "Als.LocomotionMode.Climbing");
+        let parameters = serde_json::json!({"bCheckInput": false, "bCheckLocomotionMode": true,
+            "bCheckRotationMode": false, "bCheckStance": false,
+            "LocomotionModeEquals": {"__tagged__": {"TagName": "Als.LocomotionMode.Climbing"}}});
+        assert!(crate::animation_events::early_blend_out_matches(&parameters, false, named_mode, RotationMode::ViewDirection, Stance::Standing));
+        assert!(!crate::animation_events::early_blend_out_matches(&parameters, false, LocomotionState::Custom, RotationMode::ViewDirection, Stance::Standing));
     }
 
     #[test]

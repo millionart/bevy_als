@@ -679,12 +679,7 @@ pub(crate) fn early_blend_out_matches(
     parameters: &Value, has_input: bool, locomotion: als_core::state::LocomotionState,
     rotation: als_core::state::RotationMode, stance: Stance,
 ) -> bool {
-    use als_core::state::LocomotionState;
-    let locomotion_tag = match locomotion {
-        LocomotionState::Grounded => "Als.LocomotionMode.Grounded",
-        LocomotionState::Air => "Als.LocomotionMode.InAir",
-        LocomotionState::Custom | LocomotionState::None => "",
-    };
+    let locomotion_tag = locomotion.as_str();
     let rotation_tag = rotation.as_str();
     let stance_tag = stance.as_str();
     [

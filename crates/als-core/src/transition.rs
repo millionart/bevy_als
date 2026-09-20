@@ -566,6 +566,30 @@ mod tests {
     }
 
     #[test]
+    fn named_locomotion_requests_keep_identity_and_emit_only_changes() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AlsStateTransitionPlugin));
+        let actor = app.world_mut().spawn((LocomotionState::Grounded, Stance::Standing, Gait::Walking,
+            RotationMode::ViewDirection, OverlayState::Default, AlsStateRequest::default())).id();
+        let climbing = LocomotionState::new("Als.LocomotionMode.Climbing").unwrap();
+        let sliding = LocomotionState::new("Als.LocomotionMode.Sliding").unwrap();
+        let mut previous = LocomotionState::Grounded;
+        for requested in [climbing, climbing, sliding, LocomotionState::Air, LocomotionState::Grounded] {
+            app.world_mut().get_mut::<AlsStateRequest>(actor).unwrap().locomotion_state = Some(requested);
+            app.update();
+            assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), requested);
+            assert!(app.world().get::<AlsStateRequest>(actor).unwrap().locomotion_state.is_none());
+            let events: Vec<_> = app.world_mut().resource_mut::<Messages<StateTransitionEvent>>().drain().collect();
+            assert_eq!(events.len(), usize::from(previous != requested));
+            if let Some(event) = events.first() {
+                assert_eq!(event.from, StateValue::LocomotionState(previous));
+                assert_eq!(event.to, StateValue::LocomotionState(requested));
+            }
+            previous = requested;
+        }
+    }
+
+    #[test]
     fn ragdoll_request_separates_action_from_locked_movement_mode() {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, AlsStateTransitionPlugin));
