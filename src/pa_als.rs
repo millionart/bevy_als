@@ -32,12 +32,12 @@ pub fn parse_pa_als_profile() -> RagdollPhysicsProfile {
 fn attach_pa_als_physics_profile(
     mut commands: Commands,
     avatars: Query<&AnimatedSceneInstance, With<AlsCharacterAvatar>>,
-    profiles: Query<(), With<RagdollPhysicsProfile>>,
+    players: Query<(), (With<bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer>, Without<RagdollPhysicsProfile>)>,
     template: Res<PaAlsPhysicsProfileTemplate>,
 ) {
     for instance in &avatars {
         let player = instance.player_entity();
-        if profiles.contains(player) {
+        if !players.contains(player) {
             continue;
         }
         commands.entity(player).insert(template.0.clone());

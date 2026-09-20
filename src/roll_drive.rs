@@ -17,7 +17,7 @@ use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::systems::RootMotionOutput;
 
 use crate::animation_events::{AlsNotifyLocomotionAction, AlsNotifyRootMotionScale};
-use crate::character_assembly::AlsCharacterAvatar;
+use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar};
 use crate::root_motion_link::{
     ensure_root_motion_output, read_local_root_motion_delta, root_motion_world_transform,
 };
@@ -47,24 +47,145 @@ mod tests {
     use super::*;
     use bevy::ecs::system::RunSystemOnce;
 
+    fn ready_roll_player(app: &mut App, avatar: Entity) -> Entity {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(40);
+        loop {
+            app.update();
+            if let Some(instance) = app.world().get::<AnimatedSceneInstance>(avatar)
+                && let Some(player) = app.world().get::<AnimationGraphPlayer>(instance.player_entity())
+                && player.get_default_output_pose().is_some() {
+                let target = instance.player_entity();
+                if app.world_mut().query::<(&AlsRollSlotSampler, &AnimationGraphPlayer)>().iter(app.world())
+                    .any(|(sampler, player)| sampler.target_player == target && player.get_default_output_pose().is_some()) { return target; }
+            }
+            assert!(std::time::Instant::now() < deadline, "Roll player did not become ready");
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+    }
+
+    fn loaded_roll_character() -> (App, Entity, Entity) {
+        use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterBlueprint, spawn_als_character};
+        let (mut app, _, _, _) = crate::camera_component::tests::loaded_camera_scene();
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
+        app.world_mut().spawn((avian3d::prelude::RigidBody::Static, avian3d::prelude::Collider::cuboid(100.0, 1.0, 100.0),
+            Transform::from_xyz(0.0, -0.5, 0.0), avian3d::prelude::CollisionLayers::new(
+                [als_core::character::AlsCollisionLayer::Default, als_core::character::AlsCollisionLayer::Visibility], avian3d::prelude::LayerMask::ALL)));
+        let character = app.world_mut().run_system_once(|mut commands: Commands, assets: Res<AssetServer>,
+            mut params: ResMut<Assets<als_core::params::AlsMovementParams>>, mut configs: ResMut<Assets<als_core::control_scheme::AlsControlSchemeConfig>>| {
+            spawn_als_character(&mut commands, &assets, &mut params, &mut configs,
+                AlsCharacterBlueprint { spawn_input: false, ..AlsCharacterBlueprint::new(Transform::from_xyz(0.0, 1.5, 0.0)) })
+        }).unwrap();
+        let avatar = app.world().get::<AlsCharacterAssembly>(character).unwrap().avatar;
+        ready_roll_player(&mut app, avatar);
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        while *app.world().get::<LocomotionState>(character).unwrap() != LocomotionState::Grounded {
+            app.update();
+            assert!(std::time::Instant::now() < deadline, "Roll fixture did not reach the ground");
+        }
+        (app, character, avatar)
+    }
+
+    fn play_loaded_roll(app: &mut App, character: Entity) -> Entity {
+        *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = LocomotionState::Grounded;
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().roll_pressed = true;
+        app.world_mut().run_system_once(advance_rolls).unwrap();
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().roll_pressed = false;
+        for _ in 0..5 { app.update(); }
+        assert!(app.world().get::<AlsRollState>(character).unwrap().active, "Roll did not start through its input consumer");
+        assert!(app.world().get::<AlsRollSlotRuntime>(character).unwrap().pose_ready);
+        assert!(app.world().get::<AlsRollBlendOut>(character).is_none(), "Roll fixture entered an early blend out");
+        app.world_mut().run_system_once(roll_drive_system).unwrap();
+        let avatar = app.world().get::<crate::character_assembly::AlsCharacterAssembly>(character).unwrap().avatar;
+        let target = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let (entity, _, player, output) = app.world_mut().query::<(Entity, &AlsRollSlotSampler, &AnimationGraphPlayer, &RootMotionOutput)>()
+            .iter(app.world()).find(|(_, sampler, _, _)| sampler.target_player == target).unwrap();
+        assert!(player.get_error().is_none() && player.get_default_output_pose().is_some());
+        assert!(output.translation_delta.length() > 1e-5, "Loaded roll did not extract root motion");
+        let expected = app.world().get::<Transform>(character).unwrap().rotation
+            * app.world().get::<Transform>(avatar).unwrap().rotation * output.translation_delta;
+        let expected = expected * app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0 / app.world().resource::<Time>().delta_secs();
+        assert!(app.world().get::<LinearVelocity>(character).unwrap().abs_diff_eq(expected, 1e-4),
+            "Root motion did not come from the current roll player: expected={expected:?}, actual={:?}", app.world().get::<LinearVelocity>(character));
+        entity
+    }
+
+    #[test]
+    fn roll_sampler_ends_when_the_same_player_entity_is_replaced() {
+        use bevy_animation_graph::core::animation_graph_player::AnimationSource;
+        let (mut app, character, avatar) = loaded_roll_character();
+        let target = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        for remove_first in [false, true] {
+            let sampler = play_loaded_roll(&mut app, character);
+            let player = app.world().get::<AnimationGraphPlayer>(target).unwrap();
+            let AnimationSource::Graph(graph) = player.get_animation_source() else { panic!("Character must use its actual graph"); };
+            let replacement = AnimationGraphPlayer::new(player.skeleton().clone()).with_graph(graph.clone());
+            if remove_first { app.world_mut().entity_mut(target).remove::<AnimationGraphPlayer>(); }
+            app.world_mut().entity_mut(target).insert(replacement);
+            assert!(app.world().get_entity(sampler).is_err(), "Old sampler survived player replacement");
+            assert!(!app.world().get::<AlsRollState>(character).unwrap().active, "Old montage survived instance termination");
+            ready_roll_player(&mut app, avatar);
+            assert_eq!(app.world_mut().query::<&AlsRollSlotSampler>().iter(app.world()).filter(|sampler| sampler.character == character).count(), 1);
+        }
+        let sampler = play_loaded_roll(&mut app, character);
+        app.world_mut().despawn(target);
+        app.update();
+        assert!(app.world().get_entity(sampler).is_err());
+        assert!(!app.world().get::<AlsRollState>(character).unwrap().active);
+    }
+
+    #[test]
+    fn roll_sampler_releases_the_retained_old_avatar_and_uses_the_new_player() {
+        use crate::character_assembly::{AlsCharacterAssembly, ALS_LINKED_ANIMATED_SCENE, attach_avatar};
+        let (mut app, character, old_avatar) = loaded_roll_character();
+        let old_sampler = play_loaded_roll(&mut app, character);
+        let old_player = app.world().get::<AnimatedSceneInstance>(old_avatar).unwrap().player_entity();
+        app.world_mut().entity_mut(old_avatar).remove::<AlsCharacterAvatar>();
+        app.world_mut().get_mut::<AnimationGraphPlayer>(old_player).unwrap().pause();
+        let avatar = app.world_mut().run_system_once_with(|In(character): In<Entity>, mut commands: Commands, assets: Res<AssetServer>| {
+            attach_avatar(&mut commands, &assets, character, ALS_LINKED_ANIMATED_SCENE)
+        }, character).unwrap();
+        app.world_mut().get_mut::<AlsCharacterAssembly>(character).unwrap().avatar = avatar;
+        let target = ready_roll_player(&mut app, avatar);
+        assert!(app.world().get_entity(old_sampler).is_err(), "Old avatar kept an evaluated roll sampler");
+        assert!(!app.world().get::<AlsRollState>(character).unwrap().active);
+        let sampler = play_loaded_roll(&mut app, character);
+        let current: Vec<_> = app.world_mut().query::<(Entity, &AlsRollSlotSampler)>().iter(app.world())
+            .filter(|(_, sampler)| sampler.character == character).map(|(entity, sampler)| (entity, sampler.target_player)).collect();
+        assert_eq!(current, [(sampler, target)]);
+        let expected = app.world().get::<RootMotionOutput>(sampler).unwrap().translation_delta;
+        assert!(app.world().get::<AlsRollSlotRuntime>(character).unwrap().root_motion_delta.abs_diff_eq(expected, 1e-6));
+        app.world_mut().despawn(old_avatar);
+        app.update();
+        assert!(app.world().get::<AlsRollState>(character).unwrap().active, "Deleting an old avatar stopped the new roll");
+        app.world_mut().despawn(character);
+        assert!(app.world().get_entity(sampler).is_err());
+    }
+
+    #[test]
+    fn roll_sampler_ends_with_avatar_destruction_in_both_child_orders() {
+        for reverse in [false, true] {
+            let (mut app, character, avatar) = loaded_roll_character();
+            let sampler = play_loaded_roll(&mut app, character);
+            if reverse {
+                let children: Vec<_> = app.world().get::<Children>(avatar).unwrap().iter().rev().collect();
+                app.world_mut().entity_mut(avatar).replace_children(&children);
+            }
+            app.world_mut().despawn(avatar);
+            app.update();
+            assert!(app.world().get_entity(sampler).is_err());
+            assert!(!app.world().get::<AlsRollState>(character).unwrap().active, "Avatar destruction retained an old montage");
+        }
+    }
+
     #[test]
     fn roll_sampling_and_velocity_share_the_current_frame_duration() {
         for initial_time in [Some(0.4_f32), None] {
-        let mut app = App::new();
-        app.add_plugins(AlsRollDrivePlugin)
-            .insert_resource(Time::<()>::default())
-            .insert_resource(RollSlotCurveHandle(default(), default()))
-            .init_resource::<Assets<AlsAnimCurves>>();
-        let character = app.world_mut().spawn((
-            als_core::character::AlsCharacter,
+        let (mut app, character, _) = loaded_roll_character();
+        app.world_mut().entity_mut(character).insert((
+            avian3d::prelude::RigidBody::Kinematic, bevy_tnua::TnuaToggle::Disabled,
             AlsRollState { active: initial_time.is_some(), time: initial_time.unwrap_or_default(), ..default() },
             LocomotionState::Grounded, Stance::Standing, AlsViewYaw::default(),
             Transform::IDENTITY, LinearVelocity::ZERO, AlsInputCommand { roll_pressed: initial_time.is_none(), ..default() },
-            AnimationGraphPlayer::new(default()),
-        )).id();
-        app.world_mut().spawn((
-            AlsRollSlotSampler { character, target_player: character, reported_unready: true },
-            AnimationGraphPlayer::new(default()), RootMotionOutput::default(),
         ));
         let mut previous = initial_time.unwrap_or_default();
         app.add_systems(PostUpdate, (move |mut samplers: Query<(&AnimationGraphPlayer, &mut RootMotionOutput), With<AlsRollSlotSampler>>| {
@@ -73,12 +194,15 @@ mod tests {
                 output.translation_delta = Vec3::NEG_Z * (current - previous);
                 previous = current;
             }
-        }).in_set(AnimationGraphSet::PrePhysics));
+        }).after(AnimationGraphSet::PrePhysics).before(bridge_roll_slot_samples));
         for delta in [0.013_f32, 0.025, 0.011, 0.033] {
             app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(delta));
             app.world_mut().run_schedule(PostUpdate);
-            assert!(app.world().get::<LinearVelocity>(character).unwrap().distance(Vec3::Z) < 1e-4,
-                "a constant-speed root track must stay constant across frame durations: delta={delta}");
+            let expected = Vec3::Z * app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0;
+            assert!(app.world().get::<LinearVelocity>(character).unwrap().distance(expected) < 1e-4,
+                "a constant-speed root track must stay constant across frame durations: delta={delta}, actual={:?}, roll={:?}, time={}, scale={:?}",
+                app.world().get::<LinearVelocity>(character), app.world().get::<AlsRollState>(character),
+                app.world().resource::<Time>().delta_secs(), app.world().get::<AlsNotifyRootMotionScale>(character));
         }
         }
     }
@@ -263,7 +387,8 @@ pub struct AlsRollDriveSet;
 impl Plugin for AlsRollDrivePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, load_roll_slot_curve_asset)
-            .add_systems(Update, ensure_roll_slot_samplers)
+            .add_observer(discard_roll_target)
+            .add_systems(PostUpdate, ensure_roll_slot_samplers.after(ensure_roll_state).before(advance_rolls))
             .configure_sets(
                 PostUpdate,
                 AlsRollDriveSet.after(AnimationGraphSet::PrePhysics),
@@ -307,16 +432,31 @@ fn ensure_roll_state(
 
 fn ensure_roll_slot_samplers(
     asset_server: Res<AssetServer>,
-    avatars: Query<(Entity, &AlsCharacterAvatar, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
-    samplers: Query<&AlsRollSlotSampler>,
+    characters: Query<(Entity, &AlsCharacterAssembly), With<als_core::character::AlsCharacter>>,
+    avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
+    samplers: Query<(Entity, &AlsRollSlotSampler)>,
     players: Query<&AnimationGraphPlayer>,
+    mut states: Query<(&mut AlsRollState, Option<&mut AlsRollSlotRuntime>, Option<&mut AlsNotifyLocomotionAction>)>,
     mut commands: Commands,
 ) {
-    for (avatar, character_avatar, instance) in &avatars {
-        let target_player = instance.player_entity();
+    let current_target = |character| {
+        let (_, assembly) = characters.get(character).ok()?;
+        let (avatar, instance) = avatars.get(assembly.avatar).ok()?;
+        (avatar.character == character && players.contains(instance.player_entity())).then_some(instance.player_entity())
+    };
+    for (entity, sampler) in &samplers {
+        if current_target(sampler.character) == Some(sampler.target_player) { continue; }
+        if let Ok((mut roll, runtime, action)) = states.get_mut(sampler.character) {
+            end_roll_instance(&mut roll, runtime, action);
+            commands.entity(sampler.character).try_remove::<AlsRollBlendOut>();
+        }
+        commands.entity(entity).try_despawn();
+    }
+    for (character, _) in &characters {
+        let Some(target_player) = current_target(character) else { continue; };
         if samplers
             .iter()
-            .any(|sampler| sampler.target_player == target_player)
+            .any(|(_, sampler)| sampler.character == character && sampler.target_player == target_player)
         {
             continue;
         }
@@ -326,16 +466,38 @@ fn ensure_roll_slot_samplers(
         commands.spawn((
             Name::new("als_roll_slot_sampler"),
             Children::default(),
-            ChildOf(avatar),
+            ChildOf(character),
             AnimationGraphPlayer::new(player.skeleton().clone())
                 .with_graph(asset_server.load(ROLL_SLOT_GRAPH)),
             RootMotionOutput::default(),
             AlsRollSlotSampler {
-                character: character_avatar.character,
+                character,
                 target_player,
                 reported_unready: false,
             },
         ));
+    }
+}
+
+fn end_roll_instance(roll: &mut AlsRollState, runtime: Option<Mut<AlsRollSlotRuntime>>, action: Option<Mut<AlsNotifyLocomotionAction>>) {
+    roll.active = false;
+    if let Some(mut runtime) = runtime { *runtime = default(); }
+    if let Some(mut action) = action && *action == AlsNotifyLocomotionAction::Rolling { *action = AlsNotifyLocomotionAction::None; }
+}
+
+fn discard_roll_target(
+    event: On<Discard, AnimationGraphPlayer>,
+    samplers: Query<(Entity, &AlsRollSlotSampler)>,
+    mut states: Query<(&mut AlsRollState, Option<&mut AlsRollSlotRuntime>, Option<&mut AlsNotifyLocomotionAction>)>,
+    mut commands: Commands,
+) {
+    for (entity, sampler) in &samplers {
+        if sampler.target_player != event.entity { continue; }
+        if let Ok((mut roll, runtime, action)) = states.get_mut(sampler.character) {
+            end_roll_instance(&mut roll, runtime, action);
+            commands.entity(sampler.character).try_remove::<AlsRollBlendOut>();
+        }
+        commands.entity(entity).try_despawn();
     }
 }
 
@@ -582,7 +744,6 @@ fn roll_drive_system(
     mut q: Query<(Entity, &AlsRollState, Option<&AlsNotifyLocomotionAction>, &mut Transform, Option<&mut Rotation>,
         &mut LinearVelocity, Option<&AlsNotifyRootMotionScale>), With<als_core::character::AlsCharacter>>,
     sampler_root_motion: Query<(&AlsRollSlotSampler, &RootMotionOutput)>,
-    avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
     let dt = time.delta_secs();
@@ -592,13 +753,10 @@ fn roll_drive_system(
             continue;
         }
 
-        let (mut local_translation, local_rotation) = sampler_root_motion
+        let sample = sampler_root_motion
             .iter()
-            .find_map(|(sampler, output)| {
-                (sampler.character == character)
-                    .then_some(read_local_root_motion_delta(Some(output)))
-            })
-            .unwrap_or((Vec3::ZERO, Quat::IDENTITY));
+            .find(|(sampler, _)| sampler.character == character);
+        let (mut local_translation, local_rotation) = read_local_root_motion_delta(sample.map(|(_, output)| output));
         local_translation *= notify_root_scale.map_or(1.0, |scale| scale.0).max(0.0);
         let (world_translation, root_rotation) =
             root_motion_world_transform(transform.rotation, local_translation, local_rotation);
@@ -621,13 +779,7 @@ fn roll_drive_system(
         let clip_time = (roll.time * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS);
         vel.0 = world_translation / dt;
 
-        let Some(instance) = avatars
-            .iter()
-            .find_map(|(avatar, instance)| (avatar.character == character).then_some(instance))
-        else {
-            continue;
-        };
-        if let Ok(mut player) = players.get_mut(instance.player_entity()) {
+        if let Some((sampler, _)) = sample && let Ok(mut player) = players.get_mut(sampler.target_player) {
             player.set_input_data("roll_clip_time", DataValue::from(clip_time));
             player.set_input_data("roll_weight", DataValue::from(weight));
         }
