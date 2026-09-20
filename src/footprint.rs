@@ -1,18 +1,17 @@
 use bevy::prelude::*;
 use serde::Deserialize;
-use std::{collections::HashMap, sync::LazyLock};
+use std::collections::HashMap;
 use als_core::{character::AlsCharacter, foot_ik::AlsFootBones, state::LocomotionState};
-use als_ext::projected_decal::{NoDecalReceiver, PackedDecalExtension, PackedDecalMaterial};
+use als_ext::projected_decal::{NoDecalReceiver, PackedDecalExtension, PackedDecalMaterial, PhysicalSurface};
 use avian3d::{collider_tree::ColliderTrees, prelude::{SpatialQuery, SpatialQueryFilter}};
 use bevy::core_pipeline::prepass::{DepthPrepass, NormalPrepass};
 use bevy_animation_graph::core::{animated_scene::AnimatedSceneInstance, animation_graph_player::AnimationGraphPlayer};
 use crate::{animation_events::{AlsAnimationEvent, AlsAnimationEventSet}, character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar}};
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct FootprintDefinition {
     pub source_settings: String,
     pub notify_settings_reference: String,
-    pub character_receives_decals: bool,
     pub trace_layer: als_core::character::AlsCollisionLayer,
     pub trace_distance: f32,
     pub spawn_angle_cos: f32,
@@ -20,12 +19,19 @@ pub struct FootprintDefinition {
     pub foot_up_axes: [Vec3; 2],
     pub notify_defaults: HashMap<String, serde_json::Value>,
     pub effects: Vec<FootprintEffect>,
-    pub material: FootprintMaterial,
+    pub materials: HashMap<String, FootprintMaterial>,
 }
 
-#[derive(Deserialize)]
+impl FootprintDefinition {
+    fn effect_for_surface(&self, surface: &str) -> Option<&FootprintEffect> {
+        self.effects.iter().find(|effect| effect.surface == surface).or_else(|| self.effects.first())
+    }
+}
+
+#[derive(Deserialize, Clone)]
 pub struct FootprintEffect {
     pub surface: String,
+    pub material: Option<String>,
     pub attached: bool,
     pub size: Vec3,
     pub location_offset: Vec3,
@@ -34,7 +40,7 @@ pub struct FootprintEffect {
     pub fade_out_duration: f32,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct FootprintMaterial {
     pub base_color: f32,
     pub opacity: f32,
@@ -42,12 +48,47 @@ pub struct FootprintMaterial {
     pub metallic: f32,
     pub specular: f32,
     pub texture: String,
+    #[serde(skip)]
+    pub image: Handle<Image>,
 }
 
-pub static FOOTPRINT: LazyLock<FootprintDefinition> = LazyLock::new(|| {
-    serde_json::from_str(include_str!("../assets/effects/footprint.runtime.json"))
-        .expect("Generated footprint definition must be valid")
-});
+#[derive(Asset, TypePath, Deserialize, Clone)]
+pub struct FootprintLibrary {
+    pub character_receives_decals: bool,
+    pub definitions: Vec<FootprintDefinition>,
+}
+
+#[derive(Default, TypePath)]
+struct FootprintLibraryLoader;
+
+impl bevy::asset::AssetLoader for FootprintLibraryLoader {
+    type Asset = FootprintLibrary;
+    type Settings = ();
+    type Error = std::io::Error;
+
+    async fn load(&self, reader: &mut dyn bevy::asset::io::Reader, _: &(), context: &mut bevy::asset::LoadContext<'_>) -> Result<FootprintLibrary, Self::Error> {
+        let mut bytes = Vec::new();
+        reader.read_to_end(&mut bytes).await?;
+        let mut library: FootprintLibrary = serde_json::from_slice(&bytes).map_err(std::io::Error::other)?;
+        let mut references = std::collections::HashSet::new();
+        for definition in &mut library.definitions {
+            if !references.insert(&definition.notify_settings_reference)
+                || definition.effects.iter().filter_map(|effect| effect.material.as_ref()).any(|material| !definition.materials.contains_key(material))
+                || ["FootBone", "bSpawnDecal", "bSkipEffectsWhenInAir"].iter().any(|key| !definition.notify_defaults.contains_key(*key)) {
+                return Err(std::io::Error::other("Footprint settings contain duplicate references, missing materials or incomplete notify defaults"));
+            }
+            for material in definition.materials.values_mut() {
+                material.image = context.load_builder().with_settings(|settings: &mut bevy::image::ImageLoaderSettings| {
+                    settings.is_srgb = false;
+                    settings.sampler = bevy::image::ImageSampler::linear();
+                }).load(material.texture.clone());
+            }
+        }
+        Ok(library)
+    }
+
+    fn extensions(&self) -> &[&str] { &["json"] }
+}
 
 #[derive(Component, Debug)]
 pub struct Footprint {
@@ -56,6 +97,7 @@ pub struct Footprint {
     pub created_at: f64,
     pub lifetime: Vec2,
     pub surface: Entity,
+    pub opacity: f32,
 }
 
 #[derive(Component, Default, Debug)]
@@ -74,7 +116,7 @@ pub struct FootprintDiagnostics {
 #[derive(Resource)]
 struct FootprintAssets {
     mesh: Handle<Mesh>,
-    texture: Handle<Image>,
+    library: Handle<FootprintLibrary>,
 }
 
 #[derive(SystemSet, Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -85,6 +127,8 @@ pub struct FootprintPlugin;
 impl Plugin for FootprintPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(als_ext::projected_decal::PackedDecalPlugin)
+            .init_asset::<FootprintLibrary>()
+            .init_asset_loader::<FootprintLibraryLoader>()
             .add_systems(Startup, load_footprint_assets)
             .add_systems(PreUpdate, configure_footprint_owners)
             .configure_sets(PostUpdate, FootprintSet
@@ -96,33 +140,32 @@ impl Plugin for FootprintPlugin {
 }
 
 fn load_footprint_assets(mut commands: Commands, server: Res<AssetServer>, mut meshes: ResMut<Assets<Mesh>>) {
-    let texture = server.load_builder().with_settings(|settings: &mut bevy::image::ImageLoaderSettings| {
-        settings.is_srgb = false;
-        settings.sampler = bevy::image::ImageSampler::linear();
-    }).load(FOOTPRINT.material.texture.clone());
-    commands.insert_resource(FootprintAssets { texture, mesh: meshes.add(Cuboid::from_size(Vec3::ONE)) });
+    commands.insert_resource(FootprintAssets { library: server.load("effects/footprint.runtime.json"), mesh: meshes.add(Cuboid::from_size(Vec3::ONE)) });
 }
 
 fn configure_footprint_owners(
     mut commands: Commands,
-    avatars: Query<(Entity, &AlsCharacterAvatar), Added<AlsCharacterAvatar>>,
+    avatars: Query<(Entity, &AlsCharacterAvatar, Has<NoDecalReceiver>)>,
+    diagnostics: Query<(), With<FootprintDiagnostics>>,
+    assets: Res<FootprintAssets>,
+    libraries: Res<Assets<FootprintLibrary>>,
     cameras: Query<Entity, (With<Camera3d>, Or<(Without<DepthPrepass>, Without<NormalPrepass>)>)>,
 ) {
-    for (entity, avatar) in &avatars {
-        if !FOOTPRINT.character_receives_decals { commands.entity(entity).insert(NoDecalReceiver); }
-        commands.entity(avatar.character).insert(FootprintDiagnostics::default());
+    for (entity, avatar, no_decals) in &avatars {
+        let Some(library) = libraries.get(&assets.library) else { continue; };
+        if !library.character_receives_decals && !no_decals { commands.entity(entity).insert(NoDecalReceiver); }
+        if !diagnostics.contains(avatar.character) { commands.entity(avatar.character).insert(FootprintDiagnostics::default()); }
     }
     for camera in &cameras { commands.entity(camera).insert((DepthPrepass, NormalPrepass)); }
 }
 
-pub fn footprint_transform(foot: GlobalTransform, side: usize, point: Vec3, normal: Vec3, mesh_scale: f32) -> Option<Transform> {
+pub fn footprint_transform(settings: &FootprintDefinition, effect: &FootprintEffect, foot: GlobalTransform, side: usize, point: Vec3, normal: Vec3, mesh_scale: f32) -> Option<Transform> {
     let rotation = foot.rotation();
-    let up = rotation * FOOTPRINT.foot_up_axes[side];
-    if normal.dot(up) < FOOTPRINT.spawn_angle_cos { return None; }
-    let y = rotation * FOOTPRINT.foot_y_axes[side];
+    let up = rotation * settings.foot_up_axes[side];
+    if normal.dot(up) < settings.spawn_angle_cos { return None; }
+    let y = rotation * settings.foot_y_axes[side];
     let tangent = (y - normal * y.dot(normal)).try_normalize()?;
     let frame = Quat::from_mat3(&Mat3::from_cols(normal.cross(tangent), normal, tangent));
-    let effect = &FOOTPRINT.effects[0];
     let rotation = frame * effect.rotation_offsets[side];
     Some(Transform {
         translation: point + rotation * (effect.location_offset * mesh_scale),
@@ -141,6 +184,7 @@ fn spawn_footprints(
     mut commands: Commands,
     mut events: MessageReader<AlsAnimationEvent>,
     assets: Res<FootprintAssets>,
+    libraries: Res<Assets<FootprintLibrary>>,
     time: Res<Time>,
     spatial: SpatialQuery,
     mut characters: Query<(&AlsFootBones, &LocomotionState, &AlsCharacterAssembly, &mut FootprintDiagnostics), With<AlsCharacter>>,
@@ -148,8 +192,11 @@ fn spawn_footprints(
     avatars: Query<&AnimatedSceneInstance, With<AlsCharacterAvatar>>,
     players: Query<&AnimationGraphPlayer>,
     globals: Query<&GlobalTransform>,
+    surfaces: Query<&PhysicalSurface>,
+    collider_owners: Query<&avian3d::prelude::ColliderOf>,
     mut materials: ResMut<Assets<PackedDecalMaterial>>,
 ) {
+    let Some(library) = libraries.get(&assets.library) else { return; };
     let mut ignored = owners.iter().collect::<Vec<_>>();
     for instance in &avatars {
         if let Ok(player) = players.get(instance.player_entity()) && let Some(ragdoll) = player.get_spawned_ragdoll() {
@@ -157,15 +204,17 @@ fn spawn_footprints(
             ignored.extend(ragdoll.colliders.values().copied());
         }
     }
-    let filter = SpatialQueryFilter::from_excluded_entities(ignored).with_mask(FOOTPRINT.trace_layer);
+    let filter = SpatialQueryFilter::from_excluded_entities(ignored);
     for event in events.read().filter(|event| event.class_name == "AlsAnimNotify_FootstepEffects" && event.phase == als_ext::EventPhase::Point) {
         let Ok((bones, locomotion, assembly, mut diagnostics)) = characters.get_mut(event.character) else { continue; };
         diagnostics.notifications += 1;
-        let parameter = |name: &str| event.parameters.get(name).unwrap_or(&FOOTPRINT.notify_defaults[name]);
-        if parameter("FootstepEffectsSettings").as_str() != Some(FOOTPRINT.notify_settings_reference.as_str()) {
+        let reference = event.parameters.get("FootstepEffectsSettings").and_then(serde_json::Value::as_str);
+        let Some(settings) = library.definitions.iter().find(|settings| Some(settings.notify_settings_reference.as_str()) == reference) else {
             diagnostics.invalid += 1;
             continue;
-        }
+        };
+        let parameter = |name: &str| event.parameters.get(name).unwrap_or(&settings.notify_defaults[name]);
+        let filter = filter.clone().with_mask(settings.trace_layer);
         if parameter("bSkipEffectsWhenInAir").as_bool() == Some(true) && *locomotion == LocomotionState::Air {
             diagnostics.rejected_air += 1;
             continue;
@@ -181,15 +230,17 @@ fn spawn_footprints(
         let (Ok(foot), Ok(mesh)) = (globals.get(bone), globals.get(assembly.avatar)) else { diagnostics.invalid += 1; continue; };
         let mesh_scale = mesh.to_scale_rotation_translation().0.y;
         let origin = foot.translation();
-        let up = foot.rotation() * FOOTPRINT.foot_up_axes[side];
-        let distance = FOOTPRINT.trace_distance * mesh_scale;
+        let up = foot.rotation() * settings.foot_up_axes[side];
+        let distance = settings.trace_distance * mesh_scale;
         if !origin.is_finite() || !up.is_finite() || !distance.is_finite() || distance <= 0.0 {
             diagnostics.invalid += 1;
             continue;
         }
-        let direction = Dir3::new(-up).unwrap();
-        let mut ray = direction;
-        let hit = spatial.cast_ray(origin, direction, distance, true, &filter).or_else(|| {
+        let mut ray = Dir3::NEG_Y;
+        let hit = Dir3::new(-up).ok().and_then(|direction| {
+            ray = direction;
+            spatial.cast_ray(origin, direction, distance * up.length(), true, &filter)
+        }).or_else(|| {
             ray = Dir3::NEG_Y;
             let hit = spatial.cast_ray(origin, ray, distance, true, &filter);
             if hit.is_some() { diagnostics.fallback_hits += 1; }
@@ -197,21 +248,23 @@ fn spawn_footprints(
         });
         let Some(hit) = hit else { diagnostics.missed += 1; continue; };
         let point = origin + ray.as_vec3() * hit.distance;
-        let Some(world) = footprint_transform(*foot, side, point, hit.normal, mesh_scale) else { diagnostics.rejected_angle += 1; continue; };
-        let effect = &FOOTPRINT.effects[0];
+        let surface = surfaces.get(hit.entity).ok().or_else(|| collider_owners.get(hit.entity).ok().and_then(|owner| surfaces.get(owner.body).ok()));
+        let Some(effect) = settings.effect_for_surface(surface.map_or("SurfaceType_Default", |surface| surface.0.as_str())) else { continue; };
+        let Some(material_reference) = effect.material.as_ref() else { continue; };
+        let Some(source_material) = settings.materials.get(material_reference) else { diagnostics.invalid += 1; continue; };
+        let Some(world) = footprint_transform(settings, effect, *foot, side, point, hit.normal, mesh_scale) else { diagnostics.rejected_angle += 1; continue; };
         let parent = effect.attached.then(|| globals.get(hit.entity).ok()).flatten();
         let local = parent.map_or(world, |parent| GlobalTransform::from(world).reparented_to(parent));
-        let source_material = &FOOTPRINT.material;
         let material = materials.add(PackedDecalMaterial {
             base: StandardMaterial {
                 base_color: Color::linear_rgba(source_material.base_color, source_material.base_color, source_material.base_color, source_material.opacity),
                 metallic: source_material.metallic, reflectance: source_material.specular, ..default()
             },
-            extension: PackedDecalExtension { roughness_scale: source_material.roughness_scale, texture: assets.texture.clone() },
+            extension: PackedDecalExtension { roughness_scale: source_material.roughness_scale, texture: source_material.image.clone() },
         });
         let mut entity = commands.spawn((
             Name::new(if side == 0 { "Footprint Left" } else { "Footprint Right" }),
-            Footprint { character: event.character, foot: side, created_at: time.elapsed_secs_f64(), lifetime: Vec2::new(effect.duration, effect.fade_out_duration), surface: hit.entity },
+            Footprint { character: event.character, foot: side, created_at: time.elapsed_secs_f64(), lifetime: Vec2::new(effect.duration, effect.fade_out_duration), surface: hit.entity, opacity: source_material.opacity },
             Mesh3d(assets.mesh.clone()), MeshMaterial3d(material), local, GlobalTransform::from(world),
             bevy::light::NotShadowCaster,
         ));
@@ -233,7 +286,7 @@ fn expire_footprints(
             commands.entity(entity).despawn();
             if let Ok(mut diagnostics) = diagnostics.get_mut(footprint.character) { diagnostics.expired += 1; }
         } else if age > lifetime.x as f64 && let Some(mut material) = materials.get_mut(&material.0) {
-            material.base.base_color.set_alpha(FOOTPRINT.material.opacity * footprint_opacity(age, lifetime));
+            material.base.base_color.set_alpha(footprint.opacity * footprint_opacity(age, lifetime));
         }
     }
 }
@@ -244,19 +297,116 @@ mod tests {
     use bevy::{asset::RenderAssetUsages, image::{CompressedImageFormats, ImageSampler, ImageType}};
     use bevy::ecs::system::RunSystemOnce;
 
+    fn library() -> FootprintLibrary {
+        serde_json::from_str(include_str!("../assets/effects/footprint.runtime.json")).unwrap()
+    }
+
+    static FOOTPRINT: std::sync::LazyLock<FootprintDefinition> = std::sync::LazyLock::new(|| library().definitions.remove(0));
+
+    #[test]
+    fn replacement_avatar_preserves_counters_and_receives_the_actor_decal_policy() {
+        let mut app = App::new();
+        app.init_resource::<Assets<FootprintLibrary>>();
+        let mut data = library();
+        data.definitions.clear();
+        let handle = app.world_mut().resource_mut::<Assets<FootprintLibrary>>().add(data);
+        app.insert_resource(FootprintAssets { mesh: default(), library: handle });
+        let character = app.world_mut().spawn(FootprintDiagnostics { notifications: 7, ..default() }).id();
+        for _ in 0..2 {
+            let avatar = app.world_mut().spawn(AlsCharacterAvatar { character }).id();
+            app.world_mut().run_system_once(configure_footprint_owners).unwrap();
+            assert!(app.world().get::<NoDecalReceiver>(avatar).is_some(), "Replacement avatar did not receive the source actor decal policy");
+            assert_eq!(app.world().get::<FootprintDiagnostics>(character).unwrap().notifications, 7);
+            app.world_mut().despawn(avatar);
+        }
+    }
+
+    #[test]
+    fn source_surface_selection_matches_then_falls_back_and_allows_an_empty_map() {
+        let mut settings = FOOTPRINT.clone();
+        let mut alternate = settings.effects[0].clone();
+        alternate.surface = "SurfaceType1".into();
+        alternate.duration = 9.0;
+        settings.effects.push(alternate);
+        assert_eq!(settings.effect_for_surface("SurfaceType1").unwrap().duration, 9.0);
+        assert_eq!(settings.effect_for_surface("SurfaceType2").unwrap().surface, "SurfaceType_Default");
+        settings.effects.clear();
+        assert!(settings.effect_for_surface("SurfaceType_Default").is_none());
+    }
+
+    #[test]
+    fn footprint_library_loads_multiple_references_and_rejects_invalid_bindings() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("target/footprint-library-test-{}", std::process::id()));
+        std::fs::create_dir_all(root.join("textures/footprint")).unwrap();
+        std::fs::write(root.join("textures/footprint/T_Als_Footprint_M.tga"), include_bytes!("../assets/textures/footprint/T_Als_Footprint_M.tga")).unwrap();
+        let mut data: serde_json::Value = serde_json::from_str(include_str!("../assets/effects/footprint.runtime.json")).unwrap();
+        let mut alternate = data["definitions"][0].clone();
+        alternate["source_settings"] = "/ALS/Tests/Alternate.Alternate".into();
+        alternate["notify_settings_reference"] = "None//ALS/Tests/Alternate/Alternate".into();
+        data["definitions"].as_array_mut().unwrap().push(alternate);
+        std::fs::write(root.join("settings.json"), serde_json::to_vec(&data).unwrap()).unwrap();
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin { file_path: root.to_string_lossy().into_owned(), ..default() }, bevy::image::ImagePlugin::default()))
+            .register_asset_loader(bevy::image::ImageLoader::new(CompressedImageFormats::NONE))
+            .init_asset::<FootprintLibrary>().init_asset_loader::<FootprintLibraryLoader>()
+            .init_asset::<crate::animation_events::AlsNotifyManifest>().init_asset_loader::<crate::animation_events::AlsNotifyManifestLoader>();
+        app.finish();
+        app.cleanup();
+        let handle: Handle<FootprintLibrary> = app.world().resource::<AssetServer>().load("settings.json");
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+        loop {
+            app.update();
+            let server = app.world().resource::<AssetServer>();
+            if server.is_loaded_with_dependencies(handle.id()) { break; }
+            assert!(!matches!(server.load_state(handle.id()), bevy::asset::LoadState::Failed(_)), "Footprint library load failed");
+            assert!(std::time::Instant::now() < deadline, "Footprint library dependencies did not load");
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        let loaded = app.world().resource::<Assets<FootprintLibrary>>().get(&handle).unwrap();
+        assert_eq!(loaded.definitions.len(), 2);
+        assert_ne!(loaded.definitions[0].notify_settings_reference, loaded.definitions[1].notify_settings_reference);
+        for definition in &loaded.definitions {
+            for material in definition.materials.values() {
+                let image = app.world().resource::<Assets<Image>>().get(&material.image).unwrap();
+                assert_eq!(image.size(), UVec2::splat(512));
+                assert_eq!(image.texture_descriptor.format, bevy::render::render_resource::TextureFormat::Rgba8Unorm);
+            }
+        }
+        for case in ["duplicate", "material", "defaults"] {
+            let mut invalid = data.clone();
+            match case {
+                "duplicate" => invalid["definitions"][1]["notify_settings_reference"] = invalid["definitions"][0]["notify_settings_reference"].clone(),
+                "material" => invalid["definitions"][0]["effects"][0]["material"] = "missing".into(),
+                _ => { invalid["definitions"][0]["notify_defaults"].as_object_mut().unwrap().remove("FootBone"); }
+            }
+            let name = format!("{case}.json");
+            std::fs::write(root.join(&name), serde_json::to_vec(&invalid).unwrap()).unwrap();
+            let handle: Handle<FootprintLibrary> = app.world().resource::<AssetServer>().load(name);
+            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+            loop {
+                app.update();
+                let server = app.world().resource::<AssetServer>();
+                if matches!(server.load_state(handle.id()), bevy::asset::LoadState::Failed(_)) { break; }
+                assert!(!server.is_loaded_with_dependencies(handle.id()), "Invalid footprint {case} was accepted");
+                assert!(std::time::Instant::now() < deadline, "Invalid footprint load did not finish");
+                std::thread::sleep(std::time::Duration::from_millis(5));
+            }
+        }
+    }
+
     #[test]
     fn source_footprint_axes_angle_size_and_side_offsets() {
         let left = Quat::from_rotation_z(std::f32::consts::FRAC_PI_2);
         let right = left * Quat::from_rotation_y(std::f32::consts::PI);
         for (side, rotation, x) in [(0, left, -0.0175), (1, right, 0.0175)] {
             let foot = GlobalTransform::from(Transform::from_rotation(rotation));
-            let decal = footprint_transform(foot, side, Vec3::ZERO, Vec3::Y, 1.0).unwrap();
+            let decal = footprint_transform(&FOOTPRINT, &FOOTPRINT.effects[0], foot, side, Vec3::ZERO, Vec3::Y, 1.0).unwrap();
             assert!(decal.translation.distance(Vec3::new(x, 0.0, 0.1)) < 1e-6);
             assert_eq!(decal.scale, Vec3::new(0.2, 0.4, 0.4));
             assert!((decal.rotation * Vec3::X).dot(Vec3::Y).abs() > 0.99999);
             let tilted = GlobalTransform::from(Transform::from_rotation(Quat::from_rotation_x(36.0_f32.to_radians()) * rotation));
-            assert!(footprint_transform(tilted, side, Vec3::ZERO, Vec3::Y, 1.0).is_none());
-            let scaled = footprint_transform(foot, side, Vec3::ZERO, Vec3::Y, 2.0).unwrap();
+            assert!(footprint_transform(&FOOTPRINT, &FOOTPRINT.effects[0], tilted, side, Vec3::ZERO, Vec3::Y, 1.0).is_none());
+            let scaled = footprint_transform(&FOOTPRINT, &FOOTPRINT.effects[0], foot, side, Vec3::ZERO, Vec3::Y, 2.0).unwrap();
             assert!(scaled.translation.distance(decal.translation * 2.0) < 1e-6);
             assert_eq!(scaled.scale, decal.scale * 2.0);
         }
@@ -270,11 +420,11 @@ mod tests {
         let owner = app.world_mut().spawn(FootprintDiagnostics::default()).id();
         let parent = app.world_mut().spawn(Transform::from_xyz(1.0, 0.0, 2.0)).id();
         let material = app.world_mut().resource_mut::<Assets<PackedDecalMaterial>>().add(PackedDecalMaterial {
-            base: StandardMaterial { base_color: Color::linear_rgba(0.0, 0.0, 0.0, 0.3), ..default() },
+            base: StandardMaterial { base_color: Color::linear_rgba(0.0, 0.0, 0.0, 0.8), ..default() },
             extension: PackedDecalExtension { roughness_scale: 0.2, texture: default() },
         });
         let entity = app.world_mut().spawn((
-            Footprint { character: owner, foot: 0, created_at: 0.0, lifetime: Vec2::new(4.0, 2.0), surface: parent },
+            Footprint { character: owner, foot: 0, created_at: 0.0, lifetime: Vec2::new(4.0, 2.0), surface: parent, opacity: 0.8 },
             MeshMaterial3d(material.clone()), Transform::from_xyz(0.1, 0.0, 0.2), ChildOf(parent),
         )).id();
         app.update();
@@ -290,8 +440,11 @@ mod tests {
         time.advance_by(std::time::Duration::from_secs(5));
         app.insert_resource(time);
         app.world_mut().run_system_once(expire_footprints).unwrap();
-        assert!((app.world().resource::<Assets<PackedDecalMaterial>>().get(&material).unwrap().base.base_color.alpha() - 0.15).abs() < 1e-6);
-        app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs(1));
+        assert!((app.world().resource::<Assets<PackedDecalMaterial>>().get(&material).unwrap().base.base_color.alpha() - 0.4).abs() < 1e-6);
+        app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_millis(500));
+        app.world_mut().run_system_once(expire_footprints).unwrap();
+        assert!((app.world().resource::<Assets<PackedDecalMaterial>>().get(&material).unwrap().base.base_color.alpha() - 0.2).abs() < 1e-6);
+        app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_millis(500));
         app.world_mut().run_system_once(expire_footprints).unwrap();
         assert!(app.world().get_entity(entity).is_err());
         assert!(app.world().get_entity(parent).is_ok() && app.world().get_entity(owner).is_ok());
@@ -308,10 +461,13 @@ mod tests {
             .insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)))
             .add_message::<AlsAnimationEvent>()
             .init_resource::<Assets<PackedDecalMaterial>>()
-            .insert_resource(FootprintAssets { mesh: default(), texture: default() });
+            .init_resource::<Assets<FootprintLibrary>>();
+        let library = app.world_mut().resource_mut::<Assets<FootprintLibrary>>().add(library());
+        app.insert_resource(FootprintAssets { mesh: default(), library });
         app.finish();
         app.cleanup();
-        let floor = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 1.0, 4.0), Transform::from_xyz(0.0, -0.5, 0.0),
+        let surface_body = app.world_mut().spawn((RigidBody::Static, Transform::from_xyz(0.0, -0.5, 0.0))).id();
+        let floor = app.world_mut().spawn((Collider::cuboid(4.0, 1.0, 4.0), Transform::IDENTITY, ChildOf(surface_body),
             CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], LayerMask::ALL))).id();
         app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.01, 4.0), Transform::from_xyz(0.0, 0.025, 0.0),
             CollisionLayers::new(AlsCollisionLayer::Default, LayerMask::ALL)));
@@ -325,24 +481,24 @@ mod tests {
                 right_target: None, right_virtual_target: None })).id();
         app.update();
         app.update();
-        let emit = |world: &mut World, side: &str, spawn: bool, skip_air: bool| {
+        let emit = |world: &mut World, side: &str, spawn: bool, skip_air: bool, settings: &str| {
             world.resource_mut::<Messages<AlsAnimationEvent>>().write(AlsAnimationEvent {
                 character, instance_id: 1, source_asset: "source fixture".into(), graph_clip: "source fixture".into(), event_id: "step".into(),
                 class_name: "AlsAnimNotify_FootstepEffects".into(), name: "Step".into(), phase: als_ext::EventPhase::Point,
                 time: 0.5, weight: 1.0, percentage: 1.0,
-                parameters: serde_json::json!({"FootstepEffectsSettings": FOOTPRINT.notify_settings_reference,
+                parameters: serde_json::json!({"FootstepEffectsSettings": settings,
                     "FootBone": {"value": format!("EAlsFootBone::{side}")}, "bSpawnDecal": spawn, "bSkipEffectsWhenInAir": skip_air}),
             });
         };
-        emit(app.world_mut(), "Left", true, false);
-        emit(app.world_mut(), "Right", true, false);
+        emit(app.world_mut(), "Left", true, false, &FOOTPRINT.notify_settings_reference);
+        emit(app.world_mut(), "Right", true, false, &FOOTPRINT.notify_settings_reference);
         app.world_mut().run_system_once(spawn_footprints).unwrap();
         assert_eq!(app.world().get::<FootprintDiagnostics>(character).unwrap().spawned, [1, 1]);
         for (_, parent) in app.world_mut().query::<(&Footprint, &ChildOf)>().iter(app.world()) { assert_eq!(parent.parent(), floor); }
         app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().clear();
         *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = LocomotionState::Air;
-        emit(app.world_mut(), "Left", false, false);
-        emit(app.world_mut(), "Right", true, true);
+        emit(app.world_mut(), "Left", false, false, &FOOTPRINT.notify_settings_reference);
+        emit(app.world_mut(), "Right", true, true, &FOOTPRINT.notify_settings_reference);
         app.world_mut().run_system_once(spawn_footprints).unwrap();
         assert_eq!(app.world().get::<FootprintDiagnostics>(character).unwrap().rejected_flag, 1);
         assert_eq!(app.world().get::<FootprintDiagnostics>(character).unwrap().rejected_air, 1);
@@ -350,12 +506,67 @@ mod tests {
         *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = LocomotionState::Grounded;
         app.world_mut().get_mut::<Transform>(left).unwrap().rotation = Quat::IDENTITY;
         app.update();
-        emit(app.world_mut(), "Left", true, false);
+        emit(app.world_mut(), "Left", true, false, &FOOTPRINT.notify_settings_reference);
         app.world_mut().run_system_once(spawn_footprints).unwrap();
         let diagnostics = app.world().get::<FootprintDiagnostics>(character).unwrap();
         assert_eq!(diagnostics.fallback_hits, 1);
         assert_eq!(diagnostics.rejected_angle, 1);
         assert_eq!(diagnostics.invalid, 0);
+
+        let reference = "None//ALS/Tests/Alternate/Alternate";
+        let mut alternate = FOOTPRINT.clone();
+        alternate.notify_settings_reference = reference.into();
+        alternate.trace_distance = 0.01;
+        alternate.foot_up_axes[0] *= 2.0;
+        let mut material = alternate.materials.values().next().unwrap().clone();
+        material.opacity = 0.8;
+        material.roughness_scale = 0.6;
+        alternate.materials.insert("/ALS/Tests/M_Alternate.M_Alternate".into(), material);
+        let mut effect = alternate.effects[0].clone();
+        effect.surface = "SurfaceType1".into();
+        effect.material = Some("/ALS/Tests/M_Alternate.M_Alternate".into());
+        effect.duration = 8.0;
+        effect.attached = false;
+        effect.size *= 2.0;
+        effect.location_offset.x += 0.2;
+        alternate.effects.push(effect);
+        let handle = app.world().resource::<FootprintAssets>().library.clone();
+        app.world_mut().resource_mut::<Assets<FootprintLibrary>>().get_mut(&handle).unwrap().definitions.push(alternate);
+        app.world_mut().get_mut::<Transform>(left).unwrap().rotation = rotation;
+        app.world_mut().entity_mut(surface_body).insert(PhysicalSurface("SurfaceType1".into()));
+        app.update();
+        app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().clear();
+        emit(app.world_mut(), "Left", true, false, reference);
+        app.world_mut().run_system_once(spawn_footprints).unwrap();
+        assert_eq!(app.world().get::<FootprintDiagnostics>(character).unwrap().missed, 1);
+        app.world_mut().resource_mut::<Assets<FootprintLibrary>>().get_mut(&handle).unwrap().definitions[1].trace_distance = 0.03;
+        app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().clear();
+        emit(app.world_mut(), "Left", true, false, reference);
+        app.world_mut().run_system_once(spawn_footprints).unwrap();
+        let (decal, _, transform, parent, material) = app.world_mut().query::<(Entity, &Footprint, &Transform, Option<&ChildOf>, &MeshMaterial3d<PackedDecalMaterial>)>()
+            .iter(app.world()).find(|(_, mark, _, _, _)| mark.opacity == 0.8).expect("Selected source foot axis must set the primary trace length");
+        assert!(parent.is_none());
+        assert!(transform.scale.abs_diff_eq(Vec3::new(0.4, 0.8, 0.8), 1e-6));
+        assert!(transform.translation.abs_diff_eq(Vec3::new(-0.1175, 0.2, 0.1), 1e-6), "{transform:?}");
+        let material = material.0.clone();
+        let rendered = app.world().resource::<Assets<PackedDecalMaterial>>().get(&material).unwrap();
+        assert_eq!(rendered.extension.roughness_scale, 0.6);
+        assert_eq!(rendered.base.base_color.alpha(), 0.8);
+        assert_eq!(app.world().get::<Footprint>(decal).unwrap().lifetime, Vec2::new(8.0, 2.0));
+        app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs(9));
+        app.world_mut().run_system_once(expire_footprints).unwrap();
+        assert!((app.world().resource::<Assets<PackedDecalMaterial>>().get(&material).unwrap().base.base_color.alpha() - 0.4).abs() < 1e-6);
+        let before = app.world().get::<FootprintDiagnostics>(character).unwrap().spawned;
+        app.world_mut().resource_mut::<Assets<FootprintLibrary>>().get_mut(&handle).unwrap().definitions[1].effects[1].material = None;
+        app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().clear();
+        emit(app.world_mut(), "Left", true, false, reference);
+        app.world_mut().run_system_once(spawn_footprints).unwrap();
+        app.world_mut().resource_mut::<Assets<FootprintLibrary>>().get_mut(&handle).unwrap().definitions[1].effects.clear();
+        app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().clear();
+        emit(app.world_mut(), "Left", true, false, reference);
+        app.world_mut().run_system_once(spawn_footprints).unwrap();
+        assert_eq!(app.world().get::<FootprintDiagnostics>(character).unwrap().spawned, before);
+        assert_eq!(app.world().get::<FootprintDiagnostics>(character).unwrap().invalid, 0);
     }
 
     #[test]

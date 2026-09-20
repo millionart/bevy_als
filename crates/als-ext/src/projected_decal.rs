@@ -70,6 +70,9 @@ pub type NoDecalMaterial = ExtendedMaterial<StandardMaterial, NoDecalExtension>;
 #[derive(Component)]
 pub struct NoDecalReceiver;
 
+#[derive(Component, Clone, Debug)]
+pub struct PhysicalSurface(pub String);
+
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone, Default)]
 pub struct NoDecalExtension {}
 

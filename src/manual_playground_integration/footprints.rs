@@ -1,5 +1,5 @@
 use super::*;
-use crate::footprint::{Footprint, FootprintDiagnostics, FOOTPRINT, footprint_opacity};
+use crate::footprint::{Footprint, FootprintDiagnostics, footprint_opacity};
 use als_ext::projected_decal::{NoDecalMaterial, PackedDecalMaterial};
 
 pub(super) const LABELS: [&str; 8] = ["footprint_prepare", "footprint_walk", "footprint_walk_stop", "footprint_run", "footprint_run_stop", "footprint_crouch", "footprint_crouch_stop", "footprint_cleanup"];
@@ -64,12 +64,12 @@ fn observe(
         if mark.character != character { continue; }
         alive += 1;
         let age = time.elapsed_secs_f64() - mark.created_at;
-        let alpha = FOOTPRINT.material.opacity * footprint_opacity(age, mark.lifetime);
+        let alpha = mark.opacity * footprint_opacity(age, mark.lifetime);
         let material = materials.get(&material.0);
         if material.is_none_or(|material| (material.base.base_color.alpha() - alpha).abs() > 1e-5) {
             if !probe.errors.iter().any(|error| error == "Footprint opacity differs from source lifetime") { probe.errors.push("Footprint opacity differs from source lifetime".into()); }
         }
-        probe.faded |= alpha > 0.0 && alpha < FOOTPRINT.material.opacity - 0.01;
+        probe.faded |= alpha > 0.0 && alpha < mark.opacity - 0.01;
         let image_loaded = material.is_some_and(|material| images.get(&material.extension.texture).is_some_and(|image| image.size() == UVec2::splat(512)));
         visible_meshes += usize::from(visible.get());
         loaded_images += usize::from(image_loaded);
