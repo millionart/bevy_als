@@ -6850,6 +6850,9 @@ fn observe_manual_integration(
                 let base_yaw = probe.base_yaw;
                 state.coverage.grounded_joint[index] |= completed;
                 let capture = sample.is_some() || moving || (aiming && elapsed >= 0.5) || completed;
+                let source_state = if index == 0 { "Standing To Crouching" } else if index == 1 {
+                    "Crouching To Standing"
+                } else if target == Stance::Crouching { "Crouching" } else { "Standing" };
                 **animation_window = ManualAnimationWindowEvidence {
                     label: Some(label),
                     index: Some(index),
@@ -6861,19 +6864,12 @@ fn observe_manual_integration(
                     requires_non_reference_root_pose: true,
                     requires_source_pose_chain: true,
                     source_node: Some("AB_Als_Grounded/Grounded States"),
-                    source_state: Some(if index == 0 {
-                        "Standing To Crouching"
-                    } else if index == 1 {
-                        "Crouching To Standing"
-                    } else if target == Stance::Crouching {
-                        "Crouching"
-                    } else {
-                        "Standing"
-                    }),
+                    source_state: Some(source_state),
                     source_pose_chain: grounded_joint_source_chain(),
                     expected_animation_variant: expected_variant,
                     observed_animation_variant: sample.map(|value| value.0),
                     observed_animation_clip_time: sample.map(|value| value.1),
+                    observed_animation_weight: sample.and_then(|_| weights.iter().find(|(label, _)| label.as_str() == source_state).map(|(_, weight)| *weight)),
                     observed_animation_play_rate: sample.map(|value| value.4),
                     expected_runtime_state: if index < 2 {
                         Some(if index == 0 { 3 } else { 4 })
