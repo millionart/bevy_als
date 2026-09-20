@@ -7,6 +7,7 @@ use als_core::motion::{AlsCharacterDebug, AlsInputOverride};
 use avian3d::prelude::{ColliderAabb, LinearVelocity};
 use bevy::math::primitives::Cuboid;
 use bevy::prelude::*;
+use bevy::gizmos::{AppGizmoBuilder, config::{GizmoConfig, GizmoConfigGroup, GizmoConfigStore, GizmoLineConfig}};
 
 const UE_CM_TO_M: f32 = 0.01;
 
@@ -104,6 +105,9 @@ pub struct AlsDebugDisplayStats {
     pub camera_trace_lines_drawn: u32,
     pub mantle_probe_lines_drawn: u32,
     pub camera_debug_valid: u32,
+    pub footstep_trace_lines_drawn: u32,
+    pub footstep_axis_lines_drawn: u32,
+    pub footstep_hit_points_drawn: u32,
 }
 
 impl AlsDebugDisplayStats {
@@ -115,6 +119,9 @@ impl AlsDebugDisplayStats {
             + self.camera_pivot_spheres_drawn
             + self.camera_trace_lines_drawn
             + self.mantle_probe_lines_drawn
+            + self.footstep_trace_lines_drawn
+            + self.footstep_axis_lines_drawn
+            + self.footstep_hit_points_drawn
     }
 }
 
@@ -123,10 +130,25 @@ pub struct AlsDebugDisplayLayer(pub Option<u8>);
 
 pub struct AlsDebugDisplayPlugin;
 
+#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct AlsDebugDisplaySet;
+
+#[derive(Default, Reflect, GizmoConfigGroup)]
+struct FootstepLines;
+
+#[derive(Default, Reflect, GizmoConfigGroup)]
+struct FootstepPoints;
+
 impl Plugin for AlsDebugDisplayPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AlsDebugDisplayStats>()
             .init_resource::<AlsDebugDisplayLayer>()
+            .init_resource::<crate::footprint::FootstepDebugHistory>()
+            .insert_gizmo_config(FootstepLines, GizmoConfig { line: GizmoLineConfig { width: 1.0, ..default() }, ..default() })
+            .init_gizmo_group::<FootstepPoints>()
+            .configure_sets(PostUpdate, AlsDebugDisplaySet.after(crate::footprint::FootprintSet)
+                .after(bevy::camera::visibility::VisibilitySystems::CheckVisibility))
+            .add_systems(PostUpdate, draw_footstep_traces.in_set(AlsDebugDisplaySet))
             .add_systems(
                 Update,
                 (
@@ -162,6 +184,101 @@ fn reset_stats_system(
     stats.camera_trace_lines_drawn = 0;
     stats.mantle_probe_lines_drawn = 0;
     stats.camera_debug_valid = 0;
+    stats.footstep_trace_lines_drawn = 0;
+    stats.footstep_axis_lines_drawn = 0;
+    stats.footstep_hit_points_drawn = 0;
+}
+
+fn footstep_point_segment(point: Vec3, camera: &Camera, view: &GlobalTransform) -> Option<(Vec3, Vec3, f32)> {
+    let viewport = camera.physical_viewport_size()?;
+    if viewport.x == 0 || viewport.y == 0 { return None; }
+    let projection = camera.clip_from_view();
+    let clip = projection * view.affine().inverse().transform_point3(point).extend(1.0);
+    if clip.w <= 0.0 { return None; }
+    let half_width = 32.0 * if projection.w_axis.w == 1.0 { UE_CM_TO_M } else { clip.w } / viewport.x as f32;
+    let side = view.right().as_vec3() * half_width;
+    Some((point - side, point + side, (half_width * projection.y_axis.y * viewport.y as f32 / clip.w).abs()))
+}
+
+#[cfg(test)]
+mod footstep_tests {
+    use super::*;
+    use crate::{character_assembly::AlsPlayerCharacter, footprint::{FootstepDebugHistory, FootstepDebugTrace}};
+
+    #[test]
+    fn persistent_footstep_gizmos_preserve_source_vertices_colors_and_point_size() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default()))
+            .add_plugins(bevy::mesh::MeshPlugin)
+            .add_plugins((bevy::gizmos::GizmoPlugin, AlsDebugDisplayPlugin));
+        let player = app.world_mut().spawn(AlsPlayerCharacter).id();
+        let mut camera = Camera { viewport: Some(bevy::camera::Viewport { physical_size: UVec2::new(800, 600), ..default() }), ..default() };
+        camera.computed.clip_from_view = Mat4::perspective_infinite_reverse_rh(std::f32::consts::FRAC_PI_2, 4.0 / 3.0, 0.1);
+        for depth in [3.0, 30.0] {
+            let (a, b, width) = footstep_point_segment(Vec3::NEG_Z * depth, &camera, &GlobalTransform::IDENTITY).unwrap();
+            let a = camera.clip_from_view().project_point3(a);
+            let b = camera.clip_from_view().project_point3(b);
+            assert!(((b.x - a.x) * 400.0 - width).abs() < 1e-4);
+            assert!((width - 24.0).abs() < 1e-4);
+        }
+        let other = app.world_mut().spawn_empty().id();
+        let mut decoy = camera.clone();
+        decoy.computed.clip_from_view = Mat4::perspective_infinite_reverse_rh(std::f32::consts::FRAC_PI_3, 4.0 / 3.0, 0.1);
+        app.world_mut().spawn((Camera3d::default(), decoy, GlobalTransform::IDENTITY, als_camera::AlsCharacterCamera { character: other }));
+        app.world_mut().spawn((Camera3d::default(), camera, GlobalTransform::IDENTITY, als_camera::AlsCharacterCamera { character: player }));
+        let point = Vec3::NEG_Z * 3.0;
+        app.world_mut().resource_mut::<FootstepDebugHistory>().0 = vec![
+            FootstepDebugTrace { created_at: 0.0, start: point + Vec3::Y, end: point - Vec3::Y, hit: Some(point), rotation: Some(Quat::IDENTITY) },
+            FootstepDebugTrace { created_at: 0.0, start: Vec3::ZERO, end: Vec3::NEG_Y, hit: None, rotation: None },
+            FootstepDebugTrace { created_at: 0.0, start: point, end: point - Vec3::Y, hit: Some(point), rotation: None },
+        ];
+        app.update();
+        let stats = app.world().resource::<AlsDebugDisplayStats>();
+        assert_eq!((stats.footstep_trace_lines_drawn, stats.footstep_axis_lines_drawn, stats.footstep_hit_points_drawn), (3, 3, 2));
+        let assets = app.world().resource::<Assets<bevy::gizmos::GizmoAsset>>();
+        let lines = assets.iter().find(|(_, asset)| asset.config_typeid() == std::any::TypeId::of::<FootstepLines>()).unwrap().1.buffer();
+        assert_eq!(lines.list_positions.len(), 12);
+        assert_eq!(lines.list_positions[0], point + Vec3::Y);
+        assert_eq!(lines.list_positions[1], point - Vec3::Y);
+        for (index, axis, color) in [(3, Vec3::X, LinearRgba::RED), (5, Vec3::Z, LinearRgba::GREEN), (7, Vec3::Y, LinearRgba::BLUE)] {
+            assert_eq!(lines.list_positions[index], point + axis * 0.25);
+            assert_eq!(lines.list_colors[index], color);
+        }
+        let points = assets.iter().find(|(_, asset)| asset.config_typeid() == std::any::TypeId::of::<FootstepPoints>()).unwrap().1.buffer();
+        assert_eq!(points.list_positions.len(), 4);
+        assert!(points.list_positions[0].abs_diff_eq(point - Vec3::X * 0.12, 1e-6));
+        assert!(points.list_positions[1].abs_diff_eq(point + Vec3::X * 0.12, 1e-6));
+        let configs = app.world().resource::<GizmoConfigStore>();
+        assert_eq!(configs.config::<FootstepLines>().0.line.width, 1.0);
+        assert!((configs.config::<FootstepPoints>().0.line.width - 24.0).abs() < 1e-4);
+    }
+}
+
+fn draw_footstep_traces(
+    history: Res<crate::footprint::FootstepDebugHistory>,
+    mut stats: ResMut<AlsDebugDisplayStats>,
+    mut drawing: ParamSet<(ResMut<GizmoConfigStore>, Gizmos<FootstepLines>, Gizmos<FootstepPoints>)>,
+    players: Query<Entity, With<crate::character_assembly::AlsPlayerCharacter>>,
+    views: Query<(&Camera, &GlobalTransform, &als_camera::AlsCharacterCamera), With<Camera3d>>,
+) {
+    let view = players.single().ok().and_then(|player| views.iter().find(|(camera, _, owner)| camera.is_active && owner.character == player));
+    for trace in &history.0 {
+        drawing.p1().line(trace.start, trace.end, linear(0.333333, 0.0, 0.0));
+        stats.footstep_trace_lines_drawn += 1;
+        if let Some(point) = trace.hit {
+            if let Some((camera, view, _)) = view && let Some((start, end, width)) = footstep_point_segment(point, camera, view) {
+                drawing.p0().config_mut::<FootstepPoints>().0.line.width = width;
+                drawing.p2().line(start, end, linear(1.0, 0.0, 0.0));
+                stats.footstep_hit_points_drawn += 1;
+            }
+            if let Some(rotation) = trace.rotation {
+                for (axis, color) in [(Vec3::X, linear(1.0, 0.0, 0.0)), (Vec3::Z, linear(0.0, 1.0, 0.0)), (Vec3::Y, linear(0.0, 0.0, 1.0))] {
+                    drawing.p1().line(point, point + rotation * axis * 0.25, color);
+                    stats.footstep_axis_lines_drawn += 1;
+                }
+            }
+        }
+    }
 }
 
 fn yaw_to_dir_xy(yaw_deg: f32) -> Vec3 {

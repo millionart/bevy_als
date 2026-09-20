@@ -24,6 +24,7 @@ pub(super) struct Probe {
     gpu_stage_frame: u32,
     moving_gpu_started: Option<u32>,
     pub(super) moving_gpu: bool,
+    pub(super) debug: bool,
 }
 
 #[derive(Default)]
@@ -67,6 +68,7 @@ pub(super) fn install(app: &mut App) {
     app.add_systems(PostUpdate, observe
         .run_if(|state: Res<ManualIntegrationState>| state.scenario == IntegrationScenario::Footprint)
         .after(crate::footprint::FootprintSet).after(AlsCameraSet)
+        .after(crate::debug_display::AlsDebugDisplaySet)
         .after(bevy::camera::visibility::VisibilitySystems::CheckVisibility)
         .before(observe_manual_integration).in_set(ManualIntegrationObservationSet));
 }
@@ -171,6 +173,7 @@ fn observe(
     no_receivers: Query<&MeshMaterial3d<StandardMaterial>, With<NoDecalReceiver>>,
     images: Res<Assets<Image>>,
     render: (Res<als_ext::projected_decal::DecalRenderStatus>, Res<bevy::diagnostic::FrameCount>),
+    debug: Res<crate::debug_display::AlsDebugDisplayStats>,
 ) {
     let (render, frame) = render;
     let Some(character) = state.character else { return; };
@@ -178,6 +181,8 @@ fn observe(
     let elapsed = state.phase_elapsed();
     let phase = state.phase;
     let probe = &mut state.footprint_probe;
+    probe.debug |= debug.footstep_trace_lines_drawn > 0 && debug.footstep_axis_lines_drawn == 3 * debug.footstep_trace_lines_drawn
+        && debug.footstep_hit_points_drawn > 0;
     let pipelines = render.0.lock().unwrap().clone();
     probe.pipelines = pipelines.decal_ready && pipelines.receiver_ready && pipelines.errors.is_empty();
     if diagnostics.invalid > 0 && !probe.errors.iter().any(|error| error == "Footstep inputs or final bones were invalid") {
@@ -257,7 +262,8 @@ fn observe(
         "missed":diagnostics.missed,"angle":diagnostics.rejected_angle,"invalid":diagnostics.invalid,
         "visible":probe.visible,"visible_meshes":visible_meshes,"loaded_images":loaded_images,"moving":probe.moving,"receiver":probe.receiver,"pipelines":probe.pipelines,
         "pipeline_errors":pipelines.errors,"errors":probe.errors,"gpu_request":probe.gpu.cursor,"gpu_complete":probe.gpu.complete,
-        "gpu_positive_frame":pipelines.positive_frame,"gpu_moving":probe.moving_gpu,"gpu_errors":pipelines.probe_errors}));
+        "gpu_positive_frame":pipelines.positive_frame,"gpu_moving":probe.moving_gpu,"gpu_errors":pipelines.probe_errors,
+        "debug_traces":debug.footstep_trace_lines_drawn,"debug_axes":debug.footstep_axis_lines_drawn,"debug_points":debug.footstep_hit_points_drawn}));
 }
 
 #[cfg(test)]

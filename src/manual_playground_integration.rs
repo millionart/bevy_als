@@ -4482,6 +4482,8 @@ fn drive_manual_integration(
         }
         IntegrationPhase::Footprints => {
             let stage = state.footprint_probe.stage;
+            show_debug.visible = true;
+            show_debug.traces = true;
             state.footprint_probe.waited = elapsed;
             if entering && stage == 0 {
                 reset_character(&mut transform, &mut position, rotation, &mut velocity, &mut view_yaw, &mut view_pitch,
@@ -9710,6 +9712,7 @@ fn observe_manual_integration(
                     ("footprint_gpu_pipelines", probe.pipelines),
                     ("footprint_gpu_lifecycle", probe.gpu.complete),
                     ("footprint_moving_gpu", probe.moving_gpu),
+                    ("footprint_debug_traces", probe.debug),
                     ("footprint_source_consistency", probe.errors.is_empty()), ("footprint_rotating_ride", state.moving_base_probe.ride)]);
                 results
             }

@@ -112,6 +112,18 @@ pub struct FootprintDiagnostics {
     pub fallback_hits: u64,
 }
 
+#[derive(Debug)]
+pub struct FootstepDebugTrace {
+    pub created_at: f64,
+    pub start: Vec3,
+    pub end: Vec3,
+    pub hit: Option<Vec3>,
+    pub rotation: Option<Quat>,
+}
+
+#[derive(Resource, Default)]
+pub struct FootstepDebugHistory(pub Vec<FootstepDebugTrace>);
+
 #[derive(Resource)]
 struct FootprintAssets {
     library: Handle<FootprintLibrary>,
@@ -126,6 +138,7 @@ impl Plugin for FootprintPlugin {
     fn build(&self, app: &mut App) {
         if !app.is_plugin_added::<als_ext::projected_decal::PackedDecalPlugin>() { app.add_plugins(als_ext::projected_decal::PackedDecalPlugin); }
         app.init_asset::<FootprintLibrary>()
+            .init_resource::<FootstepDebugHistory>()
             .init_asset_loader::<FootprintLibraryLoader>()
             .add_systems(Startup, load_footprint_assets)
             .add_systems(PreUpdate, configure_footprint_owners)
@@ -159,15 +172,22 @@ pub fn footprint_transform(settings: &FootprintDefinition, effect: &FootprintEff
     let rotation = foot.rotation();
     let up = rotation * settings.foot_up_axes[side];
     if normal.dot(up) < settings.spawn_angle_cos { return None; }
-    let y = rotation * settings.foot_y_axes[side];
-    let tangent = (y - normal * y.dot(normal)).try_normalize()?;
-    let frame = Quat::from_mat3(&Mat3::from_cols(normal.cross(tangent), normal, tangent));
-    let rotation = frame * effect.rotation_offsets[side];
+    let rotation = footstep_rotation(settings, foot, side, normal)? * effect.rotation_offsets[side];
     Some(Transform {
         translation: point + rotation * (effect.location_offset * mesh_scale),
         rotation,
         scale: effect.size * (2.0 * mesh_scale),
     })
+}
+
+fn footstep_rotation(settings: &FootprintDefinition, foot: GlobalTransform, side: usize, normal: Vec3) -> Option<Quat> {
+    let normal = normal.try_normalize()?;
+    let mut tangent = (foot.rotation() * settings.foot_y_axes[side]).try_normalize()?;
+    if (normal.dot(tangent).abs() - 1.0).abs() <= 1e-8 {
+        tangent = if normal.y.abs() < 1.0 - 1e-4 { Vec3::Y } else { Vec3::NEG_Z };
+    }
+    let forward = normal.cross(tangent).try_normalize()?;
+    Some(Quat::from_mat3(&Mat3::from_cols(forward, normal, forward.cross(normal))))
 }
 
 pub fn footprint_opacity(age: f64, lifetime: Vec2) -> f32 {
@@ -183,7 +203,7 @@ fn spawn_footprints(
     libraries: Res<Assets<FootprintLibrary>>,
     time: Res<Time>,
     spatial: SpatialQuery,
-    mut characters: Query<(&AlsFootBones, &LocomotionState, &AlsCharacterAssembly, &mut FootprintDiagnostics), With<AlsCharacter>>,
+    mut characters: Query<(&AlsFootBones, &LocomotionState, &AlsCharacterAssembly, &mut FootprintDiagnostics, Has<crate::character_assembly::AlsPlayerCharacter>), With<AlsCharacter>>,
     owners: Query<Entity, With<AlsCharacter>>,
     avatars: Query<&AnimatedSceneInstance, With<AlsCharacterAvatar>>,
     players: Query<&AnimationGraphPlayer>,
@@ -191,6 +211,8 @@ fn spawn_footprints(
     surfaces: Query<&PhysicalSurface>,
     collider_owners: Query<&avian3d::prelude::ColliderOf>,
     mut materials: ResMut<Assets<PackedDecalMaterial>>,
+    mut debug: ResMut<FootstepDebugHistory>,
+    show_debug: Option<Res<crate::show_debug_hud::AlsShowDebugHudState>>,
 ) {
     let Some(library) = libraries.get(&assets.library) else { return; };
     let mut ignored = owners.iter().collect::<Vec<_>>();
@@ -202,7 +224,7 @@ fn spawn_footprints(
     }
     let filter = SpatialQueryFilter::from_excluded_entities(ignored);
     for event in events.read().filter(|event| event.class_name == "AlsAnimNotify_FootstepEffects" && event.phase == als_ext::EventPhase::Point) {
-        let Ok((bones, locomotion, assembly, mut diagnostics)) = characters.get_mut(event.character) else { continue; };
+        let Ok((bones, locomotion, assembly, mut diagnostics, player)) = characters.get_mut(event.character) else { continue; };
         diagnostics.notifications += 1;
         let reference = event.parameters.get("FootstepEffectsSettings").and_then(serde_json::Value::as_str);
         let Some(settings) = library.definitions.iter().find(|settings| Some(settings.notify_settings_reference.as_str()) == reference) else {
@@ -213,10 +235,6 @@ fn spawn_footprints(
         let filter = filter.clone().with_mask(settings.trace_layer);
         if parameter("bSkipEffectsWhenInAir").as_bool() == Some(true) && *locomotion == LocomotionState::Air {
             diagnostics.rejected_air += 1;
-            continue;
-        }
-        if parameter("bSpawnDecal").as_bool() != Some(true) {
-            diagnostics.rejected_flag += 1;
             continue;
         }
         let foot_value = parameter("FootBone");
@@ -233,19 +251,32 @@ fn spawn_footprints(
             continue;
         }
         let mut ray = Dir3::NEG_Y;
+        let mut ray_length = distance * up.length();
         let hit = Dir3::new(-up).ok().and_then(|direction| {
             ray = direction;
             spatial.cast_ray(origin, direction, distance * up.length(), true, &filter)
         }).or_else(|| {
             ray = Dir3::NEG_Y;
+            ray_length = distance;
             let hit = spatial.cast_ray(origin, ray, distance, true, &filter);
             if hit.is_some() { diagnostics.fallback_hits += 1; }
             hit
+        });
+        let debug_index = (player && show_debug.as_ref().is_some_and(|state| state.is_active(crate::show_debug_hud::DebugCategory::Traces))).then(|| {
+            let index = debug.0.len();
+            debug.0.push(FootstepDebugTrace { created_at: time.elapsed_secs_f64(), start: origin,
+                end: origin + ray.as_vec3() * ray_length, hit: hit.as_ref().map(|hit| origin + ray.as_vec3() * hit.distance), rotation: None });
+            index
         });
         let Some(hit) = hit else { diagnostics.missed += 1; continue; };
         let point = origin + ray.as_vec3() * hit.distance;
         let surface = surfaces.get(hit.entity).ok().or_else(|| collider_owners.get(hit.entity).ok().and_then(|owner| surfaces.get(owner.body).ok()));
         let Some(effect) = settings.effect_for_surface(surface.map_or("SurfaceType_Default", |surface| surface.0.as_str())) else { continue; };
+        if let Some(index) = debug_index { debug.0[index].rotation = footstep_rotation(settings, *foot, side, hit.normal); }
+        if parameter("bSpawnDecal").as_bool() != Some(true) {
+            diagnostics.rejected_flag += 1;
+            continue;
+        }
         let Some(material_reference) = effect.material.as_ref() else { continue; };
         let Some(source_material) = settings.materials.get(material_reference) else { diagnostics.invalid += 1; continue; };
         let Some(world) = footprint_transform(settings, effect, *foot, side, point, hit.normal, mesh_scale) else { diagnostics.rejected_angle += 1; continue; };
@@ -271,7 +302,9 @@ fn expire_footprints(
     footprints: Query<(Entity, &Footprint, &PackedDecal)>,
     mut materials: ResMut<Assets<PackedDecalMaterial>>,
     mut diagnostics: Query<&mut FootprintDiagnostics>,
+    mut debug: ResMut<FootstepDebugHistory>,
 ) {
+    debug.0.retain(|trace| time.elapsed_secs_f64() - trace.created_at < 10.0);
     for (entity, footprint, material) in &footprints {
         let age = time.elapsed_secs_f64() - footprint.created_at;
         let lifetime = footprint.lifetime;
@@ -409,8 +442,13 @@ mod tests {
     fn source_footprint_follows_its_surface_fades_and_only_destroys_itself() {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, TransformPlugin))
+            .init_resource::<FootstepDebugHistory>()
             .init_resource::<Assets<PackedDecalMaterial>>();
         let owner = app.world_mut().spawn(FootprintDiagnostics::default()).id();
+        let hit = Vec3::new(1.1, 0.0, 2.2);
+        app.world_mut().resource_mut::<FootstepDebugHistory>().0.push(FootstepDebugTrace {
+            created_at: 0.0, start: hit + Vec3::Y * 0.05, end: hit - Vec3::Y * 0.45, hit: Some(hit), rotation: Some(Quat::IDENTITY),
+        });
         let parent = app.world_mut().spawn(Transform::from_xyz(1.0, 0.0, 2.0)).id();
         let material = app.world_mut().resource_mut::<Assets<PackedDecalMaterial>>().add(PackedDecalMaterial {
             color: Vec4::new(0.0, 0.0, 0.0, 0.8), roughness_scale: 0.2, metallic: 0.0, specular: 0.5, texture: default(),
@@ -441,6 +479,10 @@ mod tests {
         assert!(app.world().get_entity(entity).is_err());
         assert!(app.world().get_entity(parent).is_ok() && app.world().get_entity(owner).is_ok());
         assert_eq!(app.world().get::<FootprintDiagnostics>(owner).unwrap().expired, 1);
+        assert_eq!(app.world().resource::<FootstepDebugHistory>().0[0].hit, Some(hit), "Persistent debug geometry stays in world space");
+        app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs(4));
+        app.world_mut().run_system_once(expire_footprints).unwrap();
+        assert!(app.world().resource::<FootstepDebugHistory>().0.is_empty(), "Debug traces expire after ten seconds");
     }
 
     #[test]
@@ -454,6 +496,8 @@ mod tests {
             .add_message::<AlsAnimationEvent>()
             .init_resource::<Assets<PackedDecalMaterial>>()
             .init_resource::<Assets<FootprintLibrary>>();
+        app.init_resource::<FootstepDebugHistory>()
+            .insert_resource(crate::show_debug_hud::AlsShowDebugHudState { visible: true, traces: true, ..default() });
         let library = app.world_mut().resource_mut::<Assets<FootprintLibrary>>().add(library());
         app.insert_resource(FootprintAssets { library });
         app.finish();
@@ -467,7 +511,7 @@ mod tests {
         let rotation = Quat::from_rotation_z(std::f32::consts::FRAC_PI_2);
         let left = app.world_mut().spawn(Transform::from_xyz(-0.1, 0.05, 0.0).with_rotation(rotation)).id();
         let right = app.world_mut().spawn(Transform::from_xyz(0.1, 0.05, 0.0).with_rotation(rotation * Quat::from_rotation_y(std::f32::consts::PI))).id();
-        let character = app.world_mut().spawn((AlsCharacter, LocomotionState::Grounded, FootprintDiagnostics::default(),
+        let character = app.world_mut().spawn((AlsCharacter, crate::character_assembly::AlsPlayerCharacter, LocomotionState::Grounded, FootprintDiagnostics::default(),
             AlsCharacterAssembly { avatar, camera: None }, AlsFootBones { left_thigh: left, left_calf: left, left,
                 left_target: None, left_virtual_target: None, right_thigh: right, right_calf: right, right,
                 right_target: None, right_virtual_target: None })).id();
@@ -486,6 +530,9 @@ mod tests {
         emit(app.world_mut(), "Right", true, false, &FOOTPRINT.notify_settings_reference);
         app.world_mut().run_system_once(spawn_footprints).unwrap();
         assert_eq!(app.world().get::<FootprintDiagnostics>(character).unwrap().spawned, [1, 1]);
+        let history = &app.world().resource::<FootstepDebugHistory>().0;
+        assert_eq!(history.len(), 2, "Every source notification must retain its debug trace");
+        assert!(history.iter().all(|trace| trace.hit.is_some() && trace.rotation.is_some()));
         for (_, parent) in app.world_mut().query::<(&Footprint, &ChildOf)>().iter(app.world()) { assert_eq!(parent.parent(), floor); }
         app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().clear();
         *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = LocomotionState::Air;
@@ -494,6 +541,7 @@ mod tests {
         app.world_mut().run_system_once(spawn_footprints).unwrap();
         assert_eq!(app.world().get::<FootprintDiagnostics>(character).unwrap().rejected_flag, 1);
         assert_eq!(app.world().get::<FootprintDiagnostics>(character).unwrap().rejected_air, 1);
+        assert_eq!(app.world().resource::<FootstepDebugHistory>().0.len(), 3, "Disabling the decal must not disable the trace or hit frame");
         app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().clear();
         *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = LocomotionState::Grounded;
         app.world_mut().get_mut::<Transform>(left).unwrap().rotation = Quat::IDENTITY;
@@ -504,6 +552,10 @@ mod tests {
         assert_eq!(diagnostics.fallback_hits, 1);
         assert_eq!(diagnostics.rejected_angle, 1);
         assert_eq!(diagnostics.invalid, 0);
+        let history = &app.world().resource::<FootstepDebugHistory>().0;
+        assert_eq!(history.len(), 4);
+        assert!(history.last().unwrap().rotation.is_some(), "Angle rejection must retain the hit frame");
+        assert!((history.last().unwrap().end.y + 0.45).abs() < 1e-6);
 
         let reference = "None//ALS/Tests/Alternate/Alternate";
         let mut alternate = FOOTPRINT.clone();
@@ -531,6 +583,9 @@ mod tests {
         emit(app.world_mut(), "Left", true, false, reference);
         app.world_mut().run_system_once(spawn_footprints).unwrap();
         assert_eq!(app.world().get::<FootprintDiagnostics>(character).unwrap().missed, 1);
+        let trace = app.world().resource::<FootstepDebugHistory>().0.last().unwrap();
+        assert!(trace.hit.is_none() && trace.rotation.is_none());
+        assert!((trace.end.y - 0.04).abs() < 1e-6, "A miss must show the final fallback ray");
         app.world_mut().resource_mut::<Assets<FootprintLibrary>>().get_mut(&handle).unwrap().definitions[1].trace_distance = 0.03;
         app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().clear();
         emit(app.world_mut(), "Left", true, false, reference);
@@ -553,12 +608,37 @@ mod tests {
         app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().clear();
         emit(app.world_mut(), "Left", true, false, reference);
         app.world_mut().run_system_once(spawn_footprints).unwrap();
+        assert!(app.world().resource::<FootstepDebugHistory>().0.last().unwrap().rotation.is_some(), "A missing decal material must retain the debug axes");
         app.world_mut().resource_mut::<Assets<FootprintLibrary>>().get_mut(&handle).unwrap().definitions[1].effects.clear();
         app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().clear();
         emit(app.world_mut(), "Left", true, false, reference);
         app.world_mut().run_system_once(spawn_footprints).unwrap();
         assert_eq!(app.world().get::<FootprintDiagnostics>(character).unwrap().spawned, before);
         assert_eq!(app.world().get::<FootprintDiagnostics>(character).unwrap().invalid, 0);
+        let trace = app.world().resource::<FootstepDebugHistory>().0.last().unwrap();
+        assert!(trace.hit.is_some() && trace.rotation.is_none(), "An empty effect table retains only the trace and impact point");
+        let count = app.world().resource::<FootstepDebugHistory>().0.len();
+        for visible in [false, true] {
+            app.world_mut().resource_mut::<crate::show_debug_hud::AlsShowDebugHudState>().visible = visible;
+            if visible { app.world_mut().entity_mut(character).remove::<crate::character_assembly::AlsPlayerCharacter>(); }
+            app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().clear();
+            emit(app.world_mut(), "Left", false, false, &FOOTPRINT.notify_settings_reference);
+            app.world_mut().run_system_once(spawn_footprints).unwrap();
+            assert_eq!(app.world().resource::<FootstepDebugHistory>().0.len(), count, "Only the current debug target records enabled traces");
+        }
+    }
+
+    #[test]
+    fn footstep_hit_frame_matches_source_axes_and_parallel_fallback() {
+        let mut settings = FOOTPRINT.clone();
+        settings.foot_y_axes[0] = Vec3::NEG_Z;
+        let rotation = footstep_rotation(&settings, GlobalTransform::IDENTITY, 0, Vec3::Y).unwrap();
+        assert!((rotation * Vec3::X).abs_diff_eq(Vec3::NEG_X, 1e-6));
+        assert!((rotation * Vec3::Z).abs_diff_eq(Vec3::NEG_Z, 1e-6));
+        assert!((rotation * Vec3::Y).abs_diff_eq(Vec3::Y, 1e-6));
+        settings.foot_y_axes[0] = Vec3::Y;
+        let parallel = footstep_rotation(&settings, GlobalTransform::IDENTITY, 0, Vec3::Y).unwrap();
+        assert!(parallel.abs_diff_eq(rotation, 1e-6));
     }
 
     #[test]
