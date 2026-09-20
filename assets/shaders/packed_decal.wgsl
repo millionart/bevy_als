@@ -15,7 +15,7 @@ struct DecalMaterialProbe {
     enabled: u32,
     count: atomic<u32>,
     request: u32,
-    target: u32,
+    target_index: u32,
     receiver: u32,
     errors: atomic<u32>,
     latest_frame: atomic<u32>,
@@ -34,7 +34,7 @@ fn probe_pixel(position: vec2<f32>) -> bool {
 }
 
 fn record_material_response(before_color_roughness: vec4<f32>, before_material: vec4<f32>, packed: vec4<f32>, color: vec4<f32>, material: vec4<f32>, after_color_roughness: vec4<f32>, after_material: vec4<f32>, index_value: u32, receiver: u32, uv: vec4<f32>, world: vec4<f32>, applied: u32) {
-    if (decal_probe.enabled == 0u || atomicLoad(&decal_probe.count) >= 16u || decal_probe.receiver != receiver || decal_probe.target != index_value) { return; }
+    if (decal_probe.enabled == 0u || atomicLoad(&decal_probe.count) >= 16u || decal_probe.receiver != receiver || decal_probe.target_index != index_value) { return; }
     if (decal_probe.plane.w > 0.0 && (abs(world.y - decal_probe.plane.x) > 0.0001 || distance(world.xz, decal_probe.plane.yz) > decal_probe.plane.w)) { return; }
     if (index_value != 0xffffffffu && packed.a * color.a <= 0.0001) { return; }
     let index = atomicAdd(&decal_probe.count, 1u);
@@ -112,7 +112,7 @@ fn apply_packed_decals(pbr_input: ptr<function, PbrInput>, receiver: u32) {
         record_material_response(before_color_roughness, before_material, packed, color, decal.material,
             after_color, after_material, selected, receiver, vec4(uv, packed_uv), world, applied);
     }
-    if (decal_probe.enabled != 0u && decal_probe.target == 0xffffffffu) {
+    if (decal_probe.enabled != 0u && decal_probe.target_index == 0xffffffffu) {
         record_material_response(initial_color, initial_material, vec4(0.0), vec4(0.0), vec4(0.0, 0.0, 0.0, packed_decals[0].material.w),
             vec4((*pbr_input).material.base_color.rgb, (*pbr_input).material.perceptual_roughness),
             vec4((*pbr_input).material.metallic, (*pbr_input).material.reflectance), 0xffffffffu, receiver, vec4(0.0), world, applied);

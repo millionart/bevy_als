@@ -49,6 +49,7 @@ pub struct DecalPipelines {
     pub material_response_samples: usize,
     pub material_response_max_error: f32,
     pub positive_frame: u32,
+    pub checked_frame: u32,
     pub probes: Vec<DecalProbeResult>,
     pub probe_errors: Vec<String>,
     pub bindings: Vec<DecalBindingSnapshot>,
@@ -121,13 +122,13 @@ fn prepare_probe_request(request: Res<DecalProbeRequest>, handles: Res<PackedDec
 
 pub(crate) fn install_decal_receiver_bindings<M: bevy::pbr::Material>(app: &mut App)
 where M::Data: PartialEq + Eq + std::hash::Hash + Clone {
-    use bevy::ecs::schedule::IntoSystemSet;
     app.add_systems(PostUpdate, refresh_decal_receiver_bindings::<M>
         .after(PackedDecalPrepareSet).before(bevy::asset::AssetEventSystems));
     if let Some(render) = app.get_sub_app_mut(bevy::render::RenderApp) {
-        render.configure_sets(bevy::render::Render,
-            bevy::render::erased_render_asset::prepare_erased_assets::<MeshMaterial3d<M>>.into_system_set()
-                .after(bevy::render::render_asset::prepare_assets::<bevy::render::storage::GpuShaderBuffer>));
+        render.add_systems(bevy::render::Render, ApplyDeferred
+            .in_set(bevy::render::RenderSystems::PrepareAssets)
+            .after(bevy::render::render_asset::prepare_assets::<bevy::render::storage::GpuShaderBuffer>)
+            .before(bevy::render::erased_render_asset::prepare_erased_assets::<MeshMaterial3d<M>>));
     }
 }
 
@@ -170,6 +171,9 @@ impl Plugin for PackedDecalPlugin {
         let buffers = PackedDecalBuffers::new(&mut app.world_mut().resource_mut::<Assets<ShaderBuffer>>(), probe_enabled);
         app.insert_resource(buffers).init_resource::<DecalProbeRequest>()
             .add_plugins(bevy::render::extract_resource::ExtractResourcePlugin::<PackedDecalBuffers>::default())
+            .add_systems(Startup, |settings: Option<ResMut<bevy::light::cluster::GlobalClusterSettings>>| {
+                if let Some(mut settings) = settings { settings.gpu_clustering = None; }
+            })
             .add_systems(Update, prepare_receivers.in_set(PackedDecalPrepareSet))
             .add_systems(PostUpdate, prepare_decals.after(bevy::transform::TransformSystems::Propagate).in_set(PackedDecalPrepareSet));
         app.add_systems(PostUpdate, prepare_probe_request.after(PackedDecalPrepareSet).before(bevy::asset::AssetEventSystems));
@@ -229,6 +233,7 @@ fn read_material_probe(event: On<bevy::render::gpu_readback::ReadbackComplete>, 
     let mut status = status.0.lock().unwrap();
     if words[5] > 0 && status.probe_errors.is_empty() { status.probe_errors.push("Packed decal data is stale, out of bounds, or differs from the native projection".into()); }
     status.positive_frame = status.positive_frame.max(words[7]);
+    status.checked_frame = status.checked_frame.max(words[6]);
     let Some((count, error)) = material_probe_error(&words) else { return; };
     status.material_response_samples = count;
     status.material_response_max_error = status.material_response_max_error.max(error);
@@ -358,6 +363,33 @@ fn capture_decal_pipelines(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn nearby_decals_use_native_cpu_clustering_for_degenerate_depth_ranges() {
+        use bevy::light::cluster::{GlobalClusterGpuSettings, GlobalClusterSettings};
+        let factors = bevy::light::cluster::assign::calculate_cluster_factors(5.0, 5.0, 24.0, false);
+        assert!(!(factors.y / factors.x).exp().is_finite());
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default()))
+            .init_asset::<Mesh>().init_asset::<Image>().init_asset::<StandardMaterial>()
+            .insert_resource(GlobalClusterSettings {
+                supports_storage_buffers: true, clustered_decals_are_usable: true,
+                gpu_clustering: Some(GlobalClusterGpuSettings { initial_z_slice_list_capacity: 1024, initial_index_list_capacity: 1024 }),
+                max_uniform_buffer_clusterable_objects: 256, view_cluster_bindings_max_indices: 16384,
+            }).add_plugins(PackedDecalPlugin);
+        app.update();
+        assert!(app.world().resource::<GlobalClusterSettings>().gpu_clustering.is_none());
+    }
+
+    #[test]
+    fn receiver_dependencies_register_in_the_render_schedule() {
+        let mut app = App::new();
+        app.insert_sub_app(bevy::render::RenderApp, bevy::app::SubApp::new());
+        install_decal_receiver_bindings::<PackedDecalReceiverMaterial>(&mut app);
+        install_decal_receiver_bindings::<crate::playground_materials::PlaygroundTilesMaterial>(&mut app);
+        let render = app.sub_app_mut(bevy::render::RenderApp);
+        render.world_mut().run_schedule(bevy::render::Render);
+    }
 
     #[test]
     fn buffer_growth_refreshes_all_receivers_and_removal_preserves_capacity() {

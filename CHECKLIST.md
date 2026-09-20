@@ -44,6 +44,8 @@
   - [x] BF121.01a 缓冲区/材质生命周期静态闭环：开始2026-09-21 04:07、预估结束2026-09-21 05:02。fresh Bevy0.19.1 GpuShaderBuffer按实际序列化字节长度复用/更换Buffer，材质只在自身准备时绑定；当前每帧Vec长度改变且普通/Playground两类接收材质未联动。核对本地ALS材质与SpawnDecal，先最小增删/容量/接收者反例，再用标准资产更新和正确准备顺序修复两类消费者，保持原混合算法、无静默数量上限。Gate为0→1→2→3→2→1→0与扩容/材质重用合同、最小回归与必要消融。估时依据为一个扩展模块、两种已安装接收材质、已定位原生Storage/Material准备链及约80–180秒编译，静态55分钟。
   - [x] BF121.01b 持续GPU证据与验收：开始2026-09-21 04:57、预估结束2026-09-21 05:52。依赖01a已通过；估时依据为现有28-float探针/原Footprint driver/公共validator可复用，扩展阶段协议、两类receiver数据与CPU负向样本，约160秒单轮编译，静态55分钟；扩展原16样本探针，覆盖每次数量/容量变化及两类接收者，区分可见实体、混合公式和当前Buffer/当前贴花数据；含空集恢复、淡出、移动附着及负向自测，不以最早样本累计PASS。
   - [ ] BF121.01c 原Playground脚印功能Gate：开始2026-09-21 05:59、预估结束2026-09-21 06:44。依赖01b已通过；估时依据为1102项完整回归、约160秒跨扩展构建、原Footprint约30秒和新36个GPU请求、两种GPU受控反例/恢复，窗口45分钟；同target_game/play预构建，startup后footprint，受控固定相机/接收面数量往返及真实通知、移动/淡出路径全部通过后才开始02。
+    - [x] BF121.01c1 近距离原生分簇故障闭环：开始2026-09-21 07:00、预估结束2026-09-21 07:35；最小Bevy数值/插件反例、公开CPU分簇配置、范围回归及startup/footprint，删除临时诊断。依据为已定位far=near除零、一个公开配置和两项真实Gate。
+    - [ ] BF121.01c2 错误绑定/准备顺序消融与最终回归：开始2026-09-21 07:10、预估结束2026-09-21 07:42:30，依赖c1已通过；两次受控错误GPU输入/恢复、适用回归及最终footprint。依据为三轮约160秒编译、约32秒真实入口和既有validator；c1提前完成后提前进入，原剩余估时窗口不变。
 - [ ] BF121.02 脚步Traces与坐标轴：依赖01，进入时登记估时；fresh Notify的trace/命中坐标系/Decal生成先后顺序，25cm轴与10秒寿命、开关/无贴花/角度拒绝/未命中分支，记录真实命中坐标系并接统一Debug绘制与验收。
 - [ ] BF121.03 Debug运行数据与HUD布局：依赖02，进入时拆分估时；当前受控角色→相机/Avatar/Player的唯一关联、SmoothTargetYawAngle真实值、完整曲线名与最终求值曲线、正确R/P/Y标签，按本地ALS canvas/DPI/分栏/分类布局补齐并验收小窗口和多分类。保持明确保留的字体与Overlay菜单锚定差异，不假造未取得的数据。
   - 01a源/反例2026-09-21 04:33：当次材质原生73.030s、Settings34.453s提取成功；fresh Bevy Storage确认CPU序列化实际长度决定GPU Buffer身份，Material准备只在重提取时解析绑定，默认没有声明ShaderBuffer准备依赖。178.292s实际插件CPU反例检出2/3个脚印扩容时普通与Playground材质均无Modified事件，并在3→2→1收缩上传。有限复开BF118.04a/b及父04，仅资源生命周期和GPU验收覆盖；旧Gate最早16样本无法证明后续绑定。采用稳定逻辑句柄、按高水位容量填充、增长时两类材质发原生修改事件，并明确Buffer先于材质准备，不更改混合公式或设置数量上限。
@@ -63,6 +65,40 @@
   - 01b消融闭环2026-09-21 05:56：元数据156.519s、修正观察时点后的读回终止154.886s、独立接收者覆盖/看门狗79.893s消融均正确FAIL；恢复旧收齐即停止确实移除读回实体，去掉另一receiver/无进展限制分别被两个独立测试拒绝。全部已恢复，九类独立validator负向样本保持。开始完整回归；该段静态完成仍以真实GPU验收为后续，不预先声明脚印显示通过。
 
   - 01b完成2026-09-21 05:59：1102项122.670s完整回归PASS（camera24/core277/扩展399/项目402），三类CPU检测消融全部恢复，独立validator九类负向样本通过。持久读回、逐请求36组两类接收者/每贴花索引/数量往返/移动/半透明/清空、shader帧号/UV/越界及真实脚步/移动支撑的新GPU响应帧均有合同；12秒固定无进展退出有独立自测。开始04:57、预估05:52、实际05:59、偏差+7分钟，静态段完成，真实着色与GPU错误绑定拒绝尚待01c；现在同入口预构建后startup/footprint。
+
+  - 01c真实入口前2026-09-21 06:02：target_game/play133.158s预构建PASS，1102完整回归、协议/持久读回/覆盖/看门狗消融和独立validator九类负向闭合。开始公共startup，随后同二进制footprint；首轮检查真实shader编译、数量阶段/每索引/两类接收面与晚期真实脚步，之后做错误绑定/准备顺序负向证明，仍使用CaptureCount0/FunctionalOnly。
+
+  - 01c首次startup失败2026-09-21 06:04：5.490s在App注册期panic，Bevy禁止configure_sets直接配置函数型SystemTypeSet，尚未进入渲染或产生主报告，不能当作shader/GPU失败。旧CPU合同无RenderApp而漏掉此入口；改为原生ApplyDeferred屏障在ShaderBuffer准备后、两类材质准备前执行，使用公开add_systems依赖，不重注册依赖系统。新增无GPU的Render schedule注册/运行反例验证；之后范围回归和同入口补建再startup/footprint，原混合及阈值不变。
+
+  - 01c注册修复闭环2026-09-21 06:08：包含无GPU Render子应用注册/实际schedule运行的6项范围测试158.779s PASS，原startup注册期失败已有确定反例；改用原生ApplyDeferred屏障，无新增状态或依赖系统重注册。两类材质和上传容量、元数据拒绝、持续读回保持，接着同入口补建再startup/footprint；渲染顺序的实际GPU消融按原计划继续。
+
+  - 01c注册修复真实入口前2026-09-21 06:11：target_game/play131.639s补建PASS，6项Render注册/材质/探针回归与既有完整回归保持，源API注册错误已修正。重新公共startup，再footprint读取真实GPU阶段数据，保持原所有功能阈值。
+
+  - 01c shader命名修正2026-09-21 06:13：注册修复后startup15.744s主功能PASS，但decal渲染检查正确拒绝WGSL保留字target，报告receiver_ready=false及9条编译错误。探针字段改名target_index，布局/偏移/算法均未改变；同一已预构建入口重新加载工作区shader再startup，未凭CPU测试宣称shader通过。
+
+  - 01c启动后/脚印前2026-09-21 06:14：startup14.759s公共功能及GPU管线PASS，manual/validator0、decal/render effects通过，无功能issue；WGSL字段名修正后实际编译正常。继续同二进制footprint验证36组受控GPU请求与持续真实脚步/移动表面，完整独立validator保持开启。
+
+  - 01c首次footprint后/投影诊断前2026-09-21 06:21：32.086s受控36请求/576样本及独立GPU validator全PASS，6个实际Buffer ID、两类绑定组变化、源混合最大误差5.9604645e-8、无持续数据错误；真实走跑/淡出/CPU移动附着通过，唯footprint_moving_gpu未覆盖。9个脚印的ViewVisibility均true且纹理加载，但GPU正响应帧停在平台阶段之前，不能放宽为实体可见。仅补实际camera位置/forward与每个脚印NDC投影诊断，同target_game/play72.141s补建PASS；先startup再footprint定位视野/材质链，不改生产算法或阈值。
+
+  - 01c投影startup后/footprint前2026-09-21 06:21：startup15.754s公共功能与GPU通过，继续仅新增投影读数的footprint，所有原失败条件保留。
+
+  - 01c投影后/材质诊断前2026-09-21 06:32：投影版31.837s再次受控GPU全PASS、仅moving_gpu未覆盖。报告证实9个中心均在NDC范围（约x -0.25..-0.13，y -0.81..-0.70），不是单纯出视野；不据猜测改相机或阈值。补记录持续检查帧与原旋转对象实际接收材质类型/模式/颜色，132.098s同入口补建PASS，startup后footprint进一步区分未执行shader与零贡献/遮挡。
+
+  - 01c材质诊断startup后/footprint前2026-09-21 06:32：startup15.797s公共功能与GPU通过；继续新增shader持续检查帧/实际材质读数的footprint，保留原moving_gpu失败条件。
+
+  - 01c平台材质诊断/可见性对照2026-09-21 06:35：31.847s仍只有moving_gpu失败；9个脚印中心在画面内，原平台实际使用Playground receiver mode0，但checked_frame和positive_frame均停在平台前，未进入接收面片元。受控36请求仍全PASS、无过期数据错误。现在仅在Footprint原平台夹具初始化设向下观察pitch=-0.65做可见性对照，保留原角色、场景、材质、Footprint和GPU判据；其他MovingBase场景不改，不把推测写成生产修复。对照用于确认近脚/角色遮挡，待实际片元证据决定。
+
+  - 01c平台视角对照前2026-09-21 06:40：仅Footprint夹具观察pitch变更的target_game/play72.515s补建PASS。开始startup后footprint验证可见性对照；生产相机解算、材质、投影和所有GPU判断保持原样。
+
+  - 01c平台视角startup后/footprint前2026-09-21 06:40：startup15.520s公共功能与GPU通过，继续Footprint平台观察视角对照，原判据不变。
+
+  - 01c分层定位2026-09-21 06:59：向下观察31.799s仍失败，已删除该无效实验。几何诊断72.602s构建、32.366s真实入口证明接收网格与碰撞体世界矩阵一致、脚印投影体跨越顶面。四组临时shader读数逐层证明顶面有片元、自定义与原生投影体均命中、原生纹理索引有效，但相应cluster没有贴花；最终32.150s读数同时检出非有限深度因子。fresh Bevy0.19.1 assign将far夹到near=5，calculate_cluster_factors在far=near时除以ln(1)，GPU cluster_raster再由inf/inf重建near得到NaN并剔除全部。原CPU路径保留直接near/far，不经该反算。临时shader均finally恢复，未把诊断篡改的checked_frame当作Gate。新增最小原生数值/插件入口反例，随后验证公开GlobalClusterSettings CPU分簇配置；保留原生贴花/GPU混合，不fork依赖。此兼容配置的维护边界是升级Bevy后重验近距离/空集回归，性能仍按用户暂停范围不宣称通过。
+
+  - 01c估时复盘/拆分2026-09-21 07:00：原开始05:59、预估06:44，本轮检查07:00，已耗61分钟、偏差+16分钟、尚未通过。漂移包括Render schedule注册漏检、WGSL保留字，以及新持续验收检出的原生GPU近距离分簇缺陷；前两项已修复，后者已源/实际GPU定位，停止相机猜测和重复startup。按原45分钟×1.5重估剩余窗口至08:07:30，拆成c1故障闭环与c2负向/恢复两个不超过60分钟的独立验收段；不开始依赖的Debug/HUD。临时shader/矩阵/视角均已恢复，下一步为原生CPU分簇的最小配置验证。
+
+  - 01c1静态闭环/真实入口前2026-09-21 07:06：274.930s最小反例正确FAIL（单包首次构建引起额外feature组合编译）；默认near=far=5、24深度片的原生函数可稳定产生GPU反算NaN。仅在贴花插件Startup使用公开设置关闭GPU分簇，继续原生CPU分簇；7项范围回归159.896s PASS，含原生数值、插件启动、Render注册、增长/收缩、两类接收者、持续读回与材料合同。全部临时视角/投影/矩阵和shader实验已删除，保留机器可读持续检查帧。开始相同target_game/play入口预构建后startup/footprint，原moving_gpu判据不改。
+
+  - 01c1完成2026-09-21 07:10：133.896s同入口预构建、startup15.752s与footprint31.543s公共功能全PASS，36请求/576样本独立GPU审计通过，原视角的footprint_moving_gpu首次通过；持续数据无错误，所有旧功能判据保持。默认GPU分簇的真实失败与最小数值/插件反例、公开CPU分簇的恢复形成闭环；无效视角/逐帧诊断已消融删除。开始07:00、预估07:35、实际07:10、偏差-25分钟，c1完成；仍需c2错误绑定/准备顺序负向证明，尚不关闭父01或开始02。
 
 ## BF120 玩家视图移动基准与动作实例归属
 
