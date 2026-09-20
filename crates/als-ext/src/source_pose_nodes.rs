@@ -24,7 +24,7 @@ use crate::{
         GameplayTagBlendMode, GameplayTagBlendState, advance_gameplay_tag_weights,
         select_gameplay_tag_child_index_for_tag,
     },
-    source_gameplay_tag_input::gameplay_tag_input,
+    source_gameplay_tag_input::active_gameplay_tag_input,
 };
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -864,7 +864,7 @@ impl SourceGameplayTagBlendNode {
     }
 
     fn active_index(&self, root_entity: Entity) -> Option<usize> {
-        gameplay_tag_input(root_entity, &self.active_key)
+        active_gameplay_tag_input(root_entity, &self.active_key)
             .map(|active| select_gameplay_tag_child_index_for_tag(&self.tags, Some(&active)))
     }
 }
@@ -1255,6 +1255,7 @@ mod tests {
             utils::testing::TestIoEnv,
         };
         fn query(In((handle, switching, reentry)): In<(Handle<AnimationGraph>, bool, bool)>, resources: SystemResources) -> Vec<f32> {
+            let mut source_inputs = crate::SourceAnimationInputs::default();
             let graph = resources.animation_graph_assets.get(&handle).unwrap();
             let mut arena = GraphContextArena::new(handle.id());
             let mut gizmos = DeferredGizmos::default();
@@ -1263,15 +1264,15 @@ mod tests {
             let mut positions = Vec::new();
             let sequence = if switching { vec![true, false, true] } else if reentry { vec![true, true, false, false, true, true, true] } else { vec![true, true, false, false, true] };
             for (frame, active) in sequence.into_iter().enumerate() {
-                crate::source_gameplay_tag_input::set_gameplay_tag_input(Entity::PLACEHOLDER, "source_child_reset_fixture", bevy_gameplay_tag::GameplayTag::new(if active { "" } else { "Fixture.Alternate" }));
-                crate::source_gameplay_tag_input::set_gameplay_tag_input(Entity::PLACEHOLDER, "source_child_reset_inner", bevy_gameplay_tag::GameplayTag::new(if !reentry || frame != 5 { "" } else { "Fixture.Alternate" }));
+                source_inputs.set_gameplay_tag_input("source_child_reset_fixture", bevy_gameplay_tag::GameplayTag::new(if active { "" } else { "Fixture.Alternate" }));
+                source_inputs.set_gameplay_tag_input("source_child_reset_inner", bevy_gameplay_tag::GameplayTag::new(if !reentry || frame != 5 { "" } else { "Fixture.Alternate" }));
                 let inputs = HashMap::from([("source_child_reset_fixture".into(), DataValue::Bool(active)),
                     ("source_child_reset_enum".into(), DataValue::F32(if active { 0.0 } else { 1.0 })),
                     ("source_child_reset_inner".into(), DataValue::Bool(!reentry || frame != 5)),
                     ("source_child_reset_inner_enum".into(), DataValue::F32(if !reentry || frame != 5 { 0.0 } else { 1.0 }))]);
                 let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources,
                     &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
-                let output = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.1)), context).unwrap();
+                let output = source_inputs.evaluate(context.root_entity, || graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.1)), context)).unwrap();
                 positions.push(output["Pose"].clone().into_pose().unwrap().timestamp);
             }
             positions
@@ -1448,28 +1449,29 @@ mod tests {
             state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
         };
         fn query(In((handle, mut inputs)): In<(Handle<AnimationGraph>, HashMap<String, DataValue>)>, resources: SystemResources) -> Pose {
+            let mut source_inputs = crate::SourceAnimationInputs::default();
             let graph = resources.animation_graph_assets.get(&handle).unwrap();
             let mut arena = GraphContextArena::new(handle.id());
             let mut gizmos = DeferredGizmos::default();
             let entities = HashMap::new();
             let env = TestIoEnv::default();
             if graph.nodes.values().any(|node| node.name == "tag_blend") {
-                crate::source_gameplay_tag_input::set_gameplay_tag_input(Entity::PLACEHOLDER, "source_pose_test_blend", bevy_gameplay_tag::GameplayTag::new("Default"));
+                source_inputs.set_gameplay_tag_input("source_pose_test_blend", bevy_gameplay_tag::GameplayTag::new("Default"));
                 let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
                     &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
-                graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.0)), context).unwrap();
-                crate::source_gameplay_tag_input::set_gameplay_tag_input(Entity::PLACEHOLDER, "source_pose_test_blend", bevy_gameplay_tag::GameplayTag::new("Second"));
+                source_inputs.evaluate(context.root_entity, || graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.0)), context)).unwrap();
+                source_inputs.set_gameplay_tag_input("source_pose_test_blend", bevy_gameplay_tag::GameplayTag::new("Second"));
             }
             if graph.nodes.values().any(|node| node.try_inner_downcast_ref::<SourceBoolBlendNode>().is_some()) {
                 inputs.insert("source_pose_test_bool".into(), true.into());
                 let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
                     &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
-                graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.0)), context).unwrap();
+                source_inputs.evaluate(context.root_entity, || graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.0)), context)).unwrap();
                 inputs.insert("source_pose_test_bool".into(), false.into());
             }
             let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
                 &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
-            let mut output = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context).unwrap();
+            let mut output = source_inputs.evaluate(context.root_entity, || graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context)).unwrap();
             if let Some(node) = graph.nodes.values().find(|node| node.try_inner_downcast_ref::<SourceTwoWayBlendNode>().is_some()) {
                 use bevy_animation_graph::core::{animation_graph::NodeId, context::node_states::StateKey};
                 let state = arena.get_toplevel().node_states.get::<SourceTwoWayBlendState>(node.id, StateKey::Default).unwrap();
@@ -1485,7 +1487,7 @@ mod tests {
                     inputs.insert("source_pose_test_bool".into(), true.into());
                     let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
                         &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
-                    let interrupted = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.015)), context).unwrap();
+                    let interrupted = source_inputs.evaluate(context.root_entity, || graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.015)), context)).unwrap();
                     let state = arena.get_toplevel().node_states.get::<SourceGameplayTagBlendState>(node.id, StateKey::Default).unwrap();
                     assert!((state.context.curves["BoolCurve"] - 5.5).abs() < 1e-5);
                     assert!((interrupted["Pose"].as_pose().unwrap().get_bone(default()).unwrap().translation.unwrap().x - 0.1875).abs() < 1e-5);
@@ -2096,11 +2098,11 @@ mod tests {
 
     #[test]
     fn source_gameplay_tag_blend_uses_the_bound_tag_without_a_bool_pin() {
-        use crate::source_gameplay_tag_input::{clear_gameplay_tag_inputs, set_gameplay_tag_input};
+        use crate::SourceAnimationInputs;
 
         let entity = Entity::from_raw_u32(992).unwrap();
-        set_gameplay_tag_input(
-            entity,
+        let mut inputs = SourceAnimationInputs::default();
+        inputs.set_gameplay_tag_input(
             "locomotion_action",
             bevy_gameplay_tag::GameplayTag::new("Als.LocomotionAction.Ragdolling"),
         );
@@ -2110,8 +2112,8 @@ mod tests {
             tags: vec!["Als.LocomotionAction.Ragdolling".to_owned()],
             ..default()
         };
-        assert_eq!(node.active_index(entity), Some(1));
-        clear_gameplay_tag_inputs(entity);
+        assert_eq!(inputs.evaluate(entity, || node.active_index(entity)), Some(1));
+
     }
 
     #[test]

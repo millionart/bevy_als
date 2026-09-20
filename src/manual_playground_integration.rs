@@ -3292,6 +3292,7 @@ struct InterfaceProbe<'w, 's> {
 
 #[derive(SystemParam)]
 struct MotionProbe<'w, 's> {
+    source_inputs: Query<'w, 's, &'static als_ext::SourceAnimationInputs>,
     asset_server: Res<'w, AssetServer>,
     graphs: Res<'w, Assets<AnimationGraph>>,
     clips: Res<'w, Assets<bevy_animation_graph::core::animation_clip::GraphClip>>,
@@ -6587,7 +6588,7 @@ fn observe_manual_integration(
     });
     let jump_phase = locomotion_phase("sync_groups.ab_als_locomotion.jump.phase");
     let land_phase = locomotion_phase("sync_groups.ab_als_locomotion.land.phase");
-    let overlay_tag = als_ext::source_gameplay_tag_input::gameplay_tag_input(instance.player_entity(), "overlay_mode");
+    let overlay_tag = motion_probe.source_inputs.get(instance.player_entity()).ok().and_then(|inputs| inputs.gameplay_tag_input("overlay_mode"));
     let source_ready = matches!(player.get_animation_source(), AnimationSource::Graph(_))
         && player.get_error().is_none();
     record_animation_window_trace(
@@ -8137,7 +8138,7 @@ fn observe_manual_integration(
             "foot_locks": foot_lock.map(|feet| (feet.left.lock_amount,feet.left.lock_location.to_array(),feet.right.lock_amount,feet.right.lock_location.to_array())),
             "dynamic_inputs": (["left", "right"].map(|side| (graph_global_f32(player, &format!("feet_state.{side}.lock_amount")), graph_global_f32(player, &format!("feet_state.{side}.lock_distance_squared"))))),
             "dynamic_probe": (state.phase == IntegrationPhase::StandingDynamic).then_some((state.stop_branch_seen, state.dynamic_selection_valid, state.dynamic_unlocked)),
-            "slot_allow_transitions": als_ext::source_gameplay_tag_input::slot_input_context(instance.player_entity(), "transition.pose").and_then(|context| context.curves.get("AllowTransitions").copied()),
+            "slot_allow_transitions": motion_probe.source_inputs.get(instance.player_entity()).ok().and_then(|inputs| inputs.slot_input_context("transition.pose")).and_then(|context| context.curves.get("AllowTransitions").copied()),
             "native_dynamic": arena.and_then(|arena| arena.get_toplevel().node_states.get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default).ok().map(|source| (
                 arena.frame_index(),
                 source.values.get("dynamic_transitions_state.frame_delay").and_then(|value| value.as_f32().ok()),
@@ -11657,7 +11658,7 @@ mod tests {
         };
         fn evaluate(
             In((handle, entity, pose, weight)): In<(Handle<AnimationGraph>, Entity, Pose, f32)>,
-            resources: SystemResources,
+            resources: SystemResources, source_inputs: Query<&als_ext::SourceAnimationInputs>,
         ) -> GraphContextArena {
             let graph = resources.animation_graph_assets.get(&handle).unwrap();
             let mut arena = GraphContextArena::new(handle.id());
@@ -11681,8 +11682,8 @@ mod tests {
                 &mut gizmos,
                 &inputs,
             );
-            graph
-                .query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.1)), context)
+            source_inputs.get(entity).unwrap().evaluate(entity, || graph
+                .query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.1)), context))
                 .unwrap();
             arena
         }
@@ -11745,8 +11746,8 @@ mod tests {
             },
             EntityPath::default().child("pelvis").id(),
         );
-        als_ext::source_gameplay_tag_input::set_slot_input_context(
-            entity,
+        world.entity_mut(entity).insert(als_ext::SourceAnimationInputs::default());
+        world.get_mut::<als_ext::SourceAnimationInputs>(entity).unwrap().set_slot_input_context(
             "post_locomotion.pose",
             Some(als_ext::AnimationContextState {
                 relevant_asset: Some(als_ext::animation_context::SourceRelevantAsset {
@@ -11804,8 +11805,7 @@ mod tests {
             mantle_slot_sample(&arena, world.resource()).is_none(),
             "A shorthand must not match the authored Slot identity"
         );
-        als_ext::source_gameplay_tag_input::set_slot_input_context(
-            entity,
+        world.get_mut::<als_ext::SourceAnimationInputs>(entity).unwrap().set_slot_input_context(
             "post_locomotion.pose",
             None,
         );

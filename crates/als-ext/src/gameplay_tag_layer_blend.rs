@@ -17,7 +17,7 @@ use crate::{
         gameplay_tag_blend_time, select_gameplay_tag_child_index_for_tag, weight_output,
     },
     multi_way_blend::{pose_input, time_input},
-    source_gameplay_tag_input::gameplay_tag_input,
+    source_gameplay_tag_input::active_gameplay_tag_input,
 };
 
 #[derive(Reflect, Clone, Debug)]
@@ -66,7 +66,7 @@ impl NodeLike for GameplayTagLayerBlendNode {
     }
 
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        let active_tag = gameplay_tag_input(ctx.graph_context.root_entity, &self.active_key)
+        let active_tag = active_gameplay_tag_input(ctx.graph_context.root_entity, &self.active_key)
             .ok_or_else(|| GraphError::GlobalInputDataMissing(self.active_key.clone()))?;
         let time_update = ctx.time_update_fwd()?;
         let delta_seconds = match &time_update {

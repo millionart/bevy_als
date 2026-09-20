@@ -144,6 +144,7 @@ fn initialize_components(
 }
 
 fn update_camera_animation(
+    mut source_inputs: Query<&mut als_ext::SourceAnimationInputs>,
     assets: Res<AssetServer>,
     virtual_time: Res<Time<Virtual>>,
     real_time: Res<Time<Real>>,
@@ -232,7 +233,7 @@ fn update_camera_animation(
                 }),
             ),
         ] {
-            als_ext::set_gameplay_tag_input(scene.player_entity(), key, tag);
+            source_inputs.get_mut(scene.player_entity()).unwrap().set_gameplay_tag_input(key, tag);
         }
         player.set_global_input_data("b_right_shoulder", !left_shoulder);
         let delta = als_camera::camera_delta_seconds_from_times(
@@ -247,7 +248,7 @@ fn update_camera_animation(
         player.set_global_input_data("animation.delta_seconds", delta);
         let mut time = Time::default();
         time.advance_by(std::time::Duration::from_secs_f32(delta));
-        run_animation_player(scene.player_entity(), player, &time, &resources);
+        source_inputs.get(scene.player_entity()).unwrap().evaluate(scene.player_entity(), || run_animation_player(scene.player_entity(), player, &time, &resources));
         let player = players.get(scene.player_entity()).unwrap();
         frame.active = player.get_error().is_none() && player.get_default_output_pose().is_some();
         if frame.active {

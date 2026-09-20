@@ -7,7 +7,6 @@ use als_core::transition::{Dimension, StateTransitionEvent, StateValue};
 use als_ext::{
     animation_context::SourceRelevantAsset,
     profile_blend::transition_alpha,
-    source_gameplay_tag_input::{set_slot_input_context, slot_input_context},
 };
 use avian3d::prelude::{
     CollisionLayers, CustomPositionIntegration, CustomVelocityIntegration, LinearVelocity,
@@ -400,6 +399,7 @@ fn handle_mantle_early_blend_out(
 }
 
 fn publish_mantle_slot(
+    mut source_inputs: Query<&mut als_ext::SourceAnimationInputs>,
     time: Res<Time>,
     mut commands: Commands,
     assets: Res<MantleAssets>,
@@ -477,7 +477,7 @@ fn publish_mantle_slot(
                     .and_then(|value| value.as_pose().ok())
             {
                 poses.push((pose.clone(), weight));
-                if let Some(context) = slot_input_context(player_entity, POST_LOCOMOTION_POSE) {
+                if let Some(context) = source_inputs.get(player_entity).ok().and_then(|inputs| inputs.slot_input_context(POST_LOCOMOTION_POSE)) {
                     contexts.push((context, weight));
                 }
             }
@@ -496,17 +496,14 @@ fn publish_mantle_slot(
             );
             player.set_global_input_data(POST_LOCOMOTION_WEIGHT, total.min(1.0));
             player.set_global_input_data(POST_LOCOMOTION_LAYER_WEIGHT, 1.0_f32);
-            set_slot_input_context(
-                player_entity,
-                POST_LOCOMOTION_POSE,
+            source_inputs.get_mut(player_entity).unwrap().set_slot_input_context(POST_LOCOMOTION_POSE,
                 Some(als_ext::source_pose_nodes::blend_animation_contexts(
                     contexts,
-                )),
-            );
+                )),);
         } else {
             player.set_global_input_data(POST_LOCOMOTION_WEIGHT, 0.0_f32);
             player.set_global_input_data(POST_LOCOMOTION_LAYER_WEIGHT, 0.0_f32);
-            set_slot_input_context(player_entity, POST_LOCOMOTION_POSE, None);
+            source_inputs.get_mut(player_entity).unwrap().set_slot_input_context(POST_LOCOMOTION_POSE, None);
         }
         if montages.entries.is_empty() {
             commands.entity(character).remove::<AlsMantleMontages>();
@@ -1456,6 +1453,7 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((
             MinimalPlugins,
+            als_ext::SourceAnimationInputsPlugin,
             AssetPlugin::default(),
             bevy::gltf::GltfPlugin::default(),
             TransformPlugin,
@@ -1835,7 +1833,7 @@ mod tests {
                         .unwrap(),
                     1.0
                 );
-                let context = slot_input_context(player_entity, POST_LOCOMOTION_POSE).unwrap();
+                let context = app.world().get::<als_ext::SourceAnimationInputs>(player_entity).unwrap().slot_input_context(POST_LOCOMOTION_POSE).unwrap();
                 assert!(context.curves_are_authoritative);
                 assert_eq!(context.relevant_asset.unwrap().position, montage.clip_time);
                 let clip = app
@@ -1976,7 +1974,7 @@ mod tests {
                         .distance(first.lerp(second, 0.5))
                         < 1e-5
                 );
-                let context = slot_input_context(player_entity, POST_LOCOMOTION_POSE).unwrap();
+                let context = app.world().get::<als_ext::SourceAnimationInputs>(player_entity).unwrap().slot_input_context(POST_LOCOMOTION_POSE).unwrap();
                 for (name, value) in &context.curves {
                     let expected = (samples[0].1.curves.get(name).copied().unwrap_or(0.0)
                         + samples[1].1.curves.get(name).copied().unwrap_or(0.0))
@@ -2015,7 +2013,7 @@ mod tests {
                     .unwrap(),
                 0.0
             );
-            assert!(slot_input_context(player_entity, POST_LOCOMOTION_POSE).is_none());
+            assert!(app.world().get::<als_ext::SourceAnimationInputs>(player_entity).unwrap().slot_input_context(POST_LOCOMOTION_POSE).is_none());
             app.world_mut().despawn(entity);
         }
         assert_eq!(MANTLE_SETTINGS.stop_blend_out_seconds, 0.3);

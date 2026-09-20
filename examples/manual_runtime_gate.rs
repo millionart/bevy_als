@@ -278,6 +278,7 @@ fn read_global(player: &AnimationGraphPlayer, name: &str) -> Option<f32> {
 }
 
 fn gate_watcher(
+    source_inputs: Query<&als_ext::SourceAnimationInputs>,
     time: Res<Time>,
     mut verdict: ResMut<GateVerdict>,
     characters: Query<(
@@ -322,7 +323,7 @@ fn gate_watcher(
             binding.key.ends_with(".secondary_motion.phase").then(|| als_ext::sync_group_phase::source_sync_phase(arena, &graphs, &binding.key)).flatten()
         })
     })).unwrap_or(f32::NAN);
-    let overlay_tag = als_ext::source_gameplay_tag_input::gameplay_tag_input(instance.player_entity(), "overlay_mode")
+    let overlay_tag = source_inputs.get(instance.player_entity()).ok().and_then(|inputs| inputs.gameplay_tag_input("overlay_mode"))
         .map(|tag| OverlayState::from_tag(&tag));
     let t = time.elapsed_secs_f64();
 

@@ -241,6 +241,7 @@ struct GraphFootstepDispatch {
 }
 
 fn dispatch_graph_footsteps(
+    source_inputs: Query<&als_ext::SourceAnimationInputs>,
     manifest_handle: Option<Res<AlsNotifyManifestHandle>>,
     manifests: Res<Assets<AlsNotifyManifest>>,
     graphs: Res<Assets<bevy_animation_graph::core::animation_graph::AnimationGraph>>,
@@ -273,7 +274,7 @@ fn dispatch_graph_footsteps(
             .map(|sample| sample.slot_key.clone()).collect::<std::collections::HashSet<_>>();
         let mut samples = context.asset_samples.clone();
         for slot in state.slots.difference(&current_slots) {
-            if let Some(context) = als_ext::source_gameplay_tag_input::slot_input_context(entity, slot) {
+            if let Some(context) = source_inputs.get(entity).ok().and_then(|inputs| inputs.slot_input_context(slot)) {
                 als_ext::animation_context::merge_asset_samples(&mut samples, &context.asset_samples, 1.0);
             }
         }

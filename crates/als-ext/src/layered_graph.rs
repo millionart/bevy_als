@@ -98,7 +98,7 @@ pub(crate) struct LayeredGraphState {
 impl LayeredGraphNode {
     fn selected_graph(&self, ctx: &NodeContext) -> Handle<AnimationGraph> {
         if self.graph_binding.is_empty() { return self.graph.clone(); }
-        crate::source_gameplay_tag_input::linked_graph_input(ctx.graph_context.root_entity, &self.graph_binding).map(|input| input.graph).unwrap_or_else(|| self.graph.clone())
+        crate::source_gameplay_tag_input::active_linked_graph_input(ctx.graph_context.root_entity, &self.graph_binding).map(|input| input.graph).unwrap_or_else(|| self.graph.clone())
     }
 
     pub fn new(graph: Handle<AnimationGraph>) -> Self {
@@ -461,7 +461,7 @@ impl NodeLike for LayeredGraphNode {
                 *ctx.state_mut_or_else(AnimationContextState::default)? = context_state;
                 return Ok(());
             }
-            let binding = crate::source_gameplay_tag_input::linked_graph_input(ctx.graph_context.root_entity, &self.graph_binding);
+            let binding = crate::source_gameplay_tag_input::active_linked_graph_input(ctx.graph_context.root_entity, &self.graph_binding);
             let frame = ctx.graph_context.frame_index();
             let state = ctx.state_mut_or_else(LayeredGraphState::default)?;
             if state.graph != Some(graph_handle.id()) {
@@ -553,22 +553,23 @@ mod tests {
             context::{deferred_gizmos::DeferredGizmos, graph_context_arena::GraphContextArena, system_resources::SystemResources},
             skeleton::Skeleton, state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
         };
-        use crate::source_gameplay_tag_input::{clear_gameplay_tag_inputs, set_linked_graph_input, LinkedGraphInput};
+        use crate::source_gameplay_tag_input::{SourceAnimationInputs, LinkedGraphInput};
         fn query(In((root, implementation, entities)): In<(Handle<AnimationGraph>, Handle<AnimationGraph>, [Entity;2])>, resources: SystemResources) {
             let graph = resources.animation_graph_assets.get(&root).unwrap();
             let mut arenas = [GraphContextArena::new(root.id()), GraphContextArena::new(root.id())];
+            let mut source_inputs = [SourceAnimationInputs::default(), SourceAnimationInputs::default()];
             let mut gizmos = DeferredGizmos::default();
             let entity_map = HashMap::new();
             let inputs = HashMap::new();
             let env = TestIoEnv::default();
             for (frame, (selected, expected)) in [(false,0.1),(false,0.2),(true,1.1),(true,1.2),(false,0.1),(false,0.2),(true,1.1)].into_iter().enumerate() {
                 let binding = LinkedGraphInput { graph: implementation.clone(), blend_in: 0.35, blend_out: 0.25 };
-                set_linked_graph_input(entities[0], "layer", selected.then(|| binding.clone()));
-                set_linked_graph_input(entities[1], "layer", Some(binding));
+                source_inputs[0].set_linked_graph_input("layer", selected.then(|| binding.clone()));
+                source_inputs[1].set_linked_graph_input("layer", Some(binding));
                 for index in 0..2 {
                     let arena = &mut arenas[index];
                     let context = GraphContext::new(arena.get_toplevel_id(), graph, arena, &resources, &env, entities[index], &entity_map, &mut gizmos, &inputs);
-                    let output = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.1)), context.clone()).unwrap();
+                    let output = source_inputs[index].evaluate(entities[index], || graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.1)), context.clone())).unwrap();
                     let expected = if index == 0 { expected } else { 1.0 + (frame + 1) as f32 * 0.1 };
                     assert!((output["selected"].as_pose().unwrap().timestamp - expected).abs() < 1e-5, "actor {index}, frame {frame}");
                     assert!((output["sibling"].as_pose().unwrap().timestamp - (frame + 1) as f32 * 0.1).abs() < 1e-5);
@@ -583,7 +584,7 @@ mod tests {
                 }
             }
             assert_eq!(arenas[0].iter_context_ids().count(), 4);
-            for entity in entities { clear_gameplay_tag_inputs(entity); }
+
         }
         let mut graphs = Assets::<AnimationGraph>::default();
         let mut clips = Assets::<GraphClip>::default();

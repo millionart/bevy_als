@@ -375,6 +375,7 @@ fn write_roll_slot_curves(
 }
 
 fn bridge_roll_slot_samples(
+    mut source_inputs: Query<&mut als_ext::SourceAnimationInputs>,
     rolls: Query<&AlsRollState, With<als_core::character::AlsCharacter>>,
     get_ups: Query<&crate::get_up::AlsGetUpState>,
     blend_outs: Query<&AlsRollBlendOut>,
@@ -397,19 +398,13 @@ fn bridge_roll_slot_samples(
         };
         let Some(roll) = rolls.get(sampler.character).ok().filter(|roll| roll.active) else {
             target_player.set_global_input_data("roll.weight", 0.0_f32);
-            als_ext::source_gameplay_tag_input::set_slot_input_context(
-                sampler.target_player,
-                "roll.pose",
-                None,
-            );
+            source_inputs.get_mut(sampler.target_player).unwrap().set_slot_input_context("roll.pose",
+                None,);
             if get_ups.contains(sampler.character) {
                 continue;
             }
-            als_ext::source_gameplay_tag_input::set_slot_input_context(
-                sampler.target_player,
-                GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY,
-                None,
-            );
+            source_inputs.get_mut(sampler.target_player).unwrap().set_slot_input_context(GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY,
+                None,);
             target_player.set_global_input_data(ROOT_POST_LOCOMOTION_SLOT_WEIGHT_KEY, 0.0_f32);
             target_player
                 .set_global_input_data(ROOT_POST_LOCOMOTION_SLOT_LAYER_WEIGHT_KEY, 0.0_f32);
@@ -469,19 +464,13 @@ fn bridge_roll_slot_samples(
                 });
                 context
             });
-        als_ext::source_gameplay_tag_input::set_slot_input_context(
-            sampler.target_player,
-            "roll.pose",
-            context.clone(),
-        );
+        source_inputs.get_mut(sampler.target_player).unwrap().set_slot_input_context("roll.pose",
+            context.clone(),);
         if get_ups.contains(sampler.character) {
             continue;
         }
-        als_ext::source_gameplay_tag_input::set_slot_input_context(
-            sampler.target_player,
-            GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY,
-            context,
-        );
+        source_inputs.get_mut(sampler.target_player).unwrap().set_slot_input_context(GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY,
+            context,);
         target_player.set_global_input_data(
             ROOT_POST_LOCOMOTION_SLOT_POSE_KEY,
             DataValue::Pose(pose.clone()),

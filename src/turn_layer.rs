@@ -478,6 +478,7 @@ fn clear_turn_slot_inputs(player: &mut AnimationGraphPlayer) {
 }
 
 fn bridge_turn_slot_samples(
+    mut source_inputs: Query<&mut als_ext::SourceAnimationInputs>,
     montage_assets: Res<crate::standing_source::SourceMontageAssets>,
     clips: Res<Assets<bevy_animation_graph::core::animation_clip::GraphClip>>,
     skeletons: Res<Assets<bevy_animation_graph::core::skeleton::Skeleton>>,
@@ -530,11 +531,8 @@ fn bridge_turn_slot_samples(
         };
         for crouching in [false, true] {
             let contract = turn_slot_contract(crouching);
-            als_ext::source_gameplay_tag_input::set_slot_input_context(
-                player_entity,
-                contract.generated_pose_key,
-                None,
-            );
+            source_inputs.get_mut(player_entity).unwrap().set_slot_input_context(contract.generated_pose_key,
+                None,);
             let Some((pose, weight)) = compose_turn_montage_poses(&stack, &poses, crouching) else {
                 continue;
             };
@@ -562,11 +560,8 @@ fn bridge_turn_slot_samples(
             player.set_global_input_data(contract.generated_pose_key, DataValue::Pose(pose));
             player.set_global_input_data(contract.generated_weight_key, weight);
             player.set_global_input_data(contract.generated_layer_weight_key, 1.0_f32);
-            als_ext::source_gameplay_tag_input::set_slot_input_context(
-                player_entity,
-                contract.generated_pose_key,
-                Some(context),
-            );
+            source_inputs.get_mut(player_entity).unwrap().set_slot_input_context(contract.generated_pose_key,
+                Some(context),);
             runtime.weight = (runtime.weight + weight).min(1.0);
         }
         commands.entity(avatar).insert(runtime);

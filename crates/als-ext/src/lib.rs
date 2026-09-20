@@ -234,7 +234,7 @@ pub use source_cached_pose::{
     SourceCachedPoseSaveNode, SourceCachedPoseUseNode, SourceContextDefault,
     SourceScopedCachedPoseUseNode, resolve_cached_pose, resolve_scoped_cached_pose,
 };
-pub use source_gameplay_tag_input::{SourceGameplayTagInputNode, set_gameplay_tag_input};
+pub use source_gameplay_tag_input::{SourceGameplayTagInputNode, SourceAnimationInputs, SourceAnimationInputsPlugin};
 pub use source_linked_input_pose::SourceLinkedInputPoseNode;
 pub use source_movement_nodes::{SourceMultiWayBlendNode, SourceSetHipsDirectionNode};
 pub use source_physics_joint::{
@@ -275,6 +275,7 @@ pub struct AlsExtPlugin;
 
 impl Plugin for AlsExtPlugin {
     fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<SourceAnimationInputsPlugin>() { app.add_plugins(SourceAnimationInputsPlugin); }
         app.register_asset_loader(CurveAssetLoader)
             .init_asset::<CurveAsset>()
             .init_asset_loader::<static_skeleton::StaticSkeletonLoader>()
@@ -402,10 +403,6 @@ impl Plugin for AlsExtPlugin {
             root_motion_defaults::RootMotionDefaultsPlugin,
             RagdollPhysicsProfilePlugin,
             RagdollAngularDrivePlugin,
-        ))
-        .add_systems(
-            PostUpdate,
-            source_gameplay_tag_input::clear_removed_gameplay_tag_inputs,
-        );
+        ));
     }
 }

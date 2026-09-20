@@ -146,6 +146,7 @@ fn ensure_generated_transition_notify_telemetry(
 }
 
 fn dispatch_generated_transition_notifications(
+    mut source_inputs: Query<&mut als_ext::SourceAnimationInputs>,
     mut cursor: ResMut<GeneratedTransitionNotifyCursor>,
     avatars: Query<(Entity, &AlsCharacterAvatar, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
     mut players: Query<&mut AnimationGraphPlayer>,
@@ -358,11 +359,8 @@ fn dispatch_generated_transition_notifications(
                 commands
                     .entity(avatar.character)
                     .insert(crate::grounded_layer::AlsGroundedEntryMode::None);
-                als_ext::set_gameplay_tag_input(
-                    player_entity,
-                    "grounded_entry_mode",
-                    bevy_gameplay_tag::GameplayTag::new(""),
-                );
+                source_inputs.get_mut(player_entity).unwrap().set_gameplay_tag_input("grounded_entry_mode",
+                    bevy_gameplay_tag::GameplayTag::new(""),);
                 if let Ok(mut telemetry) = telemetry.get_mut(avatar.character) {
                     telemetry.grounded_entry_reset_count += 1;
                 }

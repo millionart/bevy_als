@@ -732,16 +732,16 @@ mod tests {
 
     #[test]
     fn rig_observer_reads_actual_execution_hits_weights_and_pose_delivery() {
-        use als_ext::{control_rig_query::{RigQueryContext, RigQueryWorld}, source_gameplay_tag_input::set_rig_query_context,
+        use als_ext::{control_rig_query::{RigQueryContext, RigQueryWorld}, SourceAnimationInputs,
             root_graph_boundaries::{RigInputBinding, RIG_CAPTURE_KEY, RIG_GAME_WORLD_KEY}};
         use avian3d::{collider_tree::ColliderTrees, prelude::*};
         use bevy::{animation::AnimatedBy, ecs::system::RunSystemOnce,
             world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner}};
         use bevy_animation_graph::{AnimationGraphPlugin, core::{animated_scene::AnimatedSceneHandle,
             animation_clip::EntityPath, animation_node::AnimationNode, edge_data::{DataSpec, DataValue},
-            pose::{BonePose, Pose}, skeleton::Skeleton, systems::{animation_player, apply_animation_to_targets}}};
-        fn capture(In((entity, to_world)): In<(Entity, RigTransform)>, trees: Res<ColliderTrees>, colliders: Query<(Entity, &Position, &Rotation, &Collider)>) {
-            set_rig_query_context(entity, Some(RigQueryContext { world: std::sync::Arc::new(RigQueryWorld {
+            pose::{BonePose, Pose}, skeleton::Skeleton, systems::apply_animation_to_targets}};
+        fn capture(In((entity, to_world)): In<(Entity, RigTransform)>, mut inputs: Query<&mut SourceAnimationInputs>, trees: Res<ColliderTrees>, colliders: Query<(Entity, &Position, &Rotation, &Collider)>) {
+            inputs.get_mut(entity).unwrap().set_rig_query_context(Some(RigQueryContext { world: std::sync::Arc::new(RigQueryWorld {
                 trees: trees.clone(), colliders: colliders.iter().map(|(entity, position, rotation, collider)| (entity, (*position, *rotation, collider.clone()))).collect(),
             }), to_world, channel: "ECC_Visibility".into(), filter: default() }));
         }
@@ -826,7 +826,7 @@ mod tests {
         app.world_mut().flush();
         assert_eq!(app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity(), player_entity);
         app.world_mut().run_system_once_with(capture, (player_entity, to_world)).unwrap();
-        app.world_mut().run_system_once(animation_player).unwrap();
+        app.world_mut().run_system_once(als_ext::post_physics_animation::evaluate_players::<()> ).unwrap();
         let mut driver = None;
         for (frame, weight) in [1.0_f32, 0.25, 0.0].into_iter().enumerate() {
             let previous_driver = driver;
@@ -840,7 +840,7 @@ mod tests {
             assert!(driver.is_some());
             if previous_driver.is_some() { assert_eq!(driver, previous_driver); }
             app.world_mut().run_system_once_with(capture, (player_entity, to_world)).unwrap();
-            app.world_mut().run_system_once(animation_player).unwrap();
+            app.world_mut().run_system_once(als_ext::post_physics_animation::evaluate_players::<()> ).unwrap();
             assert!(app.world().get::<AnimationGraphPlayer>(player_entity).unwrap().get_error().is_none());
             app.world_mut().run_system_once(apply_animation_to_targets).unwrap();
             app.world_mut().run_system_once(observe_rig_results).unwrap();
@@ -865,7 +865,7 @@ mod tests {
         for weights in [AlsFootIkWeightOverride { left: Some(0.5), right: None }, AlsFootIkWeightOverride::default()] {
             crate::manual_playground_integration::run_manual_rig_curve_fixture(app.world_mut(), actor, weights, false);
             app.world_mut().run_system_once_with(capture, (player_entity, to_world)).unwrap();
-            app.world_mut().run_system_once(animation_player).unwrap();
+            app.world_mut().run_system_once(als_ext::post_physics_animation::evaluate_players::<()> ).unwrap();
             app.world_mut().run_system_once(apply_animation_to_targets).unwrap();
             app.world_mut().run_system_once(observe_rig_results).unwrap();
             let apply = app.world().get::<AlsFootIkApplyTelemetry>(actor).unwrap();
@@ -880,7 +880,7 @@ mod tests {
             crate::manual_playground_integration::run_manual_rig_curve_fixture(app.world_mut(), actor, default(), active);
             app.world_mut().get_mut::<AnimationGraphPlayer>(player_entity).unwrap().set_global_input_data("input_5", if active { 30.0_f32 } else { 0.0 });
             app.world_mut().run_system_once_with(capture, (player_entity, to_world)).unwrap();
-            app.world_mut().run_system_once(animation_player).unwrap();
+            app.world_mut().run_system_once(als_ext::post_physics_animation::evaluate_players::<()> ).unwrap();
             app.world_mut().run_system_once(apply_animation_to_targets).unwrap();
             app.world_mut().run_system_once(observe_rig_results).unwrap();
             let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
@@ -905,7 +905,7 @@ mod tests {
         app.world_mut().run_system_once(observe_rig_results).unwrap();
         assert!(app.world().get::<AlsFootIkApplyTelemetry>(actor).unwrap().left.effector_error > 0.049);
         app.world_mut().resource_mut::<Assets<AnimationGraph>>().get_mut(&graph).unwrap().add_output_data_edge(source.id, "Pose", "pose");
-        app.world_mut().run_system_once(animation_player).unwrap();
+        app.world_mut().run_system_once(als_ext::post_physics_animation::evaluate_players::<()> ).unwrap();
         app.world_mut().run_system_once(observe_rig_results).unwrap();
         assert_eq!(app.world().get::<AlsControlRigExecution>(actor).unwrap().executed_steps, 0, "an unevaluated rig must not expose its previous state");
         assert!(!app.world().get::<AlsFootIkSpaceState>(actor).unwrap().left.valid);
@@ -913,7 +913,7 @@ mod tests {
         app.world_mut().run_system_once(observe_rig_results).unwrap();
         assert_eq!(app.world().get::<AlsControlRigExecution>(actor).unwrap().executed_steps, 0);
         assert!(!app.world().get::<AlsFootIkSpaceState>(actor).unwrap().left.valid);
-        set_rig_query_context(player_entity, None);
+        app.world_mut().get_mut::<SourceAnimationInputs>(player_entity).unwrap().set_rig_query_context(None);
     }
 
     #[test]

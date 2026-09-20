@@ -432,7 +432,7 @@ impl NodeLike for ControlRigBoundaryNode {
             crate::global_f32_input::global_f32_or_root_default(&ctx, &self.delta_seconds_key)?
                 as f64;
         let query =
-            crate::source_gameplay_tag_input::rig_query_context(ctx.graph_context.root_entity);
+            crate::source_gameplay_tag_input::active_rig_query_context(ctx.graph_context.root_entity);
         let update = if self.internalize_time {
             context_time_update(&ctx)?
         } else {
@@ -601,6 +601,7 @@ mod tests {
             )>,
             resources: SystemResources,
         ) -> Vec<Pose> {
+            let mut source_inputs = crate::SourceAnimationInputs::default();
             let graph = resources.animation_graph_assets.get(&handle).unwrap();
             let rig_node = graph
                 .nodes
@@ -654,11 +655,11 @@ mod tests {
                         &mut gizmos,
                         &inputs,
                     );
-                    let output = graph
+                    let output = source_inputs.evaluate(context.root_entity, || graph
                         .query_with_context(
                             QueryOutputTime::Forced(TimeUpdate::Delta(0.02)),
                             context,
-                        )
+                        ))
                         .unwrap()
                         .remove("Pose")
                         .unwrap()
@@ -744,8 +745,8 @@ mod tests {
                     &mut gizmos,
                     &inputs,
                 );
-                let error = graph
-                    .query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context)
+                let error = source_inputs.evaluate(context.root_entity, || graph
+                    .query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context))
                     .unwrap_err();
                 let GraphError::UnknownErrorNode { node, error, .. } = error else {
                     panic!("rig failure lost its node identity")
@@ -760,8 +761,7 @@ mod tests {
                 }
             }
             let query_root = Entity::from_raw_u32(812907).unwrap();
-            crate::source_gameplay_tag_input::set_rig_query_context(
-                query_root,
+            source_inputs.set_rig_query_context(
                 Some(crate::control_rig_query::RigQueryContext {
                     world: std::sync::Arc::new(crate::control_rig_query::RigQueryWorld {
                         trees: default(),
@@ -780,7 +780,7 @@ mod tests {
                 let mut arena = GraphContextArena::new(handle.id());
                 let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
                     &resources, &env, query_root, &entities, &mut gizmos, &inputs);
-                let output = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context)
+                let output = source_inputs.evaluate(context.root_entity, || graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context))
                     .unwrap().remove("Pose").unwrap().into_pose().unwrap();
                 let captured = arena.get_toplevel().node_states.get::<ControlRigNodeState>(rig_node.id,
                     bevy_animation_graph::core::context::node_states::StateKey::Default).unwrap();
@@ -809,8 +809,8 @@ mod tests {
                     output.timestamp, output.root_motion));
             }
             assert!(outcomes[0] == outcomes[1], "capture changed rig values, hierarchy caches, or output pose");
-            crate::source_gameplay_tag_input::set_rig_query_context(query_root, None);
-            assert!(crate::source_gameplay_tag_input::rig_query_context(query_root).is_none());
+            source_inputs.set_rig_query_context(None);
+            assert!(source_inputs.rig_query_context().is_none());
             outputs
         }
         let definition: RigDefinition = serde_json::from_str(include_str!(

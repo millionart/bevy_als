@@ -14,7 +14,7 @@ use serde::Deserialize;
 use std::sync::Arc;
 use avian3d::{collider_tree::ColliderTrees, prelude::{Collider, Position, Rotation, SpatialQueryFilter}};
 use als_ext::{control_rig_hierarchy::RigTransform, control_rig_query::{RigQueryContext, RigQueryWorld},
-    source_gameplay_tag_input::set_rig_query_context, source_instance::set_source_frame_input};
+    source_instance::set_source_frame_input};
 
 use crate::animation_context_projection::AlsRootAnimationContext;
 use crate::character_assembly::AlsCharacterAvatar;
@@ -362,6 +362,7 @@ fn refresh_control_rig_input(
 }
 
 fn publish_control_rig_inputs(
+    mut source_inputs: Query<&mut als_ext::SourceAnimationInputs>,
     characters: Query<(Entity, &AlsControlRigInput), With<AlsCharacter>>,
     avatars: Query<(Entity, &ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
     mut players: Query<&mut AnimationGraphPlayer>,
@@ -414,7 +415,7 @@ fn publish_control_rig_inputs(
                     to_world: RigTransform { translation: transform.translation.as_dvec3(), rotation: transform.rotation.as_dquat(), scale: transform.scale.as_dvec3() } }
             }))
         } else { None };
-        set_rig_query_context(root, context);
+        source_inputs.get_mut(root).unwrap().set_rig_query_context(context);
     }
 }
 
@@ -446,6 +447,7 @@ mod tests {
         }
 
         let mut app = App::new();
+        app.add_plugins(als_ext::SourceAnimationInputsPlugin);
         app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
             bevy_animation_graph::AnimationGraphPlugin::default()))
             .init_resource::<ColliderTrees>();
@@ -521,7 +523,7 @@ mod tests {
             assert_eq!(source_player_property(published, "control_rig_input.velocity_blend_forward_amount").and_then(|value| value.as_f32().ok()), Some(0.25));
             assert_eq!(source_player_property(published, "control_rig_input.foot_left_location").and_then(|value| value.as_vec3().ok()), Some(Vec3::new(1.0, 2.0, 3.0)));
             assert_eq!(source_player_property(published, "control_rig_input.spine_yaw_angle").and_then(|value| value.as_f32().ok()), Some(-input.spine_yaw_angle_degrees));
-            let query = als_ext::source_gameplay_tag_input::rig_query_context(player).unwrap();
+            let query = app.world().get::<als_ext::SourceAnimationInputs>(player).unwrap().rig_query_context().unwrap();
             let avatar_world = GlobalTransform::from(avatar_transform).compute_transform();
             assert_eq!(query.to_world.translation, avatar_world.translation.as_dvec3());
             assert_eq!(query.to_world.rotation, avatar_world.rotation.as_dquat());
@@ -544,7 +546,7 @@ mod tests {
         app.world_mut().get_mut::<AlsControlRigInput>(unloaded).unwrap().pelvis_offset_amount = 0.75;
         app.world_mut().get_mut::<AlsControlRigInput>(actor).unwrap().foot_transforms_valid = false;
         app.world_mut().run_schedule(PostUpdate);
-        assert!(als_ext::source_gameplay_tag_input::rig_query_context(player).is_none());
+        assert!(app.world().get::<als_ext::SourceAnimationInputs>(player).unwrap().rig_query_context().is_none());
         assert_eq!(app.world().get::<AlsControlRigInput>(unloaded).unwrap().pelvis_offset_amount, 0.75);
     }
 

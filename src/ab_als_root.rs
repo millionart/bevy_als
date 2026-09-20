@@ -2,7 +2,6 @@ use als_core::character::AlsCharacter;
 use als_core::mantle::AlsMantleState;
 use als_core::roll::AlsRollState;
 use als_core::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
-use als_ext::set_gameplay_tag_input;
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
@@ -125,6 +124,7 @@ fn set_missing_f32(player: &mut AnimationGraphPlayer, key: &str) {
 
 #[allow(clippy::type_complexity)]
 fn root_graph_writer(
+    mut source_inputs: Query<&mut als_ext::SourceAnimationInputs>,
     time: Res<Time>,
     assets: Res<AssetServer>,
     library_handle: Res<crate::overlay_object::OverlayLibraryHandle>,
@@ -165,32 +165,21 @@ fn root_graph_writer(
             let Ok(mut player) = players.get_mut(instance.player_entity()) else {
                 continue;
             };
-            als_ext::source_gameplay_tag_input::set_linked_graph_input(
-                instance.player_entity(), OVERLAY_LAYER_BINDING,
+            source_inputs.get_mut(instance.player_entity()).unwrap().set_linked_graph_input(OVERLAY_LAYER_BINDING,
                 libraries.get(&library_handle.0).and_then(|library| library.0.get(overlay))
                     .filter(|definition| assets.is_loaded_with_dependencies(definition.graph_handle.id())).map(|definition| als_ext::source_gameplay_tag_input::LinkedGraphInput {
                     graph: definition.graph_handle.clone(), blend_in: definition.blend_in,
                     blend_out: definition.blend_out,
-                }),
-            );
-            set_gameplay_tag_input(instance.player_entity(), "gait", gait_tag(*gait));
-            set_gameplay_tag_input(instance.player_entity(), "overlay_mode", overlay.tag());
-            set_gameplay_tag_input(
-                instance.player_entity(),
-                "locomotion_mode",
-                locomotion_mode_tag(*locomotion),
-            );
-            set_gameplay_tag_input(instance.player_entity(), "stance", stance_tag(*stance));
-            set_gameplay_tag_input(
-                instance.player_entity(),
-                "locomotion_action",
-                locomotion_action_tag(notify_action, mantle, roll),
-            );
-            set_gameplay_tag_input(
-                instance.player_entity(),
-                "rotation_mode",
-                rotation_mode_tag(*rotation_mode),
-            );
+                }),);
+            source_inputs.get_mut(instance.player_entity()).unwrap().set_gameplay_tag_input("gait", gait_tag(*gait));
+            source_inputs.get_mut(instance.player_entity()).unwrap().set_gameplay_tag_input("overlay_mode", overlay.tag());
+            source_inputs.get_mut(instance.player_entity()).unwrap().set_gameplay_tag_input("locomotion_mode",
+                locomotion_mode_tag(*locomotion),);
+            source_inputs.get_mut(instance.player_entity()).unwrap().set_gameplay_tag_input("stance", stance_tag(*stance));
+            source_inputs.get_mut(instance.player_entity()).unwrap().set_gameplay_tag_input("locomotion_action",
+                locomotion_action_tag(notify_action, mantle, roll),);
+            source_inputs.get_mut(instance.player_entity()).unwrap().set_gameplay_tag_input("rotation_mode",
+                rotation_mode_tag(*rotation_mode),);
             for (key, value) in [
                 ("als_animation_delta_seconds", time.delta_secs()),
             ] {

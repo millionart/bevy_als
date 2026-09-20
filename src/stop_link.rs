@@ -636,6 +636,7 @@ fn sample_transition_stack(
 }
 
 fn bridge_root_transition_slot_samples(
+    mut source_inputs: Query<&mut als_ext::SourceAnimationInputs>,
     montage_assets: Res<crate::standing_source::SourceMontageAssets>,
     clips: Res<Assets<bevy_animation_graph::core::animation_clip::GraphClip>>,
     skeletons: Res<Assets<bevy_animation_graph::core::skeleton::Skeleton>>,
@@ -659,11 +660,8 @@ fn bridge_root_transition_slot_samples(
                 .get(sampler.character)
                 .is_ok_and(|stance| *stance == Stance::Crouching);
         let Some(stack) = stack else {
-            als_ext::source_gameplay_tag_input::set_slot_input_context(
-                sampler.target_player,
-                GENERATED_TRANSITION_SLOT_POSE_KEY,
-                None,
-            );
+            source_inputs.get_mut(sampler.target_player).unwrap().set_slot_input_context(GENERATED_TRANSITION_SLOT_POSE_KEY,
+                None,);
             target_player.set_global_input_data(ROOT_TRANSITION_SLOT_WEIGHT_KEY, 0.0_f32);
             target_player.set_global_input_data(ROOT_TRANSITION_SLOT_LAYER_WEIGHT_KEY, 0.0_f32);
             target_player.set_global_input_data(GENERATED_TRANSITION_SLOT_WEIGHT_KEY, 0.0_f32);
@@ -716,11 +714,8 @@ fn bridge_root_transition_slot_samples(
             .set_global_input_data(GENERATED_TRANSITION_SLOT_MESH_SPACE_ADDITIVE_KEY, 1.0_f32);
         write_root_transition_slot_curves(&mut target_player, crouching);
         sampler.reported_unready = false;
-        als_ext::source_gameplay_tag_input::set_slot_input_context(
-            sampler.target_player,
-            GENERATED_TRANSITION_SLOT_POSE_KEY,
-            Some(context),
-        );
+        source_inputs.get_mut(sampler.target_player).unwrap().set_slot_input_context(GENERATED_TRANSITION_SLOT_POSE_KEY,
+            Some(context),);
         commands
             .entity(sampler.character)
             .insert(AlsRootTransitionSlotRuntime {
@@ -981,7 +976,7 @@ mod tests {
         app.update();
         let before = *app.world().get::<AlsRootTransitionSlotRuntime>(character).unwrap();
         assert_eq!(before.weight, 1.0);
-        let curves_before = als_ext::source_gameplay_tag_input::slot_input_context(player, GENERATED_TRANSITION_SLOT_POSE_KEY).unwrap().curves;
+        let curves_before = app.world().get::<als_ext::SourceAnimationInputs>(player).unwrap().slot_input_context(GENERATED_TRANSITION_SLOT_POSE_KEY).unwrap().curves;
         assert!(curves_before.values().any(|value| value.abs() > 0.5));
         let pose_before = app.world().get::<AnimationGraphPlayer>(player).unwrap()
             .get_global_input_data(GENERATED_TRANSITION_SLOT_POSE_KEY).unwrap().clone().into_pose().unwrap();
@@ -989,7 +984,7 @@ mod tests {
         app.update();
         let after = app.world().get::<AlsRootTransitionSlotRuntime>(character).unwrap();
         assert_eq!(after.weight, before.weight, "interrupting a full-weight transition discarded its contribution");
-        assert_eq!(als_ext::source_gameplay_tag_input::slot_input_context(player, GENERATED_TRANSITION_SLOT_POSE_KEY).unwrap().curves, curves_before);
+        assert_eq!(app.world().get::<als_ext::SourceAnimationInputs>(player).unwrap().slot_input_context(GENERATED_TRANSITION_SLOT_POSE_KEY).unwrap().curves, curves_before);
         let pose_after = app.world().get::<AnimationGraphPlayer>(player).unwrap()
             .get_global_input_data(GENERATED_TRANSITION_SLOT_POSE_KEY).unwrap().clone().into_pose().unwrap();
         for bone in pose_before.paths.keys() {
@@ -1003,7 +998,7 @@ mod tests {
         app.update();
         let stack = app.world().get::<AlsTransitionMontageStack>(character).unwrap();
         assert_eq!(stack.entries.len(), 2);
-        let actual = als_ext::source_gameplay_tag_input::slot_input_context(player, GENERATED_TRANSITION_SLOT_POSE_KEY).unwrap();
+        let actual = app.world().get::<als_ext::SourceAnimationInputs>(player).unwrap().slot_input_context(GENERATED_TRANSITION_SLOT_POSE_KEY).unwrap();
         let mut expected = std::collections::HashMap::<String, f32>::new();
         let total = stack.entries.iter().map(|entry| entry.weight).sum::<f32>().max(1.0);
         for entry in &stack.entries {

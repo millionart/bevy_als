@@ -7,7 +7,6 @@ use als_ext::{
     AlsAnimCurves,
     animation_context::{AnimationContextState, SourceRelevantAsset},
     profile_blend::{AlphaBlendMode, transition_alpha},
-    source_gameplay_tag_input::set_slot_input_context,
 };
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
@@ -186,6 +185,7 @@ pub(crate) fn sampled_curve_context(
 }
 
 fn update_get_up_pose(
+    mut source_inputs: Query<&mut als_ext::SourceAnimationInputs>,
     mut commands: Commands,
     time: Res<Time>,
     assets: Res<GetUpAssets>,
@@ -224,7 +224,7 @@ fn update_get_up_pose(
         if state.weight <= 0.0 {
             player.set_global_input_data(POST_LOCOMOTION_WEIGHT, 0.0_f32);
             player.set_global_input_data(POST_LOCOMOTION_LAYER_WEIGHT, 0.0_f32);
-            set_slot_input_context(player_entity, POST_LOCOMOTION_POSE, None);
+            source_inputs.get_mut(player_entity).unwrap().set_slot_input_context(POST_LOCOMOTION_POSE, None);
             commands.entity(character).remove::<AlsGetUpState>();
             continue;
         }
@@ -267,10 +267,7 @@ fn update_get_up_pose(
             {
                 let alpha = roll_weight / (weight + roll_weight);
                 pose = als_ext::slot_node::blend_slot_pose(pose, Some(roll_pose), Some(alpha));
-                if let Some(roll_context) = als_ext::source_gameplay_tag_input::slot_input_context(
-                    player_entity,
-                    "roll.pose",
-                ) {
+                if let Some(roll_context) = source_inputs.get(player_entity).ok().and_then(|inputs| inputs.slot_input_context("roll.pose",)) {
                     context = als_ext::source_pose_nodes::blend_animation_contexts([
                         (context, 1.0 - alpha),
                         (roll_context, alpha),
@@ -282,7 +279,7 @@ fn update_get_up_pose(
         player.set_global_input_data(POST_LOCOMOTION_POSE, DataValue::Pose(pose));
         player.set_global_input_data(POST_LOCOMOTION_WEIGHT, weight);
         player.set_global_input_data(POST_LOCOMOTION_LAYER_WEIGHT, 1.0_f32);
-        set_slot_input_context(player_entity, POST_LOCOMOTION_POSE, Some(context));
+        source_inputs.get_mut(player_entity).unwrap().set_slot_input_context(POST_LOCOMOTION_POSE, Some(context));
         state.pose_ready = true;
     }
 }

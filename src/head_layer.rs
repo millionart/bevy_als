@@ -157,6 +157,7 @@ fn write_head_inputs(
 
 #[allow(clippy::type_complexity)]
 fn head_layer_writer(
+    source_inputs: Query<&als_ext::SourceAnimationInputs>,
     virtual_time: Res<Time<Virtual>>,
     real_time: Res<Time<Real>>,
     characters: Query<
@@ -198,7 +199,7 @@ fn head_layer_writer(
             custom_dilation.map_or(1.0, |value| value.0),
         );
         player.set_global_input_data("animation.previous_global_time_dilation", previous_dilation);
-        let action_active = als_ext::source_gameplay_tag_input::gameplay_tag_input(instance.player_entity(), "locomotion_action").is_some_and(|tag| tag.is_valid());
+        let action_active = source_inputs.get(instance.player_entity()).ok().and_then(|inputs| inputs.gameplay_tag_input("locomotion_action")).is_some_and(|tag| tag.is_valid());
         let input = head_frame_inputs(
             &player,
             transform,

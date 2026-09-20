@@ -332,6 +332,7 @@ fn initialize_object_players(
 }
 
 fn update_object_animation(
+    source_inputs: Query<&als_ext::SourceAnimationInputs>,
     time: Res<Time>,
     assets: Res<AssetServer>,
     objects: Query<&AlsOverlayObject>,
@@ -355,7 +356,7 @@ fn update_object_animation(
         if let AnimationSource::Graph(graph) = player.get_animation_source()
             && !assets.is_loaded_with_dependencies(graph) { continue; }
         player.set_global_input_data("draw_amount", amount);
-        run_animation_player(scene.player_entity(), player, &time, &resources);
+        source_inputs.get(scene.player_entity()).unwrap().evaluate(scene.player_entity(), || run_animation_player(scene.player_entity(), player, &time, &resources));
     }
 }
 

@@ -9,7 +9,7 @@ use bevy_animation_graph::core::{
 use bevy_gameplay_tag::GameplayTag;
 use serde::{Deserialize, Serialize};
 
-use crate::source_gameplay_tag_input::gameplay_tag_input;
+use crate::source_gameplay_tag_input::active_gameplay_tag_input;
 
 pub(crate) const WEIGHT_THRESHOLD: f32 = 1e-6;
 
@@ -219,7 +219,7 @@ impl NodeLike for GameplayTagBlendNode {
     }
 
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        let active_tag = gameplay_tag_input(ctx.graph_context.root_entity, &self.active_key)
+        let active_tag = active_gameplay_tag_input(ctx.graph_context.root_entity, &self.active_key)
             .ok_or_else(|| GraphError::GlobalInputDataMissing(self.active_key.clone()))?;
         let time_update = ctx.time_update_fwd()?;
         let delta_seconds = match &time_update {

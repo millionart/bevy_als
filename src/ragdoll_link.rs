@@ -1918,7 +1918,7 @@ mod tests {
         let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
         assert_eq!(player.get_outputs()["grounded"].as_bool().unwrap(), true);
         assert_eq!(player.get_outputs()["ragdolling"].as_bool().unwrap(), true);
-        assert_eq!(als_ext::source_gameplay_tag_input::gameplay_tag_input(player_entity, "locomotion_action"), Some(AlsNotifyLocomotionAction::Ragdolling.tag()));
+        assert_eq!(app.world().get::<als_ext::SourceAnimationInputs>(player_entity).unwrap().gameplay_tag_input("locomotion_action"), Some(AlsNotifyLocomotionAction::Ragdolling.tag()));
         let handoff = app
             .world()
             .get::<RagdollPhysicsProfileApplied>(player_entity)
@@ -1989,7 +1989,7 @@ mod tests {
             .as_pose()
             .unwrap();
         assert_eq!(player.get_outputs()["ragdolling"].as_bool().unwrap(), false);
-        assert_eq!(als_ext::source_gameplay_tag_input::gameplay_tag_input(player_entity, "locomotion_action"), Some(AlsNotifyLocomotionAction::None.tag()));
+        assert_eq!(app.world().get::<als_ext::SourceAnimationInputs>(player_entity).unwrap().gameplay_tag_input("locomotion_action"), Some(AlsNotifyLocomotionAction::None.tag()));
         let pelvis = snapshot.bones[snapshot.paths[&joint_path.id()]].to_transform();
         let restored_world = app
             .world()

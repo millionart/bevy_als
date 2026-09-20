@@ -28,6 +28,7 @@ pub struct PostPhysicsAnimationPlugin;
 
 impl Plugin for PostPhysicsAnimationPlugin {
     fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<crate::SourceAnimationInputsPlugin>() { app.add_plugins(crate::SourceAnimationInputsPlugin); }
         app.configure_sets(PostUpdate, (
             PostPhysicsAnimationSet::Inputs.after(PhysicsSystems::Last),
             PostPhysicsAnimationSet::Evaluate.after(PostPhysicsAnimationSet::Inputs)
@@ -82,15 +83,15 @@ fn apply_readback_pose(
     }
 }
 
-fn evaluate_players<F: QueryFilter>(
+pub fn evaluate_players<F: QueryFilter>(
     time: Res<Time>,
-    mut players: Query<(Entity, &mut AnimationGraphPlayer), (F, Without<ManualAnimationPlayer>)>,
+    mut players: Query<(Entity, &mut AnimationGraphPlayer, &mut crate::SourceAnimationInputs), (F, Without<ManualAnimationPlayer>)>,
     resources: SystemResources,
 ) {
-    players.par_iter_mut().for_each(|(entity, player)| run_animation_player(entity, player, &time, &resources));
-    players.par_iter_mut().for_each(|(entity, player)| {
+    players.par_iter_mut().for_each(|(entity, player, inputs)| inputs.evaluate(entity, || run_animation_player(entity, player, &time, &resources)));
+    players.par_iter_mut().for_each(|(_, player, mut inputs)| {
         debug_draw_animation_players(player, &resources);
-        crate::source_gameplay_tag_input::set_rig_query_context(entity, None);
+        inputs.set_rig_query_context(None);
     });
 }
 
@@ -155,14 +156,14 @@ mod tests {
         app.cleanup();
         for frame in 1..=2 {
             for entity in [sampler, character] {
-                crate::source_gameplay_tag_input::set_rig_query_context(entity, Some(crate::control_rig_query::RigQueryContext {
+                app.world_mut().get_mut::<crate::SourceAnimationInputs>(entity).unwrap().set_rig_query_context(Some(crate::control_rig_query::RigQueryContext {
                     world: std::sync::Arc::new(crate::control_rig_query::RigQueryWorld { trees: default(), colliders: default() }),
                     to_world: default(), channel: "Visibility".into(), filter: default(),
                 }));
             }
             app.world_mut().run_schedule(PostUpdate);
             for (entity, expected) in [(sampler, (frame - 1) as f32), (character, frame as f32)] {
-                assert!(crate::source_gameplay_tag_input::rig_query_context(entity).is_none());
+                assert!(app.world().get::<crate::SourceAnimationInputs>(entity).unwrap().rig_query_context().is_none());
                 let player = app.world().get::<AnimationGraphPlayer>(entity).unwrap();
                 assert_eq!(player.get_default_output_pose().unwrap().timestamp, expected);
                 assert_eq!(player.get_context_arena().unwrap().frame_index(), frame);

@@ -1,18 +1,17 @@
-use std::{
-    collections::HashMap,
-    sync::{OnceLock, RwLock},
-};
+use std::{cell::RefCell, collections::HashMap, sync::Arc};
 
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
     animation_node::{NodeLike, ReflectNodeLike},
+    animation_graph::AnimationGraph,
+    animation_graph_player::AnimationGraphPlayer,
     context::{new_context::NodeContext, spec_context::SpecContext},
     edge_data::DataSpec,
     errors::GraphError,
 };
 use bevy_gameplay_tag::GameplayTag;
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct SourceInputValues {
     tags: HashMap<String, GameplayTag>,
     slots: HashMap<String, crate::animation_context::AnimationContextState>,
@@ -22,106 +21,94 @@ struct SourceInputValues {
 
 #[derive(Clone, Debug)]
 pub struct LinkedGraphInput {
-    pub graph: Handle<bevy_animation_graph::core::animation_graph::AnimationGraph>,
+    pub graph: Handle<AnimationGraph>,
     pub blend_in: f32,
     pub blend_out: f32,
 }
 
-type GameplayTagInputs = HashMap<Entity, SourceInputValues>;
+#[derive(Component, Clone, Default)]
+pub struct SourceAnimationInputs(Arc<SourceInputValues>);
 
-static INPUTS: OnceLock<RwLock<GameplayTagInputs>> = OnceLock::new();
-
-fn inputs() -> &'static RwLock<GameplayTagInputs> {
-    INPUTS.get_or_init(Default::default)
+thread_local! {
+    static EVALUATING: RefCell<Option<(Entity, SourceAnimationInputs)>> = const { RefCell::new(None) };
 }
 
-pub fn set_linked_graph_input(entity: Entity, key: &str, graph: Option<LinkedGraphInput>) {
-    let mut values = inputs().write().expect("source input registry is poisoned");
-    if let Some(graph) = graph {
-        values.entry(entity).or_default().graphs.insert(key.to_owned(), graph);
-    } else if let Some(values) = values.get_mut(&entity) {
-        values.graphs.remove(key);
+impl SourceAnimationInputs {
+    pub fn set_gameplay_tag_input(&mut self, key: impl Into<String>, tag: GameplayTag) {
+        Arc::make_mut(&mut self.0).tags.insert(key.into(), tag);
+    }
+
+    pub fn gameplay_tag_input(&self, key: &str) -> Option<GameplayTag> {
+        self.0.tags.get(key).cloned()
+    }
+
+    pub fn set_linked_graph_input(&mut self, key: &str, graph: Option<LinkedGraphInput>) {
+        let values = Arc::make_mut(&mut self.0);
+        if let Some(graph) = graph { values.graphs.insert(key.to_owned(), graph); }
+        else { values.graphs.remove(key); }
+    }
+
+    pub fn linked_graph_input(&self, key: &str) -> Option<LinkedGraphInput> {
+        self.0.graphs.get(key).cloned()
+    }
+
+    pub fn set_slot_input_context(&mut self, key: &str, context: Option<crate::animation_context::AnimationContextState>) {
+        let values = Arc::make_mut(&mut self.0);
+        if let Some(context) = context { values.slots.insert(key.to_owned(), context); }
+        else { values.slots.remove(key); }
+    }
+
+    pub fn slot_input_context(&self, key: &str) -> Option<crate::animation_context::AnimationContextState> {
+        self.0.slots.get(key).cloned()
+    }
+
+    pub fn set_rig_query_context(&mut self, context: Option<crate::control_rig_query::RigQueryContext>) {
+        Arc::make_mut(&mut self.0).rig_query = context;
+    }
+
+    pub fn rig_query_context(&self) -> Option<crate::control_rig_query::RigQueryContext> {
+        self.0.rig_query.clone()
+    }
+
+    pub fn evaluate<T>(&self, entity: Entity, evaluate: impl FnOnce() -> T) -> T {
+        struct Restore(Option<(Entity, SourceAnimationInputs)>);
+        impl Drop for Restore {
+            fn drop(&mut self) { EVALUATING.with(|current| current.replace(self.0.take())); }
+        }
+        let _restore = Restore(EVALUATING.with(|current| current.replace(Some((entity, self.clone())))));
+        evaluate()
     }
 }
 
-pub(crate) fn linked_graph_input(entity: Entity, key: &str) -> Option<LinkedGraphInput> {
-    inputs().read().expect("source input registry is poisoned").get(&entity).and_then(|values| values.graphs.get(key)).cloned()
-}
+pub struct SourceAnimationInputsPlugin;
 
-pub fn set_rig_query_context(entity: Entity, context: Option<crate::control_rig_query::RigQueryContext>) {
-    let mut inputs = inputs().write().expect("source input registry is poisoned");
-    if context.is_some() {
-        inputs.entry(entity).or_default().rig_query = context;
-    } else if let Some(values) = inputs.get_mut(&entity) {
-        values.rig_query = None;
+impl Plugin for SourceAnimationInputsPlugin {
+    fn build(&self, app: &mut App) {
+        app.register_required_components::<AnimationGraphPlayer, SourceAnimationInputs>()
+            .add_observer(|event: On<Discard, AnimationGraphPlayer>, mut inputs: Query<&mut SourceAnimationInputs>| {
+                if let Ok(mut inputs) = inputs.get_mut(event.entity) { *inputs = default(); }
+            });
     }
 }
 
-pub fn rig_query_context(entity: Entity) -> Option<crate::control_rig_query::RigQueryContext> {
-    inputs().read().expect("source input registry is poisoned").get(&entity)
-        .and_then(|values| values.rig_query.clone())
+fn current_inputs(entity: Entity) -> Option<SourceAnimationInputs> {
+    EVALUATING.with_borrow(|current| current.as_ref().filter(|(root, _)| *root == entity).map(|(_, inputs)| inputs.clone()))
 }
 
-pub fn set_gameplay_tag_input(entity: Entity, key: impl Into<String>, tag: GameplayTag) {
-    inputs()
-        .write()
-        .expect("gameplay tag input registry is poisoned")
-        .entry(entity)
-        .or_default()
-        .tags
-        .insert(key.into(), tag);
+pub(crate) fn active_gameplay_tag_input(entity: Entity, key: &str) -> Option<GameplayTag> {
+    current_inputs(entity)?.gameplay_tag_input(key)
 }
 
-pub fn set_slot_input_context(
-    entity: Entity,
-    key: &str,
-    context: Option<crate::animation_context::AnimationContextState>,
-) {
-    let mut values = inputs().write().expect("source input registry is poisoned");
-    let values = values.entry(entity).or_default();
-    if let Some(context) = context {
-        values.slots.insert(key.to_owned(), context);
-    } else {
-        values.slots.remove(key);
-    }
+pub(crate) fn active_linked_graph_input(entity: Entity, key: &str) -> Option<LinkedGraphInput> {
+    current_inputs(entity)?.linked_graph_input(key)
 }
 
-pub fn slot_input_context(
-    entity: Entity,
-    key: &str,
-) -> Option<crate::animation_context::AnimationContextState> {
-    inputs()
-        .read()
-        .expect("source input registry is poisoned")
-        .get(&entity)
-        .and_then(|values| values.slots.get(key))
-        .cloned()
+pub(crate) fn active_slot_input_context(entity: Entity, key: &str) -> Option<crate::animation_context::AnimationContextState> {
+    current_inputs(entity)?.slot_input_context(key)
 }
 
-pub(crate) fn clear_gameplay_tag_inputs(entity: Entity) {
-    inputs()
-        .write()
-        .expect("gameplay tag input registry is poisoned")
-        .remove(&entity);
-}
-
-pub fn gameplay_tag_input(entity: Entity, key: &str) -> Option<GameplayTag> {
-    inputs()
-        .read()
-        .expect("gameplay tag input registry is poisoned")
-        .get(&entity)
-        .and_then(|values| values.tags.get(key))
-        .cloned()
-}
-
-pub(crate) fn clear_removed_gameplay_tag_inputs(
-    mut removed: RemovedComponents<
-        bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer,
-    >,
-) {
-    for entity in removed.read() {
-        clear_gameplay_tag_inputs(entity);
-    }
+pub(crate) fn active_rig_query_context(entity: Entity) -> Option<crate::control_rig_query::RigQueryContext> {
+    current_inputs(entity)?.rig_query_context()
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -148,7 +135,7 @@ impl SourceGameplayTagInputNode {
         if self.key.is_empty() {
             return Err("gameplay tag key is empty");
         }
-        let tag = gameplay_tag_input(entity, &self.key).ok_or("gameplay tag input is missing")?;
+        let tag = active_gameplay_tag_input(entity, &self.key).ok_or("gameplay tag input is missing")?;
         if !self.expected_tag.is_empty() {
             return Ok(tag.matches_tag_exact(&GameplayTag::new(&self.expected_tag)));
         }
@@ -185,57 +172,82 @@ impl NodeLike for SourceGameplayTagInputNode {
 mod tests {
     use super::*;
 
+    fn app() -> App {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, SourceAnimationInputsPlugin));
+        app
+    }
+
+    #[test]
+    fn input_namespaces_separate_worlds_with_identical_entity_ids() {
+        let mut first = app();
+        let mut second = app();
+        let first_entity = first.world_mut().spawn(AnimationGraphPlayer::default()).id();
+        let second_entity = second.world_mut().spawn(AnimationGraphPlayer::default()).id();
+        assert_eq!(first_entity, second_entity);
+        first.world_mut().get_mut::<SourceAnimationInputs>(first_entity).unwrap().set_gameplay_tag_input("world_scope", GameplayTag::new("Fixture.First"));
+        second.world_mut().get_mut::<SourceAnimationInputs>(second_entity).unwrap().set_gameplay_tag_input("world_scope", GameplayTag::new("Fixture.Second"));
+        let first = first.world().get::<SourceAnimationInputs>(first_entity).unwrap();
+        let second = second.world().get::<SourceAnimationInputs>(second_entity).unwrap();
+        let read = || active_gameplay_tag_input(first_entity, "world_scope").unwrap().as_str().to_owned();
+        first.evaluate(first_entity, || {
+            assert_eq!(read(), "Fixture.First");
+            assert_eq!(second.evaluate(second_entity, read), "Fixture.Second");
+            assert_eq!(read(), "Fixture.First");
+            let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| second.evaluate(second_entity, || panic!("Scope exit"))));
+            assert!(panic.is_err());
+            assert_eq!(read(), "Fixture.First");
+        });
+        assert!(active_gameplay_tag_input(first_entity, "world_scope").is_none());
+    }
+
+    #[test]
+    fn old_player_removal_cannot_clear_republished_inputs() {
+        let mut app = app();
+        let entity = app.world_mut().spawn(AnimationGraphPlayer::default()).id();
+        for replace in [false, true] {
+            let old = {
+                let mut inputs = app.world_mut().get_mut::<SourceAnimationInputs>(entity).unwrap();
+                inputs.set_gameplay_tag_input("replacement", GameplayTag::new("Fixture.Old"));
+                inputs.set_slot_input_context("slot", Some(default()));
+                inputs.set_linked_graph_input("layer", Some(LinkedGraphInput { graph: default(), blend_in: 0.2, blend_out: 0.2 }));
+                inputs.set_rig_query_context(Some(crate::control_rig_query::RigQueryContext {
+                    world: Arc::new(crate::control_rig_query::RigQueryWorld { trees: default(), colliders: default() }),
+                    to_world: default(), channel: "Visibility".into(), filter: default(),
+                }));
+                Arc::downgrade(&inputs.0)
+            };
+            if !replace { app.world_mut().entity_mut(entity).remove::<AnimationGraphPlayer>(); }
+            app.world_mut().entity_mut(entity).insert(AnimationGraphPlayer::default());
+            assert!(old.upgrade().is_none(), "Discard retained old instance inputs");
+            let inputs = app.world().get::<SourceAnimationInputs>(entity).unwrap();
+            assert!(inputs.gameplay_tag_input("replacement").is_none());
+            assert!(inputs.slot_input_context("slot").is_none());
+            assert!(inputs.linked_graph_input("layer").is_none());
+            assert!(inputs.rig_query_context().is_none());
+            app.world_mut().get_mut::<SourceAnimationInputs>(entity).unwrap().set_gameplay_tag_input("replacement", GameplayTag::new("Fixture.New"));
+            app.update();
+            assert_eq!(app.world().get::<SourceAnimationInputs>(entity).unwrap().gameplay_tag_input("replacement").unwrap().as_str(), "Fixture.New");
+        }
+        let old = Arc::downgrade(&app.world().get::<SourceAnimationInputs>(entity).unwrap().0);
+        app.world_mut().despawn(entity);
+        assert!(old.upgrade().is_none());
+    }
+
     #[test]
     fn source_gameplay_tag_input_uses_real_tag_identity() {
-        use bevy::reflect::TypeRegistry;
-
-        let entity = Entity::from_raw_u32(991).unwrap();
-        set_gameplay_tag_input(
-            entity,
-            "get_parent.gait",
-            GameplayTag::new("Als.Gait.Walking"),
-        );
-        let node = SourceGameplayTagInputNode {
-            key: "get_parent.gait".to_owned(),
-            output: "Value".to_owned(),
-            ..default()
-        };
-        assert_eq!(node.value(entity), Ok(true));
-        let expected = SourceGameplayTagInputNode {
-            expected_tag: "Als.Gait.Walking".to_owned(),
-            ..node.clone()
-        };
-        assert_eq!(expected.value(entity), Ok(true));
-        let mismatch = SourceGameplayTagInputNode {
-            expected_tag: "Als.Gait.Sprinting".to_owned(),
-            ..node
-        };
-        assert_eq!(mismatch.value(entity), Ok(false));
-        set_slot_input_context(entity, "slot.pose", Some(Default::default()));
-        assert!(slot_input_context(entity, "slot.pose").is_some());
-        let query = crate::control_rig_query::RigQueryContext {
-            world: std::sync::Arc::new(crate::control_rig_query::RigQueryWorld {
-                trees: default(), colliders: default(),
-            }), to_world: default(), channel: "Visibility".into(), filter: default(),
-        };
-        set_rig_query_context(entity, Some(query.clone()));
-        assert!(rig_query_context(entity).is_some());
-        set_rig_query_context(entity, None);
-        assert!(rig_query_context(entity).is_none());
-        assert!(slot_input_context(entity, "slot.pose").is_some());
-        set_rig_query_context(entity, Some(query));
-        clear_gameplay_tag_inputs(entity);
-        assert!(rig_query_context(entity).is_none());
-        assert!(gameplay_tag_input(entity, "get_parent.gait").is_none());
-        assert!(slot_input_context(entity, "slot.pose").is_none());
-        let mut registry = TypeRegistry::default();
+        let entity = Entity::PLACEHOLDER;
+        let mut inputs = SourceAnimationInputs::default();
+        inputs.set_gameplay_tag_input("get_parent.gait", GameplayTag::new("Als.Gait.Walking"));
+        let node = SourceGameplayTagInputNode { key: "get_parent.gait".into(), output: "Value".into(), ..default() };
+        inputs.evaluate(entity, || {
+            assert_eq!(node.value(entity), Ok(true));
+            assert_eq!(SourceGameplayTagInputNode { expected_tag: "Als.Gait.Walking".into(), ..node.clone() }.value(entity), Ok(true));
+            assert_eq!(SourceGameplayTagInputNode { expected_tag: "Als.Gait.Sprinting".into(), ..node.clone() }.value(entity), Ok(false));
+        });
+        assert!(node.value(entity).is_err());
+        let mut registry = bevy::reflect::TypeRegistry::default();
         registry.register::<SourceGameplayTagInputNode>();
-        assert!(
-            registry
-                .get(std::any::TypeId::of::<SourceGameplayTagInputNode>())
-                .unwrap()
-                .data::<ReflectNodeLike>()
-                .is_some()
-        );
+        assert!(registry.get(std::any::TypeId::of::<SourceGameplayTagInputNode>()).unwrap().data::<ReflectNodeLike>().is_some());
     }
 }

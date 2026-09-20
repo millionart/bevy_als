@@ -7,7 +7,7 @@ use bevy_animation_graph::core::{
 };
 
 use crate::slot_node::{blend_slot_pose, slot_blend_weight};
-use crate::source_gameplay_tag_input::slot_input_context;
+use crate::source_gameplay_tag_input::active_slot_input_context;
 use crate::source_pose_nodes::blend_animation_contexts;
 use crate::{
     animation_context::{AnimationContextState, pose_input_context_state},
@@ -107,7 +107,7 @@ impl NodeLike for SourceSlotNode {
         {
             let mut context = slot_context(
                 pose_input_context_state(&ctx, "Source"),
-                slot_input_context(ctx.graph_context.root_entity, &self.pose_key),
+                active_slot_input_context(ctx.graph_context.root_entity, &self.pose_key),
                 1.0,
                 false,
             )
@@ -126,7 +126,7 @@ impl NodeLike for SourceSlotNode {
             base_context,
             overlay
                 .as_ref()
-                .and_then(|_| slot_input_context(ctx.graph_context.root_entity, &self.pose_key)),
+                .and_then(|_| active_slot_input_context(ctx.graph_context.root_entity, &self.pose_key)),
             slot_weight * layer_weight,
             mesh_space_additive,
         );
@@ -210,6 +210,7 @@ mod tests {
                 f32,
             )>,
             resources: SystemResources,
+            source_inputs: Query<&crate::SourceAnimationInputs>,
         ) -> (Pose, AnimationContextState, bool) {
             let graph = resources.animation_graph_assets.get(&handle).unwrap();
             let mut arena = GraphContextArena::new(handle.id());
@@ -233,11 +234,11 @@ mod tests {
                 &mut gizmos,
                 &inputs,
             );
-            let pose = graph
+            let pose = source_inputs.get(entity).unwrap().evaluate(context.root_entity, || graph
                 .query_with_context(
                     QueryOutputTime::Forced(TimeUpdate::Delta(0.1)),
                     context.clone(),
-                )
+                ))
                 .unwrap()
                 .remove("Pose")
                 .unwrap()
@@ -313,11 +314,12 @@ mod tests {
             ..default()
         };
         context.curves.insert("FootLeftIk".to_owned(), 0.8);
-        crate::source_gameplay_tag_input::set_slot_input_context(
-            entity,
+        let mut source_inputs = crate::SourceAnimationInputs::default();
+        source_inputs.set_slot_input_context(
             "slot_pose",
             Some(context),
         );
+        world.entity_mut(entity).insert(source_inputs);
         for (handle, always_update, weight) in [
             (handle.clone(), false, 0.6),
             (handle.clone(), false, 1.0),
@@ -346,7 +348,7 @@ mod tests {
                 "slot_weight={weight}, always_update={always_update}"
             );
         }
-        crate::source_gameplay_tag_input::clear_gameplay_tag_inputs(entity);
+
     }
 
     #[test]

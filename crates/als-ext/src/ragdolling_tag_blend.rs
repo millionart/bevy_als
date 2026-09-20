@@ -16,7 +16,7 @@ use crate::{
         GameplayTagBlendState, WEIGHT_THRESHOLD, advance_gameplay_tag_weights,
         select_gameplay_tag_child_index_for_tag,
     },
-    source_gameplay_tag_input::gameplay_tag_input,
+    source_gameplay_tag_input::active_gameplay_tag_input,
 };
 
 pub const INPUT_POSE: &str = "input_pose";
@@ -112,7 +112,7 @@ impl NodeLike for RagdollingTagBlendNode {
     }
 
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        let active_tag = gameplay_tag_input(ctx.graph_context.root_entity, &self.active_key)
+        let active_tag = active_gameplay_tag_input(ctx.graph_context.root_entity, &self.active_key)
             .ok_or_else(|| GraphError::GlobalInputDataMissing(self.active_key.clone()))?;
         let active_index = select_gameplay_tag_child_index_for_tag(
             std::slice::from_ref(&self.tag),

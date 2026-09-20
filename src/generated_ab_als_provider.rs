@@ -217,6 +217,7 @@ fn set_source_slot_defaults(player: &mut AnimationGraphPlayer) {
 
 #[allow(clippy::type_complexity)]
 fn generated_ab_als_input_writer(
+    mut source_inputs: Query<&mut als_ext::SourceAnimationInputs>,
     time: Res<Time>,
     params_assets: Res<Assets<AlsMovementParams>>,
     skeletons: Res<Assets<bevy_animation_graph::core::skeleton::Skeleton>>,
@@ -300,7 +301,7 @@ fn generated_ab_als_input_writer(
             } else if player.get_global_input_data("locomotion_state.input_yaw_angle_world_space").is_none() {
                 player.set_global_input_data("locomotion_state.input_yaw_angle_world_space", -body_degrees);
             }
-            let action_active = als_ext::source_gameplay_tag_input::gameplay_tag_input(instance.player_entity(), "locomotion_action").is_some_and(|tag| tag.is_valid());
+            let action_active = source_inputs.get(instance.player_entity()).ok().and_then(|inputs| inputs.gameplay_tag_input("locomotion_action")).is_some_and(|tag| tag.is_valid());
             if !action_active {
                 player.set_global_input_data(
                     "view_state.yaw_angle",
@@ -390,17 +391,14 @@ fn generated_ab_als_input_writer(
                 .and_then(|state| state.f32("HipsDirectionLock"))
                 .unwrap_or(0.0)
                 .clamp(-1.0, 1.0);
-            als_ext::set_gameplay_tag_input(
-                instance.player_entity(),
-                "grounded_entry_mode",
+            source_inputs.get_mut(instance.player_entity()).unwrap().set_gameplay_tag_input("grounded_entry_mode",
                 GameplayTag::new(
                     if grounded_entry_mode == Some(&AlsGroundedEntryMode::FromRoll) {
                         "Als.GroundedEntryMode.FromRoll"
                     } else {
                         ""
                     },
-                ),
-            );
+                ),);
             for (key, value) in [
                 ("animation.delta_seconds", time.delta_secs()),
                 (
@@ -459,6 +457,7 @@ mod tests {
         use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner};
         use bevy_animation_graph::{AnimationGraphPlugin, core::animated_scene::AnimatedSceneHandle};
         let mut app = App::new();
+        app.add_plugins(als_ext::SourceAnimationInputsPlugin);
         app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
             bevy::mesh::MeshPlugin, bevy::gizmos::GizmoPlugin,
             avian3d::prelude::PhysicsPlugins::new(PostUpdate),
@@ -540,6 +539,7 @@ mod tests {
         use bevy::{ecs::system::RunSystemOnce, world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner}};
         use bevy_animation_graph::{AnimationGraphPlugin, core::animated_scene::AnimatedSceneHandle};
         let mut app = App::new();
+        app.add_plugins(als_ext::SourceAnimationInputsPlugin);
         app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin, bevy::mesh::MeshPlugin,
             bevy::gizmos::GizmoPlugin, PhysicsPlugins::new(PostUpdate), AnimationGraphPlugin::from_physics_schedule(PostUpdate)))
             .init_asset::<WorldAsset>().init_asset::<AlsMovementParams>();
