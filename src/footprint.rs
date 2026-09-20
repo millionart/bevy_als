@@ -13,7 +13,7 @@ pub struct FootprintDefinition {
     pub source_settings: String,
     pub notify_settings_reference: String,
     pub character_receives_decals: bool,
-    pub trace_channel: String,
+    pub trace_layer: als_core::character::AlsCollisionLayer,
     pub trace_distance: f32,
     pub spawn_angle_cos: f32,
     pub foot_y_axes: [Vec3; 2],
@@ -157,7 +157,7 @@ fn spawn_footprints(
             ignored.extend(ragdoll.colliders.values().copied());
         }
     }
-    let filter = SpatialQueryFilter::from_excluded_entities(ignored);
+    let filter = SpatialQueryFilter::from_excluded_entities(ignored).with_mask(FOOTPRINT.trace_layer);
     for event in events.read().filter(|event| event.class_name == "AlsAnimNotify_FootstepEffects" && event.phase == als_ext::EventPhase::Point) {
         let Ok((bones, locomotion, assembly, mut diagnostics)) = characters.get_mut(event.character) else { continue; };
         diagnostics.notifications += 1;
@@ -300,7 +300,8 @@ mod tests {
 
     #[test]
     fn source_notifications_use_final_bones_trace_fallback_and_spawn_flags() {
-        use avian3d::prelude::{Collider, PhysicsPlugins, RigidBody};
+        use avian3d::prelude::{Collider, CollisionLayers, LayerMask, PhysicsPlugins, RigidBody};
+        use als_core::character::AlsCollisionLayer;
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin, PhysicsPlugins::default()))
             .init_asset::<Mesh>()
@@ -310,7 +311,10 @@ mod tests {
             .insert_resource(FootprintAssets { mesh: default(), texture: default() });
         app.finish();
         app.cleanup();
-        let floor = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 1.0, 4.0), Transform::from_xyz(0.0, -0.5, 0.0))).id();
+        let floor = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 1.0, 4.0), Transform::from_xyz(0.0, -0.5, 0.0),
+            CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], LayerMask::ALL))).id();
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.01, 4.0), Transform::from_xyz(0.0, 0.025, 0.0),
+            CollisionLayers::new(AlsCollisionLayer::Default, LayerMask::ALL)));
         let avatar = app.world_mut().spawn(Transform::IDENTITY).id();
         let rotation = Quat::from_rotation_z(std::f32::consts::FRAC_PI_2);
         let left = app.world_mut().spawn(Transform::from_xyz(-0.1, 0.05, 0.0).with_rotation(rotation)).id();

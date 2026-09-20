@@ -52,11 +52,11 @@ pub const ALS_CHARACTER_FLOOR_CLEARANCE: f32 = 0.019;
 pub const ALS_CHARACTER_TNUA_FLOAT_EPSILON: f32 = 0.005;
 const CRUSH_RECOVERY_SKIN: f32 = 0.001;
 
-#[derive(PhysicsLayer, Default)]
+#[derive(PhysicsLayer, Default, Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
 pub enum AlsCollisionLayer {
     #[default]
     Default,
-    Camera,
+    Visibility,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -464,7 +464,7 @@ mod tests {
 
     #[test]
     fn collision_layer_owners_restore_only_after_the_last_release() {
-        let custom = CollisionLayers::from_bits(0b0010, 0b1100);
+        let custom = CollisionLayers::new(AlsCollisionLayer::Visibility, [AlsCollisionLayer::Default, AlsCollisionLayer::Visibility]);
         let mut ownership = AlsCollisionLayerOwnership::default();
         assert_eq!(
             ownership.set_owner(AlsCollisionLayerOwner::Mantle, Some(custom), true),

@@ -379,7 +379,7 @@ fn publish_control_rig_inputs(
             ignored.extend(ragdoll.colliders.values().copied());
         }
     }
-    let filter = SpatialQueryFilter::from_excluded_entities(ignored);
+    let filter = SpatialQueryFilter::from_excluded_entities(ignored).with_mask(als_core::character::AlsCollisionLayer::Visibility);
     let mut world: Option<Arc<RigQueryWorld>> = None;
     for (entity, input) in &characters {
         let Some((avatar, _, instance)) = avatars.iter().find(|(_, parent, _)| parent.parent() == entity) else { continue; };
@@ -527,6 +527,10 @@ mod tests {
             assert_eq!(query.to_world.rotation, avatar_world.rotation.as_dquat());
             assert_eq!(query.to_world.scale, avatar_world.scale.as_dvec3());
             assert!(query.filter.excluded_entities.contains(&actor));
+            assert!(!query.filter.test(Entity::PLACEHOLDER, avian3d::prelude::CollisionLayers::new(
+                als_core::character::AlsCollisionLayer::Default, avian3d::prelude::LayerMask::ALL)));
+            assert!(query.filter.test(Entity::PLACEHOLDER, avian3d::prelude::CollisionLayers::new(
+                als_core::character::AlsCollisionLayer::Visibility, avian3d::prelude::LayerMask::ALL)));
             assert_eq!(app.world().get::<AlsControlRigState>(actor).unwrap().final_yaw_angle,
                 input.spine_yaw_angle_degrees);
             let expected = Quat::IDENTITY;

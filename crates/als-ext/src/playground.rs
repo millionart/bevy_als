@@ -88,7 +88,7 @@ fn playground_box_physics_bridge(
             let is_floor = parent_is_floor || name.as_str() == "BP_SimpleObject5:aabb";
             let mut entity_commands = commands.entity(entity);
             entity_commands.insert((RigidBody::Static, shape, CollisionLayers::new(
-                [AlsCollisionLayer::Default, AlsCollisionLayer::Camera], LayerMask::ALL,
+                [AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], LayerMask::ALL,
             )));
             if is_floor {
                 entity_commands.insert(AlsCrushRecoveryFloor {

@@ -1,7 +1,7 @@
 {
   "source_settings": "/ALS/ALS/Data/Footstep/FES_Als_Default.FES_Als_Default",
   "notify_settings_reference": "None//ALS/ALS/Data/Footstep/FES_Als_Default/FES_Als_Default",
-  "trace_channel": "ECC_Visibility",
+  "trace_layer": "Visibility",
   "trace_distance": 0.5,
   "spawn_angle_cos": 0.819152,
   "foot_y_axes": [

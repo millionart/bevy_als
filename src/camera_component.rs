@@ -517,7 +517,7 @@ pub(crate) mod tests {
         )).id();
         app.update();
         app.world_mut().entity_mut(collider).insert(CollisionLayers::new(
-            [AlsCollisionLayer::Default, AlsCollisionLayer::Camera],
+            [AlsCollisionLayer::Default, AlsCollisionLayer::Visibility],
             avian3d::prelude::LayerMask::ALL,
         ));
         for along_boom in [0.25, 0.0] {

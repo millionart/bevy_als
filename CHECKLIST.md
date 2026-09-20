@@ -47,6 +47,14 @@
   - 01启动后/动作Gate前2026-09-20 14:34：startup16.312s功能PASS，manual/validator退出0、SSAO/TAA与decal renderer检查通过，无功能issue。原始性能超限仍记deferred；继续同二进制transition_notify，核对实际FSM/通知消费与姿态守卫。
   - 01完成2026-09-20 14:35：真实transition_notify8.554s功能PASS，manual/validator退出0、GPU检查通过，无功能issue；性能仍deferred。13项focused回归、三项静态审计、销毁顺序与缓存/重建反例和消融闭合；仅保留有效实例过滤与必要重建清理，删除旧secondary phase资源/推进/测试和无用probe读取。开始14:06、预估14:56、实际14:35、偏差-21分钟，本项完成，无新增依赖、图算法或转换规则。
 - [ ] BF117.02 足迹查询通道、多Surface与多Settings：依赖01；进入时登记源闭包与估时，复用Avian层与现有离线数据入口，不引入UE通道框架。
+  - [x] BF117.02a 统一命名查询层：开始2026-09-20 14:36、预估结束2026-09-20 15:11。fresh FES原生38.527s、CR_Als40.418s及本地FootstepEffects/AlsRigUnit_FootOffset证明三个consumer均用Visibility；当前相机层已代表这组关系，Footprint/Rig发布器仍没有mask。将共享PhysicsLayer变体命名为Visibility，保持全部物理membership与既有相机过滤关系，足迹离线设置消费命名层，并给Rig/原公开foot probe应用同层；source ABI中的通道名字保留作合同校验，不建立数字ID或并行通道表。先用最近的Ignore物理几何与Rig发布器反例，再最小修改、原生query回归和原Playground startup/footprint/foot_ik Gate。估时依据为两个实际漏过滤入口、一个既有公开probe、四个场景collider入口与近期70秒编译/短场景记录；不改Rig算法或转换器。
+  - 02a静态闭环2026-09-20 14:47：旧Footprint命中近处Default-only几何、Rig发布器接受Default-only的两项反例74.028s均FAIL；统一Visibility后项目13项154.811s与Avian几何/相机sweep-MTD/碰撞层恢复三项115.190s全部PASS。足迹fresh设置只改变trace_channel→trace_layer，其他字段逐项相等；源导入/check/self-test及移除未知层拒绝的消融0.846s通过。现有公开foot probe唯一额外调用者foot_ik_gate及原Playground动作fixture的普通实体同步声明Default+Visibility，明确Ignore反例仍Default-only，所有相关直接数字mask已去掉。未新增层注册器、转换规则或物理解算逻辑；下一步同target_game/play预构建，再startup/footprint/foot_ik公共功能Gate。
+  - 02a通道纠正复核/真实入口前2026-09-20 14:55：用户要求明确区分Visibility与Camera；fresh相机Settings31.937s、Playground37.154s、角色35.727s原生重读。角色Camera.Settings确指向ALSCamera/Data/CS_Als_Default，其ThirdPerson.TraceChannel=ECC_Visibility，Rig与Footprint也选择ECC_Visibility；关卡Cube的有效阻挡含Visibility、不含Camera，BodyInstance明确Camera Ignore，故二者源身份不能合并。旧项目Camera层仅是Visibility的误导性consumer命名，现改为Visibility，并未把ECC_Camera别名到它；未使用的源Camera通道仍由导入边界拒绝，新增消费者时必须独立命名映射。skill已修正为仅同一源通道可共享层，响应暂时相同也不能合并。首次预构建检出manual_playground入口漏改旧枚举名，现同target_game/play最终16.143s通过；开始startup→footprint→foot_ik功能复验。
+  - 02a启动后/足迹Gate前2026-09-20 14:57：同入口startup16.076s功能PASS，manual/validator0、GPU检查通过；源通道合同、13+3回归和导入消融仍闭合，继续原Playground footprint，性能保持deferred。
+  - 02a足迹后/Foot IK Gate前2026-09-20 14:59：原Playground footprint31.326s功能PASS，18项覆盖全部执行，实际脚步、左右足迹、旋转表面挂载、到期清理及GPU检查通过；同二进制继续foot_ik，查询合同与图/姿态阈值不变，性能仍deferred。
+  - 02a完成2026-09-20 15:01：foot_ik81.475s公共功能PASS，斜坡/台阶/蹲行/空中/落地/翻滚/攀越及cleanup全部通过，manual/validator0、GPU检查通过，无功能issue。与startup16.076s、footprint31.326s及13+3focused回归共同闭合统一命名层；Visibility按源当前三处实际选择共享，ECC_Camera保持独立源身份且没有别名。开始14:36、预估15:11、实际15:01、偏差-10分钟，本子项完成，性能/截图继续暂停。
+  - [ ] BF117.02b 多Surface分派：依赖02a，按实际hit surface精确选择并保留源fallback，覆盖不同设置的投影、附着、淡出参数；开始时登记估时。
+  - [ ] BF117.02c 多Settings资产消费：依赖02b，从通知引用解析合法目标设置，复用现有资产加载方式；开始时登记估时。
 - [ ] BF117.03 开放Tag状态与Overlay资产消费：依赖02；进入时登记源/目标完整调用链及独立验收拆分，确保新增Tag/映射可从角色入口到达图和物件。
 
 ## BF116 相机、Overlay 与场景 Actor 移植

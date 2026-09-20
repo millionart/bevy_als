@@ -114,7 +114,7 @@ fn playground_moving_box_physics_bridge(
             collider.half_extents.x * 2.0,
             collider.half_extents.y * 2.0,
             collider.half_extents.z * 2.0,
-        ), CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Camera], LayerMask::ALL)));
+        ), CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], LayerMask::ALL)));
         commands
             .entity(root)
             .insert((RigidBody::Kinematic, PlaygroundPhysicsDriven));
@@ -162,7 +162,7 @@ fn playground_mesh_physics_bridge(
         commands.entity(root).insert((
             RigidBody::Static,
             template.collider,
-            CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Camera], LayerMask::ALL),
+            CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], LayerMask::ALL),
             PlaygroundMeshColliderBuilt {
                 mesh_base: source.mesh_base.clone(),
                 kind: source.kind,

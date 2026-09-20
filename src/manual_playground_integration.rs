@@ -3487,6 +3487,7 @@ fn spawn_manual_integration_fixture(
     commands.spawn((
         Name::new("manual_integration_mantle_ledge"),
         RigidBody::Static,
+        CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], avian3d::prelude::LayerMask::ALL),
         Collider::cuboid(2.4, mantle_height, 1.2),
         Transform::from_translation(ledge_center),
         Mesh3d(meshes.add(Mesh::from(Cuboid::new(4.8, 1.6, 2.4)))),
@@ -3497,6 +3498,7 @@ fn spawn_manual_integration_fixture(
             Name::new("manual_integration_platform"),
             ManualIntegrationPlatform,
             RigidBody::Kinematic,
+            CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], avian3d::prelude::LayerMask::ALL),
             Collider::cuboid(6.0, 0.5, 6.0),
             LinearVelocity(Vec3::X * 1.5),
             Transform::from_translation(platform_home),
@@ -4331,6 +4333,7 @@ fn drive_manual_integration(
                         Name::new("manual_foot_ik_slope"),
                         ManualFootIkTerrain,
                         RigidBody::Static,
+                        CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], avian3d::prelude::LayerMask::ALL),
                         Collider::cuboid(3.0, 0.12, 2.5),
                         Transform::from_translation(
                             fixture.locomotion_start
@@ -4348,6 +4351,7 @@ fn drive_manual_integration(
                         Name::new("manual_foot_ik_step"),
                         ManualFootIkTerrain,
                         RigidBody::Static,
+                        CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], avian3d::prelude::LayerMask::ALL),
                         Collider::cuboid(1.6, 0.20, 1.5),
                         Transform::from_translation(
                             fixture.locomotion_start
@@ -4978,6 +4982,7 @@ fn drive_manual_integration(
                             .spawn((
                                 Name::new("manual_integration_crouch_canopy"),
                                 RigidBody::Static,
+                                CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], avian3d::prelude::LayerMask::ALL),
                                 Collider::cuboid(1.2, 0.08, 1.2),
                                 Transform::from_translation(canopy_center)
                                     .with_scale(Vec3::new(1.5, 0.1, 1.5)),
@@ -5689,7 +5694,7 @@ fn drive_manual_integration(
                                         "manual_integration_camera_obstacle_{index}"
                                     )),
                                     RigidBody::Static,
-                                    CollisionLayers::new(AlsCollisionLayer::Camera, avian3d::prelude::LayerMask::NONE),
+                                    CollisionLayers::new(AlsCollisionLayer::Visibility, avian3d::prelude::LayerMask::NONE),
                                     Collider::cuboid(0.05, 0.6, 0.6),
                                     Transform::from_translation(center)
                                         .with_rotation(Quat::from_rotation_arc(Vec3::X, direction)),
@@ -5703,7 +5708,7 @@ fn drive_manual_integration(
                     state.camera_obstacles[2] = Some(commands.spawn((
                         Name::new("manual_integration_camera_sweep_blocker"),
                         RigidBody::Static,
-                        CollisionLayers::new(AlsCollisionLayer::Camera, avian3d::prelude::LayerMask::NONE),
+                        CollisionLayers::new(AlsCollisionLayer::Visibility, avian3d::prelude::LayerMask::NONE),
                         Collider::cuboid(0.05, 0.6, 0.6),
                         Transform::from_translation(debug.trace_start.lerp(debug.trace_end, 0.5))
                             .with_rotation(Quat::from_rotation_arc(Vec3::X, trace_direction)),

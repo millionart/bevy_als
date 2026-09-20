@@ -11,7 +11,7 @@ use bevy_enhanced_input::prelude::EnhancedInputPlugin;
 use bevy_tnua::TnuaControllerPlugin;
 use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
-use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
+use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin, AlsCollisionLayer};
 use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
 use als_core::foot_ik::{
     ANKLE_TO_SOLE, AlsDynamicTransitionState, AlsFootBones, AlsFootIkRuntime, AlsFootLockSettings,
@@ -177,6 +177,7 @@ fn setup_scene(
     commands.spawn((
         RigidBody::Static,
         Collider::cuboid(40.0, 0.3, 40.0),
+        CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], LayerMask::ALL),
         Transform::from_xyz(0.0, -0.15, 0.0),
         Mesh3d(meshes.add(Mesh::from(Cuboid::new(40.0, 0.3, 40.0)))),
         MeshMaterial3d(ground_mat),
@@ -192,6 +193,7 @@ fn setup_scene(
     commands.spawn((
         RigidBody::Static,
         Collider::cuboid(RAMP_WIDTH, RAMP_THICKNESS, RAMP_LENGTH),
+        CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], LayerMask::ALL),
         Transform::from_xyz(0.0, center_y, center_z).with_rotation(Quat::from_rotation_x(-rad)),
         Mesh3d(meshes.add(Mesh::from(Cuboid::new(
             RAMP_WIDTH,
@@ -205,6 +207,7 @@ fn setup_scene(
     commands.spawn((
         RigidBody::Static,
         Collider::cuboid(RAMP_WIDTH, 0.3, 8.0),
+        CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], LayerMask::ALL),
         Transform::from_xyz(0.0, plateau_top - 0.15, RAMP_START_Z + 2.0 * run + 4.0),
         Mesh3d(meshes.add(Mesh::from(Cuboid::new(RAMP_WIDTH, 0.3, 8.0)))),
         MeshMaterial3d(plateau_mat),

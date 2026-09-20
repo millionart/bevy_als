@@ -372,7 +372,7 @@ fn landscape_collider_bridge(
             Collider::trimesh(vertices, triangles),
             LandscapeColliderBuilt,
             CollisionLayers::new(
-                [AlsCollisionLayer::Default, AlsCollisionLayer::Camera],
+                [AlsCollisionLayer::Default, AlsCollisionLayer::Visibility],
                 LayerMask::ALL,
             ),
         ));

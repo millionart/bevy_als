@@ -60,12 +60,14 @@ def source_contract(directory):
 def compile_definition(sources):
     settings = sources['FES_Als_Default']
     properties = settings['asset_properties']
+    if asset_property(settings, 'SurfaceTraceChannel') != 'ECC_Visibility':
+        raise ValueError('Unsupported footprint trace layer')
     defaults = sources['AlsAnimNotify_FootstepEffects']['class_default_properties']
     effects = record(properties, 'Effects')['elements']
     result = {
         'source_settings': settings['asset_path'],
         'notify_settings_reference': 'None/' + settings['asset_path'].replace('.', '/'),
-        'trace_channel': asset_property(settings, 'SurfaceTraceChannel'),
+        'trace_layer': 'Visibility',
         'trace_distance': float(asset_property(settings, 'SurfaceTraceDistance')) * 0.01,
         'spawn_angle_cos': float(asset_property(settings, 'DecalSpawnAngleThresholdCos')),
         'foot_y_axes': [source_direction_to_runtime(vector(asset_property(settings, 'Foot' + side + 'YAxis'))) for side in ('Left', 'Right')],
@@ -149,6 +151,7 @@ def compile_definition(sources):
 def self_test(sources):
     result = compile_definition(sources)
     assert result['trace_distance'] == 0.5
+    assert result['trace_layer'] == 'Visibility'
     assert result['foot_up_axes'] == [[1, 0, 0], [-1, 0, 0]]
     assert result['effects'][0]['location_offset'] == [0, -0.0175, -0.1]
     assert result['effects'][0]['size'] == [0.1, 0.2, 0.2]
@@ -160,6 +163,13 @@ def self_test(sources):
     expression = next(o for o in changed['M_Als_Footprint_Decal']['asset_objects'] if o['class_path'].endswith('.MaterialExpressionScalarParameter'))
     record(expression['properties'], 'DefaultValue')['exported_text'] = '0.600000'
     assert compile_definition(changed)['material']['opacity'] == 0.6
+    record(changed['FES_Als_Default']['asset_properties'], 'SurfaceTraceChannel')['exported_text'] = 'ECC_Camera'
+    try:
+        compile_definition(changed)
+    except ValueError as error:
+        assert str(error) == 'Unsupported footprint trace layer'
+    else:
+        raise AssertionError('Unsupported source trace layer was accepted')
 
 
 def main():

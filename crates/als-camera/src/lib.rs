@@ -1160,7 +1160,7 @@ fn camera_rig_system(
             }
         }
         let filter = SpatialQueryFilter::from_excluded_entities(excluded)
-            .with_mask(AlsCollisionLayer::Camera);
+            .with_mask(AlsCollisionLayer::Visibility);
         let trace = calculate_camera_trace(
             &mut runtime,
             &spatial,
@@ -1664,10 +1664,10 @@ mod tests {
             for (memberships, expected) in [
                 (LayerMask::from(AlsCollisionLayer::Default), false),
                 (
-                    LayerMask::from([AlsCollisionLayer::Default, AlsCollisionLayer::Camera]),
+                    LayerMask::from([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility]),
                     true,
                 ),
-                (LayerMask::from(AlsCollisionLayer::Camera), true),
+                (LayerMask::from(AlsCollisionLayer::Visibility), true),
                 (LayerMask::NONE, false),
             ] {
                 app.world_mut()

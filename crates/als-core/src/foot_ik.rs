@@ -976,7 +976,8 @@ pub fn foot_ground_probe_system(
                 continue;
             }
             let origin = target_location + up * PROBE_UP_OFFSET;
-            let filter = SpatialQueryFilter::from_excluded_entities([entity, chain.foot, target]);
+            let filter = SpatialQueryFilter::from_excluded_entities([entity, chain.foot, target])
+                .with_mask(crate::character::AlsCollisionLayer::Visibility);
             if let Some(hit) = spatial.cast_ray(origin, down, PROBE_DEPTH, true, &filter)
                 && slope_is_walkable_relative(hit.normal, up, FOOT_IK_WALKABLE_FLOOR_ANGLE_DEGREES)
             {

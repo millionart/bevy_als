@@ -121,14 +121,14 @@ mod tests {
                 RigidBody::Static,
                 Collider::cuboid(1.0, 1.0, 1.0),
                 Transform::from_xyz(0.0, 1.0, 0.0),
-                CollisionLayers::from_bits(1, u32::MAX),
+                CollisionLayers::new(als_core::character::AlsCollisionLayer::Visibility, LayerMask::ALL),
             ))
             .id();
         app.world_mut().spawn((
             RigidBody::Static,
             Collider::cuboid(1.0, 0.2, 1.0),
             Transform::from_xyz(0.0, 2.0, 0.0),
-            CollisionLayers::from_bits(2, u32::MAX),
+            CollisionLayers::new(als_core::character::AlsCollisionLayer::Default, LayerMask::ALL),
         ));
         let floor = app
             .world_mut()
@@ -136,13 +136,13 @@ mod tests {
                 RigidBody::Static,
                 Collider::cuboid(20.0, 0.2, 20.0),
                 Transform::from_xyz(0.0, -0.1, 0.0),
-                CollisionLayers::from_bits(1, u32::MAX),
+                CollisionLayers::new(als_core::character::AlsCollisionLayer::Visibility, LayerMask::ALL),
             ))
             .id();
         for _ in 0..3 {
             app.update();
         }
-        let filter = SpatialQueryFilter::from_mask(1u32).with_excluded_entities([owner]);
+        let filter = SpatialQueryFilter::from_mask(als_core::character::AlsCollisionLayer::Visibility).with_excluded_entities([owner]);
         let (snapshot, native) = app
             .world_mut()
             .run_system_cached_with(capture, filter.clone())
