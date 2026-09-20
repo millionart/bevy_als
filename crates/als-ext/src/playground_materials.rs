@@ -51,6 +51,7 @@ impl Plugin for PlaygroundMaterialsPlugin {
         app.add_plugins(MaterialPlugin::<PlaygroundTilesMaterial>::default())
             .init_resource::<PlaygroundMaterialLibrary>()
             .add_systems(PreStartup, load_playground_textures);
+        crate::projected_decal::install_decal_receiver_bindings::<PlaygroundTilesMaterial>(app);
     }
 }
 

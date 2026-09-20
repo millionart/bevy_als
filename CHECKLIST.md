@@ -36,6 +36,24 @@
 - ALSExtras（AI 控制器示例）不在范围内。
 - 音频（Metasound）、Niagara 特效仅保留挂钩点。ALSCamera 完整移植已纳入 BF116.01。
 
+## BF121 脚印渲染生命周期、验收与 Debug/HUD 对标
+
+用户2026-09-21授权按内置浏览器报告先修脚印及验收，再补Debug/HUD。报告基于a60a3d0；本轮以29e5fbe当前树重新验证，不把报告推断直接当成运行证据。沿用已明确保留的字体/菜单锚定等差异；性能暂停，定向截图偏好已询问。
+
+- [ ] BF121.01 脚印与验收标准：
+  - [x] BF121.01a 缓冲区/材质生命周期静态闭环：开始2026-09-21 04:07、预估结束2026-09-21 05:02。fresh Bevy0.19.1 GpuShaderBuffer按实际序列化字节长度复用/更换Buffer，材质只在自身准备时绑定；当前每帧Vec长度改变且普通/Playground两类接收材质未联动。核对本地ALS材质与SpawnDecal，先最小增删/容量/接收者反例，再用标准资产更新和正确准备顺序修复两类消费者，保持原混合算法、无静默数量上限。Gate为0→1→2→3→2→1→0与扩容/材质重用合同、最小回归与必要消融。估时依据为一个扩展模块、两种已安装接收材质、已定位原生Storage/Material准备链及约80–180秒编译，静态55分钟。
+  - [ ] BF121.01b 持续GPU证据与验收：开始2026-09-21 04:57、预估结束2026-09-21 05:52。依赖01a已通过；估时依据为现有28-float探针/原Footprint driver/公共validator可复用，扩展阶段协议、两类receiver数据与CPU负向样本，约160秒单轮编译，静态55分钟；扩展原16样本探针，覆盖每次数量/容量变化及两类接收者，区分可见实体、混合公式和当前Buffer/当前贴花数据；含空集恢复、淡出、移动附着及负向自测，不以最早样本累计PASS。
+  - [ ] BF121.01c 原Playground脚印功能Gate：依赖01b，进入时登记估时；同target_game/play预构建，startup后footprint，受控固定相机/接收面数量往返及真实通知、移动/淡出路径全部通过后才开始02。
+- [ ] BF121.02 脚步Traces与坐标轴：依赖01，进入时登记估时；fresh Notify的trace/命中坐标系/Decal生成先后顺序，25cm轴与10秒寿命、开关/无贴花/角度拒绝/未命中分支，记录真实命中坐标系并接统一Debug绘制与验收。
+- [ ] BF121.03 Debug运行数据与HUD布局：依赖02，进入时拆分估时；当前受控角色→相机/Avatar/Player的唯一关联、SmoothTargetYawAngle真实值、完整曲线名与最终求值曲线、正确R/P/Y标签，按本地ALS canvas/DPI/分栏/分类布局补齐并验收小窗口和多分类。保持明确保留的字体与Overlay菜单锚定差异，不假造未取得的数据。
+  - 01a源/反例2026-09-21 04:33：当次材质原生73.030s、Settings34.453s提取成功；fresh Bevy Storage确认CPU序列化实际长度决定GPU Buffer身份，Material准备只在重提取时解析绑定，默认没有声明ShaderBuffer准备依赖。178.292s实际插件CPU反例检出2/3个脚印扩容时普通与Playground材质均无Modified事件，并在3→2→1收缩上传。有限复开BF118.04a/b及父04，仅资源生命周期和GPU验收覆盖；旧Gate最早16样本无法证明后续绑定。采用稳定逻辑句柄、按高水位容量填充、增长时两类材质发原生修改事件，并明确Buffer先于材质准备，不更改混合公式或设置数量上限。
+
+  - 01a静态回归2026-09-21 04:45：7项材质/Buffer合同160.162s PASS，扩展到17/33/257个及回零后的容量/不丢记录/增长时两类Modified/稳定容量不重建合同159.035s PASS。逻辑Handle始终不变，容量按实际需求增长并填充，Assets原生可变迭代产生Modified；两类材质均在PackedDecal准备后、AssetEvent前刷新，Render材质准备显式晚于GpuShaderBuffer。首次错误调用set_changed的编译失败已改用已核对的原生Assets迭代，不作行为证据。开始容量保持、普通材质、Playground材质三项静态消融；GPU准备顺序与持续实读数据的负向验证由01b/c完成，不把CPU合同当作GPU验收。
+
+  - 01a静态消融2026-09-21 04:54：容量保持157.018s、普通接收者154.336s、Playground接收者155.027s消融均正确FAIL，分别检出删除后的Buffer缩小、普通路径缺Modified、Playground路径缺Modified；两个接收者独立必要。已全部恢复，7项范围回归与257数量边界保持，开始完整回归。此阶段仍不宣称GPU绑定或实际像素通过；GPU时序和当前贴花数据的持续证据在01b/c完成。
+
+  - 01a完成2026-09-21 04:57：1099项145.342s完整回归PASS（camera24/core277/扩展398/项目400），三组静态消融全部恢复。0→1→2→3→2→1→0及17/33/257/回零保持逻辑句柄、足够上传容量和全部索引；仅增长时两类材质分别Modified，GPU Buffer准备依赖显式声明。开始04:07、预估05:02、实际04:57、偏差-5分钟，静态段完成；BF118.04仍待当前GPU证据和真实入口关闭，未将旧16样本当作本次GPU通过。接着01b持续探针/数量阶段与负向验证，截图继续按原暂停偏好。
+
 ## BF120 玩家视图移动基准与动作实例归属
 
 用户2026-09-21授权复核58c0119的新反馈。已修复的输入守卫、Roll、相机投影与材质合同保持；当前新增闭包为实际玩家视图的移动基准、GetUp与Transition的主体实例结束，不扩展已明确排除功能。截图/性能仍暂停。
@@ -169,12 +187,12 @@
   - 03真实入口前2026-09-20 21:20：5入口编译28.316s PASS，实际target_game/play预构建159.514s PASS；1077回归、原始拒绝反例、身份丢失消融及完整输入链闭合。现在用新报告执行startup→base，核对既有默认动作/状态未受影响；命名值扩展仍以完整输入合同验收，不冒称新增动作已实现，性能/截图继续暂停。
   - 03启动后/base前2026-09-20 21:21：startup15.918s功能PASS，manual/validator0、GPU通过，无功能issue；继续同二进制base确认默认Grounded/InAir、mantle自定义控制和动作通知链，性能仍deferred。
   - 03完成2026-09-20 21:23：startup15.918s与base125.829s全部公共功能PASS，48项默认动作/状态覆盖和GPU通过，manual/validator0，faults/graph_errors/temporal_anomalies为空。1077回归、数据拒绝反例、命名身份消融、实际请求/变更事件/图输入/通知链与5入口编译闭合；四种原有适配值及其Custom控制保持，命名值使用完整Tag，未新增动作或图规则。开始20:51、预估21:41、实际21:23、偏差-18分钟，完成，无拆分；仅BF118.04材质合成待继续，性能及截图暂停范围保持。
-- [x] BF118.04 足迹接收面材质合成：
-  - [x] BF118.04a 源合同、原生贴花接口与接收材质静态实现：开始2026-09-20 21:24、预估结束2026-09-20 22:24。fresh材质71.853s、Settings72.257s及RendererSettings35.328s确认DeferredDecal/Translucent、DBuffer=true/ForwardShading=false/Substrate=false；本地ApplyDBufferData明确先混合BaseColor/Roughness/Metallic/Specular，再进入光照。目标独立Lit透明体积没有修改接收属性。复用Bevy原生ClusteredDecal裁剪/纹理绑定及公开接收材质扩展，单次采样原RGBA，再按源公式混合；不修改依赖。按标准贴花Z投影推导目标坐标数据，由原导入器重生成；保留原图像、拒收标记及生命周期。Gate为旧路径失败合同、源数据/坐标与混合公式fixture、消融、类型/编译及静态Shader合同。估时依据为一份源材质/一套设置、现成Bevy接口、现有两类场景材质及80–180秒编译记录。
+- [ ] BF118.04 足迹接收面材质合成：
+  - [ ] BF118.04a 源合同、原生贴花接口与接收材质静态实现：开始2026-09-20 21:24、预估结束2026-09-20 22:24。fresh材质71.853s、Settings72.257s及RendererSettings35.328s确认DeferredDecal/Translucent、DBuffer=true/ForwardShading=false/Substrate=false；本地ApplyDBufferData明确先混合BaseColor/Roughness/Metallic/Specular，再进入光照。目标独立Lit透明体积没有修改接收属性。复用Bevy原生ClusteredDecal裁剪/纹理绑定及公开接收材质扩展，单次采样原RGBA，再按源公式混合；不修改依赖。按标准贴花Z投影推导目标坐标数据，由原导入器重生成；保留原图像、拒收标记及生命周期。Gate为旧路径失败合同、源数据/坐标与混合公式fixture、消融、类型/编译及静态Shader合同。估时依据为一份源材质/一套设置、现成Bevy接口、现有两类场景材质及80–180秒编译记录。
   - 04a确认/有限复开2026-09-20 21:44：旧生产shader的158.383s合同反例确定仍在贴花体积内调用独立PBR光照；结合fresh源DBuffer混合公式和实际renderer CDO，有限复开BF116.07d1/d2的接收材质合成边界，旧Gate只验证纹理/生成/附着/GPU管线，漏查接收属性。原始RGBA继续保留；使用Bevy已安装的clustered decal迭代器/纹理绑定，源Specular按F0转换后混入接收属性。新增标准接收材质与已有Playground材质共享同一合成函数；拒收材质不消费。CPU目标配置离线转换到原生Z投影，避免逐帧源坐标解释；GPU数值读回作为04b真实语义证据。
   - 04a静态实现2026-09-20 22:14：fresh原生纹理35.323s仍为逐像素精确RGBA TGA；导入/write/self-test0.565s通过，轴置换、符号、UV/世界点/偏移逐项复算，目标配置仅改变投影基。工作区类型检查24.952s通过；native feature首次编译及11项focused为380.719s，10项通过，剩余旧夹具仍断言旧基偏移，已按新基修正。普通与Playground材质共享光照前混合，实际GPU缓冲提供独立公式读回；删除旧透明体积、拒收材质副本/法线预通道屏蔽及额外相机prepass配置。接收转换明确在Avatar/场景材质选择之后，原材质句柄只用于生命周期/更新/槽身份，scene_gate读取实际接收材质属性；这是共享渲染接入所需consumer闭包，未改字形/布局/图资产。正在消融缓存回收，再恢复回归和真实入口预构建。
   - 04a完成2026-09-20 22:22：全部1080项回归192.729s PASS（camera24/core273/扩展397/项目386），6个受影响入口80.241s编译通过；缓存回收155.390s消融稳定检出最后接收网格销毁后的材质残留，恢复后通过，投影基0.572s消融被拒绝，最终导入/check/self-test0.565s通过。Specular通过F0映射，普通/Playground接收路径共用合成函数，NoDecal网格保留原材质和法线；静态合同已关闭独立lit体积反例。开始21:24、预估22:24、实际22:22、偏差-2分钟，04a完成；真实GPU编译/数值与场景尚待04b，不宣称渲染Gate已通过。
-  - [x] BF118.04b GPU数值与真实入口验收：开始2026-09-20 22:22、预估结束2026-09-20 23:02，依赖04a已通过。实际target_game/play入口正在预构建；按原Playground startup→footprint验证GPU混合读回、拒收网格、移动附着与淡出清理，并用同入口禁用材质混合的受控消融证明GPU检测能拒绝旧语义，再恢复最终功能Gate；overlays复验实际材质槽consumer。普通/Playground接收路径静态和材质生命周期已有1080回归与6入口编译，真实GPU需补足，原姿态/物理阈值不变、CaptureCount0/FunctionalOnly保持。估时依据为此前约30秒footprint/105秒overlays、160秒预构建及首轮原生clustered shader编译风险；本轮窗口40分钟。静态与真实GPU都通过前不关闭04。
+  - [ ] BF118.04b GPU数值与真实入口验收：开始2026-09-20 22:22、预估结束2026-09-20 23:02，依赖04a已通过。实际target_game/play入口正在预构建；按原Playground startup→footprint验证GPU混合读回、拒收网格、移动附着与淡出清理，并用同入口禁用材质混合的受控消融证明GPU检测能拒绝旧语义，再恢复最终功能Gate；overlays复验实际材质槽consumer。普通/Playground接收路径静态和材质生命周期已有1080回归与6入口编译，真实GPU需补足，原姿态/物理阈值不变、CaptureCount0/FunctionalOnly保持。估时依据为此前约30秒footprint/105秒overlays、160秒预构建及首轮原生clustered shader编译风险；本轮窗口40分钟。静态与真实GPU都通过前不关闭04。
   - 04源边界：核对当前UE真实DBuffer设置、材质表达式/混合顺序，再复用Bevy原生贴花/材质扩展，在光照前混合接收材质。保留RGBA原始纹理、通道/坐标/透明度/生命周期及NoDecalReceiver边界，不写另一套渲染器或放宽验收。
   - 04b构建与管线合同2026-09-20 22:28：首次启用原生feature的实际入口预构建360.752s通过；逐项核对实际Bevy MeshPipeline标签时发现检测器仍假设pbr_pipeline，fresh本地实现实际为opaque_mesh_pipeline/alpha_to_coverage_mesh_pipeline，已在运行前改为实际接收pass标签，避免把成功管线误报未就绪；不改变材质混合或判定阈值。补建同入口后再启动startup，GPU数值尚待验证。
   - 04b真实入口前2026-09-20 22:31：实际target_game/play补建134.788s PASS；1080回归、6入口编译、源导入与缓存/投影消融闭合，所有消融已恢复。开始公共startup验证实际GPU着色器，再执行受控混合消融与最终footprint/overlays功能Gate，仍保留全部姿态、图错误、物理和进展守卫。

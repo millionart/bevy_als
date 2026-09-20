@@ -60,14 +60,33 @@ pub struct PackedDecalData {
 pub struct PackedDecalBuffers {
     pub materials: Handle<ShaderBuffer>,
     pub probe: Handle<ShaderBuffer>,
+    capacity: usize,
 }
 
 impl PackedDecalBuffers {
     fn new(buffers: &mut Assets<ShaderBuffer>, enabled: bool) -> Self {
         let mut words = vec![0_u32; DECAL_PROBE_WORDS];
         words[0] = u32::from(enabled);
-        Self { materials: buffers.add(ShaderBuffer::from(vec![PackedDecalData::default()])), probe: buffers.add(ShaderBuffer::from(words)) }
+        Self { materials: buffers.add(ShaderBuffer::from(vec![PackedDecalData::default()])), probe: buffers.add(ShaderBuffer::from(words)), capacity: 1 }
     }
+}
+
+pub(crate) fn install_decal_receiver_bindings<M: bevy::pbr::Material>(app: &mut App)
+where M::Data: PartialEq + Eq + std::hash::Hash + Clone {
+    use bevy::ecs::schedule::IntoSystemSet;
+    app.add_systems(PostUpdate, refresh_decal_receiver_bindings::<M>
+        .after(PackedDecalPrepareSet).before(bevy::asset::AssetEventSystems));
+    if let Some(render) = app.get_sub_app_mut(bevy::render::RenderApp) {
+        render.configure_sets(bevy::render::Render,
+            bevy::render::erased_render_asset::prepare_erased_assets::<MeshMaterial3d<M>>.into_system_set()
+                .after(bevy::render::render_asset::prepare_assets::<bevy::render::storage::GpuShaderBuffer>));
+    }
+}
+
+fn refresh_decal_receiver_bindings<M: Asset>(buffers: Res<PackedDecalBuffers>, mut materials: ResMut<Assets<M>>, mut capacity: Local<usize>) {
+    if *capacity == buffers.capacity { return; }
+    *capacity = buffers.capacity;
+    materials.iter_mut().for_each(drop);
 }
 
 pub type PackedDecalReceiverMaterial = ExtendedMaterial<StandardMaterial, PackedDecalReceiverExtension>;
@@ -104,6 +123,7 @@ impl Plugin for PackedDecalPlugin {
         app.insert_resource(buffers)
             .add_systems(Update, prepare_receivers.in_set(PackedDecalPrepareSet))
             .add_systems(PostUpdate, prepare_decals.after(bevy::transform::TransformSystems::Propagate).in_set(PackedDecalPrepareSet));
+        install_decal_receiver_bindings::<PackedDecalReceiverMaterial>(app);
         let status = DecalRenderStatus::default();
         app.insert_resource(status.clone());
         if probe_enabled {
@@ -157,7 +177,7 @@ fn read_material_probe(event: On<bevy::render::gpu_readback::ReadbackComplete>, 
 
 fn prepare_decals(
     mut decals: Query<(Entity, &PackedDecal, &GlobalTransform, &mut ClusteredDecal)>,
-    materials: Res<Assets<PackedDecalMaterial>>, handles: Res<PackedDecalBuffers>, mut buffers: ResMut<Assets<ShaderBuffer>>,
+    materials: Res<Assets<PackedDecalMaterial>>, mut handles: ResMut<PackedDecalBuffers>, mut buffers: ResMut<Assets<ShaderBuffer>>,
 ) {
     let mut entities: Vec<_> = decals.iter().map(|(entity, _, _, _)| entity).collect();
     entities.sort_unstable();
@@ -174,7 +194,9 @@ fn prepare_decals(
         values.push(PackedDecalData { local_from_world: transform.affine().inverse().into(), color: material.color,
             material: Vec4::new(material.roughness_scale, material.metallic, material.specular, 0.0) });
     }
-    if values.is_empty() { values.push(default()); }
+    let required = values.len().max(1);
+    if required > handles.capacity { handles.capacity = required.next_power_of_two(); }
+    values.resize(handles.capacity, default());
     buffers.get_mut(&handles.materials).unwrap().set_data(values);
 }
 
@@ -243,6 +265,60 @@ fn capture_decal_pipelines(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn buffer_growth_refreshes_all_receivers_and_removal_preserves_capacity() {
+        use crate::playground_materials::{PlaygroundMaterialsPlugin, PlaygroundTilesMaterial, PlaygroundTilesExtension, PlaygroundTilesSettings};
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default()))
+            .init_asset::<Mesh>().init_asset::<Image>().init_asset::<StandardMaterial>()
+            .add_plugins((PackedDecalPlugin, PlaygroundMaterialsPlugin));
+        let handles = app.world().resource::<PackedDecalBuffers>().clone();
+        let base = app.world_mut().resource_mut::<Assets<StandardMaterial>>().add(StandardMaterial::default());
+        let receiver = app.world_mut().spawn((Mesh3d::default(), MeshMaterial3d(base))).id();
+        let tile = app.world_mut().resource_mut::<Assets<PlaygroundTilesMaterial>>().add(PlaygroundTilesMaterial {
+            base: default(), extension: PlaygroundTilesExtension {
+                decals: handles.materials.clone(), probe: handles.probe.clone(), grid_texture: default(),
+                settings: PlaygroundTilesSettings { side_color_a: Vec4::ONE, top_color_a: Vec4::ONE, side_color_b: Vec4::ONE,
+                    top_color_b: Vec4::ONE, tiling_and_mode: Vec4::ONE },
+            },
+        });
+        let material = app.world_mut().resource_mut::<Assets<PackedDecalMaterial>>().add(PackedDecalMaterial {
+            color: Vec4::ONE, roughness_scale: 0.2, metallic: 0.0, specular: 0.5, texture: default(),
+        });
+        app.update();
+        let receiver = app.world().get::<MeshMaterial3d<PackedDecalReceiverMaterial>>(receiver).unwrap().0.clone();
+        let mut standard_events = app.world().resource::<Messages<AssetEvent<PackedDecalReceiverMaterial>>>().get_cursor_current();
+        let mut tile_events = app.world().resource::<Messages<AssetEvent<PlaygroundTilesMaterial>>>().get_cursor_current();
+        let mut alive = Vec::new();
+        let element_size = app.world().resource::<Assets<ShaderBuffer>>().get(&handles.materials).unwrap().data.as_ref().unwrap().len();
+        let mut previous_size = element_size;
+        let mut failures = Vec::new();
+        for count in [1, 2, 3, 2, 1, 0, 17, 33, 257, 0] {
+            while alive.len() < count { alive.push(app.world_mut().spawn((PackedDecal(material.clone()), GlobalTransform::IDENTITY)).id()); }
+            while alive.len() > count { app.world_mut().despawn(alive.pop().unwrap()); }
+            app.update();
+            assert_eq!(app.world().resource::<PackedDecalBuffers>().materials, handles.materials);
+            let size = app.world().resource::<Assets<ShaderBuffer>>().get(&handles.materials).unwrap().data.as_ref().unwrap().len();
+            assert!(size >= element_size * count.max(1), "Live decals were truncated");
+            let standard_changed = standard_events.read(app.world().resource::<Messages<AssetEvent<PackedDecalReceiverMaterial>>>()).any(|event|
+                matches!(event, AssetEvent::Modified { id } if *id == receiver.id()));
+            let tile_changed = tile_events.read(app.world().resource::<Messages<AssetEvent<PlaygroundTilesMaterial>>>()).any(|event|
+                matches!(event, AssetEvent::Modified { id } if *id == tile.id()));
+            if size < previous_size { failures.push(format!("Removing decals shrank the upload at count {count}")); }
+            if size > previous_size && !(standard_changed && tile_changed) {
+                failures.push(format!("Growing the buffer retained receiver bindings at count {count}: standard={standard_changed}, tiles={tile_changed}"));
+            }
+            if size == previous_size && (standard_changed || tile_changed) {
+                failures.push(format!("Stable buffer capacity rebuilt receiver bindings at count {count}"));
+            }
+            previous_size = size;
+            let mut indices: Vec<_> = alive.iter().map(|entity| app.world().get::<ClusteredDecal>(*entity).unwrap().tag & !PACKED_DECAL_TAG).collect();
+            indices.sort_unstable();
+            assert_eq!(indices, (0..count as u32).collect::<Vec<_>>());
+        }
+        assert!(failures.is_empty(), "{}", failures.join("; "));
+    }
 
     #[test]
     fn receivers_preserve_updates_exclusions_and_release_unused_materials() {
