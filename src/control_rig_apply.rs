@@ -17,7 +17,7 @@ use als_ext::{control_rig_hierarchy::RigTransform, control_rig_query::{RigQueryC
     source_instance::set_source_frame_input};
 
 use crate::animation_context_projection::AlsRootAnimationContext;
-use crate::character_assembly::AlsCharacterAvatar;
+use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar};
 use crate::foot_ik_apply::FootIkApplySet;
 use crate::head_layer::{AlsHeadLayerSet, inv_exp_approx, unwind_degrees};
 
@@ -290,6 +290,7 @@ fn refresh_control_rig_input(
     mut characters: Query<
         (
             Entity,
+            &AlsCharacterAssembly,
             &RotationMode,
             Has<AlsFirstPersonView>,
             Option<&AlsControlRigSettings>,
@@ -299,11 +300,12 @@ fn refresh_control_rig_input(
         ),
         With<AlsCharacter>,
     >,
-    avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
+    avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     players: Query<(&AnimationGraphPlayer, Option<&AlsRootAnimationContext>)>,
 ) {
     for (
         entity,
+        assembly,
         rotation_mode,
         first_person,
         settings,
@@ -313,8 +315,8 @@ fn refresh_control_rig_input(
     ) in &mut characters
     {
         let Some((player, context)) = avatars
-            .iter()
-            .find(|(parent, _)| parent.parent() == entity)
+            .get(assembly.avatar).ok()
+            .filter(|(avatar, _)| avatar.character == entity)
             .and_then(|(_, instance)| players.get(instance.player_entity()).ok())
         else {
             continue;
@@ -363,17 +365,17 @@ fn refresh_control_rig_input(
 
 fn publish_control_rig_inputs(
     mut source_inputs: Query<&mut als_ext::SourceAnimationInputs>,
-    characters: Query<(Entity, &AlsControlRigInput), With<AlsCharacter>>,
-    avatars: Query<(Entity, &ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
+    characters: Query<(Entity, &AlsControlRigInput, Option<&AlsCharacterAssembly>), With<AlsCharacter>>,
+    avatars: Query<(Entity, &AlsCharacterAvatar, &AnimatedSceneInstance)>,
     mut players: Query<&mut AnimationGraphPlayer>,
     transforms: TransformHelper,
     trees: Option<Res<ColliderTrees>>,
     colliders: Query<(Entity, &Position, &Rotation, &Collider)>,
     capture: Option<Res<crate::foot_ik_apply::AlsFootIkTelemetryEnabled>>,
 ) {
-    let mut ignored: Vec<_> = characters.iter().map(|(entity, _)| entity).collect();
-    for (_, parent, instance) in &avatars {
-        if characters.contains(parent.parent())
+    let mut ignored: Vec<_> = characters.iter().map(|(entity, _, _)| entity).collect();
+    for (_, avatar, instance) in &avatars {
+        if characters.contains(avatar.character)
             && let Ok(player) = players.get(instance.player_entity())
             && let Some(ragdoll) = player.get_spawned_ragdoll() {
             ignored.extend(ragdoll.bodies.values().copied());
@@ -382,8 +384,10 @@ fn publish_control_rig_inputs(
     }
     let filter = SpatialQueryFilter::from_excluded_entities(ignored).with_mask(als_core::character::AlsCollisionLayer::Visibility);
     let mut world: Option<Arc<RigQueryWorld>> = None;
-    for (entity, input) in &characters {
-        let Some((avatar, _, instance)) = avatars.iter().find(|(_, parent, _)| parent.parent() == entity) else { continue; };
+    for (entity, input, assembly) in &characters {
+        let Some(assembly) = assembly else { continue; };
+        let Ok((avatar, owner, instance)) = avatars.get(assembly.avatar) else { continue; };
+        if owner.character != entity { continue; }
         let root = instance.player_entity();
         let Ok(mut player) = players.get_mut(root) else { continue; };
         use bevy_animation_graph::core::edge_data::DataValue;
@@ -464,6 +468,7 @@ mod tests {
         )).id();
         let avatar = app.world_mut().spawn((AlsCharacterAvatar { character: actor },
             AnimatedSceneHandle::default(), ChildOf(actor))).id();
+        app.world_mut().entity_mut(actor).insert(AlsCharacterAssembly { avatar, camera: None });
         let avatar_transform = Transform::from_xyz(4.0, 1.0, 2.0)
             .with_rotation(Quat::from_rotation_y(0.4)).with_scale(Vec3::new(0.5, 2.0, 3.0));
         app.world_mut().entity_mut(avatar).insert(avatar_transform);

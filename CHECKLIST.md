@@ -78,7 +78,21 @@
   - 02b GetUp后/Ragdoll前2026-09-21 03:08：get_up13.917s公共功能PASS，manual/validator0、GPU通过，无功能issue；两种起身与原通知/输入恢复合同通过，继续ragdoll核对物理/动画交接，再base验证共享通知消费。
   - 02b Ragdoll后/base前2026-09-21 03:09：ragdoll11.287s公共功能PASS，manual/validator0、GPU通过，无功能issue；原物理/动画交接合同保持。最后同二进制base核对Roll/Mantle等共享通知的默认动作组合，所有原阈值保持。
   - 02b/02完成2026-09-21 03:11：startup15.780s、get_up13.917s、ragdoll11.287s、base126.968s公共功能全部PASS，manual/validator0、GPU通过，无功能issue；两种起身、输入/通知结束、物理交接和默认Roll/Mantle组合保持。1094项完整回归、五组必要消融、实际Player/Avatar替换与同帧接替闭合；原source资产/图及姿态/物理阈值未改。02b开始03:04、预估03:29、实际03:11、偏差-18分钟，完成；02按静态/真实入口拆分闭合，归档BF114.03/03a有限复开关闭，接着03 Transition。
-- [ ] BF120.03 Transition实例生命周期：依赖02，进入时登记估时；fresh Montage/Slot归属与当前采样链，实际播放中同实体覆盖、旧Avatar保留、目标销毁，验证旧栈/采样器/Slot不向新实例重新发布，沿现有Roll方法保留最小生命周期实现。
+- [ ] BF120.03 Transition实例生命周期：依赖02已通过。
+  - [x] BF120.03a 源与实例归属静态闭环：开始2026-09-21 03:12、预估结束2026-09-21 04:07。fresh PlayTransitionAnimation/PlayQueuedTransitionAnimation把队列和动态Transition Slot montage保存在当前AnimInstance，UninitializeAnimation停止并清空其montage；目标Stack挂Character而helper只按目标Entity存在性复用。实际bridge通过sample_transition_stack直接采样全部clip/curve，旧辅助GraphPlayer的Pose已无消费者，只读取其错误作日志，先实际反例再消融删除重复求值；当前关系清理/Discard结束旧stack与Slot，保留源采样和混合。Gate为实际Transition播放中同实体覆盖/移除重插、旧Avatar保留、目标/Avatar销毁、正常Overlay与新Transition继续，适用回归与消融。估时依据为2段ALS和既有UE实例结束事实、4处helper入口及已复用真实角色fixture、约80秒编译，静态55分钟。
+  - [ ] BF120.03b 原Playground功能验收：开始2026-09-21 03:55、预估结束2026-09-21 04:25。依赖03a已通过；估时依据为1098项完整回归、约80秒入口构建及既有站/蹲动作与base场景记录，窗口30分钟；同入口startup与Transition专用站/蹲动作场景、base，按实际source闭包选定，保持原功能守卫。
+
+  - 03a反例/冗余消融2026-09-21 03:21：86.291s实际角色测试确认同实体Player覆盖后helper存活、保留旧Avatar后旧helper仍存在；另暂停辅助GraphPlayer后，主Slot的Pose旋转与实际clip clock仍推进，证明采样完全由现有sample_transition_stack提供。有限复开归档BF111.04共享Transition consumer的实例边界，旧Gate覆盖状态退出/混合/曲线而未替换主体Player，不复开图资产或状态算法。现在删除未被消费的辅助GraphPlayer及prepare链，仅保留当前目标绑定，采样前清失效关系、Discard结束旧stack/runtime和Slot，并把绑定实体挂Character保证Avatar销毁顺序无关。
+
+  - 03a失败定位/输入consumer有限复开2026-09-21 03:30：86.464s首轮已有19项通过，暂停/删除辅助求值均保持native Slot采样推进；81.501s定向诊断证明Discard当下旧stack已清，后续StandingDynamic为新实例ID与新时钟，fresh RefreshDynamicTransitions及生成器当帧写入可发起新踏步，Gate改为严格拒绝旧实例ID/Slot样本而不禁止源回调。另保留旧Owner时主图在CR_Als Forwards Solve指令31报rig line trace unavailable；ControlRig refresh/publish两处仍按首个ChildOf选Avatar。fresh AnimNode_ControlRigBase按AnimInstance.GetOwningComponent绑定DataSource，故有限复开BF118.02的输入发布目标边界：两处统一按CharacterAssembly当前Avatar选择，现有单位/查询/PhysicsLayer和Rig算法不变。旧Gate在GetUp/Roll中IK曲线关闭而未检出缺查询；当前实际Transition反例保留，扩充ControlRig回归后再消融及真实Gate。
+
+  - 03a静态回归2026-09-21 03:38：25项Transition/生成通知/运动退出/ControlRig回归86.979s和清理后的84.506s全部PASS，额外同帧QuickStop接替80.196s PASS。失效目标当下旧栈/Runtime清零，跨帧严格拒绝替换前生成的ID和Slot资产样本，新实例的源DynamicTransition保持；两种销毁顺序、保留/移除旧Owner、新Transition和Overlay继续均成立。删除辅助GraphPlayer、prepare、仅供它使用的索引映射与空Children；资产断言改读实际source序列名。ControlRig当前目标选择保持原未装配角色/自身ragdoll的碰撞排除范围。开始六组必要机制消融，再完整回归和真实入口。
+
+  - 03a消融闭环2026-09-21 03:49：Discard81.868s、当前归属85.708s、stack/runtime/Slot结束83.748s、父级归属87.550s、请求顺序85.393s、Rig目标选择88.273s六组消融均实际检出对应失败；包括反序销毁后的旧栈、新QuickStop被旧清理抹掉、保留旧Owner导致CR_Als缺trace。均已恢复，暂停辅助图的正向消融已证明可删除重复求值；保留机制均有不同失败边界。现在完整四包回归，随后同入口预构建与startup、standing_stop、standing_dynamic、crouching_actions、control_rig、base公共功能Gate，原资产、图、查询通道、采样/混合与全部阈值不变。
+
+  - 03a完整回归夹具边界2026-09-21 03:52：153.494s全回归仅GetUp同帧接替夹具失败，其余1097项通过；它在切换Assembly前等待新Avatar完整Pose，而正确的Rig publisher只给当前Avatar输入，未装配对象不具备该求值前提。调整夹具先等Scene/Player装载，再切当前归属，并在实际接替后补主图无错误/完整Pose断言；GetUp生产逻辑、通知/Slot/输入断言及任何阈值不变。随后完整回归复验，不启动runtime。
+
+  - 03a完成2026-09-21 03:55：1098项122.434s完整回归PASS（camera24/core277/扩展397/项目400），六组必要机制消融已恢复，冗余辅助求值删除后native Pose/时钟继续。Transition同实体覆盖/移除重插、目标/Avatar两种顺序销毁、旧Avatar保留、旧ID/Slot拒绝、新请求与Overlay继续全部闭合；Rig refresh/publish按当前Assembly取目标，GetUp接替夹具在装配后验证主Pose。无新图/原始资产或物理/采样/混合算法变化。开始03:12、预估04:07、实际03:55、偏差-12分钟，静态段完成；归档BF111.04共享Transition consumer及BF118.02输入发布目标有限复开待03b关闭。接着同入口构建与已列六个公共功能场景。
 
 ## BF119 输入分支与Roll采样器审阅反馈
 
@@ -124,7 +138,7 @@
   - 01启动后/Overlay前2026-09-20 20:03：startup16.012s功能PASS，manual/validator0、GPU通过，无功能issue。用同二进制继续overlays，再bow；源挂载语义/两项消融与11项focused回归保持闭合，性能仍deferred。
   - 01综合Overlay后/Bow前2026-09-20 20:06：overlays104.183s功能PASS，115项/110窗口及GPU通过，源物件/枪械状态/插槽与生命周期检查成立，无功能issue；继续最后bow专用case确认动画物件曲线与清理。
   - 01完成2026-09-20 20:07：startup16.012s、overlays104.183s与bow37.121s公共功能PASS，manual/validator0、GPU通过，faults/graph_errors/temporal_anomalies为空。11项focused回归、真实重复替换、跨帧无Avatar窗口和两项消融闭合；仅恢复失效挂载实体和当前骨归属，无新增状态/图规则/依赖。BF117.03b及父03的挂载恢复有限复开关闭。开始19:40、预估20:25、实际20:07、偏差-18分钟，完成，无拆分；BF118其余三条仍继续，性能与截图保持暂停。
-- [x] BF118.02 动画输入的实例结束时序与World隔离：开始2026-09-20 20:12、预估结束2026-09-20 21:12。fresh Engine InitializeAnimation先Uninitialize再分配实例ID，状态归各自AnimInstance；目标静态表仅以Entity键且PostUpdate延迟清理。现有公开图求值入口可接入播放器输入快照，输入本体放播放器实体组件，由同步Discard观察器结束旧值；不修改依赖、不引入World/instance数字注册表。估时依据为四种输入、约30个发布/读取调用位置、三个实际求值入口、现成Node/真实场景fixture和近期80–160秒构建记录。先最小两World/同实体重建失败反例，再迁移与消融/回归/真实入口；核对所有Tag、Slot、Rig和Linked Graph输入的发布与求值入口，优先用现有公开扩展点去掉进程级Entity命名空间；包含同实体移除重建、两个World相同实体ID、销毁回收和必要消融。
+- [ ] BF118.02 动画输入的实例结束时序与World隔离：开始2026-09-20 20:12、预估结束2026-09-20 21:12。fresh Engine InitializeAnimation先Uninitialize再分配实例ID，状态归各自AnimInstance；目标静态表仅以Entity键且PostUpdate延迟清理。现有公开图求值入口可接入播放器输入快照，输入本体放播放器实体组件，由同步Discard观察器结束旧值；不修改依赖、不引入World/instance数字注册表。估时依据为四种输入、约30个发布/读取调用位置、三个实际求值入口、现成Node/真实场景fixture和近期80–160秒构建记录。先最小两World/同实体重建失败反例，再迁移与消融/回归/真实入口；核对所有Tag、Slot、Rig和Linked Graph输入的发布与求值入口，优先用现有公开扩展点去掉进程级Entity命名空间；包含同实体移除重建、两个World相同实体ID、销毁回收和必要消融。
   - 02反例与公开入口2026-09-20 20:16：两World同Entity ID反例确定读到Second而非First，同实体移除重插后发布New亦被旧RemovedComponents清成None；两项均已实际FAIL。fresh Bevy0.19生命周期名称为Discard，覆盖移除/覆盖且立即触发；原生图SystemResources未开放任意组件查询，DataValue也无泛型载荷，因此复用现有公开求值入口提供仅在调用期间存活的输入快照，输入本体由GraphPlayer所需组件持有。采用Arc写时复制保持快照，不保留全局Entity表、World数字注册表或延迟清理；依赖与图转换规则不变。正在迁移全部发布/读取及真实求值caller。
   - 02静态迁移2026-09-20 20:36：所有Tag/Slot/Rig/Linked Graph发布与读取现由SourceAnimationInputs组件持有，三个真实求值入口和直接query夹具均进入该播放器快照；旧进程Entity表、RwLock及PostUpdate移除消息清理已删除，图/依赖不变。工作区tests类型检查11.806s PASS；扩展394、core271、camera24通过，项目仅4个旧夹具未装新输入插件，补齐后4项全部PASS，其余382项通过。两World同ID、同实体移除重插/覆盖、四种输入立即清空、弱引用释放、嵌套求值和panic恢复已有实际断言；skill固化输入归属与每个求值入口合同。接着消融同步Discard清理/作用域恢复，恢复后完整回归及实际startup/base/foot_ik/camera功能验收。
   - 02消融2026-09-20 20:38：152.615s联合消融分别检出嵌套作用域返回Second而非First、Discard仍持有旧实例输入，两项均恢复；基线初始反例还独立证明了跨World覆盖和延迟移除误清新值。原生组件存储承担World归属，瞬时线程作用域只传当前播放器快照并在退出恢复，没有进程级实例缓存。接下来恢复全量回归，再检查受影响入口及同target预构建，随后公共startup/base/foot_ik/camera。

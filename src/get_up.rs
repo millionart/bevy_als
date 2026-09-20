@@ -442,7 +442,7 @@ mod tests {
         let target = loop {
             app.update();
             if let Some(instance) = app.world().get::<AnimatedSceneInstance>(avatar)
-                && app.world().get::<AnimationGraphPlayer>(instance.player_entity()).is_some_and(|player| player.get_default_output_pose().is_some()) {
+                && app.world().get::<AnimationGraphPlayer>(instance.player_entity()).is_some() {
                 break instance.player_entity();
             }
             assert!(std::time::Instant::now() < deadline, "Replacement avatar did not become ready");
@@ -458,6 +458,8 @@ mod tests {
         assert!(app.world().get::<AlsGetUpState>(character).unwrap().pose_ready);
         assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(character), Some(&AlsNotifyLocomotionAction::GettingUp));
         assert!(app.world().get::<AlsMovementInputBlocked>(character).is_some());
+        let player = app.world().get::<AnimationGraphPlayer>(target).unwrap();
+        assert!(player.get_error().is_none() && player.get_default_output_pose().is_some());
     }
 
     #[test]
