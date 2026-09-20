@@ -232,7 +232,7 @@ fn capture_decal_pipelines(
         if !label.starts_with("als_packed_receiver") && !label.starts_with("als_playground_receiver") { continue; }
         current.pipeline_labels.push(label.to_owned());
         match &pipeline.state {
-            CachedPipelineState::Ok(_) => current.receiver_ready |= label.ends_with("pbr_pipeline"),
+            CachedPipelineState::Ok(_) => current.receiver_ready |= label.ends_with("opaque_mesh_pipeline") || label.ends_with("alpha_to_coverage_mesh_pipeline"),
             CachedPipelineState::Err(error) => current.errors.push(format!("{label}: {error}")),
             _ => {}
         }
