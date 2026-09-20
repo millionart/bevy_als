@@ -3326,7 +3326,7 @@ struct MotionProbe<'w, 's> {
     object_players: Query<'w, 's, &'static AnimationGraphPlayer>,
     object_transforms: Query<'w, 's, &'static Transform>,
     object_children: Query<'w, 's, &'static Children>,
-    object_mesh_materials: Query<'w, 's, &'static MeshMaterial3d<StandardMaterial>, With<Mesh3d>>,
+    object_mesh_materials: Query<'w, 's, (Option<&'static MeshMaterial3d<StandardMaterial>>, Option<&'static als_ext::projected_decal::StandardMaterialSource>), With<Mesh3d>>,
     object_material_assets: Res<'w, Assets<StandardMaterial>>,
 }
 

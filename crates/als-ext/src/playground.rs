@@ -53,7 +53,7 @@ impl Plugin for PlaygroundPlugin {
                 (
                     playground_box_physics_bridge,
                     world_text_mesh_system,
-                    playground_material_tint_system,
+                    playground_material_tint_system.before(crate::projected_decal::PackedDecalPrepareSet),
                     playground_camera_exposure_system,
                 ),
             );
@@ -685,6 +685,8 @@ fn make_tiles_material(
             ..default()
         },
         extension: PlaygroundTilesExtension {
+            decals: library.decal_buffers.materials.clone(),
+            probe: library.decal_buffers.probe.clone(),
             settings: PlaygroundTilesSettings {
                 side_color_a: color_parameter(side_color_a),
                 top_color_a: color_parameter(top_color_a),
@@ -729,6 +731,8 @@ fn make_translucent_material(
             ..default()
         },
         extension: PlaygroundTilesExtension {
+            decals: library.decal_buffers.materials.clone(),
+            probe: library.decal_buffers.probe.clone(),
             settings: PlaygroundTilesSettings {
                 side_color_a: Vec4::ONE,
                 top_color_a: Vec4::ONE,

@@ -230,7 +230,7 @@ fn stats_collector(
         With<PlaygroundTextLabel>,
     >,
     world_text_meshes: Query<
-        (&MeshMaterial3d<StandardMaterial>, &PlaygroundTextGlyphColor),
+        (Option<&MeshMaterial3d<StandardMaterial>>, Option<&MeshMaterial3d<als_ext::projected_decal::PackedDecalReceiverMaterial>>, &PlaygroundTextGlyphColor),
         With<PlaygroundWorldTextMesh>,
     >,
     landscapes: Query<&Transform, With<PlaygroundLandscape>>,
@@ -240,9 +240,12 @@ fn stats_collector(
     material_roles: Query<(&PlaygroundMaterialApplied, Has<NotShadowCaster>), With<Mesh3d>>,
     extended_materials: Query<(), With<MeshMaterial3d<PlaygroundTilesMaterial>>>,
     cube_visuals: Query<(&Name, &Transform), With<PlaygroundStatic>>,
-    materials: Res<Assets<StandardMaterial>>,
+    materials: (Res<Assets<StandardMaterial>>, Res<Assets<als_ext::projected_decal::PackedDecalReceiverMaterial>>),
     tiles_materials: Res<Assets<PlaygroundTilesMaterial>>,
 ) {
+    let material = |standard: Option<&MeshMaterial3d<StandardMaterial>>, receiver: Option<&MeshMaterial3d<als_ext::projected_decal::PackedDecalReceiverMaterial>>| {
+        standard.and_then(|handle| materials.0.get(&handle.0)).or_else(|| receiver.and_then(|handle| materials.1.get(&handle.0)).map(|material| &material.base))
+    };
     stats.static_count = statics.iter().count() as u32;
     stats.text_count = texts.iter().count() as u32;
     stats.native_text_count = native_texts.iter().count() as u32;
@@ -253,8 +256,8 @@ fn stats_collector(
     stats.world_text_mesh_count = world_text_meshes.iter().count() as u32;
     stats.world_text_masked_count = world_text_meshes
         .iter()
-        .filter(|(handle, _)| {
-            materials.get(&handle.0).is_some_and(|material| {
+        .filter(|(standard, receiver, _)| {
+            material(*standard, *receiver).is_some_and(|material| {
                 material.base_color_texture.is_some()
                     && matches!(material.alpha_mode, AlphaMode::Mask(_))
                     && material.cull_mode.is_none()
@@ -363,8 +366,8 @@ fn stats_collector(
     }
     stats.text_color_mesh_count = 0;
     stats.text_color_max_error = 0.0;
-    for (handle, expected) in &world_text_meshes {
-        let Some(material) = materials.get(&handle.0) else {
+    for (standard, receiver, expected) in &world_text_meshes {
+        let Some(material) = material(standard, receiver) else {
             continue;
         };
         let color = material.base_color.to_linear();

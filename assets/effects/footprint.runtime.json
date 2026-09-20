@@ -49,26 +49,26 @@
           "material": "/ALS/ALS/MaterialLibrary/Footprint/M_Als_Footprint_Decal.M_Als_Footprint_Decal",
           "attached": true,
           "size": [
-            0.1,
             0.2,
-            0.2
+            -0.2,
+            0.1
           ],
           "location_offset": [
-            0.0,
             -0.0175,
-            -0.1
+            -0.1,
+            0.0
           ],
           "rotation_offsets": [
             [
               -0.5,
-              -0.5,
+              0.5,
               0.5,
               0.5
             ],
             [
               0.5,
               -0.5,
-              -0.5,
+              0.5,
               0.5
             ]
           ],

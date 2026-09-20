@@ -13,6 +13,10 @@ pub type PlaygroundTilesMaterial = ExtendedMaterial<StandardMaterial, Playground
 
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
 pub struct PlaygroundTilesExtension {
+    #[storage(110, read_only, visibility(fragment))]
+    pub decals: Handle<bevy::render::storage::ShaderBuffer>,
+    #[storage(111, visibility(fragment))]
+    pub probe: Handle<bevy::render::storage::ShaderBuffer>,
     #[uniform(100)]
     pub settings: PlaygroundTilesSettings,
     #[texture(101)]
@@ -30,8 +34,12 @@ pub struct PlaygroundTilesSettings {
 }
 
 impl MaterialExtension for PlaygroundTilesExtension {
-    fn fragment_shader() -> ShaderRef {
-        "shaders/playground_tiles.wgsl".into()
+    fn fragment_shader() -> ShaderRef { "shaders/playground_tiles.wgsl".into() }
+    fn deferred_fragment_shader() -> ShaderRef { "shaders/playground_tiles.wgsl".into() }
+    fn specialize(_: &bevy::pbr::MaterialExtensionPipeline, descriptor: &mut bevy::render::render_resource::RenderPipelineDescriptor,
+        _: &bevy::mesh::MeshVertexBufferLayoutRef, _: bevy::pbr::MaterialExtensionKey<Self>) -> Result<(), bevy::render::render_resource::SpecializedMeshPipelineError> {
+        descriptor.label = Some(format!("als_playground_receiver_{}", descriptor.label.as_deref().unwrap_or_default()).into());
+        Ok(())
     }
 }
 
@@ -39,6 +47,7 @@ pub struct PlaygroundMaterialsPlugin;
 
 impl Plugin for PlaygroundMaterialsPlugin {
     fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<crate::projected_decal::PackedDecalPlugin>() { app.add_plugins(crate::projected_decal::PackedDecalPlugin); }
         app.add_plugins(MaterialPlugin::<PlaygroundTilesMaterial>::default())
             .init_resource::<PlaygroundMaterialLibrary>()
             .add_systems(PreStartup, load_playground_textures);
@@ -47,6 +56,7 @@ impl Plugin for PlaygroundMaterialsPlugin {
 
 #[derive(Resource, Default, Clone)]
 pub struct PlaygroundMaterialLibrary {
+    pub decal_buffers: crate::projected_decal::PackedDecalBuffers,
     pub tiles_grid: Option<Handle<Image>>,
     pub tiles_normal: Option<Handle<Image>>,
     pub tiles_occlusion: Option<Handle<Image>>,
@@ -145,12 +155,13 @@ fn add_image(server: &AssetServer, bytes: &[u8], extension: &str, green_to_red: 
     decode_image(bytes, extension, green_to_red).map(|image| server.add(image))
 }
 
-fn load_playground_textures(mut commands: Commands, server: Res<AssetServer>) {
+fn load_playground_textures(mut commands: Commands, server: Res<AssetServer>, buffers: Res<crate::projected_decal::PackedDecalBuffers>) {
     let grid = std::fs::read("assets/textures/playground/T_Default_Material_Grid_M.tga");
     let normal = std::fs::read("assets/textures/playground/T_Als_Tiles_N.png");
     let masks = std::fs::read("assets/textures/playground/T_Als_Tiles_M.png");
 
     let library = PlaygroundMaterialLibrary {
+        decal_buffers: buffers.clone(),
         tiles_grid: grid.ok().and_then(|bytes| add_image(&server, &bytes, "tga", false)),
         tiles_normal: normal
             .ok()

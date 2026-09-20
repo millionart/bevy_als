@@ -1,3 +1,4 @@
+#import "shaders/packed_decal.wgsl"::apply_packed_decals
 #import bevy_pbr::{
     pbr_fragment::pbr_input_from_standard_material,
     pbr_functions::alpha_discard,
@@ -49,6 +50,8 @@ fn fragment(
     } else {
         pbr_input.material.base_color.a = clamp(in.world_normal.y * 0.5, 0.0, 1.0);
     }
+
+    if (playground_tiles.tiling_and_mode.y < 0.5) { apply_packed_decals(&pbr_input); }
 
     pbr_input.material.base_color = alpha_discard(pbr_input.material, pbr_input.material.base_color);
 

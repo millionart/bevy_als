@@ -159,8 +159,9 @@ pub(super) fn observe(probe: &mut Probe, player: &AnimationGraphPlayer, motion: 
             let mut materials_match = true;
             while let Some(entity) = pending.pop() {
                 if let Ok(children) = motion.object_children.get(entity) { pending.extend(children.iter().rev()); }
-                if let Ok(handle) = motion.object_mesh_materials.get(entity)
-                    && let Some(actual) = motion.object_material_assets.get(&handle.0) {
+                if let Ok((material, source)) = motion.object_mesh_materials.get(entity)
+                    && let Some(handle) = material.map(|material| &material.0).or_else(|| source.map(|source| &source.0))
+                    && let Some(actual) = motion.object_material_assets.get(handle) {
                     let slot = sample.materials.len();
                     sample.materials.push(actual.base_color.to_linear().to_f32_array());
                     materials_match &= expected.materials.get(slot).is_some_and(|expected| {

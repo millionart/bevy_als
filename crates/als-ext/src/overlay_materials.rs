@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use crate::projected_decal::{NoDecalExtension, NoDecalMaterial, NoDecalReceiver};
+use crate::projected_decal::NoDecalReceiver;
 
 pub const AVATAR_MAIN_MATERIAL_SLOT: usize = 10;
 
@@ -7,8 +7,7 @@ pub struct OverlayMaterialsPlugin;
 
 impl Plugin for OverlayMaterialsPlugin {
     fn build(&self, app: &mut App) {
-        app.init_asset::<NoDecalMaterial>()
-            .add_systems(Update, avatar_material_bridge);
+        app.add_systems(Update, avatar_material_bridge.before(crate::projected_decal::PackedDecalPrepareSet));
     }
 }
 
@@ -32,15 +31,12 @@ fn avatar_material_bridge(
         Option<&NoDecalReceiver>,
     )>,
     children: Query<&Children>,
-    mesh_materials: Query<&MeshMaterial3d<StandardMaterial>, With<Mesh3d>>,
-    materials: Res<Assets<StandardMaterial>>,
-    mut no_decal_materials: ResMut<Assets<NoDecalMaterial>>,
+    mesh_materials: Query<(Option<&MeshMaterial3d<StandardMaterial>>, Option<&crate::projected_decal::StandardMaterialSource>), With<Mesh3d>>,
 ) {
     for (root, override_comp, applied, no_decals) in &avatars {
         if applied.is_some() {
             continue;
         }
-        if no_decals.is_some() && override_comp.0.iter().any(|handle| materials.get(handle).is_none()) { continue; }
         let mut stack = vec![root];
         let mut mesh_entities = Vec::new();
         while let Some(e) = stack.pop() {
@@ -52,7 +48,7 @@ fn avatar_material_bridge(
                     stack.push(child);
                 }
             }
-            if mesh_materials.get(e).is_ok() {
+            if mesh_materials.get(e).is_ok_and(|(material, source)| material.is_some() || source.is_some()) {
                 mesh_entities.push(e);
             }
         }
@@ -65,7 +61,7 @@ fn avatar_material_bridge(
                 mesh_materials
                     .get(*entity)
                     .ok()
-                    .map(|material| material.0.id())
+                    .and_then(|(material, source)| material.map(|material| material.0.id()).or_else(|| source.map(|source| source.0.id())))
             })
             .collect();
         if source_materials.len() != mesh_entities.len() {
@@ -82,21 +78,16 @@ fn avatar_material_bridge(
             });
         let mut body_slots = 0u32;
         let mut main_slots = 0u32;
-        let mut prepared = bevy::platform::collections::HashMap::new();
         for (slot, entity) in mesh_entities.iter().enumerate() {
             let material = override_comp
                 .0
                 .get(slot)
                 .unwrap_or(override_comp.0.last().unwrap());
             if no_decals.is_some() {
-                let handle = prepared.entry(material.id()).or_insert_with(|| no_decal_materials.add(NoDecalMaterial {
-                    base: materials.get(material).unwrap().clone(), extension: NoDecalExtension::default(),
-                }));
-                commands.entity(*entity).remove::<MeshMaterial3d<StandardMaterial>>()
-                    .insert(MeshMaterial3d(handle.clone()));
-            } else {
-                commands.entity(*entity).insert(MeshMaterial3d(material.clone()));
+                commands.entity(*entity).insert(NoDecalReceiver);
             }
+            commands.entity(*entity).remove::<(MeshMaterial3d<crate::projected_decal::PackedDecalReceiverMaterial>, crate::projected_decal::StandardMaterialSource)>()
+                .insert(MeshMaterial3d(material.clone()));
             if slot == AVATAR_MAIN_MATERIAL_SLOT {
                 main_slots += 1;
             } else {
@@ -142,7 +133,6 @@ mod tests {
             let target_body = materials.add(StandardMaterial::default());
             let target_main = materials.add(StandardMaterial::default());
             world.insert_resource(materials);
-            world.init_resource::<Assets<NoDecalMaterial>>();
             let mut slots = vec![target_body.clone(); 15];
             slots[AVATAR_MAIN_MATERIAL_SLOT] = target_main.clone();
             let body = world.spawn(AvatarMaterialOverride(slots)).id();
@@ -220,20 +210,17 @@ mod tests {
         let color = Color::linear_rgb(0.2, 0.4, 0.8);
         let target = materials.add(StandardMaterial { base_color: color, metallic: 0.25, perceptual_roughness: 0.7, ..default() });
         world.insert_resource(materials);
-        world.init_resource::<Assets<NoDecalMaterial>>();
         let root = world.spawn((AvatarMaterialOverride(vec![target.clone(), target.clone()]), NoDecalReceiver)).id();
         let body = world.spawn((ChildOf(root), Mesh3d::default(), MeshMaterial3d(source.clone()))).id();
         let second = world.spawn((ChildOf(root), Mesh3d::default(), MeshMaterial3d(source.clone()))).id();
         let other = world.spawn((ChildOf(root), AvatarMaterialOverride(vec![target.clone()]))).id();
         let nested = world.spawn((ChildOf(other), Mesh3d::default(), MeshMaterial3d(source))).id();
         world.run_system_once(avatar_material_bridge).unwrap();
-        assert!(world.get::<MeshMaterial3d<StandardMaterial>>(body).is_none());
-        let handle = &world.get::<MeshMaterial3d<NoDecalMaterial>>(body).unwrap().0;
-        assert_eq!(handle, &world.get::<MeshMaterial3d<NoDecalMaterial>>(second).unwrap().0);
-        let material = world.resource::<Assets<NoDecalMaterial>>().get(handle).unwrap();
-        assert_eq!(material.base.base_color, color);
-        assert_eq!(material.base.metallic, 0.25);
-        assert_eq!(material.base.perceptual_roughness, 0.7);
+        assert!(world.get::<NoDecalReceiver>(body).is_some());
+        assert!(world.get::<NoDecalReceiver>(second).is_some());
+        assert!(world.get::<NoDecalReceiver>(nested).is_none());
+        assert_eq!(world.get::<MeshMaterial3d<StandardMaterial>>(body).unwrap().0, target);
+        assert_eq!(world.get::<MeshMaterial3d<StandardMaterial>>(second).unwrap().0, target);
         assert_eq!(world.get::<MeshMaterial3d<StandardMaterial>>(nested).unwrap().0, target);
     }
 }

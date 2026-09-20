@@ -8,7 +8,7 @@ from pathlib import Path
 from PIL import Image
 
 from generate_als_notify_manifest import manifest
-from coordinate_basis import source_direction_to_runtime, source_point_to_runtime, source_rotation_to_runtime, source_rotator_to_runtime_rotation
+from coordinate_basis import quaternion_multiply, source_direction_to_runtime, source_point_to_runtime, source_rotation_to_runtime, source_rotator_to_runtime_rotation
 from import_camera_component import record, vector
 from ue_animation_asset_resolver import asset_property, source_object_path
 from ue_exported_text import parse_bool
@@ -81,13 +81,15 @@ def compile_definition(sources, settings):
             calculated = source_rotator_to_runtime_rotation(vector(read('Foot' + side + 'RotationOffset'), ('Pitch', 'Yaw', 'Roll')))
             if abs(abs(sum(a * b for a, b in zip(rotation, calculated))) - 1.0) > 1e-5:
                 raise ValueError('Source cached decal rotation differs from its authored rotator')
+        size = source_point_to_runtime(vector(read('Size')))
+        offset = source_point_to_runtime(vector(read('LocationOffset')))
         result['effects'].append({
             'surface': effect['key'],
             'material': None if read('DecalMaterial') == 'None' else read('DecalMaterial'),
             'attached': read('SpawnMode') == 'SpawnAttachedToTraceHitComponent',
-            'size': source_point_to_runtime(vector(read('Size'))),
-            'location_offset': source_point_to_runtime(vector(read('LocationOffset'))),
-            'rotation_offsets': rotations,
+            'size': [size[1], -size[2], size[0]],
+            'location_offset': [offset[1], offset[2], offset[0]],
+            'rotation_offsets': [quaternion_multiply(rotation, [0.5, 0.5, 0.5, 0.5]) for rotation in rotations],
             'duration': float(read('Duration')),
             'fade_out_duration': float(read('FadeOutDuration')),
             'sound': record(record(effect['fields'], 'Sound')['fields'], 'Sound')['exported_text'],
@@ -164,9 +166,20 @@ def self_test(sources):
     assert result['trace_distance'] == 0.5
     assert result['trace_layer'] == 'Visibility'
     assert result['foot_up_axes'] == [[1, 0, 0], [-1, 0, 0]]
-    assert result['effects'][0]['location_offset'] == [0, -0.0175, -0.1]
-    assert result['effects'][0]['size'] == [0.1, 0.2, 0.2]
-    assert result['effects'][0]['rotation_offsets'] == [[-0.5, -0.5, 0.5, 0.5], [0.5, -0.5, -0.5, 0.5]]
+    effect = result['effects'][0]
+    assert effect['location_offset'] == [-0.0175, -0.1, 0]
+    assert effect['size'] == [0.2, -0.2, 0.1]
+    assert effect['rotation_offsets'] == [[-0.5, 0.5, 0.5, 0.5], [0.5, -0.5, 0.5, 0.5]]
+    rotate = lambda q, point: quaternion_multiply(quaternion_multiply(q, [*point, 0.0]), [-q[0], -q[1], -q[2], q[3]])[:3]
+    for old_rotation, rotation in zip(([-0.5, -0.5, 0.5, 0.5], [0.5, -0.5, -0.5, 0.5]), effect['rotation_offsets']):
+        assert all(abs(a - b) < 1e-8 for a, b in zip(rotate(old_rotation, [0, -0.0175, -0.1]), rotate(rotation, effect['location_offset'])))
+        for point in ([0.2, -0.4, 0.1], [-0.3, 0.1, 0.4], [0.5, 0.5, -0.5]):
+            projected = [point[1], -point[2], point[0]]
+            old_world = rotate(old_rotation, [value * size for value, size in zip(point, [0.1, 0.2, 0.2])])
+            new_world = rotate(rotation, [value * size for value, size in zip(projected, effect['size'])])
+            assert all(abs(a - b) < 1e-8 for a, b in zip(old_world, new_world))
+            assert [projected[0] + 0.5, -projected[1] + 0.5] == [point[1] + 0.5, point[2] + 0.5]
+            assert abs(projected[2]) == abs(point[0])
     material_key = result['effects'][0]['material']
     assert result['materials'][material_key]['opacity'] == 0.3 and result['materials'][material_key]['roughness_scale'] == 0.2
     changed = deepcopy(sources)
@@ -247,9 +260,9 @@ def main():
         assert saved.read_bytes() == raw.read_bytes()
         image = Image.open(saved)
         shader = (args.asset_root / 'shaders/packed_decal.wgsl').read_text(encoding='utf-8')
-        audit_channels(named(sources, 'M_Als_Footprint_Decal'), texture, image, Image.open(raw), shader, 'packed_texture')
+        audit_channels(named(sources, 'M_Als_Footprint_Decal'), texture, image, Image.open(raw), shader, 'mesh_view_bindings::clustered_decal_textures')
         if args.self_test:
-            channel_self_test(named(sources, 'M_Als_Footprint_Decal'), texture, image, shader, 'packed_texture')
+            channel_self_test(named(sources, 'M_Als_Footprint_Decal'), texture, image, shader, 'mesh_view_bindings::clustered_decal_textures')
     print(json.dumps({'source_assets': len(sources), 'footstep_notifies': 154, 'native_map_defaults': 'PASS', 'native_class_defaults': 'PASS', 'source_texture': 'PASS', 'existing_notify_manifest': 'PASS'}))
 
 

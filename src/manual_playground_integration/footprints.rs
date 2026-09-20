@@ -1,6 +1,6 @@
 use super::*;
 use crate::footprint::{Footprint, FootprintDiagnostics, footprint_opacity};
-use als_ext::projected_decal::{NoDecalMaterial, PackedDecalMaterial};
+use als_ext::projected_decal::{NoDecalReceiver, PackedDecal, PackedDecalMaterial};
 
 pub(super) const LABELS: [&str; 8] = ["footprint_prepare", "footprint_walk", "footprint_walk_stop", "footprint_run", "footprint_run_stop", "footprint_crouch", "footprint_crouch_stop", "footprint_cleanup"];
 
@@ -36,12 +36,12 @@ fn observe(
     mut window: ResMut<ManualAnimationWindowEvidence>,
     time: Res<Time>,
     characters: Query<(&FootprintDiagnostics, &LocomotionState, &Stance, &AlsActualMotion, &AlsStandingGraphTelemetry, &AlsCrouchingGraphTelemetry)>,
-    footprints: Query<(Entity, &Footprint, &Transform, &GlobalTransform, Option<&ChildOf>, &MeshMaterial3d<PackedDecalMaterial>, &ViewVisibility)>,
+    footprints: Query<(Entity, &Footprint, &Transform, &GlobalTransform, Option<&ChildOf>, &PackedDecal, &ViewVisibility)>,
     globals: Query<&GlobalTransform>,
     owners: Query<&avian3d::prelude::ColliderOf>,
     bodies: Query<&RigidBody>,
     materials: Res<Assets<PackedDecalMaterial>>,
-    no_receivers: Query<&MeshMaterial3d<NoDecalMaterial>>,
+    no_receivers: Query<&MeshMaterial3d<StandardMaterial>, With<NoDecalReceiver>>,
     images: Res<Assets<Image>>,
     render: Res<als_ext::projected_decal::DecalRenderStatus>,
 ) {
@@ -66,11 +66,11 @@ fn observe(
         let age = time.elapsed_secs_f64() - mark.created_at;
         let alpha = mark.opacity * footprint_opacity(age, mark.lifetime);
         let material = materials.get(&material.0);
-        if material.is_none_or(|material| (material.base.base_color.alpha() - alpha).abs() > 1e-5) {
+        if material.is_none_or(|material| (material.color.w - alpha).abs() > 1e-5) {
             if !probe.errors.iter().any(|error| error == "Footprint opacity differs from source lifetime") { probe.errors.push("Footprint opacity differs from source lifetime".into()); }
         }
         probe.faded |= alpha > 0.0 && alpha < mark.opacity - 0.01;
-        let image_loaded = material.is_some_and(|material| images.get(&material.extension.texture).is_some_and(|image| image.size() == UVec2::splat(512)));
+        let image_loaded = material.is_some_and(|material| images.get(&material.texture).is_some_and(|image| image.size() == UVec2::splat(512)));
         visible_meshes += usize::from(visible.get());
         loaded_images += usize::from(image_loaded);
         probe.visible |= visible.get() && image_loaded;
