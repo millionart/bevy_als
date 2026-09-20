@@ -43,7 +43,7 @@ struct AlsRollSlotSampler {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use bevy::ecs::system::RunSystemOnce;
 
@@ -66,7 +66,7 @@ mod tests {
         assert!(failures.is_empty(), "Roll used the wrong input or actor basis: {failures:?}");
     }
 
-    fn ready_roll_player(app: &mut App, avatar: Entity) -> Entity {
+    pub(crate) fn ready_roll_player(app: &mut App, avatar: Entity) -> Entity {
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(40);
         loop {
             app.update();
@@ -82,7 +82,7 @@ mod tests {
         }
     }
 
-    fn loaded_roll_character() -> (App, Entity, Entity) {
+    pub(crate) fn loaded_roll_character() -> (App, Entity, Entity) {
         use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterBlueprint, spawn_als_character};
         let (mut app, _, _, _) = crate::camera_component::tests::loaded_camera_scene();
         app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));

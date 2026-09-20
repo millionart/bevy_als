@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use als_camera::AlsCameraShakeRequest;
 use als_core::character::AlsCharacter;
@@ -743,7 +743,67 @@ fn dispatch_animation_events(
         mut early_blend_out,
     ) in &mut characters
     {
-        let mut active_sources = HashMap::<(String, u64), bool>::default();
+        let active_sources = playbacks.entries.iter()
+            .filter(|playback| source_clip(manifest, &playback.source_asset).is_some())
+            .map(|playback| (playback.source_asset.clone(), playback.instance_id))
+            .collect::<HashSet<_>>();
+        let inactive = runtime
+            .sources
+            .keys()
+            .filter(|source| !active_sources.contains(*source))
+            .cloned()
+            .collect::<Vec<_>>();
+        for (source_asset, instance_id) in inactive {
+            let Some(source) = source_clip(manifest, &source_asset) else {
+                continue;
+            };
+            let source_runtime = runtime
+                .sources
+                .get_mut(&(source_asset.clone(), instance_id))
+                .expect("source runtime must exist");
+            for signal in source_runtime.lifecycle.reset() {
+                let event = source
+                    .events
+                    .iter()
+                    .find(|event| event.event_id == signal.id);
+                if let Some(event) = event {
+                    if event.class_name == "AlsAnimNotifyState_SetLocomotionAction" {
+                        let next_action =
+                            notify_action(parameter_tag(&event.parameters, "LocomotionAction"));
+                        if *action == next_action {
+                            *action = AlsNotifyLocomotionAction::None;
+                        }
+                    }
+                    if event.class_name == "AlsAnimNotifyState_SetRootMotionScale" {
+                        let scale = parameter_f32(&event.parameters, "TranslationScale", 1.0);
+                        if (root_scale.0 - scale).abs() <= 1e-4 {
+                            root_scale.0 = 1.0;
+                        }
+                    }
+                    if event.class_name == "AlsAnimNotifyState_EarlyBlendOut" {
+                        *early_blend_out = AlsNotifyEarlyBlendOut::default();
+                    }
+                    events.write(AlsAnimationEvent {
+                        character,
+                        instance_id,
+                        source_asset: source_asset.clone(),
+                        graph_clip: source
+                            .runtime_segments
+                            .first()
+                            .map_or_else(String::new, |segment| segment.graph_clip.clone()),
+                        event_id: signal.id,
+                        class_name: event.class_name.clone(),
+                        name: event.name.clone(),
+                        phase: signal.phase,
+                        time: source_runtime.previous_time.unwrap_or_default(),
+                        weight: signal.weight,
+                        percentage: signal.percentage,
+                        parameters: event.parameters.clone(),
+                    });
+                }
+            }
+            runtime.sources.remove(&(source_asset, instance_id));
+        }
         for playback in &playbacks.entries {
             let Some(source) = source_clip(manifest, &playback.source_asset) else {
                 continue;
@@ -755,7 +815,6 @@ fn dispatch_animation_events(
                 .sources
                 .entry((playback.source_asset.clone(), playback.instance_id))
                 .or_default();
-            active_sources.insert((playback.source_asset.clone(), playback.instance_id), true);
             if playback.interrupted { continue; }
             let clock = playback_clock(source_runtime, playback);
             let definitions = timed_events(source);
@@ -853,63 +912,6 @@ fn dispatch_animation_events(
                     parameters,
                 });
             }
-        }
-        let inactive = runtime
-            .sources
-            .keys()
-            .filter(|source| !active_sources.contains_key(*source))
-            .cloned()
-            .collect::<Vec<_>>();
-        for (source_asset, instance_id) in inactive {
-            let Some(source) = source_clip(manifest, &source_asset) else {
-                continue;
-            };
-            let source_runtime = runtime
-                .sources
-                .get_mut(&(source_asset.clone(), instance_id))
-                .expect("source runtime must exist");
-            for signal in source_runtime.lifecycle.reset() {
-                let event = source
-                    .events
-                    .iter()
-                    .find(|event| event.event_id == signal.id);
-                if let Some(event) = event {
-                    if event.class_name == "AlsAnimNotifyState_SetLocomotionAction" {
-                        let next_action =
-                            notify_action(parameter_tag(&event.parameters, "LocomotionAction"));
-                        if *action == next_action {
-                            *action = AlsNotifyLocomotionAction::None;
-                        }
-                    }
-                    if event.class_name == "AlsAnimNotifyState_SetRootMotionScale" {
-                        let scale = parameter_f32(&event.parameters, "TranslationScale", 1.0);
-                        if (root_scale.0 - scale).abs() <= 1e-4 {
-                            root_scale.0 = 1.0;
-                        }
-                    }
-                    if event.class_name == "AlsAnimNotifyState_EarlyBlendOut" {
-                        *early_blend_out = AlsNotifyEarlyBlendOut::default();
-                    }
-                    events.write(AlsAnimationEvent {
-                        character,
-                        instance_id,
-                        source_asset: source_asset.clone(),
-                        graph_clip: source
-                            .runtime_segments
-                            .first()
-                            .map_or_else(String::new, |segment| segment.graph_clip.clone()),
-                        event_id: signal.id,
-                        class_name: event.class_name.clone(),
-                        name: event.name.clone(),
-                        phase: signal.phase,
-                        time: source_runtime.previous_time.unwrap_or_default(),
-                        weight: signal.weight,
-                        percentage: signal.percentage,
-                        parameters: event.parameters.clone(),
-                    });
-                }
-            }
-            runtime.sources.remove(&(source_asset, instance_id));
         }
         match (physical_stance_override(action.clone()), physical_override) {
             (Some(next), Some(current)) if *current == next => {}

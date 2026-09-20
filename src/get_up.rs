@@ -17,7 +17,7 @@ use serde::Deserialize;
 
 use crate::{
     animation_events::{AlsAnimationEventSet, AlsNotifyLocomotionAction},
-    character_assembly::AlsCharacterAvatar,
+    character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar},
 };
 
 pub const POST_LOCOMOTION_POSE: &str = "post_locomotion.pose";
@@ -68,6 +68,7 @@ pub(crate) struct AlsGetUpRequest(pub bool);
 
 #[derive(Component, Debug, Clone, Copy)]
 pub struct AlsGetUpState {
+    target_player: Entity,
     pub facing_up: bool,
     pub elapsed: f32,
     pub clip_time: f32,
@@ -80,6 +81,7 @@ pub struct AlsGetUpState {
 impl AlsGetUpState {
     pub(crate) fn new(facing_up: bool) -> Self {
         Self {
+            target_player: Entity::PLACEHOLDER,
             facing_up,
             elapsed: 0.0,
             clip_time: 0.0,
@@ -143,13 +145,19 @@ fn load_get_up_assets(mut commands: Commands, assets: Res<AssetServer>) {
 
 fn start_get_up(
     mut commands: Commands,
-    requests: Query<(Entity, &AlsGetUpRequest)>,
+    requests: Query<(Entity, &AlsGetUpRequest, Option<&AlsCharacterAssembly>, Option<&AlsGetUpState>)>,
     mut rolls: Query<&mut AlsRollState>,
     assets: Res<GetUpAssets>,
     clips: Res<Assets<GraphClip>>,
+    avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
+    mut players: Query<&mut AnimationGraphPlayer>,
+    mut source_inputs: Query<&mut als_ext::SourceAnimationInputs>,
 ) {
-    for (character, request) in &requests {
+    for (character, request, assembly, previous) in &requests {
         commands.entity(character).remove::<AlsGetUpRequest>();
+        let Some(target_player) = assembly.and_then(|assembly| avatars.get(assembly.avatar).ok())
+            .filter(|(avatar, instance)| avatar.character == character && players.contains(instance.player_entity()))
+            .map(|(_, instance)| instance.player_entity()) else { continue; };
         if !clips.contains(&assets.clips[usize::from(request.0)]) {
             error!("[GET-UP] clip was not loaded when recovery requested character={character:?}");
             continue;
@@ -157,14 +165,41 @@ fn start_get_up(
         if let Ok(mut roll) = rolls.get_mut(character) {
             roll.active = false;
         }
+        if let Some(previous) = previous && previous.target_player != target_player
+            && let Ok(mut player) = players.get_mut(previous.target_player) {
+            clear_get_up_slot(&mut player, source_inputs.get_mut(previous.target_player).ok());
+        }
         commands
             .entity(character)
             .remove::<crate::roll_drive::AlsRollBlendOut>();
         commands.entity(character).insert((
-            AlsGetUpState::new(request.0),
+            AlsGetUpState { target_player, ..AlsGetUpState::new(request.0) },
             AlsMovementInputBlocked,
             AlsNotifyLocomotionAction::GettingUp,
         ));
+    }
+}
+
+fn clear_get_up_slot(player: &mut AnimationGraphPlayer, inputs: Option<Mut<als_ext::SourceAnimationInputs>>) {
+    player.set_global_input_data(POST_LOCOMOTION_WEIGHT, 0.0_f32);
+    player.set_global_input_data(POST_LOCOMOTION_LAYER_WEIGHT, 0.0_f32);
+    if let Some(mut inputs) = inputs { inputs.set_slot_input_context(POST_LOCOMOTION_POSE, None); }
+}
+
+fn end_get_up_instance(commands: &mut Commands, character: Entity, action: Option<&AlsNotifyLocomotionAction>) {
+    commands.entity(character).try_remove::<(AlsGetUpState, AlsMovementInputBlocked)>();
+    if action == Some(&AlsNotifyLocomotionAction::GettingUp) {
+        commands.entity(character).try_insert(AlsNotifyLocomotionAction::None);
+    }
+}
+
+fn discard_get_up_target(
+    event: On<Discard, AnimationGraphPlayer>,
+    states: Query<(Entity, &AlsGetUpState, Option<&AlsNotifyLocomotionAction>)>,
+    mut commands: Commands,
+) {
+    for (character, state, action) in &states {
+        if state.target_player == event.entity { end_get_up_instance(&mut commands, character, action); }
     }
 }
 
@@ -197,13 +232,24 @@ fn update_get_up_pose(
             Option<&AlsNotifyLocomotionAction>,
             &mut AlsGetUpState,
             Option<&AlsRollState>,
+            Option<&AlsCharacterAssembly>,
         ),
         With<AlsCharacter>,
     >,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
-    for (character, action, mut state, roll) in &mut characters {
+    for (character, action, mut state, roll, assembly) in &mut characters {
+        let player_entity = state.target_player;
+        if !assembly.and_then(|assembly| avatars.get(assembly.avatar).ok())
+            .is_some_and(|(avatar, instance)| avatar.character == character && instance.player_entity() == player_entity)
+            || !players.contains(player_entity) {
+            if let Ok(mut player) = players.get_mut(player_entity) {
+                clear_get_up_slot(&mut player, source_inputs.get_mut(player_entity).ok());
+            }
+            end_get_up_instance(&mut commands, character, action);
+            continue;
+        }
         let previous_clip_time = state.clip_time;
         if action == Some(&AlsNotifyLocomotionAction::Ragdolling) {
             state.stop(RAGDOLL_SETTINGS.stop_montage_blend_seconds);
@@ -211,21 +257,10 @@ fn update_get_up_pose(
             state.stop(als_core::roll::ROLL_WEIGHT_IN_SECS);
         }
         state.advance(time.delta_secs());
-        let Some(instance) = avatars
-            .iter()
-            .find_map(|(avatar, instance)| (avatar.character == character).then_some(instance))
-        else {
-            continue;
-        };
-        let player_entity = instance.player_entity();
-        let Ok(mut player) = players.get_mut(player_entity) else {
-            continue;
-        };
+        let mut player = players.get_mut(player_entity).unwrap();
         if state.weight <= 0.0 {
-            player.set_global_input_data(POST_LOCOMOTION_WEIGHT, 0.0_f32);
-            player.set_global_input_data(POST_LOCOMOTION_LAYER_WEIGHT, 0.0_f32);
-            source_inputs.get_mut(player_entity).unwrap().set_slot_input_context(POST_LOCOMOTION_POSE, None);
-            commands.entity(character).remove::<AlsGetUpState>();
+            clear_get_up_slot(&mut player, source_inputs.get_mut(player_entity).ok());
+            end_get_up_instance(&mut commands, character, action);
             continue;
         }
         let index = usize::from(state.facing_up);
@@ -300,6 +335,7 @@ pub struct AlsGetUpPlugin;
 impl Plugin for AlsGetUpPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, load_get_up_assets)
+            .add_observer(discard_get_up_target)
             .add_systems(
                 Update,
                 start_get_up.after(crate::ragdoll_link::restore_ragdoll_player_parent),
@@ -321,32 +357,146 @@ impl Plugin for AlsGetUpPlugin {
 mod tests {
     use super::*;
 
+    fn play_loaded_get_up(app: &mut App, character: Entity, facing_up: bool) {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        loop {
+            let assets = app.world().resource::<GetUpAssets>();
+            if app.world().resource::<Assets<GraphClip>>().contains(&assets.clips[usize::from(facing_up)])
+                && app.world().resource::<Assets<AlsAnimCurves>>().contains(&assets.curves[usize::from(facing_up)]) { break; }
+            app.update();
+            assert!(std::time::Instant::now() < deadline, "Get-up assets did not become ready");
+        }
+        app.world_mut().entity_mut(character).insert(AlsGetUpRequest(facing_up));
+        for _ in 0..4 { app.update(); }
+        let state = app.world().get::<AlsGetUpState>(character).unwrap();
+        assert!(state.pose_ready && state.clip_time > 0.0 && state.weight > 0.9);
+        assert!(app.world().get::<AlsMovementInputBlocked>(character).is_some());
+        assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(character), Some(&AlsNotifyLocomotionAction::GettingUp));
+        let avatar = app.world().get::<crate::character_assembly::AlsCharacterAssembly>(character).unwrap().avatar;
+        let target = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let player = app.world().get::<AnimationGraphPlayer>(target).unwrap();
+        assert!(player.get_error().is_none() && player.get_default_output_pose().is_some());
+        assert!(player.get_global_input_data(POST_LOCOMOTION_POSE).and_then(|value| value.as_pose().ok()).is_some_and(|pose| !pose.bones.is_empty()));
+        assert!(app.world().get::<als_ext::SourceAnimationInputs>(target).unwrap().slot_input_context(POST_LOCOMOTION_POSE).is_some());
+    }
+
+    fn assert_get_up_ended(app: &App, character: Entity) {
+        assert!(app.world().get::<AlsGetUpState>(character).is_none(), "Old get-up survived the end of its player instance");
+        assert!(app.world().get::<AlsMovementInputBlocked>(character).is_none());
+        assert_ne!(app.world().get::<AlsNotifyLocomotionAction>(character), Some(&AlsNotifyLocomotionAction::GettingUp));
+        assert!(app.world().get::<crate::animation_events::AlsAnimationEventPlaybacks>(character).unwrap().entries.iter()
+            .all(|entry| !entry.source_asset.contains("GetUp")));
+    }
+
+    #[test]
+    fn get_up_ends_when_its_loaded_player_is_replaced_or_destroyed() {
+        use bevy_animation_graph::core::animation_graph_player::AnimationSource;
+        use crate::animation_events::AlsAnimationEvent;
+        for mode in 0..4 {
+            let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            let target = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+            play_loaded_get_up(&mut app, character, mode % 2 == 0);
+            app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().clear();
+            if mode < 2 {
+                let player = app.world().get::<AnimationGraphPlayer>(target).unwrap();
+                let AnimationSource::Graph(graph) = player.get_animation_source() else { panic!("Character must use its actual graph"); };
+                let replacement = AnimationGraphPlayer::new(player.skeleton().clone()).with_graph(graph.clone());
+                if mode == 1 { app.world_mut().entity_mut(target).remove::<AnimationGraphPlayer>(); }
+                app.world_mut().entity_mut(target).insert(replacement);
+            } else if mode == 2 {
+                app.world_mut().despawn(target);
+            } else {
+                let children: Vec<_> = app.world().get::<Children>(avatar).unwrap().iter().rev().collect();
+                app.world_mut().entity_mut(avatar).replace_children(&children);
+                app.world_mut().despawn(avatar);
+            }
+            assert!(app.world().get::<AlsGetUpState>(character).is_none(), "Get-up survived player discard mode {mode}");
+            assert!(app.world().get::<AlsMovementInputBlocked>(character).is_none());
+            assert_ne!(app.world().get::<AlsNotifyLocomotionAction>(character), Some(&AlsNotifyLocomotionAction::GettingUp));
+            app.update();
+            assert_get_up_ended(&app, character);
+            assert!(app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain().any(|event|
+                event.character == character && event.source_asset.contains("GetUp") && event.phase == als_ext::event_lifecycle::EventPhase::End));
+            for _ in 0..3 { app.update(); }
+            assert_get_up_ended(&app, character);
+            if mode >= 2 {
+                use bevy::ecs::system::RunSystemOnce;
+                app.world_mut().entity_mut(character).insert(AlsGetUpRequest(false));
+                app.world_mut().run_system_once(start_get_up).unwrap();
+                assert_get_up_ended(&app, character);
+                assert!(app.world().get::<AlsGetUpRequest>(character).is_none());
+            }
+        }
+    }
+
+    #[test]
+    fn get_up_replacement_request_clears_the_previous_players_slot() {
+        use bevy::ecs::system::RunSystemOnce;
+        use crate::character_assembly::{ALS_LINKED_ANIMATED_SCENE, attach_avatar};
+        let (mut app, character, old_avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let old_player = app.world().get::<AnimatedSceneInstance>(old_avatar).unwrap().player_entity();
+        let avatar = app.world_mut().run_system_once_with(|In(character): In<Entity>, mut commands: Commands, assets: Res<AssetServer>| {
+            attach_avatar(&mut commands, &assets, character, ALS_LINKED_ANIMATED_SCENE)
+        }, character).unwrap();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        let target = loop {
+            app.update();
+            if let Some(instance) = app.world().get::<AnimatedSceneInstance>(avatar)
+                && app.world().get::<AnimationGraphPlayer>(instance.player_entity()).is_some_and(|player| player.get_default_output_pose().is_some()) {
+                break instance.player_entity();
+            }
+            assert!(std::time::Instant::now() < deadline, "Replacement avatar did not become ready");
+        };
+        play_loaded_get_up(&mut app, character, false);
+        app.world_mut().get_mut::<AlsCharacterAssembly>(character).unwrap().avatar = avatar;
+        app.world_mut().entity_mut(character).insert(AlsGetUpRequest(true));
+        app.world_mut().run_system_once(start_get_up).unwrap();
+        assert_eq!(app.world().get::<AnimationGraphPlayer>(old_player).unwrap().get_global_input_data(POST_LOCOMOTION_WEIGHT).unwrap().as_f32().unwrap(), 0.0);
+        assert!(app.world().get::<als_ext::SourceAnimationInputs>(old_player).unwrap().slot_input_context(POST_LOCOMOTION_POSE).is_none());
+        assert_eq!(app.world().get::<AlsGetUpState>(character).unwrap().target_player, target);
+        app.update();
+        assert!(app.world().get::<AlsGetUpState>(character).unwrap().pose_ready);
+        assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(character), Some(&AlsNotifyLocomotionAction::GettingUp));
+        assert!(app.world().get::<AlsMovementInputBlocked>(character).is_some());
+    }
+
+    #[test]
+    fn get_up_follows_the_current_avatar_and_preserves_normal_overlay_changes() {
+        use bevy::ecs::system::RunSystemOnce;
+        use crate::character_assembly::{AlsCharacterAssembly, ALS_LINKED_ANIMATED_SCENE, attach_avatar};
+        for retain_owner in [false, true] {
+        let (mut app, character, old_avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let old_player = app.world().get::<AnimatedSceneInstance>(old_avatar).unwrap().player_entity();
+        play_loaded_get_up(&mut app, character, false);
+        if !retain_owner { app.world_mut().entity_mut(old_avatar).remove::<AlsCharacterAvatar>(); }
+        app.world_mut().get_mut::<AnimationGraphPlayer>(old_player).unwrap().pause();
+        let avatar = app.world_mut().run_system_once_with(|In(character): In<Entity>, mut commands: Commands, assets: Res<AssetServer>| {
+            attach_avatar(&mut commands, &assets, character, ALS_LINKED_ANIMATED_SCENE)
+        }, character).unwrap();
+        app.world_mut().get_mut::<AlsCharacterAssembly>(character).unwrap().avatar = avatar;
+        let target = crate::roll_drive::tests::ready_roll_player(&mut app, avatar);
+        assert_get_up_ended(&app, character);
+        for player in [old_player, target] {
+            assert_eq!(app.world().get::<AnimationGraphPlayer>(player).unwrap().get_global_input_data(POST_LOCOMOTION_WEIGHT)
+                .and_then(|value| value.as_f32().ok()).unwrap_or(0.0), 0.0);
+            assert!(app.world().get::<als_ext::SourceAnimationInputs>(player).unwrap().slot_input_context(POST_LOCOMOTION_POSE).is_none());
+        }
+        play_loaded_get_up(&mut app, character, true);
+        let before = app.world().get::<AlsGetUpState>(character).unwrap().clip_time;
+        app.world_mut().get_mut::<als_core::transition::AlsStateRequest>(character).unwrap().overlay_state = Some(als_core::state::OverlayState::Rifle);
+        app.update();
+        assert!(app.world().get::<AlsGetUpState>(character).unwrap().clip_time > before);
+        app.world_mut().despawn(old_avatar);
+        app.update();
+        assert!(app.world().get::<AlsGetUpState>(character).unwrap().pose_ready);
+        }
+    }
+
     #[test]
     fn both_get_up_assets_load_sample_and_start_the_actual_request_system() {
         use bevy::ecs::system::RunSystemOnce;
-        use bevy_animation_graph::core::{
-            animation_clip::loader::GraphClipLoader,
-            skeleton::{Skeleton, loader::SkeletonLoader},
-        };
-        let mut app = App::new();
-        app.add_plugins((
-            MinimalPlugins,
-            AssetPlugin::default(),
-            bevy::gltf::GltfPlugin::default(),
-        ))
-        .init_asset::<bevy::world_serialization::WorldAsset>()
-        .init_asset::<bevy::animation::AnimationClip>()
-        .init_asset::<bevy::mesh::skinning::SkinnedMeshInverseBindposes>()
-        .init_asset::<Mesh>()
-        .init_asset::<Image>()
-        .init_asset::<GraphClip>()
-        .init_asset_loader::<GraphClipLoader>()
-        .init_asset::<Skeleton>()
-        .init_asset_loader::<SkeletonLoader>()
-        .add_plugins(als_ext::AlsExtPlugin)
-        .add_systems(Startup, load_get_up_assets);
-        app.finish();
-        app.cleanup();
+        use bevy_animation_graph::core::skeleton::Skeleton;
+        let (mut app, entity, _) = crate::roll_drive::tests::loaded_roll_character();
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
         loop {
             app.update();
@@ -414,15 +564,14 @@ mod tests {
                 time: 0.3,
                 ..default()
             };
-            let entity = app
+            app
                 .world_mut()
-                .spawn((
-                    AlsCharacter,
+                .entity_mut(entity)
+                .insert((
                     AlsGetUpRequest(facing_up),
                     roll,
                     crate::roll_drive::AlsRollBlendOut::new(&roll, crate::get_up::RAGDOLL_SETTINGS.stop_montage_blend_seconds),
-                ))
-                .id();
+                ));
             app.world_mut().run_system_once(start_get_up).unwrap();
             assert_eq!(
                 app.world().get::<AlsGetUpState>(entity).unwrap().facing_up,
