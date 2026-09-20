@@ -14,47 +14,88 @@ use als_ext::{overlay_materials::{AvatarMaterialApplied, AvatarMaterialOverride}
     post_physics_animation::{ManualAnimationPlayer, PostPhysicsAnimationSet}};
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::sync::LazyLock;
 
 use crate::character_assembly::AlsCharacterAssembly;
 
 pub const LEFT_GUN_BONE: &str = "VB hand_l_to_ik_hand_gun";
 pub const RIGHT_GUN_BONE: &str = "VB hand_r_to_ik_hand_gun";
 
-#[derive(Deserialize)]
-pub(crate) struct ObjectMaterial {
-    pub(crate) linear_rgba: [f32; 4],
-    pub(crate) metallic: f32,
-    pub(crate) roughness: f32,
-    pub(crate) reflectance: f32,
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+pub struct ObjectMaterial {
+    pub linear_rgba: [f32; 4],
+    pub metallic: f32,
+    pub roughness: f32,
+    pub reflectance: f32,
 }
 
-#[derive(Deserialize)]
-pub(crate) struct ObjectDefinition {
-    kind: OverlayObjectKind,
-    mesh: String,
-    scene: Option<String>,
-    socket_name: String,
-    socket_bone: String,
-    use_left_gun_bone: bool,
-    pub(crate) socket_translation: Vec3,
-    pub(crate) socket_rotation: Quat,
-    pub(crate) socket_scale: Vec3,
-    pub(crate) materials: Vec<ObjectMaterial>,
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+pub struct ObjectDefinition {
+    pub kind: OverlayObjectKind,
+    pub mesh: String,
+    pub scene: Option<String>,
+    pub socket_name: String,
+    pub socket_bone: String,
+    pub use_left_gun_bone: bool,
+    pub socket_translation: Vec3,
+    pub socket_rotation: Quat,
+    pub socket_scale: Vec3,
+    pub materials: Vec<ObjectMaterial>,
 }
 
-#[derive(Deserialize)]
-pub(crate) struct OverlayDefinition {
-    pub(crate) graph: String,
-    pub(crate) blend_in: f32,
-    pub(crate) blend_out: f32,
-    pub(crate) object: Option<ObjectDefinition>,
+#[derive(Clone, Deserialize)]
+pub struct OverlayDefinition {
+    pub graph: String,
+    pub blend_in: f32,
+    pub blend_out: f32,
+    pub object: Option<ObjectDefinition>,
+    #[serde(skip)]
+    pub(crate) graph_handle: Handle<bevy_animation_graph::core::animation_graph::AnimationGraph>,
 }
 
-pub(crate) static OVERLAYS: LazyLock<HashMap<OverlayState, OverlayDefinition>> = LazyLock::new(|| {
-    serde_json::from_str(include_str!("../assets/character/overlay_actor.runtime.json"))
-        .expect("Generated overlay actor definition must be valid")
-});
+#[derive(Asset, TypePath, Deserialize)]
+#[serde(transparent)]
+pub struct OverlayLibrary(pub HashMap<OverlayState, OverlayDefinition>);
+
+#[derive(Resource)]
+pub struct OverlayLibraryHandle(pub Handle<OverlayLibrary>);
+
+impl FromWorld for OverlayLibraryHandle {
+    fn from_world(world: &mut World) -> Self {
+        Self(world.resource::<AssetServer>().load("character/overlay_actor.runtime.json"))
+    }
+}
+
+#[derive(Default, TypePath)]
+struct OverlayLibraryLoader;
+
+impl bevy::asset::AssetLoader for OverlayLibraryLoader {
+    type Asset = OverlayLibrary;
+    type Settings = ();
+    type Error = std::io::Error;
+
+    async fn load(&self, reader: &mut dyn bevy::asset::io::Reader, _: &(), context: &mut bevy::asset::LoadContext<'_>) -> Result<OverlayLibrary, Self::Error> {
+        let mut bytes = Vec::new();
+        reader.read_to_end(&mut bytes).await?;
+        let mut library: OverlayLibrary = serde_json::from_slice(&bytes).map_err(std::io::Error::other)?;
+        for (tag, definition) in &mut library.0 {
+            if tag.as_str().is_empty() || definition.graph.is_empty() || !definition.blend_in.is_finite() || !definition.blend_out.is_finite() {
+                return Err(std::io::Error::other("Overlay tag, graph or blend duration is invalid"));
+            }
+            definition.graph_handle = context.load(definition.graph.clone());
+        }
+        Ok(library)
+    }
+
+    fn extensions(&self) -> &[&str] { &["json"] }
+}
+
+pub struct OverlayLibraryPlugin;
+
+impl Plugin for OverlayLibraryPlugin {
+    fn build(&self, app: &mut App) {
+        app.init_asset::<OverlayLibrary>().init_asset_loader::<OverlayLibraryLoader>().init_resource::<OverlayLibraryHandle>();
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 pub enum OverlayObjectKind {
@@ -62,23 +103,11 @@ pub enum OverlayObjectKind {
     Skeletal,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct OverlayObjectSpec {
-    pub kind: OverlayObjectKind,
-    pub asset_path: &'static str,
-    pub animation_scene: Option<&'static str>,
-    pub socket_name: &'static str,
-    pub socket_bone: &'static str,
-    pub use_left_gun_bone: bool,
+pub fn overlay_object_spec(library: &OverlayLibrary, overlay: OverlayState) -> Option<&ObjectDefinition> {
+    library.0.get(&overlay)?.object.as_ref()
 }
 
-pub fn overlay_object_spec(overlay: OverlayState) -> Option<OverlayObjectSpec> {
-    let object = OVERLAYS.get(&overlay)?.object.as_ref()?;
-    Some(OverlayObjectSpec { kind: object.kind, asset_path: &object.mesh, animation_scene: object.scene.as_deref(),
-        socket_name: &object.socket_name, socket_bone: &object.socket_bone, use_left_gun_bone: object.use_left_gun_bone })
-}
-
-pub fn attachment_bone(spec: OverlayObjectSpec, use_gun_bones: bool) -> &'static str {
+pub fn attachment_bone(spec: &ObjectDefinition, use_gun_bones: bool) -> &str {
     if use_gun_bones {
         if spec.use_left_gun_bone {
             LEFT_GUN_BONE
@@ -86,17 +115,18 @@ pub fn attachment_bone(spec: OverlayObjectSpec, use_gun_bones: bool) -> &'static
             RIGHT_GUN_BONE
         }
     } else {
-        spec.socket_bone
+        &spec.socket_bone
     }
 }
 
 pub fn overlay_object_visible(
+    library: &OverlayLibrary,
     overlay: OverlayState,
     ragdolling: bool,
     mantle_active: bool,
     mantle_kind: Option<MantleKind>,
 ) -> bool {
-    overlay_object_spec(overlay).is_some()
+    overlay_object_spec(library, overlay).is_some()
         && !ragdolling
         && !(mantle_active && mantle_kind.is_some_and(MantleKind::is_high))
 }
@@ -114,13 +144,13 @@ impl Default for AlsOverlayObjectConfig {
     }
 }
 
-#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Component, Debug, Clone, PartialEq)]
 pub struct AlsOverlayObject {
     pub character: Entity,
     pub content: Entity,
     pub overlay: OverlayState,
-    pub kind: OverlayObjectKind,
-    pub attachment_bone: &'static str,
+    pub definition: ObjectDefinition,
+    pub attachment_bone: String,
 }
 
 #[derive(Component, Debug, Clone, Copy)]
@@ -135,6 +165,7 @@ pub struct OverlayObjectPlugin;
 
 impl Plugin for OverlayObjectPlugin {
     fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<OverlayLibraryPlugin>() { app.add_plugins(OverlayLibraryPlugin); }
         app.add_systems(
             Update,
             (ensure_overlay_object_state, sync_overlay_object).chain(),
@@ -181,6 +212,8 @@ fn find_named_descendant(
 fn sync_overlay_object(
     mut commands: Commands,
     assets: Res<AssetServer>,
+    library_handle: Res<OverlayLibraryHandle>,
+    libraries: Res<Assets<OverlayLibrary>>,
     children: Query<&Children>,
     names: Query<&Name>,
     props: Query<&AlsOverlayObject>,
@@ -198,8 +231,10 @@ fn sync_overlay_object(
         With<AlsCharacter>,
     >,
 ) {
+    let Some(library) = libraries.get(&library_handle.0) else { return; };
     for (character, overlay, action, mantle, assembly, config, mut state) in &mut characters {
         let visible = overlay_object_visible(
+            library,
             *overlay,
             action == Some(&AlsNotifyLocomotionAction::Ragdolling),
             mantle.is_some_and(|state| state.active),
@@ -207,9 +242,12 @@ fn sync_overlay_object(
         );
         let desired_overlay = visible.then_some(*overlay);
         let prop_exists = state.prop.is_some_and(|prop| props.get(prop).is_ok());
+        let definition_matches = state.prop.and_then(|prop| props.get(prop).ok())
+            .is_some_and(|object| overlay_object_spec(library, *overlay) == Some(&object.definition));
         if state.applied_overlay == desired_overlay
             && state.visible == visible
             && prop_exists
+            && definition_matches
             && !config.is_changed()
         {
             continue;
@@ -222,16 +260,15 @@ fn sync_overlay_object(
             continue;
         }
         let attachment = desired_overlay.and_then(|overlay| {
-            let spec = overlay_object_spec(overlay)?;
+            let spec = overlay_object_spec(library, overlay)?;
             let bone_name = attachment_bone(spec, config.use_gun_bones);
             let bone = find_named_descendant(assembly.avatar, bone_name, &children, &names)?;
             Some((overlay, spec, bone_name, bone))
         });
         let retained = attachment.and_then(|(_, spec, _, _)| {
             let object = props.get(state.prop?).ok()?;
-            let previous = overlay_object_spec(object.overlay)?;
-            (previous.kind == spec.kind && previous.asset_path == spec.asset_path
-                && previous.animation_scene == spec.animation_scene).then_some(object.content)
+            (object.definition.kind == spec.kind && object.definition.mesh == spec.mesh
+                && object.definition.scene == spec.scene).then_some(object.content)
         });
         if let Some(prop) = state.prop.take()
             && let Ok(object) = props.get(prop)
@@ -243,30 +280,30 @@ fn sync_overlay_object(
         state.applied_overlay = attachment.map(|(overlay, _, _, _)| overlay);
         state.visible = attachment.is_some();
         let Some((overlay, spec, bone_name, bone)) = attachment else { continue; };
-        let definition = OVERLAYS[&overlay].object.as_ref().unwrap();
+        let definition = spec;
         let prop = state.components[usize::from(spec.kind == OverlayObjectKind::Skeletal)];
         let transform = if !config.use_gun_bones {
             Transform { translation: definition.socket_translation, rotation: definition.socket_rotation, scale: definition.socket_scale }
         } else { Transform::IDENTITY };
         let content = retained.unwrap_or_else(|| {
             let mut content = commands.spawn((Name::new(format!("AlsOverlayProp::{overlay:?}")), Transform::IDENTITY, Visibility::Inherited, ChildOf(prop)));
-            if let Some(scene) = spec.animation_scene {
-                content.insert(AnimatedSceneHandle::new(assets.load(scene)));
+            if let Some(scene) = &spec.scene {
+                content.insert(AnimatedSceneHandle::new(assets.load(scene.clone())));
             } else {
-                content.insert(WorldAssetRoot(assets.load(GltfAssetLabel::Scene(0).from_asset(spec.asset_path))));
+                content.insert(WorldAssetRoot(assets.load(GltfAssetLabel::Scene(0).from_asset(spec.mesh.clone()))));
             }
             content.id()
         });
         for component in state.components { commands.entity(component).insert((ChildOf(bone), transform)); }
         commands.entity(prop).insert(AlsOverlayObject {
-            character, content, overlay, kind: spec.kind, attachment_bone: bone_name,
+            character, content, overlay, definition: spec.clone(), attachment_bone: bone_name.to_owned(),
         });
-        if retained.is_none() {
+        if retained.is_none() || props.get(prop).is_ok_and(|object| object.definition.materials != definition.materials) {
             let handles = definition.materials.iter().map(|value| materials.add(StandardMaterial {
                 base_color: Color::linear_rgba(value.linear_rgba[0], value.linear_rgba[1], value.linear_rgba[2], value.linear_rgba[3]),
                 metallic: value.metallic, perceptual_roughness: value.roughness, reflectance: value.reflectance, ..default()
             })).collect();
-            commands.entity(prop).insert(AvatarMaterialOverride(handles));
+            commands.entity(prop).remove::<AvatarMaterialApplied>().insert(AvatarMaterialOverride(handles));
         }
         state.prop = Some(prop);
     }
@@ -317,6 +354,10 @@ fn update_object_animation(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+
+    pub(crate) static SOURCE_LIBRARY: std::sync::LazyLock<OverlayLibrary> = std::sync::LazyLock::new(|| {
+        serde_json::from_str(include_str!("../assets/character/overlay_actor.runtime.json")).unwrap()
+    });
 
     #[test]
     fn bow_actor_installs_the_object_animation_scene() {
@@ -442,7 +483,7 @@ pub(crate) mod tests {
         assert_eq!(prop, components[1]);
         let material_handles = &app.world().get::<AvatarMaterialOverride>(prop).unwrap().0;
         assert_eq!(material_handles.len(), 3);
-        let definition = OVERLAYS[&OverlayState::Bow].object.as_ref().unwrap();
+        let definition = SOURCE_LIBRARY.0[&OverlayState::Bow].object.as_ref().unwrap();
         for (handle, source) in material_handles.iter().zip(&definition.materials) {
             let material = app.world().resource::<Assets<StandardMaterial>>().get(handle).unwrap();
             assert_eq!(material.base_color.to_linear().to_f32_array(), source.linear_rgba);
@@ -518,6 +559,7 @@ pub(crate) mod tests {
         OverlayObjectPlugin.build(&mut app);
         let avatar = app.world_mut().spawn(Transform::IDENTITY).id();
         app.world_mut().spawn((Name::new(RIGHT_GUN_BONE), Transform::IDENTITY, ChildOf(avatar)));
+        app.world_mut().spawn((Name::new(LEFT_GUN_BONE), Transform::IDENTITY, ChildOf(avatar)));
         let character = app.world_mut().spawn((AlsCharacter, OverlayState::PistolOneHanded, AlsCharacterAssembly { avatar, camera: None })).id();
         app.update();
         app.update();
@@ -529,33 +571,55 @@ pub(crate) mod tests {
         assert_eq!(object.overlay, OverlayState::PistolTwoHanded);
         assert_eq!(object.content, content);
         assert!(app.world().get_entity(content).is_ok());
+        let handle = app.world().resource::<OverlayLibraryHandle>().0.clone();
+        {
+            let mut libraries = app.world_mut().resource_mut::<Assets<OverlayLibrary>>();
+            let mut library = libraries.get_mut(&handle).unwrap();
+            library.0.get_mut(&OverlayState::PistolTwoHanded).unwrap().object.as_mut().unwrap().materials[0].roughness = 0.25;
+        }
+        app.update();
+        assert_eq!(app.world().get::<AlsOverlayObject>(prop).unwrap().content, content);
+        let material = &app.world().get::<AvatarMaterialOverride>(prop).unwrap().0[0];
+        assert_eq!(app.world().resource::<Assets<StandardMaterial>>().get(material).unwrap().perceptual_roughness, 0.25);
         *app.world_mut().get_mut::<OverlayState>(character).unwrap() = OverlayState::Rifle;
         app.update();
         assert_ne!(app.world().get::<AlsOverlayObject>(prop).unwrap().content, content);
         assert!(app.world().get_entity(content).is_err());
+        let rifle_content = app.world().get::<AlsOverlayObject>(prop).unwrap().content;
+        let handle = app.world().resource::<OverlayLibraryHandle>().0.clone();
+        {
+            let mut libraries = app.world_mut().resource_mut::<Assets<OverlayLibrary>>();
+            let mut library = libraries.get_mut(&handle).unwrap();
+            let torch = library.0[&OverlayState::Torch].object.clone();
+            library.0.get_mut(&OverlayState::Rifle).unwrap().object = torch;
+        }
+        app.update();
+        let prop = app.world().get::<AlsOverlayObjectState>(character).unwrap().prop.unwrap();
+        assert_eq!(app.world().get::<AlsOverlayObject>(prop).unwrap().definition.kind, OverlayObjectKind::Static);
+        assert!(app.world().get_entity(rifle_content).is_err());
     }
 
     #[test]
     fn source_overlay_specs_keep_asset_kind_and_gun_side() {
-        assert!(overlay_object_spec(OverlayState::Default).is_none());
-        let rifle = overlay_object_spec(OverlayState::Rifle).unwrap();
+        assert!(overlay_object_spec(&SOURCE_LIBRARY, OverlayState::Default).is_none());
+        let rifle = overlay_object_spec(&SOURCE_LIBRARY, OverlayState::Rifle).unwrap();
         assert_eq!(rifle.kind, OverlayObjectKind::Skeletal);
         assert_eq!(rifle.socket_name, "Rifle");
         assert!(!rifle.use_left_gun_bone);
-        let torch = overlay_object_spec(OverlayState::Torch).unwrap();
+        let torch = overlay_object_spec(&SOURCE_LIBRARY, OverlayState::Torch).unwrap();
         assert_eq!(torch.kind, OverlayObjectKind::Static);
         assert_eq!(torch.socket_name, "Torch");
         assert!(torch.use_left_gun_bone);
         assert_eq!(
-            overlay_object_spec(OverlayState::PistolTwoHanded),
-            overlay_object_spec(OverlayState::PistolOneHanded)
+            overlay_object_spec(&SOURCE_LIBRARY, OverlayState::PistolTwoHanded),
+            overlay_object_spec(&SOURCE_LIBRARY, OverlayState::PistolOneHanded)
         );
     }
 
     #[test]
     fn gun_bone_mode_uses_source_virtual_bones() {
-        let rifle = overlay_object_spec(OverlayState::Rifle).unwrap();
-        let torch = overlay_object_spec(OverlayState::Torch).unwrap();
+        let rifle = overlay_object_spec(&SOURCE_LIBRARY, OverlayState::Rifle).unwrap();
+        let torch = overlay_object_spec(&SOURCE_LIBRARY, OverlayState::Torch).unwrap();
         assert_eq!(attachment_bone(rifle, true), RIGHT_GUN_BONE);
         assert_eq!(attachment_bone(torch, true), LEFT_GUN_BONE);
         assert_eq!(attachment_bone(rifle, false), "hand_r");
@@ -564,25 +628,25 @@ pub(crate) mod tests {
 
     #[test]
     fn source_lifecycle_clears_high_mantle_and_ragdoll_but_keeps_low_mantle() {
-        assert!(overlay_object_visible(
+        assert!(overlay_object_visible(&SOURCE_LIBRARY,
             OverlayState::Rifle,
             false,
             false,
             None
         ));
-        assert!(!overlay_object_visible(
+        assert!(!overlay_object_visible(&SOURCE_LIBRARY,
             OverlayState::Rifle,
             false,
             true,
             Some(MantleKind::High)
         ));
-        assert!(overlay_object_visible(
+        assert!(overlay_object_visible(&SOURCE_LIBRARY,
             OverlayState::Rifle,
             false,
             true,
             Some(MantleKind::LowLeft)
         ));
-        assert!(!overlay_object_visible(
+        assert!(!overlay_object_visible(&SOURCE_LIBRARY,
             OverlayState::Rifle,
             true,
             false,

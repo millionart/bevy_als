@@ -4218,7 +4218,7 @@ mod tests {
         let (mut app, object, player_entity) = crate::overlay_object::tests::loaded_bow_scene();
         app.world_mut().spawn(crate::overlay_object::AlsOverlayObject {
             character: Entity::PLACEHOLDER, content: object, overlay: als_core::state::OverlayState::Bow,
-            kind: crate::overlay_object::OverlayObjectKind::Skeletal, attachment_bone: crate::overlay_object::LEFT_GUN_BONE,
+            definition: crate::overlay_object::tests::SOURCE_LIBRARY.0[&als_core::state::OverlayState::Bow].object.clone().unwrap(), attachment_bone: crate::overlay_object::LEFT_GUN_BONE.into(),
         });
         let directory = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/bf116_finish/object_fault");
         fs::create_dir_all(&directory).unwrap();

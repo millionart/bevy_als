@@ -40,6 +40,58 @@
     "description": "ALS source gameplay tag"
   },
   {
+    "tag_name": "Als.OverlayMode.Barrel",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.OverlayMode.Binoculars",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.OverlayMode.Bow",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.OverlayMode.Box",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.OverlayMode.Default",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.OverlayMode.Feminine",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.OverlayMode.HandsTied",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.OverlayMode.Injured",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.OverlayMode.Masculine",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.OverlayMode.PistolOneHanded",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.OverlayMode.PistolTwoHanded",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.OverlayMode.Rifle",
+    "description": "ALS source gameplay tag"
+  },
+  {
+    "tag_name": "Als.OverlayMode.Torch",
+    "description": "ALS source gameplay tag"
+  },
+  {
     "tag_name": "Als.RotationMode.Aiming",
     "description": "ALS source gameplay tag"
   },

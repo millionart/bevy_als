@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use als_core::character::AlsCharacter;
 use als_core::mantle::AlsMantleState;
 use als_core::roll::AlsRollState;
@@ -29,6 +27,7 @@ const OVERLAY_LAYER_BINDING: &str = "/ALS/ALS/Character/ALI_Overlay.ALI_Overlay_
 
 impl Plugin for AlsRootGraphPlugin {
     fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<crate::overlay_object::OverlayLibraryPlugin>() { app.add_plugins(crate::overlay_object::OverlayLibraryPlugin); }
         app.add_plugins(crate::animation_context_projection::AlsRootAnimationContextPlugin)
             .configure_sets(
                 PostUpdate,
@@ -128,7 +127,8 @@ fn set_missing_f32(player: &mut AnimationGraphPlayer, key: &str) {
 fn root_graph_writer(
     time: Res<Time>,
     assets: Res<AssetServer>,
-    mut overlay_graphs: Local<HashMap<OverlayState, Handle<bevy_animation_graph::core::animation_graph::AnimationGraph>>>,
+    library_handle: Res<crate::overlay_object::OverlayLibraryHandle>,
+    libraries: Res<Assets<crate::overlay_object::OverlayLibrary>>,
     characters: Query<
         (
             Entity,
@@ -146,9 +146,6 @@ fn root_graph_writer(
     avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
-    if overlay_graphs.is_empty() {
-        overlay_graphs.extend(crate::overlay_object::OVERLAYS.iter().map(|(overlay, definition)| (*overlay, assets.load(definition.graph.clone()))));
-    }
     for (
         entity,
         overlay,
@@ -170,9 +167,10 @@ fn root_graph_writer(
             };
             als_ext::source_gameplay_tag_input::set_linked_graph_input(
                 instance.player_entity(), OVERLAY_LAYER_BINDING,
-                overlay_graphs.get(overlay).filter(|graph| assets.is_loaded_with_dependencies(graph.id())).map(|graph| als_ext::source_gameplay_tag_input::LinkedGraphInput {
-                    graph: graph.clone(), blend_in: crate::overlay_object::OVERLAYS[overlay].blend_in,
-                    blend_out: crate::overlay_object::OVERLAYS[overlay].blend_out,
+                libraries.get(&library_handle.0).and_then(|library| library.0.get(overlay))
+                    .filter(|definition| assets.is_loaded_with_dependencies(definition.graph_handle.id())).map(|definition| als_ext::source_gameplay_tag_input::LinkedGraphInput {
+                    graph: definition.graph_handle.clone(), blend_in: definition.blend_in,
+                    blend_out: definition.blend_out,
                 }),
             );
             set_gameplay_tag_input(instance.player_entity(), "gait", gait_tag(*gait));
@@ -230,6 +228,7 @@ mod tests {
         use bevy::ecs::system::RunSystemOnce;
         use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterBlueprint, spawn_als_character};
         let (mut app, _, _, _) = crate::camera_component::tests::loaded_camera_scene();
+        crate::overlay_object::OverlayObjectPlugin.build(&mut app);
         let character = app.world_mut().run_system_once(|mut commands: Commands, assets: Res<AssetServer>,
             mut params: ResMut<Assets<als_core::params::AlsMovementParams>>,
             mut configs: ResMut<Assets<als_core::control_scheme::AlsControlSchemeConfig>>| {
@@ -242,8 +241,7 @@ mod tests {
         let player_entity = loop {
             app.update();
             let server = app.world().resource::<AssetServer>();
-            let all_ready = crate::overlay_object::OVERLAYS.values().all(|definition| server.get_handle::<bevy_animation_graph::core::animation_graph::AnimationGraph>(&definition.graph)
-                .is_some_and(|handle| server.is_loaded_with_dependencies(handle.id())));
+            let all_ready = server.is_loaded_with_dependencies(app.world().resource::<crate::overlay_object::OverlayLibraryHandle>().0.id());
             if all_ready && let Some(instance) = app.world().get::<AnimatedSceneInstance>(avatar)
                 && app.world().get::<AnimationGraphPlayer>(instance.player_entity()).unwrap().get_default_output_pose().is_some() {
                 break instance.player_entity();
@@ -251,16 +249,40 @@ mod tests {
             assert!(std::time::Instant::now() < deadline, "Generated overlay dependencies did not become ready");
             std::thread::sleep(std::time::Duration::from_millis(5));
         };
+        let library_handle = app.world().resource::<crate::overlay_object::OverlayLibraryHandle>().0.clone();
+        let custom = OverlayState::new("Als.OverlayMode.CustomRifle").unwrap();
+        {
+            let mut libraries = app.world_mut().resource_mut::<Assets<crate::overlay_object::OverlayLibrary>>();
+            let mut library = libraries.get_mut(&library_handle).unwrap();
+            let rifle = library.0[&OverlayState::Rifle].clone();
+            library.0.insert(custom, rifle);
+        }
         let mut parent_instance = None;
         let mut frame = 0;
-        for overlay in crate::overlay_mode_menu::OVERLAY_TAG_CHILD_NODES.into_iter().chain([OverlayState::Rifle, OverlayState::Bow, OverlayState::Default]) {
-            *app.world_mut().get_mut::<OverlayState>(character).unwrap() = overlay;
+        let tags = crate::overlay_mode_menu::tests::tag_manager(&[custom.as_str()]);
+        let modes = crate::overlay_mode_menu::menu_display_order(&tags);
+        assert!(modes.contains(&custom));
+        app.insert_resource(tags);
+        let mut custom_visits = 0;
+        for overlay in modes.into_iter().chain([custom, custom, OverlayState::Rifle, OverlayState::Bow, OverlayState::Default]) {
+            if overlay == custom {
+                custom_visits += 1;
+                if custom_visits == 3 {
+                    let mut libraries = app.world_mut().resource_mut::<Assets<crate::overlay_object::OverlayLibrary>>();
+                    let mut library = libraries.get_mut(&library_handle).unwrap();
+                    let torch = library.0[&OverlayState::Torch].clone();
+                    library.0.insert(custom, torch);
+                }
+            }
+            app.world_mut().get_mut::<als_core::transition::AlsStateRequest>(character).unwrap().overlay_state = Some(overlay);
             app.update();
             app.update();
+            assert_eq!(*app.world().get::<OverlayState>(character).unwrap(), overlay);
             assert_eq!(app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity(), player_entity);
             let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
             assert!(player.get_error().is_none(), "{overlay:?}: {:?}", player.get_error());
-            let expected = &crate::overlay_object::OVERLAYS[&overlay].graph;
+            let library = app.world().resource::<Assets<crate::overlay_object::OverlayLibrary>>().get(&library_handle).unwrap();
+            let expected = &library.0[&overlay].graph;
             let arena = player.get_context_arena().unwrap();
             assert!(arena.frame_index() > frame);
             frame = arena.frame_index();
@@ -276,6 +298,12 @@ mod tests {
             }), "Requested generated overlay was not evaluated: {overlay:?}");
             let pose = player.get_default_output_pose().unwrap();
             assert!(pose.bones.len() > 50 && root_pose_is_valid(pose));
+            if overlay == custom {
+                let state = app.world().get::<crate::overlay_object::AlsOverlayObjectState>(character).unwrap();
+                let object = app.world().get::<crate::overlay_object::AlsOverlayObject>(state.prop.unwrap()).unwrap();
+                assert_eq!(object.overlay, custom);
+                assert_eq!(&object.definition, library.0[&custom].object.as_ref().unwrap());
+            }
         }
     }
 

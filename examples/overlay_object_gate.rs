@@ -84,7 +84,7 @@ fn verify_overlay_objects(
         0 => {
             let pass = all.len() == 1
                 && all[0].0.overlay == OverlayState::Rifle
-                && all[0].0.kind == OverlayObjectKind::Skeletal
+                && all[0].0.definition.kind == OverlayObjectKind::Skeletal
                 && all[0].0.attachment_bone == RIGHT_GUN_BONE
                 && all[0].1.0 == targets.right;
             if !pass {
@@ -96,7 +96,7 @@ fn verify_overlay_objects(
         1 => {
             let pass = all.len() == 1
                 && all[0].0.overlay == OverlayState::Torch
-                && all[0].0.kind == OverlayObjectKind::Static
+                && all[0].0.definition.kind == OverlayObjectKind::Static
                 && all[0].0.attachment_bone == LEFT_GUN_BONE
                 && all[0].1.0 == targets.left;
             if !pass {

@@ -17,8 +17,8 @@ use bevy_als::als_hud::{
     COLOR_ENABLED,
 };
 use bevy_als::overlay_mode_menu::{
-    MENU_DILATION, OVERLAY_TAG_CHILD_NODES, OverlayMenuOption, OverlayMenuState,
-    OverlayModeMenuPlugin, menu_display_order, option_label, request_gameplay_tag_children,
+    MENU_DILATION, OverlayMenuOption, OverlayMenuState,
+    OverlayModeMenuPlugin, menu_display_order, option_label,
 };
 use bevy_als::show_debug_hud::{AlsShowDebugHudState, apply_show_debug_key};
 use bevy_enhanced_input::prelude::*;
@@ -139,6 +139,7 @@ fn main() {
             }),
     );
     app.add_plugins((
+        bevy_gameplay_tag::GameplayTagsPlugin::with_data_path("assets/als_gameplay_tags.json"),
         EnhancedInputPlugin,
         als_core::input::AlsInputPlugin,
         als_core::transition::AlsStateTransitionPlugin,
@@ -468,7 +469,7 @@ fn script_driver(world: &mut World) {
             let option_count = world.query::<&OverlayMenuOption>().iter(world).count();
             let speed = world.resource::<Time<Virtual>>().relative_speed();
             let open_ok =
-                menu_is_open && menu_rooted && option_count == OVERLAY_TAG_CHILD_NODES.len();
+                menu_is_open && menu_rooted && option_count == menu_display_order(world.resource::<bevy_gameplay_tag::GameplayTagsManager>()).len();
             GateFlags::check(
                 &mut flags.menu_open,
                 "menu_open",
@@ -489,7 +490,7 @@ fn script_driver(world: &mut World) {
                 })
                 .collect();
             labels.sort_by_key(|(index, _)| *index);
-            let expected: Vec<String> = menu_display_order()
+            let expected: Vec<String> = menu_display_order(world.resource::<bevy_gameplay_tag::GameplayTagsManager>())
                 .iter()
                 .map(|state| option_label(*state))
                 .collect();
@@ -497,13 +498,8 @@ fn script_driver(world: &mut World) {
             GateFlags::check(
                 &mut flags.menu_order,
                 "menu_order",
-                actual == expected
-                    && expected
-                        == request_gameplay_tag_children()
-                            .iter()
-                            .map(|state| option_label(*state))
-                            .collect::<Vec<_>>(),
-                format!("raw={OVERLAY_TAG_CHILD_NODES:?} actual={actual:?} expected={expected:?}"),
+                actual == expected,
+                format!("actual={actual:?} expected={expected:?}"),
                 &mut failed,
             );
             let highlight_ok = world
@@ -543,7 +539,7 @@ fn script_driver(world: &mut World) {
         }) {}
 
         if phase!(16, 2.85, {
-            let index = world.resource::<OverlayMenuState>().selected_index;
+            let index = world.resource::<OverlayMenuState>().selected_index();
             GateFlags::check(
                 &mut flags.menu_cycle_next,
                 "menu_cycle_next",
@@ -563,7 +559,7 @@ fn script_driver(world: &mut World) {
         }) {}
 
         if phase!(18, 3.15, {
-            let index = world.resource::<OverlayMenuState>().selected_index;
+            let index = world.resource::<OverlayMenuState>().selected_index();
             GateFlags::check(
                 &mut flags.menu_cycle_prev_back,
                 "menu_cycle_prev_back",
@@ -583,7 +579,7 @@ fn script_driver(world: &mut World) {
         }) {}
 
         if phase!(20, 3.45, {
-            let index = world.resource::<OverlayMenuState>().selected_index;
+            let index = world.resource::<OverlayMenuState>().selected_index();
             GateFlags::check(
                 &mut flags.menu_cycle_prev_to_box,
                 "menu_cycle_prev_to_box",

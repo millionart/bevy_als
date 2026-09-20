@@ -96,11 +96,22 @@ def main():
         bow = json.loads((args.asset_root / 'character/overlay_objects/bow.json').read_text())
         assert {key: result['Als.OverlayMode.Bow']['object'][key] for key in bow} == bow
     path = args.asset_root / 'character/overlay_actor.runtime.json'
+    tag_path = args.asset_root / 'als_gameplay_tags.json'
+    tags = json.loads(tag_path.read_text(encoding='utf-8'))
+    registered = {tag['tag_name']: tag for tag in tags}
+    if len(registered) != len(tags):
+        raise ValueError('Gameplay tag table contains duplicate names')
+    for name in result:
+        registered.setdefault(name, {'tag_name': name, 'description': 'ALS source gameplay tag'})
+    tag_text = json.dumps([registered[name] for name in sorted(registered)], indent=2) + '\n'
     text = json.dumps(result, indent=2) + '\n'
     if args.write:
         path.write_text(text, encoding='utf-8')
+        tag_path.write_text(tag_text, encoding='utf-8')
     elif not path.is_file() or path.read_text(encoding='utf-8') != text:
         raise ValueError('Generated overlay actor differs')
+    elif tag_path.read_text(encoding='utf-8') != tag_text:
+        raise ValueError('Overlay gameplay tag registration differs')
     print(json.dumps({'classes': len(result), 'object_modes': sum(value['object'] is not None for value in result.values()), 'self_test': args.self_test}))
 
 

@@ -232,6 +232,8 @@ mod tests {
     #[test]
     fn generated_air_inputs_initialize_with_their_actual_neighbor_plugins() {
         let mut app = App::new();
+        app.add_plugins((MinimalPlugins, bevy::asset::AssetPlugin::default()))
+            .insert_resource(crate::overlay_object::OverlayLibraryHandle(default()));
         app.add_plugins((
             LocomotionLayerPlugin,
             crate::locomotion_lifecycle::LocomotionLifecyclePlugin,

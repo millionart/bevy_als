@@ -1,3 +1,7 @@
+static SOURCE_LIBRARY: std::sync::LazyLock<crate::overlay_object::OverlayLibrary> = std::sync::LazyLock::new(|| {
+    serde_json::from_str(include_str!("../../assets/character/overlay_actor.runtime.json")).unwrap()
+});
+
 use super::*;
 use als_core::input::AlsInputCommand;
 use std::collections::BTreeMap;
@@ -70,7 +74,7 @@ fn window(mode: usize, stage: usize, ready: bool) -> ManualAnimationWindowEviden
         capture_source_window: ready, capture_every_frame: true, requires_non_reference_root_pose: true, requires_source_pose_chain: true,
         expected_direction: Some(label), observed_direction: ready.then_some(label),
         source_node: Some("Output Pose\nAnimGraph"), minimum_observation_seconds: if stage == 8 { 0.1 } else { 0.25 },
-        source_pose_chain: vec![ManualAnimationPoseBoundary { label: "overlay", graph: &crate::overlay_object::OVERLAYS[&MODES[mode]].graph,
+        source_pose_chain: vec![ManualAnimationPoseBoundary { label: "overlay", graph: &SOURCE_LIBRARY.0[&MODES[mode]].graph,
             node: "Output Pose\nAnimGraph", output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.0 },
             ManualAnimationPoseBoundary { label: "layering", graph: "generated/ALS/Character/AB_Als/AnimGraph.animgraph.ron", node: "AB_Als_Layering\nLinked Anim Graph",
                 output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.0 }], ..default() }
@@ -80,7 +84,7 @@ pub(super) fn observe(probe: &mut Probe, player: &AnimationGraphPlayer, motion: 
     object_state: Option<&AlsOverlayObjectState>, context: Option<&AlsRootAnimationContext>, stance: Stance,
     rotation: RotationMode, locomotion: LocomotionState, speed: f32, window: &mut ManualAnimationWindowEvidence) {
     let mode = MODES[probe.mode];
-    let definition = &crate::overlay_object::OVERLAYS[&mode];
+    let definition = &SOURCE_LIBRARY.0[&mode];
     let prefix = std::path::Path::new(&definition.graph).parent().unwrap();
     let mut sample = Sample::default();
     sample.pitch = graph_global_f32(player, "view_state.pitch_amount");
@@ -146,7 +150,7 @@ pub(super) fn observe(probe: &mut Probe, player: &AnimationGraphPlayer, motion: 
             }
         }
     }
-    sample.object = crate::overlay_object::overlay_object_spec(mode).map_or_else(
+    sample.object = crate::overlay_object::overlay_object_spec(&SOURCE_LIBRARY, mode).map_or_else(
         || object_state.is_some_and(|state| !state.visible && state.prop.is_none()),
         |spec| object_state.and_then(|state| state.prop).is_some_and(|prop| {
             let Ok((object, material)) = motion.overlay_objects.get(prop) else { return false; };
