@@ -5,6 +5,7 @@ use crate::orientation::world_forward_to_yaw;
 use crate::state::{Gait, RotationMode, Stance};
 
 pub const UE_CM_TO_M: f32 = 0.01;
+static SOURCE_UNCONFIGURED_GAIT_SPEEDS: std::sync::LazyLock<StanceGaitSpeeds> = std::sync::LazyLock::new(StanceGaitSpeeds::default);
 
 #[derive(Asset, Reflect, Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 #[reflect(Default)]
@@ -22,17 +23,25 @@ impl AlsMovementParams {
         match stance {
             crate::state::Stance::Standing => &self.speeds.standing,
             crate::state::Stance::Crouching => &self.speeds.crouching,
+            _ => &SOURCE_UNCONFIGURED_GAIT_SPEEDS,
         }
     }
 
     pub fn gait_speeds(&self, stance: Stance, rotation_mode: RotationMode) -> &StanceGaitSpeeds {
+        if !Self::has_gait_settings(stance, rotation_mode) { return &SOURCE_UNCONFIGURED_GAIT_SPEEDS; }
         match stance {
             Stance::Crouching => &self.speeds.crouching,
             Stance::Standing if rotation_mode == RotationMode::Aiming => {
                 &self.speeds.aiming_standing
             }
             Stance::Standing => &self.speeds.standing,
+            _ => &SOURCE_UNCONFIGURED_GAIT_SPEEDS,
         }
+    }
+
+    pub fn has_gait_settings(stance: Stance, rotation_mode: RotationMode) -> bool {
+        matches!(stance, Stance::Standing | Stance::Crouching)
+            && matches!(rotation_mode, RotationMode::VelocityDirection | RotationMode::ViewDirection | RotationMode::Aiming)
     }
 
     pub fn gait_speed_thresholds(
@@ -701,6 +710,7 @@ impl GaitHalfLives {
             crate::state::Gait::Walking => self.walking,
             crate::state::Gait::Running => self.running,
             crate::state::Gait::Sprinting => self.sprinting,
+            _ => self.running,
         }
     }
 
@@ -842,6 +852,7 @@ impl GaitSpeedThresholds {
             Gait::Walking => self.walk,
             Gait::Running => self.run,
             Gait::Sprinting => self.sprint,
+            _ => self.run,
         }
     }
 }

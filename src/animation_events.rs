@@ -678,18 +678,14 @@ pub(crate) fn early_blend_out_matches(
     parameters: &Value, has_input: bool, locomotion: als_core::state::LocomotionState,
     rotation: als_core::state::RotationMode, stance: Stance,
 ) -> bool {
-    use als_core::state::{LocomotionState, RotationMode};
+    use als_core::state::LocomotionState;
     let locomotion_tag = match locomotion {
         LocomotionState::Grounded => "Als.LocomotionMode.Grounded",
         LocomotionState::Air => "Als.LocomotionMode.InAir",
         LocomotionState::Custom | LocomotionState::None => "",
     };
-    let rotation_tag = match rotation {
-        RotationMode::VelocityDirection => "Als.RotationMode.VelocityDirection",
-        RotationMode::ViewDirection => "Als.RotationMode.ViewDirection",
-        RotationMode::Aiming => "Als.RotationMode.Aiming",
-    };
-    let stance_tag = match stance { Stance::Standing => "Als.Stance.Standing", Stance::Crouching => "Als.Stance.Crouching" };
+    let rotation_tag = rotation.as_str();
+    let stance_tag = stance.as_str();
     [
         ("bCheckInput", has_input),
         ("bCheckLocomotionMode", locomotion_tag == parameter_tag(parameters, "LocomotionModeEquals").unwrap_or("Als.LocomotionMode.InAir")),
@@ -699,13 +695,7 @@ pub(crate) fn early_blend_out_matches(
 }
 
 fn notify_action(tag: Option<&str>) -> AlsNotifyLocomotionAction {
-    match tag {
-        Some("Als.LocomotionAction.Mantling") => AlsNotifyLocomotionAction::Mantling,
-        Some("Als.LocomotionAction.GettingUp") => AlsNotifyLocomotionAction::GettingUp,
-        Some("Als.LocomotionAction.Rolling") => AlsNotifyLocomotionAction::Rolling,
-        Some("Als.LocomotionAction.Ragdolling") => AlsNotifyLocomotionAction::Ragdolling,
-        _ => AlsNotifyLocomotionAction::None,
-    }
+    AlsNotifyLocomotionAction::new(tag.unwrap_or("")).expect("Source locomotion action must be a valid gameplay tag")
 }
 
 fn physical_stance_override(
@@ -943,6 +933,17 @@ fn dispatch_animation_events(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn custom_source_action_and_early_blend_tags_keep_their_identity() {
+        assert_eq!(notify_action(Some("Als.LocomotionAction.Custom")).as_str(), "Als.LocomotionAction.Custom");
+        let rotation = als_core::state::RotationMode::new("Als.RotationMode.Custom").unwrap();
+        let stance = Stance::new("Als.Stance.Custom").unwrap();
+        let parameters = serde_json::json!({"bCheckInput": false, "bCheckLocomotionMode": false,
+            "bCheckRotationMode": true, "RotationModeEquals": {"__tagged__": {"TagName": rotation.as_str()}}, "bCheckStance": false});
+        assert!(early_blend_out_matches(&parameters, false, als_core::state::LocomotionState::Grounded, rotation, stance));
+        assert!(!early_blend_out_matches(&parameters, false, als_core::state::LocomotionState::Grounded, als_core::state::RotationMode::Aiming, stance));
+    }
 
     #[test]
     fn generated_clip_playback_dispatches_footsteps_from_its_actual_clock() {

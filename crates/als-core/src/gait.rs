@@ -63,6 +63,7 @@ impl GaitWeights {
                 run_w: 1.0,
                 sprint_w: 1.0,
             },
+            _ => Self { move_w: 1.0, run_w: 1.0, sprint_w: 0.0 },
         }
     }
 
@@ -193,6 +194,7 @@ pub fn animated_gait_speed(params: &AlsMovementParams, stance: Stance, gait: Gai
         Gait::Walking => speeds.animated_walk_speed,
         Gait::Running => speeds.animated_run_speed,
         Gait::Sprinting => speeds.animated_sprint_speed,
+        _ => speeds.animated_run_speed,
     }
 }
 
@@ -210,7 +212,7 @@ pub fn als_play_rate(
             let animated_speed = params.crouch.animated_crouch_speed.max(f32::EPSILON);
             (speed / animated_speed / stride_blend).clamp(MIN_PLAY_RATE, CROUCH_PLAY_RATE_MAX)
         }
-        Stance::Standing => {
+        _ => {
             let speeds = &params.speeds.standing;
             let walk_run = (speed / speeds.animated_walk_speed.max(f32::EPSILON)).lerp(
                 speed / speeds.animated_run_speed.max(f32::EPSILON),

@@ -396,46 +396,13 @@ fn locomotion_mode_tag(locomotion_state: LocomotionState) -> &'static str {
     }
 }
 
-fn rotation_mode_tag(mode: RotationMode) -> &'static str {
-    match mode {
-        RotationMode::VelocityDirection => "VelocityDirection",
-        RotationMode::ViewDirection => "ViewDirection",
-        RotationMode::Aiming => "Aiming",
-    }
-}
+fn rotation_mode_tag(mode: RotationMode) -> &'static str { mode.leaf_name() }
 
-fn stance_tag(stance: Stance) -> &'static str {
-    match stance {
-        Stance::Standing => "Standing",
-        Stance::Crouching => "Crouching",
-    }
-}
+fn stance_tag(stance: Stance) -> &'static str { stance.leaf_name() }
 
-fn gait_tag(gait: Gait) -> &'static str {
-    match gait {
-        Gait::Walking => "Walking",
-        Gait::Running => "Running",
-        Gait::Sprinting => "Sprinting",
-    }
-}
+fn gait_tag(gait: Gait) -> &'static str { gait.leaf_name() }
 
-fn overlay_tag(overlay: OverlayState) -> &'static str {
-    match overlay {
-        OverlayState::Default => "Default",
-        OverlayState::Masculine => "Masculine",
-        OverlayState::Feminine => "Feminine",
-        OverlayState::Injured => "Injured",
-        OverlayState::HandsTied => "HandsTied",
-        OverlayState::Rifle => "Rifle",
-        OverlayState::PistolOneHanded => "PistolOneHanded",
-        OverlayState::PistolTwoHanded => "PistolTwoHanded",
-        OverlayState::Bow => "Bow",
-        OverlayState::Torch => "Torch",
-        OverlayState::Binoculars => "Binoculars",
-        OverlayState::Box => "Box",
-        OverlayState::Barrel => "Barrel",
-    }
-}
+fn overlay_tag(overlay: OverlayState) -> &'static str { overlay.leaf_name() }
 
 fn view_mode_tag(mode: Option<AlsCameraMode>) -> Option<&'static str> {
     match mode {
@@ -445,15 +412,7 @@ fn view_mode_tag(mode: Option<AlsCameraMode>) -> Option<&'static str> {
     }
 }
 
-fn locomotion_action_value(snapshot: &CharacterSnapshot) -> &'static str {
-    match snapshot.locomotion_action {
-        AlsNotifyLocomotionAction::None => "",
-        AlsNotifyLocomotionAction::Mantling => "Mantling",
-        AlsNotifyLocomotionAction::Ragdolling => "Ragdolling",
-        AlsNotifyLocomotionAction::Rolling => "Rolling",
-        AlsNotifyLocomotionAction::GettingUp => "GettingUp",
-    }
-}
+fn locomotion_action_value(snapshot: &CharacterSnapshot) -> &'static str { snapshot.locomotion_action.leaf_name() }
 
 pub fn build_state_body(
     snapshot: &CharacterSnapshot,

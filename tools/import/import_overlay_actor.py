@@ -26,7 +26,13 @@ def compile_actor(sources, asset_root):
             raise ValueError('Unexpected overlay tag')
         name = tag.removeprefix('Als.OverlayMode.')
         source = source_object_path(parse_quoted(value)).removesuffix('_C')
-        definition = {'source_class': source, 'graph': graph_path(source, 'AnimGraph', 'generated'), 'object': None}
+        layer = next(g for g in sources[source]['graphs'] if g['name'] == 'Overlay')
+        blend = next(p for p in layer['properties'] if p['name'] == 'BlendOptions')
+        fields = {p['name']: p['exported_text'] for p in blend['fields']}
+        if fields['BlendInProfile'] != 'None' or fields['BlendOutProfile'] != 'None':
+            raise ValueError('Linked layer blend profiles are unsupported: ' + source)
+        definition = {'source_class': source, 'graph': graph_path(source, 'AnimGraph', 'generated'),
+            'blend_in': float(fields['BlendInTime']), 'blend_out': float(fields['BlendOutTime']), 'object': None}
         if name in attached:
             obj = compile_definition(sources, name)
             mesh_source = sources[obj['source_mesh']]
@@ -47,8 +53,8 @@ def compile_actor(sources, asset_root):
             if obj['scene'] and not (asset_root / obj['scene']).is_file():
                 raise ValueError('Object animation scene is missing: ' + name)
             definition['object'] = obj
-        result[name] = definition
-    if len(result) != 13 or set(attached) - result.keys():
+        result[tag] = definition
+    if {'Als.OverlayMode.' + name for name in attached} - result.keys():
         raise ValueError('Overlay actor coverage differs')
     return result
 
@@ -66,17 +72,29 @@ def main():
         if 'asset_path' in (value := json.loads(path.read_text(encoding='utf-8-sig')))}
     result = compile_actor(sources, args.asset_root)
     if args.self_test:
-        assert result['PistolOneHanded']['object'] == result['PistolTwoHanded']['object']
-        assert result['Bow']['object']['scene'] == 'animated_scenes/als_bow.animscn.ron'
-        assert result['Barrel']['object']['materials'][0]['linear_rgba'] == [0.93, 0.29, 1.0, 1.0]
-        assert result['Binoculars']['object']['materials'][0]['linear_rgba'] == [0.015, 0.015, 0.015, 1.0]
+        assert result['Als.OverlayMode.PistolOneHanded']['object'] == result['Als.OverlayMode.PistolTwoHanded']['object']
+        assert result['Als.OverlayMode.Bow']['object']['scene'] == 'animated_scenes/als_bow.animscn.ron'
+        assert result['Als.OverlayMode.Barrel']['object']['materials'][0]['linear_rgba'] == [0.93, 0.29, 1.0, 1.0]
+        assert result['Als.OverlayMode.Binoculars']['object']['materials'][0]['linear_rgba'] == [0.015, 0.015, 0.015, 1.0]
         changed = deepcopy(sources)
         actor = changed['/ALS/ALS/Character/B_Als_Character.B_Als_Character']
         field = next(p for p in actor['blueprint_cdo_properties'] if p['name'] == 'OverlayAnimationInstanceClasses')
-        field['exported_text'] = field['exported_text'].replace('AB_Als_Masculine', 'AB_Als_Changed')
-        assert compile_actor(changed, args.asset_root)['Masculine']['graph'].endswith('/AB_Als_Changed/AnimGraph.animgraph.ron')
+        field['exported_text'] = field['exported_text'].replace('AB_Als_Masculine', 'AB_Als_Rifle')
+        assert compile_actor(changed, args.asset_root)['Als.OverlayMode.Masculine']['graph'].endswith('/AB_Als_Rifle/AnimGraph.animgraph.ron')
+        assert result['Als.OverlayMode.Default']['blend_in'] == result['Als.OverlayMode.Rifle']['blend_out'] == 0.2
+        layer = next(g for g in changed[result['Als.OverlayMode.Rifle']['source_class']]['graphs'] if g['name'] == 'Overlay')
+        blend = next(p for p in layer['properties'] if p['name'] == 'BlendOptions')
+        next(p for p in blend['fields'] if p['name'] == 'BlendInTime')['exported_text'] = '0.6'
+        assert compile_actor(changed, args.asset_root)['Als.OverlayMode.Masculine']['blend_in'] == 0.6
+        next(p for p in blend['fields'] if p['name'] == 'BlendInProfile')['exported_text'] = 'Profile'
+        try:
+            compile_actor(changed, args.asset_root)
+        except ValueError as error:
+            assert 'blend profiles' in str(error)
+        else:
+            raise AssertionError('Unsupported blend profile was accepted')
         bow = json.loads((args.asset_root / 'character/overlay_objects/bow.json').read_text())
-        assert {key: result['Bow']['object'][key] for key in bow} == bow
+        assert {key: result['Als.OverlayMode.Bow']['object'][key] for key in bow} == bow
     path = args.asset_root / 'character/overlay_actor.runtime.json'
     text = json.dumps(result, indent=2) + '\n'
     if args.write:

@@ -88,10 +88,17 @@ pub struct LayeredGraphNode {
     pub internalize_time: bool,
 }
 
+#[derive(Reflect, Clone, Debug, Default)]
+pub(crate) struct LayeredGraphState {
+    pub context: AnimationContextState,
+    graph: Option<AssetId<AnimationGraph>>,
+    blend_out: Option<f32>,
+}
+
 impl LayeredGraphNode {
     fn selected_graph(&self, ctx: &NodeContext) -> Handle<AnimationGraph> {
         if self.graph_binding.is_empty() { return self.graph.clone(); }
-        crate::source_gameplay_tag_input::linked_graph_input(ctx.graph_context.root_entity, &self.graph_binding).unwrap_or_else(|| self.graph.clone())
+        crate::source_gameplay_tag_input::linked_graph_input(ctx.graph_context.root_entity, &self.graph_binding).map(|input| input.graph).unwrap_or_else(|| self.graph.clone())
     }
 
     pub fn new(graph: Handle<AnimationGraph>) -> Self {
@@ -450,7 +457,24 @@ impl NodeLike for LayeredGraphNode {
             }
             self.merge_input_pose_contexts(graph, &ctx, &mut context_state);
             self.capture_global_curves(&ctx, &mut context_state)?;
-            *ctx.state_mut_or_else(AnimationContextState::default)? = context_state;
+            if self.graph_binding.is_empty() {
+                *ctx.state_mut_or_else(AnimationContextState::default)? = context_state;
+                return Ok(());
+            }
+            let binding = crate::source_gameplay_tag_input::linked_graph_input(ctx.graph_context.root_entity, &self.graph_binding);
+            let frame = ctx.graph_context.frame_index();
+            let state = ctx.state_mut_or_else(LayeredGraphState::default)?;
+            if state.graph != Some(graph_handle.id()) {
+                for duration in [state.blend_out, binding.as_ref().map(|input| input.blend_in)].into_iter().flatten().filter(|duration| *duration >= 0.0) {
+                    crate::animation_context::merge_inertialization_request(
+                        &mut context_state.inertialization_request,
+                        Some(&crate::animation_context::SourceInertializationRequest { frame, duration }),
+                    );
+                }
+            }
+            state.graph = Some(graph_handle.id());
+            state.blend_out = binding.map(|input| input.blend_out);
+            state.context = context_state;
         }
 
         Ok(())
@@ -529,7 +553,7 @@ mod tests {
             context::{deferred_gizmos::DeferredGizmos, graph_context_arena::GraphContextArena, system_resources::SystemResources},
             skeleton::Skeleton, state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
         };
-        use crate::source_gameplay_tag_input::{clear_gameplay_tag_inputs, set_linked_graph_input};
+        use crate::source_gameplay_tag_input::{clear_gameplay_tag_inputs, set_linked_graph_input, LinkedGraphInput};
         fn query(In((root, implementation, entities)): In<(Handle<AnimationGraph>, Handle<AnimationGraph>, [Entity;2])>, resources: SystemResources) {
             let graph = resources.animation_graph_assets.get(&root).unwrap();
             let mut arenas = [GraphContextArena::new(root.id()), GraphContextArena::new(root.id())];
@@ -538,8 +562,9 @@ mod tests {
             let inputs = HashMap::new();
             let env = TestIoEnv::default();
             for (frame, (selected, expected)) in [(false,0.1),(false,0.2),(true,1.1),(true,1.2),(false,0.1),(false,0.2),(true,1.1)].into_iter().enumerate() {
-                set_linked_graph_input(entities[0], "layer", selected.then(|| implementation.clone()));
-                set_linked_graph_input(entities[1], "layer", Some(implementation.clone()));
+                let binding = LinkedGraphInput { graph: implementation.clone(), blend_in: 0.35, blend_out: 0.25 };
+                set_linked_graph_input(entities[0], "layer", selected.then(|| binding.clone()));
+                set_linked_graph_input(entities[1], "layer", Some(binding));
                 for index in 0..2 {
                     let arena = &mut arenas[index];
                     let context = GraphContext::new(arena.get_toplevel_id(), graph, arena, &resources, &env, entities[index], &entity_map, &mut gizmos, &inputs);
@@ -549,6 +574,12 @@ mod tests {
                     assert!((output["sibling"].as_pose().unwrap().timestamp - (frame + 1) as f32 * 0.1).abs() < 1e-5);
                     let state = graph_output_context_state(graph, &context, "selected").unwrap();
                     assert_eq!(state.curves["Layer"], if index == 1 || selected { 0.75 } else { 0.25 });
+                    let expected_blend = match (index, frame) {
+                        (1, 0) | (0, 2 | 6) => Some(0.35),
+                        (0, 4) => Some(0.25),
+                        _ => None,
+                    };
+                    assert_eq!(state.inertialization_request.as_ref().map(|request| request.duration), expected_blend, "actor {index}, frame {frame}");
                 }
             }
             assert_eq!(arenas[0].iter_context_ids().count(), 4);

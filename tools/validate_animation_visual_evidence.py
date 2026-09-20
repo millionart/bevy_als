@@ -1286,6 +1286,7 @@ def stairs_trace_issues(report):
             route_length = frame["route_length_m"]
             distances.append(frame["distance_m"])
             desired = frame.get("desired_gait")
+            gait_name = desired.removeprefix("Als.Gait.") if isinstance(desired, str) else desired
             traversing = frame.get("stage") == "Traverse"
             if not previous or previous.get("desired_gait") != desired or previous.get("stage") != "Traverse" or not traversing:
                 gait_started = now
@@ -1295,11 +1296,12 @@ def stairs_trace_issues(report):
             if frame.get("stage") in ("VelocityMode", "ViewMode"):
                 mode = frame.get("current_mode")
                 if mode == frame.get("desired_mode") and frame.get("locomotion") == "Grounded":
+                    mode = mode.removeprefix("Als.RotationMode.") if isinstance(mode, str) else mode
                     modes.add(mode)
                     if frame.get("rotation_hotkey") is True:
                         hotkeys.add(mode)
             if traversing and math.hypot(*frame["input"]) >= 0.999 and now - gait_started >= 0.5 - 1e-8:
-                expected = speeds.get(desired)
+                expected = speeds.get(gait_name)
                 if expected is None or abs(frame["expected_speed"] - expected) > 1e-5:
                     issues.append(f"{prefix}: source gait speed does not match")
                     break
@@ -1326,7 +1328,7 @@ def stairs_trace_issues(report):
                 if not all(minimum_speed <= value <= maximum_speed for value in (speed, moved)) or (frame.get("safe_move") is True and abs(speed - moved) > 0.001):
                     issues.append(f"{prefix}: {desired} speed exceeds the source sweep bounds")
                     break
-                counts[desired] += 1
+                counts[gait_name] += 1
             previous = frame
         if not distances or min(distances) > 0.15 or max(distances) < route_length - 0.15:
             issues.append(f"{prefix}: complete stair travel is missing")
@@ -1372,7 +1374,9 @@ def uphill_trace_issues(report):
                 break
             previous_time = frame["time"]
             gait = "Running" if index % 6 < 3 else "Sprinting"
-            if frame.get("mesh") != f"SM_Als_Stairs_{index // 6 + 1:02}" or frame.get("requested_gait") != gait:
+            requested = frame.get("requested_gait")
+            requested = requested.removeprefix("Als.Gait.") if isinstance(requested, str) else requested
+            if frame.get("mesh") != f"SM_Als_Stairs_{index // 6 + 1:02}" or requested != gait:
                 issues.append(f"{prefix}: original stair or requested gait is invalid")
                 break
             if frame.get("jump_pressed") is True:
@@ -2486,6 +2490,17 @@ def run_self_test():
         assert manual_integration_issues(invalid), issue
     stairs = fixture_stairs_report()
     assert not stairs_trace_issues(stairs), stairs_trace_issues(stairs)
+    tagged_stairs = copy.deepcopy(stairs)
+    for frame in tagged_stairs["manual_integration"]["stairs_trace"]:
+        for key in ("desired_gait", "actual_gait"):
+            frame[key] = "Als.Gait." + frame[key]
+        for key in ("desired_mode", "current_mode"):
+            frame[key] = "Als.RotationMode." + frame[key]
+    assert not stairs_trace_issues(tagged_stairs), stairs_trace_issues(tagged_stairs)
+    tagged_uphill = fixture_uphill_report()
+    for frame in tagged_uphill["manual_integration"]["uphill_trace"]:
+        frame["requested_gait"] = "Als.Gait." + frame["requested_gait"]
+    assert not uphill_trace_issues(tagged_uphill), uphill_trace_issues(tagged_uphill)
     assert not manual_integration_issues(stairs), manual_integration_issues(stairs)
     for speed in (1.42, 1.40):
         clipped = copy.deepcopy(stairs)

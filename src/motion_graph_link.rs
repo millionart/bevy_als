@@ -27,7 +27,7 @@ fn motion_gait_weights(
         return GaitWeights::default();
     }
     match stance {
-        Stance::Standing => {
+        value if value != Stance::Crouching => {
             let continuous = GaitWeights::from_gait_amount(calculate_gait_amount(
                 horizontal_speed,
                 params.stance_speeds(stance),
@@ -38,7 +38,7 @@ fn motion_gait_weights(
                 sprint_w: continuous.sprint_w,
             }
         }
-        Stance::Crouching => GaitWeights::targets(Gait::Walking),
+        _ => GaitWeights::targets(Gait::Walking),
     }
 }
 

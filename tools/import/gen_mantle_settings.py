@@ -164,7 +164,7 @@ def generate(source_dir, content_root, mount, assets_root):
     low_kinds = {key: kind_by_path[path] for key, path in routes['overlays'].items()}
     control = parse_struct(asset_property(settings, 'Mantling'))
     output = ('(\n    actions: {\n        ' + ',\n        '.join(actions) + '\n    },\n    low_kinds: {'
-              + ', '.join(key + ': ' + value for key, value in sorted(low_kinds.items())) + '},\n    montages: [\n        '
+              + ', '.join(json.dumps('Als.OverlayMode.' + key) + ': ' + value for key, value in sorted(low_kinds.items())) + '},\n    montages: [\n        '
               + ',\n        '.join(montage_ron) + '\n    ],\n    stop_blend_out_seconds: ' + repr(parse_number(field(control, 'BlendOutDuration')))
               + ',\n    start_ragdoll_on_target_destruction: ' + str(parse_bool(field(control, 'bStartRagdollingOnTargetPrimitiveDestruction'))).lower() + ',\n)\n')
     return output, {'success': True, 'settings': setting_paths, 'montages': montage_records, 'low_kinds': low_kinds}

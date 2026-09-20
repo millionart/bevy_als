@@ -63,10 +63,7 @@ fn deg_to_rad(deg: f32) -> f32 {
 }
 
 pub fn effective_gait(stance: Stance, gait: Gait) -> Gait {
-    match stance {
-        Stance::Standing => gait,
-        Stance::Crouching => Gait::Walking,
-    }
+    if stance == Stance::Crouching { Gait::Walking } else { gait }
 }
 
 pub fn gait_max_speed(params: &AlsMovementParams, stance: &Stance, gait: &Gait) -> f32 {
@@ -90,16 +87,16 @@ pub fn gait_max_speed_for_velocity(
     velocity: Vec3,
     view_yaw: f32,
 ) -> f32 {
+    if !matches!(*gait, Gait::Walking | Gait::Running | Gait::Sprinting) {
+        return params.gait_speeds(*stance, rotation_mode).max_run_speed;
+    }
     params
         .gait_speed_thresholds(*stance, rotation_mode, velocity, view_yaw)
         .for_gait(*gait)
 }
 
 fn capsule_for(params: &AlsMovementParams, stance: Stance) -> Collider {
-    let total_half = match stance {
-        Stance::Standing => params.crouch.standing_capsule_half_height,
-        Stance::Crouching => params.crouch.crouched_capsule_half_height,
-    };
+    let total_half = if stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height };
     let radius = params.crouch.standing_capsule_radius;
     als_character_capsule(total_half, radius)
 }
@@ -109,6 +106,7 @@ fn turn_angvel(mode: RotationMode) -> f32 {
         RotationMode::VelocityDirection => deg_to_rad(800.0),
         RotationMode::ViewDirection => deg_to_rad(500.0),
         RotationMode::Aiming => deg_to_rad(1000.0),
+        _ => 0.0,
     }
 }
 
@@ -285,8 +283,12 @@ fn moving_rotation_half_life(
     rotation_mode: RotationMode,
     moving: bool,
     view_yaw_speed: f32,
+    stance: Stance,
 ) -> f32 {
-    let base = match (rotation_mode, moving) {
+    let base = if !AlsMovementParams::has_gait_settings(stance, rotation_mode)
+        && rotation_mode != RotationMode::Aiming && (moving || rotation_mode == RotationMode::ViewDirection) {
+        0.2
+    } else { match (rotation_mode, moving) {
         (RotationMode::VelocityDirection, true) => params
             .rotation
             .grounded_moving_velocity_direction
@@ -314,7 +316,8 @@ fn moving_rotation_half_life(
             .grounded_stationary_view_direction
             .interpolation_half_lives
             .half_life(gait),
-    };
+        _ => 0.0,
+    }};
     if rotation_mode == RotationMode::Aiming {
         return base;
     }
@@ -343,6 +346,7 @@ fn target_yaw_speed(params: &AlsMovementParams, rotation_mode: RotationMode) -> 
                 .grounded_moving_aiming
                 .target_yaw_angle_speed
         }
+        _ => 0.0,
     }
 }
 
@@ -363,6 +367,7 @@ fn rotation_response_system(
     blocked: Query<(), With<AlsMovementInputBlocked>>,
     actions: Query<&crate::state::AlsNotifyLocomotionAction>,
     collision_owners: Query<&crate::character::AlsCollisionLayerOwnership>,
+    stances: Query<&Stance>,
     mut q: Query<
         (
             Entity,
@@ -404,6 +409,7 @@ fn rotation_response_system(
     ) in &mut q
     {
         if blocked.contains(entity)
+            || !matches!(*rotation_mode, RotationMode::VelocityDirection | RotationMode::ViewDirection | RotationMode::Aiming)
             || collision_owners.get(entity).is_ok_and(|owner| owner.mantle)
             || roll.is_some_and(|state| state.active)
             || !matches!(*locomotion, LocomotionState::Grounded | LocomotionState::Air)
@@ -484,6 +490,7 @@ fn rotation_response_system(
                 wrap_yaw_radians(view_yaw.0 + animation.yaw_offset_degrees.to_radians())
             }
             RotationMode::Aiming => view_yaw.0,
+            _ => current_yaw,
         });
         let aiming = *rotation_mode == RotationMode::Aiming;
         let aiming_stationary = aiming && *locomotion == LocomotionState::Grounded && !moving && !has_input;
@@ -504,7 +511,7 @@ fn rotation_response_system(
                 params.rotation.in_air_half_life
             }
         } else {
-            moving_rotation_half_life(params, *gait, *rotation_mode, moving, view_yaw_speed)
+            moving_rotation_half_life(params, *gait, *rotation_mode, moving, view_yaw_speed, stances.get(entity).copied().unwrap_or_default())
         };
         let mut next_yaw = if aiming_stationary {
             current_yaw
@@ -971,6 +978,7 @@ mod rotation_cap_tests {
             RotationMode::ViewDirection,
             true,
             0.0,
+            Stance::Standing,
         );
         let responsive = moving_rotation_half_life(
             &params,
@@ -978,6 +986,7 @@ mod rotation_cap_tests {
             RotationMode::ViewDirection,
             true,
             params.rotation.reference_view_yaw_speed,
+            Stance::Standing,
         );
         assert!((normal - 0.15).abs() < 1e-6);
         assert!((responsive - 0.05).abs() < 1e-6);
@@ -1711,10 +1720,7 @@ impl AlsCrouchTransaction {
             };
             self.headroom_blocked = false;
         } else if desired == actual {
-            self.phase = match actual {
-                Stance::Standing => AlsCrouchTransactionPhase::Standing,
-                Stance::Crouching => AlsCrouchTransactionPhase::Crouching,
-            };
+            self.phase = if actual == Stance::Crouching { AlsCrouchTransactionPhase::Crouching } else { AlsCrouchTransactionPhase::Standing };
             self.headroom_blocked = false;
         } else if desired == Stance::Crouching {
             self.phase = AlsCrouchTransactionPhase::EnteringCrouch;
@@ -2178,10 +2184,7 @@ fn locomotion_drive_system(
                 .get(params_handle.id())
                 .map(|params| {
                     (
-                        match *stance {
-                            Stance::Standing => params.crouch.standing_capsule_half_height,
-                            Stance::Crouching => params.crouch.crouched_capsule_half_height,
-                        },
+                        if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height },
                         params.crouch.standing_capsule_radius,
                     )
                 })
@@ -2436,14 +2439,12 @@ fn apply_capsule_for_stance(
                 info!("[MOTION] entity={entity:?} clearance regained: standing capsule restored");
             }
         }
+        _ => {}
     }
 }
 
 fn capsule_dimensions(params: &AlsMovementParams, stance: Stance) -> (f32, f32) {
-    let half_height = match stance {
-        Stance::Standing => params.crouch.standing_capsule_half_height,
-        Stance::Crouching => params.crouch.crouched_capsule_half_height,
-    };
+    let half_height = if stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height };
     (half_height, params.crouch.standing_capsule_radius)
 }
 
@@ -2484,8 +2485,10 @@ fn capsule_target_for_locomotion(
         actual
     } else if locomotion == LocomotionState::Air {
         Stance::Standing
-    } else {
+    } else if matches!(desired, Stance::Standing | Stance::Crouching) {
         desired
+    } else {
+        actual
     }
 }
 
@@ -2551,10 +2554,7 @@ fn grounded_step_up_system(
         let Some(params) = params_assets.get(handle.id()) else {
             continue;
         };
-        let half = match *stance {
-            Stance::Crouching => params.crouch.crouched_capsule_half_height,
-            Stance::Standing => params.crouch.standing_capsule_half_height,
-        } * transform.scale.y;
+        let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height } * transform.scale.y;
         let radius = params.crouch.standing_capsule_radius * transform.scale.x.min(transform.scale.z);
         let next_velocity = velocity.0 + motor.lin.boost + motor.lin.acceleration * time.delta_secs();
         let delta = Vec3::new(next_velocity.x, 0.0, next_velocity.z) * time.delta_secs();
@@ -2711,10 +2711,7 @@ pub(crate) fn locomotion_state_sync_system(
         let mut floor_entity = None;
         if *current == LocomotionState::Grounded && !blocked.contains(entity) && !jumping
             && let Some(params) = params_assets.get(handle.id()) {
-            let half = match *stance {
-                Stance::Crouching => params.crouch.crouched_capsule_half_height,
-                Stance::Standing => params.crouch.standing_capsule_half_height,
-            } * transform.scale.y;
+            let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height } * transform.scale.y;
             let radius = params.crouch.standing_capsule_radius * transform.scale.x.min(transform.scale.z);
             let filter = SpatialQueryFilter::from_excluded_entities([entity]);
             if let Some((floor_center_y, _, floor)) = find_ground_floor(&spatial, position.0, half, radius, &filter) {
@@ -2746,10 +2743,7 @@ pub(crate) fn locomotion_state_sync_system(
                         normal.y > 0.0 && manifold.points.iter().any(|point| point.normal_impulse > 0.0)
                     })
             }) && params_assets.get(handle.id()).is_some_and(|params| {
-                let half = match *stance {
-                    Stance::Standing => params.crouch.standing_capsule_half_height,
-                    Stance::Crouching => params.crouch.crouched_capsule_half_height,
-                } * transform.scale.y;
+                let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height } * transform.scale.y;
                 let radius = params.crouch.standing_capsule_radius * transform.scale.x.min(transform.scale.z);
                 find_ground_floor(&spatial, position.0, half, radius, &SpatialQueryFilter::from_excluded_entities([entity]))
                     .is_some_and(|(center, impact, _)| (position.y - center).abs() <= MAX_FLOOR_DISTANCE
@@ -2776,10 +2770,7 @@ pub(crate) fn locomotion_state_sync_system(
         if let Ok((mut base, dynamics)) = movement_bases.get_mut(entity) {
             if *current == LocomotionState::Grounded && floor_entity.is_none()
                 && let Some(params) = params_assets.get(handle.id()) {
-                let half = match *stance {
-                    Stance::Standing => params.crouch.standing_capsule_half_height,
-                    Stance::Crouching => params.crouch.crouched_capsule_half_height,
-                } * transform.scale.y;
+                let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height } * transform.scale.y;
                 let radius = params.crouch.standing_capsule_radius * transform.scale.x.min(transform.scale.z);
                 floor_entity = find_ground_floor(&spatial, position.0, half, radius,
                     &SpatialQueryFilter::from_excluded_entities([entity])).map(|(_, _, entity)| entity);
@@ -2803,6 +2794,24 @@ pub(crate) fn locomotion_state_sync_system(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn custom_tags_follow_source_movement_fallbacks() {
+        let stance = Stance::new("Als.Stance.Custom").unwrap();
+        let gait = Gait::new("Als.Gait.Custom").unwrap();
+        let rotation = RotationMode::new("Als.RotationMode.Custom").unwrap();
+        assert_eq!(capsule_target_for_locomotion(stance, Stance::Crouching, LocomotionState::Grounded, false, None), Stance::Crouching);
+        assert_eq!(capsule_target_for_locomotion(stance, Stance::Crouching, LocomotionState::Air, false, None), Stance::Standing);
+        assert_eq!(turn_angvel(rotation), 0.0);
+        assert_eq!(moving_rotation_half_life(&AlsMovementParams::default(), Gait::Running, RotationMode::ViewDirection, true, 0.0, stance), 0.2);
+        let mut params = AlsMovementParams::default();
+        params.speeds.standing.allow_direction_dependent_movement_speed = true;
+        params.speeds.standing.max_walk_speed = 9.0;
+        params.speeds.standing.max_run_backward_speed = 1.0;
+        assert_eq!(params.gait_speeds(stance, RotationMode::ViewDirection).max_walk_speed, 1.75);
+        assert_eq!(params.gait_speeds(Stance::Standing, rotation).max_run_speed, 3.75);
+        assert_eq!(gait_max_speed_for_velocity(&params, &Stance::Standing, &gait, RotationMode::ViewDirection, Vec3::Z, 0.0), params.speeds.standing.max_run_speed);
+    }
 
 
     fn stair_motion_fixture(rise: f32, ceiling: bool, descending: bool, yaw: f32) -> (App, Entity, f32) {

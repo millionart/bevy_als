@@ -169,9 +169,9 @@ fn anim_probe_logger(
 
     let capsule_h = params_h
         .and_then(|h| params_assets.get(&h.0))
-        .map(|p| match stance {
+        .map(|p| match *stance {
             Stance::Crouching => p.crouch.crouched_capsule_half_height,
-            Stance::Standing => p.crouch.standing_capsule_half_height,
+            _ => p.crouch.standing_capsule_half_height,
         });
     let hspeed = motion.horizontal_speed;
     let face = yaw_deg(*tf.forward());

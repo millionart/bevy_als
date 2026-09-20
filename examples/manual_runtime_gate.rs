@@ -109,7 +109,7 @@ struct GateVerdict {
     overlay_switches: u32,
     secondary_continuity_samples: u32,
     secondary_reset_detected: bool,
-    last_overlay_index: Option<f32>,
+    last_overlay: Option<OverlayState>,
     last_secondary: Option<(f64, f32)>,
     last_log: f64,
     done: bool,
@@ -289,6 +289,7 @@ fn gate_watcher(
     )>,
     avatars: Query<(&ChildOf, &AnimatedSceneInstance)>,
     players: Query<&AnimationGraphPlayer>,
+    graphs: Res<Assets<bevy_animation_graph::core::animation_graph::AnimationGraph>>,
     mut exit: MessageWriter<AppExit>,
 ) {
     if verdict.done {
@@ -314,8 +315,15 @@ fn gate_watcher(
     let jump_phase = read_global(player, "als_locomotion_jump_phase").unwrap_or(f32::NAN);
     let land_phase = read_global(player, "als_locomotion_land_phase").unwrap_or(f32::NAN);
     let jump_state = read_global(player, "als_locomotion_jump_state_index").unwrap_or(f32::NAN);
-    let secondary_phase = read_global(player, "als_secondary_motion_phase").unwrap_or(f32::NAN);
-    let overlay_index = read_global(player, "als_root_overlay_index").unwrap_or(f32::NAN);
+    let secondary_phase = player.get_context_arena().and_then(|arena| arena.iter_context_ids().find_map(|id| {
+        let graph = graphs.get(arena.get_context(id)?.get_graph_id())?;
+        graph.nodes.values().find_map(|node| {
+            let binding = node.try_inner_downcast_ref::<als_ext::SourceSequencePlayerNode>()?.synchronization.as_ref()?;
+            binding.key.ends_with(".secondary_motion.phase").then(|| als_ext::sync_group_phase::source_sync_phase(arena, &graphs, &binding.key)).flatten()
+        })
+    })).unwrap_or(f32::NAN);
+    let overlay_tag = als_ext::source_gameplay_tag_input::gameplay_tag_input(instance.player_entity(), "overlay_mode")
+        .map(|tag| OverlayState::from_tag(&tag));
     let t = time.elapsed_secs_f64();
 
     if ((1.5..3.0).contains(&t) || (4.8..6.5).contains(&t))
@@ -378,12 +386,12 @@ fn gate_watcher(
     {
         verdict.land_phase_samples += 1;
     }
-    if *overlay == OverlayState::Rifle && overlay_index.is_finite() && secondary_phase.is_finite() {
+    if *overlay == OverlayState::Rifle && overlay_tag == Some(*overlay) && secondary_phase.is_finite() {
         verdict.rifle_overlay_samples += 1;
     }
-    if overlay_index.is_finite() && secondary_phase.is_finite() {
-        if let Some(previous_index) = verdict.last_overlay_index
-            && (overlay_index - previous_index).abs() > 1e-4
+    if let Some(overlay_tag) = overlay_tag && secondary_phase.is_finite() {
+        if let Some(previous_overlay) = verdict.last_overlay
+            && overlay_tag != previous_overlay
         {
             verdict.overlay_switches += 1;
             if let Some((previous_time, previous_phase)) = verdict.last_secondary {
@@ -393,24 +401,24 @@ fn gate_watcher(
                 if (actual - expected).abs() <= 0.04 {
                     verdict.secondary_continuity_samples += 1;
                     info!(
-                        "[MANUAL-RUNTIME-GATE] secondary switch overlay={previous_index:.1}->{overlay_index:.1} expected_delta={expected:.4} actual_delta={actual:.4} continuous=true"
+                        "[MANUAL-RUNTIME-GATE] secondary switch overlay={previous_overlay:?}->{overlay_tag:?} expected_delta={expected:.4} actual_delta={actual:.4} continuous=true"
                     );
                 } else {
                     verdict.secondary_reset_detected = true;
                     warn!(
-                        "[MANUAL-RUNTIME-GATE] secondary switch overlay={previous_index:.1}->{overlay_index:.1} expected_delta={expected:.4} actual_delta={actual:.4} continuous=false"
+                        "[MANUAL-RUNTIME-GATE] secondary switch overlay={previous_overlay:?}->{overlay_tag:?} expected_delta={expected:.4} actual_delta={actual:.4} continuous=false"
                     );
                 }
             }
         }
-        verdict.last_overlay_index = Some(overlay_index);
+        verdict.last_overlay = Some(overlay_tag);
         verdict.last_secondary = Some((t, secondary_phase));
     }
 
     if t - verdict.last_log >= 0.25 {
         verdict.last_log = t;
         info!(
-            "[MANUAL-RUNTIME-GATE] t={t:.2} speed={speed:.2} stance={stance:?} gait={gait:?} loco={locomotion:?} overlay={overlay:?} pins(dir={direction:.1},stance={stance_weight:.2},run={run_weight:.2},jump_l={jump_left:.2},jump_run={jump_run:.2}) phases(move={movement_phase:.3},jump={jump_phase:.3},fall={fall_phase:.3},land={land_phase:.3},jump_state={jump_state:.1},secondary={secondary_phase:.3},overlay={overlay_index:.1})"
+            "[MANUAL-RUNTIME-GATE] t={t:.2} speed={speed:.2} stance={stance:?} gait={gait:?} loco={locomotion:?} overlay={overlay:?} pins(dir={direction:.1},stance={stance_weight:.2},run={run_weight:.2},jump_l={jump_left:.2},jump_run={jump_run:.2}) phases(move={movement_phase:.3},jump={jump_phase:.3},fall={fall_phase:.3},land={land_phase:.3},jump_state={jump_state:.1},secondary={secondary_phase:.3},overlay={overlay_tag:?})"
         );
     }
 

@@ -556,10 +556,7 @@ fn ragdoll_capsule_dimensions(
             ALS_CHARACTER_CAPSULE_RADIUS,
         );
     };
-    let half_height = match stance {
-        Stance::Standing => params.crouch.standing_capsule_half_height,
-        Stance::Crouching => params.crouch.crouched_capsule_half_height,
-    };
+    let half_height = if stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height };
     (half_height, params.crouch.standing_capsule_radius)
 }
 
@@ -1921,7 +1918,7 @@ mod tests {
         let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
         assert_eq!(player.get_outputs()["grounded"].as_bool().unwrap(), true);
         assert_eq!(player.get_outputs()["ragdolling"].as_bool().unwrap(), true);
-        assert_eq!(player.get_global_input_data("als_overlay_locomotion_action_index").unwrap().as_f32().unwrap(), 4.0);
+        assert_eq!(als_ext::source_gameplay_tag_input::gameplay_tag_input(player_entity, "locomotion_action"), Some(AlsNotifyLocomotionAction::Ragdolling.tag()));
         let handoff = app
             .world()
             .get::<RagdollPhysicsProfileApplied>(player_entity)
@@ -1992,7 +1989,7 @@ mod tests {
             .as_pose()
             .unwrap();
         assert_eq!(player.get_outputs()["ragdolling"].as_bool().unwrap(), false);
-        assert_eq!(player.get_global_input_data("als_overlay_locomotion_action_index").unwrap().as_f32().unwrap(), 0.0);
+        assert_eq!(als_ext::source_gameplay_tag_input::gameplay_tag_input(player_entity, "locomotion_action"), Some(AlsNotifyLocomotionAction::None.tag()));
         let pelvis = snapshot.bones[snapshot.paths[&joint_path.id()]].to_transform();
         let restored_world = app
             .world()

@@ -46,6 +46,8 @@ pub(crate) struct ObjectDefinition {
 #[derive(Deserialize)]
 pub(crate) struct OverlayDefinition {
     pub(crate) graph: String,
+    pub(crate) blend_in: f32,
+    pub(crate) blend_out: f32,
     pub(crate) object: Option<ObjectDefinition>,
 }
 

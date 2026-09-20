@@ -300,11 +300,8 @@ fn generated_ab_als_input_writer(
             } else if player.get_global_input_data("locomotion_state.input_yaw_angle_world_space").is_none() {
                 player.set_global_input_data("locomotion_state.input_yaw_angle_world_space", -body_degrees);
             }
-            let action = player
-                .get_global_input_data("als_overlay_locomotion_action_index")
-                .and_then(|value| value.as_f32().ok())
-                .unwrap_or(0.0);
-            if action == 0.0 {
+            let action_active = als_ext::source_gameplay_tag_input::gameplay_tag_input(instance.player_entity(), "locomotion_action").is_some_and(|tag| tag.is_valid());
+            if !action_active {
                 player.set_global_input_data(
                     "view_state.yaw_angle",
                     crate::turn_layer::character_turn_angle_degrees(view_degrees, body_degrees),

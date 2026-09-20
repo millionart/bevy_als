@@ -31,18 +31,11 @@ pub fn jump_play_rate(speed_cm_per_s: f32) -> f32 {
 }
 
 pub fn select_jump_start_variant(
-    params: &AlsMovementParams,
-    gait: Gait,
+    _params: &AlsMovementParams,
+    _gait: Gait,
     horizontal_speed: f32,
     left_foot_planted: bool,
 ) -> JumpStartVariant {
-    let s = params.stance_speeds(crate::state::Stance::Standing);
-    let running = match gait {
-        Gait::Sprinting => true,
-        Gait::Running => horizontal_speed >= JUMP_WALK_RUN_SPEED_SPLIT,
-        Gait::Walking => horizontal_speed > s.max_walk_speed + JUMP_WALK_RUN_SPEED_SPLIT - 1.75,
-    };
-    let _ = running;
     let is_run = horizontal_speed >= JUMP_WALK_RUN_SPEED_SPLIT;
     if is_run {
         if left_foot_planted {

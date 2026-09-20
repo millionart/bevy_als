@@ -553,7 +553,7 @@ fn advance_rolls(
         ovr,
     ) in &mut q
     {
-        let action_blocked = actions.get(character).is_ok_and(|action| !matches!(action,
+        let action_blocked = actions.get(character).is_ok_and(|action| !matches!(*action,
             crate::animation_events::AlsNotifyLocomotionAction::None | crate::animation_events::AlsNotifyLocomotionAction::Rolling));
         let effective = als_core::motion::movement_input_for_action(
             *ovr.map(|o| &o.0).unwrap_or(cmd),

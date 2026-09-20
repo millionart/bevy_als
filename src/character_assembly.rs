@@ -412,10 +412,7 @@ mod tests {
         for stance in [Stance::Standing, Stance::Crouching, Stance::Standing, Stance::Crouching] {
             for (character, _, floor) in actors {
                 app.world_mut().entity_mut(character).insert(stance);
-                app.world_mut().get_mut::<Transform>(character).unwrap().translation.y = floor + match stance {
-                    Stance::Standing => params.crouch.standing_capsule_half_height,
-                    Stance::Crouching => params.crouch.crouched_capsule_half_height,
-                };
+                app.world_mut().get_mut::<Transform>(character).unwrap().translation.y = floor + if stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height };
             }
             app.update();
             let observed = actors.map(|(_, avatar, floor)| app.world().get::<GlobalTransform>(avatar).unwrap().translation().y - floor);

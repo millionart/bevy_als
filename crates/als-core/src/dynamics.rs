@@ -90,10 +90,7 @@ pub fn support_point_velocity(
 }
 
 fn character_contact_point(params: &AlsMovementParams, stance: Stance, position: Vec3) -> Vec3 {
-    let half_height = match stance {
-        Stance::Standing => params.crouch.standing_capsule_half_height,
-        Stance::Crouching => params.crouch.crouched_capsule_half_height,
-    };
+    let half_height = if stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height };
     position - Vec3::Y * half_height
 }
 
@@ -129,9 +126,7 @@ pub fn max_allowed_speed(
     velocity: Vec3,
     view_yaw: f32,
 ) -> f32 {
-    params
-        .gait_speed_thresholds(stance, rotation_mode, velocity, view_yaw)
-        .for_gait(gait)
+    crate::motion::gait_max_speed_for_velocity(params, &stance, &gait, rotation_mode, velocity, view_yaw)
 }
 
 pub fn grounded_velocity_step(
@@ -432,7 +427,9 @@ pub fn grounded_dynamics_motor_system(
             current_base_state.as_deref().filter(|_| base_entity.is_some()));
         let thresholds = params.gait_speed_thresholds(*stance, *rotation_mode, current, view_yaw.0);
         gait_amount.0 = calculate_gait_amount_for_thresholds(current.length(), thresholds);
-        dynamics.0 = params.grounded_dynamics(*stance, *rotation_mode, gait_amount.0);
+        if AlsMovementParams::has_gait_settings(*stance, *rotation_mode) {
+            dynamics.0 = params.grounded_dynamics(*stance, *rotation_mode, gait_amount.0);
+        }
         let max_speed = max_allowed_speed(
             params,
             *stance,

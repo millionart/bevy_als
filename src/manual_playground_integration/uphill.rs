@@ -164,7 +164,7 @@ pub(super) fn observe(
     let probe = &mut state.uphill_probe;
     if probe.index >= 18 || probe.start.is_none() { return; }
     let graph = locomotion_graph_sample(player, &motion);
-    let half = match *stance { Stance::Standing => params.crouch.standing_capsule_half_height, Stance::Crouching => params.crouch.crouched_capsule_half_height } * transform.scale.y;
+    let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height  } else { params.crouch.standing_capsule_half_height } * transform.scale.y;
     let radius = params.crouch.standing_capsule_radius * transform.scale.x.min(transform.scale.z);
     let floor = als_core::motion::find_ground_floor(&spatial, position.0, half, radius, &SpatialQueryFilter::from_excluded_entities([character]));
     let contact = collisions.collisions_with(character).any(|pair| pair.manifolds.iter().any(|manifold| {

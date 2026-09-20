@@ -89,7 +89,7 @@ fn stance_blend_driver(
         let Ok(stance) = stances.get(parent.parent()) else {
             continue;
         };
-        let crouching = matches!(stance, Stance::Crouching);
+        let crouching = *stance == Stance::Crouching;
         match blend {
             Some(mut state) => {
                 let changed = (state.weight > 0.5) != crouching;

@@ -349,7 +349,7 @@ mod tests {
         assert!((sample.displacement_speed.unwrap() - 1.75).abs() < 1e-5);
         let json = serde_json::to_value(sample).unwrap();
         assert_eq!(json["position"][2], sample.frame.position.z);
-        assert_eq!(json["desired_mode"], "ViewDirection");
+        assert_eq!(json["desired_mode"], "Als.RotationMode.ViewDirection");
         assert_eq!(json["movement_pose_ready"], true);
         world.get_mut::<LinearVelocity>(character).unwrap().0.z = -2.0;
         world.resource_mut::<ManualIntegrationState>().game_time_seconds = 0.8;
@@ -463,7 +463,7 @@ impl Sample {
     }
 
     fn gait_index(&self) -> usize {
-        match self.frame.desired_gait { Gait::Walking => 0, Gait::Running => 1, Gait::Sprinting => 2 }
+        match self.frame.desired_gait { Gait::Walking => 0, Gait::Sprinting => 2, _ => 1 }
     }
 
 }

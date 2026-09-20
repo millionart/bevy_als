@@ -199,10 +199,7 @@ pub fn player_animation_context_state<'a>(
     node_id: NodeId,
 ) -> Option<&'a AnimationContextState> {
     let states = &player.get_context_arena()?.get_toplevel().node_states;
-    states
-        .get::<AnimationContextState>(node_id, StateKey::Default)
-        .ok()
-        .or_else(|| states.get::<crate::root_graph_boundaries::ControlRigNodeState>(node_id, StateKey::Default).ok().map(|state| &state.context))
+    node_context_state(states, StateKey::Default, node_id)
 }
 
 pub fn is_context_curve_input(
@@ -253,6 +250,9 @@ pub fn pose_input_context_state(
 }
 
 pub fn node_context_state(states: &NodeStates, key: StateKey, node: NodeId) -> Option<&AnimationContextState> {
+    if let Ok(state) = states.get::<crate::layered_graph::LayeredGraphState>(node, key) {
+        return Some(&state.context);
+    }
     if let Ok(state) = states.get::<crate::root_graph_boundaries::ControlRigNodeState>(node, key) {
         return Some(&state.context);
     }

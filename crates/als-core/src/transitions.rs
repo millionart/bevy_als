@@ -184,12 +184,12 @@ pub fn select_dynamic_transition(
     {
         match stance {
             Stance::Crouching => TransitionSequence::CrouchingRight,
-            Stance::Standing => TransitionSequence::StandingRight,
+            _ => TransitionSequence::StandingRight,
         }
     } else {
         match stance {
             Stance::Crouching => TransitionSequence::CrouchingLeft,
-            Stance::Standing => TransitionSequence::StandingLeft,
+            _ => TransitionSequence::StandingLeft,
         }
     };
     Some(TransitionSelection {

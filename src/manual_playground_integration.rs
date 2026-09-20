@@ -4923,6 +4923,7 @@ fn drive_manual_integration(
                     }
                 }
                 CrouchClearanceStage::PrepareCanopyCrouch => {
+                    rebase_temporal_fixture(&mut state, &mut phase_evidence, "crouch_canopy_reset");
                     let standing_center =
                         state.spawn_translation.unwrap_or(fixture.locomotion_start);
                     let canopy_start = params_assets
@@ -5417,31 +5418,20 @@ fn drive_manual_integration(
                     &mut velocity,
                     &mut view_yaw,
                     &mut view_pitch,
-                    if state.scenario == IntegrationScenario::Grounded {
-                        GROUNDED_START.with_y(fixture.roll_start.y)
-                    } else {
-                        fixture.roll_start
-                    },
-                    if state.scenario == IntegrationScenario::Grounded {
-                        GROUNDED_ROLL_YAW
-                    } else {
-                        fixture.facing_yaw
-                    },
+                    GROUNDED_START.with_y(fixture.roll_start.y),
+                    GROUNDED_ROLL_YAW,
                 );
-                if state.scenario == IntegrationScenario::Grounded {
-                    rebase_temporal_fixture(
-                        &mut state,
-                        &mut phase_evidence,
-                        "grounded_original_floor_start",
-                    );
-                }
+                rebase_temporal_fixture(
+                    &mut state,
+                    &mut phase_evidence,
+                    "grounded_original_floor_start",
+                );
                 *gait = Gait::Running;
                 *overlay = OverlayState::Default;
                 request.locomotion_state = Some(LocomotionState::Grounded);
                 request.stance = Some(Stance::Standing);
             }
-            input.0.move_dir = if state.scenario != IntegrationScenario::Grounded || elapsed < 1.25
-            {
+            input.0.move_dir = if elapsed < 1.25 {
                 Vec2::Y
             } else {
                 Vec2::ZERO
@@ -5990,10 +5980,7 @@ fn stance_center_from_standing_center(
     standing_center: Vec3,
     stance: Stance,
 ) -> Vec3 {
-    let target_half_height = match stance {
-        Stance::Standing => params.crouch.standing_capsule_half_height,
-        Stance::Crouching => params.crouch.crouched_capsule_half_height,
-    };
+    let target_half_height = if stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height };
     standing_center + Vec3::Y * (target_half_height - params.crouch.standing_capsule_half_height)
 }
 
@@ -6600,7 +6587,7 @@ fn observe_manual_integration(
     });
     let jump_phase = locomotion_phase("sync_groups.ab_als_locomotion.jump.phase");
     let land_phase = locomotion_phase("sync_groups.ab_als_locomotion.land.phase");
-    let overlay_index = graph_global_f32(player, "als_root_overlay_index");
+    let overlay_tag = als_ext::source_gameplay_tag_input::gameplay_tag_input(instance.player_entity(), "overlay_mode");
     let source_ready = matches!(player.get_animation_source(), AnimationSource::Graph(_))
         && player.get_error().is_none();
     record_animation_window_trace(
@@ -7030,7 +7017,7 @@ fn observe_manual_integration(
             && !default_overlay_foot_targets_ready(spaces) {
             sample.errors.push("foot_trace_and_solver_must_consume_the_same_prepared_rig_target".into());
         }
-        let active = *overlay == OverlayState::Default && overlay_index.is_some_and(|value| value.abs() < 1e-4) && source_ready && sample.ready && sample.layering.ready;
+        let active = *overlay == OverlayState::Default && overlay_tag.as_ref() == Some(&overlay.tag()) && source_ready && sample.ready && sample.layering.ready;
         if active {
             probe.valid &= sample.errors.is_empty() && sample.layering.errors.is_empty();
             probe.curves_seen |= default_overlay_curves_ready(context);
@@ -8290,7 +8277,7 @@ fn observe_manual_integration(
     {
         state.coverage.landed = true;
     }
-    state.coverage.overlay |= *overlay == OverlayState::Rifle && overlay_index.is_some();
+    state.coverage.overlay |= *overlay == OverlayState::Rifle && overlay_tag.as_ref() == Some(&overlay.tag());
     state.coverage.gait_layer |=
         gait_blend.is_some_and(|blend| blend.weights.sprint_w > 1e-4) && *gait == Gait::Sprinting;
     state.coverage.stance_layer |=
@@ -8957,7 +8944,7 @@ fn observe_manual_integration(
             && slot.weight > 0.2
             && slot.root_motion_delta.length() > 1e-5;
     }
-    if state.scenario == IntegrationScenario::Grounded && state.phase == IntegrationPhase::Roll {
+    if state.phase == IntegrationPhase::Roll {
         state.grounded_roll_exit_diagnostic = grounded_roll_exit_diagnostic(
             *stance,
             desired_stance.copied().unwrap_or(AlsDesiredStance(*stance)),
@@ -8966,6 +8953,11 @@ fn observe_manual_integration(
             transition_playback,
             root_transition_slot,
         );
+        gate_report.direction_trace.push(serde_json::json!({
+            "elapsed": state.phase_elapsed(), "phase": "Roll",
+            "diagnostic": state.grounded_roll_exit_diagnostic,
+            "notify": motion_probe.generated_transition_notify.get(character).ok().flatten().map(|value| format!("{value:?}")),
+        }));
     }
     if grounded_roll_exit_transition_matches_source(
         state.phase,
@@ -9231,12 +9223,11 @@ fn observe_manual_integration(
         state.coverage.overlay_menu =
             state.interface_menu_open_seen && state.interface_menu_closed_seen;
 
-        let selector = graph_global_f32(player, "als_root_overlay_index");
         let bow_bound = *overlay == OverlayState::Bow
-            && selector.is_some_and(|value| (value - 8.0).abs() <= 1e-4)
+            && overlay_tag.as_ref() == Some(&OverlayState::Bow.tag())
             && active_layer_pose(player, &motion_probe, "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/AnimGraph.animgraph.ron");
         let default_bound = *overlay == OverlayState::Default
-            && selector.is_some_and(|value| value.abs() <= 1e-4)
+            && overlay_tag.as_ref() == Some(&OverlayState::Default.tag())
             && active_layer_pose(player, &motion_probe, "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Default/AnimGraph.animgraph.ron");
         if bow_bound && !state.interface_overlay_bow_seen {
             info!(
@@ -10193,6 +10184,7 @@ mod tests {
         player.set_global_input_data("animation.delta_seconds_without_time_dilation", 0.1_f32);
         let entity = app.world_mut().spawn((player, Name::new("Head observer"), Transform::default(), GlobalTransform::default())).id();
         app.world_mut().spawn((Name::new("root"), ChildOf(entity)));
+        app.init_resource::<Assets<StandardMaterial>>();
         let mut previous: Option<(u64, AlsHeadState, bool, f32)> = None;
         for (pitch, yaw, alpha) in [(-60.0_f32, 40.0_f32, 1.0_f32), (60.0, -80.0, 1.0), (60.0, -80.0, 0.0), (45.0, 120.0, 1.0)] {
             let mut player = app.world_mut().get_mut::<AnimationGraphPlayer>(entity).unwrap();
@@ -10272,6 +10264,7 @@ mod tests {
         }
         let entity = app.world_mut().spawn((player, Name::new("Layering observer"), Transform::default(), GlobalTransform::default())).id();
         app.world_mut().spawn((Name::new("root"), ChildOf(entity)));
+        app.init_resource::<Assets<StandardMaterial>>();
         let mut previous = None;
         for _ in 0..2 {
             app.world_mut().run_system_once(animation_player).unwrap();

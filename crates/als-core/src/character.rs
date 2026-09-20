@@ -238,10 +238,7 @@ fn character_contact_friction_system(
 }
 
 fn character_half_height(params: &AlsMovementParams, stance: Stance) -> f32 {
-    match stance {
-        Stance::Standing => params.crouch.standing_capsule_half_height,
-        Stance::Crouching => params.crouch.crouched_capsule_half_height,
-    }
+    if stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height }
 }
 
 fn vertical_intervals_overlap(

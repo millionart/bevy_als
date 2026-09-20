@@ -58,7 +58,7 @@ pub fn input_state_request_system(
         if effective.crouch_pressed {
             let target = match desired_stance.map(|desired| desired.0).unwrap_or(*stance) {
                 Stance::Standing => Stance::Crouching,
-                Stance::Crouching => Stance::Standing,
+                _ => Stance::Standing,
             };
             if request.stance != Some(target) {
                 request.stance = Some(target);

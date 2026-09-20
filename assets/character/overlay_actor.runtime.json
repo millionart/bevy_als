@@ -1,32 +1,44 @@
 {
-  "Default": {
+  "Als.OverlayMode.Default": {
     "source_class": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Default.AB_Als_Default",
     "graph": "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Default/AnimGraph.animgraph.ron",
+    "blend_in": 0.2,
+    "blend_out": 0.2,
     "object": null
   },
-  "Masculine": {
+  "Als.OverlayMode.Masculine": {
     "source_class": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Masculine.AB_Als_Masculine",
     "graph": "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Masculine/AnimGraph.animgraph.ron",
+    "blend_in": 0.2,
+    "blend_out": 0.2,
     "object": null
   },
-  "Feminine": {
+  "Als.OverlayMode.Feminine": {
     "source_class": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Feminine.AB_Als_Feminine",
     "graph": "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Feminine/AnimGraph.animgraph.ron",
+    "blend_in": 0.2,
+    "blend_out": 0.2,
     "object": null
   },
-  "Injured": {
+  "Als.OverlayMode.Injured": {
     "source_class": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Injured.AB_Als_Injured",
     "graph": "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Injured/AnimGraph.animgraph.ron",
+    "blend_in": 0.2,
+    "blend_out": 0.2,
     "object": null
   },
-  "HandsTied": {
+  "Als.OverlayMode.HandsTied": {
     "source_class": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_HandsTied.AB_Als_HandsTied",
     "graph": "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_HandsTied/AnimGraph.animgraph.ron",
+    "blend_in": 0.2,
+    "blend_out": 0.2,
     "object": null
   },
-  "Rifle": {
+  "Als.OverlayMode.Rifle": {
     "source_class": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle.AB_Als_Rifle",
     "graph": "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/AnimGraph.animgraph.ron",
+    "blend_in": 0.2,
+    "blend_out": 0.2,
     "object": {
       "source_mesh": "/ALS/ALS/OverlayObjects/Rifle/SKM_Als_Rifle.SKM_Als_Rifle",
       "source_animation": null,
@@ -68,9 +80,11 @@
       "scene": null
     }
   },
-  "PistolOneHanded": {
+  "Als.OverlayMode.PistolOneHanded": {
     "source_class": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded.AB_Als_PistolOneHanded",
     "graph": "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/AnimGraph.animgraph.ron",
+    "blend_in": 0.2,
+    "blend_out": 0.2,
     "object": {
       "source_mesh": "/ALS/ALS/OverlayObjects/Pistol/SKM_Als_Pistol.SKM_Als_Pistol",
       "source_animation": null,
@@ -112,9 +126,11 @@
       "scene": null
     }
   },
-  "PistolTwoHanded": {
+  "Als.OverlayMode.PistolTwoHanded": {
     "source_class": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded.AB_Als_PistolTwoHanded",
     "graph": "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/AnimGraph.animgraph.ron",
+    "blend_in": 0.2,
+    "blend_out": 0.2,
     "object": {
       "source_mesh": "/ALS/ALS/OverlayObjects/Pistol/SKM_Als_Pistol.SKM_Als_Pistol",
       "source_animation": null,
@@ -156,9 +172,11 @@
       "scene": null
     }
   },
-  "Bow": {
+  "Als.OverlayMode.Bow": {
     "source_class": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow.AB_Als_Bow",
     "graph": "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/AnimGraph.animgraph.ron",
+    "blend_in": 0.2,
+    "blend_out": 0.2,
     "object": {
       "source_mesh": "/ALS/ALS/OverlayObjects/Bow/SKM_Als_Bow.SKM_Als_Bow",
       "source_animation": "/ALS/ALS/OverlayObjects/Bow/AB_Als_Bow.AB_Als_Bow",
@@ -222,9 +240,11 @@
       "scene": "animated_scenes/als_bow.animscn.ron"
     }
   },
-  "Torch": {
+  "Als.OverlayMode.Torch": {
     "source_class": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Torch.AB_Als_Torch",
     "graph": "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Torch/AnimGraph.animgraph.ron",
+    "blend_in": 0.2,
+    "blend_out": 0.2,
     "object": {
       "source_mesh": "/ALS/ALS/OverlayObjects/Torch/SM_Als_Torch.SM_Als_Torch",
       "source_animation": null,
@@ -288,9 +308,11 @@
       "scene": null
     }
   },
-  "Binoculars": {
+  "Als.OverlayMode.Binoculars": {
     "source_class": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Binoculars.AB_Als_Binoculars",
     "graph": "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Binoculars/AnimGraph.animgraph.ron",
+    "blend_in": 0.2,
+    "blend_out": 0.2,
     "object": {
       "source_mesh": "/ALS/ALS/OverlayObjects/Binoculars/SM_Als_Binoculars.SM_Als_Binoculars",
       "source_animation": null,
@@ -332,9 +354,11 @@
       "scene": null
     }
   },
-  "Box": {
+  "Als.OverlayMode.Box": {
     "source_class": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Box.AB_Als_Box",
     "graph": "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Box/AnimGraph.animgraph.ron",
+    "blend_in": 0.2,
+    "blend_out": 0.2,
     "object": {
       "source_mesh": "/ALS/ALS/OverlayObjects/Box/SM_Als_Box.SM_Als_Box",
       "source_animation": null,
@@ -376,9 +400,11 @@
       "scene": null
     }
   },
-  "Barrel": {
+  "Als.OverlayMode.Barrel": {
     "source_class": "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Barrel.AB_Als_Barrel",
     "graph": "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Barrel/AnimGraph.animgraph.ron",
+    "blend_in": 0.2,
+    "blend_out": 0.2,
     "object": {
       "source_mesh": "/ALS/ALS/OverlayObjects/Barrel/SM_Als_Barrel.SM_Als_Barrel",
       "source_animation": null,

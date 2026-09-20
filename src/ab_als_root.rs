@@ -85,30 +85,8 @@ fn root_pose_invariant(
     }
 }
 
-pub fn overlay_layer_index(overlay: OverlayState) -> f32 {
-    match overlay {
-        OverlayState::Default => 0.0,
-        OverlayState::Masculine => 1.0,
-        OverlayState::Feminine => 2.0,
-        OverlayState::Injured => 3.0,
-        OverlayState::HandsTied => 4.0,
-        OverlayState::Rifle => 5.0,
-        OverlayState::PistolOneHanded => 6.0,
-        OverlayState::PistolTwoHanded => 7.0,
-        OverlayState::Bow => 8.0,
-        OverlayState::Torch => 9.0,
-        OverlayState::Binoculars => 10.0,
-        OverlayState::Box => 11.0,
-        OverlayState::Barrel => 12.0,
-    }
-}
-
 pub(crate) fn gait_tag(gait: Gait) -> GameplayTag {
-    GameplayTag::new(match gait {
-        Gait::Walking => "Als.Gait.Walking",
-        Gait::Running => "Als.Gait.Running",
-        Gait::Sprinting => "Als.Gait.Sprinting",
-    })
+    gait.tag()
 }
 
 pub(crate) fn locomotion_mode_tag(locomotion: LocomotionState) -> GameplayTag {
@@ -120,27 +98,7 @@ pub(crate) fn locomotion_mode_tag(locomotion: LocomotionState) -> GameplayTag {
 }
 
 pub(crate) fn stance_tag(stance: Stance) -> GameplayTag {
-    GameplayTag::new(match stance {
-        Stance::Standing => "Als.Stance.Standing",
-        Stance::Crouching => "Als.Stance.Crouching",
-    })
-}
-
-fn locomotion_action_index(
-    notify_action: Option<&AlsNotifyLocomotionAction>,
-    mantle: Option<&AlsMantleState>,
-    roll: Option<&AlsRollState>,
-) -> f32 {
-    match notify_action {
-        Some(AlsNotifyLocomotionAction::Mantling) => 1.0,
-        Some(AlsNotifyLocomotionAction::GettingUp) => 2.0,
-        Some(AlsNotifyLocomotionAction::Rolling) => 3.0,
-        Some(AlsNotifyLocomotionAction::Ragdolling) => 4.0,
-        Some(AlsNotifyLocomotionAction::None) => 0.0,
-        None if mantle.is_some_and(|state| state.active) => 1.0,
-        None if roll.is_some_and(|state| state.active) => 3.0,
-        None => 0.0,
-    }
+    stance.tag()
 }
 
 pub(crate) fn locomotion_action_tag(
@@ -149,11 +107,7 @@ pub(crate) fn locomotion_action_tag(
     roll: Option<&AlsRollState>,
 ) -> GameplayTag {
     GameplayTag::new(match notify_action {
-        Some(AlsNotifyLocomotionAction::Mantling) => "Als.LocomotionAction.Mantling",
-        Some(AlsNotifyLocomotionAction::GettingUp) => "Als.LocomotionAction.GettingUp",
-        Some(AlsNotifyLocomotionAction::Rolling) => "Als.LocomotionAction.Rolling",
-        Some(AlsNotifyLocomotionAction::Ragdolling) => "Als.LocomotionAction.Ragdolling",
-        Some(AlsNotifyLocomotionAction::None) => "",
+        Some(action) => action.as_str(),
         None if mantle.is_some_and(|state| state.active) => "Als.LocomotionAction.Mantling",
         None if roll.is_some_and(|state| state.active) => "Als.LocomotionAction.Rolling",
         None => "",
@@ -161,11 +115,7 @@ pub(crate) fn locomotion_action_tag(
 }
 
 pub(crate) fn rotation_mode_tag(rotation_mode: RotationMode) -> GameplayTag {
-    GameplayTag::new(match rotation_mode {
-        RotationMode::VelocityDirection => "Als.RotationMode.VelocityDirection",
-        RotationMode::ViewDirection => "Als.RotationMode.ViewDirection",
-        RotationMode::Aiming => "Als.RotationMode.Aiming",
-    })
+    rotation_mode.tag()
 }
 
 fn set_missing_f32(player: &mut AnimationGraphPlayer, key: &str) {
@@ -220,9 +170,13 @@ fn root_graph_writer(
             };
             als_ext::source_gameplay_tag_input::set_linked_graph_input(
                 instance.player_entity(), OVERLAY_LAYER_BINDING,
-                overlay_graphs.get(overlay).filter(|graph| assets.is_loaded_with_dependencies(graph.id())).cloned(),
+                overlay_graphs.get(overlay).filter(|graph| assets.is_loaded_with_dependencies(graph.id())).map(|graph| als_ext::source_gameplay_tag_input::LinkedGraphInput {
+                    graph: graph.clone(), blend_in: crate::overlay_object::OVERLAYS[overlay].blend_in,
+                    blend_out: crate::overlay_object::OVERLAYS[overlay].blend_out,
+                }),
             );
             set_gameplay_tag_input(instance.player_entity(), "gait", gait_tag(*gait));
+            set_gameplay_tag_input(instance.player_entity(), "overlay_mode", overlay.tag());
             set_gameplay_tag_input(
                 instance.player_entity(),
                 "locomotion_mode",
@@ -240,12 +194,7 @@ fn root_graph_writer(
                 rotation_mode_tag(*rotation_mode),
             );
             for (key, value) in [
-                ("als_root_overlay_index", overlay_layer_index(*overlay)),
                 ("als_animation_delta_seconds", time.delta_secs()),
-                (
-                    "als_overlay_locomotion_action_index",
-                    locomotion_action_index(notify_action, mantle, roll),
-                ),
             ] {
                 player.set_global_input_data(key, value);
             }
@@ -331,14 +280,6 @@ mod tests {
     }
 
     #[test]
-    fn overlay_indices_follow_the_root_implementation_order() {
-        assert_eq!(overlay_layer_index(OverlayState::Default), 0.0);
-        assert_eq!(overlay_layer_index(OverlayState::Bow), 8.0);
-        assert_eq!(overlay_layer_index(OverlayState::Torch), 9.0);
-        assert_eq!(overlay_layer_index(OverlayState::Barrel), 12.0);
-    }
-
-    #[test]
     fn gait_tag_uses_the_source_hierarchy() {
         assert_eq!(gait_tag(Gait::Walking).as_str(), "Als.Gait.Walking");
         assert_eq!(gait_tag(Gait::Sprinting).as_str(), "Als.Gait.Sprinting");
@@ -386,22 +327,12 @@ mod tests {
 
     #[test]
     fn notify_action_overrides_legacy_action_inference() {
-        assert_eq!(
-            locomotion_action_index(Some(&AlsNotifyLocomotionAction::Mantling), None, None),
-            1.0
-        );
-        assert_eq!(
-            locomotion_action_index(Some(&AlsNotifyLocomotionAction::GettingUp), None, None),
-            2.0
-        );
-        assert_eq!(
-            locomotion_action_index(Some(&AlsNotifyLocomotionAction::Rolling), None, None),
-            3.0
-        );
-        assert_eq!(
-            locomotion_action_index(Some(&AlsNotifyLocomotionAction::None), None, None),
-            0.0
-        );
+        let action = AlsNotifyLocomotionAction::new("Als.LocomotionAction.Custom").unwrap();
+        assert_eq!(locomotion_action_tag(Some(&action), None, None), action.tag());
+        assert!(!locomotion_action_tag(Some(&AlsNotifyLocomotionAction::None), None, None).is_valid());
+        assert_eq!(gait_tag(Gait::new("Als.Gait.Custom").unwrap()).as_str(), "Als.Gait.Custom");
+        assert_eq!(stance_tag(Stance::new("Als.Stance.Custom").unwrap()).as_str(), "Als.Stance.Custom");
+        assert_eq!(rotation_mode_tag(RotationMode::new("Als.RotationMode.Custom").unwrap()).as_str(), "Als.RotationMode.Custom");
     }
 
 }

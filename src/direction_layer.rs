@@ -72,7 +72,7 @@ fn direction_angle_driver(
         if hspeed < DIRECTION_MIN_SPEED {
             continue;
         }
-        let raw = match rotation_mode {
+        let raw = match *rotation_mode {
             RotationMode::VelocityDirection => 0.0,
             _ => {
                 if *gait == Gait::Sprinting {
