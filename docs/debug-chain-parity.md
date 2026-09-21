@@ -193,3 +193,52 @@ Shift+Three → ShowDebug Als.Shapes ⇒ 公共输入树 / DebugCategory::Shapes
 验收：35项范围回归通过，包含动态缩放、保留方向、两类几何和源单位/阈值；Interface24.688秒、Base125.529秒、Camera20.519秒均功能通过。实际预测、Mantle、相机几何及78值/19按键状态检查通过，无运行守卫异常。
 
 </details>
+
+<details>
+<summary>Shift+4 — Als.Traces：地面预测与脚步效果的两条查询树</summary>
+
+```text
+Shift+Four → ShowDebug Als.Traces ⇒ 公共输入树 / DebugCategory::Traces
+├─ Ground Prediction（HUD紫色说明）
+│  ├─ RefreshInAir → RefreshGroundPrediction ⇒ locomotion_input_writer
+│  ├─ 速度.y≤−2m/s；1−clamp(GroundPredictionBlock) > 1e−4
+│  │  ├─ 读取上一轮最终动画曲线，符合UE Proxy曲线更新时序
+│  │  └─ 未允许/实例不可用 → 本帧没有预测trace；不沿用旧图元
+│  ├─ 垂直速度clamp[−40,−2]后归一化完整速度
+│  ├─ 距离按原垂直速度映射[1.5,20]m × Mesh世界竖轴scale
+│  ├─ 当前Actor位置/缩放后胶囊、Identity旋转 → Avian cast_shape
+│  │  ├─ fresh AIS：ECC_Visibility ⇒ PhysicsLayer::Visibility
+│  │  ├─ 额外响应仅WorldStatic/WorldDynamic/Destructible，Pawn排除有源依据
+│  │  └─ 源明确接受起始穿透；Avian compute_contact_on_penetration=true / ignore=false一致
+│  ├─ blocking && normal.up≥WalkableFloorAngleCos → 有效地面
+│  │  ├─ amount = 源预测曲线(hit.distance / sweep.distance) × allowance
+│  │  └─ 实际查询发布AlsGroundPredictionTrace，绑定当前Avatar
+│  └─ 主开关+分类+当前目标 → draw_ground_prediction_system
+│     ├─ 起点/完整终点两胶囊及箭头，扫掠紫(.25,0,1)
+│     ├─ 有效命中中心第三胶囊，命中紫(.75,0,1)；ImpactPoint点
+│     └─ 当前帧，无持久历史；Native异步队列对应主线程PostUpdate绘制
+└─ Footstep Effects（HUD红色说明）
+   ├─ 实际生成图/Slot通知 → AlsAnimationEvent(Point)
+   │  └─ 保留已闭合的权重、最高权重BlendSpace sample、循环与实例通知语义
+   ├─ 按通知选择FootstepEffectsSettings；无有效Settings/骨骼则无查询
+   ├─ bSkipEffectsWhenInAir && 精确InAir状态 → 返回
+   ├─ 最终左/右足骨世界Transform（Final + 骨骼传播之后）
+   │  ├─ 旋转 × 设置的FootZAxis；距离50cm × Mesh世界竖轴scale
+   │  ├─ 主trace沿足上轴反向；miss才沿世界向下fallback
+   │  └─ 两次查询均使用Settings命名层，源FES为Visibility
+   ├─ 忽略Owner本身及其骨骼物理体；其他角色按其碰撞响应参与
+   ├─ 当前目标+Traces开启 → 只记录最终那次trace
+   │  ├─ 未命中也记录整条深红(.333333,0,0)线
+   │  └─ 命中 → 红色ImpactPoint；找到Surface效果后增加25cm世界坐标轴
+   ├─ Sound/Decal/Particle开关、贴花角度与材质缺失不取消已经生成的debug几何
+   └─ FootstepDebugHistory以游戏时钟保留10秒，世界坐标固定
+      └─ 主开关/分类关闭或切换目标：停止新记录，旧记录自然到期
+```
+
+共享命中点追至 UE `BatchedElements::DrawPointElements`：尺寸32，使用当前观察相机轴、clip.W和视口宽度构造面向相机的方形；`debug_point_segment`用原生粗线复现相同方形与投影大小，含正交分支。不能把固定世界球半径当作该点，也不能使用被调试角色的相机取代观察者。
+
+源入口：`AlsAnimationInstance.cpp::RefreshGroundPrediction`、`Notifies/AlsAnimNotify_FootstepEffects.cpp::Notify`、`AlsDebugUtility.cpp::{DrawLineTraceSingle,DrawSweepSingleCapsule}`，以及本次原生AIS/FES。目标入口：`src/{locomotion_layer,animation_events,footprint,debug_display}.rs`。两条查询的响应规则不同，不能仅按函数名合并过滤条件。
+
+修复与验收：脚步原先错误忽略所有角色和布娃娃，改为只收集通知Owner所属实体；地面预测的胶囊绘制接入源68线共享函数。真实通知反例先得到0/0而非1/1，真实预测Gizmo反例先得到396而非204线；修复后21项回归通过，包含fallback、命名层、Surface/设置、decal关闭、命中坐标轴、清理和当前Avatar切换。startup15.713秒、Base125.647秒、Footprint32.009秒功能通过；36请求/576 GPU样本及动态接收表面和清理均通过。地面预测采样及动画输入未修改。
+
+</details>

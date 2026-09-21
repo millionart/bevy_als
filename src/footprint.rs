@@ -205,8 +205,7 @@ fn spawn_footprints(
     time: Res<Time>,
     spatial: SpatialQuery,
     mut characters: Query<(&AlsFootBones, &LocomotionState, &AlsCharacterAssembly, &mut FootprintDiagnostics, Has<crate::debug_target::AlsDebugTarget>), With<AlsCharacter>>,
-    owners: Query<Entity, With<AlsCharacter>>,
-    avatars: Query<&AnimatedSceneInstance, With<AlsCharacterAvatar>>,
+    avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     players: Query<&AnimationGraphPlayer>,
     globals: Query<&GlobalTransform>,
     surfaces: Query<&PhysicalSurface>,
@@ -216,14 +215,6 @@ fn spawn_footprints(
     show_debug: Option<Res<crate::show_debug_hud::AlsShowDebugHudState>>,
 ) {
     let Some(library) = libraries.get(&assets.library) else { return; };
-    let mut ignored = owners.iter().collect::<Vec<_>>();
-    for instance in &avatars {
-        if let Ok(player) = players.get(instance.player_entity()) && let Some(ragdoll) = player.get_spawned_ragdoll() {
-            ignored.extend(ragdoll.bodies.values().copied());
-            ignored.extend(ragdoll.colliders.values().copied());
-        }
-    }
-    let filter = SpatialQueryFilter::from_excluded_entities(ignored);
     for event in events.read().filter(|event| event.class_name == "AlsAnimNotify_FootstepEffects" && event.phase == als_ext::EventPhase::Point) {
         let Ok((bones, locomotion, assembly, mut diagnostics, player)) = characters.get_mut(event.character) else { continue; };
         diagnostics.notifications += 1;
@@ -233,11 +224,21 @@ fn spawn_footprints(
             continue;
         };
         let parameter = |name: &str| event.parameters.get(name).unwrap_or(&settings.notify_defaults[name]);
-        let filter = filter.clone().with_mask(settings.trace_layer);
         if parameter("bSkipEffectsWhenInAir").as_bool() == Some(true) && *locomotion == LocomotionState::Air {
             diagnostics.rejected_air += 1;
             continue;
         }
+        let mut ignored = vec![event.character];
+        for (owner, instance) in &avatars {
+            if owner.character == event.character
+                && let Ok(player) = players.get(instance.player_entity())
+                && let Some(ragdoll) = player.get_spawned_ragdoll()
+            {
+                ignored.extend(ragdoll.bodies.values().copied());
+                ignored.extend(ragdoll.colliders.values().copied());
+            }
+        }
+        let filter = SpatialQueryFilter::from_excluded_entities(ignored).with_mask(settings.trace_layer);
         let foot_value = parameter("FootBone");
         let side = usize::from(foot_value.get("value").or(Some(foot_value)).and_then(|value| value.as_str())
             .is_some_and(|value| value == "Right" || value.ends_with("::Right")));
@@ -504,7 +505,7 @@ mod tests {
         app.finish();
         app.cleanup();
         let surface_body = app.world_mut().spawn((RigidBody::Static, Transform::from_xyz(0.0, -0.5, 0.0))).id();
-        let floor = app.world_mut().spawn((Collider::cuboid(4.0, 1.0, 4.0), Transform::IDENTITY, ChildOf(surface_body),
+        let floor = app.world_mut().spawn((AlsCharacter, Collider::cuboid(4.0, 1.0, 4.0), Transform::IDENTITY, ChildOf(surface_body),
             CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], LayerMask::ALL))).id();
         app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.01, 4.0), Transform::from_xyz(0.0, 0.025, 0.0),
             CollisionLayers::new(AlsCollisionLayer::Default, LayerMask::ALL)));
@@ -530,7 +531,7 @@ mod tests {
         emit(app.world_mut(), "Left", true, false, &FOOTPRINT.notify_settings_reference);
         emit(app.world_mut(), "Right", true, false, &FOOTPRINT.notify_settings_reference);
         app.world_mut().run_system_once(spawn_footprints).unwrap();
-        assert_eq!(app.world().get::<FootprintDiagnostics>(character).unwrap().spawned, [1, 1]);
+        assert_eq!(app.world().get::<FootprintDiagnostics>(character).unwrap().spawned, [1, 1], "Other characters with a blocking query response must remain traceable");
         let history = &app.world().resource::<FootstepDebugHistory>().0;
         assert_eq!(history.len(), 2, "Every source notification must retain its debug trace");
         assert!(history.iter().all(|trace| trace.hit.is_some() && trace.rotation.is_some()));

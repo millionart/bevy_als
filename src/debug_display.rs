@@ -307,6 +307,11 @@ mod footstep_tests {
             als_camera::AlsCameraViewSource(camera), als_camera::AlsCharacterCamera { character: actor })).id();
         app.world_mut().entity_mut(actor).insert(AlsCharacterAssembly { avatar: current, camera: Some(view) });
         app.update();
+        let assets = app.world().resource::<Assets<bevy::gizmos::GizmoAsset>>();
+        let geometry = assets.iter().find(|(_, asset)| asset.config_typeid() == std::any::TypeId::of::<PhysicsGizmos>()).unwrap().1.buffer();
+        assert_eq!(geometry.list_positions.len() / 2 + geometry.strip_positions.windows(2)
+            .filter(|pair| pair.iter().all(|point| point.is_finite())).count(), 3 * 68,
+            "Prediction start, end and hit capsules must use the source outline");
         let points = trace_points(&app, mantle_downward_color());
         assert!(points.iter().any(|point| point.abs_diff_eq(Vec3::new(0.0, 3.9, -2.0), 1e-5)), "Current prediction start capsule is missing");
         assert!(points.iter().any(|point| point.abs_diff_eq(Vec3::new(0.0, -2.9, -2.0), 1e-5)), "Full prediction end capsule was clipped to the hit");
@@ -859,14 +864,7 @@ fn draw_character_shapes_system(
             );
         }
 
-        if let Some(capsule) = collider.shape_scaled().as_capsule() {
-            let delta = capsule.segment.b - capsule.segment.a;
-            let rotation = transform.rotation() * Quat::from_rotation_arc(Vec3::Y, delta.try_normalize().unwrap_or(Vec3::Y));
-            let center = origin + transform.rotation() * ((capsule.segment.a + capsule.segment.b) * 0.5);
-            draw_debug_capsule(&mut colliders, center, delta.length() * 0.5 + capsule.radius, capsule.radius, rotation, capsule_wire_color());
-        } else {
-            colliders.draw_collider(collider, origin, transform.rotation(), capsule_wire_color());
-        }
+        draw_debug_collider(&mut colliders, collider, origin, transform.rotation(), capsule_wire_color());
         stats.capsule_wireframes_drawn += 1;
     }
 }
@@ -968,6 +966,17 @@ fn sweep_rotation(delta: Vec3) -> Quat {
     Quat::from_mat3(&Mat3::from_cols(right, right.cross(forward), -forward))
 }
 
+fn draw_debug_collider(gizmos: &mut Gizmos<PhysicsGizmos>, collider: &Collider, origin: Vec3, rotation: Quat, color: Color) {
+    if let Some(capsule) = collider.shape_scaled().as_capsule() {
+        let delta = capsule.segment.b - capsule.segment.a;
+        let center = origin + rotation * ((capsule.segment.a + capsule.segment.b) * 0.5);
+        let rotation = rotation * Quat::from_rotation_arc(Vec3::Y, delta.try_normalize().unwrap_or(Vec3::Y));
+        draw_debug_capsule(gizmos, center, delta.length() * 0.5 + capsule.radius, capsule.radius, rotation, color);
+    } else {
+        gizmos.draw_collider(collider, origin, rotation, color);
+    }
+}
+
 fn draw_debug_capsule(gizmos: &mut Gizmos<PhysicsGizmos>, center: Vec3, half_height: f32, radius: f32, rotation: Quat, color: Color) {
     let x = rotation * Vec3::X;
     let y = rotation * Vec3::Z;
@@ -1040,10 +1049,10 @@ fn draw_ground_prediction_system(
     let Ok((owner, trace)) = predictions.get(assembly.avatar) else { return; };
     if owner.character != character { return; }
     let color = linear(0.25, 0.0, 1.0);
-    for center in [trace.start, trace.end] { colliders.draw_collider(&trace.shape, center, Quat::IDENTITY, color); }
+    for center in [trace.start, trace.end] { draw_debug_collider(&mut colliders, &trace.shape, center, Quat::IDENTITY, color); }
     draw_directional_arrow(&mut lines, trace.start, trace.end, ARROW_HEAD_M, color, &mut stats);
     if let Some((center, _)) = trace.hit {
-        colliders.draw_collider(&trace.shape, center, Quat::IDENTITY, linear(0.75, 0.0, 1.0));
+        draw_debug_collider(&mut colliders, &trace.shape, center, Quat::IDENTITY, linear(0.75, 0.0, 1.0));
     }
     stats.cumulative_ground_prediction_sweeps += 1;
 }
