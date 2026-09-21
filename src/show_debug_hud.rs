@@ -9,7 +9,6 @@ use als_core::motion::AlsInputOverride;
 use als_core::roll::AlsRollState;
 use als_core::state::{AlsNotifyLocomotionAction, Gait, LocomotionState, OverlayState, RotationMode, Stance};
 use als_core::transition::AlsStateRequest;
-use avian3d::prelude::LinearVelocity;
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
@@ -305,6 +304,7 @@ pub struct CharacterSnapshot {
     pub desired_gait: Gait,
     pub desired_aiming: bool,
     pub input_yaw_angle: Option<f32>,
+    pub has_input: bool,
     pub speed: Option<f32>,
     pub has_velocity: bool,
     pub velocity_direction: Option<Vec3>,
@@ -324,23 +324,16 @@ impl CharacterSnapshot {
         desired_gait: Gait,
         overlay_state: OverlayState,
         request: &AlsStateRequest,
-        input_move_dir: Option<Vec2>,
+        motion: Option<&crate::actual_motion::AlsActualMotion>,
         aiming: bool,
-        velocity: Option<Vec3>,
         locomotion_action: AlsNotifyLocomotionAction,
     ) -> Self {
-        let has_input = input_move_dir.is_some_and(|d| d.length() > 1e-4);
-        let input_yaw_angle = input_move_dir
-            .filter(|_| has_input)
-            .map(|d| normalize_degrees(d.y.atan2(d.x).to_degrees()));
-        let horizontal_speed = velocity.map(|v| Vec2::new(v.x, v.z).length());
-        let has_velocity = horizontal_speed.is_some_and(|s| s > 1e-3);
-        let velocity_direction = velocity
-            .filter(|_| has_velocity)
-            .map(|v| v.normalize_or_zero());
-        let velocity_yaw_angle = velocity
-            .filter(|_| has_velocity)
-            .map(|v| normalize_degrees(v.x.atan2(-v.z).to_degrees()));
+        let has_input = motion.is_some_and(|motion| motion.has_input);
+        let input_yaw_angle = motion.map(|motion| motion.input_yaw_degrees);
+        let horizontal_speed = motion.map(|motion| motion.horizontal_speed);
+        let has_velocity = motion.is_some_and(|motion| als_core::motion::locomotion_movement_flags(motion.has_input, motion.horizontal_speed).0);
+        let velocity_direction = motion.map(|motion| motion.world_velocity.normalize_or_zero());
+        let velocity_yaw_angle = motion.map(|motion| motion.velocity_yaw_degrees);
         Self {
             locomotion_state,
             rotation_mode,
@@ -352,6 +345,7 @@ impl CharacterSnapshot {
             desired_gait,
             desired_aiming: aiming,
             input_yaw_angle,
+            has_input,
             speed: horizontal_speed,
             has_velocity,
             velocity_direction,
@@ -372,17 +366,6 @@ pub struct CameraSnapshot {
     pub field_of_view_deg: Option<f32>,
     pub right_shoulder: Option<bool>,
     pub camera_curves: Vec<(String, f32)>,
-}
-
-fn normalize_degrees(degrees: f32) -> f32 {
-    let mut value = degrees % 360.0;
-    if value > 180.0 {
-        value -= 360.0;
-    }
-    if value <= -180.0 {
-        value += 360.0;
-    }
-    value
 }
 
 fn tag_value(tag: &str) -> String {
@@ -498,7 +481,7 @@ pub fn build_shapes_body(snapshot: &CharacterSnapshot) -> Vec<DebugRow> {
         .view_rotation_deg
         .map(|(roll, pitch, yaw)| format!("R: {roll:.2} P: {pitch:.2} Y: {yaw:.2}"))
         .unwrap_or_else(|| NA_VALUE.into());
-    let input_color = if snapshot.input_yaw_angle.is_some() {
+    let input_color = if snapshot.has_input {
         orange()
     } else {
         orange_dim()
@@ -750,6 +733,7 @@ impl Plugin for AlsShowDebugHudPlugin {
             .configure_sets(
                 PostUpdate,
                 AlsShowDebugHudSet::Sync.after(crate::animation_context_projection::AlsRootAnimationContextSet)
+                    .after(crate::actual_motion::AlsActualMotionSet)
                     .after(als_camera::AlsCameraSet).after(als_core::motion::AlsRotationResponseSet)
                     .before(bevy::ui::UiSystems::Prepare),
             )
@@ -818,7 +802,7 @@ fn hud_sync_system(
             Option<&'static AlsDesiredGait>,
             &'static OverlayState,
             &'static AlsStateRequest,
-            Option<&'static LinearVelocity>,
+            Option<&'static crate::actual_motion::AlsActualMotion>,
             Option<&'static AlsInputCommand>,
             Option<&'static AlsInputOverride>,
             Option<&'static AlsRollState>,
@@ -848,7 +832,7 @@ fn hud_sync_system(
             desired_gait,
             overlay_state,
             request,
-            velocity,
+            actual_motion,
             input,
             input_override,
             roll,
@@ -856,12 +840,7 @@ fn hud_sync_system(
             action,
         ) = item;
 
-        let aiming = input.map(|c| c.aim_held).unwrap_or(false)
-            || input_override.map(|o| o.0.aim_held).unwrap_or(false);
-        let move_dir = input_override
-            .map(|o| o.0.move_dir)
-            .filter(|d| d.length() > 1e-4)
-            .or(input.map(|c| c.move_dir));
+        let aiming = input_override.map(|o| &o.0).or(input).is_some_and(|input| input.aim_held);
         let mut snapshot = CharacterSnapshot::from_components(
             *locomotion_state,
             *rotation_mode,
@@ -870,9 +849,8 @@ fn hud_sync_system(
             desired_gait.map(|value| value.0).unwrap_or(*gait),
             *overlay_state,
             request,
-            move_dir,
+            actual_motion,
             aiming,
-            velocity.map(|v| v.0),
             action.copied().unwrap_or_else(|| {
                 if mantle.is_some_and(|m| m.active) { AlsNotifyLocomotionAction::Mantling }
                 else if roll.is_some_and(|r| r.active) { AlsNotifyLocomotionAction::Rolling }
@@ -1115,9 +1093,9 @@ mod tests {
             Gait::Running,
             OverlayState::Default,
             &request,
-            Some(Vec2::new(0.0, 1.0)),
+            Some(&crate::actual_motion::AlsActualMotion { world_velocity: Vec3::new(3.0, 0.0, -4.0), horizontal_speed: 5.0,
+                has_input: true, input_yaw_degrees: 90.0, velocity_yaw_degrees: -36.869_896, ..default() }),
             true,
-            Some(Vec3::new(3.0, 0.0, -4.0)),
             AlsNotifyLocomotionAction::None,
         )
     }
@@ -1154,6 +1132,7 @@ mod tests {
         app.world_mut().spawn((AlsCharacter, LocomotionState::Air, RotationMode::Aiming, Stance::Standing,
             Gait::Sprinting, OverlayState::Rifle, AlsStateRequest::default()));
         app.world_mut().entity_mut(character).insert(LateDebugTarget);
+        app.world_mut().entity_mut(character).insert((AlsInputCommand { aim_held: true, ..default() }, AlsInputOverride::default()));
         app.init_resource::<AlsShowDebugHudState>();
         *app.world_mut().resource_mut::<AlsShowDebugHudState>() = AlsShowDebugHudState {
             visible: true, curves: true, state: true, shapes: true, camera_shapes: true, ..default()
@@ -1162,6 +1141,8 @@ mod tests {
         let texts = |world: &mut World| world.query::<&Text>().iter(world).map(|text| text.0.clone()).collect::<Vec<_>>();
         app.world_mut().run_system(system).unwrap();
         let rendered = texts(app.world_mut());
+        assert!(app.world_mut().query::<(&Name, &Text)>().iter(app.world())
+            .any(|(name, text)| name.as_str() == "Desired Aiming" && text.0 == "False"));
         for expected in ["Crouching", "70.00", "53.00", "2.25", "0.73", "R: 0.00 P: -15.00 Y: 40.00"] {
             assert!(rendered.iter().any(|text| text == expected), "Missing current value {expected}: {rendered:?}");
         }
@@ -1392,14 +1373,6 @@ mod tests {
         assert_eq!(rows[2].value, "X: 7.00 Y: 8.00 Z: 9.00");
         assert_eq!(rows[3].value, "102.00");
         assert_eq!(rows[4].value, "true");
-    }
-
-    #[test]
-    fn normalize_degrees_wraps_into_ue_range() {
-        assert!((normalize_degrees(-181.0) - 179.0).abs() < 1e-4);
-        assert!((normalize_degrees(190.0) + 170.0).abs() < 1e-4);
-        assert!((normalize_degrees(90.0) - 90.0).abs() < 1e-6);
-        assert!((normalize_degrees(0.0)).abs() < 1e-6);
     }
 
     #[test]

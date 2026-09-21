@@ -618,7 +618,7 @@ fn drive_control_rig_view_offset(
     mut characters: Query<(&Transform, &mut AlsViewYaw), With<AlsCharacter>>,
 ) {
     if state.scenario != IntegrationScenario::ControlRig
-        || state.phase != IntegrationPhase::ControlRig
+        || !matches!(state.phase, IntegrationPhase::ControlRig | IntegrationPhase::Finish)
     {
         return;
     }
@@ -629,7 +629,7 @@ fn drive_control_rig_view_offset(
         return;
     };
     let forward = transform.rotation * Vec3::NEG_Z;
-    view_yaw.0 = f32::atan2(forward.x, -forward.z) + 60.0_f32.to_radians();
+    view_yaw.0 = als_core::orientation::world_forward_to_yaw(forward) + 60.0_f32.to_radians();
 }
 
 fn control_rig_action_evidence(player: &AnimationGraphPlayer, graphs: &Assets<AnimationGraph>, skeletons: &Assets<Skeleton>) -> Option<[f32; 3]> {
@@ -708,7 +708,7 @@ fn drive_manual_rig_curves(
     let values: Vec<_> = if state.scenario == IntegrationScenario::FootIk && state.phase == IntegrationPhase::FootIkWeightRamp {
         [("FootLeftIk", weights.left), ("FootRightIk", weights.right)].into_iter()
             .filter_map(|(name, value)| value.map(|value| (name, value))).collect()
-    } else if state.scenario == IntegrationScenario::ControlRig && state.phase == IntegrationPhase::ControlRig {
+    } else if state.scenario == IntegrationScenario::ControlRig && matches!(state.phase, IntegrationPhase::ControlRig | IntegrationPhase::Finish) {
         vec![("PoseAiming", 1.0), ("HandLeftIk", 1.0), ("HandRightIk", 1.0)]
     } else { Vec::new() };
     if let Some((graph_id, node)) = driver.take() {
@@ -9319,6 +9319,14 @@ fn observe_manual_integration(
                     expected_context.map(|context| format!("{:.2}", context.f32(name).unwrap_or(0.0))).unwrap_or_else(|| "N/A".into()))
             }).collect();
             expected.push(("Rotation".into(), format!("R: 0.00 P: {:.2} Y: {:.2}", view_pitch.0.to_degrees(), view_yaw.0.to_degrees())));
+            let expected_motion = motion_probe.actual.get(character).ok();
+            if let Some(motion) = expected_motion {
+                expected.push(("Input Yaw Angle".into(), format!("{:.2}", motion.input_yaw_degrees)));
+                expected.push(("Velocity Yaw Angle".into(), format!("{:.2}", motion.velocity_yaw_degrees)));
+                expected.push(("Speed".into(), format!("{:.2}", motion.horizontal_speed)));
+                let direction = motion.world_velocity.normalize_or_zero();
+                expected.push(("Velocity Direction".into(), format!("X: {:.2} Y: {:.2} Z: {:.2}", direction.x, direction.y, direction.z)));
+            }
             if let Ok(response) = interface.rotation_responses.get(character) {
                 expected.push(("Smooth Target Yaw Angle".into(), format!("{:.2}", response.smooth_target_yaw.to_degrees())));
             }
@@ -9336,7 +9344,7 @@ fn observe_manual_integration(
                 expected.push(("Right Shoulder".into(), info.right_shoulder.to_string()));
             }
             let mismatches: Vec<_> = expected.iter().filter(|(name, value)| !interface.debug_values.iter().any(|(key, text)| key.as_str() == name.as_str() && &text.0 == value)).cloned().collect();
-            gate_report.direction_trace.push(serde_json::json!({"hud_data_valid":expected_context.is_some() && camera.is_some() && mismatches.is_empty(),
+            gate_report.direction_trace.push(serde_json::json!({"hud_data_valid":expected_context.is_some() && expected_motion.is_some() && camera.is_some() && mismatches.is_empty(),
                 "hud_values_checked":expected.len(),"hud_data_mismatches":mismatches}));
         }
     }
@@ -10166,6 +10174,14 @@ mod tests {
             let evidence = control_rig_action_evidence(player, app.world().resource::<Assets<AnimationGraph>>(), app.world().resource::<Assets<Skeleton>>());
             assert_eq!(evidence.is_some(), expected, "active={active} yaw={yaw} evidence={evidence:?}");
             if let Some([left, right, angle]) = evidence { assert_eq!([left, right], [1.0, 1.0]); assert!(angle > 0.05); }
+            if active && expected {
+                app.world_mut().resource_mut::<ManualIntegrationState>().phase = IntegrationPhase::Finish;
+                app.world_mut().run_system_cached(drive_manual_rig_curves).unwrap();
+                app.world_mut().run_system_once(animation_player).unwrap();
+                assert!(control_rig_action_evidence(app.world().get::<AnimationGraphPlayer>(player_entity).unwrap(),
+                    app.world().resource::<Assets<AnimationGraph>>(), app.world().resource::<Assets<Skeleton>>()).is_some(),
+                    "Finishing the scenario must preserve fixture inputs until pose collection ends");
+            }
         }
         app.world_mut().resource_mut::<Assets<AnimationGraph>>().get_mut(&graph).unwrap().add_output_data_edge(source.id, "Pose", "pose");
         app.world_mut().run_system_once(animation_player).unwrap();
@@ -10201,11 +10217,12 @@ mod tests {
         }).in_set(avian3d::prelude::PhysicsSystems::Last));
         let mut frame = 0;
         app.add_systems(PostUpdate, (move |actors: Query<&AlsViewYaw>| {
-            let expected = [60.0_f32, -30.0][frame].to_radians();
+            let expected = [60.0_f32, 150.0, -30.0, 60.0][frame].to_radians();
             assert!((actors.get(actor).unwrap().0 - expected).abs() < 1e-6, "view input must include the current fixture offset");
             frame += 1;
         }).in_set(PostPhysicsAnimationSet::Inputs));
-        for rotation in [Quat::IDENTITY, Quat::from_rotation_y(std::f32::consts::FRAC_PI_2)] {
+        for (index, rotation) in [Quat::IDENTITY, Quat::from_rotation_y(std::f32::consts::FRAC_PI_2), Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2), Quat::IDENTITY].into_iter().enumerate() {
+            if index == 3 { app.world_mut().resource_mut::<ManualIntegrationState>().phase = IntegrationPhase::Finish; }
             app.world_mut().get_mut::<Transform>(actor).unwrap().rotation = rotation;
             app.world_mut().run_schedule(PostUpdate);
         }

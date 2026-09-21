@@ -26,6 +26,7 @@ fn main() {
         bevy::log::LogPlugin::default(),
         InputPlugin,
         TransformPlugin,
+        bevy_als::actual_motion::AlsActualMotionPlugin,
         AlsShowDebugHudPlugin,
     ))
     .init_resource::<GateFlags>()

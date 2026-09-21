@@ -13,6 +13,8 @@ pub struct AlsActualMotion {
     pub local_velocity: Vec2,
     pub horizontal_speed: f32,
     pub velocity_yaw_degrees: f32,
+    pub has_input: bool,
+    pub input_yaw_degrees: f32,
     pub signed_direction_radians: f32,
     pub velocity_blend: HorizontalVelocityBlend,
 }
@@ -67,12 +69,13 @@ fn snapshot_actual_motion_system(
             &Transform,
             &LocomotionState,
             Option<&AlsMovementBaseDynamicsState>,
+            Option<&bevy_tnua::prelude::TnuaController<als_core::control_scheme::AlsControlScheme>>,
             Option<&mut AlsActualMotion>,
         ),
         With<AlsCharacter>,
     >,
 ) {
-    for (entity, velocity, transform, locomotion, base, current) in &mut characters {
+    for (entity, velocity, transform, locomotion, base, controller, current) in &mut characters {
         let mut next =
             AlsActualMotion::from_physics_velocity(
                 locomotion_velocity(velocity.0, *locomotion, base), transform.rotation);
@@ -80,10 +83,18 @@ fn snapshot_actual_motion_system(
             next.world_acceleration =
                 (next.world_velocity - previous.world_velocity) / time.delta_secs();
         }
-        if next.horizontal_speed < 0.01 {
+        let initial_yaw = world_forward_to_yaw(*transform.forward()).to_degrees();
+        let input = controller.map_or(Vec3::ZERO, |controller| controller.basis.desired_motion).normalize_or_zero();
+        next.has_input = input != Vec3::ZERO;
+        next.input_yaw_degrees = if next.has_input {
+            world_forward_to_yaw(input).to_degrees()
+        } else {
+            current.as_deref().map_or(initial_yaw, |previous| previous.input_yaw_degrees)
+        };
+        if !als_core::motion::locomotion_movement_flags(next.has_input, next.horizontal_speed).0 {
             next.velocity_yaw_degrees = current
                 .as_deref()
-                .map_or(0.0, |previous| previous.velocity_yaw_degrees);
+                .map_or(initial_yaw, |previous| previous.velocity_yaw_degrees);
         }
         if let Some(mut current) = current {
             *current = next;
@@ -96,6 +107,19 @@ fn snapshot_actual_motion_system(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn idle_motion_initializes_retained_directions_from_the_actor() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins).add_systems(PostUpdate, snapshot_actual_motion_system);
+        let character = app.world_mut().spawn((AlsCharacter, Transform::from_rotation(Quat::from_rotation_y(0.7)),
+            LocomotionState::Grounded, LinearVelocity::ZERO)).id();
+        app.world_mut().run_schedule(PostUpdate);
+        let motion = app.world().get::<AlsActualMotion>(character).unwrap();
+        assert!(!motion.has_input);
+        assert!((motion.input_yaw_degrees - 0.7_f32.to_degrees()).abs() < 1e-5);
+        assert!((motion.velocity_yaw_degrees - 0.7_f32.to_degrees()).abs() < 1e-5);
+    }
 
     #[test]
     fn snapshot_excludes_passive_base_transport_and_preserves_air_velocity() {

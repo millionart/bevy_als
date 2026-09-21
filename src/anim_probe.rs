@@ -49,7 +49,7 @@ struct AnimProbeState {
 }
 
 pub fn yaw_deg(v: Vec3) -> f32 {
-    f32::atan2(v.x, -v.z).to_degrees()
+    als_core::orientation::world_forward_to_yaw(v).to_degrees()
 }
 
 pub fn angle_err(a: f32, b: f32) -> f32 {
@@ -307,6 +307,9 @@ mod tests {
 
     #[test]
     fn facing_probe_only_tracks_source_velocity_facing_modes() {
+        for (direction, yaw) in [(Vec3::NEG_Z, 0.0), (Vec3::X, -90.0), (Vec3::Z, 180.0), (Vec3::NEG_X, 90.0)] {
+            assert!(angle_err(yaw_deg(direction), yaw) < 1e-4);
+        }
         assert!(facing_tracks_velocity(
             RotationMode::VelocityDirection,
             Gait::Running,

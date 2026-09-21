@@ -36,6 +36,20 @@
 - ALSExtras（AI 控制器示例）不在范围内。
 - 音频（Metasound）、Niagara 特效仅保留挂钩点。ALSCamera 完整移植已纳入 BF116.01。
 
+## BF122 最新审阅反馈与同根因 Debug 消费者
+
+用户2026-09-21要求核对adc3f41审阅及类似问题。fresh本地AlsCharacter_Debug/RefreshInput/RefreshLocomotion/StartMantling证实：显示方向须读取已消费的世界输入和保留的运动角；静止/垂直速度是有效数据；Shapes读取实际胶囊/视点/速度上限；Mantling按分支绘制完整扫掠和失败重叠并独立留存。只复开BF121.03a的数据范围，旧Gate覆盖曲线/实例/SmoothTarget，漏掉输入、速度和动态碰撞形状；布局和已闭合脚印不复开。截图/性能继续暂停。
+
+- [x] BF122.01 运动调试数据与方向：开始2026-09-21 14:21、预估结束2026-09-21 15:16。复用已有AlsActualMotion与Tnua实际消费输入，统一HUD/Shapes的保留角、有效零值、当前速度；查同根因诊断角度消费者。Gate为四方向、视图旋转/输入覆盖、静止/垂直/移动基座的最小失败反例、消融、范围回归和原Interface入口。估时依据为已核对三份源C++、一个现有快照与两个消费者、约80秒项目测试及既有入口。
+  - 01静态闭环2026-09-21 14:31：原生Gizmo顶点/HUD联合反例86.969秒FAIL，明确读出实际−Z、绘制+X。复用Tnua已消费desired_motion和AlsActualMotion，删除两个消费者各自的原始输入/速度角计算；源RefreshInput保留最后输入角、RefreshLocomotion保留速度角并始终保留完整速度向量，初值来自Actor。20项83.974秒PASS；删除保留输入角及Actor初始化的两个消融82.340秒均FAIL并恢复。相同符号问题另见AnimProbe和ControlRig验收视图偏移，统一核心方向函数并修正原来写死错误符号的测试；HUD DesiredAiming也统一覆盖输入优先级。下一步范围回归、同target编译和startup/interface/control_rig；动态尺寸和碰撞绘制仍由02–04验收。
+  - 01入口结果2026-09-21 14:40：startup15.761秒、interface17.868秒PASS，Interface741帧×67值且无错配/graph error/fault。ControlRig13.621秒功能覆盖PASS但公共姿态Gate正确FAIL：进入Finish的同帧手臂平面翻转。重新核对PreUpdate固定35°、PostUpdate相对Actor注入60°及曲线驱动，排除持续转向的初步猜测；Finish会立刻移除强制HandIk/PoseAiming输入，而collector尚在采集。先补两个Finish视图/实际Rig输入反例，再保持夹具直至采集结束；不改生产动画、Rig或任何阈值。
+  - 01真实入口前2026-09-21 14:36：22项最终范围回归83.488秒PASS，含微小模拟输入、静止保留/初值、移动基座速度、完整方向、覆盖输入优先级和三个Actor朝向下的ControlRig视图偏移；target_game/play构建76.156秒PASS。Interface新增4个运动字段，逐帧67值并拒绝晚期失败。现在按startup→interface→control_rig运行公共功能Gate，CaptureCount0/FunctionalOnly。
+  - 01结束边界闭环/重跑前2026-09-21 14:44：两个Finish反例83.381秒均FAIL，确认实际Rig证据丢失和视图驱动提前撤销；仅把既有两条夹具路径延续到Finish，不加状态/过渡/阈值。31项含实际Rig/FootIK回归85.718秒PASS，同入口补建76.044秒PASS；开始startup→control_rig复验，原Interface67值数据路径未变化。
+  - 01完成2026-09-21 14:45：补建后的startup15.528秒、control_rig13.380秒公共功能Gate均PASS，无fault/graph error/temporal异常；此前Interface741帧×67值全通过。31项范围回归及两类方向/两个Finish边界反例闭合。开始14:21、预估15:16、实际14:45、偏差−31分钟，恢复BF121.03a/03勾选；不宣称动态Shapes或Mantling已完成。
+- [ ] BF122.02 动态Shapes几何：开始2026-09-21 14:45、预估结束2026-09-21 15:35，依赖01已通过。依据为fresh源三项组件读取与既有Gizmo绘制测试、原生胶囊/箭头能力及约80秒测试/76秒构建，窗口50分钟。读取当前Collider、当前控制器速度和源眼高，补完整胶囊；验证蹲姿、缩放、步态及实际Gizmo顶点。
+- [ ] BF122.03 Mantling碰撞调试：依赖02；进入时按源分支/留存拆分估时。记录实际扫掠形状/命中中心和两种失败重叠，按5/7.5/10秒及失败显示设置绘制，覆盖成功/失败/开关/过期。
+- [ ] BF122.04 同类扫掠消费者与最终入口：依赖03；进入时登记估时。fresh核对使用同一源DebugUtility的GroundPrediction与Camera trace，确认同类缺口后复用绘制能力修复，完成匹配回归和真实Playground功能验收。
+
 ## BF121 脚印渲染生命周期、验收与 Debug/HUD 对标
 
 用户2026-09-21授权按内置浏览器报告先修脚印及验收，再补Debug/HUD。报告基于a60a3d0；本轮以29e5fbe当前树重新验证，不把报告推断直接当成运行证据。沿用已明确保留的字体/菜单锚定等差异；性能暂停，定向截图偏好已询问。

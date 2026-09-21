@@ -1,10 +1,9 @@
 use als_camera::AlsCameraDebugInfo;
 use als_core::air::AlsAirState;
 use als_core::character::AlsCharacter;
-use als_core::input::AlsInputCommand;
 use als_core::mantle::AlsMantleState;
-use als_core::motion::{AlsCharacterDebug, AlsInputOverride};
-use avian3d::prelude::{ColliderAabb, LinearVelocity};
+use als_core::motion::AlsCharacterDebug;
+use avian3d::prelude::ColliderAabb;
 use bevy::math::primitives::Cuboid;
 use bevy::prelude::*;
 use bevy::gizmos::{AppGizmoBuilder, config::{GizmoConfig, GizmoConfigGroup, GizmoConfigStore, GizmoLineConfig}};
@@ -147,6 +146,7 @@ impl Plugin for AlsDebugDisplayPlugin {
             .insert_gizmo_config(FootstepLines, GizmoConfig { line: GizmoLineConfig { width: 1.0, ..default() }, ..default() })
             .init_gizmo_group::<FootstepPoints>()
             .configure_sets(PostUpdate, AlsDebugDisplaySet.after(crate::footprint::FootprintSet)
+                .after(crate::actual_motion::AlsActualMotionSet)
                 .after(bevy::camera::visibility::VisibilitySystems::CheckVisibility))
             .add_systems(
                 PostUpdate,
@@ -203,7 +203,48 @@ fn footstep_point_segment(point: Vec3, camera: &Camera, view: &GlobalTransform) 
 #[cfg(test)]
 mod footstep_tests {
     use super::*;
+    use als_core::{input::AlsInputCommand, motion::AlsInputOverride};
+    use avian3d::prelude::LinearVelocity;
     use crate::{character_assembly::AlsPlayerCharacter, footprint::{FootstepDebugHistory, FootstepDebugTrace}};
+
+    #[test]
+    fn shapes_and_hud_follow_consumed_world_motion_and_retain_idle_directions() {
+        use als_core::{control_scheme::AlsControlScheme, orientation::world_forward_to_yaw, state::*};
+        use crate::{actual_motion::AlsActualMotionPlugin, show_debug_hud::{AlsShowDebugHudPlugin, AlsShowDebugHudState}};
+        use bevy_tnua::prelude::TnuaController;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, bevy::gizmos::GizmoPlugin))
+            .add_plugins((AlsActualMotionPlugin, AlsShowDebugHudPlugin, AlsDebugDisplayPlugin))
+            .init_resource::<ButtonInput<KeyCode>>()
+            .insert_resource(AlsShowDebugHudState { visible: true, shapes: true, ..default() });
+        let character = app.world_mut().spawn((AlsCharacter, AlsPlayerCharacter, Transform::IDENTITY, GlobalTransform::IDENTITY,
+            LinearVelocity::ZERO, als_core::motion::AlsViewYaw(0.0), als_core::view::AlsViewPitch(0.0),
+            AlsInputCommand { move_dir: Vec2::Y, ..default() }, AlsInputOverride(AlsInputCommand::default()),
+            TnuaController::<AlsControlScheme>::default(), als_core::motion::AlsRotationResponseState::default(),
+            (LocomotionState::Air, RotationMode::ViewDirection, Stance::Standing, Gait::Running, OverlayState::Default,
+                als_core::transition::AlsStateRequest::default()))).id();
+        for direction in [Vec3::NEG_Z, Vec3::X, Vec3::Z, Vec3::NEG_X, Vec3::Y, Vec3::ZERO] {
+            let moving = direction.x != 0.0 || direction.z != 0.0;
+            let yaw = if moving { world_forward_to_yaw(direction) } else { std::f32::consts::FRAC_PI_2 };
+            app.world_mut().get_mut::<LinearVelocity>(character).unwrap().0 = direction;
+            app.world_mut().get_mut::<TnuaController<AlsControlScheme>>(character).unwrap().basis.desired_motion = if moving { direction * 0.0002 } else { Vec3::ZERO };
+            app.world_mut().get_mut::<als_core::motion::AlsViewYaw>(character).unwrap().0 = yaw;
+            app.update();
+            let assets = app.world().resource::<Assets<bevy::gizmos::GizmoAsset>>();
+            let buffer = assets.iter().find(|(_, asset)| asset.config_typeid() == std::any::TypeId::of::<bevy::gizmos::config::DefaultGizmoConfigGroup>()).unwrap().1.buffer();
+            for color in [input_arrow_color(moving), velocity_arrow_color(moving)] {
+                let index = buffer.list_colors.iter().position(|value| *value == color.to_linear()).unwrap();
+                let actual = (buffer.list_positions[index + 1] - buffer.list_positions[index]).normalize();
+                let expected = if moving { direction } else { Vec3::NEG_X };
+                assert!(actual.abs_diff_eq(expected, 1e-5), "Arrow direction {actual:?} differs from consumed {expected:?}");
+            }
+            let values: std::collections::HashMap<_, _> = app.world_mut().query::<(&Name, &Text)>().iter(app.world())
+                .map(|(name, text)| (name.as_str().to_owned(), text.0.clone())).collect();
+            assert_eq!(values["Input Yaw Angle"], format!("{:.2}", yaw.to_degrees()));
+            assert_eq!(values["Velocity Yaw Angle"], format!("{:.2}", yaw.to_degrees()));
+            assert_eq!(values["Velocity Direction"], format!("X: {:.2} Y: {:.2} Z: {:.2}", direction.x, direction.y, direction.z));
+        }
+    }
 
     #[test]
     fn persistent_footstep_gizmos_preserve_source_vertices_colors_and_point_size() {
@@ -252,6 +293,7 @@ mod footstep_tests {
         assert_eq!(configs.config::<FootstepLines>().0.line.width, 1.0);
         assert!((configs.config::<FootstepPoints>().0.line.width - 24.0).abs() < 1e-4);
         app.world_mut().entity_mut(player).insert((AlsCharacter, Transform::default(), GlobalTransform::default(),
+            crate::actual_motion::AlsActualMotion::default(),
             LinearVelocity::ZERO, als_core::motion::AlsViewYaw(0.0), als_core::view::AlsViewPitch(0.0), AlsInputCommand::default(),
             als_core::motion::AlsRotationResponseState { smooth_target_yaw: std::f32::consts::FRAC_PI_2, ..default() }));
         let mut selected = None;
@@ -301,11 +343,6 @@ fn draw_footstep_traces(
             }
         }
     }
-}
-
-fn yaw_to_dir_xy(yaw_deg: f32) -> Vec3 {
-    let radians = yaw_deg.to_radians();
-    Vec3::new(radians.cos(), 0.0, -radians.sin())
 }
 
 fn circle_xz(gizmos: &mut Gizmos, location: Vec3, radius: f32, color: Color, sides: u32) {
@@ -377,11 +414,10 @@ fn draw_character_shapes_system(
     q_character: Query<
         (
             &GlobalTransform,
-            &LinearVelocity,
+            &crate::actual_motion::AlsActualMotion,
             &als_core::motion::AlsViewYaw,
             Option<&als_core::view::AlsViewPitch>,
             Option<&als_core::motion::AlsRotationResponseState>,
-            AnyOf<(&AlsInputCommand, &AlsInputOverride)>,
         ),
         (With<AlsCharacter>, With<crate::character_assembly::AlsPlayerCharacter>),
     >,
@@ -389,7 +425,7 @@ fn draw_character_shapes_system(
     if !stats.shapes_active {
         return;
     }
-    for (transform, velocity, view_yaw, view_pitch, response, inputs) in q_character.iter() {
+    for (transform, motion, view_yaw, view_pitch, response) in q_character.iter() {
         let origin = transform.translation();
         let feet_location = origin - Vec3::Y * DEFAULT_CAPSULE_HALF_HEIGHT_M;
         let pitch = view_pitch.map(|s| s.0).unwrap_or(0.0);
@@ -403,35 +439,19 @@ fn draw_character_shapes_system(
             linear(1.0, 0.0, 0.0),
         );
 
-        let move_dir = match inputs {
-            (Some(cmd), _) => cmd.move_dir,
-            (_, Some(ovr)) => ovr.0.move_dir,
-            _ => Vec2::ZERO,
-        };
-        let has_input = move_dir.length_squared() > 1e-6;
-        let input_yaw_deg = if has_input {
-            move_dir.y.atan2(move_dir.x).to_degrees()
-        } else {
-            0.0
-        };
         draw_directional_arrow(
             &mut gizmos,
             feet_location + Vec3::Y * INPUT_ARROW_LIFT_M,
             feet_location
                 + Vec3::Y * INPUT_ARROW_LIFT_M
-                + yaw_to_dir_xy(input_yaw_deg) * ARROW_HEAD_M,
+                + als_core::orientation::yaw_to_world_forward(motion.input_yaw_degrees.to_radians()) * ARROW_HEAD_M,
             ARROW_HEAD_M,
-            input_arrow_color(has_input),
+            input_arrow_color(motion.has_input),
             &mut stats,
         );
 
-        let hspeed = Vec2::new(velocity.x, velocity.z).length();
-        let has_velocity = hspeed > 1e-3;
-        let velocity_yaw_deg = if has_velocity {
-            velocity.x.atan2(-velocity.z).to_degrees()
-        } else {
-            0.0
-        };
+        let hspeed = motion.horizontal_speed;
+        let has_velocity = als_core::motion::locomotion_movement_flags(motion.has_input, hspeed).0;
         let max_reference_speed_mps = 6.5;
         let velocity_arrow_length = VELOCITY_MIN_LENGTH_M
             + (VELOCITY_MAX_LENGTH_M - VELOCITY_MIN_LENGTH_M)
@@ -439,7 +459,7 @@ fn draw_character_shapes_system(
         draw_directional_arrow(
             &mut gizmos,
             feet_location,
-            feet_location + yaw_to_dir_xy(velocity_yaw_deg) * velocity_arrow_length,
+            feet_location + als_core::orientation::yaw_to_world_forward(motion.velocity_yaw_degrees.to_radians()) * velocity_arrow_length,
             ARROW_HEAD_M,
             velocity_arrow_color(has_velocity),
             &mut stats,
