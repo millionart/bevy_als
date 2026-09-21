@@ -77,7 +77,7 @@
   - 真实入口复验2026-09-21 21:32：真实隐藏根4项回归98.532秒PASS；入口79.926秒构建后，71.038秒运行的逐键生命周期/布局/调试值全部通过，fault/graph error/temporal为0，但旧OverlayMenu覆盖失败。回读输入驱动发现Tab/Z分别由两个时间窗逐帧写入，前窗结束不断release、后窗不断press，导致重复翻转并可能遗留slomo；新加的调试窗口延长了症状。已提取不改变行为的真实控制输入函数，先补2/2/1次按下计数反例，再合并同键窗口；不改变生产菜单、慢动作或验收阈值。
   - Runtime前2026-09-21 21:37：按下计数反例98.746秒先FAIL，实际7/7/1而非2/2/1；改为每键全部时间窗一次求值，删除旧单窗驱动并由调试键共用，33项99.604秒PASS。生产开关/菜单未改。开始同target/profile预构建与最终完整Interface；本轮超过原估时9分钟，仍在允许偏差内，唯一剩余边界为本次完整运行。
   - 01完成2026-09-21 21:40：入口构建80.655秒与Interface24.880秒功能PASS，全部19种逐键状态、主开关/包围盒联动、原HUD布局/菜单/调试值通过，fault/graph error/temporal为0。修复主开关包围盒及网格范围、空列表导航、类别保存，并修复验收观察范围/实际隐藏判断/同键重复脉冲。开始20:48、预估21:28、实际21:40、偏差+12分钟；增加验收漏检复盘后闭合，未改动画/物理算法。后续仅展开已授权的各类别生产者树。
-- [ ] BF124.02 Shift+1～5角色debug分支树：逐键独立验收与提交，进入时按实际闭包拆分。
+- [x] BF124.02 Shift+1～5角色debug分支树：逐键独立验收与提交，进入时按实际闭包拆分。
   - [x] BF124.02a Shift+1 Curves：开始2026-09-21 21:41、预估结束22:01。依据为DisplayDebugCurves→Skeleton元数据/GetCurveValue→当前Avatar/Player最终Pose曲线的单消费闭包、现有原生导入工具及已通过逐键公共入口。fresh提取SK_Als，核对完整名称、实际root输出/缺省/生命周期、显示算法；不展开已闭合动画算法，除非发现该消费链证实的差异。
     - Source/static闭环2026-09-21 21:48：fresh SK_Als原生提取35.722秒，43名称与导入/check/self-test一致。UE最终EvaluationContext→Proxy AttributeCurve→GetCurveValue（缺省0）对应根Pose输出边→LayeredGraph捕获→每帧AlsRootAnimationContext→当前Avatar/Player选择；无分支使用旧实例。源YawSpeed在Actor欧拉Yaw上积分，YawOffset来自源角度曲线；目标两曲线均离线反号，HUD却直接展示目标值且据此插色。旧Gate直接比较target值漏检源坐标语义；反例98.688秒以−42≠42先FAIL，现只在显示边界逆变换这两项，并补真实左右Turn资产取样/颜色检查。未改变图、曲线资产或运动消费；等待范围回归后真实Interface。
     - Runtime前2026-09-21 21:51：根输出捕获/缺省、实例更换、曲线符号与颜色、真实左右Turn Pose/曲线取样和HUD范围回归100.222秒PASS。显示修复只有一个条件逆变换，旧实现的反例证实不可移除；没有新增运行状态或适配层。开始同target/profile构建和公共Interface复验，检验既有67值比较及逐键两态。
@@ -93,6 +93,11 @@
     - Source/static闭环2026-09-21 23:01：fresh FES/AIS各35秒；脚步50cm Visibility、只忽略Owner、仅绘制最终fallback结果、10秒世界历史/25cm命中坐标轴；地面预测额外只响应WorldStatic/WorldDynamic/Destructible，SweepResponses默认Ignore，Pawn排除有源依据。该设置事实纠正初步“两个查询均应仅忽略自身”的判断；不改地面预测/动画输入。UE BatchedElements.Point的32尺寸与当前视口/投影公式一致，初始穿透被源明确允许，已有Avian配置一致。确认脚步错误全局排除其他角色/布娃娃，预测胶囊仍绕过68线共享函数；分别补实际通知与预测Gizmo反例。已读取并按animation-graph-equivalence的source-first纪律审计；最终修改仅足迹查询作用域和绘制，不改变图/曲线/姿态输入，因此不扩展图转换或关闭项。
     - Runtime前2026-09-21 23:10：两项98.441秒反例分别以生成0/0而非1/1、预测396而非204线FAIL；修复后21项99.765秒PASS。脚步按事件Owner收集自身及其Avatar的布娃娃排除项，删除全局角色列表；角色/预测共用现有实际Collider→源胶囊绘制，删除重复分支。两项旧实现反例覆盖新增Owner判断与共享绘制的消融边界，无新缓存；开始同target/play构建及startup、Base、Footprint公共功能验收。
     - 02d完成2026-09-21 23:17：78.352秒入口构建；startup15.713秒、Base125.647秒、Footprint32.009秒均功能PASS，足迹36请求/576 GPU样本、动态接收表面/清理、预测与Mantle及原运动守卫通过。开始22:41、预估23:06、实际23:17、偏差+11分钟；响应白名单和Owner忽略已分别追溯，未错误合并两类查询规则。
+  - [x] BF124.02e Shift+5 Mantling：开始2026-09-21 23:18、预估结束23:33。依据为BF122六分支实际探测与独立生命周期夹具、刚通过的Base，fresh重读StartMantling和Alternative Capsule/Sphere绘制，核对每个早退和成功分支的记录/颜色/寿命/历史。无差异时只补链路报告与已有focused Gate，不重复修改算法。
+    - Source/static闭环2026-09-21 23:32：fresh CS原生35.252秒，地面/空中失败留存开关、Visibility与三类World响应、几何参数和各分支5/7.5/10秒一致；16项既有探测/历史3.180秒PASS。发现源IsValidBlockingHit还拒绝bStartPenetrating，目标遗漏：0.95m案例被可走法线条件偶然拒绝，但同一初始穿透在0.4m实际误报Success，198.559秒稳定FAIL。用Avian接触点沿表面法线的负分离识别穿透，保留真实零距离接触；本项因此有限复开Mantle前向命中有效性，不改后续动作/图。按已读动画等价skill记录新反例并执行相应静态/实际Gate。
+    - Runtime前2026-09-21 23:41：17项204.977秒范围PASS；最终条件限定distance==0且接触点负分离，对应源“起始”穿透，完整库250.926秒PASS（项目443项）。新反例覆盖0.4/0.6/0.95m接触边界，原成功与五类探测阶段/独立寿命均通过；原有到时清理和Actor过滤无差异。Root声明式manifest补本次CS/C++/HitResult证据与focused Gate，接下来构建manual/spec工具、fresh图规格/声明式与startup→Base→rotating_base。
+    - 静态Gate完成2026-09-21 23:45：1149项全库通过；入口及spec工具同target/play163.254秒构建。spec首轮直接启动缺资产根参数，明确修正为实际assets绝对根后1.876秒输出当前345图；Root声明式10.289秒通过，覆盖源递归闭包、位置、编辑器和资产边界，未改图/转换规则。源manifest增加三份fresh证据及新反例；现在startup→Base→rotating_base功能Gate，原估时偏差12分钟，尚未越过允许窗口。
+    - 02e/角色分支完成2026-09-21 23:49：startup15.517秒、Base125.141秒、rotating_base18.945秒全部功能PASS，正常/移动旋转目标攀爬、原姿态与时序守卫保持通过。开始23:18、预估23:33、实际23:49、偏差+16分钟；增加前向起始穿透反例与匹配的完整/声明式Gate后闭合。Shift+1～5均已独立取证、验收并提交；继续相机分支。
 - [ ] BF124.03 Shift+6～8相机debug分支树：逐键独立验收与提交，复用已证实的公共节点。
 - [ ] BF124.04 Shift+9实际绑定与完整性核对：原版未绑定时明确源证据，不补造功能。
 - [ ] BF124.05 汇总树状报告与同根因修复验收：逐分支覆盖开关两态、必要组合及真实入口，保持既有截图/性能暂停偏好。

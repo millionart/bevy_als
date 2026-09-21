@@ -242,3 +242,50 @@ Shift+Four → ShowDebug Als.Traces ⇒ 公共输入树 / DebugCategory::Traces
 修复与验收：脚步原先错误忽略所有角色和布娃娃，改为只收集通知Owner所属实体；地面预测的胶囊绘制接入源68线共享函数。真实通知反例先得到0/0而非1/1，真实预测Gizmo反例先得到396而非204线；修复后21项回归通过，包含fallback、命名层、Surface/设置、decal关闭、命中坐标轴、清理和当前Avatar切换。startup15.713秒、Base125.647秒、Footprint32.009秒功能通过；36请求/576 GPU样本及动态接收表面和清理均通过。地面预测采样及动画输入未修改。
 
 </details>
+
+<details>
+<summary>Shift+5 — Als.Mantling：实际探测结果 → 六分支绘制 → 独立到期</summary>
+
+```text
+Shift+Five → ShowDebug Als.Mantling ⇒ 公共输入树 / DebugCategory::Mantling
+├─ TryStartMantling / StartMantling ⇒ motion控制入口 → detect_mantle
+│  ├─ 禁用/动作不允许/朝向超限 → 无trace，不生成debug记录
+│  ├─ 速度/输入/Actor朝向 → 最大Reach角50°，TraceAngleThreshold110°
+│  ├─ 当前Capsule尺寸/scale及Grounded或InAir TraceSettings
+│  │  └─ fresh CS：Visibility，WorldStatic/WorldDynamic/Destructible响应
+│  └─ 前向胶囊 → 下向球 → 目标胶囊重叠 → 起点胶囊重叠
+├─ 实际结果分类（不根据是否存在一个hit来推测）
+│  ├─ ForwardRejected
+│  │  ├─ miss / 起始穿透 / 不可step-up / 可行走面 / 目标速度>10cm/s
+│  │  └─ 只画前向扫掠；不画命中胶囊和命中点
+│  ├─ DownwardRejected
+│  │  └─ 前向扫掠+命中，完整下向扫掠；下向没有有效命中图元
+│  ├─ TargetBlocked
+│  │  └─ 同上，再画红色目标重叠胶囊
+│  ├─ StartBlocked
+│  │  └─ 同上，再画橙色起点重叠胶囊
+│  └─ Success
+│     └─ 前向扫掠+命中、下向扫掠+命中球/点；进入实际Mantle动作
+├─ MantleProbeTrace ⇒ AlsCharacterDebug ⇒ capture_mantle_probes
+│  ├─ 记录实际起终点、命中中心/ImpactPoint、半高/半径、结果及失败留存选项
+│  ├─ 仅捕获当前debug目标、分类开启且本次变更的探测
+│  └─ 无新增探测不重放；关闭时发生的探测不在重新开启后补放
+├─ 绘制消费者 draw_mantle_probes_system / draw_trace_markers
+│  ├─ 前向：Alternative Capsule的半圆/四分之一圆、12连接线、箭头
+│  │  └─ sweep(0,.25,1)，hit(0,.75,1)
+│  ├─ 下向：球扫掠包络胶囊+箭头；成功时命中三圆球
+│  │  └─ sweep(.25,0,1)，hit(.75,0,1)
+│  ├─ 目标失败红色，起点失败(1,.5,0)；命中点采用共享投影点
+│  └─ 单个胶囊复用源68线，当前缩放/坐标以实际探测记录为准
+└─ 游戏时钟 / 生命周期
+   ├─ 前向5s、下向7.5s、失败重叠10s分别截止
+   ├─ CS.Grounded失败留存=true；CS.InAir=false → 失败仅本帧
+   ├─ 成功不受失败留存开关影响，仍使用5s/7.5s
+   └─ 关闭主开关/分类或切换目标不删除已产生的限时图元
+```
+
+源入口：`AlsCharacter_Actions.cpp::StartMantling`、`HitResult.h::IsValidBlockingHit`、`AlsDebugUtility.cpp::{DrawSweepSingleCapsuleAlternative,DrawSweepSingleSphere}` 与本次原生CS。目标入口：`crates/als-core/src/{motion,mantle}.rs`、`src/debug_display.rs`。
+
+新增差异：前向探测漏掉起始穿透拒绝，导致一类穿墙起点误报Success并绘制成功分支。真实Avian反例在0.4m复现，0.95m原先因另一条可走法线条件碰巧被拒绝；改为拒绝零行进距离且接触点沿外法线负分离的初始穿透。保留正常零距离接触。17项范围、1149项完整库、当前345图规格与Root声明式通过；startup15.517秒、Base125.141秒、rotating_base18.945秒功能通过。原六分支/独立寿命/隐藏期间不重放、正常与移动旋转目标攀爬均通过。
+
+</details>

@@ -193,6 +193,18 @@
     {
       "path": "target/bf116_projection/source/bow_reference_current.ue.json",
       "sha256": "9ee272757914cea74c89cf67641d0e4a2e3c61823d34c18e64955518e639cd1f"
+    },
+    {
+      "path": "target/report_review/bf124_source/CS_Als_Character.ue.json",
+      "sha256": "a446ab85365c2a1bea89d6fb064fbc5a244e274bf4094c10674333af9f904bb2"
+    },
+    {
+      "path": "target/report_review/bf124_source/AlsCharacter_Actions.cpp",
+      "sha256": "3dbd91f26154fd99297a7c7bb293993d938a86b8937d7071760cabc8517aa317"
+    },
+    {
+      "path": "target/report_review/bf124_source/HitResult.h",
+      "sha256": "50b036788fdc57cba9f230b7c69e36188d2115f7842d42383a1c5044dc3312e4"
     }
   ],
   "graphs": [
@@ -901,6 +913,25 @@
         "mesh_space_additive::tests"
       ],
       "evidence": "target/bf116_04e/ext_restored.watchdog.json"
+    },
+    {
+      "label": "mantle_initial_forward_penetration",
+      "argv": [
+        "cargo",
+        "test",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "-p",
+        "als-core",
+        "--lib",
+        "mantle_rejects_an_initially_penetrating_forward_sweep",
+        "--",
+        "--test-threads",
+        "1"
+      ],
+      "evidence": "target/report_review/bf124_mantle_full.watchdog.json"
     }
   ]
 }

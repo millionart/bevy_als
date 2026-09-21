@@ -572,7 +572,8 @@ pub fn detect_mantle(
         .or_else(|| target_permissions.get(body).ok().flatten())
         .map(|permission| permission.allows_step_up)
         .unwrap_or(true);
-    if forward_hit.normal1.y >= MANTLE_WALKABLE_FLOOR_COS
+    if (forward_hit.distance == 0.0 && (forward_hit.point2 - forward_hit.point1).dot(forward_hit.normal1) < 0.0)
+        || forward_hit.normal1.y >= MANTLE_WALKABLE_FLOOR_COS
         || !target_allows_step_up
         || velocities
             .get(body)
@@ -1004,7 +1005,7 @@ mod tests {
             avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
         app.finish();
         app.cleanup();
-        let actor = app.world_mut().spawn(crate::character::AlsCharacter).id();
+        let actor = app.world_mut().spawn((crate::character::AlsCharacter, Transform::from_xyz(0.0, 0.95, 0.0))).id();
         let ledge = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(2.4, 0.8, 1.2),
             CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], LayerMask::ALL),
             Transform::from_xyz(0.0, 0.4, -1.4).with_rotation(rotation))).id();
@@ -1016,10 +1017,24 @@ mod tests {
         use bevy::ecs::system::RunSystemOnce;
         app.world_mut().run_system_once_with(|In((actor, locomotion)): In<(Entity, LocomotionState)>, spatial: SpatialQuery,
             velocities: Query<(&RigidBody, &LinearVelocity, Option<&AlsComponentVelocity>), Without<crate::character::AlsCharacter>>,
-            permissions: Query<Option<&AlsMantleTargetPermission>, Without<crate::character::AlsCharacter>>, colliders: Query<&ColliderOf>| {
-            detect_mantle(&spatial, actor, MantleDetectionInput { origin: Vec3::Y * 0.95, input_direction: Vec3::NEG_Z,
+            permissions: Query<Option<&AlsMantleTargetPermission>, Without<crate::character::AlsCharacter>>, colliders: Query<&ColliderOf>,
+            actors: Query<&Transform, With<crate::character::AlsCharacter>>| {
+            detect_mantle(&spatial, actor, MantleDetectionInput { origin: actors.get(actor).unwrap().translation, input_direction: Vec3::NEG_Z,
                 locomotion, ..default() }, &velocities, &permissions, &colliders)
         }, (actor, locomotion)).unwrap()
+    }
+
+    #[test]
+    fn mantle_rejects_an_initially_penetrating_forward_sweep() {
+        let (mut app, actor, _) = debug_probe_app(Quat::IDENTITY);
+        for height in [0.4, 0.6, 0.95] {
+            app.world_mut().get_mut::<Transform>(actor).unwrap().translation = Vec3::new(0.0, height, -1.3);
+            let detection = debug_probe(&mut app, actor, LocomotionState::Grounded);
+            assert!(detection.trace.forward_hit.is_some());
+            assert_eq!(detection.trace.forward_hit_center, detection.trace.forward_start);
+            assert_eq!(detection.trace.result, MantleProbeResult::ForwardRejected, "height={height}");
+            assert!(detection.intent.is_none());
+        }
     }
 
     #[test]
