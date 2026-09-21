@@ -845,6 +845,7 @@ fn hud_sync_system(
         (With<AlsCharacter>, With<AlsPlayerCharacter>),
     >,
     assemblies: Query<&AlsCharacterAssembly>,
+    views: Query<(&Camera, &als_camera::AlsCameraViewSource, &als_camera::AlsCharacterCamera)>,
     camera_components: Query<(&AlsSourceCameraComponent, &als_camera::AlsCharacterCamera, &AlsCameraRig, &als_camera::AlsCameraDebugInfo)>,
     q_instances: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     q_players: Query<&AlsRootAnimationContext, With<AnimationGraphPlayer>>,
@@ -899,7 +900,9 @@ fn hud_sync_system(
             snapshot.view_rotation_deg = yaw.zip(pitch).map(|(yaw, pitch)| (0.0, pitch.0.to_degrees(), yaw.0.to_degrees()));
         }
         let assembly = assemblies.get(character).ok();
-        let camera = assembly.and_then(|assembly| assembly.camera).and_then(|entity| camera_components.get(entity).ok())
+        let camera = assembly.and_then(|assembly| assembly.camera).and_then(|entity| views.get(entity).ok())
+            .filter(|(camera, _, owner)| camera.is_active && owner.character == character)
+            .and_then(|(_, source, _)| camera_components.get(source.0).ok())
             .filter(|(component, owner, _, _)| component.is_active() && owner.character == character);
         let camera_snapshot = build_camera_snapshot(camera.map(|(_, _, rig, _)| rig), camera.map(|(_, _, _, info)| info));
         let context = assembly.and_then(|assembly| q_instances.get(assembly.avatar).ok())
@@ -1202,7 +1205,8 @@ mod tests {
         component.activate(false);
         let camera = app.world_mut().spawn((component, als_camera::AlsCharacterCamera { character }, AlsCameraRig::default(),
             als_camera::AlsCameraDebugInfo { valid: true, field_of_view_deg: 53.0, ..default() })).id();
-        app.world_mut().get_mut::<AlsCharacterAssembly>(character).unwrap().camera = Some(camera);
+        let view = app.world_mut().spawn((Camera3d::default(), als_camera::AlsCameraViewSource(camera), als_camera::AlsCharacterCamera { character })).id();
+        app.world_mut().get_mut::<AlsCharacterAssembly>(character).unwrap().camera = Some(view);
         #[derive(Component)]
         struct LateDebugTarget;
         app.world_mut().spawn((AlsCharacter, LocomotionState::Air, RotationMode::Aiming, Stance::Standing,

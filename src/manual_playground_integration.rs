@@ -3317,6 +3317,9 @@ struct InterfaceProbe<'w, 's> {
     show_debug_roots: Query<'w, 's, (), With<AlsShowDebugHudRoot>>,
     debug_values: Query<'w, 's, (&'static Name, &'static Text)>,
     rotation_responses: Query<'w, 's, &'static AlsRotationResponseState>,
+    camera_assemblies: Query<'w, 's, &'static AlsCharacterAssembly>,
+    camera_sources: Query<'w, 's, &'static als_camera::AlsCameraViewSource>,
+    camera_debug: Query<'w, 's, &'static AlsCameraDebugInfo>,
 }
 
 #[derive(SystemParam)]
@@ -9317,8 +9320,21 @@ fn observe_manual_integration(
             if let Ok(response) = interface.rotation_responses.get(character) {
                 expected.push(("Smooth Target Yaw Angle".into(), format!("{:.2}", response.smooth_target_yaw.to_degrees())));
             }
+            let camera = interface.camera_assemblies.get(character).ok().and_then(|assembly| assembly.camera)
+                .and_then(|view| interface.camera_sources.get(view).ok()).and_then(|source| interface.camera_debug.get(source.0).ok())
+                .filter(|info| info.valid);
+            if let Some(info) = camera {
+                for name in als_camera::CAMERA_CURVE_NAMES {
+                    expected.push((crate::show_debug_hud::name_to_display_string(name, false), format!("{:.2}", info.curve_value(name))));
+                }
+                for (name, point) in [("Pivot Target Location", Some(info.pivot_target)), ("Pivot Lag Location", info.pivot_lag), ("Pivot Location", info.pivot)] {
+                    expected.push((name.into(), point.map(|point| format!("X: {:.2} Y: {:.2} Z: {:.2}", point.x, point.y, point.z)).unwrap_or_else(|| "N/A".into())));
+                }
+                expected.push(("Camera Field Of View".into(), format!("{:.2}", info.field_of_view_deg)));
+                expected.push(("Right Shoulder".into(), info.right_shoulder.to_string()));
+            }
             let mismatches: Vec<_> = expected.iter().filter(|(name, value)| !interface.debug_values.iter().any(|(key, text)| key.as_str() == name.as_str() && &text.0 == value)).cloned().collect();
-            gate_report.direction_trace.push(serde_json::json!({"hud_data_valid":expected_context.is_some() && mismatches.is_empty(),
+            gate_report.direction_trace.push(serde_json::json!({"hud_data_valid":expected_context.is_some() && camera.is_some() && mismatches.is_empty(),
                 "hud_values_checked":expected.len(),"hud_data_mismatches":mismatches}));
         }
     }

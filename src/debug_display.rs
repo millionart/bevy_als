@@ -261,7 +261,8 @@ mod footstep_tests {
             let entity = app.world_mut().spawn((component, als_camera::AlsCharacterCamera { character },
                 AlsCameraDebugInfo { valid: true, pivot_target: Vec3::ONE, pivot: Some(Vec3::Y), pivot_lag: Some(Vec3::X),
                     trace_start: Vec3::ZERO, trace_end: Vec3::NEG_Z, ..default() })).id();
-            if character == player { selected = Some(entity); }
+            let view = app.world_mut().spawn((Camera3d::default(), als_camera::AlsCameraViewSource(entity), als_camera::AlsCharacterCamera { character })).id();
+            if character == player { selected = Some(view); }
         }
         app.world_mut().entity_mut(player).insert(crate::character_assembly::AlsCharacterAssembly { avatar: Entity::PLACEHOLDER, camera: selected });
         app.insert_resource(crate::show_debug_hud::AlsShowDebugHudState { visible: true, shapes: true, camera_shapes: true, camera_traces: true, ..default() });
@@ -574,11 +575,14 @@ fn draw_camera_debug_system(
     mut stats: ResMut<AlsDebugDisplayStats>,
     mut gizmos: Gizmos,
     characters: Query<(Entity, &crate::character_assembly::AlsCharacterAssembly), With<crate::character_assembly::AlsPlayerCharacter>>,
+    views: Query<(&Camera, &als_camera::AlsCameraViewSource, &als_camera::AlsCharacterCamera)>,
     cameras: Query<(&crate::camera_component::AlsSourceCameraComponent, &als_camera::AlsCharacterCamera, &AlsCameraDebugInfo)>,
 ) {
     let Ok((character, assembly)) = characters.single() else { return; };
     let Some(camera) = assembly.camera else { return; };
-    let Ok((component, owner, info)) = cameras.get(camera) else { return; };
+    let Ok((view, source, view_owner)) = views.get(camera) else { return; };
+    if !view.is_active || view_owner.character != character { return; }
+    let Ok((component, owner, info)) = cameras.get(source.0) else { return; };
     if !component.is_active() || owner.character != character || !info.valid { return; }
         stats.camera_debug_valid += 1;
         stats.cumulative_camera_valid += 1;
