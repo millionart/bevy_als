@@ -2983,6 +2983,7 @@ struct IntegrationCoverage {
     control_rig_foot_targets: bool,
     mantle_started: bool,
     mantle_completed: bool,
+    mantle_debug: bool,
     movement_base: bool,
     foot_probe: bool,
     foot_lock: bool,
@@ -3322,6 +3323,7 @@ struct InterfaceProbe<'w, 's> {
     camera_assemblies: Query<'w, 's, &'static AlsCharacterAssembly>,
     camera_sources: Query<'w, 's, &'static als_camera::AlsCameraViewSource>,
     camera_debug: Query<'w, 's, &'static AlsCameraDebugInfo>,
+    motion_debug: Query<'w, 's, &'static als_core::motion::AlsCharacterDebug>,
 }
 
 #[derive(SystemParam)]
@@ -5394,6 +5396,8 @@ fn drive_manual_integration(
             }
         }
         IntegrationPhase::Mantle => {
+            show_debug.visible = true;
+            show_debug.mantling = true;
             if entering {
                 reset_character(
                     &mut transform,
@@ -8637,6 +8641,20 @@ fn observe_manual_integration(
             &motion_probe.graphs, *locomotion, notify_action.copied(), transform.translation,
         );
     }
+    if state.phase == IntegrationPhase::Mantle && !state.coverage.mantle_debug
+        && let Ok(debug) = interface.motion_debug.get(character)
+        && let Some(trace) = debug.0.mantle_probe
+        && trace.result == als_core::mantle::MantleProbeResult::Success
+        && interface.debug_stats.cumulative_mantle_probes > 0
+        && interface.debug_stats.mantle_probe_lines_drawn >= 2
+        && interface.debug_stats.mantle_hit_points_drawn >= 2 {
+        state.coverage.mantle_debug = true;
+        gate_report.direction_trace.push(serde_json::json!({"mantle_debug_valid":true,
+            "forward_start":trace.forward_start,"forward_end":trace.forward_end,"forward_hit":trace.forward_hit_center,
+            "downward_start":trace.downward_start,"downward_end":trace.downward_end,"downward_hit":trace.downward_hit_center,
+            "radius":trace.trace_radius,"forward_half_height":trace.forward_half_height,
+            "sweeps":interface.debug_stats.mantle_probe_lines_drawn,"hit_points":interface.debug_stats.mantle_hit_points_drawn}));
+    }
     if let Ok((_, space, _, _)) = foot_ik_data.get(character) {
         state.coverage.foot_probe |= space.left.has_ground_hit && space.right.has_ground_hit;
     }
@@ -9626,6 +9644,7 @@ fn observe_manual_integration(
                 ),
                 ("mantle_start", coverage.mantle_started),
                 ("mantle_complete", coverage.mantle_completed),
+                ("mantle_debug_geometry", coverage.mantle_debug),
                 ("movement_base", coverage.movement_base),
                 ("foot_probe", coverage.foot_probe),
                 ("foot_lock", coverage.foot_lock),

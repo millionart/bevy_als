@@ -1,7 +1,7 @@
 use als_camera::AlsCameraDebugInfo;
 use als_core::air::AlsAirState;
 use als_core::character::AlsCharacter;
-use als_core::mantle::AlsMantleState;
+use als_core::mantle::{MantleProbeResult, MantleProbeTrace};
 use als_core::motion::AlsCharacterDebug;
 use avian3d::prelude::{Collider, ColliderAabb, PhysicsGizmos, PhysicsGizmoExt};
 use als_core::{control_scheme::{AlsControlScheme, AlsControlSchemeConfig}, state::Stance};
@@ -102,6 +102,9 @@ pub struct AlsDebugDisplayStats {
     pub camera_pivot_spheres_drawn: u32,
     pub camera_trace_lines_drawn: u32,
     pub mantle_probe_lines_drawn: u32,
+    pub mantle_overlap_capsules_drawn: u32,
+    pub mantle_hit_points_drawn: u32,
+    pub cumulative_mantle_probes: u64,
     pub camera_debug_valid: u32,
     pub footstep_trace_lines_drawn: u32,
     pub footstep_axis_lines_drawn: u32,
@@ -117,6 +120,8 @@ impl AlsDebugDisplayStats {
             + self.camera_pivot_spheres_drawn
             + self.camera_trace_lines_drawn
             + self.mantle_probe_lines_drawn
+            + self.mantle_overlap_capsules_drawn
+            + self.mantle_hit_points_drawn
             + self.footstep_trace_lines_drawn
             + self.footstep_axis_lines_drawn
             + self.footstep_hit_points_drawn
@@ -132,21 +137,55 @@ pub struct AlsDebugDisplayPlugin;
 pub struct AlsDebugDisplaySet;
 
 #[derive(Default, Reflect, GizmoConfigGroup)]
-struct FootstepLines;
+struct DebugLines;
 
 #[derive(Default, Reflect, GizmoConfigGroup)]
-struct FootstepPoints;
+struct DebugPoints;
 
 #[derive(Default, Reflect, GizmoConfigGroup)]
 struct ShapeArrows;
+
+#[derive(Resource, Default)]
+struct MantleDebugHistory(Vec<(f64, MantleProbeTrace)>);
+
+fn mantle_debug_lifetime(trace: &MantleProbeTrace) -> f64 {
+    if !trace.draw_failed_traces && trace.result != MantleProbeResult::Success { return 0.0; }
+    match trace.result {
+        MantleProbeResult::ForwardRejected => 5.0,
+        MantleProbeResult::DownwardRejected | MantleProbeResult::Success => 7.5,
+        MantleProbeResult::TargetBlocked | MantleProbeResult::StartBlocked => 10.0,
+    }
+}
+
+fn mantle_part_visible(trace: &MantleProbeTrace, age: f64, lifetime: f64) -> bool {
+    mantle_debug_lifetime(trace) == 0.0 || age < lifetime
+}
+
+fn capture_mantle_probes(
+    time: Res<Time>,
+    mut history: ResMut<MantleDebugHistory>,
+    mut stats: ResMut<AlsDebugDisplayStats>,
+    actors: Query<&AlsCharacterDebug, (With<AlsCharacter>, With<crate::character_assembly::AlsPlayerCharacter>, Changed<AlsCharacterDebug>)>,
+) {
+    let now = time.elapsed_secs_f64();
+    history.0.retain(|(created, trace)| now - created < mantle_debug_lifetime(trace));
+    if !stats.mantling_active { return; }
+    for debug in &actors {
+        if let Some(trace) = debug.0.mantle_probe.filter(|trace| trace.forward_start.is_some()) {
+            history.0.push((now, trace));
+            stats.cumulative_mantle_probes += 1;
+        }
+    }
+}
 
 impl Plugin for AlsDebugDisplayPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AlsDebugDisplayStats>()
             .init_resource::<AlsDebugDisplayLayer>()
             .init_resource::<crate::footprint::FootstepDebugHistory>()
-            .insert_gizmo_config(FootstepLines, GizmoConfig { line: GizmoLineConfig { width: 1.0, ..default() }, ..default() })
-            .init_gizmo_group::<FootstepPoints>()
+            .init_resource::<MantleDebugHistory>()
+            .insert_gizmo_config(DebugLines, GizmoConfig { line: GizmoLineConfig { width: 1.0, ..default() }, ..default() })
+            .init_gizmo_group::<DebugPoints>()
             .insert_gizmo_config(ShapeArrows, GizmoConfig { line: GizmoLineConfig { width: 3.0, ..default() }, ..default() })
             .insert_gizmo_config(PhysicsGizmos::default(), GizmoConfig { line: GizmoLineConfig { width: 1.0, ..default() }, ..default() })
             .configure_sets(PostUpdate, AlsDebugDisplaySet.after(crate::footprint::FootprintSet)
@@ -156,11 +195,12 @@ impl Plugin for AlsDebugDisplayPlugin {
                 PostUpdate,
                 (
                     reset_stats_system,
+                    capture_mantle_probes,
                     (draw_character_shapes_system, draw_bounds_box_system).chain(),
                     draw_mantle_probes_system,
                     draw_ground_prediction_system,
                     draw_camera_debug_system,
-                    draw_footstep_traces,
+                    draw_trace_markers,
                 )
                     .chain().in_set(AlsDebugDisplaySet),
             );
@@ -187,13 +227,15 @@ fn reset_stats_system(
     stats.camera_pivot_spheres_drawn = 0;
     stats.camera_trace_lines_drawn = 0;
     stats.mantle_probe_lines_drawn = 0;
+    stats.mantle_overlap_capsules_drawn = 0;
+    stats.mantle_hit_points_drawn = 0;
     stats.camera_debug_valid = 0;
     stats.footstep_trace_lines_drawn = 0;
     stats.footstep_axis_lines_drawn = 0;
     stats.footstep_hit_points_drawn = 0;
 }
 
-fn footstep_point_segment(point: Vec3, camera: &Camera, view: &GlobalTransform) -> Option<(Vec3, Vec3, f32)> {
+fn debug_point_segment(point: Vec3, camera: &Camera, view: &GlobalTransform) -> Option<(Vec3, Vec3, f32)> {
     let viewport = camera.physical_viewport_size()?;
     if viewport.x == 0 || viewport.y == 0 { return None; }
     let projection = camera.clip_from_view();
@@ -207,9 +249,81 @@ fn footstep_point_segment(point: Vec3, camera: &Camera, view: &GlobalTransform) 
 #[cfg(test)]
 mod footstep_tests {
     use super::*;
+    use als_core::mantle::AlsMantleState;
     use als_core::{input::AlsInputCommand, motion::AlsInputOverride};
     use avian3d::prelude::LinearVelocity;
     use crate::{character_assembly::AlsPlayerCharacter, footprint::{FootstepDebugHistory, FootstepDebugTrace}};
+
+    fn trace_points(app: &App, color: Color) -> Vec<Vec3> {
+        let assets = app.world().resource::<Assets<bevy::gizmos::GizmoAsset>>();
+        app.world().resource::<bevy::gizmos::GizmoHandles>().handles().values().flatten().filter_map(|handle| assets.get(handle)).flat_map(|asset| {
+            let buffer = asset.buffer();
+            buffer.list_positions.iter().zip(&buffer.list_colors).chain(buffer.strip_positions.iter().zip(&buffer.strip_colors))
+        }).filter(|(point, value)| point.is_finite() && **value == color.to_linear()).map(|(point, _)| *point).collect()
+    }
+
+    #[test]
+    fn mantle_gizmos_preserve_source_volume_outcomes_and_independent_lifetimes() {
+        use als_core::mantle::{MantleProbeResult as Outcome, MantleProbeTrace};
+        use crate::show_debug_hud::AlsShowDebugHudState;
+        for (delta, right, up, forward) in [(Vec3::X, Vec3::Z, Vec3::Y, Vec3::X),
+            (Vec3::NEG_Z, Vec3::X, Vec3::Y, Vec3::NEG_Z), (Vec3::NEG_Y, Vec3::Z, Vec3::X, Vec3::NEG_Y),
+            (Vec3::ZERO, Vec3::Z, Vec3::Y, Vec3::X)] {
+            let rotation = sweep_rotation(delta);
+            for (local, world) in [(Vec3::X, right), (Vec3::Y, up), (Vec3::NEG_Z, forward)] {
+                assert!((rotation * local).abs_diff_eq(world, 1e-5), "Sweep rotation differs from the source world basis");
+            }
+        }
+        for (outcome, persistent) in [(Outcome::ForwardRejected, true), (Outcome::DownwardRejected, true),
+            (Outcome::TargetBlocked, true), (Outcome::StartBlocked, true), (Outcome::Success, false), (Outcome::TargetBlocked, false)] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, bevy::gizmos::GizmoPlugin, AlsDebugDisplayPlugin))
+                .insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.25)))
+                .insert_resource(AlsShowDebugHudState { visible: true, mantling: true, ..default() });
+            let actor = app.world_mut().spawn((AlsCharacter, AlsPlayerCharacter, AlsMantleState::default(),
+                AlsCharacterDebug(als_core::motion::CharacterDebugFrameInner { mantle_probe: Some(MantleProbeTrace {
+                    forward_start: Some(Vec3::Y), forward_end: Some(Vec3::new(0.0, 1.0, -1.0)),
+                    forward_hit: Some(Vec3::new(0.0, 1.0, -0.99)), forward_hit_center: Some(Vec3::new(0.0, 1.0, -0.7)),
+                    downward_start: (outcome != Outcome::ForwardRejected).then_some(Vec3::new(0.0, 2.0, -0.9)),
+                    downward_end: Some(Vec3::new(0.0, 0.4, -0.9)), downward_hit: Some(Vec3::new(0.0, 0.71, -0.9)),
+                    downward_hit_center: Some(Vec3::new(0.0, 1.0, -0.9)), target_capsule_center: Some(Vec3::new(0.0, 1.61, -0.9)),
+                    start_capsule_center: Some(Vec3::new(0.0, 0.75, -0.3)), trace_radius: 0.29, forward_half_height: 0.8,
+                    target_half_height: 0.9, target_radius: 0.3, start_half_height: 0.45, result: outcome, draw_failed_traces: persistent,
+                }), ..default() }))).id();
+            let mut camera = Camera { viewport: Some(bevy::camera::Viewport { physical_size: UVec2::new(800, 600), ..default() }), ..default() };
+            camera.computed.clip_from_view = Mat4::perspective_infinite_reverse_rh(std::f32::consts::FRAC_PI_2, 4.0 / 3.0, 0.1);
+            app.world_mut().spawn((Camera3d::default(), camera, GlobalTransform::from_translation(Vec3::Z * 3.0), als_camera::AlsCharacterCamera { character: actor }));
+            app.update();
+            let forward = trace_points(&app, mantle_forward_color());
+            assert_eq!(forward.len(), 122, "Capsule sweep must contain the source arcs, twelve connecting lines, and three arrow lines");
+            assert!(forward.iter().any(|point| point.abs_diff_eq(Vec3::new(0.29, 1.51, 0.0), 1e-5)), "Forward capsule sweep volume is missing for {outcome:?}");
+            assert_eq!(!trace_points(&app, linear(0.0, 0.75, 1.0)).is_empty(), outcome != Outcome::ForwardRejected);
+            assert_eq!(!trace_points(&app, linear(0.75, 0.0, 1.0)).is_empty(), outcome == Outcome::Success);
+            assert_eq!(!trace_points(&app, linear(1.0, 0.0, 0.0)).is_empty(), outcome == Outcome::TargetBlocked);
+            assert_eq!(!trace_points(&app, linear(1.0, 0.5, 0.0)).is_empty(), outcome == Outcome::StartBlocked);
+            app.world_mut().resource_mut::<AlsShowDebugHudState>().visible = false;
+            app.update();
+            let lasts = persistent || outcome == Outcome::Success;
+            assert_eq!(!trace_points(&app, mantle_forward_color()).is_empty(), lasts);
+            for (deadline, duration) in [(5.25, 5.0), (7.75, 7.5), (10.25, 10.0)] {
+                for _ in 0..42 {
+                    if app.world().resource::<Time>().elapsed_secs_f64() >= deadline { break; }
+                    app.update();
+                }
+                assert!(app.world().resource::<Time>().elapsed_secs_f64() >= deadline, "Debug lifetime fixture made no time progress");
+                assert!(trace_points(&app, mantle_forward_color()).is_empty());
+                if duration >= 7.5 { assert!(trace_points(&app, mantle_downward_color()).is_empty()); }
+                for (color, shown) in [(linear(1.0, 0.0, 0.0), outcome == Outcome::TargetBlocked), (linear(1.0, 0.5, 0.0), outcome == Outcome::StartBlocked)] {
+                    assert_eq!(!trace_points(&app, color).is_empty(), lasts && shown && duration < 10.0);
+                }
+            }
+            app.world_mut().get_mut::<AlsCharacterDebug>(actor).unwrap().0.mantle_probe.as_mut().unwrap().result = Outcome::Success;
+            app.update();
+            app.world_mut().resource_mut::<AlsShowDebugHudState>().visible = true;
+            app.update();
+            assert!(trace_points(&app, mantle_forward_color()).is_empty(), "Enabling the category must not replay a hidden probe");
+        }
+    }
 
     #[test]
     fn shapes_use_current_scaled_collider_eye_height_and_controller_speed() {
@@ -324,7 +438,7 @@ mod footstep_tests {
         let mut camera = Camera { viewport: Some(bevy::camera::Viewport { physical_size: UVec2::new(800, 600), ..default() }), ..default() };
         camera.computed.clip_from_view = Mat4::perspective_infinite_reverse_rh(std::f32::consts::FRAC_PI_2, 4.0 / 3.0, 0.1);
         for depth in [3.0, 30.0] {
-            let (a, b, width) = footstep_point_segment(Vec3::NEG_Z * depth, &camera, &GlobalTransform::IDENTITY).unwrap();
+            let (a, b, width) = debug_point_segment(Vec3::NEG_Z * depth, &camera, &GlobalTransform::IDENTITY).unwrap();
             let a = camera.clip_from_view().project_point3(a);
             let b = camera.clip_from_view().project_point3(b);
             assert!(((b.x - a.x) * 400.0 - width).abs() < 1e-4);
@@ -345,7 +459,7 @@ mod footstep_tests {
         let stats = app.world().resource::<AlsDebugDisplayStats>();
         assert_eq!((stats.footstep_trace_lines_drawn, stats.footstep_axis_lines_drawn, stats.footstep_hit_points_drawn), (3, 3, 2));
         let assets = app.world().resource::<Assets<bevy::gizmos::GizmoAsset>>();
-        let lines = assets.iter().find(|(_, asset)| asset.config_typeid() == std::any::TypeId::of::<FootstepLines>()).unwrap().1.buffer();
+        let lines = assets.iter().find(|(_, asset)| asset.config_typeid() == std::any::TypeId::of::<DebugLines>()).unwrap().1.buffer();
         assert_eq!(lines.list_positions.len(), 12);
         assert_eq!(lines.list_positions[0], point + Vec3::Y);
         assert_eq!(lines.list_positions[1], point - Vec3::Y);
@@ -353,13 +467,13 @@ mod footstep_tests {
             assert_eq!(lines.list_positions[index], point + axis * 0.25);
             assert_eq!(lines.list_colors[index], color);
         }
-        let points = assets.iter().find(|(_, asset)| asset.config_typeid() == std::any::TypeId::of::<FootstepPoints>()).unwrap().1.buffer();
+        let points = assets.iter().find(|(_, asset)| asset.config_typeid() == std::any::TypeId::of::<DebugPoints>()).unwrap().1.buffer();
         assert_eq!(points.list_positions.len(), 4);
         assert!(points.list_positions[0].abs_diff_eq(point - Vec3::X * 0.12, 1e-6));
         assert!(points.list_positions[1].abs_diff_eq(point + Vec3::X * 0.12, 1e-6));
         let configs = app.world().resource::<GizmoConfigStore>();
-        assert_eq!(configs.config::<FootstepLines>().0.line.width, 1.0);
-        assert!((configs.config::<FootstepPoints>().0.line.width - 24.0).abs() < 1e-4);
+        assert_eq!(configs.config::<DebugLines>().0.line.width, 1.0);
+        assert!((configs.config::<DebugPoints>().0.line.width - 24.0).abs() < 1e-4);
         app.world_mut().entity_mut(player).insert((AlsCharacter, Transform::default(), GlobalTransform::default(),
             crate::actual_motion::AlsActualMotion::default(),
             als_core::character::als_character_capsule(0.9, 0.3), Stance::Standing, TnuaConfig::<AlsControlScheme>(config),
@@ -387,10 +501,12 @@ mod footstep_tests {
     }
 }
 
-fn draw_footstep_traces(
+fn draw_trace_markers(
     history: Res<crate::footprint::FootstepDebugHistory>,
+    mantle: Res<MantleDebugHistory>,
+    time: Res<Time>,
     mut stats: ResMut<AlsDebugDisplayStats>,
-    mut drawing: ParamSet<(ResMut<GizmoConfigStore>, Gizmos<FootstepLines>, Gizmos<FootstepPoints>)>,
+    mut drawing: ParamSet<(ResMut<GizmoConfigStore>, Gizmos<DebugLines>, Gizmos<DebugPoints>)>,
     players: Query<Entity, With<crate::character_assembly::AlsPlayerCharacter>>,
     views: Query<(&Camera, &GlobalTransform, &als_camera::AlsCharacterCamera), With<Camera3d>>,
 ) {
@@ -399,17 +515,29 @@ fn draw_footstep_traces(
         drawing.p1().line(trace.start, trace.end, linear(0.333333, 0.0, 0.0));
         stats.footstep_trace_lines_drawn += 1;
         if let Some(point) = trace.hit {
-            if let Some((camera, view, _)) = view && let Some((start, end, width)) = footstep_point_segment(point, camera, view) {
-                drawing.p0().config_mut::<FootstepPoints>().0.line.width = width;
-                drawing.p2().line(start, end, linear(1.0, 0.0, 0.0));
-                stats.footstep_hit_points_drawn += 1;
-            }
             if let Some(rotation) = trace.rotation {
                 for (axis, color) in [(Vec3::X, linear(1.0, 0.0, 0.0)), (Vec3::Z, linear(0.0, 1.0, 0.0)), (Vec3::Y, linear(0.0, 0.0, 1.0))] {
                     drawing.p1().line(point, point + rotation * axis * 0.25, color);
                     stats.footstep_axis_lines_drawn += 1;
                 }
             }
+        }
+    }
+    let footprint_points = history.0.iter().filter_map(|trace| trace.hit.map(|point| (point, linear(1.0, 0.0, 0.0), true)));
+    let mantle_points = mantle.0.iter().flat_map(|(created, trace)| {
+        let age = time.elapsed_secs_f64() - created;
+        [
+            (trace.result != MantleProbeResult::ForwardRejected && mantle_part_visible(trace, age, 5.0))
+                .then_some(trace.forward_hit).flatten().map(|point| (point, linear(0.0, 0.75, 1.0), false)),
+            (trace.result == MantleProbeResult::Success && mantle_part_visible(trace, age, 7.5))
+                .then_some(trace.downward_hit).flatten().map(|point| (point, linear(0.75, 0.0, 1.0), false)),
+        ].into_iter().flatten()
+    });
+    for (point, color, footprint) in footprint_points.chain(mantle_points) {
+        if let Some((camera, view, _)) = view && let Some((start, end, width)) = debug_point_segment(point, camera, view) {
+            drawing.p0().config_mut::<DebugPoints>().0.line.width = width;
+            drawing.p2().line(start, end, color);
+            if footprint { stats.footstep_hit_points_drawn += 1; } else { stats.mantle_hit_points_drawn += 1; }
         }
     }
 }
@@ -424,7 +552,7 @@ fn circle_xz(gizmos: &mut Gizmos, location: Vec3, radius: f32, color: Color, sid
 }
 
 fn draw_view_cone(
-    gizmos: &mut Gizmos<FootstepLines>,
+    gizmos: &mut Gizmos<DebugLines>,
     stats: &mut AlsDebugDisplayStats,
     apex: Vec3,
     direction: Vec3,
@@ -479,7 +607,7 @@ fn draw_directional_arrow<C: GizmoConfigGroup>(
 #[allow(clippy::type_complexity)]
 fn draw_character_shapes_system(
     mut stats: ResMut<AlsDebugDisplayStats>,
-    mut lines: Gizmos<FootstepLines>,
+    mut lines: Gizmos<DebugLines>,
     mut arrows: Gizmos<ShapeArrows>,
     mut colliders: Gizmos<PhysicsGizmos>,
     configs: Option<Res<Assets<AlsControlSchemeConfig>>>,
@@ -594,24 +722,95 @@ fn draw_bounds_box_system(
 #[allow(clippy::type_complexity)]
 fn draw_mantle_probes_system(
     mut stats: ResMut<AlsDebugDisplayStats>,
-    mut gizmos: Gizmos,
-    q_character: Query<(Entity, &AlsMantleState, Option<&AlsCharacterDebug>), (With<AlsCharacter>, With<crate::character_assembly::AlsPlayerCharacter>)>,
+    mut lines: Gizmos<DebugLines>,
+    mut colliders: Gizmos<PhysicsGizmos>,
+    history: Res<MantleDebugHistory>,
+    time: Res<Time>,
 ) {
-    if !stats.mantling_active {
-        return;
+    for (created, trace) in &history.0 {
+        let age = time.elapsed_secs_f64() - created;
+        if let (Some(start), Some(end)) = (trace.forward_start, trace.forward_end)
+            && mantle_part_visible(trace, age, 5.0) {
+            draw_capsule_sweep(&mut lines, start, end, trace.trace_radius, trace.forward_half_height, mantle_forward_color(), &mut stats);
+            if trace.result != MantleProbeResult::ForwardRejected && let Some(center) = trace.forward_hit_center {
+                draw_debug_capsule(&mut colliders, center, trace.forward_half_height, trace.trace_radius, sweep_rotation(end - start), linear(0.0, 0.75, 1.0));
+            }
+            stats.mantle_probe_lines_drawn += 1;
+        }
+        if let (Some(start), Some(end)) = (trace.downward_start, trace.downward_end)
+            && mantle_part_visible(trace, age, 7.5) {
+            draw_sphere_sweep(&mut lines, &mut colliders, start, end, trace.trace_radius, mantle_downward_color(), &mut stats);
+            if trace.result == MantleProbeResult::Success && let Some(center) = trace.downward_hit_center {
+                draw_sphere_rings(&mut lines, center, sweep_rotation(end - start), trace.trace_radius, linear(0.75, 0.0, 1.0));
+            }
+            stats.mantle_probe_lines_drawn += 1;
+        }
+        if mantle_part_visible(trace, age, 10.0) {
+            let overlap = match trace.result {
+                MantleProbeResult::TargetBlocked => trace.target_capsule_center.map(|center| (center, trace.target_half_height, trace.target_radius, linear(1.0, 0.0, 0.0))),
+                MantleProbeResult::StartBlocked => trace.start_capsule_center.map(|center| (center, trace.start_half_height, trace.trace_radius, linear(1.0, 0.5, 0.0))),
+                _ => None,
+            };
+            if let Some((center, half_height, radius, color)) = overlap {
+                draw_debug_capsule(&mut colliders, center, half_height, radius, Quat::IDENTITY, color);
+                stats.mantle_overlap_capsules_drawn += 1;
+            }
+        }
     }
-    for (_entity, _state, debug) in q_character.iter() {
-        let Some(trace) = debug.and_then(|d| d.0.mantle_probe) else {
-            continue;
-        };
-        if let (Some(start), Some(end)) = (trace.forward_start, trace.forward_end) {
-            gizmos.line(start, end, mantle_forward_color());
-            stats.mantle_probe_lines_drawn += 1;
+}
+
+fn sweep_rotation(delta: Vec3) -> Quat {
+    let forward = delta.try_normalize().unwrap_or(Vec3::X);
+    let right = forward.cross(Vec3::Y).try_normalize().unwrap_or(Vec3::Z);
+    Quat::from_mat3(&Mat3::from_cols(right, right.cross(forward), -forward))
+}
+
+fn draw_debug_capsule(gizmos: &mut Gizmos<PhysicsGizmos>, center: Vec3, half_height: f32, radius: f32, rotation: Quat, color: Color) {
+    gizmos.draw_collider(&als_core::character::als_character_capsule(half_height.max(radius + 0.01), radius), center, rotation, color);
+}
+
+fn draw_arc<C: GizmoConfigGroup>(gizmos: &mut Gizmos<C>, center: Vec3, x: Vec3, y: Vec3, radius: f32, segments: u32, color: Color) {
+    gizmos.linestrip((0..=segments).map(|index| {
+        let angle = std::f32::consts::TAU * index as f32 / CIRCLE_SIDES as f32;
+        center + radius * (x * angle.cos() + y * angle.sin())
+    }), color);
+}
+
+fn draw_capsule_sweep(gizmos: &mut Gizmos<DebugLines>, start: Vec3, end: Vec3, radius: f32, half_height: f32, color: Color, stats: &mut AlsDebugDisplayStats) {
+    let rotation = sweep_rotation(end - start);
+    let forward = rotation * Vec3::NEG_Z;
+    let right = rotation * Vec3::X;
+    let up = rotation * Vec3::Y;
+    let height = (half_height - radius).max(0.01);
+    for (center, outside) in [(start, -forward), (end, forward)] {
+        for sign in [-1.0, 1.0] {
+            let pole = center + up * height * sign;
+            draw_arc(gizmos, pole, right, outside, radius, CIRCLE_SIDES / 2, color);
+            draw_arc(gizmos, pole, right, up * sign, radius, CIRCLE_SIDES / 2, color);
+            draw_arc(gizmos, pole, outside, up * sign, radius, CIRCLE_SIDES / 4, color);
         }
-        if let (Some(start), Some(end)) = (trace.downward_start, trace.downward_end) {
-            gizmos.line(start, end, mantle_downward_color());
-            stats.mantle_probe_lines_drawn += 1;
+        for axis in [outside, right, -right] {
+            gizmos.line(center + up * height + axis * radius, center - up * height + axis * radius, color);
         }
+    }
+    for sign in [-1.0, 1.0] {
+        gizmos.line(start + up * height * sign + right * radius, end + up * height * sign + right * radius, color);
+        gizmos.line(start + up * height * sign - right * radius, end + up * height * sign - right * radius, color);
+        gizmos.line(start + up * (height + radius) * sign, end + up * (height + radius) * sign, color);
+    }
+    draw_directional_arrow(gizmos, start, end, ARROW_HEAD_M, color, stats);
+}
+
+fn draw_sphere_sweep(lines: &mut Gizmos<DebugLines>, colliders: &mut Gizmos<PhysicsGizmos>, start: Vec3, end: Vec3, radius: f32, color: Color, stats: &mut AlsDebugDisplayStats) {
+    let delta = end - start;
+    let rotation = Quat::from_rotation_arc(Vec3::Y, delta.try_normalize().unwrap_or(Vec3::Y));
+    draw_debug_capsule(colliders, (start + end) * 0.5, delta.length() * 0.5 + radius, radius, rotation, color);
+    draw_directional_arrow(lines, start, end, ARROW_HEAD_M, color, stats);
+}
+
+fn draw_sphere_rings<C: GizmoConfigGroup>(gizmos: &mut Gizmos<C>, center: Vec3, rotation: Quat, radius: f32, color: Color) {
+    for (x, y) in [(Vec3::NEG_Z, Vec3::X), (Vec3::NEG_Z, Vec3::Y), (Vec3::X, Vec3::Y)] {
+        draw_arc(gizmos, center, rotation * x, rotation * y, radius, CIRCLE_SIDES, color);
     }
 }
 
@@ -720,19 +919,7 @@ fn draw_sphere_alternative(
     color: Color,
     stats: &mut AlsDebugDisplayStats,
 ) {
-    let forward = rotation * Vec3::NEG_Z;
-    let right = rotation * Vec3::X;
-    let up = rotation * Vec3::Y;
-    let axes = [(forward, right), (forward, up), (right, up)];
-    for (a, b) in axes {
-        let mut points = Vec::with_capacity(CIRCLE_SIDES as usize + 1);
-        for i in 0..=CIRCLE_SIDES {
-            let angle = (i as f32 / CIRCLE_SIDES as f32) * std::f32::consts::TAU;
-            let dir = a * angle.cos() + b * angle.sin();
-            points.push(location + dir * radius);
-        }
-        gizmos.linestrip(points, color);
-    }
+    draw_sphere_rings(gizmos, location, rotation, radius, color);
     stats.camera_pivot_spheres_drawn += 3;
     stats.cumulative_pivot_spheres += 3;
 }
