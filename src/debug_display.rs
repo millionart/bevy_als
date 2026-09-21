@@ -3,7 +3,9 @@ use als_core::air::AlsAirState;
 use als_core::character::AlsCharacter;
 use als_core::mantle::AlsMantleState;
 use als_core::motion::AlsCharacterDebug;
-use avian3d::prelude::ColliderAabb;
+use avian3d::prelude::{Collider, ColliderAabb, PhysicsGizmos, PhysicsGizmoExt};
+use als_core::{control_scheme::{AlsControlScheme, AlsControlSchemeConfig}, state::Stance};
+use bevy_tnua::TnuaConfig;
 use bevy::math::primitives::Cuboid;
 use bevy::prelude::*;
 use bevy::gizmos::{AppGizmoBuilder, config::{GizmoConfig, GizmoConfigGroup, GizmoConfigStore, GizmoLineConfig}};
@@ -21,9 +23,6 @@ pub const VELOCITY_MIN_LENGTH_M: f32 = 50.0 * UE_CM_TO_M;
 pub const VELOCITY_MAX_LENGTH_M: f32 = 75.0 * UE_CM_TO_M;
 pub const BOUNDS_EXPAND: f32 = 1.1;
 pub const CIRCLE_SIDES: u32 = 16;
-pub const DEFAULT_CAPSULE_HALF_HEIGHT_M: f32 = 90.0 * UE_CM_TO_M;
-pub const DEFAULT_CAPSULE_RADIUS_M: f32 = 30.0 * UE_CM_TO_M;
-pub const PAWN_VIEW_LIFT_STANDING_M: f32 = 64.0 * UE_CM_TO_M;
 
 fn linear(r: f32, g: f32, b: f32) -> Color {
     Color::linear_rgb(r, g, b)
@@ -138,6 +137,9 @@ struct FootstepLines;
 #[derive(Default, Reflect, GizmoConfigGroup)]
 struct FootstepPoints;
 
+#[derive(Default, Reflect, GizmoConfigGroup)]
+struct ShapeArrows;
+
 impl Plugin for AlsDebugDisplayPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AlsDebugDisplayStats>()
@@ -145,6 +147,8 @@ impl Plugin for AlsDebugDisplayPlugin {
             .init_resource::<crate::footprint::FootstepDebugHistory>()
             .insert_gizmo_config(FootstepLines, GizmoConfig { line: GizmoLineConfig { width: 1.0, ..default() }, ..default() })
             .init_gizmo_group::<FootstepPoints>()
+            .insert_gizmo_config(ShapeArrows, GizmoConfig { line: GizmoLineConfig { width: 3.0, ..default() }, ..default() })
+            .insert_gizmo_config(PhysicsGizmos::default(), GizmoConfig { line: GizmoLineConfig { width: 1.0, ..default() }, ..default() })
             .configure_sets(PostUpdate, AlsDebugDisplaySet.after(crate::footprint::FootprintSet)
                 .after(crate::actual_motion::AlsActualMotionSet)
                 .after(bevy::camera::visibility::VisibilitySystems::CheckVisibility))
@@ -208,6 +212,65 @@ mod footstep_tests {
     use crate::{character_assembly::AlsPlayerCharacter, footprint::{FootstepDebugHistory, FootstepDebugTrace}};
 
     #[test]
+    fn shapes_use_current_scaled_collider_eye_height_and_controller_speed() {
+        use als_core::{control_scheme::{AlsControlScheme, AlsControlSchemeConfig}, state::Stance};
+        use avian3d::prelude::Collider;
+        use bevy_tnua::TnuaConfig;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, bevy::gizmos::GizmoPlugin, AlsDebugDisplayPlugin))
+            .init_resource::<Assets<AlsControlSchemeConfig>>().init_resource::<Assets<als_camera::AlsCameraDefinition>>()
+            .insert_resource(crate::show_debug_hud::AlsShowDebugHudState { visible: true, shapes: true, ..default() });
+        let definition: als_camera::AlsCameraDefinition = ron::from_str(include_str!("../assets/params/als_camera.camera_component.ron")).unwrap();
+        let camera = app.world_mut().resource_mut::<Assets<als_camera::AlsCameraDefinition>>().add(definition.clone());
+        let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>().add(AlsControlSchemeConfig::default());
+        let origin = Vec3::new(1.0, 3.0, 2.0);
+        let actor = app.world_mut().spawn((AlsCharacter, AlsPlayerCharacter, GlobalTransform::from_translation(origin),
+            LinearVelocity(Vec3::NEG_Z), AlsInputCommand { move_dir: Vec2::Y, ..default() },
+            crate::actual_motion::AlsActualMotion { world_velocity: Vec3::NEG_Z, horizontal_speed: 1.0, has_input: true, ..default() },
+            als_core::motion::AlsViewYaw(0.0), als_core::motion::AlsRotationResponseState::default(),
+            TnuaConfig::<AlsControlScheme>(config.clone()), als_camera::AlsCameraDefinitionHandle(camera))).id();
+        for (stance, half_height, radius, scale, max_speed) in [
+            (Stance::Standing, 0.9, 0.3, Vec3::ONE, 1.75),
+            (Stance::Crouching, 0.56, 0.3, Vec3::splat(2.0), 2.0),
+            (Stance::Standing, 1.1, 0.4, Vec3::new(0.7, 1.5, 1.2), 3.75),
+            (Stance::Crouching, 0.56, 0.3, Vec3::ONE, 0.0),
+        ] {
+            let mut collider = als_core::character::als_character_capsule(half_height, radius);
+            collider.set_scale(scale, 16);
+            let half_extents = collider.shape_scaled().compute_local_aabb().half_extents();
+            app.world_mut().entity_mut(actor).insert((stance, collider));
+            if max_speed == 0.0 {
+                let mut motion = app.world_mut().get_mut::<crate::actual_motion::AlsActualMotion>(actor).unwrap();
+                motion.horizontal_speed = 0.0;
+                motion.world_velocity = Vec3::ZERO;
+            }
+            app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>().get_mut(&config).unwrap().basis.speed = max_speed;
+            app.update();
+            let assets = app.world().resource::<Assets<bevy::gizmos::GizmoAsset>>();
+            let colored = |color: Color| assets.iter().flat_map(|(_, asset)| {
+                let buffer = asset.buffer();
+                buffer.list_positions.iter().zip(&buffer.list_colors).chain(buffer.strip_positions.iter().zip(&buffer.strip_colors))
+            }).filter(|(point, value)| point.is_finite() && **value == color.to_linear()).map(|(point, _)| *point).collect::<Vec<_>>();
+            let capsule = colored(capsule_wire_color());
+            let min = capsule.iter().copied().fold(Vec3::INFINITY, Vec3::min);
+            let max = capsule.iter().copied().fold(Vec3::NEG_INFINITY, Vec3::max);
+            assert!(min.abs_diff_eq(origin - half_extents, 1e-5) && max.abs_diff_eq(origin + half_extents, 1e-5), "Collider bounds {half_extents:?}, debug bounds {min:?}..{max:?}");
+            let input = colored(input_arrow_color(true));
+            assert!(input[0].abs_diff_eq(origin + Vec3::Y * (0.03 - half_extents.y), 1e-5));
+            assert_eq!(input.len(), 6);
+            assert!((input[2].distance(input[3]) - 0.1).abs() < 1e-5);
+            let velocity = colored(velocity_arrow_color(max_speed != 0.0));
+            assert!(velocity.len() >= 2, "Velocity arrow must remain finite with zero speed and zero maximum speed");
+            assert!((velocity[0].distance(velocity[1]) - if max_speed == 0.0 { 0.75 } else { 0.5 + 0.25 / max_speed }).abs() < 1e-5);
+            let eye_height = if stance == Stance::Crouching { definition.crouching_eye_height } else { definition.standing_eye_height };
+            assert!(colored(Color::linear_rgb(1.0, 0.0, 0.0)).iter().any(|point| point.abs_diff_eq(origin + Vec3::Y * eye_height, 1e-5)));
+            let arrows = assets.iter().find(|(_, asset)| asset.buffer().list_colors.contains(&input_arrow_color(true).to_linear())).unwrap().1;
+            assert_eq!(app.world().resource::<GizmoConfigStore>().get_config_dyn(&arrows.config_typeid()).unwrap().0.line.width, 3.0);
+            assert!(app.world().get::<Collider>(actor).is_some());
+        }
+    }
+
+    #[test]
     fn shapes_and_hud_follow_consumed_world_motion_and_retain_idle_directions() {
         use als_core::{control_scheme::AlsControlScheme, orientation::world_forward_to_yaw, state::*};
         use crate::{actual_motion::AlsActualMotionPlugin, show_debug_hud::{AlsShowDebugHudPlugin, AlsShowDebugHudState}};
@@ -215,12 +278,15 @@ mod footstep_tests {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, bevy::gizmos::GizmoPlugin))
             .add_plugins((AlsActualMotionPlugin, AlsShowDebugHudPlugin, AlsDebugDisplayPlugin))
+            .init_resource::<Assets<AlsControlSchemeConfig>>()
             .init_resource::<ButtonInput<KeyCode>>()
             .insert_resource(AlsShowDebugHudState { visible: true, shapes: true, ..default() });
+        let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>().add(AlsControlSchemeConfig::default());
         let character = app.world_mut().spawn((AlsCharacter, AlsPlayerCharacter, Transform::IDENTITY, GlobalTransform::IDENTITY,
             LinearVelocity::ZERO, als_core::motion::AlsViewYaw(0.0), als_core::view::AlsViewPitch(0.0),
             AlsInputCommand { move_dir: Vec2::Y, ..default() }, AlsInputOverride(AlsInputCommand::default()),
             TnuaController::<AlsControlScheme>::default(), als_core::motion::AlsRotationResponseState::default(),
+            als_core::character::als_character_capsule(0.9, 0.3), TnuaConfig::<AlsControlScheme>(config),
             (LocomotionState::Air, RotationMode::ViewDirection, Stance::Standing, Gait::Running, OverlayState::Default,
                 als_core::transition::AlsStateRequest::default()))).id();
         for direction in [Vec3::NEG_Z, Vec3::X, Vec3::Z, Vec3::NEG_X, Vec3::Y, Vec3::ZERO] {
@@ -231,7 +297,7 @@ mod footstep_tests {
             app.world_mut().get_mut::<als_core::motion::AlsViewYaw>(character).unwrap().0 = yaw;
             app.update();
             let assets = app.world().resource::<Assets<bevy::gizmos::GizmoAsset>>();
-            let buffer = assets.iter().find(|(_, asset)| asset.config_typeid() == std::any::TypeId::of::<bevy::gizmos::config::DefaultGizmoConfigGroup>()).unwrap().1.buffer();
+            let buffer = assets.iter().find(|(_, asset)| asset.config_typeid() == std::any::TypeId::of::<ShapeArrows>()).unwrap().1.buffer();
             for color in [input_arrow_color(moving), velocity_arrow_color(moving)] {
                 let index = buffer.list_colors.iter().position(|value| *value == color.to_linear()).unwrap();
                 let actual = (buffer.list_positions[index + 1] - buffer.list_positions[index]).normalize();
@@ -252,6 +318,8 @@ mod footstep_tests {
         app.add_plugins((MinimalPlugins, AssetPlugin::default()))
             .add_plugins(bevy::mesh::MeshPlugin)
             .add_plugins((bevy::gizmos::GizmoPlugin, AlsDebugDisplayPlugin));
+        app.init_resource::<Assets<AlsControlSchemeConfig>>();
+        let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>().add(AlsControlSchemeConfig::default());
         let player = app.world_mut().spawn(AlsPlayerCharacter).id();
         let mut camera = Camera { viewport: Some(bevy::camera::Viewport { physical_size: UVec2::new(800, 600), ..default() }), ..default() };
         camera.computed.clip_from_view = Mat4::perspective_infinite_reverse_rh(std::f32::consts::FRAC_PI_2, 4.0 / 3.0, 0.1);
@@ -294,6 +362,7 @@ mod footstep_tests {
         assert!((configs.config::<FootstepPoints>().0.line.width - 24.0).abs() < 1e-4);
         app.world_mut().entity_mut(player).insert((AlsCharacter, Transform::default(), GlobalTransform::default(),
             crate::actual_motion::AlsActualMotion::default(),
+            als_core::character::als_character_capsule(0.9, 0.3), Stance::Standing, TnuaConfig::<AlsControlScheme>(config),
             LinearVelocity::ZERO, als_core::motion::AlsViewYaw(0.0), als_core::view::AlsViewPitch(0.0), AlsInputCommand::default(),
             als_core::motion::AlsRotationResponseState { smooth_target_yaw: std::f32::consts::FRAC_PI_2, ..default() }));
         let mut selected = None;
@@ -313,7 +382,7 @@ mod footstep_tests {
         assert_eq!(stats.arrows_drawn, 3, "Smooth target yaw must draw from the current rotation response");
         assert_eq!((stats.camera_pivot_spheres_drawn, stats.camera_trace_lines_drawn), (9, 1));
         let assets = app.world().resource::<Assets<bevy::gizmos::GizmoAsset>>();
-        let standard = assets.iter().find(|(_, asset)| asset.config_typeid() == std::any::TypeId::of::<bevy::gizmos::config::DefaultGizmoConfigGroup>()).unwrap().1.buffer();
+        let standard = assets.iter().find(|(_, asset)| asset.config_typeid() == std::any::TypeId::of::<ShapeArrows>()).unwrap().1.buffer();
         assert!(standard.list_positions.iter().any(|point| point.abs_diff_eq(Vec3::new(-0.5, -0.84, 0.0), 1e-6)));
     }
 }
@@ -355,7 +424,7 @@ fn circle_xz(gizmos: &mut Gizmos, location: Vec3, radius: f32, color: Color, sid
 }
 
 fn draw_view_cone(
-    gizmos: &mut Gizmos,
+    gizmos: &mut Gizmos<FootstepLines>,
     stats: &mut AlsDebugDisplayStats,
     apex: Vec3,
     direction: Vec3,
@@ -375,16 +444,15 @@ fn draw_view_cone(
         let offset = Vec3::new(angle.cos() * ring_radius, angle.sin() * ring_radius, 0.0);
         points.push(center + basis * offset);
     }
-    points.push(apex);
-    gizmos.linestrip(points.clone(), color);
+    gizmos.linestrip(points.iter().copied(), color);
     for point in &points[..CONE_SEGMENTS as usize] {
         gizmos.line(apex, *point, color);
     }
     stats.cone_segments_drawn += CONE_SEGMENTS + CONE_SEGMENTS;
 }
 
-fn draw_directional_arrow(
-    gizmos: &mut Gizmos,
+fn draw_directional_arrow<C: GizmoConfigGroup>(
+    gizmos: &mut Gizmos<C>,
     start: Vec3,
     end: Vec3,
     head_size: f32,
@@ -396,13 +464,14 @@ fn draw_directional_arrow(
     let length = dir.length();
     if length > 1e-5 {
         let forward = dir / length;
-        let side = Vec3::Y.cross(forward).normalize_or_zero();
-        let back = end - forward * head_size * 0.35;
-        let half = head_size * 0.25;
-        gizmos.line(end, back + side * half, color);
-        gizmos.line(end, back - side * half, color);
-        gizmos.line(end, back + Vec3::Y * half, color);
-        gizmos.line(end, back - Vec3::Y * half, color);
+        let mut side = forward.cross(Vec3::Y);
+        if (side.length_squared() - 1.0).abs() >= 0.01 {
+            let up = if forward.y.abs() > forward.x.abs() && forward.y.abs() > forward.z.abs() { Vec3::X } else { Vec3::Y };
+            side = (up - forward * up.dot(forward)).normalize_or_zero().cross(forward);
+        }
+        let extent = (head_size / UE_CM_TO_M).sqrt() * UE_CM_TO_M;
+        gizmos.line(end, end + (side - forward) * extent, color);
+        gizmos.line(end, end - (side + forward) * extent, color);
     }
     stats.arrows_drawn += 1;
 }
@@ -410,7 +479,11 @@ fn draw_directional_arrow(
 #[allow(clippy::type_complexity)]
 fn draw_character_shapes_system(
     mut stats: ResMut<AlsDebugDisplayStats>,
-    mut gizmos: Gizmos,
+    mut lines: Gizmos<FootstepLines>,
+    mut arrows: Gizmos<ShapeArrows>,
+    mut colliders: Gizmos<PhysicsGizmos>,
+    configs: Option<Res<Assets<AlsControlSchemeConfig>>>,
+    definitions: Option<Res<Assets<als_camera::AlsCameraDefinition>>>,
     q_character: Query<
         (
             &GlobalTransform,
@@ -418,6 +491,10 @@ fn draw_character_shapes_system(
             &als_core::motion::AlsViewYaw,
             Option<&als_core::view::AlsViewPitch>,
             Option<&als_core::motion::AlsRotationResponseState>,
+            &Collider,
+            &Stance,
+            Option<&TnuaConfig<AlsControlScheme>>,
+            Option<&als_camera::AlsCameraDefinitionHandle>,
         ),
         (With<AlsCharacter>, With<crate::character_assembly::AlsPlayerCharacter>),
     >,
@@ -425,22 +502,26 @@ fn draw_character_shapes_system(
     if !stats.shapes_active {
         return;
     }
-    for (transform, motion, view_yaw, view_pitch, response) in q_character.iter() {
+    for (transform, motion, view_yaw, view_pitch, response, collider, stance, config, definition) in q_character.iter() {
         let origin = transform.translation();
-        let feet_location = origin - Vec3::Y * DEFAULT_CAPSULE_HALF_HEIGHT_M;
+        let half_height = collider.shape_scaled().compute_local_aabb().half_extents().y;
+        let feet_location = origin - Vec3::Y * half_height;
         let pitch = view_pitch.map(|s| s.0).unwrap_or(0.0);
         let view_rotation = Quat::from_euler(EulerRot::YXZ, view_yaw.0, pitch, 0.0);
 
-        draw_view_cone(
-            &mut gizmos,
-            &mut stats,
-            origin + Vec3::Y * PAWN_VIEW_LIFT_STANDING_M,
-            view_rotation * Vec3::NEG_Z,
-            linear(1.0, 0.0, 0.0),
-        );
+        if let Some(definition) = definition.and_then(|handle| definitions.as_ref()?.get(&handle.0)) {
+            let eye_height = if *stance == Stance::Crouching { definition.crouching_eye_height } else { definition.standing_eye_height };
+            draw_view_cone(
+                &mut lines,
+                &mut stats,
+                origin + Vec3::Y * eye_height,
+                view_rotation * Vec3::NEG_Z,
+                linear(1.0, 0.0, 0.0),
+            );
+        }
 
         draw_directional_arrow(
-            &mut gizmos,
+            &mut arrows,
             feet_location + Vec3::Y * INPUT_ARROW_LIFT_M,
             feet_location
                 + Vec3::Y * INPUT_ARROW_LIFT_M
@@ -452,22 +533,24 @@ fn draw_character_shapes_system(
 
         let hspeed = motion.horizontal_speed;
         let has_velocity = als_core::motion::locomotion_movement_flags(motion.has_input, hspeed).0;
-        let max_reference_speed_mps = 6.5;
-        let velocity_arrow_length = VELOCITY_MIN_LENGTH_M
-            + (VELOCITY_MAX_LENGTH_M - VELOCITY_MIN_LENGTH_M)
-                * (hspeed / max_reference_speed_mps).clamp(0.0, 1.0);
-        draw_directional_arrow(
-            &mut gizmos,
-            feet_location,
-            feet_location + als_core::orientation::yaw_to_world_forward(motion.velocity_yaw_degrees.to_radians()) * velocity_arrow_length,
-            ARROW_HEAD_M,
-            velocity_arrow_color(has_velocity),
-            &mut stats,
-        );
+        if let Some(config) = config.and_then(|handle| configs.as_ref()?.get(&handle.0)) {
+            let max_speed = config.basis.speed;
+            let speed_ratio = if max_speed.abs() <= 1e-10 { if hspeed >= max_speed { 1.0 } else { 0.0 } } else { (hspeed / max_speed).clamp(0.0, 1.0) };
+            let velocity_arrow_length = VELOCITY_MIN_LENGTH_M
+                + (VELOCITY_MAX_LENGTH_M - VELOCITY_MIN_LENGTH_M) * speed_ratio;
+            draw_directional_arrow(
+                &mut arrows,
+                feet_location,
+                feet_location + als_core::orientation::yaw_to_world_forward(motion.velocity_yaw_degrees.to_radians()) * velocity_arrow_length,
+                ARROW_HEAD_M,
+                velocity_arrow_color(has_velocity),
+                &mut stats,
+            );
+        }
 
         if let Some(target_yaw) = response.map(|response| response.smooth_target_yaw) {
             draw_directional_arrow(
-                &mut gizmos,
+                &mut arrows,
                 feet_location + Vec3::Y * SMOOTH_ARROW_LIFT_M,
                 feet_location
                     + Vec3::Y * SMOOTH_ARROW_LIFT_M
@@ -478,28 +561,8 @@ fn draw_character_shapes_system(
             );
         }
 
-        circle_xz(
-            &mut gizmos,
-            origin,
-            DEFAULT_CAPSULE_RADIUS_M,
-            capsule_wire_color(),
-            CIRCLE_SIDES,
-        );
-        circle_xz(
-            &mut gizmos,
-            feet_location + Vec3::Y * DEFAULT_CAPSULE_RADIUS_M,
-            DEFAULT_CAPSULE_RADIUS_M,
-            capsule_wire_color(),
-            CIRCLE_SIDES,
-        );
-        circle_xz(
-            &mut gizmos,
-            origin + Vec3::Y * (DEFAULT_CAPSULE_HALF_HEIGHT_M - DEFAULT_CAPSULE_RADIUS_M),
-            DEFAULT_CAPSULE_RADIUS_M,
-            capsule_wire_color(),
-            CIRCLE_SIDES,
-        );
-        stats.capsule_wireframes_drawn += CIRCLE_SIDES * 3;
+        colliders.draw_collider(collider, origin, transform.rotation(), capsule_wire_color());
+        stats.capsule_wireframes_drawn += 1;
     }
 }
 

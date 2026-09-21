@@ -46,8 +46,13 @@
   - 01真实入口前2026-09-21 14:36：22项最终范围回归83.488秒PASS，含微小模拟输入、静止保留/初值、移动基座速度、完整方向、覆盖输入优先级和三个Actor朝向下的ControlRig视图偏移；target_game/play构建76.156秒PASS。Interface新增4个运动字段，逐帧67值并拒绝晚期失败。现在按startup→interface→control_rig运行公共功能Gate，CaptureCount0/FunctionalOnly。
   - 01结束边界闭环/重跑前2026-09-21 14:44：两个Finish反例83.381秒均FAIL，确认实际Rig证据丢失和视图驱动提前撤销；仅把既有两条夹具路径延续到Finish，不加状态/过渡/阈值。31项含实际Rig/FootIK回归85.718秒PASS，同入口补建76.044秒PASS；开始startup→control_rig复验，原Interface67值数据路径未变化。
   - 01完成2026-09-21 14:45：补建后的startup15.528秒、control_rig13.380秒公共功能Gate均PASS，无fault/graph error/temporal异常；此前Interface741帧×67值全通过。31项范围回归及两类方向/两个Finish边界反例闭合。开始14:21、预估15:16、实际14:45、偏差−31分钟，恢复BF121.03a/03勾选；不宣称动态Shapes或Mantling已完成。
-- [ ] BF122.02 动态Shapes几何：开始2026-09-21 14:45、预估结束2026-09-21 15:35，依赖01已通过。依据为fresh源三项组件读取与既有Gizmo绘制测试、原生胶囊/箭头能力及约80秒测试/76秒构建，窗口50分钟。读取当前Collider、当前控制器速度和源眼高，补完整胶囊；验证蹲姿、缩放、步态及实际Gizmo顶点。
-- [ ] BF122.03 Mantling碰撞调试：依赖02；进入时按源分支/留存拆分估时。记录实际扫掠形状/命中中心和两种失败重叠，按5/7.5/10秒及失败显示设置绘制，覆盖成功/失败/开关/过期。
+- [x] BF122.02 动态Shapes几何：开始2026-09-21 14:45、预估结束2026-09-21 15:35，依赖01已通过。依据为fresh源三项组件读取与既有Gizmo绘制测试、原生胶囊/箭头能力及约80秒测试/76秒构建，窗口50分钟。读取当前Collider、当前控制器速度和源眼高，补完整胶囊；验证蹲姿、缩放、步态及实际Gizmo顶点。
+  - 02静态闭环2026-09-21 14:58：fresh角色CDO原生读取75.039秒，BaseEyeHeight64cm/CrouchedEyeHeight44.799999cm，与APawn.GetPawnViewLocation不乘scale合同一致。原三环反例85.635秒FAIL：实际半高0.9，绘制仅0.6；复用Avian PhysicsGizmoExt绘制当前shape_scaled完整轮廓，涵盖非均匀缩放凸体；脚底用当前Collider半高，速度箭头读当前Tnua配置。fresh LineBatch.DrawDirectionalArrow是sqrt(ArrowSize)厘米、两个箭头边，旧四边缩放错误一并修复，箭头独立原生3px配置，视锥去掉重复线。三项86.217秒PASS；补零速度/零上限边界，正在消融线宽合并及退化区间分支，再范围回归/同入口构建与Interface验收。
+  - 02真实入口前2026-09-21 15:05：独立线宽合并86.198秒、零区间分支移除85.363秒消融均正确FAIL并恢复；退化区间遵循fresh FMath.GetRangePct，0/0仍产生75cm有效速度箭头。28项含脚步/HUD/实际运动回归85.764秒PASS，target_game/play76.110秒构建PASS。开始公共startup→interface，使用原场景、CaptureCount0/FunctionalOnly。
+  - 02完成2026-09-21 15:06：startup15.762秒、interface17.558秒公共功能Gate均PASS，原场景新原生Collider线框/3px箭头注册与绘制正常；28项范围回归及两个消融闭合。开始14:45、预估15:35、实际15:06、偏差−29分钟；直接复用Avian当前shape_scaled，未增加碰撞镜像状态或自制胶囊网格。
+- [ ] BF122.03 Mantling碰撞调试：依赖02已通过；拆分为数据合同与绘制/真实验收。记录实际扫掠形状/命中中心和两种失败重叠，按5/7.5/10秒及失败显示设置绘制，覆盖成功/失败/开关/过期。
+  - [ ] BF122.03a 实际探测数据合同：开始2026-09-21 15:06、预估结束2026-09-21 15:46。fresh StartMantling/DebugUtility及TraceSettings源默认值，补实际尺寸、命中中心、失败分支与留存设置；先核心最小失败反例和完整分支数据合同，再范围回归与独立提交。依据为现有detect_mantle、原生角色记录/reader、五个返回分支及约160秒跨crate编译，窗口40分钟。
+  - [ ] BF122.03b 完整绘制与留存：依赖03a；进入时估时。使用现有Gizmos/Changed组件捕获真实探测，按分支绘制扫掠/命中/失败重叠并验证5/7.5/10秒；含显示开关、单帧失败及原Playground入口。
 - [ ] BF122.04 同类扫掠消费者与最终入口：依赖03；进入时登记估时。fresh核对使用同一源DebugUtility的GroundPrediction与Camera trace，确认同类缺口后复用绘制能力修复，完成匹配回归和真实Playground功能验收。
 
 ## BF121 脚印渲染生命周期、验收与 Debug/HUD 对标
