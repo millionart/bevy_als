@@ -343,7 +343,9 @@ impl CharacterSnapshot {
         let input_yaw_angle = motion.map(|motion| motion.input_yaw_degrees);
         let horizontal_speed = motion.map(|motion| motion.horizontal_speed);
         let has_velocity = motion.is_some_and(|motion| als_core::motion::locomotion_movement_flags(motion.has_input, motion.horizontal_speed).0);
-        let velocity_direction = motion.map(|motion| motion.world_velocity.normalize_or_zero());
+        let velocity_direction = motion.map(|motion| if motion.world_velocity.length_squared() < 1e-12 {
+            Vec3::ZERO
+        } else { motion.world_velocity.normalize_or_zero() });
         let velocity_yaw_angle = motion.map(|motion| motion.velocity_yaw_degrees);
         Self {
             first_person,
@@ -482,7 +484,7 @@ pub fn build_state_body(
 pub fn build_shapes_body(snapshot: &CharacterSnapshot) -> Vec<DebugRow> {
     let rotation_value = snapshot
         .view_rotation_deg
-        .map(|(roll, pitch, yaw)| format!("R: {roll:.2} P: {pitch:.2} Y: {yaw:.2}"))
+        .map(|(roll, pitch, yaw)| format!("R: {:.2}P: {pitch:.2}Y: {:.2}", if roll == 0.0 { 0.0 } else { -roll }, source_heading(yaw)))
         .unwrap_or_else(|| NA_VALUE.into());
     let input_color = if snapshot.has_input {
         orange()
@@ -509,7 +511,7 @@ pub fn build_shapes_body(snapshot: &CharacterSnapshot) -> Vec<DebugRow> {
             name_to_display_string("InputYawAngle", false),
             snapshot
                 .input_yaw_angle
-                .map(|v| format!("{v:.2}"))
+                .map(|v| format!("{:.2}", source_heading(v)))
                 .unwrap_or_else(|| NA_VALUE.into()),
             input_color,
             LABEL_WIDTH_STATE_PX,
@@ -518,7 +520,7 @@ pub fn build_shapes_body(snapshot: &CharacterSnapshot) -> Vec<DebugRow> {
             name_to_display_string("Speed", false),
             snapshot
                 .speed
-                .map(|v| format!("{v:.2}"))
+                .map(|v| format!("{:.2}", v * 100.0))
                 .unwrap_or_else(|| NA_VALUE.into()),
             speed_color,
             LABEL_WIDTH_STATE_PX,
@@ -533,14 +535,14 @@ pub fn build_shapes_body(snapshot: &CharacterSnapshot) -> Vec<DebugRow> {
             name_to_display_string("VelocityYawAngle", false),
             snapshot
                 .velocity_yaw_angle
-                .map(|v| format!("{v:.2}"))
+                .map(|v| format!("{:.2}", source_heading(v)))
                 .unwrap_or_else(|| NA_VALUE.into()),
             speed_color,
             LABEL_WIDTH_STATE_PX,
         ),
         DebugRow::pair(
             name_to_display_string("SmoothTargetYawAngle", false),
-            snapshot.smooth_target_yaw_angle.map(|value| format!("{value:.2}")).unwrap_or_else(|| NA_VALUE.into()),
+            snapshot.smooth_target_yaw_angle.map(|value| format!("{:.2}", source_heading(value))).unwrap_or_else(|| NA_VALUE.into()),
             cyan(),
             LABEL_WIDTH_STATE_PX,
         ),
@@ -580,15 +582,15 @@ pub fn build_curves_body(curves: &[(String, f32)], use_abs: bool) -> Vec<DebugRo
 pub fn build_camera_shapes_body(camera: &CameraSnapshot) -> Vec<DebugRow> {
     let pivot_value = camera
         .pivot_target_location
-        .map(format_xyz)
+        .map(|value| format_xyz(value * 100.0))
         .unwrap_or_else(|| NA_VALUE.into());
     let pivot_lag_value = camera
         .pivot_lag_location
-        .map(format_xyz)
+        .map(|value| format_xyz(value * 100.0))
         .unwrap_or_else(|| NA_VALUE.into());
     let pivot_location_value = camera
         .pivot_location
-        .map(format_xyz)
+        .map(|value| format_xyz(value * 100.0))
         .unwrap_or_else(|| NA_VALUE.into());
     let field_of_view_value = camera
         .field_of_view_deg
@@ -641,7 +643,11 @@ pub fn build_camera_traces_body() -> Vec<DebugRow> {
 }
 
 fn format_xyz(value: Vec3) -> String {
-    format!("X: {:.2} Y: {:.2} Z: {:.2}", value.x, value.y, value.z)
+    format!("X: {:.2}Y: {:.2}Z: {:.2}", value.x, value.z, value.y)
+}
+
+fn source_heading(value: f32) -> f32 {
+    als_core::turn_in_place::wrap_angle_degrees(-90.0 - value)
 }
 
 fn append_section(column: &mut DebugColumn, y: &mut f32, category: DebugCategory, active: bool, rows: Vec<DebugRow>) {
@@ -1344,7 +1350,7 @@ mod tests {
         let rendered = texts(app.world_mut());
         assert!(app.world_mut().query::<(&Name, &Text)>().iter(app.world())
             .any(|(name, text)| name.as_str() == "Desired Aiming" && text.0 == "False"));
-        for expected in ["Crouching", "70.00", "53.00", "2.25", "0.73", "R: 0.00 P: -15.00 Y: 40.00"] {
+        for expected in ["Crouching", "-160.00", "53.00", "2.25", "0.73", "R: 0.00P: -15.00Y: -130.00"] {
             assert!(rendered.iter().any(|text| text == expected), "Missing current value {expected}: {rendered:?}");
         }
         let metadata: serde_json::Value = serde_json::from_str(include_str!("../assets/ui/als_character_curves.runtime.json")).unwrap();
@@ -1423,6 +1429,29 @@ mod tests {
             "None",
         ] {
             assert!(joined.contains(expected), "missing {expected} in {joined}");
+        }
+    }
+
+    #[test]
+    fn shape_values_use_source_axes_centimeters_and_heading_basis() {
+        let mut snapshot = sample_snapshot();
+        snapshot.view_rotation_deg = Some((0.0, 25.0, 0.0));
+        snapshot.input_yaw_angle = Some(0.0);
+        snapshot.velocity_yaw_angle = Some(-90.0);
+        snapshot.smooth_target_yaw_angle = Some(90.0);
+        let rows = build_shapes_body(&snapshot);
+        assert_eq!(rows[0].value, "R: 0.00P: 25.00Y: -90.00");
+        assert_eq!(rows[1].value, "-90.00");
+        assert_eq!(rows[2].value, "500.00");
+        assert_eq!(rows[3].value, "X: 0.60Y: -0.80Z: 0.00");
+        assert_eq!(rows[4].value, "0.00");
+        assert_eq!(rows[5].value, "180.00");
+        for speed in [0.0, 0.5e-6, 2.0e-6] {
+            let motion = crate::actual_motion::AlsActualMotion { world_velocity: Vec3::Y * speed, ..default() };
+            let snapshot = CharacterSnapshot::from_components(LocomotionState::Grounded, RotationMode::ViewDirection,
+                Stance::Standing, Gait::Running, Gait::Running, OverlayState::Default, RotationMode::ViewDirection,
+                Stance::Standing, false, Some(&motion), false, AlsNotifyLocomotionAction::None);
+            assert_eq!(snapshot.velocity_direction, Some(if speed < 1e-6 { Vec3::ZERO } else { Vec3::Y }));
         }
     }
 
@@ -1604,8 +1633,8 @@ mod tests {
             ..default()
         };
         let rows = build_camera_shapes_body(&camera);
-        assert_eq!(rows[1].value, "X: 4.00 Y: 5.00 Z: 6.00");
-        assert_eq!(rows[2].value, "X: 7.00 Y: 8.00 Z: 9.00");
+        assert_eq!(rows[1].value, "X: 400.00Y: 600.00Z: 500.00");
+        assert_eq!(rows[2].value, "X: 700.00Y: 900.00Z: 800.00");
         assert_eq!(rows[3].value, "102.00");
         assert_eq!(rows[4].value, "true");
     }

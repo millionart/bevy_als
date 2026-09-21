@@ -417,6 +417,32 @@ mod footstep_tests {
     }
 
     #[test]
+    fn capsule_and_oblique_cone_match_source_line_batch_geometry() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, bevy::gizmos::GizmoPlugin, AlsDebugDisplayPlugin))
+            .init_resource::<Assets<AlsControlSchemeConfig>>();
+        app.add_systems(Update, |mut lines: Gizmos<DebugLines>, mut capsules: Gizmos<PhysicsGizmos>, mut stats: ResMut<AlsDebugDisplayStats>| {
+            draw_view_cone(&mut lines, &mut stats, Vec3::ZERO, Vec3::new(0.3, 0.4, -0.7).normalize(), Color::WHITE);
+            draw_debug_capsule(&mut capsules, Vec3::ZERO, 0.9, 0.3, Quat::IDENTITY, Color::WHITE);
+        });
+        app.update();
+        let assets = app.world().resource::<Assets<bevy::gizmos::GizmoAsset>>();
+        let capsule = assets.iter().find(|(_, asset)| asset.config_typeid() == std::any::TypeId::of::<PhysicsGizmos>()).unwrap().1.buffer();
+        let segments = capsule.list_positions.len() / 2 + capsule.strip_positions.windows(2)
+            .filter(|pair| pair.iter().all(|point| point.is_finite())).count();
+        assert_eq!(segments, 68);
+        let cone = assets.iter().find(|(_, asset)| asset.config_typeid() == std::any::TypeId::of::<DebugLines>()).unwrap().1.buffer();
+        let direction = Vec3::new(0.3, 0.4, -0.7).normalize();
+        let up = (Vec3::Y - direction * direction.y).normalize();
+        for index in 0..8 {
+            let angle = index as f32 * std::f32::consts::FRAC_PI_4;
+            let point = direction * 15.0f32.to_radians().cos()
+                + (up * angle.cos() + direction.cross(up) * angle.sin()) * 15.0f32.to_radians().sin();
+            assert!(cone.list_positions.iter().chain(&cone.strip_positions).any(|actual| actual.abs_diff_eq(point, 1e-5)));
+        }
+    }
+
+    #[test]
     fn mesh_bounds_use_current_shapes_and_exclude_source_root_body() {
         use bevy::ecs::system::RunSystemOnce;
         use bevy_animation_graph::core::ragdoll::{definition::{Collider as RagdollCollider, ColliderLabel}, spawning::SpawnedRagdoll};
@@ -557,9 +583,11 @@ mod footstep_tests {
             }
             let values: std::collections::HashMap<_, _> = app.world_mut().query::<(&Name, &Text)>().iter(app.world())
                 .map(|(name, text)| (name.as_str().to_owned(), text.0.clone())).collect();
-            assert_eq!(values["Input Yaw Angle"], format!("{:.2}", yaw.to_degrees()));
-            assert_eq!(values["Velocity Yaw Angle"], format!("{:.2}", yaw.to_degrees()));
-            assert_eq!(values["Velocity Direction"], format!("X: {:.2} Y: {:.2} Z: {:.2}", direction.x, direction.y, direction.z));
+            let heading = if moving { direction } else { Vec3::NEG_X };
+            let source_yaw = als_core::turn_in_place::wrap_angle_degrees(heading.z.atan2(heading.x).to_degrees());
+            assert_eq!(values["Input Yaw Angle"], format!("{source_yaw:.2}"));
+            assert_eq!(values["Velocity Yaw Angle"], format!("{source_yaw:.2}"));
+            assert_eq!(values["Velocity Direction"], format!("X: {:.2}Y: {:.2}Z: {:.2}", direction.x, direction.z, direction.y));
         }
     }
 
@@ -706,12 +734,13 @@ fn draw_view_cone(
     let ring_distance = CONE_LENGTH_M * half_angle_rad.cos();
     let ring_radius = CONE_LENGTH_M * half_angle_rad.sin();
     let center = apex + dir * ring_distance;
-    let basis = Quat::from_rotation_arc(Vec3::NEG_Z, *dir);
+    let axis = if dir.y.abs() > dir.x.abs() && dir.y.abs() > dir.z.abs() { Vec3::X } else { Vec3::Y };
+    let x = (axis - *dir * dir.dot(axis)).normalize();
+    let y = dir.cross(x);
     let mut points = Vec::with_capacity(CONE_SEGMENTS as usize + 2);
     for i in 0..=CONE_SEGMENTS {
         let angle = (i as f32 / CONE_SEGMENTS as f32) * std::f32::consts::TAU;
-        let offset = Vec3::new(angle.cos() * ring_radius, angle.sin() * ring_radius, 0.0);
-        points.push(center + basis * offset);
+        points.push(center + (x * angle.cos() + y * angle.sin()) * ring_radius);
     }
     gizmos.linestrip(points.iter().copied(), color);
     for point in &points[..CONE_SEGMENTS as usize] {
@@ -830,7 +859,14 @@ fn draw_character_shapes_system(
             );
         }
 
-        colliders.draw_collider(collider, origin, transform.rotation(), capsule_wire_color());
+        if let Some(capsule) = collider.shape_scaled().as_capsule() {
+            let delta = capsule.segment.b - capsule.segment.a;
+            let rotation = transform.rotation() * Quat::from_rotation_arc(Vec3::Y, delta.try_normalize().unwrap_or(Vec3::Y));
+            let center = origin + transform.rotation() * ((capsule.segment.a + capsule.segment.b) * 0.5);
+            draw_debug_capsule(&mut colliders, center, delta.length() * 0.5 + capsule.radius, capsule.radius, rotation, capsule_wire_color());
+        } else {
+            colliders.draw_collider(collider, origin, transform.rotation(), capsule_wire_color());
+        }
         stats.capsule_wireframes_drawn += 1;
     }
 }
@@ -933,7 +969,18 @@ fn sweep_rotation(delta: Vec3) -> Quat {
 }
 
 fn draw_debug_capsule(gizmos: &mut Gizmos<PhysicsGizmos>, center: Vec3, half_height: f32, radius: f32, rotation: Quat, color: Color) {
-    gizmos.draw_collider(&als_core::character::als_character_capsule(half_height.max(radius + 0.01), radius), center, rotation, color);
+    let x = rotation * Vec3::X;
+    let y = rotation * Vec3::Z;
+    let z = rotation * Vec3::Y;
+    let half_axis = (half_height - radius).max(UE_CM_TO_M);
+    let top = center + z * half_axis;
+    let bottom = center - z * half_axis;
+    for origin in [top, bottom] { draw_arc(gizmos, origin, x, y, radius, CIRCLE_SIDES, color); }
+    for axis in [x, y] {
+        draw_arc(gizmos, top, axis, z, radius, CIRCLE_SIDES / 2, color);
+        draw_arc(gizmos, bottom, axis, -z, radius, CIRCLE_SIDES / 2, color);
+        for sign in [-1.0, 1.0] { gizmos.line(top + axis * radius * sign, bottom + axis * radius * sign, color); }
+    }
 }
 
 fn draw_arc<C: GizmoConfigGroup>(gizmos: &mut Gizmos<C>, center: Vec3, x: Vec3, y: Vec3, radius: f32, segments: u32, color: Color) {

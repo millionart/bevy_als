@@ -142,3 +142,54 @@ Shift+Two → ShowDebug Als.State ⇒ 公共输入树 / DebugCategory::State
 修复与验收：DesiredStance/DesiredRotationMode改读已有持久组件，ViewMode改读角色标记，删除角色布局的相机参数与临时请求回推。25项回归通过，包含期望/实际不同、待处理请求、自定义Tag和无渲染相机反例。Interface24.759秒功能通过，11项State行全部加入数据检查（总计78值），19种按键状态与既有布局/菜单均通过，无运行守卫异常。未改变角色行为。
 
 </details>
+
+<details>
+<summary>Shift+3 — Als.Shapes：六行数值、视锥、三箭头与胶囊</summary>
+
+```text
+Shift+Three → ShowDebug Als.Shapes ⇒ 公共输入树 / DebugCategory::Shapes
+├─ Rotation / 红色视锥
+│  ├─ ViewState.Rotation ⇒ AlsViewYaw / AlsViewPitch（角色视线）
+│  ├─ GetPawnViewLocation ⇒ 当前Actor位置 + 当前姿态眼高
+│  │  └─ 本次B_Als_Character：站立64cm / 蹲下44.799999cm
+│  └─ DrawDebugCone ⇒ draw_view_cone
+│     ├─ 长100cm、15°、8边；末环轴向距离cos(15°)、半径sin(15°)
+│     ├─ FindBestAxisVectors：投影世界上轴，近竖直时改用X轴
+│     └─ 8辐条+8环边，线宽1，当前帧
+├─ InputYawAngle / 橙色箭头
+│  ├─ CurrentAcceleration/MaxAcceleration → SetInputDirection.GetSafeNormal
+│  │  ⇒ Tnua实际消费的世界desired_motion → AlsActualMotion
+│  ├─ 有输入时更新方向；无输入保留上次方向，初值来自Actor朝向
+│  └─ feet+3cm起点，长50cm；有输入(1,.5,0)，无输入(.5,.25,0)
+├─ Speed / Velocity Direction / VelocityYawAngle / 紫色箭头
+│  ├─ RefreshLocomotion.Velocity ⇒ 实际物理速度及移动基座语义
+│  ├─ 水平长度Speed；>=1cm/s有速度，否则保留上次水平角
+│  ├─ 显示完整3D单位方向；GetSafeNormal平方阈值1e−8cm² ⇒ 1e−12m²
+│  └─ feet起点；GetMaxSpeed ⇒ 当前Tnua配置speed
+│     └─ clamp(speed/maxSpeed)映射50～75cm；有速度(.75,0,1)，无速度(.375,0,.5)
+├─ SmoothTargetYawAngle / 青色箭头
+│  └─ 实际旋转响应状态 ⇒ AlsRotationResponseState.smooth_target_yaw
+│     └─ feet+6cm起点，长50cm，颜色(0,.75,1)
+├─ 全部箭头 → LineBatch.DrawDirectionalArrow ⇒ draw_directional_arrow
+│  └─ 线宽3；ArrowSize=50cm，箭头两翼偏移sqrt(50)cm，不能直接把50cm作为翼长
+├─ 绿色角色胶囊
+│  ├─ GetScaledCapsuleHalfHeight/Radius + ActorTransform ⇒ 当前scaled Collider
+│  └─ LineBatch.DrawCapsule ⇒ draw_debug_capsule
+│     ├─ HalfAxis=max(HalfHeight−Radius,1cm)
+│     └─ 两个16边圆 + 四个8边半圆 + 四条连接线 = 68线，线宽1
+└─ 调度、空间与关闭
+   ├─ 读取当前所选debug目标；PostUpdate在实际运动/物理/最终变换之后
+   ├─ 世界图元仍使用Bevy米制坐标；显示采用源坐标和单位
+   │  ├─ 向量：runtime(x,y,z) → source(x,z,y)；位置/速度长度另乘100
+   │  └─ 绝对朝向：Bevy默认前向−Z → 源XY前向，sourceYaw=wrap(−90−runtimeYaw)
+   ├─ R/P/Y及X/Y/Z字符串按源拼接；方向角与显示向量、已画箭头一致
+   └─ 关闭分类/主开关即停止当前帧图元，无Shapes事件历史
+```
+
+源入口：`AlsCharacter_Debug.cpp::DisplayDebugShapes`、`AlsCharacter.cpp::{SetInputDirection,RefreshInput,RefreshLocomotion}`、`AlsVector.h`、UE `Vector.h::GetSafeNormal` 与 `LineBatchComponent.cpp::{DrawCone,DrawCapsule,DrawDirectionalArrow}`。目标入口：`src/{actual_motion,show_debug_hud,debug_display}.rs`、`crates/als-core/src/orientation.rs`。
+
+修复：显示原先直接使用目标米制/轴序/朝向；胶囊使用Avian默认132线；斜视锥使用另一组绕轴基；微小速度被错误单位化。反例分别拒绝旧显示、132≠68、旧斜锥顶点和微小速度单位向量。复用原有draw_arc与原生Collider数据；非胶囊Collider保持实际形状绘制。共享XYZ格式同步用于CameraShapes的位置显示，共享胶囊同步作用于Mantle/扫掠图元，探测和运动算法未改。
+
+验收：35项范围回归通过，包含动态缩放、保留方向、两类几何和源单位/阈值；Interface24.688秒、Base125.529秒、Camera20.519秒均功能通过。实际预测、Mantle、相机几何及78值/19按键状态检查通过，无运行守卫异常。
+
+</details>

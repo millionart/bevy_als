@@ -85,6 +85,10 @@
   - [x] BF124.02b Shift+2 State：开始2026-09-21 21:54、预估结束22:19。依据为源11项State行及现有角色请求/持久意图/实际状态/相机ViewMode的4个生产入口；逐字段追踪消费时序、临时覆盖与自定义Tag显示，按已存在的公开ECS状态修复被证实的诊断差异，复用真实Interface逐键Gate。
     - Source/static闭环2026-09-21 22:04：源11行全部核对，SetDesiredStance保存意图后物理姿态可因空中/Roll/净空不同；RefreshRotationMode保存自由模式并临时瞄准/冲刺覆盖，ViewMode属于角色。当前HUD错读请求/实际值与渲染相机，100.359秒反例以N/A≠First Person先FAIL。改为读取已有AlsDesiredStance/AlsLastFreeRotationMode/AlsFirstPersonView，删除角色布局的相机参数和请求回推；25项101.634秒PASS，含不同意图/实际、暂存请求、自定义Tag与无相机场景。没有新增镜像状态；真实Gate补齐全部11字段后构建与Interface验收。
     - 02b完成2026-09-21 22:07：83.569秒入口构建、Interface24.759秒功能PASS，11个State字段纳入实际值比较，合计78值和全部19种按键状态无错配；fault/graph error/temporal为0。动作状态桥在PrePhysics之后、Roll驱动之前，HUD在Final之后读取，生命周期顺序一致。开始21:54、预估22:19、实际22:07、偏差−12分钟；仅重接诊断数据，删除相机/临时请求依赖，未改角色行为。
+  - [x] BF124.02c Shift+3 Shapes：开始2026-09-21 22:08、预估结束22:38。依据为源Shapes的6行值与视锥/三箭头/胶囊、BF122已存在的实际运动/碰撞形状夹具，以及当前78值真实Gate；沿生产输入→坐标单位→参数/颜色→即时绘制逐叶核对，不复开未证实的运动算法。
+    - Source/static闭环2026-09-21 22:28：源六值/全部几何逐叶查至UAlsVector、UE Vector.GetSafeNormal、LineBatch.DrawCone/DrawCapsule/DrawDirectionalArrow。修复显示米→cm、(x,y,z)→(x,z,y)、绝对朝向wrap(−90−BevyYaw)与源轴标签拼接；由Bevy −Z前向和源XY atan2推导，曲线增量仍仅反号。GetSafeNormal源平方阈值1e−8 cm²换算为1e−12 m²，微小速度反例先FAIL。胶囊由Avian132边改源68边并复用现有draw_arc；斜视锥改源FindBestAxisVectors基，恢复旧基的消融FAIL。fresh角色眼高64/44.799999cm与目标一致；箭头sqrt(50cm)头长、速度映射和实际Collider尺寸原有实现一致。共享XYZ用于CameraShapes，已回读相机C++并同步其cm/轴序显示；共享胶囊可达Mantle/扫掠消费者，同步几何但不改探测算法。旧Gate仅测min/max与target裸数值，遗漏轮廓、坐标、细小向量；下一步范围回归和Interface/Base/Camera入口。
+    - Runtime前2026-09-21 22:32：35项102.933秒PASS；旧斜锥基与微小向量100.983秒联合反例分别FAIL，均已恢复/修复。角度检查保留停止后的上次方向，并使用现有(−180,180]角度约定；四方向、竖直速度、零速、动态/非均匀Collider缩放、字串/颜色、共享扫掠历史均通过。没有新增缓存或渲染适配层；准备同target/play构建后原Interface/Base/Camera功能验收，截图/性能仍暂停。
+    - 02c完成2026-09-21 22:40：入口79.842秒构建；Interface24.688秒、Base125.529秒、Camera20.519秒全部功能PASS，78值/19键状态、实际预测/Mantle/Camera几何与原运动守卫均通过，三场景fault/graph error/temporal为0。开始22:08、预估22:38、实际22:40、偏差+2分钟；共享Capsule/XYZ影响范围已统一验收，未改运动和探测算法。
 - [ ] BF124.03 Shift+6～8相机debug分支树：逐键独立验收与提交，复用已证实的公共节点。
 - [ ] BF124.04 Shift+9实际绑定与完整性核对：原版未绑定时明确源证据，不补造功能。
 - [ ] BF124.05 汇总树状报告与同根因修复验收：逐分支覆盖开关两态、必要组合及真实入口，保持既有截图/性能暂停偏好。

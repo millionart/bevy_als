@@ -9373,17 +9373,22 @@ fn observe_manual_integration(
                 expected.push((label.into(), if tag.is_empty() { "None".into() }
                     else { crate::show_debug_hud::name_to_display_string(tag.rsplit('.').next().unwrap(), false) }));
             }
-            expected.push(("Rotation".into(), format!("R: 0.00 P: {:.2} Y: {:.2}", view_pitch.0.to_degrees(), view_yaw.0.to_degrees())));
+            let source_yaw = |yaw: f32| {
+                let positive = (270.0 - yaw).rem_euclid(360.0);
+                if positive > 180.0 { positive - 360.0 } else { positive }
+            };
+            expected.push(("Rotation".into(), format!("R: 0.00P: {:.2}Y: {:.2}", view_pitch.0.to_degrees(), source_yaw(view_yaw.0.to_degrees()))));
             let expected_motion = motion_probe.actual.get(character).ok();
             if let Some(motion) = expected_motion {
-                expected.push(("Input Yaw Angle".into(), format!("{:.2}", motion.input_yaw_degrees)));
-                expected.push(("Velocity Yaw Angle".into(), format!("{:.2}", motion.velocity_yaw_degrees)));
-                expected.push(("Speed".into(), format!("{:.2}", motion.horizontal_speed)));
-                let direction = motion.world_velocity.normalize_or_zero();
-                expected.push(("Velocity Direction".into(), format!("X: {:.2} Y: {:.2} Z: {:.2}", direction.x, direction.y, direction.z)));
+                expected.push(("Input Yaw Angle".into(), format!("{:.2}", source_yaw(motion.input_yaw_degrees))));
+                expected.push(("Velocity Yaw Angle".into(), format!("{:.2}", source_yaw(motion.velocity_yaw_degrees))));
+                expected.push(("Speed".into(), format!("{:.2}", motion.horizontal_speed * 100.0)));
+                let direction = if motion.world_velocity.dot(motion.world_velocity) < 1e-12 { Vec3::ZERO }
+                    else { motion.world_velocity.normalize_or_zero() };
+                expected.push(("Velocity Direction".into(), format!("X: {:.2}Y: {:.2}Z: {:.2}", direction.x, direction.z, direction.y)));
             }
             if let Ok(response) = interface.rotation_responses.get(character) {
-                expected.push(("Smooth Target Yaw Angle".into(), format!("{:.2}", response.smooth_target_yaw.to_degrees())));
+                expected.push(("Smooth Target Yaw Angle".into(), format!("{:.2}", source_yaw(response.smooth_target_yaw.to_degrees()))));
             }
             let camera = interface.camera_assemblies.get(character).ok().and_then(|assembly| assembly.camera)
                 .and_then(|view| interface.camera_sources.get(view).ok()).and_then(|source| interface.camera_debug.get(source.0).ok())
@@ -9393,7 +9398,7 @@ fn observe_manual_integration(
                     expected.push((crate::show_debug_hud::name_to_display_string(name, false), format!("{:.2}", info.curve_value(name))));
                 }
                 for (name, point) in [("Pivot Target Location", Some(info.pivot_target)), ("Pivot Lag Location", info.pivot_lag), ("Pivot Location", info.pivot)] {
-                    expected.push((name.into(), point.map(|point| format!("X: {:.2} Y: {:.2} Z: {:.2}", point.x, point.y, point.z)).unwrap_or_else(|| "N/A".into())));
+                    expected.push((name.into(), point.map(|point| format!("X: {:.2}Y: {:.2}Z: {:.2}", point.x * 100.0, point.z * 100.0, point.y * 100.0)).unwrap_or_else(|| "N/A".into())));
                 }
                 expected.push(("Camera Field Of View".into(), format!("{:.2}", info.field_of_view_deg)));
                 expected.push(("Right Shoulder".into(), info.right_shoulder.to_string()));
