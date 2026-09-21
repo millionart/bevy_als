@@ -3320,7 +3320,7 @@ struct InterfaceProbe<'w, 's> {
     hud_roots: Query<'w, 's, (), With<AlsHudRoot>>,
     hud_debug_nodes: Query<'w, 's, &'static Node, With<AlsHudDebugSection>>,
     hud_input_nodes: Query<'w, 's, &'static Node, With<AlsHudInputSection>>,
-    show_debug_roots: Query<'w, 's, (), With<AlsShowDebugHudRoot>>,
+    show_debug_roots: Query<'w, 's, (&'static Node, &'static Visibility), With<AlsShowDebugHudRoot>>,
     debug_values: Query<'w, 's, (&'static Name, &'static Text)>,
     rotation_responses: Query<'w, 's, &'static AlsRotationResponseState>,
     camera_assemblies: Query<'w, 's, &'static AlsCharacterAssembly>,
@@ -5837,11 +5837,7 @@ fn drive_manual_integration(
                     "[MANUAL-INTEGRATION][INTERFACE] HUD, overlay menu, and show-debug probes armed"
                 );
             }
-            drive_key_interval(&mut keys, KeyCode::Tab, elapsed, 0.25, 0.55);
-            drive_key_interval(&mut keys, KeyCode::Tab, elapsed, 0.95, 1.25);
-            drive_key_interval(&mut keys, KeyCode::KeyZ, elapsed, 1.65, 1.95);
-            drive_key_interval(&mut keys, KeyCode::KeyZ, elapsed, 2.25, 2.55);
-            drive_key_interval(&mut keys, KeyCode::KeyQ, elapsed, 2.9, 3.9);
+            hud_layout::drive_controls(&mut keys, elapsed);
             request.overlay_state = Some(
                 if (0.6..1.4).contains(&elapsed) || (2.6..3.4).contains(&elapsed) {
                     OverlayState::Bow
@@ -5850,9 +5846,13 @@ fn drive_manual_integration(
                 },
             );
             if elapsed >= 5.0 {
+                hud_layout::drive_debug_keys(&mut keys, elapsed);
+            }
+            if elapsed >= 11.2 {
                 keys.release(KeyCode::Tab);
                 keys.release(KeyCode::KeyZ);
                 keys.release(KeyCode::KeyQ);
+                keys.release(KeyCode::ShiftLeft);
                 virtual_time.set_relative_speed(1.0);
                 begin_phase(&mut state, IntegrationPhase::Finish);
             }
@@ -6048,20 +6048,6 @@ fn stance_center_from_standing_center(
 ) -> Vec3 {
     let target_half_height = if stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height };
     standing_center + Vec3::Y * (target_half_height - params.crouch.standing_capsule_half_height)
-}
-
-fn drive_key_interval(
-    keys: &mut ButtonInput<KeyCode>,
-    key: KeyCode,
-    elapsed: f32,
-    start: f32,
-    end: f32,
-) {
-    if (start..end).contains(&elapsed) {
-        keys.press(key);
-    } else if elapsed >= end {
-        keys.release(key);
-    }
 }
 
 fn begin_phase(state: &mut ManualIntegrationState, phase: IntegrationPhase) {
@@ -9354,6 +9340,10 @@ fn observe_manual_integration(
             && all_debug_categories_active
             && !interface.show_debug_roots.is_empty();
         state.coverage.debug_draw |= state.coverage.show_debug && interface.debug_stats.total() > 0;
+        if state.phase_elapsed() >= 5.0 {
+            hud_layout::observe_debug_keys(state.phase_elapsed(), &interface.show_debug,
+                &interface.show_debug_roots, &interface.debug_stats, &mut gate_report.direction_trace);
+        }
         if state.interface_debug_armed && all_debug_categories_active && !interface.show_debug_roots.is_empty() {
             let expected_context = state.avatar.and_then(|avatar| motion_probe.object_scenes.get(avatar).ok())
                 .and_then(|instance| players.get(instance.player_entity()).ok()).and_then(|(_, context)| context);
@@ -9998,6 +9988,7 @@ fn observe_manual_integration(
                 ),
                 ("show_debug", coverage.show_debug),
                 ("debug_draw", coverage.debug_draw),
+                ("debug_key_lifecycle", hud_layout::debug_keys_passed(&gate_report.direction_trace)),
                 ("debug_canvas_layout", hud_layout::passed(&gate_report.direction_trace)),
                 ("debug_values", gate_report.direction_trace.iter().any(|entry| entry.get("hud_data_valid").is_some())
                     && gate_report.direction_trace.iter().filter_map(|entry| entry.get("hud_data_valid").and_then(serde_json::Value::as_bool)).all(|valid| valid)),

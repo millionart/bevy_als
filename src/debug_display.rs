@@ -4,7 +4,7 @@ use als_core::air::AlsAirState;
 use als_core::character::AlsCharacter;
 use als_core::mantle::{MantleProbeResult, MantleProbeTrace};
 use als_core::motion::AlsCharacterDebug;
-use avian3d::prelude::{Collider, ColliderAabb, PhysicsGizmos, PhysicsGizmoExt};
+use avian3d::prelude::{Collider, ColliderAabb, PhysicsGizmos, PhysicsGizmoExt, SimpleCollider};
 use als_core::{control_scheme::{AlsControlScheme, AlsControlSchemeConfig}, state::Stance};
 use bevy_tnua::TnuaConfig;
 use bevy::math::primitives::Cuboid;
@@ -148,6 +148,9 @@ struct DebugPoints;
 #[derive(Default, Reflect, GizmoConfigGroup)]
 struct ShapeArrows;
 
+#[derive(Default, Reflect, GizmoConfigGroup)]
+struct TargetBounds;
+
 #[derive(Resource, Default)]
 struct MantleDebugHistory(Vec<(f64, MantleProbeTrace)>);
 
@@ -197,6 +200,7 @@ impl Plugin for AlsDebugDisplayPlugin {
             .insert_gizmo_config(DebugLines, GizmoConfig { line: GizmoLineConfig { width: 1.0, ..default() }, ..default() })
             .init_gizmo_group::<DebugPoints>()
             .insert_gizmo_config(ShapeArrows, GizmoConfig { line: GizmoLineConfig { width: 3.0, ..default() }, ..default() })
+            .insert_gizmo_config(TargetBounds, GizmoConfig { line: GizmoLineConfig { width: 2.0, ..default() }, ..default() })
             .insert_gizmo_config(PhysicsGizmos::default(), GizmoConfig { line: GizmoLineConfig { width: 1.0, ..default() }, ..default() })
             .configure_sets(PostUpdate, AlsDebugDisplaySet.after(crate::footprint::FootprintSet)
                 .after(crate::actual_motion::AlsActualMotionSet)
@@ -413,6 +417,50 @@ mod footstep_tests {
     }
 
     #[test]
+    fn mesh_bounds_use_current_shapes_and_exclude_source_root_body() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy_animation_graph::core::ragdoll::{definition::{Collider as RagdollCollider, ColliderLabel}, spawning::SpawnedRagdoll};
+        let mut world = World::new();
+        let profile = crate::pa_als::parse_pa_als_profile();
+        let mut spawned = SpawnedRagdoll::new(Entity::PLACEHOLDER);
+        for (label, x, radius) in [
+            (profile.colliders.iter().find(|shape| shape.label.starts_with("root_")).unwrap().label.clone(), 1000.0, 100.0),
+            (profile.colliders.iter().find(|shape| shape.label.starts_with("hand_l_")).unwrap().label.clone(), -3.0, 0.5),
+            (profile.colliders.iter().find(|shape| shape.label.starts_with("hand_r_")).unwrap().label.clone(), 5.0, 1.0),
+        ] {
+            let entity = world.spawn((GlobalTransform::from_translation(Vec3::X * x), Collider::sphere(radius), ColliderLabel(label))).id();
+            spawned.colliders.insert(RagdollCollider::new().id, entity);
+        }
+        let bounds = world.run_system_once(move |query: Query<(&GlobalTransform, &Collider, &ColliderLabel)>| mesh_debug_bounds(&spawned, &profile, &query)).unwrap().unwrap();
+        assert!(bounds.min.abs_diff_eq(Vec3::new(-3.5, -1.0, -1.0), 1e-5));
+        assert!(bounds.max.abs_diff_eq(Vec3::new(6.0, 1.0, 1.0), 1e-5));
+    }
+
+    #[test]
+    fn target_bounds_follow_master_without_shape_category() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin,
+            bevy::gizmos::GizmoPlugin, AlsDebugDisplayPlugin))
+            .init_resource::<Assets<AlsControlSchemeConfig>>()
+            .insert_resource(crate::show_debug_hud::AlsShowDebugHudState { visible: true, ..default() });
+        app.world_mut().spawn((AlsCharacter, AlsPlayerCharacter, GlobalTransform::from_translation(Vec3::ONE),
+            Collider::cuboid(4.0, 6.0, 8.0)));
+        app.update();
+        assert_eq!(app.world().resource::<AlsDebugDisplayStats>().bounds_boxes_drawn, 1);
+        assert_eq!(app.world().resource::<AlsDebugDisplayStats>().capsule_wireframes_drawn, 0);
+        let assets = app.world().resource::<Assets<bevy::gizmos::GizmoAsset>>();
+        let asset = assets.iter().find(|(_, asset)| !asset.buffer().list_positions.is_empty() || !asset.buffer().strip_positions.is_empty()).unwrap().1;
+        let points = asset.buffer().list_positions.iter().chain(&asset.buffer().strip_positions).filter(|p| p.is_finite());
+        let (min, max) = points.fold((Vec3::INFINITY, Vec3::NEG_INFINITY), |(min, max), p| (min.min(*p), max.max(*p)));
+        assert!(min.abs_diff_eq(Vec3::ONE - Vec3::new(2.0, 3.0, 4.0) * 1.1, 1e-5));
+        assert!(max.abs_diff_eq(Vec3::ONE + Vec3::new(2.0, 3.0, 4.0) * 1.1, 1e-5));
+        assert_eq!(app.world().resource::<GizmoConfigStore>().get_config_dyn(&asset.config_typeid()).unwrap().0.line.width, 2.0);
+        app.world_mut().resource_mut::<crate::show_debug_hud::AlsShowDebugHudState>().visible = false;
+        app.update();
+        assert_eq!(app.world().resource::<AlsDebugDisplayStats>().bounds_boxes_drawn, 0);
+    }
+
+    #[test]
     fn shapes_use_current_scaled_collider_eye_height_and_controller_speed() {
         use als_core::{control_scheme::{AlsControlScheme, AlsControlSchemeConfig}, state::Stance};
         use avian3d::prelude::Collider;
@@ -452,7 +500,9 @@ mod footstep_tests {
                 let buffer = asset.buffer();
                 buffer.list_positions.iter().zip(&buffer.list_colors).chain(buffer.strip_positions.iter().zip(&buffer.strip_colors))
             }).filter(|(point, value)| point.is_finite() && **value == color.to_linear()).map(|(point, _)| *point).collect::<Vec<_>>();
-            let capsule = colored(capsule_wire_color());
+            let capsule: Vec<_> = assets.iter().filter(|(_, asset)| asset.config_typeid() == std::any::TypeId::of::<PhysicsGizmos>())
+                .flat_map(|(_, asset)| asset.buffer().list_positions.iter().chain(&asset.buffer().strip_positions))
+                .filter(|point| point.is_finite()).copied().collect();
             let min = capsule.iter().copied().fold(Vec3::INFINITY, Vec3::min);
             let max = capsule.iter().copied().fold(Vec3::NEG_INFINITY, Vec3::max);
             assert!(min.abs_diff_eq(origin - half_extents, 1e-5) && max.abs_diff_eq(origin + half_extents, 1e-5), "Collider bounds {half_extents:?}, debug bounds {min:?}..{max:?}");
@@ -788,18 +838,32 @@ fn draw_character_shapes_system(
 #[allow(clippy::type_complexity)]
 fn draw_bounds_box_system(
     mut stats: ResMut<AlsDebugDisplayStats>,
-    mut gizmos: Gizmos,
-    q_character: Query<(&GlobalTransform, &ColliderAabb), (With<AlsCharacter>, With<crate::debug_target::AlsDebugTarget>)>,
+    state: Option<Res<crate::show_debug_hud::AlsShowDebugHudState>>,
+    mut gizmos: Gizmos<TargetBounds>,
+    q_character: Query<(Entity, &GlobalTransform, &Collider, Option<&als_core::state::AlsNotifyLocomotionAction>, Option<&crate::character_assembly::AlsCharacterAssembly>), (With<AlsCharacter>, With<crate::debug_target::AlsDebugTarget>)>,
+    avatars: Query<(&crate::character_assembly::AlsCharacterAvatar, &bevy_animation_graph::core::animated_scene::AnimatedSceneInstance)>,
+    players: Query<(&bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer, &als_ext::RagdollPhysicsProfile)>,
+    colliders: Query<(&GlobalTransform, &Collider, &bevy_animation_graph::core::ragdoll::definition::ColliderLabel)>,
 ) {
-    if !stats.shapes_active {
+    if !state.is_some_and(|state| state.visible) {
         return;
     }
-    let Ok((_transform, aabb)) = q_character.single() else {
+    let Ok((character, transform, collider, action, assembly)) = q_character.single() else {
         return;
     };
-    if aabb.min == Vec3::INFINITY || aabb.max == Vec3::NEG_INFINITY {
-        return;
+    let mut bounds = (action != Some(&als_core::state::AlsNotifyLocomotionAction::Ragdolling))
+        .then(|| collider.aabb(transform.translation(), transform.rotation()));
+    if let Some(assembly) = assembly
+        && let Ok((owner, instance)) = avatars.get(assembly.avatar)
+        && owner.character == character
+        && let Ok((player, profile)) = players.get(instance.player_entity())
+        && let Some(spawned) = player.get_spawned_ragdoll()
+    {
+        if let Some(mesh) = mesh_debug_bounds(spawned, profile, &colliders) {
+            bounds = Some(bounds.map_or(mesh, |capsule| capsule.merged(mesh)));
+        }
     }
+    let Some(aabb) = bounds else { return; };
     let center = (aabb.min + aabb.max) * 0.5;
     let extent = (aabb.max - aabb.min) * 0.5 * BOUNDS_EXPAND;
     gizmos.primitive_3d(
@@ -808,6 +872,18 @@ fn draw_bounds_box_system(
         bounds_box_color(),
     );
     stats.bounds_boxes_drawn += 1;
+}
+
+fn mesh_debug_bounds(
+    spawned: &bevy_animation_graph::core::ragdoll::spawning::SpawnedRagdoll,
+    profile: &als_ext::RagdollPhysicsProfile,
+    colliders: &Query<(&GlobalTransform, &Collider, &bevy_animation_graph::core::ragdoll::definition::ColliderLabel)>,
+) -> Option<ColliderAabb> {
+    spawned.colliders.values().filter_map(|entity| {
+        let (transform, collider, label) = colliders.get(*entity).ok()?;
+        profile.colliders.iter().any(|entry| entry.label == label.0 && entry.consider_for_bounds)
+            .then(|| collider.aabb(transform.translation(), transform.rotation()))
+    }).reduce(ColliderAabb::merged)
 }
 
 #[allow(clippy::type_complexity)]

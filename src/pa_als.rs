@@ -53,6 +53,8 @@ mod tests {
         let profile = parse_pa_als_profile();
         assert_eq!(profile.bodies.len(), 21);
         assert_eq!(profile.colliders.len(), 22);
+        assert!(profile.colliders.iter().filter(|shape| shape.label.starts_with("root_")).all(|shape| !shape.consider_for_bounds));
+        assert_eq!(profile.colliders.iter().filter(|shape| shape.consider_for_bounds).count(), 21);
         assert_eq!(profile.joints.len(), 20);
         assert_eq!(profile.collision_disabled_pairs.len(), 49);
         assert!(profile.bodies.iter().any(|body| body.label == "root"

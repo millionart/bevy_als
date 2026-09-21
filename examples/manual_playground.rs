@@ -75,6 +75,8 @@ fn main() {
     ));
     if std::env::var_os("ALS_MANUAL_INTEGRATION_GATE").is_some() {
         app.add_plugins((AnimProbePlugin, ManualPlaygroundIntegrationPlugin));
+    } else if std::env::var_os("ALS_ANIMATION_VISUAL_EVIDENCE_DIR").is_none() {
+        app.insert_resource(bevy_als::show_debug_hud::AlsShowDebugSettingsFile("saved/als_debug.ron".into()));
     }
     if std::env::var_os("ALS_ANIMATION_VISUAL_EVIDENCE_DIR").is_some() {
         app.add_plugins(bevy::render::diagnostic::RenderDiagnosticsPlugin);

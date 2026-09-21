@@ -46,6 +46,7 @@ pub struct RagdollBodyPhysicsProfile {
 pub struct RagdollColliderPhysicsProfile {
     pub label: String,
     pub source_body_index: u8,
+    pub consider_for_bounds: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -76,8 +77,15 @@ struct PhysicsAssetDocument {
 struct PhysicsAssetBody {
     source_index: u8,
     bone_name: String,
+    source_properties: PhysicsAssetBounds,
     target: PhysicsAssetBodyTarget,
     shapes: Vec<PhysicsAssetShape>,
+}
+
+#[derive(Deserialize)]
+struct PhysicsAssetBounds {
+    #[serde(rename = "bConsiderForBounds")]
+    consider_for_bounds: String,
 }
 
 #[derive(Deserialize)]
@@ -212,6 +220,7 @@ impl RagdollPhysicsProfile {
                             body.bone_name, shape.source_shape_index, shape.target.kind
                         ),
                         source_body_index: body.source_index,
+                        consider_for_bounds: body.source_properties.consider_for_bounds == "True",
                     })
             })
             .collect();

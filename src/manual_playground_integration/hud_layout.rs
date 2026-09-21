@@ -16,6 +16,7 @@ pub(super) fn install(app: &mut App) {
     app.add_systems(
         PostUpdate,
         observe
+            .run_if(|state: Res<ManualIntegrationState>| state.scenario == IntegrationScenario::Interface)
             .after(bevy::ui::UiSystems::PostLayout)
             .after(crate::show_debug_hud::AlsShowDebugHudSet::Sync)
             .before(observe_manual_integration),
@@ -67,6 +68,7 @@ fn observe(
     if state.scenario != IntegrationScenario::Interface
         || state.phase != IntegrationPhase::Interface
         || !state.interface_debug_armed
+        || state.phase_elapsed() >= 5.0
     {
         return;
     }
@@ -255,9 +257,97 @@ pub(super) fn passed(trace: &[serde_json::Value]) -> bool {
         .all(|valid| valid)
 }
 
+const DEBUG_KEYS: [KeyCode; 10] = [KeyCode::Digit0, KeyCode::Digit1, KeyCode::Digit2, KeyCode::Digit3,
+    KeyCode::Digit4, KeyCode::Digit5, KeyCode::Digit6, KeyCode::Digit7, KeyCode::Digit8, KeyCode::Digit9];
+
+pub(super) fn drive_controls(keys: &mut ButtonInput<KeyCode>, elapsed: f32) {
+    drive_key_windows(keys, KeyCode::Tab, elapsed, &[(0.25, 0.55), (0.95, 1.25)]);
+    drive_key_windows(keys, KeyCode::KeyZ, elapsed, &[(1.65, 1.95), (2.25, 2.55)]);
+    drive_key_windows(keys, KeyCode::KeyQ, elapsed, &[(2.9, 3.9)]);
+}
+
+fn drive_key_windows(keys: &mut ButtonInput<KeyCode>, key: KeyCode, elapsed: f32, windows: &[(f32, f32)]) {
+    if windows.iter().any(|(start, end)| (*start..*end).contains(&elapsed)) {
+        keys.press(key);
+    } else {
+        keys.release(key);
+    }
+}
+
+pub(super) fn drive_debug_keys(keys: &mut ButtonInput<KeyCode>, elapsed: f32) {
+    keys.press(KeyCode::ShiftLeft);
+    for (index, key) in DEBUG_KEYS.into_iter().enumerate() {
+        let start = 5.0 + index as f32 * 0.6;
+        drive_key_windows(keys, key, elapsed, &[(start, start + 0.1), (start + 0.3, start + 0.4)]);
+    }
+}
+
+pub(super) fn observe_debug_keys(elapsed: f32, state: &AlsShowDebugHudState, roots: &Query<(&Node, &Visibility), With<AlsShowDebugHudRoot>>,
+    stats: &AlsDebugDisplayStats, trace: &mut Vec<serde_json::Value>) {
+    let index = ((elapsed - 5.0) / 0.6).floor() as usize;
+    if index >= 10 { return; }
+    let phase = elapsed - 5.0 - index as f32 * 0.6;
+    let enabled = index == 9 || phase >= 0.3;
+    let visible = index != 0 || enabled;
+    let root = roots.iter().any(|(node, visibility)| node.display != Display::None && *visibility != Visibility::Hidden);
+    let valid = state.visible == visible && root == visible
+        && stats.bounds_boxes_drawn == u32::from(visible)
+        && DebugCategory::ALL.into_iter().enumerate().all(|(category_index, category)| {
+            state.is_active(category) == (visible && (index != category_index + 1 || enabled))
+        });
+    trace.push(serde_json::json!({"debug_key":index,"debug_key_enabled":enabled,"debug_key_valid":valid,
+        "debug_key_master":state.visible,"debug_key_root_visible":root,"debug_target_bounds":stats.bounds_boxes_drawn}));
+}
+
+pub(super) fn debug_keys_passed(trace: &[serde_json::Value]) -> bool {
+    (0..10).all(|key| [false, true].into_iter().filter(|enabled| key != 9 || *enabled).all(|enabled| {
+        trace.iter().any(|entry| entry["debug_key"] == key && entry["debug_key_enabled"] == enabled)
+    })) && trace.iter().filter_map(|entry| entry["debug_key_valid"].as_bool()).all(|valid| valid)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn interface_key_windows_produce_exact_press_counts() {
+        let mut keys = ButtonInput::<KeyCode>::default();
+        let mut presses = [0; 3];
+        for step in 0..100 {
+            keys.clear();
+            drive_controls(&mut keys, step as f32 * 0.05);
+            for (index, key) in [KeyCode::Tab, KeyCode::KeyZ, KeyCode::KeyQ].into_iter().enumerate() {
+                presses[index] += u32::from(keys.just_pressed(key));
+            }
+        }
+        assert_eq!(presses, [2, 2, 1]);
+    }
+
+    #[test]
+    fn debug_key_gate_reads_hidden_root_display_state() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, crate::show_debug_hud::AlsShowDebugHudPlugin))
+            .init_resource::<ButtonInput<KeyCode>>();
+        app.update();
+        let trace = app.world_mut().run_system_once(|roots: Query<(&Node, &Visibility), With<AlsShowDebugHudRoot>>| {
+            assert_eq!(roots.iter().count(), 1);
+            let mut trace = Vec::new();
+            observe_debug_keys(5.1, &AlsShowDebugHudState::default(), &roots, &AlsDebugDisplayStats::default(), &mut trace);
+            trace
+        }).unwrap();
+        assert_eq!(trace[0]["debug_key_valid"], true);
+    }
+
+    #[test]
+    fn debug_key_gate_requires_all_edges_and_rejects_late_failure() {
+        let mut trace: Vec<_> = (0..10).flat_map(|key| [false, true].into_iter().filter(move |enabled| key != 9 || *enabled)
+            .map(move |enabled| serde_json::json!({"debug_key":key,"debug_key_enabled":enabled,"debug_key_valid":true}))).collect();
+        assert!(debug_keys_passed(&trace));
+        assert!(!debug_keys_passed(&trace[..trace.len() - 1]));
+        trace.push(serde_json::json!({"debug_key_valid":false}));
+        assert!(!debug_keys_passed(&trace));
+    }
 
     #[test]
     fn viewport_gate_requires_every_size_and_rejects_late_layout_failures() {

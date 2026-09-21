@@ -13,7 +13,7 @@ pub struct AlsLastDebugRender(pub f64);
 #[derive(Resource, Default)]
 struct DebugTargetSelection {
     cached: Option<Entity>,
-    index: usize,
+    index: i32,
     visible: bool,
 }
 
@@ -88,20 +88,21 @@ fn select_target(
                 .iter()
                 .position(|entity| Some(*entity) == selection.cached)
             {
-                selection.index = index;
+                selection.index = index as i32;
             }
             if targets.is_empty() {
+                selection.index = -1;
                 selection.cached = player;
                 continue;
             }
             selection.index = if forward {
-                (selection.index + 1) % targets.len()
-            } else if selection.index == 0 {
-                targets.len() - 1
+                (selection.index + 1) % targets.len() as i32
+            } else if selection.index <= 0 {
+                targets.len() as i32 - 1
             } else {
                 selection.index - 1
             };
-            selection.cached = targets.get(selection.index).copied().or(player);
+            selection.cached = usize::try_from(selection.index).ok().and_then(|index| targets.get(index)).copied().or(player);
         }
     }
     let target = selection.cached.or(player);
@@ -146,6 +147,24 @@ fn record_rendered_characters(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn empty_target_list_then_new_candidates_starts_at_first() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AlsDebugTargetPlugin))
+            .init_resource::<ButtonInput<KeyCode>>()
+            .insert_resource(AlsShowDebugHudState { visible: true, ..default() });
+        app.world_mut().spawn((AlsCharacter, AlsPlayerCharacter));
+        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::PageUp);
+        app.update();
+        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().reset_all();
+        let a = app.world_mut().spawn((AlsCharacter, AlsLastDebugRender(0.0))).id();
+        let b = app.world_mut().spawn((AlsCharacter, AlsLastDebugRender(0.0))).id();
+        let first = [a, b].into_iter().min_by_key(|entity| entity.to_bits()).unwrap();
+        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::PageUp);
+        app.update();
+        assert!(app.world().get::<AlsDebugTarget>(first).is_some());
+    }
 
     #[test]
     fn target_cycles_recent_pawns_and_resets_when_master_changes() {

@@ -71,8 +71,10 @@ impl DebugCategory {
     }
 }
 
-#[derive(Resource, Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Resource, Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct AlsShowDebugHudState {
+    #[serde(skip)]
     pub visible: bool,
     pub curves: bool,
     pub state: bool,
@@ -83,6 +85,9 @@ pub struct AlsShowDebugHudState {
     pub camera_shapes: bool,
     pub camera_traces: bool,
 }
+
+#[derive(Resource)]
+pub struct AlsShowDebugSettingsFile(pub std::path::PathBuf);
 
 impl AlsShowDebugHudState {
     pub fn toggle_master(&mut self) {
@@ -760,12 +765,25 @@ impl Plugin for AlsShowDebugHudPlugin {
                     .after(als_camera::AlsCameraSet).after(als_core::motion::AlsRotationResponseSet)
                     .before(bevy::ui::UiSystems::Prepare),
             )
+            .add_systems(Startup, load_debug_categories)
             .add_systems(Update, keyboard_system.in_set(AlsShowDebugHudSet::Input))
             .add_systems(PostUpdate, hud_sync_system.in_set(AlsShowDebugHudSet::Sync));
     }
 }
 
-fn keyboard_system(keys: Res<ButtonInput<KeyCode>>, mut state: ResMut<AlsShowDebugHudState>, mut columns: ResMut<canvas::ColumnNavigation>) {
+fn load_debug_categories(file: Option<Res<AlsShowDebugSettingsFile>>, mut state: ResMut<AlsShowDebugHudState>) {
+    let Some(file) = file else { return; };
+    match std::fs::read_to_string(&file.0) {
+        Ok(text) => match ron::from_str(&text) {
+            Ok(saved) => *state = saved,
+            Err(error) => warn!("Debug category settings could not be parsed: {error}"),
+        },
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
+        Err(error) => warn!("Debug category settings could not be read: {error}"),
+    }
+}
+
+fn keyboard_system(keys: Res<ButtonInput<KeyCode>>, mut state: ResMut<AlsShowDebugHudState>, mut columns: ResMut<canvas::ColumnNavigation>, file: Option<Res<AlsShowDebugSettingsFile>>) {
     if keys.just_pressed(KeyCode::ShiftRight) { columns.selected = (columns.selected + 1).min(columns.max_columns); }
     if keys.just_pressed(KeyCode::ShiftLeft) { columns.selected = columns.selected.saturating_sub(1); }
     let shift_held = keys.pressed(KeyCode::ShiftLeft) || keys.pressed(KeyCode::ShiftRight);
@@ -780,8 +798,17 @@ fn keyboard_system(keys: Res<ButtonInput<KeyCode>>, mut state: ResMut<AlsShowDeb
         KeyCode::Digit7,
         KeyCode::Digit8,
     ] {
-        if keys.just_pressed(code) {
-            apply_show_debug_key(&mut state, shift_held, code);
+        if keys.just_pressed(code) && apply_show_debug_key(&mut state, shift_held, code)
+            && code != KeyCode::Digit0 && let Some(file) = file.as_ref()
+        {
+            let save = || -> Result<(), Box<dyn std::error::Error>> {
+                if let Some(parent) = file.0.parent().filter(|path| !path.as_os_str().is_empty()) {
+                    std::fs::create_dir_all(parent)?;
+                }
+                std::fs::write(&file.0, ron::to_string(&*state)?)?;
+                Ok(())
+            };
+            if let Err(error) = save() { warn!("Debug category settings could not be saved: {error}"); }
         }
     }
 }
@@ -1113,6 +1140,56 @@ mod tests {
         assert_eq!(first.left, Val::Px(4.0));
         assert_eq!(first.top, Val::Px(50.0));
         assert!(labels.iter().any(|(text, _)| text.0.starts_with("Press [Right Shift]")));
+    }
+
+    #[test]
+    fn debug_keyboard_accepts_extra_modifiers_and_only_fires_on_press() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AlsShowDebugHudPlugin)).init_resource::<ButtonInput<KeyCode>>();
+        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::Digit0);
+        app.update();
+        assert!(!app.world().resource::<AlsShowDebugHudState>().visible);
+        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().reset_all();
+        for key in [KeyCode::ShiftRight, KeyCode::ControlLeft, KeyCode::AltLeft, KeyCode::SuperLeft, KeyCode::Digit0] {
+            app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(key);
+        }
+        app.update();
+        assert!(app.world().resource::<AlsShowDebugHudState>().visible);
+        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().clear();
+        app.update();
+        assert!(app.world().resource::<AlsShowDebugHudState>().visible);
+        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().release(KeyCode::Digit0);
+        app.update();
+        assert!(app.world().resource::<AlsShowDebugHudState>().visible);
+    }
+
+    #[test]
+    fn categories_survive_restart_but_master_does_not() {
+        let path = std::env::temp_dir().join(format!("als-debug-settings-{}.ron", std::process::id()));
+        std::fs::write(&path, "(curves:true,state:false,shapes:false,traces:false,mantling:false,camera_curves:false,camera_shapes:false,camera_traces:false)").unwrap();
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AlsShowDebugHudPlugin))
+            .init_resource::<ButtonInput<KeyCode>>()
+            .insert_resource(AlsShowDebugSettingsFile(path.clone()));
+        app.update();
+        assert!(app.world().resource::<AlsShowDebugHudState>().curves);
+        assert!(!app.world().resource::<AlsShowDebugHudState>().visible);
+        let before = std::fs::read_to_string(&path).unwrap();
+        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::ShiftRight);
+        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::Digit0);
+        app.update();
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), before);
+        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().clear();
+        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::Digit2);
+        app.update();
+        let mut restarted = App::new();
+        restarted.add_plugins((MinimalPlugins, AlsShowDebugHudPlugin))
+            .init_resource::<ButtonInput<KeyCode>>()
+            .insert_resource(AlsShowDebugSettingsFile(path.clone()));
+        restarted.update();
+        let state = restarted.world().resource::<AlsShowDebugHudState>();
+        assert!(state.curves && state.state && !state.visible);
+        std::fs::remove_file(path).unwrap();
     }
 
     #[test]
