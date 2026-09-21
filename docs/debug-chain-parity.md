@@ -324,3 +324,39 @@ Shift+Six → ShowDebug Als.CameraCurves ⇒ 公共输入树
 真实Interface24.435秒、Camera20.219秒功能通过：当前9项活动曲线、74实际值、19按键状态和三种窗口/DPI布局无错配。检查器按源两列最大高度及实际曲线数量计算后续区块位置，删除固定13行假设。
 
 </details>
+
+<details>
+<summary>Shift+7 — Als.CameraShapes：枢轴数据、三球与两连线</summary>
+
+```text
+Shift+Seven → ShowDebug Als.CameraShapes ⇒ 公共相机入口 / 当前source组件
+├─ TickCamera在相机动画完成后取值 ⇒ AlsCameraAnimationSet → AlsCameraSet
+│  ├─ Socket生产：当前Mesh骨骼/Socket世界Transform
+│  │  └─ Mesh脱离父级且第一个Socket为root → 当前Actor胶囊底部替代root
+│  ├─ PivotTargetLocation = (第一Pivot Socket + 第二Pivot Socket) / 2
+│  ├─ PivotLagLocation
+│  │  ├─ 相对运动基座变换恢复世界位置
+│  │  ├─ CameraYaw空间内按X/Y/Z独立half-life阻尼
+│  │  └─ ForceNoLag / 距离超过Teleport阈值 → 直接Target
+│  ├─ PivotLocation = Lag + MeshQuat × (PivotOffset曲线向量 × Mesh竖轴scale)
+│  ├─ CameraFieldOfView
+│  │  ├─ 第三/第一人称FOV按override曲线混合，显式FOV可覆盖
+│  │  └─ 非完整第一人称叠加FovOffset并clamp[5°,175°]
+│  └─ RightShoulder ⇒ !AlsCameraLeftShoulder
+├─ 完整第一人称（源full-weight阈值）
+│  ├─ Lag=Pivot=Target，直接第一人称Socket / 目标旋转
+│  ├─ FOV直接第一人称或显式覆盖值，不叠加FovOffset
+│  └─ 提前返回，不绘制球和trace；HUD仍显示实际五字段
+└─ 第三人称/部分混合的当帧绘制
+   ├─ Target：绿球
+   ├─ Lag：橙球 + Lag→Target橙线
+   ├─ Pivot：青球 + Pivot→Lag青线
+   ├─ 每球16cm半径、三个16边圆，朝向只取CameraYaw；线宽1
+   └─ 截止于本帧；关闭分类/组件停止即消失，无Shapes历史
+```
+
+源入口：`AlsCameraComponent.cpp::{TickCamera,GetThirdPersonPivotLocation,CalculatePivotLagLocation,CalculatePivotOffset}`、`AlsCameraComponent_Debug.cpp::DisplayDebugShapes`、`AlsDebugUtility.cpp::DrawSphereAlternative`，以及本次原生相机CS。目标入口：`crates/als-camera/src/lib.rs::{resolve_camera_socket_locations,camera_rig_system,write_debug}` 与 `src/debug_display.rs::draw_camera_debug_system`。显示轴序/厘米及源组件激活条件已由03a及共享修复覆盖。
+
+本分支未发现新增差异。15项现有范围/边界检查通过，覆盖脱离Mesh、动态胶囊底部、基座、first-person阈值、FOV、阻尼、五个实际值、球旋转和连线；复用同一实现刚通过的Interface24.435秒和Camera20.219秒功能证据。没有新增补偿、阈值或状态。
+
+</details>
