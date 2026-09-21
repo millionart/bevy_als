@@ -360,3 +360,44 @@ Shift+Seven → ShowDebug Als.CameraShapes ⇒ 公共相机入口 / 当前source
 本分支未发现新增差异。15项现有范围/边界检查通过，覆盖脱离Mesh、动态胶囊底部、基座、first-person阈值、FOV、阻尼、五个实际值、球旋转和连线；复用同一实现刚通过的Interface24.435秒和Camera20.219秒功能证据。没有新增补偿、阈值或状态。
 
 </details>
+
+<details>
+<summary>Shift+8 — Als.CameraTraces：主扫掠、穿透调整、重试与平滑前几何</summary>
+
+```text
+Shift+Eight → ShowDebug Als.CameraTraces ⇒ 公共相机入口
+├─ TickCamera：非完整第一人称 → CalculateCameraTrace
+│  ├─ Start=lerp(当前肩Socket, PivotTarget+PivotOffset+TraceOverrideOffset, clamp(TraceOverride))
+│  ├─ End=PivotLocation+CameraRotation×(CameraOffset×MeshScale)
+│  └─ 球半径15cm×MeshScale；fresh CS.TraceChannel=ECC_Visibility
+│     └─ 命名PhysicsLayer::Visibility，忽略Owner所属物理实体；Camera名称不代表ECC_Camera
+├─ SweepSingleByChannel ⇒ trace_with_start_adjustment
+│  ├─ miss → TraceResult=原End
+│  ├─ 有效阻挡且未起始穿透 → TraceResult=命中球心
+│  └─ 起始穿透 → TryAdjustLocationBlockedByGeometry
+│     ├─ 使用(半径+1cm)×MeshScale做Overlap Multi
+│     ├─ 逐个阻挡物求MTD；任一不可取得有效几何则失败
+│     ├─ 累加有效MTD；无有效调整/不能归一化/背离Owner超过源点积阈值 → 失败
+│     ├─ 生成青色修正线，保留5s，然后Start += Adjustment
+│     └─ 用未膨胀球做FreeSpace复查
+│        ├─ 已清空 → 重新扫掠；有效命中取球心，否则原End
+│        └─ 未清空 → TraceResult=已经修改的Start（不能还原旧Start）
+├─ 绘制发生在距离平滑之前
+│  ├─ 调整后Start → 原始TraceResult的球扫掠包络+箭头
+│  ├─ Hit.IsValidBlockingHit为红，否则绿；调整失败不冒充有效阻挡
+│  ├─ 包络胶囊：中心(Start+Result)/2，half-height=距离/2+radius
+│  └─ 姿态为源MakeFromZ：Sweep方向决定长轴，世界上轴决定其余两轴
+│     └─ 近竖直用X轴作参考；源短向量退化为Identity
+└─ 相机位置与生命周期
+   ├─ 不允许lag/未启用平滑/距离≤1e−4cm → ratio=1
+   ├─ 遮挡收缩立即使用新ratio；解除遮挡按half-life 0.2恢复
+   ├─ 最终CameraLocation使用平滑ratio；debug端点仍用平滑前结果
+   ├─ 源NewTraceDistanceRatio引用成员TraceDistanceRatio，更新后立即读取
+   └─ 主扫掠每帧；青色修正线5s独立到期，关分类/切目标/完整第一人称不删除旧线
+```
+
+源入口：`AlsCameraComponent.cpp::{CalculateCameraTrace,TryAdjustLocationBlockedByGeometry}`、`AlsDebugUtility.cpp::DrawSweepSphere`、UE `RotationMatrix.h::MakeFromZ` 与 `Quat.h`。目标入口：`crates/als-camera/src/lib.rs::{trace_with_start_adjustment,calculate_camera_trace,write_debug}`、`src/debug_display.rs::{draw_camera_debug_system,draw_sphere_sweep}`。
+
+新发现并修复：斜向包络采用最短旋转，源16边环顶点与UE固定轴基不一致；实际Gizmo反例缺失源顶点，改为完整对应MakeFromZ的轴基，短向量按源默认单位退化。实际相切检查通过，未修改碰撞或平滑算法。14项范围与1152项完整库通过，含穿透成功/失败、缩放、近命中、方向限制、立即收缩和历史；最终Camera21.007秒、Base125.596秒功能通过，共享Mantle球扫掠及原运动守卫均通过。
+
+</details>

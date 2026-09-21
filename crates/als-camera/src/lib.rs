@@ -1732,6 +1732,16 @@ mod tests {
     }
 
     #[test]
+    fn source_camera_touching_start_is_a_blocking_hit_without_adjustment() {
+        let walls = [(Vec3::new(0.0, 0.0, 0.25), Vec3::new(4.0, 4.0, 0.25))];
+        let (trace, _) = trace_fixture(&walls, Vec3::ZERO, Vec3::Z, Vec3::NEG_Z, 5.0 / 6.0, false, 1.0);
+        assert!(trace.blocking_hit);
+        assert!(!trace.adjusted_start, "Touching is not initial penetration");
+        assert_eq!(trace.adjustment_count, 0);
+        assert!(trace.start.abs_diff_eq(Vec3::ZERO, 1e-6));
+    }
+
+    #[test]
     fn source_camera_trace_distinguishes_close_hits_from_initial_penetration() {
         let walls = [(Vec3::new(0.0, 0.0, 0.160005), Vec3::new(4.0, 4.0, 0.02))];
         let (trace, _) = trace_fixture(&walls, Vec3::ZERO, Vec3::Z, Vec3::NEG_Z, 1.0, false, 1.0);

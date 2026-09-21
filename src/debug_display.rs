@@ -428,6 +428,31 @@ mod footstep_tests {
     }
 
     #[test]
+    fn sphere_sweep_uses_source_make_from_z_frame_for_oblique_traces() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, bevy::gizmos::GizmoPlugin, AlsDebugDisplayPlugin))
+            .init_resource::<Assets<AlsControlSchemeConfig>>();
+        app.add_systems(Update, |mut lines: Gizmos<DebugLines>, mut shapes: Gizmos<PhysicsGizmos>, mut stats: ResMut<AlsDebugDisplayStats>| {
+            draw_sphere_sweep(&mut lines, &mut shapes, Vec3::ZERO, Vec3::new(0.3, 0.7, -1.0), 0.3, Color::WHITE, &mut stats);
+            draw_sphere_sweep(&mut lines, &mut shapes, Vec3::ZERO, Vec3::X * 0.5e-6, 0.3, Color::linear_rgb(0.0, 1.0, 0.0), &mut stats);
+        });
+        app.update();
+        let end = Vec3::new(0.3, 0.7, -1.0);
+        let direction = end.normalize();
+        let x = direction.cross(Vec3::Y).normalize();
+        let y = x.cross(direction);
+        let points = trace_points(&app, Color::WHITE);
+        for index in 0..16 {
+            let angle = index as f32 * std::f32::consts::TAU / 16.0;
+            let point = end + (x * angle.cos() + y * angle.sin()) * 0.3;
+            assert!(points.iter().any(|actual| actual.abs_diff_eq(point, 1e-5)), "Source sweep ring vertex is missing: {point}");
+        }
+        let tiny = trace_points(&app, Color::linear_rgb(0.0, 1.0, 0.0));
+        assert!(tiny.iter().any(|point| point.abs_diff_eq(Vec3::new(0.25e-6, 0.31, 0.0), 1e-6)),
+            "A source-small sweep vector must retain the identity frame");
+    }
+
+    #[test]
     fn capsule_and_oblique_cone_match_source_line_batch_geometry() {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, bevy::gizmos::GizmoPlugin, AlsDebugDisplayPlugin))
@@ -1032,7 +1057,12 @@ fn draw_capsule_sweep(gizmos: &mut Gizmos<DebugLines>, start: Vec3, end: Vec3, r
 
 fn draw_sphere_sweep(lines: &mut Gizmos<DebugLines>, colliders: &mut Gizmos<PhysicsGizmos>, start: Vec3, end: Vec3, radius: f32, color: Color, stats: &mut AlsDebugDisplayStats) {
     let delta = end - start;
-    let rotation = Quat::from_rotation_arc(Vec3::Y, delta.try_normalize().unwrap_or(Vec3::Y));
+    let rotation = if delta.length_squared() < 1e-12 { Quat::IDENTITY } else {
+        let axis = delta.normalize();
+        let up = if axis.y.abs() < 1.0 - 1e-4 { Vec3::Y } else { Vec3::X };
+        let x = axis.cross(up).normalize();
+        Quat::from_mat3(&Mat3::from_cols(x, axis, x.cross(axis)))
+    };
     draw_debug_capsule(colliders, (start + end) * 0.5, delta.length() * 0.5 + radius, radius, rotation, color);
     draw_directional_arrow(lines, start, end, ARROW_HEAD_M, color, stats);
 }

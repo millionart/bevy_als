@@ -98,7 +98,7 @@
     - Runtime前2026-09-21 23:41：17项204.977秒范围PASS；最终条件限定distance==0且接触点负分离，对应源“起始”穿透，完整库250.926秒PASS（项目443项）。新反例覆盖0.4/0.6/0.95m接触边界，原成功与五类探测阶段/独立寿命均通过；原有到时清理和Actor过滤无差异。Root声明式manifest补本次CS/C++/HitResult证据与focused Gate，接下来构建manual/spec工具、fresh图规格/声明式与startup→Base→rotating_base。
     - 静态Gate完成2026-09-21 23:45：1149项全库通过；入口及spec工具同target/play163.254秒构建。spec首轮直接启动缺资产根参数，明确修正为实际assets绝对根后1.876秒输出当前345图；Root声明式10.289秒通过，覆盖源递归闭包、位置、编辑器和资产边界，未改图/转换规则。源manifest增加三份fresh证据及新反例；现在startup→Base→rotating_base功能Gate，原估时偏差12分钟，尚未越过允许窗口。
     - 02e/角色分支完成2026-09-21 23:49：startup15.517秒、Base125.141秒、rotating_base18.945秒全部功能PASS，正常/移动旋转目标攀爬、原姿态与时序守卫保持通过。开始23:18、预估23:33、实际23:49、偏差+16分钟；增加前向起始穿透反例与匹配的完整/声明式Gate后闭合。Shift+1～5均已独立取证、验收并提交；继续相机分支。
-- [ ] BF124.03 Shift+6～8相机debug分支树：逐键独立验收与提交，复用已证实的公共节点。
+- [x] BF124.03 Shift+6～8相机debug分支树：逐键独立验收与提交，复用已证实的公共节点。
   - [x] BF124.03a Shift+6 CameraCurves及公共相机入口：开始2026-09-21 23:50、预估结束2026-09-22 00:20。依据为Camera.DisplayDebugCurves→AnimInstance全部活动曲线→源Camera组件/渲染View分离的闭包，以及现有相机实际求值和Interface Gate。核对完整活动名称、单位、分栏/绝对值颜色、组件激活及当前实例归属；发现的共享入口差异需覆盖7/8消费者。
     - Source/static闭环2026-09-22 00:00：fresh CameraComponent34.169秒，源AutoActivate=true、AlwaysTickPoseAndRefreshBones；DisplayDebug只取组件IsActive，不要求该渲染View激活。实际场景反例96.625秒先FAIL（HUD值缺失、9个圆未绘制）；删除HUD/世界debug的渲染激活门槛，保留当前source链接/Actor归属/组件active。Camera GetAllCurveNames来自全部活动曲线，固定13只适合计算参数；HUD复用当前Camera实例最终context，现有camera_curve_conversion表离线生成9项逆映射，自定义曲线原样保留。另95.149秒反例证实角色缺省零值被错误注入相机活动表，改为getter缺省读取，活动表只保留真实求值项；源GetCurveValue零缺省与GetAllCurveNames集合语义分离，数值消费者不变。等待范围回归及真实Interface/Camera。
     - Runtime前2026-09-22 00:03：53项98.081秒PASS，覆盖真实Camera实例、缺省读取/活动集合、自定义负曲线颜色、SourceComponent激活/关闭及渲染View关闭、角色ControlRig/Layering和HUD消费者。逆映射直接从既有离线转换表生成，9项往返/self-test及43角色名称复查通过；删除固定13项诊断枚举和跨渲染依赖，无额外镜像组件。现在同target/play构建与Interface/Camera功能Gate。
@@ -106,6 +106,10 @@
     - 03a完成2026-09-22 00:12：动态高度/真实实例7项94.657秒PASS，77.250秒入口构建；Interface24.435秒、Camera20.219秒功能PASS。当前9活动曲线、74实际值、19按键状态、三窗口/DPI布局和相机行为全部通过，无数据/布局错误。开始09-21 23:50、预估09-22 00:20、实际00:12、偏差−8分钟。相机计算参数/动画算法未变；进入7/8的形状和trace生产树。
   - [x] BF124.03b Shift+7 CameraShapes：开始2026-09-22 00:12、预估结束00:32。依据为TickCamera中PivotTarget/Lag/Pivot、FOV/肩侧五字段与三球两连线，已闭合的组件入口/单位映射与Camera真实夹具；逐项核对首帧、第一人称、瞬移/基座和停止条件，确认差异后再修改。
     - 03b完成2026-09-22 00:16：fresh相机CS35.197秒，FOV90/90、瞬移200cm、ignore dilation、Socket与Offset设置核对一致；TickCamera完整第一人称将Lag/Pivot均设Target并提前返回，当前实现一致。三球均16cm/三圈16边、两连线/CameraYaw、动态root脱离回退和基座处理已展开；15项范围/边界检查通过，复用无代码变更的当前Interface24.435秒/Camera20.219秒证据。本分支未发现新增差异，不增加补偿或状态。开始00:12、预估00:32、实际00:16、偏差−16分钟。
+  - [x] BF124.03c Shift+8 CameraTraces：开始2026-09-22 00:16、预估结束00:46。依据为CalculateCameraTrace/TryAdjustLocationBlockedByGeometry的主扫掠/穿透/重试/平滑闭包、共享SphereSweep几何和5秒修正线，现有真实Avian反例与Camera场景；逐分支核对命中有效性和绘制姿态，保留正确分支。
+    - Source/static闭环2026-09-22 00:24：主扫掠→起始穿透MTD→向Owner方向限制→空闲空间复查→重扫→距离平滑逐分支核对，当前数据/失败起点保留/平滑前debug终点/红绿判断与5秒修正线一致。实际相切检查已通过，未因猜测修改碰撞。斜向SphereSweep旧最短旋转稳定缺失源环顶点，105.827秒反例FAIL；改为UE RotationMatrix.MakeFromZ对应的反手性基，短向量按源GetSafeNormal/Quat零矩阵返回Identity。范围97.621秒通过，含Mantle共享扫掠与历史；追加短向量顶点检查后执行最终全库、同target构建和Camera/Base入口。
+    - Runtime前2026-09-22 00:27：最终全库1152项143.934秒PASS（项目445、Camera25、Core280、Ext402），包括斜向/短向量、角色缺省读取与相机真实活动集合、全部此前修复。新绘制只替换轴基，未新增状态；取消该轴基的旧实现反例已失败。开始同target/play入口构建，随后Camera/Base与最终Interface组合验收。
+    - 03c/相机分支完成2026-09-22 00:31：入口84.085秒构建；Camera21.007秒、Base125.596秒均功能PASS，原相机追踪/遮挡/修正/动态场景及Mantle共享球扫掠无回归。开始00:16、预估00:46、实际00:31、偏差−15分钟；不更改已验证正确的相切、碰撞与距离平滑，原绘制错误已由顶点反例及完整Gate闭合。
 - [ ] BF124.04 Shift+9实际绑定与完整性核对：原版未绑定时明确源证据，不补造功能。
 - [ ] BF124.05 汇总树状报告与同根因修复验收：逐分支覆盖开关两态、必要组合及真实入口，保持既有截图/性能暂停偏好。
 
