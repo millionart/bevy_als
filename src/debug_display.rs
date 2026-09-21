@@ -173,7 +173,7 @@ fn capture_mantle_probes(
     time: Res<Time>,
     mut history: ResMut<MantleDebugHistory>,
     mut stats: ResMut<AlsDebugDisplayStats>,
-    actors: Query<&AlsCharacterDebug, (With<AlsCharacter>, With<crate::character_assembly::AlsPlayerCharacter>, Changed<AlsCharacterDebug>)>,
+    actors: Query<&AlsCharacterDebug, (With<AlsCharacter>, With<crate::debug_target::AlsDebugTarget>, Changed<AlsCharacterDebug>)>,
 ) {
     let now = time.elapsed_secs_f64();
     history.0.retain(|(created, trace)| now - created < mantle_debug_lifetime(trace));
@@ -188,6 +188,7 @@ fn capture_mantle_probes(
 
 impl Plugin for AlsDebugDisplayPlugin {
     fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<crate::debug_target::AlsDebugTargetPlugin>() { app.add_plugins(crate::debug_target::AlsDebugTargetPlugin); }
         app.init_resource::<AlsDebugDisplayStats>()
             .init_resource::<AlsDebugDisplayLayer>()
             .init_resource::<crate::footprint::FootstepDebugHistory>()
@@ -594,6 +595,7 @@ fn draw_trace_markers(
     mut stats: ResMut<AlsDebugDisplayStats>,
     mut drawing: ParamSet<(ResMut<GizmoConfigStore>, Gizmos<DebugLines>, Gizmos<DebugPoints>)>,
     players: Query<Entity, With<crate::character_assembly::AlsPlayerCharacter>>,
+    targets: Query<Entity, With<crate::debug_target::AlsDebugTarget>>,
     views: Query<(&Camera, &GlobalTransform, &als_camera::AlsCharacterCamera), With<Camera3d>>,
     assemblies: Query<&crate::character_assembly::AlsCharacterAssembly>,
     predictions: Query<(&crate::character_assembly::AlsCharacterAvatar, &crate::locomotion_layer::AlsGroundPredictionTrace)>,
@@ -621,7 +623,7 @@ fn draw_trace_markers(
                 .then_some(trace.downward_hit).flatten().map(|point| (point, linear(0.75, 0.0, 1.0), TraceMarkerKind::Mantle)),
         ].into_iter().flatten()
     });
-    let ground_point = players.single().ok().and_then(|player| {
+    let ground_point = targets.single().ok().and_then(|player| {
         if !stats.traces_active { return None; }
         let assembly = assemblies.get(player).ok()?;
         let (owner, trace) = predictions.get(assembly.avatar).ok()?;
@@ -713,7 +715,7 @@ fn draw_character_shapes_system(
             Option<&TnuaConfig<AlsControlScheme>>,
             Option<&als_camera::AlsCameraDefinitionHandle>,
         ),
-        (With<AlsCharacter>, With<crate::character_assembly::AlsPlayerCharacter>),
+        (With<AlsCharacter>, With<crate::debug_target::AlsDebugTarget>),
     >,
 ) {
     if !stats.shapes_active {
@@ -787,7 +789,7 @@ fn draw_character_shapes_system(
 fn draw_bounds_box_system(
     mut stats: ResMut<AlsDebugDisplayStats>,
     mut gizmos: Gizmos,
-    q_character: Query<(&GlobalTransform, &ColliderAabb), (With<AlsCharacter>, With<crate::character_assembly::AlsPlayerCharacter>)>,
+    q_character: Query<(&GlobalTransform, &ColliderAabb), (With<AlsCharacter>, With<crate::debug_target::AlsDebugTarget>)>,
 ) {
     if !stats.shapes_active {
         return;
@@ -907,7 +909,7 @@ fn draw_ground_prediction_system(
     mut stats: ResMut<AlsDebugDisplayStats>,
     mut lines: Gizmos<DebugLines>,
     mut colliders: Gizmos<PhysicsGizmos>,
-    characters: Query<(Entity, &crate::character_assembly::AlsCharacterAssembly), With<crate::character_assembly::AlsPlayerCharacter>>,
+    characters: Query<(Entity, &crate::character_assembly::AlsCharacterAssembly), With<crate::debug_target::AlsDebugTarget>>,
     predictions: Query<(&crate::character_assembly::AlsCharacterAvatar, &crate::locomotion_layer::AlsGroundPredictionTrace)>,
 ) {
     if !stats.traces_active { return; }
@@ -929,7 +931,7 @@ fn draw_camera_debug_system(
     mut colliders: Gizmos<PhysicsGizmos>,
     mut history: ResMut<CameraAdjustmentHistory>,
     time: Res<Time>,
-    characters: Query<(Entity, &crate::character_assembly::AlsCharacterAssembly), With<crate::character_assembly::AlsPlayerCharacter>>,
+    characters: Query<(Entity, &crate::character_assembly::AlsCharacterAssembly), With<crate::debug_target::AlsDebugTarget>>,
     views: Query<(&Camera, &als_camera::AlsCameraViewSource, &als_camera::AlsCharacterCamera)>,
     cameras: Query<(&crate::camera_component::AlsSourceCameraComponent, &als_camera::AlsCharacterCamera, Ref<AlsCameraDebugInfo>)>,
 ) {

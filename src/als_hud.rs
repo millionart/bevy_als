@@ -113,6 +113,7 @@ pub struct AlsHudPlugin;
 
 impl Plugin for AlsHudPlugin {
     fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<crate::debug_target::AlsDebugTargetPlugin>() { app.add_plugins(crate::debug_target::AlsDebugTargetPlugin); }
         app.init_resource::<AlsHudState>()
             .init_resource::<UiScale>()
             .add_systems(Startup, spawn_hud)
@@ -125,7 +126,8 @@ impl Plugin for AlsHudPlugin {
                     refresh_colors_system
                         .after(slomo_system)
                         .after(toggle_ui_system)
-                        .after(crate::show_debug_hud::AlsShowDebugHudSet::Input),
+                        .after(crate::show_debug_hud::AlsShowDebugHudSet::Input)
+                        .after(crate::debug_target::AlsDebugTargetSet),
                 ),
             );
     }
@@ -548,6 +550,7 @@ fn slomo_system(
 fn refresh_colors_system(
     state: Res<AlsHudState>,
     show_debug: Option<Res<AlsShowDebugHudState>>,
+    owned_target: Query<(), (With<crate::debug_target::AlsDebugTarget>, With<crate::character_assembly::AlsPlayerCharacter>)>,
     mut targets: Query<(&AlsHudColorTarget, &mut TextColor)>,
 ) {
     for (target, mut color) in &mut targets {
@@ -556,7 +559,7 @@ fn refresh_colors_system(
             AlsHudColorTarget::Slomo => state.slomo_active,
             AlsHudColorTarget::Category(category) => show_debug
                 .as_ref()
-                .map(|debug| debug.is_active(category))
+                .map(|debug| debug.is_active(category) && !owned_target.is_empty())
                 .unwrap_or(false),
         };
         color.0 = AlsHudState::toggle_color(active);

@@ -136,6 +136,7 @@ pub struct FootprintPlugin;
 
 impl Plugin for FootprintPlugin {
     fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<crate::debug_target::AlsDebugTargetPlugin>() { app.add_plugins(crate::debug_target::AlsDebugTargetPlugin); }
         if !app.is_plugin_added::<als_ext::projected_decal::PackedDecalPlugin>() { app.add_plugins(als_ext::projected_decal::PackedDecalPlugin); }
         app.init_asset::<FootprintLibrary>()
             .init_resource::<FootstepDebugHistory>()
@@ -203,7 +204,7 @@ fn spawn_footprints(
     libraries: Res<Assets<FootprintLibrary>>,
     time: Res<Time>,
     spatial: SpatialQuery,
-    mut characters: Query<(&AlsFootBones, &LocomotionState, &AlsCharacterAssembly, &mut FootprintDiagnostics, Has<crate::character_assembly::AlsPlayerCharacter>), With<AlsCharacter>>,
+    mut characters: Query<(&AlsFootBones, &LocomotionState, &AlsCharacterAssembly, &mut FootprintDiagnostics, Has<crate::debug_target::AlsDebugTarget>), With<AlsCharacter>>,
     owners: Query<Entity, With<AlsCharacter>>,
     avatars: Query<&AnimatedSceneInstance, With<AlsCharacterAvatar>>,
     players: Query<&AnimationGraphPlayer>,
@@ -511,7 +512,7 @@ mod tests {
         let rotation = Quat::from_rotation_z(std::f32::consts::FRAC_PI_2);
         let left = app.world_mut().spawn(Transform::from_xyz(-0.1, 0.05, 0.0).with_rotation(rotation)).id();
         let right = app.world_mut().spawn(Transform::from_xyz(0.1, 0.05, 0.0).with_rotation(rotation * Quat::from_rotation_y(std::f32::consts::PI))).id();
-        let character = app.world_mut().spawn((AlsCharacter, crate::character_assembly::AlsPlayerCharacter, LocomotionState::Grounded, FootprintDiagnostics::default(),
+        let character = app.world_mut().spawn((AlsCharacter, crate::character_assembly::AlsPlayerCharacter, crate::debug_target::AlsDebugTarget, LocomotionState::Grounded, FootprintDiagnostics::default(),
             AlsCharacterAssembly { avatar, camera: None }, AlsFootBones { left_thigh: left, left_calf: left, left,
                 left_target: None, left_virtual_target: None, right_thigh: right, right_calf: right, right,
                 right_target: None, right_virtual_target: None })).id();
@@ -620,7 +621,7 @@ mod tests {
         let count = app.world().resource::<FootstepDebugHistory>().0.len();
         for visible in [false, true] {
             app.world_mut().resource_mut::<crate::show_debug_hud::AlsShowDebugHudState>().visible = visible;
-            if visible { app.world_mut().entity_mut(character).remove::<crate::character_assembly::AlsPlayerCharacter>(); }
+            if visible { app.world_mut().entity_mut(character).remove::<crate::debug_target::AlsDebugTarget>(); }
             app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().clear();
             emit(app.world_mut(), "Left", false, false, &FOOTPRINT.notify_settings_reference);
             app.world_mut().run_system_once(spawn_footprints).unwrap();

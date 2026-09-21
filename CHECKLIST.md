@@ -55,13 +55,16 @@
     - Source/static闭环2026-09-21 19:01：原版SlateTextRun按字体塑形结果预留省略号；Hud的72 Text均Clip，只有菜单Option为Ellipsis。本地Bevy TextPipeline提供原生字体测量，新增als-ext最小宽度截断函数，菜单在字体事件/DPI变化时应用并保留完整标签的布局宽度。真实字体夹具先复现无省略号，再复现0.4995 DPI下向上取整误截Pistol One Handed；改取塑形缓冲区未取整的full_width，真实Interface增加全部源菜单标签断言。范围回归进行中，未扩展图/世界debug分支。
     - Runtime前2026-09-21 19:10：33项项目HUD测试+1项als-ext宽度/UTF-8/测量错误测试PASS；进一步消融物理窗口与DPI重算，改在源菜单逻辑坐标内测量，结果不变，已删除窗口依赖和对应分支。原生字体资源夹具覆盖长名称、省略号、小数DPI及未溢出的名称，保留原始宽度用于源居中语义。导入一致性/self-test通过，准备两个真实入口同target/profile预构建及Interface最终复验。
     - 02b完成2026-09-21 19:13：两入口构建PASS，Interface18.394秒功能PASS，三种窗口/DPI下完整源菜单文字、几何和颜色全部通过，fault/graph error/temporal为0。开始18:45、预估19:20、实际19:13、偏差−7分钟；34项范围测试及源导入闭合，02a/02b均完成，父项02完成。截图/性能暂停与字体家族/菜单锚点/点击音约定保持。
-- [ ] BF123.03 ShowDebug入口及HUD整体验收：开始2026-09-21 19:14、预估结束19:54，依赖02已完成。fresh本地HUD/Character/Camera DisplayDebug入口，逐项核对布局与分类交互，补必要修复并在原Interface场景验证完整HUD、不同窗口/DPI和开关两态；截图/性能仍按既有暂停偏好。依据为已定位的三份ALS C++与引擎AHUD/DisplayDebugManager、现有Canvas合同/数据Gate和约100秒测试/80秒构建/18秒入口，窗口40分钟；每键深层生产者树留在后续已授权BF124。
+- [x] BF123.03 ShowDebug入口及HUD整体验收：开始2026-09-21 19:14、预估结束19:54，依赖02已完成。fresh本地HUD/Character/Camera DisplayDebug入口，逐项核对布局与分类交互，补必要修复并在原Interface场景验证完整HUD、不同窗口/DPI和开关两态；截图/性能仍按既有暂停偏好。依据为已定位的三份ALS C++与引擎AHUD/DisplayDebugManager、现有Canvas合同/数据Gate和约100秒测试/80秒构建/18秒入口，窗口40分钟；每键深层生产者树留在后续已授权BF124。
   - Source/static闭环2026-09-21 19:40：fresh AHUD.PostRender/ShowDebugInfo→AlsCharacterExample→Camera→AlsCharacter→Character/Pawn/Actor/Controller链已展开。旧Gate只覆盖ALS内部行/列，漏掉AHUD全屏黑底(.2)、两行红色提示和外层纵向游标；已先红后修，14项范围测试PASS。原生reader用UE SlateNullRenderer字体缓存提取Tiny=Light8点/最大字符高13、Medium=Regular10点/高度15，零高度的无字体服务样本未作为事实使用；离线生成字号/高度。Canvas使用窗口DPI，普通UMG使用独立曲线，两者不可混用；补源阴影DPI映射。SGameLayerManager明确Debug层覆盖UMG，补其层级。父类元数据与目标/列切换闭包仍未完成，不能以当前显示层通过代替整体通过；下一步分段验收后继续同一入口闭包。
   - 拆分2026-09-21 19:42：实际闭包包含此前未纳入的引擎父类诊断和通用导航，03拆分为独立显示层与入口交互，父项按子项时钟执行。
   - [x] BF123.03a AHUD显示层与字体事实：开始19:14、预估19:54，当前14项静态Gate已通过，补层级后重跑匹配验证与真实入口。
     - Runtime前2026-09-21 19:46：最终14项范围测试PASS；去掉AHUD游标的消融使坐标合同失败，源导入一致性与零字体高度拒绝通过。已恢复完整实现，使用target_game/play预构建后验证真实Interface；03b父类诊断/导航仍明确未完成。
     - 03a完成2026-09-21 19:48：入口构建与Interface18.642秒功能PASS，实际Canvas/控件/菜单坐标及颜色/文字无错配，fault/graph error/temporal为0。开始19:14、预估19:54、实际19:48、偏差−6分钟；显示层独立闭合并提交，父项03及BF123整体仍待03b。
-  - [ ] BF123.03b 父类诊断及目标/列导航：依赖03a，进入时按完整闭包估时；完成后才结束HUD阶段并进入BF124逐键数据生产者树。
+  - [x] BF123.03b 父类诊断及目标/列导航：开始2026-09-21 19:50、预估结束20:40，依赖03a已通过。依据为已读AHUD目标集合/环绕、DisplayDebugManager分页与Actor/Pawn/Controller父类链，现有角色/相机所有权和原生字体测量能力，以及约100秒库测试/80秒构建/18秒入口；窗口50分钟。先确认ECS对应数据和全部显示消费者，按源语义修复并完成真实入口，之后才结束HUD阶段并进入BF124逐键生产者树。
+    - Source/static闭环2026-09-21 20:28：用户已明确选择展示实际ECS身份/输入上下文。新增所选debug目标标记，PageUp/PageDown按最近渲染角色环绕，主开关变更重置，失效目标回退受控角色；最近渲染容差按max(.2,dt+.0001)。HUD、即时形状、预测、相机与足迹debug记录统一消费目标，点投影仍取观察者；拥有者图例不把他人的类别标绿。父类诊断映射实际实体/Owner/Input Context及源坐标cm/角度，原生字体宽度驱动继承的游标/分页与Shift列导航。目标、分页先红后修，41项消费者/布局范围测试PASS；补可见网格/长帧容差检查后进行实际入口。
+    - Runtime前2026-09-21 20:39：可见蒙皮网格/长帧容差、目标销毁回退、无目标主开关显示、图例归属均通过；真实字体环境中的ECS诊断与左右Shift分页往返通过。最近范围41项和追加5项测试PASS；父类数据显示用户选择的真实ECS语义，不创建UE对象镜像。真实Interface新增身份/位置/Owner/Input Context/状态必达检查，准备同入口预构建后验收。
+    - 03b/BF123完成2026-09-21 20:44：同target/profile构建与Interface18.409秒功能PASS，身份/元数据必达、三阶段布局与所有既有HUD/菜单检查通过，fault/graph error/temporal为0。03b开始19:50、预估20:40、实际20:44、偏差+4分钟；目标/最近渲染/消费者回归与原生字体列导航闭合，HUD整体阶段完成。依用户后续要求，进入BF124逐键树状链路审计。
 ## BF124 Shift+0～9 Debug 树状链路对标
 
 用户追加当前任务：BF123 HUD整体对标完成后，逐键以树状展开方式审计每一处debug链路。每条树按输入/修饰键→状态→调度→数据生产者→坐标/单位/过滤→绘制消费者→缓存/清理/生命周期展开，记录本地ALS-Ref事实、目标路径、差异和Gate证据。逐项进入时按fresh闭包估时；已闭合模块仅对本次证实根因有限复开。

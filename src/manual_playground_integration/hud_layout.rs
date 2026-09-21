@@ -87,6 +87,11 @@ fn observe(
     }
     let scale = (size.x as f32 / 1280.0).min(size.y as f32 / 720.0);
     let mut failures = Vec::new();
+    for prefix in ["ENTITY ", "Location (cm): ", "Owner: ", "INPUT CONTEXT ", "STATE "] {
+        if !controls.iter().any(|(_, _, _, text, _)| text.is_some_and(|text| text.0.starts_with(prefix))) {
+            failures.push(serde_json::json!({"field":"HostDiagnostic","missing":prefix}));
+        }
+    }
     for (name, position) in [
         (
             "DebugHeader:Als.CameraCurves (Shift + 6)",

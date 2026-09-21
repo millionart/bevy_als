@@ -14,6 +14,7 @@ pub mod character_runtime;
 pub mod control_rig_apply;
 pub mod crouching_layer;
 pub mod debug_display;
+pub mod debug_target;
 pub mod direction_layer;
 pub mod foot_ik_apply;
 pub mod footprint;
