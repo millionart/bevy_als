@@ -401,3 +401,21 @@ Shift+Eight → ShowDebug Als.CameraTraces ⇒ 公共相机入口
 新发现并修复：斜向包络采用最短旋转，源16边环顶点与UE固定轴基不一致；实际Gizmo反例缺失源顶点，改为完整对应MakeFromZ的轴基，短向量按源默认单位退化。实际相切检查通过，未修改碰撞或平滑算法。14项范围与1152项完整库通过，含穿透成功/失败、缩放、近命中、方向限制、立即收缩和历史；最终Camera21.007秒、Base125.596秒功能通过，共享Mantle球扫掠及原运动守卫均通过。
 
 </details>
+
+<details>
+<summary>Shift+9 — 原版未绑定</summary>
+
+```text
+Shift+Nine
+├─ ALS Config/DefaultInput.ini：ShowDebug仅Zero～Eight九项
+├─ UE Engine/Config/*Input.ini：无Nine/NumPadNine的DebugExecBindings覆盖
+├─ ALS插件：无Input.ini覆盖，无EKeys::Nine/NumPadNine或动态DebugExecBindings
+├─ 原生B_Als_PlayerController输入节点：菜单、上一项、下一项、UI、Slomo
+│  └─ 没有新增的第九个debug分类入口
+└─ target apply_show_debug_key(Digit9)：false，不修改主开关或类别
+   └─ 实际Interface驱动Shift+9，已有状态保持不变
+```
+
+结论：不是待补功能。4项按键/完整性检查通过，真实Interface的19种状态包含此不变性；树覆盖Shift+0～9共10个入口，不虚构第九类别。
+
+</details>
