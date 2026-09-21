@@ -52,6 +52,7 @@ fn spawn_target(commands: &mut Commands, x: f32, scale: f32, denied: bool) {
         .spawn((
             RigidBody::Static,
             Collider::cuboid(2.4 * scale, height, 1.2 * scale),
+            avian3d::prelude::CollisionLayers::new([als_core::character::AlsCollisionLayer::Default, als_core::character::AlsCollisionLayer::Visibility], avian3d::prelude::LayerMask::ALL),
             Transform::from_xyz(x, height * 0.5, -1.4 * scale),
         ))
         .id();
@@ -179,6 +180,7 @@ fn verify(
     let disabled_control = AlsMantleControlSettings {
         allow_mantling: false,
         auto_start_in_air: false,
+        ..default()
     };
     let source_settings = AlsMantleStartTimeSettings::default();
     let auto_settings = auto_start_settings();

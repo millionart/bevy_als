@@ -66,6 +66,8 @@ pub struct MantleActionSettings {
 pub struct AlsMantleControlSettings {
     pub allow_mantling: bool,
     pub auto_start_in_air: bool,
+    pub draw_failed_grounded_traces: bool,
+    pub draw_failed_in_air_traces: bool,
 }
 
 impl Default for AlsMantleControlSettings {
@@ -73,7 +75,15 @@ impl Default for AlsMantleControlSettings {
         Self {
             allow_mantling: true,
             auto_start_in_air: true,
+            draw_failed_grounded_traces: MANTLE_SETTINGS.draw_failed_grounded_traces,
+            draw_failed_in_air_traces: MANTLE_SETTINGS.draw_failed_in_air_traces,
         }
+    }
+}
+
+impl AlsMantleControlSettings {
+    pub fn draw_failed_traces(self, locomotion: LocomotionState) -> bool {
+        if locomotion == LocomotionState::Air { self.draw_failed_in_air_traces } else { self.draw_failed_grounded_traces }
     }
 }
 
@@ -144,6 +154,9 @@ pub const MANTLE_SOURCE_DATA: &str =
 struct MantleSourceSettings {
     actions: HashMap<MantleKind, MantleActionSettings>,
     low_kinds: HashMap<OverlayState, MantleKind>,
+    trace_layer: crate::character::AlsCollisionLayer,
+    draw_failed_grounded_traces: bool,
+    draw_failed_in_air_traces: bool,
 }
 
 static MANTLE_SETTINGS: LazyLock<MantleSourceSettings> = LazyLock::new(|| {
@@ -199,6 +212,16 @@ pub struct MantleIntent {
     pub target_entity: Entity,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum MantleProbeResult {
+    #[default]
+    ForwardRejected,
+    DownwardRejected,
+    TargetBlocked,
+    StartBlocked,
+    Success,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct MantleProbeTrace {
     pub forward_start: Option<Vec3>,
@@ -208,6 +231,16 @@ pub struct MantleProbeTrace {
     pub downward_end: Option<Vec3>,
     pub downward_hit: Option<Vec3>,
     pub target_capsule_center: Option<Vec3>,
+    pub trace_radius: f32,
+    pub forward_half_height: f32,
+    pub forward_hit_center: Option<Vec3>,
+    pub downward_hit_center: Option<Vec3>,
+    pub target_half_height: f32,
+    pub target_radius: f32,
+    pub start_capsule_center: Option<Vec3>,
+    pub start_half_height: f32,
+    pub result: MantleProbeResult,
+    pub draw_failed_traces: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -492,12 +525,17 @@ pub fn detect_mantle(
         };
     };
     let settings = mantle_trace_settings(input.locomotion);
-    let filter = SpatialQueryFilter::from_excluded_entities([excluded]);
+    let filter = SpatialQueryFilter::from_excluded_entities([excluded]).with_mask(MANTLE_SETTINGS.trace_layer);
     let capsule_scale = input.capsule_scale.abs().max(1e-4);
     let capsule_bottom = input.origin - Vec3::Y * input.capsule_half_height;
     let trace_radius = (input.capsule_radius - MANTLE_TRACE_CAPSULE_SHRINK).max(0.001);
     let ledge_height_delta =
         (settings.maximum_ledge_height - settings.minimum_ledge_height) * capsule_scale;
+    trace.trace_radius = trace_radius;
+    trace.forward_half_height = ledge_height_delta * 0.5;
+    trace.target_half_height = input.capsule_half_height;
+    trace.target_radius = input.capsule_radius;
+    trace.draw_failed_traces = AlsMantleControlSettings::default().draw_failed_traces(input.locomotion);
     let forward_start = capsule_bottom - forward * input.capsule_radius
         + Vec3::Y
             * ((settings.minimum_ledge_height + settings.maximum_ledge_height)
@@ -525,6 +563,7 @@ pub fn detect_mantle(
         };
     };
     trace.forward_hit = Some(forward_hit.point1);
+    trace.forward_hit_center = Some(forward_start + forward * forward_hit.distance);
     let body = colliders.get(forward_hit.entity).map_or(forward_hit.entity, |collider| collider.body);
     let target_allows_step_up = target_permissions
         .get(forward_hit.entity)
@@ -567,6 +606,7 @@ pub fn detect_mantle(
     let downward_distance = (downward_start.y - downward_end.y).max(0.0);
     trace.downward_start = Some(downward_start);
     trace.downward_end = Some(downward_end);
+    trace.result = MantleProbeResult::DownwardRejected;
     let downward_shape = Collider::sphere(trace_radius);
     let downward_config = ShapeCastConfig::from_max_distance(downward_distance);
     let Some(downward_hit) = spatial.cast_shape(
@@ -584,6 +624,7 @@ pub fn detect_mantle(
     };
     trace.downward_hit = Some(downward_hit.point1);
     let downward_location = downward_start - Vec3::Y * downward_hit.distance;
+    trace.downward_hit_center = Some(downward_location);
     let approximate_slope_normal = (downward_location - downward_hit.point1).normalize_or_zero();
     if downward_hit.normal1.y < MANTLE_SLOPE_ANGLE_COS
         || approximate_slope_normal.y < MANTLE_SLOPE_ANGLE_COS
@@ -600,6 +641,7 @@ pub fn detect_mantle(
         downward_location.z,
     );
     trace.target_capsule_center = Some(target);
+    trace.result = MantleProbeResult::TargetBlocked;
     let target_capsule = als_character_capsule(input.capsule_half_height, input.capsule_radius);
     if !spatial
         .shape_intersections(&target_capsule, target, Quat::IDENTITY, &filter)
@@ -616,6 +658,9 @@ pub fn detect_mantle(
         forward_hit.point1.z - target_direction.z * settings.start_location_offset * capsule_scale,
     );
     let start_half_height = (downward_location.y - downward_end.y) * 0.5 + trace_radius;
+    trace.start_capsule_center = Some(start_location);
+    trace.start_half_height = start_half_height.max(trace_radius);
+    trace.result = MantleProbeResult::StartBlocked;
     let start_capsule = als_character_capsule(start_half_height.max(trace_radius), trace_radius);
     if !spatial
         .shape_intersections(&start_capsule, start_location, Quat::IDENTITY, &filter)
@@ -628,6 +673,7 @@ pub fn detect_mantle(
     }
     let mantling_height = (target_ground - capsule_bottom.y) / capsule_scale;
     let kind = select_mantle_kind(input.locomotion, input.overlay, mantling_height);
+    trace.result = MantleProbeResult::Success;
     MantleDetection {
         intent: Some(MantleIntent {
             kind,
@@ -949,6 +995,91 @@ impl AlsMantleState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use avian3d::prelude::{CollisionLayers, LayerMask};
+    use crate::character::AlsCollisionLayer;
+
+    fn debug_probe_app(rotation: Quat) -> (App, Entity, Entity) {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, TransformPlugin,
+            avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+        app.finish();
+        app.cleanup();
+        let actor = app.world_mut().spawn(crate::character::AlsCharacter).id();
+        let ledge = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(2.4, 0.8, 1.2),
+            CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], LayerMask::ALL),
+            Transform::from_xyz(0.0, 0.4, -1.4).with_rotation(rotation))).id();
+        app.update();
+        (app, actor, ledge)
+    }
+
+    fn debug_probe(app: &mut App, actor: Entity, locomotion: LocomotionState) -> MantleDetection {
+        use bevy::ecs::system::RunSystemOnce;
+        app.world_mut().run_system_once_with(|In((actor, locomotion)): In<(Entity, LocomotionState)>, spatial: SpatialQuery,
+            velocities: Query<(&RigidBody, &LinearVelocity, Option<&AlsComponentVelocity>), Without<crate::character::AlsCharacter>>,
+            permissions: Query<Option<&AlsMantleTargetPermission>, Without<crate::character::AlsCharacter>>, colliders: Query<&ColliderOf>| {
+            detect_mantle(&spatial, actor, MantleDetectionInput { origin: Vec3::Y * 0.95, input_direction: Vec3::NEG_Z,
+                locomotion, ..default() }, &velocities, &permissions, &colliders)
+        }, (actor, locomotion)).unwrap()
+    }
+
+    #[test]
+    fn mantle_probe_records_source_shapes_and_rejection_stage() {
+        let (mut app, actor, ledge) = debug_probe_app(Quat::IDENTITY);
+        let success = debug_probe(&mut app, actor, LocomotionState::Grounded);
+        assert!(success.intent.is_some());
+        assert_eq!(success.trace.result, MantleProbeResult::Success);
+        assert!((success.trace.trace_radius - 0.29).abs() < 1e-6);
+        assert!((success.trace.forward_half_height - 0.875).abs() < 1e-6);
+        assert_eq!((success.trace.target_half_height, success.trace.target_radius), (0.9, 0.3));
+        assert!(success.trace.forward_hit_center.is_some() && success.trace.downward_hit_center.is_some() && success.trace.start_capsule_center.is_some());
+        assert!(success.trace.draw_failed_traces);
+        assert!(!debug_probe(&mut app, actor, LocomotionState::Air).trace.draw_failed_traces);
+        app.world_mut().entity_mut(ledge).insert(AlsMantleTargetPermission { allows_step_up: false });
+        let rejected = debug_probe(&mut app, actor, LocomotionState::Grounded);
+        assert_eq!(rejected.trace.result, MantleProbeResult::ForwardRejected);
+        assert!(rejected.trace.forward_hit.is_some() && rejected.trace.downward_start.is_none());
+        app.world_mut().entity_mut(ledge).remove::<AlsMantleTargetPermission>();
+        let blocker = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.01, 0.1, 0.2),
+            CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], LayerMask::ALL),
+            Transform::from_xyz(0.296, 1.7, -0.95))).id();
+        app.update();
+        let blocked = debug_probe(&mut app, actor, LocomotionState::Grounded);
+        assert_eq!(blocked.trace.result, MantleProbeResult::TargetBlocked, "{blocked:?}");
+        assert!(blocked.intent.is_none());
+        app.world_mut().despawn(blocker);
+        app.world_mut().entity_mut(ledge).insert((Collider::cuboid(2.4, 3.5, 1.2), Transform::from_xyz(0.0, 1.75, -1.4)));
+        app.update();
+        assert_eq!(debug_probe(&mut app, actor, LocomotionState::Grounded).trace.result, MantleProbeResult::DownwardRejected);
+        let (mut app, actor, _) = debug_probe_app(Quat::from_rotation_y(0.7));
+        let success = debug_probe(&mut app, actor, LocomotionState::Grounded);
+        assert!(success.intent.is_some(), "{success:?}");
+        let center = success.trace.start_capsule_center.unwrap();
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.04, 0.1, 0.04),
+            CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], LayerMask::ALL),
+            Transform::from_translation(center + Vec3::X * center.x.signum() * 0.2)));
+        app.update();
+        let blocked = debug_probe(&mut app, actor, LocomotionState::Grounded);
+        assert_eq!(blocked.trace.result, MantleProbeResult::StartBlocked, "{blocked:?}");
+        assert!(blocked.intent.is_none());
+    }
+
+    #[test]
+    fn mantle_visibility_filter_applies_to_sweeps_and_overlaps() {
+        use avian3d::prelude::{CollisionLayers, LayerMask};
+        let (mut app, actor, ledge) = debug_probe_app(Quat::IDENTITY);
+        app.world_mut().entity_mut(ledge).insert(CollisionLayers::new(crate::character::AlsCollisionLayer::Default, LayerMask::ALL));
+        app.update();
+        let ignored = debug_probe(&mut app, actor, LocomotionState::Grounded);
+        assert!(ignored.intent.is_none() && ignored.trace.forward_hit.is_none(), "Physics contact must not imply a Visibility query hit");
+        app.world_mut().entity_mut(ledge).insert(CollisionLayers::ALL);
+        let blocker = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.01, 0.1, 0.2),
+            Transform::from_xyz(0.296, 1.7, -0.95), CollisionLayers::new(crate::character::AlsCollisionLayer::Default, LayerMask::ALL))).id();
+        app.update();
+        assert!(debug_probe(&mut app, actor, LocomotionState::Grounded).intent.is_some());
+        app.world_mut().entity_mut(blocker).insert(CollisionLayers::ALL);
+        app.update();
+        assert!(debug_probe(&mut app, actor, LocomotionState::Grounded).intent.is_none());
+    }
 
     #[test]
     fn trace_settings_match_grounded_and_in_air_source_values() {
@@ -1050,6 +1181,7 @@ mod tests {
         let disabled_control = AlsMantleControlSettings {
             allow_mantling: false,
             auto_start_in_air: false,
+            ..default()
         };
         let permission = AlsMantleTargetPermission {
             allows_step_up: false,

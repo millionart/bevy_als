@@ -2195,7 +2195,7 @@ fn locomotion_drive_system(
             let (scale, _, _) = gtf.to_scale_rotation_translation();
             let (capsule_half_height, capsule_radius, vertical_scale) =
                 scaled_mantle_capsule_dimensions(base_half_height, base_radius, scale);
-            Some(detect_mantle(
+            let mut detection = detect_mantle(
                 &spatial,
                 entity,
                 MantleDetectionInput {
@@ -2213,7 +2213,9 @@ fn locomotion_drive_system(
                 &velocities,
                 &target_permissions,
                 &target_colliders,
-            ))
+            );
+            detection.trace.draw_failed_traces = mantle_control.draw_failed_traces(*loco);
+            Some(detection)
         } else {
             None
         };
@@ -3412,6 +3414,9 @@ mod tests {
                     app.world_mut().entity_mut(body).insert(Collider::cuboid(2.4, 0.8, 1.2));
                     body
                 };
+                app.world_mut().entity_mut(target).insert(avian3d::prelude::CollisionLayers::new(
+                    [crate::character::AlsCollisionLayer::Default, crate::character::AlsCollisionLayer::Visibility], avian3d::prelude::LayerMask::ALL));
+                app.world_mut().entity_mut(character).insert(AlsMantleControlSettings { draw_failed_grounded_traces: child, ..default() });
                 if let Some(allows_step_up) = override_permission {
                     app.world_mut().entity_mut(target).insert(AlsMantleTargetPermission { allows_step_up });
                 }
@@ -3423,6 +3428,7 @@ mod tests {
                 input.move_dir = Vec2::Y;
                 input.jump_pressed = true;
                 app.update();
+                assert_eq!(app.world().get::<AlsCharacterDebug>(character).unwrap().0.mantle_probe.unwrap().draw_failed_traces, child);
                 let mantle = app.world().get::<AlsMantleState>(character).unwrap();
                 let expected = override_permission.unwrap_or(allowed)
                     && (if kind == RigidBody::Dynamic { speed } else { reported.unwrap_or(0.0) }) <= crate::mantle::MANTLE_TARGET_SPEED_THRESHOLD;

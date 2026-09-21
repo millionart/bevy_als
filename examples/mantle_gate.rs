@@ -186,6 +186,7 @@ fn spawn_character_once(
     commands.spawn((
         RigidBody::Static,
         Collider::cuboid(60.0, 0.3, 80.0),
+        CollisionLayers::new([als_core::character::AlsCollisionLayer::Default, als_core::character::AlsCollisionLayer::Visibility], LayerMask::ALL),
         Transform::from_xyz(0.0, -0.15, 10.0),
         Mesh3d(meshes.add(Mesh::from(Cuboid::new(60.0, 0.3, 80.0)))),
         MeshMaterial3d(ground_mat),
@@ -194,6 +195,7 @@ fn spawn_character_once(
     commands.spawn((
         RigidBody::Static,
         Collider::cuboid(2.4, low_top, 1.2),
+        CollisionLayers::new([als_core::character::AlsCollisionLayer::Default, als_core::character::AlsCollisionLayer::Visibility], LayerMask::ALL),
         Transform::from_xyz(0.0, low_top / 2.0, -4.5),
         Mesh3d(meshes.add(Mesh::from(Cuboid::new(2.4, low_top, 1.2)))),
         MeshMaterial3d(box_mat.clone()),
@@ -202,6 +204,7 @@ fn spawn_character_once(
     commands.spawn((
         RigidBody::Static,
         Collider::cuboid(2.4, high_top, 1.2),
+        CollisionLayers::new([als_core::character::AlsCollisionLayer::Default, als_core::character::AlsCollisionLayer::Visibility], LayerMask::ALL),
         Transform::from_xyz(0.0, high_top / 2.0, 2.5),
         Mesh3d(meshes.add(Mesh::from(Cuboid::new(2.4, high_top, 1.2)))),
         MeshMaterial3d(box_mat),

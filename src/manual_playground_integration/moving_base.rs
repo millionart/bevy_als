@@ -431,7 +431,8 @@ mod tests {
         app.finish();
         app.cleanup();
         let body = app.world_mut().spawn((RigidBody::Kinematic, Transform::from_xyz(0.0, -0.5, 0.0))).id();
-        let collider = app.world_mut().spawn((ChildOf(body), Collider::cuboid(3.0, 3.0, 3.0), Transform::IDENTITY)).id();
+        let collider = app.world_mut().spawn((ChildOf(body), Collider::cuboid(3.0, 3.0, 3.0), Transform::IDENTITY,
+            avian3d::prelude::CollisionLayers::new([als_core::character::AlsCollisionLayer::Default, als_core::character::AlsCollisionLayer::Visibility], avian3d::prelude::LayerMask::ALL))).id();
         app.world_mut().spawn((RigidBody::Static, Collider::cuboid(20.0, 0.2, 20.0), Transform::from_xyz(0.0, -0.1, 0.0)));
         let character = app.world_mut().spawn_empty().id();
         let params = AlsMovementParams::default();

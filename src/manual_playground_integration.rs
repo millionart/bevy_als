@@ -4242,6 +4242,7 @@ fn drive_manual_integration(
                 commands.entity(character).insert(AlsMantleControlSettings {
                     allow_mantling: false,
                     auto_start_in_air: false,
+                    ..default()
                 });
             }
             input.0.jump_pressed = (0.5..0.7).contains(&elapsed);
@@ -4409,6 +4410,7 @@ fn drive_manual_integration(
                 commands.entity(character).insert(AlsMantleControlSettings {
                     allow_mantling: false,
                     auto_start_in_air: false,
+                    ..default()
                 });
                 info!(
                     "[MANUAL-INTEGRATION][FOOT-IK-TERRAIN] slope={slope:?} step={step:?} slope_center=({:.3},{:.3},{:.3}) step_center=({:.3},{:.3},{:.3})",
@@ -4744,6 +4746,7 @@ fn drive_manual_integration(
                 commands.entity(character).insert(AlsMantleControlSettings {
                     allow_mantling: false,
                     auto_start_in_air: false,
+                    ..default()
                 });
                 info!("[MANUAL-INTEGRATION][P1][AIR] standing_jump start");
             }
@@ -4839,6 +4842,7 @@ fn drive_manual_integration(
                 commands.entity(character).insert(AlsMantleControlSettings {
                     allow_mantling: false,
                     auto_start_in_air: false,
+                    ..default()
                 });
                 state.crouch_recovery_jump_requested = false;
                 state.crouch_recovery_air_crouch_requested = false;

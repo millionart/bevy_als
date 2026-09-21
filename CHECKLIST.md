@@ -51,8 +51,12 @@
   - 02真实入口前2026-09-21 15:05：独立线宽合并86.198秒、零区间分支移除85.363秒消融均正确FAIL并恢复；退化区间遵循fresh FMath.GetRangePct，0/0仍产生75cm有效速度箭头。28项含脚步/HUD/实际运动回归85.764秒PASS，target_game/play76.110秒构建PASS。开始公共startup→interface，使用原场景、CaptureCount0/FunctionalOnly。
   - 02完成2026-09-21 15:06：startup15.762秒、interface17.558秒公共功能Gate均PASS，原场景新原生Collider线框/3px箭头注册与绘制正常；28项范围回归及两个消融闭合。开始14:45、预估15:35、实际15:06、偏差−29分钟；直接复用Avian当前shape_scaled，未增加碰撞镜像状态或自制胶囊网格。
 - [ ] BF122.03 Mantling碰撞调试：依赖02已通过；拆分为数据合同与绘制/真实验收。记录实际扫掠形状/命中中心和两种失败重叠，按5/7.5/10秒及失败显示设置绘制，覆盖成功/失败/开关/过期。
-  - [ ] BF122.03a 实际探测数据合同：开始2026-09-21 15:06、预估结束2026-09-21 15:46。fresh StartMantling/DebugUtility及TraceSettings源默认值，补实际尺寸、命中中心、失败分支与留存设置；先核心最小失败反例和完整分支数据合同，再范围回归与独立提交。依据为现有detect_mantle、原生角色记录/reader、五个返回分支及约160秒跨crate编译，窗口40分钟。
-  - [ ] BF122.03b 完整绘制与留存：依赖03a；进入时估时。使用现有Gizmos/Changed组件捕获真实探测，按分支绘制扫掠/命中/失败重叠并验证5/7.5/10秒；含显示开关、单帧失败及原Playground入口。
+  - [x] BF122.03a 实际探测数据合同：开始2026-09-21 15:06、预估结束2026-09-21 15:46。fresh StartMantling/DebugUtility及TraceSettings源默认值，补实际尺寸、命中中心、失败分支与留存设置；先核心最小失败反例和完整分支数据合同，再范围回归与独立提交。依据为现有detect_mantle、原生角色记录/reader、五个返回分支及约160秒跨crate编译，窗口40分钟。
+  - 03a完成2026-09-21 15:46：1114项完整库回归232.818秒PASS（camera24/core279/ext401/项目410），manual_playground及两个受影响Mantle示例同target_game/play编译161.439秒PASS。公开开关由真实攀爬入口写入记录、五分支/Visibility/复合刚体/旋转平台及导入反例闭合；原始源记录不变，完整生成diff仅三个配置字段。开始15:06、预估15:46、实际15:46、偏差0分钟，数据静态段完成；绘制和历史生命周期仍待03b。
+  - [ ] BF122.03b 完整绘制与留存：开始2026-09-21 15:46、预估结束2026-09-21 16:41，依赖03a已通过。依据为已核对的两个DebugUtility扫掠函数、原生Gizmos/完整记录与实际Avian五分支夹具，约80秒项目测试和公共base入口；窗口55分钟。使用现有Gizmos/Changed组件捕获真实探测，按分支绘制扫掠/命中/失败重叠并验证5/7.5/10秒；含显示开关、单帧失败及原Playground入口。
+  - 03a真实组件漏接2026-09-21 15:39：分类/过滤消融195.482秒两项均FAIL并恢复；首次完整149.896秒回归检出复合刚体旧夹具未声明Visibility，补齐后200.230秒复验进一步以真实生产路径证明AlsCharacter没有附带AlsCharacterDebug，正式角色也从未挂载，故原Mantling绘制拿不到数据。添加Bevy原生required component，不做外部扫描/补挂系统；复合刚体反例同时检验两个开关值确实进入实际探测记录。继续完整回归与受影响示例编译；尚未启动03b或新的runtime。
+  - 03a静态闭环2026-09-21 15:28：15项Mantle核心合同和旋转平台实际探测调用者192.768秒PASS；真实Avian几何分别稳定产生成功、前探拒绝、下探拒绝、目标空间阻挡和起始路径阻挡，记录命中中心/半高/半径与对应结果。Visibility反例覆盖前向扫掠及目标重叠的独立Block/Ignore；公开ControlSettings保留地面/空中独立失败留存开关。开始结果分类/共享层过滤的联合消融，再完整范围回归及独立静态段提交；绘制仍待03b。
+  - 03a源/反例2026-09-21 15:24：fresh CS_Als_Default原生读取34.157秒确认GroundedTrace失败留存true、InAir默认false，MantlingTraceChannel=ECC_Visibility。两项核心反例196.694秒FAIL，分别为缺失分支记录及物理Default层被误当Visibility目标；共享detect_mantle统一命名枚举过滤全部扫掠/重叠，并记录实际尺寸/命中中心/两种重叠及五种结果。配置导入self-test0.306秒、完整既有Mantle设置闭包生成0.527秒，全部资产diff仅新增命名层和两个bool，动作/蒙太奇/曲线未变；不是AnimBP节点转换规则修改。首次192.210秒回归已通过Block/Ignore合同，几何正例失败暴露旧夹具未声明Visibility层；现按源Block响应补齐核心、旋转平台和两个Mantle示例的真实查询层，继续五分支及调用者回归。
 - [ ] BF122.04 同类扫掠消费者与最终入口：依赖03；进入时登记估时。fresh核对使用同一源DebugUtility的GroundPrediction与Camera trace，确认同类缺口后复用绘制能力修复，完成匹配回归和真实Playground功能验收。
 
 ## BF121 脚印渲染生命周期、验收与 Debug/HUD 对标

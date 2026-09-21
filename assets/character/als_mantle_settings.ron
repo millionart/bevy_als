@@ -19,4 +19,7 @@
     ],
     stop_blend_out_seconds: 0.3,
     start_ragdoll_on_target_destruction: true,
+    trace_layer: Visibility,
+    draw_failed_grounded_traces: true,
+    draw_failed_in_air_traces: false,
 )

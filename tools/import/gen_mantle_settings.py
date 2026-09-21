@@ -11,6 +11,17 @@ from ue_exported_text import field, parse_bool, parse_list, parse_number, parse_
 from gen_als_ragdoll_settings import object_path
 
 
+def trace_debug_settings(control):
+    channel = field(control, 'MantlingTraceChannel')
+    if channel != 'ECC_Visibility':
+        raise ValueError('Unsupported mantle trace channel: ' + channel)
+    return {
+        'trace_layer': 'Visibility',
+        'draw_failed_grounded_traces': parse_bool(field(parse_struct(field(control, 'GroundedTrace')), 'bDrawFailedTraces', 'False')),
+        'draw_failed_in_air_traces': parse_bool(field(parse_struct(field(control, 'InAirTrace')), 'bDrawFailedTraces', 'False')),
+    }
+
+
 def selection_routes(source):
     graph, = [graph for graph in source['graphs'] if graph['name'] == 'SelectMantlingSettings']
     nodes = {node['object_path']: node for node in graph['nodes']}
@@ -163,14 +174,29 @@ def generate(source_dir, content_root, mount, assets_root):
         actions.append(kind + ': (' + ', '.join(key + ': ' + repr(value) for key, value in action.items()) + ')')
     low_kinds = {key: kind_by_path[path] for key, path in routes['overlays'].items()}
     control = parse_struct(asset_property(settings, 'Mantling'))
+    debug = trace_debug_settings(control)
     output = ('(\n    actions: {\n        ' + ',\n        '.join(actions) + '\n    },\n    low_kinds: {'
               + ', '.join(json.dumps('Als.OverlayMode.' + key) + ': ' + value for key, value in sorted(low_kinds.items())) + '},\n    montages: [\n        '
               + ',\n        '.join(montage_ron) + '\n    ],\n    stop_blend_out_seconds: ' + repr(parse_number(field(control, 'BlendOutDuration')))
-              + ',\n    start_ragdoll_on_target_destruction: ' + str(parse_bool(field(control, 'bStartRagdollingOnTargetPrimitiveDestruction'))).lower() + ',\n)\n')
+              + ',\n    start_ragdoll_on_target_destruction: ' + str(parse_bool(field(control, 'bStartRagdollingOnTargetPrimitiveDestruction'))).lower()
+              + ',\n    trace_layer: ' + debug['trace_layer']
+              + ',\n    draw_failed_grounded_traces: ' + str(debug['draw_failed_grounded_traces']).lower()
+              + ',\n    draw_failed_in_air_traces: ' + str(debug['draw_failed_in_air_traces']).lower() + ',\n)\n')
     return output, {'success': True, 'settings': setting_paths, 'montages': montage_records, 'low_kinds': low_kinds}
 
 
 def self_test():
+    control = parse_struct('(MantlingTraceChannel=ECC_Visibility,GroundedTrace=(bDrawFailedTraces=True),InAirTrace=())')
+    assert trace_debug_settings(control) == {'trace_layer': 'Visibility', 'draw_failed_grounded_traces': True, 'draw_failed_in_air_traces': False}
+    swapped = trace_debug_settings(parse_struct('(MantlingTraceChannel=ECC_Visibility,GroundedTrace=(),InAirTrace=(bDrawFailedTraces=True))'))
+    assert not swapped['draw_failed_grounded_traces'] and swapped['draw_failed_in_air_traces']
+    control['MantlingTraceChannel'] = 'ECC_Camera'
+    try:
+        trace_debug_settings(control)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError('Camera was aliased to Visibility')
     nodes = [{'object_path': 'types', 'class_path': '/Script/BlueprintGraph.K2Node_SwitchEnum'},
              {'object_path': 'tags', 'class_path': '/Script/GameplayTagsEditor.GameplayTagsK2Node_SwitchGameplayTag'}]
     for name, parent in [('High', 'types'), ('InAir', 'types'), ('Default', 'tags'), ('Als.OverlayMode.Bow', 'tags')]:
