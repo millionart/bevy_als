@@ -168,6 +168,7 @@ def main():
     parser.add_argument('--source', type=Path)
     parser.add_argument('--menu', type=Path)
     parser.add_argument('--option', type=Path)
+    parser.add_argument('--debug-fonts', type=Path)
     parser.add_argument('--engine', type=Path)
     parser.add_argument('--project', type=Path)
     parser.add_argument('--output', type=Path)
@@ -176,9 +177,18 @@ def main():
     args = parser.parse_args()
     if args.self_test:
         self_test()
-    if args.source or args.menu:
+    if args.source or args.menu or args.debug_fonts:
         font_header = (args.engine / 'Engine/Source/Runtime/SlateCore/Public/Fonts/SlateFontInfo.h').read_text(encoding='utf-8-sig')
-        if args.menu:
+        if args.debug_fonts:
+            fonts = json.loads(args.debug_fonts.read_text(encoding='utf-8-sig'))['engine_debug_fonts']
+            if fonts['tiny']['max_char_height'] <= 0 or fonts['tiny']['style'] != 'Light' or fonts['medium']['style'] != 'Regular':
+                raise ValueError('Native debug font metrics are unavailable or changed')
+            dpi = int(re.search(r'RenderDPI\s*=\s*(\d+)', font_header)[1])
+            text = (f"const HOST_FONT_PX: f32 = {fonts['tiny']['size_points'] * dpi / 72!r};\n"
+                    f"const HOST_MAX_CHAR_HEIGHT: f32 = {float(fonts['tiny']['max_char_height'])!r};\n"
+                    f"const HEADER_FONT_PX: f32 = {fonts['medium']['size_points'] * dpi / 72!r};\n")
+            output = args.output or Path('assets/ui/als_debug_canvas.runtime.rs')
+        elif args.menu:
             text = convert_menu(json.loads(args.menu.read_text(encoding='utf-8-sig')),
                                 json.loads(args.option.read_text(encoding='utf-8-sig')), font_header)
             output = args.output or Path('assets/ui/als_overlay_menu.runtime.rs')

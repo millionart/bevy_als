@@ -25,7 +25,9 @@ public class AlsGraphSourceReader : ModuleRules
             "RigVM",
             "RigVMDeveloper",
             "Json",
-            "JsonUtilities"
+            "JsonUtilities",
+            "SlateCore",
+            "SlateNullRenderer"
         });
     }
 }

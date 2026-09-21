@@ -110,8 +110,18 @@ fn observe(
             .find(|(key, _, _, _)| key.as_str() == name)
             .filter(|(_, node, _, _)| node.size().min_element() > 0.0)
             .map(|(_, node, transform, _)| transform.affine().translation - node.size() * 0.5);
-        if actual.is_none_or(|actual| !actual.abs_diff_eq(position * scale, 0.001)) {
-            failures.push(serde_json::json!({"field":name,"expected":(position * scale).to_array(),"actual":actual.map(|point| point.to_array())}));
+        let expected = Vec2::new(position.x * scale,
+            50.0 * dpi + 29.9 * (size.x as f32 / 1920.0).max(dpi) + (position.y - 5.0) * scale);
+        if actual.is_none_or(|actual| !actual.abs_diff_eq(expected, 0.001)) {
+            failures.push(serde_json::json!({"field":name,"expected":expected.to_array(),"actual":actual.map(|point| point.to_array())}));
+        }
+    }
+    for (name, position) in [("DebugHostTarget", Vec2::new(4.0 * dpi, 50.0 * dpi)),
+        ("DebugHostHelp", Vec2::new(4.0 * dpi, 50.0 * dpi + 14.95 * (size.x as f32 / 1920.0).max(dpi)))] {
+        let actual = nodes.iter().find(|(key, _, _, _)| key.as_str() == name)
+            .map(|(_, node, transform, _)| transform.affine().translation - node.size() * 0.5);
+        if actual.is_none_or(|actual| !actual.abs_diff_eq(position, 0.001)) {
+            failures.push(serde_json::json!({"field":name,"expected":position.to_array(),"actual":actual.map(|point| point.to_array())}));
         }
     }
     if let Ok(root) = roots.single() {

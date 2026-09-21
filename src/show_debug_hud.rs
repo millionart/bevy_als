@@ -16,7 +16,7 @@ use crate::{animation_context_projection::AlsRootAnimationContext,
     camera_component::AlsSourceCameraComponent,
     character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar, AlsPlayerCharacter}};
 
-const HEADER_FONT_PX: f32 = 10.0 * 96.0 / 72.0;
+include!("../assets/ui/als_debug_canvas.runtime.rs");
 const BODY_FONT_PX: f32 = HEADER_FONT_PX * 0.75;
 const ROOT_OFFSET_PX: f32 = 5.0;
 const COLUMN_WIDTH_PX: f32 = 200.0;
@@ -712,14 +712,31 @@ fn block_height(block: &DebugBlock) -> f32 {
     block.iter().filter_map(|column| column.last()).map(|row| row.y + (if row.font_px == HEADER_FONT_PX { 15.0 } else { 12.0 }) + 12.0).fold(0.0, f32::max)
 }
 
-fn canvas_scale(physical_size: Vec2, dpi: f32, ui_scale: f32) -> f32 {
-    (physical_size.x / (1280.0 * dpi)).min(physical_size.y / (720.0 * dpi)) / ui_scale
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct CanvasMetrics {
+    als_scale: f32,
+    canvas_to_ui: f32,
+    host_scale: f32,
+}
+
+impl CanvasMetrics {
+    fn new(physical_size: Vec2, dpi: f32, ui_scale: f32) -> Self {
+        Self {
+            als_scale: (physical_size.x / (1280.0 * dpi)).min(physical_size.y / (720.0 * dpi)) / ui_scale,
+            canvas_to_ui: 1.0 / ui_scale,
+            host_scale: (physical_size.x / (1920.0 * dpi)).max(1.0) / ui_scale,
+        }
+    }
+
+    fn actor_start_y(self) -> f32 {
+        50.0 * self.canvas_to_ui + HOST_MAX_CHAR_HEIGHT * 1.15 * 2.0 * self.host_scale
+    }
 }
 type Layout = Vec<DebugBlock>;
 
 enum HudCache {
     Hidden,
-    Shown(Layout, f32),
+    Shown(Layout, CanvasMetrics, String),
 }
 
 #[derive(Component)]
@@ -819,6 +836,7 @@ fn hud_sync_system(
     motion: Query<(Option<&als_core::motion::AlsRotationResponseState>, Option<&als_core::motion::AlsViewYaw>, Option<&als_core::view::AlsViewPitch>)>,
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
     ui_scale: Option<Res<UiScale>>,
+    names: Query<&Name>,
 ) {
     let character_item = q_character.single().ok();
     let target = if state.visible && character_item.is_some() {
@@ -885,20 +903,20 @@ fn hud_sync_system(
             })
             .collect();
 
-        let scale = windows.single().ok().map(|window| canvas_scale(
+        let metrics = windows.single().ok().map(|window| CanvasMetrics::new(
             Vec2::new(window.physical_width() as f32, window.physical_height() as f32), window.scale_factor(),
-            ui_scale.as_ref().map_or(1.0, |scale| scale.0))).unwrap_or(1.0);
+            ui_scale.as_ref().map_or(1.0, |scale| scale.0))).unwrap_or_else(|| CanvasMetrics::new(Vec2::new(1280.0, 720.0), 1.0, 1.0));
         HudCache::Shown(vec![
             layout_camera_block(&state, &camera_snapshot, &camera_curve_rows),
             layout_character_block(&state, &snapshot, &camera_snapshot, &character_curve_rows),
-        ], scale)
+        ], metrics, names.get(character).map(|name| name.to_string()).unwrap_or_else(|_| format!("AlsCharacter {character}")))
     } else {
         HudCache::Hidden
     };
 
     let unchanged = match (cache.as_ref(), &target) {
         (Some(HudCache::Hidden), HudCache::Hidden) => true,
-        (Some(HudCache::Shown(current, current_scale)), HudCache::Shown(next, next_scale)) => current == next && current_scale == next_scale,
+        (Some(HudCache::Shown(current, current_scale, current_name)), HudCache::Shown(next, next_scale, next_name)) => current == next && current_scale == next_scale && current_name == next_name,
         _ => false,
     };
     if unchanged {
@@ -909,8 +927,8 @@ fn hud_sync_system(
         *root = None;
     }
     match &target {
-        HudCache::Shown(blocks, scale) => {
-            *root = Some(spawn_panel(&mut commands, blocks, *scale));
+        HudCache::Shown(blocks, metrics, name) => {
+            *root = Some(spawn_panel(&mut commands, blocks, *metrics, name));
         }
         HudCache::Hidden => {
             *root = Some(spawn_hidden_root(&mut commands));
@@ -947,46 +965,74 @@ fn spawn_hidden_root(commands: &mut Commands) -> Entity {
         .id()
 }
 
-fn spawn_panel(commands: &mut Commands, blocks: &[DebugBlock], scale: f32) -> Entity {
+fn spawn_panel(commands: &mut Commands, blocks: &[DebugBlock], metrics: CanvasMetrics, target_name: &str) -> Entity {
     let root = commands.spawn((AlsShowDebugHudRoot, Node {
         position_type: PositionType::Absolute, width: Val::Percent(100.0), height: Val::Percent(100.0), ..default()
-    }, bevy::ui::LayoutConfig { use_rounding: false }, Visibility::Visible)).id();
+    }, bevy::ui::LayoutConfig { use_rounding: false }, BackgroundColor(Color::linear_rgba(0.0, 0.0, 0.0, 0.2)),
+        GlobalZIndex(20), Pickable::IGNORE, Visibility::Visible)).id();
     commands.entity(root).with_children(|parent| {
-        let mut y = ROOT_OFFSET_PX;
+        for (index, text) in [
+            format!("Showing Debug for {target_name}, Press [PageUp] and [PageDown] to cycle between targets."),
+            "Press [Right Shift] or [Left Shift] to move the debug menu a column over to see more of the debug menu".to_owned(),
+        ].iter().enumerate() {
+            let entity = spawn_leaf(parent, text, Color::linear_rgb(1.0, 0.0, 0.0), HOST_FONT_PX * metrics.host_scale,
+                Vec2::new(4.0 * metrics.canvas_to_ui, 50.0 * metrics.canvas_to_ui + index as f32 * HOST_MAX_CHAR_HEIGHT * 1.15 * metrics.host_scale), metrics.canvas_to_ui);
+            parent.commands().entity(entity).insert((Name::new(if index == 0 { "DebugHostTarget" } else { "DebugHostHelp" }),
+                TextFont { font_size: FontSize::Px(HOST_FONT_PX * metrics.host_scale), weight: FontWeight::LIGHT, ..default() }));
+        }
+        let mut y = metrics.actor_start_y();
+        let scale = metrics.als_scale;
         for block in blocks {
             for (index, column) in block.iter().enumerate() {
                 for row in column {
-                    let position = Vec2::new(ROOT_OFFSET_PX + index as f32 * COLUMN_WIDTH_PX, y + row.y) * scale;
-                    let label = spawn_leaf(parent, &row.label, row.color, row.font_px * scale, position);
+                    let position = Vec2::new((ROOT_OFFSET_PX + index as f32 * COLUMN_WIDTH_PX) * scale, y + row.y * scale);
+                    let label = spawn_leaf(parent, &row.label, row.color, row.font_px * scale, position, metrics.canvas_to_ui);
                     if row.font_px == HEADER_FONT_PX {
                         parent.commands().entity(label).insert(Name::new(format!("DebugHeader:{}", row.label)));
                     }
                     if row.label_width_px > 0.0 {
                         let value = spawn_leaf(parent, &row.value, row.color, row.font_px * scale,
-                            position + Vec2::X * row.label_width_px * scale);
+                            position + Vec2::X * row.label_width_px * scale, metrics.canvas_to_ui);
                         parent.commands().entity(value).insert(Name::new(row.label.clone()));
                     }
                 }
             }
-            y += block_height(block);
+            y += block_height(block) * scale;
         }
     });
     root
 }
 
-fn spawn_leaf(parent: &mut ChildSpawnerCommands, text: &str, color: Color, font_px: f32, position: Vec2) -> Entity {
+fn spawn_leaf(parent: &mut ChildSpawnerCommands, text: &str, color: Color, font_px: f32, position: Vec2, shadow_scale: f32) -> Entity {
     parent.spawn((
         Text::new(text),
         TextFont { font_size: FontSize::Px(font_px), ..default() },
         TextLayout::new(Justify::Left, bevy::text::LineBreak::NoWrap),
         TextColor(color),
-        TextShadow { offset: Vec2::ONE, color: Color::BLACK },
+        Pickable::IGNORE,
+        TextShadow { offset: Vec2::splat(shadow_scale), color: Color::BLACK },
         Node { position_type: PositionType::Absolute, left: Val::Px(position.x), top: Val::Px(position.y), ..default() },
     )).id()
 }
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn host_frame_has_the_source_backdrop_and_header_before_als_rows() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut world = World::new();
+        let root = world.run_system_once(|mut commands: Commands| {
+            spawn_panel(&mut commands, &[], CanvasMetrics::new(Vec2::new(1280.0, 720.0), 1.0, 1.0), "TestActor")
+        }).unwrap();
+        assert_eq!(world.get::<BackgroundColor>(root).map(|color| color.0), Some(Color::linear_rgba(0.0, 0.0, 0.0, 0.2)));
+        assert_eq!(world.get::<GlobalZIndex>(root).unwrap().0, 20);
+        let labels: Vec<_> = world.query::<(&Text, &Node)>().iter(&world).collect();
+        let (_, first) = labels.iter().find(|(text, _)| text.0.starts_with("Showing Debug for ")).expect("The AHUD entry header must be drawn");
+        assert_eq!(first.left, Val::Px(4.0));
+        assert_eq!(first.top, Val::Px(50.0));
+        assert!(labels.iter().any(|(text, _)| text.0.starts_with("Press [Right Shift]")));
+    }
 
     #[test]
     fn master_toggle_matches_engine_flow() {
@@ -1274,11 +1320,11 @@ mod tests {
         assert_eq!(block_height(&character_block), 574.0);
         for (size, dpi, ui_scale) in [(Vec2::new(1280.0, 720.0), 1.0, 1.0), (Vec2::new(960.0, 540.0), 1.0, 1.0),
             (Vec2::new(960.0, 540.0), 2.0, 1.0), (Vec2::new(2560.0, 1440.0), 1.5, 1.25)] {
-            let scale = canvas_scale(size, dpi, ui_scale);
+            let metrics = CanvasMetrics::new(size, dpi, ui_scale);
             let expected_scale = (size.x / 1280.0).min(size.y / 720.0);
             let mut world = World::new();
             let blocks = vec![camera_block.clone(), character_block.clone()];
-            world.run_system_once(move |mut commands: Commands| { spawn_panel(&mut commands, &blocks, scale); }).unwrap();
+            world.run_system_once(move |mut commands: Commands| { spawn_panel(&mut commands, &blocks, metrics, "TestActor"); }).unwrap();
             for (name, point, font) in [
                 ("DebugHeader:Als.CameraShapes (Shift + 7)", Vec2::new(205.0, 5.0), HEADER_FONT_PX),
                 ("Camera Offset X", Vec2::new(150.0, 24.0), BODY_FONT_PX),
@@ -1290,7 +1336,8 @@ mod tests {
                 let (_, node, text_font, layout) = world.query::<(&Name, &Node, &TextFont, &TextLayout)>().iter(&world)
                     .find(|(key, _, _, _)| key.as_str() == name).unwrap();
                 let (Val::Px(x), Val::Px(y), FontSize::Px(font_px)) = (node.left, node.top, text_font.font_size) else { panic!("Canvas values must use explicit logical pixels") };
-                assert!(Vec2::new(x, y).abs_diff_eq(point * expected_scale / (dpi * ui_scale), 1e-4));
+                let expected_y = (50.0 * dpi + 29.9 * (size.x / 1920.0).max(dpi) + (point.y - 5.0) * expected_scale) / (dpi * ui_scale);
+                assert!(Vec2::new(x, y).abs_diff_eq(Vec2::new(point.x * expected_scale / (dpi * ui_scale), expected_y), 1e-4));
                 assert!((font_px * dpi * ui_scale - font * expected_scale).abs() < 1e-4);
                 assert_eq!(layout.linebreak, bevy::text::LineBreak::NoWrap);
             }

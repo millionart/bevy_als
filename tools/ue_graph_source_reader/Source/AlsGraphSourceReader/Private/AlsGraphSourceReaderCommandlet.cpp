@@ -15,6 +15,11 @@
 #include "Animation/BlendSpace.h"
 #include "Animation/Skeleton.h"
 #include "Engine/Blueprint.h"
+#include "Engine/Engine.h"
+#include "Engine/Font.h"
+#include "Fonts/FontCache.h"
+#include "Interfaces/ISlateNullRendererModule.h"
+#include "Modules/ModuleManager.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/Texture2D.h"
 #include "Exporters/Exporter.h"
@@ -1015,6 +1020,22 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
         Root->SetNumberField(TEXT("exported_channels"), SourceChannels);
         Root->SetBoolField(TEXT("source_image_pixel_exact"), true);
     }
+    TSharedRef<FJsonObject> DebugFonts = MakeShared<FJsonObject>();
+    FSlateFontCache DebugFontCache(FModuleManager::LoadModuleChecked<ISlateNullRendererModule>(TEXT("SlateNullRenderer")).CreateSlateFontAtlasFactory(), ESlateTextureAtlasThreadId::Game);
+    const UFont* Fonts[] = {UEngine::GetTinyFont(), UEngine::GetMediumFont()};
+    const TCHAR* FontNames[] = {TEXT("tiny"), TEXT("medium")};
+    for (int32 Index = 0; Index < 2; ++Index)
+    {
+        if (IsValid(Fonts[Index]))
+        {
+            TSharedRef<FJsonObject> FontValue = MakeShared<FJsonObject>();
+            FontValue->SetNumberField(TEXT("size_points"), Fonts[Index]->LegacyFontSize);
+            FontValue->SetNumberField(TEXT("max_char_height"), DebugFontCache.GetCharacterList(FSlateFontInfo(Fonts[Index], Fonts[Index]->LegacyFontSize), 1.0f).GetMaxHeight());
+            FontValue->SetStringField(TEXT("style"), Fonts[Index]->LegacyFontName.ToString());
+            DebugFonts->SetObjectField(FontNames[Index], FontValue);
+        }
+    }
+    Root->SetObjectField(TEXT("engine_debug_fonts"), DebugFonts);
     Root->SetStringField(TEXT("blueprint_cdo_path"), TEXT("None"));
     Root->SetArrayField(TEXT("blueprint_cdo_properties"), {});
     TArray<TSharedPtr<FJsonValue>> DefaultSubobjectValues;
