@@ -22,6 +22,7 @@ def generate(settings, source_reader, animation_source):
         'WorldStatic': 'ECR_Block', 'WorldDynamic': 'ECR_Block', 'Destructible': 'ECR_Block',
     }:
         raise ValueError('source ground prediction collision responses are unsupported')
+    output['prediction_trace_layer'] = 'Visibility'
     for name, function, constant, scale in [
         ('jump_reference_speed', 'RefreshInAir', 'ReferenceSpeed', SOURCE_LENGTH_TO_RUNTIME_SCALE),
         ('jump_min_play_rate', 'RefreshInAir', 'MinPlayRate', 1.0),
@@ -63,6 +64,7 @@ def self_test():
     with patch(__name__ + '.native_source_asset', return_value=curve) as reader:
         output, references = generate(settings, Path('reader.ps1'), source)
     assert reader.call_count == 2 and len(references) == 2
+    assert output['prediction_trace_layer'] == 'Visibility'
     assert output['lean_interpolation_half_life'] == 0.2
     assert output['jump_reference_speed'] == 6.0 and output['lean_reference_speed'] == 3.5
     assert [output['prediction_min_distance'], output['prediction_max_distance']] == [1.5, 20.0]

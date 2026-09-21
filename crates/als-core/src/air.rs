@@ -295,7 +295,7 @@ pub fn ground_prediction_sweep(
         + (vertical_velocity - GROUND_PREDICTION_MAX_VY)
             / (GROUND_PREDICTION_MIN_VY - GROUND_PREDICTION_MAX_VY)
             * (GROUND_PREDICTION_MAX_SWEEP_M - GROUND_PREDICTION_MIN_SWEEP_M);
-    let filter = SpatialQueryFilter::from_excluded_entities([excluded]);
+    let filter = SpatialQueryFilter::from_excluded_entities([excluded]).with_mask(crate::character::AlsCollisionLayer::Visibility);
     let shape = als_character_capsule(capsule_half_height, capsule_radius);
     let config = ShapeCastConfig::from_max_distance(distance);
     let hit = spatial.cast_shape(&shape, origin, Quat::IDENTITY, dir, &config, &filter);
@@ -429,17 +429,22 @@ mod tests {
                 record_capsule_sweep_probe.after(PhysicsSystems::Last),
             );
         app.finish();
-        app.world_mut().spawn((
+        let obstacle = app.world_mut().spawn((
             RigidBody::Static,
             Collider::cuboid(0.05, 0.1, 0.5),
             Position(Vec3::new(0.1, 0.0, 0.0)),
             Transform::from_xyz(0.1, 0.0, 0.0),
-        ));
+        )).id();
         app.world_mut()
             .spawn((CapsuleSweepProbeOrigin, Transform::from_xyz(0.0, 2.0, 0.0)));
         for _ in 0..3 {
             app.update();
         }
+        assert!(!app.world().resource::<CapsuleSweepProbe>().prediction.unwrap().ground_valid,
+            "A physical-only collider must not block the source Visibility sweep");
+        app.world_mut().entity_mut(obstacle).insert(avian3d::prelude::CollisionLayers::new(
+            [crate::character::AlsCollisionLayer::Default, crate::character::AlsCollisionLayer::Visibility], avian3d::prelude::LayerMask::ALL));
+        app.update();
         let probe = app.world().resource::<CapsuleSweepProbe>();
         let prediction = probe.prediction.unwrap();
         let passed = !probe.ray_hit

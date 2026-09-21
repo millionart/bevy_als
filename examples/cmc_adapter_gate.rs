@@ -73,6 +73,7 @@ fn setup(
     commands.spawn((
         RigidBody::Static,
         Collider::cuboid(40.0, 0.2, 40.0),
+        avian3d::prelude::CollisionLayers::new([als_core::character::AlsCollisionLayer::Default, als_core::character::AlsCollisionLayer::Visibility], avian3d::prelude::LayerMask::ALL),
         Transform::from_xyz(0.0, -0.1, 0.0),
     ));
     let params_value = AlsMovementParams::default();
@@ -171,7 +172,7 @@ fn run_gate(
         }
         1 if elapsed >= 0.25 => {
             state.min_analog = cmc_runtime.min_analog_speed_applied;
-            state.simulation = cmc_runtime.fixed_delta_seconds
+            state.simulation = cmc_runtime.simulation_delta_seconds
                 <= params.cmc.max_simulation_time_step + 1e-6
                 && cmc_runtime.simulation_substeps > 0
                 && cmc_runtime.simulation_substeps <= params.cmc.max_simulation_iterations;
@@ -189,7 +190,7 @@ fn run_gate(
                 state.simulation,
                 state.ground_prediction_detail,
                 cmc_runtime.support_radius,
-                cmc_runtime.fixed_delta_seconds,
+                cmc_runtime.simulation_delta_seconds,
                 cmc_runtime.simulation_substeps,
                 if pass { "PASS" } else { "FAIL" },
             );

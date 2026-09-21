@@ -1,5 +1,6 @@
 {
   "lean_interpolation_half_life": 0.2,
+  "prediction_trace_layer": "Visibility",
   "jump_reference_speed": 6.0,
   "jump_min_play_rate": 1.2,
   "jump_max_play_rate": 1.5,

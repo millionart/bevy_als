@@ -1,4 +1,5 @@
 use als_camera::AlsCameraDebugInfo;
+#[cfg(test)]
 use als_core::air::AlsAirState;
 use als_core::character::AlsCharacter;
 use als_core::mantle::{MantleProbeResult, MantleProbeTrace};
@@ -104,6 +105,7 @@ pub struct AlsDebugDisplayStats {
     pub mantle_probe_lines_drawn: u32,
     pub mantle_overlap_capsules_drawn: u32,
     pub mantle_hit_points_drawn: u32,
+    pub ground_prediction_hit_points_drawn: u32,
     pub cumulative_mantle_probes: u64,
     pub camera_debug_valid: u32,
     pub footstep_trace_lines_drawn: u32,
@@ -122,6 +124,7 @@ impl AlsDebugDisplayStats {
             + self.mantle_probe_lines_drawn
             + self.mantle_overlap_capsules_drawn
             + self.mantle_hit_points_drawn
+            + self.ground_prediction_hit_points_drawn
             + self.footstep_trace_lines_drawn
             + self.footstep_axis_lines_drawn
             + self.footstep_hit_points_drawn
@@ -147,6 +150,11 @@ struct ShapeArrows;
 
 #[derive(Resource, Default)]
 struct MantleDebugHistory(Vec<(f64, MantleProbeTrace)>);
+
+#[derive(Resource, Default)]
+struct CameraAdjustmentHistory(Vec<(f64, Vec3, Vec3)>);
+
+enum TraceMarkerKind { Footstep, Mantle, GroundPrediction }
 
 fn mantle_debug_lifetime(trace: &MantleProbeTrace) -> f64 {
     if !trace.draw_failed_traces && trace.result != MantleProbeResult::Success { return 0.0; }
@@ -184,12 +192,14 @@ impl Plugin for AlsDebugDisplayPlugin {
             .init_resource::<AlsDebugDisplayLayer>()
             .init_resource::<crate::footprint::FootstepDebugHistory>()
             .init_resource::<MantleDebugHistory>()
+            .init_resource::<CameraAdjustmentHistory>()
             .insert_gizmo_config(DebugLines, GizmoConfig { line: GizmoLineConfig { width: 1.0, ..default() }, ..default() })
             .init_gizmo_group::<DebugPoints>()
             .insert_gizmo_config(ShapeArrows, GizmoConfig { line: GizmoLineConfig { width: 3.0, ..default() }, ..default() })
             .insert_gizmo_config(PhysicsGizmos::default(), GizmoConfig { line: GizmoLineConfig { width: 1.0, ..default() }, ..default() })
             .configure_sets(PostUpdate, AlsDebugDisplaySet.after(crate::footprint::FootprintSet)
                 .after(crate::actual_motion::AlsActualMotionSet)
+                .after(crate::locomotion_layer::AlsLocomotionLayerSet)
                 .after(bevy::camera::visibility::VisibilitySystems::CheckVisibility))
             .add_systems(
                 PostUpdate,
@@ -229,6 +239,7 @@ fn reset_stats_system(
     stats.mantle_probe_lines_drawn = 0;
     stats.mantle_overlap_capsules_drawn = 0;
     stats.mantle_hit_points_drawn = 0;
+    stats.ground_prediction_hit_points_drawn = 0;
     stats.camera_debug_valid = 0;
     stats.footstep_trace_lines_drawn = 0;
     stats.footstep_axis_lines_drawn = 0;
@@ -260,6 +271,81 @@ mod footstep_tests {
             let buffer = asset.buffer();
             buffer.list_positions.iter().zip(&buffer.list_colors).chain(buffer.strip_positions.iter().zip(&buffer.strip_colors))
         }).filter(|(point, value)| point.is_finite() && **value == color.to_linear()).map(|(point, _)| *point).collect()
+    }
+
+    #[test]
+    fn ground_and_camera_debug_use_actual_volumes_current_owner_and_source_visibility() {
+        use crate::{character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar}, locomotion_layer::AlsGroundPredictionTrace, show_debug_hud::AlsShowDebugHudState};
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, bevy::gizmos::GizmoPlugin, AlsDebugDisplayPlugin))
+            .insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.25)))
+            .insert_resource(AlsShowDebugHudState { visible: true, traces: true, ..default() });
+        let actor = app.world_mut().spawn((AlsCharacter, AlsPlayerCharacter, GlobalTransform::IDENTITY, AlsAirState::default())).id();
+        let old = app.world_mut().spawn((AlsCharacterAvatar { character: actor }, AlsGroundPredictionTrace {
+            start: Vec3::new(100.0, 3.0, -2.0), end: Vec3::new(100.0, -2.0, -2.0),
+            shape: als_core::character::als_character_capsule(0.9, 0.3), hit: None,
+        })).id();
+        let current = app.world_mut().spawn((AlsCharacterAvatar { character: actor }, AlsGroundPredictionTrace {
+            start: Vec3::new(0.0, 3.0, -2.0), end: Vec3::new(0.0, -2.0, -2.0),
+            shape: als_core::character::als_character_capsule(0.9, 0.3), hit: Some((Vec3::new(0.0, 0.9, -2.0), Vec3::new(0.0, 0.0, -2.0))),
+        })).id();
+        let mut component = crate::camera_component::AlsSourceCameraComponent::default();
+        component.activate(false);
+        let camera = app.world_mut().spawn((component, als_camera::AlsCharacterCamera { character: actor }, AlsCameraDebugInfo {
+            valid: true, camera_yaw: 0.4, pivot_target: Vec3::new(0.0, 2.0, -1.0), pivot_lag: Some(Vec3::new(0.3, 2.0, -1.0)),
+            pivot: Some(Vec3::new(0.3, 2.4, -1.0)), trace_start: Vec3::Y, trace_end: Vec3::new(0.0, 1.0, -3.0),
+            trace_radius: 0.3, trace_blocking_hit: true, ..default()
+        })).id();
+        let mut view = Camera { viewport: Some(bevy::camera::Viewport { physical_size: UVec2::new(800, 600), ..default() }), ..default() };
+        view.computed.clip_from_view = Mat4::perspective_infinite_reverse_rh(std::f32::consts::FRAC_PI_2, 4.0 / 3.0, 0.1);
+        let view = app.world_mut().spawn((Camera3d::default(), view, GlobalTransform::from_translation(Vec3::Z * 3.0),
+            als_camera::AlsCameraViewSource(camera), als_camera::AlsCharacterCamera { character: actor })).id();
+        app.world_mut().entity_mut(actor).insert(AlsCharacterAssembly { avatar: current, camera: Some(view) });
+        app.update();
+        let points = trace_points(&app, mantle_downward_color());
+        assert!(points.iter().any(|point| point.abs_diff_eq(Vec3::new(0.0, 3.9, -2.0), 1e-5)), "Current prediction start capsule is missing");
+        assert!(points.iter().any(|point| point.abs_diff_eq(Vec3::new(0.0, -2.9, -2.0), 1e-5)), "Full prediction end capsule was clipped to the hit");
+        assert!(points.iter().all(|point| point.x.abs() < 1.0));
+        assert!(!trace_points(&app, linear(0.75, 0.0, 1.0)).is_empty());
+        app.world_mut().get_mut::<AlsCharacterAssembly>(actor).unwrap().avatar = old;
+        app.update();
+        assert!(trace_points(&app, mantle_downward_color()).iter().all(|point| point.x > 99.0));
+        app.world_mut().entity_mut(old).remove::<AlsGroundPredictionTrace>();
+        app.update();
+        assert!(trace_points(&app, mantle_downward_color()).is_empty());
+        *app.world_mut().resource_mut::<AlsShowDebugHudState>() = AlsShowDebugHudState { visible: true, camera_traces: true, ..default() };
+        app.update();
+        let points = trace_points(&app, linear(1.0, 0.0, 0.0));
+        assert!(points.iter().any(|point| point.abs_diff_eq(Vec3::new(0.0, 1.0, -3.3), 1e-5)), "Camera sweep radius is missing");
+        assert!(points.iter().any(|point| point.x.abs() > 0.29));
+        app.world_mut().resource_mut::<AlsShowDebugHudState>().camera_shapes = true;
+        app.update();
+        let cyan = trace_points(&app, pivot_color());
+        assert!(cyan.contains(&Vec3::new(0.3, 2.4, -1.0)) && cyan.contains(&Vec3::new(0.3, 2.0, -1.0)), "Pivot connection line is missing");
+        let rotated = Vec3::new(0.3, 2.4, -1.0) + Quat::from_rotation_y(0.4) * Vec3::NEG_Z * SPHERE_RADIUS_M;
+        assert!(cyan.iter().any(|point| point.abs_diff_eq(rotated, 1e-5)));
+        app.world_mut().get_mut::<AlsCameraDebugInfo>(camera).unwrap().first_person_override = 1.0;
+        app.update();
+        assert!(trace_points(&app, pivot_color()).is_empty() && trace_points(&app, linear(1.0, 0.0, 0.0)).is_empty());
+        app.world_mut().resource_mut::<AlsShowDebugHudState>().camera_shapes = false;
+        let before = app.world().resource::<Time>().elapsed_secs_f64();
+        {
+            let mut info = app.world_mut().get_mut::<AlsCameraDebugInfo>(camera).unwrap();
+            info.first_person_override = 0.0;
+            info.trace_adjusted_start = true;
+            info.trace_adjustment = Vec3::X * 0.2;
+        }
+        app.update();
+        assert_eq!(trace_points(&app, pivot_color()), vec![Vec3::new(-0.2, 1.0, 0.0), Vec3::Y]);
+        app.world_mut().resource_mut::<AlsShowDebugHudState>().visible = false;
+        for _ in 0..19 { app.update(); }
+        assert_eq!(trace_points(&app, pivot_color()).len(), 2);
+        for _ in 0..3 { app.update(); }
+        assert!(app.world().resource::<Time>().elapsed_secs_f64() - before > 5.0);
+        assert!(trace_points(&app, pivot_color()).is_empty());
+        app.world_mut().resource_mut::<AlsShowDebugHudState>().visible = true;
+        app.update();
+        assert!(trace_points(&app, pivot_color()).is_empty(), "Old camera adjustment must not replay after enabling debug");
     }
 
     #[test]
@@ -493,7 +579,7 @@ mod footstep_tests {
         app.insert_resource(crate::show_debug_hud::AlsShowDebugHudState { visible: true, shapes: true, camera_shapes: true, camera_traces: true, ..default() });
         app.update();
         let stats = app.world().resource::<AlsDebugDisplayStats>();
-        assert_eq!(stats.arrows_drawn, 3, "Smooth target yaw must draw from the current rotation response");
+        assert_eq!(stats.arrows_drawn, 4, "Three character arrows and the camera sweep arrow must be drawn");
         assert_eq!((stats.camera_pivot_spheres_drawn, stats.camera_trace_lines_drawn), (9, 1));
         let assets = app.world().resource::<Assets<bevy::gizmos::GizmoAsset>>();
         let standard = assets.iter().find(|(_, asset)| asset.config_typeid() == std::any::TypeId::of::<ShapeArrows>()).unwrap().1.buffer();
@@ -509,6 +595,8 @@ fn draw_trace_markers(
     mut drawing: ParamSet<(ResMut<GizmoConfigStore>, Gizmos<DebugLines>, Gizmos<DebugPoints>)>,
     players: Query<Entity, With<crate::character_assembly::AlsPlayerCharacter>>,
     views: Query<(&Camera, &GlobalTransform, &als_camera::AlsCharacterCamera), With<Camera3d>>,
+    assemblies: Query<&crate::character_assembly::AlsCharacterAssembly>,
+    predictions: Query<(&crate::character_assembly::AlsCharacterAvatar, &crate::locomotion_layer::AlsGroundPredictionTrace)>,
 ) {
     let view = players.single().ok().and_then(|player| views.iter().find(|(camera, _, owner)| camera.is_active && owner.character == player));
     for trace in &history.0 {
@@ -523,32 +611,33 @@ fn draw_trace_markers(
             }
         }
     }
-    let footprint_points = history.0.iter().filter_map(|trace| trace.hit.map(|point| (point, linear(1.0, 0.0, 0.0), true)));
+    let footprint_points = history.0.iter().filter_map(|trace| trace.hit.map(|point| (point, linear(1.0, 0.0, 0.0), TraceMarkerKind::Footstep)));
     let mantle_points = mantle.0.iter().flat_map(|(created, trace)| {
         let age = time.elapsed_secs_f64() - created;
         [
             (trace.result != MantleProbeResult::ForwardRejected && mantle_part_visible(trace, age, 5.0))
-                .then_some(trace.forward_hit).flatten().map(|point| (point, linear(0.0, 0.75, 1.0), false)),
+                .then_some(trace.forward_hit).flatten().map(|point| (point, linear(0.0, 0.75, 1.0), TraceMarkerKind::Mantle)),
             (trace.result == MantleProbeResult::Success && mantle_part_visible(trace, age, 7.5))
-                .then_some(trace.downward_hit).flatten().map(|point| (point, linear(0.75, 0.0, 1.0), false)),
+                .then_some(trace.downward_hit).flatten().map(|point| (point, linear(0.75, 0.0, 1.0), TraceMarkerKind::Mantle)),
         ].into_iter().flatten()
     });
-    for (point, color, footprint) in footprint_points.chain(mantle_points) {
+    let ground_point = players.single().ok().and_then(|player| {
+        if !stats.traces_active { return None; }
+        let assembly = assemblies.get(player).ok()?;
+        let (owner, trace) = predictions.get(assembly.avatar).ok()?;
+        (owner.character == player).then_some(trace.hit).flatten().map(|(_, point)| (point, linear(0.75, 0.0, 1.0), TraceMarkerKind::GroundPrediction))
+    });
+    for (point, color, kind) in footprint_points.chain(mantle_points).chain(ground_point) {
         if let Some((camera, view, _)) = view && let Some((start, end, width)) = debug_point_segment(point, camera, view) {
             drawing.p0().config_mut::<DebugPoints>().0.line.width = width;
             drawing.p2().line(start, end, color);
-            if footprint { stats.footstep_hit_points_drawn += 1; } else { stats.mantle_hit_points_drawn += 1; }
+            match kind {
+                TraceMarkerKind::Footstep => stats.footstep_hit_points_drawn += 1,
+                TraceMarkerKind::Mantle => stats.mantle_hit_points_drawn += 1,
+                TraceMarkerKind::GroundPrediction => stats.ground_prediction_hit_points_drawn += 1,
+            }
         }
     }
-}
-
-fn circle_xz(gizmos: &mut Gizmos, location: Vec3, radius: f32, color: Color, sides: u32) {
-    let mut points = Vec::with_capacity(sides as usize + 1);
-    for i in 0..=sides {
-        let angle = (i as f32 / sides as f32) * std::f32::consts::TAU;
-        points.push(location + Vec3::new(angle.cos(), 0.0, angle.sin()) * radius);
-    }
-    gizmos.linestrip(points, color);
 }
 
 fn draw_view_cone(
@@ -816,50 +905,37 @@ fn draw_sphere_rings<C: GizmoConfigGroup>(gizmos: &mut Gizmos<C>, center: Vec3, 
 
 fn draw_ground_prediction_system(
     mut stats: ResMut<AlsDebugDisplayStats>,
-    mut gizmos: Gizmos,
-    q_character: Query<(&GlobalTransform, &AlsAirState), (With<AlsCharacter>, With<crate::character_assembly::AlsPlayerCharacter>)>,
+    mut lines: Gizmos<DebugLines>,
+    mut colliders: Gizmos<PhysicsGizmos>,
+    characters: Query<(Entity, &crate::character_assembly::AlsCharacterAssembly), With<crate::character_assembly::AlsPlayerCharacter>>,
+    predictions: Query<(&crate::character_assembly::AlsCharacterAvatar, &crate::locomotion_layer::AlsGroundPredictionTrace)>,
 ) {
-    if !stats.traces_active {
-        return;
+    if !stats.traces_active { return; }
+    let Ok((character, assembly)) = characters.single() else { return; };
+    let Ok((owner, trace)) = predictions.get(assembly.avatar) else { return; };
+    if owner.character != character { return; }
+    let color = linear(0.25, 0.0, 1.0);
+    for center in [trace.start, trace.end] { colliders.draw_collider(&trace.shape, center, Quat::IDENTITY, color); }
+    draw_directional_arrow(&mut lines, trace.start, trace.end, ARROW_HEAD_M, color, &mut stats);
+    if let Some((center, _)) = trace.hit {
+        colliders.draw_collider(&trace.shape, center, Quat::IDENTITY, linear(0.75, 0.0, 1.0));
     }
-    for (_transform, air) in q_character.iter() {
-        let Some(prediction) = air.ground_prediction else {
-            continue;
-        };
-        let (Some(start), Some(end)) = (prediction.sweep_start, prediction.sweep_end) else {
-            continue;
-        };
-        let sweep_color = if prediction.ground_valid {
-            linear(0.75, 0.0, 1.0)
-        } else {
-            linear(0.25, 0.0, 1.0)
-        };
-        circle_xz(
-            &mut gizmos,
-            start,
-            prediction.capsule_radius,
-            sweep_color,
-            CIRCLE_SIDES,
-        );
-        circle_xz(
-            &mut gizmos,
-            end,
-            prediction.capsule_radius,
-            sweep_color,
-            CIRCLE_SIDES,
-        );
-        gizmos.line(start, end, sweep_color);
-        stats.cumulative_ground_prediction_sweeps += 1;
-    }
+    stats.cumulative_ground_prediction_sweeps += 1;
 }
 
 fn draw_camera_debug_system(
     mut stats: ResMut<AlsDebugDisplayStats>,
-    mut gizmos: Gizmos,
+    mut gizmos: Gizmos<DebugLines>,
+    mut colliders: Gizmos<PhysicsGizmos>,
+    mut history: ResMut<CameraAdjustmentHistory>,
+    time: Res<Time>,
     characters: Query<(Entity, &crate::character_assembly::AlsCharacterAssembly), With<crate::character_assembly::AlsPlayerCharacter>>,
     views: Query<(&Camera, &als_camera::AlsCameraViewSource, &als_camera::AlsCharacterCamera)>,
-    cameras: Query<(&crate::camera_component::AlsSourceCameraComponent, &als_camera::AlsCharacterCamera, &AlsCameraDebugInfo)>,
+    cameras: Query<(&crate::camera_component::AlsSourceCameraComponent, &als_camera::AlsCharacterCamera, Ref<AlsCameraDebugInfo>)>,
 ) {
+    let now = time.elapsed_secs_f64();
+    history.0.retain(|(created, _, _)| now - created < 5.0);
+    for (_, start, end) in &history.0 { gizmos.line(*start, *end, pivot_color()); }
     let Ok((character, assembly)) = characters.single() else { return; };
     let Some(camera) = assembly.camera else { return; };
     let Ok((view, source, view_owner)) = views.get(camera) else { return; };
@@ -868,9 +944,16 @@ fn draw_camera_debug_system(
     if !component.is_active() || owner.character != character || !info.valid { return; }
         stats.camera_debug_valid += 1;
         stats.cumulative_camera_valid += 1;
+        if info.first_person_override >= 1.0 - 1e-5 { return; }
 
         if stats.camera_traces_active {
-            gizmos.line(info.trace_start, info.trace_end, camera_trace_color(info.trace_blocking_hit));
+            draw_sphere_sweep(&mut gizmos, &mut colliders, info.trace_start, info.trace_end, info.trace_radius,
+                camera_trace_color(info.trace_blocking_hit), &mut stats);
+            if info.is_changed() && info.trace_adjusted_start {
+                let start = info.trace_start - info.trace_adjustment;
+                history.0.push((now, start, info.trace_start));
+                gizmos.line(start, info.trace_start, pivot_color());
+            }
             stats.camera_trace_lines_drawn += 1;
             stats.cumulative_trace_lines += 1;
         }
@@ -879,20 +962,22 @@ fn draw_camera_debug_system(
             return;
         }
 
+        let rotation = Quat::from_rotation_y(info.camera_yaw);
         draw_sphere_alternative(
             &mut gizmos,
             info.pivot_target,
-            Quat::IDENTITY,
+            rotation,
             SPHERE_RADIUS_M,
             pivot_target_color(),
             &mut stats,
         );
 
         if let Some(pivot) = info.pivot {
+            if let Some(lag) = info.pivot_lag { gizmos.line(pivot, lag, pivot_color()); }
             draw_sphere_alternative(
                 &mut gizmos,
                 pivot,
-                Quat::IDENTITY,
+                rotation,
                 SPHERE_RADIUS_M,
                 pivot_color(),
                 &mut stats,
@@ -900,10 +985,11 @@ fn draw_camera_debug_system(
         }
 
         if let Some(lag) = info.pivot_lag {
+            gizmos.line(lag, info.pivot_target, pivot_lag_color());
             draw_sphere_alternative(
                 &mut gizmos,
                 lag,
-                Quat::IDENTITY,
+                rotation,
                 SPHERE_RADIUS_M,
                 pivot_lag_color(),
                 &mut stats,
@@ -912,7 +998,7 @@ fn draw_camera_debug_system(
 }
 
 fn draw_sphere_alternative(
-    gizmos: &mut Gizmos,
+    gizmos: &mut Gizmos<DebugLines>,
     location: Vec3,
     rotation: Quat,
     radius: f32,

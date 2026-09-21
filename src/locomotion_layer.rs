@@ -13,8 +13,9 @@ use avian3d::prelude::{Collider, ShapeCastConfig, SpatialQuery, SpatialQueryFilt
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
     animated_scene::AnimatedSceneInstance, animation_graph_player::AnimationGraphPlayer,
-    ragdoll::definition::ColliderLabel,
 };
+#[cfg(test)]
+use bevy_animation_graph::core::ragdoll::definition::ColliderLabel;
 use bevy_tnua::{TnuaConfig, TnuaController, controller::TnuaActionFlowStatus};
 
 use crate::{
@@ -36,6 +37,7 @@ struct InAirSettings {
     prediction_max_velocity: f32,
     prediction_min_distance: f32,
     prediction_max_distance: f32,
+    prediction_trace_layer: als_core::character::AlsCollisionLayer,
     lean: als_ext::als_curves::AlsFloatCurve,
     ground_prediction: als_ext::als_curves::AlsFloatCurve,
 }
@@ -48,6 +50,14 @@ static IN_AIR_SETTINGS: LazyLock<InAirSettings> = LazyLock::new(|| {
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq)]
 pub struct AlsGroundPredictionState {
     pub amount: f32,
+}
+
+#[derive(Component, Clone, Debug)]
+pub struct AlsGroundPredictionTrace {
+    pub start: Vec3,
+    pub end: Vec3,
+    pub shape: Collider,
+    pub hit: Option<(Vec3, Vec3)>,
 }
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -104,10 +114,10 @@ fn ground_prediction_amount(
     walkable_floor_cos: f32,
     filter: &SpatialQueryFilter,
     allowance: f32,
-) -> f32 {
+) -> (f32, Option<AlsGroundPredictionTrace>) {
     let settings = &*IN_AIR_SETTINGS;
     if velocity.y > settings.prediction_velocity_threshold || allowance <= 1e-4 {
-        return 0.0;
+        return (0.0, None);
     }
     let vertical = velocity.y.clamp(
         settings.prediction_min_velocity,
@@ -128,14 +138,15 @@ fn ground_prediction_amount(
         &ShapeCastConfig::from_max_distance(distance),
         filter,
     );
-    hit.filter(|hit| hit.normal1.y >= walkable_floor_cos)
-        .map_or(0.0, |hit| {
-            settings.ground_prediction.sample(hit.distance / distance) * allowance
-        })
+    let hit = hit.as_ref().filter(|hit| hit.normal1.y >= walkable_floor_cos);
+    (hit.map_or(0.0, |hit| settings.ground_prediction.sample(hit.distance / distance) * allowance),
+        Some(AlsGroundPredictionTrace { start: origin, end: origin + direction * distance, shape: capsule.clone(),
+            hit: hit.map(|hit| (origin + direction * hit.distance, hit.point1)) }))
 }
 
 #[allow(clippy::type_complexity)]
 fn locomotion_input_writer(
+    mut commands: Commands,
     spatial: SpatialQuery,
     configs: Res<Assets<AlsControlSchemeConfig>>,
     characters: Query<
@@ -149,21 +160,24 @@ fn locomotion_input_writer(
         ),
         With<AlsCharacter>,
     >,
-    non_world_colliders: Query<Entity, Or<(With<AlsCharacter>, With<ColliderLabel>)>>,
-    avatars: Query<(&ChildOf, &AnimatedSceneInstance, &GlobalTransform), With<AlsCharacterAvatar>>,
+    non_world_colliders: Query<Entity, With<AlsCharacter>>,
+    avatars: Query<(Entity, &ChildOf, &AnimatedSceneInstance, &GlobalTransform), With<AlsCharacterAvatar>>,
     mut players: Query<(&mut AnimationGraphPlayer, Option<&AlsRootAnimationContext>)>,
 ) {
-    let filter = SpatialQueryFilter::from_excluded_entities(non_world_colliders.iter());
-    for (parent, instance, mesh) in &avatars {
+    let filter = SpatialQueryFilter::from_excluded_entities(non_world_colliders.iter()).with_mask(IN_AIR_SETTINGS.prediction_trace_layer);
+    for (avatar, parent, instance, mesh) in &avatars {
         let Ok((controller, config, transform, global, capsule, motion)) =
             characters.get(parent.parent())
         else {
+            commands.entity(avatar).remove::<AlsGroundPredictionTrace>();
             continue;
         };
         let Some(config) = configs.get(&config.0) else {
+            commands.entity(avatar).remove::<AlsGroundPredictionTrace>();
             continue;
         };
         let Ok((mut player, context)) = players.get_mut(instance.player_entity()) else {
+            commands.entity(avatar).remove::<AlsGroundPredictionTrace>();
             continue;
         };
         let pending_update = player
@@ -176,7 +190,7 @@ fn locomotion_input_writer(
                 .and_then(|context| context.f32("GroundPredictionBlock"))
                 .unwrap_or(0.0)
                 .clamp(0.0, 1.0);
-        let prediction = ground_prediction_amount(
+        let (prediction, trace) = ground_prediction_amount(
             &spatial,
             global.translation(),
             motion.world_velocity,
@@ -186,6 +200,8 @@ fn locomotion_input_writer(
             &filter,
             allowance,
         );
+        if let Some(trace) = trace { commands.entity(avatar).insert(trace); }
+        else { commands.entity(avatar).remove::<AlsGroundPredictionTrace>(); }
         player.set_global_input_data("in_air_source.ground_prediction_amount", prediction);
         player.set_global_input_data(
             "in_air_source.lean_target",
@@ -228,6 +244,23 @@ mod tests {
     use super::*;
     use avian3d::prelude::*;
     use bevy::{asset::AssetEvent, ecs::system::RunSystemOnce};
+
+    #[test]
+    fn prediction_trace_is_published_by_the_actual_query_and_cleared_when_blocked_or_unavailable() {
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        app.world_mut().entity_mut(actor).insert(AlsActualMotion { world_velocity: Vec3::NEG_Y * 10.0, ..default() });
+        for blocked in [false, true, false] {
+            app.world_mut().entity_mut(player).insert(AlsRootAnimationContext { curves: [("GroundPredictionBlock".into(), if blocked { 1.0 } else { 0.0 })].into() });
+            app.world_mut().run_system_once(locomotion_input_writer).unwrap();
+            app.world_mut().flush();
+            assert_eq!(app.world().get::<AlsGroundPredictionTrace>(avatar).is_some(), !blocked);
+        }
+        app.world_mut().entity_mut(player).remove::<AnimationGraphPlayer>();
+        app.world_mut().run_system_once(locomotion_input_writer).unwrap();
+        app.world_mut().flush();
+        assert!(app.world().get::<AlsGroundPredictionTrace>(avatar).is_none(), "Unavailable player must not retain a previous prediction trace");
+    }
 
     #[test]
     fn generated_air_inputs_initialize_with_their_actual_neighbor_plugins() {
@@ -310,8 +343,8 @@ mod tests {
 
     #[test]
     fn ground_prediction_uses_the_source_mesh_scaled_sweep() {
-        fn sample(spatial: SpatialQuery, ignored: Query<Entity, With<ColliderLabel>>) -> [f32; 5] {
-            let filter = SpatialQueryFilter::from_excluded_entities(ignored.iter());
+        fn sample(spatial: SpatialQuery) -> [f32; 5] {
+            let filter = SpatialQueryFilter::default().with_mask(IN_AIR_SETTINGS.prediction_trace_layer);
             let unfiltered = SpatialQueryFilter::default();
             [
                 (1.0, 1.0, 0.9, true),
@@ -322,7 +355,7 @@ mod tests {
             ]
             .map(|(scale, allowance, half_height, filtered)| {
                 let capsule = als_core::character::als_character_capsule(half_height, 0.3);
-                ground_prediction_amount(
+                let (amount, trace) = ground_prediction_amount(
                     &spatial,
                     Vec3::Y * 3.0,
                     Vec3::NEG_Y * 2.0,
@@ -335,7 +368,13 @@ mod tests {
                         &unfiltered
                     },
                     allowance,
-                )
+                );
+                assert_eq!(trace.is_some(), allowance > 1e-4);
+                if let Some(trace) = trace {
+                    assert!((trace.end.y - (3.0 - 1.5 * scale)).abs() < 1e-6);
+                    assert!((trace.shape.shape_scaled().compute_local_aabb().half_extents().y - half_height).abs() < 1e-6);
+                }
+                amount
             })
         }
         let mut app = App::new();
@@ -345,7 +384,9 @@ mod tests {
         app.finish();
         app.world_mut().spawn((
             RigidBody::Static,
+            ColliderLabel("visible_world".to_owned()),
             Collider::cuboid(20.0, 0.1, 20.0),
+            CollisionLayers::new([als_core::character::AlsCollisionLayer::Default, als_core::character::AlsCollisionLayer::Visibility], LayerMask::ALL),
             Transform::from_xyz(0.0, -0.05, 0.0),
         ));
         app.world_mut().spawn((

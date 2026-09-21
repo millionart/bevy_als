@@ -2984,6 +2984,8 @@ struct IntegrationCoverage {
     mantle_started: bool,
     mantle_completed: bool,
     mantle_debug: bool,
+    ground_prediction_debug: bool,
+    camera_debug_geometry: bool,
     movement_base: bool,
     foot_probe: bool,
     foot_lock: bool,
@@ -3324,6 +3326,7 @@ struct InterfaceProbe<'w, 's> {
     camera_sources: Query<'w, 's, &'static als_camera::AlsCameraViewSource>,
     camera_debug: Query<'w, 's, &'static AlsCameraDebugInfo>,
     motion_debug: Query<'w, 's, &'static als_core::motion::AlsCharacterDebug>,
+    ground_debug: Query<'w, 's, &'static crate::locomotion_layer::AlsGroundPredictionTrace>,
 }
 
 #[derive(SystemParam)]
@@ -3744,6 +3747,10 @@ fn drive_manual_integration(
     else {
         return;
     };
+    if state.scenario == IntegrationScenario::Base {
+        show_debug.visible = true;
+        show_debug.traces = true;
+    }
     let Ok((
         params_handle,
         transaction,
@@ -5643,6 +5650,9 @@ fn drive_manual_integration(
             }
         }
         IntegrationPhase::Camera => {
+            show_debug.visible = true;
+            show_debug.camera_shapes = true;
+            show_debug.camera_traces = true;
             if entering {
                 state.coverage.camera_collision = false;
                 state.coverage.camera_recovery = false;
@@ -8641,6 +8651,18 @@ fn observe_manual_integration(
             &motion_probe.graphs, *locomotion, notify_action.copied(), transform.translation,
         );
     }
+    if !state.coverage.ground_prediction_debug && interface.debug_stats.ground_prediction_hit_points_drawn > 0
+        && let Some(trace) = state.avatar.and_then(|avatar| interface.ground_debug.get(avatar).ok())
+        && let Some((center, point)) = trace.hit {
+        state.coverage.ground_prediction_debug = true;
+        gate_report.direction_trace.push(serde_json::json!({"ground_prediction_debug_valid":true,
+            "start":trace.start,"end":trace.end,"hit_center":center,"impact_point":point,
+            "shape_half_extents":trace.shape.shape_scaled().compute_local_aabb().half_extents()}));
+    }
+    if state.phase == IntegrationPhase::Camera && interface.debug_stats.camera_trace_lines_drawn > 0
+        && interface.debug_stats.camera_pivot_spheres_drawn == 9 {
+        state.coverage.camera_debug_geometry = true;
+    }
     if state.phase == IntegrationPhase::Mantle && !state.coverage.mantle_debug
         && let Ok(debug) = interface.motion_debug.get(character)
         && let Some(trace) = debug.0.mantle_probe
@@ -9645,6 +9667,7 @@ fn observe_manual_integration(
                 ("mantle_start", coverage.mantle_started),
                 ("mantle_complete", coverage.mantle_completed),
                 ("mantle_debug_geometry", coverage.mantle_debug),
+                ("ground_prediction_debug_geometry", coverage.ground_prediction_debug),
                 ("movement_base", coverage.movement_base),
                 ("foot_probe", coverage.foot_probe),
                 ("foot_lock", coverage.foot_lock),
@@ -9912,6 +9935,7 @@ fn observe_manual_integration(
                 ("camera_shake", coverage.camera_shake),
                 ("camera_unscaled_time", coverage.camera_unscaled_time),
                 ("camera_player_view_movement", state.camera_movement.passed()),
+                ("camera_debug_geometry", coverage.camera_debug_geometry),
             ],
             IntegrationScenario::Stairs => vec![
                 ("runtime_assembly", coverage.assembly),

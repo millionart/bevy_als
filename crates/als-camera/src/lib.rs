@@ -347,6 +347,7 @@ impl AlsCameraShakeRequest {
 
 #[derive(Component, Debug, Clone, Copy, Default, Serialize, PartialEq)]
 pub struct AlsCameraDebugInfo {
+    pub camera_yaw: f32,
     pub pivot_target: Vec3,
     pub pivot_lag: Option<Vec3>,
     pub pivot: Option<Vec3>,
@@ -799,11 +800,12 @@ fn calculate_camera_trace(
         filter,
         ignored,
     );
+    trace.end = trace.location;
     if !allow_lag || !params.trace_distance_smoothing {
         runtime.trace_distance_ratio = 1.0;
         return trace;
     }
-    let vector = trace.end - trace.start;
+    let vector = end - trace.start;
     let distance = vector.length();
     if distance <= 1e-6 {
         runtime.trace_distance_ratio = 1.0;
@@ -1057,6 +1059,7 @@ fn camera_rig_system(
             view_info.location = sockets.first_person;
             view_info.rotation = target_rotation;
             view_info.valid = true;
+            debug.camera_yaw = target_rotation.to_euler(EulerRot::YXZ).0;
             write_debug(
                 &mut debug,
                 pivot_target,
@@ -1192,6 +1195,7 @@ fn camera_rig_system(
         );
         view_info.rotation = runtime.camera_rotation;
         view_info.valid = true;
+        debug.camera_yaw = camera_yaw;
         write_debug(
             &mut debug,
             pivot_target,
@@ -1780,11 +1784,13 @@ mod tests {
             trace_fixture(&[], Vec3::ZERO, Vec3::Z * 2.0, Vec3::ZERO, 1.0, true, 0.4);
         assert!((ratio - 0.7000676).abs() < 1e-7);
         assert!((trace.location.z - 2.0 * ratio).abs() < 1e-7);
+        assert_eq!(trace.end, Vec3::Z * 2.0);
         let wall = [(Vec3::new(0.0, 0.0, 1.0), Vec3::new(4.0, 4.0, 0.2))];
         let (trace, ratio) =
             trace_fixture(&wall, Vec3::ZERO, Vec3::Z * 2.0, Vec3::ZERO, 1.0, true, 0.9);
         assert!((ratio - 0.375).abs() < 1e-6);
         assert!((trace.location.z - 0.75).abs() < 1e-6);
+        assert!((trace.end.z - 0.75).abs() < 1e-6, "Debug sweep must end at the unsmoothed collision result");
     }
 
     #[test]
