@@ -65,7 +65,6 @@ fn setup(mut commands: Commands) {
     commands
         .spawn((
             AlsCharacter,
-            bevy_als::character_assembly::AlsPlayerCharacter,
             Transform::from_xyz(0.0, 0.9, 0.0),
             GlobalTransform::default(),
             LocomotionState::Grounded,
@@ -85,7 +84,7 @@ fn setup(mut commands: Commands) {
             AlsViewYaw(0.35),
             AlsViewPitch(-0.10),
         ))
-        .insert(AlsViewSmoothed(-0.10));
+        .insert((AlsViewSmoothed(-0.10), bevy_als::character_assembly::AlsPlayerCharacter));
 
     commands.spawn((
         Camera3d::default(),

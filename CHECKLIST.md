@@ -47,9 +47,9 @@
     - [x] BF121.01c1 近距离原生分簇故障闭环：开始2026-09-21 07:00、预估结束2026-09-21 07:35；最小Bevy数值/插件反例、公开CPU分簇配置、范围回归及startup/footprint，删除临时诊断。依据为已定位far=near除零、一个公开配置和两项真实Gate。
     - [x] BF121.01c2 错误绑定/准备顺序消融与最终回归：开始2026-09-21 07:10、预估结束2026-09-21 07:42:30，依赖c1已通过；两次受控错误GPU输入/恢复、适用回归及最终footprint。依据为三轮约160秒编译、约32秒真实入口和既有validator；c1提前完成后提前进入，原剩余估时窗口不变。
 - [x] BF121.02 脚步Traces与坐标轴：开始2026-09-21 07:21、预估结束2026-09-21 08:06，依赖01已通过；估时依据为一份Notify/DebugUtility/Engine绘制闭包、已有真实通知/Avian夹具和footprint入口，可复用统一Gizmos，约两轮80–160秒构建，窗口45分钟；fresh Notify的trace/命中坐标系/Decal生成先后顺序，25cm轴与10秒寿命、开关/无贴花/角度拒绝/未命中分支，记录真实命中坐标系并接统一Debug绘制与验收。
-- [ ] BF121.03 Debug运行数据与HUD布局：依赖02，进入时拆分估时；当前受控角色→相机/Avatar/Player的唯一关联、SmoothTargetYawAngle真实值、完整曲线名与最终求值曲线、正确R/P/Y标签，按本地ALS canvas/DPI/分栏/分类布局补齐并验收小窗口和多分类。保持明确保留的字体与Overlay菜单锚定差异，不假造未取得的数据。
+- [x] BF121.03 Debug运行数据与HUD布局：依赖02，进入时拆分估时；当前受控角色→相机/Avatar/Player的唯一关联、SmoothTargetYawAngle真实值、完整曲线名与最终求值曲线、正确R/P/Y标签，按本地ALS canvas/DPI/分栏/分类布局补齐并验收小窗口和多分类。保持明确保留的字体与Overlay菜单锚定差异，不假造未取得的数据。
   - [x] BF121.03a 实际数据与实例归属：开始2026-09-21 07:48、预估结束2026-09-21 08:43。fresh Character/Camera/Example DisplayDebug与现有RootAnimationContext/SmoothTarget运行时链；原生提取完整Skeleton曲线名、离线目标名单、当前玩家装配链及最终求值数据。覆盖不同角色/旧Avatar/播放器、角度标签与实际SmoothTarget字段，并修正同字段的Shapes consumer；Gate为反例、消融、范围回归和原Interface入口。估时依据为三份直接C++、一份Skeleton及现成原生reader/最终曲线组件，约55分钟；不改动画图/运动算法。
-  - [ ] BF121.03b Canvas/DPI布局：开始2026-09-21 08:51、预估结束2026-09-21 09:41，依赖03a已通过；按fresh源码的Camera先于Character、条件分栏与统一Scale/行列坐标接入Bevy UI，检验小窗口、DPI及全部类别和长曲线列表。估时依据为单HUD模块、已有Interface窗口/布局检测器及约80秒编译；保留字体与Overlay锚点决策，截图按当前暂停偏好。
+  - [x] BF121.03b Canvas/DPI布局：开始2026-09-21 08:51、预估结束2026-09-21 09:41，依赖03a已通过；按fresh源码的Camera先于Character、条件分栏与统一Scale/行列坐标接入Bevy UI，检验小窗口、DPI及全部类别和长曲线列表。估时依据为单HUD模块、已有Interface窗口/布局检测器及约80秒编译；保留字体与Overlay锚点决策，截图按当前暂停偏好。
   - 01a源/反例2026-09-21 04:33：当次材质原生73.030s、Settings34.453s提取成功；fresh Bevy Storage确认CPU序列化实际长度决定GPU Buffer身份，Material准备只在重提取时解析绑定，默认没有声明ShaderBuffer准备依赖。178.292s实际插件CPU反例检出2/3个脚印扩容时普通与Playground材质均无Modified事件，并在3→2→1收缩上传。有限复开BF118.04a/b及父04，仅资源生命周期和GPU验收覆盖；旧Gate最早16样本无法证明后续绑定。采用稳定逻辑句柄、按高水位容量填充、增长时两类材质发原生修改事件，并明确Buffer先于材质准备，不更改混合公式或设置数量上限。
 
   - 01a静态回归2026-09-21 04:45：7项材质/Buffer合同160.162s PASS，扩展到17/33/257个及回零后的容量/不丢记录/增长时两类Modified/稳定容量不重建合同159.035s PASS。逻辑Handle始终不变，容量按实际需求增长并填充，Assets原生可变迭代产生Modified；两类材质均在PackedDecal准备后、AssetEvent前刷新，Render材质准备显式晚于GpuShaderBuffer。首次错误调用set_changed的编译失败已改用已核对的原生Assets迭代，不作行为证据。开始容量保持、普通材质、Playground材质三项静态消融；GPU准备顺序与持续实读数据的负向验证由01b/c完成，不把CPU合同当作GPU验收。
@@ -130,9 +130,19 @@
 
   - 03a完成2026-09-21 08:51：12项81.160s恢复回归、73.974s同入口构建、startup16.243s与Interface17.332s公共功能全PASS；新增debug_values逐帧核对43曲线与两个角度字段，迟到不匹配也会失败。实际当前实例、角色视图R/P/Y、SmoothTarget及3D箭头、当前相机都闭合，旧Sources/任意clip采样删除；原生reader无需扩展。开始07:48、预估08:43、实际08:51、偏差+8分钟（含02平行轴有限复开），完成；继续03b布局，截图/性能暂停保持。
 
+  - 03b布局源/静态闭环2026-09-21 09:13：80.034s反例检出相机曲线未分栏；fresh ALS两段DisplayDebug确认相机先、角色后，Header advance15、正文前4、正文行12、区段后12、列200、字段120/145。Engine默认MediumFont为10pt，Slate RenderDPI=96，故保留默认Bevy字体、按13⅓px/10px和源0.75比例渲染，阴影偏移1；文本不自动换行。移除固定宽flex容器，按源行坐标绘制，Scale用物理尺寸/DPI并抵消目标UiScale。13项81.195s回归包括标准/小窗口/2倍DPI/额外UiScale的独立坐标复算。完整43+13曲线按源公式末行y=742（720基准下源本身也溢出），保持源行为，不伪称全内容在屏内；公共Gate核对实际节点位置和三种窗口/DPI状态，源图与姿态算法不变。
+
+  - 03b消融/真实入口前2026-09-21 09:18：删除多余的逐行advance状态后14项81.650s信号不变，保留删除；去掉DPI/UiScale处理及晚期失败守卫，81.048s两个独立测试各自FAIL并finally恢复。fresh FCanvasTextItem保持Position×DPI浮点坐标，Bevy LayoutConfig默认按物理像素取整，因此使用公开use_rounding=false；实际节点坐标容差只留0.001px浮点复算误差。窗口阶段使用原Interface固定5秒与公共wall watchdog，记录未完成的尺寸/DPI条件，不能等待无限重试。现在恢复范围回归、同入口构建、startup→Interface验证三个真实窗口状态，仍保留45值逐帧核对。
+
   - 03a相机入口有限复开2026-09-21 09:24：74.681s构建、startup15.675s通过，Interface18.265s在真实布局检查失败；三个窗口状态全部缺相机块，字符块因此提前187单位，45个角色值仍PASS。fresh spawn_als_character及装配测试确认Assembly.camera保存渲染view，经AlsCameraViewSource才能到source component；03a夹具直接把component塞入Assembly，漏掉真实二段链。取消03a勾选并暂停03b新增实现，仅复开两类相机consumer与验收：先把夹具改为实际view→component链验证失败，再修当前view/owner/active选择，并将13相机曲线与状态加入逐帧检查。复开开始09:24、预估结束09:36，依据为两个短consumer、既有真实入口及约80秒测试/70秒构建。
 
   - 03a相机入口复开关闭2026-09-21 09:31：实际view→component夹具81.917s分别检出HUD FOV缺失与3D相机未绘制；修复两个consumer后15项82.286s、入口73.644s、startup15.488s、Interface17.306s全部PASS。数据Gate增为63值/帧，包含13相机曲线及枢轴/FOV/肩位；三个真实窗口的节点坐标亦恢复正确。开始09:24、预估09:36、实际09:31、偏差-5分钟，有限复开关闭，继续布局消融与最终回归。
+
+  - 03b真实坐标闭环/像素取整消融前2026-09-21 09:32：相机链修复后750帧实际ComputedNode/UiGlobalTransform坐标全PASS，覆盖1280×720/DPI1、960×540/DPI1、960×540/DPI2，751帧63个实际值全部一致。保留源码浮点坐标，现仅临时恢复Bevy默认像素取整，要求小窗口分数坐标被公共Interface拒绝；之后恢复并执行完整回归、两个受影响入口编译与最终功能Gate。
+
+  - 03b像素取整消融后/最终回归前2026-09-21 09:35：73.848s同入口构建、18.361s实际Interface消融正确FAIL，仅debug_canvas_layout失败，666帧检测出坐标取整偏差，63值检查和其他功能均PASS。use_rounding=false已finally恢复；开始四包完整lib回归、manual_playground/show_debug_hud_gate两入口编译、startup→Interface→footprint及独立HUD入口检查，完成后关闭本轮。
+
+  - 03b/03/BF121完成2026-09-21 09:41：1110项124.545s完整回归PASS（camera24/core277/扩展401/项目408）；补编译HUD示例发现新增标记使Bundle元组超限，移入既有insert后两入口8.697s编译PASS，库代码不变。最终startup15.473s、Interface17.339s、footprint31.580s公共功能全PASS，独立HUD入口6.587s PASS。Interface的767帧63值、766帧实际坐标均无错误，三个尺寸/DPI阶段齐全，faults/graph_errors/temporal_anomalies为空；足迹36请求/576样本、真实脚步/旋转平台/调试输出均通过，最大混合误差5.9604645e-8，持续GPU错误为空。各消融已恢复，冗余advance状态已删除；源版全类别长列溢出、保留字体/Overlay锚点、截图及性能暂停边界不变。03b开始08:51、预估09:41、实际09:41、偏差0，完成；BF121按01→02→03顺序闭合，无剩余实现项。
 
 ## BF120 玩家视图移动基准与动作实例归属
 

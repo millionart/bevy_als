@@ -8,6 +8,7 @@ mod moving_base;
 mod bow;
 mod overlays;
 mod footprints;
+mod hud_layout;
 
 use als_camera::{AlsCameraDebugInfo, AlsCameraRig, AlsCameraSet, AlsCameraShakeRequest};
 use als_core::character::{AlsCharacter, AlsMovementParamsHandle};
@@ -602,6 +603,7 @@ impl Plugin for ManualPlaygroundIntegrationPlugin {
             );
         moving_base::install(app);
         footprints::install(app);
+        hud_layout::install(app);
     }
 }
 
@@ -9940,6 +9942,7 @@ fn observe_manual_integration(
                 ),
                 ("show_debug", coverage.show_debug),
                 ("debug_draw", coverage.debug_draw),
+                ("debug_canvas_layout", hud_layout::passed(&gate_report.direction_trace)),
                 ("debug_values", gate_report.direction_trace.iter().any(|entry| entry.get("hud_data_valid").is_some())
                     && gate_report.direction_trace.iter().filter_map(|entry| entry.get("hud_data_valid").and_then(serde_json::Value::as_bool)).all(|valid| valid)),
             ],

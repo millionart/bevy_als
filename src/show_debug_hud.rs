@@ -17,8 +17,8 @@ use crate::{animation_context_projection::AlsRootAnimationContext,
     camera_component::AlsSourceCameraComponent,
     character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar, AlsPlayerCharacter}};
 
-const HEADER_FONT_PX: f32 = 15.0;
-const BODY_FONT_PX: f32 = 12.0;
+const HEADER_FONT_PX: f32 = 10.0 * 96.0 / 72.0;
+const BODY_FONT_PX: f32 = HEADER_FONT_PX * 0.75;
 const ROOT_OFFSET_PX: f32 = 5.0;
 const COLUMN_WIDTH_PX: f32 = 200.0;
 const LABEL_WIDTH_STATE_PX: f32 = 120.0;
@@ -247,6 +247,7 @@ pub struct DebugRow {
     pub color: Color,
     pub label_width_px: f32,
     pub font_px: f32,
+    pub y: f32,
 }
 
 impl DebugRow {
@@ -257,6 +258,7 @@ impl DebugRow {
             color,
             label_width_px: 0.0,
             font_px: HEADER_FONT_PX,
+            y: 0.0,
         }
     }
 
@@ -267,6 +269,7 @@ impl DebugRow {
             color,
             label_width_px: 0.0,
             font_px: BODY_FONT_PX,
+            y: 0.0,
         }
     }
 
@@ -282,6 +285,7 @@ impl DebugRow {
             color,
             label_width_px: width_px,
             font_px: BODY_FONT_PX,
+            y: 0.0,
         }
     }
 }
@@ -654,58 +658,45 @@ fn format_xyz(value: Vec3) -> String {
     format!("X: {:.2} Y: {:.2} Z: {:.2}", value.x, value.y, value.z)
 }
 
+fn append_section(column: &mut DebugColumn, y: &mut f32, category: DebugCategory, active: bool, rows: Vec<DebugRow>) {
+    let mut header = DebugRow::header_row(category.header(), if active { header_active_color() } else { header_inactive_color() });
+    header.y = *y;
+    column.push(header);
+    *y += 15.0;
+    if active {
+        *y += 4.0;
+        for mut row in rows {
+            row.y = *y;
+            column.push(row);
+            *y += 12.0;
+        }
+    }
+    *y += 12.0;
+}
+
 pub fn layout_character_block(
     state: &AlsShowDebugHudState,
     snapshot: &CharacterSnapshot,
     camera: &CameraSnapshot,
     curves_rows: &[DebugRow],
 ) -> DebugBlock {
+    let mut columns = vec![vec![DebugRow::header_row(HEADER_DEBUG_MODE, header_active_color())]];
+    if ![DebugCategory::Curves, DebugCategory::State, DebugCategory::Shapes, DebugCategory::Traces, DebugCategory::Mantling]
+        .into_iter().any(|category| state.is_active(category)) { return columns; }
+    let mut y = 27.0;
     let curves_active = state.is_active(DebugCategory::Curves);
-    let mut columns: Vec<Vec<DebugRow>> = Vec::new();
-    let mut first_column = vec![DebugRow::header_row(
-        HEADER_DEBUG_MODE,
-        header_active_color(),
-    )];
-    first_column.push(DebugRow::header_row(
-        DebugCategory::Curves.header(),
-        if curves_active {
-            header_active_color()
-        } else {
-            header_inactive_color()
-        },
-    ));
-    if curves_active {
-        first_column.extend(curves_rows.iter().cloned());
-        columns.push(first_column);
-        columns.push(Vec::new());
-    } else {
-        columns.push(first_column);
-    }
-    let trailing = columns.last_mut().expect("columns non-empty");
-    for category in [
-        DebugCategory::State,
-        DebugCategory::Shapes,
-        DebugCategory::Traces,
-        DebugCategory::Mantling,
-    ] {
+    append_section(&mut columns[0], &mut y, DebugCategory::Curves, curves_active, curves_rows.to_vec());
+    if curves_active { columns.push(Vec::new()); y = 27.0; }
+    for category in [DebugCategory::State, DebugCategory::Shapes, DebugCategory::Traces, DebugCategory::Mantling] {
         let active = state.is_active(category);
-        trailing.push(DebugRow::header_row(
-            category.header(),
-            if active {
-                header_active_color()
-            } else {
-                header_inactive_color()
-            },
-        ));
-        if active {
-            trailing.extend(match category {
-                DebugCategory::State => build_state_body(snapshot, view_mode_tag(camera.rig_mode)),
-                DebugCategory::Shapes => build_shapes_body(snapshot),
-                DebugCategory::Traces => build_traces_body(),
-                DebugCategory::Mantling => build_mantling_body(),
-                _ => Vec::new(),
-            });
-        }
+        let rows = if active { match category {
+            DebugCategory::State => build_state_body(snapshot, view_mode_tag(camera.rig_mode)),
+            DebugCategory::Shapes => build_shapes_body(snapshot),
+            DebugCategory::Traces => build_traces_body(),
+            DebugCategory::Mantling => build_mantling_body(),
+            _ => Vec::new(),
+        }} else { Vec::new() };
+        append_section(columns.last_mut().unwrap(), &mut y, category, active, rows);
     }
     columns
 }
@@ -715,45 +706,37 @@ pub fn layout_camera_block(
     camera: &CameraSnapshot,
     camera_curves_rows: &[DebugRow],
 ) -> DebugBlock {
+    if camera.rig_mode.is_none() || ![DebugCategory::CameraCurves, DebugCategory::CameraShapes, DebugCategory::CameraTraces]
+        .into_iter().any(|category| state.is_active(category)) { return Vec::new(); }
+    let mut columns = vec![Vec::new()];
+    let mut y = 0.0;
     let curves_active = state.is_active(DebugCategory::CameraCurves);
-    let mut column = Vec::new();
-    column.push(DebugRow::header_row(
-        DebugCategory::CameraCurves.header(),
-        if curves_active {
-            header_active_color()
-        } else {
-            header_inactive_color()
-        },
-    ));
-    if curves_active {
-        column.extend(camera_curves_rows.iter().cloned());
-    }
+    append_section(&mut columns[0], &mut y, DebugCategory::CameraCurves, curves_active, camera_curves_rows.to_vec());
+    if curves_active { columns.push(Vec::new()); y = 0.0; }
     for category in [DebugCategory::CameraShapes, DebugCategory::CameraTraces] {
         let active = state.is_active(category);
-        column.push(DebugRow::header_row(
-            category.header(),
-            if active {
-                header_active_color()
-            } else {
-                header_inactive_color()
-            },
-        ));
-        if active {
-            column.extend(match category {
-                DebugCategory::CameraShapes => build_camera_shapes_body(camera),
-                DebugCategory::CameraTraces => build_camera_traces_body(),
-                _ => Vec::new(),
-            });
-        }
+        let rows = if active { match category {
+            DebugCategory::CameraShapes => build_camera_shapes_body(camera),
+            DebugCategory::CameraTraces => build_camera_traces_body(),
+            _ => Vec::new(),
+        }} else { Vec::new() };
+        append_section(columns.last_mut().unwrap(), &mut y, category, active, rows);
     }
-    vec![column]
+    columns
 }
 
+fn block_height(block: &DebugBlock) -> f32 {
+    block.iter().filter_map(|column| column.last()).map(|row| row.y + (if row.font_px == HEADER_FONT_PX { 15.0 } else { 12.0 }) + 12.0).fold(0.0, f32::max)
+}
+
+fn canvas_scale(physical_size: Vec2, dpi: f32, ui_scale: f32) -> f32 {
+    (physical_size.x / (1280.0 * dpi)).min(physical_size.y / (720.0 * dpi)) / ui_scale
+}
 type Layout = Vec<DebugBlock>;
 
 enum HudCache {
     Hidden,
-    Shown(Layout),
+    Shown(Layout, f32),
 }
 
 #[derive(Component)]
@@ -850,6 +833,8 @@ fn hud_sync_system(
     q_instances: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     q_players: Query<&AlsRootAnimationContext, With<AnimationGraphPlayer>>,
     motion: Query<(Option<&als_core::motion::AlsRotationResponseState>, Option<&als_core::motion::AlsViewYaw>, Option<&als_core::view::AlsViewPitch>)>,
+    windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
+    ui_scale: Option<Res<UiScale>>,
 ) {
     let character_item = q_character.single().ok();
     let target = if state.visible && character_item.is_some() {
@@ -922,17 +907,20 @@ fn hud_sync_system(
             })
             .collect();
 
+        let scale = windows.single().ok().map(|window| canvas_scale(
+            Vec2::new(window.physical_width() as f32, window.physical_height() as f32), window.scale_factor(),
+            ui_scale.as_ref().map_or(1.0, |scale| scale.0))).unwrap_or(1.0);
         HudCache::Shown(vec![
-            layout_character_block(&state, &snapshot, &camera_snapshot, &character_curve_rows),
             layout_camera_block(&state, &camera_snapshot, &camera_curve_rows),
-        ])
+            layout_character_block(&state, &snapshot, &camera_snapshot, &character_curve_rows),
+        ], scale)
     } else {
         HudCache::Hidden
     };
 
     let unchanged = match (cache.as_ref(), &target) {
         (Some(HudCache::Hidden), HudCache::Hidden) => true,
-        (Some(HudCache::Shown(current)), HudCache::Shown(next)) => current == next,
+        (Some(HudCache::Shown(current, current_scale)), HudCache::Shown(next, next_scale)) => current == next && current_scale == next_scale,
         _ => false,
     };
     if unchanged {
@@ -943,8 +931,8 @@ fn hud_sync_system(
         *root = None;
     }
     match &target {
-        HudCache::Shown(blocks) => {
-            *root = Some(spawn_panel(&mut commands, blocks));
+        HudCache::Shown(blocks, scale) => {
+            *root = Some(spawn_panel(&mut commands, blocks, *scale));
         }
         HudCache::Hidden => {
             *root = Some(spawn_hidden_root(&mut commands));
@@ -981,89 +969,43 @@ fn spawn_hidden_root(commands: &mut Commands) -> Entity {
         .id()
 }
 
-fn spawn_panel(commands: &mut Commands, blocks: &[DebugBlock]) -> Entity {
-    let root = commands
-        .spawn((
-            AlsShowDebugHudRoot,
-            Node {
-                position_type: PositionType::Absolute,
-                left: Val::Px(ROOT_OFFSET_PX),
-                top: Val::Px(ROOT_OFFSET_PX),
-                flex_direction: FlexDirection::Column,
-                ..default()
-            },
-            Visibility::Visible,
-        ))
-        .id();
+fn spawn_panel(commands: &mut Commands, blocks: &[DebugBlock], scale: f32) -> Entity {
+    let root = commands.spawn((AlsShowDebugHudRoot, Node {
+        position_type: PositionType::Absolute, width: Val::Percent(100.0), height: Val::Percent(100.0), ..default()
+    }, bevy::ui::LayoutConfig { use_rounding: false }, Visibility::Visible)).id();
     commands.entity(root).with_children(|parent| {
+        let mut y = ROOT_OFFSET_PX;
         for block in blocks {
-            parent
-                .spawn(Node {
-                    flex_direction: FlexDirection::Row,
-                    column_gap: Val::Px(8.0),
-                    align_items: AlignItems::FlexStart,
-                    ..default()
-                })
-                .with_children(|block_parent| {
-                    for column in block {
-                        block_parent
-                            .spawn(Node {
-                                flex_direction: FlexDirection::Column,
-                                width: Val::Px(COLUMN_WIDTH_PX),
-                                align_items: AlignItems::FlexStart,
-                                ..default()
-                            })
-                            .with_children(|column_parent| {
-                                for row in column {
-                                    spawn_row(column_parent, row);
-                                }
-                            });
+            for (index, column) in block.iter().enumerate() {
+                for row in column {
+                    let position = Vec2::new(ROOT_OFFSET_PX + index as f32 * COLUMN_WIDTH_PX, y + row.y) * scale;
+                    let label = spawn_leaf(parent, &row.label, row.color, row.font_px * scale, position);
+                    if row.font_px == HEADER_FONT_PX {
+                        parent.commands().entity(label).insert(Name::new(format!("DebugHeader:{}", row.label)));
                     }
-                });
+                    if row.label_width_px > 0.0 {
+                        let value = spawn_leaf(parent, &row.value, row.color, row.font_px * scale,
+                            position + Vec2::X * row.label_width_px * scale);
+                        parent.commands().entity(value).insert(Name::new(row.label.clone()));
+                    }
+                }
+            }
+            y += block_height(block);
         }
     });
     root
 }
 
-fn spawn_row(parent: &mut ChildSpawnerCommands, row: &DebugRow) {
-    if row.label_width_px <= 0.0 {
-        spawn_leaf(parent, &row.label, row.color, row.font_px);
-        return;
-    }
-    parent
-        .spawn(Node {
-            flex_direction: FlexDirection::Row,
-            ..default()
-        })
-        .with_children(|row_parent| {
-            row_parent
-                .spawn(Node {
-                    width: Val::Px(row.label_width_px),
-                    ..default()
-                })
-                .with_children(|label_parent| {
-                    spawn_leaf(label_parent, &row.label, row.color, row.font_px);
-                });
-            let value = spawn_leaf(row_parent, &row.value, row.color, row.font_px);
-            row_parent.commands().entity(value).insert(Name::new(row.label.clone()));
-        });
-}
-
-fn spawn_leaf(parent: &mut ChildSpawnerCommands, text: &str, color: Color, font_px: f32) -> Entity {
+fn spawn_leaf(parent: &mut ChildSpawnerCommands, text: &str, color: Color, font_px: f32, position: Vec2) -> Entity {
     parent.spawn((
         Text::new(text),
-        TextFont {
-            font_size: FontSize::Px(font_px),
-            ..default()
-        },
+        TextFont { font_size: FontSize::Px(font_px), ..default() },
+        TextLayout::new(Justify::Left, bevy::text::LineBreak::NoWrap),
         TextColor(color),
-        TextShadow {
-            offset: Vec2::splat(2.0),
-            color: Color::BLACK,
-        },
+        TextShadow { offset: Vec2::ONE, color: Color::BLACK },
+        Node { position_type: PositionType::Absolute, left: Val::Px(position.x), top: Val::Px(position.y), ..default() },
     )).id()
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1308,7 +1250,6 @@ mod tests {
             ];
             assert!(!blocks.is_empty());
             for block in &blocks {
-                assert!(!block.is_empty());
                 for column in block {
                     assert!(!column.is_empty());
                 }
@@ -1339,8 +1280,61 @@ mod tests {
     }
 
     #[test]
+    fn source_canvas_coordinates_font_sizes_and_dpi_match_the_draw_contract() {
+        use bevy::ecs::system::RunSystemOnce;
+        let state = AlsShowDebugHudState { visible: true, curves: true, state: true, shapes: true, traces: true, mantling: true,
+            camera_curves: true, camera_shapes: true, camera_traces: true };
+        let camera = CameraSnapshot { rig_mode: Some(AlsCameraMode::ThirdPerson), ..default() };
+        let mut camera_curves: Vec<_> = als_camera::CAMERA_CURVE_NAMES.iter().map(|name| (name.to_string(), 0.0)).collect();
+        camera_curves.sort_by(|a, b| a.0.cmp(&b.0));
+        let camera_block = layout_camera_block(&state, &camera, &build_curves_body(&camera_curves, true));
+        let character_block = layout_character_block(&state, &sample_snapshot(), &camera, &evaluated_character_curve_rows(None));
+        assert_eq!(block_height(&camera_block), 187.0);
+        assert_eq!(block_height(&character_block), 574.0);
+        for (size, dpi, ui_scale) in [(Vec2::new(1280.0, 720.0), 1.0, 1.0), (Vec2::new(960.0, 540.0), 1.0, 1.0),
+            (Vec2::new(960.0, 540.0), 2.0, 1.0), (Vec2::new(2560.0, 1440.0), 1.5, 1.25)] {
+            let scale = canvas_scale(size, dpi, ui_scale);
+            let expected_scale = (size.x / 1280.0).min(size.y / 720.0);
+            let mut world = World::new();
+            let blocks = vec![camera_block.clone(), character_block.clone()];
+            world.run_system_once(move |mut commands: Commands| { spawn_panel(&mut commands, &blocks, scale); }).unwrap();
+            for (name, point, font) in [
+                ("DebugHeader:Als.CameraShapes (Shift + 7)", Vec2::new(205.0, 5.0), HEADER_FONT_PX),
+                ("Camera Offset X", Vec2::new(150.0, 24.0), BODY_FONT_PX),
+                ("DebugHeader:Debug mode is enabled! Press (Shift + 0) to disable.", Vec2::new(5.0, 192.0), HEADER_FONT_PX),
+                ("DebugHeader:Als.State (Shift + 2)", Vec2::new(205.0, 219.0), HEADER_FONT_PX),
+                ("Allow Transitions", Vec2::new(150.0, 238.0), BODY_FONT_PX),
+                ("View Block", Vec2::new(150.0, 742.0), BODY_FONT_PX),
+            ] {
+                let (_, node, text_font, layout) = world.query::<(&Name, &Node, &TextFont, &TextLayout)>().iter(&world)
+                    .find(|(key, _, _, _)| key.as_str() == name).unwrap();
+                let (Val::Px(x), Val::Px(y), FontSize::Px(font_px)) = (node.left, node.top, text_font.font_size) else { panic!("Canvas values must use explicit logical pixels") };
+                assert!(Vec2::new(x, y).abs_diff_eq(point * expected_scale / (dpi * ui_scale), 1e-4));
+                assert!((font_px * dpi * ui_scale - font * expected_scale).abs() < 1e-4);
+                assert_eq!(layout.linebreak, bevy::text::LineBreak::NoWrap);
+            }
+        }
+    }
+
+    #[test]
+    fn source_camera_curves_split_columns_and_inactive_blocks_stay_empty() {
+        let camera = CameraSnapshot { rig_mode: Some(AlsCameraMode::ThirdPerson), ..default() };
+        let mut state = AlsShowDebugHudState { visible: true, camera_curves: true, camera_shapes: true, ..default() };
+        let rows = build_curves_body(&[("CameraOffsetX".into(), 1.0)], true);
+        let block = layout_camera_block(&state, &camera, &rows);
+        assert_eq!(block.len(), 2, "Active camera curves must occupy their own source column");
+        assert_eq!(block[0][0].label, DebugCategory::CameraCurves.header());
+        assert_eq!(block[1][0].label, DebugCategory::CameraShapes.header());
+        state.camera_curves = false;
+        state.camera_shapes = false;
+        assert!(layout_camera_block(&state, &camera, &[]).is_empty());
+        let character = layout_character_block(&state, &sample_snapshot(), &camera, &[]);
+        assert_eq!(character[0].len(), 1, "Disabled character categories retain only the source master header");
+    }
+
+    #[test]
     fn layout_splits_second_column_only_when_first_category_active() {
-        let camera = CameraSnapshot::default();
+        let camera = CameraSnapshot { rig_mode: Some(AlsCameraMode::ThirdPerson), ..default() };
         let mut flags = AlsShowDebugHudState {
             visible: true,
             ..Default::default()
@@ -1348,7 +1342,7 @@ mod tests {
 
         let inactive = layout_character_block(&flags, &sample_snapshot(), &camera, &[]);
         assert_eq!(inactive.len(), 1);
-        assert_eq!(inactive[0].len(), 6);
+        assert_eq!(inactive[0].len(), 1);
         assert_eq!(inactive[0][0].label, HEADER_DEBUG_MODE);
         assert_eq!(inactive[0][0].color, header_active_color());
 
@@ -1356,6 +1350,8 @@ mod tests {
         let split = layout_character_block(&flags, &sample_snapshot(), &camera, &[]);
         assert_eq!(split.len(), 2);
         assert_eq!(split[1].len(), 4);
+        assert_eq!(split[0][1].y, 27.0);
+        assert_eq!(split[1][0].y, 27.0);
 
         flags.curves = false;
         flags.state = true;
@@ -1370,15 +1366,14 @@ mod tests {
         assert_eq!(expanded[0][1].color, header_inactive_color());
 
         let camera_block_off = layout_camera_block(&flags, &camera, &[]);
-        assert_eq!(camera_block_off.len(), 1);
-        assert_eq!(camera_block_off[0].len(), 3);
+        assert!(camera_block_off.is_empty());
 
         flags.camera_curves = true;
         flags.camera_shapes = true;
         let camera_block_on = layout_camera_block(&flags, &camera, &[]);
         assert_eq!(
-            camera_block_on[0].len(),
-            1 + 2 + build_camera_shapes_body(&camera).len()
+            camera_block_on[1].len(),
+            2 + build_camera_shapes_body(&camera).len()
         );
     }
 
