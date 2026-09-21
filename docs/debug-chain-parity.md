@@ -108,3 +108,37 @@ Shift+One → ShowDebug Als.Curves ⇒ 公共输入树 / DebugCategory::Curves
 发现并修复：两项角度曲线的HUD原先误用了目标坐标符号，同时反转了正负值对应的颜色。旧Gate直接拿target曲线值比较，漏掉显示语义；新增±42/零/非角度标量反例及真实左右Turn资产采样。骨架原生导入/check/self-test通过，43项名称无差异；30项范围回归及真实Interface24.721秒功能通过，67值、布局、菜单和19种逐键状态均通过，无运行守卫异常。未修改动画图或曲线资产。
 
 </details>
+
+<details>
+<summary>Shift+2 — Als.State：持久意图、实际角色状态与视图模式</summary>
+
+```text
+Shift+Two → ShowDebug Als.State ⇒ 公共输入树 / DebugCategory::State
+└─ AlsCharacter::DisplayDebugState ⇒ build_state_body（11行）
+   ├─ ViewMode：角色自己的Tag ⇒ AlsFirstPersonView
+   │  └─ 输入切换即更新；独立于相机激活、渲染Camera和相机动画混合进度
+   ├─ LocomotionMode ⇒ LocomotionState（Grounded/InAir/Custom/None/自定义Tag）
+   │  └─ 地面/物理支持、动作请求 → state_transition_system → 实际状态
+   ├─ bDesiredAiming ⇒ 已消费输入 AlsInputOverride 优先于 AlsInputCommand.aim_held
+   ├─ DesiredRotationMode ⇒ AlsLastFreeRotationMode 的持久自由旋转选择
+   │  └─ InputRequest切换并保存；Aim/第一人称/Sprint临时选择实际RotationMode
+   ├─ RotationMode ⇒ RotationMode组件（当前实际模式）
+   ├─ DesiredStance ⇒ AlsDesiredStance
+   │  └─ 请求被接受后保留；不能从已清空的AlsStateRequest或实际Stance倒推
+   ├─ Stance ⇒ Stance组件（实际碰撞姿态）
+   │  └─ 空中强制站立、Roll强制蹲下、头顶受阻等可与DesiredStance不同
+   ├─ DesiredGait ⇒ AlsDesiredGait（Walk/Run切换及Sprint按下/释放后的意图）
+   ├─ Gait ⇒ Gait组件（速度/姿态/允许步态确定的实际值）
+   ├─ OverlayMode ⇒ OverlayState组件（菜单选择经请求消费后的实际Tag）
+   └─ LocomotionAction ⇒ AlsNotifyLocomotionAction
+      ├─ 动作生命周期置入/结束清空，独立于LocomotionMode
+      └─ 没有动作显示None；自定义Tag取真实叶名称
+```
+
+共同显示规则：源 `GetSimpleTagName → FName::NameToDisplayString` 对应Tag叶名称/空值None/驼峰显示；全部白色，布尔为True/False，使用BF123的State列宽120、行距12、字体与Canvas合同。PostUpdate在请求消费和物理姿态更新后读取；分类关闭撤下行，无事件历史。
+
+源入口为 `ALS/Private/AlsCharacter_Debug.cpp::DisplayDebugState` 及 `AlsCharacter.cpp::{SetDesiredStance,ApplyDesiredStance,RefreshRotationMode}`；目标生产入口为 `crates/als-core/src/{input_request,aim,gait,transition}.rs`，消费入口为 `src/show_debug_hud.rs`。动作通知桥在PrePhysics后、Roll驱动前，HUD在Final后读取，未增加延迟缓存。
+
+修复与验收：DesiredStance/DesiredRotationMode改读已有持久组件，ViewMode改读角色标记，删除角色布局的相机参数与临时请求回推。25项回归通过，包含期望/实际不同、待处理请求、自定义Tag和无渲染相机反例。Interface24.759秒功能通过，11项State行全部加入数据检查（总计78值），19种按键状态与既有布局/菜单均通过，无运行守卫异常。未改变角色行为。
+
+</details>

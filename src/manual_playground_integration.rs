@@ -3323,6 +3323,7 @@ struct InterfaceProbe<'w, 's> {
     show_debug_roots: Query<'w, 's, (&'static Node, &'static Visibility), With<AlsShowDebugHudRoot>>,
     debug_values: Query<'w, 's, (&'static Name, &'static Text)>,
     rotation_responses: Query<'w, 's, &'static AlsRotationResponseState>,
+    desired_rotation_modes: Query<'w, 's, &'static als_core::aim::AlsLastFreeRotationMode>,
     camera_assemblies: Query<'w, 's, &'static AlsCharacterAssembly>,
     camera_sources: Query<'w, 's, &'static als_camera::AlsCameraViewSource>,
     camera_debug: Query<'w, 's, &'static AlsCameraDebugInfo>,
@@ -9357,6 +9358,21 @@ fn observe_manual_integration(
                         format!("{source:.2}")
                     }).unwrap_or_else(|| "N/A".into()))
             }).collect();
+            let actual_rotation = motion_probe.rotation_mode.get(character).copied().unwrap();
+            let desired_rotation = interface.desired_rotation_modes.get(character).map_or(actual_rotation, |value| value.0);
+            let desired_gait = motion_probe.gait.get(character).map_or(*gait, |(value, _)| value.0);
+            let aiming = motion_probe.inputs.get(character).ok().and_then(|(input, override_input)|
+                override_input.map(|value| &value.0).or(input)).is_some_and(|input| input.aim_held);
+            expected.push(("View Mode".into(), if first_person { "First Person" } else { "Third Person" }.into()));
+            expected.push(("Desired Aiming".into(), if aiming { "True" } else { "False" }.into()));
+            for (label, tag) in [("Locomotion Mode", locomotion.as_str()),
+                ("Desired Rotation Mode", desired_rotation.as_str()), ("Rotation Mode", actual_rotation.as_str()),
+                ("Desired Stance", desired_stance.map_or(*stance, |value| value.0).as_str()), ("Stance", stance.as_str()),
+                ("Desired Gait", desired_gait.as_str()), ("Gait", gait.as_str()), ("Overlay Mode", overlay.as_str()),
+                ("Locomotion Action", notify_action.copied().unwrap_or(AlsNotifyLocomotionAction::None).as_str())] {
+                expected.push((label.into(), if tag.is_empty() { "None".into() }
+                    else { crate::show_debug_hud::name_to_display_string(tag.rsplit('.').next().unwrap(), false) }));
+            }
             expected.push(("Rotation".into(), format!("R: 0.00 P: {:.2} Y: {:.2}", view_pitch.0.to_degrees(), view_yaw.0.to_degrees())));
             let expected_motion = motion_probe.actual.get(character).ok();
             if let Some(motion) = expected_motion {

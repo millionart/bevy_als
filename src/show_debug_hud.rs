@@ -10,6 +10,7 @@ use als_core::mantle::AlsMantleState;
 use als_core::motion::AlsInputOverride;
 use als_core::roll::AlsRollState;
 use als_core::state::{AlsNotifyLocomotionAction, Gait, LocomotionState, OverlayState, RotationMode, Stance};
+#[cfg(test)]
 use als_core::transition::AlsStateRequest;
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
@@ -301,6 +302,7 @@ pub type DebugBlock = Vec<DebugColumn>;
 
 #[derive(Debug, Clone)]
 pub struct CharacterSnapshot {
+    pub first_person: bool,
     pub locomotion_state: LocomotionState,
     pub rotation_mode: RotationMode,
     pub stance: Stance,
@@ -330,7 +332,9 @@ impl CharacterSnapshot {
         gait: Gait,
         desired_gait: Gait,
         overlay_state: OverlayState,
-        request: &AlsStateRequest,
+        desired_rotation_mode: RotationMode,
+        desired_stance: Stance,
+        first_person: bool,
         motion: Option<&crate::actual_motion::AlsActualMotion>,
         aiming: bool,
         locomotion_action: AlsNotifyLocomotionAction,
@@ -342,13 +346,14 @@ impl CharacterSnapshot {
         let velocity_direction = motion.map(|motion| motion.world_velocity.normalize_or_zero());
         let velocity_yaw_angle = motion.map(|motion| motion.velocity_yaw_degrees);
         Self {
+            first_person,
             locomotion_state,
             rotation_mode,
             stance,
             gait,
             overlay_state,
-            desired_rotation_mode: request.rotation_mode.unwrap_or(rotation_mode),
-            desired_stance: request.stance.unwrap_or(stance),
+            desired_rotation_mode,
+            desired_stance,
             desired_gait,
             desired_aiming: aiming,
             input_yaw_angle,
@@ -399,24 +404,15 @@ fn gait_tag(gait: Gait) -> &'static str { gait.leaf_name() }
 
 fn overlay_tag(overlay: OverlayState) -> &'static str { overlay.leaf_name() }
 
-fn view_mode_tag(mode: Option<AlsCameraMode>) -> Option<&'static str> {
-    match mode {
-        Some(AlsCameraMode::ThirdPerson | AlsCameraMode::AimingShoulder) => Some("ThirdPerson"),
-        Some(AlsCameraMode::FirstPerson) => Some("FirstPerson"),
-        None => None,
-    }
-}
-
 fn locomotion_action_value(snapshot: &CharacterSnapshot) -> &'static str { snapshot.locomotion_action.leaf_name() }
 
 pub fn build_state_body(
     snapshot: &CharacterSnapshot,
-    view_mode: Option<&'static str>,
 ) -> Vec<DebugRow> {
     vec![
         DebugRow::pair(
             name_to_display_string("ViewMode", false),
-            view_mode.map(tag_value).unwrap_or_else(|| NA_VALUE.into()),
+            tag_value(if snapshot.first_person { "FirstPerson" } else { "ThirdPerson" }),
             white(),
             LABEL_WIDTH_STATE_PX,
         ),
@@ -667,7 +663,6 @@ fn append_section(column: &mut DebugColumn, y: &mut f32, category: DebugCategory
 pub fn layout_character_block(
     state: &AlsShowDebugHudState,
     snapshot: &CharacterSnapshot,
-    camera: &CameraSnapshot,
     curves_rows: &[DebugRow],
 ) -> DebugBlock {
     let mut columns = vec![vec![DebugRow::header_row(HEADER_DEBUG_MODE, header_active_color())]];
@@ -680,7 +675,7 @@ pub fn layout_character_block(
     for category in [DebugCategory::State, DebugCategory::Shapes, DebugCategory::Traces, DebugCategory::Mantling] {
         let active = state.is_active(category);
         let rows = if active { match category {
-            DebugCategory::State => build_state_body(snapshot, view_mode_tag(camera.rig_mode)),
+            DebugCategory::State => build_state_body(snapshot),
             DebugCategory::Shapes => build_shapes_body(snapshot),
             DebugCategory::Traces => build_traces_body(),
             DebugCategory::Mantling => build_mantling_body(),
@@ -853,7 +848,6 @@ fn hud_sync_system(
             &'static Gait,
             Option<&'static AlsDesiredGait>,
             &'static OverlayState,
-            &'static AlsStateRequest,
             Option<&'static crate::actual_motion::AlsActualMotion>,
             Option<&'static AlsInputCommand>,
             Option<&'static AlsInputOverride>,
@@ -868,7 +862,8 @@ fn hud_sync_system(
     camera_components: Query<(&AlsSourceCameraComponent, &als_camera::AlsCharacterCamera, &AlsCameraRig, &als_camera::AlsCameraDebugInfo)>,
     q_instances: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     q_players: Query<&AlsRootAnimationContext, With<AnimationGraphPlayer>>,
-    motion: Query<(Option<&als_core::motion::AlsRotationResponseState>, Option<&als_core::motion::AlsViewYaw>, Option<&als_core::view::AlsViewPitch>)>,
+    details: Query<(Option<&als_core::motion::AlsRotationResponseState>, Option<&als_core::motion::AlsViewYaw>, Option<&als_core::view::AlsViewPitch>,
+        Option<&als_core::aim::AlsLastFreeRotationMode>, Option<&als_core::transition::AlsDesiredStance>, Has<als_core::input_request::AlsFirstPersonView>)>,
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
     ui_scale: Option<Res<UiScale>>,
     entities: Query<(Option<&Name>, Option<&GlobalTransform>, Option<&ChildOf>, Has<als_core::input::OnFoot>)>,
@@ -890,7 +885,6 @@ fn hud_sync_system(
             gait,
             desired_gait,
             overlay_state,
-            request,
             actual_motion,
             input,
             input_override,
@@ -900,6 +894,7 @@ fn hud_sync_system(
         ) = item;
 
         let aiming = input_override.map(|o| &o.0).or(input).is_some_and(|input| input.aim_held);
+        let (response, yaw, pitch, desired_rotation, desired_stance, first_person) = details.get(character).unwrap();
         let mut snapshot = CharacterSnapshot::from_components(
             *locomotion_state,
             *rotation_mode,
@@ -907,7 +902,9 @@ fn hud_sync_system(
             *gait,
             desired_gait.map(|value| value.0).unwrap_or(*gait),
             *overlay_state,
-            request,
+            desired_rotation.map_or(*rotation_mode, |value| value.0),
+            desired_stance.map_or(*stance, |value| value.0),
+            first_person,
             actual_motion,
             aiming,
             action.copied().unwrap_or_else(|| {
@@ -917,10 +914,8 @@ fn hud_sync_system(
             }),
         );
 
-        if let Ok((response, yaw, pitch)) = motion.get(character) {
-            snapshot.smooth_target_yaw_angle = response.map(|response| response.smooth_target_yaw.to_degrees());
-            snapshot.view_rotation_deg = yaw.zip(pitch).map(|(yaw, pitch)| (0.0, pitch.0.to_degrees(), yaw.0.to_degrees()));
-        }
+        snapshot.smooth_target_yaw_angle = response.map(|response| response.smooth_target_yaw.to_degrees());
+        snapshot.view_rotation_deg = yaw.zip(pitch).map(|(yaw, pitch)| (0.0, pitch.0.to_degrees(), yaw.0.to_degrees()));
         let assembly = assemblies.get(character).ok();
         let camera = assembly.and_then(|assembly| assembly.camera).and_then(|entity| views.get(entity).ok())
             .filter(|(camera, _, owner)| camera.is_active && owner.character == character)
@@ -946,7 +941,7 @@ fn hud_sync_system(
 
         let blocks = vec![
             layout_camera_block(&state, &camera_snapshot, &camera_curve_rows),
-            layout_character_block(&state, &snapshot, &camera_snapshot, &character_curve_rows),
+            layout_character_block(&state, &snapshot, &character_curve_rows),
         ];
         let (name, transform, parent, on_foot) = entities.get(character).unwrap();
         let name = name.map(|name| name.to_string()).unwrap_or_else(|| format!("AlsCharacter {character}"));
@@ -1288,8 +1283,6 @@ mod tests {
     }
 
     fn sample_snapshot() -> CharacterSnapshot {
-        let mut request = AlsStateRequest::default();
-        request.gait = Some(Gait::Running);
         CharacterSnapshot::from_components(
             LocomotionState::Grounded,
             RotationMode::ViewDirection,
@@ -1297,7 +1290,9 @@ mod tests {
             Gait::Walking,
             Gait::Running,
             OverlayState::Default,
-            &request,
+            RotationMode::ViewDirection,
+            Stance::Standing,
+            false,
             Some(&crate::actual_motion::AlsActualMotion { world_velocity: Vec3::new(3.0, 0.0, -4.0), horizontal_speed: 5.0,
                 has_input: true, input_yaw_degrees: 90.0, velocity_yaw_degrees: -36.869_896, ..default() }),
             true,
@@ -1367,8 +1362,41 @@ mod tests {
     }
 
     #[test]
+    fn state_rows_read_persistent_intent_and_view_without_a_render_camera() {
+        use als_core::{aim::AlsLastFreeRotationMode, input_request::AlsFirstPersonView, transition::AlsDesiredStance};
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AlsShowDebugHudPlugin))
+            .init_resource::<ButtonInput<KeyCode>>()
+            .insert_resource(AlsShowDebugHudState { visible: true, state: true, ..default() });
+        let actor = app.world_mut().spawn((AlsCharacter, crate::character_assembly::AlsPlayerCharacter,
+            LocomotionState::Grounded, RotationMode::Aiming, Stance::Crouching, Gait::Running,
+            AlsDesiredStance(Stance::Standing), AlsLastFreeRotationMode(RotationMode::ViewDirection),
+            AlsDesiredGait(Gait::Sprinting), AlsFirstPersonView, OverlayState::Rifle,
+            AlsInputCommand { aim_held: true, ..default() },
+            AlsStateRequest { stance: Some(Stance::Crouching), rotation_mode: Some(RotationMode::VelocityDirection), ..default() })).id();
+        app.update();
+        let values = |world: &mut World| world.query::<(&Name, &Text)>().iter(world)
+            .map(|(name, text)| (name.to_string(), text.0.clone())).collect::<std::collections::HashMap<_, _>>();
+        let rows = values(app.world_mut());
+        for (name, expected) in [("View Mode", "First Person"), ("Desired Stance", "Standing"), ("Stance", "Crouching"),
+            ("Desired Rotation Mode", "View Direction"), ("Rotation Mode", "Aiming"), ("Desired Gait", "Sprinting"), ("Gait", "Running")] {
+            assert_eq!(rows[name], expected, "{name}");
+        }
+        app.world_mut().entity_mut(actor).remove::<AlsFirstPersonView>().insert((
+            AlsDesiredStance(Stance::new("Als.Stance.CustomLean").unwrap()),
+            AlsLastFreeRotationMode(RotationMode::new("Als.RotationMode.CustomFacing").unwrap()),
+            AlsNotifyLocomotionAction::None));
+        app.update();
+        let rows = values(app.world_mut());
+        assert_eq!(rows["View Mode"], "Third Person");
+        assert_eq!(rows["Desired Stance"], "Custom Lean");
+        assert_eq!(rows["Desired Rotation Mode"], "Custom Facing");
+        assert_eq!(rows["Locomotion Action"], "None");
+    }
+
+    #[test]
     fn state_body_contains_expected_labels_and_values() {
-        let rows = build_state_body(&sample_snapshot(), Some("ThirdPerson"));
+        let rows = build_state_body(&sample_snapshot());
         let joined: String = rows
             .iter()
             .flat_map(|r| [r.label.clone(), r.value.clone()])
@@ -1432,7 +1460,7 @@ mod tests {
             flags.camera_shapes = mask & 64 != 0;
             flags.camera_traces = mask & 128 != 0;
             let blocks = vec![
-                layout_character_block(&flags, &sample_snapshot(), &camera, &[]),
+                layout_character_block(&flags, &sample_snapshot(), &[]),
                 layout_camera_block(&flags, &camera, &[]),
             ];
             assert!(!blocks.is_empty());
@@ -1475,7 +1503,7 @@ mod tests {
         let mut camera_curves: Vec<_> = als_camera::CAMERA_CURVE_NAMES.iter().map(|name| (name.to_string(), 0.0)).collect();
         camera_curves.sort_by(|a, b| a.0.cmp(&b.0));
         let camera_block = layout_camera_block(&state, &camera, &build_curves_body(&camera_curves, true));
-        let character_block = layout_character_block(&state, &sample_snapshot(), &camera, &evaluated_character_curve_rows(None));
+        let character_block = layout_character_block(&state, &sample_snapshot(), &evaluated_character_curve_rows(None));
         assert_eq!(block_height(&camera_block), 187.0);
         assert_eq!(block_height(&character_block), 574.0);
         for (size, dpi, ui_scale) in [(Vec2::new(1280.0, 720.0), 1.0, 1.0), (Vec2::new(960.0, 540.0), 1.0, 1.0),
@@ -1516,7 +1544,7 @@ mod tests {
         state.camera_curves = false;
         state.camera_shapes = false;
         assert!(layout_camera_block(&state, &camera, &[]).is_empty());
-        let character = layout_character_block(&state, &sample_snapshot(), &camera, &[]);
+        let character = layout_character_block(&state, &sample_snapshot(), &[]);
         assert_eq!(character[0].len(), 1, "Disabled character categories retain only the source master header");
     }
 
@@ -1528,14 +1556,14 @@ mod tests {
             ..Default::default()
         };
 
-        let inactive = layout_character_block(&flags, &sample_snapshot(), &camera, &[]);
+        let inactive = layout_character_block(&flags, &sample_snapshot(), &[]);
         assert_eq!(inactive.len(), 1);
         assert_eq!(inactive[0].len(), 1);
         assert_eq!(inactive[0][0].label, HEADER_DEBUG_MODE);
         assert_eq!(inactive[0][0].color, header_active_color());
 
         flags.curves = true;
-        let split = layout_character_block(&flags, &sample_snapshot(), &camera, &[]);
+        let split = layout_character_block(&flags, &sample_snapshot(), &[]);
         assert_eq!(split.len(), 2);
         assert_eq!(split[1].len(), 4);
         assert_eq!(split[0][1].y, 27.0);
@@ -1543,11 +1571,11 @@ mod tests {
 
         flags.curves = false;
         flags.state = true;
-        let expanded = layout_character_block(&flags, &sample_snapshot(), &camera, &[]);
+        let expanded = layout_character_block(&flags, &sample_snapshot(), &[]);
         assert_eq!(expanded.len(), 1);
         assert_eq!(
             expanded[0].len(),
-            6 + build_state_body(&sample_snapshot(), None).len()
+            6 + build_state_body(&sample_snapshot()).len()
         );
         assert_eq!(expanded[0][2].label, DebugCategory::State.header());
         assert_eq!(expanded[0][2].color, header_active_color());

@@ -82,6 +82,9 @@
     - Source/static闭环2026-09-21 21:48：fresh SK_Als原生提取35.722秒，43名称与导入/check/self-test一致。UE最终EvaluationContext→Proxy AttributeCurve→GetCurveValue（缺省0）对应根Pose输出边→LayeredGraph捕获→每帧AlsRootAnimationContext→当前Avatar/Player选择；无分支使用旧实例。源YawSpeed在Actor欧拉Yaw上积分，YawOffset来自源角度曲线；目标两曲线均离线反号，HUD却直接展示目标值且据此插色。旧Gate直接比较target值漏检源坐标语义；反例98.688秒以−42≠42先FAIL，现只在显示边界逆变换这两项，并补真实左右Turn资产取样/颜色检查。未改变图、曲线资产或运动消费；等待范围回归后真实Interface。
     - Runtime前2026-09-21 21:51：根输出捕获/缺省、实例更换、曲线符号与颜色、真实左右Turn Pose/曲线取样和HUD范围回归100.222秒PASS。显示修复只有一个条件逆变换，旧实现的反例证实不可移除；没有新增运行状态或适配层。开始同target/profile构建和公共Interface复验，检验既有67值比较及逐键两态。
     - 02a完成2026-09-21 21:54：30项范围回归、43名称原生导入一致性、81.540秒入口构建与Interface24.721秒功能PASS；原布局/菜单、67值及19种逐键状态全部通过，无fault/graph error/temporal。开始21:41、预估22:01、实际21:54、偏差−7分钟。仅修显示边界的源角度符号/颜色，动画生成与运行算法未变。
+  - [x] BF124.02b Shift+2 State：开始2026-09-21 21:54、预估结束22:19。依据为源11项State行及现有角色请求/持久意图/实际状态/相机ViewMode的4个生产入口；逐字段追踪消费时序、临时覆盖与自定义Tag显示，按已存在的公开ECS状态修复被证实的诊断差异，复用真实Interface逐键Gate。
+    - Source/static闭环2026-09-21 22:04：源11行全部核对，SetDesiredStance保存意图后物理姿态可因空中/Roll/净空不同；RefreshRotationMode保存自由模式并临时瞄准/冲刺覆盖，ViewMode属于角色。当前HUD错读请求/实际值与渲染相机，100.359秒反例以N/A≠First Person先FAIL。改为读取已有AlsDesiredStance/AlsLastFreeRotationMode/AlsFirstPersonView，删除角色布局的相机参数和请求回推；25项101.634秒PASS，含不同意图/实际、暂存请求、自定义Tag与无相机场景。没有新增镜像状态；真实Gate补齐全部11字段后构建与Interface验收。
+    - 02b完成2026-09-21 22:07：83.569秒入口构建、Interface24.759秒功能PASS，11个State字段纳入实际值比较，合计78值和全部19种按键状态无错配；fault/graph error/temporal为0。动作状态桥在PrePhysics之后、Roll驱动之前，HUD在Final之后读取，生命周期顺序一致。开始21:54、预估22:19、实际22:07、偏差−12分钟；仅重接诊断数据，删除相机/临时请求依赖，未改角色行为。
 - [ ] BF124.03 Shift+6～8相机debug分支树：逐键独立验收与提交，复用已证实的公共节点。
 - [ ] BF124.04 Shift+9实际绑定与完整性核对：原版未绑定时明确源证据，不补造功能。
 - [ ] BF124.05 汇总树状报告与同根因修复验收：逐分支覆盖开关两态、必要组合及真实入口，保持既有截图/性能暂停偏好。
