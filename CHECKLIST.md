@@ -48,8 +48,8 @@
     - [x] BF121.01c2 错误绑定/准备顺序消融与最终回归：开始2026-09-21 07:10、预估结束2026-09-21 07:42:30，依赖c1已通过；两次受控错误GPU输入/恢复、适用回归及最终footprint。依据为三轮约160秒编译、约32秒真实入口和既有validator；c1提前完成后提前进入，原剩余估时窗口不变。
 - [x] BF121.02 脚步Traces与坐标轴：开始2026-09-21 07:21、预估结束2026-09-21 08:06，依赖01已通过；估时依据为一份Notify/DebugUtility/Engine绘制闭包、已有真实通知/Avian夹具和footprint入口，可复用统一Gizmos，约两轮80–160秒构建，窗口45分钟；fresh Notify的trace/命中坐标系/Decal生成先后顺序，25cm轴与10秒寿命、开关/无贴花/角度拒绝/未命中分支，记录真实命中坐标系并接统一Debug绘制与验收。
 - [ ] BF121.03 Debug运行数据与HUD布局：依赖02，进入时拆分估时；当前受控角色→相机/Avatar/Player的唯一关联、SmoothTargetYawAngle真实值、完整曲线名与最终求值曲线、正确R/P/Y标签，按本地ALS canvas/DPI/分栏/分类布局补齐并验收小窗口和多分类。保持明确保留的字体与Overlay菜单锚定差异，不假造未取得的数据。
-  - [ ] BF121.03a 实际数据与实例归属：开始2026-09-21 07:48、预估结束2026-09-21 08:43。fresh Character/Camera/Example DisplayDebug与现有RootAnimationContext/SmoothTarget运行时链；原生提取完整Skeleton曲线名、离线目标名单、当前玩家装配链及最终求值数据。覆盖不同角色/旧Avatar/播放器、角度标签与实际SmoothTarget字段，并修正同字段的Shapes consumer；Gate为反例、消融、范围回归和原Interface入口。估时依据为三份直接C++、一份Skeleton及现成原生reader/最终曲线组件，约55分钟；不改动画图/运动算法。
-  - [ ] BF121.03b Canvas/DPI布局：计划开始2026-09-21 08:43、预估结束2026-09-21 09:33，依赖03a；按fresh源码的Camera先于Character、条件分栏与统一Scale/行列坐标接入Bevy UI，检验小窗口、DPI及全部类别和长曲线列表。估时依据为单HUD模块、已有Interface窗口/布局检测器及约80秒编译；保留字体与Overlay锚点决策，截图按当前暂停偏好。
+  - [x] BF121.03a 实际数据与实例归属：开始2026-09-21 07:48、预估结束2026-09-21 08:43。fresh Character/Camera/Example DisplayDebug与现有RootAnimationContext/SmoothTarget运行时链；原生提取完整Skeleton曲线名、离线目标名单、当前玩家装配链及最终求值数据。覆盖不同角色/旧Avatar/播放器、角度标签与实际SmoothTarget字段，并修正同字段的Shapes consumer；Gate为反例、消融、范围回归和原Interface入口。估时依据为三份直接C++、一份Skeleton及现成原生reader/最终曲线组件，约55分钟；不改动画图/运动算法。
+  - [ ] BF121.03b Canvas/DPI布局：开始2026-09-21 08:51、预估结束2026-09-21 09:41，依赖03a已通过；按fresh源码的Camera先于Character、条件分栏与统一Scale/行列坐标接入Bevy UI，检验小窗口、DPI及全部类别和长曲线列表。估时依据为单HUD模块、已有Interface窗口/布局检测器及约80秒编译；保留字体与Overlay锚点决策，截图按当前暂停偏好。
   - 01a源/反例2026-09-21 04:33：当次材质原生73.030s、Settings34.453s提取成功；fresh Bevy Storage确认CPU序列化实际长度决定GPU Buffer身份，Material准备只在重提取时解析绑定，默认没有声明ShaderBuffer准备依赖。178.292s实际插件CPU反例检出2/3个脚印扩容时普通与Playground材质均无Modified事件，并在3→2→1收缩上传。有限复开BF118.04a/b及父04，仅资源生命周期和GPU验收覆盖；旧Gate最早16样本无法证明后续绑定。采用稳定逻辑句柄、按高水位容量填充、增长时两类材质发原生修改事件，并明确Buffer先于材质准备，不更改混合公式或设置数量上限。
 
   - 01a静态回归2026-09-21 04:45：7项材质/Buffer合同160.162s PASS，扩展到17/33/257个及回零后的容量/不丢记录/增长时两类Modified/稳定容量不重建合同159.035s PASS。逻辑Handle始终不变，容量按实际需求增长并填充，Assets原生可变迭代产生Modified；两类材质均在PackedDecal准备后、AssetEvent前刷新，Render材质准备显式晚于GpuShaderBuffer。首次错误调用set_changed的编译失败已改用已核对的原生Assets迭代，不作行为证据。开始容量保持、普通材质、Playground材质三项静态消融；GPU准备顺序与持续实读数据的负向验证由01b/c完成，不把CPU合同当作GPU验收。
@@ -121,6 +121,14 @@
   - 02平行轴反例/恢复前2026-09-21 08:00：独立世界基断言83.603s正确FAIL，已将回退向量修为+X，并同时覆盖垂直/水平两种法线的源回退分支。单行修复，无新状态；接着9项范围回归、同入口补建与startup→footprint恢复，默认素材/着色公式和原GPU判据保持。
 
   - 02有限复开关闭2026-09-21 08:06：9项82.578s回归、73.059s入口补建、startup15.483s与footprint31.548s公共功能及36请求/576样本GPU审计全部PASS。回退改为源世界X，断言通过既有世界坐标转换独立复算两个分支；原错误反例已证明失败。复开开始07:58、预估08:13、实际08:06、偏差-7分钟，关闭，恢复03a；该边界不再凭角色前向猜世界基。
+
+  - 03a源/数据闭包2026-09-21 08:21：Skeleton原生36.845s读取包含绑定的AnimCurveMetaData对象与43个结构化键；fresh Skeleton/GetCurveMetaDataNames只取该对象的TMap键，因此直接复用现有reader，0.293s离线生成/三类拒绝自测通过。角色曲线名单来自Skeleton，数值改读当前播放器AlsRootAnimationContext；Camera GetAllCurveNames使用实际活动曲线，现有DebugInfo为该源通道。Character Shapes的Rotation来自角色ViewState，SmoothTarget来自现有AlsRotationResponseState，同字段的3D箭头目前读未写入的旧诊断字段。GUI归属改沿玩家标记/Assembly/Avatar/Instance与对应相机组件。87.619s首次真实加载反例受夹具在App.finish后添加plugin限制拦下，未作为业务失败；改为初始化本系统所需资源后重新跑原反例。布局源确认Camera先于Character、激活Curves后另起200×Scale列，Scale=min(SizeX/(1280×DPI),SizeY/(720×DPI))，留03b接入。
+
+  - 03a数据闭环2026-09-21 08:43：83.172s真实加载反例检出SmoothTarget、Rotation和曲线缺失；现沿当前玩家/Assembly/Avatar/Player读取43条已完成曲线，缺曲线按源GetCurveValue为0，缺完成数据才N/A，删除离线任意clip采样及无人配置的Sources资源。源Getter直接读完成数据，不按额外graph-error标志隐藏已有RootContext；删除该多余过滤后12项83.877s及84.343s范围回归PASS，保留旧Avatar、切换实例和失去实例均有覆盖。HUD Sync移至本帧动画/相机/rotation response后、UI准备前；3D绘制合并到本帧完成后，角色/相机均按当前装配选择，SmoothTarget箭头直接用实际状态。真实Interface新增每帧45个命名值核对，任何晚期错误都会失败；当前补3D相机和箭头实际顶点检查，再消融两个consumer的当前归属并恢复真实入口。
+
+  - 03a消融后/真实入口前2026-09-21 08:47：3D夹具按既有计数语义核对3个球的9个大圆后，12项80.799s全部PASS，包含实际SmoothTarget箭头端点和仅当前相机的绘制。80.941s把HUD Avatar与相机选择改回iter.next，两消费者各自FAIL（旧曲线9.50串入、当前相机绘制缺失），现已finally恢复；43名离线check及三类拒绝自测0.293s保持通过。接着恢复范围回归、同target_game/play预构建、startup和Interface逐帧实际值验收；03b布局仍待数据Gate通过后进行。
+
+  - 03a完成2026-09-21 08:51：12项81.160s恢复回归、73.974s同入口构建、startup16.243s与Interface17.332s公共功能全PASS；新增debug_values逐帧核对43曲线与两个角度字段，迟到不匹配也会失败。实际当前实例、角色视图R/P/Y、SmoothTarget及3D箭头、当前相机都闭合，旧Sources/任意clip采样删除；原生reader无需扩展。开始07:48、预估08:43、实际08:51、偏差+8分钟（含02平行轴有限复开），完成；继续03b布局，截图/性能暂停保持。
 
 ## BF120 玩家视图移动基准与动作实例归属
 

@@ -591,6 +591,8 @@ impl Plugin for ManualPlaygroundIntegrationPlugin {
                 PostUpdate,
                 observe_manual_integration
                     .after(AlsCameraSet)
+                    .after(crate::debug_display::AlsDebugDisplaySet)
+                    .after(crate::show_debug_hud::AlsShowDebugHudSet::Sync)
                     .after(crate::animation_context_projection::AlsRootAnimationContextSet)
                     .after(AlsCrouchingTelemetrySet)
                     .after(AlsTurnSlotBridgeSet)
@@ -3313,6 +3315,8 @@ struct InterfaceProbe<'w, 's> {
     hud_debug_nodes: Query<'w, 's, &'static Node, With<AlsHudDebugSection>>,
     hud_input_nodes: Query<'w, 's, &'static Node, With<AlsHudInputSection>>,
     show_debug_roots: Query<'w, 's, (), With<AlsShowDebugHudRoot>>,
+    debug_values: Query<'w, 's, (&'static Name, &'static Text)>,
+    rotation_responses: Query<'w, 's, &'static AlsRotationResponseState>,
 }
 
 #[derive(SystemParam)]
@@ -9300,6 +9304,23 @@ fn observe_manual_integration(
             && all_debug_categories_active
             && !interface.show_debug_roots.is_empty();
         state.coverage.debug_draw |= state.coverage.show_debug && interface.debug_stats.total() > 0;
+        if state.interface_debug_armed && all_debug_categories_active && !interface.show_debug_roots.is_empty() {
+            let expected_context = state.avatar.and_then(|avatar| motion_probe.object_scenes.get(avatar).ok())
+                .and_then(|instance| players.get(instance.player_entity()).ok()).and_then(|(_, context)| context);
+            let metadata: serde_json::Value = serde_json::from_str(include_str!("../assets/ui/als_character_curves.runtime.json")).unwrap();
+            let mut expected: Vec<(String, String)> = metadata["curves"].as_array().unwrap().iter().map(|name| {
+                let name = name.as_str().unwrap();
+                (crate::show_debug_hud::name_to_display_string(name, false),
+                    expected_context.map(|context| format!("{:.2}", context.f32(name).unwrap_or(0.0))).unwrap_or_else(|| "N/A".into()))
+            }).collect();
+            expected.push(("Rotation".into(), format!("R: 0.00 P: {:.2} Y: {:.2}", view_pitch.0.to_degrees(), view_yaw.0.to_degrees())));
+            if let Ok(response) = interface.rotation_responses.get(character) {
+                expected.push(("Smooth Target Yaw Angle".into(), format!("{:.2}", response.smooth_target_yaw.to_degrees())));
+            }
+            let mismatches: Vec<_> = expected.iter().filter(|(name, value)| !interface.debug_values.iter().any(|(key, text)| key.as_str() == name.as_str() && &text.0 == value)).cloned().collect();
+            gate_report.direction_trace.push(serde_json::json!({"hud_data_valid":expected_context.is_some() && mismatches.is_empty(),
+                "hud_values_checked":expected.len(),"hud_data_mismatches":mismatches}));
+        }
     }
 
     if state.phase == IntegrationPhase::Camera {
@@ -9903,6 +9924,8 @@ fn observe_manual_integration(
                 ),
                 ("show_debug", coverage.show_debug),
                 ("debug_draw", coverage.debug_draw),
+                ("debug_values", gate_report.direction_trace.iter().any(|entry| entry.get("hud_data_valid").is_some())
+                    && gate_report.direction_trace.iter().filter_map(|entry| entry.get("hud_data_valid").and_then(serde_json::Value::as_bool)).all(|valid| valid)),
             ],
             IntegrationScenario::Notify => vec![
                 ("runtime_assembly", coverage.assembly),

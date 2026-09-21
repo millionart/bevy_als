@@ -148,17 +148,17 @@ impl Plugin for AlsDebugDisplayPlugin {
             .init_gizmo_group::<FootstepPoints>()
             .configure_sets(PostUpdate, AlsDebugDisplaySet.after(crate::footprint::FootprintSet)
                 .after(bevy::camera::visibility::VisibilitySystems::CheckVisibility))
-            .add_systems(PostUpdate, draw_footstep_traces.in_set(AlsDebugDisplaySet))
             .add_systems(
-                Update,
+                PostUpdate,
                 (
                     reset_stats_system,
                     (draw_character_shapes_system, draw_bounds_box_system).chain(),
                     draw_mantle_probes_system,
                     draw_ground_prediction_system,
-                    (draw_camera_debug_system, draw_camera_trace_system).chain(),
+                    draw_camera_debug_system,
+                    draw_footstep_traces,
                 )
-                    .chain(),
+                    .chain().in_set(AlsDebugDisplaySet),
             );
     }
 }
@@ -251,6 +251,27 @@ mod footstep_tests {
         let configs = app.world().resource::<GizmoConfigStore>();
         assert_eq!(configs.config::<FootstepLines>().0.line.width, 1.0);
         assert!((configs.config::<FootstepPoints>().0.line.width - 24.0).abs() < 1e-4);
+        app.world_mut().entity_mut(player).insert((AlsCharacter, Transform::default(), GlobalTransform::default(),
+            LinearVelocity::ZERO, als_core::motion::AlsViewYaw(0.0), als_core::view::AlsViewPitch(0.0), AlsInputCommand::default(),
+            als_core::motion::AlsRotationResponseState { smooth_target_yaw: std::f32::consts::FRAC_PI_2, ..default() }));
+        let mut selected = None;
+        for character in [other, player] {
+            let mut component = crate::camera_component::AlsSourceCameraComponent::default();
+            component.activate(false);
+            let entity = app.world_mut().spawn((component, als_camera::AlsCharacterCamera { character },
+                AlsCameraDebugInfo { valid: true, pivot_target: Vec3::ONE, pivot: Some(Vec3::Y), pivot_lag: Some(Vec3::X),
+                    trace_start: Vec3::ZERO, trace_end: Vec3::NEG_Z, ..default() })).id();
+            if character == player { selected = Some(entity); }
+        }
+        app.world_mut().entity_mut(player).insert(crate::character_assembly::AlsCharacterAssembly { avatar: Entity::PLACEHOLDER, camera: selected });
+        app.insert_resource(crate::show_debug_hud::AlsShowDebugHudState { visible: true, shapes: true, camera_shapes: true, camera_traces: true, ..default() });
+        app.update();
+        let stats = app.world().resource::<AlsDebugDisplayStats>();
+        assert_eq!(stats.arrows_drawn, 3, "Smooth target yaw must draw from the current rotation response");
+        assert_eq!((stats.camera_pivot_spheres_drawn, stats.camera_trace_lines_drawn), (9, 1));
+        let assets = app.world().resource::<Assets<bevy::gizmos::GizmoAsset>>();
+        let standard = assets.iter().find(|(_, asset)| asset.config_typeid() == std::any::TypeId::of::<bevy::gizmos::config::DefaultGizmoConfigGroup>()).unwrap().1.buffer();
+        assert!(standard.list_positions.iter().any(|point| point.abs_diff_eq(Vec3::new(-0.5, -0.84, 0.0), 1e-6)));
     }
 }
 
@@ -357,20 +378,20 @@ fn draw_character_shapes_system(
             &GlobalTransform,
             &LinearVelocity,
             &als_core::motion::AlsViewYaw,
-            Option<&als_core::view::AlsViewSmoothed>,
-            Option<&AlsCharacterDebug>,
+            Option<&als_core::view::AlsViewPitch>,
+            Option<&als_core::motion::AlsRotationResponseState>,
             AnyOf<(&AlsInputCommand, &AlsInputOverride)>,
         ),
-        With<AlsCharacter>,
+        (With<AlsCharacter>, With<crate::character_assembly::AlsPlayerCharacter>),
     >,
 ) {
     if !stats.shapes_active {
         return;
     }
-    for (transform, velocity, view_yaw, view_smoothed, debug, inputs) in q_character.iter() {
+    for (transform, velocity, view_yaw, view_pitch, response, inputs) in q_character.iter() {
         let origin = transform.translation();
         let feet_location = origin - Vec3::Y * DEFAULT_CAPSULE_HALF_HEIGHT_M;
-        let pitch = view_smoothed.map(|s| s.0).unwrap_or(0.0);
+        let pitch = view_pitch.map(|s| s.0).unwrap_or(0.0);
         let view_rotation = Quat::from_euler(EulerRot::YXZ, view_yaw.0, pitch, 0.0);
 
         draw_view_cone(
@@ -423,13 +444,13 @@ fn draw_character_shapes_system(
             &mut stats,
         );
 
-        if let Some(target_yaw) = debug.and_then(|d| d.0.frame.smooth_target_yaw_deg) {
+        if let Some(target_yaw) = response.map(|response| response.smooth_target_yaw) {
             draw_directional_arrow(
                 &mut gizmos,
                 feet_location + Vec3::Y * SMOOTH_ARROW_LIFT_M,
                 feet_location
                     + Vec3::Y * SMOOTH_ARROW_LIFT_M
-                    + yaw_to_dir_xy(target_yaw) * ARROW_HEAD_M,
+                    + als_core::orientation::yaw_to_world_forward(target_yaw) * ARROW_HEAD_M,
                 ARROW_HEAD_M,
                 smooth_target_yaw_color(),
                 &mut stats,
@@ -465,7 +486,7 @@ fn draw_character_shapes_system(
 fn draw_bounds_box_system(
     mut stats: ResMut<AlsDebugDisplayStats>,
     mut gizmos: Gizmos,
-    q_character: Query<(&GlobalTransform, &ColliderAabb), With<AlsCharacter>>,
+    q_character: Query<(&GlobalTransform, &ColliderAabb), (With<AlsCharacter>, With<crate::character_assembly::AlsPlayerCharacter>)>,
 ) {
     if !stats.shapes_active {
         return;
@@ -490,7 +511,7 @@ fn draw_bounds_box_system(
 fn draw_mantle_probes_system(
     mut stats: ResMut<AlsDebugDisplayStats>,
     mut gizmos: Gizmos,
-    q_character: Query<(Entity, &AlsMantleState, Option<&AlsCharacterDebug>), With<AlsCharacter>>,
+    q_character: Query<(Entity, &AlsMantleState, Option<&AlsCharacterDebug>), (With<AlsCharacter>, With<crate::character_assembly::AlsPlayerCharacter>)>,
 ) {
     if !stats.mantling_active {
         return;
@@ -513,7 +534,7 @@ fn draw_mantle_probes_system(
 fn draw_ground_prediction_system(
     mut stats: ResMut<AlsDebugDisplayStats>,
     mut gizmos: Gizmos,
-    q_character: Query<(&GlobalTransform, &AlsAirState), With<AlsCharacter>>,
+    q_character: Query<(&GlobalTransform, &AlsAirState), (With<AlsCharacter>, With<crate::character_assembly::AlsPlayerCharacter>)>,
 ) {
     if !stats.traces_active {
         return;
@@ -552,18 +573,24 @@ fn draw_ground_prediction_system(
 fn draw_camera_debug_system(
     mut stats: ResMut<AlsDebugDisplayStats>,
     mut gizmos: Gizmos,
-    q_camera: Query<&AlsCameraDebugInfo>,
+    characters: Query<(Entity, &crate::character_assembly::AlsCharacterAssembly), With<crate::character_assembly::AlsPlayerCharacter>>,
+    cameras: Query<(&crate::camera_component::AlsSourceCameraComponent, &als_camera::AlsCharacterCamera, &AlsCameraDebugInfo)>,
 ) {
-    for info in q_camera.iter() {
-        if !info.valid {
-            warn!("[BF9][CAMSYS] camera debug present but invalid so far");
-            continue;
-        }
+    let Ok((character, assembly)) = characters.single() else { return; };
+    let Some(camera) = assembly.camera else { return; };
+    let Ok((component, owner, info)) = cameras.get(camera) else { return; };
+    if !component.is_active() || owner.character != character || !info.valid { return; }
         stats.camera_debug_valid += 1;
         stats.cumulative_camera_valid += 1;
 
+        if stats.camera_traces_active {
+            gizmos.line(info.trace_start, info.trace_end, camera_trace_color(info.trace_blocking_hit));
+            stats.camera_trace_lines_drawn += 1;
+            stats.cumulative_trace_lines += 1;
+        }
+
         if !stats.camera_shapes_active {
-            continue;
+            return;
         }
 
         draw_sphere_alternative(
@@ -596,26 +623,6 @@ fn draw_camera_debug_system(
                 &mut stats,
             );
         }
-    }
-}
-
-fn draw_camera_trace_system(
-    mut stats: ResMut<AlsDebugDisplayStats>,
-    mut gizmos: Gizmos,
-    q_camera: Query<&AlsCameraDebugInfo>,
-) {
-    for info in q_camera.iter() {
-        if !info.valid || !stats.camera_traces_active {
-            continue;
-        }
-        gizmos.line(
-            info.trace_start,
-            info.trace_end,
-            camera_trace_color(info.trace_blocking_hit),
-        );
-        stats.camera_trace_lines_drawn += 1;
-        stats.cumulative_trace_lines += 1;
-    }
 }
 
 fn draw_sphere_alternative(

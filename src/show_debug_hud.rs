@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::sync::LazyLock;
 
 use als_camera::{AlsCameraMode, AlsCameraRig};
 use als_core::character::AlsCharacter;
@@ -9,11 +9,13 @@ use als_core::motion::AlsInputOverride;
 use als_core::roll::AlsRollState;
 use als_core::state::{AlsNotifyLocomotionAction, Gait, LocomotionState, OverlayState, RotationMode, Stance};
 use als_core::transition::AlsStateRequest;
-use als_ext::AlsAnimCurves;
 use avian3d::prelude::LinearVelocity;
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
+use crate::{animation_context_projection::AlsRootAnimationContext,
+    camera_component::AlsSourceCameraComponent,
+    character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar, AlsPlayerCharacter}};
 
 const HEADER_FONT_PX: f32 = 15.0;
 const BODY_FONT_PX: f32 = 12.0;
@@ -304,6 +306,8 @@ pub struct CharacterSnapshot {
     pub velocity_direction: Option<Vec3>,
     pub velocity_yaw_angle: Option<f32>,
     pub locomotion_action: AlsNotifyLocomotionAction,
+    pub view_rotation_deg: Option<(f32, f32, f32)>,
+    pub smooth_target_yaw_angle: Option<f32>,
 }
 
 impl CharacterSnapshot {
@@ -349,13 +353,14 @@ impl CharacterSnapshot {
             velocity_direction,
             velocity_yaw_angle,
             locomotion_action,
+            view_rotation_deg: None,
+            smooth_target_yaw_angle: None,
         }
     }
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct CameraSnapshot {
-    pub view_rotation_deg: Option<(f32, f32, f32)>,
     pub rig_mode: Option<AlsCameraMode>,
     pub pivot_target_location: Option<Vec3>,
     pub pivot_lag_location: Option<Vec3>,
@@ -484,8 +489,8 @@ pub fn build_state_body(
     ]
 }
 
-pub fn build_shapes_body(snapshot: &CharacterSnapshot, camera: &CameraSnapshot) -> Vec<DebugRow> {
-    let rotation_value = camera
+pub fn build_shapes_body(snapshot: &CharacterSnapshot) -> Vec<DebugRow> {
+    let rotation_value = snapshot
         .view_rotation_deg
         .map(|(roll, pitch, yaw)| format!("R: {roll:.2} P: {pitch:.2} Y: {yaw:.2}"))
         .unwrap_or_else(|| NA_VALUE.into());
@@ -545,7 +550,7 @@ pub fn build_shapes_body(snapshot: &CharacterSnapshot, camera: &CameraSnapshot) 
         ),
         DebugRow::pair(
             name_to_display_string("SmoothTargetYawAngle", false),
-            NA_VALUE,
+            snapshot.smooth_target_yaw_angle.map(|value| format!("{value:.2}")).unwrap_or_else(|| NA_VALUE.into()),
             cyan(),
             LABEL_WIDTH_STATE_PX,
         ),
@@ -695,7 +700,7 @@ pub fn layout_character_block(
         if active {
             trailing.extend(match category {
                 DebugCategory::State => build_state_body(snapshot, view_mode_tag(camera.rig_mode)),
-                DebugCategory::Shapes => build_shapes_body(snapshot, camera),
+                DebugCategory::Shapes => build_shapes_body(snapshot),
                 DebugCategory::Traces => build_traces_body(),
                 DebugCategory::Mantling => build_mantling_body(),
                 _ => Vec::new(),
@@ -751,12 +756,6 @@ enum HudCache {
     Shown(Layout),
 }
 
-#[derive(Resource, Debug, Default, Clone)]
-pub struct AlsShowDebugCurveSources {
-    pub character: Option<Handle<AlsAnimCurves>>,
-    pub camera: Option<Handle<AlsAnimCurves>>,
-}
-
 #[derive(Component)]
 pub struct AlsShowDebugHudRoot;
 
@@ -765,18 +764,14 @@ pub struct AlsShowDebugHudPlugin;
 impl Plugin for AlsShowDebugHudPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AlsShowDebugHudState>()
-            .init_resource::<AlsShowDebugCurveSources>()
             .configure_sets(
-                Update,
-                (AlsShowDebugHudSet::Input, AlsShowDebugHudSet::Sync).chain(),
+                PostUpdate,
+                AlsShowDebugHudSet::Sync.after(crate::animation_context_projection::AlsRootAnimationContextSet)
+                    .after(als_camera::AlsCameraSet).after(als_core::motion::AlsRotationResponseSet)
+                    .before(bevy::ui::UiSystems::Prepare),
             )
-            .add_systems(
-                Update,
-                (
-                    keyboard_system.in_set(AlsShowDebugHudSet::Input),
-                    hud_sync_system.in_set(AlsShowDebugHudSet::Sync),
-                ),
-            );
+            .add_systems(Update, keyboard_system.in_set(AlsShowDebugHudSet::Input))
+            .add_systems(PostUpdate, hud_sync_system.in_set(AlsShowDebugHudSet::Sync));
     }
 }
 
@@ -800,14 +795,11 @@ fn keyboard_system(keys: Res<ButtonInput<KeyCode>>, mut state: ResMut<AlsShowDeb
 }
 
 fn build_camera_snapshot(
-    rig: Option<(&GlobalTransform, Option<&AlsCameraRig>)>,
+    rig: Option<&AlsCameraRig>,
     debug_info: Option<&als_camera::AlsCameraDebugInfo>,
 ) -> CameraSnapshot {
-    let view_rotation_deg = rig.map(|(transform, _)| {
-        let (yaw, pitch, roll) = transform.rotation().to_euler(EulerRot::YXZ);
-        (yaw.to_degrees(), pitch.to_degrees(), roll.to_degrees())
-    });
-    let camera_curves = debug_info
+    let debug_info = debug_info.filter(|info| info.valid);
+    let mut camera_curves: Vec<_> = debug_info
         .map(|info| {
             als_camera::CAMERA_CURVE_NAMES
                 .iter()
@@ -815,9 +807,9 @@ fn build_camera_snapshot(
                 .collect()
         })
         .unwrap_or_default();
+    camera_curves.sort_by(|a, b| a.0.cmp(&b.0));
     CameraSnapshot {
-        view_rotation_deg,
-        rig_mode: rig.and_then(|(_, rig)| rig).map(|rig| rig.mode),
+        rig_mode: rig.map(|rig| rig.mode),
         pivot_target_location: debug_info.map(|info| info.pivot_target),
         pivot_lag_location: debug_info.and_then(|info| info.pivot_lag),
         pivot_location: debug_info.and_then(|info| info.pivot),
@@ -835,6 +827,7 @@ fn hud_sync_system(
     mut cache: Local<Option<HudCache>>,
     q_character: Query<
         (
+            Entity,
             &'static LocomotionState,
             &'static RotationMode,
             &'static Stance,
@@ -849,27 +842,19 @@ fn hud_sync_system(
             Option<&'static AlsMantleState>,
             Option<&'static AlsNotifyLocomotionAction>,
         ),
-        With<AlsCharacter>,
+        (With<AlsCharacter>, With<AlsPlayerCharacter>),
     >,
-    q_camera: Query<
-        (
-            &GlobalTransform,
-            Option<&AlsCameraRig>,
-            Option<&als_camera::AlsCameraDebugInfo>,
-            Option<&als_camera::AlsCameraViewSource>,
-        ),
-        (With<Camera>, Without<AlsCharacter>),
-    >,
-    camera_components: Query<(&AlsCameraRig, &als_camera::AlsCameraDebugInfo)>,
-    q_instances: Query<&AnimatedSceneInstance>,
-    q_players: Query<&AnimationGraphPlayer>,
-    curve_assets: Option<Res<Assets<AlsAnimCurves>>>,
-    sources: Res<AlsShowDebugCurveSources>,
+    assemblies: Query<&AlsCharacterAssembly>,
+    camera_components: Query<(&AlsSourceCameraComponent, &als_camera::AlsCharacterCamera, &AlsCameraRig, &als_camera::AlsCameraDebugInfo)>,
+    q_instances: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
+    q_players: Query<&AlsRootAnimationContext, With<AnimationGraphPlayer>>,
+    motion: Query<(Option<&als_core::motion::AlsRotationResponseState>, Option<&als_core::motion::AlsViewYaw>, Option<&als_core::view::AlsViewPitch>)>,
 ) {
-    let character_item = q_character.iter().next();
+    let character_item = q_character.single().ok();
     let target = if state.visible && character_item.is_some() {
         let item = character_item.unwrap();
         let (
+            character,
             locomotion_state,
             rotation_mode,
             stance,
@@ -891,7 +876,7 @@ fn hud_sync_system(
             .map(|o| o.0.move_dir)
             .filter(|d| d.length() > 1e-4)
             .or(input.map(|c| c.move_dir));
-        let snapshot = CharacterSnapshot::from_components(
+        let mut snapshot = CharacterSnapshot::from_components(
             *locomotion_state,
             *rotation_mode,
             *stance,
@@ -909,28 +894,18 @@ fn hud_sync_system(
             }),
         );
 
-        let (rig, cam_debug) = q_camera
-            .iter()
-            .next()
-            .map(|(transform, rig, info, source)| {
-                let component = source.and_then(|source| camera_components.get(source.0).ok());
-                (Some((transform, component.map(|value| value.0).or(rig))), component.map(|value| value.1).or(info))
-            })
-            .unwrap_or((None, None));
-        let camera_snapshot = build_camera_snapshot(rig, cam_debug);
-
-        let elapsed = q_instances
-            .iter()
-            .next()
-            .and_then(|instance| q_players.get(instance.player_entity()).ok())
-            .map(|player| player.elapsed())
-            .unwrap_or(0.0);
-        let character_curve_rows = sampled_curve_rows(
-            curve_assets.as_ref(),
-            sources.character.as_ref(),
-            elapsed,
-            false,
-        );
+        if let Ok((response, yaw, pitch)) = motion.get(character) {
+            snapshot.smooth_target_yaw_angle = response.map(|response| response.smooth_target_yaw.to_degrees());
+            snapshot.view_rotation_deg = yaw.zip(pitch).map(|(yaw, pitch)| (0.0, pitch.0.to_degrees(), yaw.0.to_degrees()));
+        }
+        let assembly = assemblies.get(character).ok();
+        let camera = assembly.and_then(|assembly| assembly.camera).and_then(|entity| camera_components.get(entity).ok())
+            .filter(|(component, owner, _, _)| component.is_active() && owner.character == character);
+        let camera_snapshot = build_camera_snapshot(camera.map(|(_, _, rig, _)| rig), camera.map(|(_, _, _, info)| info));
+        let context = assembly.and_then(|assembly| q_instances.get(assembly.avatar).ok())
+            .filter(|(owner, _)| owner.character == character)
+            .and_then(|(_, instance)| q_players.get(instance.player_entity()).ok());
+        let character_curve_rows = evaluated_character_curve_rows(context);
         let camera_curve_rows: Vec<DebugRow> = camera_snapshot
             .camera_curves
             .iter()
@@ -975,37 +950,16 @@ fn hud_sync_system(
     *cache = Some(target);
 }
 
-fn sampled_curve_rows(
-    assets: Option<&Res<Assets<AlsAnimCurves>>>,
-    handle: Option<&Handle<AlsAnimCurves>>,
-    time: f32,
-    use_abs: bool,
-) -> Vec<DebugRow> {
-    let Some(assets) = assets else {
-        return Vec::new();
-    };
-    let Some(handle) = handle else {
-        return Vec::new();
-    };
-    let Some(curves) = assets.get(handle) else {
-        return Vec::new();
-    };
-    let names: BTreeSet<String> = curves
-        .0
-        .values()
-        .flat_map(|anim| anim.0.keys().map(|k| k.to_string()))
-        .collect();
-    let samples: Vec<(String, f32)> = names
-        .into_iter()
-        .filter_map(|name| {
-            curves
-                .0
-                .values()
-                .find_map(|anim| anim.sample(&name, time))
-                .map(|value| (name, value))
-        })
-        .collect();
-    build_curves_body(&samples, use_abs)
+fn evaluated_character_curve_rows(context: Option<&AlsRootAnimationContext>) -> Vec<DebugRow> {
+    static NAMES: LazyLock<Vec<String>> = LazyLock::new(|| {
+        let data: serde_json::Value = serde_json::from_str(include_str!("../assets/ui/als_character_curves.runtime.json")).unwrap();
+        data["curves"].as_array().unwrap().iter().map(|name| name.as_str().unwrap().to_owned()).collect()
+    });
+    NAMES.iter().map(|name| {
+        let value = context.map(|context| context.f32(name).unwrap_or(0.0));
+        DebugRow::pair(name_to_display_string(name, false), value.map(|value| format!("{value:.2}")).unwrap_or_else(|| NA_VALUE.into()),
+            curve_color(value.unwrap_or(0.0), false), LABEL_WIDTH_CURVES_PX)
+    }).collect()
 }
 
 fn spawn_hidden_root(commands: &mut Commands) -> Entity {
@@ -1087,11 +1041,12 @@ fn spawn_row(parent: &mut ChildSpawnerCommands, row: &DebugRow) {
                 .with_children(|label_parent| {
                     spawn_leaf(label_parent, &row.label, row.color, row.font_px);
                 });
-            spawn_leaf(row_parent, &row.value, row.color, row.font_px);
+            let value = spawn_leaf(row_parent, &row.value, row.color, row.font_px);
+            row_parent.commands().entity(value).insert(Name::new(row.label.clone()));
         });
 }
 
-fn spawn_leaf(parent: &mut ChildSpawnerCommands, text: &str, color: Color, font_px: f32) {
+fn spawn_leaf(parent: &mut ChildSpawnerCommands, text: &str, color: Color, font_px: f32) -> Entity {
     parent.spawn((
         Text::new(text),
         TextFont {
@@ -1103,7 +1058,7 @@ fn spawn_leaf(parent: &mut ChildSpawnerCommands, text: &str, color: Color, font_
             offset: Vec2::splat(2.0),
             color: Color::BLACK,
         },
-    ));
+    )).id()
 }
 
 #[cfg(test)]
@@ -1223,6 +1178,62 @@ mod tests {
     }
 
     #[test]
+    fn hud_reads_the_controlled_character_current_instance_and_final_curves() {
+        use bevy::ecs::system::RunSystemOnce;
+        use crate::{animation_context_projection::AlsRootAnimationContext,
+            camera_component::AlsSourceCameraComponent,
+            character_assembly::{AlsCharacterAssembly, AlsPlayerCharacter, ALS_LINKED_ANIMATED_SCENE, attach_avatar}};
+        let (mut app, character, old_avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let old_player = app.world().get::<AnimatedSceneInstance>(old_avatar).unwrap().player_entity();
+        app.world_mut().get_mut::<AnimationGraphPlayer>(old_player).unwrap().pause();
+        let avatar = app.world_mut().run_system_once_with(|In(character): In<Entity>, mut commands: Commands, server: Res<AssetServer>| {
+            attach_avatar(&mut commands, &server, character, ALS_LINKED_ANIMATED_SCENE)
+        }, character).unwrap();
+        app.world_mut().get_mut::<AlsCharacterAssembly>(character).unwrap().avatar = avatar;
+        let player = crate::roll_drive::tests::ready_roll_player(&mut app, avatar);
+        let marked: Vec<_> = app.world_mut().query_filtered::<Entity, With<AlsPlayerCharacter>>().iter(app.world()).collect();
+        for entity in marked { app.world_mut().entity_mut(entity).remove::<AlsPlayerCharacter>(); }
+        app.world_mut().entity_mut(character).insert((AlsPlayerCharacter, Stance::Crouching,
+            als_core::motion::AlsRotationResponseState { initialized: true, smooth_target_yaw: 70.0_f32.to_radians(), ..default() },
+            als_core::motion::AlsViewYaw(40.0_f32.to_radians()), als_core::view::AlsViewPitch(-15.0_f32.to_radians())));
+        app.world_mut().entity_mut(old_player).insert(AlsRootAnimationContext { curves: [("PoseGait".into(), 9.5)].into() });
+        app.world_mut().entity_mut(player).insert(AlsRootAnimationContext { curves: [("PoseGait".into(), 2.25), ("FootLeftIk".into(), 0.73)].into() });
+        let mut component = AlsSourceCameraComponent::default();
+        component.activate(false);
+        let camera = app.world_mut().spawn((component, als_camera::AlsCharacterCamera { character }, AlsCameraRig::default(),
+            als_camera::AlsCameraDebugInfo { valid: true, field_of_view_deg: 53.0, ..default() })).id();
+        app.world_mut().get_mut::<AlsCharacterAssembly>(character).unwrap().camera = Some(camera);
+        #[derive(Component)]
+        struct LateDebugTarget;
+        app.world_mut().spawn((AlsCharacter, LocomotionState::Air, RotationMode::Aiming, Stance::Standing,
+            Gait::Sprinting, OverlayState::Rifle, AlsStateRequest::default()));
+        app.world_mut().entity_mut(character).insert(LateDebugTarget);
+        app.init_resource::<AlsShowDebugHudState>();
+        *app.world_mut().resource_mut::<AlsShowDebugHudState>() = AlsShowDebugHudState {
+            visible: true, curves: true, state: true, shapes: true, camera_shapes: true, ..default()
+        };
+        let system = app.world_mut().register_system(hud_sync_system);
+        let texts = |world: &mut World| world.query::<&Text>().iter(world).map(|text| text.0.clone()).collect::<Vec<_>>();
+        app.world_mut().run_system(system).unwrap();
+        let rendered = texts(app.world_mut());
+        for expected in ["Crouching", "70.00", "53.00", "2.25", "0.73", "R: 0.00 P: -15.00 Y: 40.00"] {
+            assert!(rendered.iter().any(|text| text == expected), "Missing current value {expected}: {rendered:?}");
+        }
+        let metadata: serde_json::Value = serde_json::from_str(include_str!("../assets/ui/als_character_curves.runtime.json")).unwrap();
+        for name in metadata["curves"].as_array().unwrap() {
+            assert!(rendered.contains(&name_to_display_string(name.as_str().unwrap(), false)));
+        }
+        app.world_mut().get_mut::<AlsCharacterAssembly>(character).unwrap().avatar = old_avatar;
+        app.world_mut().run_system(system).unwrap();
+        let rendered = texts(app.world_mut());
+        assert!(rendered.iter().any(|text| text == "9.50"));
+        assert!(!rendered.iter().any(|text| text == "2.25"));
+        app.world_mut().get_mut::<AlsCharacterAssembly>(character).unwrap().avatar = Entity::PLACEHOLDER;
+        app.world_mut().run_system(system).unwrap();
+        assert!(!texts(app.world_mut()).iter().any(|text| text == "9.50"));
+    }
+
+    #[test]
     fn state_body_contains_expected_labels_and_values() {
         let rows = build_state_body(&sample_snapshot(), Some("ThirdPerson"));
         let joined: String = rows
@@ -1264,7 +1275,7 @@ mod tests {
         no_input.velocity_direction = None;
         no_input.velocity_yaw_angle = None;
 
-        let shapes = build_shapes_body(&no_input, &camera);
+        let shapes = build_shapes_body(&no_input);
         assert!(shapes.iter().all(|r| r.value == NA_VALUE));
 
         let camera_shapes = build_camera_shapes_body(&camera);

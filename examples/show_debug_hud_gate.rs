@@ -34,9 +34,9 @@ fn main() {
         Update,
         (
             script_driver.before(AlsShowDebugHudSet::Input),
-            verdict.after(AlsShowDebugHudSet::Sync),
         ),
-    );
+    )
+    .add_systems(PostUpdate, verdict.after(AlsShowDebugHudSet::Sync));
 
     let secs: f64 = std::env::var("ALS_BOOT_AUTO_QUIT_SECS")
         .ok()
@@ -65,6 +65,7 @@ fn setup(mut commands: Commands) {
     commands
         .spawn((
             AlsCharacter,
+            bevy_als::character_assembly::AlsPlayerCharacter,
             Transform::from_xyz(0.0, 0.9, 0.0),
             GlobalTransform::default(),
             LocomotionState::Grounded,
