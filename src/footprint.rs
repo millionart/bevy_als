@@ -184,7 +184,7 @@ fn footstep_rotation(settings: &FootprintDefinition, foot: GlobalTransform, side
     let normal = normal.try_normalize()?;
     let mut tangent = (foot.rotation() * settings.foot_y_axes[side]).try_normalize()?;
     if (normal.dot(tangent).abs() - 1.0).abs() <= 1e-8 {
-        tangent = if normal.y.abs() < 1.0 - 1e-4 { Vec3::Y } else { Vec3::NEG_Z };
+        tangent = if normal.y.abs() < 1.0 - 1e-4 { Vec3::Y } else { Vec3::X };
     }
     let forward = normal.cross(tangent).try_normalize()?;
     Some(Quat::from_mat3(&Mat3::from_cols(forward, normal, forward.cross(normal))))
@@ -638,7 +638,15 @@ mod tests {
         assert!((rotation * Vec3::Y).abs_diff_eq(Vec3::Y, 1e-6));
         settings.foot_y_axes[0] = Vec3::Y;
         let parallel = footstep_rotation(&settings, GlobalTransform::IDENTITY, 0, Vec3::Y).unwrap();
-        assert!(parallel.abs_diff_eq(rotation, 1e-6));
+        let source_forward = als_ext::playground::ue_point_to_bevy(Vec3::X * 100.0);
+        let source_up = als_ext::playground::ue_point_to_bevy(Vec3::Z * 100.0);
+        assert!((parallel * Vec3::Z).abs_diff_eq(source_forward, 1e-6));
+        assert!((parallel * Vec3::Y).abs_diff_eq(source_up, 1e-6));
+        assert!((parallel * Vec3::X).abs_diff_eq(source_up.cross(source_forward), 1e-6));
+        settings.foot_y_axes[0] = Vec3::X;
+        let horizontal = footstep_rotation(&settings, GlobalTransform::IDENTITY, 0, Vec3::X).unwrap();
+        assert!((horizontal * Vec3::Y).abs_diff_eq(source_forward, 1e-6));
+        assert!((horizontal * Vec3::Z).abs_diff_eq(source_up, 1e-6));
     }
 
     #[test]
