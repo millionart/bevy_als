@@ -41,7 +41,7 @@ struct GateFlags {
     menu_cycle_prev_to_box: bool,
     approve_request: bool,
     approve_transition: bool,
-    menu_despawned: bool,
+    menu_hidden: bool,
     dilation_restored: bool,
     interplay_slomo_on: bool,
     interplay_open_keeps: bool,
@@ -68,7 +68,7 @@ impl GateFlags {
             && self.menu_cycle_prev_to_box
             && self.approve_request
             && self.approve_transition
-            && self.menu_despawned
+            && self.menu_hidden
             && self.dilation_restored
             && self.interplay_slomo_on
             && self.interplay_open_keeps
@@ -180,6 +180,7 @@ fn spawn_character(mut commands: Commands) {
     let character = commands
         .spawn((
             AlsCharacter,
+            bevy_als::character_assembly::AlsPlayerCharacter,
             LocomotionState::Grounded,
             Stance::Standing,
             Gait::Walking,
@@ -630,12 +631,12 @@ fn script_driver(world: &mut World) {
                 &mut failed,
             );
             let menu_still_open = world.resource::<OverlayMenuState>().open;
-            let option_count = world.query::<&OverlayMenuOption>().iter(world).count();
-            let menu_gone = !menu_still_open && option_count == 0;
+            let root = world.resource::<OverlayMenuState>().root;
+            let menu_hidden = !menu_still_open && root.is_some_and(|entity| world.get::<Node>(entity).is_some_and(|node| node.display == Display::None));
             GateFlags::check(
-                &mut flags.menu_despawned,
-                "menu_despawned",
-                menu_gone,
+                &mut flags.menu_hidden,
+                "menu_hidden",
+                menu_hidden,
                 "menu should close on release",
                 &mut failed,
             );
@@ -649,7 +650,7 @@ fn script_driver(world: &mut World) {
             );
             flags.approve_request
                 && flags.approve_transition
-                && flags.menu_despawned
+                && flags.menu_hidden
                 && flags.dilation_restored
         }) {}
 

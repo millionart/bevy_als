@@ -564,10 +564,10 @@ fn refresh_colors_system(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
 
-    fn hud_layout_app() -> App {
+    pub(crate) fn hud_layout_app() -> App {
         use bevy::{
             app::{HierarchyPropagatePlugin, PropagateSet},
             ui::{

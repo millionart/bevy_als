@@ -3313,6 +3313,7 @@ struct InterfaceProbe<'w, 's> {
     visual_progress: Option<Res<'w, AnimationVisualValidationProgress>>,
     hud_state: Res<'w, AlsHudState>,
     menu_state: Res<'w, OverlayMenuState>,
+    menu_nodes: Query<'w, 's, &'static Node>,
     show_debug: Res<'w, AlsShowDebugHudState>,
     debug_stats: Res<'w, AlsDebugDisplayStats>,
     overlay_props: Query<'w, 's, (), With<AlsOverlayObject>>,
@@ -9301,11 +9302,11 @@ fn observe_manual_integration(
             state.interface_slomo_seen && state.interface_slomo_restored_seen;
 
         state.interface_menu_open_seen |= interface.menu_state.open
-            && interface.menu_state.root.is_some()
+            && interface.menu_state.root.and_then(|root| interface.menu_nodes.get(root).ok()).is_some_and(|node| node.display == Display::Flex)
             && (interface.virtual_time.relative_speed() - 0.35).abs() < 1e-4;
         state.interface_menu_closed_seen |= state.interface_menu_open_seen
             && !interface.menu_state.open
-            && interface.menu_state.root.is_none()
+            && interface.menu_state.root.and_then(|root| interface.menu_nodes.get(root).ok()).is_some_and(|node| node.display == Display::None)
             && (interface.virtual_time.relative_speed() - 1.0).abs() < 1e-4;
         state.coverage.overlay_menu =
             state.interface_menu_open_seen && state.interface_menu_closed_seen;

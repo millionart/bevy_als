@@ -124,27 +124,74 @@ def self_test():
         raise AssertionError('Invalid UI scale contract was accepted')
 
 
+def convert_menu(menu, option, font_header):
+    def widget(source, class_name):
+        matches = [item for item in source['asset_objects'] if item['class_path'] == '/Script/UMG.' + class_name]
+        if len(matches) != 1:
+            raise ValueError(f'Expected one menu {class_name}')
+        return {item['name']: item['exported_text'] for item in matches[0]['properties']}
+
+    size = widget(option, 'SizeBox')
+    border = widget(option, 'Border')
+    text = widget(option, 'TextBlock')
+    font = parse_struct(text['Font'])
+    padding = parse_struct(border['Padding'])
+    if (text['AutoWrapText'] != 'False' or text['Clipping'] != 'OnDemand' or font['TypefaceFontName'] != '"Regular"'
+            or padding['Left'] != padding['Right'] or size['bOverride_WidthOverride'] != 'True' or size['bOverride_HeightOverride'] != 'True'):
+        raise ValueError('Menu text layout changed')
+    graph = next(graph for graph in menu['graphs'] if graph['object_path'].endswith(':EventGraph'))
+    setters = [node for node in graph['nodes'] if any(prop['name'] == 'FunctionReference' and
+               parse_struct(prop['exported_text']).get('MemberName') == '"SetPadding"' for prop in node['properties'])]
+    if len(setters) != 1:
+        raise ValueError('Menu option spacing is ambiguous')
+    gap = float(next(pin['default_value'] for pin in setters[0]['pins'] if pin['name'] == 'InPadding_Top'))
+    render_dpi = int(re.search(r'RenderDPI\s*=\s*(\d+)', font_header)[1])
+    constants = {'OPTION_WIDTH_PX': float(size['WidthOverride']), 'OPTION_HEIGHT_PX': float(size['HeightOverride']),
+                 'OPTION_GAP_PX': gap, 'OPTION_FONT_SIZE_PX': float(font['Size']) * render_dpi / 72,
+                 'OPTION_HORIZONTAL_PADDING_PX': float(padding['Left'])}
+    output = ''.join(f'pub const {name}: f32 = {value!r};\n' for name, value in constants.items())
+    selected_text = record(option['blueprint_cdo_properties'], 'TextSelectedColor')['exported_text']
+    if selected_text != record(option['blueprint_cdo_properties'], 'TextNotSelectedColor')['exported_text']:
+        raise ValueError('Menu text selection colors diverged')
+    colors = {'COLOR_MENU_BACKGROUND': widget(menu, 'Border')['BrushColor'],
+              'COLOR_MENU_TEXT': parse_struct(selected_text)['SpecifiedColor'],
+              'COLOR_OPTION_SELECTED': record(option['blueprint_cdo_properties'], 'BorderSelectedColor')['exported_text'],
+              'COLOR_OPTION_NOT_SELECTED': record(option['blueprint_cdo_properties'], 'BorderNotSelectedColor')['exported_text']}
+    for name, raw in colors.items():
+        color = parse_struct(raw)
+        output += f'pub const {name}: Color = Color::linear_rgba(' + ', '.join(str(float(color[axis])) for axis in 'RGBA') + ');\n'
+    return output
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--source', type=Path)
+    parser.add_argument('--menu', type=Path)
+    parser.add_argument('--option', type=Path)
     parser.add_argument('--engine', type=Path)
     parser.add_argument('--project', type=Path)
-    parser.add_argument('--output', type=Path, default=Path('assets/ui/als_hud.runtime.rs'))
+    parser.add_argument('--output', type=Path)
     parser.add_argument('--check', action='store_true')
     parser.add_argument('--self-test', action='store_true')
     args = parser.parse_args()
     if args.self_test:
         self_test()
-    if args.source:
-        text = convert(json.loads(args.source.read_text(encoding='utf-8-sig')),
-            (args.engine / 'Engine/Config/BaseEngine.ini').read_text(encoding='utf-8-sig'),
-            (args.project / 'Config/DefaultEngine.ini').read_text(encoding='utf-8-sig'),
-            (args.engine / 'Engine/Source/Runtime/SlateCore/Public/Fonts/SlateFontInfo.h').read_text(encoding='utf-8-sig'))
+    if args.source or args.menu:
+        font_header = (args.engine / 'Engine/Source/Runtime/SlateCore/Public/Fonts/SlateFontInfo.h').read_text(encoding='utf-8-sig')
+        if args.menu:
+            text = convert_menu(json.loads(args.menu.read_text(encoding='utf-8-sig')),
+                                json.loads(args.option.read_text(encoding='utf-8-sig')), font_header)
+            output = args.output or Path('assets/ui/als_overlay_menu.runtime.rs')
+        else:
+            text = convert(json.loads(args.source.read_text(encoding='utf-8-sig')),
+                (args.engine / 'Engine/Config/BaseEngine.ini').read_text(encoding='utf-8-sig'),
+                (args.project / 'Config/DefaultEngine.ini').read_text(encoding='utf-8-sig'), font_header)
+            output = args.output or Path('assets/ui/als_hud.runtime.rs')
         if args.check:
-            if args.output.read_text(encoding='utf-8') != text:
+            if output.read_text(encoding='utf-8') != text:
                 raise SystemExit('HUD data differs from native source')
         else:
-            args.output.write_text(text, encoding='utf-8')
+            output.write_text(text, encoding='utf-8')
     print(json.dumps({'pass': True}))
 
 

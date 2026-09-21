@@ -6,12 +6,16 @@ use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 
 use crate::als_hud::AlsHudState;
-use crate::als_hud::COLOR_TEXT;
+use crate::character_assembly::AlsPlayerCharacter;
 
 pub fn menu_display_order(tags: &bevy_gameplay_tag::GameplayTagsManager) -> Vec<OverlayState> {
     let parent = bevy_gameplay_tag::GameplayTag::new("Als.OverlayMode");
-    let mut values: Vec<_> = tags.tag_map.keys().filter(|tag| *tag != &parent && tag.matches_tag(&parent, tags))
-        .map(OverlayState::from_tag).collect();
+    let mut values: Vec<_> = tags
+        .tag_map
+        .keys()
+        .filter(|tag| *tag != &parent && tag.matches_tag(&parent, tags))
+        .map(OverlayState::from_tag)
+        .collect();
     let name_key = |name: &str| {
         let prefix = name.trim_end_matches(|value: char| value.is_ascii_digit());
         match name[prefix.len()..].parse::<i64>() {
@@ -22,7 +26,9 @@ pub fn menu_display_order(tags: &bevy_gameplay_tag::GameplayTagsManager) -> Vec<
     values.sort_by(|a, b| {
         for (a, b) in a.as_str().split('.').zip(b.as_str().split('.')) {
             let order = name_key(b).cmp(&name_key(a));
-            if !order.is_eq() { return order; }
+            if !order.is_eq() {
+                return order;
+            }
         }
         a.as_str().len().cmp(&b.as_str().len())
     });
@@ -30,13 +36,7 @@ pub fn menu_display_order(tags: &bevy_gameplay_tag::GameplayTagsManager) -> Vec<
 }
 
 pub const MENU_DILATION: f32 = 0.35;
-pub const OPTION_WIDTH_PX: f32 = 200.0;
-pub const OPTION_HEIGHT_PX: f32 = 25.0;
-pub const OPTION_GAP_PX: f32 = 4.0;
-pub const OPTION_FONT_SIZE_PX: f32 = 14.0;
-
-pub const COLOR_OPTION_SELECTED: Color = Color::linear_rgba(0.15, 0.15, 0.15, 0.5);
-pub const COLOR_OPTION_NOT_SELECTED: Color = Color::linear_rgba(0.015, 0.015, 0.015, 0.5);
+include!("../assets/ui/als_overlay_menu.runtime.rs");
 
 #[derive(Resource, Default)]
 pub struct OverlayMenuState {
@@ -48,7 +48,10 @@ pub struct OverlayMenuState {
 
 impl OverlayMenuState {
     pub fn selected_index(&self) -> usize {
-        self.options.iter().position(|value| Some(*value) == self.selected).unwrap_or(usize::MAX)
+        self.options
+            .iter()
+            .position(|value| Some(*value) == self.selected)
+            .unwrap_or(usize::MAX)
     }
 }
 
@@ -81,21 +84,35 @@ impl Plugin for OverlayModeMenuPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AlsHudState>()
             .init_resource::<OverlayMenuState>()
+            .add_systems(Startup, initialize_menu)
             .add_systems(Update, (menu_control_system, menu_highlight_system).chain());
     }
+}
+
+fn initialize_menu(
+    mut commands: Commands,
+    mut state: ResMut<OverlayMenuState>,
+    tags: Res<bevy_gameplay_tag::GameplayTagsManager>,
+) {
+    state.options = menu_display_order(&tags);
+    state.root = Some(spawn_menu(
+        &mut commands,
+        state.selected_index(),
+        &state.options,
+    ));
 }
 
 fn menu_control_system(
     mut commands: Commands,
     mut state: ResMut<OverlayMenuState>,
     hud_state: Res<AlsHudState>,
-    tags: Res<bevy_gameplay_tag::GameplayTagsManager>,
     mut time: ResMut<Time<Virtual>>,
     menu_held: Query<&Action<OverlayMenuAction>>,
     next_states: Query<&TriggerState, With<Action<als_core::input::NextOverlayModeAction>>>,
     prev_states: Query<&TriggerState, With<Action<als_core::input::PreviousOverlayModeAction>>>,
-    characters: Query<(Entity, &OverlayState), With<AlsCharacter>>,
+    characters: Query<(Entity, &OverlayState), (With<AlsCharacter>, With<AlsPlayerCharacter>)>,
     mut requests: Query<&mut AlsStateRequest>,
+    mut nodes: Query<&mut Node>,
     mut prev_held: Local<bool>,
 ) {
     let held = menu_held.iter().any(|action| **action);
@@ -112,31 +129,30 @@ fn menu_control_system(
 
     if state.open && (next || prev) && !state.options.is_empty() {
         let len = state.options.len();
-        let selected_index = if next {
-            next_index(state.selected_index(), len)
-        } else {
-            previous_index(state.selected_index(), len)
-        };
+        let mut selected_index = state.selected_index();
+        if next {
+            selected_index = next_index(selected_index, len);
+        }
+        if prev {
+            selected_index = previous_index(selected_index, len);
+        }
         state.selected = Some(state.options[selected_index]);
     }
 
     if pressed && !state.open {
         state.open = true;
-        state.options = menu_display_order(&tags);
-        state.selected = characters.iter().next().map(|(_, overlay)| *overlay);
+        if let Ok((_, overlay)) = characters.single() {
+            state.selected = Some(*overlay);
+        }
         if !hud_state.slomo_active {
             time.set_relative_speed(MENU_DILATION);
         }
-        state.root = Some(spawn_menu(
-            &mut commands,
-            state.selected_index(),
-            &state.options,
-        ));
     }
 
     if released && state.open {
         if let Some(selected) = state.selected
-            && let Some((entity, _)) = characters.iter().next() {
+            && let Ok((entity, _)) = characters.single()
+        {
             match requests.get_mut(entity) {
                 Ok(mut request) => request.overlay_state = Some(selected),
                 Err(_) => {
@@ -147,12 +163,21 @@ fn menu_control_system(
                 }
             }
         }
-        if let Some(root) = state.root.take() {
-            commands.entity(root).despawn();
-        }
         state.open = false;
         if !hud_state.slomo_active {
             time.set_relative_speed(1.0);
+        }
+    }
+    if let Some(root) = state.root
+        && let Ok(mut node) = nodes.get_mut(root)
+    {
+        let display = if state.open {
+            Display::Flex
+        } else {
+            Display::None
+        };
+        if node.display != display {
+            node.display = display;
         }
     }
 }
@@ -163,18 +188,23 @@ fn spawn_menu(
     display_order: &[OverlayState],
 ) -> Entity {
     let root = commands
-        .spawn(Node {
-            position_type: PositionType::Absolute,
-            right: Val::Px(
-                crate::als_hud::PANEL_RIGHT_MARGIN_PX
-                    + crate::als_hud::PANEL_WIDTH_PX
-                    + crate::als_hud::SECTION_GAP_PX,
-            ),
-            top: Val::Px(crate::als_hud::PANEL_TOP_MARGIN_PX),
-            flex_direction: FlexDirection::Column,
-            row_gap: Val::Px(OPTION_GAP_PX),
-            ..default()
-        })
+        .spawn((
+            Node {
+                display: Display::None,
+                position_type: PositionType::Absolute,
+                right: Val::Px(
+                    crate::als_hud::PANEL_RIGHT_MARGIN_PX
+                        + crate::als_hud::PANEL_WIDTH_PX
+                        + crate::als_hud::SECTION_GAP_PX,
+                ),
+                top: Val::Px(crate::als_hud::PANEL_TOP_MARGIN_PX),
+                flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(OPTION_GAP_PX),
+                ..default()
+            },
+            BackgroundColor(COLOR_MENU_BACKGROUND),
+            GlobalZIndex(11),
+        ))
         .id();
 
     for (index, overlay) in display_order.iter().enumerate() {
@@ -185,6 +215,9 @@ fn spawn_menu(
                 Node {
                     width: Val::Px(OPTION_WIDTH_PX),
                     height: Val::Px(OPTION_HEIGHT_PX),
+                    padding: UiRect::horizontal(Val::Px(OPTION_HORIZONTAL_PADDING_PX)),
+                    overflow: Overflow::clip(),
+                    overflow_clip_margin: OverflowClipMargin::content_box(),
                     align_items: AlignItems::Center,
                     justify_content: JustifyContent::Center,
                     ..default()
@@ -198,11 +231,16 @@ fn spawn_menu(
             .with_children(|parent| {
                 parent.spawn((
                     Text::new(option_label(*overlay)),
+                    Node {
+                        min_width: Val::Px(0.0),
+                        ..default()
+                    },
+                    TextLayout::default().with_no_wrap(),
                     TextFont {
                         font_size: FontSize::Px(OPTION_FONT_SIZE_PX),
                         ..default()
                     },
-                    TextColor(COLOR_TEXT),
+                    TextColor(COLOR_MENU_TEXT),
                 ));
             })
             .id();
@@ -237,22 +275,40 @@ pub(crate) mod tests {
     use super::*;
 
     pub(crate) fn tag_manager(extra: &[&str]) -> bevy_gameplay_tag::GameplayTagsManager {
-        let mut rows: Vec<serde_json::Value> = serde_json::from_str(include_str!("../assets/als_gameplay_tags.json")).unwrap();
-        rows.extend(extra.iter().map(|name| serde_json::json!({"tag_name": name, "description": "Test overlay"})));
+        let mut rows: Vec<serde_json::Value> =
+            serde_json::from_str(include_str!("../assets/als_gameplay_tags.json")).unwrap();
+        rows.extend(
+            extra
+                .iter()
+                .map(|name| serde_json::json!({"tag_name": name, "description": "Test overlay"})),
+        );
         let mut world = World::new();
-        world.insert_resource(bevy_gameplay_tag::GameplayTagsSettings { json_data: serde_json::to_string(&rows).unwrap(), data_path: None });
+        world.insert_resource(bevy_gameplay_tag::GameplayTagsSettings {
+            json_data: serde_json::to_string(&rows).unwrap(),
+            data_path: None,
+        });
         bevy_gameplay_tag::GameplayTagsManager::from_world(&mut world)
     }
 
     #[test]
     fn menu_uses_registered_descendants_and_source_tree_order() {
-        let tags = tag_manager(&["Als.OverlayMode.Custom2", "Als.OverlayMode.Custom10.Detail", "Als.Unrelated.Custom"]);
+        let tags = tag_manager(&[
+            "Als.OverlayMode.Custom2",
+            "Als.OverlayMode.Custom10.Detail",
+            "Als.Unrelated.Custom",
+        ]);
         let order = menu_display_order(&tags);
         assert_eq!(order.len(), 16);
         assert_eq!(order[0], OverlayState::Torch);
         assert_eq!(*order.last().unwrap(), OverlayState::Barrel);
-        let custom = order.iter().position(|tag| tag.as_str() == "Als.OverlayMode.Custom10").unwrap();
-        assert_eq!(order[custom + 1].as_str(), "Als.OverlayMode.Custom10.Detail");
+        let custom = order
+            .iter()
+            .position(|tag| tag.as_str() == "Als.OverlayMode.Custom10")
+            .unwrap();
+        assert_eq!(
+            order[custom + 1].as_str(),
+            "Als.OverlayMode.Custom10.Detail"
+        );
         assert_eq!(order[custom + 2].as_str(), "Als.OverlayMode.Custom2");
         let baseline_order = menu_display_order(&tag_manager(&[]));
         assert_eq!(baseline_order.len(), 13);
@@ -261,43 +317,294 @@ pub(crate) mod tests {
         assert_eq!(previous_index(order.len() - 1, order.len()), 0);
         assert_eq!(next_index(usize::MAX, order.len()), order.len() - 1);
         assert_eq!(previous_index(usize::MAX, order.len()), 0);
-        let empty = bevy_gameplay_tag::GameplayTagsManager { root: Entity::PLACEHOLDER, tag_map: default() };
+        let empty = bevy_gameplay_tag::GameplayTagsManager {
+            root: Entity::PLACEHOLDER,
+            tag_map: default(),
+        };
         assert!(menu_display_order(&empty).is_empty());
     }
 
     #[test]
-    fn menu_commits_the_displayed_custom_tag_and_handles_an_empty_dictionary() {
+    fn menu_commits_to_the_owning_pawn_and_keeps_the_initialized_dictionary() {
         let custom = OverlayState::new("Als.OverlayMode.CustomRifle").unwrap();
         let mut app = App::new();
-        app.add_plugins(MinimalPlugins).insert_resource(tag_manager(&[custom.as_str()])).add_plugins(OverlayModeMenuPlugin);
-        let character = app.world_mut().spawn((AlsCharacter, custom, AlsStateRequest::default())).id();
-        let mut action = Action::<OverlayMenuAction>::new();
-        *action = true;
-        let action = app.world_mut().spawn(action).id();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(tag_manager(&[custom.as_str()]))
+            .add_plugins(OverlayModeMenuPlugin);
+        let decoy = app
+            .world_mut()
+            .spawn((
+                AlsCharacter,
+                OverlayState::Rifle,
+                AlsStateRequest::default(),
+            ))
+            .id();
+        let character = app
+            .world_mut()
+            .spawn((AlsCharacter, custom, AlsStateRequest::default()))
+            .id();
+        let action = app
+            .world_mut()
+            .spawn(Action::<OverlayMenuAction>::new())
+            .id();
+        app.update();
+        app.world_mut()
+            .entity_mut(character)
+            .insert(crate::character_assembly::AlsPlayerCharacter);
+        **app
+            .world_mut()
+            .get_mut::<Action<OverlayMenuAction>>(action)
+            .unwrap() = true;
         app.update();
         let state = app.world().resource::<OverlayMenuState>();
         assert!(state.open);
         assert_eq!(state.selected, Some(custom));
-        assert_eq!(app.world_mut().query::<&OverlayMenuOption>().iter(app.world()).count(), 14);
+        assert_eq!(
+            app.world_mut()
+                .query::<&OverlayMenuOption>()
+                .iter(app.world())
+                .count(),
+            14
+        );
         app.insert_resource(tag_manager(&[]));
-        **app.world_mut().get_mut::<Action<OverlayMenuAction>>(action).unwrap() = false;
+        **app
+            .world_mut()
+            .get_mut::<Action<OverlayMenuAction>>(action)
+            .unwrap() = false;
         app.update();
-        assert_eq!(app.world().get::<AlsStateRequest>(character).unwrap().overlay_state, Some(custom));
+        assert_eq!(
+            app.world()
+                .get::<AlsStateRequest>(character)
+                .unwrap()
+                .overlay_state,
+            Some(custom)
+        );
+        assert_eq!(
+            app.world()
+                .get::<AlsStateRequest>(decoy)
+                .unwrap()
+                .overlay_state,
+            None
+        );
         assert!(!app.world().resource::<OverlayMenuState>().open);
-        assert_eq!(app.world().resource::<Time<Virtual>>().relative_speed(), 1.0);
-        app.world_mut().resource_mut::<bevy_gameplay_tag::GameplayTagsManager>().tag_map.clear();
-        **app.world_mut().get_mut::<Action<OverlayMenuAction>>(action).unwrap() = true;
+        assert_eq!(
+            app.world().resource::<Time<Virtual>>().relative_speed(),
+            1.0
+        );
+        app.world_mut()
+            .resource_mut::<bevy_gameplay_tag::GameplayTagsManager>()
+            .tag_map
+            .clear();
+        **app
+            .world_mut()
+            .get_mut::<Action<OverlayMenuAction>>(action)
+            .unwrap() = true;
         app.update();
-        assert!(app.world().resource::<OverlayMenuState>().options.is_empty());
-        *app.world_mut().get_mut::<OverlayState>(character).unwrap() = OverlayState::Default;
-        app.world_mut().get_mut::<AlsStateRequest>(character).unwrap().overlay_state = None;
-        let next = app.world_mut().spawn((Action::<als_core::input::NextOverlayModeAction>::new(), TriggerState::Fired)).id();
-        app.update();
-        app.world_mut().despawn(next);
-        **app.world_mut().get_mut::<Action<OverlayMenuAction>>(action).unwrap() = false;
+        assert_eq!(app.world().resource::<OverlayMenuState>().options.len(), 14);
+        assert_eq!(
+            app.world().resource::<OverlayMenuState>().selected,
+            Some(custom)
+        );
+        **app
+            .world_mut()
+            .get_mut::<Action<OverlayMenuAction>>(action)
+            .unwrap() = false;
         app.update();
         assert!(!app.world().resource::<OverlayMenuState>().open);
-        assert_eq!(app.world().get::<AlsStateRequest>(character).unwrap().overlay_state, Some(custom));
+        assert_eq!(
+            app.world()
+                .get::<AlsStateRequest>(character)
+                .unwrap()
+                .overlay_state,
+            Some(custom)
+        );
+        app.world_mut()
+            .entity_mut(character)
+            .remove::<AlsPlayerCharacter>();
+        **app
+            .world_mut()
+            .get_mut::<Action<OverlayMenuAction>>(action)
+            .unwrap() = true;
+        app.update();
+        assert_eq!(
+            app.world().resource::<OverlayMenuState>().selected,
+            Some(custom)
+        );
+    }
+
+    #[test]
+    fn empty_menu_ignores_cycle_input() {
+        let mut app = App::new();
+        let mut tags = tag_manager(&[]);
+        tags.tag_map.clear();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(tags)
+            .add_plugins(OverlayModeMenuPlugin);
+        let mut action = Action::<OverlayMenuAction>::new();
+        *action = true;
+        app.world_mut().spawn(action);
+        app.update();
+        app.world_mut().spawn((
+            Action::<als_core::input::NextOverlayModeAction>::new(),
+            TriggerState::Fired,
+        ));
+        app.update();
+        let menu = app.world().resource::<OverlayMenuState>();
+        assert!(menu.open && menu.options.is_empty());
+        assert!(menu.selected.is_none());
+    }
+
+    #[test]
+    fn cycle_input_preserves_both_source_action_callbacks() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(tag_manager(&[]))
+            .add_plugins(OverlayModeMenuPlugin);
+        app.world_mut()
+            .spawn((AlsCharacter, AlsPlayerCharacter, OverlayState::Rifle));
+        let mut action = Action::<OverlayMenuAction>::new();
+        *action = true;
+        app.world_mut().spawn(action);
+        app.update();
+        app.world_mut().spawn((
+            Action::<als_core::input::NextOverlayModeAction>::new(),
+            TriggerState::Fired,
+        ));
+        app.world_mut().spawn((
+            Action::<als_core::input::PreviousOverlayModeAction>::new(),
+            TriggerState::Fired,
+        ));
+        app.update();
+        assert_eq!(
+            app.world().resource::<OverlayMenuState>().selected,
+            Some(OverlayState::Rifle)
+        );
+    }
+
+    #[test]
+    fn menu_widget_is_initialized_once_and_reused_between_viewport_entries() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(tag_manager(&[]))
+            .add_plugins(OverlayModeMenuPlugin);
+        let action = app
+            .world_mut()
+            .spawn(Action::<OverlayMenuAction>::new())
+            .id();
+        app.update();
+        let root = app
+            .world()
+            .resource::<OverlayMenuState>()
+            .root
+            .expect("The controller creates the menu during initialization");
+        let options: Vec<_> = app.world().get::<Children>(root).unwrap().iter().collect();
+        for held in [true, false, true, false] {
+            **app
+                .world_mut()
+                .get_mut::<Action<OverlayMenuAction>>(action)
+                .unwrap() = held;
+            app.update();
+            assert_eq!(app.world().resource::<OverlayMenuState>().root, Some(root));
+            assert_eq!(
+                app.world().get::<Node>(root).unwrap().display,
+                if held { Display::Flex } else { Display::None }
+            );
+            assert_eq!(
+                app.world()
+                    .get::<Children>(root)
+                    .unwrap()
+                    .iter()
+                    .collect::<Vec<_>>(),
+                options
+            );
+        }
+    }
+
+    #[test]
+    fn menu_widget_uses_full_backdrop_native_padding_and_font_units() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .insert_resource(tag_manager(&[]))
+            .add_plugins(OverlayModeMenuPlugin);
+        let mut action = Action::<OverlayMenuAction>::new();
+        *action = true;
+        app.world_mut().spawn(action);
+        app.update();
+        let root = app.world().resource::<OverlayMenuState>().root.unwrap();
+        assert_eq!(
+            app.world()
+                .get::<BackgroundColor>(root)
+                .map(|color| color.0),
+            Some(crate::als_hud::COLOR_BORDER_WEAK)
+        );
+        for (node, children) in app
+            .world_mut()
+            .query_filtered::<(&Node, &Children), With<OverlayMenuOption>>()
+            .iter(app.world())
+        {
+            assert_eq!(node.width, Val::Px(200.0));
+            assert_eq!(node.height, Val::Px(25.0));
+            assert_eq!(node.padding, UiRect::horizontal(Val::Px(4.0)));
+            let font = app.world().get::<TextFont>(children[0]).unwrap();
+            assert_eq!(font.font_size, FontSize::Px(56.0 / 3.0));
+            assert_eq!(
+                app.world()
+                    .get::<TextLayout>(children[0])
+                    .unwrap()
+                    .linebreak,
+                LineBreak::NoWrap
+            );
+        }
+    }
+
+    #[test]
+    fn long_menu_labels_clip_to_the_padded_option() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut app = crate::als_hud::tests::hud_layout_app();
+        app.init_resource::<OverlayMenuState>();
+        app.insert_resource(tag_manager(&[
+            "Als.OverlayMode.ExtremelyLongCustomOverlayModeThatExceedsTheMenuWidth",
+        ]));
+        app.world_mut().run_system_once(initialize_menu).unwrap();
+        let root = app.world().resource::<OverlayMenuState>().root.unwrap();
+        app.world_mut().get_mut::<Node>(root).unwrap().display = Display::Flex;
+        app.add_systems(
+            PostUpdate,
+            bevy::ui::update::update_clipping_system.after(bevy::ui::ui_layout_system),
+        );
+        app.update();
+        let long = app
+            .world_mut()
+            .query::<(Entity, &Text)>()
+            .iter(app.world())
+            .find(|(_, text)| text.0.starts_with("Extremely"))
+            .unwrap()
+            .0;
+        app.world_mut().get_mut::<Node>(long).unwrap().width = Val::Auto;
+        app.world_mut()
+            .entity_mut(long)
+            .insert(bevy::ui::ContentSize::fixed_size(Vec2::new(400.0, 20.0)));
+        app.update();
+        let mut found = false;
+        for (_, children) in app
+            .world_mut()
+            .query::<(&OverlayMenuOption, &Children)>()
+            .iter(app.world())
+        {
+            let text = app.world().get::<Text>(children[0]).unwrap();
+            if !text.0.starts_with("Extremely") {
+                continue;
+            }
+            found = true;
+            let node = app.world().get::<ComputedNode>(children[0]).unwrap();
+            assert!(node.size().x <= 192.0);
+            let clip = app
+                .world()
+                .get::<CalculatedClip>(children[0])
+                .expect("The source text uses on-demand clipping");
+            assert!(clip.clip.width() <= 192.0);
+        }
+        assert!(found);
     }
 
     #[test]

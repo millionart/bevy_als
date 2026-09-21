@@ -54,6 +54,8 @@ fn observe(
         &bevy::ui::ComputedUiRenderTargetInfo,
     )>,
     roots: Query<Entity, With<AlsHudRoot>>,
+    menu: Res<OverlayMenuState>,
+    backgrounds: Query<&BackgroundColor>,
     controls: Query<(
         &ComputedNode,
         &bevy::ui::UiGlobalTransform,
@@ -163,14 +165,60 @@ fn observe(
     } else {
         failures.push(serde_json::json!({"field":"ControlPanelMissing"}));
     }
+    if menu.open {
+        if let Some(root) = menu.root
+            && let Ok((node, transform, children, _, _)) = controls.get(root)
+        {
+            let origin = transform.affine().translation - node.size() * 0.5;
+            let expected = Vec2::new(size.x as f32 - 573.0 * umg_scale, 25.0 * umg_scale);
+            let height = (menu.options.len() as f32 * 29.0 - 4.0) * umg_scale;
+            if !origin.abs_diff_eq(expected, 1.0)
+                || !node
+                    .size()
+                    .abs_diff_eq(Vec2::new(200.0 * umg_scale, height), 1.0)
+                || backgrounds.get(root).map_or(true, |color| {
+                    color.0 != crate::overlay_mode_menu::COLOR_MENU_BACKGROUND
+                })
+            {
+                failures.push(serde_json::json!({"field":"MenuPanel","position":origin.to_array(),"size":node.size().to_array()}));
+            }
+            for (index, child) in children.into_iter().flatten().enumerate() {
+                let (node, transform, _, _, _) = controls.get(*child).unwrap();
+                let position = transform.affine().translation - node.size() * 0.5;
+                let expected = origin + Vec2::Y * index as f32 * 29.0 * umg_scale;
+                let color = if index == menu.selected_index() {
+                    crate::overlay_mode_menu::COLOR_OPTION_SELECTED
+                } else {
+                    crate::overlay_mode_menu::COLOR_OPTION_NOT_SELECTED
+                };
+                if !position.abs_diff_eq(expected, 1.0)
+                    || !node
+                        .size()
+                        .abs_diff_eq(Vec2::new(200.0, 25.0) * umg_scale, 1.0)
+                    || backgrounds
+                        .get(*child)
+                        .map_or(true, |background| background.0 != color)
+                {
+                    failures.push(serde_json::json!({"field":"MenuOption","index":index,"position":position.to_array(),"size":node.size().to_array()}));
+                }
+            }
+        } else {
+            failures.push(serde_json::json!({"field":"MenuPanelMissing"}));
+        }
+    }
     report.direction_trace.push(
         serde_json::json!({"hud_layout_stage":stage,"hud_canvas_valid":failures.is_empty(),
+        "hud_menu_valid":menu.open && failures.is_empty(),
         "hud_viewport":size.to_array(),"hud_dpi":dpi,"hud_layout_failures":failures}),
     );
 }
 
 pub(super) fn passed(trace: &[serde_json::Value]) -> bool {
-    (0..3).all(|stage| {
+    (1..3).all(|stage| {
+        trace.iter().any(|entry| {
+            entry["hud_layout_stage"].as_u64() == Some(stage) && entry["hud_menu_valid"] == true
+        })
+    }) && (0..3).all(|stage| {
         trace.iter().any(|entry| {
             entry["hud_layout_stage"].as_u64() == Some(stage) && entry["hud_canvas_valid"] == true
         })
@@ -191,10 +239,13 @@ mod tests {
     #[test]
     fn viewport_gate_requires_every_size_and_rejects_late_layout_failures() {
         let mut trace: Vec<_> = (0..3)
-            .map(|stage| serde_json::json!({"hud_layout_stage":stage,"hud_canvas_valid":true}))
+            .map(|stage| serde_json::json!({"hud_layout_stage":stage,"hud_canvas_valid":true,"hud_menu_valid":stage > 0}))
             .collect();
         assert!(passed(&trace));
         assert!(!passed(&trace[..2]));
+        trace[2]["hud_menu_valid"] = false.into();
+        assert!(!passed(&trace));
+        trace[2]["hud_menu_valid"] = true.into();
         trace.push(serde_json::json!({"hud_layout_stage":2,"hud_canvas_valid":false}));
         assert!(!passed(&trace));
         assert_eq!(viewport(0.0).0, 0);
