@@ -36,6 +36,17 @@
 - ALSExtras（AI 控制器示例）不在范围内。
 - 音频（Metasound）、Niagara 特效仅保留挂钩点。ALSCamera 完整移植已纳入 BF116.01。
 
+## BF123 HUD 整体源资产对标
+
+用户明确本轮是HUD整体对标，截图中的三处症状仅作入口。审计范围包括W_Als_Hud、W_Als_OverlayModeMenu、W_Als_OverlayModeOption，以及ShowDebug的HUD入口/Canvas布局和交互；保留已明确的字体、菜单锚点和点击音差异。已完成模块只对当次源事实证实的差异有限复开，不延伸到世界debug几何或运动算法。
+
+- [x] BF123.01 W_Als_Hud完整对标：开始2026-09-21 17:11、预估结束2026-09-21 18:01。重新提取完整WidgetTree、所有Slot和文本样式、CDO颜色与初始化/Tick绑定；核对整张输入/调试表的顺序、间隔、列宽、字体样式、显隐及动态/静态颜色，修复全部已证实差异。Gate为源合同、最小布局/交互失败反例、消融、范围测试和原Interface入口。依据为一个已成功提取的Widget资产、原生reader、单HUD模块和约80秒测试/77秒构建；窗口50分钟。
+  - Source/static闭环2026-09-21 17:47：fresh原生reader提取592对象，完整72文本/26表行按WidgetTree Slot顺序生成样式和列分配合同；确认三标题外Slot Fill与内部Center、首列内部Padding4、Shift+0无颜色绑定、两个区块Tick同步Collapsed。原生Bevy布局反例先复现标题/颜色，再发现Flex的Padding会改变列比例，改用原生Grid的固定最小值比例轨道。引擎FontCache为96/72字号换算，UISettings为ShortestSide线性曲线并抵消平台DPI；离线生成目标字号/曲线，保留原资产。导入/self-test通过，10项范围测试中9项先通过、比例反例失败有效；下一步Grid回归、消融与原Interface三种窗口/DPI验收。
+  - Runtime前2026-09-21 17:52：最终27项HUD/Overlay/Canvas范围测试及导入一致性PASS；分别移除DPI、NoWrap、Tick显隐均被反例拒绝，无效最小宽度约束消融后删除。Source列/行/区块间距、完整文本顺序/粗斜体/字号全部纳入生成合同；真实Interface扩展检查控制表全部行/列边缘、三标题铺满及Shift+0白色，准备同target_game/play预构建和三阶段窗口/DPI Gate。
+  - Runtime复盘2026-09-21 17:55：首次Interface19.211秒未通过布局Gate，其余真实功能/67项值检查通过。报告全部布局记录为pending；Bevy update.rs证实ComputedUiRenderTargetInfo.scale_factor包含UiScale，旧Gate仅比较窗口DPI导致永久等待。改为比较源曲线对应合成缩放，保持实际坐标/宽度断言与容差，重新预构建并运行同入口。
+  - 01完成2026-09-21 17:59：修正Gate后Interface18.381秒功能PASS；三阶段实际布局93/415/194帧全部通过，703帧×67调试值无错配，fault/graph error/temporal为0；manual_playground及旧als_hud_gate同target/profile构建通过。开始17:11、预估18:01、实际17:59、偏差−2分钟，结果完成；字体家族、截图/性能暂停边界保留。生成复查入口为`tools/import/import_hud.py --source <native_hud_json> --engine <ue_root> --project <als_root> --self-test --check`。后续进入菜单与ShowDebug闭包。
+- [ ] BF123.02 Overlay菜单及选项完整对标：依赖01，进入时估时；提取两个uasset及绑定，核对整体布局/颜色/文本与选择、循环、确认/关闭交互，保持已保留的屏幕停靠位置。
+- [ ] BF123.03 ShowDebug入口及HUD整体验收：依赖02，进入时估时；fresh本地HUD/Character/Camera DisplayDebug入口，逐项核对布局与分类交互，补必要修复并在原Interface场景验证完整HUD、不同窗口/DPI和开关两态；截图/性能仍按既有暂停偏好。
 ## BF122 最新审阅反馈与同根因 Debug 消费者
 
 用户2026-09-21要求核对adc3f41审阅及类似问题。fresh本地AlsCharacter_Debug/RefreshInput/RefreshLocomotion/StartMantling证实：显示方向须读取已消费的世界输入和保留的运动角；静止/垂直速度是有效数据；Shapes读取实际胶囊/视点/速度上限；Mantling按分支绘制完整扫掠和失败重叠并独立留存。只复开BF121.03a的数据范围，旧Gate覆盖曲线/实例/SmoothTarget，漏掉输入、速度和动态碰撞形状；布局和已闭合脚印不复开。截图/性能继续暂停。

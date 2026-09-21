@@ -438,7 +438,7 @@ fn script_driver(world: &mut World) {
                 .filter(|(target, _)| {
                     matches!(
                         target,
-                        AlsHudColorTarget::Category(_) | AlsHudColorTarget::DebugMaster
+                        AlsHudColorTarget::Category(_)
                     )
                 })
                 .all(|(_, color)| color.0 == COLOR_DISABLED);
