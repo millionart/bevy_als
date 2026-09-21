@@ -1003,6 +1003,7 @@ fn evaluated_character_curve_rows(context: Option<&AlsRootAnimationContext>) -> 
     });
     NAMES.iter().map(|name| {
         let value = context.map(|context| context.f32(name).unwrap_or(0.0));
+        let value = value.map(|value| if value != 0.0 && matches!(name.as_str(), "RotationYawOffset" | "RotationYawSpeed") { -value } else { value });
         DebugRow::pair(name_to_display_string(name, false), value.map(|value| format!("{value:.2}")).unwrap_or_else(|| NA_VALUE.into()),
             curve_color(value.unwrap_or(0.0), false), LABEL_WIDTH_CURVES_PX)
     }).collect()
@@ -1579,6 +1580,37 @@ mod tests {
         assert_eq!(rows[2].value, "X: 7.00 Y: 8.00 Z: 9.00");
         assert_eq!(rows[3].value, "102.00");
         assert_eq!(rows[4].value, "true");
+    }
+
+    #[test]
+    fn native_turn_curves_reach_hud_with_source_heading_sign() {
+        let app = crate::standing_source::tests::loaded_montage_app();
+        let assets = app.world().resource::<crate::standing_source::SourceMontageAssets>();
+        let clips = app.world().resource::<Assets<bevy_animation_graph::core::animation_clip::GraphClip>>();
+        let skeletons = app.world().resource::<Assets<bevy_animation_graph::core::skeleton::Skeleton>>();
+        for name in crate::standing_source::MONTAGES.keys().filter(|name| name.contains("_Turn_")) {
+            let (_, context) = crate::standing_source::sample_source_montage(name, 0.4, assets, clips, skeletons).unwrap();
+            let runtime = context.curves["RotationYawSpeed"];
+            let rows = evaluated_character_curve_rows(Some(&AlsRootAnimationContext { curves: context.curves.into_iter().collect() }));
+            let row = rows.iter().find(|row| row.label == "Rotation Yaw Speed").unwrap();
+            assert_eq!(row.value, format!("{:.2}", -runtime));
+            assert_eq!(row.color, if name.ends_with("_Left") { gray() } else { white() });
+        }
+    }
+
+    #[test]
+    fn angular_curve_labels_and_colors_restore_source_heading_sign() {
+        for (runtime, expected, color) in [(-42.0, "42.00", white()), (42.0, "-42.00", gray()), (0.0, "0.00", gray())] {
+            let context = AlsRootAnimationContext { curves: [("RotationYawOffset".into(), runtime),
+                ("RotationYawSpeed".into(), runtime), ("PoseGait".into(), 2.25)].into() };
+            let rows = evaluated_character_curve_rows(Some(&context));
+            for label in ["Rotation Yaw Offset", "Rotation Yaw Speed"] {
+                let row = rows.iter().find(|row| row.label == label).unwrap();
+                assert_eq!(row.value, expected);
+                assert_eq!(row.color, color);
+            }
+            assert_eq!(rows.iter().find(|row| row.label == "Pose Gait").unwrap().value, "2.25");
+        }
     }
 
     #[test]

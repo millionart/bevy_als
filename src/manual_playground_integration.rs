@@ -9351,7 +9351,11 @@ fn observe_manual_integration(
             let mut expected: Vec<(String, String)> = metadata["curves"].as_array().unwrap().iter().map(|name| {
                 let name = name.as_str().unwrap();
                 (crate::show_debug_hud::name_to_display_string(name, false),
-                    expected_context.map(|context| format!("{:.2}", context.f32(name).unwrap_or(0.0))).unwrap_or_else(|| "N/A".into()))
+                    expected_context.map(|context| {
+                        let value = context.f32(name).unwrap_or(0.0);
+                        let source = if value != 0.0 && ["RotationYawOffset", "RotationYawSpeed"].contains(&name) { -value } else { value };
+                        format!("{source:.2}")
+                    }).unwrap_or_else(|| "N/A".into()))
             }).collect();
             expected.push(("Rotation".into(), format!("R: 0.00 P: {:.2} Y: {:.2}", view_pitch.0.to_degrees(), view_yaw.0.to_degrees())));
             let expected_motion = motion_probe.actual.get(character).ok();

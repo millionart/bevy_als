@@ -63,3 +63,48 @@ DefaultInput.ini / Engine.PlayerInput ⇒ show_debug_hud::keyboard_system
 边界：通用 UE 控制台的 Reticle、Game、Animation、Physics 等命令不是 Shift+0～9 的可达分支；不据此制造额外快捷键或引擎控制台。项目不做网络同步，因此不展开 SimulatedProxy 的远端 Controller 分支。
 
 </details>
+
+<details>
+<summary>Shift+1 — Als.Curves：43项骨架元数据 → 最终Pose曲线 → 源语义显示</summary>
+
+```text
+Shift+One → ShowDebug Als.Curves ⇒ 公共输入树 / DebugCategory::Curves
+├─ DisplayDebugCurves 的名称集合
+│  ├─ Mesh.SkeletalMesh.Skeleton.GetCurveMetaDataNames
+│  │  ⇒ SK_Als 本次原生提取 / AssetUserData 所附 AnimCurveMetaData
+│  ├─ FName::LexicalLess 排序 ⇒ import_debug_curves.py / als_character_curves.runtime.json 的43项名称
+│  └─ 不能用“本帧非零曲线”或其他骨架的元数据替代完整集合
+├─ GetAnimInstance.GetCurveValue(name)
+│  ├─ ParallelEvaluateAnimation 的最终 EvaluationContext.Curve
+│  ├─ Proxy.UpdateCurvesToEvaluationContext：清旧表，写 AttributeCurve
+│  └─ GetCurveValue：当前值，缺失为0
+│     ⇒ AnimationGraphSet::Final → project_root_animation_context
+│        ├─ 当前图唯一Pose输出边，按DataSpec定位，不依赖编辑器节点名
+│        ├─ wrapper的 Generated AB_Als / LayeredGraph(capture_context=true)
+│        │  └─ AB_Als最终 Output Pose ← Ragdolling ← Control Rig ← Head
+│        │     └─ Layering
+│        │        ├─ Locomotion输入 ← PostLocomotion Slot ← Locomotion
+│        │        │  └─ Transition Slot ← Grounded ← Standing / Crouching
+│        │        └─ Overlay输入 ← Inertialization ← 当前Overlay Linked Layer
+│        └─ graph_output_context_state → 当前Player的AlsRootAnimationContext
+├─ hud_sync_system：所选目标 → assembly.avatar → 当前AnimatedSceneInstance.player
+│  ├─ 验证Avatar归属；换实例不继续读仍存活的旧实例
+│  └─ 已有实例缺曲线=0；当前实例不可取得时明确N/A
+├─ 坐标语义
+│  ├─ RotationYawSpeed：源度/秒；源Actor.Yaw += Curve × DeltaTime
+│  │  ⇒ 离线pose_curves_ron / montage目标曲线反号；显示时反号还原
+│  ├─ RotationYawOffset：源Grounded旋转偏移角
+│  │  ⇒ gen_standing_curves反转输出符号；显示时反号还原
+│  └─ 其余41项标量保持原值；零值保持0.00
+└─ 当前帧绘制/关闭
+   ├─ NameToDisplayString；两位小数；灰→白 lerp(clamp(sourceValue,0,1))
+   ├─ 字体/行距/列宽/初始偏移走BF123 Canvas合同
+   ├─ 分类开启产生独立第一列；关闭只保留深绿色标题（其他分类开启时）
+   └─ 不累积历史；仅HUD格式/值缓存，输入值或布局变化即替换
+```
+
+源入口：`ALS/Private/AlsCharacter_Debug.cpp::DisplayDebugCurves`、`AlsCharacter.cpp::ApplyRotationYawSpeedAnimationCurve`、`AlsAnimationInstance.cpp::RefreshRotationYawOffsets`；UE `AnimInstance.cpp::GetCurveValue` 与 `AnimInstanceProxy.cpp::UpdateCurvesToEvaluationContext`。目标入口：`src/animation_context_projection.rs`、`crates/als-ext/src/{animation_context,layered_graph}.rs`、`src/show_debug_hud.rs::evaluated_character_curve_rows`。完整动画算法沿已闭合的生成图执行，本项只核对到最终曲线的生产/捕获边，不改动画图。
+
+发现并修复：两项角度曲线的HUD原先误用了目标坐标符号，同时反转了正负值对应的颜色。旧Gate直接拿target曲线值比较，漏掉显示语义；新增±42/零/非角度标量反例及真实左右Turn资产采样。骨架原生导入/check/self-test通过，43项名称无差异；30项范围回归及真实Interface24.721秒功能通过，67值、布局、菜单和19种逐键状态均通过，无运行守卫异常。未修改动画图或曲线资产。
+
+</details>
