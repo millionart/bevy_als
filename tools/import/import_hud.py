@@ -136,7 +136,7 @@ def convert_menu(menu, option, font_header):
     text = widget(option, 'TextBlock')
     font = parse_struct(text['Font'])
     padding = parse_struct(border['Padding'])
-    if (text['AutoWrapText'] != 'False' or text['Clipping'] != 'OnDemand' or font['TypefaceFontName'] != '"Regular"'
+    if (text['AutoWrapText'] != 'False' or text['Clipping'] != 'OnDemand' or text['TextOverflowPolicy'] != 'Ellipsis' or font['TypefaceFontName'] != '"Regular"'
             or padding['Left'] != padding['Right'] or size['bOverride_WidthOverride'] != 'True' or size['bOverride_HeightOverride'] != 'True'):
         raise ValueError('Menu text layout changed')
     graph = next(graph for graph in menu['graphs'] if graph['object_path'].endswith(':EventGraph'))

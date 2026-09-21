@@ -3,6 +3,7 @@ use als_core::input::OverlayMenuAction;
 use als_core::state::OverlayState;
 use als_core::transition::AlsStateRequest;
 use bevy::prelude::*;
+use bevy::text::{LetterSpacing, LineHeight};
 use bevy_enhanced_input::prelude::*;
 
 use crate::als_hud::AlsHudState;
@@ -85,7 +86,16 @@ impl Plugin for OverlayModeMenuPlugin {
         app.init_resource::<AlsHudState>()
             .init_resource::<OverlayMenuState>()
             .add_systems(Startup, initialize_menu)
-            .add_systems(Update, (menu_control_system, menu_highlight_system).chain());
+            .add_systems(Update, (menu_control_system, menu_highlight_system).chain())
+            .add_systems(
+                PostUpdate,
+                menu_ellipsis_system
+                    .after(bevy::text::load_font_assets_into_font_collection)
+                    .before(bevy::text::detect_text_needs_rerender)
+                    .run_if(
+                        bevy::ecs::schedule::common_conditions::resource_exists::<Assets<Font>>,
+                    ),
+            );
     }
 }
 
@@ -248,6 +258,77 @@ fn spawn_menu(
     }
 
     root
+}
+
+fn menu_ellipsis_system(
+    menu: Res<OverlayMenuState>,
+    fonts: Res<Assets<Font>>,
+    mut font_events: MessageReader<AssetEvent<Font>>,
+    mut pipeline: ResMut<bevy::text::TextPipeline>,
+    mut font_cx: ResMut<bevy::text::FontCx>,
+    mut layout_cx: ResMut<bevy::text::LayoutCx>,
+    rem: Res<bevy::text::RemSize>,
+    options: Query<(&OverlayMenuOption, &Children)>,
+    mut texts: Query<(
+        Entity,
+        &mut Text,
+        &mut Node,
+        &TextFont,
+        &LineHeight,
+        &LetterSpacing,
+    )>,
+) {
+    let fonts_changed = font_events.read().count() > 0;
+    if !menu.is_added() && !fonts_changed {
+        return;
+    }
+    let width = OPTION_WIDTH_PX - 2.0 * OPTION_HORIZONTAL_PADDING_PX;
+    for (option, children) in &options {
+        let Ok((entity, mut text, mut node, font, line_height, spacing)) =
+            texts.get_mut(children[0])
+        else {
+            continue;
+        };
+        let original = option_label(menu.options[option.index]);
+        let mut computed = bevy::text::ComputedTextBlock::default();
+        let result = als_ext::text_overflow::ellipsize(&original, width, |value| {
+            pipeline
+                .create_text_measure(
+                    entity,
+                    &fonts,
+                    std::iter::once((
+                        entity,
+                        0,
+                        value,
+                        font,
+                        COLOR_MENU_TEXT,
+                        *line_height,
+                        *spacing,
+                    )),
+                    1.0,
+                    &TextLayout::no_wrap(),
+                    &mut computed,
+                    &mut font_cx,
+                    &mut layout_cx,
+                    Vec2::ZERO,
+                    rem.0,
+                )
+                .map(|_| computed.buffer().full_width())
+        });
+        if let Ok((displayed, natural_width)) = result {
+            let desired_width = if displayed == original {
+                Val::Auto
+            } else {
+                Val::Px(natural_width)
+            };
+            if node.width != desired_width {
+                node.width = desired_width;
+            }
+            if text.0 != displayed {
+                text.0 = displayed;
+            }
+        }
+    }
 }
 
 fn menu_highlight_system(
@@ -605,6 +686,54 @@ pub(crate) mod tests {
             assert!(clip.clip.width() <= 192.0);
         }
         assert!(found);
+    }
+
+    #[test]
+    fn menu_overflow_uses_native_font_measurement_and_an_ellipsis() {
+        let mut app = App::new();
+        app.add_plugins((
+            MinimalPlugins,
+            bevy::asset::AssetPlugin::default(),
+            bevy::text::TextPlugin,
+        ))
+        .insert_resource(tag_manager(&[
+            "Als.OverlayMode.ExtremelyLongCustomOverlayModeThatExceedsTheMenuWidth",
+        ]))
+        .add_plugins(OverlayModeMenuPlugin);
+        for _ in 0..3 {
+            app.update();
+        }
+        let label = app
+            .world_mut()
+            .query::<&Text>()
+            .iter(app.world())
+            .find(|text| text.0.starts_with("Extremely"))
+            .unwrap();
+        assert!(
+            label.0.ends_with('\u{2026}'),
+            "Overflow text must end with the source ellipsis"
+        );
+        assert!(
+            label.0.len()
+                < option_label(
+                    *app.world()
+                        .resource::<OverlayMenuState>()
+                        .options
+                        .iter()
+                        .find(|tag| tag.as_str().contains("Extremely"))
+                        .unwrap()
+                )
+                .len()
+        );
+        app.insert_resource(UiScale(0.4995));
+        app.update();
+        assert!(
+            app.world_mut()
+                .query::<&Text>()
+                .iter(app.world())
+                .any(|text| text.0 == "Pistol One Handed"),
+            "A fitting label must survive fractional DPI without rounding its glyph advance upward"
+        );
     }
 
     #[test]

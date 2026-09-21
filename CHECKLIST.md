@@ -45,14 +45,27 @@
   - Runtime前2026-09-21 17:52：最终27项HUD/Overlay/Canvas范围测试及导入一致性PASS；分别移除DPI、NoWrap、Tick显隐均被反例拒绝，无效最小宽度约束消融后删除。Source列/行/区块间距、完整文本顺序/粗斜体/字号全部纳入生成合同；真实Interface扩展检查控制表全部行/列边缘、三标题铺满及Shift+0白色，准备同target_game/play预构建和三阶段窗口/DPI Gate。
   - Runtime复盘2026-09-21 17:55：首次Interface19.211秒未通过布局Gate，其余真实功能/67项值检查通过。报告全部布局记录为pending；Bevy update.rs证实ComputedUiRenderTargetInfo.scale_factor包含UiScale，旧Gate仅比较窗口DPI导致永久等待。改为比较源曲线对应合成缩放，保持实际坐标/宽度断言与容差，重新预构建并运行同入口。
   - 01完成2026-09-21 17:59：修正Gate后Interface18.381秒功能PASS；三阶段实际布局93/415/194帧全部通过，703帧×67调试值无错配，fault/graph error/temporal为0；manual_playground及旧als_hud_gate同target/profile构建通过。开始17:11、预估18:01、实际17:59、偏差−2分钟，结果完成；字体家族、截图/性能暂停边界保留。生成复查入口为`tools/import/import_hud.py --source <native_hud_json> --engine <ue_root> --project <als_root> --self-test --check`。后续进入菜单与ShowDebug闭包。
-- [ ] BF123.02 Overlay菜单及选项完整对标：开始2026-09-21 18:00、预估结束2026-09-21 18:45，依赖01已通过并提交。提取两个uasset及绑定，核对整体布局/颜色/文本与选择、循环、确认/关闭交互，保持已保留的屏幕停靠位置。依据为两个Widget资产、单菜单模块、现成全局DPI映射/原生reader/Interface入口，以及01实际48分钟中的约7分钟编译验证；窗口45分钟。
+- [x] BF123.02 Overlay菜单及选项完整对标：初始开始2026-09-21 18:00、原预估结束18:45；已按18:45复盘拆分02a/02b，活动时钟按子项执行，依赖01已通过并提交。提取两个uasset及绑定，核对整体布局/颜色/文本与选择、循环、确认/关闭交互，保持已保留的屏幕停靠位置。原估时依据为两个Widget资产、单菜单模块、现成全局DPI映射/原生reader/Interface入口，以及01实际48分钟中的约7分钟编译验证。
   - Source/static闭环2026-09-21 18:14：fresh提取Menu/Option/PlayerController三个uasset，确认整体底板(.015,.25)、200×25选项/水平Padding4/间隔4、Regular14点和不换行，选中/未选中文字均白色。Controller BeginPlay创建缓存菜单、OnInitialized建选项、Construct与Approve均读OwningPlayerPawn；源菜单复用不销毁，Slomo时不覆盖既有时间倍率，Next/Previous环绕方向与现实现一致。旧Gate只覆盖单角色并错误要求销毁，遗漏所属玩家和一次初始化；已先稳定复现三项失败（错误Rifle玩家、未初始化菜单、透明底板），有限复开这些链路，生成目标样式并修正生命周期/验收。保留屏幕锚点和点击音差异，下一步范围回归、消融及真实菜单几何检查。
   - 补充闭环2026-09-21 18:30：UE GameplayTagsManager的数字后缀排序/栈遍历与现实现一致。Controller Next/Previous独立回调证实双输入不可互斥，Construct Cast失败须保留旧选择；两项均先红后修。Option唯一Text使用OnDemand裁剪（Hud全部72 Text为Inherit）；复用原生布局夹具，以400像素固有宽度复现缺裁剪及自动最小宽度越界，使用原生Clip和min-width 0约束192像素内容区。玩家过滤/关闭显隐/NoWrap消融分别失败，初始化复用和空字典反例通过；真实Gate已加入菜单宽高/间距/高亮颜色及两个DPI状态，32项范围回归进行中。
   - Runtime前2026-09-21 18:35：32项范围回归全部PASS，Menu/Hud生成一致性与导入self-test通过。原生clip反例还证实overflow只影响子节点，最终在选项内容区裁剪文字，未保留无效自身clip；400像素固有宽度被约束并裁剪到192像素。准备同target_game/play两个入口预构建与真实Interface菜单/HUD整体验收。
   - 拆分复盘2026-09-21 18:45：完整Text属性进一步证实Option.TextOverflowPolicy=Ellipsis，Bevy/Parley没有现成ellipsis开关；初次样式审计漏掉此字段，禁止将裁剪单独宣称为完整溢出对标。原02拆成02a基础样式/生命周期与02b省略号；02a开始18:00、原预估18:45，32项静态Gate及两入口构建已通过，先完成实际入口；02b按剩余原生字体测量扩展及验证单独估时，不缩小总体目标。
   - [x] BF123.02a 基础样式、裁剪与生命周期：开始18:00、预估18:45、实际结束18:48、偏差+3分钟；32项范围回归、两个入口构建、生成一致性/负向消融及Interface18.940秒功能PASS，全部实际布局/高亮检查通过，fault/graph error为0。基础部分完成并单独提交，省略号缺口明确转入02b，父项保持未完成。
-  - [ ] BF123.02b 原生测量省略号：开始2026-09-21 18:45、预估结束2026-09-21 19:20；依赖02a。依据为一个已证实TextOverflowPolicy字段、现成TextPipeline字体测量/公开调度、最小纯文本截断函数和既有布局/Interface Gate；窗口35分钟。完成前02与03保持未完成。
+  - [x] BF123.02b 原生测量省略号：开始2026-09-21 18:45、预估结束2026-09-21 19:20；依赖02a。依据为一个已证实TextOverflowPolicy字段、现成TextPipeline字体测量/公开调度、最小纯文本截断函数和既有布局/Interface Gate；窗口35分钟。完成前02与03保持未完成。
+    - Source/static闭环2026-09-21 19:01：原版SlateTextRun按字体塑形结果预留省略号；Hud的72 Text均Clip，只有菜单Option为Ellipsis。本地Bevy TextPipeline提供原生字体测量，新增als-ext最小宽度截断函数，菜单在字体事件/DPI变化时应用并保留完整标签的布局宽度。真实字体夹具先复现无省略号，再复现0.4995 DPI下向上取整误截Pistol One Handed；改取塑形缓冲区未取整的full_width，真实Interface增加全部源菜单标签断言。范围回归进行中，未扩展图/世界debug分支。
+    - Runtime前2026-09-21 19:10：33项项目HUD测试+1项als-ext宽度/UTF-8/测量错误测试PASS；进一步消融物理窗口与DPI重算，改在源菜单逻辑坐标内测量，结果不变，已删除窗口依赖和对应分支。原生字体资源夹具覆盖长名称、省略号、小数DPI及未溢出的名称，保留原始宽度用于源居中语义。导入一致性/self-test通过，准备两个真实入口同target/profile预构建及Interface最终复验。
+    - 02b完成2026-09-21 19:13：两入口构建PASS，Interface18.394秒功能PASS，三种窗口/DPI下完整源菜单文字、几何和颜色全部通过，fault/graph error/temporal为0。开始18:45、预估19:20、实际19:13、偏差−7分钟；34项范围测试及源导入闭合，02a/02b均完成，父项02完成。截图/性能暂停与字体家族/菜单锚点/点击音约定保持。
 - [ ] BF123.03 ShowDebug入口及HUD整体验收：依赖02，进入时估时；fresh本地HUD/Character/Camera DisplayDebug入口，逐项核对布局与分类交互，补必要修复并在原Interface场景验证完整HUD、不同窗口/DPI和开关两态；截图/性能仍按既有暂停偏好。
+## BF124 Shift+0～9 Debug 树状链路对标
+
+用户追加当前任务：BF123 HUD整体对标完成后，逐键以树状展开方式审计每一处debug链路。每条树按输入/修饰键→状态→调度→数据生产者→坐标/单位/过滤→绘制消费者→缓存/清理/生命周期展开，记录本地ALS-Ref事实、目标路径、差异和Gate证据。逐项进入时按fresh闭包估时；已闭合模块仅对本次证实根因有限复开。
+
+- [ ] BF124.01 公共入口与Shift+0主开关树：依赖BF123。
+- [ ] BF124.02 Shift+1～5角色debug分支树：逐键独立验收与提交，进入时按实际闭包拆分。
+- [ ] BF124.03 Shift+6～8相机debug分支树：逐键独立验收与提交，复用已证实的公共节点。
+- [ ] BF124.04 Shift+9实际绑定与完整性核对：原版未绑定时明确源证据，不补造功能。
+- [ ] BF124.05 汇总树状报告与同根因修复验收：逐分支覆盖开关两态、必要组合及真实入口，保持既有截图/性能暂停偏好。
+
 ## BF122 最新审阅反馈与同根因 Debug 消费者
 
 用户2026-09-21要求核对adc3f41审阅及类似问题。fresh本地AlsCharacter_Debug/RefreshInput/RefreshLocomotion/StartMantling证实：显示方向须读取已消费的世界输入和保留的运动角；静止/垂直速度是有效数据；Shapes读取实际胶囊/视点/速度上限；Mantling按分支绘制完整扫掠和失败重叠并独立留存。只复开BF121.03a的数据范围，旧Gate覆盖曲线/实例/SmoothTarget，漏掉输入、速度和动态碰撞形状；布局和已闭合脚印不复开。截图/性能继续暂停。

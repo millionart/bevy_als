@@ -183,7 +183,7 @@ fn observe(
                 failures.push(serde_json::json!({"field":"MenuPanel","position":origin.to_array(),"size":node.size().to_array()}));
             }
             for (index, child) in children.into_iter().flatten().enumerate() {
-                let (node, transform, _, _, _) = controls.get(*child).unwrap();
+                let (node, transform, labels, _, _) = controls.get(*child).unwrap();
                 let position = transform.affine().translation - node.size() * 0.5;
                 let expected = origin + Vec2::Y * index as f32 * 29.0 * umg_scale;
                 let color = if index == menu.selected_index() {
@@ -200,6 +200,14 @@ fn observe(
                         .map_or(true, |background| background.0 != color)
                 {
                     failures.push(serde_json::json!({"field":"MenuOption","index":index,"position":position.to_array(),"size":node.size().to_array()}));
+                }
+                let expected_label = crate::overlay_mode_menu::option_label(menu.options[index]);
+                let label = labels
+                    .and_then(|labels| labels.first())
+                    .and_then(|entity| controls.get(*entity).ok())
+                    .and_then(|(_, _, _, text, _)| text);
+                if label.is_none_or(|text| text.0 != expected_label) {
+                    failures.push(serde_json::json!({"field":"MenuLabel","index":index,"expected":expected_label,"actual":label.map(|text| &text.0)}));
                 }
             }
         } else {

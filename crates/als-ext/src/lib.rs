@@ -86,6 +86,7 @@ pub mod source_stop_nodes;
 pub mod state_label_event;
 pub mod sync_group_phase;
 pub mod time_dilation;
+pub mod text_overflow;
 pub mod time_position;
 
 pub use als_curves::{
