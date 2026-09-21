@@ -289,3 +289,38 @@ Shift+Five → ShowDebug Als.Mantling ⇒ 公共输入树 / DebugCategory::Mantl
 新增差异：前向探测漏掉起始穿透拒绝，导致一类穿墙起点误报Success并绘制成功分支。真实Avian反例在0.4m复现，0.95m原先因另一条可走法线条件碰巧被拒绝；改为拒绝零行进距离且接触点沿外法线负分离的初始穿透。保留正常零距离接触。17项范围、1149项完整库、当前345图规格与Root声明式通过；startup15.517秒、Base125.141秒、rotating_base18.945秒功能通过。原六分支/独立寿命/隐藏期间不重放、正常与移动旋转目标攀爬均通过。
 
 </details>
+
+<details>
+<summary>Shift+6 — Als.CameraCurves：当前组件实例的全部活动曲线</summary>
+
+```text
+Shift+Six → ShowDebug Als.CameraCurves ⇒ 公共输入树
+├─ AlsCharacterExample::DisplayDebug → Camera.IsActive
+│  ├─ fresh B_Als_CameraComponent：AutoActivate / AlwaysTickPoseAndRefreshBones
+│  └─ 所选角色 → 当前ViewSource链接 → SourceCameraComponent + 当前SceneInstance
+│     └─ 验证角色归属与源组件激活；渲染View.is_active不是该诊断的条件
+├─ Camera::DisplayDebugCurves → GetAnimInstance.GetAllCurveNames
+│  ├─ Proxy当前AttributeCurve集合，包含自定义曲线，不固定为13项
+│  └─ 当前Camera AnimationGraphPlayer最终输出context → AlsRootAnimationContext
+│     ├─ Camera动画以组件的实际delta求值，保留忽略时间缩放的源规则
+│     ├─ Final之后投影；HUD在该投影和CameraSet之后读取
+│     └─ 缺省值由getter提供，不注入“活动名称”集合
+├─ 离线目标曲线逆映射 → 源名称与单位
+│  ├─ CameraOffset：source(X,Y,Z) → runtime(Z,X,Y)，比例(−.01,.01,.01)
+│  ├─ PivotOffset：source(X,Y,Z) → runtime(X,Z,Y)，比例.01
+│  ├─ LocationLag：source(X,Y,Z) → runtime(Z,X,Y)，比例1
+│  └─ 其余名称/数值保持；映射从camera_curve_conversion唯一表生成
+└─ 排序 / 绘制 / 生命周期
+   ├─ 源名称词典序；NameToDisplayString；两位小数
+   ├─ 颜色lerp(gray,white,clamp(abs(sourceValue),0,1))
+   ├─ 开启时第一列曲线、第二列Shapes/Traces；关闭时只留深绿色标题
+   └─ 组件停用撤下Camera区块；无历史缓存，不补造非活动项
+```
+
+源入口：`AlsCharacterExample.cpp::DisplayDebug`、`AlsCameraComponent_Debug.cpp::DisplayDebugCurves`、UE `AnimInstance.cpp::{GetAllCurveNames,GetCurveValue}`，以及本次原生CameraComponent。目标入口：`src/{camera_component,animation_context_projection,show_debug_hud,debug_display}.rs`；映射数据由 `tools/import/import_debug_curves.py --camera-display` 生成到 `assets/ui/als_camera_curves.runtime.json`。
+
+修复：删除固定13项HUD枚举，显示全部实际活动曲线；还原被换轴/缩放的Offset和Lag名称/值；默认零读取与活动表分离；公共相机诊断不再被渲染View开关误挡。相机计算仍使用原有13项参数，不改变相机算法。53项范围及7项动态布局检查通过，包含真实实例、自定义负值、未出现名称不补造、组件停止及View停用。
+
+真实Interface24.435秒、Camera20.219秒功能通过：当前9项活动曲线、74实际值、19按键状态和三种窗口/DPI布局无错配。检查器按源两列最大高度及实际曲线数量计算后续区块位置，删除固定13行假设。
+
+</details>

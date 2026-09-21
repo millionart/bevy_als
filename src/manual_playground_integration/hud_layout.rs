@@ -56,6 +56,8 @@ fn observe(
     )>,
     roots: Query<Entity, With<AlsHudRoot>>,
     menu: Res<OverlayMenuState>,
+    instances: Query<&AnimatedSceneInstance>,
+    contexts: Query<&AlsRootAnimationContext>,
     backgrounds: Query<&BackgroundColor>,
     controls: Query<(
         &ComputedNode,
@@ -88,6 +90,9 @@ fn observe(
         return;
     }
     let scale = (size.x as f32 / 1280.0).min(size.y as f32 / 720.0);
+    let Some(camera_curve_count) = state.camera.and_then(|camera| instances.get(camera).ok())
+        .and_then(|instance| contexts.get(instance.player_entity()).ok()).map(|context| context.curves.len()) else { return; };
+    let camera_height = (31.0 + 12.0 * camera_curve_count as f32).max(158.0);
     let mut failures = Vec::new();
     for prefix in ["ENTITY ", "Location (cm): ", "Owner: ", "INPUT CONTEXT ", "STATE "] {
         if !controls.iter().any(|(_, _, _, text, _)| text.is_some_and(|text| text.0.starts_with(prefix))) {
@@ -106,11 +111,11 @@ fn observe(
         ("Camera Offset X", Vec2::new(150.0, 24.0)),
         (
             "DebugHeader:Debug mode is enabled! Press (Shift + 0) to disable.",
-            Vec2::new(5.0, 192.0),
+            Vec2::new(5.0, camera_height + 5.0),
         ),
-        ("DebugHeader:Als.State (Shift + 2)", Vec2::new(205.0, 219.0)),
-        ("Allow Transitions", Vec2::new(150.0, 238.0)),
-        ("View Block", Vec2::new(150.0, 742.0)),
+        ("DebugHeader:Als.State (Shift + 2)", Vec2::new(205.0, camera_height + 32.0)),
+        ("Allow Transitions", Vec2::new(150.0, camera_height + 51.0)),
+        ("View Block", Vec2::new(150.0, camera_height + 555.0)),
     ] {
         let actual = nodes
             .iter()
@@ -233,6 +238,7 @@ fn observe(
     }
     report.direction_trace.push(
         serde_json::json!({"hud_layout_stage":stage,"hud_canvas_valid":failures.is_empty(),
+        "hud_camera_curve_count":camera_curve_count,
         "hud_menu_valid":menu.open && failures.is_empty(),
         "hud_viewport":size.to_array(),"hud_dpi":dpi,"hud_layout_failures":failures}),
     );

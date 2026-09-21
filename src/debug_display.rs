@@ -330,6 +330,12 @@ mod footstep_tests {
         assert!(points.iter().any(|point| point.x.abs() > 0.29));
         app.world_mut().resource_mut::<AlsShowDebugHudState>().camera_shapes = true;
         app.update();
+        app.world_mut().get_mut::<Camera>(view).unwrap().is_active = false;
+        app.update();
+        assert_eq!(app.world().resource::<AlsDebugDisplayStats>().camera_pivot_spheres_drawn, 9,
+            "An active source camera component must remain debuggable without rendering its view");
+        app.world_mut().get_mut::<Camera>(view).unwrap().is_active = true;
+        app.update();
         let cyan = trace_points(&app, pivot_color());
         assert!(cyan.contains(&Vec3::new(0.3, 2.4, -1.0)) && cyan.contains(&Vec3::new(0.3, 2.0, -1.0)), "Pivot connection line is missing");
         let rotated = Vec3::new(0.3, 2.4, -1.0) + Quat::from_rotation_y(0.4) * Vec3::NEG_Z * SPHERE_RADIUS_M;
@@ -1064,7 +1070,7 @@ fn draw_camera_debug_system(
     mut history: ResMut<CameraAdjustmentHistory>,
     time: Res<Time>,
     characters: Query<(Entity, &crate::character_assembly::AlsCharacterAssembly), With<crate::debug_target::AlsDebugTarget>>,
-    views: Query<(&Camera, &als_camera::AlsCameraViewSource, &als_camera::AlsCharacterCamera)>,
+    views: Query<(&als_camera::AlsCameraViewSource, &als_camera::AlsCharacterCamera)>,
     cameras: Query<(&crate::camera_component::AlsSourceCameraComponent, &als_camera::AlsCharacterCamera, Ref<AlsCameraDebugInfo>)>,
 ) {
     let now = time.elapsed_secs_f64();
@@ -1072,8 +1078,8 @@ fn draw_camera_debug_system(
     for (_, start, end) in &history.0 { gizmos.line(*start, *end, pivot_color()); }
     let Ok((character, assembly)) = characters.single() else { return; };
     let Some(camera) = assembly.camera else { return; };
-    let Ok((view, source, view_owner)) = views.get(camera) else { return; };
-    if !view.is_active || view_owner.character != character { return; }
+    let Ok((source, view_owner)) = views.get(camera) else { return; };
+    if view_owner.character != character { return; }
     let Ok((component, owner, info)) = cameras.get(source.0) else { return; };
     if !component.is_active() || owner.character != character || !info.valid { return; }
         stats.camera_debug_valid += 1;

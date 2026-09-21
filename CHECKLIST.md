@@ -99,6 +99,11 @@
     - 静态Gate完成2026-09-21 23:45：1149项全库通过；入口及spec工具同target/play163.254秒构建。spec首轮直接启动缺资产根参数，明确修正为实际assets绝对根后1.876秒输出当前345图；Root声明式10.289秒通过，覆盖源递归闭包、位置、编辑器和资产边界，未改图/转换规则。源manifest增加三份fresh证据及新反例；现在startup→Base→rotating_base功能Gate，原估时偏差12分钟，尚未越过允许窗口。
     - 02e/角色分支完成2026-09-21 23:49：startup15.517秒、Base125.141秒、rotating_base18.945秒全部功能PASS，正常/移动旋转目标攀爬、原姿态与时序守卫保持通过。开始23:18、预估23:33、实际23:49、偏差+16分钟；增加前向起始穿透反例与匹配的完整/声明式Gate后闭合。Shift+1～5均已独立取证、验收并提交；继续相机分支。
 - [ ] BF124.03 Shift+6～8相机debug分支树：逐键独立验收与提交，复用已证实的公共节点。
+  - [x] BF124.03a Shift+6 CameraCurves及公共相机入口：开始2026-09-21 23:50、预估结束2026-09-22 00:20。依据为Camera.DisplayDebugCurves→AnimInstance全部活动曲线→源Camera组件/渲染View分离的闭包，以及现有相机实际求值和Interface Gate。核对完整活动名称、单位、分栏/绝对值颜色、组件激活及当前实例归属；发现的共享入口差异需覆盖7/8消费者。
+    - Source/static闭环2026-09-22 00:00：fresh CameraComponent34.169秒，源AutoActivate=true、AlwaysTickPoseAndRefreshBones；DisplayDebug只取组件IsActive，不要求该渲染View激活。实际场景反例96.625秒先FAIL（HUD值缺失、9个圆未绘制）；删除HUD/世界debug的渲染激活门槛，保留当前source链接/Actor归属/组件active。Camera GetAllCurveNames来自全部活动曲线，固定13只适合计算参数；HUD复用当前Camera实例最终context，现有camera_curve_conversion表离线生成9项逆映射，自定义曲线原样保留。另95.149秒反例证实角色缺省零值被错误注入相机活动表，改为getter缺省读取，活动表只保留真实求值项；源GetCurveValue零缺省与GetAllCurveNames集合语义分离，数值消费者不变。等待范围回归及真实Interface/Camera。
+    - Runtime前2026-09-22 00:03：53项98.081秒PASS，覆盖真实Camera实例、缺省读取/活动集合、自定义负曲线颜色、SourceComponent激活/关闭及渲染View关闭、角色ControlRig/Layering和HUD消费者。逆映射直接从既有离线转换表生成，9项往返/self-test及43角色名称复查通过；删除固定13项诊断枚举和跨渲染依赖，无额外镜像组件。现在同target/play构建与Interface/Camera功能Gate。
+    - Interface复盘2026-09-22 00:07：79.425秒构建、24.455秒真实运行中数值/19键状态/菜单均通过，实际活动相机曲线为9项，原固定13项Gate把后续区块Y写死，正确拒绝29px差异。按源max(曲线列31+12×N，Shapes/Traces列158)计算继承Y，并从当前Camera实例取N；保留原坐标容差，报告增加实际曲线数。此为验收基准迁移，不修改已符合源动态高度的生产布局。
+    - 03a完成2026-09-22 00:12：动态高度/真实实例7项94.657秒PASS，77.250秒入口构建；Interface24.435秒、Camera20.219秒功能PASS。当前9活动曲线、74实际值、19按键状态、三窗口/DPI布局和相机行为全部通过，无数据/布局错误。开始09-21 23:50、预估09-22 00:20、实际00:12、偏差−8分钟。相机计算参数/动画算法未变；进入7/8的形状和trace生产树。
 - [ ] BF124.04 Shift+9实际绑定与完整性核对：原版未绑定时明确源证据，不补造功能。
 - [ ] BF124.05 汇总树状报告与同根因修复验收：逐分支覆盖开关两态、必要组合及真实入口，保持既有截图/性能暂停偏好。
 

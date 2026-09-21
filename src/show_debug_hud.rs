@@ -817,16 +817,15 @@ fn keyboard_system(keys: Res<ButtonInput<KeyCode>>, mut state: ResMut<AlsShowDeb
 fn build_camera_snapshot(
     rig: Option<&AlsCameraRig>,
     debug_info: Option<&als_camera::AlsCameraDebugInfo>,
+    context: Option<&AlsRootAnimationContext>,
 ) -> CameraSnapshot {
     let debug_info = debug_info.filter(|info| info.valid);
-    let mut camera_curves: Vec<_> = debug_info
-        .map(|info| {
-            als_camera::CAMERA_CURVE_NAMES
-                .iter()
-                .map(|name| ((*name).to_string(), info.curve_value(name)))
-                .collect()
-        })
-        .unwrap_or_default();
+    static MAPPINGS: LazyLock<std::collections::HashMap<String, (String, f32)>> = LazyLock::new(||
+        serde_json::from_str(include_str!("../assets/ui/als_camera_curves.runtime.json")).expect("Camera display mappings are valid"));
+    let mut camera_curves: Vec<_> = context.into_iter().flat_map(|context| &context.curves).map(|(name, value)| {
+        let (name, value) = MAPPINGS.get(name).map_or((name.clone(), *value), |(source, scale)| (source.clone(), value * scale));
+        (name, if value == 0.0 { 0.0 } else { value })
+    }).collect();
     camera_curves.sort_by(|a, b| a.0.cmp(&b.0));
     CameraSnapshot {
         rig_mode: rig.map(|rig| rig.mode),
@@ -864,8 +863,8 @@ fn hud_sync_system(
         (With<AlsCharacter>, With<crate::debug_target::AlsDebugTarget>),
     >,
     assemblies: Query<&AlsCharacterAssembly>,
-    views: Query<(&Camera, &als_camera::AlsCameraViewSource, &als_camera::AlsCharacterCamera)>,
-    camera_components: Query<(&AlsSourceCameraComponent, &als_camera::AlsCharacterCamera, &AlsCameraRig, &als_camera::AlsCameraDebugInfo)>,
+    views: Query<(&als_camera::AlsCameraViewSource, &als_camera::AlsCharacterCamera)>,
+    camera_components: Query<(&AlsSourceCameraComponent, &als_camera::AlsCharacterCamera, &AlsCameraRig, &als_camera::AlsCameraDebugInfo, Option<&AnimatedSceneInstance>)>,
     q_instances: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     q_players: Query<&AlsRootAnimationContext, With<AnimationGraphPlayer>>,
     details: Query<(Option<&als_core::motion::AlsRotationResponseState>, Option<&als_core::motion::AlsViewYaw>, Option<&als_core::view::AlsViewPitch>,
@@ -924,10 +923,11 @@ fn hud_sync_system(
         snapshot.view_rotation_deg = yaw.zip(pitch).map(|(yaw, pitch)| (0.0, pitch.0.to_degrees(), yaw.0.to_degrees()));
         let assembly = assemblies.get(character).ok();
         let camera = assembly.and_then(|assembly| assembly.camera).and_then(|entity| views.get(entity).ok())
-            .filter(|(camera, _, owner)| camera.is_active && owner.character == character)
-            .and_then(|(_, source, _)| camera_components.get(source.0).ok())
-            .filter(|(component, owner, _, _)| component.is_active() && owner.character == character);
-        let camera_snapshot = build_camera_snapshot(camera.map(|(_, _, rig, _)| rig), camera.map(|(_, _, _, info)| info));
+            .filter(|(_, owner)| owner.character == character)
+            .and_then(|(source, _)| camera_components.get(source.0).ok())
+            .filter(|(component, owner, _, _, _)| component.is_active() && owner.character == character);
+        let camera_context = camera.and_then(|(_, _, _, _, instance)| instance).and_then(|instance| q_players.get(instance.player_entity()).ok());
+        let camera_snapshot = build_camera_snapshot(camera.map(|(_, _, rig, _, _)| rig), camera.map(|(_, _, _, info, _)| info), camera_context);
         let context = assembly.and_then(|assembly| q_instances.get(assembly.avatar).ok())
             .filter(|(owner, _)| owner.character == character)
             .and_then(|(_, instance)| q_players.get(instance.player_entity()).ok());
@@ -1653,6 +1653,40 @@ mod tests {
             assert_eq!(row.value, format!("{:.2}", -runtime));
             assert_eq!(row.color, if name.ends_with("_Left") { gray() } else { white() });
         }
+    }
+
+    #[test]
+    fn camera_hud_reads_all_current_instance_curves_in_source_units() {
+        let (mut app, character, camera, _) = crate::camera_component::tests::loaded_camera_scene();
+        let player = app.world().get::<AnimatedSceneInstance>(camera).unwrap().player_entity();
+        let projected = app.world().get::<AlsRootAnimationContext>(player).unwrap();
+        assert_eq!(projected.f32("FootLeftIk"), Some(0.0));
+        assert!(!projected.curves.contains_key("FootLeftIk"), "Default reads must not invent active camera curves");
+        app.world_mut().entity_mut(player).insert(AlsRootAnimationContext { curves: [
+            ("CameraOffsetZ".into(), -1.0), ("CameraOffsetX".into(), 2.0),
+            ("PivotOffsetZ".into(), 0.5), ("LocationLagZ".into(), 0.3), ("CustomCameraCurve".into(), -0.5)].into() });
+        app.world_mut().get_mut::<AlsSourceCameraComponent>(camera).unwrap().activate(false);
+        app.world_mut().entity_mut(camera).insert(als_camera::AlsCameraDebugInfo { valid: true, curve_values: [999.0; als_camera::CAMERA_CURVE_COUNT], ..default() });
+        let view = app.world_mut().spawn((Camera3d::default(), Camera { is_active: false, ..default() },
+            als_camera::AlsCameraViewSource(camera), als_camera::AlsCharacterCamera { character })).id();
+        app.world_mut().entity_mut(character).insert((AlsCharacter, crate::debug_target::AlsDebugTarget,
+            OverlayState::Default, AlsStateRequest::default(), AlsCharacterAssembly { avatar: Entity::PLACEHOLDER, camera: Some(view) }));
+        app.insert_resource(AlsShowDebugHudState { visible: true, camera_curves: true, ..default() })
+            .init_resource::<canvas::ColumnNavigation>();
+        let system = app.world_mut().register_system(hud_sync_system);
+        app.world_mut().run_system(system).unwrap();
+        let values: std::collections::HashMap<_, _> = app.world_mut().query::<(&Name, &Text)>().iter(app.world())
+            .map(|(name, text)| (name.to_string(), text.0.clone())).collect();
+        for (name, value) in [("Camera Offset X", "100.00"), ("Camera Offset Y", "200.00"),
+            ("Pivot Offset Y", "50.00"), ("Location Lag X", "0.30"), ("Custom Camera Curve", "-0.50")] {
+            assert_eq!(values.get(name).map(String::as_str), Some(value), "{name}");
+        }
+        assert!(!values.contains_key("Camera Offset Z"), "Inactive curves must not be fabricated");
+        assert!(app.world_mut().query::<(&Name, &TextColor)>().iter(app.world()).any(|(name, color)|
+            name.as_str() == "Custom Camera Curve" && color.0 == linear(0.75, 0.75, 0.75)));
+        app.world_mut().get_mut::<AlsSourceCameraComponent>(camera).unwrap().deactivate();
+        app.world_mut().run_system(system).unwrap();
+        assert!(!app.world_mut().query::<&Name>().iter(app.world()).any(|name| name.as_str() == "Custom Camera Curve"));
     }
 
     #[test]

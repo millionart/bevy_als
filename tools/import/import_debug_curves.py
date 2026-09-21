@@ -6,6 +6,11 @@ from pathlib import Path
 from import_camera_component import record
 from ue_animation_asset_resolver import source_object_path
 from ue_exported_text import parse_list, parse_quoted
+from camera_curve_conversion import CAMERA_CURVE_TARGETS
+
+
+def camera_display_mappings():
+    return {target: [source, 1.0 / scale] for source, (target, scale) in sorted(CAMERA_CURVE_TARGETS.items())}
 
 
 def convert(source):
@@ -24,6 +29,13 @@ def convert(source):
 
 
 def self_test():
+    mappings = camera_display_mappings()
+    assert len(mappings) == len(CAMERA_CURVE_TARGETS)
+    for source, (target, scale) in CAMERA_CURVE_TARGETS.items():
+        name, inverse = mappings[target]
+        assert name == source and abs(37.5 * scale * inverse - 37.5) < 1e-9
+    assert mappings['CameraOffsetZ'] == ['CameraOffsetX', -100.0]
+    assert mappings['LocationLagX'] == ['LocationLagY', 1.0]
     path = '/Game/Fixture.Fixture:Metadata'
     data = {'asset_class': '/Script/Engine.Skeleton', 'asset_path': '/Game/Fixture.Fixture',
             'asset_properties': [{'name': 'AssetUserData', 'exported_text': f'("/Script/Engine.AnimCurveMetaData\'{path}\'")'}],
@@ -51,22 +63,24 @@ def self_test():
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--source', type=Path)
-    parser.add_argument('--output', type=Path, default=Path('assets/ui/als_character_curves.runtime.json'))
+    parser.add_argument('--camera-display', action='store_true')
+    parser.add_argument('--output', type=Path)
     parser.add_argument('--check', action='store_true')
     parser.add_argument('--self-test', action='store_true')
     args = parser.parse_args()
     if args.self_test:
         self_test()
-    if args.source:
-        result = convert(json.loads(args.source.read_text(encoding='utf-8-sig')))
+    if args.source or args.camera_display:
+        result = camera_display_mappings() if args.camera_display else convert(json.loads(args.source.read_text(encoding='utf-8-sig')))
+        output = args.output or Path('assets/ui/als_camera_curves.runtime.json' if args.camera_display else 'assets/ui/als_character_curves.runtime.json')
         text = json.dumps(result, indent=2) + '\n'
         if args.check:
-            if args.output.read_text(encoding='utf-8') != text:
-                raise SystemExit('Skeleton curve metadata differs from the native source')
+            if output.read_text(encoding='utf-8') != text:
+                raise SystemExit('Debug curve metadata differs from its source contract')
         else:
-            args.output.parent.mkdir(parents=True, exist_ok=True)
-            args.output.write_text(text, encoding='utf-8')
-        print(json.dumps({'pass': True, 'curves': len(result['curves'])}))
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(text, encoding='utf-8')
+        print(json.dumps({'pass': True, 'entries': len(result) if args.camera_display else len(result['curves'])}))
 
 
 if __name__ == '__main__':

@@ -9390,13 +9390,20 @@ fn observe_manual_integration(
             if let Ok(response) = interface.rotation_responses.get(character) {
                 expected.push(("Smooth Target Yaw Angle".into(), format!("{:.2}", source_yaw(response.smooth_target_yaw.to_degrees()))));
             }
-            let camera = interface.camera_assemblies.get(character).ok().and_then(|assembly| assembly.camera)
-                .and_then(|view| interface.camera_sources.get(view).ok()).and_then(|source| interface.camera_debug.get(source.0).ok())
+            let camera_source = interface.camera_assemblies.get(character).ok().and_then(|assembly| assembly.camera)
+                .and_then(|view| interface.camera_sources.get(view).ok()).map(|source| source.0);
+            let camera = camera_source.and_then(|source| interface.camera_debug.get(source).ok())
                 .filter(|info| info.valid);
-            if let Some(info) = camera {
-                for name in als_camera::CAMERA_CURVE_NAMES {
-                    expected.push((crate::show_debug_hud::name_to_display_string(name, false), format!("{:.2}", info.curve_value(name))));
+            let camera_context = camera_source.and_then(|source| motion_probe.object_scenes.get(source).ok())
+                .and_then(|instance| players.get(instance.player_entity()).ok()).and_then(|(_, context)| context);
+            if let Some(context) = camera_context {
+                let mapping: std::collections::HashMap<String, (String, f32)> = serde_json::from_str(include_str!("../assets/ui/als_camera_curves.runtime.json")).unwrap();
+                for (name, value) in &context.curves {
+                    let (name, value) = mapping.get(name).map_or((name.as_str(), *value), |(source, scale)| (source.as_str(), value * scale));
+                    expected.push((crate::show_debug_hud::name_to_display_string(name, false), format!("{:.2}", if value == 0.0 { 0.0 } else { value })));
                 }
+            }
+            if let Some(info) = camera {
                 for (name, point) in [("Pivot Target Location", Some(info.pivot_target)), ("Pivot Lag Location", info.pivot_lag), ("Pivot Location", info.pivot)] {
                     expected.push((name.into(), point.map(|point| format!("X: {:.2}Y: {:.2}Z: {:.2}", point.x * 100.0, point.z * 100.0, point.y * 100.0)).unwrap_or_else(|| "N/A".into())));
                 }
@@ -9404,7 +9411,7 @@ fn observe_manual_integration(
                 expected.push(("Right Shoulder".into(), info.right_shoulder.to_string()));
             }
             let mismatches: Vec<_> = expected.iter().filter(|(name, value)| !interface.debug_values.iter().any(|(key, text)| key.as_str() == name.as_str() && &text.0 == value)).cloned().collect();
-            gate_report.direction_trace.push(serde_json::json!({"hud_data_valid":expected_context.is_some() && expected_motion.is_some() && camera.is_some() && mismatches.is_empty(),
+            gate_report.direction_trace.push(serde_json::json!({"hud_data_valid":expected_context.is_some() && expected_motion.is_some() && camera.is_some() && camera_context.is_some() && mismatches.is_empty(),
                 "hud_values_checked":expected.len(),"hud_data_mismatches":mismatches}));
         }
     }

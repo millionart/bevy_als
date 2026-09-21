@@ -27,13 +27,8 @@ impl AlsRootAnimationContext {
         self.curves
             .get(name)
             .copied()
+            .or_else(|| SOURCE_CURVE_DEFAULTS.iter().find_map(|(key, value)| (*key == name).then_some(*value)))
             .filter(|value| value.is_finite())
-    }
-}
-
-fn apply_source_curve_defaults(curves: &mut HashMap<String, f32>) {
-    for (name, value) in SOURCE_CURVE_DEFAULTS {
-        curves.entry(name.to_owned()).or_insert(value);
     }
 }
 
@@ -88,7 +83,7 @@ fn project_root_animation_context(
         let Some(graph) = graphs.get(graph_handle) else {
             continue;
         };
-        let mut curves = root_pose_source_node(graph)
+        let curves = root_pose_source_node(graph)
             .and_then(|node| player_animation_context_state(player, node))
             .map(|state| {
                 state
@@ -99,7 +94,6 @@ fn project_root_animation_context(
                     .collect()
             })
             .unwrap_or_default();
-        apply_source_curve_defaults(&mut curves);
         let projected = AlsRootAnimationContext { curves };
         if let Some(mut current) = current {
             *current = projected;
@@ -128,8 +122,7 @@ mod tests {
 
     #[test]
     fn missing_source_curves_use_the_unreal_curve_default() {
-        let mut curves = HashMap::new();
-        apply_source_curve_defaults(&mut curves);
+        let mut context = AlsRootAnimationContext::default();
         for name in [
             "PoseMoving",
             "FootLeftIk",
@@ -137,10 +130,11 @@ mod tests {
             "FootLeftLock",
             "FootRightLock",
         ] {
-            assert_eq!(curves.get(name), Some(&0.0));
+            assert_eq!(context.f32(name), Some(0.0));
+            assert!(!context.curves.contains_key(name));
         }
-        curves.insert("FootLeftLock".to_owned(), 0.75);
-        apply_source_curve_defaults(&mut curves);
-        assert_eq!(curves.get("FootLeftLock"), Some(&0.75));
+        context.curves.insert("FootLeftLock".to_owned(), 0.75);
+        assert_eq!(context.f32("FootLeftLock"), Some(0.75));
+        assert_eq!(context.curves.len(), 1);
     }
 }
