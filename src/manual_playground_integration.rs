@@ -6355,7 +6355,7 @@ fn grounded_roll_exit_transition_matches_source(
     };
     let expected = AlsTransitionPlayback::roll_to_grounded_right(stance == Stance::Crouching);
     phase == IntegrationPhase::Roll
-        && roll.is_some_and(|roll| !roll.active)
+        && roll.is_some()
         && playback.is_some_and(|playback| {
             playback.active
                 && playback.kind == expected.kind
@@ -6367,7 +6367,8 @@ fn grounded_roll_exit_transition_matches_source(
         })
         && slot.is_some_and(|slot| slot.active && slot.pose_ready && slot.weight > 1e-4)
         && grounded.is_some_and(|grounded| {
-            matches!(grounded.actual_state, Some(1 | 2))
+            (matches!(grounded.actual_state, Some(1 | 2))
+                || (stance == Stance::Crouching && grounded.actual_state == Some(4)))
                 && grounded.transition_active == Some(false)
                 && grounded.pose_ready == Some(true)
         })
@@ -6778,6 +6779,7 @@ fn observe_manual_integration(
                 && transition_active == Some(false);
             state.coverage.grounded_roll_completed |= completed;
             if let Some(recorded) = state.grounded_roll_playback {
+                let terminal_stance = desired_stance.map_or(*stance, |value| value.0);
                 let mut chain = grounded_joint_source_chain();
                 for boundary in &mut chain {
                     boundary.minimum_rotation_span_radians = 0.0;
@@ -6810,11 +6812,15 @@ fn observe_manual_integration(
                     } else {
                         &[]
                     },
-                    expected_terminal_parent_runtime_state: requested_stance.map(|stance| if stance == Stance::Crouching { 2 } else { 1 }),
+                    expected_terminal_parent_runtime_state: Some(if terminal_stance == Stance::Crouching { 2 } else { 1 }),
                     expected_terminal_parent_transition_active: Some(false),
                     observed_parent_runtime_state: actual_state,
                     observed_parent_transition_active: transition_active,
-                    canonical_clip_time: Some(0.8),
+                    canonical_clip_time: Some(if requested_stance == Some(Stance::Crouching) {
+                        recorded.start_time + recorded.play_rate * recorded.blend_out
+                    } else {
+                        0.8
+                    }),
                     maximum_clip_time_distance: 0.06,
                     ..default()
                 };
@@ -11350,6 +11356,35 @@ mod tests {
             Some(&crouching),
             Some(&slot),
             Some(&grounded),
+        ));
+        let active_roll = AlsRollState { active: true, ..default() };
+        assert!(grounded_roll_exit_transition_matches_source(
+            IntegrationPhase::Roll,
+            Some(Stance::Crouching),
+            Some(&active_roll),
+            Some(&crouching),
+            Some(&slot),
+            Some(&grounded),
+        ));
+        let crouch_to_stand = AlsGroundedGraphTelemetry {
+            actual_state: Some(4),
+            ..grounded
+        };
+        assert!(grounded_roll_exit_transition_matches_source(
+            IntegrationPhase::Roll,
+            Some(Stance::Crouching),
+            Some(&active_roll),
+            Some(&crouching),
+            Some(&slot),
+            Some(&crouch_to_stand),
+        ));
+        assert!(!grounded_roll_exit_transition_matches_source(
+            IntegrationPhase::Roll,
+            Some(Stance::Standing),
+            Some(&active_roll),
+            Some(&playback),
+            Some(&slot),
+            Some(&crouch_to_stand),
         ));
         assert!(!grounded_roll_exit_transition_matches_source(
             IntegrationPhase::Roll,

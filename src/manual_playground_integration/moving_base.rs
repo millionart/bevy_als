@@ -3,7 +3,7 @@ use als_core::dynamics::{AlsMovementBase, AlsComponentVelocity, component_veloci
 use als_core::mantle::{AlsMantleTargetBase, AlsMantleTargetPermission, MantleDetectionInput, detect_mantle};
 use als_core::motion::AlsActualVelocity;
 use als_ext::{PlaygroundKinematic, PlaygroundKinematicKind};
-use avian3d::prelude::{ColliderOf, SpatialQuery, SpatialQueryFilter};
+use avian3d::prelude::{Collider, ColliderOf, SpatialQuery, SpatialQueryFilter};
 
 const POSITION_TOLERANCE: f32 = 0.001;
 
@@ -30,6 +30,16 @@ fn mantle_approach(kind: PlaygroundKinematicKind, global: &GlobalTransform, exte
 
 fn moving_mantle_candidate(kind: PlaygroundKinematicKind, velocity: Vec3) -> bool {
     matches!(kind, PlaygroundKinematicKind::RotateWorldTime { .. }) || velocity.length() > 1.0
+}
+
+fn exit_direction_ready(kind: PlaygroundKinematicKind, position: Vec3, velocity: Vec3, half_extents: Vec3) -> bool {
+    match kind {
+        PlaygroundKinematicKind::MoveSpline { start, end, .. } => {
+            let axis = (end - start).normalize_or_zero();
+            (end - start).dot(velocity) >= 0.0 && position.distance(end) <= half_extents.dot(axis.abs())
+        }
+        PlaygroundKinematicKind::RotateWorldTime { .. } => true,
+    }
 }
 
 pub(super) fn install(app: &mut App) {
@@ -236,7 +246,7 @@ pub(super) fn observe(
     motion: MotionProbe,
     assets: Res<crate::mantle_drive::MantleAssets>,
     platforms: Query<(Entity, &Name, &PlaygroundKinematic, &GlobalTransform, &LinearVelocity, &RigidBody, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
-    colliders: Query<(Entity, &ColliderOf), Without<AlsCharacter>>,
+    colliders: Query<(Entity, &Collider, &ColliderOf), Without<AlsCharacter>>,
     characters: Query<(&Position, &Transform, &LocomotionState, &AlsMovementBase, &AlsActualVelocity,
         &LinearVelocity, &AlsMantleState, Option<&AlsNotifyLocomotionAction>, &AlsInputOverride,
         Option<&AlsFootLockState>, Option<&AlsTransitionMontageStack>, Option<&AlsRootTransitionSlotRuntime>), With<AlsCharacter>>,
@@ -248,7 +258,7 @@ pub(super) fn observe(
     let rotating = matches!(state.scenario, IntegrationScenario::RotatingBase | IntegrationScenario::Footprint);
     let footprints = state.scenario == IntegrationScenario::Footprint;
     let Some((body, _, path, global, platform_velocity, kind, reported_velocity)) = platforms.iter().find(|(_, name, _, _, _, _, _)| name.as_str() == object) else { return; };
-    let Some((collider, _)) = colliders.iter().find(|(_, owner)| owner.body == body) else { return; };
+    let Some((collider, shape, _)) = colliders.iter().find(|(_, _, owner)| owner.body == body) else { return; };
     let Ok((position, transform, mode, base, own, velocity, mantle, action, input, feet, playback, slot)) = characters.get(character) else { return; };
     let transition_stack = playback;
     let playback = transition_stack.and_then(AlsTransitionMontageStack::latest);
@@ -280,6 +290,8 @@ pub(super) fn observe(
                 probe.observe_steps(feet, playback, slot, transform.scale.y);
             }
             if probe.riding(local, motion_point, own.horizontal_speed, same_base, now, period, span)
+                && exit_direction_ready(path.kind, global.translation(), platform_velocity.0,
+                    shape.shape_scaled().compute_local_aabb().half_extents())
                 && (!rotating || probe.steps.iter().all(|value| *value)) {
                 probe.ride = true;
                 probe.begin(if footprints { Stage::Done } else { Stage::Exit }, now);
@@ -472,6 +484,20 @@ mod tests {
         }
         assert_eq!(object(IntegrationScenario::RotatingBase), "Rotating:BP_SimpleRotatingObject_2");
         assert_eq!(initial_phase(IntegrationScenario::RotatingBase), IntegrationPhase::MovingBase);
+    }
+
+    #[test]
+    fn translating_exit_waits_for_the_source_return_direction() {
+        let path = PlaygroundKinematicKind::MoveSpline {
+            start: Vec3::new(19.0, 0.0, -28.75),
+            end: Vec3::new(12.5, 0.0, -28.75),
+            duration: 1.75,
+        };
+        let extent = Vec3::ONE;
+        assert!(!exit_direction_ready(path, Vec3::new(17.05, 0.0, -28.75), Vec3::X * 14.8, extent));
+        assert!(!exit_direction_ready(path, Vec3::new(18.99, 0.0, -28.75), Vec3::NEG_X * 0.17, extent));
+        assert!(exit_direction_ready(path, Vec3::new(13.02, 0.0, -28.75), Vec3::NEG_X * 5.86, extent));
+        assert!(exit_direction_ready(path, Vec3::new(12.5, 0.0, -28.75), Vec3::ZERO, extent));
     }
 
     #[test]

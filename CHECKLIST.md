@@ -153,3 +153,39 @@
   runtime 前摘要：本地 Bevy 0.19.1 `TimeUpdateStrategy::ManualDuration` 推进 Real→Virtual，`Time<Virtual>` 默认最多接收 250 ms；只在 `ALS_MANUAL_INTEGRATION_GATE` 已设置时接受参数。example 聚焦自测合法 100 ms、零/负/NaN/inf/非数及 300 ms 均符合预期；runner 300 ms 在创建报告目录之前正确失败且没有启动游戏。旧未设参数的三场原 Playground 功能基线已通过；现在限流重建启动器同目录，随后用固定 60 FPS 的 `moving_base` 公共场景核对机器可读参数和实际时间间隔，未改图/资产/性能阈值。
 
   固定帧后摘要：同 `target_game/play` 预构建通过；公共 `moving_base` 在 `-FrameDeltaSeconds 0.016666666666666666 -CaptureCount 0 -FunctionalOnly` 下 manual/validator `0/0`、功能通过，668 条 trace 的 667 个相邻实际游戏时间差全部为 `0.016666667±1e-9 s`。runner 的 `frame_delta_seconds` 保存了请求值；未设置参数的先前同场 1073 条 trace 间隔为 `0.0100186–0.0244875 s`，没有被暗中固定。图/fault/temporal/watchdog 为零，渲染/贴花通过；性能仍按原暂停范围延期。配置异常在运行前失败且不创建产物，未改普通手动入口。
+
+- [ ] **BF124.A01-S3b3 — 真实 Playground 固定帧率运动矩阵**：开始：2026-09-23 06:11:07 +08:00；预估结束：2026-09-23 07:01:07 +08:00。沿同一 `target_game/play` 与原 `moving_base` 场景，逐次运行 120/30/20/15/10 FPS，核对 runner 设定、相邻实际游戏时间、基座/角色位移和现有动画/接触/图/时序 Gate；再用最低帧率的 `grounded`/`uphill_jump` 核查 Roll/root-motion 与落地。任何失败先审计同场报告，禁止只调宽窗口或重试碰运气。估时依据：已通过的普通/固定60场、现有公共 runner 和无需重编的同二进制。Gate：各受控率的功能报告与实际时钟证据、源相对位移闭环；单帧 hitch 独立条目。
+
+  2026-09-23 07:13:38 +08:00 拆分检查点：原预计 07:01:07，当前偏差 +12m31s；固定帧率移动基座与 10 FPS Grounded 分支的功能 Gate 已通过，10 FPS 上跳的公共时序 Gate 仍未通过。报告显示其原动画图/惯性化链与本次物理整帧分支消融后均可产生腿部突变，不能把物理子项或整项直接勾选。按剩余源闭包重新拆成下述可独立验收的静态首失配定位与后续修复/runtime；现暂停新的 runtime，先读 fresh source 与目标中间节点。
+
+  runtime 前摘要：本地 UE CMC/Chaos 完整帧/封顶时钟、目标空地/基座/动作隔离已在 S1–S2b3 静态与 focused 验证；startup、原 moving_base/uphill_jump/grounded 与固定 60 FPS moving_base 公共功能 Gate 通过。Bevy `ManualDuration` 与 250 ms 虚拟上限已用本地源码、聚焦自测和 667 个实际时间差确认；当前未通过边界是受控低帧率下的真实运动/动画采样。保留原图、Playground、性能阈值和 `CaptureCount 0`，先跑 120 FPS 再逐场检查。
+
+  首次 120 FPS 后摘要：public runner 功能 `pass=true`，10 项覆盖、1420/1420 个相邻实际游戏时间差为 `1/120 s`，1371 条轨迹已有平台非零速度，零图错误/fault/temporal/watchdog。但早期辅助 `PLATFORM` 日志在场景就绪前把曲线起点的 `moving=0/2` 一次性判 FAIL，未进入公共报告，不能当作平台持续静止。focused 夹具先复现过早锁存失败，现复用 `ManualPlaygroundStartupReady` 延后判定并通过；保留原始 120 报告，限流重建后用新目录复验，随后才进入 30 FPS。
+
+  120 FPS 修复后摘要：同 `target_game/play` 重建及新输出的 public runner manual/validator `0/0`、功能通过；10 项覆盖、1420/1420 个相邻实际游戏时间差为 `1/120 s`，无平台早期错误日志、graph error/fault/temporal/watchdog。辅助探针只在现成启动就绪后判定，未新增等待状态；原第一次误报报告保留供复查。下一场按相同源/目标闭包运行 30 FPS。
+
+  30 FPS 后摘要：public runner manual/validator `0/0`、功能通过，10 项覆盖、345/345 个相邻实际游戏时间差为 `1/30 s`，零 graph error/fault/temporal/watchdog；当前未通过边界仍是低于 30 FPS 时物理封顶与角色整帧的分叉，下一场 20 FPS。
+
+  20 FPS 后摘要：`moving_base` public runner manual/validator `0/0`、10 项功能通过；239/239 个相邻时间差为 `0.05 s`，无 graph error/fault/temporal/watchdog。已真实经过物理 `1/30` 封顶与角色整帧分离路径；下一场 15 FPS。
+
+  首次 15 FPS 后摘要：原场景先完成 Ride/Jump，随后 `Flight` 超过固定 8 s 无阶段进展，manual 退出 91；第一个分叉在离台帧：15 FPS 的平台 `x≈18.28 m`、朝远离路径终点 `+X` 的 `9.81 m/s` 被角色继承，20 FPS 成功轨迹在 `x≈12.59 m`、`-X` 返回方向跳离；前者最终飞出原场景地面范围。新旧源场景记录该平台的 spline `start=(19,-28.75)`、`end=(12.5,-28.75)`；夹具旧 Gate 只要求走满周期，启动前固定帧数使不同 FPS 的离台相位漂移。新增方向最小反例先稳定 FAIL，按源 spline 向量仅在平台朝终点返回时允许完成 Ride，10 项同模块测试通过；没有修改平台曲线、角色运动、阈值或原场景。保留首份失败报告，限流重建后独立目录复验 15 FPS，再决定是否进入 10 FPS。
+
+  15 FPS 修复后摘要：同二进制 `moving_base` public runner manual/validator `0/0`、10 项覆盖与功能通过，210/210 个相邻实际游戏时间差为 `1/15 s`；Ride 完成后等待源路径返回，离台速度改为 `-0.173 m/s` 并成功落到新支撑，再完成 Mantle 与动作返回。零 graph error/fault/temporal/watchdog；原失败报告保留。下一场 10 FPS，仍不更改物理/动画判据。
+
+  首次 10 FPS 后摘要：原场景 Ride/Jump 与“任意非原基座”落地已执行，但 Flight 的反向平台速度使角色越过源落地区，落在远处 `x≈4.29 m` 地面；随后 `WaitMantle` 8.1 s 固定 watchdog 退出，Mantle 相关五项未覆盖。首个源链分叉仍是离台相位而非图/姿态错误：源 Playground 的 `MoveSpline` 终点 `x=12.5 m`、平台原网格沿路径半宽 `1 m`，旧仅要求速度指向终点，在 10 FPS 可能于起点 `x≈19 m` 附近提前离台。新增端点几何范围反例先 FAIL，只在源方向正确且进入平台自身半宽内允许结束 Ride；同模块 10 项 focused 与 watchdog 自测通过。保留失败报告，重建同入口后独立目录复验；未修改运动生产算法、场景或宽松验收阈值。
+
+  10 FPS 修复后摘要：同 `target_game/play` 重建后 public runner manual/validator `0/0`、10 项覆盖与功能通过；164/164 个相邻实际游戏时间差为 `0.1 s`，离台位于源 spline 终点自身范围，后续新支撑、Mantle 和返回均成立。零 graph error/fault/temporal/watchdog，渲染/贴花通过；两份旧失败报告保留。下一步以同二进制运行 `grounded` 和 `uphill_jump` 的 10 FPS 姿态/root-motion/落地路径，性能仍只按暂停范围延期。
+
+  首次 10 FPS `grounded` 后摘要：同入口场景仅 `grounded_roll_exit_transition`/`grounded_roll_completed` 两项覆盖未通过；图错误、fault、temporal 与 watchdog 均为零。报告中 Roll 退出函数确已调用一次，选中 Crouching 片段并在 Slot 有效播放，随后实际站起状态结束该片段。fresh 原生 `AB_Als_Grounded` 明示 Roll `StateExitFunction=PlayRollToGroundedTransitionAnimation` 与 Crouching→Standing `StateEntryFunction=StopTransitionAndTurnInPlaceAnimations`；fresh `CS_Als_Default` 为 `Rolling.bCrouchOnStart=True`，本地 `PlayTransitionRightAnimation` C++ 按当帧实际 Stance 选片段。旧公共判据不当地要求 Roll 已结束与过渡仍活跃在同一采样帧重叠；10 FPS 的源合法路径可能先贡献 Crouching Slot，再在站起入口停止。现保留片段身份/参数/Slot/实际图状态断言，只放开这个多余同帧条件；focused 反例先 FAIL 后 PASS。原失败报告保留，重建并独立目录复验，未改生产图或通知时钟。
+
+  第二次 10 FPS `grounded` 后摘要：manual/进程退出 0 且动作覆盖已完成，但公共视觉 validator 继续拒绝 `grounded_roll_exit` 的旧 Standing 专属标准片段时间与终态：Crouching 片段在 Roll 活跃时短暂贡献，随后源 `Crouching To Standing` 入口停止它，最终实际父状态为 Standing。旧窗口要求 Crouching 分支在片段 `0.8 s` 仍活跃、终态 Crouching，因而缺标准骨姿/两个活跃样本并判错终态。fresh 源图、设置与 C++ 以及本次实际通知/状态链证明应允许 Crouching→Standing 父状态，标准采样点由该片段源 `StartTime + PlayRate × BlendOut` 得 `0.5 s`，终态按不变的 DesiredStance 取 Standing；不移除骨骼、片段身份、权重、时间和时序守卫。对应状态4反例先 FAIL 后 PASS；保留第二份失败报告，同目录重建后另起输出复验。
+
+  10 FPS `grounded` 源分支复验摘要：public runner manual/validator `0/0`、15 项功能覆盖通过；`grounded_roll_exit` 实际 Crouching 片段在 `0.5 s` 精确取得 canonical pose（6 个下肢骨）、2 个活跃 clip 样本，终态父状态为源目标 Standing `1/1`。零 graph error/fault/temporal/watchdog，渲染/贴花通过；原两份失败报告保留，完整性能预算继续延期。下一场同二进制运行 `uphill_jump` 的 10 FPS 接触/姿态恢复。
+
+  首次 10 FPS `uphill_jump` 后摘要：manual/进程退出 0、18 个跳跃/落地窗口与实际 Grounded 动画恢复均完成，但公共时序守卫拒绝 4 项局部旋转/弯曲面突变（首项 pre-rig `calf_l` 在 `uphill_01_sprint_1` 跳跃段单帧 `2.339 rad > 2.2`），因此不能关闭 A01。fresh 原生 `AB_Als_Locomotion` 核对 Right Foot→Loop 过渡为 `LogicType=TLT_Inertialization`、时长 `0.2 s`，目标确用惯性请求和下游 Inertialization；没有证据把它误说成应使用普通 Hermite 交叉淡入。报告显示该节点附近 Jump 片段末时 `1.667 s` 切至 Loop，首个异常在根图仍有 240 活跃通道时出现；物理/惯性根因尚未定。下一步只做一次受控消融：同原 Playground、同 10 FPS、同报告 Gate，暂时禁止本次角色整帧接管以判别该物理分支是否为异常的必要原因；随后原子恢复代码与二进制，不改阈值或图。
+
+  物理消融后摘要：同原 Playground/10 FPS 仅暂时禁止 A01 的角色整帧接管，公共报告仍检出腿部旋转尖峰与弯曲面翻转（触发侧/时刻改变）；因此本次物理分支不是异常的必要原因。临时代码已完全恢复，`source_physics_timing.rs` 对已提交版本无 diff，`target_game/play` 重新编译为正常版本；保留两份前后报告且不把消融运行计为通过。fresh 本地 `AB_Als_Locomotion` 原生读取器正常结束：Right Foot→Loop 源 `TLT_Inertialization/0.2 s` 与目标 Transition 请求对应，Jump 的下游 Inertialization 也存在；公共 source-chain 仅记录整体 Pose 时间/骨数，尚不能定位最早改变 `calf_l` 的子图。下一项先补 focused 的中间骨姿/请求取证，不再盲启 runtime。
+
+  - [x] **BF124.A01-S3b3a — 固定帧率基座与 Grounded 分支功能验收**：开始：2026-09-23 06:11:07 +08:00；预估结束：2026-09-23 07:01:07 +08:00；实际结束：2026-09-23 07:00:00 +08:00；偏差：-1m07s；结果：本子项功能 Gate 通过。原 Playground 的 120/60/30/20/15/10 FPS moving_base 及 10 FPS grounded 均由同入口 public runner 功能通过、实际时钟逐帧复算与 0 截图证明；原 120 首帧平台诊断、15/10 跳离相位和 Roll 实际 Crouching→Standing 窗口的失败已由源几何/函数图证明并留 focused 反例。各最终报告图错误、fault、temporal、watchdog 为 0，性能预算仍按用户暂停范围延期；上跳异常不纳入本子项成功范围。
+
+  - [ ] **BF124.A01-S3b3b1 — 10 FPS 上跳首个姿态源链失配定位**：开始：2026-09-23 07:13:38 +08:00；预估结束：2026-09-23 07:58:38 +08:00。沿 fresh `AB_Als_Locomotion` Jump/Loop 原生状态与目标 nested FSM、惯性请求/consumer，聚焦首个 pre-rig `calf_l` 帧，补能稳定失败的中间节点 Pose/请求观测，逐项核对源序列/转换/运行时的时间、权重和生命周期；不以阈值或末端 IK 回补。估时依据：已确定单个 Right Foot→Loop `TLT_Inertialization`、目标 Transition/Jump/root 三段链和现成 10 FPS 报告；本段只做 source/static 与 focused Gate，不启动新 runtime。Gate：第一失配节点与数值、最小反例先失败及必要消融、后续修复/runtime 的边界和估时。

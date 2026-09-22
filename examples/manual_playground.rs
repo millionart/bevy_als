@@ -840,6 +840,28 @@ mod tests {
     }
 
     #[test]
+    fn platform_probe_waits_until_the_playground_is_ready() {
+        let mut world = World::new();
+        world.init_resource::<PlatformPhysicsProbe>();
+        world.init_resource::<ManualPlaygroundStartupReady>();
+        world.spawn(AlsCrushRecoveryFloor { half_extents: Vec3::ONE });
+        let platforms = (0..3).map(|index| world.spawn((
+            PlaygroundMovingObject,
+            RigidBody::Kinematic,
+            LinearVelocity::ZERO,
+            AngularVelocity(if index == 0 { Vec3::Y } else { Vec3::ZERO }),
+        )).id()).collect::<Vec<_>>();
+        world.run_system_once(platform_physics_probe).unwrap();
+        assert!(!world.resource::<PlatformPhysicsProbe>().0);
+        world.resource_mut::<ManualPlaygroundStartupReady>().passed = true;
+        for platform in &platforms[..2] {
+            world.entity_mut(*platform).insert(LinearVelocity(Vec3::X));
+        }
+        world.run_system_once(platform_physics_probe).unwrap();
+        assert!(world.resource::<PlatformPhysicsProbe>().0);
+    }
+
+    #[test]
     fn character_material_probe_ignores_the_independent_camera_scene() {
         let mut world = World::new();
         world.init_resource::<CharacterMaterialProbe>();
@@ -1144,10 +1166,11 @@ fn collision_parity_probe(
 
 fn platform_physics_probe(
     mut probe: ResMut<PlatformPhysicsProbe>,
+    ready: Res<ManualPlaygroundStartupReady>,
     platforms: Query<(&RigidBody, &LinearVelocity, &AngularVelocity), With<PlaygroundMovingObject>>,
     floors: Query<(), With<AlsCrushRecoveryFloor>>,
 ) {
-    if probe.0 || platforms.iter().count() != 3 || floors.iter().count() != 1 {
+    if probe.0 || !ready.passed || platforms.iter().count() != 3 || floors.iter().count() != 1 {
         return;
     }
     let kinematic = platforms
