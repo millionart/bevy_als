@@ -137,3 +137,13 @@
   首次 startup 后摘要：原入口进程退出 0、报告 ready，601 帧 root/姿态、物理单步、时序、渲染/贴花及 watchdog 均无功能 issue；完整验收唯一失败为动画求值 p95 `4.374 ms` 超过原 `4.0 ms` 预算。最近多个旧 startup 报告在本次代码之前已处于约 `4.2–4.6 ms` 同一带宽；归档记录用户明确暂停性能工作并继续使用 `FunctionalOnly`。保留首次完整失败报告和原阈值，不把它改称性能通过；下一次以独立输出目录运行公共 `-FunctionalOnly` startup，再进入运动场景。
 
   functional startup 后摘要：同一 `target_game/play` 二进制、原 Playground、`CaptureCount=0` 的第二次 runner 为 manual/validator 退出码 `0/0`、`validation_scope=functional`，render effects/decal 均 true；637 帧无图错误、fault、temporal anomaly 或 watchdog 触发，物理每 render 帧一阶。`report.pass=false` 与 `full_pass=false` 仍保留原性能 p95 `4.0843 ms > 4.0 ms`，公共 validator 只给出功能 `pass=true` 和 deferred performance issue；未修改门槛或生产动画图。下一步只沿 A01 时间链建立并运行可见运动场景。
+
+- [x] **BF124.A01-S3b1 — 原 Playground 地面、空中与基座运动功能 Gate**：开始：2026-09-23 05:57:22 +08:00；预估结束：2026-09-23 06:47:22 +08:00；实际结束：2026-09-23 06:01:32 +08:00；偏差：-45m50s；结果：三场公共功能 Gate 通过。估时依据：已通过的 startup、既有公共场景时长与 S2b1–b3 静态/夹具闭包。拆分结果：受控低帧率与单帧 hitch 矩阵仍待独立 Gate，性能继续按用户要求暂停。
+
+  runtime 前摘要：S1–S2b3 的 UE CMC/Chaos、Grounded/Air、Mantle/Ragdoll 与移动基座源/目标时钟及 focused Gate 已闭合；当前生产改动未触及图、资产和转换规则。公共 startup 功能已由同二进制通过，完整性能预算失败已保留且不调整阈值。先运行原 Playground 的现成移动基座场景，按其实际报告决定下一场，不用动作场景探索静态根因。
+
+  `moving_base` 后摘要：同二进制原 Playground 的 public runner 为 manual/validator `0/0`，功能 `pass=true`；10 项实际覆盖全部完成（ride、jump、新基座、Mantle 起止与恢复），1073 条基座 trace、2 个有效动作窗口和 411 个姿态样本。图错误、fault、temporal anomaly 与 watchdog 均为 0，渲染/贴花检查通过。报告保留完整性能失败（eval p95 `7.35 ms`）且只按既定暂停范围给出功能结论；下一场为 `uphill_jump` 的空中接触与动画恢复。
+
+  `uphill_jump` 后摘要：同二进制 public runner manual/validator `0/0`、功能 `pass=true`；三条上跳路线与全部落地动画一致性覆盖，18 个窗口、2002 条上跳 trace、1344 姿态样本，零 graph error/fault/temporal/watchdog，渲染/贴花检查通过。完整性能失败继续延期（eval p95 `8.8236 ms`），未放宽阈值；下一场为 `grounded` 的地面动作与 root-motion。
+
+  `grounded` 后摘要：同二进制 public runner manual/validator `0/0`、功能 `pass=true`；15 项实际覆盖包含 Roll/Slot、起止回调、站蹲/瞄准/快速停止及 Roll 退出过渡，9 个窗口、1931 姿态样本。三场均无 graph error、fault、temporal anomaly 或 watchdog，渲染/贴花通过，截图为 0；完整性能失败按暂停范围保留（本场 eval p95 `8.4876 ms`）。现成场景证明普通帧功能与可见角色路径，尚未证明 A01 在受控 20/15/10 FPS 或 hitch 下的真实入口行为。
