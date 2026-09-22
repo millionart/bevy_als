@@ -4,6 +4,7 @@ param(
     [string]$Case = "state_machine",
     [string]$OutputDirectory,
     [int]$CaptureCount = 0,
+    [double]$FrameDeltaSeconds = 0.0,
     [double]$CaptureIntervalSeconds = 1.5,
     [double]$MaxFrameP95Ms = 25.0,
     [double]$MaxFrameMs = 75.0,
@@ -12,8 +13,8 @@ param(
     [switch]$FunctionalOnly
 )
 
-if ($CaptureCount -lt 0 -or $CaptureIntervalSeconds -le 0 -or $MaxFrameP95Ms -le 0 -or $MaxFrameMs -le 0 -or $MaxEvalP95Ms -le 0 -or $MaxPhysicsStepsPerRender -lt 1) {
-    throw "CaptureCount must be nonnegative and other validation arguments must be positive."
+if ($CaptureCount -lt 0 -or $CaptureIntervalSeconds -le 0 -or $MaxFrameP95Ms -le 0 -or $MaxFrameMs -le 0 -or $MaxEvalP95Ms -le 0 -or $MaxPhysicsStepsPerRender -lt 1 -or -not [double]::IsFinite($FrameDeltaSeconds) -or $FrameDeltaSeconds -lt 0 -or $FrameDeltaSeconds -gt 0.25 -or ($Case -eq "startup" -and $FrameDeltaSeconds -gt 0)) {
+    throw "Invalid visual validation arguments."
 }
 
 $workspaceRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
@@ -35,6 +36,7 @@ New-Item -ItemType Directory -Path $candidate -Force | Out-Null
 $variables = @(
     "ALS_MANUAL_INTEGRATION_GATE",
     "ALS_MANUAL_INTEGRATION_CASE",
+    "ALS_MANUAL_INTEGRATION_FRAME_DELTA_SECS",
     "ALS_ANIMATION_VISUAL_EVIDENCE_DIR",
     "ALS_ANIMATION_VISUAL_CAPTURE_COUNT",
     "ALS_ANIMATION_VISUAL_CAPTURE_INTERVAL_SECS",
@@ -59,6 +61,11 @@ try {
         $env:ALS_MANUAL_INTEGRATION_GATE = "1"
     }
     $env:ALS_MANUAL_INTEGRATION_CASE = $Case
+    if ($FrameDeltaSeconds -gt 0) {
+        $env:ALS_MANUAL_INTEGRATION_FRAME_DELTA_SECS = $FrameDeltaSeconds.ToString([Globalization.CultureInfo]::InvariantCulture)
+    } else {
+        Remove-Item Env:ALS_MANUAL_INTEGRATION_FRAME_DELTA_SECS -ErrorAction SilentlyContinue
+    }
     $env:ALS_ANIMATION_VISUAL_EVIDENCE_DIR = $candidate
     $env:ALS_ANIMATION_VISUAL_CAPTURE_COUNT = $CaptureCount.ToString([Globalization.CultureInfo]::InvariantCulture)
     $env:ALS_ANIMATION_VISUAL_CAPTURE_INTERVAL_SECS = $CaptureIntervalSeconds.ToString([Globalization.CultureInfo]::InvariantCulture)
@@ -75,6 +82,7 @@ try {
         $runner = [ordered]@{
             format = "als_animation_visual_runner_v1"
             case = $Case
+            frame_delta_seconds = if ($FrameDeltaSeconds -gt 0) { $FrameDeltaSeconds } else { $null }
             manual_exit_code = $manualExitCode
             report_path = $reportPath
             report_exists = Test-Path -LiteralPath $reportPath -PathType Leaf

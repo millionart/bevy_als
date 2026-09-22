@@ -147,3 +147,9 @@
   `uphill_jump` 后摘要：同二进制 public runner manual/validator `0/0`、功能 `pass=true`；三条上跳路线与全部落地动画一致性覆盖，18 个窗口、2002 条上跳 trace、1344 姿态样本，零 graph error/fault/temporal/watchdog，渲染/贴花检查通过。完整性能失败继续延期（eval p95 `8.8236 ms`），未放宽阈值；下一场为 `grounded` 的地面动作与 root-motion。
 
   `grounded` 后摘要：同二进制 public runner manual/validator `0/0`、功能 `pass=true`；15 项实际覆盖包含 Roll/Slot、起止回调、站蹲/瞄准/快速停止及 Roll 退出过渡，9 个窗口、1931 姿态样本。三场均无 graph error、fault、temporal anomaly 或 watchdog，渲染/贴花通过，截图为 0；完整性能失败按暂停范围保留（本场 eval p95 `8.4876 ms`）。现成场景证明普通帧功能与可见角色路径，尚未证明 A01 在受控 20/15/10 FPS 或 hitch 下的真实入口行为。
+
+- [x] **BF124.A01-S3b2 — 真实入口受控帧时间与可核验配置**：开始：2026-09-23 06:04:00 +08:00；预估结束：2026-09-23 06:44:00 +08:00；实际结束：2026-09-23 06:09:23 +08:00；偏差：-34m37s；结果：受控时间入口和可核验证据 Gate 通过。估时依据：一个 Bevy 时间入口、既有 runner 参数/报告结构及同二进制场景基线。拆分结果：多帧率矩阵和单帧 hitch 仍待独立运行。
+
+  runtime 前摘要：本地 Bevy 0.19.1 `TimeUpdateStrategy::ManualDuration` 推进 Real→Virtual，`Time<Virtual>` 默认最多接收 250 ms；只在 `ALS_MANUAL_INTEGRATION_GATE` 已设置时接受参数。example 聚焦自测合法 100 ms、零/负/NaN/inf/非数及 300 ms 均符合预期；runner 300 ms 在创建报告目录之前正确失败且没有启动游戏。旧未设参数的三场原 Playground 功能基线已通过；现在限流重建启动器同目录，随后用固定 60 FPS 的 `moving_base` 公共场景核对机器可读参数和实际时间间隔，未改图/资产/性能阈值。
+
+  固定帧后摘要：同 `target_game/play` 预构建通过；公共 `moving_base` 在 `-FrameDeltaSeconds 0.016666666666666666 -CaptureCount 0 -FunctionalOnly` 下 manual/validator `0/0`、功能通过，668 条 trace 的 667 个相邻实际游戏时间差全部为 `0.016666667±1e-9 s`。runner 的 `frame_delta_seconds` 保存了请求值；未设置参数的先前同场 1073 条 trace 间隔为 `0.0100186–0.0244875 s`，没有被暗中固定。图/fault/temporal/watchdog 为零，渲染/贴花通过；性能仍按原暂停范围延期。配置异常在运行前失败且不创建产物，未改普通手动入口。

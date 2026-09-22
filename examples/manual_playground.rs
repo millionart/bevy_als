@@ -75,6 +75,12 @@ fn main() {
     ));
     if std::env::var_os("ALS_MANUAL_INTEGRATION_GATE").is_some() {
         app.add_plugins((AnimProbePlugin, ManualPlaygroundIntegrationPlugin));
+        if let Ok(raw) = std::env::var("ALS_MANUAL_INTEGRATION_FRAME_DELTA_SECS") {
+            let max_delta = app.world().resource::<Time<Virtual>>().max_delta();
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(
+                parse_gate_frame_delta(&raw, max_delta),
+            ));
+        }
     } else if std::env::var_os("ALS_ANIMATION_VISUAL_EVIDENCE_DIR").is_none() {
         app.insert_resource(bevy_als::show_debug_hud::AlsShowDebugSettingsFile("saved/als_debug.ron".into()));
     }
@@ -127,6 +133,14 @@ fn main() {
     if let AppExit::Error(code) = app.run() {
         std::process::exit(i32::from(code.get()));
     }
+}
+
+fn parse_gate_frame_delta(raw: &str, max_delta: Duration) -> Duration {
+    let seconds = raw.parse::<f64>().expect("gate frame delta must be a number");
+    assert!(seconds.is_finite() && seconds > 0.0, "gate frame delta must be positive and finite");
+    let delta = Duration::from_secs_f64(seconds);
+    assert!(delta <= max_delta, "gate frame delta exceeds the virtual clock maximum");
+    delta
 }
 
 #[derive(Resource, Default)]
@@ -815,6 +829,15 @@ fn character_material_probe(
 mod tests {
     use super::*;
     use bevy::ecs::system::RunSystemOnce;
+
+    #[test]
+    fn gate_frame_delta_is_bounded_by_the_virtual_clock() {
+        let max_delta = Duration::from_millis(250);
+        assert_eq!(parse_gate_frame_delta("0.1", max_delta), Duration::from_millis(100));
+        for invalid in ["0", "-0.1", "NaN", "inf", "bad", "0.3"] {
+            assert!(std::panic::catch_unwind(|| parse_gate_frame_delta(invalid, max_delta)).is_err());
+        }
+    }
 
     #[test]
     fn character_material_probe_ignores_the_independent_camera_scene() {
