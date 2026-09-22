@@ -1906,6 +1906,12 @@ fn snapshot_actual_velocity_system(
     }
 }
 
+pub fn movement_sweep_travel(distance: f32, hit_distance: f32) -> f32 {
+    let pullback = (distance * PULLBACK_PROPORTION).clamp(PULLBACK_MIN_DISTANCE, PULLBACK_MAX_DISTANCE)
+        + distance * PULLBACK_TIME_BIAS;
+    (hit_distance - pullback).max(0.0)
+}
+
 fn follow_movement_base_system(
     In(after_physics): In<bool>,
     time: Res<Time<avian3d::prelude::Physics>>,
@@ -1945,11 +1951,7 @@ fn follow_movement_base_system(
                 let config = ShapeCastConfig { ignore_origin_penetration: true,
                     ..ShapeCastConfig::from_max_distance(distance) };
                 let hit = space.p1().cast_shape(capsule, origin, Quat::IDENTITY, direction, &config, &filter);
-                let applied = *direction * hit.map_or(distance, |hit| {
-                    let pullback = (distance * PULLBACK_PROPORTION).clamp(PULLBACK_MIN_DISTANCE, PULLBACK_MAX_DISTANCE)
-                        + distance * PULLBACK_TIME_BIAS;
-                    (hit.distance - pullback).max(0.0)
-                });
+                let applied = *direction * hit.map_or(distance, |hit| movement_sweep_travel(distance, hit.distance));
                 let mut query = space.p2();
                 let (mut position, mut transform) = query.get_mut(entity).unwrap();
                 position.0 += applied;
@@ -2574,9 +2576,7 @@ fn grounded_step_up_system(
         let mut remaining_delta = delta;
         let mut initial_floor_y = None;
         if let Some(hit) = spatial_query.cast_shape(capsule, center, Quat::IDENTITY, direction, &forward_config, &filter) {
-            let pullback = (distance * PULLBACK_PROPORTION).clamp(PULLBACK_MIN_DISTANCE, PULLBACK_MAX_DISTANCE)
-                + distance * PULLBACK_TIME_BIAS;
-            let advance = *direction * (hit.distance - pullback).max(0.0);
+            let advance = *direction * movement_sweep_travel(distance, hit.distance);
             raised += advance;
             remaining_delta -= advance;
             forward_config.max_distance = remaining_delta.length();

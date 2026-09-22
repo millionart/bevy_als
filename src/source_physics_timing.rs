@@ -1,6 +1,11 @@
 use std::time::Duration;
 
-use avian3d::prelude::PhysicsSystems;
+use als_core::{character::AlsCharacter, state::LocomotionState};
+use avian3d::dynamics::{integrator::IntegrationSystems, solver::solver_body::SolverBody};
+use avian3d::prelude::{
+    Collider, CustomPositionIntegration, PhysicsSystems, Position, ShapeCastConfig,
+    SpatialQuery, SpatialQueryFilter, SubstepCount, SubstepSchedule,
+};
 use bevy::prelude::*;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 
@@ -16,6 +21,9 @@ pub enum SourcePhysicsTimingSet {
 struct SourcePhysicsClockRestore {
     previous: Option<Time>,
 }
+
+#[derive(Component)]
+struct SourceCharacterFullFrame;
 
 pub struct SourcePhysicsTimingPlugin;
 
@@ -36,11 +44,21 @@ impl Plugin for SourcePhysicsTimingPlugin {
             )
             .add_systems(
                 PostUpdate,
-                clamp_source_physics_delta.in_set(SourcePhysicsTimingSet::Clamp),
+                (clamp_source_physics_delta, enable_character_full_frame)
+                    .chain()
+                    .in_set(SourcePhysicsTimingSet::Clamp),
             )
             .add_systems(
                 PostUpdate,
-                restore_source_physics_delta.in_set(SourcePhysicsTimingSet::Restore),
+                (disable_character_full_frame, restore_source_physics_delta)
+                    .chain()
+                    .in_set(SourcePhysicsTimingSet::Restore),
+            )
+            .add_systems(
+                SubstepSchedule,
+                integrate_character_position
+                    .in_set(IntegrationSystems::Position)
+                    .after(avian3d::dynamics::integrator::integrate_positions),
             );
     }
 }
@@ -70,6 +88,51 @@ fn restore_source_physics_delta(
     *clock = previous;
 }
 
+fn enable_character_full_frame(
+    frame_time: Res<Time<Virtual>>,
+    mut commands: Commands,
+    characters: Query<(Entity, &LocomotionState), (With<AlsCharacter>, Without<CustomPositionIntegration>)>,
+) {
+    if frame_time.delta() <= SOURCE_MAX_PHYSICS_DELTA {
+        return;
+    }
+    for (entity, locomotion) in &characters {
+        if matches!(*locomotion, LocomotionState::Grounded | LocomotionState::Air) {
+            commands.entity(entity).insert((CustomPositionIntegration, SourceCharacterFullFrame));
+        }
+    }
+}
+
+fn disable_character_full_frame(
+    mut commands: Commands,
+    characters: Query<Entity, With<SourceCharacterFullFrame>>,
+) {
+    for entity in &characters {
+        commands.entity(entity).remove::<(CustomPositionIntegration, SourceCharacterFullFrame)>();
+    }
+}
+
+fn integrate_character_position(
+    frame_time: Res<Time<Virtual>>,
+    substeps: Res<SubstepCount>,
+    spatial: SpatialQuery,
+    mut characters: Query<(Entity, &mut SolverBody, &Position, &Collider), With<SourceCharacterFullFrame>>,
+) {
+    let frame_step = frame_time.delta_secs() / substeps.0 as f32;
+    for (entity, mut body, position, collider) in &mut characters {
+        let movement = body.linear_velocity * frame_step;
+        let Ok((direction, distance)) = Dir3::new_and_length(movement) else {
+            continue;
+        };
+        let start = position.0 + body.delta_position;
+        let filter = SpatialQueryFilter::from_excluded_entities([entity]);
+        let config = ShapeCastConfig::from_max_distance(distance);
+        let travel = spatial.cast_shape(collider, start, Quat::IDENTITY, direction, &config, &filter)
+            .map_or(distance, |hit| als_core::motion::movement_sweep_travel(distance, hit.distance));
+        body.delta_position += *direction * travel;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -89,7 +152,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "BF124.A01 pending full-frame character integration"]
     fn free_character_motion_consumes_the_full_frame() {
         let mut app = App::new();
         app.add_plugins((
@@ -106,6 +168,7 @@ mod tests {
         app.update();
         let body = app.world_mut().spawn((
             als_core::character::AlsCharacter,
+            LocomotionState::Grounded,
             RigidBody::Dynamic,
             Collider::cuboid(0.2, 0.2, 0.2),
             GravityScale(0.0),
@@ -113,8 +176,114 @@ mod tests {
             LinearVelocity(Vec3::X * 3.75),
             Transform::default(),
         )).id();
+        let rigid = app.world_mut().spawn((
+            RigidBody::Dynamic,
+            Collider::cuboid(0.2, 0.2, 0.2),
+            GravityScale(0.0),
+            Position(Vec3::Y * 3.0),
+            LinearVelocity(Vec3::X * 3.75),
+            Transform::from_xyz(0.0, 3.0, 0.0),
+        )).id();
+        for seconds in [1.0 / 120.0, 1.0 / 60.0, 1.0 / 30.0, 1.0 / 20.0, 1.0 / 15.0, 0.1, 0.2] {
+            let before = app.world().get::<Position>(body).unwrap().0.x;
+            let rigid_before = app.world().get::<Position>(rigid).unwrap().0.x;
+            let delta = Duration::from_secs_f32(seconds);
+            app.insert_resource(TimeUpdateStrategy::ManualDuration(delta));
+            app.update();
+            let actual = app.world().get::<Position>(body).unwrap().0.x - before;
+            let expected = 3.75 * delta.as_secs_f32();
+            assert!((actual - expected).abs() < 1e-4,
+                "full-frame movement at {seconds} s: {actual} != {expected}");
+            assert!(app.world().get::<CustomPositionIntegration>(body).is_none());
+            let rigid_x = app.world().get::<Position>(rigid).unwrap().0.x - rigid_before;
+            let capped = 3.75 * source_physics_delta(delta).as_secs_f32();
+            assert!((rigid_x - capped).abs() < 1e-4,
+                "capped rigid-body movement at {seconds} s: {rigid_x} != {capped}");
+        }
+    }
+
+    #[test]
+    fn full_frame_character_sweep_handles_wall_slide_and_landing() {
+        use als_core::character::{AlsCharacterBundle, AlsCharacterPlugin};
+        use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
+        use als_core::input::AlsInputCommand;
+        use als_core::motion::{AlsMotionPlugin, initial_als_control_scheme_config};
+        use als_core::params::AlsMovementParams;
+        use als_core::transition::AlsStateTransitionPlugin;
+        use bevy_tnua::TnuaControllerPlugin;
+        use bevy_tnua_avian3d::TnuaAvian3dPlugin;
+
+        let mut app = App::new();
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            TransformPlugin,
+            avian3d::prelude::PhysicsPlugins::new(PostUpdate),
+            TnuaAvian3dPlugin::new(Update),
+            TnuaControllerPlugin::<AlsControlScheme>::new(Update),
+            AlsStateTransitionPlugin,
+            AlsCharacterPlugin,
+            AlsMotionPlugin,
+            SourcePhysicsTimingPlugin,
+        ))
+        .init_asset::<Mesh>()
+        .add_message::<bevy::asset::AssetEvent<Mesh>>()
+        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0 / 60.0)));
+        app.finish();
+        let params_value = AlsMovementParams::default();
+        let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(params_value.clone());
+        let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>()
+            .add(initial_als_control_scheme_config(&params_value));
+        let mut bundle = AlsCharacterBundle::new(params, config);
+        bundle.transform.translation = Vec3::Y * 0.924;
+        let character = app.world_mut().spawn(bundle).id();
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(10.0, 0.2, 10.0), Transform::from_xyz(0.0, -0.1, 0.0)));
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.02, 3.0, 2.0), Transform::from_xyz(0.6, 1.5, 0.0)));
+        for _ in 0..30 {
+            app.update();
+        }
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(100)));
+        app.world_mut().get_mut::<avian3d::prelude::LinearVelocity>(character).unwrap().0 = Vec3::X * 3.75;
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = Vec2::X;
         app.update();
-        let actual = app.world().get::<Position>(body).unwrap().0.x;
-        assert!((actual - 0.375).abs() < 1e-4, "full-frame movement: {actual}");
+        let at_wall = app.world().get::<Position>(character).unwrap().0;
+        assert!(at_wall.x > 0.2 && at_wall.x < 0.31 && at_wall.y >= 0.9,
+            "full-frame grounded wall response: {at_wall:?}");
+
+        app.world_mut().get_mut::<avian3d::prelude::LinearVelocity>(character).unwrap().0 = Vec3::new(3.75, 0.0, 3.75);
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = Vec2::new(1.0, -1.0).normalize();
+        app.update();
+        let sliding = app.world().get::<Position>(character).unwrap().0;
+        assert!(sliding.x < 0.31 && sliding.z > at_wall.z + 0.05,
+            "full-frame grounded wall slide stopped: {at_wall:?} -> {sliding:?}");
+
+        let air_wall_start = Vec3::new(sliding.x, 1.5, sliding.z);
+        app.world_mut().get_mut::<Position>(character).unwrap().0 = air_wall_start;
+        app.world_mut().get_mut::<Transform>(character).unwrap().translation = air_wall_start;
+        *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = LocomotionState::Air;
+        app.world_mut().get_mut::<avian3d::prelude::LinearVelocity>(character).unwrap().0 =
+            Vec3::new(3.75, 0.0, 3.75);
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = Vec2::ZERO;
+        app.update();
+        let air_slide = app.world().get::<Position>(character).unwrap().0;
+        assert!(air_slide.x < 0.31 && air_slide.z > air_wall_start.z + 0.05,
+            "full-frame air wall slide stopped: {air_wall_start:?} -> {air_slide:?}");
+
+        let airborne_start = Vec3::new(4.0, 1.2, 0.0);
+        app.world_mut().get_mut::<Position>(character).unwrap().0 = airborne_start;
+        app.world_mut().get_mut::<Transform>(character).unwrap().translation = airborne_start;
+        *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = LocomotionState::Air;
+        app.world_mut().get_mut::<avian3d::prelude::LinearVelocity>(character).unwrap().0 = Vec3::NEG_Y * 3.75;
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = Vec2::ZERO;
+        app.update();
+        let landed = app.world().get::<Position>(character).unwrap().0;
+        assert!(landed.y >= 0.9, "full-frame air landing crossed ground: {landed:?}");
+        for _ in 0..5 {
+            app.update();
+        }
+        let settled = app.world().get::<Position>(character).unwrap().0;
+        let mode = app.world().get::<LocomotionState>(character).unwrap();
+        assert!(settled.y >= 0.9 && settled.y <= 0.96 && *mode == LocomotionState::Grounded,
+            "full-frame air landing did not settle: {settled:?} {mode:?}");
     }
 }
