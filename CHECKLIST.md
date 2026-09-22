@@ -129,3 +129,11 @@
 - [x] **BF124.A01-S2b3 — 移动基座相对运动与动态接触**：开始：2026-09-23 05:35:44 +08:00；预估结束：2026-09-23 06:25:44 +08:00；实际结束：2026-09-23 05:46:16 +08:00；偏差：-39m28s；结果：源/目标与 focused Gate 通过。估时依据：S2b2 的无输入携带反例与现有运动基座/Mantle 夹具。拆分结果：真实 Playground 的可见角色和时钟、动画/root-motion、接触事件仍待 runtime Gate。
 
   本地 UE `MaybeUpdateBasedMovement` 对模拟基座在物理后更新相对位置，`PhysWalking` 仍消费完整角色帧；目标 `support_velocity_from_base` 发布基座接触点速度，`locomotion_velocity` 将其从角色世界速度中分离，`follow_movement_base_system` 已处理封顶物理时间内的基座携带。移动基座上带输入的 100 ms 反例先仅移动相对 `0.1257577 m`；只对相对自驱速度补齐未由 Avian 积分的时间后，相对位移 `0.3772726 m`，与当帧马达/接触后的有效相对速度一致。无输入携带、带输入移动、停止、Kinematic→Dynamic 基座切换及动态接触夹具均通过；普通刚体仍封顶。消融去掉相对补偿复现原失败，改为补整份世界速度则重复计算基座移动。聚焦时钟 3 项及 Mantle 动作返回/移动基座回归通过（`--jobs 2`）；原 Playground 尚未启动。
+
+- [x] **BF124.A01-S3a — 真实 Playground 启动与图姿态基线**：开始：2026-09-23 05:47:26 +08:00；预估结束：2026-09-23 06:32:26 +08:00；实际结束：2026-09-23 05:55:18 +08:00；偏差：-37m08s；结果：公共 startup 功能 Gate 通过，性能预算明确延期。估时依据：S2 的 source/static 与 focused 闭环、既有 startup runner/validator 及同目标目录构建。拆分结果：运动多帧率/卡顿与真实 root-motion、接触事件仍待后续独立 Gate。
+
+  runtime 前摘要：本地 UE CMC/Chaos 时钟、Mantle/Ragdoll 和运动基座源闭包及目标三种模式/基座 focused Gate 已记录于 S1–S2b3；本轮未修改图、转换器或资产。`validate_runtime_graph_asset_boundary.py --check` 无 issue，公共视觉 validator `--self-test` 全项通过；与启动器同目录的 `target_game` 以 `cargo build --profile play --example manual_playground --jobs 2` 通过。当前未通过边界是原 Playground 的可见角色 startup 报告，先运行无驱动 `startup`，不先启动运动用例。
+
+  首次 startup 后摘要：原入口进程退出 0、报告 ready，601 帧 root/姿态、物理单步、时序、渲染/贴花及 watchdog 均无功能 issue；完整验收唯一失败为动画求值 p95 `4.374 ms` 超过原 `4.0 ms` 预算。最近多个旧 startup 报告在本次代码之前已处于约 `4.2–4.6 ms` 同一带宽；归档记录用户明确暂停性能工作并继续使用 `FunctionalOnly`。保留首次完整失败报告和原阈值，不把它改称性能通过；下一次以独立输出目录运行公共 `-FunctionalOnly` startup，再进入运动场景。
+
+  functional startup 后摘要：同一 `target_game/play` 二进制、原 Playground、`CaptureCount=0` 的第二次 runner 为 manual/validator 退出码 `0/0`、`validation_scope=functional`，render effects/decal 均 true；637 帧无图错误、fault、temporal anomaly 或 watchdog 触发，物理每 render 帧一阶。`report.pass=false` 与 `full_pass=false` 仍保留原性能 p95 `4.0843 ms > 4.0 ms`，公共 validator 只给出功能 `pass=true` 和 deferred performance issue；未修改门槛或生产动画图。下一步只沿 A01 时间链建立并运行可见运动场景。
