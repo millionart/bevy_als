@@ -764,6 +764,8 @@ impl Plugin for AlsShowDebugHudPlugin {
                     .after(bevy::text::load_font_assets_into_font_collection).before(bevy::text::detect_text_needs_rerender)
                     .after(crate::actual_motion::AlsActualMotionSet)
                     .after(als_camera::AlsCameraSet).after(als_core::motion::AlsRotationResponseSet)
+                    .before(bevy::camera::visibility::VisibilitySystems::VisibilityPropagate)
+                    .before(bevy::ui::UiSystems::Stack)
                     .before(bevy::ui::UiSystems::Prepare),
             )
             .add_systems(Startup, load_debug_categories)
@@ -842,7 +844,7 @@ fn build_camera_snapshot(
 fn hud_sync_system(
     mut commands: Commands,
     state: Res<AlsShowDebugHudState>,
-    mut root: Local<Option<Entity>>,
+    mut panel: Local<(Option<Entity>, Vec<Entity>)>,
     mut cache: Local<Option<HudCache>>,
     q_character: Query<
         (
@@ -982,16 +984,15 @@ fn hud_sync_system(
     if unchanged {
         return;
     }
-    if let Some(entity) = *root {
-        commands.entity(entity).despawn();
-        *root = None;
-    }
+    let (root, leaves) = &mut *panel;
+    let root = *root.get_or_insert_with(|| spawn_hidden_root(&mut commands));
     match &target {
         HudCache::Shown(blocks, metrics, host) => {
-            *root = Some(spawn_panel_with_host(&mut commands, blocks, *metrics, host));
+            sync_panel_with_host(&mut commands, root, leaves, blocks, *metrics, host);
         }
         HudCache::Hidden => {
-            *root = Some(spawn_hidden_root(&mut commands));
+            commands.entity(root).insert(Visibility::Hidden);
+            for entity in leaves.drain(..) { commands.entity(entity).despawn(); }
         }
     }
     *cache = Some(target);
@@ -1016,11 +1017,14 @@ fn spawn_hidden_root(commands: &mut Commands) -> Entity {
             AlsShowDebugHudRoot,
             Node {
                 position_type: PositionType::Absolute,
-                left: Val::Px(ROOT_OFFSET_PX),
-                top: Val::Px(ROOT_OFFSET_PX),
-                flex_direction: FlexDirection::Column,
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
                 ..default()
             },
+            bevy::ui::LayoutConfig { use_rounding: false },
+            BackgroundColor(Color::linear_rgba(0.0, 0.0, 0.0, 0.2)),
+            GlobalZIndex(20),
+            Pickable::IGNORE,
             Visibility::Hidden,
         ))
         .id()
@@ -1035,19 +1039,33 @@ fn spawn_panel(commands: &mut Commands, blocks: &[DebugBlock], metrics: CanvasMe
             .into_iter().enumerate().map(|(index, text)| (text, linear(1.0, 0.0, 0.0),
                 Vec2::new(4.0 * metrics.canvas_to_ui, 50.0 * metrics.canvas_to_ui + index as f32 * HOST_MAX_CHAR_HEIGHT * 1.15 * metrics.host_scale))).collect(),
     };
-    spawn_panel_with_host(commands, blocks, metrics, &host)
+    let root = spawn_hidden_root(commands);
+    sync_panel_with_host(commands, root, &mut Vec::new(), blocks, metrics, &host);
+    root
 }
 
-fn spawn_panel_with_host(commands: &mut Commands, blocks: &[DebugBlock], metrics: CanvasMetrics, host: &canvas::HostLayout) -> Entity {
-    let root = commands.spawn((AlsShowDebugHudRoot, Node {
-        position_type: PositionType::Absolute, width: Val::Percent(100.0), height: Val::Percent(100.0), ..default()
-    }, bevy::ui::LayoutConfig { use_rounding: false }, BackgroundColor(Color::linear_rgba(0.0, 0.0, 0.0, 0.2)),
-        GlobalZIndex(20), Pickable::IGNORE, Visibility::Visible)).id();
-    commands.entity(root).with_children(|parent| {
+fn sync_panel_with_host(commands: &mut Commands, root: Entity, leaves: &mut Vec<Entity>, blocks: &[DebugBlock], metrics: CanvasMetrics, host: &canvas::HostLayout) {
+    commands.entity(root).insert(Visibility::Visible).with_children(|parent| {
+        let mut previous = std::mem::take(leaves).into_iter();
+        let mut leaf = |text: &str, color: Color, font_px: f32, position: Vec2, weight: FontWeight, name: Option<Name>| {
+            let entity = previous.next().unwrap_or_else(|| parent.spawn_empty().id());
+            let mut commands = parent.commands();
+            let mut entity_commands = commands.entity(entity);
+            entity_commands.insert((
+                Text::new(text),
+                TextFont { font_size: FontSize::Px(font_px), weight, ..default() },
+                TextLayout::new(Justify::Left, bevy::text::LineBreak::NoWrap),
+                TextColor(color),
+                Pickable::IGNORE,
+                TextShadow { offset: Vec2::splat(metrics.canvas_to_ui), color: Color::BLACK },
+                Node { position_type: PositionType::Absolute, left: Val::Px(position.x), top: Val::Px(position.y), ..default() },
+            ));
+            if let Some(name) = name { entity_commands.insert(name); } else { entity_commands.remove::<Name>(); }
+            leaves.push(entity);
+        };
         for (index, (text, color, position)) in host.lines.iter().enumerate() {
-            let entity = spawn_leaf(parent, text, *color, HOST_FONT_PX * metrics.host_scale, *position, metrics.canvas_to_ui);
-            parent.commands().entity(entity).insert((Name::new(if index == 0 { "DebugHostTarget" } else if index == 1 { "DebugHostHelp" } else { "DebugHostIdentity" }),
-                TextFont { font_size: FontSize::Px(HOST_FONT_PX * metrics.host_scale), weight: FontWeight::LIGHT, ..default() }));
+            leaf(text, *color, HOST_FONT_PX * metrics.host_scale, *position, FontWeight::LIGHT,
+                Some(Name::new(if index == 0 { "DebugHostTarget" } else if index == 1 { "DebugHostHelp" } else { "DebugHostIdentity" })));
         }
         let mut y = host.actor_y;
         let scale = metrics.als_scale;
@@ -1055,33 +1073,18 @@ fn spawn_panel_with_host(commands: &mut Commands, blocks: &[DebugBlock], metrics
             for (index, column) in block.iter().enumerate() {
                 for row in column {
                     let position = Vec2::new((ROOT_OFFSET_PX + index as f32 * COLUMN_WIDTH_PX) * scale, y + row.y * scale);
-                    let label = spawn_leaf(parent, &row.label, row.color, row.font_px * scale, position, metrics.canvas_to_ui);
-                    if row.font_px == HEADER_FONT_PX {
-                        parent.commands().entity(label).insert(Name::new(format!("DebugHeader:{}", row.label)));
-                    }
+                    leaf(&row.label, row.color, row.font_px * scale, position, FontWeight::NORMAL,
+                        (row.font_px == HEADER_FONT_PX).then(|| Name::new(format!("DebugHeader:{}", row.label))));
                     if row.label_width_px > 0.0 {
-                        let value = spawn_leaf(parent, &row.value, row.color, row.font_px * scale,
-                            position + Vec2::X * row.label_width_px * scale, metrics.canvas_to_ui);
-                        parent.commands().entity(value).insert(Name::new(row.label.clone()));
+                        leaf(&row.value, row.color, row.font_px * scale,
+                            position + Vec2::X * row.label_width_px * scale, FontWeight::NORMAL, Some(Name::new(row.label.clone())));
                     }
                 }
             }
             y += block_height(block) * scale;
         }
+        for entity in previous { parent.commands().entity(entity).despawn(); }
     });
-    root
-}
-
-fn spawn_leaf(parent: &mut ChildSpawnerCommands, text: &str, color: Color, font_px: f32, position: Vec2, shadow_scale: f32) -> Entity {
-    parent.spawn((
-        Text::new(text),
-        TextFont { font_size: FontSize::Px(font_px), ..default() },
-        TextLayout::new(Justify::Left, bevy::text::LineBreak::NoWrap),
-        TextColor(color),
-        Pickable::IGNORE,
-        TextShadow { offset: Vec2::splat(shadow_scale), color: Color::BLACK },
-        Node { position_type: PositionType::Absolute, left: Val::Px(position.x), top: Val::Px(position.y), ..default() },
-    )).id()
 }
 #[cfg(test)]
 mod tests {
@@ -1104,16 +1107,26 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, bevy::asset::AssetPlugin::default(), bevy::text::TextPlugin, AlsShowDebugHudPlugin))
             .init_resource::<ButtonInput<KeyCode>>();
-        app.world_mut().spawn((AlsCharacter, crate::character_assembly::AlsPlayerCharacter, Name::new("DiagnosticActor"),
+        let actor = app.world_mut().spawn((AlsCharacter, crate::character_assembly::AlsPlayerCharacter, Name::new("DiagnosticActor"),
             GlobalTransform::from_translation(Vec3::new(1.0, 2.0, 3.0)), LocomotionState::Grounded,
             RotationMode::VelocityDirection, Stance::Standing, Gait::Walking, OverlayState::Default,
-            AlsStateRequest::default(), als_core::input::OnFoot));
+            AlsStateRequest::default(), als_core::input::OnFoot)).id();
         *app.world_mut().resource_mut::<AlsShowDebugHudState>() = AlsShowDebugHudState { visible: true, curves: true, state: true, shapes: true, ..default() };
         for _ in 0..4 { app.update(); }
         let labels: Vec<_> = app.world_mut().query::<&Text>().iter(app.world()).map(|text| text.0.clone()).collect();
         assert!(labels.iter().any(|text| text.starts_with("ENTITY DiagnosticActor")));
         assert!(labels.iter().any(|text| text.contains("X=100.00 Y=300.00 Z=200.00")));
         assert!(labels.iter().any(|text| text == "INPUT CONTEXT OnFoot"));
+        let root = app.world_mut().query_filtered::<Entity, With<AlsShowDebugHudRoot>>().single(app.world()).unwrap();
+        let leaves = app.world().get::<Children>(root).unwrap().to_vec();
+        for x in [2.0, 3.0] {
+            app.world_mut().entity_mut(actor).insert(GlobalTransform::from_translation(Vec3::new(x, 2.0, 3.0)));
+            app.update();
+            assert_eq!(app.world_mut().query_filtered::<Entity, With<AlsShowDebugHudRoot>>().single(app.world()).unwrap(), root);
+            assert_eq!(app.world().get::<Children>(root).unwrap().to_vec(), leaves);
+            let expected = format!("X={:.2} Y=300.00 Z=200.00", x * 100.0);
+            assert!(app.world_mut().query::<&Text>().iter(app.world()).any(|text| text.0.contains(&expected)));
+        }
         assert!(app.world().resource::<canvas::ColumnNavigation>().max_columns > 0);
         app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::ShiftRight);
         app.update();
