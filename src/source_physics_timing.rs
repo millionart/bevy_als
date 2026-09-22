@@ -1,9 +1,9 @@
 use std::time::Duration;
 
-use als_core::{character::AlsCharacter, state::LocomotionState};
+use als_core::{character::AlsCharacter, state::{AlsNotifyLocomotionAction, LocomotionState}};
 use avian3d::dynamics::{integrator::IntegrationSystems, solver::solver_body::SolverBody};
 use avian3d::prelude::{
-    Collider, CustomPositionIntegration, PhysicsSystems, Position, ShapeCastConfig,
+    Collider, CustomPositionIntegration, PhysicsSystems, Position, RigidBody, ShapeCastConfig,
     SpatialQuery, SpatialQueryFilter, SubstepCount, SubstepSchedule,
 };
 use bevy::prelude::*;
@@ -91,13 +91,19 @@ fn restore_source_physics_delta(
 fn enable_character_full_frame(
     frame_time: Res<Time<Virtual>>,
     mut commands: Commands,
-    characters: Query<(Entity, &LocomotionState), (With<AlsCharacter>, Without<CustomPositionIntegration>)>,
+    characters: Query<(Entity, &LocomotionState, &RigidBody, Option<&AlsNotifyLocomotionAction>,
+        Option<&als_core::dynamics::AlsMovementBaseDynamicsState>),
+        (With<AlsCharacter>, Without<CustomPositionIntegration>)>,
 ) {
     if frame_time.delta() <= SOURCE_MAX_PHYSICS_DELTA {
         return;
     }
-    for (entity, locomotion) in &characters {
-        if matches!(*locomotion, LocomotionState::Grounded | LocomotionState::Air) {
+    for (entity, locomotion, body, action, base) in &characters {
+        if base.is_some_and(|base| base.entity.is_some() && base.support_velocity.length_squared() > 0.0) {
+            continue;
+        }
+        if *body == RigidBody::Dynamic && action != Some(&AlsNotifyLocomotionAction::Ragdolling)
+            && matches!(*locomotion, LocomotionState::Grounded | LocomotionState::Air) {
             commands.entity(entity).insert((CustomPositionIntegration, SourceCharacterFullFrame));
         }
     }
@@ -184,9 +190,33 @@ mod tests {
             LinearVelocity(Vec3::X * 3.75),
             Transform::from_xyz(0.0, 3.0, 0.0),
         )).id();
+        let ragdoll = app.world_mut().spawn((
+            als_core::character::AlsCharacter,
+            LocomotionState::Grounded,
+            als_core::state::AlsNotifyLocomotionAction::Ragdolling,
+            RigidBody::Kinematic,
+            Collider::cuboid(0.2, 0.2, 0.2),
+            GravityScale(0.0),
+            Position(Vec3::Y * 6.0),
+            LinearVelocity(Vec3::X * 3.75),
+            Transform::from_xyz(0.0, 6.0, 0.0),
+        )).id();
+        let ragdoll_pending = app.world_mut().spawn((
+            als_core::character::AlsCharacter,
+            LocomotionState::Grounded,
+            als_core::state::AlsNotifyLocomotionAction::Ragdolling,
+            RigidBody::Dynamic,
+            Collider::cuboid(0.2, 0.2, 0.2),
+            GravityScale(0.0),
+            Position(Vec3::Y * 9.0),
+            LinearVelocity(Vec3::X * 3.75),
+            Transform::from_xyz(0.0, 9.0, 0.0),
+        )).id();
         for seconds in [1.0 / 120.0, 1.0 / 60.0, 1.0 / 30.0, 1.0 / 20.0, 1.0 / 15.0, 0.1, 0.2] {
             let before = app.world().get::<Position>(body).unwrap().0.x;
             let rigid_before = app.world().get::<Position>(rigid).unwrap().0.x;
+            let ragdoll_before = app.world().get::<Position>(ragdoll).unwrap().0.x;
+            let pending_before = app.world().get::<Position>(ragdoll_pending).unwrap().0.x;
             let delta = Duration::from_secs_f32(seconds);
             app.insert_resource(TimeUpdateStrategy::ManualDuration(delta));
             app.update();
@@ -199,6 +229,27 @@ mod tests {
             let capped = 3.75 * source_physics_delta(delta).as_secs_f32();
             assert!((rigid_x - capped).abs() < 1e-4,
                 "capped rigid-body movement at {seconds} s: {rigid_x} != {capped}");
+            let ragdoll_x = app.world().get::<Position>(ragdoll).unwrap().0.x - ragdoll_before;
+            assert!((ragdoll_x - capped).abs() < 1e-4,
+                "ragdoll capsule inherited full-frame character movement at {seconds} s: {ragdoll_x} != {capped}");
+            let pending_x = app.world().get::<Position>(ragdoll_pending).unwrap().0.x - pending_before;
+            assert!((pending_x - capped).abs() < 1e-4,
+                "ragdoll entry inherited full-frame character movement at {seconds} s: {pending_x} != {capped}");
+        }
+        app.world_mut().entity_mut(ragdoll).insert((
+            RigidBody::Dynamic,
+            als_core::state::AlsNotifyLocomotionAction::None,
+        ));
+        app.world_mut().entity_mut(ragdoll_pending)
+            .insert(als_core::state::AlsNotifyLocomotionAction::None);
+        let exited_x = app.world().get::<Position>(ragdoll).unwrap().0.x;
+        let pending_x = app.world().get::<Position>(ragdoll_pending).unwrap().0.x;
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(100)));
+        app.update();
+        for (entity, before) in [(ragdoll, exited_x), (ragdoll_pending, pending_x)] {
+            let moved = app.world().get::<Position>(entity).unwrap().0.x - before;
+            assert!((moved - 0.375).abs() < 1e-4, "ragdoll exit did not restore full-frame movement: {moved}");
+            assert!(app.world().get::<CustomPositionIntegration>(entity).is_none());
         }
     }
 

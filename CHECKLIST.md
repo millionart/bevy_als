@@ -115,3 +115,13 @@
 - [x] **BF124.A01-S2b1 — Grounded/Air 整帧角色积分与接触**：开始：2026-09-23 04:20:48 +08:00；预估结束：2026-09-23 05:10:48 +08:00；实际结束：2026-09-23 05:22:25 +08:00；偏差：+11m37s；结果：focused Gate 通过。估时依据：S2a 的两个已通过原型及一个角色束/一个物理调度点。拆分结果：Custom/Ragdoll、动态接触组合及真实 Playground 继续独立验收。
 
   本地 UE `PhysFalling` 命中后按剩余时间沿表面继续移动，`PrimitiveComponent::PullBackHit` 留出扫掠余量；复用既有 `als-core` 扫掠公式，未新增另一套阈值。长帧仅为尚未被别的系统接管的 Grounded/Air 角色临时持有 `CustomPositionIntegration`，逐子步按完整帧位移扫掠，物理结束归还；短帧和普通刚体保持原 Avian 积分与 `1/30` 封顶。最小反例解除 ignored 后先以 `0.124999985 m` 失败；修复后 120/60/30/20/15/10 FPS 与 200 ms hitch 的自由位移及普通刚体封顶通过。实际 ALS 马达夹具覆盖地面墙阻/沿墙移动、空中沿墙移动、落地后五帧收敛；Playground 楼梯/移动平台 3 项、Mantle 时钟/临时位置所有权 1 项、运动基座 1 项均通过（Cargo `--jobs 2`）。消融确认：去掉扫掠会穿墙/穿地；去掉源端余量会出现落地微穿透；永久接管破坏 Mantle，保留默认积分再补余量仍会穿地。尚未运行真实 Playground；动态接触、动作模式和可见角色时钟留给后续 Gate。
+
+- [x] **BF124.A01-S2b2 — Custom/Ragdoll 时间与积分所有权**：开始：2026-09-23 05:23:22 +08:00；预估结束：2026-09-23 06:03:22 +08:00；实际结束：2026-09-23 05:34:29 +08:00；偏差：-28m53s；结果：模式所有权 Gate 通过。估时依据：S2b1 已限制临时所有权，复用 Mantle 多配置夹具和 Ragdoll 生命周期测试。拆分结果：运动基座上角色的相对速度长帧补偿、动态接触与真实 Playground 独立验收。
+
+  | 模式 | 本地源端 | 当前目标所有权 |
+  |---|---|---|
+  | Grounded/Air 普通运动 | CMC 使用完整帧并扫掠 | 仅 Dynamic、无 Ragdolling 动作及既有位置接管时临时使用整帧积分 |
+  | Mantle/Custom | `PhysCustom` 完整 Delta 且不扫掠；动作自身驱动根位移 | `mantle_drive_system` 逐帧写位置并持有 `CustomPositionIntegration`，时钟适配器不重复接管 |
+  | Ragdoll | 胶囊禁用碰撞，物理 mesh 使用封顶 Chaos 时间，胶囊跟随 pelvis | 主胶囊切 Kinematic、Tnua 禁用；即便状态仍是 Grounded，Ragdolling 动作也禁止整帧积分 |
+
+  Ragdoll 入口最小反例先以 `0.18749999 m` 失败（应为封顶 `0.12499999 m`），按 body/action 双条件修复后，退出并恢复 Dynamic/None 的下一长帧又回到 `0.375 m`。Mantle 结束时的移动基座回归揭示 support velocity 不可按角色整帧重复积分：无基座区分会产生 `0.05 m` 水平相对误差；临时跳过带非零 support velocity 的角色后恢复通过。此分支消融有明确失败边界，基座上的相对自驱运动仍待下一项补齐。聚焦时钟 3 项、Mantle 两项及 Ragdoll 退出一项通过，均使用 `--jobs 2`；未启动真实 Playground。
