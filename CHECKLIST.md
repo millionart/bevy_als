@@ -125,3 +125,7 @@
   | Ragdoll | 胶囊禁用碰撞，物理 mesh 使用封顶 Chaos 时间，胶囊跟随 pelvis | 主胶囊切 Kinematic、Tnua 禁用；即便状态仍是 Grounded，Ragdolling 动作也禁止整帧积分 |
 
   Ragdoll 入口最小反例先以 `0.18749999 m` 失败（应为封顶 `0.12499999 m`），按 body/action 双条件修复后，退出并恢复 Dynamic/None 的下一长帧又回到 `0.375 m`。Mantle 结束时的移动基座回归揭示 support velocity 不可按角色整帧重复积分：无基座区分会产生 `0.05 m` 水平相对误差；临时跳过带非零 support velocity 的角色后恢复通过。此分支消融有明确失败边界，基座上的相对自驱运动仍待下一项补齐。聚焦时钟 3 项、Mantle 两项及 Ragdoll 退出一项通过，均使用 `--jobs 2`；未启动真实 Playground。
+
+- [x] **BF124.A01-S2b3 — 移动基座相对运动与动态接触**：开始：2026-09-23 05:35:44 +08:00；预估结束：2026-09-23 06:25:44 +08:00；实际结束：2026-09-23 05:46:16 +08:00；偏差：-39m28s；结果：源/目标与 focused Gate 通过。估时依据：S2b2 的无输入携带反例与现有运动基座/Mantle 夹具。拆分结果：真实 Playground 的可见角色和时钟、动画/root-motion、接触事件仍待 runtime Gate。
+
+  本地 UE `MaybeUpdateBasedMovement` 对模拟基座在物理后更新相对位置，`PhysWalking` 仍消费完整角色帧；目标 `support_velocity_from_base` 发布基座接触点速度，`locomotion_velocity` 将其从角色世界速度中分离，`follow_movement_base_system` 已处理封顶物理时间内的基座携带。移动基座上带输入的 100 ms 反例先仅移动相对 `0.1257577 m`；只对相对自驱速度补齐未由 Avian 积分的时间后，相对位移 `0.3772726 m`，与当帧马达/接触后的有效相对速度一致。无输入携带、带输入移动、停止、Kinematic→Dynamic 基座切换及动态接触夹具均通过；普通刚体仍封顶。消融去掉相对补偿复现原失败，改为补整份世界速度则重复计算基座移动。聚焦时钟 3 项及 Mantle 动作返回/移动基座回归通过（`--jobs 2`）；原 Playground 尚未启动。

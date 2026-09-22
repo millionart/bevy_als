@@ -3,7 +3,7 @@ use std::time::Duration;
 use als_core::{character::AlsCharacter, state::{AlsNotifyLocomotionAction, LocomotionState}};
 use avian3d::dynamics::{integrator::IntegrationSystems, solver::solver_body::SolverBody};
 use avian3d::prelude::{
-    Collider, CustomPositionIntegration, PhysicsSystems, Position, RigidBody, ShapeCastConfig,
+    Collider, CustomPositionIntegration, Physics, PhysicsSystems, Position, RigidBody, ShapeCastConfig,
     SpatialQuery, SpatialQueryFilter, SubstepCount, SubstepSchedule,
 };
 use bevy::prelude::*;
@@ -120,13 +120,29 @@ fn disable_character_full_frame(
 
 fn integrate_character_position(
     frame_time: Res<Time<Virtual>>,
+    physics_time: Res<Time<Physics>>,
     substeps: Res<SubstepCount>,
     spatial: SpatialQuery,
-    mut characters: Query<(Entity, &mut SolverBody, &Position, &Collider), With<SourceCharacterFullFrame>>,
+    mut characters: Query<(Entity, &mut SolverBody, &Position, &Collider, &LocomotionState,
+        Option<&AlsNotifyLocomotionAction>, &RigidBody, Option<&als_core::dynamics::AlsMovementBaseDynamicsState>,
+        Has<SourceCharacterFullFrame>, Has<CustomPositionIntegration>), With<AlsCharacter>>,
 ) {
+    if frame_time.delta() <= SOURCE_MAX_PHYSICS_DELTA {
+        return;
+    }
     let frame_step = frame_time.delta_secs() / substeps.0 as f32;
-    for (entity, mut body, position, collider) in &mut characters {
-        let movement = body.linear_velocity * frame_step;
+    let extra_step = (frame_time.delta_secs() - physics_time.delta_secs()) / substeps.0 as f32;
+    for (entity, mut body, position, collider, locomotion, action, rigid_body, base, full_frame, custom_position) in &mut characters {
+        let movement = if full_frame {
+            body.linear_velocity * frame_step
+        } else if !custom_position && extra_step > 0.0 && *rigid_body == RigidBody::Dynamic
+            && *locomotion == LocomotionState::Grounded
+            && action != Some(&AlsNotifyLocomotionAction::Ragdolling)
+            && base.is_some_and(|base| base.entity.is_some() && base.support_velocity.length_squared() > 0.0) {
+            als_core::dynamics::locomotion_velocity(body.linear_velocity, *locomotion, base) * extra_step
+        } else {
+            continue;
+        };
         let Ok((direction, distance)) = Dir3::new_and_length(movement) else {
             continue;
         };
@@ -336,5 +352,76 @@ mod tests {
         let mode = app.world().get::<LocomotionState>(character).unwrap();
         assert!(settled.y >= 0.9 && settled.y <= 0.96 && *mode == LocomotionState::Grounded,
             "full-frame air landing did not settle: {settled:?} {mode:?}");
+
+        let platform = app.world_mut().spawn((
+            RigidBody::Kinematic,
+            Collider::cuboid(4.0, 0.5, 4.0),
+            Transform::from_xyz(4.0, 2.0, 0.0),
+        )).id();
+        let platform_start = Vec3::new(4.0, 3.174, 0.0);
+        app.world_mut().get_mut::<Position>(character).unwrap().0 = platform_start;
+        app.world_mut().get_mut::<Transform>(character).unwrap().translation = platform_start;
+        app.world_mut().get_mut::<avian3d::prelude::LinearVelocity>(character).unwrap().0 = Vec3::ZERO;
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0 / 60.0)));
+        for _ in 0..30 {
+            app.update();
+        }
+        let base = app.world().get::<als_core::dynamics::AlsMovementBaseDynamicsState>(character).unwrap();
+        assert_eq!(base.entity, Some(platform));
+        app.world_mut().get_mut::<avian3d::prelude::LinearVelocity>(platform).unwrap().0 = Vec3::X;
+        app.world_mut().get_mut::<avian3d::prelude::LinearVelocity>(character).unwrap().0 = Vec3::X;
+        let carried_before = app.world().get::<Position>(character).unwrap().x
+            - app.world().get::<Position>(platform).unwrap().x;
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(100)));
+        app.update();
+        let carried_after = app.world().get::<Position>(character).unwrap().x
+            - app.world().get::<Position>(platform).unwrap().x;
+        assert!((carried_after - carried_before).abs() < 1e-3,
+            "moving base changed idle character offset: {carried_before} -> {carried_after}");
+
+        app.world_mut().get_mut::<avian3d::prelude::LinearVelocity>(character).unwrap().0 = Vec3::X * 4.75;
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = Vec2::X;
+        let offset_before = app.world().get::<Position>(character).unwrap().x
+            - app.world().get::<Position>(platform).unwrap().x;
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(100)));
+        app.update();
+        let offset_after = app.world().get::<Position>(character).unwrap().x
+            - app.world().get::<Position>(platform).unwrap().x;
+        let relative_motion = offset_after - offset_before;
+        let base = app.world().get::<als_core::dynamics::AlsMovementBaseDynamicsState>(character).unwrap();
+        let velocity = app.world().get::<avian3d::prelude::LinearVelocity>(character).unwrap().0;
+        let expected = (velocity.x - base.support_velocity.x) * 0.1;
+        assert!((relative_motion - expected).abs() < 1e-3,
+            "full-frame movement relative to moving base: {relative_motion} != {expected}");
+
+        app.world_mut().get_mut::<avian3d::prelude::LinearVelocity>(character).unwrap().0 = Vec3::X;
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = Vec2::ZERO;
+        app.update();
+        let stopped_offset = app.world().get::<Position>(character).unwrap().x
+            - app.world().get::<Position>(platform).unwrap().x;
+        assert!((stopped_offset - offset_after).abs() < 1e-3,
+            "moving base changed stopped character offset: {offset_after} -> {stopped_offset}");
+
+        app.world_mut().entity_mut(platform).insert((
+            RigidBody::Dynamic,
+            avian3d::prelude::GravityScale(0.0),
+            avian3d::prelude::LockedAxes::ROTATION_LOCKED,
+        ));
+        app.world_mut().get_mut::<avian3d::prelude::LinearVelocity>(platform).unwrap().0 = Vec3::X;
+        app.world_mut().get_mut::<avian3d::prelude::LinearVelocity>(character).unwrap().0 = Vec3::X;
+        app.update();
+        let dynamic_offset = app.world().get::<Position>(character).unwrap().x
+            - app.world().get::<Position>(platform).unwrap().x;
+        assert!((dynamic_offset - stopped_offset).abs() < 1e-2,
+            "simulated moving base changed idle character offset: {stopped_offset} -> {dynamic_offset}");
+        app.world_mut().get_mut::<avian3d::prelude::LinearVelocity>(character).unwrap().0 = Vec3::X * 4.75;
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = Vec2::X;
+        app.update();
+        let dynamic_moved = app.world().get::<Position>(character).unwrap().x
+            - app.world().get::<Position>(platform).unwrap().x - dynamic_offset;
+        let dynamic_velocity = app.world().get::<avian3d::prelude::LinearVelocity>(character).unwrap().x
+            - app.world().get::<avian3d::prelude::LinearVelocity>(platform).unwrap().x;
+        assert!((dynamic_moved - dynamic_velocity * 0.1).abs() < 1e-2,
+            "full-frame movement relative to simulated base: {dynamic_moved} != {}", dynamic_velocity * 0.1);
     }
 }
