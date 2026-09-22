@@ -73,6 +73,8 @@ fn restore_source_physics_delta(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use avian3d::prelude::{Collider, GravityScale, LinearVelocity, Position, RigidBody};
+    use bevy::time::TimeUpdateStrategy;
 
     #[test]
     fn source_physics_delta_is_a_per_frame_cap_not_a_fixed_timestep() {
@@ -84,5 +86,35 @@ mod tests {
             source_physics_delta(Duration::from_millis(50)),
             SOURCE_MAX_PHYSICS_DELTA
         );
+    }
+
+    #[test]
+    #[ignore = "BF124.A01 pending full-frame character integration"]
+    fn free_character_motion_consumes_the_full_frame() {
+        let mut app = App::new();
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            TransformPlugin,
+            avian3d::prelude::PhysicsPlugins::new(PostUpdate),
+            SourcePhysicsTimingPlugin,
+        ))
+        .init_asset::<Mesh>()
+        .add_message::<bevy::asset::AssetEvent<Mesh>>()
+        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(100)));
+        app.finish();
+        app.update();
+        let body = app.world_mut().spawn((
+            als_core::character::AlsCharacter,
+            RigidBody::Dynamic,
+            Collider::cuboid(0.2, 0.2, 0.2),
+            GravityScale(0.0),
+            Position(Vec3::ZERO),
+            LinearVelocity(Vec3::X * 3.75),
+            Transform::default(),
+        )).id();
+        app.update();
+        let actual = app.world().get::<Position>(body).unwrap().0.x;
+        assert!((actual - 0.375).abs() < 1e-4, "full-frame movement: {actual}");
     }
 }
