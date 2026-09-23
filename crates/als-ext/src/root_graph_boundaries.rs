@@ -50,6 +50,7 @@ pub struct RigInputBinding {
 
 #[derive(Clone, Debug)]
 struct ControlRigRuntime {
+    definition: RigDefinition,
     hierarchy: RigHierarchy,
     values: Vec<RigValue>,
     curves: HashMap<String, f32>,
@@ -216,8 +217,10 @@ impl ControlRigBoundaryNode {
         state.to_world = to_world;
         state.calls.clear();
         state.traces.clear();
-        if state.runtime.is_none() {
+        let rebuild = state.runtime.as_ref().is_none_or(|runtime| runtime.definition != *definition);
+        if rebuild {
             state.runtime = Some(ControlRigRuntime {
+                definition: definition.clone(),
                 hierarchy: RigHierarchy::new(
                     definition.bones.clone(),
                     definition.translation_tolerance,
@@ -291,7 +294,7 @@ impl ControlRigBoundaryNode {
                     )
                 })
         };
-        if state.initialization_count == 0 {
+        if rebuild {
             execute(runtime, "Construction")?;
             state.initialization_count += 1;
         }
@@ -554,7 +557,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "A39 changing a RigDefinition on the same node must rebuild VM values and hierarchy"]
     fn control_rig_hot_swap_rebuilds_values_and_hierarchy() {
         let mut definition = hot_swap_definition();
         let node = ControlRigBoundaryNode { transfer_input_pose: false, transfer_input_curves: false, ..default() };
@@ -564,6 +566,9 @@ mod tests {
         node.solve(&definition, &mut state, &mut pose, &skeleton, &[], false, 1.0 / 60.0,
             RigTransform::default(), None, false).unwrap();
         assert_eq!(state.value(&RigValueRef { register: 0, path: vec![] }).unwrap(), RigValue::F32(1.0));
+        node.solve(&definition, &mut state, &mut pose, &skeleton, &[], false, 1.0 / 60.0,
+            RigTransform::default(), None, false).unwrap();
+        assert_eq!(state.initialization_count, 1);
         let source: RigDefinition = serde_json::from_str(include_str!(
             "../../../assets/control_rigs/cr_als.program.json"
         )).unwrap();
@@ -578,7 +583,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "A39 changing a RigDefinition register layout must rebuild its VM memory"]
     fn control_rig_hot_swap_rebuilds_register_layout() {
         let mut definition = hot_swap_definition();
         let node = ControlRigBoundaryNode { transfer_input_pose: false, transfer_input_curves: false, ..default() };

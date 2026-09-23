@@ -128,7 +128,7 @@ pub struct RigProgram {
     pub instructions: Vec<RigInstruction>,
 }
 
-#[derive(Reflect, Clone, Debug, Serialize, Deserialize)]
+#[derive(Reflect, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RigDefinition {
     pub program: RigProgram,
     pub externals: BTreeMap<String, RigValueRef>,

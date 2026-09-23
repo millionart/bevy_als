@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::control_rig_hierarchy::{RigTransform, rig_normalize};
 
-#[derive(Reflect, Clone, Debug, Serialize, Deserialize)]
+#[derive(Reflect, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RigGeometry {
     pub near_zero: f64,
     pub normalize_squared: f64,
