@@ -2946,6 +2946,7 @@ struct IntegrationCoverage {
     crouch_air_landed: bool,
     crouch_graph_recovered: bool,
     crouch_cycles: bool,
+    crouch_scaled: bool,
     crouch_canopy_visible: bool,
     crouch_canopy_blocked: bool,
     crouch_canopy_recovered: bool,
@@ -4831,7 +4832,7 @@ fn drive_manual_integration(
                 let recovery_start = params_assets
                     .get(params_handle.id())
                     .map(|params| {
-                        stance_center_from_standing_center(params, standing_center, *stance)
+                        stance_center_from_standing_center(params, standing_center, *stance, transform.scale.abs().min_element())
                     })
                     .unwrap_or(standing_center);
                 reset_character(
@@ -4896,11 +4897,14 @@ fn drive_manual_integration(
         IntegrationPhase::CrouchClearance => {
             if entering {
                 cleanup_crouch_canopy(&mut commands, &mut state);
+                transform.scale = Vec3::splat(2.0);
                 let standing_center = state.spawn_translation.unwrap_or(fixture.locomotion_start);
                 let clearance_start = params_assets
                     .get(params_handle.id())
                     .map(|params| {
-                        stance_center_from_standing_center(params, standing_center, *stance)
+                        let scale = transform.scale.abs().min_element();
+                        let standing_center = standing_center + Vec3::Y * params.crouch.standing_capsule_half_height * (scale - 1.0);
+                        stance_center_from_standing_center(params, standing_center, *stance, scale)
                     })
                     .unwrap_or(standing_center);
                 reset_character(
@@ -4925,6 +4929,7 @@ fn drive_manual_integration(
                 state.crouch_canopy_prepare_at = None;
                 state.crouch_canopy_armed_at = None;
                 state.coverage.crouch_cycles = false;
+                state.coverage.crouch_scaled = false;
                 state.coverage.crouch_canopy_visible = false;
                 state.coverage.crouch_canopy_blocked = false;
                 state.coverage.crouch_canopy_recovered = false;
@@ -4987,7 +4992,9 @@ fn drive_manual_integration(
                     let canopy_start = params_assets
                         .get(params_handle.id())
                         .map(|params| {
-                            stance_center_from_standing_center(params, standing_center, *stance)
+                            let scale = transform.scale.abs().min_element();
+                            let standing_center = standing_center + Vec3::Y * params.crouch.standing_capsule_half_height * (scale - 1.0);
+                            stance_center_from_standing_center(params, standing_center, *stance, scale)
                         })
                         .unwrap_or(standing_center);
                     reset_character_without_rotation(
@@ -5029,7 +5036,7 @@ fn drive_manual_integration(
                 }
                 CrouchClearanceStage::ArmCanopy => {
                     if let Some(params) = params_assets.get(params_handle.id()) {
-                        let crouched_half_height = params.crouch.crouched_capsule_half_height;
+                        let crouched_half_height = params.crouch.crouched_capsule_half_height * transform.scale.abs().min_element();
                         let base_y = transform.translation.y - crouched_half_height;
                         let canopy_bottom = base_y + crouched_half_height * 2.0 + 0.08;
                         let canopy_center = Vec3::new(
@@ -5081,16 +5088,15 @@ fn drive_manual_integration(
                 }
                 CrouchClearanceStage::MoveAway => {
                     input.0.move_dir = Vec2::X;
-                    if state.crouch_canopy_center.is_some_and(|canopy_center| {
-                        let offset = transform.translation - canopy_center;
-                        Vec2::new(offset.x, offset.z).length() > 1.65
-                    }) {
+                    if state.coverage.crouch_canopy_recovered {
                         state.crouch_clearance_stage = CrouchClearanceStage::AwaitRecovery;
                     }
                 }
                 CrouchClearanceStage::AwaitRecovery => {
                     if state.coverage.crouch_canopy_recovered {
                         cleanup_crouch_canopy(&mut commands, &mut state);
+                        transform.scale = Vec3::ONE;
+                        rebase_temporal_fixture(&mut state, &mut phase_evidence, "crouch_scaled_exit");
                         begin_phase(&mut state, IntegrationPhase::CrouchDirectionRegression);
                     }
                 }
@@ -6049,9 +6055,10 @@ fn stance_center_from_standing_center(
     params: &AlsMovementParams,
     standing_center: Vec3,
     stance: Stance,
+    effective_scale: f32,
 ) -> Vec3 {
     let target_half_height = if stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height };
-    standing_center + Vec3::Y * (target_half_height - params.crouch.standing_capsule_half_height)
+    standing_center + Vec3::Y * (target_half_height - params.crouch.standing_capsule_half_height) * effective_scale
 }
 
 fn begin_phase(state: &mut ManualIntegrationState, phase: IntegrationPhase) {
@@ -6578,6 +6585,9 @@ fn observe_manual_integration(
     let crouching_graph = motion_probe.crouching_graph.get(character).ok();
     let grounded_graph = motion_probe.grounded.get(character).ok();
     let crouch_transaction = motion_probe.crouch.get(character).ok();
+    state.coverage.crouch_scaled |= state.phase == IntegrationPhase::CrouchClearance
+        && state.coverage.crouch_canopy_blocked
+        && transform.scale.abs().min_element() > 1.99;
     if matches!(
         state.scenario,
         IntegrationScenario::Base | IntegrationScenario::StateMachine
@@ -9649,6 +9659,7 @@ fn observe_manual_integration(
                 ("crouch_air_landed", coverage.crouch_air_landed),
                 ("crouch_graph_recovered", coverage.crouch_graph_recovered),
                 ("crouch_cycles_100", coverage.crouch_cycles),
+                ("crouch_scaled", coverage.crouch_scaled),
                 ("crouch_canopy_visible", coverage.crouch_canopy_visible),
                 ("crouch_canopy_blocked", coverage.crouch_canopy_blocked),
                 ("crouch_canopy_recovered", coverage.crouch_canopy_recovered),
@@ -10149,6 +10160,23 @@ fn observe_manual_integration(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn scaled_crouch_clearance_preserves_floor_and_canopy_gap() {
+        use super::stance_center_from_standing_center;
+        use als_core::{params::AlsMovementParams, state::Stance};
+        use bevy::prelude::Vec3;
+        let params = AlsMovementParams::default();
+        let standing_half = params.crouch.standing_capsule_half_height;
+        let crouched_half = params.crouch.crouched_capsule_half_height;
+        let standing_center = Vec3::Y * (standing_half * 2.0 + 0.02);
+        let crouched_center = stance_center_from_standing_center(&params, standing_center, Stance::Crouching, 2.0);
+        let floor = crouched_center.y - crouched_half * 2.0;
+        let canopy_bottom = floor + crouched_half * 4.0 + 0.08;
+        assert!((floor - 0.02).abs() < 1e-6);
+        assert!((canopy_bottom - (crouched_center.y + crouched_half * 2.0) - 0.08).abs() < 1e-6);
+        assert!(canopy_bottom < standing_center.y + standing_half * 2.0);
+    }
+
     #[test]
     fn camera_movement_probe_rejects_control_and_current_frame_substitution() {
         use super::CameraMovementProbe;
