@@ -493,3 +493,5 @@
   `startup` 后、完整 Playground 前摘要：同入口 `target_game/play` 限流构建成功，无驱动 `startup` 公共功能 Gate 通过，图错误/故障/时间异常/watchdog 0；PlayerStart/Admission 实际入口未被新 SystemSet 阻断。下一步同一二进制运行原 `base` 场景，审计自动场景必需结果、姿态与后续地形/角色/相机链路。
 
   runtime 最终完成摘要：同一二进制原 Playground `base` runner/manual/validator 退出码 0，51/51 必需结果、1,342 pose samples，graph error/fault/temporal/watchdog 0；先前无驱动 `startup` 功能亦通过。原地形、环境、可见角色与相机保留，入场排序/占用变化没有破坏后续动作链。完整性能预算延期；同批多角色与占位边界由真实物理/GameMode focused red→green、三处消融判别。
+
+- [x] **BF124.A16 — PlayerStart 正确感知角色占用并预留同批空间**：开始：2026-09-23 16:23:25 +08:00；预估结束：2026-09-23 16:38:25 +08:00；实际结束：2026-09-23 16:23:25 +08:00；偏差：-15m00s；结果：S1 fresh UE GameMode/Pawn 源事实与两条 red、S2 当前 Pawn 占用/失稳 Ready/同批邻近调整、S3 原 Playground Gate 各自通过并提交（`215a263`、`bb0af64`、`6d2a9e3`）。Ground snap 继续忽略角色，出生胶囊查询使用 Pawn 阻挡；新 fit 未稳定时撤下旧 Ready，GameMode 排在准备之后；同批每笔预留胶囊并以源八方向候选和真实 SpatialQuery 验证，tag 不改投、无空间明确失败。core 6/6、项目单/双/命名/阻塞四情形 green，旧角色排除、无预留、旧 Ready 三处消融各自 red；原 Playground `startup`、`base` 51/51、1,342 pose samples，图错误/故障/时间异常/watchdog 0。完整性能预算延期。估时依据：仅核对 S1–S3 验收和提交；拆分结果：A16 无剩余功能 Gate，A17 为下一项。
