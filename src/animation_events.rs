@@ -969,6 +969,31 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore = "A32 source mismatch fixture"]
+    fn sprint_camera_shakes_require_evaluated_graph_samples() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default()))
+            .init_asset::<AlsNotifyManifest>();
+        let manifest: AlsNotifyManifest = serde_json::from_str(include_str!("../assets/animation_events/als_notify_manifest.json")).unwrap();
+        let handle = app.world_mut().resource_mut::<Assets<AlsNotifyManifest>>().add(manifest);
+        app.insert_resource(AlsNotifyManifestHandle(handle));
+        let character = app.world_mut().spawn((
+            AlsCharacter,
+            AlsAnimationEventPlaybacks::default(),
+            AlsStandingEventClock {
+                sprint_time: Some(0.1),
+                sprint_weight: 1.0,
+                sprint_acceleration_weight: 0.0,
+            },
+        )).id();
+        app.world_mut().run_system_once(refresh_animation_event_playbacks).unwrap();
+        let entries = &app.world().get::<AlsAnimationEventPlaybacks>(character).unwrap().entries;
+        assert!(entries.iter().all(|entry| entry.source_asset != SOURCE_SPRINT &&
+            entry.source_asset != SOURCE_SPRINT_ACCELERATION), "Synthetic Sprint playback replaced the evaluated graph clock");
+    }
+
+    #[test]
     fn custom_source_action_and_early_blend_tags_keep_their_identity() {
         assert_eq!(notify_action(Some("Als.LocomotionAction.Custom")).as_str(), "Als.LocomotionAction.Custom");
         let rotation = als_core::state::RotationMode::new("Als.RotationMode.Custom").unwrap();
