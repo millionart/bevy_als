@@ -79,8 +79,19 @@ pub fn damper_exact_angle(
     if half_life_seconds <= 0.0 {
         return target;
     }
-    let alpha = 1.0 - 2.0_f32.powf(-delta_seconds.max(0.0) / half_life_seconds);
-    current + wrap_angle(target - current) * alpha
+    let raw_delta = target - current;
+    let mut delta = if (-std::f32::consts::PI..=std::f32::consts::PI).contains(&raw_delta) {
+        raw_delta
+    } else {
+        wrap_angle(raw_delta)
+    };
+    if delta > crate::transitions::COUNTERCLOCKWISE_REMAP_THRESHOLD_DEGREES.to_radians() {
+        delta -= std::f32::consts::TAU;
+    }
+    let alpha = 1.0 - crate::animation::inv_exp_approx(
+        std::f32::consts::LN_2 / (half_life_seconds + 1e-8) * delta_seconds.max(0.0),
+    );
+    wrap_angle(current + delta * alpha)
 }
 
 impl AlsRollState {
@@ -240,8 +251,25 @@ mod tests {
             ROLL_ROTATION_HALF_LIFE_SECS,
             ROLL_ROTATION_HALF_LIFE_SECS,
         );
-        assert!((after_one_half_life.abs() - std::f32::consts::FRAC_PI_2).abs() < 1e-5);
+        let alpha = 1.0 - crate::animation::inv_exp_approx(std::f32::consts::LN_2 / (ROLL_ROTATION_HALF_LIFE_SECS + 1e-8) * ROLL_ROTATION_HALF_LIFE_SECS);
+        assert!((after_one_half_life.abs() - std::f32::consts::PI * alpha).abs() < 1e-5);
         assert!((damper_exact_angle(0.0, target, 0.1, 0.0) - target).abs() < 1e-6);
+    }
+
+    #[test]
+    fn source_roll_damper_prefers_counterclockwise_near_half_turn() {
+        let alpha = 1.0 - crate::animation::inv_exp_approx(std::f32::consts::LN_2 / (0.1 + 1e-8) * 0.1);
+        for (target_degrees, source_delta_degrees) in [
+            (176.0_f32, -184.0_f32),
+            (174.0, 174.0),
+            (175.0, 175.0),
+            (180.0, -180.0),
+        ] {
+            let actual = damper_exact_angle(0.0, target_degrees.to_radians(), 0.1, 0.1);
+            let expected = wrap_angle(source_delta_degrees.to_radians() * alpha);
+            assert!(wrap_angle(actual - expected).abs() < 1e-5,
+                "target={target_degrees} actual={actual} expected={expected}");
+        }
     }
 
     #[test]

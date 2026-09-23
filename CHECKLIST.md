@@ -323,3 +323,11 @@
   `grounded` runtime 后/`moving_base` 前摘要：同 `target_game/play` 原 Playground `grounded` public runner manual/validator `0/0`，15/15 功能结果覆盖 Roll 开始/Slot/结束/退出过渡、站蹲、移动瞄准与快速停止，9 个动作姿态窗口与 1,895 pose samples；graph error/fault/temporal/watchdog 为 0，渲染/贴花通过。保持同二进制再跑移动基座 Mantle 动作/返回，验证另一早退路径，性能继续延期。
 
   完成摘要：同二进制原 Playground `moving_base` public runner manual/validator `0/0`，10/10 功能结果覆盖 Ride/Jump/新支撑/Mantle/动作返回、2 个姿态窗口与 401 pose samples；graph error/fault/temporal/watchdog 为 0，渲染/贴花通过。真实系统原动作路径 Target=1.0 保留的 FAIL 已修为随 Actor -0.6→-1.1 连续更新，View 历史跟随，Roll 退出后旧 70° 限角重新计算到 >100°；三项消融各自 FAIL、`als-core` 286/286 通过。无资产/图/阈值修改，完整性能预算依用户暂停范围延期。
+
+- [x] **BF124.A09 — Roll 近半圈角差的源转向偏好**：开始：2026-09-23 10:58:05 +08:00；预估结束：2026-09-23 11:43:05 +08:00；实际结束：2026-09-23 11:10:53 +08:00；偏差：-32m12s；结果：源函数/资产、近半圈 red/修复/消融与原 Playground Roll 功能 Gate 通过。目标 Roll 阻尼现按同一 175° 源阈值从 +176° 选逆时针，并消费源 `InvExpApprox` 半衰期，资产/图不变。估时依据：一个 C++ helper、一处目标函数和已有动作场景；拆分结果：本编号无剩余功能 Gate，A10 独立处理蹲起缩放。
+
+  source/static 与 red 反例：fresh 原生 `CS_Als_Default.Rolling.RotationInterpolationHalfLife=0.1 s`，reader watchdog `success=true`；C++ `RefreshRollingPhysics` 的非零半衰期路径调用 `UAlsRotation::DamperExactAngle`，源函数先 `UnwindDegrees`，对 `delta>175°` 减去 `360°`，使用 `UAlsMath::DamperExactAlpha(InvExpApprox)` 再 Unwind。仓库已有 `transitions::remap_counterclockwise_degrees` 正是该 175° 规则，`animation::inv_exp_approx` 已用于普通身体 yaw。目标 Roll 当前 +176°/0.1 s 得 `+1.5358897 rad`，源合同预期 `-1.6060647 rad`，真实 helper focused 先稳定 FAIL；174°、175°、180° 正反边界同时登记，不新增第二套阈值。
+
+  runtime 前摘要：Roll helper 现在以已有 `COUNTERCLOCKWISE_REMAP_THRESHOLD_DEGREES=175°` 在弧度域比较，`delta>175°` 时减 `2π`，并复用现有 `inv_exp_approx` 求半衰期比例；先转回度会使精确 175° 因 f32 round-trip 误入逆时针分支，已在 focused 反例中定位并删除该转换。旧测试把 UE 的近似衰减当作精确 0.5，已改为源 `InvExpApprox` 正值。174/175/176/180° 与 Roll 模块 8/8 通过；消融逆时针映射时 176° 首项 FAIL，消融源指数近似时数值差约 0.00036 rad 再 FAIL，均恢复。无新阈值/状态/资产/图或依赖；准备同 `target_game/play` 限流构建，运行原 Playground `grounded` Roll 公共功能/姿态 Gate，完整性能预算依用户暂停范围延期。
+
+  完成摘要：同 `target_game/play` 限流构建后，原 Playground `grounded` public runner manual/validator `0/0`，15/15 功能结果覆盖 Roll 开始/Slot/结束/退出过渡及站蹲/瞄准，9 个姿态窗口、1,992 pose samples；graph error/fault/temporal/watchdog 为 0，渲染/贴花通过。focused +176°/0.1 s 从旧 `+1.5358897 rad` 修为源 `-1.6060647 rad`，174°、精确175°和180°边界同验；两项消融分别 FAIL，Roll 8/8 通过。完整性能预算依用户暂停范围延期。
