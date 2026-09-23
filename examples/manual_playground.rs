@@ -866,6 +866,41 @@ mod tests {
     use bevy::ecs::system::RunSystemOnce;
 
     #[test]
+    #[ignore = "A36 scene readiness must allow multiple valid PlayerStarts"]
+    fn scene_ready_accepts_multiple_valid_player_starts() {
+        for start_count in [1, 2] {
+            let mut world = World::new();
+            world.init_resource::<ManualScenePhysicsReady>();
+            world.init_resource::<AlsScenePhysicsReady>();
+            world.spawn((PlaygroundLandscape, LandscapeColliderBuilt));
+            world.spawn((PlaygroundCollisionSource {
+                mesh_base: "fixture".into(), kind: PlaygroundColliderKind::TriMesh,
+            }, Collider::cuboid(1.0, 1.0, 1.0)));
+            world.spawn((PlaygroundBoxCollider { half_extents: Vec3::ONE }, Collider::cuboid(1.0, 1.0, 1.0)));
+            for _ in 0..start_count {
+                world.spawn(AlsPlayerStartReady {
+                    transform: Transform::IDENTITY, ground_y: 0.0, adjustment: 0.0,
+                    teleport_adjustment: Vec3::ZERO,
+                    occupancy: als_core::player_start::AlsPlayerStartOccupancy::Unoccupied,
+                });
+            }
+            for _ in 0..2 { world.run_system_once(scene_physics_ready).unwrap(); }
+            assert!(world.resource::<ManualScenePhysicsReady>().ready, "starts={start_count}");
+            assert!(world.resource::<AlsScenePhysicsReady>().ready, "starts={start_count}");
+        }
+    }
+
+    #[test]
+    #[ignore = "A36 sensor proximity must be ground relative"]
+    fn spawn_sensor_proximity_is_ground_relative() {
+        let ground_y = 5.0;
+        let center_y = als_core::player_start::player_start_grounded_height(
+            ground_y, AlsMovementParams::default().crouch.standing_capsule_half_height);
+        let sensor_proximity = center_y - ground_y;
+        assert!((sensor_proximity - center_y).abs() <= 0.01);
+    }
+
+    #[test]
     fn gate_frame_delta_is_bounded_by_the_virtual_clock() {
         let max_delta = Duration::from_millis(250);
         assert_eq!(parse_gate_frame_delta("0.1", max_delta), Duration::from_millis(100));
