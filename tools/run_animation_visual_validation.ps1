@@ -5,6 +5,7 @@ param(
     [string]$OutputDirectory,
     [int]$CaptureCount = 0,
     [double]$FrameDeltaSeconds = 0.0,
+    [double]$FrameHitchSeconds = 0.0,
     [double]$CaptureIntervalSeconds = 1.5,
     [double]$MaxFrameP95Ms = 25.0,
     [double]$MaxFrameMs = 75.0,
@@ -13,7 +14,7 @@ param(
     [switch]$FunctionalOnly
 )
 
-if ($CaptureCount -lt 0 -or $CaptureIntervalSeconds -le 0 -or $MaxFrameP95Ms -le 0 -or $MaxFrameMs -le 0 -or $MaxEvalP95Ms -le 0 -or $MaxPhysicsStepsPerRender -lt 1 -or -not [double]::IsFinite($FrameDeltaSeconds) -or $FrameDeltaSeconds -lt 0 -or $FrameDeltaSeconds -gt 0.25 -or ($Case -eq "startup" -and $FrameDeltaSeconds -gt 0)) {
+if ($CaptureCount -lt 0 -or $CaptureIntervalSeconds -le 0 -or $MaxFrameP95Ms -le 0 -or $MaxFrameMs -le 0 -or $MaxEvalP95Ms -le 0 -or $MaxPhysicsStepsPerRender -lt 1 -or -not [double]::IsFinite($FrameDeltaSeconds) -or $FrameDeltaSeconds -lt 0 -or $FrameDeltaSeconds -gt 0.25 -or ($Case -eq "startup" -and $FrameDeltaSeconds -gt 0) -or -not [double]::IsFinite($FrameHitchSeconds) -or $FrameHitchSeconds -lt 0 -or $FrameHitchSeconds -gt 0.25 -or ($FrameHitchSeconds -gt 0 -and ($FrameDeltaSeconds -le 0 -or $FrameHitchSeconds -le $FrameDeltaSeconds -or $Case -ne "moving_base"))) {
     throw "Invalid visual validation arguments."
 }
 
@@ -37,6 +38,7 @@ $variables = @(
     "ALS_MANUAL_INTEGRATION_GATE",
     "ALS_MANUAL_INTEGRATION_CASE",
     "ALS_MANUAL_INTEGRATION_FRAME_DELTA_SECS",
+    "ALS_MANUAL_INTEGRATION_FRAME_HITCH_SECS",
     "ALS_ANIMATION_VISUAL_EVIDENCE_DIR",
     "ALS_ANIMATION_VISUAL_CAPTURE_COUNT",
     "ALS_ANIMATION_VISUAL_CAPTURE_INTERVAL_SECS",
@@ -66,6 +68,11 @@ try {
     } else {
         Remove-Item Env:ALS_MANUAL_INTEGRATION_FRAME_DELTA_SECS -ErrorAction SilentlyContinue
     }
+    if ($FrameHitchSeconds -gt 0) {
+        $env:ALS_MANUAL_INTEGRATION_FRAME_HITCH_SECS = $FrameHitchSeconds.ToString([Globalization.CultureInfo]::InvariantCulture)
+    } else {
+        Remove-Item Env:ALS_MANUAL_INTEGRATION_FRAME_HITCH_SECS -ErrorAction SilentlyContinue
+    }
     $env:ALS_ANIMATION_VISUAL_EVIDENCE_DIR = $candidate
     $env:ALS_ANIMATION_VISUAL_CAPTURE_COUNT = $CaptureCount.ToString([Globalization.CultureInfo]::InvariantCulture)
     $env:ALS_ANIMATION_VISUAL_CAPTURE_INTERVAL_SECS = $CaptureIntervalSeconds.ToString([Globalization.CultureInfo]::InvariantCulture)
@@ -83,6 +90,7 @@ try {
             format = "als_animation_visual_runner_v1"
             case = $Case
             frame_delta_seconds = if ($FrameDeltaSeconds -gt 0) { $FrameDeltaSeconds } else { $null }
+            frame_hitch_seconds = if ($FrameHitchSeconds -gt 0) { $FrameHitchSeconds } else { $null }
             manual_exit_code = $manualExitCode
             report_path = $reportPath
             report_exists = Test-Path -LiteralPath $reportPath -PathType Leaf
@@ -97,6 +105,9 @@ try {
         }
         $validationArguments = @('tools/validate_animation_visual_evidence.py', '--report', $reportPath, '--min-screenshots', $CaptureCount, '--check')
         if ($FunctionalOnly) { $validationArguments += '--functional-only' }
+        if ($FrameHitchSeconds -gt 0) {
+            $validationArguments += @('--expected-frame-hitch-seconds', $FrameHitchSeconds.ToString([Globalization.CultureInfo]::InvariantCulture), '--baseline-frame-delta-seconds', $FrameDeltaSeconds.ToString([Globalization.CultureInfo]::InvariantCulture))
+        }
         python @validationArguments
         $validationExitCode = $LASTEXITCODE
         $runner.validation_exit_code = $validationExitCode

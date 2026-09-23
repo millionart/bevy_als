@@ -10,6 +10,7 @@ use bevy::pbr::ScreenSpaceAmbientOcclusion;
 use bevy::prelude::*;
 use bevy::render::view::Msaa;
 use bevy::render::view::screenshot::{Screenshot, save_to_disk};
+use bevy::time::TimeUpdateStrategy;
 use bevy::window::{PresentMode, WindowPlugin};
 use bevy_tnua::{TnuaMotor, TnuaProximitySensor, TnuaSensorsEntities, TnuaToggle};
 
@@ -42,7 +43,7 @@ use bevy_als::{
     anim_probe::AnimProbePlugin,
     animation_visual_validation::AnimationVisualValidationPlugin,
     manual_playground_integration::{
-        ManualPlaygroundIntegrationPlugin, ManualPlaygroundStartupReady,
+        ManualIntegrationGateReport, ManualPlaygroundIntegrationPlugin, ManualPlaygroundStartupReady,
     },
 };
 
@@ -75,11 +76,18 @@ fn main() {
     ));
     if std::env::var_os("ALS_MANUAL_INTEGRATION_GATE").is_some() {
         app.add_plugins((AnimProbePlugin, ManualPlaygroundIntegrationPlugin));
-        if let Ok(raw) = std::env::var("ALS_MANUAL_INTEGRATION_FRAME_DELTA_SECS") {
-            let max_delta = app.world().resource::<Time<Virtual>>().max_delta();
-            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(
-                parse_gate_frame_delta(&raw, max_delta),
-            ));
+        let max_delta = app.world().resource::<Time<Virtual>>().max_delta();
+        let frame_delta = std::env::var("ALS_MANUAL_INTEGRATION_FRAME_DELTA_SECS")
+            .ok().map(|raw| parse_gate_frame_delta(&raw, max_delta));
+        if let Some(delta) = frame_delta {
+            app.insert_resource(TimeUpdateStrategy::ManualDuration(delta));
+        }
+        if let Ok(raw) = std::env::var("ALS_MANUAL_INTEGRATION_FRAME_HITCH_SECS") {
+            let baseline = frame_delta.expect("frame hitch requires a manual baseline delta");
+            let hitch = parse_gate_frame_delta(&raw, max_delta);
+            assert!(hitch > baseline, "frame hitch must exceed the baseline delta");
+            app.insert_resource(GateFrameHitch { baseline, hitch, fired: false, restore_next: false });
+            app.add_systems(Last, apply_gate_frame_hitch);
         }
     } else if std::env::var_os("ALS_ANIMATION_VISUAL_EVIDENCE_DIR").is_none() {
         app.insert_resource(bevy_als::show_debug_hud::AlsShowDebugSettingsFile("saved/als_debug.ron".into()));
@@ -141,6 +149,33 @@ fn parse_gate_frame_delta(raw: &str, max_delta: Duration) -> Duration {
     let delta = Duration::from_secs_f64(seconds);
     assert!(delta <= max_delta, "gate frame delta exceeds the virtual clock maximum");
     delta
+}
+
+#[derive(Resource)]
+struct GateFrameHitch {
+    baseline: Duration,
+    hitch: Duration,
+    fired: bool,
+    restore_next: bool,
+}
+
+fn apply_gate_frame_hitch(
+    mut strategy: ResMut<TimeUpdateStrategy>,
+    mut hitch: ResMut<GateFrameHitch>,
+    report: Res<ManualIntegrationGateReport>,
+) {
+    if hitch.restore_next {
+        *strategy = TimeUpdateStrategy::ManualDuration(hitch.baseline);
+        hitch.restore_next = false;
+    } else if !hitch.fired && report.moving_base_trace.last().is_some_and(|frame| {
+        frame.get("stage").and_then(serde_json::Value::as_str) == Some("Flight")
+            && frame.get("mode").and_then(serde_json::Value::as_str) == Some("Air")
+    }) {
+        *strategy = TimeUpdateStrategy::ManualDuration(hitch.hitch);
+        hitch.fired = true;
+        hitch.restore_next = true;
+        info!("[MANUAL-INTEGRATION][FRAME-HITCH] next_delta_seconds={:.6}", hitch.hitch.as_secs_f64());
+    }
 }
 
 #[derive(Resource, Default)]
@@ -837,6 +872,33 @@ mod tests {
         for invalid in ["0", "-0.1", "NaN", "inf", "bad", "0.3"] {
             assert!(std::panic::catch_unwind(|| parse_gate_frame_delta(invalid, max_delta)).is_err());
         }
+    }
+
+    #[test]
+    fn gate_frame_hitch_arms_once_in_air_and_restores() {
+        let baseline = Duration::from_secs_f64(1.0 / 60.0);
+        let hitch = Duration::from_millis(200);
+        let mut app = App::new();
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(baseline));
+        app.insert_resource(GateFrameHitch { baseline, hitch, fired: false, restore_next: false });
+        app.init_resource::<ManualIntegrationGateReport>();
+        app.add_systems(Last, apply_gate_frame_hitch);
+        app.update();
+        assert!(matches!(app.world().resource::<TimeUpdateStrategy>(), TimeUpdateStrategy::ManualDuration(value) if *value == baseline));
+        app.world_mut().resource_mut::<ManualIntegrationGateReport>().moving_base_trace.push(serde_json::json!({"stage":"Exit","mode":"Grounded"}));
+        app.update();
+        assert!(matches!(app.world().resource::<TimeUpdateStrategy>(), TimeUpdateStrategy::ManualDuration(value) if *value == baseline));
+        *app.world_mut().resource_mut::<ManualIntegrationGateReport>().moving_base_trace.last_mut().unwrap() = serde_json::json!({"stage":"Flight","mode":"Grounded"});
+        app.update();
+        assert!(matches!(app.world().resource::<TimeUpdateStrategy>(), TimeUpdateStrategy::ManualDuration(value) if *value == baseline));
+        *app.world_mut().resource_mut::<ManualIntegrationGateReport>().moving_base_trace.last_mut().unwrap() = serde_json::json!({"stage":"Flight","mode":"Air"});
+        app.update();
+        assert!(matches!(app.world().resource::<TimeUpdateStrategy>(), TimeUpdateStrategy::ManualDuration(value) if *value == hitch));
+        app.update();
+        assert!(matches!(app.world().resource::<TimeUpdateStrategy>(), TimeUpdateStrategy::ManualDuration(value) if *value == baseline));
+        app.update();
+        assert!(matches!(app.world().resource::<TimeUpdateStrategy>(), TimeUpdateStrategy::ManualDuration(value) if *value == baseline));
+        assert!(app.world().resource::<GateFrameHitch>().fired);
     }
 
     #[test]

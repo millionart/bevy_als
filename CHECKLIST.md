@@ -211,3 +211,13 @@
     校准后 runtime 前摘要：源公式正例 100 ms 下局部 `2.4474256 rad`、腿面约 `-0.71018` 先在原规则稳定 FAIL；同帧真正 180° 旋转/翻面为负例。只为大角度的绝对跳变和腿面翻转增加 `30 rad/s` 速率条件，界于源正例最大 `24.4743 rad/s` 与 100 ms 全翻转 `31.4159 rad/s` 之间；短帧原 `2.2 rad`、`-0.5 dot` 与 `80 rad/s` 判据仍在。公共 temporal 11/11 与 validator self-test 通过。消融删除先前为 Land 边界加的 `uphill_jump` 专用重置状态/分支及其测试，文件恢复提交版，正例仍 PASS；现在只重建同 `target_game/play` 并跑一次原 Playground/10 FPS 功能 Gate。
 
     完成摘要：同 `target_game/play` 的 `uphill_jump`/10 FPS public runner manual/validator `0/0`，18/18 姿态窗口、6/6 功能结果通过，557 pose samples；graph error、fault、temporal anomaly、watchdog 均为 0，渲染/贴花通过。完整性能预算继续按用户暂停范围延期。分别消融局部大角速率与腿面速率条件后，源合法 100 ms 正例各自稳定 FAIL；恢复后 temporal 11/11 与 validator self-test 再次通过。最终无 `uphill_jump` 专用新状态/分支、无生产运动或 Rig 算法更改，仅保留公共速率判据、源正反例和声明式阈值。
+
+- [x] **BF124.A01-S3b4 — 原 Playground 单帧 200 ms 卡顿 Gate**：开始：2026-09-23 08:17:18 +08:00；预估结束：2026-09-23 09:02:18 +08:00；实际结束：2026-09-23 08:30:36 +08:00；偏差：-31m42s；结果：单帧卡顿、源时钟位移和原 Playground 功能 Gate 通过。fresh 本地 UE `ControlledCharacterMove→PhysWalking→GetSimulationTimeStep` 仍消费完整 200 ms、普通刚体保持 `1/30 s` 封顶；S2 已有 200 ms 隔离运动反例。本项仅在 `run_manual.bat` 的原 `manual_playground` 公共功能入口，以既有手动时钟为基线，在实际 Flight/Air 帧注入一次 200 ms、随后恢复基线；核对实际时间跳变、位移、物理/接触/图/姿态及平台落地/Mantle 返回。估时依据：现成同入口 runner、公开动画窗口与 S3b3 固定帧率报告。拆分结果：A01 可做综合收尾；性能按用户暂停范围延期。
+
+  runtime 前摘要：重新核对本地 UE `ControlledCharacterMove` 的整帧 Delta 与 `PhysWalking/GetSimulationTimeStep` 分步消费，目标 S2 的角色剩余时间扫掠在固定 200 ms focused 夹具已有反例；本次只扩展手动场景入口。新增 `FrameHitchSeconds` 仅允许 `moving_base`、已给基线且 `baseline < hitch ≤ 0.25 s`；例子在公共 `moving_base_jump` 已稳定窗口的 Last 阶段设置下一帧 200 ms，并在该帧 Last 恢复基线。focused 1/1 通过，去掉窗口触发后稳定 FAIL、恢复后再 PASS；validator 自测的单次/缺失/重复/未移动反例通过，runner 对小于基线的非法参数启动前拒绝。无生产运动、图、资源变更。下一步同 `target_game/play` 限流构建，原 Playground/60 FPS 基线只运行一次公共 hitch 功能 Gate。
+
+  首次 runtime 后摘要：原 Playground 10/10 手动功能、2 个姿态窗口均通过，graph error/fault/temporal/watchdog 为 0；实际时间记录恰有一个 `0.200000 s` 且角色移动约 1 m，但 public hitch 附加 Gate 正确拒绝：该帧是 `Exit/Grounded` 而非 Air。静态回读发现 `moving_base_jump` 窗口由原夹具同时覆盖 Exit 和 Flight，旧触发只看窗口标签，过早设置下一帧；无生产物理/动画失败证据。保留原失败报告，只将一次性触发收紧为原 `moving_base_trace` 当帧 `Flight/Air`，补该边界 focused 反例后再按同入口复验。
+
+  复验 runtime 前摘要：一次性触发改为读取同场 public trace 最后一个已观察帧的 `Flight/Air`，避免误用同时覆盖 Exit 的窗口标签；最小 focused 测试同时证明 `Exit/Grounded`、`Flight/Grounded` 不触发、`Flight/Air` 仅触发一次并恢复基线，1/1 通过。保持原 `0.2 s` 和 `1/60 s` 输入、同一 Playground 与全部既有功能判据，现在限流重建后另目录复验。
+
+  完成摘要：同 `target_game/play` 的原 `moving_base` 场景 public runner manual/validator `0/0`，877 个基座 trace 相邻时间仅一次 `0.2 s`，其它为 `1/60 s`；该帧 `Flight/Air`、位移 `1.1294 m`，水平位移与当帧速度乘 200 ms 的误差约 `0.0087 m`，会拒绝仅按 `1/30 s` 积分的反例。10/10 功能结果含 Ride/Jump/新支撑/Mantle/返回，2 个姿态窗口通过；graph error/fault/temporal/watchdog 均为 0，渲染/贴花通过。validator 自测单次、缺失、重复、未移动、错误模式和封顶位移边界通过，原错误 Exit 帧报告保留。最终只保留场景专用一次性时钟注入与校验，无生产运动/图更改；完整性能预算依用户暂停范围延期。

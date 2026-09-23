@@ -1503,6 +1503,42 @@ def transition_overlap_issues(rows):
     return [] if overlap else ["rotating base overlapping transition fade was not observed"]
 
 
+def frame_hitch_issues(report, baseline, hitch):
+    manual = report.get("manual_integration")
+    rows = manual.get("moving_base_trace") if isinstance(manual, dict) else None
+    if not isinstance(rows, list) or len(rows) < 3:
+        return ["frame hitch trace is missing"]
+    hits = []
+    for previous, current in zip(rows, rows[1:]):
+        if not isinstance(previous, dict) or not isinstance(current, dict):
+            return ["frame hitch trace sample is invalid"]
+        if not finite(previous.get("time")) or not finite(current.get("time")):
+            return ["frame hitch trace time is invalid"]
+        delta = current["time"] - previous["time"]
+        if abs(delta - hitch) < 1e-4:
+            hits.append((previous, current))
+        elif abs(delta - baseline) >= 1e-4:
+            return [f"unexpected frame delta during hitch gate: {delta:.6f}"]
+    if len(hits) != 1:
+        return [f"expected one frame hitch, observed {len(hits)}"]
+    previous, current = hits[0]
+    if current.get("stage") != "Flight" or current.get("mode") != "Air":
+        return ["frame hitch did not occur during the airborne moving-base window"]
+    before = previous.get("position")
+    after = current.get("position")
+    velocity = current.get("own_velocity")
+    if (not isinstance(before, list) or not isinstance(after, list) or not isinstance(velocity, list)
+            or len(before) != 3 or len(after) != 3 or len(velocity) != 3
+            or not all(finite(value) for value in before + after + velocity)
+            or math.dist(before, after) <= 0.01):
+        return ["character did not move during the frame hitch"]
+    horizontal = [after[0] - before[0], after[2] - before[2]]
+    expected = [velocity[0] * hitch, velocity[2] * hitch]
+    if math.dist(horizontal, expected) > 0.075:
+        return ["character horizontal movement did not consume the full frame hitch"]
+    return []
+
+
 def moving_base_trace_issues(report):
     if report.get("case") not in ("moving_base", "rotating_base"):
         return []
@@ -2316,6 +2352,32 @@ def fixture_rotating_base_report():
 
 
 def run_self_test():
+    baseline = 1.0 / 60.0
+    hitch = 0.2
+    rows = [
+        {"time": 0.0, "stage": "Flight", "mode": "Air", "position": [0.0, 0.0, 0.0]},
+        {"time": baseline, "stage": "Flight", "mode": "Air", "position": [0.1, 0.0, 0.0]},
+        {"time": baseline + hitch, "stage": "Flight", "mode": "Air", "position": [0.5, 0.0, 0.0], "own_velocity": [2.0, 0.0, 0.0]},
+        {"time": 2.0 * baseline + hitch, "stage": "Flight", "mode": "Air", "position": [0.52, 0.0, 0.0]},
+    ]
+    frame_report = {"manual_integration": {"moving_base_trace": rows}}
+    assert not frame_hitch_issues(frame_report, baseline, hitch)
+    missing = copy.deepcopy(frame_report)
+    missing["manual_integration"]["moving_base_trace"][2]["time"] = 2.0 * baseline
+    missing["manual_integration"]["moving_base_trace"][3]["time"] = 3.0 * baseline
+    assert frame_hitch_issues(missing, baseline, hitch)
+    duplicate = copy.deepcopy(frame_report)
+    duplicate["manual_integration"]["moving_base_trace"].append({"time": 2.0 * baseline + 2.0 * hitch, "stage": "Flight", "mode": "Air", "position": [0.9, 0.0, 0.0]})
+    assert frame_hitch_issues(duplicate, baseline, hitch)
+    stationary = copy.deepcopy(frame_report)
+    stationary["manual_integration"]["moving_base_trace"][2]["position"] = [0.1, 0.0, 0.0]
+    assert frame_hitch_issues(stationary, baseline, hitch)
+    capped = copy.deepcopy(frame_report)
+    capped["manual_integration"]["moving_base_trace"][2]["position"] = [0.17, 0.0, 0.0]
+    assert frame_hitch_issues(capped, baseline, hitch)
+    grounded = copy.deepcopy(frame_report)
+    grounded["manual_integration"]["moving_base_trace"][2]["mode"] = "Grounded"
+    assert frame_hitch_issues(grounded, baseline, hitch)
     half = math.sqrt(0.5)
     transform_fixture = {"actor":{"translation":[10.0, 20.0, 30.0], "rotation":[0.0, half, 0.0, half], "scale":[2.0]*3},
         "primitive":{"translation":[1.0, 0.0, 0.0], "scale":[0.5]*3}, "rotation_rate_yzx_radians":[-math.pi/2, 0.0, 0.0]}
@@ -3266,6 +3328,7 @@ def run_self_test():
         "montage_clip_signature_contract_checked": "PASS",
         "montage_clip_trace_without_actor_yaw_checked": "PASS",
         "wrong_direction_state_rejected": "PASS",
+        "single_airborne_frame_hitch_verified": "PASS",
     }
 
 
@@ -3290,6 +3353,8 @@ def main():
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--self-test", action="store_true")
     parser.add_argument("--functional-only", action="store_true")
+    parser.add_argument("--baseline-frame-delta-seconds", type=float, default=0.0)
+    parser.add_argument("--expected-frame-hitch-seconds", type=float, default=0.0)
     args = parser.parse_args()
     if args.self_test:
         print(json.dumps(run_self_test(), ensure_ascii=False, indent=2))
@@ -3299,7 +3364,15 @@ def main():
     if not args.report.is_file():
         raise ValueError("visual report is missing")
     audit_report = audit_functional if args.functional_only else audit
-    result = audit_report(read_json(args.report), args.min_screenshots)
+    report = read_json(args.report)
+    result = audit_report(report, args.min_screenshots)
+    if args.expected_frame_hitch_seconds:
+        if not (math.isfinite(args.baseline_frame_delta_seconds) and math.isfinite(args.expected_frame_hitch_seconds)
+                and 0.0 < args.baseline_frame_delta_seconds < args.expected_frame_hitch_seconds <= 0.25):
+            raise ValueError("invalid frame hitch request")
+        issues = frame_hitch_issues(report, args.baseline_frame_delta_seconds, args.expected_frame_hitch_seconds)
+        result["issues"].extend(issues)
+        result["pass"] = not result["issues"]
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0 if result["pass"] else 1
 
