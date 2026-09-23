@@ -1663,6 +1663,64 @@ mod rotation_cap_tests {
     }
 
     #[test]
+    #[ignore = "BF124.A10 scaled stance center; enable after implementation"]
+    fn scaled_stance_capsule_centers_preserve_the_source_base() {
+        let params = AlsMovementParams::default();
+        for scale in [Vec3::splat(2.0), Vec3::new(-2.0, 3.0, 4.0)] {
+            let effective_scale = scale.abs().min_element();
+            let standing_half = params.crouch.standing_capsule_half_height * effective_scale;
+            let crouched_half = params.crouch.crouched_capsule_half_height * effective_scale;
+            let standing_center = Vec3::Y * standing_half;
+            let crouched_center = capsule_center_for_stance(&params, standing_center,
+                Stance::Standing, Stance::Crouching);
+            assert!((crouched_center.y - crouched_half).abs() < 1e-6,
+                "scale={scale:?} center={crouched_center:?} expected={crouched_half}");
+        }
+    }
+
+    #[test]
+    #[ignore = "BF124.A10 scaled stand-up query; enable after implementation"]
+    fn scaled_stand_up_query_rejects_a_low_ceiling() {
+        let mut app = App::new();
+        app.add_plugins((
+            MinimalPlugins, AssetPlugin::default(), PhysicsPlugins::new(FixedPostUpdate),
+            TransformPlugin, TnuaAvian3dPlugin::new(FixedUpdate),
+            TnuaControllerPlugin::<AlsControlScheme>::new(FixedUpdate),
+            AlsStateTransitionPlugin, AlsCharacterPlugin, AlsMotionPlugin,
+        ))
+        .init_resource::<Assets<Mesh>>()
+        .add_message::<AssetEvent<Mesh>>();
+        app.finish();
+        app.world_mut().spawn((
+            RigidBody::Static, Collider::cuboid(4.0, 0.1, 4.0),
+            Transform::from_xyz(0.0, 3.2, 0.0),
+        ));
+        app.update();
+        app.world_mut().run_schedule(FixedPostUpdate);
+        let params_value = AlsMovementParams::default();
+        let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>()
+            .add(params_value.clone());
+        let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>()
+            .add(initial_als_control_scheme_config(&params_value));
+        let center = Vec3::Y * params_value.crouch.crouched_capsule_half_height * 2.0;
+        let mut bundle = AlsCharacterBundle::new(params, config);
+        bundle.transform = Transform::from_translation(center).with_scale(Vec3::splat(2.0));
+        bundle.rigid_body = RigidBody::Kinematic;
+        bundle.collider = als_character_capsule(
+            params_value.crouch.crouched_capsule_half_height,
+            params_value.crouch.standing_capsule_radius,
+        );
+        bundle.stance = Stance::Crouching;
+        bundle.desired_stance = AlsDesiredStance(Stance::Standing);
+        let character = app.world_mut().spawn((
+            bundle, Position(center), LinearVelocity::ZERO, AlsCapsuleCrouched,
+        )).id();
+        app.update();
+        assert_eq!(app.world().get::<Stance>(character), Some(&Stance::Crouching));
+        assert!((app.world().get::<Position>(character).unwrap().y - center.y).abs() < 1e-6);
+    }
+
+    #[test]
     fn airborne_desired_crouch_keeps_actual_capsule_standing_until_landing() {
         let mut app = App::new();
         app.add_plugins((
