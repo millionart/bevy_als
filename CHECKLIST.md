@@ -399,3 +399,5 @@
   消融后、最终 runtime 前摘要：仅去掉共用 Ragdoll 尺寸换算的受控构建在同一 Playground `ragdoll` 场景退出码 91，公共报告仅 `ragdoll_scaled` 未覆盖，另有 18 条由错误胶囊跟随跳变引发的 temporal；graph error 与 watchdog 均 0。消融已恢复源码，下一步同一 `target_game/play` 重新限流构建，复跑带截图的最终功能 Gate，并核对报告 11/11 与图/时间/故障 0。
 
   runtime 最终完成摘要：恢复尺寸换算后同入口 `target_game/play` 构建成功，最终原 Playground `ragdoll` runner/manual/validator 退出码 0，11/11 必需项（含 `ragdoll_scaled`）、43 pose samples、两张场景截图，graph error/fault/temporal/watchdog 0；截图核对仍是原地形、角色与相机。该 fixture 专测源允许的 Capsule 与 mesh 不同世界 scale；完整 mesh scale=2 的依赖路径会导致骨段持续缩半，未以阈值放宽隐藏。完整性能预算延期。
+
+- [x] **BF124.A12 — Ragdoll 找地与跟随使用世界胶囊尺寸**：开始：2026-09-23 13:09:22 +08:00；预估结束：2026-09-23 13:24:22 +08:00；实际结束：2026-09-23 13:09:22 +08:00；偏差：-15m00s；结果：S1 源公式/red、S2 两消费者修复与物理/常规 Gate、S3 原 Playground Capsule scale=2 可见 Gate 各自通过并单独提交（`1360f86`、`f70c204`、`e99feed`）。UE 半径按世界水平两轴较小 scale、半高按竖直 scale；目标复用现有源换算，逐帧和空中退出查询均读取当帧世界 scale。非均匀尺寸与真实物理球扫 green，最终 `ragdoll` 11/11、43 pose samples、两张截图、图错误/故障/时间异常/watchdog 0；旧尺寸消融只漏 `ragdoll_scaled` 且退出码 91。完整 mesh scale=2 的依赖 ragdoll 生成/读回 scale 丢失是单独缺口，当前以 Capsule scale=2、Avatar 世界 scale=1 的源合法配置隔离验证，未修改依赖或放宽 Gate；完整性能预算延期。估时依据：仅核对三个已验收子项与提交；拆分结果：A12 胶囊尺寸无剩余功能 Gate，A13 为下一项。
