@@ -967,3 +967,7 @@
   静态夹具完成、runtime 前摘要：原 `manual_playground` 只在显式且已启用自动 Gate 的 `ALS_MANUAL_JUMP_GRAVITY_Y` 参数下将同一 Avian `Gravity` Resource 设置为有限负Y，普通入口不改；记录 `[JUMP-GRAVITY-VARIANT]` 日志供真实入口核对。S2 真实 ALS/Tnua 角色3路非默认重力和默认/零边界 focused 通过、两处消融 red，未改原地形或 Jump 图。下一步同 `target_game/play` 预构建，以新目录先跑-12Y `uphill_jump`，再跑默认 `uphill_jump`；公共 runner 报告为最终 Gate，不把单纯 fixture 日志当成功。
 
   runtime 后完成摘要：同入口 `cargo build --target-dir target_game --profile play --example manual_playground --jobs 2` 成功；变体日志 `[JUMP-GRAVITY-VARIANT] gravity_y=-12.000` 证明真实世界重力输入。`bf124_a38_s3_gravity12_uphill` manual/validator 0/0、18/18 必需跳跃窗口、1339 pose samples，三组楼梯跑/冲刺位置的 Flight/Landing 均完成；默认 `bf124_a38_s3_default_uphill` 0/0、18/18、1290 samples。两份报告 primary_failure 无、graph error/fault/temporal 0、watchdog 未触发，渲染/贴花公共子 Gate 均通过。默认入口消融没有非默认重力日志/数值信号，故只保留显式变体；S2 实际角色焦点夹具验证同重力下起跳速度，未为较低合法跃高放宽任何楼梯/图阈值。
+
+- [x] **BF124.A38 — JumpZVelocity 高度映射使用当帧实际重力**：开始：2026-09-24 05:45:49 +08:00；预估结束：2026-09-24 06:00:49 +08:00；实际结束：2026-09-24 05:45:49 +08:00；偏差：-15m00s；结果：S1–S3 各自通过并提交（`8a461fb`、`556574d`、`0bc44be`）；真实角色非默认重力起跳速度恢复源4.2m/s，默认/零重力与同入口原 Playground18窗口功能 Gate 均通过。估时依据：仅汇总已提交 UE/Tnua/source 静态、局部消融和两份公共报告，不新增技术闭包；拆分结果：A38 无剩余功能 Gate，A39 为下一执行项，完整性能预算沿用户既定暂停范围延期。
+
+  汇总：UE `GetMaxJumpHeight` 用当前 `GetGravityZ`，目标 Tnua 用 tracker 同帧重力反算起跳能量；现 config Jump 高度按实际 Avian Gravity×实体倍率+Tnua override 的长度计算，而非固定9.81。真实角色世界12/倍率2/斜向覆盖反例、固定值与除零消融通过；原 Playground 在-12Y及默认重力下各18/18楼梯跳跃窗口、姿态/图/进展0异常，原场景与入口不变。A39 可开始。
