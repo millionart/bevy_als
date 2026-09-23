@@ -329,9 +329,13 @@ fn dispatch_graph_footsteps(
                 })
             };
             let sprint = source.source_asset == SOURCE_SPRINT || source.source_asset == SOURCE_SPRINT_ACCELERATION;
-            let definitions = timed_events(source).into_iter().filter(|definition| source.events.iter().any(|event|
-                event.event_id == definition.id && (event.class_name == "AlsAnimNotify_FootstepEffects"
-                    || (sprint && event.class_name == "AlsAnimNotify_CameraShake")))).collect::<Vec<_>>();
+            let definitions = timed_events(source).into_iter().filter(|definition| {
+                source.events.iter().any(|event| event.event_id == definition.id
+                    && (event.class_name == "AlsAnimNotify_FootstepEffects"
+                        || (sprint && event.class_name == "AlsAnimNotify_CameraShake")))
+                    || (sprint && source.sync_markers.iter().any(|marker|
+                        marker_event_id(&source.source_asset, &marker.id) == definition.id))
+            }).collect::<Vec<_>>();
             let weight = if sample.montage { sample.clock.weight.max(previous.map_or(0.0, |previous| previous.1)) } else { sample.clock.weight };
             let mut signals = Vec::new();
             for clock in graph_footstep_clocks(&sample.clock, previous_time) {
@@ -341,17 +345,24 @@ fn dispatch_graph_footsteps(
                 ));
             }
             for signal in signals {
-                let event = source.events.iter().find(|event| event.event_id == signal.id).unwrap();
-                if event.class_name == "AlsAnimNotify_CameraShake" && signal.phase == EventPhase::Point {
-                    shakes.write(AlsCameraShakeRequest::sprint(avatar.character,
-                        parameter_f32(&event.parameters, "CameraShakeScale", 1.0)));
-                }
+                let (class_name, name, parameters) = if let Some(event) = source.events.iter().find(|event| event.event_id == signal.id) {
+                    if event.class_name == "AlsAnimNotify_CameraShake" && signal.phase == EventPhase::Point {
+                        shakes.write(AlsCameraShakeRequest::sprint(avatar.character,
+                            parameter_f32(&event.parameters, "CameraShakeScale", 1.0)));
+                    }
+                    (event.class_name.clone(), event.name.clone(), event.parameters.clone())
+                } else if let Some(marker) = source.sync_markers.iter().find(|marker|
+                    marker_event_id(&source.source_asset, &marker.id) == signal.id) {
+                    ("AuthoredSyncMarker".to_owned(), marker.name.clone(), Value::Null)
+                } else {
+                    continue;
+                };
                 events.write(AlsAnimationEvent {
                     character: avatar.character,
                     instance_id: if sample.montage { sample.identity.rsplit(':').next().and_then(|value| value.parse().ok()).unwrap_or(0) } else { source_instance },
                     source_asset: source.source_asset.clone(), graph_clip: path.clone(), event_id: signal.id,
-                    class_name: event.class_name.clone(), name: event.name.clone(), phase: signal.phase,
-                    time: sample.clock.position, weight: signal.weight, percentage: signal.percentage, parameters: event.parameters.clone(),
+                    class_name, name, phase: signal.phase,
+                    time: sample.clock.position, weight: signal.weight, percentage: signal.percentage, parameters,
                 });
             }
         }
@@ -1125,8 +1136,9 @@ mod tests {
         assert_eq!(app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain()
             .filter(|event| event.class_name == "AlsAnimNotify_CameraShake").count(), 0);
         app.update();
-        assert_eq!(app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain()
-            .filter(|event| event.class_name == "AlsAnimNotify_CameraShake").count(), 0);
+        let events = app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain().collect::<Vec<_>>();
+        assert_eq!(events.iter().filter(|event| event.class_name == "AlsAnimNotify_CameraShake").count(), 0);
+        assert_eq!(events.iter().filter(|event| event.class_name == "AuthoredSyncMarker").count(), 1);
         app.update();
         let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
         assert!(player.get_error().is_none(), "{:?}", player.get_error());
