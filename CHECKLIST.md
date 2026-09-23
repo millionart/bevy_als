@@ -551,3 +551,9 @@
 - [x] **BF124.A19-S2b — Ragdoll 全 Avatar 与事件入口限制为当前 Assembly**：开始：2026-09-23 17:36:26 +08:00；预估结束：2026-09-23 18:26:26 +08:00；实际结束：2026-09-23 17:39:48 +08:00；偏差：-46m38s；结果：三条剩余全 Avatar/事件路径校验当前 Assembly 身份，活旧 player 相机 trace owner 的 red 反例变绿，Ragdoll 局部 11/11。估时依据：三个现有迭代/事件入口、S1 双 Avatar WorldInstanceReady fixture、已有 11 项 Ragdoll 局部测试；拆分结果：S3 原 Playground 公共 Gate，A20 不提前展开。
 
   source/static 完成摘要：沿用 S1 当前 `GetMesh()` 源合同。`sync_animated_ragdoll_bodies` 与 `restore_ragdoll_player_parent` 仅处理 Assembly 指向的 Avatar；旧 player 的 `RagdollSpawned` 不再给旧 Ragdoll 认领当前角色的 camera trace owner，当前 player 仍会认领。S1 双 Avatar fixture 扩展的旧事件先 red 后 green，`cargo test --lib ragdoll_link::tests:: --jobs 2` 11/11；三个迭代/事件入口都具相同 Avatar 身份边界。下一步先记录 S3 runtime Gate 前摘要，再运行原 Playground `ragdoll`/`get_up`。
+
+- [x] **BF124.A19-S3 — 原 Playground Ragdoll/GetUp 公共视觉 Gate**：开始：2026-09-23 17:40:40 +08:00；预估结束：2026-09-23 18:30:40 +08:00；实际结束：2026-09-23 17:46:19 +08:00；偏差：-44m21s；结果：同一 `target_game`/`play` 预构建与原 Playground `startup`、`ragdoll`、`get_up` 公共功能 Gate 通过；两项动作场景均 11/11 手动覆盖，动作窗口 1/1 与 2/2，图错误/故障/时间异常/watchdog 触发 0。估时依据：S1–S2b 的双 Avatar 反例与 11/11 局部回归、一个预构建及三项公共场景；拆分结果：A19 汇总关闭，A20 为下一项；完整性能预算依用户既有安排延期。
+
+  runtime 前 source/static 摘要：fresh 本地 ALS `Start/Refresh/StopRagdolling` 都读当前 `GetMesh()`；目标六个首项入口统一读当前 `AlsCharacterAssembly.avatar`，两个全 Avatar 循环与 spawned trace-owner 只接受同一身份。S1 活旧 player 选择 red→green，S2b 活旧 spawned owner red→green，Ragdoll 局部 11/11，暂未见静态失败边界。现在进行同一启动器产物预构建和原 Playground `ragdoll`/`get_up` 公共视觉 Gate。
+
+  runtime 后摘要：`cargo build --target-dir target_game --profile play --example manual_playground --jobs 2` 成功；公共 runner `-FunctionalOnly -CaptureCount 0` 的 `startup`、`ragdoll`、`get_up` 均 validation exit 0，manual exit 0。`ragdoll` 与 `get_up` 的手动覆盖各 11/11、动作窗口分别 1/1 和 2/2；全部报告无 `primary_failure`、graph error、fault、temporal anomaly 或 watchdog 触发。原报告的完整性能预算未通过，按既有延期决定仅记功能验收；下一步核对 A19 汇总及提交。
