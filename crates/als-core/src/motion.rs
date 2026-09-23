@@ -1648,12 +1648,14 @@ mod rotation_cap_tests {
             standing_center,
             Stance::Standing,
             Stance::Crouching,
+            1.0,
         );
         let restored_center = capsule_center_for_stance(
             &params,
             crouching_center,
             Stance::Crouching,
             Stance::Standing,
+            1.0,
         );
         let standing_base = standing_center.y - params.crouch.standing_capsule_half_height;
         let crouching_base = crouching_center.y - params.crouch.crouched_capsule_half_height;
@@ -1663,7 +1665,6 @@ mod rotation_cap_tests {
     }
 
     #[test]
-    #[ignore = "BF124.A10 scaled stance center; enable after implementation"]
     fn scaled_stance_capsule_centers_preserve_the_source_base() {
         let params = AlsMovementParams::default();
         for scale in [Vec3::splat(2.0), Vec3::new(-2.0, 3.0, 4.0)] {
@@ -1672,14 +1673,13 @@ mod rotation_cap_tests {
             let crouched_half = params.crouch.crouched_capsule_half_height * effective_scale;
             let standing_center = Vec3::Y * standing_half;
             let crouched_center = capsule_center_for_stance(&params, standing_center,
-                Stance::Standing, Stance::Crouching);
+                Stance::Standing, Stance::Crouching, effective_scale);
             assert!((crouched_center.y - crouched_half).abs() < 1e-6,
                 "scale={scale:?} center={crouched_center:?} expected={crouched_half}");
         }
     }
 
     #[test]
-    #[ignore = "BF124.A10 scaled stand-up query; enable after implementation"]
     fn scaled_stand_up_query_rejects_a_low_ceiling() {
         let mut app = App::new();
         app.add_plugins((
@@ -2737,7 +2737,8 @@ fn apply_capsule_for_stance(
     already_deferred: bool,
     transitions: &mut MessageWriter<StateTransitionEvent>,
 ) {
-    let target_center = capsule_center_for_stance(params, center, *stance, target);
+    let effective_scale = transform.scale.abs().min_element();
+    let target_center = capsule_center_for_stance(params, center, *stance, target, effective_scale);
     match target {
         Stance::Crouching => {
             let (half_height, radius) = capsule_dimensions(params, target);
@@ -2752,7 +2753,8 @@ fn apply_capsule_for_stance(
         }
         Stance::Standing => {
             let filter = SpatialQueryFilter::from_excluded_entities([entity]);
-            let standing_capsule = capsule_for(params, Stance::Standing);
+            let mut standing_capsule = capsule_for(params, Stance::Standing);
+            standing_capsule.set_scale(Vec3::splat(effective_scale), 16);
             let blocked = !spatial_query
                 .shape_intersections(&standing_capsule, target_center, rotation, &filter)
                 .is_empty();
@@ -2770,7 +2772,7 @@ fn apply_capsule_for_stance(
                 .entity(entity)
                 .remove::<CapsuleReshapeDeferred>()
                 .remove::<AlsCapsuleCrouched>()
-                .insert(standing_capsule);
+                .insert(capsule_for(params, Stance::Standing));
             apply_actual_stance(entity, stance, target, transitions);
             let (half_height, radius) = capsule_dimensions(params, Stance::Standing);
             apply_capsule_center(commands, entity, transform, target_center);
@@ -2793,10 +2795,11 @@ fn capsule_center_for_stance(
     current_center: Vec3,
     current_stance: Stance,
     target_stance: Stance,
+    effective_scale: f32,
 ) -> Vec3 {
     let (current_half_height, _) = capsule_dimensions(params, current_stance);
     let (target_half_height, _) = capsule_dimensions(params, target_stance);
-    current_center + Vec3::Y * (target_half_height - current_half_height)
+    current_center + Vec3::Y * (target_half_height - current_half_height) * effective_scale
 }
 
 fn apply_capsule_center(
