@@ -4198,6 +4198,24 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "A38 jump height must use the gravity consumed by Tnua"]
+    fn jump_height_keeps_source_launch_speed_when_world_gravity_changes() {
+        let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+        app.world_mut().resource_mut::<Gravity>().0 = Vec3::Y * -12.0;
+        app.update();
+        let world = app.world();
+        let gravity = world.get::<TnuaRigidBodyTracker>(character).unwrap().gravity;
+        assert!((gravity.y + 12.0).abs() < 1e-4);
+        let config_handle = world.get::<TnuaConfig<AlsControlScheme>>(character).unwrap();
+        let config = world.resource::<Assets<AlsControlSchemeConfig>>().get(&config_handle.0).unwrap();
+        let params_handle = world.get::<AlsMovementParamsHandle>(character).unwrap();
+        let params = world.resource::<Assets<AlsMovementParams>>().get(params_handle.id()).unwrap();
+        let launch_speed = (2.0 * gravity.length() * config.jump.height).sqrt();
+        assert!((launch_speed - params.jump.jump_z_velocity).abs() < 1e-3,
+            "launch_speed={launch_speed} source_jump_z_velocity={}", params.jump.jump_z_velocity);
+    }
+
+    #[test]
     fn initial_control_scheme_matches_the_first_runtime_sync() {
         let params = AlsMovementParams::default();
         let config = initial_als_control_scheme_config(&params);
