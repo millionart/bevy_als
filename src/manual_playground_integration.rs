@@ -11,7 +11,10 @@ mod footprints;
 mod hud_layout;
 
 use als_camera::{AlsCameraDebugInfo, AlsCameraRig, AlsCameraSet, AlsCameraShakeRequest};
-use als_core::character::{AlsCharacter, AlsMovementParamsHandle};
+use als_core::character::{
+    ALS_CHARACTER_CAPSULE_HALF_HEIGHT, ALS_CHARACTER_FLOOR_CLEARANCE, AlsCharacter,
+    AlsMovementParamsHandle,
+};
 use als_core::dynamics::AlsMovementBaseDynamicsState;
 use als_core::foot_ik::AlsFootLockState;
 use als_core::gait::{AlsDesiredGait, AlsMaxAllowedGait};
@@ -3012,6 +3015,7 @@ struct IntegrationCoverage {
     ragdoll_entered: bool,
     ragdoll_pa_profile: bool,
     ragdoll_follow: bool,
+    ragdoll_scaled: bool,
     ragdoll_joint_drive: bool,
     ragdoll_recovered: bool,
     ragdoll_camera_pivot: bool,
@@ -5592,9 +5596,26 @@ fn drive_manual_integration(
                 state.coverage.ragdoll_entered = false;
                 state.coverage.ragdoll_pa_profile = false;
                 state.coverage.ragdoll_follow = false;
+                state.coverage.ragdoll_scaled = false;
                 state.coverage.ragdoll_joint_drive = false;
                 state.coverage.ragdoll_recovered = false;
-                let spawn_translation = state.spawn_translation.unwrap_or(transform.translation);
+                let mut spawn_translation = state.spawn_translation.unwrap_or(transform.translation);
+                if state.scenario == IntegrationScenario::Ragdoll {
+                    transform.scale = Vec3::splat(2.0);
+                    if let Some(avatar) = state.avatar {
+                        commands.entity(avatar).insert(
+                            crate::character_assembly::avatar_transform()
+                                .with_scale(Vec3::splat(0.5)),
+                        );
+                    }
+                    let standing_half = params_assets
+                        .get(params_handle.id())
+                        .map_or(ALS_CHARACTER_CAPSULE_HALF_HEIGHT, |params| {
+                            params.crouch.standing_capsule_half_height
+                        });
+                    spawn_translation.y += standing_half;
+                    rebase_temporal_fixture(&mut state, &mut phase_evidence, "ragdoll_scaled_start");
+                }
                 let spawn_yaw = state.spawn_yaw.unwrap_or(fixture.facing_yaw);
                 reset_character(
                     &mut transform,
@@ -9166,6 +9187,21 @@ fn observe_manual_integration(
     if let Some(follow) = ragdoll_follow {
         if state.ragdoll_seen && follow.grounded {
             state.coverage.ragdoll_follow = true;
+            if state.scenario == IntegrationScenario::Ragdoll {
+                let expected_y = fixture.locomotion_start.y - 0.92
+                    + 2.0 * ALS_CHARACTER_CAPSULE_HALF_HEIGHT
+                    + ALS_CHARACTER_FLOOR_CLEARANCE;
+                let scaled = transform.scale == Vec3::splat(2.0)
+                    && (follow.target.y - expected_y).abs() < 0.12
+                    && (transform.translation.y - follow.target.y).abs() < 0.02;
+                state.coverage.ragdoll_scaled |= scaled;
+                if state.ragdoll_grounded_at.is_none() {
+                    info!(
+                        "[MANUAL-INTEGRATION][RAGDOLL-SCALED] target_y={:.3} expected_y={expected_y:.3} actor_y={:.3} scale={:?} matched={scaled}",
+                        follow.target.y, transform.translation.y, transform.scale,
+                    );
+                }
+            }
             if state.ragdoll_grounded_at.is_none() {
                 state.ragdoll_grounded_at = Some(state.game_time_seconds);
                 info!("[MANUAL-INTEGRATION] ragdoll ground follow stabilized");
@@ -9933,6 +9969,7 @@ fn observe_manual_integration(
                 ("ragdoll_enter", coverage.ragdoll_entered),
                 ("ragdoll_pa_profile", coverage.ragdoll_pa_profile),
                 ("ragdoll_follow", coverage.ragdoll_follow),
+                ("ragdoll_scaled", coverage.ragdoll_scaled),
                 ("ragdoll_joint_drive", coverage.ragdoll_joint_drive),
                 ("ragdoll_recover", coverage.ragdoll_recovered),
                 ("ragdoll_camera_pivot", coverage.ragdoll_camera_pivot),

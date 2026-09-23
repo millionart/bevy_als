@@ -385,3 +385,17 @@
   source/static 进展、runtime 前摘要：两个消费者均用现有 `TransformHelper` 计算当帧角色世界 scale，并交给共用尺寸入口；入口复用已验证的 `scaled_mantle_capsule_dimensions`，不另写第二份轴公式。standing/crouching 两组非均匀 scale 与缺失参数 fallback 均 green，真实 Avian 球扫核对落地中心高度 green，`ragdoll_link::tests::` 10/10；去掉共用换算后 focused test red，恢复 green。剩余边界是同入口构建与原 Playground `ragdoll`/`get_up` 功能 Gate，随后 S3 才做可见非单位 scale 分支。
 
   runtime 完成摘要：同入口 `target_game/play` 限流构建通过；原 Playground `ragdoll` 10/10、`get_up` 11/11 功能结果，runner/manual/validator 退出码 0，43/67 pose samples，graph error/fault/temporal/watchdog 0。物理球扫与非均匀 scale focused green，删去换算的消融 red。此轮验证 scale=1 兼容性，非单位世界 scale 在 S3 可见场景中验收；完整性能预算延期。
+
+- [x] **BF124.A12-S3 — 原 Playground 可见缩放 Ragdoll Gate**：开始：2026-09-23 12:52:16 +08:00；预估结束：2026-09-23 13:47:16 +08:00；实际结束：2026-09-23 13:08:11 +08:00；偏差：-39m05s；结果：原 Playground 胶囊世界 scale=2 的布娃娃找地/跟随、截图、公共功能 Gate 与旧尺寸消融通过。在现有 `ragdoll` 场景的原地形、角色、相机内将 Capsule scale=2、Avatar 相对 scale=0.5 保持网格世界 scale=1，按站姿半高保持初始脚底；公共报告检验缩放后的找地目标、Actor 跟随及恢复。估时依据：现有 Ragdoll phase/coverage/runner、A10 已验证的可见 scale=2 设置、S2 物理反例；拆分结果：A12 可汇总关闭；完整网格 scale=2 的独立物理/读回缺口已证实但不归本项胶囊尺寸修复，A13 不提前展开。
+
+  source/static 进展、runtime 前摘要：现有 `Ragdoll` 场景进入时把同一可见角色置 scale=2，沿既有 `locomotion_start` 抬高一份站姿半高保持脚底；地形、Avatar、相机和退出流程不换。公共覆盖新增 `ragdoll_scaled`：实际 grounded、角色 scale=2、找地目标中心接近源公式 `场景地面+2×站姿半高+最小离地距`，且 actor 跟随目标；源未缩放结果与预期相差约 0.9m。下一步使用同入口 `target_game/play` 构建并跑新 Gate，审计报告和可见 pose；若地形采样导致判据漂移，先回读实际 trace/地面证据。
+
+  runtime 首轮失败摘要：同入口构建成功，`ragdoll_scaled` 与其余 10 项功能覆盖通过、无 watchdog 超时，但公共视觉 Gate 因 39 条 temporal/fault 失败；异常约在 1.37s 布娃娃接管时出现，多个骨段长度从 scale=2 长度跳到约一半，尚不能把功能通过当作验收。停止重跑，先从报告前后 pose、目标 ragdoll spawn/detach 与 fresh UE 网格 scale 生命周期确认究竟是实际缩放丢失还是一次性取样/fixture 时序问题；只修证实链路。
+
+  失败复盘与范围校正：pose samples 在 1.20/1.31s 的 `pelvis→thigh` 为约 0.183m，1.37s 接管后及后续为约 0.091m，证实并非一次性取样。目标依赖 `spawn_ragdoll_avian` 只收 `Isometry3d`，`update_ragdolls_avian` 的 root `.to_isometry()` 丢 scale；UE `StartRagdolling` 则 `DetachFromComponent(KeepWorldTransform)` 保留网格世界 scale。这是完整 scale=2 网格的独立物理资产/读回链路缺口，超出本 A12 胶囊找地公式。为隔离已证实的本项查询，下一次同一原 Playground 把角色 Capsule 世界 scale=2、Avatar 相对 scale=0.5 维持网格世界 scale=1；UE mesh 与 Capsule 允许不同相对 scale，仍用真实角色/地形/相机和原 ragdoll 物理流程，公共报告继续严验胶囊尺寸。完整网格 scale 缺口保留证据，后续独立处理，不能以阈值放宽消除。
+
+  隔离 fixture 的 runtime 后、消融前摘要：同入口 `target_game/play` 构建成功，原 Playground `ragdoll` 以角色 Capsule scale=2、Avatar 世界 scale=1 真正进入/恢复布娃娃，公共功能 11/11（新增 `ragdoll_scaled`），43 pose samples、两张可见场景截图，graph error/fault/temporal/watchdog 0；截图显示原地形/角色/相机，未使用隔离空白世界。首次完整 mesh scale=2 的失败作为独立依赖缺口保留，此轮不修改依赖、阈值或已完成动画图。下一步暂去共用尺寸换算跑同一场景，要求 `ragdoll_scaled` 失败，再恢复最终代码与 Gate。
+
+  消融后、最终 runtime 前摘要：仅去掉共用 Ragdoll 尺寸换算的受控构建在同一 Playground `ragdoll` 场景退出码 91，公共报告仅 `ragdoll_scaled` 未覆盖，另有 18 条由错误胶囊跟随跳变引发的 temporal；graph error 与 watchdog 均 0。消融已恢复源码，下一步同一 `target_game/play` 重新限流构建，复跑带截图的最终功能 Gate，并核对报告 11/11 与图/时间/故障 0。
+
+  runtime 最终完成摘要：恢复尺寸换算后同入口 `target_game/play` 构建成功，最终原 Playground `ragdoll` runner/manual/validator 退出码 0，11/11 必需项（含 `ragdoll_scaled`）、43 pose samples、两张场景截图，graph error/fault/temporal/watchdog 0；截图核对仍是原地形、角色与相机。该 fixture 专测源允许的 Capsule 与 mesh 不同世界 scale；完整 mesh scale=2 的依赖路径会导致骨段持续缩半，未以阈值放宽隐藏。完整性能预算延期。
