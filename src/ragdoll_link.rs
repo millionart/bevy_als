@@ -206,10 +206,13 @@ impl Plugin for AlsRagdollLinkPlugin {
 
 fn register_ragdoll_camera_trace_owner(
     event: On<RagdollSpawned>,
-    avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
+    avatars: Query<(Entity, &AlsCharacterAvatar, &AnimatedSceneInstance)>,
+    assemblies: Query<&AlsCharacterAssembly>,
     mut commands: Commands,
 ) {
-    if let Some((avatar, _)) = avatars.iter().find(|(_, scene)| scene.player_entity() == event.animation_player) {
+    if let Some((avatar_entity, avatar, _)) = avatars.iter().find(|(_, _, scene)| scene.player_entity() == event.animation_player)
+        && assemblies.get(avatar.character).is_ok_and(|assembly| assembly.avatar == avatar_entity)
+    {
         commands.entity(event.ragdoll).insert(als_camera::AlsCameraTraceOwner(avatar.character));
     }
 }
@@ -409,8 +412,9 @@ fn sync_ragdoll_body_modes(
 
 fn sync_animated_ragdoll_bodies(
     time: Res<Time>,
-    characters: Query<Option<&AlsNotifyLocomotionAction>, With<AlsCharacter>>,
+    characters: Query<(Option<&AlsNotifyLocomotionAction>, &AlsCharacterAssembly), With<AlsCharacter>>,
     avatars: Query<(
+        Entity,
         &AlsCharacterAvatar,
         &AnimatedSceneInstance,
         &AnimatedSceneHandle,
@@ -426,11 +430,11 @@ fn sync_animated_ragdoll_bodies(
         &mut AngularVelocity,
     )>,
 ) {
-    for (avatar, instance, handle) in &avatars {
-        if characters
-            .get(avatar.character)
-            .is_ok_and(|state| state == Some(&AlsNotifyLocomotionAction::Ragdolling))
-        {
+    for (avatar_entity, avatar, instance, handle) in &avatars {
+        let Ok((action, assembly)) = characters.get(avatar.character) else {
+            continue;
+        };
+        if assembly.avatar != avatar_entity || action == Some(&AlsNotifyLocomotionAction::Ragdolling) {
             continue;
         }
         let Some(mapping) = scenes
@@ -833,19 +837,19 @@ pub(crate) fn ragdoll_recovery_rotation(pelvis: Quat) -> (Quat, bool) {
 pub(crate) fn restore_ragdoll_player_parent(
     mut commands: Commands,
     transform_helper: TransformHelper,
-    avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
-    characters: Query<(Option<&AlsNotifyLocomotionAction>, &Transform, &LocomotionState), With<AlsCharacter>>,
+    avatars: Query<(Entity, &AlsCharacterAvatar, &AnimatedSceneInstance)>,
+    characters: Query<(Option<&AlsNotifyLocomotionAction>, &Transform, &LocomotionState, &AlsCharacterAssembly), With<AlsCharacter>>,
     detached_players: Query<&AlsRagdollDetachedPlayer>,
     skeletons: Res<Assets<Skeleton>>,
     bones: Query<(&Name, &Transform, &GlobalTransform, Option<&ChildOf>)>,
     globals: Query<&GlobalTransform>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
-    for (avatar, instance) in &avatars {
-        let Ok((action, actor_transform, locomotion)) = characters.get(avatar.character) else {
+    for (avatar_entity, avatar, instance) in &avatars {
+        let Ok((action, actor_transform, locomotion, assembly)) = characters.get(avatar.character) else {
             continue;
         };
-        if action == Some(&AlsNotifyLocomotionAction::Ragdolling) {
+        if assembly.avatar != avatar_entity || action == Some(&AlsNotifyLocomotionAction::Ragdolling) {
             continue;
         }
         let player_entity = instance.player_entity();
@@ -1110,6 +1114,7 @@ mod tests {
         use bevy_animation_graph::AnimationGraphPlugin;
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, AssetPlugin::default(), AnimationGraphPlugin::default()));
+        app.add_observer(register_ragdoll_camera_trace_owner);
         let character = app.world_mut().spawn(AlsCharacter).id();
         let spawn_avatar = |app: &mut App| {
             let avatar = app.world_mut().spawn((
@@ -1140,6 +1145,22 @@ mod tests {
         assert!(app.world().entities().contains(old_avatar));
         assert!(app.world().entities().contains(old_player));
         assert_eq!(selected, Some(new_player));
+        let old_ragdoll = app.world_mut().spawn_empty().id();
+        let new_ragdoll = app.world_mut().spawn_empty().id();
+        app.world_mut().trigger(RagdollSpawned {
+            ragdoll: old_ragdoll,
+            animation_player: old_player,
+        });
+        app.world_mut().trigger(RagdollSpawned {
+            ragdoll: new_ragdoll,
+            animation_player: new_player,
+        });
+        app.world_mut().flush();
+        assert!(app.world().get::<als_camera::AlsCameraTraceOwner>(old_ragdoll).is_none());
+        assert_eq!(
+            app.world().get::<als_camera::AlsCameraTraceOwner>(new_ragdoll).unwrap().0,
+            character
+        );
     }
 
     #[test]
