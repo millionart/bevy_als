@@ -732,7 +732,7 @@
 
   source/static 完成摘要：UE 的同步 Tick 从动画实例当前 Delta 获时；target 顶层 `GraphContextArena` 记录 `AnimationGraphPlayer` 查询时间，嵌套 FSM 可以独立给子图局部零增量。旧 S2 误把这个局部零当作 Pause，`standing_stop` 两次 9/10，临时仅撤回时间门的同入口 A/B 为 10/10。现在共享同步时间门读取顶层 `StateKey::Default` 查询时间；仅缺顶层记录时回退节点时间，不改全局已缩放值。focused 嵌套图构造顶层 0.1/局部 0 的 red→green，已加载 Sequence 真 Pause 图仍停钟，双节点同步相位及缩放值局部 Gate 通过。旧 A/B 二进制不可作新源码 runtime 证据，下一步 S3 重新预构建。
 
-- [ ] **BF124.A30-S3 — 原 Playground 同步步态/转换公共视觉 Gate**：开始：2026-09-23 23:15:49 +08:00；预估结束：2026-09-23 23:50:49 +08:00。使用 `run_manual.bat` 同一 `target_game`/`play` 预构建及公共 runner `-FunctionalOnly -CaptureCount 0` 跑 `startup`、`locomotion`、`standing_direction`、`standing_stop`、`crouching_actions`，审计实际同步剪辑时钟、姿态/通知、动作覆盖、图错误及进展 watchdog；完整性能预算沿用户既有安排延期。估时依据：S1–S2 真实图 red→green、双节点同步组消融及五项已有原 Playground 场景历史耗时；A31 不提前展开。
+- [x] **BF124.A30-S3 — 原 Playground 同步步态/转换公共视觉 Gate**：开始：2026-09-23 23:15:49 +08:00；预估结束：2026-09-23 23:50:49 +08:00；实际结束：2026-09-23 23:45:30 +08:00；偏差：-5m19s；结果：S2R 后同入口 `target_game`/`play` 重新预构建，五项原 Playground 场景全部通过功能 Gate；原 `standing_stop` 右 QuickStop 现 10/10、7/7，完整性能预算沿用户既有安排延期。估时依据：S1–S2 真实图 red→green、双节点同步组消融及五项已有原 Playground 场景历史耗时；拆分结果：A30 runtime Gate 完成，A31 为下一项。
 
   runtime 前 source/static 摘要：fresh UE 5.8 Sequence/Sync 用动画实例的当前 Delta，目标播放器 Pause 后图时间为零但全局帧增量可保持非零。共享同步时间门在两个节点现只于播放器正 Delta 使用全局已缩放值；暂停 Sequence 和双节点同步组真实图通过，单独退回 BlendSpace 时间门 red，Sequence/BlendSpace/同步组与脚步局部回归通过。使用已提交 `cef5ad0` 源码重建同启动器产物并进入五项原 Playground 功能 Gate。
 
@@ -741,3 +741,7 @@
   runtime 受控复核前摘要：QuickStop 右侧在失败与此前通过报告均正常推进到 2.2 秒以上，差别是失败报告在淡出前被新 StandingDynamic 覆盖；`standing_stop_completed` 明确要求原 QuickStop inactive 且回到 Idle，故超时属生命周期覆盖而非图错误。场景本身没有 Pause 操作；S2 时间门在正播放器 Delta 下仍返回原全局增量，局部双节点正常推进和缩放增量 Gate 已通过。以新目录只重跑一次 `standing_stop` 判断覆盖是否稳定复现；若再现则继续 source/target 触发链调查，不更改验收阈值。
 
   runtime 重现与 A/B 前摘要（2026-09-23 23:26:46 +08:00）：新目录单次重跑同样 9/10，`quick_stop_right` 在约 1.4 秒被 StandingDynamic 覆盖，graph error/fault/temporal 仍为 0，故非单次计时偶发。目标 Standing FSM `internal_time_key="animation.delta_seconds"`，其内部时钟可在上游播放器时间与全局输入之间重写；S2 仅看节点 `context_time_update`，可能把非暂停的嵌套图零增量误判为整播放器 Pause。下一步在同一目标场景仅临时撤回 S2 共享门、重建同入口并运行一次 `standing_stop` 作 A/B；随后恢复源码并根据结果复盘 S2，保持失败报告不覆盖。
+
+  runtime 重启前摘要（2026-09-23 23:39:05 +08:00）：S2R 已将两个同步节点的门控改为读取顶层播放器查询时间，局部零/顶层正的嵌套图新反例 red→green，顶层 Pause/全局正的真实 Sequence 图仍停钟；单变量旧语义 A/B 已证明原 S2 导致 QuickStop 右侧失败。修复提交 `bd95eac`，此前 A/B 的 `target_game` 二进制不作为新源码证据；现在重新预构建并在新目录运行原五项 Playground 功能 Gate，先核对 `standing_stop`。
+
+  runtime 完成摘要（2026-09-23 23:45:30 +08:00）：S2R 新二进制的 `startup`、`locomotion`、`standing_direction`、`standing_stop`、`crouching_actions` 均 manual exit 0、functional validator exit 0；后四项动作覆盖 18/18、5/5、10/10、11/11，运动窗口 14/14、11/11、7/7、8/8。全部报告 `primary_failure=null`、graph error 0、fault 0、temporal anomaly 0、watchdog 未触发；首次两次右 QuickStop 被 StandingDynamic 抢断的症状消失。报告原始性能预算未通过，依既有延期决定只记功能验收。A30 源、静态和真实入口闭环完成。
