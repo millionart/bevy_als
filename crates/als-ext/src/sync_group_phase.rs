@@ -112,6 +112,15 @@ pub struct SourceSyncPlayerTick {
 
 pub const SOURCE_SYNC_RESOLVED: &str = "__source_sync_resolved";
 
+pub fn source_sync_delta_seconds(ctx: &NodeContext, key: &str) -> Result<f32, GraphError> {
+    let delta = global_f32_or_root_default(ctx, key)?;
+    Ok(if matches!(context_time_update(ctx)?, TimeUpdate::Delta(value) if value > 0.0) {
+        delta
+    } else {
+        0.0
+    })
+}
+
 pub fn source_sync_phase(
     arena: &GraphContextArena,
     graphs: &Assets<AnimationGraph>,

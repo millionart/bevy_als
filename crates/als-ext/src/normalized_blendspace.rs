@@ -589,7 +589,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
         let leader_duration = self.point_duration(&mut ctx, leader)?;
         let sample_looped = self.looped && !self.teleport_to_normalized_time;
         let phase = if let Some(playback) = &self.playback {
-            let delta_seconds = global_f32_or_root_default(&ctx, &playback.delta_seconds_key)?;
+            let delta_seconds = crate::sync_group_phase::source_sync_delta_seconds(&ctx, &playback.delta_seconds_key)?;
             let play_rate = if playback.play_rate_key.is_empty() {
                 1.0
             } else {

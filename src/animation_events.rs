@@ -1078,7 +1078,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "A30 source mismatch fixture"]
     fn synchronized_sequence_respects_paused_player_time() {
         use bevy_animation_graph::core::{animated_scene::AnimatedSceneInstance,
             animation_graph::AnimationGraph, animation_graph_player::AnimationGraphPlayer,

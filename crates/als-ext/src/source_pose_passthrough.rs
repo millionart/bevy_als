@@ -210,14 +210,16 @@ mod tests {
             let entities = HashMap::new();
             let env = TestIoEnv::default();
             let mut result = Vec::new();
-            for weights in [
-                [0.5, 0.5, 0.0],
-                [0.3, 0.3, 0.4],
-                [0.0, 0.0, 1.0],
-                [0.5, 0.5, 0.0],
+            for (weights, player_delta, global_delta) in [
+                ([0.5, 0.5, 0.0], 0.1, 0.1),
+                ([0.3, 0.3, 0.4], 0.1, 0.1),
+                ([0.0, 0.0, 1.0], 0.1, 0.1),
+                ([0.5, 0.5, 0.0], 0.1, 0.1),
+                ([0.5, 0.5, 0.0], 0.0, 0.1),
+                ([0.5, 0.5, 0.0], 0.1, 0.05),
             ] {
                 let inputs = HashMap::from([
-                    ("delta".to_owned(), DataValue::F32(0.1)),
+                    ("delta".to_owned(), DataValue::F32(global_delta)),
                     ("rate".to_owned(), DataValue::F32(1.0)),
                     ("position".to_owned(), DataValue::Vec2(Vec2::ZERO)),
                     ("sample".to_owned(), DataValue::Pose(Pose::default())),
@@ -239,7 +241,7 @@ mod tests {
                 );
                 graph
                     .query_with_context(
-                        QueryOutputTime::Forced(TimeUpdate::Delta(0.1)),
+                        QueryOutputTime::Forced(TimeUpdate::Delta(player_delta)),
                         context.clone(),
                     )
                     .unwrap();
@@ -454,7 +456,7 @@ mod tests {
         let actual = world
             .run_system_cached_with(query, handles[0].clone())
             .unwrap();
-        for (frame, expected) in [0.3, 0.35, 0.4, 0.5].into_iter().enumerate() {
+        for (frame, expected) in [0.3, 0.35, 0.4, 0.5, 0.5, 0.55].into_iter().enumerate() {
             for player in &actual[frame].sync_players {
                 assert!(
                     (player.phase - expected).abs() < 1e-5,
@@ -465,6 +467,8 @@ mod tests {
         }
         assert_eq!(actual[1].sync_players.len(), 2);
         assert!((actual[1].sync_players[0].weight - 0.3).abs() < 1e-5);
+        assert!(actual[4].sync_players.iter().all(|player| player.delta_seconds == 0.0));
+        assert!(actual[5].sync_players.iter().all(|player| (player.delta_seconds - 0.05).abs() < 1e-5));
         let ablated = world
             .run_system_cached_with(query, handles[1].clone())
             .unwrap();

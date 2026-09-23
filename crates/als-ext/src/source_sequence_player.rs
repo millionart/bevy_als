@@ -20,11 +20,10 @@ use bevy_animation_graph::core::{
 };
 
 use crate::animation_context::forward_loop_count;
-use crate::global_f32_input::global_f32_or_root_default;
 use crate::global_f32_input::root_defaults_enabled;
 use crate::sync_group_phase::{
     SourceSyncGroupRole, SourceSyncPlayerTick, SyncMarker, marker_phase_from_sample_time,
-    marker_phase_sample_time, resolved_source_sync_phase,
+    marker_phase_sample_time, resolved_source_sync_phase, source_sync_delta_seconds,
 };
 use crate::{
     AnimationContextState, SourceRelevantAsset, context_time_update, make_local_difference,
@@ -348,7 +347,7 @@ impl NodeLike for SourceSequencePlayerNode {
             self.start_position
         };
         let delta = if let Some(sync) = &self.synchronization {
-            global_f32_or_root_default(&ctx, &sync.delta_seconds_key)?
+            source_sync_delta_seconds(&ctx, &sync.delta_seconds_key)?
         } else {
             match &update {
                 TimeUpdate::Delta(value) => value.max(0.0),
