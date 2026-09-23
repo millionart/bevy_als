@@ -864,7 +864,7 @@ fn camera_movement_base_bridge_system(
         let next = dynamics.and_then(|state| state.entity).and_then(|base| {
             bases.get(base).ok().map(|_| AlsCameraMovementBase {
                 entity: base,
-                has_relative_rotation: true,
+                has_relative_rotation: false,
             })
         });
         if current.copied() == next {
@@ -1337,7 +1337,6 @@ mod tests {
     use bevy::time::{Real, Virtual};
 
     #[test]
-    #[ignore = "A17: base presence currently forces relative camera rotation"]
     fn movement_base_presence_does_not_enable_relative_camera_rotation() {
         use bevy::ecs::system::RunSystemOnce;
         for rotation in [Quat::IDENTITY, Quat::from_rotation_y(0.5)] {
