@@ -286,11 +286,19 @@
 
 - [x] **BF124.A05 — 连续 GaitAmount 旋转曲线**：开始：2026-09-23 09:58:18 +08:00；预估结束：2026-09-23 10:13:18 +08:00；实际结束：2026-09-23 09:58:18 +08:00；偏差：-15m00s；结果：S1 源曲线/反例与 S2 离线生成/生产采样/两场真实功能 Gate 均单独提交，工作树干净。当前 `MS_Als_Normal` 只引用 Normal/Responsive 两条线性曲线，目标按 `AlsGaitAmount` 连续采样并保持 Standing/Crouching 原选曲；核心 284 项、三项消融及 `sprint`/`standing_response` 原 Playground 报告通过。完整性能预算依用户暂停范围延期。估时依据：复核已通过子项与提交/索引；拆分结果：本编号无剩余功能 Gate，A06 是下一项。
 
-- [x] **BF124.A06 — 落地残余移动不得解除旋转阻止**：开始：2026-09-23 09:59:42 +08:00；预估结束：2026-09-23 10:44:42 +08:00；实际结束：2026-09-23 10:08:54 +08:00；偏差：-35m48s；结果：源标志/目标生命周期、失败反例、两项必要消融和原 Playground 落地功能 Gate 通过。fresh UE 落地阻止标志仅在 Grounded moving Velocity/View 分支收到新输入时解除；目标现保持无输入残速下的 blocked 与 Actor Target/SmoothTarget，Air/静止/瞄准不误清。估时依据：一个已有状态、一个 source Grounded switch 和现成上跳场景；拆分结果：本编号无剩余功能 Gate，A07 独立处理期望速度方向。
+- [ ] **BF124.A06 — 落地残余移动不得解除旋转阻止**：首次开始：2026-09-23 09:59:42 +08:00；首次预估结束：2026-09-23 10:44:42 +08:00；首次实际结束：2026-09-23 10:08:54 +08:00；首次偏差：-35m48s；结果：1 m/s 与零残速 Gate 通过，2026-09-23 10:16:22 +08:00 因 0.1 m/s 新边界复开。fresh UE 落地阻止标志只在有新输入的 Grounded moving Velocity/View 分支解除；目标初次修复保持无输入且仍为 moving 的残速状态。估时依据：一个已有状态、一个 source Grounded switch 和现成上跳场景；拆分结果：R1 补静止低残速，A07 S2 待其通过后继续。
 
   source/static 与 runtime 前摘要：fresh 本地 UE `AlsCharacter.cpp` 落地时设置 blocked、模式切换设置 blocked；仅 Grounded moving 且 Velocity/View 非瞄准满足 `bHasInput || !blocked` 才进入消费目标的分支，无输入而被阻止则落到 `RefreshTargetYawAngleUsingActorRotation`。目标原 `moving || has_input` 清除在 Landing 后把残余速度误作新输入。真实 `rotation_response_system` 反例 Air→Grounded、无输入但水平速度 1 m/s 的 Velocity/View 两模式先稳定 FAIL，修复后 blocked/Actor yaw/Target/SmoothTarget 连续两帧保持，明确新输入才解锁；Air 与 FirstPerson/Aiming 的原标志生命周期也加在既有 focused 测试中。消融早清标志或移除目标 yaw 保持分别 FAIL；消融额外的早期 Smooth 重置和 actor 直持分支信号不变，已删除冗余分支，仅保留必要条件。旋转模块 26/26 通过。现在同 `target_game/play` 限流构建并运行原 Playground `uphill_jump` 公共落地/姿态 Gate，性能预算继续延期。
 
   完成摘要：同 `target_game/play` 重建后原 Playground `uphill_jump` public runner manual/validator `0/0`，6/6 结果与 18/18 上跳落地姿态窗口、1,316 pose samples；graph error/fault/temporal/watchdog 均为 0，渲染/贴花通过。原 red 中 0.4 rad Actor yaw 在首个无输入残速帧不再被速度 yaw 拉走，Target/SmoothTarget 同步保持，直到显式新输入才解除 blocked；移除早清限制或移除目标保护各自重现失败。无资产/图/阈值修改，完整性能预算按用户暂停范围延期。
+
+  复开复盘：A07 当次 fresh 源 `RefreshGroundedRotation` 的静止 VelocityDirection 分支在 blocked=true 时强制用 `LocomotionState.TargetYawAngle`，无论 `bHasVelocity`；目标 A06 的 `blocked_residual_motion` 只覆盖 `moving=true`，当无输入速度降到 `0.1 m/s`（高于 has-velocity 0.01、低于 moving 0.5）时重新消费实际速度 yaw。旧 focused 只枚举 `1.0 m/s` 和 `0`，真实上跳 Gate 未逐帧断言该狭窄速度区间，故漏检。先取消本项勾选并以 R1 补反例和有限修复；A07 只保留已提交 S1，不启动 S2。
+
+  - [x] **BF124.A06-R1 — 静止低残速 blocked 目标选择**：开始：2026-09-23 10:16:22 +08:00；预估结束：2026-09-23 10:56:22 +08:00；实际结束：2026-09-23 10:24:13 +08:00；偏差：-32m09s；结果：静止残速源分支、最小反例/消融及原 Playground 功能 Gate 通过。旧真实系统反例扩展到 `0.1 m/s` 的 Velocity/View、标志/目标/Actor 连续帧；仅在源静止 VelocityDirection blocked 分支复用上次目标，旋转相关回归和上跳场景通过。估时依据：一条源静止分支、一个目标 match 守卫和现成测试/场景；拆分结果：A06 可恢复关闭，A07 S2 再继续。
+
+    runtime 前摘要：扩展旧系统反例后，VelocityDirection 在无输入 `0.1 m/s` 首帧旧 actor yaw 从 `0.4` 变为 `-0.29828933 rad`，目标实际速度 yaw 被错选，稳定 FAIL；fresh 源静止 blocked 分支明确使用上次 TargetYaw。仅在该分支保留 runtime.target_yaw，focused PASS；删除该守卫后再稳定 FAIL，已恢复。旋转模块初次回归暴露旧 `velocity_direction_retains_rotation_target_after_velocity_stops` 用默认 blocked=true/无输入却期待转向速度，违背源条件；把其前提改为已解除 blocked 的状态后 26 passed/1 个 A07 ignored。无新状态/资产/阈值，现限流重建同 `target_game/play` 并复验原 Playground 上跳落地。
+
+    完成摘要：同 `target_game/play` 原 `uphill_jump` public runner manual/validator `0/0`，6/6 功能结果、18/18 姿态窗口、1,333 pose samples；graph error/fault/temporal/watchdog 为 0，渲染/贴花通过。`0.1 m/s` 的 source-blocked 反例由 `yaw=-0.29828933` 的 FAIL 修为维持 `0.4 rad`，删除守卫再次 FAIL；旧错误前提测试已改为明确“此前输入已解除 blocked”，不把旧目标误行为当成回归要求。无生产新状态，完整性能预算依用户暂停范围延期。
 
 - [x] **BF124.A07-S1 — 碰撞前期望速度朝向源/目标链与反例**：开始：2026-09-23 10:10:22 +08:00；预估结束：2026-09-23 10:55:22 +08:00；实际结束：2026-09-23 10:14:39 +08:00；偏差：-40m43s；结果：源 Settings/CMC 时序、目标公开状态与真实响应系统 red 反例 Gate 通过。fresh UE `PhysWalking` 缓存碰撞前 `MoveVelocity`，角色一次性消费并在低速/缺失时回退实际 VelocityYaw；当前设置开关为 true，目标此前只用碰撞后朝向。估时依据：两个源函数、一个现有目标马达→旋转链及受控滑墙输入；拆分结果：S2 接入目标数据与实际物理/Playground Gate，A08 不提前展开。
 

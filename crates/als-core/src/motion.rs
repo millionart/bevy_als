@@ -467,6 +467,7 @@ fn rotation_response_system(
         let target_yaw = wrap_yaw_radians(match body_rotation_mode {
             _ if blocked_residual_motion => current_yaw,
             _ if hold_air_rotation => current_yaw,
+            RotationMode::VelocityDirection if !moving && runtime.rotation_towards_last_input_direction_blocked => runtime.target_yaw,
             RotationMode::VelocityDirection => velocity_yaw.unwrap_or(
                 if runtime.initialized
                     && !(curve_driven && runtime.rotation_towards_last_input_direction_blocked)
@@ -723,6 +724,9 @@ mod rotation_cap_tests {
             AlsMovementParamsHandle(params),
             LinearVelocity(Vec3::X * 0.1),
             AlsInputCommand::default(),
+            AlsRotationResponseState { initialized: true,
+                rotation_towards_last_input_direction_blocked: false,
+                previous_rotation_mode: Some(RotationMode::VelocityDirection), ..default() },
         )).id();
         app.update();
         let target = app.world().get::<AlsRotationResponseState>(character).unwrap().target_yaw;
@@ -1148,7 +1152,7 @@ mod rotation_cap_tests {
                     target_yaw: -1.0, previous_locomotion: LocomotionState::Air,
                     previous_rotation_mode: Some(mode), ..default() },
             )).id();
-            for velocity in [Vec3::X, Vec3::ZERO] {
+            for velocity in [Vec3::X, Vec3::X * 0.1, Vec3::ZERO] {
                 app.world_mut().entity_mut(character).insert(LinearVelocity(velocity));
                 app.update();
                 let yaw = world_forward_to_yaw(*app.world().get::<Transform>(character).unwrap().forward());
