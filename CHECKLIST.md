@@ -311,3 +311,5 @@
   `stairs` runtime 后/基座前摘要：同 `target_game/play` 原 Playground `stairs` public runner manual/validator `0/0`，9/9 功能结果覆盖 01/02/03 三种阶高的上下六路线，18 个运动/姿态窗口、3,228 条物理运动 trace 与 1,935 pose samples；graph error/fault/temporal/watchdog 为 0，渲染/贴花通过。保持同二进制再跑 `moving_base`，核对携带/跳离/新支撑/Mantle 返回及本次世界/相对速度分解无回归；完整性能预算依用户暂停范围延期。
 
   完成摘要：同二进制 `moving_base` public runner manual/validator `0/0`，10/10 结果覆盖 Ride/Jump/新支撑/Mantle/返回、2 个姿态窗口与 403 pose samples；graph error/fault/temporal/watchdog 为 0，渲染/贴花通过。源开关 true 与 pre-physics MoveVelocity 合同用现有 motor 世界速度加 boost 重构；受控侧滑原 `target_yaw=-π/2` 现在按马达期望为 `0`，一次消费后与 0.005 m/s 低速时准确回退实际 `-π/2`。四项消融和核心 286/286 均通过，完整性能预算依用户暂停范围延期。
+
+- [x] **BF124.A07 — VelocityDirection 碰撞前期望速度朝向**：开始：2026-09-23 10:40:27 +08:00；预估结束：2026-09-23 10:55:27 +08:00；实际结束：2026-09-23 10:40:27 +08:00；偏差：-15m00s；结果：S1 源/目标合同与 red 反例、S2 最小一次性消费和真实入口 Gate 分别提交，工作树干净。当前角色源设置优先碰撞前期望速度，目标现从已有马达状态消费一次并对缺失/低速回退；核心 286 项及原 Playground `stairs`/`moving_base` 两场功能报告通过。完整性能预算依用户暂停范围延期。估时依据：仅复核已完成两个子项及索引/提交；拆分结果：本编号无剩余功能 Gate，A08 是下一项。
