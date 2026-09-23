@@ -1,6 +1,9 @@
 use super::*;
 use crate::footprint::{Footprint, FootprintDiagnostics, footprint_opacity};
-use als_ext::projected_decal::{NoDecalReceiver, PackedDecal, PackedDecalMaterial};
+use als_ext::projected_decal::{
+    NoDecalReceiver, PackedDecal, PackedDecalMaterial, PackedDecalPrepareSet,
+    PackedDecalReceiverMaterial, StandardMaterialSource,
+};
 
 pub(super) const LABELS: [&str; 8] = ["footprint_prepare", "footprint_walk", "footprint_walk_stop", "footprint_run", "footprint_run_stop", "footprint_crouch", "footprint_crouch_stop", "footprint_cleanup"];
 
@@ -60,6 +63,9 @@ fn gpu_step(mut cursor: usize) -> Option<GpuStep> {
 #[derive(Component)]
 struct GpuProbeRoot;
 
+#[derive(Component)]
+struct ManualReceiverReplacement(Handle<StandardMaterial>);
+
 fn gpu_probe_stalled(waited: f32) -> bool { waited > 12.0 }
 
 pub(super) fn install(app: &mut App) {
@@ -71,6 +77,49 @@ pub(super) fn install(app: &mut App) {
         .after(crate::debug_display::AlsDebugDisplaySet)
         .after(bevy::camera::visibility::VisibilitySystems::CheckVisibility)
         .before(observe_manual_integration).in_set(ManualIntegrationObservationSet));
+    if std::env::var("ALS_MANUAL_DECAL_RECEIVER_SWAP").as_deref() == Ok("1") {
+        app.add_systems(Update, replace_receiver_material.before(PackedDecalPrepareSet));
+        app.add_systems(PostUpdate, observe_receiver_material_swap
+            .after(PackedDecalPrepareSet).before(observe));
+    }
+}
+
+fn replace_receiver_material(
+    mut commands: Commands,
+    state: Res<ManualIntegrationState>,
+    children: Query<&Children>,
+    converted: Query<(&MeshMaterial3d<PackedDecalReceiverMaterial>, &StandardMaterialSource), With<Mesh3d>>,
+    replacements: Query<Entity, With<ManualReceiverReplacement>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    if !state.initialized || state.scenario != IntegrationScenario::Footprint
+        || gpu_step(state.footprint_probe.gpu.cursor).is_some() || !replacements.is_empty() { return; }
+    let Some(root) = state.footprint_probe.gpu.root else { return; };
+    let Some(entity) = children.iter_descendants(root).find(|entity| converted.get(*entity).is_ok()) else { return; };
+    let material = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.2, 0.7, 0.4), perceptual_roughness: 0.8,
+        metallic: 0.2, reflectance: 0.5, ..default()
+    });
+    commands.entity(entity).insert((MeshMaterial3d(material.clone()), NoDecalReceiver,
+        ManualReceiverReplacement(material.clone())));
+    info!("[MANUAL-INTEGRATION][DECAL-RECEIVER-SWAP] entity={entity:?} new_material={:?}", material.id());
+}
+
+fn observe_receiver_material_swap(
+    mut state: ResMut<ManualIntegrationState>,
+    replacements: Query<(
+        Entity, &ManualReceiverReplacement, Option<&MeshMaterial3d<StandardMaterial>>,
+        Has<MeshMaterial3d<PackedDecalReceiverMaterial>>, Has<StandardMaterialSource>,
+    ), With<Mesh3d>>,
+) {
+    if state.scenario != IntegrationScenario::Footprint { return; }
+    let Ok((entity, replacement, current, packed, source)) = replacements.single() else { return; };
+    if current.is_some_and(|material| material.0 == replacement.0) && !packed && !source {
+        if !state.coverage.decal_receiver_swap {
+            info!("[MANUAL-INTEGRATION][DECAL-RECEIVER-SWAP] entity={entity:?} current_material={:?} packed=false source=false -> PASS", replacement.0.id());
+        }
+        state.coverage.decal_receiver_swap = true;
+    }
 }
 
 fn drive_gpu(

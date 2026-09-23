@@ -3082,6 +3082,7 @@ struct IntegrationCoverage {
     camera_debug_geometry: bool,
     movement_base: bool,
     foot_probe: bool,
+    decal_receiver_swap: bool,
     foot_lock: bool,
     foot_ik_space_baseline: bool,
     foot_ik_no_hit_recovered: bool,
@@ -3176,6 +3177,7 @@ struct ManualIntegrationState {
     ragdoll_seen: bool,
     expect_ragdoll_player_replacement: bool,
     expect_control_rig_definition_hot_swap: bool,
+    expect_decal_receiver_swap: bool,
     ragdoll_exit_requested: bool,
     ragdoll_frames: u32,
     get_up_case: usize,
@@ -3309,6 +3311,8 @@ impl Default for ManualIntegrationState {
                 std::env::var("ALS_MANUAL_RAGDOLL_PLAYER_REPLACEMENT").as_deref() == Ok("1"),
             expect_control_rig_definition_hot_swap:
                 std::env::var("ALS_MANUAL_RIG_DEFINITION_HOT_SWAP").as_deref() == Ok("1"),
+            expect_decal_receiver_swap:
+                std::env::var("ALS_MANUAL_DECAL_RECEIVER_SWAP").as_deref() == Ok("1"),
             ragdoll_exit_requested: false,
             ragdoll_frames: 0,
             get_up_case: 0,
@@ -10400,6 +10404,9 @@ fn observe_manual_integration(
         }
         if state.scenario == IntegrationScenario::ControlRig && state.expect_control_rig_definition_hot_swap {
             results.push(("control_rig_definition_hot_swap", coverage.control_rig_definition_hot_swap));
+        }
+        if state.scenario == IntegrationScenario::Footprint && state.expect_decal_receiver_swap {
+            results.push(("decal_receiver_swap", coverage.decal_receiver_swap));
         }
         for (name, covered) in &results {
             if *covered {
