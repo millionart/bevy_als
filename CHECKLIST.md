@@ -1042,3 +1042,9 @@
   source/static 开始摘要：本地 UE `UK2Node_Knot` 构造显式 `InputPin`/`OutputPin`，可通过 `GetPassThroughPin` 连接两侧；目标 `generate_ue_transition_expression_graph.py` 用 UE 可见 pin 原名渲染 `SourceScalarPin` 并为 Knot 选 `operation="passthrough"`，该转换规则本身与源一致。目标 `SourceScalarExpressionNode::result_f32/result_bool` 对 passthrough 却硬编码 `"A"`，若定义实际只有 InputPin，通用 `input_f32/input_bool` 查不到对应 pin 后回落默认0/false。先 fresh 取证并构造两个图级 red；若没有源证据显示转换规则差异，则修共享 runtime，不为特定节点 GUID/图重命名 pin，也不修改完成图资产。
 
   S1 red 完成摘要：仓库原生 reader 的 `AB_Als_Standing` 报告 `success=true/exit_reason=completed`，258图中两处真实 `K2Node_Knot` 均在顶层 AnimGraph，`InputPin`/`OutputPin` 各有一条链接，未发现 Standing Transition 图 Knot；本次源证据证明 UE pin 命名合同，不能声称已有 Standing Transition Knot。生成器 `K2Node_Knot`→passthrough 且原样输出 pin 名，self-test 9项通过；已生成 RON 418份中未找到 passthrough operation，故现有资产影响为零，未修改转换规则或资产。新图级测试在边上输入 float 2.5/bool true 时分别得0/false，定位共享 runtime 硬编码 `A`；S2 修 runtime，S3 用原 Playground 的显式受控条件图验证真实入口。
+
+- [x] **BF124.A41-S2 — passthrough 读取声明输入 pin 并审计共享影响**：开始：2026-09-24 07:19:00 +08:00；预估结束：2026-09-24 07:49:00 +08:00；实际结束：2026-09-24 07:23:00 +08:00；偏差：-26m00s；结果：两处 passthrough 分支读取声明的首个输入 pin，S1 浮点/布尔 red→green、表达式模块5/5、生成器 self-test 9项；还原硬编码 A 消融双类型重新 red，恢复后5/5。估时依据：S1 red 已编译、一处共享节点两种类型、现成图求值夹具；拆分结果：S3 原 Playground 显式条件图与默认场景公共 Gate，A42 不提前展开。
+
+  source/static 修复前摘要：UE Knot 从 InputPin 向 OutputPin 透传，目标 `SourceScalarExpressionNode` 的 `spec` 已按声明 pin 名建立边和类型；读值时把该名称传入现有 `input_f32/input_bool` 即可保留连接值及 pin 默认值，无须新增状态、适配层或转换规则。`passthrough` 只由 Transition 生成器的 Knot 规则生成，当前已生成资产中没有该操作；仍需在原 Playground 通过显式条件图展示 float/bool 进入同一运行时节点并通过公共验证。
+
+  source/static 完成摘要：`result_f32/result_bool` 的 passthrough 仅取 `input_pins.first().name` 并交给原有输入读取/默认值逻辑，未新增抽象/状态/转换规则。图级边输入2.5/true得同值；临时恢复旧 A 两项均归零/假，恢复修复后表达式模块5/5；生成器 self-test 9项通过。调用者/产物审计：`SourceScalarExpressionNode` 仍只由既有生成器和图节点使用，已生成 RON 418份中无 passthrough operation，因此无需触发“修转换器后全量重转”的规则；未改任何生成资产。真实入口使用显式受控图验证通用运行时，再跑原 state_machine 场景。

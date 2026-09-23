@@ -109,7 +109,11 @@ impl SourceScalarExpressionNode {
                     .map(|name| self.input_bool(ctx, name))
                     .unwrap_or(false),
             ),
-            "passthrough" => self.input_f32(ctx, "A"),
+            "passthrough" => self
+                .input_pins
+                .first()
+                .map(|input| self.input_f32(ctx, &input.name))
+                .unwrap_or_default(),
             _ => self.global_f32(ctx, pin),
         }
     }
@@ -142,7 +146,11 @@ impl SourceScalarExpressionNode {
                 .fold(false, |value, pin| value | self.input_bool(ctx, &pin.name)),
             "not" => !self.input_bool(ctx, "A"),
             "gameplay_tag_valid" => self.input_bool(ctx, "GameplayTag"),
-            "passthrough" => self.input_bool(ctx, "A"),
+            "passthrough" => self
+                .input_pins
+                .first()
+                .map(|input| self.input_bool(ctx, &input.name))
+                .unwrap_or_default(),
             _ => self.global_bool(ctx, pin),
         }
     }
@@ -197,7 +205,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore = "A41 red: passthrough reads A instead of the declared InputPin"]
     fn reroute_passthrough_reads_declared_float_and_bool_input_pins() {
         use bevy::platform::collections::HashMap;
         use bevy_animation_graph::core::{
