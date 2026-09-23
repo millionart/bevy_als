@@ -289,7 +289,8 @@ fn prepare_receivers(
     let mut active = HashSet::new();
     for (entity, material) in &converted {
         if ignored(entity) {
-            commands.entity(entity).remove::<(MeshMaterial3d<PackedDecalReceiverMaterial>, StandardMaterialSource)>().insert(MeshMaterial3d(material.0.clone()));
+            commands.entity(entity).remove::<(MeshMaterial3d<PackedDecalReceiverMaterial>, StandardMaterialSource)>();
+            if meshes.get(entity).is_err() { commands.entity(entity).insert(MeshMaterial3d(material.0.clone())); }
         } else { active.insert(material.0.id()); }
     }
     for (entity, material) in &meshes {
@@ -446,7 +447,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "A40 exiting a decal receiver must preserve the new same-frame material"]
     fn receiver_exit_preserves_same_frame_replacement_material() {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, AssetPlugin::default()))
