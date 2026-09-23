@@ -191,12 +191,14 @@ fn head_layer_writer(
         };
         let mut previous_dilation =
             player_scalar(&player, "animation.previous_global_time_dilation", 1.0);
+        let custom_dilation = custom_dilation.map_or(1.0, |value| value.0);
+        let scaled_delta = virtual_time.delta_secs() * custom_dilation;
         let unscaled = unscaled_delta_seconds(
             &mut previous_dilation,
-            virtual_time.delta_secs(),
+            scaled_delta,
             real_time.delta_secs(),
             virtual_time.effective_speed(),
-            custom_dilation.map_or(1.0, |value| value.0),
+            custom_dilation,
         );
         player.set_global_input_data("animation.previous_global_time_dilation", previous_dilation);
         let action_active = source_inputs.get(instance.player_entity()).ok().and_then(|inputs| inputs.gameplay_tag_input("locomotion_action")).is_some_and(|tag| tag.is_valid());
@@ -205,7 +207,7 @@ fn head_layer_writer(
             transform,
             response,
             pitch.map_or(0.0, |value| value.0),
-            (virtual_time.delta_secs(), unscaled),
+            (scaled_delta, unscaled),
             *rotation_mode,
             first_person,
             action_active,

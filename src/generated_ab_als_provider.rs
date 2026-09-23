@@ -235,6 +235,7 @@ fn generated_ab_als_input_writer(
             Option<&AlsGroundedEntryMode>,
             &Transform,
             Option<&AlsFirstPersonView>,
+            Option<&als_camera::AlsCameraCustomTimeDilation>,
             Option<&AlsFootLockState>,
             (&AlsMovementParamsHandle, Option<&AlsGroundedDynamics>),
         ),
@@ -258,6 +259,7 @@ fn generated_ab_als_input_writer(
         grounded_entry_mode,
         transform,
         first_person,
+        custom_dilation,
         feet,
         (params_handle, dynamics),
     ) in &characters
@@ -400,7 +402,7 @@ fn generated_ab_als_input_writer(
                     },
                 ),);
             for (key, value) in [
-                ("animation.delta_seconds", time.delta_secs()),
+                ("animation.delta_seconds", time.delta_secs() * custom_dilation.map_or(1.0, |value| value.0)),
                 (
                     "grounded_state.rotation_yaw_offsets.forward_angle",
                     yaw_forward,
@@ -530,6 +532,15 @@ mod tests {
                 assert!(player.get_global_input_data(key).is_none(), "Obsolete projection remains: {key}");
             }
         }
+        app.world_mut().entity_mut(character).insert(als_camera::AlsCameraCustomTimeDilation(0.5));
+        app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.1));
+        app.world_mut().resource_mut::<Time<Virtual>>().advance_by(std::time::Duration::from_secs_f32(0.1));
+        app.world_mut().run_schedule(PostUpdate);
+        let player = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+        let unscaled = player.get_global_input_data("animation.delta_seconds_without_time_dilation").unwrap().as_f32().unwrap();
+        let scaled = player.get_global_input_data("animation.delta_seconds").unwrap().as_f32().unwrap();
+        assert!((unscaled - 0.1).abs() < 1e-6, "unscaled={unscaled}");
+        assert!((scaled - 0.05).abs() < 1e-6, "scaled={scaled}");
     }
 
     #[test]
