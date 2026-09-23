@@ -379,3 +379,9 @@
 - [x] **BF124.A12-S1 — Ragdoll 世界胶囊尺寸源合同与失败反例**：开始：2026-09-23 12:38:35 +08:00；预估结束：2026-09-23 13:13:35 +08:00；实际结束：2026-09-23 12:41:24 +08:00；偏差：-32m11s；结果：fresh UE 两个调用点、Capsule inline 与目标两个消费者闭包，非均匀世界 scale focused test 编译成功且稳定 red。fresh 本地 UE `RagdollTraceGround` 在逐帧跟随和退出时均用 `GetScaledCapsuleRadius/HalfHeight`；UE Capsule inline 分别按组件世界水平 XY 的较小缩放与竖直 Z 缩放计算。目标 `ragdoll_capsule_dimensions` 只返回未缩放参数，供布娃娃找地和空中退出落地查询共用。估时依据：源两个调用点、Capsule inline、目标共享尺寸函数及两处消费者、A10 已归档的世界缩放夹具；拆分结果：S2 修复并运行真实入口，A13 不提前展开。
 
   source/static 完成摘要：源 inline 的半径 `base_radius * min(world_scale.X, world_scale.Y)`、半高 `base_half_height * world_scale.Z`，转目标坐标后为 `radius * min(scale.x, scale.z)` 与 `half * scale.y`；与 A10 `GetShapeScale` 的三轴绝对值最小值是不同 API，不能复用该尺度。目标已有 `scaled_mantle_capsule_dimensions` 实现同一轴映射，S2 可直接复用。两处 `ragdoll_capsule_dimensions` 调用目前都缺 scale 输入；standing/crouching、两组非均匀 scale 的 focused 反例当前在半高断言 red，暂 ignored 待 S2 开启。运行时仍需判断角色当前世界 scale 的读取时序并在原 Playground 验证。
+
+- [x] **BF124.A12-S2 — 共享 Ragdoll 尺寸换算与基础 Gate**：开始：2026-09-23 12:42:40 +08:00；预估结束：2026-09-23 13:27:40 +08:00；实际结束：2026-09-23 12:50:10 +08:00；偏差：-37m30s；结果：共享源公式、两个世界 scale 消费者、实际物理球扫与原 Playground scale=1 基础 Gate 通过。复用已证实的 source 轴换算，把当前世界 scale 传给两个 Ragdoll 查询消费者；不新增另一套公式。估时依据：一处现有换算、两个消费者、两组反例及已存在 runner；拆分结果：可见非单位 scale 留独立 S3，A13 不提前展开。
+
+  source/static 进展、runtime 前摘要：两个消费者均用现有 `TransformHelper` 计算当帧角色世界 scale，并交给共用尺寸入口；入口复用已验证的 `scaled_mantle_capsule_dimensions`，不另写第二份轴公式。standing/crouching 两组非均匀 scale 与缺失参数 fallback 均 green，真实 Avian 球扫核对落地中心高度 green，`ragdoll_link::tests::` 10/10；去掉共用换算后 focused test red，恢复 green。剩余边界是同入口构建与原 Playground `ragdoll`/`get_up` 功能 Gate，随后 S3 才做可见非单位 scale 分支。
+
+  runtime 完成摘要：同入口 `target_game/play` 限流构建通过；原 Playground `ragdoll` 10/10、`get_up` 11/11 功能结果，runner/manual/validator 退出码 0，43/67 pose samples，graph error/fault/temporal/watchdog 0。物理球扫与非均匀 scale focused green，删去换算的消融 red。此轮验证 scale=1 兼容性，非单位世界 scale 在 S3 可见场景中验收；完整性能预算延期。

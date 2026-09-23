@@ -3,6 +3,7 @@ use als_core::character::{
     AlsCharacter, AlsCollisionLayerOwner, AlsCollisionLayerOwnership, AlsMovementParamsHandle,
     set_collision_layer_owner,
 };
+use als_core::mantle::scaled_mantle_capsule_dimensions;
 use als_core::motion::AlsRagdollAirExit;
 use als_core::params::AlsMovementParams;
 use als_core::state::{AlsNotifyLocomotionAction, LocomotionState, Stance};
@@ -549,15 +550,20 @@ fn ragdoll_capsule_dimensions(
     stance: Stance,
     params_handle: &AlsMovementParamsHandle,
     params_assets: &Assets<AlsMovementParams>,
+    world_scale: Vec3,
 ) -> (f32, f32) {
-    let Some(params) = params_assets.get(params_handle.0.id()) else {
-        return (
+    let (half_height, radius) = if let Some(params) = params_assets.get(params_handle.0.id()) {
+        let half_height = if stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height };
+        (half_height, params.crouch.standing_capsule_radius)
+    } else {
+        (
             ALS_CHARACTER_CAPSULE_HALF_HEIGHT,
             ALS_CHARACTER_CAPSULE_RADIUS,
-        );
+        )
     };
-    let half_height = if stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height };
-    (half_height, params.crouch.standing_capsule_radius)
+    let (half_height, radius, _) =
+        scaled_mantle_capsule_dimensions(half_height, radius, world_scale);
+    (half_height, radius)
 }
 
 pub fn ragdoll_exit_route_system(
@@ -617,6 +623,7 @@ pub fn ragdoll_exit_route_system(
 fn release_ragdoll_air_exit_on_ground(
     mut commands: Commands,
     spatial: SpatialQuery,
+    transform_helper: TransformHelper,
     params_assets: Res<Assets<AlsMovementParams>>,
     characters: Query<
         (Entity, &Position, &Stance, &AlsMovementParamsHandle),
@@ -624,8 +631,12 @@ fn release_ragdoll_air_exit_on_ground(
     >,
 ) {
     for (entity, position, stance, params_handle) in &characters {
+        let Ok(world) = transform_helper.compute_global_transform(entity) else {
+            continue;
+        };
+        let (world_scale, _, _) = world.to_scale_rotation_translation();
         let (half_height, radius) =
-            ragdoll_capsule_dimensions(*stance, params_handle, &params_assets);
+            ragdoll_capsule_dimensions(*stance, params_handle, &params_assets, world_scale);
         let trace_start = position.0 + Vec3::Y * (2.0 * radius);
         let trace_distance = half_height + radius;
         let shape = Collider::sphere(radius);
@@ -936,6 +947,7 @@ fn ragdoll_ground_filter(
 fn ragdoll_ground_follow(
     mut commands: Commands,
     spatial: SpatialQuery,
+    transform_helper: TransformHelper,
     params_assets: Res<Assets<AlsMovementParams>>,
     characters: Query<
         (
@@ -976,8 +988,12 @@ fn ragdoll_ground_follow(
             continue;
         };
         let pelvis = pelvis_position.0;
+        let Ok(world) = transform_helper.compute_global_transform(entity) else {
+            continue;
+        };
+        let (world_scale, _, _) = world.to_scale_rotation_translation();
         let (half_height, radius) =
-            ragdoll_capsule_dimensions(*stance, params_handle, &params_assets);
+            ragdoll_capsule_dimensions(*stance, params_handle, &params_assets, world_scale);
         let trace_start = pelvis + Vec3::Y * (2.0 * radius);
         let trace_distance = half_height + radius;
         let mut excluded = Vec::with_capacity(1 + spawned.bodies.len() + spawned.colliders.len());
@@ -1157,7 +1173,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "A12: ragdoll trace still uses unscaled capsule dimensions"]
     fn ragdoll_trace_dimensions_use_world_horizontal_and_vertical_scale() {
         let mut assets = Assets::<AlsMovementParams>::default();
         let params = AlsMovementParams::default();
@@ -1171,11 +1186,66 @@ mod tests {
                 (Stance::Crouching, crouched_half),
             ] {
                 let (half_height, scaled_radius) =
-                    ragdoll_capsule_dimensions(stance, &handle, &assets);
+                    ragdoll_capsule_dimensions(stance, &handle, &assets, scale);
                 assert!((half_height - base_half * scale.y).abs() < 1e-6);
                 assert!((scaled_radius - radius * scale.x.min(scale.z)).abs() < 1e-6);
             }
         }
+        let missing = AlsMovementParamsHandle(Handle::default());
+        let (half_height, scaled_radius) = ragdoll_capsule_dimensions(
+            Stance::Standing,
+            &missing,
+            &assets,
+            Vec3::new(1.5, 2.0, 0.5),
+        );
+        assert!((half_height - ALS_CHARACTER_CAPSULE_HALF_HEIGHT * 2.0).abs() < 1e-6);
+        assert!((scaled_radius - ALS_CHARACTER_CAPSULE_RADIUS * 0.5).abs() < 1e-6);
+
+        use avian3d::prelude::PhysicsPlugins;
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::transform::TransformPlugin;
+        let mut app = App::new();
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            bevy::mesh::MeshPlugin,
+            TransformPlugin,
+            PhysicsPlugins::new(FixedPostUpdate),
+        ));
+        app.finish();
+        app.cleanup();
+        app.world_mut().spawn((
+            RigidBody::Static,
+            Collider::cuboid(20.0, 0.2, 20.0),
+            Transform::IDENTITY,
+        ));
+        app.update();
+        app.world_mut().run_schedule(FixedPostUpdate);
+        let (half_height, radius) = ragdoll_capsule_dimensions(
+            Stance::Standing,
+            &handle,
+            &assets,
+            Vec3::new(1.5, 2.0, 0.5),
+        );
+        let trace_start = Vec3::Y * (0.8 + 2.0 * radius);
+        let hit = app
+            .world_mut()
+            .run_system_once(move |spatial: SpatialQuery| {
+                spatial.cast_shape(
+                    &Collider::sphere(radius),
+                    trace_start,
+                    Quat::IDENTITY,
+                    Dir3::NEG_Y,
+                    &ShapeCastConfig::from_max_distance(half_height + radius),
+                    &SpatialQueryFilter::default(),
+                )
+            })
+            .unwrap()
+            .unwrap();
+        let target_y = trace_start.y - hit.distance + half_height - radius
+            + ALS_CHARACTER_FLOOR_CLEARANCE;
+        let source_y = 0.1 + standing_half * 2.0 + ALS_CHARACTER_FLOOR_CLEARANCE;
+        assert!((target_y - source_y).abs() < 1e-4);
     }
 
     #[test]
