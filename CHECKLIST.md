@@ -503,3 +503,15 @@
 - [x] **BF124.A17-S2 — 相机基座旋转旗标按当前 ALS 源值桥接**：开始：2026-09-23 16:36:48 +08:00；预估结束：2026-09-23 17:11:48 +08:00；实际结束：2026-09-23 16:39:54 +08:00；偏差：-31m54s；结果：桥接按源旗标写 false、静止/旋转基座 focused 与相机 26 项回归通过。在现有 bridge 保留 base entity、把 `has_relative_rotation` 写为当前 ALS 源值 false，不新增推断状态，使用既有 camera rig 的独立 true/false 能力。估时依据：一行生产赋值、原桥接 fixture 和现有相机局部测试缓存；拆分结果：S3 原 Playground `camera`/`moving_base`/`rotating_base` 公共 Gate，A18 不提前展开。
 
   source/static 完成摘要：fresh 本地 ALS C++ 构造器及原生 CDO 均 `bIgnoreBaseRotation=True`，UE `SaveBaseLocation` 在相对位置可用时仍保存 `bRelativeRotation=false`；目标只改 bridge 的 `has_relative_rotation` 一行 false，保持 base Entity 存在供切换时缓存重置。S1 静止/已旋转 base red 转 green，`als-camera` 26/26；现有相机 rig 人工 true 分支测试继续通过。把赋值消融回 true 后原反例再 red，恢复 green；没有新组件/状态/资产或阈值。剩余真实 Playground camera/移动/旋转基座功能 Gate。
+
+- [x] **BF124.A17-S3 — 原 Playground 相机/基座功能 Gate**：开始：2026-09-23 16:41:14 +08:00；预估结束：2026-09-23 17:26:14 +08:00；实际结束：2026-09-23 16:49:39 +08:00；偏差：-36m35s；结果：同入口 `startup`、`camera`、`moving_base`、`rotating_base` 功能 Gate 与旋转基座相机角度 focused 均通过。原地形/角色/相机保留，核对相机输出、基座切换/旋转时 pose 与时间守卫；估时依据：S2 一行源值修复与 26/26 相机局部测试、既有公共场景/runner；拆分结果：A17 可汇总关闭，A18 不提前展开。
+
+  source/static 完成、runtime 前摘要：fresh 本地 ALS/UE 相机基座 flag 闭包及 CDO 已核对，目标仅把 bridge 源值写 false，base 身份和 rig 真值分支保持；focused 两种 base red→green、相机 26/26，旧赋值消融 red。剩余同入口 startup/camera/moving_base/rotating_base 功能报告；完整性能预算延期。
+
+  `startup` 后、相机动作前摘要：同入口 `target_game/play` 限流构建成功，无驱动 `startup` 公共功能 Gate 通过，graph error/fault/temporal/watchdog 0。下一步同一二进制运行 `camera`、`moving_base`、`rotating_base`，分别核相机常规视图、移动基座身份与旋转基座不误入相对补偿。
+
+  `camera` 后、基座场景前摘要：同入口原 Playground `camera` 功能 11/11、135 pose samples，runner/manual/validator 退出码 0，graph error/fault/temporal/watchdog 0；完整性能预算延期。下一步用同一二进制运行真实移动与旋转基座场景，核对相机随基座/独立视角分支和角色动作无回归。
+
+  `moving_base` 后、旋转基座前摘要：同入口原 Playground `moving_base` 功能 10/10、324 pose samples，runner/manual/validator 退出码 0，graph error/fault/temporal/watchdog 0；本次 Bevy render-world 时间警告未使任何功能/姿态判据失败。下一步只跑同一二进制 `rotating_base`，直接核对基座转动时相机绝对旋转路径。
+
+  runtime 最终完成摘要：同一 `target_game/play` 二进制原 Playground `startup` 功能通过、`camera` 11/11（135 pose samples）、`moving_base` 10/10（324）、`rotating_base` 12/12（485），全部 runner/manual/validator 退出码 0、graph error/fault/temporal/watchdog 0。旋转基座公共项侧重角色/基座运动，故同时在原相机 rig fixture 验证 base Entity 保留、`has_relative_rotation=false` 时基座 yaw 从 1.2→1.5 rad 相机继续绝对目标 yaw、base-space 缓存零；相机 crate 最终 26/26。完整性能预算延期。

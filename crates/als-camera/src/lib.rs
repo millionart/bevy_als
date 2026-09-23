@@ -2458,6 +2458,26 @@ mod tests {
         assert_eq!(next.movement_base, None);
         assert_eq!(next.pivot_lag_location_base_space, Vec3::ZERO);
         assert_eq!(next.camera_rotation_base_space, Quat::IDENTITY);
+
+        world.entity_mut(owner).insert(AlsCameraMovementBase {
+            entity: base,
+            has_relative_rotation: false,
+        });
+        world.get_mut::<AlsCameraCurveValues>(owner).unwrap()
+            .set(AlsCameraCurve::FirstPersonOverride, 0.0);
+        world.get_mut::<AlsCameraAnimationFrame>(owner).unwrap().force_no_lag = false;
+        let absolute_view = Quat::from_euler(EulerRot::YXZ, 0.2, 0.1, 0.0);
+        for yaw in [1.2, 1.5] {
+            world.entity_mut(base).insert(GlobalTransform::from(
+                Transform::from_translation(base_position).with_rotation(Quat::from_rotation_y(yaw)),
+            ));
+            world.run_system_once(camera_rig_system).unwrap();
+            let runtime = world.get::<AlsCameraRuntime>(component).unwrap();
+            assert_eq!(runtime.movement_base, Some(base));
+            assert_eq!(runtime.pivot_lag_location_base_space, Vec3::ZERO);
+            assert_eq!(runtime.camera_rotation_base_space, Quat::IDENTITY);
+            assert!(runtime.camera_rotation.dot(absolute_view).abs() > 0.9999);
+        }
     }
 
     #[test]
