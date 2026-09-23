@@ -1008,3 +1008,7 @@
     runtime 前摘要：S3a 显式变体在真实 `control_rig` 场景证明同一 graph/node 的定义变化触发 VM/Hiearchy 两次重建且输出姿态连续；共享生产改动只在定义完整内容不同的调用轮执行，默认不变定义必须维持一次初始化。公共 skill 要求 no-driver `startup` 在动作回归前验证非空 root Pose，S3b 将先跑它再跑默认 `control_rig`，保留本轮变体报告并区分功能范围与延期性能预算；不再次启动未变场景做探索。
 
     runtime 后摘要：`bf124_a39_s3b_startup` 公共功能 runner manual/validator 0/0、ready true、80 pose samples；随后同二进制 `bf124_a39_s3b_default_control_rig` 0/0、66 samples，rig/actions/stages/input/foot 全覆盖且无热替换变体结果行。两份报告 root/姿态有效、primary_failure 无、graph error/fault/temporal 0、watchdog 未触发，渲染/贴花子 Gate 均 true。S3a 已提交的显式变体另证同图同节点寄存器405内容两次替换和初始化1→2→3；本项无新源码/资产改动，只提交独立默认回归证据。完整性能预算继续延期。
+
+- [x] **BF124.A39 — 同图同节点 RigDefinition 热替换重建 VM/Hierarchy**：开始：2026-09-24 06:38:29 +08:00；预估结束：2026-09-24 06:53:29 +08:00；实际结束：2026-09-24 06:38:29 +08:00；偏差：-15m00s；结果：S1、S2、S3a、S3b 各自通过并提交（`5a8ff58`、`66d1f04`、`38773bf`、`e4a546b`）；fresh CR_Als/UE VM 来源、定义内容变化条件与真实同节点热替换/默认可见 Control Rig 姿态 Gate 全闭合。估时依据：仅核对已提交源/readers、静态与两类公共报告，不新增技术闭包；拆分结果：A39 无剩余功能 Gate，A40 为下一项，完整性能预算沿用户既定暂停范围延期。
+
+  汇总：本轮仓库原生 reader 取到 CR_Als 10图/122层级元素/72 literal/210 work/165指令与完整 watchdog 证据；目标 `ControlRigNodeState` 现以完整 `RigDefinition` 内容快照识别改值和布局变化，在同一 graph/node 内重建 values/hierarchy/curves 并重跑 Construction，未变化轮保持一次初始化。常量/层级与布局红绿、全定义比较和无条件重建消融及模块7/7通过；原 Playground 显式变体寄存器405读123→124、初始化1→2→3，默认 startup/ControlRig 也通过，两边图错误/fault/temporal/watchdog0。生产路径无依赖 fork、原始 uasset/生成图资产未改，A40 可开始。
