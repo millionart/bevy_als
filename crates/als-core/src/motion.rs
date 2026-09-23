@@ -1097,6 +1097,38 @@ mod rotation_cap_tests {
     }
 
     #[test]
+    #[ignore = "BF124.A05 source continuous gait curve; enable after implementation"]
+    fn grounded_rotation_samples_the_continuous_source_gait_amount() {
+        for (mode, velocity, amount, target_degrees, half_life) in [
+            (RotationMode::ViewDirection, Vec3::NEG_Z * 5.125, 2.5, 50.0_f32, 0.1_f32),
+            (RotationMode::VelocityDirection, Vec3::X * 2.75, 1.5, -80.0, 0.075),
+        ] {
+            let mut app = App::new();
+            let mut time = Time::<()>::default();
+            time.advance_by(std::time::Duration::from_millis(100));
+            app.insert_resource(time)
+                .init_resource::<Assets<AlsMovementParams>>()
+                .add_systems(Update, rotation_response_system);
+            let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>()
+                .add(AlsMovementParams::default());
+            let view = 90.0_f32.to_radians();
+            let character = app.world_mut().spawn((
+                AlsCharacter, Stance::Standing, Transform::IDENTITY, Gait::Running,
+                crate::gait::AlsGaitAmount(amount), LocomotionState::Grounded,
+                mode, AlsViewYaw(view), AlsMovementParamsHandle(params),
+                LinearVelocity(velocity), AlsInputCommand { move_dir: Vec2::Y, ..default() },
+                AlsRotationResponseState { initialized: true, previous_view_yaw: view,
+                    previous_rotation_mode: Some(mode), ..default() },
+            )).id();
+            app.update();
+            let yaw = world_forward_to_yaw(*app.world().get::<Transform>(character).unwrap().forward());
+            let expected = target_degrees.to_radians()
+                * (1.0 - crate::animation::inv_exp_approx(std::f32::consts::LN_2 / (half_life + 1e-8) * 0.1));
+            assert!((yaw - expected).abs() < 1e-5, "mode={mode:?} yaw={yaw} expected={expected}");
+        }
+    }
+
+    #[test]
     fn view_relative_move_axes_match_camera_forward_and_right() {
         let cases = [
             (0.0, Vec2::Y, Vec3::NEG_Z),
