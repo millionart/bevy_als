@@ -373,7 +373,7 @@ fn rotation_response_system(
             &RotationMode,
             (&AlsViewYaw, Option<&crate::view::AlsPlayerViewYaw>),
             &AlsMovementParamsHandle,
-            (&LinearVelocity, Option<&crate::dynamics::AlsMovementBaseDynamicsState>),
+            (&LinearVelocity, Option<&mut crate::dynamics::AlsMovementBaseDynamicsState>),
             Option<&AlsInputOverride>,
             &AlsInputCommand,
             Option<&AlsRotationAnimationState>,
@@ -394,7 +394,7 @@ fn rotation_response_system(
         rotation_mode,
         (view_yaw, player_view),
         params_handle,
-        (velocity, base),
+        (velocity, mut base),
         input_override,
         input,
         animation,
@@ -403,6 +403,7 @@ fn rotation_response_system(
         mut constraint,
     ) in &mut q
     {
+        let pre_collision_velocity = base.as_deref_mut().and_then(|state| state.pre_collision_velocity.take());
         if blocked.contains(entity)
             || !matches!(*rotation_mode, RotationMode::VelocityDirection | RotationMode::ViewDirection | RotationMode::Aiming)
             || collision_owners.get(entity).is_ok_and(|owner| owner.mantle)
@@ -427,10 +428,14 @@ fn rotation_response_system(
         let input_yaw = (effective.move_dir.length_squared() > f32::EPSILON).then(|| {
             world_forward_to_yaw(view_relative_move_direction(effective.move_dir, player_view.map_or(view_yaw.0, |view| view.0)))
         });
-        let velocity = LinearVelocity(crate::dynamics::locomotion_velocity(velocity.0, *locomotion, base));
+        let velocity = LinearVelocity(crate::dynamics::locomotion_velocity(velocity.0, *locomotion, base.as_deref()));
         let horizontal_speed = Vec2::new(velocity.x, velocity.z).length();
         let (has_velocity, moving) = locomotion_movement_flags(has_input, horizontal_speed);
         let velocity_yaw = has_velocity.then(|| world_forward_to_yaw(velocity.0));
+        let desired_velocity_yaw = pre_collision_velocity
+            .filter(|value| *locomotion == LocomotionState::Grounded
+                && locomotion_movement_flags(false, Vec2::new(value.x, value.z).length()).0)
+            .map(world_forward_to_yaw);
         let animation = animation.copied().unwrap_or_default();
         if runtime.initialized
             && (runtime.previous_locomotion == LocomotionState::Air
@@ -468,7 +473,7 @@ fn rotation_response_system(
             _ if blocked_residual_motion => current_yaw,
             _ if hold_air_rotation => current_yaw,
             RotationMode::VelocityDirection if !moving && runtime.rotation_towards_last_input_direction_blocked => runtime.target_yaw,
-            RotationMode::VelocityDirection => velocity_yaw.unwrap_or(
+            RotationMode::VelocityDirection => desired_velocity_yaw.or(velocity_yaw).unwrap_or(
                 if runtime.initialized
                     && !(curve_driven && runtime.rotation_towards_last_input_direction_blocked)
                 {
@@ -829,6 +834,9 @@ mod rotation_cap_tests {
                 LinearVelocity(Vec3::new(3.0, 7.0, -4.0)),
                 LocomotionState::Air,
                 AlsActualVelocity::default(),
+                crate::dynamics::AlsMovementBaseDynamicsState {
+                    pre_collision_velocity: Some(Vec3::NEG_Z), ..default()
+                },
             ))
             .id();
 
@@ -837,6 +845,8 @@ mod rotation_cap_tests {
         let motion = *app.world().get::<AlsActualVelocity>(entity).unwrap();
         assert_eq!(motion.world_velocity, Vec3::new(3.0, 7.0, -4.0));
         assert!((motion.horizontal_speed - 5.0).abs() < 1e-6);
+        assert!(app.world().get::<crate::dynamics::AlsMovementBaseDynamicsState>(entity)
+            .unwrap().pre_collision_velocity.is_none());
 
         app.world_mut()
             .entity_mut(entity)
@@ -1171,7 +1181,6 @@ mod rotation_cap_tests {
     }
 
     #[test]
-    #[ignore = "BF124.A07 precollision desired velocity yaw; enable after implementation"]
     fn velocity_direction_uses_the_precollision_motor_heading() {
         let mut app = App::new();
         let mut time = Time::<()>::default();
@@ -1189,7 +1198,8 @@ mod rotation_cap_tests {
             AlsMovementParamsHandle(params), LinearVelocity(sideways),
             AlsInputCommand { move_dir: Vec2::Y, ..default() },
             crate::dynamics::AlsMovementBaseDynamicsState {
-                world_velocity: sideways, motor_boost: intended - sideways, ..default()
+                world_velocity: sideways, motor_boost: intended - sideways,
+                pre_collision_velocity: Some(intended), ..default()
             },
             AlsRotationResponseState { initialized: true,
                 rotation_towards_last_input_direction_blocked: false,
@@ -1200,6 +1210,18 @@ mod rotation_cap_tests {
         let yaw = world_forward_to_yaw(*app.world().get::<Transform>(character).unwrap().forward());
         assert!(response.target_yaw.abs() < 1e-6, "postcollision yaw was selected: {}", response.target_yaw);
         assert!(yaw.abs() < 1e-6, "actor followed collision slide: {yaw}");
+        assert!(app.world().get::<crate::dynamics::AlsMovementBaseDynamicsState>(character)
+            .unwrap().pre_collision_velocity.is_none());
+        app.update();
+        let fallback = app.world().get::<AlsRotationResponseState>(character).unwrap().target_yaw;
+        assert!((fallback + std::f32::consts::FRAC_PI_2).abs() < 1e-6);
+        app.world_mut().get_mut::<crate::dynamics::AlsMovementBaseDynamicsState>(character)
+            .unwrap().pre_collision_velocity = Some(Vec3::NEG_Z * 0.005);
+        app.update();
+        let low_speed_fallback = app.world().get::<AlsRotationResponseState>(character).unwrap().target_yaw;
+        assert!((low_speed_fallback + std::f32::consts::FRAC_PI_2).abs() < 1e-6);
+        assert!(app.world().get::<crate::dynamics::AlsMovementBaseDynamicsState>(character)
+            .unwrap().pre_collision_velocity.is_none());
     }
 
     #[test]

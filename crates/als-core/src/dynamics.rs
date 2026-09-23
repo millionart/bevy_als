@@ -55,6 +55,7 @@ pub struct AlsMovementBaseDynamicsState {
     pub support_velocity: Vec3,
     pub relative_velocity: Vec3,
     pub motor_boost: Vec3,
+    pub pre_collision_velocity: Option<Vec3>,
 }
 
 #[derive(Component, Debug, Default, Clone, Copy)]
@@ -464,6 +465,7 @@ pub fn grounded_dynamics_motor_system(
             support_velocity,
             relative_velocity: current,
             motor_boost,
+            pre_collision_velocity: Some(world_velocity + motor_boost),
         };
         if let Some(mut current_base_state) = current_base_state {
             *current_base_state = base_state;
@@ -528,6 +530,8 @@ mod tests {
         world.get_mut::<AlsRollState>(character).unwrap().time = 0.9;
         world.run_system_once(grounded_dynamics_motor_system).unwrap();
         assert!(world.get::<TnuaMotor>(character).unwrap().lin.boost.x < 0.0);
+        let dynamics = world.get::<AlsMovementBaseDynamicsState>(character).unwrap();
+        assert_eq!(dynamics.pre_collision_velocity, Some(dynamics.world_velocity + dynamics.motor_boost));
     }
 
     #[test]
