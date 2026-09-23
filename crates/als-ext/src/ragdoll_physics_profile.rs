@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use avian3d::prelude::{
-    ActiveCollisionHooks, AngularDamping, CoefficientCombine, CollisionHooks, Friction,
+    ActiveCollisionHooks, AngularDamping, Collider, CoefficientCombine, CollisionHooks, Friction,
     GravityScale, JointDamping, JointDisabled, LinearDamping, MaxAngularSpeed, PhysicsSystems,
     Position, Restitution, RevoluteJoint, Rotation, SphericalJoint,
 };
@@ -413,6 +413,8 @@ fn apply_ragdoll_physics_profiles(
     joint_labels: Query<&JointLabel>,
     spherical_joints: Query<&SphericalJoint>,
     revolute_joints: Query<&RevoluteJoint>,
+    transforms: Query<&Transform>,
+    mut colliders: Query<&mut Collider>,
 ) {
     for (player_entity, player, profile) in &players {
         let Some(spawned) = player.get_spawned_ragdoll() else {
@@ -428,6 +430,8 @@ fn apply_ragdoll_physics_profiles(
             &joint_labels,
             &spherical_joints,
             &revolute_joints,
+            &transforms,
+            &mut colliders,
         );
         commands.entity(player_entity).insert(applied);
     }
@@ -438,18 +442,25 @@ fn apply_profile_to_spawned_ragdoll(
     commands: &mut Commands,
     spawned: &SpawnedRagdoll,
     profile: &RagdollPhysicsProfile,
-    _scale: f32,
+    scale: f32,
     body_labels: &Query<&BodyLabel>,
     collider_labels: &Query<&ColliderLabel>,
     joint_labels: &Query<&JointLabel>,
     spherical_joints: &Query<&SphericalJoint>,
     revolute_joints: &Query<&RevoluteJoint>,
+    transforms: &Query<&Transform>,
+    colliders: &mut Query<&mut Collider>,
 ) -> RagdollPhysicsProfileApplied {
     let mut applied = RagdollPhysicsProfileApplied {
         collision_disabled_pair_count: profile.collision_disabled_pairs.len() as u32,
         ..default()
     };
     for body_entity in spawned.bodies.values() {
+        if scale != 1.0 && let Ok(transform) = transforms.get(*body_entity) {
+            let mut scaled = *transform;
+            scaled.translation *= scale;
+            commands.entity(*body_entity).insert(scaled);
+        }
         let Ok(label) = body_labels.get(*body_entity) else {
             continue;
         };
@@ -468,6 +479,15 @@ fn apply_profile_to_spawned_ragdoll(
         applied.body_count += 1;
     }
     for collider_entity in spawned.colliders.values() {
+        if scale != 1.0 && let (Ok(transform), Ok(mut collider)) =
+            (transforms.get(*collider_entity), colliders.get_mut(*collider_entity)) {
+            let mut scaled_transform = *transform;
+            scaled_transform.translation *= scale;
+            scaled_transform.scale *= scale;
+            let collider_scale = collider.scale() * scale;
+            collider.set_scale(collider_scale, 16);
+            commands.entity(*collider_entity).insert(scaled_transform);
+        }
         let Ok(label) = collider_labels.get(*collider_entity) else {
             continue;
         };
@@ -760,7 +780,8 @@ mod tests {
                       collider_labels: Query<&ColliderLabel>,
                       joint_labels: Query<&JointLabel>,
                       spherical: Query<&SphericalJoint>,
-                      revolute: Query<&RevoluteJoint>| {
+                      revolute: Query<&RevoluteJoint>,
+                      transforms: Query<&Transform>, mut colliders: Query<&mut Collider>| {
                     apply_profile_to_spawned_ragdoll(
                         &mut commands,
                         &spawned,
@@ -771,6 +792,8 @@ mod tests {
                         &joint_labels,
                         &spherical,
                         &revolute,
+                        &transforms,
+                        &mut colliders,
                     )
                 },
             )
@@ -828,7 +851,7 @@ mod tests {
             world.get::<Transform>(**entity).unwrap().translation.length() > 0.01).unwrap();
         let body_offset = world.get::<Transform>(body).unwrap().translation;
         let collider = *spawned.colliders.values().find(|entity|
-            world.get::<Transform>(**entity).unwrap().translation.length() > 0.01).unwrap();
+            world.get::<ColliderLabel>(**entity).unwrap().0.starts_with("hand_l_")).unwrap();
         let collider_offset = world.get::<Transform>(collider).unwrap().translation;
         let collider_extent = world.get::<Collider>(collider).unwrap().shape_scaled().compute_local_aabb().half_extents();
         let joint_profile = profile.joints.iter().find(|joint|
@@ -839,14 +862,18 @@ mod tests {
         world.run_system_once(move |mut commands: Commands,
             body_labels: Query<&BodyLabel>, collider_labels: Query<&ColliderLabel>,
             joint_labels: Query<&JointLabel>, spherical: Query<&SphericalJoint>,
-            revolute: Query<&RevoluteJoint>| {
+            revolute: Query<&RevoluteJoint>, transforms: Query<&Transform>,
+            mut colliders: Query<&mut Collider>| {
             apply_profile_to_spawned_ragdoll(&mut commands, &spawned, &profile, 2.0,
-                &body_labels, &collider_labels, &joint_labels, &spherical, &revolute)
+                &body_labels, &collider_labels, &joint_labels, &spherical, &revolute,
+                &transforms, &mut colliders)
         }).unwrap();
         assert!(world.get::<Transform>(body).unwrap().translation.abs_diff_eq(body_offset * 2.0, 1e-5));
         assert!(world.get::<Transform>(collider).unwrap().translation.abs_diff_eq(collider_offset * 2.0, 1e-5));
-        assert!(world.get::<Collider>(collider).unwrap().shape_scaled().compute_local_aabb().half_extents()
-            .abs_diff_eq(collider_extent * 2.0, 1e-5));
+        let scaled_collider = world.get::<Collider>(collider).unwrap();
+        let scaled_extent = scaled_collider.shape_scaled().compute_local_aabb().half_extents();
+        assert!(scaled_extent.abs_diff_eq(collider_extent * 2.0, 1e-5),
+            "baseline={collider_extent:?} scaled={scaled_extent:?} collider_scale={:?}", scaled_collider.scale());
         assert!(world.get::<SourcePhysicsJoint>(joint).unwrap().parent_frame.translation
             .abs_diff_eq(joint_offset * 2.0, 1e-5));
     }
