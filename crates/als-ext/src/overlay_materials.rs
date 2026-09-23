@@ -223,4 +223,38 @@ mod tests {
         assert_eq!(world.get::<MeshMaterial3d<StandardMaterial>>(second).unwrap().0, target);
         assert_eq!(world.get::<MeshMaterial3d<StandardMaterial>>(nested).unwrap().0, target);
     }
+
+    #[test]
+    #[ignore = "A15: processed Avatar skips late NoDecalReceiver propagation"]
+    fn late_no_decal_marker_reaches_already_processed_meshes() {
+        let mut world = World::new();
+        let mut materials = Assets::<StandardMaterial>::default();
+        let source = materials.add(StandardMaterial::default());
+        let target = materials.add(StandardMaterial::default());
+        world.insert_resource(materials);
+        let root = world.spawn(AvatarMaterialOverride(vec![target.clone()])).id();
+        let body = world.spawn((
+            ChildOf(root),
+            Mesh3d::default(),
+            MeshMaterial3d(source.clone()),
+        )).id();
+        let nested_root = world.spawn((
+            ChildOf(root),
+            AvatarMaterialOverride(vec![target.clone()]),
+        )).id();
+        let nested = world.spawn((
+            ChildOf(nested_root),
+            Mesh3d::default(),
+            MeshMaterial3d(source),
+        )).id();
+        world.run_system_once(avatar_material_bridge).unwrap();
+        assert!(world.get::<AvatarMaterialApplied>(root).is_some());
+        assert!(world.get::<NoDecalReceiver>(body).is_none());
+
+        world.entity_mut(root).insert(NoDecalReceiver);
+        world.run_system_once(avatar_material_bridge).unwrap();
+        assert!(world.get::<NoDecalReceiver>(body).is_some());
+        assert!(world.get::<NoDecalReceiver>(nested).is_none());
+        assert_eq!(world.get::<MeshMaterial3d<StandardMaterial>>(body).unwrap().0, target);
+    }
 }
