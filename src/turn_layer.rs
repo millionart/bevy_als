@@ -709,6 +709,47 @@ mod tests {
     use avian3d::prelude::LinearVelocity;
 
     #[test]
+    #[ignore = "A28: turn slot samples are written after final graph evaluation"]
+    fn current_turn_slot_sample_is_ready_before_final_graph_evaluation() {
+        #[derive(Resource, Default)]
+        struct FinalSawSlots { turn: bool, transition: bool }
+
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin,
+            bevy::gizmos::GizmoPlugin,
+            AnimationGraphPlugin::default(),
+            als_ext::SourceAnimationInputsPlugin, TurnLayerPlugin,
+            crate::stop_link::AlsStopLinkPlugin))
+            .init_asset::<WorldAsset>()
+            .init_asset::<als_core::params::AlsMovementParams>();
+        app.add_systems(Startup, crate::standing_source::load_source_montage_assets)
+            .init_resource::<FinalSawSlots>();
+        let character = app.world_mut().spawn((als_core::character::AlsCharacter, Stance::Standing)).id();
+        let avatar = app.world_mut().spawn((AlsCharacterAvatar { character },
+            AnimatedSceneHandle::default(), ChildOf(character),
+            AlsTurnDrive::default(), AlsTurnMontageStack::default())).id();
+        app.world_mut().entity_mut(character).insert(crate::character_assembly::AlsCharacterAssembly {
+            avatar, camera: None,
+        });
+        app.world_mut().spawn((AnimationGraphPlayer::new(Handle::default()), ChildOf(avatar)));
+        app.world_mut().trigger(WorldInstanceReady {
+            entity: avatar,
+            instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()),
+        });
+        app.world_mut().flush();
+        app.add_systems(PostUpdate, (move |turn: Query<&AlsStandingTurnSlotRuntime>,
+            transition: Query<&crate::stop_link::AlsRootTransitionSlotRuntime>,
+            mut seen: ResMut<FinalSawSlots>| {
+            seen.turn = turn.get(avatar).is_ok();
+            seen.transition = transition.get(character).is_ok();
+        }).in_set(AnimationGraphSet::Final));
+        app.update();
+        let seen = app.world().resource::<FinalSawSlots>();
+        assert!(seen.turn && seen.transition,
+            "turn_before_final={} transition_before_final={}", seen.turn, seen.transition);
+    }
+
+    #[test]
     fn turn_stack_does_not_cross_animation_player_replacement() {
         let mut app = App::new();
         app.add_plugins((
