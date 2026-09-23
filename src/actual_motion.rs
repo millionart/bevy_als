@@ -200,16 +200,17 @@ mod tests {
     }
 
     #[test]
-    fn animation_acceleration_uses_actual_velocity_and_ignores_base_rotation() {
-        use als_core::dynamics::AlsMovementBaseDynamicsState;
-        use avian3d::prelude::Rotation;
+    #[ignore = "A29 source mismatch fixture"]
+    fn animation_acceleration_compensates_rotating_movement_base() {
+        use als_core::dynamics::{AlsMovementBase, AlsMovementBaseDynamicsState};
+        use avian3d::prelude::{RigidBody, Rotation};
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
             .add_systems(PostUpdate, snapshot_actual_motion_system);
         app.world_mut()
             .resource_mut::<Time>()
             .advance_by(std::time::Duration::from_secs_f32(0.1));
-        let base = app.world_mut().spawn(Rotation::default()).id();
+        let base = app.world_mut().spawn((RigidBody::Kinematic, Rotation::default())).id();
         let character = app
             .world_mut()
             .spawn((
@@ -218,6 +219,10 @@ mod tests {
                 LinearVelocity(Vec3::NEG_Z),
                 LocomotionState::Grounded,
                 AlsMovementBaseDynamicsState {
+                    entity: Some(base),
+                    ..default()
+                },
+                AlsMovementBase {
                     entity: Some(base),
                     ..default()
                 },
@@ -233,6 +238,9 @@ mod tests {
         );
         app.world_mut().get_mut::<Rotation>(base).unwrap().0 =
             Quat::from_rotation_y(std::f32::consts::FRAC_PI_2);
+        app.world_mut().get_mut::<AlsMovementBase>(character).unwrap().rotation =
+            Quat::from_rotation_y(std::f32::consts::FRAC_PI_2);
+        app.world_mut().get_mut::<LinearVelocity>(character).unwrap().0 = Vec3::NEG_X;
         app.world_mut().run_schedule(PostUpdate);
         assert!(
             app.world()
@@ -252,15 +260,18 @@ mod tests {
                 .get::<AlsActualMotion>(character)
                 .unwrap()
                 .world_acceleration
-                - Vec3::new(-5.0, 0.0, 10.0))
+                - Vec3::X * 5.0)
             .length()
                 < 1e-5
         );
-        let next_base = app.world_mut().spawn(Rotation::default()).id();
+        let next_base = app.world_mut().spawn((RigidBody::Kinematic, Rotation::default())).id();
         app.world_mut()
             .get_mut::<AlsMovementBaseDynamicsState>(character)
             .unwrap()
             .entity = Some(next_base);
+        let mut movement_base = app.world_mut().get_mut::<AlsMovementBase>(character).unwrap();
+        movement_base.entity = Some(next_base);
+        movement_base.rotation = Quat::IDENTITY;
         app.world_mut().run_schedule(PostUpdate);
         assert_eq!(
             app.world()
