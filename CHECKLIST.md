@@ -221,3 +221,7 @@
   复验 runtime 前摘要：一次性触发改为读取同场 public trace 最后一个已观察帧的 `Flight/Air`，避免误用同时覆盖 Exit 的窗口标签；最小 focused 测试同时证明 `Exit/Grounded`、`Flight/Grounded` 不触发、`Flight/Air` 仅触发一次并恢复基线，1/1 通过。保持原 `0.2 s` 和 `1/60 s` 输入、同一 Playground 与全部既有功能判据，现在限流重建后另目录复验。
 
   完成摘要：同 `target_game/play` 的原 `moving_base` 场景 public runner manual/validator `0/0`，877 个基座 trace 相邻时间仅一次 `0.2 s`，其它为 `1/60 s`；该帧 `Flight/Air`、位移 `1.1294 m`，水平位移与当帧速度乘 200 ms 的误差约 `0.0087 m`，会拒绝仅按 `1/30 s` 积分的反例。10/10 功能结果含 Ride/Jump/新支撑/Mantle/返回，2 个姿态窗口通过；graph error/fault/temporal/watchdog 均为 0，渲染/贴花通过。validator 自测单次、缺失、重复、未移动、错误模式和封顶位移边界通过，原错误 Exit 帧报告保留。最终只保留场景专用一次性时钟注入与校验，无生产运动/图更改；完整性能预算依用户暂停范围延期。
+
+- [x] **BF124.A01 — 角色运动完整帧时间与封顶物理时间**：开始：2026-09-23 08:32:03 +08:00；预估结束：2026-09-23 08:47:03 +08:00；实际结束：2026-09-23 08:32:33 +08:00；偏差：-14m30s；结果：源合同、实现、消融与原 Playground 功能 Gate 全部闭合。估时依据：S1→S3b4 的 source/target、最小失败反例、模式/基座消融和实际入口报告均已独立提交；拆分结果：本编号无剩余功能 Gate，完整性能预算依用户此前暂停范围延期，后续反馈逐编号独立激活。
+
+  汇总：UE 角色 PhysWalking 消费完整帧，Chaos 普通刚体只消费封顶时间；目标已在公开 Avian 扩展点实现 Grounded/Air 角色剩余时间的逐子步扫掠，维持 Ragdoll、Mantle 与移动基座的源所有权。100 ms/200 ms 最小位移反例、墙/地接触、平台相对运动及必要消融通过；原 Playground startup、grounded/uphill、moving_base 六种固定帧率与单次 200 ms Air 卡顿的公共功能报告通过，最终图错误、fault、temporal、watchdog 均为 0。已核对 55 条反馈索引唯一且齐全（A01–A55）、S1→S3b4 的分项提交和无未提交生产代码；A02 是下一执行项。
