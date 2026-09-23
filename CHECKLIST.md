@@ -690,8 +690,12 @@
 
   source/static 完成摘要：源 UE 在 `NativePostUpdateAnimation` 新建 Turn Montage，下一帧 `UpdateMontage` 立即拥有有效序列并推进。目标 `queue_turn_in_grounded_group` 现在以原 `sample_source_montage` 对当前 Turn 源序列 t=0 的成功采样判定 clip/骨架可用，再置新栈条目 `sampling_ready`；这只在请求时执行一次，不重采样每帧图，缺资产仍为 false。真实 `WorldInstanceReady`/已加载 Clip 夹具旧状态 `sampling_ready=false` red，新状态 true 且下次 Update clip time>0；移除赋值 red，恢复 green；移除 `SourceMontageAssets` 后再次入队仍 false。Final 双桥先于图的原 focused 与通知 8/8、Turn 21/21、Transition 14/14 均通过。S2 已复验勾回；下一步在 S3 登记重启前边界并使用同入口产物重新运行原 Playground。
 
-- [ ] **BF124.A28-S3 — 原 Playground Turn/Transition 同帧采样公共视觉 Gate**：开始：2026-09-23 22:04:48 +08:00；预估结束：2026-09-23 22:34:48 +08:00。以 `run_manual.bat` 同一 `target_game`/`play` 预构建及公共 runner `-FunctionalOnly -CaptureCount 0` 跑 `startup`、`standing_turn`、`crouching_actions`、`transition_notify`、`standing_dynamic`，审计实际图剪辑时钟、姿态/曲线、动作生命周期、图错误与进展 watchdog；完整性能预算沿用户既有安排延期。估时依据：S1–S2 双桥真实调度 red→green、三组局部回归及五项已有原 Playground 场景/同入口历史耗时；A29 不提前展开。
+- [x] **BF124.A28-S3 — 原 Playground Turn/Transition 同帧采样公共视觉 Gate**：开始：2026-09-23 22:04:48 +08:00；预估结束：2026-09-23 22:34:48 +08:00；实际结束：2026-09-23 22:34:23 +08:00；偏差：-25s；结果：S2R 后同入口 `target_game`/`play` 重建，五项原 Playground 公共场景均通过功能 Gate；完整性能预算沿用户既有安排延期。估时依据：S1–S2 双桥真实调度 red→green、三组局部回归及五项已有原 Playground 场景/同入口历史耗时；拆分结果：A28 runtime Gate 完成，A29 为下一项。
 
   runtime 前 source/static 摘要：fresh UE 5.8 `UpdateAnimation` 先推进 Montage 并写评估数据，再由 AnimGraph 读取；目标 Turn/Transition 两桥已从 Final 后移到 Final 前。真实插件首帧 Final 观察由 false/false→true/true，两个顺序边分别消融 red，Turn 21/21、Transition 14/14、生成通知 7/7。当前静态闭环通过；现在使用同入口预构建与原 Playground 公共视觉 Gate 兜底验证姿态/时间。
 
   runtime 失败摘要（2026-09-23 22:12:59 +08:00）：同入口预构建与 `startup` 功能 Gate 通过；`standing_turn` 首个动作窗口未覆盖，manual exit 91/validator exit 1、12 秒超时，覆盖 2/11。报告无 `primary_failure`、graph error、fault、temporal anomaly 或 watchdog 触发；逐帧 trace 显示新 Turn 条目连续替换、始终 0 剪辑时间。source-target 链路指向 S2 漏检的新 Montage 首帧就绪条件，已复开 S2R；不继续启动依赖场景，待修复后重建同入口并重新运行公共 Gate。
+
+  runtime 重启前摘要（2026-09-23 22:27:13 +08:00）：S2R 当前源码在已加载源剪辑的队列提交点预置 Turn `sampling_ready`，下一次 Update clip time>0；无资源路径仍保持等待，赋值消融 red。原 Final 双桥调度及通知/Turn/Transition 局部 Gate 再次通过，S2 勾回，修复提交 `a2c308d`。以新的报告目录和同一启动器产物重新执行 `startup`、`standing_turn`、`crouching_actions`、`transition_notify`、`standing_dynamic`；失败旧报告不覆盖。
+
+  runtime 完成摘要（2026-09-23 22:34:23 +08:00）：重试的 `startup`、`standing_turn`、`crouching_actions`、`transition_notify`、`standing_dynamic` 均 manual exit 0、functional validator exit 0；后四项动作覆盖分别为 11/11、11/11、3/3、5/5，运动窗口分别为 10/10、8/8、1/1、2/2。全部报告 graph error 0、fault 0、temporal anomaly 0、watchdog 未触发；原 `standing_turn` 无限重新排队症状消失。报告原始 `pass=false` 仅因延期的 `max_eval_p95_ms` 性能预算，功能 verdict 均通过；A28 源、静态、真实入口闭环完成。
