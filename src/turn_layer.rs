@@ -158,12 +158,14 @@ pub struct AlsTurnMontage {
     pub blend_in_elapsed: f32,
     pub blend_out_elapsed: Option<f32>,
     pub blend_out_start_weight: f32,
+    pub blend_out_duration: f32,
 }
 
 impl AlsTurnMontage {
     pub fn weight(&self) -> f32 {
         if let Some(elapsed) = self.blend_out_elapsed {
-            let alpha = (elapsed / TURN_MONTAGE_BLEND_DURATION).clamp(0.0, 1.0);
+            let alpha = if self.blend_out_duration <= 0.0 { 1.0 }
+                else { (elapsed / self.blend_out_duration).clamp(0.0, 1.0) };
             return self.blend_out_start_weight * (1.0 - alpha);
         }
         (self.blend_in_elapsed / TURN_MONTAGE_BLEND_DURATION).clamp(0.0, 1.0)
@@ -205,6 +207,7 @@ impl AlsTurnMontageStack {
             if entry.blend_out_elapsed.is_none() {
                 entry.blend_out_start_weight = entry.weight();
                 entry.blend_out_elapsed = Some(0.0);
+                entry.blend_out_duration = TURN_MONTAGE_BLEND_DURATION;
             }
         }
         self.entries.push(AlsTurnMontage {
@@ -219,6 +222,7 @@ impl AlsTurnMontageStack {
             blend_in_elapsed: 0.0,
             blend_out_elapsed: None,
             blend_out_start_weight: 1.0,
+            blend_out_duration: TURN_MONTAGE_BLEND_DURATION,
         });
         self.next_id = self.next_id.wrapping_add(1);
     }
@@ -257,6 +261,15 @@ impl AlsTurnMontageStack {
                 && entry.sampling_ready
                 && entry.weight() > f32::EPSILON
         });
+    }
+
+    pub(crate) fn stop_for_group_replacement(&mut self, duration: f32) {
+        for entry in &mut self.entries {
+            entry.blend_out_start_weight = entry.weight();
+            entry.blend_out_elapsed = Some(0.0);
+            entry.blend_out_duration = duration.max(0.0);
+        }
+        self.entries.retain(|entry| entry.weight() > f32::EPSILON);
     }
 
     fn latest_playing(&self) -> Option<&AlsTurnMontage> {
@@ -912,7 +925,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "A24: Grounded transition playback does not stop the current turn slot"]
     fn grounded_transition_play_stops_the_current_turn_montage() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
@@ -923,6 +935,13 @@ mod tests {
             yaw: 90.0,
             crouching: false,
         }.play(&mut turns);
+        turns.entries[0].blend_in_elapsed = 0.1;
+        turns.entries[0].sampling_ready = true;
+        let mut old_turns = turns.clone();
+        old_turns.entries[0].id = 99;
+        let old_avatar = app.world_mut().spawn((
+            AlsCharacterAvatar { character }, ChildOf(character), old_turns,
+        )).id();
         let avatar = app.world_mut().spawn((
             AlsCharacterAvatar { character }, ChildOf(character), turns,
         )).id();
@@ -936,7 +955,21 @@ mod tests {
         app.world_mut().flush();
         let turns = app.world().get::<AlsTurnMontageStack>(avatar).unwrap();
         assert!(turns.entries[0].blend_out_elapsed.is_some());
+        assert!((turns.entries[0].blend_out_duration - crate::stop_link::QUICK_STOP_BLEND_IN).abs() < 1e-6);
         assert!(!turns.inertialization_pending);
+        assert!(app.world().get::<AlsTurnMontageStack>(old_avatar).unwrap().entries[0].blend_out_elapsed.is_none());
+        let initial_weight = turns.entries[0].weight();
+        let mut turns = app.world_mut().get_mut::<AlsTurnMontageStack>(avatar).unwrap();
+        turns.advance(0.05);
+        assert!((turns.entries[0].weight() - initial_weight * 0.5).abs() < 1e-5);
+
+        let mut immediate = AlsTurnMontageStack::default();
+        SourceTurnRequest {
+            variant: TurnVariant::Right90, yaw: 90.0, crouching: false,
+        }.play(&mut immediate);
+        immediate.entries[0].blend_in_elapsed = 0.1;
+        immediate.stop_for_group_replacement(0.0);
+        assert!(immediate.entries.is_empty());
     }
 
     #[test]

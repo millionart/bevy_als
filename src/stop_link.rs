@@ -313,6 +313,13 @@ impl AlsTransitionMontageStack {
 
 pub(crate) fn play_transition(commands: &mut Commands, character: Entity, playback: AlsTransitionPlayback) {
     commands.queue(move |world: &mut World| {
+        if let Some(assembly) = world.get::<crate::character_assembly::AlsCharacterAssembly>(character).copied()
+            && world.get::<crate::character_assembly::AlsCharacterAvatar>(assembly.avatar)
+                .is_some_and(|avatar| avatar.character == character)
+            && let Some(mut turns) = world.get_mut::<crate::turn_layer::AlsTurnMontageStack>(assembly.avatar)
+        {
+            turns.stop_for_group_replacement(playback.blend_in);
+        }
         let Ok(mut entity) = world.get_entity_mut(character) else { return; };
         if let Some(mut stack) = entity.get_mut::<AlsTransitionMontageStack>() {
             stack.begin(playback);
