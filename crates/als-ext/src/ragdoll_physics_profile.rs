@@ -401,6 +401,20 @@ fn find_joint_profile<'a>(
         .find(|candidate| candidate.label == label)
 }
 
+fn ragdoll_positive_uniform_scale(
+    player_entity: Entity,
+    scenes: &Query<(Entity, &AnimatedSceneInstance)>,
+    transform_helper: &bevy::transform::helper::TransformHelper,
+) -> f32 {
+    let scene = scenes.iter().find(|(_, instance)| instance.player_entity() == player_entity)
+        .map_or(player_entity, |(entity, _)| entity);
+    transform_helper.compute_global_transform(scene).ok()
+        .map(|transform| transform.to_scale_rotation_translation().0)
+        .filter(|scale| scale.is_finite() && scale.min_element() > 0.0
+            && scale.max_element() - scale.min_element() <= 1e-4)
+        .map_or(1.0, |scale| scale.x)
+}
+
 #[allow(clippy::type_complexity)]
 fn apply_ragdoll_physics_profiles(
     mut commands: Commands,
@@ -416,16 +430,13 @@ fn apply_ragdoll_physics_profiles(
     transforms: Query<&Transform>,
     mut colliders: Query<&mut Collider>,
     transform_helper: bevy::transform::helper::TransformHelper,
+    scenes: Query<(Entity, &AnimatedSceneInstance)>,
 ) {
     for (player_entity, player, profile) in &players {
         let Some(spawned) = player.get_spawned_ragdoll() else {
             continue;
         };
-        let scale = transform_helper.compute_global_transform(player_entity).ok()
-            .map(|transform| transform.to_scale_rotation_translation().0)
-            .filter(|scale| scale.is_finite() && scale.min_element() > 0.0
-                && scale.max_element() - scale.min_element() <= 1e-4)
-            .map_or(1.0, |scale| scale.x);
+        let scale = ragdoll_positive_uniform_scale(player_entity, &scenes, &transform_helper);
         let applied = apply_profile_to_spawned_ragdoll(
             &mut commands,
             spawned,
@@ -739,6 +750,41 @@ fn joint_anchor_distance(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ragdoll_scale_uses_scene_host_after_player_detaches() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner, WorldSerializationPlugin};
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+            WorldSerializationPlugin, bevy_animation_graph::AnimationGraphPlugin::default()))
+            .init_asset::<WorldAsset>();
+        app.finish();
+        app.cleanup();
+        let actor = app.world_mut().spawn(Transform::from_scale(Vec3::splat(2.0))).id();
+        let scene = app.world_mut().spawn((AnimatedSceneHandle::default(), Transform::IDENTITY,
+            ChildOf(actor))).id();
+        let player = app.world_mut().spawn((AnimationGraphPlayer::new(Handle::default()),
+            Transform::IDENTITY, ChildOf(scene))).id();
+        app.world_mut().trigger(WorldInstanceReady { entity: scene,
+            instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
+        app.world_mut().flush();
+        assert_eq!(app.world().get::<AnimatedSceneInstance>(scene).unwrap().player_entity(), player);
+        app.world_mut().entity_mut(player).remove::<ChildOf>();
+        let scale = app.world_mut().run_system_once(move |
+            scenes: Query<(Entity, &AnimatedSceneInstance)>,
+            transform_helper: bevy::transform::helper::TransformHelper| {
+            ragdoll_positive_uniform_scale(player, &scenes, &transform_helper)
+        }).unwrap();
+        assert_eq!(scale, 2.0);
+        app.world_mut().get_mut::<Transform>(actor).unwrap().scale = Vec3::new(2.0, 1.0, 2.0);
+        let scale = app.world_mut().run_system_once(move |
+            scenes: Query<(Entity, &AnimatedSceneInstance)>,
+            transform_helper: bevy::transform::helper::TransformHelper| {
+            ragdoll_positive_uniform_scale(player, &scenes, &transform_helper)
+        }).unwrap();
+        assert_eq!(scale, 1.0);
+    }
 
     #[test]
     fn profile_replaces_every_spawned_joint_and_applies_body_materials() {

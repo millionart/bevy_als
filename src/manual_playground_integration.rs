@@ -3606,10 +3606,15 @@ fn initialize_manual_integration(
     cameras: (Query<(&AlsCameraRig, &AlsCameraDebugInfo)>, Query<&als_camera::AlsCameraViewSource>),
     toggles: Query<&TnuaToggle, With<AlsCharacter>>,
     view: Query<(&AlsViewYaw, &AlsViewPitch), With<AlsCharacter>>,
-    transforms: Query<&Transform, With<AlsCharacter>>,
+    mut transforms: Query<&mut Transform, With<AlsCharacter>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
+    if state.scenario == IntegrationScenario::Ragdoll && !state.initialized
+        && let Ok(admission) = admissions.single()
+        && let Ok(mut transform) = transforms.get_mut(admission.character) {
+        transform.scale = Vec3::splat(2.0);
+    }
     if state.initialized || !startup.passed {
         return;
     }
@@ -3640,7 +3645,7 @@ fn initialize_manual_integration(
     let Ok((view_yaw, view_pitch)) = view.get(character) else {
         return;
     };
-    let Ok(transform) = transforms.get(character) else {
+    let Ok(transform) = transforms.get_mut(character) else {
         return;
     };
     let graph_ready = matches!(player.get_animation_source(), AnimationSource::Graph(_))
@@ -5744,13 +5749,6 @@ fn drive_manual_integration(
                 state.coverage.ragdoll_recovered = false;
                 let mut spawn_translation = state.spawn_translation.unwrap_or(transform.translation);
                 if state.scenario == IntegrationScenario::Ragdoll {
-                    transform.scale = Vec3::splat(2.0);
-                    if let Some(avatar) = state.avatar {
-                        commands.entity(avatar).insert(
-                            crate::character_assembly::avatar_transform()
-                                .with_scale(Vec3::splat(0.5)),
-                        );
-                    }
                     let standing_half = params_assets
                         .get(params_handle.id())
                         .map_or(ALS_CHARACTER_CAPSULE_HALF_HEIGHT, |params| {
