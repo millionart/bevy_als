@@ -295,6 +295,10 @@ impl AlsTransitionMontageStack {
         for entry in &mut self.entries { entry.request_stop(); }
     }
 
+    pub(crate) fn stop_with_duration(&mut self, duration: f32) {
+        for entry in &mut self.entries { entry.stop_with_duration(duration); }
+    }
+
     fn advance(&mut self, delta_seconds: f32) {
         for entry in &mut self.entries { entry.advance(delta_seconds); }
         let last = self.entries.len().saturating_sub(1);

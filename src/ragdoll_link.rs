@@ -663,6 +663,8 @@ fn release_ragdoll_air_exit_on_ground(
 fn ragdoll_character_physics_system(
     mut commands: Commands,
     rolls: Query<&als_core::roll::AlsRollState>,
+    mut transitions: Query<&mut crate::stop_link::AlsTransitionMontageStack>,
+    mut turns: Query<(&AlsCharacterAvatar, &mut crate::turn_layer::AlsTurnMontageStack)>,
     mut characters: Query<
         (
             Entity,
@@ -676,6 +678,7 @@ fn ragdoll_character_physics_system(
             Option<&TnuaToggle>,
             Option<&AlsRagdollCharacterPhysics>,
             Option<&AlsRagdollGroundFollow>,
+            Option<&AlsCharacterAssembly>,
         ),
         With<AlsCharacter>,
     >,
@@ -692,11 +695,21 @@ fn ragdoll_character_physics_system(
         tnua_toggle,
         previous_physics,
         ground_follow,
+        assembly,
     ) in &mut characters
     {
         let is_ragdoll = action == Some(&AlsNotifyLocomotionAction::Ragdolling);
         if is_ragdoll {
             if previous_physics.is_none() {
+                if let Ok(mut stack) = transitions.get_mut(entity) {
+                    stack.stop_with_duration(crate::get_up::RAGDOLL_SETTINGS.stop_montage_blend_seconds);
+                }
+                if let Some(assembly) = assembly
+                    && let Ok((avatar, mut stack)) = turns.get_mut(assembly.avatar)
+                    && avatar.character == entity
+                {
+                    stack.request_stop();
+                }
                 if let Ok(roll) = rolls.get(entity) {
                     if roll.active {
                         commands
@@ -1108,7 +1121,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore = "A23: ragdoll entry leaves turn and transition montages active"]
     fn ragdoll_entry_stops_current_turn_and_transition_montages() {
         use bevy::ecs::system::RunSystemOnce;
         use crate::stop_link::{AlsTransitionMontageStack, AlsTransitionPlayback};
@@ -1118,13 +1130,17 @@ mod tests {
         app.add_plugins(MinimalPlugins);
         let mut transition = AlsTransitionPlayback::standing_dynamic(0.0);
         transition.weight = 0.75;
+        transition.blend_out = 0.45;
+        let mut second_transition = AlsTransitionPlayback::crouching_dynamic(1.0);
+        second_transition.weight = 0.5;
+        second_transition.blend_out = 0.6;
         let character = app.world_mut().spawn((
             AlsCharacter,
             Transform::IDENTITY,
             RigidBody::Kinematic,
             AlsCollisionLayerOwnership::default(),
             AlsNotifyLocomotionAction::Ragdolling,
-            AlsTransitionMontageStack { entries: vec![transition] },
+            AlsTransitionMontageStack { entries: vec![transition, second_transition] },
         )).id();
         let mut turn = AlsTurnMontageStack::default();
         SourceTurnRequest {
@@ -1132,6 +1148,15 @@ mod tests {
             yaw: 90.0,
             crouching: false,
         }.play(&mut turn);
+        let mut old_turn = AlsTurnMontageStack::default();
+        SourceTurnRequest {
+            variant: als_core::turn_in_place::TurnVariant::Right90,
+            yaw: 90.0,
+            crouching: false,
+        }.play(&mut old_turn);
+        let old_avatar = app.world_mut().spawn((
+            AlsCharacterAvatar { character }, ChildOf(character), old_turn,
+        )).id();
         let avatar = app.world_mut().spawn((
             AlsCharacterAvatar { character },
             ChildOf(character),
@@ -1143,11 +1168,15 @@ mod tests {
         app.world_mut().run_system_once(ragdoll_character_physics_system).unwrap();
         app.world_mut().flush();
         let turn_stopped = app.world().get::<AlsTurnMontageStack>(avatar).unwrap().entries.is_empty();
-        let transition = &app.world().get::<AlsTransitionMontageStack>(character).unwrap().entries[0];
-        let transition_stopped = transition.stop_elapsed == Some(0.0)
-            && (transition.stop_duration - 0.2).abs() < 1e-6;
+        let transition_stopped = app.world().get::<AlsTransitionMontageStack>(character).unwrap()
+            .entries.iter().all(|entry| entry.stop_elapsed == Some(0.0)
+                && (entry.stop_duration - 0.2).abs() < 1e-6);
         assert!(turn_stopped && transition_stopped,
             "turn_stopped={turn_stopped} transition_stopped={transition_stopped}");
+        assert_eq!(app.world().get::<AlsTurnMontageStack>(old_avatar).unwrap().entries.len(), 1);
+        app.world_mut().run_system_once(ragdoll_character_physics_system).unwrap();
+        assert!(app.world().get::<AlsTransitionMontageStack>(character).unwrap()
+            .entries.iter().all(|entry| entry.stop_elapsed == Some(0.0)));
     }
 
     #[test]
