@@ -774,6 +774,23 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore = "A37 profile application must follow the current spawned ragdoll"]
+    fn same_entity_player_replacement_invalidates_previous_profile_application() {
+        let mut world = World::new();
+        let player = world.spawn((
+            AnimationGraphPlayer::new(Handle::default()),
+            RagdollPhysicsProfileApplied { scale: 1.0, body_count: 21, ..default() },
+        )).id();
+        let old_ragdoll = SpawnedRagdoll::new(world.spawn_empty().id());
+        let new_ragdoll = SpawnedRagdoll::new(world.spawn_empty().id());
+        world.entity_mut(player).insert(AnimationGraphPlayer::new(Handle::default()));
+        let applied = world.get::<RagdollPhysicsProfileApplied>(player).unwrap();
+        assert_ne!(old_ragdoll.root, new_ragdoll.root);
+        assert!((applied.scale - 1.0).abs() > 1e-4,
+            "the replacement player has a new ragdoll but the old same-scale marker skips its profile");
+    }
+
+    #[test]
     fn ragdoll_scale_uses_scene_host_after_player_detaches() {
         use bevy::ecs::system::RunSystemOnce;
         use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner, WorldSerializationPlugin};
