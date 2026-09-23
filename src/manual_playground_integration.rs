@@ -618,6 +618,12 @@ impl Plugin for ManualPlaygroundIntegrationPlugin {
         if std::env::var("ALS_MANUAL_RAGDOLL_PLAYER_REPLACEMENT").as_deref() == Ok("1") {
             app.add_systems(PreUpdate, replace_ragdoll_player_once.after(drive_manual_integration));
         }
+        if std::env::var("ALS_MANUAL_RIG_DEFINITION_HOT_SWAP").as_deref() == Ok("1") {
+            app.add_systems(PostUpdate, drive_control_rig_definition_hot_swap
+                .after(AlsCameraSet)
+                .after(FootIkApplySet::Telemetry)
+                .before(observe_manual_integration));
+        }
     }
 }
 
@@ -629,8 +635,75 @@ struct ManualRagdollPlayerReplacement {
     old_root: Entity,
 }
 
+#[derive(Default)]
+struct ManualRigDefinitionHotSwap {
+    stage: u8,
+    graph: Option<bevy::asset::AssetId<AnimationGraph>>,
+    node: Option<NodeId>,
+    initialization_count: u64,
+    register: usize,
+}
+
 #[derive(Component)]
 struct ManualFootIkTerrain;
+
+fn drive_control_rig_definition_hot_swap(
+    mut state: ResMut<ManualIntegrationState>,
+    mut probe: Local<ManualRigDefinitionHotSwap>,
+    avatars: Query<&AnimatedSceneInstance>,
+    players: Query<&AnimationGraphPlayer>,
+    mut graphs: ResMut<Assets<AnimationGraph>>,
+) {
+    use als_ext::{control_rig_math::RigValue, control_rig_program::RigValueRef,
+        root_graph_boundaries::{ControlRigBoundaryNode, current_control_rig}};
+    use bevy_animation_graph::core::animation_node::dyn_node_like::DynNodeLike;
+    if !state.initialized || state.scenario != IntegrationScenario::ControlRig
+        || state.phase != IntegrationPhase::ControlRig || state.phase_elapsed() < 0.5
+        || state.coverage.control_rig_definition_hot_swap { return; }
+    let Some(avatar) = state.avatar else { return; };
+    let Ok(instance) = avatars.get(avatar) else { return; };
+    let Ok(player) = players.get(instance.player_entity()) else { return; };
+    let Some((context, node, rig)) = current_control_rig(player, &graphs) else { return; };
+    let graph_id = context.get_graph_id();
+    let node_id = node.id;
+    let count = rig.initialization_count;
+    let value = (probe.stage > 0).then(|| rig.value(&RigValueRef {
+        register: probe.register, path: Vec::new(),
+    }).ok()).flatten();
+    if probe.stage > 0 && (probe.graph != Some(graph_id) || probe.node != Some(node_id)) { return; }
+    match probe.stage {
+        0 if count > 0 => {
+            let Some(mut graph) = graphs.get_mut(graph_id) else { return; };
+            let Some(node) = graph.nodes.get_mut(&node_id) else { return; };
+            let Some(mut rig) = node.try_inner_downcast_ref::<ControlRigBoundaryNode>().cloned() else { return; };
+            let Some(definition) = rig.definition.as_mut() else { return; };
+            probe.register = definition.program.initial_values.len();
+            definition.program.initial_values.push(RigValue::F32(123.0));
+            node.inner = DynNodeLike::new(rig);
+            probe.graph = Some(graph_id);
+            probe.node = Some(node_id);
+            probe.initialization_count = count;
+            probe.stage = 1;
+            info!("[MANUAL-INTEGRATION][RIG-DEFINITION-HOT-SWAP] stage=layout node={node_id:?} register={} initializations={count}", probe.register);
+        }
+        1 if count == probe.initialization_count + 1 && value == Some(RigValue::F32(123.0)) => {
+            let Some(mut graph) = graphs.get_mut(graph_id) else { return; };
+            let Some(node) = graph.nodes.get_mut(&node_id) else { return; };
+            let Some(mut rig) = node.try_inner_downcast_ref::<ControlRigBoundaryNode>().cloned() else { return; };
+            let Some(definition) = rig.definition.as_mut() else { return; };
+            let Some(register) = definition.program.initial_values.get_mut(probe.register) else { return; };
+            *register = RigValue::F32(124.0);
+            node.inner = DynNodeLike::new(rig);
+            probe.stage = 2;
+            info!("[MANUAL-INTEGRATION][RIG-DEFINITION-HOT-SWAP] stage=constant node={node_id:?} register={} initializations={count}", probe.register);
+        }
+        2 if count == probe.initialization_count + 2 && value == Some(RigValue::F32(124.0)) => {
+            state.coverage.control_rig_definition_hot_swap = true;
+            info!("[MANUAL-INTEGRATION][RIG-DEFINITION-HOT-SWAP] stage=complete node={node_id:?} register={} initializations={count} -> PASS", probe.register);
+        }
+        _ => {}
+    }
+}
 
 fn drive_control_rig_view_offset(
     state: Res<ManualIntegrationState>,
@@ -2999,6 +3072,7 @@ struct IntegrationCoverage {
     control_rig: bool,
     control_rig_actions: bool,
     control_rig_stages: bool,
+    control_rig_definition_hot_swap: bool,
     control_rig_input: bool,
     control_rig_foot_targets: bool,
     mantle_started: bool,
@@ -3101,6 +3175,7 @@ struct ManualIntegrationState {
     mantle_root_released: bool,
     ragdoll_seen: bool,
     expect_ragdoll_player_replacement: bool,
+    expect_control_rig_definition_hot_swap: bool,
     ragdoll_exit_requested: bool,
     ragdoll_frames: u32,
     get_up_case: usize,
@@ -3232,6 +3307,8 @@ impl Default for ManualIntegrationState {
             ragdoll_seen: false,
             expect_ragdoll_player_replacement:
                 std::env::var("ALS_MANUAL_RAGDOLL_PLAYER_REPLACEMENT").as_deref() == Ok("1"),
+            expect_control_rig_definition_hot_swap:
+                std::env::var("ALS_MANUAL_RIG_DEFINITION_HOT_SWAP").as_deref() == Ok("1"),
             ragdoll_exit_requested: false,
             ragdoll_frames: 0,
             get_up_case: 0,
@@ -10320,6 +10397,9 @@ fn observe_manual_integration(
         };
         if state.scenario == IntegrationScenario::Ragdoll && state.expect_ragdoll_player_replacement {
             results.push(("ragdoll_player_replacement", coverage.ragdoll_player_replaced));
+        }
+        if state.scenario == IntegrationScenario::ControlRig && state.expect_control_rig_definition_hot_swap {
+            results.push(("control_rig_definition_hot_swap", coverage.control_rig_definition_hot_swap));
         }
         for (name, covered) in &results {
             if *covered {
