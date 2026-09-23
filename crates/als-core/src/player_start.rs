@@ -469,6 +469,42 @@ fn prepare_player_starts(
 mod tests {
     use super::*;
 
+    #[test]
+    #[ignore = "A16: existing character is excluded from start occupancy"]
+    fn existing_character_blocks_player_start_occupancy() {
+        use avian3d::prelude::{PhysicsPlugins, RigidBody};
+        use bevy::{asset::AssetPlugin, mesh::MeshPlugin, transform::TransformPlugin};
+        let mut app = App::new();
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            MeshPlugin,
+            TransformPlugin,
+            PhysicsPlugins::new(FixedPostUpdate),
+            AlsPlayerStartPlugin,
+        ));
+        app.world_mut().resource_mut::<AlsPlayerStartSettings>().required_stable_frames = 1;
+        app.finish();
+        app.cleanup();
+        let center = Vec3::Y * player_start_grounded_height(0.0, 0.9);
+        let start = app.world_mut().spawn((
+            AlsPlayerStart { snap_to_ground: false, ..default() },
+            Transform::from_translation(center),
+        )).id();
+        let occupant = app.world_mut().spawn((
+            crate::character::AlsCharacter,
+            RigidBody::Static,
+            crate::character::als_character_capsule(0.9, 0.3),
+            Transform::from_translation(center),
+        )).id();
+        app.update();
+        app.world_mut().run_schedule(FixedPostUpdate);
+        app.update();
+        assert!(app.world().entities().contains(occupant));
+        assert!(app.world().get::<AlsPlayerStartReady>(start)
+            .is_none_or(|ready| ready.occupancy != AlsPlayerStartOccupancy::Unoccupied));
+    }
+
     fn fit(occupancy: AlsPlayerStartOccupancy) -> AlsPlayerSpawnFit {
         AlsPlayerSpawnFit {
             transform: Transform::IDENTITY,

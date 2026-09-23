@@ -173,3 +173,51 @@ fn admit_pending_players(
         });
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use als_core::player_start::AlsPlayerStartOccupancy;
+    use bevy::asset::AssetPlugin;
+    use bevy_animation_graph::core::animated_scene::AnimatedScene;
+
+    #[test]
+    #[ignore = "A16: same-frame admissions reuse unreserved spawn space"]
+    fn same_frame_admissions_do_not_share_one_capsule_space() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), AlsGameModePlugin))
+            .init_asset::<StandardMaterial>()
+            .init_asset::<AlsMovementParams>()
+            .init_asset::<AlsControlSchemeConfig>()
+            .init_asset::<AnimatedScene>()
+            .init_asset::<als_camera::AlsCameraDefinition>();
+        app.finish();
+        app.cleanup();
+        let transform = Transform::from_xyz(0.0, 0.919, 0.0);
+        app.world_mut().spawn((
+            AlsPlayerStart::default(),
+            AlsPlayerStartReady {
+                transform,
+                ground_y: 0.0,
+                adjustment: 0.0,
+                teleport_adjustment: Vec3::ZERO,
+                occupancy: AlsPlayerStartOccupancy::Unoccupied,
+            },
+        ));
+        let admission = AlsPlayerAdmission {
+            spawn_input: false,
+            ..AlsPlayerAdmission::new()
+        };
+        let first = app.world_mut().spawn((admission.clone(), AlsPlayerAdmissionPending)).id();
+        let second = app.world_mut().spawn((admission, AlsPlayerAdmissionPending)).id();
+        app.update();
+        let first_spawn = app.world().get::<AlsPlayerAdmissionComplete>(first).unwrap();
+        if let Some(second_spawn) = app.world().get::<AlsPlayerAdmissionComplete>(second) {
+            let first_position = app.world().get::<Transform>(first_spawn.character).unwrap().translation;
+            let second_position = app.world().get::<Transform>(second_spawn.character).unwrap().translation;
+            assert!(first_position.distance(second_position) >= 0.6);
+        } else {
+            assert!(app.world().get::<AlsPlayerAdmissionFailed>(second).is_some());
+        }
+    }
+}
