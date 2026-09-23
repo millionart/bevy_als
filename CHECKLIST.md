@@ -921,3 +921,7 @@
   S3 静态夹具闭环与 runtime 前摘要：显式 `ALS_PLAYGROUND_STARTUP_VARIANT=multi_raised` 仅在原 Playground 示例首轮 Update，于原 PlayerStart 坐标增加同样合法的第二起点和顶面 y=2m 的可见静态平台，原 Landscape/环境/角色/相机仍按未改的 manifest 加载；普通入口无该分支。变体系统在 `AlsPlayerStartPrepared` 前执行，原 scene readiness PASS 日志现记录 ready 起点数，原 `[SPAWN][FIT]` 记录选中 ground_y/center_y；example 9/9。将以同一 `target_game/play` 预构建，先跑显式变体 `startup`，再跑默认 `startup`，分别核查日志/报告、图/姿态/渲染和 watchdog；原始导出不变。
 
   runtime 后完成摘要：同入口 `bf124_a36_s3_multi_raised_startup` 的日志证明受控夹具确实生成第二起点且场景 `player_starts=2`、原 Landscape 1/source 13/13/box 156/156 就绪；选中 spawn fit `ground_y=2.0000m`、`center_y=2.9190m`，20 帧 sensor bootstrap 后 `sensor_proximity=0.9215m` 启用控制器，Grounded 记录中心2.9237m、底部 clearance0.0237m 与0次穿透修正。变体和无环境变量的默认 `startup` 公共 runner 均 manual/validator 0/0、ready true、80 pose samples，graph error/fault/temporal/watchdog 均0、渲染/贴花 Gate 通过。默认场景作为夹具分支消融仍通过但没有2起点/非零地面信号，故仅保留这一显式受控分支供后续回归；完整性能预算继续延期。
+
+- [x] **BF124.A36 — Playground 启动门不依赖单起点或零地面**：开始：2026-09-24 04:45:55 +08:00；预估结束：2026-09-24 05:00:55 +08:00；实际结束：2026-09-24 04:45:55 +08:00；偏差：-15m00s；结果：S1–S3 各自通过并提交（`91b05d4`、`cd3d4c5`、`7f3b8d7`），两条启动门根因按源合同修复，默认与真实多起点/2m 地面原 Playground 功能 Gate 通过。估时依据：仅核对已提交的 source/red、静态消融及双报告，不新增技术闭包；拆分结果：A36 当前功能无剩余 Gate，A37 为下一执行项，完整性能预算沿用户既定暂停范围延期。
+
+  汇总：UE GameMode 多起点选择与 A16 目标入场算法已相符，A36 只修示例 readiness 错把合法多起点当失败；Tnua 距离是 cast 原点到地面，故 bootstrap 改与当前中心到 `ground_y` 的距离比较。两个最小红夹具、示例9/9和两项消融通过；同一原 Playground 变体日志证实2 ready PlayerStart、ground_y=2m、sensor 距离约0.92m后角色启用，默认与变体公共功能报告均0/0、无图/姿态/进展失败。原 manifest 不变，A37 不受未通过 Gate 阻挡。
