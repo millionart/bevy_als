@@ -567,3 +567,9 @@
 - [x] **BF124.A20-S2 — 同帧同步脚目标选择器与 Control Rig 设置**：开始：2026-09-23 17:57:04 +08:00；预估结束：2026-09-23 18:32:04 +08:00；实际结束：2026-09-23 18:01:38 +08:00；偏差：-30m26s；结果：现有前置系统在缺 Rig 输入时初始化，并在脚目标选择器缺失或设置变化时仅更新选择器；原调度夹具的 true→false→true 同帧检查及 Control Rig 4/4、Foot IK 8/8 回归通过。估时依据：一处现有前置系统、一处设置变化夹具、Control Rig 与 Foot IK 局部测试；拆分结果：S3 原 Playground 功能 Gate，A21 不提前展开。
 
   source/static 完成摘要：S1 本地 C++ 两处同源逐帧读取及 `AB_Als` RigInput 绑定仍成立。`initialize_control_rig_input` 保留原先在 `FootIkApplySet::UpdateInputs` 前的调度，只对缺失 Rig 输入或选择器值变化发命令；随后 `refresh_control_rig_input` 按同一设置更新 Rig Bool。S1 旧实现运行时 false 的 red 反例经同一前置系统再次调用仍 red；新实现的原 `PostUpdate` 夹具 true→false→true 通过，Control Rig 4/4、Foot IK 8/8。消融移除冗余独立夹具后保留一个实际调度回归；下一步 S3 runtime 前记录静态边界并跑原 Playground Foot IK。
+
+- [x] **BF124.A20-S3 — 原 Playground Foot IK 公共视觉 Gate**：开始：2026-09-23 18:02:33 +08:00；预估结束：2026-09-23 18:17:33 +08:00；实际结束：2026-09-23 18:06:26 +08:00；偏差：-11m07s；结果：同一 `target_game`/`play` 预构建、原 Playground `startup` 与 `foot_ik` 公共功能 Gate 通过；`foot_ik` 手动覆盖 22/22、动作窗口 12/12，图错误/故障/时间异常/watchdog 触发 0。估时依据：S1–S2 已通过的源/局部闭环、A19 同入口预构建及两项公共场景实际用时；拆分结果：A20 汇总关闭，A21 为下一项；完整性能预算沿用户既有安排延期。
+
+  runtime 前 source/static 摘要：fresh 本地 ALS `GetControlRigInput`/`RefreshFeetOnGameThread` 同时逐帧读取 `General.bUseFootIkBones`，原生 `AB_Als` 证实 RigInput 绑定；目标前置系统现同步 `AlsFootTargetSelection`，原 `PostUpdate` 夹具 true→false→true 同帧通过，Control Rig 4/4、Foot IK 8/8，旧实现的运行时 false 反例 red。当前未见静态失败边界；现在预构建同一入口并执行公共视觉功能 Gate。
+
+  runtime 后摘要：`cargo build --target-dir target_game --profile play --example manual_playground --jobs 2` 成功；公共 runner `-FunctionalOnly -CaptureCount 0` 的 `startup` 和 `foot_ik` 均 manual/validator exit 0。`foot_ik` 手动覆盖 22/22、动作窗口 12/12；两份报告无 `primary_failure`、graph error、fault、temporal anomaly 或 watchdog 触发。原报告的完整性能预算未通过，依既有延期决定仅记功能验收；下一步核对 A20 汇总及提交。
