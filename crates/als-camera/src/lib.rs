@@ -1337,6 +1337,24 @@ mod tests {
     use bevy::time::{Real, Virtual};
 
     #[test]
+    #[ignore = "A17: base presence currently forces relative camera rotation"]
+    fn movement_base_presence_does_not_enable_relative_camera_rotation() {
+        use bevy::ecs::system::RunSystemOnce;
+        for rotation in [Quat::IDENTITY, Quat::from_rotation_y(0.5)] {
+            let mut world = World::new();
+            let base = world.spawn(GlobalTransform::from(Transform::from_rotation(rotation))).id();
+            let character = world.spawn((
+                AlsCameraTarget,
+                AlsMovementBaseDynamicsState { entity: Some(base), ..default() },
+            )).id();
+            world.run_system_once(camera_movement_base_bridge_system).unwrap();
+            let camera_base = world.get::<AlsCameraMovementBase>(character).unwrap();
+            assert_eq!(camera_base.entity, base);
+            assert!(!camera_base.has_relative_rotation);
+        }
+    }
+
+    #[test]
     fn source_camera_requires_explicit_owner_settings_and_animation_frame() {
         use bevy::ecs::system::RunSystemOnce;
         for (has_owner, has_definition, has_frame) in [
