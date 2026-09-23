@@ -755,3 +755,9 @@
 - [x] **BF124.A31-S2 — 复用基座旋转快照补齐退瞄历史 yaw 与局部 Gate**：开始：2026-09-23 23:53:22 +08:00；预估结束：2026-09-24 00:38:22 +08:00；实际结束：2026-09-24 00:01:17 +08:00；偏差：-37m05s；结果：复用 A29 已验证的当前基座快照，仅在 Control Rig 状态另存上次快照，换基座不加增量；同基座旋转由目标 Y-up yaw 转 UE yaw 符号，在退瞄分支先偏移历史世界 yaw 再执行原限幅。S1 状态 red→green，真实输入/发布夹具覆盖同基座、换基座、脱离路径，Control Rig 5/5、A29 快照 1/1；移除快照更新及反转 yaw 符号分别 red。估时依据：S1 已圈定一处现有基座快照与 Control Rig 退瞄函数、已有夹具；拆分结果：S2 静态闭环完成，S3 原 Playground Control Rig/旋转基座功能 Gate。
 
   source/static 完成摘要：源 `MovementBase.DeltaRotation.Yaw` 在退瞄历史世界 yaw 限幅前累计；目标 `AlsActualMotion.movement_base_snapshot` 已给出当前有效非静态 Grounded 基座，Control Rig 只保存上一帧同类型快照并比较实体，未改 A29 已完成代码。目标 +Y 45° 对应 UE yaw -45°，真实输入夹具初始历史/角色 yaw 各 10° 时得限幅后的 -20°；改掉负号会得到 +40° 而 red。基座替换首帧不产生角增量，再次同基座旋转才更新；移除新快照赋值第三帧 red；脱离基座后历史 yaw 不额外偏移。纯脊柱源公式夹具 old red→green，Control Rig 5/5、A29 当前基座有效性回归 1/1。S3 runtime 前只需同入口重建并跑原 Playground `startup`、`control_rig`、`rotating_base`、`head` 功能 Gate，性能预算按既有安排延期。
+
+- [x] **BF124.A31-S3 — 原 Playground 退瞄脊柱/旋转基座公共视觉 Gate**：开始：2026-09-24 00:02:32 +08:00；预估结束：2026-09-24 00:37:32 +08:00；实际结束：2026-09-24 00:06:19 +08:00；偏差：-31m13s；结果：同入口 `target_game`/`play` 预构建成功，`startup`、`control_rig`、`rotating_base`、`head` 原 Playground 场景均通过功能 Gate；完整性能预算沿用户既有安排延期。估时依据：S1–S2 一处脊柱算法/当前有效基座快照的局部 red→green、四项现成真实场景及同入口历史耗时；拆分结果：A31 runtime Gate 完成，A32 为下一项。
+
+  runtime 前 source/static 摘要：fresh ALS 在退瞄时把相对基座旋转 yaw 加入历史世界 yaw 后做 ±30° 限幅；目标 Control Rig 现复用已验证基座快照并仅对同实体增量作 UE yaw 符号转换。纯状态夹具及真实输入发布夹具覆盖旋转、替换、脱离边界，快照更新/符号消融 red，Control Rig 5/5 与基座快照回归通过。使用已提交 `b67695e` 源码和同启动器产物进入四项原 Playground 功能 Gate。
+
+  runtime 完成摘要（2026-09-24 00:06:19 +08:00）：四项场景均 manual exit 0、functional validator exit 0；`control_rig` 10/10、`rotating_base` 12/12 且窗口 4/4、`head` 14/14 且窗口 7/7。全部报告 `primary_failure=null`、graph error 0、fault 0、temporal anomaly 0、watchdog 未触发；控制 Rig、基座和头部姿态链均被原入口验收。报告原始性能预算未通过，依既有延期决定只记功能验收；A31 源、静态和真实入口闭环完成。
