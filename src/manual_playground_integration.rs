@@ -4611,6 +4611,7 @@ fn drive_manual_integration(
                 *overlay = OverlayState::Default;
                 *rotation_mode = RotationMode::ViewDirection;
                 commands.entity(character).remove::<AlsFirstPersonView>();
+                commands.entity(character).remove::<als_camera::AlsCameraCustomTimeDilation>();
             }
             request.overlay_state = Some(OverlayState::Default);
             request.rotation_mode = Some(if matches!(index, 3 | 4) { RotationMode::VelocityDirection } else { RotationMode::ViewDirection });
@@ -4620,6 +4621,8 @@ fn drive_manual_integration(
             view_pitch.0 = match index { 0 => -60.0, 1 => 0.0, 2 => 60.0, 5 | 6 => (elapsed * 3.0).sin() * 60.0, _ => 0.0_f32 }.to_radians();
             if index == 3 { input.0.move_dir = Vec2::new((elapsed * 3.0).sin() * 0.8, 1.0).normalize(); }
             if entering && matches!(index, 5 | 6) { input.0.view_mode_pressed = true; }
+            if entering && index == 5 { commands.entity(character).insert(als_camera::AlsCameraCustomTimeDilation(0.5)); }
+            if entering && index == 6 { commands.entity(character).remove::<als_camera::AlsCameraCustomTimeDilation>(); }
             virtual_time.set_relative_speed(if index == 5 { 0.25 } else { 1.0 });
             if state.head_probe.covered[index] {
                 state.head_probe.case_index += 1;
@@ -7186,7 +7189,11 @@ fn observe_manual_integration(
         probe.valid &= sample.errors.is_empty();
         for (index, time) in sample.times.iter().enumerate() { probe.samples_seen[index] |= time.is_some(); }
         probe.additive_seen |= sample.additive_effect.is_some_and(|effect| effect > 1e-4);
-        probe.unscaled_pitch_seen |= first_person && sample.inputs[1] > sample.inputs[0] * 3.5
+        let real_delta = real_time.delta_secs();
+        let custom_clock = probe.case_index == 5 && real_delta > 1e-5
+            && (sample.inputs[0] - interface.virtual_time.delta_secs() * 0.5).abs() < 1e-4
+            && (sample.inputs[1] - real_delta).abs() <= real_delta * 0.25;
+        probe.unscaled_pitch_seen |= first_person && custom_clock && sample.inputs[1] > sample.inputs[0] * 3.5
             && (sample.state[0] - sample.inputs[7]).abs() > 0.01 && sample.errors.is_empty();
         let index = probe.case_index;
         let branch_ready = match index {
