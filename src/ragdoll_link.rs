@@ -1087,6 +1087,69 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore = "A11: current ragdoll query selects Visibility-only collider"]
+    fn ragdoll_ground_query_ignores_visibility_only_with_original_pawn_response() {
+        use avian3d::prelude::{LayerMask, PhysicsPlugins};
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::transform::TransformPlugin;
+        let mut app = App::new();
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            bevy::mesh::MeshPlugin,
+            TransformPlugin,
+            PhysicsPlugins::new(FixedPostUpdate),
+        ));
+        app.finish();
+        app.cleanup();
+        let original = CollisionLayers::new(
+            als_core::character::AlsCollisionLayer::Default,
+            als_core::character::AlsCollisionLayer::Default,
+        );
+        let mut ownership = AlsCollisionLayerOwnership::default();
+        assert_eq!(
+            ownership.set_owner(AlsCollisionLayerOwner::Ragdoll, Some(original), true),
+            Some(Some(CollisionLayers::NONE))
+        );
+        let visibility = app
+            .world_mut()
+            .spawn((
+                RigidBody::Static,
+                Collider::cuboid(2.0, 0.1, 2.0),
+                CollisionLayers::new(als_core::character::AlsCollisionLayer::Visibility, LayerMask::ALL),
+                Transform::from_xyz(0.0, 1.2, 0.0),
+            ))
+            .id();
+        let ground = app
+            .world_mut()
+            .spawn((
+                RigidBody::Static,
+                Collider::cuboid(2.0, 0.2, 2.0),
+                CollisionLayers::new(als_core::character::AlsCollisionLayer::Default, LayerMask::ALL),
+                Transform::IDENTITY,
+            ))
+            .id();
+        app.update();
+        app.world_mut().run_schedule(FixedPostUpdate);
+        let hit = app.world_mut().run_system_once(|spatial: SpatialQuery| {
+            let filter = SpatialQueryFilter::from_excluded_entities(Vec::<Entity>::new());
+            spatial
+                .cast_shape(
+                    &Collider::sphere(0.3),
+                    Vec3::Y * 1.6,
+                    Quat::IDENTITY,
+                    Dir3::NEG_Y,
+                    &ShapeCastConfig::from_max_distance(1.5),
+                    &filter,
+                )
+                .map(|hit| hit.entity)
+        })
+        .unwrap();
+        assert_ne!(hit, Some(visibility));
+        assert_eq!(hit, Some(ground));
+    }
+
+    #[test]
     fn initial_speed_limit_covers_entry_and_eight_refreshes() {
         let mut limit = AlsRagdollInitialSpeedLimit::new(0.5);
         for _ in 0..9 {
