@@ -294,6 +294,7 @@ impl RagdollCollisionMember {
 
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq)]
 pub struct RagdollPhysicsProfileApplied {
+    pub spawned_root: Option<Entity>,
     pub scale: f32,
     pub body_count: u32,
     pub collider_count: u32,
@@ -416,6 +417,22 @@ fn ragdoll_positive_uniform_scale(
         .map_or(1.0, |scale| scale.x)
 }
 
+fn profile_application_change(
+    applied: Option<RagdollPhysicsProfileApplied>,
+    spawned_root: Entity,
+    scale: f32,
+) -> Option<(f32, Option<Entity>)> {
+    let previous_scale = applied.map_or(1.0, |applied| {
+        if applied.scale.is_finite() && applied.scale > 0.0 { applied.scale } else { 1.0 }
+    });
+    let old_root = applied.and_then(|applied| applied.spawned_root)
+        .filter(|root| *root != spawned_root);
+    if applied.is_some() && old_root.is_none() && (previous_scale - scale).abs() <= 1e-4 {
+        return None;
+    }
+    Some((if old_root.is_some() { scale } else { scale / previous_scale }, old_root))
+}
+
 #[allow(clippy::type_complexity)]
 fn apply_ragdoll_physics_profiles(
     mut commands: Commands,
@@ -438,18 +455,18 @@ fn apply_ragdoll_physics_profiles(
             continue;
         };
         let scale = ragdoll_positive_uniform_scale(player_entity, &scenes, &transform_helper);
-        let previous_scale = applied.as_ref().map_or(1.0, |applied| {
-            if applied.scale.is_finite() && applied.scale > 0.0 { applied.scale } else { 1.0 }
-        });
-        if applied.is_some() && (previous_scale - scale).abs() <= 1e-4 {
+        let Some((scale_factor, old_root)) = profile_application_change(
+            applied.as_ref().map(|applied| **applied), spawned.root, scale,
+        ) else {
             continue;
-        }
+        };
+        if let Some(old_root) = old_root { commands.entity(old_root).try_despawn(); }
         let next = apply_profile_to_spawned_ragdoll(
             &mut commands,
             spawned,
             profile,
             scale,
-            scale / previous_scale,
+            scale_factor,
             &body_labels,
             &collider_labels,
             &joint_labels,
@@ -460,12 +477,16 @@ fn apply_ragdoll_physics_profiles(
             &mut colliders,
         );
         if let Some(mut applied) = applied {
-            applied.scale = scale;
-            applied.body_count = next.body_count;
-            applied.collider_count = next.collider_count;
-            applied.joint_count = next.joint_count;
-            applied.source_joint_count = next.source_joint_count;
-            applied.collision_disabled_pair_count = next.collision_disabled_pair_count;
+            if old_root.is_some() {
+                *applied = next;
+            } else {
+                applied.scale = scale;
+                applied.body_count = next.body_count;
+                applied.collider_count = next.collider_count;
+                applied.joint_count = next.joint_count;
+                applied.source_joint_count = next.source_joint_count;
+                applied.collision_disabled_pair_count = next.collision_disabled_pair_count;
+            }
         } else {
             commands.entity(player_entity).insert(next);
         }
@@ -489,6 +510,7 @@ fn apply_profile_to_spawned_ragdoll(
     colliders: &mut Query<&mut Collider>,
 ) -> RagdollPhysicsProfileApplied {
     let mut applied = RagdollPhysicsProfileApplied {
+        spawned_root: Some(spawned.root),
         scale,
         collision_disabled_pair_count: profile.collision_disabled_pairs.len() as u32,
         ..default()
@@ -774,7 +796,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore = "A37 profile application must follow the current spawned ragdoll"]
     fn same_entity_player_replacement_invalidates_previous_profile_application() {
         let mut world = World::new();
         let player = world.spawn((
@@ -783,11 +804,14 @@ mod tests {
         )).id();
         let old_ragdoll = SpawnedRagdoll::new(world.spawn_empty().id());
         let new_ragdoll = SpawnedRagdoll::new(world.spawn_empty().id());
+        world.get_mut::<RagdollPhysicsProfileApplied>(player).unwrap().spawned_root = Some(old_ragdoll.root);
         world.entity_mut(player).insert(AnimationGraphPlayer::new(Handle::default()));
         let applied = world.get::<RagdollPhysicsProfileApplied>(player).unwrap();
         assert_ne!(old_ragdoll.root, new_ragdoll.root);
-        assert!((applied.scale - 1.0).abs() > 1e-4,
-            "the replacement player has a new ragdoll but the old same-scale marker skips its profile");
+        assert_eq!(profile_application_change(Some(*applied), new_ragdoll.root, 1.0),
+            Some((1.0, Some(old_ragdoll.root))));
+        assert_eq!(profile_application_change(Some(*applied), old_ragdoll.root, 1.0), None);
+        assert_eq!(profile_application_change(Some(*applied), old_ragdoll.root, 2.0), Some((2.0, None)));
     }
 
     #[test]
@@ -924,6 +948,7 @@ mod tests {
     fn positive_uniform_scale_reaches_ragdoll_shapes_offsets_and_joint_frames() {
         use avian3d::prelude::Collider;
         use bevy::ecs::system::RunSystemOnce;
+        use bevy::reflect::{PartialReflect, ReflectMut};
         use bevy_animation_graph::core::ragdoll::{
             definition::Ragdoll, spawning::spawn_ragdoll_avian,
         };
@@ -940,22 +965,26 @@ mod tests {
         app.finish();
         app.cleanup();
         let world = app.world_mut();
-        let player = world.spawn_empty().id();
+        let player = world.spawn((AnimationGraphPlayer::new(Handle::default()), Transform::IDENTITY)).id();
         let spawned = world.run_system_once(move |mut commands: Commands| {
             spawn_ragdoll_avian(player, &ragdoll, Isometry3d::IDENTITY, None, &mut commands)
         }).unwrap();
         let body = *spawned.bodies.values().find(|entity|
             world.get::<Transform>(**entity).unwrap().translation.length() > 0.01).unwrap();
+        let body_label = world.get::<BodyLabel>(body).unwrap().0.clone();
         let body_offset = world.get::<Transform>(body).unwrap().translation;
         let collider = *spawned.colliders.values().find(|entity|
             world.get::<ColliderLabel>(**entity).unwrap().0.starts_with("hand_l_")).unwrap();
+        let collider_label = world.get::<ColliderLabel>(collider).unwrap().0.clone();
         let collider_offset = world.get::<Transform>(collider).unwrap().translation;
         let collider_extent = world.get::<Collider>(collider).unwrap().shape_scaled().compute_local_aabb().half_extents();
         let joint_profile = profile.joints.iter().find(|joint|
             joint.definition.parent_frame.translation.length() > 0.01).unwrap();
         let joint = *spawned.joints.values().find(|entity|
             world.get::<JointLabel>(**entity).unwrap().0 == joint_profile.label).unwrap();
+        let joint_label = joint_profile.label.clone();
         let joint_offset = joint_profile.definition.parent_frame.translation;
+        let old_root = spawned.root;
         let first = SpawnedRagdoll { root: spawned.root, bodies: spawned.bodies.clone(),
             colliders: spawned.colliders.clone(), joints: spawned.joints.clone() };
         world.run_system_once({ let profile = profile.clone(); move |mut commands: Commands,
@@ -988,6 +1017,44 @@ mod tests {
         let next_extent = app.world().get::<Collider>(collider).unwrap().shape_scaled().compute_local_aabb().half_extents();
         assert!(next_extent.abs_diff_eq(collider_extent * 2.0, 1e-5),
             "Collider scale was lost after physics: {next_extent:?}");
+        let fresh_ragdoll: Ragdoll = ron::from_str(include_str!(
+            "../../../assets/ragdolls/als_manny.rag.ron")).unwrap();
+        let fresh = app.world_mut().run_system_once(move |mut commands: Commands| {
+            spawn_ragdoll_avian(player, &fresh_ragdoll, Isometry3d::IDENTITY, None, &mut commands)
+        }).unwrap();
+        let fresh_root = fresh.root;
+        let world = app.world_mut();
+        let fresh_body = *fresh.bodies.values().find(|entity|
+            world.get::<BodyLabel>(**entity).unwrap().0 == body_label).unwrap();
+        let fresh_collider = *fresh.colliders.values().find(|entity|
+            world.get::<ColliderLabel>(**entity).unwrap().0 == collider_label).unwrap();
+        let fresh_joint = *fresh.joints.values().find(|entity|
+            world.get::<JointLabel>(**entity).unwrap().0 == joint_label).unwrap();
+        let fresh_profile = RagdollPhysicsProfile::from_json(include_str!(
+            "../../../assets/ragdolls/pa_als.physics.json")).unwrap();
+        let mut replacement = AnimationGraphPlayer::new(Handle::default());
+        let ReflectMut::Struct(fields) = replacement.reflect_mut() else { panic!("player must reflect as a struct") };
+        *fields.field_mut("spawned_ragdoll").unwrap()
+            .try_downcast_mut::<Option<SpawnedRagdoll>>().unwrap() = Some(fresh);
+        world.entity_mut(player).insert((Transform::from_scale(Vec3::splat(2.0)), fresh_profile,
+            RagdollPhysicsProfileApplied {
+                spawned_root: Some(old_root), scale: 2.0, body_count: 21,
+                max_joint_anchor_error_m: 42.0, ..default()
+            }));
+        world.entity_mut(player).insert(replacement);
+        world.run_system_once(apply_ragdoll_physics_profiles).unwrap();
+        let fresh_applied = world.get::<RagdollPhysicsProfileApplied>(player).unwrap();
+        assert_eq!(fresh_applied.spawned_root, Some(fresh_root));
+        assert_eq!((fresh_applied.body_count, fresh_applied.collider_count,
+            fresh_applied.joint_count, fresh_applied.source_joint_count), (21, 22, 20, 19));
+        assert_eq!(fresh_applied.max_joint_anchor_error_m, 0.0);
+        assert!(world.get::<Transform>(fresh_body).unwrap().translation.abs_diff_eq(body_offset * 2.0, 1e-5));
+        assert!(world.get::<Collider>(fresh_collider).unwrap().shape_scaled().compute_local_aabb().half_extents()
+            .abs_diff_eq(collider_extent * 2.0, 1e-5));
+        assert!(world.get::<SourcePhysicsJoint>(fresh_joint).unwrap().parent_frame.translation
+            .abs_diff_eq(joint_offset * 2.0, 1e-5));
+        assert!(world.get_entity(old_root).is_err());
+        assert!(world.get_entity(body).is_err());
     }
 
     #[test]
