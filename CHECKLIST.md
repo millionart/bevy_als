@@ -465,3 +465,11 @@
 - [x] **BF124.A15-S2 — 已处理 Avatar 的晚到排除传播修复**：开始：2026-09-23 15:14:44 +08:00；预估结束：2026-09-23 15:59:44 +08:00；实际结束：2026-09-23 15:20:45 +08:00；偏差：-38m59s；结果：晚到根排除传播、nested Avatar 与材质 Slot 保持、原 receiver 撤回路径及消融通过。在现有 `avatar_material_bridge` 内仅对 `AvatarMaterialApplied` 后新加的根 `NoDecalReceiver` 重走子网格标记传播，继续由 `prepare_receivers` 恢复原 StandardMaterial；不重算/覆盖已验收的材质 Slot。估时依据：一处早退条件、现有 World fixture、已缓存的 crate 构建与原 GPU runner；拆分结果：S3 原 Playground `footprint` GPU/可见 Gate，A16 不提前展开。
 
   source/static 完成摘要：在已处理 Avatar 上仅当根 `NoDecalReceiver` 是新加组件时遍历原材质桥能识别的 Mesh3d 子网格，补同一 marker 后早退，不重写已处理材质 Slot；保留 `avatars.contains(e)` 的嵌套 Avatar 所有权边界。S1 red 转 green，`overlay_materials::tests::` 3/3，现有 `projected_decal` focused 反例证明子网格 marker 使 receiver extension 回退至原 StandardMaterial。移除新增的 late-marker 早退例外后同一 fixture 再 red，恢复 green；没有新系统、状态、材质资产或 shader。剩余是真实 `footprint` 场景的 `footprint_character_receiver`/GPU readback 公共 Gate。
+
+- [x] **BF124.A15-S3 — 原 Playground 角色贴花排除与 GPU Gate**：开始：2026-09-23 15:22:06 +08:00；预估结束：2026-09-23 16:07:06 +08:00；实际结束：2026-09-23 15:26:53 +08:00；偏差：-40m13s；结果：原 Playground 无驱动/脚印公共功能与 receiver GPU Gate 均通过。以同入口 `target_game/play` 限流预构建，先跑 `startup`，再跑原地形/角色/相机 `footprint`，核对角色子网格排除、原 StandardMaterial、receiver pipeline/GPU readback、root Pose 与时间守卫。估时依据：既有 21 项 footprint 公共结果和 36 次 GPU 请求夹具、S2 材质 focused 3/3、无图/源资产改动；拆分结果：A15 可汇总关闭，A16 不提前展开。
+
+  source/static 完成、runtime 前摘要：fresh UE `CharacterMesh0.bReceivesDecals=False` 与目标 runtime library 一致；晚到 marker 的已处理子网格 focused red→green，嵌套 Avatar 与材质值 3/3，receiver extension 回退原 StandardMaterial 的已有 focused Gate 通过；撤销早退例外消融 red，恢复 green。现仅待同入口 `startup` 与 `footprint` 公共功能/GPU Gate，完整性能预算延期。
+
+  `startup` 后、footprint 前摘要：同入口 `target_game/play` 限流构建通过，原 Playground 无驱动 `startup` 公共功能 Gate 通过，图错误/故障/时间异常/watchdog 0；完整性能预算延期。下一步运行同一二进制的 `footprint`，核对至少 15 个角色子网格排除、receiver pipeline 与实际 GPU readback。
+
+  runtime 最终完成摘要：同一最终二进制原 Playground `footprint` runner/manual/validator 退出码 0、21/21（含 `footprint_character_receiver`）、1,690 pose samples，角色 15 个 StandardMaterial 子网格带排除 marker，16 个总 marker，receiver/render Gate 通过；36 次 GPU readback 请求、576 个样本完成。graph error/fault/temporal/watchdog 0，`startup` 功能亦通过。完整性能预算延期；无源资产、shader 或图改动。
