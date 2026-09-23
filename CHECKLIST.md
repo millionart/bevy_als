@@ -856,6 +856,11 @@
     首次真实读回 Gate 与消融（2026-09-24 04:20:45 +08:00）：同入口 `bf124_a35_s3a_readback_ragdoll` manual/validator exit0、`ragdoll_scaled`/PA profile/follow/joint drive/recovery 均覆盖；graph error/fault/temporal/watchdog 均0，交接后 pelvis 世界 scale2、pelvis→thigh_l 长0.183m。分别移除顶层骨 scale 修正和后代位移去倍率，局部测试各自在对应断言 red；恢复后 `post_physics_animation::tests` 2/2 green。清理唯一新 unused import 后再按最终源码重建同入口并复核一次，成功则 S3a 单独提交；S3b 再跑 startup/get_up。
 
     S3a runtime 后完成摘要：最终源码 `cargo build --target-dir target_game --profile play --example manual_playground --jobs 2` 成功；`bf124_a35_s3a_final_ragdoll` 公共功能 runner manual/validator 0/0，43 pose samples、1/1 必需窗口，`ragdoll_scaled`、PA profile、follow、joint drive、recovery 全覆盖，graph error/fault/temporal/watchdog 均0。此前同入口也已验证交接后 pelvis 世界 scale2、pelvis→thigh_l 长0.183m；局部读回模块2/2和两项消融 red→green。完整性能预算按用户既定范围延期。下一项 S3b 只做同一真实入口 `startup`/`get_up` 回归，A36 不提前开始。
+  - [x] **BF124.A35-S3b — 同入口 startup/get_up 回归与 A35 综合闭环**：开始：2026-09-24 04:25:03 +08:00；预估结束：2026-09-24 04:55:03 +08:00；实际结束：2026-09-24 04:26:33 +08:00；偏差：-28m30s；结果：同一 `target_game/play` 二进制的原 Playground `startup` 与 `get_up` 公共功能 runner 均 manual/validator 0/0，`get_up` front/back、输入锁与释放及恢复全覆盖；图错误/fault/temporal/watchdog 0。估时依据：S3a `ragdoll` 已全过、两个既有独立场景和报告审计。拆分结果：S3a/S3b 公共功能 Gate 均闭合，可汇总 A35；完整性能预算沿用户暂停范围延期。
+
+    runtime 前摘要：S3a 最终同入口 `ragdoll` 功能 manual/validator 0/0、scale2 物理/姿态及恢复覆盖完整、graph error/fault/temporal/watchdog 均0；共享读回修复仅在实际 physics readback 且正均匀非1倍率、当前 AnimatedScene map 可用时触发，单位尺寸路径沿原算法。`post_physics_animation::tests` 2/2、旧最小 App 回归通过。现不改源码，依次运行原 Playground `startup` 与 `get_up` 验证正常入口/单位尺寸恢复，失败则按 source-target 复盘，不放宽阈值。
+
+    runtime 后摘要：`bf124_a35_s3b_startup` 功能 runner manual/validator 0/0、80 pose samples、无必需动作窗口；`bf124_a35_s3b_get_up` 0/0、67 pose samples、2/2 必需窗口，前/后起身、输入锁/释放与 ragdoll 恢复均覆盖。两份 `primary_failure=null`、graph error/fault/temporal anomaly 0、watchdog 未触发；渲染/贴花公共子 Gate 通过。最终源码和 `target_game/play` 与 S3a 相同，完整性能仍按用户既定范围延期。S1、S2a、S2b、S2bR、S2c、S3a 各已单独提交，接下来提交本项再汇总 A35。
 
   runtime 前 source/static 摘要：fresh UE 5.8 组件正均匀 scale 同时进入 PhysicsAsset 身体形状与 Constraint 局部帧；目标 profile 在 Physics First 前一次性放大已生成身体偏移、碰撞 offset/shape 和 SourcePhysicsJoint 双端帧，并用当前播放器世界 scale 驱动。PA_Als scale=2 真实装配夹具 5/5、物理次帧几何仍双倍，去 body/collider/joint 缩放各自 red；scale=1 原路径与实际动画体姿态回归通过。公共 ragdoll 场景现要求全部生成 Collider.scale=2 及非零关节帧双倍，用已提交 `357a8aa` 源码重建同入口进入功能 Gate。
 
