@@ -16,7 +16,7 @@ use crate::sync_group_phase::{
 };
 use crate::{AnimationContextState, marker_phase_from_sample_time};
 use crate::{SyncMarker, follower_sample_time, marker_phase_sample_time, phase_to_time};
-use crate::{animation_context::context_time_update, sync_group_phase::normalize_phase};
+use crate::{animation_context::{context_time_update, forward_loop_count}, sync_group_phase::normalize_phase};
 
 const EPSILON: f32 = 1e-6;
 
@@ -679,15 +679,20 @@ impl NodeLike for NormalizedBlendSpaceNode {
         context.asset_samples.clear();
         if !self.teleport_to_normalized_time && let Some(tick) = context.sync_players.first()
             && tick.delta_seconds > 0.0 && let Some(clip) = sample_clip {
+            let previous_position = marker_phase_sample_time(tick.previous_phase, self.phase_duration,
+                &self.phase_markers, leader_duration, &leader.markers, sample_looped);
             context.asset_samples.push(crate::animation_context::SourceAssetSample {
                 identity: format!("{:?}:{:?}", tick.identity.0, tick.identity.1),
                 clip,
                 clock: crate::SourceRelevantAsset {
                     duration: leader_duration,
                     position: leader_time,
-                    previous_position: marker_phase_sample_time(tick.previous_phase, self.phase_duration, &self.phase_markers, leader_duration, &leader.markers, sample_looped),
+                    previous_position,
                     has_previous_position: true,
                     delta_seconds: tick.delta_seconds,
+                    loops_crossed: if sample_looped {
+                        forward_loop_count(previous_position, tick.delta_seconds, tick.play_rate, leader_duration)
+                    } else { 0 },
                     looping: sample_looped,
                     weight: 1.0,
                 },

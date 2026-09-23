@@ -281,6 +281,7 @@ fn update_get_up_pose(
             previous_position: previous_clip_time,
             has_previous_position: true,
             delta_seconds: time.delta_secs(),
+            loops_crossed: 0,
             looping: false,
             weight: 1.0,
         });

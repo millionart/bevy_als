@@ -43,8 +43,23 @@ pub struct SourceRelevantAsset {
     pub previous_position: f32,
     pub has_previous_position: bool,
     pub delta_seconds: f32,
+    pub loops_crossed: u32,
     pub looping: bool,
     pub weight: f32,
+}
+
+pub(crate) fn forward_loop_count(
+    previous_position: f32,
+    delta_seconds: f32,
+    play_rate: f32,
+    duration: f32,
+) -> u32 {
+    if duration <= 0.0 || delta_seconds <= 0.0 || play_rate <= 0.0 {
+        return 0;
+    }
+    ((previous_position + delta_seconds * play_rate) / duration)
+        .floor()
+        .clamp(0.0, 1000.0) as u32
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -517,6 +532,19 @@ pub fn capture_context_curve(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn forward_asset_clock_keeps_complete_cycles_after_modulo() {
+        assert_eq!(forward_loop_count(0.1, 0.8, 1.0, 1.0), 0);
+        assert_eq!(forward_loop_count(0.1, 1.0, 1.0, 1.0), 1);
+        assert_eq!(forward_loop_count(0.1, 2.0, 1.0, 1.0), 2);
+        let marker_time = crate::sync_group_phase::marker_phase_sample_time(
+            0.2, 1.0, &[], 1.0, &[], true);
+        assert_eq!(forward_loop_count(marker_time, 2.0, 1.0, 1.0), 2);
+        assert_eq!(forward_loop_count(0.1, 0.0, 1.0, 1.0), 0);
+        assert_eq!(forward_loop_count(0.1, 2.0, 1.0, 0.0), 0);
+        assert_eq!(forward_loop_count(0.1, 2000.0, 1.0, 1.0), 1000);
+    }
 
     #[test]
     fn source_asset_samples_preserve_notify_weights_and_cache_scope() {
