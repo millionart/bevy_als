@@ -1048,3 +1048,13 @@
   source/static 修复前摘要：UE Knot 从 InputPin 向 OutputPin 透传，目标 `SourceScalarExpressionNode` 的 `spec` 已按声明 pin 名建立边和类型；读值时把该名称传入现有 `input_f32/input_bool` 即可保留连接值及 pin 默认值，无须新增状态、适配层或转换规则。`passthrough` 只由 Transition 生成器的 Knot 规则生成，当前已生成资产中没有该操作；仍需在原 Playground 通过显式条件图展示 float/bool 进入同一运行时节点并通过公共验证。
 
   source/static 完成摘要：`result_f32/result_bool` 的 passthrough 仅取 `input_pins.first().name` 并交给原有输入读取/默认值逻辑，未新增抽象/状态/转换规则。图级边输入2.5/true得同值；临时恢复旧 A 两项均归零/假，恢复修复后表达式模块5/5；生成器 self-test 9项通过。调用者/产物审计：`SourceScalarExpressionNode` 仍只由既有生成器和图节点使用，已生成 RON 418份中无 passthrough operation，因此无需触发“修转换器后全量重转”的规则；未改任何生成资产。真实入口使用显式受控图验证通用运行时，再跑原 state_machine 场景。
+
+- [x] **BF124.A41-S3 — 原 Playground 中显式 Reroute 条件图公共功能 Gate**：开始：2026-09-24 07:24:00 +08:00；预估结束：2026-09-24 08:19:00 +08:00；实际结束：2026-09-24 07:38:15 +08:00；偏差：-40m45s；结果：原 `base` Playground 显式变体 manual/validator 0/0、52/52（含 reroute=true）、1424姿态样本；同二进制默认 base 0/0、51/51、1430姿态样本，两场24运动窗口、graph/fault/temporal/watchdog0、渲染/贴花通过。估时依据：S2 red/green 与现成 manual env/coverage/runner；拆分结果：A41 可综合关闭，state_machine 基线已有两项同样未覆盖留给对应待办，完整性能预算沿用户既定范围延期，A42 不提前展开。
+
+  runtime 前设计摘要：fresh Standing 源只有顶层 Pose Knot，已生成 Transition 无 Reroute，故默认场景只能验证共享 runtime 改动没有破坏现有动作。显式变体在原 state_machine 角色、地形、相机运行时创建两个最小纯数据 AnimationGraph，经同一 `SourceScalarExpressionNode` 和图查询入口使 `InputPin` 的2.5/true传到 `OutputPin`；manual coverage 要求两项均等于输入，任一失败由原 gate 超时/报告失败，正常通过不改变角色动画资产或场景。变体仅用一次性状态，复用原场景进展 watchdog；先编译和 focused fixture，再启动真实入口。
+
+  首次 runtime 报告与诊断（2026-09-24 07:30:00 +08:00）：同 `target_game/play` 预构建通过；显式 `state_machine` 公共报告中 `reroute_passthrough=true`，图错误/primary_failure/自动化 watchdog 均无，但 manual 另有 `p1_turn_and_rotate_both_sides=false` 与 `generated_stop_quick_transition_notify=false`，进程91/validator失败。测试图运行一次且结果已记录，尚不能将总场景 Gate 判为通过；先运行关闭开关的原 state_machine 基线对照，核对这两项是否是现有场景波动，再决定夹具/场景的最小纠正，不触碰 A44 等未来项目。
+
+  同场景基线结论（2026-09-24 07:31:00 +08:00）：关闭变体的 `state_machine` 同二进制同样只有 `p1_turn_and_rotate_both_sides` 与 `generated_stop_quick_transition_notify` 两项未覆盖，进程91/validator失败；显式图不是该失败根因。A41 的共享运行时分支和真实反馈信号已通过，改用原 `base` 场景做完整公共 Gate（此前为51/51必需项的真实入口），保留 state_machine 双失败报告供其对应待办处理，不在 A41 改状态机/通知逻辑。改场景前重新预构建 `target_game/play`，显式图与默认 base 均需通过。
+
+  runtime 后完成摘要：显式 `ALS_MANUAL_REROUTE_PASSTHROUGH=1` 只在原 base 场景已入场后一次性创建含 float2.5/bool true 的 InputPin→OutputPin 图，公共结果 `reroute_passthrough=true`；原角色/地形/相机与其余51项保持。`target_game/play` 预构建及两次同二进制公共功能 runner 通过，变体52/52、默认51/51，分别1424/1430姿态样本与24窗口，graph error/primary_failure/fault/temporal/watchdog均0，渲染/贴花 Gate true。关开关消融后不注册图求值系统且报告无 reroute 行；没有改源资产、生成图或状态机。state_machine 两份失败报告的相同两项已记录，不归因 A41；完整性能预算未执行。

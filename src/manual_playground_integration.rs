@@ -9,6 +9,7 @@ mod bow;
 mod overlays;
 mod footprints;
 mod hud_layout;
+mod reroute;
 
 use als_camera::{AlsCameraDebugInfo, AlsCameraRig, AlsCameraSet, AlsCameraShakeRequest, AlsCameraSocketBinding, AlsCameraSocketLocations};
 use als_core::character::{
@@ -615,6 +616,7 @@ impl Plugin for ManualPlaygroundIntegrationPlugin {
         moving_base::install(app);
         footprints::install(app);
         hud_layout::install(app);
+        reroute::install(app);
         if std::env::var("ALS_MANUAL_RAGDOLL_PLAYER_REPLACEMENT").as_deref() == Ok("1") {
             app.add_systems(PreUpdate, replace_ragdoll_player_once.after(drive_manual_integration));
         }
@@ -3083,6 +3085,7 @@ struct IntegrationCoverage {
     movement_base: bool,
     foot_probe: bool,
     decal_receiver_swap: bool,
+    reroute_passthrough: bool,
     foot_lock: bool,
     foot_ik_space_baseline: bool,
     foot_ik_no_hit_recovered: bool,
@@ -3178,6 +3181,7 @@ struct ManualIntegrationState {
     expect_ragdoll_player_replacement: bool,
     expect_control_rig_definition_hot_swap: bool,
     expect_decal_receiver_swap: bool,
+    expect_reroute_passthrough: bool,
     ragdoll_exit_requested: bool,
     ragdoll_frames: u32,
     get_up_case: usize,
@@ -3313,6 +3317,8 @@ impl Default for ManualIntegrationState {
                 std::env::var("ALS_MANUAL_RIG_DEFINITION_HOT_SWAP").as_deref() == Ok("1"),
             expect_decal_receiver_swap:
                 std::env::var("ALS_MANUAL_DECAL_RECEIVER_SWAP").as_deref() == Ok("1"),
+            expect_reroute_passthrough:
+                std::env::var("ALS_MANUAL_REROUTE_PASSTHROUGH").as_deref() == Ok("1"),
             ragdoll_exit_requested: false,
             ragdoll_frames: 0,
             get_up_case: 0,
@@ -10407,6 +10413,9 @@ fn observe_manual_integration(
         }
         if state.scenario == IntegrationScenario::Footprint && state.expect_decal_receiver_swap {
             results.push(("decal_receiver_swap", coverage.decal_receiver_swap));
+        }
+        if state.scenario == IntegrationScenario::Base && state.expect_reroute_passthrough {
+            results.push(("reroute_passthrough", coverage.reroute_passthrough));
         }
         for (name, covered) in &results {
             if *covered {
