@@ -124,7 +124,51 @@ fn ensure_start_stop_state(
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use als_core::foot_ik::AlsFootBones;
+    use bevy_animation_graph::core::animation_clip::EntityPath;
     use bevy_gameplay_tag::{GameplayTag, GameplayTagsSettings};
+
+    #[test]
+    #[ignore = "A13: cached feet survive selected Avatar replacement"]
+    fn foot_bones_follow_selected_avatar_when_old_bones_remain_alive() {
+        fn spawn_feet(world: &mut World, avatar: Entity) -> [Entity; 6] {
+            ["thigh_l", "calf_l", "foot_l", "thigh_r", "calf_r", "foot_r"].map(|name| {
+                world
+                    .spawn((
+                        Name::new(name),
+                        EntityPath::from(vec![name.to_owned()]).id().animation_target_id(),
+                        ChildOf(avatar),
+                    ))
+                    .id()
+            })
+        }
+
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .add_systems(Update, als_core::foot_ik::foot_bone_map_system);
+        let character = app.world_mut().spawn(AlsCharacter).id();
+        let old_avatar = app.world_mut().spawn(ChildOf(character)).id();
+        let old_feet = spawn_feet(app.world_mut(), old_avatar);
+        app.world_mut().entity_mut(character).insert(
+            crate::character_assembly::AlsCharacterAssembly {
+                avatar: old_avatar,
+                camera: None,
+            },
+        );
+        app.update();
+        assert_eq!(app.world().get::<AlsFootBones>(character).unwrap().left, old_feet[2]);
+
+        let new_avatar = app.world_mut().spawn(ChildOf(character)).id();
+        let new_feet = spawn_feet(app.world_mut(), new_avatar);
+        app.world_mut()
+            .get_mut::<crate::character_assembly::AlsCharacterAssembly>(character)
+            .unwrap()
+            .avatar = new_avatar;
+        app.update();
+        assert!(app.world().entities().contains(old_feet[2]));
+        assert_eq!(app.world().get::<AlsFootBones>(character).unwrap().left, new_feet[2]);
+    }
 
     #[test]
     fn source_gameplay_tag_table_accepts_als_gait() {
