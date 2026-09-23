@@ -269,3 +269,5 @@
   首次 runtime 后/基座复验前摘要：同二进制原 Playground `uphill_jump` public runner manual/validator `0/0`，6/6 结果覆盖 3 组楼梯、18/18 实际姿态窗口、1,408 个 pose samples；graph error/fault/temporal/watchdog 为 0，渲染/贴花通过，完整性能预算依用户暂停范围延期。目标差异影响所有普通 Air，因此再用同 `target_game/play` 对现有 `moving_base` 的 Air 跳离→新支撑→Mantle 返回做一次必要跨路径复验，若失败先审计该报告。
 
   完成摘要：同二进制 `moving_base` public runner manual/validator `0/0`，10/10 结果覆盖 Ride/Jump/新支撑/Mantle/返回、2 个姿态窗口与 404 pose samples；graph error/fault/temporal/watchdog 为 0，渲染/贴花通过。`uphill_jump` 与基座两个原 Playground 入口均证实 Air→Grounded/动作恢复无回归。生成器与报告记录当前源 CDO/Settings 身份和 raw `3`，self-test 拒绝未实现 mode2 与错误 CDO 链；目标只留一个生成值及非瞄准 Air 保持分支，未触碰 AnimBP 转换规则或原始资产。完整性能预算依用户暂停范围延期。
+
+- [x] **BF124.A04 — 空中旋转独立策略**：开始：2026-09-23 09:30:48 +08:00；预估结束：2026-09-23 09:45:48 +08:00；实际结束：2026-09-23 09:30:48 +08:00；偏差：-15m00s；结果：S1 源合同/失败反例与 S2 生产修复/两场真实功能 Gate 已各自提交，工作树干净。源项目角色实际引用的设置值是 `EAlsInAirRotationMode_MAX=3`，C++ switch 因而保持普通 Air Actor yaw；目标现在由离线生成的值驱动该行为，Aiming/FirstPerson 继续走已验独立路径。最小反例、消融、24 项旋转回归、原 Playground 上跳和移动基座均通过；完整性能预算依用户暂停范围延期。估时依据：只复核两个已通过子项和提交/索引；拆分结果：本编号无剩余功能 Gate，A05 是下一项。
