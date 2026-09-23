@@ -1110,6 +1110,23 @@ def run_self_test():
         })
         threshold = pin_payload(speed_contract, compare, compare["pins"][1], {})
         assert threshold["f32_default"] == 6.5 and threshold["source_default"] == "650.0", threshold
+        absolute = {
+            "object_path": "/Asset:AnimGraph.Absolute",
+            "class_path": "/Script/BlueprintGraph.K2Node_CallFunction",
+            "title": "Absolute (Float)",
+            "pins": [
+                {"name": "A", "direction": "Input", "hidden": False, "default_value": "0.0", "pin_type_properties": compare["pins"][0]["pin_type_properties"]},
+                {"name": "ReturnValue", "direction": "Output", "hidden": False, "pin_type_properties": compare["pins"][0]["pin_type_properties"]},
+            ],
+        }
+        speed_contract["source_graph"]["nodes"].append(absolute)
+        speed_contract["links"][-1]["target"] = {"node_object_path": absolute["object_path"], "pin_name": "A"}
+        speed_contract["links"].append({
+            "source": {"node_object_path": absolute["object_path"], "pin_name": "ReturnValue"},
+            "target": {"node_object_path": compare["object_path"], "pin_name": "A"},
+        })
+        threshold = pin_payload(speed_contract, compare, compare["pins"][1], {})
+        assert threshold["f32_default"] == 6.5 and threshold["source_default"] == "650.0", threshold
         assert operation(
             {
                 "class_path": "/Script/BlueprintGraph.K2Node_CallFunction",
