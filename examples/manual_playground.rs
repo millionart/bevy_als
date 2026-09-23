@@ -141,6 +141,14 @@ fn main() {
         app.add_systems(Update, setup_multi_raised_startup_variant
             .before(als_core::player_start::AlsPlayerStartPrepared));
     }
+    if let Ok(raw) = std::env::var("ALS_MANUAL_JUMP_GRAVITY_Y") {
+        assert!(std::env::var_os("ALS_MANUAL_INTEGRATION_GATE").is_some(),
+            "jump gravity variant requires the manual integration gate");
+        let gravity_y = raw.parse::<f32>().expect("jump gravity must be a number");
+        assert!(gravity_y.is_finite() && gravity_y < 0.0, "jump gravity must be finite and downward");
+        app.insert_resource(Gravity(Vec3::Y * gravity_y));
+        info!("[JUMP-GRAVITY-VARIANT] gravity_y={gravity_y:.3} -> PASS");
+    }
 
     if let AppExit::Error(code) = app.run() {
         std::process::exit(i32::from(code.get()));
