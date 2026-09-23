@@ -525,3 +525,15 @@
 - [x] **BF124.A18-S2 — 相机 root 缓存绑定 Avatar 身份**：开始：2026-09-23 16:57:57 +08:00；预估结束：2026-09-23 17:32:57 +08:00；实际结束：2026-09-23 17:04:03 +08:00；偏差：-28m54s；结果：旧 root 存活时重绑定、新 root 暂缺时禁用旧 socket、同 Avatar detach 退路及相机 27 项回归通过。在现有 `AlsCameraSocketBinding` 记录 root 缓存所属 Avatar，Avatar 改变才清旧 root 并在新子树重找；同 Avatar 暂时 detach 沿用旧 root。估时依据：一个缓存所有者字段、一个 resolver 条件、两个既有相机夹具及已缓存构建；拆分结果：S3 原 Playground `camera`/活 Avatar 替换/`ragdoll` Gate，A19 不提前展开。
 
   source/static 完成摘要：新增一个缓存所有者 `root_avatar`，与 binding.avatar 不同时丢弃旧 root；root 暂缺时 `AlsCameraSocketLocations.valid=false`，新 root 就绪才恢复，避免相机 rig 消费旧位置。已有同 Avatar mesh detach/reattach 源退路测试保留并通过；S1 fixture 延伸覆盖旧 root 仍活、新 Avatar root 暂未载入→无效、后加载新 root→重新有效，`als-camera` 27/27。去掉所有者核对使旧 root 继续被选中 red，去掉无效化使旧 socket 保持有效 red；所有者变更分支内另一次冗余无效化对信号无贡献已删除。剩余真实入口相机/Avatar 替换/布娃娃 Gate。
+
+- [x] **BF124.A18-S3 — 原 Playground 活 Avatar/相机 root 重绑定 Gate**：开始：2026-09-23 17:06:20 +08:00；预估结束：2026-09-23 17:56:20 +08:00；实际结束：2026-09-23 17:16:43 +08:00；偏差：-39m37s；结果：活旧 root 的真实 Avatar 切换与常规/布娃娃相机公共功能 Gate 通过。复用已验收的 `foot_ik` 原 Playground 活 Avatar 替换夹具，切换时仅改相机绑定 Avatar 身份、保留旧 root Entity；公共结果要求旧 root 仍活、新 root 属当前 Avatar 且 socket 有效。估时依据：既有 A13 真实替换阶段/进展 watchdog、相机局部 27/27 和现有场景；拆分结果：A18 可汇总关闭，A19 不提前展开。
+
+  source/static 完成、runtime 前摘要：fresh `B_Als_Character`/`CS_Als_Default` 与本地 ALS `GetMesh()->GetSocketLocation` 已闭环；相机 resolver 的 Avatar 所有者、root 暂缺无效化 focused green，原同 Avatar detach/reattach 保持 green，相机 crate 27/27，两处消融分别 red。原 Playground `foot_ik` fixture 切换现仅变更已存在 `AlsCameraSocketBinding.avatar`，旧 `root_bone` 与旧 Avatar Entity 都保留；公共 `camera_root_rebound` 要求旧 root 仍活、新 root 确属新 Avatar 子树、socket valid，并与 `foot_bones_replaced` 共同完成；现有固定 10s watchdog focused self-test 通过。下一步同入口 `target_game/play` 构建并依次运行 startup/camera/foot_ik/ragdoll，完整性能预算延期。
+
+  `startup` 后、相机场景前摘要：同入口 `target_game/play` 限流构建成功，无驱动原 Playground `startup` 公共功能通过，graph error/fault/temporal/watchdog 0。下一步同一二进制依次运行 `camera`、含活旧 root 换 Avatar 的 `foot_ik`、同 Avatar 网格 detach 的 `ragdoll`，不重复静态探索。
+
+  `camera` 后、活替换场景前摘要：原 Playground `camera` 功能 11/11、131 pose samples，runner/manual/validator 退出码 0，graph error/fault/temporal/watchdog 0；完整性能预算延期。下一步同一二进制 `foot_ik` 必须同时覆盖既有脚骨刷新与新增 `camera_root_rebound`，明确旧 root 仍活而新 root 已选中。
+
+  活替换后、Ragdoll 前摘要：同一原 Playground `foot_ik` 功能 22/22（新增 `camera_root_rebound` 通过，既有 `foot_bones_replaced` 仍通过）、733 pose samples，runner/manual/validator 退出码 0，graph error/fault/temporal/watchdog 0。公共判据确认旧 root Entity 仍活、当前 binding root 属新 Avatar 子树且 socket 有效；下一步运行 `ragdoll` 检查同 Avatar mesh 暂时 detach 的源退路未回归。
+
+  runtime 最终完成摘要：同入口最终代码原 Playground `startup` 功能、`camera` 11/11（131 pose samples）、活 Avatar 替换 `foot_ik` 22/22（733，含 `camera_root_rebound`/`foot_bones_replaced`）、`ragdoll` 11/11（43，含 `ragdoll_camera_pivot`）全部 runner/manual/validator 退出码 0，graph error/fault/temporal/watchdog 0。同 Avatar detach 退路在 focused 与真实 Ragdoll 场景仍通过；完整性能预算延期。

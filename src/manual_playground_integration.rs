@@ -10,7 +10,7 @@ mod overlays;
 mod footprints;
 mod hud_layout;
 
-use als_camera::{AlsCameraDebugInfo, AlsCameraRig, AlsCameraSet, AlsCameraShakeRequest, AlsCameraSocketBinding};
+use als_camera::{AlsCameraDebugInfo, AlsCameraRig, AlsCameraSet, AlsCameraShakeRequest, AlsCameraSocketBinding, AlsCameraSocketLocations};
 use als_core::character::{
     ALS_CHARACTER_CAPSULE_HALF_HEIGHT, ALS_CHARACTER_FLOOR_CLEARANCE, AlsCharacter,
     AlsMovementParamsHandle,
@@ -3012,6 +3012,7 @@ struct IntegrationCoverage {
     foot_ik_mantle: bool,
     foot_ik_terrain_cleaned: bool,
     foot_bones_replaced: bool,
+    camera_root_rebound: bool,
     sprint_curve_relay: bool,
     roll_started: bool,
     roll_slot: bool,
@@ -3096,6 +3097,7 @@ struct ManualIntegrationState {
     ragdoll_recovered_at: Option<f64>,
     foot_replacement_avatar: Option<Entity>,
     foot_replacement_old_left: Option<Entity>,
+    foot_replacement_old_root: Option<Entity>,
     foot_replacement_waited: f32,
     foot_replacement_progress: &'static str,
     ragdoll_current_joint_anchor_error_m: f32,
@@ -3224,6 +3226,7 @@ impl Default for ManualIntegrationState {
             ragdoll_recovered_at: None,
             foot_replacement_avatar: None,
             foot_replacement_old_left: None,
+            foot_replacement_old_root: None,
             foot_replacement_waited: 0.0,
             foot_replacement_progress: "not_started",
             ragdoll_current_joint_anchor_error_m: 0.0,
@@ -3692,11 +3695,12 @@ fn drive_foot_ik_avatar_replacement(
     names: Query<&Name>,
     targets: Query<&AnimationTargetId>,
     alive: Query<Entity>,
+    mut camera_bindings: Query<(&mut AlsCameraSocketBinding, &AlsCameraSocketLocations)>,
 ) {
     if state.scenario != IntegrationScenario::FootIk
         || state.phase != IntegrationPhase::Roll
         || state.phase_elapsed() < FOOT_AVATAR_REPLACEMENT_START_SECONDS
-        || state.coverage.foot_bones_replaced
+        || (state.coverage.foot_bones_replaced && state.coverage.camera_root_rebound)
     {
         return;
     }
@@ -3704,6 +3708,8 @@ fn drive_foot_ik_avatar_replacement(
     let Some(old_avatar) = state.avatar else { return; };
     let Some(new_avatar) = state.foot_replacement_avatar else {
         let Ok(old_bones) = bones.get(character) else { return; };
+        let Ok((camera_binding, _)) = camera_bindings.get_mut(character) else { return; };
+        let Some(old_root) = camera_binding.root_bone else { return; };
         commands.entity(character).insert(Visibility::Inherited);
         let new_avatar = commands.spawn((
             AnimatedSceneHandle {
@@ -3717,6 +3723,7 @@ fn drive_foot_ik_avatar_replacement(
         )).id();
         state.foot_replacement_avatar = Some(new_avatar);
         state.foot_replacement_old_left = Some(old_bones.left);
+        state.foot_replacement_old_root = Some(old_root);
         state.foot_replacement_progress = "await_instance";
         info!("[MANUAL-INTEGRATION][FOOT-BONES-REPLACE] spawned avatar={new_avatar:?}");
         return;
@@ -3734,7 +3741,8 @@ fn drive_foot_ik_avatar_replacement(
         assembly.avatar = new_avatar;
         commands.entity(old_avatar).remove::<AlsCharacterAvatar>().insert(Visibility::Hidden);
         commands.entity(new_avatar).insert(Visibility::Visible);
-        commands.entity(character).insert(AlsCameraSocketBinding::new(new_avatar));
+        let Ok((mut camera_binding, _)) = camera_bindings.get_mut(character) else { return; };
+        camera_binding.avatar = new_avatar;
         state.avatar = Some(new_avatar);
         state.foot_replacement_progress = "await_current_foot_map";
         rebase_temporal_fixture(&mut state, &mut phase_evidence, "foot_ik_avatar_replace");
@@ -3742,8 +3750,16 @@ fn drive_foot_ik_avatar_replacement(
         return;
     }
     let Some(old_left) = state.foot_replacement_old_left else { return; };
+    let Some(old_root) = state.foot_replacement_old_root else { return; };
     let old_alive = alive.get(old_left).is_ok();
     let map_matches = bones.get(character).is_ok_and(|current| *current == new_bones);
+    let camera_ready = camera_bindings.get_mut(character).is_ok_and(|(binding, sockets)| {
+        alive.get(old_root).is_ok()
+            && binding.root_bone.is_some_and(|root| root != old_root
+                && children.iter_descendants(new_avatar).any(|entity| entity == root))
+            && sockets.valid
+    });
+    state.coverage.camera_root_rebound |= camera_ready;
     state.foot_replacement_progress = if !old_alive {
         "old_foot_missing"
     } else if !map_matches {
@@ -3751,10 +3767,16 @@ fn drive_foot_ik_avatar_replacement(
     } else {
         "await_foot_lock"
     };
-    if new_bones.left != old_left && old_alive && map_matches && locks.get(character).is_ok_and(|lock| lock.valid) {
+    if !state.coverage.foot_bones_replaced && new_bones.left != old_left && old_alive && map_matches
+        && locks.get(character).is_ok_and(|lock| lock.valid) {
         state.coverage.foot_bones_replaced = true;
-        state.foot_replacement_progress = "complete";
         info!("[MANUAL-INTEGRATION][FOOT-BONES-REPLACE] old={old_left:?} new={:?} -> PASS", new_bones.left);
+    }
+    if state.coverage.foot_bones_replaced && state.coverage.camera_root_rebound {
+        state.foot_replacement_progress = "complete";
+        info!("[MANUAL-INTEGRATION][CAMERA-ROOT-REPLACE] old={old_root:?} current_avatar={new_avatar:?} -> PASS");
+    } else if state.coverage.foot_bones_replaced {
+        state.foot_replacement_progress = "await_camera_root";
     }
 }
 
@@ -5618,9 +5640,12 @@ fn drive_manual_integration(
             if elapsed >= FOOT_AVATAR_REPLACEMENT_START_SECONDS {
                 if state.scenario == IntegrationScenario::FootIk {
                     state.foot_replacement_waited = elapsed - FOOT_AVATAR_REPLACEMENT_START_SECONDS;
-                    if state.coverage.foot_bones_replaced {
+                    if state.coverage.foot_bones_replaced && state.coverage.camera_root_rebound {
                         begin_phase(&mut state, IntegrationPhase::Finish);
-                    } else if foot_avatar_replacement_timed_out(elapsed, state.coverage.foot_bones_replaced) {
+                    } else if foot_avatar_replacement_timed_out(
+                        elapsed,
+                        state.coverage.foot_bones_replaced && state.coverage.camera_root_rebound,
+                    ) {
                         state.timed_out = true;
                         begin_phase(&mut state, IntegrationPhase::Finish);
                     }
@@ -10052,14 +10077,15 @@ fn observe_manual_integration(
                 results
             }
             IntegrationScenario::FootIk => {
-                if state.timed_out && !coverage.foot_bones_replaced {
+                if state.timed_out && !(coverage.foot_bones_replaced && coverage.camera_root_rebound) {
                     gate_report.direction_trace.push(serde_json::json!({"watchdog": {
                         "exit_reason": "foot_avatar_replacement_timeout",
                         "last_progress": state.foot_replacement_progress,
                         "waited_game_seconds": state.foot_replacement_waited,
                         "no_progress_limit_seconds": FOOT_AVATAR_REPLACEMENT_NO_PROGRESS_LIMIT_SECONDS,
                         "current_conditions": {"selected": state.avatar == state.foot_replacement_avatar,
-                            "covered": coverage.foot_bones_replaced}
+                            "covered": coverage.foot_bones_replaced,
+                            "camera_root_rebound": coverage.camera_root_rebound}
                     }}));
                 }
                 vec![
@@ -10087,6 +10113,7 @@ fn observe_manual_integration(
                 ("mantle_complete", coverage.mantle_completed),
                 ("foot_ik_terrain_cleaned", coverage.foot_ik_terrain_cleaned),
                 ("foot_bones_replaced", coverage.foot_bones_replaced),
+                ("camera_root_rebound", coverage.camera_root_rebound),
             ]
             },
             IntegrationScenario::Ragdoll => vec![
