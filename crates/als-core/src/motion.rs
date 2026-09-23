@@ -1167,6 +1167,38 @@ mod rotation_cap_tests {
     }
 
     #[test]
+    #[ignore = "BF124.A07 precollision desired velocity yaw; enable after implementation"]
+    fn velocity_direction_uses_the_precollision_motor_heading() {
+        let mut app = App::new();
+        let mut time = Time::<()>::default();
+        time.advance_by(std::time::Duration::from_millis(100));
+        app.insert_resource(time)
+            .init_resource::<Assets<AlsMovementParams>>()
+            .add_systems(Update, rotation_response_system);
+        let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>()
+            .add(AlsMovementParams::default());
+        let sideways = Vec3::X * 3.75;
+        let intended = Vec3::NEG_Z * 3.75;
+        let character = app.world_mut().spawn((
+            AlsCharacter, Stance::Standing, Transform::IDENTITY, Gait::Running,
+            LocomotionState::Grounded, RotationMode::VelocityDirection, AlsViewYaw(0.0),
+            AlsMovementParamsHandle(params), LinearVelocity(sideways),
+            AlsInputCommand { move_dir: Vec2::Y, ..default() },
+            crate::dynamics::AlsMovementBaseDynamicsState {
+                world_velocity: sideways, motor_boost: intended - sideways, ..default()
+            },
+            AlsRotationResponseState { initialized: true,
+                rotation_towards_last_input_direction_blocked: false,
+                previous_rotation_mode: Some(RotationMode::VelocityDirection), ..default() },
+        )).id();
+        app.update();
+        let response = app.world().get::<AlsRotationResponseState>(character).unwrap();
+        let yaw = world_forward_to_yaw(*app.world().get::<Transform>(character).unwrap().forward());
+        assert!(response.target_yaw.abs() < 1e-6, "postcollision yaw was selected: {}", response.target_yaw);
+        assert!(yaw.abs() < 1e-6, "actor followed collision slide: {yaw}");
+    }
+
+    #[test]
     fn view_relative_move_axes_match_camera_forward_and_right() {
         let cases = [
             (0.0, Vec2::Y, Vec3::NEG_Z),
