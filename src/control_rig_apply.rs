@@ -262,18 +262,22 @@ fn output_f32(context: Option<&AlsRootAnimationContext>, name: &str) -> f32 {
 
 fn initialize_control_rig_input(
     mut commands: Commands,
-    characters: Query<(Entity, Option<&AlsControlRigSettings>), (With<AlsCharacter>, Without<AlsControlRigInput>)>,
+    characters: Query<(Entity, Option<&AlsControlRigSettings>, Has<AlsControlRigInput>, Option<&AlsFootTargetSelection>), With<AlsCharacter>>,
 ) {
-    for (entity, settings) in &characters {
+    for (entity, settings, has_input, selection) in &characters {
         let settings = settings.copied().unwrap_or_default();
-        commands.entity(entity).insert((
-            AlsControlRigInput {
+        if !has_input {
+            commands.entity(entity).insert(AlsControlRigInput {
                 use_hand_ik_bones: settings.use_hand_ik_bones,
                 use_foot_ik_bones: settings.use_foot_ik_bones,
                 ..default()
-            },
-            AlsFootTargetSelection { use_ik_bones: settings.use_foot_ik_bones },
-        ));
+            });
+        }
+        if selection.is_none_or(|selection| selection.use_ik_bones != settings.use_foot_ik_bones) {
+            commands.entity(entity).insert(AlsFootTargetSelection {
+                use_ik_bones: settings.use_foot_ik_bones,
+            });
+        }
     }
 }
 
@@ -544,6 +548,17 @@ mod tests {
             let actual = app.world().get::<Transform>(spine[0].unwrap()).unwrap().rotation;
             assert!(actual.abs_diff_eq(expected, 1e-6), "{locomotion:?}: {actual:?} != {expected:?}");
         }
+        assert!(app.world().get::<AlsFootTargetSelection>(actor).unwrap().use_ik_bones);
+        for use_foot_ik_bones in [false, true] {
+            app.world_mut().entity_mut(actor).insert(AlsControlRigSettings {
+                use_hand_ik_bones: true,
+                use_foot_ik_bones,
+            });
+            app.world_mut().run_schedule(PostUpdate);
+            assert_eq!(app.world().get::<AlsControlRigInput>(actor).unwrap().use_foot_ik_bones, use_foot_ik_bones);
+            assert_eq!(app.world().get::<AlsFootTargetSelection>(actor).unwrap().use_ik_bones, use_foot_ik_bones);
+        }
+
         let initialized = app.world().get::<AlsControlRigInput>(unloaded).unwrap();
         assert!(!initialized.use_hand_ik_bones && !initialized.use_foot_ik_bones && !initialized.foot_transforms_valid);
         assert!(!app.world().get::<AlsFootTargetSelection>(unloaded).unwrap().use_ik_bones);
@@ -553,38 +568,6 @@ mod tests {
         app.world_mut().run_schedule(PostUpdate);
         assert!(app.world().get::<als_ext::SourceAnimationInputs>(player).unwrap().rig_query_context().is_none());
         assert_eq!(app.world().get::<AlsControlRigInput>(unloaded).unwrap().pelvis_offset_amount, 0.75);
-    }
-
-    #[test]
-    #[ignore = "A20: runtime foot target selection does not follow control rig settings"]
-    fn runtime_foot_bone_setting_updates_rig_and_foot_target_together() {
-        use bevy::ecs::system::RunSystemOnce;
-        use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner};
-        use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
-
-        let mut app = App::new();
-        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy_animation_graph::AnimationGraphPlugin::default()));
-        let character = app.world_mut().spawn((AlsCharacter, RotationMode::ViewDirection,
-            AlsControlRigSettings::default())).id();
-        let avatar = app.world_mut().spawn((AlsCharacterAvatar { character },
-            AnimatedSceneHandle::default(), ChildOf(character))).id();
-        let player = app.world_mut().spawn((AnimationGraphPlayer::default(), ChildOf(avatar))).id();
-        app.world_mut().entity_mut(character).insert(AlsCharacterAssembly { avatar, camera: None });
-        app.world_mut().trigger(WorldInstanceReady { entity: avatar,
-            instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
-        app.world_mut().flush();
-        assert_eq!(app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity(), player);
-        app.world_mut().run_system_once(initialize_control_rig_input).unwrap();
-        app.world_mut().flush();
-        assert!(app.world().get::<AlsFootTargetSelection>(character).unwrap().use_ik_bones);
-
-        app.world_mut().entity_mut(character).insert(AlsControlRigSettings {
-            use_hand_ik_bones: true,
-            use_foot_ik_bones: false,
-        });
-        app.world_mut().run_system_once(refresh_control_rig_input).unwrap();
-        assert!(!app.world().get::<AlsControlRigInput>(character).unwrap().use_foot_ik_bones);
-        assert!(!app.world().get::<AlsFootTargetSelection>(character).unwrap().use_ik_bones);
     }
 
     #[test]
