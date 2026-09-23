@@ -189,7 +189,7 @@ mod tests {
         use bevy::platform::collections::HashMap;
         use bevy_animation_graph::core::{
             animation_clip::GraphClip,
-            animation_graph::{AnimationGraph, GraphInputPin, TimeUpdate},
+            animation_graph::{AnimationGraph, GraphInputPin, NodeId, TimeUpdate},
             animation_node::AnimationNode,
             context::{
                 graph_context::QueryOutputTime, new_context::GraphContext,
@@ -245,6 +245,13 @@ mod tests {
                         context.clone(),
                     )
                     .unwrap();
+                if result.is_empty() {
+                    let mut child = context.create_node_context(NodeId::default())
+                        .create_child_context(handle.id(), graph, None);
+                    child.context_mut().query_output_time = QueryOutputTime::Forced(TimeUpdate::Delta(0.0));
+                    let nested = child.create_node_context(NodeId::default());
+                    assert_eq!(crate::sync_group_phase::source_sync_delta_seconds(&nested, "delta").unwrap(), 0.1);
+                }
                 let observed = crate::sync_group_phase::source_sync_phase(
                     &arena,
                     &resources.animation_graph_assets,
