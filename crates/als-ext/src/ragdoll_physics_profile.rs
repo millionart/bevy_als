@@ -422,6 +422,7 @@ fn apply_ragdoll_physics_profiles(
             &mut commands,
             spawned,
             profile,
+            1.0,
             &body_labels,
             &collider_labels,
             &joint_labels,
@@ -437,6 +438,7 @@ fn apply_profile_to_spawned_ragdoll(
     commands: &mut Commands,
     spawned: &SpawnedRagdoll,
     profile: &RagdollPhysicsProfile,
+    _scale: f32,
     body_labels: &Query<&BodyLabel>,
     collider_labels: &Query<&ColliderLabel>,
     joint_labels: &Query<&JointLabel>,
@@ -763,6 +765,7 @@ mod tests {
                         &mut commands,
                         &spawned,
                         &profile,
+                        1.0,
                         &body_labels,
                         &collider_labels,
                         &joint_labels,
@@ -794,6 +797,58 @@ mod tests {
             assert_eq!(joint.settings.position_iterations, 6);
             assert_eq!(joint.swing_spring.unwrap().stiffness, 5_000_000.0);
         }
+    }
+
+    #[test]
+    #[ignore = "A35 source mismatch fixture"]
+    fn positive_uniform_scale_reaches_ragdoll_shapes_offsets_and_joint_frames() {
+        use avian3d::prelude::Collider;
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy_animation_graph::core::ragdoll::{
+            definition::Ragdoll, spawning::spawn_ragdoll_avian,
+        };
+
+        let profile = RagdollPhysicsProfile::from_json(include_str!(
+            "../../../assets/ragdolls/pa_als.physics.json"
+        )).unwrap();
+        let ragdoll: Ragdoll = ron::from_str(include_str!(
+            "../../../assets/ragdolls/als_manny.rag.ron"
+        )).unwrap();
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin,
+            avian3d::prelude::PhysicsPlugins::new(PostUpdate), crate::SourcePhysicsJointPlugin));
+        app.finish();
+        app.cleanup();
+        let world = app.world_mut();
+        let player = world.spawn_empty().id();
+        let spawned = world.run_system_once(move |mut commands: Commands| {
+            spawn_ragdoll_avian(player, &ragdoll, Isometry3d::IDENTITY, None, &mut commands)
+        }).unwrap();
+        let body = *spawned.bodies.values().find(|entity|
+            world.get::<Transform>(**entity).unwrap().translation.length() > 0.01).unwrap();
+        let body_offset = world.get::<Transform>(body).unwrap().translation;
+        let collider = *spawned.colliders.values().find(|entity|
+            world.get::<Transform>(**entity).unwrap().translation.length() > 0.01).unwrap();
+        let collider_offset = world.get::<Transform>(collider).unwrap().translation;
+        let collider_extent = world.get::<Collider>(collider).unwrap().shape_scaled().compute_local_aabb().half_extents();
+        let joint_profile = profile.joints.iter().find(|joint|
+            joint.definition.parent_frame.translation.length() > 0.01).unwrap();
+        let joint = *spawned.joints.values().find(|entity|
+            world.get::<JointLabel>(**entity).unwrap().0 == joint_profile.label).unwrap();
+        let joint_offset = joint_profile.definition.parent_frame.translation;
+        world.run_system_once(move |mut commands: Commands,
+            body_labels: Query<&BodyLabel>, collider_labels: Query<&ColliderLabel>,
+            joint_labels: Query<&JointLabel>, spherical: Query<&SphericalJoint>,
+            revolute: Query<&RevoluteJoint>| {
+            apply_profile_to_spawned_ragdoll(&mut commands, &spawned, &profile, 2.0,
+                &body_labels, &collider_labels, &joint_labels, &spherical, &revolute)
+        }).unwrap();
+        assert!(world.get::<Transform>(body).unwrap().translation.abs_diff_eq(body_offset * 2.0, 1e-5));
+        assert!(world.get::<Transform>(collider).unwrap().translation.abs_diff_eq(collider_offset * 2.0, 1e-5));
+        assert!(world.get::<Collider>(collider).unwrap().shape_scaled().compute_local_aabb().half_extents()
+            .abs_diff_eq(collider_extent * 2.0, 1e-5));
+        assert!(world.get::<SourcePhysicsJoint>(joint).unwrap().parent_frame.translation
+            .abs_diff_eq(joint_offset * 2.0, 1e-5));
     }
 
     #[test]
