@@ -386,6 +386,27 @@ def source_property_runtime_scale(key):
     return 1.0
 
 
+def linked_source_runtime_scale(contract, source):
+    seen = set()
+    while source:
+        path = source["node_object_path"]
+        if path in seen:
+            raise ValueError("source scalar scale chain cycles")
+        seen.add(path)
+        node = node_for_path(contract, path)
+        scale = source_property_runtime_scale(property_access_key(node))
+        if scale != 1.0:
+            return scale
+        if not (
+            node.get("class_path", "").endswith("K2Node_CallFunction")
+            and operation(node) == "absolute"
+            and source.get("pin_name") == "ReturnValue"
+        ):
+            return 1.0
+        source = linked_source(contract, node, pin_for_name(node, "A"))
+    return 1.0
+
+
 def pin_payload(contract, node, pin, bindings):
     data_type, _ = scalar_type(pin)
     f32_default, bool_default, source_default = scalar_defaults(pin)
@@ -400,7 +421,7 @@ def pin_payload(contract, node, pin, bindings):
             for other in AUDIT.visible_pins(node, "Input"):
                 source = linked_source(contract, node, other)
                 if source:
-                    scale = source_property_runtime_scale(property_access_key(node_for_path(contract, source["node_object_path"])))
+                    scale = linked_source_runtime_scale(contract, source)
                     if scale != 1.0:
                         break
         f32_default *= scale
@@ -1127,6 +1148,18 @@ def run_self_test():
         })
         threshold = pin_payload(speed_contract, compare, compare["pins"][1], {})
         assert threshold["f32_default"] == 6.5 and threshold["source_default"] == "650.0", threshold
+        absolute["node_guid"] = "40000000-0000-4000-8000-000000000001"
+        absolute["object_path"] = "/Asset:AnimGraph.RenamedAbsolute"
+        for link in speed_contract["links"]:
+            for endpoint in ("source", "target"):
+                if link[endpoint]["node_object_path"] == "/Asset:AnimGraph.Absolute":
+                    link[endpoint]["node_object_path"] = absolute["object_path"]
+        assert pin_payload(speed_contract, compare, compare["pins"][1], {})["f32_default"] == 6.5
+        compare["pins"][1]["default_value"] = "700.0"
+        assert pin_payload(speed_contract, compare, compare["pins"][1], {})["f32_default"] == 7.0
+        speed_access["properties"][0]["exported_text"] = "GetParent.GroundedState.HipsDirectionLockAmount"
+        compare["pins"][1]["default_value"] = "0.500000"
+        assert pin_payload(speed_contract, compare, compare["pins"][1], {})["f32_default"] == 0.5
         assert operation(
             {
                 "class_path": "/Script/BlueprintGraph.K2Node_CallFunction",
