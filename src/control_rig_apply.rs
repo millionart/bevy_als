@@ -1,6 +1,7 @@
 use als_core::character::AlsCharacter;
 use als_core::foot_ik::{AlsFootLockState, AlsFootTargetSelection};
 use als_core::input_request::AlsFirstPersonView;
+use als_core::orientation::world_forward_to_yaw;
 use als_core::state::RotationMode;
 use als_ext::source_instance::source_player_property;
 use bevy::ecs::hierarchy::ChildOf;
@@ -17,6 +18,7 @@ use als_ext::{control_rig_hierarchy::RigTransform, control_rig_query::{RigQueryC
     source_instance::set_source_frame_input};
 
 use crate::animation_context_projection::AlsRootAnimationContext;
+use crate::actual_motion::AlsActualMotion;
 use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar};
 use crate::foot_ik_apply::FootIkApplySet;
 use crate::head_layer::{AlsHeadLayerSet, inv_exp_approx, unwind_degrees};
@@ -139,6 +141,7 @@ pub struct AlsControlRigState {
     pub spine_amount_bias: f32,
     pub last_yaw_angle: f32,
     pub last_yaw_angle_world_space: f32,
+    pub movement_base_snapshot: Option<(Entity, Quat)>,
     pub yaw_angle: f32,
     pub final_yaw_angle: f32,
 }
@@ -152,6 +155,7 @@ impl Default for AlsControlRigState {
             spine_amount_bias: 0.0,
             last_yaw_angle: 0.0,
             last_yaw_angle_world_space: 0.0,
+            movement_base_snapshot: None,
             yaw_angle: 0.0,
             final_yaw_angle: 0.0,
         }
@@ -243,6 +247,9 @@ fn update_spine_state(state: &mut AlsControlRigState, input: SpineInput) {
             input.delta_seconds,
             SPINE_EXIT_HALF_LIFE * multiplier,
         );
+        state.last_yaw_angle_world_space = unwind_degrees(
+            state.last_yaw_angle_world_space + input.movement_base_delta_yaw,
+        );
         let yaw_offset = unwind_degrees(state.last_yaw_angle_world_space - input.body_yaw_world)
             .clamp(-SPINE_MAX_WORLD_OFFSET, SPINE_MAX_WORLD_OFFSET);
         state.last_yaw_angle_world_space = unwind_degrees(yaw_offset + input.body_yaw_world);
@@ -300,6 +307,7 @@ fn refresh_control_rig_input(
             Has<AlsFirstPersonView>,
             Option<&AlsControlRigSettings>,
             Option<&AlsFootLockState>,
+            Option<&AlsActualMotion>,
             Option<&mut AlsControlRigState>,
             Option<&mut AlsControlRigInput>,
         ),
@@ -315,6 +323,7 @@ fn refresh_control_rig_input(
         first_person,
         settings,
         foot_lock,
+        actual_motion,
         current_state,
         current_input,
     ) in &mut characters
@@ -329,6 +338,13 @@ fn refresh_control_rig_input(
         let scalar = |key| player.get_global_input_data(key)
             .and_then(|value| value.as_f32().ok()).unwrap_or(0.0);
         let mut state = current_state.as_deref().copied().unwrap_or_default();
+        let current_base = actual_motion.and_then(|motion| motion.movement_base_snapshot);
+        let movement_base_delta_yaw = match (state.movement_base_snapshot, current_base) {
+            (Some((previous_entity, previous_rotation)), Some((entity, rotation))) if previous_entity == entity =>
+                -world_forward_to_yaw(rotation * previous_rotation.conjugate() * Vec3::NEG_Z).to_degrees(),
+            _ => 0.0,
+        };
+        state.movement_base_snapshot = current_base;
         update_spine_state(&mut state, SpineInput {
             allowed: *rotation_mode == RotationMode::Aiming || first_person,
             pending_update: player.get_global_input_data("animation.pending_update")
@@ -336,7 +352,7 @@ fn refresh_control_rig_input(
             view_yaw_angle: scalar("view_state.yaw_angle"),
             view_yaw_speed: scalar("view_state.yaw_speed"),
             body_yaw_world: scalar("locomotion_state.rotation_yaw"),
-            movement_base_delta_yaw: 0.0,
+            movement_base_delta_yaw,
             blend_amount: (1.0 - output_f32(context, "ViewBlock").clamp(0.0, 1.0))
                 * output_f32(context, "PoseAiming").clamp(0.0, 1.0),
             delta_seconds: time.delta_secs(),
@@ -570,6 +586,47 @@ mod tests {
         app.world_mut().run_schedule(PostUpdate);
         assert!(app.world().get::<als_ext::SourceAnimationInputs>(player).unwrap().rig_query_context().is_none());
         assert_eq!(app.world().get::<AlsControlRigInput>(unloaded).unwrap().pelvis_offset_amount, 0.75);
+
+        let base = app.world_mut().spawn_empty().id();
+        app.world_mut().entity_mut(actor).remove::<AlsFirstPersonView>().insert((
+            RotationMode::ViewDirection,
+            AlsActualMotion {
+                movement_base_snapshot: Some((base, Quat::from_rotation_y(std::f32::consts::FRAC_PI_4))),
+                ..default()
+            },
+            AlsControlRigState {
+                spine_amount: 1.0,
+                last_yaw_angle: 20.0,
+                last_yaw_angle_world_space: 10.0,
+                movement_base_snapshot: Some((base, Quat::IDENTITY)),
+                ..default()
+            },
+        ));
+        {
+            let mut player = app.world_mut().get_mut::<AnimationGraphPlayer>(player).unwrap();
+            player.set_global_input_data("animation.pending_update", false);
+            player.set_global_input_data("locomotion_state.rotation_yaw", 10.0_f32);
+        }
+        app.world_mut().run_schedule(PostUpdate);
+        assert!((app.world().get::<AlsControlRigState>(actor).unwrap().last_yaw_angle_world_space + 20.0).abs() < 1e-5);
+        let next_base = app.world_mut().spawn_empty().id();
+        app.world_mut().get_mut::<AlsActualMotion>(actor).unwrap().movement_base_snapshot =
+            Some((next_base, Quat::from_rotation_y(std::f32::consts::FRAC_PI_2)));
+        app.world_mut().run_schedule(PostUpdate);
+        assert!((app.world().get::<AlsControlRigState>(actor).unwrap().last_yaw_angle_world_space + 20.0).abs() < 1e-5);
+        {
+            let mut state = app.world_mut().get_mut::<AlsControlRigState>(actor).unwrap();
+            state.spine_amount = 1.0;
+            state.last_yaw_angle_world_space = 10.0;
+        }
+        app.world_mut().get_mut::<AlsActualMotion>(actor).unwrap().movement_base_snapshot =
+            Some((next_base, Quat::from_rotation_y(3.0 * std::f32::consts::FRAC_PI_4)));
+        app.world_mut().run_schedule(PostUpdate);
+        assert!((app.world().get::<AlsControlRigState>(actor).unwrap().last_yaw_angle_world_space + 20.0).abs() < 1e-5);
+        app.world_mut().get_mut::<AlsControlRigState>(actor).unwrap().last_yaw_angle_world_space = 10.0;
+        app.world_mut().get_mut::<AlsActualMotion>(actor).unwrap().movement_base_snapshot = None;
+        app.world_mut().run_schedule(PostUpdate);
+        assert!((app.world().get::<AlsControlRigState>(actor).unwrap().last_yaw_angle_world_space - 10.0).abs() < 1e-5);
     }
 
     #[test]
@@ -624,7 +681,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "A31 source mismatch fixture"]
     fn spine_exit_tracks_rotating_base_before_world_yaw_clamp() {
         let mut state = AlsControlRigState {
             spine_amount: 1.0,
