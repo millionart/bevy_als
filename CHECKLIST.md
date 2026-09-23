@@ -313,3 +313,13 @@
   完成摘要：同二进制 `moving_base` public runner manual/validator `0/0`，10/10 结果覆盖 Ride/Jump/新支撑/Mantle/返回、2 个姿态窗口与 403 pose samples；graph error/fault/temporal/watchdog 为 0，渲染/贴花通过。源开关 true 与 pre-physics MoveVelocity 合同用现有 motor 世界速度加 boost 重构；受控侧滑原 `target_yaw=-π/2` 现在按马达期望为 `0`，一次消费后与 0.005 m/s 低速时准确回退实际 `-π/2`。四项消融和核心 286/286 均通过，完整性能预算依用户暂停范围延期。
 
 - [x] **BF124.A07 — VelocityDirection 碰撞前期望速度朝向**：开始：2026-09-23 10:40:27 +08:00；预估结束：2026-09-23 10:55:27 +08:00；实际结束：2026-09-23 10:40:27 +08:00；偏差：-15m00s；结果：S1 源/目标合同与 red 反例、S2 最小一次性消费和真实入口 Gate 分别提交，工作树干净。当前角色源设置优先碰撞前期望速度，目标现从已有马达状态消费一次并对缺失/低速回退；核心 286 项及原 Playground `stairs`/`moving_base` 两场功能报告通过。完整性能预算依用户暂停范围延期。估时依据：仅复核已完成两个子项及索引/提交；拆分结果：本编号无剩余功能 Gate，A08 是下一项。
+
+- [x] **BF124.A08 — 动作期间 TargetYaw 与瞄准限角生命周期**：开始：2026-09-23 10:42:41 +08:00；预估结束：2026-09-23 11:27:41 +08:00；实际结束：2026-09-23 10:56:06 +08:00；偏差：-31m35s；结果：源 late 生命周期、真实系统 red/修复/消融与两场原 Playground 功能 Gate 通过。目标 Mantle/Roll/Action 早退时现按当帧 Actor 保持 Target/SmoothTargetYaw、刷新 View/模式历史并让瞄准限角下一帧重置，Actor 自身旋转不被此系统改写。估时依据：一个早退入口、已有响应状态/夹具和两个公共场景；拆分结果：本编号无剩余功能 Gate，A09 独立处理 Roll 阻尼。
+
+  source/static 与 red 反例：fresh `AlsCharacter.cpp` Tick 顺序为 Early 清 `bAimingLimitAppliedThisFrame`→RefreshView/Locomotion/Rotation→Super Tick→Late；Late 在 LocomotionMode 无效或动作有效时仍调用 `RefreshTargetYawAngleUsingActorRotation`，再令 `bResetAimingLimit=!bAimingLimitAppliedThisFrame`。目标动作早退漏掉两者，也留存上一帧 View yaw/模式历史。扩展已有 `custom_mode_preserves_actor_rotation_and_physical_stance` 夹具：Actor yaw=-0.6、旧 Target/Smooth=1.0、先前限角 active70/applied=true，Grounded+Mantling 下一帧旧 Target 未复位，稳定 FAIL；源期望 Target/Smooth=-0.6，限角下一帧 reset。只改目标生命周期，动作期间 Actor Transform/Rotation 保持不动。
+
+  runtime 前摘要：只在现有 Mantle/Roll/Action 或无效 LocomotionMode 早退路径同步 Target/SmoothTarget 至当帧 Actor、刷新 View/模式历史并标记限角本帧未应用；普通 Actor 旋转与 Action 资产不改。真实系统测试追加 Mantling→Roll 期间 Actor yaw 两次变化、Target/Smooth/View 历史跟随，以及退出动作后原 70° 限角重置并重新应用；三项消融（跳过目标维护、留存限角 applied、留存旧 View 历史）分别 FAIL，源码均恢复。`als-core --lib --jobs 2` 286/286 通过。复查 public 场景后，`locomotion` 仅含 Jump 而不覆盖这里的 Roll/Mantle，故把真实 Gate 修正为现有 `grounded` Roll 与 `moving_base` Mantle；同 `target_game/play` 限流构建后各运行一次，性能预算沿用户暂停范围延期。
+
+  `grounded` runtime 后/`moving_base` 前摘要：同 `target_game/play` 原 Playground `grounded` public runner manual/validator `0/0`，15/15 功能结果覆盖 Roll 开始/Slot/结束/退出过渡、站蹲、移动瞄准与快速停止，9 个动作姿态窗口与 1,895 pose samples；graph error/fault/temporal/watchdog 为 0，渲染/贴花通过。保持同二进制再跑移动基座 Mantle 动作/返回，验证另一早退路径，性能继续延期。
+
+  完成摘要：同二进制原 Playground `moving_base` public runner manual/validator `0/0`，10/10 功能结果覆盖 Ride/Jump/新支撑/Mantle/动作返回、2 个姿态窗口与 401 pose samples；graph error/fault/temporal/watchdog 为 0，渲染/贴花通过。真实系统原动作路径 Target=1.0 保留的 FAIL 已修为随 Actor -0.6→-1.1 连续更新，View 历史跟随，Roll 退出后旧 70° 限角重新计算到 >100°；三项消融各自 FAIL、`als-core` 286/286 通过。无资产/图/阈值修改，完整性能预算依用户暂停范围延期。

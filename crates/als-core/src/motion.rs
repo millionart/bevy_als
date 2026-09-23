@@ -398,25 +398,43 @@ fn rotation_response_system(
         input_override,
         input,
         animation,
-        current_runtime,
+        mut current_runtime,
         roll,
         mut constraint,
     ) in &mut q
     {
         let pre_collision_velocity = base.as_deref_mut().and_then(|state| state.pre_collision_velocity.take());
+        let current_yaw = world_forward_to_yaw(transform.rotation * Vec3::NEG_Z);
+        let action_active = collision_owners.get(entity).is_ok_and(|owner| owner.mantle)
+            || roll.is_some_and(|state| state.active)
+            || actions.get(entity).is_ok_and(|action| *action != crate::state::AlsNotifyLocomotionAction::None);
+        let invalid_mode = !matches!(*locomotion, LocomotionState::Grounded | LocomotionState::Air);
+        if action_active || invalid_mode {
+            let mut runtime = current_runtime.as_deref().copied().unwrap_or_default();
+            runtime.initialized = true;
+            runtime.target_yaw = current_yaw;
+            runtime.smooth_target_yaw = current_yaw;
+            runtime.previous_view_yaw = view_yaw.0;
+            runtime.previous_locomotion = *locomotion;
+            runtime.previous_rotation_mode = Some(*rotation_mode);
+            if let Some(current_runtime) = current_runtime.as_deref_mut() {
+                *current_runtime = runtime;
+            } else {
+                commands.entity(entity).insert(runtime);
+            }
+        }
         if blocked.contains(entity)
             || !matches!(*rotation_mode, RotationMode::VelocityDirection | RotationMode::ViewDirection | RotationMode::Aiming)
-            || collision_owners.get(entity).is_ok_and(|owner| owner.mantle)
-            || roll.is_some_and(|state| state.active)
-            || !matches!(*locomotion, LocomotionState::Grounded | LocomotionState::Air)
-            || actions.get(entity).is_ok_and(|action| *action != crate::state::AlsNotifyLocomotionAction::None)
+            || action_active
+            || invalid_mode
         {
+            constraint.applied_last_frame = false;
             continue;
         }
         let Some(params) = params_assets.get(params_handle.id()) else {
+            constraint.applied_last_frame = false;
             continue;
         };
-        let current_yaw = world_forward_to_yaw(transform.rotation * Vec3::NEG_Z);
         let mut runtime = current_runtime.as_deref().copied().unwrap_or_default();
         let view_yaw_speed = if runtime.initialized && delta_seconds > f32::EPSILON {
             wrap_yaw_radians(view_yaw.0 - runtime.previous_view_yaw).abs().to_degrees() / delta_seconds
@@ -604,9 +622,37 @@ mod rotation_cap_tests {
         app.update();
         assert_eq!(*app.world().get::<Transform>(actor).unwrap(), transform);
         assert_eq!(app.world().get::<Rotation>(actor).unwrap().0, transform.rotation);
-        app.world_mut().entity_mut(actor).insert((LocomotionState::Grounded, crate::state::AlsNotifyLocomotionAction::Mantling));
+        app.world_mut().entity_mut(actor).insert((
+            LocomotionState::Grounded,
+            crate::state::AlsNotifyLocomotionAction::Mantling,
+            AlsRotationResponseState { initialized: true, target_yaw: 1.0, smooth_target_yaw: 1.0,
+                previous_view_yaw: -1.0, previous_locomotion: LocomotionState::Air,
+                previous_rotation_mode: Some(RotationMode::Aiming), ..default() },
+            AlsAimingYawConstraint { active_limit_degrees: 70.0, applied_last_frame: true },
+        ));
         app.update();
         assert_eq!(*app.world().get::<Transform>(actor).unwrap(), transform);
+        let response = app.world().get::<AlsRotationResponseState>(actor).unwrap();
+        assert!((response.target_yaw + 0.6).abs() < 1e-6);
+        assert!((response.smooth_target_yaw + 0.6).abs() < 1e-6);
+        assert_eq!(response.previous_view_yaw, 1.2);
+        assert_eq!(response.previous_locomotion, LocomotionState::Grounded);
+        assert!(!app.world().get::<AlsAimingYawConstraint>(actor).unwrap().applied_last_frame);
+        let moved = Transform::IDENTITY.with_rotation(Quat::from_rotation_y(-1.1));
+        app.world_mut().entity_mut(actor).insert((
+            LocomotionState::Grounded, crate::state::AlsNotifyLocomotionAction::None,
+            crate::roll::AlsRollState { active: true, ..default() },
+            moved, Rotation(moved.rotation), AlsViewYaw(2.0),
+        ));
+        app.update();
+        let response = app.world().get::<AlsRotationResponseState>(actor).unwrap();
+        assert!((response.target_yaw + 1.1).abs() < 1e-6);
+        assert!((response.smooth_target_yaw + 1.1).abs() < 1e-6);
+        assert_eq!(response.previous_view_yaw, 2.0);
+        app.world_mut().entity_mut(actor).remove::<crate::roll::AlsRollState>();
+        app.update();
+        let limit = app.world().get::<AlsAimingYawConstraint>(actor).unwrap();
+        assert!(limit.applied_last_frame && limit.active_limit_degrees > 100.0);
         for (desired, actual) in [(Stance::Crouching, Stance::Standing), (Stance::Standing, Stance::Crouching)] {
             assert_eq!(capsule_target_for_locomotion(desired, actual, LocomotionState::Custom, false, None), actual);
             assert_eq!(capsule_target_for_locomotion(desired, actual, LocomotionState::Grounded, false, None), desired);
