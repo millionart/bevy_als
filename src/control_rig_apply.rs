@@ -395,16 +395,6 @@ fn publish_control_rig_inputs(
     colliders: Query<(Entity, &Position, &Rotation, &Collider)>,
     capture: Option<Res<crate::foot_ik_apply::AlsFootIkTelemetryEnabled>>,
 ) {
-    let mut ignored: Vec<_> = characters.iter().map(|(entity, _, _)| entity).collect();
-    for (_, avatar, instance) in &avatars {
-        if characters.contains(avatar.character)
-            && let Ok(player) = players.get(instance.player_entity())
-            && let Some(ragdoll) = player.get_spawned_ragdoll() {
-            ignored.extend(ragdoll.bodies.values().copied());
-            ignored.extend(ragdoll.colliders.values().copied());
-        }
-    }
-    let filter = SpatialQueryFilter::from_excluded_entities(ignored).with_mask(als_core::character::AlsCollisionLayer::Visibility);
     let mut world: Option<Arc<RigQueryWorld>> = None;
     for (entity, input, assembly) in &characters {
         let Some(assembly) = assembly else { continue; };
@@ -412,6 +402,13 @@ fn publish_control_rig_inputs(
         if owner.character != entity { continue; }
         let root = instance.player_entity();
         let Ok(mut player) = players.get_mut(root) else { continue; };
+        let mut ignored = vec![entity];
+        if let Some(ragdoll) = player.get_spawned_ragdoll() {
+            ignored.extend(ragdoll.bodies.values().copied());
+            ignored.extend(ragdoll.colliders.values().copied());
+        }
+        let filter = SpatialQueryFilter::from_excluded_entities(ignored)
+            .with_mask(als_core::character::AlsCollisionLayer::Visibility);
         use bevy_animation_graph::core::edge_data::DataValue;
         for (field, value) in [
             ("b_use_hand_ik_bones", DataValue::Bool(input.use_hand_ik_bones)),
@@ -437,7 +434,7 @@ fn publish_control_rig_inputs(
                         (entity, (*position, *rotation, collider.clone()))).collect(),
                 })).clone();
                 let transform = transform.compute_transform();
-                RigQueryContext { world, filter: filter.clone(), channel: "ECC_Visibility".to_owned(),
+                RigQueryContext { world, filter, channel: "ECC_Visibility".to_owned(),
                     to_world: RigTransform { translation: transform.translation.as_dvec3(), rotation: transform.rotation.as_dquat(), scale: transform.scale.as_dvec3() } }
             }))
         } else { None };
