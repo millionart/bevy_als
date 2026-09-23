@@ -912,6 +912,52 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "A24: Grounded transition playback does not stop the current turn slot"]
+    fn grounded_transition_play_stops_the_current_turn_montage() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        let character = app.world_mut().spawn(als_core::character::AlsCharacter).id();
+        let mut turns = AlsTurnMontageStack::default();
+        SourceTurnRequest {
+            variant: TurnVariant::Left90,
+            yaw: 90.0,
+            crouching: false,
+        }.play(&mut turns);
+        let avatar = app.world_mut().spawn((
+            AlsCharacterAvatar { character }, ChildOf(character), turns,
+        )).id();
+        app.world_mut().entity_mut(character).insert(crate::character_assembly::AlsCharacterAssembly {
+            avatar, camera: None,
+        });
+        app.world_mut().run_system_once(move |mut commands: Commands| {
+            crate::stop_link::play_transition(&mut commands, character,
+                crate::stop_link::AlsTransitionPlayback::quick_stop(0.0, 1.0));
+        }).unwrap();
+        app.world_mut().flush();
+        let turns = app.world().get::<AlsTurnMontageStack>(avatar).unwrap();
+        assert!(turns.entries[0].blend_out_elapsed.is_some());
+        assert!(!turns.inertialization_pending);
+    }
+
+    #[test]
+    #[ignore = "A24: Grounded turn playback does not stop the transition slot"]
+    fn grounded_turn_play_stops_the_current_transition_montage() {
+        let mut transition = crate::stop_link::AlsTransitionPlayback::standing_dynamic(0.0);
+        transition.weight = 0.75;
+        let transitions = crate::stop_link::AlsTransitionMontageStack {
+            entries: vec![transition],
+        };
+        let mut turns = AlsTurnMontageStack::default();
+        SourceTurnRequest {
+            variant: TurnVariant::Right90,
+            yaw: 90.0,
+            crouching: false,
+        }.play(&mut turns);
+        assert_eq!(transitions.entries[0].stop_elapsed, Some(0.0));
+        assert!((transitions.entries[0].stop_duration - TURN_MONTAGE_BLEND_DURATION).abs() < 1e-6);
+    }
+
+    #[test]
     fn natural_turn_end_requests_inertialization_and_removes_slot_weight() {
         let mut stack = AlsTurnMontageStack::default();
         stack.begin(0.0, false, TURN_DUR_90, 1.0, false);
