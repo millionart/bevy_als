@@ -140,6 +140,7 @@ pub fn apply_als_control_scheme_config(
     capsule_crouched: bool,
     velocity: Vec3,
     view_yaw: f32,
+    gravity_magnitude: f32,
 ) {
     config.basis.speed =
         gait_max_speed_for_velocity(params, &stance, &gait, rotation_mode, velocity, view_yaw);
@@ -163,9 +164,9 @@ pub fn apply_als_control_scheme_config(
     config.basis.max_slope = deg_to_rad(MAX_SLOPE_DEGREES);
     config.basis.cling_distance = WALK_CLING_DISTANCE;
     config.basis.spring_dampening = 1.0;
-    let gravity_scale = params.jump.gravity_scale.max(1e-3);
-    config.jump.height =
-        params.jump.jump_z_velocity * params.jump.jump_z_velocity / (2.0 * 9.81 * gravity_scale);
+    config.jump.height = if gravity_magnitude > f32::EPSILON {
+        params.jump.jump_z_velocity * params.jump.jump_z_velocity / (2.0 * gravity_magnitude)
+    } else { 0.0 };
     config.jump.upslope_extra_gravity = 0.0;
     config.jump.takeoff_extra_gravity = 0.0;
     config.jump.takeoff_above_velocity = f32::INFINITY;
@@ -189,6 +190,7 @@ pub fn initial_als_control_scheme_config(params: &AlsMovementParams) -> AlsContr
         false,
         Vec3::ZERO,
         0.0,
+        Gravity::default().0.length(),
     );
     config
 }
@@ -2357,6 +2359,7 @@ fn refine_ground_sensor_system(
 }
 
 fn tnua_config_sync_system(
+    gravity: Option<Res<Gravity>>,
     q: Query<(
         &TnuaConfig<AlsControlScheme>,
         &AlsMovementParamsHandle,
@@ -2369,12 +2372,14 @@ fn tnua_config_sync_system(
         &TnuaController<AlsControlScheme>,
         &TnuaSensorsEntities<AlsControlScheme>,
         Option<&crate::dynamics::AlsMovementBaseDynamicsState>,
+        Option<&GravityScale>,
+        Option<&TnuaGravity>,
     )>,
     mut configs: ResMut<Assets<AlsControlSchemeConfig>>,
     params_assets: Res<Assets<AlsMovementParams>>,
     mut sensors: Query<&mut TnuaProximitySensor>,
 ) {
-    for (config, handle, max_allowed, stance, rotation_mode, view_yaw, velocity, locomotion, controller, sensor_entities, base) in &q {
+    for (config, handle, max_allowed, stance, rotation_mode, view_yaw, velocity, locomotion, controller, sensor_entities, base, gravity_scale, tnua_gravity) in &q {
         let Some(params) = params_assets.get(handle.id()) else {
             continue;
         };
@@ -2390,6 +2395,11 @@ fn tnua_config_sync_system(
             *stance == Stance::Crouching,
             crate::dynamics::locomotion_velocity(velocity.0, *locomotion, base),
             view_yaw.0,
+            effective_tnua_gravity(
+                gravity.as_ref().map_or(Gravity::default().0, |gravity| gravity.0),
+                gravity_scale.map_or(1.0, |scale| scale.0),
+                tnua_gravity.map(|gravity| gravity.0),
+            ).length(),
         );
         if controller.basis.desired_motion == Vec3::ZERO {
             cfg.basis.air_acceleration = 0.0;
@@ -4198,27 +4208,35 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "A38 jump height must use the gravity consumed by Tnua"]
     fn jump_height_keeps_source_launch_speed_when_world_gravity_changes() {
-        let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
-        app.world_mut().resource_mut::<Gravity>().0 = Vec3::Y * -12.0;
-        app.update();
-        let world = app.world();
-        let gravity = world.get::<TnuaRigidBodyTracker>(character).unwrap().gravity;
-        assert!((gravity.y + 12.0).abs() < 1e-4);
-        let config_handle = world.get::<TnuaConfig<AlsControlScheme>>(character).unwrap();
-        let config = world.resource::<Assets<AlsControlSchemeConfig>>().get(&config_handle.0).unwrap();
-        let params_handle = world.get::<AlsMovementParamsHandle>(character).unwrap();
-        let params = world.resource::<Assets<AlsMovementParams>>().get(params_handle.id()).unwrap();
-        let launch_speed = (2.0 * gravity.length() * config.jump.height).sqrt();
-        assert!((launch_speed - params.jump.jump_z_velocity).abs() < 1e-3,
-            "launch_speed={launch_speed} source_jump_z_velocity={}", params.jump.jump_z_velocity);
+        for (global, scale, extra) in [
+            (Vec3::Y * -12.0, 1.0, Vec3::ZERO),
+            (Vec3::Y * -9.81, 2.0, Vec3::ZERO),
+            (Vec3::Y * -9.81, 1.0, Vec3::new(3.0, -2.0, 0.0)),
+        ] {
+            let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+            app.world_mut().resource_mut::<Gravity>().0 = global;
+            app.world_mut().entity_mut(character).insert((GravityScale(scale), TnuaGravity(extra)));
+            app.update();
+            let world = app.world();
+            let gravity = world.get::<TnuaRigidBodyTracker>(character).unwrap().gravity;
+            assert!(gravity.abs_diff_eq(effective_tnua_gravity(global, scale, Some(extra)), 1e-4));
+            let config_handle = world.get::<TnuaConfig<AlsControlScheme>>(character).unwrap();
+            let config = world.resource::<Assets<AlsControlSchemeConfig>>().get(&config_handle.0).unwrap();
+            let params_handle = world.get::<AlsMovementParamsHandle>(character).unwrap();
+            let params = world.resource::<Assets<AlsMovementParams>>().get(params_handle.id()).unwrap();
+            let launch_speed = (2.0 * gravity.length() * config.jump.height).sqrt();
+            assert!((launch_speed - params.jump.jump_z_velocity).abs() < 1e-3,
+                "gravity={gravity:?} launch_speed={launch_speed} source_jump_z_velocity={}", params.jump.jump_z_velocity);
+        }
     }
 
     #[test]
     fn initial_control_scheme_matches_the_first_runtime_sync() {
         let params = AlsMovementParams::default();
-        let config = initial_als_control_scheme_config(&params);
+        let mut config = initial_als_control_scheme_config(&params);
+        assert!((config.jump.height - params.jump.jump_z_velocity.powi(2)
+            / (2.0 * Gravity::default().0.length())).abs() < 1e-6);
         assert!((config.basis.float_height - 0.924).abs() < 1e-6);
         assert!((config.basis.speed - 3.75).abs() < 1e-6);
         assert!((config.basis.cling_distance - WALK_CLING_DISTANCE).abs() < 1e-6);
@@ -4241,6 +4259,9 @@ mod tests {
                 .distance_to_collider_top,
             params.crouch.standing_capsule_half_height
         );
+        apply_als_control_scheme_config(&mut config, &params, Gait::Running,
+            Stance::Standing, RotationMode::ViewDirection, false, Vec3::ZERO, 0.0, 0.0);
+        assert_eq!(config.jump.height, 0.0);
     }
 
     #[test]
@@ -4261,6 +4282,7 @@ mod tests {
             false,
             Vec3::Z,
             0.0,
+            Gravity::default().0.length(),
         );
         println!(
             "[BF101.5] tnua_backward_run_speed={:.6}",
