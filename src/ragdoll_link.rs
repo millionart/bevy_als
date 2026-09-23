@@ -1108,6 +1108,49 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore = "A23: ragdoll entry leaves turn and transition montages active"]
+    fn ragdoll_entry_stops_current_turn_and_transition_montages() {
+        use bevy::ecs::system::RunSystemOnce;
+        use crate::stop_link::{AlsTransitionMontageStack, AlsTransitionPlayback};
+        use crate::turn_layer::{AlsTurnDrive, AlsTurnMontageStack, SourceTurnRequest};
+
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        let mut transition = AlsTransitionPlayback::standing_dynamic(0.0);
+        transition.weight = 0.75;
+        let character = app.world_mut().spawn((
+            AlsCharacter,
+            Transform::IDENTITY,
+            RigidBody::Kinematic,
+            AlsCollisionLayerOwnership::default(),
+            AlsNotifyLocomotionAction::Ragdolling,
+            AlsTransitionMontageStack { entries: vec![transition] },
+        )).id();
+        let mut turn = AlsTurnMontageStack::default();
+        SourceTurnRequest {
+            variant: als_core::turn_in_place::TurnVariant::Left90,
+            yaw: 90.0,
+            crouching: false,
+        }.play(&mut turn);
+        let avatar = app.world_mut().spawn((
+            AlsCharacterAvatar { character },
+            ChildOf(character),
+            AlsTurnDrive::default(),
+            turn,
+        )).id();
+        app.world_mut().entity_mut(character).insert(AlsCharacterAssembly { avatar, camera: None });
+
+        app.world_mut().run_system_once(ragdoll_character_physics_system).unwrap();
+        app.world_mut().flush();
+        let turn_stopped = app.world().get::<AlsTurnMontageStack>(avatar).unwrap().entries.is_empty();
+        let transition = &app.world().get::<AlsTransitionMontageStack>(character).unwrap().entries[0];
+        let transition_stopped = transition.stop_elapsed == Some(0.0)
+            && (transition.stop_duration - 0.2).abs() < 1e-6;
+        assert!(turn_stopped && transition_stopped,
+            "turn_stopped={turn_stopped} transition_stopped={transition_stopped}");
+    }
+
+    #[test]
     fn ragdoll_player_follows_current_assembly_avatar_with_old_player_alive() {
         use bevy::ecs::system::RunSystemOnce;
         use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner};
