@@ -485,3 +485,11 @@
   source/static 完成摘要：同一真实 Avian fixture 的 Ground snap 射线忽略现有角色、落到地面 y≈0；出生胶囊 Default 响应查询检出 Pawn，PlayerStart 由旧 `Unoccupied` 变为 `OccupiedAdjusted`。项目使用本批已选中心的直立胶囊段距离检查；冲突时复用 `teleport_xy_adjustments` 的八方向顺序和 `PLAYER_START_TELEPORT_SKIN`，每个候选必须同时避开本批预留和实际 SpatialQuery 碰撞。focused 覆盖单起点邻近调整、显式 Portal tag 不改投 Other、双起点分流、八方向实体障碍使第二笔明确失败；边界 0.61m 水平/1.81m 竖直已验证。core PlayerStart 6/6，GameMode 三类批次及无空间 1/1；恢复角色排除或撤掉批次预留各自使原 red 再现，最终恢复 green。没有持久预留状态、依赖或原始资产修改；剩余同入口原 Playground Gate。
 
   失稳生命周期补充与最终静态摘要：fresh UE 每次选择读取当前世界，目标若角色在 required_stable_frames=2 期间新占位，旧 Unoccupied Ready 曾继续对入场可见；同一物理 fixture 增加“空位→新 Pawn”的首帧反例并 red。目标在新 fit 尚未稳定时移除旧 Ready，下一帧才发布 OccupiedAdjusted；删此清理反例恢复 red，最终 green。GameMode 通过 AlsPlayerStartPrepared SystemSet 排在该查询之后，避免同帧消费过期 Ready，同时不暴露内部 Probe 类型。core PlayerStart 6/6、项目同批四情形 focused green，双旧规则消融与失稳 Ready 消融均已 red；仅余真实入口公共 Gate。
+
+- [x] **BF124.A16-S3 — 原 Playground PlayerStart 入场 Gate**：开始：2026-09-23 16:15:22 +08:00；预估结束：2026-09-23 17:00:22 +08:00；实际结束：2026-09-23 16:22:16 +08:00；偏差：-38m06s；结果：同入口原 Playground 无驱动启动与完整 base 功能 Gate 通过。以启动器真实 `target_game/play` 限流构建，先跑 `startup`，再跑原地形/环境/角色/相机 `base`，核对 PlayerStart/Admission、角色实体及后续运动/姿态。批次双角色及占位反例由 S2 真实 Avian/GameMode focused 覆盖；估时依据：既有 startup/base runner、S2 core 6/6 与四情形 batch focused，目标代码无动画图改动；拆分结果：A16 可汇总关闭，A17 不提前展开。
+
+  source/static 完成、runtime 前摘要：fresh 本地 UE GameMode/Pawn/B_Als 胶囊源事实、core Ground/occupancy 分离、GameMode 预留与 source 顺序邻近调整均已闭环；占位、失稳 Ready、单/双/命名起点及无空间 focused green，三次消融 red。新增 `AlsPlayerStartPrepared` 保证入场消费当帧稳定 Ready，未改原 Playground 地形/角色或源资产。剩余同入口二进制、`startup`、`base` 功能报告；完整性能预算延期。
+
+  `startup` 后、完整 Playground 前摘要：同入口 `target_game/play` 限流构建成功，无驱动 `startup` 公共功能 Gate 通过，图错误/故障/时间异常/watchdog 0；PlayerStart/Admission 实际入口未被新 SystemSet 阻断。下一步同一二进制运行原 `base` 场景，审计自动场景必需结果、姿态与后续地形/角色/相机链路。
+
+  runtime 最终完成摘要：同一二进制原 Playground `base` runner/manual/validator 退出码 0，51/51 必需结果、1,342 pose samples，graph error/fault/temporal/watchdog 0；先前无驱动 `startup` 功能亦通过。原地形、环境、可见角色与相机保留，入场排序/占用变化没有破坏后续动作链。完整性能预算延期；同批多角色与占位边界由真实物理/GameMode focused red→green、三处消融判别。
