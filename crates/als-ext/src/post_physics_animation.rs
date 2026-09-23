@@ -1,13 +1,15 @@
 use avian3d::prelude::PhysicsSystems;
 use bevy::{animation::{AnimatedBy, AnimationTargetId}, ecs::{query::QueryFilter, schedule::ScheduleCleanupPolicy}, prelude::*, transform::TransformSystems};
 use bevy_animation_graph::core::{
-    animated_scene::AnimatedSceneInstance,
+    animated_scene::{AnimatedScene, AnimatedSceneHandle, AnimatedSceneInstance},
     animation_graph::DEFAULT_OUTPUT_RAGDOLL_CONFIG,
     animation_graph_player::AnimationGraphPlayer,
     context::system_resources::SystemResources,
     id::BoneId,
     physics_systems_avian::{read_back_poses_avian, spawn_missing_ragdolls_avian},
     plugin::AnimationGraphSet,
+    pose::Pose,
+    ragdoll::bone_mapping::RagdollBoneMap,
     systems::{RootMotionOutput, animation_player, debug_draw_animation_players, extract_root_motion, run_animation_player},
 };
 
@@ -55,7 +57,7 @@ impl Plugin for PostPhysicsAnimationPlugin {
             assert_eq!(count, 1, "physics readback must replace exactly one default readback system");
         });
         app.add_systems(PostUpdate,
-            (read_back_poses_avian, apply_readback_pose)
+            (read_back_poses_avian, normalize_scaled_readback_pose, apply_readback_pose)
                 .chain().in_set(PostPhysicsAnimationSet::Readback),
         );
     }
@@ -65,6 +67,50 @@ fn has_physics_readback(player: &AnimationGraphPlayer) -> bool {
     player.get_spawned_ragdoll().is_some() && player.get_outputs().get(DEFAULT_OUTPUT_RAGDOLL_CONFIG)
         .and_then(|value| value.as_ragdoll_config().ok())
         .is_none_or(|config| config.default_readback.unwrap_or(true) || config.readback_overrides.values().any(|enabled| *enabled))
+}
+
+fn normalize_ragdoll_pose_scale(pose: &mut Pose, map: &RagdollBoneMap, scale: f32) {
+    for path in map.bones_from_bodies.keys() {
+        let Some(index) = pose.paths.get(&path.id()).copied() else { continue; };
+        let mut parent = path.parent();
+        let mut mapped_ancestor = false;
+        while let Some(ancestor) = parent {
+            if map.bones_from_bodies.contains_key(&ancestor) {
+                mapped_ancestor = true;
+                break;
+            }
+            parent = ancestor.parent();
+        }
+        let bone = &mut pose.bones[index];
+        if mapped_ancestor {
+            if let Some(translation) = bone.translation.as_mut() { *translation /= scale; }
+        } else if let Some(local_scale) = bone.scale.as_mut() {
+            *local_scale *= scale;
+        }
+    }
+}
+
+fn normalize_scaled_readback_pose(
+    mut players: Query<(Entity, &mut AnimationGraphPlayer, &GlobalTransform)>,
+    hosts: Query<(&AnimatedSceneHandle, &AnimatedSceneInstance)>,
+    scenes: Option<Res<Assets<AnimatedScene>>>,
+    maps: Res<Assets<RagdollBoneMap>>,
+) {
+    let Some(scenes) = scenes else { return; };
+    for (entity, mut player, world) in &mut players {
+        if !has_physics_readback(&player) { continue; }
+        let scale = world.to_scale_rotation_translation().0;
+        if !scale.is_finite() || scale.min_element() <= 0.0
+            || scale.max_element() - scale.min_element() > 1e-4
+            || (scale.x - 1.0).abs() <= 1e-4 { continue; }
+        let Some(map) = hosts.iter().find(|(_, instance)| instance.player_entity() == entity)
+            .and_then(|(handle, _)| scenes.get(&handle.handle))
+            .and_then(|scene| scene.ragdoll_bone_map.as_ref())
+            .and_then(|handle| maps.get(handle)) else { continue; };
+        let Some(mut pose) = player.get_default_output_pose().cloned() else { continue; };
+        normalize_ragdoll_pose_scale(&mut pose, map, scale.x);
+        player.set_default_output_pose(pose);
+    }
 }
 
 fn apply_readback_pose(
@@ -107,10 +153,32 @@ fn extract_late_root_motion(
 mod tests {
     use super::*;
     use bevy_animation_graph::core::{
-        animation_clip::GraphClip, animation_graph::AnimationGraph, animation_node::AnimationNode,
+        animation_clip::{EntityPath, GraphClip}, animation_graph::AnimationGraph, animation_node::AnimationNode,
         edge_data::{DataSpec, DataValue}, pose::{BonePose, Pose, RootMotionDelta},
+        ragdoll::bone_mapping::BoneMapping,
         skeleton::Skeleton, state_machine::high_level::StateMachine,
     };
+
+    #[test]
+    fn scaled_readback_restores_root_scale_and_mapped_child_offsets() {
+        let root = EntityPath::from_slashed_string("GltfNode0/root".into());
+        let pelvis = root.child("pelvis");
+        let unmapped = pelvis.child("spine_01");
+        let map = RagdollBoneMap {
+            bones_from_bodies: [(root.clone(), BoneMapping::default()),
+                (pelvis.clone(), BoneMapping::default())].into(),
+            bodies_from_bones: default(), skeleton: default(), ragdoll: default(),
+            skeleton_symmetry: default(),
+        };
+        let mut pose = Pose::default();
+        pose.add_bone(BonePose { translation: Some(Vec3::ZERO), scale: Some(Vec3::splat(0.5)), ..default() }, root.id());
+        pose.add_bone(BonePose { translation: Some(Vec3::Y * 2.0), scale: Some(Vec3::ONE), ..default() }, pelvis.id());
+        pose.add_bone(BonePose { translation: Some(Vec3::X), scale: Some(Vec3::ONE), ..default() }, unmapped.id());
+        normalize_ragdoll_pose_scale(&mut pose, &map, 2.0);
+        assert_eq!(pose.bones[pose.paths[&root.id()]].scale, Some(Vec3::ONE));
+        assert_eq!(pose.bones[pose.paths[&pelvis.id()]].translation, Some(Vec3::Y));
+        assert_eq!(pose.bones[pose.paths[&unmapped.id()]].translation, Some(Vec3::X));
+    }
 
     #[test]
     fn marked_players_evaluate_once_after_physics_while_samplers_stay_before_it() {
