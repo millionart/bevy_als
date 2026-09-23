@@ -197,6 +197,92 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore = "A41 red: passthrough reads A instead of the declared InputPin"]
+    fn reroute_passthrough_reads_declared_float_and_bool_input_pins() {
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip,
+            animation_graph::{AnimationGraph, GraphInputPin, TimeUpdate},
+            animation_node::AnimationNode,
+            context::{
+                deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+                graph_context_arena::GraphContextArena, new_context::GraphContext,
+                system_resources::SystemResources,
+            },
+            edge_data::DataValue,
+            skeleton::Skeleton,
+            state_machine::high_level::StateMachine,
+            utils::testing::TestIoEnv,
+        };
+
+        fn query(In(handle): In<Handle<AnimationGraph>>, resources: SystemResources) -> DataValue {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let inputs = HashMap::new();
+            let env = TestIoEnv::default();
+            let context = GraphContext::new(
+                arena.get_toplevel_id(), graph, &mut arena, &resources, &env,
+                Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs,
+            );
+            graph
+                .query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context)
+                .unwrap()["Result"]
+                .clone()
+        }
+
+        let mut world = World::new();
+        world.insert_resource(Assets::<AnimationGraph>::default());
+        world.insert_resource(Assets::<GraphClip>::default());
+        world.insert_resource(Assets::<Skeleton>::default());
+        world.insert_resource(Assets::<StateMachine>::default());
+        let mut failures = Vec::new();
+
+        for (data_type, value, spec) in [
+            (SourceScalarDataType::F32, DataValue::F32(2.5), DataSpec::F32),
+            (SourceScalarDataType::Bool, DataValue::Bool(true), DataSpec::Bool),
+        ] {
+            let mut graph = AnimationGraph::new();
+            let node = AnimationNode::new(
+                "reroute",
+                SourceScalarExpressionNode {
+                    operation: "passthrough".into(),
+                    input_pins: vec![SourceScalarPin {
+                        name: "InputPin".into(),
+                        data_type: data_type.clone(),
+                        ..default()
+                    }],
+                    output_pins: vec![SourceScalarPin {
+                        name: "OutputPin".into(),
+                        data_type,
+                        ..default()
+                    }],
+                    ..default()
+                },
+            );
+            graph.add_node(node.clone());
+            graph.set_default_data(GraphInputPin::passthrough("source"), value.clone());
+            graph.add_input_data_edge(GraphInputPin::passthrough("source"), node.id, "InputPin");
+            graph.add_output_data("Result".into(), spec);
+            graph.add_output_data_edge(node.id, "OutputPin", "Result");
+            let handle = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
+            let actual = world.run_system_cached_with(query, handle).unwrap();
+            match value {
+                DataValue::F32(expected) if actual.as_f32().unwrap() != expected => {
+                    failures.push(format!("float: {actual:?} != {expected}"));
+                }
+                DataValue::Bool(expected) if actual.as_bool().unwrap() != expected => {
+                    failures.push(format!("bool: {actual:?} != {expected}"));
+                }
+                DataValue::F32(_) | DataValue::Bool(_) => {}
+                _ => unreachable!(),
+            }
+        }
+        assert!(failures.is_empty(), "{failures:?}");
+    }
+
+    #[test]
     fn boolean_operators_use_every_declared_operand() {
         use bevy::platform::collections::HashMap;
         use bevy_animation_graph::core::{
