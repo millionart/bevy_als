@@ -165,6 +165,7 @@ struct SpineInput {
     view_yaw_angle: f32,
     view_yaw_speed: f32,
     body_yaw_world: f32,
+    movement_base_delta_yaw: f32,
     blend_amount: f32,
     delta_seconds: f32,
 }
@@ -335,6 +336,7 @@ fn refresh_control_rig_input(
             view_yaw_angle: scalar("view_state.yaw_angle"),
             view_yaw_speed: scalar("view_state.yaw_speed"),
             body_yaw_world: scalar("locomotion_state.rotation_yaw"),
+            movement_base_delta_yaw: 0.0,
             blend_amount: (1.0 - output_f32(context, "ViewBlock").clamp(0.0, 1.0))
                 * output_f32(context, "PoseAiming").clamp(0.0, 1.0),
             delta_seconds: time.delta_secs(),
@@ -598,6 +600,7 @@ mod tests {
         let mut input = SpineInput {
             allowed: true, pending_update: false, view_yaw_angle: 80.0,
             view_yaw_speed: 0.0, body_yaw_world: 0.0,
+            movement_base_delta_yaw: 0.0,
             blend_amount: 0.25, delta_seconds: 0.1,
         };
         update_spine_state(&mut state, input);
@@ -618,5 +621,28 @@ mod tests {
         input.pending_update = true;
         update_spine_state(&mut state, input);
         assert_eq!((state.spine_amount, state.yaw_angle, state.final_yaw_angle), (0.0, 0.0, 0.0));
+    }
+
+    #[test]
+    #[ignore = "A31 source mismatch fixture"]
+    fn spine_exit_tracks_rotating_base_before_world_yaw_clamp() {
+        let mut state = AlsControlRigState {
+            spine_amount: 1.0,
+            last_yaw_angle: 20.0,
+            last_yaw_angle_world_space: 10.0,
+            ..default()
+        };
+        update_spine_state(&mut state, SpineInput {
+            allowed: false,
+            pending_update: false,
+            view_yaw_angle: 0.0,
+            view_yaw_speed: 0.0,
+            body_yaw_world: 10.0,
+            movement_base_delta_yaw: 45.0,
+            blend_amount: 1.0,
+            delta_seconds: 0.1,
+        });
+        assert!((state.last_yaw_angle_world_space - 40.0).abs() < 1e-5);
+        assert!((state.yaw_angle - 50.0 * state.spine_amount).abs() < 1e-5);
     }
 }
