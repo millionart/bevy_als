@@ -359,3 +359,5 @@
   缩放分支消融后摘要：同原 `base` 场景仅暂时删掉 scale=2 赋值，manual/validator 退出 `91/1`；完整结果中唯一未覆盖为新增 `crouch_scaled`，CrouchClearance 的 scale≈2 样本为 0，其他 canopy visible/blocked/recovered/cleaned 均 true，graph error/fault/temporal/watchdog 仍为 0。这证明公共结果能区分真正的 scaled 角色与只跑默认角色的假通过；消融不计成功。现在恢复该一行与正常 `target_game/play`，核对 diff 与局部 Gate 后提交 S3；不重复已通过的同代码 Base 场景。
 
   完成摘要：scale=2 赋值已恢复，正常 `target_game/play` 重新限流构建成功，局部 canopy 世界底部/间距测试再通过；最终同代码原 `base` 报告 manual/validator `0/0`、51/51 必需结果（含 `crouch_scaled`）、24 姿态窗口、1,437 pose samples，CrouchClearance 中 53/54 样本盆骨世界 scale≈2，canopy 四项与其后的 Turn/Mantle/Roll 均通过，graph error/fault/temporal/watchdog 0。对照消融仅 `crouch_scaled` 失败；完整性能预算依用户暂停范围延期。旧 1.65 m 径向离顶条件被已有真实恢复信号取代，没有新增魔法半径。
+
+- [x] **BF124.A10 — 蹲起中心位移与站起查询的有效缩放**：开始：2026-09-23 12:08:31 +08:00；预估结束：2026-09-23 12:23:31 +08:00；实际结束：2026-09-23 12:08:31 +08:00；偏差：-15m00s；结果：S1 源尺度/两个 red、S2 生产中心/查询修复、S3 原 Playground scale=2 可见 Gate 各自通过并单独提交，工作树干净。UE 有效 scale 为组件世界三轴绝对值最小值；目标中心与候选站姿查询均使用同一尺度。核心 289 项、默认 `grounded` 功能和完整原 `base` 51/51（含 `crouch_scaled`）通过，缩放消融被公共 Gate 明确拒绝；完整性能预算依用户暂停范围延期。估时依据：只复核三个已验收子项和索引/提交；拆分结果：本编号无剩余功能 Gate，A11 是下一项。
