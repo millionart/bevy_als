@@ -928,6 +928,23 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "A22: generated inertialization nodes omit turn request inputs"]
+    fn generated_turn_inertialization_nodes_consume_runtime_requests() {
+        for (graph, epoch, duration) in [
+            ("assets/generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
+                STANDING_TURN_INERTIALIZATION_EPOCH_KEY, STANDING_TURN_INERTIALIZATION_DURATION_KEY),
+            ("assets/generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
+                CROUCHING_TURN_INERTIALIZATION_EPOCH_KEY, CROUCHING_TURN_INERTIALIZATION_DURATION_KEY),
+        ] {
+            let graph_text = std::fs::read_to_string(graph).unwrap();
+            let node = graph_text.lines().find(|line| line.contains("InertializationPassthroughNode")
+                && line.contains("filtered_curves: [\"RotationYawSpeed\"]")).unwrap();
+            assert!(node.contains(&format!("request_epoch_key: \"{epoch}\"")), "{graph}");
+            assert!(node.contains(&format!("request_duration_key: \"{duration}\"")), "{graph}");
+        }
+    }
+
+    #[test]
     fn source_turn_clock_waits_for_the_first_slot_pose() {
         let mut stack = AlsTurnMontageStack::default();
         stack.begin(0.0, false, TURN_DUR_90, 1.2, true);
