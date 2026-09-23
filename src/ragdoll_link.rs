@@ -1111,6 +1111,46 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore = "A19: ragdoll currently selects a surviving old Avatar player"]
+    fn ragdoll_player_follows_current_assembly_avatar_with_old_player_alive() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner};
+        use bevy_animation_graph::AnimationGraphPlugin;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), AnimationGraphPlugin::default()));
+        let character = app.world_mut().spawn(AlsCharacter).id();
+        let spawn_avatar = |app: &mut App| {
+            let avatar = app.world_mut().spawn((
+                AlsCharacterAvatar { character },
+                AnimatedSceneHandle::default(),
+                ChildOf(character),
+            )).id();
+            let player = app.world_mut().spawn((
+                AnimationGraphPlayer::new(Handle::default()),
+                ChildOf(avatar),
+            )).id();
+            app.world_mut().trigger(WorldInstanceReady {
+                entity: avatar,
+                instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()),
+            });
+            app.world_mut().flush();
+            (avatar, player)
+        };
+        let (old_avatar, old_player) = spawn_avatar(&mut app);
+        let (new_avatar, new_player) = spawn_avatar(&mut app);
+        app.world_mut().entity_mut(character).insert(crate::character_assembly::AlsCharacterAssembly {
+            avatar: new_avatar,
+            camera: None,
+        });
+        let selected = app.world_mut().run_system_once(move |avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>| {
+            animated_player_for_character(character, &avatars)
+        }).unwrap();
+        assert!(app.world().entities().contains(old_avatar));
+        assert!(app.world().entities().contains(old_player));
+        assert_eq!(selected, Some(new_player));
+    }
+
+    #[test]
     fn ragdoll_ground_query_ignores_visibility_only_with_original_pawn_response() {
         use avian3d::prelude::{LayerMask, PhysicsPlugins};
         use bevy::ecs::system::RunSystemOnce;
