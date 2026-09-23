@@ -166,10 +166,24 @@ pub(crate) fn queue_turn_in_grounded_group(
         {
             return;
         }
+        let sampling_ready = world.get_resource::<crate::standing_source::SourceMontageAssets>()
+            .zip(world.get_resource::<Assets<bevy_animation_graph::core::animation_clip::GraphClip>>())
+            .zip(world.get_resource::<Assets<bevy_animation_graph::core::skeleton::Skeleton>>())
+            .is_some_and(|((assets, clips), skeletons)| {
+                crate::standing_source::sample_source_montage(
+                    request.source_sequence(), 0.0, assets, clips, skeletons).is_some()
+            });
         if let Some(mut transitions) = world.get_mut::<AlsTransitionMontageStack>(character) {
             transitions.stop_with_duration(TURN_MONTAGE_BLEND_DURATION);
         }
-        let curve_play_rate = request.play(&mut world.get_mut::<AlsTurnMontageStack>(avatar_entity).unwrap());
+        let curve_play_rate = {
+            let mut turns = world.get_mut::<AlsTurnMontageStack>(avatar_entity).unwrap();
+            let rate = request.play(&mut turns);
+            if sampling_ready {
+                turns.entries.last_mut().unwrap().sampling_ready = true;
+            }
+            rate
+        };
         world.get_mut::<AnimationGraphPlayer>(player_entity).unwrap()
             .set_global_input_data("turn_in_place_state.play_rate", curve_play_rate);
     });
@@ -469,6 +483,65 @@ fn dispatch_generated_transition_notifications(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn queued_turn_with_loaded_clip_is_ready_for_the_next_update() {
+        use bevy::ecs::system::RunSystemOnce;
+        use crate::character_assembly::{AlsCharacterBlueprint, spawn_als_character};
+        let (mut app, _, _, _) = crate::camera_component::tests::loaded_camera_scene();
+        let character = app.world_mut().run_system_once(|mut commands: Commands,
+            assets: Res<AssetServer>,
+            mut params: ResMut<Assets<als_core::params::AlsMovementParams>>,
+            mut configs: ResMut<Assets<als_core::control_scheme::AlsControlSchemeConfig>>| {
+            spawn_als_character(&mut commands, &assets, &mut params, &mut configs,
+                AlsCharacterBlueprint { spawn_input: false,
+                    ..AlsCharacterBlueprint::new(Transform::from_xyz(0.0, 3.0, 0.0)) })
+        }).unwrap();
+        app.world_mut().entity_mut(character).insert((avian3d::prelude::RigidBody::Kinematic,
+            bevy_tnua::TnuaToggle::Disabled));
+        let avatar = app.world().get::<AlsCharacterAssembly>(character).unwrap().avatar;
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(40);
+        loop {
+            app.update();
+            let ready = app.world().get::<AnimatedSceneInstance>(avatar)
+                .is_some_and(|instance| app.world().get::<AnimationGraphPlayer>(instance.player_entity()).is_some())
+                && app.world().get::<AlsTurnMontageStack>(avatar).is_some()
+                && crate::standing_source::sample_source_montage(
+                    "A_Als_Turn_90_Left", 0.0,
+                    app.world().resource::<crate::standing_source::SourceMontageAssets>(),
+                    app.world().resource::<Assets<bevy_animation_graph::core::animation_clip::GraphClip>>(),
+                    app.world().resource::<Assets<bevy_animation_graph::core::skeleton::Skeleton>>(),
+                ).is_some();
+            if ready { break; }
+            assert!(std::time::Instant::now() < deadline, "Turn source clip did not load");
+        }
+        app.world_mut().run_system_once(move |mut commands: Commands| {
+            queue_turn_in_grounded_group(&mut commands, character, avatar, SourceTurnRequest {
+                variant: als_core::turn_in_place::TurnVariant::Left90,
+                yaw: -90.0,
+                crouching: false,
+            });
+        }).unwrap();
+        app.world_mut().flush();
+        let started = app.world().get::<AlsTurnMontageStack>(avatar).unwrap().entries.last().unwrap();
+        assert!(started.sampling_ready);
+        let id = started.id;
+        app.update();
+        assert!(app.world().get::<AlsTurnMontageStack>(avatar).unwrap().entries.iter()
+            .any(|entry| entry.id == id && entry.elapsed > 0.0));
+
+        app.world_mut().remove_resource::<crate::standing_source::SourceMontageAssets>();
+        app.world_mut().entity_mut(avatar).insert(AlsTurnMontageStack::default());
+        app.world_mut().run_system_once(move |mut commands: Commands| {
+            queue_turn_in_grounded_group(&mut commands, character, avatar, SourceTurnRequest {
+                variant: als_core::turn_in_place::TurnVariant::Right90,
+                yaw: 90.0,
+                crouching: false,
+            });
+        }).unwrap();
+        app.world_mut().flush();
+        assert!(!app.world().get::<AlsTurnMontageStack>(avatar).unwrap().entries.last().unwrap().sampling_ready);
+    }
 
     #[test]
     fn destroyed_animation_instances_release_all_notification_cursors() {

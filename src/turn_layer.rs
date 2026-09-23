@@ -328,11 +328,14 @@ pub(crate) struct SourceTurnRequest {
 }
 
 impl SourceTurnRequest {
+    pub(crate) fn source_sequence(self) -> &'static str {
+        let (lr, is_180, _) = variant_params(self.variant, self.crouching);
+        source_turn_sequence(self.crouching, is_180, lr)
+    }
+
     pub(crate) fn play(self, stack: &mut AlsTurnMontageStack) -> f32 {
         let (lr, is_180, _) = variant_params(self.variant, self.crouching);
-        let duration = crate::standing_source::MONTAGES
-            [source_turn_sequence(self.crouching, is_180, lr)]
-        .duration;
+        let duration = crate::standing_source::MONTAGES[self.source_sequence()].duration;
         let play_rate = TurnInPlaceConfig::default().play_rate;
         stack.begin(lr, is_180, duration, play_rate, self.crouching);
         if self.crouching {
