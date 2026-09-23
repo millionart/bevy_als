@@ -445,3 +445,13 @@
 - [x] **BF124.A14-S2 — Turn 栈绑定播放器并同步终止旧 Slot**：开始：2026-09-23 14:37:32 +08:00；预估结束：2026-09-23 15:22:32 +08:00；实际结束：2026-09-23 14:49:19 +08:00；偏差：-33m13s；结果：当前 player 身份绑定、Update/PostUpdate 双入口旧栈与旧输入清理、focused 双顺序及 17 项 Turn 回归通过。让 Avatar Turn 栈记住当前 player，变化时在 Update 与 PostUpdate 桥接前归零栈/Drive；旧 player 仍活时同步清空 Turn pins、Standing/Crouching Slot 权重与 `SourceAnimationInputs` 上下文。估时依据：一处栈身份、一条共用 reconcile、两个现有消费者与 S1 WorldInstanceReady 夹具；拆分结果：S3 原 Playground 公共视觉 Gate，A15 不提前展开。
 
   source/static 完成摘要：一处 `owner_player: Option<Entity>` 随 Avatar 栈绑定当前 `AnimatedSceneInstance.player_entity()`；玩家身份变化时共享 `reconcile_turn_player` 重置栈/Drive 并返回旧 player，后者的 Turn pins、Slot 权重及 slot context 同步清零。Update 驱动与 PostUpdate 桥接均在推进/采样旧栈前调用，避免播放器在同帧更新时旧 Pose 转入新 player。S1 red 变 green，夹具验证旧 player 仍活、两种系统先看到替换的顺序、旧输入/新输入、Slot runtime 空；`turn_layer::tests::` 17/17。去掉桥接身份核对导致旧栈未清 red，去掉 Update 核对使旧播放器权重残留 red，恢复后均 green。剩余原 Playground 实际 Turn/播放器替换视觉 Gate。
+
+- [x] **BF124.A14-S3 — 原 Playground Turn 姿态/Slot 公共 Gate**：开始：2026-09-23 14:52:29 +08:00；预估结束：2026-09-23 15:37:29 +08:00；实际结束：2026-09-23 14:57:32 +08:00；偏差：-39m57s；结果：同入口 `startup`、Standing/Crouching Turn 公共功能 Gate 通过。S1/S2 真实 `WorldInstanceReady` focused 夹具已覆盖同 Avatar player 替换和双调度顺序；本项在启动器原地形/角色/相机用 `standing_turn` 与 `crouching_actions` 核对实际图状态、Turn 片段/Slot、root Pose、时间守卫与 runner 退出码。估时依据：S2 17 项 Turn 局部通过、既有公共场景/runner、同入口 `target_game/play` 预构建；拆分结果：A14 可汇总关闭，A15 不提前展开。
+
+  source/static 完成、runtime 前摘要：fresh `AB_Als`、`AB_Als_Grounded` 原生 reader 与 C++ AnimInstance/Turn Slot 闭包已记录；目标没有改动 RON/FSM/曲线或源资产，仅将 Avatar 栈/Drive 绑定当前播放器并清旧播放器输入。focused 同一 Avatar 三个 player 依次替换、旧实体保留、PostUpdate 先见与 Update 先见路径 green；局部 Turn 17/17。桥接与 Update 各自身份核对消融均 red，最终源码/工作树恢复。剩余真实入口 `startup`、`standing_turn`、`crouching_actions` 功能 Gate；完整性能预算延期。
+
+  `startup` 后、Turn 动作前摘要：同入口 `target_game/play` 限流构建成功，原 Playground 无驱动 `startup` 公共功能 Gate 通过；未见 graph error/fault/temporal/watchdog，完整性能预算延期。下一步同一二进制依次运行源 Standing Turn 和 Crouching Actions 场景，检查实际 Slot/片段、root Pose 与时序报告。
+
+  `standing_turn` 后、蹲姿 Turn 前摘要：同入口原 Playground `standing_turn` 功能 11/11、2,060 pose samples，runner/manual/validator 退出码 0，graph error/fault/temporal/watchdog 0；实际七次 Turn Slot 惯性结束请求完成。仅完整性能预算中的 max frame/eval 指标延期，不冒充全量性能通过。下一步同一二进制运行 `crouching_actions`，核对 Standing/Crouching 另一个 Slot 分支及动作终止。
+
+  runtime 最终完成摘要：同一 `target_game/play` 构建后的原 Playground `startup` 功能通过、`standing_turn` 11/11 与 2,060 pose samples、`crouching_actions` 11/11 与 810 pose samples；三者 runner/manual/validator 退出码 0，graph error/fault/temporal/watchdog 0。真实同 Avatar 换 player 的 focused Gate 双调度先后均 green，旧播放器 Slot/上下文归零，新播放器无旧 Pose；桥接和 Update 两处身份核对消融各自 red。完整性能预算延期，功能验收不冒充性能通过。
