@@ -1157,6 +1157,28 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "A12: ragdoll trace still uses unscaled capsule dimensions"]
+    fn ragdoll_trace_dimensions_use_world_horizontal_and_vertical_scale() {
+        let mut assets = Assets::<AlsMovementParams>::default();
+        let params = AlsMovementParams::default();
+        let standing_half = params.crouch.standing_capsule_half_height;
+        let crouched_half = params.crouch.crouched_capsule_half_height;
+        let radius = params.crouch.standing_capsule_radius;
+        let handle = AlsMovementParamsHandle(assets.add(params));
+        for scale in [Vec3::new(1.5, 2.0, 0.5), Vec3::new(0.5, 1.25, 1.5)] {
+            for (stance, base_half) in [
+                (Stance::Standing, standing_half),
+                (Stance::Crouching, crouched_half),
+            ] {
+                let (half_height, scaled_radius) =
+                    ragdoll_capsule_dimensions(stance, &handle, &assets);
+                assert!((half_height - base_half * scale.y).abs() < 1e-6);
+                assert!((scaled_radius - radius * scale.x.min(scale.z)).abs() < 1e-6);
+            }
+        }
+    }
+
+    #[test]
     fn initial_speed_limit_covers_entry_and_eight_refreshes() {
         let mut limit = AlsRagdollInitialSpeedLimit::new(0.5);
         for _ in 0..9 {
