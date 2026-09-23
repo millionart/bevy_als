@@ -258,6 +258,7 @@ pub struct AlsCameraViewSource(pub Entity);
 pub struct AlsCameraSocketBinding {
     pub avatar: Entity,
     pub root_bone: Option<Entity>,
+    root_avatar: Option<Entity>,
 }
 
 impl AlsCameraSocketBinding {
@@ -265,6 +266,7 @@ impl AlsCameraSocketBinding {
         Self {
             avatar,
             root_bone: None,
+            root_avatar: None,
         }
     }
 }
@@ -469,6 +471,10 @@ fn resolve_camera_socket_locations(
         let Some(definition) = definitions.get(&handle.0) else {
             continue;
         };
+        if binding.root_avatar != Some(binding.avatar) {
+            binding.root_bone = None;
+            binding.root_avatar = Some(binding.avatar);
+        }
         if binding
             .root_bone
             .is_none_or(|entity| globals.get(entity).is_err())
@@ -476,6 +482,7 @@ fn resolve_camera_socket_locations(
             binding.root_bone = find_named_descendant(binding.avatar, "root", &children, &names);
         }
         let Some(root_bone) = binding.root_bone else {
+            locations.valid = false;
             continue;
         };
         let Ok(mesh_parent) = parents.get(root_bone) else {
@@ -1863,7 +1870,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "A18: cached root remains bound to a live previous Avatar"]
     fn camera_rebinds_root_when_avatar_changes_and_old_root_survives() {
         use bevy::ecs::system::RunSystemOnce;
         let mut world = World::new();
@@ -1888,7 +1894,11 @@ mod tests {
             (avatar, root)
         };
         let (old_avatar, old_root) = spawn_avatar(Vec3::X);
-        let (new_avatar, new_root) = spawn_avatar(Vec3::Z * 2.0);
+        let new_avatar = world.spawn(ChildOf(actor)).id();
+        let new_mesh = world.spawn((
+            ChildOf(new_avatar),
+            GlobalTransform::from_translation(Vec3::Z * 2.0),
+        )).id();
         world.entity_mut(actor).insert((
             AlsCameraSocketBinding::new(old_avatar),
             AlsCameraSocketLocations::default(),
@@ -1899,7 +1909,17 @@ mod tests {
         world.get_mut::<AlsCameraSocketBinding>(actor).unwrap().avatar = new_avatar;
         world.run_system_once(resolve_camera_socket_locations).unwrap();
         assert!(world.entities().contains(old_root));
+        assert_eq!(world.get::<AlsCameraSocketBinding>(actor).unwrap().root_bone, None);
+        assert!(!world.get::<AlsCameraSocketLocations>(actor).unwrap().valid);
+        let new_root = world.spawn((
+            Name::new("root"),
+            bevy::animation::AnimationTargetId::from_names([Name::new("root")].iter()),
+            ChildOf(new_mesh),
+            GlobalTransform::from_translation(Vec3::Z * 2.0),
+        )).id();
+        world.run_system_once(resolve_camera_socket_locations).unwrap();
         assert_eq!(world.get::<AlsCameraSocketBinding>(actor).unwrap().root_bone, Some(new_root));
+        assert!(world.get::<AlsCameraSocketLocations>(actor).unwrap().valid);
         assert_eq!(world.get::<AlsCameraSocketLocations>(actor).unwrap().root, Vec3::Z * 2.0);
     }
 
