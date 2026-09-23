@@ -1078,6 +1078,61 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "A30 source mismatch fixture"]
+    fn synchronized_sequence_respects_paused_player_time() {
+        use bevy_animation_graph::core::{animated_scene::AnimatedSceneInstance,
+            animation_graph::AnimationGraph, animation_graph_player::AnimationGraphPlayer,
+            animation_node::AnimationNode, edge_data::DataSpec};
+        let (mut app, character, avatar, _) = crate::camera_component::tests::loaded_camera_scene();
+        let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        app.world_mut().entity_mut(avatar)
+            .remove::<(crate::camera_component::AlsSourceCameraComponent, crate::character_assembly::AlsCharacterCamera)>()
+            .insert(crate::character_assembly::AlsCharacterAvatar { character });
+        app.world_mut().entity_mut(character).insert(AlsCharacter);
+        let clip: Handle<GraphClip> = app.world().resource::<AssetServer>()
+            .load("animations/Grounded/WalkRun/A_Als_Walk_Forward.anim.ron");
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        while app.world().resource::<Assets<GraphClip>>().get(&clip).is_none() {
+            app.update();
+            assert!(std::time::Instant::now() < deadline, "Synchronized source clip load timed out");
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        let skeleton = app.world().resource::<Assets<GraphClip>>().get(&clip).unwrap().skeleton.clone();
+        let node = AnimationNode::new("synced walk", als_ext::SourceSequencePlayerNode {
+            clip,
+            synchronization: Some(als_ext::source_sequence_player::SourceSequenceSynchronization {
+                key: "sync.pause".to_owned(),
+                delta_seconds_key: "animation.delta_seconds".to_owned(),
+                ..default()
+            }),
+            ..default()
+        });
+        let mut graph = AnimationGraph::default();
+        graph.add_output_data("pose".to_owned(), DataSpec::Pose);
+        graph.add_output_data_edge(node.id, "Pose", "pose");
+        graph.add_node(node);
+        let graph = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(graph);
+        app.world_mut().entity_mut(player_entity)
+            .remove::<als_ext::post_physics_animation::ManualAnimationPlayer>()
+            .insert(AnimationGraphPlayer::new(skeleton).with_graph(graph));
+        app.world_mut().get_mut::<AnimationGraphPlayer>(player_entity).unwrap()
+            .set_global_input_data("animation.delta_seconds", 0.1_f32);
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.1)));
+        for _ in 0..3 { app.update(); }
+        let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+        assert!(player.get_error().is_none(), "{:?}", player.get_error());
+        let before = player.get_default_output_pose().unwrap().timestamp;
+        assert!(before > 0.0);
+        app.world_mut().get_mut::<AnimationGraphPlayer>(player_entity).unwrap().pause();
+        app.update();
+        let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+        assert!(player.get_error().is_none(), "{:?}", player.get_error());
+        assert!(player.get_global_input_data("animation.delta_seconds").unwrap().as_f32().unwrap() > 0.0);
+        let after = player.get_default_output_pose().unwrap().timestamp;
+        assert!((after - before).abs() < 1e-5, "Paused sync clock advanced from {before} to {after}");
+    }
+
+    #[test]
     fn source_zero_frame_footsteps_keep_their_trigger_offset() {
         let manifest: AlsNotifyManifest = serde_json::from_str(include_str!("../assets/animation_events/als_notify_manifest.json")).unwrap();
         for side in ["Left", "Right"] {
