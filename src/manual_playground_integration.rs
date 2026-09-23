@@ -43,6 +43,7 @@ use bevy::animation::AnimationTargetId;
 use bevy::ecs::message::{MessageReader, MessageWriter};
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
+use bevy::reflect::{PartialReflect, ReflectMut};
 use bevy::time::{Real, Virtual};
 use bevy_animation_graph::core::animated_scene::{AnimatedScene, AnimatedSceneHandle, AnimatedSceneInstance};
 use bevy_animation_graph::core::animation_graph::{AnimationGraph, NodeId, SourcePin, TargetPin};
@@ -50,6 +51,7 @@ use bevy_animation_graph::core::animation_graph_player::{AnimationGraphPlayer, A
 use bevy_animation_graph::core::context::node_states::StateKey;
 use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::ragdoll::definition::{BodyLabel, JointLabel};
+use bevy_animation_graph::core::ragdoll::spawning::SpawnedRagdoll;
 use bevy_animation_graph::core::{
     pose::Pose, skeleton::Skeleton, state_machine::high_level::StateMachine,
 };
@@ -613,11 +615,19 @@ impl Plugin for ManualPlaygroundIntegrationPlugin {
         moving_base::install(app);
         footprints::install(app);
         hud_layout::install(app);
+        if std::env::var("ALS_MANUAL_RAGDOLL_PLAYER_REPLACEMENT").as_deref() == Ok("1") {
+            app.add_systems(PreUpdate, replace_ragdoll_player_once.after(drive_manual_integration));
+        }
     }
 }
 
 #[derive(Component)]
 struct ManualIntegrationPlatform;
+
+#[derive(Component)]
+struct ManualRagdollPlayerReplacement {
+    old_root: Entity,
+}
 
 #[derive(Component)]
 struct ManualFootIkTerrain;
@@ -3022,6 +3032,7 @@ struct IntegrationCoverage {
     grounded_joint: [bool; 8],
     ragdoll_entered: bool,
     ragdoll_pa_profile: bool,
+    ragdoll_player_replaced: bool,
     ragdoll_follow: bool,
     ragdoll_scaled: bool,
     ragdoll_joint_drive: bool,
@@ -3089,6 +3100,7 @@ struct ManualIntegrationState {
     initial_view_pitch: Option<f32>,
     mantle_root_released: bool,
     ragdoll_seen: bool,
+    expect_ragdoll_player_replacement: bool,
     ragdoll_exit_requested: bool,
     ragdoll_frames: u32,
     get_up_case: usize,
@@ -3218,6 +3230,8 @@ impl Default for ManualIntegrationState {
             initial_view_pitch: None,
             mantle_root_released: false,
             ragdoll_seen: false,
+            expect_ragdoll_player_replacement:
+                std::env::var("ALS_MANUAL_RAGDOLL_PLAYER_REPLACEMENT").as_deref() == Ok("1"),
             ragdoll_exit_requested: false,
             ragdoll_frames: 0,
             get_up_case: 0,
@@ -3399,6 +3413,8 @@ struct MotionProbe<'w, 's> {
 
 #[derive(SystemParam)]
 struct RagdollPaProbe<'w, 's> {
+    replacements: Query<'w, 's, &'static ManualRagdollPlayerReplacement>,
+    alive: Query<'w, 's, Entity>,
     labels: Query<'w, 's, &'static BodyLabel>,
     colliders: Query<'w, 's, &'static Collider>,
     joints: Query<'w, 's, (&'static SourcePhysicsJoint, &'static JointLabel)>,
@@ -3789,6 +3805,29 @@ fn foot_avatar_replacement_timed_out(elapsed: f32, covered: bool) -> bool {
 }
 
 #[allow(clippy::type_complexity)]
+fn replace_ragdoll_player_once(world: &mut World) {
+    let state = world.resource::<ManualIntegrationState>();
+    if !state.initialized || state.scenario != IntegrationScenario::Ragdoll
+        || state.phase != IntegrationPhase::Ragdoll || state.phase_elapsed() > 0.15 {
+        return;
+    }
+    let Some(avatar) = state.avatar else { return; };
+    let Some(instance) = world.get::<AnimatedSceneInstance>(avatar) else { return; };
+    let player_entity = instance.player_entity();
+    if world.get::<ManualRagdollPlayerReplacement>(player_entity).is_some() { return; }
+    let Some(old_root) = world.get::<AnimationGraphPlayer>(player_entity)
+        .and_then(AnimationGraphPlayer::get_spawned_ragdoll)
+        .map(|spawned| spawned.root) else { return; };
+    if world.get::<RagdollPhysicsProfileApplied>(player_entity)
+        .is_none_or(|applied| applied.spawned_root != Some(old_root)) { return; }
+    let Some(mut player) = world.entity_mut(player_entity).take::<AnimationGraphPlayer>() else { return; };
+    let ReflectMut::Struct(fields) = player.reflect_mut() else { panic!("player must reflect as a struct") };
+    *fields.field_mut("spawned_ragdoll").unwrap()
+        .try_downcast_mut::<Option<SpawnedRagdoll>>().unwrap() = None;
+    world.entity_mut(player_entity).insert((player, ManualRagdollPlayerReplacement { old_root }));
+    info!("[MANUAL-INTEGRATION][RAGDOLL-PLAYER-REPLACEMENT] player={player_entity:?} old_root={old_root:?} -> PASS");
+}
+
 fn drive_manual_integration(
     mut commands: Commands,
     fixture: Option<Res<ManualIntegrationFixture>>,
@@ -5738,6 +5777,7 @@ fn drive_manual_integration(
                 state.ragdoll_recovered_at = None;
                 state.coverage.ragdoll_entered = false;
                 state.coverage.ragdoll_pa_profile = false;
+                state.coverage.ragdoll_player_replaced = false;
                 state.coverage.ragdoll_follow = false;
                 state.coverage.ragdoll_scaled = false;
                 state.coverage.ragdoll_joint_drive = false;
@@ -9271,7 +9311,8 @@ fn observe_manual_integration(
                 applied.handoff_animated_body_rotation_error_radians;
         }
         let profile_valid = profile.is_some_and(|(applied, _)| {
-            applied.body_count == 21
+            applied.spawned_root == Some(spawned.root)
+                && applied.body_count == 21
                 && applied.collider_count == 22
                 && applied.joint_count == 20
                 && applied.source_joint_count == 19
@@ -9287,6 +9328,10 @@ fn observe_manual_integration(
                     member.group == spawned.root && member.disabled_pairs.len() == 49
                 })
         });
+        state.coverage.ragdoll_player_replaced |= profile_valid
+            && ragdoll_probe.replacements.get(instance.player_entity()).is_ok_and(|replacement|
+                replacement.old_root != spawned.root
+                    && !ragdoll_probe.alive.contains(replacement.old_root));
         let mut dynamic = 0usize;
         let mut root_kinematic = false;
         for body in spawned.bodies.values() {
@@ -9771,7 +9816,7 @@ fn observe_manual_integration(
                 }
             }
         }
-        let results = match state.scenario {
+        let mut results = match state.scenario {
             IntegrationScenario::LocomotionActions => {
                 if state.timed_out {
                     gate_report.direction_trace.push(serde_json::json!({"watchdog": {"exit_reason": "case_progress_timeout", "last_progress": state.locomotion_probe.case_index, "no_progress_limit_seconds": 12.0, "current_conditions": state.locomotion_probe.sample}}));
@@ -10273,6 +10318,9 @@ fn observe_manual_integration(
                 ("camera_shake", coverage.camera_shake),
             ],
         };
+        if state.scenario == IntegrationScenario::Ragdoll && state.expect_ragdoll_player_replacement {
+            results.push(("ragdoll_player_replacement", coverage.ragdoll_player_replaced));
+        }
         for (name, covered) in &results {
             if *covered {
                 info!("[MANUAL-INTEGRATION][EXECUTED] {name}");
