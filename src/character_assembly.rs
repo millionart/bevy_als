@@ -17,7 +17,7 @@ use als_ext::overlay_materials::{AVATAR_MAIN_MATERIAL_SLOT, AvatarMaterialOverri
 
 use crate::animation_events::{
     AlsAnimationEventPlaybacks, AlsNotifyEarlyBlendOut, AlsNotifyLocomotionAction,
-    AlsNotifyRootMotionScale, AlsStandingEventClock,
+    AlsNotifyRootMotionScale,
 };
 
 pub const AVATAR_FORWARD_YAW: f32 = std::f32::consts::PI;
@@ -249,7 +249,6 @@ fn spawn_als_character_internal(
             als_camera::AlsCameraCurveValues::default(),
             als_camera::AlsCameraAnimationFrame::default(),
             als_camera::AlsCameraDefinitionHandle(assets.load("params/als_camera.camera_component.ron")),
-            AlsStandingEventClock::default(),
             AlsAnimationEventPlaybacks::default(),
             AlsNotifyLocomotionAction::None,
             AlsNotifyRootMotionScale::default(),

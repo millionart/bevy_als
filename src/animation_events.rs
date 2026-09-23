@@ -153,13 +153,6 @@ impl From<serde_json::Error> for AlsNotifyManifestLoadError {
     }
 }
 
-#[derive(Component, Clone, Copy, Debug, Default)]
-pub struct AlsStandingEventClock {
-    pub sprint_time: Option<f32>,
-    pub sprint_weight: f32,
-    pub sprint_acceleration_weight: f32,
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct AlsAnimationEventPlayback {
     pub instance_id: u64,
@@ -284,6 +277,7 @@ fn dispatch_graph_footsteps(
     players: Query<&bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer>,
     mut frames: Local<HashMap<Entity, GraphFootstepDispatch>>,
     mut events: MessageWriter<AlsAnimationEvent>,
+    mut shakes: MessageWriter<AlsCameraShakeRequest>,
 ) {
     use bevy_animation_graph::core::{animation_graph::NodeId, animation_graph_player::AnimationSource, context::node_states::StateKey};
     use als_ext::sync_group_phase::{source_sync_players, select_source_sync_group_leader, SourceSyncGroupCandidate};
@@ -334,8 +328,10 @@ fn dispatch_graph_footsteps(
                         .is_some_and(|index| Some(players[index].identity) == sample.sync_identity)
                 })
             };
+            let sprint = source.source_asset == SOURCE_SPRINT || source.source_asset == SOURCE_SPRINT_ACCELERATION;
             let definitions = timed_events(source).into_iter().filter(|definition| source.events.iter().any(|event|
-                event.event_id == definition.id && event.class_name == "AlsAnimNotify_FootstepEffects")).collect::<Vec<_>>();
+                event.event_id == definition.id && (event.class_name == "AlsAnimNotify_FootstepEffects"
+                    || (sprint && event.class_name == "AlsAnimNotify_CameraShake")))).collect::<Vec<_>>();
             let weight = if sample.montage { sample.clock.weight.max(previous.map_or(0.0, |previous| previous.1)) } else { sample.clock.weight };
             let mut signals = Vec::new();
             for clock in graph_footstep_clocks(&sample.clock, previous_time) {
@@ -346,6 +342,10 @@ fn dispatch_graph_footsteps(
             }
             for signal in signals {
                 let event = source.events.iter().find(|event| event.event_id == signal.id).unwrap();
+                if event.class_name == "AlsAnimNotify_CameraShake" && signal.phase == EventPhase::Point {
+                    shakes.write(AlsCameraShakeRequest::sprint(avatar.character,
+                        parameter_f32(&event.parameters, "CameraShakeScale", 1.0)));
+                }
                 events.write(AlsAnimationEvent {
                     character: avatar.character,
                     instance_id: if sample.montage { sample.identity.rsplit(':').next().and_then(|value| value.parse().ok()).unwrap_or(0) } else { source_instance },
@@ -392,7 +392,8 @@ impl Plugin for AlsAnimationEventPlugin {
                 PostUpdate,
                 dispatch_animation_events.in_set(AlsAnimationEventSet::Dispatch),
             )
-            .configure_sets(PostUpdate, AlsAnimationEventSet::GraphFootsteps.after(AnimationGraphSet::Final))
+            .configure_sets(PostUpdate, AlsAnimationEventSet::GraphFootsteps
+                .after(AnimationGraphSet::Final).before(als_camera::AlsCameraSet))
             .add_systems(
                 PostUpdate,
                 dispatch_graph_footsteps.in_set(AlsAnimationEventSet::GraphFootsteps),
@@ -486,7 +487,6 @@ fn refresh_animation_event_playbacks(
     mut characters: Query<
         (
             &mut AlsAnimationEventPlaybacks,
-            Option<&AlsStandingEventClock>,
             Option<&AlsRollState>,
             Option<&crate::roll_drive::AlsRollBlendOut>,
             Option<&crate::mantle_drive::AlsMantleMontages>,
@@ -501,34 +501,8 @@ fn refresh_animation_event_playbacks(
     let Some(manifest) = manifests.get(&handle.0) else {
         return;
     };
-    for (mut playbacks, standing, roll, roll_blend_out, mantle, get_up) in &mut characters {
+    for (mut playbacks, roll, roll_blend_out, mantle, get_up) in &mut characters {
         let mut entries = Vec::new();
-        if let Some(clock) = standing {
-            let time = clock.sprint_time.unwrap_or_default();
-            let base_weight = clock.sprint_weight - clock.sprint_acceleration_weight;
-            if let Some(graph_clip) = graph_clip_for_source(manifest, SOURCE_SPRINT) {
-                push_playback(
-                    &mut entries,
-                    SOURCE_SPRINT,
-                    graph_clip,
-                    time,
-                    base_weight,
-                    true,
-                    false,
-                );
-            }
-            if let Some(graph_clip) = graph_clip_for_source(manifest, SOURCE_SPRINT_ACCELERATION) {
-                push_playback(
-                    &mut entries,
-                    SOURCE_SPRINT_ACCELERATION,
-                    graph_clip,
-                    time,
-                    clock.sprint_acceleration_weight,
-                    true,
-                    false,
-                );
-            }
-        }
         if let Some(roll) = roll.filter(|state| state.active) {
             let time = (roll.time * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS);
             if let Some(graph_clip) = graph_clip_for_source(manifest, SOURCE_ROLL_SEQUENCE) {
@@ -969,31 +943,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore = "A32 source mismatch fixture"]
-    fn sprint_camera_shakes_require_evaluated_graph_samples() {
-        use bevy::ecs::system::RunSystemOnce;
-        let mut app = App::new();
-        app.add_plugins((MinimalPlugins, AssetPlugin::default()))
-            .init_asset::<AlsNotifyManifest>();
-        let manifest: AlsNotifyManifest = serde_json::from_str(include_str!("../assets/animation_events/als_notify_manifest.json")).unwrap();
-        let handle = app.world_mut().resource_mut::<Assets<AlsNotifyManifest>>().add(manifest);
-        app.insert_resource(AlsNotifyManifestHandle(handle));
-        let character = app.world_mut().spawn((
-            AlsCharacter,
-            AlsAnimationEventPlaybacks::default(),
-            AlsStandingEventClock {
-                sprint_time: Some(0.1),
-                sprint_weight: 1.0,
-                sprint_acceleration_weight: 0.0,
-            },
-        )).id();
-        app.world_mut().run_system_once(refresh_animation_event_playbacks).unwrap();
-        let entries = &app.world().get::<AlsAnimationEventPlaybacks>(character).unwrap().entries;
-        assert!(entries.iter().all(|entry| entry.source_asset != SOURCE_SPRINT &&
-            entry.source_asset != SOURCE_SPRINT_ACCELERATION), "Synthetic Sprint playback replaced the evaluated graph clock");
-    }
-
-    #[test]
     fn custom_source_action_and_early_blend_tags_keep_their_identity() {
         assert_eq!(notify_action(Some("Als.LocomotionAction.Custom")).as_str(), "Als.LocomotionAction.Custom");
         let rotation = als_core::state::RotationMode::new("Als.RotationMode.Custom").unwrap();
@@ -1100,6 +1049,90 @@ mod tests {
             assert!(!app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain()
                 .any(|event| event.character == character && event.class_name == "AlsAnimNotify_FootstepEffects"));
         }
+    }
+
+    #[test]
+    fn sprint_shake_uses_evaluated_sync_leader_and_clip_clock() {
+        use bevy_animation_graph::core::{animated_scene::AnimatedSceneInstance,
+            animation_graph::AnimationGraph, animation_graph_player::AnimationGraphPlayer,
+            animation_node::AnimationNode, edge_data::DataSpec};
+        let (mut app, character, avatar, _) = crate::camera_component::tests::loaded_camera_scene();
+        let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        app.world_mut().entity_mut(avatar)
+            .remove::<(crate::camera_component::AlsSourceCameraComponent, crate::character_assembly::AlsCharacterCamera)>()
+            .insert(crate::character_assembly::AlsCharacterAvatar { character });
+        app.world_mut().entity_mut(character).insert(AlsCharacter);
+        let clips = [SOURCE_SPRINT, SOURCE_SPRINT_ACCELERATION].map(|source| {
+            let path = if source == SOURCE_SPRINT {
+                "animations/Grounded/Sprint/A_Als_Sprint.anim.ron"
+            } else {
+                "animations/Grounded/Sprint/A_Als_Sprint_Acceleration.anim.ron"
+            };
+            app.world().resource::<AssetServer>().load::<GraphClip>(path)
+        });
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        while clips.iter().any(|clip| app.world().resource::<Assets<GraphClip>>().get(clip).is_none()) {
+            app.update();
+            assert!(std::time::Instant::now() < deadline, "Sprint source clips load timed out");
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        let skeleton = app.world().resource::<Assets<GraphClip>>().get(&clips[0]).unwrap().skeleton.clone();
+        let sequences = clips.into_iter().map(|clip| AnimationNode::new("sprint", als_ext::SourceSequencePlayerNode {
+            clip,
+            synchronization: Some(als_ext::source_sequence_player::SourceSequenceSynchronization {
+                key: "sprint.test".to_owned(),
+                delta_seconds_key: "animation.delta_seconds".to_owned(),
+                ..default()
+            }),
+            ..default()
+        })).collect::<Vec<_>>();
+        let blend = AnimationNode::new("blend", als_ext::SourceMultiWayBlendNode {
+            pose_count: 2,
+            desired_alpha_keys: vec!["sprint_base_weight".into(), "sprint_accel_weight".into()],
+            desired_alpha_defaults: vec![0.5, 0.5],
+            ..default()
+        });
+        let root = AnimationNode::new("root", als_ext::SourcePosePassthroughNode {
+            output_time: false,
+            synchronize_groups: true,
+            ..default()
+        });
+        let mut graph = AnimationGraph::default();
+        graph.add_output_data("pose".to_owned(), DataSpec::Pose);
+        for (index, sequence) in sequences.iter().enumerate() {
+            graph.add_node(sequence.clone());
+            graph.add_node_parameter_edge(sequence.id, "Pose", blend.id, format!("Poses {index}"));
+        }
+        graph.add_node(blend.clone());
+        graph.add_node(root.clone());
+        graph.add_node_parameter_edge(blend.id, "Pose", root.id, "Source");
+        graph.add_output_data_edge(root.id, "Pose", "pose");
+        let graph = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(graph);
+        app.world_mut().entity_mut(player_entity)
+            .remove::<als_ext::post_physics_animation::ManualAnimationPlayer>()
+            .insert(AnimationGraphPlayer::new(skeleton).with_graph(graph));
+        {
+            let mut player = app.world_mut().get_mut::<AnimationGraphPlayer>(player_entity).unwrap();
+            player.set_global_input_data("animation.delta_seconds", 0.05_f32);
+            player.set_global_input_data("sprint_base_weight", 0.5_f32);
+            player.set_global_input_data("sprint_accel_weight", 0.5_f32);
+        }
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.05)));
+        app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().clear();
+        app.world_mut().resource_mut::<Messages<AlsCameraShakeRequest>>().clear();
+        app.update();
+        assert!(app.world().get::<AnimationGraphPlayer>(player_entity).unwrap().get_error().is_none());
+        assert_eq!(app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain()
+            .filter(|event| event.class_name == "AlsAnimNotify_CameraShake").count(), 0);
+        app.update();
+        assert_eq!(app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain()
+            .filter(|event| event.class_name == "AlsAnimNotify_CameraShake").count(), 0);
+        app.update();
+        let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+        assert!(player.get_error().is_none(), "{:?}", player.get_error());
+        assert_eq!(app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain()
+            .filter(|event| event.class_name == "AlsAnimNotify_CameraShake").count(), 1);
+        assert_eq!(app.world_mut().resource_mut::<Messages<AlsCameraShakeRequest>>().drain().count(), 1);
     }
 
     #[test]
