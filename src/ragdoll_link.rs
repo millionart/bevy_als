@@ -35,7 +35,7 @@ use bevy_animation_graph::core::ragdoll::{
 use bevy_animation_graph::core::skeleton::Skeleton;
 use bevy_tnua::TnuaToggle;
 
-use crate::character_assembly::AlsCharacterAvatar;
+use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar};
 
 const PELVIS_LABEL: &str = "pelvis";
 pub const RAGDOLL_REFERENCE_SPEED_METERS_PER_SECOND: f32 = 10.0;
@@ -260,11 +260,11 @@ fn find_body_by_label(
 
 fn animated_player_for_character(
     character: Entity,
+    assembly: Option<&AlsCharacterAssembly>,
     avatars: &Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
 ) -> Option<Entity> {
-    avatars.iter().find_map(|(avatar, instance)| {
-        (avatar.character == character).then_some(instance.player_entity())
-    })
+    let (avatar, instance) = avatars.get(assembly?.avatar).ok()?;
+    (avatar.character == character).then_some(instance.player_entity())
 }
 
 fn refresh_player_subtree_globals(
@@ -292,7 +292,7 @@ fn capture_ragdoll_player_world_transform(
     mut commands: Commands,
     transform_helper: TransformHelper,
     characters: Query<
-        (Entity, Option<&AlsNotifyLocomotionAction>),
+        (Entity, Option<&AlsNotifyLocomotionAction>, Option<&AlsCharacterAssembly>),
         (With<AlsCharacter>, Without<AlsRagdollCharacterPhysics>),
     >,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
@@ -304,11 +304,11 @@ fn capture_ragdoll_player_world_transform(
     children: Query<&Children>,
     mut globals: Query<&mut GlobalTransform>,
 ) {
-    for (character, action) in &characters {
+    for (character, action, assembly) in &characters {
         if action != Some(&AlsNotifyLocomotionAction::Ragdolling) {
             continue;
         }
-        let Some(player) = animated_player_for_character(character, &avatars) else {
+        let Some(player) = animated_player_for_character(character, assembly, &avatars) else {
             continue;
         };
         if detached_players.get(player).is_ok() {
@@ -334,7 +334,7 @@ fn capture_ragdoll_player_world_transform(
 
 fn sync_ragdoll_body_modes(
     mut commands: Commands,
-    characters: Query<(Entity, Option<&AlsNotifyLocomotionAction>), With<als_core::character::AlsCharacter>>,
+    characters: Query<(Entity, Option<&AlsNotifyLocomotionAction>, Option<&AlsCharacterAssembly>), With<als_core::character::AlsCharacter>>,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     mut players: Query<(
         &AnimationGraphPlayer,
@@ -350,14 +350,12 @@ fn sync_ragdoll_body_modes(
         Has<AlsRagdollPhysicsActive>,
     )>,
 ) {
-    for (character, action) in &characters {
-        let Some(instance) = avatars
-            .iter()
-            .find_map(|(avatar, instance)| (avatar.character == character).then_some(instance))
+    for (character, action, assembly) in &characters {
+        let Some(player_entity) = animated_player_for_character(character, assembly, &avatars)
         else {
             continue;
         };
-        let Ok((player, profile)) = players.get_mut(instance.player_entity()) else {
+        let Ok((player, profile)) = players.get_mut(player_entity) else {
             continue;
         };
         let Some(spawned) = player.get_spawned_ragdoll() else {
@@ -494,7 +492,7 @@ fn ragdoll_pelvis_velocity(
 fn ragdoll_joint_drive_adapter_system(
     mut commands: Commands,
     mut characters: Query<
-        (Entity, Option<&AlsNotifyLocomotionAction>, Option<&mut AlsRagdollJointDrive>),
+        (Entity, Option<&AlsNotifyLocomotionAction>, Option<&AlsCharacterAssembly>, Option<&mut AlsRagdollJointDrive>),
         With<AlsCharacter>,
     >,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
@@ -507,12 +505,10 @@ fn ragdoll_joint_drive_adapter_system(
     labels: Query<&BodyLabel>,
     velocities: Query<&LinearVelocity>,
 ) {
-    for (character, action, current_drive) in &mut characters {
+    for (character, action, assembly, current_drive) in &mut characters {
         let mut drive = AlsRagdollJointDrive::default();
-        let player = avatars
-            .iter()
-            .find_map(|(avatar, instance)| (avatar.character == character).then_some(instance))
-            .and_then(|instance| players.get(instance.player_entity()).ok());
+        let player = animated_player_for_character(character, assembly, &avatars)
+            .and_then(|entity| players.get(entity).ok());
         if let Some((player_entity, player, metrics)) = player {
             if action == Some(&AlsNotifyLocomotionAction::Ragdolling) {
                 let speed = player
@@ -785,18 +781,18 @@ fn ragdoll_character_physics_system(
 
 fn limit_initial_ragdoll_speed(
     mut characters: Query<
-        (Entity, Option<&AlsNotifyLocomotionAction>, &mut AlsRagdollInitialSpeedLimit),
+        (Entity, Option<&AlsNotifyLocomotionAction>, Option<&AlsCharacterAssembly>, &mut AlsRagdollInitialSpeedLimit),
         With<AlsCharacter>,
     >,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     players: Query<&AnimationGraphPlayer>,
     mut velocities: Query<&mut LinearVelocity>,
 ) {
-    for (character, action, mut limit) in &mut characters {
+    for (character, action, assembly, mut limit) in &mut characters {
         if action != Some(&AlsNotifyLocomotionAction::Ragdolling) {
             continue;
         }
-        let Some(player) = animated_player_for_character(character, &avatars)
+        let Some(player) = animated_player_for_character(character, assembly, &avatars)
             .and_then(|entity| players.get(entity).ok())
         else {
             continue;
@@ -957,6 +953,7 @@ fn ragdoll_ground_follow(
             &Stance,
             &AlsMovementParamsHandle,
             &AlsCollisionLayerOwnership,
+            Option<&AlsCharacterAssembly>,
         ),
         With<AlsCharacter>,
     >,
@@ -965,17 +962,15 @@ fn ragdoll_ground_follow(
     labels: Query<&BodyLabel>,
     body_states: Query<(&Position, &LinearVelocity), Without<AlsCharacter>>,
 ) {
-    for (entity, _position, action, stance, params_handle, collision_ownership) in &characters {
+    for (entity, _position, action, stance, params_handle, collision_ownership, assembly) in &characters {
         if action != Some(&AlsNotifyLocomotionAction::Ragdolling) {
             continue;
         }
-        let Some(instance) = avatars
-            .iter()
-            .find_map(|(avatar, instance)| (avatar.character == entity).then_some(instance))
+        let Some(player_entity) = animated_player_for_character(entity, assembly, &avatars)
         else {
             continue;
         };
-        let Ok(player) = players.get(instance.player_entity()) else {
+        let Ok(player) = players.get(player_entity) else {
             continue;
         };
         let Some(spawned) = player.get_spawned_ragdoll() else {
@@ -1056,21 +1051,19 @@ fn apply_ragdoll_ground_follow(
 #[allow(clippy::type_complexity)]
 fn ragdoll_link_system(
     mut commands: Commands,
-    mut q: Query<(Entity, Option<&AlsNotifyLocomotionAction>, &mut AlsRagdollLink), With<AlsCharacter>>,
+    mut q: Query<(Entity, Option<&AlsNotifyLocomotionAction>, Option<&AlsCharacterAssembly>, &mut AlsRagdollLink), With<AlsCharacter>>,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     mut players: Query<&mut AnimationGraphPlayer>,
     layers: Query<(Option<&AlsRagdollColliderLayers>, &CollisionLayers)>,
 ) {
-    for (character, action, mut link) in &mut q {
+    for (character, action, assembly, mut link) in &mut q {
         let is_ragdoll = action == Some(&AlsNotifyLocomotionAction::Ragdolling);
-        let Some(instance) = avatars
-            .iter()
-            .find_map(|(avatar, instance)| (avatar.character == character).then_some(instance))
+        let Some(player_entity) = animated_player_for_character(character, assembly, &avatars)
         else {
             link.prev_ragdoll = is_ragdoll;
             continue;
         };
-        let Ok(mut player) = players.get_mut(instance.player_entity()) else {
+        let Ok(mut player) = players.get_mut(player_entity) else {
             link.prev_ragdoll = is_ragdoll;
             continue;
         };
@@ -1111,7 +1104,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore = "A19: ragdoll currently selects a surviving old Avatar player"]
     fn ragdoll_player_follows_current_assembly_avatar_with_old_player_alive() {
         use bevy::ecs::system::RunSystemOnce;
         use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner};
@@ -1142,8 +1134,8 @@ mod tests {
             avatar: new_avatar,
             camera: None,
         });
-        let selected = app.world_mut().run_system_once(move |avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>| {
-            animated_player_for_character(character, &avatars)
+        let selected = app.world_mut().run_system_once(move |avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>, assemblies: Query<&AlsCharacterAssembly>| {
+            animated_player_for_character(character, assemblies.get(character).ok(), &avatars)
         }).unwrap();
         assert!(app.world().entities().contains(old_avatar));
         assert!(app.world().entities().contains(old_player));
@@ -1693,6 +1685,10 @@ mod tests {
                 ChildOf(actor),
             ))
             .id();
+        app.world_mut().entity_mut(actor).insert(AlsCharacterAssembly {
+            avatar,
+            camera: None,
+        });
         let player = app
             .world_mut()
             .spawn((
@@ -2043,6 +2039,10 @@ mod tests {
                 ChildOf(actor),
             ))
             .id();
+        app.world_mut().entity_mut(actor).insert(AlsCharacterAssembly {
+            avatar,
+            camera: None,
+        });
         for _ in 0..5 {
             app.update();
         }
