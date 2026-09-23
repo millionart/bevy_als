@@ -18,7 +18,7 @@ use als_camera::AlsCameraViewSource;
 use als_core::character::{AlsCharacter, AlsCrushRecovery, AlsCrushRecoveryFloor};
 use als_core::control_scheme::AlsControlScheme;
 use als_core::params::AlsMovementParams;
-use als_core::player_start::AlsPlayerStartReady;
+use als_core::player_start::{AlsPlayerStart, AlsPlayerStartReady};
 use als_ext::overlay_materials::{
     AvatarMaterialApplied, AvatarMaterialOverride, OverlayMaterialsPlugin,
 };
@@ -137,6 +137,10 @@ fn main() {
         ),
     )
     .add_systems(PostUpdate, grounded_spawn_probe.after(PhysicsSystems::Last));
+    if std::env::var("ALS_PLAYGROUND_STARTUP_VARIANT").as_deref() == Ok("multi_raised") {
+        app.add_systems(Update, setup_multi_raised_startup_variant
+            .before(als_core::player_start::AlsPlayerStartPrepared));
+    }
 
     if let AppExit::Error(code) = app.run() {
         std::process::exit(i32::from(code.get()));
@@ -461,8 +465,9 @@ fn scene_physics_ready(
         ready.wait_frames += 1;
         if ready.wait_frames == 30 {
             info!(
-                "[SCENE][PHYSICS] landscapes={} sources={source_ready}/{source_total} boxes={box_ready}/{box_total} -> WAIT",
-                landscapes.iter().count()
+                "[SCENE][PHYSICS] landscapes={} sources={source_ready}/{source_total} boxes={box_ready}/{box_total} player_starts={} -> WAIT",
+                landscapes.iter().count(),
+                player_starts.iter().count()
             );
         }
         return;
@@ -476,10 +481,36 @@ fn scene_physics_ready(
     ready.sources = source_total;
     ready.boxes = box_total;
     info!(
-        "[SCENE][PHYSICS] landscapes={} sources={source_ready}/{source_total} boxes={box_ready}/{box_total} spatial_frames={} -> PASS",
+        "[SCENE][PHYSICS] landscapes={} sources={source_ready}/{source_total} boxes={box_ready}/{box_total} player_starts={} spatial_frames={} -> PASS",
         landscapes.iter().count(),
+        player_starts.iter().count(),
         ready.stable_frames
     );
+}
+
+fn setup_multi_raised_startup_variant(
+    mut done: Local<bool>,
+    mut commands: Commands,
+    starts: Query<&Transform, With<AlsPlayerStart>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    if *done { return; }
+    let Some(start) = starts.iter().next().copied() else { return; };
+    let platform = Transform::from_xyz(start.translation.x, 1.9, start.translation.z);
+    commands.spawn((
+        Name::new("StartupVariantRaisedPlatform"), platform,
+        RigidBody::Static, Collider::cuboid(8.0, 0.2, 8.0),
+        CollisionLayers::new([als_core::character::AlsCollisionLayer::Default,
+            als_core::character::AlsCollisionLayer::Visibility], LayerMask::ALL),
+        Mesh3d(meshes.add(Cuboid::new(8.0, 0.2, 8.0))),
+        MeshMaterial3d(materials.add(StandardMaterial {
+            base_color: Color::srgb(0.25, 0.55, 0.75), ..default()
+        })),
+    ));
+    commands.spawn((Name::new("StartupVariantSecondPlayerStart"), AlsPlayerStart::default(), start));
+    *done = true;
+    info!("[STARTUP-VARIANT] second_player_start=true platform_top_y=2.0 -> PASS");
 }
 
 fn spawn_character_once(
