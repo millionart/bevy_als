@@ -154,7 +154,7 @@
 
   固定帧后摘要：同 `target_game/play` 预构建通过；公共 `moving_base` 在 `-FrameDeltaSeconds 0.016666666666666666 -CaptureCount 0 -FunctionalOnly` 下 manual/validator `0/0`、功能通过，668 条 trace 的 667 个相邻实际游戏时间差全部为 `0.016666667±1e-9 s`。runner 的 `frame_delta_seconds` 保存了请求值；未设置参数的先前同场 1073 条 trace 间隔为 `0.0100186–0.0244875 s`，没有被暗中固定。图/fault/temporal/watchdog 为零，渲染/贴花通过；性能仍按原暂停范围延期。配置异常在运行前失败且不创建产物，未改普通手动入口。
 
-- [ ] **BF124.A01-S3b3 — 真实 Playground 固定帧率运动矩阵**：开始：2026-09-23 06:11:07 +08:00；预估结束：2026-09-23 07:01:07 +08:00。沿同一 `target_game/play` 与原 `moving_base` 场景，逐次运行 120/30/20/15/10 FPS，核对 runner 设定、相邻实际游戏时间、基座/角色位移和现有动画/接触/图/时序 Gate；再用最低帧率的 `grounded`/`uphill_jump` 核查 Roll/root-motion 与落地。任何失败先审计同场报告，禁止只调宽窗口或重试碰运气。估时依据：已通过的普通/固定60场、现有公共 runner 和无需重编的同二进制。Gate：各受控率的功能报告与实际时钟证据、源相对位移闭环；单帧 hitch 独立条目。
+- [x] **BF124.A01-S3b3 — 真实 Playground 固定帧率运动矩阵**：开始：2026-09-23 06:11:07 +08:00；预估结束：2026-09-23 07:01:07 +08:00；实际结束：2026-09-23 08:16:01 +08:00；偏差：+74m54s；结果：全部固定帧率功能 Gate 通过，完整性能预算按用户暂停范围延期。沿同一 `target_game/play` 与原 `moving_base` 场景，逐次运行 120/30/20/15/10 FPS，核对 runner 设定、相邻实际游戏时间、基座/角色位移和现有动画/接触/图/时序 Gate；再用最低帧率的 `grounded`/`uphill_jump` 核查 Roll/root-motion 与落地。估时依据：已通过的普通/固定60场、现有公共 runner 和无需重编的同二进制。拆分结果：基座/Grounded、上跳节点归因、源 IK 校准分别按 S3b3a/b1/b2 验收；单帧 hitch 仍需独立 Gate。
 
   2026-09-23 07:13:38 +08:00 拆分检查点：原预计 07:01:07，当前偏差 +12m31s；固定帧率移动基座与 10 FPS Grounded 分支的功能 Gate 已通过，10 FPS 上跳的公共时序 Gate 仍未通过。报告显示其原动画图/惯性化链与本次物理整帧分支消融后均可产生腿部突变，不能把物理子项或整项直接勾选。按剩余源闭包重新拆成下述可独立验收的静态首失配定位与后续修复/runtime；现暂停新的 runtime，先读 fresh source 与目标中间节点。
 
@@ -185,6 +185,8 @@
   首次 10 FPS `uphill_jump` 后摘要：manual/进程退出 0、18 个跳跃/落地窗口与实际 Grounded 动画恢复均完成，但公共时序守卫拒绝 4 项局部旋转/弯曲面突变（首项 pre-rig `calf_l` 在 `uphill_01_sprint_1` 跳跃段单帧 `2.339 rad > 2.2`），因此不能关闭 A01。fresh 原生 `AB_Als_Locomotion` 核对 Right Foot→Loop 过渡为 `LogicType=TLT_Inertialization`、时长 `0.2 s`，目标确用惯性请求和下游 Inertialization；没有证据把它误说成应使用普通 Hermite 交叉淡入。报告显示该节点附近 Jump 片段末时 `1.667 s` 切至 Loop，首个异常在根图仍有 240 活跃通道时出现；物理/惯性根因尚未定。下一步只做一次受控消融：同原 Playground、同 10 FPS、同报告 Gate，暂时禁止本次角色整帧接管以判别该物理分支是否为异常的必要原因；随后原子恢复代码与二进制，不改阈值或图。
 
   物理消融后摘要：同原 Playground/10 FPS 仅暂时禁止 A01 的角色整帧接管，公共报告仍检出腿部旋转尖峰与弯曲面翻转（触发侧/时刻改变）；因此本次物理分支不是异常的必要原因。临时代码已完全恢复，`source_physics_timing.rs` 对已提交版本无 diff，`target_game/play` 重新编译为正常版本；保留两份前后报告且不把消融运行计为通过。fresh 本地 `AB_Als_Locomotion` 原生读取器正常结束：Right Foot→Loop 源 `TLT_Inertialization/0.2 s` 与目标 Transition 请求对应，Jump 的下游 Inertialization 也存在；公共 source-chain 仅记录整体 Pose 时间/骨数，尚不能定位最早改变 `calf_l` 的子图。下一项先补 focused 的中间骨姿/请求取证，不再盲启 runtime。
+
+  矩阵完成与估时复盘：`moving_base` 120/60/30/20/15/10 FPS、`grounded` 与 `uphill_jump` 10 FPS 均在原 Playground 的 public functional Gate 通过，最终报告均无 graph error/fault/temporal/watchdog。原 50 分钟估时遗漏了 120 FPS 启动判据、低帧率平台相位、Roll 源合法分支及上跳源 IK 正例取证，父项超过允许误差后没有及时重估；后续同类矩阵先分别估算 source 夹具边界与姿态闭环，再按每段 ≤60 分钟拆项并在超时检查点记录新起止时间。A01 角色整帧功能仍须完成单帧 hitch 验收。
 
   - [x] **BF124.A01-S3b3a — 固定帧率基座与 Grounded 分支功能验收**：开始：2026-09-23 06:11:07 +08:00；预估结束：2026-09-23 07:01:07 +08:00；实际结束：2026-09-23 07:00:00 +08:00；偏差：-1m07s；结果：本子项功能 Gate 通过。原 Playground 的 120/60/30/20/15/10 FPS moving_base 及 10 FPS grounded 均由同入口 public runner 功能通过、实际时钟逐帧复算与 0 截图证明；原 120 首帧平台诊断、15/10 跳离相位和 Roll 实际 Crouching→Standing 窗口的失败已由源几何/函数图证明并留 focused 反例。各最终报告图错误、fault、temporal、watchdog 为 0，性能预算仍按用户暂停范围延期；上跳异常不纳入本子项成功范围。
 
