@@ -556,6 +556,38 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "A20: runtime foot target selection does not follow control rig settings"]
+    fn runtime_foot_bone_setting_updates_rig_and_foot_target_together() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner};
+        use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
+
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy_animation_graph::AnimationGraphPlugin::default()));
+        let character = app.world_mut().spawn((AlsCharacter, RotationMode::ViewDirection,
+            AlsControlRigSettings::default())).id();
+        let avatar = app.world_mut().spawn((AlsCharacterAvatar { character },
+            AnimatedSceneHandle::default(), ChildOf(character))).id();
+        let player = app.world_mut().spawn((AnimationGraphPlayer::default(), ChildOf(avatar))).id();
+        app.world_mut().entity_mut(character).insert(AlsCharacterAssembly { avatar, camera: None });
+        app.world_mut().trigger(WorldInstanceReady { entity: avatar,
+            instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
+        app.world_mut().flush();
+        assert_eq!(app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity(), player);
+        app.world_mut().run_system_once(initialize_control_rig_input).unwrap();
+        app.world_mut().flush();
+        assert!(app.world().get::<AlsFootTargetSelection>(character).unwrap().use_ik_bones);
+
+        app.world_mut().entity_mut(character).insert(AlsControlRigSettings {
+            use_hand_ik_bones: true,
+            use_foot_ik_bones: false,
+        });
+        app.world_mut().run_system_once(refresh_control_rig_input).unwrap();
+        assert!(!app.world().get::<AlsControlRigInput>(character).unwrap().use_foot_ik_bones);
+        assert!(!app.world().get::<AlsFootTargetSelection>(character).unwrap().use_ik_bones);
+    }
+
+    #[test]
     fn spine_interpolation_uses_source_counterclockwise_and_weight_boundaries() {
         assert!((lerp_angle(0.0, 179.0, 0.5) + 90.5).abs() < 1e-6);
         assert!((lerp_angle(0.0, 175.0, 0.5) - 87.5).abs() < 1e-6);
