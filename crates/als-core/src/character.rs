@@ -1,5 +1,5 @@
 use avian3d::prelude::{
-    Collider, CollisionLayers, ContactGraph, LinearVelocity, LockedAxes, PhysicsLayer, PhysicsSchedule,
+    Collider, CollisionLayers, ContactGraph, LayerMask, LinearVelocity, LockedAxes, PhysicsLayer, PhysicsSchedule,
     PhysicsStepSystems, PhysicsSystems, Position, RigidBody,
     SpeculativeMargin,
 };
@@ -77,6 +77,11 @@ pub struct AlsCollisionLayerOwnership {
 impl AlsCollisionLayerOwnership {
     pub fn active(&self) -> bool {
         self.mantle || self.ragdoll
+    }
+
+    pub fn original_filters(&self) -> LayerMask {
+        self.original
+            .map_or(AlsCollisionLayer::Default.into(), |layers| layers.filters)
     }
 
     pub fn set_owner(
@@ -468,6 +473,7 @@ mod tests {
             ownership.set_owner(AlsCollisionLayerOwner::Mantle, Some(custom), true),
             Some(Some(CollisionLayers::NONE))
         );
+        assert_eq!(ownership.original_filters(), custom.filters);
         assert_eq!(
             ownership.set_owner(
                 AlsCollisionLayerOwner::Ragdoll,
@@ -497,6 +503,7 @@ mod tests {
     #[test]
     fn collision_layer_owner_restores_an_absent_component() {
         let mut ownership = AlsCollisionLayerOwnership::default();
+        assert_eq!(ownership.original_filters(), LayerMask::from(AlsCollisionLayer::Default));
         assert_eq!(
             ownership.set_owner(AlsCollisionLayerOwner::Mantle, None, true),
             Some(Some(CollisionLayers::NONE))

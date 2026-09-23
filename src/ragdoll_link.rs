@@ -925,6 +925,13 @@ pub(crate) fn restore_ragdoll_player_parent(
     }
 }
 
+fn ragdoll_ground_filter(
+    excluded: Vec<Entity>,
+    ownership: &AlsCollisionLayerOwnership,
+) -> SpatialQueryFilter {
+    SpatialQueryFilter::from_excluded_entities(excluded).with_mask(ownership.original_filters())
+}
+
 #[allow(clippy::type_complexity)]
 fn ragdoll_ground_follow(
     mut commands: Commands,
@@ -937,6 +944,7 @@ fn ragdoll_ground_follow(
             Option<&AlsNotifyLocomotionAction>,
             &Stance,
             &AlsMovementParamsHandle,
+            &AlsCollisionLayerOwnership,
         ),
         With<AlsCharacter>,
     >,
@@ -945,7 +953,7 @@ fn ragdoll_ground_follow(
     labels: Query<&BodyLabel>,
     body_states: Query<(&Position, &LinearVelocity), Without<AlsCharacter>>,
 ) {
-    for (entity, _position, action, stance, params_handle) in &characters {
+    for (entity, _position, action, stance, params_handle, collision_ownership) in &characters {
         if action != Some(&AlsNotifyLocomotionAction::Ragdolling) {
             continue;
         }
@@ -976,7 +984,7 @@ fn ragdoll_ground_follow(
         excluded.push(entity);
         excluded.extend(spawned.bodies.values().copied());
         excluded.extend(spawned.colliders.values().copied());
-        let filter = SpatialQueryFilter::from_excluded_entities(excluded);
+        let filter = ragdoll_ground_filter(excluded, collision_ownership);
         let shape = Collider::sphere(radius);
         let config = ShapeCastConfig::from_max_distance(trace_distance);
         let hit = spatial.cast_shape(
@@ -1087,7 +1095,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore = "A11: current ragdoll query selects Visibility-only collider"]
     fn ragdoll_ground_query_ignores_visibility_only_with_original_pawn_response() {
         use avian3d::prelude::{LayerMask, PhysicsPlugins};
         use bevy::ecs::system::RunSystemOnce;
@@ -1131,8 +1138,8 @@ mod tests {
             .id();
         app.update();
         app.world_mut().run_schedule(FixedPostUpdate);
-        let hit = app.world_mut().run_system_once(|spatial: SpatialQuery| {
-            let filter = SpatialQueryFilter::from_excluded_entities(Vec::<Entity>::new());
+        let hit = app.world_mut().run_system_once(move |spatial: SpatialQuery| {
+            let filter = ragdoll_ground_filter(Vec::new(), &ownership);
             spatial
                 .cast_shape(
                     &Collider::sphere(0.3),
