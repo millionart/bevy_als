@@ -535,6 +535,65 @@ impl NodeLike for ControlRigBoundaryNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::control_rig_program::{RigInstruction, RigProgram};
+
+    fn hot_swap_definition() -> RigDefinition {
+        let mut definition: RigDefinition = serde_json::from_str(include_str!(
+            "../../../assets/control_rigs/cr_als.program.json"
+        )).unwrap();
+        definition.program = RigProgram {
+            initial_values: vec![RigValue::F32(1.0)],
+            literal_count: 1,
+            entries: [("Construction".to_owned(), 0), ("Forwards Solve".to_owned(), 1)].into(),
+            instructions: vec![RigInstruction::Exit, RigInstruction::Exit],
+        };
+        definition.bones.clear();
+        definition.curves.clear();
+        definition.externals.clear();
+        definition
+    }
+
+    #[test]
+    #[ignore = "A39 changing a RigDefinition on the same node must rebuild VM values and hierarchy"]
+    fn control_rig_hot_swap_rebuilds_values_and_hierarchy() {
+        let mut definition = hot_swap_definition();
+        let node = ControlRigBoundaryNode { transfer_input_pose: false, transfer_input_curves: false, ..default() };
+        let mut state = ControlRigNodeState::default();
+        let mut pose = Pose::default();
+        let skeleton = Skeleton::default();
+        node.solve(&definition, &mut state, &mut pose, &skeleton, &[], false, 1.0 / 60.0,
+            RigTransform::default(), None, false).unwrap();
+        assert_eq!(state.value(&RigValueRef { register: 0, path: vec![] }).unwrap(), RigValue::F32(1.0));
+        let source: RigDefinition = serde_json::from_str(include_str!(
+            "../../../assets/control_rigs/cr_als.program.json"
+        )).unwrap();
+        let bone = source.bones[0].clone();
+        definition.program.initial_values[0] = RigValue::F32(2.0);
+        definition.bones.push(bone.clone());
+        node.solve(&definition, &mut state, &mut pose, &skeleton, &[], false, 1.0 / 60.0,
+            RigTransform::default(), None, false).unwrap();
+        assert_eq!(state.value(&RigValueRef { register: 0, path: vec![] }).unwrap(), RigValue::F32(2.0));
+        assert!(state.snapshot_hierarchy().unwrap().index(&bone.name).is_some());
+        assert_eq!(state.initialization_count, 2);
+    }
+
+    #[test]
+    #[ignore = "A39 changing a RigDefinition register layout must rebuild its VM memory"]
+    fn control_rig_hot_swap_rebuilds_register_layout() {
+        let mut definition = hot_swap_definition();
+        let node = ControlRigBoundaryNode { transfer_input_pose: false, transfer_input_curves: false, ..default() };
+        let mut state = ControlRigNodeState::default();
+        let mut pose = Pose::default();
+        let skeleton = Skeleton::default();
+        node.solve(&definition, &mut state, &mut pose, &skeleton, &[], false, 1.0 / 60.0,
+            RigTransform::default(), None, false).unwrap();
+        definition.program.initial_values.push(RigValue::F32(3.0));
+        definition.program.literal_count = 2;
+        node.solve(&definition, &mut state, &mut pose, &skeleton, &[], false, 1.0 / 60.0,
+            RigTransform::default(), None, false).unwrap();
+        assert_eq!(state.value(&RigValueRef { register: 1, path: vec![] }).unwrap(), RigValue::F32(3.0));
+        assert_eq!(state.initialization_count, 2);
+    }
 
     #[test]
     fn control_rig_transfer_input_curves_preserves_full_upstream_context() {
