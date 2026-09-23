@@ -97,6 +97,7 @@ const TEMPORAL_LOCAL_TRANSLATION_SPEED_METERS_PER_SECOND: f32 = 14.0;
 const TEMPORAL_LOCAL_ROTATION_JUMP_RADIANS: f32 = 2.2;
 const TEMPORAL_LOCAL_ROTATION_SPEED_RADIANS_PER_SECOND: f32 = 80.0;
 const TEMPORAL_LOCAL_ROTATION_SPEED_MIN_DELTA_RADIANS: f32 = 0.75;
+const TEMPORAL_LARGE_ANGULAR_CHANGE_RATE_RADIANS_PER_SECOND: f32 = 30.0;
 const TEMPORAL_SCALE_RATIO: f32 = 1.5;
 const TEMPORAL_SEGMENT_RATIO: f32 = 0.35;
 const TEMPORAL_SEGMENT_MIN_DELTA_METERS: f32 = 0.05;
@@ -1002,7 +1003,8 @@ impl TemporalSkeletonGuard {
                 }
                 let rotation_delta = rotation_delta_radians(previous.rotation, current.rotation);
                 let rotation_speed = rotation_delta / frame_seconds;
-                let rotation_trigger = if rotation_delta > TEMPORAL_LOCAL_ROTATION_JUMP_RADIANS {
+                let rotation_trigger = if rotation_delta > TEMPORAL_LOCAL_ROTATION_JUMP_RADIANS
+                    && rotation_speed > TEMPORAL_LARGE_ANGULAR_CHANGE_RATE_RADIANS_PER_SECOND {
                     Some(("jump", TEMPORAL_LOCAL_ROTATION_JUMP_RADIANS))
                 } else if rotation_delta > TEMPORAL_LOCAL_ROTATION_SPEED_MIN_DELTA_RADIANS
                     && rotation_speed > TEMPORAL_LOCAL_ROTATION_SPEED_RADIANS_PER_SECOND
@@ -1020,7 +1022,11 @@ impl TemporalSkeletonGuard {
                         threshold,
                         trigger,
                         rate: Some(rotation_speed),
-                        rate_threshold: Some(TEMPORAL_LOCAL_ROTATION_SPEED_RADIANS_PER_SECOND),
+                        rate_threshold: Some(if trigger == "jump" {
+                            TEMPORAL_LARGE_ANGULAR_CHANGE_RATE_RADIANS_PER_SECOND
+                        } else {
+                            TEMPORAL_LOCAL_ROTATION_SPEED_RADIANS_PER_SECOND
+                        }),
                     });
                 }
                 let scale_ratio = temporal_scale_ratio(previous.scale, current.scale);
@@ -1066,7 +1072,9 @@ impl TemporalSkeletonGuard {
             };
             if let Some(previous) = self.previous_limb_planes.get(*name) {
                 let dot = previous.normal.dot(current.normal);
-                if dot < TEMPORAL_LIMB_PLANE_FLIP_DOT {
+                let plane_rate = dot.clamp(-1.0, 1.0).acos() / frame_seconds;
+                if dot < TEMPORAL_LIMB_PLANE_FLIP_DOT
+                    && plane_rate > TEMPORAL_LARGE_ANGULAR_CHANGE_RATE_RADIANS_PER_SECOND {
                     metrics.push(TemporalSkeletonMetric {
                         kind: "limb_plane_flip",
                         subject: (*name).to_owned(),
@@ -1074,8 +1082,8 @@ impl TemporalSkeletonGuard {
                         current: dot,
                         threshold: TEMPORAL_LIMB_PLANE_FLIP_DOT,
                         trigger: "plane_flip",
-                        rate: None,
-                        rate_threshold: None,
+                        rate: Some(plane_rate),
+                        rate_threshold: Some(TEMPORAL_LARGE_ANGULAR_CHANGE_RATE_RADIANS_PER_SECOND),
                     });
                 }
             }
@@ -2895,6 +2903,10 @@ fn write_report(
             TEMPORAL_LOCAL_ROTATION_SPEED_RADIANS_PER_SECOND as f64,
         ),
         (
+            "temporal_large_angular_change_rate_radps".to_owned(),
+            TEMPORAL_LARGE_ANGULAR_CHANGE_RATE_RADIANS_PER_SECOND as f64,
+        ),
+        (
             "temporal_scale_ratio".to_owned(),
             TEMPORAL_SCALE_RATIO as f64,
         ),
@@ -4561,6 +4573,34 @@ mod tests {
             rejected.extend(guard.observe(&poses[1], &BTreeMap::new(), Vec3::ZERO, delta).metrics);
         }
         assert!(rejected.is_empty(), "native motion was rejected: {:?}", rejected.iter().map(|metric| (metric.subject.as_str(), metric.current)).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn temporal_guard_accepts_source_ik_ten_fps_and_rejects_a_full_flip() {
+        let local = temporal_local_pose(Quat::IDENTITY);
+        let bones = temporal_bones(0.25);
+        let mut source_bones = temporal_bones(-0.710_181_8 * 0.25);
+        source_bones.get_mut("calf_l").unwrap().0.z = (1.0 - 0.710_181_8_f32.powi(2)).sqrt() * 0.25;
+        let mut guard = TemporalSkeletonGuard::default();
+        guard.observe(&local, &bones, Vec3::ZERO, 0.1);
+        let source = guard.observe(
+            &temporal_local_pose(Quat::from_rotation_x(2.447_425_6)),
+            &source_bones,
+            Vec3::ZERO,
+            0.1,
+        );
+        assert!(!source.metrics.iter().any(|metric| matches!(metric.kind, "local_rotation_spike" | "limb_plane_flip")));
+
+        let mut guard = TemporalSkeletonGuard::default();
+        guard.observe(&local, &bones, Vec3::ZERO, 0.1);
+        let flip = guard.observe(
+            &temporal_local_pose(Quat::from_rotation_x(std::f32::consts::PI)),
+            &temporal_bones(-0.25),
+            Vec3::ZERO,
+            0.1,
+        );
+        assert!(flip.metrics.iter().any(|metric| metric.kind == "local_rotation_spike"));
+        assert!(flip.metrics.iter().any(|metric| metric.kind == "limb_plane_flip"));
     }
 
     #[test]
