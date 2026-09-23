@@ -177,8 +177,26 @@ impl AlsTurnMontage {
 #[derive(Component, Debug, Default, Clone, PartialEq)]
 pub struct AlsTurnMontageStack {
     pub entries: Vec<AlsTurnMontage>,
+    owner_player: Option<Entity>,
     next_id: u64,
     inertialization_pending: bool,
+}
+
+fn reconcile_turn_player(
+    stack: &mut AlsTurnMontageStack,
+    drive: &mut AlsTurnDrive,
+    current: Option<Entity>,
+) -> Option<Entity> {
+    if stack.owner_player == current {
+        return None;
+    }
+    let previous = stack.owner_player;
+    *stack = AlsTurnMontageStack {
+        owner_player: current,
+        ..default()
+    };
+    *drive = AlsTurnDrive::default();
+    previous
 }
 
 impl AlsTurnMontageStack {
@@ -477,6 +495,19 @@ fn clear_turn_slot_inputs(player: &mut AnimationGraphPlayer) {
     }
 }
 
+fn clear_old_turn_player(
+    player: &mut AnimationGraphPlayer,
+    source_inputs: Option<&mut als_ext::SourceAnimationInputs>,
+) {
+    write_turn_pins(player, &AlsTurnDrive::default(), false);
+    clear_turn_slot_inputs(player);
+    if let Some(source_inputs) = source_inputs {
+        for crouching in [false, true] {
+            source_inputs.set_slot_input_context(turn_slot_contract(crouching).generated_pose_key, None);
+        }
+    }
+}
+
 fn bridge_turn_slot_samples(
     mut source_inputs: Query<&mut als_ext::SourceAnimationInputs>,
     montage_assets: Res<crate::standing_source::SourceMontageAssets>,
@@ -486,7 +517,7 @@ fn bridge_turn_slot_samples(
         (
             Entity,
             &AnimatedSceneInstance,
-            &AlsTurnDrive,
+            &mut AlsTurnDrive,
             &mut AlsTurnMontageStack,
         ),
         With<AlsCharacterAvatar>,
@@ -494,8 +525,14 @@ fn bridge_turn_slot_samples(
     mut players: Query<&mut AnimationGraphPlayer>,
     mut commands: Commands,
 ) {
-    for (avatar, instance, drive, mut stack) in &mut avatars {
+    for (avatar, instance, mut drive, mut stack) in &mut avatars {
         let player_entity = instance.player_entity();
+        if let Some(old_player) = reconcile_turn_player(&mut stack, &mut drive, Some(player_entity))
+            && let Ok(mut player) = players.get_mut(old_player)
+        {
+            let mut old_inputs = source_inputs.get_mut(old_player).ok();
+            clear_old_turn_player(&mut player, old_inputs.as_deref_mut());
+        }
         let Ok(mut player) = players.get_mut(player_entity) else {
             continue;
         };
@@ -518,7 +555,7 @@ fn bridge_turn_slot_samples(
                 contexts.insert(entry.id, context);
             }
         }
-        write_turn_inertialization_inputs(&mut player, drive);
+        write_turn_inertialization_inputs(&mut player, &drive);
         clear_turn_slot_inputs(&mut player);
         let mut runtime = AlsStandingTurnSlotRuntime {
             active: !stack.entries.is_empty(),
@@ -604,6 +641,7 @@ fn write_turn_pins(player: &mut AnimationGraphPlayer, drive: &AlsTurnDrive, crou
 fn turn_pin_driver(
     time: Res<Time>,
     stances: Query<&Stance, With<als_core::character::AlsCharacter>>,
+    mut source_inputs: Query<&mut als_ext::SourceAnimationInputs>,
     mut drives: Query<
         (
             Entity,
@@ -621,6 +659,15 @@ fn turn_pin_driver(
         let Ok(stance) = stances.get(parent.parent()) else {
             continue;
         };
+        let current_player = instances.get(entity).ok()
+            .map(AnimatedSceneInstance::player_entity)
+            .filter(|player| players.contains(*player));
+        if let Some(old_player) = reconcile_turn_player(&mut stack, &mut drive, current_player)
+            && let Ok(mut player) = players.get_mut(old_player)
+        {
+            let mut old_inputs = source_inputs.get_mut(old_player).ok();
+            clear_old_turn_player(&mut player, old_inputs.as_deref_mut());
+        }
         let natural_end = stack.advance(dt);
         synchronize_turn_drive(&mut drive, &stack);
         drive.advance(dt);
@@ -630,11 +677,7 @@ fn turn_pin_driver(
                 drive.inertialization_request_epoch
             );
         }
-        if let Some(mut player) = instances
-            .get(entity)
-            .ok()
-            .and_then(|instance| players.get_mut(instance.player_entity()).ok())
-        {
+        if let Some(mut player) = current_player.and_then(|player| players.get_mut(player).ok()) {
             write_turn_pins(&mut player, &drive, *stance == Stance::Crouching);
         }
     }
@@ -653,20 +696,21 @@ mod tests {
     use avian3d::prelude::LinearVelocity;
 
     #[test]
-    #[ignore = "A14: turn stack persists when the same Avatar switches players"]
     fn turn_stack_does_not_cross_animation_player_replacement() {
         let mut app = App::new();
-        app.add_plugins((MinimalPlugins, AssetPlugin::default(), AnimationGraphPlugin::default()));
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            AnimationGraphPlugin::default(),
+            als_ext::SourceAnimationInputsPlugin,
+        ));
         let character = app.world_mut().spawn((als_core::character::AlsCharacter, Stance::Standing)).id();
-        let mut stack = AlsTurnMontageStack::default();
-        stack.begin(0.0, false, TURN_DUR_90, 1.0, false);
-        stack.entries[0].sampling_ready = true;
         let avatar = app.world_mut().spawn((
             AlsCharacterAvatar { character },
             AnimatedSceneHandle::default(),
             ChildOf(character),
             AlsTurnDrive::default(),
-            stack,
+            AlsTurnMontageStack::default(),
         )).id();
         let old_player = app.world_mut().spawn((
             AnimationGraphPlayer::new(Handle::default()),
@@ -678,6 +722,17 @@ mod tests {
         });
         app.world_mut().flush();
         app.world_mut().run_system_once(turn_pin_driver).unwrap();
+        let mut stack = app.world_mut().get_mut::<AlsTurnMontageStack>(avatar).unwrap();
+        stack.begin(0.0, false, TURN_DUR_90, 1.0, false);
+        stack.entries[0].sampling_ready = true;
+        drop(stack);
+        app.world_mut().get_mut::<AnimationGraphPlayer>(old_player).unwrap()
+            .set_global_input_data(turn_slot_contract(false).generated_weight_key, 0.8_f32);
+        app.world_mut().get_mut::<als_ext::SourceAnimationInputs>(old_player).unwrap()
+            .set_slot_input_context(
+                turn_slot_contract(false).generated_pose_key,
+                Some(als_ext::animation_context::AnimationContextState::default()),
+            );
         assert_eq!(app.world().get::<AlsTurnMontageStack>(avatar).unwrap().entries.len(), 1);
 
         app.world_mut().entity_mut(old_player).remove::<ChildOf>();
@@ -691,9 +746,44 @@ mod tests {
         });
         app.world_mut().flush();
         assert_eq!(app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity(), new_player);
+        app.world_mut().run_system_once(crate::standing_source::load_source_montage_assets).unwrap();
+        app.world_mut().run_system_once(bridge_turn_slot_samples).unwrap();
+        assert!(app.world().get::<AlsTurnMontageStack>(avatar).unwrap().entries.is_empty());
+        assert!(!app.world().get::<AlsStandingTurnSlotRuntime>(avatar).unwrap().active);
+        assert_eq!(app.world().get::<AnimationGraphPlayer>(new_player).unwrap()
+            .get_global_input_data(turn_slot_contract(false).generated_weight_key)
+            .and_then(|value| value.as_f32().ok()), Some(0.0));
         app.world_mut().run_system_once(turn_pin_driver).unwrap();
         assert!(app.world().entities().contains(old_player));
         assert!(app.world().get::<AlsTurnMontageStack>(avatar).unwrap().entries.is_empty());
+        assert_eq!(app.world().get::<AnimationGraphPlayer>(old_player).unwrap()
+            .get_global_input_data(turn_slot_contract(false).generated_weight_key)
+            .and_then(|value| value.as_f32().ok()), Some(0.0));
+        assert!(app.world().get::<als_ext::SourceAnimationInputs>(old_player).unwrap()
+            .slot_input_context(turn_slot_contract(false).generated_pose_key).is_none());
+
+        let mut stack = app.world_mut().get_mut::<AlsTurnMontageStack>(avatar).unwrap();
+        stack.begin(1.0, false, TURN_DUR_90, 1.0, false);
+        stack.entries[0].sampling_ready = true;
+        drop(stack);
+        app.world_mut().get_mut::<AnimationGraphPlayer>(new_player).unwrap()
+            .set_global_input_data(turn_slot_contract(false).generated_weight_key, 0.7_f32);
+        app.world_mut().entity_mut(new_player).remove::<ChildOf>();
+        let third_player = app.world_mut().spawn((
+            AnimationGraphPlayer::new(Handle::default()),
+            ChildOf(avatar),
+        )).id();
+        app.world_mut().trigger(WorldInstanceReady {
+            entity: avatar,
+            instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()),
+        });
+        app.world_mut().flush();
+        assert_eq!(app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity(), third_player);
+        app.world_mut().run_system_once(turn_pin_driver).unwrap();
+        assert!(app.world().get::<AlsTurnMontageStack>(avatar).unwrap().entries.is_empty());
+        assert_eq!(app.world().get::<AnimationGraphPlayer>(new_player).unwrap()
+            .get_global_input_data(turn_slot_contract(false).generated_weight_key)
+            .and_then(|value| value.as_f32().ok()), Some(0.0));
     }
 
     #[test]
