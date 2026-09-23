@@ -283,3 +283,5 @@
   `sprint` runtime 后/`standing_response` 前摘要：同 `target_game/play` 的原 Playground `sprint` public runner manual/validator `0/0`，8/8 结果包含实际 Sprint、曲线 relay、加速与稳态分支，2 个姿态窗口与 283 pose samples；graph error/fault/temporal/watchdog 为 0，渲染/贴花通过。接下来不重编同二进制，运行 `standing_response` 核对普通 ViewDirection 与静止响应；性能继续按用户暂停范围延期。
 
   完成摘要：同二进制 `standing_response` public runner manual/validator `0/0`，6/6 功能结果、9 个响应姿态窗口与 128 pose samples；graph error/fault/temporal/watchdog 为 0，渲染/贴花通过。源 Normal 2.5、Responsive 1.5、Crouching Normal 1.5 的真实系统数值及 1/3 精确 key 端点回归通过；曾由 `lerp` 精度使 gait=3 返回 `0.049999997`，现直接取源端点 `0.05`，`als-core --lib` 284/284 通过。三种消融分别证明连续插值、Standing profile 和 Crouching profile 均必要；完整性能预算依用户暂停范围延期。
+
+- [x] **BF124.A05 — 连续 GaitAmount 旋转曲线**：开始：2026-09-23 09:58:18 +08:00；预估结束：2026-09-23 10:13:18 +08:00；实际结束：2026-09-23 09:58:18 +08:00；偏差：-15m00s；结果：S1 源曲线/反例与 S2 离线生成/生产采样/两场真实功能 Gate 均单独提交，工作树干净。当前 `MS_Als_Normal` 只引用 Normal/Responsive 两条线性曲线，目标按 `AlsGaitAmount` 连续采样并保持 Standing/Crouching 原选曲；核心 284 项、三项消融及 `sprint`/`standing_response` 原 Playground 报告通过。完整性能预算依用户暂停范围延期。估时依据：复核已通过子项与提交/索引；拆分结果：本编号无剩余功能 Gate，A06 是下一项。
