@@ -365,6 +365,7 @@ fn rotation_response_system(
     mut commands: Commands,
     params_assets: Res<Assets<AlsMovementParams>>,
     blocked: Query<(), With<AlsMovementInputBlocked>>,
+    first_person: Query<(), With<crate::input_request::AlsFirstPersonView>>,
     actions: Query<&crate::state::AlsNotifyLocomotionAction>,
     collision_owners: Query<&crate::character::AlsCollisionLayerOwnership>,
     stances: Query<&Stance>,
@@ -464,7 +465,9 @@ fn rotation_response_system(
         if curve_driven || hold_rotation || !runtime.initialized {
             runtime.smooth_target_yaw = current_yaw;
         }
-        let target_yaw = wrap_yaw_radians(match *rotation_mode {
+        let aiming = *rotation_mode == RotationMode::Aiming || first_person.contains(entity);
+        let body_rotation_mode = if aiming { RotationMode::Aiming } else { *rotation_mode };
+        let target_yaw = wrap_yaw_radians(match body_rotation_mode {
             RotationMode::VelocityDirection => velocity_yaw.unwrap_or(
                 if runtime.initialized
                     && !(curve_driven && runtime.rotation_towards_last_input_direction_blocked)
@@ -492,7 +495,6 @@ fn rotation_response_system(
             RotationMode::Aiming => view_yaw.0,
             _ => current_yaw,
         });
-        let aiming = *rotation_mode == RotationMode::Aiming;
         let aiming_stationary = aiming && *locomotion == LocomotionState::Grounded && !moving && !has_input;
         if aiming_stationary || (aiming && *locomotion == LocomotionState::Air) {
             runtime.smooth_target_yaw = target_yaw;
@@ -500,7 +502,7 @@ fn rotation_response_system(
             runtime.smooth_target_yaw = advance_yaw(
                 runtime.smooth_target_yaw,
                 target_yaw,
-                target_yaw_speed(params, *rotation_mode),
+                target_yaw_speed(params, body_rotation_mode),
                 delta_seconds,
             );
         }
@@ -511,7 +513,7 @@ fn rotation_response_system(
                 params.rotation.in_air_half_life
             }
         } else {
-            moving_rotation_half_life(params, *gait, *rotation_mode, moving, view_yaw_speed, stances.get(entity).copied().unwrap_or_default())
+            moving_rotation_half_life(params, *gait, body_rotation_mode, moving, view_yaw_speed, stances.get(entity).copied().unwrap_or_default())
         };
         let mut next_yaw = if aiming_stationary {
             current_yaw
@@ -1016,6 +1018,44 @@ mod rotation_cap_tests {
         let expected = 50.0_f32.to_radians()
             * (1.0 - crate::animation::inv_exp_approx(std::f32::consts::LN_2 / (0.05 + 1e-8) * 0.1));
         assert!((yaw - expected).abs() < 1e-5, "yaw={yaw} expected={expected}");
+    }
+
+    #[test]
+    fn first_person_non_aiming_uses_source_body_aiming_rotation() {
+        for (locomotion, mode, velocity, input, view_degrees, expected_degrees, limit_active) in [
+            (LocomotionState::Grounded, RotationMode::ViewDirection, Vec3::ZERO, Vec2::ZERO, 100.0_f32, 15.00338_f32, false),
+            (LocomotionState::Grounded, RotationMode::ViewDirection, Vec3::NEG_Z * 1.75, Vec2::Y, 90.0, 45.01014, false),
+            (LocomotionState::Grounded, RotationMode::VelocityDirection, Vec3::X * 1.75, Vec2::Y, 90.0, 45.01014, false),
+            (LocomotionState::Grounded, RotationMode::ViewDirection, Vec3::NEG_Z * 1.75, Vec2::Y, 170.0, 100.0, true),
+            (LocomotionState::Air, RotationMode::VelocityDirection, Vec3::X * 3.75, Vec2::Y, 90.0, 45.01014, false),
+        ] {
+            let mut app = App::new();
+            let mut time = Time::<()>::default();
+            time.advance_by(std::time::Duration::from_millis(100));
+            app.insert_resource(time)
+                .init_resource::<Assets<AlsMovementParams>>()
+                .add_systems(Update, rotation_response_system);
+            let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>()
+                .add(AlsMovementParams::default());
+            let view = view_degrees.to_radians();
+            let character = app.world_mut().spawn((
+                AlsCharacter, crate::input_request::AlsFirstPersonView, Stance::Standing,
+                Transform::IDENTITY, Gait::Running, locomotion, mode, AlsViewYaw(view),
+                AlsMovementParamsHandle(params), LinearVelocity(velocity),
+                AlsInputCommand { move_dir: input, ..default() },
+                AlsRotationResponseState { initialized: true, previous_view_yaw: view,
+                    previous_locomotion: locomotion, previous_rotation_mode: Some(mode), ..default() },
+                AlsAimingYawConstraint { active_limit_degrees: if limit_active { 70.0 } else { 180.0 },
+                    applied_last_frame: limit_active },
+            )).id();
+            app.update();
+            let yaw = world_forward_to_yaw(*app.world().get::<Transform>(character).unwrap().forward());
+            assert!((yaw - expected_degrees.to_radians()).abs() < 1e-4,
+                "locomotion={locomotion:?} mode={mode:?} yaw={yaw} expected={expected_degrees}");
+            let response = app.world().get::<AlsRotationResponseState>(character).unwrap();
+            assert!((response.target_yaw - view).abs() < 1e-6);
+            assert!(app.world().get::<AlsAimingYawConstraint>(character).unwrap().applied_last_frame);
+        }
     }
 
     #[test]

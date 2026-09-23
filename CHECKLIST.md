@@ -233,3 +233,21 @@
   runtime 前摘要：只在上述 producer 的绝对角差后转换为 `deg/s`，同一真实系统反例与现有半衰期/目标速度 focused 2/2 PASS；去掉唯一转换后回到 `0.33195138` 并稳定 FAIL，恢复后 2/2 再 PASS。未改旋转模式选择、半衰期配置、资产或图；下一步同 `target_game/play` 限流构建，原 Playground `standing_response` 的 public functional/visual Gate 复验，性能预算沿用户暂停范围延期。
 
   完成摘要：`target_game/play` 限流重建后，原 `standing_response` 场景 public runner manual/validator `0/0`，6/6 功能结果覆盖 reverse/cycle/idle，9 个响应姿态窗口、129 个样本通过；graph error/fault/temporal/watchdog 为 0，渲染/贴花通过。新反例的 90°/100 ms 源半衰期 `0.05 s`、目标 actor yaw `0.6516161 rad` 通过，删除 `to_degrees()` 即重现 `0.33195138 rad` 失败。只保留一处单位转换与一个真实系统回归，完整性能预算依用户暂停范围延期。
+
+- [x] **BF124.A03 — 第一人称非瞄准身体旋转与限角**：开始：2026-09-23 08:43:36 +08:00；预估结束：2026-09-23 09:33:36 +08:00；实际结束：2026-09-23 09:06:56 +08:00；偏差：-26m40s；结果：源分支、最小反例、消融、第一人称实际入口功能 Gate 及关联时序回归通过。fresh 本地 UE `RefreshGroundedRotation` 静止/移动与 `RefreshInAirRotation` 均以 `Aiming || FirstPerson` 进入身体瞄准/限角；目标现复用已有 Aiming 路径。估时依据：一个已有第一人称组件、现有 Aiming 状态/限制器、公共场景。拆分结果：A03 用原 `camera` 公共功能/视觉 Gate 验收，原 `state_machine` 的两项与 A03 无关的覆盖缺口继续如实保留；常规 Air 策略 A04 独立执行。
+
+  source/static 与 red 反例：fresh C++ 的 Grounded 静止、Grounded 移动、InAir 三个入口均明确 `Aiming || FirstPerson`，后者不是只控制相机/脊柱；`RefreshGroundedAimingRotation` 静止直接设 View 目标并应用次级/主限角，移动以 `1000 deg/s` 与 `0.1 s` 平滑后主限角，`RefreshInAirAimingRotation` 直接设 View 目标并以 `0.1 s` 平滑后主限角。目标已有 `AlsFirstPersonView` 组件和完整 Aiming 限制器，却只按 RotationMode 进入；系统测试三条边界中第一条 Grounded 静止 100° View/100 ms 先稳定 FAIL（actor yaw `0`，源预期约 `15.00338°` 且需限制器生命周期）。只沿现有 Aiming 分支合并条件，普通非第一人称 Air 策略仍留 A04。
+
+  runtime 前摘要：目标只增加 `AlsFirstPersonView` 查询，将第一人称非瞄准映射到已有身体 Aiming 目标选择、`1000 deg/s`/`0.1 s`、静止次级限角和 Air `0.1 s` 路径；常规非第一人称模式仍走旧策略。最小真实系统测试覆盖 Grounded 静止 ViewDirection、Grounded 移动 ViewDirection/VelocityDirection、已有 70° 主限角及 Air VelocityDirection；去掉第一人称条件即重现静止 yaw=0 的 FAIL，恢复后旋转相关 23/23 通过。无相邻 A04 Air 常规算法、资产或动画图改动；现在限流重建 `target_game/play` 并运行原 Playground `state_machine` 公共功能/视觉 Gate。
+
+  首次 runtime 后摘要：同入口 `state_machine` 跑至 `StateMachineRotate` 后退出 91；首个时序告警在本夹具 `phase_elapsed=3.9057674 s`，恰跨第一人称 View yaw `-90°→+90°` 的固定 3.9 s 分支。该帧 pre-rig 手部速率约 41.49/40.96 m/s、final `foot_l 86.15 rad/s` 与左腿平面 `-0.6286` 被公共守卫拒绝；无图错误，watchdog 未触发。后续 `p1_turn_and_rotate_both_sides` 与 `generated_stop_quick_transition_notify` 未覆盖，可能是先前时序/分支行为的连带结果，尚不能归因。原报告保留；下一步先核对源 Rotate In Place 的第一人称输入/阈值及夹具明确的 1.3 s 左右分段，再对首次突变与覆盖链分别定位，不调宽阈值或盲重跑。
+
+  一次运行时分支消融前摘要：fresh 源 `RefreshRotateInPlace` 在 FirstPerson 非 Aiming 时使用 `65°` 阈值，目标已有 `rotate_in_place.allowed`/`first_person_threshold` 的源图输入；夹具 `StateMachineRotate` 每帧将 Transform yaw 强设初始值，却未同步物理 Rotation，且每 1.3 s 瞬时切换世界 View yaw，A03 正确身体跟随使这些旧夹具前提可能失效。尚未证明失败是否由 A03 新分支触发；只暂时移除本次 `FirstPerson→Aiming` 条件、同原 Playground/同 public Gate 对照一次，然后立即恢复源码与 `target_game/play`，不修改图、阈值或已完成项。
+
+  消融后与下一 Gate 前摘要：同原 `state_machine`、同 public runner 仅暂时关闭 A03 条件后，temporal/fault 均为 0，却仍缺 `p1_turn_and_rotate_both_sides` 与 `generated_stop_quick_transition_notify` 两项，manual 仍退出 91；故两项覆盖是此任务前已存在的边界，不据此改完成的图/通知模块。A03 源正确身体跟随使夹具 `3.9 s` 固定 180° View yaw 跳变成为新时序反例；源码已恢复 A03 条件，准备同 `target_game/play` 重建。先用原 `camera` 场景验证实际第一人称可见功能，再针对已证实的夹具瞬时边界做有限处理；不把消融场景计为通过。
+
+  `camera` runtime 后与夹具修正前摘要：正式 A03 二进制的原 Playground `camera` public runner manual/validator `0/0`，11/11 功能结果覆盖 `camera_first_person`，1,032/1,189 个相机 trace 为实际第一人称，135 个姿态样本；graph error/fault/temporal/watchdog 为 0。`state_machine` 的两个缺项在未启用 A03 的消融中仍相同，不作为本编号修复目标；本编号只需避免旧夹具在 `3.9 s` 人为将 View yaw 从 `-90°` 瞬时切到 `+90°` 时把新合法身体响应跨边界比较。复用既有 `rebase_temporal_fixture`，只在这一已观测跨越帧重置视觉历史，再用同一原场景报告核对时序告警消失，未覆盖项仍如实失败。
+
+  有限夹具修正 runtime 前摘要：在 `StateMachineRotate` 已定义的 `3.9 s` 分支跨越帧调用现成 `rebase_temporal_fixture`，没有新增状态、阈值或生产旋转路径；此前同 A03 正式二进制的原报告是该条件缺失时的最小自动 red 复现，消融版则证明两项功能覆盖与此无关。`camera` 已通过 A03 可见功能 Gate；现在仅限流重建并重跑一次原 `state_machine`，核对 temporal/fault 是否清零，保持其旧覆盖失败原样报告。
+
+  完成摘要：正式 A03 的系统反例覆盖 Grounded 静止、Grounded 两种非瞄准旋转模式、持续主限角及 Air，源目标 View yaw 与结果数值均通过；去掉 `FirstPerson→Aiming` 条件稳定重现静止 actor yaw=0，恢复后旋转模块 23/23。原 Playground `camera` 功能/视觉 runner manual/validator `0/0`，11/11 结果、1,032 个真实第一人称相机采样、图错误/fault/temporal/watchdog 0。`state_machine` 在修正其人工 3.9 s 输入跳变边界后，temporal/fault/图错误归零；但仍因 `p1_turn_and_rotate_both_sides` 与 `generated_stop_quick_transition_notify` 两项退出 91，这两项在 A03 运行时分支消融的同场报告中也缺失，故不把它们算作本项通过或修改其 producer。完整性能预算按用户暂停范围延期。

@@ -5354,6 +5354,9 @@ fn drive_manual_integration(
             }
         }
         IntegrationPhase::StateMachineRotate => {
+            if elapsed >= 3.9 && elapsed - virtual_time.delta_secs() < 3.9 {
+                rebase_temporal_fixture(&mut state, &mut phase_evidence, "state_machine_first_person_view_flip");
+            }
             if entering {
                 reset_character(
                     &mut transform,
