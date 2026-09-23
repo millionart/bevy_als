@@ -3,8 +3,10 @@ use als_core::input::AlsInputMap;
 use als_core::params::AlsMovementParams;
 use als_core::player_start::{
     AlsPlayerStart, AlsPlayerStartCandidate, AlsPlayerStartReady, AlsPlayerStartSelection,
-    choose_player_start,
+    AlsPlayerStartSettings, AlsPlayerStartOccupancy, PLAYER_START_TELEPORT_SKIN,
+    choose_player_start, teleport_xy_adjustments,
 };
+use avian3d::prelude::{SpatialQuery, SpatialQueryFilter};
 use bevy::prelude::*;
 
 use crate::character_assembly::{AlsCharacterBlueprint, spawn_als_character_with_materials};
@@ -85,14 +87,69 @@ pub struct AlsGameModePlugin;
 impl Plugin for AlsGameModePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AlsGameModeRandom>()
-            .add_systems(Update, admit_pending_players);
+            .init_resource::<AlsPlayerStartSettings>()
+            .add_systems(Update, admit_pending_players.after(als_core::player_start::AlsPlayerStartPrepared));
     }
+}
+
+fn spawn_capsules_overlap(a: Vec3, b: Vec3, half_height: f32, radius: f32) -> bool {
+    let horizontal = Vec2::new(a.x - b.x, a.z - b.z).length_squared();
+    let vertical = ((a.y - b.y).abs() - 2.0 * (half_height - radius).max(0.0)).max(0.0);
+    horizontal + vertical * vertical < (2.0 * radius).powi(2)
+}
+
+fn fit_reserved_player_start(
+    candidate: &AlsPlayerStartCandidate,
+    reserved: &[Vec3],
+    settings: &AlsPlayerStartSettings,
+    spatial: &SpatialQuery,
+) -> Option<AlsPlayerStartCandidate> {
+    let center = candidate.fit.transform.translation;
+    if reserved.iter().all(|position| !spawn_capsules_overlap(
+        center, *position, settings.capsule_half_height, settings.capsule_radius,
+    )) {
+        return Some(candidate.clone());
+    }
+    let shape = als_core::character::als_character_capsule(
+        settings.capsule_half_height, settings.capsule_radius,
+    );
+    let filter = SpatialQueryFilter::default()
+        .with_mask(als_core::character::AlsCollisionLayer::Default);
+    for blocker in reserved.iter().filter(|position| spawn_capsules_overlap(
+        center, **position, settings.capsule_half_height, settings.capsule_radius,
+    )) {
+        let delta = Vec2::new(center.x - blocker.x, center.z - blocker.z);
+        let shift = if delta.length_squared() > 1e-6 {
+            delta.normalize() * (2.0 * settings.capsule_radius - delta.length() + PLAYER_START_TELEPORT_SKIN)
+        } else {
+            Vec2::X * (2.0 * settings.capsule_radius + PLAYER_START_TELEPORT_SKIN)
+        };
+        for xy in teleport_xy_adjustments(shift) {
+            let mut adjusted = candidate.clone();
+            let offset = Vec3::new(xy.x, 0.0, xy.y);
+            adjusted.fit.transform.translation += offset;
+            if reserved.iter().any(|position| spawn_capsules_overlap(
+                adjusted.fit.transform.translation, *position,
+                settings.capsule_half_height, settings.capsule_radius,
+            )) || !spatial.shape_intersections(
+                &shape, adjusted.fit.transform.translation, adjusted.fit.transform.rotation, &filter,
+            ).is_empty() {
+                continue;
+            }
+            adjusted.fit.teleport_adjustment += offset;
+            adjusted.fit.occupancy = AlsPlayerStartOccupancy::OccupiedAdjusted;
+            return Some(adjusted);
+        }
+    }
+    None
 }
 
 #[allow(clippy::type_complexity)]
 fn admit_pending_players(
     mut commands: Commands,
     barrier: Option<Res<AlsScenePhysicsReady>>,
+    settings: Res<AlsPlayerStartSettings>,
+    spatial: SpatialQuery,
     mut random: ResMut<AlsGameModeRandom>,
     all_starts: Query<Entity, With<AlsPlayerStart>>,
     starts: Query<(Entity, &AlsPlayerStart, &AlsPlayerStartReady)>,
@@ -133,14 +190,26 @@ fn admit_pending_players(
         }
         return;
     }
+    let mut reserved = Vec::new();
     for (request, admission) in &pending {
-        let Some(selection) = choose_player_start(
-            &candidates,
-            admission.incoming_start_tag.as_deref(),
-            random.next_ticket(),
-        ) else {
+        let available: Vec<_> = candidates.iter()
+            .filter_map(|candidate| fit_reserved_player_start(candidate, &reserved, &settings, &spatial))
+            .collect();
+        let tag = admission.incoming_start_tag.as_deref().filter(|tag| !tag.is_empty());
+        let tagged_reserved = tag.is_some_and(|tag| {
+            candidates.iter().any(|candidate| candidate.tag.as_deref() == Some(tag))
+                && !available.iter().any(|candidate| candidate.tag.as_deref() == Some(tag))
+        });
+        let selection = (!tagged_reserved)
+            .then(|| choose_player_start(&available, tag, random.next_ticket()))
+            .flatten();
+        let Some(selection) = selection else {
+            commands.entity(request).remove::<AlsPlayerAdmissionPending>().insert(
+                AlsPlayerAdmissionFailed { reason: "No PlayerStart can fit the default pawn".into() },
+            );
             continue;
         };
+        reserved.push(selection.fit.transform.translation);
         let character = spawn_als_character_with_materials(
             &mut commands,
             &assets,
@@ -177,47 +246,87 @@ fn admit_pending_players(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use als_core::player_start::AlsPlayerStartOccupancy;
+    use avian3d::prelude::{Collider, PhysicsPlugins, RigidBody};
     use bevy::asset::AssetPlugin;
     use bevy_animation_graph::core::animated_scene::AnimatedScene;
 
     #[test]
-    #[ignore = "A16: same-frame admissions reuse unreserved spawn space"]
     fn same_frame_admissions_do_not_share_one_capsule_space() {
-        let mut app = App::new();
-        app.add_plugins((MinimalPlugins, AssetPlugin::default(), AlsGameModePlugin))
-            .init_asset::<StandardMaterial>()
-            .init_asset::<AlsMovementParams>()
-            .init_asset::<AlsControlSchemeConfig>()
-            .init_asset::<AnimatedScene>()
-            .init_asset::<als_camera::AlsCameraDefinition>();
-        app.finish();
-        app.cleanup();
-        let transform = Transform::from_xyz(0.0, 0.919, 0.0);
-        app.world_mut().spawn((
-            AlsPlayerStart::default(),
-            AlsPlayerStartReady {
-                transform,
-                ground_y: 0.0,
-                adjustment: 0.0,
-                teleport_adjustment: Vec3::ZERO,
-                occupancy: AlsPlayerStartOccupancy::Unoccupied,
-            },
-        ));
-        let admission = AlsPlayerAdmission {
-            spawn_input: false,
-            ..AlsPlayerAdmission::new()
-        };
-        let first = app.world_mut().spawn((admission.clone(), AlsPlayerAdmissionPending)).id();
-        let second = app.world_mut().spawn((admission, AlsPlayerAdmissionPending)).id();
-        app.update();
-        let first_spawn = app.world().get::<AlsPlayerAdmissionComplete>(first).unwrap();
-        if let Some(second_spawn) = app.world().get::<AlsPlayerAdmissionComplete>(second) {
+        assert!(spawn_capsules_overlap(Vec3::ZERO, Vec3::ZERO, 0.9, 0.3));
+        assert!(!spawn_capsules_overlap(Vec3::ZERO, Vec3::X * 0.61, 0.9, 0.3));
+        assert!(!spawn_capsules_overlap(Vec3::ZERO, Vec3::Y * 1.81, 0.9, 0.3));
+        for (starts, incoming_tag, blocked) in [
+            (vec![(Vec3::ZERO, None)], None, false),
+            (vec![(Vec3::ZERO, Some("Portal")), (Vec3::X * 3.0, Some("Other"))], Some("Portal"), false),
+            (vec![(Vec3::ZERO, None), (Vec3::X * 3.0, None)], None, false),
+            (vec![(Vec3::ZERO, None)], None, true),
+        ] {
+            let mut app = App::new();
+            app.add_plugins((
+                MinimalPlugins,
+                AssetPlugin::default(),
+                bevy::mesh::MeshPlugin,
+                bevy::transform::TransformPlugin,
+                PhysicsPlugins::new(FixedPostUpdate),
+                AlsGameModePlugin,
+            ))
+                .init_asset::<StandardMaterial>()
+                .init_asset::<AlsMovementParams>()
+                .init_asset::<AlsControlSchemeConfig>()
+                .init_asset::<AnimatedScene>()
+                .init_asset::<als_camera::AlsCameraDefinition>();
+            app.finish();
+            app.cleanup();
+            let mut starts_spawned = Vec::new();
+            for (offset, tag) in starts {
+                starts_spawned.push(app.world_mut().spawn((
+                    AlsPlayerStart { tag: tag.map(str::to_owned), ..default() },
+                    AlsPlayerStartReady {
+                        transform: Transform::from_translation(offset + Vec3::Y * 0.919),
+                        ground_y: 0.0,
+                        adjustment: 0.0,
+                        teleport_adjustment: Vec3::ZERO,
+                        occupancy: AlsPlayerStartOccupancy::Unoccupied,
+                    },
+                )).id());
+            }
+            if blocked {
+                for offset in teleport_xy_adjustments(Vec2::X * (0.6 + PLAYER_START_TELEPORT_SKIN)) {
+                    app.world_mut().spawn((
+                        RigidBody::Static,
+                        Collider::cuboid(0.1, 1.8, 0.1),
+                        Transform::from_xyz(offset.x, 0.919, offset.y),
+                    ));
+                }
+                app.update();
+                app.world_mut().run_schedule(FixedPostUpdate);
+                app.update();
+            }
+            let admission = AlsPlayerAdmission {
+                spawn_input: false,
+                incoming_start_tag: incoming_tag.map(str::to_owned),
+                ..AlsPlayerAdmission::new()
+            };
+            let first = app.world_mut().spawn((admission.clone(), AlsPlayerAdmissionPending)).id();
+            let second = app.world_mut().spawn((admission, AlsPlayerAdmissionPending)).id();
+            app.update();
+            let first_spawn = app.world().get::<AlsPlayerAdmissionComplete>(first).unwrap();
+            if blocked {
+                assert!(app.world().get::<AlsPlayerAdmissionComplete>(second).is_none());
+                assert!(app.world().get::<AlsPlayerAdmissionFailed>(second).is_some());
+                continue;
+            }
+            let second_spawn = app.world().get::<AlsPlayerAdmissionComplete>(second).unwrap();
             let first_position = app.world().get::<Transform>(first_spawn.character).unwrap().translation;
             let second_position = app.world().get::<Transform>(second_spawn.character).unwrap().translation;
             assert!(first_position.distance(second_position) >= 0.6);
-        } else {
-            assert!(app.world().get::<AlsPlayerAdmissionFailed>(second).is_some());
+            if starts_spawned.len() == 1 || incoming_tag.is_some() {
+                assert_eq!(first_spawn.selection.entity, starts_spawned[0]);
+                assert_eq!(second_spawn.selection.entity, starts_spawned[0]);
+                assert_eq!(second_spawn.selection.fit.occupancy, AlsPlayerStartOccupancy::OccupiedAdjusted);
+            } else {
+                assert_ne!(first_spawn.selection.entity, second_spawn.selection.entity);
+            }
         }
     }
 }

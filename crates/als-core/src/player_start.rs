@@ -346,10 +346,13 @@ fn player_start_ready_matches(current: &AlsPlayerStartReady, next: &AlsPlayerSta
 
 pub struct AlsPlayerStartPlugin;
 
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AlsPlayerStartPrepared;
+
 impl Plugin for AlsPlayerStartPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AlsPlayerStartSettings>()
-            .add_systems(Update, prepare_player_starts);
+            .add_systems(Update, prepare_player_starts.in_set(AlsPlayerStartPrepared));
     }
 }
 
@@ -370,7 +373,9 @@ fn prepare_player_starts(
         With<AlsPlayerStart>,
     >,
 ) {
-    let filter = SpatialQueryFilter::from_excluded_entities(characters.iter());
+    let ground_filter = SpatialQueryFilter::from_excluded_entities(characters.iter());
+    let occupancy_filter = SpatialQueryFilter::default()
+        .with_mask(crate::character::AlsCollisionLayer::Default);
     for (entity, player_start, start, probe, ready) in &mut starts {
         let ground_y = if player_start.snap_to_ground {
             let probe_origin = start.translation + Vec3::Y * settings.probe_height;
@@ -379,7 +384,7 @@ fn prepare_player_starts(
                 Dir3::NEG_Y,
                 settings.probe_distance,
                 true,
-                &filter,
+                &ground_filter,
             ) else {
                 commands.entity(entity).remove::<AlsPlayerStartReady>();
                 continue;
@@ -395,7 +400,7 @@ fn prepare_player_starts(
             settings.capsule_half_height,
             settings.capsule_radius,
             &aabbs,
-            &filter,
+            &occupancy_filter,
         ) else {
             commands.entity(entity).remove::<AlsPlayerStartReady>();
             continue;
@@ -433,6 +438,9 @@ fn prepare_player_starts(
             }
         };
         if stable_frames < settings.required_stable_frames.max(1) {
+            if ready.is_some() {
+                commands.entity(entity).remove::<AlsPlayerStartReady>();
+            }
             continue;
         }
         let next_ready = AlsPlayerStartReady {
@@ -470,7 +478,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore = "A16: existing character is excluded from start occupancy"]
     fn existing_character_blocks_player_start_occupancy() {
         use avian3d::prelude::{PhysicsPlugins, RigidBody};
         use bevy::{asset::AssetPlugin, mesh::MeshPlugin, transform::TransformPlugin};
@@ -488,9 +495,14 @@ mod tests {
         app.cleanup();
         let center = Vec3::Y * player_start_grounded_height(0.0, 0.9);
         let start = app.world_mut().spawn((
-            AlsPlayerStart { snap_to_ground: false, ..default() },
+            AlsPlayerStart::default(),
             Transform::from_translation(center),
         )).id();
+        app.world_mut().spawn((
+            RigidBody::Static,
+            avian3d::prelude::Collider::cuboid(20.0, 0.2, 20.0),
+            Transform::from_xyz(0.0, -0.1, 0.0),
+        ));
         let occupant = app.world_mut().spawn((
             crate::character::AlsCharacter,
             RigidBody::Static,
@@ -501,8 +513,32 @@ mod tests {
         app.world_mut().run_schedule(FixedPostUpdate);
         app.update();
         assert!(app.world().entities().contains(occupant));
-        assert!(app.world().get::<AlsPlayerStartReady>(start)
-            .is_none_or(|ready| ready.occupancy != AlsPlayerStartOccupancy::Unoccupied));
+        let ready = app.world().get::<AlsPlayerStartReady>(start).unwrap();
+        assert!(ready.ground_y.abs() < 1e-3);
+        assert_eq!(ready.occupancy, AlsPlayerStartOccupancy::OccupiedAdjusted);
+
+        app.world_mut().entity_mut(occupant).despawn();
+        app.world_mut().resource_mut::<AlsPlayerStartSettings>().required_stable_frames = 2;
+        app.update();
+        app.world_mut().run_schedule(FixedPostUpdate);
+        app.update();
+        app.update();
+        assert_eq!(app.world().get::<AlsPlayerStartReady>(start).unwrap().occupancy,
+            AlsPlayerStartOccupancy::Unoccupied);
+        app.world_mut().spawn((
+            crate::character::AlsCharacter,
+            RigidBody::Static,
+            crate::character::als_character_capsule(0.9, 0.3),
+            Transform::from_translation(center),
+        ));
+        app.world_mut().run_schedule(FixedPostUpdate);
+        app.update();
+        assert!(app.world().get::<AlsPlayerStartReady>(start).is_none(),
+            "Stale unoccupied readiness must not admit a pawn during occupancy stabilization: {:?}",
+            app.world().get::<AlsPlayerStartReady>(start));
+        app.update();
+        assert_eq!(app.world().get::<AlsPlayerStartReady>(start).unwrap().occupancy,
+            AlsPlayerStartOccupancy::OccupiedAdjusted);
     }
 
     fn fit(occupancy: AlsPlayerStartOccupancy) -> AlsPlayerSpawnFit {
