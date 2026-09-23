@@ -1,5 +1,5 @@
 {
-  "format": "als_runtime_provider_contract_v1",
+  "format": "als_runtime_provider_contract_v2",
   "runtime_inputs": {
     "b_right_shoulder": "crate::camera_component::AlsSourceCameraPlugin",
     "draw_amount": "crate::overlay_object::OverlayObjectPlugin",
@@ -100,6 +100,16 @@
     "Transition": "crate::stop_link::AlsStopLinkPlugin",
     "TurnInPlaceCrouching": "crate::turn_layer::AlsTurnLayerPlugin",
     "TurnInPlaceStanding": "crate::turn_layer::AlsTurnLayerPlugin"
+  },
+  "slot_inertialization_requests": {
+    "TurnInPlaceCrouching": {
+      "epoch_key": "als_crouching_turn_inertialization_epoch",
+      "duration_key": "als_crouching_turn_inertialization_duration"
+    },
+    "TurnInPlaceStanding": {
+      "epoch_key": "als_standing_turn_inertialization_epoch",
+      "duration_key": "als_standing_turn_inertialization_duration"
+    }
   },
   "gameplay_tag_providers": {
     "rotation_mode": "crate::ab_als_root::AlsRootGraphPlugin / crate::camera_component::AlsSourceCameraPlugin",

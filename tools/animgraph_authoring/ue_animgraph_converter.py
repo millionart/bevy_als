@@ -52,7 +52,7 @@ IR_FORMAT = "ue_animgraph_contract_ir_v1"
 REPORT_FORMAT = "ue_animgraph_conversion_report_v1"
 INTEGRATION_REPORT_FORMAT = "ue_animgraph_integration_report_v1"
 INSTALLATION_MANIFEST_FORMAT = "ue_animgraph_installation_manifest_v1"
-RUNTIME_PROVIDER_CONTRACT_FORMAT = "als_runtime_provider_contract_v1"
+RUNTIME_PROVIDER_CONTRACT_FORMAT = "als_runtime_provider_contract_v2"
 RUNTIME_PROVIDER_CONTRACT_PATH = ROOT / "tools" / "animgraph_authoring" / "als_runtime_provider_contract.json"
 FORBIDDEN_REGISTRY_KEYS = {"asset", "asset_name", "asset_path", "source_asset", "node_guid"}
 IR_ONLY_RENDERERS = {"root_output", "comment_group"}
@@ -121,11 +121,12 @@ def runtime_provider_contract():
         "runtime_inputs",
         "sync_phase_providers",
         "slot_providers",
+        "slot_inertialization_requests",
         "gameplay_tag_providers",
     }
     if not isinstance(value, dict) or set(value) != expected or value.get("format") != RUNTIME_PROVIDER_CONTRACT_FORMAT:
         raise ConversionError("runtime provider contract is invalid")
-    for category in expected - {"format"}:
+    for category in expected - {"format", "slot_inertialization_requests"}:
         providers = value.get(category)
         if not isinstance(providers, dict) or any(
             not isinstance(key, str)
@@ -135,6 +136,15 @@ def runtime_provider_contract():
             for key, provider in providers.items()
         ):
             raise ConversionError("runtime provider contract is invalid")
+    requests = value["slot_inertialization_requests"]
+    if not isinstance(requests, dict) or any(
+        slot not in value["slot_providers"]
+        or not isinstance(binding, dict)
+        or set(binding) != {"epoch_key", "duration_key"}
+        or any(not isinstance(key, str) or not key for key in binding.values())
+        for slot, binding in requests.items()
+    ):
+        raise ConversionError("runtime provider contract is invalid")
     return value
 
 
@@ -1345,6 +1355,81 @@ def resolve_control_rig_program(semantic, content_root, mount, source_reader):
     return {"definition": target, "input_bindings": bindings}
 
 
+def bind_inertialization_requests(graphs, slot_requests):
+    issues = []
+    for graph in graphs:
+        nodes = {node["source_node"]: node for node in graph["nodes"]}
+        for node in graph["nodes"]:
+            if node["renderer"] != "inertialization" or not isinstance(node.get("semantic"), dict):
+                continue
+            sources = [
+                nodes.get(link["source"]["node_object_path"])
+                for link in graph["links"]
+                if link["target"]["node_object_path"] == node["source_node"]
+                and link["target"]["pin_name"] == "Source"
+            ]
+            if len(sources) != 1 or sources[0] is None or sources[0]["renderer"] != "state_machine":
+                continue
+            machine = (sources[0].get("semantic") or {}).get("fsm_source_graph")
+            if not isinstance(machine, str) or not machine:
+                continue
+            candidates = {
+                (request["epoch_key"], request["duration_key"])
+                for nested in graphs
+                if nested["kind"] == "graph" and nested["source_graph"].startswith(machine + ".")
+                for slot in nested["nodes"]
+                if slot["renderer"] == "slot"
+                for request in [slot_requests.get((slot.get("semantic") or {}).get("slot_name"))]
+                if request is not None
+            }
+            if len(candidates) > 1:
+                issues.append({"kind": "source_inertialization_request_ambiguous",
+                    "source_node": node["source_node"], "candidates": sorted(candidates)})
+            elif candidates:
+                epoch, duration = next(iter(candidates))
+                node["semantic"].update(request_epoch_key=epoch, request_duration_key=duration)
+    return issues
+
+
+def self_test_inertialization_request_binding():
+    requests = RUNTIME_PROVIDER_CONTRACT["slot_inertialization_requests"]
+
+    def fixture(root, machine, inertial, slot):
+        machine_path = f"/Asset:{root}.{machine}"
+        inertial_path = f"/Asset:{root}.{inertial}"
+        machine_graph = f"{root}.{machine}.States"
+        return [
+            {"kind": "graph", "source_graph": root, "nodes": [
+                {"source_node": machine_path, "renderer": "state_machine",
+                    "semantic": {"fsm_source_graph": machine_graph}},
+                {"source_node": inertial_path, "renderer": "inertialization", "semantic": {}},
+            ], "links": [{"source": {"node_object_path": machine_path},
+                "target": {"node_object_path": inertial_path, "pin_name": "Source"}}]},
+            {"kind": "graph", "source_graph": machine_graph + ".Idle", "nodes": [
+                {"source_node": f"/Asset:{machine_graph}.Slot", "renderer": "slot",
+                    "semantic": {"slot_name": slot}},
+            ], "links": []},
+        ]
+
+    for root, machine, inertial in [("AnimGraph", "M1", "I1"), ("RenamedGraph", "M99", "I99")]:
+        graphs = fixture(root, machine, inertial, "TurnInPlaceStanding")
+        assert not bind_inertialization_requests(graphs, requests)
+        assert graphs[0]["nodes"][1]["semantic"] == {
+            "request_epoch_key": requests["TurnInPlaceStanding"]["epoch_key"],
+            "request_duration_key": requests["TurnInPlaceStanding"]["duration_key"],
+        }
+    graphs = fixture("AnimGraph", "M1", "I1", "TurnInPlaceCrouching")
+    assert not bind_inertialization_requests(graphs, requests)
+    assert graphs[0]["nodes"][1]["semantic"]["request_epoch_key"] == requests["TurnInPlaceCrouching"]["epoch_key"]
+    graphs = fixture("AnimGraph", "M1", "I1", "Head")
+    assert not bind_inertialization_requests(graphs, requests)
+    assert not graphs[0]["nodes"][1]["semantic"]
+    graphs = fixture("AnimGraph", "M1", "I1", "TurnInPlaceStanding")
+    graphs[1]["nodes"].append({"source_node": "/Asset:AnimGraph.M1.States.OtherSlot",
+        "renderer": "slot", "semantic": {"slot_name": "TurnInPlaceCrouching"}})
+    assert bind_inertialization_requests(graphs, requests)[0]["kind"] == "source_inertialization_request_ambiguous"
+
+
 def build_ir(
     source,
     root_graph,
@@ -1489,6 +1574,8 @@ def build_ir(
                 graph_value["fsm_renderer"] = fsm_plan
         graphs.append({**entry, **graph_value})
         unsupported.extend(graph_unsupported)
+    unsupported.extend(bind_inertialization_requests(
+        graphs, RUNTIME_PROVIDER_CONTRACT["slot_inertialization_requests"]))
     sync_group_plans, supported_sync_nodes, sync_issues = build_sync_group_plans(
         source["asset_path"],
         graphs,
@@ -2837,6 +2924,7 @@ def fixture_registry():
 
 
 def run_self_test():
+    self_test_inertialization_request_binding()
     registry = fixture_registry()
     assert source_property_key("StandingState.PlayRate") == "standing_state.play_rate"
     assert (
@@ -3854,6 +3942,7 @@ def run_self_test():
         "materialized_closure_namespace_relocation_preserves_non_graph_assets": "PASS",
         "owned_empty_install_directories_pruned": "PASS",
         "recursive_integration_dependencies_are_aggregated": "PASS",
+        "inertialization_request_source_topology_identity_and_values": "PASS",
     }
 
 

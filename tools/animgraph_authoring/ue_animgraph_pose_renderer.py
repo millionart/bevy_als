@@ -1074,7 +1074,11 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             + bool_ron(value["forward_requests_through_skipped_cached_poses"])
             + ", filtered_curves: ["
             + ", ".join(quoted(curve) for curve in value["filtered_curves"])
-            + "], filtered_bones: [], curve_names: [], capture_context: false, expose_context_curves: false, exposed_output_data: [], missing_curve_value: None, internalize_time: true, output: \"Pose\", request_epoch_key: \"\", request_duration_key: \"\")",
+            + "], filtered_bones: [], curve_names: [], capture_context: false, expose_context_curves: false, exposed_output_data: [], missing_curve_value: None, internalize_time: true, output: \"Pose\", request_epoch_key: "
+            + quoted(value.get("request_epoch_key", ""))
+            + ", request_duration_key: "
+            + quoted(value.get("request_duration_key", ""))
+            + ")",
         )
     if renderer == "pose_lifecycle_call":
         if value["source_function"] in {"InitializeHead", "InitializeLean", "InitializeGrounded", "InitializeStandingMovement", "ResetPivot", "InitializeTurnInPlace", "ResetGroundedEntryMode"}:

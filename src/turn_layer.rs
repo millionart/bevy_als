@@ -928,7 +928,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "A22: generated inertialization nodes omit turn request inputs"]
     fn generated_turn_inertialization_nodes_consume_runtime_requests() {
         for (graph, epoch, duration) in [
             ("assets/generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
