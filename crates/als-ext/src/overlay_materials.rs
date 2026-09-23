@@ -28,13 +28,13 @@ fn avatar_material_bridge(
         Entity,
         &AvatarMaterialOverride,
         Option<&AvatarMaterialApplied>,
-        Option<&NoDecalReceiver>,
+        Option<Ref<NoDecalReceiver>>,
     )>,
     children: Query<&Children>,
     mesh_materials: Query<(Option<&MeshMaterial3d<StandardMaterial>>, Option<&crate::projected_decal::StandardMaterialSource>), With<Mesh3d>>,
 ) {
     for (root, override_comp, applied, no_decals) in &avatars {
-        if applied.is_some() {
+        if applied.is_some() && !no_decals.as_ref().is_some_and(Ref::is_added) {
             continue;
         }
         let mut stack = vec![root];
@@ -53,6 +53,12 @@ fn avatar_material_bridge(
             }
         }
         if mesh_entities.is_empty() {
+            continue;
+        }
+        if applied.is_some() {
+            for entity in mesh_entities {
+                commands.entity(entity).insert(NoDecalReceiver);
+            }
             continue;
         }
         let source_materials: Vec<_> = mesh_entities
@@ -225,7 +231,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "A15: processed Avatar skips late NoDecalReceiver propagation"]
     fn late_no_decal_marker_reaches_already_processed_meshes() {
         let mut world = World::new();
         let mut materials = Assets::<StandardMaterial>::default();
