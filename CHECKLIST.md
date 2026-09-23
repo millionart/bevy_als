@@ -709,3 +709,9 @@
 - [x] **BF124.A29-S2 — 同基座上一帧速度旋转补偿与局部 Gate**：开始：2026-09-23 22:41:18 +08:00；预估结束：2026-09-23 23:26:18 +08:00；实际结束：2026-09-23 22:50:23 +08:00；偏差：-35m55s；结果：目标动画快照仅在同一非静态 Grounded 基座上以当前/上一帧旋转差补偿旧速度，源预期 0 加速度的反例 red→green；基座替换、静态基座及零增量保持 0。快照 5/5，图输入投影与更新顺序各 1/1，三个必要条件分别消融 red；冗余物理基座 `Rotation` 测试状态移除后 Gate 不变。估时依据：S1 已限定一个快照系统、一项现有基座状态与真实失败夹具；拆分结果：S2 静态 Gate 完成，S3 原 Playground moving base/locomotion 公共 Gate。
 
   source/static 完成摘要：源 `MovementBase.DeltaRotation` 是当前基座旋转乘上上一帧逆旋转，换基座时为零；目标在 `AlsActualMotion` 仅缓存上次有效基座实体和旋转，当前非静态 Grounded 基座与其同实体才映射上一帧速度，随后做原差分。把补偿改回原始速度会在旋转平台测试 red；移除同实体判断在换基座时 red；允许静态基座参与在静态旋转时 red。恢复后三者和首帧/零增量边界均 green；`actual_motion::tests` 5/5，源输入投影与当前 motor 速度在图前可见测试各 1/1。S3 runtime 前只需同启动器重建并跑原 Playground `startup`、`moving_base`、`locomotion` 公共功能 Gate，性能预算仍按既有安排延期。
+
+- [x] **BF124.A29-S3 — 原 Playground 运动基座/动画加速度公共视觉 Gate**：开始：2026-09-23 22:51:16 +08:00；预估结束：2026-09-23 23:26:16 +08:00；实际结束：2026-09-23 22:55:24 +08:00；偏差：-30m52s；结果：同启动器 `target_game`/`play` 预构建成功，四项原 Playground 公共场景功能 Gate 均通过；完整性能预算沿用户既有安排延期。估时依据：S1–S2 最小反例与 5/5 局部 Gate、四项现成真实场景及同入口历史耗时；拆分结果：A29 runtime Gate 完成，A30 为下一项。
+
+  runtime 前 source/static 摘要：fresh ALS 先把上一帧动画速度按同基座旋转差映射到当前世界基，再求差分；目标快照现对非静态 Grounded 的同实体基座做相同映射。旋转、基座替换、静态与零增量的实际系统夹具通过，三处新增判断分别消融 red；图输入投影和图前速度顺序局部 Gate 通过。使用已提交 `e309b2b` 源码和真实启动器产物进入四项原 Playground 功能 Gate。
+
+  runtime 完成摘要（2026-09-23 22:55:24 +08:00）：`startup`、`moving_base`、`rotating_base`、`locomotion` 均 manual exit 0、functional validator exit 0。后三项动作覆盖分别为 10/10、12/12、18/18，运动窗口分别为 2/2、4/4、14/14；四份报告均 `primary_failure=null`、graph error 0、fault 0、temporal anomaly 0、watchdog 未触发。旋转基座的左右踩踏和支持切换均获覆盖；报告原始 `pass=false` 仅因延期的 `max_eval_p95_ms` 性能预算，功能结论通过。A29 的源、静态和真实入口闭环完成。
