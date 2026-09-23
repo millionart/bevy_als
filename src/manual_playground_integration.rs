@@ -36,7 +36,7 @@ use als_ext::source_instance::SourceInstanceProperties;
 use als_ext::source_cached_pose::CACHED_POSE_VALUE;
 use als_ext::{
     ALS_LAYER_CURVE_NAMES, RagdollCollisionMember, RagdollPhysicsProfile,
-    RagdollPhysicsProfileApplied,
+    RagdollPhysicsProfileApplied, SourcePhysicsJoint,
 };
 use avian3d::prelude::{Collider, CollisionLayers, LinearVelocity, Position, RigidBody, Rotation};
 use bevy::animation::AnimationTargetId;
@@ -49,7 +49,7 @@ use bevy_animation_graph::core::animation_graph::{AnimationGraph, NodeId, Source
 use bevy_animation_graph::core::animation_graph_player::{AnimationGraphPlayer, AnimationSource};
 use bevy_animation_graph::core::context::node_states::StateKey;
 use bevy_animation_graph::core::edge_data::DataValue;
-use bevy_animation_graph::core::ragdoll::definition::BodyLabel;
+use bevy_animation_graph::core::ragdoll::definition::{BodyLabel, JointLabel};
 use bevy_animation_graph::core::{
     pose::Pose, skeleton::Skeleton, state_machine::high_level::StateMachine,
 };
@@ -3400,6 +3400,8 @@ struct MotionProbe<'w, 's> {
 #[derive(SystemParam)]
 struct RagdollPaProbe<'w, 's> {
     labels: Query<'w, 's, &'static BodyLabel>,
+    colliders: Query<'w, 's, &'static Collider>,
+    joints: Query<'w, 's, (&'static SourcePhysicsJoint, &'static JointLabel)>,
     profiles: Query<
         'w,
         's,
@@ -9336,9 +9338,26 @@ fn observe_manual_integration(
                 let expected_y = fixture.locomotion_start.y - 0.92
                     + 2.0 * ALS_CHARACTER_CAPSULE_HALF_HEIGHT
                     + ALS_CHARACTER_FLOOR_CLEARANCE;
+                let physics_scaled = player.get_spawned_ragdoll().is_some_and(|spawned| {
+                    let colliders_scaled = spawned.colliders.values().all(|entity|
+                        ragdoll_probe.colliders.get(*entity).is_ok_and(|collider|
+                            collider.scale().abs_diff_eq(Vec3::splat(2.0), 1e-3)));
+                    let joint_scaled = ragdoll_probe.profiles.get(instance.player_entity()).ok()
+                        .and_then(|(_, profile)| profile.joints.iter().find(|joint|
+                            joint.definition.parent_frame.translation.length() > 0.01))
+                        .is_some_and(|source| spawned.joints.values().any(|entity|
+                            ragdoll_probe.joints.get(*entity).is_ok_and(|(joint, label)|
+                                label.0 == source.label
+                                    && joint.parent_frame.translation.abs_diff_eq(
+                                        source.definition.parent_frame.translation * 2.0, 1e-4)
+                                    && joint.child_frame.translation.abs_diff_eq(
+                                        source.definition.child_frame.translation * 2.0, 1e-4))));
+                    colliders_scaled && joint_scaled
+                });
                 let scaled = transform.scale == Vec3::splat(2.0)
                     && (follow.target.y - expected_y).abs() < 0.12
-                    && (transform.translation.y - follow.target.y).abs() < 0.02;
+                    && (transform.translation.y - follow.target.y).abs() < 0.02
+                    && physics_scaled;
                 state.coverage.ragdoll_scaled |= scaled;
                 if state.ragdoll_grounded_at.is_none() {
                     info!(

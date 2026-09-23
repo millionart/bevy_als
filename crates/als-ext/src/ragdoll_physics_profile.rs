@@ -415,16 +415,22 @@ fn apply_ragdoll_physics_profiles(
     revolute_joints: Query<&RevoluteJoint>,
     transforms: Query<&Transform>,
     mut colliders: Query<&mut Collider>,
+    transform_helper: bevy::transform::helper::TransformHelper,
 ) {
     for (player_entity, player, profile) in &players {
         let Some(spawned) = player.get_spawned_ragdoll() else {
             continue;
         };
+        let scale = transform_helper.compute_global_transform(player_entity).ok()
+            .map(|transform| transform.to_scale_rotation_translation().0)
+            .filter(|scale| scale.is_finite() && scale.min_element() > 0.0
+                && scale.max_element() - scale.min_element() <= 1e-4)
+            .map_or(1.0, |scale| scale.x);
         let applied = apply_profile_to_spawned_ragdoll(
             &mut commands,
             spawned,
             profile,
-            1.0,
+            scale,
             &body_labels,
             &collider_labels,
             &joint_labels,
@@ -527,6 +533,10 @@ fn apply_profile_to_spawned_ragdoll(
         let mut joint = joint_profile.definition.clone();
         joint.parent = parent;
         joint.child = child;
+        if scale != 1.0 {
+            joint.parent_frame.translation *= scale;
+            joint.child_frame.translation *= scale;
+        }
         commands
             .entity(*joint_entity)
             .remove::<(SphericalJoint, RevoluteJoint, JointDamping)>()
@@ -823,7 +833,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "A35 source mismatch fixture"]
     fn positive_uniform_scale_reaches_ragdoll_shapes_offsets_and_joint_frames() {
         use avian3d::prelude::Collider;
         use bevy::ecs::system::RunSystemOnce;
@@ -876,6 +885,10 @@ mod tests {
             "baseline={collider_extent:?} scaled={scaled_extent:?} collider_scale={:?}", scaled_collider.scale());
         assert!(world.get::<SourcePhysicsJoint>(joint).unwrap().parent_frame.translation
             .abs_diff_eq(joint_offset * 2.0, 1e-5));
+        app.update();
+        let next_extent = app.world().get::<Collider>(collider).unwrap().shape_scaled().compute_local_aabb().half_extents();
+        assert!(next_extent.abs_diff_eq(collider_extent * 2.0, 1e-5),
+            "Collider scale was lost after physics: {next_extent:?}");
     }
 
     #[test]
