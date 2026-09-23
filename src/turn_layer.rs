@@ -643,11 +643,58 @@ fn turn_pin_driver(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy::ecs::system::RunSystemOnce;
+    use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner};
+    use bevy_animation_graph::AnimationGraphPlugin;
     use als_core::motion::AlsViewYaw;
     use als_core::rotate_in_place::{RotateInPlaceConfig, RotateSide, update_rotate_in_place};
     use als_core::state::{LocomotionState, RotationMode};
     use als_core::turn_in_place::TurnInPlaceDetector;
     use avian3d::prelude::LinearVelocity;
+
+    #[test]
+    #[ignore = "A14: turn stack persists when the same Avatar switches players"]
+    fn turn_stack_does_not_cross_animation_player_replacement() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), AnimationGraphPlugin::default()));
+        let character = app.world_mut().spawn((als_core::character::AlsCharacter, Stance::Standing)).id();
+        let mut stack = AlsTurnMontageStack::default();
+        stack.begin(0.0, false, TURN_DUR_90, 1.0, false);
+        stack.entries[0].sampling_ready = true;
+        let avatar = app.world_mut().spawn((
+            AlsCharacterAvatar { character },
+            AnimatedSceneHandle::default(),
+            ChildOf(character),
+            AlsTurnDrive::default(),
+            stack,
+        )).id();
+        let old_player = app.world_mut().spawn((
+            AnimationGraphPlayer::new(Handle::default()),
+            ChildOf(avatar),
+        )).id();
+        app.world_mut().trigger(WorldInstanceReady {
+            entity: avatar,
+            instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()),
+        });
+        app.world_mut().flush();
+        app.world_mut().run_system_once(turn_pin_driver).unwrap();
+        assert_eq!(app.world().get::<AlsTurnMontageStack>(avatar).unwrap().entries.len(), 1);
+
+        app.world_mut().entity_mut(old_player).remove::<ChildOf>();
+        let new_player = app.world_mut().spawn((
+            AnimationGraphPlayer::new(Handle::default()),
+            ChildOf(avatar),
+        )).id();
+        app.world_mut().trigger(WorldInstanceReady {
+            entity: avatar,
+            instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()),
+        });
+        app.world_mut().flush();
+        assert_eq!(app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity(), new_player);
+        app.world_mut().run_system_once(turn_pin_driver).unwrap();
+        assert!(app.world().entities().contains(old_player));
+        assert!(app.world().get::<AlsTurnMontageStack>(avatar).unwrap().entries.is_empty());
+    }
 
     #[test]
     fn crouching_turn_driver_preserves_the_source_queued_montage() {
