@@ -42,6 +42,7 @@ const WALK_CLING_DISTANCE: f32 = ALS_CHARACTER_TNUA_FLOAT_EPSILON;
 const AIR_CONTROL: f32 = 0.15;
 const AIR_CONTROL_BOOST_MULTIPLIER: f32 = 2.0;
 const AIR_CONTROL_BOOST_SPEED: f32 = 0.25;
+const IN_AIR_ROTATION_MODE: u8 = include!("../data/in_air_rotation_mode.rs");
 
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
 pub struct AlsActualVelocity {
@@ -466,8 +467,10 @@ fn rotation_response_system(
             runtime.smooth_target_yaw = current_yaw;
         }
         let aiming = *rotation_mode == RotationMode::Aiming || first_person.contains(entity);
+        let hold_air_rotation = *locomotion == LocomotionState::Air && !aiming && matches!(IN_AIR_ROTATION_MODE, 0 | 3);
         let body_rotation_mode = if aiming { RotationMode::Aiming } else { *rotation_mode };
         let target_yaw = wrap_yaw_radians(match body_rotation_mode {
+            _ if hold_air_rotation => current_yaw,
             RotationMode::VelocityDirection => velocity_yaw.unwrap_or(
                 if runtime.initialized
                     && !(curve_driven && runtime.rotation_towards_last_input_direction_blocked)
@@ -496,7 +499,7 @@ fn rotation_response_system(
             _ => current_yaw,
         });
         let aiming_stationary = aiming && *locomotion == LocomotionState::Grounded && !moving && !has_input;
-        if aiming_stationary || (aiming && *locomotion == LocomotionState::Air) {
+        if hold_air_rotation || aiming_stationary || (aiming && *locomotion == LocomotionState::Air) {
             runtime.smooth_target_yaw = target_yaw;
         } else {
             runtime.smooth_target_yaw = advance_yaw(
@@ -515,7 +518,7 @@ fn rotation_response_system(
         } else {
             moving_rotation_half_life(params, *gait, body_rotation_mode, moving, view_yaw_speed, stances.get(entity).copied().unwrap_or_default())
         };
-        let mut next_yaw = if aiming_stationary {
+        let mut next_yaw = if hold_air_rotation || aiming_stationary {
             current_yaw
         } else {
             damper_yaw(
@@ -1059,7 +1062,6 @@ mod rotation_cap_tests {
     }
 
     #[test]
-    #[ignore = "BF124.A04 source air rotation contract; enable after implementation"]
     fn source_default_air_rotation_keeps_actor_yaw_and_resets_the_target() {
         for (mode, velocity, input) in [
             (RotationMode::VelocityDirection, Vec3::X * 3.75, Vec2::Y),
