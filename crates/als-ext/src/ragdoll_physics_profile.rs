@@ -438,8 +438,10 @@ fn apply_ragdoll_physics_profiles(
             continue;
         };
         let scale = ragdoll_positive_uniform_scale(player_entity, &scenes, &transform_helper);
-        let previous_scale = applied.as_ref().map_or(1.0, |applied| applied.scale);
-        if applied.as_ref().is_some_and(|applied| (applied.scale - scale).abs() <= 1e-4) {
+        let previous_scale = applied.as_ref().map_or(1.0, |applied| {
+            if applied.scale.is_finite() && applied.scale > 0.0 { applied.scale } else { 1.0 }
+        });
+        if applied.is_some() && (previous_scale - scale).abs() <= 1e-4 {
             continue;
         }
         let next = apply_profile_to_spawned_ragdoll(
