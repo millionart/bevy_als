@@ -556,6 +556,7 @@ mod tests {
             assert_eq!(query.to_world.rotation, avatar_world.rotation.as_dquat());
             assert_eq!(query.to_world.scale, avatar_world.scale.as_dvec3());
             assert!(query.filter.excluded_entities.contains(&actor));
+            assert!(!query.filter.excluded_entities.contains(&unloaded), "Other characters must remain traceable");
             assert!(!query.filter.test(Entity::PLACEHOLDER, avian3d::prelude::CollisionLayers::new(
                 als_core::character::AlsCollisionLayer::Default, avian3d::prelude::LayerMask::ALL)));
             assert!(query.filter.test(Entity::PLACEHOLDER, avian3d::prelude::CollisionLayers::new(
