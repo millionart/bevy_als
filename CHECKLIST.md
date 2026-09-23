@@ -1058,3 +1058,7 @@
   同场景基线结论（2026-09-24 07:31:00 +08:00）：关闭变体的 `state_machine` 同二进制同样只有 `p1_turn_and_rotate_both_sides` 与 `generated_stop_quick_transition_notify` 两项未覆盖，进程91/validator失败；显式图不是该失败根因。A41 的共享运行时分支和真实反馈信号已通过，改用原 `base` 场景做完整公共 Gate（此前为51/51必需项的真实入口），保留 state_machine 双失败报告供其对应待办处理，不在 A41 改状态机/通知逻辑。改场景前重新预构建 `target_game/play`，显式图与默认 base 均需通过。
 
   runtime 后完成摘要：显式 `ALS_MANUAL_REROUTE_PASSTHROUGH=1` 只在原 base 场景已入场后一次性创建含 float2.5/bool true 的 InputPin→OutputPin 图，公共结果 `reroute_passthrough=true`；原角色/地形/相机与其余51项保持。`target_game/play` 预构建及两次同二进制公共功能 runner 通过，变体52/52、默认51/51，分别1424/1430姿态样本与24窗口，graph error/primary_failure/fault/temporal/watchdog均0，渲染/贴花 Gate true。关开关消融后不注册图求值系统且报告无 reroute 行；没有改源资产、生成图或状态机。state_machine 两份失败报告的相同两项已记录，不归因 A41；完整性能预算未执行。
+
+- [x] **BF124.A41 — Transition Reroute passthrough 按源 InputPin 求值**：开始：2026-09-24 07:39:05 +08:00；预估结束：2026-09-24 07:54:05 +08:00；实际结束：2026-09-24 07:39:05 +08:00；偏差：-15m00s；结果：S1–S3 各自通过并提交（`cf6a2c8`、`3dd3045`、`59c4162`）；fresh 源 pin 合同、Float/Bool 图级 red→green/消融与原 Playground 显式/默认公共功能 Gate 闭合。估时依据：只汇总已提交 source、focused、真实入口证据；拆分结果：A41 当前功能无剩余 Gate，A42 为下一项，完整性能预算沿用户既定暂停范围延期。
+
+  汇总：共享 `SourceScalarExpressionNode` 的 passthrough 由声明的首个输入 pin 取值，保留原边与默认值处理，不改 Transition 生成器或已生成图。fresh Standing 有两处顶层 Knot 的 InputPin/OutputPin 源事实，但无 Transition Knot；现有418份生成 RON 亦无 passthrough operation，故修复覆盖未来同规则产物而不虚称当前角色路径已有该节点。focused 表达式5/5与生成器9项通过，去修复双类型回落0/false；原 base 变体52/52、默认51/51、公共 runner/validator0/0、图/姿态/watchdog0。state_machine 的两项失败在关闭变体的同场景基线也存在，留在其相应待办范围，不妨碍 A41 已证实的 base Gate。
