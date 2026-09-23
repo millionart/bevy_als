@@ -803,3 +803,9 @@
 - [x] **BF124.A34-S2 — Control Rig 每角色足部查询过滤器与局部 Gate**：开始：2026-09-24 00:57:55 +08:00；预估结束：2026-09-24 01:37:55 +08:00；实际结束：2026-09-24 01:01:44 +08:00；偏差：-36m11s；结果：过滤器从全角色共用移到当前 `AlsCharacterAssembly` Avatar/播放器发布路径，只排当前角色及该播放器的布娃娃，保留复用的世界快照和原 Visibility mask。S1 角色 B 误排断言 red→green，删除 own 角色排除再 red；Control Rig 5/5、Rig 执行观察 1/1、Footprint 跨角色 1/1。估时依据：S1 已定位单个共用过滤器和现有实际发布测试，Footprint 半项已通过；拆分结果：S2 静态闭环完成，S3 原 Playground FootIK/Footprint 公共 Gate。
 
   source/static 完成摘要：源 RigUnit `GetOwningActor()` 和 Footstep Notify `Mesh->GetOwner()` 均只忽略自身；目标 Footprint 已按当前事件角色/当前布娃娃过滤且测试通过。Control Rig 原 `publish_control_rig_inputs` 在角色循环外聚合所有角色与全部其 ragdoll，现仅在当前装配的 Avatar/播放器已验证后创建 `[entity] + current_player.ragdoll.bodies/colliders`，同一个 RigQueryWorld 快照继续共享。实际发布夹具角色 A 的 filter 保留 A、取消误排 B，原断言 red→green；去掉 A 排除后 red。Control Rig 5/5、Rig 真值观察 1/1、Footprint 其他角色命中 1/1，无新抽象或源资产变更；下一步同入口公共视觉 Gate。
+
+- [x] **BF124.A34-S3 — 原 Playground FootIK/Footprint/Ragdoll 公共视觉 Gate**：开始：2026-09-24 01:02:42 +08:00；预估结束：2026-09-24 01:37:42 +08:00；实际结束：2026-09-24 01:08:28 +08:00；偏差：-29m14s；结果：同入口 `target_game`/`play` 预构建成功，`startup`、`control_rig`、`foot_ik`、`footprint`、`ragdoll` 原 Playground 场景均通过功能 Gate；完整性能预算沿用户既有安排延期。估时依据：S1–S2 目标过滤器单处 red→green、Control Rig/Footprint/Rig 夹具及五项现成原 Playground 场景历史耗时；拆分结果：A34 runtime Gate 完成，A35 为下一项。
+
+  runtime 前 source/static 摘要：fresh ALS RigUnit/Footstep 查询均只忽略 owning actor；目标 Footprint 已保留该边界，Control Rig 过滤器现仅排除当前 Assembly 角色及其当前播放器布娃娃。B 角色可追踪断言 red→green，移除自身排除再 red；Control Rig 5/5、Rig 观察 1/1、Footprint 跨角色命中 1/1。用已提交 `86d653f` 的同入口产物进入原 Playground 五项功能 Gate。
+
+  runtime 完成摘要（2026-09-24 01:08:28 +08:00）：五项场景均 manual exit 0、functional validator exit 0；`control_rig` 10/10、`foot_ik` 22/22/窗口 12/12、`footprint` 21/21/窗口 10/10、`ragdoll` 11/11/窗口 1/1，贴花 GPU 36 请求/576 样本通过。全部报告 `primary_failure=null`、graph error 0、fault 0、temporal anomaly 0、watchdog 未触发；当前角色足部/脚印/自身布娃娃的原入口均通过。原报告性能预算未通过，依既有延期决定只记功能验收；A34 源、静态及真实入口闭环完成。
