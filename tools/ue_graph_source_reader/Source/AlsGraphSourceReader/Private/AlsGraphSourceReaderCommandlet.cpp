@@ -43,6 +43,7 @@
 #include "Serialization/JsonWriter.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UObjectHash.h"
+#include "UObject/EnumProperty.h"
 #include "UObject/UnrealType.h"
 #include "UObject/StructOnScope.h"
 
@@ -118,6 +119,18 @@ TArray<TSharedPtr<FJsonValue>> CaptureProperties(const UStruct* Struct, const vo
             Entry->SetStringField(TEXT("cpp_type"), Property->GetCPPType());
             Entry->SetStringField(TEXT("flags"), FString::Printf(TEXT("0x%llX"), Property->GetPropertyFlags()));
             Entry->SetStringField(TEXT("exported_text"), ExportedText);
+            if (const FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
+            {
+                if (const FNumericProperty* Underlying = EnumProperty->GetUnderlyingProperty())
+                {
+                    const int64 EnumValue = Underlying->GetSignedIntPropertyValue(Value);
+                    Entry->SetStringField(TEXT("enum_underlying_value"), FString::Printf(TEXT("%lld"), EnumValue));
+                    if (const UEnum* Enum = EnumProperty->GetEnum())
+                    {
+                        Entry->SetStringField(TEXT("enum_value_name"), Enum->GetNameStringByValue(EnumValue));
+                    }
+                }
+            }
             if (bIncludeUnitMetadata)
             {
                 TSharedRef<FJsonObject> Metadata = MakeShared<FJsonObject>();

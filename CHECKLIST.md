@@ -251,3 +251,13 @@
   有限夹具修正 runtime 前摘要：在 `StateMachineRotate` 已定义的 `3.9 s` 分支跨越帧调用现成 `rebase_temporal_fixture`，没有新增状态、阈值或生产旋转路径；此前同 A03 正式二进制的原报告是该条件缺失时的最小自动 red 复现，消融版则证明两项功能覆盖与此无关。`camera` 已通过 A03 可见功能 Gate；现在仅限流重建并重跑一次原 `state_machine`，核对 temporal/fault 是否清零，保持其旧覆盖失败原样报告。
 
   完成摘要：正式 A03 的系统反例覆盖 Grounded 静止、Grounded 两种非瞄准旋转模式、持续主限角及 Air，源目标 View yaw 与结果数值均通过；去掉 `FirstPerson→Aiming` 条件稳定重现静止 actor yaw=0，恢复后旋转模块 23/23。原 Playground `camera` 功能/视觉 runner manual/validator `0/0`，11/11 结果、1,032 个真实第一人称相机采样、图错误/fault/temporal/watchdog 0。`state_machine` 在修正其人工 3.9 s 输入跳变边界后，temporal/fault/图错误归零；但仍因 `p1_turn_and_rotate_both_sides` 与 `generated_stop_quick_transition_notify` 两项退出 91，这两项在 A03 运行时分支消融的同场报告中也缺失，故不把它们算作本项通过或修改其 producer。完整性能预算按用户暂停范围延期。
+
+- [x] **BF124.A04-S1 — 空中旋转策略源合同与失败反例**：开始：2026-09-23 09:08:15 +08:00；预估结束：2026-09-23 09:43:15 +08:00；实际结束：2026-09-23 09:18:11 +08:00；偏差：-25m04s；结果：实例源枚举、共享 reader 取证与真实系统 red 反例 Gate 通过。UE `RefreshInAirRotation` 的非瞄准策略由实际角色 Settings 值选择，目标目前在 Air 沿用地面 TargetYaw。估时依据为源 C++ switch、两份资产原生读取和现有旋转响应夹具；拆分结果：S2 使用可复跑目标配置实现与真实 Playground Gate，A03 已关闭且常规 Air 是本编号范围。
+
+  原生读取边界：fresh 本地 `AlsCharacterSettings.h` 类默认 `RotateToVelocity`，但当前 `CS_Als_Default` 资产的 `InAirRotationMode` 经仓库 reader 的 `ExportTextItem_Direct` 输出 `(INVALID)`，不能用类默认推断实例值。对照 UE `FEnumProperty::GetUnderlyingProperty/GetSignedIntPropertyValue` 后，仅在通用资产读取器追加枚举底层整数和枚举名两个只读取字段，不修补原始资产或猜值；先自动重建 reader，再重取同一源资产和核对脚本 watchdog 报告，然后决定失败反例。
+
+  fresh 枚举事实：reader 自动重建、watchdog `success=true/exit_reason=completed`，同一 `CS_Als_Default` 的原始 `InAirRotationMode` 底层值为 `3`，枚举名 `EAlsInAirRotationMode_MAX`，UE `ExportText` 因哨兵值输出 `(INVALID)`；C++ switch 的 `default` 分支在该值下执行 `RefreshTargetYawAngleUsingActorRotation`，与类默认值 `RotateToVelocity=2` 不同。不能修补原资产或改为类默认；下一步 fresh 读当前角色 CDO 的 Settings 引用，证明此资产确实为实际实例输入，再以无瞄准 Air 保持 Actor yaw/目标重置建立反例。
+
+  活动 source 闭包：fresh 原生 `B_Als_Character` CDO 的 `Settings` 明确指向 `/ALS/ALS/Data/Character/CS_Als_Default`，所以 `InAirRotationMode=3/EAlsInAirRotationMode_MAX` 确为本项目角色输入。源 enum 有 0 KeepWorld、1 KeepViewSpace、2 RotateToVelocity，值 3 落入 C++ default 并执行 Actor yaw 保持/TargetYaw 重置；这不是为了达成预期而可改写的原始资产错误。目标 `RotationParams` 当前无该资产字段，Air 的 View/Velocity 非瞄准路径仍沿地面 TargetYaw 选择。下一步先让实际旋转系统在移动/静止 Air 反例失败；具体目标配置生成与实现放 S2。
+
+  完成摘要：`run_ue_source_reader.ps1 -SelfTest` 的停滞进程/子进程终止、完成保留、机器报告与 reader 构建状态 5/5 通过；新旧同资产导出从仅 `(INVALID)` 变为底层 `3`/枚举名 `EAlsInAirRotationMode_MAX`，不修改原始 uasset。C++ default 路径源合同要求非瞄准 Air 保持 actor yaw 并把 Target/SmoothTarget 设为当前 Actor；真实 `rotation_response_system` 反例在 `VelocityDirection`、`ViewDirection` 移动/静止三类输入中的首例稳定 FAIL（原 actor `0.3 rad` 被旧目标转为 `0.09614921 rad`）。反例暂置 ignored，S2 接入实际源值后启用；未把类默认 `RotateToVelocity=2` 当作当前实例事实。

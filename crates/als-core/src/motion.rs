@@ -1059,6 +1059,42 @@ mod rotation_cap_tests {
     }
 
     #[test]
+    #[ignore = "BF124.A04 source air rotation contract; enable after implementation"]
+    fn source_default_air_rotation_keeps_actor_yaw_and_resets_the_target() {
+        for (mode, velocity, input) in [
+            (RotationMode::VelocityDirection, Vec3::X * 3.75, Vec2::Y),
+            (RotationMode::ViewDirection, Vec3::NEG_Z * 3.75, Vec2::Y),
+            (RotationMode::ViewDirection, Vec3::ZERO, Vec2::ZERO),
+        ] {
+            let mut app = App::new();
+            let mut time = Time::<()>::default();
+            time.advance_by(std::time::Duration::from_millis(100));
+            app.insert_resource(time)
+                .init_resource::<Assets<AlsMovementParams>>()
+                .add_systems(Update, rotation_response_system);
+            let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>()
+                .add(AlsMovementParams::default());
+            let actor_yaw = 0.3_f32;
+            let character = app.world_mut().spawn((
+                AlsCharacter, Stance::Standing,
+                Transform::IDENTITY.with_rotation(Quat::from_rotation_y(actor_yaw)),
+                Gait::Running, LocomotionState::Air, mode, AlsViewYaw(1.0),
+                AlsMovementParamsHandle(params), LinearVelocity(velocity),
+                AlsInputCommand { move_dir: input, ..default() },
+                AlsRotationResponseState { initialized: true, smooth_target_yaw: 1.0,
+                    target_yaw: 1.0, previous_locomotion: LocomotionState::Air,
+                    previous_rotation_mode: Some(mode), ..default() },
+            )).id();
+            app.update();
+            let yaw = world_forward_to_yaw(*app.world().get::<Transform>(character).unwrap().forward());
+            let response = app.world().get::<AlsRotationResponseState>(character).unwrap();
+            assert!((yaw - actor_yaw).abs() < 1e-6, "mode={mode:?} input={input:?} yaw={yaw}");
+            assert!((response.target_yaw - actor_yaw).abs() < 1e-6);
+            assert!((response.smooth_target_yaw - actor_yaw).abs() < 1e-6);
+        }
+    }
+
+    #[test]
     fn view_relative_move_axes_match_camera_forward_and_right() {
         let cases = [
             (0.0, Vec2::Y, Vec3::NEG_Z),
