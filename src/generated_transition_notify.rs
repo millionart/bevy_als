@@ -12,10 +12,10 @@ use als_ext::{
     InterruptibleFsmNode, InterruptibleFsmState, source_instance::SourceInstanceProperties,
 };
 
-use crate::character_assembly::AlsCharacterAvatar;
+use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar};
 use crate::standing_layer::AlsPivotNotify;
 use crate::stop_link::{AlsQuickStopNotify, AlsTransitionPlayback, AlsTransitionMontageStack, play_transition};
-use crate::turn_layer::{AlsTurnDrive, AlsTurnMontageStack, SourceTurnRequest};
+use crate::turn_layer::{AlsTurnDrive, AlsTurnMontageStack, SourceTurnRequest, TURN_MONTAGE_BLEND_DURATION};
 
 #[derive(Component, Debug, Default, Clone, PartialEq, Eq)]
 pub struct GeneratedTransitionNotifyTelemetry {
@@ -145,11 +145,41 @@ fn ensure_generated_transition_notify_telemetry(
     }
 }
 
+pub(crate) fn queue_turn_in_grounded_group(
+    commands: &mut Commands,
+    character: Entity,
+    avatar_entity: Entity,
+    request: SourceTurnRequest,
+) {
+    commands.queue(move |world: &mut World| {
+        let Some(assembly) = world.get::<AlsCharacterAssembly>(character) else { return; };
+        if assembly.avatar != avatar_entity
+            || world.get::<AlsCharacterAvatar>(avatar_entity)
+                .is_none_or(|avatar| avatar.character != character)
+        {
+            return;
+        }
+        let Some(player_entity) = world.get::<AnimatedSceneInstance>(avatar_entity)
+            .map(AnimatedSceneInstance::player_entity) else { return; };
+        if world.get::<AnimationGraphPlayer>(player_entity).is_none()
+            || world.get::<AlsTurnMontageStack>(avatar_entity).is_none()
+        {
+            return;
+        }
+        if let Some(mut transitions) = world.get_mut::<AlsTransitionMontageStack>(character) {
+            transitions.stop_with_duration(TURN_MONTAGE_BLEND_DURATION);
+        }
+        let curve_play_rate = request.play(&mut world.get_mut::<AlsTurnMontageStack>(avatar_entity).unwrap());
+        world.get_mut::<AnimationGraphPlayer>(player_entity).unwrap()
+            .set_global_input_data("turn_in_place_state.play_rate", curve_play_rate);
+    });
+}
+
 fn dispatch_generated_transition_notifications(
     mut source_inputs: Query<&mut als_ext::SourceAnimationInputs>,
     mut cursor: ResMut<GeneratedTransitionNotifyCursor>,
     avatars: Query<(Entity, &AlsCharacterAvatar, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
-    mut players: Query<&mut AnimationGraphPlayer>,
+    players: Query<&AnimationGraphPlayer>,
     graphs: Res<Assets<AnimationGraph>>,
     mut telemetry: Query<&mut GeneratedTransitionNotifyTelemetry>,
     mut pivot_notices: MessageWriter<AlsPivotNotify>,
@@ -158,10 +188,13 @@ fn dispatch_generated_transition_notifications(
     mut turn_stacks: Query<&mut AlsTurnMontageStack>,
     mut turn_drives: Query<&mut AlsTurnDrive>,
     stances: Query<&als_core::state::Stance, With<als_core::character::AlsCharacter>>,
+    assemblies: Query<&AlsCharacterAssembly>,
     mut commands: Commands,
 ) {
     let active: HashMap<_, _> = avatars.iter()
-        .filter(|(_, avatar, instance)| stances.contains(avatar.character) && players.contains(instance.player_entity()))
+        .filter(|(entity, avatar, instance)| assemblies.get(avatar.character)
+            .is_ok_and(|assembly| assembly.avatar == *entity)
+            && stances.contains(avatar.character) && players.contains(instance.player_entity()))
         .map(|(_, avatar, instance)| (instance.player_entity(), avatar.character)).collect();
     cursor.source_frames.retain(|player, _| active.contains_key(player));
     cursor.generations.retain(|(player, context, _), _| active.contains_key(player)
@@ -173,7 +206,7 @@ fn dispatch_generated_transition_notifications(
         let mut stop_requested = false;
         let player_entity = instance.player_entity();
         if !active.contains_key(&player_entity) { continue; }
-        let Ok(mut player) = players.get_mut(player_entity) else {
+        let Ok(player) = players.get(player_entity) else {
             continue;
         };
         if player.is_paused() {
@@ -425,11 +458,10 @@ fn dispatch_generated_transition_notifications(
             play_transition(&mut commands, avatar.character, playback);
         }
         if !stop_requested
-            && let Ok(mut stack) = turn_stacks.get_mut(avatar_entity)
+            && turn_stacks.contains(avatar_entity)
             && let Some(request) = cursor.queued_turns.remove(&avatar.character)
         {
-            let curve_play_rate = request.play(&mut stack);
-            player.set_global_input_data("turn_in_place_state.play_rate", curve_play_rate);
+            queue_turn_in_grounded_group(&mut commands, avatar.character, avatar_entity, request);
         }
     }
 }

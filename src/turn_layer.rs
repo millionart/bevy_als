@@ -973,21 +973,88 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "A24: Grounded turn playback does not stop the transition slot"]
     fn grounded_turn_play_stops_the_current_transition_montage() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), AnimationGraphPlugin::default()));
         let mut transition = crate::stop_link::AlsTransitionPlayback::standing_dynamic(0.0);
         transition.weight = 0.75;
         let transitions = crate::stop_link::AlsTransitionMontageStack {
             entries: vec![transition],
         };
-        let mut turns = AlsTurnMontageStack::default();
-        SourceTurnRequest {
+        let character = app.world_mut().spawn((als_core::character::AlsCharacter, transitions)).id();
+        let avatar = app.world_mut().spawn((
+            AlsCharacterAvatar { character }, AnimatedSceneHandle::default(),
+            ChildOf(character), AlsTurnMontageStack::default(),
+        )).id();
+        let player = app.world_mut().spawn((
+            AnimationGraphPlayer::new(Handle::default()), ChildOf(avatar),
+        )).id();
+        app.world_mut().entity_mut(character).insert(crate::character_assembly::AlsCharacterAssembly {
+            avatar, camera: None,
+        });
+        app.world_mut().trigger(WorldInstanceReady {
+            entity: avatar,
+            instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()),
+        });
+        app.world_mut().flush();
+        assert_eq!(app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity(), player);
+        let request = SourceTurnRequest {
             variant: TurnVariant::Right90,
             yaw: 90.0,
             crouching: false,
-        }.play(&mut turns);
-        assert_eq!(transitions.entries[0].stop_elapsed, Some(0.0));
-        assert!((transitions.entries[0].stop_duration - TURN_MONTAGE_BLEND_DURATION).abs() < 1e-6);
+        };
+        app.world_mut().run_system_once(move |mut commands: Commands| {
+            crate::generated_transition_notify::queue_turn_in_grounded_group(
+                &mut commands, character, avatar, request);
+        }).unwrap();
+        app.world_mut().flush();
+        let transition = &app.world().get::<crate::stop_link::AlsTransitionMontageStack>(character).unwrap().entries[0];
+        assert_eq!(transition.stop_elapsed, Some(0.0));
+        assert!((transition.stop_duration - TURN_MONTAGE_BLEND_DURATION).abs() < 1e-6);
+        assert_eq!(app.world().get::<AlsTurnMontageStack>(avatar).unwrap().entries.len(), 1);
+
+        app.world_mut().entity_mut(character).insert(crate::stop_link::AlsTransitionMontageStack::default());
+        app.world_mut().entity_mut(avatar).insert(AlsTurnMontageStack::default());
+        app.world_mut().run_system_once(move |mut commands: Commands| {
+            crate::stop_link::play_transition(&mut commands, character,
+                crate::stop_link::AlsTransitionPlayback::quick_stop(0.0, 1.0));
+            crate::generated_transition_notify::queue_turn_in_grounded_group(
+                &mut commands, character, avatar, request);
+        }).unwrap();
+        app.world_mut().flush();
+        assert_eq!(app.world().get::<AlsTurnMontageStack>(avatar).unwrap().entries.len(), 1);
+        let transition = &app.world().get::<crate::stop_link::AlsTransitionMontageStack>(character).unwrap().entries[0];
+        assert_eq!(transition.stop_elapsed, Some(0.0));
+        assert!((transition.stop_duration - TURN_MONTAGE_BLEND_DURATION).abs() < 1e-6);
+        assert_eq!(app.world().get::<AnimationGraphPlayer>(player).unwrap()
+            .get_global_input_data("turn_in_place_state.play_rate")
+            .and_then(|value| value.as_f32().ok()), Some(TurnInPlaceConfig::default().play_rate));
+
+        app.world_mut().entity_mut(player).remove::<ChildOf>();
+        let new_player = app.world_mut().spawn((
+            AnimationGraphPlayer::new(Handle::default()), ChildOf(avatar),
+        )).id();
+        app.world_mut().trigger(WorldInstanceReady {
+            entity: avatar,
+            instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()),
+        });
+        app.world_mut().flush();
+        assert_eq!(app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity(), new_player);
+        app.world_mut().entity_mut(avatar).insert(AlsTurnMontageStack::default());
+        app.world_mut().run_system_once(move |mut commands: Commands| {
+            crate::generated_transition_notify::queue_turn_in_grounded_group(
+                &mut commands, character, avatar, SourceTurnRequest {
+                    variant: TurnVariant::Left180, yaw: 120.0, crouching: false,
+                });
+        }).unwrap();
+        app.world_mut().flush();
+        let expected = TurnInPlaceConfig::default().play_rate * (120.0 / 180.0);
+        assert_eq!(app.world().get::<AnimationGraphPlayer>(new_player).unwrap()
+            .get_global_input_data("turn_in_place_state.play_rate")
+            .and_then(|value| value.as_f32().ok()), Some(expected));
+        assert_eq!(app.world().get::<AnimationGraphPlayer>(player).unwrap()
+            .get_global_input_data("turn_in_place_state.play_rate")
+            .and_then(|value| value.as_f32().ok()), Some(TurnInPlaceConfig::default().play_rate));
     }
 
     #[test]
