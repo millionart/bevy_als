@@ -456,7 +456,7 @@ fn scene_physics_ready(
         || source_ready != source_total
         || box_total == 0
         || box_ready != box_total
-        || player_starts.single().is_err()
+        || player_starts.is_empty()
     {
         ready.wait_frames += 1;
         if ready.wait_frames == 30 {
@@ -537,6 +537,10 @@ fn admit_completed_player(
     );
 }
 
+fn spawn_sensor_matches_ground(proximity: f32, center_y: f32, ground_y: f32) -> bool {
+    (proximity - (center_y - ground_y)).abs() <= 0.01
+}
+
 fn grounded_spawn_probe(
     mut commands: Commands,
     mut probe: ResMut<GroundedSpawnProbe>,
@@ -602,7 +606,7 @@ fn grounded_spawn_probe(
             .max(velocity.0.y.abs());
         let stable = center_error <= 0.01
             && position_error <= 0.001
-            && (sensor_proximity - expected_center_y).abs() <= 0.01
+            && spawn_sensor_matches_ground(sensor_proximity, expected_center_y, ground_y)
             && velocity.0.y.abs() <= 0.01;
         if stable {
             probe.stable_sensor_frames += 1;
@@ -866,7 +870,6 @@ mod tests {
     use bevy::ecs::system::RunSystemOnce;
 
     #[test]
-    #[ignore = "A36 scene readiness must allow multiple valid PlayerStarts"]
     fn scene_ready_accepts_multiple_valid_player_starts() {
         for start_count in [1, 2] {
             let mut world = World::new();
@@ -891,13 +894,14 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "A36 sensor proximity must be ground relative"]
     fn spawn_sensor_proximity_is_ground_relative() {
-        let ground_y = 5.0;
-        let center_y = als_core::player_start::player_start_grounded_height(
-            ground_y, AlsMovementParams::default().crouch.standing_capsule_half_height);
-        let sensor_proximity = center_y - ground_y;
-        assert!((sensor_proximity - center_y).abs() <= 0.01);
+        for ground_y in [0.0, 5.0, -3.0] {
+            let center_y = als_core::player_start::player_start_grounded_height(
+                ground_y, AlsMovementParams::default().crouch.standing_capsule_half_height);
+            let sensor_proximity = center_y - ground_y;
+            assert!(spawn_sensor_matches_ground(sensor_proximity, center_y, ground_y));
+            assert!(!spawn_sensor_matches_ground(sensor_proximity + 0.1, center_y, ground_y));
+        }
     }
 
     #[test]
