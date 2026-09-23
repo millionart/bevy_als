@@ -373,3 +373,5 @@
   runtime 首轮后与最终轮前摘要：同入口 `target_game/play` 限流构建通过；原 Playground `ragdoll` 10/10、`get_up` 11/11 功能结果覆盖并通过，报告 graph error/fault/temporal/watchdog 均 0，首轮各 43/66 pose samples，完整性能预算延期。为让反例直接覆盖生产路径，仅抽出一个被生产和测试共用的过滤器构造函数；消融该函数的 mask 后物理反例再次稳定 red，恢复后 green。最终代码只剩快照读取与查询 mask，下一步按同一真实入口复跑两个场景并审计最终报告。
 
   runtime 最终完成摘要：最终代码已按启动器同一 `target_game/play` 再构建；原 Playground `ragdoll` 与 `get_up` 公共功能 Gate 各自通过，runner/manual/validator 退出码 0，必需结果 10/10 与 11/11，43/67 pose samples，graph error/fault/temporal/watchdog 0。共用过滤器 mask 消融 red、恢复 green；未保留无贡献的 bundle 字段。完整性能预算依用户既定暂停范围延期，功能 Gate 不冒充完整性能通过。
+
+- [x] **BF124.A11 — Ragdoll 找地查询保留原角色碰撞响应**：开始：2026-09-23 12:36:55 +08:00；预估结束：2026-09-23 12:51:55 +08:00；实际结束：2026-09-23 12:36:55 +08:00；偏差：-15m00s；结果：S1 UE 源/资产及真实 Avian red 反例、S2 最小过滤响应修复与双场景公共功能 Gate 均通过并各自提交（`6762679`、`50b2ab9`）。原 Pawn 胶囊忽略 Visibility；进入 Ragdoll 后角色层暂设 NONE，找地仍使用进入动作前的过滤响应，缺省映射 Default。消融查询 mask 后反例 red，恢复 green；原 Playground `ragdoll` 10/10、`get_up` 11/11，图错误、故障、时间异常、watchdog 均 0；完整性能预算延期。估时依据：仅核对已验收 S1/S2 与提交；拆分结果：A11 无剩余功能 Gate，A12 为下一项。
