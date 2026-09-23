@@ -225,3 +225,11 @@
 - [x] **BF124.A01 — 角色运动完整帧时间与封顶物理时间**：开始：2026-09-23 08:32:03 +08:00；预估结束：2026-09-23 08:47:03 +08:00；实际结束：2026-09-23 08:32:33 +08:00；偏差：-14m30s；结果：源合同、实现、消融与原 Playground 功能 Gate 全部闭合。估时依据：S1→S3b4 的 source/target、最小失败反例、模式/基座消融和实际入口报告均已独立提交；拆分结果：本编号无剩余功能 Gate，完整性能预算依用户此前暂停范围延期，后续反馈逐编号独立激活。
 
   汇总：UE 角色 PhysWalking 消费完整帧，Chaos 普通刚体只消费封顶时间；目标已在公开 Avian 扩展点实现 Grounded/Air 角色剩余时间的逐子步扫掠，维持 Ragdoll、Mantle 与移动基座的源所有权。100 ms/200 ms 最小位移反例、墙/地接触、平台相对运动及必要消融通过；原 Playground startup、grounded/uphill、moving_base 六种固定帧率与单次 200 ms Air 卡顿的公共功能报告通过，最终图错误、fault、temporal、watchdog 均为 0。已核对 55 条反馈索引唯一且齐全（A01–A55）、S1→S3b4 的分项提交和无未提交生产代码；A02 是下一执行项。
+
+- [x] **BF124.A02 — 旋转响应视角角速度单位**：开始：2026-09-23 08:34:13 +08:00；预估结束：2026-09-23 09:14:13 +08:00；实际结束：2026-09-23 08:41:35 +08:00；偏差：-32m38s；结果：源单位、失败反例、最小修复、消融与实际入口 Gate 通过。fresh 本地 UE `RefreshView` 以度制 Yaw 差/秒计算 `ViewState.YawSpeed`，`CalculateGroundedMovingRotationInterpolationHalfLife` 以 `300 deg/s` 为参考；目标此前将弧度差/秒直接除以同一 300。估时依据：一个 producer、一个插值 consumer、现成旋转响应测试与公共场景；拆分结果：本项无剩余功能 Gate，A03/A05 等相邻分支按编号另行核验。
+
+  source/static 与 red 反例：fresh 本地 `AlsCharacter.cpp` 的 `RefreshView` 将 UE 度制 `Rotation.Yaw−PreviousYawAngle` 的绝对值除以 Delta，`CalculateGroundedMovingRotationInterpolationHalfLife` 以 `ReferenceViewYawSpeed=300.0f` 归一；目标 `motion.rs` 的 producer 给出弧度/秒，consumer 却仍用 300。真实 `rotation_response_system` focused 反例采用前一 View 0°→当前 90°、Delta 100 ms、Grounded/Running/ViewDirection，源速率 900 deg/s 应使 half-life 饱和到 0.05 s；旧目标 actor yaw `0.33195138 rad`，源合同期望 `0.6516161 rad`，稳定 FAIL。其它 GaitAmount 连续曲线和独立旋转模式不在当前链路改动范围。
+
+  runtime 前摘要：只在上述 producer 的绝对角差后转换为 `deg/s`，同一真实系统反例与现有半衰期/目标速度 focused 2/2 PASS；去掉唯一转换后回到 `0.33195138` 并稳定 FAIL，恢复后 2/2 再 PASS。未改旋转模式选择、半衰期配置、资产或图；下一步同 `target_game/play` 限流构建，原 Playground `standing_response` 的 public functional/visual Gate 复验，性能预算沿用户暂停范围延期。
+
+  完成摘要：`target_game/play` 限流重建后，原 `standing_response` 场景 public runner manual/validator `0/0`，6/6 功能结果覆盖 reverse/cycle/idle，9 个响应姿态窗口、129 个样本通过；graph error/fault/temporal/watchdog 为 0，渲染/贴花通过。新反例的 90°/100 ms 源半衰期 `0.05 s`、目标 actor yaw `0.6516161 rad` 通过，删除 `to_degrees()` 即重现 `0.33195138 rad` 失败。只保留一处单位转换与一个真实系统回归，完整性能预算依用户暂停范围延期。

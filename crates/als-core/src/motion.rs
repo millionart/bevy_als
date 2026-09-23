@@ -423,7 +423,7 @@ fn rotation_response_system(
         let current_yaw = world_forward_to_yaw(transform.rotation * Vec3::NEG_Z);
         let mut runtime = current_runtime.as_deref().copied().unwrap_or_default();
         let view_yaw_speed = if runtime.initialized && delta_seconds > f32::EPSILON {
-            wrap_yaw_radians(view_yaw.0 - runtime.previous_view_yaw).abs() / delta_seconds
+            wrap_yaw_radians(view_yaw.0 - runtime.previous_view_yaw).abs().to_degrees() / delta_seconds
         } else {
             0.0
         };
@@ -990,6 +990,32 @@ mod rotation_cap_tests {
         );
         assert!((normal - 0.15).abs() < 1e-6);
         assert!((responsive - 0.05).abs() < 1e-6);
+    }
+
+    #[test]
+    fn rotation_response_uses_view_yaw_degrees_per_second() {
+        let mut app = App::new();
+        let mut time = Time::<()>::default();
+        time.advance_by(std::time::Duration::from_millis(100));
+        app.insert_resource(time)
+            .init_resource::<Assets<AlsMovementParams>>()
+            .add_systems(Update, rotation_response_system);
+        let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>()
+            .add(AlsMovementParams::default());
+        let character = app.world_mut().spawn((
+            AlsCharacter, Stance::Standing, Transform::IDENTITY, Gait::Running,
+            LocomotionState::Grounded, RotationMode::ViewDirection,
+            AlsViewYaw(90.0_f32.to_radians()), AlsMovementParamsHandle(params),
+            LinearVelocity(Vec3::NEG_Z * 1.75),
+            AlsInputCommand { move_dir: Vec2::Y, ..default() },
+            AlsRotationResponseState { initialized: true, previous_view_yaw: 0.0,
+                previous_rotation_mode: Some(RotationMode::ViewDirection), ..default() },
+        )).id();
+        app.update();
+        let yaw = world_forward_to_yaw(*app.world().get::<Transform>(character).unwrap().forward());
+        let expected = 50.0_f32.to_radians()
+            * (1.0 - crate::animation::inv_exp_approx(std::f32::consts::LN_2 / (0.05 + 1e-8) * 0.1));
+        assert!((yaw - expected).abs() < 1e-5, "yaw={yaw} expected={expected}");
     }
 
     #[test]
