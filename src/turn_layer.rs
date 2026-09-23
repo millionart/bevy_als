@@ -386,7 +386,7 @@ impl Plugin for TurnLayerPlugin {
         )
         .configure_sets(
             PostUpdate,
-            AlsTurnSlotBridgeSet.after(AnimationGraphSet::Final),
+            AlsTurnSlotBridgeSet.before(AnimationGraphSet::Final),
         )
         .add_systems(
             PostUpdate,
@@ -709,7 +709,6 @@ mod tests {
     use avian3d::prelude::LinearVelocity;
 
     #[test]
-    #[ignore = "A28: turn slot samples are written after final graph evaluation"]
     fn current_turn_slot_sample_is_ready_before_final_graph_evaluation() {
         #[derive(Resource, Default)]
         struct FinalSawSlots { turn: bool, transition: bool }

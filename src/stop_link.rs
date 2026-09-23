@@ -447,7 +447,7 @@ impl Plugin for AlsStopLinkPlugin {
             )
             .add_systems(
                 PostUpdate,
-                bridge_root_transition_slot_samples.after(AnimationGraphSet::Final),
+                bridge_root_transition_slot_samples.before(AnimationGraphSet::Final),
             );
     }
 }
