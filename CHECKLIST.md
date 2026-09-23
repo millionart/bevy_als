@@ -761,3 +761,5 @@
   runtime 前 source/static 摘要：fresh ALS 在退瞄时把相对基座旋转 yaw 加入历史世界 yaw 后做 ±30° 限幅；目标 Control Rig 现复用已验证基座快照并仅对同实体增量作 UE yaw 符号转换。纯状态夹具及真实输入发布夹具覆盖旋转、替换、脱离边界，快照更新/符号消融 red，Control Rig 5/5 与基座快照回归通过。使用已提交 `b67695e` 源码和同启动器产物进入四项原 Playground 功能 Gate。
 
   runtime 完成摘要（2026-09-24 00:06:19 +08:00）：四项场景均 manual exit 0、functional validator exit 0；`control_rig` 10/10、`rotating_base` 12/12 且窗口 4/4、`head` 14/14 且窗口 7/7。全部报告 `primary_failure=null`、graph error 0、fault 0、temporal anomaly 0、watchdog 未触发；控制 Rig、基座和头部姿态链均被原入口验收。报告原始性能预算未通过，依既有延期决定只记功能验收；A31 源、静态和真实入口闭环完成。
+
+- [x] **BF124.A31 — 退瞄脊柱历史世界 yaw 跟随运动基座**：开始：2026-09-24 00:07:02 +08:00；预估结束：2026-09-24 00:22:02 +08:00；实际结束：2026-09-24 00:07:02 +08:00；偏差：-15m00s；结果：S1–S3 各自通过并提交（`db77d31`、`b67695e`、`f1a4b0e`）。fresh ALS `RefreshSpine` 在退瞄历史世界 yaw 限幅前加同基座旋转差；目标 Control Rig 复用 A29 已验证的当前有效基座快照，在自身状态保存上次快照，仅同实体时用目标 Y-up→UE yaw 符号转换后的增量更新历史 yaw，A29 已完成代码未修改。纯状态源夹具旧 10°、基座 +45° 应限到 40° red→green；真实接线夹具目标 +Y 45° 给 UE -45°，历史 yaw 得 -20°，换基座/脱离边界通过；删快照更新或去负号分别 red。Control Rig 5/5、A29 快照回归 1/1，原 Playground 四项功能 Gate 全过，动作/窗口完整，图错误/故障/时间异常/watchdog 0。完整性能预算延期。估时依据：核对 S1–S3 已通过的源、局部与公共 Gate；拆分结果：A31 无剩余功能 Gate，A32 为下一项。
