@@ -473,3 +473,5 @@
   `startup` 后、footprint 前摘要：同入口 `target_game/play` 限流构建通过，原 Playground 无驱动 `startup` 公共功能 Gate 通过，图错误/故障/时间异常/watchdog 0；完整性能预算延期。下一步运行同一二进制的 `footprint`，核对至少 15 个角色子网格排除、receiver pipeline 与实际 GPU readback。
 
   runtime 最终完成摘要：同一最终二进制原 Playground `footprint` runner/manual/validator 退出码 0、21/21（含 `footprint_character_receiver`）、1,690 pose samples，角色 15 个 StandardMaterial 子网格带排除 marker，16 个总 marker，receiver/render Gate 通过；36 次 GPU readback 请求、576 个样本完成。graph error/fault/temporal/watchdog 0，`startup` 功能亦通过。完整性能预算延期；无源资产、shader 或图改动。
+
+- [x] **BF124.A15 — 晚加载贴花排除标记传播到已处理子网格**：开始：2026-09-23 15:27:55 +08:00；预估结束：2026-09-23 15:42:55 +08:00；实际结束：2026-09-23 15:27:55 +08:00；偏差：-15m00s；结果：S1 fresh 角色 Mesh/目标生命周期 red、S2 最小传播修复及 receiver 回退、S3 原 Playground GPU Gate 各自通过并单独提交（`4768935`、`e2edcea`、`0535b5d`）。源 `CharacterMesh0.bReceivesDecals=False`；目标晚加根排除标记时仅补已处理子网格 marker，嵌套 Avatar 和原材质 Slot 不变，现有 receiver 系统回退原 StandardMaterial。局部材质 3/3、撤掉例外消融 red；真实 `footprint` 21/21、角色 15 个子网格排除、GPU 36/576、图错误/故障/时间异常/watchdog 0。完整性能预算延期。估时依据：仅核对三个已验收子项与提交；拆分结果：A15 无剩余功能 Gate，A16 为下一项。
