@@ -280,26 +280,22 @@ pub fn locomotion_movement_flags(has_input: bool, horizontal_speed: f32) -> (boo
 
 fn moving_rotation_half_life(
     params: &AlsMovementParams,
-    gait: Gait,
+    gait_amount: f32,
     rotation_mode: RotationMode,
     moving: bool,
     view_yaw_speed: f32,
     stance: Stance,
 ) -> f32 {
+    let crouching = crate::params::GaitHalfLives::normal();
+    let velocity_profile = if stance == Stance::Crouching { &crouching } else { &params.rotation.grounded_moving_velocity_direction.interpolation_half_lives };
+    let view_profile = if stance == Stance::Crouching { &crouching } else { &params.rotation.grounded_moving_view_direction.interpolation_half_lives };
+    let stationary_view_profile = if stance == Stance::Crouching { &crouching } else { &params.rotation.grounded_stationary_view_direction.interpolation_half_lives };
     let base = if !AlsMovementParams::has_gait_settings(stance, rotation_mode)
         && rotation_mode != RotationMode::Aiming && (moving || rotation_mode == RotationMode::ViewDirection) {
         0.2
     } else { match (rotation_mode, moving) {
-        (RotationMode::VelocityDirection, true) => params
-            .rotation
-            .grounded_moving_velocity_direction
-            .interpolation_half_lives
-            .half_life(gait),
-        (RotationMode::ViewDirection, true) => params
-            .rotation
-            .grounded_moving_view_direction
-            .interpolation_half_lives
-            .half_life(gait),
+        (RotationMode::VelocityDirection, true) => velocity_profile.sample(gait_amount),
+        (RotationMode::ViewDirection, true) => view_profile.sample(gait_amount),
         (RotationMode::Aiming, _) => {
             params
                 .rotation
@@ -312,11 +308,7 @@ fn moving_rotation_half_life(
                 .grounded_stationary_velocity_direction
                 .interpolation_half_life
         }
-        (RotationMode::ViewDirection, false) => params
-            .rotation
-            .grounded_stationary_view_direction
-            .interpolation_half_lives
-            .half_life(gait),
+        (RotationMode::ViewDirection, false) => stationary_view_profile.sample(gait_amount),
         _ => 0.0,
     }};
     if rotation_mode == RotationMode::Aiming {
@@ -366,6 +358,7 @@ fn rotation_response_system(
     mut commands: Commands,
     params_assets: Res<Assets<AlsMovementParams>>,
     blocked: Query<(), With<AlsMovementInputBlocked>>,
+    gait_amounts: Query<&crate::gait::AlsGaitAmount>,
     first_person: Query<(), With<crate::input_request::AlsFirstPersonView>>,
     actions: Query<&crate::state::AlsNotifyLocomotionAction>,
     collision_owners: Query<&crate::character::AlsCollisionLayerOwnership>,
@@ -516,7 +509,7 @@ fn rotation_response_system(
                 params.rotation.in_air_half_life
             }
         } else {
-            moving_rotation_half_life(params, *gait, body_rotation_mode, moving, view_yaw_speed, stances.get(entity).copied().unwrap_or_default())
+            moving_rotation_half_life(params, gait_amounts.get(entity).map_or(0.0, |amount| amount.0), body_rotation_mode, moving, view_yaw_speed, stances.get(entity).copied().unwrap_or_default())
         };
         let mut next_yaw = if hold_air_rotation || aiming_stationary {
             current_yaw
@@ -979,7 +972,7 @@ mod rotation_cap_tests {
         let params = AlsMovementParams::default();
         let normal = moving_rotation_half_life(
             &params,
-            Gait::Running,
+            2.0,
             RotationMode::ViewDirection,
             true,
             0.0,
@@ -987,7 +980,7 @@ mod rotation_cap_tests {
         );
         let responsive = moving_rotation_half_life(
             &params,
-            Gait::Running,
+            2.0,
             RotationMode::ViewDirection,
             true,
             params.rotation.reference_view_yaw_speed,
@@ -1097,11 +1090,11 @@ mod rotation_cap_tests {
     }
 
     #[test]
-    #[ignore = "BF124.A05 source continuous gait curve; enable after implementation"]
     fn grounded_rotation_samples_the_continuous_source_gait_amount() {
-        for (mode, velocity, amount, target_degrees, half_life) in [
-            (RotationMode::ViewDirection, Vec3::NEG_Z * 5.125, 2.5, 50.0_f32, 0.1_f32),
-            (RotationMode::VelocityDirection, Vec3::X * 2.75, 1.5, -80.0, 0.075),
+        for (mode, stance, velocity, amount, target_degrees, half_life) in [
+            (RotationMode::ViewDirection, Stance::Standing, Vec3::NEG_Z * 5.125, 2.5, 50.0_f32, 0.1_f32),
+            (RotationMode::VelocityDirection, Stance::Standing, Vec3::X * 2.75, 1.5, -80.0, 0.075),
+            (RotationMode::VelocityDirection, Stance::Crouching, Vec3::X * 1.75, 1.5, -80.0, 0.15),
         ] {
             let mut app = App::new();
             let mut time = Time::<()>::default();
@@ -1113,7 +1106,7 @@ mod rotation_cap_tests {
                 .add(AlsMovementParams::default());
             let view = 90.0_f32.to_radians();
             let character = app.world_mut().spawn((
-                AlsCharacter, Stance::Standing, Transform::IDENTITY, Gait::Running,
+                AlsCharacter, stance, Transform::IDENTITY, Gait::Running,
                 crate::gait::AlsGaitAmount(amount), LocomotionState::Grounded,
                 mode, AlsViewYaw(view), AlsMovementParamsHandle(params),
                 LinearVelocity(velocity), AlsInputCommand { move_dir: Vec2::Y, ..default() },
@@ -1124,7 +1117,7 @@ mod rotation_cap_tests {
             let yaw = world_forward_to_yaw(*app.world().get::<Transform>(character).unwrap().forward());
             let expected = target_degrees.to_radians()
                 * (1.0 - crate::animation::inv_exp_approx(std::f32::consts::LN_2 / (half_life + 1e-8) * 0.1));
-            assert!((yaw - expected).abs() < 1e-5, "mode={mode:?} yaw={yaw} expected={expected}");
+            assert!((yaw - expected).abs() < 1e-5, "mode={mode:?} stance={stance:?} yaw={yaw} expected={expected}");
         }
     }
 
@@ -2941,7 +2934,7 @@ mod tests {
         assert_eq!(capsule_target_for_locomotion(stance, Stance::Crouching, LocomotionState::Grounded, false, None), Stance::Crouching);
         assert_eq!(capsule_target_for_locomotion(stance, Stance::Crouching, LocomotionState::Air, false, None), Stance::Standing);
         assert_eq!(turn_angvel(rotation), 0.0);
-        assert_eq!(moving_rotation_half_life(&AlsMovementParams::default(), Gait::Running, RotationMode::ViewDirection, true, 0.0, stance), 0.2);
+        assert_eq!(moving_rotation_half_life(&AlsMovementParams::default(), 2.0, RotationMode::ViewDirection, true, 0.0, stance), 0.2);
         let mut params = AlsMovementParams::default();
         params.speeds.standing.allow_direction_dependent_movement_speed = true;
         params.speeds.standing.max_walk_speed = 9.0;

@@ -574,7 +574,7 @@ impl Default for RotationParams {
     fn default() -> Self {
         Self {
             grounded_moving_velocity_direction: GroundedModeRotation {
-                interpolation_half_lives: GaitHalfLives::normal(),
+                interpolation_half_lives: GaitHalfLives::responsive(),
                 target_yaw_angle_speed: 800.0,
             },
             grounded_moving_view_direction: GroundedModeRotation {
@@ -680,20 +680,22 @@ pub struct GaitHalfLives {
     pub sprinting: f32,
 }
 
+const SOURCE_ROTATION_HALF_LIVES: ([f32; 3], [f32; 3]) = include!("../data/rotation_half_lives.rs");
+
 impl GaitHalfLives {
     pub const fn normal() -> Self {
         Self {
-            walking: 0.15,
-            running: 0.15,
-            sprinting: 0.05,
+            walking: SOURCE_ROTATION_HALF_LIVES.0[0],
+            running: SOURCE_ROTATION_HALF_LIVES.0[1],
+            sprinting: SOURCE_ROTATION_HALF_LIVES.0[2],
         }
     }
 
     pub const fn responsive() -> Self {
         Self {
-            walking: 0.10,
-            running: 0.05,
-            sprinting: 0.05,
+            walking: SOURCE_ROTATION_HALF_LIVES.1[0],
+            running: SOURCE_ROTATION_HALF_LIVES.1[1],
+            sprinting: SOURCE_ROTATION_HALF_LIVES.1[2],
         }
     }
 
@@ -705,12 +707,18 @@ impl GaitHalfLives {
         }
     }
 
-    pub fn half_life(&self, gait: crate::state::Gait) -> f32 {
-        match gait {
-            crate::state::Gait::Walking => self.walking,
-            crate::state::Gait::Running => self.running,
-            crate::state::Gait::Sprinting => self.sprinting,
-            _ => self.running,
+    pub fn sample(&self, gait_amount: f32) -> f32 {
+        let gait_amount = gait_amount.clamp(1.0, 3.0);
+        if gait_amount <= 1.0 {
+            return self.walking;
+        }
+        if gait_amount >= 3.0 {
+            return self.sprinting;
+        }
+        if gait_amount < 2.0 {
+            self.walking.lerp(self.running, gait_amount - 1.0)
+        } else {
+            self.running.lerp(self.sprinting, gait_amount - 2.0)
         }
     }
 
@@ -938,7 +946,7 @@ pub struct JumpParamsOverride {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::{Gait, RotationMode, Stance};
+    use crate::state::{RotationMode, Stance};
 
     #[test]
     fn defaults_match_als_source_values() {
@@ -987,7 +995,7 @@ mod tests {
             p.rotation
                 .grounded_moving_velocity_direction
                 .interpolation_half_lives,
-            GaitHalfLives::normal()
+            GaitHalfLives::responsive()
         );
         assert!(
             (p.rotation
@@ -1182,8 +1190,10 @@ mod tests {
         for p in [&n, &r, &s] {
             assert!((p.sprinting - 0.05).abs() < 1e-6);
         }
-        assert_eq!(n.half_life(Gait::Sprinting), n.sprinting);
-        assert_eq!(n.half_life(Gait::Walking), n.walking);
+        assert_eq!(n.sample(0.0), n.walking);
+        assert_eq!(n.sample(3.0), n.sprinting);
+        assert!((n.sample(2.5) - 0.10).abs() < 1e-6);
+        assert!((r.sample(1.5) - 0.075).abs() < 1e-6);
     }
 
     #[test]
