@@ -1863,6 +1863,47 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "A18: cached root remains bound to a live previous Avatar"]
+    fn camera_rebinds_root_when_avatar_changes_and_old_root_survives() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut world = World::new();
+        let mut definitions = Assets::<AlsCameraDefinition>::default();
+        let definition = definitions.add(ron::from_str::<AlsCameraDefinition>(include_str!(
+            "../../../assets/params/als_camera.camera_component.ron"
+        )).unwrap());
+        world.insert_resource(definitions);
+        let actor = world.spawn((
+            GlobalTransform::IDENTITY,
+            als_core::character::als_character_capsule(0.9, 0.3),
+        )).id();
+        let mut spawn_avatar = |location: Vec3| {
+            let avatar = world.spawn(ChildOf(actor)).id();
+            let mesh = world.spawn((ChildOf(avatar), GlobalTransform::from_translation(location))).id();
+            let root = world.spawn((
+                Name::new("root"),
+                bevy::animation::AnimationTargetId::from_names([Name::new("root")].iter()),
+                ChildOf(mesh),
+                GlobalTransform::from_translation(location),
+            )).id();
+            (avatar, root)
+        };
+        let (old_avatar, old_root) = spawn_avatar(Vec3::X);
+        let (new_avatar, new_root) = spawn_avatar(Vec3::Z * 2.0);
+        world.entity_mut(actor).insert((
+            AlsCameraSocketBinding::new(old_avatar),
+            AlsCameraSocketLocations::default(),
+            AlsCameraDefinitionHandle(definition),
+        ));
+        world.run_system_once(resolve_camera_socket_locations).unwrap();
+        assert_eq!(world.get::<AlsCameraSocketBinding>(actor).unwrap().root_bone, Some(old_root));
+        world.get_mut::<AlsCameraSocketBinding>(actor).unwrap().avatar = new_avatar;
+        world.run_system_once(resolve_camera_socket_locations).unwrap();
+        assert!(world.entities().contains(old_root));
+        assert_eq!(world.get::<AlsCameraSocketBinding>(actor).unwrap().root_bone, Some(new_root));
+        assert_eq!(world.get::<AlsCameraSocketLocations>(actor).unwrap().root, Vec3::Z * 2.0);
+    }
+
+    #[test]
     fn detached_mesh_pivot_uses_the_current_capsule_bottom_and_restores_the_socket() {
         use bevy::ecs::system::RunSystemOnce;
         let mut world = World::new();
