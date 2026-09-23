@@ -1767,7 +1767,7 @@ mod tests {
             .spawn((
                 AlsCharacter,
                 LocomotionState::Grounded,
-                Transform::from_xyz(4.0, 1.0, -3.0),
+                Transform::from_xyz(4.0, 1.0, -3.0).with_scale(Vec3::splat(2.0)),
             ))
             .id();
         let avatar = app
@@ -1836,6 +1836,7 @@ mod tests {
                 .translation
                 .abs_diff_eq(Vec3::new(4.0, 1.0, -3.0), 1e-5)
         );
+        assert_eq!(app.world().get::<Transform>(player).unwrap().scale, Vec3::splat(2.0));
     }
 
     #[test]

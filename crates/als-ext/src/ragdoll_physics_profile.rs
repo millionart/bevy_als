@@ -294,6 +294,7 @@ impl RagdollCollisionMember {
 
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq)]
 pub struct RagdollPhysicsProfileApplied {
+    pub scale: f32,
     pub body_count: u32,
     pub collider_count: u32,
     pub joint_count: u32,
@@ -418,39 +419,54 @@ fn ragdoll_positive_uniform_scale(
 #[allow(clippy::type_complexity)]
 fn apply_ragdoll_physics_profiles(
     mut commands: Commands,
-    players: Query<
-        (Entity, &AnimationGraphPlayer, &RagdollPhysicsProfile),
-        Without<RagdollPhysicsProfileApplied>,
+    mut players: Query<
+        (Entity, &AnimationGraphPlayer, &RagdollPhysicsProfile, Option<&mut RagdollPhysicsProfileApplied>),
     >,
     body_labels: Query<&BodyLabel>,
     collider_labels: Query<&ColliderLabel>,
     joint_labels: Query<&JointLabel>,
     spherical_joints: Query<&SphericalJoint>,
     revolute_joints: Query<&RevoluteJoint>,
+    source_joints: Query<&SourcePhysicsJoint>,
     transforms: Query<&Transform>,
     mut colliders: Query<&mut Collider>,
     transform_helper: bevy::transform::helper::TransformHelper,
     scenes: Query<(Entity, &AnimatedSceneInstance)>,
 ) {
-    for (player_entity, player, profile) in &players {
+    for (player_entity, player, profile, applied) in &mut players {
         let Some(spawned) = player.get_spawned_ragdoll() else {
             continue;
         };
         let scale = ragdoll_positive_uniform_scale(player_entity, &scenes, &transform_helper);
-        let applied = apply_profile_to_spawned_ragdoll(
+        let previous_scale = applied.as_ref().map_or(1.0, |applied| applied.scale);
+        if applied.as_ref().is_some_and(|applied| (applied.scale - scale).abs() <= 1e-4) {
+            continue;
+        }
+        let next = apply_profile_to_spawned_ragdoll(
             &mut commands,
             spawned,
             profile,
             scale,
+            scale / previous_scale,
             &body_labels,
             &collider_labels,
             &joint_labels,
             &spherical_joints,
             &revolute_joints,
+            &source_joints,
             &transforms,
             &mut colliders,
         );
-        commands.entity(player_entity).insert(applied);
+        if let Some(mut applied) = applied {
+            applied.scale = scale;
+            applied.body_count = next.body_count;
+            applied.collider_count = next.collider_count;
+            applied.joint_count = next.joint_count;
+            applied.source_joint_count = next.source_joint_count;
+            applied.collision_disabled_pair_count = next.collision_disabled_pair_count;
+        } else {
+            commands.entity(player_entity).insert(next);
+        }
     }
 }
 
@@ -460,22 +476,25 @@ fn apply_profile_to_spawned_ragdoll(
     spawned: &SpawnedRagdoll,
     profile: &RagdollPhysicsProfile,
     scale: f32,
+    scale_factor: f32,
     body_labels: &Query<&BodyLabel>,
     collider_labels: &Query<&ColliderLabel>,
     joint_labels: &Query<&JointLabel>,
     spherical_joints: &Query<&SphericalJoint>,
     revolute_joints: &Query<&RevoluteJoint>,
+    source_joints: &Query<&SourcePhysicsJoint>,
     transforms: &Query<&Transform>,
     colliders: &mut Query<&mut Collider>,
 ) -> RagdollPhysicsProfileApplied {
     let mut applied = RagdollPhysicsProfileApplied {
+        scale,
         collision_disabled_pair_count: profile.collision_disabled_pairs.len() as u32,
         ..default()
     };
     for body_entity in spawned.bodies.values() {
-        if scale != 1.0 && let Ok(transform) = transforms.get(*body_entity) {
+        if scale_factor != 1.0 && let Ok(transform) = transforms.get(*body_entity) {
             let mut scaled = *transform;
-            scaled.translation *= scale;
+            scaled.translation *= scale_factor;
             commands.entity(*body_entity).insert(scaled);
         }
         let Ok(label) = body_labels.get(*body_entity) else {
@@ -496,12 +515,12 @@ fn apply_profile_to_spawned_ragdoll(
         applied.body_count += 1;
     }
     for collider_entity in spawned.colliders.values() {
-        if scale != 1.0 && let (Ok(transform), Ok(mut collider)) =
+        if scale_factor != 1.0 && let (Ok(transform), Ok(mut collider)) =
             (transforms.get(*collider_entity), colliders.get_mut(*collider_entity)) {
             let mut scaled_transform = *transform;
-            scaled_transform.translation *= scale;
-            scaled_transform.scale *= scale;
-            let collider_scale = collider.scale() * scale;
+            scaled_transform.translation *= scale_factor;
+            scaled_transform.scale *= scale_factor;
+            let collider_scale = collider.scale() * scale_factor;
             collider.set_scale(collider_scale, 16);
             commands.entity(*collider_entity).insert(scaled_transform);
         }
@@ -537,7 +556,8 @@ fn apply_profile_to_spawned_ragdoll(
                     .get(*joint_entity)
                     .ok()
                     .map(|joint| (joint.body1, joint.body2))
-            });
+            })
+            .or_else(|| source_joints.get(*joint_entity).ok().map(|joint| (joint.child, joint.parent)));
         let Some((child, parent)) = bodies else {
             continue;
         };
@@ -837,17 +857,20 @@ mod tests {
                       joint_labels: Query<&JointLabel>,
                       spherical: Query<&SphericalJoint>,
                       revolute: Query<&RevoluteJoint>,
+                      source_joints: Query<&SourcePhysicsJoint>,
                       transforms: Query<&Transform>, mut colliders: Query<&mut Collider>| {
                     apply_profile_to_spawned_ragdoll(
                         &mut commands,
                         &spawned,
                         &profile,
                         1.0,
+                        1.0,
                         &body_labels,
                         &collider_labels,
                         &joint_labels,
                         &spherical,
                         &revolute,
+                        &source_joints,
                         &transforms,
                         &mut colliders,
                     )
@@ -914,14 +937,25 @@ mod tests {
         let joint = *spawned.joints.values().find(|entity|
             world.get::<JointLabel>(**entity).unwrap().0 == joint_profile.label).unwrap();
         let joint_offset = joint_profile.definition.parent_frame.translation;
+        let first = SpawnedRagdoll { root: spawned.root, bodies: spawned.bodies.clone(),
+            colliders: spawned.colliders.clone(), joints: spawned.joints.clone() };
+        world.run_system_once({ let profile = profile.clone(); move |mut commands: Commands,
+            body_labels: Query<&BodyLabel>, collider_labels: Query<&ColliderLabel>,
+            joint_labels: Query<&JointLabel>, spherical: Query<&SphericalJoint>,
+            revolute: Query<&RevoluteJoint>, source_joints: Query<&SourcePhysicsJoint>,
+            transforms: Query<&Transform>, mut colliders: Query<&mut Collider>| {
+            apply_profile_to_spawned_ragdoll(&mut commands, &first, &profile, 1.0, 1.0,
+                &body_labels, &collider_labels, &joint_labels, &spherical, &revolute,
+                &source_joints, &transforms, &mut colliders)
+        }}).unwrap();
         world.run_system_once(move |mut commands: Commands,
             body_labels: Query<&BodyLabel>, collider_labels: Query<&ColliderLabel>,
             joint_labels: Query<&JointLabel>, spherical: Query<&SphericalJoint>,
-            revolute: Query<&RevoluteJoint>, transforms: Query<&Transform>,
+            revolute: Query<&RevoluteJoint>, source_joints: Query<&SourcePhysicsJoint>, transforms: Query<&Transform>,
             mut colliders: Query<&mut Collider>| {
-            apply_profile_to_spawned_ragdoll(&mut commands, &spawned, &profile, 2.0,
+            apply_profile_to_spawned_ragdoll(&mut commands, &spawned, &profile, 2.0, 2.0,
                 &body_labels, &collider_labels, &joint_labels, &spherical, &revolute,
-                &transforms, &mut colliders)
+                &source_joints, &transforms, &mut colliders)
         }).unwrap();
         assert!(world.get::<Transform>(body).unwrap().translation.abs_diff_eq(body_offset * 2.0, 1e-5));
         assert!(world.get::<Transform>(collider).unwrap().translation.abs_diff_eq(collider_offset * 2.0, 1e-5));

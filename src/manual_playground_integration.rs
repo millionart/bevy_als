@@ -3606,15 +3606,10 @@ fn initialize_manual_integration(
     cameras: (Query<(&AlsCameraRig, &AlsCameraDebugInfo)>, Query<&als_camera::AlsCameraViewSource>),
     toggles: Query<&TnuaToggle, With<AlsCharacter>>,
     view: Query<(&AlsViewYaw, &AlsViewPitch), With<AlsCharacter>>,
-    mut transforms: Query<&mut Transform, With<AlsCharacter>>,
+    transforms: Query<&Transform, With<AlsCharacter>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    if state.scenario == IntegrationScenario::Ragdoll && !state.initialized
-        && let Ok(admission) = admissions.single()
-        && let Ok(mut transform) = transforms.get_mut(admission.character) {
-        transform.scale = Vec3::splat(2.0);
-    }
     if state.initialized || !startup.passed {
         return;
     }
@@ -3645,7 +3640,7 @@ fn initialize_manual_integration(
     let Ok((view_yaw, view_pitch)) = view.get(character) else {
         return;
     };
-    let Ok(transform) = transforms.get_mut(character) else {
+    let Ok(transform) = transforms.get(character) else {
         return;
     };
     let graph_ready = matches!(player.get_animation_source(), AnimationSource::Graph(_))
@@ -5749,6 +5744,7 @@ fn drive_manual_integration(
                 state.coverage.ragdoll_recovered = false;
                 let mut spawn_translation = state.spawn_translation.unwrap_or(transform.translation);
                 if state.scenario == IntegrationScenario::Ragdoll {
+                    transform.scale = Vec3::splat(2.0);
                     let standing_half = params_assets
                         .get(params_handle.id())
                         .map_or(ALS_CHARACTER_CAPSULE_HALF_HEIGHT, |params| {
@@ -9336,7 +9332,7 @@ fn observe_manual_integration(
                 let expected_y = fixture.locomotion_start.y - 0.92
                     + 2.0 * ALS_CHARACTER_CAPSULE_HALF_HEIGHT
                     + ALS_CHARACTER_FLOOR_CLEARANCE;
-                let physics_scaled = player.get_spawned_ragdoll().is_some_and(|spawned| {
+                let (colliders_scaled, joint_scaled) = player.get_spawned_ragdoll().map_or((false, false), |spawned| {
                     let colliders_scaled = spawned.colliders.values().all(|entity|
                         ragdoll_probe.colliders.get(*entity).is_ok_and(|collider|
                             collider.scale().abs_diff_eq(Vec3::splat(2.0), 1e-3)));
@@ -9350,16 +9346,16 @@ fn observe_manual_integration(
                                         source.definition.parent_frame.translation * 2.0, 1e-4)
                                     && joint.child_frame.translation.abs_diff_eq(
                                         source.definition.child_frame.translation * 2.0, 1e-4))));
-                    colliders_scaled && joint_scaled
+                    (colliders_scaled, joint_scaled)
                 });
                 let scaled = transform.scale == Vec3::splat(2.0)
                     && (follow.target.y - expected_y).abs() < 0.12
                     && (transform.translation.y - follow.target.y).abs() < 0.02
-                    && physics_scaled;
+                    && colliders_scaled && joint_scaled;
                 state.coverage.ragdoll_scaled |= scaled;
                 if state.ragdoll_grounded_at.is_none() {
                     info!(
-                        "[MANUAL-INTEGRATION][RAGDOLL-SCALED] target_y={:.3} expected_y={expected_y:.3} actor_y={:.3} scale={:?} matched={scaled}",
+                        "[MANUAL-INTEGRATION][RAGDOLL-SCALED] target_y={:.3} expected_y={expected_y:.3} actor_y={:.3} scale={:?} colliders_scaled={colliders_scaled} joint_scaled={joint_scaled} matched={scaled}",
                         follow.target.y, transform.translation.y, transform.scale,
                     );
                 }
