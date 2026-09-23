@@ -98,7 +98,7 @@ pub struct AlsFootProbe {
     pub right: Option<AlsGroundHit>,
 }
 
-#[derive(Component, Debug, Clone, Copy)]
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AlsFootBones {
     pub left_thigh: Entity,
     pub left_calf: Entity,

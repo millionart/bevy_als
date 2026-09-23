@@ -3,7 +3,7 @@ use als_core::foot_ik::{
     AlsDynamicTransitionState, AlsFootBones, AlsFootLockFootState, AlsFootLockInput,
     AlsFootLockMovementBase, AlsFootLockSettings, AlsFootLockState, AlsFootLockTeleported,
     AlsFootTargetSelection, FOOT_LOCK_TELEPORT_DISTANCE_THRESHOLD_M, FOOT_LOCK_TELEPORT_WINDOW_SECONDS,
-    capture_foot_lock_movement_base, constrain_foot_lock_rotation,
+    build_foot_bone_map, capture_foot_lock_movement_base, constrain_foot_lock_rotation,
     foot_lock_location_constraint_rotation, is_relevant_animation_weight, refresh_foot_lock,
     reset_foot_lock_to_target,
 };
@@ -14,6 +14,7 @@ use als_ext::ik_space::{
     armature_rotation_from_world, world_point_from_armature, world_rotation_from_armature,
 };
 use bevy::prelude::*;
+use bevy::animation::AnimationTargetId;
 use avian3d::prelude::{ColliderOf, RigidBody};
 use bevy::transform::{TransformSystems, helper::TransformHelper};
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
@@ -22,11 +23,11 @@ use als_ext::{control_rig_hierarchy::{RigSpace, RigTransform}, control_rig_math:
     control_rig_program::{RigDefinition, RigInstruction}, root_graph_boundaries::{ControlRigBoundaryNode, ControlRigNodeState, RigCallSample, current_control_rig}};
 
 use crate::animation_context_projection::AlsRootAnimationContextSet;
-use crate::character_assembly::AlsCharacterAvatar;
+use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar};
 use crate::control_rig_apply::{AlsControlRigExecution, AlsControlRigInput, CrAlsRuntimeProfileTemplate};
 
 #[derive(Component, Debug, Clone, Copy, Default)]
-struct FootLockLifecycleState {
+pub(crate) struct FootLockLifecycleState {
     previous_character_transform: Option<Transform>,
     teleport_remaining: f32,
 }
@@ -157,6 +158,7 @@ impl Plugin for FootIkApplyPlugin {
                 FootIkApplySet::Telemetry.after(AnimationGraphSet::Final)
                     .after(AlsRootAnimationContextSet).after(TransformSystems::Propagate),
             )).add_systems(PostUpdate, (
+                refresh_current_foot_bones.before(ensure_foot_lock_components).before(FootIkApplySet::UpdateInputs),
                 ensure_foot_lock_components.before(crate::standing_layer::AlsStandingLayerSet).before(FootIkApplySet::UpdateInputs),
                 ensure_foot_lock_lifecycle_state.before(FootIkApplySet::UpdateInputs),
                 ensure_foot_lock_teleport_telemetry.before(FootIkApplySet::UpdateInputs),
@@ -165,6 +167,44 @@ impl Plugin for FootIkApplyPlugin {
                     .chain().in_set(FootIkApplySet::UpdateInputs),
                 observe_rig_results.in_set(FootIkApplySet::Telemetry),
             ));
+    }
+}
+
+pub(crate) fn refresh_current_foot_bones(
+    mut commands: Commands,
+    mut characters: Query<(
+        Entity,
+        &AlsCharacterAssembly,
+        Option<&AlsFootBones>,
+        Option<&mut AlsFootLockInput>,
+        Option<&mut AlsFootLockState>,
+        Option<&mut AlsDynamicTransitionState>,
+        Option<&mut FootLockLifecycleState>,
+        Option<&mut AlsFootLockTeleportTelemetry>,
+    ), With<als_core::character::AlsCharacter>>,
+    instances: Query<&AnimatedSceneInstance>,
+    children: Query<&Children>,
+    names: Query<&Name>,
+    targets: Query<&AnimationTargetId>,
+) {
+    for (entity, assembly, current, input, lock, dynamic, lifecycle, telemetry) in &mut characters {
+        let root = instances
+            .get(assembly.avatar)
+            .map_or(assembly.avatar, |instance| instance.player_entity());
+        let next = build_foot_bone_map(root, &children, &names, &targets);
+        if current.copied() == next {
+            continue;
+        }
+        if let Some(next) = next {
+            commands.entity(entity).insert(next);
+        } else {
+            commands.entity(entity).remove::<AlsFootBones>();
+        }
+        if let Some(mut value) = input { *value = default(); }
+        if let Some(mut value) = lock { *value = default(); }
+        if let Some(mut value) = dynamic { *value = default(); }
+        if let Some(mut value) = lifecycle { *value = default(); }
+        if let Some(mut value) = telemetry { *value = default(); }
     }
 }
 

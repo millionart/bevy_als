@@ -72,7 +72,6 @@ impl Plugin for AlsCharacterRuntimePlugin {
             AlsRagdollLinkPlugin,
             crate::get_up::AlsGetUpPlugin,
         ))
-        .add_systems(PostUpdate, als_core::foot_ik::foot_bone_map_system.after(bevy::transform::TransformSystems::Propagate))
         .add_systems(
             Update,
             (
@@ -125,12 +124,11 @@ fn ensure_start_stop_state(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use als_core::foot_ik::AlsFootBones;
+    use als_core::foot_ik::{AlsFootBones, AlsFootLockState};
     use bevy_animation_graph::core::animation_clip::EntityPath;
     use bevy_gameplay_tag::{GameplayTag, GameplayTagsSettings};
 
     #[test]
-    #[ignore = "A13: cached feet survive selected Avatar replacement"]
     fn foot_bones_follow_selected_avatar_when_old_bones_remain_alive() {
         fn spawn_feet(world: &mut World, avatar: Entity) -> [Entity; 6] {
             ["thigh_l", "calf_l", "foot_l", "thigh_r", "calf_r", "foot_r"].map(|name| {
@@ -146,7 +144,7 @@ mod tests {
 
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
-            .add_systems(Update, als_core::foot_ik::foot_bone_map_system);
+            .add_systems(Update, crate::foot_ik_apply::refresh_current_foot_bones);
         let character = app.world_mut().spawn(AlsCharacter).id();
         let old_avatar = app.world_mut().spawn(ChildOf(character)).id();
         let old_feet = spawn_feet(app.world_mut(), old_avatar);
@@ -158,6 +156,10 @@ mod tests {
         );
         app.update();
         assert_eq!(app.world().get::<AlsFootBones>(character).unwrap().left, old_feet[2]);
+        app.world_mut().entity_mut(character).insert(AlsFootLockState {
+            valid: true,
+            ..default()
+        });
 
         let new_avatar = app.world_mut().spawn(ChildOf(character)).id();
         let new_feet = spawn_feet(app.world_mut(), new_avatar);
@@ -168,6 +170,30 @@ mod tests {
         app.update();
         assert!(app.world().entities().contains(old_feet[2]));
         assert_eq!(app.world().get::<AlsFootBones>(character).unwrap().left, new_feet[2]);
+        assert!(!app.world().get::<AlsFootLockState>(character).unwrap().valid);
+
+        for bone in new_feet {
+            app.world_mut().entity_mut(bone).remove::<ChildOf>();
+        }
+        let replacement_feet = spawn_feet(app.world_mut(), new_avatar);
+        app.update();
+        assert!(app.world().entities().contains(new_feet[2]));
+        assert_eq!(
+            app.world().get::<AlsFootBones>(character).unwrap().left,
+            replacement_feet[2]
+        );
+
+        app.world_mut().entity_mut(new_avatar).despawn();
+        app.update();
+        assert!(app.world().get::<AlsFootBones>(character).is_none());
+        let last_avatar = app.world_mut().spawn(ChildOf(character)).id();
+        let last_feet = spawn_feet(app.world_mut(), last_avatar);
+        app.world_mut()
+            .get_mut::<crate::character_assembly::AlsCharacterAssembly>(character)
+            .unwrap()
+            .avatar = last_avatar;
+        app.update();
+        assert_eq!(app.world().get::<AlsFootBones>(character).unwrap().left, last_feet[2]);
     }
 
     #[test]
