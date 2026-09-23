@@ -10,13 +10,13 @@ mod overlays;
 mod footprints;
 mod hud_layout;
 
-use als_camera::{AlsCameraDebugInfo, AlsCameraRig, AlsCameraSet, AlsCameraShakeRequest};
+use als_camera::{AlsCameraDebugInfo, AlsCameraRig, AlsCameraSet, AlsCameraShakeRequest, AlsCameraSocketBinding};
 use als_core::character::{
     ALS_CHARACTER_CAPSULE_HALF_HEIGHT, ALS_CHARACTER_FLOOR_CLEARANCE, AlsCharacter,
     AlsMovementParamsHandle,
 };
 use als_core::dynamics::AlsMovementBaseDynamicsState;
-use als_core::foot_ik::AlsFootLockState;
+use als_core::foot_ik::{AlsFootBones, AlsFootLockState, build_foot_bone_map};
 use als_core::gait::{AlsDesiredGait, AlsMaxAllowedGait};
 use als_core::input_request::{AlsCameraLeftShoulder, AlsFirstPersonView};
 use als_core::mantle::{AlsMantleControlSettings, AlsMantleState};
@@ -39,11 +39,12 @@ use als_ext::{
     RagdollPhysicsProfileApplied,
 };
 use avian3d::prelude::{Collider, CollisionLayers, LinearVelocity, Position, RigidBody, Rotation};
+use bevy::animation::AnimationTargetId;
 use bevy::ecs::message::{MessageReader, MessageWriter};
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy::time::{Real, Virtual};
-use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
+use bevy_animation_graph::core::animated_scene::{AnimatedScene, AnimatedSceneHandle, AnimatedSceneInstance};
 use bevy_animation_graph::core::animation_graph::{AnimationGraph, NodeId, SourcePin, TargetPin};
 use bevy_animation_graph::core::animation_graph_player::{AnimationGraphPlayer, AnimationSource};
 use bevy_animation_graph::core::context::node_states::StateKey;
@@ -61,7 +62,9 @@ use crate::animation_events::{
     AlsAnimationEvent, AlsNotifyEarlyBlendOut, AlsNotifyLocomotionAction, AlsNotifyRootMotionScale,
 };
 use crate::animation_visual_validation::AnimationVisualValidationProgress;
-use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar};
+use crate::character_assembly::{
+    ALS_LINKED_ANIMATED_SCENE, AlsCharacterAssembly, AlsCharacterAvatar, avatar_transform,
+};
 use crate::control_rig_apply::{
     AlsControlRigExecution, AlsControlRigInput,
     AlsControlRigState,
@@ -106,6 +109,8 @@ use crate::{
 };
 
 const GATE_TIMEOUT: Duration = Duration::from_secs(180);
+const FOOT_AVATAR_REPLACEMENT_START_SECONDS: f32 = 5.5;
+const FOOT_AVATAR_REPLACEMENT_NO_PROGRESS_LIMIT_SECONDS: f32 = 10.0;
 const CROUCH_CLEARANCE_TIMEOUT: f32 = 90.0;
 const SPRINT_START: Vec3 = Vec3::new(-45.0, 0.0, -26.0);
 const SPRINT_YAW: f32 = -std::f32::consts::FRAC_PI_2;
@@ -558,6 +563,7 @@ impl Plugin for ManualPlaygroundIntegrationPlugin {
                 drive_manual_integration
                     .after(bevy_enhanced_input::prelude::EnhancedInputSystems::Apply),
             )
+            .add_systems(PreUpdate, drive_foot_ik_avatar_replacement.after(drive_manual_integration))
             .add_systems(
                 PreUpdate,
                 drive_crouch_direction_reference_frame
@@ -3005,6 +3011,7 @@ struct IntegrationCoverage {
     foot_ik_roll: bool,
     foot_ik_mantle: bool,
     foot_ik_terrain_cleaned: bool,
+    foot_bones_replaced: bool,
     sprint_curve_relay: bool,
     roll_started: bool,
     roll_slot: bool,
@@ -3087,6 +3094,10 @@ struct ManualIntegrationState {
     get_up_fixture_seeded: bool,
     ragdoll_grounded_at: Option<f64>,
     ragdoll_recovered_at: Option<f64>,
+    foot_replacement_avatar: Option<Entity>,
+    foot_replacement_old_left: Option<Entity>,
+    foot_replacement_waited: f32,
+    foot_replacement_progress: &'static str,
     ragdoll_current_joint_anchor_error_m: f32,
     ragdoll_current_joint_anchor_label: Option<String>,
     ragdoll_max_joint_anchor_error_m: f32,
@@ -3211,6 +3222,10 @@ impl Default for ManualIntegrationState {
             get_up_fixture_seeded: false,
             ragdoll_grounded_at: None,
             ragdoll_recovered_at: None,
+            foot_replacement_avatar: None,
+            foot_replacement_old_left: None,
+            foot_replacement_waited: 0.0,
+            foot_replacement_progress: "not_started",
             ragdoll_current_joint_anchor_error_m: 0.0,
             ragdoll_current_joint_anchor_label: None,
             ragdoll_max_joint_anchor_error_m: 0.0,
@@ -3659,6 +3674,94 @@ fn initialize_manual_integration(
         "[MANUAL-INTEGRATION][EXECUTED] runtime_assembly scenario={:?} character={character:?} avatar={:?} camera={camera:?} playable_plugin=AlsPlayableCharacterPlugin runtime_plugin=AlsCharacterRuntimePlugin graph=Graph tnua=Enabled camera_valid=true",
         state.scenario, assembly.avatar,
     );
+}
+
+fn drive_foot_ik_avatar_replacement(
+    mut commands: Commands,
+    mut state: ResMut<ManualIntegrationState>,
+    mut phase_evidence: ResMut<ManualRuntimePhaseEvidence>,
+    assets: Res<AssetServer>,
+    scenes: Res<Assets<AnimatedScene>>,
+    mut assemblies: Query<&mut AlsCharacterAssembly>,
+    instances: Query<&AnimatedSceneInstance>,
+    scene_handles: Query<&AnimatedSceneHandle>,
+    mut players: Query<&mut AnimationGraphPlayer>,
+    bones: Query<&AlsFootBones>,
+    locks: Query<&AlsFootLockState>,
+    children: Query<&Children>,
+    names: Query<&Name>,
+    targets: Query<&AnimationTargetId>,
+    alive: Query<Entity>,
+) {
+    if state.scenario != IntegrationScenario::FootIk
+        || state.phase != IntegrationPhase::Roll
+        || state.phase_elapsed() < FOOT_AVATAR_REPLACEMENT_START_SECONDS
+        || state.coverage.foot_bones_replaced
+    {
+        return;
+    }
+    let Some(character) = state.character else { return; };
+    let Some(old_avatar) = state.avatar else { return; };
+    let Some(new_avatar) = state.foot_replacement_avatar else {
+        let Ok(old_bones) = bones.get(character) else { return; };
+        commands.entity(character).insert(Visibility::Inherited);
+        let new_avatar = commands.spawn((
+            AnimatedSceneHandle {
+                handle: assets.load(ALS_LINKED_ANIMATED_SCENE),
+                override_source: Some(AnimationSource::None),
+            },
+            AlsCharacterAvatar { character },
+            avatar_transform(),
+            Visibility::Hidden,
+            ChildOf(character),
+        )).id();
+        state.foot_replacement_avatar = Some(new_avatar);
+        state.foot_replacement_old_left = Some(old_bones.left);
+        state.foot_replacement_progress = "await_instance";
+        info!("[MANUAL-INTEGRATION][FOOT-BONES-REPLACE] spawned avatar={new_avatar:?}");
+        return;
+    };
+    let Ok(instance) = instances.get(new_avatar) else { return; };
+    state.foot_replacement_progress = "await_player";
+    let Ok(mut player) = players.get_mut(instance.player_entity()) else { return; };
+    state.foot_replacement_progress = "await_bones";
+    let Some(new_bones) = build_foot_bone_map(instance.player_entity(), &children, &names, &targets) else { return; };
+    if old_avatar != new_avatar {
+        let Ok(mut assembly) = assemblies.get_mut(character) else { return; };
+        let Ok(scene_handle) = scene_handles.get(new_avatar) else { return; };
+        let Some(scene) = scenes.get(&scene_handle.handle) else { return; };
+        player.set_animation(AnimationSource::Graph(scene.animation_graph.clone()));
+        assembly.avatar = new_avatar;
+        commands.entity(old_avatar).remove::<AlsCharacterAvatar>().insert(Visibility::Hidden);
+        commands.entity(new_avatar).insert(Visibility::Visible);
+        commands.entity(character).insert(AlsCameraSocketBinding::new(new_avatar));
+        state.avatar = Some(new_avatar);
+        state.foot_replacement_progress = "await_current_foot_map";
+        rebase_temporal_fixture(&mut state, &mut phase_evidence, "foot_ik_avatar_replace");
+        info!("[MANUAL-INTEGRATION][FOOT-BONES-REPLACE] selected avatar={new_avatar:?}");
+        return;
+    }
+    let Some(old_left) = state.foot_replacement_old_left else { return; };
+    let old_alive = alive.get(old_left).is_ok();
+    let map_matches = bones.get(character).is_ok_and(|current| *current == new_bones);
+    state.foot_replacement_progress = if !old_alive {
+        "old_foot_missing"
+    } else if !map_matches {
+        "await_current_foot_map"
+    } else {
+        "await_foot_lock"
+    };
+    if new_bones.left != old_left && old_alive && map_matches && locks.get(character).is_ok_and(|lock| lock.valid) {
+        state.coverage.foot_bones_replaced = true;
+        state.foot_replacement_progress = "complete";
+        info!("[MANUAL-INTEGRATION][FOOT-BONES-REPLACE] old={old_left:?} new={:?} -> PASS", new_bones.left);
+    }
+}
+
+fn foot_avatar_replacement_timed_out(elapsed: f32, covered: bool) -> bool {
+    !covered
+        && elapsed >= FOOT_AVATAR_REPLACEMENT_START_SECONDS
+            + FOOT_AVATAR_REPLACEMENT_NO_PROGRESS_LIMIT_SECONDS
 }
 
 #[allow(clippy::type_complexity)]
@@ -5512,13 +5615,23 @@ fn drive_manual_integration(
                 Vec2::ZERO
             };
             input.0.roll_pressed = (1.0..1.2).contains(&elapsed);
-            if elapsed >= 5.5 {
-                let next = if state.scenario == IntegrationScenario::Grounded {
-                    IntegrationPhase::GroundedJoint
+            if elapsed >= FOOT_AVATAR_REPLACEMENT_START_SECONDS {
+                if state.scenario == IntegrationScenario::FootIk {
+                    state.foot_replacement_waited = elapsed - FOOT_AVATAR_REPLACEMENT_START_SECONDS;
+                    if state.coverage.foot_bones_replaced {
+                        begin_phase(&mut state, IntegrationPhase::Finish);
+                    } else if foot_avatar_replacement_timed_out(elapsed, state.coverage.foot_bones_replaced) {
+                        state.timed_out = true;
+                        begin_phase(&mut state, IntegrationPhase::Finish);
+                    }
                 } else {
-                    IntegrationPhase::Finish
-                };
-                begin_phase(&mut state, next);
+                    let next = if state.scenario == IntegrationScenario::Grounded {
+                        IntegrationPhase::GroundedJoint
+                    } else {
+                        IntegrationPhase::Finish
+                    };
+                    begin_phase(&mut state, next);
+                }
             }
         }
         IntegrationPhase::GroundedJoint => {
@@ -9938,7 +10051,18 @@ fn observe_manual_integration(
                 ]);
                 results
             }
-            IntegrationScenario::FootIk => vec![
+            IntegrationScenario::FootIk => {
+                if state.timed_out && !coverage.foot_bones_replaced {
+                    gate_report.direction_trace.push(serde_json::json!({"watchdog": {
+                        "exit_reason": "foot_avatar_replacement_timeout",
+                        "last_progress": state.foot_replacement_progress,
+                        "waited_game_seconds": state.foot_replacement_waited,
+                        "no_progress_limit_seconds": FOOT_AVATAR_REPLACEMENT_NO_PROGRESS_LIMIT_SECONDS,
+                        "current_conditions": {"selected": state.avatar == state.foot_replacement_avatar,
+                            "covered": coverage.foot_bones_replaced}
+                    }}));
+                }
+                vec![
                 ("runtime_assembly", coverage.assembly),
                 ("animation_graph", coverage.graph),
                 ("standing_graph", coverage.standing_graph),
@@ -9962,7 +10086,9 @@ fn observe_manual_integration(
                 ("mantle_start", coverage.mantle_started),
                 ("mantle_complete", coverage.mantle_completed),
                 ("foot_ik_terrain_cleaned", coverage.foot_ik_terrain_cleaned),
-            ],
+                ("foot_bones_replaced", coverage.foot_bones_replaced),
+            ]
+            },
             IntegrationScenario::Ragdoll => vec![
                 ("runtime_assembly", coverage.assembly),
                 ("animation_graph", coverage.graph),
@@ -10197,6 +10323,20 @@ fn observe_manual_integration(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn foot_avatar_replacement_watchdog_ends_only_after_no_progress_limit() {
+        use super::{
+            FOOT_AVATAR_REPLACEMENT_NO_PROGRESS_LIMIT_SECONDS,
+            FOOT_AVATAR_REPLACEMENT_START_SECONDS,
+            foot_avatar_replacement_timed_out,
+        };
+        let deadline = FOOT_AVATAR_REPLACEMENT_START_SECONDS
+            + FOOT_AVATAR_REPLACEMENT_NO_PROGRESS_LIMIT_SECONDS;
+        assert!(!foot_avatar_replacement_timed_out(deadline - 0.01, false));
+        assert!(foot_avatar_replacement_timed_out(deadline, false));
+        assert!(!foot_avatar_replacement_timed_out(deadline, true));
+    }
+
     #[test]
     fn scaled_crouch_clearance_preserves_floor_and_canopy_gap() {
         use super::stance_center_from_standing_center;

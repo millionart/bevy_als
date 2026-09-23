@@ -409,3 +409,29 @@
 - [x] **BF124.A13-S2 — 当前 Avatar 脚骨映射与脚锁重置**：开始：2026-09-23 13:20:12 +08:00；预估结束：2026-09-23 14:10:12 +08:00；实际结束：2026-09-23 13:28:52 +08:00；偏差：-41m20s；结果：当前 Avatar/播放器闭包映射、替换/暂缺清理、旧脚锁重置与局部回归通过。以 `AlsCharacterAssembly.avatar` 和当前 `AnimatedSceneInstance.player_entity()` 限定脚骨发现闭包；映射变化或当前骨暂缺时更新/移除缓存并重置脚锁生命周期，使脚印与 IK 消费者不再读取仍存活的旧 Avatar。估时依据：现有 core 建图函数与 project runtime 注册点、两处脚锁清理代码、一个真实 scene instance 选择及已建 red fixture；拆分结果：S3 原 Playground 公共视觉 Gate，A14 不提前展开。
 
   source/static 完成摘要：项目运行时改用当前 `AlsCharacterAssembly.avatar`，若有 `AnimatedSceneInstance` 则只遍历其当前 player 子树；原 core 无主映射仍保留给其他入口，项目不再重复注册它。`AlsFootBones` 值变化时同步更新/移除缓存并清空既有 input、lock、dynamic、lifecycle、teleport 状态；没有新增所有者状态。S1 red 变 green，并覆盖旧 Avatar 留存、同 Avatar 换骨实体仍活、旧 Avatar 先移除后装新，`foot_ik_apply::tests::` 8/8、`footprint::tests::` 8/8。去掉 lock reset 后 focused 明确 red，恢复 green；显式清空 Rig input 的附加分支对信号无贡献已删。剩余边界是原 Playground 实际动画/脚印/替换路径的公共视觉 Gate。
+
+- [x] **BF124.A13-S3 — 原 Playground Avatar 替换与脚骨视觉 Gate**：开始：2026-09-23 13:32:58 +08:00；预估结束：2026-09-23 14:27:58 +08:00；实际结束：2026-09-23 14:24:06 +08:00；偏差：-3m52s；结果：真实 scene/player 替换、当前脚骨映射/脚锁恢复、公共视觉功能 Gate 与旧缓存消融通过。在既有 `foot_ik` 场景原地形/角色/相机完成运动分支后，预热同一 AnimatedScene 的第二 Avatar 骨架，切当前 Assembly/相机绑定，保留旧脚实体；公共结果严格要求新 player 子树映射与脚锁恢复。估时依据：原 FootIk phase 末尾接线、现有 Scene/Assembly/Gate、S2 focused fixture；拆分结果：A13 可汇总关闭，A14 不提前展开。
+
+  source/static 进展、runtime 前摘要：沿既有 `FootIk` 场景 Roll 结束窗口加载相同 AnimatedScene 的第二个 Avatar，待 player 输出 Pose 和脚骨子树就绪后才切当前 Assembly/相机绑定；旧 Avatar 隐藏但旧脚实体仍存活。公共 `foot_bones_replaced` 需新 map 精确等于当前 player 子树、旧左脚仍活且新脚锁恢复；等待超 10s 自动结束并在报告给出进展阶段、等待时间与当前条件。focused watchdog 边界 3/3 通过；S1/S2 映射与消费者局部 Gate 已完成。下一步同入口 `target_game/play` 限流构建，按 skill 先 `startup` 再 `foot_ik`/`footprint` 公共功能 Gate，审计非零进程也必须读取报告。
+
+  runtime 首轮失败与 source 链复盘：同入口 `startup` 功能通过；`foot_ik` 20/21 必需项通过，仅 `foot_bones_replaced` 未覆盖，graph error/fault/temporal 0，机器可读 watchdog 在等待 10.011s 时记录 `last_progress=await_scene`、`selected=false` 并使进程退出 91。目标 `generated_ab_als_provider` 输入发布 Query 限定 `With<AlsCharacterAvatar>`；预热新 Avatar 时暂删该标记使新 player 无法获得输入 Pose，故不是脚骨重建本身的失败。下一轮保留预热 Avatar 标记与隐藏可见性，Assembly 仍指旧 Avatar，等新 Pose/骨闭包就绪后再一次性切换；不放宽 Gate 或延长超时。
+
+  第二轮失败与诊断改向：保留预热 Avatar 标记后的原 Playground `foot_ik` 仍为 20/21，仅 `foot_bones_replaced` 未覆盖，graph error/fault/temporal 0，watchdog 10.003s `await_scene`、未切换。此前标签把实例、播放器、Pose、脚骨四个条件合并，不能证明第一轮标记推断为根因。先让同一固定上限报告细分最后达成的实例/player/Pose/bone/map/lock 进展，再依据实际失败条件检查目标加载或时序；不重复同一无信息 runtime 调用。
+
+  第三轮诊断与估时核对：细分 watchdog 报告在 10.005s 明确停于 `await_pose`；新 `AnimatedSceneInstance`/player 已存在，旧运动检查 20/21、graph error/fault/temporal 0，但新 player 的 Pose 未被当前报告独立审计。记录时核对当前 UTC 05:57:32 对应香港时间 13:57:32，距本项 13:32:58 开始已过 24m34s，原预估 14:27:58 仍有效；先前多加一小时的超时/重估记载已纠正。source C++/SKM、目标脚骨映射与 focused 三顺序闭包均已通过，不能因新 player 缺 Pose 放宽公共视觉 Gate。纠正方向：静态核对新 player `AnimationSource`、输出与错误状态及 AnimatedScene 图入口，按证实边界改 fixture/代码并运行同一 Gate；不开始 A14。
+
+  第二轮 source/static 进展、runtime 前摘要：fresh 当前 AnimatedScene 指向已安装 root ragdoll wrapper 图；依赖 `animation_player` 遍历全部播放器，并不按 `Visibility` 跳过，故“隐藏导致未求值”没有 source/target 依据。细分报告已证明新 instance 与 player 存在、只缺默认输出 Pose；现把该 player 的 `AnimationSource`、真实 graph error 与输出数写进同一固定 watchdog 的机器可读当前条件。下一次为诊断运行，只在报告证实具体源/目标边界后修复；保持原 10s 上限与所有视觉/功能断言。
+
+  新 player 错误定位与改正方向：诊断 watchdog 为 `await_pose`，`source=graph`、`outputs=0`、原始错误 `GlobalInputDataMissing("control_rig_input.b_use_hand_ik_bones")`。目标 `control_rig_apply::source_update` 只向 `AlsCharacterAssembly.avatar` 的 player 写该字段；预热 Avatar 在切换前永远不能满足此条件，故此前 Pose 前置要求本身与输入生命周期相矛盾。当前项目公开扩展点允许先等 `AnimatedSceneInstance`、player 和脚骨实体完整，再切 Assembly/相机绑定；同一 PostUpdate `source_update` 给新 player 输入后求值。删除错误的 Pose 前置和一次性 diagnostic 状态，保留完整视觉 Gate 与 10s watchdog；下一次按此闭包复验。
+
+  runtime 前 source/static 修正：进一步核对依赖 `AnimatedScene` 构造先 `with_graph` 建 arena、后按 `AnimatedSceneHandle.override_source` 设置动画源。预热场景现显式 `override_source=None`（`AnimationSource::None`），仍加载同一真实 skeletal scene/骨实体但不会在缺当前角色 Control Rig 输入时求值；骨闭包就绪的切换帧复用该 arena 将 player 设回原 `scene.animation_graph`，同时切 Assembly，PostUpdate 输入发布后才求值。此配置消除了已证实的预热图错误，不修改依赖或图。剩余是同入口运行、报告与旧规则消融。
+
+  首次替换成功的 runtime 后摘要：同入口原 Playground `foot_ik` 公共功能 21/21（含 `foot_bones_replaced`），757 pose samples，graph error/fault/temporal/watchdog 0，runner/manual/validator 退出码 0。原旧脚实体存活，新 player 骨映射与脚锁恢复均达成；固定 watchdog 未触发。Bevy 可见性传播另输出 B0004：新 Avatar 有 `InheritedVisibility`，父角色没有；该警告源于 fixture 新增 `Visibility::Hidden/Visible`，不是脚骨算法。下一轮在场景初始化该父角色的默认可见性（Bevy 原生 `Visibility::Inherited`）后再复验，随后跑 `footprint` 与旧映射消融；不把含警告的首轮当最终视觉证据。
+
+  可见性修正后与 `footprint` 前摘要：场景父角色显式采用 Bevy 原生 `Visibility::Inherited`，同入口 `foot_ik` 最终候选 runner/manual/validator 退出码 0、21/21（含旧左脚存活/新 map/脚锁恢复）、753 pose samples，graph error/fault/temporal/watchdog 0；不再出现 B0004。`startup` 功能 Gate 先前通过。下一步用同一最终二进制运行原 Playground `footprint` 公共 Gate，确认脚印消费者没有因映射刷新回归；之后做旧一次性缓存规则消融并最终恢复/复验。
+
+  `footprint` 后、消融前摘要：同一最终候选 `target_game/play` 的原 Playground `footprint` 功能 21/21、1,271 pose samples、render/decal Gate 通过（36 次 GPU readback 请求、576 样本），runner/manual/validator 退出码 0，graph error/fault/temporal/watchdog 0。功能已同时覆盖脚 IK 当前播放器与脚印消费者；下一步仅暂把项目注册的当前 Avatar 刷新系统换成原 `Without<AlsFootBones>` 一次性系统，在同一 `foot_ik` 场景要求 `foot_bones_replaced` 失败，然后恢复最终代码/二进制并复验。
+
+  旧缓存消融后、最终 runtime 前摘要：仅将项目脚骨生产系统换回原 `Without<AlsFootBones>` 一次性规则的同场运行退出码 91，20/21 项通过，唯一 `foot_bones_replaced` 未覆盖；watchdog 固定 10.010s、`last_progress=await_current_foot_map`、`selected=true`，graph error/fault/temporal 0。说明新 scene/player/骨闭包及切换都完成，唯旧 map 留存；源码已恢复当前 Avatar 刷新系统，下一步按启动器同一 `target_game/play` 重建，最终复验 `foot_ik`，确认非消融二进制与先前通过的 `footprint` 报告对应。
+
+  runtime 最终完成摘要：恢复项目当前 Avatar 刷新系统后，同入口 `target_game/play` 限流重建并复验原 Playground `foot_ik`：runner/manual/validator 退出码 0、21/21（含 `foot_bones_replaced`）、734 pose samples，graph error/fault/temporal/watchdog 0；先前同闭包 `startup` 功能和 `footprint` 21/21、1,271 pose samples、36/576 GPU readback 均通过。预热播放器使用 `AnimationSource::None`，待骨实体就绪及 Assembly 同帧切换再启原图，因此没有预热缺输入图错误；旧 player/脚实体仍存活但不再选中。旧缓存消融仅漏新必需项并退出 91；无 B0004。完整性能预算依用户既定暂停范围延期。
