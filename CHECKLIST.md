@@ -659,3 +659,9 @@
 - [x] **BF124.A25-S2b — 图脚步通知逐圈派发**：开始：2026-09-23 21:11:39 +08:00；预估结束：2026-09-23 21:56:39 +08:00；实际结束：2026-09-23 21:16:48 +08:00；偏差：-39m51s；结果：图脚步分派从 S2a 圈数与前后位置构造 UE 前向分段，逐段复用 `EventLifecycle` 的现有过滤，最多处理 1000 段；零圈/非循环退路保持。真实 Walk 图单帧 2×时长脚步 2→4，单独消融圈数消费又回到 2，恢复后 green；动画事件局部 11/11、0/1/2 圈和源分段预算检查通过。估时依据：一个项目分派入口、一个分段时钟过程、现有真实图夹具与通用事件测试；拆分结果：S3 原 Playground Footprint/运动功能 Gate，A26 不提前展开。
 
   source/static 完成摘要：fresh UE `GetAnimNotifies` 的有限逐段推进已映射为 `graph_footstep_clocks`，只在循环资产确有完整跨圈时按前向剩余时间分段，其他时钟沿原单段路径。每段仍用 `EventLifecycle` 执行源权重、同步组 leader、专用服务器等既有过滤；项目真实图 Walk 序列两圈 2 个 Notify×2 圈变为 4 个事件，未改动画 pose/相位。局部边界覆盖一次 wrap、同余两圈、非循环与最多 1000 段；移除圈数消费反例回到 2、恢复后 green，`cargo test --lib animation_events::tests:: --jobs 2` 11/11。S2a 元数据、GetUp/Mantle 非循环字段与 S2b 分派组成当前完整静态闭环；下一步 S3 runtime 前摘要和原 Playground Footprint/运动 Gate。
+
+- [x] **BF124.A25-S3 — 原 Playground Footprint/运动公共视觉 Gate**：开始：2026-09-23 21:18:05 +08:00；预估结束：2026-09-23 21:48:05 +08:00；实际结束：2026-09-23 21:23:38 +08:00；偏差：-24m27s；结果：同一 `target_game`/`play` 预构建及 `startup`、`footprint`、`locomotion` 公共功能 Gate 全过。足迹 21/21、10/10 窗口，GPU 贴花读回 36 请求/576 样本；运动 18/18、14/14，图错误/故障/时间异常/watchdog 触发 0。估时依据：S1–S2b 本地 Notify 闭环、真实图两圈 4/4 与底层/项目局部回归、三项已有原 Playground 场景及历史耗时；拆分结果：A25 汇总关闭，A26 为下一项；完整性能预算沿用户既有安排延期。
+
+  runtime 前 source/static 摘要：fresh Walk 原序列 1.133333 秒含两脚步，UE `GetAnimNotifies` 对大 Delta 逐圈分段；目标样本现在保留跨圈数，脚步派发逐段复用原 EventLifecycle。真实图单帧 2×时长由旧 2 次变为源预期 4 次，时钟/分派两个独立消融分别 red；动画事件 11/11，底层上下文、序列播放器与同步 BlendSpace 各 10/10。当前未见静态失败边界；现在同入口预构建并跑原 Playground 公共功能 Gate。
+
+  runtime 后摘要：`cargo build --target-dir target_game --profile play --example manual_playground --jobs 2` 成功；公共 runner `-FunctionalOnly -CaptureCount 0` 的 `startup`、`footprint`、`locomotion` 均 manual/validator exit 0。`footprint` 21/21、10/10，贴花 renderer 36 请求/576 GPU 样本通过；`locomotion` 18/18、14/14。全部报告无 `primary_failure`、graph error、fault、temporal anomaly 或 watchdog 触发；原报告完整性能预算未通过，依既有延期决定仅记功能验收。下一步核对 A25 汇总及提交。
