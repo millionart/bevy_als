@@ -66,7 +66,7 @@
 | A22 | P2 | 完成 | Turn 结束的惯性混合请求没有接入实际生成图 |
 | A23 | P2 | 完成 | Ragdoll 开始没有停止全部 Turn／Transition 播放栈 |
 | A24 | P2 | 完成 | Grounded Slot Group 没有对 Turn 与 Transition 实施跨栈互斥 |
-| A25 | P2 | 完成 | 脚步事件仅用取模前后时间的大小关系判断回环，丢失整圈信息 |
+| A25 | P2 | 完成；BF125.R5 反例源目标一致 | 脚步事件仅用取模前后时间的大小关系判断回环，丢失整圈信息 |
 | A26 | P2 | 完成 | Mantle 起点穿透命中可把身后台阶选为前向攀爬目标 |
 | A27 | P2 | 源目标一致 | 惯性混合曲线导数重复扣除新目标值 |
 | A28 | P2 | 完成 | 已播放 Turn／Transition 的实际 Slot 采样持续落后播放时钟一帧 |
@@ -1430,3 +1430,5 @@
   runtime 前摘要：fresh ALS 球扫以角色原对象通道及 `InitCollisionParams` 响应取首个 blocking hit；目标旧过滤只看目标 membership，新增 Default membership/Visibility filters 表面后真实查询错误先命中该表面（red）。现从原快照暴露完整 `CollisionLayers`，找地与空中退出复用 `cast_shape_predicate`，按双向层、Sensor 和同体附属关系选 hit；找地反向拒绝/Sensor/下层实地与空中退出“拒绝→接受”两路径 green。`als-core character` 5/5、`ragdoll_link` 14/14；旧单向 `cast_shape` 反例 red，保留一个共享查找入口。下一步同 `target_game/play` 预构建后原 Playground `ragdoll`、`get_up` 功能 Gate，性能预算延期。
 
   runtime 后摘要：同一预构建二进制原 Playground `ragdoll` 与 `get_up` 公共功能报告均 manual/validator 0/0、primary failure 空、graph/fault/temporal/watchdog 0；当前真实资产正常地面找地与恢复无回归，反向拒绝/Sensor 的精确边界由物理夹具覆盖。性能预算仍按既定延期。
+
+- [x] **BF125.R5 — A25 跨圈末段脚步反馈源合同复核**：开始：2026-09-24 18:35:00 +08:00；预估结束：2026-09-24 19:00:00 +08:00；实际结束：2026-09-24 18:37:00 +08:00；偏差：-23m00s；结果：所报 `duration=0.6, previous=0.2, current=0.35, loops=2` 的末段确实不派发，但本地 UE 5.8 `UAnimSequenceBase::GetAnimNotifies` 对 `DeltaTime=1.35` 同样用 `uint32_t(DesiredDeltaMove/PlayLength)=2` 限制循环，先扫描 `(0.2,0.6]`、再扫描 `(0,0.6]`，不会扫描 `(0,0.35]`；目标 `graph_footstep_clocks` 也取 2 段。当前 `graph_footstep_clocks_keep_source_loop_budget` 通过。估时依据：本地 UE 一个通知循环、目标圈数生产/分段消费与现有 focused 夹具；拆分结果：该复审反例是源目标一致而非新移植差异，按 source-first 不改算法、不复开 A25、不重跑无代码变更的 runtime；R6 下一项。
