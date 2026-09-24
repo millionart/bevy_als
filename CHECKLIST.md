@@ -52,7 +52,7 @@
 | A08 | P2 | 完成 | 动作期间遗漏目标 yaw 和瞄准约束的生命周期维护 |
 | A09 | P2 | 完成：BF125.R3 复验 | Roll 回退阻尼遗漏接近 180 度的源端转向偏好 |
 | A10 | P2 | 完成 | 蹲起中心位移和站起查询未使用有效缩放 |
-| A11 | P2 | 完成 | Ragdoll 找地查询未保留角色原始碰撞响应 |
+| A11 | P2 | 完成：BF125.R4 复验 | Ragdoll 找地查询未保留角色原始碰撞响应 |
 | A12 | P2 | 完成 | Ragdoll 找地和胶囊跟随使用未缩放尺寸 |
 | A13 | P2 | 完成 | Avatar 或骨骼替换后脚骨缓存不重建 |
 | A14 | P2 | 完成 | Turn 播放栈跨动画播放器替换残留 |
@@ -374,7 +374,7 @@
 
   runtime 最终完成摘要：最终代码已按启动器同一 `target_game/play` 再构建；原 Playground `ragdoll` 与 `get_up` 公共功能 Gate 各自通过，runner/manual/validator 退出码 0，必需结果 10/10 与 11/11，43/67 pose samples，graph error/fault/temporal/watchdog 0。共用过滤器 mask 消融 red、恢复 green；未保留无贡献的 bundle 字段。完整性能预算依用户既定暂停范围延期，功能 Gate 不冒充完整性能通过。
 
-- [x] **BF124.A11 — Ragdoll 找地查询保留原角色碰撞响应**：开始：2026-09-23 12:36:55 +08:00；预估结束：2026-09-23 12:51:55 +08:00；实际结束：2026-09-23 12:36:55 +08:00；偏差：-15m00s；结果：S1 UE 源/资产及真实 Avian red 反例、S2 最小过滤响应修复与双场景公共功能 Gate 均通过并各自提交（`6762679`、`50b2ab9`）。原 Pawn 胶囊忽略 Visibility；进入 Ragdoll 后角色层暂设 NONE，找地仍使用进入动作前的过滤响应，缺省映射 Default。消融查询 mask 后反例 red，恢复 green；原 Playground `ragdoll` 10/10、`get_up` 11/11，图错误、故障、时间异常、watchdog 均 0；完整性能预算延期。估时依据：仅核对已验收 S1/S2 与提交；拆分结果：A11 无剩余功能 Gate，A12 为下一项。
+- [x] **BF124.A11 — Ragdoll 找地查询保留原角色碰撞响应**：开始：2026-09-23 12:36:55 +08:00；预估结束：2026-09-23 12:51:55 +08:00；实际结束：2026-09-23 12:36:55 +08:00；偏差：-15m00s；结果：原 S1/S2 当时通过；2026-09-24 按 BF125.R4 复开并通过。旧 Gate 只有候选 membership 的 Visibility 忽略例，现已覆盖候选 filters、Sensor 与空中退出查询；双路径红绿、局部回归和原 Playground `ragdoll`/`get_up` 功能 Gate 闭合，完整性能预算延期。
 
 - [x] **BF124.A12-S1 — Ragdoll 世界胶囊尺寸源合同与失败反例**：开始：2026-09-23 12:38:35 +08:00；预估结束：2026-09-23 13:13:35 +08:00；实际结束：2026-09-23 12:41:24 +08:00；偏差：-32m11s；结果：fresh UE 两个调用点、Capsule inline 与目标两个消费者闭包，非均匀世界 scale focused test 编译成功且稳定 red。fresh 本地 UE `RagdollTraceGround` 在逐帧跟随和退出时均用 `GetScaledCapsuleRadius/HalfHeight`；UE Capsule inline 分别按组件世界水平 XY 的较小缩放与竖直 Z 缩放计算。目标 `ragdoll_capsule_dimensions` 只返回未缩放参数，供布娃娃找地和空中退出落地查询共用。估时依据：源两个调用点、Capsule inline、目标共享尺寸函数及两处消费者、A10 已归档的世界缩放夹具；拆分结果：S2 修复并运行真实入口，A13 不提前展开。
 
@@ -1424,3 +1424,9 @@
   runtime 前摘要：fresh 本地 ALS `RefreshRollingPhysics` 的 `DamperExactAngle` 仍将 UE +176° 重映射为 -184°；同一世界方向在目标 YXZ 为 -176°，应走 +184°。旧测试误用目标 +176°；更正为同一物理方向两坐标的五格后先在 +176° 源例实际得到目标 -1.5362358 rad、预期 +1.6060646 rad，稳定红。仅将现有 Roll 阈值比较映射到 Bevy 负向，Roll 8/8 全绿；改回旧比较即可复现首格红，未修改图/资产/动作选择。下一步同入口 `target_game/play` 预构建并跑 `grounded` Roll 公共功能 Gate，性能预算延期。
 
   runtime 后摘要：最终同入口 `grounded` 公共功能报告 manual/validator 0/0、primary failure 空、graph/fault/temporal/watchdog 0；当前场景证明现有 Roll 动作路径无回归，近半圈无根旋转回退方向由双坐标 focused 红绿证明，未把场景误称为该合成方向的实机覆盖。完整性能预算按既定延期。
+
+- [x] **BF125.R4 — A11 Ragdoll 找地与空中退出只认双方阻挡表面**：开始：2026-09-24 18:23:00 +08:00；预估结束：2026-09-24 19:13:00 +08:00；实际结束：2026-09-24 18:35:00 +08:00；偏差：-38m00s；结果：真实 Avian 反向拒绝面先 red，双向过滤与 Sensor/同体排除后两路径 green；`character` 5/5、`ragdoll_link` 14/14；同 `target_game/play` 原 Playground `ragdoll`/`get_up` 功能 Gate manual/validator 均 0/0，两报告 primary/graph/fault/temporal/watchdog 均空。估时依据：fresh ALS 球扫源合同、目标两消费者和现成夹具/公共场景；拆分结果：R4 完成、A11 父项复验关闭，R5 下一项，完整性能预算延期。
+
+  runtime 前摘要：fresh ALS 球扫以角色原对象通道及 `InitCollisionParams` 响应取首个 blocking hit；目标旧过滤只看目标 membership，新增 Default membership/Visibility filters 表面后真实查询错误先命中该表面（red）。现从原快照暴露完整 `CollisionLayers`，找地与空中退出复用 `cast_shape_predicate`，按双向层、Sensor 和同体附属关系选 hit；找地反向拒绝/Sensor/下层实地与空中退出“拒绝→接受”两路径 green。`als-core character` 5/5、`ragdoll_link` 14/14；旧单向 `cast_shape` 反例 red，保留一个共享查找入口。下一步同 `target_game/play` 预构建后原 Playground `ragdoll`、`get_up` 功能 Gate，性能预算延期。
+
+  runtime 后摘要：同一预构建二进制原 Playground `ragdoll` 与 `get_up` 公共功能报告均 manual/validator 0/0、primary failure 空、graph/fault/temporal/watchdog 0；当前真实资产正常地面找地与恢复无回归，反向拒绝/Sensor 的精确边界由物理夹具覆盖。性能预算仍按既定延期。

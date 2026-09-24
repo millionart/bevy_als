@@ -13,8 +13,8 @@ use als_ext::ragdoll_angular_drive::{
 };
 use als_ext::{RagdollActiveMode, RagdollPhysicsHandoffSet, RagdollPhysicsProfileApplied};
 use avian3d::prelude::{
-    AngularVelocity, Collider, CollisionLayers, LinearVelocity, PhysicsSystems, Position,
-    RigidBody, Rotation, ShapeCastConfig, SpatialQuery, SpatialQueryFilter,
+    AngularVelocity, Collider, ColliderOf, CollisionLayers, LinearVelocity, PhysicsSystems, Position,
+    RigidBody, Rotation, Sensor, ShapeCastConfig, ShapeHitData, SpatialQuery, SpatialQueryFilter,
 };
 use bevy::ecs::schedule::ApplyDeferred;
 use bevy::prelude::*;
@@ -625,14 +625,15 @@ pub fn ragdoll_exit_route_system(
 fn release_ragdoll_air_exit_on_ground(
     mut commands: Commands,
     spatial: SpatialQuery,
+    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>,
     transform_helper: TransformHelper,
     params_assets: Res<Assets<AlsMovementParams>>,
     characters: Query<
-        (Entity, &Position, &Stance, &AlsMovementParamsHandle),
+        (Entity, &Position, &Stance, &AlsMovementParamsHandle, Option<&CollisionLayers>, &AlsCollisionLayerOwnership),
         (With<AlsCharacter>, With<AlsRagdollAirExit>),
     >,
 ) {
-    for (entity, position, stance, params_handle) in &characters {
+    for (entity, position, stance, params_handle, current_layers, ownership) in &characters {
         let Ok(world) = transform_helper.compute_global_transform(entity) else {
             continue;
         };
@@ -641,20 +642,10 @@ fn release_ragdoll_air_exit_on_ground(
             ragdoll_capsule_dimensions(*stance, params_handle, &params_assets, world_scale);
         let trace_start = position.0 + Vec3::Y * (2.0 * radius);
         let trace_distance = half_height + radius;
-        let shape = Collider::sphere(radius);
-        let config = ShapeCastConfig::from_max_distance(trace_distance);
-        let filter = SpatialQueryFilter::from_excluded_entities([entity]);
-        if spatial
-            .cast_shape(
-                &shape,
-                trace_start,
-                Quat::IDENTITY,
-                Dir3::NEG_Y,
-                &config,
-                &filter,
-            )
-            .is_some()
-        {
+        let layers = current_layers.filter(|layers| **layers != CollisionLayers::NONE)
+            .copied().unwrap_or_else(|| ownership.original_layers());
+        if ragdoll_ground_hit(&spatial, &candidates, trace_start, trace_distance, radius,
+            vec![entity], layers).is_some() {
             commands.entity(entity).remove::<AlsRagdollAirExit>();
             info!("[RAGLINK] air exit hold released on ground");
         }
@@ -951,17 +942,35 @@ pub(crate) fn restore_ragdoll_player_parent(
     }
 }
 
-fn ragdoll_ground_filter(
+fn ragdoll_ground_hit(
+    spatial: &SpatialQuery,
+    candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>,
+    trace_start: Vec3,
+    trace_distance: f32,
+    radius: f32,
     excluded: Vec<Entity>,
-    ownership: &AlsCollisionLayerOwnership,
-) -> SpatialQueryFilter {
-    SpatialQueryFilter::from_excluded_entities(excluded).with_mask(ownership.original_filters())
+    layers: CollisionLayers,
+) -> Option<ShapeHitData> {
+    let filter = SpatialQueryFilter::from_excluded_entities(excluded.iter().copied());
+    spatial.cast_shape_predicate(
+        &Collider::sphere(radius),
+        trace_start,
+        Quat::IDENTITY,
+        Dir3::NEG_Y,
+        &ShapeCastConfig::from_max_distance(trace_distance),
+        &filter,
+        &|candidate| candidates.get(candidate).is_ok_and(|(candidate_layers, sensor, owner)| {
+            !sensor && !owner.is_some_and(|owner| excluded.contains(&owner.body))
+                && layers.interacts_with(candidate_layers.copied().unwrap_or_default())
+        }),
+    )
 }
 
 #[allow(clippy::type_complexity)]
 fn ragdoll_ground_follow(
     mut commands: Commands,
     spatial: SpatialQuery,
+    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>,
     transform_helper: TransformHelper,
     params_assets: Res<Assets<AlsMovementParams>>,
     characters: Query<
@@ -1014,17 +1023,8 @@ fn ragdoll_ground_follow(
         excluded.push(entity);
         excluded.extend(spawned.bodies.values().copied());
         excluded.extend(spawned.colliders.values().copied());
-        let filter = ragdoll_ground_filter(excluded, collision_ownership);
-        let shape = Collider::sphere(radius);
-        let config = ShapeCastConfig::from_max_distance(trace_distance);
-        let hit = spatial.cast_shape(
-            &shape,
-            trace_start,
-            Quat::IDENTITY,
-            Dir3::NEG_Y,
-            &config,
-            &filter,
-        );
+        let hit = ragdoll_ground_hit(&spatial, &candidates, trace_start, trace_distance, radius,
+            excluded, collision_ownership.original_layers());
         let grounded = hit.is_some();
         let target = if let Some(hit) = hit {
             let center = trace_start - Vec3::Y * hit.distance;
@@ -1239,7 +1239,7 @@ mod tests {
 
     #[test]
     fn ragdoll_ground_query_ignores_visibility_only_with_original_pawn_response() {
-        use avian3d::prelude::{LayerMask, PhysicsPlugins};
+        use avian3d::prelude::{LayerMask, PhysicsPlugins, Sensor};
         use bevy::ecs::system::RunSystemOnce;
         use bevy::transform::TransformPlugin;
         let mut app = App::new();
@@ -1270,6 +1270,25 @@ mod tests {
                 Transform::from_xyz(0.0, 1.2, 0.0),
             ))
             .id();
+        let reverse_reject = app
+            .world_mut()
+            .spawn((
+                RigidBody::Static,
+                Collider::cuboid(2.0, 0.1, 2.0),
+                CollisionLayers::new(als_core::character::AlsCollisionLayer::Default, als_core::character::AlsCollisionLayer::Visibility),
+                Transform::from_xyz(0.0, 0.8, 0.0),
+            ))
+            .id();
+        let sensor = app
+            .world_mut()
+            .spawn((
+                RigidBody::Static,
+                Collider::cuboid(2.0, 0.1, 2.0),
+                CollisionLayers::new(als_core::character::AlsCollisionLayer::Default, LayerMask::ALL),
+                Sensor,
+                Transform::from_xyz(0.0, 0.4, 0.0),
+            ))
+            .id();
         let ground = app
             .world_mut()
             .spawn((
@@ -1281,22 +1300,72 @@ mod tests {
             .id();
         app.update();
         app.world_mut().run_schedule(FixedPostUpdate);
-        let hit = app.world_mut().run_system_once(move |spatial: SpatialQuery| {
-            let filter = ragdoll_ground_filter(Vec::new(), &ownership);
-            spatial
-                .cast_shape(
-                    &Collider::sphere(0.3),
-                    Vec3::Y * 1.6,
-                    Quat::IDENTITY,
-                    Dir3::NEG_Y,
-                    &ShapeCastConfig::from_max_distance(1.5),
-                    &filter,
-                )
+        let hit = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>| {
+            ragdoll_ground_hit(&spatial, &candidates, Vec3::Y * 1.6, 1.5, 0.3,
+                Vec::new(), ownership.original_layers())
                 .map(|hit| hit.entity)
         })
         .unwrap();
         assert_ne!(hit, Some(visibility));
+        assert_ne!(hit, Some(reverse_reject));
+        assert_ne!(hit, Some(sensor));
         assert_eq!(hit, Some(ground));
+    }
+
+    #[test]
+    fn ragdoll_air_exit_waits_for_a_blocking_ground() {
+        use avian3d::prelude::{LayerMask, PhysicsPlugins};
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::transform::TransformPlugin;
+        let mut app = App::new();
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            bevy::mesh::MeshPlugin,
+            TransformPlugin,
+            PhysicsPlugins::new(FixedPostUpdate),
+        ))
+        .init_asset::<AlsMovementParams>();
+        app.finish();
+        app.cleanup();
+        let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(AlsMovementParams::default());
+        let character = app.world_mut().spawn((
+            AlsCharacter,
+            AlsRagdollAirExit,
+            Position(Vec3::Y),
+            Stance::Standing,
+            AlsMovementParamsHandle(params),
+            CollisionLayers::new(als_core::character::AlsCollisionLayer::Default, als_core::character::AlsCollisionLayer::Default),
+            Transform::from_xyz(0.0, 1.0, 0.0),
+        )).id();
+        let reverse_reject = app.world_mut().spawn((
+            RigidBody::Static,
+            Collider::cuboid(2.0, 0.1, 2.0),
+            CollisionLayers::new(als_core::character::AlsCollisionLayer::Default, als_core::character::AlsCollisionLayer::Visibility),
+            Transform::from_xyz(0.0, 0.4, 0.0),
+        )).id();
+        app.world_mut().spawn((
+            RigidBody::Static,
+            Collider::cuboid(2.0, 0.1, 2.0),
+            CollisionLayers::new(als_core::character::AlsCollisionLayer::Default, LayerMask::ALL),
+            Sensor,
+            Transform::from_xyz(0.0, 0.8, 0.0),
+        ));
+        app.update();
+        app.world_mut().run_schedule(FixedPostUpdate);
+        app.world_mut().run_system_once(release_ragdoll_air_exit_on_ground).unwrap();
+        app.world_mut().flush();
+        assert!(app.world().get::<AlsRagdollAirExit>(character).is_some());
+        app.world_mut().entity_mut(reverse_reject).insert(CollisionLayers::new(
+            als_core::character::AlsCollisionLayer::Default,
+            als_core::character::AlsCollisionLayer::Default,
+        ));
+        app.update();
+        app.world_mut().run_schedule(FixedPostUpdate);
+        app.world_mut().run_system_once(release_ragdoll_air_exit_on_ground).unwrap();
+        app.world_mut().flush();
+        assert!(app.world().get::<AlsRagdollAirExit>(character).is_none());
     }
 
     #[test]
