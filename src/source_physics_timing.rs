@@ -198,7 +198,7 @@ fn integrate_character_position(
             let mut slide = remaining - *direction * travel;
             if *locomotion == LocomotionState::Air {
                 if normal.y > 0.0 && remaining.dot(normal) < 0.0 {
-                    runtime.airborne_sweep_contact = Some(hit.entity);
+                    runtime.airborne_sweep_contact = true;
                 }
                 slide = als_ext::motion::falling_slide(slide, normal, previous_normal);
                 previous_normal = Some(normal);
