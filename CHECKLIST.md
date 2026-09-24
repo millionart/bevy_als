@@ -1269,4 +1269,8 @@
 
   全量重转完成摘要：独立 A49 暂存批次 `corpus_progress.json` 记录15/15安装根、23图、15/15 conversion.report pass、exit_reason=completed，最后进展 `AB_Als_Camera`，等待0.123秒；总转换1736.7秒。外层 watchdog 自测正常完成、停滞退出、安装清单覆盖全部PASS。逐字节比较全部 `assets/generated` 与 A49 暂存 `generated`，两边各374文件，新增/缺失/改变为空，完整 diff patch 长度0；没有以 Sequence 图预筛。当前源资产没有超过1秒的同步 Sequence 默认起点，因此新规则不改变已安装图；1.75秒能力仅由合成源合同与 runtime秒数测试证明，S4 只能验证真实现有默认路径无回归。
 
-- [ ] **BF124.A49-S4 — 静态边界与原 Playground 同步功能 Gate**：开始：2026-09-24 14:51:00 +08:00；预估结束：2026-09-24 15:41:00 +08:00。估时依据：S3全量374产物零diff、现有 `target_game/play` 增量预构建和 startup/locomotion/sprint 公共场景；先静态资产边界/validator，再相同二进制真实功能 Gate，完整性能预算延期。
+- [x] **BF124.A49-S4 — 静态边界与原 Playground 同步功能 Gate**：开始：2026-09-24 14:51:00 +08:00；预估结束：2026-09-24 15:41:00 +08:00；实际结束：2026-09-24 14:56:00 +08:00；偏差：-45m00s；结果：资产边界0 issue/视觉validator self-test PASS、同 `target_game/play` 预构建成功；原 startup/locomotion/sprint 公共功能 runner manual/validator全部0，locomotion18/18及14窗口、sprint8/8及2窗口，三场图/故障/时序/watchdog0且render/decal通过。估时依据：S3全量374零diff与现成公共同步场景；拆分结果：A49可汇总关闭，A50下一项，完整性能预算延期。
+
+  S4 静态闭环、runtime 前摘要：UE Sequence 秒数/BlendSpace 归一化源合同、fresh Standing CDO、合成2.5秒序列1.75秒起点 red→green/BlendSpace 反例/身份与字段敏感/消融、converter/pose tools与runtime player tests已闭合；S3 全15根/23图/374新旧零diff，故现有安装图无需迁移。`validate_runtime_graph_asset_boundary.py --check` 为0 issue，视觉 validator self-test 全项PASS；原始资产与生成 RON未修改。下一步以启动器的 `target_game/play` 预构建，先无驱动 startup，再 locomotion/sprint 功能场景；真实图现有起点≤1秒，只能验默认行为无回归。
+
+  runtime 后完成摘要：同一 `target_game/play` 预构建后，原 `startup`、`locomotion`、`sprint` 公共 `-FunctionalOnly -CaptureCount 0` runner/manual/validator全退出0；startup79姿态样本，locomotion18/18覆盖、14/14必需窗口、817样本，sprint8/8、2/2窗口、283样本。三场 `graph_errors=[]`、`primary_failure=null`、fault/temporal0、watchdog未触发、render/decal均通过。max_eval_p95_ms 的完整性能预算仍被 functional scope延期；源1.75秒合成分支未在当前真实资产出现，不称为动态实机覆盖。
