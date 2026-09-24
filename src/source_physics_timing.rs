@@ -235,6 +235,57 @@ mod tests {
     }
 
     #[test]
+    fn first_air_wall_impact_keeps_the_remaining_tangential_motion() {
+        fn simulate(wall: bool) -> (Vec3, Vec3) {
+            let mut app = App::new();
+            app.add_plugins((
+                MinimalPlugins,
+                AssetPlugin::default(),
+                TransformPlugin,
+                avian3d::prelude::PhysicsPlugins::new(PostUpdate),
+                SourcePhysicsTimingPlugin,
+            ))
+            .init_asset::<Mesh>()
+            .add_message::<bevy::asset::AssetEvent<Mesh>>()
+            .insert_resource(SubstepCount(6))
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(100)));
+            app.finish();
+            app.update();
+            let character = app.world_mut().spawn((
+                als_core::character::AlsCharacter,
+                LocomotionState::Air,
+                RigidBody::Dynamic,
+                Collider::capsule(0.3, 1.2),
+                avian3d::prelude::SpeculativeMargin::MAX,
+                avian3d::prelude::LockedAxes::ROTATION_LOCKED,
+                Position(Vec3::Y * 2.0),
+                LinearVelocity(Vec3::new(3.75, 0.0, 3.75)),
+                Transform::from_xyz(0.0, 2.0, 0.0),
+            )).id();
+            if wall {
+                app.world_mut().spawn((
+                    RigidBody::Static,
+                    Collider::cuboid(0.02, 6.0, 20.0),
+                    Transform::from_xyz(0.6, 2.0, 0.0),
+                ));
+            }
+            app.update();
+            (app.world().get::<Position>(character).unwrap().0,
+                app.world().get::<LinearVelocity>(character).unwrap().0)
+        }
+
+        let (free_position, free_velocity) = simulate(false);
+        let (wall_position, wall_velocity) = simulate(true);
+        assert!((free_position.z - 0.375).abs() < 1e-4, "free air control: {free_position:?}");
+        assert!((free_velocity.y + 0.981).abs() < 1e-4, "free air gravity: {free_velocity:?}");
+        assert!(wall_position.x < 0.31, "first air impact crossed the wall: {wall_position:?}");
+        assert!(wall_position.z >= free_position.z - 0.015,
+            "first air impact lost tangent: wall={wall_position:?} free={free_position:?}");
+        assert!(wall_velocity.x <= 0.1 && wall_velocity.z >= 3.7,
+            "first air impact retained inward velocity: {wall_velocity:?}");
+    }
+
+    #[test]
     fn full_frame_air_sweep_only_blocks_colliding_external_solids() {
         let default = CollisionLayers::new(LayerMask::DEFAULT, LayerMask::DEFAULT);
         let cases = [
