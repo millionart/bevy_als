@@ -2049,6 +2049,25 @@ mod tests {
     }
 
     #[test]
+    fn source_curves_blend_relevant_asset_uses_update_weights() {
+        use crate::animation_context::SourceRelevantAsset;
+        for mode in [SourceCurvesBlendMode::Accumulate, SourceCurvesBlendMode::Override] {
+            for (base_weight, expected_duration) in [(0.8, 1.0), (0.2, 2.0)] {
+                let base = AnimationContextState {
+                    relevant_asset: Some(SourceRelevantAsset { duration: 1.0, weight: base_weight, ..default() }),
+                    ..default()
+                };
+                let curve = AnimationContextState {
+                    relevant_asset: Some(SourceRelevantAsset { duration: 2.0, weight: 1.0, ..default() }),
+                    ..default()
+                };
+                let result = blend_source_curve_context(base, &curve, 0.5, mode);
+                assert_eq!(result.relevant_asset.unwrap().duration, expected_duration, "mode={mode:?}, base_weight={base_weight}");
+            }
+        }
+    }
+
+    #[test]
     fn source_curve_modify_retains_multiple_source_curve_pins() {
         let node = SourceCurveModifyNode {
             curve_name: String::new(),
