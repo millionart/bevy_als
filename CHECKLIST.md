@@ -1333,4 +1333,8 @@
 
   S2 source/static 完成摘要：`NormalizedBlendSpaceNode` 对 playback Player 从已经选出的最高权重样本生成一份 clock，公开 `relevant_asset` 给 FSM，并在现有正delta+sample clip可定位时复用它写 asset_samples；不因缺 clip handle或delta0拒绝相关时间。现有同步图初次 BlendSpace 参与原None→duration1.0，新独立双端点图以不同 sample duration1/2验证 position0.3/0.5，零delta下仍duration2/position0.4且无asset sample。移除发布行即GraphError前的None红，恢复后模块11/11、包装4/4、FSM自动触发剩余时间1/1；原同步相位/marker和采样条件保持。未新增状态或转换分支，S3需证明原 Standing/Locomotion入口不回归。
 
-- [ ] **BF124.A52-S3 — 静态边界与原 Playground 自动迁移功能 Gate**：开始：2026-09-24 16:21:00 +08:00；预估结束：2026-09-24 17:11:00 +08:00。估时依据：S2 runtime-only 的现有 BlendSpace时钟发布、fresh Standing 6个Movement组Player、同入口增量预构建及 startup/standing_stop/locomotion 公共场景；完整性能预算继续延期。
+- [x] **BF124.A52-S3 — 静态边界与原 Playground 自动迁移功能 Gate**：开始：2026-09-24 16:21:00 +08:00；预估结束：2026-09-24 17:11:00 +08:00；实际结束：2026-09-24 16:26:00 +08:00；偏差：-45m00s；结果：资产边界0 issue、视觉validator自测PASS、同 `target_game/play` 预构建成功；原 startup/standing_stop/locomotion 功能 runner manual/validator全部0，stop10/10及7窗口、locomotion18/18及14窗口，三场图/故障/时序/watchdog0且render/decal通过。估时依据：S2 runtime-only 与现成 Standing/Movement 公共场景；拆分结果：A52可汇总关闭，A53下一项，完整性能预算延期。
+
+  S3 静态闭环、runtime 前摘要：fresh Standing 6个 Movement BlendSpace Player与UE最高权重样本 Time/Length 源合同、S1现有图相关时钟None红、S2样本1.0/0.3→2.0/0.5与零delta2.0/0.4、无clip handle仍有时钟、去发布消融均闭合；BlendSpace11/11、同步包装4/4、FSM自动时间1/1。已安装 Standing 仍含原 BlendSpace 节点且未改RON/转换器，资产边界0 issue、公共视觉validator自测全项PASS。下一步同 `target_game/play` 预构建，先 startup，再 standing_stop/locomotion 功能场景；真实入口证明当前生产 Movement 时钟与自动迁移无回归，不把合成无clip fixture称作实机素材。
+
+  runtime 后完成摘要：同一 `target_game/play` 预构建后，原 `startup`、`standing_stop`、`locomotion` 公共 `-FunctionalOnly -CaptureCount 0` runner/manual/validator全部退出0；startup80姿态样本，stop10/10覆盖、7/7必需窗口、840样本，locomotion18/18、14/14窗口、806样本。三场 `graph_errors=[]`、`primary_failure=null`、fault/temporal0、watchdog未触发、render/decal均通过。生产 Standing 的 Movement BlendSpace 路径无回归；报告未单独证明只有 BlendSpace 的自动迁移分支，相关时间非空与最高样本长度/位置仍由图级红绿/消融及FSM消费单测证明。完整性能预算继续延期。
