@@ -518,7 +518,7 @@ mod tests {
             context::{deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
                 graph_context_arena::GraphContextArena, new_context::GraphContext,
                 node_states::StateKey, system_resources::SystemResources},
-            edge_data::DataValue, pose::{BonePose, Pose}, skeleton::Skeleton,
+            edge_data::DataValue, pose::{BonePose, Pose, RootMotionDelta}, skeleton::Skeleton,
             state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
         };
         fn query(In((handle, poses)): In<(Handle<AnimationGraph>, Vec<Pose>)>, resources: SystemResources) -> (Pose, AnimationContextState, [bool; 3]) {
@@ -564,11 +564,12 @@ mod tests {
             translation: Vec3::new((pose * 3 + bone * 2) as f32, pose as f32 * 2.0, bone as f32 * 0.1),
             rotation: rotations[pose][bone], scale: Vec3::splat(1.0 + 0.2 * pose as f32 + 0.1 * bone as f32),
         }));
-        let poses = transforms.iter().enumerate().map(|(index, transforms)| {
+        let mut poses = transforms.iter().enumerate().map(|(index, transforms)| {
             let mut pose = Pose { skeleton: skeleton.clone(), timestamp: 9.0 + index as f32, ..default() };
             for (path, transform) in paths.iter().zip(transforms) { pose.add_bone(BonePose::from_transform(*transform), path.id()); }
             pose
         }).collect::<Vec<_>>();
+        poses[0].root_motion = Some(RootMotionDelta { translation: Vec3::X, rotation: Quat::IDENTITY });
         let mut failures = Vec::new();
         for mesh in [false, true] {
             for (label, filters, weights, sources, effective) in [
@@ -622,6 +623,9 @@ mod tests {
                     && active.iter().enumerate().all(|(index, active)| context.curves.get(&format!("unique_{index}")) == active.then_some(&(0.2 + index as f32)));
                 if updated != active || !curves_match || output.timestamp != 9.0 || output.skeleton != skeleton {
                     failures.push(format!("{label} mesh={mesh}: context or child lifecycle mismatch"));
+                }
+                if effective[0] == 0.0 && output.root_motion.as_ref().map(|motion| motion.translation) != Some(Vec3::X) {
+                    failures.push(format!("{label} mesh={mesh}: base root motion was lost"));
                 }
                 let mut source_mesh = Quat::IDENTITY;
                 let mut target_mesh = Quat::IDENTITY;
