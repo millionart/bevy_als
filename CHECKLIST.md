@@ -1494,3 +1494,13 @@
 - [x] **BF126.N1-S2R — Grounded 支撑弹簧不继承空中重力倍率**：开始：2026-09-24 21:59:00 +08:00；预估结束：2026-09-24 22:44:00 +08:00；实际结束：2026-09-24 22:03:00 +08:00；偏差：-41m00s；结果：真实角色长帧蹲下上冲 red→保地 green，Grounded 水平4m/s²×0.1s应增0.4m/s的旧全跳过对照仅0.133333m/s red→水平倍率恢复 green；Air 非零重力四档仍全绿。N1 首撞/双墙/穿透与原 A01 模块总9/9。估时依据：S3 首轮物理轨迹、旧路径消融与 UE Crouch/Tnua Walk spring/Avian 增量唯一分叉；拆分结果：S2R 静态 Gate 完成，S3R 同入口重建重跑，未扩展无关角色/相机策略。
 
   S2R source/static 完成摘要：Tnua `Walk::spring_force` 由当帧地面传感器间隙和 `spring_strength` 生成竖直加速度，Avian 在封顶物理步应用；UE Grounded 蹲下不把胶囊中心上抛。当前仅在 `LocomotionState::Grounded` 将既有完整帧倍率施于 x/z 加速度，y 保持物理支撑步；Air 保持三轴补偿。地面蹲下2帧、水平与空中时间、N1 首撞/二墙/起点边界9/9通过；把整帧倍率完全跳过则水平反例 red，Grounded 特设旧单次扫掠分支删除后9/9不变。接下来只做真实场景复验。
+
+- [ ] **BF126.N1-S3R — 同入口复验长帧 Air/蹲起/基座**：开始：2026-09-24 22:05:00 +08:00；预估结束：2026-09-24 22:50:00 +08:00。估时依据：S2R 在与首轮失败相同的 ALS/Tnua/Avian 路径将上冲改为保地、A01 模块9/9；`target_game/play` 需因主库改动限流重建约2分钟，原报告保留并用独立输出目录复验 startup、`uphill_jump`/`grounded` 10 FPS 和 `moving_base`。每场审计 manual/validator、原场景覆盖、图错误/故障/时序/watchdog；精确 N1 几何仍由原生夹具证明，性能预算继续按用户既定暂停范围延期。
+
+  runtime 重启前摘要：首轮 `startup` 与 10 FPS `uphill_jump` 已通过，10 FPS `grounded` 在蹲下后一帧上冲、随后 Air 导致 manual91/validator1；失败原报告保留。S2R 证明不是新滑动，而是旧 R1 将 Tnua 地面支撑 y 增量按空中倍率放大；新源码只对 Grounded x/z 补整帧，Air 三轴与 N1 三次有界滑动不变，焦点9/9。现在重建同一启动器的 `target_game/play`，按顺序在新目录运行四场原 Playground 功能 Gate，不复用失败旧报告或旧二进制。
+
+  重启 startup 后/Air 前摘要：最终 `target_game/play` 预构建通过，原 Playground `startup` 功能报告 manual/validator 0/0、primary/graph/fault/temporal/watchdog 均空；下一步同二进制 10 FPS `uphill_jump` 后重跑首轮失败的 `grounded`，性能预算延期。
+
+  S3R 首次 Air 失败与第二次静态收敛（2026-09-24 22:10:00 +08:00）：`startup` 功能通过，但新 `uphill_jump` 10 FPS manual91/validator1，前两类路线覆盖，第三类 case16 Flight 在 y≈2.34m 连续5.1s无进展、落地覆盖缺失；旧失败报告保留且不启动依赖 `grounded`/`moving_base`。S2R 的“所有 Grounded y 永不补足整帧”过宽：源 CMC 蹲起仅在几何状态改变时沿重力方向保底，其他起跳/离地交接仍要保留完整帧运动。以 `Ref<Stance>::is_changed()` 限定只在实际蹲起切换帧不放大竖直支撑弹簧，Grounded x/z 与 Air 三轴仍用整帧；当前原生蹲下2帧、水平加速度、Air 重力、N1 首撞/角落/穿透9/9。下一步 S2R2 单独提交静态修正，再用新二进制/新报告重启 S3R；完整性能预算延期。
+
+- [x] **BF126.N1-S2R2 — 竖直弹簧例外仅限实际站蹲切换帧**：开始：2026-09-24 22:08:00 +08:00；预估结束：2026-09-24 22:43:00 +08:00；实际结束：2026-09-24 22:10:00 +08:00；偏差：-33m00s；结果：首轮 Grounded 蹲下 y≈1.37767m 红，S2R 全部 Grounded y 跳过倍率令蹲下 green 却在原 Playground `uphill_jump` 第三类落地失败。新规则只在 `Stance` 当前帧确实改变时保留封顶竖直支撑步，其余 Grounded/Air y 维持整帧，Grounded x/z 全帧；A01 局部9/9（含蹲起连续2帧、水平0.4m/s与空中重力）通过。估时依据：两个真实入口失败报告与同一速度预处理唯一分支；拆分结果：静态 Gate 重新闭合，S3R 使用新二进制复跑，S2R 的宽泛例外被收窄。

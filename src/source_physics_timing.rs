@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use als_core::{character::AlsCharacter, state::{AlsNotifyLocomotionAction, LocomotionState}};
+use als_core::{character::AlsCharacter, state::{AlsNotifyLocomotionAction, LocomotionState, Stance}};
 use avian3d::dynamics::{integrator::{IntegrationSystems, VelocityIntegrationData}, solver::solver_body::SolverBody};
 use avian3d::prelude::{
     Collider, ColliderOf, CollisionLayers, CustomPositionIntegration, Physics, PhysicsSchedule,
@@ -73,14 +73,14 @@ impl Plugin for SourcePhysicsTimingPlugin {
 fn integrate_character_velocity(
     frame_time: Res<Time<Virtual>>,
     physics_time: Res<Time<Physics>>,
-    mut characters: Query<(&mut VelocityIntegrationData, &LocomotionState), With<SourceCharacterFullFrame>>,
+    mut characters: Query<(&mut VelocityIntegrationData, &LocomotionState, Option<Ref<Stance>>), With<SourceCharacterFullFrame>>,
 ) {
     if physics_time.delta().is_zero() || frame_time.delta() <= SOURCE_MAX_PHYSICS_DELTA {
         return;
     }
     let ratio = frame_time.delta_secs() / physics_time.delta_secs();
-    for (mut integration, locomotion) in &mut characters {
-        if *locomotion == LocomotionState::Grounded {
+    for (mut integration, locomotion, stance) in &mut characters {
+        if *locomotion == LocomotionState::Grounded && stance.is_some_and(|stance| stance.is_changed()) {
             integration.linear_increment.x *= ratio;
             integration.linear_increment.z *= ratio;
         } else {
