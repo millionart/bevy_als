@@ -1274,3 +1274,7 @@
   S4 静态闭环、runtime 前摘要：UE Sequence 秒数/BlendSpace 归一化源合同、fresh Standing CDO、合成2.5秒序列1.75秒起点 red→green/BlendSpace 反例/身份与字段敏感/消融、converter/pose tools与runtime player tests已闭合；S3 全15根/23图/374新旧零diff，故现有安装图无需迁移。`validate_runtime_graph_asset_boundary.py --check` 为0 issue，视觉 validator self-test 全项PASS；原始资产与生成 RON未修改。下一步以启动器的 `target_game/play` 预构建，先无驱动 startup，再 locomotion/sprint 功能场景；真实图现有起点≤1秒，只能验默认行为无回归。
 
   runtime 后完成摘要：同一 `target_game/play` 预构建后，原 `startup`、`locomotion`、`sprint` 公共 `-FunctionalOnly -CaptureCount 0` runner/manual/validator全退出0；startup79姿态样本，locomotion18/18覆盖、14/14必需窗口、817样本，sprint8/8、2/2窗口、283样本。三场 `graph_errors=[]`、`primary_failure=null`、fault/temporal0、watchdog未触发、render/decal均通过。max_eval_p95_ms 的完整性能预算仍被 functional scope延期；源1.75秒合成分支未在当前真实资产出现，不称为动态实机覆盖。
+
+- [x] **BF124.A49 — Sequence 同步起点按秒数接受合法长序列位置**：开始：2026-09-24 14:57:00 +08:00；预估结束：2026-09-24 15:12:00 +08:00；实际结束：2026-09-24 14:57:00 +08:00；偏差：-15m00s；结果：S1–S4各自通过并提交（`40e2911`、`ac1e5d6`、`8960195`、`d8b4224`），UE两类单位合同、长序列红绿/消融、全15根23图374文件零diff及原Playground三场功能 Gate 闭合。估时依据：只汇总已提交 source、focused、全量转换和真实入口证据；拆分结果：A49当前功能无剩余 Gate，A50下一项，完整性能预算延期。
+
+  汇总：源 SequencePlayer StartPosition 是秒，BlendSpacePlayer 是归一化相位；同步计划现在分别按 source clip duration 与1.0作合法上界。2.5秒片段的1.75秒起点原被错误拒绝，现保留1.75，runtime推进到1.85秒/相位0.7；BlendSpace1.75仍拒而0.75通过，改身份不变、改值敏感、退回1.0消融红。全15安装根/23图/374文件重转逐字节无变化，故不迁移资产；原startup/locomotion/sprint功能Gate全过但不声称现有图动态覆盖>1秒输入。
