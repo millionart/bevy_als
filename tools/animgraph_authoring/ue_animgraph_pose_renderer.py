@@ -1959,6 +1959,9 @@ def run_self_test():
     assert "reset_child_on_activation: true" in text
     assert 'NodeTime("10000000-0000-4000-8000-000000000002", "A")' not in text
     assert 'NodeTime("10000000-0000-4000-8000-000000000002", "B")' not in text
+    indirect_ir = copy.deepcopy(graph_ir)
+    indirect_ir["nodes"][0]["renderer"] = "multi_way_blend"
+    validate_source_two_way_child_reset(graph_contract, semantic_index(indirect_ir))
     graph_ir["links"] = list(graph_contract["links"])
     unused_path = "/Asset:State.Unreachable"
     graph_contract["source_graph"]["nodes"].append(

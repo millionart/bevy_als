@@ -1659,8 +1659,17 @@ mod tests {
             duration: 1.0,
             ..default()
         });
+        let mut nested = AnimationGraph::new();
+        let nested_player = AnimationNode::new("nested player", SourceSequencePlayerNode {
+            clip: clip.clone(), start_position: 0.2,
+            expose_play_rate_pin: false, expose_start_position_pin: false, ..default()
+        });
+        nested.add_node(nested_player.clone());
+        nested.add_output_data("Pose".into(), DataSpec::Pose);
+        nested.add_output_data_edge(nested_player.id, "Pose", "Pose");
+        let nested = graphs.add(nested);
         let mut cases = Vec::new();
-        for (sync, reset) in [(false, true), (true, true), (true, false)] {
+        for (sync, reset, indirect) in [(false, true, false), (true, true, false), (true, false, false), (false, true, true)] {
             let mut graph = AnimationGraph::new();
             let blend = AnimationNode::new(
                 "blend",
@@ -1677,24 +1686,30 @@ mod tests {
             graph.add_output_time();
             graph.add_output_pose_edge(blend.id);
             for (pin, start) in [("A", 0.2), ("B", 0.6)] {
-                let player = AnimationNode::new(
-                    pin,
-                    SourceSequencePlayerNode {
-                        clip: clip.clone(),
-                        start_position: start,
-                        expose_play_rate_pin: false,
-                        expose_start_position_pin: false,
-                        synchronization: sync.then(|| SourceSequenceSynchronization {
-                            key: "group".into(),
-                            delta_seconds_key: "delta".into(),
+                let player = if indirect && pin == "A" {
+                    AnimationNode::new(pin, crate::LayeredGraphNode {
+                        graph: nested.clone(), internalize_time: true, capture_context: true, ..default()
+                    })
+                } else {
+                    AnimationNode::new(
+                        pin,
+                        SourceSequencePlayerNode {
+                            clip: clip.clone(),
+                            start_position: start,
+                            expose_play_rate_pin: false,
+                            expose_start_position_pin: false,
+                            synchronization: sync.then(|| SourceSequenceSynchronization {
+                                key: "group".into(),
+                                delta_seconds_key: "delta".into(),
+                                ..default()
+                            }),
                             ..default()
-                        }),
-                        ..default()
-                    },
-                );
+                        },
+                    )
+                };
                 graph.add_node(player.clone());
                 graph.add_node_parameter_edge(player.id, "Pose", blend.id, pin);
-                if reset {
+                if reset && !(indirect && pin == "A") {
                     graph.add_node_pose_edge(player.id, blend.id, pin);
                 }
             }

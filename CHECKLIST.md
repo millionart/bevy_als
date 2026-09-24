@@ -1278,3 +1278,11 @@
 - [x] **BF124.A49 — Sequence 同步起点按秒数接受合法长序列位置**：开始：2026-09-24 14:57:00 +08:00；预估结束：2026-09-24 15:12:00 +08:00；实际结束：2026-09-24 14:57:00 +08:00；偏差：-15m00s；结果：S1–S4各自通过并提交（`40e2911`、`ac1e5d6`、`8960195`、`d8b4224`），UE两类单位合同、长序列红绿/消融、全15根23图374文件零diff及原Playground三场功能 Gate 闭合。估时依据：只汇总已提交 source、focused、全量转换和真实入口证据；拆分结果：A49当前功能无剩余 Gate，A50下一项，完整性能预算延期。
 
   汇总：源 SequencePlayer StartPosition 是秒，BlendSpacePlayer 是归一化相位；同步计划现在分别按 source clip duration 与1.0作合法上界。2.5秒片段的1.75秒起点原被错误拒绝，现保留1.75，runtime推进到1.85秒/相位0.7；BlendSpace1.75仍拒而0.75通过，改身份不变、改值敏感、退回1.0消融红。全15安装根/23图/374文件重转逐字节无变化，故不迁移资产；原startup/locomotion/sprint功能Gate全过但不声称现有图动态覆盖>1秒输入。
+
+- [x] **BF124.A50-S1 — Two Way Blend 子树重新初始化的源闭包与失败反例**：开始：2026-09-24 14:58:00 +08:00；预估结束：2026-09-24 15:43:00 +08:00；实际结束：2026-09-24 15:02:00 +08:00；偏差：-41m00s；结果：fresh Standing reader39.067s/success，2个TwoWay图节点中 reset=true 一张A/B皆直连Sequence，另一张间接GameplayTag/CachedPose但reset=false；UE按PoseLink.Initialize重置任意子树。合成 LayeredGraph→Sequence 的 A/B切换图在 runtime 首帧精确报 `requires a direct sequence player`，renderer同形间接 A 合同亦红。估时依据：本地 UE单一初始化分支、原生reader与现有重置夹具；拆分结果：S2 复用子图作用域/重置机制并放宽通用 renderer，S3全23图重转diff，S4静态/原Playground，A51不提前展开。
+
+  source/static 开始摘要：UE `AnimNode_TwoWayBlend.cpp` 在 `bResetChildOnActivation` 且 A/B 从不相关变相关时调用 PoseLink 的 `Initialize`，并不限制子节点类型；目标 TwoWay runtime 在相同时机读取 Pose 输入源节点，非直接 `SourceSequencePlayerNode` 就报错，converter `validate_source_two_way_child_reset` 也要求 A/B 各一直接 Sequence Player。现有 BlendList `read_blend_list_child` 已支持作用域子图与嵌套重置；先 fresh 查 Standing 实际 reset 分支及连线，再做源合法嵌套子树最小红例，避免只放宽 converter 却在 runtime 报错。
+
+  S1 source/static 完成摘要：UE 源 `FAnimNode_TwoWayBlend::Update_AnyThread` 只按新相关且旧不相关条件调用 `A.Initialize`/`B.Initialize`，随后本帧 Update，输入可为任何 PoseLink 子树。fresh Standing 两个图节点中 reset=true 的 A/B 恰为 Sequence，reset=false 的 A/B 实际是 GameplayTagsBlend/UseCachedPose；构造器/CDO名不能替代图节点 `BlendNode` 字段和真实链接。目标现有直连 Sequence 图测试保留；在同一夹具加第四个 A=LayeredGraph→Sequence、B=Sequence、reset=true 案例，首帧 `UnknownErrorNode` 精确拒绝间接子树；renderer以 `multi_way_blend` A 替换直接 Sequence 后同样精确 `PoseRenderError`。两条 red 不改原资产，S2须同时覆盖转换静态放行与运行时递归重置。
+
+- [ ] **BF124.A50-S2 — Two Way Blend 通用子树重置与转换边界**：开始：2026-09-24 15:03:00 +08:00；预估结束：2026-09-24 15:58:00 +08:00。估时依据：S1两条稳定红例、现有 `read_blend_list_child` 作用域子图机制和 converter collapse links 校验；Gate 为间接子树 A→B→A 复位时钟、直连/同步原例不变、身份/字段敏感和移除作用域消融，之后全量重转。
