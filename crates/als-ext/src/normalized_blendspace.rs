@@ -677,29 +677,32 @@ impl NodeLike for NormalizedBlendSpaceNode {
         context.curves = curves;
         context.curves_are_authoritative = true;
         context.asset_samples.clear();
-        if !self.teleport_to_normalized_time && let Some(tick) = context.sync_players.first()
-            && tick.delta_seconds > 0.0 && let Some(clip) = sample_clip {
+        if !self.teleport_to_normalized_time && let Some(tick) = context.sync_players.first() {
             let previous_position = marker_phase_sample_time(tick.previous_phase, self.phase_duration,
                 &self.phase_markers, leader_duration, &leader.markers, sample_looped);
-            context.asset_samples.push(crate::animation_context::SourceAssetSample {
-                identity: format!("{:?}:{:?}", tick.identity.0, tick.identity.1),
-                clip,
-                clock: crate::SourceRelevantAsset {
-                    duration: leader_duration,
-                    position: leader_time,
-                    previous_position,
-                    has_previous_position: true,
-                    delta_seconds: tick.delta_seconds,
-                    loops_crossed: if sample_looped {
-                        forward_loop_count(previous_position, tick.delta_seconds, tick.play_rate, leader_duration)
-                    } else { 0 },
-                    looping: sample_looped,
-                    weight: 1.0,
-                },
-                sync_group: tick.key.clone(), sync_identity: Some(tick.identity),
-                montage: false,
-                slot_key: String::new(),
-            });
+            let clock = crate::SourceRelevantAsset {
+                duration: leader_duration,
+                position: leader_time,
+                previous_position,
+                has_previous_position: true,
+                delta_seconds: tick.delta_seconds,
+                loops_crossed: if sample_looped {
+                    forward_loop_count(previous_position, tick.delta_seconds, tick.play_rate, leader_duration)
+                } else { 0 },
+                looping: sample_looped,
+                weight: 1.0,
+            };
+            context.relevant_asset = Some(clock.clone());
+            if tick.delta_seconds > 0.0 && let Some(clip) = sample_clip {
+                context.asset_samples.push(crate::animation_context::SourceAssetSample {
+                    identity: format!("{:?}:{:?}", tick.identity.0, tick.identity.1),
+                    clip,
+                    clock,
+                    sync_group: tick.key.clone(), sync_identity: Some(tick.identity),
+                    montage: false,
+                    slot_key: String::new(),
+                });
+            }
         }
         let root_motion = blend_normalized_root_motion(
             &poses
@@ -1112,6 +1115,86 @@ mod tests {
             }
         }
         assert!(ablated_errors > 0);
+    }
+
+    #[test]
+    fn player_relevant_clock_follows_the_highest_weighted_sample_without_a_clip_handle() {
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip,
+            animation_graph::{AnimationGraph, GraphInputPin, TimeUpdate},
+            animation_node::AnimationNode,
+            context::{
+                deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+                graph_context_arena::GraphContextArena, new_context::GraphContext,
+                node_states::StateKey, system_resources::SystemResources,
+            },
+            edge_data::DataValue,
+            pose::Pose,
+            skeleton::Skeleton,
+            state_machine::high_level::StateMachine,
+            utils::testing::TestIoEnv,
+        };
+
+        fn query(In((handle, delta)): In<(Handle<AnimationGraph>, f32)>, resources: SystemResources) -> (f32, f32, usize) {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let node = graph.nodes.values().find(|node| node.name == "player").unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            let inputs = HashMap::from([
+                ("sample".to_owned(), DataValue::Pose(Pose::default())),
+                ("delta".to_owned(), DataValue::F32(delta)),
+            ]);
+            let context = GraphContext::new(
+                arena.get_toplevel_id(), graph, &mut arena, &resources, &env,
+                Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs,
+            );
+            graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(delta)), context).unwrap();
+            let state = arena.get_toplevel().node_states.get::<NormalizedBlendSpaceState>(node.id, StateKey::Default).unwrap();
+            let clock = state.context.relevant_asset.as_ref().unwrap();
+            (clock.duration, clock.position, state.context.asset_samples.len())
+        }
+
+        let mut graphs = Assets::<AnimationGraph>::default();
+        let mut handles = Vec::new();
+        for position in [Vec2::ZERO, Vec2::X] {
+            let mut graph = AnimationGraph::new();
+            graph.set_default_data(GraphInputPin::passthrough("position"), DataValue::Vec2(position));
+            graph.set_default_data(GraphInputPin::passthrough("sample"), DataValue::Pose(Pose::default()));
+            let node = AnimationNode::new("player", NormalizedBlendSpaceNode {
+                looped: true,
+                phase_duration: 1.0,
+                points: [("a", Vec2::ZERO, 1.0), ("b", Vec2::X, 2.0)].into_iter().map(|(id, point, duration)| NormalizedBlendSpacePoint {
+                    id: id.to_owned(), point, duration, ..default()
+                }).collect(),
+                playback: Some(SourceSyncPlayerBinding {
+                    key: "group".into(), start_position: 0.2, delta_seconds_key: "delta".into(), ..default()
+                }),
+                ..default()
+            });
+            graph.add_node(node.clone());
+            graph.add_input_data_edge(GraphInputPin::passthrough("position"), node.id, "position");
+            for id in ["a", "b"] {
+                graph.add_input_data_edge(GraphInputPin::passthrough("sample"), node.id, NormalizedBlendSpaceNode::pose_pin(id));
+            }
+            graph.add_output_data("Pose".into(), DataSpec::Pose);
+            graph.add_output_data_edge(node.id, "pose", "Pose");
+            handles.push(graphs.add(graph));
+        }
+        let mut world = World::new();
+        world.insert_resource(graphs);
+        world.insert_resource(Assets::<GraphClip>::default());
+        world.insert_resource(Assets::<Skeleton>::default());
+        world.insert_resource(Assets::<StateMachine>::default());
+        let actual = handles.iter().cloned().map(|handle| world.run_system_cached_with(query, (handle, 0.1)).unwrap()).collect::<Vec<_>>();
+        assert_eq!(actual.iter().map(|(duration, _, samples)| (*duration, *samples)).collect::<Vec<_>>(), [(1.0, 0), (2.0, 0)]);
+        assert!((actual[0].1 - 0.3).abs() < 1e-6);
+        assert!((actual[1].1 - 0.5).abs() < 1e-6);
+        let stopped = world.run_system_cached_with(query, (handles[1].clone(), 0.0)).unwrap();
+        assert_eq!((stopped.0, stopped.2), (2.0, 0));
+        assert!((stopped.1 - 0.4).abs() < 1e-6);
     }
 
     #[test]
