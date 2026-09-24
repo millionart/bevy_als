@@ -60,6 +60,7 @@ struct AlsRagdollCharacterPhysics {
 
 #[derive(Component, Debug, Clone, Copy)]
 pub(crate) struct AlsRagdollDetachedPlayer {
+    pub(crate) character: Entity,
     parent: Entity,
     local_transform: Transform,
 }
@@ -328,6 +329,7 @@ fn capture_ragdoll_player_world_transform(
         commands.entity(player).remove::<ChildOf>().insert((
             world_transform,
             AlsRagdollDetachedPlayer {
+                character,
                 parent: parent.parent(),
                 local_transform: *local_transform,
             },
@@ -1748,7 +1750,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "A43 red: detached visible ragdoll loses its debug render owner"]
     fn detached_visible_ragdoll_remains_debug_cycle_candidate() {
         use bevy::time::TimeUpdateStrategy;
 
@@ -1769,7 +1770,7 @@ mod tests {
         let avatar = app.world_mut().spawn(AlsCharacterAvatar { character: actor }).id();
         let original_parent = app.world_mut().spawn(ChildOf(avatar)).id();
         let detached = app.world_mut().spawn((
-            AlsRagdollDetachedPlayer { parent: original_parent, local_transform: Transform::IDENTITY },
+            AlsRagdollDetachedPlayer { character: actor, parent: original_parent, local_transform: Transform::IDENTITY },
             Transform::IDENTITY,
         )).id();
         app.world_mut().spawn((

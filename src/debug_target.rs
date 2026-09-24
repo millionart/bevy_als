@@ -124,6 +124,7 @@ fn record_rendered_characters(
     meshes: Query<(Entity, &ViewVisibility), With<bevy::mesh::skinning::SkinnedMesh>>,
     parents: Query<&ChildOf>,
     avatars: Query<&crate::character_assembly::AlsCharacterAvatar>,
+    detached_players: Query<&crate::ragdoll_link::AlsRagdollDetachedPlayer>,
     overlay_objects: Query<(), With<crate::overlay_object::AlsOverlayObject>>,
 ) {
     for (entity, visibility) in &meshes {
@@ -134,9 +135,11 @@ fn record_rendered_characters(
             if overlay_objects.contains(ancestor) {
                 break;
             }
-            if let Ok(owner) = avatars.get(ancestor) {
+            if let Some(character) = avatars.get(ancestor).ok().map(|owner| owner.character)
+                .or_else(|| detached_players.get(ancestor).ok().map(|player| player.character))
+            {
                 commands
-                    .entity(owner.character)
+                    .entity(character)
                     .try_insert(AlsLastDebugRender(time.elapsed_secs_f64()));
                 break;
             }
