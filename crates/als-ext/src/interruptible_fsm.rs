@@ -1073,6 +1073,15 @@ impl InterruptibleFsmNode {
         }
     }
 
+    fn local_state_weight(weights: &[SourceFsmStateWeight], state: &LowLevelStateId) -> f32 {
+        match state {
+            LowLevelStateId::HlState(state) => weights.iter()
+                .find(|weight| weight.state_id == state.uuid().to_string())
+                .map_or(0.0, |weight| weight.value),
+            LowLevelStateId::HlTransition(_) => 1.0,
+        }
+    }
+
     fn initial_state(state: LowLevelStateId, time: f32, frame: u64) -> InterruptibleFsmState {
         let initial_weights = Self::initial_state_weights(&state);
         InterruptibleFsmState {
@@ -1210,13 +1219,14 @@ impl InterruptibleFsmNode {
         machine: &LowLevelStateMachine,
         state: &LowLevelStateId,
         ctx: &mut NodeContext,
+        weights: &[SourceFsmStateWeight],
     ) -> Result<(), GraphError> {
         let (state_data, graph) = Self::active_graph(machine, state, ctx)?;
-        Self::prewarm_scoped_caches(graph, ctx)?;
+        with_machine_weight(Self::local_state_weight(weights, state), || Self::prewarm_scoped_caches(graph, ctx))?;
         if let Some(states) = Self::transition_endpoint_states(state_data) {
             for state in states {
                 let (_, graph) = Self::active_graph(machine, &state, ctx)?;
-                Self::prewarm_scoped_caches(graph, ctx)?;
+                with_machine_weight(Self::local_state_weight(weights, &state), || Self::prewarm_scoped_caches(graph, ctx))?;
             }
         }
         Ok(())
@@ -1244,9 +1254,11 @@ impl InterruptibleFsmNode {
         }) {
             state.interrupted_sources.truncate(completed);
         }
+        let now = ctx.time();
+        let weights = Self::state_weight_values(machine, &state, ctx, now)?;
         let mut source_pose = None;
         for source in state.interrupted_sources.iter().rev() {
-            Self::prewarm_active_state_caches(machine, &source.state, ctx)?;
+            Self::prewarm_active_state_caches(machine, &source.state, ctx, &weights)?;
             let (source_data, source_graph) = Self::active_graph(machine, &source.state, ctx)?;
             let io = InterruptibleFsmIo {
                 node_context: ctx.clone(),
@@ -1281,7 +1293,7 @@ impl InterruptibleFsmNode {
         }
         state.source_pose = source_pose;
         *ctx.state_mut_or_else(|| state.clone())? = state.clone();
-        Self::prewarm_active_state_caches(machine, &state.state, ctx)?;
+        Self::prewarm_active_state_caches(machine, &state.state, ctx, &weights)?;
         let (state_data, graph) = Self::active_graph(machine, &state.state, ctx)?;
         let elapsed = (ctx.time() - state.state_entered_time).max(0.0);
         let io = InterruptibleFsmIo {
@@ -1703,6 +1715,14 @@ impl<'a> InterruptibleFsmIo<'a> {
         Ok((graph, io))
     }
 
+    fn evaluated_state_weight(&self, state: &LowLevelStateId) -> Result<f32, GraphError> {
+        let snapshot = self.node_context.state::<InterruptibleFsmState>()?;
+        let weights = InterruptibleFsmNode::state_weight_values(
+            self.machine, snapshot, &self.node_context, self.current_time,
+        )?;
+        Ok(InterruptibleFsmNode::local_state_weight(&weights, state))
+    }
+
     fn state_data(
         &self,
         pin: PinId,
@@ -1724,26 +1744,29 @@ impl<'a> InterruptibleFsmIo<'a> {
             .create_child_context(graph_handle.id(), graph, Some(state.clone()))
             .with_state_key(ctx.state_key)
             .with_io(&io);
-        let result = graph.get_data(TargetPin::OutputData(pin.clone()), sub_ctx.clone());
-        if matches!(&result, Ok(DataValue::Pose(_))) {
-            crate::animation_context::write_linked_input_context(
-                &mut ctx.clone(),
-                input,
-                graph_output_context_state(graph, &sub_ctx, &pin).unwrap_or_default(),
-            )?;
-        }
-        let Err(error) = result else {
-            return result;
-        };
-        let pose_output = self.state_pose_output_for(&state).to_owned();
-        if pin == pose_output {
-            return Err(error);
-        }
-        graph.get_data(TargetPin::OutputData(pose_output.clone()), sub_ctx.clone())?;
-        graph_output_context_state(graph, &sub_ctx, &pose_output)
-            .and_then(|context| context.curves.get(&pin).copied())
-            .map(DataValue::F32)
-            .ok_or(error)
+        let weight = self.evaluated_state_weight(&state)?;
+        with_machine_weight(weight, || {
+            let result = graph.get_data(TargetPin::OutputData(pin.clone()), sub_ctx.clone());
+            if matches!(&result, Ok(DataValue::Pose(_))) {
+                crate::animation_context::write_linked_input_context(
+                    &mut ctx.clone(),
+                    input,
+                    graph_output_context_state(graph, &sub_ctx, &pin).unwrap_or_default(),
+                )?;
+            }
+            let Err(error) = result else {
+                return result;
+            };
+            let pose_output = self.state_pose_output_for(&state).to_owned();
+            if pin == pose_output {
+                return Err(error);
+            }
+            graph.get_data(TargetPin::OutputData(pose_output.clone()), sub_ctx.clone())?;
+            graph_output_context_state(graph, &sub_ctx, &pose_output)
+                .and_then(|context| context.curves.get(&pin).copied())
+                .map(DataValue::F32)
+                .ok_or(error)
+        })
     }
 
     fn state_duration(
@@ -1899,7 +1922,7 @@ mod tests {
     use crate::direct_transition_event::take_direct_transition_edge;
     use crate::global_bool_input::GlobalBoolInputNode;
     use crate::global_pose_input::GlobalPoseInputNode;
-    use crate::source_cached_pose::{SourceCachedPoseSaveNode, SourceScopedCachedPoseUseNode};
+    use crate::source_cached_pose::{CACHED_POSE_VALUE, SourceCachedPoseSaveNode, SourceScopedCachedPoseUseNode};
     use crate::source_movement_nodes::SourceMultiWayBlendNode;
     use crate::source_pose_passthrough::SourcePosePassthroughNode;
     use bevy::platform::collections::HashMap;
@@ -1968,6 +1991,150 @@ mod tests {
         let result: Result<(), ()> = with_machine_weight(0.25, || Err(()));
         assert!(result.is_err());
         assert_eq!(current_machine_weight(), 1.0);
+    }
+
+    #[derive(Reflect, Clone, Debug, Default)]
+    #[reflect(Default, NodeLike)]
+    #[type_path = "als_ext"]
+    struct MachineWeightProbe;
+
+    impl NodeLike for MachineWeightProbe {
+        fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+            let mut pose = Pose::default();
+            pose.timestamp = current_machine_weight();
+            ctx.set_data_fwd("Pose", pose);
+            Ok(())
+        }
+
+        fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
+            ctx.add_output_data("Pose", DataSpec::Pose);
+            Ok(())
+        }
+
+        fn display_name(&self) -> String {
+            "Machine weight probe".to_owned()
+        }
+    }
+
+    #[test]
+    fn scoped_cache_prewarm_uses_the_parent_state_weight() {
+        fn query(
+            In((root, state_graph, cache_id, state_id)): In<(Handle<AnimationGraph>, Handle<AnimationGraph>, NodeId, StateId)>,
+            resources: SystemResources,
+        ) -> f32 {
+            let graph = resources.animation_graph_assets.get(&root).unwrap();
+            let mut arena = GraphContextArena::new(root.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let inputs = HashMap::new();
+            let env = TestIoEnv::default();
+            let mut ctx = GraphContext::new(
+                arena.get_toplevel_id(), graph, &mut arena, &resources, &env,
+                Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs,
+            ).create_node_context(NodeId::default());
+            let state = LowLevelStateId::HlState(state_id);
+            let mut machine = LowLevelStateMachine::new();
+            machine.add_state(LowLevelState { id: state.clone(), graph: state_graph, hl_transition: None });
+            let weights = vec![SourceFsmStateWeight { state_id: state_id.uuid().to_string(), value: 0.4 }];
+            InterruptibleFsmNode::prewarm_active_state_caches(&machine, &state, &mut ctx, &weights).unwrap();
+            drop(ctx);
+            arena.get_toplevel().node_caches
+                .get_output_data(cache_id, StateKey::Default, CACHED_POSE_VALUE.to_owned())
+                .unwrap().into_pose().unwrap().timestamp
+        }
+
+        let mut graphs = Assets::<AnimationGraph>::default();
+        let mut root = AnimationGraph::new();
+        let probe = AnimationNode::new("weight", MachineWeightProbe);
+        let cache = AnimationNode::new("fixture", SourceCachedPoseSaveNode { cache_key: "fixture".to_owned() });
+        root.add_node(probe.clone());
+        root.add_node(cache.clone());
+        root.add_node_parameter_edge(probe.id, "Pose", cache.id, "Pose");
+        let root = graphs.add(root);
+        let mut state_graph = AnimationGraph::new();
+        state_graph.add_node(AnimationNode::new("use fixture", SourceScopedCachedPoseUseNode {
+            cache_node: "fixture".to_owned(), cache_key: "fixture".to_owned(), ..default()
+        }));
+        let state_graph = graphs.add(state_graph);
+        let mut world = World::new();
+        world.insert_resource(graphs);
+        world.insert_resource(Assets::<GraphClip>::default());
+        world.insert_resource(Assets::<Skeleton>::default());
+        world.insert_resource(Assets::<StateMachine>::default());
+        let actual = world.run_system_cached_with(query, (root, state_graph, cache.id, StateId::default())).unwrap();
+        assert_eq!(actual, 0.4);
+    }
+
+    #[test]
+    fn direct_state_graph_uses_the_parent_transition_weight() {
+        fn query(
+            In((root, state_graph, transition_graph, fsm_node)): In<(Handle<AnimationGraph>, Handle<AnimationGraph>, Handle<AnimationGraph>, NodeId)>,
+            resources: SystemResources,
+        ) -> f32 {
+            let source: StateId = serde_json::from_str("\"10000000-0000-4000-8000-000000000001\"").unwrap();
+            let target: StateId = serde_json::from_str("\"10000000-0000-4000-8000-000000000002\"").unwrap();
+            let transition = TransitionId::Direct(DirectTransitionId::default());
+            let mut machine = LowLevelStateMachine::new();
+            for state in [source, target] {
+                machine.add_state(LowLevelState {
+                    id: LowLevelStateId::HlState(state), graph: state_graph.clone(), hl_transition: None,
+                });
+            }
+            machine.add_state(LowLevelState {
+                id: LowLevelStateId::HlTransition(transition), graph: transition_graph,
+                hl_transition: Some(LlTransitionData {
+                    source, target, hl_transition_id: transition, timed: Some(1.0),
+                }),
+            });
+            let graph = resources.animation_graph_assets.get(&root).unwrap();
+            let mut arena = GraphContextArena::new(root.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let inputs = HashMap::new();
+            let env = TestIoEnv::default();
+            let graph_ctx = GraphContext::new(
+                arena.get_toplevel_id(), graph, &mut arena, &resources, &env,
+                Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs,
+            );
+            let mut node_ctx = graph_ctx.create_node_context(fsm_node);
+            node_ctx.set_time(0.4);
+            node_ctx.state_mut_or_else(|| InterruptibleFsmNode::initial_state(
+                LowLevelStateId::HlTransition(transition), 0.0, 0,
+            )).unwrap();
+            let io = InterruptibleFsmIo {
+                node_context: node_ctx.clone(), machine: &machine, current_time: 0.4,
+                parent_time_update: TimeUpdate::Delta(0.4),
+                state: LowLevelStateId::HlTransition(transition), state_entered_time: 0.0,
+                context_slot: 0, blend_duration: None, source_pose: None, role: FsmRole::Root,
+                stack: VecDeque::new(), state_pose_output: "Pose".to_owned(), state_pose_outputs: Vec::new(),
+            };
+            io.state_data(
+                "Pose".into(), LowLevelStateId::HlState(target), FsmRole::Target,
+                &node_ctx.graph_context, GraphInputPin::FromFsmTarget("Pose".into()),
+            ).unwrap().into_pose().unwrap().timestamp
+        }
+
+        let mut graphs = Assets::<AnimationGraph>::default();
+        let mut state_graph = AnimationGraph::new();
+        let probe = AnimationNode::new("weight", MachineWeightProbe);
+        state_graph.add_node(probe.clone());
+        state_graph.add_output_data("Pose".to_owned(), DataSpec::Pose);
+        state_graph.add_output_data_edge(probe.id, "Pose", "Pose");
+        let state_graph = graphs.add(state_graph);
+        let mut transition_graph = AnimationGraph::new();
+        transition_graph.add_node(AnimationNode::new("blend", ProfiledBlendNode::default()));
+        let transition_graph = graphs.add(transition_graph);
+        let mut root = AnimationGraph::new();
+        let fsm_node = AnimationNode::new("fsm", InterruptibleFsmNode::default());
+        root.add_node(fsm_node.clone());
+        let root = graphs.add(root);
+        let mut world = World::new();
+        world.insert_resource(graphs);
+        world.insert_resource(Assets::<GraphClip>::default());
+        world.insert_resource(Assets::<Skeleton>::default());
+        world.insert_resource(Assets::<StateMachine>::default());
+        let actual = world.run_system_cached_with(query, (root, state_graph, transition_graph, fsm_node.id)).unwrap();
+        assert_eq!(actual, 0.4);
     }
 
     fn fixture_pose(x: f32) -> Pose {
