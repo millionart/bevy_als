@@ -1748,6 +1748,45 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "A43 red: detached visible ragdoll loses its debug render owner"]
+    fn detached_visible_ragdoll_remains_debug_cycle_candidate() {
+        use bevy::time::TimeUpdateStrategy;
+
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, crate::debug_target::AlsDebugTargetPlugin))
+            .init_resource::<ButtonInput<KeyCode>>()
+            .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f64(0.05)))
+            .insert_resource(crate::show_debug_hud::AlsShowDebugHudState {
+                visible: true,
+                ..default()
+            });
+        let master = app.world_mut().spawn((
+            AlsCharacter,
+            crate::character_assembly::AlsPlayerCharacter,
+            crate::debug_target::AlsLastDebugRender(0.0),
+        )).id();
+        let actor = app.world_mut().spawn(AlsCharacter).id();
+        let avatar = app.world_mut().spawn(AlsCharacterAvatar { character: actor }).id();
+        let original_parent = app.world_mut().spawn(ChildOf(avatar)).id();
+        let detached = app.world_mut().spawn((
+            AlsRagdollDetachedPlayer { parent: original_parent, local_transform: Transform::IDENTITY },
+            Transform::IDENTITY,
+        )).id();
+        app.world_mut().spawn((
+            bevy::mesh::skinning::SkinnedMesh { inverse_bindposes: default(), joints: Vec::new() },
+            ViewVisibility::VISIBLE,
+            ChildOf(detached),
+        ));
+
+        app.update();
+        let stamped = app.world().get::<crate::debug_target::AlsLastDebugRender>(actor).is_some();
+        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::PageUp);
+        app.update();
+        let selected = app.world().get::<crate::debug_target::AlsDebugTarget>(actor).is_some();
+        assert!(stamped && selected, "stamped={stamped} selected={selected} master={master:?}");
+    }
+
+    #[test]
     fn ragdoll_entry_preserves_normal_parent_and_detaches_only_on_entry() {
         use bevy::asset::AssetApp;
         use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner};
