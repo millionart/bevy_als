@@ -73,6 +73,8 @@ For animation-triggered decals, verify the source material domain, active render
 
 ## Failure reports and repair
 
+Measure source motion-window observation spans with `Time<Virtual>`, matching scenario and animation progress. Keep profiling, trace timestamps, capture pacing and watchdogs on wall time. Cover accelerated fixed-delta playback and paused or insufficient game time without lowering observation thresholds.
+
 1. The first graph evaluation error must write `report.json` before exit, including `primary_failure`, raw error, pin/node identity, active graph/context candidates, ambiguity status, root graph/dependency state, root-pose classification, scenario labels, and screenshot attempt status. Every driver run also records its exit code and complete ManualIntegration verdict with individual coverage labels and final diagnostic details; the runner must audit that report even when the game exits nonzero.
 2. A missing root Pose or zero active channels is classified as reference/A-pose risk whether or not a graph error occurred; it is a reportable root cause, not merely a generic failed run.
 3. Repair the first source-chain boundary that violates its source dynamic invariant. Downstream IK/Control Rig ablation only proves sensitivity, never root cause.

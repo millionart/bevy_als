@@ -1594,3 +1594,12 @@
   S1最终source/static摘要：全部公共找地调用者已迁移，单个角色阻挡predicate检查双侧CollisionLayers、Sensor和ColliderOf同体；find_ground_floor的两次不同胶囊重试复用同一walkable_floor_hit，主shape和法线ray均传相同predicate，落地/保持地面/base选择与步阶辅助同规则。无图、转换器、资产、依赖或碰撞几何阈值更改，N1–N3继续关闭。原生N4六种变体13项physics总体通过；该夹具将Tnua地面传感器输出隔离为无支持，明确检验实际移动扫掠→post-physics落地/基座消费者，并未伪造sweep_contact。额外核心真实query覆盖同体、双侧响应及被Sensor遮住的合法边缘法线ray；移除owner排除即返回附属面，移除ray过滤即丢失合法地面，恢复后通过。core motion33/33覆盖原跨阶/下阶/上跳/移动支撑；watchdog自测、公共validator53自测通过，资产边界0 issue。
 
   runtime前摘要：最终源码静态闭环已完成。现在按run_manual.bat实际target_game/play、jobs2预构建，随后startup→uphill_jump/10 FPS→grounded/10 FPS→moving_base→stairs。报告均保留原地形、角色、相机，CaptureCount0/FunctionalOnly；性能预算继续延期，功能与姿态/覆盖/进展判据不放宽。
+
+  startup后/Air前摘要：同target_game/play最终预构建与原Playground startup新报告manual/validator0/0、功能通过；primary空、graph/fault/temporal均0、watchdog未触发。原动画求值p95预算超限继续延期；下一步同二进制10 FPS uphill_jump。
+
+  首次uphill runtime后摘要：manual0/validator1，18路线/6功能均完成，primary空、graph/fault/temporal均0。仅uphill_02_sprint_0及uphill_03_sprint_0观察时长未达0.12s；实际10/8帧覆盖0.9/0.7s游戏时间，collector却用Instant得到0.1194416/0.1166511s墙钟。fresh驱动状态时间由Time<Virtual>提供，record_motion_window将同一动作时长门槛与墙钟比较，属于公共报告计时缺口，不是N4碰撞或姿态失败。保留原失败报告，暂停后续场景；不改0.12阈值或人为减速。
+
+- [x] **BF128.N4-V1 — 公共动作观察时长采用游戏时钟**：开始：2026-09-25 01:12:00 +08:00；预估结束：2026-09-25 01:32:00 +08:00；实际结束：2026-09-25 01:18:53 +08:00；偏差：-13m07s；结果：错误墙钟0.1166511s稳定red→游戏时钟0.7s green，视觉模块45/45与公共validator自测通过；拆分结果：V1完成，继续S2新二进制验收。估时依据：两条同二进制失败窗口、驱动Time<Virtual>与collector Instant的直接数据链；一个记录函数、两个调用点、现有视觉测试夹具。Gate：快墙钟/长游戏时间旧红→绿，游戏时间未推进或不足时仍失败，墙钟trace/性能/截图/watchdog保持原语义；公共视觉focused/self-test通过后独立提交，再以新二进制/新目录继续S2。
+
+
+  V1 source/static与消融摘要：驱动使用Time<Virtual>，现在collector直接读取同资源，将已有首样本时刻字段改为游戏时刻，仅observation_seconds计算使用它；墙钟elapsed仍用于actor/clip trace、性能、截图节流和watchdog。无新增跟踪状态或场景专用分支，不修改0.12s阈值。旧墙钟选择使0.7s游戏进展被记成0.1166511s；新fixture同时检验0.06s与暂停游戏不能借1s墙钟通过，正常1:1进展保持一致且trace仍保留墙钟，45项视觉测试全过。时钟边界固化到animation-graph-equivalence skill。原失败报告保留；现在重建最终target_game/play，在新目录重新startup及全部五场功能Gate。

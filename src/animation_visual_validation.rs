@@ -417,7 +417,7 @@ struct MotionWindowTracker {
     minimum_actor_yaw_convergence_radians: f32,
     minimum_observation_seconds: f32,
     observation_seconds: f32,
-    first_sample_elapsed_seconds: Option<f64>,
+    first_sample_game_seconds: Option<f64>,
     max_pre_rig_translation_span: f32,
     max_pre_rig_rotation_span_radians: f32,
     max_final_translation_span: f32,
@@ -2268,6 +2268,7 @@ fn record_motion_window(
     asset_server: &AssetServer,
     graphs: &Assets<AnimationGraph>,
     elapsed_seconds: f64,
+    game_elapsed_seconds: f64,
 ) -> bool {
     let sync_phase = evidence.sync_phase_global.and_then(|key| {
         if key.starts_with("sync_groups.") {
@@ -2300,8 +2301,8 @@ fn record_motion_window(
                         .get_or_insert(wrapped_yaw_distance(baseline, view_yaw));
                 }
                 tracker
-                    .first_sample_elapsed_seconds
-                    .get_or_insert(elapsed_seconds);
+                    .first_sample_game_seconds
+                    .get_or_insert(game_elapsed_seconds);
             }
         }
         if evidence.expected_actor_yaw_delta_sign.is_some()
@@ -2444,10 +2445,10 @@ fn record_motion_window(
     if tracker.final_reference.is_empty() {
         tracker.final_reference = final_pose.clone();
     }
-    let first_sample_elapsed_seconds = tracker
-        .first_sample_elapsed_seconds
-        .get_or_insert(elapsed_seconds);
-    tracker.observation_seconds = (elapsed_seconds - *first_sample_elapsed_seconds).max(0.0) as f32;
+    let first_sample_game_seconds = tracker
+        .first_sample_game_seconds
+        .get_or_insert(game_elapsed_seconds);
+    tracker.observation_seconds = (game_elapsed_seconds - *first_sample_game_seconds).max(0.0) as f32;
     let (pre_rig_translation_span, pre_rig_rotation_span) =
         local_motion_span(&tracker.pre_rig_reference, &pre_rig_current);
     tracker.max_pre_rig_translation_span = tracker
@@ -3259,7 +3260,7 @@ fn collect_animation_visual_evidence(
     animation_window: Option<Res<ManualAnimationWindowEvidence>>,
     phase_evidence: Option<Res<ManualRuntimePhaseEvidence>>,
     manual_integration: Option<Res<ManualIntegrationGateReport>>,
-    pre_rig: Res<AnimationVisualPreRigPose>,
+    pre_rig: (Res<AnimationVisualPreRigPose>, Res<Time<Virtual>>),
     asset_server: Res<AssetServer>,
     graphs: Res<Assets<AnimationGraph>>,
     avatars: Query<(Entity, &AnimatedSceneInstance, &GlobalTransform, &Transform), With<AlsCharacterAvatar>>,
@@ -3285,6 +3286,7 @@ fn collect_animation_visual_evidence(
     named_transforms: Query<(&Name, &GlobalTransform, &Transform)>,
     cameras: (Query<Entity, With<Camera3d>>, Query<(&crate::camera_component::AlsSourceCameraComponent, &AnimatedSceneInstance)>, Query<&als_ext::overlay_materials::AvatarMaterialApplied>, Query<&crate::overlay_object::AlsOverlayObject>, Query<&AnimatedSceneInstance>),
 ) {
+    let (pre_rig, game_time) = pre_rig;
     if state.primary_failure.is_some() { return; }
     if cameras.2.iter().any(|applied| !applied.source_slot_pattern) {
         append_unique(&mut state.faults, "mesh_material_source_slot_pattern_mismatch".to_owned());
@@ -3680,6 +3682,7 @@ fn collect_animation_visual_evidence(
                     &asset_server,
                     &graphs,
                     elapsed.as_secs_f64(),
+                    game_time.elapsed_secs_f64(),
                 ) {
                     fault_detected |= append_unique(
                         &mut state.faults,
@@ -3723,6 +3726,7 @@ fn collect_animation_visual_evidence(
                 &asset_server,
                 &graphs,
                 elapsed.as_secs_f64(),
+                game_time.elapsed_secs_f64(),
             ) {
                 fault_detected |= append_unique(
                     &mut state.faults,
@@ -4060,6 +4064,33 @@ mod tests {
     }
 
     #[test]
+    fn motion_observation_duration_uses_game_time_without_changing_wall_traces() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default()));
+        let player = AnimationGraphPlayer::new(default());
+        let graphs = Assets::<AnimationGraph>::default();
+        let asset_server = app.world().resource::<AssetServer>();
+        for (game_span, wall_span) in [(0.7, 0.1166511), (0.06, 1.0), (0.0, 1.0), (0.3, 0.3)] {
+            let mut state = AnimationVisualValidationState::default();
+            let evidence = ManualAnimationWindowEvidence {
+                label: Some("clock_fixture"), settled: true, capture_source_window: true,
+                requires_pre_rig_motion: true, minimum_observation_seconds: 0.12,
+                observed_animation_clip_time: Some(0.0), ..default()
+            };
+            let pose = AnimationVisualPreRigPose::default();
+            for (game, wall) in [(10.0, 20.0), (10.0 + game_span, 20.0 + wall_span)] {
+                record_motion_window(&mut state, &evidence, &pose, &pose.bones, None, None,
+                    RootPoseActivity::default(), None, &player, asset_server, &graphs, wall, game);
+            }
+            let tracker = &state.motion_windows["clock_fixture"];
+            assert!((f64::from(tracker.observation_seconds) - game_span).abs() < 1e-6,
+                "game span {game_span} used wall span {wall_span}: {}", tracker.observation_seconds);
+            assert_eq!(tracker.observation_seconds >= tracker.minimum_observation_seconds, game_span >= 0.12);
+            assert!((tracker.actor_yaw_trace[1].elapsed_secs - tracker.actor_yaw_trace[0].elapsed_secs - wall_span).abs() < 1e-9);
+        }
+    }
+
+    #[test]
     fn canonical_clip_signature_uses_nearest_real_clip_sample_without_fsm_or_sync_group() {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, AssetPlugin::default()));
@@ -4106,6 +4137,7 @@ mod tests {
                 &player,
                 asset_server,
                 &graphs,
+                frame as f64 * 0.1,
                 frame as f64 * 0.1,
             );
         }
