@@ -1298,3 +1298,7 @@
   S4 静态闭环、runtime 前摘要：UE PoseLink 任意子树 Initialize 合同、fresh Standing 两张 TwoWay 中真实 reset=true 直连/false间接边界、S1 converter/runtime 精确旧错、S2 通用子图作用域红绿与状态持久记录消融已闭合；Pose节点26/26、renderer自测及身份/非Pose字段敏感通过。S3 全15根/23图/374新旧逐字节零diff，生成图无需迁移；资产边界0 issue、视觉 validator self-test 全项PASS。下一步以 `run_manual.bat` 对应 `target_game/play` 预构建，先 startup 后 standing_stop/standing_direction；真实场景证明当前直接 reset 路径无回归，合成间接分支由图级测试证明。
 
   runtime 后完成摘要：同一 `target_game/play` 预构建后，原 `startup`、`standing_stop`、`standing_direction` 公共 `-FunctionalOnly -CaptureCount 0` runner/manual/validator全部退出0；startup81姿态样本，stop10/10覆盖、7/7窗口、827样本，direction5/5、11/11窗口、322样本。三场 `graph_errors=[]`、`primary_failure=null`、fault/temporal0、watchdog未触发、render/decal均通过。当前源/安装图的 reset=true 是直连 Sequence，故真实场景仅证明该生产路径无回归；间接合法子树由 S1/S2 图级红绿和持久 context 消融证明，不能称作当前实机资产动态覆盖。完整性能预算继续延期。
+
+- [x] **BF124.A50 — Two Way Blend 重新激活任意合法 Pose 子树**：开始：2026-09-24 15:47:00 +08:00；预估结束：2026-09-24 16:02:00 +08:00；实际结束：2026-09-24 15:47:00 +08:00；偏差：-15m00s；结果：S1–S4各自通过并提交（`1a49479`、`c50ae3c`、`260f814`、`4e6cfef`），UE任意PoseLink子树初始化合同、间接子树 converter/runtime红绿与双消融、全15根23图374文件零diff及原Playground三场功能 Gate 闭合。估时依据：只汇总已提交源、局部、全量转换和真实入口证据；拆分结果：A50当前功能无剩余 Gate，A51下一项，完整性能预算延期。
+
+  汇总：TwoWay不再把 `bResetChildOnActivation` 限制为直接 Sequence Player；运行时复用 BlendList 的 A/B 子图作用域并记住子 context，在重新相关的同帧重建和更新整条 PoseLink 子树，转换器只验唯一 Pose 输入与两支不同源。合成 LayeredGraph→Sequence 原首帧报错，现 A→B→A 时钟重回0.3；去作用域或丢 context 持久记录分别使直连/仅间接反例红，恢复后Pose节点26/26及renderer自测通过。全15安装根/23图/374文件重转零差异，原startup/standing_stop/standing_direction功能Gate全过；当前源true仍直连，不虚称间接分支在当前实机资产出现。
