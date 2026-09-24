@@ -1293,4 +1293,8 @@
 
   全量重转完成摘要：独立 A50 暂存批次 `corpus_progress.json` 记录15/15安装根、23图、15/15转换报告pass、exit_reason=completed、最后 Camera、等待0.011秒；总转换1740.7秒。外层 watchdog 自测正常完成、停滞退出、安装清单覆盖全部PASS。逐字节比较 `assets/generated` 与暂存完整 `generated` 树，两边各374文件，新增/缺失/改变为空，`full_diff.patch` 长度0；没有缩到 TwoWay 图或节点类型。fresh Standing 当前 reset=true A/B本就直连Sequence，新通用规则不改变已生成RON；运行时作用域路径仍必须由 S4 原真实入口检验。
 
-- [ ] **BF124.A50-S4 — 静态边界与原 Playground TwoWay 功能 Gate**：开始：2026-09-24 15:41:00 +08:00；预估结束：2026-09-24 16:31:00 +08:00。估时依据：S3全量374产物零diff、现有 `target_game/play` 增量预构建，原 startup/standing_stop/standing_direction 公共场景；先静态资产边界与报告自测，随后真实入口功能 Gate，完整性能预算延期。
+- [x] **BF124.A50-S4 — 静态边界与原 Playground TwoWay 功能 Gate**：开始：2026-09-24 15:41:00 +08:00；预估结束：2026-09-24 16:31:00 +08:00；实际结束：2026-09-24 15:46:00 +08:00；偏差：-45m00s；结果：资产边界0 issue/视觉validator自测PASS、同 `target_game/play` 预构建成功；原 startup/standing_stop/standing_direction 功能 runner manual/validator全部0，stop10/10及7窗口、direction5/5及11窗口，三场图/故障/时序/watchdog0且render/decal通过。估时依据：S3全量374零diff与现成 Standing 公共场景；拆分结果：A50可汇总关闭，A51下一项，完整性能预算延期。
+
+  S4 静态闭环、runtime 前摘要：UE PoseLink 任意子树 Initialize 合同、fresh Standing 两张 TwoWay 中真实 reset=true 直连/false间接边界、S1 converter/runtime 精确旧错、S2 通用子图作用域红绿与状态持久记录消融已闭合；Pose节点26/26、renderer自测及身份/非Pose字段敏感通过。S3 全15根/23图/374新旧逐字节零diff，生成图无需迁移；资产边界0 issue、视觉 validator self-test 全项PASS。下一步以 `run_manual.bat` 对应 `target_game/play` 预构建，先 startup 后 standing_stop/standing_direction；真实场景证明当前直接 reset 路径无回归，合成间接分支由图级测试证明。
+
+  runtime 后完成摘要：同一 `target_game/play` 预构建后，原 `startup`、`standing_stop`、`standing_direction` 公共 `-FunctionalOnly -CaptureCount 0` runner/manual/validator全部退出0；startup81姿态样本，stop10/10覆盖、7/7窗口、827样本，direction5/5、11/11窗口、322样本。三场 `graph_errors=[]`、`primary_failure=null`、fault/temporal0、watchdog未触发、render/decal均通过。当前源/安装图的 reset=true 是直连 Sequence，故真实场景仅证明该生产路径无回归；间接合法子树由 S1/S2 图级红绿和持久 context 消融证明，不能称作当前实机资产动态覆盖。完整性能预算继续延期。
