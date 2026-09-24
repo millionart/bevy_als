@@ -281,6 +281,61 @@ mod tests {
     }
 
     #[test]
+    fn bound_explicit_time_uses_current_instance_then_frame_input() {
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_graph::{AnimationGraph, GraphInputPin}, animation_node::AnimationNode,
+            context::{deferred_gizmos::DeferredGizmos, graph_context_arena::GraphContextArena,
+                new_context::GraphContext, system_resources::SystemResources},
+            skeleton::Skeleton, state_machine::high_level::StateMachine,
+            utils::testing::TestIoEnv,
+        };
+        fn query(In(handle): In<Handle<AnimationGraph>>, resources: SystemResources) -> Vec<f32> {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let node = graph.nodes.values().find(|node| node.name == "bound").unwrap();
+            let evaluator = node.try_inner_downcast_ref::<SourceSequenceEvaluatorNode>().unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            let inputs = HashMap::from([
+                ("source_frame_input.draw_amount".to_owned(), DataValue::F32(0.55)),
+                ("draw_amount".to_owned(), DataValue::F32(0.25)),
+            ]);
+            let mut values = Vec::new();
+            for frame in 0..2 {
+                let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
+                    &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+                let node_ctx = context.create_node_context(node.id);
+                if frame == 0 {
+                    crate::source_instance::set_source_property(&node_ctx, "draw_amount", DataValue::F32(0.75)).unwrap();
+                }
+                assert_eq!(node_ctx.data_back("ExplicitTime").unwrap().as_f32().unwrap(), 0.1);
+                values.push(evaluator.input_value(&node_ctx).unwrap());
+                drop(node_ctx);
+                drop(context);
+                arena.next_frame();
+            }
+            values
+        }
+        let mut graph = AnimationGraph::new();
+        graph.set_default_data(GraphInputPin::passthrough("pin"), DataValue::F32(0.1));
+        let node = AnimationNode::new("bound", SourceSequenceEvaluatorNode {
+            explicit_value_key: "draw_amount".into(), ..default()
+        });
+        graph.add_node(node.clone());
+        graph.add_input_data_edge(GraphInputPin::passthrough("pin"), node.id, "ExplicitTime");
+        let mut graphs = Assets::<AnimationGraph>::default();
+        let handle = graphs.add(graph);
+        let mut world = World::new();
+        world.insert_resource(graphs);
+        world.insert_resource(Assets::<GraphClip>::default());
+        world.insert_resource(Assets::<Skeleton>::default());
+        world.insert_resource(Assets::<StateMachine>::default());
+        assert_eq!(world.run_system_cached_with(query, handle).unwrap(), [0.75, 0.55]);
+    }
+
+    #[test]
     fn source_explicit_value_pin_name_can_be_preserved() {
         let node = SourceSequenceEvaluatorNode {
             explicit_value_pin: "ExplicitFrame".to_owned(),
