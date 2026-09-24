@@ -483,6 +483,102 @@ mod tests {
     }
 
     #[test]
+    fn losing_exclusive_leader_keeps_its_own_phase() {
+        use crate::{SourceMultiWayBlendNode, SourceSequencePlayerNode};
+        use crate::sync_group_phase::SourceSyncGroupRole;
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip,
+            animation_graph::{AnimationGraph, TimeUpdate},
+            animation_node::AnimationNode,
+            context::{graph_context::QueryOutputTime, system_resources::SystemResources},
+            skeleton::Skeleton,
+            state_machine::high_level::StateMachine,
+            utils::testing::TestIoEnv,
+        };
+
+        fn query(In(handle): In<Handle<AnimationGraph>>, resources: SystemResources) -> AnimationContextState {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            let inputs = HashMap::from([
+                ("delta".to_owned(), DataValue::F32(0.1)),
+                ("a".to_owned(), DataValue::F32(0.3)),
+                ("b".to_owned(), DataValue::F32(0.3)),
+                ("c".to_owned(), DataValue::F32(0.4)),
+            ]);
+            let context = bevy_animation_graph::core::context::new_context::GraphContext::new(
+                arena.get_toplevel_id(), graph, &mut arena, &resources, &env,
+                Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs,
+            );
+            graph.query_with_context(
+                QueryOutputTime::Forced(TimeUpdate::Delta(0.1)),
+                context.clone(),
+            ).unwrap();
+            crate::animation_context::graph_output_context_state(graph, &context, "Pose").unwrap()
+        }
+
+        let mut world = World::new();
+        let mut graphs = Assets::<AnimationGraph>::default();
+        let mut clips = Assets::<GraphClip>::default();
+        let clip = clips.add(GraphClip { duration: 1.0, ..default() });
+        let mut graph = AnimationGraph::new();
+        let mut players = Vec::new();
+        for (start, role) in [
+            (0.2, SourceSyncGroupRole::ExclusiveAlwaysLeader),
+            (0.7, SourceSyncGroupRole::ExclusiveAlwaysLeader),
+            (0.4, SourceSyncGroupRole::AlwaysFollower),
+        ] {
+            let node = AnimationNode::new("player", SourceSequencePlayerNode {
+                clip: clip.clone(),
+                start_position: start,
+                synchronization: Some(crate::source_sequence_player::SourceSequenceSynchronization {
+                    key: "Movement".into(),
+                    role,
+                    delta_seconds_key: "delta".into(),
+                    phase_duration: 1.0,
+                    ..default()
+                }),
+                ..default()
+            });
+            graph.add_node(node.clone());
+            players.push(node);
+        }
+        let blend = AnimationNode::new("blend", SourceMultiWayBlendNode {
+            pose_count: 3,
+            desired_alpha_keys: vec!["a".into(), "b".into(), "c".into()],
+            desired_alpha_defaults: vec![0.0; 3],
+            ..default()
+        });
+        let root = AnimationNode::new("root", SourcePosePassthroughNode {
+            output_time: false,
+            synchronize_groups: true,
+            ..default()
+        });
+        graph.add_node(blend.clone());
+        graph.add_node(root.clone());
+        for (index, player) in players.iter().enumerate() {
+            graph.add_node_parameter_edge(player.id, "Pose", blend.id, format!("Poses {index}"));
+        }
+        graph.add_node_parameter_edge(blend.id, "Pose", root.id, "Source");
+        graph.add_output_data("Pose".into(), DataSpec::Pose);
+        graph.add_output_data_edge(root.id, "Pose", "Pose");
+        let handle = graphs.add(graph);
+        world.insert_resource(graphs);
+        world.insert_resource(clips);
+        world.insert_resource(Assets::<Skeleton>::default());
+        world.insert_resource(Assets::<StateMachine>::default());
+        let result = world.run_system_cached_with(query, handle).unwrap();
+        let phase = |index: usize| result.sync_players.iter()
+            .find(|player| player.identity.1 == players[index].id).unwrap().phase;
+        assert!((phase(0) - 0.3).abs() < 1e-5, "loser phase {}", phase(0));
+        assert!((phase(1) - 0.8).abs() < 1e-5, "leader phase {}", phase(1));
+        assert!((phase(2) - 0.8).abs() < 1e-5, "follower phase {}", phase(2));
+    }
+
+    #[test]
     fn default_pin_names_match_source_pose_nodes() {
         let node = SourcePosePassthroughNode::default();
         assert_eq!(node.input, "Source");
