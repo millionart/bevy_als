@@ -1478,3 +1478,19 @@
 - [x] **BF126.N1-S2 — 有界扫掠保留切向余量并更新撞击后速度**：开始：2026-09-24 21:25:00 +08:00；预估结束：2026-09-24 22:20:00 +08:00；实际结束：2026-09-24 21:40:00 +08:00；偏差：-40m00s；结果：自定义积分在有效命中后以世界法线投影未消费位移并再次扫掠，向内速度投影；最多三次有界扫掠，起点向外重叠可逃离。S1 原生首撞 z 从0.28355917m修至与无墙0.375m差<0.005m、x不穿墙；双墙角落继续保留下落余量、起点向内/向外均有限，A01 局部7/7通过。估时依据：S1 已锁定的一处命中分支和源一面/二面滑动合同；拆分结果：S2 静态闭环完成，S3 同启动器原 Playground runtime Gate，性能预算沿既定安排延期。
 
   S2 source/static 完成摘要：保留 BF125.R2 的双向层/Sensor/同体附属过滤，不改物理封顶、角色模式或基座归属。UE `ComputeSlideVector` 的未消费位移切平面投影与 `PhysFalling` 撞后速度方向由 Avian `ShapeHitData.normal1` 映射，三次上限覆盖直行/首撞滑行/二面后余量。消融删掉前次法线专门分支后7/7不变，已删除；删速度投影时 wall_vel.x=3.75m/s 红；禁用起点穿透忽略时向外位移锁在起始位置红；一次扫掠仍少切向约0.029m，两次扫掠使双墙 y=1.9486603m，比自由落体1.942775m多0.005885m，三次与原生测试通过。未新增状态或辅助层，下一步仅原 Playground runtime。
+
+- [ ] **BF126.N1-S3 — 原 Playground 长帧 Air 与墙/基座功能 Gate**：开始：2026-09-24 21:41:00 +08:00；预估结束：2026-09-24 22:26:00 +08:00。估时依据：S1 首撞原生 red、S2 滑动/速度/双墙/起点穿透7/7已闭合；同启动器目标目录预构建约2分钟，现有 public runner `startup`、`uphill_jump` 10 FPS、`grounded` 10 FPS、`moving_base` 的功能场景与报告审计可复用。静态声明式 Gate 后一次连贯原 Playground 运行，记录精确首撞差异仍由原生夹具承担的边界；完整性能预算沿用户既定暂停范围延期。
+
+  runtime 前摘要：fresh UE `PhysFalling` 首墙/二墙滑动、Avian 0.7.0 Query 法线/起点选项与目标 N1 7/7 原生夹具已闭合；原 BF125.R1/R2 的重力时间、双方碰撞层与 Sensor 排除继续通过。`validate_runtime_graph_asset_boundary.py --check` 0 issue，公共视觉 validator `--self-test` 全 PASS，未修改图、转换器、资产或原 Playground 场景。现在预构建启动器实际使用的 `target_game/play`，再按 startup→10 FPS Air→10 FPS Grounded→moving_base 运行公共功能 Gate；性能预算按既定范围延期。
+
+  startup 后/Air 前摘要：同启动器 `target_game/play` 预构建通过，原 Playground `startup` 功能报告 manual/validator 0/0、primary/graph/fault/temporal/watchdog 均空。下一步同二进制 10 FPS `uphill_jump` 空中与落地路径，完整性能预算延期。
+
+  Air 后/Grounded 前摘要：同二进制原 Playground `uphill_jump -FrameDeltaSeconds 0.1` 功能 Gate manual/validator 0/0、primary/graph/fault/temporal/watchdog 均空；公共姿态与上跳/落地功能无回归。精确“预测范围外首次墙命中”的切向差异仍由 S1/S2 原生夹具证明，不称此真实场景直接命中该合成几何；下一步 10 FPS `grounded` 墙/动作路径，性能预算延期。
+
+  首次 grounded runtime 失败摘要：同二进制 `grounded -FrameDeltaSeconds 0.1` manual exit91/validator1，Roll 与退出过渡覆盖，但 GroundedJoint 第0项站蹲后续8项未覆盖；report无 primary graph error/fault/temporal/watchdog，故不能标成功。源窗口读回定位：前4帧 Grounded、中心 y≈0.9215m，触发蹲下后一帧 y=1.38067m，再一帧 y=2.69346m 转 Air，后114帧未重获动作状态。fresh UE `Crouch` 缩小胶囊并在保持底部时沿重力方向调整，不应上冲；当前未证明是 N1 新滑动还是既存时钟路径，暂停依赖 `moving_base` runtime。下一步先在真实 ALS/Tnua/Avian 局部夹具中稳定复现蹲起长帧，再受控撤回 N1 生产分支对照，锁定首个源目标分叉并纠正，随后同入口重建重跑失败场景。
+
+  S3 首轮失败复盘与拆分（2026-09-24 22:03:00 +08:00）：原开始21:41、预估22:26，首轮实际结束22:03、偏差-23m，结果未通过。原 ALS/Tnua/Avian 蹲下夹具同帧 y≈1.37767m、vy≈13.6099m/s 稳定 red；把 N1 新 Grounded 扫掠退回旧单次路径仍同值，故 N1 滑动分支不是根因。fresh UE `Crouch` 收缩并沿重力方向保底，Tnua Walk 以感测间隙产生竖直 spring force、适配器写入 Avian Forces；BF125.R1 旧整帧倍率误把地面支撑竖直增量同样乘约3，制造上冲。S2R 单独纠正地面竖直时间所有权并验证水平/空中边界，之后以 S3R 重建失败的真实入口，不继续运行旧二进制 `moving_base`。
+
+- [x] **BF126.N1-S2R — Grounded 支撑弹簧不继承空中重力倍率**：开始：2026-09-24 21:59:00 +08:00；预估结束：2026-09-24 22:44:00 +08:00；实际结束：2026-09-24 22:03:00 +08:00；偏差：-41m00s；结果：真实角色长帧蹲下上冲 red→保地 green，Grounded 水平4m/s²×0.1s应增0.4m/s的旧全跳过对照仅0.133333m/s red→水平倍率恢复 green；Air 非零重力四档仍全绿。N1 首撞/双墙/穿透与原 A01 模块总9/9。估时依据：S3 首轮物理轨迹、旧路径消融与 UE Crouch/Tnua Walk spring/Avian 增量唯一分叉；拆分结果：S2R 静态 Gate 完成，S3R 同入口重建重跑，未扩展无关角色/相机策略。
+
+  S2R source/static 完成摘要：Tnua `Walk::spring_force` 由当帧地面传感器间隙和 `spring_strength` 生成竖直加速度，Avian 在封顶物理步应用；UE Grounded 蹲下不把胶囊中心上抛。当前仅在 `LocomotionState::Grounded` 将既有完整帧倍率施于 x/z 加速度，y 保持物理支撑步；Air 保持三轴补偿。地面蹲下2帧、水平与空中时间、N1 首撞/二墙/起点边界9/9通过；把整帧倍率完全跳过则水平反例 red，Grounded 特设旧单次扫掠分支删除后9/9不变。接下来只做真实场景复验。

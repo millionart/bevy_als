@@ -73,14 +73,19 @@ impl Plugin for SourcePhysicsTimingPlugin {
 fn integrate_character_velocity(
     frame_time: Res<Time<Virtual>>,
     physics_time: Res<Time<Physics>>,
-    mut characters: Query<&mut VelocityIntegrationData, With<SourceCharacterFullFrame>>,
+    mut characters: Query<(&mut VelocityIntegrationData, &LocomotionState), With<SourceCharacterFullFrame>>,
 ) {
     if physics_time.delta().is_zero() || frame_time.delta() <= SOURCE_MAX_PHYSICS_DELTA {
         return;
     }
     let ratio = frame_time.delta_secs() / physics_time.delta_secs();
-    for mut integration in &mut characters {
-        integration.linear_increment *= ratio;
+    for (mut integration, locomotion) in &mut characters {
+        if *locomotion == LocomotionState::Grounded {
+            integration.linear_increment.x *= ratio;
+            integration.linear_increment.z *= ratio;
+        } else {
+            integration.linear_increment *= ratio;
+        }
         integration.angular_increment *= ratio;
     }
 }
@@ -249,6 +254,33 @@ mod tests {
         }
     }
 
+    #[test]
+    fn horizontal_acceleration_consumes_the_full_character_frame() {
+        for mode in [LocomotionState::Grounded, LocomotionState::Air] {
+            let mut app = App::new();
+            app.add_plugins((
+                MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+                avian3d::prelude::PhysicsPlugins::new(PostUpdate), SourcePhysicsTimingPlugin,
+            ))
+            .init_asset::<Mesh>()
+            .add_message::<bevy::asset::AssetEvent<Mesh>>()
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(100)));
+            app.finish();
+            app.update();
+            let character = app.world_mut().spawn((
+                als_core::character::AlsCharacter, mode, RigidBody::Dynamic,
+                Collider::cuboid(0.2, 0.2, 0.2),
+                avian3d::prelude::GravityScale(0.0),
+                avian3d::prelude::ConstantLinearAcceleration(Vec3::X * 4.0),
+                Position(Vec3::ZERO), LinearVelocity(Vec3::ZERO), Transform::default(),
+            )).id();
+            app.update();
+            let velocity = app.world().get::<LinearVelocity>(character).unwrap().x;
+            assert!((velocity - 0.4).abs() < 1e-4,
+                "{mode:?} horizontal acceleration used {velocity} instead of 0.4");
+        }
+    }
+
     fn simulate_air_wall_motion(wall_x: bool, wall_z: bool, start_x: f32, velocity: Vec3) -> (Vec3, Vec3) {
         let mut app = App::new();
         app.add_plugins((
@@ -330,6 +362,52 @@ mod tests {
         assert!(inward_position.is_finite() && inward_velocity.is_finite()
             && inward_position.x < 0.31 && inward_position.z > 0.05,
             "origin overlap failed to bound inward air motion: {inward_position:?} {inward_velocity:?}");
+    }
+
+    #[test]
+    fn full_frame_crouch_keeps_the_capsule_on_the_floor() {
+        use als_core::character::{AlsCharacterBundle, AlsCharacterPlugin};
+        use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
+        use als_core::motion::{AlsMotionPlugin, initial_als_control_scheme_config};
+        use als_core::params::AlsMovementParams;
+        use als_core::state::Stance;
+        use als_core::transition::AlsStateTransitionPlugin;
+        use bevy_tnua::TnuaControllerPlugin;
+        use bevy_tnua_avian3d::TnuaAvian3dPlugin;
+
+        let mut app = App::new();
+        app.add_plugins((
+            MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+            avian3d::prelude::PhysicsPlugins::new(PostUpdate),
+            TnuaAvian3dPlugin::new(Update),
+            TnuaControllerPlugin::<AlsControlScheme>::new(Update),
+            AlsStateTransitionPlugin, AlsCharacterPlugin, AlsMotionPlugin, SourcePhysicsTimingPlugin,
+        ))
+        .init_asset::<Mesh>()
+        .add_message::<bevy::asset::AssetEvent<Mesh>>()
+        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0 / 60.0)));
+        app.finish();
+        let params_value = AlsMovementParams::default();
+        let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(params_value.clone());
+        let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>()
+            .add(initial_als_control_scheme_config(&params_value));
+        let mut bundle = AlsCharacterBundle::new(params, config);
+        bundle.transform.translation = Vec3::Y * 0.924;
+        let character = app.world_mut().spawn(bundle).id();
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(10.0, 0.2, 10.0),
+            Transform::from_xyz(0.0, -0.1, 0.0)));
+        for _ in 0..30 { app.update(); }
+        assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Grounded));
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(100)));
+        app.world_mut().get_mut::<als_core::transition::AlsStateRequest>(character).unwrap().stance = Some(Stance::Crouching);
+        for frame in 0..2 {
+            app.update();
+            let position = app.world().get::<Position>(character).unwrap().0;
+            let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
+            let mode = app.world().get::<LocomotionState>(character).unwrap();
+            assert!(position.y <= 1.0 && *mode == LocomotionState::Grounded,
+                "crouch launched character at frame {frame}: {position:?} {velocity:?} {mode:?}");
+        }
     }
 
     #[test]
