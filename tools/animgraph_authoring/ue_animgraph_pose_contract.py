@@ -1715,6 +1715,11 @@ def run_self_test():
     contract, issues = pose_contract(sequence, "sequence_player")
     assert not contract["loop_animation"]
     assert [value["kind"] for value in issues] == ["source_sync_group_unsupported"]
+    sequence["properties"][0]["fields"].append({
+        "name": "bIgnoreForRelevancyTest", "exported_text": "True", "flags": "0x201",
+    })
+    contract, _ = pose_contract(sequence, "sequence_player")
+    assert contract["ignore_for_relevancy_test"] is True
     curve = fixture_node(
         "modify_curve",
         "Node",
