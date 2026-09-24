@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use als_core::{character::AlsCharacter, state::{AlsNotifyLocomotionAction, LocomotionState, Stance}};
+use als_core::{character::AlsCharacter, state::{AlsNotifyLocomotionAction, LocomotionState}};
 use avian3d::dynamics::{integrator::{IntegrationSystems, VelocityIntegrationData}, solver::solver_body::SolverBody};
 use avian3d::prelude::{
     Collider, ColliderOf, CollisionLayers, CustomPositionIntegration, Physics, PhysicsSchedule,
@@ -73,14 +73,14 @@ impl Plugin for SourcePhysicsTimingPlugin {
 fn integrate_character_velocity(
     frame_time: Res<Time<Virtual>>,
     physics_time: Res<Time<Physics>>,
-    mut characters: Query<(&mut VelocityIntegrationData, &LocomotionState, Option<Ref<Stance>>), With<SourceCharacterFullFrame>>,
+    mut characters: Query<(&mut VelocityIntegrationData, &LocomotionState, Ref<Collider>), With<SourceCharacterFullFrame>>,
 ) {
     if physics_time.delta().is_zero() || frame_time.delta() <= SOURCE_MAX_PHYSICS_DELTA {
         return;
     }
     let ratio = frame_time.delta_secs() / physics_time.delta_secs();
-    for (mut integration, locomotion, stance) in &mut characters {
-        if *locomotion == LocomotionState::Grounded && stance.is_some_and(|stance| stance.is_changed()) {
+    for (mut integration, locomotion, collider) in &mut characters {
+        if *locomotion == LocomotionState::Grounded && collider.is_changed() {
             integration.linear_increment.x *= ratio;
             integration.linear_increment.z *= ratio;
         } else {
@@ -374,6 +374,8 @@ mod tests {
         use als_core::transition::AlsStateTransitionPlugin;
         use bevy_tnua::TnuaControllerPlugin;
         use bevy_tnua_avian3d::TnuaAvian3dPlugin;
+        #[derive(Resource, Default)]
+        struct GeometryChanges(Vec<(bool, bool)>);
 
         let mut app = App::new();
         app.add_plugins((
@@ -385,6 +387,13 @@ mod tests {
         ))
         .init_asset::<Mesh>()
         .add_message::<bevy::asset::AssetEvent<Mesh>>()
+        .init_resource::<GeometryChanges>()
+        .add_systems(PhysicsSchedule, (|mut changes: ResMut<GeometryChanges>,
+            colliders: Query<(Ref<Collider>, Ref<Stance>), With<AlsCharacter>>| {
+            for (collider, stance) in &colliders {
+                changes.0.push((collider.is_changed(), stance.is_changed()));
+            }
+        }).before(integrate_character_velocity))
         .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0 / 60.0)));
         app.finish();
         let params_value = AlsMovementParams::default();
@@ -399,9 +408,12 @@ mod tests {
         for _ in 0..30 { app.update(); }
         assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Grounded));
         app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(100)));
+        app.update();
+        assert_eq!(app.world().resource::<GeometryChanges>().0.last(), Some(&(false, true)));
         app.world_mut().get_mut::<als_core::transition::AlsStateRequest>(character).unwrap().stance = Some(Stance::Crouching);
         for frame in 0..2 {
             app.update();
+            assert_eq!(app.world().resource::<GeometryChanges>().0.last(), Some(&(frame == 0, true)));
             let position = app.world().get::<Position>(character).unwrap().0;
             let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
             let mode = app.world().get::<LocomotionState>(character).unwrap();

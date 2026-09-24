@@ -1503,4 +1503,14 @@
 
   S3R 首次 Air 失败与第二次静态收敛（2026-09-24 22:10:00 +08:00）：`startup` 功能通过，但新 `uphill_jump` 10 FPS manual91/validator1，前两类路线覆盖，第三类 case16 Flight 在 y≈2.34m 连续5.1s无进展、落地覆盖缺失；旧失败报告保留且不启动依赖 `grounded`/`moving_base`。S2R 的“所有 Grounded y 永不补足整帧”过宽：源 CMC 蹲起仅在几何状态改变时沿重力方向保底，其他起跳/离地交接仍要保留完整帧运动。以 `Ref<Stance>::is_changed()` 限定只在实际蹲起切换帧不放大竖直支撑弹簧，Grounded x/z 与 Air 三轴仍用整帧；当前原生蹲下2帧、水平加速度、Air 重力、N1 首撞/角落/穿透9/9。下一步 S2R2 单独提交静态修正，再用新二进制/新报告重启 S3R；完整性能预算延期。
 
+  S3R Air 诊断后/Grounded 前摘要：新源码的 `Ref<Stance>` 被状态系统每帧可变访问，不能证明物理胶囊真的改形；改用当帧 `Ref<Collider>::is_changed()`，原生同一角色记录“稳定 Grounded=false、蹲下帧=true、次帧=false”，9/9通过。两次旧 10 FPS `uphill_jump` 报告在 case16 Flight 超时，但附限域探针后同二进制的两个独立输出目录均 manual/validator 0/0、6/6必需结果。探针整场只在启动 t=0.5s 记录一次 Collider 改形且竖直增量0，case16 没有触发站蹲例外，因此旧 Flight 超时不能归因于该门控；保留失败与成功报告，不称低帧率上跳已稳定通过。下一步先运行同入口 10 FPS `grounded` 验证原蹲下上冲，再移除诊断日志并重建最终二进制复验。
+
+  Grounded 后/基座前摘要：限域探针二进制的原 Playground `grounded -FrameDeltaSeconds 0.1` manual/validator 0/0、15/15结果与9/9窗口、primary/graph/fault/temporal/watchdog均空；此前蹲下→Air 上冲未复现。诊断中只有实际胶囊替换帧触发例外，蹲下原始竖直增量最高约0.761m/s/子步，普通稳定帧不触发。下一步同二进制 `moving_base` 验证基座分支，再删探针、重建最终源码，性能预算延期。
+
+- [x] **BF126.N1-S2R3 — 以胶囊实际替换而非 Stance 写入门控竖直弹簧**：开始：2026-09-24 22:18:00 +08:00；预估结束：2026-09-24 22:48:00 +08:00；实际结束：2026-09-24 22:26:00 +08:00；偏差：-22m00s；结果：`state_transition_system` 每帧以 `&mut Stance` 接线，`Ref<Stance>::is_changed()` 在稳定帧仍为 true；真实 ALS/Tnua/Avian 测试记录稳定帧 `(ColliderChanged=false, StanceChanged=true)`、蹲下帧 `(true,true)`、次帧 `(false,true)`。改为 `Ref<Collider>::is_changed()` 后，空中三轴与地面普通帧完整补时，仅胶囊替换帧不放大竖直 spring；A01 9/9，限域探针原 Playground `grounded` 15/15、`moving_base` 10/10、`uphill_jump` 两次6/6通过。估时依据：两次 Air 报告、fresh 状态系统/胶囊替换调用、同场三信号诊断；拆分结果：诊断日志已删除，S3R 最终二进制需再建并复验，性能预算延期。
+
+  S2R3 source/static 完成摘要：UE `Crouch` 的实际几何切换与目标 `apply_capsule_for_stance` 的 `commands.insert(Collider)` 同帧相对应；`Stance` 组件写入 tick 并不能代表切换。限域探针在上跳整场仅启动时 t=0.5s 记录一次 Collider 改变且竖直增量0，case16 未触发例外，故两次旧 Flight 超时不能归于该门控；保留失败与成功报告，不把偶发上跳运行改称稳定。最终代码无诊断日志或新增持久状态，精确局部夹具含稳定/切换/次帧 change tick 反例，N1 原生首撞边界不变。
+
 - [x] **BF126.N1-S2R2 — 竖直弹簧例外仅限实际站蹲切换帧**：开始：2026-09-24 22:08:00 +08:00；预估结束：2026-09-24 22:43:00 +08:00；实际结束：2026-09-24 22:10:00 +08:00；偏差：-33m00s；结果：首轮 Grounded 蹲下 y≈1.37767m 红，S2R 全部 Grounded y 跳过倍率令蹲下 green 却在原 Playground `uphill_jump` 第三类落地失败。新规则只在 `Stance` 当前帧确实改变时保留封顶竖直支撑步，其余 Grounded/Air y 维持整帧，Grounded x/z 全帧；A01 局部9/9（含蹲起连续2帧、水平0.4m/s与空中重力）通过。估时依据：两个真实入口失败报告与同一速度预处理唯一分支；拆分结果：静态 Gate 重新闭合，S3R 使用新二进制复跑，S2R 的宽泛例外被收窄。
+
+  S2R2 重建 startup 后/Air 前摘要：同启动器 `target_game/play` 限流预构建成功；原 Playground `startup` 新报告 manual/validator 0/0、primary/graph/fault/temporal/watchdog 均空。下一步 10 FPS `uphill_jump` 验证不再卡在第三类 Flight，随后复验首轮失败的 `grounded`，性能预算延期。
