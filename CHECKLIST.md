@@ -42,7 +42,7 @@
 
 | 编号 | 级别 | 处理状态 | 反馈 |
 |---|---|---|---|
-| A01 | P1 | 复开：BF125.R1/R2 | 角色运动完整帧时间与封顶物理时间不一致 |
+| A01 | P1 | 完成：BF125.R1/R2 复验 | 角色运动完整帧时间与封顶物理时间不一致 |
 | A02 | P2 | 完成 | 旋转响应角速度使用弧度每秒却除以角度每秒阈值 |
 | A03 | P2 | 完成 | 第一人称非瞄准遗漏身体瞄准旋转和限角分支 |
 | A04 | P2 | 完成 | 空中旋转沿用地面目标选择而非源端独立策略 |
@@ -222,7 +222,7 @@
 
   完成摘要：同 `target_game/play` 的原 `moving_base` 场景 public runner manual/validator `0/0`，877 个基座 trace 相邻时间仅一次 `0.2 s`，其它为 `1/60 s`；该帧 `Flight/Air`、位移 `1.1294 m`，水平位移与当帧速度乘 200 ms 的误差约 `0.0087 m`，会拒绝仅按 `1/30 s` 积分的反例。10/10 功能结果含 Ride/Jump/新支撑/Mantle/返回，2 个姿态窗口通过；graph error/fault/temporal/watchdog 均为 0，渲染/贴花通过。validator 自测单次、缺失、重复、未移动、错误模式和封顶位移边界通过，原错误 Exit 帧报告保留。最终只保留场景专用一次性时钟注入与校验，无生产运动/图更改；完整性能预算依用户暂停范围延期。
 
-- [ ] **BF124.A01 — 角色运动完整帧时间与封顶物理时间**：开始：2026-09-23 08:32:03 +08:00；预估结束：2026-09-23 08:47:03 +08:00；实际结束：2026-09-23 08:32:33 +08:00；偏差：-14m30s；结果：原 S1→S3b4 当时通过；2026-09-24 复审按 BF125.R1/R2 复开。旧 Gate 的自由运动 `GravityScale(0)` 漏掉速度积分，扫掠夹具未覆盖非互撞层及 Sensor。完成状态待两项新 Gate。
+- [x] **BF124.A01 — 角色运动完整帧时间与封顶物理时间**：开始：2026-09-23 08:32:03 +08:00；预估结束：2026-09-23 08:47:03 +08:00；实际结束：2026-09-23 08:32:33 +08:00；偏差：-14m30s；结果：原 S1→S3b4 当时通过；2026-09-24 复审按 BF125.R1/R2 复开并分别通过。旧 Gate 的自由运动 `GravityScale(0)` 漏掉速度积分，扫掠夹具未覆盖非互撞层及 Sensor；现有非零重力四档、碰撞响应五格与原 Playground 10 FPS 上跳功能 Gate 闭合，完整性能预算延期。
 
   汇总：UE 角色 PhysWalking 消费完整帧，Chaos 普通刚体只消费封顶时间；目标已在公开 Avian 扩展点实现 Grounded/Air 角色剩余时间的逐子步扫掠，维持 Ragdoll、Mantle 与移动基座的源所有权。100 ms/200 ms 最小位移反例、墙/地接触、平台相对运动及必要消融通过；原 Playground startup、grounded/uphill、moving_base 六种固定帧率与单次 200 ms Air 卡顿的公共功能报告通过，最终图错误、fault、temporal、watchdog 均为 0。已核对 55 条反馈索引唯一且齐全（A01–A55）、S1→S3b4 的分项提交和无未提交生产代码；A02 是下一执行项。
 
@@ -1412,3 +1412,9 @@
   runtime 前摘要：fresh UE CMC `PhysFalling` 用剩余整帧逐段调用 `GetSimulationTimeStep`，Avian 0.7.0 `pre_process_velocity_increments` 在 PhysicsSchedule 以封顶子步时间产生重力/力增量；目标旧完整帧接管仅在 SubstepSchedule 改位置。Air 无地面默认重力的 16/20/50/100 ms 夹具旧代码在 50 ms 得 `-0.327`，应为 `-0.4905`；在公开 `UpdateVelocityIncrements` 阶段对临时整帧角色缩放增量后四档通过。原 A01 四项 focused 全过，未改普通刚体或 Ragdoll 标记。下一步同启动器 `target_game/play` 预构建并跑原 Playground 10 FPS 上跳功能 Gate；完整性能预算仍按既定范围延期。
 
   runtime 后摘要：最终实现只按完整帧/封顶帧之比缩放临时角色速度增量，源项目角色无阻尼设置，删去阻尼适配后局部4/4仍通过。最终同入口 `uphill_jump` 10 FPS 功能报告 manual/validator 0/0、primary failure 空、graph/fault/temporal/watchdog 均 0；`full_pass=false` 仅因既定延期的性能预算，未改阈值。下一项 R2 补原扫掠过滤的双向碰撞响应与 Sensor 边界。
+
+- [x] **BF125.R2 — A01 长帧扫掠遵循角色胶囊的真实阻挡响应**：开始：2026-09-24 18:05:00 +08:00；预估结束：2026-09-24 18:50:00 +08:00；实际结束：2026-09-24 18:12:00 +08:00；偏差：-38m00s；结果：Air 非互撞层位移 `0.16868751→0.375 m` 红绿，五格与 A01 局部5/5，预过滤 mask 消融后删除；同 `target_game/play` 最终预构建、原 Playground `uphill_jump` 10 FPS 功能 Gate manual/validator 0/0，primary/graph/fault/temporal/watchdog 均空。估时依据：fresh UE 活动胶囊扫掠和 Avian 0.7.0 查询/碰撞双向语义；拆分结果：R2 完成、A01 父项复验关闭，R3 下一项，完整性能预算延期。
+
+  runtime 前摘要：fresh UE `PhysFalling→SafeMoveUpdatedComponent` 按活动胶囊阻挡响应扫掠；Avian 查询过滤仅看候选 membership，物理接触则双向 `interacts_with` 并跳过 Sensor/同体附属 Collider。100 ms Air 无地面夹具的另一层障碍旧实现将 `0.375 m` 截成 `0.16868751 m`；目标改为公开 `cast_shape_predicate` 检查双向层、Sensor 和 `ColliderOf.body`，另一层/反向拒绝/Sensor/同体/真正阻挡五格全绿，A01 局部5/5。消融删除多余预过滤 mask 后信号不变，保留唯一完整谓词；下一步同入口 `target_game/play` 预构建与 10 FPS `uphill_jump` 功能 Gate，性能预算继续延期。
+
+  runtime 后摘要：最终同入口 10 FPS `uphill_jump` 功能报告 manual/validator 0/0、primary failure 空、graph/fault/temporal/watchdog 均 0；完整性能预算按既定范围延期。R1/R2 均独立红绿与真实入口验收，A01 父项复开闭环；后续不再扩展相邻物理路径。

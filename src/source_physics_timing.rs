@@ -3,8 +3,8 @@ use std::time::Duration;
 use als_core::{character::AlsCharacter, state::{AlsNotifyLocomotionAction, LocomotionState}};
 use avian3d::dynamics::{integrator::{IntegrationSystems, VelocityIntegrationData}, solver::solver_body::SolverBody};
 use avian3d::prelude::{
-    Collider, CustomPositionIntegration, Physics, PhysicsSchedule,
-    PhysicsSystems, Position, RigidBody, ShapeCastConfig, SpatialQuery, SpatialQueryFilter,
+    Collider, ColliderOf, CollisionLayers, CustomPositionIntegration, Physics, PhysicsSchedule,
+    PhysicsSystems, Position, RigidBody, Sensor, ShapeCastConfig, SpatialQuery, SpatialQueryFilter,
     SubstepCount, SubstepSchedule,
 };
 use bevy::prelude::*;
@@ -145,16 +145,17 @@ fn integrate_character_position(
     physics_time: Res<Time<Physics>>,
     substeps: Res<SubstepCount>,
     spatial: SpatialQuery,
+    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>,
     mut characters: Query<(Entity, &mut SolverBody, &Position, &Collider, &LocomotionState,
         Option<&AlsNotifyLocomotionAction>, &RigidBody, Option<&als_core::dynamics::AlsMovementBaseDynamicsState>,
-        Has<SourceCharacterFullFrame>, Has<CustomPositionIntegration>), With<AlsCharacter>>,
+        Option<&CollisionLayers>, Has<SourceCharacterFullFrame>, Has<CustomPositionIntegration>), With<AlsCharacter>>,
 ) {
     if frame_time.delta() <= SOURCE_MAX_PHYSICS_DELTA {
         return;
     }
     let frame_step = frame_time.delta_secs() / substeps.0 as f32;
     let extra_step = (frame_time.delta_secs() - physics_time.delta_secs()) / substeps.0 as f32;
-    for (entity, mut body, position, collider, locomotion, action, rigid_body, base, full_frame, custom_position) in &mut characters {
+    for (entity, mut body, position, collider, locomotion, action, rigid_body, base, layers, full_frame, custom_position) in &mut characters {
         let movement = if full_frame {
             body.linear_velocity * frame_step
         } else if !custom_position && extra_step > 0.0 && *rigid_body == RigidBody::Dynamic
@@ -169,9 +170,14 @@ fn integrate_character_position(
             continue;
         };
         let start = position.0 + body.delta_position;
+        let layers = layers.copied().unwrap_or_default();
         let filter = SpatialQueryFilter::from_excluded_entities([entity]);
         let config = ShapeCastConfig::from_max_distance(distance);
-        let travel = spatial.cast_shape(collider, start, Quat::IDENTITY, direction, &config, &filter)
+        let travel = spatial.cast_shape_predicate(collider, start, Quat::IDENTITY, direction, &config, &filter,
+            &|candidate| candidates.get(candidate).is_ok_and(|(candidate_layers, sensor, owner)| {
+                !sensor && !owner.is_some_and(|owner| owner.body == entity)
+                    && layers.interacts_with(candidate_layers.copied().unwrap_or_default())
+            }))
             .map_or(distance, |hit| als_core::motion::movement_sweep_travel(distance, hit.distance));
         body.delta_position += *direction * travel;
     }
@@ -180,7 +186,7 @@ fn integrate_character_position(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use avian3d::prelude::{Collider, GravityScale, LinearVelocity, Position, RigidBody};
+    use avian3d::prelude::{Collider, CollisionLayers, GravityScale, LayerMask, LinearVelocity, Position, RigidBody, Sensor};
     use bevy::time::TimeUpdateStrategy;
 
     #[test]
@@ -225,6 +231,65 @@ mod tests {
             let expected = -9.81 * millis as f32 / 1000.0;
             assert!((velocity - expected).abs() < 1e-4,
                 "airborne gravity at {millis} ms: {velocity} != {expected}");
+        }
+    }
+
+    #[test]
+    fn full_frame_air_sweep_only_blocks_colliding_external_solids() {
+        let default = CollisionLayers::new(LayerMask::DEFAULT, LayerMask::DEFAULT);
+        let cases = [
+            ("other_membership", CollisionLayers::new(LayerMask(2), LayerMask(2)), false, false, false),
+            ("other_filter", CollisionLayers::new(LayerMask::DEFAULT, LayerMask(2)), false, false, false),
+            ("sensor", default, true, false, false),
+            ("same_body", default, false, true, false),
+            ("blocking", default, false, false, true),
+        ];
+        for (name, layers, sensor, attached, blocking) in cases {
+            let mut app = App::new();
+            app.add_plugins((
+                MinimalPlugins,
+                AssetPlugin::default(),
+                TransformPlugin,
+                avian3d::prelude::PhysicsPlugins::new(PostUpdate),
+                SourcePhysicsTimingPlugin,
+            ))
+            .init_asset::<Mesh>()
+            .add_message::<bevy::asset::AssetEvent<Mesh>>()
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(100)));
+            app.finish();
+            app.update();
+            let character = app.world_mut().spawn((
+                als_core::character::AlsCharacter,
+                LocomotionState::Air,
+                RigidBody::Dynamic,
+                Collider::cuboid(0.2, 0.2, 0.2),
+                CollisionLayers::new(LayerMask::DEFAULT, LayerMask::DEFAULT),
+                GravityScale(0.0),
+                Position(Vec3::ZERO),
+                LinearVelocity(Vec3::X * 3.75),
+                Transform::default(),
+            )).id();
+            let obstacle = app.world_mut().spawn((
+                Collider::cuboid(0.05, 0.4, 0.4),
+                layers,
+                Transform::from_xyz(0.3, 0.0, 0.0),
+            )).id();
+            if sensor {
+                app.world_mut().entity_mut(obstacle).insert(Sensor);
+            }
+            if attached {
+                app.world_mut().entity_mut(character).add_child(obstacle);
+            } else {
+                app.world_mut().entity_mut(obstacle).insert(RigidBody::Static);
+            }
+            app.update();
+            let position = app.world().get::<Position>(character).unwrap().x;
+            if blocking {
+                assert!(position < 0.3, "{name} must stop the air sweep: {position}");
+            } else {
+                assert!((position - 0.375).abs() < 1e-4,
+                    "{name} changed full-frame air motion: {position}");
+            }
         }
     }
 
