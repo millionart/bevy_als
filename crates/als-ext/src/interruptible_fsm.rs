@@ -1896,6 +1896,55 @@ mod tests {
         utils::testing::TestIoEnv,
     };
 
+    #[test]
+    #[ignore = "A44 red: FSM records one instead of the parent update weight"]
+    fn machine_weight_uses_the_parent_update_context() {
+        struct WeightedIo;
+
+        impl GraphIoEnv for WeightedIo {
+            fn get_data_back(&self, _: GraphInputPin, _: GraphContext) -> Result<DataValue, GraphError> {
+                Ok(DataValue::F32(0.4))
+            }
+
+            fn get_duration_back(&self, pin: GraphInputPin, _: GraphContext) -> Result<DurationData, GraphError> {
+                Err(GraphError::MissingGraphInputDuration(pin))
+            }
+
+            fn get_time_fwd(&self, _: GraphContext) -> Result<TimeUpdate, GraphError> {
+                Ok(TimeUpdate::Delta(0.02))
+            }
+        }
+
+        fn query(In(handle): In<Handle<AnimationGraph>>, resources: SystemResources) -> f32 {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let inputs = HashMap::new();
+            let env = WeightedIo;
+            let mut ctx = GraphContext::new(
+                arena.get_toplevel_id(), graph, &mut arena, &resources, &env,
+                Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs,
+            ).create_node_context(NodeId::default());
+            let initial = InterruptibleFsmNode::initial_state(
+                LowLevelStateId::HlState(StateId::default()), 0.0, 0,
+            );
+            ctx.state_mut_or_else(|| initial).unwrap();
+            InterruptibleFsmNode::default()
+                .record_state_weights(&LowLevelStateMachine::default(), &mut ctx)
+                .unwrap();
+            ctx.state::<InterruptibleFsmState>().unwrap().recorded_machine_weight()
+        }
+
+        let mut world = World::new();
+        world.insert_resource(Assets::<AnimationGraph>::default());
+        world.insert_resource(Assets::<GraphClip>::default());
+        world.insert_resource(Assets::<Skeleton>::default());
+        world.insert_resource(Assets::<StateMachine>::default());
+        let handle = world.resource_mut::<Assets<AnimationGraph>>().add(AnimationGraph::new());
+        assert_eq!(world.run_system_cached_with(query, handle).unwrap(), 0.4);
+    }
+
     fn fixture_pose(x: f32) -> Pose {
         Pose {
             paths: HashMap::from([(default(), 0)]),
