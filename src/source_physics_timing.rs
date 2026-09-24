@@ -153,7 +153,7 @@ fn integrate_character_position(
     candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>,
     mut characters: Query<(Entity, &mut SolverBody, &Position, &Collider, &LocomotionState,
         Option<&AlsNotifyLocomotionAction>, &RigidBody, Option<&als_core::dynamics::AlsMovementBaseDynamicsState>,
-        Option<&CollisionLayers>, Has<SourceCharacterFullFrame>, Has<CustomPositionIntegration>,
+        Has<SourceCharacterFullFrame>, Has<CustomPositionIntegration>,
         &mut als_core::character::AlsCmcAdapterRuntime), With<AlsCharacter>>,
 ) {
     if frame_time.delta() <= SOURCE_MAX_PHYSICS_DELTA {
@@ -161,7 +161,7 @@ fn integrate_character_position(
     }
     let frame_step = frame_time.delta_secs() / substeps.0 as f32;
     let extra_step = (frame_time.delta_secs() - physics_time.delta_secs()) / substeps.0 as f32;
-    for (entity, mut body, position, collider, locomotion, action, rigid_body, base, layers, full_frame, custom_position, mut runtime) in &mut characters {
+    for (entity, mut body, position, collider, locomotion, action, rigid_body, base, full_frame, custom_position, mut runtime) in &mut characters {
         let movement = if full_frame {
             body.linear_velocity * frame_step
         } else if !custom_position && extra_step > 0.0 && *rigid_body == RigidBody::Dynamic
@@ -173,12 +173,8 @@ fn integrate_character_position(
             continue;
         };
         let start = position.0 + body.delta_position;
-        let layers = layers.copied().unwrap_or_default();
         let filter = SpatialQueryFilter::from_excluded_entities([entity]);
-        let accepts = |candidate| candidates.get(candidate).is_ok_and(|(candidate_layers, sensor, owner)| {
-            !sensor && !owner.is_some_and(|owner| owner.body == entity)
-                && layers.interacts_with(candidate_layers.copied().unwrap_or_default())
-        });
+        let accepts = |candidate| als_core::motion::character_blocks_collider(entity, candidate, &candidates);
         let mut remaining = movement;
         let mut remaining_time = frame_step;
         let mut previous_normal = None;
@@ -477,9 +473,10 @@ mod tests {
             if frame == 0 {
                 let position = app.world().get::<Position>(character).unwrap().0;
                 let (floor, contact) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
-                    collisions: avian3d::prelude::Collisions| {
+                    collisions: avian3d::prelude::Collisions,
+                    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>| {
                     let floor = als_core::motion::find_ground_floor(&spatial, position, 0.9, 0.3,
-                        &SpatialQueryFilter::from_excluded_entities([character]));
+                        &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates);
                     let contact = collisions.collisions_with(character).any(|pair| pair.manifolds.iter()
                         .any(|manifold| manifold.points.iter().any(|point| point.normal_impulse > 0.0)));
                     (floor, contact)
@@ -491,6 +488,88 @@ mod tests {
             }
         }
         assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Grounded);
+    }
+
+    #[test]
+    fn swept_landing_ignores_nonblocking_floor_candidates() {
+        use als_core::character::{AlsCharacterBundle, AlsCharacterPlugin, AlsCollisionLayer};
+        use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
+        use als_core::motion::{AlsMotionPlugin, initial_als_control_scheme_config};
+        use als_core::params::AlsMovementParams;
+        use als_core::transition::AlsStateTransitionPlugin;
+        use bevy_tnua::{TnuaControllerPlugin, TnuaPipelineSystems, TnuaProximitySensor, TnuaSensorsEntities};
+        use bevy_tnua_avian3d::TnuaAvian3dPlugin;
+        let blocking = CollisionLayers::new(AlsCollisionLayer::Default, AlsCollisionLayer::Default);
+        let mut failures = Vec::new();
+        for case in ["none", "sensor", "membership", "response", "attached", "blocking"] {
+            let mut app = App::new();
+            app.add_plugins((
+                MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+                avian3d::prelude::PhysicsPlugins::new(PostUpdate),
+                TnuaAvian3dPlugin::new(Update), TnuaControllerPlugin::<AlsControlScheme>::new(Update),
+                AlsStateTransitionPlugin, AlsCharacterPlugin, AlsMotionPlugin, SourcePhysicsTimingPlugin,
+            ))
+            .init_asset::<Mesh>()
+            .add_message::<bevy::asset::AssetEvent<Mesh>>()
+            .insert_resource(SubstepCount(6))
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(100)))
+            .add_systems(Update, (|entities: Query<&TnuaSensorsEntities<AlsControlScheme>>,
+                mut sensors: Query<&mut TnuaProximitySensor>| {
+                for entities in &entities {
+                    if let Some(sensor) = entities.ground {
+                        sensors.get_mut(sensor).unwrap().output = None;
+                    }
+                }
+            }).after(TnuaPipelineSystems::Sensors).before(TnuaPipelineSystems::Logic));
+            app.finish();
+            app.update();
+            let mut value = AlsMovementParams::default();
+            value.acceleration.max_acceleration = 0.0;
+            let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(value.clone());
+            let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>()
+                .add(initial_als_control_scheme_config(&value));
+            let mut bundle = AlsCharacterBundle::new(params, config);
+            bundle.transform.translation = Vec3::Y * 5.0;
+            let character = app.world_mut().spawn((bundle, blocking)).id();
+            for _ in 0..3 { app.update(); }
+            assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Air);
+            let start = Vec3::Y * 2.0;
+            app.world_mut().get_mut::<Position>(character).unwrap().0 = start;
+            app.world_mut().get_mut::<Transform>(character).unwrap().translation = start;
+            app.world_mut().get_mut::<LinearVelocity>(character).unwrap().0 = Vec3::new(3.75, 0.0, 3.75);
+            let normal = Vec3::new(-3.0_f32.sqrt() * 0.5, 0.5, 0.0);
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.02, 20.0, 20.0), blocking,
+                Transform::from_translation(start - normal * 0.87)
+                    .with_rotation(Quat::from_rotation_arc(Vec3::X, normal))));
+            let auxiliary = (case != "none").then(|| {
+                let layers = match case {
+                    "membership" => CollisionLayers::new(AlsCollisionLayer::Visibility, LayerMask::ALL),
+                    "response" => CollisionLayers::new(AlsCollisionLayer::Default, AlsCollisionLayer::Visibility),
+                    _ => blocking,
+                };
+                let auxiliary = app.world_mut().spawn((Collider::cuboid(10.0, 0.02, 10.0), layers,
+                    Transform::from_xyz(0.0, if case == "attached" { -0.911 } else { 1.053723 }, 0.0))).id();
+                if case == "attached" {
+                    app.world_mut().entity_mut(character).add_child(auxiliary);
+                } else {
+                    app.world_mut().entity_mut(auxiliary).insert(RigidBody::Static);
+                }
+                if case == "sensor" { app.world_mut().entity_mut(auxiliary).insert(Sensor); }
+                auxiliary
+            });
+            app.update();
+            let position = app.world().get::<Position>(character).unwrap().0;
+            let mode = *app.world().get::<LocomotionState>(character).unwrap();
+            let base = app.world().get::<als_core::dynamics::AlsMovementBase>(character).unwrap().entity;
+            let expected = if case == "blocking" { LocomotionState::Grounded } else { LocomotionState::Air };
+            if case != "blocking" {
+                assert!(position.x < 0.35, "{case} missed the real slope: {position:?}");
+            }
+            if mode != expected || base != if case == "blocking" { auxiliary } else { None } {
+                failures.push((case, mode, base, auxiliary, position));
+            }
+        }
+        assert!(failures.is_empty(), "swept landing accepted nonblocking floors: {failures:?}");
     }
 
     #[test]

@@ -1,6 +1,6 @@
 use super::*;
 use als_core::aim::AlsLastFreeRotationMode;
-use avian3d::prelude::{Collisions, SpatialQuery, SpatialQueryFilter};
+use avian3d::prelude::{ColliderOf, CollisionLayers, Collisions, Sensor, SpatialQuery, SpatialQueryFilter};
 use bevy_tnua::TnuaController;
 use crate::playground_collision::PlaygroundMeshColliderBuilt;
 
@@ -149,6 +149,7 @@ pub(super) fn observe(
     motion: MotionProbe,
     spatial: SpatialQuery,
     collisions: Collisions,
+    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>,
     characters: Query<(&Position, &LinearVelocity, &LocomotionState, &Gait, &AlsInputOverride, &AlsMovementParamsHandle,
         &Transform, &Stance, &TnuaController<als_core::control_scheme::AlsControlScheme>), With<AlsCharacter>>,
     avatars: Query<&AnimatedSceneInstance, With<AlsCharacterAvatar>>,
@@ -166,7 +167,8 @@ pub(super) fn observe(
     let graph = locomotion_graph_sample(player, &motion);
     let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height  } else { params.crouch.standing_capsule_half_height } * transform.scale.y;
     let radius = params.crouch.standing_capsule_radius * transform.scale.x.min(transform.scale.z);
-    let floor = als_core::motion::find_ground_floor(&spatial, position.0, half, radius, &SpatialQueryFilter::from_excluded_entities([character]));
+    let floor = als_core::motion::find_ground_floor(&spatial, position.0, half, radius,
+        &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates);
     let contact = collisions.collisions_with(character).any(|pair| pair.manifolds.iter().any(|manifold| {
         let normal = if pair.collider1 == character { -manifold.normal } else { manifold.normal };
         normal.y > 0.0 && manifold.points.iter().any(|point| point.normal_impulse > 0.0)

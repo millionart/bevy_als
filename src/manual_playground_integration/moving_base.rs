@@ -3,7 +3,7 @@ use als_core::dynamics::{AlsMovementBase, AlsComponentVelocity, component_veloci
 use als_core::mantle::{AlsMantleTargetBase, AlsMantleTargetPermission, MantleDetectionInput, detect_mantle};
 use als_core::motion::AlsActualVelocity;
 use als_ext::{PlaygroundKinematic, PlaygroundKinematicKind};
-use avian3d::prelude::{Collider, ColliderOf, SpatialQuery, SpatialQueryFilter};
+use avian3d::prelude::{Collider, ColliderOf, CollisionLayers, Sensor, SpatialQuery, SpatialQueryFilter};
 
 const POSITION_TOLERANCE: f32 = 0.001;
 
@@ -178,6 +178,7 @@ pub(super) fn drive(
         &LocomotionState, &AlsMovementParamsHandle), With<AlsCharacter>>,
     params: Res<Assets<AlsMovementParams>>,
     spatial: SpatialQuery,
+    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>,
     velocities: Query<(&RigidBody, &LinearVelocity, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
     permissions: Query<Option<&AlsMantleTargetPermission>, Without<AlsCharacter>>,
     owners: Query<&ColliderOf>,
@@ -207,7 +208,7 @@ pub(super) fn drive(
         Stage::PrepareMantle => {
             let horizontal = mantle_approach(path.kind, global, bounds.half_extents(), radius);
             als_core::motion::find_ground_floor(&spatial, horizontal + Vec3::Y * (half + 0.024), half, radius,
-                &SpatialQueryFilter::from_excluded_entities([character, body, collider]))
+                &SpatialQueryFilter::from_excluded_entities([character, body, collider]), character, &candidates)
                 .map(|(floor, _, _)| horizontal.with_y(floor + 0.024))
         }
         _ => None,

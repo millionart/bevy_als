@@ -42,7 +42,7 @@
 
 | 编号 | 级别 | 处理状态 | 反馈 |
 |---|---|---|---|
-| A01 | P1 | 完成：BF127.N2/N3 复验 | 角色运动完整帧时间与封顶物理时间不一致 |
+| A01 | P1 | 复开：BF128.N4 落地查询过滤 | 角色运动完整帧时间与封顶物理时间不一致 |
 | A02 | P2 | 完成 | 旋转响应角速度使用弧度每秒却除以角度每秒阈值 |
 | A03 | P2 | 完成 | 第一人称非瞄准遗漏身体瞄准旋转和限角分支 |
 | A04 | P2 | 完成 | 空中旋转沿用地面目标选择而非源端独立策略 |
@@ -222,7 +222,7 @@
 
   完成摘要：同 `target_game/play` 的原 `moving_base` 场景 public runner manual/validator `0/0`，877 个基座 trace 相邻时间仅一次 `0.2 s`，其它为 `1/60 s`；该帧 `Flight/Air`、位移 `1.1294 m`，水平位移与当帧速度乘 200 ms 的误差约 `0.0087 m`，会拒绝仅按 `1/30 s` 积分的反例。10/10 功能结果含 Ride/Jump/新支撑/Mantle/返回，2 个姿态窗口通过；graph error/fault/temporal/watchdog 均为 0，渲染/贴花通过。validator 自测单次、缺失、重复、未移动、错误模式和封顶位移边界通过，原错误 Exit 帧报告保留。最终只保留场景专用一次性时钟注入与校验，无生产运动/图更改；完整性能预算依用户暂停范围延期。
 
-- [x] **BF124.A01 — 角色运动完整帧时间与封顶物理时间**：原轮开始：2026-09-23 08:32:03 +08:00；原预估结束：2026-09-23 08:47:03 +08:00；原实际结束：2026-09-23 08:32:33 +08:00；结果：原 S1→S3b4、BF125.R1/R2 当时分别通过；最新复审按 BF126.N1 再复开。旧 Air 墙滑测试从已贴墙位置开始且只要求切向 >0.05m，漏掉预测范围外首撞；新原生首撞/二墙/起点与地面支撑补时9/9、最终原 Playground 四场功能 Gate 通过，N1 完成，既有 R1/R2 继续关闭。完整性能预算延期。
+- [ ] **BF124.A01 — 角色运动完整帧时间与封顶物理时间**：原轮开始：2026-09-23 08:32:03 +08:00；原预估结束：2026-09-23 08:47:03 +08:00；原实际结束：2026-09-23 08:32:33 +08:00；结果：原 S1→S3b4、BF125.R1/R2 当时分别通过；最新复审按 BF126.N1 再复开。旧 Air 墙滑测试从已贴墙位置开始且只要求切向 >0.05m，漏掉预测范围外首撞；新原生首撞/二墙/起点与地面支撑补时9/9、最终原 Playground 四场功能 Gate 通过，N1 完成，既有 R1/R2 继续关闭。完整性能预算延期。
 
   汇总：UE 角色 PhysWalking 消费完整帧，Chaos 普通刚体只消费封顶时间；目标已在公开 Avian 扩展点实现 Grounded/Air 角色剩余时间的逐子步扫掠，维持 Ragdoll、Mantle 与移动基座的源所有权。100 ms/200 ms 最小位移反例、墙/地接触、平台相对运动及必要消融通过；原 Playground startup、grounded/uphill、moving_base 六种固定帧率与单次 200 ms Air 卡顿的公共功能报告通过，最终图错误、fault、temporal、watchdog 均为 0。已核对 55 条反馈索引唯一且齐全（A01–A55）、S1→S3b4 的分项提交和无未提交生产代码；A02 是下一执行项。
 
@@ -1549,7 +1549,7 @@
 
   首次 Air runtime失败摘要（2026-09-24 23:33:00 +08:00）：10 FPS uphill_jump 的case10/第二组冲刺在Flight停滞5s，manual91/validator1，图/fault/temporal为空。胶囊中心y=2.386324m，现有FindFloor支撑中心约2.384993m、踏面1.56m，vy/vz=0、无Avian冲量，因落地后备只接受物理冲量而持续Air。旧最终报告同一路径碰撞后vy=+0.166675m/s，说明旧错误上冲曾继续推动它跨到传感器支撑。fresh UE `PhysFalling` 直接以本次阻挡Hit调用`IsValidLandingSpot`，边缘再经`ShouldCheckForValidLandingSpot/FindFloor`验证；目标自定义扫掠处理位移后丢弃命中，未传入现有落地消费者。停止依赖场景，先补精确局部ALSTnuaAvian边缘反例；保留失败报告，不重复启动猜测。
 
-- [x] **BF127.N2R — 扫掠命中接入现有胶囊落地验证**：开始：2026-09-24 23:34:00 +08:00；预估结束：2026-09-25 00:19:00 +08:00；实际结束：2026-09-24 23:56:00 +08:00；偏差：-23m00s；结果：真实Air/无物理冲量的台阶边缘首帧落地red→green，A01 focused12/12与核心landing15/15；拆分结果：静态闭环完成，继续S2最终二进制真实验收。估时依据：已证实的扫掠→核心落地消费者唯一缺边、现有胶囊FloorResult/下半球/边缘验证和BF116.02d1的36组合；新增边缘真实插件红绿、无碰撞近地反例及命中生命周期消融，估算窗口45分钟。有限复开已归档BF116.02d的落地命中消费者；原Gate只有Avian冲量和60/120Hz组合，未覆盖自定义扫掠无冲量。仅传递当帧合格阻挡信号，复用原落地几何验证，不扩大阈值、不强写动画状态。
+- [ ] **BF127.N2R — 扫掠命中接入现有胶囊落地验证**：开始：2026-09-24 23:34:00 +08:00；预估结束：2026-09-25 00:19:00 +08:00；实际结束：2026-09-24 23:56:00 +08:00；偏差：-23m00s；结果：真实Air/无物理冲量的台阶边缘首帧落地red→green，A01 focused12/12与核心landing15/15；拆分结果：静态闭环完成，继续S2最终二进制真实验收。估时依据：已证实的扫掠→核心落地消费者唯一缺边、现有胶囊FloorResult/下半球/边缘验证和BF116.02d1的36组合；新增边缘真实插件红绿、无碰撞近地反例及命中生命周期消融，估算窗口45分钟。有限复开已归档BF116.02d的落地命中消费者；原Gate只有Avian冲量和60/120Hz组合，未覆盖自定义扫掠无冲量。仅传递当帧合格阻挡信号，复用原落地几何验证，不扩大阈值、不强写动画状态。
 
   S2拆分记录：开始23:24、预估23:59，首次runtime于23:29失败，静态回读截至23:33，实际本轮结束23:33，偏差-26m，结果startup通过、Air失败、grounded未开始。N2/N3的独立反例与静态修复仍通过；S2在N2R静态Gate后核定后续窗口并使用新二进制/新目录复验，不把未跑场景计通过。
 
@@ -1574,3 +1574,23 @@
   最终runtime/收口摘要：最终bool版本同target_game/play/jobs2预构建及四场新报告均manual/validator0/0：startup、uphill_jump/10 FPS（6/6功能、18/18窗口）、grounded/10 FPS（15/15、9/9）、moving_base（10/10、2/2）；四场primary为空、graph/fault/temporal均0、watchdog未触发、渲染/贴花通过，截图0。首次case10原位置首碰即进入合法Grounded，后续所有上跳路线完成；原失败报告保留。四场完整报告仍因原动画求值p95预算超限而full_pass=false，只授予功能验收。
 
   N2/N3最终处理：保留源Falling防上冲、两法线交线、修正位移/剩余时间速度及三次有界扫掠；合法跳升、单墙、正交/非正交/镜像角落和碰撞过滤不回归。N2R只用一个一次性bool接通已解决扫掠碰撞与原胶囊落地验证，删除无source依据的实体匹配。原生physics12/12、als-ext motion5/5、核心landing15/15（含36组上跳）与必要消融通过；公共validator53自测、资产边界0 issue。精确N2/N3几何由原生夹具证明，原Playground四场证明真实角色路径，未声称其直接复现所有合成几何。A01、BF126.N1-S2及有限复开的BF116.02d恢复完成；R1/R2和其他已完成项保持原结论。本批次无剩余功能Gate，未改图、转换器、资产、依赖或性能阈值。
+
+
+## BF128 — 扫掠落地查询的完整阻挡合同
+
+来源：内置浏览器对 `380f806` 的最新复审N4/P2；N1–N3原反例继续关闭。fresh本地ALS插件 `ComputeFloorDist` 在首次胶囊扫掠、缩半径重试和射线中传递同一 `InitCollisionParams/ResponseParam` 与角色ObjectType。锁定Avian0.7的默认SpatialQueryFilter为ALL，mask只看候选memberships，不能替代双侧响应、Sensor与同体排除。
+
+有限复开A01、BF127.N2R及其归档BF116.02d落地消费者；旧Gate证明阻挡信号/几何/生命周期，漏掉“阻挡陡坡触发信号、非阻挡平面成为最近地面”。本轮闭包：移动扫掠阻挡规则→公共find_ground_floor→缩半径重试/法线射线→Grounded支持、落地与base.entity。检查全部调用者并迁移同一过滤规则；不恢复同实体限制，不改变N2/N3滑动或阈值。
+
+- [x] **BF128.N4-S1 — source与原生过滤反例、公共查询修复**：开始：2026-09-25 00:35:00 +08:00；预估结束：2026-09-25 01:20:00 +08:00；实际结束：2026-09-25 01:01:40 +08:00；偏差：-18m20s；结果：N4三类误落地原生反例红→绿、physics13/13、core motion33/33、同体及法线射线消融红→恢复绿；拆分结果：S1完成，S2同入口功能验收。估时依据：本地ALS一段ComputeFloorDist、Avian两个predicate API、公共找地三个生产消费者及步阶/报告调用者；沿用BF127的Air初始化与100ms/6子步夹具，上一轮相邻静态闭环实际22分钟。Gate：真实斜面提供扫掠信号，Sensor/所属层/反向响应/同体候选不得落地或成为基座，合法阻挡面仍可落地；primary/retry/normal-ray同规则，focused回归和消融通过，独立提交。
+- [ ] **BF128.N4-S2 — 原Playground功能Gate与有限复开收口**：依赖S1；开始：2026-09-25 01:01:40 +08:00；预估结束：2026-09-25 01:16:40 +08:00。剩余估时依据：上一轮最终预构建约3分钟、四场公共Gate约1分钟及读报告/提交约4分钟，本轮增加stairs并预留正常验证开销，按15分钟窗口执行。估时依据：沿用实际target_game/play限流预构建、公共runner与BF127四场记录；Gate为startup→10 FPS uphill_jump→grounded→moving_base，若步阶共享查询修改则补stairs。保持原地形/角色/相机、CaptureCount0、FunctionalOnly及原性能延期范围。
+
+
+  S1 source/失败反例摘要：原生ALSTnuaAvian的100ms/6子步、稳定Air、无水平加速度，在真实60°阻挡斜面提供扫掠信号后，Sensor/所属层不匹配/反向filters拒绝三种辅助面均错误Grounded且base.entity等于辅助面；帧末中心约(0.274214,1.964747,0.375001)m。无辅助面、真实阻挡面及现成单墙/双墙对照保留。公共API现在要求角色及候选碰撞元数据；首次/重试/法线ray与base选择共用一个predicate，空中生产扫掠也调用该规则，未改变Air信号生命周期或滑动公式。
+
+  共享闭包补充：fresh UE `UPrimitiveComponent::InitSweepCollisionParams` 同时读取BodyInstance响应和MoveIgnoreActors/Components，因此公共找地的步阶调用者，其前移/上移/余量扫掠也须保持同一阻挡策略。有限复开BF116.02b1a的查询合法性；旧跨阶Gate仅有普通阻挡几何，未覆盖Sensor/反向响应/同体候选。新增共享规则放既有als-core/motion：als-ext当前依赖als-core，迁入ext会造成反向依赖，无须为一条角色查询规则拆新crate。原Playground地形与参数不改，S2补stairs回归；原生接口消费者和两处报告/路线调用同步迁移，不保留可漏过滤的旧入口。
+
+
+  S1最终source/static摘要：全部公共找地调用者已迁移，单个角色阻挡predicate检查双侧CollisionLayers、Sensor和ColliderOf同体；find_ground_floor的两次不同胶囊重试复用同一walkable_floor_hit，主shape和法线ray均传相同predicate，落地/保持地面/base选择与步阶辅助同规则。无图、转换器、资产、依赖或碰撞几何阈值更改，N1–N3继续关闭。原生N4六种变体13项physics总体通过；该夹具将Tnua地面传感器输出隔离为无支持，明确检验实际移动扫掠→post-physics落地/基座消费者，并未伪造sweep_contact。额外核心真实query覆盖同体、双侧响应及被Sensor遮住的合法边缘法线ray；移除owner排除即返回附属面，移除ray过滤即丢失合法地面，恢复后通过。core motion33/33覆盖原跨阶/下阶/上跳/移动支撑；watchdog自测、公共validator53自测通过，资产边界0 issue。
+
+  runtime前摘要：最终源码静态闭环已完成。现在按run_manual.bat实际target_game/play、jobs2预构建，随后startup→uphill_jump/10 FPS→grounded/10 FPS→moving_base→stairs。报告均保留原地形、角色、相机，CaptureCount0/FunctionalOnly；性能预算继续延期，功能与姿态/覆盖/进展判据不放宽。

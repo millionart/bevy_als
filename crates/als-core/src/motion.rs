@@ -1,6 +1,6 @@
 use avian3d::prelude::{
-    Collider, Collisions, ContactPair, ContactPairFlags, Gravity, GravityScale, LinearVelocity, PhysicsSystems, Position, Rotation,
-    RigidBody, ShapeCastConfig, ShapeHitData, SpatialQuery, SpatialQueryFilter, SpeculativeMargin,
+    Collider, ColliderOf, CollisionLayers, Collisions, ContactPair, ContactPairFlags, Gravity, GravityScale, LinearVelocity, PhysicsSystems, Position, Rotation,
+    RigidBody, Sensor, ShapeCastConfig, ShapeHitData, SpatialQuery, SpatialQueryFilter, SpeculativeMargin,
 };
 use bevy::asset::Assets;
 use bevy::prelude::*;
@@ -2876,6 +2876,7 @@ fn grounded_step_up_system(
     time: Res<Time>,
     mut commands: Commands,
     spatial_query: SpatialQuery,
+    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>,
     params_assets: Res<Assets<AlsMovementParams>>,
     blocked: Query<(), With<AlsMovementInputBlocked>>,
     mut q: Query<
@@ -2916,6 +2917,7 @@ fn grounded_step_up_system(
         };
         let center = position.0;
         let filter = SpatialQueryFilter::from_excluded_entities([entity]);
+        let accepts = |candidate| character_blocks_collider(entity, candidate, &candidates);
         let mut forward_config = ShapeCastConfig {
             ignore_origin_penetration: true,
             ..ShapeCastConfig::from_max_distance(distance)
@@ -2924,7 +2926,7 @@ fn grounded_step_up_system(
         let mut raised = center;
         let mut remaining_delta = delta;
         let mut initial_floor_y = None;
-        if let Some(hit) = spatial_query.cast_shape(capsule, center, Quat::IDENTITY, direction, &forward_config, &filter) {
+        if let Some(hit) = spatial_query.cast_shape_predicate(capsule, center, Quat::IDENTITY, direction, &forward_config, &filter, &accepts) {
             let advance = *direction * movement_sweep_travel(distance, hit.distance);
             raised += advance;
             remaining_delta -= advance;
@@ -2942,22 +2944,22 @@ fn grounded_step_up_system(
             if hit.point1.y <= center.y - half - clearance || hit.point1.y > center.y + half - radius {
                 continue;
             }
-            let Some((_, impact_y, _)) = find_ground_floor(&spatial_query, center, half, radius, &filter) else { continue };
+            let Some((_, impact_y, _)) = find_ground_floor(&spatial_query, center, half, radius, &filter, entity, &candidates) else { continue };
             initial_floor_y = Some(impact_y);
             let up_config = ShapeCastConfig {
                 ignore_origin_penetration: true,
                 ..ShapeCastConfig::from_max_distance(MAX_STEP_HEIGHT - clearance)
             };
-            let lift = spatial_query.cast_shape(capsule, raised, Quat::IDENTITY, Dir3::Y, &up_config, &filter)
+            let lift = spatial_query.cast_shape_predicate(capsule, raised, Quat::IDENTITY, Dir3::Y, &up_config, &filter, &accepts)
                 .map_or(up_config.max_distance, |hit| hit.distance);
             raised.y += lift;
-            if spatial_query.cast_shape(capsule, raised, Quat::IDENTITY, direction, &forward_config, &filter).is_some() {
+            if spatial_query.cast_shape_predicate(capsule, raised, Quat::IDENTITY, direction, &forward_config, &filter, &accepts).is_some() {
                 continue;
             }
         }
         let destination = raised + remaining_delta;
         let Some(floor) = walkable_floor_hit(&spatial_query, capsule, radius, destination,
-            MAX_STEP_HEIGHT + clearance * 2.0, &filter) else {
+            MAX_STEP_HEIGHT + clearance * 2.0, &filter, &accepts) else {
             continue;
         };
         let next_y = destination.y - floor.distance + clearance;
@@ -2980,10 +2982,19 @@ fn grounded_step_up_system(
     }
 }
 
+pub fn character_blocks_collider(character: Entity, candidate: Entity,
+    candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>) -> bool {
+    let layers = candidates.get(character).ok().and_then(|(layers, _, _)| layers).copied().unwrap_or_default();
+    candidate != character && candidates.get(candidate).is_ok_and(|(candidate_layers, sensor, owner)| {
+        !sensor && !owner.is_some_and(|owner| owner.body == character)
+            && layers.interacts_with(candidate_layers.copied().unwrap_or_default())
+    })
+}
+
 fn walkable_floor_hit(spatial: &SpatialQuery, capsule: &Collider, radius: f32, origin: Vec3,
-    distance: f32, filter: &SpatialQueryFilter) -> Option<ShapeHitData> {
-    let hit = spatial.cast_shape(capsule, origin, Quat::IDENTITY, Dir3::NEG_Y,
-        &ShapeCastConfig::from_max_distance(distance), filter)?;
+    distance: f32, filter: &SpatialQueryFilter, accepts: &dyn Fn(Entity) -> bool) -> Option<ShapeHitData> {
+    let hit = spatial.cast_shape_predicate(capsule, origin, Quat::IDENTITY, Dir3::NEG_Y,
+        &ShapeCastConfig::from_max_distance(distance), filter, accepts)?;
     let reduced_radius = (radius - EDGE_REJECT_DISTANCE).max(SWEEP_EDGE_MIN_RADIUS);
     if Vec2::new(hit.point1.x - origin.x, hit.point1.z - origin.z).length_squared() >= reduced_radius * reduced_radius {
         return None;
@@ -2991,7 +3002,7 @@ fn walkable_floor_hit(spatial: &SpatialQuery, capsule: &Collider, radius: f32, o
     let mut normal = hit.normal1;
     if normal.y < deg_to_rad(MAX_SLOPE_DEGREES).cos() {
         let ray_origin = hit.point1 + (Vec3::Y - Vec3::new(normal.x, 0.0, normal.z)) * EDGE_REJECT_DISTANCE;
-        if let Some(surface) = spatial.cast_ray(ray_origin, Dir3::NEG_Y, EDGE_REJECT_DISTANCE * 2.0, false, filter)
+        if let Some(surface) = spatial.cast_ray_predicate(ray_origin, Dir3::NEG_Y, EDGE_REJECT_DISTANCE * 2.0, false, filter, accepts)
             .filter(|surface| surface.entity == hit.entity) {
             normal = surface.normal;
         }
@@ -3000,14 +3011,16 @@ fn walkable_floor_hit(spatial: &SpatialQuery, capsule: &Collider, radius: f32, o
 }
 
 pub fn find_ground_floor(spatial: &SpatialQuery, origin: Vec3, half: f32, radius: f32,
-    filter: &SpatialQueryFilter) -> Option<(f32, f32, Entity)> {
+    filter: &SpatialQueryFilter, character: Entity,
+    candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>) -> Option<(f32, f32, Entity)> {
+    let accepts = |candidate| character_blocks_collider(character, candidate, candidates);
     for (shrink_scale, radius_reduction) in [(FLOOR_SWEEP_SHRINK_FRACTION, 0.0),
         (FLOOR_RETRY_SHRINK_FRACTION, SWEEP_EDGE_MIN_RADIUS)] {
         let shrink_height = (half - radius) * shrink_scale;
         let sweep_radius = radius - radius_reduction;
         let capsule = als_character_capsule((half - shrink_height).max(sweep_radius), sweep_radius);
         if let Some(hit) = walkable_floor_hit(spatial, &capsule, sweep_radius, origin,
-            MAX_STEP_HEIGHT + MAX_FLOOR_DISTANCE + shrink_height, filter) {
+            MAX_STEP_HEIGHT + MAX_FLOOR_DISTANCE + shrink_height, filter, &accepts) {
             return Some((origin.y - hit.distance + shrink_height, hit.point1.y, hit.entity));
         }
     }
@@ -3026,6 +3039,7 @@ fn resolved_walkable_contact(contact: &ContactPair, character: Entity) -> bool {
 pub(crate) fn locomotion_state_sync_system(
     mut commands: Commands,
     spatial: SpatialQuery,
+    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>,
     params_assets: Res<Assets<AlsMovementParams>>,
     blocked: Query<(), With<AlsMovementInputBlocked>>,
     collisions: Collisions,
@@ -3067,7 +3081,7 @@ pub(crate) fn locomotion_state_sync_system(
             let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height } * transform.scale.y;
             let radius = params.crouch.standing_capsule_radius * transform.scale.x.min(transform.scale.z);
             let filter = SpatialQueryFilter::from_excluded_entities([entity]);
-            if let Some((floor_center_y, _, floor)) = find_ground_floor(&spatial, position.0, half, radius, &filter) {
+            if let Some((floor_center_y, _, floor)) = find_ground_floor(&spatial, position.0, half, radius, &filter, entity, &candidates) {
                 let floor_distance = position.y - floor_center_y;
                 let next_y = if (MIN_FLOOR_DISTANCE..=MAX_FLOOR_DISTANCE).contains(&floor_distance) {
                     position.y
@@ -3101,7 +3115,7 @@ pub(crate) fn locomotion_state_sync_system(
             && params_assets.get(handle.id()).is_some_and(|params| {
                 let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height } * transform.scale.y;
                 let radius = params.crouch.standing_capsule_radius * transform.scale.x.min(transform.scale.z);
-                find_ground_floor(&spatial, position.0, half, radius, &SpatialQueryFilter::from_excluded_entities([entity]))
+                find_ground_floor(&spatial, position.0, half, radius, &SpatialQueryFilter::from_excluded_entities([entity]), entity, &candidates)
                     .is_some_and(|(center, impact, _)| (position.y - center).abs() <= MAX_FLOOR_DISTANCE
                         && impact < position.y - half + radius)
             });
@@ -3129,7 +3143,7 @@ pub(crate) fn locomotion_state_sync_system(
                 let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height } * transform.scale.y;
                 let radius = params.crouch.standing_capsule_radius * transform.scale.x.min(transform.scale.z);
                 floor_entity = find_ground_floor(&spatial, position.0, half, radius,
-                    &SpatialQueryFilter::from_excluded_entities([entity])).map(|(_, _, entity)| entity);
+                    &SpatialQueryFilter::from_excluded_entities([entity]), entity, &candidates).map(|(_, _, entity)| entity);
             }
             base.entity = if *current == LocomotionState::Grounded { floor_entity } else { None };
             if let Some(entity) = base.entity && let Ok(global) = transforms.compute_global_transform(entity) {
@@ -3308,8 +3322,9 @@ mod tests {
                                 break;
                             }
                             if airborne && velocity.y.abs() < 0.001 {
-                                let supported = app.world_mut().run_system_once(move |spatial: SpatialQuery, collisions: Collisions| {
-                                    let floor = find_ground_floor(&spatial, position, 0.9, 0.3, &SpatialQueryFilter::from_excluded_entities([character]));
+                                let supported = app.world_mut().run_system_once(move |spatial: SpatialQuery, collisions: Collisions,
+                                    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>| {
+                                    let floor = find_ground_floor(&spatial, position, 0.9, 0.3, &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates);
                                     let contact = collisions.collisions_with(character).any(|pair| pair.manifolds.iter().any(|manifold| {
                                         let normal = if pair.collider1 == character { -manifold.normal } else { manifold.normal };
                                         normal.y > 0.0 && manifold.points.iter().any(|point| point.normal_impulse > 0.0)
@@ -3318,8 +3333,9 @@ mod tests {
                                 }).unwrap();
                                 supported_air_frames = if supported { supported_air_frames + 1 } else { 0 };
                                 if supported_air_frames >= 2 {
-                                    let evidence = app.world_mut().run_system_once(move |spatial: SpatialQuery, collisions: Collisions| {
-                                        let floor = find_ground_floor(&spatial, position, 0.9, 0.3, &SpatialQueryFilter::from_excluded_entities([character]));
+                                    let evidence = app.world_mut().run_system_once(move |spatial: SpatialQuery, collisions: Collisions,
+                                    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>| {
+                                        let floor = find_ground_floor(&spatial, position, 0.9, 0.3, &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates);
                                         let normals: Vec<_> = collisions.collisions_with(character).flat_map(|pair| pair.manifolds.iter().map(|manifold| {
                                             let normal = if pair.collider1 == character { -manifold.normal } else { manifold.normal };
                                             (normal, manifold.points.iter().map(|point| (point.normal_speed, point.normal_impulse)).collect::<Vec<_>>())
@@ -3378,6 +3394,56 @@ mod tests {
             }
         }
         assert!(failures.is_empty(), "Uphill landing failed: {failures:?}");
+    }
+
+    #[test]
+    fn ground_floor_queries_reject_nonblocking_candidates_and_preserve_edge_normals() {
+        use crate::character::AlsCollisionLayer;
+        use bevy::ecs::system::RunSystemOnce;
+        let blocking = CollisionLayers::new(AlsCollisionLayer::Default, AlsCollisionLayer::Default);
+        for case in ["sensor", "membership", "response", "attached", "edge_sensor"] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+                avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+                .init_asset::<Mesh>().add_message::<bevy::asset::AssetEvent<Mesh>>();
+            app.finish();
+            let character = app.world_mut().spawn((RigidBody::Kinematic, blocking, Transform::default())).id();
+            let edge = case == "edge_sensor";
+            let (shape, transform) = if edge {
+                (Collider::cuboid(4.0, 4.0, 4.0), Transform::from_xyz(-2.0, -2.0, 0.0))
+            } else {
+                (Collider::cuboid(8.0, 0.1, 8.0), Transform::from_xyz(0.0, -0.05, 0.0))
+            };
+            let floor = app.world_mut().spawn((RigidBody::Static, shape, transform, blocking)).id();
+            let layers = match case {
+                "membership" => CollisionLayers::new(AlsCollisionLayer::Visibility, avian3d::prelude::LayerMask::ALL),
+                "response" => CollisionLayers::new(AlsCollisionLayer::Default, AlsCollisionLayer::Visibility),
+                _ => blocking,
+            };
+            let (shape, transform) = if edge {
+                (Collider::cuboid(0.03, EDGE_REJECT_DISTANCE * 0.1, 0.1),
+                    Transform::from_xyz(-0.005, EDGE_REJECT_DISTANCE * 0.45, 0.0))
+            } else {
+                (Collider::cuboid(6.0, 0.002, 6.0), Transform::from_xyz(0.0, 0.019, 0.0))
+            };
+            let auxiliary = app.world_mut().spawn((shape, transform, layers)).id();
+            if case == "attached" {
+                app.world_mut().entity_mut(character).add_child(auxiliary);
+            } else {
+                app.world_mut().entity_mut(auxiliary).insert(RigidBody::Static);
+            }
+            if matches!(case, "sensor" | "edge_sensor") {
+                app.world_mut().entity_mut(auxiliary).insert(Sensor);
+            }
+            for _ in 0..2 { app.update(); }
+            let found = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>| {
+                find_ground_floor(&spatial, Vec3::new(if edge { 0.25 } else { 0.0 }, 1.0, 0.0),
+                    0.9, 0.3, &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates)
+            }).unwrap();
+            assert_eq!(found.map(|(_, _, entity)| entity), Some(floor),
+                "{case} intercepted a blocking floor or its normal ray: {found:?}");
+        }
     }
 
     #[test]
@@ -3915,8 +3981,9 @@ mod tests {
                     let position = app.world().get::<Position>(character).unwrap().0;
                     if position.z > 0.5 { break; }
                     if *app.world().get::<LocomotionState>(character).unwrap() == LocomotionState::Air {
-                        let floor = app.world_mut().run_system_once(move |spatial: SpatialQuery| {
-                            find_ground_floor(&spatial, position, 0.9, 0.3, &SpatialQueryFilter::from_excluded_entities([character]))
+                        let floor = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                            candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>| {
+                            find_ground_floor(&spatial, position, 0.9, 0.3, &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates)
                         }).unwrap();
                         let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
                         failures.push((rise, delta, frame, position, velocity, floor));
