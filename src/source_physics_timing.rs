@@ -180,6 +180,7 @@ fn integrate_character_position(
         });
         let mut remaining = movement;
         let mut remaining_time = frame_step;
+        let mut previous_normal = None;
         let mut applied = Vec3::ZERO;
         for _ in 0..3 {
             let Ok((direction, distance)) = Dir3::new_and_length(remaining) else { break; };
@@ -195,7 +196,8 @@ fn integrate_character_position(
             let Some(normal) = hit.normal1.try_normalize() else { break; };
             let mut slide = remaining - *direction * travel;
             if *locomotion == LocomotionState::Air {
-                slide = als_ext::motion::falling_slide(slide, normal);
+                slide = als_ext::motion::falling_slide(slide, normal, previous_normal);
+                previous_normal = Some(normal);
                 remaining_time *= 1.0 - travel / distance;
                 if remaining_time > f32::EPSILON {
                     body.linear_velocity = slide / remaining_time;
@@ -391,6 +393,36 @@ mod tests {
                     assert!(result.y > 0.0 && result.y <= free_velocity.y + 0.002
                         && position.y <= free_position.y + 0.002,
                         "slope changed legal jump ascent: {position:?} {result:?} free={free_position:?} {free_velocity:?}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn first_air_nonorthogonal_corner_keeps_falling_motion() {
+        for side in [1.0, -1.0] {
+            for degrees in [60.0_f32, 75.0, 120.0] {
+                let angle = degrees.to_radians();
+                let normals = [Vec3::NEG_X * side, Vec3::new(side * angle.cos(), 0.0, -angle.sin())];
+                let velocity = Vec3::new(side * 3.75, -3.0,
+                    if degrees == 60.0 { 6.5 } else { 3.75 * (1.0 + angle.cos()) / angle.sin() });
+                assert!(velocity.length() * SOURCE_MAX_PHYSICS_DELTA.as_secs_f32() < 0.29);
+                let (free_position, free_velocity) = simulate_air_wall_motion(&[], 0.0, velocity);
+                let (position, result) = simulate_air_wall_motion(
+                    &[(normals[0], 0.29), (normals[1], 0.29)], 0.0, velocity);
+                assert!((position.y - free_position.y).abs() < 0.002,
+                    "{degrees} degree corner lost falling motion: {position:?} free={free_position:?}");
+                assert!((result.y - free_velocity.y).abs() < 0.002,
+                    "corner changed falling velocity: {result:?} free={free_velocity:?}");
+                for normal in normals {
+                    assert!((position - Vec3::Y * 2.0).dot(normal) >= -0.292,
+                        "corner penetration: {position:?} {normal:?}");
+                    assert!(result.dot(normal) >= -0.01,
+                        "corner retained inward velocity: {result:?} {normal:?}");
+                }
+                if degrees > 90.0 {
+                    assert!(Vec2::new(result.x, result.z).length() > 0.5,
+                        "obtuse corner erased valid horizontal slide: {result:?}");
                 }
             }
         }

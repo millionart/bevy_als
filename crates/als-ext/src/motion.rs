@@ -1,7 +1,13 @@
 use bevy::prelude::{Quat, Vec2, Vec3};
 
-pub fn falling_slide(delta: Vec3, normal: Vec3) -> Vec3 {
-    let slide = delta - normal * delta.dot(normal);
+pub fn falling_slide(delta: Vec3, normal: Vec3, previous_normal: Option<Vec3>) -> Vec3 {
+    let slide = match previous_normal {
+        Some(previous) if previous.dot(normal) <= 0.0 => {
+            let crease = normal.cross(previous).normalize_or_zero();
+            crease * delta.dot(crease)
+        }
+        _ => delta - normal * delta.dot(normal),
+    };
     if slide.y <= 0.0 || slide.y - delta.y <= 1e-6 {
         return slide;
     }
@@ -72,11 +78,28 @@ mod tests {
             (Vec3::new(0.1, 0.01, 0.04), Vec3::new(0.005773503, 0.01, 0.04)),
             (Vec3::new(0.01, -0.1, 0.04), Vec3::new(-0.04080127, -0.070669875, 0.04)),
         ] {
-            let result = falling_slide(delta, normal);
+            let result = falling_slide(delta, normal, None);
             assert!(result.distance(expected) < 1e-6, "{delta:?}: {result:?} != {expected:?}");
         }
-        assert!(falling_slide(Vec3::new(0.1, -0.01, 0.04), Vec3::NEG_X)
+        assert!(falling_slide(Vec3::new(0.1, -0.01, 0.04), Vec3::NEG_X, None)
             .distance(Vec3::new(0.0, -0.01, 0.04)) < 1e-6);
+    }
+
+    #[test]
+    fn falling_two_wall_slide_uses_the_crease_and_limits_upward_deflection() {
+        let delta = Vec3::new(0.0, -0.03, 0.065);
+        let normal = Vec3::new(0.5, 0.0, -3.0_f32.sqrt() * 0.5);
+        assert!(falling_slide(delta, normal, None).dot(Vec3::NEG_X) < -0.02);
+        assert!(falling_slide(delta, normal, Some(Vec3::NEG_X))
+            .distance(Vec3::new(0.0, -0.03, 0.0)) < 1e-6);
+        let obtuse_normal = Vec3::new(-normal.x, 0.0, normal.z);
+        assert!(falling_slide(delta, obtuse_normal, Some(Vec3::NEG_X))
+            .distance(Vec3::new(-0.028145825, -0.03, 0.01625)) < 1e-6);
+        let slope = Vec3::new(-3.0_f32.sqrt() * 0.5, 0.5, 0.0);
+        let other_slope = Vec3::new(0.5, 0.5, -0.5_f32.sqrt());
+        let result = falling_slide(Vec3::Z * 0.04, other_slope, Some(slope));
+        assert!(result.is_finite() && result.y.abs() < 1e-6,
+            "slope crease created upward deflection: {result:?}");
     }
 
     #[test]
