@@ -203,6 +203,7 @@ mod tests {
             animation_node::AnimationNode,
             context::{
                 graph_context::QueryOutputTime, new_context::GraphContext,
+                node_states::StateKey,
                 system_resources::SystemResources,
             },
             pose::Pose,
@@ -299,6 +300,11 @@ mod tests {
                             .map(|player| (player.identity, player.weight))
                             .collect::<Vec<_>>()
                     );
+                }
+                if result.len() == 1 {
+                    let blend = graph.nodes.values().find(|node| node.try_inner_downcast_ref::<NormalizedBlendSpaceNode>().is_some()).unwrap();
+                    let state = arena.get_toplevel().node_states.get::<crate::normalized_blendspace::NormalizedBlendSpaceState>(blend.id, StateKey::Default).unwrap();
+                    assert_eq!(state.context.relevant_asset.as_ref().map(|clock| clock.duration), Some(1.0));
                 }
                 result.push(
                     crate::animation_context::graph_output_context_state(graph, &context, "Pose")
