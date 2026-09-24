@@ -10,7 +10,9 @@ use bevy_animation_graph::core::{
 };
 
 use crate::animation_context::{AnimationContextState, pose_input_context_state};
-use crate::sync_group_phase::{SOURCE_SYNC_RESOLVED, resolve_source_sync_phases};
+use crate::sync_group_phase::{
+    SOURCE_SYNC_RESOLVED, resolve_source_sync_phases, source_sync_excluded_key,
+};
 
 #[derive(Reflect, Clone, Debug)]
 #[reflect(Default, NodeLike)]
@@ -80,13 +82,18 @@ impl NodeLike for SourcePosePassthroughNode {
                 .state::<AnimationContextState>()
                 .cloned()
                 .unwrap_or_default();
-            for (key, phase) in
+            for (key, phase, ungrouped) in
                 resolve_source_sync_phases(&current.sync_players, &previous.sync_players)
             {
                 global_inputs.to_mut().insert(
                     format!("{SOURCE_SYNC_RESOLVED}.{key}"),
                     DataValue::F32(phase),
                 );
+                for identity in ungrouped {
+                    global_inputs
+                        .to_mut()
+                        .insert(source_sync_excluded_key(identity), DataValue::Bool(true));
+                }
             }
             global_inputs
                 .to_mut()
@@ -100,6 +107,9 @@ impl NodeLike for SourcePosePassthroughNode {
         if let Some(mut context) = pose_input_context_state(&source_ctx, &self.input) {
             if self.synchronize_groups {
                 for player in &mut context.sync_players {
+                    if global_inputs.contains_key(&source_sync_excluded_key(player.identity)) {
+                        continue;
+                    }
                     if let Some(phase) = crate::sync_group_phase::resolved_source_sync_phase(
                         &source_ctx,
                         &player.key,
@@ -484,8 +494,8 @@ mod tests {
 
     #[test]
     fn losing_exclusive_leader_keeps_its_own_phase() {
-        use crate::{SourceMultiWayBlendNode, SourceSequencePlayerNode};
         use crate::sync_group_phase::SourceSyncGroupRole;
+        use crate::{SourceMultiWayBlendNode, SourceSequencePlayerNode};
         use bevy::platform::collections::HashMap;
         use bevy_animation_graph::core::{
             animation_clip::GraphClip,
@@ -497,7 +507,10 @@ mod tests {
             utils::testing::TestIoEnv,
         };
 
-        fn query(In(handle): In<Handle<AnimationGraph>>, resources: SystemResources) -> AnimationContextState {
+        fn query(
+            In(handle): In<Handle<AnimationGraph>>,
+            resources: SystemResources,
+        ) -> Vec<(AnimationContextState, f32)> {
             let graph = resources.animation_graph_assets.get(&handle).unwrap();
             let mut arena = GraphContextArena::new(handle.id());
             let mut gizmos = DeferredGizmos::default();
@@ -509,21 +522,46 @@ mod tests {
                 ("b".to_owned(), DataValue::F32(0.3)),
                 ("c".to_owned(), DataValue::F32(0.4)),
             ]);
-            let context = bevy_animation_graph::core::context::new_context::GraphContext::new(
-                arena.get_toplevel_id(), graph, &mut arena, &resources, &env,
-                Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs,
-            );
-            graph.query_with_context(
-                QueryOutputTime::Forced(TimeUpdate::Delta(0.1)),
-                context.clone(),
-            ).unwrap();
-            crate::animation_context::graph_output_context_state(graph, &context, "Pose").unwrap()
+            let mut results = Vec::new();
+            for _ in 0..2 {
+                let context = bevy_animation_graph::core::context::new_context::GraphContext::new(
+                    arena.get_toplevel_id(),
+                    graph,
+                    &mut arena,
+                    &resources,
+                    &env,
+                    Entity::PLACEHOLDER,
+                    &entities,
+                    &mut gizmos,
+                    &inputs,
+                );
+                graph
+                    .query_with_context(
+                        QueryOutputTime::Forced(TimeUpdate::Delta(0.1)),
+                        context.clone(),
+                    )
+                    .unwrap();
+                let state =
+                    crate::animation_context::graph_output_context_state(graph, &context, "Pose")
+                        .unwrap();
+                let group_phase = crate::sync_group_phase::source_sync_phase(
+                    &arena,
+                    &resources.animation_graph_assets,
+                    "Movement",
+                )
+                .unwrap();
+                results.push((state, group_phase));
+            }
+            results
         }
 
         let mut world = World::new();
         let mut graphs = Assets::<AnimationGraph>::default();
         let mut clips = Assets::<GraphClip>::default();
-        let clip = clips.add(GraphClip { duration: 1.0, ..default() });
+        let clip = clips.add(GraphClip {
+            duration: 1.0,
+            ..default()
+        });
         let mut graph = AnimationGraph::new();
         let mut players = Vec::new();
         for (start, role) in [
@@ -531,32 +569,43 @@ mod tests {
             (0.7, SourceSyncGroupRole::ExclusiveAlwaysLeader),
             (0.4, SourceSyncGroupRole::AlwaysFollower),
         ] {
-            let node = AnimationNode::new("player", SourceSequencePlayerNode {
-                clip: clip.clone(),
-                start_position: start,
-                synchronization: Some(crate::source_sequence_player::SourceSequenceSynchronization {
-                    key: "Movement".into(),
-                    role,
-                    delta_seconds_key: "delta".into(),
-                    phase_duration: 1.0,
+            let node = AnimationNode::new(
+                "player",
+                SourceSequencePlayerNode {
+                    clip: clip.clone(),
+                    start_position: start,
+                    synchronization: Some(
+                        crate::source_sequence_player::SourceSequenceSynchronization {
+                            key: "Movement".into(),
+                            role,
+                            delta_seconds_key: "delta".into(),
+                            phase_duration: 1.0,
+                            ..default()
+                        },
+                    ),
                     ..default()
-                }),
-                ..default()
-            });
+                },
+            );
             graph.add_node(node.clone());
             players.push(node);
         }
-        let blend = AnimationNode::new("blend", SourceMultiWayBlendNode {
-            pose_count: 3,
-            desired_alpha_keys: vec!["a".into(), "b".into(), "c".into()],
-            desired_alpha_defaults: vec![0.0; 3],
-            ..default()
-        });
-        let root = AnimationNode::new("root", SourcePosePassthroughNode {
-            output_time: false,
-            synchronize_groups: true,
-            ..default()
-        });
+        let blend = AnimationNode::new(
+            "blend",
+            SourceMultiWayBlendNode {
+                pose_count: 3,
+                desired_alpha_keys: vec!["a".into(), "b".into(), "c".into()],
+                desired_alpha_defaults: vec![0.0; 3],
+                ..default()
+            },
+        );
+        let root = AnimationNode::new(
+            "root",
+            SourcePosePassthroughNode {
+                output_time: false,
+                synchronize_groups: true,
+                ..default()
+            },
+        );
         graph.add_node(blend.clone());
         graph.add_node(root.clone());
         for (index, player) in players.iter().enumerate() {
@@ -571,11 +620,33 @@ mod tests {
         world.insert_resource(Assets::<Skeleton>::default());
         world.insert_resource(Assets::<StateMachine>::default());
         let result = world.run_system_cached_with(query, handle).unwrap();
-        let phase = |index: usize| result.sync_players.iter()
-            .find(|player| player.identity.1 == players[index].id).unwrap().phase;
-        assert!((phase(0) - 0.3).abs() < 1e-5, "loser phase {}", phase(0));
-        assert!((phase(1) - 0.8).abs() < 1e-5, "leader phase {}", phase(1));
-        assert!((phase(2) - 0.8).abs() < 1e-5, "follower phase {}", phase(2));
+        for (frame, (state, group_phase)) in result.iter().enumerate() {
+            let phase = |index: usize| {
+                state
+                    .sync_players
+                    .iter()
+                    .find(|player| player.identity.1 == players[index].id)
+                    .unwrap()
+                    .phase
+            };
+            let expected = [0.3 + frame as f32 * 0.1, 0.8 + frame as f32 * 0.1];
+            assert!(
+                (phase(0) - expected[0]).abs() < 1e-5,
+                "frame {frame} loser phase {}",
+                phase(0)
+            );
+            for index in [1, 2] {
+                assert!(
+                    (phase(index) - expected[1]).abs() < 1e-5,
+                    "frame {frame} player {index} phase {}",
+                    phase(index)
+                );
+            }
+            assert!(
+                (group_phase - expected[1]).abs() < 1e-5,
+                "frame {frame} group phase {group_phase}"
+            );
+        }
     }
 
     #[test]

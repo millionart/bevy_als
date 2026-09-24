@@ -114,6 +114,13 @@ pub struct SourceSyncPlayerTick {
 
 pub const SOURCE_SYNC_RESOLVED: &str = "__source_sync_resolved";
 
+pub fn source_sync_excluded_key(identity: (GraphContextId, NodeId)) -> String {
+    format!(
+        "{SOURCE_SYNC_RESOLVED}.ungrouped.{:?}.{:?}",
+        identity.0, identity.1
+    )
+}
+
 pub fn source_sync_delta_seconds(ctx: &NodeContext, key: &str) -> Result<f32, GraphError> {
     let delta = global_f32_or_root_default(ctx, key)?;
     let player_update = match ctx.graph_context.context_arena.get_ref()
@@ -133,9 +140,11 @@ pub fn source_sync_phase(
     graphs: &Assets<AnimationGraph>,
     key: &str,
 ) -> Option<f32> {
-    source_sync_players(arena, graphs, key)?
+    let players = source_sync_players(arena, graphs, key)?
         .iter()
-        .find(|player| player.key == key)
+        .filter(|player| player.key == key)
+        .collect::<Vec<_>>();
+    group_leader(&players)
         .map(|player| player.phase)
         .filter(|phase| phase.is_finite())
 }
@@ -181,6 +190,16 @@ pub fn resolved_source_sync_phase(ctx: &NodeContext, key: &str) -> Result<Option
     {
         return Ok(None);
     }
+    if ctx
+        .graph_context
+        .global_input_data
+        .contains_key(&source_sync_excluded_key((
+            ctx.graph_context.context_id,
+            ctx.node_id,
+        )))
+    {
+        return Ok(None);
+    }
     ctx.graph_context
         .global_input_data
         .get(&format!("{SOURCE_SYNC_RESOLVED}.{key}"))
@@ -202,23 +221,44 @@ fn group_leader<'a>(players: &[&'a SourceSyncPlayerTick]) -> Option<&'a SourceSy
 pub fn resolve_source_sync_phases(
     current: &[SourceSyncPlayerTick],
     previous: &[SourceSyncPlayerTick],
-) -> Vec<(String, f32)> {
+) -> Vec<(String, f32, Vec<(GraphContextId, NodeId)>)> {
     let mut groups = Vec::new();
     for player in current {
-        if groups.iter().any(|(key, _)| key == &player.key) {
+        if groups.iter().any(|(key, _, _)| key == &player.key) {
             continue;
         }
-        let players = current.iter().filter(|candidate| candidate.key == player.key).collect::<Vec<_>>();
-        let Some(leader) = group_leader(&players) else { continue; };
-        let previous_players = previous.iter().filter(|prior| prior.key == player.key).collect::<Vec<_>>();
-        let joined = group_leader(&previous_players).is_some_and(|prior| {
+        let players = current
+            .iter()
+            .filter(|candidate| candidate.key == player.key)
+            .collect::<Vec<_>>();
+        let Some(leader) = group_leader(&players) else {
+            continue;
+        };
+        let previous_players = previous
+            .iter()
+            .filter(|prior| prior.key == player.key)
+            .collect::<Vec<_>>();
+        let previous_leader = group_leader(&previous_players);
+        let joined = previous_leader.is_some_and(|prior| {
             prior.identity != leader.identity || prior.source_asset != leader.source_asset
         });
-        let phase = previous_players.first().map(|prior| prior.phase).unwrap_or(leader.previous_phase);
+        let phase = previous_leader
+            .map(|prior| prior.phase)
+            .unwrap_or(leader.previous_phase);
         let phase = if leader.override_position_when_joining_sync_group_as_leader && joined {
             leader.previous_phase
-        } else { phase };
-        groups.push((player.key.clone(), leader.advance(phase)));
+        } else {
+            phase
+        };
+        let ungrouped = players
+            .iter()
+            .filter(|candidate| {
+                candidate.role == SourceSyncGroupRole::ExclusiveAlwaysLeader
+                    && candidate.identity != leader.identity
+            })
+            .map(|candidate| candidate.identity)
+            .collect();
+        groups.push((player.key.clone(), leader.advance(phase), ungrouped));
     }
     groups
 }

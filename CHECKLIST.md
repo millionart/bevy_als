@@ -1231,4 +1231,8 @@
 
   S1 source/static 完成摘要：本地 UE `FAnimGroupInstance::Prepare` 按 LeaderScore 排序，`AnimSync` 选主后把落选 Exclusive 推入 ungrouped、跳过 follower tick，后续以独立 tick context 执行；即便早于获胜者被尝试的无效 leader，也未成为 follower。fresh Standing 原生输出路径仅在 gitignored target，40个 CDO `GroupRole` 均 CanBeLeader，当前原资产没有可直接触发该分支的实例。三个 SequencePlayer 图中两个 Exclusive 的开始相位0.2/0.7、一个普通 follower0.4，delta0.1；当前 root 同 key 广播使落选者得到0.8而非独立0.3，focused red 保留在测试。共享 `source_sync_phase` 也取列表首项，修复后应读真正 leader。
 
-- [ ] **BF124.A47-S2 — 落选 Exclusive 独立推进与组相位读口**：开始：2026-09-24 12:52:00 +08:00；预估结束：2026-09-24 13:42:00 +08:00。估时依据：S1可重复三播放器图红例、现有统一选主器与两个实际 player 读口；Gate 为 loser0.3、leader/follower0.8、原同步测试和去排除分支消融，随后判断安装图边界。
+- [x] **BF124.A47-S2 — 落选 Exclusive 独立推进与组相位读口**：开始：2026-09-24 12:52:00 +08:00；预估结束：2026-09-24 13:42:00 +08:00；实际结束：2026-09-24 13:59:30 +08:00；偏差：+17m30s；结果：三播放器真实图两帧落选者0.3/0.4、leader及普通follower0.8/0.9，公共组相位0.8/0.9；去 root 排除判断消融首帧重现0.8覆盖，恢复后4/4包装、15/15 sync、11/11 SequencePlayer、10/10 BlendSpace测试通过。估时依据：S1可重复三播放器图红例、现有统一选主器与两个实际 player 读口；拆分结果：S3 静态资产边界/原 Playground 公共功能 Gate；无 converter 修改，不需全量重转。
+
+  S2 source/static 完成摘要：resolver 沿既有统一 leader 规则选出获胜者，将同 key 其他 Exclusive identity 标记为 ungrouped；SequencePlayer/BlendSpace 通过共享相位读取跳过组相位并执行自身 tick，根 pose 包装不再二次覆盖，其他 follower 继续取组相位。上一帧组相位改从上一帧真正 leader 读取，否则落选者位于列表首项时第二帧会错误回退到其0.3并使获胜者到0.4；`source_sync_phase` 公共读口同理选真正 leader。图级红绿/消融、两帧连续性及四组聚焦测试闭合，安装的 `.ron` 中无 `ExclusiveAlwaysLeader`，当前生产资产没有可动态触发的 true 分支；下一步仅验默认同步行为无回归。
+
+- [ ] **BF124.A47-S3 — 静态资产边界与原 Playground 同步功能 Gate**：开始：2026-09-24 14:00:00 +08:00；预估结束：2026-09-24 14:55:00 +08:00。估时依据：S2 runtime-only 改动/安装 RON无 Exclusive、A46 同步组的 startup/locomotion/sprint 公共场景约6分钟；静态合同与原入口预构建仍按同一 `target_game/play` 执行，完整性能预算继续延期。
