@@ -1265,4 +1265,8 @@
 
   S2 source/static 完成摘要：`build_sync_group_plans` 已由同一 `sync_candidate_timing` 提供的源时长决定 Sequence 起点合法上界，BlendSpace 仍用归一化1.0；无图名/节点ID特例、无新运行时分支。复制现有双播放器 source fixture 为首个 Sequence 2.5秒/起点1.75秒，通过并保存 `source_start_position=1.75`，只改 source graph/node 身份仍是同一相位键和起点，和原0.2字段值形成敏感对照；切为 BlendSpace1.75仍明确拒，0.75通过。把新上界消融回1.0再次拒1.75，恢复后 converter、pose contract、renderer self-test 与 SequencePlayer11/11均绿。当前真实 Standing最大 Sequence 起点0.25秒，完整影响仍只能由 S3 全量新旧产物diff判定。
 
-- [ ] **BF124.A49-S3 — 全部生成 AnimBP/递归依赖重转与完整产物 diff**：开始：2026-09-24 14:21:00 +08:00；预估结束：2026-09-24 15:16:00 +08:00。估时依据：A46同类15根/23图/374文件全量原生重转1716.5秒，外层进展 watchdog 和完整全树 diff 脚本可复用；若发生源证实变化须迁移全部受影响生成资产，再做静态和真实入口 Gate。
+- [x] **BF124.A49-S3 — 全部生成 AnimBP/递归依赖重转与完整产物 diff**：开始：2026-09-24 14:21:00 +08:00；预估结束：2026-09-24 15:16:00 +08:00；实际结束：2026-09-24 14:50:00 +08:00；偏差：-26m00s；结果：全部15安装根/23已生成 AnimBP及递归依赖原生重转，15份 conversion.report 均pass；旧/暂存各374文件，added/missing/changed全0、完整patch0字节，无资产迁移。外层watchdog正常/停滞/覆盖self-test通过，最终exit_reason=completed、最后Camera、等待0.123s，有效转换1736.7秒。估时依据：A46同类全量1716.5秒；拆分结果：S4 静态/原 Playground Gate，A50不提前展开。
+
+  全量重转完成摘要：独立 A49 暂存批次 `corpus_progress.json` 记录15/15安装根、23图、15/15 conversion.report pass、exit_reason=completed，最后进展 `AB_Als_Camera`，等待0.123秒；总转换1736.7秒。外层 watchdog 自测正常完成、停滞退出、安装清单覆盖全部PASS。逐字节比较全部 `assets/generated` 与 A49 暂存 `generated`，两边各374文件，新增/缺失/改变为空，完整 diff patch 长度0；没有以 Sequence 图预筛。当前源资产没有超过1秒的同步 Sequence 默认起点，因此新规则不改变已安装图；1.75秒能力仅由合成源合同与 runtime秒数测试证明，S4 只能验证真实现有默认路径无回归。
+
+- [ ] **BF124.A49-S4 — 静态边界与原 Playground 同步功能 Gate**：开始：2026-09-24 14:51:00 +08:00；预估结束：2026-09-24 15:41:00 +08:00。估时依据：S3全量374产物零diff、现有 `target_game/play` 增量预构建和 startup/locomotion/sprint 公共场景；先静态资产边界/validator，再相同二进制真实功能 Gate，完整性能预算延期。
