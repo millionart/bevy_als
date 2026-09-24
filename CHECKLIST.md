@@ -1240,3 +1240,7 @@
   S3 静态闭环、runtime 前摘要：S1 fresh Standing 源角色/UE 排序与落选 ungrouped 合同、S2 双帧真实图红绿/消融及 sync15/15、SequencePlayer11/11、BlendSpace10/10、包装4/4已闭合；`validate_runtime_graph_asset_boundary.py --check` 为0 issue，公共视觉 validator self-test 全项 PASS，安装 RON 中无 `ExclusiveAlwaysLeader`。当前无 converter、生成图或原始资产改动，故不触发全量重转；真实入口仅能证明现有非 Exclusive 同步无回归，true 分支由源同形聚焦图证明。下一步同一 `target_game/play` 预构建，先 startup 再 locomotion/sprint 公共功能 Gate。
 
   runtime 后完成摘要：同一 `target_game/play` 预构建后，`bf124_a47_s3_startup`、`locomotion`、`sprint` 公共 `-FunctionalOnly -CaptureCount 0` 的 runner/manual/validator全部退出0；startup 80姿态样本，locomotion18/18覆盖、14/14窗口、808样本，sprint8/8、2/2窗口、281样本。三场 `graph_errors=[]`、`primary_failure=null`、fault/temporal0、watchdog未触发、render/decal通过。完整性能预算的 max_eval_p95_ms 仍作为 deferred issue 保留，不能称完整通过；没有真实 Exclusive 安装节点，落选动态分支只由 S1/S2 源同形图级红绿与消融证明。
+
+- [x] **BF124.A47 — ExclusiveAlwaysLeader 落选后独立播放**：开始：2026-09-24 14:07:00 +08:00；预估结束：2026-09-24 14:22:00 +08:00；实际结束：2026-09-24 14:07:00 +08:00；偏差：-15m00s；结果：S1–S3分别通过并提交（`8e83040`、`1214b87`、`473e654`），fresh UE/Standing 源合同、双帧落选 leader 红绿/消融、四组聚焦测试、资产边界和原 Playground 三场功能 Gate 闭合。估时依据：只汇总已提交的 source、静态、图级与真实入口证据；拆分结果：A47 当前功能无剩余 Gate，A48 下一项，完整性能预算延期。
+
+  汇总：UE 将未获选的 ExclusiveAlwaysLeader 从 follower tick 路径排除并独立 tick；目标现用统一选主结果对同组落选 identity 停止相位广播，普通 follower 不变。旧组和公共组相位均读实际 leader，避免第二帧被首个落选者污染。源同形三播放器图预期落选0.3/0.4、leader/follower0.8/0.9，现红→绿；去根包装排除判断消融又红。当前安装 RON 无 Exclusive，原 startup/locomotion/sprint 仅证明默认路径无回归，不把合成 true 路径称作生产动态覆盖；未修改 converter、生成资产或原始导出，完整性能 Gate 未执行。
