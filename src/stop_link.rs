@@ -17,7 +17,6 @@ use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::edge_data::DataValue;
-use bevy_animation_graph::core::plugin::AnimationGraphSet;
 
 use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar};
 
@@ -447,7 +446,9 @@ impl Plugin for AlsStopLinkPlugin {
             )
             .add_systems(
                 PostUpdate,
-                bridge_root_transition_slot_samples.before(AnimationGraphSet::Final),
+                bridge_root_transition_slot_samples
+                    .after(als_ext::post_physics_animation::PostPhysicsAnimationSet::Inputs)
+                    .before(als_ext::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
             );
     }
 }

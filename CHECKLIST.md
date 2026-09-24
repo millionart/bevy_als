@@ -69,7 +69,7 @@
 | A25 | P2 | 完成；BF125.R5 反例源目标一致 | 脚步事件仅用取模前后时间的大小关系判断回环，丢失整圈信息 |
 | A26 | P2 | 完成 | Mantle 起点穿透命中可把身后台阶选为前向攀爬目标 |
 | A27 | P2 | 源目标一致 | 惯性混合曲线导数重复扣除新目标值 |
-| A28 | P2 | 完成 | 已播放 Turn／Transition 的实际 Slot 采样持续落后播放时钟一帧 |
+| A28 | P2 | 完成：BF125.R6 复验 | 已播放 Turn／Transition 的实际 Slot 采样持续落后播放时钟一帧 |
 | A29 | P2 | 完成 | 动画加速度差分遗漏相对运动基座的上一帧速度旋转补偿 |
 | A30 | P2 | 完成 | 同步动画节点使用全局帧增量，绕过播放器 Pause 的零增量 |
 | A31 | P2 | 完成 | 退瞄脊柱平滑没有按运动基座旋转更新历史世界 yaw |
@@ -700,7 +700,7 @@
 
   runtime 完成摘要（2026-09-23 22:34:23 +08:00）：重试的 `startup`、`standing_turn`、`crouching_actions`、`transition_notify`、`standing_dynamic` 均 manual exit 0、functional validator exit 0；后四项动作覆盖分别为 11/11、11/11、3/3、5/5，运动窗口分别为 10/10、8/8、1/1、2/2。全部报告 graph error 0、fault 0、temporal anomaly 0、watchdog 未触发；原 `standing_turn` 无限重新排队症状消失。报告原始 `pass=false` 仅因延期的 `max_eval_p95_ms` 性能预算，功能 verdict 均通过；A28 源、静态、真实入口闭环完成。
 
-- [x] **BF124.A28 — Turn/Transition Slot 同帧采样**：开始：2026-09-23 22:35:29 +08:00；预估结束：2026-09-23 22:50:29 +08:00；实际结束：2026-09-23 22:35:29 +08:00；偏差：-15m00s；结果：S1、S2、S2R、S3 各自通过并提交（`63318da`、`9076da6`、`a2c308d`、`f46e169`），其中首次 runtime 失败的复盘提交为 `7d140f5`。fresh UE `UpdateAnimation` 在图前推进 Montage 和评估数据；目标 Turn/Transition 桥已置于图 Final 前，已加载新 Turn 请求入队时即标记首帧采样就绪。真实插件调度 false/false→true/true、两边各自消融 red；新请求未就绪反例修复后 clip time 在下一次 Update 推进，移除赋值 red，缺资源仍等待。Turn 21/21、Transition 14/14、生成通知 8/8。原 Playground 五项功能 Gate 全过，动作覆盖/窗口完整，图错误/故障/时间异常/watchdog 0；完整性能预算延期。估时依据：核对 S1–S3 既有验收与提交；拆分结果：A28 无剩余功能 Gate，A29 为下一项。
+- [x] **BF124.A28 — Turn/Transition Slot 同帧采样**：开始：2026-09-23 22:35:29 +08:00；预估结束：2026-09-23 22:50:29 +08:00；实际结束：2026-09-23 22:35:29 +08:00；偏差：-15m00s；结果：原 S1–S3 当时通过；2026-09-24 按 BF125.R6 复开并通过。旧 Gate 只在 `AnimationGraphSet::Final` 观察桥输出，未在实际 `PostPhysicsAnimationSet::Evaluate` 检查 Slot pose/weight/time 消费；现以双桥调度依赖路径和真实图输出红绿、四场公共功能 Gate 重新闭环，完整性能预算延期。
 
 - [x] **BF124.A29-S1 — 旋转基座上的动画加速度源合同与失败反例**：开始：2026-09-23 22:36:12 +08:00；预估结束：2026-09-23 23:21:12 +08:00；实际结束：2026-09-23 22:40:05 +08:00；偏差：-41m07s；结果：fresh 原生 `AB_Als` reader 成功，ALS 动画实例的基座旋转与速度差分合同已核对；真实目标快照的旋转平台反例 red，暂标记 ignored 供 S2 启用。估时依据：源一份原生 AnimBP 与两处 ALS 更新函数、目标一处快照/一处基座跟随、现有 focused 夹具；拆分结果：S2 最小实现及局部 Gate，S3 原 Playground moving base/locomotion 功能 Gate，A30 不提前展开。
 
@@ -1432,3 +1432,15 @@
   runtime 后摘要：同一预构建二进制原 Playground `ragdoll` 与 `get_up` 公共功能报告均 manual/validator 0/0、primary failure 空、graph/fault/temporal/watchdog 0；当前真实资产正常地面找地与恢复无回归，反向拒绝/Sensor 的精确边界由物理夹具覆盖。性能预算仍按既定延期。
 
 - [x] **BF125.R5 — A25 跨圈末段脚步反馈源合同复核**：开始：2026-09-24 18:35:00 +08:00；预估结束：2026-09-24 19:00:00 +08:00；实际结束：2026-09-24 18:37:00 +08:00；偏差：-23m00s；结果：所报 `duration=0.6, previous=0.2, current=0.35, loops=2` 的末段确实不派发，但本地 UE 5.8 `UAnimSequenceBase::GetAnimNotifies` 对 `DeltaTime=1.35` 同样用 `uint32_t(DesiredDeltaMove/PlayLength)=2` 限制循环，先扫描 `(0.2,0.6]`、再扫描 `(0,0.6]`，不会扫描 `(0,0.35]`；目标 `graph_footstep_clocks` 也取 2 段。当前 `graph_footstep_clocks_keep_source_loop_budget` 通过。估时依据：本地 UE 一个通知循环、目标圈数生产/分段消费与现有 focused 夹具；拆分结果：该复审反例是源目标一致而非新移植差异，按 source-first 不改算法、不复开 A25、不重跑无代码变更的 runtime；R6 下一项。
+
+- [x] **BF125.R6 — A28 两座 Slot 桥先于晚期图实际 Evaluate**：开始：2026-09-24 18:42:00 +08:00；预估结束：2026-09-24 19:32:00 +08:00；实际结束：2026-09-24 19:15:00 +08:00；偏差：-17m00s；结果：真实晚期图求值旧 Turn/Transition 上下文空红→新 0.42 s 姿态/权重绿，调度图路径断言对两条边分别消融红、恢复绿；Turn21/21、Transition14/14，资产边界0 issue、视觉校验自测全 PASS；同 `target_game/play` 原 Playground 四场功能 Gate manual/validator 0/0，图/故障/时序/watchdog 0。估时依据：fresh 两 AnimBP 与 UE 更新顺序、目标两个桥和既有公共场景；拆分结果：R6 完成、A28 父项复验关闭，R7 下一项，完整性能预算延期。原生 reader 首次误传物理文件路径退出3，按日志改 UE 对象路径后两资产 watchdog 均 success/completed。
+
+  runtime 前摘要：fresh `AB_Als` reader 8 图根 Transition Slot、`AB_Als_Standing` 258 图 Idle 中 TurnInPlaceStanding Slot 双实例，UE `UpdateAnimation` 明确在 AnimGraph Update/Evaluate 前调用 `UpdateMontage` 和 `UpdateMontageEvaluationData`。目标源剪辑已加载的图级夹具预置旧 0.40 s，真实 `PostPhysicsAnimationSet::Evaluate` 前旧代码读到 Turn/Transition 上下文均空（Final 事后观察曾误过）；桥改为 `Inputs→Turn/Transition bridge→Evaluate` 后两个时钟均 0.42 s，实际图输出两份 0.42 s 姿态与权重 1。原两桥退回 Final 前即复现旧红，不新增状态或重采样。Turn21/21、Transition14/14，资产边界0 issue、公共视觉 validator 自测全 PASS；无图/转换器/生成资产改动，不触发全量重转。下一步同 `target_game/play` 预构建，按 startup→standing_turn/transition_notify/standing_dynamic 运行原 Playground 功能 Gate，完整性能预算延期。
+
+  startup 后/动作前摘要：同启动器 `target_game/play` 预构建成功；原 Playground `startup` 功能报告 manual/validator 0/0、primary failure 空，图错误、fault、temporal、watchdog 均 0。图姿态基线已过，下一步用同二进制依次跑 Turn 与 Transition 动作场景；性能预算仍延期。
+
+  Turn 后/Transition 前摘要：同二进制原 Playground `standing_turn` 公共功能 Gate manual/validator 0/0，11/11 结果与 10/10 必需动作窗口通过；primary failure 空、graph/fault/temporal/watchdog 0。已核对源 Turn 时钟与目标图级双桥消费；下一步原 `transition_notify` 和 `standing_dynamic` 两场，性能预算继续延期。
+
+  通知后/动态迁移前摘要：同二进制原 Playground `transition_notify` 功能 Gate manual/validator 0/0、primary/graph/fault/temporal/watchdog 均空，通知路径正常；下一步 `standing_dynamic` 覆盖动态 Transition Slot 姿态与权重，性能预算延期。
+
+  runtime 后摘要：同一预构建二进制原 Playground `startup`、`standing_turn`、`transition_notify`、`standing_dynamic` 均 manual/validator 0/0；后三场结果 11/11、3/3、5/5，动作窗口 10/10、1/1、2/2，所有报告 primary failure 空、graph/fault/temporal 0、watchdog 未触发。完整性能预算延期。随后在不改生产最终代码的受控消融中分别退回 Turn 与 Transition 调度边，最终图级测试各以缺少到 Evaluate 的路径拒绝；两边恢复后通过。

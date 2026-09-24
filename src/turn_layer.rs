@@ -8,7 +8,6 @@ use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::edge_data::{DataValue, bone_mask::BoneMask};
 use bevy_animation_graph::core::interpolation::linear::LinearInterpolator;
-use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use std::collections::HashMap;
 
 use crate::character_assembly::AlsCharacterAvatar;
@@ -389,7 +388,9 @@ impl Plugin for TurnLayerPlugin {
         )
         .configure_sets(
             PostUpdate,
-            AlsTurnSlotBridgeSet.before(AnimationGraphSet::Final),
+            AlsTurnSlotBridgeSet
+                .after(als_ext::post_physics_animation::PostPhysicsAnimationSet::Inputs)
+                .before(als_ext::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
         )
         .add_systems(
             PostUpdate,
@@ -712,20 +713,102 @@ mod tests {
     use avian3d::prelude::LinearVelocity;
 
     #[test]
-    fn current_turn_slot_sample_is_ready_before_final_graph_evaluation() {
+    fn current_slot_samples_reach_post_physics_graph_evaluation() {
+        use bevy_animation_graph::core::{animation_graph::AnimationGraph, animation_node::AnimationNode,
+            edge_data::{DataSpec, DataValue}};
+        use bevy_animation_graph::core::plugin::AnimationGraphSet;
+        use als_ext::post_physics_animation::{evaluate_players, PostPhysicsAnimation, PostPhysicsAnimationSet};
         #[derive(Resource, Default)]
-        struct FinalSawSlots { turn: bool, transition: bool }
-
+        struct EvalInputs { turn_clock: Option<f32>, transition_clock: Option<f32> }
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin,
-            bevy::gizmos::GizmoPlugin,
-            AnimationGraphPlugin::default(),
-            als_ext::SourceAnimationInputsPlugin, TurnLayerPlugin,
-            crate::stop_link::AlsStopLinkPlugin))
+            bevy::gizmos::GizmoPlugin, bevy::gltf::GltfPlugin::default(), TransformPlugin,
+            AnimationGraphPlugin::default(), als_ext::AlsExtPlugin,
+            TurnLayerPlugin, crate::stop_link::AlsStopLinkPlugin))
             .init_asset::<WorldAsset>()
-            .init_asset::<als_core::params::AlsMovementParams>();
-        app.add_systems(Startup, crate::standing_source::load_source_montage_assets)
-            .init_resource::<FinalSawSlots>();
+            .init_asset::<als_core::params::AlsMovementParams>()
+            .init_asset::<bevy::animation::AnimationClip>()
+            .init_asset::<bevy::mesh::skinning::SkinnedMeshInverseBindposes>()
+            .init_asset::<Mesh>()
+            .init_asset::<Image>()
+            .init_resource::<EvalInputs>()
+            .add_systems(Startup, crate::standing_source::load_source_montage_assets);
+        app.configure_sets(PostUpdate, (
+            PostPhysicsAnimationSet::Inputs.after(avian3d::prelude::PhysicsSystems::Last),
+            PostPhysicsAnimationSet::Evaluate.after(PostPhysicsAnimationSet::Inputs)
+                .before(AnimationGraphSet::PostPhysics),
+            AnimationGraphSet::PostPhysics.before(AnimationGraphSet::Final),
+        )).add_systems(PostUpdate, evaluate_players::<With<PostPhysicsAnimation>>
+            .in_set(PostPhysicsAnimationSet::Evaluate));
+        app.add_systems(PostUpdate, (|players: Query<Entity, (With<AnimationGraphPlayer>, With<PostPhysicsAnimation>)>,
+            inputs: Query<&als_ext::SourceAnimationInputs>, mut seen: ResMut<EvalInputs>| {
+            let Some(entity) = players.iter().next() else { return; };
+            if let Ok(inputs) = inputs.get(entity) {
+                seen.turn_clock = inputs.slot_input_context("turn_in_place_standing.pose")
+                    .and_then(|context| context.asset_samples.first().map(|sample| sample.clock.position));
+                seen.transition_clock = inputs.slot_input_context("transition.pose")
+                    .and_then(|context| context.asset_samples.first().map(|sample| sample.clock.position));
+            }
+        }).in_set(PostPhysicsAnimationSet::Evaluate).before(evaluate_players::<With<PostPhysicsAnimation>>));
+        app.finish();
+        app.cleanup();
+        let transition = crate::stop_link::AlsTransitionPlayback::standing_dynamic(0.0);
+        let turn_name = source_turn_sequence(false, false, 0.0);
+        let transition_name = crate::stop_link::source_transition_sequence(&transition).unwrap();
+        let started = std::time::Instant::now();
+        let watchdog_reason = |wall: std::time::Duration, stalled: std::time::Duration| {
+            if wall.as_secs() >= 30 { "wall_timeout" }
+            else if stalled.as_secs() >= 15 { "no_progress_timeout" } else { "" }
+        };
+        assert_eq!(watchdog_reason(std::time::Duration::ZERO, std::time::Duration::ZERO), "");
+        assert_eq!(watchdog_reason(std::time::Duration::from_secs(30), std::time::Duration::ZERO), "wall_timeout");
+        assert_eq!(watchdog_reason(std::time::Duration::ZERO, std::time::Duration::from_secs(15)), "no_progress_timeout");
+        let mut last_progress = std::time::Instant::now();
+        let mut loaded = 0;
+        loop {
+            app.update();
+            let assets = app.world().resource::<crate::standing_source::SourceMontageAssets>();
+            let clips = app.world().resource::<Assets<bevy_animation_graph::core::animation_clip::GraphClip>>();
+            let skeletons = app.world().resource::<Assets<bevy_animation_graph::core::skeleton::Skeleton>>();
+            let ready = [turn_name, transition_name].into_iter().filter(|name|
+                crate::standing_source::sample_source_montage(name, 0.42, assets, clips, skeletons).is_some()).count();
+            if ready > loaded {
+                loaded = ready;
+                last_progress = std::time::Instant::now();
+            }
+            if ready == 2 { break; }
+            let reason = watchdog_reason(started.elapsed(), last_progress.elapsed());
+            assert!(reason.is_empty(), "{}", serde_json::json!({"exit_reason":reason,
+                "last_progress_loaded":loaded,"required":2,"wait_seconds":last_progress.elapsed().as_secs()}));
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        let (old_turn, old_transition) = {
+            let assets = app.world().resource::<crate::standing_source::SourceMontageAssets>();
+            let clips = app.world().resource::<Assets<bevy_animation_graph::core::animation_clip::GraphClip>>();
+            let skeletons = app.world().resource::<Assets<bevy_animation_graph::core::skeleton::Skeleton>>();
+            (crate::standing_source::sample_source_montage(turn_name, 0.40, assets, clips, skeletons).unwrap().0,
+                crate::standing_source::sample_source_montage(transition_name, 0.40, assets, clips, skeletons).unwrap().0)
+        };
+        let mut graph = AnimationGraph::default();
+        for (name, key, output) in [
+            ("turn pose", turn_slot_contract(false).generated_pose_key, "pose"),
+            ("transition pose", "transition.pose", "transition_pose"),
+        ] {
+            let node = AnimationNode::new(name, als_ext::GlobalPoseInputNode { key: key.into(), output: "Pose".into() });
+            graph.add_output_data(output.into(), DataSpec::Pose);
+            graph.add_output_data_edge(node.id, "Pose", output);
+            graph.add_node(node);
+        }
+        for (name, key, output) in [
+            ("turn weight", turn_slot_contract(false).generated_weight_key, "turn_weight"),
+            ("transition weight", "transition.weight", "transition_weight"),
+        ] {
+            let node = AnimationNode::new(name, als_ext::GlobalF32InputNode { key: key.into() });
+            graph.add_output_data(output.into(), DataSpec::F32);
+            graph.add_output_data_edge(node.id, key, output);
+            graph.add_node(node);
+        }
+        let graph = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(graph);
         let character = app.world_mut().spawn((als_core::character::AlsCharacter, Stance::Standing)).id();
         let avatar = app.world_mut().spawn((AlsCharacterAvatar { character },
             AnimatedSceneHandle::default(), ChildOf(character),
@@ -733,22 +816,70 @@ mod tests {
         app.world_mut().entity_mut(character).insert(crate::character_assembly::AlsCharacterAssembly {
             avatar, camera: None,
         });
-        app.world_mut().spawn((AnimationGraphPlayer::new(Handle::default()), ChildOf(avatar)));
+        let mut player = AnimationGraphPlayer::new(Handle::default()).with_graph(graph);
+        player.set_global_input_data(turn_slot_contract(false).generated_pose_key, DataValue::Pose(old_turn));
+        player.set_global_input_data(turn_slot_contract(false).generated_weight_key, 0.5_f32);
+        player.set_global_input_data("transition.pose", DataValue::Pose(old_transition));
+        player.set_global_input_data("transition.weight", 0.5_f32);
+        let player_entity = app.world_mut().spawn((Name::new("slot_player"), player, PostPhysicsAnimation, Transform::IDENTITY,
+            GlobalTransform::IDENTITY, ChildOf(avatar))).id();
+        app.world_mut().spawn((Name::new("root"), Transform::IDENTITY, GlobalTransform::IDENTITY, ChildOf(player_entity)));
         app.world_mut().trigger(WorldInstanceReady {
             entity: avatar,
             instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()),
         });
         app.world_mut().flush();
-        app.add_systems(PostUpdate, (move |turn: Query<&AlsStandingTurnSlotRuntime>,
-            transition: Query<&crate::stop_link::AlsRootTransitionSlotRuntime>,
-            mut seen: ResMut<FinalSawSlots>| {
-            seen.turn = turn.get(avatar).is_ok();
-            seen.transition = transition.get(character).is_ok();
-        }).in_set(AnimationGraphSet::Final));
-        app.update();
-        let seen = app.world().resource::<FinalSawSlots>();
-        assert!(seen.turn && seen.transition,
-            "turn_before_final={} transition_before_final={}", seen.turn, seen.transition);
+        app.world_mut().run_schedule(Update);
+        let stack = app.world_mut().get_mut::<AlsTurnMontageStack>(avatar).unwrap().into_inner();
+        stack.begin(0.0, false, TURN_DUR_90, 1.0, false);
+        stack.owner_player = Some(player_entity);
+        stack.entries[0].elapsed = 0.42;
+        stack.entries[0].blend_in_elapsed = 0.42;
+        stack.entries[0].sampling_ready = true;
+        let drive = app.world_mut().get_mut::<AlsTurnDrive>(avatar).unwrap().into_inner();
+        drive.playing = true;
+        drive.clip_time = 0.42;
+        let mut transition = transition;
+        transition.clip_time = 0.42;
+        transition.previous_clip_time = 0.40;
+        transition.elapsed = 0.42;
+        transition.weight = 1.0;
+        app.world_mut().entity_mut(character).insert(crate::stop_link::AlsTransitionMontageStack { entries: vec![transition] });
+        app.world_mut().run_schedule(PostUpdate);
+        app.world_mut().schedule_scope(PostUpdate, |_, schedule| {
+            use bevy::ecs::schedule::NodeId;
+            let graph = schedule.graph();
+            let dependencies = graph.dependency().graph();
+            let find_set = |needle: &str| dependencies.nodes().filter(|node| matches!(node, NodeId::Set(_)))
+                .find(|node| graph.get_node_name(node).contains(needle))
+                .unwrap_or_else(|| panic!("missing schedule set: {needle}"));
+            let transition = schedule.systems().unwrap()
+                .find(|(_, system)| system.name().contains("bridge_root_transition_slot_samples"))
+                .map(|(key, _)| NodeId::System(key)).expect("missing transition bridge system");
+            let evaluate = find_set("Evaluate");
+            let reaches_evaluate = |start| {
+                let mut pending = vec![start];
+                let mut visited = std::collections::HashSet::new();
+                while let Some(node) = pending.pop() {
+                    if node == evaluate { return true; }
+                    if visited.insert(node) { pending.extend(dependencies.neighbors(node)); }
+                }
+                false
+            };
+            assert!(reaches_evaluate(find_set("AlsTurnSlotBridgeSet")), "turn bridge has no ordering path to late evaluate");
+            assert!(reaches_evaluate(transition), "transition bridge has no ordering path to late evaluate");
+        });
+        let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+        assert!(player.get_error().is_none(), "late graph evaluation failed: {:?}", player.get_error());
+        let outputs = player.get_outputs();
+        let turn_weight = outputs.get("turn_weight").and_then(|value| value.as_f32().ok());
+        let transition_weight = outputs.get("transition_weight").and_then(|value| value.as_f32().ok());
+        let turn_pose_time = outputs.get("pose").cloned().and_then(|value| value.into_pose().ok()).map(|pose| pose.timestamp);
+        let transition_pose_time = outputs.get("transition_pose").cloned().and_then(|value| value.into_pose().ok()).map(|pose| pose.timestamp);
+        let seen = app.world().resource::<EvalInputs>();
+        assert_eq!((seen.turn_clock, seen.transition_clock), (Some(0.42), Some(0.42)));
+        assert_eq!((turn_weight, transition_weight), (Some(1.0), Some(1.0)));
+        assert_eq!((turn_pose_time, transition_pose_time), (Some(0.42), Some(0.42)));
     }
 
     #[test]
