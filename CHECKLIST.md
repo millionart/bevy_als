@@ -1338,3 +1338,7 @@
   S3 静态闭环、runtime 前摘要：fresh Standing 6个 Movement BlendSpace Player与UE最高权重样本 Time/Length 源合同、S1现有图相关时钟None红、S2样本1.0/0.3→2.0/0.5与零delta2.0/0.4、无clip handle仍有时钟、去发布消融均闭合；BlendSpace11/11、同步包装4/4、FSM自动时间1/1。已安装 Standing 仍含原 BlendSpace 节点且未改RON/转换器，资产边界0 issue、公共视觉validator自测全项PASS。下一步同 `target_game/play` 预构建，先 startup，再 standing_stop/locomotion 功能场景；真实入口证明当前生产 Movement 时钟与自动迁移无回归，不把合成无clip fixture称作实机素材。
 
   runtime 后完成摘要：同一 `target_game/play` 预构建后，原 `startup`、`standing_stop`、`locomotion` 公共 `-FunctionalOnly -CaptureCount 0` runner/manual/validator全部退出0；startup80姿态样本，stop10/10覆盖、7/7必需窗口、840样本，locomotion18/18、14/14窗口、806样本。三场 `graph_errors=[]`、`primary_failure=null`、fault/temporal0、watchdog未触发、render/decal均通过。生产 Standing 的 Movement BlendSpace 路径无回归；报告未单独证明只有 BlendSpace 的自动迁移分支，相关时间非空与最高样本长度/位置仍由图级红绿/消融及FSM消费单测证明。完整性能预算继续延期。
+
+- [x] **BF124.A52 — BlendSpace Player 发布相关动画计时**：开始：2026-09-24 16:27:00 +08:00；预估结束：2026-09-24 16:42:00 +08:00；实际结束：2026-09-24 16:27:00 +08:00；偏差：-15m00s；结果：S1–S3各自通过并提交（`a53e283`、`f33c9c6`、`ace42d0`），fresh Standing/UE最高权重样本Time/Length、图级None红绿/样本切换/零delta无clip/消融、BlendSpace11/11和FSM剩余时间测试、原Playground三场功能Gate闭合。估时依据：只汇总已提交 source、focused与真实入口证据，无converter/生成资产改动；拆分结果：A52当前功能无剩余Gate，A53下一项，完整性能预算延期。
+
+  汇总：目标 BlendSpace Player 已按源最高 TotalWeight 样本的时间和播放长度发布 `SourceRelevantAsset`，FSM自动迁移不再因缺时钟拿到None；同一 clock 在符合旧门槛时仍供 asset_samples 使用。图级首参与原None→duration1，双端样本时长/位置1.0/0.3与2.0/0.5、零delta时2.0/0.4且无clip handle仍有时钟；去发布语句消融重新None。源 Standing 6个Movement Player 的安装图未改，原startup/standing_stop/locomotion功能Gate全过，生产运行报告未单独声明合成无clip情形动态覆盖。
