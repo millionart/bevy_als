@@ -1313,4 +1313,8 @@
 
   S2 source/static 完成摘要：只在 `blend_source_curve_context` 合并相关时钟处使用已有 `select_relevant_asset`，候选 Base保留内部权重、Curve再乘源 `FractionalWeight(BlendAmount)`；Accumulate 与 Override 仍按原各自曲线公式，CurvePose不 relevant 时节点继续沿现有门控。四格 duration1/2与Base内部0.8/0.2、Curve1/BlendAmount0.5：两模式分别选Base/Curve，有效 weight0.8/0.5；去 Curve权重系数后Base0.8错误选Curve，恢复后27个 Pose模块测试及FSM自动时间测试通过。未新增状态、converter/RON或原始资产改动，S3需验证实际 Layering 原入口姿态和自动迁移无回归。
 
-- [ ] **BF124.A51-S3 — Layering 静态与原 Playground 功能 Gate**：开始：2026-09-24 15:57:00 +08:00；预估结束：2026-09-24 16:47:00 +08:00。估时依据：S2共享runtime-only 小改动、fresh Layering 5图/两模式、同入口增量预构建及现有 startup/default_overlay/overlays 公共功能场景；完整性能预算沿用户既定范围延期。
+- [x] **BF124.A51-S3 — Layering 静态与原 Playground 功能 Gate**：开始：2026-09-24 15:57:00 +08:00；预估结束：2026-09-24 16:47:00 +08:00；实际结束：2026-09-24 16:03:00 +08:00；偏差：-44m00s；结果：fresh Layering源/已安装两节点模式与1.0数值对齐、资产边界0 issue、闭包/视觉工具自测PASS、同 `target_game/play` 预构建成功；原 startup/default_overlay/overlays 功能 runner manual/validator全部0，覆盖17/17与115/115、窗口6/6与110/110，三场图/故障/时序/watchdog0且render/decal通过。估时依据：S2 runtime-only 小改动与现成 Overlay 公共场景；拆分结果：A51可汇总关闭，A52下一项，完整性能预算延期。
+
+  S3 静态闭环、runtime 前摘要：fresh Layering 两张 CurvesBlend 源 BlendAmount1/Accumulate与Override、UE Base/Curve 更新权重、目标 `select_relevant_asset` 四格红绿/去 BlendAmount 消融及 Pose27/27、FSM自动剩余时间1/1已闭合；已安装 Layering RON 两节点仍与源同模式/数值。没有 converter或生成资产改动，不触发全量重转；`validate_runtime_graph_asset_boundary.py --check` 0 issue，生成闭包审计工具和公共视觉 validator self-test 全项PASS。下一步同 `target_game/play` 预构建，先startup再default_overlay/overlays原场景，区分当前真实资产无回归与合成双播放器分支证明。
+
+  runtime 后完成摘要：同一 `target_game/play` 预构建后，原 `startup`、`default_overlay`、`overlays` 公共 `-FunctionalOnly -CaptureCount 0` runner/manual/validator全部退出0；startup79姿态样本，default_overlay17/17覆盖、6/6必需窗口、688样本，overlays115/115、110/110窗口、3238样本。三场 `graph_errors=[]`、`primary_failure=null`、fault/temporal0、watchdog未触发、render/decal均通过。当前源图没有构造双权重时长竞争场景，真实运行只证明现有 Layering 无回归；S1/S2 synthetic 双模式四格相关时钟红绿与消融证明新分支。完整性能预算继续延期。
