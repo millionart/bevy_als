@@ -63,6 +63,7 @@ pub struct AlsMovementBase {
     pub entity: Option<Entity>,
     pub location: Vec3,
     pub rotation: Quat,
+    pub has_relative_rotation: bool,
 }
 
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq)]

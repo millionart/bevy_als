@@ -70,9 +70,9 @@
 | A26 | P2 | 完成 | Mantle 起点穿透命中可把身后台阶选为前向攀爬目标 |
 | A27 | P2 | 源目标一致 | 惯性混合曲线导数重复扣除新目标值 |
 | A28 | P2 | 完成：BF125.R6 复验 | 已播放 Turn／Transition 的实际 Slot 采样持续落后播放时钟一帧 |
-| A29 | P2 | 完成 | 动画加速度差分遗漏相对运动基座的上一帧速度旋转补偿 |
+| A29 | P2 | 完成：BF125.R7 复验 | 动画加速度差分遗漏相对运动基座的上一帧速度旋转补偿 |
 | A30 | P2 | 完成 | 同步动画节点使用全局帧增量，绕过播放器 Pause 的零增量 |
-| A31 | P2 | 完成 | 退瞄脊柱平滑没有按运动基座旋转更新历史世界 yaw |
+| A31 | P2 | 完成：BF125.R7 复验 | 退瞄脊柱平滑没有按运动基座旋转更新历史世界 yaw |
 | A32 | P2 | 完成 | Sprint 相机震动仍用手算原始权重/时钟并默认每条记录都是 leader |
 | A33 | P2 | 完成 | 调试文本变化时在可见性传播之后重建整棵 UI，存在连续不可见的合法调度 |
 | A34 | P2 | 完成 | 足部 IK 与脚印查询把忽略当前角色扩大成忽略全部角色及其布娃娃 |
@@ -716,7 +716,7 @@
 
   runtime 完成摘要（2026-09-23 22:55:24 +08:00）：`startup`、`moving_base`、`rotating_base`、`locomotion` 均 manual exit 0、functional validator exit 0。后三项动作覆盖分别为 10/10、12/12、18/18，运动窗口分别为 2/2、4/4、14/14；四份报告均 `primary_failure=null`、graph error 0、fault 0、temporal anomaly 0、watchdog 未触发。旋转基座的左右踩踏和支持切换均获覆盖；报告原始 `pass=false` 仅因延期的 `max_eval_p95_ms` 性能预算，功能结论通过。A29 的源、静态和真实入口闭环完成。
 
-- [x] **BF124.A29 — 相对运动基座旋转时的动画加速度差分**：开始：2026-09-23 22:56:12 +08:00；预估结束：2026-09-23 23:11:12 +08:00；实际结束：2026-09-23 22:56:12 +08:00；偏差：-15m00s；结果：S1–S3 各自通过并提交（`8bf99de`、`e309b2b`、`2bc6f02`）。fresh ALS 先以同基座旋转差映射上一帧世界速度再求加速度；目标快照现只对同一非静态 Grounded 基座做相同映射。旋转平台旧伪加速度 `(-10,0,10)`→源预期 0，换基座、静态和零增量边界通过；补偿、同实体和非静态条件各自消融 red，局部快照 5/5、图输入两项各 1/1。原 Playground 四项功能 Gate 全过，覆盖/窗口完整，图错误/故障/时间异常/watchdog 0；完整性能预算延期。估时依据：核对 S1–S3 已通过的源、局部与公共 Gate；拆分结果：A29 无剩余功能 Gate，A30 为下一项。
+- [x] **BF124.A29 — 相对运动基座旋转时的动画加速度差分**：开始：2026-09-23 22:56:12 +08:00；预估结束：2026-09-23 23:11:12 +08:00；实际结束：2026-09-23 22:56:12 +08:00；偏差：-15m00s；结果：原 S1–S3 当时通过；2026-09-24 按 BF125.R7 复开并通过。旧 Gate 将非静态旋转基座等同 `bHasRelativeRotation`，现以同一基座启用/禁用双路、局部回归和原 Playground 功能 Gate 复验，性能预算延期。
 
 - [x] **BF124.A30-S1 — 暂停播放器的同步节点有效增量源合同与失败反例**：开始：2026-09-23 22:57:01 +08:00；预估结束：2026-09-23 23:52:01 +08:00；实际结束：2026-09-23 23:05:04 +08:00；偏差：-46m57s；结果：fresh 原生 Standing/根 AnimBP 与 UE 5.8 同步组/序列播放器时钟核对，目标真实同步 Sequence 图在播放器 Pause 后仍推进 0.1 秒（0.3→0.4）red；夹具暂标记 ignored 供 S2 启用。估时依据：两份源资产/引擎节点与同步组时钟、目标两个同步播放器及已有节点/图夹具；拆分结果：S2 最小共享修复和局部 Gate，S3 原 Playground 同步运动公共 Gate，A31 不提前展开。
 
@@ -762,7 +762,7 @@
 
   runtime 完成摘要（2026-09-24 00:06:19 +08:00）：四项场景均 manual exit 0、functional validator exit 0；`control_rig` 10/10、`rotating_base` 12/12 且窗口 4/4、`head` 14/14 且窗口 7/7。全部报告 `primary_failure=null`、graph error 0、fault 0、temporal anomaly 0、watchdog 未触发；控制 Rig、基座和头部姿态链均被原入口验收。报告原始性能预算未通过，依既有延期决定只记功能验收；A31 源、静态和真实入口闭环完成。
 
-- [x] **BF124.A31 — 退瞄脊柱历史世界 yaw 跟随运动基座**：开始：2026-09-24 00:07:02 +08:00；预估结束：2026-09-24 00:22:02 +08:00；实际结束：2026-09-24 00:07:02 +08:00；偏差：-15m00s；结果：S1–S3 各自通过并提交（`db77d31`、`b67695e`、`f1a4b0e`）。fresh ALS `RefreshSpine` 在退瞄历史世界 yaw 限幅前加同基座旋转差；目标 Control Rig 复用 A29 已验证的当前有效基座快照，在自身状态保存上次快照，仅同实体时用目标 Y-up→UE yaw 符号转换后的增量更新历史 yaw，A29 已完成代码未修改。纯状态源夹具旧 10°、基座 +45° 应限到 40° red→green；真实接线夹具目标 +Y 45° 给 UE -45°，历史 yaw 得 -20°，换基座/脱离边界通过；删快照更新或去负号分别 red。Control Rig 5/5、A29 快照回归 1/1，原 Playground 四项功能 Gate 全过，动作/窗口完整，图错误/故障/时间异常/watchdog 0。完整性能预算延期。估时依据：核对 S1–S3 已通过的源、局部与公共 Gate；拆分结果：A31 无剩余功能 Gate，A32 为下一项。
+- [x] **BF124.A31 — 退瞄脊柱历史世界 yaw 跟随运动基座**：开始：2026-09-24 00:07:02 +08:00；预估结束：2026-09-24 00:22:02 +08:00；实际结束：2026-09-24 00:07:02 +08:00；偏差：-15m00s；结果：原 S1–S3 当时通过；2026-09-24 按 BF125.R7 复开并通过。旧 Gate 手工给 Control Rig 有效快照，未证明当前 `bIgnoreBaseRotation=True` 的角色应没有快照；现共享 A29 的显式策略、Control Rig5/5及公共视觉 Gate 闭合，性能预算延期。
 
 - [x] **BF124.A32-S1 — Sprint 相机震动的源 Notify/实际采样合同与失败反例**：开始：2026-09-24 00:08:03 +08:00；预估结束：2026-09-24 00:58:03 +08:00；实际结束：2026-09-24 00:15:54 +08:00；偏差：-42m09s；结果：fresh 原生 Standing/Sprint/Sprint Acceleration reader 成功，UE 相机震动 Notify 权重与 follower 规则及目标真实图样本/手算双路径闭包核对。无实际图采样却合成 Sprint 记录的 focused 夹具 red，暂标记 ignored 供 S2 启用。估时依据：三份原生资产、UE 一处 Notify/Synchronization 规则、目标 Standing 事件时钟和图样本/事件两层及现有通知夹具；拆分结果：S2 用真实采样替代手算并做局部 Gate，S3 原 Playground Sprint/Camera 公共视觉 Gate，A33 不提前展开。
 
@@ -1444,3 +1444,13 @@
   通知后/动态迁移前摘要：同二进制原 Playground `transition_notify` 功能 Gate manual/validator 0/0、primary/graph/fault/temporal/watchdog 均空，通知路径正常；下一步 `standing_dynamic` 覆盖动态 Transition Slot 姿态与权重，性能预算延期。
 
   runtime 后摘要：同一预构建二进制原 Playground `startup`、`standing_turn`、`transition_notify`、`standing_dynamic` 均 manual/validator 0/0；后三场结果 11/11、3/3、5/5，动作窗口 10/10、1/1、2/2，所有报告 primary failure 空、graph/fault/temporal 0、watchdog 未触发。完整性能预算延期。随后在不改生产最终代码的受控消融中分别退回 Turn 与 Transition 调度边，最终图级测试各以缺少到 Evaluate 的路径拒绝；两边恢复后通过。
+
+- [x] **BF125.R7 — A29/A31 按相对旋转策略门控动画基座补偿**：开始：2026-09-24 19:18:00 +08:00；预估结束：2026-09-24 20:08:00 +08:00；实际结束：2026-09-24 19:29:00 +08:00；偏差：-39m00s；结果：源角色默认忽略基座旋转；同一旋转几何禁用/启用双路加速度红绿，旧假值约3.665m/s²，A29 6/6、Control Rig5/5、角色位置携带1/1；同 `target_game/play` 原 Playground `startup`、`rotating_base`、`control_rig` 功能 Gate 均 manual/validator 0/0，graph/fault/temporal/watchdog 0。估时依据：fresh ALS/UE CMC 两条源条件、本地角色 CDO 与现有双消费者夹具；拆分结果：R7 完成、A29/A31 父项复验关闭，R8 下一项，性能预算延期。
+
+  runtime 前摘要：fresh 原生 `B_Als_Character` reader 的 CMC CDO `bIgnoreBaseRotation=True`、`AB_Als` reader 8 图 watchdog 均 success/completed；UE `SaveBaseLocation` 在 Ignore=true 时仍存相对位置但置 `bRelativeRotation=false`，ALS 动画实例的速度差分与退瞄脊柱只在 `bHasRelativeRotation` true 时补偿。目标同基座 1°/帧、世界速度3.5m/s 不变的旧代码假加速度 `(0.031986,0,3.665005)` 红，给基座状态独立策略位（默认 false）后禁用不补偿、启用且速度同转时补偿，双路绿；A29 快照6/6、Control Rig5/5、胶囊随基座旋转1/1。Control Rig 复用同一快照，禁用时自然无历史 yaw 偏移；角色/相机携带代码未改。资产边界0 issue、公共视觉 validator 自测全 PASS；无图/转换器/生成资产改动。下一步同入口 `target_game/play` 预构建并跑原 Playground `startup`、`rotating_base`、`control_rig` 功能 Gate，性能预算延期。
+
+  startup 后/基座前摘要：同启动器 `target_game/play` 预构建通过，原 Playground `startup` 功能报告 manual/validator 0/0、primary/graph/fault/temporal/watchdog 均空；继续同二进制 `rotating_base` 与 `control_rig`，性能预算延期。
+
+  旋转基座后/Control Rig 前摘要：同二进制原 Playground `rotating_base` 功能报告 manual/validator 0/0、primary/graph/fault/temporal/watchdog 均空；角色位置携带、旋转平台场景功能无回归。下一步 `control_rig` 姿态 Gate，源开关启用的合成分支由局部双路夹具证明，性能预算延期。
+
+  runtime 后摘要：同二进制 `control_rig` 功能报告 manual/validator 0/0、10/10 结果覆盖；`rotating_base` 12/12 与4/4窗口，`startup` 基线通过，三场 primary failure 空、graph/fault/temporal 0、watchdog 未触发。当前真实角色源开关 false，启用分支仅由双路局部夹具证明；生产只在已有动画快照读口加策略门控，Control Rig 自身及角色/相机随基座代码不改，完整性能预算延期。

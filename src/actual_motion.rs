@@ -84,7 +84,7 @@ fn snapshot_actual_motion_system(
             AlsActualMotion::from_physics_velocity(
                 locomotion_velocity(velocity.0, *locomotion, base), transform.rotation);
         next.movement_base_snapshot = movement_base
-            .filter(|_| *locomotion == LocomotionState::Grounded)
+            .filter(|base| *locomotion == LocomotionState::Grounded && base.has_relative_rotation)
             .and_then(|base| base.entity.map(|entity| (entity, base.rotation)))
             .filter(|(entity, _)| {
                 let owner = owners.get(*entity).map_or(*entity, |collider| collider.body);
@@ -238,6 +238,7 @@ mod tests {
                 },
                 AlsMovementBase {
                     entity: Some(base),
+                    has_relative_rotation: true,
                     ..default()
                 },
             ))
@@ -301,5 +302,35 @@ mod tests {
         app.world_mut().get_mut::<LinearVelocity>(character).unwrap().0 = Vec3::Y;
         app.world_mut().run_schedule(PostUpdate);
         assert_eq!(app.world().get::<AlsActualMotion>(character).unwrap().world_acceleration, Vec3::ZERO);
+    }
+
+    #[test]
+    fn rotating_base_without_relative_rotation_keeps_world_velocity_acceleration_zero() {
+        for has_relative_rotation in [false, true] {
+            let mut app = App::new();
+            app.add_plugins(MinimalPlugins).add_systems(PostUpdate, snapshot_actual_motion_system);
+            app.world_mut().resource_mut::<Time>()
+                .advance_by(std::time::Duration::from_secs_f32(1.0 / 60.0));
+            let base = app.world_mut().spawn(RigidBody::Kinematic).id();
+            let character = app.world_mut().spawn((
+                AlsCharacter,
+                Transform::IDENTITY,
+                LinearVelocity(Vec3::X * 3.5),
+                LocomotionState::Grounded,
+                AlsMovementBaseDynamicsState { entity: Some(base), ..default() },
+                AlsMovementBase { entity: Some(base), has_relative_rotation, ..default() },
+            )).id();
+            app.world_mut().run_schedule(PostUpdate);
+            let rotation = Quat::from_rotation_y(1.0_f32.to_radians());
+            app.world_mut().get_mut::<AlsMovementBase>(character).unwrap().rotation = rotation;
+            if has_relative_rotation {
+                app.world_mut().get_mut::<LinearVelocity>(character).unwrap().0 = rotation * Vec3::X * 3.5;
+            }
+            app.world_mut().run_schedule(PostUpdate);
+            let motion = app.world().get::<AlsActualMotion>(character).unwrap();
+            assert!(motion.world_acceleration.length() < 1e-4,
+                "relative_rotation={has_relative_rotation} gained acceleration: {:?}", motion.world_acceleration);
+            assert_eq!(motion.movement_base_snapshot.is_some(), has_relative_rotation);
+        }
     }
 }
