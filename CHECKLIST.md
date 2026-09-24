@@ -1116,3 +1116,11 @@
   source/static 修复前摘要：UE `UActorComponent::GetOwner()` 是独立于 SceneComponent attachment 的 Actor 所有权；目标 detachment 仍需保留世界 Transform 与原 parent 供 get-up 恢复，但该 parent 不是可见 Mesh 的当前祖先。脱离系统已有当前 `character`，将其放在既有 marker 中是最短的 source owner 通道；渲染记录仅在发现该 marker 时用该 owner 盖时间戳，轮选函数本身已有最近渲染容差无需补丁。
 
   source/static 修复后摘要：`AlsRagdollDetachedPlayer` 只多存脱离时的 `character`，原 parent/local Transform 恢复合同不变；`record_rendered_characters` 对正常 Avatar 祖先与脱离 marker 选其一作为 owner 后沿用同一 `AlsLastDebugRender` 写入。没有新系统、缓存、轮选阈值或 Overlay 排除分支。可见 detached mesh 的单一反例由 stamped=false/selected=false 变为两者 true；正常 debug_target4/4、ragdoll_link13/13 含玩家替换/进入/恢复通过。临时删去脱离 owner 读取后相同红例重现，恢复后再次绿；S3 只补原 Playground 真实可见 ragdoll 的最近渲染可选资格与默认场景无回归。
+
+- [x] **BF124.A43-S3 — 原 Playground 可见布娃娃最近渲染/轮选资格公共 Gate**：开始：2026-09-24 09:16:00 +08:00；预估结束：2026-09-24 10:11:00 +08:00；实际结束：2026-09-24 09:24:30 +08:00；偏差：-46m30s；结果：原 ragdoll 显式变体在实际 detach 超过候选容差后仍有可见 mesh/新鲜 owner 时间戳，公共 runner/manual/validator0/0、12/12；默认11/11且无变体行，两场各44姿态样本/1窗口、graph/primary/fault/temporal/watchdog0、渲染/贴花通过。估时依据：S2 13/13生命周期与原 ragdoll 场景；拆分结果：A43 可汇总关闭，A44 不提前展开，完整性能预算延期。
+
+  runtime 前设计摘要：当前只有原玩家角色时 PageUp 即便没有候选也会回退该玩家，不能拿实机场景选中自己当证据。显式变体要求可见 Mesh 真正位于已脱离 player 子树且该 player 的 marker owner 为当前 Actor，再检查最近渲染时间戳满足轮选的原阈值；这样直接覆盖生产渲染记录缺口。普通 ECS 反例已验证两个角色下 PageUp 选中可见布娃娃，真实场景沿原 Playground 的 Ragdoll→GetUp 生命周期运行，不新增替身角色或图资产。
+
+  首次 runtime 夹具漏检复盘（2026-09-24 09:21:00 +08:00）：`target_game/play` 预构建及显式/默认 ragdoll 公共 runner 均0，显式12/12含 `ragdoll_debug_render=true`，默认11/11无变体行，两场图/姿态/watchdog0。但初版变体在首次见到 detached player 当帧就接受 stamp，先前附着状态的时间戳尚可能处于0.2s窗口，因此这份通过不能证明脱离期间持续记录。现用变体自身 Local 记真实首次 detach 时刻，必须超过同一候选阈值后再次看到可见 mesh 与新鲜 stamp 才通过；旧报告保留为阶段结果，重建并重新运行显式/默认 Gate，生产修复不变。
+
+  runtime 后完成摘要：修正后的变体以 `Local` 记录首次见到当前 detached player 的时刻，等待时间严格超过轮选的 `max(0.2, delta+epsilon)` 容差后，才要求同 player 子树真实 SkinnedMesh 可见、marker.character 为当前 actor、actor stamp 仍在该容差内。最终同 `target_game/play` 预构建的显式/默认原 `ragdoll` 公共功能 runner 与 validator 退出0；显式12/12含 `ragdoll_debug_render=true`，默认11/11且无该行，双方44姿态样本、1窗口、graph error/primary_failure/fault/temporal/watchdog0、render/decal通过。普通两 Actor 的 PageUp 精确轮选由 S1 红/S2 绿测试提供，真实场景单 Actor 只声明持续候选资格，不把回退选中自己当证明。未改原始资产/场景角色/动画图/相机；完整性能预算未执行。

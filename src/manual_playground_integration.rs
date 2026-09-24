@@ -10,6 +10,7 @@ mod overlays;
 mod footprints;
 mod hud_layout;
 mod reroute;
+mod ragdoll_debug;
 
 use als_camera::{AlsCameraDebugInfo, AlsCameraRig, AlsCameraSet, AlsCameraShakeRequest, AlsCameraSocketBinding, AlsCameraSocketLocations};
 use als_core::character::{
@@ -617,6 +618,7 @@ impl Plugin for ManualPlaygroundIntegrationPlugin {
         footprints::install(app);
         hud_layout::install(app);
         reroute::install(app);
+        ragdoll_debug::install(app);
         if std::env::var("ALS_MANUAL_RAGDOLL_PLAYER_REPLACEMENT").as_deref() == Ok("1") {
             app.add_systems(PreUpdate, replace_ragdoll_player_once.after(drive_manual_integration));
         }
@@ -3111,6 +3113,7 @@ struct IntegrationCoverage {
     ragdoll_entered: bool,
     ragdoll_pa_profile: bool,
     ragdoll_player_replaced: bool,
+    ragdoll_debug_render: bool,
     ragdoll_follow: bool,
     ragdoll_scaled: bool,
     ragdoll_joint_drive: bool,
@@ -3179,6 +3182,7 @@ struct ManualIntegrationState {
     mantle_root_released: bool,
     ragdoll_seen: bool,
     expect_ragdoll_player_replacement: bool,
+    expect_ragdoll_debug_render: bool,
     expect_control_rig_definition_hot_swap: bool,
     expect_decal_receiver_swap: bool,
     expect_reroute_passthrough: bool,
@@ -3313,6 +3317,8 @@ impl Default for ManualIntegrationState {
             ragdoll_seen: false,
             expect_ragdoll_player_replacement:
                 std::env::var("ALS_MANUAL_RAGDOLL_PLAYER_REPLACEMENT").as_deref() == Ok("1"),
+            expect_ragdoll_debug_render:
+                std::env::var("ALS_MANUAL_RAGDOLL_DEBUG_RENDER").as_deref() == Ok("1"),
             expect_control_rig_definition_hot_swap:
                 std::env::var("ALS_MANUAL_RIG_DEFINITION_HOT_SWAP").as_deref() == Ok("1"),
             expect_decal_receiver_swap:
@@ -5865,6 +5871,7 @@ fn drive_manual_integration(
                 state.coverage.ragdoll_entered = false;
                 state.coverage.ragdoll_pa_profile = false;
                 state.coverage.ragdoll_player_replaced = false;
+                state.coverage.ragdoll_debug_render = false;
                 state.coverage.ragdoll_follow = false;
                 state.coverage.ragdoll_scaled = false;
                 state.coverage.ragdoll_joint_drive = false;
@@ -10407,6 +10414,9 @@ fn observe_manual_integration(
         };
         if state.scenario == IntegrationScenario::Ragdoll && state.expect_ragdoll_player_replacement {
             results.push(("ragdoll_player_replacement", coverage.ragdoll_player_replaced));
+        }
+        if state.scenario == IntegrationScenario::Ragdoll && state.expect_ragdoll_debug_render {
+            results.push(("ragdoll_debug_render", coverage.ragdoll_debug_render));
         }
         if state.scenario == IntegrationScenario::ControlRig && state.expect_control_rig_definition_hot_swap {
             results.push(("control_rig_definition_hot_swap", coverage.control_rig_definition_hot_swap));
