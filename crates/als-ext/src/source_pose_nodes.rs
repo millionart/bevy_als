@@ -706,12 +706,17 @@ fn blend_source_curve_context(
     if blend_amount > 1e-5 {
         merge_inertialization_request(&mut base.inertialization_request, curve.inertialization_request.as_ref());
     }
+    let relevant_asset = select_relevant_asset([
+        (base.relevant_asset.clone(), 1.0),
+        (curve.relevant_asset.clone(), blend_amount),
+    ]);
     match blend_mode {
         SourceCurvesBlendMode::Accumulate => {
             for (name, value) in &curve.curves {
                 *base.curves.entry(name.clone()).or_default() += value * blend_amount;
             }
             base.curves_are_authoritative |= curve.curves_are_authoritative;
+            base.relevant_asset = relevant_asset;
             base
         }
         SourceCurvesBlendMode::Override => AnimationContextState {
@@ -720,7 +725,7 @@ fn blend_source_curve_context(
                 .iter()
                 .map(|(name, value)| (name.clone(), value * blend_amount))
                 .collect(),
-            relevant_asset: curve.relevant_asset.clone(),
+            relevant_asset,
             curves_are_authoritative: curve.curves_are_authoritative,
             sync_players: base.sync_players,
             asset_samples: base.asset_samples,
@@ -2062,7 +2067,9 @@ mod tests {
                     ..default()
                 };
                 let result = blend_source_curve_context(base, &curve, 0.5, mode);
-                assert_eq!(result.relevant_asset.unwrap().duration, expected_duration, "mode={mode:?}, base_weight={base_weight}");
+                let clock = result.relevant_asset.unwrap();
+                assert_eq!(clock.duration, expected_duration, "mode={mode:?}, base_weight={base_weight}");
+                assert_eq!(clock.weight, base_weight.max(0.5));
             }
         }
     }

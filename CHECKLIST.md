@@ -1309,4 +1309,8 @@
 
   S1 source/static 完成摘要：fresh `AB_Als_Layering` 5图、2个 `AlsAnimationGraphNode_CurvesBlend`；内层 Accumulate 的 BasePose=UseCachedPose、CurvePose=Slot，外层 Override 的 BasePose=Reroute/缓存、CurvePose=内层；两者 source BlendAmount=1。ALS C++ Update 总是 BasePose.Update(Context)，CurvePose只在 relevant 时 Update(Context.FractionalWeight(BlendAmount))；Evaluate 才按 Mode 混曲线，相关资产选择必须沿已乘内层权重比较。目标 helper 模式分支先于相关时钟选择，Accumulate/Override分别硬选 Base/Curve。focused 设置 Base duration1、Curve duration2，curve权重1、BlendAmount0.5；Base内部权重0.2时源应选Curve duration2，旧 Accumulate 误选1，red；Base0.8时源应选Base，旧 Override 将误选Curve。保留现有曲线值/模式测试，S2只改 relevant_asset 合并。
 
-- [ ] **BF124.A51-S2 — Curves Blend 按实际更新权重选相关动画**：开始：2026-09-24 15:53:00 +08:00；预估结束：2026-09-24 16:33:00 +08:00。估时依据：S1一处共享 context helper与4格双模式/双内部权重红例、现成 `select_relevant_asset`；Gate 为四格红→绿、曲线数值不变、去相关权重合并消融及适用模块回归，随后原入口静态/运行时 Gate。
+- [x] **BF124.A51-S2 — Curves Blend 按实际更新权重选相关动画**：开始：2026-09-24 15:53:00 +08:00；预估结束：2026-09-24 16:33:00 +08:00；实际结束：2026-09-24 15:56:00 +08:00；偏差：-37m00s；结果：复用 `select_relevant_asset` 比较 Base权重1与 Curve权重BlendAmount，结果与曲线模式无关；Base内部0.8→选duration1、0.2→选duration2，两模式4格红→绿且有效权重正确；去 Curve BlendAmount 消融将Base0.8误选duration2，恢复后Pose模块27/27与FSM自动剩余时间测试通过。估时依据：S1共享helper/现成选择器与4格反例；拆分结果：S3 静态Layering/原Playground Gate，无 converter/共享转换规则改动不触发全量重转，A52不提前展开。
+
+  S2 source/static 完成摘要：只在 `blend_source_curve_context` 合并相关时钟处使用已有 `select_relevant_asset`，候选 Base保留内部权重、Curve再乘源 `FractionalWeight(BlendAmount)`；Accumulate 与 Override 仍按原各自曲线公式，CurvePose不 relevant 时节点继续沿现有门控。四格 duration1/2与Base内部0.8/0.2、Curve1/BlendAmount0.5：两模式分别选Base/Curve，有效 weight0.8/0.5；去 Curve权重系数后Base0.8错误选Curve，恢复后27个 Pose模块测试及FSM自动时间测试通过。未新增状态、converter/RON或原始资产改动，S3需验证实际 Layering 原入口姿态和自动迁移无回归。
+
+- [ ] **BF124.A51-S3 — Layering 静态与原 Playground 功能 Gate**：开始：2026-09-24 15:57:00 +08:00；预估结束：2026-09-24 16:47:00 +08:00。估时依据：S2共享runtime-only 小改动、fresh Layering 5图/两模式、同入口增量预构建及现有 startup/default_overlay/overlays 公共功能场景；完整性能预算沿用户既定范围延期。
