@@ -1318,3 +1318,7 @@
   S3 静态闭环、runtime 前摘要：fresh Layering 两张 CurvesBlend 源 BlendAmount1/Accumulate与Override、UE Base/Curve 更新权重、目标 `select_relevant_asset` 四格红绿/去 BlendAmount 消融及 Pose27/27、FSM自动剩余时间1/1已闭合；已安装 Layering RON 两节点仍与源同模式/数值。没有 converter或生成资产改动，不触发全量重转；`validate_runtime_graph_asset_boundary.py --check` 0 issue，生成闭包审计工具和公共视觉 validator self-test 全项PASS。下一步同 `target_game/play` 预构建，先startup再default_overlay/overlays原场景，区分当前真实资产无回归与合成双播放器分支证明。
 
   runtime 后完成摘要：同一 `target_game/play` 预构建后，原 `startup`、`default_overlay`、`overlays` 公共 `-FunctionalOnly -CaptureCount 0` runner/manual/validator全部退出0；startup79姿态样本，default_overlay17/17覆盖、6/6必需窗口、688样本，overlays115/115、110/110窗口、3238样本。三场 `graph_errors=[]`、`primary_failure=null`、fault/temporal0、watchdog未触发、render/decal均通过。当前源图没有构造双权重时长竞争场景，真实运行只证明现有 Layering 无回归；S1/S2 synthetic 双模式四格相关时钟红绿与消融证明新分支。完整性能预算继续延期。
+
+- [x] **BF124.A51 — Curves Blend 相关动画按更新权重选择**：开始：2026-09-24 16:04:00 +08:00；预估结束：2026-09-24 16:19:00 +08:00；实际结束：2026-09-24 16:04:00 +08:00；偏差：-15m00s；结果：S1–S3各自通过并提交（`e802aee`、`6a46685`、`ddd4c73`），fresh Layering/ALS Update语义、双模式权重红绿与消融、Pose27/27/FSM时间测试及原Playground三场功能 Gate 闭合。估时依据：只汇总已提交源、局部与真实入口证据，无转换器/生成资产变更；拆分结果：A51当前功能无剩余 Gate，A52下一项，完整性能预算延期。
+
+  汇总：源 BasePose.Update 继承Context权重1、CurvePose.Update乘BlendAmount，BlendMode只决定曲线数值。目标不再 Accumulate固定保Base/Override固定取Curve，改由既有 `select_relevant_asset` 按内部权重与BlendAmount乘积选相关时钟，两种曲线模式数值不变；Base权重0.8/0.2时分别选duration1/2，有效权重0.8/0.5，去系数消融误选Curve。fresh Layering两张节点仍Accumulate/Override且BlendAmount1，无转换迁移；原startup/default_overlay/overlays功能Gate全过，不能把合成双时长竞争称作当前资产动态路径。
