@@ -1289,4 +1289,8 @@
 
   S2 source/static 完成摘要：TwoWay 按 UE 的新相关边界复用 BlendList 已验 `read_blend_list_child`：启用reset才隔离 A/B 子图，激活时按各自 context 集合重建，从同帧输入更新；普通无reset仍走原直接 data。`SourceTwoWayBlendState` 只新增必须的 A/B context 记录，消融成每帧临时 Vec 时直连例过而间接子树末帧0.5≠0.3，证实该状态不可删除。converter 仅删同类型规则中“source必须 SequencePlayer”限制，仍要求每个 A/B 有唯一 Pose 源、不同源；合成间接 A 原 `PoseRenderError`→通过，改 graph/node 身份仍通过，改输出pin为非Pose仍失败；恢复直连限制的消融 red。无图专用分支、无原资产修改，S3必做全量转换判定安装影响。
 
-- [ ] **BF124.A50-S3 — 全部生成 AnimBP/递归依赖重转与完整产物 diff**：开始：2026-09-24 15:10:00 +08:00；预估结束：2026-09-24 16:05:00 +08:00。估时依据：A49同类15根/23图/374文件全量原生重转1736.7秒，现成独立暂存/外层进展watchdog/full diff；若有源证实变化须迁移全部受影响生成资产，S4随后验静态与真实入口。
+- [x] **BF124.A50-S3 — 全部生成 AnimBP/递归依赖重转与完整产物 diff**：开始：2026-09-24 15:10:00 +08:00；预估结束：2026-09-24 16:05:00 +08:00；实际结束：2026-09-24 15:40:00 +08:00；偏差：-25m00s；结果：全部15安装根/23已生成 AnimBP和递归依赖原生重转，15份 conversion.report 均pass；旧/暂存各374文件，added/missing/changed全0、完整patch0字节，无资产迁移。watchdog正常/停滞/覆盖self-test通过，最终exit_reason=completed、Camera结束、等待0.011秒，有效转换1740.7秒。估时依据：A49同类1736.7秒；拆分结果：S4 静态边界/原Playground Gate，A51不提前展开。
+
+  全量重转完成摘要：独立 A50 暂存批次 `corpus_progress.json` 记录15/15安装根、23图、15/15转换报告pass、exit_reason=completed、最后 Camera、等待0.011秒；总转换1740.7秒。外层 watchdog 自测正常完成、停滞退出、安装清单覆盖全部PASS。逐字节比较 `assets/generated` 与暂存完整 `generated` 树，两边各374文件，新增/缺失/改变为空，`full_diff.patch` 长度0；没有缩到 TwoWay 图或节点类型。fresh Standing 当前 reset=true A/B本就直连Sequence，新通用规则不改变已生成RON；运行时作用域路径仍必须由 S4 原真实入口检验。
+
+- [ ] **BF124.A50-S4 — 静态边界与原 Playground TwoWay 功能 Gate**：开始：2026-09-24 15:41:00 +08:00；预估结束：2026-09-24 16:31:00 +08:00。估时依据：S3全量374产物零diff、现有 `target_game/play` 增量预构建，原 startup/standing_stop/standing_direction 公共场景；先静态资产边界与报告自测，随后真实入口功能 Gate，完整性能预算延期。
