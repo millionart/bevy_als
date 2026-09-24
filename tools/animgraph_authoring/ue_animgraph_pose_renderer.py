@@ -425,13 +425,14 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             field("start_position_pin", quoted(start_position_pin)),
             field("expose_start_position_pin", bool_ron(start_position_pin in pins)),
             field("loop_animation", bool_ron(value["loop_animation"])),
-            field("ignore_for_relevancy_test", bool_ron(value["ignore_for_relevancy_test"])),
             field("loop_animation_key", quoted(loop_animation_key)),
             field("loop_animation_pin", quoted(loop_animation_pin)),
             field("expose_loop_animation_pin", bool_ron(loop_animation_pin in pins)),
             field("sync_group", quoted(value["sync_group"])),
             field("root_lock", root_lock),
         ]
+        if value["ignore_for_relevancy_test"]:
+            fields.append(field("ignore_for_relevancy_test", "true"))
         if value["sync_group"] != "None":
             synchronization = sync_clock_fields(value)
             timing = asset_by_node[semantic["source_node"]]["source_timing"]
@@ -1907,7 +1908,7 @@ def run_self_test():
     graph_ir["nodes"].append({"source_node": comment_path, "renderer": "comment_group"})
     text = render(graph_contract, graph_ir, assets)
     assert '"als_ext::SourceSequencePlayerNode"' in text
-    assert 'ignore_for_relevancy_test: false' in text
+    assert 'ignore_for_relevancy_test:' not in text
     graph_ir["nodes"][0]["semantic"]["ignore_for_relevancy_test"] = True
     assert 'ignore_for_relevancy_test: true' in render(graph_contract, graph_ir, assets)
     graph_ir["nodes"][0]["semantic"]["ignore_for_relevancy_test"] = False
