@@ -1543,3 +1543,17 @@
   N3 source/static 完成摘要：fresh UE `TwoWallAdjust` 在旧/新法线点积≤0时把余量投影到二者交线，钝角继续沿当前面滑动，`PhysFalling` 对二面结果再次调用防上冲。目标仅为当前子步的 Air 扫掠保留上一法线，公共 helper 同时处理交线和 N2 上升上限；速度仍由修正余量/未消费时间获得，三次上限不变。原生60°位置 y=1.7014306m、无墙1.6427749m的失败已修正；60°/75°/120°及镜像均保留自由下落，钝角仍保留合法水平速度、两面无穿越。focused fixture 将历史法线置None即重新产生指向首墙的位移，Some恢复交线；倾斜交线也拒绝新增上升。只有一个子步局部Option，无新组件、缓存、场景分支或扫掠预算；既有单墙、穿透、过滤、站蹲与重力11/11、公式5/5通过。
 
   共同 runtime 前摘要：源码闭包为 ALS CMC继承→UE单面/双面Falling滑动→目标Avian命中与位移/速度消费，0个动画图/资产/转换器改动。`validate_runtime_graph_asset_boundary.py --check` 0 issue；公共视觉 validator自测53/53 PASS，watchdog正常/无进展/子进程自测通过。现在以启动器实际 `target_game/play`、jobs2预构建，按startup→10 FPS uphill_jump→10 FPS grounded运行公共功能Gate；精确旋转斜面/非正交双墙的数值差异由原生夹具证明，公共真实场景证明现有角色与资产无回归。性能预算继续按既定暂停范围延期。
+
+  startup 后/Air 前摘要：同入口 target_game/play 预构建成功，原 Playground startup公共runner manual/validator 0/0，功能pass=true，渲染/贴花检查均true；primary_failure空，graph/fault/temporal为空，watchdog未触发。报告保留full_pass=false及原动画求值p95预算超限，未调整阈值；下一步同二进制10 FPS uphill_jump。
+
+
+  首次 Air runtime失败摘要（2026-09-24 23:33:00 +08:00）：10 FPS uphill_jump 的case10/第二组冲刺在Flight停滞5s，manual91/validator1，图/fault/temporal为空。胶囊中心y=2.386324m，现有FindFloor支撑中心约2.384993m、踏面1.56m，vy/vz=0、无Avian冲量，因落地后备只接受物理冲量而持续Air。旧最终报告同一路径碰撞后vy=+0.166675m/s，说明旧错误上冲曾继续推动它跨到传感器支撑。fresh UE `PhysFalling` 直接以本次阻挡Hit调用`IsValidLandingSpot`，边缘再经`ShouldCheckForValidLandingSpot/FindFloor`验证；目标自定义扫掠处理位移后丢弃命中，未传入现有落地消费者。停止依赖场景，先补精确局部ALSTnuaAvian边缘反例；保留失败报告，不重复启动猜测。
+
+- [x] **BF127.N2R — 扫掠命中接入现有胶囊落地验证**：开始：2026-09-24 23:34:00 +08:00；预估结束：2026-09-25 00:19:00 +08:00；实际结束：2026-09-24 23:48:00 +08:00；偏差：-31m00s；结果：真实Air/无物理冲量的台阶边缘首帧落地red→green，A01 focused12/12与核心landing15/15；拆分结果：静态闭环完成，继续S2最终二进制真实验收。估时依据：已证实的扫掠→核心落地消费者唯一缺边、现有胶囊FloorResult/下半球/边缘验证和BF116.02d1的36组合；新增边缘真实插件红绿、无碰撞近地反例及命中生命周期消融，估算窗口45分钟。有限复开已归档BF116.02d的落地命中消费者；原Gate只有Avian冲量和60/120Hz组合，未覆盖自定义扫掠无冲量。仅传递当帧合格阻挡实体，复用原落地几何验证，不扩大阈值、不强写动画状态。
+
+  S2拆分记录：开始23:24、预估23:59，首次runtime于23:29失败，静态回读截至23:33，实际本轮结束23:33，偏差-26m，结果startup通过、Air失败、grounded未开始。N2/N3的独立反例与静态修复仍通过；S2在N2R静态Gate后核定后续窗口并使用新二进制/新目录复验，不把未跑场景计通过。
+
+
+  N2R source/static完成摘要：沿fresh `PhysFalling`阻挡Hit→有效胶囊FloorResult→`ProcessLanded`链，目标把Air扫掠已处理的向上法线阻挡实体写入既有CmcAdapterRuntime，落地消费者一次性take；只有同实体的可走胶囊地面、原MAX_FLOOR_DISTANCE和下半球验证均成立才进入原Grounded状态发布。无新组件/调度阶段，保持物理冲量旧路径，未修改图/落地阈值。新夹具先稳定初始化Air，再回放原报告碰撞前位置/速度；旧首帧位置(0,0.83027947,0.20207354)、速度0但仍Air，修后在同一无Avian冲量且FindFloor有效的帧落地，后续持续Grounded。去掉控制器Air预热时初始化支撑使夹具假通过，预热保留；删除调试轨迹/重复状态后12/12不变。新核心fixture移除命中或改成其他实体即保持Air，匹配命中才落地，三种情况下记录都被消费清空；15项landing回归含36组旧上跳、不可走斜面与移动支撑全部通过。N2/N3斜面/非正交角落反例继续通过。
+
+  最终runtime前摘要：N2R已闭合生产扫掠→落地消费者的唯一缺边。S2剩余同入口重建与四场功能检查，当前仍可在原23:59估时内完成；因新增核心落地消费者，补moving_base作为必要共享回归。现在以最终源码重建target_game/play/jobs2，在新目录按startup→10 FPS uphill_jump→10 FPS grounded→moving_base运行；旧失败报告保留，性能仍延期，截图0。

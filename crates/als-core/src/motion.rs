@@ -3045,11 +3045,13 @@ pub(crate) fn locomotion_state_sync_system(
             Option<&crate::state::AlsNotifyLocomotionAction>,
             &AlsMovementParamsHandle,
             &Stance,
+            &mut AlsCmcAdapterRuntime,
         ),
         With<AlsCharacter>,
     >,
 ) {
-    for (entity, transform, position, mut velocity, controller, mut current, request, ragdoll_air_exit, action, handle, stance) in &mut q {
+    for (entity, transform, position, mut velocity, controller, mut current, request, ragdoll_air_exit, action, handle, stance, mut runtime) in &mut q {
+        let sweep_contact = runtime.airborne_sweep_contact.take();
         if !matches!(*current, LocomotionState::Grounded | LocomotionState::Air) || ragdoll_air_exit
             || action == Some(&crate::state::AlsNotifyLocomotionAction::Ragdolling) {
             continue;
@@ -3086,18 +3088,22 @@ pub(crate) fn locomotion_state_sync_system(
             || jumping;
         let landed_on_contact = airborne && collisions.collisions_with(entity)
             .any(|contact| resolved_walkable_contact(contact, entity));
-        let landed_on_capsule = airborne && !landed_on_contact && !floor_supported
+        let capsule_contact = airborne && !landed_on_contact && !floor_supported
             && collisions.collisions_with(entity).any(|contact| {
                 contact.flags.contains(ContactPairFlags::GENERATE_CONSTRAINTS)
                     && contact.manifolds.iter().any(|manifold| {
                         let normal = if contact.collider1 == entity { -manifold.normal } else { manifold.normal };
                         normal.y > 0.0 && manifold.points.iter().any(|point| point.normal_impulse > 0.0)
                     })
-            }) && params_assets.get(handle.id()).is_some_and(|params| {
+            });
+        let landed_on_capsule = airborne && !landed_on_contact && !floor_supported
+            && (capsule_contact || sweep_contact.is_some())
+            && params_assets.get(handle.id()).is_some_and(|params| {
                 let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height } * transform.scale.y;
                 let radius = params.crouch.standing_capsule_radius * transform.scale.x.min(transform.scale.z);
                 find_ground_floor(&spatial, position.0, half, radius, &SpatialQueryFilter::from_excluded_entities([entity]))
-                    .is_some_and(|(center, impact, _)| (position.y - center).abs() <= MAX_FLOOR_DISTANCE
+                    .is_some_and(|(center, impact, floor)| (capsule_contact || sweep_contact == Some(floor))
+                        && (position.y - center).abs() <= MAX_FLOOR_DISTANCE
                         && impact < position.y - half + radius)
             });
         let target = if airborne && !landed_on_contact && !floor_supported && !landed_on_capsule {
@@ -3373,6 +3379,33 @@ mod tests {
             }
         }
         assert!(failures.is_empty(), "Uphill landing failed: {failures:?}");
+    }
+
+    #[test]
+    fn sweep_landing_requires_a_current_matching_contact() {
+        use bevy::ecs::system::RunSystemOnce;
+        for matching in [None, Some(false), Some(true)] {
+            let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+            let position = app.world().get::<Position>(character).unwrap().0;
+            let floor = app.world_mut().run_system_once(move |spatial: SpatialQuery| {
+                find_ground_floor(&spatial, position, 0.9, 0.3,
+                    &SpatialQueryFilter::from_excluded_entities([character])).unwrap().2
+            }).unwrap();
+            app.add_systems(Update, (move |entities: Query<&TnuaSensorsEntities<AlsControlScheme>>,
+                mut sensors: Query<&mut TnuaProximitySensor>| {
+                let sensor = entities.get(character).unwrap().ground.unwrap();
+                sensors.get_mut(sensor).unwrap().output = None;
+            }).after(TnuaPipelineSystems::Sensors).before(TnuaPipelineSystems::Logic));
+            *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = LocomotionState::Air;
+            app.world_mut().get_mut::<AlsCmcAdapterRuntime>(character).unwrap().airborne_sweep_contact =
+                matching.map(|matched| if matched { floor } else { character });
+            app.update();
+            let expected = if matching == Some(true) { LocomotionState::Grounded } else { LocomotionState::Air };
+            assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), expected,
+                "landing contact identity was not respected: {matching:?}");
+            assert!(app.world().get::<AlsCmcAdapterRuntime>(character).unwrap().airborne_sweep_contact.is_none(),
+                "a consumed sweep contact survived into the next frame");
+        }
     }
 
     #[test]

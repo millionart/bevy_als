@@ -153,14 +153,15 @@ fn integrate_character_position(
     candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>,
     mut characters: Query<(Entity, &mut SolverBody, &Position, &Collider, &LocomotionState,
         Option<&AlsNotifyLocomotionAction>, &RigidBody, Option<&als_core::dynamics::AlsMovementBaseDynamicsState>,
-        Option<&CollisionLayers>, Has<SourceCharacterFullFrame>, Has<CustomPositionIntegration>), With<AlsCharacter>>,
+        Option<&CollisionLayers>, Has<SourceCharacterFullFrame>, Has<CustomPositionIntegration>,
+        &mut als_core::character::AlsCmcAdapterRuntime), With<AlsCharacter>>,
 ) {
     if frame_time.delta() <= SOURCE_MAX_PHYSICS_DELTA {
         return;
     }
     let frame_step = frame_time.delta_secs() / substeps.0 as f32;
     let extra_step = (frame_time.delta_secs() - physics_time.delta_secs()) / substeps.0 as f32;
-    for (entity, mut body, position, collider, locomotion, action, rigid_body, base, layers, full_frame, custom_position) in &mut characters {
+    for (entity, mut body, position, collider, locomotion, action, rigid_body, base, layers, full_frame, custom_position, mut runtime) in &mut characters {
         let movement = if full_frame {
             body.linear_velocity * frame_step
         } else if !custom_position && extra_step > 0.0 && *rigid_body == RigidBody::Dynamic
@@ -196,6 +197,9 @@ fn integrate_character_position(
             let Some(normal) = hit.normal1.try_normalize() else { break; };
             let mut slide = remaining - *direction * travel;
             if *locomotion == LocomotionState::Air {
+                if normal.y > 0.0 && remaining.dot(normal) < 0.0 {
+                    runtime.airborne_sweep_contact = Some(hit.entity);
+                }
                 slide = als_ext::motion::falling_slide(slide, normal, previous_normal);
                 previous_normal = Some(normal);
                 remaining_time *= 1.0 - travel / distance;
@@ -426,6 +430,67 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn air_sweep_lands_on_a_walkable_edge_without_solver_contact() {
+        use als_core::character::{AlsCharacterBundle, AlsCharacterPlugin};
+        use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
+        use als_core::motion::{AlsMotionPlugin, initial_als_control_scheme_config};
+        use als_core::params::AlsMovementParams;
+        use als_core::transition::AlsStateTransitionPlugin;
+        use bevy_tnua::TnuaControllerPlugin;
+        use bevy_tnua_avian3d::TnuaAvian3dPlugin;
+        use bevy::ecs::system::RunSystemOnce;
+        let mut app = App::new();
+        app.add_plugins((
+            MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+            avian3d::prelude::PhysicsPlugins::new(PostUpdate),
+            TnuaAvian3dPlugin::new(Update), TnuaControllerPlugin::<AlsControlScheme>::new(Update),
+            AlsStateTransitionPlugin, AlsCharacterPlugin, AlsMotionPlugin, SourcePhysicsTimingPlugin,
+        ))
+        .init_asset::<Mesh>()
+        .add_message::<bevy::asset::AssetEvent<Mesh>>()
+        .insert_resource(SubstepCount(6))
+        .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(100)));
+        app.finish();
+        app.update();
+        let value = AlsMovementParams::default();
+        let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(value.clone());
+        let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>()
+            .add(initial_als_control_scheme_config(&value));
+        let mut bundle = AlsCharacterBundle::new(params, config);
+        bundle.transform.translation = Vec3::new(0.0, 5.0, 0.417345);
+        let character = app.world_mut().spawn(bundle).id();
+        *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = LocomotionState::Air;
+        app.world_mut().get_mut::<als_core::input::AlsInputCommand>(character).unwrap().move_dir = Vec2::Y;
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(10.0, 4.0, 20.0),
+            Transform::from_xyz(0.0, -2.0, -10.0)));
+        for _ in 0..3 { app.update(); }
+        assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Air);
+        let start = Vec3::new(0.0, 1.0146527, 0.417345);
+        app.world_mut().get_mut::<Position>(character).unwrap().0 = start;
+        app.world_mut().get_mut::<Transform>(character).unwrap().translation = start;
+        app.world_mut().get_mut::<LinearVelocity>(character).unwrap().0 = Vec3::new(0.0, -1.686, -2.3968756);
+        for frame in 0..12 {
+            app.update();
+            if frame == 0 {
+                let position = app.world().get::<Position>(character).unwrap().0;
+                let (floor, contact) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                    collisions: avian3d::prelude::Collisions| {
+                    let floor = als_core::motion::find_ground_floor(&spatial, position, 0.9, 0.3,
+                        &SpatialQueryFilter::from_excluded_entities([character]));
+                    let contact = collisions.collisions_with(character).any(|pair| pair.manifolds.iter()
+                        .any(|manifold| manifold.points.iter().any(|point| point.normal_impulse > 0.0)));
+                    (floor, contact)
+                }).unwrap();
+                assert!(!contact && floor.is_some_and(|(center, _, _)| (position.y - center).abs() <= 0.024),
+                    "fixture requires a sweep-only walkable contact: {floor:?} {contact}");
+                assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Grounded,
+                    "first blocking sweep did not land: {position:?}");
+            }
+        }
+        assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Grounded);
     }
 
     #[test]
