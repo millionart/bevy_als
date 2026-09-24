@@ -242,6 +242,7 @@ pub struct SourceSequencePlayerNode {
     pub loop_animation_pin: String,
     pub expose_loop_animation_pin: bool,
     pub sync_group: String,
+    pub override_position_when_joining_sync_group_as_leader: bool,
     pub synchronization: Option<SourceSequenceSynchronization>,
 }
 
@@ -269,6 +270,7 @@ impl Default for SourceSequencePlayerNode {
             loop_animation_pin: "Loop Animation".to_owned(),
             expose_loop_animation_pin: false,
             sync_group: Default::default(),
+            override_position_when_joining_sync_group_as_leader: false,
             synchronization: None,
         }
     }
@@ -395,6 +397,8 @@ impl NodeLike for SourceSequencePlayerNode {
                 identity,
                 key: sync.key.clone(),
                 role: sync.role,
+                source_asset: Some(self.clip.clone()),
+                override_position_when_joining_sync_group_as_leader: self.override_position_when_joining_sync_group_as_leader,
                 weight: 1.0,
                 previous_phase,
                 phase_duration: sync.phase_duration,

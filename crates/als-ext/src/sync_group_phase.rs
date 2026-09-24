@@ -98,6 +98,8 @@ pub struct SourceSyncPlayerTick {
     pub identity: (GraphContextId, NodeId),
     pub key: String,
     pub role: SourceSyncGroupRole,
+    pub source_asset: Option<Handle<bevy_animation_graph::core::animation_clip::GraphClip>>,
+    pub override_position_when_joining_sync_group_as_leader: bool,
     pub weight: f32,
     pub phase: f32,
     pub previous_phase: f32,
@@ -186,6 +188,17 @@ pub fn resolved_source_sync_phase(ctx: &NodeContext, key: &str) -> Result<Option
         .transpose()
 }
 
+fn group_leader<'a>(players: &[&'a SourceSyncPlayerTick]) -> Option<&'a SourceSyncPlayerTick> {
+    let marker_sync = !players.first()?.phase_markers.is_empty();
+    let candidates = players.iter().enumerate().map(|(index, player)| SourceSyncGroupCandidate {
+        role: player.role,
+        blend_weight: player.weight,
+        source_order: index,
+        marker_sync_valid: player.markers.len() >= 2,
+    }).collect::<Vec<_>>();
+    players.get(select_source_sync_group_leader(&candidates, marker_sync)?).copied()
+}
+
 pub fn resolve_source_sync_phases(
     current: &[SourceSyncPlayerTick],
     previous: &[SourceSyncPlayerTick],
@@ -195,28 +208,16 @@ pub fn resolve_source_sync_phases(
         if groups.iter().any(|(key, _)| key == &player.key) {
             continue;
         }
-        let players = current
-            .iter()
-            .filter(|candidate| candidate.key == player.key)
-            .collect::<Vec<_>>();
-        let candidates = players
-            .iter()
-            .enumerate()
-            .map(|(index, player)| SourceSyncGroupCandidate {
-                role: player.role,
-                blend_weight: player.weight,
-                source_order: index,
-                marker_sync_valid: player.markers.len() >= 2,
-            })
-            .collect::<Vec<_>>();
-        let leader =
-            players[select_source_sync_group_leader(&candidates, !player.phase_markers.is_empty())
-                .unwrap()];
-        let phase = previous
-            .iter()
-            .find(|prior| prior.key == player.key)
-            .map(|prior| prior.phase)
-            .unwrap_or(leader.previous_phase);
+        let players = current.iter().filter(|candidate| candidate.key == player.key).collect::<Vec<_>>();
+        let Some(leader) = group_leader(&players) else { continue; };
+        let previous_players = previous.iter().filter(|prior| prior.key == player.key).collect::<Vec<_>>();
+        let joined = group_leader(&previous_players).is_some_and(|prior| {
+            prior.identity != leader.identity || prior.source_asset != leader.source_asset
+        });
+        let phase = previous_players.first().map(|prior| prior.phase).unwrap_or(leader.previous_phase);
+        let phase = if leader.override_position_when_joining_sync_group_as_leader && joined {
+            leader.previous_phase
+        } else { phase };
         groups.push((player.key.clone(), leader.advance(phase)));
     }
     groups
@@ -803,6 +804,55 @@ mod tests {
             },
         );
         assert!((advance_sync_phase(&mut state, input) - 0.2).abs() < EPSILON);
+    }
+
+    #[test]
+    fn new_override_leader_uses_its_own_marker_phase() {
+        let mut clips = Assets::<bevy_animation_graph::core::animation_clip::GraphClip>::default();
+        let old_clip = clips.add(bevy_animation_graph::core::animation_clip::GraphClip::default());
+        let new_clip = clips.add(bevy_animation_graph::core::animation_clip::GraphClip::default());
+        let old_id: NodeId = serde_json::from_str("\"10000000-0000-4000-8000-000000000001\"").unwrap();
+        let new_id: NodeId = serde_json::from_str("\"10000000-0000-4000-8000-000000000002\"").unwrap();
+        let tick = |id, clip, phase, override_position| SourceSyncPlayerTick {
+            identity: (GraphContextId::default(), id),
+            key: "Movement".to_owned(),
+            role: SourceSyncGroupRole::CanBeLeader,
+            source_asset: Some(clip),
+            override_position_when_joining_sync_group_as_leader: override_position,
+            weight: 1.0,
+            phase,
+            previous_phase: phase,
+            phase_duration: 1.0,
+            phase_markers: markers(&[("Left", 0.0), ("Right", 0.5)]),
+            duration: 1.0,
+            markers: markers(&[("Left", 0.0), ("Right", 0.5)]),
+            looped: true,
+            delta_seconds: 0.1,
+            play_rate: 1.0,
+        };
+        let old = tick(old_id, old_clip.clone(), 0.8, false);
+        let mut joining = tick(new_id, new_clip.clone(), 0.2, true);
+        let phase = |current: &SourceSyncPlayerTick, previous: &[SourceSyncPlayerTick]| {
+            resolve_source_sync_phases(&[current.clone()], previous)[0].1
+        };
+        assert!((phase(&joining, &[old.clone()]) - 0.3).abs() < EPSILON);
+        joining.override_position_when_joining_sync_group_as_leader = false;
+        assert!((phase(&joining, &[old]) - 0.9).abs() < EPSILON);
+        joining.override_position_when_joining_sync_group_as_leader = true;
+        let mut same = joining.clone();
+        same.phase = 0.8;
+        assert!((phase(&joining, &[same.clone()]) - 0.9).abs() < EPSILON);
+        same.source_asset = Some(old_clip);
+        assert!((phase(&joining, &[same]) - 0.3).abs() < EPSILON);
+        assert!((phase(&joining, &[]) - 0.3).abs() < EPSILON);
+        joining.phase_markers.clear();
+        joining.markers.clear();
+        let mut old_length = tick(old_id, new_clip, 0.8, false);
+        old_length.phase_markers.clear();
+        old_length.markers.clear();
+        assert!((phase(&joining, &[old_length.clone()]) - 0.3).abs() < EPSILON);
+        joining.override_position_when_joining_sync_group_as_leader = false;
+        assert!((phase(&joining, &[old_length]) - 0.9).abs() < EPSILON);
     }
 
     #[test]

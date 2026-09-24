@@ -433,6 +433,8 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
         ]
         if value["ignore_for_relevancy_test"]:
             fields.append(field("ignore_for_relevancy_test", "true"))
+        if value["override_position_when_joining_sync_group_as_leader"]:
+            fields.append(field("override_position_when_joining_sync_group_as_leader", "true"))
         if value["sync_group"] != "None":
             synchronization = sync_clock_fields(value)
             timing = asset_by_node[semantic["source_node"]]["source_timing"]
