@@ -11,6 +11,7 @@ mod footprints;
 mod hud_layout;
 mod reroute;
 mod ragdoll_debug;
+mod machine_weight;
 
 use als_camera::{AlsCameraDebugInfo, AlsCameraRig, AlsCameraSet, AlsCameraShakeRequest, AlsCameraSocketBinding, AlsCameraSocketLocations};
 use als_core::character::{
@@ -619,6 +620,7 @@ impl Plugin for ManualPlaygroundIntegrationPlugin {
         hud_layout::install(app);
         reroute::install(app);
         ragdoll_debug::install(app);
+        machine_weight::install(app);
         if std::env::var("ALS_MANUAL_RAGDOLL_PLAYER_REPLACEMENT").as_deref() == Ok("1") {
             app.add_systems(PreUpdate, replace_ragdoll_player_once.after(drive_manual_integration));
         }
@@ -3088,6 +3090,10 @@ struct IntegrationCoverage {
     foot_probe: bool,
     decal_receiver_swap: bool,
     reroute_passthrough: bool,
+    machine_weight_partial: bool,
+    machine_weight_full: bool,
+    machine_weight_low_start: bool,
+    machine_weight_full_start: bool,
     foot_lock: bool,
     foot_ik_space_baseline: bool,
     foot_ik_no_hit_recovered: bool,
@@ -3186,6 +3192,8 @@ struct ManualIntegrationState {
     expect_control_rig_definition_hot_swap: bool,
     expect_decal_receiver_swap: bool,
     expect_reroute_passthrough: bool,
+    expect_machine_weight: bool,
+    machine_weight_partial_phase: Option<IntegrationPhase>,
     ragdoll_exit_requested: bool,
     ragdoll_frames: u32,
     get_up_case: usize,
@@ -3325,6 +3333,9 @@ impl Default for ManualIntegrationState {
                 std::env::var("ALS_MANUAL_DECAL_RECEIVER_SWAP").as_deref() == Ok("1"),
             expect_reroute_passthrough:
                 std::env::var("ALS_MANUAL_REROUTE_PASSTHROUGH").as_deref() == Ok("1"),
+            expect_machine_weight:
+                std::env::var("ALS_MANUAL_MACHINE_WEIGHT").as_deref() == Ok("1"),
+            machine_weight_partial_phase: None,
             ragdoll_exit_requested: false,
             ragdoll_frames: 0,
             get_up_case: 0,
@@ -10426,6 +10437,14 @@ fn observe_manual_integration(
         }
         if state.scenario == IntegrationScenario::Base && state.expect_reroute_passthrough {
             results.push(("reroute_passthrough", coverage.reroute_passthrough));
+        }
+        if state.scenario == IntegrationScenario::Base && state.expect_machine_weight {
+            results.extend([
+                ("machine_weight_partial", coverage.machine_weight_partial),
+                ("machine_weight_full", coverage.machine_weight_full),
+                ("machine_weight_low_start", coverage.machine_weight_low_start),
+                ("machine_weight_full_start", coverage.machine_weight_full_start),
+            ]);
         }
         for (name, covered) in &results {
             if *covered {
