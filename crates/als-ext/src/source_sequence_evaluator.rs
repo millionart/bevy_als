@@ -8,6 +8,7 @@ use bevy_animation_graph::core::{
 };
 
 use crate::global_f32_input::root_defaults_enabled;
+use crate::source_instance::source_input_data;
 use crate::source_sequence_player::sample_source_pose;
 
 fn frame_to_time(frame: f32, frames_per_second: f64) -> f32 {
@@ -67,25 +68,19 @@ impl Default for SourceSequenceEvaluatorNode {
 
 impl SourceSequenceEvaluatorNode {
     fn input_value(&self, ctx: &NodeContext) -> Result<f32, GraphError> {
+        if !self.explicit_value_key.is_empty() {
+            return match source_input_data(ctx, &self.explicit_value_key) {
+                Some(value) => value.as_f32(),
+                None if root_defaults_enabled(ctx) => Ok(self.explicit_value),
+                None => Err(GraphError::GlobalInputDataMissing(self.explicit_value_key.clone())),
+            };
+        }
         if self.expose_explicit_value_pin {
             if let Ok(value) = ctx.data_back(self.explicit_value_pin.clone()) {
                 return value.as_f32();
             }
         }
-        if self.explicit_value_key.is_empty() {
-            return Ok(self.explicit_value);
-        }
-        match ctx
-            .graph_context
-            .global_input_data
-            .get(&self.explicit_value_key)
-        {
-            Some(value) => value.as_f32(),
-            None if root_defaults_enabled(ctx) => Ok(self.explicit_value),
-            None => Err(GraphError::GlobalInputDataMissing(
-                self.explicit_value_key.clone(),
-            )),
-        }
+        Ok(self.explicit_value)
     }
 }
 
@@ -294,6 +289,8 @@ mod tests {
             let graph = resources.animation_graph_assets.get(&handle).unwrap();
             let node = graph.nodes.values().find(|node| node.name == "bound").unwrap();
             let evaluator = node.try_inner_downcast_ref::<SourceSequenceEvaluatorNode>().unwrap();
+            let unbound = graph.nodes.values().find(|node| node.name == "unbound").unwrap();
+            let unbound_evaluator = unbound.try_inner_downcast_ref::<SourceSequenceEvaluatorNode>().unwrap();
             let mut arena = GraphContextArena::new(handle.id());
             let mut gizmos = DeferredGizmos::default();
             let entities = HashMap::new();
@@ -313,18 +310,38 @@ mod tests {
                 assert_eq!(node_ctx.data_back("ExplicitTime").unwrap().as_f32().unwrap(), 0.1);
                 values.push(evaluator.input_value(&node_ctx).unwrap());
                 drop(node_ctx);
+                let unbound_ctx = context.create_node_context(unbound.id);
+                assert_eq!(unbound_evaluator.input_value(&unbound_ctx).unwrap(), 0.1);
+                drop(unbound_ctx);
                 drop(context);
                 arena.next_frame();
             }
+            let mut empty_arena = GraphContextArena::new(handle.id());
+            let empty = HashMap::new();
+            let context = GraphContext::new(empty_arena.get_toplevel_id(), graph, &mut empty_arena,
+                &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &empty);
+            let node_ctx = context.create_node_context(node.id);
+            assert!(matches!(evaluator.input_value(&node_ctx), Err(GraphError::GlobalInputDataMissing(key)) if key == "draw_amount"));
+            drop(node_ctx);
+            drop(context);
+            let defaults = HashMap::from([(
+                crate::global_f32_input::ROOT_DEFAULTS_ENABLED_KEY.to_owned(), DataValue::Bool(true),
+            )]);
+            let context = GraphContext::new(empty_arena.get_toplevel_id(), graph, &mut empty_arena,
+                &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &defaults);
+            assert_eq!(evaluator.input_value(&context.create_node_context(node.id)).unwrap(), 0.4);
             values
         }
         let mut graph = AnimationGraph::new();
         graph.set_default_data(GraphInputPin::passthrough("pin"), DataValue::F32(0.1));
         let node = AnimationNode::new("bound", SourceSequenceEvaluatorNode {
-            explicit_value_key: "draw_amount".into(), ..default()
+            explicit_value: 0.4, explicit_value_key: "draw_amount".into(), ..default()
         });
         graph.add_node(node.clone());
         graph.add_input_data_edge(GraphInputPin::passthrough("pin"), node.id, "ExplicitTime");
+        let unbound = AnimationNode::new("unbound", SourceSequenceEvaluatorNode::default());
+        graph.add_node(unbound.clone());
+        graph.add_input_data_edge(GraphInputPin::passthrough("pin"), unbound.id, "ExplicitTime");
         let mut graphs = Assets::<AnimationGraph>::default();
         let handle = graphs.add(graph);
         let mut world = World::new();

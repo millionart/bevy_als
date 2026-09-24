@@ -1387,4 +1387,8 @@
 
   S1 source/static 完成摘要：fresh Bow 原生 reader 成功、6图仅1个 `AnimGraphNode_SequenceEvaluator`，其 `ExplicitTime` pin默认0，Binding_Base 的 `PropertyBindings` 指向 `PropertyPath=("DrawAmount")`，当前生成RON显式 key `draw_amount`。UE `AnimNode_SequenceEvaluator.cpp` Update在 `GetExplicitTime` 前运行 exposed-input 绑定，当前属性值应优先于可见pin默认；目标通用 `source_input_data` 已定义本帧实例属性 > frame input > 旧实例/raw global，而 Evaluator 自己不调用它。图级真实 NodeContext 为绑定pin提供可读默认0.1，raw global0.25、frame input0.55、首帧实例写入0.75；第一帧应0.75、第二帧实例值变旧后应0.55，旧 `input_value` 两帧均读0.1精确red。S2必须保留无绑定时链接pin优先的原路径，不只改全局key查询。
 
-- [ ] **BF124.A55-S2 — Evaluator 属性绑定按实例/帧输入优先级取值**：开始：2026-09-24 17:18:00 +08:00；预估结束：2026-09-24 18:03:00 +08:00。估时依据：S1已定位一处 `input_value` 顺序/旧global读取，现成 `source_input_data` 与两帧红例；Gate 为绑定0.75→0.55红绿、未绑定真实pin仍优先、缺绑定值时声明式默认/错误分支、去绑定优先分支消融及Evaluator/属性模块回归。
+- [x] **BF124.A55-S2 — Evaluator 属性绑定按实例/帧输入优先级取值**：开始：2026-09-24 17:18:00 +08:00；预估结束：2026-09-24 18:03:00 +08:00；实际结束：2026-09-24 17:23:00 +08:00；偏差：-40m00s；结果：绑定key先用通用 `source_input_data`，首帧同帧实例属性0.75、次帧frame input0.55红→绿，未绑定可见pin仍0.1；绑定缺值且无默认开关时返回缺输入、开关启用时取声明默认0.4。改回原始global查询消融为[0.25,0.25]红，恢复后Evaluator6/6、source_instance优先级1/1通过。估时依据：S1一处读口与现成实例输入helper；拆分结果：S3静态Bow/原Playground功能Gate，无converter/生成资产改动不触发全量重转，随后汇总55条。
+
+  S2 source/static 完成摘要：Evaluator 仅在 `explicit_value_key` 非空即源属性绑定时先走 `source_input_data(ctx,key)`，它按同帧实例写入、frame input、旧实例/raw global 原有优先级读取，缺值仍按 `root_defaults_enabled` 允许声明默认或报 `GlobalInputDataMissing`；无绑定时保留可见pin优先/字段回退。源 Bow绑定 DrawAmount 图级两帧先前 [0.1,0.1]现[0.75,0.55]，同图未绑定pin继续0.1；缺值分支无默认报错、启用默认得0.4。把新读口消融回 raw global 得[0.25,0.25]，恢复后Evaluator6/6与实例输入测试1/1。未改 source binding、converter、原始资产或RON，S3专注真实 Bow/Overlay 入口功能验证。
+
+- [ ] **BF124.A55-S3 — Bow 属性绑定静态与原 Playground 功能 Gate**：开始：2026-09-24 17:24:00 +08:00；预估结束：2026-09-24 18:14:00 +08:00。估时依据：S2 runtime-only读口修复、fresh Bow一处 DrawAmount绑定、同入口增量预构建与 startup/bow/overlays 公共场景；完整性能预算沿用户暂停范围延期，结束后核对55条父项状态。
