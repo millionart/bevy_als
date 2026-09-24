@@ -1254,3 +1254,11 @@
 - [x] **BF124.A48 — TwoBoneIK Direction pole 反馈核销**：开始：2026-09-24 14:12:00 +08:00；预估结束：2026-09-24 14:27:00 +08:00；实际结束：2026-09-24 14:12:00 +08:00；偏差：-15m00s；结果：S1 源/目标闭环已提交（`ac81512`）；UE 与目标 Direction 点式求解一致，当前 `CR_Als` 真正执行的 Basic IK 均为 Location，未证实待修差异。估时依据：只汇总 fresh C++/资产、现有 focused/生成器自测，无实现或 runtime 依赖；拆分结果：A48 以 source-first 无差异关闭，A49 下一项。
 
   汇总：不能把 Direction 改成 root-relative pole，因为这会偏离本地 UE 5.8 的实际 `PoleTarget` 传递和 `JointTarget-RootPos` 公式。反馈描述的平移不变性缺陷在源和目标同样存在，而且当前实际图使用 Location；本项没有代码改动，完整性能预算无需启动。
+
+- [x] **BF124.A49-S1 — Sequence 秒数起点与 BlendSpace 相位边界源合同/失败反例**：开始：2026-09-24 14:13:00 +08:00；预估结束：2026-09-24 14:58:00 +08:00；实际结束：2026-09-24 14:16:00 +08:00；偏差：-42m00s；结果：fresh Standing native reader38.755s/success，20个CDO Sequence Player 最大起点0.25秒、6个 BlendSpace Player 均0.2；UE Sequence 初始化 clamp 到序列长度，BlendSpace clamp 到归一化1。合成源合法2.5秒 Sequence 的1.75秒起点进入现有同步计划，被 `source_sync_group_contract_unsupported` 精确拒绝，converter self-test red。估时依据：A46 同步组生成器与 Standing 原生读取约40秒、UE 两类初始化分支、现有 fixture；拆分结果：S2 按 renderer 修合同/保留 BlendSpace 边界与消融，S3 全23 AnimBP/递归依赖重转diff，S4 原 Playground，A50不提前展开。
+
+  source/static 开始摘要：本地 UE SequencePlayer 初始化使用 `FMath::Clamp(EffectiveStartPosition, 0, Sequence.GetPlayLength())`，StartPosition 是秒；BlendSpacePlayer 初始化使用 `FMath::Clamp(CurrentStartPosition, 0, 1)`，StartPosition 是归一化相位。目标 `build_sync_group_plans` 对两种 renderer 的 `start_position` 无差别强制 `0<=start<=1`，虽 runtime SequencePlayer 按秒使用。先 fresh 核对 Standing 图字段/时长，再用长序列合成源语义构造精确拒绝反例。
+
+  S1 source/static 完成摘要：fresh Standing 原生 CDO 的 Sequence/BlendSpace `StartPosition` 值分别最大0.25秒/统一0.2，现有资产未暴露错误；本地 UE `AnimNode_SequencePlayer.cpp` 初始化到 `[0, GetPlayLength()]`，`AnimNode_BlendSpacePlayer.cpp` 初始化到 `[0,1]`。目标同一 sync plan guard 把两种来源混为 `[0,1]`。复用现有两播放器 fixture，只改首个 Sequence source timing 为2.5秒及 start为1.75秒，`--self-test` 在预期的 `source_sync_group_contract_unsupported` red；资产和图身份未参与该拒绝。S2 要保留 BlendSpace 相位范围，不能统一删除上界。
+
+- [ ] **BF124.A49-S2 — 同步计划按 Sequence 秒数/BlendSpace 相位验起点**：开始：2026-09-24 14:16:00 +08:00；预估结束：2026-09-24 15:01:00 +08:00。估时依据：S1已定位单个共享 guard/最小红例，现成 `source_timing.duration` 与 converter self-test；Gate 为长序列1.75成功、BlendSpace越界仍拒、图身份变化不改变语义、字段变化改变输出及去区分分支消融。

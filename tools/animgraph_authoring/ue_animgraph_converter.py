@@ -3279,6 +3279,17 @@ def run_self_test():
     assert sync_plans[0]["target_phase_key"] == "sync_groups.ab_als_test.second_pivot.phase"
     assert sync_plans[0]["phase_basis_source_node"] == "/Asset:AnimGraph.PlayerA"
     assert sync_graphs[0]["nodes"][1]["semantic"]["sync_phase_key"] == sync_plans[0]["target_phase_key"]
+    long_sync_graphs = copy.deepcopy(sync_graphs)
+    long_sync_assets = copy.deepcopy(sync_assets)
+    long_sync_graphs[0]["nodes"][0]["semantic"]["start_position"] = 1.75
+    long_sync_assets[0]["source_timing"]["duration"] = 2.5
+    long_plans, _, long_issues = build_sync_group_plans(
+        "/ALS/AnimationInstances/AB_Als_Test.AB_Als_Test",
+        long_sync_graphs,
+        long_sync_assets,
+    )
+    assert not long_issues, long_issues
+    assert long_plans[0]["candidates"][0]["source_start_position"] == 1.75
     mismatched_sync_graphs = copy.deepcopy(sync_graphs)
     mismatched_sync_graphs[0]["nodes"][1]["semantic"]["loop_animation"] = False
     _, _, mismatch_issues = build_sync_group_plans(
