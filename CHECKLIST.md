@@ -1076,3 +1076,13 @@
   source/static 修复前摘要：`Absolute (Float)` 的 A→ReturnValue 是唯一已证实的量纲保持浮点步骤；当前 `pin_payload` 对比较输入只看直接上游的 `K2Node_PropertyAccess`，一旦直接上游是 Absolute 即把源速度阈值650原样当作 runtime m/s。使用源 pin/边名反向遍历而非图名、GUID、节点标题特例；源图当前四个无单位 Absolute 不应产生 diff。此处属于共享转换规则修复，S2a 只完成代码与 focused 合同，S2b 必须无条件完整重转后才允许运行时 Gate。
 
   source/static 修复后摘要：新增一个仅解释已连接源端单位的 helper，匹配 `K2Node_CallFunction` Absolute 的 `ReturnValue`，沿其 A 输入逆向追溯；遇未证明算子即停、环时报错，直接属性路径仍沿原规则。focused fixture 同时包含直接 Speed650→6.5、经 Absolute650→6.5、重命名节点与 GUID 不变、源700→7、无单位 HipsDirectionLockAmount0.5→0.5；还原旧直接上游检测后合成速度重现650，恢复后生成器 self-test 9项与批量器 self-test 3项通过。当前四份源/目标无单位条件图不应改变；S2b 必须先对15份安装根、全部23份 AnimBP/递归依赖重转并核对完整文件集合与逐字节 diff，再进入静态/运行时 Gate。
+
+- [x] **BF124.A42-S2b — 全部生成 AnimBP 与递归依赖重转及完整产物 diff**：开始：2026-09-24 07:52:00 +08:00；预估结束：2026-09-24 08:47:00 +08:00；实际结束：2026-09-24 08:34:00 +08:00；偏差：-13m00s；结果：15/15 installation 根、23/23 已生成 AnimBP 及递归依赖经原生 reader 重转；374/374 当前/新文件逐字节一致，新增/缺失/改变全0，四张无单位 Absolute 条件图0.5保持。外层 watchdog 两次进展监视器失效已读报告、修正并留存恢复记录，自测正常/停滞/覆盖通过，最终 exit_reason=completed、等待0.122s。估时依据：A22 同类15根/23图/374文件转换约58m与本次 fresh 读速；拆分结果：S3 静态闭环、S4 原 Playground Gate，A43 不提前展开。
+
+  全量启动前摘要：S2a 转换规则及 focused self-test 已通过，四张已安装无单位 Absolute 图的0.5是必要的不变对照；使用安装根并集而非筛选有 Absolute 的图。转换输出只放 gitignored `target/bf124/a42/`，待完整 diff 后才决定是否迁移任何生成资产；变换前不启动新 runtime。
+
+  首轮批次 watchdog 复盘（2026-09-24 07:55:15 +08:00）：首个 `AB_Als` 根在180s外层无进展上限停止，`corpus_progress.json` 明确 `last_progress=corpus_started`、等待180.029s、条件 AB_Als、exit_reason=no_progress_limit，0/15；外层 stdout/stderr 均空，但 converter 的原生 reader 使用系统临时目录，自己的日志不在外层监视集合中，UE 子进程后来已启动。此为进展信号漏接，不是转换语义失败。已将每根临时目录通过 TMP/TEMP/TMPDIR 定向到该根独立暂存目录，使外层能观察原生 reader 的日志/输出；watchdog 正常/停滞/覆盖 self-test 重新通过，子进程树已在停止时清理。保留180s固定无进展上限与900s总上限，现按修正信号继续同一全量批次，不扩大 source 或重复已完成根。
+
+  监视器竞争条件复盘（2026-09-24 08:04:32 +08:00）：第二轮首根递归 reader 日志持续增长且无语义错误，外层对临时日志先枚举再 `stat()` 时恰逢 native reader 正常清理目录，抛 `FileNotFoundError` 使外层退出，0/15；对应 A42 converter Python 进程及其 reader/UE 子树已按命令行身份核对并清理，进度 JSON 记录 `monitor_file_disappeared`、最后日志、条件及退出时间。监视器现在对该临时文件消失仅跳过当次采样，正常/停滞/覆盖自测重跑后继续同一全量批次；不据此更改转换规则或放宽源/静态 Gate。
+
+  全量重转完成摘要：修正进展监视后，首个 `AB_Als` 根745.1s，其余14根按实际依赖36–143s，最终 `corpus_progress.json` 为15/15、23图、exit_reason=completed、最后进展 Camera、等待0.122s；每根 `conversion.report.json` pass 且原生 reader watchdog 通过。完整文件树比较当前 `assets/generated` 与 A42 独立暂存 `staged_assets/generated`：两侧各374文件，added/missing/changed 均为空，`full_diff.patch` 0字节；不是只比较 Absolute 节点。四张真实无单位条件图继续源0.5→目标0.5，没有任何生成资产需迁移。下一步 S3 用当次 fresh Standing/Crouching 与同轮生成/实际安装文件做声明式审计，再进原 Playground。
