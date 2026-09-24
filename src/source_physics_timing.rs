@@ -179,6 +179,7 @@ fn integrate_character_position(
                 && layers.interacts_with(candidate_layers.copied().unwrap_or_default())
         });
         let mut remaining = movement;
+        let mut remaining_time = frame_step;
         let mut applied = Vec3::ZERO;
         for _ in 0..3 {
             let Ok((direction, distance)) = Dir3::new_and_length(remaining) else { break; };
@@ -193,9 +194,17 @@ fn integrate_character_position(
             applied += *direction * travel;
             let Some(normal) = hit.normal1.try_normalize() else { break; };
             let mut slide = remaining - *direction * travel;
-            slide -= normal * slide.dot(normal).min(0.0);
-            let inward_velocity = body.linear_velocity.dot(normal).min(0.0);
-            body.linear_velocity -= normal * inward_velocity;
+            if *locomotion == LocomotionState::Air {
+                slide = als_ext::motion::falling_slide(slide, normal);
+                remaining_time *= 1.0 - travel / distance;
+                if remaining_time > f32::EPSILON {
+                    body.linear_velocity = slide / remaining_time;
+                }
+            } else {
+                slide -= normal * slide.dot(normal).min(0.0);
+                let inward_velocity = body.linear_velocity.dot(normal).min(0.0);
+                body.linear_velocity -= normal * inward_velocity;
+            }
             if slide.dot(remaining) <= 0.0 { break; }
             remaining = slide;
         }
@@ -281,7 +290,7 @@ mod tests {
         }
     }
 
-    fn simulate_air_wall_motion(wall_x: bool, wall_z: bool, start_x: f32, velocity: Vec3) -> (Vec3, Vec3) {
+    fn simulate_air_wall_motion(walls: &[(Vec3, f32)], start_x: f32, velocity: Vec3) -> (Vec3, Vec3) {
         let mut app = App::new();
         app.add_plugins((
             MinimalPlugins,
@@ -307,18 +316,13 @@ mod tests {
             LinearVelocity(velocity),
             Transform::from_xyz(start_x, 2.0, 0.0),
         )).id();
-        if wall_x {
+        for &(normal, gap) in walls {
+            let support = 0.3 + 0.6 * normal.y.abs();
             app.world_mut().spawn((
                 RigidBody::Static,
-                Collider::cuboid(0.02, 6.0, 20.0),
-                Transform::from_xyz(0.6, 2.0, 0.0),
-            ));
-        }
-        if wall_z {
-            app.world_mut().spawn((
-                RigidBody::Static,
-                Collider::cuboid(20.0, 6.0, 0.02),
-                Transform::from_xyz(0.0, 2.0, 0.6),
+                Collider::cuboid(0.02, 20.0, 20.0),
+                Transform::from_translation(Vec3::Y * 2.0 - normal * (support + gap + 0.01))
+                    .with_rotation(Quat::from_rotation_arc(Vec3::X, normal)),
             ));
         }
         app.update();
@@ -329,8 +333,8 @@ mod tests {
     #[test]
     fn first_air_wall_impact_keeps_the_remaining_tangential_motion() {
         let velocity = Vec3::new(3.75, 0.0, 3.75);
-        let (free_position, free_velocity) = simulate_air_wall_motion(false, false, 0.0, velocity);
-        let (wall_position, wall_velocity) = simulate_air_wall_motion(true, false, 0.0, velocity);
+        let (free_position, free_velocity) = simulate_air_wall_motion(&[], 0.0, velocity);
+        let (wall_position, wall_velocity) = simulate_air_wall_motion(&[(Vec3::NEG_X, 0.29)], 0.0, velocity);
         assert!((free_position.z - 0.375).abs() < 1e-4, "free air control: {free_position:?}");
         assert!((free_velocity.y + 0.981).abs() < 1e-4, "free air gravity: {free_velocity:?}");
         assert!(wall_position.x < 0.31, "first air impact crossed the wall: {wall_position:?}");
@@ -343,9 +347,9 @@ mod tests {
     #[test]
     fn air_sweep_handles_a_second_wall_and_origin_overlap() {
         let (free_position, _) = simulate_air_wall_motion(
-            false, false, 0.0, Vec3::new(3.75, 0.0, 3.75));
+            &[], 0.0, Vec3::new(3.75, 0.0, 3.75));
         let (corner_position, corner_velocity) = simulate_air_wall_motion(
-            true, true, 0.0, Vec3::new(3.75, 0.0, 3.75));
+            &[(Vec3::NEG_X, 0.29), (Vec3::NEG_Z, 0.29)], 0.0, Vec3::new(3.75, 0.0, 3.75));
         assert!(corner_position.x < 0.31 && corner_position.z < 0.31,
             "air motion crossed a two-wall corner: {corner_position:?}");
         assert!(corner_position.y <= free_position.y + 0.002,
@@ -353,15 +357,43 @@ mod tests {
         assert!(corner_velocity.x <= 0.1 && corner_velocity.z <= 0.1,
             "two-wall corner retained inward velocity: {corner_velocity:?}");
         let (outward_position, outward_velocity) = simulate_air_wall_motion(
-            true, false, 0.32, Vec3::new(-3.75, 0.0, 3.75));
+            &[(Vec3::NEG_X, 0.29)], 0.32, Vec3::new(-3.75, 0.0, 3.75));
         assert!(outward_position.is_finite() && outward_velocity.is_finite()
             && outward_position.x < 0.2 && outward_position.z > 0.34,
             "origin overlap trapped outward air motion: {outward_position:?} {outward_velocity:?}");
         let (inward_position, inward_velocity) = simulate_air_wall_motion(
-            true, false, 0.32, Vec3::new(3.75, 0.0, 3.75));
+            &[(Vec3::NEG_X, 0.29)], 0.32, Vec3::new(3.75, 0.0, 3.75));
         assert!(inward_position.is_finite() && inward_velocity.is_finite()
             && inward_position.x < 0.31 && inward_position.z > 0.05,
             "origin overlap failed to bound inward air motion: {inward_position:?} {inward_velocity:?}");
+    }
+
+    #[test]
+    fn first_air_slope_impact_does_not_create_upward_motion() {
+        for side in [-1.0, 1.0] {
+            let normal = Vec3::new(-side * 3.0_f32.sqrt() * 0.5, 0.5, 0.0);
+            for upward in [0.0, 2.0] {
+                let velocity = Vec3::new(side * 3.75, upward, 3.75);
+                let gap = if upward > 0.0 { 0.22 } else { 0.26 };
+                let (free_position, free_velocity) = simulate_air_wall_motion(&[], 0.0, velocity);
+                let (position, result) = simulate_air_wall_motion(&[(normal, gap)], 0.0, velocity);
+                assert!(position.is_finite() && result.is_finite());
+                assert!(position.x.abs() < free_position.x.abs() - 0.005,
+                    "slope fixture missed its first impact: {position:?} {free_position:?}");
+                assert!((position - Vec3::Y * 2.0).dot(normal) >= -gap - 0.002,
+                    "slope penetration: {position:?} {normal:?}");
+                assert!((position.z - free_position.z).abs() < 0.002,
+                    "slope lost parallel motion: {position:?} {free_position:?}");
+                if upward == 0.0 {
+                    assert!(result.y <= 0.0 && position.y <= 2.0,
+                        "falling slope created upward motion: {position:?} {result:?}");
+                } else {
+                    assert!(result.y > 0.0 && result.y <= free_velocity.y + 0.002
+                        && position.y <= free_position.y + 0.002,
+                        "slope changed legal jump ascent: {position:?} {result:?} free={free_position:?} {free_velocity:?}");
+                }
+            }
+        }
     }
 
     #[test]
