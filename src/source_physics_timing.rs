@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use als_core::{character::AlsCharacter, state::{AlsNotifyLocomotionAction, LocomotionState}};
+use als_core::{character::{AlsCharacter, AlsCollisionLayerOwnership}, state::{AlsNotifyLocomotionAction, LocomotionState}};
 use avian3d::dynamics::{integrator::{IntegrationSystems, VelocityIntegrationData}, solver::solver_body::SolverBody};
 use avian3d::prelude::{
     Collider, ColliderOf, CollisionLayers, CustomPositionIntegration, Physics, PhysicsSchedule,
@@ -150,7 +150,7 @@ fn integrate_character_position(
     physics_time: Res<Time<Physics>>,
     substeps: Res<SubstepCount>,
     spatial: SpatialQuery,
-    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>,
+    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
     mut characters: Query<(Entity, &mut SolverBody, &Position, &Collider, &LocomotionState,
         Option<&AlsNotifyLocomotionAction>, &RigidBody, Option<&als_core::dynamics::AlsMovementBaseDynamicsState>,
         Has<SourceCharacterFullFrame>, Has<CustomPositionIntegration>,
@@ -474,7 +474,7 @@ mod tests {
                 let position = app.world().get::<Position>(character).unwrap().0;
                 let (floor, contact) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
                     collisions: avian3d::prelude::Collisions,
-                    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>| {
+                    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
                     let floor = als_core::motion::find_ground_floor(&spatial, position, 0.9, 0.3,
                         &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates);
                     let contact = collisions.collisions_with(character).any(|pair| pair.manifolds.iter()

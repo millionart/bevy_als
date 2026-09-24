@@ -1603,3 +1603,21 @@
 
 
   V1 source/static与消融摘要：驱动使用Time<Virtual>，现在collector直接读取同资源，将已有首样本时刻字段改为游戏时刻，仅observation_seconds计算使用它；墙钟elapsed仍用于actor/clip trace、性能、截图节流和watchdog。无新增跟踪状态或场景专用分支，不修改0.12s阈值。旧墙钟选择使0.7s游戏进展被记成0.1166511s；新fixture同时检验0.06s与暂停游戏不能借1s墙钟通过，正常1:1进展保持一致且trace仍保留墙钟，45项视觉测试全过。时钟边界固化到animation-graph-equivalence skill。原失败报告保留；现在重建最终target_game/play，在新目录重新startup及全部五场功能Gate。
+
+  V1最终startup后/Air前摘要：新二进制target_game/play预构建和startup新报告manual/validator0/0、功能通过；原性能预算仍延期。动作观察只改为Time<Virtual>，帧/eval性能与trace墙钟保持原语义，下一步同二进制uphill_jump/10 FPS复验两段时间误判。
+
+  最终Air后/Grounded前摘要：同二进制uphill_jump/10 FPS新报告manual/validator0/0、6/6功能、18/18窗口通过；两段原误判窗口仍为10/8帧，现在observation_seconds为0.9/0.7，原0.12门槛保持。primary空、graph/fault/temporal均0、watchdog未触发。下一步grounded/10 FPS、moving_base及stairs，性能继续延期。
+
+  最终Grounded后/基座前摘要：同二进制grounded/10 FPS公共功能Gate manual/validator0/0、15/15功能、9/9窗口，primary空、graph/fault/temporal均0、watchdog未触发；站蹲/Roll/瞄准/停止全部完成。下一步moving_base后补共享步阶路径stairs，性能预算继续延期。
+
+  moving_base失败/静态回读摘要：最终版本Ride/Jump/新支撑均通过，Mantle最后一帧m.active=false、mode=Grounded，但base由匹配目标变为空，manual91/validator1；图/fault/temporal为0。代码明确将release_mantle_physics排在AlsRotationResponseSet之后，因此此帧找地时胶囊CollisionLayers仍为临时NONE。fresh ALS StartMantling只锁定Custom运动并设基座，StopMantling恢复Walking，不改胶囊响应矩阵；目标临时物理屏蔽不应抹掉查询源的原始响应。N4新predicate读取临时NONE导致拒绝所有地面。停止后续stairs，保留失败报告，使用已存在AlsCollisionLayerOwnership.original_layers闭合查询原点的响应语义，不移动Mantle物理所有权阶段。
+
+- [x] **BF128.N4-M1 — 查询保留临时物理所有权下的原始响应**：开始：2026-09-25 01:27:00 +08:00；预估结束：2026-09-25 01:47:00 +08:00；实际结束：2026-09-25 01:38:39 +08:00；偏差：-8m21s；结果：临时NONE丢失floor反例红→原响应绿，core motion34/34、physics13/13、Mantle7/7；拆分结果：M1静态闭环完成，S2下一轮真实验收。估时依据：已证实的一帧NONE查询、现成original_layers保存/恢复、单个共享predicate与现有基座/地面fixture。Gate：真实ownership遮罩期间仍按原响应找地，仍拒绝Sensor/原响应不接受的候选，释放后恢复当前配置；原N4反例与Mantle所有权回归通过，再重建并继续S2。无新增所有权状态或模式强写。
+
+
+  S2估时复盘与下一轮：原开始2026-09-25 01:01:40、预估01:16:40；截至2026-09-25 01:34:32 +08:00已完成startup/uphill/grounded，分别定位并修正V1墙钟误判，M1仍在完成Mantle原始响应回归。旧15分钟窗口未包含这两个有实证的新边界，现提前于允许误差耗尽复盘；不重复失败二进制，也不跳过移动基座/楼梯。下一轮开始：2026-09-25 01:34:32 +08:00；预估结束：2026-09-25 01:57:02 +08:00，按原15分钟窗口×1.5核定；剩余工作为M1项目回归、最终同入口预构建和五场验证/收口。M1核心34/34已通过，无新增runtime启动，原失败报告保留。N4过滤及V1时钟自身Gate继续有效。
+
+
+  M1 source/static完成摘要：StartMantling/StopMantling源代码只切换Custom/Walking并保留响应，目标的NONE是临时物理接管细节。共享predicate现在仅对查询原点在既有ownership.active时读original_layers，候选仍按当前层/Sensor/ColliderOf过滤；不更改Mantle接管、释放或状态发布顺序，不新增状态。真实ownership.set_owner驱动的局部反例在NONE期间原先找不到floor，修后仍返回原合法floor；释放后改成实际NONE仍必须返回None。原过滤矩阵加测active ownership条件，Sensor/所属层/反向响应/同体及法线ray都保持正确；移除原响应读口即重现原红，inactive负例拒绝无条件使用保存值。34核心、13物理及7Mantle通过，V1视觉45项结果仍适用。
+
+  M1最终runtime前摘要：静态闭环完成，原观察时间失败与Mantle交接失败报告均保留。下一轮按当前已登记22分30秒窗口，重建同target_game/play/jobs2后，在新目录重新startup→uphill_jump/10 FPS→grounded/10 FPS→moving_base→stairs。没有修改源图、资产、转换器、数值阈值或Mantle物理阶段；性能仍按既定范围延期。

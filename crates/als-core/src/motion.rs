@@ -13,7 +13,7 @@ use bevy_tnua::{TnuaController, TnuaGravity, TnuaMotor, TnuaPipelineSystems, Tnu
 
 use crate::character::{
     ALS_CHARACTER_CAPSULE_HALF_HEIGHT, ALS_CHARACTER_FLOOR_CLEARANCE,
-    ALS_CHARACTER_TNUA_FLOAT_EPSILON, AlsCharacter, AlsCmcAdapterRuntime, AlsEffectiveGravity, AlsMovementParamsHandle,
+    ALS_CHARACTER_TNUA_FLOAT_EPSILON, AlsCharacter, AlsCmcAdapterRuntime, AlsCollisionLayerOwnership, AlsEffectiveGravity, AlsMovementParamsHandle,
     als_character_capsule,
 };
 use crate::control_scheme::{AlsControlScheme, AlsControlSchemeActionDiscriminant, AlsControlSchemeConfig};
@@ -2876,7 +2876,7 @@ fn grounded_step_up_system(
     time: Res<Time>,
     mut commands: Commands,
     spatial_query: SpatialQuery,
-    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>,
+    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
     params_assets: Res<Assets<AlsMovementParams>>,
     blocked: Query<(), With<AlsMovementInputBlocked>>,
     mut q: Query<
@@ -2983,9 +2983,12 @@ fn grounded_step_up_system(
 }
 
 pub fn character_blocks_collider(character: Entity, candidate: Entity,
-    candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>) -> bool {
-    let layers = candidates.get(character).ok().and_then(|(layers, _, _)| layers).copied().unwrap_or_default();
-    candidate != character && candidates.get(candidate).is_ok_and(|(candidate_layers, sensor, owner)| {
+    candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>) -> bool {
+    let layers = candidates.get(character).ok().map(|(layers, _, _, ownership)| {
+        ownership.filter(|owner| owner.active()).map(|owner| owner.original_layers())
+            .or(layers.copied()).unwrap_or_default()
+    }).unwrap_or_default();
+    candidate != character && candidates.get(candidate).is_ok_and(|(candidate_layers, sensor, owner, _)| {
         !sensor && !owner.is_some_and(|owner| owner.body == character)
             && layers.interacts_with(candidate_layers.copied().unwrap_or_default())
     })
@@ -3012,7 +3015,7 @@ fn walkable_floor_hit(spatial: &SpatialQuery, capsule: &Collider, radius: f32, o
 
 pub fn find_ground_floor(spatial: &SpatialQuery, origin: Vec3, half: f32, radius: f32,
     filter: &SpatialQueryFilter, character: Entity,
-    candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>) -> Option<(f32, f32, Entity)> {
+    candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>) -> Option<(f32, f32, Entity)> {
     let accepts = |candidate| character_blocks_collider(character, candidate, candidates);
     for (shrink_scale, radius_reduction) in [(FLOOR_SWEEP_SHRINK_FRACTION, 0.0),
         (FLOOR_RETRY_SHRINK_FRACTION, SWEEP_EDGE_MIN_RADIUS)] {
@@ -3039,7 +3042,7 @@ fn resolved_walkable_contact(contact: &ContactPair, character: Entity) -> bool {
 pub(crate) fn locomotion_state_sync_system(
     mut commands: Commands,
     spatial: SpatialQuery,
-    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>,
+    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
     params_assets: Res<Assets<AlsMovementParams>>,
     blocked: Query<(), With<AlsMovementInputBlocked>>,
     collisions: Collisions,
@@ -3323,7 +3326,7 @@ mod tests {
                             }
                             if airborne && velocity.y.abs() < 0.001 {
                                 let supported = app.world_mut().run_system_once(move |spatial: SpatialQuery, collisions: Collisions,
-                                    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>| {
+                                    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
                                     let floor = find_ground_floor(&spatial, position, 0.9, 0.3, &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates);
                                     let contact = collisions.collisions_with(character).any(|pair| pair.manifolds.iter().any(|manifold| {
                                         let normal = if pair.collider1 == character { -manifold.normal } else { manifold.normal };
@@ -3334,7 +3337,7 @@ mod tests {
                                 supported_air_frames = if supported { supported_air_frames + 1 } else { 0 };
                                 if supported_air_frames >= 2 {
                                     let evidence = app.world_mut().run_system_once(move |spatial: SpatialQuery, collisions: Collisions,
-                                    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>| {
+                                    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
                                         let floor = find_ground_floor(&spatial, position, 0.9, 0.3, &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates);
                                         let normals: Vec<_> = collisions.collisions_with(character).flat_map(|pair| pair.manifolds.iter().map(|manifold| {
                                             let normal = if pair.collider1 == character { -manifold.normal } else { manifold.normal };
@@ -3397,6 +3400,35 @@ mod tests {
     }
 
     #[test]
+    fn ground_floor_query_keeps_the_response_while_mantle_owns_physics() {
+        use crate::character::{AlsCollisionLayer, AlsCollisionLayerOwner};
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+        let original = Some(CollisionLayers::new(AlsCollisionLayer::Default, AlsCollisionLayer::Default));
+        app.world_mut().entity_mut(character).insert(original.unwrap());
+        let position = app.world().get::<Position>(character).unwrap().0;
+        let query_floor = move |spatial: SpatialQuery,
+            candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
+            find_ground_floor(&spatial, position, 0.9, 0.3,
+                &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates)
+        };
+        let original_floor = app.world_mut().run_system_once(query_floor).unwrap().unwrap().2;
+        let masked = app.world_mut().get_mut::<AlsCollisionLayerOwnership>(character).unwrap()
+            .set_owner(AlsCollisionLayerOwner::Mantle, original, true).unwrap().unwrap();
+        app.world_mut().entity_mut(character).insert(masked);
+        let masked_floor = app.world_mut().run_system_once(query_floor).unwrap();
+        assert_eq!(masked_floor.map(|(_, _, entity)| entity), Some(original_floor),
+            "temporary physics masking erased the query response");
+        let restored = app.world_mut().get_mut::<AlsCollisionLayerOwnership>(character).unwrap()
+            .set_owner(AlsCollisionLayerOwner::Mantle, Some(masked), false).unwrap().unwrap();
+        app.world_mut().entity_mut(character).insert(restored);
+        assert_eq!(app.world_mut().run_system_once(query_floor).unwrap().map(|(_, _, entity)| entity), Some(original_floor));
+        app.world_mut().entity_mut(character).insert(CollisionLayers::NONE);
+        assert!(app.world_mut().run_system_once(query_floor).unwrap().is_none(),
+            "an inactive ownership record overrode the current response");
+    }
+
+    #[test]
     fn ground_floor_queries_reject_nonblocking_candidates_and_preserve_edge_normals() {
         use crate::character::AlsCollisionLayer;
         use bevy::ecs::system::RunSystemOnce;
@@ -3436,13 +3468,19 @@ mod tests {
                 app.world_mut().entity_mut(auxiliary).insert(Sensor);
             }
             for _ in 0..2 { app.update(); }
-            let found = app.world_mut().run_system_once(move |spatial: SpatialQuery,
-                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>| {
+            let query_floor = move |spatial: SpatialQuery,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
                 find_ground_floor(&spatial, Vec3::new(if edge { 0.25 } else { 0.0 }, 1.0, 0.0),
                     0.9, 0.3, &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates)
-            }).unwrap();
+            };
+            let found = app.world_mut().run_system_once(query_floor).unwrap();
             assert_eq!(found.map(|(_, _, entity)| entity), Some(floor),
                 "{case} intercepted a blocking floor or its normal ray: {found:?}");
+            let mut ownership = AlsCollisionLayerOwnership::default();
+            ownership.set_owner(crate::character::AlsCollisionLayerOwner::Mantle, Some(blocking), true);
+            app.world_mut().entity_mut(character).insert((ownership, CollisionLayers::NONE));
+            assert_eq!(app.world_mut().run_system_once(query_floor).unwrap().map(|(_, _, entity)| entity), Some(floor),
+                "{case} bypassed the original response during physics ownership");
         }
     }
 
@@ -3982,7 +4020,7 @@ mod tests {
                     if position.z > 0.5 { break; }
                     if *app.world().get::<LocomotionState>(character).unwrap() == LocomotionState::Air {
                         let floor = app.world_mut().run_system_once(move |spatial: SpatialQuery,
-                            candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>| {
+                            candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
                             find_ground_floor(&spatial, position, 0.9, 0.3, &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates)
                         }).unwrap();
                         let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;

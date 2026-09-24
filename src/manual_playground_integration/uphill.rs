@@ -1,4 +1,5 @@
 use super::*;
+use als_core::character::AlsCollisionLayerOwnership;
 use als_core::aim::AlsLastFreeRotationMode;
 use avian3d::prelude::{ColliderOf, CollisionLayers, Collisions, Sensor, SpatialQuery, SpatialQueryFilter};
 use bevy_tnua::TnuaController;
@@ -149,7 +150,7 @@ pub(super) fn observe(
     motion: MotionProbe,
     spatial: SpatialQuery,
     collisions: Collisions,
-    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>,
+    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
     characters: Query<(&Position, &LinearVelocity, &LocomotionState, &Gait, &AlsInputOverride, &AlsMovementParamsHandle,
         &Transform, &Stance, &TnuaController<als_core::control_scheme::AlsControlScheme>), With<AlsCharacter>>,
     avatars: Query<&AnimatedSceneInstance, With<AlsCharacterAvatar>>,

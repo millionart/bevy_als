@@ -1,4 +1,5 @@
 use super::*;
+use als_core::character::AlsCollisionLayerOwnership;
 use als_core::dynamics::{AlsMovementBase, AlsComponentVelocity, component_velocity};
 use als_core::mantle::{AlsMantleTargetBase, AlsMantleTargetPermission, MantleDetectionInput, detect_mantle};
 use als_core::motion::AlsActualVelocity;
@@ -178,7 +179,7 @@ pub(super) fn drive(
         &LocomotionState, &AlsMovementParamsHandle), With<AlsCharacter>>,
     params: Res<Assets<AlsMovementParams>>,
     spatial: SpatialQuery,
-    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>,
+    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
     velocities: Query<(&RigidBody, &LinearVelocity, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
     permissions: Query<Option<&AlsMantleTargetPermission>, Without<AlsCharacter>>,
     owners: Query<&ColliderOf>,
