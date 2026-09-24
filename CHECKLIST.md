@@ -1235,4 +1235,8 @@
 
   S2 source/static 完成摘要：resolver 沿既有统一 leader 规则选出获胜者，将同 key 其他 Exclusive identity 标记为 ungrouped；SequencePlayer/BlendSpace 通过共享相位读取跳过组相位并执行自身 tick，根 pose 包装不再二次覆盖，其他 follower 继续取组相位。上一帧组相位改从上一帧真正 leader 读取，否则落选者位于列表首项时第二帧会错误回退到其0.3并使获胜者到0.4；`source_sync_phase` 公共读口同理选真正 leader。图级红绿/消融、两帧连续性及四组聚焦测试闭合，安装的 `.ron` 中无 `ExclusiveAlwaysLeader`，当前生产资产没有可动态触发的 true 分支；下一步仅验默认同步行为无回归。
 
-- [ ] **BF124.A47-S3 — 静态资产边界与原 Playground 同步功能 Gate**：开始：2026-09-24 14:00:00 +08:00；预估结束：2026-09-24 14:55:00 +08:00。估时依据：S2 runtime-only 改动/安装 RON无 Exclusive、A46 同步组的 startup/locomotion/sprint 公共场景约6分钟；静态合同与原入口预构建仍按同一 `target_game/play` 执行，完整性能预算继续延期。
+- [x] **BF124.A47-S3 — 静态资产边界与原 Playground 同步功能 Gate**：开始：2026-09-24 14:00:00 +08:00；预估结束：2026-09-24 14:55:00 +08:00；实际结束：2026-09-24 14:06:00 +08:00；偏差：-49m00s；结果：runtime资产边界0 issue、视觉 validator self-test 全项PASS、`target_game/play` 同入口预构建成功；原 startup/locomotion/sprint 功能 runner manual/validator均0，locomotion18/18及14窗口、sprint8/8及2窗口，图/故障/时序/watchdog0，render/decal通过。估时依据：S2 runtime-only 改动/安装 RON无 Exclusive、A46 同步组的公共场景；拆分结果：A47 可汇总关闭，完整性能预算沿既定范围延期，A48 为下一项。
+
+  S3 静态闭环、runtime 前摘要：S1 fresh Standing 源角色/UE 排序与落选 ungrouped 合同、S2 双帧真实图红绿/消融及 sync15/15、SequencePlayer11/11、BlendSpace10/10、包装4/4已闭合；`validate_runtime_graph_asset_boundary.py --check` 为0 issue，公共视觉 validator self-test 全项 PASS，安装 RON 中无 `ExclusiveAlwaysLeader`。当前无 converter、生成图或原始资产改动，故不触发全量重转；真实入口仅能证明现有非 Exclusive 同步无回归，true 分支由源同形聚焦图证明。下一步同一 `target_game/play` 预构建，先 startup 再 locomotion/sprint 公共功能 Gate。
+
+  runtime 后完成摘要：同一 `target_game/play` 预构建后，`bf124_a47_s3_startup`、`locomotion`、`sprint` 公共 `-FunctionalOnly -CaptureCount 0` 的 runner/manual/validator全部退出0；startup 80姿态样本，locomotion18/18覆盖、14/14窗口、808样本，sprint8/8、2/2窗口、281样本。三场 `graph_errors=[]`、`primary_failure=null`、fault/temporal0、watchdog未触发、render/decal通过。完整性能预算的 max_eval_p95_ms 仍作为 deferred issue 保留，不能称完整通过；没有真实 Exclusive 安装节点，落选动态分支只由 S1/S2 源同形图级红绿与消融证明。
