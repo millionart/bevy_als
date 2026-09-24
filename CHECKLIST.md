@@ -1100,3 +1100,7 @@
   runtime 前摘要：fresh Standing/Crouching 四条 Absolute Transition 源为无单位 HipsDirectionLockAmount→比较0.5，当前 namespaced 产物全量重转374/374不变；独立编译与fresh spec/source闭包审计、编辑器/位置/边界 Gate 已过。此次公共 runner 用来验证原运行场景的图加载与姿态无回归；速度经过 Absolute 的通用转换修复由合成源合同650→6.5/字段变化/消融验证，项目目前无该真实资产路径。默认地形、环境、角色、相机和原场景相位保持。
 
   runtime 后完成摘要：同一 `target_game/play` 预构建后，三份公共 `-FunctionalOnly -CaptureCount 0` runner 进程与 validator 均退出0。`startup` 无手动场景结果、80姿态样本；`standing_direction` 5/5覆盖、11运动窗口、321姿态样本；`crouching` 7/7覆盖、12窗口、609姿态样本。三场 `graph_errors=[]`、`primary_failure=null`、fault/temporal0、watchdog未触发、render/decal通过；原地形/角色/相机与自动相位没有替换。因已安装图无 Speed→Absolute 组合，这些场景只证明已安装无单位图与真实入口无回归，合成速度分支由 S2a 生成器红绿/字段变化/消融证明，不能虚称实机走过该分支；完整性能预算未执行。
+
+- [x] **BF124.A42 — Transition Absolute 保留速度阈值单位传播**：开始：2026-09-24 08:59:30 +08:00；预估结束：2026-09-24 09:14:30 +08:00；实际结束：2026-09-24 08:59:30 +08:00；偏差：-15m00s；结果：S1–S4 各自通过并提交（`48fdc12`、`e277ced`、`e01b4ed`、`bad6a3d`、`0c6a3b3`）；源真实无单位 Absolute 图保持0.5，合成速度量纲 red650→green6.5，全部23份 AnimBP/374产物重转零差异，fresh 编译闭包/公共 Playground Gate 通过。估时依据：只汇总已提交 source、转换全量、静态和真实入口证据；拆分结果：A42 当前功能无剩余 Gate，A43 为下一项，完整性能预算沿用户既定暂停范围延期。
+
+  汇总：只沿源 `K2Node_CallFunction` Absolute 的 ReturnValue←A 连接传播已知速度属性单位，遇其他算子即停，环时报错；直接速度阈值仍650→6.5，合成经 Absolute 原错误650现6.5，改身份不变、改源常量700→7、无单位 HipsDirectionLockAmount0.5保持、去追溯消融重新错误。fresh Standing/Crouching 当前四张 Absolute 条件图都属于后一种无单位情况，没有现存速度链；15/15安装根覆盖23/23 AnimBP及递归依赖，374/374完整暂存 diff0，无生成资产迁移。两图本轮独立编译/spec/源闭包审计通过，原 Playground startup、站立/蹲姿方向三场功能 Gate 全过，图/姿态/进展异常0；合成速度链无实机场景，不将无回归声称为该分支动态覆盖。
