@@ -1367,4 +1367,8 @@
 
   S1 source/static 完成摘要：fresh Layering 5图含9张 LayeredBoneBlend 和7个Slot，Slot Pose经CurvesBlend/TwoWay等到下游分层链；UE `FAnimNode_Slot::Update_AnyThread` 从同 Context 取 `IInertializationRequester` 后发请求，Layered 更新每条相关 BlendPose 时没有屏蔽消息，`FAnimNode_Inertialization` Queue对同帧 duration 取最短。目标 Layered 仅合并活动分支 sync_players、asset_samples、curves，base context 自带请求但 overlay request 未合并。新图级夹具向三个 GlobalPoseInput 的 `AnimationContextState` 分别注入同帧0.5/0.3/0.2，所有活动时 output request仍0.5≠源0.2，focused red；权重0的末支预期只合并0.3。A53根运动已完成不复开，S2沿现有 merge helper 修该遗漏。
 
-- [ ] **BF124.A54-S2 — Layered 合并活动叠加分支惯性请求**：开始：2026-09-24 16:59:00 +08:00；预估结束：2026-09-24 17:39:00 +08:00。估时依据：S1单处遗漏/同帧图级红例、既有 `merge_inertialization_request` 的frame与最短duration规则；Gate 为活动0.2/禁用0.3红绿、跨帧helper既有测试、去新合并调用消融、Layered/惯性模块回归，随后原入口Gate。
+- [x] **BF124.A54-S2 — Layered 合并活动叠加分支惯性请求**：开始：2026-09-24 16:59:00 +08:00；预估结束：2026-09-24 17:39:00 +08:00；实际结束：2026-09-24 17:03:00 +08:00；偏差：-36m00s；结果：在 Layered 活动分支 context 合并处复用现有 `merge_inertialization_request`，同帧Base/两叠加0.5/0.3/0.2→输出0.2，末支禁用→0.3；移除新合并调用消融回0.5红。恢复后Layered9/9、frame新旧与最短时长1/1、下游惯性节点5/5通过。估时依据：S1单处遗漏与已有合并helper；拆分结果：S3 静态/原Playground Slot/Overlay Gate，无converter或生成资产改动不触发全量重转，A55不提前展开。
+
+  S2 source/static 完成摘要：仅当 Layered 分支 weight relevant 且 Pose context 实际可读时，将其 `inertialization_request` 送入共享 `merge_inertialization_request`；源消息不按叠加权重缩短请求duration，目标 helper 同帧取最短、过期frame不覆盖更新frame。真实图级输入 Base0.5、活动叠加0.3/0.2 原输出0.5现0.2，末叠加权重0时0.3；移除新一行即复现原错。Layered9/9与A53根运动测试共同回归通过、已有 frame/最短合并1/1和惯性 consumer5/5；未改曲线/骨骼/根运动、转换器或RON，S3只对原角色真实入口做无回归和Slot请求覆盖。
+
+- [ ] **BF124.A54-S3 — 静态边界与原 Playground Slot 惯性功能 Gate**：开始：2026-09-24 17:04:00 +08:00；预估结束：2026-09-24 17:54:00 +08:00。估时依据：S2 runtime-only单行修复、fresh Layering 7Slot/9Layered、同入口增量预构建及 startup/standing_turn/overlays 公共功能场景；完整性能预算继续延期。

@@ -1,5 +1,6 @@
 use crate::animation_context::{
-    AnimationContextState, merge_asset_samples, merge_sync_players, pose_input_context_state,
+    AnimationContextState, merge_asset_samples, merge_inertialization_request, merge_sync_players,
+    pose_input_context_state,
 };
 use crate::gameplay_tag_blend::{GameplayTagBlendMode, advance_gameplay_tag_weights};
 use crate::source_pose_nodes::{blend_animation_contexts, blend_source_poses, read_blend_list_child};
@@ -325,6 +326,7 @@ impl NodeLike for SourceLayeredBoneBlendNode {
                     weight,
                 );
                 merge_asset_samples(&mut context.asset_samples, &overlay_context.asset_samples, weight);
+                merge_inertialization_request(&mut context.inertialization_request, overlay_context.inertialization_request.as_ref());
                 context.curves.extend(overlay_context.curves);
                 context.curves_are_authoritative |= overlay_context.curves_are_authoritative;
             }
