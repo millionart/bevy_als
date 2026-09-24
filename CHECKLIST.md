@@ -88,7 +88,7 @@
 | A44 | P2 | 完成 | FSM 将 Machine Weight 恒写为 1，改变实际 Standing 起跑迁移分支 |
 | A45 | P2 | 完成 | Sequence Player 接受 bIgnoreForRelevancyTest 却丢弃标志，使被排除动画仍主导自动迁移计时 |
 | A46 | P2 | 完成 | Sequence Player 的入组 leader 位置覆盖标志止于 IR，marker 同步仍强制继承上一组相位 |
-| A47 | P2 | 完成 | ExclusiveAlwaysLeader 落选后未退出同步组，而被当作普通 follower 覆盖播放相位 |
+| A47 | P2 | 完成：BF125.R8 复验 | ExclusiveAlwaysLeader 落选后未退出同步组，而被当作普通 follower 覆盖播放相位 |
 | A48 | P2 | 源目标一致 | TwoBoneIKSimplePerItem 的 Direction pole 被当作绝对位置，破坏骨链在 Rig 全局空间的平移不变性 |
 | A49 | P2 | 完成 | 同步计划把 Sequence 的秒数起点误限制为 0～1，拒绝合法的长序列起播位置 |
 | A50 | P2 | 完成 | Two Way Blend 的激活重置只接受直接 Sequence Player，使合法子树重激活报错 |
@@ -1241,7 +1241,7 @@
 
   runtime 后完成摘要：同一 `target_game/play` 预构建后，`bf124_a47_s3_startup`、`locomotion`、`sprint` 公共 `-FunctionalOnly -CaptureCount 0` 的 runner/manual/validator全部退出0；startup 80姿态样本，locomotion18/18覆盖、14/14窗口、808样本，sprint8/8、2/2窗口、281样本。三场 `graph_errors=[]`、`primary_failure=null`、fault/temporal0、watchdog未触发、render/decal通过。完整性能预算的 max_eval_p95_ms 仍作为 deferred issue 保留，不能称完整通过；没有真实 Exclusive 安装节点，落选动态分支只由 S1/S2 源同形图级红绿与消融证明。
 
-- [x] **BF124.A47 — ExclusiveAlwaysLeader 落选后独立播放**：开始：2026-09-24 14:07:00 +08:00；预估结束：2026-09-24 14:22:00 +08:00；实际结束：2026-09-24 14:07:00 +08:00；偏差：-15m00s；结果：S1–S3分别通过并提交（`8e83040`、`1214b87`、`473e654`），fresh UE/Standing 源合同、双帧落选 leader 红绿/消融、四组聚焦测试、资产边界和原 Playground 三场功能 Gate 闭合。估时依据：只汇总已提交的 source、静态、图级与真实入口证据；拆分结果：A47 当前功能无剩余 Gate，A48 下一项，完整性能预算延期。
+- [x] **BF124.A47 — ExclusiveAlwaysLeader 落选后独立播放**：开始：2026-09-24 14:07:00 +08:00；预估结束：2026-09-24 14:22:00 +08:00；实际结束：2026-09-24 14:07:00 +08:00；偏差：-15m00s；结果：原 S1–S3 当时通过；2026-09-24 按 BF125.R8 复开并通过。旧 Gate 只比独立相位，未把落选者未入组身份传至通知分派；现有组级 sample 身份和脚步 false-follower 红绿、共享回归与原 Playground 功能 Gate 重新闭环，性能预算延期。
 
   汇总：UE 将未获选的 ExclusiveAlwaysLeader 从 follower tick 路径排除并独立 tick；目标现用统一选主结果对同组落选 identity 停止相位广播，普通 follower 不变。旧组和公共组相位均读实际 leader，避免第二帧被首个落选者污染。源同形三播放器图预期落选0.3/0.4、leader/follower0.8/0.9，现红→绿；去根包装排除判断消融又红。当前安装 RON 无 Exclusive，原 startup/locomotion/sprint 仅证明默认路径无回归，不把合成 true 路径称作生产动态覆盖；未修改 converter、生成资产或原始导出，完整性能 Gate 未执行。
 
@@ -1454,3 +1454,13 @@
   旋转基座后/Control Rig 前摘要：同二进制原 Playground `rotating_base` 功能报告 manual/validator 0/0、primary/graph/fault/temporal/watchdog 均空；角色位置携带、旋转平台场景功能无回归。下一步 `control_rig` 姿态 Gate，源开关启用的合成分支由局部双路夹具证明，性能预算延期。
 
   runtime 后摘要：同二进制 `control_rig` 功能报告 manual/validator 0/0、10/10 结果覆盖；`rotating_base` 12/12 与4/4窗口，`startup` 基线通过，三场 primary failure 空、graph/fault/temporal 0、watchdog 未触发。当前真实角色源开关 false，启用分支仅由双路局部夹具证明；生产只在已有动画快照读口加策略门控，Control Rig 自身及角色/相机随基座代码不改，完整性能预算延期。
+
+- [x] **BF125.R8 — A47 落选独占播放器以实际未入组身份派发通知**：开始：2026-09-24 19:32:00 +08:00；预估结束：2026-09-24 20:17:00 +08:00；实际结束：2026-09-24 19:49:00 +08:00；偏差：-28m00s；结果：三播放器真实图落选独占 sample 组身份旧红→共享同步包装处清空后绿，false-follower 两脚步由落选者与赢者各派发、普通 follower 抑制；源相位不变、Sequence 专用候选实现消融删除。包装4/4、同步13/13、事件13/13、als-ext全425/425；原 Playground `startup`、`footprint`、`locomotion` 功能 Gate 全通过；主库并发首轮470/471、旧 Overlay 对象夹具资源未就绪，单项通过、限测试线程2后471/471通过。估时依据：fresh UE AnimSync/Standing、已存在排除键与源脚步 manifest；拆分结果：R8 完成、A47 父项复验关闭，进入批次一致性核对，完整性能预算延期。
+
+  runtime 前摘要：fresh 本地 UE `AnimSync` 在 leader 选出后把落选独占记录推入 `UngroupedActivePlayers`，按单动画上下文 tick；原生 Standing reader watchdog success/completed，258 图且当前 Exclusive 0，生产资产不能直接触发该合法分支。目标现有三播放器合成图的落选相位正确，但 asset sample 仍带组名，旧测试新增实际参与断言后首帧红。同步包装节点已拥有 `source_sync_excluded_key`，最终仅在那里把落选 sample 的组名/身份清空，保留赢者和普通 follower 的组身份；两个 false-follower 脚步标记中，落选独占与赢者各派发一次、普通 follower（权重足够）抑制。Sequence 专用候选实现消融删除后信号不变；包装节点4/4、同步组13/13、项目事件13/13，资产边界0 issue、公共视觉 validator 自测全 PASS。无图/转换器/生成资产改动；下一步同 `target_game/play` 预构建并跑原 Playground `startup`、`footprint`、`locomotion` 功能 Gate，完整性能预算延期。
+
+  startup 后/足迹前摘要：同启动器 `target_game/play` 预构建通过，原 Playground `startup` 功能报告 manual/validator 0/0、primary/graph/fault/temporal/watchdog 均空；下一步同二进制足迹与移动场景，性能预算延期。
+
+  足迹后/移动前摘要：同二进制原 Playground `footprint` 功能与贴花读回 Gate manual/validator 0/0，贴花请求36/样本576均通过；primary/graph/fault/temporal/watchdog 均空。下一步 `locomotion` 同步/脚步回归，性能预算延期。
+
+  runtime 后摘要：同一预构建二进制原 Playground `startup`、`footprint`、`locomotion` 功能 Gate 均 manual/validator 0/0；足迹21/21结果与10/10窗口、贴花36请求/576样本，移动18/18与14/14窗口，三报告 primary failure 空、graph/fault/temporal 0、watchdog 未触发。当前 Standing 资产无 Exclusive，真实场景证明现有同步/脚步无回归；落选通知差异由合成图本帧 sample+事件红绿验证。完整性能预算按既定延期。共享测试首轮主库并行运行旧 Overlay 对象夹具在固定4帧后取未就绪 prop 失败，单项及限测试线程2的全471项均通过；不将该现象归于本项算法。

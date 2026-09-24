@@ -106,6 +106,13 @@ impl NodeLike for SourcePosePassthroughNode {
         ctx.set_data_fwd(self.output.clone(), pose);
         if let Some(mut context) = pose_input_context_state(&source_ctx, &self.input) {
             if self.synchronize_groups {
+                for sample in &mut context.asset_samples {
+                    if sample.sync_identity.is_some_and(|identity|
+                        global_inputs.contains_key(&source_sync_excluded_key(identity))) {
+                        sample.sync_group.clear();
+                        sample.sync_identity = None;
+                    }
+                }
                 for player in &mut context.sync_players {
                     if global_inputs.contains_key(&source_sync_excluded_key(player.identity)) {
                         continue;
@@ -500,6 +507,8 @@ mod tests {
 
     #[test]
     fn losing_exclusive_leader_keeps_its_own_phase() {
+        use crate::event_lifecycle::{EventClock, EventDispatchContext, EventLifecycle, PlaybackDirection,
+            StateIntervalBoundary, TimedEvent, TimedEventKind};
         use crate::sync_group_phase::SourceSyncGroupRole;
         use crate::{SourceMultiWayBlendNode, SourceSequencePlayerNode};
         use bevy::platform::collections::HashMap;
@@ -508,6 +517,7 @@ mod tests {
             animation_graph::{AnimationGraph, TimeUpdate},
             animation_node::AnimationNode,
             context::{graph_context::QueryOutputTime, system_resources::SystemResources},
+            edge_data::events::EventQueue,
             skeleton::Skeleton,
             state_machine::high_level::StateMachine,
             utils::testing::TestIoEnv,
@@ -652,6 +662,37 @@ mod tests {
                 (group_phase - expected[1]).abs() < 1e-5,
                 "frame {frame} group phase {group_phase}"
             );
+            let sample = |index: usize| state.asset_samples.iter()
+                .find(|sample| sample.identity.ends_with(&format!("{:?}", players[index].id)))
+                .unwrap();
+            assert!(sample(0).sync_group.is_empty() && sample(0).sync_identity.is_none(),
+                "frame {frame} losing exclusive still participates in group notifications");
+            assert_eq!(sample(1).sync_group, "Movement");
+            assert_eq!(sample(2).sync_group, "Movement");
+            if frame == 0 {
+                let definitions = [0.25_f32, 0.75].into_iter().map(|time| TimedEvent {
+                    id: format!("marker_{time}"), kind: TimedEventKind::Point,
+                    start_time: time, end_time: time, weight_threshold: 0.2,
+                    track: None, state_boundary: StateIntervalBoundary::StartExclusiveEndInclusive,
+                    trigger_on_follower: false, trigger_on_dedicated_server: true,
+                }).collect::<Vec<_>>();
+                let mut signals = Vec::new();
+                for sample in &state.asset_samples {
+                    let is_leader = sample.sync_group.is_empty()
+                        || sample.sync_identity.is_some_and(|identity| identity.1 == players[1].id);
+                    signals.extend(EventLifecycle::default().update_with_context(
+                        &definitions, &EventQueue::default(), Some(EventClock {
+                            previous_time: sample.clock.previous_position,
+                            current_time: sample.clock.position,
+                            duration: sample.clock.duration,
+                            direction: PlaybackDirection::Forward,
+                            wrapped: false,
+                        }), sample.clock.weight, EventDispatchContext { is_leader, is_dedicated_server: false },
+                    ).into_iter().map(|signal| signal.id));
+                }
+                signals.sort();
+                assert_eq!(signals, ["marker_0.25", "marker_0.75"]);
+            }
         }
     }
 
