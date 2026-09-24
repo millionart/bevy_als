@@ -709,6 +709,74 @@ mod tests {
     }
 
     #[test]
+    fn layered_blend_forwards_active_child_inertialization_requests() {
+        use crate::animation_context::SourceInertializationRequest;
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip, animation_graph::{AnimationGraph, TimeUpdate},
+            animation_node::AnimationNode,
+            context::{deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+                graph_context_arena::GraphContextArena, new_context::GraphContext,
+                node_states::StateKey, system_resources::SystemResources},
+            edge_data::DataValue, skeleton::Skeleton,
+            state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
+        };
+
+        fn query(In(handle): In<Handle<AnimationGraph>>, resources: SystemResources) -> SourceInertializationRequest {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            for (name, duration) in [("base", 0.5), ("first", 0.3), ("second", 0.2)] {
+                let node = graph.nodes.values().find(|node| node.name == name).unwrap();
+                let state = arena.get_toplevel_mut().node_states.get_mut_or_insert_with(
+                    node.id, StateKey::Default, AnimationContextState::default,
+                ).unwrap();
+                state.inertialization_request = Some(SourceInertializationRequest { frame: 0, duration });
+            }
+            let inputs = HashMap::from([
+                ("input_0".to_owned(), DataValue::Pose(Pose::default())),
+                ("input_1".to_owned(), DataValue::Pose(Pose::default())),
+                ("input_2".to_owned(), DataValue::Pose(Pose::default())),
+            ]);
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
+                &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+            graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context.clone()).unwrap();
+            crate::animation_context::graph_output_context_state(graph, &context, "Pose")
+                .unwrap().inertialization_request.unwrap()
+        }
+
+        let mut graphs = Assets::<AnimationGraph>::default();
+        let mut handles = Vec::new();
+        for weights in [[1.0, 1.0], [1.0, 0.0]] {
+            let mut graph = AnimationGraph::new();
+            let blend = AnimationNode::new("blend", SourceLayeredBoneBlendNode {
+                blend_weights: weights.to_vec(), blend_pose_pins: vec!["BlendPoses_0".into(), "BlendPoses_1".into()],
+                mesh_space_rotation_blend: false, ..default()
+            });
+            graph.add_node(blend.clone());
+            for (index, (name, pin)) in [("base", "BasePose"), ("first", "BlendPoses_0"), ("second", "BlendPoses_1")].into_iter().enumerate() {
+                let input = AnimationNode::new(name, crate::GlobalPoseInputNode {
+                    key: format!("input_{index}"), output: "Pose".into(),
+                });
+                graph.add_node(input.clone());
+                graph.add_node_parameter_edge(input.id, "Pose", blend.id, pin);
+            }
+            graph.add_output_data("Pose".into(), DataSpec::Pose);
+            graph.add_output_data_edge(blend.id, "Pose", "Pose");
+            handles.push(graphs.add(graph));
+        }
+        let mut world = World::new();
+        world.insert_resource(graphs);
+        world.insert_resource(Assets::<GraphClip>::default());
+        world.insert_resource(Assets::<Skeleton>::default());
+        world.insert_resource(Assets::<StateMachine>::default());
+        assert_eq!(world.run_system_cached_with(query, handles[0].clone()).unwrap().duration, 0.2);
+        assert_eq!(world.run_system_cached_with(query, handles[1].clone()).unwrap().duration, 0.3);
+    }
+
+    #[test]
     fn source_enum_pose_blend_initializes_to_the_selected_source_entry() {
         let mut state = SourceEnumPoseBlendState::default();
         assert_eq!(source_enum_alpha(&mut state, true, 0.1, 0.0), 1.0);
