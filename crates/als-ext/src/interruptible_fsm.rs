@@ -2137,6 +2137,118 @@ mod tests {
         assert_eq!(actual, 0.4);
     }
 
+    #[test]
+    fn machine_weight_getter_selects_the_source_branch_on_the_first_update() {
+        use crate::source_scalar_expression::{SourceScalarDataType, SourceScalarExpressionNode, SourceScalarPin};
+
+        fn query(
+            In((root, fsm_node)): In<(Handle<AnimationGraph>, NodeId)>,
+            resources: SystemResources,
+        ) -> Vec<(f32, f32)> {
+            let graph = resources.animation_graph_assets.get(&root).unwrap();
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let inputs = HashMap::from([
+                ("pose".to_owned(), DataValue::Pose(Pose::default())),
+                ("delta".to_owned(), DataValue::F32(0.02)),
+            ]);
+            let env = TestIoEnv::default();
+            [0.4, 1.0].into_iter().map(|weight| {
+                let mut arena = GraphContextArena::new(root.id());
+                let output = with_machine_weight(weight, || graph.query_with_context(
+                    QueryOutputTime::Forced(TimeUpdate::Delta(0.02)),
+                    GraphContext::new(
+                        arena.get_toplevel_id(), graph, &mut arena, &resources, &env,
+                        Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs,
+                    ),
+                )).unwrap();
+                let state = arena.get_toplevel().node_states
+                    .get::<InterruptibleFsmState>(fsm_node, StateKey::Default).unwrap();
+                (output["State"].as_f32().unwrap(), state.recorded_machine_weight())
+            }).collect()
+        }
+
+        let mut graphs = Assets::<AnimationGraph>::default();
+        let mut pose_graph = AnimationGraph::new();
+        let pose = AnimationNode::new("pose", GlobalPoseInputNode {
+            key: "pose".to_owned(), output: "Pose".to_owned(),
+        });
+        pose_graph.add_node(pose.clone());
+        pose_graph.add_output_data("Pose".to_owned(), DataSpec::Pose);
+        pose_graph.add_output_data_edge(pose.id, "Pose", "Pose");
+        let pose_graph = graphs.add(pose_graph);
+        let states = [1, 2, 3].map(|id| serde_json::from_str::<StateId>(
+            &format!("\"10000000-0000-4000-8000-{id:012}\"")
+        ).unwrap());
+        let fsm_id: NodeId = serde_json::from_str("\"90000000-0000-4000-8000-000000000001\"").unwrap();
+        let getter = crate::SourceAnimationStateGetterNode {
+            source_function: "GetInstanceMachineWeight".to_owned(),
+            fsm_node: fsm_id.uuid().to_string(), output: "ReturnValue".to_owned(), ..default()
+        };
+        let mut machine = StateMachine::default();
+        machine.start_state = states[0];
+        machine.node_spec.add_output_data("Pose".to_owned(), DataSpec::Pose);
+        for (index, state) in states.iter().enumerate() {
+            machine.add_state(State {
+                id: *state, label: ["Idle", "Low", "High"][index].to_owned(),
+                graph: pose_graph.clone(), ..default()
+            });
+        }
+        let mut conditions = Vec::new();
+        for (index, operation) in ["less", "greater_equal"].into_iter().enumerate() {
+            let mut condition = AnimationGraph::new();
+            let read = AnimationNode::new("Machine Weight", getter.clone());
+            let compare = AnimationNode::new("Compare with one", SourceScalarExpressionNode {
+                operation: operation.to_owned(),
+                input_pins: vec![SourceScalarPin { name: "A".to_owned(), ..default() },
+                    SourceScalarPin { name: "B".to_owned(), f32_default: 1.0, ..default() }],
+                output_pins: vec![SourceScalarPin {
+                    name: "Result".to_owned(), data_type: SourceScalarDataType::Bool, ..default()
+                }],
+                ..default()
+            });
+            condition.add_node(read.clone());
+            condition.add_node(compare.clone());
+            condition.add_node_parameter_edge(read.id, "ReturnValue", compare.id, "A");
+            condition.add_output_data("Result".to_owned(), DataSpec::Bool);
+            condition.add_output_data_edge(compare.id, "Result", "Result");
+            let transition_id: DirectTransitionId = serde_json::from_str(
+                &format!("\"20000000-0000-4000-8000-{index:012}\"")
+            ).unwrap();
+            conditions.push(SourceTransitionCondition {
+                transition_id: transition_id.uuid().to_string(),
+                source_state_id: states[0].uuid().to_string(),
+                condition: graphs.add(condition), output: "Result".to_owned(),
+                context_state: states[0], ..default()
+            });
+            machine.add_transition_unchecked(DirectTransition {
+                id: transition_id, source: states[0], target: states[index + 1],
+                data: TransitionData::default(),
+            });
+        }
+        machine.update_low_level_fsm();
+        let mut machines = Assets::<StateMachine>::default();
+        let mut fsm = AnimationNode::new("fsm", InterruptibleFsmNode {
+            fsm: machines.add(machine), source_transition_conditions: conditions,
+            telemetry_states: states.to_vec(), state_pose_output: "Pose".to_owned(),
+            outer_pose_output: "Pose".to_owned(), internal_time_key: "delta".to_owned(), ..default()
+        });
+        fsm.id = fsm_id;
+        let mut root = AnimationGraph::new();
+        root.add_node(fsm.clone());
+        root.add_output_data("Pose".to_owned(), DataSpec::Pose);
+        root.add_output_data_edge(fsm.id, "Pose", "Pose");
+        root.add_output_data("State".to_owned(), DataSpec::F32);
+        root.add_output_data_edge(fsm.id, InterruptibleFsmNode::OUT_ACTUAL_STATE, "State");
+        let root = graphs.add(root);
+        let mut world = World::new();
+        world.insert_resource(graphs);
+        world.insert_resource(machines);
+        world.insert_resource(Assets::<GraphClip>::default());
+        world.insert_resource(Assets::<Skeleton>::default());
+        assert_eq!(world.run_system_cached_with(query, (root, fsm_id)).unwrap(), vec![(1.0, 0.4), (2.0, 1.0)]);
+    }
+
     fn fixture_pose(x: f32) -> Pose {
         Pose {
             paths: HashMap::from([(default(), 0)]),
