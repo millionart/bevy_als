@@ -10,7 +10,7 @@ use bevy_animation_graph::core::{
     context::{new_context::NodeContext, spec_context::SpecContext},
     edge_data::DataSpec,
     errors::GraphError,
-    pose::Pose,
+    pose::{Pose, RootMotionDelta},
 };
 use serde::{Deserialize, Serialize};
 
@@ -272,6 +272,29 @@ impl SourceLayeredBoneBlendNode {
     }
 }
 
+fn source_layered_root_motion(
+    base: &Pose,
+    overlays: &[Option<Pose>],
+    weights: &[f32],
+    root_source: Option<usize>,
+    root_weight: f32,
+    root_based: bool,
+) -> Option<RootMotionDelta> {
+    let root_weight = if root_based && root_weight > 1e-5 { root_weight.clamp(0.0, 1.0) } else { 0.0 };
+    let base_weight = if 1.0 - root_weight < 1e-5 { 1.0 - root_weight } else { 1.0 };
+    let mut motions = Vec::with_capacity(overlays.len() + 1);
+    motions.push((base.root_motion.clone(), base_weight));
+    for (index, overlay) in overlays.iter().enumerate() {
+        if let Some(overlay) = overlay {
+            let modifier = if root_based {
+                if root_source == Some(index) { root_weight } else { 0.0 }
+            } else { 1.0 };
+            motions.push((overlay.root_motion.clone(), weights[index] * modifier));
+        }
+    }
+    crate::normalized_blendspace::blend_normalized_root_motion(&motions)
+}
+
 impl NodeLike for SourceLayeredBoneBlendNode {
     fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
         let mut bone_data = ctx.state::<SourceLayeredBoneBlendState>().ok().and_then(|state| state.data.clone());
@@ -343,6 +366,11 @@ impl NodeLike for SourceLayeredBoneBlendNode {
                     }));
                 }
                 let data = bone_data.as_ref().unwrap();
+                let root = skeleton.root();
+                let root_source = data.sources.get(&root).copied();
+                let root_weight = root_source.map(|source| data.mask.bone_weight(&root) * weights[source]).unwrap_or(0.0);
+                let root_motion = source_layered_root_motion(&base, &overlays, &weights, root_source, root_weight,
+                    self.blend_root_motion_based_on_root_bone);
                 let mut mask = data.mask.clone();
                 let sources = &data.sources;
                 let mut target = data.reference.clone();
@@ -371,6 +399,7 @@ impl NodeLike for SourceLayeredBoneBlendNode {
                         }
                     }
                 }
+                base.root_motion = root_motion;
             } else { bone_data = None; }
         }
         ctx.set_time(base.timestamp);
@@ -652,6 +681,31 @@ mod tests {
             }
         }
         assert!(failures.is_empty(), "{}", failures.join("\n"));
+    }
+
+    #[test]
+    fn layered_root_motion_uses_source_root_weight_routing() {
+        let pose = |translation, rotation| Pose {
+            root_motion: Some(RootMotionDelta { translation, rotation }),
+            ..default()
+        };
+        let base_rotation = Quat::from_rotation_y(0.3);
+        let overlay_rotation = Quat::from_rotation_z(0.7);
+        let base = pose(Vec3::X, base_rotation);
+        let overlays = [
+            Some(pose(Vec3::Y, Quat::from_rotation_x(0.5))),
+            Some(pose(Vec3::Z, overlay_rotation)),
+        ];
+        let base_only = source_layered_root_motion(&base, &overlays, &[0.5, 1.0], None, 0.0, true).unwrap();
+        assert_eq!(base_only.translation, Vec3::X);
+        assert!(base_only.rotation.dot(base_rotation).abs() > 1.0 - 1e-6);
+        let overlay_only = source_layered_root_motion(&base, &overlays, &[0.5, 1.0], Some(1), 1.0, true).unwrap();
+        assert_eq!(overlay_only.translation, Vec3::Z);
+        assert!(overlay_only.rotation.dot(overlay_rotation).abs() > 1.0 - 1e-6);
+        let partial = source_layered_root_motion(&base, &overlays, &[0.5, 0.6], Some(0), 0.5, true).unwrap();
+        assert_eq!(partial.translation, Vec3::X + Vec3::Y * 0.25);
+        let unrestricted = source_layered_root_motion(&base, &overlays, &[0.5, 0.6], None, 0.0, false).unwrap();
+        assert_eq!(unrestricted.translation, Vec3::X + Vec3::Y * 0.5 + Vec3::Z * 0.6);
     }
 
     #[test]
