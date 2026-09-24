@@ -1376,3 +1376,7 @@
   S3 静态闭环、runtime 前摘要：fresh Layering 7 Slot/9 Layered 源路径、UE同消息栈请求/下游同帧最短duration合同、S1图级Base0.5覆盖叠加0.3/0.2红、S2活动→0.2/禁用末支→0.3与去合并行消融已闭合；Layered9/9、通用frame/min helper1/1、惯性 consumer5/5。安装 Layering RON仍有7 Slot/7可达 Layered runtime节点，无converter/生成资产改动；资产边界0 issue、pose contract/视觉 validator自测PASS。下一步同 `target_game/play` 预构建，先startup再standing_turn/overlays原入口功能 Gate，报告只能证明当前可见Slot/Layering无回归，图级合成同帧时长分歧仍是修复支路的精确信号。
 
   runtime 后完成摘要：同一 `target_game/play` 预构建后，原 `startup`、`standing_turn`、`overlays` 公共 `-FunctionalOnly -CaptureCount 0` runner/manual/validator全部退出0；startup79姿态样本，Turn11/11覆盖、10/10必需窗口、1671样本，Overlays115/115、110/110窗口、2740样本。三场 `graph_errors=[]`、`primary_failure=null`、fault/temporal0、watchdog未触发、render/decal均通过。真实 Turn Slot/Layering 路径可见无回归；公共报告没有同帧 Base/多叠加不同 duration 的注入读回，不将其等同于图级最短时长红绿；完整性能预算继续延期。
+
+- [x] **BF124.A54 — Layered 叠加分支惯性请求到达下游**：开始：2026-09-24 17:11:00 +08:00；预估结束：2026-09-24 17:26:00 +08:00；实际结束：2026-09-24 17:11:00 +08:00；偏差：-15m00s；结果：S1–S3各自通过并提交（`7dfbe72`、`a60e6ef`、`f613978`），fresh Layering Slot/Layered 源消息合同、同帧0.5/0.3/0.2红绿与禁用分支/消融、Layered9/9/惯性consumer5/5及原Playground三场功能Gate闭合。估时依据：只汇总已提交源、图级与真实入口证据，无converter/生成资产变更；拆分结果：A54当前功能无剩余 Gate，A55为本批次最后反馈，完整性能预算延期。
+
+  汇总：源 LayeredBoneBlend 逐一 Update 活动 PoseLink，Slot 惯性请求在同一图消息栈传到下游并由 Inertialization 取同帧最短duration。目标此前只带 Base request；现仅对活动叠加 branch 用现有 frame/min helper 合并。图级 Base0.5+两叠加0.3/0.2 原错0.5现0.2，停用末支0.3，去合并行消融再次0.5；frame优先级与下游惯性 consumer 测试均过。fresh Layering 7Slot/9Layered 与安装图一致，原startup/standing_turn/overlays功能Gate全过，当前公共场景不虚称同帧多duration注入动态覆盖。
