@@ -1,10 +1,11 @@
 use std::time::Duration;
 
 use als_core::{character::AlsCharacter, state::{AlsNotifyLocomotionAction, LocomotionState}};
-use avian3d::dynamics::{integrator::IntegrationSystems, solver::solver_body::SolverBody};
+use avian3d::dynamics::{integrator::{IntegrationSystems, VelocityIntegrationData}, solver::solver_body::SolverBody};
 use avian3d::prelude::{
-    Collider, CustomPositionIntegration, Physics, PhysicsSystems, Position, RigidBody, ShapeCastConfig,
-    SpatialQuery, SpatialQueryFilter, SubstepCount, SubstepSchedule,
+    Collider, CustomPositionIntegration, Physics, PhysicsSchedule,
+    PhysicsSystems, Position, RigidBody, ShapeCastConfig, SpatialQuery, SpatialQueryFilter,
+    SubstepCount, SubstepSchedule,
 };
 use bevy::prelude::*;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
@@ -55,11 +56,32 @@ impl Plugin for SourcePhysicsTimingPlugin {
                     .in_set(SourcePhysicsTimingSet::Restore),
             )
             .add_systems(
+                PhysicsSchedule,
+                integrate_character_velocity
+                    .in_set(IntegrationSystems::UpdateVelocityIncrements)
+                    .after(avian3d::dynamics::integrator::pre_process_velocity_increments),
+            )
+            .add_systems(
                 SubstepSchedule,
                 integrate_character_position
                     .in_set(IntegrationSystems::Position)
                     .after(avian3d::dynamics::integrator::integrate_positions),
             );
+    }
+}
+
+fn integrate_character_velocity(
+    frame_time: Res<Time<Virtual>>,
+    physics_time: Res<Time<Physics>>,
+    mut characters: Query<&mut VelocityIntegrationData, With<SourceCharacterFullFrame>>,
+) {
+    if physics_time.delta().is_zero() || frame_time.delta() <= SOURCE_MAX_PHYSICS_DELTA {
+        return;
+    }
+    let ratio = frame_time.delta_secs() / physics_time.delta_secs();
+    for mut integration in &mut characters {
+        integration.linear_increment *= ratio;
+        integration.angular_increment *= ratio;
     }
 }
 
@@ -171,6 +193,39 @@ mod tests {
             source_physics_delta(Duration::from_millis(50)),
             SOURCE_MAX_PHYSICS_DELTA
         );
+    }
+
+    #[test]
+    fn airborne_gravity_consumes_the_full_frame() {
+        for millis in [16, 20, 50, 100] {
+            let mut app = App::new();
+            app.add_plugins((
+                MinimalPlugins,
+                AssetPlugin::default(),
+                TransformPlugin,
+                avian3d::prelude::PhysicsPlugins::new(PostUpdate),
+                SourcePhysicsTimingPlugin,
+            ))
+            .init_asset::<Mesh>()
+            .add_message::<bevy::asset::AssetEvent<Mesh>>()
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(millis)));
+            app.finish();
+            app.update();
+            let character = app.world_mut().spawn((
+                als_core::character::AlsCharacter,
+                LocomotionState::Air,
+                RigidBody::Dynamic,
+                Collider::cuboid(0.2, 0.2, 0.2),
+                Position(Vec3::ZERO),
+                LinearVelocity(Vec3::ZERO),
+                Transform::default(),
+            )).id();
+            app.update();
+            let velocity = app.world().get::<LinearVelocity>(character).unwrap().y;
+            let expected = -9.81 * millis as f32 / 1000.0;
+            assert!((velocity - expected).abs() < 1e-4,
+                "airborne gravity at {millis} ms: {velocity} != {expected}");
+        }
     }
 
     #[test]
