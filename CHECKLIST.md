@@ -50,7 +50,7 @@
 | A06 | P2 | 完成 | 落地旋转阻止标志被残余 moving 状态解除 |
 | A07 | P2 | 完成 | VelocityDirection 缺少碰撞调整前期望速度朝向 |
 | A08 | P2 | 完成 | 动作期间遗漏目标 yaw 和瞄准约束的生命周期维护 |
-| A09 | P2 | 完成 | Roll 回退阻尼遗漏接近 180 度的源端转向偏好 |
+| A09 | P2 | 完成：BF125.R3 复验 | Roll 回退阻尼遗漏接近 180 度的源端转向偏好 |
 | A10 | P2 | 完成 | 蹲起中心位移和站起查询未使用有效缩放 |
 | A11 | P2 | 完成 | Ragdoll 找地查询未保留角色原始碰撞响应 |
 | A12 | P2 | 完成 | Ragdoll 找地和胶囊跟随使用未缩放尺寸 |
@@ -324,7 +324,7 @@
 
   完成摘要：同二进制原 Playground `moving_base` public runner manual/validator `0/0`，10/10 功能结果覆盖 Ride/Jump/新支撑/Mantle/动作返回、2 个姿态窗口与 401 pose samples；graph error/fault/temporal/watchdog 为 0，渲染/贴花通过。真实系统原动作路径 Target=1.0 保留的 FAIL 已修为随 Actor -0.6→-1.1 连续更新，View 历史跟随，Roll 退出后旧 70° 限角重新计算到 >100°；三项消融各自 FAIL、`als-core` 286/286 通过。无资产/图/阈值修改，完整性能预算依用户暂停范围延期。
 
-- [x] **BF124.A09 — Roll 近半圈角差的源转向偏好**：开始：2026-09-23 10:58:05 +08:00；预估结束：2026-09-23 11:43:05 +08:00；实际结束：2026-09-23 11:10:53 +08:00；偏差：-32m12s；结果：源函数/资产、近半圈 red/修复/消融与原 Playground Roll 功能 Gate 通过。目标 Roll 阻尼现按同一 175° 源阈值从 +176° 选逆时针，并消费源 `InvExpApprox` 半衰期，资产/图不变。估时依据：一个 C++ helper、一处目标函数和已有动作场景；拆分结果：本编号无剩余功能 Gate，A10 独立处理蹲起缩放。
+- [x] **BF124.A09 — Roll 近半圈角差的源转向偏好**：开始：2026-09-23 10:58:05 +08:00；预估结束：2026-09-23 11:43:05 +08:00；实际结束：2026-09-23 11:10:53 +08:00；偏差：-32m12s；结果：原 Gate 当时通过；2026-09-24 按 BF125.R3 复开并通过。旧测试将相同有符号 yaw 数值同时喂给 UE 与 Bevy，未经过 Y-up/Z-up 坐标基转换；现已用同一物理目标双坐标反例、Roll 局部8/8及原 Playground 功能 Gate 复验，完整性能预算延期。
 
   source/static 与 red 反例：fresh 原生 `CS_Als_Default.Rolling.RotationInterpolationHalfLife=0.1 s`，reader watchdog `success=true`；C++ `RefreshRollingPhysics` 的非零半衰期路径调用 `UAlsRotation::DamperExactAngle`，源函数先 `UnwindDegrees`，对 `delta>175°` 减去 `360°`，使用 `UAlsMath::DamperExactAlpha(InvExpApprox)` 再 Unwind。仓库已有 `transitions::remap_counterclockwise_degrees` 正是该 175° 规则，`animation::inv_exp_approx` 已用于普通身体 yaw。目标 Roll 当前 +176°/0.1 s 得 `+1.5358897 rad`，源合同预期 `-1.6060647 rad`，真实 helper focused 先稳定 FAIL；174°、175°、180° 正反边界同时登记，不新增第二套阈值。
 
@@ -1418,3 +1418,9 @@
   runtime 前摘要：fresh UE `PhysFalling→SafeMoveUpdatedComponent` 按活动胶囊阻挡响应扫掠；Avian 查询过滤仅看候选 membership，物理接触则双向 `interacts_with` 并跳过 Sensor/同体附属 Collider。100 ms Air 无地面夹具的另一层障碍旧实现将 `0.375 m` 截成 `0.16868751 m`；目标改为公开 `cast_shape_predicate` 检查双向层、Sensor 和 `ColliderOf.body`，另一层/反向拒绝/Sensor/同体/真正阻挡五格全绿，A01 局部5/5。消融删除多余预过滤 mask 后信号不变，保留唯一完整谓词；下一步同入口 `target_game/play` 预构建与 10 FPS `uphill_jump` 功能 Gate，性能预算继续延期。
 
   runtime 后摘要：最终同入口 10 FPS `uphill_jump` 功能报告 manual/validator 0/0、primary failure 空、graph/fault/temporal/watchdog 均 0；完整性能预算按既定范围延期。R1/R2 均独立红绿与真实入口验收，A01 父项复开闭环；后续不再扩展相邻物理路径。
+
+- [x] **BF125.R3 — A09 Roll 近半圈偏好按 UE/Bevy yaw 基变换映射**：开始：2026-09-24 18:15:00 +08:00；预估结束：2026-09-24 19:00:00 +08:00；实际结束：2026-09-24 18:21:00 +08:00；偏差：-39m00s；结果：同一世界方向的 UE+176°/Bevy−176° 反例红→绿，174/175/180/−176° 及 Roll 局部8/8，恢复旧比较即可红；同 `target_game/play` 最终预构建、原 Playground `grounded` 功能 Gate manual/validator 0/0，primary/graph/fault/temporal/watchdog 均空。估时依据：fresh ALS 一处 yaw remap 与现有 Roll helper/公共场景；拆分结果：R3 完成、A09 父项复验关闭，R4 下一项，完整性能预算延期。
+
+  runtime 前摘要：fresh 本地 ALS `RefreshRollingPhysics` 的 `DamperExactAngle` 仍将 UE +176° 重映射为 -184°；同一世界方向在目标 YXZ 为 -176°，应走 +184°。旧测试误用目标 +176°；更正为同一物理方向两坐标的五格后先在 +176° 源例实际得到目标 -1.5362358 rad、预期 +1.6060646 rad，稳定红。仅将现有 Roll 阈值比较映射到 Bevy 负向，Roll 8/8 全绿；改回旧比较即可复现首格红，未修改图/资产/动作选择。下一步同入口 `target_game/play` 预构建并跑 `grounded` Roll 公共功能 Gate，性能预算延期。
+
+  runtime 后摘要：最终同入口 `grounded` 公共功能报告 manual/validator 0/0、primary failure 空、graph/fault/temporal/watchdog 0；当前场景证明现有 Roll 动作路径无回归，近半圈无根旋转回退方向由双坐标 focused 红绿证明，未把场景误称为该合成方向的实机覆盖。完整性能预算按既定延期。

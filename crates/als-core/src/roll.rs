@@ -85,8 +85,8 @@ pub fn damper_exact_angle(
     } else {
         wrap_angle(raw_delta)
     };
-    if delta > crate::transitions::COUNTERCLOCKWISE_REMAP_THRESHOLD_DEGREES.to_radians() {
-        delta -= std::f32::consts::TAU;
+    if delta < -crate::transitions::COUNTERCLOCKWISE_REMAP_THRESHOLD_DEGREES.to_radians() {
+        delta += std::f32::consts::TAU;
     }
     let alpha = 1.0 - crate::animation::inv_exp_approx(
         std::f32::consts::LN_2 / (half_life_seconds + 1e-8) * delta_seconds.max(0.0),
@@ -257,18 +257,20 @@ mod tests {
     }
 
     #[test]
-    fn source_roll_damper_prefers_counterclockwise_near_half_turn() {
+    fn source_roll_damper_preserves_world_turn_across_yaw_bases() {
         let alpha = 1.0 - crate::animation::inv_exp_approx(std::f32::consts::LN_2 / (0.1 + 1e-8) * 0.1);
         for (target_degrees, source_delta_degrees) in [
             (176.0_f32, -184.0_f32),
             (174.0, 174.0),
             (175.0, 175.0),
             (180.0, -180.0),
+            (-176.0, -176.0),
         ] {
-            let actual = damper_exact_angle(0.0, target_degrees.to_radians(), 0.1, 0.1);
-            let expected = wrap_angle(source_delta_degrees.to_radians() * alpha);
-            assert!(wrap_angle(actual - expected).abs() < 1e-5,
-                "target={target_degrees} actual={actual} expected={expected}");
+            let bevy_target = (-target_degrees).to_radians();
+            let actual = damper_exact_angle(0.0, bevy_target, 0.1, 0.1);
+            let expected = wrap_angle((-source_delta_degrees).to_radians() * alpha);
+            assert!(yaw_to_world_forward(actual).distance(yaw_to_world_forward(expected)) < 1e-5,
+                "source target={target_degrees} actual={actual} expected={expected}");
         }
     }
 
