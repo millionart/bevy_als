@@ -627,6 +627,9 @@ mod tests {
                 .abs()
                 < 1e-6
         );
+        let mut long = SourceSequencePlayerState::default();
+        assert!((next_position(&mut long, TimeUpdate::Delta(0.1), 2.5, 1.75, 1.0, true) - 1.85).abs() < 1e-6);
+        assert!((marker_phase_from_sample_time(1.75, 2.5, &[], 2.5, &[], true) - 0.7).abs() < 1e-6);
     }
 
     #[test]

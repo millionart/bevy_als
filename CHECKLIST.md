@@ -1261,4 +1261,8 @@
 
   S1 source/static 完成摘要：fresh Standing 原生 CDO 的 Sequence/BlendSpace `StartPosition` 值分别最大0.25秒/统一0.2，现有资产未暴露错误；本地 UE `AnimNode_SequencePlayer.cpp` 初始化到 `[0, GetPlayLength()]`，`AnimNode_BlendSpacePlayer.cpp` 初始化到 `[0,1]`。目标同一 sync plan guard 把两种来源混为 `[0,1]`。复用现有两播放器 fixture，只改首个 Sequence source timing 为2.5秒及 start为1.75秒，`--self-test` 在预期的 `source_sync_group_contract_unsupported` red；资产和图身份未参与该拒绝。S2 要保留 BlendSpace 相位范围，不能统一删除上界。
 
-- [ ] **BF124.A49-S2 — 同步计划按 Sequence 秒数/BlendSpace 相位验起点**：开始：2026-09-24 14:16:00 +08:00；预估结束：2026-09-24 15:01:00 +08:00。估时依据：S1已定位单个共享 guard/最小红例，现成 `source_timing.duration` 与 converter self-test；Gate 为长序列1.75成功、BlendSpace越界仍拒、图身份变化不改变语义、字段变化改变输出及去区分分支消融。
+- [x] **BF124.A49-S2 — 同步计划按 Sequence 秒数/BlendSpace 相位验起点**：开始：2026-09-24 14:16:00 +08:00；预估结束：2026-09-24 15:01:00 +08:00；实际结束：2026-09-24 14:20:00 +08:00；偏差：-41m00s；结果：统一同步计划仅将 Sequence 上界取 source clip duration，BlendSpace仍1.0；2.5秒/1.75秒源 fixture 红→绿，BlendSpace1.75拒/0.75过，换图/节点身份语义不变、改字段输出1.75，退回共享1.0消融红。converter/pose contract/renderer 自测全通过，runtime SequencePlayer11/11含长序列1.85秒及相位0.7。估时依据：S1单个共享 guard/最小红例、现成 source timing；拆分结果：S3 全15安装根/23 AnimBP及递归依赖重转与374文件完整diff，S4 静态/原Playground，A50不提前展开。
+
+  S2 source/static 完成摘要：`build_sync_group_plans` 已由同一 `sync_candidate_timing` 提供的源时长决定 Sequence 起点合法上界，BlendSpace 仍用归一化1.0；无图名/节点ID特例、无新运行时分支。复制现有双播放器 source fixture 为首个 Sequence 2.5秒/起点1.75秒，通过并保存 `source_start_position=1.75`，只改 source graph/node 身份仍是同一相位键和起点，和原0.2字段值形成敏感对照；切为 BlendSpace1.75仍明确拒，0.75通过。把新上界消融回1.0再次拒1.75，恢复后 converter、pose contract、renderer self-test 与 SequencePlayer11/11均绿。当前真实 Standing最大 Sequence 起点0.25秒，完整影响仍只能由 S3 全量新旧产物diff判定。
+
+- [ ] **BF124.A49-S3 — 全部生成 AnimBP/递归依赖重转与完整产物 diff**：开始：2026-09-24 14:21:00 +08:00；预估结束：2026-09-24 15:16:00 +08:00。估时依据：A46同类15根/23图/374文件全量原生重转1716.5秒，外层进展 watchdog 和完整全树 diff 脚本可复用；若发生源证实变化须迁移全部受影响生成资产，再做静态和真实入口 Gate。

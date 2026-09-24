@@ -1261,13 +1261,14 @@ def build_sync_group_plans(source_asset, graphs, animation_assets):
                 continue
             looped = semantic.get("loop_animation", semantic.get("loop"))
             start = semantic.get("start_position")
+            start_max = timing["duration"] if node["renderer"] == "sequence_player" else 1.0
             role = semantic.get("sync_group_role")
             path, key, rate = sync_candidate_play_rate(semantic)
             if (
                 not isinstance(looped, bool)
                 or not isinstance(start, (int, float))
                 or isinstance(start, bool)
-                or not 0.0 <= start <= 1.0
+                or not 0.0 <= start <= start_max
                 or not isinstance(role, str)
                 or not isinstance(path, str)
                 or not isinstance(key, str)
@@ -3290,6 +3291,45 @@ def run_self_test():
     )
     assert not long_issues, long_issues
     assert long_plans[0]["candidates"][0]["source_start_position"] == 1.75
+    assert long_plans[0]["candidates"][0]["source_start_position"] != sync_plans[0]["candidates"][0]["source_start_position"]
+    renamed_sync_graphs = copy.deepcopy(long_sync_graphs)
+    renamed_sync_assets = copy.deepcopy(long_sync_assets)
+    renamed_sync_graphs[0]["source_graph"] = "RenamedGraph"
+    for node, asset in zip(renamed_sync_graphs[0]["nodes"], renamed_sync_assets):
+        node["source_node"] = node["source_node"].replace("AnimGraph", "RenamedGraph")
+        asset["source_node"] = node["source_node"]
+    renamed_plans, _, renamed_issues = build_sync_group_plans(
+        "/ALS/AnimationInstances/AB_Als_Test.AB_Als_Test",
+        renamed_sync_graphs,
+        renamed_sync_assets,
+    )
+    assert not renamed_issues, renamed_issues
+    assert renamed_plans[0]["target_phase_key"] == long_plans[0]["target_phase_key"]
+    assert [row["source_start_position"] for row in renamed_plans[0]["candidates"]] == [
+        row["source_start_position"] for row in long_plans[0]["candidates"]
+    ]
+    blendspace_sync_graphs = copy.deepcopy(long_sync_graphs)
+    blendspace_node = blendspace_sync_graphs[0]["nodes"][0]
+    blendspace_node["renderer"] = "blendspace_player"
+    blendspace = blendspace_node["semantic"]
+    blendspace["renderer"] = "blendspace_player"
+    blendspace["loop"] = blendspace.pop("loop_animation")
+    blendspace["configured_play_rate"] = 1.0
+    blendspace["blendspace"] = {"samples": [{"source_timing": long_sync_assets[0]["source_timing"]}]}
+    _, _, blendspace_issues = build_sync_group_plans(
+        "/ALS/AnimationInstances/AB_Als_Test.AB_Als_Test",
+        blendspace_sync_graphs,
+        long_sync_assets,
+    )
+    assert {issue["kind"] for issue in blendspace_issues} == {"source_sync_group_contract_unsupported"}
+    blendspace["start_position"] = 0.75
+    blendspace_plans, _, blendspace_issues = build_sync_group_plans(
+        "/ALS/AnimationInstances/AB_Als_Test.AB_Als_Test",
+        blendspace_sync_graphs,
+        long_sync_assets,
+    )
+    assert not blendspace_issues, blendspace_issues
+    assert blendspace_plans[0]["candidates"][0]["source_start_position"] == 0.75
     mismatched_sync_graphs = copy.deepcopy(sync_graphs)
     mismatched_sync_graphs[0]["nodes"][1]["semantic"]["loop_animation"] = False
     _, _, mismatch_issues = build_sync_group_plans(
