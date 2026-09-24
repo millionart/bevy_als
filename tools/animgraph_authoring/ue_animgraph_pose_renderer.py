@@ -1484,16 +1484,15 @@ def validate_source_two_way_child_reset(graph_contract, ir_nodes):
         source_semantic = ir_nodes.get(source.get("node_object_path"))
         if (
             source_semantic is None
-            or source_semantic.get("renderer") != "sequence_player"
             or source.get("pin_name") != "Pose"
             or pin in reset_inputs.get(target_path, {})
         ):
-            raise PoseRenderError("source child reset requires one direct Sequence Player per A/B input")
+            raise PoseRenderError("source child reset requires one Pose source per A/B input")
         reset_inputs.setdefault(target_path, {})[pin] = source_semantic["source_node"]
     for target_path in sorted(reset_nodes):
         inputs = reset_inputs.get(target_path, {})
         if set(inputs) != {"A", "B"} or inputs["A"] == inputs["B"]:
-            raise PoseRenderError("source child reset requires distinct direct Sequence Players for A and B")
+            raise PoseRenderError("source child reset requires distinct Pose sources for A and B")
 
 
 
@@ -1962,6 +1961,17 @@ def run_self_test():
     indirect_ir = copy.deepcopy(graph_ir)
     indirect_ir["nodes"][0]["renderer"] = "multi_way_blend"
     validate_source_two_way_child_reset(graph_contract, semantic_index(indirect_ir))
+    renamed_contract = json.loads(json.dumps(graph_contract).replace("/Asset:State", "/Fixture:Renamed").replace("10000000-0000-4000-8000", "20000000-0000-4000-8000"))
+    renamed_ir = json.loads(json.dumps(indirect_ir).replace("/Asset:State", "/Fixture:Renamed").replace("10000000-0000-4000-8000", "20000000-0000-4000-8000"))
+    validate_source_two_way_child_reset(renamed_contract, semantic_index(renamed_ir))
+    invalid_contract = copy.deepcopy(graph_contract)
+    invalid_contract["links"][1]["source"]["pin_name"] = "Other"
+    try:
+        validate_source_two_way_child_reset(invalid_contract, semantic_index(indirect_ir))
+    except PoseRenderError:
+        pass
+    else:
+        raise AssertionError("child reset accepted a non-Pose source pin")
     graph_ir["links"] = list(graph_contract["links"])
     unused_path = "/Asset:State.Unreachable"
     graph_contract["source_graph"]["nodes"].append(

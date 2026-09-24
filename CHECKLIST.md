@@ -1285,4 +1285,8 @@
 
   S1 source/static 完成摘要：UE 源 `FAnimNode_TwoWayBlend::Update_AnyThread` 只按新相关且旧不相关条件调用 `A.Initialize`/`B.Initialize`，随后本帧 Update，输入可为任何 PoseLink 子树。fresh Standing 两个图节点中 reset=true 的 A/B 恰为 Sequence，reset=false 的 A/B 实际是 GameplayTagsBlend/UseCachedPose；构造器/CDO名不能替代图节点 `BlendNode` 字段和真实链接。目标现有直连 Sequence 图测试保留；在同一夹具加第四个 A=LayeredGraph→Sequence、B=Sequence、reset=true 案例，首帧 `UnknownErrorNode` 精确拒绝间接子树；renderer以 `multi_way_blend` A 替换直接 Sequence 后同样精确 `PoseRenderError`。两条 red 不改原资产，S2须同时覆盖转换静态放行与运行时递归重置。
 
-- [ ] **BF124.A50-S2 — Two Way Blend 通用子树重置与转换边界**：开始：2026-09-24 15:03:00 +08:00；预估结束：2026-09-24 15:58:00 +08:00。估时依据：S1两条稳定红例、现有 `read_blend_list_child` 作用域子图机制和 converter collapse links 校验；Gate 为间接子树 A→B→A 复位时钟、直连/同步原例不变、身份/字段敏感和移除作用域消融，之后全量重转。
+- [x] **BF124.A50-S2 — Two Way Blend 通用子树重置与转换边界**：开始：2026-09-24 15:03:00 +08:00；预估结束：2026-09-24 15:58:00 +08:00；实际结束：2026-09-24 15:09:00 +08:00；偏差：-49m00s；结果：TwoWay复用已有 `read_blend_list_child` 作用域子图，不再只重置直接 Sequence State；持久记录 A/B 子树 context 供重入完整清理。间接 LayeredGraph→Sequence A→B→A 最后时钟0.3，直连/同步原例不变；Pose节点26/26、renderer自测PASS，换图/节点身份不变、非Pose pin仍拒。去作用域首例0.5红，丢 context 持久记录则仅间接例0.5红，恢复后绿。估时依据：S1两条红例与现有通用子图helper；拆分结果：S3全15安装根23图递归重转374文件diff，S4静态/原Playground，A51不提前展开。
+
+  S2 source/static 完成摘要：TwoWay 按 UE 的新相关边界复用 BlendList 已验 `read_blend_list_child`：启用reset才隔离 A/B 子图，激活时按各自 context 集合重建，从同帧输入更新；普通无reset仍走原直接 data。`SourceTwoWayBlendState` 只新增必须的 A/B context 记录，消融成每帧临时 Vec 时直连例过而间接子树末帧0.5≠0.3，证实该状态不可删除。converter 仅删同类型规则中“source必须 SequencePlayer”限制，仍要求每个 A/B 有唯一 Pose 源、不同源；合成间接 A 原 `PoseRenderError`→通过，改 graph/node 身份仍通过，改输出pin为非Pose仍失败；恢复直连限制的消融 red。无图专用分支、无原资产修改，S3必做全量转换判定安装影响。
+
+- [ ] **BF124.A50-S3 — 全部生成 AnimBP/递归依赖重转与完整产物 diff**：开始：2026-09-24 15:10:00 +08:00；预估结束：2026-09-24 16:05:00 +08:00。估时依据：A49同类15根/23图/374文件全量原生重转1736.7秒，现成独立暂存/外层进展watchdog/full diff；若有源证实变化须迁移全部受影响生成资产，S4随后验静态与真实入口。

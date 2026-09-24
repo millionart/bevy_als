@@ -41,6 +41,7 @@ pub struct SourceTwoWayBlendState {
     pub blend_alpha: f32,
     a_is_relevant: bool,
     b_is_relevant: bool,
+    child_contexts: Vec<Vec<GraphContextId>>,
     pub(crate) context: AnimationContextState,
 }
 
@@ -329,46 +330,24 @@ impl NodeLike for SourceTwoWayBlendNode {
             state.blend_alpha = alpha;
             (alpha, a_is_relevant, b_is_relevant, reset_a, reset_b)
         };
-        if self.reset_child_on_activation {
-            for (pin, reset) in [("A", reset_a), ("B", reset_b)] {
-                if !reset {
-                    continue;
-                }
-                let node = crate::animation_context::source_node_for_pose_input(&ctx, pin)?;
-                if ctx.graph_context.graph.nodes[&node]
-                    .try_inner_downcast_ref::<crate::SourceSequencePlayerNode>()
-                    .is_none()
-                {
-                    return Err(GraphError::UnknownErrorNode {
-                        graph: ctx.graph_context.context_id,
-                        node: ctx.node_id,
-                        error: "Source child initialization requires a direct sequence player"
-                            .into(),
-                    });
-                }
-                *ctx.graph_context
-                    .create_node_context(node)
-                    .state_mut::<crate::source_sequence_player::SourceSequencePlayerState>()? =
-                    default();
-            }
-        }
-        let mut base = if a_is_relevant {
-            ctx.data_back("A")?.into_pose()?
+        let mut child_contexts = std::mem::take(&mut ctx.state_mut::<SourceTwoWayBlendState>()?.child_contexts);
+        let (mut base, context_a) = if a_is_relevant {
+            read_blend_list_child(&ctx, "A", 0, self.reset_child_on_activation, reset_a, &mut child_contexts)?
         } else {
-            ctx.data_back("B")?.into_pose()?
+            (Pose::default(), None)
         };
-        if b_is_relevant && a_is_relevant {
-            let overlay = ctx.data_back("B")?.into_pose()?;
+        let (overlay, context_b) = if b_is_relevant {
+            read_blend_list_child(&ctx, "B", 1, self.reset_child_on_activation, reset_b, &mut child_contexts)?
+        } else {
+            (Pose::default(), None)
+        };
+        if !a_is_relevant {
+            base = overlay;
+        } else if b_is_relevant {
             base = blend_source_poses(&[(base, 1.0 - alpha), (overlay, alpha)]);
         }
         ctx.set_time(base.timestamp);
         ctx.set_data_fwd("Pose", base);
-        let context_a = a_is_relevant
-            .then(|| pose_input_context_state(&ctx, "A"))
-            .flatten();
-        let context_b = b_is_relevant
-            .then(|| pose_input_context_state(&ctx, "B"))
-            .flatten();
         let context = blend_animation_contexts([
             (
                 context_a.unwrap_or_default(),
@@ -379,7 +358,9 @@ impl NodeLike for SourceTwoWayBlendNode {
                 if a_is_relevant { alpha } else { 1.0 },
             ),
         ]);
-        ctx.state_mut::<SourceTwoWayBlendState>()?.context = context;
+        let state = ctx.state_mut::<SourceTwoWayBlendState>()?;
+        state.context = context;
+        state.child_contexts = child_contexts;
         Ok(())
     }
 
