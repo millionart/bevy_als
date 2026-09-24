@@ -1718,6 +1718,7 @@ def fixture_graph():
                     "start_position_pin": "StartPosition",
                     "loop_animation": True,
                     "ignore_for_relevancy_test": False,
+                    "override_position_when_joining_sync_group_as_leader": False,
                     "loop_animation_key": "",
                     "loop_animation_pin": "bLoopAnimation",
                     "sync_group": "None",
@@ -1909,6 +1910,9 @@ def run_self_test():
     text = render(graph_contract, graph_ir, assets)
     assert '"als_ext::SourceSequencePlayerNode"' in text
     assert 'ignore_for_relevancy_test:' not in text
+    graph_ir["nodes"][0]["semantic"]["override_position_when_joining_sync_group_as_leader"] = True
+    assert 'override_position_when_joining_sync_group_as_leader: true' in render(graph_contract, graph_ir, assets)
+    graph_ir["nodes"][0]["semantic"]["override_position_when_joining_sync_group_as_leader"] = False
     graph_ir["nodes"][0]["semantic"]["ignore_for_relevancy_test"] = True
     assert 'ignore_for_relevancy_test: true' in render(graph_contract, graph_ir, assets)
     graph_ir["nodes"][0]["semantic"]["ignore_for_relevancy_test"] = False
