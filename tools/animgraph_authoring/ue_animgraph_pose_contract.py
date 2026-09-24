@@ -293,6 +293,7 @@ def sequence_player_contract(node):
         "start_position": visible_input_default(node, "StartPosition", parse_number(field(fields, "StartPosition", "0.0"))),
         "start_position_pin": "StartPosition",
         "loop_animation": visible_input_default(node, "bLoopAnimation", parse_bool(field(fields, "bLoopAnimation", "True")), parse_bool),
+        "ignore_for_relevancy_test": parse_bool(field(fields, "bIgnoreForRelevancyTest", "False")),
         "loop_animation_path": loop_animation_path,
         "loop_animation_pin": "bLoopAnimation",
         "sync_group": group,
@@ -1720,6 +1721,11 @@ def run_self_test():
     })
     contract, _ = pose_contract(sequence, "sequence_player")
     assert contract["ignore_for_relevancy_test"] is True
+    sequence["node_guid"] = "22223333444455556666777788889999"
+    sequence["object_path"] = "/Other:Graph.Player"
+    assert pose_contract(sequence, "sequence_player")[0]["ignore_for_relevancy_test"] is True
+    sequence["properties"][0]["fields"][-1]["exported_text"] = "False"
+    assert pose_contract(sequence, "sequence_player")[0]["ignore_for_relevancy_test"] is False
     curve = fixture_node(
         "modify_curve",
         "Node",

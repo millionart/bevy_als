@@ -237,6 +237,7 @@ pub struct SourceSequencePlayerNode {
     pub start_position_pin: String,
     pub expose_start_position_pin: bool,
     pub loop_animation: bool,
+    pub ignore_for_relevancy_test: bool,
     pub loop_animation_key: String,
     pub loop_animation_pin: String,
     pub expose_loop_animation_pin: bool,
@@ -263,6 +264,7 @@ impl Default for SourceSequencePlayerNode {
             start_position_pin: "Start Position".to_owned(),
             expose_start_position_pin: true,
             loop_animation: true,
+            ignore_for_relevancy_test: false,
             loop_animation_key: Default::default(),
             loop_animation_pin: "Loop Animation".to_owned(),
             expose_loop_animation_pin: false,
@@ -441,24 +443,25 @@ impl NodeLike for SourceSequencePlayerNode {
         } else {
             0
         };
+        let clock = SourceRelevantAsset {
+            duration: clip.duration(),
+            position,
+            previous_position: state.previous_position,
+            has_previous_position: state.has_previous_position,
+            delta_seconds: state.delta_seconds,
+            loops_crossed,
+            looping: loop_animation,
+            weight: 1.0,
+        };
         state.context = AnimationContextState {
             curves: self.curves.sample_all(position),
-            relevant_asset: Some(SourceRelevantAsset {
-                duration: clip.duration(),
-                position,
-                previous_position: state.previous_position,
-                has_previous_position: state.has_previous_position,
-                delta_seconds: state.delta_seconds,
-                loops_crossed,
-                looping: loop_animation,
-                weight: 1.0,
-            }),
+            relevant_asset: (!self.ignore_for_relevancy_test).then_some(clock.clone()),
             curves_are_authoritative: true,
             sync_players,
             ..Default::default()
         };
         if delta > 0.0 {
-            let mut clock = state.context.relevant_asset.clone().unwrap();
+            let mut clock = clock;
             if !clock.has_previous_position { clock.previous_position = start_position; }
             clock.has_previous_position = true;
             state.context.asset_samples.push(crate::animation_context::SourceAssetSample {
@@ -499,6 +502,79 @@ impl NodeLike for SourceSequencePlayerNode {
 mod tests {
     use super::*;
     use bevy::prelude::*;
+
+    #[test]
+    fn excluded_sequence_player_keeps_sampling_but_cannot_win_relevancy() {
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_graph::{AnimationGraph, NodeId, TimeUpdate},
+            animation_node::AnimationNode,
+            context::{
+                deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+                graph_context_arena::GraphContextArena, new_context::GraphContext,
+                node_states::StateKey, system_resources::SystemResources,
+            },
+            edge_data::DataSpec,
+            state_machine::high_level::StateMachine,
+            utils::testing::TestIoEnv,
+        };
+
+        fn query(
+            In((root, excluded, included)): In<(Handle<AnimationGraph>, NodeId, NodeId)>,
+            resources: SystemResources,
+        ) -> (Option<f32>, Option<f32>, f32, usize) {
+            let graph = resources.animation_graph_assets.get(&root).unwrap();
+            let mut arena = GraphContextArena::new(root.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let inputs = HashMap::new();
+            let env = TestIoEnv::default();
+            graph.query_with_context(
+                QueryOutputTime::Forced(TimeUpdate::Delta(0.1)),
+                GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources, &env,
+                    Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs),
+            ).unwrap();
+            let states = &arena.get_toplevel().node_states;
+            let excluded = &states.get::<SourceSequencePlayerState>(excluded, StateKey::Default).unwrap().context;
+            let included = &states.get::<SourceSequencePlayerState>(included, StateKey::Default).unwrap().context;
+            assert!(crate::animation_context::select_relevant_asset([
+                (excluded.relevant_asset.clone(), 0.9),
+            ]).is_none());
+            let chosen = crate::animation_context::select_relevant_asset([
+                (excluded.relevant_asset.clone(), 0.9),
+                (included.relevant_asset.clone(), 0.1),
+            ]).unwrap();
+            (excluded.relevant_asset.as_ref().map(|asset| asset.duration),
+                included.relevant_asset.as_ref().map(|asset| asset.duration),
+                chosen.duration, excluded.asset_samples.len())
+        }
+
+        let mut world = World::new();
+        let mut clips = Assets::<GraphClip>::default();
+        let excluded_clip = clips.add(GraphClip { duration: 3.0, ..default() });
+        let included_clip = clips.add(GraphClip { duration: 1.0, ..default() });
+        world.insert_resource(clips);
+        world.insert_resource(Assets::<Skeleton>::default());
+        world.insert_resource(Assets::<StateMachine>::default());
+        let mut graph = AnimationGraph::new();
+        let player = |clip, ignore_for_relevancy_test| SourceSequencePlayerNode {
+            clip, ignore_for_relevancy_test, expose_play_rate_pin: false,
+            expose_start_position_pin: false, expose_loop_animation_pin: false,
+            ..default()
+        };
+        let excluded = AnimationNode::new("excluded", player(excluded_clip, true));
+        let included = AnimationNode::new("included", player(included_clip, false));
+        for (node, output) in [(&excluded, "Excluded"), (&included, "Included")] {
+            graph.add_node(node.clone());
+            graph.add_output_data(output.to_owned(), DataSpec::Pose);
+            graph.add_output_data_edge(node.id, "Pose", output);
+        }
+        let mut graphs = Assets::<AnimationGraph>::default();
+        let root = graphs.add(graph);
+        world.insert_resource(graphs);
+        assert_eq!(world.run_system_cached_with(query, (root, excluded.id, included.id)).unwrap(),
+            (None, Some(1.0), 1.0, 1));
+    }
 
     #[test]
     fn source_root_lock_uses_reference_first_frame_and_additive_scale() {

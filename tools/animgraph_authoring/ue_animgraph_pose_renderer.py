@@ -425,6 +425,7 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             field("start_position_pin", quoted(start_position_pin)),
             field("expose_start_position_pin", bool_ron(start_position_pin in pins)),
             field("loop_animation", bool_ron(value["loop_animation"])),
+            field("ignore_for_relevancy_test", bool_ron(value["ignore_for_relevancy_test"])),
             field("loop_animation_key", quoted(loop_animation_key)),
             field("loop_animation_pin", quoted(loop_animation_pin)),
             field("expose_loop_animation_pin", bool_ron(loop_animation_pin in pins)),
@@ -1715,6 +1716,7 @@ def fixture_graph():
                     "start_position": 0.0,
                     "start_position_pin": "StartPosition",
                     "loop_animation": True,
+                    "ignore_for_relevancy_test": False,
                     "loop_animation_key": "",
                     "loop_animation_pin": "bLoopAnimation",
                     "sync_group": "None",
@@ -1905,6 +1907,10 @@ def run_self_test():
     graph_ir["nodes"].append({"source_node": comment_path, "renderer": "comment_group"})
     text = render(graph_contract, graph_ir, assets)
     assert '"als_ext::SourceSequencePlayerNode"' in text
+    assert 'ignore_for_relevancy_test: false' in text
+    graph_ir["nodes"][0]["semantic"]["ignore_for_relevancy_test"] = True
+    assert 'ignore_for_relevancy_test: true' in render(graph_contract, graph_ir, assets)
+    graph_ir["nodes"][0]["semantic"]["ignore_for_relevancy_test"] = False
     assert '"als_ext::SourceTwoWayBlendNode"' in text
     assert 'NodeData("10000000-0000-4000-8000-000000000002", "A")' in text
     assert 'NodeTime("10000000-0000-4000-8000-000000000002", "A")' not in text
