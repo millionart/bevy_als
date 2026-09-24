@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::cell::Cell;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use bevy::prelude::*;
@@ -38,6 +39,30 @@ use crate::source_pose_passthrough::SourcePosePassthroughNode;
 use crate::state_label_event::state_label_index;
 
 static NOTIFICATION_GENERATION: AtomicU64 = AtomicU64::new(0);
+
+thread_local! {
+    static SOURCE_MACHINE_WEIGHT: Cell<f32> = const { Cell::new(1.0) };
+}
+
+fn current_machine_weight() -> f32 {
+    SOURCE_MACHINE_WEIGHT.with(Cell::get)
+}
+
+fn with_machine_weight<T>(factor: f32, evaluate: impl FnOnce() -> T) -> T {
+    struct Restore(f32);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            SOURCE_MACHINE_WEIGHT.with(|weight| weight.set(self.0));
+        }
+    }
+    let previous = SOURCE_MACHINE_WEIGHT.with(|weight| {
+        let previous = weight.get();
+        weight.set(previous * factor);
+        previous
+    });
+    let _restore = Restore(previous);
+    evaluate()
+}
 
 #[derive(Reflect, Clone, Debug)]
 pub struct InterruptibleFsmSource {
@@ -1154,7 +1179,7 @@ impl InterruptibleFsmNode {
         let snapshot = ctx.state::<InterruptibleFsmState>()?.clone();
         let weights = Self::state_weight_values(machine, &snapshot, ctx, time)?;
         let state = ctx.state_mut_or_else(|| snapshot.clone())?;
-        state.recorded_machine_weight = 1.0;
+        state.recorded_machine_weight = current_machine_weight();
         state.recorded_state_weights = weights;
         Ok(())
     }
@@ -1361,6 +1386,7 @@ impl NodeLike for InterruptibleFsmNode {
             let state = ctx
                 .state_mut_or_else(|| initial_state.clone())
                 .map_err(|error| entry_error("state setup", error))?;
+            state.recorded_machine_weight = current_machine_weight();
             if self.reinitialize_on_becoming_relevant
                 && !state.first_update
                 && became_relevant(state.last_update_frame, frame)
@@ -1897,31 +1923,14 @@ mod tests {
     };
 
     #[test]
-    #[ignore = "A44 red: FSM records one instead of the parent update weight"]
     fn machine_weight_uses_the_parent_update_context() {
-        struct WeightedIo;
-
-        impl GraphIoEnv for WeightedIo {
-            fn get_data_back(&self, _: GraphInputPin, _: GraphContext) -> Result<DataValue, GraphError> {
-                Ok(DataValue::F32(0.4))
-            }
-
-            fn get_duration_back(&self, pin: GraphInputPin, _: GraphContext) -> Result<DurationData, GraphError> {
-                Err(GraphError::MissingGraphInputDuration(pin))
-            }
-
-            fn get_time_fwd(&self, _: GraphContext) -> Result<TimeUpdate, GraphError> {
-                Ok(TimeUpdate::Delta(0.02))
-            }
-        }
-
         fn query(In(handle): In<Handle<AnimationGraph>>, resources: SystemResources) -> f32 {
             let graph = resources.animation_graph_assets.get(&handle).unwrap();
             let mut arena = GraphContextArena::new(handle.id());
             let mut gizmos = DeferredGizmos::default();
             let entities = HashMap::new();
             let inputs = HashMap::new();
-            let env = WeightedIo;
+            let env = TestIoEnv::default();
             let mut ctx = GraphContext::new(
                 arena.get_toplevel_id(), graph, &mut arena, &resources, &env,
                 Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs,
@@ -1930,9 +1939,11 @@ mod tests {
                 LowLevelStateId::HlState(StateId::default()), 0.0, 0,
             );
             ctx.state_mut_or_else(|| initial).unwrap();
-            InterruptibleFsmNode::default()
-                .record_state_weights(&LowLevelStateMachine::default(), &mut ctx)
-                .unwrap();
+            with_machine_weight(0.4, || {
+                InterruptibleFsmNode::default()
+                    .record_state_weights(&LowLevelStateMachine::default(), &mut ctx)
+                    .unwrap();
+            });
             ctx.state::<InterruptibleFsmState>().unwrap().recorded_machine_weight()
         }
 
@@ -1943,6 +1954,20 @@ mod tests {
         world.insert_resource(Assets::<StateMachine>::default());
         let handle = world.resource_mut::<Assets<AnimationGraph>>().add(AnimationGraph::new());
         assert_eq!(world.run_system_cached_with(query, handle).unwrap(), 0.4);
+    }
+
+    #[test]
+    fn machine_weight_scope_multiplies_and_restores_nested_evaluations() {
+        assert_eq!(current_machine_weight(), 1.0);
+        with_machine_weight(0.5, || {
+            assert_eq!(current_machine_weight(), 0.5);
+            with_machine_weight(0.4, || assert!((current_machine_weight() - 0.2).abs() < 1e-6));
+            assert_eq!(current_machine_weight(), 0.5);
+        });
+        assert_eq!(current_machine_weight(), 1.0);
+        let result: Result<(), ()> = with_machine_weight(0.25, || Err(()));
+        assert!(result.is_err());
+        assert_eq!(current_machine_weight(), 1.0);
     }
 
     fn fixture_pose(x: f32) -> Pose {
