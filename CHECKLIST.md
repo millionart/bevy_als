@@ -1495,7 +1495,7 @@
 
   S2R source/static 完成摘要：Tnua `Walk::spring_force` 由当帧地面传感器间隙和 `spring_strength` 生成竖直加速度，Avian 在封顶物理步应用；UE Grounded 蹲下不把胶囊中心上抛。当前仅在 `LocomotionState::Grounded` 将既有完整帧倍率施于 x/z 加速度，y 保持物理支撑步；Air 保持三轴补偿。地面蹲下2帧、水平与空中时间、N1 首撞/二墙/起点边界9/9通过；把整帧倍率完全跳过则水平反例 red，Grounded 特设旧单次扫掠分支删除后9/9不变。接下来只做真实场景复验。
 
-- [ ] **BF126.N1-S3R — 同入口复验长帧 Air/蹲起/基座**：开始：2026-09-24 22:05:00 +08:00；预估结束：2026-09-24 22:50:00 +08:00。估时依据：S2R 在与首轮失败相同的 ALS/Tnua/Avian 路径将上冲改为保地、A01 模块9/9；`target_game/play` 需因主库改动限流重建约2分钟，原报告保留并用独立输出目录复验 startup、`uphill_jump`/`grounded` 10 FPS 和 `moving_base`。每场审计 manual/validator、原场景覆盖、图错误/故障/时序/watchdog；精确 N1 几何仍由原生夹具证明，性能预算继续按用户既定暂停范围延期。
+- [x] **BF126.N1-S3R — 同入口复验长帧 Air/蹲起/基座**：开始：2026-09-24 22:05:00 +08:00；预估结束：2026-09-24 22:50:00 +08:00；实际结束：2026-09-24 22:35:00 +08:00；偏差：-15m00s；结果：S2R2 的 Stance 写入门控过宽，S2R3 改按当帧 Collider 实际替换且移除诊断日志；最终同 `target_game/play` 原 Playground `startup`、10 FPS `uphill_jump`、10 FPS `grounded`、`moving_base` 公共功能 Gate 均 manual/validator 0/0，覆盖6/6、15/15、10/10，窗口18/18、9/9、2/2，primary/graph/fault/temporal/watchdog 均空；主库限测试线程2为475/475。估时依据：S1/S2 精确反例、两轮真实入口失败与三信号诊断、新旧二进制独立报告；拆分结果：S3R 完成，原 S3 可按本轮综合验收关闭，完整性能预算延期。
 
   runtime 重启前摘要：首轮 `startup` 与 10 FPS `uphill_jump` 已通过，10 FPS `grounded` 在蹲下后一帧上冲、随后 Air 导致 manual91/validator1；失败原报告保留。S2R 证明不是新滑动，而是旧 R1 将 Tnua 地面支撑 y 增量按空中倍率放大；新源码只对 Grounded x/z 补整帧，Air 三轴与 N1 三次有界滑动不变，焦点9/9。现在重建同一启动器的 `target_game/play`，按顺序在新目录运行四场原 Playground 功能 Gate，不复用失败旧报告或旧二进制。
 
@@ -1510,6 +1510,14 @@
 - [x] **BF126.N1-S2R3 — 以胶囊实际替换而非 Stance 写入门控竖直弹簧**：开始：2026-09-24 22:18:00 +08:00；预估结束：2026-09-24 22:48:00 +08:00；实际结束：2026-09-24 22:26:00 +08:00；偏差：-22m00s；结果：`state_transition_system` 每帧以 `&mut Stance` 接线，`Ref<Stance>::is_changed()` 在稳定帧仍为 true；真实 ALS/Tnua/Avian 测试记录稳定帧 `(ColliderChanged=false, StanceChanged=true)`、蹲下帧 `(true,true)`、次帧 `(false,true)`。改为 `Ref<Collider>::is_changed()` 后，空中三轴与地面普通帧完整补时，仅胶囊替换帧不放大竖直 spring；A01 9/9，限域探针原 Playground `grounded` 15/15、`moving_base` 10/10、`uphill_jump` 两次6/6通过。估时依据：两次 Air 报告、fresh 状态系统/胶囊替换调用、同场三信号诊断；拆分结果：诊断日志已删除，S3R 最终二进制需再建并复验，性能预算延期。
 
   S2R3 source/static 完成摘要：UE `Crouch` 的实际几何切换与目标 `apply_capsule_for_stance` 的 `commands.insert(Collider)` 同帧相对应；`Stance` 组件写入 tick 并不能代表切换。限域探针在上跳整场仅启动时 t=0.5s 记录一次 Collider 改变且竖直增量0，case16 未触发例外，故两次旧 Flight 超时不能归于该门控；保留失败与成功报告，不把偶发上跳运行改称稳定。最终代码无诊断日志或新增持久状态，精确局部夹具含稳定/切换/次帧 change tick 反例，N1 原生首撞边界不变。
+
+  最终二进制 startup 后/Air 前摘要：无诊断源码同启动器 `target_game/play` 限流预构建成功，原 Playground `startup` 功能报告 manual/validator 0/0、primary/graph/fault/temporal/watchdog 均空。下一步同二进制 10 FPS `uphill_jump` 与 `grounded`、普通 `moving_base`；旧失败与诊断报告均保留，性能预算延期。
+
+  最终 Air 后/Grounded 前摘要：无诊断最终二进制原 Playground `uphill_jump -FrameDeltaSeconds 0.1` 功能 Gate manual/validator 0/0、6/6必需结果、primary/graph/fault/temporal/watchdog 均空；旧 case16 Flight 超时本轮未复现。仍保留先前两份失败报告作为低帧率稳定性限制，接着同二进制复验 10 FPS `grounded` 站蹲和 `moving_base`，性能预算延期。
+
+  最终 Grounded 后/基座前摘要：同二进制原 Playground `grounded -FrameDeltaSeconds 0.1` 功能 Gate manual/validator 0/0、15/15结果与9/9窗口，站蹲/瞄准/快速停止均覆盖，primary/graph/fault/temporal/watchdog 均空；先前蹲下上冲在最终代码未复现。下一步普通 `moving_base`，并评估低帧率上跳已见的两次旧 Flight 间歇失败，性能预算延期。
+
+  最终 runtime 后摘要：同一无诊断 `target_game/play` 二进制的四份原 Playground 报告均 manual/validator 0/0：startup 基线、10 FPS `uphill_jump` 6/6与18/18窗口、10 FPS `grounded` 15/15与9/9窗口、`moving_base` 10/10与2/2窗口；全部 primary failure 空、graph/fault/temporal 0、watchdog 未触发。宽泛 Stance/全部 Grounded y 例外时期的两份上跳 Flight 失败和一份站蹲上冲失败保留；精确 Collider 门控的两次限域诊断及最终上跳均通过，三次均未在 case16 触发竖直例外。精确 N1 首撞0.09144m切向缺失和修后完整余量由原生 Avian 夹具证明，公共真实场景仅证明现有资产无回归；完整性能预算继续延期。共享主库475/475（测试线程2）通过。
 
 - [x] **BF126.N1-S2R2 — 竖直弹簧例外仅限实际站蹲切换帧**：开始：2026-09-24 22:08:00 +08:00；预估结束：2026-09-24 22:43:00 +08:00；实际结束：2026-09-24 22:10:00 +08:00；偏差：-33m00s；结果：首轮 Grounded 蹲下 y≈1.37767m 红，S2R 全部 Grounded y 跳过倍率令蹲下 green 却在原 Playground `uphill_jump` 第三类落地失败。新规则只在 `Stance` 当前帧确实改变时保留封顶竖直支撑步，其余 Grounded/Air y 维持整帧，Grounded x/z 全帧；A01 局部9/9（含蹲起连续2帧、水平0.4m/s与空中重力）通过。估时依据：两个真实入口失败报告与同一速度预处理唯一分支；拆分结果：静态 Gate 重新闭合，S3R 使用新二进制复跑，S2R 的宽泛例外被收窄。
 
