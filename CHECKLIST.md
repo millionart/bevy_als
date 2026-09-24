@@ -1250,3 +1250,7 @@
   source/static 开始摘要：本地 UE `FRigUnit_TwoBoneIKSimplePerItem` 对 Direction pole 仅用 `TransformVectorNoScale`，不加空间平移，然后将该向量直接传 `FControlRigMathLibrary::SolveBasicTwoBoneIK`；其下游 `AnimationCore::SolveTwoBoneIK` 明确按 `JointTarget - RootPos` 处理，确实将结果作为全局点。目标 `control_rig_units` 同样只旋转 Direction pole、不加空间平移，`RigGeometry::solve`/Basic IK 也将 pole 当绝对点。fresh `CR_Als` native reader已成功；还需核对三个实际 Basic IK 的 pin 值与现有执行夹具，不能仅凭反馈标题改成平移不变的另一算法。
 
   source/static 完成摘要：UE 5.8 `RigUnit_TwoBoneIKSimple.cpp` 的 Direction 分支只执行 `TransformVectorNoScale`，不将 root 或空间平移加入 pole；`ControlRigMathLibrary.cpp` 原样传给 `AnimationCore::SolveTwoBoneIK`，后者 `JointTargetDelta=JointTarget-RootPos`。目标 `control_rig_units.rs` 与 `ik.rs` 的同一路径完全一致，故平移整条骨链而保持 Direction 数值不变时，两端都不是平移不变的，这不是移植差异。fresh `CR_Als` 三个可见 Basic IK pin 分别在 ApplyFootIk/RefreshHandIk，均明确覆盖构造默认 Direction 为 Location；fresh 编译产物四处调用全部 Name(Location)。native converter target165指令自测与 Rig unit/几何两项聚焦测试均通过。未新增抽象、分支、状态或测试；既有 Direction/Location 与 pole-space 夹具保留，按“source 自身相同则不优化”不改代码，不需要新的 runtime Gate。
+
+- [x] **BF124.A48 — TwoBoneIK Direction pole 反馈核销**：开始：2026-09-24 14:12:00 +08:00；预估结束：2026-09-24 14:27:00 +08:00；实际结束：2026-09-24 14:12:00 +08:00；偏差：-15m00s；结果：S1 源/目标闭环已提交（`ac81512`）；UE 与目标 Direction 点式求解一致，当前 `CR_Als` 真正执行的 Basic IK 均为 Location，未证实待修差异。估时依据：只汇总 fresh C++/资产、现有 focused/生成器自测，无实现或 runtime 依赖；拆分结果：A48 以 source-first 无差异关闭，A49 下一项。
+
+  汇总：不能把 Direction 改成 root-relative pole，因为这会偏离本地 UE 5.8 的实际 `PoleTarget` 传递和 `JointTarget-RootPos` 公式。反馈描述的平移不变性缺陷在源和目标同样存在，而且当前实际图使用 Location；本项没有代码改动，完整性能预算无需启动。
