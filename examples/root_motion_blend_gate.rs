@@ -1,4 +1,4 @@
-use als_ext::blend_normalized_root_motion;
+use bevy_als::extensions::blend_normalized_root_motion;
 use bevy::prelude::{Quat, Vec3};
 use bevy_animation_graph::core::pose::RootMotionDelta;
 

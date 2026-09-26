@@ -3,8 +3,8 @@ use std::num::NonZeroU8;
 use bevy::asset::AssetPlugin;
 use bevy::prelude::*;
 
-use als_core::character::AlsCharacter;
-use als_core::state::OverlayState;
+use bevy_als::als::character::AlsCharacter;
+use bevy_als::als::state::OverlayState;
 use bevy_als::character_assembly::AlsCharacterAssembly;
 use bevy_als::overlay_object::{
     AlsOverlayObject, LEFT_GUN_BONE, OverlayObjectKind, OverlayObjectPlugin, RIGHT_GUN_BONE,

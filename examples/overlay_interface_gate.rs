@@ -2,9 +2,9 @@ use std::num::NonZeroU8;
 
 use bevy::prelude::*;
 
-use als_core::character::AlsCharacter;
-use als_core::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
-use als_core::transition::{
+use bevy_als::als::character::AlsCharacter;
+use bevy_als::als::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
+use bevy_als::als::transition::{
     AlsStateRequest, AlsStateTransitionPlugin, Dimension, StateTransitionEvent, StateValue,
     state_transition_system,
 };

@@ -1,14 +1,14 @@
 use std::num::NonZeroU8;
 use std::ops::ControlFlow;
 
-use als_camera::{AlsCameraDebugInfo, AlsCameraPlugin};
-use als_core::character::AlsCharacter;
-use als_core::input::{
+use bevy_als::als_camera::{AlsCameraDebugInfo, AlsCameraPlugin};
+use bevy_als::als::character::AlsCharacter;
+use bevy_als::als::input::{
     AlsInputCommand, AlsInputMap, OnFoot, RotationModeAction, ViewModeAction, spawn_als_actions,
 };
-use als_core::motion::{AlsCharacterDebug, CharacterDebugFrame};
-use als_core::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
-use als_core::transition::AlsStateRequest;
+use bevy_als::als::motion::{AlsCharacterDebug, CharacterDebugFrame};
+use bevy_als::als::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
+use bevy_als::als::transition::AlsStateRequest;
 use avian3d::prelude::PhysicsPlugins;
 use bevy::prelude::*;
 use bevy::window::WindowResolution;
@@ -104,10 +104,10 @@ fn main() {
     ));
     app.add_plugins((
         EnhancedInputPlugin,
-        als_core::character::AlsCharacterPlugin,
-        als_core::input::AlsInputPlugin,
-        als_core::transition::AlsStateTransitionPlugin,
-        als_core::air::AlsAirPlugin,
+        bevy_als::als::character::AlsCharacterPlugin,
+        bevy_als::als::input::AlsInputPlugin,
+        bevy_als::als::transition::AlsStateTransitionPlugin,
+        bevy_als::als::air::AlsAirPlugin,
         AlsCameraPlugin,
         bevy_als::show_debug_hud::AlsShowDebugHudPlugin,
         AlsDebugDisplayPlugin,
@@ -129,7 +129,7 @@ fn setup_scene(mut commands: Commands) {
     commands.spawn((
         Camera3d::default(),
         Transform::from_xyz(0.0, 1.7, 4.0).looking_at(Vec3::new(0.0, 1.0, 0.0), Vec3::Y),
-        als_camera::AlsCameraRig::default(),
+        bevy_als::als_camera::AlsCameraRig::default(),
         AlsCameraDebugInfo::default(),
     ));
     commands.spawn((
@@ -156,8 +156,8 @@ fn spawn_character(mut commands: Commands) {
         ))
         .insert((
             avian3d::prelude::LinearVelocity::default(),
-            als_camera::AlsCameraTarget,
-            als_core::motion::AlsViewYaw::default(),
+            bevy_als::als_camera::AlsCameraTarget,
+            bevy_als::als::motion::AlsViewYaw::default(),
             AlsCharacterDebug::default(),
         ))
         .id();

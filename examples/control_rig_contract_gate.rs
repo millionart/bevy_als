@@ -1,11 +1,11 @@
 use std::time::{Duration, Instant};
 
-use als_core::character::AlsCharacter;
-use als_core::control_scheme::AlsControlSchemeConfig;
-use als_core::motion::{AlsInputOverride, AlsViewYaw};
-use als_core::params::AlsMovementParams;
-use als_core::state::{Gait, OverlayState, RotationMode};
-use als_core::transition::AlsStateRequest;
+use bevy_als::als::character::AlsCharacter;
+use bevy_als::als::control_scheme::AlsControlSchemeConfig;
+use bevy_als::als::motion::{AlsInputOverride, AlsViewYaw};
+use bevy_als::als::params::AlsMovementParams;
+use bevy_als::als::state::{Gait, OverlayState, RotationMode};
+use bevy_als::als::transition::AlsStateRequest;
 use avian3d::prelude::*;
 use bevy::animation::AnimationTargetId;
 use bevy::ecs::message::MessageWriter;
@@ -61,7 +61,7 @@ fn main() {
         (
             drive_canonical_character
                 .after(avian3d::prelude::PhysicsSystems::Last)
-                .before(als_ext::post_physics_animation::PostPhysicsAnimationSet::Inputs),
+                .before(bevy_als::extensions::post_physics_animation::PostPhysicsAnimationSet::Inputs),
             observe.after(AlsControlRigPropagationSet),
         ),
     );

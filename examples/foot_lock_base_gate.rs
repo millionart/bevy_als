@@ -1,8 +1,8 @@
 use std::num::NonZeroU8;
 
-use als_core::character::AlsCharacter;
-use als_core::dynamics::AlsMovementBaseDynamicsState;
-use als_core::foot_ik::{
+use bevy_als::als::character::AlsCharacter;
+use bevy_als::als::dynamics::AlsMovementBaseDynamicsState;
+use bevy_als::als::foot_ik::{
     AlsFootLockFootState, AlsFootLockMovementBase, AlsFootLockState,
     advance_foot_lock_movement_base, capture_foot_lock_movement_base,
 };

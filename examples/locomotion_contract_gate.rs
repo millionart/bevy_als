@@ -3,7 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use als_ext::{
+use bevy_als::extensions::{
     AlsExtPlugin, ConstantF32Node, DirectTransitionEventNode, GlobalBoneMaskInputNode,
     GlobalF32InputNode, InertializationNode, InterruptibleFsmNode, InterruptibleFsmState,
     ProfiledBlendNode, ResetOnActivationNode, SyncGroupSampleNode, TimePositionNode,

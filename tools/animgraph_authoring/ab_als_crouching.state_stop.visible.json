@@ -47,17 +47,17 @@
         {
           "source_contains": "LODThreshold=-1",
           "target_exception": "Target graph evaluates without LOD culling.",
-          "target_runtime_path": "crates/als-ext/src/animation_graph_ext/source_stop_nodes.rs"
+          "target_runtime_path": "src/animation_graph_ext/source_stop_nodes.rs"
         },
         {
           "source_contains": "SkeletonGuid=00000000000000000000000000000000",
           "target_exception": "Target resolves the skeleton from evaluated poses.",
-          "target_runtime_path": "crates/als-ext/src/animation_graph_ext/source_stop_nodes.rs"
+          "target_runtime_path": "src/animation_graph_ext/source_stop_nodes.rs"
         },
         {
           "source_contains": "VirtualBoneGuid=00000000000000000000000000000000",
           "target_exception": "Target resolves virtual-bone paths from the evaluated skeleton.",
-          "target_runtime_path": "crates/als-ext/src/animation_graph_ext/source_stop_nodes.rs"
+          "target_runtime_path": "src/animation_graph_ext/source_stop_nodes.rs"
         }
       ]
     },
@@ -213,12 +213,12 @@
     {
       "source_contains": "MemberName=\"PlayStopTransitionAnimation\"",
       "target_contains": "SOURCE_CROUCHING_STOP_STATE_ENTRY_FUNCTION",
-      "target_runtime_path": "src/crouching_layer.rs"
+      "target_runtime_path": "src/als/character/animation_instances/crouching_layer.rs"
     },
     {
       "source_contains": "StateEntryFunction=(FunctionName=\"OnStateEntry\")",
       "target_contains": "CrouchingOuterTransition::MoveToStop",
-      "target_runtime_path": "src/crouching_layer.rs"
+      "target_runtime_path": "src/als/character/animation_instances/crouching_layer.rs"
     }
   ],
   "require_root_property_assertions": true,

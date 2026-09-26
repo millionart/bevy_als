@@ -2,7 +2,7 @@
   "format": "als_ue_visible_fsm_map_v1",
   "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-5dae6352b11e48fa.source.json",
   "target_fsm": "assets/graphs/ab_als/stances/standing/standing_states.fsm.ron",
-  "transition_static_contract_runtime_path": "src/standing_layer.rs",
+  "transition_static_contract_runtime_path": "src/als/character/animation_instances/standing_layer.rs",
   "state_map": [
     {
       "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_0",

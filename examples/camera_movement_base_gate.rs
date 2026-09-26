@@ -1,11 +1,11 @@
 use std::num::NonZeroU8;
 use std::time::{Duration, Instant};
 
-use als_camera::{AlsCameraMovementBase, AlsCameraTarget};
-use als_core::character::{AlsCharacter, AlsCharacterBundle};
-use als_core::control_scheme::AlsControlSchemeConfig;
-use als_core::dynamics::AlsMovementBaseDynamicsState;
-use als_core::params::AlsMovementParams;
+use bevy_als::als_camera::{AlsCameraMovementBase, AlsCameraTarget};
+use bevy_als::als::character::{AlsCharacter, AlsCharacterBundle};
+use bevy_als::als::control_scheme::AlsControlSchemeConfig;
+use bevy_als::als::dynamics::AlsMovementBaseDynamicsState;
+use bevy_als::als::params::AlsMovementParams;
 use avian3d::prelude::{AngularVelocity, Collider, LinearVelocity, RigidBody, Rotation};
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;

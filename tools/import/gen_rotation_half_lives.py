@@ -71,7 +71,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--uasset', type=Path)
     parser.add_argument('--source-reader', type=Path, default=ROOT / 'tools/run_ue_source_reader.ps1')
-    parser.add_argument('--output', type=Path, default=ROOT / 'crates/als-core/data/rotation_half_lives.rs')
+    parser.add_argument('--output', type=Path, default=ROOT / 'src/als/settings/generated/rotation_half_lives.rs')
     parser.add_argument('--report', type=Path, default=ROOT / 'target/rotation_half_lives.report.json')
     parser.add_argument('--self-test', action='store_true')
     args = parser.parse_args()

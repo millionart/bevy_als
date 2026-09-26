@@ -1,4 +1,4 @@
-use als_camera::damp_location_lag;
+use bevy_als::als_camera::damp_location_lag;
 use bevy::prelude::*;
 
 fn main() {

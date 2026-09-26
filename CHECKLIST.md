@@ -7,7 +7,22 @@
 
 ## BF129 — 收尾前目录整理与过期入口清理
 
-用户授权全项目整理，并明确选择按职责分文件夹、保留现有 crate 和资产类型名。范围为源码位置、过期演示/探测入口和使用说明；不修改移植算法、源资产、生成图或未选中的 TODO。历史 Gate 记录保留原样，删除文件由 Git 历史追溯。
+- [ ] **BF129.3 — 按源模块统一根 src 的归属目录**：开始：2026-09-26 17:28:00 +08:00；预估结束：2026-09-26 18:13:00 +08:00。用户纠正 .2 仅在旧 crate 内分组不够，明确要求底层扩展进入根 src，ALS/ALSCamera/ALSExtras 与 Levels/UI 按对标源归位，并核对 manual driver 的必要性。本地 fresh source：插件 Source 有 ALS、ALSCamera、ALSExtras、ALSEditor；ALS 有 Nodes、Notifies、RootMotionSources、Settings、State、Utility；Content 的 ALSExtras 有 Core、Environment、Levels、UI，UI 实际包含 W_Als_Hud、W_Als_OverlayModeMenu、W_Als_OverlayModeOption。源码文件列表与 AlsCharacter_Debug、AlsCharacterMovementComponent、AlsCharacterExample 的职责共同决定本轮归属，不改变其算法。
+
+  原估时依据：约 190 个源文件的机械迁移、约 70 处 include/源码路径，以及 .2 实际 18 分钟（含 3 分钟 play 构建）。最终 Gate 按下方用户调整后的单包方案执行：根 src 的 engine/plugin 扩展、ALS、ALSCamera、ALSExtras/Levels/UI 与 validation 分区完整；移除旧内部 crate，保留外部依赖版本、资产反射名称和运行命令；源文件/命名空间对照、生成器路径、全部库与 integration/example 检查通过；同 target_game/play 预构建后依次 startup、interface 公共功能 Gate。S1、S2 分别记录并提交。
+
+  当前 source/static 闭包：原生目录和源码所有权、全部 Rust 模块声明及 include、生成工具的输出/读取路径。manual_playground 是当前关卡程序，只有 ALS_MANUAL_INTEGRATION_GATE 开启才注册 ManualPlaygroundIntegrationPlugin；后者仍承担全部自动情景输入、步骤、断言和报告，不能删除，迁入 validation/playground。同源 ALS CMC 策略归 ALS/Character/Movement，插件辅助能力归根目录扩展；旧资产路径和转换规则保持。原始资产、未选中 TODO 与 .1 删除结论不展开；允许仅更新当前文档/审计元数据中的源码文件位置。
+
+  用户方案调整与拆分（2026-09-26 17:49:27 +08:00）：用户指出 crates/src 双重 ALS 归属会困扰，并授权不必要时移除 crates。当前无独立发布需求，改为单一 Cargo 包和明确的内部模块；取消跨 crate 引用根 src 的中间方案。原轮开始 17:28、预估 18:13；截至拆分已完成 189 文件归位/逆向比较、include 与 5 组工具 self-test、63 入口 metadata。旧 workspace 测试于 17:35:57 开始，17:40:57 被临时 wrapper 错误覆盖的 300s wall limit 停止，仍有编译进展且没有编译错误；wrapper 已修正参数遮蔽，保留失败报告并自测后重跑新方案。拆分时距原预估 -23m33s，结果为源目录静态通过、编译未完成；剩余拆为以下两项，不延用中间架构。
+
+  - [x] **BF129.3-S1 — 单包模块和源码归属收口**：原轮开始：2026-09-26 17:50:00 +08:00；原预估结束：2026-09-26 18:20:00 +08:00；续轮开始：2026-09-27 02:52:00 +08:00；预估结束：2026-09-27 03:37:00 +08:00；实际结束：2026-09-27 03:03:59 +08:00；偏差：-33m01s；结果：单包、全部 targets 编译和 1261 项库/集成/入口测试通过；拆分结果：用户新增资源/蓝图归属工作先执行，真实运行 Gate 移到其后。依据：目录迁移已通过，三个库入口改为内部模块、限定的 Rust 路径机械迁移、六个 integration test 及 ManifestDir 路径更新，缓存复用已完成依赖编译。Gate：旧 crates 移除、唯一 package、原资产类型字符串不变；库及 integration tests、全部 example 编译、manual example 测试和迁移比对通过，独立提交。
+  - [ ] **BF129.3-S2 — 同入口关卡/自动驱动/UI 验收**：依赖 S1 和用户新增的资源/蓝图归属迁移；开始/预估结束在资源静态闭环后登记，按 .2 的 play 构建与当前 startup/interface 规模估时，独立窗口不超过 20 分钟。Gate：target_game/play/jobs2 预构建、公共 startup→interface（CaptureCount0/FunctionalOnly）及最终源码目录/引用/隐私核对通过，记录结果并独立提交；避免资源路径变更前后重复 runtime。
+
+  S1 续行复盘（2026-09-27 02:51:30 +08:00）：旧预估已失效，实施与 runtime 启动先暂停核对。原轮开始 2026-09-26 17:50、预估 18:20，最后工作记录 18:08:22，偏差 -11m38s；结果为单包全部 targets 编译和 262 文件迁移对照通过，外部依赖/资产无变化，完整库测试 1227 通过、1 个旧异步夹具失败；单独重跑该夹具通过。当前无残留 Cargo/场景进程，间隔不计为持续编译。失败位于 Bow 切换后的 AnimatedSceneInstance unwrap：夹具只推进四帧，未等待异步场景完成；同一测试已有带 40s 上限的 ready()，生产 Overlay/图算法未变。剩余为复用就绪判据并验证迟到边界、重跑库/integration/manual example 测试，完成 S1 提交，再执行 S2。下一轮开始：2026-09-27 02:52:00 +08:00；预估结束：2026-09-27 03:37:00 +08:00，按原 30 分钟窗口 ×1.5；不扩大到生产 Overlay 行为或旧图修复。
+
+  S1 最终 source/static 摘要：本地基座在 WorldInstanceReady 后才插入 AnimatedSceneInstance；Bow 断言复用现有 ready()，原全量失败→同并发全库 1228/1228，通过路径仍有 40s 上限，无新等待抽象。两个旧集成夹具分别补注册实际引用的 Skeleton 资产、仅保留当前 DTO 必需的 bounds 标记而继续剥离源 solver/material 信息，并核对 collider bounds 映射；7 项定向回归通过，其余 17 项 integration 与 9 项 manual example 通过，共 1261 项。全部 targets 编译、单包 metadata（63 examples/6 integration targets）、260 个未改逻辑文件及两项单独修订夹具的对照通过；外部依赖版本和资产内容保持。原失败报告保留，移除 crates 后不需要兼容包或新依赖。用户现明确要求资源与蓝图也按 ALS/ALSCamera/ALSExtras 同树归属并删除正式资产的 generated 命名；下一步以当前单包为基线做资源/转换器静态闭环，再执行 S2。
+
+.1/.2 的原始范围为按职责分文件夹、保留当时 crate 和资产类型名；.3 按用户后续决定移除内部 crates，统一单包。源码位置、过期入口和使用说明均属本次整理；不修改移植算法、源资产、生成图或未选中的 TODO。历史 Gate 记录保留原样，删除文件由 Git 历史追溯。
 
 - [x] **BF129.1 — 清理过期演示与工具入口**：开始：2026-09-26 16:44:00 +08:00；预估结束：2026-09-26 17:14:00 +08:00；实际结束：2026-09-26 16:50:00 +08:00；偏差：-24m；结果：18 个旧 example、20 个过期工具删除，实际 actor 导出器改名，Gate 通过；拆分结果：目录归位留给 .2。估时依据：当前 84 个 example 的入口/资产引用、30 个公共 manual 场景、MCP 工具完整调用闭包，以及 BF128 中既有 validator/self-test 的运行记录。Gate：逐项记录替代覆盖或保留原因，移除无消费者的旧演示及已禁用 MCP 链，保留独有断言、导出器和 source reader；更新入口说明，静态引用检查、Cargo metadata 与相关 Python self-test 通过后单独提交。
 - [x] **BF129.2 — 扩展源码按职责归位**：依赖 .1；开始：2026-09-26 16:53:00 +08:00；预估结束：2026-09-26 17:33:00 +08:00；实际结束：2026-09-26 17:10:55 +08:00；偏差：-22m05s；结果：92 个源码文件归位、剩余 63 个 examples 编译及 747 项测试/真实 startup 功能 Gate 通过；拆分结果：历史手工图数据留在原 TODO，未展开移植修复。估时依据：als-ext 的 88 个源码模块、als-core 的 3 个 Tnua 适配模块及项目物理时钟适配；88 个模块已有完整单元测试，BF128 同 target_game/play 增量预构建约 3 分钟；迁移同时核对模块路径/Reflect ABI、include 路径及工具的源码位置引用。Gate：明确使用 `animation_graph_ext`、`tnua_ext`，与 Control Rig、物理、渲染、ALS、Playground 分目录；保持模块和类型身份，更新所有实际消费的文件位置；源文件逆向还原比较、als-ext/受影响 core 库测试、剩余 example 编译及同 target_game/play 的公共 startup 功能 Gate 通过后单独提交。

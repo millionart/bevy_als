@@ -1,15 +1,15 @@
 use std::num::NonZeroU8;
 
-use als_core::character::{
+use bevy_als::als::character::{
     ALS_CHARACTER_CAPSULE_HALF_HEIGHT, ALS_CHARACTER_CAPSULE_RADIUS, AlsCharacter,
 };
-use als_core::mantle::{
+use bevy_als::als::mantle::{
     AlsMantleControlSettings, AlsMantleStartTimeSettings, AlsMantleState,
     AlsMantleTargetPermission, MantleDetectionInput, MantleKind, MantleRootHeightSample,
     MantleStartTimeMode, auto_mantle_start_allowed, configured_mantle_start_time, detect_mantle,
     mantle_start_allowed, scaled_mantle_capsule_dimensions,
 };
-use als_core::state::{LocomotionState, OverlayState, Stance};
+use bevy_als::als::state::{LocomotionState, OverlayState, Stance};
 use avian3d::prelude::*;
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
@@ -52,7 +52,7 @@ fn spawn_target(commands: &mut Commands, x: f32, scale: f32, denied: bool) {
         .spawn((
             RigidBody::Static,
             Collider::cuboid(2.4 * scale, height, 1.2 * scale),
-            avian3d::prelude::CollisionLayers::new([als_core::character::AlsCollisionLayer::Default, als_core::character::AlsCollisionLayer::Visibility], avian3d::prelude::LayerMask::ALL),
+            avian3d::prelude::CollisionLayers::new([bevy_als::als::character::AlsCollisionLayer::Default, bevy_als::als::character::AlsCollisionLayer::Visibility], avian3d::prelude::LayerMask::ALL),
             Transform::from_xyz(x, height * 0.5, -1.4 * scale),
         ))
         .id();
@@ -109,7 +109,7 @@ fn auto_start_settings() -> AlsMantleStartTimeSettings {
 fn verify(
     mut state: ResMut<GateState>,
     spatial: SpatialQuery,
-    velocities: Query<(&RigidBody, &LinearVelocity, Option<&als_core::dynamics::AlsComponentVelocity>), Without<AlsCharacter>>,
+    velocities: Query<(&RigidBody, &LinearVelocity, Option<&bevy_als::als::dynamics::AlsComponentVelocity>), Without<AlsCharacter>>,
     permissions: Query<Option<&AlsMantleTargetPermission>, Without<AlsCharacter>>,
     colliders: Query<&ColliderOf>,
     mut exit: MessageWriter<AppExit>,

@@ -5,14 +5,14 @@ use bevy::app::ScheduleRunnerPlugin;
 use bevy::input::InputPlugin;
 use bevy::prelude::*;
 
-use als_core::character::AlsCharacter;
-use als_core::input::AlsInputCommand;
-use als_core::mantle::AlsMantleState;
-use als_core::motion::AlsViewYaw;
-use als_core::roll::AlsRollState;
-use als_core::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
-use als_core::transition::AlsStateRequest;
-use als_core::view::{AlsViewPitch, AlsViewSmoothed};
+use bevy_als::als::character::AlsCharacter;
+use bevy_als::als::input::AlsInputCommand;
+use bevy_als::als::mantle::AlsMantleState;
+use bevy_als::als::motion::AlsViewYaw;
+use bevy_als::als::roll::AlsRollState;
+use bevy_als::als::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
+use bevy_als::als::transition::AlsStateRequest;
+use bevy_als::als::view::{AlsViewPitch, AlsViewSmoothed};
 
 use bevy_als::show_debug_hud::{
     AlsShowDebugHudPlugin, AlsShowDebugHudRoot, AlsShowDebugHudSet, AlsShowDebugHudState,

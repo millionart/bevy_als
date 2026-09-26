@@ -4,14 +4,14 @@ use bevy::prelude::*;
 use bevy_tnua::TnuaControllerPlugin;
 use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
-use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
-use als_core::control_scheme::AlsControlScheme;
-use als_core::input::AlsInputCommand;
-use als_core::motion::{
+use bevy_als::als::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
+use bevy_als::als::control_scheme::AlsControlScheme;
+use bevy_als::als::input::AlsInputCommand;
+use bevy_als::als::motion::{
     AlsInputOverride, AlsMotionPlugin, AlsViewYaw, initial_als_control_scheme_config,
 };
-use als_core::params::AlsMovementParams;
-use als_core::state::RotationMode;
+use bevy_als::als::params::AlsMovementParams;
+use bevy_als::als::state::RotationMode;
 
 const CASE_DURATION_SECS: f32 = 0.25;
 const SAMPLE_AFTER_SECS: f32 = 0.16;
@@ -100,7 +100,7 @@ impl Default for MovementDriver {
 fn setup(
     mut commands: Commands,
     mut params_assets: ResMut<Assets<AlsMovementParams>>,
-    mut config_assets: ResMut<Assets<als_core::control_scheme::AlsControlSchemeConfig>>,
+    mut config_assets: ResMut<Assets<bevy_als::als::control_scheme::AlsControlSchemeConfig>>,
 ) {
     commands.spawn((
         RigidBody::Static,

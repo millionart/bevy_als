@@ -67,7 +67,7 @@ DefaultInput.ini / Engine.PlayerInput ⇒ show_debug_hud::keyboard_system
 
 源事实入口：`Config/DefaultInput.ini:87–95`；`UE/Engine/Config/BaseInput.ini`；`UE/Engine/Source/Runtime/Engine/Private/UserInterface/PlayerInput.cpp::{GetBind,ExecInputCommands}`；`HUD.cpp::{ShowDebug,GetCurrentDebugTargetActor,GetDebugActorList,NextDebugTarget,PreviousDebugTarget,ShowDebugInfo}`；`Actor.cpp::{WasRecentlyRendered,GetComponentsBoundingBox}`；`ALS/Source/ALS/Private/Utility/AlsDebugUtility.cpp::ShouldDisplayDebugForActor`。
 
-目标映射：`src/show_debug_hud.rs::{keyboard_system,apply_show_debug_key,AlsShowDebugHudState,hud_sync_system}`；`src/show_debug_hud/canvas.rs`；`src/debug_target.rs::{select_target,record_rendered_characters}`；`src/debug_display.rs::{reset_stats_system,draw_bounds_box_system}`。Input 在 Update；目标解析在 Input 之后；HUD 与世界绘制在 PostUpdate，读取最终运动/动画/相机数据。
+目标映射：`src/als/utility/show_debug_hud/mod.rs::{keyboard_system,apply_show_debug_key,AlsShowDebugHudState,hud_sync_system}`；`src/als/utility/show_debug_hud/canvas.rs`；`src/als/utility/debug_target.rs::{select_target,record_rendered_characters}`；`src/als/utility/debug_display.rs::{reset_stats_system,draw_bounds_box_system}`。Input 在 Update；目标解析在 Input 之后；HUD 与世界绘制在 PostUpdate，读取最终运动/动画/相机数据。
 
 差异与修复：主开关包围盒原先误挂在 Shapes 类别，现直接受主开关控制，独立原生 Gizmo 线宽为 2；空列表导航索引改为 -1；类别通过手动入口的 `saved/als_debug.ron` 跨启动保留，主开关不序列化，自动验收不读写该文件。旧 Gate 仅覆盖有 Shapes 的场景与一直非空的候选列表，没有覆盖这三个生命周期边界。
 
@@ -120,7 +120,7 @@ Shift+One → ShowDebug Als.Curves ⇒ 公共输入树 / DebugCategory::Curves
    └─ 不累积历史；仅HUD格式/值缓存，输入值或布局变化即替换
 ```
 
-源入口：`ALS/Private/AlsCharacter_Debug.cpp::DisplayDebugCurves`、`AlsCharacter.cpp::ApplyRotationYawSpeedAnimationCurve`、`AlsAnimationInstance.cpp::RefreshRotationYawOffsets`；UE `AnimInstance.cpp::GetCurveValue` 与 `AnimInstanceProxy.cpp::UpdateCurvesToEvaluationContext`。目标入口：`src/animation_context_projection.rs`、`crates/als-ext/src/animation_graph_ext/{animation_context,layered_graph}.rs`、`src/show_debug_hud.rs::evaluated_character_curve_rows`。完整动画算法沿已闭合的生成图执行，本项只核对到最终曲线的生产/捕获边，不改动画图。
+源入口：`ALS/Private/AlsCharacter_Debug.cpp::DisplayDebugCurves`、`AlsCharacter.cpp::ApplyRotationYawSpeedAnimationCurve`、`AlsAnimationInstance.cpp::RefreshRotationYawOffsets`；UE `AnimInstance.cpp::GetCurveValue` 与 `AnimInstanceProxy.cpp::UpdateCurvesToEvaluationContext`。目标入口：`src/als/character/animation_instances/animation_context_projection.rs`、`src/animation_graph_ext/{animation_context,layered_graph}.rs`、`src/als/utility/show_debug_hud/mod.rs::evaluated_character_curve_rows`。完整动画算法沿已闭合的生成图执行，本项只核对到最终曲线的生产/捕获边，不改动画图。
 
 发现并修复：两项角度曲线的HUD原先误用了目标坐标符号，同时反转了正负值对应的颜色。旧Gate直接拿target曲线值比较，漏掉显示语义；新增±42/零/非角度标量反例及真实左右Turn资产采样。骨架原生导入/check/self-test通过，43项名称无差异；30项范围回归及真实Interface24.721秒功能通过，67值、布局、菜单和19种逐键状态均通过，无运行守卫异常。未修改动画图或曲线资产。
 
@@ -154,7 +154,7 @@ Shift+Two → ShowDebug Als.State ⇒ 公共输入树 / DebugCategory::State
 
 共同显示规则：源 `GetSimpleTagName → FName::NameToDisplayString` 对应Tag叶名称/空值None/驼峰显示；全部白色，布尔为True/False，使用BF123的State列宽120、行距12、字体与Canvas合同。PostUpdate在请求消费和物理姿态更新后读取；分类关闭撤下行，无事件历史。
 
-源入口为 `ALS/Private/AlsCharacter_Debug.cpp::DisplayDebugState` 及 `AlsCharacter.cpp::{SetDesiredStance,ApplyDesiredStance,RefreshRotationMode}`；目标生产入口为 `crates/als-core/src/{input_request,aim,gait,transition}.rs`，消费入口为 `src/show_debug_hud.rs`。动作通知桥在PrePhysics后、Roll驱动前，HUD在Final后读取，未增加延迟缓存。
+源入口为 `ALS/Private/AlsCharacter_Debug.cpp::DisplayDebugState` 及 `AlsCharacter.cpp::{SetDesiredStance,ApplyDesiredStance,RefreshRotationMode}`；目标生产入口为 `src/als_extras/core/input_request.rs`、`src/als/state/{aim,gait,transition}.rs`，消费入口为 `src/als/utility/show_debug_hud/mod.rs`。动作通知桥在PrePhysics后、Roll驱动前，HUD在Final后读取，未增加延迟缓存。
 
 修复与验收：DesiredStance/DesiredRotationMode改读已有持久组件，ViewMode改读角色标记，删除角色布局的相机参数与临时请求回推。25项回归通过，包含期望/实际不同、待处理请求、自定义Tag和无渲染相机反例。Interface24.759秒功能通过，11项State行全部加入数据检查（总计78值），19种按键状态与既有布局/菜单均通过，无运行守卫异常。未改变角色行为。
 
@@ -203,7 +203,7 @@ Shift+Three → ShowDebug Als.Shapes ⇒ 公共输入树 / DebugCategory::Shapes
    └─ 关闭分类/主开关即停止当前帧图元，无Shapes事件历史
 ```
 
-源入口：`AlsCharacter_Debug.cpp::DisplayDebugShapes`、`AlsCharacter.cpp::{SetInputDirection,RefreshInput,RefreshLocomotion}`、`AlsVector.h`、UE `Vector.h::GetSafeNormal` 与 `LineBatchComponent.cpp::{DrawCone,DrawCapsule,DrawDirectionalArrow}`。目标入口：`src/{actual_motion,show_debug_hud,debug_display}.rs`、`crates/als-core/src/orientation.rs`。
+源入口：`AlsCharacter_Debug.cpp::DisplayDebugShapes`、`AlsCharacter.cpp::{SetInputDirection,RefreshInput,RefreshLocomotion}`、`AlsVector.h`、UE `Vector.h::GetSafeNormal` 与 `LineBatchComponent.cpp::{DrawCone,DrawCapsule,DrawDirectionalArrow}`。目标入口：`src/{actual_motion,show_debug_hud,debug_display}.rs`、`src/als/utility/orientation.rs`。
 
 修复：显示原先直接使用目标米制/轴序/朝向；胶囊使用Avian默认132线；斜视锥使用另一组绕轴基；微小速度被错误单位化。反例分别拒绝旧显示、132≠68、旧斜锥顶点和微小速度单位向量。复用原有draw_arc与原生Collider数据；非胶囊Collider保持实际形状绘制。共享XYZ格式同步用于CameraShapes的位置显示，共享胶囊同步作用于Mantle/扫掠图元，探测和运动算法未改。
 
@@ -301,7 +301,7 @@ Shift+Five → ShowDebug Als.Mantling ⇒ 公共输入树 / DebugCategory::Mantl
    └─ 关闭主开关/分类或切换目标不删除已产生的限时图元
 ```
 
-源入口：`AlsCharacter_Actions.cpp::StartMantling`、`HitResult.h::IsValidBlockingHit`、`AlsDebugUtility.cpp::{DrawSweepSingleCapsuleAlternative,DrawSweepSingleSphere}` 与本次原生CS。目标入口：`crates/als-core/src/{motion,mantle}.rs`、`src/debug_display.rs`。
+源入口：`AlsCharacter_Actions.cpp::StartMantling`、`HitResult.h::IsValidBlockingHit`、`AlsDebugUtility.cpp::{DrawSweepSingleCapsuleAlternative,DrawSweepSingleSphere}` 与本次原生CS。目标入口：`src/als/character/movement/motion.rs`、`src/als/character/actions/mantle.rs`、`src/als/utility/debug_display.rs`。
 
 新增差异：前向探测漏掉起始穿透拒绝，导致一类穿墙起点误报Success并绘制成功分支。真实Avian反例在0.4m复现，0.95m原先因另一条可走法线条件碰巧被拒绝；改为拒绝零行进距离且接触点沿外法线负分离的初始穿透。保留正常零距离接触。17项范围、1149项完整库、当前345图规格与Root声明式通过；startup15.517秒、Base125.141秒、rotating_base18.945秒功能通过。原六分支/独立寿命/隐藏期间不重放、正常与移动旋转目标攀爬均通过。
 
@@ -372,7 +372,7 @@ Shift+Seven → ShowDebug Als.CameraShapes ⇒ 公共相机入口 / 当前source
    └─ 截止于本帧；关闭分类/组件停止即消失，无Shapes历史
 ```
 
-源入口：`AlsCameraComponent.cpp::{TickCamera,GetThirdPersonPivotLocation,CalculatePivotLagLocation,CalculatePivotOffset}`、`AlsCameraComponent_Debug.cpp::DisplayDebugShapes`、`AlsDebugUtility.cpp::DrawSphereAlternative`，以及本次原生相机CS。目标入口：`crates/als-camera/src/lib.rs::{resolve_camera_socket_locations,camera_rig_system,write_debug}` 与 `src/debug_display.rs::draw_camera_debug_system`。显示轴序/厘米及源组件激活条件已由03a及共享修复覆盖。
+源入口：`AlsCameraComponent.cpp::{TickCamera,GetThirdPersonPivotLocation,CalculatePivotLagLocation,CalculatePivotOffset}`、`AlsCameraComponent_Debug.cpp::DisplayDebugShapes`、`AlsDebugUtility.cpp::DrawSphereAlternative`，以及本次原生相机CS。目标入口：`src/als_camera/lib.rs::{resolve_camera_socket_locations,camera_rig_system,write_debug}` 与 `src/als/utility/debug_display.rs::draw_camera_debug_system`。显示轴序/厘米及源组件激活条件已由03a及共享修复覆盖。
 
 本分支未发现新增差异。15项现有范围/边界检查通过，覆盖脱离Mesh、动态胶囊底部、基座、first-person阈值、FOV、阻尼、五个实际值、球旋转和连线；复用同一实现刚通过的Interface24.435秒和Camera20.219秒功能证据。没有新增补偿、阈值或状态。
 
@@ -413,7 +413,7 @@ Shift+Eight → ShowDebug Als.CameraTraces ⇒ 公共相机入口
    └─ 主扫掠每帧；青色修正线5s独立到期，关分类/切目标/完整第一人称不删除旧线
 ```
 
-源入口：`AlsCameraComponent.cpp::{CalculateCameraTrace,TryAdjustLocationBlockedByGeometry}`、`AlsDebugUtility.cpp::DrawSweepSphere`、UE `RotationMatrix.h::MakeFromZ` 与 `Quat.h`。目标入口：`crates/als-camera/src/lib.rs::{trace_with_start_adjustment,calculate_camera_trace,write_debug}`、`src/debug_display.rs::{draw_camera_debug_system,draw_sphere_sweep}`。
+源入口：`AlsCameraComponent.cpp::{CalculateCameraTrace,TryAdjustLocationBlockedByGeometry}`、`AlsDebugUtility.cpp::DrawSweepSphere`、UE `RotationMatrix.h::MakeFromZ` 与 `Quat.h`。目标入口：`src/als_camera/lib.rs::{trace_with_start_adjustment,calculate_camera_trace,write_debug}`、`src/als/utility/debug_display.rs::{draw_camera_debug_system,draw_sphere_sweep}`。
 
 新发现并修复：斜向包络采用最短旋转，源16边环顶点与UE固定轴基不一致；实际Gizmo反例缺失源顶点，改为完整对应MakeFromZ的轴基，短向量按源默认单位退化。实际相切检查通过，未修改碰撞或平滑算法。14项范围与1152项完整库通过，含穿透成功/失败、缩放、近命中、方向限制、立即收缩和历史；最终Camera21.007秒、Base125.596秒功能通过，共享Mantle球扫掠及原运动守卫均通过。
 

@@ -11,11 +11,11 @@ use bevy_animation_graph::core::edge_data::DataValue;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::systems::RootMotionOutput;
 
-use als_core::character::AlsCharacter;
-use als_core::control_scheme::AlsControlSchemeConfig;
-use als_core::mantle::{AlsMantleState, MantleKind};
-use als_core::roll::AlsRollState;
-use als_core::state::{LocomotionState, Stance};
+use bevy_als::als::character::AlsCharacter;
+use bevy_als::als::control_scheme::AlsControlSchemeConfig;
+use bevy_als::als::mantle::{AlsMantleState, MantleKind};
+use bevy_als::als::roll::AlsRollState;
+use bevy_als::als::state::{LocomotionState, Stance};
 use bevy_als::character_assembly::{
     ALS_LINKED_ANIMATED_SCENE, AlsCharacterAvatar, AlsCharacterBlueprint, spawn_als_character,
 };
@@ -57,7 +57,7 @@ fn main() {
 fn setup(
     mut commands: Commands,
     assets: Res<AssetServer>,
-    mut params_assets: ResMut<Assets<als_core::params::AlsMovementParams>>,
+    mut params_assets: ResMut<Assets<bevy_als::als::params::AlsMovementParams>>,
     mut config_assets: ResMut<Assets<AlsControlSchemeConfig>>,
 ) {
     commands.spawn((
@@ -140,7 +140,7 @@ fn apply_probe_state(
     );
     if let Ok(mut first_locomotion) = locomotion.get_mut(probe.first) {
         *first_locomotion = LocomotionState::None;
-        commands.entity(probe.first).insert(als_core::state::AlsNotifyLocomotionAction::Ragdolling);
+        commands.entity(probe.first).insert(bevy_als::als::state::AlsNotifyLocomotionAction::Ragdolling);
     }
     if let Ok(mut second_locomotion) = locomotion.get_mut(probe.second) {
         *second_locomotion = LocomotionState::Grounded;

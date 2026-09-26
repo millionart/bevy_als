@@ -14,7 +14,7 @@ use bevy_animation_graph::{
     },
 };
 
-use als_ext::AlsExtPlugin;
+use bevy_als::extensions::AlsExtPlugin;
 
 const LEFT_PATH: &str = "graphs/ab_als/stances/standing/state_rotate_left.animgraph.ron";
 const RIGHT_PATH: &str = "graphs/ab_als/stances/standing/state_rotate_right.animgraph.ron";

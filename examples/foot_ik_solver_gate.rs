@@ -1,4 +1,4 @@
-use als_ext::ik::{
+use bevy_als::extensions::ik::{
     StableTwoBonePole, blend_ik_rotation, child_world_rotation_after_parent_rotation,
     solve_two_bone_ik,
 };

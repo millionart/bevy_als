@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use als_ext::{
+use bevy_als::extensions::{
     AlsExtPlugin, GameplayTagBlendMode, GlobalBoolInputNode, GlobalF32InputNode,
     GlobalPoseInputNode, RagdollConfigNode, RagdollingTagBlendNode, SourceAnimationInputs,
 };
@@ -119,7 +119,7 @@ fn main() {
             }),
         AnimationGraphPlugin::from_physics_schedule(Update),
         AlsExtPlugin,
-        als_ext::post_physics_animation::PostPhysicsAnimationPlugin,
+        bevy_als::extensions::post_physics_animation::PostPhysicsAnimationPlugin,
     ))
     .init_resource::<Probe>()
     .add_systems(Startup, (verify_native_source, load_assets).chain())

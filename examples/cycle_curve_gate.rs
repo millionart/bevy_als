@@ -1,4 +1,4 @@
-use als_ext::{AlsExtrapolation, AlsFloatCurve, AlsKeyInterp};
+use bevy_als::extensions::{AlsExtrapolation, AlsFloatCurve, AlsKeyInterp};
 
 fn main() {
     let curve = AlsFloatCurve {

@@ -31,7 +31,7 @@
         {
           "source_contains": "bCreateNotifyMetaData=True",
           "target_exception": "Target event playback retains source asset and clip directly; it has no UE active-state notify metadata ABI.",
-          "target_runtime_path": "src/animation_events.rs"
+          "target_runtime_path": "src/als/notifies/animation_events.rs"
         }
       ]
     }

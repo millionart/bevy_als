@@ -12,9 +12,9 @@ use bevy::text::TextLayoutInfo;
 use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_enhanced_input::prelude::EnhancedInputPlugin;
 
-use als_core::player_start::{AlsPlayerStart, AlsPlayerStartReady};
-use als_ext::playground_materials::PlaygroundTilesMaterial;
-use als_ext::{
+use bevy_als::als::player_start::{AlsPlayerStart, AlsPlayerStartReady};
+use bevy_als::extensions::playground_materials::PlaygroundTilesMaterial;
+use bevy_als::extensions::{
     PLAYGROUND_SHADOW_DEPTH_BIAS, PLAYGROUND_SHADOW_NORMAL_BIAS, PlaygroundKinematic,
     PlaygroundKinematicKind, PlaygroundLandscape, PlaygroundLandscapeTilesMaterial,
     PlaygroundMaterialApplied, PlaygroundMaterialRole, PlaygroundMovingCurve, PlaygroundPlugin,
@@ -230,7 +230,7 @@ fn stats_collector(
         With<PlaygroundTextLabel>,
     >,
     world_text_meshes: Query<
-        (Option<&MeshMaterial3d<StandardMaterial>>, Option<&MeshMaterial3d<als_ext::projected_decal::PackedDecalReceiverMaterial>>, &PlaygroundTextGlyphColor),
+        (Option<&MeshMaterial3d<StandardMaterial>>, Option<&MeshMaterial3d<bevy_als::extensions::projected_decal::PackedDecalReceiverMaterial>>, &PlaygroundTextGlyphColor),
         With<PlaygroundWorldTextMesh>,
     >,
     landscapes: Query<&Transform, With<PlaygroundLandscape>>,
@@ -240,10 +240,10 @@ fn stats_collector(
     material_roles: Query<(&PlaygroundMaterialApplied, Has<NotShadowCaster>), With<Mesh3d>>,
     extended_materials: Query<(), With<MeshMaterial3d<PlaygroundTilesMaterial>>>,
     cube_visuals: Query<(&Name, &Transform), With<PlaygroundStatic>>,
-    materials: (Res<Assets<StandardMaterial>>, Res<Assets<als_ext::projected_decal::PackedDecalReceiverMaterial>>),
+    materials: (Res<Assets<StandardMaterial>>, Res<Assets<bevy_als::extensions::projected_decal::PackedDecalReceiverMaterial>>),
     tiles_materials: Res<Assets<PlaygroundTilesMaterial>>,
 ) {
-    let material = |standard: Option<&MeshMaterial3d<StandardMaterial>>, receiver: Option<&MeshMaterial3d<als_ext::projected_decal::PackedDecalReceiverMaterial>>| {
+    let material = |standard: Option<&MeshMaterial3d<StandardMaterial>>, receiver: Option<&MeshMaterial3d<bevy_als::extensions::projected_decal::PackedDecalReceiverMaterial>>| {
         standard.and_then(|handle| materials.0.get(&handle.0)).or_else(|| receiver.and_then(|handle| materials.1.get(&handle.0)).map(|material| &material.base))
     };
     stats.static_count = statics.iter().count() as u32;

@@ -1,13 +1,13 @@
 use std::num::NonZeroU8;
 
-use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
-use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
-use als_core::dynamics::AlsGroundedDynamics;
-use als_core::gait::AlsGaitAmount;
-use als_core::input::AlsInputCommand;
-use als_core::motion::{AlsInputOverride, AlsMotionPlugin, initial_als_control_scheme_config};
-use als_core::params::{AlsMovementParams, GroundedDynamicsProfile};
-use als_core::state::{LocomotionState, RotationMode, Stance};
+use bevy_als::als::character::{AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin};
+use bevy_als::als::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
+use bevy_als::als::dynamics::AlsGroundedDynamics;
+use bevy_als::als::gait::AlsGaitAmount;
+use bevy_als::als::input::AlsInputCommand;
+use bevy_als::als::motion::{AlsInputOverride, AlsMotionPlugin, initial_als_control_scheme_config};
+use bevy_als::als::params::{AlsMovementParams, GroundedDynamicsProfile};
+use bevy_als::als::state::{LocomotionState, RotationMode, Stance};
 use avian3d::prelude::*;
 use bevy::asset::AssetPlugin;
 use bevy::prelude::*;
@@ -82,7 +82,7 @@ fn drive_gate(
             &mut RotationMode,
             &AlsGaitAmount,
             &AlsGroundedDynamics,
-            &als_core::character::AlsMovementParamsHandle,
+            &bevy_als::als::character::AlsMovementParamsHandle,
             &LinearVelocity,
             &mut AlsInputOverride,
         ),

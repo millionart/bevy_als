@@ -1,13 +1,13 @@
-use als_core::character::{AlsCharacter, AlsMovementParamsHandle};
-use als_core::gait::{
+use bevy_als::als::character::{AlsCharacter, AlsMovementParamsHandle};
+use bevy_als::als::gait::{
     AlsDesiredGait, AlsGaitAmount, AlsGaitPlugin, AlsMaxAllowedGait, refresh_gait_system,
 };
-use als_core::input::AlsInputCommand;
-use als_core::input_request::{AlsFirstPersonView, AlsInputRequestPlugin, AlsSprintPrev};
-use als_core::motion::AlsActualVelocity;
-use als_core::params::AlsMovementParams;
-use als_core::state::{Gait, LocomotionState, RotationMode, Stance};
-use als_core::transition::{AlsStateRequest, AlsStateTransitionPlugin};
+use bevy_als::als::input::AlsInputCommand;
+use bevy_als::als::input_request::{AlsFirstPersonView, AlsInputRequestPlugin, AlsSprintPrev};
+use bevy_als::als::motion::AlsActualVelocity;
+use bevy_als::als::params::AlsMovementParams;
+use bevy_als::als::state::{Gait, LocomotionState, RotationMode, Stance};
+use bevy_als::als::transition::{AlsStateRequest, AlsStateTransitionPlugin};
 use bevy::asset::AssetPlugin;
 use bevy::prelude::*;
 

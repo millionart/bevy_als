@@ -1,7 +1,7 @@
 use std::num::NonZeroU8;
 use std::time::{Duration, Instant};
 
-use als_ext::{AlsExtPlugin, SkeletonAwareLayeredGraphNode};
+use bevy_als::extensions::{AlsExtPlugin, SkeletonAwareLayeredGraphNode};
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use bevy::window::ExitCondition;

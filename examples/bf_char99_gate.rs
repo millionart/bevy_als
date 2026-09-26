@@ -1,10 +1,10 @@
 use std::num::NonZeroU8;
 
-use als_camera::{AlsCameraParams, field_of_view_degrees};
-use als_core::input::{ROLL_TAP_SECS, SPRINT_HOLD_SECS, roll_pressed_from_events};
-use als_core::mantle::MantleKind;
-use als_core::motion::{JumpChain, jump_chain, view_relative_move_direction};
-use als_core::state::{OverlayState, Stance};
+use bevy_als::als_camera::{AlsCameraParams, field_of_view_degrees};
+use bevy_als::als::input::{ROLL_TAP_SECS, SPRINT_HOLD_SECS, roll_pressed_from_events};
+use bevy_als::als::mantle::MantleKind;
+use bevy_als::als::motion::{JumpChain, jump_chain, view_relative_move_direction};
+use bevy_als::als::state::{OverlayState, Stance};
 use bevy::prelude::*;
 use bevy_als::overlay_mode_menu::{COLOR_OPTION_NOT_SELECTED, COLOR_OPTION_SELECTED};
 use bevy_als::overlay_object::{

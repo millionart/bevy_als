@@ -1,4 +1,4 @@
-use als_core::character::{
+use bevy_als::als::character::{
     AlsCharacter, AlsCollisionLayerOwner, AlsCollisionLayerOwnership, set_collision_layer_owner,
 };
 use avian3d::prelude::CollisionLayers;

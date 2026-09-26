@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use als_ext::{AlsExtPlugin, GlobalF32InputNode};
+use bevy_als::extensions::{AlsExtPlugin, GlobalF32InputNode};
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use bevy::window::ExitCondition;

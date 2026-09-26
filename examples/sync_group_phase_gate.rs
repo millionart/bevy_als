@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use als_ext::{AlsExtPlugin, SyncGroupPhaseNode, SyncMarker, follower_sample_time};
+use bevy_als::extensions::{AlsExtPlugin, SyncGroupPhaseNode, SyncMarker, follower_sample_time};
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use bevy::window::ExitCondition;

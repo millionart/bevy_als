@@ -7,10 +7,10 @@ use bevy::prelude::*;
 use bevy::window::ExitCondition;
 use bevy_tnua::TnuaPipelineSystems;
 
-use als_core::character::{AlsCharacter, AlsCharacterBundle};
-use als_core::control_scheme::AlsControlSchemeConfig;
-use als_core::dynamics::AlsMovementBaseDynamicsState;
-use als_core::params::AlsMovementParams;
+use bevy_als::als::character::{AlsCharacter, AlsCharacterBundle};
+use bevy_als::als::control_scheme::AlsControlSchemeConfig;
+use bevy_als::als::dynamics::AlsMovementBaseDynamicsState;
+use bevy_als::als::params::AlsMovementParams;
 use bevy_als::playable_character::AlsPlayableCharacterPlugin;
 
 #[derive(Component)]

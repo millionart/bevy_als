@@ -1,9 +1,9 @@
 use std::num::NonZeroU8;
 
-use als_core::character::AlsCharacter;
-use als_core::foot_ik::{AlsDynamicTransitionState, AlsFootLockState};
-use als_core::state::Stance;
-use als_core::transitions::{TransitionConfig, TransitionSequence};
+use bevy_als::als::character::AlsCharacter;
+use bevy_als::als::foot_ik::{AlsDynamicTransitionState, AlsFootLockState};
+use bevy_als::als::state::Stance;
+use bevy_als::als::transitions::{TransitionConfig, TransitionSequence};
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 

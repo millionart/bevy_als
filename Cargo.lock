@@ -123,47 +123,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
-name = "als-camera"
-version = "0.1.0"
-dependencies = [
- "als-core",
- "als-ext",
- "avian3d",
- "bevy",
- "ron 0.10.1",
- "serde",
-]
-
-[[package]]
-name = "als-core"
-version = "0.1.0"
-dependencies = [
- "avian3d",
- "bevy",
- "bevy-tnua",
- "bevy-tnua-avian3d",
- "bevy_enhanced_input",
- "bevy_gameplay_tag",
- "ron 0.10.1",
- "serde",
-]
-
-[[package]]
-name = "als-ext"
-version = "0.1.0"
-dependencies = [
- "als-core",
- "avian3d",
- "bevy",
- "bevy_animation_graph",
- "bevy_gameplay_tag",
- "bevy_gltf",
- "ron 0.10.1",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "alsa"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -648,9 +607,6 @@ dependencies = [
 name = "bevy_als"
 version = "0.1.0"
 dependencies = [
- "als-camera",
- "als-core",
- "als-ext",
  "avian3d",
  "bevy",
  "bevy-tnua",
@@ -659,6 +615,7 @@ dependencies = [
  "bevy_animation_graph_editor",
  "bevy_enhanced_input",
  "bevy_gameplay_tag",
+ "bevy_gltf",
  "ron 0.10.1",
  "serde",
  "serde_json",

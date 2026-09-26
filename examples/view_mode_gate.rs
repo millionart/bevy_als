@@ -2,12 +2,12 @@ use std::num::NonZeroU8;
 
 use bevy::prelude::*;
 
-use als_core::aim::{AlsAimPlugin, AlsLastFreeRotationMode};
-use als_core::character::AlsCharacter;
-use als_core::input::AlsInputCommand;
-use als_core::input_request::{AlsCameraLeftShoulder, AlsFirstPersonView, AlsInputRequestPlugin};
-use als_core::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
-use als_core::transition::{AlsStateRequest, AlsStateTransitionPlugin, state_transition_system};
+use bevy_als::als::aim::{AlsAimPlugin, AlsLastFreeRotationMode};
+use bevy_als::als::character::AlsCharacter;
+use bevy_als::als::input::AlsInputCommand;
+use bevy_als::als::input_request::{AlsCameraLeftShoulder, AlsFirstPersonView, AlsInputRequestPlugin};
+use bevy_als::als::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
+use bevy_als::als::transition::{AlsStateRequest, AlsStateTransitionPlugin, state_transition_system};
 
 fn main() {
     App::new()

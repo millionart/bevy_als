@@ -1,4 +1,4 @@
-use als_ext::{AlsFloatCurve, AlsKeyInterp};
+use bevy_als::extensions::{AlsFloatCurve, AlsKeyInterp};
 
 fn main() {
     let curve = AlsFloatCurve {

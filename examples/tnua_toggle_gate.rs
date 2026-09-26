@@ -7,11 +7,11 @@ use bevy::prelude::*;
 use bevy::window::ExitCondition;
 use bevy_tnua::{TnuaMotor, TnuaToggle};
 
-use als_core::character::AlsCharacterBundle;
-use als_core::control_scheme::AlsControlSchemeConfig;
-use als_core::input::AlsInputCommand;
-use als_core::motion::{AlsInputOverride, AlsViewYaw};
-use als_core::params::AlsMovementParams;
+use bevy_als::als::character::AlsCharacterBundle;
+use bevy_als::als::control_scheme::AlsControlSchemeConfig;
+use bevy_als::als::input::AlsInputCommand;
+use bevy_als::als::motion::{AlsInputOverride, AlsViewYaw};
+use bevy_als::als::params::AlsMovementParams;
 use bevy_als::playable_character::AlsPlayableCharacterPlugin;
 
 #[derive(Resource)]

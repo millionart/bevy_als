@@ -1,13 +1,13 @@
 use std::num::NonZeroU8;
 use std::ops::ControlFlow;
 
-use als_core::character::AlsCharacter;
-use als_core::input::{
+use bevy_als::als::character::AlsCharacter;
+use bevy_als::als::input::{
     AlsInputCommand, AlsInputMap, NextOverlayModeAction, OnFoot, OverlayMenuAction,
     PreviousOverlayModeAction, SlomoAction, ToggleUiAction, spawn_als_actions,
 };
-use als_core::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
-use als_core::transition::AlsStateRequest;
+use bevy_als::als::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
+use bevy_als::als::transition::AlsStateRequest;
 use bevy::prelude::*;
 use bevy::render::view::screenshot::{Screenshot, save_to_disk};
 use bevy::ui::Display;
@@ -141,8 +141,8 @@ fn main() {
     app.add_plugins((
         bevy_gameplay_tag::GameplayTagsPlugin::with_data_path("assets/als_gameplay_tags.json"),
         EnhancedInputPlugin,
-        als_core::input::AlsInputPlugin,
-        als_core::transition::AlsStateTransitionPlugin,
+        bevy_als::als::input::AlsInputPlugin,
+        bevy_als::als::transition::AlsStateTransitionPlugin,
         AlsHudPlugin,
         OverlayModeMenuPlugin,
         bevy_als::show_debug_hud::AlsShowDebugHudPlugin,

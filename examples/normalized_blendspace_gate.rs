@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use als_ext::{
+use bevy_als::extensions::{
     AlsExtPlugin, CubicVec2FilterNode, NormalizedBlendSpaceNode, NormalizedBlendSpacePoint,
     SyncGroupSampleNode, SyncMarker,
 };

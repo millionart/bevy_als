@@ -31,7 +31,7 @@ def main():
     parser.add_argument('--content-root', type=Path)
     parser.add_argument('--source-cpp', type=Path)
     parser.add_argument('--source-reader', type=Path, default=ROOT / 'tools/run_ue_source_reader.ps1')
-    parser.add_argument('--output', type=Path, default=ROOT / 'crates/als-core/data/locomotion_thresholds.rs')
+    parser.add_argument('--output', type=Path, default=ROOT / 'src/als/settings/generated/locomotion_thresholds.rs')
     parser.add_argument('--report', type=Path, default=ROOT / 'target/locomotion_thresholds.report.json')
     parser.add_argument('--self-test', action='store_true')
     args = parser.parse_args()

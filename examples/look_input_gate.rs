@@ -5,14 +5,14 @@ use bevy::prelude::*;
 use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_enhanced_input::prelude::*;
 
-use als_core::character::AlsCharacter;
-use als_core::control_scheme::AlsControlSchemeConfig;
-use als_core::input::{
+use bevy_als::als::character::AlsCharacter;
+use bevy_als::als::control_scheme::AlsControlSchemeConfig;
+use bevy_als::als::input::{
     AlsInputCommand, AlsInputPlugin, LookAction, LookMouseAction, OnFoot, als_input_bridge_system,
 };
-use als_core::motion::AlsViewYaw;
-use als_core::params::AlsMovementParams;
-use als_core::view::{AlsViewInputPlugin, AlsViewInputSet, AlsViewPitch, look_delta_radians};
+use bevy_als::als::motion::AlsViewYaw;
+use bevy_als::als::params::AlsMovementParams;
+use bevy_als::als::view::{AlsViewInputPlugin, AlsViewInputSet, AlsViewPitch, look_delta_radians};
 use bevy_als::character_assembly::{AlsCharacterBlueprint, spawn_als_character_with_materials};
 
 fn main() {

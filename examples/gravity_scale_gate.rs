@@ -1,9 +1,9 @@
 use std::num::NonZeroU8;
 use std::time::{Duration, Instant};
 
-use als_core::character::{AlsCharacter, AlsCharacterBundle, AlsEffectiveGravity};
-use als_core::control_scheme::AlsControlSchemeConfig;
-use als_core::params::AlsMovementParams;
+use bevy_als::als::character::{AlsCharacter, AlsCharacterBundle, AlsEffectiveGravity};
+use bevy_als::als::control_scheme::AlsControlSchemeConfig;
+use bevy_als::als::params::AlsMovementParams;
 use avian3d::prelude::{Gravity, GravityScale, LinearVelocity};
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;

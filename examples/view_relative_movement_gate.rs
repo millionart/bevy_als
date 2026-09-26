@@ -2,7 +2,7 @@ use std::num::NonZeroU8;
 
 use bevy::prelude::*;
 
-use als_core::motion::view_relative_move_direction;
+use bevy_als::als::motion::view_relative_move_direction;
 
 fn main() {
     App::new()

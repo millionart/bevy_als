@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use als_core::{character::{AlsCharacter, AlsCollisionLayerOwnership}, state::{AlsNotifyLocomotionAction, LocomotionState}};
+use crate::als::{character::{AlsCharacter, AlsCollisionLayerOwnership}, state::{AlsNotifyLocomotionAction, LocomotionState}};
 use avian3d::dynamics::{integrator::{IntegrationSystems, VelocityIntegrationData}, solver::solver_body::SolverBody};
 use avian3d::prelude::{
     Collider, ColliderOf, CollisionLayers, CustomPositionIntegration, Physics, PhysicsSchedule,
@@ -39,7 +39,7 @@ impl Plugin for SourcePhysicsTimingPlugin {
                         .before(PhysicsSystems::First),
                     SourcePhysicsTimingSet::Restore
                         .after(PhysicsSystems::Last)
-                        .before(als_ext::post_physics_animation::PostPhysicsAnimationSet::Inputs)
+                        .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Inputs)
                         .before(AnimationGraphSet::PostPhysics),
                 ),
             )
@@ -119,7 +119,7 @@ fn enable_character_full_frame(
     frame_time: Res<Time<Virtual>>,
     mut commands: Commands,
     characters: Query<(Entity, &LocomotionState, &RigidBody, Option<&AlsNotifyLocomotionAction>,
-        Option<&als_core::dynamics::AlsMovementBaseDynamicsState>),
+        Option<&crate::als::dynamics::AlsMovementBaseDynamicsState>),
         (With<AlsCharacter>, Without<CustomPositionIntegration>)>,
 ) {
     if frame_time.delta() <= SOURCE_MAX_PHYSICS_DELTA {
@@ -152,9 +152,9 @@ fn integrate_character_position(
     spatial: SpatialQuery,
     candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
     mut characters: Query<(Entity, &mut SolverBody, &Position, &Collider, &LocomotionState,
-        Option<&AlsNotifyLocomotionAction>, &RigidBody, Option<&als_core::dynamics::AlsMovementBaseDynamicsState>,
+        Option<&AlsNotifyLocomotionAction>, &RigidBody, Option<&crate::als::dynamics::AlsMovementBaseDynamicsState>,
         Has<SourceCharacterFullFrame>, Has<CustomPositionIntegration>,
-        &mut als_core::character::AlsCmcAdapterRuntime), With<AlsCharacter>>,
+        &mut crate::als::character::AlsCmcAdapterRuntime), With<AlsCharacter>>,
 ) {
     if frame_time.delta() <= SOURCE_MAX_PHYSICS_DELTA {
         return;
@@ -168,13 +168,13 @@ fn integrate_character_position(
             && *locomotion == LocomotionState::Grounded
             && action != Some(&AlsNotifyLocomotionAction::Ragdolling)
             && base.is_some_and(|base| base.entity.is_some() && base.support_velocity.length_squared() > 0.0) {
-            als_core::dynamics::locomotion_velocity(body.linear_velocity, *locomotion, base) * extra_step
+            crate::als::dynamics::locomotion_velocity(body.linear_velocity, *locomotion, base) * extra_step
         } else {
             continue;
         };
         let start = position.0 + body.delta_position;
         let filter = SpatialQueryFilter::from_excluded_entities([entity]);
-        let accepts = |candidate| als_core::motion::character_blocks_collider(entity, candidate, &candidates);
+        let accepts = |candidate| crate::als::motion::character_blocks_collider(entity, candidate, &candidates);
         let mut remaining = movement;
         let mut remaining_time = frame_step;
         let mut previous_normal = None;
@@ -188,7 +188,7 @@ fn integrate_character_position(
                 applied += remaining;
                 break;
             };
-            let travel = als_core::motion::movement_sweep_travel(distance, hit.distance);
+            let travel = crate::als::motion::movement_sweep_travel(distance, hit.distance);
             applied += *direction * travel;
             let Some(normal) = hit.normal1.try_normalize() else { break; };
             let mut slide = remaining - *direction * travel;
@@ -196,7 +196,7 @@ fn integrate_character_position(
                 if normal.y > 0.0 && remaining.dot(normal) < 0.0 {
                     runtime.airborne_sweep_contact = true;
                 }
-                slide = als_ext::motion::falling_slide(slide, normal, previous_normal);
+                slide = crate::extensions::motion::falling_slide(slide, normal, previous_normal);
                 previous_normal = Some(normal);
                 remaining_time *= 1.0 - travel / distance;
                 if remaining_time > f32::EPSILON {
@@ -249,7 +249,7 @@ mod tests {
             app.finish();
             app.update();
             let character = app.world_mut().spawn((
-                als_core::character::AlsCharacter,
+                crate::als::character::AlsCharacter,
                 LocomotionState::Air,
                 RigidBody::Dynamic,
                 Collider::cuboid(0.2, 0.2, 0.2),
@@ -279,7 +279,7 @@ mod tests {
             app.finish();
             app.update();
             let character = app.world_mut().spawn((
-                als_core::character::AlsCharacter, mode, RigidBody::Dynamic,
+                crate::als::character::AlsCharacter, mode, RigidBody::Dynamic,
                 Collider::cuboid(0.2, 0.2, 0.2),
                 avian3d::prelude::GravityScale(0.0),
                 avian3d::prelude::ConstantLinearAcceleration(Vec3::X * 4.0),
@@ -308,7 +308,7 @@ mod tests {
         app.finish();
         app.update();
         let character = app.world_mut().spawn((
-            als_core::character::AlsCharacter,
+            crate::als::character::AlsCharacter,
             LocomotionState::Air,
             RigidBody::Dynamic,
             Collider::capsule(0.3, 1.2),
@@ -430,11 +430,11 @@ mod tests {
 
     #[test]
     fn air_sweep_lands_on_a_walkable_edge_without_solver_contact() {
-        use als_core::character::{AlsCharacterBundle, AlsCharacterPlugin};
-        use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
-        use als_core::motion::{AlsMotionPlugin, initial_als_control_scheme_config};
-        use als_core::params::AlsMovementParams;
-        use als_core::transition::AlsStateTransitionPlugin;
+        use crate::als::character::{AlsCharacterBundle, AlsCharacterPlugin};
+        use crate::als::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
+        use crate::als::motion::{AlsMotionPlugin, initial_als_control_scheme_config};
+        use crate::als::params::AlsMovementParams;
+        use crate::als::transition::AlsStateTransitionPlugin;
         use bevy_tnua::TnuaControllerPlugin;
         use bevy_tnua_avian3d::TnuaAvian3dPlugin;
         use bevy::ecs::system::RunSystemOnce;
@@ -459,7 +459,7 @@ mod tests {
         bundle.transform.translation = Vec3::new(0.0, 5.0, 0.417345);
         let character = app.world_mut().spawn(bundle).id();
         *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = LocomotionState::Air;
-        app.world_mut().get_mut::<als_core::input::AlsInputCommand>(character).unwrap().move_dir = Vec2::Y;
+        app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().move_dir = Vec2::Y;
         app.world_mut().spawn((RigidBody::Static, Collider::cuboid(10.0, 4.0, 20.0),
             Transform::from_xyz(0.0, -2.0, -10.0)));
         for _ in 0..3 { app.update(); }
@@ -475,7 +475,7 @@ mod tests {
                 let (floor, contact) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
                     collisions: avian3d::prelude::Collisions,
                     candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
-                    let floor = als_core::motion::find_ground_floor(&spatial, position, 0.9, 0.3,
+                    let floor = crate::als::motion::find_ground_floor(&spatial, position, 0.9, 0.3,
                         &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates);
                     let contact = collisions.collisions_with(character).any(|pair| pair.manifolds.iter()
                         .any(|manifold| manifold.points.iter().any(|point| point.normal_impulse > 0.0)));
@@ -492,11 +492,11 @@ mod tests {
 
     #[test]
     fn swept_landing_ignores_nonblocking_floor_candidates() {
-        use als_core::character::{AlsCharacterBundle, AlsCharacterPlugin, AlsCollisionLayer};
-        use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
-        use als_core::motion::{AlsMotionPlugin, initial_als_control_scheme_config};
-        use als_core::params::AlsMovementParams;
-        use als_core::transition::AlsStateTransitionPlugin;
+        use crate::als::character::{AlsCharacterBundle, AlsCharacterPlugin, AlsCollisionLayer};
+        use crate::als::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
+        use crate::als::motion::{AlsMotionPlugin, initial_als_control_scheme_config};
+        use crate::als::params::AlsMovementParams;
+        use crate::als::transition::AlsStateTransitionPlugin;
         use bevy_tnua::{TnuaControllerPlugin, TnuaPipelineSystems, TnuaProximitySensor, TnuaSensorsEntities};
         use bevy_tnua_avian3d::TnuaAvian3dPlugin;
         let blocking = CollisionLayers::new(AlsCollisionLayer::Default, AlsCollisionLayer::Default);
@@ -560,7 +560,7 @@ mod tests {
             app.update();
             let position = app.world().get::<Position>(character).unwrap().0;
             let mode = *app.world().get::<LocomotionState>(character).unwrap();
-            let base = app.world().get::<als_core::dynamics::AlsMovementBase>(character).unwrap().entity;
+            let base = app.world().get::<crate::als::dynamics::AlsMovementBase>(character).unwrap().entity;
             let expected = if case == "blocking" { LocomotionState::Grounded } else { LocomotionState::Air };
             if case != "blocking" {
                 assert!(position.x < 0.35, "{case} missed the real slope: {position:?}");
@@ -574,12 +574,12 @@ mod tests {
 
     #[test]
     fn full_frame_crouch_keeps_the_capsule_on_the_floor() {
-        use als_core::character::{AlsCharacterBundle, AlsCharacterPlugin};
-        use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
-        use als_core::motion::{AlsMotionPlugin, initial_als_control_scheme_config};
-        use als_core::params::AlsMovementParams;
-        use als_core::state::Stance;
-        use als_core::transition::AlsStateTransitionPlugin;
+        use crate::als::character::{AlsCharacterBundle, AlsCharacterPlugin};
+        use crate::als::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
+        use crate::als::motion::{AlsMotionPlugin, initial_als_control_scheme_config};
+        use crate::als::params::AlsMovementParams;
+        use crate::als::state::Stance;
+        use crate::als::transition::AlsStateTransitionPlugin;
         use bevy_tnua::TnuaControllerPlugin;
         use bevy_tnua_avian3d::TnuaAvian3dPlugin;
         #[derive(Resource, Default)]
@@ -618,7 +618,7 @@ mod tests {
         app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(100)));
         app.update();
         assert_eq!(app.world().resource::<GeometryChanges>().0.last(), Some(&(false, true)));
-        app.world_mut().get_mut::<als_core::transition::AlsStateRequest>(character).unwrap().stance = Some(Stance::Crouching);
+        app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(character).unwrap().stance = Some(Stance::Crouching);
         for frame in 0..2 {
             app.update();
             assert_eq!(app.world().resource::<GeometryChanges>().0.last(), Some(&(frame == 0, true)));
@@ -655,7 +655,7 @@ mod tests {
             app.finish();
             app.update();
             let character = app.world_mut().spawn((
-                als_core::character::AlsCharacter,
+                crate::als::character::AlsCharacter,
                 LocomotionState::Air,
                 RigidBody::Dynamic,
                 Collider::cuboid(0.2, 0.2, 0.2),
@@ -705,7 +705,7 @@ mod tests {
         app.finish();
         app.update();
         let body = app.world_mut().spawn((
-            als_core::character::AlsCharacter,
+            crate::als::character::AlsCharacter,
             LocomotionState::Grounded,
             RigidBody::Dynamic,
             Collider::cuboid(0.2, 0.2, 0.2),
@@ -723,9 +723,9 @@ mod tests {
             Transform::from_xyz(0.0, 3.0, 0.0),
         )).id();
         let ragdoll = app.world_mut().spawn((
-            als_core::character::AlsCharacter,
+            crate::als::character::AlsCharacter,
             LocomotionState::Grounded,
-            als_core::state::AlsNotifyLocomotionAction::Ragdolling,
+            crate::als::state::AlsNotifyLocomotionAction::Ragdolling,
             RigidBody::Kinematic,
             Collider::cuboid(0.2, 0.2, 0.2),
             GravityScale(0.0),
@@ -734,9 +734,9 @@ mod tests {
             Transform::from_xyz(0.0, 6.0, 0.0),
         )).id();
         let ragdoll_pending = app.world_mut().spawn((
-            als_core::character::AlsCharacter,
+            crate::als::character::AlsCharacter,
             LocomotionState::Grounded,
-            als_core::state::AlsNotifyLocomotionAction::Ragdolling,
+            crate::als::state::AlsNotifyLocomotionAction::Ragdolling,
             RigidBody::Dynamic,
             Collider::cuboid(0.2, 0.2, 0.2),
             GravityScale(0.0),
@@ -770,10 +770,10 @@ mod tests {
         }
         app.world_mut().entity_mut(ragdoll).insert((
             RigidBody::Dynamic,
-            als_core::state::AlsNotifyLocomotionAction::None,
+            crate::als::state::AlsNotifyLocomotionAction::None,
         ));
         app.world_mut().entity_mut(ragdoll_pending)
-            .insert(als_core::state::AlsNotifyLocomotionAction::None);
+            .insert(crate::als::state::AlsNotifyLocomotionAction::None);
         let exited_x = app.world().get::<Position>(ragdoll).unwrap().0.x;
         let pending_x = app.world().get::<Position>(ragdoll_pending).unwrap().0.x;
         app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(100)));
@@ -787,12 +787,12 @@ mod tests {
 
     #[test]
     fn full_frame_character_sweep_handles_wall_slide_and_landing() {
-        use als_core::character::{AlsCharacterBundle, AlsCharacterPlugin};
-        use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
-        use als_core::input::AlsInputCommand;
-        use als_core::motion::{AlsMotionPlugin, initial_als_control_scheme_config};
-        use als_core::params::AlsMovementParams;
-        use als_core::transition::AlsStateTransitionPlugin;
+        use crate::als::character::{AlsCharacterBundle, AlsCharacterPlugin};
+        use crate::als::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
+        use crate::als::input::AlsInputCommand;
+        use crate::als::motion::{AlsMotionPlugin, initial_als_control_scheme_config};
+        use crate::als::params::AlsMovementParams;
+        use crate::als::transition::AlsStateTransitionPlugin;
         use bevy_tnua::TnuaControllerPlugin;
         use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
@@ -882,7 +882,7 @@ mod tests {
         for _ in 0..30 {
             app.update();
         }
-        let base = app.world().get::<als_core::dynamics::AlsMovementBaseDynamicsState>(character).unwrap();
+        let base = app.world().get::<crate::als::dynamics::AlsMovementBaseDynamicsState>(character).unwrap();
         assert_eq!(base.entity, Some(platform));
         app.world_mut().get_mut::<avian3d::prelude::LinearVelocity>(platform).unwrap().0 = Vec3::X;
         app.world_mut().get_mut::<avian3d::prelude::LinearVelocity>(character).unwrap().0 = Vec3::X;
@@ -904,7 +904,7 @@ mod tests {
         let offset_after = app.world().get::<Position>(character).unwrap().x
             - app.world().get::<Position>(platform).unwrap().x;
         let relative_motion = offset_after - offset_before;
-        let base = app.world().get::<als_core::dynamics::AlsMovementBaseDynamicsState>(character).unwrap();
+        let base = app.world().get::<crate::als::dynamics::AlsMovementBaseDynamicsState>(character).unwrap();
         let velocity = app.world().get::<avian3d::prelude::LinearVelocity>(character).unwrap().0;
         let expected = (velocity.x - base.support_velocity.x) * 0.1;
         assert!((relative_motion - expected).abs() < 1e-3,

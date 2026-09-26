@@ -1,7 +1,7 @@
-use als_core::character::AlsCharacter;
-use als_core::motion::AlsRagdollAirExit;
-use als_core::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
-use als_core::transition::{AlsStateRequest, AlsStateTransitionPlugin, state_transition_system};
+use bevy_als::als::character::AlsCharacter;
+use bevy_als::als::motion::AlsRagdollAirExit;
+use bevy_als::als::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
+use bevy_als::als::transition::{AlsStateRequest, AlsStateTransitionPlugin, state_transition_system};
 use avian3d::prelude::LinearVelocity;
 use bevy::prelude::*;
 use bevy_als::ragdoll_link::{AlsRagdollGroundFollow, ragdoll_exit_route_system};
@@ -46,7 +46,7 @@ fn spawn_exit_case(app: &mut App, grounded: bool, velocity: Vec3) -> Entity {
         .spawn((
             AlsCharacter,
             LocomotionState::None,
-            als_core::state::AlsNotifyLocomotionAction::Ragdolling,
+            bevy_als::als::state::AlsNotifyLocomotionAction::Ragdolling,
             Stance::Standing,
             Gait::Running,
             RotationMode::VelocityDirection,

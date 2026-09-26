@@ -514,8 +514,8 @@ def main():
         source,
         profile,
         runtime,
-        (ROOT / "src" / "control_rig_apply.rs").read_text(encoding="utf-8"),
-        (ROOT / "src" / "foot_ik_apply.rs").read_text(encoding="utf-8"),
+        (ROOT / "src" / "als" / "character" / "control_rig_apply.rs").read_text(encoding="utf-8"),
+        (ROOT / "src" / "als" / "character" / "foot_ik_apply.rs").read_text(encoding="utf-8"),
         differences,
     )
     report = {

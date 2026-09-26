@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use als_ext::{
+use bevy_als::extensions::{
     AlsExtPlugin, SyncMarker, SyncMarkerPhaseInput, SyncPhaseState, advance_marker_sync_phase,
     marker_phase_sample_time, marker_position_at_time,
 };

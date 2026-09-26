@@ -8,13 +8,13 @@ use bevy_enhanced_input::prelude::EnhancedInputPlugin;
 use bevy_tnua::TnuaControllerPlugin;
 use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
-use als_core::character::{AlsCharacter, AlsCharacterPlugin};
-use als_core::control_scheme::AlsControlScheme;
-use als_core::input::AlsInputPlugin;
-use als_core::player_start::{
+use bevy_als::als::character::{AlsCharacter, AlsCharacterPlugin};
+use bevy_als::als::control_scheme::AlsControlScheme;
+use bevy_als::als::input::AlsInputPlugin;
+use bevy_als::als::player_start::{
     AlsPlayerStart, AlsPlayerStartOccupancy, AlsPlayerStartPlugin, AlsPlayerStartReady,
 };
-use als_ext::AlsExtPlugin;
+use bevy_als::extensions::AlsExtPlugin;
 use bevy_als::game_mode::{
     AlsGameModePlugin, AlsPlayerAdmission, AlsPlayerAdmissionComplete, AlsScenePhysicsReady,
     request_als_player,

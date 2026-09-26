@@ -32,12 +32,12 @@
     {
       "source_contains": "MemberName=\"StopTransitionAndTurnInPlaceAnimations\"",
       "target_contains": "SOURCE_CROUCHING_TURN_STOP_FUNCTION",
-      "target_runtime_path": "src/crouching_layer.rs"
+      "target_runtime_path": "src/als/character/animation_instances/crouching_layer.rs"
     },
     {
       "source_contains": "StateEntryFunction=(FunctionName=\"StopTransitionAndTurnInPlaceAnimations\")",
       "target_contains": "source_crouching_state_lifecycle_action",
-      "target_runtime_path": "src/crouching_layer.rs"
+      "target_runtime_path": "src/als/character/animation_instances/crouching_layer.rs"
     }
   ],
   "require_root_property_assertions": true,

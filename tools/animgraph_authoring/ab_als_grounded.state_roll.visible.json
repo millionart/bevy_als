@@ -126,12 +126,12 @@
     {
       "source_contains": "MemberName=\"PlayRollToGroundedTransitionAnimation\"",
       "target_contains": "SOURCE_ROLL_TO_GROUNDED_TRANSITION_FUNCTION",
-      "target_runtime_path": "src/grounded_layer.rs"
+      "target_runtime_path": "src/als/character/animation_instances/grounded_layer.rs"
     },
     {
       "source_contains": "StateExitFunction=(FunctionName=\"OnStateExit\")",
       "target_contains": "source_roll_exit_transition",
-      "target_runtime_path": "src/grounded_layer.rs"
+      "target_runtime_path": "src/als/character/animation_instances/grounded_layer.rs"
     }
   ],
   "require_root_property_assertions": true,

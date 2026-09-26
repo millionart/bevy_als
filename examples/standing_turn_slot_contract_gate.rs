@@ -14,7 +14,7 @@ use bevy_animation_graph::{
     },
 };
 
-use als_ext::{AlsExtPlugin, InertializationPassthroughNode, SourceSlotNode};
+use bevy_als::extensions::{AlsExtPlugin, InertializationPassthroughNode, SourceSlotNode};
 
 const STANDING_PATH: &str = "graphs/ab_als/stances/standing.animgraph.ron";
 const IDLE_PATH: &str = "graphs/ab_als/stances/standing/state_idle.animgraph.ron";

@@ -1,4 +1,4 @@
-use als_ext::AlsExtPlugin;
+use bevy_als::extensions::AlsExtPlugin;
 use bevy::prelude::*;
 use bevy_animation_graph_editor::AnimationGraphEditorPlugin;
 

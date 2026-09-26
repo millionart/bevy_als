@@ -1,4 +1,4 @@
-use als_ext::inertialized_linked_layer_activation;
+use bevy_als::extensions::inertialized_linked_layer_activation;
 
 fn main() {
     let first = inertialized_linked_layer_activation(None, None, 0, 3, true, true);

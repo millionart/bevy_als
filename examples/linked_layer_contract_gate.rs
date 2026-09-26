@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use als_ext::{ALS_LAYER_CURVE_NAMES, ALS_LAYER_SIGNAL_NAMES, AlsExtPlugin, LinkedAnimLayerNode};
+use bevy_als::extensions::{ALS_LAYER_CURVE_NAMES, ALS_LAYER_SIGNAL_NAMES, AlsExtPlugin, LinkedAnimLayerNode};
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use bevy::window::ExitCondition;

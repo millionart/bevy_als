@@ -2,13 +2,13 @@ use std::num::NonZeroU8;
 
 use bevy::prelude::*;
 
-use als_core::aim::AlsAimPlugin;
-use als_core::character::AlsCharacter;
-use als_core::input::AlsInputCommand;
-use als_core::input_request::AlsInputRequestPlugin;
-use als_core::motion::{JumpChain, jump_chain};
-use als_core::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
-use als_core::transition::{AlsStateRequest, AlsStateTransitionPlugin, state_transition_system};
+use bevy_als::als::aim::AlsAimPlugin;
+use bevy_als::als::character::AlsCharacter;
+use bevy_als::als::input::AlsInputCommand;
+use bevy_als::als::input_request::AlsInputRequestPlugin;
+use bevy_als::als::motion::{JumpChain, jump_chain};
+use bevy_als::als::state::{Gait, LocomotionState, OverlayState, RotationMode, Stance};
+use bevy_als::als::transition::{AlsStateRequest, AlsStateTransitionPlugin, state_transition_system};
 
 fn main() {
     App::new()
@@ -48,7 +48,7 @@ fn spawn_character(mut commands: Commands) {
 fn verify_priority(
     mut state: Local<GateState>,
     mut characters: Query<
-        (&mut AlsInputCommand, &LocomotionState, &RotationMode, &als_core::state::AlsNotifyLocomotionAction, &AlsStateRequest),
+        (&mut AlsInputCommand, &LocomotionState, &RotationMode, &bevy_als::als::state::AlsNotifyLocomotionAction, &AlsStateRequest),
         With<AlsCharacter>,
     >,
     mut exit: MessageWriter<AppExit>,
@@ -63,7 +63,7 @@ fn verify_priority(
         && jump_chain(false, Stance::Standing, false) == JumpChain::Jump;
     match state.phase {
         0 => {
-            if *action != als_core::state::AlsNotifyLocomotionAction::Ragdolling || *locomotion != LocomotionState::None || *rotation != RotationMode::Aiming {
+            if *action != bevy_als::als::state::AlsNotifyLocomotionAction::Ragdolling || *locomotion != LocomotionState::None || *rotation != RotationMode::Aiming {
                 eprintln!(
                     "[BCHAR5][VERDICT] phase=enter locomotion={locomotion:?} rotation={rotation:?} -> FAIL"
                 );
@@ -75,7 +75,7 @@ fn verify_priority(
             state.phase = 1;
         }
         1 => {
-            if *action != als_core::state::AlsNotifyLocomotionAction::Ragdolling || *locomotion != LocomotionState::None
+            if *action != bevy_als::als::state::AlsNotifyLocomotionAction::Ragdolling || *locomotion != LocomotionState::None
                 || *rotation != RotationMode::VelocityDirection
             {
                 eprintln!(
@@ -89,7 +89,7 @@ fn verify_priority(
         }
         _ => {
             let pass = request.ragdoll_exit && *locomotion == LocomotionState::None
-                && *action == als_core::state::AlsNotifyLocomotionAction::Ragdolling
+                && *action == bevy_als::als::state::AlsNotifyLocomotionAction::Ragdolling
                 && *rotation == RotationMode::VelocityDirection
                 && chain_pass;
             if pass {

@@ -2,7 +2,7 @@
   "format": "als_ue_visible_fsm_map_v1",
   "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-4aa3bc1f1aac6700.source.json",
   "target_fsm": "assets/graphs/ab_als/stances/crouching/movement_states.fsm.ron",
-  "transition_static_contract_runtime_path": "src/crouching_transition_profiles.rs",
+  "transition_static_contract_runtime_path": "src/als/character/animation_instances/crouching_transition_profiles.rs",
   "state_map": [
     {
       "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching.AB_Als_Crouching:AnimGraph.AnimGraphNode_StateMachine_1.Movement States.AnimStateNode_0",

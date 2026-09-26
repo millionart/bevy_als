@@ -3,7 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use als_ext::{
+use bevy_als::extensions::{
     AlsExtPlugin, CubicVec2AxisFilterNode, DirectTransitionEventNode, F32ToVec2Node,
     GlobalF32InputNode, InertializationNode, InterruptibleFsmNode, InterruptibleFsmState,
     LayeredGraphNode, MultiWayBlendNode, NormalizedBlendSpaceNode, ProfiledBlendNode,
@@ -90,7 +90,7 @@ fn main() {
             }),
         AnimationGraphPlugin::from_physics_schedule(Update),
         AlsExtPlugin,
-        als_ext::post_physics_animation::PostPhysicsAnimationPlugin,
+        bevy_als::extensions::post_physics_animation::PostPhysicsAnimationPlugin,
     ))
     .init_resource::<RuntimeProbe>()
     .add_systems(Startup, load_assets)
@@ -1145,7 +1145,7 @@ fn verify_static_contract(
                     })
             },
         );
-    let phase_template = |markers: &[als_ext::SyncMarker]| {
+    let phase_template = |markers: &[bevy_als::extensions::SyncMarker]| {
         markers.len() == 2
             && markers[0].name == "Left"
             && close(markers[0].time, 0.0)
@@ -1318,7 +1318,7 @@ fn verify_static_contract(
                     && node.loop_animation_key == loop_key
                     && node.expose_loop_animation_pin
             })
-        }) && std::fs::read_to_string("src/standing_layer.rs").is_ok_and(|source| {
+        }) && std::fs::read_to_string("src/als/character/animation_instances/standing_layer.rs").is_ok_and(|source| {
             source.contains("als_standing_rotate_left_loop")
                 && source.contains("als_standing_rotate_right_loop")
         });

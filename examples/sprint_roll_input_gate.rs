@@ -5,17 +5,17 @@ use bevy::prelude::*;
 use bevy_animation_graph::AnimationGraphPlugin;
 use bevy_enhanced_input::prelude::*;
 
-use als_core::character::AlsCharacter;
-use als_core::control_scheme::AlsControlSchemeConfig;
-use als_core::gait::AlsDesiredGait;
-use als_core::input::{
+use bevy_als::als::character::AlsCharacter;
+use bevy_als::als::control_scheme::AlsControlSchemeConfig;
+use bevy_als::als::gait::AlsDesiredGait;
+use bevy_als::als::input::{
     AlsInputCommand, AlsInputPlugin, ROLL_TAP_SECS, RollAction, SPRINT_HOLD_SECS, SprintAction,
     als_input_bridge_system,
 };
-use als_core::input_request::AlsInputRequestPlugin;
-use als_core::params::AlsMovementParams;
-use als_core::state::Gait;
-use als_core::transition::{AlsStateTransitionPlugin, state_transition_system};
+use bevy_als::als::input_request::AlsInputRequestPlugin;
+use bevy_als::als::params::AlsMovementParams;
+use bevy_als::als::state::Gait;
+use bevy_als::als::transition::{AlsStateTransitionPlugin, state_transition_system};
 use bevy_als::character_assembly::{AlsCharacterBlueprint, spawn_als_character_with_materials};
 
 fn main() {

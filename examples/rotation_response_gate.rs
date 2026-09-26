@@ -6,15 +6,15 @@ use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use bevy::window::ExitCondition;
 
-use als_core::character::{AlsCharacter, AlsCharacterBundle};
-use als_core::control_scheme::AlsControlSchemeConfig;
-use als_core::input::AlsInputCommand;
-use als_core::motion::{
+use bevy_als::als::character::{AlsCharacter, AlsCharacterBundle};
+use bevy_als::als::control_scheme::AlsControlSchemeConfig;
+use bevy_als::als::input::AlsInputCommand;
+use bevy_als::als::motion::{
     AlsRotationAnimationState, AlsRotationResponseSet, AlsRotationResponseState, AlsViewYaw,
 };
-use als_core::orientation::world_forward_to_yaw;
-use als_core::params::AlsMovementParams;
-use als_core::state::{Gait, LocomotionState, RotationMode};
+use bevy_als::als::orientation::world_forward_to_yaw;
+use bevy_als::als::params::AlsMovementParams;
+use bevy_als::als::state::{Gait, LocomotionState, RotationMode};
 use bevy_als::playable_character::AlsPlayableCharacterPlugin;
 
 #[derive(Resource)]
@@ -50,7 +50,7 @@ fn main() {
         .add_systems(
             Update,
             (
-                drive.before(als_core::aim::aim_rotation_mode_system),
+                drive.before(bevy_als::als::aim::aim_rotation_mode_system),
                 verify,
                 timeout,
             ),

@@ -1,17 +1,17 @@
 use std::num::NonZeroU8;
 
-use als_core::air::{AlsAirPlugin, AlsAirState, ground_prediction_amount};
-use als_core::character::{
+use bevy_als::als::air::{AlsAirPlugin, AlsAirState, ground_prediction_amount};
+use bevy_als::als::character::{
     AlsCharacter, AlsCharacterBundle, AlsCharacterPlugin, AlsCmcAdapterRuntime,
 };
-use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
-use als_core::mantle::yaw_from_direction;
-use als_core::motion::{
+use bevy_als::als::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
+use bevy_als::als::mantle::yaw_from_direction;
+use bevy_als::als::motion::{
     AlsAimingYawConstraint, AlsInputOverride, AlsMotionPlugin, AlsViewYaw,
     initial_als_control_scheme_config, view_relative_move_direction, wrap_yaw_radians,
 };
-use als_core::params::AlsMovementParams;
-use als_core::state::{LocomotionState, RotationMode};
+use bevy_als::als::params::AlsMovementParams;
+use bevy_als::als::state::{LocomotionState, RotationMode};
 use avian3d::prelude::*;
 use bevy::asset::AssetPlugin;
 use bevy::prelude::*;
@@ -73,7 +73,7 @@ fn setup(
     commands.spawn((
         RigidBody::Static,
         Collider::cuboid(40.0, 0.2, 40.0),
-        avian3d::prelude::CollisionLayers::new([als_core::character::AlsCollisionLayer::Default, als_core::character::AlsCollisionLayer::Visibility], avian3d::prelude::LayerMask::ALL),
+        avian3d::prelude::CollisionLayers::new([bevy_als::als::character::AlsCollisionLayer::Default, bevy_als::als::character::AlsCollisionLayer::Visibility], avian3d::prelude::LayerMask::ALL),
         Transform::from_xyz(0.0, -0.1, 0.0),
     ));
     let params_value = AlsMovementParams::default();
@@ -107,7 +107,7 @@ fn run_gate(
             &AlsAimingYawConstraint,
             &AlsCmcAdapterRuntime,
             &AlsAirState,
-            &als_core::character::AlsMovementParamsHandle,
+            &bevy_als::als::character::AlsMovementParamsHandle,
             &mut AlsInputOverride,
         ),
         With<AlsCharacter>,

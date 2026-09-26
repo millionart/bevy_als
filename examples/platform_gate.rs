@@ -5,12 +5,12 @@ use bevy::prelude::*;
 use bevy_tnua::TnuaControllerPlugin;
 use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
-use als_core::character::{
+use bevy_als::als::character::{
     ALS_CHARACTER_CAPSULE_HALF_HEIGHT, AlsCharacterBundle, AlsCharacterPlugin, AlsCrushRecovery,
     AlsCrushRecoveryFloor,
 };
-use als_core::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
-use als_core::params::AlsMovementParams;
+use bevy_als::als::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
+use bevy_als::als::params::AlsMovementParams;
 
 fn main() {
     let mut app = App::new();

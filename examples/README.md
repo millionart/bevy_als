@@ -2,6 +2,8 @@
 
 日常运行使用根目录 `run_manual.bat`。它启动 `manual_playground`，自动验收也在同一个 Playground 中运行：
 
+关卡源码位于 [`src/als_extras/levels/manual_playground.rs`](../src/als_extras/levels/manual_playground.rs)，由 Cargo 显式声明 example 路径。自动驱动位于 [`src/validation/playground/mod.rs`](../src/validation/playground/mod.rs)，在 Gate 模式启用，继续复用此关卡。其余 examples 是专项检查；二者的完整关系见 [源码目录说明](../src/README.md)。
+
 ```powershell
 pwsh tools/run_animation_visual_validation.ps1 -Case startup -CaptureCount 0 -FunctionalOnly
 pwsh tools/run_animation_visual_validation.ps1 -Case grounded -CaptureCount 0 -FunctionalOnly

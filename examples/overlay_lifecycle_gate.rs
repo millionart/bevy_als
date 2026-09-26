@@ -3,9 +3,9 @@ use std::num::NonZeroU8;
 use bevy::asset::AssetPlugin;
 use bevy::prelude::*;
 
-use als_core::character::AlsCharacter;
-use als_core::mantle::{AlsMantleState, MantleKind};
-use als_core::state::{LocomotionState, OverlayState};
+use bevy_als::als::character::AlsCharacter;
+use bevy_als::als::mantle::{AlsMantleState, MantleKind};
+use bevy_als::als::state::{LocomotionState, OverlayState};
 use bevy_als::character_assembly::AlsCharacterAssembly;
 use bevy_als::overlay_object::{AlsOverlayObject, OverlayObjectPlugin, RIGHT_GUN_BONE};
 
@@ -36,7 +36,7 @@ fn setup(mut commands: Commands) {
         AlsCharacter,
         OverlayState::Rifle,
         LocomotionState::Grounded,
-        als_core::state::AlsNotifyLocomotionAction::None,
+        bevy_als::als::state::AlsNotifyLocomotionAction::None,
         AlsMantleState::default(),
         AlsCharacterAssembly {
             avatar,
@@ -48,7 +48,7 @@ fn setup(mut commands: Commands) {
 fn verify_overlay_lifecycle(
     mut phase: Local<u8>,
     mut frames: Local<u32>,
-    mut characters: Query<(&mut als_core::state::AlsNotifyLocomotionAction, &mut AlsMantleState), With<AlsCharacter>>,
+    mut characters: Query<(&mut bevy_als::als::state::AlsNotifyLocomotionAction, &mut AlsMantleState), With<AlsCharacter>>,
     props: Query<&AlsOverlayObject>,
     mut exit: MessageWriter<AppExit>,
 ) {
@@ -76,11 +76,11 @@ fn verify_overlay_lifecycle(
             *phase = 2;
         }
         2 if prop_count == 1 => {
-            *action = als_core::state::AlsNotifyLocomotionAction::Ragdolling;
+            *action = bevy_als::als::state::AlsNotifyLocomotionAction::Ragdolling;
             *phase = 3;
         }
         3 if prop_count == 0 => {
-            *action = als_core::state::AlsNotifyLocomotionAction::None;
+            *action = bevy_als::als::state::AlsNotifyLocomotionAction::None;
             mantle.active = false;
             *phase = 4;
         }

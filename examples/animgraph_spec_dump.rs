@@ -4,7 +4,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use als_ext::AlsExtPlugin;
+use bevy_als::extensions::AlsExtPlugin;
 use bevy::{app::AppExit, ecs::message::MessageWriter, prelude::*, window::ExitCondition};
 use bevy_animation_graph::{
     AnimationGraphPlugin,
