@@ -15,10 +15,10 @@ Read the current checklist item first. Do not alter `docs/als-ref-animation-asse
 
 ## Source evidence
 
-1. Re-extract the local source asset and its relevant C++/settings facts before implementation. Native extraction is the full contract; live Editor MCP is an independent read-only fact.
-2. Reuse a healthy persistent Editor. Open the asset with `EditorToolset.EditorAppToolset.OpenEditorForAsset`, then read it through asset load, graph list, graph detail, and DSL APIs. A healthy empty DSL or partial canvas is a capability limitation, not evidence of an empty graph.
+1. Re-extract the local source asset and its relevant C++/settings facts before implementation. Use the repository native uasset reader; UE MCP is prohibited by `agents.md`.
+2. Read assets, graphs, properties and recursive dependencies through `tools/run_ue_source_reader.ps1`. Resolve missing reader fields against local UE source before extending the reader and extracting again. An empty or partial reader result is not evidence of an empty graph.
 3. For visible graph parity, record node order, title, pins, links, static/default values, comments, root IO, and positions. Build the recursive reachable closure: top graph, FSMs, states, transition graphs, and linked authored subgraphs.
-4. Only a complete canvas capture or a provably complete stitch proves layout. Otherwise retain the MCP failure fact and use the same-run native contract; whole-window screenshots do not prove graph layout.
+4. Only a complete canvas capture or a provably complete stitch proves layout. Otherwise record the capture limitation and use the same-run native contract; whole-window screenshots do not prove graph layout.
 5. Experimental source-node warnings require a source-visible note and future recheck; they are not a parity exception.
 
 ## Static parity

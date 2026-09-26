@@ -5,7 +5,7 @@
 - **不做代码级移植**：以 [bevy_animation_graph](https://github.com/mbrea-c/bevy_animation_graph)（替代 AnimBP）与 [bevy-tnua](https://github.com/idanarye/bevy-tnua)（替代 CharacterMovement）为基座，按需扩展。
 - **不含网络同步**。
 - 执行规则见 [agents.md](agents.md)，当前执行清单见 [CHECKLIST.md](CHECKLIST.md)，已完成批次见 [归档索引](docs/archive/archivedchecklist.md)，启动说明见 [goal.md](goal.md)。
-- 本地环境与 Unreal MCP 配置见 `docs/env.md`（隐私，不入库）。
+- 本地环境配置见 `docs/env.md`（隐私，不入库）；UE 取证统一使用仓库原生 uasset 读取器。
 
 ## 基座插件 fork
 
@@ -35,14 +35,16 @@ ControlRig 等价的 IK 子系统（two-bone/foot/pelvis/hand IK）位于本仓�
 
 ## 快速上手
 
-```bash
-cargo run --example locomotion_gate   # M5 全流程：起跑/急停/原地转身/蹲起（ALS 数值）
-cargo run --example actions_gate      # M8 综合动作：冲刺前滚/助跑跳/停步距离匹配
-pwsh tools/run_animation_visual_validation.ps1 -Case camera -CaptureCount 0 -FunctionalOnly
+```powershell
+.\run_manual.bat
+pwsh tools/run_animation_visual_validation.ps1 -Case startup -CaptureCount 0 -FunctionalOnly
+pwsh tools/run_animation_visual_validation.ps1 -Case grounded -CaptureCount 0 -FunctionalOnly
 ```
 
-- gate 例程读取 `ALS_BOOT_AUTO_QUIT_SECS=<秒>` 做脚本化自动退出；不带则手动交互。
-- 测试：`cargo test --workspace`。
+- `manual_playground` 是交互运行与自动场景共用入口；公共 runner 的 `-Case` 选择相机、布娃娃、IK、运动等场景。`-FunctionalOnly` 验证功能，报告保留性能预算结果。
+- 单元回归按改动选择 `cargo test --jobs 2 -p <crate> --lib <filter>`；全量回归使用 `cargo test --workspace --jobs 2`。
+- [examples 说明](examples/README.md) 区分当前入口、静态合同和专项诊断；[tools 说明](tools/README.md) 列出保留的导入、转换与验收工具。
+- `saved/als_debug.ron` 保存手动运行的调试显示类别，不保存主显示开关；自动 Gate 不读写它。此目录不入 Git，删除该文件会重置类别选择，下次手动切换类别时重新生成。
 
 ### 自定义 Overlay
 

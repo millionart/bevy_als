@@ -5,6 +5,17 @@
 > 基座模块提交前缀沿用 `M<编号>`；缺陷修复清单用 `BF<编号>`。
 > 已归档清单：[archivedchecklist.md](docs/archive/archivedchecklist.md)
 
+## BF129 — 收尾前目录整理与过期入口清理
+
+用户授权全项目整理，并明确选择按职责分文件夹、保留现有 crate 和资产类型名。范围为源码位置、过期演示/探测入口和使用说明；不修改移植算法、源资产、生成图或未选中的 TODO。历史 Gate 记录保留原样，删除文件由 Git 历史追溯。
+
+- [x] **BF129.1 — 清理过期演示与工具入口**：开始：2026-09-26 16:44:00 +08:00；预估结束：2026-09-26 17:14:00 +08:00；实际结束：2026-09-26 16:50:00 +08:00；偏差：-24m；结果：18 个旧 example、20 个过期工具删除，实际 actor 导出器改名，Gate 通过；拆分结果：目录归位留给 .2。估时依据：当前 84 个 example 的入口/资产引用、30 个公共 manual 场景、MCP 工具完整调用闭包，以及 BF128 中既有 validator/self-test 的运行记录。Gate：逐项记录替代覆盖或保留原因，移除无消费者的旧演示及已禁用 MCP 链，保留独有断言、导出器和 source reader；更新入口说明，静态引用检查、Cargo metadata 与相关 Python self-test 通过后单独提交。
+- [ ] **BF129.2 — 扩展源码按职责归位**：依赖 .1；开始与预估结束在启动时登记。估时依据：als-ext 的 88 个源码模块，以及 als-core 的实际 Tnua 适配；现有模块路径/Reflect ABI、include 路径及工具中的源码位置引用；预计独立窗口不超过 60 分钟。Gate：明确使用 `animation_graph_ext`、`tnua_ext`，与 Control Rig、物理、渲染、ALS、Playground 分目录；保持模块和类型身份，更新所有实际消费的文件位置；源文件逆向还原比较、als-ext/受影响 core 库测试、剩余 example 编译及同 target_game/play 的公共 startup 功能 Gate 通过后单独提交。
+
+当前 source/static 闭包：als-ext 的模块依赖和注册表、全部 examples 入口、公开 runner、manual 场景选择、tools 的调用关系与 debug 设置读写。`saved/als_debug.ron` 仅持久化调试类别，已被 gitignore，自动 Gate 不读取或写入。目录整理不改变 source-target 语义；本轮只允许修订资产映射文档中的已移动源码路径，不重开其图/资产内容。下一步核对旧演示的替代覆盖与仍有独有断言的诊断场景。
+
+.1 最终 source/static 摘要：删除与当前场景重复、仍接旧图/旧调度的演示，保留 66 个入口（含合同、同步、UI、场景、CMC 参数等独有断言），替代与保留边界见 `examples/README.md`。移除禁止的 UE MCP 完整调用链及无消费者的 API/lighting 试验；`probe_playground` 的 actor 清单仍被网格导出消费，按实际用途改名而未删除。122 个剩余 Python 文件语法检查、零 MCP 代码调用、离线 Cargo metadata、runtime asset boundary、自带 debug curve/visual validator self-test 全过；既有 watchdog 自测全过，执行报告无超时。消融为删除入口后保持真实 launcher/runner、66 个必要检查和全部资产可发现，无新框架、封装或兼容层。下一步只做物理目录迁移及路径更新。
+
 ## 背景与基础事实（已核实，持续有效）
 
 - 本机 bevy 源码：`0.19.1`（release-0.19.1）。`bevy_animation_graph` 0.11.0 与 `bevy-tnua` 均基于 Bevy 0.19，兼容。
