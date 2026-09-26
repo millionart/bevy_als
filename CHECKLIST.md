@@ -7,6 +7,17 @@
 
 ## BF129 — 收尾前目录整理与过期入口清理
 
+### BF129.4 — 按源 Content 组织资源与蓝图
+
+用户追加要求：ALS、ALSCamera、ALSExtras 的模型、贴图、动画、曲线、逻辑蓝图与动画蓝图目标产物各归同一模块资产树，正式路径/文件名不带 generated。采用 `assets/ALS`、`assets/ALSCamera`、`assets/ALSExtras` 对应本地 Content；Bevy 自身着色器与验证夹具另列，不冒充源内容。源码 .3-S1 已提交，最终真实 Gate 延至本项静态闭环之后。
+
+- [x] **BF129.4-A — 资源归属及不可变边界合同**：开始：2026-09-27 03:06:00 +08:00；预估结束：2026-09-27 03:46:00 +08:00；实际结束：2026-09-27 03:30:00 +08:00；偏差：-16m；结果：完整路径规划、URI/归属合同通过；拆分结果：实际迁移与全量转换留给 B。估时依据：1071 个跟踪资产、15 个安装清单（359 个 RON/FSM）和本地 Source/Content 目录；已核实角色/Bow/Camera/Barrel/Footprint/Tiles 的原生位置，以及 Landscape glTF 的 4 个相邻 buffer/image URI。Gate：全部资产一对一归属、无目标冲突、原始载荷/相邻 URI 可保持、真实入口与旧手工夹具依赖界定，形成迁移清单与目录合同后单独提交。
+- [ ] **BF129.4-B — 资源迁移、转换器正式路径及全量转换**：依赖 A；开始与预估结束在 A 完成后登记，按真实闭包和 native reader 既有记录估时，窗口不超过 60 分钟。Gate：更新所有生成器/消费者，移除正式 generated 路径和文件名；全部 15 个已安装根及递归依赖重新读取本地 uasset 并全量转换；完整新旧产物 diff 仅含声明的目录/引用/包装名称变化，未知语义差异先停止迁移并查源；源记录字节、glTF URI、工具自测、图/资产加载和声明式静态审计通过，独立提交。若闭包无法在一个窗口验收，先按可独立 source/static Gate 拆分，不能缩小转换集合。
+
+当前 source/static 摘要：`default_install_namespace()` 固定返回 generated，installer 也拒绝空前缀；图路径本身已从原生 package path 派生，所以修正默认安装/安全边界即可按源模块落盘，不需要图专用命名算法。clip/skeleton/blendspace resolver 已按源身份查找，可继续消费新目录。原始 glTF/bin/纹理及曲线源表只移位置，禁止改内容；本项有限复开 M0.5/M0.6 与 M8.6 导出资产的目录边界，旧 Gate 证明数据/单位正确但不覆盖模块归属，数值内容继续保持关闭。15 根安装清单与全部待移动文件先冻结为迁移基线，删除旧路径以完整再生成 diff 为依据。
+
+A 最终摘要：从本地 Content 清点 560 个源 uasset 身份并按源 package path 规划 1071 个目标，唯一目标校验通过；正式三模块/Engine/Bevy、Validation 与说明边界见 `docs/asset-layout.md`。350 个原始载荷无目标 URI 改写需求，全部 glTF 外部 URI 原样可解析；2199 条引用中正式资产→Validation 为 0。仅 Roll slot 是旧手工图中的现行运行依赖，保留在 Grounded 蓝图目录；其余 154 个旧图/旧场景为验证夹具。迁移清单与 15 根完整清单位于本轮本地验证结果中，尚未移动资产。消融：使用已有源 package path 和安装文件所有权，不增加运行时路径兼容层、软链接或按图 ID 特判。
+
 - [ ] **BF129.3 — 按源模块统一根 src 的归属目录**：开始：2026-09-26 17:28:00 +08:00；预估结束：2026-09-26 18:13:00 +08:00。用户纠正 .2 仅在旧 crate 内分组不够，明确要求底层扩展进入根 src，ALS/ALSCamera/ALSExtras 与 Levels/UI 按对标源归位，并核对 manual driver 的必要性。本地 fresh source：插件 Source 有 ALS、ALSCamera、ALSExtras、ALSEditor；ALS 有 Nodes、Notifies、RootMotionSources、Settings、State、Utility；Content 的 ALSExtras 有 Core、Environment、Levels、UI，UI 实际包含 W_Als_Hud、W_Als_OverlayModeMenu、W_Als_OverlayModeOption。源码文件列表与 AlsCharacter_Debug、AlsCharacterMovementComponent、AlsCharacterExample 的职责共同决定本轮归属，不改变其算法。
 
   原估时依据：约 190 个源文件的机械迁移、约 70 处 include/源码路径，以及 .2 实际 18 分钟（含 3 分钟 play 构建）。最终 Gate 按下方用户调整后的单包方案执行：根 src 的 engine/plugin 扩展、ALS、ALSCamera、ALSExtras/Levels/UI 与 validation 分区完整；移除旧内部 crate，保留外部依赖版本、资产反射名称和运行命令；源文件/命名空间对照、生成器路径、全部库与 integration/example 检查通过；同 target_game/play 预构建后依次 startup、interface 公共功能 Gate。S1、S2 分别记录并提交。
