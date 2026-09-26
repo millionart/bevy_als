@@ -1,6 +1,8 @@
 # ALS-Ref 动画资产对照表
 
-本表用于定位 ALS-Refactored 的每个 BlendSpace、AnimBlueprint 与 AnimMontage 在当前项目中的对标资产、图或运行时实现。左列使用 Unreal package path，右列使用仓库相对路径。
+本表保留早期资产盘点与手工图对应关系，不代表当前转换图的覆盖率或运行入口。正式资源路径和模块归属见 [资源目录说明](asset-layout.md)；保留的旧手工图位于 `assets/Validation/Graphs`，已删除的历史路径只作记录。
+
+左列使用 Unreal package path，右列使用仓库相对路径。
 
 - 源盘点日期：2026-08-31。
 - 源盘点方法：通过本机 ALS-Refactored 工程的 Unreal AssetTools 递归查询 `/ALS`；

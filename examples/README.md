@@ -41,4 +41,4 @@ pwsh tools/run_animation_visual_validation.ps1 -Case grounded -CaptureCount 0 -F
 
 旧演示加载的目标资产可能仍被合同检查、工具或待办引用；这次不删除资产。
 
-Standing/Ragdolling 等历史手工图合同仍供 TODO 的作者性审计使用，API 接线已更新为当前播放器组件输入。它们使用 `assets/graphs/ab_als/` 的旧夹具，不能证明 `assets/generated/` 当前生成图的正确性；旧夹具中已过期的节点字段应在对应 source-first 图任务中重新转换。当前生成图使用 `animgraph_spec_dump`、`tools/animgraph_authoring/audit_generated_source_closure.py` 与公共 manual Gate 验收。
+Standing/Ragdolling 等历史手工图合同仍供 TODO 的作者性审计使用，API 接线已更新为当前播放器组件输入。它们使用 `assets/Validation/Graphs/ab_als/` 的旧夹具，不能证明 `assets/ALS/`、`assets/ALSCamera/` 中当前转换图的正确性；旧夹具中已过期的节点字段应在对应 source-first 图任务中重新转换。当前转换图使用 `animgraph_spec_dump`、`tools/animgraph_authoring/audit_generated_source_closure.py` 与公共 manual Gate 验收。

@@ -55,8 +55,8 @@ Montage records remain separate source clips until their slot segment maps to an
 
 ## Marker Separation
 
-`AuthoredSyncMarkers` are synchronization-phase data, not automatically gameplay Notify events. Their source data remains canonical in `assets/ALS/Animations/als_sync_metadata.ron` and the generic sync mechanism in `crates/als-ext`. BF103.04 may expose a crossed-marker event only when the source consumer requires it; it must preserve the marker-aware sync path rather than replace it with a global timer.
+`AuthoredSyncMarkers` are synchronization-phase data, not automatically gameplay Notify events. Their source data remains canonical in `assets/ALS/Animations/als_sync_metadata.ron` and the generic sync mechanism in `src/animation_graph_ext`. BF103.04 may expose a crossed-marker event only when the source consumer requires it; it must preserve the marker-aware sync path rather than replace it with a global timer.
 
 ## Ownership
 
-The manifest-to-EventTrack compiler, event queue bridge and lifecycle logic are reusable mechanisms in `crates/als-ext`. ALS class names, parameter mapping, montage selection and gameplay or camera consumers remain in the ALS project crates.
+The manifest-to-EventTrack compiler, event queue bridge and lifecycle logic are reusable mechanisms in `src/animation_graph_ext`. ALS class names, parameter mapping, montage selection and gameplay or camera consumers remain in `src/als` and `src/als_camera`.
