@@ -334,7 +334,7 @@ Shift+Six → ShowDebug Als.CameraCurves ⇒ 公共输入树
    └─ 组件停用撤下Camera区块；无历史缓存，不补造非活动项
 ```
 
-源入口：`AlsCharacterExample.cpp::DisplayDebug`、`AlsCameraComponent_Debug.cpp::DisplayDebugCurves`、UE `AnimInstance.cpp::{GetAllCurveNames,GetCurveValue}`，以及本次原生CameraComponent。目标入口：`src/{camera_component,animation_context_projection,show_debug_hud,debug_display}.rs`；映射数据由 `tools/import/import_debug_curves.py --camera-display` 生成到 `assets/ui/als_camera_curves.runtime.json`。
+源入口：`AlsCharacterExample.cpp::DisplayDebug`、`AlsCameraComponent_Debug.cpp::DisplayDebugCurves`、UE `AnimInstance.cpp::{GetAllCurveNames,GetCurveValue}`，以及本次原生CameraComponent。目标入口：`src/{camera_component,animation_context_projection,show_debug_hud,debug_display}.rs`；映射数据由 `tools/import/import_debug_curves.py --camera-display` 生成到 `assets/ALSCamera/als_camera_curves.runtime.json`。
 
 修复：删除固定13项HUD枚举，显示全部实际活动曲线；还原被换轴/缩放的Offset和Lag名称/值；默认零读取与活动表分离；公共相机诊断不再被渲染View开关误挡。相机计算仍使用原有13项参数，不改变相机算法。53项范围及7项动态布局检查通过，包含真实实例、自定义负值、未出现名称不补造、组件停止及View停用。
 

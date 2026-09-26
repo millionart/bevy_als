@@ -28,166 +28,166 @@
 
 | 日期 | 源 uasset 路径 | 格式 | 目标路径 |
 |---|---|---|---|
-| 2026-08-22 | `/ALS/ALS/Animations/Actions/GetUp/A_Als_GetUp_Back.A_Als_GetUp_Back` | glTF | `assets/animations/Actions/GetUp/A_Als_GetUp_Back.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Actions/GetUp/A_Als_GetUp_Front.A_Als_GetUp_Front` | glTF | `assets/animations/Actions/GetUp/A_Als_GetUp_Front.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Actions/Mantle/A_Als_Mantle_High.A_Als_Mantle_High` | glTF | `assets/animations/Actions/Mantle/A_Als_Mantle_High.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Left.A_Als_Mantle_Low_Left` | glTF | `assets/animations/Actions/Mantle/A_Als_Mantle_Low_Left.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Right.A_Als_Mantle_Low_Right` | glTF | `assets/animations/Actions/Mantle/A_Als_Mantle_Low_Right.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll` | glTF | `assets/animations/Actions/Roll/A_Als_Roll.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Air/Fall/A_Als_Fall.A_Als_Fall` | glTF | `assets/animations/Air/Fall/A_Als_Fall.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Air/Fall/A_Als_Fall_Fast.A_Als_Fall_Fast` | glTF | `assets/animations/Air/Fall/A_Als_Fall_Fast.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Air/Fall/A_Als_Flail.A_Als_Flail` | glTF | `assets/animations/Air/Fall/A_Als_Flail.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Air/Jump/A_Als_Jump_Loop.A_Als_Jump_Loop` | glTF | `assets/animations/Air/Jump/A_Als_Jump_Loop.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Air/Jump/A_Als_Jump_Run_Left.A_Als_Jump_Run_Left` | glTF | `assets/animations/Air/Jump/A_Als_Jump_Run_Left.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Air/Jump/A_Als_Jump_Run_Right.A_Als_Jump_Run_Right` | glTF | `assets/animations/Air/Jump/A_Als_Jump_Run_Right.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Air/Jump/A_Als_Jump_Walk_Left.A_Als_Jump_Walk_Left` | glTF | `assets/animations/Air/Jump/A_Als_Jump_Walk_Left.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Air/Jump/A_Als_Jump_Walk_Right.A_Als_Jump_Walk_Right` | glTF | `assets/animations/Air/Jump/A_Als_Jump_Walk_Right.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Air/Land/A_Als_Land_Heavy.A_Als_Land_Heavy` | glTF | `assets/animations/Air/Land/A_Als_Land_Heavy.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Air/Land/A_Als_Land_Heavy_Additive.A_Als_Land_Heavy_Additive` | glTF | `assets/animations/Air/Land/A_Als_Land_Heavy_Additive.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Air/Land/A_Als_Land_Light.A_Als_Land_Light` | glTF | `assets/animations/Air/Land/A_Als_Land_Light.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Air/Land/A_Als_Land_Light_Additive.A_Als_Land_Light_Additive` | glTF | `assets/animations/Air/Land/A_Als_Land_Light_Additive.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Air/Lean/A_Als_Air_Lean.A_Als_Air_Lean` | glTF | `assets/animations/Air/Lean/A_Als_Air_Lean.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Air/Lean/A_Als_Air_Lean_Backward.A_Als_Air_Lean_Backward` | glTF | `assets/animations/Air/Lean/A_Als_Air_Lean_Backward.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Air/Lean/A_Als_Air_Lean_Forward.A_Als_Air_Lean_Forward` | glTF | `assets/animations/Air/Lean/A_Als_Air_Lean_Forward.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Air/Lean/A_Als_Air_Lean_Left.A_Als_Air_Lean_Left` | glTF | `assets/animations/Air/Lean/A_Als_Air_Lean_Left.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Air/Lean/A_Als_Air_Lean_Right.A_Als_Air_Lean_Right` | glTF | `assets/animations/Air/Lean/A_Als_Air_Lean_Right.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Actions/GetUp/A_Als_GetUp_Back.A_Als_GetUp_Back` | glTF | `assets/ALS/Animations/Actions/GetUp/A_Als_GetUp_Back.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Actions/GetUp/A_Als_GetUp_Front.A_Als_GetUp_Front` | glTF | `assets/ALS/Animations/Actions/GetUp/A_Als_GetUp_Front.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Actions/Mantle/A_Als_Mantle_High.A_Als_Mantle_High` | glTF | `assets/ALS/Animations/Actions/Mantle/A_Als_Mantle_High.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Left.A_Als_Mantle_Low_Left` | glTF | `assets/ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Left.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Right.A_Als_Mantle_Low_Right` | glTF | `assets/ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Right.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll` | glTF | `assets/ALS/Animations/Actions/Roll/A_Als_Roll.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Air/Fall/A_Als_Fall.A_Als_Fall` | glTF | `assets/ALS/Animations/Air/Fall/A_Als_Fall.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Air/Fall/A_Als_Fall_Fast.A_Als_Fall_Fast` | glTF | `assets/ALS/Animations/Air/Fall/A_Als_Fall_Fast.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Air/Fall/A_Als_Flail.A_Als_Flail` | glTF | `assets/ALS/Animations/Air/Fall/A_Als_Flail.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Air/Jump/A_Als_Jump_Loop.A_Als_Jump_Loop` | glTF | `assets/ALS/Animations/Air/Jump/A_Als_Jump_Loop.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Air/Jump/A_Als_Jump_Run_Left.A_Als_Jump_Run_Left` | glTF | `assets/ALS/Animations/Air/Jump/A_Als_Jump_Run_Left.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Air/Jump/A_Als_Jump_Run_Right.A_Als_Jump_Run_Right` | glTF | `assets/ALS/Animations/Air/Jump/A_Als_Jump_Run_Right.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Air/Jump/A_Als_Jump_Walk_Left.A_Als_Jump_Walk_Left` | glTF | `assets/ALS/Animations/Air/Jump/A_Als_Jump_Walk_Left.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Air/Jump/A_Als_Jump_Walk_Right.A_Als_Jump_Walk_Right` | glTF | `assets/ALS/Animations/Air/Jump/A_Als_Jump_Walk_Right.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Air/Land/A_Als_Land_Heavy.A_Als_Land_Heavy` | glTF | `assets/ALS/Animations/Air/Land/A_Als_Land_Heavy.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Air/Land/A_Als_Land_Heavy_Additive.A_Als_Land_Heavy_Additive` | glTF | `assets/ALS/Animations/Air/Land/A_Als_Land_Heavy_Additive.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Air/Land/A_Als_Land_Light.A_Als_Land_Light` | glTF | `assets/ALS/Animations/Air/Land/A_Als_Land_Light.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Air/Land/A_Als_Land_Light_Additive.A_Als_Land_Light_Additive` | glTF | `assets/ALS/Animations/Air/Land/A_Als_Land_Light_Additive.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Air/Lean/A_Als_Air_Lean.A_Als_Air_Lean` | glTF | `assets/ALS/Animations/Air/Lean/A_Als_Air_Lean.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Air/Lean/A_Als_Air_Lean_Backward.A_Als_Air_Lean_Backward` | glTF | `assets/ALS/Animations/Air/Lean/A_Als_Air_Lean_Backward.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Air/Lean/A_Als_Air_Lean_Forward.A_Als_Air_Lean_Forward` | glTF | `assets/ALS/Animations/Air/Lean/A_Als_Air_Lean_Forward.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Air/Lean/A_Als_Air_Lean_Left.A_Als_Air_Lean_Left` | glTF | `assets/ALS/Animations/Air/Lean/A_Als_Air_Lean_Left.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Air/Lean/A_Als_Air_Lean_Right.A_Als_Air_Lean_Right` | glTF | `assets/ALS/Animations/Air/Lean/A_Als_Air_Lean_Right.gltf` |
 | 2026-08-22 | `/ALS/ALS/Animations/Air/Lean/BS_Als_Air_Lean` | JSON(BlendSpace 定义) | `assets/animations/blendspaces/ALS/Animations/Air/Lean/BS_Als_Air_Lean.json` |
-| 2026-08-22 | `/ALS/ALS/Animations/Base/A_Als_Crouch_Pose.A_Als_Crouch_Pose` | glTF | `assets/animations/Base/A_Als_Crouch_Pose.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Base/A_Als_Idle.A_Als_Idle` | glTF | `assets/animations/Base/A_Als_Idle.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Base/A_Als_Stand_Pose.A_Als_Stand_Pose` | glTF | `assets/animations/Base/A_Als_Stand_Pose.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Backward.A_Als_Acceleration_Backward` | glTF | `assets/animations/Grounded/Acceleration/A_Als_Acceleration_Backward.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Forward.A_Als_Acceleration_Forward` | glTF | `assets/animations/Grounded/Acceleration/A_Als_Acceleration_Forward.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Left.A_Als_Acceleration_Left` | glTF | `assets/animations/Grounded/Acceleration/A_Als_Acceleration_Left.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Right.A_Als_Acceleration_Right` | glTF | `assets/animations/Grounded/Acceleration/A_Als_Acceleration_Right.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Backward.A_Als_Crouch_Walk_Backward` | glTF | `assets/animations/Grounded/Crouch/A_Als_Crouch_Walk_Backward.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Forward.A_Als_Crouch_Walk_Forward` | glTF | `assets/animations/Grounded/Crouch/A_Als_Crouch_Walk_Forward.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Backward.A_Als_Crouch_Walk_Left_Backward` | glTF | `assets/animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Backward.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Forward.A_Als_Crouch_Walk_Left_Forward` | glTF | `assets/animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Forward.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Pose.A_Als_Crouch_Walk_Pose` | glTF | `assets/animations/Grounded/Crouch/A_Als_Crouch_Walk_Pose.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Backward.A_Als_Crouch_Walk_Right_Backward` | glTF | `assets/animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Backward.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Forward.A_Als_Crouch_Walk_Right_Forward` | glTF | `assets/animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Forward.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean.A_Als_Lean` | glTF | `assets/animations/Grounded/Lean/A_Als_Lean.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Backward.A_Als_Lean_Backward` | glTF | `assets/animations/Grounded/Lean/A_Als_Lean_Backward.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Forward.A_Als_Lean_Forward` | glTF | `assets/animations/Grounded/Lean/A_Als_Lean_Forward.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Left.A_Als_Lean_Left` | glTF | `assets/animations/Grounded/Lean/A_Als_Lean_Left.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Pose.A_Als_Lean_Pose` | glTF | `assets/animations/Grounded/Lean/A_Als_Lean_Pose.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Right.A_Als_Lean_Right` | glTF | `assets/animations/Grounded/Lean/A_Als_Lean_Right.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Base/A_Als_Crouch_Pose.A_Als_Crouch_Pose` | glTF | `assets/ALS/Animations/Base/A_Als_Crouch_Pose.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Base/A_Als_Idle.A_Als_Idle` | glTF | `assets/ALS/Animations/Base/A_Als_Idle.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Base/A_Als_Stand_Pose.A_Als_Stand_Pose` | glTF | `assets/ALS/Animations/Base/A_Als_Stand_Pose.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Backward.A_Als_Acceleration_Backward` | glTF | `assets/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Backward.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Forward.A_Als_Acceleration_Forward` | glTF | `assets/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Forward.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Left.A_Als_Acceleration_Left` | glTF | `assets/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Left.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Right.A_Als_Acceleration_Right` | glTF | `assets/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Right.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Backward.A_Als_Crouch_Walk_Backward` | glTF | `assets/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Backward.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Forward.A_Als_Crouch_Walk_Forward` | glTF | `assets/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Forward.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Backward.A_Als_Crouch_Walk_Left_Backward` | glTF | `assets/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Backward.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Forward.A_Als_Crouch_Walk_Left_Forward` | glTF | `assets/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Forward.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Pose.A_Als_Crouch_Walk_Pose` | glTF | `assets/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Pose.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Backward.A_Als_Crouch_Walk_Right_Backward` | glTF | `assets/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Backward.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Forward.A_Als_Crouch_Walk_Right_Forward` | glTF | `assets/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Forward.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean.A_Als_Lean` | glTF | `assets/ALS/Animations/Grounded/Lean/A_Als_Lean.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Backward.A_Als_Lean_Backward` | glTF | `assets/ALS/Animations/Grounded/Lean/A_Als_Lean_Backward.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Forward.A_Als_Lean_Forward` | glTF | `assets/ALS/Animations/Grounded/Lean/A_Als_Lean_Forward.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Left.A_Als_Lean_Left` | glTF | `assets/ALS/Animations/Grounded/Lean/A_Als_Lean_Left.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Pose.A_Als_Lean_Pose` | glTF | `assets/ALS/Animations/Grounded/Lean/A_Als_Lean_Pose.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Right.A_Als_Lean_Right` | glTF | `assets/ALS/Animations/Grounded/Lean/A_Als_Lean_Right.gltf` |
 | 2026-08-22 | `/ALS/ALS/Animations/Grounded/Lean/BS_Als_Lean` | JSON(BlendSpace 定义) | `assets/animations/blendspaces/ALS/Animations/Grounded/Lean/BS_Als_Lean.json` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Sprint/A_Als_Sprint.A_Als_Sprint` | glTF | `assets/animations/Grounded/Sprint/A_Als_Sprint.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Sprint/A_Als_Sprint_Acceleration.A_Als_Sprint_Acceleration` | glTF | `assets/animations/Grounded/Sprint/A_Als_Sprint_Acceleration.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Backward.A_Als_Run_Backward` | glTF | `assets/animations/Grounded/WalkRun/A_Als_Run_Backward.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward` | glTF | `assets/animations/Grounded/WalkRun/A_Als_Run_Forward.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose` | glTF | `assets/animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Left_Backward.A_Als_Run_Left_Backward` | glTF | `assets/animations/Grounded/WalkRun/A_Als_Run_Left_Backward.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Left_Forward.A_Als_Run_Left_Forward` | glTF | `assets/animations/Grounded/WalkRun/A_Als_Run_Left_Forward.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Left_Pose.A_Als_Run_Left_Pose` | glTF | `assets/animations/Grounded/WalkRun/A_Als_Run_Left_Pose.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Backward.A_Als_Run_Right_Backward` | glTF | `assets/animations/Grounded/WalkRun/A_Als_Run_Right_Backward.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Forward.A_Als_Run_Right_Forward` | glTF | `assets/animations/Grounded/WalkRun/A_Als_Run_Right_Forward.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Pose.A_Als_Run_Right_Pose` | glTF | `assets/animations/Grounded/WalkRun/A_Als_Run_Right_Pose.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Backward.A_Als_Walk_Backward` | glTF | `assets/animations/Grounded/WalkRun/A_Als_Walk_Backward.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward` | glTF | `assets/animations/Grounded/WalkRun/A_Als_Walk_Forward.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward_Pose.A_Als_Walk_Forward_Pose` | glTF | `assets/animations/Grounded/WalkRun/A_Als_Walk_Forward_Pose.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Backward.A_Als_Walk_Left_Backward` | glTF | `assets/animations/Grounded/WalkRun/A_Als_Walk_Left_Backward.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Forward.A_Als_Walk_Left_Forward` | glTF | `assets/animations/Grounded/WalkRun/A_Als_Walk_Left_Forward.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Pose.A_Als_Walk_Left_Pose` | glTF | `assets/animations/Grounded/WalkRun/A_Als_Walk_Left_Pose.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Backward.A_Als_Walk_Right_Backward` | glTF | `assets/animations/Grounded/WalkRun/A_Als_Walk_Right_Backward.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Forward.A_Als_Walk_Right_Forward` | glTF | `assets/animations/Grounded/WalkRun/A_Als_Walk_Right_Forward.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Pose.A_Als_Walk_Right_Pose` | glTF | `assets/animations/Grounded/WalkRun/A_Als_Walk_Right_Pose.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Sprint/A_Als_Sprint.A_Als_Sprint` | glTF | `assets/ALS/Animations/Grounded/Sprint/A_Als_Sprint.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/Sprint/A_Als_Sprint_Acceleration.A_Als_Sprint_Acceleration` | glTF | `assets/ALS/Animations/Grounded/Sprint/A_Als_Sprint_Acceleration.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Backward.A_Als_Run_Backward` | glTF | `assets/ALS/Animations/Grounded/WalkRun/A_Als_Run_Backward.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward` | glTF | `assets/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose` | glTF | `assets/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Left_Backward.A_Als_Run_Left_Backward` | glTF | `assets/ALS/Animations/Grounded/WalkRun/A_Als_Run_Left_Backward.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Left_Forward.A_Als_Run_Left_Forward` | glTF | `assets/ALS/Animations/Grounded/WalkRun/A_Als_Run_Left_Forward.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Left_Pose.A_Als_Run_Left_Pose` | glTF | `assets/ALS/Animations/Grounded/WalkRun/A_Als_Run_Left_Pose.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Backward.A_Als_Run_Right_Backward` | glTF | `assets/ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Backward.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Forward.A_Als_Run_Right_Forward` | glTF | `assets/ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Forward.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Pose.A_Als_Run_Right_Pose` | glTF | `assets/ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Pose.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Backward.A_Als_Walk_Backward` | glTF | `assets/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Backward.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward` | glTF | `assets/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward_Pose.A_Als_Walk_Forward_Pose` | glTF | `assets/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward_Pose.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Backward.A_Als_Walk_Left_Backward` | glTF | `assets/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Backward.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Forward.A_Als_Walk_Left_Forward` | glTF | `assets/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Forward.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Pose.A_Als_Walk_Left_Pose` | glTF | `assets/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Pose.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Backward.A_Als_Walk_Right_Backward` | glTF | `assets/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Backward.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Forward.A_Als_Walk_Right_Forward` | glTF | `assets/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Forward.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Pose.A_Als_Walk_Right_Pose` | glTF | `assets/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Pose.gltf` |
 | 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Backward` | JSON(BlendSpace 定义) | `assets/animations/blendspaces/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Backward.json` |
 | 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Forward` | JSON(BlendSpace 定义) | `assets/animations/blendspaces/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Forward.json` |
 | 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Left_Backward` | JSON(BlendSpace 定义) | `assets/animations/blendspaces/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Left_Backward.json` |
 | 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Left_Forward` | JSON(BlendSpace 定义) | `assets/animations/blendspaces/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Left_Forward.json` |
 | 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Right_Backward` | JSON(BlendSpace 定义) | `assets/animations/blendspaces/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Right_Backward.json` |
 | 2026-08-22 | `/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Right_Forward` | JSON(BlendSpace 定义) | `assets/animations/blendspaces/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Right_Forward.json` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Binoculars/A_Als_Binoculars_Aim.A_Als_Binoculars_Aim` | glTF | `assets/animations/Overlays/Binoculars/A_Als_Binoculars_Aim.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Binoculars/A_Als_Binoculars_Aim_Crouch.A_Als_Binoculars_Aim_Crouch` | glTF | `assets/animations/Overlays/Binoculars/A_Als_Binoculars_Aim_Crouch.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Binoculars/A_Als_Binoculars_Poses.A_Als_Binoculars_Poses` | glTF | `assets/animations/Overlays/Binoculars/A_Als_Binoculars_Poses.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Binoculars/A_Als_Binoculars_Poses_NoCurves.A_Als_Binoculars_Poses_NoCurves` | glTF | `assets/animations/Overlays/Binoculars/A_Als_Binoculars_Poses_NoCurves.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Bow/A_Als_Bow_Aim.A_Als_Bow_Aim` | glTF | `assets/animations/Overlays/Bow/A_Als_Bow_Aim.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Bow/A_Als_Bow_Aim_Crouch.A_Als_Bow_Aim_Crouch` | glTF | `assets/animations/Overlays/Bow/A_Als_Bow_Aim_Crouch.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Bow/A_Als_Bow_Poses.A_Als_Bow_Poses` | glTF | `assets/animations/Overlays/Bow/A_Als_Bow_Poses.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Bow/A_Als_Bow_Poses_NoCurves.A_Als_Bow_Poses_NoCurves` | glTF | `assets/animations/Overlays/Bow/A_Als_Bow_Poses_NoCurves.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Other/A_Als_Barrel_Poses.A_Als_Barrel_Poses` | glTF | `assets/animations/Overlays/Other/A_Als_Barrel_Poses.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Other/A_Als_Box_Poses.A_Als_Box_Poses` | glTF | `assets/animations/Overlays/Other/A_Als_Box_Poses.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Other/A_Als_Default_Poses.A_Als_Default_Poses` | glTF | `assets/animations/Overlays/Other/A_Als_Default_Poses.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Other/A_Als_Feminine_Poses.A_Als_Feminine_Poses` | glTF | `assets/animations/Overlays/Other/A_Als_Feminine_Poses.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Other/A_Als_HandsTied_Poses.A_Als_HandsTied_Poses` | glTF | `assets/animations/Overlays/Other/A_Als_HandsTied_Poses.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Other/A_Als_Injured_Poses.A_Als_Injured_Poses` | glTF | `assets/animations/Overlays/Other/A_Als_Injured_Poses.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Other/A_Als_Masculine_Poses.A_Als_Masculine_Poses` | glTF | `assets/animations/Overlays/Other/A_Als_Masculine_Poses.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Aim.A_Als_PistolOneHanded_Aim` | glTF | `assets/animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Aim.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Aim_Crouch.A_Als_PistolOneHanded_Aim_Crouch` | glTF | `assets/animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Aim_Crouch.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Poses.A_Als_PistolOneHanded_Poses` | glTF | `assets/animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Poses.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Poses_NoCurves.A_Als_PistolOneHanded_Poses_NoCurves` | glTF | `assets/animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Poses_NoCurves.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Aim.A_Als_PistolTwoHanded_Aim` | glTF | `assets/animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Aim.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Aim_Crouch.A_Als_PistolTwoHanded_Aim_Crouch` | glTF | `assets/animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Aim_Crouch.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Poses.A_Als_PistolTwoHanded_Poses` | glTF | `assets/animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Poses.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Poses_NoCurves.A_Als_PistolTwoHanded_Poses_NoCurves` | glTF | `assets/animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Poses_NoCurves.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Aim.A_Als_Rifle_Aim` | glTF | `assets/animations/Overlays/Rifle/A_Als_Rifle_Aim.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Aim_Crouch.A_Als_Rifle_Aim_Crouch` | glTF | `assets/animations/Overlays/Rifle/A_Als_Rifle_Aim_Crouch.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Poses.A_Als_Rifle_Poses` | glTF | `assets/animations/Overlays/Rifle/A_Als_Rifle_Poses.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Poses_NoCurves.A_Als_Rifle_Poses_NoCurves` | glTF | `assets/animations/Overlays/Rifle/A_Als_Rifle_Poses_NoCurves.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Run.A_Als_Rifle_Run` | glTF | `assets/animations/Overlays/Rifle/A_Als_Rifle_Run.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Run_Arms.A_Als_Rifle_Run_Arms` | glTF | `assets/animations/Overlays/Rifle/A_Als_Rifle_Run_Arms.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Sprint.A_Als_Rifle_Sprint` | glTF | `assets/animations/Overlays/Rifle/A_Als_Rifle_Sprint.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Sprint_Arms.A_Als_Rifle_Sprint_Arms` | glTF | `assets/animations/Overlays/Rifle/A_Als_Rifle_Sprint_Arms.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Sprint_Impulse.A_Als_Rifle_Sprint_Impulse` | glTF | `assets/animations/Overlays/Rifle/A_Als_Rifle_Sprint_Impulse.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Sprint_Impulse_Arms.A_Als_Rifle_Sprint_Impulse_Arms` | glTF | `assets/animations/Overlays/Rifle/A_Als_Rifle_Sprint_Impulse_Arms.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Torch/A_Als_Torch_Aim.A_Als_Torch_Aim` | glTF | `assets/animations/Overlays/Torch/A_Als_Torch_Aim.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Torch/A_Als_Torch_Aim_Crouch.A_Als_Torch_Aim_Crouch` | glTF | `assets/animations/Overlays/Torch/A_Als_Torch_Aim_Crouch.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Torch/A_Als_Torch_Poses.A_Als_Torch_Poses` | glTF | `assets/animations/Overlays/Torch/A_Als_Torch_Poses.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Torch/A_Als_Torch_Poses_NoCurves.A_Als_Torch_Poses_NoCurves` | glTF | `assets/animations/Overlays/Torch/A_Als_Torch_Poses_NoCurves.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/RotateInPlace/A_Als_Crouch_Rotate_90_Left.A_Als_Crouch_Rotate_90_Left` | glTF | `assets/animations/RotateInPlace/A_Als_Crouch_Rotate_90_Left.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/RotateInPlace/A_Als_Crouch_Rotate_90_Right.A_Als_Crouch_Rotate_90_Right` | glTF | `assets/animations/RotateInPlace/A_Als_Crouch_Rotate_90_Right.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/RotateInPlace/A_Als_Rotate_90_Left.A_Als_Rotate_90_Left` | glTF | `assets/animations/RotateInPlace/A_Als_Rotate_90_Left.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/RotateInPlace/A_Als_Rotate_90_Right.A_Als_Rotate_90_Right` | glTF | `assets/animations/RotateInPlace/A_Als_Rotate_90_Right.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Transitions/A_Als_CrouchToStand.A_Als_CrouchToStand` | glTF | `assets/animations/Transitions/A_Als_CrouchToStand.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Transitions/A_Als_Crouch_DynamicTransition_Left.A_Als_Crouch_DynamicTransition_Left` | glTF | `assets/animations/Transitions/A_Als_Crouch_DynamicTransition_Left.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Transitions/A_Als_Crouch_DynamicTransition_Right.A_Als_Crouch_DynamicTransition_Right` | glTF | `assets/animations/Transitions/A_Als_Crouch_DynamicTransition_Right.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Transitions/A_Als_Crouch_Transition_Left.A_Als_Crouch_Transition_Left` | glTF | `assets/animations/Transitions/A_Als_Crouch_Transition_Left.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Transitions/A_Als_Crouch_Transition_Right.A_Als_Crouch_Transition_Right` | glTF | `assets/animations/Transitions/A_Als_Crouch_Transition_Right.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Transitions/A_Als_StandToCrouch.A_Als_StandToCrouch` | glTF | `assets/animations/Transitions/A_Als_StandToCrouch.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Transitions/A_Als_Stand_DynamicTransition_Left.A_Als_Stand_DynamicTransition_Left` | glTF | `assets/animations/Transitions/A_Als_Stand_DynamicTransition_Left.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Transitions/A_Als_Stand_DynamicTransition_Right.A_Als_Stand_DynamicTransition_Right` | glTF | `assets/animations/Transitions/A_Als_Stand_DynamicTransition_Right.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Transitions/A_Als_Stand_Transition_Left.A_Als_Stand_Transition_Left` | glTF | `assets/animations/Transitions/A_Als_Stand_Transition_Left.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Transitions/A_Als_Stand_Transition_Right.A_Als_Stand_Transition_Right` | glTF | `assets/animations/Transitions/A_Als_Stand_Transition_Right.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Transitions/A_Als_Stop_Left.A_Als_Stop_Left` | glTF | `assets/animations/Transitions/A_Als_Stop_Left.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/Transitions/A_Als_Stop_Right.A_Als_Stop_Right` | glTF | `assets/animations/Transitions/A_Als_Stop_Right.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_180_Left.A_Als_Crouch_Turn_180_Left` | glTF | `assets/animations/TurnInPlace/A_Als_Crouch_Turn_180_Left.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_180_Right.A_Als_Crouch_Turn_180_Right` | glTF | `assets/animations/TurnInPlace/A_Als_Crouch_Turn_180_Right.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_90_Left.A_Als_Crouch_Turn_90_Left` | glTF | `assets/animations/TurnInPlace/A_Als_Crouch_Turn_90_Left.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_90_Right.A_Als_Crouch_Turn_90_Right` | glTF | `assets/animations/TurnInPlace/A_Als_Crouch_Turn_90_Right.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/TurnInPlace/A_Als_Turn_180_Left.A_Als_Turn_180_Left` | glTF | `assets/animations/TurnInPlace/A_Als_Turn_180_Left.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/TurnInPlace/A_Als_Turn_180_Right.A_Als_Turn_180_Right` | glTF | `assets/animations/TurnInPlace/A_Als_Turn_180_Right.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/TurnInPlace/A_Als_Turn_90_Left.A_Als_Turn_90_Left` | glTF | `assets/animations/TurnInPlace/A_Als_Turn_90_Left.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/TurnInPlace/A_Als_Turn_90_Right.A_Als_Turn_90_Right` | glTF | `assets/animations/TurnInPlace/A_Als_Turn_90_Right.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/View/A_Als_Look_Down.A_Als_Look_Down` | glTF | `assets/animations/View/A_Als_Look_Down.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/View/A_Als_Look_Forward.A_Als_Look_Forward` | glTF | `assets/animations/View/A_Als_Look_Forward.gltf` |
-| 2026-08-22 | `/ALS/ALS/Animations/View/A_Als_Look_Up.A_Als_Look_Up` | glTF | `assets/animations/View/A_Als_Look_Up.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Binoculars/A_Als_Binoculars_Aim.A_Als_Binoculars_Aim` | glTF | `assets/ALS/Animations/Overlays/Binoculars/A_Als_Binoculars_Aim.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Binoculars/A_Als_Binoculars_Aim_Crouch.A_Als_Binoculars_Aim_Crouch` | glTF | `assets/ALS/Animations/Overlays/Binoculars/A_Als_Binoculars_Aim_Crouch.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Binoculars/A_Als_Binoculars_Poses.A_Als_Binoculars_Poses` | glTF | `assets/ALS/Animations/Overlays/Binoculars/A_Als_Binoculars_Poses.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Binoculars/A_Als_Binoculars_Poses_NoCurves.A_Als_Binoculars_Poses_NoCurves` | glTF | `assets/ALS/Animations/Overlays/Binoculars/A_Als_Binoculars_Poses_NoCurves.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Bow/A_Als_Bow_Aim.A_Als_Bow_Aim` | glTF | `assets/ALS/Animations/Overlays/Bow/A_Als_Bow_Aim.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Bow/A_Als_Bow_Aim_Crouch.A_Als_Bow_Aim_Crouch` | glTF | `assets/ALS/Animations/Overlays/Bow/A_Als_Bow_Aim_Crouch.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Bow/A_Als_Bow_Poses.A_Als_Bow_Poses` | glTF | `assets/ALS/Animations/Overlays/Bow/A_Als_Bow_Poses.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Bow/A_Als_Bow_Poses_NoCurves.A_Als_Bow_Poses_NoCurves` | glTF | `assets/ALS/Animations/Overlays/Bow/A_Als_Bow_Poses_NoCurves.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Other/A_Als_Barrel_Poses.A_Als_Barrel_Poses` | glTF | `assets/ALS/Animations/Overlays/Other/A_Als_Barrel_Poses.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Other/A_Als_Box_Poses.A_Als_Box_Poses` | glTF | `assets/ALS/Animations/Overlays/Other/A_Als_Box_Poses.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Other/A_Als_Default_Poses.A_Als_Default_Poses` | glTF | `assets/ALS/Animations/Overlays/Other/A_Als_Default_Poses.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Other/A_Als_Feminine_Poses.A_Als_Feminine_Poses` | glTF | `assets/ALS/Animations/Overlays/Other/A_Als_Feminine_Poses.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Other/A_Als_HandsTied_Poses.A_Als_HandsTied_Poses` | glTF | `assets/ALS/Animations/Overlays/Other/A_Als_HandsTied_Poses.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Other/A_Als_Injured_Poses.A_Als_Injured_Poses` | glTF | `assets/ALS/Animations/Overlays/Other/A_Als_Injured_Poses.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Other/A_Als_Masculine_Poses.A_Als_Masculine_Poses` | glTF | `assets/ALS/Animations/Overlays/Other/A_Als_Masculine_Poses.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Aim.A_Als_PistolOneHanded_Aim` | glTF | `assets/ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Aim.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Aim_Crouch.A_Als_PistolOneHanded_Aim_Crouch` | glTF | `assets/ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Aim_Crouch.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Poses.A_Als_PistolOneHanded_Poses` | glTF | `assets/ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Poses.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Poses_NoCurves.A_Als_PistolOneHanded_Poses_NoCurves` | glTF | `assets/ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Poses_NoCurves.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Aim.A_Als_PistolTwoHanded_Aim` | glTF | `assets/ALS/Animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Aim.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Aim_Crouch.A_Als_PistolTwoHanded_Aim_Crouch` | glTF | `assets/ALS/Animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Aim_Crouch.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Poses.A_Als_PistolTwoHanded_Poses` | glTF | `assets/ALS/Animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Poses.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Poses_NoCurves.A_Als_PistolTwoHanded_Poses_NoCurves` | glTF | `assets/ALS/Animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Poses_NoCurves.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Aim.A_Als_Rifle_Aim` | glTF | `assets/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Aim.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Aim_Crouch.A_Als_Rifle_Aim_Crouch` | glTF | `assets/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Aim_Crouch.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Poses.A_Als_Rifle_Poses` | glTF | `assets/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Poses.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Poses_NoCurves.A_Als_Rifle_Poses_NoCurves` | glTF | `assets/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Poses_NoCurves.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Run.A_Als_Rifle_Run` | glTF | `assets/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Run.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Run_Arms.A_Als_Rifle_Run_Arms` | glTF | `assets/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Run_Arms.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Sprint.A_Als_Rifle_Sprint` | glTF | `assets/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Sprint.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Sprint_Arms.A_Als_Rifle_Sprint_Arms` | glTF | `assets/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Sprint_Arms.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Sprint_Impulse.A_Als_Rifle_Sprint_Impulse` | glTF | `assets/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Sprint_Impulse.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Sprint_Impulse_Arms.A_Als_Rifle_Sprint_Impulse_Arms` | glTF | `assets/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Sprint_Impulse_Arms.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Torch/A_Als_Torch_Aim.A_Als_Torch_Aim` | glTF | `assets/ALS/Animations/Overlays/Torch/A_Als_Torch_Aim.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Torch/A_Als_Torch_Aim_Crouch.A_Als_Torch_Aim_Crouch` | glTF | `assets/ALS/Animations/Overlays/Torch/A_Als_Torch_Aim_Crouch.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Torch/A_Als_Torch_Poses.A_Als_Torch_Poses` | glTF | `assets/ALS/Animations/Overlays/Torch/A_Als_Torch_Poses.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Overlays/Torch/A_Als_Torch_Poses_NoCurves.A_Als_Torch_Poses_NoCurves` | glTF | `assets/ALS/Animations/Overlays/Torch/A_Als_Torch_Poses_NoCurves.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/RotateInPlace/A_Als_Crouch_Rotate_90_Left.A_Als_Crouch_Rotate_90_Left` | glTF | `assets/ALS/Animations/RotateInPlace/A_Als_Crouch_Rotate_90_Left.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/RotateInPlace/A_Als_Crouch_Rotate_90_Right.A_Als_Crouch_Rotate_90_Right` | glTF | `assets/ALS/Animations/RotateInPlace/A_Als_Crouch_Rotate_90_Right.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/RotateInPlace/A_Als_Rotate_90_Left.A_Als_Rotate_90_Left` | glTF | `assets/ALS/Animations/RotateInPlace/A_Als_Rotate_90_Left.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/RotateInPlace/A_Als_Rotate_90_Right.A_Als_Rotate_90_Right` | glTF | `assets/ALS/Animations/RotateInPlace/A_Als_Rotate_90_Right.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Transitions/A_Als_CrouchToStand.A_Als_CrouchToStand` | glTF | `assets/ALS/Animations/Transitions/A_Als_CrouchToStand.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Transitions/A_Als_Crouch_DynamicTransition_Left.A_Als_Crouch_DynamicTransition_Left` | glTF | `assets/ALS/Animations/Transitions/A_Als_Crouch_DynamicTransition_Left.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Transitions/A_Als_Crouch_DynamicTransition_Right.A_Als_Crouch_DynamicTransition_Right` | glTF | `assets/ALS/Animations/Transitions/A_Als_Crouch_DynamicTransition_Right.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Transitions/A_Als_Crouch_Transition_Left.A_Als_Crouch_Transition_Left` | glTF | `assets/ALS/Animations/Transitions/A_Als_Crouch_Transition_Left.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Transitions/A_Als_Crouch_Transition_Right.A_Als_Crouch_Transition_Right` | glTF | `assets/ALS/Animations/Transitions/A_Als_Crouch_Transition_Right.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Transitions/A_Als_StandToCrouch.A_Als_StandToCrouch` | glTF | `assets/ALS/Animations/Transitions/A_Als_StandToCrouch.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Transitions/A_Als_Stand_DynamicTransition_Left.A_Als_Stand_DynamicTransition_Left` | glTF | `assets/ALS/Animations/Transitions/A_Als_Stand_DynamicTransition_Left.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Transitions/A_Als_Stand_DynamicTransition_Right.A_Als_Stand_DynamicTransition_Right` | glTF | `assets/ALS/Animations/Transitions/A_Als_Stand_DynamicTransition_Right.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Transitions/A_Als_Stand_Transition_Left.A_Als_Stand_Transition_Left` | glTF | `assets/ALS/Animations/Transitions/A_Als_Stand_Transition_Left.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Transitions/A_Als_Stand_Transition_Right.A_Als_Stand_Transition_Right` | glTF | `assets/ALS/Animations/Transitions/A_Als_Stand_Transition_Right.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Transitions/A_Als_Stop_Left.A_Als_Stop_Left` | glTF | `assets/ALS/Animations/Transitions/A_Als_Stop_Left.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/Transitions/A_Als_Stop_Right.A_Als_Stop_Right` | glTF | `assets/ALS/Animations/Transitions/A_Als_Stop_Right.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_180_Left.A_Als_Crouch_Turn_180_Left` | glTF | `assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_180_Left.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_180_Right.A_Als_Crouch_Turn_180_Right` | glTF | `assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_180_Right.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_90_Left.A_Als_Crouch_Turn_90_Left` | glTF | `assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_90_Left.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_90_Right.A_Als_Crouch_Turn_90_Right` | glTF | `assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_90_Right.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/TurnInPlace/A_Als_Turn_180_Left.A_Als_Turn_180_Left` | glTF | `assets/ALS/Animations/TurnInPlace/A_Als_Turn_180_Left.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/TurnInPlace/A_Als_Turn_180_Right.A_Als_Turn_180_Right` | glTF | `assets/ALS/Animations/TurnInPlace/A_Als_Turn_180_Right.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/TurnInPlace/A_Als_Turn_90_Left.A_Als_Turn_90_Left` | glTF | `assets/ALS/Animations/TurnInPlace/A_Als_Turn_90_Left.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/TurnInPlace/A_Als_Turn_90_Right.A_Als_Turn_90_Right` | glTF | `assets/ALS/Animations/TurnInPlace/A_Als_Turn_90_Right.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/View/A_Als_Look_Down.A_Als_Look_Down` | glTF | `assets/ALS/Animations/View/A_Als_Look_Down.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/View/A_Als_Look_Forward.A_Als_Look_Forward` | glTF | `assets/ALS/Animations/View/A_Als_Look_Forward.gltf` |
+| 2026-08-22 | `/ALS/ALS/Animations/View/A_Als_Look_Up.A_Als_Look_Up` | glTF | `assets/ALS/Animations/View/A_Als_Look_Up.gltf` |
 | 2026-08-22 | `/ALS/ALS/Animations/View/BS_Als_Look` | JSON(BlendSpace 定义) | `assets/animations/blendspaces/ALS/Animations/View/BS_Als_Look.json` |
 | 2026-08-22 | `/ALS/ALS/Character/SKM_Als.SKM_Als` | glTF | `assets/models/Character/SKM_Als.gltf` |
-| 2026-08-22 | `/ALS/ALS/Data/AnimationInstance/Air/CF_Als_GroundPredictionAmount` | JSON(均匀采样) | `assets/curves/ALS/Data/AnimationInstance/Air/CF_Als_GroundPredictionAmount.json` |
-| 2026-08-22 | `/ALS/ALS/Data/AnimationInstance/Air/CF_Als_LeanAmount_Air` | JSON(均匀采样) | `assets/curves/ALS/Data/AnimationInstance/Air/CF_Als_LeanAmount_Air.json` |
-| 2026-08-22 | `/ALS/ALS/Data/AnimationInstance/Blending/CF_Als_Aim_In` | JSON(均匀采样) | `assets/curves/ALS/Data/AnimationInstance/Blending/CF_Als_Aim_In.json` |
-| 2026-08-22 | `/ALS/ALS/Data/AnimationInstance/Blending/CF_Als_Aim_Out` | JSON(均匀采样) | `assets/curves/ALS/Data/AnimationInstance/Blending/CF_Als_Aim_Out.json` |
-| 2026-08-22 | `/ALS/ALS/Data/AnimationInstance/Blending/CF_Als_StanceChange` | JSON(均匀采样) | `assets/curves/ALS/Data/AnimationInstance/Blending/CF_Als_StanceChange.json` |
-| 2026-08-22 | `/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_ForwardBackward` | JSON(均匀采样) | `assets/curves/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_ForwardBackward.json` |
-| 2026-08-22 | `/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_Left` | JSON(均匀采样) | `assets/curves/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_Left.json` |
-| 2026-08-22 | `/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_Right` | JSON(均匀采样) | `assets/curves/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_Right.json` |
-| 2026-08-22 | `/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_StrideBlendAmount_Run` | JSON(均匀采样) | `assets/curves/ALS/Data/AnimationInstance/Grounded/CF_Als_StrideBlendAmount_Run.json` |
-| 2026-08-22 | `/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_StrideBlendAmount_Walk` | JSON(均匀采样) | `assets/curves/ALS/Data/AnimationInstance/Grounded/CF_Als_StrideBlendAmount_Walk.json` |
-| 2026-08-22 | `/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Normal` | JSON(均匀采样) | `assets/curves/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Normal.json` |
-| 2026-08-22 | `/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive` | JSON(均匀采样) | `assets/curves/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.json` |
-| 2026-08-22 | `/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Sluggish` | JSON(均匀采样) | `assets/curves/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Sluggish.json` |
-| 2026-08-22 | `/ALS/ALS/OverlayObjects/Bow/A_Als_Bow_Draw.A_Als_Bow_Draw` | glTF | `assets/animations/Overlays/Bow/A_Als_Bow_Draw.gltf` |
+| 2026-08-22 | `/ALS/ALS/Data/AnimationInstance/Air/CF_Als_GroundPredictionAmount` | JSON(均匀采样) | `assets/ALS/Data/AnimationInstance/Air/CF_Als_GroundPredictionAmount.json` |
+| 2026-08-22 | `/ALS/ALS/Data/AnimationInstance/Air/CF_Als_LeanAmount_Air` | JSON(均匀采样) | `assets/ALS/Data/AnimationInstance/Air/CF_Als_LeanAmount_Air.json` |
+| 2026-08-22 | `/ALS/ALS/Data/AnimationInstance/Blending/CF_Als_Aim_In` | JSON(均匀采样) | `assets/ALS/Data/AnimationInstance/Blending/CF_Als_Aim_In.json` |
+| 2026-08-22 | `/ALS/ALS/Data/AnimationInstance/Blending/CF_Als_Aim_Out` | JSON(均匀采样) | `assets/ALS/Data/AnimationInstance/Blending/CF_Als_Aim_Out.json` |
+| 2026-08-22 | `/ALS/ALS/Data/AnimationInstance/Blending/CF_Als_StanceChange` | JSON(均匀采样) | `assets/ALS/Data/AnimationInstance/Blending/CF_Als_StanceChange.json` |
+| 2026-08-22 | `/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_ForwardBackward` | JSON(均匀采样) | `assets/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_ForwardBackward.json` |
+| 2026-08-22 | `/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_Left` | JSON(均匀采样) | `assets/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_Left.json` |
+| 2026-08-22 | `/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_Right` | JSON(均匀采样) | `assets/ALS/Data/AnimationInstance/Grounded/CF_Als_RotationYawOffset_Right.json` |
+| 2026-08-22 | `/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_StrideBlendAmount_Run` | JSON(均匀采样) | `assets/ALS/Data/AnimationInstance/Grounded/CF_Als_StrideBlendAmount_Run.json` |
+| 2026-08-22 | `/ALS/ALS/Data/AnimationInstance/Grounded/CF_Als_StrideBlendAmount_Walk` | JSON(均匀采样) | `assets/ALS/Data/AnimationInstance/Grounded/CF_Als_StrideBlendAmount_Walk.json` |
+| 2026-08-22 | `/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Normal` | JSON(均匀采样) | `assets/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Normal.json` |
+| 2026-08-22 | `/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive` | JSON(均匀采样) | `assets/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Responsive.json` |
+| 2026-08-22 | `/ALS/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Sluggish` | JSON(均匀采样) | `assets/ALS/Data/Character/Movement/CF_Als_RotationInterpolationSpeed_Sluggish.json` |
+| 2026-08-22 | `/ALS/ALS/OverlayObjects/Bow/A_Als_Bow_Draw.A_Als_Bow_Draw` | glTF | `assets/ALS/OverlayObjects/Bow/A_Als_Bow_Draw.gltf` |
 | 2026-08-22 | `/ALS/ALS/OverlayObjects/Bow/SKM_Als_Bow.SKM_Als_Bow` | glTF | `assets/models/Character/SKM_Als_Bow.gltf` |
 | 2026-08-22 | `/ALS/ALS/OverlayObjects/Pistol/SKM_Als_Pistol.SKM_Als_Pistol` | glTF | `assets/models/Character/SKM_Als_Pistol.gltf` |
 | 2026-08-22 | `/ALS/ALS/OverlayObjects/Rifle/SKM_Als_Rifle.SKM_Als_Rifle` | glTF | `assets/models/Character/SKM_Als_Rifle.gltf` |
-| 2026-08-22 | `/ALS/ALSCamera/Data/CF_Als_CameraBlend_Quick` | JSON(均匀采样) | `assets/curves/ALSCamera/Data/CF_Als_CameraBlend_Quick.json` |
-| 2026-08-22 | `/ALS/ALSCamera/Data/CF_Als_CameraBlend_Smooth` | JSON(均匀采样) | `assets/curves/ALSCamera/Data/CF_Als_CameraBlend_Smooth.json` |
-| 2026-08-22 | `/ALS/ALSCamera/SKM_Als_Camera.SKM_Als_Camera` | glTF | `assets/models/ALSCamera/SKM_Als_Camera.gltf` |
+| 2026-08-22 | `/ALS/ALSCamera/Data/CF_Als_CameraBlend_Quick` | JSON(均匀采样) | `assets/ALSCamera/Data/CF_Als_CameraBlend_Quick.json` |
+| 2026-08-22 | `/ALS/ALSCamera/Data/CF_Als_CameraBlend_Smooth` | JSON(均匀采样) | `assets/ALSCamera/Data/CF_Als_CameraBlend_Smooth.json` |
+| 2026-08-22 | `/ALS/ALSCamera/SKM_Als_Camera.SKM_Als_Camera` | glTF | `assets/ALSCamera/SKM_Als_Camera.gltf` |
 | 2026-08-28 | `/ALS/ALS/Character/SKM_Als` camera sockets `FirstPersonCamera`/`ThirdPersonTraceShoulderLeft`/`ThirdPersonTraceShoulderRight` | RON runtime table | `assets/params/als_camera_sockets.ron` |
 | 2026-08-28 | `/ALS/ALSCamera/AB_Als_Camera` ModifyCurve source profiles | RON runtime table | `assets/params/als_camera_profiles.ron` |
-| 2026-08-22 | `/ALS/ALSExtras/Environment/CF_Als_MovingObject` | JSON(均匀采样) | `assets/curves/ALSExtras/Environment/CF_Als_MovingObject.json` |
+| 2026-08-22 | `/ALS/ALSExtras/Environment/CF_Als_MovingObject` | JSON(均匀采样) | `assets/ALSExtras/Environment/CF_Als_MovingObject.json` |
 
 BF116.01c4a（2026-09-13）：旧三表 `als_camera_profiles.ron` 与独立 `als_camera.camera.ron` 已由完整生成的相机动画图和 `als_camera.camera_component.ron` 替代并移除；上表保留导出历史，原始 UE 网格、曲线和 source record 未改。
 
@@ -256,8 +256,8 @@ BF116.01c4b（2026-09-13）：固定三socket偏移表已迁为 `als_camera.came
 ## M9.1 Ragdoll 资产生成（2026-08-23）
 
 - 工具：`tools/import/gen_ragdoll.py`（python stdlib）——解析 `animations/Base/A_Als_Idle.gltf` 的 `skins[0].inverseBindMatrices`（float4x4 列主序，rigid 逆）得骨骼绑定姿态世界矩阵；按 16-body 配置表生成两份资产：
-- `assets/ragdolls/als_manny.rag.ron`：16 刚体（head/chest/stomach/pelvis/双臂×3/双腿×3）各挂一个 Y 轴 Capsule collider（ByVolume 分配 total_mass=75）、15 个 SphericalJoint（position=解剖锚骨世界坐标，零 compliance）；全部 default_mode=Dynamic。
-- `assets/ragdoll_bone_maps/als_manny.bm.ron`：22 根骨骼→body 权重映射（weight=1.0，offset=body_rest⁻¹∘bone_rest 完整 isometry，override_offset=false），skeleton 指向 `skeletons/SKM_Als.skn.ron`。
+- `assets/ALS/Character/PA_Als.rag.ron`：16 刚体（head/chest/stomach/pelvis/双臂×3/双腿×3）各挂一个 Y 轴 Capsule collider（ByVolume 分配 total_mass=75）、15 个 SphericalJoint（position=解剖锚骨世界坐标，零 compliance）；全部 default_mode=Dynamic。
+- `assets/ALS/Character/PA_Als.bm.ron`：22 根骨骼→body 权重映射（weight=1.0，offset=body_rest⁻¹∘bone_rest 完整 isometry，override_offset=false），skeleton 指向 `skeletons/SKM_Als.skn.ron`。
 - 已知偏离：capsule 未沿骨骼长轴旋转（Y 轴对齐世界），四肢斜段覆盖以半径补偿；未列骨骼（手指等）不参与 readback。
 
 ## M8.6 Root Motion 回填（2026-08-24）— 编辑器 uasset 根骨骼原始轨道 → glTF root 通道
@@ -327,15 +327,15 @@ python tools/uasset_root_export/validate_root_tracks.py --repo-root <repo-root>
   get_material_expressions 节点图遍历 + AssetExportTask 贴图 PNG 导出）；
   场景行为事实经在线 MCP `read_graph_dsl` 反汇编 B_Als_MovingObject/B_Als_RotatingObject 事件图。
 - 内容：
-  - `assets/textures/playground/T_Als_Tiles_M.png` ← `/ALS/ALSExtras/Environment/Materials/T_Als_Tiles_M`
+  - `assets/ALSExtras/Environment/Materials/T_Als_Tiles_M.png` ← `/ALS/ALSExtras/Environment/Materials/T_Als_Tiles_M`
     （2048² 线性 Mask；G 通道为 M_Als_Tiles Ambient Occlusion，运行时映射到 Bevy occlusion R）
-  - `assets/textures/playground/T_Als_Tiles_N.png` ← 同目录 `T_Als_Tiles_N`（2048² 线性 DirectX 法线贴图，运行时启用 Y 翻转）
-  - `assets/textures/playground/T_Default_Material_Grid_M.tga` ← `/Engine/EngineMaterials/T_Default_Material_Grid_M`（2026-09-20 从Texture.Source重新导出，BGRA8/32位TGA/8位Alpha，全像素与源及旧PNG一致）
+  - `assets/ALSExtras/Environment/Materials/T_Als_Tiles_N.png` ← 同目录 `T_Als_Tiles_N`（2048² 线性 DirectX 法线贴图，运行时启用 Y 翻转）
+  - `assets/Engine/EngineMaterials/T_Default_Material_Grid_M.tga` ← `/Engine/EngineMaterials/T_Default_Material_Grid_M`（2026-09-20 从Texture.Source重新导出，BGRA8/32位TGA/8位Alpha，全像素与源及旧PNG一致）
     （512² 线性网格；M_Als_Tiles 以 UV×Tiling×2 采样其 G 作为两组颜色插值、A 乘到底色）
   - `tmp/export/playground/materials/materials.json` — M_Als_Tiles/M_Als_Main/M_Als_Transluent 全节点图
     （M_Als_Tiles: Tiling 标量、SideColorA/B+TopColorA/B、Grid G/A、T_Als_Tiles_N、T_Als_Tiles_M.G；
     M_Als_Main: 单 Color 参数；M_Als_Transluent: VertexNormalWS.B×0.5 opacity）
-  - `assets/models/playground/playground_scene.ron` — 场景清单 v2：219 actor + 22 TextRender
+  - `assets/ALSExtras/Levels/L_Als_Playground/playground_scene.ron` — 场景清单 v2：219 actor + 22 TextRender
     (text/color/world_size 实值) + 150 StaticObject 实例配色（TopColorA 实测：蓝126/绿16/橙4/
     红2/蓝紫2，Side 恒白）+ Moving(1.25s/1.75s ping-pong)/Rotating(yaw=100°/s) 参数 +
     sun rotator(pitch=-45,yaw=45) + Landscape 高度场（64×14 网格 trace_world 实采，
@@ -350,11 +350,11 @@ python tools/uasset_root_export/validate_root_tracks.py --repo-root <repo-root>
 
 - 依据：BF-Scene 清单条目批准，用户从 `L_Als_Playground` 的 `Landscape_1` 导出。
 - 内容：
-  - `assets/models/playground/Landscape1.gltf`
-  - `assets/models/playground/Landscape1.bin`
-  - `assets/models/playground/MI_Als_Landscape_BaseColor.png`
-  - `assets/models/playground/MI_Als_Landscape_Normal.png`
-  - `assets/models/playground/MI_Als_Landscape_Occlusion.png`
+  - `assets/ALSExtras/Levels/L_Als_Playground/Landscape1.gltf`
+  - `assets/ALSExtras/Levels/L_Als_Playground/Landscape1.bin`
+  - `assets/ALSExtras/Levels/L_Als_Playground/MI_Als_Landscape_BaseColor.png`
+  - `assets/ALSExtras/Levels/L_Als_Playground/MI_Als_Landscape_Normal.png`
+  - `assets/ALSExtras/Levels/L_Als_Playground/MI_Als_Landscape_Occlusion.png`
 - 变换事实：glTF 根节点已编码 Bevy 坐标下的 translation=(-10,0.5,10)、scale=(16,16,16)，
   对应 UE actor location=(-1000,1000,50)cm、scale=(16,16,16)；运行时 wrapper 保持 identity，禁止重复应用 actor 变换。
 - 边界：未导入或提交 `.uasset`，未导入字体资产。
@@ -363,16 +363,16 @@ python tools/uasset_root_export/validate_root_tracks.py --repo-root <repo-root>
 
 - 依据：BF103.01 本地 ALS 动画资产审计；源序列与 Montage 的 Notify、Notify State、AuthoredSyncMarker 均从 uasset 标签属性实时读取，不提交原始 uasset。
 - 工具：`tools/import/audit_als_animation_events.py` 生成可复查的 `docs/bf103-notify-source-audit.{json,md}`；`tools/import/generate_als_notify_manifest.py` 从该审计生成并校验项目侧事件数据。
-- 输出：`assets/animation_events/als_notify_manifest.json`（v1）。包含 137 个 source clip、177 条 Notify／Notify State、60 个同步 Marker 和 9 个 Montage→序列 segment 映射；时间、引用、GraphClip 路径和 source event ID 均由生成器验证。
+- 输出：`assets/ALS/Animations/als_notify_manifest.json`（v1）。包含 137 个 source clip、177 条 Notify／Notify State、60 个同步 Marker 和 9 个 Montage→序列 segment 映射；时间、引用、GraphClip 路径和 source event ID 均由生成器验证。
 - 编译：`tools/import/compile_als_event_tracks.py` 将 177 条 source event 确定性写入 65 个 `.anim.ron` GraphClip 的 98 个 EventTrack；point event 保留零长度精确时间，state event 保留原区间，Montage event 映射到其实际 sequence GraphClip。`--check` 验证生成物无漂移。
-- 边界：AuthoredSyncMarker 的同步相位数据继续以 `assets/sync/als_sync_metadata.ron` 为运行时规范，不作为角色全局定时器；Marker crossed event 的运行时生命周期留待 BF103.04。
+- 边界：AuthoredSyncMarker 的同步相位数据继续以 `assets/ALS/Animations/als_sync_metadata.ron` 为运行时规范，不作为角色全局定时器；Marker crossed event 的运行时生命周期留待 BF103.04。
 
 ## BF109 CR_Als 原生审计与运行时材化数据（2026-09-01）
 
 - 源对象：`/ALS/ALS/Character/CR_Als.CR_Als`、`/ALS/ALS/Character/SKM_Als.SKM_Als`。
 - 原生读取：`tools/ue_graph_source_reader` 直接反射 `ControlRigBlueprint`、`UEdGraph`、`UEdGraphNode`、`UEdGraphPin`、RigVM link、Blueprint CDO 与 SkeletalMesh final bone hierarchy；原始输出只保留在 gitignored `target/bf109/source_native/`，不提交 uasset。
-- 审计合同：`assets/control_rigs/cr_als.profile.json`。保留 10 个源 graph、133 个 node 的完整 position/property/pin/connection、1,407 个 pin、160 条 RigVM link、CDO 属性和 source graph layout；该文件只供离线审计，不在运行时解析。
-- 运行时材化数据：`assets/control_rigs/cr_als.runtime.json`。由 `tools/import/coordinate_basis.py` 与 `tools/import/gen_cr_als_profile.py` 离线生成，仅含 target-space 骨骼名、米制长度、目标轴、rotation 和 CR 数值；运行时不执行 source/target basis bridge。
+- 审计合同：`assets/ALS/Character/CR_Als.profile.json`。保留 10 个源 graph、133 个 node 的完整 position/property/pin/connection、1,407 个 pin、160 条 RigVM link、CDO 属性和 source graph layout；该文件只供离线审计，不在运行时解析。
+- 运行时材化数据：`assets/ALS/Character/CR_Als.runtime.json`。由 `tools/import/coordinate_basis.py` 与 `tools/import/gen_cr_als_profile.py` 离线生成，仅含 target-space 骨骼名、米制长度、目标轴、rotation 和 CR 数值；运行时不执行 source/target basis bridge。
 - 验证：`tools/import/audit_cr_als.py` 使用上述原生输出逐项验证完整图合同及全部 79 个 final skeleton transform/parent 和 11 根 virtual bone 对目标 glTF，报告零差异。
 
 ## BF109 AB_Als_Default 原生图合同（2026-09-01）
@@ -390,3 +390,6 @@ python tools/uasset_root_export/validate_root_tracks.py --repo-root <repo-root>
 - 审计合同：`docs/bf109/source_contracts/AB_Als.source.json`。保留本次完整原生 payload（8 graph、43 node、44 pin、105 asset object）及 canonical source SHA-256，不进入 AssetServer 扫描目录。
 - 目标位置合同：`tools/import/ab_als_source_layout_map.json` 将 13 个 root runtime node 分别锚定到 source linked graph、slot、overlay/inertialization、ControlRig 或 Ragdolling node，明确记录 Grounded/Locomotion 的 source collapse 和 Overlay/EventGraph graph-scope boundary。
 - 验证：`tools/import/audit_ab_als_root.py` 回读 source contract、直接原生输出、目标 RON 和 layout map，验证完整 payload hash、source/target node coverage、position、slots、overlay inertialization、ControlRig boundary、linked graph 路由与输出；结果零差异。
+
+
+BF129.4 目录迁移（2026-09-27）：表内目标文件路径更新为 ALS/ALSCamera/ALSExtras 的当前位置；源身份、导出日期与数据证据保留。350 个原始载荷逐字节保留，所有 glTF 相邻 URI 不变，详见项目 `docs/asset-layout.md`。

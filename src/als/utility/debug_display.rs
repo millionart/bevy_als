@@ -531,7 +531,7 @@ mod footstep_tests {
         app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, bevy::gizmos::GizmoPlugin, AlsDebugDisplayPlugin))
             .init_resource::<Assets<AlsControlSchemeConfig>>().init_resource::<Assets<crate::als_camera::AlsCameraDefinition>>()
             .insert_resource(crate::show_debug_hud::AlsShowDebugHudState { visible: true, shapes: true, ..default() });
-        let definition: crate::als_camera::AlsCameraDefinition = ron::from_str(include_str!("../../../assets/params/als_camera.camera_component.ron")).unwrap();
+        let definition: crate::als_camera::AlsCameraDefinition = ron::from_str(include_str!("../../../assets/ALSCamera/Data/als_camera.camera_component.ron")).unwrap();
         let camera = app.world_mut().resource_mut::<Assets<crate::als_camera::AlsCameraDefinition>>().add(definition.clone());
         let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>().add(AlsControlSchemeConfig::default());
         let origin = Vec3::new(1.0, 3.0, 2.0);

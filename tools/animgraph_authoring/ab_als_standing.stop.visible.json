@@ -26,7 +26,7 @@
         {
           "source_contains": "bReinitializeOnBecomingRelevant=True",
           "target_contains": "reset_target_state: true",
-          "target_runtime_path": "assets/graphs/ab_als/stances/standing/standing_states.fsm.ron"
+          "target_runtime_path": "assets/Validation/Graphs/ab_als/stances/standing/standing_states.fsm.ron"
         },
         {
           "source_contains": "bCreateNotifyMetaData=True",

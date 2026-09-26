@@ -1,5 +1,5 @@
 static SOURCE_LIBRARY: std::sync::LazyLock<crate::overlay_object::OverlayLibrary> = std::sync::LazyLock::new(|| {
-    serde_json::from_str(include_str!("../../../assets/character/overlay_actor.runtime.json")).unwrap()
+    serde_json::from_str(include_str!("../../../assets/ALS/Character/overlay_actor.runtime.json")).unwrap()
 });
 
 use super::*;
@@ -76,7 +76,7 @@ fn window(mode: usize, stage: usize, ready: bool) -> ManualAnimationWindowEviden
         source_node: Some("Output Pose\nAnimGraph"), minimum_observation_seconds: if stage == 8 { 0.1 } else { 0.25 },
         source_pose_chain: vec![ManualAnimationPoseBoundary { label: "overlay", graph: &SOURCE_LIBRARY.0[&MODES[mode]].graph,
             node: "Output Pose\nAnimGraph", output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.0 },
-            ManualAnimationPoseBoundary { label: "layering", graph: "generated/ALS/Character/AB_Als/AnimGraph.animgraph.ron", node: "AB_Als_Layering\nLinked Anim Graph",
+            ManualAnimationPoseBoundary { label: "layering", graph: "ALS/Character/AB_Als/AnimGraph.animgraph.ron", node: "AB_Als_Layering\nLinked Anim Graph",
                 output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.0 }], ..default() }
 }
 
@@ -223,9 +223,9 @@ mod tests {
             animation_graph::GraphInputPin, edge_data::DataSpec, systems::animation_player};
         let (mut app, _, _, _) = crate::camera_component::tests::loaded_camera_scene();
         let server = app.world().resource::<AssetServer>();
-        let relaxed: Handle<AnimationGraph> = server.load("generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/S2_Relaxed.animgraph.ron");
+        let relaxed: Handle<AnimationGraph> = server.load("ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/S2_Relaxed.animgraph.ron");
         let layering: Handle<AnimationGraph> = server.load(LAYERING_GRAPH);
-        let sprint: Handle<GraphClip> = server.load("animations/Grounded/Sprint/A_Als_Sprint.anim.ron");
+        let sprint: Handle<GraphClip> = server.load("ALS/Animations/Grounded/Sprint/A_Als_Sprint.anim.ron");
         let deadline = Instant::now() + Duration::from_secs(30);
         loop {
             app.update();

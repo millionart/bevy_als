@@ -26,7 +26,7 @@ use crate::grounded_layer::AlsGroundedEntryMode;
 use crate::mantle_drive::AlsMantleDriveSet;
 use crate::roll_drive::AlsRollDriveSet;
 
-pub const ALS_NOTIFY_MANIFEST_PATH: &str = "animation_events/als_notify_manifest.json";
+pub const ALS_NOTIFY_MANIFEST_PATH: &str = "ALS/Animations/als_notify_manifest.json";
 
 const SOURCE_ROLL_SEQUENCE: &str = "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll";
 const SOURCE_ROLL_MONTAGE: &str = "/ALS/ALS/Animations/Actions/Roll/AM_Als_Roll.AM_Als_Roll";
@@ -996,7 +996,7 @@ mod tests {
             .insert(crate::character_assembly::AlsCharacterAvatar { character });
         app.world_mut().entity_mut(character).insert(AlsCharacter);
         let clip: Handle<GraphClip> = app.world().resource::<AssetServer>()
-            .load("animations/Grounded/WalkRun/A_Als_Walk_Forward.anim.ron");
+            .load("ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.anim.ron");
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
         while app.world().resource::<Assets<GraphClip>>().get(&clip).is_none() {
             app.update();
@@ -1075,9 +1075,9 @@ mod tests {
         app.world_mut().entity_mut(character).insert(AlsCharacter);
         let clips = [SOURCE_SPRINT, SOURCE_SPRINT_ACCELERATION].map(|source| {
             let path = if source == SOURCE_SPRINT {
-                "animations/Grounded/Sprint/A_Als_Sprint.anim.ron"
+                "ALS/Animations/Grounded/Sprint/A_Als_Sprint.anim.ron"
             } else {
-                "animations/Grounded/Sprint/A_Als_Sprint_Acceleration.anim.ron"
+                "ALS/Animations/Grounded/Sprint/A_Als_Sprint_Acceleration.anim.ron"
             };
             app.world().resource::<AssetServer>().load::<GraphClip>(path)
         });
@@ -1159,7 +1159,7 @@ mod tests {
             .insert(crate::character_assembly::AlsCharacterAvatar { character });
         app.world_mut().entity_mut(character).insert(AlsCharacter);
         let clip: Handle<GraphClip> = app.world().resource::<AssetServer>()
-            .load("animations/Grounded/WalkRun/A_Als_Walk_Forward.anim.ron");
+            .load("ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.anim.ron");
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
         while app.world().resource::<Assets<GraphClip>>().get(&clip).is_none() {
             app.update();
@@ -1203,7 +1203,7 @@ mod tests {
 
     #[test]
     fn source_zero_frame_footsteps_keep_their_trigger_offset() {
-        let manifest: AlsNotifyManifest = serde_json::from_str(include_str!("../../../assets/animation_events/als_notify_manifest.json")).unwrap();
+        let manifest: AlsNotifyManifest = serde_json::from_str(include_str!("../../../assets/ALS/Animations/als_notify_manifest.json")).unwrap();
         for side in ["Left", "Right"] {
             let source = manifest.clips.iter().find(|clip| clip.source_asset.ends_with(&format!("A_Als_Jump_Run_{side}"))).unwrap();
             let events = timed_events(source);
@@ -1230,7 +1230,7 @@ mod tests {
                 .add_message::<AlsAnimationEvent>()
                 .add_message::<AlsCameraShakeRequest>();
             let manifest: AlsNotifyManifest = serde_json::from_str(include_str!(
-                "../../../assets/animation_events/als_notify_manifest.json"
+                "../../../assets/ALS/Animations/als_notify_manifest.json"
             ))
             .unwrap();
             let source = mantle_sources(MantleKind::Low).1;
@@ -1368,7 +1368,7 @@ mod tests {
             .add_message::<AlsAnimationEvent>()
             .add_message::<AlsCameraShakeRequest>();
         let manifest: AlsNotifyManifest = serde_json::from_str(include_str!(
-            "../../../assets/animation_events/als_notify_manifest.json"
+            "../../../assets/ALS/Animations/als_notify_manifest.json"
         ))
         .unwrap();
         let handle = app
@@ -1438,7 +1438,7 @@ mod tests {
     fn get_up_playbacks_use_the_existing_sequence_and_montage_event_streams() {
         use bevy::ecs::system::RunSystemOnce;
         let manifest: AlsNotifyManifest = serde_json::from_str(include_str!(
-            "../../../assets/animation_events/als_notify_manifest.json"
+            "../../../assets/ALS/Animations/als_notify_manifest.json"
         ))
         .unwrap();
         let mut world = World::new();
@@ -1474,7 +1474,7 @@ mod tests {
 
     #[test]
     fn source_paths_select_the_expected_mantle_variants() {
-        let manifest: AlsNotifyManifest = serde_json::from_str(include_str!("../../../assets/animation_events/als_notify_manifest.json")).unwrap();
+        let manifest: AlsNotifyManifest = serde_json::from_str(include_str!("../../../assets/ALS/Animations/als_notify_manifest.json")).unwrap();
         for kind in [MantleKind::High, MantleKind::InAir, MantleKind::Low, MantleKind::LowLeft, MantleKind::LowRight, MantleKind::LowBothHands, MantleKind::LowBox] {
             let settings = crate::mantle_drive::mantle_montage_settings(kind);
             let (sequence, montage) = mantle_sources(kind);

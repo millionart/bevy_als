@@ -1,0 +1,7 @@
+(
+    source: GltfNamed(
+        path: "ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Forward.gltf",
+        animation_name: "A_Als_Acceleration_Forward_0",
+    ),
+    skeleton: "ALS/Character/SKM_Als.skn.ron",
+)

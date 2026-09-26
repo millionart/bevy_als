@@ -32,48 +32,48 @@ use bevy_animation_graph::core::{
 };
 use bevy_gameplay_tag::GameplayTag;
 
-const ROOT_PATH: &str = "graphs/ab_als/stances/standing_runtime_entry.animgraph.ron";
-const SOURCE_ROOT_PATH: &str = "graphs/ab_als/stances/standing.animgraph.ron";
-const CYCLE_PATH: &str = "graphs/ab_als/stances/standing/state_detail_cycle.animgraph.ron";
-const DETAILS_PATH: &str = "graphs/ab_als/stances/standing/movement_details.fsm.ron";
-const MOVEMENT_PATH: &str = "graphs/ab_als/stances/standing/movement_states.fsm.ron";
-const MOVE_GRAPH_PATH: &str = "graphs/ab_als/stances/standing/state_move.animgraph.ron";
+const ROOT_PATH: &str = "Validation/Graphs/ab_als/stances/standing_runtime_entry.animgraph.ron";
+const SOURCE_ROOT_PATH: &str = "Validation/Graphs/ab_als/stances/standing.animgraph.ron";
+const CYCLE_PATH: &str = "Validation/Graphs/ab_als/stances/standing/state_detail_cycle.animgraph.ron";
+const DETAILS_PATH: &str = "Validation/Graphs/ab_als/stances/standing/movement_details.fsm.ron";
+const MOVEMENT_PATH: &str = "Validation/Graphs/ab_als/stances/standing/movement_states.fsm.ron";
+const MOVE_GRAPH_PATH: &str = "Validation/Graphs/ab_als/stances/standing/state_move.animgraph.ron";
 const MOVEMENT_DIRECTION_GRAPH_PATH: &str =
-    "graphs/ab_als/stances/standing/state_movement_direction.animgraph.ron";
+    "Validation/Graphs/ab_als/stances/standing/state_movement_direction.animgraph.ron";
 const MOVEMENT_BLEND_GRAPH_PATH: &str =
-    "graphs/ab_als/stances/standing/state_movement_blend.animgraph.ron";
+    "Validation/Graphs/ab_als/stances/standing/state_movement_blend.animgraph.ron";
 const MOVEMENT_WRAPPER_PATHS: [&str; 6] = [
-    "graphs/ab_als/stances/standing/state_movement_forward.animgraph.ron",
-    "graphs/ab_als/stances/standing/state_movement_backward.animgraph.ron",
-    "graphs/ab_als/stances/standing/state_movement_right_forward.animgraph.ron",
-    "graphs/ab_als/stances/standing/state_movement_right_backward.animgraph.ron",
-    "graphs/ab_als/stances/standing/state_movement_left_forward.animgraph.ron",
-    "graphs/ab_als/stances/standing/state_movement_left_backward.animgraph.ron",
+    "Validation/Graphs/ab_als/stances/standing/state_movement_forward.animgraph.ron",
+    "Validation/Graphs/ab_als/stances/standing/state_movement_backward.animgraph.ron",
+    "Validation/Graphs/ab_als/stances/standing/state_movement_right_forward.animgraph.ron",
+    "Validation/Graphs/ab_als/stances/standing/state_movement_right_backward.animgraph.ron",
+    "Validation/Graphs/ab_als/stances/standing/state_movement_left_forward.animgraph.ron",
+    "Validation/Graphs/ab_als/stances/standing/state_movement_left_backward.animgraph.ron",
 ];
-const OUTER_PATH: &str = "graphs/ab_als/stances/standing/standing_states.fsm.ron";
+const OUTER_PATH: &str = "Validation/Graphs/ab_als/stances/standing/standing_states.fsm.ron";
 const OUTER_RUNTIME_PATH: &str =
-    "graphs/ab_als/stances/standing/standing_states_runtime.animgraph.ron";
-const OUTER_MOVE_PATH: &str = "graphs/ab_als/stances/standing/state_outer_move.animgraph.ron";
-const STOP_STATES_PATH: &str = "graphs/ab_als/stances/standing/stop_states.fsm.ron";
+    "Validation/Graphs/ab_als/stances/standing/standing_states_runtime.animgraph.ron";
+const OUTER_MOVE_PATH: &str = "Validation/Graphs/ab_als/stances/standing/state_outer_move.animgraph.ron";
+const STOP_STATES_PATH: &str = "Validation/Graphs/ab_als/stances/standing/stop_states.fsm.ron";
 const FIRST_PIVOT_PATH: &str =
-    "graphs/ab_als/stances/standing/state_detail_first_pivot.animgraph.ron";
-const RUN_START_PATH: &str = "graphs/ab_als/stances/standing/state_detail_run_start.animgraph.ron";
+    "Validation/Graphs/ab_als/stances/standing/state_detail_first_pivot.animgraph.ron";
+const RUN_START_PATH: &str = "Validation/Graphs/ab_als/stances/standing/state_detail_run_start.animgraph.ron";
 const RUN_START_WALK_PATH: &str =
-    "graphs/ab_als/stances/standing/state_detail_run_start_from_walk.animgraph.ron";
+    "Validation/Graphs/ab_als/stances/standing/state_detail_run_start_from_walk.animgraph.ron";
 const SECOND_PIVOT_PATH: &str =
-    "graphs/ab_als/stances/standing/state_detail_second_pivot.animgraph.ron";
-const DETAIL_BLEND_PATH: &str = "graphs/ab_als/stances/standing/transition_detail_01.animgraph.ron";
-const HIPS_PATH: &str = "graphs/ab_als/stances/standing/transition_hips_075.animgraph.ron";
-const OUTER_BLEND_PATH: &str = "graphs/ab_als/stances/standing/transition_outer_02.animgraph.ron";
+    "Validation/Graphs/ab_als/stances/standing/state_detail_second_pivot.animgraph.ron";
+const DETAIL_BLEND_PATH: &str = "Validation/Graphs/ab_als/stances/standing/transition_detail_01.animgraph.ron";
+const HIPS_PATH: &str = "Validation/Graphs/ab_als/stances/standing/transition_hips_075.animgraph.ron";
+const OUTER_BLEND_PATH: &str = "Validation/Graphs/ab_als/stances/standing/transition_outer_02.animgraph.ron";
 const OUTER_STOP_PATH: &str =
-    "graphs/ab_als/stances/standing/transition_outer_stop_03.animgraph.ron";
+    "Validation/Graphs/ab_als/stances/standing/transition_outer_stop_03.animgraph.ron";
 const OUTER_INERTIAL_PATH: &str =
-    "graphs/ab_als/stances/standing/transition_inertial_02.animgraph.ron";
-const ROTATE_LEFT_PATH: &str = "graphs/ab_als/stances/standing/state_rotate_left.animgraph.ron";
-const ROTATE_RIGHT_PATH: &str = "graphs/ab_als/stances/standing/state_rotate_right.animgraph.ron";
-const STOP_RIGHT_PATH: &str = "graphs/ab_als/stances/standing/state_stop_plant_right.animgraph.ron";
-const STOP_LEFT_PATH: &str = "graphs/ab_als/stances/standing/state_stop_plant_left.animgraph.ron";
-const SKELETON_PATH: &str = "skeletons/SKM_Als.skn.ron";
+    "Validation/Graphs/ab_als/stances/standing/transition_inertial_02.animgraph.ron";
+const ROTATE_LEFT_PATH: &str = "Validation/Graphs/ab_als/stances/standing/state_rotate_left.animgraph.ron";
+const ROTATE_RIGHT_PATH: &str = "Validation/Graphs/ab_als/stances/standing/state_rotate_right.animgraph.ron";
+const STOP_RIGHT_PATH: &str = "Validation/Graphs/ab_als/stances/standing/state_stop_plant_right.animgraph.ron";
+const STOP_LEFT_PATH: &str = "Validation/Graphs/ab_als/stances/standing/state_stop_plant_left.animgraph.ron";
+const SKELETON_PATH: &str = "ALS/Character/SKM_Als.skn.ron";
 
 fn main() {
     let mut app = App::new();
@@ -829,7 +829,7 @@ fn set_value(player: &mut AnimationGraphPlayer, key: &str, value: f32) {
 }
 
 fn standing_graph_sources() -> Vec<String> {
-    let root = "assets/graphs/ab_als/stances/standing.animgraph.ron";
+    let root = "assets/Validation/Graphs/ab_als/stances/standing.animgraph.ron";
     let directory = Path::new("assets/graphs/ab_als/stances/standing");
     let mut paths = vec![root.to_owned()];
     if let Ok(entries) = std::fs::read_dir(directory) {
@@ -1323,7 +1323,7 @@ fn verify_static_contract(
                 && source.contains("als_standing_rotate_right_loop")
         });
     let source = std::fs::read_to_string(
-        "assets/graphs/ab_als/stances/standing/state_detail_cycle.animgraph.ron",
+        "assets/Validation/Graphs/ab_als/stances/standing/state_detail_cycle.animgraph.ron",
     )
     .unwrap_or_default();
     let sources = standing_graph_sources();

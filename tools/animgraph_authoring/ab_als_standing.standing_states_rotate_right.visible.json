@@ -85,7 +85,7 @@
         },
         {
           "source_contains": "A_Als_Rotate_90_Right",
-          "target_contains": "clip: \"animations/RotateInPlace/A_Als_Rotate_90_Right.anim.ron\""
+          "target_contains": "clip: \"ALS/Animations/RotateInPlace/A_Als_Rotate_90_Right.anim.ron\""
         }
       ]
     }

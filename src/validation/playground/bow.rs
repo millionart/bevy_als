@@ -2,7 +2,7 @@ use super::*;
 use crate::als::input::AlsInputCommand;
 use bevy_animation_graph::core::state_machine::low_level::LowLevelStateId;
 
-const GRAPH: &str = "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay.animgraph.ron";
+const GRAPH: &str = "ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay.animgraph.ron";
 const SYNC: &str = "sync_groups.ab_als_bow.secondary_motion.phase";
 pub(super) const LABELS: [&str; 10] = ["bow_relaxed", "bow_standing_aim", "bow_release", "bow_walking_aim", "bow_crouching_aim", "bow_standing_aim_return", "bow_aim_up", "bow_aim_down", "bow_sprint", "bow_in_air"];
 
@@ -68,7 +68,7 @@ pub(super) fn observe_object(probe: &mut Probe, state: Option<&AlsOverlayObjectS
         sample.draw_amount = graph_global_f32(player, "draw_amount");
         let pose = player.get_default_output_pose()?;
         sample.pose_time = Some(pose.timestamp);
-        let clip = motion.asset_server.get_handle::<bevy_animation_graph::core::animation_clip::GraphClip>("animations/Overlays/Bow/A_Als_Bow_Draw.anim.ron")?;
+        let clip = motion.asset_server.get_handle::<bevy_animation_graph::core::animation_clip::GraphClip>("ALS/OverlayObjects/Bow/A_Als_Bow_Draw.anim.ron")?;
         let clip = motion.clips.get(&clip)?;
         let amount = context.map_or(0.0, |context| context.f32("PoseAiming").unwrap_or(0.0));
         let expected = crate::extensions::source_sequence_player::sample_pose(clip, amount.clamp(0.0, clip.duration()));
@@ -151,7 +151,7 @@ fn sample(player: &AnimationGraphPlayer, probe: &MotionProbe, root_context: Opti
     for id in arena.iter_context_ids() {
         let Some(context) = arena.get_context(id) else { continue; };
         let Some(path) = probe.asset_server.get_path(context.get_graph_id()) else { continue; };
-        if !path.path().starts_with("generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow") { continue; }
+        if !path.path().starts_with("ALS/Character/AnimationInstances/Overlays/AB_Als_Bow") { continue; }
         let Some(graph) = probe.graphs.get(context.get_graph_id()) else { continue; };
         for node in graph.nodes.values() {
             if !context.node_caches.is_updated(node.id, StateKey::Default) { continue; }

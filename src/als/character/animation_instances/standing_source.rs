@@ -14,7 +14,7 @@ pub(crate) struct SourceMontageSettings {
 pub(crate) static MONTAGES: LazyLock<std::collections::HashMap<String, SourceMontageSettings>> =
     LazyLock::new(|| {
         ron::from_str(include_str!(
-            "../../../../assets/character/als_standing_montages.ron"
+            "../../../../assets/ALS/Data/AnimationInstance/Grounded/als_standing_montages.ron"
         ))
         .expect("generated native montage settings are valid")
     });
@@ -92,7 +92,7 @@ struct StandingCurves {
 }
 
 static CURVES: LazyLock<StandingCurves> = LazyLock::new(|| {
-    serde_json::from_str(include_str!("../../../../assets/character/als_standing_curves.json"))
+    serde_json::from_str(include_str!("../../../../assets/ALS/Data/AnimationInstance/Grounded/als_standing_curves.json"))
         .expect("generated Standing curves are valid")
 });
 

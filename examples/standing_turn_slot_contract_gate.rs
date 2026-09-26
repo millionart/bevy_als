@@ -16,13 +16,13 @@ use bevy_animation_graph::{
 
 use bevy_als::extensions::{AlsExtPlugin, InertializationPassthroughNode, SourceSlotNode};
 
-const STANDING_PATH: &str = "graphs/ab_als/stances/standing.animgraph.ron";
-const IDLE_PATH: &str = "graphs/ab_als/stances/standing/state_idle.animgraph.ron";
-const TURN_PATH: &str = "graphs/ab_als/stances/standing/turn.animgraph.ron";
-const CROUCHING_PATH: &str = "graphs/ab_als/stances/crouching.animgraph.ron";
-const CROUCHING_IDLE_PATH: &str = "graphs/ab_als/stances/crouching/state_idle.animgraph.ron";
-const CROUCHING_TURN_PATH: &str = "graphs/ab_als/stances/crouching/turn.animgraph.ron";
-const SKELETON_PATH: &str = "skeletons/SKM_Als.skn.ron";
+const STANDING_PATH: &str = "Validation/Graphs/ab_als/stances/standing.animgraph.ron";
+const IDLE_PATH: &str = "Validation/Graphs/ab_als/stances/standing/state_idle.animgraph.ron";
+const TURN_PATH: &str = "Validation/Graphs/ab_als/stances/standing/turn.animgraph.ron";
+const CROUCHING_PATH: &str = "Validation/Graphs/ab_als/stances/crouching.animgraph.ron";
+const CROUCHING_IDLE_PATH: &str = "Validation/Graphs/ab_als/stances/crouching/state_idle.animgraph.ron";
+const CROUCHING_TURN_PATH: &str = "Validation/Graphs/ab_als/stances/crouching/turn.animgraph.ron";
+const SKELETON_PATH: &str = "ALS/Character/SKM_Als.skn.ron";
 
 #[derive(Clone, Copy)]
 struct TurnSlotCase {

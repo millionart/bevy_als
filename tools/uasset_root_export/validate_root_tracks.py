@@ -106,7 +106,7 @@ def main():
     rows = []
     failures = []
     for name, stem, horiz_rng, vert_rng, expect_dur in CLIPS:
-        path = os.path.join(args.repo_root, "assets", "animations", stem + ".gltf")
+        path = os.path.join(args.repo_root, "assets", "ALS", "Animations", stem + ".gltf")
         try:
             m = analyze(path)
         except (OSError, ValueError, KeyError, IndexError) as exc:

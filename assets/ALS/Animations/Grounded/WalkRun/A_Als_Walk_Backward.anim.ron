@@ -1,0 +1,51 @@
+(
+    source: GltfNamed(
+        path: "ALS/Animations/Grounded/WalkRun/A_Als_Walk_Backward.gltf",
+        animation_name: "A_Als_Walk_Backward_0",
+    ),
+    skeleton: "ALS/Character/SKM_Als.skn.ron",
+    event_tracks: {
+        "als_notify:/als/als/animations/grounded/walkrun/a_als_walk_backward.a_als_walk_backward:0": (
+            name: "als_notify:/als/als/animations/grounded/walkrun/a_als_walk_backward.a_als_walk_backward:0",
+            events: [
+                (
+                    id: "39d2fb0b-7c10-5a8e-82a3-002671d1f565",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/grounded/walkrun/a_als_walk_backward.a_als_walk_backward:0521a759-4eda6c64-e8ea92a4-d3c0aae9"),
+                        start_time: 0.433333,
+                        end_time: 0.433333,
+                    ),
+                ),
+                (
+                    id: "bf325615-aefe-52d7-b150-6f3db31dd746",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/grounded/walkrun/a_als_walk_backward.a_als_walk_backward:aaa612a6-46eaba8c-bc0b35a2-aeca87f6"),
+                        start_time: 1.0,
+                        end_time: 1.0,
+                    ),
+                ),
+            ],
+        ),
+        "als_notify:/als/als/animations/grounded/walkrun/a_als_walk_backward.a_als_walk_backward:1": (
+            name: "als_notify:/als/als/animations/grounded/walkrun/a_als_walk_backward.a_als_walk_backward:1",
+            events: [
+                (
+                    id: "e7123bf0-6195-55d6-a771-cbe86b760e00",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/grounded/walkrun/a_als_walk_backward.a_als_walk_backward:dcd383eb-4be25b4a-206b5f99-e0d8e438"),
+                        start_time: 0.533333,
+                        end_time: 0.533333,
+                    ),
+                ),
+                (
+                    id: "9d86d60b-ecfd-551d-909c-2159796ad46f",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/grounded/walkrun/a_als_walk_backward.a_als_walk_backward:120e3893-489998a3-fa987782-da49e7c0"),
+                        start_time: 1.1,
+                        end_time: 1.1,
+                    ),
+                ),
+            ],
+        ),
+    },
+)

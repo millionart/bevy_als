@@ -1,17 +1,17 @@
 {
   "format": "als_ue_visible_fsm_map_v1",
   "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-685c5ffea3905918.source.json",
-  "target_fsm": "assets/graphs/ab_als/stances/standing/movement_states.fsm.ron",
+  "target_fsm": "assets/Validation/Graphs/ab_als/stances/standing/movement_states.fsm.ron",
   "transition_default_assertions": [
     {
       "source_contains": "bAutomaticRuleBasedOnSequencePlayerInState=False",
       "target_contains": "key: \"als_standing_movement_transition_index\"",
-      "target_runtime_path": "assets/graphs/ab_als/stances/standing/state_move.animgraph.ron"
+      "target_runtime_path": "assets/Validation/Graphs/ab_als/stances/standing/state_move.animgraph.ron"
     },
     {
       "source_contains": "AutomaticRuleTriggerTime=-1.000000",
       "target_contains": "key: \"als_standing_movement_transition_index\"",
-      "target_runtime_path": "assets/graphs/ab_als/stances/standing/state_move.animgraph.ron"
+      "target_runtime_path": "assets/Validation/Graphs/ab_als/stances/standing/state_move.animgraph.ron"
     },
     {
       "source_contains": "SyncGroupNameToRequireValidMarkersRule=None",
@@ -31,32 +31,32 @@
     {
       "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_2.Movement States.AnimStateNode_0",
       "target_state": "15200000-0000-4000-8000-000000000001",
-      "target_graph": "graphs/ab_als/stances/standing/state_movement_forward.animgraph.ron"
+      "target_graph": "Validation/Graphs/ab_als/stances/standing/state_movement_forward.animgraph.ron"
     },
     {
       "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_2.Movement States.AnimStateNode_1",
       "target_state": "15200000-0000-4000-8000-000000000002",
-      "target_graph": "graphs/ab_als/stances/standing/state_movement_backward.animgraph.ron"
+      "target_graph": "Validation/Graphs/ab_als/stances/standing/state_movement_backward.animgraph.ron"
     },
     {
       "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_2.Movement States.AnimStateNode_2",
       "target_state": "15200000-0000-4000-8000-000000000003",
-      "target_graph": "graphs/ab_als/stances/standing/state_movement_right_forward.animgraph.ron"
+      "target_graph": "Validation/Graphs/ab_als/stances/standing/state_movement_right_forward.animgraph.ron"
     },
     {
       "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_2.Movement States.AnimStateNode_3",
       "target_state": "15200000-0000-4000-8000-000000000004",
-      "target_graph": "graphs/ab_als/stances/standing/state_movement_right_backward.animgraph.ron"
+      "target_graph": "Validation/Graphs/ab_als/stances/standing/state_movement_right_backward.animgraph.ron"
     },
     {
       "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_2.Movement States.AnimStateNode_4",
       "target_state": "15200000-0000-4000-8000-000000000005",
-      "target_graph": "graphs/ab_als/stances/standing/state_movement_left_forward.animgraph.ron"
+      "target_graph": "Validation/Graphs/ab_als/stances/standing/state_movement_left_forward.animgraph.ron"
     },
     {
       "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_2.Movement States.AnimStateNode_5",
       "target_state": "15200000-0000-4000-8000-000000000006",
-      "target_graph": "graphs/ab_als/stances/standing/state_movement_left_backward.animgraph.ron"
+      "target_graph": "Validation/Graphs/ab_als/stances/standing/state_movement_left_backward.animgraph.ron"
     }
   ],
   "transition_map": [
@@ -76,7 +76,7 @@
         {
           "source_contains": "BlendMode=Cubic",
           "target_contains": "alpha_blend_mode: Cubic",
-          "target_runtime_path": "assets/graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
+          "target_runtime_path": "assets/Validation/Graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
         },
         {
           "source_contains": "bSharedRules=True",
@@ -101,7 +101,7 @@
         {
           "source_contains": "BlendMode=Cubic",
           "target_contains": "alpha_blend_mode: Cubic",
-          "target_runtime_path": "assets/graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
+          "target_runtime_path": "assets/Validation/Graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
         },
         {
           "source_contains": "bSharedRules=True",
@@ -126,7 +126,7 @@
         {
           "source_contains": "BlendMode=Cubic",
           "target_contains": "alpha_blend_mode: Cubic",
-          "target_runtime_path": "assets/graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
+          "target_runtime_path": "assets/Validation/Graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
         },
         {
           "source_contains": "bSharedRules=True",
@@ -151,7 +151,7 @@
         {
           "source_contains": "BlendMode=Cubic",
           "target_contains": "alpha_blend_mode: Cubic",
-          "target_runtime_path": "assets/graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
+          "target_runtime_path": "assets/Validation/Graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
         },
         {
           "source_contains": "bSharedRules=True",
@@ -176,7 +176,7 @@
         {
           "source_contains": "BlendMode=Cubic",
           "target_contains": "alpha_blend_mode: Cubic",
-          "target_runtime_path": "assets/graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
+          "target_runtime_path": "assets/Validation/Graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
         },
         {
           "source_contains": "bSharedRules=True",
@@ -201,7 +201,7 @@
         {
           "source_contains": "BlendMode=Cubic",
           "target_contains": "alpha_blend_mode: Cubic",
-          "target_runtime_path": "assets/graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
+          "target_runtime_path": "assets/Validation/Graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
         },
         {
           "source_contains": "bSharedRules=True",
@@ -226,7 +226,7 @@
         {
           "source_contains": "BlendMode=Cubic",
           "target_contains": "alpha_blend_mode: Cubic",
-          "target_runtime_path": "assets/graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
+          "target_runtime_path": "assets/Validation/Graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
         },
         {
           "source_contains": "bSharedRules=True",
@@ -251,7 +251,7 @@
         {
           "source_contains": "BlendMode=Cubic",
           "target_contains": "alpha_blend_mode: Cubic",
-          "target_runtime_path": "assets/graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
+          "target_runtime_path": "assets/Validation/Graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
         },
         {
           "source_contains": "bSharedRules=True",
@@ -276,7 +276,7 @@
         {
           "source_contains": "BlendMode=Cubic",
           "target_contains": "alpha_blend_mode: Cubic",
-          "target_runtime_path": "assets/graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
+          "target_runtime_path": "assets/Validation/Graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
         },
         {
           "source_contains": "bSharedRules=True",
@@ -301,7 +301,7 @@
         {
           "source_contains": "BlendMode=Cubic",
           "target_contains": "alpha_blend_mode: Cubic",
-          "target_runtime_path": "assets/graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
+          "target_runtime_path": "assets/Validation/Graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
         },
         {
           "source_contains": "bSharedRules=True",
@@ -326,7 +326,7 @@
         {
           "source_contains": "BlendMode=Cubic",
           "target_contains": "alpha_blend_mode: Cubic",
-          "target_runtime_path": "assets/graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
+          "target_runtime_path": "assets/Validation/Graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
         },
         {
           "source_contains": "bSharedRules=True",
@@ -351,7 +351,7 @@
         {
           "source_contains": "BlendMode=Cubic",
           "target_contains": "alpha_blend_mode: Cubic",
-          "target_runtime_path": "assets/graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
+          "target_runtime_path": "assets/Validation/Graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
         },
         {
           "source_contains": "bSharedRules=True",
@@ -376,7 +376,7 @@
         {
           "source_contains": "BlendMode=Cubic",
           "target_contains": "alpha_blend_mode: Cubic",
-          "target_runtime_path": "assets/graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
+          "target_runtime_path": "assets/Validation/Graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
         },
         {
           "source_contains": "bSharedRules=True",
@@ -401,7 +401,7 @@
         {
           "source_contains": "BlendMode=Cubic",
           "target_contains": "alpha_blend_mode: Cubic",
-          "target_runtime_path": "assets/graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
+          "target_runtime_path": "assets/Validation/Graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
         },
         {
           "source_contains": "bSharedRules=True",
@@ -426,7 +426,7 @@
         {
           "source_contains": "BlendMode=Cubic",
           "target_contains": "alpha_blend_mode: Cubic",
-          "target_runtime_path": "assets/graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
+          "target_runtime_path": "assets/Validation/Graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
         },
         {
           "source_contains": "bSharedRules=True",
@@ -451,7 +451,7 @@
         {
           "source_contains": "BlendMode=Cubic",
           "target_contains": "alpha_blend_mode: Cubic",
-          "target_runtime_path": "assets/graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
+          "target_runtime_path": "assets/Validation/Graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
         },
         {
           "source_contains": "bSharedRules=True",
@@ -476,7 +476,7 @@
         {
           "source_contains": "BlendMode=QuadraticInOut",
           "target_contains": "alpha_blend_mode: QuadraticInOut",
-          "target_runtime_path": "assets/graphs/ab_als/stances/standing/transition_hips_075.animgraph.ron"
+          "target_runtime_path": "assets/Validation/Graphs/ab_als/stances/standing/transition_hips_075.animgraph.ron"
         },
         {
           "source_contains": "bSharedRules=True",
@@ -501,7 +501,7 @@
         {
           "source_contains": "BlendMode=Cubic",
           "target_contains": "alpha_blend_mode: Cubic",
-          "target_runtime_path": "assets/graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
+          "target_runtime_path": "assets/Validation/Graphs/ab_als/stances/standing/transition_direction_07.animgraph.ron"
         },
         {
           "source_contains": "bSharedRules=True",
@@ -526,7 +526,7 @@
         {
           "source_contains": "BlendMode=QuadraticInOut",
           "target_contains": "alpha_blend_mode: QuadraticInOut",
-          "target_runtime_path": "assets/graphs/ab_als/stances/standing/transition_hips_075.animgraph.ron"
+          "target_runtime_path": "assets/Validation/Graphs/ab_als/stances/standing/transition_hips_075.animgraph.ron"
         },
         {
           "source_contains": "bSharedRules=True",
@@ -551,7 +551,7 @@
         {
           "source_contains": "BlendMode=QuadraticInOut",
           "target_contains": "alpha_blend_mode: QuadraticInOut",
-          "target_runtime_path": "assets/graphs/ab_als/stances/standing/transition_hips_075.animgraph.ron"
+          "target_runtime_path": "assets/Validation/Graphs/ab_als/stances/standing/transition_hips_075.animgraph.ron"
         },
         {
           "source_contains": "bSharedRules=True",
@@ -576,7 +576,7 @@
         {
           "source_contains": "BlendMode=QuadraticInOut",
           "target_contains": "alpha_blend_mode: QuadraticInOut",
-          "target_runtime_path": "assets/graphs/ab_als/stances/standing/transition_hips_075.animgraph.ron"
+          "target_runtime_path": "assets/Validation/Graphs/ab_als/stances/standing/transition_hips_075.animgraph.ron"
         },
         {
           "source_contains": "bSharedRules=True",
@@ -601,7 +601,7 @@
         {
           "source_contains": "BlendMode=QuadraticInOut",
           "target_contains": "alpha_blend_mode: QuadraticInOut",
-          "target_runtime_path": "assets/graphs/ab_als/stances/standing/transition_hips_075.animgraph.ron"
+          "target_runtime_path": "assets/Validation/Graphs/ab_als/stances/standing/transition_hips_075.animgraph.ron"
         },
         {
           "source_contains": "bSharedRules=True",
@@ -626,7 +626,7 @@
         {
           "source_contains": "BlendMode=QuadraticInOut",
           "target_contains": "alpha_blend_mode: QuadraticInOut",
-          "target_runtime_path": "assets/graphs/ab_als/stances/standing/transition_hips_075.animgraph.ron"
+          "target_runtime_path": "assets/Validation/Graphs/ab_als/stances/standing/transition_hips_075.animgraph.ron"
         },
         {
           "source_contains": "bSharedRules=False",
@@ -651,7 +651,7 @@
         {
           "source_contains": "BlendMode=QuadraticInOut",
           "target_contains": "alpha_blend_mode: QuadraticInOut",
-          "target_runtime_path": "assets/graphs/ab_als/stances/standing/transition_hips_075.animgraph.ron"
+          "target_runtime_path": "assets/Validation/Graphs/ab_als/stances/standing/transition_hips_075.animgraph.ron"
         },
         {
           "source_contains": "bSharedRules=False",

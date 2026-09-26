@@ -1438,7 +1438,7 @@ def rotating_step_issues(rows):
     released, unlocked, completed = [False]*2, [False]*2, [False]*2
     release_times = []
     for side in ("Left", "Right"):
-        asset = read_json(Path(__file__).resolve().parents[1] / "assets/animations/Transitions" / f"A_Als_Stand_DynamicTransition_{side}.gltf")
+        asset = read_json(Path(__file__).resolve().parents[1] / "assets/ALS/Animations/Transitions" / f"A_Als_Stand_DynamicTransition_{side}.gltf")
         curve = next(curve for curve in asset["animations"][0]["extensions"]["ALS_float_curves"]["curves"] if curve["name"] == "AllowTransitions")
         release_times.append(max(time for time, value in zip(curve["times"], curve["values"]) if abs(value) <= 1e-6))
     issues = []
@@ -1556,7 +1556,7 @@ def moving_base_trace_issues(report):
             return ["moving base frame data is invalid"]
     if any(second["time"] <= first["time"] for first, second in zip(rows, rows[1:])):
         return ["moving base frame time is not increasing"]
-    source = read_json(Path(__file__).resolve().parents[1] / "assets/models/playground" / ("rotating_actors.runtime.json" if rotating else "moving_actors.runtime.json"))
+    source = read_json(Path(__file__).resolve().parents[1] / "assets/ALSExtras/Levels/L_Als_Playground" / ("rotating_actors.runtime.json" if rotating else "moving_actors.runtime.json"))
     actor = next(actor for actor in source["actors"] if actor["name"] == ("BP_SimpleRotatingObject_2" if rotating else "BP_SimpleMovingObject2"))
     period = 2.0 * math.pi / abs(actor["rotation_rate_yzx_radians"][0]) if rotating else actor["duration"] * 2.0
     span = 2.0 if rotating else math.dist(actor["start"], actor["end"])

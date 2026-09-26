@@ -24,8 +24,8 @@ use bevy_animation_graph::core::{
     utils::testing::{GraphTestHarness, SystemExtractor},
 };
 
-const ROLL: &str = "animations/Actions/Roll/A_Als_Roll.anim.ron";
-const SPRINT: &str = "animations/Grounded/Sprint/A_Als_Sprint.anim.ron";
+const ROLL: &str = "ALS/Animations/Actions/Roll/A_Als_Roll.anim.ron";
+const SPRINT: &str = "ALS/Animations/Grounded/Sprint/A_Als_Sprint.anim.ron";
 
 fn load(path: &str) -> GraphClipSerial {
     let path = assets_root().join(path);
@@ -319,7 +319,7 @@ fn root_motion_clip_forwards_graph_clip_events() {
 
 #[test]
 fn every_compiled_event_track_deserializes_and_preserves_the_manifest_count() {
-    let manifest_path = assets_root().join("animation_events/als_notify_manifest.json");
+    let manifest_path = assets_root().join("ALS/Animations/als_notify_manifest.json");
     let manifest: serde_json::Value = serde_json::from_str(
         &fs::read_to_string(manifest_path).expect("notify manifest must be readable"),
     )

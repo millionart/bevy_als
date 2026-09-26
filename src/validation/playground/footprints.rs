@@ -144,7 +144,7 @@ fn drive_gpu(
         return;
     }
     if gpu.root.is_none() {
-        gpu.library = server.load("effects/footprint.runtime.json");
+        gpu.library = server.load("ALS/Data/Footstep/footprint.runtime.json");
         let Some(library) = libraries.get(&gpu.library) else { return; };
         let Some(definition) = library.definitions.iter().find(|definition| definition.source_settings == "/ALS/ALS/Data/Footstep/FES_Als_Default.FES_Als_Default") else { return; };
         let Some(source) = definition.effects.first().and_then(|effect| effect.material.as_ref()).and_then(|material| definition.materials.get(material)) else { return; };

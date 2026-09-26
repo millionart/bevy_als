@@ -1,7 +1,7 @@
 {
   "format": "als_ue_visible_animgraph_map_v2",
   "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-98cf0beb9339bf0e.source.json",
-  "target_graph": "assets/graphs/ab_als/stances/crouching/state_rotate_left.animgraph.ron",
+  "target_graph": "assets/Validation/Graphs/ab_als/stances/crouching/state_rotate_left.animgraph.ron",
   "target_spec": "target/bf111/crouching.state_rotate_left.spec.bf11104.json",
   "node_map": [
     {
@@ -85,7 +85,7 @@
         },
         {
           "source_contains": "A_Als_Crouch_Rotate_90_Left",
-          "target_contains": "clip: \"animations/RotateInPlace/A_Als_Crouch_Rotate_90_Left.anim.ron\""
+          "target_contains": "clip: \"ALS/Animations/RotateInPlace/A_Als_Crouch_Rotate_90_Left.anim.ron\""
         }
       ]
     }

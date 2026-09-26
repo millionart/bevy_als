@@ -1,0 +1,3 @@
+(
+    source: Gltf(source: "ALS/Animations/Base/A_Als_Idle.gltf", label: "Scene0"),
+)

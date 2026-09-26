@@ -14,7 +14,7 @@
   ],
   "graphs": [
     {
-      "path": "assets/graphs/ab_als/grounded/grounded_runtime.animgraph.ron",
+      "path": "assets/Validation/Graphs/ab_als/grounded/grounded_runtime.animgraph.ron",
       "expected_nodes": [
         {
           "id": "17150000-0000-4000-8000-000000000001",
@@ -54,7 +54,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/graphs/ab_als/grounded/roll_slot.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/AB_Als_Grounded/RollSlot.animgraph.ron",
       "expected_nodes": [
         {
           "id": "17150000-0000-4000-8000-000000000001",
@@ -129,7 +129,7 @@
       ]
     },
     {
-      "path": "assets/graphs/ab_als/grounded/state_alias_crouching_runtime.animgraph.ron",
+      "path": "assets/Validation/Graphs/ab_als/grounded/state_alias_crouching_runtime.animgraph.ron",
       "expected_nodes": [
         {
           "id": "17110000-0000-4000-8000-000000000001",
@@ -157,7 +157,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/graphs/ab_als/grounded/state_alias_standing_runtime.animgraph.ron",
+      "path": "assets/Validation/Graphs/ab_als/grounded/state_alias_standing_runtime.animgraph.ron",
       "expected_nodes": [
         {
           "id": "17100000-0000-4000-8000-000000000001",
@@ -185,7 +185,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/graphs/ab_als/grounded/state_crouching.animgraph.ron",
+      "path": "assets/Validation/Graphs/ab_als/grounded/state_crouching.animgraph.ron",
       "expected_nodes": [
         {
           "id": "17030000-0000-4000-8000-000000000001",
@@ -225,7 +225,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/graphs/ab_als/grounded/state_crouching_to_standing.animgraph.ron",
+      "path": "assets/Validation/Graphs/ab_als/grounded/state_crouching_to_standing.animgraph.ron",
       "expected_nodes": [
         {
           "id": "17060000-0000-4000-8000-000000000001",
@@ -253,7 +253,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/graphs/ab_als/grounded/state_crouching_to_standing_runtime.animgraph.ron",
+      "path": "assets/Validation/Graphs/ab_als/grounded/state_crouching_to_standing_runtime.animgraph.ron",
       "expected_nodes": [
         {
           "id": "17060000-0000-4000-8000-000000000001",
@@ -430,7 +430,7 @@
       ]
     },
     {
-      "path": "assets/graphs/ab_als/grounded/state_entry_conduit.animgraph.ron",
+      "path": "assets/Validation/Graphs/ab_als/grounded/state_entry_conduit.animgraph.ron",
       "expected_nodes": [
         {
           "id": "17010000-0000-4000-8000-000000000001",
@@ -554,7 +554,7 @@
       ]
     },
     {
-      "path": "assets/graphs/ab_als/grounded/state_entry_conduit_runtime.animgraph.ron",
+      "path": "assets/Validation/Graphs/ab_als/grounded/state_entry_conduit_runtime.animgraph.ron",
       "expected_nodes": [
         {
           "id": "17090000-0000-4000-8000-000000000001",
@@ -582,7 +582,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/graphs/ab_als/grounded/state_roll.animgraph.ron",
+      "path": "assets/Validation/Graphs/ab_als/grounded/state_roll.animgraph.ron",
       "expected_nodes": [
         {
           "id": "17070000-0000-4000-8000-000000000001",
@@ -634,7 +634,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/graphs/ab_als/grounded/state_roll_runtime.animgraph.ron",
+      "path": "assets/Validation/Graphs/ab_als/grounded/state_roll_runtime.animgraph.ron",
       "expected_nodes": [
         {
           "id": "17160000-0000-4000-8000-000000000001",
@@ -751,7 +751,7 @@
       ]
     },
     {
-      "path": "assets/graphs/ab_als/grounded/state_standing.animgraph.ron",
+      "path": "assets/Validation/Graphs/ab_als/grounded/state_standing.animgraph.ron",
       "expected_nodes": [
         {
           "id": "17020000-0000-4000-8000-000000000001",
@@ -791,7 +791,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/graphs/ab_als/grounded/state_standing_to_crouching.animgraph.ron",
+      "path": "assets/Validation/Graphs/ab_als/grounded/state_standing_to_crouching.animgraph.ron",
       "expected_nodes": [
         {
           "id": "17050000-0000-4000-8000-000000000001",
@@ -819,7 +819,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/graphs/ab_als/grounded/state_standing_to_crouching_runtime.animgraph.ron",
+      "path": "assets/Validation/Graphs/ab_als/grounded/state_standing_to_crouching_runtime.animgraph.ron",
       "expected_nodes": [
         {
           "id": "17050000-0000-4000-8000-000000000001",
@@ -996,7 +996,7 @@
       ]
     },
     {
-      "path": "assets/graphs/ab_als/grounded/state_transition_curves.animgraph.ron",
+      "path": "assets/Validation/Graphs/ab_als/grounded/state_transition_curves.animgraph.ron",
       "expected_nodes": [
         {
           "id": "17040000-0000-4000-8000-000000000001",
@@ -1156,7 +1156,7 @@
       ]
     },
     {
-      "path": "assets/graphs/ab_als/grounded/transition_inertial_03.animgraph.ron",
+      "path": "assets/Validation/Graphs/ab_als/grounded/transition_inertial_03.animgraph.ron",
       "expected_nodes": [
         {
           "id": "17100000-0000-4000-8000-000000000001",
@@ -1428,7 +1428,7 @@
       ]
     },
     {
-      "path": "assets/graphs/ab_als/grounded/transition_roll_06.animgraph.ron",
+      "path": "assets/Validation/Graphs/ab_als/grounded/transition_roll_06.animgraph.ron",
       "expected_nodes": [
         {
           "id": "17110000-0000-4000-8000-000000000001",
@@ -1648,7 +1648,7 @@
       ]
     },
     {
-      "path": "assets/graphs/ab_als/grounded/transition_stance_change_05.animgraph.ron",
+      "path": "assets/Validation/Graphs/ab_als/grounded/transition_stance_change_05.animgraph.ron",
       "expected_nodes": [
         {
           "id": "17090000-0000-4000-8000-000000000001",
@@ -1875,7 +1875,7 @@
       ]
     },
     {
-      "path": "assets/graphs/ab_als/grounded/transition_standard_02.animgraph.ron",
+      "path": "assets/Validation/Graphs/ab_als/grounded/transition_standard_02.animgraph.ron",
       "expected_nodes": [
         {
           "id": "17080000-0000-4000-8000-000000000001",
@@ -2095,7 +2095,7 @@
       ]
     },
     {
-      "path": "assets/graphs/ab_als/grounded.animgraph.ron",
+      "path": "assets/Validation/Graphs/ab_als/grounded.animgraph.ron",
       "expected_nodes": [
         {
           "id": "17140000-0000-4000-8000-000000000001",
@@ -2228,7 +2228,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/graphs/ab_als/root_transition_slot.animgraph.ron",
+      "path": "assets/Validation/Graphs/ab_als/root_transition_slot.animgraph.ron",
       "expected_nodes": [
         {
           "id": "1a240000-0000-4000-8000-000000000001",
@@ -2862,12 +2862,12 @@
   ],
   "fsms": [
     {
-      "path": "assets/graphs/ab_als/grounded/grounded_states.fsm.ron",
+      "path": "assets/Validation/Graphs/ab_als/grounded/grounded_states.fsm.ron",
       "expected_states": [
         {
           "id": "17120000-0000-4000-8000-000000000002",
           "label": "Standing",
-          "graph": "graphs/ab_als/grounded/state_standing.animgraph.ron",
+          "graph": "Validation/Graphs/ab_als/grounded/state_standing.animgraph.ron",
           "position": [
             416.0,
             -128.0
@@ -2876,7 +2876,7 @@
         {
           "id": "17120000-0000-4000-8000-000000000003",
           "label": "Crouching",
-          "graph": "graphs/ab_als/grounded/state_crouching.animgraph.ron",
+          "graph": "Validation/Graphs/ab_als/grounded/state_crouching.animgraph.ron",
           "position": [
             416.0,
             128.0
@@ -2885,7 +2885,7 @@
         {
           "id": "17120000-0000-4000-8000-000000000004",
           "label": "Standing To Crouching",
-          "graph": "graphs/ab_als/grounded/state_standing_to_crouching.animgraph.ron",
+          "graph": "Validation/Graphs/ab_als/grounded/state_standing_to_crouching.animgraph.ron",
           "position": [
             416.0,
             256.0
@@ -2894,7 +2894,7 @@
         {
           "id": "17120000-0000-4000-8000-000000000005",
           "label": "Crouching To Standing",
-          "graph": "graphs/ab_als/grounded/state_crouching_to_standing.animgraph.ron",
+          "graph": "Validation/Graphs/ab_als/grounded/state_crouching_to_standing.animgraph.ron",
           "position": [
             416.0,
             -256.0
@@ -2903,7 +2903,7 @@
         {
           "id": "17120000-0000-4000-8000-000000000006",
           "label": "Roll",
-          "graph": "graphs/ab_als/grounded/state_roll.animgraph.ron",
+          "graph": "Validation/Graphs/ab_als/grounded/state_roll.animgraph.ron",
           "position": [
             416.0,
             0.0
@@ -2912,7 +2912,7 @@
         {
           "id": "17120000-0000-4000-8000-000000000007",
           "label": "Standing Alias",
-          "graph": "graphs/ab_als/grounded/state_alias_standing_runtime.animgraph.ron",
+          "graph": "Validation/Graphs/ab_als/grounded/state_alias_standing_runtime.animgraph.ron",
           "position": [
             160.0,
             -192.0
@@ -2921,7 +2921,7 @@
         {
           "id": "17120000-0000-4000-8000-000000000008",
           "label": "Crouching Alias",
-          "graph": "graphs/ab_als/grounded/state_alias_crouching_runtime.animgraph.ron",
+          "graph": "Validation/Graphs/ab_als/grounded/state_alias_crouching_runtime.animgraph.ron",
           "position": [
             160.0,
             192.0
@@ -2930,7 +2930,7 @@
         {
           "id": "17120000-0000-4000-8000-000000000001",
           "label": "Entry Conduit",
-          "graph": "graphs/ab_als/grounded/state_entry_conduit_runtime.animgraph.ron",
+          "graph": "Validation/Graphs/ab_als/grounded/state_entry_conduit_runtime.animgraph.ron",
           "position": [
             176.0,
             0.0
@@ -3151,7 +3151,7 @@
       "source_graph": "AnimGraph",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Grounded.bf11105.recursive/graph-f1fb79396ffa8063.source.json",
       "source_map": "tools/animgraph_authoring/ab_als_grounded.visible.json",
-      "target_path": "assets/graphs/ab_als/grounded.animgraph.ron",
+      "target_path": "assets/Validation/Graphs/ab_als/grounded.animgraph.ron",
       "gate_label": "grounded_recursive_source_visible"
     },
     {
@@ -3159,7 +3159,7 @@
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_11.Grounded States",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Grounded.bf11105.recursive/graph-d73bd4cb4b705cdb.source.json",
       "source_map": "tools/animgraph_authoring/ab_als_grounded.grounded_states.visible.json",
-      "target_path": "assets/graphs/ab_als/grounded/grounded_states.fsm.ron",
+      "target_path": "assets/Validation/Graphs/ab_als/grounded/grounded_states.fsm.ron",
       "gate_label": "grounded_recursive_source_visible"
     },
     {
@@ -3175,7 +3175,7 @@
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_11.Grounded States.AnimStateNode_1.Standing",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Grounded.bf11105.recursive/graph-8bcff26d663e1c15.source.json",
       "source_map": "tools/animgraph_authoring/ab_als_grounded.state_standing.visible.json",
-      "target_path": "assets/graphs/ab_als/grounded/state_standing.animgraph.ron",
+      "target_path": "assets/Validation/Graphs/ab_als/grounded/state_standing.animgraph.ron",
       "gate_label": "grounded_recursive_source_visible"
     },
     {
@@ -3183,7 +3183,7 @@
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_11.Grounded States.AnimStateNode_2.Crouching",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Grounded.bf11105.recursive/graph-841328198009f0bd.source.json",
       "source_map": "tools/animgraph_authoring/ab_als_grounded.state_crouching.visible.json",
-      "target_path": "assets/graphs/ab_als/grounded/state_crouching.animgraph.ron",
+      "target_path": "assets/Validation/Graphs/ab_als/grounded/state_crouching.animgraph.ron",
       "gate_label": "grounded_recursive_source_visible"
     },
     {
@@ -3191,7 +3191,7 @@
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_11.Grounded States.AnimStateNode_3.Crouching To Standing",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Grounded.bf11105.recursive/graph-26591ccf28e7e06b.source.json",
       "source_map": "tools/animgraph_authoring/ab_als_grounded.state_crouching_to_standing.visible.json",
-      "target_path": "assets/graphs/ab_als/grounded/state_crouching_to_standing.animgraph.ron",
+      "target_path": "assets/Validation/Graphs/ab_als/grounded/state_crouching_to_standing.animgraph.ron",
       "gate_label": "grounded_recursive_source_visible"
     },
     {
@@ -3199,7 +3199,7 @@
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_11.Grounded States.AnimStateNode_4.Standing To Crouching",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Grounded.bf11105.recursive/graph-3ba419d092c9874a.source.json",
       "source_map": "tools/animgraph_authoring/ab_als_grounded.state_standing_to_crouching.visible.json",
-      "target_path": "assets/graphs/ab_als/grounded/state_standing_to_crouching.animgraph.ron",
+      "target_path": "assets/Validation/Graphs/ab_als/grounded/state_standing_to_crouching.animgraph.ron",
       "gate_label": "grounded_recursive_source_visible"
     },
     {
@@ -3207,7 +3207,7 @@
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_11.Grounded States.AnimStateNode_6.Roll",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Grounded.bf11105.recursive/graph-a0fb14a74cbf1d8a.source.json",
       "source_map": "tools/animgraph_authoring/ab_als_grounded.state_roll.visible.json",
-      "target_path": "assets/graphs/ab_als/grounded/state_roll.animgraph.ron",
+      "target_path": "assets/Validation/Graphs/ab_als/grounded/state_roll.animgraph.ron",
       "gate_label": "grounded_recursive_source_visible"
     },
     {

@@ -11,7 +11,7 @@ use bevy_animation_graph::core::{
 };
 use crate::{character_assembly::AlsCharacterAvatar, crouching_layer::AlsCrouchingLayerSet};
 
-const GROUNDED_GRAPH: &str = "generated/ALS/Character/AnimationInstances/AB_Als_Grounded/AnimGraph.animgraph.ron";
+const GROUNDED_GRAPH: &str = "ALS/Character/AnimationInstances/AB_Als_Grounded/AnimGraph.animgraph.ron";
 const GROUNDED_STATES_NODE_NAME: &str = "Grounded States\nState Machine";
 
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -143,7 +143,7 @@ mod tests {
     #[test]
     fn grounded_fsm_telemetry_uses_the_authored_node_title() {
         assert_eq!(GROUNDED_STATES_NODE_NAME, "Grounded States\nState Machine");
-        assert!(include_str!("../../../../assets/generated/ALS/Character/AB_Als/AnimGraph.animgraph.ron")
+        assert!(include_str!("../../../../assets/ALS/Character/AB_Als/AnimGraph.animgraph.ron")
             .contains(&format!("graph: \"{GROUNDED_GRAPH}\"")));
     }
 

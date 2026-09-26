@@ -1045,11 +1045,11 @@ fn initial_phase(scenario: IntegrationScenario) -> IntegrationPhase {
     }
 }
 
-const LOCOMOTION_ROOT: &str = "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph.animgraph.ron";
-const LOCOMOTION_JUMP: &str = "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump.animgraph.ron";
-const LOCOMOTION_FALL: &str = "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S1_Fall.animgraph.ron";
-const DEFAULT_OVERLAY_GRAPH: &str = "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Default/Overlay.animgraph.ron";
-const LAYERING_GRAPH: &str = "generated/ALS/Character/AnimationInstances/AB_Als_Layering/AnimGraph.animgraph.ron";
+const LOCOMOTION_ROOT: &str = "ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph.animgraph.ron";
+const LOCOMOTION_JUMP: &str = "ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump.animgraph.ron";
+const LOCOMOTION_FALL: &str = "ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S1_Fall.animgraph.ron";
+const DEFAULT_OVERLAY_GRAPH: &str = "ALS/Character/AnimationInstances/Overlays/AB_Als_Default/Overlay.animgraph.ron";
+const LAYERING_GRAPH: &str = "ALS/Character/AnimationInstances/AB_Als_Layering/AnimGraph.animgraph.ron";
 const LAYERING_BOUNDARIES: [(&str, &str, &str); 11] = [
     ("layering_locomotion", "Input Pose\nLocomotion Input", "Pose"), ("layering_overlay", "Input Pose\nOverlay Input", "Pose"),
     ("layering_base_poses", "Save cached pose 'Base Poses'", CACHED_POSE_VALUE), ("layering_legs", "Save cached pose 'Legs'", CACHED_POSE_VALUE),
@@ -1066,7 +1066,7 @@ const DEFAULT_OVERLAY_EVALUATORS: [&str; 5] = [
 ];
 const DEFAULT_OVERLAY_WINDOWS: [&str; 6] = ["default_idle", "default_walk", "default_crouch", "default_air", "default_prediction", "default_return"];
 
-const HEAD_GRAPH: &str = "generated/ALS/Character/AnimationInstances/AB_Als_Head/AnimGraph.animgraph.ron";
+const HEAD_GRAPH: &str = "ALS/Character/AnimationInstances/AB_Als_Head/AnimGraph.animgraph.ron";
 const HEAD_WINDOWS: [&str; 7] = ["head_down", "head_forward", "head_up", "head_velocity_input", "head_velocity_release", "head_first_person", "head_return"];
 const HEAD_BOUNDARIES: [(&str, &str, &str); 5] = [
     ("head_look", "BS_Als_Look\nBlendspace Evaluator", "pose"),
@@ -1581,8 +1581,8 @@ fn default_overlay_window(index: usize, sample: &DefaultOverlayGraphSample) -> M
 
 fn default_overlay_should_timeout(covered: bool, elapsed: f32) -> bool { !covered && elapsed >= 12.0 }
 
-const LOCOMOTION_LAND: &str = "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S5_Land.animgraph.ron";
-const LOCOMOTION_LAND_MOVEMENT: &str = "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S4_Land_Movement.animgraph.ron";
+const LOCOMOTION_LAND: &str = "ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S5_Land.animgraph.ron";
+const LOCOMOTION_LAND_MOVEMENT: &str = "ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S4_Land_Movement.animgraph.ron";
 const LOCOMOTION_WINDOW_LABELS: [&str; 14] = [
     "jump_walk_left", "jump_walk_right", "jump_run_left", "jump_run_right",
     "jump_loop", "jump_flail", "fall_fast", "fall", "fall_flail",
@@ -1705,7 +1705,7 @@ fn locomotion_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe) -
     for id in arena.iter_context_ids() {
         let Some(child) = arena.get_context(id) else { continue; };
         let Some(path) = probe.asset_server.get_path(child.get_graph_id()) else { continue; };
-        if !path.path().starts_with("generated/ALS/Character/AnimationInstances/AB_Als_Locomotion") { continue; }
+        if !path.path().starts_with("ALS/Character/AnimationInstances/AB_Als_Locomotion") { continue; }
         let Some(graph) = probe.graphs.get(child.get_graph_id()) else { continue; };
         for node in graph.nodes.values() {
             if !child.node_caches.is_updated(node.id, StateKey::Default) { continue; }
@@ -1782,10 +1782,10 @@ fn locomotion_jump_weights_match(clips: &[LocomotionClipSample], run_alpha: [Opt
 
 fn locomotion_clip_graph(index: usize) -> &'static str {
     match index {
-        0 | 2 => "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S1_Left_Foot.animgraph.ron",
-        1 | 3 => "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S2_Right_Foot.animgraph.ron",
-        4 => "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S3_Loop.animgraph.ron",
-        5 => "generated/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S4_Flail.animgraph.ron",
+        0 | 2 => "ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S1_Left_Foot.animgraph.ron",
+        1 | 3 => "ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S2_Right_Foot.animgraph.ron",
+        4 => "ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S3_Loop.animgraph.ron",
+        5 => "ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S2_Jump/SM0_Jump_States/S4_Flail.animgraph.ron",
         6..=8 => LOCOMOTION_FALL,
         9 | 10 => LOCOMOTION_LAND,
         _ => LOCOMOTION_LAND_MOVEMENT,
@@ -2290,7 +2290,7 @@ fn generated_standing_source_pose_chain() -> Vec<ManualAnimationPoseBoundary> {
     vec![
         ManualAnimationPoseBoundary {
             label: "standing_movement_cache",
-            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
+            graph: "ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
             node: "Save cached pose 'Movement'",
             output: "__als_source_cached_pose",
             minimum_translation_span: 0.0,
@@ -2298,7 +2298,7 @@ fn generated_standing_source_pose_chain() -> Vec<ManualAnimationPoseBoundary> {
         },
         ManualAnimationPoseBoundary {
             label: "standing_movement_details_fsm",
-            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
+            graph: "ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
             node: "Movement Details States\nState Machine",
             output: "Pose",
             minimum_translation_span: 0.0,
@@ -2306,7 +2306,7 @@ fn generated_standing_source_pose_chain() -> Vec<ManualAnimationPoseBoundary> {
         },
         ManualAnimationPoseBoundary {
             label: "standing_movement_states_fsm",
-            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
+            graph: "ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
             node: "Movement States\nState Machine",
             output: "Pose",
             minimum_translation_span: 0.0,
@@ -2314,7 +2314,7 @@ fn generated_standing_source_pose_chain() -> Vec<ManualAnimationPoseBoundary> {
         },
         ManualAnimationPoseBoundary {
             label: "standing_states_fsm",
-            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
+            graph: "ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
             node: "Standing States\nState Machine",
             output: "Pose",
             minimum_translation_span: 0.0,
@@ -2322,7 +2322,7 @@ fn generated_standing_source_pose_chain() -> Vec<ManualAnimationPoseBoundary> {
         },
         ManualAnimationPoseBoundary {
             label: "standing_apply_additive",
-            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
+            graph: "ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
             node: "Apply Additive",
             output: "Pose",
             minimum_translation_span: 0.0,
@@ -2330,7 +2330,7 @@ fn generated_standing_source_pose_chain() -> Vec<ManualAnimationPoseBoundary> {
         },
         ManualAnimationPoseBoundary {
             label: "standing_refresh_rotate_in_place",
-            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
+            graph: "ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
             node: "RefreshRotateInPlace\r\nOn Update",
             output: "Pose",
             minimum_translation_span: 0.0,
@@ -2338,7 +2338,7 @@ fn generated_standing_source_pose_chain() -> Vec<ManualAnimationPoseBoundary> {
         },
         ManualAnimationPoseBoundary {
             label: "standing_graph_output",
-            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
+            graph: "ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
             node: "Output Pose\nAnimGraph",
             output: "Pose",
             minimum_translation_span: 0.0,
@@ -2346,7 +2346,7 @@ fn generated_standing_source_pose_chain() -> Vec<ManualAnimationPoseBoundary> {
         },
         ManualAnimationPoseBoundary {
             label: "grounded_standing_cache",
-            graph: "generated/ALS/Character/AnimationInstances/AB_Als_Grounded/AnimGraph.animgraph.ron",
+            graph: "ALS/Character/AnimationInstances/AB_Als_Grounded/AnimGraph.animgraph.ron",
             node: "Save cached pose 'Standing'",
             output: "__als_source_cached_pose",
             minimum_translation_span: 0.0,
@@ -2354,7 +2354,7 @@ fn generated_standing_source_pose_chain() -> Vec<ManualAnimationPoseBoundary> {
         },
         ManualAnimationPoseBoundary {
             label: "grounded_fsm",
-            graph: "generated/ALS/Character/AnimationInstances/AB_Als_Grounded/AnimGraph.animgraph.ron",
+            graph: "ALS/Character/AnimationInstances/AB_Als_Grounded/AnimGraph.animgraph.ron",
             node: "Grounded States\nState Machine",
             output: "Pose",
             minimum_translation_span: 0.0,
@@ -2420,7 +2420,7 @@ fn sprint_window(
     let mut source_pose_chain = generated_standing_source_pose_chain();
     source_pose_chain.insert(0, ManualAnimationPoseBoundary {
         label: "sprint_sequence",
-        graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
+        graph: "ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
         node,
         output: "Pose",
         minimum_translation_span: 0.0,
@@ -2494,7 +2494,7 @@ fn crouch_direction_source_pose_chain(
     vec![
         ManualAnimationPoseBoundary {
             label: "sequence_player",
-            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
+            graph: "ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
             node: crouch_direction_graph_node(direction),
             output: "Pose",
             minimum_translation_span: 0.0,
@@ -2502,7 +2502,7 @@ fn crouch_direction_source_pose_chain(
         },
         ManualAnimationPoseBoundary {
             label: "cache_producer",
-            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
+            graph: "ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
             node: crouch_direction_cache_node(direction),
             output: "__als_source_cached_pose",
             minimum_translation_span: 0.0,
@@ -2510,7 +2510,7 @@ fn crouch_direction_source_pose_chain(
         },
         ManualAnimationPoseBoundary {
             label: "cache_consumer",
-            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
+            graph: "ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
             node: "Movement States\nState Machine",
             output: "Pose",
             minimum_translation_span: 0.0,
@@ -2518,7 +2518,7 @@ fn crouch_direction_source_pose_chain(
         },
         ManualAnimationPoseBoundary {
             label: "outer_fsm",
-            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
+            graph: "ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
             node: "Crouching States\nState Machine",
             output: "Pose",
             minimum_translation_span: 0.0,
@@ -2526,7 +2526,7 @@ fn crouch_direction_source_pose_chain(
         },
         ManualAnimationPoseBoundary {
             label: "additive",
-            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
+            graph: "ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
             node: "Apply Additive",
             output: "Pose",
             minimum_translation_span: 0.0,
@@ -2534,7 +2534,7 @@ fn crouch_direction_source_pose_chain(
         },
         ManualAnimationPoseBoundary {
             label: "root_entry",
-            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
+            graph: "ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
             node: "Output Pose\nAnimGraph",
             output: "Pose",
             minimum_translation_span: 0.0,
@@ -2561,9 +2561,9 @@ fn source_sequence_sample(
 
 fn crouch_rotate_source_pose_chain(left: bool) -> Vec<ManualAnimationPoseBoundary> {
     let graph = if left {
-        "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph/SM2_Crouching_States/S3_Rotate_Left.animgraph.ron"
+        "ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph/SM2_Crouching_States/S3_Rotate_Left.animgraph.ron"
     } else {
-        "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph/SM2_Crouching_States/S7_Rotate_Right.animgraph.ron"
+        "ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph/SM2_Crouching_States/S7_Rotate_Right.animgraph.ron"
     };
     let sequence = if left {
         "A_Als_Crouch_Rotate_90_Left\nSequence Player"
@@ -2589,7 +2589,7 @@ fn crouch_rotate_source_pose_chain(left: bool) -> Vec<ManualAnimationPoseBoundar
         },
         ManualAnimationPoseBoundary {
             label: "outer_fsm",
-            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
+            graph: "ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
             node: "Crouching States\nState Machine",
             output: "Pose",
             minimum_translation_span: 0.0,
@@ -2597,7 +2597,7 @@ fn crouch_rotate_source_pose_chain(left: bool) -> Vec<ManualAnimationPoseBoundar
         },
         ManualAnimationPoseBoundary {
             label: "refresh_rotate",
-            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
+            graph: "ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
             node: "RefreshRotateInPlace\r\nOn Update",
             output: "Pose",
             minimum_translation_span: 0.0,
@@ -2605,7 +2605,7 @@ fn crouch_rotate_source_pose_chain(left: bool) -> Vec<ManualAnimationPoseBoundar
         },
         ManualAnimationPoseBoundary {
             label: "root_entry",
-            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
+            graph: "ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
             node: "Output Pose\nAnimGraph",
             output: "Pose",
             minimum_translation_span: 0.0,
@@ -2618,7 +2618,7 @@ fn crouch_turn_source_pose_chain() -> Vec<ManualAnimationPoseBoundary> {
     vec![
         ManualAnimationPoseBoundary {
             label: "slot",
-            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph/SM2_Crouching_States/S8_Idle.animgraph.ron",
+            graph: "ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph/SM2_Crouching_States/S8_Idle.animgraph.ron",
             node: "Slot 'TurnInPlaceCrouching'\nGroup 'Grounded'",
             output: "Pose",
             minimum_translation_span: 0.0,
@@ -2626,7 +2626,7 @@ fn crouch_turn_source_pose_chain() -> Vec<ManualAnimationPoseBoundary> {
         },
         ManualAnimationPoseBoundary {
             label: "refresh_turn",
-            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph/SM2_Crouching_States/S8_Idle.animgraph.ron",
+            graph: "ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph/SM2_Crouching_States/S8_Idle.animgraph.ron",
             node: "RefreshTurnInPlace\r\nOn Update",
             output: "Pose",
             minimum_translation_span: 0.0,
@@ -2634,7 +2634,7 @@ fn crouch_turn_source_pose_chain() -> Vec<ManualAnimationPoseBoundary> {
         },
         ManualAnimationPoseBoundary {
             label: "outer_fsm",
-            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
+            graph: "ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
             node: "Crouching States\nState Machine",
             output: "Pose",
             minimum_translation_span: 0.0,
@@ -2642,7 +2642,7 @@ fn crouch_turn_source_pose_chain() -> Vec<ManualAnimationPoseBoundary> {
         },
         ManualAnimationPoseBoundary {
             label: "refresh_rotate",
-            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
+            graph: "ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
             node: "RefreshRotateInPlace\r\nOn Update",
             output: "Pose",
             minimum_translation_span: 0.0,
@@ -2650,7 +2650,7 @@ fn crouch_turn_source_pose_chain() -> Vec<ManualAnimationPoseBoundary> {
         },
         ManualAnimationPoseBoundary {
             label: "root_entry",
-            graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
+            graph: "ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
             node: "Output Pose\nAnimGraph",
             output: "Pose",
             minimum_translation_span: 0.0,
@@ -6612,7 +6612,7 @@ fn observe_mantle(
         source_state: Some("Mantling"),
         source_pose_chain: vec![ManualAnimationPoseBoundary {
             label: "post_locomotion_slot",
-            graph: "generated/ALS/Character/AB_Als/AnimGraph.animgraph.ron",
+            graph: "ALS/Character/AB_Als/AnimGraph.animgraph.ron",
             node: MANTLE_SLOT_NODE,
             output: "Pose",
             minimum_translation_span: 0.0,
@@ -8343,7 +8343,7 @@ fn observe_manual_integration(
             let expected_variant = if crouching_actions { if right > 0.5 { "A_Als_Crouch_DynamicTransition_Right" } else { "A_Als_Crouch_DynamicTransition_Left" } } else { if right > 0.5 { "A_Als_Stand_DynamicTransition_Right" } else { "A_Als_Stand_DynamicTransition_Left" } };
             let mut chain = generated_stop_quick_source_pose_chain(crouching_actions);
             chain.push(ManualAnimationPoseBoundary {
-                label: "root_transition_slot", graph: "generated/ALS/Character/AB_Als/AnimGraph.animgraph.ron",
+                label: "root_transition_slot", graph: "ALS/Character/AB_Als/AnimGraph.animgraph.ron",
                 node: "Slot 'Transition'\nGroup 'Grounded'", output: "Pose",
                 minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.05,
             });
@@ -8437,15 +8437,15 @@ fn observe_manual_integration(
             if !crouching_actions && rotating && index != 7 {
                 chain.insert(0, ManualAnimationPoseBoundary {
                     label: "standing_rotate_sequence",
-                    graph: if yaw_degrees > 0.0 { "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph/SM6_Standing_States/S6_Rotate_Left.animgraph.ron" }
-                        else { "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph/SM6_Standing_States/S5_Rotate_Right.animgraph.ron" },
+                    graph: if yaw_degrees > 0.0 { "ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph/SM6_Standing_States/S6_Rotate_Left.animgraph.ron" }
+                        else { "ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph/SM6_Standing_States/S5_Rotate_Right.animgraph.ron" },
                     node: if yaw_degrees > 0.0 { "A_Als_Rotate_90_Left\nSequence Player" } else { "A_Als_Rotate_90_Right\nSequence Player" },
                     output: "Pose", minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.05,
                 });
             } else if !crouching_actions && !rotating {
                 chain.insert(0, ManualAnimationPoseBoundary {
                     label: "standing_turn_slot",
-                    graph: "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph/SM6_Standing_States/S0_Idle.animgraph.ron",
+                    graph: "ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph/SM6_Standing_States/S0_Idle.animgraph.ron",
                     node: "Slot 'TurnInPlaceStanding'\nGroup 'Grounded'", output: "Pose",
                     minimum_translation_span: 0.0, minimum_rotation_span_radians: 0.05,
                 });
@@ -9663,10 +9663,10 @@ fn observe_manual_integration(
 
         let bow_bound = *overlay == OverlayState::Bow
             && overlay_tag.as_ref() == Some(&OverlayState::Bow.tag())
-            && active_layer_pose(player, &motion_probe, "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/AnimGraph.animgraph.ron");
+            && active_layer_pose(player, &motion_probe, "ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/AnimGraph.animgraph.ron");
         let default_bound = *overlay == OverlayState::Default
             && overlay_tag.as_ref() == Some(&OverlayState::Default.tag())
-            && active_layer_pose(player, &motion_probe, "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Default/AnimGraph.animgraph.ron");
+            && active_layer_pose(player, &motion_probe, "ALS/Character/AnimationInstances/Overlays/AB_Als_Default/AnimGraph.animgraph.ron");
         if bow_bound && !state.interface_overlay_bow_seen {
             info!(
                 "[MANUAL-INTEGRATION][ALI] selector=8 state=Bow generated_pose=true binding=PASS"
@@ -9711,7 +9711,7 @@ fn observe_manual_integration(
         if state.interface_debug_armed && all_debug_categories_active && !interface.show_debug_roots.is_empty() {
             let expected_context = state.avatar.and_then(|avatar| motion_probe.object_scenes.get(avatar).ok())
                 .and_then(|instance| players.get(instance.player_entity()).ok()).and_then(|(_, context)| context);
-            let metadata: serde_json::Value = serde_json::from_str(include_str!("../../../assets/ui/als_character_curves.runtime.json")).unwrap();
+            let metadata: serde_json::Value = serde_json::from_str(include_str!("../../../assets/ALS/Character/als_character_curves.runtime.json")).unwrap();
             let mut expected: Vec<(String, String)> = metadata["curves"].as_array().unwrap().iter().map(|name| {
                 let name = name.as_str().unwrap();
                 (crate::show_debug_hud::name_to_display_string(name, false),
@@ -9760,7 +9760,7 @@ fn observe_manual_integration(
             let camera_context = camera_source.and_then(|source| motion_probe.object_scenes.get(source).ok())
                 .and_then(|instance| players.get(instance.player_entity()).ok()).and_then(|(_, context)| context);
             if let Some(context) = camera_context {
-                let mapping: std::collections::HashMap<String, (String, f32)> = serde_json::from_str(include_str!("../../../assets/ui/als_camera_curves.runtime.json")).unwrap();
+                let mapping: std::collections::HashMap<String, (String, f32)> = serde_json::from_str(include_str!("../../../assets/ALSCamera/als_camera_curves.runtime.json")).unwrap();
                 for (name, value) in &context.curves {
                     let (name, value) = mapping.get(name).map_or((name.as_str(), *value), |(source, scale)| (source.as_str(), value * scale));
                     expected.push((crate::show_debug_hud::name_to_display_string(name, false), format!("{:.2}", if value == 0.0 { 0.0 } else { value })));
@@ -10627,7 +10627,7 @@ mod tests {
             bevy::gizmos::GizmoPlugin, AnimationGraphPlugin::default(), crate::extensions::AlsExtPlugin)).init_asset::<WorldAsset>();
         app.finish();
         app.cleanup();
-        let definition: RigDefinition = serde_json::from_str(include_str!("../../../assets/control_rigs/cr_als.program.json")).unwrap();
+        let definition: RigDefinition = serde_json::from_str(include_str!("../../../assets/ALS/Character/CR_Als.program.json")).unwrap();
         let local = |value: crate::extensions::control_rig_hierarchy::RigTransform| Transform {
             translation: value.translation.as_vec3(), rotation: value.rotation.as_quat(), scale: value.scale.as_vec3() };
         let mut skeleton = Skeleton::default();
@@ -10787,7 +10787,7 @@ mod tests {
         app.cleanup();
         let server = app.world().resource::<AssetServer>();
         let graph: Handle<AnimationGraph> = server.load(HEAD_GRAPH);
-        let base: Handle<GraphClip> = server.load("animations/Overlays/Other/A_Als_Default_Poses.anim.ron");
+        let base: Handle<GraphClip> = server.load("ALS/Animations/Overlays/Other/A_Als_Default_Poses.anim.ron");
         let deadline = Instant::now() + Duration::from_secs(30);
         let mut previous_loaded = 0;
         loop {
@@ -10860,7 +10860,7 @@ mod tests {
         app.cleanup();
         let server = app.world().resource::<AssetServer>();
         let graph: Handle<AnimationGraph> = server.load(LAYERING_GRAPH);
-        let base: Handle<GraphClip> = server.load("animations/Overlays/Other/A_Als_Default_Poses.anim.ron");
+        let base: Handle<GraphClip> = server.load("ALS/Animations/Overlays/Other/A_Als_Default_Poses.anim.ron");
         let deadline = Instant::now() + Duration::from_secs(30);
         let mut previous_loaded = 0;
         loop {
@@ -10927,9 +10927,9 @@ mod tests {
         app.cleanup();
         let server = app.world().resource::<AssetServer>();
         let handles: [Handle<GraphClip>; 3] = [
-            "animations/Overlays/Other/A_Als_Default_Poses.anim.ron",
-            "animations/Base/A_Als_Idle.anim.ron",
-            "animations/Base/A_Als_Stand_Pose.anim.ron",
+            "ALS/Animations/Overlays/Other/A_Als_Default_Poses.anim.ron",
+            "ALS/Animations/Base/A_Als_Idle.anim.ron",
+            "ALS/Animations/Base/A_Als_Stand_Pose.anim.ron",
         ].map(|path| server.load(path));
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
         let mut previous = 0;
@@ -11031,7 +11031,7 @@ mod tests {
 
     #[test]
     fn grounded_roll_reaches_an_existing_playground_wall_before_reentry() {
-        let manifest: crate::extensions::playground::PlaygroundManifest = ron::from_str(include_str!("../../../assets/models/playground/playground_scene.ron")).unwrap();
+        let manifest: crate::extensions::playground::PlaygroundManifest = ron::from_str(include_str!("../../../assets/ALSExtras/Levels/L_Als_Playground/playground_scene.ron")).unwrap();
         let wall = manifest.actors.iter().find(|actor| actor.bounds_origin == Some([-4000.0, -3000.0, 100.0]) && actor.bounds_extent == Some([1000.0, 25.0, 100.0])).unwrap();
         let center = crate::extensions::playground::ue_point_to_bevy(Vec3::from(wall.bounds_origin.unwrap()));
         let extent = crate::extensions::playground::ue_extents_to_bevy(Vec3::from(wall.bounds_extent.unwrap()));
@@ -11258,14 +11258,14 @@ mod tests {
             let graph = std::fs::read_to_string(format!("assets/{}", locomotion_clip_graph(index))).unwrap();
             assert!(graph.contains(&format!("name: {:?}", title)), "{variant}");
         }
-        let root = include_str!("../../../assets/generated/ALS/Character/AB_Als/AnimGraph.animgraph.ron");
+        let root = include_str!("../../../assets/ALS/Character/AB_Als/AnimGraph.animgraph.ron");
         assert!(root.contains(LOCOMOTION_ROOT));
     }
 
     #[test]
     fn locomotion_long_air_fixture_stays_above_the_original_floor_for_the_source_transition() {
         use crate::extensions::playground::{PlaygroundActor, ue_extents_to_bevy, ue_point_to_bevy};
-        let actors: Vec<PlaygroundActor> = serde_json::from_str(include_str!("../../../assets/models/playground/playground.json")).unwrap();
+        let actors: Vec<PlaygroundActor> = serde_json::from_str(include_str!("../../../assets/ALSExtras/Levels/L_Als_Playground/playground.json")).unwrap();
         for offset in [Vec3::ZERO, Vec3::X * 12.0] {
             let point = GROUNDED_START + offset;
             assert!(actors.iter().any(|actor| {
@@ -12370,7 +12370,7 @@ mod tests {
         }
         let installed = std::fs::read_to_string(
             std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("assets/generated/ALS/Character/AB_Als/AnimGraph.animgraph.ron"),
+                .join("assets/ALS/Character/AB_Als/AnimGraph.animgraph.ron"),
         )
         .unwrap();
         assert!(installed.contains(&format!("name: {MANTLE_SLOT_NODE:?}")));
@@ -12403,7 +12403,7 @@ mod tests {
         let mut graphs = Assets::<AnimationGraph>::default();
         let handle = graphs.add(graph);
         let linked = AnimationNode::new(
-            "Generated AB_Als",
+            "AB_Als",
             crate::extensions::LayeredGraphNode {
                 capture_context: true,
                 internalize_time: true,
@@ -12499,7 +12499,7 @@ mod tests {
         assert_eq!(chain[0].label, "standing_movement_cache");
         assert_eq!(
             chain[0].graph,
-            "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron"
+            "ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron"
         );
         assert_eq!(chain[0].node, "Save cached pose 'Movement'");
         assert_eq!(chain[1].node, "Movement Details States\nState Machine");
@@ -12571,7 +12571,7 @@ mod tests {
     fn sprint_and_grounded_fixtures_have_continuous_original_floor_without_obstacles() {
         use crate::extensions::playground::{PlaygroundActor, ue_extents_to_bevy, ue_point_to_bevy};
         let actors: Vec<PlaygroundActor> =
-            serde_json::from_str(include_str!("../../../assets/models/playground/playground.json"))
+            serde_json::from_str(include_str!("../../../assets/ALSExtras/Levels/L_Als_Playground/playground.json"))
                 .unwrap();
         use bevy::ecs::system::RunSystemOnce;
         let start = actors.iter().find(|actor| actor.class == "PlayerStart").unwrap();
@@ -12948,7 +12948,7 @@ mod tests {
             crouch_turn_source_pose_chain(),
         ];
         for boundary in chains.into_iter().flatten() {
-            assert!(boundary.graph.starts_with("generated/"), "{}", boundary.graph);
+            assert!(boundary.graph.starts_with("ALS/") || boundary.graph.starts_with("ALSCamera/"), "{}", boundary.graph);
             let graph = std::fs::read_to_string(format!("assets/{}", boundary.graph)).unwrap();
             assert!(graph.contains(&format!("name: {:?}", boundary.node)), "{}: {}", boundary.graph, boundary.node);
         }

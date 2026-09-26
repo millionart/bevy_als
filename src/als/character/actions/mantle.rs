@@ -148,7 +148,7 @@ impl Default for AlsMantleStartTimeSettings {
 }
 
 pub const MANTLE_SOURCE_DATA: &str =
-    include_str!("../../../../assets/character/als_mantle_settings.ron");
+    include_str!("../../../../assets/ALS/Data/Character/Mantle/als_mantle_settings.ron");
 
 #[derive(serde::Deserialize)]
 struct MantleSourceSettings {

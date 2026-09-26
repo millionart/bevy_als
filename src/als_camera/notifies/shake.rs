@@ -198,7 +198,7 @@ mod tests {
 
     fn definition() -> CameraShakeDefinition {
         let definition: AlsCameraDefinition = ron::from_str(include_str!(
-            "../../../assets/params/als_camera.camera_component.ron"
+            "../../../assets/ALSCamera/Data/als_camera.camera_component.ron"
         ))
         .unwrap();
         definition.sprint_shake
@@ -276,7 +276,7 @@ mod tests {
             .advance_by(std::time::Duration::from_millis(20));
         let definition_handle = world.resource_mut::<Assets<AlsCameraDefinition>>().add(
             ron::from_str::<AlsCameraDefinition>(include_str!(
-                "../../../assets/params/als_camera.camera_component.ron"
+                "../../../assets/ALSCamera/Data/als_camera.camera_component.ron"
             ))
             .unwrap(),
         );

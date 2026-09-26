@@ -26,7 +26,7 @@ use crate::{
 };
 
 const OUTER_RUNTIME_GRAPH: &str =
-    "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron";
+    "ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron";
 const OUTER_FSM_TITLE: &str = "Crouching States\nState Machine";
 const MOVEMENT_FSM_TITLE: &str = "Movement States\nState Machine";
 const MOVEMENT_SYNC_GROUP: &str = "sync_groups.ab_als_crouching.movement.phase";
@@ -316,10 +316,10 @@ mod tests {
 
     #[test]
     fn crouching_telemetry_reads_the_generated_root_used_by_the_character() {
-        let root = include_str!("../../../../assets/generated/ALS/Character/AB_Als/AnimGraph.animgraph.ron");
+        let root = include_str!("../../../../assets/ALS/Character/AB_Als/AnimGraph.animgraph.ron");
         assert!(root.contains(OUTER_RUNTIME_GRAPH));
         let text = include_str!(
-            "../../../../assets/generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron"
+            "../../../../assets/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron"
         );
         for title in [OUTER_FSM_TITLE, MOVEMENT_FSM_TITLE] {
             assert!(text.contains(&format!("name: {:?}", title)), "{title}");

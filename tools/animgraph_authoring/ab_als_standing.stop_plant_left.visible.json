@@ -81,7 +81,7 @@
       "property_assertions": [
         {
           "source_contains": "A_Als_Walk_Forward",
-          "target_contains": "clip: \"animations/Grounded/WalkRun/A_Als_Walk_Forward.anim.ron\""
+          "target_contains": "clip: \"ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.anim.ron\""
         },
         {
           "source_contains": "bUseExplicitFrame=True",
@@ -122,7 +122,7 @@
       "property_assertions": [
         {
           "source_contains": "A_Als_Walk_Backward",
-          "target_contains": "clip: \"animations/Grounded/WalkRun/A_Als_Walk_Backward.anim.ron\""
+          "target_contains": "clip: \"ALS/Animations/Grounded/WalkRun/A_Als_Walk_Backward.anim.ron\""
         },
         {
           "source_contains": "bUseExplicitFrame=True",
@@ -163,7 +163,7 @@
       "property_assertions": [
         {
           "source_contains": "A_Als_Walk_Left_Forward",
-          "target_contains": "clip: \"animations/Grounded/WalkRun/A_Als_Walk_Left_Forward.anim.ron\""
+          "target_contains": "clip: \"ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Forward.anim.ron\""
         },
         {
           "source_contains": "bUseExplicitFrame=True",
@@ -204,7 +204,7 @@
       "property_assertions": [
         {
           "source_contains": "A_Als_Walk_Left_Backward",
-          "target_contains": "clip: \"animations/Grounded/WalkRun/A_Als_Walk_Left_Backward.anim.ron\""
+          "target_contains": "clip: \"ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Backward.anim.ron\""
         },
         {
           "source_contains": "bUseExplicitFrame=True",
@@ -245,7 +245,7 @@
       "property_assertions": [
         {
           "source_contains": "A_Als_Walk_Right_Forward",
-          "target_contains": "clip: \"animations/Grounded/WalkRun/A_Als_Walk_Right_Forward.anim.ron\""
+          "target_contains": "clip: \"ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Forward.anim.ron\""
         },
         {
           "source_contains": "bUseExplicitFrame=True",
@@ -286,7 +286,7 @@
       "property_assertions": [
         {
           "source_contains": "A_Als_Walk_Right_Backward",
-          "target_contains": "clip: \"animations/Grounded/WalkRun/A_Als_Walk_Right_Backward.anim.ron\""
+          "target_contains": "clip: \"ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Backward.anim.ron\""
         },
         {
           "source_contains": "bUseExplicitFrame=True",

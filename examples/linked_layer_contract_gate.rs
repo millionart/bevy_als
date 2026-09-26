@@ -17,7 +17,7 @@ use bevy_animation_graph::core::{
 };
 use serde_json::Value;
 
-const CONTRACT_PATH: &str = "graphs/ab_als/ali_overlay.animgraph.ron";
+const CONTRACT_PATH: &str = "Validation/Graphs/ab_als/ali_overlay.animgraph.ron";
 
 fn main() {
     let mut app = App::new();

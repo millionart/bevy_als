@@ -1,8 +1,8 @@
 use super::*;
 use crate::extensions::{InterruptibleFsmNode, InterruptibleFsmState};
 
-const STANDING_GRAPH: &str = "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron";
-const GROUNDED_GRAPH: &str = "generated/ALS/Character/AnimationInstances/AB_Als_Grounded/AnimGraph.animgraph.ron";
+const STANDING_GRAPH: &str = "ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron";
+const GROUNDED_GRAPH: &str = "ALS/Character/AnimationInstances/AB_Als_Grounded/AnimGraph.animgraph.ron";
 
 pub(super) fn install(app: &mut App) {
     if std::env::var("ALS_MANUAL_MACHINE_WEIGHT").as_deref() == Ok("1") {

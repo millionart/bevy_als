@@ -1,0 +1,25 @@
+{
+  "format": "ue_animgraph_installation_manifest_v1",
+  "source": {
+    "uasset_name": "AB_Als_Camera.uasset",
+    "package_path": "/ALS/ALSCamera/AB_Als_Camera.AB_Als_Camera"
+  },
+  "namespace": "",
+  "root_graph": "ALSCamera/AB_Als_Camera/AnimGraph.animgraph.ron",
+  "files": [
+    "ALSCamera/AB_Als_Camera/AnimGraph.animgraph.ron",
+    "ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States.fsm.ron",
+    "ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/S0_Velocity_Direction.animgraph.ron",
+    "ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/S1_View_Direction.animgraph.ron",
+    "ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/S2_Aiming.animgraph.ron",
+    "ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T3/Transition.transition.animgraph.ron",
+    "ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T3_Transition_1.condition.animgraph.ron",
+    "ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T4/Transition.transition.animgraph.ron",
+    "ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T5/Transition.transition.animgraph.ron",
+    "ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T5_Transition.condition.animgraph.ron",
+    "ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T6/Transition.transition.animgraph.ron",
+    "ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T6_Transition.condition.animgraph.ron",
+    "ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T7/Transition.transition.animgraph.ron",
+    "ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T8/Transition.transition.animgraph.ron"
+  ]
+}

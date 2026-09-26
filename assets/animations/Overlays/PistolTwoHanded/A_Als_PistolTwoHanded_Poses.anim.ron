@@ -1,7 +1,0 @@
-(
-    source: GltfNamed(
-        path: "animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Poses.gltf",
-        animation_name: "A_Als_PistolTwoHanded_Poses_0",
-    ),
-    skeleton: "skeletons/SKM_Als.skn.ron",
-)

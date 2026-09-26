@@ -1380,7 +1380,7 @@ mod tests {
             let mut definitions = Assets::<AlsCameraDefinition>::default();
             let definition = definitions.add(
                 ron::from_str::<AlsCameraDefinition>(include_str!(
-                    "../../assets/params/als_camera.camera_component.ron"
+                    "../../assets/ALSCamera/Data/als_camera.camera_component.ron"
                 ))
                 .unwrap(),
             );
@@ -1442,7 +1442,7 @@ mod tests {
             .resource_mut::<Time<Virtual>>()
             .set_relative_speed(0.2);
         let mut definition: AlsCameraDefinition = ron::from_str(include_str!(
-            "../../assets/params/als_camera.camera_component.ron"
+            "../../assets/ALSCamera/Data/als_camera.camera_component.ron"
         ))
         .unwrap();
         for wave in definition
@@ -1651,7 +1651,7 @@ mod tests {
             app.update();
             app.update();
             let mut settings: AlsCameraDefinition = ron::from_str(include_str!(
-                "../../assets/params/als_camera.camera_component.ron"
+                "../../assets/ALSCamera/Data/als_camera.camera_component.ron"
             ))
             .unwrap();
             settings.settings.trace_distance_smoothing = false;
@@ -1877,7 +1877,7 @@ mod tests {
         let mut world = World::new();
         let mut definitions = Assets::<AlsCameraDefinition>::default();
         let definition = definitions.add(ron::from_str::<AlsCameraDefinition>(include_str!(
-            "../../assets/params/als_camera.camera_component.ron"
+            "../../assets/ALSCamera/Data/als_camera.camera_component.ron"
         )).unwrap());
         world.insert_resource(definitions);
         let actor = world.spawn((
@@ -1932,7 +1932,7 @@ mod tests {
         let mut definitions = Assets::<AlsCameraDefinition>::default();
         let definition = definitions.add(
             ron::from_str::<AlsCameraDefinition>(include_str!(
-                "../../assets/params/als_camera.camera_component.ron"
+                "../../assets/ALSCamera/Data/als_camera.camera_component.ron"
             ))
             .unwrap(),
         );
@@ -2185,7 +2185,7 @@ mod tests {
             .resource_mut::<Assets<AlsCameraDefinition>>()
             .add(
                 ron::from_str::<AlsCameraDefinition>(include_str!(
-                    "../../assets/params/als_camera.camera_component.ron"
+                    "../../assets/ALSCamera/Data/als_camera.camera_component.ron"
                 ))
                 .unwrap(),
             );
@@ -2391,7 +2391,7 @@ mod tests {
         world.init_resource::<Assets<AlsCameraDefinition>>();
         let definition = world.resource_mut::<Assets<AlsCameraDefinition>>().add(
             ron::from_str::<AlsCameraDefinition>(include_str!(
-                "../../assets/params/als_camera.camera_component.ron"
+                "../../assets/ALSCamera/Data/als_camera.camera_component.ron"
             ))
             .unwrap(),
         );

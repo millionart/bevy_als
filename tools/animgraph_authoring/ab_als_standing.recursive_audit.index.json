@@ -7,56 +7,56 @@
       "kind": "graph",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-f1fb79396ffa8063.source.json",
       "map": "tools/animgraph_authoring/ab_als_standing.visible.json",
-      "target_path": "assets/graphs/ab_als/stances/standing.animgraph.ron"
+      "target_path": "assets/Validation/Graphs/ab_als/stances/standing.animgraph.ron"
     },
     {
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_0.Movement Details States",
       "kind": "fsm",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-862726fd59945e17.source.json",
       "map": "tools/animgraph_authoring/ab_als_standing.movement_details_states.visible.json",
-      "target_path": "assets/graphs/ab_als/stances/standing/movement_details.fsm.ron"
+      "target_path": "assets/Validation/Graphs/ab_als/stances/standing/movement_details.fsm.ron"
     },
     {
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_0.Movement Details States.AnimStateNode_0.Walk",
       "kind": "graph",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-7afda4edb324c513.source.json",
       "map": "tools/animgraph_authoring/ab_als_standing.movement_details_walk.visible.json",
-      "target_path": "assets/graphs/ab_als/stances/standing/state_detail_walk.animgraph.ron"
+      "target_path": "assets/Validation/Graphs/ab_als/stances/standing/state_detail_walk.animgraph.ron"
     },
     {
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_0.Movement Details States.AnimStateNode_1.Run",
       "kind": "graph",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-48ecbc8c65334a07.source.json",
       "map": "tools/animgraph_authoring/ab_als_standing.movement_details_run.visible.json",
-      "target_path": "assets/graphs/ab_als/stances/standing/state_detail_run.animgraph.ron"
+      "target_path": "assets/Validation/Graphs/ab_als/stances/standing/state_detail_run.animgraph.ron"
     },
     {
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_0.Movement Details States.AnimStateNode_3.Second Pivot",
       "kind": "graph",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-80a58d2ce75a5935.source.json",
       "map": "tools/animgraph_authoring/ab_als_standing.movement_details_second_pivot.visible.json",
-      "target_path": "assets/graphs/ab_als/stances/standing/state_detail_second_pivot_visible.animgraph.ron"
+      "target_path": "assets/Validation/Graphs/ab_als/stances/standing/state_detail_second_pivot_visible.animgraph.ron"
     },
     {
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_0.Movement Details States.AnimStateNode_4.Run Start From Walk",
       "kind": "graph",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-b7b2a09c2374f92b.source.json",
       "map": "tools/animgraph_authoring/ab_als_standing.movement_details_run_start_from_walk.visible.json",
-      "target_path": "assets/graphs/ab_als/stances/standing/state_detail_run_start_from_walk_visible.animgraph.ron"
+      "target_path": "assets/Validation/Graphs/ab_als/stances/standing/state_detail_run_start_from_walk_visible.animgraph.ron"
     },
     {
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_0.Movement Details States.AnimStateNode_5.Run Start",
       "kind": "graph",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-bb37a6cc1b8c3222.source.json",
       "map": "tools/animgraph_authoring/ab_als_standing.movement_details_run_start.visible.json",
-      "target_path": "assets/graphs/ab_als/stances/standing/state_detail_run_start_visible.animgraph.ron"
+      "target_path": "assets/Validation/Graphs/ab_als/stances/standing/state_detail_run_start_visible.animgraph.ron"
     },
     {
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_0.Movement Details States.AnimStateNode_6.First Pivot",
       "kind": "graph",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-52cb89786a41504d.source.json",
       "map": "tools/animgraph_authoring/ab_als_standing.movement_details_first_pivot.visible.json",
-      "target_path": "assets/graphs/ab_als/stances/standing/state_detail_first_pivot_visible.animgraph.ron"
+      "target_path": "assets/Validation/Graphs/ab_als/stances/standing/state_detail_first_pivot_visible.animgraph.ron"
     },
     {
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_0.Movement Details States.AnimStateTransitionNode_0.Transition",
@@ -133,49 +133,49 @@
       "kind": "fsm",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-685c5ffea3905918.source.json",
       "map": "tools/animgraph_authoring/ab_als_standing.movement_states.visible.json",
-      "target_path": "assets/graphs/ab_als/stances/standing/movement_states.fsm.ron"
+      "target_path": "assets/Validation/Graphs/ab_als/stances/standing/movement_states.fsm.ron"
     },
     {
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Movement States.AnimStateNode_0.Move Forward",
       "kind": "graph",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-828b190a7eb4f082.source.json",
       "map": "tools/animgraph_authoring/ab_als_standing.move_forward.visible.json",
-      "target_path": "assets/graphs/ab_als/stances/standing/state_movement_forward.animgraph.ron"
+      "target_path": "assets/Validation/Graphs/ab_als/stances/standing/state_movement_forward.animgraph.ron"
     },
     {
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Movement States.AnimStateNode_1.Move Backward",
       "kind": "graph",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-538c2b81d31c8f17.source.json",
       "map": "tools/animgraph_authoring/ab_als_standing.move_backward.visible.json",
-      "target_path": "assets/graphs/ab_als/stances/standing/state_movement_backward.animgraph.ron"
+      "target_path": "assets/Validation/Graphs/ab_als/stances/standing/state_movement_backward.animgraph.ron"
     },
     {
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Movement States.AnimStateNode_2.Move Right Forward",
       "kind": "graph",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-27c10fe46286d1cd.source.json",
       "map": "tools/animgraph_authoring/ab_als_standing.move_right_forward.visible.json",
-      "target_path": "assets/graphs/ab_als/stances/standing/state_movement_right_forward.animgraph.ron"
+      "target_path": "assets/Validation/Graphs/ab_als/stances/standing/state_movement_right_forward.animgraph.ron"
     },
     {
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Movement States.AnimStateNode_3.Move Right Backward",
       "kind": "graph",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-c54e52d335d2fc63.source.json",
       "map": "tools/animgraph_authoring/ab_als_standing.move_right_backward.visible.json",
-      "target_path": "assets/graphs/ab_als/stances/standing/state_movement_right_backward.animgraph.ron"
+      "target_path": "assets/Validation/Graphs/ab_als/stances/standing/state_movement_right_backward.animgraph.ron"
     },
     {
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Movement States.AnimStateNode_4.Move Left Forward",
       "kind": "graph",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-594debb7fd0f31d2.source.json",
       "map": "tools/animgraph_authoring/ab_als_standing.move_left_forward.visible.json",
-      "target_path": "assets/graphs/ab_als/stances/standing/state_movement_left_forward.animgraph.ron"
+      "target_path": "assets/Validation/Graphs/ab_als/stances/standing/state_movement_left_forward.animgraph.ron"
     },
     {
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Movement States.AnimStateNode_5.Move Left Backward",
       "kind": "graph",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-b3ed1b28661f39fb.source.json",
       "map": "tools/animgraph_authoring/ab_als_standing.move_left_backward.visible.json",
-      "target_path": "assets/graphs/ab_als/stances/standing/state_movement_left_backward.animgraph.ron"
+      "target_path": "assets/Validation/Graphs/ab_als/stances/standing/state_movement_left_backward.animgraph.ron"
     },
     {
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_2.Movement States.AnimStateTransitionNode_14.Transition",
@@ -238,70 +238,70 @@
       "kind": "fsm",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-5dae6352b11e48fa.source.json",
       "map": "tools/animgraph_authoring/ab_als_standing.standing_states.visible.json",
-      "target_path": "assets/graphs/ab_als/stances/standing/standing_states.fsm.ron"
+      "target_path": "assets/Validation/Graphs/ab_als/stances/standing/standing_states.fsm.ron"
     },
     {
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_0.Idle",
       "kind": "graph",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-d3a0999a56c3ce96.source.json",
       "map": "tools/animgraph_authoring/ab_als_standing.standing_states_idle.visible.json",
-      "target_path": "assets/graphs/ab_als/stances/standing/state_idle.animgraph.ron"
+      "target_path": "assets/Validation/Graphs/ab_als/stances/standing/state_idle.animgraph.ron"
     },
     {
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_1.Move",
       "kind": "graph",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-ecd66d87b17e5a52.source.json",
       "map": "tools/animgraph_authoring/ab_als_standing.standing_states_move.visible.json",
-      "target_path": "assets/graphs/ab_als/stances/standing/state_outer_move.animgraph.ron"
+      "target_path": "assets/Validation/Graphs/ab_als/stances/standing/state_outer_move.animgraph.ron"
     },
     {
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop",
       "kind": "graph",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-d9844a7c5bb59059.source.json",
       "map": "tools/animgraph_authoring/ab_als_standing.stop.visible.json",
-      "target_path": "assets/graphs/ab_als/stances/standing/state_stop.animgraph.ron"
+      "target_path": "assets/Validation/Graphs/ab_als/stances/standing/state_stop.animgraph.ron"
     },
     {
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States",
       "kind": "fsm",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-89f525bad3938b15.source.json",
       "map": "tools/animgraph_authoring/ab_als_standing.stop_states.visible.json",
-      "target_path": "assets/graphs/ab_als/stances/standing/stop_states.fsm.ron"
+      "target_path": "assets/Validation/Graphs/ab_als/stances/standing/stop_states.fsm.ron"
     },
     {
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateNode_0.Entry",
       "kind": "graph",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-2763111d7e1d98d2.source.json",
       "map": "tools/animgraph_authoring/ab_als_standing.stop_entry.visible.json",
-      "target_path": "assets/graphs/ab_als/stances/standing/state_stop_entry.animgraph.ron"
+      "target_path": "assets/Validation/Graphs/ab_als/stances/standing/state_stop_entry.animgraph.ron"
     },
     {
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateNode_2.Lock Right Foot",
       "kind": "graph",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-12137b45a82fe316.source.json",
       "map": "tools/animgraph_authoring/ab_als_standing.stop_lock_right.visible.json",
-      "target_path": "assets/graphs/ab_als/stances/standing/state_stop_lock_right.animgraph.ron"
+      "target_path": "assets/Validation/Graphs/ab_als/stances/standing/state_stop_lock_right.animgraph.ron"
     },
     {
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateNode_3.Plant Right Foot",
       "kind": "graph",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-691b2da0ec9c8305.source.json",
       "map": "tools/animgraph_authoring/ab_als_standing.stop_plant_right.visible.json",
-      "target_path": "assets/graphs/ab_als/stances/standing/state_stop_plant_right.animgraph.ron"
+      "target_path": "assets/Validation/Graphs/ab_als/stances/standing/state_stop_plant_right.animgraph.ron"
     },
     {
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateNode_4.Lock Left Foot",
       "kind": "graph",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-c2cf1980c4350a9c.source.json",
       "map": "tools/animgraph_authoring/ab_als_standing.stop_lock_left.visible.json",
-      "target_path": "assets/graphs/ab_als/stances/standing/state_stop_lock_left.animgraph.ron"
+      "target_path": "assets/Validation/Graphs/ab_als/stances/standing/state_stop_lock_left.animgraph.ron"
     },
     {
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateNode_5.Plant Left Foot",
       "kind": "graph",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-1d154f587699c733.source.json",
       "map": "tools/animgraph_authoring/ab_als_standing.stop_plant_left.visible.json",
-      "target_path": "assets/graphs/ab_als/stances/standing/state_stop_plant_left.animgraph.ron"
+      "target_path": "assets/Validation/Graphs/ab_als/stances/standing/state_stop_plant_left.animgraph.ron"
     },
     {
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4.Stop.AnimGraphNode_StateMachine_0.Stop States.AnimStateTransitionNode_19.Transition",
@@ -336,14 +336,14 @@
       "kind": "graph",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-7ac5745c972db11f.source.json",
       "map": "tools/animgraph_authoring/ab_als_standing.standing_states_rotate_right.visible.json",
-      "target_path": "assets/graphs/ab_als/stances/standing/state_rotate_right.animgraph.ron"
+      "target_path": "assets/Validation/Graphs/ab_als/stances/standing/state_rotate_right.animgraph.ron"
     },
     {
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_6.Rotate Left",
       "kind": "graph",
       "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-48008881c4026c28.source.json",
       "map": "tools/animgraph_authoring/ab_als_standing.standing_states_rotate_left.visible.json",
-      "target_path": "assets/graphs/ab_als/stances/standing/state_rotate_left.animgraph.ron"
+      "target_path": "assets/Validation/Graphs/ab_als/stances/standing/state_rotate_left.animgraph.ron"
     },
     {
       "source_graph": "AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateTransitionNode_0.Transition_1",

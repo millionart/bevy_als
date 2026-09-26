@@ -7,6 +7,8 @@ from pathlib import Path
 AUDIT_DIRECTORY_NAMES = {"source_conditions"}
 AUDIT_FILE_PREFIXES = ("ue_source_transition_",)
 RETIRED_OVERLAY_PATHS = ("graphs/ab_als/overlays/", "graphs/overlay_objects/bow.animgraph.ron", "graphs/ab_als/ab_als.animgraph.ron")
+FORMAL_ROOTS = {"ALS", "ALSCamera", "ALSExtras", "Engine", "Bevy"}
+ASSET_ROOTS = FORMAL_ROOTS | {"Validation", "docs"}
 
 
 def audit(assets_root: Path) -> list[str]:
@@ -15,6 +17,13 @@ def audit(assets_root: Path) -> list[str]:
         return [f"assets root is missing: {assets_root.as_posix()}"]
     for path in assets_root.rglob("*"):
         relative = path.relative_to(assets_root).as_posix()
+        owner = relative.split("/", 1)[0]
+        if path.is_file() and owner not in ASSET_ROOTS and relative != "README.md":
+            issues.append(f"asset has no source module: {relative}")
+        if owner in FORMAL_ROOTS and "generated" in relative.lower():
+            issues.append(f"formal asset has a generated path: {relative}")
+        if owner in {"Validation", "docs"}:
+            continue
         if path.is_dir() and path.name in AUDIT_DIRECTORY_NAMES:
             issues.append(f"audit directory is inside runtime assets: {relative}")
         if path.is_file() and path.suffix == ".ron" and path.name.startswith(AUDIT_FILE_PREFIXES):
@@ -22,7 +31,11 @@ def audit(assets_root: Path) -> list[str]:
         if path.is_file() and any(relative.startswith(prefix) for prefix in RETIRED_OVERLAY_PATHS):
             issues.append(f"retired manual overlay asset: {relative}")
     for path in assets_root.rglob("*.ron"):
+        if path.relative_to(assets_root).parts[0] in {"Validation", "docs"}:
+            continue
         text = path.read_text(encoding="utf-8")
+        if "generated/" in text or "Validation/" in text:
+            issues.append(f"formal asset references generated or validation content: {path.relative_to(assets_root).as_posix()}")
         if "source_conditions/" in text or "source_conditions\\" in text:
             issues.append(f"runtime asset references audit directory: {path.relative_to(assets_root).as_posix()}")
         if "ue_source_transition_" in text:
@@ -53,10 +66,25 @@ def run_self_test() -> dict:
         runtime.write_text('graph: "graphs/ab_als/overlays/old.animgraph.ron"\n', encoding="utf-8")
         assert any("retired manual overlay asset" in issue for issue in audit(root))
         assert any("references retired manual overlay" in issue for issue in audit(root))
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        formal = root / "ALS/Character/AB_Als/AnimGraph.animgraph.ron"
+        formal.parent.mkdir(parents=True)
+        formal.write_text("()\n", encoding="utf-8")
+        fixture = root / "Validation/Graphs/old.animgraph.ron"
+        fixture.parent.mkdir(parents=True)
+        fixture.write_text("()\n", encoding="utf-8")
+        assert not audit(root)
+        formal.write_text('graph: "Validation/Graphs/old.animgraph.ron"', encoding="utf-8")
+        assert any("validation content" in issue for issue in audit(root))
+        formal.write_text("()\n", encoding="utf-8")
+        (formal.parent / "generated_root.animgraph.ron").write_text("()\n", encoding="utf-8")
+        assert any("generated path" in issue for issue in audit(root))
     return {
         "audit_only_graphs_rejected_from_runtime_assets": "PASS",
         "runtime_reference_to_audit_graph_rejected": "PASS",
         "retired_manual_overlay_and_reference_rejected": "PASS",
+        "source_module_assets_and_separate_validation_fixtures": "PASS",
     }
 
 

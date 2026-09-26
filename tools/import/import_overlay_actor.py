@@ -73,7 +73,7 @@ def main():
     result = compile_actor(sources, args.asset_root)
     if args.self_test:
         assert result['Als.OverlayMode.PistolOneHanded']['object'] == result['Als.OverlayMode.PistolTwoHanded']['object']
-        assert result['Als.OverlayMode.Bow']['object']['scene'] == 'animated_scenes/als_bow.animscn.ron'
+        assert result['Als.OverlayMode.Bow']['object']['scene'] == 'ALS/OverlayObjects/Bow/B_Als_Bow.animscn.ron'
         assert result['Als.OverlayMode.Barrel']['object']['materials'][0]['linear_rgba'] == [0.93, 0.29, 1.0, 1.0]
         assert result['Als.OverlayMode.Binoculars']['object']['materials'][0]['linear_rgba'] == [0.015, 0.015, 0.015, 1.0]
         changed = deepcopy(sources)
@@ -93,10 +93,10 @@ def main():
             assert 'blend profiles' in str(error)
         else:
             raise AssertionError('Unsupported blend profile was accepted')
-        bow = json.loads((args.asset_root / 'character/overlay_objects/bow.json').read_text())
+        bow = json.loads((args.asset_root / 'ALS/OverlayObjects/Bow/bow.json').read_text())
         assert {key: result['Als.OverlayMode.Bow']['object'][key] for key in bow} == bow
-    path = args.asset_root / 'character/overlay_actor.runtime.json'
-    tag_path = args.asset_root / 'als_gameplay_tags.json'
+    path = args.asset_root / 'ALS/Character/overlay_actor.runtime.json'
+    tag_path = args.asset_root / 'ALS/Data/als_gameplay_tags.json'
     tags = json.loads(tag_path.read_text(encoding='utf-8'))
     registered = {tag['tag_name']: tag for tag in tags}
     if len(registered) != len(tags):

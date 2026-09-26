@@ -16,9 +16,9 @@ from coordinate_basis import (
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_SOURCE = ROOT / "target" / "bf109" / "source_native" / "CR_Als.ue.json"
 DEFAULT_MESH = ROOT / "target" / "bf109" / "source_native" / "SKM_Als.ue.json"
-DEFAULT_GLTF = ROOT / "assets" / "animations" / "Base" / "A_Als_Idle.gltf"
-DEFAULT_PROFILE = ROOT / "assets" / "control_rigs" / "cr_als.profile.json"
-DEFAULT_RUNTIME_PROFILE = ROOT / "assets" / "control_rigs" / "cr_als.runtime.json"
+DEFAULT_GLTF = ROOT / "assets/ALS/Animations/Base/A_Als_Idle.gltf"
+DEFAULT_PROFILE = ROOT / "assets/ALS/Character/CR_Als.profile.json"
+DEFAULT_RUNTIME_PROFILE = ROOT / "assets/ALS/Character/CR_Als.runtime.json"
 DEFAULT_REPORT = ROOT / "target" / "bf109" / "audits" / "CR_Als.audit.json"
 TOLERANCE = 3e-5
 APPLY_CHAIN_PATTERN = re.compile(r"fn apply_chain_target\([\s\S]*?\n}\n\nfn source_foot_ik_axes")
@@ -246,7 +246,7 @@ def validate_profile(source, profile, runtime, control_source, foot_source, diff
     source_construction = profile.get("source_construction", {})
     if source_construction.get("spine_rotation_bones") != ["pelvis", "spine_01", "spine_02", "spine_03"]:
         differences.append("profile spine bones")
-    if profile.get("runtime_asset") != "assets/control_rigs/cr_als.runtime.json":
+    if profile.get("runtime_asset") != "assets/ALS/Character/CR_Als.runtime.json":
         differences.append("profile runtime asset")
     construction = runtime.get("construction", {})
     if construction != {

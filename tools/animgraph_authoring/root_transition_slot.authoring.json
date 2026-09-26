@@ -13,7 +13,7 @@
   ],
   "graphs": [
     {
-      "path": "assets/graphs/ab_als/root_transition_slot.animgraph.ron",
+      "path": "assets/Validation/Graphs/ab_als/root_transition_slot.animgraph.ron",
       "expected_nodes": [
         {"id":"1a240000-0000-4000-8000-000000000001","name":"standing quick stop left clip","position":[-1600.0,-960.0]},
         {"id":"1a240000-0000-4000-8000-000000000002","name":"standing quick stop right clip","position":[-1600.0,-800.0]},

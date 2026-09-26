@@ -1,0 +1,46 @@
+(
+    source: GltfNamed(
+        path: "ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_180_Left.gltf",
+        animation_name: "A_Als_Crouch_Turn_180_Left_0",
+    ),
+    skeleton: "ALS/Character/SKM_Als.skn.ron",
+    event_tracks: {
+        "als_notify:/als/als/animations/turninplace/a_als_crouch_turn_180_left.a_als_crouch_turn_180_left:0": (
+            name: "als_notify:/als/als/animations/turninplace/a_als_crouch_turn_180_left.a_als_crouch_turn_180_left:0",
+            events: [
+                (
+                    id: "6b575eb8-5d41-5d73-bb57-6d60c9fabd39",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/turninplace/a_als_crouch_turn_180_left.a_als_crouch_turn_180_left:1682ee02-495b7aff-03fe6ca9-3ddfb622"),
+                        start_time: 0.533333,
+                        end_time: 0.533333,
+                    ),
+                ),
+                (
+                    id: "eb6f6a8e-f237-5dec-b2da-7f77c6a588b5",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/turninplace/a_als_crouch_turn_180_left.a_als_crouch_turn_180_left:8d652429-49b58ff2-97cdd594-4faddb99"),
+                        start_time: 1.133333,
+                        end_time: 1.133333,
+                    ),
+                ),
+                (
+                    id: "d4797d08-4ca7-5806-8b65-7bf7034ab3de",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/turninplace/a_als_crouch_turn_180_left.a_als_crouch_turn_180_left:d6a6daa5-4f042e3b-2b4e5f9c-c327d31f"),
+                        start_time: 1.633333,
+                        end_time: 1.633333,
+                    ),
+                ),
+                (
+                    id: "bd00c6a3-e31f-5910-8a79-93321a027c6b",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/turninplace/a_als_crouch_turn_180_left.a_als_crouch_turn_180_left:13fe6458-4608b340-5fdce589-bc022d78"),
+                        start_time: 2.233333,
+                        end_time: 2.233333,
+                    ),
+                ),
+            ],
+        ),
+    },
+)

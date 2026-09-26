@@ -349,9 +349,9 @@ struct MovingActorDefinitions {
 }
 
 const MOVING_ACTOR_DEFINITIONS: &str = include_str!(
-    "../../../assets/models/playground/moving_actors.runtime.json");
+    "../../../assets/ALSExtras/Levels/L_Als_Playground/moving_actors.runtime.json");
 const ROTATING_ACTOR_DEFINITIONS: &str = include_str!(
-    "../../../assets/models/playground/rotating_actors.runtime.json");
+    "../../../assets/ALSExtras/Levels/L_Als_Playground/rotating_actors.runtime.json");
 
 pub fn rotating_object_rotation(rate_yzx_radians: bevy::math::DVec3, elapsed_seconds: f32) -> Quat {
     let angles = rate_yzx_radians * f64::from(elapsed_seconds);
@@ -359,10 +359,10 @@ pub fn rotating_object_rotation(rate_yzx_radians: bevy::math::DVec3, elapsed_sec
 }
 
 const MOVING_OBJECT_CURVE_PATH: &str =
-    "assets/curves/ALSExtras/Environment/CF_Als_MovingObject.rich.json";
+    "assets/ALSExtras/Environment/CF_Als_MovingObject.rich.json";
 const MOVING_OBJECT_CURVE_JSON: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/assets/curves/ALSExtras/Environment/CF_Als_MovingObject.rich.json"
+    "/assets/ALSExtras/Environment/CF_Als_MovingObject.rich.json"
 ));
 
 #[derive(Resource, Clone, Default, Deserialize)]
@@ -818,7 +818,7 @@ pub fn playground_setup_system(
 
     for actor in &manifest.actors {
         if actor.class == "Landscape" || actor.class == "LandscapeProxy" {
-            let scene = assets.load("models/playground/Landscape1.gltf#Scene0");
+            let scene = assets.load("ALSExtras/Levels/L_Als_Playground/Landscape1.gltf#Scene0");
             let mut landscape = commands.spawn((
                 Name::new(format!("Landscape:{}", actor.name)),
                 Transform::IDENTITY,
@@ -939,7 +939,7 @@ pub fn playground_setup_system(
             };
             match (&plan.mesh_base, plan.obb) {
                 (Some(base), true) => {
-                    let scene = assets.load(format!("models/playground/{base}.gltf#Scene0"));
+                    let scene = assets.load(format!("ALSExtras/Environment/Meshes/{base}.gltf#Scene0"));
                     let collision_source = PlaygroundCollisionSource::new(base);
                     let use_box_collider = collision_source.kind.is_box();
                     let root_tf = Transform::from_translation(ue_point_to_bevy(plan.loc_cm))
@@ -972,7 +972,7 @@ pub fn playground_setup_system(
                     spawned_static += 1;
                 }
                 (Some(base), false) => {
-                    let scene = assets.load(format!("models/playground/{base}.gltf#Scene0"));
+                    let scene = assets.load(format!("ALSExtras/Environment/Meshes/{base}.gltf#Scene0"));
                     let collision_source = PlaygroundCollisionSource::new(base);
                     let use_box_collider = collision_source.kind.is_box();
                     let root_tf = Transform::from_translation(ue_point_to_bevy(plan.loc_cm))
@@ -2146,7 +2146,7 @@ mod tests {
             .init_resource::<Assets<PlaygroundTilesMaterial>>()
             .init_resource::<PlaygroundMaterialLibrary>()
             .insert_resource(PlaygroundManifestPath(PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("assets/models/playground/playground_scene.ron")));
+                .join("assets/ALSExtras/Levels/L_Als_Playground/playground_scene.ron")));
         app.finish();
         app.world_mut().run_system_once(playground_setup_system).unwrap();
         let actors: Vec<_> = app.world_mut().query_filtered::<(Entity, &Name, Option<&ChildOf>), With<PlaygroundMovingObject>>()
@@ -2221,7 +2221,7 @@ mod tests {
         assert!(curve.is_source_loaded());
         assert_eq!(curve.key_count(), 4);
         let samples: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../assets/curves/ALSExtras/Environment/CF_Als_MovingObject.json")).unwrap();
+            "../../../assets/ALSExtras/Environment/CF_Als_MovingObject.json")).unwrap();
         for sample in samples["keys"].as_array().unwrap() {
             let time = sample["t"].as_f64().unwrap() as f32;
             let value = sample["v"].as_f64().unwrap() as f32;

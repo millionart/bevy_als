@@ -36,7 +36,7 @@ pub struct AlsCharacterRuntimePlugin;
 impl Plugin for AlsCharacterRuntimePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(GameplayTagsPlugin::with_data_path(
-            "assets/als_gameplay_tags.json",
+            "assets/ALS/Data/als_gameplay_tags.json",
         ))
         .add_plugins(AlsActualMotionPlugin)
         .add_plugins(crate::camera_component::AlsSourceCameraPlugin)
@@ -199,7 +199,7 @@ mod tests {
     #[test]
     fn source_gameplay_tag_table_accepts_als_gait() {
         assert!(
-            GameplayTagsSettings::parse_tag_table(include_str!("../../../assets/als_gameplay_tags.json"))
+            GameplayTagsSettings::parse_tag_table(include_str!("../../../assets/ALS/Data/als_gameplay_tags.json"))
                 .is_ok()
         );
         let tag = GameplayTag::try_new("Als.Gait.Walking").unwrap();

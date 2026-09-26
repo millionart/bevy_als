@@ -14,8 +14,8 @@ use bevy_animation_graph::core::{
     skeleton::Skeleton,
 };
 
-const GRAPH_PATH: &str = "graphs/ab_als/view.animgraph.ron";
-const SKELETON_PATH: &str = "skeletons/SKM_Als.skn.ron";
+const GRAPH_PATH: &str = "Validation/Graphs/ab_als/view.animgraph.ron";
+const SKELETON_PATH: &str = "ALS/Character/SKM_Als.skn.ron";
 
 #[derive(Resource)]
 struct AssetsToProbe {
@@ -89,7 +89,7 @@ fn verify_static(
         && graph.io_spec.has_output_time()
         && graph.io_spec.get_output_data(&"pose".to_owned()).is_some();
     let source =
-        std::fs::read_to_string("assets/graphs/ab_als/view.animgraph.ron").unwrap_or_default();
+        std::fs::read_to_string("assets/Validation/Graphs/ab_als/view.animgraph.ron").unwrap_or_default();
     let redirect = !source.contains("ClipNode")
         && !source.contains("Curve")
         && !source.contains("BlendNode")

@@ -124,7 +124,7 @@ def main():
     if args.self_test:
         result = self_test()
     else:
-        library = json.loads((Path(__file__).resolve().parents[1] / 'assets/effects/footprint.runtime.json').read_text())
+        library = json.loads((Path(__file__).resolve().parents[1] / 'assets/ALS/Data/Footstep/footprint.runtime.json').read_text())
         definition = next(item for item in library['definitions'] if item['source_settings'].endswith('FES_Als_Default.FES_Als_Default'))
         source = definition['materials'][definition['effects'][0]['material']]
         result = audit(json.loads(args.report.read_text(encoding='utf-8-sig')), source)

@@ -1,0 +1,7 @@
+(
+    source: GltfNamed(
+        path: "ALS/Animations/Overlays/Rifle/A_Als_Rifle_Aim_Crouch.gltf",
+        animation_name: "A_Als_Rifle_Aim_Crouch_0",
+    ),
+    skeleton: "ALS/Character/SKM_Als.skn.ron",
+)

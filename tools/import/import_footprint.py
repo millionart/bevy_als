@@ -48,7 +48,7 @@ def source_contract(directory):
     assert audit['summary']['failure_count'] == 0
     assert audit['summary']['event_classes']['AlsAnimNotify_FootstepEffects'] == 154
     generated = manifest(audit, Path('assets'))
-    assert generated == json.loads(Path('assets/animation_events/als_notify_manifest.json').read_text())
+    assert generated == json.loads(Path('assets/ALS/Animations/als_notify_manifest.json').read_text())
     references = {event['parameters'].get('FootstepEffectsSettings') for clip in generated['clips'] for event in clip['events'] if event['class'] == 'AlsAnimNotify_FootstepEffects'}
     assert references <= {'None/' + value['asset_path'].replace('.', '/') for value in sources.values()
                           if value.get('asset_class', '').endswith('.AlsFootstepEffectsSettings')}
@@ -147,7 +147,7 @@ def compile_material(sources, material):
             assert scalar('BaseColor', rgba, life) == material_definition['base_color']
             assert abs(scalar('Opacity', rgba, life) - rgba[3] * life * material_definition['opacity']) < 1e-7
             assert abs(scalar('Roughness', rgba, life) - rgba[1] * material_definition['roughness_scale']) < 1e-7
-    return {**material_definition, 'texture': 'textures/footprint/T_Als_Footprint_M.tga'}
+    return {**material_definition, 'texture': 'ALS/MaterialLibrary/Footprint/T_Als_Footprint_M.tga'}
 
 
 def compile_library(sources):
@@ -244,7 +244,7 @@ def main():
         self_test(sources)
     if args.write or args.check:
         definition = compile_library(sources)
-        output = args.asset_root / 'effects/footprint.runtime.json'
+        output = args.asset_root / 'ALS/Data/Footstep/footprint.runtime.json'
         text = json.dumps(definition, indent=2) + '\n'
         if args.write:
             output.parent.mkdir(parents=True, exist_ok=True)
@@ -253,13 +253,13 @@ def main():
             assert output.read_text(encoding='utf-8') == text
         texture = named(sources, 'T_Als_Footprint_M')
         raw = args.source_directory / texture['source_image']
-        saved = args.asset_root / 'textures/footprint/T_Als_Footprint_M.tga'
+        saved = args.asset_root / 'ALS/MaterialLibrary/Footprint/T_Als_Footprint_M.tga'
         if args.write and not saved.exists():
             saved.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(raw, saved)
         assert saved.read_bytes() == raw.read_bytes()
         image = Image.open(saved)
-        shader = (args.asset_root / 'shaders/packed_decal.wgsl').read_text(encoding='utf-8')
+        shader = (args.asset_root / 'Bevy/Materials/packed_decal.wgsl').read_text(encoding='utf-8')
         audit_channels(named(sources, 'M_Als_Footprint_Decal'), texture, image, Image.open(raw), shader, 'mesh_view_bindings::clustered_decal_textures')
         if args.self_test:
             channel_self_test(named(sources, 'M_Als_Footprint_Decal'), texture, image, shader, 'mesh_view_bindings::clustered_decal_textures')

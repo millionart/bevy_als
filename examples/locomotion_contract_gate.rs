@@ -28,11 +28,11 @@ use bevy_animation_graph::core::{
     },
 };
 
-const ROOT_PATH: &str = "graphs/ab_als/locomotion.animgraph.ron";
-const FSM_PATH: &str = "graphs/ab_als/locomotion/locomotion_states.fsm.ron";
-const JUMP_PATH: &str = "graphs/ab_als/locomotion/state_jump.animgraph.ron";
-const JUMP_FSM_PATH: &str = "graphs/ab_als/locomotion/jump_states.fsm.ron";
-const SKELETON_PATH: &str = "skeletons/SKM_Als.skn.ron";
+const ROOT_PATH: &str = "Validation/Graphs/ab_als/locomotion.animgraph.ron";
+const FSM_PATH: &str = "Validation/Graphs/ab_als/locomotion/locomotion_states.fsm.ron";
+const JUMP_PATH: &str = "Validation/Graphs/ab_als/locomotion/state_jump.animgraph.ron";
+const JUMP_FSM_PATH: &str = "Validation/Graphs/ab_als/locomotion/jump_states.fsm.ron";
+const SKELETON_PATH: &str = "ALS/Character/SKM_Als.skn.ron";
 const LOCOMOTION_GRAPH_DIR: &str = "assets/graphs/ab_als/locomotion";
 const WRITER_STATE_PROBE: f32 = 97.0;
 
@@ -274,7 +274,7 @@ fn transition_count(
 }
 
 fn source_files() -> Vec<String> {
-    let mut paths = vec!["assets/graphs/ab_als/locomotion.animgraph.ron".to_owned()];
+    let mut paths = vec!["assets/Validation/Graphs/ab_als/locomotion.animgraph.ron".to_owned()];
     if let Ok(entries) = std::fs::read_dir(LOCOMOTION_GRAPH_DIR) {
         paths.extend(entries.filter_map(Result::ok).filter_map(|entry| {
             entry
@@ -752,8 +752,8 @@ fn verify_static(
         && source.iter().all(|text| {
             !text.contains("AB_Als_Monolithic")
                 && !text.contains("locomotion_overlay")
-                && !text.contains("graphs/air.animgraph.ron")
-                && !text.contains("graphs/actions.animgraph.ron")
+                && !text.contains("Validation/Graphs/air.animgraph.ron")
+                && !text.contains("Validation/Graphs/actions.animgraph.ron")
                 && !text.contains("manual")
                 && !text.contains("playground")
         });

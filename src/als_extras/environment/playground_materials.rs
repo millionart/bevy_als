@@ -34,8 +34,8 @@ pub struct PlaygroundTilesSettings {
 }
 
 impl MaterialExtension for PlaygroundTilesExtension {
-    fn fragment_shader() -> ShaderRef { "shaders/playground_tiles.wgsl".into() }
-    fn deferred_fragment_shader() -> ShaderRef { "shaders/playground_tiles.wgsl".into() }
+    fn fragment_shader() -> ShaderRef { "ALSExtras/Environment/Materials/playground_tiles.wgsl".into() }
+    fn deferred_fragment_shader() -> ShaderRef { "ALSExtras/Environment/Materials/playground_tiles.wgsl".into() }
     fn specialize(_: &bevy::pbr::MaterialExtensionPipeline, descriptor: &mut bevy::render::render_resource::RenderPipelineDescriptor,
         _: &bevy::mesh::MeshVertexBufferLayoutRef, _: bevy::pbr::MaterialExtensionKey<Self>) -> Result<(), bevy::render::render_resource::SpecializedMeshPipelineError> {
         descriptor.label = Some(format!("als_playground_receiver_{}", descriptor.label.as_deref().unwrap_or_default()).into());
@@ -157,9 +157,9 @@ fn add_image(server: &AssetServer, bytes: &[u8], extension: &str, green_to_red: 
 }
 
 fn load_playground_textures(mut commands: Commands, server: Res<AssetServer>, buffers: Res<crate::extensions::projected_decal::PackedDecalBuffers>) {
-    let grid = std::fs::read("assets/textures/playground/T_Default_Material_Grid_M.tga");
-    let normal = std::fs::read("assets/textures/playground/T_Als_Tiles_N.png");
-    let masks = std::fs::read("assets/textures/playground/T_Als_Tiles_M.png");
+    let grid = std::fs::read("assets/Engine/EngineMaterials/T_Default_Material_Grid_M.tga");
+    let normal = std::fs::read("assets/ALSExtras/Environment/Materials/T_Als_Tiles_N.png");
+    let masks = std::fs::read("assets/ALSExtras/Environment/Materials/T_Als_Tiles_M.png");
 
     let library = PlaygroundMaterialLibrary {
         decal_buffers: buffers.clone(),
@@ -184,7 +184,7 @@ mod tests {
 
     #[test]
     fn source_grid_tga_preserves_every_rgba_pixel() {
-        let bytes = include_bytes!("../../../assets/textures/playground/T_Default_Material_Grid_M.tga");
+        let bytes = include_bytes!("../../../assets/Engine/EngineMaterials/T_Default_Material_Grid_M.tga");
         assert_eq!(&bytes[16..18], [32, 8]);
         let image = decode_image(bytes, "tga", false).unwrap();
         assert_eq!(image.size(), UVec2::splat(512));

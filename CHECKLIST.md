@@ -12,11 +12,15 @@
 用户追加要求：ALS、ALSCamera、ALSExtras 的模型、贴图、动画、曲线、逻辑蓝图与动画蓝图目标产物各归同一模块资产树，正式路径/文件名不带 generated。采用 `assets/ALS`、`assets/ALSCamera`、`assets/ALSExtras` 对应本地 Content；Bevy 自身着色器与验证夹具另列，不冒充源内容。源码 .3-S1 已提交，最终真实 Gate 延至本项静态闭环之后。
 
 - [x] **BF129.4-A — 资源归属及不可变边界合同**：开始：2026-09-27 03:06:00 +08:00；预估结束：2026-09-27 03:46:00 +08:00；实际结束：2026-09-27 03:30:00 +08:00；偏差：-16m；结果：完整路径规划、URI/归属合同通过；拆分结果：实际迁移与全量转换留给 B。估时依据：1071 个跟踪资产、15 个安装清单（359 个 RON/FSM）和本地 Source/Content 目录；已核实角色/Bow/Camera/Barrel/Footprint/Tiles 的原生位置，以及 Landscape glTF 的 4 个相邻 buffer/image URI。Gate：全部资产一对一归属、无目标冲突、原始载荷/相邻 URI 可保持、真实入口与旧手工夹具依赖界定，形成迁移清单与目录合同后单独提交。
-- [ ] **BF129.4-B — 资源迁移、转换器正式路径及全量转换**：依赖 A；开始与预估结束在 A 完成后登记，按真实闭包和 native reader 既有记录估时，窗口不超过 60 分钟。Gate：更新所有生成器/消费者，移除正式 generated 路径和文件名；全部 15 个已安装根及递归依赖重新读取本地 uasset 并全量转换；完整新旧产物 diff 仅含声明的目录/引用/包装名称变化，未知语义差异先停止迁移并查源；源记录字节、glTF URI、工具自测、图/资产加载和声明式静态审计通过，独立提交。若闭包无法在一个窗口验收，先按可独立 source/static Gate 拆分，不能缩小转换集合。
+- [x] **BF129.4-B — 资源迁移、转换器正式路径及全量转换**：依赖 A；开始：2026-09-27 03:31:00 +08:00；预估结束：2026-09-27 04:26:00 +08:00；实际结束：2026-09-27 04:43:21 +08:00；偏差：+17m21s；结果：资源/转换器与全量 source/static Gate 通过；拆分结果：真实运行归 S2。估时依据：A 的 1071 路径/2199 引用已闭合，resolver 按源身份查找不需新增表；15 个根含递归依赖，复用同一批次的 reader cache，主要成本为原生导出/转换和限流编译。Gate：全部已安装根及递归依赖从本地 uasset 全量转换；完整差异只含声明的路径、辅助身份及包装标题迁移；原始字节、URI、工具自测、图/资产加载和静态审计通过。下一次同类任务应把原生导出和全量规格/源审计分别估时，避免低估跨根检查。
 
 当前 source/static 摘要：`default_install_namespace()` 固定返回 generated，installer 也拒绝空前缀；图路径本身已从原生 package path 派生，所以修正默认安装/安全边界即可按源模块落盘，不需要图专用命名算法。clip/skeleton/blendspace resolver 已按源身份查找，可继续消费新目录。原始 glTF/bin/纹理及曲线源表只移位置，禁止改内容；本项有限复开 M0.5/M0.6 与 M8.6 导出资产的目录边界，旧 Gate 证明数据/单位正确但不覆盖模块归属，数值内容继续保持关闭。15 根安装清单与全部待移动文件先冻结为迁移基线，删除旧路径以完整再生成 diff 为依据。
 
 A 最终摘要：从本地 Content 清点 560 个源 uasset 身份并按源 package path 规划 1071 个目标，唯一目标校验通过；正式三模块/Engine/Bevy、Validation 与说明边界见 `docs/asset-layout.md`。350 个原始载荷无目标 URI 改写需求，全部 glTF 外部 URI 原样可解析；2199 条引用中正式资产→Validation 为 0。仅 Roll slot 是旧手工图中的现行运行依赖，保留在 Grounded 蓝图目录；其余 154 个旧图/旧场景为验证夹具。迁移清单与 15 根完整清单位于本轮本地验证结果中，尚未移动资产。消融：使用已有源 package path 和安装文件所有权，不增加运行时路径兼容层、软链接或按图 ID 特判。
+
+B 最终 source/static 与消融：默认 generated 前缀反例先红→空前缀正式安装绿；保留已有源路径派生与清单所有权，空前缀仅清理旧清单所属图文件/空父目录，不扫描删除无关资源。15 根全量转换全部通过，同批 fresh source 39 份；原生读取/转换实际约 24 分钟。359 个 RON/FSM 完整比对无未解释差异：原生源 GUID、节点/边/参数/时序/坐标保持；112 个以目标路径为种子的辅助 ID 及 2 个辅助文件名按双向唯一映射变化，源 GUID 未受影响，旧辅助 ID 无残留引用。先保留差异再核对其 UUIDv5 路径来源，没有修改源算法或添加旧 generated 路径兼容层。
+
+350 原始载荷字节一致，340 个非蓝图目标文件仅有资源 URI/包装标题变化，全部 glTF 外部 URI 有效；旧 generated 目录和正式 generated 文件名已移除，安装的 374 文件与本轮转换结果一致。11 组转换模块自测、目录边界/公共视觉 validator 自测、导入布局 2 例、通知生成 7 例通过；510 图/FSM 编辑器静态检查无问题，345 个当前节点规格和全部 15 根源闭包审计通过。Rust 库 1228、integration 24、manual example 9 共 1261 项通过，全部 targets 编译通过。过程中修正旧比较夹具缺 PropertyPath、测试对旧 PA_Als 文件名的断言；不改生产数值。引用迁移曾因低效匹配触发 60s 无进展退出，保留报告后改为一次路径词元查表，约 4s 完成；不保留新增运行时抽象。M0.5/M0.5b/M0.6/M8.6 仅目录边界恢复完成，最终 Playground Gate 尚待 S2。
 
 - [ ] **BF129.3 — 按源模块统一根 src 的归属目录**：开始：2026-09-26 17:28:00 +08:00；预估结束：2026-09-26 18:13:00 +08:00。用户纠正 .2 仅在旧 crate 内分组不够，明确要求底层扩展进入根 src，ALS/ALSCamera/ALSExtras 与 Levels/UI 按对标源归位，并核对 manual driver 的必要性。本地 fresh source：插件 Source 有 ALS、ALSCamera、ALSExtras、ALSEditor；ALS 有 Nodes、Notifies、RootMotionSources、Settings、State、Utility；Content 的 ALSExtras 有 Core、Environment、Levels、UI，UI 实际包含 W_Als_Hud、W_Als_OverlayModeMenu、W_Als_OverlayModeOption。源码文件列表与 AlsCharacter_Debug、AlsCharacterMovementComponent、AlsCharacterExample 的职责共同决定本轮归属，不改变其算法。
 

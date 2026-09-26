@@ -8,9 +8,9 @@ use bevy_animation_graph::core::ragdoll::definition::{
 };
 use serde_json::Value;
 
-const RAGDOLL_PATH: &str = "assets/ragdolls/als_manny.rag.ron";
-const BONE_MAP_PATH: &str = "assets/ragdoll_bone_maps/als_manny.bm.ron";
-const PROFILE_PATH: &str = "assets/ragdolls/pa_als.physics.json";
+const RAGDOLL_PATH: &str = "assets/ALS/Character/PA_Als.rag.ron";
+const BONE_MAP_PATH: &str = "assets/ALS/Character/PA_Als.bm.ron";
+const PROFILE_PATH: &str = "assets/ALS/Character/PA_Als.physics.json";
 const SOURCE_PATH: &str = "target/bf109/source_native/PA_Als.ue.json";
 
 fn main() {

@@ -1,15 +1,14 @@
-# assets/ 目录约定（M0.3）
+# 资源目录
 
-| 目录 | 内容 | 来源 |
-|---|---|---|
-| `models/` | UE5 Manny 蒙皮网格 + 骨骼骨架（glTF） | UE 导出（M0.5） |
-| `animations/` | ALS 动画组 clip（glTF/JSON 中间格式） | UE 导出（M0.5） |
-| `graphs/` | bevy_animation_graph 图资产（RON） | 本仓库自建 |
-| `curves/` | ALS 关键曲线数值表（RON） | UE 导出（M0.5） |
-| `docs/` | `export-manifest.md` 导出清单 | 每次导出登记 |
+资源与蓝图按源模块放在同一棵树中：
 
-规则（agents.md 规则 5）：
+- `ALS/`：角色、动画蓝图、Control Rig、物理资产、动画、曲线、OverlayObjects 与脚步材质。
+- `ALSCamera/`：相机模型、动画蓝图、组件设置和曲线。
+- `ALSExtras/`：Core/Environment/Levels/UI 的场景与逻辑定义、模型、材质、贴图和界面。
+- `Engine/`、`Bevy/`：共用引擎内容和 Bevy 渲染扩展资源。
+- `Validation/`：旧手工图及测试场景，不属于正式运行资源闭包。
+- `docs/`：原始导出来源记录；目录迁移对应关系见 [资源归属说明](../docs/asset-layout.md)。
 
-- 占位资产在 M0.5 一次性批量导出，此后不得零散补导；确需补充须先在 `CHECKLIST.md` 增补条目。
-- 禁止提交 ALS 商店原始 uasset/umap（`.gitignore` 已排除 `*.uasset`/`*.umap`/`*.fbx`）。
-- 每次导出在 `docs/export-manifest.md` 登记：资产名、源 uasset 路径、导出格式、日期。
+正式目标路径不使用 `generated/` 前缀。动画蓝图转换器默认按源 package path 安装，安装清单标明源身份和文件所有权。
+
+原始 glTF/bin、纹理及曲线源表保持原字节；只有目标描述、图及代码中的资源引用随布局更新。不提交商业源 uasset/umap/fbx。重新导出或增加资源必须先在当前清单登记，再使用仓库原生 source reader 与导入工具，并更新导出记录。

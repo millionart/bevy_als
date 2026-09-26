@@ -52,7 +52,7 @@ const SPRINT_START_TIME: f32 = 0.166667;
 const SPRINT_ACCELERATION_RATE_SCALE: f32 = 0.833333;
 const SPRINT_DURATION_SECS: f32 = 0.6;
 const GENERATED_STANDING_GRAPH: &str =
-    "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron";
+    "ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron";
 
 fn is_generated_standing_graph(path: &Path) -> bool {
     path == Path::new(GENERATED_STANDING_GRAPH)
@@ -102,20 +102,20 @@ static RUN_LEFT_FORWARD_MARKERS: LazyLock<Vec<SyncMarker>> =
 static SPRINT_MARKERS: LazyLock<Vec<SyncMarker>> =
     LazyLock::new(|| marker_set(&[("Left", 0.016667), ("Right", 0.316667)]));
 
-const STANDING_SKELETON: &str = "skeletons/SKM_Als.skn.ron";
+const STANDING_SKELETON: &str = "ALS/Character/SKM_Als.skn.ron";
 const STOP_LEFT_LEG_BRANCHES: &[&str] = &["thigh_l", "ik_foot_l", "VB foot_l"];
 const STOP_RIGHT_LEG_BRANCHES: &[&str] = &["thigh_r", "ik_foot_r", "VB foot_r"];
 const ROTATE_LEFT_CURVE_ASSET: &str =
-    "animations/RotateInPlace/A_Als_Rotate_90_Left.gltf#AlsCurves";
+    "ALS/Animations/RotateInPlace/A_Als_Rotate_90_Left.gltf#AlsCurves";
 const ROTATE_RIGHT_CURVE_ASSET: &str =
-    "animations/RotateInPlace/A_Als_Rotate_90_Right.gltf#AlsCurves";
-const TURN_LEFT_90_CURVE_ASSET: &str = "animations/TurnInPlace/A_Als_Turn_90_Left.gltf#AlsCurves";
-const TURN_RIGHT_90_CURVE_ASSET: &str = "animations/TurnInPlace/A_Als_Turn_90_Right.gltf#AlsCurves";
-const TURN_LEFT_180_CURVE_ASSET: &str = "animations/TurnInPlace/A_Als_Turn_180_Left.gltf#AlsCurves";
+    "ALS/Animations/RotateInPlace/A_Als_Rotate_90_Right.gltf#AlsCurves";
+const TURN_LEFT_90_CURVE_ASSET: &str = "ALS/Animations/TurnInPlace/A_Als_Turn_90_Left.gltf#AlsCurves";
+const TURN_RIGHT_90_CURVE_ASSET: &str = "ALS/Animations/TurnInPlace/A_Als_Turn_90_Right.gltf#AlsCurves";
+const TURN_LEFT_180_CURVE_ASSET: &str = "ALS/Animations/TurnInPlace/A_Als_Turn_180_Left.gltf#AlsCurves";
 const TURN_RIGHT_180_CURVE_ASSET: &str =
-    "animations/TurnInPlace/A_Als_Turn_180_Right.gltf#AlsCurves";
-const QUICK_STOP_LEFT_CURVE_ASSET: &str = "animations/Transitions/A_Als_Stop_Left.gltf#AlsCurves";
-const QUICK_STOP_RIGHT_CURVE_ASSET: &str = "animations/Transitions/A_Als_Stop_Right.gltf#AlsCurves";
+    "ALS/Animations/TurnInPlace/A_Als_Turn_180_Right.gltf#AlsCurves";
+const QUICK_STOP_LEFT_CURVE_ASSET: &str = "ALS/Animations/Transitions/A_Als_Stop_Left.gltf#AlsCurves";
+const QUICK_STOP_RIGHT_CURVE_ASSET: &str = "ALS/Animations/Transitions/A_Als_Stop_Right.gltf#AlsCurves";
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AlsStandingLayerSet;
 
@@ -2488,10 +2488,10 @@ mod tests {
     #[test]
     fn generated_movement_labels_match_source_indices() {
         assert!(is_generated_standing_graph(Path::new(
-            "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron"
+            "ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron"
         )));
         assert!(!is_generated_standing_graph(Path::new(
-            "generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron"
+            "ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron"
         )));
         assert_eq!(generated_movement_state_index("Move Forward"), Some(0));
         assert_eq!(

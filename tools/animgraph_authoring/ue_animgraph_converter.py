@@ -2728,15 +2728,13 @@ def write_outputs_if_supported(output_root, ir, report, materialized_files=None)
 def default_install_namespace(source):
     if not isinstance(source, dict) or not isinstance(source.get("asset_path"), str):
         raise ConversionError("source installation asset is unavailable")
-    return "generated"
+    return ""
 
 
 def installation_manifest_path(source_asset, output_namespace):
     output_namespace = asset_namespace(output_namespace)
-    if not output_namespace:
-        raise ConversionError("installation namespace is unavailable")
     try:
-        return output_namespace + "/" + source_asset_directory(source_asset) + "/installation.manifest.json"
+        return "/".join(part for part in (output_namespace, source_asset_directory(source_asset), "installation.manifest.json") if part)
     except MaterializationError as error:
         raise ConversionError("installation source asset is invalid") from error
 
@@ -2758,7 +2756,7 @@ def installation_files(source_identity, materialized_files, output_namespace):
     }
     if not isinstance(root_graph, str) or root_graph not in files:
         raise ConversionError("installed root graph is unavailable")
-    if any(not path.startswith(output_namespace + "/") for path in files):
+    if output_namespace and any(not path.startswith(output_namespace + "/") for path in files):
         raise ConversionError("installed graph is outside its namespace")
     manifest = {
         "format": INSTALLATION_MANIFEST_FORMAT,
@@ -2815,8 +2813,10 @@ def namespace_materialized_files(files, namespace):
 
 
 def prune_empty_owned_directories(root, namespace):
-    if not isinstance(namespace, str) or not namespace:
+    if not isinstance(namespace, str):
         raise ConversionError("installation namespace is unavailable")
+    if not namespace:
+        return
     namespace_root = (root / namespace).resolve()
     if root not in namespace_root.parents:
         raise ConversionError("installation namespace is outside root")
@@ -2881,9 +2881,16 @@ def install_generated_files(install_root, files, replace=False):
     namespace_root = (root / expected["namespace"]).resolve()
     for path in stale_paths:
         target = (root / path).resolve()
-        if namespace_root not in target.parents or not target.is_file():
+        if namespace_root not in target.parents or not target.is_file() or not path.endswith((".animgraph.ron", ".fsm.ron")):
             raise ConversionError("installed namespace ownership is invalid")
         target.unlink()
+        parent = target.parent
+        while parent != namespace_root:
+            try:
+                parent.rmdir()
+            except OSError:
+                break
+            parent = parent.parent
     prune_empty_owned_directories(root, expected.get("namespace"))
 
 
@@ -2925,6 +2932,8 @@ def fixture_registry():
 
 
 def run_self_test():
+    assert default_install_namespace({"asset_path": "/ALS/ALS/Character/AB_Als.AB_Als"}) == ""
+    assert installation_manifest_path("/ALS/ALS/Character/AB_Als.AB_Als", "") == "ALS/Character/AB_Als/installation.manifest.json"
     self_test_inertialization_request_binding()
     registry = fixture_registry()
     assert source_property_key("StandingState.PlayRate") == "standing_state.play_rate"
@@ -3885,7 +3894,7 @@ def run_self_test():
     assert tree_integration["control_rig_providers"] == integration["control_rig_providers"]
     assert tree_integration["conversion_status"] == "blocked"
     source_asset = "/Asset/AB_Als.AB_Als"
-    namespace = default_install_namespace({"asset_path": source_asset})
+    namespace = "generated"
     root_graph = graph_path(source_asset, "AnimGraph", namespace)
     relocated = namespace_materialized_files(
         {
@@ -3924,6 +3933,27 @@ def run_self_test():
         namespace,
     )
     assert installation_manifest_path(source_asset, namespace) in installed
+    plain_graph = graph_path(source_asset, "AnimGraph")
+    plain = installation_files({"asset": source_asset}, {
+        "materialization.manifest.json": json.dumps({"root_graph": plain_graph}),
+        plain_graph: "()\n",
+    }, "")
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        install_generated_files(root, plain)
+        manifest_path = root / installation_manifest_path(source_asset, "")
+        stale = root / "AB_Als/removed/stale.animgraph.ron"
+        stale.parent.mkdir(parents=True)
+        stale.write_text("()\n", encoding="utf-8")
+        manifest = read_json(manifest_path)
+        manifest["files"].append(stale.relative_to(root).as_posix())
+        write_json(manifest_path, manifest)
+        unrelated = root / "unrelated/empty"
+        unrelated.mkdir(parents=True)
+        install_generated_files(root, plain, replace=True)
+        assert not installation_drift(root, plain)
+        assert not stale.parent.exists() and unrelated.is_dir()
+        assert all(not path.startswith("generated/") for path in plain)
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         install_generated_files(root, installed)

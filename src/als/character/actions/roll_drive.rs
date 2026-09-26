@@ -22,7 +22,7 @@ use crate::root_motion_link::{
     ensure_root_motion_output, read_local_root_motion_delta, root_motion_world_transform,
 };
 
-const ROLL_SLOT_GRAPH: &str = "graphs/ab_als/grounded/roll_slot.animgraph.ron";
+const ROLL_SLOT_GRAPH: &str = "ALS/Character/AnimationInstances/AB_Als_Grounded/RollSlot.animgraph.ron";
 const ROLL_SLOT_TIME_KEY: &str = "als_roll_slot_time";
 const ROOT_POST_LOCOMOTION_SLOT_POSE_KEY: &str = "als_root_post_locomotion_slot_pose";
 const ROOT_POST_LOCOMOTION_SLOT_WEIGHT_KEY: &str = "als_root_post_locomotion_slot_weight";
@@ -32,7 +32,7 @@ const GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY: &str = "post_locomotion.pose";
 const GENERATED_POST_LOCOMOTION_SLOT_WEIGHT_KEY: &str = "post_locomotion.weight";
 const GENERATED_POST_LOCOMOTION_SLOT_LAYER_WEIGHT_KEY: &str = "post_locomotion.layer_weight";
 const ROOT_POST_LOCOMOTION_SLOT_CURVE_PREFIX: &str = "als_root_post_locomotion_slot_curve_";
-const ROLL_SLOT_CURVES: &str = "animations/Actions/Roll/A_Als_Roll.gltf#AlsCurves";
+const ROLL_SLOT_CURVES: &str = "ALS/Animations/Actions/Roll/A_Als_Roll.gltf#AlsCurves";
 const ROLL_SLOT_CURVE_NAMES: [&str; 2] = ["PoseStanding", "PoseGrounded"];
 
 #[derive(Component, Debug, Clone, Copy)]
@@ -431,7 +431,7 @@ impl Plugin for AlsRollDrivePlugin {
 }
 
 fn load_roll_slot_curve_asset(mut commands: Commands, assets: Res<AssetServer>) {
-    commands.insert_resource(RollSlotCurveHandle(assets.load(ROLL_SLOT_CURVES), assets.load("animations/Actions/Roll/A_Als_Roll.anim.ron")));
+    commands.insert_resource(RollSlotCurveHandle(assets.load(ROLL_SLOT_CURVES), assets.load("ALS/Animations/Actions/Roll/A_Als_Roll.anim.ron")));
 }
 
 fn ensure_roll_state(

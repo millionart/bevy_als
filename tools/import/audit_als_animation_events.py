@@ -22,7 +22,7 @@ SEQUENCE_PROPERTIES = {
 }
 ANIMATION_CLASSES = {"AnimSequence", "AnimMontage", "AnimComposite"}
 MANIFEST_ROW = re.compile(
-    r"^\| [^|]+ \| `(?P<source>/ALS/[^`]+)` \| glTF \| `(?P<target>assets/animations/[^`]+\.gltf)` \|$"
+    r"^\| [^|]+ \| `(?P<source>/ALS/[^`]+)` \| glTF \| `(?P<target>assets/(?:ALS|ALSCamera|ALSExtras)/[^`]+\.gltf)` \|$"
 )
 
 

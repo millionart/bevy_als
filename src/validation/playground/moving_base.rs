@@ -362,7 +362,7 @@ pub(super) fn observe(
         let completed = probe.steps[side] && step_replacement_allowed(playback);
         let mut chain = generated_stop_quick_source_pose_chain(false);
         chain.push(ManualAnimationPoseBoundary { label:"root_transition_slot",
-            graph:"generated/ALS/Character/AB_Als/AnimGraph.animgraph.ron",
+            graph:"ALS/Character/AB_Als/AnimGraph.animgraph.ron",
             node:"Slot 'Transition'\nGroup 'Grounded'", output:"Pose",
             minimum_translation_span:0.0, minimum_rotation_span_radians:0.05 });
         *window = ManualAnimationWindowEvidence {

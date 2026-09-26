@@ -19,15 +19,15 @@ use bevy_animation_graph::core::{
     state_machine::{high_level::StateMachine, low_level::LowLevelStateId},
 };
 
-const ROOT_PATH: &str = "graphs/ab_als/stances/crouching_runtime_entry.animgraph.ron";
-const SOURCE_PATH: &str = "graphs/ab_als/stances/crouching.animgraph.ron";
+const ROOT_PATH: &str = "Validation/Graphs/ab_als/stances/crouching_runtime_entry.animgraph.ron";
+const SOURCE_PATH: &str = "Validation/Graphs/ab_als/stances/crouching.animgraph.ron";
 const MOVEMENT_RUNTIME_PATH: &str =
-    "graphs/ab_als/stances/crouching/movement_states_runtime.animgraph.ron";
+    "Validation/Graphs/ab_als/stances/crouching/movement_states_runtime.animgraph.ron";
 const OUTER_RUNTIME_PATH: &str =
-    "graphs/ab_als/stances/crouching/crouching_states_runtime.animgraph.ron";
-const MOVEMENT_FSM_PATH: &str = "graphs/ab_als/stances/crouching/movement_states.fsm.ron";
-const OUTER_FSM_PATH: &str = "graphs/ab_als/stances/crouching/crouching_states.fsm.ron";
-const SKELETON_PATH: &str = "skeletons/SKM_Als.skn.ron";
+    "Validation/Graphs/ab_als/stances/crouching/crouching_states_runtime.animgraph.ron";
+const MOVEMENT_FSM_PATH: &str = "Validation/Graphs/ab_als/stances/crouching/movement_states.fsm.ron";
+const OUTER_FSM_PATH: &str = "Validation/Graphs/ab_als/stances/crouching/crouching_states.fsm.ron";
+const SKELETON_PATH: &str = "ALS/Character/SKM_Als.skn.ron";
 const SOURCE_MARKER_ROTATION_FLOOR: f32 = 0.05;
 const CACHED_POSE_OUTPUT: &str = "__als_source_cached_pose";
 const CACHE_KEYS: [(&str, &str); 7] = [

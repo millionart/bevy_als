@@ -4,7 +4,7 @@
 	"target_curve": "RotationYawSpeedTarget",
 	"assets": [
 		{
-			"path": "assets/animations/RotateInPlace/A_Als_Crouch_Rotate_90_Left.gltf",
+			"path": "assets/ALS/Animations/RotateInPlace/A_Als_Crouch_Rotate_90_Left.gltf",
 			"animations": [
 				{
 					"index": 0,
@@ -114,7 +114,7 @@
 			]
 		},
 		{
-			"path": "assets/animations/RotateInPlace/A_Als_Crouch_Rotate_90_Right.gltf",
+			"path": "assets/ALS/Animations/RotateInPlace/A_Als_Crouch_Rotate_90_Right.gltf",
 			"animations": [
 				{
 					"index": 0,
@@ -224,7 +224,7 @@
 			]
 		},
 		{
-			"path": "assets/animations/TurnInPlace/A_Als_Crouch_Turn_90_Left.gltf",
+			"path": "assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_90_Left.gltf",
 			"animations": [
 				{
 					"index": 0,
@@ -376,7 +376,7 @@
 			]
 		},
 		{
-			"path": "assets/animations/TurnInPlace/A_Als_Crouch_Turn_90_Right.gltf",
+			"path": "assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_90_Right.gltf",
 			"animations": [
 				{
 					"index": 0,
@@ -510,7 +510,7 @@
 			]
 		},
 		{
-			"path": "assets/animations/TurnInPlace/A_Als_Crouch_Turn_180_Left.gltf",
+			"path": "assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_180_Left.gltf",
 			"animations": [
 				{
 					"index": 0,
@@ -677,7 +677,7 @@
 			]
 		},
 		{
-			"path": "assets/animations/TurnInPlace/A_Als_Crouch_Turn_180_Right.gltf",
+			"path": "assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_180_Right.gltf",
 			"animations": [
 				{
 					"index": 0,

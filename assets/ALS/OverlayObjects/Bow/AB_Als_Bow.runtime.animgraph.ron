@@ -1,0 +1,9 @@
+(
+    nodes: [
+        (id: "76437eb3-76ba-52b9-99a0-e5e9315728b7", name: "AB_Als_Bow", inner: { "als_ext::LayeredGraphNode": (graph: "ALS/OverlayObjects/Bow/AB_Als_Bow/AnimGraph.animgraph.ron", input_aliases: [], output_aliases: [(child_output: "Result", outer_output: "pose")], capture_context: true, expose_context_curves: false, exposed_output_data: [], internalize_time: true) }, should_debug: false),
+    ],
+    edges_inverted: { OutputData("pose"): NodeData("76437eb3-76ba-52b9-99a0-e5e9315728b7", "pose") },
+    io_spec: (input_times: [], input_data: {}, output_time: false, output_data: { "pose": Pose }, input_order: {}, output_order: { Data("pose"): 0 }),
+    default_data: {},
+    editor_metadata: (node_positions: { "76437eb3-76ba-52b9-99a0-e5e9315728b7": (-240.0, 0.0) }, input_position: (-480.0, 0.0), output_position: (0.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
+)

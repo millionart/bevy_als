@@ -14,8 +14,8 @@
   "recursive_audit_index": "tools/animgraph_authoring/ab_als_standing.recursive_audit.index.json",
   "recursive_audit_gate_label": "standing_recursive_source_visible",
   "includes": [
-    "assets/graphs/ab_als/stances/standing.animgraph.ron",
-    "assets/graphs/ab_als/stances/standing_runtime_entry.animgraph.ron",
+    "assets/Validation/Graphs/ab_als/stances/standing.animgraph.ron",
+    "assets/Validation/Graphs/ab_als/stances/standing_runtime_entry.animgraph.ron",
     "assets/graphs/ab_als/stances/standing"
   ],
   "root_output_evidence": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-f1fb79396ffa8063.source.json",

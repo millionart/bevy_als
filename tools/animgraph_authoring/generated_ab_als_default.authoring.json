@@ -153,7 +153,7 @@
   ],
   "graphs": [
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Default/AnimGraph.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Default/AnimGraph.animgraph.ron",
       "expected_nodes": [
         {
           "id": "f5da4b55-4b5f-b6be-be66-2091b0ab63cb",
@@ -204,7 +204,7 @@
       }
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Default/Overlay.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Default/Overlay.animgraph.ron",
       "expected_nodes": [
         {
           "id": "4443c628-4115-9b8c-5c21-f58f9ec43ad2",

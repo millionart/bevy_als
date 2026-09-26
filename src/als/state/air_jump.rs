@@ -14,10 +14,10 @@ pub enum JumpStartVariant {
 impl JumpStartVariant {
     pub fn clip_path(self) -> &'static str {
         match self {
-            Self::WalkLeft => "animations/Air/Jump/A_Als_Jump_Walk_Left.anim.ron",
-            Self::WalkRight => "animations/Air/Jump/A_Als_Jump_Walk_Right.anim.ron",
-            Self::RunLeft => "animations/Air/Jump/A_Als_Jump_Run_Left.anim.ron",
-            Self::RunRight => "animations/Air/Jump/A_Als_Jump_Run_Right.anim.ron",
+            Self::WalkLeft => "ALS/Animations/Air/Jump/A_Als_Jump_Walk_Left.anim.ron",
+            Self::WalkRight => "ALS/Animations/Air/Jump/A_Als_Jump_Walk_Right.anim.ron",
+            Self::RunLeft => "ALS/Animations/Air/Jump/A_Als_Jump_Run_Left.anim.ron",
+            Self::RunRight => "ALS/Animations/Air/Jump/A_Als_Jump_Run_Right.anim.ron",
         }
     }
 }

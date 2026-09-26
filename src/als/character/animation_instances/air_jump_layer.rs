@@ -27,10 +27,10 @@ impl Plugin for AirJumpLayerPlugin {
 
 fn source_jump_variant(path: &str) -> Option<JumpStartVariant> {
     match path {
-        "animations/Air/Jump/A_Als_Jump_Walk_Left.anim.ron" => Some(JumpStartVariant::WalkLeft),
-        "animations/Air/Jump/A_Als_Jump_Walk_Right.anim.ron" => Some(JumpStartVariant::WalkRight),
-        "animations/Air/Jump/A_Als_Jump_Run_Left.anim.ron" => Some(JumpStartVariant::RunLeft),
-        "animations/Air/Jump/A_Als_Jump_Run_Right.anim.ron" => Some(JumpStartVariant::RunRight),
+        "ALS/Animations/Air/Jump/A_Als_Jump_Walk_Left.anim.ron" => Some(JumpStartVariant::WalkLeft),
+        "ALS/Animations/Air/Jump/A_Als_Jump_Walk_Right.anim.ron" => Some(JumpStartVariant::WalkRight),
+        "ALS/Animations/Air/Jump/A_Als_Jump_Run_Left.anim.ron" => Some(JumpStartVariant::RunLeft),
+        "ALS/Animations/Air/Jump/A_Als_Jump_Run_Right.anim.ron" => Some(JumpStartVariant::RunRight),
         _ => None,
     }
 }
@@ -97,7 +97,7 @@ mod tests {
             assert_eq!(source_jump_variant(variant.clip_path()), Some(variant));
         }
         assert_eq!(
-            source_jump_variant("animations/Air/Fall/A_Als_Fall.anim.ron"),
+            source_jump_variant("ALS/Animations/Air/Fall/A_Als_Fall.anim.ron"),
             None
         );
         assert_eq!(

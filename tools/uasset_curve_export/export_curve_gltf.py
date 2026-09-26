@@ -34,7 +34,7 @@ def scan_uassets(content_roots):
 
 
 def build_gltf_index(repo_root):
-    anim_root = os.path.join(repo_root, "assets", "animations")
+    anim_root = os.path.join(repo_root, "assets")
     index = {}
     if not os.path.isdir(anim_root):
         return index
@@ -133,7 +133,7 @@ def main(argv=None):
     parser.add_argument("--project-root", required=True,
                         help="Path to the Unreal project directory containing .uproject")
     parser.add_argument("--repo-root", default=os.getcwd(),
-                        help="bevy_als repository root whose assets/animations tree is updated")
+                        help="bevy_als repository root whose source-owned asset trees are updated")
     parser.add_argument("--apply", action="store_true",
                         help="Write merged glTF files; default is a dry run")
     parser.add_argument("--filter", default=None,

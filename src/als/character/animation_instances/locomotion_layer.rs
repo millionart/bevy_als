@@ -43,7 +43,7 @@ struct InAirSettings {
 }
 
 static IN_AIR_SETTINGS: LazyLock<InAirSettings> = LazyLock::new(|| {
-    serde_json::from_str(include_str!("../../../../assets/character/als_in_air_settings.json"))
+    serde_json::from_str(include_str!("../../../../assets/ALS/Data/AnimationInstance/Air/als_in_air_settings.json"))
         .expect("generated in-air settings are valid")
 });
 

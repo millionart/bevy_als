@@ -50,7 +50,7 @@ pub struct AlsRagdollSettings {
 
 pub static RAGDOLL_SETTINGS: LazyLock<AlsRagdollSettings> = LazyLock::new(|| {
     serde_json::from_str(include_str!(
-        "../../../../assets/character/als_ragdoll_settings.json"
+        "../../../../assets/ALS/Data/Character/als_ragdoll_settings.json"
     ))
     .expect("generated ragdoll settings parse")
 });

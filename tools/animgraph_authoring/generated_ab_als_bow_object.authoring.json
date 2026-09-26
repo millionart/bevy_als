@@ -69,7 +69,7 @@
   ],
   "graphs": [
     {
-      "path": "assets/generated/ALS/OverlayObjects/Bow/AB_Als_Bow/AnimGraph.animgraph.ron",
+      "path": "assets/ALS/OverlayObjects/Bow/AB_Als_Bow/AnimGraph.animgraph.ron",
       "expected_nodes": [
         {
           "id": "e05be058-4323-95fc-e0ac-bb87ce5a2fb0",
@@ -109,7 +109,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/graphs/runtime/als_bow_object.animgraph.ron",
+      "path": "assets/ALS/OverlayObjects/Bow/AB_Als_Bow.runtime.animgraph.ron",
       "expected_nodes": [
         {
           "id": "76437eb3-76ba-52b9-99a0-e5e9315728b7",
@@ -162,11 +162,11 @@
         "--source-directory",
         "target/bf116_finish/source",
         "--mesh",
-        "assets/models/SKM_Als_Bow.gltf",
+        "assets/ALS/OverlayObjects/Bow/SKM_Als_Bow.gltf",
         "--scene-source",
-        "assets/animations/Overlays/Bow/A_Als_Bow_Draw.gltf",
+        "assets/ALS/OverlayObjects/Bow/A_Als_Bow_Draw.gltf",
         "--skeleton",
-        "skeletons/SKM_Als_Bow.skn.ron",
+        "ALS/OverlayObjects/Bow/SKM_Als_Bow.skn.ron",
         "--self-test",
         "--check"
       ]

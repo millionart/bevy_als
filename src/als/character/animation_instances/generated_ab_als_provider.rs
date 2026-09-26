@@ -28,7 +28,7 @@ struct AnimationComponentDefinition {
 }
 
 static ANIMATION_COMPONENT: LazyLock<AnimationComponentDefinition> = LazyLock::new(|| {
-    serde_json::from_str(include_str!("../../../../assets/character/animation_component.runtime.json"))
+    serde_json::from_str(include_str!("../../../../assets/ALS/Character/animation_component.runtime.json"))
         .expect("Generated animation component definition must be valid")
 });
 

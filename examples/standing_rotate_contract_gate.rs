@@ -16,9 +16,9 @@ use bevy_animation_graph::{
 
 use bevy_als::extensions::AlsExtPlugin;
 
-const LEFT_PATH: &str = "graphs/ab_als/stances/standing/state_rotate_left.animgraph.ron";
-const RIGHT_PATH: &str = "graphs/ab_als/stances/standing/state_rotate_right.animgraph.ron";
-const SKELETON_PATH: &str = "skeletons/SKM_Als.skn.ron";
+const LEFT_PATH: &str = "Validation/Graphs/ab_als/stances/standing/state_rotate_left.animgraph.ron";
+const RIGHT_PATH: &str = "Validation/Graphs/ab_als/stances/standing/state_rotate_right.animgraph.ron";
+const SKELETON_PATH: &str = "ALS/Character/SKM_Als.skn.ron";
 
 #[derive(Resource)]
 struct GateAssets {

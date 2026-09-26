@@ -8,7 +8,7 @@ The generator introduced in BF103.02 must reproduce all records from the audit b
 
 ## Derived Event Manifest
 
-BF103.02 will generate `assets/animation_events/als_notify_manifest.json` with this schema.
+BF103.02 will generate `assets/ALS/Animations/als_notify_manifest.json` with this schema.
 
 ```json
 {
@@ -55,7 +55,7 @@ Montage records remain separate source clips until their slot segment maps to an
 
 ## Marker Separation
 
-`AuthoredSyncMarkers` are synchronization-phase data, not automatically gameplay Notify events. Their source data remains canonical in `assets/sync/als_sync_metadata.ron` and the generic sync mechanism in `crates/als-ext`. BF103.04 may expose a crossed-marker event only when the source consumer requires it; it must preserve the marker-aware sync path rather than replace it with a global timer.
+`AuthoredSyncMarkers` are synchronization-phase data, not automatically gameplay Notify events. Their source data remains canonical in `assets/ALS/Animations/als_sync_metadata.ron` and the generic sync mechanism in `crates/als-ext`. BF103.04 may expose a crossed-marker event only when the source consumer requires it; it must preserve the marker-aware sync path rather than replace it with a global timer.
 
 ## Ownership
 

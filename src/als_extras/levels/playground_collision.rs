@@ -445,8 +445,8 @@ mod tests {
 
     #[test]
     fn imported_stair_descent_exits_initial_contact_without_entering_the_stair() {
-        let data: serde_json::Value = serde_json::from_str(include_str!("../../../assets/models/playground/SM_Als_Stairs_03.gltf")).unwrap();
-        let bytes = include_bytes!("../../../assets/models/playground/SM_Als_Stairs_03.bin");
+        let data: serde_json::Value = serde_json::from_str(include_str!("../../../assets/ALSExtras/Environment/Meshes/SM_Als_Stairs_03.gltf")).unwrap();
+        let bytes = include_bytes!("../../../assets/ALSExtras/Environment/Meshes/SM_Als_Stairs_03.bin");
         let primitive = &data["meshes"][0]["primitives"][0];
         let accessor_bytes = |index: usize, width: usize| {
             let accessor = &data["accessors"][index];

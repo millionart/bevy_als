@@ -1250,9 +1250,9 @@ mod tests {
     #[test]
     fn generated_turn_inertialization_nodes_consume_runtime_requests() {
         for (graph, epoch, duration) in [
-            ("assets/generated/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
+            ("assets/ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph.animgraph.ron",
                 STANDING_TURN_INERTIALIZATION_EPOCH_KEY, STANDING_TURN_INERTIALIZATION_DURATION_KEY),
-            ("assets/generated/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
+            ("assets/ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron",
                 CROUCHING_TURN_INERTIALIZATION_EPOCH_KEY, CROUCHING_TURN_INERTIALIZATION_DURATION_KEY),
         ] {
             let graph_text = std::fs::read_to_string(graph).unwrap();

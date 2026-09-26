@@ -2,21 +2,21 @@ use bevy_als::extensions::parse_curves;
 use std::collections::BTreeMap;
 use std::fs;
 
-const ROTATE_90_LEFT: &str = "assets/animations/RotateInPlace/A_Als_Rotate_90_Left.gltf";
+const ROTATE_90_LEFT: &str = "assets/ALS/Animations/RotateInPlace/A_Als_Rotate_90_Left.gltf";
 const CROUCH_ROTATE_90_LEFT: &str =
-    "assets/animations/RotateInPlace/A_Als_Crouch_Rotate_90_Left.gltf";
+    "assets/ALS/Animations/RotateInPlace/A_Als_Crouch_Rotate_90_Left.gltf";
 const CROUCH_ROTATE_90_RIGHT: &str =
-    "assets/animations/RotateInPlace/A_Als_Crouch_Rotate_90_Right.gltf";
+    "assets/ALS/Animations/RotateInPlace/A_Als_Crouch_Rotate_90_Right.gltf";
 const CROUCH_TURN_90_LEFT: &str =
-    "assets/animations/TurnInPlace/A_Als_Crouch_Turn_90_Left.gltf";
+    "assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_90_Left.gltf";
 const CROUCH_TURN_90_RIGHT: &str =
-    "assets/animations/TurnInPlace/A_Als_Crouch_Turn_90_Right.gltf";
+    "assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_90_Right.gltf";
 const CROUCH_TURN_180_LEFT: &str =
-    "assets/animations/TurnInPlace/A_Als_Crouch_Turn_180_Left.gltf";
+    "assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_180_Left.gltf";
 const CROUCH_TURN_180_RIGHT: &str =
-    "assets/animations/TurnInPlace/A_Als_Crouch_Turn_180_Right.gltf";
-const TORCH_POSES: &str = "assets/animations/Overlays/Torch/A_Als_Torch_Poses.gltf";
-const WALK_FORWARD: &str = "assets/animations/Grounded/WalkRun/A_Als_Walk_Forward.gltf";
+    "assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_180_Right.gltf";
+const TORCH_POSES: &str = "assets/ALS/Animations/Overlays/Torch/A_Als_Torch_Poses.gltf";
+const WALK_FORWARD: &str = "assets/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.gltf";
 
 fn read_extension(path: &str) -> BTreeMap<String, serde_json::Value> {
     let text = fs::read_to_string(path).expect("gltf file readable");

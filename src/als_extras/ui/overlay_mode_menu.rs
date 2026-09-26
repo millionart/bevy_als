@@ -37,7 +37,7 @@ pub fn menu_display_order(tags: &bevy_gameplay_tag::GameplayTagsManager) -> Vec<
 }
 
 pub const MENU_DILATION: f32 = 0.35;
-include!("../../../assets/ui/als_overlay_menu.runtime.rs");
+include!("../../../assets/ALSExtras/UI/W_Als_OverlayModeMenu.runtime.rs");
 
 #[derive(Resource, Default)]
 pub struct OverlayMenuState {
@@ -357,7 +357,7 @@ pub(crate) mod tests {
 
     pub(crate) fn tag_manager(extra: &[&str]) -> bevy_gameplay_tag::GameplayTagsManager {
         let mut rows: Vec<serde_json::Value> =
-            serde_json::from_str(include_str!("../../../assets/als_gameplay_tags.json")).unwrap();
+            serde_json::from_str(include_str!("../../../assets/ALS/Data/als_gameplay_tags.json")).unwrap();
         rows.extend(
             extra
                 .iter()

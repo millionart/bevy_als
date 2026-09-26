@@ -24,7 +24,7 @@ use crate::foot_ik_apply::FootIkApplySet;
 use crate::head_layer::{AlsHeadLayerSet, inv_exp_approx, unwind_degrees};
 
 pub(crate) const CR_ALS_RUNTIME_PROFILE: &str =
-    include_str!("../../../assets/control_rigs/cr_als.runtime.json");
+    include_str!("../../../assets/ALS/Character/CR_Als.runtime.json");
 const SPINE_ENTER_HALF_LIFE: f32 = 0.1;
 const SPINE_EXIT_HALF_LIFE: f32 = 0.7;
 const SPINE_REFERENCE_VIEW_YAW_SPEED: f32 = 40.0;

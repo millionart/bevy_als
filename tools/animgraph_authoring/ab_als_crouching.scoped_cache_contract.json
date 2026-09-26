@@ -23,26 +23,26 @@
     "Move Left Forward": "ab_als_crouching:move_left_forward",
     "Move Left Backward": "ab_als_crouching:move_left_backward"
   },
-  "target_cache_graph": "assets/graphs/ab_als/stances/crouching.animgraph.ron",
+  "target_cache_graph": "assets/Validation/Graphs/ab_als/stances/crouching.animgraph.ron",
   "target_graphs": [
-    "assets/graphs/ab_als/stances/crouching/state_movement_forward.animgraph.ron",
-    "assets/graphs/ab_als/stances/crouching/state_movement_backward.animgraph.ron",
-    "assets/graphs/ab_als/stances/crouching/state_movement_right_forward.animgraph.ron",
-    "assets/graphs/ab_als/stances/crouching/state_movement_right_backward.animgraph.ron",
-    "assets/graphs/ab_als/stances/crouching/state_movement_left_forward.animgraph.ron",
-    "assets/graphs/ab_als/stances/crouching/state_movement_left_backward.animgraph.ron",
-    "assets/graphs/ab_als/stances/crouching/state_move.animgraph.ron",
-    "assets/graphs/ab_als/stances/crouching/state_stop.animgraph.ron"
+    "assets/Validation/Graphs/ab_als/stances/crouching/state_movement_forward.animgraph.ron",
+    "assets/Validation/Graphs/ab_als/stances/crouching/state_movement_backward.animgraph.ron",
+    "assets/Validation/Graphs/ab_als/stances/crouching/state_movement_right_forward.animgraph.ron",
+    "assets/Validation/Graphs/ab_als/stances/crouching/state_movement_right_backward.animgraph.ron",
+    "assets/Validation/Graphs/ab_als/stances/crouching/state_movement_left_forward.animgraph.ron",
+    "assets/Validation/Graphs/ab_als/stances/crouching/state_movement_left_backward.animgraph.ron",
+    "assets/Validation/Graphs/ab_als/stances/crouching/state_move.animgraph.ron",
+    "assets/Validation/Graphs/ab_als/stances/crouching/state_stop.animgraph.ron"
   ],
   "transition_defaults": [
     {
-      "graph": "assets/graphs/ab_als/stances/crouching/crouching_states_runtime.animgraph.ron",
+      "graph": "assets/Validation/Graphs/ab_als/stances/crouching/crouching_states_runtime.animgraph.ron",
       "node": "crouching transition driver",
       "key": "als_crouching_transition_index",
       "default_value": -1.0
     },
     {
-      "graph": "assets/graphs/ab_als/stances/crouching/movement_states_runtime.animgraph.ron",
+      "graph": "assets/Validation/Graphs/ab_als/stances/crouching/movement_states_runtime.animgraph.ron",
       "node": "crouching movement transition driver",
       "key": "als_crouching_movement_transition_index",
       "default_value": -1.0

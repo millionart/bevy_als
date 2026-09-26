@@ -1,33 +1,33 @@
 {
   "format": "als_ue_visible_fsm_map_v1",
   "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-5dae6352b11e48fa.source.json",
-  "target_fsm": "assets/graphs/ab_als/stances/standing/standing_states.fsm.ron",
+  "target_fsm": "assets/Validation/Graphs/ab_als/stances/standing/standing_states.fsm.ron",
   "transition_static_contract_runtime_path": "src/als/character/animation_instances/standing_layer.rs",
   "state_map": [
     {
       "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_0",
       "target_state": "15100000-0000-4000-8000-000000000001",
-      "target_graph": "graphs/ab_als/stances/standing/state_idle.animgraph.ron"
+      "target_graph": "Validation/Graphs/ab_als/stances/standing/state_idle.animgraph.ron"
     },
     {
       "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_1",
       "target_state": "15100000-0000-4000-8000-000000000002",
-      "target_graph": "graphs/ab_als/stances/standing/state_outer_move.animgraph.ron"
+      "target_graph": "Validation/Graphs/ab_als/stances/standing/state_outer_move.animgraph.ron"
     },
     {
       "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_4",
       "target_state": "15100000-0000-4000-8000-000000000003",
-      "target_graph": "graphs/ab_als/stances/standing/state_stop_runtime.animgraph.ron"
+      "target_graph": "Validation/Graphs/ab_als/stances/standing/state_stop_runtime.animgraph.ron"
     },
     {
       "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_6",
       "target_state": "15100000-0000-4000-8000-000000000005",
-      "target_graph": "graphs/ab_als/stances/standing/state_rotate_left.animgraph.ron"
+      "target_graph": "Validation/Graphs/ab_als/stances/standing/state_rotate_left.animgraph.ron"
     },
     {
       "source_node": "/ALS/ALS/Character/AnimationInstances/Stances/AB_Als_Standing.AB_Als_Standing:AnimGraph.AnimGraphNode_StateMachine_6.Standing States.AnimStateNode_5",
       "target_state": "15100000-0000-4000-8000-000000000004",
-      "target_graph": "graphs/ab_als/stances/standing/state_rotate_right.animgraph.ron"
+      "target_graph": "Validation/Graphs/ab_als/stances/standing/state_rotate_right.animgraph.ron"
     }
   ],
   "transition_map": [

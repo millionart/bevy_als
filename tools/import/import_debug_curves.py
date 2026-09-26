@@ -72,7 +72,7 @@ def main():
         self_test()
     if args.source or args.camera_display:
         result = camera_display_mappings() if args.camera_display else convert(json.loads(args.source.read_text(encoding='utf-8-sig')))
-        output = args.output or Path('assets/ui/als_camera_curves.runtime.json' if args.camera_display else 'assets/ui/als_character_curves.runtime.json')
+        output = args.output or Path('assets/ALSCamera/als_camera_curves.runtime.json' if args.camera_display else 'assets/ALS/Character/als_character_curves.runtime.json')
         text = json.dumps(result, indent=2) + '\n'
         if args.check:
             if output.read_text(encoding='utf-8') != text:

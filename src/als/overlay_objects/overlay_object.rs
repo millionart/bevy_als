@@ -61,7 +61,7 @@ pub struct OverlayLibraryHandle(pub Handle<OverlayLibrary>);
 
 impl FromWorld for OverlayLibraryHandle {
     fn from_world(world: &mut World) -> Self {
-        Self(world.resource::<AssetServer>().load("character/overlay_actor.runtime.json"))
+        Self(world.resource::<AssetServer>().load("ALS/Character/overlay_actor.runtime.json"))
     }
 }
 
@@ -365,7 +365,7 @@ pub(crate) mod tests {
     use super::*;
 
     pub(crate) static SOURCE_LIBRARY: std::sync::LazyLock<OverlayLibrary> = std::sync::LazyLock::new(|| {
-        serde_json::from_str(include_str!("../../../assets/character/overlay_actor.runtime.json")).unwrap()
+        serde_json::from_str(include_str!("../../../assets/ALS/Character/overlay_actor.runtime.json")).unwrap()
     });
 
     #[test]
@@ -477,7 +477,7 @@ pub(crate) mod tests {
         use bevy_animation_graph::core::{animated_scene::{AnimatedSceneHandle, AnimatedSceneInstance},
             animation_graph_player::AnimationGraphPlayer};
         let (mut app, _, _, _) = crate::camera_component::tests::loaded_camera_scene();
-        let scene = app.world().resource::<AssetServer>().load("animated_scenes/als_bow.animscn.ron");
+        let scene = app.world().resource::<AssetServer>().load("ALS/OverlayObjects/Bow/B_Als_Bow.animscn.ron");
         let object = app.world_mut().spawn(AnimatedSceneHandle::new(scene.clone())).id();
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
         let player = loop {
@@ -500,7 +500,7 @@ pub(crate) mod tests {
     fn bow_object_scene_loads_and_samples_the_generated_draw_graph() {
         use bevy_animation_graph::core::animation_clip::GraphClip;
         let (mut app, _, player) = loaded_bow_scene();
-        let clip = app.world().resource::<AssetServer>().load::<GraphClip>("animations/Overlays/Bow/A_Als_Bow_Draw.anim.ron");
+        let clip = app.world().resource::<AssetServer>().load::<GraphClip>("ALS/OverlayObjects/Bow/A_Als_Bow_Draw.anim.ron");
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
         while !app.world().resource::<Assets<GraphClip>>().contains(&clip) {
             app.update();
@@ -541,7 +541,7 @@ pub(crate) mod tests {
         let character = app.world_mut().spawn((AlsCharacter, Transform::IDENTITY, OverlayState::Bow,
             AlsCharacterAssembly { avatar, camera: None })).id();
         app.world_mut().entity_mut(avatar).insert(ChildOf(character));
-        let clip = app.world().resource::<AssetServer>().load("animations/Overlays/Bow/A_Als_Bow_Draw.anim.ron");
+        let clip = app.world().resource::<AssetServer>().load("ALS/OverlayObjects/Bow/A_Als_Bow_Draw.anim.ron");
         let mut graph = AnimationGraph::new();
         let node = AnimationNode::new("Owner aiming curve", crate::extensions::SourceSequenceEvaluatorNode {
             clip, explicit_value_key: "owner_aiming".into(),

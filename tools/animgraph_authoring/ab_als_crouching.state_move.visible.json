@@ -1,7 +1,7 @@
 {
   "format": "als_ue_visible_animgraph_map_v2",
   "source_contract": "docs/bf111/source_contracts/AB_Als_Crouching.recursive/graph-7c5d09ec686509c3.source.json",
-  "target_graph": "assets/graphs/ab_als/stances/crouching/state_move.animgraph.ron",
+  "target_graph": "assets/Validation/Graphs/ab_als/stances/crouching/state_move.animgraph.ron",
   "target_spec": "target/bf111/crouching.state_move.spec.bf11104.json",
   "node_map": [
     {

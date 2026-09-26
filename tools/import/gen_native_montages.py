@@ -88,7 +88,7 @@ def main():
     args = parser.parse_args()
     report = {'format': 'als_native_montages_v1', 'success': False, 'sequences': {}}
     try:
-        targets = list((ROOT / 'assets/animations').rglob('*.anim.ron'))
+        targets = list((ROOT / 'assets').rglob('*.anim.ron'))
         entries = []
         for uasset in args.uasset:
             record, ron = sequence_record(uasset, args.content_root, args.mount, targets)

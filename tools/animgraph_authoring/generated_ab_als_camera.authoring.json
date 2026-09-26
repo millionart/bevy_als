@@ -57,7 +57,7 @@
   ],
   "graphs": [
     {
-      "path": "assets/generated/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/S0_Velocity_Direction.animgraph.ron",
+      "path": "assets/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/S0_Velocity_Direction.animgraph.ron",
       "expected_nodes": [
         {
           "id": "ffed28fd-445f-5783-339d-8193d32e52c5",
@@ -301,7 +301,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/S1_View_Direction.animgraph.ron",
+      "path": "assets/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/S1_View_Direction.animgraph.ron",
       "expected_nodes": [
         {
           "id": "1abec884-44a7-7fe7-d240-7497abdebff2",
@@ -545,7 +545,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/S2_Aiming.animgraph.ron",
+      "path": "assets/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/S2_Aiming.animgraph.ron",
       "expected_nodes": [
         {
           "id": "017a7eae-431c-c97d-461b-619359b4e0ef",
@@ -789,7 +789,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T3/Transition.transition.animgraph.ron",
+      "path": "assets/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T3/Transition.transition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "e3e73776-2398-5bb7-911f-2ffb23a4df8e",
@@ -848,7 +848,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T3_Transition_1.condition.animgraph.ron",
+      "path": "assets/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T3_Transition_1.condition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "1ee116a9-4a83-347a-15c1-aaa8c6eeb01a",
@@ -942,7 +942,7 @@
       ]
     },
     {
-      "path": "assets/generated/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T4/Transition.transition.animgraph.ron",
+      "path": "assets/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T4/Transition.transition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "791a22e4-468a-5e99-8210-25e210976e8b",
@@ -1001,7 +1001,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T5/Transition.transition.animgraph.ron",
+      "path": "assets/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T5/Transition.transition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "eaeac5c9-1532-5b21-81d1-292ae738d530",
@@ -1060,7 +1060,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T5_Transition.condition.animgraph.ron",
+      "path": "assets/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T5_Transition.condition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "15668370-4e51-cb86-ce26-d19656ab7183",
@@ -1106,7 +1106,7 @@
       ]
     },
     {
-      "path": "assets/generated/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T6/Transition.transition.animgraph.ron",
+      "path": "assets/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T6/Transition.transition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "a48f4373-34d0-5289-b75f-dcd785658fd5",
@@ -1165,7 +1165,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T6_Transition.condition.animgraph.ron",
+      "path": "assets/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T6_Transition.condition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "68b38ed6-4a6d-fbdf-8259-688be877d0b6",
@@ -1211,7 +1211,7 @@
       ]
     },
     {
-      "path": "assets/generated/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T7/Transition.transition.animgraph.ron",
+      "path": "assets/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T7/Transition.transition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "afb0b5d3-50fc-53b4-97de-1db6ae156c93",
@@ -1270,7 +1270,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T8/Transition.transition.animgraph.ron",
+      "path": "assets/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/T8/Transition.transition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "9fe0db46-d3a9-5b02-a2e1-9600b6b6d618",
@@ -1329,7 +1329,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALSCamera/AB_Als_Camera/AnimGraph.animgraph.ron",
+      "path": "assets/ALSCamera/AB_Als_Camera/AnimGraph.animgraph.ron",
       "expected_nodes": [
         {
           "id": "7767cb5b-42e0-a8ed-6feb-c29eaac7ffb0",
@@ -1609,7 +1609,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/graphs/runtime/als_generated_camera.animgraph.ron",
+      "path": "assets/ALSCamera/AB_Als_Camera.runtime.animgraph.ron",
       "expected_nodes": [
         {
           "id": "b1160102-0000-4000-8000-000000000001",
@@ -1639,12 +1639,12 @@
   ],
   "fsms": [
     {
-      "path": "assets/generated/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States.fsm.ron",
+      "path": "assets/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States.fsm.ron",
       "expected_states": [
         {
           "id": "962827cb-4581-3891-d30f-61b068c35cd9",
           "label": "Velocity Direction",
-          "graph": "generated/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/S0_Velocity_Direction.animgraph.ron",
+          "graph": "ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/S0_Velocity_Direction.animgraph.ron",
           "position": [
             176.0,
             0.0
@@ -1653,7 +1653,7 @@
         {
           "id": "892b1e50-452a-20b8-76ce-e78af36a9cf7",
           "label": "View Direction",
-          "graph": "generated/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/S1_View_Direction.animgraph.ron",
+          "graph": "ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/S1_View_Direction.animgraph.ron",
           "position": [
             448.0,
             -128.0
@@ -1662,7 +1662,7 @@
         {
           "id": "18ece2d2-4735-8955-ac63-3286a684edea",
           "label": "Aiming",
-          "graph": "generated/ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/S2_Aiming.animgraph.ron",
+          "graph": "ALSCamera/AB_Als_Camera/AnimGraph/SM0_Look_States/S2_Aiming.animgraph.ron",
           "position": [
             448.0,
             128.0

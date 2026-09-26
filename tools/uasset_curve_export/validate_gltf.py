@@ -1,6 +1,6 @@
 import json, glob
 bad = 0
-files = glob.glob("assets/animations/**/*.gltf", recursive=True)
+files = glob.glob("assets/ALS/**/*.gltf", recursive=True)
 with_ext = 0
 for f in files:
     try:

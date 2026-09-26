@@ -22,7 +22,7 @@ fn assets_root() -> std::path::PathBuf {
 fn generated_files() -> Vec<String> {
     let manifest: serde_json::Value = serde_json::from_str(
         &fs::read_to_string(
-            assets_root().join("generated/ALS/Character/AB_Als/installation.manifest.json"),
+            assets_root().join("ALS/Character/AB_Als/installation.manifest.json"),
         )
         .expect("generated installation manifest must be readable"),
     )
@@ -36,10 +36,10 @@ fn generated_files() -> Vec<String> {
         .collect()
 }
 
-const GENERATED_ROOT_GRAPH: &str = "generated/ALS/Character/AB_Als/AnimGraph.animgraph.ron";
+const GENERATED_ROOT_GRAPH: &str = "ALS/Character/AB_Als/AnimGraph.animgraph.ron";
 const RAGDOLL_WRAPPER_GRAPH: &str =
-    "graphs/runtime/als_generated_ab_als_ragdoll_wrapper.animgraph.ron";
-const GENERATED_ANIMATED_SCENE: &str = "animated_scenes/als_generated_ab_als.animscn.ron";
+    "ALS/Character/AB_Als.runtime.animgraph.ron";
+const GENERATED_ANIMATED_SCENE: &str = "ALS/Character/B_Als.animscn.ron";
 
 fn generated_getter_graphs(files: &[String]) -> Vec<String> {
     files

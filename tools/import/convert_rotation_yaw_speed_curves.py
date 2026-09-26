@@ -25,12 +25,12 @@ SOURCE_FIELDS = (
 )
 SIGNED_FIELDS = ("values", "arrive_tangents", "leave_tangents")
 DEFAULT_ASSETS = (
-    "assets/animations/RotateInPlace/A_Als_Crouch_Rotate_90_Left.gltf",
-    "assets/animations/RotateInPlace/A_Als_Crouch_Rotate_90_Right.gltf",
-    "assets/animations/TurnInPlace/A_Als_Crouch_Turn_90_Left.gltf",
-    "assets/animations/TurnInPlace/A_Als_Crouch_Turn_90_Right.gltf",
-    "assets/animations/TurnInPlace/A_Als_Crouch_Turn_180_Left.gltf",
-    "assets/animations/TurnInPlace/A_Als_Crouch_Turn_180_Right.gltf",
+    "assets/ALS/Animations/RotateInPlace/A_Als_Crouch_Rotate_90_Left.gltf",
+    "assets/ALS/Animations/RotateInPlace/A_Als_Crouch_Rotate_90_Right.gltf",
+    "assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_90_Left.gltf",
+    "assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_90_Right.gltf",
+    "assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_180_Left.gltf",
+    "assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_180_Right.gltf",
 )
 
 

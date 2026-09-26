@@ -528,7 +528,7 @@ mod tests {
         use bevy::platform::collections::HashMap;
 
         let definition: RigDefinition = serde_json::from_str(include_str!(
-            "../../assets/control_rigs/cr_als.program.json"
+            "../../assets/ALS/Character/CR_Als.program.json"
         ))
         .unwrap();
         let program = &definition.program;

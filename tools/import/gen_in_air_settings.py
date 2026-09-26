@@ -82,7 +82,7 @@ def main():
     parser.add_argument('--uasset', type=Path)
     parser.add_argument('--animation-source', type=Path)
     parser.add_argument('--source-reader', type=Path, default=ROOT / 'tools/run_ue_source_reader.ps1')
-    parser.add_argument('--output', type=Path, default=ROOT / 'assets/character/als_in_air_settings.json')
+    parser.add_argument('--output', type=Path, default=ROOT / 'assets/ALS/Data/AnimationInstance/Air/als_in_air_settings.json')
     parser.add_argument('--report', type=Path, default=ROOT / 'target/als_in_air_settings.report.json')
     parser.add_argument('--self-test', action='store_true')
     args = parser.parse_args()

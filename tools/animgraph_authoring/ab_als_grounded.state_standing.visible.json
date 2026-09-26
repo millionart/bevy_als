@@ -1,7 +1,7 @@
 {
   "format": "als_ue_visible_animgraph_map_v2",
   "source_contract": "docs/bf111/source_contracts/AB_Als_Grounded.bf11105.recursive/graph-8bcff26d663e1c15.source.json",
-  "target_graph": "assets/graphs/ab_als/grounded/state_standing.animgraph.ron",
+  "target_graph": "assets/Validation/Graphs/ab_als/grounded/state_standing.animgraph.ron",
   "target_spec": "target/bf111/grounded_state_standing.spec.json",
   "node_map": [
     {

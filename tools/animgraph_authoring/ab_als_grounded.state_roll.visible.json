@@ -1,7 +1,7 @@
 {
   "format": "als_ue_visible_animgraph_map_v2",
   "source_contract": "docs/bf111/source_contracts/AB_Als_Grounded.bf11105.recursive/graph-a0fb14a74cbf1d8a.source.json",
-  "target_graph": "assets/graphs/ab_als/grounded/state_roll.animgraph.ron",
+  "target_graph": "assets/Validation/Graphs/ab_als/grounded/state_roll.animgraph.ron",
   "target_spec": "target/bf111/grounded_state_roll.spec.json",
   "node_map": [
     {
@@ -26,28 +26,28 @@
       "property_assertions": [
         {
           "source_contains": "A_Als_Roll",
-          "target_contains": "clip: \"animations/Actions/Roll/A_Als_Roll.anim.ron\"",
-          "target_runtime_path": "assets/graphs/ab_als/grounded/state_roll_runtime.animgraph.ron"
+          "target_contains": "clip: \"ALS/Animations/Actions/Roll/A_Als_Roll.anim.ron\"",
+          "target_runtime_path": "assets/Validation/Graphs/ab_als/grounded/state_roll_runtime.animgraph.ron"
         },
         {
           "source_contains": "bUseExplicitFrame=True",
           "target_contains": "explicit_frame_pin: \"Explicit Frame\"",
-          "target_runtime_path": "assets/graphs/ab_als/grounded/state_roll_runtime.animgraph.ron"
+          "target_runtime_path": "assets/Validation/Graphs/ab_als/grounded/state_roll_runtime.animgraph.ron"
         },
         {
           "source_contains": "bShouldLoop=True",
           "target_contains": "should_loop: true",
-          "target_runtime_path": "assets/graphs/ab_als/grounded/state_roll_runtime.animgraph.ron"
+          "target_runtime_path": "assets/Validation/Graphs/ab_als/grounded/state_roll_runtime.animgraph.ron"
         },
         {
           "source_contains": "bTeleportToExplicitTime=True",
           "target_contains": "teleport_to_explicit_time: true",
-          "target_runtime_path": "assets/graphs/ab_als/grounded/state_roll_runtime.animgraph.ron"
+          "target_runtime_path": "assets/Validation/Graphs/ab_als/grounded/state_roll_runtime.animgraph.ron"
         },
         {
           "source_contains": "ReinitializationBehavior=ExplicitTime",
           "target_contains": "reinitialization_behavior: \"ExplicitTime\"",
-          "target_runtime_path": "assets/graphs/ab_als/grounded/state_roll_runtime.animgraph.ron"
+          "target_runtime_path": "assets/Validation/Graphs/ab_als/grounded/state_roll_runtime.animgraph.ron"
         }
       ]
     },

@@ -138,7 +138,7 @@ mod tests {
         let handle = app
             .world()
             .resource::<AssetServer>()
-            .load::<Skeleton>("skeletons/SKM_Als_Camera.static.skn.ron");
+            .load::<Skeleton>("ALSCamera/SKM_Als_Camera.static.skn.ron");
         let deadline = Instant::now() + Duration::from_secs(20);
         loop {
             app.update();

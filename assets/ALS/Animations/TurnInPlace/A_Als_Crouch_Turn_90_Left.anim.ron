@@ -1,0 +1,38 @@
+(
+    source: GltfNamed(
+        path: "ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_90_Left.gltf",
+        animation_name: "A_Als_Crouch_Turn_90_Left_0",
+    ),
+    skeleton: "ALS/Character/SKM_Als.skn.ron",
+    event_tracks: {
+        "als_notify:/als/als/animations/turninplace/a_als_crouch_turn_90_left.a_als_crouch_turn_90_left:0": (
+            name: "als_notify:/als/als/animations/turninplace/a_als_crouch_turn_90_left.a_als_crouch_turn_90_left:0",
+            events: [
+                (
+                    id: "64a65b4b-fc8e-5096-8d33-8f079005d168",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/turninplace/a_als_crouch_turn_90_left.a_als_crouch_turn_90_left:ef894db1-4229131e-5c85578c-a8fdd11d"),
+                        start_time: 0.7,
+                        end_time: 0.7,
+                    ),
+                ),
+                (
+                    id: "d87063d7-e34b-586e-a770-3f8dca75af98",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/turninplace/a_als_crouch_turn_90_left.a_als_crouch_turn_90_left:4364c59c-406b2f66-eb581ca5-8e0d7b42"),
+                        start_time: 1.233333,
+                        end_time: 1.233333,
+                    ),
+                ),
+                (
+                    id: "ca648fe6-4d47-5ca1-86f8-22e693c6d5e9",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/turninplace/a_als_crouch_turn_90_left.a_als_crouch_turn_90_left:ddde40dc-456f91d4-1a12e2b9-31a4bbde"),
+                        start_time: 1.733333,
+                        end_time: 1.733333,
+                    ),
+                ),
+            ],
+        ),
+    },
+)

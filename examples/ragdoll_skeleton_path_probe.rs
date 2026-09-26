@@ -19,7 +19,7 @@ struct ProbeHandle(Handle<Skeleton>);
 struct ProbeDone(bool);
 
 fn load_skeleton(mut commands: Commands, assets: Res<AssetServer>) {
-    commands.insert_resource(ProbeHandle(assets.load("skeletons/SKM_Als.skn.ron")));
+    commands.insert_resource(ProbeHandle(assets.load("ALS/Character/SKM_Als.skn.ron")));
 }
 
 fn print_skeleton_paths(

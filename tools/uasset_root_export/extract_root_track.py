@@ -278,7 +278,7 @@ def find_root_channels(doc):
 
 def process_clip(name, stem, als_content, repo_root):
     uasset_path = os.path.join(als_content, "ALS", "Animations", stem + ".uasset")
-    gltf_path = os.path.join(repo_root, "assets", "animations", stem + ".gltf")
+    gltf_path = os.path.join(repo_root, "assets", "ALS", "Animations", stem + ".gltf")
     asset = UAsset(uasset_path)
     model = decode_anim_data_model(asset)
 

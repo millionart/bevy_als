@@ -103,7 +103,7 @@ fn load(mut commands: Commands, assets: Res<AssetServer>, root: Res<DumpAssetRoo
     } else {
         vec![
             env::var("ALS_GRAPH_SPEC_PATH")
-                .unwrap_or_else(|_| "graphs/ab_als/stances/standing.animgraph.ron".to_owned()),
+                .unwrap_or_else(|_| "Validation/Graphs/ab_als/stances/standing.animgraph.ron".to_owned()),
         ]
     };
     assert!(

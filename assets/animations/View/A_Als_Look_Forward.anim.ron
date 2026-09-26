@@ -1,7 +1,0 @@
-(
-    source: GltfNamed(
-        path: "animations/View/A_Als_Look_Forward.gltf",
-        animation_name: "A_Als_Look_Forward_0",
-    ),
-    skeleton: "skeletons/SKM_Als.skn.ron",
-)

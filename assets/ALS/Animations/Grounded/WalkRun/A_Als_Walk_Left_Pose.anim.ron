@@ -1,0 +1,30 @@
+(
+    source: GltfNamed(
+        path: "ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Pose.gltf",
+        animation_name: "A_Als_Walk_Left_Pose_0",
+    ),
+    skeleton: "ALS/Character/SKM_Als.skn.ron",
+    event_tracks: {
+        "als_notify:/als/als/animations/grounded/walkrun/a_als_walk_left_pose.a_als_walk_left_pose:0": (
+            name: "als_notify:/als/als/animations/grounded/walkrun/a_als_walk_left_pose.a_als_walk_left_pose:0",
+            events: [
+                (
+                    id: "dd710d39-54bb-57bb-8639-0b0e96732e00",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/grounded/walkrun/a_als_walk_left_pose.a_als_walk_left_pose:13db2a9e-414b897e-247a7e8c-bf3dd918"),
+                        start_time: 0.133333,
+                        end_time: 0.133333,
+                    ),
+                ),
+                (
+                    id: "57f11ff2-f449-54da-8d13-f781362e9ade",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/grounded/walkrun/a_als_walk_left_pose.a_als_walk_left_pose:7e648b3c-4cc965ee-b92f8d97-41b7f4d9"),
+                        start_time: 0.7,
+                        end_time: 0.7,
+                    ),
+                ),
+            ],
+        ),
+    },
+)

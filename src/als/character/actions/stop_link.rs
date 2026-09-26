@@ -1257,7 +1257,7 @@ mod tests {
                 crate::standing_source::MONTAGES[expected]
                     .reference_clip
                     .as_deref(),
-                Some("animations/Base/A_Als_Stand_Pose.anim.ron")
+                Some("ALS/Animations/Base/A_Als_Stand_Pose.anim.ron")
             );
             assert!(
                 (crate::standing_source::MONTAGES[expected].duration - playback.duration).abs()

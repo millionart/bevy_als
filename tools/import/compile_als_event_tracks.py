@@ -160,7 +160,7 @@ def update_graph_clip(path, block, check):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--manifest", default=Path("assets/animation_events/als_notify_manifest.json"), type=Path)
+    parser.add_argument("--manifest", default=Path("assets/ALS/Animations/als_notify_manifest.json"), type=Path)
     parser.add_argument("--assets-root", default=Path("assets"), type=Path)
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()

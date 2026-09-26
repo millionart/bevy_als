@@ -347,11 +347,11 @@ pub(crate) mod tests {
         let definition = app
             .world()
             .resource::<AssetServer>()
-            .load("params/als_camera.camera_component.ron");
+            .load("ALSCamera/Data/als_camera.camera_component.ron");
         let scene = app
             .world()
             .resource::<AssetServer>()
-            .load("animated_scenes/als_camera.static.animscn.ron");
+            .load("ALSCamera/AB_Als_Camera.static.animscn.ron");
         let character = app
             .world_mut()
             .spawn((

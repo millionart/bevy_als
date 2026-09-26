@@ -99,7 +99,7 @@ fn main() {
         bevy_als::als_hud::AlsHudPlugin,
         bevy_als::overlay_mode_menu::OverlayModeMenuPlugin,
         PlaygroundPlugin {
-            manifest: "assets/models/playground/playground_scene.ron".into(),
+            manifest: "assets/ALSExtras/Levels/L_Als_Playground/playground_scene.ron".into(),
         },
         PlaygroundCollisionPlugin,
         OverlayMaterialsPlugin,

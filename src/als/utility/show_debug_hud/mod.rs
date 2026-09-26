@@ -19,7 +19,7 @@ use crate::{animation_context_projection::AlsRootAnimationContext,
     camera_component::AlsSourceCameraComponent,
     character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar}};
 
-include!("../../../../assets/ui/als_debug_canvas.runtime.rs");
+include!("../../../../assets/ALS/Character/als_debug_canvas.runtime.rs");
 const BODY_FONT_PX: f32 = HEADER_FONT_PX * 0.75;
 const ROOT_OFFSET_PX: f32 = 5.0;
 const COLUMN_WIDTH_PX: f32 = 200.0;
@@ -823,7 +823,7 @@ fn build_camera_snapshot(
 ) -> CameraSnapshot {
     let debug_info = debug_info.filter(|info| info.valid);
     static MAPPINGS: LazyLock<std::collections::HashMap<String, (String, f32)>> = LazyLock::new(||
-        serde_json::from_str(include_str!("../../../../assets/ui/als_camera_curves.runtime.json")).expect("Camera display mappings are valid"));
+        serde_json::from_str(include_str!("../../../../assets/ALSCamera/als_camera_curves.runtime.json")).expect("Camera display mappings are valid"));
     let mut camera_curves: Vec<_> = context.into_iter().flat_map(|context| &context.curves).map(|(name, value)| {
         let (name, value) = MAPPINGS.get(name).map_or((name.clone(), *value), |(source, scale)| (source.clone(), value * scale));
         (name, if value == 0.0 { 0.0 } else { value })
@@ -1000,7 +1000,7 @@ fn hud_sync_system(
 
 fn evaluated_character_curve_rows(context: Option<&AlsRootAnimationContext>) -> Vec<DebugRow> {
     static NAMES: LazyLock<Vec<String>> = LazyLock::new(|| {
-        let data: serde_json::Value = serde_json::from_str(include_str!("../../../../assets/ui/als_character_curves.runtime.json")).unwrap();
+        let data: serde_json::Value = serde_json::from_str(include_str!("../../../../assets/ALS/Character/als_character_curves.runtime.json")).unwrap();
         data["curves"].as_array().unwrap().iter().map(|name| name.as_str().unwrap().to_owned()).collect()
     });
     NAMES.iter().map(|name| {
@@ -1366,7 +1366,7 @@ mod tests {
         for expected in ["Crouching", "-160.00", "53.00", "2.25", "0.73", "R: 0.00P: -15.00Y: -130.00"] {
             assert!(rendered.iter().any(|text| text == expected), "Missing current value {expected}: {rendered:?}");
         }
-        let metadata: serde_json::Value = serde_json::from_str(include_str!("../../../../assets/ui/als_character_curves.runtime.json")).unwrap();
+        let metadata: serde_json::Value = serde_json::from_str(include_str!("../../../../assets/ALS/Character/als_character_curves.runtime.json")).unwrap();
         for name in metadata["curves"].as_array().unwrap() {
             assert!(rendered.contains(&name_to_display_string(name.as_str().unwrap(), false)));
         }

@@ -18,8 +18,8 @@ use bevy_animation_graph::core::{
     skeleton::Skeleton,
 };
 
-const GRAPH_PATH: &str = "graphs/ab_als/stances/crouching/state_movement_direction.animgraph.ron";
-const SKELETON_PATH: &str = "skeletons/SKM_Als.skn.ron";
+const GRAPH_PATH: &str = "Validation/Graphs/ab_als/stances/crouching/state_movement_direction.animgraph.ron";
+const SKELETON_PATH: &str = "ALS/Character/SKM_Als.skn.ron";
 const DURATION: f32 = 1.133333;
 const EPSILON: f32 = 1e-4;
 const SOURCE_CROUCH_MARKER_ROTATION_FLOOR: f32 = 0.05;

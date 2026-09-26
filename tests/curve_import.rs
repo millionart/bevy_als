@@ -2,7 +2,7 @@ use bevy_als::extensions::{AlsExtPlugin, CurveAsset};
 use bevy::prelude::*;
 
 const STRIDE_WALK_RON: &str =
-    "curves/ALS/Data/AnimationInstance/Grounded/CF_Als_StrideBlendAmount_Walk.curve.ron";
+    "ALS/Data/AnimationInstance/Grounded/CF_Als_StrideBlendAmount_Walk.curve.ron";
 
 #[test]
 fn imported_als_stride_blend_table_loads_and_evaluates() {

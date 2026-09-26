@@ -1,7 +1,7 @@
 {
   "format": "als_ue_visible_animgraph_map_v2",
   "source_contract": "docs/bf111/source_contracts/AB_Als_Standing.recursive/graph-b7b2a09c2374f92b.source.json",
-  "target_graph": "assets/graphs/ab_als/stances/standing/state_detail_run_start_from_walk_visible.animgraph.ron",
+  "target_graph": "assets/Validation/Graphs/ab_als/stances/standing/state_detail_run_start_from_walk_visible.animgraph.ron",
   "target_spec": "target/bf111/spec_run_start_from_walk.json",
   "node_map": [
     {
@@ -64,7 +64,7 @@
         },
         {
           "source_contains": "A_Als_Acceleration_Forward",
-          "target_contains": "clip: \"animations/Grounded/Acceleration/A_Als_Acceleration_Forward.anim.ron\""
+          "target_contains": "clip: \"ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Forward.anim.ron\""
         },
         {
           "source_contains": "Method=SyncGroup",
@@ -72,7 +72,7 @@
         },
         {
           "source_contains": "A_Als_Acceleration_Forward",
-          "target_contains": "additive_reference: Some(\"animations/Grounded/Lean/A_Als_Lean_Pose.anim.ron\")"
+          "target_contains": "additive_reference: Some(\"ALS/Animations/Grounded/Lean/A_Als_Lean_Pose.anim.ron\")"
         }
       ]
     },
@@ -106,7 +106,7 @@
         },
         {
           "source_contains": "A_Als_Acceleration_Backward",
-          "target_contains": "clip: \"animations/Grounded/Acceleration/A_Als_Acceleration_Backward.anim.ron\""
+          "target_contains": "clip: \"ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Backward.anim.ron\""
         },
         {
           "source_contains": "Method=SyncGroup",
@@ -114,7 +114,7 @@
         },
         {
           "source_contains": "A_Als_Acceleration_Backward",
-          "target_contains": "additive_reference: Some(\"animations/Grounded/Lean/A_Als_Lean_Pose.anim.ron\")"
+          "target_contains": "additive_reference: Some(\"ALS/Animations/Grounded/Lean/A_Als_Lean_Pose.anim.ron\")"
         }
       ]
     },
@@ -148,7 +148,7 @@
         },
         {
           "source_contains": "A_Als_Acceleration_Left",
-          "target_contains": "clip: \"animations/Grounded/Acceleration/A_Als_Acceleration_Left.anim.ron\""
+          "target_contains": "clip: \"ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Left.anim.ron\""
         },
         {
           "source_contains": "Method=SyncGroup",
@@ -156,7 +156,7 @@
         },
         {
           "source_contains": "A_Als_Acceleration_Left",
-          "target_contains": "additive_reference: Some(\"animations/Grounded/Lean/A_Als_Lean_Pose.anim.ron\")"
+          "target_contains": "additive_reference: Some(\"ALS/Animations/Grounded/Lean/A_Als_Lean_Pose.anim.ron\")"
         }
       ]
     },
@@ -190,7 +190,7 @@
         },
         {
           "source_contains": "A_Als_Acceleration_Right",
-          "target_contains": "clip: \"animations/Grounded/Acceleration/A_Als_Acceleration_Right.anim.ron\""
+          "target_contains": "clip: \"ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Right.anim.ron\""
         },
         {
           "source_contains": "Method=SyncGroup",
@@ -198,7 +198,7 @@
         },
         {
           "source_contains": "A_Als_Acceleration_Right",
-          "target_contains": "additive_reference: Some(\"animations/Grounded/Lean/A_Als_Lean_Pose.anim.ron\")"
+          "target_contains": "additive_reference: Some(\"ALS/Animations/Grounded/Lean/A_Als_Lean_Pose.anim.ron\")"
         }
       ]
     },

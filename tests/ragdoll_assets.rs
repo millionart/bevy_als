@@ -6,12 +6,12 @@ use bevy_animation_graph::core::ragdoll::definition::{
 use std::collections::BTreeMap;
 use std::fs;
 
-const RAG_PATH: &str = "assets/ragdolls/als_manny.rag.ron";
-const BM_PATH: &str = "assets/ragdoll_bone_maps/als_manny.bm.ron";
+const RAG_PATH: &str = "assets/ALS/Character/PA_Als.rag.ron";
+const BM_PATH: &str = "assets/ALS/Character/PA_Als.bm.ron";
 
 #[test]
 fn physics_profile_bakes_effective_source_solver_and_material_parameters() {
-    let text = fs::read_to_string("assets/ragdolls/pa_als.physics.json").unwrap();
+    let text = fs::read_to_string("assets/ALS/Character/PA_Als.physics.json").unwrap();
     let profile: serde_json::Value = serde_json::from_str(&text).unwrap();
     assert_eq!(profile["target_solver"]["min_parent_mass_ratio"], 0.2);
     assert_eq!(profile["target_solver"]["max_inertia_ratio"], 5.0);
@@ -273,12 +273,12 @@ fn als_manny_bone_map_serializes_with_expected_coverage() {
         bm.skeleton.to_string().contains("SKM_Als.skn.ron"),
         "bone map references the ALS skeleton"
     );
-    assert!(bm.ragdoll.to_string().contains("als_manny.rag.ron"));
+    assert_eq!(bm.ragdoll.to_string(), RAG_PATH.strip_prefix("assets/").unwrap());
 }
 
 #[test]
 fn pa_als_manifest_has_full_source_matrix() {
-    let text = fs::read_to_string("assets/ragdolls/pa_als.physics.json")
+    let text = fs::read_to_string("assets/ALS/Character/PA_Als.physics.json")
         .expect("PA_Als manifest readable");
     let manifest: serde_json::Value = serde_json::from_str(&text).expect("PA_Als manifest parses");
     assert_eq!(manifest["format"], "physics_asset_runtime_v1");
@@ -328,7 +328,7 @@ fn pa_als_manifest_has_full_source_matrix() {
 
 #[test]
 fn pa_als_manifest_does_not_reduce_independent_swing_axes_to_a_max_cone() {
-    let text = fs::read_to_string("assets/ragdolls/pa_als.physics.json")
+    let text = fs::read_to_string("assets/ALS/Character/PA_Als.physics.json")
         .expect("PA_Als manifest readable");
     let manifest: serde_json::Value = serde_json::from_str(&text).expect("PA_Als manifest parses");
     let thigh = manifest["constraints"]

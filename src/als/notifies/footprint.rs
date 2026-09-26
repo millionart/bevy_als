@@ -152,7 +152,7 @@ impl Plugin for FootprintPlugin {
 }
 
 fn load_footprint_assets(mut commands: Commands, server: Res<AssetServer>) {
-    commands.insert_resource(FootprintAssets { library: server.load("effects/footprint.runtime.json") });
+    commands.insert_resource(FootprintAssets { library: server.load("ALS/Data/Footstep/footprint.runtime.json") });
 }
 
 fn configure_footprint_owners(
@@ -326,7 +326,7 @@ mod tests {
     use bevy::ecs::system::RunSystemOnce;
 
     fn library() -> FootprintLibrary {
-        serde_json::from_str(include_str!("../../../assets/effects/footprint.runtime.json")).unwrap()
+        serde_json::from_str(include_str!("../../../assets/ALS/Data/Footstep/footprint.runtime.json")).unwrap()
     }
 
     static FOOTPRINT: std::sync::LazyLock<FootprintDefinition> = std::sync::LazyLock::new(|| library().definitions.remove(0));
@@ -365,9 +365,9 @@ mod tests {
     #[test]
     fn footprint_library_loads_multiple_references_and_rejects_invalid_bindings() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("target/footprint-library-test-{}", std::process::id()));
-        std::fs::create_dir_all(root.join("textures/footprint")).unwrap();
-        std::fs::write(root.join("textures/footprint/T_Als_Footprint_M.tga"), include_bytes!("../../../assets/textures/footprint/T_Als_Footprint_M.tga")).unwrap();
-        let mut data: serde_json::Value = serde_json::from_str(include_str!("../../../assets/effects/footprint.runtime.json")).unwrap();
+        std::fs::create_dir_all(root.join("ALS/MaterialLibrary/Footprint")).unwrap();
+        std::fs::write(root.join("ALS/MaterialLibrary/Footprint/T_Als_Footprint_M.tga"), include_bytes!("../../../assets/ALS/MaterialLibrary/Footprint/T_Als_Footprint_M.tga")).unwrap();
+        let mut data: serde_json::Value = serde_json::from_str(include_str!("../../../assets/ALS/Data/Footstep/footprint.runtime.json")).unwrap();
         let mut alternate = data["definitions"][0].clone();
         alternate["source_settings"] = "/ALS/Tests/Alternate.Alternate".into();
         alternate["notify_settings_reference"] = "None//ALS/Tests/Alternate/Alternate".into();
@@ -658,7 +658,7 @@ mod tests {
         assert_eq!(FOOTPRINT.notify_defaults["bSpawnDecal"].as_bool(), Some(true));
         let decode = |bytes| Image::from_buffer(bytes, ImageType::Extension("tga"),
             CompressedImageFormats::NONE, false, ImageSampler::default(), RenderAssetUsages::all()).unwrap();
-        let source = decode(include_bytes!("../../../assets/textures/footprint/T_Als_Footprint_M.tga"));
+        let source = decode(include_bytes!("../../../assets/ALS/MaterialLibrary/Footprint/T_Als_Footprint_M.tga"));
         assert_eq!(source.size(), UVec2::splat(512));
         let data = source.data.unwrap();
         assert_eq!(&data[..4], [0, 0, 255, 0]);

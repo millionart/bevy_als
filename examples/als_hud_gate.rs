@@ -139,7 +139,7 @@ fn main() {
             }),
     );
     app.add_plugins((
-        bevy_gameplay_tag::GameplayTagsPlugin::with_data_path("assets/als_gameplay_tags.json"),
+        bevy_gameplay_tag::GameplayTagsPlugin::with_data_path("assets/ALS/Data/als_gameplay_tags.json"),
         EnhancedInputPlugin,
         bevy_als::als::input::AlsInputPlugin,
         bevy_als::als::transition::AlsStateTransitionPlugin,

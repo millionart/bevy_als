@@ -4,7 +4,7 @@ use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 
 use crate::character_assembly::AlsCharacterAvatar;
 
-const PA_ALS_PROFILE: &str = include_str!("../../../assets/ragdolls/pa_als.physics.json");
+const PA_ALS_PROFILE: &str = include_str!("../../../assets/ALS/Character/PA_Als.physics.json");
 
 #[derive(Resource, Clone)]
 pub struct PaAlsPhysicsProfileTemplate(pub RagdollPhysicsProfile);

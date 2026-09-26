@@ -114,7 +114,7 @@ mod tests {
         let handle = app
             .world()
             .resource::<AssetServer>()
-            .load::<AlsCameraDefinition>("params/als_camera.camera_component.ron");
+            .load::<AlsCameraDefinition>("ALSCamera/Data/als_camera.camera_component.ron");
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
         loop {
             app.update();

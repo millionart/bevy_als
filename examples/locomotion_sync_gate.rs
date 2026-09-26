@@ -15,12 +15,12 @@ use bevy_animation_graph::core::{
     skeleton::Skeleton,
 };
 
-const FALL_PATH: &str = "graphs/ab_als/locomotion/state_fall.animgraph.ron";
-const JUMP_PATH: &str = "graphs/ab_als/locomotion/state_jump_left.animgraph.ron";
-const LOOP_PATH: &str = "graphs/ab_als/locomotion/state_jump_loop.animgraph.ron";
-const FLAIL_PATH: &str = "graphs/ab_als/locomotion/state_jump_flail.animgraph.ron";
-const LAND_PATH: &str = "graphs/ab_als/locomotion/state_land.animgraph.ron";
-const SKELETON_PATH: &str = "skeletons/SKM_Als.skn.ron";
+const FALL_PATH: &str = "Validation/Graphs/ab_als/locomotion/state_fall.animgraph.ron";
+const JUMP_PATH: &str = "Validation/Graphs/ab_als/locomotion/state_jump_left.animgraph.ron";
+const LOOP_PATH: &str = "Validation/Graphs/ab_als/locomotion/state_jump_loop.animgraph.ron";
+const FLAIL_PATH: &str = "Validation/Graphs/ab_als/locomotion/state_jump_flail.animgraph.ron";
+const LAND_PATH: &str = "Validation/Graphs/ab_als/locomotion/state_land.animgraph.ron";
+const SKELETON_PATH: &str = "ALS/Character/SKM_Als.skn.ron";
 const EPSILON: f32 = 1e-4;
 
 #[derive(Resource)]

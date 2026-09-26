@@ -1,6 +1,0 @@
-(
-    source: "animations/Base/A_Als_Idle.gltf#Scene0",
-    path_to_player: [],
-    animation_graph: "graphs/runtime/als_generated_ab_als_ragdoll_wrapper.animgraph.ron",
-    skeleton: "skeletons/SKM_Als.skn.ron",
-)

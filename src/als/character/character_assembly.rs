@@ -23,7 +23,7 @@ use crate::animation_events::{
 pub const AVATAR_FORWARD_YAW: f32 = std::f32::consts::PI;
 pub const AVATAR_CAPSULE_BOTTOM_OFFSET: f32 = -0.92;
 pub const AVATAR_MESH_ROOT_WORLD_Y: f32 = -0.02;
-pub const ALS_LINKED_ANIMATED_SCENE: &str = "animated_scenes/als_generated_ab_als.animscn.ron";
+pub const ALS_LINKED_ANIMATED_SCENE: &str = "ALS/Character/B_Als.animscn.ron";
 pub const ALS_CHARACTER_MATERIAL_LINEAR_RGB: [f32; 3] = [0.2, 0.2, 1.0];
 pub const ALS_CHARACTER_MAIN_MATERIAL_LINEAR_RGB: [f32; 3] = [1.0, 1.0, 1.0];
 pub const ALS_CHARACTER_MATERIAL_PERCEPTUAL_ROUGHNESS: f32 = 1.0;
@@ -248,7 +248,7 @@ fn spawn_als_character_internal(
             AlsCameraTarget,
             crate::als_camera::AlsCameraCurveValues::default(),
             crate::als_camera::AlsCameraAnimationFrame::default(),
-            crate::als_camera::AlsCameraDefinitionHandle(assets.load("params/als_camera.camera_component.ron")),
+            crate::als_camera::AlsCameraDefinitionHandle(assets.load("ALSCamera/Data/als_camera.camera_component.ron")),
             AlsAnimationEventPlaybacks::default(),
             AlsNotifyLocomotionAction::None,
             AlsNotifyRootMotionScale::default(),
@@ -276,7 +276,7 @@ fn spawn_als_character_internal(
         AlsCameraSocketLocations::default(),
     ));
     let mut component = commands.spawn((
-        AnimatedSceneHandle::new(assets.load("animated_scenes/als_camera.static.animscn.ron")),
+        AnimatedSceneHandle::new(assets.load("ALSCamera/AB_Als_Camera.static.animscn.ron")),
         crate::camera_component::AlsSourceCameraComponent::default(),
         AlsCharacterCamera { character },
         Name::new("Camera"),

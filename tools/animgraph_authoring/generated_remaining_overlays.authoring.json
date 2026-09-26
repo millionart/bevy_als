@@ -177,7 +177,7 @@
   ],
   "graphs": [
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Barrel/AnimGraph.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Barrel/AnimGraph.animgraph.ron",
       "expected_nodes": [
         {
           "id": "6659a4d3-4ba2-02cb-61cd-b284ae6d627e",
@@ -229,7 +229,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Barrel/Overlay.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Barrel/Overlay.animgraph.ron",
       "expected_nodes": [
         {
           "id": "b7f74446-4dcc-b4d6-634f-209cf3f2cd71",
@@ -433,7 +433,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Binoculars/AnimGraph.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Binoculars/AnimGraph.animgraph.ron",
       "expected_nodes": [
         {
           "id": "185dc6fd-4b2f-79c2-99b6-9f9431050c93",
@@ -485,7 +485,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Binoculars/Overlay.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Binoculars/Overlay.animgraph.ron",
       "expected_nodes": [
         {
           "id": "d1cd28cf-4c37-cec8-d2cd-ccbf3d5babd0",
@@ -813,7 +813,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Box/AnimGraph.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Box/AnimGraph.animgraph.ron",
       "expected_nodes": [
         {
           "id": "d978e006-42fc-d5f5-d338-8e9348182db1",
@@ -865,7 +865,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Box/Overlay.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Box/Overlay.animgraph.ron",
       "expected_nodes": [
         {
           "id": "80f66e8c-406d-d149-3e7b-1d98c12276c6",
@@ -1061,7 +1061,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Feminine/AnimGraph.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Feminine/AnimGraph.animgraph.ron",
       "expected_nodes": [
         {
           "id": "c91e5589-472d-e484-298c-daab65dd04d2",
@@ -1113,7 +1113,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Feminine/Overlay.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Feminine/Overlay.animgraph.ron",
       "expected_nodes": [
         {
           "id": "64a697c4-437f-9c6d-e0b1-949321d1461e",
@@ -1273,7 +1273,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_HandsTied/AnimGraph.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_HandsTied/AnimGraph.animgraph.ron",
       "expected_nodes": [
         {
           "id": "434a1d4f-4951-20b2-06e3-8e8bc5040af2",
@@ -1325,7 +1325,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_HandsTied/Overlay.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_HandsTied/Overlay.animgraph.ron",
       "expected_nodes": [
         {
           "id": "6c78a249-4d07-198f-398c-c083e8db1170",
@@ -1577,7 +1577,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Injured/AnimGraph.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Injured/AnimGraph.animgraph.ron",
       "expected_nodes": [
         {
           "id": "3ff514ee-4d94-4260-a438-20885bc57f97",
@@ -1629,7 +1629,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Injured/Overlay.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Injured/Overlay.animgraph.ron",
       "expected_nodes": [
         {
           "id": "e25a0218-4331-410a-e755-d3b85938c280",
@@ -1881,7 +1881,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Masculine/AnimGraph.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Masculine/AnimGraph.animgraph.ron",
       "expected_nodes": [
         {
           "id": "afaf836b-4e6e-4e09-a332-4f801d358794",
@@ -1933,7 +1933,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Masculine/Overlay.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Masculine/Overlay.animgraph.ron",
       "expected_nodes": [
         {
           "id": "0b75a102-4682-750a-f363-3294c7647197",
@@ -2093,7 +2093,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/AnimGraph.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/AnimGraph.animgraph.ron",
       "expected_nodes": [
         {
           "id": "e70322d6-4642-af98-5ddd-c5ab0005657f",
@@ -2145,7 +2145,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/S13_Ready.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/S13_Ready.animgraph.ron",
       "expected_nodes": [
         {
           "id": "44be5929-4262-c41f-1cc5-eabe76868af5",
@@ -2257,7 +2257,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/S2_Relaxed.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/S2_Relaxed.animgraph.ron",
       "expected_nodes": [
         {
           "id": "c5f7f2e1-4a16-fec7-5558-b9ab23a1962d",
@@ -2369,7 +2369,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/S9_Aiming.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/S9_Aiming.animgraph.ron",
       "expected_nodes": [
         {
           "id": "49b06b78-4e22-c5df-d7fc-4c90bffe3f9b",
@@ -2529,7 +2529,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T22/Transition.transition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T22/Transition.transition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "e0d6089c-a1dd-5bfa-80aa-00c5a67c1468",
@@ -2588,7 +2588,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T22_AnimationTransitionGraph_0.condition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T22_AnimationTransitionGraph_0.condition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "06f3e4a1-4741-3e6a-2854-558ea00b2dfe",
@@ -2634,7 +2634,7 @@
       ]
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T28/Transition.transition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T28/Transition.transition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "c9df1de8-28f3-5f13-a861-f51af4806799",
@@ -2693,7 +2693,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T28_AnimationTransitionGraph_0.condition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T28_AnimationTransitionGraph_0.condition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "93bebcdb-4495-d11a-a6f7-548baf23ee54",
@@ -2763,7 +2763,7 @@
       ]
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T29/Transition.transition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T29/Transition.transition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "0c5f3b69-f9ea-5770-9b44-eab5a6ece921",
@@ -2822,7 +2822,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T29_AnimationTransitionGraph_0.condition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T29_AnimationTransitionGraph_0.condition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "cc5fbcfd-47fa-df88-694c-bfa409f23015",
@@ -2868,7 +2868,7 @@
       ]
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T30/Transition.transition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T30/Transition.transition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "3e580ff6-a092-5a97-a9c9-c9ae56e87769",
@@ -2927,7 +2927,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T30_AnimationTransitionGraph_0.condition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T30_AnimationTransitionGraph_0.condition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "d87d1777-4831-ffb5-50d6-5cb07a3950e4",
@@ -2997,7 +2997,7 @@
       ]
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T31/Transition.transition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T31/Transition.transition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "63bf8d2a-df2b-542f-94c4-2ffbf8ab060e",
@@ -3056,7 +3056,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T31_AnimationTransitionGraph_0.condition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T31_AnimationTransitionGraph_0.condition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "044c7dbc-40ed-3fbe-a221-3cb1bb735b04",
@@ -3138,7 +3138,7 @@
       ]
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T5/Transition.transition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T5/Transition.transition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "c6e52d3e-ad34-53ec-a95a-901a6b2aaefe",
@@ -3197,7 +3197,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T5_AnimationTransitionGraph_0.condition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/T5_AnimationTransitionGraph_0.condition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "1f7082d8-4401-4b17-bed6-cba01a3c3e9e",
@@ -3243,7 +3243,7 @@
       ]
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay.animgraph.ron",
       "expected_nodes": [
         {
           "id": "63c185c9-4834-6878-9ef9-e8a65314c5b9",
@@ -3355,7 +3355,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/AnimGraph.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/AnimGraph.animgraph.ron",
       "expected_nodes": [
         {
           "id": "b2ce536b-41fc-13f3-983c-16bf3764a53a",
@@ -3407,7 +3407,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/S13_Ready.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/S13_Ready.animgraph.ron",
       "expected_nodes": [
         {
           "id": "3d857b38-44d2-ace3-8232-2098237c011b",
@@ -3519,7 +3519,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/S2_Relaxed.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/S2_Relaxed.animgraph.ron",
       "expected_nodes": [
         {
           "id": "7949b698-455f-be9a-7722-8fbc7e6805dc",
@@ -3655,7 +3655,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/S9_Aiming.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/S9_Aiming.animgraph.ron",
       "expected_nodes": [
         {
           "id": "2903e7d8-4db8-8f92-ba29-259ed2f202a6",
@@ -3815,7 +3815,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/T22/Transition.transition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/T22/Transition.transition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "a5259e9e-a96a-52ef-a583-68b6a7b20db3",
@@ -3874,7 +3874,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/T22_AnimationTransitionGraph_0.condition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/T22_AnimationTransitionGraph_0.condition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "2daad439-4ef1-bb1a-27fa-a5908570c911",
@@ -3920,7 +3920,7 @@
       ]
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/T28/Transition.transition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/T28/Transition.transition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "3d31e042-adec-5d9e-bb39-69a867df4f3d",
@@ -3979,7 +3979,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/T28_AnimationTransitionGraph_0.condition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/T28_AnimationTransitionGraph_0.condition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "438b8840-49b6-d5cf-3111-489dac715e9d",
@@ -4049,7 +4049,7 @@
       ]
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/T29/Transition.transition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/T29/Transition.transition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "525e3030-108b-5824-b675-a65e0eef463a",
@@ -4108,7 +4108,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/T29_AnimationTransitionGraph_0.condition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/T29_AnimationTransitionGraph_0.condition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "9571ade8-4aa1-96db-f8c0-c09b6f78007c",
@@ -4154,7 +4154,7 @@
       ]
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/T30/Transition.transition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/T30/Transition.transition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "f037b728-8e3d-5c9d-8a70-b39a14addf9d",
@@ -4213,7 +4213,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/T30_AnimationTransitionGraph_0.condition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/T30_AnimationTransitionGraph_0.condition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "05f7abb8-4acf-4d00-af49-9498e44cde14",
@@ -4283,7 +4283,7 @@
       ]
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/T31/Transition.transition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/T31/Transition.transition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "77e049be-1c03-5261-8b65-a8c72a5572f2",
@@ -4342,7 +4342,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/T31_AnimationTransitionGraph_0.condition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/T31_AnimationTransitionGraph_0.condition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "371236c6-49eb-1aac-3447-cbbeb6f3b082",
@@ -4424,7 +4424,7 @@
       ]
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/T5/Transition.transition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/T5/Transition.transition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "146eaee2-1aaa-53d9-9f45-d5f02278c5dd",
@@ -4483,7 +4483,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/T5_AnimationTransitionGraph_0.condition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/T5_AnimationTransitionGraph_0.condition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "3e8797a9-4dfd-b071-619a-ecbf8a8fe585",
@@ -4529,7 +4529,7 @@
       ]
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay.animgraph.ron",
       "expected_nodes": [
         {
           "id": "fb9a5288-4d09-9d09-b979-0ba27a7cc508",
@@ -4641,7 +4641,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/AnimGraph.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/AnimGraph.animgraph.ron",
       "expected_nodes": [
         {
           "id": "e13c097d-4e42-f604-a4cc-99bf3c3c98f7",
@@ -4693,7 +4693,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/S13_Ready.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/S13_Ready.animgraph.ron",
       "expected_nodes": [
         {
           "id": "794909cf-4f21-ca01-1071-6db821e79e83",
@@ -4805,7 +4805,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/S2_Relaxed.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/S2_Relaxed.animgraph.ron",
       "expected_nodes": [
         {
           "id": "f2a7d533-4961-5a0e-8cae-19887005682b",
@@ -5085,7 +5085,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/S9_Aiming.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/S9_Aiming.animgraph.ron",
       "expected_nodes": [
         {
           "id": "275d6b5b-43c4-f04c-5c03-ccaadca89562",
@@ -5245,7 +5245,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/T22/Transition.transition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/T22/Transition.transition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "7bfd6fce-81bc-5738-9779-7b241f572938",
@@ -5304,7 +5304,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/T22_AnimationTransitionGraph_0.condition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/T22_AnimationTransitionGraph_0.condition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "703a3664-4bb6-a189-ae22-34ae784e6665",
@@ -5350,7 +5350,7 @@
       ]
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/T28/Transition.transition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/T28/Transition.transition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "e3ead33d-a240-5deb-a3fd-1dc61242639e",
@@ -5409,7 +5409,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/T28_AnimationTransitionGraph_0.condition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/T28_AnimationTransitionGraph_0.condition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "b854099b-4361-e22f-2c7f-12b56a7567bf",
@@ -5479,7 +5479,7 @@
       ]
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/T29/Transition.transition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/T29/Transition.transition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "36b1e3d8-3666-5d87-9485-46af63ef6dc3",
@@ -5538,7 +5538,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/T29_AnimationTransitionGraph_0.condition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/T29_AnimationTransitionGraph_0.condition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "f3ad503a-4145-5301-3aae-d4b4f89d2357",
@@ -5584,7 +5584,7 @@
       ]
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/T30/Transition.transition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/T30/Transition.transition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "0e0012e5-88fd-557c-bbb2-5a10f99a9aae",
@@ -5643,7 +5643,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/T30_AnimationTransitionGraph_0.condition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/T30_AnimationTransitionGraph_0.condition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "225ebf5a-4653-b6be-1da1-168338064cd6",
@@ -5713,7 +5713,7 @@
       ]
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/T31/Transition.transition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/T31/Transition.transition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "815dc7c5-cea3-55ad-b450-bf50ec56781a",
@@ -5772,7 +5772,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/T31_AnimationTransitionGraph_0.condition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/T31_AnimationTransitionGraph_0.condition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "1e2b9c7b-4a86-400f-bcdc-888887076042",
@@ -5854,7 +5854,7 @@
       ]
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/T5/Transition.transition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/T5/Transition.transition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "7068015d-88ad-50f2-bf43-237090aac30f",
@@ -5913,7 +5913,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/T5_AnimationTransitionGraph_0.condition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/T5_AnimationTransitionGraph_0.condition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "44c7d68b-482e-9753-0d36-4c927b9b837f",
@@ -5959,7 +5959,7 @@
       ]
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay.animgraph.ron",
       "expected_nodes": [
         {
           "id": "798a7c11-45d1-12b6-9aaa-97905274fc8a",
@@ -6071,7 +6071,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Torch/AnimGraph.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Torch/AnimGraph.animgraph.ron",
       "expected_nodes": [
         {
           "id": "a9081617-4005-93c6-4b5d-8d93cfedd798",
@@ -6123,7 +6123,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Torch/Overlay.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Torch/Overlay.animgraph.ron",
       "expected_nodes": [
         {
           "id": "bd38b462-44f3-a339-197f-67a61ef2a9fa",
@@ -6429,12 +6429,12 @@
   ],
   "fsms": [
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States.fsm.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States.fsm.ron",
       "expected_states": [
         {
           "id": "bbf676c3-4dcb-2bac-ea2f-fc896a02155c",
           "label": "Relaxed",
-          "graph": "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/S2_Relaxed.animgraph.ron",
+          "graph": "ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/S2_Relaxed.animgraph.ron",
           "position": [
             176.0,
             0.0
@@ -6443,7 +6443,7 @@
         {
           "id": "fec2310f-45f1-cd4b-3c7f-8790017c5906",
           "label": "Aiming",
-          "graph": "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/S9_Aiming.animgraph.ron",
+          "graph": "ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/S9_Aiming.animgraph.ron",
           "position": [
             576.0,
             0.0
@@ -6452,7 +6452,7 @@
         {
           "id": "7af380aa-40dc-7590-86f6-9cb9e0e90cb5",
           "label": "Ready",
-          "graph": "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/S13_Ready.animgraph.ron",
+          "graph": "ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded/Overlay/SM0_Pistol_States/S13_Ready.animgraph.ron",
           "position": [
             384.0,
             0.0
@@ -6502,12 +6502,12 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States.fsm.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States.fsm.ron",
       "expected_states": [
         {
           "id": "5df4f0a3-400f-62ff-3b42-b9a8f99591fc",
           "label": "Relaxed",
-          "graph": "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/S2_Relaxed.animgraph.ron",
+          "graph": "ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/S2_Relaxed.animgraph.ron",
           "position": [
             176.0,
             0.0
@@ -6516,7 +6516,7 @@
         {
           "id": "dca6d12a-4e4a-9b7d-b732-11bbafbc7f81",
           "label": "Aiming",
-          "graph": "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/S9_Aiming.animgraph.ron",
+          "graph": "ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/S9_Aiming.animgraph.ron",
           "position": [
             576.0,
             0.0
@@ -6525,7 +6525,7 @@
         {
           "id": "7184d3be-420a-8e46-461e-919e04a5e205",
           "label": "Ready",
-          "graph": "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/S13_Ready.animgraph.ron",
+          "graph": "ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded/Overlay/SM0_Pistol_States/S13_Ready.animgraph.ron",
           "position": [
             384.0,
             0.0
@@ -6575,12 +6575,12 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States.fsm.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States.fsm.ron",
       "expected_states": [
         {
           "id": "92341a61-49d6-11dc-00ef-08a9d9e294f5",
           "label": "Relaxed",
-          "graph": "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/S2_Relaxed.animgraph.ron",
+          "graph": "ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/S2_Relaxed.animgraph.ron",
           "position": [
             176.0,
             0.0
@@ -6589,7 +6589,7 @@
         {
           "id": "72ead8f8-48a2-56b0-031f-ec8aaf388d75",
           "label": "Aiming",
-          "graph": "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/S9_Aiming.animgraph.ron",
+          "graph": "ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/S9_Aiming.animgraph.ron",
           "position": [
             576.0,
             0.0
@@ -6598,7 +6598,7 @@
         {
           "id": "b4acacf5-400b-46a8-f72f-5f9a9135c614",
           "label": "Ready",
-          "graph": "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/S13_Ready.animgraph.ron",
+          "graph": "ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle/Overlay/SM0_Rifle_States/S13_Ready.animgraph.ron",
           "position": [
             384.0,
             0.0

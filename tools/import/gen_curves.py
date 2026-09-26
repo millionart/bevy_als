@@ -3,7 +3,7 @@
 
 Run from repo root: python tools/import/gen_curves.py
 
-For each assets/curves/**/*.json (schema: {asset, sampling:{mode,n,t_min,t_max}, keys:[{t,v}...]}),
+For each sampled curve JSON in the source-owned asset trees,
 writes a sibling .curve.ron with mode=Linear preserving the sampled table exactly.
 """
 from __future__ import annotations
@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-CURVES = REPO / "assets" / "curves"
+CURVES = REPO / "assets"
 
 
 def ron_f32(x: float) -> str:
@@ -30,6 +30,8 @@ def main() -> int:
         except (OSError, json.JSONDecodeError) as e:
             print(f"FAIL read {jp}: {e}", file=sys.stderr)
             failed += 1
+            continue
+        if not isinstance(data, dict) or data.get("sampling", {}).get("mode") != "uniform":
             continue
         keys = data.get("keys") or []
         if not keys:

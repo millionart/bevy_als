@@ -40,7 +40,7 @@ fn main() {
         PhysicsPlugins::new(FixedPostUpdate),
         EnhancedInputPlugin,
         PlaygroundPlugin {
-            manifest: "assets/models/playground/playground_scene.ron".into(),
+            manifest: "assets/ALSExtras/Levels/L_Als_Playground/playground_scene.ron".into(),
         },
         AnimationGraphPlugin::default(),
     ))

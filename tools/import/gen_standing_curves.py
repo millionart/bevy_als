@@ -74,7 +74,7 @@ def main():
     parser.add_argument('--content-root', type=Path)
     parser.add_argument('--mount', default='/ALS')
     parser.add_argument('--source-reader', type=Path, default=ROOT / 'tools/run_ue_source_reader.ps1')
-    parser.add_argument('--output', type=Path, default=ROOT / 'assets/character/als_standing_curves.json')
+    parser.add_argument('--output', type=Path, default=ROOT / 'assets/ALS/Data/AnimationInstance/Grounded/als_standing_curves.json')
     parser.add_argument('--report', type=Path, default=ROOT / 'target/als_standing_curves.report.json')
     parser.add_argument('--self-test', action='store_true')
     args = parser.parse_args()

@@ -23,8 +23,8 @@ use bevy_animation_graph::core::{
 use bevy_gameplay_tag::GameplayTag;
 use serde_json::Value;
 
-const RAGDOLLING_PATH: &str = "graphs/ab_als/ragdolling.animgraph.ron";
-const SKELETON_PATH: &str = "skeletons/SKM_Als.skn.ron";
+const RAGDOLLING_PATH: &str = "Validation/Graphs/ab_als/ragdolling.animgraph.ron";
+const SKELETON_PATH: &str = "ALS/Character/SKM_Als.skn.ron";
 const CURVE_VALUE: f32 = 0.75;
 
 const CURVES: &[&str] = &[
@@ -165,7 +165,7 @@ fn verify_native_source() {
     assert!(native_link(inner, "BlendPose_0", snapshot));
     assert!(native_link(inner, "BlendPose_1", flail));
     assert!(native_link(root, "Result", outer));
-    let target = std::fs::read_to_string("assets/graphs/ab_als/ragdolling.animgraph.ron")
+    let target = std::fs::read_to_string("assets/Validation/Graphs/ab_als/ragdolling.animgraph.ron")
         .expect("target Ragdolling graph readable");
     for position in [
         "\"1a220000-0000-4000-8000-000000000001\": (-1056.000, 192.000)",
@@ -384,7 +384,7 @@ fn verify_static(
         ]
         .into_iter()
         .all(|name| graph.io_spec.get_output_data(&name.to_owned()).is_some());
-    let source = std::fs::read_to_string("assets/graphs/ab_als/ragdolling.animgraph.ron")
+    let source = std::fs::read_to_string("assets/Validation/Graphs/ab_als/ragdolling.animgraph.ron")
         .unwrap_or_default();
     let architecture = !source.contains("AB_Als_Monolithic")
         && !source.contains("manual")

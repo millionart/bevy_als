@@ -88,7 +88,7 @@
       "source_object": "/ALS/ALS/Animations/Actions/GetUp/A_Als_GetUp_Back.A_Als_GetUp_Back",
       "source_package": "/ALS/ALS/Animations/Actions/GetUp/A_Als_GetUp_Back",
       "source_relative": "ALS/Animations/Actions/GetUp/A_Als_GetUp_Back",
-      "target_gltf": "assets/animations/Actions/GetUp/A_Als_GetUp_Back.gltf"
+      "target_gltf": "assets/ALS/Animations/Actions/GetUp/A_Als_GetUp_Back.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -179,7 +179,7 @@
       "source_object": "/ALS/ALS/Animations/Actions/GetUp/A_Als_GetUp_Front.A_Als_GetUp_Front",
       "source_package": "/ALS/ALS/Animations/Actions/GetUp/A_Als_GetUp_Front",
       "source_relative": "ALS/Animations/Actions/GetUp/A_Als_GetUp_Front",
-      "target_gltf": "assets/animations/Actions/GetUp/A_Als_GetUp_Front.gltf"
+      "target_gltf": "assets/ALS/Animations/Actions/GetUp/A_Als_GetUp_Front.gltf"
     },
     {
       "asset_class": "AnimMontage",
@@ -432,7 +432,7 @@
       "source_object": "/ALS/ALS/Animations/Actions/Mantle/A_Als_Mantle_High.A_Als_Mantle_High",
       "source_package": "/ALS/ALS/Animations/Actions/Mantle/A_Als_Mantle_High",
       "source_relative": "ALS/Animations/Actions/Mantle/A_Als_Mantle_High",
-      "target_gltf": "assets/animations/Actions/Mantle/A_Als_Mantle_High.gltf"
+      "target_gltf": "assets/ALS/Animations/Actions/Mantle/A_Als_Mantle_High.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -555,7 +555,7 @@
       "source_object": "/ALS/ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Left.A_Als_Mantle_Low_Left",
       "source_package": "/ALS/ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Left",
       "source_relative": "ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Left",
-      "target_gltf": "assets/animations/Actions/Mantle/A_Als_Mantle_Low_Left.gltf"
+      "target_gltf": "assets/ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Left.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -678,7 +678,7 @@
       "source_object": "/ALS/ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Right.A_Als_Mantle_Low_Right",
       "source_package": "/ALS/ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Right",
       "source_relative": "ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Right",
-      "target_gltf": "assets/animations/Actions/Mantle/A_Als_Mantle_Low_Right.gltf"
+      "target_gltf": "assets/ALS/Animations/Actions/Mantle/A_Als_Mantle_Low_Right.gltf"
     },
     {
       "asset_class": "AnimMontage",
@@ -1548,7 +1548,7 @@
       "source_object": "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll.A_Als_Roll",
       "source_package": "/ALS/ALS/Animations/Actions/Roll/A_Als_Roll",
       "source_relative": "ALS/Animations/Actions/Roll/A_Als_Roll",
-      "target_gltf": "assets/animations/Actions/Roll/A_Als_Roll.gltf"
+      "target_gltf": "assets/ALS/Animations/Actions/Roll/A_Als_Roll.gltf"
     },
     {
       "asset_class": "AnimMontage",
@@ -1632,7 +1632,7 @@
       "source_object": "/ALS/ALS/Animations/Air/Fall/A_Als_Fall.A_Als_Fall",
       "source_package": "/ALS/ALS/Animations/Air/Fall/A_Als_Fall",
       "source_relative": "ALS/Animations/Air/Fall/A_Als_Fall",
-      "target_gltf": "assets/animations/Air/Fall/A_Als_Fall.gltf"
+      "target_gltf": "assets/ALS/Animations/Air/Fall/A_Als_Fall.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -1651,7 +1651,7 @@
       "source_object": "/ALS/ALS/Animations/Air/Fall/A_Als_Fall_Fast.A_Als_Fall_Fast",
       "source_package": "/ALS/ALS/Animations/Air/Fall/A_Als_Fall_Fast",
       "source_relative": "ALS/Animations/Air/Fall/A_Als_Fall_Fast",
-      "target_gltf": "assets/animations/Air/Fall/A_Als_Fall_Fast.gltf"
+      "target_gltf": "assets/ALS/Animations/Air/Fall/A_Als_Fall_Fast.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -1670,7 +1670,7 @@
       "source_object": "/ALS/ALS/Animations/Air/Fall/A_Als_Flail.A_Als_Flail",
       "source_package": "/ALS/ALS/Animations/Air/Fall/A_Als_Flail",
       "source_relative": "ALS/Animations/Air/Fall/A_Als_Flail",
-      "target_gltf": "assets/animations/Air/Fall/A_Als_Flail.gltf"
+      "target_gltf": "assets/ALS/Animations/Air/Fall/A_Als_Flail.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -1689,7 +1689,7 @@
       "source_object": "/ALS/ALS/Animations/Air/Jump/A_Als_Jump_Loop.A_Als_Jump_Loop",
       "source_package": "/ALS/ALS/Animations/Air/Jump/A_Als_Jump_Loop",
       "source_relative": "ALS/Animations/Air/Jump/A_Als_Jump_Loop",
-      "target_gltf": "assets/animations/Air/Jump/A_Als_Jump_Loop.gltf"
+      "target_gltf": "assets/ALS/Animations/Air/Jump/A_Als_Jump_Loop.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -1741,7 +1741,7 @@
       "source_object": "/ALS/ALS/Animations/Air/Jump/A_Als_Jump_Run_Left.A_Als_Jump_Run_Left",
       "source_package": "/ALS/ALS/Animations/Air/Jump/A_Als_Jump_Run_Left",
       "source_relative": "ALS/Animations/Air/Jump/A_Als_Jump_Run_Left",
-      "target_gltf": "assets/animations/Air/Jump/A_Als_Jump_Run_Left.gltf"
+      "target_gltf": "assets/ALS/Animations/Air/Jump/A_Als_Jump_Run_Left.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -1797,7 +1797,7 @@
       "source_object": "/ALS/ALS/Animations/Air/Jump/A_Als_Jump_Run_Right.A_Als_Jump_Run_Right",
       "source_package": "/ALS/ALS/Animations/Air/Jump/A_Als_Jump_Run_Right",
       "source_relative": "ALS/Animations/Air/Jump/A_Als_Jump_Run_Right",
-      "target_gltf": "assets/animations/Air/Jump/A_Als_Jump_Run_Right.gltf"
+      "target_gltf": "assets/ALS/Animations/Air/Jump/A_Als_Jump_Run_Right.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -1850,7 +1850,7 @@
       "source_object": "/ALS/ALS/Animations/Air/Jump/A_Als_Jump_Walk_Left.A_Als_Jump_Walk_Left",
       "source_package": "/ALS/ALS/Animations/Air/Jump/A_Als_Jump_Walk_Left",
       "source_relative": "ALS/Animations/Air/Jump/A_Als_Jump_Walk_Left",
-      "target_gltf": "assets/animations/Air/Jump/A_Als_Jump_Walk_Left.gltf"
+      "target_gltf": "assets/ALS/Animations/Air/Jump/A_Als_Jump_Walk_Left.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -1907,7 +1907,7 @@
       "source_object": "/ALS/ALS/Animations/Air/Jump/A_Als_Jump_Walk_Right.A_Als_Jump_Walk_Right",
       "source_package": "/ALS/ALS/Animations/Air/Jump/A_Als_Jump_Walk_Right",
       "source_relative": "ALS/Animations/Air/Jump/A_Als_Jump_Walk_Right",
-      "target_gltf": "assets/animations/Air/Jump/A_Als_Jump_Walk_Right.gltf"
+      "target_gltf": "assets/ALS/Animations/Air/Jump/A_Als_Jump_Walk_Right.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -2008,7 +2008,7 @@
       "source_object": "/ALS/ALS/Animations/Air/Land/A_Als_Land_Heavy.A_Als_Land_Heavy",
       "source_package": "/ALS/ALS/Animations/Air/Land/A_Als_Land_Heavy",
       "source_relative": "ALS/Animations/Air/Land/A_Als_Land_Heavy",
-      "target_gltf": "assets/animations/Air/Land/A_Als_Land_Heavy.gltf"
+      "target_gltf": "assets/ALS/Animations/Air/Land/A_Als_Land_Heavy.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -2109,7 +2109,7 @@
       "source_object": "/ALS/ALS/Animations/Air/Land/A_Als_Land_Heavy_Additive.A_Als_Land_Heavy_Additive",
       "source_package": "/ALS/ALS/Animations/Air/Land/A_Als_Land_Heavy_Additive",
       "source_relative": "ALS/Animations/Air/Land/A_Als_Land_Heavy_Additive",
-      "target_gltf": "assets/animations/Air/Land/A_Als_Land_Heavy_Additive.gltf"
+      "target_gltf": "assets/ALS/Animations/Air/Land/A_Als_Land_Heavy_Additive.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -2210,7 +2210,7 @@
       "source_object": "/ALS/ALS/Animations/Air/Land/A_Als_Land_Light.A_Als_Land_Light",
       "source_package": "/ALS/ALS/Animations/Air/Land/A_Als_Land_Light",
       "source_relative": "ALS/Animations/Air/Land/A_Als_Land_Light",
-      "target_gltf": "assets/animations/Air/Land/A_Als_Land_Light.gltf"
+      "target_gltf": "assets/ALS/Animations/Air/Land/A_Als_Land_Light.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -2311,7 +2311,7 @@
       "source_object": "/ALS/ALS/Animations/Air/Land/A_Als_Land_Light_Additive.A_Als_Land_Light_Additive",
       "source_package": "/ALS/ALS/Animations/Air/Land/A_Als_Land_Light_Additive",
       "source_relative": "ALS/Animations/Air/Land/A_Als_Land_Light_Additive",
-      "target_gltf": "assets/animations/Air/Land/A_Als_Land_Light_Additive.gltf"
+      "target_gltf": "assets/ALS/Animations/Air/Land/A_Als_Land_Light_Additive.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -2330,7 +2330,7 @@
       "source_object": "/ALS/ALS/Animations/Air/Lean/A_Als_Air_Lean.A_Als_Air_Lean",
       "source_package": "/ALS/ALS/Animations/Air/Lean/A_Als_Air_Lean",
       "source_relative": "ALS/Animations/Air/Lean/A_Als_Air_Lean",
-      "target_gltf": "assets/animations/Air/Lean/A_Als_Air_Lean.gltf"
+      "target_gltf": "assets/ALS/Animations/Air/Lean/A_Als_Air_Lean.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -2349,7 +2349,7 @@
       "source_object": "/ALS/ALS/Animations/Air/Lean/A_Als_Air_Lean_Backward.A_Als_Air_Lean_Backward",
       "source_package": "/ALS/ALS/Animations/Air/Lean/A_Als_Air_Lean_Backward",
       "source_relative": "ALS/Animations/Air/Lean/A_Als_Air_Lean_Backward",
-      "target_gltf": "assets/animations/Air/Lean/A_Als_Air_Lean_Backward.gltf"
+      "target_gltf": "assets/ALS/Animations/Air/Lean/A_Als_Air_Lean_Backward.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -2368,7 +2368,7 @@
       "source_object": "/ALS/ALS/Animations/Air/Lean/A_Als_Air_Lean_Forward.A_Als_Air_Lean_Forward",
       "source_package": "/ALS/ALS/Animations/Air/Lean/A_Als_Air_Lean_Forward",
       "source_relative": "ALS/Animations/Air/Lean/A_Als_Air_Lean_Forward",
-      "target_gltf": "assets/animations/Air/Lean/A_Als_Air_Lean_Forward.gltf"
+      "target_gltf": "assets/ALS/Animations/Air/Lean/A_Als_Air_Lean_Forward.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -2387,7 +2387,7 @@
       "source_object": "/ALS/ALS/Animations/Air/Lean/A_Als_Air_Lean_Left.A_Als_Air_Lean_Left",
       "source_package": "/ALS/ALS/Animations/Air/Lean/A_Als_Air_Lean_Left",
       "source_relative": "ALS/Animations/Air/Lean/A_Als_Air_Lean_Left",
-      "target_gltf": "assets/animations/Air/Lean/A_Als_Air_Lean_Left.gltf"
+      "target_gltf": "assets/ALS/Animations/Air/Lean/A_Als_Air_Lean_Left.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -2406,7 +2406,7 @@
       "source_object": "/ALS/ALS/Animations/Air/Lean/A_Als_Air_Lean_Right.A_Als_Air_Lean_Right",
       "source_package": "/ALS/ALS/Animations/Air/Lean/A_Als_Air_Lean_Right",
       "source_relative": "ALS/Animations/Air/Lean/A_Als_Air_Lean_Right",
-      "target_gltf": "assets/animations/Air/Lean/A_Als_Air_Lean_Right.gltf"
+      "target_gltf": "assets/ALS/Animations/Air/Lean/A_Als_Air_Lean_Right.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -2425,7 +2425,7 @@
       "source_object": "/ALS/ALS/Animations/Base/A_Als_Crouch_Pose.A_Als_Crouch_Pose",
       "source_package": "/ALS/ALS/Animations/Base/A_Als_Crouch_Pose",
       "source_relative": "ALS/Animations/Base/A_Als_Crouch_Pose",
-      "target_gltf": "assets/animations/Base/A_Als_Crouch_Pose.gltf"
+      "target_gltf": "assets/ALS/Animations/Base/A_Als_Crouch_Pose.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -2444,7 +2444,7 @@
       "source_object": "/ALS/ALS/Animations/Base/A_Als_Idle.A_Als_Idle",
       "source_package": "/ALS/ALS/Animations/Base/A_Als_Idle",
       "source_relative": "ALS/Animations/Base/A_Als_Idle",
-      "target_gltf": "assets/animations/Base/A_Als_Idle.gltf"
+      "target_gltf": "assets/ALS/Animations/Base/A_Als_Idle.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -2463,7 +2463,7 @@
       "source_object": "/ALS/ALS/Animations/Base/A_Als_Stand_Pose.A_Als_Stand_Pose",
       "source_package": "/ALS/ALS/Animations/Base/A_Als_Stand_Pose",
       "source_relative": "ALS/Animations/Base/A_Als_Stand_Pose",
-      "target_gltf": "assets/animations/Base/A_Als_Stand_Pose.gltf"
+      "target_gltf": "assets/ALS/Animations/Base/A_Als_Stand_Pose.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -2482,7 +2482,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Backward.A_Als_Acceleration_Backward",
       "source_package": "/ALS/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Backward",
       "source_relative": "ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Backward",
-      "target_gltf": "assets/animations/Grounded/Acceleration/A_Als_Acceleration_Backward.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Backward.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -2501,7 +2501,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Forward.A_Als_Acceleration_Forward",
       "source_package": "/ALS/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Forward",
       "source_relative": "ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Forward",
-      "target_gltf": "assets/animations/Grounded/Acceleration/A_Als_Acceleration_Forward.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Forward.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -2520,7 +2520,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Left.A_Als_Acceleration_Left",
       "source_package": "/ALS/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Left",
       "source_relative": "ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Left",
-      "target_gltf": "assets/animations/Grounded/Acceleration/A_Als_Acceleration_Left.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Left.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -2539,7 +2539,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Right.A_Als_Acceleration_Right",
       "source_package": "/ALS/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Right",
       "source_relative": "ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Right",
-      "target_gltf": "assets/animations/Grounded/Acceleration/A_Als_Acceleration_Right.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Right.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -2730,7 +2730,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Backward.A_Als_Crouch_Walk_Backward",
       "source_package": "/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Backward",
       "source_relative": "ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Backward",
-      "target_gltf": "assets/animations/Grounded/Crouch/A_Als_Crouch_Walk_Backward.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Backward.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -2845,7 +2845,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Forward.A_Als_Crouch_Walk_Forward",
       "source_package": "/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Forward",
       "source_relative": "ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Forward",
-      "target_gltf": "assets/animations/Grounded/Crouch/A_Als_Crouch_Walk_Forward.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Forward.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -3036,7 +3036,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Backward.A_Als_Crouch_Walk_Left_Backward",
       "source_package": "/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Backward",
       "source_relative": "ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Backward",
-      "target_gltf": "assets/animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Backward.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Backward.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -3151,7 +3151,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Forward.A_Als_Crouch_Walk_Left_Forward",
       "source_package": "/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Forward",
       "source_relative": "ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Forward",
-      "target_gltf": "assets/animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Forward.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Left_Forward.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -3266,7 +3266,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Pose.A_Als_Crouch_Walk_Pose",
       "source_package": "/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Pose",
       "source_relative": "ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Pose",
-      "target_gltf": "assets/animations/Grounded/Crouch/A_Als_Crouch_Walk_Pose.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Pose.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -3461,7 +3461,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Backward.A_Als_Crouch_Walk_Right_Backward",
       "source_package": "/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Backward",
       "source_relative": "ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Backward",
-      "target_gltf": "assets/animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Backward.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Backward.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -3576,7 +3576,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Forward.A_Als_Crouch_Walk_Right_Forward",
       "source_package": "/ALS/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Forward",
       "source_relative": "ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Forward",
-      "target_gltf": "assets/animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Forward.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/Crouch/A_Als_Crouch_Walk_Right_Forward.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -3595,7 +3595,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean.A_Als_Lean",
       "source_package": "/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean",
       "source_relative": "ALS/Animations/Grounded/Lean/A_Als_Lean",
-      "target_gltf": "assets/animations/Grounded/Lean/A_Als_Lean.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/Lean/A_Als_Lean.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -3614,7 +3614,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Backward.A_Als_Lean_Backward",
       "source_package": "/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Backward",
       "source_relative": "ALS/Animations/Grounded/Lean/A_Als_Lean_Backward",
-      "target_gltf": "assets/animations/Grounded/Lean/A_Als_Lean_Backward.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/Lean/A_Als_Lean_Backward.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -3633,7 +3633,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Forward.A_Als_Lean_Forward",
       "source_package": "/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Forward",
       "source_relative": "ALS/Animations/Grounded/Lean/A_Als_Lean_Forward",
-      "target_gltf": "assets/animations/Grounded/Lean/A_Als_Lean_Forward.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/Lean/A_Als_Lean_Forward.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -3652,7 +3652,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Left.A_Als_Lean_Left",
       "source_package": "/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Left",
       "source_relative": "ALS/Animations/Grounded/Lean/A_Als_Lean_Left",
-      "target_gltf": "assets/animations/Grounded/Lean/A_Als_Lean_Left.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/Lean/A_Als_Lean_Left.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -3671,7 +3671,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Pose.A_Als_Lean_Pose",
       "source_package": "/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Pose",
       "source_relative": "ALS/Animations/Grounded/Lean/A_Als_Lean_Pose",
-      "target_gltf": "assets/animations/Grounded/Lean/A_Als_Lean_Pose.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/Lean/A_Als_Lean_Pose.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -3690,7 +3690,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Right.A_Als_Lean_Right",
       "source_package": "/ALS/ALS/Animations/Grounded/Lean/A_Als_Lean_Right",
       "source_relative": "ALS/Animations/Grounded/Lean/A_Als_Lean_Right",
-      "target_gltf": "assets/animations/Grounded/Lean/A_Als_Lean_Right.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/Lean/A_Als_Lean_Right.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -3873,7 +3873,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/Sprint/A_Als_Sprint.A_Als_Sprint",
       "source_package": "/ALS/ALS/Animations/Grounded/Sprint/A_Als_Sprint",
       "source_relative": "ALS/Animations/Grounded/Sprint/A_Als_Sprint",
-      "target_gltf": "assets/animations/Grounded/Sprint/A_Als_Sprint.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/Sprint/A_Als_Sprint.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -4056,7 +4056,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/Sprint/A_Als_Sprint_Acceleration.A_Als_Sprint_Acceleration",
       "source_package": "/ALS/ALS/Animations/Grounded/Sprint/A_Als_Sprint_Acceleration",
       "source_relative": "ALS/Animations/Grounded/Sprint/A_Als_Sprint_Acceleration",
-      "target_gltf": "assets/animations/Grounded/Sprint/A_Als_Sprint_Acceleration.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/Sprint/A_Als_Sprint_Acceleration.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -4243,7 +4243,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Backward.A_Als_Run_Backward",
       "source_package": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Backward",
       "source_relative": "ALS/Animations/Grounded/WalkRun/A_Als_Run_Backward",
-      "target_gltf": "assets/animations/Grounded/WalkRun/A_Als_Run_Backward.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Run_Backward.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -4354,7 +4354,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.A_Als_Run_Forward",
       "source_package": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward",
       "source_relative": "ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward",
-      "target_gltf": "assets/animations/Grounded/WalkRun/A_Als_Run_Forward.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -4465,7 +4465,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.A_Als_Run_Forward_Pose",
       "source_package": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose",
       "source_relative": "ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose",
-      "target_gltf": "assets/animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Run_Forward_Pose.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -4652,7 +4652,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Left_Backward.A_Als_Run_Left_Backward",
       "source_package": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Left_Backward",
       "source_relative": "ALS/Animations/Grounded/WalkRun/A_Als_Run_Left_Backward",
-      "target_gltf": "assets/animations/Grounded/WalkRun/A_Als_Run_Left_Backward.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Run_Left_Backward.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -4763,7 +4763,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Left_Forward.A_Als_Run_Left_Forward",
       "source_package": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Left_Forward",
       "source_relative": "ALS/Animations/Grounded/WalkRun/A_Als_Run_Left_Forward",
-      "target_gltf": "assets/animations/Grounded/WalkRun/A_Als_Run_Left_Forward.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Run_Left_Forward.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -4874,7 +4874,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Left_Pose.A_Als_Run_Left_Pose",
       "source_package": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Left_Pose",
       "source_relative": "ALS/Animations/Grounded/WalkRun/A_Als_Run_Left_Pose",
-      "target_gltf": "assets/animations/Grounded/WalkRun/A_Als_Run_Left_Pose.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Run_Left_Pose.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -5061,7 +5061,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Backward.A_Als_Run_Right_Backward",
       "source_package": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Backward",
       "source_relative": "ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Backward",
-      "target_gltf": "assets/animations/Grounded/WalkRun/A_Als_Run_Right_Backward.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Backward.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -5172,7 +5172,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Forward.A_Als_Run_Right_Forward",
       "source_package": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Forward",
       "source_relative": "ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Forward",
-      "target_gltf": "assets/animations/Grounded/WalkRun/A_Als_Run_Right_Forward.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Forward.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -5283,7 +5283,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Pose.A_Als_Run_Right_Pose",
       "source_package": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Pose",
       "source_relative": "ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Pose",
-      "target_gltf": "assets/animations/Grounded/WalkRun/A_Als_Run_Right_Pose.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Run_Right_Pose.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -5472,7 +5472,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Backward.A_Als_Walk_Backward",
       "source_package": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Backward",
       "source_relative": "ALS/Animations/Grounded/WalkRun/A_Als_Walk_Backward",
-      "target_gltf": "assets/animations/Grounded/WalkRun/A_Als_Walk_Backward.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Backward.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -5583,7 +5583,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.A_Als_Walk_Forward",
       "source_package": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward",
       "source_relative": "ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward",
-      "target_gltf": "assets/animations/Grounded/WalkRun/A_Als_Walk_Forward.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -5696,7 +5696,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward_Pose.A_Als_Walk_Forward_Pose",
       "source_package": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward_Pose",
       "source_relative": "ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward_Pose",
-      "target_gltf": "assets/animations/Grounded/WalkRun/A_Als_Walk_Forward_Pose.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward_Pose.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -5885,7 +5885,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Backward.A_Als_Walk_Left_Backward",
       "source_package": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Backward",
       "source_relative": "ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Backward",
-      "target_gltf": "assets/animations/Grounded/WalkRun/A_Als_Walk_Left_Backward.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Backward.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -5996,7 +5996,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Forward.A_Als_Walk_Left_Forward",
       "source_package": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Forward",
       "source_relative": "ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Forward",
-      "target_gltf": "assets/animations/Grounded/WalkRun/A_Als_Walk_Left_Forward.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Forward.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -6109,7 +6109,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Pose.A_Als_Walk_Left_Pose",
       "source_package": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Pose",
       "source_relative": "ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Pose",
-      "target_gltf": "assets/animations/Grounded/WalkRun/A_Als_Walk_Left_Pose.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Left_Pose.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -6298,7 +6298,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Backward.A_Als_Walk_Right_Backward",
       "source_package": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Backward",
       "source_relative": "ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Backward",
-      "target_gltf": "assets/animations/Grounded/WalkRun/A_Als_Walk_Right_Backward.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Backward.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -6409,7 +6409,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Forward.A_Als_Walk_Right_Forward",
       "source_package": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Forward",
       "source_relative": "ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Forward",
-      "target_gltf": "assets/animations/Grounded/WalkRun/A_Als_Walk_Right_Forward.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Forward.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -6522,7 +6522,7 @@
       "source_object": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Pose.A_Als_Walk_Right_Pose",
       "source_package": "/ALS/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Pose",
       "source_relative": "ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Pose",
-      "target_gltf": "assets/animations/Grounded/WalkRun/A_Als_Walk_Right_Pose.gltf"
+      "target_gltf": "assets/ALS/Animations/Grounded/WalkRun/A_Als_Walk_Right_Pose.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -6541,7 +6541,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/Binoculars/A_Als_Binoculars_Aim.A_Als_Binoculars_Aim",
       "source_package": "/ALS/ALS/Animations/Overlays/Binoculars/A_Als_Binoculars_Aim",
       "source_relative": "ALS/Animations/Overlays/Binoculars/A_Als_Binoculars_Aim",
-      "target_gltf": "assets/animations/Overlays/Binoculars/A_Als_Binoculars_Aim.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/Binoculars/A_Als_Binoculars_Aim.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -6560,7 +6560,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/Binoculars/A_Als_Binoculars_Aim_Crouch.A_Als_Binoculars_Aim_Crouch",
       "source_package": "/ALS/ALS/Animations/Overlays/Binoculars/A_Als_Binoculars_Aim_Crouch",
       "source_relative": "ALS/Animations/Overlays/Binoculars/A_Als_Binoculars_Aim_Crouch",
-      "target_gltf": "assets/animations/Overlays/Binoculars/A_Als_Binoculars_Aim_Crouch.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/Binoculars/A_Als_Binoculars_Aim_Crouch.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -6579,7 +6579,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/Binoculars/A_Als_Binoculars_Poses.A_Als_Binoculars_Poses",
       "source_package": "/ALS/ALS/Animations/Overlays/Binoculars/A_Als_Binoculars_Poses",
       "source_relative": "ALS/Animations/Overlays/Binoculars/A_Als_Binoculars_Poses",
-      "target_gltf": "assets/animations/Overlays/Binoculars/A_Als_Binoculars_Poses.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/Binoculars/A_Als_Binoculars_Poses.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -6598,7 +6598,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/Binoculars/A_Als_Binoculars_Poses_NoCurves.A_Als_Binoculars_Poses_NoCurves",
       "source_package": "/ALS/ALS/Animations/Overlays/Binoculars/A_Als_Binoculars_Poses_NoCurves",
       "source_relative": "ALS/Animations/Overlays/Binoculars/A_Als_Binoculars_Poses_NoCurves",
-      "target_gltf": "assets/animations/Overlays/Binoculars/A_Als_Binoculars_Poses_NoCurves.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/Binoculars/A_Als_Binoculars_Poses_NoCurves.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -6617,7 +6617,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/Bow/A_Als_Bow_Aim.A_Als_Bow_Aim",
       "source_package": "/ALS/ALS/Animations/Overlays/Bow/A_Als_Bow_Aim",
       "source_relative": "ALS/Animations/Overlays/Bow/A_Als_Bow_Aim",
-      "target_gltf": "assets/animations/Overlays/Bow/A_Als_Bow_Aim.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/Bow/A_Als_Bow_Aim.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -6636,7 +6636,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/Bow/A_Als_Bow_Aim_Crouch.A_Als_Bow_Aim_Crouch",
       "source_package": "/ALS/ALS/Animations/Overlays/Bow/A_Als_Bow_Aim_Crouch",
       "source_relative": "ALS/Animations/Overlays/Bow/A_Als_Bow_Aim_Crouch",
-      "target_gltf": "assets/animations/Overlays/Bow/A_Als_Bow_Aim_Crouch.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/Bow/A_Als_Bow_Aim_Crouch.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -6655,7 +6655,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/Bow/A_Als_Bow_Poses.A_Als_Bow_Poses",
       "source_package": "/ALS/ALS/Animations/Overlays/Bow/A_Als_Bow_Poses",
       "source_relative": "ALS/Animations/Overlays/Bow/A_Als_Bow_Poses",
-      "target_gltf": "assets/animations/Overlays/Bow/A_Als_Bow_Poses.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/Bow/A_Als_Bow_Poses.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -6674,7 +6674,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/Bow/A_Als_Bow_Poses_NoCurves.A_Als_Bow_Poses_NoCurves",
       "source_package": "/ALS/ALS/Animations/Overlays/Bow/A_Als_Bow_Poses_NoCurves",
       "source_relative": "ALS/Animations/Overlays/Bow/A_Als_Bow_Poses_NoCurves",
-      "target_gltf": "assets/animations/Overlays/Bow/A_Als_Bow_Poses_NoCurves.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/Bow/A_Als_Bow_Poses_NoCurves.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -6693,7 +6693,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/Other/A_Als_Barrel_Poses.A_Als_Barrel_Poses",
       "source_package": "/ALS/ALS/Animations/Overlays/Other/A_Als_Barrel_Poses",
       "source_relative": "ALS/Animations/Overlays/Other/A_Als_Barrel_Poses",
-      "target_gltf": "assets/animations/Overlays/Other/A_Als_Barrel_Poses.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/Other/A_Als_Barrel_Poses.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -6712,7 +6712,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/Other/A_Als_Box_Poses.A_Als_Box_Poses",
       "source_package": "/ALS/ALS/Animations/Overlays/Other/A_Als_Box_Poses",
       "source_relative": "ALS/Animations/Overlays/Other/A_Als_Box_Poses",
-      "target_gltf": "assets/animations/Overlays/Other/A_Als_Box_Poses.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/Other/A_Als_Box_Poses.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -6731,7 +6731,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/Other/A_Als_Default_Poses.A_Als_Default_Poses",
       "source_package": "/ALS/ALS/Animations/Overlays/Other/A_Als_Default_Poses",
       "source_relative": "ALS/Animations/Overlays/Other/A_Als_Default_Poses",
-      "target_gltf": "assets/animations/Overlays/Other/A_Als_Default_Poses.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/Other/A_Als_Default_Poses.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -6750,7 +6750,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/Other/A_Als_Feminine_Poses.A_Als_Feminine_Poses",
       "source_package": "/ALS/ALS/Animations/Overlays/Other/A_Als_Feminine_Poses",
       "source_relative": "ALS/Animations/Overlays/Other/A_Als_Feminine_Poses",
-      "target_gltf": "assets/animations/Overlays/Other/A_Als_Feminine_Poses.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/Other/A_Als_Feminine_Poses.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -6769,7 +6769,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/Other/A_Als_HandsTied_Poses.A_Als_HandsTied_Poses",
       "source_package": "/ALS/ALS/Animations/Overlays/Other/A_Als_HandsTied_Poses",
       "source_relative": "ALS/Animations/Overlays/Other/A_Als_HandsTied_Poses",
-      "target_gltf": "assets/animations/Overlays/Other/A_Als_HandsTied_Poses.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/Other/A_Als_HandsTied_Poses.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -6788,7 +6788,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/Other/A_Als_Injured_Poses.A_Als_Injured_Poses",
       "source_package": "/ALS/ALS/Animations/Overlays/Other/A_Als_Injured_Poses",
       "source_relative": "ALS/Animations/Overlays/Other/A_Als_Injured_Poses",
-      "target_gltf": "assets/animations/Overlays/Other/A_Als_Injured_Poses.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/Other/A_Als_Injured_Poses.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -6807,7 +6807,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/Other/A_Als_Masculine_Poses.A_Als_Masculine_Poses",
       "source_package": "/ALS/ALS/Animations/Overlays/Other/A_Als_Masculine_Poses",
       "source_relative": "ALS/Animations/Overlays/Other/A_Als_Masculine_Poses",
-      "target_gltf": "assets/animations/Overlays/Other/A_Als_Masculine_Poses.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/Other/A_Als_Masculine_Poses.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -6826,7 +6826,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Aim.A_Als_PistolOneHanded_Aim",
       "source_package": "/ALS/ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Aim",
       "source_relative": "ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Aim",
-      "target_gltf": "assets/animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Aim.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Aim.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -6845,7 +6845,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Aim_Crouch.A_Als_PistolOneHanded_Aim_Crouch",
       "source_package": "/ALS/ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Aim_Crouch",
       "source_relative": "ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Aim_Crouch",
-      "target_gltf": "assets/animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Aim_Crouch.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Aim_Crouch.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -6864,7 +6864,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Poses.A_Als_PistolOneHanded_Poses",
       "source_package": "/ALS/ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Poses",
       "source_relative": "ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Poses",
-      "target_gltf": "assets/animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Poses.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Poses.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -6883,7 +6883,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Poses_NoCurves.A_Als_PistolOneHanded_Poses_NoCurves",
       "source_package": "/ALS/ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Poses_NoCurves",
       "source_relative": "ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Poses_NoCurves",
-      "target_gltf": "assets/animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Poses_NoCurves.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/PistolOneHanded/A_Als_PistolOneHanded_Poses_NoCurves.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -6902,7 +6902,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Aim.A_Als_PistolTwoHanded_Aim",
       "source_package": "/ALS/ALS/Animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Aim",
       "source_relative": "ALS/Animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Aim",
-      "target_gltf": "assets/animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Aim.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Aim.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -6921,7 +6921,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Aim_Crouch.A_Als_PistolTwoHanded_Aim_Crouch",
       "source_package": "/ALS/ALS/Animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Aim_Crouch",
       "source_relative": "ALS/Animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Aim_Crouch",
-      "target_gltf": "assets/animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Aim_Crouch.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Aim_Crouch.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -6940,7 +6940,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Poses.A_Als_PistolTwoHanded_Poses",
       "source_package": "/ALS/ALS/Animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Poses",
       "source_relative": "ALS/Animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Poses",
-      "target_gltf": "assets/animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Poses.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Poses.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -6959,7 +6959,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Poses_NoCurves.A_Als_PistolTwoHanded_Poses_NoCurves",
       "source_package": "/ALS/ALS/Animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Poses_NoCurves",
       "source_relative": "ALS/Animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Poses_NoCurves",
-      "target_gltf": "assets/animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Poses_NoCurves.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/PistolTwoHanded/A_Als_PistolTwoHanded_Poses_NoCurves.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -6978,7 +6978,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Aim.A_Als_Rifle_Aim",
       "source_package": "/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Aim",
       "source_relative": "ALS/Animations/Overlays/Rifle/A_Als_Rifle_Aim",
-      "target_gltf": "assets/animations/Overlays/Rifle/A_Als_Rifle_Aim.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Aim.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -6997,7 +6997,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Aim_Crouch.A_Als_Rifle_Aim_Crouch",
       "source_package": "/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Aim_Crouch",
       "source_relative": "ALS/Animations/Overlays/Rifle/A_Als_Rifle_Aim_Crouch",
-      "target_gltf": "assets/animations/Overlays/Rifle/A_Als_Rifle_Aim_Crouch.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Aim_Crouch.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -7016,7 +7016,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Poses.A_Als_Rifle_Poses",
       "source_package": "/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Poses",
       "source_relative": "ALS/Animations/Overlays/Rifle/A_Als_Rifle_Poses",
-      "target_gltf": "assets/animations/Overlays/Rifle/A_Als_Rifle_Poses.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Poses.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -7035,7 +7035,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Poses_NoCurves.A_Als_Rifle_Poses_NoCurves",
       "source_package": "/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Poses_NoCurves",
       "source_relative": "ALS/Animations/Overlays/Rifle/A_Als_Rifle_Poses_NoCurves",
-      "target_gltf": "assets/animations/Overlays/Rifle/A_Als_Rifle_Poses_NoCurves.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Poses_NoCurves.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -7054,7 +7054,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Run.A_Als_Rifle_Run",
       "source_package": "/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Run",
       "source_relative": "ALS/Animations/Overlays/Rifle/A_Als_Rifle_Run",
-      "target_gltf": "assets/animations/Overlays/Rifle/A_Als_Rifle_Run.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Run.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -7086,7 +7086,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Run_Arms.A_Als_Rifle_Run_Arms",
       "source_package": "/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Run_Arms",
       "source_relative": "ALS/Animations/Overlays/Rifle/A_Als_Rifle_Run_Arms",
-      "target_gltf": "assets/animations/Overlays/Rifle/A_Als_Rifle_Run_Arms.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Run_Arms.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -7105,7 +7105,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Sprint.A_Als_Rifle_Sprint",
       "source_package": "/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Sprint",
       "source_relative": "ALS/Animations/Overlays/Rifle/A_Als_Rifle_Sprint",
-      "target_gltf": "assets/animations/Overlays/Rifle/A_Als_Rifle_Sprint.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Sprint.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -7137,7 +7137,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Sprint_Arms.A_Als_Rifle_Sprint_Arms",
       "source_package": "/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Sprint_Arms",
       "source_relative": "ALS/Animations/Overlays/Rifle/A_Als_Rifle_Sprint_Arms",
-      "target_gltf": "assets/animations/Overlays/Rifle/A_Als_Rifle_Sprint_Arms.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Sprint_Arms.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -7156,7 +7156,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Sprint_Impulse.A_Als_Rifle_Sprint_Impulse",
       "source_package": "/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Sprint_Impulse",
       "source_relative": "ALS/Animations/Overlays/Rifle/A_Als_Rifle_Sprint_Impulse",
-      "target_gltf": "assets/animations/Overlays/Rifle/A_Als_Rifle_Sprint_Impulse.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Sprint_Impulse.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -7188,7 +7188,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Sprint_Impulse_Arms.A_Als_Rifle_Sprint_Impulse_Arms",
       "source_package": "/ALS/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Sprint_Impulse_Arms",
       "source_relative": "ALS/Animations/Overlays/Rifle/A_Als_Rifle_Sprint_Impulse_Arms",
-      "target_gltf": "assets/animations/Overlays/Rifle/A_Als_Rifle_Sprint_Impulse_Arms.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/Rifle/A_Als_Rifle_Sprint_Impulse_Arms.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -7207,7 +7207,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/Torch/A_Als_Torch_Aim.A_Als_Torch_Aim",
       "source_package": "/ALS/ALS/Animations/Overlays/Torch/A_Als_Torch_Aim",
       "source_relative": "ALS/Animations/Overlays/Torch/A_Als_Torch_Aim",
-      "target_gltf": "assets/animations/Overlays/Torch/A_Als_Torch_Aim.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/Torch/A_Als_Torch_Aim.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -7226,7 +7226,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/Torch/A_Als_Torch_Aim_Crouch.A_Als_Torch_Aim_Crouch",
       "source_package": "/ALS/ALS/Animations/Overlays/Torch/A_Als_Torch_Aim_Crouch",
       "source_relative": "ALS/Animations/Overlays/Torch/A_Als_Torch_Aim_Crouch",
-      "target_gltf": "assets/animations/Overlays/Torch/A_Als_Torch_Aim_Crouch.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/Torch/A_Als_Torch_Aim_Crouch.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -7245,7 +7245,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/Torch/A_Als_Torch_Poses.A_Als_Torch_Poses",
       "source_package": "/ALS/ALS/Animations/Overlays/Torch/A_Als_Torch_Poses",
       "source_relative": "ALS/Animations/Overlays/Torch/A_Als_Torch_Poses",
-      "target_gltf": "assets/animations/Overlays/Torch/A_Als_Torch_Poses.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/Torch/A_Als_Torch_Poses.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -7264,7 +7264,7 @@
       "source_object": "/ALS/ALS/Animations/Overlays/Torch/A_Als_Torch_Poses_NoCurves.A_Als_Torch_Poses_NoCurves",
       "source_package": "/ALS/ALS/Animations/Overlays/Torch/A_Als_Torch_Poses_NoCurves",
       "source_relative": "ALS/Animations/Overlays/Torch/A_Als_Torch_Poses_NoCurves",
-      "target_gltf": "assets/animations/Overlays/Torch/A_Als_Torch_Poses_NoCurves.gltf"
+      "target_gltf": "assets/ALS/Animations/Overlays/Torch/A_Als_Torch_Poses_NoCurves.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -7354,7 +7354,7 @@
       "source_object": "/ALS/ALS/Animations/RotateInPlace/A_Als_Crouch_Rotate_90_Left.A_Als_Crouch_Rotate_90_Left",
       "source_package": "/ALS/ALS/Animations/RotateInPlace/A_Als_Crouch_Rotate_90_Left",
       "source_relative": "ALS/Animations/RotateInPlace/A_Als_Crouch_Rotate_90_Left",
-      "target_gltf": "assets/animations/RotateInPlace/A_Als_Crouch_Rotate_90_Left.gltf"
+      "target_gltf": "assets/ALS/Animations/RotateInPlace/A_Als_Crouch_Rotate_90_Left.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -7444,7 +7444,7 @@
       "source_object": "/ALS/ALS/Animations/RotateInPlace/A_Als_Crouch_Rotate_90_Right.A_Als_Crouch_Rotate_90_Right",
       "source_package": "/ALS/ALS/Animations/RotateInPlace/A_Als_Crouch_Rotate_90_Right",
       "source_relative": "ALS/Animations/RotateInPlace/A_Als_Crouch_Rotate_90_Right",
-      "target_gltf": "assets/animations/RotateInPlace/A_Als_Crouch_Rotate_90_Right.gltf"
+      "target_gltf": "assets/ALS/Animations/RotateInPlace/A_Als_Crouch_Rotate_90_Right.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -7532,7 +7532,7 @@
       "source_object": "/ALS/ALS/Animations/RotateInPlace/A_Als_Rotate_90_Left.A_Als_Rotate_90_Left",
       "source_package": "/ALS/ALS/Animations/RotateInPlace/A_Als_Rotate_90_Left",
       "source_relative": "ALS/Animations/RotateInPlace/A_Als_Rotate_90_Left",
-      "target_gltf": "assets/animations/RotateInPlace/A_Als_Rotate_90_Left.gltf"
+      "target_gltf": "assets/ALS/Animations/RotateInPlace/A_Als_Rotate_90_Left.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -7620,7 +7620,7 @@
       "source_object": "/ALS/ALS/Animations/RotateInPlace/A_Als_Rotate_90_Right.A_Als_Rotate_90_Right",
       "source_package": "/ALS/ALS/Animations/RotateInPlace/A_Als_Rotate_90_Right",
       "source_relative": "ALS/Animations/RotateInPlace/A_Als_Rotate_90_Right",
-      "target_gltf": "assets/animations/RotateInPlace/A_Als_Rotate_90_Right.gltf"
+      "target_gltf": "assets/ALS/Animations/RotateInPlace/A_Als_Rotate_90_Right.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -7673,7 +7673,7 @@
       "source_object": "/ALS/ALS/Animations/Transitions/A_Als_Crouch_DynamicTransition_Left.A_Als_Crouch_DynamicTransition_Left",
       "source_package": "/ALS/ALS/Animations/Transitions/A_Als_Crouch_DynamicTransition_Left",
       "source_relative": "ALS/Animations/Transitions/A_Als_Crouch_DynamicTransition_Left",
-      "target_gltf": "assets/animations/Transitions/A_Als_Crouch_DynamicTransition_Left.gltf"
+      "target_gltf": "assets/ALS/Animations/Transitions/A_Als_Crouch_DynamicTransition_Left.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -7732,7 +7732,7 @@
       "source_object": "/ALS/ALS/Animations/Transitions/A_Als_Crouch_DynamicTransition_Right.A_Als_Crouch_DynamicTransition_Right",
       "source_package": "/ALS/ALS/Animations/Transitions/A_Als_Crouch_DynamicTransition_Right",
       "source_relative": "ALS/Animations/Transitions/A_Als_Crouch_DynamicTransition_Right",
-      "target_gltf": "assets/animations/Transitions/A_Als_Crouch_DynamicTransition_Right.gltf"
+      "target_gltf": "assets/ALS/Animations/Transitions/A_Als_Crouch_DynamicTransition_Right.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -7824,7 +7824,7 @@
       "source_object": "/ALS/ALS/Animations/Transitions/A_Als_Crouch_Transition_Left.A_Als_Crouch_Transition_Left",
       "source_package": "/ALS/ALS/Animations/Transitions/A_Als_Crouch_Transition_Left",
       "source_relative": "ALS/Animations/Transitions/A_Als_Crouch_Transition_Left",
-      "target_gltf": "assets/animations/Transitions/A_Als_Crouch_Transition_Left.gltf"
+      "target_gltf": "assets/ALS/Animations/Transitions/A_Als_Crouch_Transition_Left.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -7916,7 +7916,7 @@
       "source_object": "/ALS/ALS/Animations/Transitions/A_Als_Crouch_Transition_Right.A_Als_Crouch_Transition_Right",
       "source_package": "/ALS/ALS/Animations/Transitions/A_Als_Crouch_Transition_Right",
       "source_relative": "ALS/Animations/Transitions/A_Als_Crouch_Transition_Right",
-      "target_gltf": "assets/animations/Transitions/A_Als_Crouch_Transition_Right.gltf"
+      "target_gltf": "assets/ALS/Animations/Transitions/A_Als_Crouch_Transition_Right.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -8006,7 +8006,7 @@
       "source_object": "/ALS/ALS/Animations/Transitions/A_Als_CrouchToStand.A_Als_CrouchToStand",
       "source_package": "/ALS/ALS/Animations/Transitions/A_Als_CrouchToStand",
       "source_relative": "ALS/Animations/Transitions/A_Als_CrouchToStand",
-      "target_gltf": "assets/animations/Transitions/A_Als_CrouchToStand.gltf"
+      "target_gltf": "assets/ALS/Animations/Transitions/A_Als_CrouchToStand.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -8059,7 +8059,7 @@
       "source_object": "/ALS/ALS/Animations/Transitions/A_Als_Stand_DynamicTransition_Left.A_Als_Stand_DynamicTransition_Left",
       "source_package": "/ALS/ALS/Animations/Transitions/A_Als_Stand_DynamicTransition_Left",
       "source_relative": "ALS/Animations/Transitions/A_Als_Stand_DynamicTransition_Left",
-      "target_gltf": "assets/animations/Transitions/A_Als_Stand_DynamicTransition_Left.gltf"
+      "target_gltf": "assets/ALS/Animations/Transitions/A_Als_Stand_DynamicTransition_Left.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -8116,7 +8116,7 @@
       "source_object": "/ALS/ALS/Animations/Transitions/A_Als_Stand_DynamicTransition_Right.A_Als_Stand_DynamicTransition_Right",
       "source_package": "/ALS/ALS/Animations/Transitions/A_Als_Stand_DynamicTransition_Right",
       "source_relative": "ALS/Animations/Transitions/A_Als_Stand_DynamicTransition_Right",
-      "target_gltf": "assets/animations/Transitions/A_Als_Stand_DynamicTransition_Right.gltf"
+      "target_gltf": "assets/ALS/Animations/Transitions/A_Als_Stand_DynamicTransition_Right.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -8206,7 +8206,7 @@
       "source_object": "/ALS/ALS/Animations/Transitions/A_Als_Stand_Transition_Left.A_Als_Stand_Transition_Left",
       "source_package": "/ALS/ALS/Animations/Transitions/A_Als_Stand_Transition_Left",
       "source_relative": "ALS/Animations/Transitions/A_Als_Stand_Transition_Left",
-      "target_gltf": "assets/animations/Transitions/A_Als_Stand_Transition_Left.gltf"
+      "target_gltf": "assets/ALS/Animations/Transitions/A_Als_Stand_Transition_Left.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -8296,7 +8296,7 @@
       "source_object": "/ALS/ALS/Animations/Transitions/A_Als_Stand_Transition_Right.A_Als_Stand_Transition_Right",
       "source_package": "/ALS/ALS/Animations/Transitions/A_Als_Stand_Transition_Right",
       "source_relative": "ALS/Animations/Transitions/A_Als_Stand_Transition_Right",
-      "target_gltf": "assets/animations/Transitions/A_Als_Stand_Transition_Right.gltf"
+      "target_gltf": "assets/ALS/Animations/Transitions/A_Als_Stand_Transition_Right.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -8388,7 +8388,7 @@
       "source_object": "/ALS/ALS/Animations/Transitions/A_Als_StandToCrouch.A_Als_StandToCrouch",
       "source_package": "/ALS/ALS/Animations/Transitions/A_Als_StandToCrouch",
       "source_relative": "ALS/Animations/Transitions/A_Als_StandToCrouch",
-      "target_gltf": "assets/animations/Transitions/A_Als_StandToCrouch.gltf"
+      "target_gltf": "assets/ALS/Animations/Transitions/A_Als_StandToCrouch.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -8478,7 +8478,7 @@
       "source_object": "/ALS/ALS/Animations/Transitions/A_Als_Stop_Left.A_Als_Stop_Left",
       "source_package": "/ALS/ALS/Animations/Transitions/A_Als_Stop_Left",
       "source_relative": "ALS/Animations/Transitions/A_Als_Stop_Left",
-      "target_gltf": "assets/animations/Transitions/A_Als_Stop_Left.gltf"
+      "target_gltf": "assets/ALS/Animations/Transitions/A_Als_Stop_Left.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -8568,7 +8568,7 @@
       "source_object": "/ALS/ALS/Animations/Transitions/A_Als_Stop_Right.A_Als_Stop_Right",
       "source_package": "/ALS/ALS/Animations/Transitions/A_Als_Stop_Right",
       "source_relative": "ALS/Animations/Transitions/A_Als_Stop_Right",
-      "target_gltf": "assets/animations/Transitions/A_Als_Stop_Right.gltf"
+      "target_gltf": "assets/ALS/Animations/Transitions/A_Als_Stop_Right.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -8726,7 +8726,7 @@
       "source_object": "/ALS/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_180_Left.A_Als_Crouch_Turn_180_Left",
       "source_package": "/ALS/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_180_Left",
       "source_relative": "ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_180_Left",
-      "target_gltf": "assets/animations/TurnInPlace/A_Als_Crouch_Turn_180_Left.gltf"
+      "target_gltf": "assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_180_Left.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -8884,7 +8884,7 @@
       "source_object": "/ALS/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_180_Right.A_Als_Crouch_Turn_180_Right",
       "source_package": "/ALS/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_180_Right",
       "source_relative": "ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_180_Right",
-      "target_gltf": "assets/animations/TurnInPlace/A_Als_Crouch_Turn_180_Right.gltf"
+      "target_gltf": "assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_180_Right.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -9006,7 +9006,7 @@
       "source_object": "/ALS/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_90_Left.A_Als_Crouch_Turn_90_Left",
       "source_package": "/ALS/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_90_Left",
       "source_relative": "ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_90_Left",
-      "target_gltf": "assets/animations/TurnInPlace/A_Als_Crouch_Turn_90_Left.gltf"
+      "target_gltf": "assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_90_Left.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -9128,7 +9128,7 @@
       "source_object": "/ALS/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_90_Right.A_Als_Crouch_Turn_90_Right",
       "source_package": "/ALS/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_90_Right",
       "source_relative": "ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_90_Right",
-      "target_gltf": "assets/animations/TurnInPlace/A_Als_Crouch_Turn_90_Right.gltf"
+      "target_gltf": "assets/ALS/Animations/TurnInPlace/A_Als_Crouch_Turn_90_Right.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -9248,7 +9248,7 @@
       "source_object": "/ALS/ALS/Animations/TurnInPlace/A_Als_Turn_180_Left.A_Als_Turn_180_Left",
       "source_package": "/ALS/ALS/Animations/TurnInPlace/A_Als_Turn_180_Left",
       "source_relative": "ALS/Animations/TurnInPlace/A_Als_Turn_180_Left",
-      "target_gltf": "assets/animations/TurnInPlace/A_Als_Turn_180_Left.gltf"
+      "target_gltf": "assets/ALS/Animations/TurnInPlace/A_Als_Turn_180_Left.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -9372,7 +9372,7 @@
       "source_object": "/ALS/ALS/Animations/TurnInPlace/A_Als_Turn_180_Right.A_Als_Turn_180_Right",
       "source_package": "/ALS/ALS/Animations/TurnInPlace/A_Als_Turn_180_Right",
       "source_relative": "ALS/Animations/TurnInPlace/A_Als_Turn_180_Right",
-      "target_gltf": "assets/animations/TurnInPlace/A_Als_Turn_180_Right.gltf"
+      "target_gltf": "assets/ALS/Animations/TurnInPlace/A_Als_Turn_180_Right.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -9492,7 +9492,7 @@
       "source_object": "/ALS/ALS/Animations/TurnInPlace/A_Als_Turn_90_Left.A_Als_Turn_90_Left",
       "source_package": "/ALS/ALS/Animations/TurnInPlace/A_Als_Turn_90_Left",
       "source_relative": "ALS/Animations/TurnInPlace/A_Als_Turn_90_Left",
-      "target_gltf": "assets/animations/TurnInPlace/A_Als_Turn_90_Left.gltf"
+      "target_gltf": "assets/ALS/Animations/TurnInPlace/A_Als_Turn_90_Left.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -9616,7 +9616,7 @@
       "source_object": "/ALS/ALS/Animations/TurnInPlace/A_Als_Turn_90_Right.A_Als_Turn_90_Right",
       "source_package": "/ALS/ALS/Animations/TurnInPlace/A_Als_Turn_90_Right",
       "source_relative": "ALS/Animations/TurnInPlace/A_Als_Turn_90_Right",
-      "target_gltf": "assets/animations/TurnInPlace/A_Als_Turn_90_Right.gltf"
+      "target_gltf": "assets/ALS/Animations/TurnInPlace/A_Als_Turn_90_Right.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -9635,7 +9635,7 @@
       "source_object": "/ALS/ALS/Animations/View/A_Als_Look_Down.A_Als_Look_Down",
       "source_package": "/ALS/ALS/Animations/View/A_Als_Look_Down",
       "source_relative": "ALS/Animations/View/A_Als_Look_Down",
-      "target_gltf": "assets/animations/View/A_Als_Look_Down.gltf"
+      "target_gltf": "assets/ALS/Animations/View/A_Als_Look_Down.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -9654,7 +9654,7 @@
       "source_object": "/ALS/ALS/Animations/View/A_Als_Look_Forward.A_Als_Look_Forward",
       "source_package": "/ALS/ALS/Animations/View/A_Als_Look_Forward",
       "source_relative": "ALS/Animations/View/A_Als_Look_Forward",
-      "target_gltf": "assets/animations/View/A_Als_Look_Forward.gltf"
+      "target_gltf": "assets/ALS/Animations/View/A_Als_Look_Forward.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -9673,7 +9673,7 @@
       "source_object": "/ALS/ALS/Animations/View/A_Als_Look_Up.A_Als_Look_Up",
       "source_package": "/ALS/ALS/Animations/View/A_Als_Look_Up",
       "source_relative": "ALS/Animations/View/A_Als_Look_Up",
-      "target_gltf": "assets/animations/View/A_Als_Look_Up.gltf"
+      "target_gltf": "assets/ALS/Animations/View/A_Als_Look_Up.gltf"
     },
     {
       "asset_class": "AnimSequence",
@@ -9687,7 +9687,7 @@
       "source_object": "/ALS/ALS/OverlayObjects/Bow/A_Als_Bow_Draw.A_Als_Bow_Draw",
       "source_package": "/ALS/ALS/OverlayObjects/Bow/A_Als_Bow_Draw",
       "source_relative": "ALS/OverlayObjects/Bow/A_Als_Bow_Draw",
-      "target_gltf": "assets/animations/Overlays/Bow/A_Als_Bow_Draw.gltf"
+      "target_gltf": "assets/ALS/OverlayObjects/Bow/A_Als_Bow_Draw.gltf"
     }
   ],
   "failures": [],

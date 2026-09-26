@@ -33,7 +33,7 @@
   ],
   "graphs": [
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/AnimGraph.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/AnimGraph.animgraph.ron",
       "expected_nodes": [
         {
           "id": "8804790a-4323-c365-2698-3ea6b5b67761",
@@ -85,7 +85,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/S13_Ready.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/S13_Ready.animgraph.ron",
       "expected_nodes": [
         {
           "id": "04e925de-486e-8059-25a4-46bfbc3aefc5",
@@ -197,7 +197,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/S2_Relaxed.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/S2_Relaxed.animgraph.ron",
       "expected_nodes": [
         {
           "id": "974147f2-4d34-abf9-367a-8ca5d1aab608",
@@ -357,7 +357,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/S9_Aiming.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/S9_Aiming.animgraph.ron",
       "expected_nodes": [
         {
           "id": "cfe144b4-4264-a5f3-7a50-799b060089f8",
@@ -517,7 +517,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T22/Transition.transition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T22/Transition.transition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "3a8f804f-7b29-5b80-8d12-04e006e20d0d",
@@ -576,7 +576,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T22_AnimationTransitionGraph_0.condition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T22_AnimationTransitionGraph_0.condition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "6e97d424-4fd4-d339-e38a-1fb94372ef55",
@@ -622,7 +622,7 @@
       ]
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T28/Transition.transition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T28/Transition.transition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "92933f22-9b80-56b8-9afa-3e56105a7bc5",
@@ -681,7 +681,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T28_AnimationTransitionGraph_0.condition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T28_AnimationTransitionGraph_0.condition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "82e8f763-4bc3-9ef3-4446-dfa9b1b73785",
@@ -751,7 +751,7 @@
       ]
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T29/Transition.transition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T29/Transition.transition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "28edb4fc-144d-5f9d-b620-e227e24e6b2f",
@@ -810,7 +810,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T29_AnimationTransitionGraph_0.condition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T29_AnimationTransitionGraph_0.condition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "f452d8cb-42d2-960e-dcbe-3bae676e669c",
@@ -856,7 +856,7 @@
       ]
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T30/Transition.transition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T30/Transition.transition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "b10e275b-ff1c-520e-a55d-fbaf4b774d1b",
@@ -915,7 +915,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T30_AnimationTransitionGraph_0.condition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T30_AnimationTransitionGraph_0.condition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "1a0868d3-4f4c-fe2a-25d2-1696fa1aa627",
@@ -985,7 +985,7 @@
       ]
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T31/Transition.transition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T31/Transition.transition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "d125ba94-8066-5ba3-89b4-c1898ae00b5a",
@@ -1044,7 +1044,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T31_AnimationTransitionGraph_0.condition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T31_AnimationTransitionGraph_0.condition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "fc030fc1-4a4d-ed09-bd4e-e1a911d402fb",
@@ -1126,7 +1126,7 @@
       ]
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T5/Transition.transition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T5/Transition.transition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "67d43394-ba69-5c0c-9659-629ebe4f2eab",
@@ -1185,7 +1185,7 @@
       "root_output_exceptions": []
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T5_AnimationTransitionGraph_0.condition.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/T5_AnimationTransitionGraph_0.condition.animgraph.ron",
       "expected_nodes": [
         {
           "id": "a82a215b-4b7d-116d-087b-83b38a3f568b",
@@ -1231,7 +1231,7 @@
       ]
     },
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay.animgraph.ron",
       "expected_nodes": [
         {
           "id": "18a4146a-4cc3-2383-7131-a2bf45866794",
@@ -1357,12 +1357,12 @@
   ],
   "fsms": [
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States.fsm.ron",
+      "path": "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States.fsm.ron",
       "expected_states": [
         {
           "id": "5f92893b-40f5-2d48-b6b3-e0a3d87336c4",
           "label": "Relaxed",
-          "graph": "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/S2_Relaxed.animgraph.ron",
+          "graph": "ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/S2_Relaxed.animgraph.ron",
           "position": [
             176.0,
             0.0
@@ -1371,7 +1371,7 @@
         {
           "id": "c06b9168-48ec-91b2-2982-bd8ae2ebbe99",
           "label": "Aiming",
-          "graph": "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/S9_Aiming.animgraph.ron",
+          "graph": "ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/S9_Aiming.animgraph.ron",
           "position": [
             576.0,
             0.0
@@ -1380,7 +1380,7 @@
         {
           "id": "969da568-43dd-e13a-55e1-5a9ff96873c8",
           "label": "Ready",
-          "graph": "generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/S13_Ready.animgraph.ron",
+          "graph": "ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay/SM0_Bow_States/S13_Ready.animgraph.ron",
           "position": [
             384.0,
             0.0

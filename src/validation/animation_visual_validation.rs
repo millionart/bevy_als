@@ -3901,7 +3901,7 @@ mod tests {
             .init_asset::<WorldAsset>().init_resource::<AnimationVisualPreRigPose>();
         app.finish();
         app.cleanup();
-        let definition: RigDefinition = serde_json::from_str(include_str!("../../assets/control_rigs/cr_als.program.json")).unwrap();
+        let definition: RigDefinition = serde_json::from_str(include_str!("../../assets/ALS/Character/CR_Als.program.json")).unwrap();
         let reference = Transform::from_xyz(0.0, 0.4, 0.0).with_rotation(Quat::from_rotation_y(0.3)).with_scale(Vec3::splat(1.2));
         let mut skeleton = Skeleton::default();
         let mut paths: Vec<Vec<String>> = Vec::new();
@@ -4286,7 +4286,7 @@ mod tests {
         app.update();
         let report: serde_json::Value = serde_json::from_slice(&fs::read(report_path).expect("Object graph failure must write a report on its first frame")).unwrap();
         let failure = &report["primary_failure"];
-        assert_eq!(failure["root_graph_path"], "graphs/runtime/als_bow_object.animgraph.ron");
+        assert_eq!(failure["root_graph_path"], "ALS/OverlayObjects/Bow/AB_Als_Bow.runtime.animgraph.ron");
         assert_eq!(failure["phase"], "BowOverlay");
         assert_eq!(failure["category"], "graph_evaluation_error");
         assert_eq!(failure["pin"]["pin_id"], "pose");
@@ -4360,7 +4360,7 @@ mod tests {
             assert_eq!(failure["reported_before_ready"], true);
             assert_eq!(failure["screenshot_status"], "disabled_by_configuration");
             assert!(failure["screenshot_path"].is_null());
-            assert_eq!(failure["root_graph_path"], "graphs/runtime/als_generated_camera.animgraph.ron");
+            assert_eq!(failure["root_graph_path"], "ALSCamera/AB_Als_Camera.runtime.animgraph.ron");
             if failure_case == "edge" {
                 assert_eq!(failure["category"], "graph_evaluation_error");
                 assert!(failure["raw_error"].as_str().unwrap().contains("pose"));

@@ -1,0 +1,35 @@
+(
+    source: GltfNamed(
+        path: "ALS/Animations/Air/Land/A_Als_Land_Light_Additive.gltf",
+        animation_name: "A_Als_Land_Light_Additive_0",
+    ),
+    skeleton: "ALS/Character/SKM_Als.skn.ron",
+    event_tracks: {
+        "als_notify:/als/als/animations/air/land/a_als_land_light_additive.a_als_land_light_additive:0": (
+            name: "als_notify:/als/als/animations/air/land/a_als_land_light_additive.a_als_land_light_additive:0",
+            events: [
+                (
+                    id: "fa52dea1-b5e8-5b82-aa56-575881035dcb",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/air/land/a_als_land_light_additive.a_als_land_light_additive:47a22a0b-4bcaeaf5-f9c5839e-8ae1645f"),
+                        start_time: 0.1,
+                        end_time: 0.1,
+                    ),
+                ),
+            ],
+        ),
+        "als_notify:/als/als/animations/air/land/a_als_land_light_additive.a_als_land_light_additive:1": (
+            name: "als_notify:/als/als/animations/air/land/a_als_land_light_additive.a_als_land_light_additive:1",
+            events: [
+                (
+                    id: "b1e70132-7be5-50cf-9541-dc9904a835a8",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/air/land/a_als_land_light_additive.a_als_land_light_additive:b19e837d-4490b48c-5cc0be9d-7e575b2a"),
+                        start_time: 0.1,
+                        end_time: 0.1,
+                    ),
+                ),
+            ],
+        ),
+    },
+)

@@ -795,7 +795,7 @@ mod tests {
         app.world_mut().spawn((RigidBody::Static, Collider::cuboid(20.0, 0.2, 20.0), Transform::IDENTITY));
         for _ in 0..3 { app.update(); }
         app.world_mut().resource_mut::<bevy::ecs::schedule::Schedules>().remove(PostUpdate);
-        let definition: RigDefinition = serde_json::from_str(include_str!("../../../assets/control_rigs/cr_als.program.json")).unwrap();
+        let definition: RigDefinition = serde_json::from_str(include_str!("../../../assets/ALS/Character/CR_Als.program.json")).unwrap();
         let local = |value: RigTransform| Transform { translation: value.translation.as_vec3(), rotation: value.rotation.as_quat(), scale: value.scale.as_vec3() };
         let mut skeleton = Skeleton::default();
         let mut paths: Vec<Vec<String>> = Vec::new();

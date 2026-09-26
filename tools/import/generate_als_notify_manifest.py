@@ -162,7 +162,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--audit", default=Path("docs/bf103-notify-source-audit.json"), type=Path)
     parser.add_argument("--assets-root", default=Path("assets"), type=Path)
-    parser.add_argument("--output", default=Path("assets/animation_events/als_notify_manifest.json"), type=Path)
+    parser.add_argument("--output", default=Path("assets/ALS/Animations/als_notify_manifest.json"), type=Path)
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
     audit = json.loads(args.audit.read_text(encoding="utf-8"))

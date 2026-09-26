@@ -1,0 +1,64 @@
+(
+    source: GltfNamed(
+        path: "ALS/Animations/Actions/Mantle/A_Als_Mantle_High.gltf",
+        animation_name: "A_Als_Mantle_High_0",
+    ),
+    skeleton: "ALS/Character/SKM_Als.skn.ron",
+    event_tracks: {
+        "als_notify:/als/als/animations/actions/mantle/a_als_mantle_high.a_als_mantle_high:0": (
+            name: "als_notify:/als/als/animations/actions/mantle/a_als_mantle_high.a_als_mantle_high:0",
+            events: [
+                (
+                    id: "b9c147fc-fd92-5da6-8521-d7b928de3d09",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/actions/mantle/a_als_mantle_high.a_als_mantle_high:bc2b9d17-443ca479-e6d95191-38e2e1ca"),
+                        start_time: 0.566667,
+                        end_time: 0.566667,
+                    ),
+                ),
+                (
+                    id: "1b794d03-1912-5268-9c49-5147c3759ff6",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/actions/mantle/a_als_mantle_high.a_als_mantle_high:f520261b-480f752c-36d83f9a-beb5aa9a"),
+                        start_time: 1.7,
+                        end_time: 1.7,
+                    ),
+                ),
+                (
+                    id: "70c3dad6-21d7-5c28-b44e-e9c94d569eb4",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/actions/mantle/a_als_mantle_high.a_als_mantle_high:46d1dc13-4040aabc-605058aa-c28b1ac1"),
+                        start_time: 2.333333,
+                        end_time: 2.333333,
+                    ),
+                ),
+            ],
+        ),
+        "als_notify:/als/als/animations/actions/mantle/am_als_mantle_high.am_als_mantle_high:0": (
+            name: "als_notify:/als/als/animations/actions/mantle/am_als_mantle_high.am_als_mantle_high:0",
+            events: [
+                (
+                    id: "fbdc9b0e-975d-5279-a2b5-4acbb1a6f3b4",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/actions/mantle/am_als_mantle_high.am_als_mantle_high:653df6b2-467c38e9-63497e8d-1cbdcbe6"),
+                        start_time: 0.0,
+                        end_time: 2.066667,
+                    ),
+                ),
+            ],
+        ),
+        "als_notify:/als/als/animations/actions/mantle/am_als_mantle_high.am_als_mantle_high:1": (
+            name: "als_notify:/als/als/animations/actions/mantle/am_als_mantle_high.am_als_mantle_high:1",
+            events: [
+                (
+                    id: "7b260702-f718-5b7b-9565-d45eb61aff74",
+                    value: (
+                        event: StringId("als_notify:/als/als/animations/actions/mantle/am_als_mantle_high.am_als_mantle_high:a24456ec-4a8ebb7f-c0672daf-6feaa068"),
+                        start_time: 2.133333,
+                        end_time: 2.666667,
+                    ),
+                ),
+            ],
+        ),
+    },
+)

@@ -24,9 +24,9 @@ use bevy_animation_graph::core::{
     },
 };
 
-const ROOT_PATH: &str = "graphs/ab_als/grounded.animgraph.ron";
-const FSM_PATH: &str = "graphs/ab_als/grounded/grounded_states.fsm.ron";
-const SKELETON_PATH: &str = "skeletons/SKM_Als.skn.ron";
+const ROOT_PATH: &str = "Validation/Graphs/ab_als/grounded.animgraph.ron";
+const FSM_PATH: &str = "Validation/Graphs/ab_als/grounded/grounded_states.fsm.ron";
+const SKELETON_PATH: &str = "ALS/Character/SKM_Als.skn.ron";
 const GROUNDED_GRAPH_DIR: &str = "assets/graphs/ab_als/grounded";
 
 #[derive(Resource)]
@@ -90,7 +90,7 @@ fn main() {
 fn load_assets(mut commands: Commands, assets: Res<AssetServer>) {
     commands.insert_resource(GateAssets {
         root: assets.load(ROOT_PATH),
-        roll: assets.load("graphs/ab_als/grounded/state_roll.animgraph.ron"),
+        roll: assets.load("Validation/Graphs/ab_als/grounded/state_roll.animgraph.ron"),
         fsm: assets.load(FSM_PATH),
         skeleton: assets.load(SKELETON_PATH),
     });
@@ -181,7 +181,7 @@ fn transition_count(
 }
 
 fn source_files() -> Vec<String> {
-    let mut files = vec!["assets/graphs/ab_als/grounded.animgraph.ron".to_owned()];
+    let mut files = vec!["assets/Validation/Graphs/ab_als/grounded.animgraph.ron".to_owned()];
     if let Ok(entries) = std::fs::read_dir(GROUNDED_GRAPH_DIR) {
         files.extend(entries.filter_map(Result::ok).filter_map(|entry| {
             entry

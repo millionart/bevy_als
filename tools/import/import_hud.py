@@ -187,16 +187,16 @@ def main():
             text = (f"const HOST_FONT_PX: f32 = {fonts['tiny']['size_points'] * dpi / 72!r};\n"
                     f"const HOST_MAX_CHAR_HEIGHT: f32 = {float(fonts['tiny']['max_char_height'])!r};\n"
                     f"const HEADER_FONT_PX: f32 = {fonts['medium']['size_points'] * dpi / 72!r};\n")
-            output = args.output or Path('assets/ui/als_debug_canvas.runtime.rs')
+            output = args.output or Path('assets/ALS/Character/als_debug_canvas.runtime.rs')
         elif args.menu:
             text = convert_menu(json.loads(args.menu.read_text(encoding='utf-8-sig')),
                                 json.loads(args.option.read_text(encoding='utf-8-sig')), font_header)
-            output = args.output or Path('assets/ui/als_overlay_menu.runtime.rs')
+            output = args.output or Path('assets/ALSExtras/UI/W_Als_OverlayModeMenu.runtime.rs')
         else:
             text = convert(json.loads(args.source.read_text(encoding='utf-8-sig')),
                 (args.engine / 'Engine/Config/BaseEngine.ini').read_text(encoding='utf-8-sig'),
                 (args.project / 'Config/DefaultEngine.ini').read_text(encoding='utf-8-sig'), font_header)
-            output = args.output or Path('assets/ui/als_hud.runtime.rs')
+            output = args.output or Path('assets/ALSExtras/UI/W_Als_Hud.runtime.rs')
         if args.check:
             if output.read_text(encoding='utf-8') != text:
                 raise SystemExit('HUD data differs from native source')

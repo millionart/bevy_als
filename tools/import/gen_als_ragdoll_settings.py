@@ -86,7 +86,7 @@ def main():
     parser.add_argument("--content-root", type=Path)
     parser.add_argument("--mount", default="/ALS")
     parser.add_argument("--source-cpp", type=Path)
-    parser.add_argument("--output", type=Path, default=ROOT / "assets/character/als_ragdoll_settings.json")
+    parser.add_argument("--output", type=Path, default=ROOT / "assets/ALS/Data/Character/als_ragdoll_settings.json")
     parser.add_argument("--report", type=Path, default=ROOT / "target/als_ragdoll_settings.report.json")
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()

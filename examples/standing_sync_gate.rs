@@ -18,8 +18,8 @@ use bevy_animation_graph::core::{
     skeleton::Skeleton,
 };
 
-const GRAPH_PATH: &str = "graphs/ab_als/stances/standing/state_detail_cycle.animgraph.ron";
-const SKELETON_PATH: &str = "skeletons/SKM_Als.skn.ron";
+const GRAPH_PATH: &str = "Validation/Graphs/ab_als/stances/standing/state_detail_cycle.animgraph.ron";
+const SKELETON_PATH: &str = "ALS/Character/SKM_Als.skn.ron";
 const EPSILON: f32 = 1e-4;
 
 #[derive(Resource)]

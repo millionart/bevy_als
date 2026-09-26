@@ -234,7 +234,7 @@ def main():
     parser.add_argument('--source-json-dir', type=Path)
     parser.add_argument('--content-root', type=Path)
     parser.add_argument('--mount', default='/ALS')
-    parser.add_argument('--output', type=Path, default=ROOT / 'assets/character/als_mantle_settings.ron')
+    parser.add_argument('--output', type=Path, default=ROOT / 'assets/ALS/Data/Character/Mantle/als_mantle_settings.ron')
     parser.add_argument('--report', type=Path, default=ROOT / 'target/als_mantle_settings.report.json')
     parser.add_argument('--self-test', action='store_true')
     args = parser.parse_args()

@@ -1,7 +1,0 @@
-(
-    source: GltfNamed(
-        path: "animations/Overlays/Rifle/A_Als_Rifle_Sprint_Impulse.gltf",
-        animation_name: "A_Als_Rifle_Sprint_Impulse_0",
-    ),
-    skeleton: "skeletons/SKM_Als.skn.ron",
-)

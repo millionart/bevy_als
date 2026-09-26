@@ -123,7 +123,7 @@ def markdown(records, manifest_matches):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-root", required=True, type=Path)
-    parser.add_argument("--manifest", type=Path, default=Path("assets/sync/als_sync_metadata.ron"))
+    parser.add_argument("--manifest", type=Path, default=Path("assets/ALS/Animations/als_sync_metadata.ron"))
     parser.add_argument("--report", type=Path, default=Path("docs/sync-02-derived-metadata.md"))
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()

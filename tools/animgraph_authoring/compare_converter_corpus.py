@@ -309,7 +309,7 @@ def run_self_test():
             "properties": [
                 {
                     "name": "PropertyBindings",
-                    "exported_text": '(("Alpha", (PropertyName="Alpha",PathAsText="GetParent.InAirState.GroundPredictionAmount",bIsBound=True)))',
+                    "exported_text": '(("Alpha", (PropertyName="Alpha",PropertyPath=("GetParent","InAirState","GroundPredictionAmount"),PathAsText="GetParent.InAirState.GroundPredictionAmount",bIsBound=True)))',
                 }
             ],
         }

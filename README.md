@@ -48,7 +48,7 @@ pwsh tools/run_animation_visual_validation.ps1 -Case grounded -CaptureCount 0 -F
 
 ### 自定义 Overlay
 
-在 `assets/als_gameplay_tags.json` 登记新标签（例如 `Als.OverlayMode.CustomRifle`），并在 `assets/character/overlay_actor.runtime.json` 添加同名映射。可复制现有条目，再选择生成图、混合时间和物件配置；源导入器会补齐映射所需的 Tag 注册，并保留已有自定义标签。
+在 `assets/ALS/Data/als_gameplay_tags.json` 登记新标签（例如 `Als.OverlayMode.CustomRifle`），并在 `assets/ALS/Character/overlay_actor.runtime.json` 添加同名映射。可复制现有条目，再选择生成图、混合时间和物件配置；源导入器会补齐映射所需的 Tag 注册，并保留已有自定义标签。
 
 重新启动 `run_manual.bat` 后，Q 菜单会从 Tag 管理器枚举标签；无需新增 Rust 枚举变体。代码入口使用 `OverlayState::new` 和 `AlsStateRequest.overlay_state`，库由 `OverlayLibraryHandle` 选择。图和物件共同消费加载后的库，更新同一标签的配置也会刷新物件及图绑定。
 

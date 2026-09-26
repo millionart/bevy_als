@@ -8,17 +8,18 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 ASSETS = REPO / "assets"
-MODELS = ASSETS / "models"
-ANIMS = ASSETS / "animations"
-SKELS = ASSETS / "skeletons"
+MODELS = ASSETS
+ANIMS = ASSETS / "ALS"
+SKELS = ASSETS / "ALS" / "Character"
 
 SKELETON_MAP = {
-    "/ALSCamera": "skeletons/SKM_Als_Camera.skn.ron",
+    "ALSCamera/": "ALSCamera/SKM_Als_Camera.static.skn.ron",
+    "ALS/OverlayObjects/Bow/": "ALS/OverlayObjects/Bow/SKM_Als_Bow.skn.ron",
 }
-DEFAULT_SKELETON = "skeletons/SKM_Als.skn.ron"
+DEFAULT_SKELETON = "ALS/Character/SKM_Als.skn.ron"
 
 SKELETON_SOURCES = {
-    "SKM_Als": ("animations/Base/A_Als_Idle.gltf", "Scene0"),
+    "SKM_Als": ("ALS/Animations/Base/A_Als_Idle.gltf", "Scene0"),
 }
 
 
@@ -110,8 +111,10 @@ def main() -> int:
         rel = p.relative_to(ASSETS).as_posix().replace("\\", "/")
         stem = p.stem
         g = load_gltf(p)
+        if not g.get("animations"):
+            continue
         errs, anim_name = check_anim(g, rel, stem)
-        skeleton = SKELETON_MAP["/ALSCamera"] if "ALSCamera" in rel else DEFAULT_SKELETON
+        skeleton = next((value for prefix, value in SKELETON_MAP.items() if rel.startswith(prefix)), DEFAULT_SKELETON)
         out = p.with_suffix(".anim.ron")
         if errs:
             failed = True
@@ -139,7 +142,7 @@ def main() -> int:
         if "skeleton:" in line
     }
     missing = [s for s in SKELETON_SOURCES
-               if f"skeletons/{s}.skn.ron" not in referenced]
+               if f"ALS/Character/{s}.skn.ron" not in referenced]
     if missing:
         print(f"warning: skeletons referenced by no animation {missing}", file=sys.stderr)
     return 1 if failed else 0

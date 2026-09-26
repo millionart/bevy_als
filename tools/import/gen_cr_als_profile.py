@@ -15,8 +15,8 @@ from coordinate_basis import (
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_SOURCE = ROOT / "target" / "bf109" / "source_native" / "CR_Als.ue.json"
 DEFAULT_MESH = ROOT / "target" / "bf109" / "source_native" / "SKM_Als.ue.json"
-DEFAULT_OUTPUT = ROOT / "assets" / "control_rigs" / "cr_als.profile.json"
-DEFAULT_RUNTIME_OUTPUT = ROOT / "assets" / "control_rigs" / "cr_als.runtime.json"
+DEFAULT_OUTPUT = ROOT / "assets/ALS/Character/CR_Als.profile.json"
+DEFAULT_RUNTIME_OUTPUT = ROOT / "assets/ALS/Character/CR_Als.runtime.json"
 
 
 def props(entries):
@@ -267,7 +267,7 @@ def build(source, mesh):
         "source_graph_summary": graph_summary(source),
         "source_node_layout": graph_node_layout(source),
         "source_construction": source_construction,
-        "runtime_asset": "assets/control_rigs/cr_als.runtime.json",
+        "runtime_asset": "assets/ALS/Character/CR_Als.runtime.json",
     }
     return profile, runtime
 

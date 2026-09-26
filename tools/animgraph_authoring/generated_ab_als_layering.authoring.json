@@ -65,7 +65,7 @@
   ],
   "graphs": [
     {
-      "path": "assets/generated/ALS/Character/AnimationInstances/AB_Als_Layering/AnimGraph.animgraph.ron",
+      "path": "assets/ALS/Character/AnimationInstances/AB_Als_Layering/AnimGraph.animgraph.ron",
       "expected_nodes": [
         {
           "id": "251c650f-43b2-91b4-3313-2991b511f1a0",
@@ -1333,7 +1333,7 @@
         "--mesh",
         "target/bf115_layering_full/extra_source/SKM_Als.reference_container.ue.json",
         "--gltf",
-        "assets/animations/Base/A_Als_Idle.gltf",
+        "assets/ALS/Animations/Base/A_Als_Idle.gltf",
         "--check"
       ]
     }

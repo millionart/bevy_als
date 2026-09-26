@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-MODEL = REPO / "assets" / "models" / "SKM_Als.gltf"
+MODEL = REPO / "assets/ALS/Character/SKM_Als.gltf"
 OUT_DIR = REPO / "tmp"
 OUT_FILE = OUT_DIR / "bone-map.json"
 
