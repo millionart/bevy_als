@@ -42,6 +42,7 @@ pub mod ragdolling_layer;
 pub mod roll_drive;
 pub mod root_motion_link;
 pub mod show_debug_hud;
+#[path = "tnua_ext/source_physics_timing.rs"]
 pub mod source_physics_timing;
 pub mod stance_layer;
 pub mod standing_layer;

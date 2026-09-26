@@ -349,9 +349,9 @@ struct MovingActorDefinitions {
 }
 
 const MOVING_ACTOR_DEFINITIONS: &str = include_str!(
-    "../../../assets/models/playground/moving_actors.runtime.json");
+    "../../../../assets/models/playground/moving_actors.runtime.json");
 const ROTATING_ACTOR_DEFINITIONS: &str = include_str!(
-    "../../../assets/models/playground/rotating_actors.runtime.json");
+    "../../../../assets/models/playground/rotating_actors.runtime.json");
 
 pub fn rotating_object_rotation(rate_yzx_radians: bevy::math::DVec3, elapsed_seconds: f32) -> Quat {
     let angles = rate_yzx_radians * f64::from(elapsed_seconds);
@@ -2221,7 +2221,7 @@ mod tests {
         assert!(curve.is_source_loaded());
         assert_eq!(curve.key_count(), 4);
         let samples: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../assets/curves/ALSExtras/Environment/CF_Als_MovingObject.json")).unwrap();
+            "../../../../assets/curves/ALSExtras/Environment/CF_Als_MovingObject.json")).unwrap();
         for sample in samples["keys"].as_array().unwrap() {
             let time = sample["t"].as_f64().unwrap() as f32;
             let value = sample["v"].as_f64().unwrap() as f32;

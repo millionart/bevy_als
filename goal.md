@@ -14,7 +14,7 @@
 4. 遇到 Gate 项：完整执行 Gate 验证，证据（命令输出/截图路径）写入该次提交说明后方可勾选；Gate 未过不得进入下一模块。
 5. 需要本地路径/引擎信息时查 `docs/env.md`（隐私文件，勿提交）；UE 源事实使用仓库原生 uasset 读取器。
 6. 占位资产已在 M0.5 一次性批量导出；后续不得零散补导，确需补充先在 `CHECKLIST.md` 增补条目再执行（导出步骤见 `docs/env.md`）。
-7. 插件能力扩展统一在 `crates/als-ext` 经基座插件公开扩展点实现（curve、ControlRig 等价 IK 等），不改 fork；确需修改插件本体时才动 fork，且必须独立小步提交推送、可回馈上游。bevy_als 本体保持纯净的 ALS 系统，仅做编排与消费；扩展能力以 als-ext 模块边界隔离，未来可按需拆出独立仓库。
+7. 插件扩展按 `agents.md` 与 `crates/als-ext/README.md` 的职责分区，经基座公开扩展点实现。动画图与 Tnua 分别使用 `animation_graph_ext`、`tnua_ext`；保留现有 crate/资产类型身份。确需修改插件本体时才动 fork，且必须独立小步提交推送、可回馈上游；ALS 状态、资产选择和角色生命周期仍由项目/als-core 消费和编排。
 
 ## 验收
 

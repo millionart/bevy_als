@@ -542,7 +542,7 @@ mod tests {
 
     fn hot_swap_definition() -> RigDefinition {
         let mut definition: RigDefinition = serde_json::from_str(include_str!(
-            "../../../assets/control_rigs/cr_als.program.json"
+            "../../../../assets/control_rigs/cr_als.program.json"
         )).unwrap();
         definition.program = RigProgram {
             initial_values: vec![RigValue::F32(1.0)],
@@ -570,7 +570,7 @@ mod tests {
             RigTransform::default(), None, false).unwrap();
         assert_eq!(state.initialization_count, 1);
         let source: RigDefinition = serde_json::from_str(include_str!(
-            "../../../assets/control_rigs/cr_als.program.json"
+            "../../../../assets/control_rigs/cr_als.program.json"
         )).unwrap();
         let bone = source.bones[0].clone();
         definition.program.initial_values[0] = RigValue::F32(2.0);
@@ -877,7 +877,7 @@ mod tests {
             outputs
         }
         let definition: RigDefinition = serde_json::from_str(include_str!(
-            "../../../assets/control_rigs/cr_als.program.json"
+            "../../../../assets/control_rigs/cr_als.program.json"
         ))
         .unwrap();
         let mut skeleton = Skeleton::default();
@@ -1027,7 +1027,7 @@ mod tests {
         use serde::de::DeserializeSeed;
 
         let definition: RigDefinition = serde_json::from_str(include_str!(
-            "../../../assets/control_rigs/cr_als.program.json"
+            "../../../../assets/control_rigs/cr_als.program.json"
         ))
         .unwrap();
         let node = ControlRigBoundaryNode {
@@ -1038,7 +1038,7 @@ mod tests {
         registry.register::<ControlRigBoundaryNode>();
         let encoded = ron::ser::to_string(&ReflectSerializer::new(&node, &registry)).unwrap();
         let graph: bevy_animation_graph::core::animation_graph::serial::AnimationGraphDeserializer =
-            ron::from_str(include_str!("../../../assets/generated/ALS/Character/AB_Als/AnimGraph.animgraph.ron")).unwrap();
+            ron::from_str(include_str!("../../../../assets/generated/ALS/Character/AB_Als/AnimGraph.animgraph.ron")).unwrap();
         let generated = graph.nodes.iter().find(|node| node.inner.get_ron().contains("als_ext::ControlRigBoundaryNode")).unwrap();
         for (source, encoded) in [encoded.as_str(), generated.inner.get_ron()].into_iter().enumerate() {
             let mut deserializer = ron::de::Deserializer::from_str(encoded).unwrap();

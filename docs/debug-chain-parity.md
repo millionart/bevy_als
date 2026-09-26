@@ -120,7 +120,7 @@ Shift+One → ShowDebug Als.Curves ⇒ 公共输入树 / DebugCategory::Curves
    └─ 不累积历史；仅HUD格式/值缓存，输入值或布局变化即替换
 ```
 
-源入口：`ALS/Private/AlsCharacter_Debug.cpp::DisplayDebugCurves`、`AlsCharacter.cpp::ApplyRotationYawSpeedAnimationCurve`、`AlsAnimationInstance.cpp::RefreshRotationYawOffsets`；UE `AnimInstance.cpp::GetCurveValue` 与 `AnimInstanceProxy.cpp::UpdateCurvesToEvaluationContext`。目标入口：`src/animation_context_projection.rs`、`crates/als-ext/src/{animation_context,layered_graph}.rs`、`src/show_debug_hud.rs::evaluated_character_curve_rows`。完整动画算法沿已闭合的生成图执行，本项只核对到最终曲线的生产/捕获边，不改动画图。
+源入口：`ALS/Private/AlsCharacter_Debug.cpp::DisplayDebugCurves`、`AlsCharacter.cpp::ApplyRotationYawSpeedAnimationCurve`、`AlsAnimationInstance.cpp::RefreshRotationYawOffsets`；UE `AnimInstance.cpp::GetCurveValue` 与 `AnimInstanceProxy.cpp::UpdateCurvesToEvaluationContext`。目标入口：`src/animation_context_projection.rs`、`crates/als-ext/src/animation_graph_ext/{animation_context,layered_graph}.rs`、`src/show_debug_hud.rs::evaluated_character_curve_rows`。完整动画算法沿已闭合的生成图执行，本项只核对到最终曲线的生产/捕获边，不改动画图。
 
 发现并修复：两项角度曲线的HUD原先误用了目标坐标符号，同时反转了正负值对应的颜色。旧Gate直接拿target曲线值比较，漏掉显示语义；新增±42/零/非角度标量反例及真实左右Turn资产采样。骨架原生导入/check/self-test通过，43项名称无差异；30项范围回归及真实Interface24.721秒功能通过，67值、布局、菜单和19种逐键状态均通过，无运行守卫异常。未修改动画图或曲线资产。
 

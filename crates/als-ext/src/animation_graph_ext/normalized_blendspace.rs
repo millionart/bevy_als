@@ -973,10 +973,10 @@ mod tests {
         let mut ablated_errors = 0;
         for source_json in [
             include_str!(
-                "../../../tools/animgraph_authoring/fixtures/ue_standing_walk_run_tick.json"
+                "../../../../tools/animgraph_authoring/fixtures/ue_standing_walk_run_tick.json"
             ),
             include_str!(
-                "../../../tools/animgraph_authoring/fixtures/ue_standing_walk_run_weights.json"
+                "../../../../tools/animgraph_authoring/fixtures/ue_standing_walk_run_weights.json"
             ),
         ] {
             let source: serde_json::Value = serde_json::from_str(source_json).unwrap();

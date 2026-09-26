@@ -857,11 +857,11 @@ mod tests {
         };
 
         let profile = RagdollPhysicsProfile::from_json(include_str!(
-            "../../../assets/ragdolls/pa_als.physics.json"
+            "../../../../assets/ragdolls/pa_als.physics.json"
         ))
         .unwrap();
         let ragdoll: Ragdoll =
-            ron::from_str(include_str!("../../../assets/ragdolls/als_manny.rag.ron")).unwrap();
+            ron::from_str(include_str!("../../../../assets/ragdolls/als_manny.rag.ron")).unwrap();
         let mut app = App::new();
         app.add_plugins((
             MinimalPlugins,
@@ -954,10 +954,10 @@ mod tests {
         };
 
         let profile = RagdollPhysicsProfile::from_json(include_str!(
-            "../../../assets/ragdolls/pa_als.physics.json"
+            "../../../../assets/ragdolls/pa_als.physics.json"
         )).unwrap();
         let ragdoll: Ragdoll = ron::from_str(include_str!(
-            "../../../assets/ragdolls/als_manny.rag.ron"
+            "../../../../assets/ragdolls/als_manny.rag.ron"
         )).unwrap();
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin,
@@ -1018,7 +1018,7 @@ mod tests {
         assert!(next_extent.abs_diff_eq(collider_extent * 2.0, 1e-5),
             "Collider scale was lost after physics: {next_extent:?}");
         let fresh_ragdoll: Ragdoll = ron::from_str(include_str!(
-            "../../../assets/ragdolls/als_manny.rag.ron")).unwrap();
+            "../../../../assets/ragdolls/als_manny.rag.ron")).unwrap();
         let fresh = app.world_mut().run_system_once(move |mut commands: Commands| {
             spawn_ragdoll_avian(player, &fresh_ragdoll, Isometry3d::IDENTITY, None, &mut commands)
         }).unwrap();
@@ -1031,7 +1031,7 @@ mod tests {
         let fresh_joint = *fresh.joints.values().find(|entity|
             world.get::<JointLabel>(**entity).unwrap().0 == joint_label).unwrap();
         let fresh_profile = RagdollPhysicsProfile::from_json(include_str!(
-            "../../../assets/ragdolls/pa_als.physics.json")).unwrap();
+            "../../../../assets/ragdolls/pa_als.physics.json")).unwrap();
         let mut replacement = AnimationGraphPlayer::new(Handle::default());
         let ReflectMut::Struct(fields) = replacement.reflect_mut() else { panic!("player must reflect as a struct") };
         *fields.field_mut("spawned_ragdoll").unwrap()

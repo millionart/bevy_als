@@ -42,7 +42,7 @@ const WALK_CLING_DISTANCE: f32 = ALS_CHARACTER_TNUA_FLOAT_EPSILON;
 const AIR_CONTROL: f32 = 0.15;
 const AIR_CONTROL_BOOST_MULTIPLIER: f32 = 2.0;
 const AIR_CONTROL_BOOST_SPEED: f32 = 0.25;
-const IN_AIR_ROTATION_MODE: u8 = include!("../data/in_air_rotation_mode.rs");
+const IN_AIR_ROTATION_MODE: u8 = include!("../../data/in_air_rotation_mode.rs");
 
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
 pub struct AlsActualVelocity {
@@ -272,7 +272,7 @@ fn advance_yaw(current: f32, target: f32, speed_degrees: f32, delta_seconds: f32
 
 pub fn locomotion_movement_flags(has_input: bool, horizontal_speed: f32) -> (bool, bool) {
     let (has_speed_threshold, moving_speed_threshold): (f32, f32) =
-        include!("../data/locomotion_thresholds.rs");
+        include!("../../data/locomotion_thresholds.rs");
     let has_velocity = horizontal_speed >= has_speed_threshold;
     (
         has_velocity,

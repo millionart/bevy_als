@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 use als_ext::{
     AlsExtPlugin, GameplayTagBlendMode, GlobalBoolInputNode, GlobalF32InputNode,
-    GlobalPoseInputNode, RagdollConfigNode, RagdollingTagBlendNode, set_gameplay_tag_input,
+    GlobalPoseInputNode, RagdollConfigNode, RagdollingTagBlendNode, SourceAnimationInputs,
 };
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
@@ -119,6 +119,7 @@ fn main() {
             }),
         AnimationGraphPlugin::from_physics_schedule(Update),
         AlsExtPlugin,
+        als_ext::post_physics_animation::PostPhysicsAnimationPlugin,
     ))
     .init_resource::<Probe>()
     .add_systems(Startup, (verify_native_source, load_assets).chain())
@@ -419,26 +420,28 @@ fn verify_static(
     player.pause();
     player.queue_time_update(TimeUpdate::Delta(0.0));
     probe.base_pose = Some(base_pose);
+    let mut inputs = SourceAnimationInputs::default();
+    inputs.set_gameplay_tag_input("locomotion_action", GameplayTag::new(""));
     let player_entity = commands
         .spawn((
             Name::new("ragdolling_contract_probe"),
             Children::default(),
             player,
+            inputs,
         ))
         .id();
-    set_gameplay_tag_input(player_entity, "locomotion_action", GameplayTag::new(""));
     probe.entity = Some(player_entity);
 }
 
 fn observe(
     mut probe: ResMut<Probe>,
-    mut players: Query<&mut AnimationGraphPlayer>,
+    mut players: Query<(&mut AnimationGraphPlayer, &mut SourceAnimationInputs)>,
     mut exit: MessageWriter<AppExit>,
 ) {
     let Some(entity) = probe.entity else {
         return;
     };
-    let Ok(mut player) = players.get_mut(entity) else {
+    let Ok((mut player, mut inputs)) = players.get_mut(entity) else {
         return;
     };
     if let Some(error) = player.get_error() {
@@ -464,8 +467,7 @@ fn observe(
                 return;
             }
             set_runtime_inputs(&mut player, 0.5, true);
-            set_gameplay_tag_input(
-                entity,
+            inputs.set_gameplay_tag_input(
                 "locomotion_action",
                 GameplayTag::new("Als.LocomotionAction.Ragdolling"),
             );
@@ -513,7 +515,7 @@ fn observe(
                 "ragdolling_state.final_ragdoll_pose",
                 DataValue::Pose(snapshot.clone()),
             );
-            set_gameplay_tag_input(entity, "locomotion_action", GameplayTag::new(""));
+            inputs.set_gameplay_tag_input("locomotion_action", GameplayTag::new(""));
             player.set_global_input_data("als_ragdolling_dynamic", false);
             player.set_global_input_data("als_ragdolling_readback", false);
             player.queue_time_update(TimeUpdate::Delta(0.2));

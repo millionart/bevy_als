@@ -1,6 +1,6 @@
 [package]
 name = "als-ext"
-description = "Extension layer over bevy_animation_graph / bevy-tnua (curve nodes, analytic IK, ragdoll config)"
+description = "Animation graph, UE Control Rig, Avian physics and ALS integration extensions"
 edition.workspace = true
 version.workspace = true
 license.workspace = true

@@ -44,7 +44,7 @@
 
 | ALS-Ref package                      | Current counterpart files                                                                                                  | 等价度 |
 | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- | --- |
-| `/ALS/Character/CR_Als`              | `assets/graphs/ab_als/ab_als.animgraph.ron`<br>`crates/als-ext/src/root_graph_boundaries.rs`<br>`src/control_rig_apply.rs` | 0%  |
+| `/ALS/Character/CR_Als`              | `assets/graphs/ab_als/ab_als.animgraph.ron`<br>`crates/als-ext/src/animation_graph_ext/root_graph_boundaries.rs`<br>`src/control_rig_apply.rs` | 0%  |
 | `/ALS/Character/PA_Als`              | `assets/ragdolls/als_manny.rag.ron`<br>`assets/ragdoll_bone_maps/als_manny.bm.ron`<br>`src/ragdoll_link.rs`                | 0%  |
 
 ### Character Overlays (13)

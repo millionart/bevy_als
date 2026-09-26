@@ -14,7 +14,7 @@
 | mbrea-c/bevy_animation_graph | [millionart/bevy_animation_graph](https://github.com/millionart/bevy_animation_graph) | 动画图（AnimBP 替代） |
 | idanarye/bevy-tnua | [millionart/bevy-tnua](https://github.com/millionart/bevy-tnua) | 浮动角色控制器（CharacterMovement 替代） |
 
-ControlRig 等价的 IK 子系统（two-bone/foot/pelvis/hand IK）位于本仓库 `crates/als-ext`，不单独建仓。
+动画图扩展位于 `crates/als-ext/src/animation_graph_ext/`，Tnua 控制器适配位于 `crates/als-core/src/tnua_ext/`，项目物理时钟接线位于 `src/tnua_ext/`。Control Rig、Avian、渲染、ALS 专属逻辑和 Playground 各自分区，见 [扩展目录说明](crates/als-ext/README.md)。保留现有 crate 和资产类型名。
 
 ### 依赖指向（M0.2）
 

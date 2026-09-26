@@ -23,7 +23,7 @@ pwsh tools/run_animation_visual_validation.ps1 -Case grounded -CaptureCount 0 -F
 
 ## 已删除的旧演示
 
-2026-09-26 清理的 18 个例程可从 Git 历史恢复；历史 Gate 记录保持不变。以下是当前功能的检查入口，不声称复用旧脚本的所有中间数值。
+2026-09-26 清理的 21 个例程可从 Git 历史恢复；历史 Gate 记录保持不变。以下是当前功能的检查入口，不声称复用旧脚本的所有中间数值。
 
 | 旧例程 | 当前覆盖 |
 |---|---|
@@ -33,5 +33,10 @@ pwsh tools/run_animation_visual_validation.ps1 -Case grounded -CaptureCount 0 -F
 | `playground`、`playground_parity_gate`、`skeleton_boot` | 当前 `startup`，保留 `scene_gate` 与骨架/资产合同 |
 | `curve_gate` | 曲线与节点单元测试，以及保留的 cubic/cycle/extrapolation/slot 曲线检查 |
 | `perf_gate`、`sprint_stress_gate` | 公共 `sprint` 及公共视觉报告中的帧时间、图求值、非有限姿态和速度检查 |
+| `camera_notify_gate` | 旧 `AlsStandingEventClock` 已移除；现有 animation_events 单元测试验证真实求值时钟/leader，公共 `notify`、`camera` 检查动作与相机事件 |
+| `inertialization_gate` | 旧 residual API 已由源端惯性算法替换；当前惯性节点单元测试和公共状态机 Gate |
+| `mantle_target_base_gate` | 当前核心测试 `mantle_target_base_updates_start_target_and_yaw`、`mantle_target_base_loss_cancels_immediately` 以及缩放/base space 反例、公共 `moving_base` |
 
 旧演示加载的目标资产可能仍被合同检查、工具或待办引用；这次不删除资产。
+
+Standing/Ragdolling 等历史手工图合同仍供 TODO 的作者性审计使用，API 接线已更新为当前播放器组件输入。它们使用 `assets/graphs/ab_als/` 的旧夹具，不能证明 `assets/generated/` 当前生成图的正确性；旧夹具中已过期的节点字段应在对应 source-first 图任务中重新转换。当前生成图使用 `animgraph_spec_dump`、`tools/animgraph_authoring/audit_generated_source_closure.py` 与公共 manual Gate 验收。

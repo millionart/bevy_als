@@ -184,7 +184,7 @@ mod tests {
 
     #[test]
     fn source_grid_tga_preserves_every_rgba_pixel() {
-        let bytes = include_bytes!("../../../assets/textures/playground/T_Default_Material_Grid_M.tga");
+        let bytes = include_bytes!("../../../../assets/textures/playground/T_Default_Material_Grid_M.tga");
         assert_eq!(&bytes[16..18], [32, 8]);
         let image = decode_image(bytes, "tga", false).unwrap();
         assert_eq!(image.size(), UVec2::splat(512));

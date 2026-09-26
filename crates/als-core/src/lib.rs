@@ -6,8 +6,10 @@ pub mod air;
 pub mod air_jump;
 pub mod bones;
 pub mod character;
+#[path = "tnua_ext/control_scheme.rs"]
 pub mod control_scheme;
 pub mod debug_hud;
+#[path = "tnua_ext/dynamics.rs"]
 pub mod dynamics;
 pub mod flail;
 pub mod foot_ik;
@@ -18,6 +20,7 @@ pub mod head;
 pub mod input;
 pub mod input_request;
 pub mod mantle;
+#[path = "tnua_ext/motion.rs"]
 pub mod motion;
 pub mod movement_direction;
 pub mod orientation;

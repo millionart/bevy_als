@@ -60,7 +60,7 @@
         {
           "source_contains": "SyncGroupNameToRequireValidMarkersRule=None",
           "target_exception": "Target FSM transition ABI has no marker gate; absence is the source None equivalent.",
-          "target_runtime_path": "crates/als-ext/src/interruptible_fsm.rs"
+          "target_runtime_path": "crates/als-ext/src/animation_graph_ext/interruptible_fsm.rs"
         },
         {
           "source_contains": "bAllowInertializationForSelfTransitions=False",
@@ -106,7 +106,7 @@
         {
           "source_contains": "SyncGroupNameToRequireValidMarkersRule=None",
           "target_exception": "Target FSM transition ABI has no marker gate; absence is the source None equivalent.",
-          "target_runtime_path": "crates/als-ext/src/interruptible_fsm.rs"
+          "target_runtime_path": "crates/als-ext/src/animation_graph_ext/interruptible_fsm.rs"
         },
         {
           "source_contains": "bAllowInertializationForSelfTransitions=False",
@@ -153,7 +153,7 @@
         {
           "source_contains": "SyncGroupNameToRequireValidMarkersRule=None",
           "target_exception": "Target FSM transition ABI has no marker gate; absence is the source None equivalent.",
-          "target_runtime_path": "crates/als-ext/src/interruptible_fsm.rs"
+          "target_runtime_path": "crates/als-ext/src/animation_graph_ext/interruptible_fsm.rs"
         },
         {
           "source_contains": "bAllowInertializationForSelfTransitions=False",
@@ -201,7 +201,7 @@
         {
           "source_contains": "SyncGroupNameToRequireValidMarkersRule=None",
           "target_exception": "Target FSM transition ABI has no marker gate; absence is the source None equivalent.",
-          "target_runtime_path": "crates/als-ext/src/interruptible_fsm.rs"
+          "target_runtime_path": "crates/als-ext/src/animation_graph_ext/interruptible_fsm.rs"
         },
         {
           "source_contains": "bAllowInertializationForSelfTransitions=False",

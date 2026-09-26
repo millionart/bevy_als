@@ -10,11 +10,17 @@
 用户授权全项目整理，并明确选择按职责分文件夹、保留现有 crate 和资产类型名。范围为源码位置、过期演示/探测入口和使用说明；不修改移植算法、源资产、生成图或未选中的 TODO。历史 Gate 记录保留原样，删除文件由 Git 历史追溯。
 
 - [x] **BF129.1 — 清理过期演示与工具入口**：开始：2026-09-26 16:44:00 +08:00；预估结束：2026-09-26 17:14:00 +08:00；实际结束：2026-09-26 16:50:00 +08:00；偏差：-24m；结果：18 个旧 example、20 个过期工具删除，实际 actor 导出器改名，Gate 通过；拆分结果：目录归位留给 .2。估时依据：当前 84 个 example 的入口/资产引用、30 个公共 manual 场景、MCP 工具完整调用闭包，以及 BF128 中既有 validator/self-test 的运行记录。Gate：逐项记录替代覆盖或保留原因，移除无消费者的旧演示及已禁用 MCP 链，保留独有断言、导出器和 source reader；更新入口说明，静态引用检查、Cargo metadata 与相关 Python self-test 通过后单独提交。
-- [ ] **BF129.2 — 扩展源码按职责归位**：依赖 .1；开始与预估结束在启动时登记。估时依据：als-ext 的 88 个源码模块，以及 als-core 的实际 Tnua 适配；现有模块路径/Reflect ABI、include 路径及工具中的源码位置引用；预计独立窗口不超过 60 分钟。Gate：明确使用 `animation_graph_ext`、`tnua_ext`，与 Control Rig、物理、渲染、ALS、Playground 分目录；保持模块和类型身份，更新所有实际消费的文件位置；源文件逆向还原比较、als-ext/受影响 core 库测试、剩余 example 编译及同 target_game/play 的公共 startup 功能 Gate 通过后单独提交。
+- [x] **BF129.2 — 扩展源码按职责归位**：依赖 .1；开始：2026-09-26 16:53:00 +08:00；预估结束：2026-09-26 17:33:00 +08:00；实际结束：2026-09-26 17:10:55 +08:00；偏差：-22m05s；结果：92 个源码文件归位、剩余 63 个 examples 编译及 747 项测试/真实 startup 功能 Gate 通过；拆分结果：历史手工图数据留在原 TODO，未展开移植修复。估时依据：als-ext 的 88 个源码模块、als-core 的 3 个 Tnua 适配模块及项目物理时钟适配；88 个模块已有完整单元测试，BF128 同 target_game/play 增量预构建约 3 分钟；迁移同时核对模块路径/Reflect ABI、include 路径及工具的源码位置引用。Gate：明确使用 `animation_graph_ext`、`tnua_ext`，与 Control Rig、物理、渲染、ALS、Playground 分目录；保持模块和类型身份，更新所有实际消费的文件位置；源文件逆向还原比较、als-ext/受影响 core 库测试、剩余 example 编译及同 target_game/play 的公共 startup 功能 Gate 通过后单独提交。
 
 当前 source/static 闭包：als-ext 的模块依赖和注册表、全部 examples 入口、公开 runner、manual 场景选择、tools 的调用关系与 debug 设置读写。`saved/als_debug.ron` 仅持久化调试类别，已被 gitignore，自动 Gate 不读取或写入。目录整理不改变 source-target 语义；本轮只允许修订资产映射文档中的已移动源码路径，不重开其图/资产内容。下一步核对旧演示的替代覆盖与仍有独有断言的诊断场景。
 
 .1 最终 source/static 摘要：删除与当前场景重复、仍接旧图/旧调度的演示，保留 66 个入口（含合同、同步、UI、场景、CMC 参数等独有断言），替代与保留边界见 `examples/README.md`。移除禁止的 UE MCP 完整调用链及无消费者的 API/lighting 试验；`probe_playground` 的 actor 清单仍被网格导出消费，按实际用途改名而未删除。122 个剩余 Python 文件语法检查、零 MCP 代码调用、离线 Cargo metadata、runtime asset boundary、自带 debug curve/visual validator self-test 全过；既有 watchdog 自测全过，执行报告无超时。消融为删除入口后保持真实 launcher/runner、66 个必要检查和全部资产可发现，无新框架、封装或兼容层。下一步只做物理目录迁移及路径更新。
+
+.2 静态闭环与编译发现：92 个迁移文件在逆转 include 相对路径后与 HEAD 完全相同，3 个 lib 的模块身份和注册表相同，生成图/转换规则/原始资产零更改；仅迁移审计元数据中的源码位置，相关工具 15 项自测通过。core 294、ext 427 项库测试通过。首次剩余 examples 编译检出 6 个历史 API 残留，keep-going 完整枚举后确认：camera_notify、旧惯性 residual 和 mantle target-base Gate 已被当前库测试替代，删除这 3 个过期脚本；normalized fixture 补齐空 curves，保留 Standing/Ragdolling 历史合同并接入现有 SourceAnimationInputs/evaluate 插件及当前 evaluator 字段。旧手工图数据仍属未选中的 TODO，明确记录其验收边界而不修图。下一步重跑全部 63 个 example 编译、物理时钟/事件定向测试，再同入口启动；不恢复任何废弃生产 API。
+
+.2 runtime 前摘要：最终全部 63 个 examples 的 workspace 编译通过；迁移覆盖的 core 294、ext 427、物理时钟 13、动画事件 13 共 747 项测试通过。动画输入组件、注册类型和求值作用域有原有测试覆盖；新增 fixture 接线仅使用现有接口。公共 validator、资产边界及 watchdog 自测沿用本轮 .1 通过结果，无规则/图/资产更改。现在使用启动器实际的 target_game/play、jobs 2 预构建并执行唯一 startup 功能 Gate（CaptureCount 0、FunctionalOnly），保留原性能延期范围；尚未完成该真实入口 Gate。
+
+.2 最终 runtime/消融摘要：同 target_game/play 预构建 2m57s；公共 startup 报告 manual/validator 0/0、primary_failure 为空、faults/graph_errors 为 0，渲染/贴花通过。功能验收通过；full_pass 仍因既有 max_eval_p95_ms 超限为 false，保留延期，不声称性能通过。源码迁移使用直接 path 属性，未新增目录包装模块、crate、依赖或运行时算法；逆向还原 92 个文件、保持 3 个 lib 的模块/注册身份是本次结构消融，原有 focused 反例全部保留通过。总计删除 21 个旧入口、20 个过期脚本，实际导出器保留并改名。估时校正：同类约 90 文件的机械迁移本轮实际约 18 分钟，包含一次约 3 分钟 play 构建和历史 example API 清理；后续应先编译清点入口，避免把能编译或历史 PASS 当作当前生成图的运行验收。
 
 ## 背景与基础事实（已核实，持续有效）
 

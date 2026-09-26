@@ -553,9 +553,9 @@ mod tests {
 
     #[test]
     fn packed_decals_modify_surface_properties_before_lighting() {
-        let decal = include_str!("../../../assets/shaders/packed_decal.wgsl");
+        let decal = include_str!("../../../../assets/shaders/packed_decal.wgsl");
         assert!(!decal.contains("apply_pbr_lighting("), "Decal still computes independent lighting before alpha blending");
-        let receiver = include_str!("../../../assets/shaders/playground_tiles.wgsl");
+        let receiver = include_str!("../../../../assets/shaders/playground_tiles.wgsl");
         let blend = receiver.find("apply_packed_decals(&pbr_input,").expect("Receiving material does not consume packed decals");
         let lighting = receiver.find("apply_pbr_lighting(pbr_input)").unwrap();
         assert!(blend < lighting, "Decal material properties were blended after lighting");

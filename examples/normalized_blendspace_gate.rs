@@ -139,12 +139,14 @@ fn build_normalized_graph() -> AnimationGraph {
                     point: Vec2::new(1.0, 0.0),
                     duration: 1.133333,
                     markers: markers(&[("Left", 0.083333), ("Right", 0.65)]),
+                    curves: default(),
                 },
                 NormalizedBlendSpacePoint {
                     id: "run".to_owned(),
                     point: Vec2::new(1.0, 1.0),
                     duration: 0.8,
                     markers: markers(&[("Left", 0.033333), ("Right", 0.433333)]),
+                    curves: default(),
                 },
             ],
             ..default()

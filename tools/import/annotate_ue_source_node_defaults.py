@@ -568,7 +568,7 @@ def annotate_layered_bone_blend(source, node_map, target_entry):
                 node_map,
                 source_field,
                 target_exception,
-                "crates/als-ext/src/source_stop_nodes.rs",
+                "crates/als-ext/src/animation_graph_ext/source_stop_nodes.rs",
             )
 
 

@@ -2710,7 +2710,7 @@ mod tests {
                 .collect()
         }
         let source: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../tools/animgraph_authoring/fixtures/ue_cached_pose_lifecycle.json"
+            "../../../../tools/animgraph_authoring/fixtures/ue_cached_pose_lifecycle.json"
         ))
         .unwrap();
         for (nested, reinitialize) in [(false, false), (true, false), (true, true)] {

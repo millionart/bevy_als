@@ -10,7 +10,7 @@ use als_ext::{
     ResetOnActivationNode, SourceCurveModifyNode, SourceEnumPoseBlendNode,
     SourceLayeredBoneBlendNode, SourceMultiWayBlendNode, SourceScopedCachedPoseUseNode,
     SourceSequenceEvaluatorNode, SourceSequencePlayerNode, SourceSetHipsDirectionNode,
-    SyncGroupSampleNode, set_gameplay_tag_input,
+    SourceAnimationInputs, SyncGroupSampleNode,
 };
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
@@ -90,6 +90,7 @@ fn main() {
             }),
         AnimationGraphPlugin::from_physics_schedule(Update),
         AlsExtPlugin,
+        als_ext::post_physics_animation::PostPhysicsAnimationPlugin,
     ))
     .init_resource::<RuntimeProbe>()
     .add_systems(Startup, load_assets)
@@ -267,7 +268,8 @@ fn has_stop_plant_contract(
         && expected_frames.iter().all(|(name, frame)| {
             source_evaluators.iter().any(|(actual_name, evaluator)| {
                 *actual_name == *name
-                    && close(evaluator.explicit_frame, *frame)
+                    && evaluator.use_explicit_frame
+                    && close(evaluator.explicit_value, *frame)
                     && (evaluator.frames_per_second - 30.0).abs() < 1e-6
                     && evaluator.should_loop
                     && evaluator.teleport_to_explicit_time
@@ -1388,14 +1390,16 @@ fn verify_static_contract(
     set_globals(&mut player);
     player.pause();
     player.queue_time_update(TimeUpdate::Delta(0.0));
+    let mut inputs = SourceAnimationInputs::default();
+    inputs.set_gameplay_tag_input("gait", GameplayTag::new("Als.Gait.Walking"));
     let player_entity = commands
         .spawn((
             Name::new("standing_contract_probe"),
             Children::default(),
             player,
+            inputs,
         ))
         .id();
-    set_gameplay_tag_input(player_entity, "gait", GameplayTag::new("Als.Gait.Walking"));
     probe.player = Some(player_entity);
     probe.phase = ProbePhase::OuterInterruptStart;
     probe.static_verified = true;
