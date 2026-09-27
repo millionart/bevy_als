@@ -250,7 +250,7 @@ def curve_float_contract(source):
         keys = [rich_curve_key(value) for value in parse_list(struct_field(fields, "Keys"))]
     except ExportedTextError as error:
         raise AssetResolutionError("source CurveFloat properties are invalid") from error
-    if len(keys) < 2 or any(right["t"] <= left["t"] for left, right in zip(keys, keys[1:])):
+    if not keys or any(right["t"] <= left["t"] for left, right in zip(keys, keys[1:])):
         raise AssetResolutionError("source CurveFloat key times are invalid")
     return {"source_curve": source["asset_path"], "keys": keys}
 
@@ -1181,6 +1181,7 @@ def resolve_graph_animation_assets(
 
 
 def run_self_test():
+    from copy import deepcopy
     from unittest.mock import patch
     from types import SimpleNamespace
     with tempfile.TemporaryDirectory() as directory:
@@ -1783,6 +1784,23 @@ def run_self_test():
             "leave_weight": 0.0,
         },
     ]
+    constant_source = deepcopy(curve_source)
+    for interpolation in ("Constant", "Linear", "Cubic"):
+        constant_source["asset_properties"][0]["exported_text"] = (
+            f"(Keys=((InterpMode=RCIM_{interpolation},Time=0.400000,Value=0.700000)),DefaultValue=0.000000)"
+        )
+        constant = curve_float_contract(constant_source)
+        assert len(constant["keys"]) == 1
+        assert constant["keys"][0]["t"] == 0.4 and constant["keys"][0]["v"] == 0.7
+        assert constant["keys"][0]["interpolation"] == interpolation
+    for keys in ("", "(Time=0.4),(Time=0.4)", "(Time=0.4),(Time=0.3)", "(Time=nan)", "(Value=inf)"):
+        constant_source["asset_properties"][0]["exported_text"] = f"(Keys=({keys}),DefaultValue=0.000000)"
+        try:
+            curve_float_contract(constant_source)
+        except AssetResolutionError:
+            pass
+        else:
+            raise AssertionError("empty or invalid CurveFloat keys were accepted")
     curve_source["asset_properties"][0]["exported_text"] = curve_source["asset_properties"][0][
         "exported_text"
     ].replace("PreInfinityExtrap=RCCE_Constant", "PreInfinityExtrap=RCCE_Linear")
@@ -1810,6 +1828,7 @@ def run_self_test():
         "legacy_sequence_native_timing_and_curves_preserved": "PASS",
         "native_sequence_curve_fields_and_read_failures_preserved": "PASS",
         "source_rich_curve_keys_preserved": "PASS",
+        "single_key_curve_float_and_invalid_boundaries": "PASS",
         "unsupported_curve_float_extrapolation_rejected": "PASS",
     }
 

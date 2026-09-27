@@ -93,7 +93,7 @@ pub fn transition_alpha(
             }
         }
         AlphaBlendMode::Custom => match (custom_curve.first(), custom_curve.last()) {
-            (Some(first), Some(last)) if last.t > first.t => {
+            (Some(first), Some(last)) => {
                 sample_rich_curve(custom_curve, first.t + (last.t - first.t) * alpha)
             }
             _ => alpha,
@@ -267,6 +267,18 @@ mod tests {
             },
         ];
         assert!((transition_alpha(0.5, AlphaBlendMode::Custom, &aim_in) - 0.8773595).abs() < 1e-5);
+    }
+
+    #[test]
+    fn single_key_custom_curve_holds_its_value() {
+        for value in [-0.5_f32, 0.7, 1.5] {
+            let keys = [RichCurveKey { t: 0.4, v: value, ..default() }];
+            for time in [-10.0, 0.0, 0.4, 1.0, 10.0] {
+                assert_eq!(sample_rich_curve(&keys, time), value);
+                assert_eq!(transition_alpha(time, AlphaBlendMode::Custom, &keys), value.clamp(0.0, 1.0));
+            }
+        }
+        assert_eq!(transition_alpha(0.4, AlphaBlendMode::Custom, &[]), 0.4);
     }
 
     #[test]

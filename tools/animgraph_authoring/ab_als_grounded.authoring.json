@@ -23,8 +23,8 @@
       "sha256": "9ae89f1a9cae71b3097c9322c1ea0c30121f0104aa08e3a064a21a981db51568"
     },
     {
-      "path": "target/bf116_projection/source/ALS_ALS_Data_AnimationInstance_Blending_CF_Als_StanceChange.CF_Als_StanceChange.ue.json",
-      "sha256": "90c10e6064df7e668a5c414c58006467fd1423c4269f39191ed19813eb3b682f"
+      "path": "target/bf131/a60/CF_Als_StanceChange.ue.json",
+      "sha256": "26d81322690436cb2c17b22b61ff1742413324f9bae32c8550ed748b48dab965"
     },
     {
       "path": "target/bf115_grounded/source/B_Als_Character.base.ue.json",
@@ -689,9 +689,9 @@
         "python",
         "tools/animgraph_authoring/audit_source_closure.py",
         "--source-directory",
-        "target/bf131/migration/full-source",
+        "target/bf131/a60/replay/full-source",
         "--materialized-directory",
-        "target/bf131/migration/full-conversion/ALS/Character/AB_Als",
+        "target/bf131/a60/replay/full-conversion/ALS/Character/AB_Als",
         "--spec",
         "target/animgraph_authoring/current.spec.json",
         "--source-asset",
@@ -778,9 +778,9 @@
         "python",
         "tools/animgraph_authoring/audit_source_closure.py",
         "--source-directory",
-        "target/bf131/migration/full-source",
+        "target/bf131/a60/replay/full-source",
         "--materialized-directory",
-        "target/bf131/migration/full-conversion/ALS/Character/AB_Als",
+        "target/bf131/a60/replay/full-conversion/ALS/Character/AB_Als",
         "--spec",
         "target/animgraph_authoring/current.spec.json",
         "--source-asset",
