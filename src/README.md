@@ -17,7 +17,7 @@ src/
     nodes/                    ALS 专用动画节点
     notifies/                 动画事件、脚步效果和转换通知
     root_motion_sources/      Mantling 与根运动驱动
-    settings/                 ALS 配置；generated/ 为离线生成的目标常量
+    settings/                 ALS 配置与离线转换的目标常量
     state/                    ALS State、标签、状态转换与状态计算
     utility/                  ALS 骨骼、方向和原生 Debug Display
     overlay_objects/          ALS/OverlayObjects

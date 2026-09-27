@@ -12,12 +12,12 @@ EXTERNAL_PROVIDERS = {
     "RefreshHead": "als_ext::AlsSourceRefreshNode",
     "InitializeGrounded": "als_ext::SourcePropertyWriteNode",
     "RefreshGrounded": "als_ext::AlsSourceRefreshNode",
-    "ResetGroundedEntryMode": "als_ext::SourcePropertyWriteNode + crate::generated_transition_notify::GeneratedTransitionNotifyPlugin",
-    "RefreshGroundedMovement": "crate::generated_ab_als_provider::GeneratedAbAlsProviderPlugin",
+    "ResetGroundedEntryMode": "als_ext::SourcePropertyWriteNode + crate::transition_notify::TransitionNotifyPlugin",
+    "RefreshGroundedMovement": "crate::ab_als_provider::AbAlsProviderPlugin",
     "InitializeStandingMovement": "als_ext::SourcePropertyWriteNode",
     "RefreshStandingMovement": "als_ext::AlsSourceRefreshNode",
     "ResetPivot": "als_ext::SourcePropertyWriteNode",
-    "RefreshCrouchingMovement": "crate::generated_ab_als_provider::GeneratedAbAlsProviderPlugin",
+    "RefreshCrouchingMovement": "crate::ab_als_provider::AbAlsProviderPlugin",
     "RefreshDynamicTransitions": "als_ext::AlsSourceRefreshNode",
     "RefreshInAir": "als_locomotion_refresh_in_air",
     "RefreshRotateInPlace": "als_ext::AlsSourceRefreshNode",
@@ -30,25 +30,25 @@ TRANSITION_FUNCTIONS = {
         "call": "Play Transition Animation",
         "sequence": "A_Als_Stop_Left.A_Als_Stop_Left",
         "start_time": "0.400000",
-        "provider": "crate::generated_transition_notify::GeneratedTransitionNotifyPlugin",
+        "provider": "crate::transition_notify::TransitionNotifyPlugin",
     },
     "PlayStopRightTransitionAnimation": {
         "call": "Play Transition Animation",
         "sequence": "A_Als_Stop_Right.A_Als_Stop_Right",
         "start_time": "0.400000",
-        "provider": "crate::generated_transition_notify::GeneratedTransitionNotifyPlugin",
+        "provider": "crate::transition_notify::TransitionNotifyPlugin",
     },
     "PlayStopTransitionAnimation": {
         "call": "Play Transition Right Animation",
         "sequence": None,
         "start_time": "0.200000",
-        "provider": "crate::generated_transition_notify::GeneratedTransitionNotifyPlugin",
+        "provider": "crate::transition_notify::TransitionNotifyPlugin",
     },
     "PlayRollToGroundedTransitionAnimation": {
         "call": "Play Transition Right Animation",
         "sequence": None,
         "start_time": "0.200000",
-        "provider": "crate::generated_transition_notify::GeneratedTransitionNotifyPlugin",
+        "provider": "crate::transition_notify::TransitionNotifyPlugin",
     },
 }
 TRANSITION_NOTIFY_FUNCTIONS = {
@@ -65,7 +65,7 @@ TRANSITION_NOTIFY_FUNCTIONS = {
         "member": "PlayTransitionRightAnimation",
     },
 }
-TRANSITION_NOTIFY_PROVIDER = "crate::generated_transition_notify::GeneratedTransitionNotifyPlugin"
+TRANSITION_NOTIFY_PROVIDER = "crate::transition_notify::TransitionNotifyPlugin"
 
 
 class LifecycleRenderError(ValueError):

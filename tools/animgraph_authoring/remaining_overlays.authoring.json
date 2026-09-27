@@ -1,6 +1,6 @@
 {
   "format": "als_animgraph_authoring_gate_v1",
-  "id": "generated_remaining_overlays",
+  "id": "remaining_overlays",
   "source_evidence": [
     {
       "path": "target/bf116_overlays/source/ALS_ALS_Character_AnimationInstances_Overlays_AB_Als_Barrel.AB_Als_Barrel.ue.json",
@@ -6654,13 +6654,13 @@
       "scope": "source",
       "argv": [
         "python",
-        "tools/animgraph_authoring/audit_generated_source_closure.py",
+        "tools/animgraph_authoring/audit_source_closure.py",
         "--source-directory",
-        "target/bf116_overlays/source",
+        "target/bf131/migration/full-source",
         "--materialized-directory",
-        "target/bf116_overlays/installed_Masculine",
+        "target/bf131/migration/full-conversion/ALS/Character/AnimationInstances/Overlays/AB_Als_Masculine",
         "--spec",
-        "target/bf116_overlays/spec.json"
+        "target/animgraph_authoring/current.spec.json"
       ]
     },
     {
@@ -6668,13 +6668,13 @@
       "scope": "source",
       "argv": [
         "python",
-        "tools/animgraph_authoring/audit_generated_source_closure.py",
+        "tools/animgraph_authoring/audit_source_closure.py",
         "--source-directory",
-        "target/bf116_overlays/source",
+        "target/bf131/migration/full-source",
         "--materialized-directory",
-        "target/bf116_overlays/installed_Feminine",
+        "target/bf131/migration/full-conversion/ALS/Character/AnimationInstances/Overlays/AB_Als_Feminine",
         "--spec",
-        "target/bf116_overlays/spec.json"
+        "target/animgraph_authoring/current.spec.json"
       ]
     },
     {
@@ -6682,13 +6682,13 @@
       "scope": "source",
       "argv": [
         "python",
-        "tools/animgraph_authoring/audit_generated_source_closure.py",
+        "tools/animgraph_authoring/audit_source_closure.py",
         "--source-directory",
-        "target/bf116_overlays/source",
+        "target/bf131/migration/full-source",
         "--materialized-directory",
-        "target/bf116_overlays/installed_Injured",
+        "target/bf131/migration/full-conversion/ALS/Character/AnimationInstances/Overlays/AB_Als_Injured",
         "--spec",
-        "target/bf116_overlays/spec.json"
+        "target/animgraph_authoring/current.spec.json"
       ]
     },
     {
@@ -6696,13 +6696,13 @@
       "scope": "source",
       "argv": [
         "python",
-        "tools/animgraph_authoring/audit_generated_source_closure.py",
+        "tools/animgraph_authoring/audit_source_closure.py",
         "--source-directory",
-        "target/bf116_overlays/source",
+        "target/bf131/migration/full-source",
         "--materialized-directory",
-        "target/bf116_overlays/installed_HandsTied",
+        "target/bf131/migration/full-conversion/ALS/Character/AnimationInstances/Overlays/AB_Als_HandsTied",
         "--spec",
-        "target/bf116_overlays/spec.json"
+        "target/animgraph_authoring/current.spec.json"
       ]
     },
     {
@@ -6710,13 +6710,13 @@
       "scope": "source",
       "argv": [
         "python",
-        "tools/animgraph_authoring/audit_generated_source_closure.py",
+        "tools/animgraph_authoring/audit_source_closure.py",
         "--source-directory",
-        "target/bf116_overlays/source",
+        "target/bf131/migration/full-source",
         "--materialized-directory",
-        "target/bf116_overlays/installed_Rifle",
+        "target/bf131/migration/full-conversion/ALS/Character/AnimationInstances/Overlays/AB_Als_Rifle",
         "--spec",
-        "target/bf116_overlays/spec.json"
+        "target/animgraph_authoring/current.spec.json"
       ]
     },
     {
@@ -6724,13 +6724,13 @@
       "scope": "source",
       "argv": [
         "python",
-        "tools/animgraph_authoring/audit_generated_source_closure.py",
+        "tools/animgraph_authoring/audit_source_closure.py",
         "--source-directory",
-        "target/bf116_overlays/source",
+        "target/bf131/migration/full-source",
         "--materialized-directory",
-        "target/bf116_overlays/installed_PistolOneHanded",
+        "target/bf131/migration/full-conversion/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolOneHanded",
         "--spec",
-        "target/bf116_overlays/spec.json"
+        "target/animgraph_authoring/current.spec.json"
       ]
     },
     {
@@ -6738,13 +6738,13 @@
       "scope": "source",
       "argv": [
         "python",
-        "tools/animgraph_authoring/audit_generated_source_closure.py",
+        "tools/animgraph_authoring/audit_source_closure.py",
         "--source-directory",
-        "target/bf116_overlays/source",
+        "target/bf131/migration/full-source",
         "--materialized-directory",
-        "target/bf116_overlays/installed_PistolTwoHanded",
+        "target/bf131/migration/full-conversion/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded",
         "--spec",
-        "target/bf116_overlays/spec.json"
+        "target/animgraph_authoring/current.spec.json"
       ]
     },
     {
@@ -6752,13 +6752,13 @@
       "scope": "source",
       "argv": [
         "python",
-        "tools/animgraph_authoring/audit_generated_source_closure.py",
+        "tools/animgraph_authoring/audit_source_closure.py",
         "--source-directory",
-        "target/bf116_overlays/source",
+        "target/bf131/migration/full-source",
         "--materialized-directory",
-        "target/bf116_overlays/installed_Torch",
+        "target/bf131/migration/full-conversion/ALS/Character/AnimationInstances/Overlays/AB_Als_Torch",
         "--spec",
-        "target/bf116_overlays/spec.json"
+        "target/animgraph_authoring/current.spec.json"
       ]
     },
     {
@@ -6766,13 +6766,13 @@
       "scope": "source",
       "argv": [
         "python",
-        "tools/animgraph_authoring/audit_generated_source_closure.py",
+        "tools/animgraph_authoring/audit_source_closure.py",
         "--source-directory",
-        "target/bf116_overlays/source",
+        "target/bf131/migration/full-source",
         "--materialized-directory",
-        "target/bf116_overlays/installed_Binoculars",
+        "target/bf131/migration/full-conversion/ALS/Character/AnimationInstances/Overlays/AB_Als_Binoculars",
         "--spec",
-        "target/bf116_overlays/spec.json"
+        "target/animgraph_authoring/current.spec.json"
       ]
     },
     {
@@ -6780,13 +6780,13 @@
       "scope": "source",
       "argv": [
         "python",
-        "tools/animgraph_authoring/audit_generated_source_closure.py",
+        "tools/animgraph_authoring/audit_source_closure.py",
         "--source-directory",
-        "target/bf116_overlays/source",
+        "target/bf131/migration/full-source",
         "--materialized-directory",
-        "target/bf116_overlays/installed_Box",
+        "target/bf131/migration/full-conversion/ALS/Character/AnimationInstances/Overlays/AB_Als_Box",
         "--spec",
-        "target/bf116_overlays/spec.json"
+        "target/animgraph_authoring/current.spec.json"
       ]
     },
     {
@@ -6794,13 +6794,13 @@
       "scope": "source",
       "argv": [
         "python",
-        "tools/animgraph_authoring/audit_generated_source_closure.py",
+        "tools/animgraph_authoring/audit_source_closure.py",
         "--source-directory",
-        "target/bf116_overlays/source",
+        "target/bf131/migration/full-source",
         "--materialized-directory",
-        "target/bf116_overlays/installed_Barrel",
+        "target/bf131/migration/full-conversion/ALS/Character/AnimationInstances/Overlays/AB_Als_Barrel",
         "--spec",
-        "target/bf116_overlays/spec.json"
+        "target/animgraph_authoring/current.spec.json"
       ]
     },
     {
@@ -6811,6 +6811,7 @@
         "tools/import/import_overlay_actor.py",
         "--source-directory",
         "target/bf116_overlays/source",
+        "target/bf131/migration/full-source",
         "--self-test",
         "--check"
       ]
@@ -6822,7 +6823,7 @@
         "python",
         "tools/verify_animgraph_node_positions.py",
         "--root",
-        "assets/generated/ALS/Character/AnimationInstances/Overlays"
+        "assets/ALS/Character/AnimationInstances/Overlays"
       ]
     },
     {
@@ -6832,7 +6833,7 @@
         "python",
         "tools/validate_animgraph_editor_assets.py",
         "--root",
-        "assets/generated/ALS/Character/AnimationInstances/Overlays"
+        "assets/ALS/Character/AnimationInstances/Overlays"
       ]
     },
     {
@@ -6851,13 +6852,13 @@
       "scope": "source",
       "argv": [
         "python",
-        "tools/animgraph_authoring/audit_generated_source_closure.py",
+        "tools/animgraph_authoring/audit_source_closure.py",
         "--source-directory",
-        "target/bf116_overlays/recheck_source",
+        "target/bf131/migration/full-source",
         "--materialized-directory",
-        "target/bf116_overlays/installed_PistolTwoHanded",
+        "target/bf131/migration/full-conversion/ALS/Character/AnimationInstances/Overlays/AB_Als_PistolTwoHanded",
         "--spec",
-        "target/bf116_overlays/spec.json"
+        "target/animgraph_authoring/current.spec.json"
       ]
     },
     {
@@ -6865,13 +6866,13 @@
       "scope": "source",
       "argv": [
         "python",
-        "tools/animgraph_authoring/audit_generated_source_closure.py",
+        "tools/animgraph_authoring/audit_source_closure.py",
         "--source-directory",
-        "target/bf116_overlays/recheck_source",
+        "target/bf131/migration/full-source",
         "--materialized-directory",
-        "target/bf116_projection/native_root",
+        "target/bf131/migration/full-conversion/ALS/Character/AB_Als",
         "--spec",
-        "target/bf116_projection/spec.json",
+        "target/animgraph_authoring/current.spec.json",
         "--source-asset",
         "/ALS/ALS/Character/AnimationInstances/AB_Als_Layering.AB_Als_Layering"
       ]
@@ -6881,18 +6882,18 @@
       "scope": "source",
       "argv": [
         "python",
-        "tools/animgraph_authoring/audit_generated_source_closure.py",
+        "tools/animgraph_authoring/audit_source_closure.py",
         "--source-directory",
-        "target/bf116_overlays",
+        "target/bf131/migration/full-source",
         "--materialized-directory",
-        "target/bf116_overlays/installed_Binoculars",
+        "target/bf131/migration/full-conversion/ALS/Character/AnimationInstances/Overlays/AB_Als_Binoculars",
         "--spec",
-        "target/bf116_overlays/spec.json"
+        "target/animgraph_authoring/current.spec.json"
       ]
     }
   ],
   "runtime_gate": {
-    "contract_gate": "generated_animgraph_assets",
+    "contract_gate": "animgraph_assets",
     "manual_case": "overlays"
   },
   "recursive_inventory": null,

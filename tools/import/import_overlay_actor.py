@@ -7,7 +7,7 @@ from import_overlay_object import compile_definition, accessor_data
 from import_static_skeleton import validate
 from audit_animation_transform_conversion import load_gltf
 from ue_animation_asset_resolver import object_property, source_object_path
-from ue_animgraph_materializer import graph_path
+from ue_animgraph_materializer import graph_path, source_asset_directory
 from ue_exported_text import parse_list, parse_struct, parse_quoted
 
 
@@ -31,14 +31,13 @@ def compile_actor(sources, asset_root):
         fields = {p['name']: p['exported_text'] for p in blend['fields']}
         if fields['BlendInProfile'] != 'None' or fields['BlendOutProfile'] != 'None':
             raise ValueError('Linked layer blend profiles are unsupported: ' + source)
-        definition = {'source_class': source, 'graph': graph_path(source, 'AnimGraph', 'generated'),
+        definition = {'source_class': source, 'graph': graph_path(source, 'AnimGraph'),
             'blend_in': float(fields['BlendInTime']), 'blend_out': float(fields['BlendOutTime']), 'object': None}
         if name in attached:
             obj = compile_definition(sources, name)
             mesh_source = sources[obj['source_mesh']]
-            basename = obj['source_mesh'].rsplit('.', 1)[-1]
             skeletal = mesh_source['asset_class'] == '/Script/Engine.SkeletalMesh'
-            path = asset_root / 'models' / ('' if skeletal else 'overlay') / (basename + '.gltf')
+            path = asset_root / (source_asset_directory(obj['source_mesh']) + '.gltf')
             mesh, blob = load_gltf(path)
             if skeletal:
                 validate(mesh, mesh_source)
@@ -49,7 +48,7 @@ def compile_actor(sources, asset_root):
                 accessor_data(mesh, blob, primitive['attributes']['POSITION'])
             obj['mesh'] = path.relative_to(asset_root).as_posix()
             obj['kind'] = 'Skeletal' if skeletal else 'Static'
-            obj['scene'] = 'animated_scenes/als_' + name.lower() + '.animscn.ron' if obj['source_animation'] else None
+            obj['scene'] = Path(obj['mesh']).with_name('B_Als_' + name + '.animscn.ron').as_posix() if obj['source_animation'] else None
             if obj['scene'] and not (asset_root / obj['scene']).is_file():
                 raise ValueError('Object animation scene is missing: ' + name)
             definition['object'] = obj
@@ -61,14 +60,14 @@ def compile_actor(sources, asset_root):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--source-directory', type=Path, required=True)
+    parser.add_argument('--source-directory', type=Path, nargs='+', required=True)
     parser.add_argument('--asset-root', type=Path, default=Path('assets'))
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument('--write', action='store_true')
     mode.add_argument('--check', action='store_true')
     parser.add_argument('--self-test', action='store_true')
     args = parser.parse_args()
-    sources = {value['asset_path']: value for path in args.source_directory.glob('*.ue.json')
+    sources = {value['asset_path']: value for directory in args.source_directory for path in directory.glob('*.ue.json')
         if 'asset_path' in (value := json.loads(path.read_text(encoding='utf-8-sig')))}
     result = compile_actor(sources, args.asset_root)
     if args.self_test:
@@ -109,7 +108,7 @@ def main():
         path.write_text(text, encoding='utf-8')
         tag_path.write_text(tag_text, encoding='utf-8')
     elif not path.is_file() or path.read_text(encoding='utf-8') != text:
-        raise ValueError('Generated overlay actor differs')
+        raise ValueError('Overlay actor definition differs')
     elif tag_path.read_text(encoding='utf-8') != tag_text:
         raise ValueError('Overlay gameplay tag registration differs')
     print(json.dumps({'classes': len(result), 'object_modes': sum(value['object'] is not None for value in result.values()), 'self_test': args.self_test}))

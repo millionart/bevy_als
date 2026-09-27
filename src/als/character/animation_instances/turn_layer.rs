@@ -1178,7 +1178,7 @@ mod tests {
             crouching: false,
         };
         app.world_mut().run_system_once(move |mut commands: Commands| {
-            crate::generated_transition_notify::queue_turn_in_grounded_group(
+            crate::transition_notify::queue_turn_in_grounded_group(
                 &mut commands, character, avatar, request);
         }).unwrap();
         app.world_mut().flush();
@@ -1192,7 +1192,7 @@ mod tests {
         app.world_mut().run_system_once(move |mut commands: Commands| {
             crate::stop_link::play_transition(&mut commands, character,
                 crate::stop_link::AlsTransitionPlayback::quick_stop(0.0, 1.0));
-            crate::generated_transition_notify::queue_turn_in_grounded_group(
+            crate::transition_notify::queue_turn_in_grounded_group(
                 &mut commands, character, avatar, request);
         }).unwrap();
         app.world_mut().flush();
@@ -1216,7 +1216,7 @@ mod tests {
         assert_eq!(app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity(), new_player);
         app.world_mut().entity_mut(avatar).insert(AlsTurnMontageStack::default());
         app.world_mut().run_system_once(move |mut commands: Commands| {
-            crate::generated_transition_notify::queue_turn_in_grounded_group(
+            crate::transition_notify::queue_turn_in_grounded_group(
                 &mut commands, character, avatar, SourceTurnRequest {
                     variant: TurnVariant::Left180, yaw: 120.0, crouching: false,
                 });

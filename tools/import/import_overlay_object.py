@@ -9,8 +9,8 @@ from coordinate_basis import source_direction_to_runtime, source_point_to_runtim
 from import_camera_component import record, vector
 from import_static_skeleton import validate
 from audit_animation_transform_conversion import load_gltf
-from ue_animation_asset_resolver import asset_property, object_property, source_object_path
-from ue_animgraph_materializer import graph_path
+from ue_animation_asset_resolver import asset_property, object_property, source_object_path, source_asset_name
+from ue_animgraph_materializer import graph_path, source_asset_directory
 from ue_exported_text import parse_bool, parse_list, parse_number, parse_struct
 
 
@@ -72,7 +72,7 @@ def compile_definition(sources, overlay):
     return {
         'source_mesh': mesh_path,
         'source_animation': animation,
-        'graph': graph_path(animation, 'AnimGraph', 'generated') if animation else None,
+        'graph': graph_path(animation, 'AnimGraph') if animation else None,
         'use_left_gun_bone': parse_bool(pins['bUseLeftGunBone']['default_value'].title()),
         'socket_name': pins['SocketName']['default_value'],
         'socket_bone': object_property(socket, 'BoneName'),
@@ -121,8 +121,8 @@ def main():
                     raise ValueError('Animated object mesh values differ: ' + name)
     if len(mesh['meshes'][0]['primitives']) != len(definition['materials']):
         raise ValueError('Overlay mesh material slots differ')
-    stem = 'als_' + args.overlay.lower()
-    definition['scene'] = 'animated_scenes/' + stem + '.animscn.ron'
+    directory = Path(source_asset_directory(definition['source_mesh'])).parent
+    definition['scene'] = (directory / ('B_Als_' + args.overlay + '.animscn.ron')).as_posix()
     definition['mesh'] = args.mesh.resolve().relative_to(args.asset_root.resolve()).as_posix()
     if args.self_test:
         changed = deepcopy(sources)
@@ -147,20 +147,20 @@ def main():
         else:
             raise AssertionError('Unsupported material was accepted')
     if args.write or args.check:
-        output = args.asset_root / 'character' / 'overlay_objects' / (args.overlay.lower() + '.json')
+        output = args.asset_root / directory / (args.overlay.lower() + '.json')
         outputs = {output: json.dumps(definition, indent=2) + '\n'}
-        wrapper_path = 'graphs/runtime/' + stem + '_object.animgraph.ron'
+        wrapper_path = source_asset_directory(definition['source_animation']) + '.runtime.animgraph.ron'
         node = str(uuid.uuid5(uuid.NAMESPACE_URL, definition['source_animation'] + ':runtime_pose'))
         wrapper = '''(
     nodes: [
-        (id: "NODE", name: "Generated object animation", inner: { "als_ext::LayeredGraphNode": (graph: GRAPH, input_aliases: [], output_aliases: [(child_output: "Result", outer_output: "pose")], capture_context: true, expose_context_curves: false, exposed_output_data: [], internalize_time: true) }, should_debug: false),
+        (id: "NODE", name: NAME, inner: { "als_ext::LayeredGraphNode": (graph: GRAPH, input_aliases: [], output_aliases: [(child_output: "Result", outer_output: "pose")], capture_context: true, expose_context_curves: false, exposed_output_data: [], internalize_time: true) }, should_debug: false),
     ],
     edges_inverted: { OutputData("pose"): NodeData("NODE", "pose") },
     io_spec: (input_times: [], input_data: {}, output_time: false, output_data: { "pose": Pose }, input_order: {}, output_order: { Data("pose"): 0 }),
     default_data: {},
     editor_metadata: (node_positions: { "NODE": (-240.0, 0.0) }, input_position: (-480.0, 0.0), output_position: (0.0, 0.0), input_param_order: {}, input_time_order: {}, output_data_order: {}, output_pose_order: {}),
 )
-'''.replace('NODE', node).replace('GRAPH', json.dumps(definition['graph']))
+'''.replace('NODE', node).replace('NAME', json.dumps(source_asset_name(definition['source_animation']))).replace('GRAPH', json.dumps(definition['graph']))
         outputs[args.asset_root / wrapper_path] = wrapper
         scene_path = args.scene_source.resolve().relative_to(args.asset_root.resolve()).as_posix()
         outputs[args.asset_root / definition['scene']] = '(\n    source: ' + json.dumps(scene_path + '#Scene0') + ',\n    animation_graph: ' + json.dumps(wrapper_path) + ',\n    skeleton: ' + json.dumps(args.skeleton) + ',\n)\n'

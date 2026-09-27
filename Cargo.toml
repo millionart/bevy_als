@@ -303,8 +303,8 @@ name = "curve_import"
 path = "tools/tests/curve_import.rs"
 
 [[test]]
-name = "generated_animgraph_assets"
-path = "tools/tests/generated_animgraph_assets.rs"
+name = "animgraph_assets"
+path = "tools/tests/animgraph_assets.rs"
 
 [[test]]
 name = "notify_event_tracks"

@@ -22,7 +22,7 @@ use crate::{
     actual_motion::AlsActualMotion,
     animation_context_projection::{AlsRootAnimationContext, AlsRootAnimationContextSet},
     character_assembly::AlsCharacterAvatar,
-    generated_ab_als_provider::GeneratedAbAlsProviderSet,
+    ab_als_provider::AbAlsProviderSet,
 };
 
 #[derive(serde::Deserialize)]
@@ -70,7 +70,7 @@ impl Plugin for LocomotionLayerPlugin {
         app.configure_sets(
             PostUpdate,
             AlsLocomotionLayerSet
-                .after(GeneratedAbAlsProviderSet)
+                .after(AbAlsProviderSet)
                 .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
         )
         .add_systems(
@@ -274,7 +274,7 @@ mod tests {
             crate::head_layer::HeadLayerPlugin,
             crate::ragdolling_layer::RagdollingLayerPlugin,
             crate::ab_als_root::AlsRootGraphPlugin,
-            crate::generated_ab_als_provider::GeneratedAbAlsProviderPlugin,
+            crate::ab_als_provider::AbAlsProviderPlugin,
             crate::control_rig_apply::ControlRigApplyPlugin,
             crate::foot_ik_apply::FootIkApplyPlugin,
         ))

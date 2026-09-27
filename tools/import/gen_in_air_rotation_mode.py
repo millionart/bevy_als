@@ -57,7 +57,7 @@ def main():
     parser.add_argument('--character-uasset', type=Path)
     parser.add_argument('--settings-uasset', type=Path)
     parser.add_argument('--source-reader', type=Path, default=ROOT / 'tools/run_ue_source_reader.ps1')
-    parser.add_argument('--output', type=Path, default=ROOT / 'src/als/settings/generated/in_air_rotation_mode.rs')
+    parser.add_argument('--output', type=Path, default=ROOT / 'src/als/settings/in_air_rotation_mode.rs')
     parser.add_argument('--report', type=Path, default=ROOT / 'target/in_air_rotation_mode.report.json')
     parser.add_argument('--self-test', action='store_true')
     args = parser.parse_args()

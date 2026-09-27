@@ -1,6 +1,6 @@
 {
   "format": "als_animgraph_authoring_gate_v1",
-  "id": "generated_ab_als_default_assets",
+  "id": "ab_als_default_assets",
   "source_evidence": [
     {
       "path": "target/bf116_projection/source/ALS_ALS_Character_AnimationInstances_Overlays_AB_Als_Default.AB_Als_Default.ue.json",
@@ -369,13 +369,13 @@
       "scope": "source",
       "argv": [
         "python",
-        "tools/animgraph_authoring/audit_generated_source_closure.py",
+        "tools/animgraph_authoring/audit_source_closure.py",
         "--source-directory",
-        "target/bf116_projection/source",
+        "target/bf131/migration/full-source",
         "--materialized-directory",
-        "target/bf116_projection/native_root",
+        "target/bf131/migration/full-conversion/ALS/Character/AB_Als",
         "--spec",
-        "target/bf116_projection/spec.json",
+        "target/animgraph_authoring/current.spec.json",
         "--source-asset",
         "/ALS/ALS/Character/AnimationInstances/Overlays/AB_Als_Default.AB_Als_Default"
       ]
@@ -387,7 +387,7 @@
         "python",
         "tools/verify_animgraph_node_positions.py",
         "--root",
-        "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Default"
+        "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Default"
       ]
     },
     {
@@ -397,7 +397,7 @@
         "python",
         "tools/validate_animgraph_editor_assets.py",
         "--root",
-        "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Default"
+        "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Default"
       ]
     },
     {
@@ -470,7 +470,7 @@
     }
   ],
   "runtime_gate": {
-    "contract_gate": "generated_animgraph_assets",
+    "contract_gate": "animgraph_assets",
     "manual_case": "default_overlay"
   },
   "focused_tests": [

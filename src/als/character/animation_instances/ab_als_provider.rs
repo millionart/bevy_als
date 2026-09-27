@@ -29,7 +29,7 @@ struct AnimationComponentDefinition {
 
 static ANIMATION_COMPONENT: LazyLock<AnimationComponentDefinition> = LazyLock::new(|| {
     serde_json::from_str(include_str!("../../../../assets/ALS/Character/animation_component.runtime.json"))
-        .expect("Generated animation component definition must be valid")
+        .expect("Animation component definition must be valid")
 });
 
 fn write_animation_component_inputs(
@@ -55,15 +55,15 @@ use crate::{
 };
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct GeneratedAbAlsProviderSet;
+pub struct AbAlsProviderSet;
 
-pub struct GeneratedAbAlsProviderPlugin;
+pub struct AbAlsProviderPlugin;
 
-impl Plugin for GeneratedAbAlsProviderPlugin {
+impl Plugin for AbAlsProviderPlugin {
     fn build(&self, app: &mut App) {
         app.configure_sets(
             PostUpdate,
-            GeneratedAbAlsProviderSet
+            AbAlsProviderSet
                 .after(AlsRootGraphSet)
                 .after(AlsRagdollingLayerSet)
                 .after(AlsStandingLayerSet)
@@ -71,7 +71,7 @@ impl Plugin for GeneratedAbAlsProviderPlugin {
         )
         .add_systems(
             PostUpdate,
-            generated_ab_als_input_writer.in_set(GeneratedAbAlsProviderSet),
+            ab_als_input_writer.in_set(AbAlsProviderSet),
         );
     }
 }
@@ -216,7 +216,7 @@ fn set_source_slot_defaults(player: &mut AnimationGraphPlayer) {
 }
 
 #[allow(clippy::type_complexity)]
-fn generated_ab_als_input_writer(
+fn ab_als_input_writer(
     mut source_inputs: Query<&mut crate::extensions::SourceAnimationInputs>,
     time: Res<Time>,
     params_assets: Res<Assets<AlsMovementParams>>,
@@ -464,7 +464,7 @@ mod tests {
             bevy::mesh::MeshPlugin, bevy::gizmos::GizmoPlugin,
             avian3d::prelude::PhysicsPlugins::new(PostUpdate),
             AnimationGraphPlugin::from_physics_schedule(PostUpdate),
-            crate::ab_als_root::AlsRootGraphPlugin, GeneratedAbAlsProviderPlugin,
+            crate::ab_als_root::AlsRootGraphPlugin, AbAlsProviderPlugin,
             crate::layering_layer::LayeringLayerPlugin, crate::head_layer::HeadLayerPlugin))
             .init_asset::<WorldAsset>().init_asset::<AlsMovementParams>();
         app.finish();
@@ -578,7 +578,7 @@ mod tests {
                 app.world_mut().entity_mut(body).insert(kind);
                 for target in [None, Some(body), Some(child), Some(invalid)] {
                     app.world_mut().get_mut::<AlsMovementBase>(character).unwrap().entity = target;
-                    app.world_mut().run_system_once(generated_ab_als_input_writer).unwrap();
+                    app.world_mut().run_system_once(ab_als_input_writer).unwrap();
                     let actual = app.world().get::<AnimationGraphPlayer>(player).unwrap()
                         .get_global_input_data("movement_base.b_has_relative_location").unwrap().as_bool().unwrap();
                     let expected = kind != RigidBody::Static && target.is_some_and(|entity| entity == body || entity == child);
@@ -707,7 +707,7 @@ mod tests {
         app.configure_sets(
             PostUpdate,
             (
-                GeneratedAbAlsProviderSet
+                AbAlsProviderSet
                     .after(crate::gait_layer::AlsGaitLayerSet)
                     .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
                 AnimationGraphSet::PrePhysics.before(PhysicsSystems::First),
@@ -735,7 +735,7 @@ mod tests {
                 let motion = motion.single().unwrap();
                 assert!((motion.horizontal_speed - 1.315).abs() < 1e-5);
                 assert!(!source_locomotion_flags(false, motion.horizontal_speed)[1].1);
-            }).in_set(GeneratedAbAlsProviderSet),
+            }).in_set(AbAlsProviderSet),
         );
         app.update();
     }

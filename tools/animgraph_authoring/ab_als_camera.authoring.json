@@ -1,6 +1,6 @@
 {
   "format": "als_animgraph_authoring_gate_v1",
-  "id": "generated_ab_als_camera_assets",
+  "id": "ab_als_camera_assets",
   "source_evidence": [
     {
       "path": "target/bf115_camera/b4_fresh_source/AB_Als_Camera.ue.json",
@@ -1613,7 +1613,7 @@
       "expected_nodes": [
         {
           "id": "b1160102-0000-4000-8000-000000000001",
-          "name": "Generated AB_Als_Camera",
+          "name": "AB_Als_Camera",
           "position": [
             -240.0,
             0.0
@@ -1718,13 +1718,13 @@
       "scope": "source",
       "argv": [
         "python",
-        "tools/animgraph_authoring/audit_generated_source_closure.py",
+        "tools/animgraph_authoring/audit_source_closure.py",
         "--source-directory",
-        "target/bf115_camera/b4_fresh_source",
+        "target/bf131/migration/full-source",
         "--materialized-directory",
-        "target/bf115_camera/c2a_provider_corpus_camera",
+        "target/bf131/migration/full-conversion/ALSCamera/AB_Als_Camera",
         "--spec",
-        "target/bf115_camera/c4d_spec.json",
+        "target/animgraph_authoring/current.spec.json",
         "--source-asset",
         "/ALS/ALSCamera/AB_Als_Camera.AB_Als_Camera"
       ]
@@ -1736,7 +1736,7 @@
         "python",
         "tools/verify_animgraph_node_positions.py",
         "--root",
-        "assets/generated/ALSCamera/AB_Als_Camera"
+        "assets/ALSCamera/AB_Als_Camera"
       ]
     },
     {
@@ -1746,7 +1746,7 @@
         "python",
         "tools/validate_animgraph_editor_assets.py",
         "--root",
-        "assets/generated/ALSCamera/AB_Als_Camera"
+        "assets/ALSCamera/AB_Als_Camera"
       ]
     },
     {
@@ -1780,7 +1780,7 @@
     }
   ],
   "runtime_gate": {
-    "contract_gate": "generated_animgraph_assets",
+    "contract_gate": "animgraph_assets",
     "manual_case": "camera"
   },
   "recursive_inventory": null,

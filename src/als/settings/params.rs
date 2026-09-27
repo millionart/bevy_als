@@ -680,7 +680,7 @@ pub struct GaitHalfLives {
     pub sprinting: f32,
 }
 
-const SOURCE_ROTATION_HALF_LIVES: ([f32; 3], [f32; 3]) = include!("generated/rotation_half_lives.rs");
+const SOURCE_ROTATION_HALF_LIVES: ([f32; 3], [f32; 3]) = include!("rotation_half_lives.rs");
 
 impl GaitHalfLives {
     pub const fn normal() -> Self {

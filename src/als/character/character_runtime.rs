@@ -12,8 +12,8 @@ use crate::crouching_layer::CrouchingLayerPlugin;
 use crate::direction_layer::DirectionLayerPlugin;
 use crate::foot_ik_apply::FootIkApplyPlugin;
 use crate::gait_layer::GaitLayerPlugin;
-use crate::generated_ab_als_provider::GeneratedAbAlsProviderPlugin;
-use crate::generated_transition_notify::GeneratedTransitionNotifyPlugin;
+use crate::ab_als_provider::AbAlsProviderPlugin;
+use crate::transition_notify::TransitionNotifyPlugin;
 use crate::grounded_layer::GroundedLayerPlugin;
 use crate::head_layer::HeadLayerPlugin;
 use crate::layering_layer::LayeringLayerPlugin;
@@ -65,8 +65,8 @@ impl Plugin for AlsCharacterRuntimePlugin {
             HeadLayerPlugin,
             RagdollingLayerPlugin,
             AlsRootGraphPlugin,
-            GeneratedAbAlsProviderPlugin,
-            GeneratedTransitionNotifyPlugin,
+            AbAlsProviderPlugin,
+            TransitionNotifyPlugin,
             AlsMantleDrivePlugin,
             PaAlsPhysicsPlugin,
             AlsRagdollLinkPlugin,
@@ -86,7 +86,7 @@ impl Plugin for AlsCharacterRuntimePlugin {
             crate::crouching_layer::AlsCrouchingLayerSet,
             crate::grounded_layer::AlsGroundedLayerSet,
             crate::ab_als_root::AlsRootGraphSet,
-            crate::generated_ab_als_provider::GeneratedAbAlsProviderSet,
+            crate::ab_als_provider::AbAlsProviderSet,
             crate::locomotion_layer::AlsLocomotionLayerSet,
             crate::layering_layer::AlsLayeringLayerSet,
             crate::head_layer::AlsHeadLayerSet,

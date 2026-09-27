@@ -1,6 +1,6 @@
 {
   "format": "als_animgraph_authoring_gate_v1",
-  "id": "generated_ab_als_actor",
+  "id": "ab_als_actor",
   "source_evidence": [
     {
       "path": "target/bf116_04e/AB_Als.source.json",
@@ -471,13 +471,13 @@
       "scope": "source",
       "argv": [
         "python",
-        "tools/animgraph_authoring/audit_generated_source_closure.py",
+        "tools/animgraph_authoring/audit_source_closure.py",
         "--source-directory",
-        "target/bf116_04e/source",
+        "target/bf131/migration/full-source",
         "--materialized-directory",
-        "target/bf116_finish/corpus_root",
+        "target/bf131/migration/full-conversion/ALS/Character/AB_Als",
         "--spec",
-        "target/bf116_04e/spec.json"
+        "target/animgraph_authoring/current.spec.json"
       ]
     },
     {
@@ -487,7 +487,11 @@
         "python",
         "tools/verify_animgraph_node_positions.py",
         "--root",
-        "assets/generated"
+        "assets",
+        "--include",
+        "ALS",
+        "--include",
+        "ALSCamera"
       ]
     },
     {
@@ -497,17 +501,7 @@
         "python",
         "tools/validate_animgraph_editor_assets.py",
         "--root",
-        "assets/generated"
-      ]
-    },
-    {
-      "label": "runtime_wrapper_editor",
-      "scope": "editor",
-      "argv": [
-        "python",
-        "tools/validate_animgraph_editor_assets.py",
-        "--root",
-        "assets/graphs/runtime"
+        "assets"
       ]
     },
     {
@@ -523,7 +517,7 @@
     }
   ],
   "runtime_gate": {
-    "contract_gate": "generated_animgraph_assets",
+    "contract_gate": "animgraph_assets",
     "manual_case": "rotating_base"
   },
   "focused_tests": [

@@ -1,6 +1,6 @@
 {
   "format": "als_animgraph_authoring_gate_v1",
-  "id": "generated_ab_als_bow_character",
+  "id": "ab_als_bow_character",
   "source_evidence": [
     {
       "path": "target/bf116_finish/source/ALS_ALS_Character_AnimationInstances_Overlays_AB_Als_Bow.AB_Als_Bow.ue.json",
@@ -1436,13 +1436,13 @@
       "scope": "source",
       "argv": [
         "python",
-        "tools/animgraph_authoring/audit_generated_source_closure.py",
+        "tools/animgraph_authoring/audit_source_closure.py",
         "--source-directory",
-        "target/bf116_finish/source",
+        "target/bf131/migration/full-source",
         "--materialized-directory",
-        "target/bf116_finish/corpus_character_bow",
+        "target/bf131/migration/full-conversion/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow",
         "--spec",
-        "target/bf116_finish/spec.json"
+        "target/animgraph_authoring/current.spec.json"
       ]
     },
     {
@@ -1452,7 +1452,7 @@
         "python",
         "tools/verify_animgraph_node_positions.py",
         "--root",
-        "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow"
+        "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow"
       ]
     },
     {
@@ -1462,7 +1462,7 @@
         "python",
         "tools/validate_animgraph_editor_assets.py",
         "--root",
-        "assets/generated/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow"
+        "assets/ALS/Character/AnimationInstances/Overlays/AB_Als_Bow"
       ]
     },
     {
@@ -1478,7 +1478,7 @@
     }
   ],
   "runtime_gate": {
-    "contract_gate": "generated_animgraph_assets",
+    "contract_gate": "animgraph_assets",
     "manual_case": "bow"
   },
   "recursive_inventory": null,

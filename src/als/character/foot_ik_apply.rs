@@ -152,7 +152,7 @@ impl Plugin for FootIkApplyPlugin {
                 FootIkApplySet::UpdateInputs
                     .after(crate::crouching_layer::AlsCrouchingLayerSet)
                     .after(crate::character_assembly::sync_avatar_stance_offset)
-                    .before(crate::generated_ab_als_provider::GeneratedAbAlsProviderSet)
+                    .before(crate::ab_als_provider::AbAlsProviderSet)
                     .after(crate::als::motion::AlsRotationResponseSet)
                     .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
                 FootIkApplySet::Telemetry.after(AnimationGraphSet::Final)

@@ -78,7 +78,7 @@ def run(root, fix):
             path_repairs = repair_asset(path)
             if path_repairs:
                 repairs[relative(path, root)] = path_repairs
-    failures = {}
+    failures = {} if paths else {"root": {"error": "No animation graph or state machine assets found"}}
     self_transitions = []
     for path in paths:
         name = relative(path, root)
@@ -109,6 +109,9 @@ def run_self_test():
     }
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
+        for empty_root in (root, root / "missing"):
+            report, passed = run(empty_root, False)
+            assert not passed and report["checked_files"] == 0
         (root / "broken.animgraph.ron").write_text(
             '(\n'
             '    input_times: ["tick"],\n'
@@ -141,12 +144,13 @@ def run_self_test():
         assert report["repairs"]
         assert len(report["self_transitions"]) == 1
     results["composite_repair"] = "PASS"
+    results["empty_roots_rejected"] = "PASS"
     return results
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--root", type=Path, default=Path("assets/graphs"))
+    parser.add_argument("--root", type=Path, default=Path("assets"))
     parser.add_argument("--fix", action="store_true")
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()

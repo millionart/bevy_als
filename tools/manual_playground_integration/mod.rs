@@ -81,7 +81,7 @@ use crate::foot_ik_apply::{
     AlsFootIkWeightOverride, AlsFootLockTeleportTelemetry, FootIkApplySet,
 };
 use crate::game_mode::AlsPlayerAdmissionComplete;
-use crate::generated_transition_notify::GeneratedTransitionNotifyTelemetry;
+use crate::transition_notify::TransitionNotifyTelemetry;
 use crate::grounded_layer::AlsGroundedEntryMode;
 use crate::grounded_layer::AlsGroundedGraphTelemetry;
 use crate::head_layer::AlsHeadState;
@@ -907,7 +907,7 @@ enum IntegrationPhase {
     StateMachineGrounded,
     StateMachineAir,
     StateMachineRotate,
-    GeneratedTransitionNotify,
+    TransitionNotify,
     Locomotion,
     CrouchRecovery,
     CrouchClearance,
@@ -962,7 +962,7 @@ enum IntegrationScenario {
     Footprint,
     Head,
     StateMachine,
-    GeneratedTransitionNotify,
+    TransitionNotify,
     FootIk,
     Sprint,
     Ragdoll,
@@ -995,7 +995,7 @@ impl IntegrationScenario {
             Some("footprint") => Self::Footprint,
             Some("head") => Self::Head,
             Some("state_machine") => Self::StateMachine,
-            Some("transition_notify") => Self::GeneratedTransitionNotify,
+            Some("transition_notify") => Self::TransitionNotify,
             Some("foot_ik") => Self::FootIk,
             Some("sprint") => Self::Sprint,
             Some("ragdoll") => Self::Ragdoll,
@@ -1022,8 +1022,8 @@ fn initial_phase(scenario: IntegrationScenario) -> IntegrationPhase {
         IntegrationScenario::StandingStop | IntegrationScenario::CrouchingActions => IntegrationPhase::StandingStop,
         IntegrationScenario::StandingTurn => IntegrationPhase::StandingTurn,
         IntegrationScenario::StandingDynamic => IntegrationPhase::StandingDynamic,
-        IntegrationScenario::GeneratedTransitionNotify => {
-            IntegrationPhase::GeneratedTransitionNotify
+        IntegrationScenario::TransitionNotify => {
+            IntegrationPhase::TransitionNotify
         }
         IntegrationScenario::Grounded => IntegrationPhase::Roll,
         IntegrationScenario::LocomotionActions => IntegrationPhase::LocomotionActions,
@@ -1853,7 +1853,7 @@ fn observe_locomotion_actions(
     let actual = locomotion_graph_sample(player, motion);
     let speed = graph_global_f32(player, "locomotion_state.speed").unwrap_or(0.0);
     let delta = graph_global_f32(player, "animation.delta_seconds").unwrap_or(0.0);
-    let notify = motion.generated_transition_notify.get(character).ok().flatten().map_or(0, |value| value.land_to_grounded_count);
+    let notify = motion.transition_notify.get(character).ok().flatten().map_or(0, |value| value.land_to_grounded_count);
     let probe = &mut state.locomotion_probe;
     let index = probe.case_index;
     if actual.outer == Some(0) && actual.outer_transition == Some(false) && locomotion == LocomotionState::Grounded && stance == Stance::Standing {
@@ -3504,8 +3504,8 @@ struct MotionProbe<'w, 's> {
     gait: Query<'w, 's, (&'static AlsDesiredGait, &'static AlsMaxAllowedGait), With<AlsCharacter>>,
     rotation_animation:
         Query<'w, 's, Option<&'static AlsRotationAnimationState>, With<AlsCharacter>>,
-    generated_transition_notify:
-        Query<'w, 's, Option<&'static GeneratedTransitionNotifyTelemetry>, With<AlsCharacter>>,
+    transition_notify:
+        Query<'w, 's, Option<&'static TransitionNotifyTelemetry>, With<AlsCharacter>>,
     overlay_objects: Query<'w, 's, (&'static AlsOverlayObject, Option<&'static crate::extensions::overlay_materials::AvatarMaterialApplied>)>,
     object_scenes: Query<'w, 's, &'static AnimatedSceneInstance>,
     object_players: Query<'w, 's, &'static AnimationGraphPlayer>,
@@ -4959,7 +4959,7 @@ fn drive_manual_integration(
                 begin_phase(&mut state, IntegrationPhase::StateMachineAir);
             }
         }
-        IntegrationPhase::GeneratedTransitionNotify => {
+        IntegrationPhase::TransitionNotify => {
             if entering {
                 state.generated_stop_quick_input_started = false;
                 state.generated_stop_quick_input_released = false;
@@ -5007,7 +5007,7 @@ fn drive_manual_integration(
                 rebase_temporal_fixture(
                     &mut state,
                     &mut phase_evidence,
-                    "generated_transition_notify",
+                    "transition_notify",
                 );
             }
             input.0.move_dir = if should_move { Vec2::Y } else { Vec2::ZERO };
@@ -7030,7 +7030,7 @@ fn observe_manual_integration(
     }
     if state.scenario == IntegrationScenario::Grounded && !state.entered {
         let notify = motion_probe
-            .generated_transition_notify
+            .transition_notify
             .get(character)
             .ok()
             .flatten();
@@ -7396,7 +7396,7 @@ fn observe_manual_integration(
     if state.scenario == IntegrationScenario::BowOverlay && state.phase == IntegrationPhase::BowOverlay && !state.entered {
         let now = state.game_time_seconds;
         let mode = motion_probe.rotation_mode.get(character).copied().unwrap_or(RotationMode::ViewDirection);
-        let notify = motion_probe.generated_transition_notify.get(character).ok().flatten();
+        let notify = motion_probe.transition_notify.get(character).ok().flatten();
         let probe = &mut state.bow_probe;
         bow::observe(probe, player, &motion_probe, context, *stance, mode, speed, &mut animation_window);
         gate_report.direction_trace.push(serde_json::json!({"case": probe.index, "time": now, "covered": probe.covered,
@@ -8706,10 +8706,10 @@ fn observe_manual_integration(
     });
     if matches!(
         state.scenario,
-        IntegrationScenario::StateMachine | IntegrationScenario::GeneratedTransitionNotify
+        IntegrationScenario::StateMachine | IntegrationScenario::TransitionNotify
     ) {
         state.coverage.generated_transition_stop_quick |= motion_probe
-            .generated_transition_notify
+            .transition_notify
             .get(character)
             .ok()
             .flatten()
@@ -9370,13 +9370,13 @@ fn observe_manual_integration(
         gate_report.direction_trace.push(serde_json::json!({
             "elapsed": state.phase_elapsed(), "phase": "Roll",
             "diagnostic": state.grounded_roll_exit_diagnostic,
-            "notify": motion_probe.generated_transition_notify.get(character).ok().flatten().map(|value| format!("{value:?}")),
+            "notify": motion_probe.transition_notify.get(character).ok().flatten().map(|value| format!("{value:?}")),
         }));
     }
     if grounded_roll_exit_transition_matches_source(
         state.phase,
         motion_probe
-            .generated_transition_notify
+            .transition_notify
             .get(character)
             .ok()
             .flatten()
@@ -9391,7 +9391,7 @@ fn observe_manual_integration(
         info!(
             "[MANUAL-INTEGRATION][GROUNDED-ROLL-EXIT] requested_stance={:?} kind={:?} blend_in={:.3} blend_out={:.3} play_rate={:.3} start_time={:.3} slot_weight={:.3} -> PASS",
             motion_probe
-                .generated_transition_notify
+                .transition_notify
                 .get(character)
                 .ok()
                 .flatten()
@@ -9883,8 +9883,8 @@ fn observe_manual_integration(
     if state.phase == IntegrationPhase::Finish && !state.final_logged {
         state.final_logged = true;
         let grounded_roll_exit_detail = state.grounded_roll_exit_diagnostic.clone();
-        let generated_transition_notify_detail = motion_probe
-            .generated_transition_notify
+        let transition_notify_detail = motion_probe
+            .transition_notify
             .get(character)
             .ok()
             .flatten()
@@ -10116,7 +10116,7 @@ fn observe_manual_integration(
                     coverage.generated_transition_stop_quick,
                 ),
             ],
-            IntegrationScenario::GeneratedTransitionNotify => vec![
+            IntegrationScenario::TransitionNotify => vec![
                 ("runtime_assembly", coverage.assembly),
                 ("animation_graph", coverage.graph),
                 (
@@ -10499,7 +10499,7 @@ fn observe_manual_integration(
                 detail: if *name == "grounded_roll_exit_transition" {
                     grounded_roll_exit_detail.clone()
                 } else if *name == "generated_stop_quick_transition_notify" {
-                    generated_transition_notify_detail.clone()
+                    transition_notify_detail.clone()
                 } else if *name == "ragdoll_pa_profile" {
                     ragdoll_profile_detail.clone()
                 } else if *name == "direction_source_states" {
@@ -11468,10 +11468,10 @@ mod tests {
     }
 
     #[test]
-    fn generated_transition_notify_starts_at_the_source_stop_window() {
+    fn transition_notify_starts_at_the_source_stop_window() {
         assert_eq!(
-            initial_phase(IntegrationScenario::GeneratedTransitionNotify),
-            IntegrationPhase::GeneratedTransitionNotify
+            initial_phase(IntegrationScenario::TransitionNotify),
+            IntegrationPhase::TransitionNotify
         );
     }
 
@@ -11739,7 +11739,7 @@ mod tests {
     }
 
     #[test]
-    fn generated_transition_notify_releases_on_actual_idle_to_move_transition() {
+    fn transition_notify_releases_on_actual_idle_to_move_transition() {
         assert_eq!(
             generated_stop_quick_input_step(false, false, None),
             (false, false, false)

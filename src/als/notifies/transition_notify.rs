@@ -18,7 +18,7 @@ use crate::stop_link::{AlsQuickStopNotify, AlsTransitionPlayback, AlsTransitionM
 use crate::turn_layer::{AlsTurnDrive, AlsTurnMontageStack, SourceTurnRequest, TURN_MONTAGE_BLEND_DURATION};
 
 #[derive(Component, Debug, Default, Clone, PartialEq, Eq)]
-pub struct GeneratedTransitionNotifyTelemetry {
+pub struct TransitionNotifyTelemetry {
     pub activate_pivot_count: u32,
     pub stop_quick_count: u32,
     pub land_to_grounded_count: u32,
@@ -37,14 +37,14 @@ pub struct GeneratedTransitionNotifyTelemetry {
 }
 
 #[derive(Resource, Default)]
-struct GeneratedTransitionNotifyCursor {
+struct TransitionNotifyCursor {
     generations: HashMap<(Entity, GraphContextId, NodeId), u64>,
     queued_transitions: HashMap<Entity, AlsTransitionPlayback>,
     queued_turns: HashMap<Entity, SourceTurnRequest>,
     source_frames: HashMap<Entity, (u64, u64)>,
 }
 
-impl GeneratedTransitionNotifyCursor {
+impl TransitionNotifyCursor {
     fn take_transition(
         &mut self,
         character: Entity,
@@ -58,7 +58,7 @@ impl GeneratedTransitionNotifyCursor {
     }
 }
 
-pub struct GeneratedTransitionNotifyPlugin;
+pub struct TransitionNotifyPlugin;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum TransitionNotifyAction {
@@ -115,33 +115,33 @@ fn grounded_entry_reset_requested(source: &SourceInstanceProperties, frame: u64)
             == Some(true)
 }
 
-impl Plugin for GeneratedTransitionNotifyPlugin {
+impl Plugin for TransitionNotifyPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<GeneratedTransitionNotifyCursor>()
-            .add_systems(PreUpdate, ensure_generated_transition_notify_telemetry)
+        app.init_resource::<TransitionNotifyCursor>()
+            .add_systems(PreUpdate, ensure_transition_notify_telemetry)
             .add_systems(
                 PostUpdate,
-                dispatch_generated_transition_notifications
+                dispatch_transition_notifications
                     .after(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate)
                     .before(AnimationGraphSet::PostPhysics),
             );
     }
 }
 
-fn ensure_generated_transition_notify_telemetry(
+fn ensure_transition_notify_telemetry(
     mut commands: Commands,
     characters: Query<
         Entity,
         (
             With<crate::als::character::AlsCharacter>,
-            Without<GeneratedTransitionNotifyTelemetry>,
+            Without<TransitionNotifyTelemetry>,
         ),
     >,
 ) {
     for character in &characters {
         commands
             .entity(character)
-            .insert(GeneratedTransitionNotifyTelemetry::default());
+            .insert(TransitionNotifyTelemetry::default());
     }
 }
 
@@ -189,13 +189,13 @@ pub(crate) fn queue_turn_in_grounded_group(
     });
 }
 
-fn dispatch_generated_transition_notifications(
+fn dispatch_transition_notifications(
     mut source_inputs: Query<&mut crate::extensions::SourceAnimationInputs>,
-    mut cursor: ResMut<GeneratedTransitionNotifyCursor>,
+    mut cursor: ResMut<TransitionNotifyCursor>,
     avatars: Query<(Entity, &AlsCharacterAvatar, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
     players: Query<&AnimationGraphPlayer>,
     graphs: Res<Assets<AnimationGraph>>,
-    mut telemetry: Query<&mut GeneratedTransitionNotifyTelemetry>,
+    mut telemetry: Query<&mut TransitionNotifyTelemetry>,
     mut pivot_notices: MessageWriter<AlsPivotNotify>,
     mut quick_stop_notices: MessageWriter<AlsQuickStopNotify>,
     mut playbacks: Query<&mut AlsTransitionMontageStack>,
@@ -567,19 +567,19 @@ mod tests {
                 assert!(std::time::Instant::now() < deadline, "Character animation did not load");
                 std::thread::sleep(std::time::Duration::from_millis(5));
             };
-            let previous_instance = app.world().resource::<GeneratedTransitionNotifyCursor>().source_frames[&player].0;
+            let previous_instance = app.world().resource::<TransitionNotifyCursor>().source_frames[&player].0;
             let instance = app.world().get::<AnimationGraphPlayer>(player).unwrap();
             let bevy_animation_graph::core::animation_graph_player::AnimationSource::Graph(graph) = instance.get_animation_source() else { panic!("Character graph is missing"); };
             let graph = graph.clone();
             let stale = (player, instance.get_context_arena().unwrap().get_toplevel_id(), NodeId::default());
-            app.world_mut().resource_mut::<GeneratedTransitionNotifyCursor>().generations.insert(stale, 1);
+            app.world_mut().resource_mut::<TransitionNotifyCursor>().generations.insert(stale, 1);
             app.world_mut().get_mut::<AnimationGraphPlayer>(player).unwrap().start(graph);
             app.update();
-            let cursor = app.world().resource::<GeneratedTransitionNotifyCursor>();
+            let cursor = app.world().resource::<TransitionNotifyCursor>();
             assert_ne!(cursor.source_frames[&player].0, previous_instance);
             assert!(!cursor.generations.contains_key(&stale), "Reinitialized instance retained old FSM generations");
             {
-                let mut cursor = app.world_mut().resource_mut::<GeneratedTransitionNotifyCursor>();
+                let mut cursor = app.world_mut().resource_mut::<TransitionNotifyCursor>();
                 assert!(cursor.source_frames.contains_key(&player));
                 assert!(cursor.generations.keys().any(|key| key.0 == player));
                 cursor.queued_transitions.insert(character, AlsTransitionPlayback::stop(0.0));
@@ -593,8 +593,8 @@ mod tests {
                 2 => { app.world_mut().despawn(player); }
                 _ => { app.world_mut().entity_mut(player).remove::<AnimationGraphPlayer>(); }
             }
-            app.world_mut().run_system_once(dispatch_generated_transition_notifications).unwrap();
-            let cursor = app.world().resource::<GeneratedTransitionNotifyCursor>();
+            app.world_mut().run_system_once(dispatch_transition_notifications).unwrap();
+            let cursor = app.world().resource::<TransitionNotifyCursor>();
             assert!(!cursor.source_frames.contains_key(&player), "Removed instance retained its source frame: {removal}");
             assert!(!cursor.generations.keys().any(|key| key.0 == player), "Removed instance retained FSM generations: {removal}");
             assert!(!cursor.queued_transitions.contains_key(&character));
@@ -636,7 +636,7 @@ mod tests {
     #[test]
     fn state_function_transition_waits_until_the_source_stop_request_is_consumed() {
         let character = Entity::PLACEHOLDER;
-        let mut cursor = GeneratedTransitionNotifyCursor::default();
+        let mut cursor = TransitionNotifyCursor::default();
         cursor
             .queued_transitions
             .insert(character, AlsTransitionPlayback::stop(0.0));

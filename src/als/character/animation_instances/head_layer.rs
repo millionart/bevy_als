@@ -20,7 +20,7 @@ use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 
 use crate::animation_context_projection::{AlsRootAnimationContext, AlsRootAnimationContextSet};
 use crate::character_assembly::AlsCharacterAvatar;
-use crate::generated_ab_als_provider::GeneratedAbAlsProviderSet;
+use crate::ab_als_provider::AbAlsProviderSet;
 use crate::layering_layer::AlsLayeringLayerSet;
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -34,7 +34,7 @@ impl Plugin for HeadLayerPlugin {
             PostUpdate,
             AlsHeadLayerSet
                 .after(AlsLayeringLayerSet)
-                .after(GeneratedAbAlsProviderSet)
+                .after(AbAlsProviderSet)
                 .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
         )
         .add_systems(PostUpdate, head_layer_writer.in_set(AlsHeadLayerSet))

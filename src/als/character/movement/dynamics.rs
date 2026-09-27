@@ -5,7 +5,7 @@ use bevy_tnua::{TnuaController, TnuaMotor, TnuaPipelineSystems};
 use crate::als::character::{AlsCharacter, AlsCmcAdapterRuntime, AlsMovementParamsHandle};
 use crate::als::control_scheme::AlsControlScheme;
 use crate::als::gait::{AlsGaitAmount, AlsMaxAllowedGait, calculate_gait_amount_for_thresholds};
-use crate::als::generated_movement_constants::MAX_SPEED_SQUARED_RATIO;
+use crate::als::movement_constants::MAX_SPEED_SQUARED_RATIO;
 use crate::als::input::AlsInputCommand;
 use crate::als::mantle::AlsMantleState;
 use crate::als::motion::{AlsInputOverride, AlsViewYaw};

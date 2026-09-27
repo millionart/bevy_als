@@ -42,10 +42,10 @@ pub mod footprint;
 pub mod gait_layer;
 #[path = "als_extras/core/game_mode.rs"]
 pub mod game_mode;
-#[path = "als/character/animation_instances/generated_ab_als_provider.rs"]
-pub mod generated_ab_als_provider;
-#[path = "als/notifies/generated_transition_notify.rs"]
-pub mod generated_transition_notify;
+#[path = "als/character/animation_instances/ab_als_provider.rs"]
+pub mod ab_als_provider;
+#[path = "als/notifies/transition_notify.rs"]
+pub mod transition_notify;
 #[path = "als/character/actions/get_up.rs"]
 pub mod get_up;
 #[path = "als/character/animation_instances/grounded_layer.rs"]
