@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "eb792c65-64eb-57fc-a93c-444fcae4c538", name: "Run to Walk", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [], alpha_blend_mode: HermiteCubic, custom_curve: []) }, should_debug: false),
+        (id: "eb792c65-64eb-57fc-a93c-444fcae4c538", name: "Run to Walk", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [], profile_mode: WeightFactor, alpha_blend_mode: HermiteCubic, custom_curve: []) }, should_debug: false),
     ],
     edges_inverted: {
         NodeData("eb792c65-64eb-57fc-a93c-444fcae4c538", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),

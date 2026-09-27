@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "7e210d30-4655-55c1-9a99-dfe21a6edfe4", name: "Loop to Flail", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [], alpha_blend_mode: HermiteCubic, custom_curve: []) }, should_debug: false),
+        (id: "7e210d30-4655-55c1-9a99-dfe21a6edfe4", name: "Loop to Flail", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [], profile_mode: WeightFactor, alpha_blend_mode: HermiteCubic, custom_curve: []) }, should_debug: false),
     ],
     edges_inverted: {
         NodeData("7e210d30-4655-55c1-9a99-dfe21a6edfe4", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),

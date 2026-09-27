@@ -289,7 +289,7 @@ pub use playground::{
 };
 pub use pose_timestamp::PoseTimestampNode;
 pub use profile_blend::{
-    AlphaBlendMode, BoneBlendScale, ProfiledBlendNode, curve_a_input, curve_b_input,
+    AlphaBlendMode, BlendProfileMode, BoneBlendScale, ProfiledBlendNode, curve_a_input, curve_b_input,
     profile_target_weight, transition_alpha,
 };
 pub use ragdoll_angular_drive::{
@@ -426,6 +426,7 @@ impl Plugin for AlsExtPlugin {
             .register_type::<RichCurveKey>()
             .register_type::<RichCurveSampleNode>()
             .register_type::<AlphaBlendMode>()
+            .register_type::<BlendProfileMode>()
             .register_type::<BoneBlendScale>()
             .register_type::<ProfiledBlendNode>()
             .register_type::<InertializationNode>()

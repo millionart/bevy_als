@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "0e3acf6f-b300-54f0-becf-29021295c219", name: "Roll to Standing", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [], alpha_blend_mode: Cubic, custom_curve: []) }, should_debug: false),
+        (id: "0e3acf6f-b300-54f0-becf-29021295c219", name: "Roll to Standing", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [], profile_mode: WeightFactor, alpha_blend_mode: Cubic, custom_curve: []) }, should_debug: false),
     ],
     edges_inverted: {
         NodeData("0e3acf6f-b300-54f0-becf-29021295c219", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),

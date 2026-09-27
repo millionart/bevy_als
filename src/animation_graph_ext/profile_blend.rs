@@ -5,9 +5,8 @@ use bevy_animation_graph::core::{
     animation_graph::TimeUpdate,
     animation_node::{NodeLike, ReflectNodeLike},
     context::{new_context::NodeContext, spec_context::SpecContext},
-    edge_data::{DataSpec, bone_mask::BoneMask},
+    edge_data::DataSpec,
     errors::GraphError,
-    interpolation::linear::LinearInterpolator,
     pose::Pose,
     skeleton::Skeleton,
 };
@@ -15,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::extensions::{RichCurveKey, sample_rich_curve};
 
-const WEIGHT_THRESHOLD: f32 = 1e-6;
+const WEIGHT_THRESHOLD: f32 = 1e-5;
 
 pub fn curve_a_input(curve: &str) -> String {
     format!("curve_a_{curve}")
@@ -43,12 +42,21 @@ pub enum AlphaBlendMode {
     Custom,
 }
 
+#[derive(Reflect, Serialize, Deserialize, Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[reflect(Default, Serialize)]
+pub enum BlendProfileMode {
+    TimeFactor,
+    #[default]
+    WeightFactor,
+}
+
 #[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
 pub struct ProfiledBlendNode {
     pub curve_names: Vec<String>,
     pub bone_scales: Vec<BoneBlendScale>,
+    pub profile_mode: BlendProfileMode,
     pub alpha_blend_mode: AlphaBlendMode,
     pub custom_curve: Vec<RichCurveKey>,
 }
@@ -64,16 +72,16 @@ impl ProfiledBlendNode {
 
 pub fn profile_target_weight(alpha: f32, scale: f32) -> f32 {
     let alpha = alpha.clamp(0.0, 1.0);
-    if alpha <= WEIGHT_THRESHOLD {
-        return 0.0;
-    }
-    if alpha >= 1.0 - WEIGHT_THRESHOLD {
-        return 1.0;
-    }
-    let scale = scale.max(WEIGHT_THRESHOLD);
-    let target = alpha * scale;
-    let source = (1.0 - alpha) / scale;
-    target / (target + source)
+    let target = (alpha * scale).max(WEIGHT_THRESHOLD);
+    let source = if scale > WEIGHT_THRESHOLD { (1.0 - alpha) / scale } else { 1.0 };
+    normalize_profile_weight(target, source.max(WEIGHT_THRESHOLD))
+}
+
+fn normalize_profile_weight(target: f32, source: f32) -> f32 {
+    let total = target + source;
+    if total <= WEIGHT_THRESHOLD { 0.5 }
+    else if (total - 1.0).abs() <= WEIGHT_THRESHOLD { target }
+    else { target / total }
 }
 
 pub fn transition_alpha(
@@ -102,47 +110,43 @@ pub fn transition_alpha(
     value.clamp(0.0, 1.0)
 }
 
-fn scale_lookup(scales: &[BoneBlendScale]) -> HashMap<&str, f32> {
-    scales
-        .iter()
-        .map(|scale| (scale.bone.as_str(), scale.scale))
-        .collect()
-}
-
-fn profile_mask(skeleton: &Skeleton, scales: &[BoneBlendScale], alpha: f32) -> BoneMask {
-    let mut mask = BoneMask::all();
-    if alpha <= WEIGHT_THRESHOLD {
-        return mask;
+impl ProfiledBlendNode {
+    fn bone_weight(&self, factor: f32, alpha: f32, scale: f32) -> f32 {
+        if self.profile_mode == BlendProfileMode::WeightFactor {
+            return profile_target_weight(alpha, scale);
+        }
+        if scale >= 1.0 - WEIGHT_THRESHOLD {
+            return normalize_profile_weight(alpha, alpha);
+        }
+        let scale = scale.clamp(0.0, 1.0);
+        let begin = if scale > WEIGHT_THRESHOLD { 0.0 } else { 1.0 };
+        let current = if scale > WEIGHT_THRESHOLD { (factor / scale).clamp(0.0, 1.0) } else { 1.0 };
+        let begin = transition_alpha(begin, self.alpha_blend_mode, &self.custom_curve);
+        let current = transition_alpha(current, self.alpha_blend_mode, &self.custom_curve);
+        (begin + current * (1.0 - begin)).clamp(WEIGHT_THRESHOLD, 1.0)
     }
-    let scales = scale_lookup(scales);
-    for bone in skeleton.iter_bones() {
-        let Some(path) = skeleton.id_to_path(bone) else {
-            continue;
-        };
-        let Some(name) = path.parts.last() else {
-            continue;
-        };
-        let Some(scale) = scales.get(name.as_str()).copied() else {
-            continue;
-        };
-        let target_weight = profile_target_weight(alpha, scale);
-        mask.add_bone_weight(bone, path, target_weight / alpha);
-    }
-    mask
-}
 
-fn blend_pose(
-    source: &mut Pose,
-    target: &Pose,
-    alpha: f32,
-    skeleton: Option<&Skeleton>,
-    scales: &[BoneBlendScale],
-) {
-    let mask = match skeleton {
-        Some(skeleton) if !scales.is_empty() => profile_mask(skeleton, scales, alpha),
-        _ => BoneMask::all(),
-    };
-    LinearInterpolator { bone_mask: mask }.interpolate_pose(source, target, alpha);
+    fn blend_pose(&self, source: &mut Pose, target: &Pose, factor: f32, skeleton: Option<&Skeleton>) -> f32 {
+        let alpha = transition_alpha(factor, self.alpha_blend_mode, &self.custom_curve);
+        let scales: HashMap<_, _> = self.bone_scales.iter().map(|scale| (scale.bone.as_str(), scale.scale)).collect();
+        for (bone, target_index) in &target.paths {
+            let scale = skeleton.filter(|_| !scales.is_empty()).and_then(|skeleton| skeleton.id_to_path(*bone))
+                .and_then(|path| path.parts.last().and_then(|name| scales.get(name.as_str()).copied()));
+            let weight = scale.map_or(alpha, |scale| self.bone_weight(factor, alpha, scale));
+            if let Some(source_index) = source.paths.get(bone) {
+                source.bones[*source_index].linear_blend_mut(&target.bones[*target_index], weight);
+            } else {
+                source.add_bone(target.bones[*target_index].clone(), *bone);
+            }
+        }
+        source.root_motion = match (&source.root_motion, &target.root_motion) {
+            (Some(a), Some(b)) => Some(a.linear_blend(b, alpha)),
+            (Some(a), None) => Some(a.scale(1.0 - alpha)),
+            (None, Some(b)) => Some(b.scale(alpha)),
+            (None, None) => None,
+        };
+        alpha
+    }
 }
 
 impl NodeLike for ProfiledBlendNode {
@@ -167,17 +171,13 @@ impl NodeLike for ProfiledBlendNode {
         let target_context =
             crate::extensions::animation_context::pose_input_context_state(&ctx, Self::IN_POSE_B)
                 .unwrap_or_default();
-        let alpha = transition_alpha(
-            ctx.data_back(Self::FACTOR)?.as_f32()?,
-            self.alpha_blend_mode,
-            &self.custom_curve,
-        );
+        let factor = ctx.data_back(Self::FACTOR)?.as_f32()?;
         let skeleton = ctx
             .graph_context
             .resources
             .skeleton_assets
             .get(&source.skeleton);
-        blend_pose(&mut source, &target, alpha, skeleton, &self.bone_scales);
+        let alpha = self.blend_pose(&mut source, &target, factor, skeleton);
         let mut context = crate::extensions::source_pose_nodes::blend_animation_contexts([
             (source_context, 1.0 - alpha),
             (target_context, alpha),
@@ -233,6 +233,99 @@ mod tests {
         skeleton.add_bone(root_path, Transform::IDENTITY, Transform::IDENTITY);
         skeleton.add_bone(foot_path, Transform::IDENTITY, Transform::IDENTITY);
         (skeleton, foot)
+    }
+
+    #[test]
+    fn profile_modes_preserve_source_per_bone_and_global_weights() {
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip, animation_graph::{AnimationGraph, GraphInputPin}, animation_node::AnimationNode,
+            context::{deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+                graph_context_arena::GraphContextArena, new_context::GraphContext, system_resources::SystemResources},
+            pose::RootMotionDelta, state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
+        };
+        fn query(In(handle): In<Handle<AnimationGraph>>, resources: SystemResources) -> (Pose, f32) {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let env = TestIoEnv::default();
+            let entities = default();
+            let inputs = default();
+            let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources,
+                &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+            let output = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.0)), context).unwrap();
+            (output["pose"].as_pose().unwrap().clone(), output["fixture"].as_f32().unwrap())
+        }
+        let mut world = World::new();
+        world.init_resource::<Assets<AnimationGraph>>();
+        world.init_resource::<Assets<GraphClip>>();
+        world.init_resource::<Assets<Skeleton>>();
+        world.init_resource::<Assets<StateMachine>>();
+        let (mut skeleton, foot) = skeleton();
+        let root = skeleton.root();
+        let extra_path = EntityPath::default().child("root").child("target_only");
+        let extra = extra_path.id();
+        skeleton.add_bone(extra_path, Transform::IDENTITY, Transform::IDENTITY);
+        let skeleton = world.resource_mut::<Assets<Skeleton>>().add(skeleton);
+        use AlphaBlendMode::{Cubic, Custom, Linear};
+        use BlendProfileMode::{TimeFactor, WeightFactor};
+        for (profile_mode, scale, factor, mode, expected, global) in [
+            (TimeFactor, 0.5, 0.25, Linear, 0.5, 0.25),
+            (TimeFactor, 0.0, 0.0, Linear, 1.0, 0.0),
+            (TimeFactor, 0.5, 0.0, Linear, 1e-5, 0.0),
+            (TimeFactor, 1.0, 0.25, Linear, 0.5, 0.25),
+            (TimeFactor, 2.0, 0.25, Linear, 0.5, 0.25),
+            (TimeFactor, 1.0, 0.0, Linear, 0.5, 0.0),
+            (TimeFactor, 0.5, 0.25, Cubic, 0.5, 0.15625),
+            (TimeFactor, 0.5, 0.25, Custom, 0.6, 0.35),
+            (TimeFactor, 0.0, 0.25, Custom, 0.96, 0.35),
+            (WeightFactor, 0.0, 0.25, Linear, 1e-5 / 1.00001, 0.25),
+            (WeightFactor, 1.0, 0.25, Linear, 0.25, 0.25),
+            (WeightFactor, 2.0, 0.25, Linear, 4.0 / 7.0, 0.25),
+            (WeightFactor, 0.5, 0.25, Linear, 1.0 / 13.0, 0.25),
+        ] {
+            let custom_curve = if mode == Custom { vec![
+                RichCurveKey { t: 0.0, v: 0.2, interpolation: crate::extensions::RichCurveInterpolation::Linear, ..default() },
+                RichCurveKey { t: 1.0, v: 0.8, interpolation: crate::extensions::RichCurveInterpolation::Linear, ..default() },
+            ] } else { vec![] };
+            let node = AnimationNode::new("profile", ProfiledBlendNode { profile_mode,
+                bone_scales: vec![BoneBlendScale { bone: "foot_l".into(), scale }],
+                alpha_blend_mode: mode, custom_curve, curve_names: vec!["fixture".into()] });
+            let mut source = Pose { skeleton: skeleton.clone(), timestamp: 0.2,
+                root_motion: Some(RootMotionDelta { translation: Vec3::Y, ..default() }), ..default() };
+            source.add_bone(BonePose { translation: Some(Vec3::ZERO), ..default() }, foot);
+            source.add_bone(BonePose { translation: Some(Vec3::Y), ..default() }, root);
+            let mut target = source.clone();
+            target.bones[target.paths[&foot]].translation = Some(Vec3::X);
+            target.bones[target.paths[&root]].translation = Some(Vec3::Y * 3.0);
+            let rotation = Quat::from_rotation_z(0.4);
+            target.bones[target.paths[&root]].rotation = Some(rotation);
+            target.add_bone(BonePose { translation: Some(Vec3::Z), ..default() }, extra);
+            target.root_motion.as_mut().unwrap().translation = Vec3::Y * 3.0;
+            let mut graph = AnimationGraph::new();
+            for (pin, value) in [("pose_a", source.into()), ("pose_b", target.into()),
+                ("factor", factor.into()), ("curve_a_fixture", 2.0_f32.into()), ("curve_b_fixture", 6.0_f32.into())] {
+                graph.set_default_data(GraphInputPin::passthrough(pin), value);
+                graph.add_input_data_edge(GraphInputPin::passthrough(pin), node.id, pin);
+            }
+            for pin in ["time_a", "time_b"] { graph.add_input_time_edge(GraphInputPin::passthrough(pin), node.id, pin); }
+            for (pin, spec) in [("pose", DataSpec::Pose), ("fixture", DataSpec::F32)] {
+                graph.add_output_data(pin.into(), spec);
+                graph.add_output_data_edge(node.id, pin, pin);
+            }
+            graph.add_output_time();
+            graph.add_output_pose_edge(node.id);
+            graph.add_node(node);
+            let handle = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
+            let (output, curve) = world.run_system_cached_with(query, handle).unwrap();
+            let actual = output.get_bone(foot).unwrap().translation.unwrap().x;
+            assert!((actual - expected).abs() < 1e-6, "{profile_mode:?}, {mode:?}, scale={scale}, factor={factor}: {actual} != {expected}");
+            assert!((output.get_bone(root).unwrap().translation.unwrap().y - (1.0 + 2.0 * global)).abs() < 1e-6);
+            assert_eq!(output.get_bone(root).unwrap().rotation, Some(rotation));
+            assert_eq!(output.get_bone(extra).unwrap().translation, Some(Vec3::Z));
+            assert!((output.root_motion.unwrap().translation.y - (1.0 + 2.0 * global)).abs() < 1e-6);
+            assert!((curve - (2.0 + 4.0 * global)).abs() < 1e-6);
+            assert_eq!(output.timestamp, 0.2);
+        }
     }
 
     #[test]
@@ -327,16 +420,13 @@ mod tests {
             },
             foot,
         );
-        blend_pose(
-            &mut source,
-            &target,
-            0.1,
-            Some(&skeleton),
-            &[BoneBlendScale {
+        ProfiledBlendNode {
+            bone_scales: vec![BoneBlendScale {
                 bone: "foot_l".to_owned(),
                 scale: 5.0,
             }],
-        );
+            ..default()
+        }.blend_pose(&mut source, &target, 0.1, Some(&skeleton));
         let value = source.get_bone(foot).unwrap().translation.unwrap().x;
         assert!((value - 0.7352941).abs() < 1e-6);
     }

@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "de7a86b5-e608-58c0-a1ba-ddfe0533e3fe", name: "Grounded Alias to Grounded", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [], alpha_blend_mode: HermiteCubic, custom_curve: []) }, should_debug: false),
+        (id: "de7a86b5-e608-58c0-a1ba-ddfe0533e3fe", name: "Grounded Alias to Grounded", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [], profile_mode: WeightFactor, alpha_blend_mode: HermiteCubic, custom_curve: []) }, should_debug: false),
     ],
     edges_inverted: {
         NodeData("de7a86b5-e608-58c0-a1ba-ddfe0533e3fe", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),

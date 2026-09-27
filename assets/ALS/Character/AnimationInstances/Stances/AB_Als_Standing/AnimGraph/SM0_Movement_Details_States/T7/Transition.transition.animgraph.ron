@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "d184df2d-44b4-57b8-8daa-3572446fd310", name: "Run Start to Run", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [], alpha_blend_mode: HermiteCubic, custom_curve: []) }, should_debug: false),
+        (id: "d184df2d-44b4-57b8-8daa-3572446fd310", name: "Run Start to Run", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [], profile_mode: WeightFactor, alpha_blend_mode: HermiteCubic, custom_curve: []) }, should_debug: false),
     ],
     edges_inverted: {
         NodeData("d184df2d-44b4-57b8-8daa-3572446fd310", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),

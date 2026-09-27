@@ -213,6 +213,22 @@
     {
       "path": "target/bf131/a62/BS_Als_WalkRun_Forward.ue.json",
       "sha256": "1c27aef16d8415e7839bfda4d50bb2f93a7447aaa73cf17fa3e94a4aabc23154"
+    },
+    {
+      "path": "target/bf131/a63/SK_Als.ue.json",
+      "sha256": "d96b9615dab281cd09cab66c32ae966793ec3d26ea2f3f1640c50006bb94e949"
+    },
+    {
+      "path": "target/bf131/a63/BlendProfile.cpp",
+      "sha256": "fed61dc681961a89d87dddf0e8f0495516f8caaab5b3c8937ad5213973daa292"
+    },
+    {
+      "path": "target/bf131/a63/AnimNode_StateMachine.cpp",
+      "sha256": "8dca0f41f0378ad8858f193d69cc8a4fdf43139c8114d20842c67d16ef8c161b"
+    },
+    {
+      "path": "target/bf131/a63/AnimationAsset.cpp",
+      "sha256": "d6bed3680c974fc6663965e6ef0a4dfc1e1d50c4b08bfbf8719cfc9a537e4f84"
     }
   ],
   "graphs": [
@@ -481,9 +497,9 @@
         "python",
         "tools/animgraph_authoring/audit_source_closure.py",
         "--source-directory",
-        "target/bf131/a62/replay/full-source",
+        "target/bf131/a63/replay/full-source",
         "--materialized-directory",
-        "target/bf131/a62/replay/full-conversion/ALS/Character/AB_Als",
+        "target/bf131/a63/replay/full-conversion/ALS/Character/AB_Als",
         "--spec",
         "target/animgraph_authoring/current.spec.json"
       ]
@@ -1007,6 +1023,54 @@
         "2"
       ],
       "evidence": "target/bf1295/bf131-a62-final-source_sequence_evaluator.json"
+    },
+    {
+      "label": "blend_profile_modes_profile_blend",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--profile",
+        "play",
+        "--lib",
+        "profile_blend::tests",
+        "--jobs",
+        "2"
+      ],
+      "evidence": "target/bf1295/bf131-a63-final-profile_blend.json"
+    },
+    {
+      "label": "blend_profile_modes_interruptible_fsm",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--profile",
+        "play",
+        "--lib",
+        "interruptible_fsm::tests",
+        "--jobs",
+        "2"
+      ],
+      "evidence": "target/bf1295/bf131-a63-final-interruptible_fsm.json"
+    },
+    {
+      "label": "blend_profile_modes_source_pose_nodes",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--profile",
+        "play",
+        "--lib",
+        "source_pose_nodes::tests",
+        "--jobs",
+        "2"
+      ],
+      "evidence": "target/bf1295/bf131-a63-final-source_pose_nodes.json"
     }
   ]
 }

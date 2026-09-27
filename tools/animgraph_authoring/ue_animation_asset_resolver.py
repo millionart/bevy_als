@@ -441,6 +441,15 @@ def source_sequence_curves(content_root, mount, source_path, source_reader=None)
     return curves
 
 
+def blend_profile_mode(value):
+    if isinstance(value, dict):
+        value = value.get("value", value.get("enum_name"))
+    value = value.rsplit("::", 1)[-1] if isinstance(value, str) else value
+    if value not in ("TimeFactor", "WeightFactor"):
+        raise AssetResolutionError("source blend profile mode is unsupported")
+    return value
+
+
 def blend_profile_contract(source, source_path):
     package_object, separator, profile_name = source_path.rpartition(":")
     if not separator or not package_object or not profile_name:
@@ -460,6 +469,8 @@ def blend_profile_contract(source, source_path):
     if len(matches) != 1:
         raise AssetResolutionError("source blend profile export is missing or ambiguous")
     try:
+        properties = {row["name"]: row["exported_text"] for row in matches[0]["properties"]}
+        mode = blend_profile_mode(properties.get("Mode", "WeightFactor"))
         entries = parse_list(object_property(matches[0], "ProfileEntries"))
         scales = []
         for raw_entry in entries:
@@ -474,7 +485,7 @@ def blend_profile_contract(source, source_path):
             scales.append({"bone": bone, "scale": scale})
     except ExportedTextError as error:
         raise AssetResolutionError("source blend profile properties are unreadable") from error
-    return {"source_profile": source_path, "bone_scales": scales}
+    return {"source_profile": source_path, "mode": mode, "bone_scales": scales}
 
 
 def source_blend_profile(content_root, mount, source_path, source_reader=None):
@@ -516,7 +527,7 @@ def source_blend_profile(content_root, mount, source_path, source_reader=None):
         ):
             raise AssetResolutionError("source blend profile entry fields are invalid")
         scales.append({"bone": bone, "scale": float(scale)})
-    return {"source_profile": source_path, "bone_scales": scales}
+    return {"source_profile": source_path, "mode": blend_profile_mode(properties.get("Mode", "WeightFactor")), "bone_scales": scales}
 
 
 def source_blend_profile_wrapper(content_root, mount, value, source_reader=None):
@@ -529,7 +540,7 @@ def source_blend_profile_wrapper(content_root, mount, value, source_reader=None)
         raise AssetResolutionError("source blend profile wrapper is invalid") from error
     reference = fields.get("BlendProfile")
     if reference is None:
-        return {"source_profile": None, "bone_scales": []}
+        return {"source_profile": None, "mode": "WeightFactor", "bone_scales": []}
     return source_blend_profile(
         content_root, mount, source_object_path(reference), source_reader
     )
@@ -1637,6 +1648,7 @@ def run_self_test():
         raise AssertionError("non-looping source BlendSpace was accepted")
     assert source_blend_profile_wrapper(None, None, "(bIsSkeletonBlendProfile=True)") == {
         "source_profile": None,
+        "mode": "WeightFactor",
         "bone_scales": [],
     }
     try:
@@ -1714,6 +1726,19 @@ def run_self_test():
         {"bone": "calf_l", "scale": 5.0},
         {"bone": "calf_r", "scale": 5.0},
     ]
+    for mode in ("TimeFactor", "WeightFactor"):
+        fixture = deepcopy(profile_source)
+        fixture["asset_objects"][0]["properties"].append({"name": "Mode", "exported_text": mode})
+        assert blend_profile_contract(fixture, profile_path).get("mode") == mode
+        assert blend_profile_mode({"value": "EBlendProfileMode::" + mode}) == mode
+    assert blend_profile_contract(profile_source, profile_path)["mode"] == "WeightFactor"
+    for mode in ("BlendMask", "Unknown", None, 0):
+        try:
+            blend_profile_mode(mode)
+        except AssetResolutionError:
+            pass
+        else:
+            raise AssertionError("unsupported blend profile mode was accepted")
     with tempfile.TemporaryDirectory() as directory:
         content = Path(directory) / "Content"
         sequence_path = content / "ALS" / "Animations" / "A_Test.uasset"
@@ -1722,6 +1747,13 @@ def run_self_test():
         profile_path_on_disk.parent.mkdir(parents=True)
         sequence_path.write_bytes(b"fixture")
         profile_path_on_disk.write_bytes(b"fixture")
+        for mode in ("TimeFactor", "WeightFactor"):
+            asset = SimpleNamespace(exports=[SimpleNamespace(object_name="QuickFeet")])
+            reader = SimpleNamespace(read_export=lambda _: ({"Mode": {"value": mode}, "ProfileEntries": []}, True, 0))
+            with patch(__name__ + ".UAsset", return_value=asset), \
+                 patch(__name__ + ".PropReader", return_value=reader), \
+                 patch(__name__ + ".source_export_class", return_value="BlendProfile"):
+                assert source_blend_profile(content, "/ALS", profile_path).get("mode") == mode
         original_uasset = globals()["UAsset"]
         original_native = globals()["native_source_asset"]
         try:

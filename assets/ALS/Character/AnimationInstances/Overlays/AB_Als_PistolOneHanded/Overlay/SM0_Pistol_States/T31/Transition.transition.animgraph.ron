@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "63bf8d2a-df2b-542f-94c4-2ffbf8ab060e", name: "Ready to Relaxed", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [], alpha_blend_mode: HermiteCubic, custom_curve: []) }, should_debug: false),
+        (id: "63bf8d2a-df2b-542f-94c4-2ffbf8ab060e", name: "Ready to Relaxed", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [], profile_mode: WeightFactor, alpha_blend_mode: HermiteCubic, custom_curve: []) }, should_debug: false),
     ],
     edges_inverted: {
         NodeData("63bf8d2a-df2b-542f-94c4-2ffbf8ab060e", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),

@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "b8158cda-b4ee-5a91-9ed9-85ddd4f443bd", name: "Entry to Lock Left Foot", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [], alpha_blend_mode: HermiteCubic, custom_curve: []) }, should_debug: false),
+        (id: "b8158cda-b4ee-5a91-9ed9-85ddd4f443bd", name: "Entry to Lock Left Foot", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [], profile_mode: WeightFactor, alpha_blend_mode: HermiteCubic, custom_curve: []) }, should_debug: false),
     ],
     edges_inverted: {
         NodeData("b8158cda-b4ee-5a91-9ed9-85ddd4f443bd", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),

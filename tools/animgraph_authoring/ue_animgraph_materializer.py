@@ -277,7 +277,8 @@ def transition_graph_text(source_asset, transition):
     else:
         profile = render["blend_profile"]
         scales = profile.get("bone_scales", [])
-        if not isinstance(scales, list):
+        profile_mode = profile.get("mode")
+        if not isinstance(scales, list) or profile_mode not in ("TimeFactor", "WeightFactor"):
             raise MaterializationError("source transition blend profile is invalid")
         scale_ron = ", ".join(
             f"(bone: {quoted(scale['bone'])}, scale: {scale['scale']!r})"
@@ -288,7 +289,9 @@ def transition_graph_text(source_asset, transition):
         inner = (
             "(curve_names: [], bone_scales: ["
             + scale_ron
-            + "], alpha_blend_mode: "
+            + "], profile_mode: "
+            + profile_mode
+            + ", alpha_blend_mode: "
             + render["blend_mode"]
             + ", custom_curve: "
             + custom_curve
@@ -824,7 +827,7 @@ def conduit_fixture():
                 "logic": "profiled_blend",
                 "duration": 0.1 * (index + 1),
                 "blend_mode": "Linear",
-                "blend_profile": {"bone_scales": []},
+                "blend_profile": {"mode": "WeightFactor", "bone_scales": []},
                 "automatic_rule": (
                     {
                         "source_semantics": "relevant_asset_time_remaining",
@@ -947,7 +950,7 @@ def run_self_test():
             "logic": "profiled_blend",
             "duration": 0.2,
             "blend_mode": "HermiteCubic",
-            "blend_profile": {"bone_scales": []},
+            "blend_profile": {"mode": "WeightFactor", "bone_scales": []},
         },
     }
     inertial = {
@@ -957,10 +960,21 @@ def run_self_test():
             "logic": "inertialization",
             "duration": 0.1,
             "blend_mode": "HermiteCubic",
-            "blend_profile": {"bone_scales": []},
+            "blend_profile": {"mode": "WeightFactor", "bone_scales": []},
         },
     }
     assert "ProfiledBlendNode" in transition_graph_text("/Asset", standard)
+    for mode in ("TimeFactor", "WeightFactor"):
+        standard["render"]["blend_profile"] = {"mode": mode, "bone_scales": [{"bone": "foot_l", "scale": 0.5}]}
+        assert f"profile_mode: {mode}" in transition_graph_text("/Asset", standard)
+    standard["render"]["blend_profile"]["mode"] = "BlendMask"
+    try:
+        transition_graph_text("/Asset", standard)
+    except MaterializationError:
+        pass
+    else:
+        raise AssertionError("unsupported transition profile mode was accepted")
+    standard["render"]["blend_profile"]["mode"] = "WeightFactor"
     assert "InertializationNode" in transition_graph_text("/Asset", inertial)
     assert "half_life" not in transition_graph_text("/Asset", inertial)
     custom = {
@@ -970,7 +984,7 @@ def run_self_test():
             "logic": "profiled_blend",
             "duration": 0.5,
             "blend_mode": "Custom",
-            "blend_profile": {"bone_scales": []},
+            "blend_profile": {"mode": "WeightFactor", "bone_scales": []},
             "custom_curve": [
                 {
                     "interpolation": "Cubic",

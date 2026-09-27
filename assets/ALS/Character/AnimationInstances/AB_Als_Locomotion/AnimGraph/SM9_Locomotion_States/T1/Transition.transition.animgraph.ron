@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "1d3749f1-a635-51b1-a715-9c5202867bcb", name: "Land to Land Movement", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [], alpha_blend_mode: HermiteCubic, custom_curve: []) }, should_debug: false),
+        (id: "1d3749f1-a635-51b1-a715-9c5202867bcb", name: "Land to Land Movement", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [], profile_mode: WeightFactor, alpha_blend_mode: HermiteCubic, custom_curve: []) }, should_debug: false),
     ],
     edges_inverted: {
         NodeData("1d3749f1-a635-51b1-a715-9c5202867bcb", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),

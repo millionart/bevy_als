@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "753fc077-7dab-513a-9416-077a8ca33995", name: "Roll to Crouching", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [], alpha_blend_mode: Cubic, custom_curve: []) }, should_debug: false),
+        (id: "753fc077-7dab-513a-9416-077a8ca33995", name: "Roll to Crouching", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [], profile_mode: WeightFactor, alpha_blend_mode: Cubic, custom_curve: []) }, should_debug: false),
     ],
     edges_inverted: {
         NodeData("753fc077-7dab-513a-9416-077a8ca33995", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),

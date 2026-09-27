@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "ff465c13-cca0-5f89-96d0-ca5e59cfff14", name: "Land Movement to Grounded", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [], alpha_blend_mode: HermiteCubic, custom_curve: []) }, should_debug: false),
+        (id: "ff465c13-cca0-5f89-96d0-ca5e59cfff14", name: "Land Movement to Grounded", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [], profile_mode: WeightFactor, alpha_blend_mode: HermiteCubic, custom_curve: []) }, should_debug: false),
     ],
     edges_inverted: {
         NodeData("ff465c13-cca0-5f89-96d0-ca5e59cfff14", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),

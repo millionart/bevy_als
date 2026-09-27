@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "e72ff5b6-7a89-552d-83e1-58afafaebf3b", name: "Entry to Plant Left Foot", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [], alpha_blend_mode: HermiteCubic, custom_curve: []) }, should_debug: false),
+        (id: "e72ff5b6-7a89-552d-83e1-58afafaebf3b", name: "Entry to Plant Left Foot", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [], profile_mode: WeightFactor, alpha_blend_mode: HermiteCubic, custom_curve: []) }, should_debug: false),
     ],
     edges_inverted: {
         NodeData("e72ff5b6-7a89-552d-83e1-58afafaebf3b", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),

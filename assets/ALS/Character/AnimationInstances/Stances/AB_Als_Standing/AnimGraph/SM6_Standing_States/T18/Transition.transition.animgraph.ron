@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "48f909e9-b84e-5f34-8ef8-7d80bebd8f55", name: "Move to Idle", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [], alpha_blend_mode: HermiteCubic, custom_curve: []) }, should_debug: false),
+        (id: "48f909e9-b84e-5f34-8ef8-7d80bebd8f55", name: "Move to Idle", inner: { "als_ext::ProfiledBlendNode": (curve_names: [], bone_scales: [], profile_mode: WeightFactor, alpha_blend_mode: HermiteCubic, custom_curve: []) }, should_debug: false),
     ],
     edges_inverted: {
         NodeData("48f909e9-b84e-5f34-8ef8-7d80bebd8f55", "factor"): InputData(FsmBuiltin(PercentThroughDuration)),
