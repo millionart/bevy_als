@@ -5643,8 +5643,8 @@ fn drive_manual_integration(
             }
         }
         IntegrationPhase::StateMachineRotate => {
-            if elapsed >= 3.9 && elapsed - virtual_time.delta_secs() < 3.9 {
-                rebase_temporal_fixture(&mut state, &mut phase_evidence, "state_machine_first_person_view_flip");
+            if let Some(label) = state_machine_rotation_boundary(elapsed, virtual_time.delta_secs()) {
+                rebase_temporal_fixture(&mut state, &mut phase_evidence, label);
             }
             if entering {
                 reset_character(
@@ -5666,6 +5666,7 @@ fn drive_manual_integration(
                 rebase_temporal_fixture(&mut state, &mut phase_evidence, "state_machine_rotate");
                 info!("[MANUAL-INTEGRATION][P1][TURN] rotate_modes start");
             }
+            input.0.aim_held = elapsed < 2.6;
             let body_yaw = fixture.facing_yaw;
             transform.rotation = Quat::from_rotation_y(body_yaw);
             request.locomotion_state = Some(LocomotionState::Grounded);
@@ -6377,6 +6378,12 @@ fn begin_phase(state: &mut ManualIntegrationState, phase: IntegrationPhase) {
     info!("[MANUAL-INTEGRATION][PHASE] {phase:?}");
 }
 
+fn state_machine_rotation_boundary(elapsed: f32, delta: f32) -> Option<&'static str> {
+    [(1.3, "state_machine_aim_view_flip"), (2.6, "state_machine_first_person_enter"),
+        (3.9, "state_machine_first_person_view_flip")].into_iter()
+        .find_map(|(boundary, label)| (elapsed >= boundary && elapsed - delta < boundary).then_some(label))
+}
+
 fn state_machine_turn_target_yaw(elapsed: f32, body_yaw: f32) -> Option<f32> {
     if (STATE_MACHINE_TURN_FIRST_START..STATE_MACHINE_TURN_FIRST_END).contains(&elapsed) {
         Some(body_yaw + 90.0f32.to_radians())
@@ -6754,6 +6761,19 @@ fn manual_gate_exit_ready(
     timed_out: bool,
 ) -> bool {
     timed_out || visual_progress.map_or(true, |progress| progress.evidence_ready)
+}
+
+fn p1_turn_evidence_mask(drive: &AlsTurnDrive, standing: Option<&AlsStandingGraphTelemetry>) -> u8 {
+    let turn = if drive.playing && drive.weight > 1e-4 {
+        if drive.lr <= 0.5 { 1 } else { 2 }
+    } else { 0 };
+    let rotate = match standing.filter(|graph| graph.actual_standing_pose_ready == Some(true)
+        && graph.actual_standing_transition_active == Some(false)).and_then(|graph| graph.actual_standing_state) {
+        Some(3) => 4,
+        Some(4) => 8,
+        _ => 0,
+    };
+    turn | rotate
 }
 
 fn movement_pose_sample(pose: &Pose, skeletons: &Assets<Skeleton>) -> Vec<serde_json::Value> {
@@ -8818,23 +8838,10 @@ fn observe_manual_integration(
 
         if let Some(drive) = turn_drive {
             let previous_mask = state.p1_turn_mask;
-            if drive.playing && drive.weight > 1e-4 {
-                if drive.lr <= 0.5 {
-                    state.p1_turn_mask |= 1 << 0;
-                } else {
-                    state.p1_turn_mask |= 1 << 1;
-                }
-            }
-            if drive.rotate_active && drive.rotate_weight > 1e-4 {
-                if drive.rotate_lr <= 0.5 {
-                    state.p1_turn_mask |= 1 << 2;
-                } else {
-                    state.p1_turn_mask |= 1 << 3;
-                }
-            }
+            state.p1_turn_mask |= p1_turn_evidence_mask(drive, standing_graph);
             if state.p1_turn_mask != previous_mask {
                 info!(
-                    "[MANUAL-INTEGRATION][P1][TURN] mask={:04b} turn=(playing={},lr={:.1},weight={:.3}) slot=(active={},ready={},weight={:.3},inertia_epoch={:.0}) rotate=(active={},lr={:.1},weight={:.3},rate={:.3}) first_person={}",
+                    "[MANUAL-INTEGRATION][P1][TURN] mask={:04b} turn=(playing={},lr={:.1},weight={:.3}) slot=(active={},ready={},weight={:.3},inertia_epoch={:.0}) rotate=(active={},lr={:.1},rate={:.3}) standing_state={:?} standing_pose_ready={:?} first_person={}",
                     state.p1_turn_mask,
                     drive.playing,
                     drive.lr,
@@ -8845,8 +8852,9 @@ fn observe_manual_integration(
                     turn_slot.map_or(0.0, |slot| slot.inertialization_request_epoch),
                     drive.rotate_active,
                     drive.rotate_lr,
-                    drive.rotate_weight,
                     drive.rotate_rate,
+                    standing_graph.and_then(|graph| graph.actual_standing_state),
+                    standing_graph.and_then(|graph| graph.actual_standing_pose_ready),
                     first_person,
                 );
             }
@@ -10548,6 +10556,45 @@ fn observe_manual_integration(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn state_machine_rotation_rebases_each_scripted_input_discontinuity_once() {
+        for (boundary, label) in [(1.3, "state_machine_aim_view_flip"),
+            (2.6, "state_machine_first_person_enter"), (3.9, "state_machine_first_person_view_flip")] {
+            assert_eq!(super::state_machine_rotation_boundary(boundary - 0.01, 0.005), None);
+            assert_eq!(super::state_machine_rotation_boundary(boundary, 0.01), Some(label));
+            assert_eq!(super::state_machine_rotation_boundary(boundary + 0.005, 0.01), Some(label));
+            assert_eq!(super::state_machine_rotation_boundary(boundary + 0.02, 0.01), None);
+            assert_eq!(super::state_machine_rotation_boundary(boundary, 0.0), None);
+        }
+    }
+
+    #[test]
+    fn p1_rotation_coverage_reads_actual_source_state_and_pose() {
+        use super::*;
+        let mut drive = AlsTurnDrive { rotate_active: true, ..default() };
+        let mut graph = AlsStandingGraphTelemetry {
+            actual_standing_state: Some(3), actual_standing_transition_active: Some(false),
+            actual_standing_pose_ready: Some(true), ..default()
+        };
+        assert_eq!(p1_turn_evidence_mask(&drive, Some(&graph)), 4);
+        graph.actual_standing_state = Some(4);
+        assert_eq!(p1_turn_evidence_mask(&drive, Some(&graph)), 8);
+        graph.actual_standing_pose_ready = Some(false);
+        assert_eq!(p1_turn_evidence_mask(&drive, Some(&graph)), 0);
+        graph.actual_standing_pose_ready = Some(true);
+        graph.actual_standing_transition_active = Some(true);
+        assert_eq!(p1_turn_evidence_mask(&drive, Some(&graph)), 0);
+        graph.actual_standing_transition_active = Some(false);
+        graph.actual_standing_state = Some(0);
+        drive.rotate_weight = 1.0;
+        assert_eq!(p1_turn_evidence_mask(&drive, Some(&graph)), 0);
+        drive.playing = true;
+        drive.weight = 0.5;
+        assert_eq!(p1_turn_evidence_mask(&drive, None), 1);
+        drive.lr = 1.0;
+        assert_eq!(p1_turn_evidence_mask(&drive, None), 2);
+    }
+
     #[test]
     fn foot_avatar_replacement_watchdog_ends_only_after_no_progress_limit() {
         use super::{

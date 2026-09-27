@@ -1,7 +1,9 @@
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
+    animation_graph::{AnimationGraph, NodeId},
     animation_node::{NodeLike, ReflectNodeLike},
     context::{
+        graph_context_arena::GraphContextId,
         new_context::{GraphContext, NodeContext},
         node_states::StateKey,
         spec_context::SpecContext,
@@ -59,28 +61,7 @@ fn scoped_cached_context_state(
     cache_key: &str,
 ) -> Option<AnimationContextState> {
     let requested_key = requested_cache_key(cache_node, cache_key);
-    let (context_id, graph, cache) = ctx
-        .graph_context
-        .context_arena
-        .get_ref()
-        .iter_context_ids()
-        .find_map(|context_id| {
-            let context = ctx
-                .graph_context
-                .context_arena
-                .get_ref()
-                .get_context(context_id)?;
-            let graph = ctx
-                .graph_context
-                .resources
-                .animation_graph_assets
-                .get(context.get_graph_id())?;
-            let cache = graph.nodes.values().find(|node| {
-                node.try_inner_downcast_ref::<SourceCachedPoseSaveNode>()
-                    .is_some_and(|cache| saved_cache_key(cache, &node.name) == requested_key)
-            })?;
-            Some((context_id, graph, cache))
-        })?;
+    let (context_id, graph, cache_id) = scoped_cache_context(ctx, requested_key)?;
     let scoped_context = GraphContext {
         context_id,
         graph,
@@ -89,9 +70,38 @@ fn scoped_cached_context_state(
     .with_state_key(StateKey::Default);
     scoped_context
         .node_states()
-        .get::<AnimationContextState>(cache.id, StateKey::Default)
+        .get::<AnimationContextState>(cache_id, StateKey::Default)
         .ok()
         .cloned()
+}
+
+fn linked_instance_context(ctx: &NodeContext, mut context_id: GraphContextId) -> Option<GraphContextId> {
+    let arena = ctx.graph_context.context_arena.get_ref();
+    arena.get_context(context_id)?;
+    while let Some(parent) = arena.get_parent_context(context_id) {
+        let graph_id = arena.get_context(parent.ctx_id)?.get_graph_id();
+        let graph = ctx.graph_context.resources.animation_graph_assets.get(graph_id)?;
+        let node = graph.nodes.get(&parent.node_id)?;
+        if node.try_inner_downcast_ref::<crate::extensions::LayeredGraphNode>().is_some() {
+            return Some(context_id);
+        }
+        context_id = parent.ctx_id;
+    }
+    Some(context_id)
+}
+
+fn scoped_cache_context<'a>(ctx: &NodeContext<'a>, key: &str) -> Option<(GraphContextId, &'a AnimationGraph, NodeId)> {
+    let owner = linked_instance_context(ctx, ctx.graph_context.context_id)?;
+    let arena = ctx.graph_context.context_arena.get_ref();
+    arena.iter_context_ids().find_map(|context_id| {
+        let graph_id = arena.get_context(context_id)?.get_graph_id();
+        let graph = ctx.graph_context.resources.animation_graph_assets.get(graph_id)?;
+        let cache = graph.nodes.values().find(|node| {
+            node.try_inner_downcast_ref::<SourceCachedPoseSaveNode>()
+                .is_some_and(|cache| saved_cache_key(cache, &node.name) == key)
+        })?;
+        (linked_instance_context(ctx, context_id) == Some(owner)).then_some((context_id, graph, cache.id))
+    })
 }
 
 #[derive(Reflect, Clone, Debug, Default, PartialEq)]
@@ -160,46 +170,14 @@ pub(crate) fn prewarm_scoped_cached_pose(
         resolve_cached_pose(ctx, &local_cache)?;
         return Ok(());
     }
-    let contexts = ctx
-        .graph_context
-        .context_arena
-        .get_ref()
-        .iter_context_ids()
-        .filter_map(|context_id| {
-            ctx.graph_context
-                .context_arena
-                .get_ref()
-                .get_context(context_id)
-                .map(|state| (context_id, state.get_graph_id()))
-        })
-        .collect::<Vec<_>>();
-    let (context_id, graph, cache) = contexts
-        .into_iter()
-        .find_map(|(context_id, graph_id)| {
-            ctx.graph_context
-                .resources
-                .animation_graph_assets
-                .get(graph_id)
-                .and_then(|graph| {
-                    graph
-                        .nodes
-                        .values()
-                        .find(|node| {
-                            node.try_inner_downcast_ref::<SourceCachedPoseSaveNode>()
-                                .is_some_and(|cache| {
-                                    saved_cache_key(cache, &node.name) == requested_key
-                                })
-                        })
-                        .map(|cache| (context_id, graph, cache))
-                })
-        })
+    let (context_id, graph, cache_id) = scoped_cache_context(ctx, requested_key)
         .ok_or_else(|| {
             cache_error(
                 ctx,
                 format!("scoped cached pose node is missing: {cache_node}"),
             )
         })?;
-    let cache_name = cache.name.clone();
+    let cache_name = graph.nodes[&cache_id].name.clone();
     let scoped_context = GraphContext {
         context_id,
         graph,
@@ -207,7 +185,7 @@ pub(crate) fn prewarm_scoped_cached_pose(
     }
     .with_state_key(StateKey::Default);
     resolve_cached_pose(
-        &mut scoped_context.create_node_context(cache.id),
+        &mut scoped_context.create_node_context(cache_id),
         &cache_name,
     )?;
     Ok(())
@@ -227,46 +205,13 @@ pub fn resolve_scoped_cached_pose(
     if let Some(local_cache) = local_cache {
         return resolve_cached_pose(ctx, &local_cache);
     }
-    let contexts = ctx
-        .graph_context
-        .context_arena
-        .get_ref()
-        .iter_context_ids()
-        .filter_map(|context_id| {
-            ctx.graph_context
-                .context_arena
-                .get_ref()
-                .get_context(context_id)
-                .map(|state| (context_id, state.get_graph_id()))
-        })
-        .collect::<Vec<_>>();
-    let (context_id, graph, cache) = contexts
-        .into_iter()
-        .find_map(|(context_id, graph_id)| {
-            ctx.graph_context
-                .resources
-                .animation_graph_assets
-                .get(graph_id)
-                .and_then(|graph| {
-                    graph
-                        .nodes
-                        .values()
-                        .find(|node| {
-                            node.try_inner_downcast_ref::<SourceCachedPoseSaveNode>()
-                                .is_some_and(|cache| {
-                                    saved_cache_key(cache, &node.name) == requested_key
-                                })
-                        })
-                        .map(|cache| (context_id, graph, cache))
-                })
-        })
+    let (context_id, graph, cache_id) = scoped_cache_context(ctx, requested_key)
         .ok_or_else(|| {
             cache_error(
                 ctx,
                 format!("scoped cached pose node is missing: {cache_node}"),
             )
         })?;
-    let cache_id = cache.id;
     let scoped_context = GraphContext {
         context_id,
         graph,
@@ -381,6 +326,84 @@ impl NodeLike for SourceCachedPoseUseNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn scoped_cache_keeps_pose_and_curves_in_the_owning_linked_instance() {
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip, animation_graph::{AnimationGraph, NodeId}, animation_node::AnimationNode,
+            context::{deferred_gizmos::DeferredGizmos, graph_context_arena::GraphContextArena, system_resources::SystemResources},
+            edge_data::DataValue, skeleton::Skeleton, state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
+        };
+        use crate::extensions::{GlobalPoseInputNode, LayeredGraphNode, interruptible_fsm::InterruptibleFsmNode};
+
+        fn query(In((handles, ids)): In<([Handle<AnimationGraph>; 3], [NodeId; 6])>, resources: SystemResources) {
+            let [root, shared, state] = handles.map(|handle| (handle.id(), resources.animation_graph_assets.get(&handle).unwrap()));
+            let [first, second, missing, input_id, machine_id, use_id] = ids;
+            let mut arena = GraphContextArena::new(root.0);
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            for (instance, expected) in [(first, 1.0), (second, 2.0)] {
+                let inputs = [("input".to_owned(), DataValue::Pose(Pose { timestamp: expected, ..default() }))].into();
+                let root_ctx = GraphContext::new(arena.get_toplevel_id(), root.1, &mut arena, &resources,
+                    &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+                let instance_ctx = root_ctx.create_node_context(instance).create_child_context(shared.0, shared.1, None);
+                instance_ctx.create_node_context(input_id).state_mut_or_else(AnimationContextState::default)
+                    .unwrap().curves.insert("Scope".to_owned(), expected);
+                let state_ctx = instance_ctx.create_node_context(machine_id).create_child_context(state.0, state.1, None);
+                let mut use_ctx = state_ctx.create_node_context(use_id);
+                prewarm_scoped_cached_pose(&mut use_ctx, "cache", "shared").unwrap();
+                state.1.nodes[&use_id].update(use_ctx.clone()).unwrap();
+                let pose = state_ctx.node_caches().get_output_data(use_id, StateKey::Default, "Pose".to_owned())
+                    .unwrap().into_pose().unwrap();
+                assert_eq!(pose.timestamp, expected, "Cache pose crossed linked instances");
+                assert_eq!(use_ctx.state::<AnimationContextState>().unwrap().curves["Scope"], expected,
+                    "Cache curves crossed linked instances");
+                let sibling = instance_ctx.create_node_context(machine_id).create_child_context(state.0, state.1,
+                    Some(bevy_animation_graph::core::state_machine::low_level::LowLevelStateId::HlState(default())));
+                let mut sibling = sibling.create_node_context(use_id);
+                assert_eq!(resolve_scoped_cached_pose(&mut sibling, "cache", "shared").unwrap().timestamp, expected);
+            }
+            let inputs = HashMap::new();
+            let root_ctx = GraphContext::new(arena.get_toplevel_id(), root.1, &mut arena, &resources,
+                &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+            let missing = root_ctx.create_node_context(missing).create_child_context(state.0, state.1, None);
+            let mut missing = missing.create_node_context(use_id);
+            assert!(prewarm_scoped_cached_pose(&mut missing, "cache", "shared").is_err());
+            assert!(resolve_scoped_cached_pose(&mut missing, "cache", "shared").is_err());
+            assert!(scoped_cached_context_state(&missing, "cache", "shared").is_none());
+        }
+
+        let mut graphs = Assets::<AnimationGraph>::default();
+        let input = AnimationNode::new("input", GlobalPoseInputNode { key: "input".into(), output: "Pose".into() });
+        let cache = AnimationNode::new("cache", SourceCachedPoseSaveNode { cache_key: "shared".into() });
+        let machine = AnimationNode::new("machine", InterruptibleFsmNode::default());
+        let mut shared = AnimationGraph::new();
+        for node in [&input, &cache, &machine] { shared.add_node(node.clone()); }
+        shared.add_node_parameter_edge(input.id, "Pose", cache.id, "Pose");
+        let shared = graphs.add(shared);
+        let use_cache = AnimationNode::new("use cache", SourceScopedCachedPoseUseNode {
+            cache_node: "cache".into(), cache_key: "shared".into(), ..default()
+        });
+        let mut state = AnimationGraph::new();
+        state.add_node(use_cache.clone());
+        let state = graphs.add(state);
+        let first = AnimationNode::new("first instance", LayeredGraphNode::new(shared.clone()));
+        let second = AnimationNode::new("second instance", LayeredGraphNode::new(shared.clone()));
+        let missing = AnimationNode::new("missing cache instance", LayeredGraphNode::new(state.clone()));
+        let mut root = AnimationGraph::new();
+        root.add_node(first.clone());
+        root.add_node(second.clone());
+        root.add_node(missing.clone());
+        let root = graphs.add(root);
+        let mut world = World::new();
+        world.insert_resource(graphs);
+        world.insert_resource(Assets::<GraphClip>::default());
+        world.insert_resource(Assets::<Skeleton>::default());
+        world.insert_resource(Assets::<StateMachine>::default());
+        world.run_system_cached_with(query, ([root, shared, state], [first.id, second.id, missing.id, input.id, machine.id, use_cache.id])).unwrap();
+    }
 
     #[test]
     fn source_cache_nodes_use_source_visible_pose_pin_names() {
