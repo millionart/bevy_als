@@ -1,5 +1,6 @@
 import functools
 import json
+import math
 import re
 import subprocess
 import sys
@@ -441,16 +442,16 @@ def source_sequence_curves(content_root, mount, source_path, source_reader=None)
     return curves
 
 
-def blend_profile_mode(value):
+def blend_profile_mode(value, allow_mask=False):
     if isinstance(value, dict):
         value = value.get("value", value.get("enum_name"))
     value = value.rsplit("::", 1)[-1] if isinstance(value, str) else value
-    if value not in ("TimeFactor", "WeightFactor"):
+    if value not in ("TimeFactor", "WeightFactor") and not (allow_mask and value == "BlendMask"):
         raise AssetResolutionError("source blend profile mode is unsupported")
     return value
 
 
-def blend_profile_contract(source, source_path):
+def blend_profile_contract(source, source_path, allow_mask=False):
     package_object, separator, profile_name = source_path.rpartition(":")
     if not separator or not package_object or not profile_name:
         raise AssetResolutionError("source blend profile path is invalid")
@@ -470,7 +471,7 @@ def blend_profile_contract(source, source_path):
         raise AssetResolutionError("source blend profile export is missing or ambiguous")
     try:
         properties = {row["name"]: row["exported_text"] for row in matches[0]["properties"]}
-        mode = blend_profile_mode(properties.get("Mode", "WeightFactor"))
+        mode = blend_profile_mode(properties.get("Mode", "WeightFactor"), allow_mask=allow_mask)
         entries = parse_list(object_property(matches[0], "ProfileEntries"))
         scales = []
         for raw_entry in entries:
@@ -755,7 +756,42 @@ def blendspace_triangulation(source, axes, samples):
     return {"axis_min": minimum, "axis_max": maximum, "triangles": triangles, "segments": segments}
 
 
-def blendspace_asset_contract(source, blendspace, evaluator=False):
+def blendspace_per_bone_interpolation(source, source_reader=None):
+    properties = {row["name"]: row["exported_text"] for row in source["asset_properties"]}
+    mode = properties.get("PerBoneBlendMode", "ManualPerBoneOverride")
+    ease = parse_bool(properties.get("bTargetWeightInterpolationEaseInOut", "True"))
+    values = []
+    if mode == "ManualPerBoneOverride":
+        entries = properties.get("ManualPerBoneOverrides", "()") or "()"
+        for entry in parse_list(entries):
+            fields = parse_struct(entry)
+            reject_unknown_fields(fields, {"BoneReference", "InterpolationSpeedPerSec"})
+            bone = parse_struct(struct_field(fields, "BoneReference"))
+            reject_unknown_fields(bone, {"BoneName"})
+            name = parse_quoted(struct_field(bone, "BoneName"))
+            if not name:
+                raise AssetResolutionError("source BlendSpace interpolation bone is invalid")
+            values.append({"bone": name, "speed": parse_number(struct_field(fields, "InterpolationSpeedPerSec", "6"))})
+    elif mode == "BlendProfile":
+        fields = parse_struct(properties.get("PerBoneBlendProfile", "()") or "()")
+        reject_unknown_fields(fields, {"BlendProfile", "TargetWeightInterpolationSpeedPerSec"})
+        reference = struct_field(fields, "BlendProfile", "None")
+        if reference != "None":
+            path = source_object_path(reference)
+            profile = blend_profile_contract(native_source_asset(path.rpartition(":")[0], source_reader), path, allow_mask=True)
+            speed = parse_number(struct_field(fields, "TargetWeightInterpolationSpeedPerSec", "0"))
+            global_speed = parse_number(properties.get("TargetWeightInterpolationSpeedPerSec", "0"))
+            global_time = 1.0 / (math.e * global_speed) if global_speed > 1.1920929e-7 else 0.0
+            profile_time = 1.0 / (math.e * speed) if speed > 1.1920929e-7 else 0.0
+            for entry in profile["bone_scales"]:
+                time = global_time + (profile_time - global_time) * min(1.0, max(0.0, entry["scale"]))
+                values.append({"bone": entry["bone"], "speed": 1.0 / (math.e * time) if time > 1.1920929e-7 else 0.0})
+    else:
+        raise AssetResolutionError("source BlendSpace per-bone interpolation mode is unsupported")
+    return {"per_bone_interpolation": values, "per_bone_interpolation_ease_in_out": ease}
+
+
+def blendspace_asset_contract(source, blendspace, evaluator=False, source_reader=None):
     if (
         not isinstance(source, dict)
         or source.get("format") != "ue_asset_source_v1"
@@ -831,6 +867,7 @@ def blendspace_asset_contract(source, blendspace, evaluator=False):
         triangulation = blendspace_triangulation(source, axes, source_samples)
         if bool(triangulation["segments"]) != (dimensions == [0.0]):
             raise AssetResolutionError("source BlendSpace topology dimensions differ")
+        per_bone = blendspace_per_bone_interpolation(source, source_reader) if not evaluator else {}
     except ExportedTextError as error:
         raise AssetResolutionError("source BlendSpace properties are invalid") from error
     target_axes = blendspace.get("axes")
@@ -869,6 +906,7 @@ def blendspace_asset_contract(source, blendspace, evaluator=False):
     return {
         "axis_filter": {"x_window_seconds": filters[0], "y_window_seconds": filters[1]},
         "triangulation": triangulation,
+        **per_bone,
     }
 
 
@@ -1016,6 +1054,8 @@ def blendspace_player_contract(node, blendspace, asset_contract):
         "configured_play_rate": configured_play_rate,
         "axis_filter": asset_contract["axis_filter"],
         "triangulation": asset_contract["triangulation"],
+        "per_bone_interpolation": asset_contract["per_bone_interpolation"],
+        "per_bone_interpolation_ease_in_out": asset_contract["per_bone_interpolation_ease_in_out"],
     }
 
 
@@ -1128,7 +1168,7 @@ def resolve_graph_animation_assets(
                 if source_content_root is not None:
                     native = native_blendspaces.get(source_path)
                     if native is None:
-                        native = blendspace_asset_contract(native_source_asset(source_path, source_reader), blendspace, evaluator=True)
+                        native = blendspace_asset_contract(native_source_asset(source_path, source_reader), blendspace, evaluator=True, source_reader=source_reader)
                         native_blendspaces[source_path] = native
                     evaluator.update(native)
                 target = blendspace["target_asset"]
@@ -1141,7 +1181,7 @@ def resolve_graph_animation_assets(
                 native = native_blendspaces.get(source_path)
                 if native is None:
                     native = blendspace_asset_contract(
-                        native_source_asset(source_path, source_reader), blendspace
+                        native_source_asset(source_path, source_reader), blendspace, source_reader=source_reader
                     )
                     native_blendspaces[source_path] = native
                 target = blendspace["target_asset"]
@@ -1585,6 +1625,32 @@ def run_self_test():
     player_asset = blendspace_asset_contract(player_source, player_blendspace)
     assert player_asset["axis_filter"] == {"x_window_seconds": 0.2, "y_window_seconds": 0.4}
     assert player_asset["triangulation"]["triangles"] == [[0, 0, 0]]
+    per_bone_source = deepcopy(player_source)
+    per_bone_source["asset_properties"].extend([
+        {"name": "PerBoneBlendMode", "exported_text": "ManualPerBoneOverride"},
+        {"name": "ManualPerBoneOverrides", "exported_text": '((BoneReference=(BoneName="spine_01"),InterpolationSpeedPerSec=1.000000),(BoneReference=(BoneName="hand_l")))'},
+        {"name": "bTargetWeightInterpolationEaseInOut", "exported_text": "False"},
+    ])
+    per_bone = blendspace_asset_contract(per_bone_source, player_blendspace)
+    assert per_bone.get("per_bone_interpolation") == [{"bone": "spine_01", "speed": 1.0}, {"bone": "hand_l", "speed": 6.0}]
+    assert per_bone["per_bone_interpolation_ease_in_out"] is False
+    profile_path = "/ALS/Fixture/SK_Test.SK_Test:Mask"
+    profile_fixture = {"format": "ue_asset_source_v1", "asset_path": profile_path.rpartition(":")[0],
+        "asset_objects": [{"object_path": profile_path, "class_path": "/Script/Engine.BlendProfile", "properties": [
+            {"name": "Mode", "exported_text": "BlendMask"},
+            {"name": "ProfileEntries", "exported_text": '((BoneReference=(BoneName="spine_01"),BlendScale=0.500000),(BoneReference=(BoneName="hand_l"),BlendScale=0.000000),(BoneReference=(BoneName="head"),BlendScale=2.000000))'}]}]}
+    profile_source = deepcopy(per_bone_source)
+    next(row for row in profile_source["asset_properties"] if row["name"] == "PerBoneBlendMode")["exported_text"] = "BlendProfile"
+    profile_source["asset_properties"].append({"name": "PerBoneBlendProfile", "exported_text": f'(BlendProfile="/Script/Engine.BlendProfile\'{profile_path}\'",TargetWeightInterpolationSpeedPerSec=1.000000)'})
+    with patch(__name__ + ".native_source_asset", return_value=profile_fixture):
+        profile = blendspace_asset_contract(profile_source, player_blendspace)
+    assert profile["per_bone_interpolation"] == [{"bone": "spine_01", "speed": 2.0}, {"bone": "hand_l", "speed": 0.0}, {"bone": "head", "speed": 1.0}]
+    try:
+        blend_profile_contract(profile_fixture, profile_path)
+    except AssetResolutionError:
+        pass
+    else:
+        raise AssertionError("FSM accepted a BlendMask profile")
     evaluator_source = json.loads(json.dumps(player_source))
     evaluator_source["asset_class"] = "/Script/Engine.BlendSpace1D"
     evaluator_blendspace = json.loads(json.dumps(player_blendspace))

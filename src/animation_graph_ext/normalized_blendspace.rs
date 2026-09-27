@@ -230,10 +230,26 @@ pub struct SourceBlendSpaceTriangulation {
     pub segments: Vec<[usize; 2]>,
 }
 
+#[derive(Reflect, Clone, Debug, Default, PartialEq)]
+#[reflect(Default)]
+pub struct SourcePerBoneInterpolation {
+    pub bone: String,
+    pub speed: f32,
+}
+
+#[derive(Reflect, Clone, Debug, Default)]
+struct SourceBlendSpaceSampleWeight {
+    index: usize,
+    weight: f32,
+    bone_weights: Vec<f32>,
+    bone_rates: Vec<f32>,
+}
+
 #[derive(Reflect, Clone, Debug, Default)]
 pub(crate) struct NormalizedBlendSpaceState {
     pub(crate) context: AnimationContextState,
     triangle: Option<usize>,
+    samples: Vec<SourceBlendSpaceSampleWeight>,
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -247,9 +263,74 @@ pub struct NormalizedBlendSpaceNode {
     pub points: Vec<NormalizedBlendSpacePoint>,
     pub playback: Option<SourceSyncPlayerBinding>,
     pub source_triangulation: Option<SourceBlendSpaceTriangulation>,
+    pub per_bone_interpolation: Vec<SourcePerBoneInterpolation>,
+    pub per_bone_interpolation_ease_in_out: bool,
 }
 
 impl NormalizedBlendSpaceNode {
+    fn smooth_bone_weight(&self, value: f32, rate: &mut f32, target: f32, delta: f32, speed: f32) -> f32 {
+        if speed <= 0.0 { return target; }
+        if !self.per_bone_interpolation_ease_in_out {
+            return value + (target - value).clamp(-delta * speed, delta * speed);
+        }
+        let time = 1.0 / (std::f32::consts::E * speed);
+        if time > 1e-4 {
+            let w = 2.0 / time;
+            let a = w * delta;
+            let exp = 1.0 / (1.0 + 1.00746054 * a + 0.45053901 * a * a + 0.25724632 * a * a * a);
+            let offset = value - target;
+            let step = (*rate + w * offset) * delta;
+            *rate = (*rate - w * step) * exp;
+            target + (offset + step) * exp
+        } else {
+            if delta > 0.0 { *rate = (target - value) / delta; }
+            target
+        }
+    }
+
+    fn smoothed_sample(&self, old: Option<&SourceBlendSpaceSampleWeight>, index: usize, target: f32, delta: f32) -> SourceBlendSpaceSampleWeight {
+        let previous = old.filter(|sample| sample.bone_weights.len() == self.per_bone_interpolation.len());
+        let old_weight = old.map_or(0.0, |sample| sample.weight);
+        let mut bone_weights = Vec::with_capacity(self.per_bone_interpolation.len());
+        let mut bone_rates = Vec::with_capacity(self.per_bone_interpolation.len());
+        for (bone, interpolation) in self.per_bone_interpolation.iter().enumerate() {
+            let value = previous.map_or(old_weight, |sample| sample.bone_weights[bone]);
+            let mut rate = previous.map_or(0.0, |sample| sample.bone_rates[bone]);
+            bone_weights.push(self.smooth_bone_weight(value, &mut rate, target, delta, interpolation.speed));
+            bone_rates.push(rate);
+        }
+        SourceBlendSpaceSampleWeight { index, weight: target, bone_weights, bone_rates }
+    }
+
+    fn smooth_samples(&self, previous: &[SourceBlendSpaceSampleWeight], target: &[(usize, f32)], delta: f32) -> Vec<SourceBlendSpaceSampleWeight> {
+        let previous = if previous.iter().any(|sample| sample.index >= self.points.len()) { &[][..] } else { previous };
+        let mut samples = Vec::new();
+        for old in previous {
+            let desired = target.iter().find(|(index, _)| *index == old.index).map(|(_, weight)| *weight);
+            let sample = self.smoothed_sample(Some(old), old.index, desired.unwrap_or(0.0), delta);
+            if sample.weight > 1e-5 || sample.bone_weights.iter().sum::<f32>() > 1e-5 {
+                samples.push(sample);
+            } else if desired.is_some() {
+                let sample = self.smoothed_sample(Some(old), old.index, 0.0, delta);
+                if sample.weight > 1e-5 || sample.bone_weights.iter().sum::<f32>() > 1e-5 { samples.push(sample); }
+            }
+        }
+        for &(index, weight) in target {
+            if samples.iter().any(|sample| sample.index == index) { continue; }
+            let sample = self.smoothed_sample(None, index, weight, delta);
+            if sample.weight > 1e-5 || sample.bone_weights.iter().sum::<f32>() > 1e-5 { samples.push(sample); }
+        }
+        for bone in 0..self.per_bone_interpolation.len() {
+            let sum = samples.iter().map(|sample| sample.bone_weights[bone]).sum::<f32>();
+            let count = samples.len() as f32;
+            for sample in &mut samples {
+                if sum <= 1e-5 { sample.bone_weights[bone] = 1.0 / count; }
+                else if (sum - 1.0).abs() > 1e-5 { sample.bone_weights[bone] /= sum; }
+            }
+        }
+        samples
+    }
+
     fn source_weights(
         &self,
         position: Vec2,
@@ -586,8 +667,8 @@ impl NodeLike for NormalizedBlendSpaceNode {
             .partial_update_basic(ctx.prev_time())
             .unwrap_or_else(|| ctx.prev_time());
         let position = ctx.data_back(IN_POSITION)?.as_vec2()?;
-        let weights = self.context_weights(&mut ctx, position)?;
-        let Some((leader_index, _)) = weights
+        let target_weights = self.context_weights(&mut ctx, position)?;
+        let Some((leader_index, _)) = target_weights
             .iter()
             .rev()
             .copied()
@@ -596,6 +677,14 @@ impl NodeLike for NormalizedBlendSpaceNode {
             ctx.set_data_fwd(OUT_POSE, Pose::default());
             return Ok(());
         };
+        let smoothed = if !self.per_bone_interpolation.is_empty() && self.playback.is_some() {
+            let delta = crate::extensions::sync_group_phase::source_sync_delta_seconds(&ctx, &self.playback.as_ref().unwrap().delta_seconds_key)?;
+            let state = ctx.state_mut::<NormalizedBlendSpaceState>()?;
+            state.samples = self.smooth_samples(&state.samples, &target_weights, delta);
+            Some(state.samples.clone())
+        } else { None };
+        let weights = smoothed.as_ref().map_or_else(|| target_weights.clone(), |samples|
+            samples.iter().map(|sample| (sample.index, sample.weight)).collect());
         let leader = &self.points[leader_index];
         let leader_duration = self.point_duration(&mut ctx, leader)?;
         let sample_looped = self.looped && !self.teleport_to_normalized_time;
@@ -640,6 +729,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
         };
         let output_time = if self.teleport_to_normalized_time && leader.asset_rate_scale < 0.0 { leader_duration - leader_time } else { leader_time };
         let mut poses = Vec::with_capacity(weights.len());
+        let mut pose_indices = Vec::with_capacity(weights.len());
         let mut curves = bevy::platform::collections::HashMap::new();
         for (index, weight) in weights {
             let point = &self.points[index];
@@ -671,6 +761,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
                 ctx.data_back(Self::pose_pin(&point.id))?.into_pose()?,
                 weight,
             ));
+            pose_indices.push(index);
             for (name, value) in point.curves.sample_all(time) {
                 *curves.entry(name).or_insert(0.0) += value * weight;
             }
@@ -728,6 +819,20 @@ impl NodeLike for NormalizedBlendSpaceNode {
             .reduce(|accumulator, pose| accumulator.linear_add(&pose))
             .unwrap_or_default()
             .normalize_quat();
+        if let Some(samples) = smoothed.as_ref() {
+            let skeleton = ctx.graph_context.resources.skeleton_assets.get(&output.skeleton);
+            for (bone, output_index) in &output.paths {
+                let Some(profile_index) = skeleton.and_then(|skeleton| skeleton.id_to_path(*bone))
+                    .and_then(|path| path.parts.iter().rev().find_map(|part|
+                        self.per_bone_interpolation.iter().position(|entry| entry.bone.eq_ignore_ascii_case(part.as_str()))))
+                else { continue; };
+                let blended = poses.iter().zip(&pose_indices).filter_map(|((pose, _), index)| {
+                    let sample = samples.iter().find(|sample| sample.index == *index)?;
+                    pose.get_bone(*bone).map(|bone| bone.scalar_mult(sample.bone_weights[profile_index]))
+                }).reduce(|left, right| left.linear_add(&right)).map(|bone| bone.normalize_quat());
+                if let Some(blended) = blended { output.bones[*output_index] = blended; }
+            }
+        }
         output.root_motion = root_motion;
         output.timestamp = graph_time;
         ctx.set_time(graph_time);
@@ -755,6 +860,120 @@ impl NodeLike for NormalizedBlendSpaceNode {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn per_bone_ease_preserves_rate_and_normalizes_each_bone() {
+        let node = NormalizedBlendSpaceNode {
+            points: vec![NormalizedBlendSpacePoint::default(), NormalizedBlendSpacePoint::default()],
+            per_bone_interpolation: vec![SourcePerBoneInterpolation { bone: "spine".into(), speed: 1.0 }],
+            per_bone_interpolation_ease_in_out: true,
+            ..default()
+        };
+        let initial = node.smooth_samples(&[], &[(0, 1.0), (1, 0.0)], 0.1);
+        assert_eq!(initial.len(), 1);
+        assert_eq!(initial[0].bone_weights[0], 1.0);
+        assert!(initial[0].bone_rates[0] > 1.7);
+        let switched = node.smooth_samples(&initial, &[(0, 0.0), (1, 1.0)], 0.1);
+        assert_eq!(switched.len(), 2);
+        assert!((switched[1].bone_weights[0] - 0.09428191).abs() < 1e-5);
+        assert!(switched[0].bone_rates[0] < 0.0 && switched[1].bone_rates[0] > 0.0);
+        let paused = node.smooth_samples(&switched, &[(0, 1.0), (1, 0.0)], 0.0);
+        assert!((paused[1].bone_weights[0] - switched[1].bone_weights[0]).abs() < 1e-6);
+        let rebuilt = node.smooth_samples(&[], &[(1, 1.0)], 0.1);
+        assert_eq!(rebuilt.len(), 1);
+        assert_eq!(rebuilt[0].bone_weights[0], 1.0);
+    }
+
+    #[test]
+    fn per_bone_weights_follow_source_history_and_hierarchy() {
+        use bevy_animation_graph::core::{
+            animation_clip::{EntityPath, GraphClip}, animation_graph::{AnimationGraph, GraphInputPin, NodeId},
+            animation_node::AnimationNode, context::{deferred_gizmos::DeferredGizmos,
+                graph_context::QueryOutputTime, graph_context_arena::GraphContextArena,
+                new_context::GraphContext, system_resources::SystemResources},
+            pose::BonePose, skeleton::Skeleton, state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
+        };
+        fn query(In((handle, node)): In<(Handle<AnimationGraph>, NodeId)>, resources: SystemResources) {
+            let mut graph = resources.animation_graph_assets.get(&handle).unwrap().clone();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let env = TestIoEnv::default();
+            let entities = default();
+            for (position, delta, rebuild, spine, hand) in [
+                (0.0, 0.1, false, 0.0, 0.0),
+                (1.0, 0.1, false, 1.0, 2.0),
+                (1.0, 0.1, false, 2.0, 4.0),
+                (1.0, 0.1, true, 10.0, 10.0),
+                (0.0, 0.0, false, 10.0, 10.0),
+            ] {
+                if rebuild { arena = GraphContextArena::new(handle.id()); } else { arena.next_frame(); }
+                graph.set_default_data(GraphInputPin::passthrough(IN_POSITION), Vec2::new(position, 0.0).into());
+                let inputs = [("delta".to_owned(), delta.into())].into();
+                let context = GraphContext::new(arena.get_toplevel_id(), &graph, &mut arena, &resources,
+                    &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+                let output = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(delta)), context).unwrap();
+                let pose = output[OUT_POSE].as_pose().unwrap();
+                let root = EntityPath::default().child("root");
+                for (path, expected) in [(root.clone(), position * 10.0), (root.child("spine"), spine),
+                    (root.child("spine").child("hand"), hand), (root.child("spine").child("head"), spine),
+                    (root.child("leg"), position * 10.0)] {
+                    let actual = pose.get_bone(path.id()).unwrap().translation.unwrap().x;
+                    assert!((actual - expected).abs() < 1e-5, "position={position}, delta={delta}, rebuild={rebuild}, bone={path:?}: {actual} != {expected}");
+                    let actual_scale = pose.get_bone(path.id()).unwrap().scale.unwrap().x;
+                    assert!((actual_scale - (1.0 + expected / 10.0)).abs() < 1e-5);
+                    let ratio = expected / 10.0;
+                    let expected_rotation = (Quat::IDENTITY * (1.0 - ratio) + Quat::from_rotation_z(std::f32::consts::FRAC_PI_2) * ratio).normalize();
+                    assert!(pose.get_bone(path.id()).unwrap().rotation.unwrap().dot(expected_rotation).abs() > 1.0 - 1e-5);
+                }
+                assert!((pose.root_motion.as_ref().unwrap().translation.x - position * 10.0).abs() < 1e-5);
+                let state = arena.get_toplevel().node_states.get::<NormalizedBlendSpaceState>(node, default()).unwrap();
+                assert!((state.context.curves[&crate::extensions::SourceCurveName::from("Fixture")] - (2.0 + 6.0 * position)).abs() < 1e-5);
+            }
+        }
+        let mut world = World::new();
+        world.init_resource::<Assets<AnimationGraph>>();
+        world.init_resource::<Assets<GraphClip>>();
+        world.init_resource::<Assets<Skeleton>>();
+        world.init_resource::<Assets<StateMachine>>();
+        let root = EntityPath::default().child("root");
+        let paths = [root.clone(), root.child("spine"), root.child("spine").child("hand"),
+            root.child("spine").child("head"), root.child("leg")];
+        let mut skeleton = Skeleton::default();
+        skeleton.set_root(root.id());
+        for path in &paths { skeleton.add_bone(path.clone(), Transform::IDENTITY, Transform::IDENTITY); }
+        let skeleton = world.resource_mut::<Assets<Skeleton>>().add(skeleton);
+        let mut graph = AnimationGraph::new();
+        let mut points = Vec::new();
+        for (id, position, value) in [("a", Vec2::ZERO, 0.0), ("b", Vec2::X, 10.0)] {
+            let curves = crate::extensions::parse_curves(&serde_json::json!({"curves":[{
+                "name":"Fixture", "times":[0.0], "values":[if id=="a" {2.0} else {8.0}], "interps":["LINEAR"]
+            }]})).unwrap();
+            points.push(NormalizedBlendSpacePoint { id: id.into(), point: position, duration: 1.0, curves, ..default() });
+            let mut pose = Pose { skeleton: skeleton.clone(), root_motion: Some(RootMotionDelta {
+                translation: Vec3::X * value, ..default() }), ..default() };
+            for path in &paths { pose.add_bone(BonePose { translation: Some(Vec3::X * value),
+                rotation: Some(Quat::from_rotation_z(std::f32::consts::FRAC_PI_2 * value / 10.0)),
+                scale: Some(Vec3::splat(1.0 + value / 10.0)), ..default() }, path.id()); }
+            graph.set_default_data(GraphInputPin::passthrough(NormalizedBlendSpaceNode::pose_pin(id)), pose.into());
+        }
+        let node = AnimationNode::new("per-bone player", NormalizedBlendSpaceNode { points, looped: true,
+            playback: Some(SourceSyncPlayerBinding { key: "fixture".into(), delta_seconds_key: "delta".into(), ..default() }),
+            per_bone_interpolation: vec![SourcePerBoneInterpolation { bone: "spine".into(), speed: 1.0 },
+                SourcePerBoneInterpolation { bone: "hand".into(), speed: 2.0 }],
+            per_bone_interpolation_ease_in_out: false, ..default() });
+        graph.add_input_data_edge(GraphInputPin::passthrough(IN_POSITION), node.id, IN_POSITION);
+        for id in ["a", "b"] {
+            graph.add_input_data_edge(GraphInputPin::passthrough(NormalizedBlendSpaceNode::pose_pin(id)), node.id, NormalizedBlendSpaceNode::pose_pin(id));
+            graph.add_input_time_edge(GraphInputPin::passthrough(NormalizedBlendSpaceNode::time_pin(id)), node.id, NormalizedBlendSpaceNode::time_pin(id));
+        }
+        graph.add_output_data(OUT_POSE.into(), DataSpec::Pose);
+        graph.add_output_data_edge(node.id, OUT_POSE, OUT_POSE);
+        graph.add_output_time();
+        graph.add_output_pose_edge(node.id);
+        graph.add_node(node.clone());
+        let handle = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
+        world.run_system_cached_with(query, (handle, node.id)).unwrap();
+    }
 
     #[test]
     fn blendspace_asset_rate_scale_controls_the_leader_clock() {
@@ -954,6 +1173,8 @@ mod tests {
     #[test]
     fn marker_phase_maps_each_direction_to_the_same_foot_interval() {
         let node = NormalizedBlendSpaceNode {
+            per_bone_interpolation: vec![],
+            per_bone_interpolation_ease_in_out: false,
             looped: true,
             teleport_to_normalized_time: false,
             phase_duration: 1.0,
@@ -1043,6 +1264,8 @@ mod tests {
                 looped: true,
                 teleport_to_normalized_time: false,
                 phase_duration: 1.133333,
+                per_bone_interpolation: vec![],
+                per_bone_interpolation_ease_in_out: false,
                 phase_markers: markers(&[("Right", 0.516667), ("Left", 1.083333)]),
                 points: [Vec2::X, Vec2::ZERO, Vec2::ONE, Vec2::Y]
                     .into_iter()

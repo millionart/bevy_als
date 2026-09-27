@@ -354,6 +354,22 @@ def blendspace_inner(value, player=False):
     if not points:
         raise PoseRenderError("source blendspace samples are missing")
     playback = "None"
+    per_bone_fields = ""
+    if player:
+        interpolations = value.get("per_bone_interpolation")
+        ease = value.get("per_bone_interpolation_ease_in_out")
+        if not isinstance(interpolations, list) or not isinstance(ease, bool):
+            raise PoseRenderError("source BlendSpace per-bone interpolation is unavailable")
+        rows = []
+        for interpolation in interpolations:
+            bone = interpolation.get("bone") if isinstance(interpolation, dict) else None
+            speed = interpolation.get("speed") if isinstance(interpolation, dict) else None
+            if not isinstance(bone, str) or not bone or not isinstance(speed, (int, float)) or isinstance(speed, bool) or not math.isfinite(speed):
+                raise PoseRenderError("source BlendSpace per-bone interpolation is invalid")
+            rows.append(f"(bone: {quoted(bone)}, speed: {float(speed)!r})")
+        if rows:
+            per_bone_fields = ", per_bone_interpolation: [" + ", ".join(rows) + "]"
+            per_bone_fields += ", per_bone_interpolation_ease_in_out: " + bool_ron(ease)
     topology = value.get("triangulation")
     if not isinstance(topology, dict):
         raise PoseRenderError("source BlendSpace topology is unavailable")
@@ -374,7 +390,7 @@ def blendspace_inner(value, player=False):
         + phase_markers
         + ", points: ["
         + ", ".join(points)
-        + "], playback: " + playback + ", source_triangulation: " + triangulation + ")",
+        + "], playback: " + playback + ", source_triangulation: " + triangulation + per_bone_fields + ")",
     )
 
 
@@ -2707,6 +2723,8 @@ def run_self_test():
                     "delta_seconds_key": "animation.delta_seconds",
                     "axis_filter": {"x_window_seconds": 0.2, "y_window_seconds": 0.4},
                     "triangulation": {"axis_min": [0.0, 0.0], "axis_max": [1.0, 1.0], "triangles": [[0, 0, 0]]},
+                    "per_bone_interpolation": [],
+                    "per_bone_interpolation_ease_in_out": True,
                     "blendspace": {
                         "samples": [
                             {
@@ -2730,6 +2748,13 @@ def run_self_test():
         ]
     }
     text = render(blend_contract, player_ir, [])
+    assert "per_bone_interpolation:" not in text
+    profiled_player = copy.deepcopy(player_ir)
+    profiled_player["nodes"][0]["semantic"]["per_bone_interpolation"] = [{"bone": "spine_01", "speed": 1.0}]
+    profiled_player["nodes"][0]["semantic"]["per_bone_interpolation_ease_in_out"] = False
+    profiled_text = render(blend_contract, profiled_player, [])
+    assert 'per_bone_interpolation: [(bone: "spine_01", speed: 1.0)]' in profiled_text
+    assert "per_bone_interpolation_ease_in_out: false" in profiled_text
     for rate_scale in (-2.0, 0.0, 0.5, 2.0):
         player_ir["nodes"][0]["semantic"]["blendspace"]["samples"][0]["source_timing"]["rate_scale"] = rate_scale
         assert f"asset_rate_scale: {rate_scale!r}" in render(blend_contract, player_ir, [])

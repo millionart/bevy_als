@@ -384,6 +384,8 @@ mod tests {
                     AnimationNode::new(
                         "player",
                         NormalizedBlendSpaceNode {
+                            per_bone_interpolation: vec![],
+                            per_bone_interpolation_ease_in_out: false,
                             looped: true,
                             teleport_to_normalized_time: false,
                             phase_duration: 1.0,

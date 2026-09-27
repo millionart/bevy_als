@@ -263,7 +263,7 @@ pub use multi_way_blend::MultiWayBlendNode;
 pub use nodes::{ConstantF32Node, CurveDrivenValueNode, CurveSampleNode};
 pub use normalized_blendspace::{
     CubicVec2AxisFilterNode, CubicVec2FilterNode, NormalizedBlendSpaceNode,
-    NormalizedBlendSpacePoint, blend_normalized_root_motion,
+    NormalizedBlendSpacePoint, SourcePerBoneInterpolation, blend_normalized_root_motion,
 };
 pub use overlay::{
     BranchFilter, HEAD_LAYER_BONES, LOOK_SPINE_BONES, TORCH_ARM_RIGHT_BONES,
@@ -410,6 +410,7 @@ impl Plugin for AlsExtPlugin {
             .register_type::<CubicVec2AxisFilterNode>()
             .register_type::<CubicVec2FilterNode>()
             .register_type::<NormalizedBlendSpaceNode>()
+            .register_type::<SourcePerBoneInterpolation>()
             .register_type::<AnimationContextInputAlias>()
             .register_type::<GlobalF32InputPin>()
             .register_type::<FixedF32Input>()
