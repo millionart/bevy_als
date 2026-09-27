@@ -329,10 +329,13 @@ def blendspace_inner(value, player=False):
             or abs(rate - 1.0) > 1.0e-6
         ):
             raise PoseRenderError("source blendspace sample is unsupported")
+        timing = sample.get("source_timing")
+        asset_rate_scale = timing.get("rate_scale") if isinstance(timing, dict) else None
+        if not isinstance(asset_rate_scale, (int, float)) or isinstance(asset_rate_scale, bool) or not math.isfinite(asset_rate_scale):
+            raise PoseRenderError("source blendspace sample asset rate scale is unavailable")
         duration = 0.0
         markers = "[]"
         if player:
-            timing = sample.get("source_timing") if isinstance(sample, dict) else None
             if (
                 not isinstance(timing, dict)
                 or not isinstance(timing.get("duration"), (int, float))
@@ -345,6 +348,7 @@ def blendspace_inner(value, player=False):
             "(id: "
             + quoted(f"sample_{index}")
             + f", point: ({float(coordinates[0])!r}, {float(coordinates[1])!r}), duration: {duration!r}, markers: {markers}"
+            + f", asset_rate_scale: {float(asset_rate_scale)!r}"
             + ", curves: " + pose_curves_ron(sample.get("source_curves", [])) + ")"
         )
     if not points:
@@ -396,6 +400,9 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
         root_lock = "None" if root_lock is None else f"Some({root_lock})"
     if renderer == "sequence_player":
         pins = input_names(value)
+        rate_scale = asset_by_node[semantic["source_node"]].get("source_timing", {}).get("rate_scale")
+        if not isinstance(rate_scale, (int, float)) or isinstance(rate_scale, bool) or not math.isfinite(rate_scale):
+            raise PoseRenderError("source sequence asset rate scale is unavailable")
         play_rate_key = value.get("play_rate_key")
         loop_animation_key = value.get("loop_animation_key")
         play_rate_pin = value.get("play_rate_pin")
@@ -416,6 +423,7 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             field("additive_reference", "None"),
             field("additive_reference_position", "0.0"),
             field("play_rate", repr(value["play_rate"] * scalar_renderer.source_property_runtime_scale(play_rate_key))),
+            field("asset_rate_scale", repr(float(rate_scale))),
             field("play_rate_key", quoted(play_rate_key)),
             field("play_rate_pin", quoted(play_rate_pin)),
             field("expose_play_rate_pin", bool_ron(play_rate_pin in pins)),
@@ -1744,7 +1752,7 @@ def fixture_graph():
             "source_node": sequence_path,
             "category": "sequence",
             "target_asset": "animations/A.anim.ron",
-            "source_timing": {"duration": 1.0, "markers": []},
+            "source_timing": {"duration": 1.0, "markers": [], "rate_scale": 1.0},
         }
     ]
     return graph_contract, graph_ir, assets
@@ -1831,6 +1839,12 @@ def run_self_test():
     else:
         raise AssertionError("invalid source curve key arrays were accepted")
     graph_contract, graph_ir, assets = fixture_graph()
+    for rate_scale in (-2.0, 0.0, 0.5, 2.0):
+        scaled_assets = copy.deepcopy(assets)
+        scaled_assets[0]["source_timing"]["rate_scale"] = rate_scale
+        scaled_text = render(graph_contract, graph_ir, scaled_assets)
+        assert f"asset_rate_scale: {rate_scale!r}" in scaled_text
+        assert "play_rate: 1.0" in scaled_text
     constant_raw = graph_contract["source_graph"]["nodes"][1]
     constant_semantic = copy.deepcopy(graph_ir["nodes"][1])
     constant_semantic["semantic"]["alpha_default"] = 0.75
@@ -1861,6 +1875,9 @@ def run_self_test():
     assert "explicit_value: 2.0" in inner and "expose_explicit_value_pin: true" in inner and "use_explicit_frame: true" in inner
     assert "frames_per_second: 60.0" in inner
     assert "step_interpolation: true" in inner
+    for rate_scale in (-2.0, 0.0, 0.5, 2.0):
+        evaluator_assets[0]["source_timing"]["rate_scale"] = rate_scale
+        assert rendered_inner(graph_contract, {}, evaluator, asset_index(evaluator_assets), {})[1] == inner
     renamed_evaluator = copy.deepcopy(evaluator)
     renamed_assets = copy.deepcopy(evaluator_assets)
     renamed_graph = copy.deepcopy(graph_contract)
@@ -1950,7 +1967,7 @@ def run_self_test():
             "source_node": reset_player_path,
             "category": "sequence",
             "target_asset": "animations/B.anim.ron",
-            "source_timing": {"duration": 1.0, "markers": []},
+            "source_timing": {"duration": 1.0, "markers": [], "rate_scale": 1.0},
         }
     )
     graph_contract["links"][1]["source"]["node_object_path"] = reset_player_path
@@ -2594,6 +2611,7 @@ def run_self_test():
                                 "value": [0.0, 0.0, 0.0],
                                 "rate_scale": 1.0,
                                 "target_clip": "animations/Center.anim.ron",
+                                "source_timing": {"rate_scale": 1.0},
                             }
                         ]
                     },
@@ -2637,6 +2655,7 @@ def run_self_test():
                                 "value": [0.0, 0.0, 0.0],
                                 "rate_scale": 1.0,
                                 "target_clip": "animations/Center.anim.ron",
+                                "source_timing": {"rate_scale": 1.0},
                             }
                         ]
                     },
@@ -2687,6 +2706,7 @@ def run_self_test():
                                 "target_clip": "animations/Center.anim.ron",
                                 "source_timing": {
                                     "duration": 1.0,
+                                    "rate_scale": 1.0,
                                     "markers": [
                                         {"name": "Left", "time": 0.0},
                                         {"name": "Right", "time": 0.5},
@@ -2701,6 +2721,10 @@ def run_self_test():
         ]
     }
     text = render(blend_contract, player_ir, [])
+    for rate_scale in (-2.0, 0.0, 0.5, 2.0):
+        player_ir["nodes"][0]["semantic"]["blendspace"]["samples"][0]["source_timing"]["rate_scale"] = rate_scale
+        assert f"asset_rate_scale: {rate_scale!r}" in render(blend_contract, player_ir, [])
+    player_ir["nodes"][0]["semantic"]["blendspace"]["samples"][0]["source_timing"]["rate_scale"] = 1.0
     assert '"als_ext::CubicVec2AxisFilterNode"' in text
     assert 'key: "sync_groups.ab_als_standing.movement.phase"' in text
     assert 'key: "animation.delta_seconds"' in text

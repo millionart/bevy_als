@@ -227,6 +227,7 @@ pub struct SourceSequencePlayerNode {
     pub additive_reference_position: f32,
     pub additive_mesh_space: bool,
     pub play_rate: f32,
+    pub asset_rate_scale: f32,
     pub play_rate_key: String,
     pub play_rate_pin: String,
     pub expose_play_rate_pin: bool,
@@ -255,6 +256,7 @@ impl Default for SourceSequencePlayerNode {
             additive_reference_position: 0.0,
             additive_mesh_space: false,
             play_rate: 1.0,
+            asset_rate_scale: 1.0,
             play_rate_key: Default::default(),
             play_rate_pin: "Play Rate".to_owned(),
             expose_play_rate_pin: true,
@@ -375,7 +377,7 @@ impl NodeLike for SourceSequencePlayerNode {
             },
             &self.play_rate_mapping,
             delta,
-        );
+        ) * self.asset_rate_scale;
         let mut sync_players = Vec::new();
         let position = if let Some(sync) = &self.synchronization {
             let previous_phase = state
@@ -502,6 +504,62 @@ impl NodeLike for SourceSequencePlayerNode {
 mod tests {
     use super::*;
     use bevy::prelude::*;
+
+    #[test]
+    fn asset_rate_scale_follows_node_mapping_in_sequence_clocks() {
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_graph::{AnimationGraph, NodeId}, animation_node::AnimationNode,
+            context::{deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+                graph_context_arena::GraphContextArena, new_context::GraphContext, node_states::StateKey,
+                system_resources::SystemResources},
+            edge_data::DataSpec, state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
+        };
+        fn query(In((handle, node)): In<(Handle<AnimationGraph>, NodeId)>, resources: SystemResources) -> (f32, f32) {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let inputs = [("rate".to_owned(), 4.0_f32.into()), ("delta".to_owned(), 0.6_f32.into())].into();
+            let env = TestIoEnv::default();
+            let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources,
+                &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+            let output = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.6)), context).unwrap();
+            let state = arena.get_toplevel().node_states.get::<SourceSequencePlayerState>(node, StateKey::Default).unwrap();
+            (output["Pose"].as_pose().unwrap().timestamp, state.context.relevant_asset.as_ref().unwrap().playback_delta_seconds)
+        }
+        let mut world = World::new();
+        world.init_resource::<Assets<AnimationGraph>>();
+        world.init_resource::<Assets<GraphClip>>();
+        world.init_resource::<Assets<Skeleton>>();
+        world.init_resource::<Assets<StateMachine>>();
+        let clip = world.resource_mut::<Assets<GraphClip>>().add(GraphClip { duration: 2.0, ..default() });
+        for rate_scale in [2.0_f32, -2.0, 0.0] {
+            for looped in [false, true] {
+                for synchronized in [false, true] {
+                    let node = AnimationNode::new("rate-scaled sequence", SourceSequencePlayerNode {
+                        clip: clip.clone(), asset_rate_scale: rate_scale, play_rate: 99.0, play_rate_key: "rate".to_owned(),
+                        expose_play_rate_pin: false, play_rate_basis: 2.0,
+                        play_rate_mapping: SourceAlphaMapping { source_semantics: true, clamp_result: true,
+                            clamp_min: -1.5, clamp_max: 1.5, ..default() },
+                        start_position: 0.5, expose_start_position_pin: false, loop_animation: looped, expose_loop_animation_pin: false,
+                        synchronization: synchronized.then(|| SourceSequenceSynchronization { key: "fixture".into(),
+                            delta_seconds_key: "delta".into(), ..default() }), ..default()
+                    });
+                    let mut graph = AnimationGraph::new();
+                    graph.add_output_data("Pose".into(), DataSpec::Pose);
+                    graph.add_output_data_edge(node.id, "Pose", "Pose");
+                    graph.add_node(node.clone());
+                    let graph = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
+                    let (position, delta) = world.run_system_cached_with(query, (graph, node.id)).unwrap();
+                    let expected_delta = 0.6 * 1.5 * rate_scale;
+                    let expected = if looped { (0.5 + expected_delta).rem_euclid(2.0) } else { (0.5 + expected_delta).clamp(0.0, 2.0) };
+                    assert!((position - expected).abs() < 1e-5, "rate={rate_scale}, looped={looped}, sync={synchronized}: {position} != {expected}");
+                    assert!((delta - expected_delta).abs() < 1e-5);
+                }
+            }
+        }
+    }
 
     #[test]
     fn excluded_sequence_player_keeps_sampling_but_cannot_win_relevancy() {

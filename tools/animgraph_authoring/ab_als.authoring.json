@@ -205,6 +205,14 @@
     {
       "path": "target/report_review/bf124_source/HitResult.h",
       "sha256": "50b036788fdc57cba9f230b7c69e36188d2115f7842d42383a1c5044dc3312e4"
+    },
+    {
+      "path": "target/bf131/a62/A_Als_Walk_Forward.ue.json",
+      "sha256": "6046ec9b5102f9098d9ca2b7132edbab4923780d1b09bda4aaf720af5db3b971"
+    },
+    {
+      "path": "target/bf131/a62/BS_Als_WalkRun_Forward.ue.json",
+      "sha256": "1c27aef16d8415e7839bfda4d50bb2f93a7447aaa73cf17fa3e94a4aabc23154"
     }
   ],
   "graphs": [
@@ -473,9 +481,9 @@
         "python",
         "tools/animgraph_authoring/audit_source_closure.py",
         "--source-directory",
-        "target/bf131/a60/replay/full-source",
+        "target/bf131/a62/replay/full-source",
         "--materialized-directory",
-        "target/bf131/a60/replay/full-conversion/ALS/Character/AB_Als",
+        "target/bf131/a62/replay/full-conversion/ALS/Character/AB_Als",
         "--spec",
         "target/animgraph_authoring/current.spec.json"
       ]
@@ -951,6 +959,54 @@
         "2"
       ],
       "evidence": "target/bf1295/bf131-a60-final-profile_blend.json"
+    },
+    {
+      "label": "asset_rate_scale_source_sequence_player",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--profile",
+        "play",
+        "--lib",
+        "source_sequence_player::tests",
+        "--jobs",
+        "2"
+      ],
+      "evidence": "target/bf1295/bf131-a62-final-source_sequence_player.json"
+    },
+    {
+      "label": "asset_rate_scale_normalized_blendspace",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--profile",
+        "play",
+        "--lib",
+        "normalized_blendspace::tests",
+        "--jobs",
+        "2"
+      ],
+      "evidence": "target/bf1295/bf131-a62-final-normalized_blendspace.json"
+    },
+    {
+      "label": "asset_rate_scale_source_sequence_evaluator",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--profile",
+        "play",
+        "--lib",
+        "source_sequence_evaluator::tests",
+        "--jobs",
+        "2"
+      ],
+      "evidence": "target/bf1295/bf131-a62-final-source_sequence_evaluator.json"
     }
   ]
 }

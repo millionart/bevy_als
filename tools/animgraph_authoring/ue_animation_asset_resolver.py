@@ -309,6 +309,7 @@ def sequence_timing_contract(source):
     try:
         duration = parse_number(asset_property(source, "SequenceLength"))
         properties = {row["name"]: row["exported_text"] for row in source["asset_properties"]}
+        rate_scale = parse_number(str(properties.get("RateScale", 1.0)))
         frames_per_second = sequence_sampling_frame_rate(properties)
         root_lock = sequence_root_lock(properties.get("bForceRootLock", "False"), properties.get("RootMotionRootLock", "RefPose"))
         raw_markers = asset_property(source, "AuthoredSyncMarkers")
@@ -326,7 +327,7 @@ def sequence_timing_contract(source):
         raise AssetResolutionError("source animation sequence properties are unreadable") from error
     if duration <= 0.0 or any(not marker["name"] for marker in markers):
         raise AssetResolutionError("source animation sequence duration or markers are invalid")
-    return {"duration": duration, "markers": markers, "frames_per_second": frames_per_second, "root_lock": root_lock,
+    return {"duration": duration, "rate_scale": rate_scale, "markers": markers, "frames_per_second": frames_per_second, "root_lock": root_lock,
             "step_interpolation": sequence_step_interpolation(properties.get("Interpolation", "Linear"))}
 
 
@@ -370,11 +371,12 @@ def source_sequence_timing(content_root, mount, source_path, source_reader=None)
             raise AssetResolutionError("source animation sync marker fields are invalid")
         markers.append({"name": marker_name, "time": float(time)})
     try:
+        rate_scale = parse_number(str(properties.get("RateScale", 1.0)))
         frames_per_second = sequence_sampling_frame_rate(properties)
         root_lock = sequence_root_lock(properties.get("bForceRootLock", False), properties.get("RootMotionRootLock", "RefPose"))
     except (AssetResolutionError, ExportedTextError):
         return sequence_timing_contract(native_source_asset(source_path, source_reader))
-    return {"duration": float(duration), "markers": markers, "frames_per_second": frames_per_second, "root_lock": root_lock,
+    return {"duration": float(duration), "rate_scale": rate_scale, "markers": markers, "frames_per_second": frames_per_second, "root_lock": root_lock,
             "step_interpolation": sequence_step_interpolation(properties.get("Interpolation", "Linear"))}
 
 
@@ -1131,16 +1133,6 @@ def resolve_graph_animation_assets(
                         native_source_asset(source_path, source_reader), blendspace
                     )
                     native_blendspaces[source_path] = native
-                for sample in blendspace["samples"]:
-                    animation = sample["source_animation"]
-                    timing = timings.get(animation)
-                    if timing is None:
-                        timing = source_sequence_timing(
-                            source_content_root, source_mount, animation, source_reader
-                        )
-                        timings[animation] = timing
-                    sample["source_timing"] = timing
-                player = blendspace_player_contract(node, blendspace, native)
                 target = blendspace["target_asset"]
                 category = "blendspace"
             else:
@@ -1159,6 +1151,9 @@ def resolve_graph_animation_assets(
                 samples = blendspace["samples"] if category == "blendspace" else [row]
                 for sample in samples:
                     animation = sample.get("source_animation", source_path)
+                    if animation not in timings:
+                        timings[animation] = source_sequence_timing(source_content_root, source_mount, animation, source_reader)
+                    sample["source_timing"] = timings[animation]
                     if animation not in curves:
                         curves[animation] = source_sequence_curves(source_content_root, source_mount, animation, source_reader)
                     sample["source_curves"] = curves[animation]
@@ -1167,15 +1162,7 @@ def resolve_graph_animation_assets(
                 row["evaluator"] = evaluator
             if class_path == "/Script/AnimGraph.AnimGraphNode_BlendSpacePlayer":
                 row["blendspace"] = blendspace
-                row["player"] = player
-            if category == "sequence" and source_content_root is not None:
-                timing = timings.get(source_path)
-                if timing is None:
-                    timing = source_sequence_timing(
-                        source_content_root, source_mount, source_path, source_reader
-                    )
-                    timings[source_path] = timing
-                row["source_timing"] = timing
+                row["player"] = blendspace_player_contract(node, blendspace, native)
             rows.append(row)
     return rows
 
@@ -1676,6 +1663,7 @@ def run_self_test():
     }
     assert sequence_timing_contract(sequence_source) == {
         "duration": 0.8,
+        "rate_scale": 1.0,
         "frames_per_second": 30000.0 / 1001.0,
         "step_interpolation": False,
         "root_lock": "Zero",
@@ -1684,6 +1672,23 @@ def run_self_test():
             {"name": "Right", "time": 0.433333},
         ],
     }
+    with tempfile.TemporaryDirectory() as directory:
+        content = Path(directory)
+        path = content / "ALS/Animations/A_Test.uasset"
+        path.parent.mkdir(parents=True)
+        path.write_bytes(b"fixture")
+        for rate in (-2.0, 0.0, 0.5, 2.0):
+            native = deepcopy(sequence_source)
+            native["asset_properties"].append({"name": "RateScale", "exported_text": str(rate)})
+            assert sequence_timing_contract(native)["rate_scale"] == rate
+            properties = {"SequenceLength": 0.8, "RateScale": rate,
+                "TargetFrameRate": {"__tagged__": {"Numerator": 30, "Denominator": 1}}}
+            asset = SimpleNamespace(exports=[SimpleNamespace(object_name="A_Test")])
+            reader = SimpleNamespace(read_export=lambda _: (properties, True, 0))
+            with patch(__name__ + ".UAsset", return_value=asset), \
+                 patch(__name__ + ".PropReader", return_value=reader), \
+                 patch(__name__ + ".source_export_class", return_value="AnimSequence"):
+                assert source_sequence_timing(content, "/ALS", native["asset_path"])["rate_scale"] == rate
     sequence_source["asset_properties"].append({"name": "Interpolation", "exported_text": "Step"})
     assert sequence_timing_contract(sequence_source)["step_interpolation"]
     assert sequence_step_interpolation({"value": "EAnimInterpolationType::Step"})
