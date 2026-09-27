@@ -5,6 +5,65 @@
 > 基座模块提交前缀沿用 `M<编号>`；缺陷修复清单用 `BF<编号>`。
 > 已归档清单：[archivedchecklist.md](docs/archive/archivedchecklist.md)
 
+## BF131 — c609ed5 审阅 v17 的 37 项反馈
+
+来源：内置浏览器《复核移植差异》的 v17 `current_open_findings.md`，2026-09-27 读取。审阅目标为 `c609ed596d420f93e2cc383904733928a64114a6`；本批修复基线为 `e6782b8`。对标 ALS `b754d6f0f2bb03741d301f8fb88077ebfe561e17`、UE `396c9f059903aed5fec78ecd3d437a40c6415368`。保留原编号，共 A13、A40、A56–A90；A13/A40 仅处理残留边界。浏览器正在进行的后续审阅不属于这 37 项。
+
+执行：按下列模块顺序逐项复核当前路径及本地 source，先留下失败反例，再修复、消融和回归；每项自身 Gate 通过后勾选并单独提交。网页的静态结论不代替本地复现。涉及转换规则时必须重生成全部已安装 AnimBP 及递归依赖，并核对完整产物差异；涉及动画行为时使用公共 Playground 视觉 Gate。未通过的项目保持未勾选。
+
+估时与拆分：参考归档 BF124.A13/A40/A39 的 source、focused 修复、真实入口三阶段记录，逐项分为 S1 源合同与失败反例、S2 最小修复与消融、S3 真实入口验收，每个执行窗口不超过 60 分钟；复杂物理或转换闭包在 S1 后继续细分。各项开始时根据 fresh source 闭包填写实际开始和预估结束时点，排队条目不冒记为已开始。
+
+### 当前 Avatar 与材质生命周期
+
+- [ ] **BF131.A13 — 当前脚骨映射已更新，但保留旧 Avatar 时脚目标仍可能按旧坐标系转换**。Gate：新旧 Avatar 使用不同平移/旋转/缩放，目标转换只依赖当前 Assembly/player；旧实体保留与两种拆装顺序均通过，原脚锁行为不回退。
+- [ ] **BF131.A40 — 透明标准材质替换没有显式退出标记时，旧贴花代理残留并可抢占渲染材质**。Gate：Opaque→透明材质同帧交接不留旧代理，当前材质保留；显式退出和正常贴花接收控制通过。
+
+### 动画图、曲线、同步和根运动
+
+- [ ] **BF131.A56 — Scoped cached pose lookup ignores linked-instance ownership**。Gate：同图多个 linked instance 的缓存只在所属实例内解析，正常同实例复用与缺失诊断通过。
+- [ ] **BF131.A57 — Graph footstep dispatcher mishandles reverse playback**。Gate：正播/倒播、跨循环和多圈步进按源事件区间分派，不漏发或重复。
+- [ ] **BF131.A58 — Point NotifyTriggerChance is imported but not consumed**。Gate：点通知概率 0/1 及中间值按源分派规则生效，保留其他过滤条件。
+- [ ] **BF131.A59 — FSM getter requires one arena-wide static GUID match instead of owning linked-instance scope**。Gate：同 GUID 的多 linked instance 从所属实例读取状态，无关实例不造成歧义。
+- [ ] **BF131.A60 — CurveFloat importer rejects valid single-key constant curves**。Gate：单关键帧常量曲线可导入并在区间内外正确采样，空/无效输入仍按源合同处理。
+- [ ] **BF131.A61 — LinkedGraph reintroduces inactive or unweighted input asset samples after child evaluation**。Gate：子图未消费及零权重输入不重新出现；实际输出样本和权重正确。
+- [ ] **BF131.A62 — AnimSequence asset RateScale is discarded before generated playback**。Gate：资产 RateScale 与节点倍率按源规则组合，正/负/零倍率及循环控制通过。
+- [ ] **BF131.A63 — TimeFactor BlendProfile is accepted then evaluated as WeightFactor**。Gate：TimeFactor/WeightFactor 的逐骨混合分别符合源公式，零/单位/非单位因子可区分。
+- [ ] **BF131.A64 — Animation curves lose case-insensitive FName identity and name-based basis conversion**。Gate：大小写变体共享曲线身份，名称驱动的坐标转换一致且只执行一次。
+- [ ] **BF131.A65 — BlendSpace Player accepts then discards per-bone sample weight smoothing overrides**。Gate：逐骨平滑覆盖由 source 进入生成与实际混合；未覆盖骨保持默认，连续时间及重建通过。
+- [ ] **BF131.A66 — CurvesBlend omits fractional update weight before its child FSM runs**。Gate：子 FSM 更新时已收到实际分数权重，0/中间/1 权重及嵌套更新通过。
+- [ ] **BF131.A67 — TransitionLeader/TransitionFollower are not excluded during fade-in**。Gate：淡入阶段按角色和源有效权重选 leader，退出淡入后恢复候选资格。
+- [ ] **BF131.A68 — Sync marker mapping does not filter to common marker names**。Gate：先求组内共同 marker 集，再定位/映射，非共同 marker 不改变有效相位。
+- [ ] **BF131.A69 — Modify Curve accepts WeightedMovingAverage but evaluates it as stateless Blend**。Gate：逐实例历史参与加权移动平均，初始化/更新/重建及其他模式控制通过。
+- [ ] **BF131.A70 — Repeated marker-name pairs collapse later timeline occurrences into the first pair**。Gate：同名重复 marker 对保留时间位置，跨周期与倒播不跳到第一对。
+- [ ] **BF131.A71 — Custom 状态迁移按总时长结束，遗漏 FAlphaBlend 提前达到终值的完成语义**。Gate：源曲线提前达到终值时迁移完成，未达到终值及正常总时长控制通过。
+- [ ] **BF131.A72 — 惯性过渡的显式 BlendProfile 在生成、请求和逐骨消费链中丢失**。Gate：显式 profile 贯穿生成、惯性请求与逐骨持续时间，默认 profile 和无覆盖控制通过。
+- [ ] **BF131.A73 — 惯性化 root 历史没有按组件／Actor 附着空间变化重表达**。Gate：组件/Actor 附着空间改变后历史按源坐标系重表达，世界连续姿态和不变空间控制通过。
+- [ ] **BF131.A74 — 关闭跨被跳过缓存分支的惯性请求转发仍向全部消费者复制请求**。Gate：关闭转发时跳过分支不接收请求，开启转发及实际求值消费者保持源语义。
+- [ ] **BF131.A75 — SequencePlayer 初始化未保留默认倒播起点语义，非循环负倍率停在首帧**。Gate：默认负倍率从源规定终点初始化；显式起点、循环/非循环及重初始化通过。
+- [ ] **BF131.A76 — StateResult 完全混入／完全混出回调被解析和生成，但 FSM 从不触发**。Gate：实际状态权重到达端点触发对应回调，连续帧不重复，打断/重入符合源生命周期。
+- [ ] **BF131.A77 — 根运动平移按固定轨迹坐标相减，遗漏前一 root 旋转的相对空间转换**。Gate：带旋转轨迹按前一 root 局部空间提取位移，正倒播和循环连续，直线控制通过。
+- [ ] **BF131.A78 — GroundPlane 将 yaw 同时发布为根运动并保留在输出 root 姿态中**。Gate：消费 yaw 后输出 root 去除对应旋转，保留源规定的高度/其他轴，角色不重复旋转。
+
+### PhysicsAsset、关节与布娃娃回读
+
+- [ ] **BF131.A79 — 线性化关节的两个独立 Swing 限位被当成椭圆锥／圆锥，界内斜向姿态受到错误修正**。Gate：源独立轴界内斜向姿态保持，越界轴单独修正，限位模式和坐标基控制通过。
+- [ ] **BF131.A80 — 自由线性轴的位置／速度驱动通过最终校验，却未保留到运行时并可使纯驱动关节禁用**。Gate：纯线性位置/速度驱动保留并启用，目标/强度/阻尼/限力按源消费，自由无驱动控制通过。
+- [ ] **BF131.A81 — 完全自由关节只按 Twist 位置驱动判定启用，导致有效 Swing／角速度驱动被 JointDisabled 屏蔽**。Gate：逐驱动启用条件与实际活动轴一致，纯 Swing/速度驱动可工作，完全无约束控制通过。
+- [ ] **BF131.A82 — PhysicsAsset 刚体禁碰撞响应被记录但未消费，布娃娃激活又恢复默认阻挡层**。Gate：Body 响应在生成、安装、激活/退出及重建中保留，禁碰撞体不恢复默认阻挡。
+- [ ] **BF131.A83 — PhysicsAsset 的 COMNudge／InertiaTensorScale 未进入运行质量属性，质量相同但质心与转动响应错误**。Gate：坐标/单位正确的 COM 与惯量实际安装，非零偏移、非均匀惯量和单位控制通过。
+- [ ] **BF131.A84 — 关闭角速度覆盖时仍将 BodyInstance 原始 MaxAngularVelocity 作为强制上限，遗漏项目有效值**。Gate：按覆盖开关解析项目/实例有效上限，多个默认值、新建/重建与实际向量钳制通过。
+- [ ] **BF131.A85 — 原生 PhysicsAsset 读取器使用 BodySetup 材质而绕过 BodyInstance PhysMaterialOverride，安装错误接触系数**。Gate：有效材质路径与属性同源，单体覆盖不污染共享材质，无覆盖正确回退，运行摩擦/恢复系数通过。
+- [ ] **BF131.A86 — 关闭源陀螺力矩后，目标仍按非球对称惯量自动施加陀螺修正**。Gate：开关贯穿源到积分；非球对称多轴旋转、开关切换、睡眠唤醒/重建及其他力学作用控制通过。
+- [ ] **BF131.A87 — 单个物理形状的 CollisionEnabled 未进入运行过滤，QueryOnly 等模式被当成普通阻挡 Collider**。Gate：六种 shape 模式与 Body 模式按源交集消费；同 Body 主阻挡形状与辅助 QueryOnly 并存，查询和物理解耦。
+- [ ] **BF131.A88 — 源端允许相互碰撞的关节仍保留 JointCollisionDisabled，在用户钩子前屏蔽合法碰撞对**。Gate：关节标志与资产对子表四种组合经过实际 spawn/替换/JointGraph/broad phase，运行开关和重建通过。
+- [ ] **BF131.A89 — 自定义关节缺少源端速度约束阶段，单子步下位置纠错留下非物理速度**。Gate：正确调度位置求解活动轴速度；单子步误差、零迭代、自由轴、双 Dynamic、非零锚臂和接触控制通过。
+- [ ] **BF131.A90 — 缩放布娃娃回读归一化忽略逐骨屏蔽，改写本应保留的动画骨骼**。Gate：按实际成功回读及父空间归一化；root/child 四种组合、全关闭、缺失实体、中间未映射骨及完整回读控制通过。
+
+### 活动记录
+
+- BF131 登记：开始 2026-09-27 19:28 +08:00；预估结束 2026-09-27 19:43 +08:00；实际结束 2026-09-27 19:40 +08:00；偏差 -3 分钟；结果：37/37 原编号录入，`git diff --check` 通过；拆分：后续逐项 S1/S2/S3。当前 HEAD 与修复基线相同，工作区初始干净；未把继承的审阅结果记成本地通过。旧 `crates/als-ext` 等路径按 `src/README.md` 映射。网页附件下载未取得文件，清单内容直接取自预览；具体修复仍重新提取本地 source。
+- BF131.A13-S1：开始 2026-09-27 19:34 +08:00；预估结束 2026-09-27 20:14 +08:00。依据：归档 A13 已验证当前 player 骨骼映射和同位姿 Avatar 替换，本轮限定为脚目标坐标转换的 Avatar 身份与不同变换反例；先追踪转换函数全部调用者及本地 ALS 当前 Mesh socket/组件空间合同，再决定最小修改。
+
 ## 背景与基础事实（已核实，持续有效）
 
 - 本机 bevy 源码：`0.19.1`（release-0.19.1）。`bevy_animation_graph` 0.11.0 与 `bevy-tnua` 均基于 Bevy 0.19，兼容。
