@@ -1946,6 +1946,91 @@ mod tests {
     };
 
     #[test]
+    fn state_getters_use_the_owning_linked_instance() {
+        fn query(
+            In((handles, nodes, getters)): In<([Handle<AnimationGraph>; 3], [NodeId; 4], [NodeId; 3])>,
+            resources: SystemResources,
+        ) {
+            let [root, shared, nested] = handles.map(|handle| (handle.id(), resources.animation_graph_assets.get(&handle).unwrap()));
+            let [first, second, missing, machine] = nodes;
+            let state_id = StateId::default();
+            let env = TestIoEnv::default();
+            let entities = HashMap::new();
+            let inputs = HashMap::new();
+            let mut gizmos = DeferredGizmos::default();
+            for count in [2, 1] {
+                let mut arena = GraphContextArena::new(root.0);
+                for frame in 1..=2 {
+                    for (index, instance) in [first, second].into_iter().take(count).enumerate() {
+                        let root_ctx = GraphContext::new(arena.get_toplevel_id(), root.1, &mut arena, &resources,
+                            &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+                        let owner = root_ctx.create_node_context(instance).create_child_context(shared.0, shared.1, None);
+                        let mut node = owner.create_node_context(machine);
+                        let state = node.state_mut_or_else(|| InterruptibleFsmNode::initial_state(
+                            LowLevelStateId::HlState(state_id), 0.0, 0)).unwrap();
+                        let value = (index + frame) as f32;
+                        state.recorded_machine_weight = value / 4.0;
+                        state.current_state_elapsed_time = value * 3.0;
+                        state.recorded_state_weights = vec![SourceFsmStateWeight { state_id: state_id.uuid().to_string(), value: value / 8.0 }];
+                    }
+                    for (index, instance) in [first, second].into_iter().take(count).enumerate() {
+                        let root_ctx = GraphContext::new(arena.get_toplevel_id(), root.1, &mut arena, &resources,
+                            &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+                        let owner = root_ctx.create_node_context(instance).create_child_context(shared.0, shared.1, None);
+                        let child = owner.create_node_context(machine).create_child_context(nested.0, nested.1,
+                            Some(LowLevelStateId::HlState(state_id)));
+                        let value = (index + frame) as f32;
+                        for (getter, expected) in getters.into_iter().zip([value / 4.0, value * 3.0, value / 8.0]) {
+                            nested.1.nodes[&getter].update(child.create_node_context(getter)).unwrap();
+                            let actual = child.node_caches().get_output_data(getter, StateKey::Default, "ReturnValue".into())
+                                .unwrap().as_f32().unwrap();
+                            assert_eq!(actual, expected, "Getter borrowed another linked instance");
+                        }
+                    }
+                    let root_ctx = GraphContext::new(arena.get_toplevel_id(), root.1, &mut arena, &resources,
+                        &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+                    let missing = root_ctx.create_node_context(missing).create_child_context(nested.0, nested.1, None);
+                    for getter in getters {
+                        assert!(nested.1.nodes[&getter].update(missing.create_node_context(getter)).is_err(),
+                            "A getter without its own machine must not borrow a foreign instance");
+                    }
+                    arena.next_frame();
+                }
+            }
+        }
+
+        let mut graphs = Assets::<AnimationGraph>::default();
+        let machine = AnimationNode::new("shared machine", InterruptibleFsmNode::default());
+        let mut shared = AnimationGraph::new();
+        shared.add_node(machine.clone());
+        let shared = graphs.add(shared);
+        let mut nested = AnimationGraph::new();
+        let getters = ["GetInstanceMachineWeight", "GetInstanceCurrentStateElapsedTime", "GetInstanceStateWeight"].map(|function| {
+            let node = AnimationNode::new(function, crate::extensions::SourceAnimationStateGetterNode {
+                source_function: function.to_owned(), fsm_node: machine.id.uuid().to_string(),
+                state_id: if function == "GetInstanceStateWeight" { StateId::default().uuid().to_string() } else { String::new() },
+                output: "ReturnValue".to_owned(),
+            });
+            nested.add_node(node.clone());
+            node.id
+        });
+        let nested = graphs.add(nested);
+        let mut root = AnimationGraph::new();
+        let instances = [shared.clone(), shared.clone(), nested.clone()].map(|graph| {
+            let node = AnimationNode::new("linked instance", crate::extensions::LayeredGraphNode::new(graph));
+            root.add_node(node.clone());
+            node.id
+        });
+        let root = graphs.add(root);
+        let mut world = World::new();
+        world.insert_resource(graphs);
+        world.insert_resource(Assets::<GraphClip>::default());
+        world.insert_resource(Assets::<Skeleton>::default());
+        world.insert_resource(Assets::<StateMachine>::default());
+        world.run_system_cached_with(query, ([root, shared, nested], [instances[0], instances[1], instances[2], machine.id], getters)).unwrap();
+    }
+
+    #[test]
     fn machine_weight_uses_the_parent_update_context() {
         fn query(In(handle): In<Handle<AnimationGraph>>, resources: SystemResources) -> f32 {
             let graph = resources.animation_graph_assets.get(&handle).unwrap();

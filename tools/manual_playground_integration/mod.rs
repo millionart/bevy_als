@@ -278,6 +278,16 @@ fn standing_dynamic_foot_restored(unlocked: bool, foot: Option<&crate::als::foot
             <= (crate::als::transitions::DYNAMIC_TRANSITION_FOOT_LOCK_DISTANCE_METERS * scale).powi(2))
 }
 
+fn standing_dynamic_observed<'a>(stack: Option<&'a AlsTransitionMontageStack>, previous: Option<&AlsTransitionPlayback>, kind: AlsTransitionKind, index: f32) -> Option<&'a AlsTransitionPlayback> {
+    stack.and_then(|stack| stack.entries.iter().rev().find(|playback| playback.kind == kind && playback.index == index
+        && previous.is_none_or(|previous| previous.instance_id == playback.instance_id)))
+}
+
+fn standing_dynamic_stopped(branch_seen: bool, previous: Option<&AlsTransitionPlayback>, current: Option<&AlsTransitionPlayback>, idle: bool) -> bool {
+    branch_seen && previous.is_some_and(|playback| playback.clip_time > 0.8)
+        && current.is_none_or(|playback| !playback.active) && idle
+}
+
 fn dynamic_transition_side(crouching: bool, sequence: f32) -> f32 {
     sequence - if crouching { 2.0 } else { 0.0 }
 }
@@ -6946,7 +6956,7 @@ fn observe_manual_integration(
         notify_root_scale,
         notify_early_blend_out,
         grounded_entry,
-        transition_playback,
+        transition_stack,
         root_transition_slot,
         desired_stance,
         mantle_montages,
@@ -6954,7 +6964,7 @@ fn observe_manual_integration(
     else {
         return;
     };
-    let transition_playback = transition_playback.and_then(AlsTransitionMontageStack::latest);
+    let transition_playback = transition_stack.and_then(AlsTransitionMontageStack::latest);
     let Ok(assembly) = interface.camera_assemblies.get(character) else { return; };
     let Ok((
         _,
@@ -8349,7 +8359,8 @@ fn observe_manual_integration(
                     && player.get_global_input_data("transitions_state.b_transitions_allowed").and_then(|value| value.as_bool().ok()) == Some(true);
                 state.stop_branch_seen |= queued == Some(right) && state.turn_probe.started_at.is_some();
             }
-            let observed = transition_playback.filter(|playback| playback.kind == if crouching_actions { AlsTransitionKind::CrouchingDynamic } else { AlsTransitionKind::StandingDynamic } && playback.index == right);
+            let observed = standing_dynamic_observed(transition_stack, state.stop_playback.as_ref(),
+                if crouching_actions { AlsTransitionKind::CrouchingDynamic } else { AlsTransitionKind::StandingDynamic }, right);
             let slot_ready = root_transition_slot.is_some_and(|slot| slot.active && slot.pose_ready && slot.weight > 0.05);
             if let Some(playback) = observed.filter(|playback| playback.active && slot_ready && state.stop_branch_seen) {
                 if playback.start_time == 0.0 && playback.play_rate == 1.5 && playback.blend_in == 0.2 && playback.blend_out == 0.2 {
@@ -8361,10 +8372,10 @@ fn observe_manual_integration(
             state.dynamic_unlocked |= state.stop_playback.is_some() && foot.is_some_and(|foot| foot.lock_amount < 0.1);
             let restored = standing_dynamic_foot_restored(state.dynamic_unlocked, foot, scale);
             let completed = state.dynamic_selection_valid && restored && idle
-                && standing_stop_completed(state.stop_branch_seen, state.stop_playback.as_ref(), observed, idle)
+                && standing_dynamic_stopped(state.stop_branch_seen, state.stop_playback.as_ref(), observed, idle)
                 && root_transition_slot.is_some_and(|slot| !slot.active);
             state.coverage.standing_dynamic[index] |= completed;
-            let capture = state.stop_playback.is_some();
+            let capture = state.stop_playback.is_some() && (observed.is_some() || completed);
             let expected_variant = if crouching_actions { if right > 0.5 { "A_Als_Crouch_DynamicTransition_Right" } else { "A_Als_Crouch_DynamicTransition_Left" } } else { if right > 0.5 { "A_Als_Stand_DynamicTransition_Right" } else { "A_Als_Stand_DynamicTransition_Left" } };
             let mut chain = generated_stop_quick_source_pose_chain(crouching_actions);
             chain.push(ManualAnimationPoseBoundary {
@@ -8382,8 +8393,8 @@ fn observe_manual_integration(
                 observed_animation_clip_time: observed.map(|playback| playback.clip_time),
                 observed_animation_weight: observed.map(|playback| playback.weight),
                 observed_animation_play_rate: observed.map(|playback| playback.play_rate),
-                expected_lifecycle_stages: &["playing", "completed", "foot_relocked", "settled"],
-                observed_lifecycle_stages: if completed { &["completed", "foot_relocked", "settled"] }
+                expected_lifecycle_stages: &["playing", "stopped", "foot_relocked", "settled"],
+                observed_lifecycle_stages: if completed { &["stopped", "foot_relocked", "settled"] }
                     else if slot_ready { &["playing"] } else { &[] },
                 expected_terminal_parent_runtime_state: Some(0), expected_terminal_parent_transition_active: Some(false),
                 expected_terminal_requested_parent_transition_active: Some(false),
@@ -8537,6 +8548,8 @@ fn observe_manual_integration(
             "foot_locks": foot_lock.map(|feet| (feet.left.lock_amount,feet.left.lock_location.to_array(),feet.right.lock_amount,feet.right.lock_location.to_array())),
             "dynamic_inputs": (["left", "right"].map(|side| (graph_global_f32(player, &format!("feet_state.{side}.lock_amount")), graph_global_f32(player, &format!("feet_state.{side}.lock_distance_squared"))))),
             "dynamic_probe": (state.phase == IntegrationPhase::StandingDynamic).then_some((state.stop_branch_seen, state.dynamic_selection_valid, state.dynamic_unlocked)),
+            "dynamic_instance": (state.phase == IntegrationPhase::StandingDynamic).then(|| state.stop_playback.map(|playback|
+                (playback.instance_id, playback.clip_time, transition_stack.is_some_and(|stack| stack.entries.iter().any(|entry| entry.instance_id == playback.instance_id))))),
             "slot_allow_transitions": motion_probe.source_inputs.get(instance.player_entity()).ok().and_then(|inputs| inputs.slot_input_context("transition.pose")).and_then(|context| context.curves.get("AllowTransitions").copied()),
             "native_dynamic": arena.and_then(|arena| arena.get_toplevel().node_states.get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default).ok().map(|source| (
                 arena.frame_index(),
@@ -11597,6 +11610,29 @@ mod tests {
         state.stop_case_index += 1;
         begin_phase(&mut state, IntegrationPhase::StandingStop);
         assert!(!standing_stop_observation_active(&state));
+    }
+
+    #[test]
+    fn standing_dynamic_tracks_a_played_instance_until_it_stops() {
+        for kind in [AlsTransitionKind::StandingDynamic, AlsTransitionKind::CrouchingDynamic] {
+            let mut played = AlsTransitionPlayback::standing_dynamic(0.0);
+            played.kind = kind;
+            played.advance(0.6);
+            let mut replacement = AlsTransitionPlayback::standing_dynamic(1.0);
+            replacement.kind = kind;
+            let mut stack = AlsTransitionMontageStack { entries: vec![played, replacement] };
+            let observed = standing_dynamic_observed(Some(&stack), Some(&played), kind, 0.0).unwrap();
+            assert_eq!(observed.instance_id, played.instance_id);
+            assert!(!standing_dynamic_stopped(true, Some(&played), Some(observed), true));
+            stack.entries.remove(0);
+            let observed = standing_dynamic_observed(Some(&stack), Some(&played), kind, 0.0);
+            assert!(observed.is_none());
+            assert!(standing_dynamic_stopped(true, Some(&played), observed, true));
+            assert!(!standing_dynamic_stopped(false, Some(&played), observed, true));
+            assert!(!standing_dynamic_stopped(true, Some(&played), observed, false));
+            played.clip_time = 0.5;
+            assert!(!standing_dynamic_stopped(true, Some(&played), observed, true));
+        }
     }
 
     #[test]

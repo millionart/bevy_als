@@ -23,8 +23,8 @@
       "sha256": "1659c7d63cc7341ece055dc8ee570a2578bf16659bb44b211da2e5e011410fe0"
     },
     {
-      "path": "target/bf116_projection/source/ALS_ALS_Character_AnimationInstances_Stances_AB_Als_Standing.AB_Als_Standing.ue.json",
-      "sha256": "00a6940838effcc31ace836ab2cb8b7c722f8ce338c0c5dfbfa6826ce2cf2a66"
+      "path": "target/bf131/a59/AB_Als_Standing.ue.json",
+      "sha256": "8680bc1f5a964c85c908b0706463b84ea00f19c3b523ef99fbd9014d21b39a75"
     },
     {
       "path": "target/bf116_projection/source/ALS_ALS_Character_AB_Als.AB_Als.ue.json",
@@ -1866,5 +1866,23 @@
   "runtime_gate": {
     "contract_gate": "animgraph_assets",
     "manual_case": "standing_dynamic"
-  }
+  },
+  "focused_tests": [
+    {
+      "label": "state_getter_linked_instance_ownership",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--profile",
+        "play",
+        "--lib",
+        "state_getters_use_the_owning_linked_instance",
+        "--jobs",
+        "2"
+      ],
+      "evidence": "target/bf1295/bf131-a59-final-getter.json"
+    }
+  ]
 }

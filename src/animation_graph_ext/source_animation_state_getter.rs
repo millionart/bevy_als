@@ -10,6 +10,7 @@ use bevy_animation_graph::core::{
 };
 
 use crate::extensions::interruptible_fsm::{InterruptibleFsmNode, InterruptibleFsmState};
+use crate::extensions::source_instance::linked_instance_context;
 
 #[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default, NodeLike)]
@@ -37,11 +38,14 @@ impl SourceAnimationStateGetterNode {
                 "source animation getter machine is unavailable",
             ));
         }
+        let owner = linked_instance_context(ctx, ctx.graph_context.context_id)
+            .ok_or_else(|| Self::error(ctx, "source animation getter owning instance is unavailable"))?;
         let matches = ctx
             .graph_context
             .context_arena
             .get_ref()
             .iter_context_ids()
+            .filter(|context_id| linked_instance_context(ctx, *context_id) == Some(owner))
             .filter_map(|context_id| {
                 let context = ctx
                     .graph_context
