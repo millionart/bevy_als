@@ -546,6 +546,92 @@ mod tests {
     use super::*;
 
     #[test]
+    fn linked_output_preserves_only_consumed_asset_samples() {
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip, animation_graph::{NodeId, SourcePin, TimeUpdate}, animation_node::AnimationNode,
+            context::{deferred_gizmos::DeferredGizmos, graph_context_arena::GraphContextArena, system_resources::SystemResources},
+            pose::Pose, skeleton::Skeleton, state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
+        };
+        fn query(In((handle, parents, authoritative)): In<(Handle<AnimationGraph>, [NodeId; 2], bool)>, resources: SystemResources) -> Vec<(String, f32)> {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let inputs = ["left", "right", "independent"].map(|key| (key.to_owned(), DataValue::Pose(Pose::default()))).into();
+            let env = TestIoEnv::default();
+            let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources,
+                &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+            for (id, identity, weight) in [(parents[0], "left", 0.8), (parents[1], "right", 0.6)] {
+                *context.create_node_context(id).state_mut_or_else(AnimationContextState::default).unwrap() = AnimationContextState {
+                    curves_are_authoritative: authoritative,
+                    asset_samples: vec![crate::extensions::animation_context::SourceAssetSample {
+                        identity: identity.to_owned(), clock: crate::extensions::SourceRelevantAsset { weight, ..default() }, ..default()
+                    }], ..default()
+                };
+            }
+            graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.1)), context.clone()).unwrap();
+            let mut samples = graph_output_context_state(graph, &context, "Pose").unwrap().asset_samples
+                .into_iter().map(|sample| (sample.identity, sample.clock.weight)).collect::<Vec<_>>();
+            samples.sort_by(|a, b| a.0.cmp(&b.0));
+            samples
+        }
+        let mut world = World::new();
+        world.insert_resource(Assets::<AnimationGraph>::default());
+        world.insert_resource(Assets::<GraphClip>::default());
+        world.insert_resource(Assets::<Skeleton>::default());
+        world.insert_resource(Assets::<StateMachine>::default());
+        for authoritative in [true, false] {
+            for mode in ["blend", "independent", "direct"] {
+                for weight in [0.0_f32, 0.25, 1.0] {
+                    let mut graphs = world.resource_mut::<Assets<AnimationGraph>>();
+                    let mut inner = AnimationGraph::new();
+                    for input in ["left", "right"] { inner.add_input_data(GraphInputPin::Passthrough(input.into()), DataSpec::Pose); }
+                    inner.add_output_data("Pose".into(), DataSpec::Pose);
+                    if mode == "blend" {
+                        let blend = AnimationNode::new("weighted inputs", crate::extensions::SourceMultiWayBlendNode {
+                            pose_count: 2, desired_alpha_keys: vec![String::new(); 2], desired_alpha_defaults: vec![weight, 1.0 - weight], ..default()
+                        });
+                        for (index, input) in ["left", "right"].into_iter().enumerate() {
+                            inner.add_input_data_edge(GraphInputPin::Passthrough(input.into()), blend.id, format!("Poses {index}"));
+                        }
+                        inner.add_output_data_edge(blend.id, "Pose", "Pose");
+                        inner.add_node(blend);
+                    } else if mode == "direct" {
+                        inner.add_edge(SourcePin::InputData(GraphInputPin::Passthrough("left".into())), TargetPin::OutputData("Pose".into()));
+                    } else {
+                        let node = AnimationNode::new("independent output", crate::extensions::GlobalPoseInputNode { key: "independent".into(), output: "Pose".into() });
+                        inner.add_output_data_edge(node.id, "Pose", "Pose");
+                        inner.add_node(node);
+                    }
+                    let inner = graphs.add(inner);
+                    let linked = AnimationNode::new("linked", LayeredGraphNode { capture_context: true, internalize_time: true, ..LayeredGraphNode::new(inner) });
+                    let mut root = AnimationGraph::new();
+                    let parents = ["left", "right"].map(|input| {
+                        let node = AnimationNode::new(input, crate::extensions::GlobalPoseInputNode { key: input.into(), output: "Pose".into() });
+                        root.add_node_parameter_edge(node.id, "Pose", linked.id, input);
+                        root.add_node(node.clone());
+                        node.id
+                    });
+                    root.add_output_data("Pose".into(), DataSpec::Pose);
+                    root.add_output_data_edge(linked.id, "Pose", "Pose");
+                    root.add_node(linked);
+                    let root = graphs.add(root);
+                    drop(graphs);
+                    let expected = match mode {
+                        "blend" => [("left", 0.8 * weight), ("right", 0.6 * (1.0 - weight))].into_iter()
+                            .filter(|(_, weight)| *weight > 1e-5).map(|(name, weight)| (name.to_owned(), weight)).collect::<Vec<_>>(),
+                        "direct" => vec![("left".to_owned(), 0.8)],
+                        _ => vec![],
+                    };
+                    let actual = world.run_system_cached_with(query, (root, parents, authoritative)).unwrap();
+                    assert_eq!(actual, expected, "mode={mode}, weight={weight}, authoritative={authoritative}");
+                }
+            }
+        }
+    }
+
+    #[test]
     fn instance_graph_binding_switches_and_resets_only_the_linked_subtree() {
         use bevy::{ecs::system::RunSystemOnce, platform::collections::HashMap};
         use bevy_animation_graph::core::{

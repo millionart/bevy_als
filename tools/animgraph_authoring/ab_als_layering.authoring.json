@@ -3,8 +3,8 @@
   "id": "ab_als_layering_assets",
   "source_evidence": [
     {
-      "path": "target/bf116_projection/source/ALS_ALS_Character_AnimationInstances_AB_Als_Layering.AB_Als_Layering.ue.json",
-      "sha256": "2f939fc7a379c56e8eb65c2ffbc24b7cfe2c7cb381b66cb972574cf7373fa530"
+      "path": "target/bf131/a61/AB_Als_Layering.ue.json",
+      "sha256": "9d92de5ac0ceb46f05e19dc23126ec4d6ceac8f444a0d920aaeb2c90dc68fb6a"
     },
     {
       "path": "target/bf116_projection/source/AlsAnimationInstance.cpp",
@@ -1361,6 +1361,22 @@
         "1"
       ],
       "evidence": "target/bf115_camera/bf116_05b2_layering_reader_after.watchdog.json"
+    },
+    {
+      "label": "linked_input_asset_sample_consumption",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--profile",
+        "play",
+        "--lib",
+        "layered_graph::tests",
+        "--jobs",
+        "2"
+      ],
+      "evidence": "target/bf1295/bf131-a61-final-layered_graph.json"
     }
   ]
 }

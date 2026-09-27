@@ -315,10 +315,11 @@ pub fn graph_output_context_state(
     let source = graph
         .edges_inverted
         .get(&TargetPin::OutputData(output.to_owned()))?;
-    let SourcePin::NodeData(node, _) = source else {
-        return None;
-    };
-    node_context_state(ctx.node_states(), ctx.state_key, *node).cloned()
+    match source {
+        SourcePin::NodeData(node, _) => node_context_state(ctx.node_states(), ctx.state_key, *node).cloned(),
+        SourcePin::InputData(pin) => Some(linked_input_context(ctx, pin)),
+        _ => None,
+    }
 }
 
 pub fn merge_missing_context_curves(
@@ -378,9 +379,14 @@ pub fn merge_linked_input_context(
 ) {
     merge_inertialization_request(&mut target.inertialization_request, source.inertialization_request.as_ref());
     if !target.curves_are_authoritative {
-        merge_missing_context_curves(target, source);
-    } else {
-        merge_asset_samples(&mut target.asset_samples, &source.asset_samples, 1.0);
+        for (name, value) in &source.curves {
+            target.curves.entry(name.clone()).or_insert(*value);
+        }
+        if target.relevant_asset.is_none() {
+            target.relevant_asset = source.relevant_asset.clone();
+        }
+        target.curves_are_authoritative |= source.curves_are_authoritative;
+        merge_sync_players(&mut target.sync_players, &source.sync_players, 1.0);
     }
 }
 
@@ -541,7 +547,7 @@ mod tests {
         assert_eq!(independent.asset_samples.len(), 2);
         let mut authoritative = AnimationContextState { curves_are_authoritative: true, ..default() };
         merge_linked_input_context(&mut authoritative, &blended);
-        assert_eq!(authoritative.asset_samples.len(), 2);
+        assert!(authoritative.asset_samples.is_empty());
         assert!(authoritative.curves.is_empty());
     }
 

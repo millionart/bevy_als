@@ -56,7 +56,7 @@
 - [x] **BF131.A58 — Point NotifyTriggerChance is imported but not consumed**。Gate：点通知概率 0/1 及中间值按源分派规则生效，保留其他过滤条件。
 - [x] **BF131.A59 — FSM getter requires one arena-wide static GUID match instead of owning linked-instance scope**。Gate：同 GUID 的多 linked instance 从所属实例读取状态，无关实例不造成歧义。
 - [x] **BF131.A60 — CurveFloat importer rejects valid single-key constant curves**。Gate：单关键帧常量曲线可导入并在区间内外正确采样，空/无效输入仍按源合同处理。
-- [ ] **BF131.A61 — LinkedGraph reintroduces inactive or unweighted input asset samples after child evaluation**。Gate：子图未消费及零权重输入不重新出现；实际输出样本和权重正确。
+- [x] **BF131.A61 — LinkedGraph reintroduces inactive or unweighted input asset samples after child evaluation**。Gate：子图未消费及零权重输入不重新出现；实际输出样本和权重正确。
 - [ ] **BF131.A62 — AnimSequence asset RateScale is discarded before generated playback**。Gate：资产 RateScale 与节点倍率按源规则组合，正/负/零倍率及循环控制通过。
 - [ ] **BF131.A63 — TimeFactor BlendProfile is accepted then evaluated as WeightFactor**。Gate：TimeFactor/WeightFactor 的逐骨混合分别符合源公式，零/单位/非单位因子可区分。
 - [ ] **BF131.A64 — Animation curves lose case-insensitive FName identity and name-based basis conversion**。Gate：大小写变体共享曲线身份，名称驱动的坐标转换一致且只执行一次。
@@ -158,3 +158,9 @@
   - S3 实际结束 2026-09-28 02:14 +08:00，偏差 -2 分钟；结果：15/15 全入口和递归依赖转换通过，39 份当次原生记录；374 份新旧产物完整 diff 为零，无已完成项需要复开或迁移。转换进程实际约 24 分 40 秒；349 份 fresh spec 和更新到该批 source/materialization 的 12/12 完整 authoring Gate 通过。Root/Grounded 的 CurveFloat 源证据与根清单的解析/采样测试已更新，原始导出未改写。
   - S4 真实入口开始 2026-09-28 02:14 +08:00；预估结束 2026-09-28 02:34 +08:00。依据：同 target_game/play 的预构建已通过；先 startup，再执行直接消费 Custom 曲线的 Grounded 状态迁移与 Default Overlay 瞄准混合。38 项定向测试、两处限制消融、全量转换 diff 和完整审计已闭合；仅真实功能 Gate 待完成，性能继续沿用已登记延期。
   - S4 实际结束 2026-09-28 02:17 +08:00，偏差 -17 分钟；结果：startup、grounded 15/15、default_overlay 17/17 均退出 0，公共功能 PASS，图错误/故障/时序异常为 0。单键导入、非零键时刻的区间内外常量采样、Custom Blend 输出钳制及既有空曲线拒绝边界由失败反例和恢复验证覆盖；两处旧限制消融均 red。38 项 Rust 回归、工具自测、15 全入口/39 fresh 源记录、374 产物零 diff、349 fresh spec、12 完整审计闭合，勾选 A60；无运行资产改写，性能 Gate 继续延期。下一项 A61，尚未开始实现。
+- BF131.A61-S1：开始 2026-09-28 02:21 +08:00；预估结束 2026-09-28 02:41 +08:00。依据：LayeredGraph 求值子图后扫描全部 Pose 输入，merge_linked_input_context 无条件或经曲线 fallback 以权重 1 合回 asset_samples；现有测试反而要求空的 authoritative 子图继承输入样本。重新读取本地 Layering 与 UE LinkedAnimGraph/LinkedInputPose 的更新/求值调用链，使用真实 NodeContext 验证未消费、零/分数/单位权重与输入直通。只覆盖该后合并及必要的输入→输出上下文传播，惯性转发策略仍留 A74。
+  - S1 实际结束 2026-09-28 02:29 +08:00，偏差 -12 分钟；结果：fresh Layering 原生读取成功，含两个 LinkedInputPose。UE 有有效 linked instance 时仅执行 LinkedRoot，输入经 LinkedInputPose 被实际子图更新/求值时才沿 Context 传播；目标真实 NodeContext 夹具在左权重 0 时仍得到 left=0.8，稳定 red。直接输入→输出另缺少上下文读回，不能靠重新合并全部输入补足。S2 开始 02:29 +08:00，预估结束 02:49 +08:00；只移除后合并的样本通道，并补直通读回，保留其他通道现有行为，验证两种曲线权威标志及 0/分数/1 权重、无消费与直通。
+  - S2 实际结束 2026-09-28 02:35 +08:00，偏差 -14 分钟；结果：实际 NodeContext 的 18 组组合通过：曲线权威标志 true/false、0/0.25/1 权重、独立输出不消费输入及直接输入→输出；样本保留子图实际权重。恢复后合并重新带回零权重 left=0.8，移除直通读回使实际消费的 left=0.8 丢失，两项消融均 red，已恢复 green。Layered Graph 8、Animation Context 9、Pose nodes 27、Local Reference 2、Animation Events 14 共 60 项回归通过。没有新增状态、复制/丢弃样本的补偿层或转换规则；Layering manifest 更新为 fresh source 和新夹具证据。
+  - S3 开始 2026-09-28 02:35 +08:00；预估结束 2026-09-28 02:55 +08:00。依据：同 target_game/play 预构建、fresh spec、Layering 完整声明审计，随后 startup、声明的 default_overlay 以及直接样本消费者 notify/footprint 公共功能路径。源码未改图/RON/转换器，不重复全量转换；性能验收维持延期。
+  - Runtime 前摘要（02:39 +08:00）：18 组实际子图夹具、两项消融恢复与 60 项回归已闭合；Layering fresh source、349 个 fresh spec 和声明的 5 条完整审计命令通过，实际 target_game/play 预构建成功。没有原始或目标资产修改，没有新增条件补偿；开始真实入口验证样本对通知、贴花和常规层图的影响。
+  - S3 实际结束 2026-09-28 02:42 +08:00，偏差 -13 分钟；结果：startup、default_overlay 17/17、notify 12/12、footprint 21/21 全部退出 0，公共功能 PASS；GPU 36 请求/576 采样，故障/图错误/时序/watchdog 为 0。未消费/零权重样本不重引入、分数权重保留和直接输入直通由 18 组实际 NodeContext 与消融证明；60 项回归和 fresh source/完整审计闭合，勾选 A61。保留其他数据通道原行为，A74 惯性请求策略未展开；性能验收仍延期。下一项 A62，尚未开始实现。
