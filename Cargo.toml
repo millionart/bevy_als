@@ -23,7 +23,7 @@ default = []
 
 [dependencies]
 bevy = { version = "0.19", features = ["file_watcher", "tga", "pbr_clustered_decals"] }
-bevy_animation_graph = { git = "https://github.com/millionart/bevy_animation_graph", branch = "master", features = ["physics_avian"] }
+bevy_animation_graph = { git = "https://github.com/millionart/bevy_animation_graph", branch = "codex/bevy-als-support", features = ["physics_avian"] }
 bevy_enhanced_input = "0.26"
 bevy_gameplay_tag = { git = "https://github.com/SuitedRioter/bevy_gameplay_tag", rev = "1ed503fdd60de3456a96ecce7ade33f0a06bfde1" }
 avian3d = { version = "0.7", default-features = false, features = ["3d", "debug-plugin", "parallel"] }
@@ -35,7 +35,7 @@ ron = "0.10"
 bevy_gltf = "0.19"
 
 [dev-dependencies]
-bevy_animation_graph_editor = { git = "https://github.com/millionart/bevy_animation_graph", branch = "master" }
+bevy_animation_graph_editor = { git = "https://github.com/millionart/bevy_animation_graph", branch = "codex/bevy-als-support" }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 
 [[bin]]

@@ -666,7 +666,7 @@ dependencies = [
 [[package]]
 name = "bevy_animation_graph"
 version = "0.11.0"
-source = "git+https://github.com/millionart/bevy_animation_graph?branch=master#345588a8d1480f68b45d2a74d8936bd1d706cb2a"
+source = "git+https://github.com/millionart/bevy_animation_graph?branch=codex%2Fbevy-als-support#345588a8d1480f68b45d2a74d8936bd1d706cb2a"
 dependencies = [
  "avian3d",
  "bevy",
@@ -685,7 +685,7 @@ dependencies = [
 [[package]]
 name = "bevy_animation_graph_builtin_nodes"
 version = "0.11.0"
-source = "git+https://github.com/millionart/bevy_animation_graph?branch=master#345588a8d1480f68b45d2a74d8936bd1d706cb2a"
+source = "git+https://github.com/millionart/bevy_animation_graph?branch=codex%2Fbevy-als-support#345588a8d1480f68b45d2a74d8936bd1d706cb2a"
 dependencies = [
  "avian3d",
  "bevy",
@@ -703,7 +703,7 @@ dependencies = [
 [[package]]
 name = "bevy_animation_graph_core"
 version = "0.11.0"
-source = "git+https://github.com/millionart/bevy_animation_graph?branch=master#345588a8d1480f68b45d2a74d8936bd1d706cb2a"
+source = "git+https://github.com/millionart/bevy_animation_graph?branch=codex%2Fbevy-als-support#345588a8d1480f68b45d2a74d8936bd1d706cb2a"
 dependencies = [
  "avian3d",
  "bevy",
@@ -720,7 +720,7 @@ dependencies = [
 [[package]]
 name = "bevy_animation_graph_editor"
 version = "0.11.0"
-source = "git+https://github.com/millionart/bevy_animation_graph?branch=master#345588a8d1480f68b45d2a74d8936bd1d706cb2a"
+source = "git+https://github.com/millionart/bevy_animation_graph?branch=codex%2Fbevy-als-support#345588a8d1480f68b45d2a74d8936bd1d706cb2a"
 dependencies = [
  "avian3d",
  "bevy",
@@ -743,7 +743,7 @@ dependencies = [
 [[package]]
 name = "bevy_animation_graph_proc_macros"
 version = "0.11.0"
-source = "git+https://github.com/millionart/bevy_animation_graph?branch=master#345588a8d1480f68b45d2a74d8936bd1d706cb2a"
+source = "git+https://github.com/millionart/bevy_animation_graph?branch=codex%2Fbevy-als-support#345588a8d1480f68b45d2a74d8936bd1d706cb2a"
 dependencies = [
  "quote",
  "syn 2.0.119",
