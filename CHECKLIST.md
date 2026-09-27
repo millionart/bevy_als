@@ -13,7 +13,7 @@
 
 - [x] **BF129.5-A — 工具与临时数据归位**：开始：2026-09-27 12:07:00 +08:00；预估结束：2026-09-27 12:37:00 +08:00；实际结束：2026-09-27 12:19:16 +08:00；偏差：-17m44s；结果：静态/编译及 1261 项回归通过；拆分结果：材质资源位置留给 B。依据：62 个独立 example、6 个 integration target、14 个自动验证模块和约 15 个临时路径消费者，前轮全 targets 编译与入口测试已有缓存。Gate：Cargo 目标数量/命令保持，自动驱动保留现有访问关系并按 Gate 条件注册；迁移前后源码/设置内容对应、工具语法检查、全 targets 编译及受影响库/入口/集成测试通过，独立提交。
 - [x] **BF129.5-B — 材质资源归位**：依赖 A；开始：2026-09-27 12:20:00 +08:00；预估结束：2026-09-27 12:35:00 +08:00；实际结束：2026-09-27 12:27:05 +08:00；偏差：-7m55s；结果：材质迁移、源导入/通道合同、21 项 Rust 回归与 3 项导入测试通过；拆分结果：真实入口留给 C。依据：两份脚印 WGSL、一份网格纹理与 MaterialLibrary 子树，当前引用集中于脚印、环境材质和导入工具。Gate：资源迁移字节保持、生产者和消费者同步、目录边界/材质通道/贴花定向检查通过。只复开前轮材质资源位置边界；没有 AnimBP 转换规则变化，不重复生成动画图。
-- [ ] **BF129.5-C — 最终真实入口验收与材质说明**：依赖 B；开始：2026-09-27 12:28:00 +08:00；预估结束：2026-09-27 12:48:00 +08:00。依据：前轮 play 构建 2m31s，startup/interface 各约半分钟，增加脚印场景覆盖 shader 路径与绑定。Gate：target_game/play/jobs2 预构建，公共 startup/interface/footprint 功能验收，目录/引用/隐私核对，说明实际 shader 所在位置；性能沿用既有延期边界，独立提交。
+- [x] **BF129.5-C — 最终真实入口验收与材质说明**：依赖 B；开始：2026-09-27 12:28:00 +08:00；预估结束：2026-09-27 12:48:00 +08:00；实际结束：2026-09-27 12:35:24 +08:00；偏差：-12m36s；结果：三场公共功能 Gate 与脚印 GPU 验收通过；拆分结果：无剩余子项。依据：前轮 play 构建 2m31s，startup/interface 各约半分钟，增加脚印场景覆盖 shader 路径与绑定。Gate：target_game/play/jobs2 预构建，公共 startup/interface/footprint 功能验收，目录/引用/隐私核对，说明实际 shader 所在位置；性能沿用既有延期边界，独立提交。
 
 初始 source/static 摘要：Cargo 支持显式 example/test path，main 型检查与 #[test] harness 执行方式不同；现有 manual driver 和报告仅由关卡及一个库测试消费，保持 crate 内访问关系。saved 当前仅有调试类别文件，移到 tools/tmp/saved 保留用户设置；约 15 个 exporter/importer 默认输出需同步。现有角色与道具使用 StandardMaterial，环境使用 PlaygroundTilesExtension，脚印用 packed_decal/receiver 两份 WGSL；此轮只移动文件与解释实际实现。ALS-Ref 本地 MaterialLibrary 只有 Footprint 子目录，目标目录按用户指定改为 Material，导出名及大小写保留。
 
@@ -24,6 +24,12 @@ B 当前 source/static：四个材质资源已移动，纹理字节保持、WGSL
 B 最终 source/static 与消融：审计复用已有 source_for_file 的原生类信息记录所有解析到的目标，只对动画类读取事件；无新增分类表或命名前缀特判。夹具先失败后通过，缺失动画继续报错；本地全部 137 个动画/蒙太奇、177 事件、60 markers 的新审计零失败，128 个导出动画与现有通知产物一致。脚印 importer 的 --check/--self-test 通过，覆盖 6 份原生源记录、154 个脚步通知和 Alpha 丢失/漏采样反例。四个移动文件中两张纹理逐字节一致，两份 WGSL 及环境 shader/脚印配置只有路径变化；对应 Rust 脚印 10、贴花 8、环境材质 3 项通过，目录边界与导入布局自测通过。.4-B 本次有限复开已于 12:27:05 完成，原图/源载荷 Gate 保持有效，恢复完成状态。
 
 C runtime 前摘要：A 的 1261 项回归、全 targets 编译与 B 的材质/导入定向检查已闭合，工具源码归位未改变运行模块身份。当前资源原导出名与大小写保留，仅 Material 目录与四个材质文件归属变化；材质 shader 位置已在 docs/asset-layout.md 说明。现在使用 run_manual.bat 对应 target_game/play/jobs2 构建最终代码，再执行 startup→interface→footprint；CaptureCount 0/FunctionalOnly 沿用现有设置，功能、姿态、GPU 材质与 watchdog 阈值不放宽。
+
+C startup 后/interface 前：最终 play 预构建 2m26s，startup manual/validator 0/0，primary_failure 为空，faults/graph_errors/temporal_anomalies 均 0，渲染/贴花通过。新网格纹理与 shader 路径可加载；full_pass 仍仅因已延期 max_eval_p95_ms 超限为 false。接下来以同一二进制检查迁移后的界面/自动驱动，然后覆盖脚印 GPU 路径。
+
+C interface 后/footprint 前：interface manual/validator 0/0，primary_failure 为空，faults/graph_errors/temporal_anomalies 均 0，渲染/贴花通过；HUD、Overlay 菜单、Bow 绑定/回退/重入与调试输入/画布均有执行证据，工具目录归位未破坏驱动。下一场只覆盖脚印纹理/新 shader import 路径及 GPU 接收、增长/移除/移动/淡出链路，不展开其他动作修复；性能仍保留原延期结论。
+
+C 最终 runtime/消融摘要：footprint manual/validator 0/0，primary_failure 为空，faults/graph_errors/temporal_anomalies 均 0，渲染/贴花通过；GPU 36 次请求、576 个样本零问题，行走/跑步/蹲行、静止/移动/旋转表面、角色接收、可见/淡出/过期与 buffer 生命周期均通过。三场均使用相同 target_game/play 二进制，watchdog 正常完成；full_pass 仍仅受已延期的 max_eval_p95_ms 影响，不声称性能通过。未增加路径兼容层、文件副本或目录包装抽象；新路径完整取代旧路径，导出名和原始纹理数据保持。源码工具/临时目录与材质归属已完成，资源说明列明内置 PBR、环境和脚印 shader 的实际实现位置。
 
 ### BF129.4 — 按源 Content 组织资源与蓝图
 
