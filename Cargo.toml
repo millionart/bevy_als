@@ -5,6 +5,8 @@ edition = "2024"
 version = "0.1.0"
 license = "MIT OR Apache-2.0"
 resolver = "2"
+autoexamples = false
+autotests = false
 
 [profile.dev.package."*"]
 opt-level = 3
@@ -43,3 +45,275 @@ path = "src/main.rs"
 [[example]]
 name = "manual_playground"
 path = "src/als_extras/levels/manual_playground.rs"
+
+[[example]]
+name = "action_priority_gate"
+path = "tools/examples/action_priority_gate.rs"
+
+[[example]]
+name = "aim_override_gate"
+path = "tools/examples/aim_override_gate.rs"
+
+[[example]]
+name = "als_graph_editor"
+path = "tools/examples/als_graph_editor.rs"
+
+[[example]]
+name = "als_hud_gate"
+path = "tools/examples/als_hud_gate.rs"
+
+[[example]]
+name = "animgraph_spec_dump"
+path = "tools/examples/animgraph_spec_dump.rs"
+
+[[example]]
+name = "bf_char14_movement_gate"
+path = "tools/examples/bf_char14_movement_gate.rs"
+
+[[example]]
+name = "bf_char18_dynamic_transition_gate"
+path = "tools/examples/bf_char18_dynamic_transition_gate.rs"
+
+[[example]]
+name = "bf_char99_gate"
+path = "tools/examples/bf_char99_gate.rs"
+
+[[example]]
+name = "camera_lag_axis_gate"
+path = "tools/examples/camera_lag_axis_gate.rs"
+
+[[example]]
+name = "camera_movement_base_gate"
+path = "tools/examples/camera_movement_base_gate.rs"
+
+[[example]]
+name = "character_assembly_gate"
+path = "tools/examples/character_assembly_gate.rs"
+
+[[example]]
+name = "character_ownership_gate"
+path = "tools/examples/character_ownership_gate.rs"
+
+[[example]]
+name = "cmc_adapter_gate"
+path = "tools/examples/cmc_adapter_gate.rs"
+
+[[example]]
+name = "collision_ownership_gate"
+path = "tools/examples/collision_ownership_gate.rs"
+
+[[example]]
+name = "control_rig_contract_gate"
+path = "tools/examples/control_rig_contract_gate.rs"
+
+[[example]]
+name = "crouching_contract_gate"
+path = "tools/examples/crouching_contract_gate.rs"
+
+[[example]]
+name = "crouching_sync_gate"
+path = "tools/examples/crouching_sync_gate.rs"
+
+[[example]]
+name = "cubic_curve_gate"
+path = "tools/examples/cubic_curve_gate.rs"
+
+[[example]]
+name = "cycle_curve_gate"
+path = "tools/examples/cycle_curve_gate.rs"
+
+[[example]]
+name = "debug_display_gate"
+path = "tools/examples/debug_display_gate.rs"
+
+[[example]]
+name = "extrapolation_curve_gate"
+path = "tools/examples/extrapolation_curve_gate.rs"
+
+[[example]]
+name = "foot_ik_solver_gate"
+path = "tools/examples/foot_ik_solver_gate.rs"
+
+[[example]]
+name = "foot_ik_space_gate"
+path = "tools/examples/foot_ik_space_gate.rs"
+
+[[example]]
+name = "foot_lock_base_gate"
+path = "tools/examples/foot_lock_base_gate.rs"
+
+[[example]]
+name = "gait_contract_gate"
+path = "tools/examples/gait_contract_gate.rs"
+
+[[example]]
+name = "game_mode_player_start_gate"
+path = "tools/examples/game_mode_player_start_gate.rs"
+
+[[example]]
+name = "gravity_scale_gate"
+path = "tools/examples/gravity_scale_gate.rs"
+
+[[example]]
+name = "grounded_contract_gate"
+path = "tools/examples/grounded_contract_gate.rs"
+
+[[example]]
+name = "grounded_dynamics_gate"
+path = "tools/examples/grounded_dynamics_gate.rs"
+
+[[example]]
+name = "inertialized_linked_layer_gate"
+path = "tools/examples/inertialized_linked_layer_gate.rs"
+
+[[example]]
+name = "linked_layer_contract_gate"
+path = "tools/examples/linked_layer_contract_gate.rs"
+
+[[example]]
+name = "locomotion_contract_gate"
+path = "tools/examples/locomotion_contract_gate.rs"
+
+[[example]]
+name = "locomotion_sync_gate"
+path = "tools/examples/locomotion_sync_gate.rs"
+
+[[example]]
+name = "look_input_gate"
+path = "tools/examples/look_input_gate.rs"
+
+[[example]]
+name = "mantle_configuration_gate"
+path = "tools/examples/mantle_configuration_gate.rs"
+
+[[example]]
+name = "morph_weight_gate"
+path = "tools/examples/morph_weight_gate.rs"
+
+[[example]]
+name = "movement_base_braking_gate"
+path = "tools/examples/movement_base_braking_gate.rs"
+
+[[example]]
+name = "normalized_blendspace_gate"
+path = "tools/examples/normalized_blendspace_gate.rs"
+
+[[example]]
+name = "overlay_interface_gate"
+path = "tools/examples/overlay_interface_gate.rs"
+
+[[example]]
+name = "overlay_lifecycle_gate"
+path = "tools/examples/overlay_lifecycle_gate.rs"
+
+[[example]]
+name = "overlay_object_gate"
+path = "tools/examples/overlay_object_gate.rs"
+
+[[example]]
+name = "pa_als_contract_gate"
+path = "tools/examples/pa_als_contract_gate.rs"
+
+[[example]]
+name = "platform_gate"
+path = "tools/examples/platform_gate.rs"
+
+[[example]]
+name = "ragdoll_exit_gate"
+path = "tools/examples/ragdoll_exit_gate.rs"
+
+[[example]]
+name = "ragdoll_skeleton_path_probe"
+path = "tools/examples/ragdoll_skeleton_path_probe.rs"
+
+[[example]]
+name = "ragdolling_contract_gate"
+path = "tools/examples/ragdolling_contract_gate.rs"
+
+[[example]]
+name = "root_motion_blend_gate"
+path = "tools/examples/root_motion_blend_gate.rs"
+
+[[example]]
+name = "rotation_response_gate"
+path = "tools/examples/rotation_response_gate.rs"
+
+[[example]]
+name = "scene_gate"
+path = "tools/examples/scene_gate.rs"
+
+[[example]]
+name = "show_debug_hud_gate"
+path = "tools/examples/show_debug_hud_gate.rs"
+
+[[example]]
+name = "slot_curve_gate"
+path = "tools/examples/slot_curve_gate.rs"
+
+[[example]]
+name = "sprint_roll_input_gate"
+path = "tools/examples/sprint_roll_input_gate.rs"
+
+[[example]]
+name = "standing_contract_gate"
+path = "tools/examples/standing_contract_gate.rs"
+
+[[example]]
+name = "standing_rotate_contract_gate"
+path = "tools/examples/standing_rotate_contract_gate.rs"
+
+[[example]]
+name = "standing_sync_gate"
+path = "tools/examples/standing_sync_gate.rs"
+
+[[example]]
+name = "standing_turn_slot_contract_gate"
+path = "tools/examples/standing_turn_slot_contract_gate.rs"
+
+[[example]]
+name = "sync_group_phase_gate"
+path = "tools/examples/sync_group_phase_gate.rs"
+
+[[example]]
+name = "tnua_toggle_gate"
+path = "tools/examples/tnua_toggle_gate.rs"
+
+[[example]]
+name = "velocity_direction_gate"
+path = "tools/examples/velocity_direction_gate.rs"
+
+[[example]]
+name = "view_mode_gate"
+path = "tools/examples/view_mode_gate.rs"
+
+[[example]]
+name = "view_redirect_contract_gate"
+path = "tools/examples/view_redirect_contract_gate.rs"
+
+[[example]]
+name = "view_relative_movement_gate"
+path = "tools/examples/view_relative_movement_gate.rs"
+
+[[test]]
+name = "als_curves_data"
+path = "tools/tests/als_curves_data.rs"
+
+[[test]]
+name = "curve_import"
+path = "tools/tests/curve_import.rs"
+
+[[test]]
+name = "generated_animgraph_assets"
+path = "tools/tests/generated_animgraph_assets.rs"
+
+[[test]]
+name = "notify_event_tracks"
+path = "tools/tests/notify_event_tracks.rs"
+
+[[test]]
+name = "prev_mock_probe"
+path = "tools/tests/prev_mock_probe.rs"
+
+[[test]]
+name = "ragdoll_assets"
+path = "tools/tests/ragdoll_assets.rs"

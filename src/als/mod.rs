@@ -14,8 +14,6 @@ pub mod bones;
 pub mod character;
 #[path = "character/movement/control_scheme.rs"]
 pub mod control_scheme;
-#[path = "../validation/debug_hud.rs"]
-pub mod debug_hud;
 #[path = "character/movement/dynamics.rs"]
 pub mod dynamics;
 #[path = "state/flail.rs"]

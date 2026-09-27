@@ -1,7 +1,6 @@
 # Rust
 /target
 /target_game
-/saved/
 **/*.rs.bk
 __pycache__/
 
@@ -22,7 +21,7 @@ Thumbs.db
 # 日志与临时（门禁运行日志归档于 archive/，白名单放行）
 *.log
 !archive/**/*.log
-/tmp/
+/tools/tmp/
 
 # 隐私环境信息（本地路径、端口等）
 docs/env.md

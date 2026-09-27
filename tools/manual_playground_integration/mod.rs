@@ -9711,7 +9711,7 @@ fn observe_manual_integration(
         if state.interface_debug_armed && all_debug_categories_active && !interface.show_debug_roots.is_empty() {
             let expected_context = state.avatar.and_then(|avatar| motion_probe.object_scenes.get(avatar).ok())
                 .and_then(|instance| players.get(instance.player_entity()).ok()).and_then(|(_, context)| context);
-            let metadata: serde_json::Value = serde_json::from_str(include_str!("../../../assets/ALS/Character/als_character_curves.runtime.json")).unwrap();
+            let metadata: serde_json::Value = serde_json::from_str(include_str!("../../assets/ALS/Character/als_character_curves.runtime.json")).unwrap();
             let mut expected: Vec<(String, String)> = metadata["curves"].as_array().unwrap().iter().map(|name| {
                 let name = name.as_str().unwrap();
                 (crate::show_debug_hud::name_to_display_string(name, false),
@@ -9760,7 +9760,7 @@ fn observe_manual_integration(
             let camera_context = camera_source.and_then(|source| motion_probe.object_scenes.get(source).ok())
                 .and_then(|instance| players.get(instance.player_entity()).ok()).and_then(|(_, context)| context);
             if let Some(context) = camera_context {
-                let mapping: std::collections::HashMap<String, (String, f32)> = serde_json::from_str(include_str!("../../../assets/ALSCamera/als_camera_curves.runtime.json")).unwrap();
+                let mapping: std::collections::HashMap<String, (String, f32)> = serde_json::from_str(include_str!("../../assets/ALSCamera/als_camera_curves.runtime.json")).unwrap();
                 for (name, value) in &context.curves {
                     let (name, value) = mapping.get(name).map_or((name.as_str(), *value), |(source, scale)| (source.as_str(), value * scale));
                     expected.push((crate::show_debug_hud::name_to_display_string(name, false), format!("{:.2}", if value == 0.0 { 0.0 } else { value })));
@@ -10627,7 +10627,7 @@ mod tests {
             bevy::gizmos::GizmoPlugin, AnimationGraphPlugin::default(), crate::extensions::AlsExtPlugin)).init_asset::<WorldAsset>();
         app.finish();
         app.cleanup();
-        let definition: RigDefinition = serde_json::from_str(include_str!("../../../assets/ALS/Character/CR_Als.program.json")).unwrap();
+        let definition: RigDefinition = serde_json::from_str(include_str!("../../assets/ALS/Character/CR_Als.program.json")).unwrap();
         let local = |value: crate::extensions::control_rig_hierarchy::RigTransform| Transform {
             translation: value.translation.as_vec3(), rotation: value.rotation.as_quat(), scale: value.scale.as_vec3() };
         let mut skeleton = Skeleton::default();
@@ -11031,7 +11031,7 @@ mod tests {
 
     #[test]
     fn grounded_roll_reaches_an_existing_playground_wall_before_reentry() {
-        let manifest: crate::extensions::playground::PlaygroundManifest = ron::from_str(include_str!("../../../assets/ALSExtras/Levels/L_Als_Playground/playground_scene.ron")).unwrap();
+        let manifest: crate::extensions::playground::PlaygroundManifest = ron::from_str(include_str!("../../assets/ALSExtras/Levels/L_Als_Playground/playground_scene.ron")).unwrap();
         let wall = manifest.actors.iter().find(|actor| actor.bounds_origin == Some([-4000.0, -3000.0, 100.0]) && actor.bounds_extent == Some([1000.0, 25.0, 100.0])).unwrap();
         let center = crate::extensions::playground::ue_point_to_bevy(Vec3::from(wall.bounds_origin.unwrap()));
         let extent = crate::extensions::playground::ue_extents_to_bevy(Vec3::from(wall.bounds_extent.unwrap()));
@@ -11258,14 +11258,14 @@ mod tests {
             let graph = std::fs::read_to_string(format!("assets/{}", locomotion_clip_graph(index))).unwrap();
             assert!(graph.contains(&format!("name: {:?}", title)), "{variant}");
         }
-        let root = include_str!("../../../assets/ALS/Character/AB_Als/AnimGraph.animgraph.ron");
+        let root = include_str!("../../assets/ALS/Character/AB_Als/AnimGraph.animgraph.ron");
         assert!(root.contains(LOCOMOTION_ROOT));
     }
 
     #[test]
     fn locomotion_long_air_fixture_stays_above_the_original_floor_for_the_source_transition() {
         use crate::extensions::playground::{PlaygroundActor, ue_extents_to_bevy, ue_point_to_bevy};
-        let actors: Vec<PlaygroundActor> = serde_json::from_str(include_str!("../../../assets/ALSExtras/Levels/L_Als_Playground/playground.json")).unwrap();
+        let actors: Vec<PlaygroundActor> = serde_json::from_str(include_str!("../../assets/ALSExtras/Levels/L_Als_Playground/playground.json")).unwrap();
         for offset in [Vec3::ZERO, Vec3::X * 12.0] {
             let point = GROUNDED_START + offset;
             assert!(actors.iter().any(|actor| {
@@ -12571,7 +12571,7 @@ mod tests {
     fn sprint_and_grounded_fixtures_have_continuous_original_floor_without_obstacles() {
         use crate::extensions::playground::{PlaygroundActor, ue_extents_to_bevy, ue_point_to_bevy};
         let actors: Vec<PlaygroundActor> =
-            serde_json::from_str(include_str!("../../../assets/ALSExtras/Levels/L_Als_Playground/playground.json"))
+            serde_json::from_str(include_str!("../../assets/ALSExtras/Levels/L_Als_Playground/playground.json"))
                 .unwrap();
         use bevy::ecs::system::RunSystemOnce;
         let start = actors.iter().find(|actor| actor.class == "PlayerStart").unwrap();

@@ -4,8 +4,8 @@ import json
 import unreal
 
 _REPO = os.environ.get("BEVY_ALS_ROOT") or os.path.abspath(os.getcwd())
-OUT_ROOT = os.path.join(_REPO, "tmp", "export", "staging")
-LOG_PATH = os.path.join(_REPO, "tmp", "export", "export_log.json")
+OUT_ROOT = os.path.join(_REPO, "tools", "tmp", "export", "staging")
+LOG_PATH = os.path.join(_REPO, "tools", "tmp", "export", "export_log.json")
 
 
 def log(msg):

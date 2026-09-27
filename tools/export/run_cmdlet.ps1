@@ -16,8 +16,8 @@ $UE   = $cfg.ue_cmd
 $PROJ = $cfg.ue_project
 
 $full = [System.IO.Path]::GetFullPath((Join-Path (Get-Location) $Script))
-New-Item -ItemType Directory -Force -Path 'tmp/export' | Out-Null
-$log  = Join-Path (Get-Location) ("tmp/export/cmdlet_{0}.log" -f (Get-Date -UFormat %s))
+New-Item -ItemType Directory -Force -Path 'tools/tmp/export' | Out-Null
+$log  = Join-Path (Get-Location) ("tools/tmp/export/cmdlet_{0}.log" -f (Get-Date -UFormat %s))
 $env:BEVY_ALS_ROOT = (Get-Location).Path
 
 $allArgs = @($PROJ) + $(if ($Map) { , $Map } else { @() }) +

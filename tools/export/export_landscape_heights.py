@@ -5,7 +5,7 @@ import os
 import unreal
 
 OUT_DIR = os.path.join(
-    os.environ.get("BEVY_ALS_ROOT", os.getcwd()), "tmp", "export", "playground"
+    os.environ.get("BEVY_ALS_ROOT", os.getcwd()), "tools", "tmp", "export", "playground"
 )
 LEVEL_PATH = "/ALS/ALSExtras/Levels/L_Als_Playground"
 

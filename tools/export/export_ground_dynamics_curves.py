@@ -27,7 +27,7 @@ for name in names:
         samples.append({"time": time, "x": value.x, "y": value.y, "z": value.z})
     result[name] = {"asset": path, "samples": samples}
 
-out_dir = os.path.join(root, "tmp", "export", "ground_dynamics_curves")
+out_dir = os.path.join(root, "tools", "tmp", "export", "ground_dynamics_curves")
 os.makedirs(out_dir, exist_ok=True)
 out_path = os.path.join(out_dir, "curves.json")
 with open(out_path, "w", encoding="utf-8") as stream:

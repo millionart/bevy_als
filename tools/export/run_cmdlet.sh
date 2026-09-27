@@ -11,8 +11,8 @@ UE=$(python -c "import json;print(json.load(open('$ENV_JSON'))['ue_cmd'])")
 PROJ=$(python -c "import json;print(json.load(open('$ENV_JSON'))['ue_project'])")
 
 SCRIPT="$(pwd)/$1"; shift
-mkdir -p tmp/export
-LOG="tmp/export/cmdlet_$(date +%s).log"
+mkdir -p tools/tmp/export
+LOG="tools/tmp/export/cmdlet_$(date +%s).log"
 export BEVY_ALS_ROOT="$(pwd)"
 "$UE" "$PROJ" -run=pythonscript -script="$SCRIPT" -stdout -ForceLogFlush -abslog="$(pwd)/$LOG" "$@"
 ec=$?

@@ -7,6 +7,18 @@
 
 ## BF129 — 收尾前目录整理与过期入口清理
 
+### BF129.5 — 工具边界与材质资源归属
+
+用户追加要求：examples/tests、临时自动驱动与 saved/tmp 收入 tools；默认网格纹理归 Extras 环境材质，脚印 shader 归 ALS 的 Material/Footprint。用户在确认 Bevy 不强制资源名小写后撤回全库改名要求，保留原导出名及大小写，仅将 MaterialLibrary 改名 Material。保持源模块归属、原始载荷和源资产身份，只调整上述目标文件位置/引用；不修改转换规则、图或 glTF 内部 URI。
+
+- [x] **BF129.5-A — 工具与临时数据归位**：开始：2026-09-27 12:07:00 +08:00；预估结束：2026-09-27 12:37:00 +08:00；实际结束：2026-09-27 12:19:16 +08:00；偏差：-17m44s；结果：静态/编译及 1261 项回归通过；拆分结果：材质资源位置留给 B。依据：62 个独立 example、6 个 integration target、14 个自动验证模块和约 15 个临时路径消费者，前轮全 targets 编译与入口测试已有缓存。Gate：Cargo 目标数量/命令保持，自动驱动保留现有访问关系并按 Gate 条件注册；迁移前后源码/设置内容对应、工具语法检查、全 targets 编译及受影响库/入口/集成测试通过，独立提交。
+- [ ] **BF129.5-B — 材质资源归位**：依赖 A；开始：2026-09-27 12:20:00 +08:00；预估结束：2026-09-27 12:35:00 +08:00。依据：两份脚印 WGSL、一份网格纹理与 MaterialLibrary 子树，当前引用集中于脚印、环境材质和导入工具。Gate：资源迁移字节保持、生产者和消费者同步、目录边界/材质通道/贴花定向检查通过。只复开前轮材质资源位置边界；没有转换规则变化，不重复生成动画图。
+- [ ] **BF129.5-C — 最终真实入口验收与材质说明**：依赖 B；计划开始：2026-09-27 12:52:00 +08:00；预估结束：2026-09-27 13:12:00 +08:00。依据：前轮 play 构建 2m31s，startup/interface 各约半分钟，增加脚印场景覆盖 shader 路径与绑定。Gate：target_game/play/jobs2 预构建，公共 startup/interface/footprints 功能验收，目录/引用/隐私核对，说明实际 shader 所在位置；性能沿用既有延期边界，独立提交。
+
+初始 source/static 摘要：Cargo 支持显式 example/test path，main 型检查与 #[test] harness 执行方式不同；现有 manual driver 和报告仅由关卡及一个库测试消费，保持 crate 内访问关系。saved 当前仅有调试类别文件，移到 tools/tmp/saved 保留用户设置；约 15 个 exporter/importer 默认输出需同步。现有角色与道具使用 StandardMaterial，环境使用 PlaygroundTilesExtension，脚印用 packed_decal/receiver 两份 WGSL；此轮只移动文件与解释实际实现。ALS-Ref 本地 MaterialLibrary 只有 Footprint 子目录，目标目录按用户指定改为 Material，导出名及大小写保留。
+
+A 最终 source/static 与消融摘要：83 个文件位置已处理，其中删除无消费者/无测试的旧 debug_hud，81 个 Rust 文件在 include 路径重定位后完全一致；63 个 example、6 个 test 目标及单包身份保持，122 个 Python 工具语法通过。根 examples/tests/validation/tmp/saved 均已归位或移除空目录，保存的调试设置字节不变且仍忽略提交。尝试把驱动移为独立 example 模块时，编译明确检出它读取 Mantle/Turn/Ragdoll/Head 等私有边界的 32 处访问；已撤去该额外拆分，保留原 crate 模块声明与 Gate 条件，不增加公开 API、feature 或适配层。最终全 targets 编译通过，迁移后的 watchdog 完成/超时自测通过；库 1228、集成 24、manual 入口 9 共 1261 项全过，真实运行统一留到材质资源迁移后。
+
 ### BF129.4 — 按源 Content 组织资源与蓝图
 
 用户追加要求：ALS、ALSCamera、ALSExtras 的模型、贴图、动画、曲线、逻辑蓝图与动画蓝图目标产物各归同一模块资产树，正式路径/文件名不带 generated。采用 `assets/ALS`、`assets/ALSCamera`、`assets/ALSExtras` 对应本地 Content；Bevy 自身着色器与验证夹具另列，不冒充源内容。源码 .3-S1 已提交，最终真实 Gate 延至本项静态闭环之后。

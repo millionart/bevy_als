@@ -10,13 +10,13 @@ pub mod actual_motion;
 pub mod air_jump_layer;
 #[path = "als_extras/ui/als_hud.rs"]
 pub mod als_hud;
-#[path = "validation/anim_probe.rs"]
+#[path = "../tools/anim_probe.rs"]
 pub mod anim_probe;
 #[path = "als/character/animation_instances/animation_context_projection.rs"]
 pub mod animation_context_projection;
 #[path = "als/notifies/animation_events.rs"]
 pub mod animation_events;
-#[path = "validation/animation_visual_validation.rs"]
+#[path = "../tools/animation_visual_validation.rs"]
 pub mod animation_visual_validation;
 #[path = "als/character/character_assembly.rs"]
 pub mod character_assembly;
@@ -60,7 +60,7 @@ pub mod locomotion_layer;
 pub mod locomotion_lifecycle;
 #[path = "als/root_motion_sources/mantle_drive.rs"]
 pub mod mantle_drive;
-#[path = "validation/playground/mod.rs"]
+#[path = "../tools/manual_playground_integration/mod.rs"]
 pub mod manual_playground_integration;
 #[path = "als/character/animation_instances/motion_graph_link.rs"]
 pub mod motion_graph_link;

@@ -1,6 +1,6 @@
 """Extract L_Als_Playground scene data directly from .uasset/.umap files.
 
-Outputs JSON bundles under tmp/export/als_extract/:
+Outputs JSON bundles under tools/tmp/export/als_extract/:
   scene.json        actors (transform/mesh/text/light/materials)
   materials.json    material instances with scalar/vector/texture params
   textures.txt      referenced texture package paths
@@ -39,7 +39,7 @@ if not _PROJECT_ROOT:
 ALS_CONTENT = os.path.join(
     _PROJECT_ROOT, "Plugins", "ALS-Refactored", "Content", "ALS", "ALSExtras"
 )
-OUT_DIR = os.path.join(REPO, "tmp", "export", "als_extract")
+OUT_DIR = os.path.join(REPO, "tools", "tmp", "export", "als_extract")
 
 UMAP = os.path.join(
     ALS_CONTENT.replace("/Content", ""),

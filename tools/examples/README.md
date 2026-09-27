@@ -2,7 +2,7 @@
 
 日常运行使用根目录 `run_manual.bat`。它启动 `manual_playground`，自动验收也在同一个 Playground 中运行：
 
-关卡源码位于 [`src/als_extras/levels/manual_playground.rs`](../src/als_extras/levels/manual_playground.rs)，由 Cargo 显式声明 example 路径。自动驱动位于 [`src/validation/playground/mod.rs`](../src/validation/playground/mod.rs)，在 Gate 模式启用，继续复用此关卡。其余 examples 是专项检查；二者的完整关系见 [源码目录说明](../src/README.md)。
+关卡源码位于 [`src/als_extras/levels/manual_playground.rs`](../../src/als_extras/levels/manual_playground.rs)，由 Cargo 显式声明 example 路径。自动驱动位于 [`tools/manual_playground_integration/mod.rs`](../manual_playground_integration/mod.rs)，在 Gate 模式启用，继续复用此关卡。其余 examples 是专项检查；二者的完整关系见 [源码目录说明](../../src/README.md)。
 
 ```powershell
 pwsh tools/run_animation_visual_validation.ps1 -Case startup -CaptureCount 0 -FunctionalOnly
@@ -22,6 +22,8 @@ pwsh tools/run_animation_visual_validation.ps1 -Case grounded -CaptureCount 0 -F
 | `bf_char14_movement_gate`、`character_assembly_gate`、`cmc_adapter_gate`、`grounded_dynamics_gate`、`platform_gate` | 方向矩阵、角色装配、运动参数与支撑体的专项断言 |
 
 专项检查不是当前真实场景 Gate 的替代品；没有逐条证明被覆盖的断言予以保留。现有 `main` 形式的 example 需用 `cargo run --jobs 2 --example <name>` 显式执行，`cargo test` 不会执行其 `main`。
+
+`tools/tests` 中的集成测试使用 `#[test]`，由 `cargo test --jobs 2 --tests` 执行。Cargo.toml 显式指定两类目标的位置；移动目录没有改变测试发现或运行命令。
 
 ## 已删除的旧演示
 

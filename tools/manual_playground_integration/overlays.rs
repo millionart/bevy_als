@@ -1,5 +1,5 @@
 static SOURCE_LIBRARY: std::sync::LazyLock<crate::overlay_object::OverlayLibrary> = std::sync::LazyLock::new(|| {
-    serde_json::from_str(include_str!("../../../assets/ALS/Character/overlay_actor.runtime.json")).unwrap()
+    serde_json::from_str(include_str!("../../assets/ALS/Character/overlay_actor.runtime.json")).unwrap()
 });
 
 use super::*;

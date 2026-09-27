@@ -14,7 +14,7 @@
 | mbrea-c/bevy_animation_graph | [millionart/bevy_animation_graph](https://github.com/millionart/bevy_animation_graph) | 动画图（AnimBP 替代） |
 | idanarye/bevy-tnua | [millionart/bevy-tnua](https://github.com/millionart/bevy-tnua) | 浮动角色控制器（CharacterMovement 替代） |
 
-项目使用单一 Cargo 包，已移除历史 `crates` 拆分。源码统一按源归属放在根 `src/`：`animation_graph_ext`、`avian_ext`、`bevy_ext`、`control_rig`、`tnua_ext` 与 `als`、`als_camera`、`als_extras` 并列。关卡、环境、UI 分别对应 `als_extras/levels`、`environment`、`ui`；自动场景归 `validation`。完整对应关系见 [源码目录说明](src/README.md)。
+项目使用单一 Cargo 包，已移除历史 `crates` 拆分。源码统一按源归属放在根 `src/`：`animation_graph_ext`、`avian_ext`、`bevy_ext`、`control_rig`、`tnua_ext` 与 `als`、`als_camera`、`als_extras` 并列。关卡、环境、UI 分别对应 `als_extras/levels`、`environment`、`ui`；移植验收与诊断归 `tools`。完整对应关系见 [源码目录说明](src/README.md)。
 
 ### 依赖指向（M0.2）
 
@@ -43,8 +43,8 @@ pwsh tools/run_animation_visual_validation.ps1 -Case grounded -CaptureCount 0 -F
 
 - `manual_playground` 是交互运行与自动场景共用入口；公共 runner 的 `-Case` 选择相机、布娃娃、IK、运动等场景。`-FunctionalOnly` 验证功能，报告保留性能预算结果。
 - 单元回归按改动选择 `cargo test --jobs 2 --lib <filter>`，例如 `als::motion::` 或 `extensions::control_rig_math::`；全量回归使用 `cargo test --jobs 2`。
-- [examples 说明](examples/README.md) 区分当前入口、静态合同和专项诊断；[tools 说明](tools/README.md) 列出保留的导入、转换与验收工具。
-- `saved/als_debug.ron` 保存手动运行的调试显示类别，不保存主显示开关；自动 Gate 不读写它。此目录不入 Git，删除该文件会重置类别选择，下次手动切换类别时重新生成。
+- [examples 说明](tools/examples/README.md) 区分当前入口、静态合同和专项诊断；[tools 说明](tools/README.md) 列出保留的导入、转换与验收工具。
+- `tools/tmp/saved/als_debug.ron` 保存手动运行的调试显示类别，不保存主显示开关；自动 Gate 不读写它。此目录不入 Git，删除该文件会重置类别选择，下次手动切换类别时重新生成。
 
 ### 自定义 Overlay
 

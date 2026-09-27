@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""M4.1 bone map generator: parse SKM_Als.gltf skin[0].joints, dump bone list JSON to tmp/, validate ALS key bones and virtual bones presence. Run from repo root: python tools/import/gen_bone_map.py"""
+"""M4.1 bone map generator: parse SKM_Als.gltf skin[0].joints, dump bone list JSON to tools/tmp/, validate ALS key bones and virtual bones presence. Run from repo root: python tools/import/gen_bone_map.py"""
 from __future__ import annotations
 
 import json
@@ -8,7 +8,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 MODEL = REPO / "assets/ALS/Character/SKM_Als.gltf"
-OUT_DIR = REPO / "tmp"
+OUT_DIR = REPO / "tools" / "tmp"
 OUT_FILE = OUT_DIR / "bone-map.json"
 
 EXPECTED_JOINT_COUNT = 79

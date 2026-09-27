@@ -103,7 +103,7 @@ const TEMPORAL_SEGMENT_RATIO: f32 = 0.35;
 const TEMPORAL_SEGMENT_MIN_DELTA_METERS: f32 = 0.05;
 const TEMPORAL_LIMB_PLANE_FLIP_DOT: f32 = -0.5;
 const ANIMATION_VISUAL_EVIDENCE_FORMAT_SOURCE: &str =
-    include_str!("../../tools/animation_visual_evidence_format.txt");
+    include_str!("animation_visual_evidence_format.txt");
 
 fn animation_visual_evidence_format() -> &'static str {
     ANIMATION_VISUAL_EVIDENCE_FORMAT_SOURCE.trim()
@@ -3901,7 +3901,7 @@ mod tests {
             .init_asset::<WorldAsset>().init_resource::<AnimationVisualPreRigPose>();
         app.finish();
         app.cleanup();
-        let definition: RigDefinition = serde_json::from_str(include_str!("../../assets/ALS/Character/CR_Als.program.json")).unwrap();
+        let definition: RigDefinition = serde_json::from_str(include_str!("../assets/ALS/Character/CR_Als.program.json")).unwrap();
         let reference = Transform::from_xyz(0.0, 0.4, 0.0).with_rotation(Quat::from_rotation_y(0.3)).with_scale(Vec3::splat(1.2));
         let mut skeleton = Skeleton::default();
         let mut paths: Vec<Vec<String>> = Vec::new();

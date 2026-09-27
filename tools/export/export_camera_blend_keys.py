@@ -7,7 +7,7 @@ import unreal
 ROOT = os.environ.get("BEVY_ALS_ROOT")
 if ROOT is None:
     raise RuntimeError("BEVY_ALS_ROOT is required")
-OUT_DIR = os.path.join(ROOT, "tmp", "export", "camera_curves")
+OUT_DIR = os.path.join(ROOT, "tools", "tmp", "export", "camera_curves")
 os.makedirs(OUT_DIR, exist_ok=True)
 
 results = []

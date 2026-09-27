@@ -5,7 +5,7 @@ import subprocess
 import unreal
 
 ROOT = os.environ.get("BEVY_ALS_ROOT") or os.path.abspath(os.getcwd())
-OUT_DIR = os.path.join(ROOT, "tmp", "export", "playground", "materials")
+OUT_DIR = os.path.join(ROOT, "tools", "tmp", "export", "playground", "materials")
 TEX_DIR = os.path.join(OUT_DIR, "textures")
 
 TARGETS = {

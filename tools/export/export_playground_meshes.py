@@ -4,9 +4,9 @@ import os
 import unreal
 
 _REPO = os.environ.get("BEVY_ALS_ROOT") or os.path.abspath(os.getcwd())
-JSON_IN = os.path.join(_REPO, "tmp", "export", "playground", "playground_actors.json")
-OUT_DIR = os.path.join(_REPO, "tmp", "export", "playground", "meshes")
-LOG_PATH = os.path.join(_REPO, "tmp", "export", "playground", "mesh_export_log.json")
+JSON_IN = os.path.join(_REPO, "tools", "tmp", "export", "playground", "playground_actors.json")
+OUT_DIR = os.path.join(_REPO, "tools", "tmp", "export", "playground", "meshes")
+LOG_PATH = os.path.join(_REPO, "tools", "tmp", "export", "playground", "mesh_export_log.json")
 
 
 def log(msg):

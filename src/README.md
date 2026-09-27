@@ -27,8 +27,6 @@ src/
     environment/              Playground 环境材质
     levels/                   Playground 场景、碰撞与可运行入口
     ui/                       W_Als_Hud、W_Als_OverlayModeMenu/Option 的实际实现
-  validation/                 本项目的诊断、报告和自动验收
-    playground/               自动场景驱动及各场景断言
 ```
 
 `ALSExtras/Levels`、`Environment`、`Core`、`UI` 是源工程的实际目录。`als_extras/ui` 包含 HUD 和 Overlay 菜单代码；源 `AlsCharacter_Debug.cpp::DisplayDebug` 对应的调试画布位于 `als/utility/show_debug_hud`，它与 Extras 的 HUD 分属不同来源。UI 的离线生成数据位于 `assets/ALSExtras/UI`。
@@ -39,12 +37,12 @@ src/
 
 `als_extras/levels/manual_playground.rs` 是 `manual_playground` example 的程序入口：组装原地形、角色、相机、环境和 UI，供 `run_manual.bat` 启动。
 
-`validation/playground/mod.rs` 是原 `manual_playground_integration`，继续通过同名 Rust 模块提供 `ManualPlaygroundIntegrationPlugin`。只有设置 `ALS_MANUAL_INTEGRATION_GATE` 才加载它；它驱动移动、蹲起、动作、镜头、UI 等场景，检查状态/姿态并发布覆盖率、失败与进展报告。公共 runner 的所有动态场景仍依赖它，保留在验证分区；它不是另一个 Playground。
+`tools/manual_playground_integration/mod.rs` 提供移植过程中的自动驱动 `ManualPlaygroundIntegrationPlugin`。只有设置 `ALS_MANUAL_INTEGRATION_GATE` 才注册它；它驱动移动、蹲起、动作、镜头、UI 等场景，检查状态/姿态并发布覆盖率、失败与进展报告。公共 runner 的动态场景仍依赖它；它不是另一个 Playground。
 
-`validation/animation_visual_validation.rs` 收集公共视觉/数值报告，`validation/anim_probe.rs` 提供诊断，`validation/debug_hud.rs` 是早期专项检查使用的状态面板。
+`tools/animation_visual_validation.rs` 收集公共视觉/数值报告，`tools/anim_probe.rs` 提供诊断。这些工具通过 `src/lib.rs` 的显式路径保留现有模块访问关系，继续读取私有遥测并被库测试复用；移除验收工具时同时移除这三处模块声明和关卡的工具接线。原先无消费者的旧 `debug_hud` 状态面板已删除，源 ALS 的 `show_debug_hud` 继续保留。
 
 ## Cargo 与资产身份
 
-项目只有一个 Cargo 包 `bevy_als`，不再保留 `crates` 目录。`als/mod.rs`、`als_camera/mod.rs` 和 `extensions.rs` 是内部模块/类型注册入口；所有 integration tests 统一位于根 `tests/`。根 Cargo.toml 显式声明关卡 example 的源码位置。
+项目只有一个 Cargo 包 `bevy_als`，不再保留 `crates` 目录。`als/mod.rs`、`als_camera/mod.rs` 和 `extensions.rs` 是内部模块/类型注册入口。专项程序位于 `tools/examples`，集成测试位于 `tools/tests`，源码单元测试仍与被测代码同文件；Cargo.toml 显式声明 example/test 路径，现有命令保持不变。
 
-Rust 调用使用 `bevy_als::als`、`bevy_als::als_camera`、`bevy_als::extensions`，不再引用旧独立 crate。RON 中已有的 `als_ext::NodeName` 是显式固定的反射类型名，继续用于资产兼容，不代表磁盘上仍有 als-ext crate。`cargo run --example manual_playground` 和 `bevy_als::manual_playground_integration` 保持原入口；原始资产、生成图和移植算法不因源码整理而变化。
+Rust 调用使用 `bevy_als::als`、`bevy_als::als_camera`、`bevy_als::extensions`，不再引用旧独立 crate。RON 中已有的 `als_ext::NodeName` 是显式固定的反射类型名，继续用于资产兼容，不代表磁盘上仍有 als-ext crate。`cargo run --example manual_playground` 和 `bevy_als::manual_playground_integration` 保持原入口。

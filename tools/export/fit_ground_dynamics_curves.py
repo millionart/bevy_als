@@ -7,7 +7,7 @@ root = os.environ.get("BEVY_ALS_ROOT")
 if root is None:
     raise RuntimeError("BEVY_ALS_ROOT is required")
 
-source_path = os.path.join(root, "tmp", "export", "ground_dynamics_curves", "curves.json")
+source_path = os.path.join(root, "tools", "tmp", "export", "ground_dynamics_curves", "curves.json")
 with open(source_path, encoding="utf-8") as stream:
     source = json.load(stream)
 
@@ -91,7 +91,7 @@ for name, curve in source.items():
         axes_result[axis] = {"segments": segments, "max_error": max_error}
     result[name] = {"asset": curve["asset"], "axes": axes_result}
 
-out_path = os.path.join(root, "tmp", "export", "ground_dynamics_curves", "cubic.json")
+out_path = os.path.join(root, "tools", "tmp", "export", "ground_dynamics_curves", "cubic.json")
 with open(out_path, "w", encoding="utf-8") as stream:
     json.dump(result, stream, indent=1)
 print("PYEXPORT " + json.dumps({"out": out_path, "assets": len(result)}))

@@ -11,6 +11,10 @@
 | `validate_*`、`verify_*`、`*animgraph*`、`normalize_*` | 当前节点、上下文、布局、资产边界和编辑器审计 |
 | `open_ue_asset_editor.ps1`、`ue_open_asset.py` | 本地 UE 资产编辑器辅助入口，不使用 MCP |
 | `new-worktree.ps1` | 工作区及构建缓存准备 |
+| `examples/` | 可独立运行的 Rust 检查、图编辑器和规格导出；使用 `cargo run --example <name>` |
+| `tests/` | Rust 集成测试；由 `cargo test --tests` 自动执行 |
+| `manual_playground_integration/`、`animation_visual_validation.rs`、`anim_probe.rs` | manual Playground 的移植验收驱动、报告和诊断；保留 crate 内的遥测访问，运行时按 Gate 条件启用 |
+| `tmp/` | 被 Git 忽略的临时导出、中间文件和 `saved/als_debug.ron` 调试偏好；删除偏好文件会恢复默认类别 |
 
 `import/probe_anim_graph_nodes.py`、`probe_property_access.py`、`probe_gltf_curves.py` 接受显式资产参数，仍可检查原生属性或导出曲线。没有其他脚本调用一个 CLI，不等于它已经无用。
 

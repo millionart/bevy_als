@@ -56,7 +56,7 @@ fn verify_static_contract(mut exit: MessageWriter<AppExit>) {
     let fov_contract = (field_of_view_degrees(false, 12.0, &camera) - 102.0).abs() < 1e-5
         && (field_of_view_degrees(true, 12.0, &camera) - 90.0).abs() < 1e-5
         && (field_of_view_degrees(false, 500.0, &camera) - 175.0).abs() < 1e-5;
-    let library: bevy_als::overlay_object::OverlayLibrary = serde_json::from_str(include_str!("../assets/ALS/Character/overlay_actor.runtime.json")).unwrap();
+    let library: bevy_als::overlay_object::OverlayLibrary = serde_json::from_str(include_str!("../../assets/ALS/Character/overlay_actor.runtime.json")).unwrap();
     let rifle = overlay_object_spec(&library, OverlayState::Rifle).unwrap();
     let torch = overlay_object_spec(&library, OverlayState::Torch).unwrap();
     let overlay_contract = rifle.kind == OverlayObjectKind::Skeletal
