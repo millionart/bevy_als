@@ -288,7 +288,7 @@ fn prepare_receivers(
     }).collect();
     let mut active = HashSet::new();
     for (entity, material) in &converted {
-        if ignored(entity) {
+        if ignored(entity) || meshes.contains(entity) {
             commands.entity(entity).remove::<(MeshMaterial3d<PackedDecalReceiverMaterial>, StandardMaterialSource)>();
             if meshes.get(entity).is_err() { commands.entity(entity).insert(MeshMaterial3d(material.0.clone())); }
         } else { active.insert(material.0.id()); }
@@ -448,22 +448,27 @@ mod tests {
 
     #[test]
     fn receiver_exit_preserves_same_frame_replacement_material() {
-        let mut app = App::new();
-        app.add_plugins((MinimalPlugins, AssetPlugin::default()))
-            .init_asset::<StandardMaterial>().init_asset::<PackedDecalReceiverMaterial>()
-            .init_resource::<PackedDecalBuffers>().add_systems(Update, prepare_receivers);
-        let old = app.world_mut().resource_mut::<Assets<StandardMaterial>>().add(StandardMaterial::default());
-        let replacement = app.world_mut().resource_mut::<Assets<StandardMaterial>>().add(StandardMaterial {
-            base_color: Color::srgb(0.2, 0.7, 0.4), ..default()
-        });
-        let receiver = app.world_mut().spawn((Mesh3d::default(), MeshMaterial3d(old.clone()))).id();
-        app.update();
-        assert_eq!(app.world().get::<StandardMaterialSource>(receiver).unwrap().0, old);
-        app.world_mut().entity_mut(receiver).insert((MeshMaterial3d(replacement.clone()), NoDecalReceiver));
-        app.update();
-        assert_eq!(app.world().get::<MeshMaterial3d<StandardMaterial>>(receiver).unwrap().0, replacement);
-        assert!(app.world().get::<MeshMaterial3d<PackedDecalReceiverMaterial>>(receiver).is_none());
-        assert!(app.world().get::<StandardMaterialSource>(receiver).is_none());
+        for excluded in [true, false] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AssetPlugin::default()))
+                .init_asset::<StandardMaterial>().init_asset::<PackedDecalReceiverMaterial>()
+                .init_resource::<PackedDecalBuffers>().add_systems(Update, prepare_receivers);
+            let old = app.world_mut().resource_mut::<Assets<StandardMaterial>>().add(StandardMaterial::default());
+            let replacement = app.world_mut().resource_mut::<Assets<StandardMaterial>>().add(StandardMaterial {
+                base_color: Color::srgba(0.2, 0.7, 0.4, 0.5),
+                alpha_mode: if excluded { AlphaMode::Opaque } else { AlphaMode::Blend }, ..default()
+            });
+            let receiver = app.world_mut().spawn((Mesh3d::default(), MeshMaterial3d(old.clone()))).id();
+            app.update();
+            assert_eq!(app.world().get::<StandardMaterialSource>(receiver).unwrap().0, old);
+            app.world_mut().entity_mut(receiver).insert(MeshMaterial3d(replacement.clone()));
+            if excluded { app.world_mut().entity_mut(receiver).insert(NoDecalReceiver); }
+            app.update();
+            assert_eq!(app.world().get::<MeshMaterial3d<StandardMaterial>>(receiver).unwrap().0, replacement);
+            assert!(app.world().get::<MeshMaterial3d<PackedDecalReceiverMaterial>>(receiver).is_none(),
+                "Old receiver proxy must be removed: excluded={excluded}");
+            assert!(app.world().get::<StandardMaterialSource>(receiver).is_none());
+        }
     }
 
     #[test]

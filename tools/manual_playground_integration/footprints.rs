@@ -97,10 +97,10 @@ fn replace_receiver_material(
     let Some(root) = state.footprint_probe.gpu.root else { return; };
     let Some(entity) = children.iter_descendants(root).find(|entity| converted.get(*entity).is_ok()) else { return; };
     let material = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.2, 0.7, 0.4), perceptual_roughness: 0.8,
-        metallic: 0.2, reflectance: 0.5, ..default()
+        base_color: Color::srgba(0.2, 0.7, 0.4, 0.5), perceptual_roughness: 0.8,
+        metallic: 0.2, reflectance: 0.5, alpha_mode: AlphaMode::Blend, ..default()
     });
-    commands.entity(entity).insert((MeshMaterial3d(material.clone()), NoDecalReceiver,
+    commands.entity(entity).insert((MeshMaterial3d(material.clone()),
         ManualReceiverReplacement(material.clone())));
     info!("[MANUAL-INTEGRATION][DECAL-RECEIVER-SWAP] entity={entity:?} new_material={:?}", material.id());
 }
