@@ -854,6 +854,56 @@ TSharedPtr<FJsonObject> CaptureBlendSpaceProbe(UObject* Asset, const FString& Re
     return Result;
 }
 
+TSharedPtr<FJsonObject> CaptureNotifyClockProbe(UObject* Asset)
+{
+    UAnimSequenceBase* Sequence = Cast<UAnimSequenceBase>(Asset);
+    if (Sequence == nullptr || Sequence->GetPlayLength() <= 0.0f)
+    {
+        UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Notify clock probe requires a non-empty animation sequence."));
+        return nullptr;
+    }
+    const float Length = Sequence->GetPlayLength();
+    TArray<TSharedPtr<FJsonValue>> Results;
+    for (const bool Looped : {false, true})
+    {
+        for (const float Periods : {0.2f, -0.2f, 1.2f, -1.2f, 2.6f, -2.6f})
+        {
+            const float Start = Length * 0.6f;
+            const float Delta = Length * Periods;
+            float Time = Start;
+            FMarkerTickRecord MarkerRecord;
+            FDeltaTimeRecord DeltaRecord;
+            DeltaRecord.Set(Start, Delta);
+            FAnimTickRecord TickRecord(Sequence, Looped, 1.0f, false, 1.0f, Time, MarkerRecord);
+            TickRecord.DeltaTimeRecord = &DeltaRecord;
+            FAnimNotifyContext Context(TickRecord);
+            Sequence->GetAnimNotifies(Start, Delta, Context);
+            TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+            Result->SetBoolField(TEXT("looping"), Looped);
+            Result->SetNumberField(TEXT("start_time"), Start);
+            Result->SetNumberField(TEXT("delta_seconds"), Delta);
+            TArray<TSharedPtr<FJsonValue>> Events;
+            for (const FAnimNotifyEventReference& Reference : Context.ActiveNotifies)
+            {
+                const FAnimNotifyEvent* Notify = Reference.GetNotify();
+                check(Notify != nullptr);
+                TSharedRef<FJsonObject> Event = MakeShared<FJsonObject>();
+                Event->SetNumberField(TEXT("event_index"), Sequence->Notifies.IndexOfByPredicate(
+                    [Notify](const FAnimNotifyEvent& Candidate) { return &Candidate == Notify; }));
+                Event->SetNumberField(TEXT("trigger_time"), Notify->GetTriggerTime());
+                Event->SetNumberField(TEXT("end_trigger_time"), Notify->GetEndTriggerTime());
+                Events.Add(MakeShared<FJsonValueObject>(Event));
+            }
+            Result->SetArrayField(TEXT("events"), Events);
+            Results.Add(MakeShared<FJsonValueObject>(Result));
+        }
+    }
+    TSharedRef<FJsonObject> Probe = MakeShared<FJsonObject>();
+    Probe->SetNumberField(TEXT("duration"), Length);
+    Probe->SetArrayField(TEXT("cases"), Results);
+    return Probe;
+}
+
 TSharedRef<FJsonObject> CaptureCachedPoseLifecycleProbe()
 {
     struct FProbeProxy : FAnimInstanceProxy
@@ -1166,6 +1216,15 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
     if (FParse::Param(*Params, TEXT("CachedPoseLifecycleProbe")))
     {
         Root->SetObjectField(TEXT("cached_pose_lifecycle_probe"), CaptureCachedPoseLifecycleProbe());
+    }
+    if (FParse::Param(*Params, TEXT("NotifyClockProbe")))
+    {
+        const TSharedPtr<FJsonObject> Probe = CaptureNotifyClockProbe(Asset);
+        if (!Probe.IsValid())
+        {
+            return 7;
+        }
+        Root->SetObjectField(TEXT("notify_clock_probe"), Probe.ToSharedRef());
     }
 
     FString Json;

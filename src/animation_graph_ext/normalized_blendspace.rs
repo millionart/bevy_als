@@ -16,7 +16,7 @@ use crate::extensions::sync_group_phase::{
 };
 use crate::extensions::{AnimationContextState, marker_phase_from_sample_time};
 use crate::extensions::{SyncMarker, follower_sample_time, marker_phase_sample_time, phase_to_time};
-use crate::extensions::{animation_context::{context_time_update, forward_loop_count}, sync_group_phase::normalize_phase};
+use crate::extensions::{animation_context::context_time_update, sync_group_phase::normalize_phase};
 
 const EPSILON: f32 = 1e-6;
 
@@ -686,9 +686,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
                 previous_position,
                 has_previous_position: true,
                 delta_seconds: tick.delta_seconds,
-                loops_crossed: if sample_looped {
-                    forward_loop_count(previous_position, tick.delta_seconds, tick.play_rate, leader_duration)
-                } else { 0 },
+                playback_delta_seconds: tick.delta_seconds * tick.play_rate,
                 looping: sample_looped,
                 weight: 1.0,
             };

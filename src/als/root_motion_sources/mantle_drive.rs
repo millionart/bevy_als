@@ -452,7 +452,7 @@ fn publish_mantle_slot(
                 previous_position: entry.previous_clip_time,
                 has_previous_position: true,
                 delta_seconds: time.delta_secs(),
-                loops_crossed: 0,
+                playback_delta_seconds: entry.clip_time - entry.previous_clip_time,
                 looping: false,
                 weight: 1.0,
             });

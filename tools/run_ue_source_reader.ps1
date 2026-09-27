@@ -3,6 +3,7 @@ param(
     [string]$Output,
     [string]$BlendSpaceProbe,
     [switch]$CachedPoseLifecycleProbe,
+    [switch]$NotifyClockProbe,
     [string]$Plugin = (Join-Path $PSScriptRoot "..\target\ue_graph_source_reader_package\AlsGraphSourceReader.uplugin"),
     [ValidateRange(1, 3600)]
     [int]$TimeoutSeconds = 300,
@@ -266,6 +267,9 @@ if ($BlendSpaceProbe) {
 }
 if ($CachedPoseLifecycleProbe) {
     $arguments += "-CachedPoseLifecycleProbe"
+}
+if ($NotifyClockProbe) {
+    $arguments += "-NotifyClockProbe"
 }
 $result = Invoke-ProcessWithWatchdog -FilePath $config.ue_cmd -ArgumentList $arguments -ReportPath $reportPath -StdoutPath $stdoutPath -StderrPath $stderrPath -ProgressPaths @($stdoutPath, $stderrPath, $logPath, $outputPath) -TimeoutSeconds $TimeoutSeconds -NoProgressSeconds $NoProgressSeconds
 if (-not $result.success) {

@@ -233,36 +233,38 @@ struct GraphFootstepDispatch {
     slots: std::collections::HashSet<String>,
 }
 
-fn graph_footstep_clocks(clock: &crate::extensions::SourceRelevantAsset, previous_time: f32) -> Vec<EventClock> {
-    let single = EventClock {
-        previous_time, current_time: clock.position, duration: clock.duration,
-        direction: PlaybackDirection::Forward,
-        wrapped: clock.looping && clock.position < previous_time,
-    };
-    if !clock.looping || clock.loops_crossed == 0 || clock.duration <= 0.0 {
-        return vec![single];
+fn graph_footstep_clocks(clock: &crate::extensions::SourceRelevantAsset, previous_time: f32, is_leader: bool) -> Vec<EventClock> {
+    let mut remaining = if clock.has_previous_position {
+        clock.playback_delta_seconds
+    } else { clock.position - previous_time };
+    if !is_leader && clock.has_previous_position {
+        remaining = clock.position - previous_time;
+        if remaining * clock.playback_delta_seconds < 0.0 {
+            remaining += clock.playback_delta_seconds.signum() * clock.duration;
+        }
     }
-    let mut remaining = clock.loops_crossed as f32 * clock.duration
-        + clock.position - previous_time;
-    if remaining <= 0.0 {
-        return vec![single];
-    }
-    let max_segments = if remaining > clock.duration {
+    if clock.duration <= 0.0 || remaining == 0.0 { return Vec::new(); }
+    let backward = remaining < 0.0;
+    let direction = if backward { PlaybackDirection::Backward } else { PlaybackDirection::Forward };
+    let sign = remaining.signum();
+    let max_segments = if remaining < -clock.duration {
+        1000
+    } else if remaining > clock.duration {
         ((remaining / clock.duration) as u32).clamp(2, 1000)
     } else { 2 };
     let mut position = previous_time;
     let mut segments = Vec::with_capacity(max_segments as usize);
     for _ in 0..max_segments {
-        let end = (position + remaining).min(clock.duration);
-        if end > position {
+        let end = (position + remaining).clamp(0.0, clock.duration);
+        if end != position {
             segments.push(EventClock {
                 previous_time: position, current_time: end,
-                duration: clock.duration, direction: PlaybackDirection::Forward, wrapped: false,
+                duration: clock.duration, direction, wrapped: false,
             });
         }
         remaining -= end - position;
-        if remaining <= 0.0 { break; }
-        position = 0.0;
+        if !clock.looping || remaining * sign <= 0.0 { break; }
+        position = if backward { clock.duration } else { 0.0 };
     }
     segments
 }
@@ -317,7 +319,7 @@ fn dispatch_graph_footsteps(
                 && source.runtime_segments.iter().any(|segment| segment.graph_clip == path)) else { continue; };
             let previous_time = if sample.clock.has_previous_position { sample.clock.previous_position }
                 else { previous.map_or(sample.clock.position, |previous| previous.0) };
-            if !sample.clock.looping && sample.clock.position < previous_time { continue; }
+            if !sample.clock.has_previous_position && !sample.clock.looping && sample.clock.position < previous_time { continue; }
             let is_leader = if sample.sync_group.is_empty() { true } else {
                 source_sync_players(arena, &graphs, &sample.sync_group).is_some_and(|players| {
                     let players = players.iter().filter(|player| player.key == sample.sync_group).collect::<Vec<_>>();
@@ -338,11 +340,13 @@ fn dispatch_graph_footsteps(
             }).collect::<Vec<_>>();
             let weight = if sample.montage { sample.clock.weight.max(previous.map_or(0.0, |previous| previous.1)) } else { sample.clock.weight };
             let mut signals = Vec::new();
-            for clock in graph_footstep_clocks(&sample.clock, previous_time) {
-                signals.extend(EventLifecycle::default().update_with_context(
+            for clock in graph_footstep_clocks(&sample.clock, previous_time, is_leader) {
+                let mut crossed = EventLifecycle::default().update_with_context(
                     &definitions, &EventQueue::default(), Some(clock), weight,
                     EventDispatchContext { is_leader, is_dedicated_server: false },
-                ));
+                );
+                crossed.sort_by_key(|signal| source.events.iter().position(|event| event.event_id == signal.id).unwrap_or(usize::MAX));
+                signals.extend(crossed);
             }
             for signal in signals {
                 let (class_name, name, parameters) = if let Some(event) = source.events.iter().find(|event| event.event_id == signal.id) {
@@ -966,10 +970,11 @@ mod tests {
 
     #[test]
     fn graph_footstep_clocks_keep_source_loop_budget() {
-        let clock = |previous, current, loops, looping| graph_footstep_clocks(
+        let clock = |previous, current, loops: u32, looping| graph_footstep_clocks(
             &crate::extensions::SourceRelevantAsset {
-                duration: 1.0, position: current, loops_crossed: loops, looping, ..default()
-            }, previous);
+                duration: 1.0, position: current, playback_delta_seconds: loops as f32 + current - previous,
+                has_previous_position: true, looping, ..default()
+            }, previous, true);
         assert_eq!(clock(0.1, 0.2, 0, true).len(), 1);
         let wrapped = clock(0.9, 0.1, 1, true);
         assert_eq!(wrapped.len(), 2);
@@ -980,8 +985,28 @@ mod tests {
         assert_eq!(clock(0.1, 0.6, 2, true).len(), 2);
         assert_eq!(clock(0.1, 0.6, 2, false).len(), 1);
         assert!(graph_footstep_clocks(&crate::extensions::SourceRelevantAsset {
-            duration: 1.0, position: 0.1, loops_crossed: 1000, looping: true, ..default()
-        }, 0.1).len() <= 1000);
+            duration: 1.0, position: 0.1, playback_delta_seconds: 1000.0, has_previous_position: true,
+            looping: true, ..default()
+        }, 0.1, true).len() <= 1000);
+        assert!(graph_footstep_clocks(&crate::extensions::SourceRelevantAsset {
+            duration: 1.0, playback_delta_seconds: -2000.0, has_previous_position: true, looping: true, ..default()
+        }, 0.1, true).len() <= 1000);
+        assert!(clock(0.1, 0.1, 0, true).is_empty());
+        for (previous, current, delta) in [(0.9, 0.1, 2.5), (0.1, 0.9, -2.6)] {
+            let follower = crate::extensions::SourceRelevantAsset {
+                duration: 1.0, position: current, previous_position: previous, has_previous_position: true,
+                playback_delta_seconds: delta, looping: true, ..default()
+            };
+            let segments = graph_footstep_clocks(&follower, previous, false);
+            let actual = segments.iter().map(|clock| clock.current_time - clock.previous_time).sum::<f32>();
+            assert!((actual - 0.2 * delta.signum()).abs() < 1e-6);
+            assert!(graph_footstep_clocks(&crate::extensions::SourceRelevantAsset {
+                position: previous, ..follower
+            }, previous, false).is_empty());
+        }
+        assert!(graph_footstep_clocks(&crate::extensions::SourceRelevantAsset {
+            playback_delta_seconds: 1.0, has_previous_position: true, ..default()
+        }, 0.0, true).is_empty());
     }
 
     #[test]
@@ -1007,7 +1032,7 @@ mod tests {
         let skeleton = loaded_clip.skeleton.clone();
         let clip_duration = loaded_clip.duration();
         let node = AnimationNode::new("source walk", crate::extensions::SourceSequencePlayerNode {
-            clip, loop_animation: true, ..default()
+            clip: clip.clone(), loop_animation: true, ..default()
         });
         let mut graph = AnimationGraph::default();
         graph.add_output_data("pose".to_owned(), DataSpec::Pose);
@@ -1016,7 +1041,7 @@ mod tests {
         let graph = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(graph);
         app.world_mut().entity_mut(player_entity)
             .remove::<crate::extensions::post_physics_animation::ManualAnimationPlayer>()
-            .insert(AnimationGraphPlayer::new(skeleton).with_graph(graph.clone()));
+            .insert(AnimationGraphPlayer::new(skeleton.clone()).with_graph(graph.clone()));
         app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
         app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().clear();
         let mut feet = [0; 2];
@@ -1049,7 +1074,7 @@ mod tests {
         let node = crate::animation_context_projection::root_pose_source_node(graph).unwrap();
         let context = crate::extensions::animation_context::node_context_state(&arena.get_toplevel().node_states,
             bevy_animation_graph::core::context::node_states::StateKey::Default, node).unwrap();
-        assert_eq!(context.asset_samples[0].clock.loops_crossed, 2);
+        assert!((context.asset_samples[0].clock.playback_delta_seconds - clip_duration * 2.0).abs() < 1e-5);
         let full_cycle_footsteps = app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>()
             .drain().filter(|event| event.character == character
                 && event.class_name == "AlsAnimNotify_FootstepEffects").count();
@@ -1059,6 +1084,65 @@ mod tests {
             app.update();
             assert!(!app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain()
                 .any(|event| event.character == character && event.class_name == "AlsAnimNotify_FootstepEffects"));
+        }
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
+        for looping in [false, true] {
+            let node = AnimationNode::new("reverse source walk", crate::extensions::SourceSequencePlayerNode {
+                clip: clip.clone(), start_position: clip_duration * 0.9, play_rate: -1.0,
+                loop_animation: looping, ..default()
+            });
+            let mut reverse = AnimationGraph::new();
+            reverse.add_output_data("pose".to_owned(), DataSpec::Pose);
+            reverse.add_output_data_edge(node.id, "Pose", "pose");
+            reverse.add_node(node);
+            let reverse = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(reverse);
+            app.world_mut().entity_mut(player_entity).insert(AnimationGraphPlayer::new(skeleton.clone()).with_graph(reverse));
+            app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().clear();
+            let mut reverse_feet = [0; 2];
+            for _ in 0..150 {
+                app.update();
+                let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+                assert!(player.get_error().is_none(), "{:?}", player.get_error());
+                for event in app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain() {
+                    if event.character == character && event.class_name == "AlsAnimNotify_FootstepEffects" {
+                        let right = event.parameters.get("FootBone").and_then(|value| value.get("value"))
+                            .and_then(|value| value.as_str()).is_some_and(|value| value.ends_with("::Right"));
+                        reverse_feet[usize::from(right)] += 1;
+                    }
+                }
+            }
+            if looping { assert!(reverse_feet.iter().all(|count| *count >= 2), "Reverse looping footsteps: {reverse_feet:?}"); }
+            else { assert_eq!(reverse_feet, [1, 1], "Reverse non-looping footsteps"); }
+        }
+        let manifest: AlsNotifyManifest = serde_json::from_str(include_str!("../../../assets/ALS/Animations/als_notify_manifest.json")).unwrap();
+        let source = manifest.clips.iter().find(|source| source.source_asset.ends_with("/A_Als_Walk_Forward.A_Als_Walk_Forward")).unwrap();
+        let native_cases: &[(bool, f32, &[usize])] = &[
+            (false, 0.2, &[1]), (false, -0.2, &[]), (false, 1.2, &[1]), (false, -1.2, &[0]),
+            (false, 2.6, &[1]), (false, -2.6, &[0]), (true, 0.2, &[1]), (true, -0.2, &[]),
+            (true, 1.2, &[1, 0, 1]), (true, -1.2, &[0, 1]),
+            (true, 2.6, &[1, 0, 1]), (true, -2.6, &[0, 0, 1, 0, 1]),
+        ];
+        for &(looping, periods, expected) in native_cases {
+            let node = AnimationNode::new("native notify clock", crate::extensions::SourceSequencePlayerNode {
+                clip: clip.clone(), start_position: clip_duration * 0.6, play_rate: periods.signum(),
+                loop_animation: looping, ..default()
+            });
+            let mut graph = AnimationGraph::new();
+            graph.add_output_data("pose".to_owned(), DataSpec::Pose);
+            graph.add_output_data_edge(node.id, "Pose", "pose");
+            graph.add_node(node);
+            let graph = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(graph);
+            app.world_mut().entity_mut(player_entity).insert(AnimationGraphPlayer::new(skeleton.clone()).with_graph(graph));
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::ZERO));
+            app.update();
+            app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().clear();
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(
+                std::time::Duration::from_secs_f32(periods.abs() * clip_duration)));
+            app.update();
+            let actual = app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain()
+                .filter(|event| event.character == character && event.class_name == "AlsAnimNotify_FootstepEffects")
+                .map(|event| source.events.iter().position(|entry| entry.event_id == event.event_id).unwrap()).collect::<Vec<_>>();
+            assert_eq!(actual, expected, "Native notify contract: looping={looping}, periods={periods}");
         }
     }
 

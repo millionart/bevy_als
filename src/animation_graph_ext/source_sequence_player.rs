@@ -19,7 +19,6 @@ use bevy_animation_graph::core::{
     skeleton::Skeleton,
 };
 
-use crate::extensions::animation_context::forward_loop_count;
 use crate::extensions::global_f32_input::root_defaults_enabled;
 use crate::extensions::sync_group_phase::{
     SourceSyncGroupRole, SourceSyncPlayerTick, SyncMarker, marker_phase_from_sample_time,
@@ -442,18 +441,13 @@ impl NodeLike for SourceSequencePlayerNode {
                 loop_animation,
             )
         };
-        let loops_crossed = if loop_animation && state.has_previous_position {
-            forward_loop_count(state.previous_position, state.delta_seconds, play_rate, clip.duration())
-        } else {
-            0
-        };
         let clock = SourceRelevantAsset {
             duration: clip.duration(),
             position,
             previous_position: state.previous_position,
             has_previous_position: state.has_previous_position,
             delta_seconds: state.delta_seconds,
-            loops_crossed,
+            playback_delta_seconds: state.delta_seconds * play_rate,
             looping: loop_animation,
             weight: 1.0,
         };

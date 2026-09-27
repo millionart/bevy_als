@@ -627,6 +627,7 @@ fn sample_transition_stack(
                 sample.identity = format!("transition:{}", entry.instance_id);
                 sample.clock.previous_position = entry.previous_clip_time;
                 sample.clock.has_previous_position = true;
+                sample.clock.playback_delta_seconds = sample.clock.position - entry.previous_clip_time;
                 sample.clock.weight = entry.weight;
             }
             (pose, context, entry.weight)
@@ -1041,6 +1042,14 @@ mod tests {
         assert!(before.paths.keys().any(|bone| before.get_bone(*bone).unwrap().rotation != after.get_bone(*bone).unwrap().rotation));
         let context = app.world().get::<crate::extensions::SourceAnimationInputs>(target).unwrap().slot_input_context(GENERATED_TRANSITION_SLOT_POSE_KEY).unwrap();
         assert!(context.asset_samples.iter().any(|sample| sample.identity.starts_with("transition:") && sample.clock.position > time));
+        for sample in &context.asset_samples {
+            if sample.identity.starts_with("transition:") {
+                assert!(sample.clock.has_previous_position);
+                assert!(sample.clock.playback_delta_seconds > 0.0);
+                assert!((sample.clock.playback_delta_seconds
+                    - (sample.clock.position - sample.clock.previous_position)).abs() < 1e-6);
+            }
+        }
     }
 
     #[test]
