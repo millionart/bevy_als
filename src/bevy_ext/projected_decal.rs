@@ -152,8 +152,8 @@ pub struct PackedDecalReceiverExtension {
 }
 
 impl MaterialExtension for PackedDecalReceiverExtension {
-    fn fragment_shader() -> ShaderRef { "Bevy/Materials/packed_decal_receiver.wgsl".into() }
-    fn deferred_fragment_shader() -> ShaderRef { "Bevy/Materials/packed_decal_receiver.wgsl".into() }
+    fn fragment_shader() -> ShaderRef { "ALS/Material/Footprint/packed_decal_receiver.wgsl".into() }
+    fn deferred_fragment_shader() -> ShaderRef { "ALS/Material/Footprint/packed_decal_receiver.wgsl".into() }
     fn specialize(_: &MaterialExtensionPipeline, descriptor: &mut RenderPipelineDescriptor, _: &MeshVertexBufferLayoutRef, _: MaterialExtensionKey<Self>) -> Result<(), SpecializedMeshPipelineError> {
         descriptor.label = Some(format!("als_packed_receiver_{}", descriptor.label.as_deref().unwrap_or_default()).into());
         Ok(())
@@ -553,7 +553,7 @@ mod tests {
 
     #[test]
     fn packed_decals_modify_surface_properties_before_lighting() {
-        let decal = include_str!("../../assets/Bevy/Materials/packed_decal.wgsl");
+        let decal = include_str!("../../assets/ALS/Material/Footprint/packed_decal.wgsl");
         assert!(!decal.contains("apply_pbr_lighting("), "Decal still computes independent lighting before alpha blending");
         let receiver = include_str!("../../assets/ALSExtras/Environment/Materials/playground_tiles.wgsl");
         let blend = receiver.find("apply_packed_decals(&pbr_input,").expect("Receiving material does not consume packed decals");

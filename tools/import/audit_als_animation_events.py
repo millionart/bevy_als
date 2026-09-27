@@ -229,13 +229,13 @@ def audit(content_root, manifest):
             continue
         reader = PropReader(asset)
         for index in range(len(asset.exports)):
-            if export_class(asset, index) not in ANIMATION_CLASSES:
-                continue
             source = source_for_file(content_root, path, asset, index, targets)
+            if source["target_gltf"]:
+                seen_targets.add(source["source_object"])
+            if source["asset_class"] not in ANIMATION_CLASSES:
+                continue
             row = event_rows(asset, reader, index, source)
             rows.append(row)
-            if row["target_gltf"]:
-                seen_targets.add(row["source_object"])
     for source_object in sorted(set(targets) - seen_targets):
         failures.append({"source_object": source_object, "error": "missing_exported_animation"})
     return rows, failures

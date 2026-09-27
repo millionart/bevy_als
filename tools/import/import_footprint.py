@@ -147,7 +147,7 @@ def compile_material(sources, material):
             assert scalar('BaseColor', rgba, life) == material_definition['base_color']
             assert abs(scalar('Opacity', rgba, life) - rgba[3] * life * material_definition['opacity']) < 1e-7
             assert abs(scalar('Roughness', rgba, life) - rgba[1] * material_definition['roughness_scale']) < 1e-7
-    return {**material_definition, 'texture': 'ALS/MaterialLibrary/Footprint/T_Als_Footprint_M.tga'}
+    return {**material_definition, 'texture': 'ALS/Material/Footprint/T_Als_Footprint_M.tga'}
 
 
 def compile_library(sources):
@@ -253,13 +253,13 @@ def main():
             assert output.read_text(encoding='utf-8') == text
         texture = named(sources, 'T_Als_Footprint_M')
         raw = args.source_directory / texture['source_image']
-        saved = args.asset_root / 'ALS/MaterialLibrary/Footprint/T_Als_Footprint_M.tga'
+        saved = args.asset_root / 'ALS/Material/Footprint/T_Als_Footprint_M.tga'
         if args.write and not saved.exists():
             saved.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(raw, saved)
         assert saved.read_bytes() == raw.read_bytes()
         image = Image.open(saved)
-        shader = (args.asset_root / 'Bevy/Materials/packed_decal.wgsl').read_text(encoding='utf-8')
+        shader = (args.asset_root / 'ALS/Material/Footprint/packed_decal.wgsl').read_text(encoding='utf-8')
         audit_channels(named(sources, 'M_Als_Footprint_Decal'), texture, image, Image.open(raw), shader, 'mesh_view_bindings::clustered_decal_textures')
         if args.self_test:
             channel_self_test(named(sources, 'M_Als_Footprint_Decal'), texture, image, shader, 'mesh_view_bindings::clustered_decal_textures')

@@ -1,4 +1,4 @@
-#import "Bevy/Materials/packed_decal.wgsl"::apply_packed_decals
+#import "ALS/Material/Footprint/packed_decal.wgsl"::apply_packed_decals
 #import bevy_pbr::{
     pbr_fragment::pbr_input_from_standard_material,
     pbr_functions::alpha_discard,

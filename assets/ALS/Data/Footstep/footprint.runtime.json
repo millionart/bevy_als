@@ -85,7 +85,7 @@
           "roughness_scale": 0.2,
           "metallic": 0.0,
           "specular": 0.5,
-          "texture": "ALS/MaterialLibrary/Footprint/T_Als_Footprint_M.tga"
+          "texture": "ALS/Material/Footprint/T_Als_Footprint_M.tga"
         }
       }
     }

@@ -157,7 +157,7 @@ fn add_image(server: &AssetServer, bytes: &[u8], extension: &str, green_to_red: 
 }
 
 fn load_playground_textures(mut commands: Commands, server: Res<AssetServer>, buffers: Res<crate::extensions::projected_decal::PackedDecalBuffers>) {
-    let grid = std::fs::read("assets/Engine/EngineMaterials/T_Default_Material_Grid_M.tga");
+    let grid = std::fs::read("assets/ALSExtras/Environment/Materials/T_Default_Material_Grid_M.tga");
     let normal = std::fs::read("assets/ALSExtras/Environment/Materials/T_Als_Tiles_N.png");
     let masks = std::fs::read("assets/ALSExtras/Environment/Materials/T_Als_Tiles_M.png");
 
@@ -184,7 +184,7 @@ mod tests {
 
     #[test]
     fn source_grid_tga_preserves_every_rgba_pixel() {
-        let bytes = include_bytes!("../../../assets/Engine/EngineMaterials/T_Default_Material_Grid_M.tga");
+        let bytes = include_bytes!("../../../assets/ALSExtras/Environment/Materials/T_Default_Material_Grid_M.tga");
         assert_eq!(&bytes[16..18], [32, 8]);
         let image = decode_image(bytes, "tga", false).unwrap();
         assert_eq!(image.size(), UVec2::splat(512));

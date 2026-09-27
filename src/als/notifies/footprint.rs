@@ -365,8 +365,8 @@ mod tests {
     #[test]
     fn footprint_library_loads_multiple_references_and_rejects_invalid_bindings() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("target/footprint-library-test-{}", std::process::id()));
-        std::fs::create_dir_all(root.join("ALS/MaterialLibrary/Footprint")).unwrap();
-        std::fs::write(root.join("ALS/MaterialLibrary/Footprint/T_Als_Footprint_M.tga"), include_bytes!("../../../assets/ALS/MaterialLibrary/Footprint/T_Als_Footprint_M.tga")).unwrap();
+        std::fs::create_dir_all(root.join("ALS/Material/Footprint")).unwrap();
+        std::fs::write(root.join("ALS/Material/Footprint/T_Als_Footprint_M.tga"), include_bytes!("../../../assets/ALS/Material/Footprint/T_Als_Footprint_M.tga")).unwrap();
         let mut data: serde_json::Value = serde_json::from_str(include_str!("../../../assets/ALS/Data/Footstep/footprint.runtime.json")).unwrap();
         let mut alternate = data["definitions"][0].clone();
         alternate["source_settings"] = "/ALS/Tests/Alternate.Alternate".into();
@@ -658,7 +658,7 @@ mod tests {
         assert_eq!(FOOTPRINT.notify_defaults["bSpawnDecal"].as_bool(), Some(true));
         let decode = |bytes| Image::from_buffer(bytes, ImageType::Extension("tga"),
             CompressedImageFormats::NONE, false, ImageSampler::default(), RenderAssetUsages::all()).unwrap();
-        let source = decode(include_bytes!("../../../assets/ALS/MaterialLibrary/Footprint/T_Als_Footprint_M.tga"));
+        let source = decode(include_bytes!("../../../assets/ALS/Material/Footprint/T_Als_Footprint_M.tga"));
         assert_eq!(source.size(), UVec2::splat(512));
         let data = source.data.unwrap();
         assert_eq!(&data[..4], [0, 0, 255, 0]);

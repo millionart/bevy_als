@@ -3,7 +3,7 @@
     pbr_functions::alpha_discard,
     decal::clustered::apply_decals,
 }
-#import "Bevy/Materials/packed_decal.wgsl"::apply_packed_decals
+#import "ALS/Material/Footprint/packed_decal.wgsl"::apply_packed_decals
 
 #ifdef PREPASS_PIPELINE
 #import bevy_pbr::{prepass_io::{VertexOutput, FragmentOutput}, pbr_deferred_functions::deferred_output}

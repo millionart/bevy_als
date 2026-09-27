@@ -3,14 +3,43 @@ import io
 import json
 from pathlib import Path
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
 import gen_curves
 import gen_ron
+import audit_als_animation_events
 
 
 class AssetImportLayoutTests(unittest.TestCase):
+    def test_notify_audit_classifies_exported_assets_by_source_class(self):
+        with tempfile.TemporaryDirectory() as directory:
+            content = Path(directory)
+            objects = {
+                'ALSCamera/SKM_Test': 'SkeletalMesh',
+                'ALS/OverlayObjects/Bow/A_Test': 'AnimSequence',
+            }
+            manifest = content / 'exports.md'
+            manifest.write_text('\n'.join(
+                f'| date | `/ALS/{name}.{Path(name).name}` | glTF | `assets/{name}.gltf` |'
+                for name in [*objects, 'ALS/Animations/A_Missing']
+            ))
+            for name in objects:
+                path = content / (name + '.uasset')
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.touch()
+            def load(path):
+                name = Path(path).relative_to(content).with_suffix('').as_posix()
+                return SimpleNamespace(asset_class=objects[name], exports=[SimpleNamespace(object_name=Path(name).name)])
+            with patch.object(audit_als_animation_events, 'UAsset', side_effect=load), \
+                 patch.object(audit_als_animation_events, 'PropReader'), \
+                 patch.object(audit_als_animation_events, 'export_class', side_effect=lambda asset, index: asset.asset_class), \
+                 patch.object(audit_als_animation_events, 'event_rows', side_effect=lambda asset, reader, index, source: source):
+                rows, failures = audit_als_animation_events.audit(content, manifest)
+            self.assertEqual([row['asset_class'] for row in rows], ['AnimSequence'])
+            self.assertEqual(failures, [{'source_object': '/ALS/ALS/Animations/A_Missing.A_Missing', 'error': 'missing_exported_animation'}])
+
     def test_curve_tables_stay_with_their_source_module(self):
         with tempfile.TemporaryDirectory() as directory:
             assets = Path(directory) / 'assets'

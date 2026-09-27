@@ -4,14 +4,14 @@
 
 | 资产根 | 对标与内容 |
 |---|---|
-| `assets/ALS/` | Character、Character/AnimationInstances、Animations、Data、OverlayObjects、MaterialLibrary；包括角色网格、骨架、PA_Als、CR_Als、动画蓝图和角色逻辑配置 |
+| `assets/ALS/` | Character、Character/AnimationInstances、Animations、Data、OverlayObjects、Material；包括角色网格、骨架、PA_Als、CR_Als、动画蓝图和角色逻辑配置 |
 | `assets/ALSCamera/` | SKM_Als_Camera、AB_Als_Camera、Data，以及相机组件/调试映射 |
 | `assets/ALSExtras/` | Levels、Environment、UI；包括 Playground、场景逻辑配置、环境模型/材质和 W_Als_Hud/OverlayModeMenu 的目标定义 |
-| `assets/Engine/` | 引用的 UE 引擎内容，如 EngineMaterials 的默认网格纹理 |
-| `assets/Bevy/` | Bevy 扩展自己的通用着色器，区别于源项目资源 |
 | `assets/Validation/` | 旧手工图、旧演示场景和作者性审计夹具；正式资源不引用它们 |
 
 对应关系直接使用源 package path，例如 `/ALS/ALS/OverlayObjects/Bow/SKM_Als_Bow` 落在 `ALS/OverlayObjects/Bow/SKM_Als_Bow.gltf`，`/ALS/ALSCamera/AB_Als_Camera` 的图落在 `ALSCamera/AB_Als_Camera/`。一个 uasset 导出的 glTF/bin 或多个图文件可以共用其源资产目录；不添加 `generated/` 安装前缀。
+
+资源保留原导出名及大小写。目录按功能归属组织，其中源 `MaterialLibrary` 在目标命名为 `Material`；UE 引擎网格贴图按使用者归入 Extras 环境材质，源身份仍记录为 `/Engine/EngineMaterials/T_Default_Material_Grid_M`。
 
 角色运行包装图使用 `ALS/Character/AB_Als.runtime.animgraph.ron`，关卡角色场景使用 `ALS/Character/B_Als.animscn.ron`；Camera/Bow 采用同样的源名加目标格式后缀。包装图仍承担已有的 Ragdoll/接口接线，转换后的源图保持独立。安装清单仍记录源身份和所属文件，支持安全覆盖与清理，不用 generated 作为所有权依据。
 
@@ -21,7 +21,18 @@ glTF、bin、贴图、曲线源表、BlendSpace 源定义和 Playground 原始 a
 
 当前真实角色仍使用独立 Roll slot sampler，因此 `RollSlot.animgraph.ron` 保留在 `ALS/Character/AnimationInstances/AB_Als_Grounded/`。其余旧手工图迁入 Validation，继续用于尚未执行的作者性审计；不会把历史夹具当作当前运行蓝图。
 
-本轮迁移清点：1071 个跟踪文件，移除 4 个空目录占位；其余分为 ALS 822、ALSCamera 26、ALSExtras 59、Validation 154、Engine 1、Bevy 2 和 3 个说明文件。350 个原始载荷有逐字节保留要求，158 份 glTF 的外部 URI 均能在新位置保持不变；2199 条已识别目标资源引用中，正式资源没有指向 Validation 的边。
+BF129.4 迁移基线为 1071 个跟踪文件，移除 4 个空目录占位。350 个原始载荷有逐字节保留要求，158 份 glTF 的外部 URI 保持不变；正式资源没有指向 Validation 的边。BF129.5 进一步将两份脚印 shader 归入 ALS、默认网格贴图归入 ALSExtras，并移除空的 Engine/Bevy 目录。
+
+## 材质与 shader
+
+| 使用对象 | 当前实现 |
+|---|---|
+| 角色 | 使用 Bevy 内置 `StandardMaterial`/PBR；颜色、粗糙度和反射参数在 [`character_assembly.rs`](../src/als/character/character_assembly.rs) 的 `make_als_character_material`/`make_als_main_material` 中组装，没有独立角色 WGSL |
+| Overlay 道具 | [`overlay_object.rs`](../src/als/overlay_objects/overlay_object.rs) 根据 `ALS/Character/overlay_actor.runtime.json` 创建 `StandardMaterial`，复用 Bevy PBR |
+| Playground 环境 | [`playground_materials.rs`](../src/als_extras/environment/playground_materials.rs) 定义材质扩展，shader 为 [`playground_tiles.wgsl`](../assets/ALSExtras/Environment/Materials/playground_tiles.wgsl)；默认网格纹理与 shader 同目录 |
+| 脚印及接收表面 | [`ALS/Material/Footprint`](../assets/ALS/Material/Footprint) 中的 `packed_decal.wgsl`、`packed_decal_receiver.wgsl` 与 `T_Als_Footprint_M.tga`；Rust 绑定在 [`projected_decal.rs`](../src/bevy_ext/projected_decal.rs)，脚步事件在 [`footprint.rs`](../src/als/notifies/footprint.rs) |
+
+内置 PBR shader 由 Bevy 依赖提供，不需要复制到项目资产树中。这里记录的是当前实际材质实现，完整的移植等价性以对应任务的 source Gate 为准。
 
 ## 转换与验收
 
