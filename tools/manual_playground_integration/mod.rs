@@ -3860,8 +3860,14 @@ fn drive_foot_ik_avatar_replacement(
         let Ok(scene_handle) = scene_handles.get(new_avatar) else { return; };
         let Some(scene) = scenes.get(&scene_handle.handle) else { return; };
         player.set_animation(AnimationSource::Graph(scene.animation_graph.clone()));
+        drop(player);
+        if let Ok(old_instance) = instances.get(old_avatar)
+            && let Ok(mut old_player) = players.get_mut(old_instance.player_entity()) {
+            old_player.set_animation(AnimationSource::None);
+        }
         assembly.avatar = new_avatar;
-        commands.entity(old_avatar).remove::<AlsCharacterAvatar>().insert(Visibility::Hidden);
+        commands.entity(old_avatar).insert((Visibility::Hidden,
+            Transform::from_xyz(4.0, 1.0, -2.0).with_rotation(Quat::from_rotation_y(0.7)).with_scale(Vec3::splat(0.8))));
         commands.entity(new_avatar).insert(Visibility::Visible);
         let Ok((mut camera_binding, _)) = camera_bindings.get_mut(character) else { return; };
         camera_binding.avatar = new_avatar;
@@ -6929,7 +6935,8 @@ fn observe_manual_integration(
         return;
     };
     let transition_playback = transition_playback.and_then(AlsTransitionMontageStack::latest);
-    let Some((
+    let Ok(assembly) = interface.camera_assemblies.get(character) else { return; };
+    let Ok((
         _,
         instance,
         gait_blend,
@@ -6939,9 +6946,7 @@ fn observe_manual_integration(
         turn_stack,
         turn_slot,
         movement_direction,
-    )) = avatars
-        .iter()
-        .find(|(avatar, _, _, _, _, _, _, _, _)| avatar.character == character)
+    )) = avatars.get(assembly.avatar)
     else {
         return;
     };

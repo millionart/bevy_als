@@ -23,7 +23,7 @@ use crate::extensions::{control_rig_hierarchy::{RigSpace, RigTransform}, control
     control_rig_program::{RigDefinition, RigInstruction}, root_graph_boundaries::{ControlRigBoundaryNode, ControlRigNodeState, RigCallSample, current_control_rig}};
 
 use crate::animation_context_projection::AlsRootAnimationContextSet;
-use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar};
+use crate::character_assembly::AlsCharacterAssembly;
 use crate::control_rig_apply::{AlsControlRigExecution, AlsControlRigInput, CrAlsRuntimeProfileTemplate};
 
 #[derive(Component, Debug, Clone, Copy, Default)]
@@ -302,20 +302,20 @@ fn rig_foot_result(
 
 fn observe_rig_results(
     mut commands: Commands,
-    characters: Query<(Entity, Option<&AlsFootBones>, Option<&AlsFootLockState>, Option<&AlsFootIkSpaceState>, Option<&AlsControlRigExecution>), With<crate::als::character::AlsCharacter>>,
-    avatars: Query<(Entity, &ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
+    characters: Query<(Entity, &AlsCharacterAssembly, Option<&AlsFootBones>, Option<&AlsFootLockState>, Option<&AlsFootIkSpaceState>, Option<&AlsControlRigExecution>), With<crate::als::character::AlsCharacter>>,
+    instances: Query<&AnimatedSceneInstance>,
     players: Query<&AnimationGraphPlayer>,
     graphs: Option<Res<Assets<AnimationGraph>>>,
     names: Query<&Name>,
     transforms: TransformHelper,
 ) {
-    for (entity, bones, lock, previous, previous_execution) in &characters {
+    for (entity, assembly, bones, lock, previous, previous_execution) in &characters {
         let mut execution = AlsControlRigExecution::default();
         let mut telemetry = AlsFootIkTelemetry::default();
         let mut spaces = AlsFootIkSpaceState::default();
         let mut apply = AlsFootIkApplyTelemetry::default();
         if let Some(graphs) = graphs.as_deref()
-            && let Some((avatar, _, instance)) = avatars.iter().find(|(_, parent, _)| parent.parent() == entity)
+            && let Ok(instance) = instances.get(assembly.avatar)
             && let Ok(player) = players.get(instance.player_entity())
             && let Some((_, node, state)) = current_control_rig(player, graphs)
             && let Some(definition) = node.try_inner_downcast_ref::<ControlRigBoundaryNode>().and_then(|node| node.definition.as_ref())
@@ -324,7 +324,7 @@ fn observe_rig_results(
             execution = AlsControlRigExecution { initialization_count: state.initialization_count, executed_steps: state.executed_steps,
                 frame: player.get_context_arena().unwrap().frame_index(), elapsed_seconds: state.elapsed_seconds,
                 foot_height_m: value("FootHeight").unwrap_or(0.0), leg_length_m: value("LegLength").unwrap_or(0.0) };
-            if let Some(bones) = bones && let Ok(world) = transforms.compute_global_transform(avatar) {
+            if let Some(bones) = bones && let Ok(world) = transforms.compute_global_transform(assembly.avatar) {
                 let world = world.compute_transform();
                 let to_world = RigTransform { translation: world.translation.as_dvec3(), rotation: world.rotation.as_dquat(), scale: world.scale.as_dvec3() };
                 for side in 0..2 {
@@ -385,19 +385,14 @@ fn ensure_foot_lock_teleport_telemetry(
 fn detect_foot_lock_teleports(
     mut teleports: MessageWriter<AlsFootLockTeleported>,
     mut lifecycles: Query<
-        (Entity, &mut FootLockLifecycleState),
+        (Entity, &AlsCharacterAssembly, &mut FootLockLifecycleState),
         (With<crate::als::character::AlsCharacter>, With<AlsFootBones>),
     >,
-    avatars: Query<(Entity, &ChildOf), With<AlsCharacterAvatar>>,
     transforms: TransformHelper,
     mut telemetry: Query<&mut AlsFootLockTeleportTelemetry>,
 ) {
-    for (entity, lifecycle) in &mut lifecycles {
-        let Some((avatar, _)) = avatars.iter().find(|(_, parent)| parent.parent() == entity)
-        else {
-            continue;
-        };
-        let Ok(armature) = transforms.compute_global_transform(avatar) else { continue };
+    for (entity, assembly, lifecycle) in &mut lifecycles {
+        let Ok(armature) = transforms.compute_global_transform(assembly.avatar) else { continue };
         let current = armature.compute_transform();
         let Some(previous) = lifecycle.previous_character_transform else {
             continue;
@@ -543,12 +538,11 @@ fn refresh_foot_lock_inputs(
     time: Res<Time>,
     profile: Res<CrAlsRuntimeProfileTemplate>,
     mut characters: Query<(
-        Entity, &AlsFootBones, Option<&AlsFootTargetSelection>, &LocomotionState,
+        Entity, &AlsCharacterAssembly, &AlsFootBones, Option<&AlsFootTargetSelection>, &LocomotionState,
         &AlsFootLockInput, &Stance, &AlsFootLockSettings, Option<&AlsMovementBase>,
         &mut FootLockLifecycleState, &mut AlsFootLockState, &mut AlsDynamicTransitionState,
         Option<&mut AlsControlRigInput>,
     ), With<crate::als::character::AlsCharacter>>,
-    avatars: Query<(Entity, &ChildOf), With<AlsCharacterAvatar>>,
     transforms: TransformHelper,
     parents: Query<&ChildOf>,
     bone_globals: Query<&GlobalTransform, Without<crate::als::character::AlsCharacter>>,
@@ -557,11 +551,10 @@ fn refresh_foot_lock_inputs(
     bodies: Query<&RigidBody>,
 ) {
     let dt = time.delta_secs();
-    for (entity, bones, selection, locomotion, lock_input, stance, settings, movement_base,
+    for (entity, assembly, bones, selection, locomotion, lock_input, stance, settings, movement_base,
         mut lifecycle, mut lock_state,
         mut dynamic_transition, mut rig_input) in &mut characters {
-        let Some((avatar, _)) = avatars.iter().find(|(_, parent)| parent.parent() == entity) else { continue };
-        let Ok(armature) = transforms.compute_global_transform(avatar) else { continue };
+        let Ok(armature) = transforms.compute_global_transform(assembly.avatar) else { continue };
         let current_character_transform = armature.compute_transform();
         let use_ik_bones = selection.map_or(true, |selection| selection.use_ik_bones);
         if !foot_bones_are_valid(bones, use_ik_bones, &bone_globals) {
@@ -686,6 +679,8 @@ fn foot_lock_movement_base(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::character_assembly::AlsCharacterAvatar;
+    use bevy_animation_graph::core::animation_clip::EntityPath;
 
     #[test]
     fn animation_movement_base_foot_lock_keeps_custom_targets_and_rejects_static_owners() {
@@ -709,9 +704,17 @@ mod tests {
         let thigh = app.world_mut().spawn((Transform::IDENTITY, ChildOf(pelvis))).id();
         let calf = app.world_mut().spawn((Transform::from_xyz(0.0, -0.4, 0.0), ChildOf(thigh))).id();
         let foot = app.world_mut().spawn((Transform::from_xyz(0.0, -0.4, 0.0), ChildOf(calf))).id();
+        let right_thigh = app.world_mut().spawn((Transform::IDENTITY, ChildOf(pelvis))).id();
+        let right_calf = app.world_mut().spawn((Transform::from_xyz(0.0, -0.4, 0.0), ChildOf(right_thigh))).id();
+        let right_foot = app.world_mut().spawn((Transform::from_xyz(0.0, -0.4, 0.0), ChildOf(right_calf))).id();
+        for (name, bone) in ["thigh_l", "calf_l", "foot_l", "thigh_r", "calf_r", "foot_r"].into_iter()
+            .zip([thigh, calf, foot, right_thigh, right_calf, right_foot]) {
+            app.world_mut().entity_mut(bone).insert((Name::new(name), EntityPath::from(vec![name.to_owned()]).id().animation_target_id()));
+        }
+        app.world_mut().entity_mut(character).insert(AlsCharacterAssembly { avatar, camera: None });
         app.world_mut().entity_mut(character).insert(AlsFootBones {
-            left_thigh:thigh, left_calf:calf, left:foot, left_target:Some(foot), left_virtual_target:None,
-            right_thigh:thigh, right_calf:calf, right:foot, right_target:Some(foot), right_virtual_target:None,
+            left_thigh:thigh, left_calf:calf, left:foot, left_target:None, left_virtual_target:None,
+            right_thigh, right_calf, right:right_foot, right_target:None, right_virtual_target:None,
         });
         for (kind, target, mode) in [(RigidBody::Kinematic, Some(child), LocomotionState::Grounded),
             (RigidBody::Kinematic, Some(child), LocomotionState::Custom),
@@ -851,6 +854,7 @@ mod tests {
         let world = Transform::from_xyz(2.0, 0.0, 3.0).with_rotation(Quat::from_rotation_y(0.4));
         let to_world = RigTransform { translation: world.translation.as_dvec3(), rotation: world.rotation.as_dquat(), scale: world.scale.as_dvec3() };
         let avatar = app.world_mut().spawn((AlsCharacterAvatar { character: actor }, world, ChildOf(actor), AnimatedSceneHandle::default())).id();
+        app.world_mut().entity_mut(actor).insert(AlsCharacterAssembly { avatar, camera: None });
         let player_entity = app.world_mut().spawn((player, Name::new("root"), Transform::IDENTITY, ChildOf(avatar))).id();
         let mut entities = vec![player_entity];
         for (index, bone) in definition.bones.iter().enumerate().skip(1) {
@@ -1097,6 +1101,53 @@ mod tests {
     }
 
     #[test]
+    fn foot_targets_use_selected_avatar_space_with_old_avatar_retained() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, TransformPlugin))
+            .init_resource::<CrAlsRuntimeProfileTemplate>()
+            .add_message::<AlsFootLockTeleported>()
+            .add_systems(Update, (detect_foot_lock_teleports, record_foot_lock_teleports, refresh_foot_lock_inputs).chain());
+        let character = app.world_mut().spawn((
+            crate::als::character::AlsCharacter, Transform::IDENTITY,
+            LocomotionState::Grounded, Stance::Standing, AlsFootLockSettings::default(),
+            AlsFootLockInput { left_ik_amount: 1.0, right_ik_amount: 1.0, ..default() },
+            AlsFootLockState::default(), AlsDynamicTransitionState::default(),
+            FootLockLifecycleState::default(), AlsFootLockTeleportTelemetry::default(),
+            AlsControlRigInput::default(),
+        )).id();
+        let old_avatar = app.world_mut().spawn((
+            AlsCharacterAvatar { character }, Transform::from_xyz(20.0, 0.0, 0.0), ChildOf(character),
+        )).id();
+        app.world_mut().spawn((Transform::IDENTITY, ChildOf(old_avatar)));
+        let selected_transform = Transform::from_xyz(2.0, 3.0, -4.0)
+            .with_rotation(Quat::from_rotation_y(0.6)).with_scale(Vec3::splat(1.5));
+        let avatar = app.world_mut().spawn((
+            AlsCharacterAvatar { character }, selected_transform, ChildOf(character),
+        )).id();
+        let pelvis = app.world_mut().spawn((Transform::from_xyz(0.0, 0.9, 0.0), ChildOf(avatar))).id();
+        let thigh = app.world_mut().spawn((Transform::IDENTITY, ChildOf(pelvis))).id();
+        let calf = app.world_mut().spawn((Transform::from_xyz(0.0, -0.4, 0.0), ChildOf(thigh))).id();
+        let rotation = Quat::from_rotation_x(0.2);
+        let foot = app.world_mut().spawn((Transform::from_xyz(0.2, -0.4, 0.3).with_rotation(rotation), ChildOf(calf))).id();
+        app.world_mut().entity_mut(character).insert((
+            AlsCharacterAssembly { avatar, camera: None },
+            AlsFootBones { left_thigh: thigh, left_calf: calf, left: foot, left_target: Some(foot), left_virtual_target: None,
+                right_thigh: thigh, right_calf: calf, right: foot, right_target: Some(foot), right_virtual_target: None },
+        ));
+        for old_transform in [Transform::from_xyz(20.0, 0.0, 0.0),
+            Transform::from_xyz(-8.0, 5.0, 9.0).with_rotation(Quat::from_rotation_y(-1.2)).with_scale(Vec3::splat(0.5))] {
+            *app.world_mut().get_mut::<Transform>(old_avatar).unwrap() = old_transform;
+            app.update();
+            let input = app.world().get::<AlsControlRigInput>(character).unwrap();
+            assert!(input.foot_transforms_valid);
+            assert!(input.foot_left_location_armature.distance(Vec3::new(0.2, 0.1, 0.3)) < 1e-5,
+                "Selected avatar local target differs: {:?}", input.foot_left_location_armature);
+            assert!(input.foot_left_rotation_armature.dot(rotation).abs() > 0.99999);
+            assert_eq!(app.world().get::<AlsFootLockTeleportTelemetry>(character).unwrap().detected_count, 0);
+        }
+    }
+
+    #[test]
     fn new_foot_lock_uses_previous_final_pose_in_the_current_component_space() {
         let previous = Transform::from_xyz(2.0, 0.9, -1.0).with_rotation(Quat::from_rotation_y(0.3));
         let local = Vec3::new(0.2, -0.8, 0.3);
@@ -1163,6 +1214,7 @@ mod tests {
                 ),
             ))
             .id();
+        app.world_mut().entity_mut(character).insert(AlsCharacterAssembly { avatar, camera: None });
         app.update();
         let at_threshold = *app
             .world()
@@ -1223,9 +1275,17 @@ mod tests {
         let thigh = app.world_mut().spawn((Transform::IDENTITY, ChildOf(pelvis))).id();
         let calf = app.world_mut().spawn((Transform::from_xyz(0.0, -0.4, 0.0), ChildOf(thigh))).id();
         let foot = app.world_mut().spawn((Transform::from_xyz(0.0, -0.4, 0.0), ChildOf(calf))).id();
+        let right_thigh = app.world_mut().spawn((Transform::IDENTITY, ChildOf(pelvis))).id();
+        let right_calf = app.world_mut().spawn((Transform::from_xyz(0.0, -0.4, 0.0), ChildOf(right_thigh))).id();
+        let right_foot = app.world_mut().spawn((Transform::from_xyz(0.0, -0.4, 0.0), ChildOf(right_calf))).id();
+        for (name, bone) in ["thigh_l", "calf_l", "foot_l", "thigh_r", "calf_r", "foot_r"].into_iter()
+            .zip([thigh, calf, foot, right_thigh, right_calf, right_foot]) {
+            app.world_mut().entity_mut(bone).insert((Name::new(name), EntityPath::from(vec![name.to_owned()]).id().animation_target_id()));
+        }
+        app.world_mut().entity_mut(character).insert(AlsCharacterAssembly { avatar, camera: None });
         app.world_mut().entity_mut(character).insert(AlsFootBones {
-            left_thigh: thigh, left_calf: calf, left: foot, left_target: Some(foot), left_virtual_target: None,
-            right_thigh: thigh, right_calf: calf, right: foot, right_target: Some(foot), right_virtual_target: None,
+            left_thigh: thigh, left_calf: calf, left: foot, left_target: None, left_virtual_target: None,
+            right_thigh, right_calf, right: right_foot, right_target: None, right_virtual_target: None,
         });
         app.add_systems(PostUpdate, (move |mut transforms: Query<&mut Transform>| {
             transforms.get_mut(character).unwrap().translation.y += 0.1;

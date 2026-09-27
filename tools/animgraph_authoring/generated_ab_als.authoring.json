@@ -115,8 +115,8 @@
       "sha256": "2bc7aa3d9be47e97d1a0aecbfdc7e7976696633afc32a2c1969ea825ae9aa7e8"
     },
     {
-      "path": "target/bf116_finish/source/ALS_ALS_Character_CR_Als.CR_Als.ue.json",
-      "sha256": "88d09bb4e7f15fd3e1dd1566d95644ebfaa95fb82e71cccd2ff02247d892f273"
+      "path": "target/bf131/a13/CR_Als.ue.json",
+      "sha256": "edc20ee0b0aec992e7a8bafeefd0569fdf01e16239feb8768430bdcd92b1fe46"
     },
     {
       "path": "target/bf116_bow/05b2_source/UE_AnimNode_SequenceEvaluator.cpp",
@@ -384,7 +384,7 @@
       "expected_nodes": [
         {
           "id": "b113030b-0000-4000-8000-000000000001",
-          "name": "Generated AB_Als",
+          "name": "AB_Als",
           "position": [
             -480.0,
             0.0

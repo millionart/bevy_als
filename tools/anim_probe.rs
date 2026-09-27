@@ -4,14 +4,13 @@ use crate::als::motion::{AlsCrouchTransaction, AlsViewYaw};
 use crate::als::movement_direction::AlsMovementDirectionState;
 use crate::als::params::AlsMovementParams;
 use crate::als::state::{Gait, LocomotionState, RotationMode, Stance};
-use bevy::ecs::hierarchy::ChildOf;
 use bevy::prelude::*;
 use bevy_animation_graph::core::animated_scene::AnimatedSceneInstance;
 use bevy_animation_graph::core::animation_graph_player::{AnimationGraphPlayer, AnimationSource};
 use bevy_animation_graph::core::edge_data::DataValue;
 
 use crate::actual_motion::AlsActualMotion;
-use crate::character_assembly::AlsCharacterAvatar;
+use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar};
 use crate::grounded_layer::AlsGroundedGraphTelemetry;
 use crate::standing_layer::AlsStandingGraphTelemetry;
 
@@ -97,7 +96,7 @@ fn grounded_state_label(value: Option<u8>) -> &'static str {
 }
 
 type ProbeCharacters = (
-    Entity,
+    &'static AlsCharacterAssembly,
     &'static Transform,
     &'static AlsActualMotion,
     &'static Stance,
@@ -114,8 +113,6 @@ type ProbeCharacters = (
 );
 
 type ProbeAvatars = (
-    Entity,
-    &'static ChildOf,
     &'static AnimatedSceneInstance,
     Option<&'static AlsMovementDirectionState>,
 );
@@ -138,7 +135,7 @@ fn anim_probe_logger(
 ) {
     let t = time.elapsed_secs();
     let Ok((
-        entity,
+        assembly,
         tf,
         motion,
         stance,
@@ -156,10 +153,7 @@ fn anim_probe_logger(
     else {
         return;
     };
-    let Some((_, instance, dir_state)) = avatars
-        .iter()
-        .find(|(_, p, _, _)| p.parent() == entity)
-        .map(|(_, _, i, d)| (entity, i, d))
+    let Ok((instance, dir_state)) = avatars.get(assembly.avatar)
     else {
         return;
     };
