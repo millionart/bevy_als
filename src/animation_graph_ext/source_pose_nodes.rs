@@ -758,7 +758,7 @@ impl NodeLike for SourceCurvesBlendNode {
         let context = if self.blend_amount <= 1e-5 {
             base_context
         } else {
-            ctx.data_back("CurvePose")?.into_pose()?;
+            crate::extensions::interruptible_fsm::with_machine_weight(self.blend_amount, || ctx.data_back("CurvePose"))?.into_pose()?;
             blend_source_curve_context(
                 base_context,
                 &pose_input_context_state(&ctx, "CurvePose").unwrap_or_default(),

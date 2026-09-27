@@ -48,7 +48,7 @@ fn current_machine_weight() -> f32 {
     SOURCE_MACHINE_WEIGHT.with(Cell::get)
 }
 
-fn with_machine_weight<T>(factor: f32, evaluate: impl FnOnce() -> T) -> T {
+pub(crate) fn with_machine_weight<T>(factor: f32, evaluate: impl FnOnce() -> T) -> T {
     struct Restore(f32);
     impl Drop for Restore {
         fn drop(&mut self) {
@@ -2226,6 +2226,45 @@ mod tests {
     fn machine_weight_getter_selects_the_source_branch_on_the_first_update() {
         use crate::extensions::source_scalar_expression::{SourceScalarDataType, SourceScalarExpressionNode, SourceScalarPin};
 
+        fn wrap_curves(mut graph: AnimationGraph, amount: f32) -> AnimationGraph {
+            use bevy_animation_graph::core::context::spec_context::NodeOutputPin;
+            let source = graph.remove_edge_by_target(&TargetPin::OutputData("Pose".into())).unwrap();
+            graph.remove_edge_by_target(&TargetPin::OutputData("State".into()));
+            graph.io_spec.remove_output(&NodeOutputPin::Data("State".into()));
+            let base = AnimationNode::new("base weight", MachineWeightProbe);
+            let blend = AnimationNode::new("curves blend", crate::extensions::SourceCurvesBlendNode {
+                blend_amount: amount, ..default()
+            });
+            graph.add_node(base.clone());
+            graph.add_node(blend.clone());
+            graph.add_node_parameter_edge(base.id, "Pose", blend.id, "BasePose");
+            graph.add_edge(source, TargetPin::NodeData(blend.id, "CurvePose".into()));
+            graph.add_output_data_edge(blend.id, "Pose", "Pose");
+            graph
+        }
+
+        fn query_wrapped(In((root, fsm_node)): In<(Handle<AnimationGraph>, NodeId)>, resources: SystemResources) -> Vec<(f32, Option<f32>, Option<f32>)> {
+            let graph = resources.animation_graph_assets.get(&root).unwrap();
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let inputs = HashMap::from([("pose".to_owned(), DataValue::Pose(Pose::default())),
+                ("delta".to_owned(), DataValue::F32(0.02))]);
+            let env = TestIoEnv::default();
+            [0.4_f32, 1.0].into_iter().map(|weight| {
+                let mut arena = GraphContextArena::new(root.id());
+                let output = with_machine_weight(weight, || graph.query_with_context(
+                    QueryOutputTime::Forced(TimeUpdate::Delta(0.02)),
+                    GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources,
+                        &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs),
+                )).unwrap();
+                let recorded = arena.get_toplevel().node_states.get::<InterruptibleFsmState>(fsm_node, StateKey::Default)
+                    .ok().map(|state| state.recorded_machine_weight());
+                let selected = arena.get_toplevel().node_caches.get_output_data(fsm_node, StateKey::Default,
+                    InterruptibleFsmNode::OUT_ACTUAL_STATE.into()).map(|value| value.as_f32().unwrap());
+                (output["Pose"].as_pose().unwrap().timestamp, selected, recorded)
+            }).collect()
+        }
+
         fn query(
             In((root, fsm_node)): In<(Handle<AnimationGraph>, NodeId)>,
             resources: SystemResources,
@@ -2325,13 +2364,26 @@ mod tests {
         root.add_output_data_edge(fsm.id, "Pose", "Pose");
         root.add_output_data("State".to_owned(), DataSpec::F32);
         root.add_output_data_edge(fsm.id, InterruptibleFsmNode::OUT_ACTUAL_STATE, "State");
-        let root = graphs.add(root);
+        let direct = graphs.add(root.clone());
+        let zero = graphs.add(wrap_curves(root.clone(), 0.0));
+        let half_graph = wrap_curves(root.clone(), 0.5);
+        let half = graphs.add(half_graph.clone());
+        let nested = graphs.add(wrap_curves(half_graph, 0.5));
+        let unit = graphs.add(wrap_curves(root, 1.0));
         let mut world = World::new();
         world.insert_resource(graphs);
         world.insert_resource(machines);
         world.insert_resource(Assets::<GraphClip>::default());
         world.insert_resource(Assets::<Skeleton>::default());
-        assert_eq!(world.run_system_cached_with(query, (root, fsm_id)).unwrap(), vec![(1.0, 0.4), (2.0, 1.0)]);
+        assert_eq!(world.run_system_cached_with(query, (direct, fsm_id)).unwrap(), vec![(1.0, 0.4), (2.0, 1.0)]);
+        for (graph, expected) in [
+            (zero, vec![(0.4, None, None), (1.0, None, None)]),
+            (half, vec![(0.4, Some(1.0), Some(0.2)), (1.0, Some(1.0), Some(0.5))]),
+            (nested, vec![(0.4, Some(1.0), Some(0.1)), (1.0, Some(1.0), Some(0.25))]),
+            (unit, vec![(0.4, Some(1.0), Some(0.4)), (1.0, Some(2.0), Some(1.0))]),
+        ] {
+            assert_eq!(world.run_system_cached_with(query_wrapped, (graph, fsm_id)).unwrap(), expected);
+        }
     }
 
     fn fixture_pose(x: f32) -> Pose {

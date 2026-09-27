@@ -61,6 +61,18 @@
     {
       "path": "target/bf115_layering/source_cpp/AnimSync.cpp",
       "sha256": "7893a6c0c01cb984440c35e782c9db3aa47a51cd77a0185f1d2944bc6dafb84f"
+    },
+    {
+      "path": "target/bf131/a66/AB_Als_Layering.ue.json",
+      "sha256": "2bcebb0899424c4803804036f10a9376f7e957d492049b0374f80aae7adf3ffa"
+    },
+    {
+      "path": "target/bf131/a66/AlsAnimNode_CurvesBlend.cpp",
+      "sha256": "c2a197bc4af03e4a7b77708ed6dce461983ee1d21fadda20f8a2d39a62d61711"
+    },
+    {
+      "path": "target/bf131/a66/AlsAnimNode_CurvesBlend.h",
+      "sha256": "eb54ab7ba033d7a35c2f8623d85a9661f0a283bfd7396cca94ba7254c7f9ed7c"
     }
   ],
   "graphs": [
@@ -1377,6 +1389,22 @@
         "2"
       ],
       "evidence": "target/bf1295/bf131-a61-final-layered_graph.json"
+    },
+    {
+      "label": "curves_blend_child_fsm_fractional_update",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--profile",
+        "play",
+        "--lib",
+        "machine_weight_getter_selects_the_source_branch_on_the_first_update",
+        "--jobs",
+        "2"
+      ],
+      "evidence": "target/bf1295/bf131-a66-fsm-branch-green.json"
     }
   ]
 }
