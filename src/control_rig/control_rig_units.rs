@@ -1,6 +1,5 @@
 use bevy::{
     math::{DQuat, DVec3},
-    platform::collections::HashMap,
 };
 
 use crate::extensions::{
@@ -18,7 +17,7 @@ pub type RigLineTrace<'a> =
 
 pub struct RigUnitContext<'a> {
     pub hierarchy: &'a mut RigHierarchy,
-    pub curves: &'a HashMap<String, f32>,
+    pub curves: &'a crate::extensions::SourceCurveValues,
     pub game_world: bool,
     pub construction: bool,
     pub delta_seconds: f64,
@@ -615,6 +614,7 @@ impl RigUnitContext<'_> {
 
 #[cfg(test)]
 mod tests {
+    use bevy::platform::collections::HashMap;
     use super::*;
     use crate::extensions::{
         control_rig_hierarchy::{RigBone, RigTransform},
@@ -1731,7 +1731,7 @@ mod tests {
     fn control_rig_units_preserve_events_branch_cycles_and_curve_validity_in_vm() {
         use RigValue::*;
         let mut hierarchy = hierarchy();
-        let curves = [("Curve".to_owned(), 0.75), ("Zero".to_owned(), 0.0)].into();
+        let curves = [("Curve".into(), 0.75), ("Zero".into(), 0.0)].into();
         let mut context = RigUnitContext {
             hierarchy: &mut hierarchy,
             curves: &curves,

@@ -313,7 +313,7 @@ mod tests {
             curves_are_authoritative: true,
             ..default()
         };
-        context.curves.insert("FootLeftIk".to_owned(), 0.8);
+        context.curves.insert("FootLeftIk".into(), 0.8);
         let mut source_inputs = crate::extensions::SourceAnimationInputs::default();
         source_inputs.set_slot_input_context(
             "slot_pose",
@@ -341,7 +341,7 @@ mod tests {
             assert!(
                 (pose.get_bone(bone).unwrap().translation.unwrap().x - 2.0 * weight).abs() < 1e-6
             );
-            assert!((context.curves["FootLeftIk"] - 0.8 * weight).abs() < 1e-6);
+            assert!((context.curves[&crate::extensions::SourceCurveName::from("FootLeftIk")] - 0.8 * weight).abs() < 1e-6);
             assert_eq!(
                 source_updated,
                 always_update || weight < 1.0,
@@ -375,9 +375,9 @@ mod tests {
             ..default()
         };
         let output = slot_context(Some(base.clone()), Some(empty.clone()), 1.0, false).unwrap();
-        assert_eq!(output.curves["FootLeftIk"], 0.0);
+        assert_eq!(output.curves[&crate::extensions::SourceCurveName::from("FootLeftIk")], 0.0);
         assert!(output.curves_are_authoritative);
         let output = slot_context(Some(base), Some(empty), 0.5, false).unwrap();
-        assert_eq!(output.curves["FootLeftIk"], 0.5);
+        assert_eq!(output.curves[&crate::extensions::SourceCurveName::from("FootLeftIk")], 0.5);
     }
 }

@@ -1146,7 +1146,7 @@ mod tests {
         let stack = app.world().get::<AlsTransitionMontageStack>(character).unwrap();
         assert_eq!(stack.entries.len(), 2);
         let actual = app.world().get::<crate::extensions::SourceAnimationInputs>(player).unwrap().slot_input_context(GENERATED_TRANSITION_SLOT_POSE_KEY).unwrap();
-        let mut expected = std::collections::HashMap::<String, f32>::new();
+        let mut expected = std::collections::HashMap::<crate::extensions::SourceCurveName, f32>::new();
         let total = stack.entries.iter().map(|entry| entry.weight).sum::<f32>().max(1.0);
         for entry in &stack.entries {
             let settings = &crate::standing_source::MONTAGES[source_transition_sequence(entry).unwrap()];

@@ -19,15 +19,15 @@ const SOURCE_CURVE_DEFAULTS: [(&str, f32); 5] = [
 
 #[derive(Component, Clone, Debug, Default, PartialEq)]
 pub struct AlsRootAnimationContext {
-    pub curves: HashMap<String, f32>,
+    pub curves: HashMap<crate::extensions::SourceCurveName, f32>,
 }
 
 impl AlsRootAnimationContext {
     pub fn f32(&self, name: &str) -> Option<f32> {
         self.curves
-            .get(name)
+            .get(&crate::extensions::SourceCurveName::from(name))
             .copied()
-            .or_else(|| SOURCE_CURVE_DEFAULTS.iter().find_map(|(key, value)| (*key == name).then_some(*value)))
+            .or_else(|| SOURCE_CURVE_DEFAULTS.iter().find_map(|(key, value)| key.eq_ignore_ascii_case(name).then_some(*value)))
             .filter(|value| value.is_finite())
     }
 }
@@ -131,9 +131,9 @@ mod tests {
             "FootRightLock",
         ] {
             assert_eq!(context.f32(name), Some(0.0));
-            assert!(!context.curves.contains_key(name));
+            assert!(!context.curves.contains_key(&crate::extensions::SourceCurveName::from(name)));
         }
-        context.curves.insert("FootLeftLock".to_owned(), 0.75);
+        context.curves.insert("FootLeftLock".into(), 0.75);
         assert_eq!(context.f32("FootLeftLock"), Some(0.75));
         assert_eq!(context.curves.len(), 1);
     }

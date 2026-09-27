@@ -257,7 +257,7 @@ def pose_curves_ron(curves):
             values = curve.get(name, [0] * count)
             if len(values) != count or any(not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(value) for value in values):
                 raise PoseRenderError("source animation curve values are invalid")
-            if curve["name"] == "RotationYawSpeed" and name in {"values", "arrive_tangents", "leave_tangents"}:
+            if curve["name"].encode().lower() == b"rotationyawspeed" and name in {"values", "arrive_tangents", "leave_tangents"}:
                 values = [source_heading_yaw_degrees_to_runtime(value) for value in values]
             fields.append(name + ": [" + ", ".join(repr(value) for value in values) + "]")
         modes = {"LINEAR": "Linear", "CONSTANT": "Constant", "CUBIC": "Cubic"}
@@ -1828,6 +1828,15 @@ def run_self_test():
     yaw["name"] = "RotationYawSpeed"
     yaw["values"][0] = 90.0
     assert "values: [-90.0," in pose_curves_ron([yaw])
+    expected_yaw = pose_curves_ron([yaw]).split(": (", 1)[1]
+    for name in ("rotationyawspeed", "ROTATIONYAWSPEED", "rOtAtIoNyAwSpEeD"):
+        variant = copy.deepcopy(yaw)
+        variant["name"] = name
+        assert pose_curves_ron([variant]).split(": (", 1)[1] == expected_yaw
+    variant["name"] = "RotationYawSpeedTarget"
+    assert "values: [90.0," in pose_curves_ron([variant])
+    variant["name"] = "RotationYaw\u017fpeed"
+    assert "values: [90.0," in pose_curves_ron([variant])
     yaw["flags"] |= 64
     assert pose_curves_ron([yaw]) == "({})"
     invalid = copy.deepcopy(curves)

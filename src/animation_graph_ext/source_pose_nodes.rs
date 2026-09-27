@@ -1198,9 +1198,10 @@ impl NodeLike for SourceCurveModifyNode {
             } else {
                 default
             };
-            let source = context.curves.get(curve_name).copied().unwrap_or(0.0);
+            let curve_name = crate::extensions::SourceCurveName::from(curve_name.as_str());
+            let source = context.curves.get(&curve_name).copied().unwrap_or(0.0);
             let value = source_curve_modify_value(source, target, alpha, &self.apply_mode);
-            context.curves.insert(curve_name.clone(), value);
+            context.curves.insert(curve_name, value);
         }
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd("Pose", pose);
@@ -1411,7 +1412,7 @@ mod tests {
                     else if kind == "curves_override" && effective > 0.0 { [0.8 * effective, 0.0, 0.4 * effective] }
                     else { [0.2 + 0.8 * effective, 0.5, 0.4 * effective] };
                 let curve_match = ["Shared", "BaseOnly", "AdditiveOnly"].into_iter().zip(expected)
-                    .all(|(key, value)| (context.curves.get(key).copied().unwrap_or_default() - value).abs() < 1e-6);
+                    .all(|(key, value)| (context.curves.get(&crate::extensions::SourceCurveName::from(key)).copied().unwrap_or_default() - value).abs() < 1e-6);
                 let expected_scale = if dynamic { 0.5 } else if curves_only { 2.0 } else { 2.0 * (1.0 + 3.0 * effective) };
                 let scale_match = pose.get_bone(default()).and_then(|bone| bone.scale).is_some_and(|scale| scale.abs_diff_eq(Vec3::splat(expected_scale), 1e-6));
                 if !curve_match || !scale_match || updated != (dynamic || effective > 0.0) || pose.timestamp != if dynamic { 7.0 } else { 1.0 } {
@@ -1468,14 +1469,14 @@ mod tests {
             if let Some(node) = graph.nodes.values().find(|node| node.try_inner_downcast_ref::<SourceBoolBlendNode>().is_some()) {
                 use bevy_animation_graph::core::context::node_states::StateKey;
                 let state = arena.get_toplevel().node_states.get::<SourceGameplayTagBlendState>(node.id, StateKey::Default).unwrap();
-                assert!((state.context.curves["BoolCurve"] - inputs["expected_curve"].as_f32().unwrap()).abs() < 1e-5);
+                assert!((state.context.curves[&crate::extensions::SourceCurveName::from("BoolCurve")] - inputs["expected_curve"].as_f32().unwrap()).abs() < 1e-5);
                 if node.try_inner_downcast_ref::<SourceBoolBlendNode>().unwrap().blend_mode == crate::extensions::profile_blend::AlphaBlendMode::Custom {
                     inputs.insert("source_pose_test_bool".into(), true.into());
                     let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
                         &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
                     let interrupted = source_inputs.evaluate(context.root_entity, || graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.015)), context)).unwrap();
                     let state = arena.get_toplevel().node_states.get::<SourceGameplayTagBlendState>(node.id, StateKey::Default).unwrap();
-                    assert!((state.context.curves["BoolCurve"] - 5.5).abs() < 1e-5);
+                    assert!((state.context.curves[&crate::extensions::SourceCurveName::from("BoolCurve")] - 5.5).abs() < 1e-5);
                     assert!((interrupted["Pose"].as_pose().unwrap().get_bone(default()).unwrap().translation.unwrap().x - 0.1875).abs() < 1e-5);
                 }
             }
@@ -1772,9 +1773,9 @@ mod tests {
             0.0,
             0.0,
         );
-        state.context.curves.insert("PoseGrounded".to_owned(), 1.0);
+        state.context.curves.insert("PoseGrounded".into(), 1.0);
         assert_eq!(alpha, 0.5);
-        assert_eq!(state.context.curves.get("PoseGrounded"), Some(&1.0));
+        assert_eq!(state.context.curves.get(&crate::extensions::SourceCurveName::from("PoseGrounded")), Some(&1.0));
     }
 
     #[test]
@@ -2022,25 +2023,25 @@ mod tests {
     #[test]
     fn source_curves_blend_preserves_source_modes() {
         let mut base = AnimationContextState::default();
-        base.curves.insert("BaseOnly".to_owned(), 0.25);
-        base.curves.insert("Shared".to_owned(), 0.5);
+        base.curves.insert("BaseOnly".into(), 0.25);
+        base.curves.insert("Shared".into(), 0.5);
         let mut curve = AnimationContextState::default();
-        curve.curves.insert("CurveOnly".to_owned(), 0.4);
-        curve.curves.insert("Shared".to_owned(), 0.6);
+        curve.curves.insert("CurveOnly".into(), 0.4);
+        curve.curves.insert("sHaReD".into(), 0.6);
         let accumulated = blend_source_curve_context(
             base.clone(),
             &curve,
             0.5,
             SourceCurvesBlendMode::Accumulate,
         );
-        assert!((accumulated.curves["BaseOnly"] - 0.25).abs() < 1e-6);
-        assert!((accumulated.curves["CurveOnly"] - 0.2).abs() < 1e-6);
-        assert!((accumulated.curves["Shared"] - 0.8).abs() < 1e-6);
+        assert!((accumulated.curves[&crate::extensions::SourceCurveName::from("BaseOnly")] - 0.25).abs() < 1e-6);
+        assert!((accumulated.curves[&crate::extensions::SourceCurveName::from("CurveOnly")] - 0.2).abs() < 1e-6);
+        assert!((accumulated.curves[&crate::extensions::SourceCurveName::from("Shared")] - 0.8).abs() < 1e-6);
         let overridden =
             blend_source_curve_context(base, &curve, 0.5, SourceCurvesBlendMode::Override);
-        assert_eq!(overridden.curves.get("BaseOnly"), None);
-        assert!((overridden.curves["CurveOnly"] - 0.2).abs() < 1e-6);
-        assert!((overridden.curves["Shared"] - 0.3).abs() < 1e-6);
+        assert_eq!(overridden.curves.get(&crate::extensions::SourceCurveName::from("BaseOnly")), None);
+        assert!((overridden.curves[&crate::extensions::SourceCurveName::from("CurveOnly")] - 0.2).abs() < 1e-6);
+        assert!((overridden.curves[&crate::extensions::SourceCurveName::from("Shared")] - 0.3).abs() < 1e-6);
         let mut registry = bevy::reflect::TypeRegistry::default();
         registry.register::<SourceCurvesBlendMode>();
         registry.register::<SourceCurvesBlendNode>();
@@ -2141,7 +2142,7 @@ mod tests {
     #[test]
     fn source_gameplay_tag_blend_weights_missing_child_curves_as_zero() {
         let input = AnimationContextState {
-            curves: [("FootLeftIk".to_owned(), 1.0)].into_iter().collect(),
+            curves: [("FootLeftIk".into(), 1.0)].into_iter().collect(),
             curves_are_authoritative: true,
             ..default()
         };
@@ -2150,7 +2151,7 @@ mod tests {
             ..default()
         };
         let output = blend_animation_contexts([(input, 0.25), (empty.clone(), 0.75)]);
-        assert!((output.curves["FootLeftIk"] - 0.25).abs() <= 1e-6);
+        assert!((output.curves[&crate::extensions::SourceCurveName::from("FootLeftIk")] - 0.25).abs() <= 1e-6);
         assert!(output.curves_are_authoritative);
         let output = blend_animation_contexts([(empty, 1.0)]);
         assert!(output.curves_are_authoritative);

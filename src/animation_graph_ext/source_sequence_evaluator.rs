@@ -195,14 +195,14 @@ mod tests {
                     assert!(bone.scale.unwrap().distance(Vec3::splat(0.2)) < 1e-5);
                     if name != "player" {
                         let curves = crate::extensions::animation_context::graph_output_context_state(graph, &context, name).unwrap();
-                        assert!((curves.curves["Aim"] - time).abs() < 1e-6);
+                        assert!((curves.curves[&crate::extensions::SourceCurveName::from("Aim")] - time).abs() < 1e-6);
                     }
                 }
                 for name in ["step_frame", "step_time"] {
                     let pose = outputs[name].as_pose().unwrap();
                     assert_eq!(pose.get_bone(child).unwrap().translation, Some(Vec3::X * 6.0));
                     assert_eq!(pose.timestamp, 0.2);
-                    assert_eq!(crate::extensions::animation_context::graph_output_context_state(graph, &context, name).unwrap().curves["Aim"], 0.2);
+                    assert_eq!(crate::extensions::animation_context::graph_output_context_state(graph, &context, name).unwrap().curves[&crate::extensions::SourceCurveName::from("Aim")], 0.2);
                 }
             }
         }

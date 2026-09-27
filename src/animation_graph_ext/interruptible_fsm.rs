@@ -1763,7 +1763,7 @@ impl<'a> InterruptibleFsmIo<'a> {
             }
             graph.get_data(TargetPin::OutputData(pose_output.clone()), sub_ctx.clone())?;
             graph_output_context_state(graph, &sub_ctx, &pose_output)
-                .and_then(|context| context.curves.get(&pin).copied())
+                .and_then(|context| context.curves.get(&crate::extensions::SourceCurveName::from(pin.as_str())).copied())
                 .map(DataValue::F32)
                 .ok_or(error)
         })
@@ -1863,7 +1863,7 @@ impl<'a> GraphIoEnv for InterruptibleFsmIo<'a> {
                         )?;
                         return Ok(DataValue::Pose(pose.clone()));
                     }
-                    if let Some(value) = context.curves.get(&pin) {
+                    if let Some(value) = context.curves.get(&crate::extensions::SourceCurveName::from(pin.as_str())) {
                         return Ok(DataValue::F32(*value));
                     }
                 }
@@ -3023,9 +3023,9 @@ mod tests {
                     let node = graph.nodes.values().find(|node| node.name == "inertializer").unwrap();
                     let context = &arena.get_toplevel().node_states
                         .get::<crate::extensions::inertialization_passthrough::SourceInertializationState>(node.id, StateKey::Default).unwrap().context;
-                    assert!(context.curves["Choice"] > 0.25 && context.curves["Choice"] < 0.75,
-                        "inertial curve: {}", context.curves["Choice"]);
-                    assert_eq!(context.curves["Filtered"], 0.75);
+                    assert!(context.curves[&crate::extensions::SourceCurveName::from("Choice")] > 0.25 && context.curves[&crate::extensions::SourceCurveName::from("Choice")] < 0.75,
+                        "inertial curve: {}", context.curves[&crate::extensions::SourceCurveName::from("Choice")]);
+                    assert_eq!(context.curves[&crate::extensions::SourceCurveName::from("Filtered")], 0.75);
                     assert!(context.inertialization_request.is_none());
                 }
                 if inertial && repeat && frame == 2 {
@@ -3048,7 +3048,7 @@ mod tests {
                     .get::<InterruptibleFsmState>(fsm.id, StateKey::Default)
                     .unwrap();
                 assert_eq!(
-                    state.context.curves.get("Fixture"),
+                    state.context.curves.get(&crate::extensions::SourceCurveName::from("Fixture")),
                     Some(&1.0),
                     "context frame={frame}"
                 );
@@ -3070,7 +3070,7 @@ mod tests {
                     + state.recorded_state_weight("10000000-0000-4000-8000-000000000003") * 0.5;
                 if repeat { expected = weighted; }
                 assert!(
-                    (state.context.curves["Choice"] - expected).abs() < 1e-6,
+                    (state.context.curves[&crate::extensions::SourceCurveName::from("Choice")] - expected).abs() < 1e-6,
                     "context frame={frame}, inertial={inertial}: {:?} != {expected}",
                     state.context.curves
                 );

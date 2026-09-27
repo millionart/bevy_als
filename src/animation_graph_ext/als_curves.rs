@@ -11,6 +11,53 @@ use serde::{Deserialize, Serialize};
 pub const ALS_CURVES_EXTENSION: &str = "ALS_float_curves";
 pub const ALS_CURVES_LABEL: &str = "AlsCurves";
 
+#[derive(Reflect, Serialize, Deserialize, Debug, Default, Clone)]
+#[reflect(opaque, Default, Serialize, Deserialize, Hash, PartialEq)]
+#[serde(transparent)]
+pub struct SourceCurveName(String);
+
+impl SourceCurveName {
+    pub fn as_str(&self) -> &str { &self.0 }
+}
+
+impl<S: AsRef<str> + ?Sized> PartialEq<S> for SourceCurveName {
+    fn eq(&self, other: &S) -> bool { self.0.eq_ignore_ascii_case(other.as_ref()) }
+}
+impl Eq for SourceCurveName {}
+impl std::hash::Hash for SourceCurveName {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        state.write_usize(self.0.len());
+        for byte in self.0.bytes() { state.write_u8(byte.to_ascii_lowercase()); }
+    }
+}
+impl AsRef<str> for SourceCurveName {
+    fn as_ref(&self) -> &str { &self.0 }
+}
+impl std::ops::Deref for SourceCurveName {
+    type Target = str;
+    fn deref(&self) -> &str { &self.0 }
+}
+impl std::fmt::Display for SourceCurveName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { self.0.fmt(f) }
+}
+impl From<String> for SourceCurveName {
+    fn from(value: String) -> Self { Self(value) }
+}
+impl From<&str> for SourceCurveName {
+    fn from(value: &str) -> Self { Self(value.to_owned()) }
+}
+impl From<&String> for SourceCurveName {
+    fn from(value: &String) -> Self { Self(value.clone()) }
+}
+impl From<Box<str>> for SourceCurveName {
+    fn from(value: Box<str>) -> Self { Self(value.into()) }
+}
+impl From<SourceCurveName> for String {
+    fn from(value: SourceCurveName) -> Self { value.0 }
+}
+
+pub type SourceCurveValues = bevy::platform::collections::HashMap<SourceCurveName, f32>;
+
 #[derive(Asset, TypePath, Debug, Default, Clone)]
 pub struct AlsAnimCurves(pub HashMap<Box<str>, AlsPoseCurves>);
 
@@ -26,17 +73,17 @@ impl AlsAnimCurves {
 
 #[derive(Reflect, Serialize, Deserialize, Debug, Default, Clone, PartialEq)]
 #[reflect(opaque, Default, Serialize, Deserialize)]
-pub struct AlsPoseCurves(pub HashMap<Box<str>, AlsFloatCurve>);
+pub struct AlsPoseCurves(pub HashMap<SourceCurveName, AlsFloatCurve>);
 
 impl AlsPoseCurves {
     pub fn sample(&self, curve: &str, t: f32) -> Option<f32> {
-        self.0.get(curve).map(|c| c.sample(t))
+        self.0.get(&SourceCurveName::from(curve)).map(|c| c.sample(t))
     }
 
-    pub fn sample_all(&self, time: f32) -> bevy::platform::collections::HashMap<String, f32> {
+    pub fn sample_all(&self, time: f32) -> SourceCurveValues {
         self.0
             .iter()
-            .map(|(name, curve)| (name.to_string(), curve.sample(time)))
+            .map(|(name, curve)| (name.clone(), curve.sample(time)))
             .collect()
     }
 }
@@ -172,7 +219,7 @@ pub fn parse_curves(
             pre_infinity: parse_extrapolation(c.pre_infinity.as_ref()),
             post_infinity: parse_extrapolation(c.post_infinity.as_ref()),
         };
-        map.insert(c.name.into_boxed_str(), curve);
+        map.insert(c.name.into(), curve);
     }
     Ok(AlsPoseCurves(map))
 }
@@ -528,6 +575,33 @@ mod tests {
     use super::*;
 
     #[test]
+    fn source_curve_name_keeps_spelling_and_ascii_comparison() {
+        let name = SourceCurveName::from("FixtureCurve");
+        let alias = SourceCurveName::from("fixturecurve");
+        let mut values = HashMap::from([(name.clone(), 1)]);
+        values.insert(alias.clone(), 2);
+        assert_eq!(values.len(), 1);
+        assert_eq!(values.get(&name), Some(&2));
+        assert_eq!(values.keys().next().unwrap().as_str(), "FixtureCurve");
+        let encoded = serde_json::to_string(&name).unwrap();
+        assert_eq!(encoded, "\"FixtureCurve\"");
+        assert_eq!(serde_json::from_str::<SourceCurveName>(&encoded).unwrap(), name);
+        assert_ne!(SourceCurveName::from("\u{00C4}"), SourceCurveName::from("\u{00E4}"));
+        assert_ne!(SourceCurveName::from("\u{212A}ey"), SourceCurveName::from("key"));
+        assert_ne!(SourceCurveName::from("Curve_Name"), SourceCurveName::from("CurveName"));
+    }
+
+    #[test]
+    fn source_curves_preserve_fname_case_identity() {
+        let curves = parse_curves(&serde_json::json!({"curves":[{
+            "name":"FixtureCurve", "times":[0.0,1.0], "values":[2.0,6.0], "interps":["LINEAR","LINEAR"]
+        }]})).unwrap();
+        for name in ["FixtureCurve", "fixturecurve", "FIXTURECURVE"] {
+            assert_eq!(curves.sample(name, 0.5), Some(4.0), "curve name: {name}");
+        }
+    }
+
+    #[test]
     fn source_graph_samples_curves_at_pose_time_and_blends_actual_weights() {
         use bevy::animation::animated_field;
         use crate::extensions::{
@@ -586,7 +660,10 @@ mod tests {
             assert_eq!(time_pose.timestamp, expected_time);
             assert_eq!(time_pose.get_bone(root).unwrap().translation, Some(Vec3::Z * (2.75 * expected_time)));
             let time_context = crate::extensions::animation_context::graph_output_context_state(graph, &context, "time_evaluator").unwrap();
-            assert_eq!(time_context.curves["SourceClock"], expected_time);
+            assert_eq!(time_context.curves[&crate::extensions::SourceCurveName::from("SourceClock")], expected_time);
+            let modified = crate::extensions::animation_context::graph_output_context_state(graph, &context, "case_modified").unwrap();
+            assert_eq!(modified.curves.len(), 1);
+            assert_eq!(modified.curves[&crate::extensions::SourceCurveName::from("SourceClock")], expected_time + 2.0);
             for name in ["sequence", "evaluator"] {
                 assert_eq!(output[name].as_pose().unwrap().get_bone(root).unwrap().translation, Some(Vec3::Z * 0.2));
             }
@@ -716,6 +793,9 @@ mod tests {
                 ..default()
             },
         );
+        let case_modified = AnimationNode::new("case_modified", SourceCurveModifyNode {
+            curve_name: "sOuRcEcLoCk".into(), pin_default: 2.0, alpha: 1.0, apply_mode: "Add".into(), ..default()
+        });
         let mut graph = AnimationGraph::new();
         for (name, value) in [
             ("position", DataValue::Vec2(Vec2::new(0.5, 0.0))),
@@ -735,6 +815,7 @@ mod tests {
             (&layered, "Pose"),
             (&inactive_additive, "Pose"),
             (&scaled_missing, "Pose"),
+            (&case_modified, "Pose"),
         ] {
             graph.add_node(node.clone());
             graph.add_output_data(node.name.clone(), DataSpec::Pose);
@@ -749,6 +830,7 @@ mod tests {
             graph.add_input_data_edge(GraphInputPin::passthrough(input), blendspace.id, pin);
         }
         graph.add_node_parameter_edge(sequence.id, "Pose", two_way.id, "A");
+        graph.add_node_parameter_edge(time_evaluator.id, "Pose", case_modified.id, "Source Pose");
         graph.add_input_data_edge(GraphInputPin::passthrough("alpha"), two_way.id, "Alpha");
         graph.add_node_parameter_edge(evaluator.id, "Pose", two_way.id, "B");
         graph.add_node_parameter_edge(two_way.id, "Pose", additive.id, "Base");
@@ -780,13 +862,13 @@ mod tests {
         ]) {
             assert!(context.curves_are_authoritative);
             assert!(
-                (context.curves["FootPlanted"] - foot).abs() < 2e-5,
+                (context.curves[&crate::extensions::SourceCurveName::from("FootPlanted")] - foot).abs() < 2e-5,
                 "{:?}",
                 context.curves
             );
-            assert!((context.curves["PoseGait"] - gait).abs() < 1e-6);
+            assert!((context.curves[&crate::extensions::SourceCurveName::from("PoseGait")] - gait).abs() < 1e-6);
         }
-        assert_eq!(actual[7].curves["Missing"], 0.0);
+        assert_eq!(actual[7].curves[&crate::extensions::SourceCurveName::from("Missing")], 0.0);
     }
 
     const FIXTURE: &str = r#"{
@@ -819,10 +901,10 @@ mod tests {
         let v: serde_json::Value = serde_json::from_str(FIXTURE).unwrap();
         let curves = parse_curves(&v).unwrap();
         assert!(curves.sample("LayerArmRight", 0.0).is_some());
-        let arm = curves.0.get("LayerArmRight").unwrap();
+        let arm = curves.0.get(&crate::extensions::SourceCurveName::from("LayerArmRight")).unwrap();
         assert_eq!(arm.times.len(), 3);
         assert_eq!(arm.interps[1], AlsKeyInterp::Constant);
-        let foot = curves.0.get("FootPlanted").unwrap();
+        let foot = curves.0.get(&crate::extensions::SourceCurveName::from("FootPlanted")).unwrap();
         assert_eq!(foot.pre_infinity, AlsExtrapolation::Cycle);
         assert_eq!(foot.post_infinity, AlsExtrapolation::Constant);
     }
@@ -999,7 +1081,7 @@ mod tests {
             }]
         });
         let curves = parse_curves(&value).unwrap();
-        let curve = curves.0.get("Cubic").unwrap();
+        let curve = curves.0.get(&crate::extensions::SourceCurveName::from("Cubic")).unwrap();
         assert_eq!(curve.interps[0], AlsKeyInterp::Cubic);
         assert_eq!(curve.tangent_modes, vec![1, 2]);
         assert_eq!(curve.weight_modes, vec![0, 0]);

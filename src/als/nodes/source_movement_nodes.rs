@@ -369,7 +369,7 @@ mod tests {
                 results.push(
                     crate::extensions::animation_context::graph_output_context_state(graph, &context, "Pose")
                         .unwrap()
-                        .curves["Probe"],
+                        .curves[&crate::extensions::SourceCurveName::from("Probe")],
                 );
             }
             results

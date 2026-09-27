@@ -1340,7 +1340,7 @@ fn layering_input_sample(player: &AnimationGraphPlayer, previous: AlsLayeringSta
         .map(|(key, expected)| (key.into(), (locomotion_source_scalar(player, key), expected))).collect()
 }
 
-fn layering_curve_error(actual: &bevy::platform::collections::HashMap<String, f32>, expected: &bevy::platform::collections::HashMap<String, f32>) -> Option<f32> {
+fn layering_curve_error(actual: &crate::extensions::SourceCurveValues, expected: &crate::extensions::SourceCurveValues) -> Option<f32> {
     if actual.len() != expected.len() { return None; }
     expected.iter().try_fold(0.0_f32, |error, (name, expected)| {
         let actual = actual.get(name)?;
@@ -1412,8 +1412,9 @@ fn layering_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe, pre
             let mut expected = base_context.curves.clone();
             if let Some(modify) = modify {
                 for (name, value) in modify.curve_names.iter().zip(&modify.pin_defaults) {
-                    let base = expected.get(name).copied().unwrap_or(0.0);
-                    expected.insert(name.clone(), base + (*value - base) * modify.alpha);
+                    let name = crate::extensions::SourceCurveName::from(name);
+                    let base = expected.get(&name).copied().unwrap_or(0.0);
+                    expected.insert(name, base + (*value - base) * modify.alpha);
                 }
             }
             if let Some(blend) = blend {
@@ -2565,7 +2566,7 @@ fn source_sequence_sample(
         let node = graph.nodes.values().find(|node| node.name == name)?;
         let sequence = node.try_inner_downcast_ref::<crate::extensions::SourceSequencePlayerNode>()?;
         let position = context.node_states.get_time(node.id, StateKey::Default);
-        Some((position, sequence.curves.sample_all(position).get("RotationYawSpeed").copied().unwrap_or(0.0), context.node_caches.is_updated(node.id, StateKey::Default)))
+        Some((position, sequence.curves.sample_all(position).get(&crate::extensions::SourceCurveName::from("RotationYawSpeed")).copied().unwrap_or(0.0), context.node_caches.is_updated(node.id, StateKey::Default)))
     }).max_by_key(|sample| sample.2)
 }
 
@@ -6673,7 +6674,7 @@ fn default_overlay_curve_value(name: &str) -> f32 {
 
 fn default_overlay_curves_ready(context: Option<&AlsRootAnimationContext>) -> bool {
     context.is_some_and(|context| ALS_LAYER_CURVE_NAMES.iter().all(|name| {
-        let value = context.curves.get(*name).copied().unwrap_or(0.0);
+        let value = context.curves.get(&crate::extensions::SourceCurveName::from(*name)).copied().unwrap_or(0.0);
         (value - default_overlay_curve_value(name)).abs() < 1e-4
     }))
 }
@@ -7078,7 +7079,7 @@ fn observe_manual_integration(
                             sequence
                                 .curves
                                 .sample_all(position)
-                                .get("PoseCrouching")
+                                .get(&crate::extensions::SourceCurveName::from("PoseCrouching"))
                                 .copied(),
                         ));
                     }
@@ -7711,7 +7712,7 @@ fn observe_manual_integration(
                     animation_window.observed_animation_weight = Some(entry.weight());
                     animation_window.observed_direction = Some(if entry.lr <= 0.5 { "Left" } else { "Right" });
                     animation_window.observed_animation_curve_direct_yaw_speed_degrees = crate::standing_source::MONTAGES[variant]
-                        .curves.sample_all(entry.elapsed).get("RotationYawSpeed").copied();
+                        .curves.sample_all(entry.elapsed).get(&crate::extensions::SourceCurveName::from("RotationYawSpeed")).copied();
                 }
                 if active {
                     state.coverage.crouch_turn_active_mask |= 1 << side_index;
@@ -8194,7 +8195,7 @@ fn observe_manual_integration(
                         }
                         if let Some(sequence) = node.try_inner_downcast_ref::<crate::extensions::SourceSequencePlayerNode>() {
                             let position = child.node_states.get_time(node.id, StateKey::Default);
-                            rotate_sample = Some((variant, position, sequence.curves.sample_all(position).get("RotationYawSpeed").copied().unwrap_or(0.0)));
+                            rotate_sample = Some((variant, position, sequence.curves.sample_all(position).get(&crate::extensions::SourceCurveName::from("RotationYawSpeed")).copied().unwrap_or(0.0)));
                         }
                     }
                 }
@@ -8517,7 +8518,7 @@ fn observe_manual_integration(
             if let Some(rate) = rate { animation_window.observed_animation_play_rate = Some(rate); }
             animation_window.observed_animation_weight = Some(if rotating { if active { 1.0 } else { 0.0 } } else { entry.map_or(0.0, |entry| entry.weight()) });
             animation_window.observed_animation_curve_direct_yaw_speed_degrees = if rotating { rotate_sample.map(|sample| sample.2) }
-                else { entry.map(|entry| crate::standing_source::MONTAGES[crate::turn_layer::source_turn_sequence(crouching_actions, entry.is_180, entry.lr)].curves.sample_all(entry.elapsed).get("RotationYawSpeed").copied().unwrap_or(0.0)) };
+                else { entry.map(|entry| crate::standing_source::MONTAGES[crate::turn_layer::source_turn_sequence(crouching_actions, entry.is_180, entry.lr)].curves.sample_all(entry.elapsed).get(&crate::extensions::SourceCurveName::from("RotationYawSpeed")).copied().unwrap_or(0.0)) };
         }
         gate_report.direction_trace.push(serde_json::json!({
             "elapsed": state.phase_elapsed(), "case": if state.scenario == IntegrationScenario::StandingResponse { Some(standing_response_step(state.phase_elapsed()).0) } else if state.phase == IntegrationPhase::StandingStop { Some(stop_cases(crouching_actions)[state.stop_case_index].0) } else if state.phase == IntegrationPhase::StandingTurn { Some(STANDING_TURN_CASES[state.turn_case_index].0) } else if state.phase == IntegrationPhase::StandingDynamic { Some(STANDING_DYNAMIC_CASES[state.stop_case_index].0) } else if state.scenario == IntegrationScenario::Crouching { state.crouch_stationary_validation.map(|value| match value { CrouchStationaryValidation::TurnLeft => "crouch_turn_left", CrouchStationaryValidation::TurnRight => "crouch_turn_right", CrouchStationaryValidation::RotateLeft => "crouch_rotate_left", CrouchStationaryValidation::RotateRight => "crouch_rotate_right" }).or_else(|| crouch_direction_regression_case(state.crouch_direction_case_index).map(|case| case.name)) } else { direction_regression_case(state.direction_case_index).map(|case| case.name) },
@@ -8550,7 +8551,7 @@ fn observe_manual_integration(
             "dynamic_probe": (state.phase == IntegrationPhase::StandingDynamic).then_some((state.stop_branch_seen, state.dynamic_selection_valid, state.dynamic_unlocked)),
             "dynamic_instance": (state.phase == IntegrationPhase::StandingDynamic).then(|| state.stop_playback.map(|playback|
                 (playback.instance_id, playback.clip_time, transition_stack.is_some_and(|stack| stack.entries.iter().any(|entry| entry.instance_id == playback.instance_id))))),
-            "slot_allow_transitions": motion_probe.source_inputs.get(instance.player_entity()).ok().and_then(|inputs| inputs.slot_input_context("transition.pose")).and_then(|context| context.curves.get("AllowTransitions").copied()),
+            "slot_allow_transitions": motion_probe.source_inputs.get(instance.player_entity()).ok().and_then(|inputs| inputs.slot_input_context("transition.pose")).and_then(|context| context.curves.get(&crate::extensions::SourceCurveName::from("AllowTransitions")).copied()),
             "native_dynamic": arena.and_then(|arena| arena.get_toplevel().node_states.get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default).ok().map(|source| (
                 arena.frame_index(),
                 source.values.get("dynamic_transitions_state.frame_delay").and_then(|value| value.as_f32().ok()),
@@ -9285,7 +9286,7 @@ fn observe_manual_integration(
                         foot_ik_matches_source(
                             apply,
                             ["FootLeftIk", "FootRightIk"]
-                                .map(|name| rig.context.curves.get(name).copied().unwrap_or(0.0)),
+                                .map(|name| rig.context.curves.get(&crate::extensions::SourceCurveName::from(name)).copied().unwrap_or(0.0)),
                         )
                     });
             if stable
@@ -9337,7 +9338,7 @@ fn observe_manual_integration(
                 crate::extensions::root_graph_boundaries::current_control_rig(player, &motion_probe.graphs)
             && mantle_foot_ik_matches_source(
                 apply,
-                ["FootLeftIk", "FootRightIk"].map(|name| rig.context.curves.get(name).copied().unwrap_or(0.0)),
+                ["FootLeftIk", "FootRightIk"].map(|name| rig.context.curves.get(&crate::extensions::SourceCurveName::from(name)).copied().unwrap_or(0.0)),
                 animation_window.observed_animation_weight,
             )
             && !state.coverage.foot_ik_mantle
@@ -9786,7 +9787,7 @@ fn observe_manual_integration(
             let camera_context = camera_source.and_then(|source| motion_probe.object_scenes.get(source).ok())
                 .and_then(|instance| players.get(instance.player_entity()).ok()).and_then(|(_, context)| context);
             if let Some(context) = camera_context {
-                let mapping: std::collections::HashMap<String, (String, f32)> = serde_json::from_str(include_str!("../../assets/ALSCamera/als_camera_curves.runtime.json")).unwrap();
+                let mapping: std::collections::HashMap<crate::extensions::SourceCurveName, (String, f32)> = serde_json::from_str(include_str!("../../assets/ALSCamera/als_camera_curves.runtime.json")).unwrap();
                 for (name, value) in &context.curves {
                     let (name, value) = mapping.get(name).map_or((name.as_str(), *value), |(source, scale)| (source.as_str(), value * scale));
                     expected.push((crate::show_debug_hud::name_to_display_string(name, false), format!("{:.2}", if value == 0.0 { 0.0 } else { value })));
@@ -11169,7 +11170,7 @@ mod tests {
         assert_eq!(layering_curve_error(&actual, &expected), Some(0.0));
         actual.insert("LayerHead".into(), 0.75);
         assert_eq!(layering_curve_error(&actual, &expected), Some(0.5));
-        actual.remove("LayerHeadSlot");
+        actual.remove(&crate::extensions::SourceCurveName::from("LayerHeadSlot"));
         assert_eq!(layering_curve_error(&actual, &expected), None);
         let window = default_overlay_window(0, &DefaultOverlayGraphSample::default());
         for (label, node, output) in LAYERING_BOUNDARIES {
@@ -11197,10 +11198,10 @@ mod tests {
         let mut context = AlsRootAnimationContext { curves: [
             "LayerArmLeft", "LayerArmLeftAdditive", "LayerArmLeftLocalSpace", "LayerArmRight", "LayerArmRightAdditive",
             "LayerArmRightLocalSpace", "LayerHead", "LayerHeadAdditive", "LayerLegs", "LayerPelvis", "LayerSpine", "LayerSpineAdditive",
-        ].map(|name| (name.to_owned(), 1.0)).into() };
+        ].map(|name| (name.into(), 1.0)).into() };
         assert!(default_overlay_curves_ready(Some(&context)));
         assert!(!default_overlay_curves_ready(None));
-        context.curves.remove("LayerSpine");
+        context.curves.remove(&crate::extensions::SourceCurveName::from("LayerSpine"));
         assert!(!default_overlay_curves_ready(Some(&context)));
         context.curves.insert("LayerSpine".into(), 1.0);
         context.curves.insert("HandLeftIk".into(), 0.5);
@@ -12365,7 +12366,7 @@ mod tests {
             .montage_index]
             .montage_curves
             .sample_all(0.8);
-        let weights = [curves["FootLeftIk"], curves["FootRightIk"]];
+        let weights = [curves[&crate::extensions::SourceCurveName::from("FootLeftIk")], curves[&crate::extensions::SourceCurveName::from("FootRightIk")]];
         assert_eq!(weights, [0.0, 1.0]);
         let mut apply = AlsFootIkApplyTelemetry {
             left: crate::foot_ik_apply::AlsFootIkApplyTelemetrySide {

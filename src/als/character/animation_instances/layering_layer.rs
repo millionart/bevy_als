@@ -281,7 +281,7 @@ mod tests {
                 let state = refresh_state_from_curves(context);
                 write_state(&mut player, state);
                 for (curve, property) in fields {
-                    let expected = context.and_then(|context| context.curves.get(curve).copied()).unwrap_or(0.0);
+                    let expected = context.and_then(|context| context.curves.get(&crate::extensions::SourceCurveName::from(curve)).copied()).unwrap_or(0.0);
                     assert_eq!(player.get_global_input_data(format!("layering_state.{property}")).and_then(|value| value.as_f32().ok()), Some(expected), "{curve}");
                 }
                 let expected = if context.is_some() && local_space >= 0.99999 { 0.0 } else { 1.0 };

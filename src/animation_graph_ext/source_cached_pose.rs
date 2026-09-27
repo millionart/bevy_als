@@ -102,7 +102,7 @@ fn merge_context_defaults(state: &mut AnimationContextState, defaults: &[SourceC
         if !default.curve.is_empty() {
             state
                 .curves
-                .entry(default.curve.clone())
+                .entry(default.curve.clone().into())
                 .or_insert(default.value);
         }
     }
@@ -338,7 +338,7 @@ mod tests {
                 crate::extensions::animation_context::write_linked_input_context(&mut instance_ctx,
                     bevy_animation_graph::core::animation_graph::GraphInputPin::Passthrough("external".into()), default()).unwrap();
                 instance_ctx.create_node_context(input_id).state_mut_or_else(AnimationContextState::default)
-                    .unwrap().curves.insert("Scope".to_owned(), expected);
+                    .unwrap().curves.insert("Scope".into(), expected);
                 let state_ctx = instance_ctx.create_node_context(machine_id).create_child_context(state.0, state.1, None);
                 let mut use_ctx = state_ctx.create_node_context(use_id);
                 let notify_instance = crate::extensions::source_instance::source_notify_instance_id(&use_ctx).unwrap();
@@ -347,7 +347,7 @@ mod tests {
                 let pose = state_ctx.node_caches().get_output_data(use_id, StateKey::Default, "Pose".to_owned())
                     .unwrap().into_pose().unwrap();
                 assert_eq!(pose.timestamp, expected, "Cache pose crossed linked instances");
-                assert_eq!(use_ctx.state::<AnimationContextState>().unwrap().curves["Scope"], expected,
+                assert_eq!(use_ctx.state::<AnimationContextState>().unwrap().curves[&crate::extensions::SourceCurveName::from("Scope")], expected,
                     "Cache curves crossed linked instances");
                 let sibling = instance_ctx.create_node_context(machine_id).create_child_context(state.0, state.1,
                     Some(bevy_animation_graph::core::state_machine::low_level::LowLevelStateId::HlState(default())));
@@ -444,7 +444,7 @@ mod tests {
     #[test]
     fn context_defaults_fill_missing_curves_without_overwriting_cached_curves() {
         let mut state = AnimationContextState::default();
-        state.curves.insert("PoseStanding".to_owned(), 1.0);
+        state.curves.insert("PoseStanding".into(), 1.0);
         merge_context_defaults(
             &mut state,
             &[
@@ -458,7 +458,7 @@ mod tests {
                 },
             ],
         );
-        assert_eq!(state.curves.get("PoseCrouching"), Some(&0.0));
-        assert_eq!(state.curves.get("PoseStanding"), Some(&1.0));
+        assert_eq!(state.curves.get(&crate::extensions::SourceCurveName::from("PoseCrouching")), Some(&0.0));
+        assert_eq!(state.curves.get(&crate::extensions::SourceCurveName::from("PoseStanding")), Some(&1.0));
     }
 }

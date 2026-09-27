@@ -211,7 +211,7 @@ pub(crate) fn sampled_curve_context(
         curves: curves
             .0
             .iter()
-            .map(|(name, curve)| (name.to_string(), curve.sample(time)))
+            .map(|(name, curve)| (name.clone(), curve.sample(time)))
             .collect(),
         relevant_asset: None,
         curves_are_authoritative: true,

@@ -70,7 +70,7 @@ pub struct SourceInertializationRequest {
 #[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default)]
 pub struct AnimationContextState {
-    pub curves: HashMap<String, f32>,
+    pub curves: crate::extensions::SourceCurveValues,
     pub relevant_asset: Option<SourceRelevantAsset>,
     pub curves_are_authoritative: bool,
     pub sync_players: Vec<crate::extensions::sync_group_phase::SourceSyncPlayerTick>,
@@ -445,7 +445,7 @@ fn source_curve_value(
         ctx.graph_context.node_states(),
         state_key,
         source_node,
-    ) && let Some(value) = state.curves.get(curve_name)
+    ) && let Some(value) = state.curves.get(&crate::extensions::SourceCurveName::from(curve_name))
     {
         return Ok(*value);
     }
@@ -517,7 +517,7 @@ pub fn capture_context_curve(
     value: &DataValue,
 ) -> Result<(), GraphError> {
     if let DataValue::F32(value) = value {
-        state.curves.insert(output_name.to_owned(), *value);
+        state.curves.insert(output_name.into(), *value);
     }
     Ok(())
 }
@@ -558,7 +558,7 @@ mod tests {
         for rig in [false, true] {
             let mut states = NodeStates::default();
             let context = AnimationContextState {
-                curves: HashMap::from([("PoseMoving".to_owned(), 0.75)]),
+                curves: HashMap::from([("PoseMoving".into(), 0.75)]),
                 ..default()
             };
             if rig {
@@ -578,7 +578,7 @@ mod tests {
                     states.get::<AnimationContextState>(node, key).unwrap()
                 };
                 assert!(std::ptr::eq(&read.curves, &stored.curves), "curve lookup copied node state");
-                assert_eq!(read.curves["PoseMoving"], 0.75);
+                assert_eq!(read.curves[&crate::extensions::SourceCurveName::from("PoseMoving")], 0.75);
                 states.next_frame();
             }
         }
@@ -623,25 +623,25 @@ mod tests {
         let mut state = AnimationContextState::default();
         capture_context_curve(&mut state, "PoseMoving", &DataValue::F32(0.25)).unwrap();
         capture_context_curve(&mut state, "PoseMoving", &DataValue::F32(0.75)).unwrap();
-        assert_eq!(state.curves.get("PoseMoving"), Some(&0.75));
+        assert_eq!(state.curves.get(&crate::extensions::SourceCurveName::from("PoseMoving")), Some(&0.75));
     }
 
     #[test]
     fn merged_output_context_preserves_explicit_output_curves() {
         let mut target = AnimationContextState {
-            curves: HashMap::from([("PoseGrounded".to_owned(), 1.0)]),
+            curves: HashMap::from([("PoseGrounded".into(), 1.0)]),
             ..default()
         };
         let source = AnimationContextState {
             curves: HashMap::from([
-                ("PoseGrounded".to_owned(), 0.0),
-                ("PoseMoving".to_owned(), 1.0),
+                ("PoseGrounded".into(), 0.0),
+                ("PoseMoving".into(), 1.0),
             ]),
             ..default()
         };
         merge_missing_context_curves(&mut target, &source);
-        assert_eq!(target.curves.get("PoseGrounded"), Some(&1.0));
-        assert_eq!(target.curves.get("PoseMoving"), Some(&1.0));
+        assert_eq!(target.curves.get(&crate::extensions::SourceCurveName::from("PoseGrounded")), Some(&1.0));
+        assert_eq!(target.curves.get(&crate::extensions::SourceCurveName::from("PoseMoving")), Some(&1.0));
     }
 
     #[test]
@@ -651,11 +651,11 @@ mod tests {
             ..default()
         };
         let input = AnimationContextState {
-            curves: HashMap::from([("FootLeftIk".to_owned(), 1.0)]),
+            curves: HashMap::from([("FootLeftIk".into(), 1.0)]),
             ..default()
         };
         merge_linked_input_context(&mut child, &input);
-        assert!(!child.curves.contains_key("FootLeftIk"));
+        assert!(!child.curves.contains_key(&crate::extensions::SourceCurveName::from("FootLeftIk")));
     }
 
     #[test]

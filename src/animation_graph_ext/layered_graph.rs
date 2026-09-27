@@ -317,8 +317,8 @@ impl LayeredGraphNode {
                     continue;
                 };
                 let value = value.as_f32()?;
-                state.curves.insert(curve.to_owned(), value);
-                state.curves.insert(source_curve_name(curve), value);
+                state.curves.insert(curve.into(), value);
+                state.curves.insert(source_curve_name(curve).into(), value);
             }
         }
         Ok(())
@@ -660,7 +660,7 @@ mod tests {
                     assert!((output["selected"].as_pose().unwrap().timestamp - expected).abs() < 1e-5, "actor {index}, frame {frame}");
                     assert!((output["sibling"].as_pose().unwrap().timestamp - (frame + 1) as f32 * 0.1).abs() < 1e-5);
                     let state = graph_output_context_state(graph, &context, "selected").unwrap();
-                    assert_eq!(state.curves["Layer"], if index == 1 || selected { 0.75 } else { 0.25 });
+                    assert_eq!(state.curves[&crate::extensions::SourceCurveName::from("Layer")], if index == 1 || selected { 0.75 } else { 0.25 });
                     let expected_blend = match (index, frame) {
                         (1, 0) | (0, 2 | 6) => Some(0.35),
                         (0, 4) => Some(0.25),

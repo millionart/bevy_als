@@ -822,10 +822,10 @@ fn build_camera_snapshot(
     context: Option<&AlsRootAnimationContext>,
 ) -> CameraSnapshot {
     let debug_info = debug_info.filter(|info| info.valid);
-    static MAPPINGS: LazyLock<std::collections::HashMap<String, (String, f32)>> = LazyLock::new(||
+    static MAPPINGS: LazyLock<std::collections::HashMap<crate::extensions::SourceCurveName, (String, f32)>> = LazyLock::new(||
         serde_json::from_str(include_str!("../../../../assets/ALSCamera/als_camera_curves.runtime.json")).expect("Camera display mappings are valid"));
     let mut camera_curves: Vec<_> = context.into_iter().flat_map(|context| &context.curves).map(|(name, value)| {
-        let (name, value) = MAPPINGS.get(name).map_or((name.clone(), *value), |(source, scale)| (source.clone(), value * scale));
+        let (name, value) = MAPPINGS.get(name).map_or((name.to_string(), *value), |(source, scale)| (source.clone(), value * scale));
         (name, if value == 0.0 { 0.0 } else { value })
     }).collect();
     camera_curves.sort_by(|a, b| a.0.cmp(&b.0));
@@ -1660,7 +1660,7 @@ mod tests {
         let skeletons = app.world().resource::<Assets<bevy_animation_graph::core::skeleton::Skeleton>>();
         for name in crate::standing_source::MONTAGES.keys().filter(|name| name.contains("_Turn_")) {
             let (_, context) = crate::standing_source::sample_source_montage(name, 0.4, assets, clips, skeletons).unwrap();
-            let runtime = context.curves["RotationYawSpeed"];
+            let runtime = context.curves[&crate::extensions::SourceCurveName::from("RotationYawSpeed")];
             let rows = evaluated_character_curve_rows(Some(&AlsRootAnimationContext { curves: context.curves.into_iter().collect() }));
             let row = rows.iter().find(|row| row.label == "Rotation Yaw Speed").unwrap();
             assert_eq!(row.value, format!("{:.2}", -runtime));
@@ -1674,7 +1674,7 @@ mod tests {
         let player = app.world().get::<AnimatedSceneInstance>(camera).unwrap().player_entity();
         let projected = app.world().get::<AlsRootAnimationContext>(player).unwrap();
         assert_eq!(projected.f32("FootLeftIk"), Some(0.0));
-        assert!(!projected.curves.contains_key("FootLeftIk"), "Default reads must not invent active camera curves");
+        assert!(!projected.curves.contains_key(&crate::extensions::SourceCurveName::from("FootLeftIk")), "Default reads must not invent active camera curves");
         app.world_mut().entity_mut(player).insert(AlsRootAnimationContext { curves: [
             ("CameraOffsetZ".into(), -1.0), ("CameraOffsetX".into(), 2.0),
             ("PivotOffsetZ".into(), 0.5), ("LocationLagZ".into(), 0.3), ("CustomCameraCurve".into(), -0.5)].into() });

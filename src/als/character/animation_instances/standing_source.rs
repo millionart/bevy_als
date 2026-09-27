@@ -188,7 +188,7 @@ pub(crate) mod tests {
             );
             assert!(context.curves_are_authoritative);
             if name.contains("_Turn_") {
-                let yaw = context.curves["RotationYawSpeed"];
+                let yaw = context.curves[&crate::extensions::SourceCurveName::from("RotationYawSpeed")];
                 assert!(
                     if name.ends_with("_Left") {
                         yaw > 0.0

@@ -350,7 +350,7 @@ fn update_object_animation(
                 let AnimationSource::Graph(graph) = player.get_animation_source() else { return None; };
                 let graph = resources.animation_graph_assets.get(graph)?;
                 let node = crate::animation_context_projection::root_pose_source_node(graph)?;
-                crate::extensions::player_animation_context_state(player, node)?.curves.get("PoseAiming").copied()
+                crate::extensions::player_animation_context_state(player, node)?.curves.get(&crate::extensions::SourceCurveName::from("PoseAiming")).copied()
             }).unwrap_or(0.0);
         let Ok(mut player) = players.get_mut(scene.player_entity()) else { continue; };
         if let AnimationSource::Graph(graph) = player.get_animation_source()

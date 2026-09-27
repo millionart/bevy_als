@@ -80,8 +80,8 @@ pub(crate) struct SourceInertializationState {
     deficit: f32,
     active: bool,
     bones: Vec<SourceInertialBone>,
-    previous_curves: HashMap<String, f32>,
-    curve_differences: HashMap<String, (f32, f32)>,
+    previous_curves: crate::extensions::SourceCurveValues,
+    curve_differences: HashMap<crate::extensions::SourceCurveName, (f32, f32)>,
     pub(crate) context: AnimationContextState,
 }
 
@@ -347,7 +347,7 @@ impl NodeLike for InertializationPassthroughNode {
             let value = if self.capture_context {
                 *context_curves.get(curve).ok_or(GraphError::MissingStateValue)?
             } else { ctx.data_back(format!("source_{curve}"))?.as_f32()? };
-            source_context.curves.insert(curve.clone(), value);
+            source_context.curves.insert(curve.clone().into(), value);
         }
         let delta = source_delta(&time_update);
         let request_epoch = optional_global_f32(&ctx, &self.request_epoch_key);
@@ -406,7 +406,7 @@ impl NodeLike for InertializationPassthroughNode {
                 state.curve_differences.clear();
                 if has_history {
                     state.curve_differences = source_context.curves.keys().chain(state.context.curves.keys())
-                        .filter(|name| !self.filtered_curves.contains(name))
+                        .filter(|name| !self.filtered_curves.iter().any(|filtered| name.eq_ignore_ascii_case(filtered)))
                         .map(|name| {
                             let target = source_context.curves.get(name).copied().unwrap_or(0.0);
                             let difference = state.context.curves.get(name).copied().unwrap_or(0.0) - target;
@@ -446,7 +446,7 @@ impl NodeLike for InertializationPassthroughNode {
         let context = source_context;
         for curve in &self.curve_names {
             if self.expose_output(curve) {
-                ctx.set_data_fwd(curve.clone(), context.curves[curve]);
+                ctx.set_data_fwd(curve.clone(), context.curves[&crate::extensions::SourceCurveName::from(curve.as_str())]);
             }
         }
         ctx.state_mut_or_else(SourceInertializationState::default)?

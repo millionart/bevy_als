@@ -1,4 +1,4 @@
-use bevy::{platform::collections::HashMap, prelude::*};
+use bevy::prelude::*;
 use bevy_animation_graph::core::{
     animation_node::{NodeLike, ReflectNodeLike},
     context::{new_context::NodeContext, spec_context::SpecContext},
@@ -53,7 +53,7 @@ struct ControlRigRuntime {
     definition: RigDefinition,
     hierarchy: RigHierarchy,
     values: Vec<RigValue>,
-    curves: HashMap<String, f32>,
+    curves: crate::extensions::SourceCurveValues,
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -229,7 +229,7 @@ impl ControlRigBoundaryNode {
                 curves: definition
                     .curves
                     .iter()
-                    .filter_map(|(key, value)| value.map(|value| (key.clone(), value)))
+                    .filter_map(|(key, value)| value.map(|value| (key.clone().into(), value)))
                     .collect(),
             });
         }
@@ -351,7 +351,7 @@ impl ControlRigBoundaryNode {
                     .iter()
                     .find_map(|(key, value)| key.eq_ignore_ascii_case(name).then_some(*value))
                 {
-                    runtime.curves.insert(name.clone(), value);
+                    runtime.curves.insert(name.clone().into(), value);
                 }
             }
         }
@@ -471,7 +471,7 @@ impl NodeLike for ControlRigBoundaryNode {
             } else {
                 ctx.data_back(curve.clone())?.as_f32()?
             };
-            state.curves.insert(curve.clone(), value);
+            state.curves.insert(curve.clone().into(), value);
             if self.expose_output(curve) {
                 ctx.set_data_fwd(curve.clone(), value);
             }
@@ -602,18 +602,18 @@ mod tests {
     #[test]
     fn control_rig_transfer_input_curves_preserves_full_upstream_context() {
         let mut context = AnimationContextState::default();
-        context.curves.insert("Explicit".to_owned(), 0.5);
+        context.curves.insert("Explicit".into(), 0.5);
         let mut source = AnimationContextState::default();
-        source.curves.insert("Explicit".to_owned(), 0.25);
-        source.curves.insert("Transferred".to_owned(), 0.75);
+        source.curves.insert("Explicit".into(), 0.25);
+        source.curves.insert("Transferred".into(), 0.75);
         merge_transferred_input_context(true, &mut context, Some(source));
-        assert_eq!(context.curves.get("Explicit"), Some(&0.5));
-        assert_eq!(context.curves.get("Transferred"), Some(&0.75));
+        assert_eq!(context.curves.get(&crate::extensions::SourceCurveName::from("Explicit")), Some(&0.5));
+        assert_eq!(context.curves.get(&crate::extensions::SourceCurveName::from("Transferred")), Some(&0.75));
 
         let mut ignored = AnimationContextState::default();
-        ignored.curves.insert("Ignored".to_owned(), 1.0);
+        ignored.curves.insert("Ignored".into(), 1.0);
         merge_transferred_input_context(false, &mut context, Some(ignored));
-        assert!(!context.curves.contains_key("Ignored"));
+        assert!(!context.curves.contains_key(&crate::extensions::SourceCurveName::from("Ignored")));
     }
 
     #[test]
@@ -747,7 +747,7 @@ mod tests {
                         state.value(&value).unwrap(),
                         RigValue::F32(forward)
                     );
-                    assert_eq!(state.context.curves["PoseMoving"], 1.0);
+                    assert_eq!(state.context.curves[&crate::extensions::SourceCurveName::from("PoseMoving")], 1.0);
                     let foot_height = definition
                         .bones
                         .iter()

@@ -650,8 +650,8 @@ mod tests {
                 let active = [true, weights[0] > 1e-5, weights[1] > 1e-5];
                 let last_active = active.iter().rposition(|value| *value).unwrap();
                 let curves_match = context.curves.len() == 1 + active.iter().filter(|value| **value).count()
-                    && context.curves["shared"] == 0.2 + last_active as f32
-                    && active.iter().enumerate().all(|(index, active)| context.curves.get(&format!("unique_{index}")) == active.then_some(&(0.2 + index as f32)));
+                    && context.curves[&crate::extensions::SourceCurveName::from("shared")] == 0.2 + last_active as f32
+                    && active.iter().enumerate().all(|(index, active)| context.curves.get(&crate::extensions::SourceCurveName::from(format!("unique_{index}"))) == active.then_some(&(0.2 + index as f32)));
                 if updated != active || !curves_match || output.timestamp != 9.0 || output.skeleton != skeleton {
                     failures.push(format!("{label} mesh={mesh}: context or child lifecycle mismatch"));
                 }

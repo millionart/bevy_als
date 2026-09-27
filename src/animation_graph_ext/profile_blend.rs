@@ -186,7 +186,7 @@ impl NodeLike for ProfiledBlendNode {
             let source_value = ctx.data_back(curve_a_input(curve))?.as_f32()?;
             let target_value = ctx.data_back(curve_b_input(curve))?.as_f32()?;
             context.curves.insert(
-                curve.clone(),
+                curve.clone().into(),
                 source_value + (target_value - source_value) * alpha,
             );
             ctx.set_data_fwd(

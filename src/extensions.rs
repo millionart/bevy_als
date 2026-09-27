@@ -177,7 +177,7 @@ pub mod time_position;
 
 pub use als_curves::{
     ALS_CURVES_EXTENSION, ALS_CURVES_LABEL, AlsAnimCurves, AlsCurvesHandler, AlsCurvesParseError,
-    AlsExtrapolation, AlsFloatCurve, AlsKeyInterp, AlsPoseCurves, parse_curves,
+    AlsExtrapolation, AlsFloatCurve, AlsKeyInterp, AlsPoseCurves, SourceCurveName, SourceCurveValues, parse_curves,
 };
 pub use animation_context::{
     AnimationContextInput, AnimationContextInputAlias, AnimationContextState, SourceRelevantAsset,

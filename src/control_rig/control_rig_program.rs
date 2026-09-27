@@ -613,13 +613,13 @@ mod tests {
         let pelvis = hierarchy.index("pelvis").unwrap();
         pose[foot_root].scale = DVec3::splat(2.0);
         curves.extend([
-            ("PoseMoving".to_owned(), 1.0),
-            ("FootLeftIk".to_owned(), 1.0),
-            ("FootRightIk".to_owned(), 1.0),
-            ("LayerArmLeft".to_owned(), 1.0),
-            ("HandLeftIk".to_owned(), 1.0),
-            ("LayerArmRight".to_owned(), 1.0),
-            ("HandRightIk".to_owned(), 1.0),
+            ("PoseMoving".into(), 1.0),
+            ("FootLeftIk".into(), 1.0),
+            ("FootRightIk".into(), 1.0),
+            ("LayerArmLeft".into(), 1.0),
+            ("HandLeftIk".into(), 1.0),
+            ("LayerArmRight".into(), 1.0),
+            ("HandRightIk".into(), 1.0),
         ]);
         for (index, value) in [
             (2, Bool(true)),

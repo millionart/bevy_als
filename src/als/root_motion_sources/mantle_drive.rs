@@ -179,7 +179,7 @@ fn sample_mantle_pose(
             .montage_curves
             .0
             .iter()
-            .map(|(name, curve)| (name.to_string(), curve.sample(time))),
+            .map(|(name, curve)| (name.clone(), curve.sample(time))),
     );
     Some((pose, context))
 }
@@ -1697,9 +1697,9 @@ mod tests {
                     let (_, right) =
                         sample_mantle_pose(clip, skeleton, right_settings, 0.8).unwrap();
                     assert_eq!(settings.clip, right_settings.clip);
-                    assert_eq!(low.curves["LayerArmRight"], -1.0);
-                    assert!(!right.curves.contains_key("LayerArmRight"));
-                    assert_eq!(low.curves["PoseStanding"], 1.0);
+                    assert_eq!(low.curves[&crate::extensions::SourceCurveName::from("LayerArmRight")], -1.0);
+                    assert!(!right.curves.contains_key(&crate::extensions::SourceCurveName::from("LayerArmRight")));
+                    assert_eq!(low.curves[&crate::extensions::SourceCurveName::from("PoseStanding")], 1.0);
                     let mut controlled: MantleSourceSettings =
                         ron::from_str(crate::als::mantle::MANTLE_SOURCE_DATA).unwrap();
                     let controlled = &mut controlled.montages[kind.action_settings().montage_index];
@@ -1714,8 +1714,8 @@ mod tests {
                     );
                     let (_, overridden) =
                         sample_mantle_pose(clip, skeleton, controlled, 0.8).unwrap();
-                    assert_eq!(overridden.curves["LayerArmRight"], -1.0);
-                    assert_eq!(overridden.curves["PoseStanding"], 1.0);
+                    assert_eq!(overridden.curves[&crate::extensions::SourceCurveName::from("LayerArmRight")], -1.0);
+                    assert_eq!(overridden.curves[&crate::extensions::SourceCurveName::from("PoseStanding")], 1.0);
                 }
                 let root = sample_mantle_root(clip, skeleton, clip.duration).unwrap();
                 assert!(

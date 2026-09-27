@@ -265,7 +265,7 @@ mod tests {
                     Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
                 graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.1)), context.clone()).unwrap();
                 let output = crate::extensions::animation_context::graph_output_context_state(graph, &context, "Result").expect("linked context must exist");
-                assert_eq!(output.curves.get("LayerSpine"), Some(&0.7));
+                assert_eq!(output.curves.get(&crate::extensions::SourceCurveName::from("LayerSpine")), Some(&0.7));
                 assert!(output.curves_are_authoritative);
                 assert_eq!(output.sync_players.len(), 1);
                 assert!((output.sync_players[0].phase - expected_phase).abs() < 1e-5);

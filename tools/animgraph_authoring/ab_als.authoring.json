@@ -229,6 +229,26 @@
     {
       "path": "target/bf131/a63/AnimationAsset.cpp",
       "sha256": "d6bed3680c974fc6663965e6ef0a4dfc1e1d50c4b08bfbf8719cfc9a537e4f84"
+    },
+    {
+      "path": "target/bf131/a64/A_Als_Crouch_Rotate_90_Left.ue.json",
+      "sha256": "8997fb727b429f8049219bf3cfe5c8786353dd75aa09c2b7cfe4f7a164531752"
+    },
+    {
+      "path": "target/bf131/a64/UnrealNames.cpp",
+      "sha256": "1a4f7f23564afebc8c18d080a4757b16958c15fcab513c9e3a1f0a67e565f67c"
+    },
+    {
+      "path": "target/bf131/a64/NameTypes.h",
+      "sha256": "6fde1979ba40be8cf11a284606e28139f3cd655b00f05e05a3903f4cdd36f29e"
+    },
+    {
+      "path": "target/bf131/a64/Char.h",
+      "sha256": "b0a3b64758caddf5151a0396fdb042476bba4d9c9d1eaaeda94318b4b069a0e1"
+    },
+    {
+      "path": "target/bf131/a64/AnimCurveTypes.h",
+      "sha256": "9b5f7daba70f220e136d3ab76777ec847bdab578cbc12dbc6349490aa0da62a9"
     }
   ],
   "graphs": [
@@ -497,9 +517,9 @@
         "python",
         "tools/animgraph_authoring/audit_source_closure.py",
         "--source-directory",
-        "target/bf131/a63/replay/full-source",
+        "target/bf131/a64/replay/full-source",
         "--materialized-directory",
-        "target/bf131/a63/replay/full-conversion/ALS/Character/AB_Als",
+        "target/bf131/a64/replay/full-conversion/ALS/Character/AB_Als",
         "--spec",
         "target/animgraph_authoring/current.spec.json"
       ]
@@ -1071,6 +1091,24 @@
         "2"
       ],
       "evidence": "target/bf1295/bf131-a63-final-source_pose_nodes.json"
+    },
+    {
+      "label": "curve_fname_all_consumers",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--profile",
+        "play",
+        "--lib",
+        "--jobs",
+        "2",
+        "--",
+        "--test-threads",
+        "2"
+      ],
+      "evidence": "target/bf1295/bf131-a64-all-lib.json"
     }
   ]
 }

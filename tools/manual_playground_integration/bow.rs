@@ -180,7 +180,7 @@ fn sample(player: &AnimationGraphPlayer, probe: &MotionProbe, root_context: Opti
         };
         sample.transition = runtime.active_direct_transition_id();
         sample.elapsed = Some(runtime.current_state_elapsed_time());
-        sample.aiming[0] = Some(runtime.context.curves.get("PoseAiming").copied().unwrap_or(0.0));
+        sample.aiming[0] = Some(runtime.context.curves.get(&crate::extensions::SourceCurveName::from("PoseAiming")).copied().unwrap_or(0.0));
         sample.weights = machine.states.values().map(|state| (state.label.clone(), runtime.recorded_state_weight(&state.id.uuid().to_string()))).collect();
         if let Some(pose) = runtime.last_output_pose() { sample.fsm_arms = arms(pose, &probe.skeletons); }
     }

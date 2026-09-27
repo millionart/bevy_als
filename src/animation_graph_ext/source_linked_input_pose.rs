@@ -57,7 +57,7 @@ impl NodeLike for SourceLinkedInputPoseNode {
                     .io
                     .get_data_back(GraphInputPin::Passthrough(key), ctx.graph_context.clone())?
                     .as_f32()?;
-                state.curves.insert(curve.clone(), value);
+                state.curves.insert(curve.clone().into(), value);
             }
         }
         *ctx.state_mut_or_else(AnimationContextState::default)? = state;
@@ -88,7 +88,7 @@ mod tests {
         fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
             ctx.set_data_fwd("Pose", bevy_animation_graph::core::pose::Pose::default());
             *ctx.state_mut_or_else(AnimationContextState::default)? = AnimationContextState {
-                curves: [("Selected".to_owned(), self.value)].into_iter().collect(),
+                curves: [("Selected".into(), self.value)].into_iter().collect(),
                 curves_are_authoritative: true,
                 sync_players: vec![crate::extensions::sync_group_phase::SourceSyncPlayerTick {
                     identity: (ctx.graph_context.context_id, ctx.node_id),
@@ -161,7 +161,7 @@ mod tests {
                         graph, &context, "Pose",
                     )
                     .unwrap();
-                    (state.curves["Selected"], state.sync_players[0].phase)
+                    (state.curves[&crate::extensions::SourceCurveName::from("Selected")], state.sync_players[0].phase)
                 })
                 .collect()
         }

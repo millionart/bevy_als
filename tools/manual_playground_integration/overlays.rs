@@ -106,7 +106,7 @@ pub(super) fn observe(probe: &mut Probe, player: &AnimationGraphPlayer, motion: 
                     else { sample.graph = Some(definition.graph.clone()); }
                 }
                 if let Some(context) = crate::extensions::animation_context::node_context_state(&ctx.node_states, StateKey::Default, node.id) {
-                    sample.curves = context.curves.iter().map(|(name, value)| (name.clone(), *value)).collect();
+                    sample.curves = context.curves.iter().map(|(name, value)| (name.to_string(), *value)).collect();
                 }
             }
             if let Some(fsm) = node.try_inner_downcast_ref::<crate::extensions::InterruptibleFsmNode>() {

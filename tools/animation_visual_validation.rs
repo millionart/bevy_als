@@ -1695,6 +1695,7 @@ fn graph_failure_node_candidates(
                 .unwrap_or_default()
                 .into_iter()
                 .filter(|(_, value)| value.is_finite())
+                .map(|(name, value)| (name.to_string(), value))
                 .collect();
             add_graph_failure_node_candidate(
                 &mut candidates,
@@ -1765,6 +1766,7 @@ fn graph_failure_context_nodes(
                 context_curves: context_curves
                     .into_iter()
                     .filter(|(_, value)| value.is_finite())
+                    .map(|(name, value)| (name.to_string(), value))
                     .collect(),
             });
         }
@@ -2763,7 +2765,7 @@ fn pose_moving_lineage(
             .map(|state| &state.curves);
         let curve = |name| {
             context
-                .and_then(|curves| curves.get(name))
+                .and_then(|curves| curves.get(&crate::extensions::SourceCurveName::from(name)))
                 .copied()
                 .filter(|value| value.is_finite())
         };

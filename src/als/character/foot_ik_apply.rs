@@ -889,7 +889,7 @@ mod tests {
             app.world_mut().run_system_once(apply_animation_to_targets).unwrap();
             app.world_mut().run_system_once(observe_rig_results).unwrap();
             let (context, _, rig_state) = current_control_rig(app.world().get::<AnimationGraphPlayer>(player_entity).unwrap(), app.world().resource::<Assets<AnimationGraph>>()).unwrap();
-            assert_eq!(rig_state.context.curves["Unrelated"], 0.37);
+            assert_eq!(rig_state.context.curves[&crate::extensions::SourceCurveName::from("Unrelated")], 0.37);
             let input = context.node_caches.get_output_data(driver.unwrap(), bevy_animation_graph::core::context::node_states::StateKey::Default, "Pose".into()).unwrap().into_pose().unwrap();
             assert_eq!(format!("{input:?}"), format!("{pose:?}"));
             let execution = app.world().get::<AlsControlRigExecution>(actor).unwrap();
@@ -930,7 +930,7 @@ mod tests {
             let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
             let (_, _, rig_state) = current_control_rig(player, app.world().resource::<Assets<AnimationGraph>>()).unwrap();
             for name in ["PoseAiming", "HandLeftIk", "HandRightIk"] {
-                assert_eq!(rig_state.context.curves.get(name).copied().unwrap_or(0.0), if active { 1.0 } else { 0.0 }, "{name}");
+                assert_eq!(rig_state.context.curves.get(&crate::extensions::SourceCurveName::from(name)).copied().unwrap_or(0.0), if active { 1.0 } else { 0.0 }, "{name}");
             }
             for name in ["hand_l", "hand_r"] {
                 let call = rig_state.calls.iter().find(|call| rig_call_is(&definition, call, "FRigUnit_TwoBoneIKSimplePerItem::Execute")

@@ -272,7 +272,7 @@ fn update_camera_animation(
             )
         }) {
             for (index, name) in CAMERA_CURVE_NAMES.iter().enumerate() {
-                curves.values[index] = context.curves.get(*name).copied().unwrap_or(0.0);
+                curves.values[index] = context.curves.get(&crate::extensions::SourceCurveName::from(*name)).copied().unwrap_or(0.0);
             }
         }
     }

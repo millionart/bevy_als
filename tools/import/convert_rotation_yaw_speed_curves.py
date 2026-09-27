@@ -58,9 +58,13 @@ def curve_entries(document):
             yield animation_index, animation, extension, curve
 
 
+def curve_name_matches(value, expected):
+    return isinstance(value, str) and value.encode().lower() == expected.encode().lower()
+
+
 def find_curve(document, animation_index, name):
     for index, _, _, curve in curve_entries(document):
-        if index == animation_index and curve.get("name") == name:
+        if index == animation_index and curve_name_matches(curve.get("name"), name):
             return curve
     return None
 
@@ -110,7 +114,7 @@ def target_curve_from_source(source):
 def source_record(path, document):
     animations = []
     for animation_index, animation, _, curve in curve_entries(document):
-        if curve.get("name") != SOURCE_CURVE:
+        if not curve_name_matches(curve.get("name"), SOURCE_CURVE):
             continue
         validate_curve_numbers(curve)
         animations.append(
@@ -142,7 +146,7 @@ def contract_issues(root, contract):
     issues = []
     if contract.get("format") != FORMAT:
         return ["yaw speed curve contract format is invalid"]
-    if contract.get("source_curve") != SOURCE_CURVE or contract.get("target_curve") != TARGET_CURVE:
+    if not curve_name_matches(contract.get("source_curve"), SOURCE_CURVE) or not curve_name_matches(contract.get("target_curve"), TARGET_CURVE):
         return ["yaw speed curve contract names are invalid"]
     assets = contract.get("assets")
     if not isinstance(assets, list) or not assets:
@@ -173,7 +177,7 @@ def contract_issues(root, contract):
             if not isinstance(target, dict):
                 issues.append(f"yaw speed target curve is missing: {path_value}:{index}")
                 continue
-            if target != target_curve_from_source(source):
+            if {**target, "name": TARGET_CURVE} != target_curve_from_source(source):
                 issues.append(f"yaw speed target curve differs: {path_value}:{index}")
     return issues
 
@@ -181,8 +185,8 @@ def contract_issues(root, contract):
 def apply_contract(root, contract):
     if (
         contract.get("format") != FORMAT
-        or contract.get("source_curve") != SOURCE_CURVE
-        or contract.get("target_curve") != TARGET_CURVE
+        or not curve_name_matches(contract.get("source_curve"), SOURCE_CURVE)
+        or not curve_name_matches(contract.get("target_curve"), TARGET_CURVE)
         or not isinstance(contract.get("assets"), list)
     ):
         raise ValueError("yaw speed curve contract is invalid")
@@ -196,7 +200,7 @@ def apply_contract(root, contract):
             target = target_curve_from_source(source)
             replaced = False
             for index, _, extension, curve in curve_entries(document):
-                if index == animation["index"] and curve.get("name") == TARGET_CURVE:
+                if index == animation["index"] and curve_name_matches(curve.get("name"), TARGET_CURVE):
                     curves = extension["curves"]
                     curves[curves.index(curve)] = target
                     replaced = True
@@ -241,6 +245,18 @@ def run_self_test():
         assert target["values"] == [90.0, -90.0]
         assert target["arrive_tangents"] == [7.0, -5.0]
         assert target["leave_tangents"] == [4.0, -11.0]
+        curves = document["animations"][0]["extensions"]["ALS_float_curves"]["curves"]
+        curves[0]["name"] = "rOtAtIoNyAwSpEeD"
+        target["name"] = "rotationyawspeedtarget"
+        source_before = copy.deepcopy(curves[0])
+        write_json(asset, document)
+        assert not contract_issues(root, contract)
+        apply_contract(root, contract)
+        document = read_json(asset)
+        curves = document["animations"][0]["extensions"]["ALS_float_curves"]["curves"]
+        assert len(curves) == 2 and curves[0] == source_before
+        assert find_curve(document, 0, TARGET_CURVE)["values"] == [90.0, -90.0]
+        assert source_contract(root, ["assets/curve.gltf"]) == contract
         document["animations"][0]["extensions"]["ALS_float_curves"]["curves"][0]["values"][0] = 0.0
         write_json(asset, document)
         assert contract_issues(root, contract)
