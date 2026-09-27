@@ -53,7 +53,7 @@
 
 - [x] **BF131.A56 — Scoped cached pose lookup ignores linked-instance ownership**。Gate：同图多个 linked instance 的缓存只在所属实例内解析，正常同实例复用与缺失诊断通过。
 - [x] **BF131.A57 — Graph footstep dispatcher mishandles reverse playback**。Gate：正播/倒播、跨循环和多圈步进按源事件区间分派，不漏发或重复。
-- [ ] **BF131.A58 — Point NotifyTriggerChance is imported but not consumed**。Gate：点通知概率 0/1 及中间值按源分派规则生效，保留其他过滤条件。
+- [x] **BF131.A58 — Point NotifyTriggerChance is imported but not consumed**。Gate：点通知概率 0/1 及中间值按源分派规则生效，保留其他过滤条件。
 - [ ] **BF131.A59 — FSM getter requires one arena-wide static GUID match instead of owning linked-instance scope**。Gate：同 GUID 的多 linked instance 从所属实例读取状态，无关实例不造成歧义。
 - [ ] **BF131.A60 — CurveFloat importer rejects valid single-key constant curves**。Gate：单关键帧常量曲线可导入并在区间内外正确采样，空/无效输入仍按源合同处理。
 - [ ] **BF131.A61 — LinkedGraph reintroduces inactive or unweighted input asset samples after child evaluation**。Gate：子图未消费及零权重输入不重新出现；实际输出样本和权重正确。
@@ -140,3 +140,4 @@
   - A58-S3 重新估时：原窗口 23:42→00:02，首次运行 23:45 失败后已停止后续场景；根因夹具修复及用户新增的迁移/审计工作现已静态闭合，余下为全量转换 diff、同入口预构建和 startup/notify/footprint。新一轮开始 2026-09-28 00:15 +08:00，预估结束 2026-09-28 00:45 +08:00，按原 20 分钟窗口的 1.5 倍登记；保留初次 runtime 失败报告，不降低功能 Gate。
   - Runtime 前最终静态闭环（2026-09-28 00:41 +08:00）：15/15 入口与递归闭包转换成功，39 份当次原生记录，374/374 新旧安装产物完整 diff 为零；转换开始 00:12，预估 00:37，实际 00:37，约 25 分 20 秒，比归档同类记录多约 1 分 29 秒。所有正式审计命令切换到该批 source/materialization，349 份 fresh spec 和 12/12 完整 authoring Gate 通过；同 target_game/play 的实际启动器预构建成功。状态槽冲突已有包含外部 Pose 输入的 red→green，原实例/缓存隔离保持；当前仅待真实 startup/notify/footprint 功能 Gate，未复开其他完成项或修改运行资产。
   - 命名迁移实际结束 2026-09-28 00:45 +08:00，偏差 +5 分钟；结果：文件/目录命名清理、3 份无用手工清单删除、默认导入输出和全部活动引用同步完成。新旧 374 份产物零 diff、fresh source/规格对应的 12 份完整审计通过、41 项 Rust 定向回归与 3 个常量导入器自测通过；最终 startup/notify/footprint 公共功能验收通过，21/21 脚印、12/12 通知、GPU 36 请求/576 采样，故障/图错误/时序异常/watchdog 均为 0。完整报告仍保留性能失败，性能验收沿用延期；本次没有扩大到修改资产算法、清理历史验收记录或放宽 Gate。
+  - A58-S3 实际结束 2026-09-28 00:46 +08:00，较重新预估偏差 +1 分钟；结果：startup/notify/footprint 均退出 0，公共功能 PASS，图/故障/时序/watchdog 为 0。新增通知实例状态使用独立槽，与既有 Pose 输入上下文共存；包含该输入的夹具和真实入口均 green。A58 的 source/native 概率序列、两条分派路径、实例归属/重建、其他过滤与三项消融闭合，勾选本项；命名/审计入口单独提交 d7b6d0e。性能 Gate 继续延期；下一项 A59，未开始其实现。

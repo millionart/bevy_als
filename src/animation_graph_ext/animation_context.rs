@@ -51,6 +51,7 @@ pub struct SourceRelevantAsset {
 #[derive(Reflect, Clone, Debug, Default)]
 pub struct SourceAssetSample {
     pub identity: String,
+    pub notify_instance_id: u64,
     pub clip: Handle<bevy_animation_graph::core::animation_clip::GraphClip>,
     pub clock: SourceRelevantAsset,
     pub sync_group: String,

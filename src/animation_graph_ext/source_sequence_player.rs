@@ -364,6 +364,7 @@ impl NodeLike for SourceSequencePlayerNode {
             .transpose()?
             .flatten();
         let identity = (ctx.graph_context.context_id, ctx.node_id);
+        let notify_instance_id = crate::extensions::source_instance::source_notify_instance_id(&ctx)?;
         let state = ctx.state_mut_or_else(SourceSequencePlayerState::default)?;
         let play_rate = apply_source_input_scale_bias_clamp(
             &mut state.play_rate_state,
@@ -464,6 +465,7 @@ impl NodeLike for SourceSequencePlayerNode {
             clock.has_previous_position = true;
             state.context.asset_samples.push(crate::extensions::animation_context::SourceAssetSample {
                 identity: format!("{:?}:{:?}", identity.0, identity.1),
+                notify_instance_id,
                 clip: self.clip.clone(), clock,
                 sync_group: self.synchronization.as_ref().map_or_else(String::new, |sync| sync.key.clone()),
                 sync_identity: self.synchronization.as_ref().map(|_| identity),

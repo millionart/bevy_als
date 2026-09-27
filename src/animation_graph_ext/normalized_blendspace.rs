@@ -673,6 +673,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
             .and_then(|node| node.reflect_ref().as_struct().ok()?.field("clip"))
             .and_then(|value| value.try_downcast_ref::<Handle<bevy_animation_graph::core::animation_clip::GraphClip>>())
             .cloned();
+        let notify_instance_id = crate::extensions::source_instance::source_notify_instance_id(&ctx)?;
         let context = &mut ctx.state_mut::<NormalizedBlendSpaceState>()?.context;
         context.curves = curves;
         context.curves_are_authoritative = true;
@@ -694,6 +695,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
             if tick.delta_seconds > 0.0 && let Some(clip) = sample_clip {
                 context.asset_samples.push(crate::extensions::animation_context::SourceAssetSample {
                     identity: format!("{:?}:{:?}", tick.identity.0, tick.identity.1),
+                    notify_instance_id,
                     clip,
                     clock,
                     sync_group: tick.key.clone(), sync_identity: Some(tick.identity),

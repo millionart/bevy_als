@@ -224,6 +224,38 @@ struct AlsAnimationEventSourceRuntime {
 #[derive(Component, Default)]
 struct AlsAnimationEventRuntime {
     sources: HashMap<(String, u64), AlsAnimationEventSourceRuntime>,
+    instance_id: u64,
+    montage_chance: NotifyChance,
+}
+
+impl AlsAnimationEventRuntime {
+    fn set_instance(&mut self, instance_id: u64) {
+        if self.instance_id != instance_id {
+            self.instance_id = instance_id;
+            self.montage_chance = NotifyChance::default();
+        }
+    }
+}
+
+struct NotifyChance(u32);
+
+impl Default for NotifyChance {
+    fn default() -> Self { Self(0x05629063) }
+}
+
+impl NotifyChance {
+    fn accepts(&mut self, event: &AlsNotifyManifestEvent) -> bool {
+        if event_kind(event) == TimedEventKind::State { return true; }
+        self.0 = self.0.wrapping_mul(196314165).wrapping_add(907633515);
+        f32::from_bits(0x3f800000 | (self.0 >> 9)) - 1.0 < event.filter.trigger_chance
+    }
+}
+
+fn notify_root_instance(arena: &bevy_animation_graph::core::context::graph_context_arena::GraphContextArena) -> u64 {
+    use bevy_animation_graph::core::{animation_graph::NodeId, context::node_states::StateKey};
+    arena.get_toplevel().node_states
+        .get::<crate::extensions::source_instance::SourceInstanceProperties>(NodeId::default(), StateKey::Default)
+        .map_or(0, |state| state.instance_id)
 }
 
 #[derive(Default)]
@@ -231,6 +263,7 @@ struct GraphFootstepDispatch {
     frame: Option<(u64, u64)>,
     previous: HashMap<String, (f32, f32)>,
     slots: std::collections::HashSet<String>,
+    chance: HashMap<u64, NotifyChance>,
 }
 
 fn graph_footstep_clocks(clock: &crate::extensions::SourceRelevantAsset, previous_time: f32, is_leader: bool) -> Vec<EventClock> {
@@ -277,11 +310,12 @@ fn dispatch_graph_footsteps(
     server: Res<AssetServer>,
     avatars: Query<(&crate::character_assembly::AlsCharacterAvatar, &bevy_animation_graph::core::animated_scene::AnimatedSceneInstance)>,
     players: Query<&bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer>,
+    mut runtimes: Query<&mut AlsAnimationEventRuntime>,
     mut frames: Local<HashMap<Entity, GraphFootstepDispatch>>,
     mut events: MessageWriter<AlsAnimationEvent>,
     mut shakes: MessageWriter<AlsCameraShakeRequest>,
 ) {
-    use bevy_animation_graph::core::{animation_graph::NodeId, animation_graph_player::AnimationSource, context::node_states::StateKey};
+    use bevy_animation_graph::core::{animation_graph_player::AnimationSource, context::node_states::StateKey};
     use crate::extensions::sync_group_phase::{source_sync_players, select_source_sync_group_leader, SourceSyncGroupCandidate};
     let Some(manifest) = manifest_handle.as_ref().and_then(|handle| manifests.get(&handle.0)) else { return; };
     for (avatar, instance) in &avatars {
@@ -293,11 +327,12 @@ fn dispatch_graph_footsteps(
         let Some(arena) = player.get_context_arena() else { continue; };
         let Some(node) = crate::animation_context_projection::root_pose_source_node(graph) else { continue; };
         let Some(context) = crate::extensions::animation_context::node_context_state(&arena.get_toplevel().node_states, StateKey::Default, node) else { continue; };
-        let source_instance = arena.get_toplevel().node_states
-            .get::<crate::extensions::source_instance::SourceInstanceProperties>(NodeId::default(), StateKey::Default)
-            .map_or(0, |state| state.instance_id);
+        let source_instance = notify_root_instance(arena);
+        let Ok(mut runtime) = runtimes.get_mut(avatar.character) else { continue; };
+        runtime.set_instance(source_instance);
         let state = frames.entry(entity).or_default();
         let frame = (source_instance, arena.frame_index());
+        if state.frame.is_some_and(|previous| previous.0 != source_instance) { *state = default(); }
         if state.frame == Some(frame) { continue; }
         state.frame = Some(frame);
         let current_slots = context.asset_samples.iter().filter(|sample| sample.montage && !sample.slot_key.is_empty())
@@ -350,6 +385,9 @@ fn dispatch_graph_footsteps(
             }
             for signal in signals {
                 let (class_name, name, parameters) = if let Some(event) = source.events.iter().find(|event| event.event_id == signal.id) {
+                    let chance = if sample.montage { &mut runtime.montage_chance }
+                        else { state.chance.entry(sample.notify_instance_id).or_default() };
+                    if !chance.accepts(event) { continue; }
                     if event.class_name == "AlsAnimNotify_CameraShake" && signal.phase == EventPhase::Point {
                         shakes.write(AlsCameraShakeRequest::sprint(avatar.character,
                             parameter_f32(&event.parameters, "CameraShakeScale", 1.0)));
@@ -371,6 +409,9 @@ fn dispatch_graph_footsteps(
             }
         }
         state.previous.retain(|identity, _| active.contains(identity));
+        state.chance.retain(|instance, _| arena.iter_context_ids().any(|context| arena.get_context(context).unwrap().node_states
+            .get::<crate::extensions::source_instance::SourceInstanceProperties>(crate::extensions::source_instance::source_notify_instance_node(), StateKey::Default)
+            .is_ok_and(|state| state.instance_id == *instance)));
     }
     frames.retain(|entity, _| players.contains(*entity));
 }
@@ -745,12 +786,14 @@ fn dispatch_animation_events(
             Option<&AlsPhysicalStanceOverride>,
             &mut AlsNotifyRootMotionScale,
             &mut AlsNotifyEarlyBlendOut,
+            Option<&crate::character_assembly::AlsCharacterAssembly>,
         ),
         With<AlsCharacter>,
     >,
     mut events: MessageWriter<AlsAnimationEvent>,
     mut shakes: MessageWriter<AlsCameraShakeRequest>,
-    avatars: Query<&crate::character_assembly::AlsCharacterAvatar>,
+    avatars: Query<(Entity, &crate::character_assembly::AlsCharacterAvatar, Option<&bevy_animation_graph::core::animated_scene::AnimatedSceneInstance>)>,
+    players: Query<&bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer>,
 ) {
     let Some(handle) = manifest_handle else {
         return;
@@ -766,8 +809,16 @@ fn dispatch_animation_events(
         physical_override,
         mut root_scale,
         mut early_blend_out,
+        assembly,
     ) in &mut characters
     {
+        if let Some(arena) = avatars.iter().find(|(entity, avatar, _)| avatar.character == character
+            && assembly.is_none_or(|assembly| assembly.avatar == *entity))
+            .and_then(|(_, _, instance)| instance)
+            .and_then(|instance| players.get(instance.player_entity()).ok())
+            .and_then(|player| player.get_context_arena()) {
+            runtime.set_instance(notify_root_instance(arena));
+        }
         let active_sources = playbacks.entries.iter()
             .filter(|playback| source_clip(manifest, &playback.source_asset).is_some())
             .map(|playback| (playback.source_asset.clone(), playback.instance_id))
@@ -873,9 +924,10 @@ fn dispatch_animation_events(
                         Value::Null,
                     ),
                 };
-                if class_name == "AlsAnimNotify_FootstepEffects" && avatars.iter().any(|avatar| avatar.character == character) {
+                if class_name == "AlsAnimNotify_FootstepEffects" && avatars.iter().any(|(_, avatar, _)| avatar.character == character) {
                     continue;
                 }
+                if event.is_some_and(|event| !runtime.montage_chance.accepts(event)) { continue; }
                 if class_name == "AlsAnimNotify_CameraShake" && signal.phase == EventPhase::Point {
                     shakes.write(AlsCameraShakeRequest::sprint(
                         character,
@@ -956,6 +1008,85 @@ fn dispatch_animation_events(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn point_notify_chance_matches_native_queue_and_preserves_state_notifies() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut manifest: AlsNotifyManifest = serde_json::from_str(include_str!("../../../assets/ALS/Animations/als_notify_manifest.json")).unwrap();
+        let source = manifest.clips.iter_mut().find(|source| source.source_asset == SOURCE_SPRINT).unwrap();
+        let template = source.events.iter().find(|event| event.class_name == "AlsAnimNotify_CameraShake").unwrap().clone();
+        let chances = [0.0, 1.0, 0.25, 0.5, 0.75, 0.0, 1.0, 0.5, 0.5];
+        let accepted = [false, true, true, false, true, false, true, true, false];
+        let seeds = [1546474474_i32, 1700686557, 424048428, -18432121, -1358584226, -1178120991, -598519296, 530668907, -511842670];
+        source.events = chances.into_iter().enumerate().map(|(index, chance)| {
+            let mut event = template.clone();
+            event.event_id = format!("chance_{index}");
+            event.start_time = (index + 1) as f32 * 0.1;
+            event.end_time = event.start_time;
+            event.trigger_time_offset = 0.0;
+            event.filter.trigger_chance = chance;
+            event
+        }).collect();
+        let mut filtered = template.clone();
+        filtered.event_id = "filtered".into();
+        filtered.start_time = 0.025;
+        filtered.weight_threshold = 2.0;
+        source.events.push(filtered);
+        let mut state = template;
+        state.event_id = "state".into();
+        state.kind = "state".into();
+        state.class_name = "AlsAnimNotifyState_EarlyBlendOut".into();
+        state.start_time = 0.0;
+        state.end_time = 2.0;
+        state.filter.trigger_chance = 0.0;
+        state.parameters = serde_json::json!({"BlendOutDuration": 2.0});
+        source.events.push(state);
+        source.sync_markers.truncate(1);
+        source.sync_markers[0].time = 0.05;
+        let graph_clip = source.runtime_segments[0].graph_clip.clone();
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default()))
+            .init_asset::<GraphClip>().init_asset::<AlsNotifyManifest>()
+            .init_resource::<AlsNotifyGraphClipHandles>()
+            .add_message::<AlsAnimationEvent>().add_message::<AlsCameraShakeRequest>();
+        let handle = app.world_mut().resource_mut::<Assets<AlsNotifyManifest>>().add(manifest);
+        app.insert_resource(AlsNotifyManifestHandle(handle));
+        let actors = [0, 1].map(|_| {
+            let mut entries = Vec::new();
+            push_playback(&mut entries, SOURCE_SPRINT, &graph_clip, 0.0, 1.0, false, false);
+            app.world_mut().spawn((AlsCharacter, AlsAnimationEventPlaybacks { entries })).id()
+        });
+        let world = app.world_mut();
+        world.run_system_once(ensure_animation_event_components).unwrap();
+        world.run_system_once(dispatch_animation_events).unwrap();
+        world.resource_mut::<Messages<AlsAnimationEvent>>().clear();
+        for index in 0..chances.len() {
+            for actor in actors {
+                world.get_mut::<AlsAnimationEventPlaybacks>(actor).unwrap().entries[0].time = (index + 1) as f32 * 0.1 + 0.01;
+            }
+            world.run_system_once(dispatch_animation_events).unwrap();
+            let events = world.resource_mut::<Messages<AlsAnimationEvent>>().drain().collect::<Vec<_>>();
+            assert_eq!(events.iter().filter(|event| event.phase == EventPhase::Point).count(), usize::from(accepted[index]) * 2);
+            assert_eq!(world.resource_mut::<Messages<AlsCameraShakeRequest>>().drain().count(), usize::from(accepted[index]) * 2);
+            for actor in actors {
+                assert_eq!(world.get::<AlsAnimationEventRuntime>(actor).unwrap().montage_chance.0 as i32, seeds[index]);
+                assert!(world.get::<AlsNotifyEarlyBlendOut>(actor).unwrap().active);
+                assert_eq!(world.get::<AlsNotifyEarlyBlendOut>(actor).unwrap().blend_out_duration, 2.0);
+            }
+            if index == 0 { assert_eq!(events.iter().filter(|event| event.phase == EventPhase::Marker).count(), 2); }
+        }
+        let mut runtime = AlsAnimationEventRuntime::default();
+        runtime.set_instance(1);
+        let mut event = world.resource::<Assets<AlsNotifyManifest>>().get(&world.resource::<AlsNotifyManifestHandle>().0).unwrap().clips
+            .iter().find(|source| source.source_asset == SOURCE_SPRINT).unwrap().events[3].clone();
+        event.filter.trigger_chance = 0.5;
+        for _ in 0..3 { assert!(runtime.montage_chance.accepts(&event)); }
+        runtime.set_instance(1);
+        assert!(!runtime.montage_chance.accepts(&event));
+        runtime.set_instance(2);
+        assert!(runtime.montage_chance.accepts(&event));
+        assert_eq!(runtime.montage_chance.0 as i32, seeds[0]);
+    }
 
     #[test]
     fn custom_source_action_and_early_blend_tags_keep_their_identity() {
@@ -1039,6 +1170,7 @@ mod tests {
         graph.add_output_data_edge(node.id, "Pose", "pose");
         graph.add_node(node);
         let graph = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(graph);
+        let forward_graph = graph.clone();
         app.world_mut().entity_mut(player_entity)
             .remove::<crate::extensions::post_physics_animation::ManualAnimationPlayer>()
             .insert(AnimationGraphPlayer::new(skeleton.clone()).with_graph(graph.clone()));
@@ -1144,6 +1276,54 @@ mod tests {
                 .map(|event| source.events.iter().position(|entry| entry.event_id == event.event_id).unwrap()).collect::<Vec<_>>();
             assert_eq!(actual, expected, "Native notify contract: looping={looping}, periods={periods}");
         }
+        let manifest_handle = app.world().resource::<AlsNotifyManifestHandle>().0.clone();
+        for (chance, expected) in [(0.0, 0), (0.5, 3), (0.5, 3), (1.0, 5)] {
+            for source in &mut app.world_mut().resource_mut::<Assets<AlsNotifyManifest>>().get_mut(&manifest_handle).unwrap().clips {
+                for event in &mut source.events {
+                    if event.class_name == "AlsAnimNotify_FootstepEffects" { event.filter.trigger_chance = chance; }
+                }
+            }
+            app.world_mut().entity_mut(player_entity).insert(AnimationGraphPlayer::new(skeleton.clone()).with_graph(forward_graph.clone()));
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
+            app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().clear();
+            let mut footsteps = 0;
+            for _ in 0..150 {
+                app.update();
+                footsteps += app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain()
+                    .filter(|event| event.character == character && event.class_name == "AlsAnimNotify_FootstepEffects").count();
+            }
+            assert_eq!(footsteps, expected, "Point notify chance {chance} across frames and rebuilt players");
+        }
+        let mut linked = AnimationGraph::new();
+        let blend = AnimationNode::new("linked instances", crate::extensions::SourceMultiWayBlendNode {
+            pose_count: 2, desired_alpha_keys: vec![String::new(); 2],
+            desired_alpha_defaults: vec![0.5, 0.5], ..default()
+        });
+        for index in 0..2 {
+            let node = AnimationNode::new(format!("instance {index}"), crate::extensions::LayeredGraphNode {
+                capture_context: true, internalize_time: true,
+                ..crate::extensions::LayeredGraphNode::new(forward_graph.clone())
+            });
+            linked.add_node_parameter_edge(node.id, "pose", blend.id, format!("Poses {index}"));
+            linked.add_node(node);
+        }
+        linked.add_output_data("pose".to_owned(), DataSpec::Pose);
+        linked.add_output_data_edge(blend.id, "Pose", "pose");
+        linked.add_node(blend);
+        let linked = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(linked);
+        for source in &mut app.world_mut().resource_mut::<Assets<AlsNotifyManifest>>().get_mut(&manifest_handle).unwrap().clips {
+            for event in &mut source.events { event.filter.trigger_chance = 0.5; }
+        }
+        app.world_mut().entity_mut(player_entity).insert(AnimationGraphPlayer::new(skeleton).with_graph(linked));
+        let mut footsteps = 0;
+        for _ in 0..150 {
+            app.update();
+            let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+            assert!(player.get_error().is_none(), "{:?}", player.get_error());
+            footsteps += app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain()
+                .filter(|event| event.character == character && event.class_name == "AlsAnimNotify_FootstepEffects").count();
+        }
+        assert_eq!(footsteps, 6, "Linked instances must have independent notify queues");
     }
 
     #[test]

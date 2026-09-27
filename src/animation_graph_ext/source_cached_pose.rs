@@ -14,6 +14,7 @@ use bevy_animation_graph::core::{
 };
 
 use crate::extensions::animation_context::{AnimationContextState, pose_input_context_state};
+use crate::extensions::source_instance::linked_instance_context;
 
 pub const CACHED_POSE_VALUE: &str = "__als_source_cached_pose";
 
@@ -73,21 +74,6 @@ fn scoped_cached_context_state(
         .get::<AnimationContextState>(cache_id, StateKey::Default)
         .ok()
         .cloned()
-}
-
-fn linked_instance_context(ctx: &NodeContext, mut context_id: GraphContextId) -> Option<GraphContextId> {
-    let arena = ctx.graph_context.context_arena.get_ref();
-    arena.get_context(context_id)?;
-    while let Some(parent) = arena.get_parent_context(context_id) {
-        let graph_id = arena.get_context(parent.ctx_id)?.get_graph_id();
-        let graph = ctx.graph_context.resources.animation_graph_assets.get(graph_id)?;
-        let node = graph.nodes.get(&parent.node_id)?;
-        if node.try_inner_downcast_ref::<crate::extensions::LayeredGraphNode>().is_some() {
-            return Some(context_id);
-        }
-        context_id = parent.ctx_id;
-    }
-    Some(context_id)
 }
 
 fn scoped_cache_context<'a>(ctx: &NodeContext<'a>, key: &str) -> Option<(GraphContextId, &'a AnimationGraph, NodeId)> {
@@ -348,11 +334,14 @@ mod tests {
                 let inputs = [("input".to_owned(), DataValue::Pose(Pose { timestamp: expected, ..default() }))].into();
                 let root_ctx = GraphContext::new(arena.get_toplevel_id(), root.1, &mut arena, &resources,
                     &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
-                let instance_ctx = root_ctx.create_node_context(instance).create_child_context(shared.0, shared.1, None);
+                let mut instance_ctx = root_ctx.create_node_context(instance).create_child_context(shared.0, shared.1, None);
+                crate::extensions::animation_context::write_linked_input_context(&mut instance_ctx,
+                    bevy_animation_graph::core::animation_graph::GraphInputPin::Passthrough("external".into()), default()).unwrap();
                 instance_ctx.create_node_context(input_id).state_mut_or_else(AnimationContextState::default)
                     .unwrap().curves.insert("Scope".to_owned(), expected);
                 let state_ctx = instance_ctx.create_node_context(machine_id).create_child_context(state.0, state.1, None);
                 let mut use_ctx = state_ctx.create_node_context(use_id);
+                let notify_instance = crate::extensions::source_instance::source_notify_instance_id(&use_ctx).unwrap();
                 prewarm_scoped_cached_pose(&mut use_ctx, "cache", "shared").unwrap();
                 state.1.nodes[&use_id].update(use_ctx.clone()).unwrap();
                 let pose = state_ctx.node_caches().get_output_data(use_id, StateKey::Default, "Pose".to_owned())
@@ -363,6 +352,7 @@ mod tests {
                 let sibling = instance_ctx.create_node_context(machine_id).create_child_context(state.0, state.1,
                     Some(bevy_animation_graph::core::state_machine::low_level::LowLevelStateId::HlState(default())));
                 let mut sibling = sibling.create_node_context(use_id);
+                assert_eq!(crate::extensions::source_instance::source_notify_instance_id(&sibling).unwrap(), notify_instance);
                 assert_eq!(resolve_scoped_cached_pose(&mut sibling, "cache", "shared").unwrap().timestamp, expected);
             }
             let inputs = HashMap::new();

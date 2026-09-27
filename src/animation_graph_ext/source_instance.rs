@@ -48,6 +48,35 @@ pub fn source_instance_properties<'a>(
         )
 }
 
+pub(crate) fn linked_instance_context(ctx: &NodeContext, mut context_id: GraphContextId) -> Option<GraphContextId> {
+    let arena = ctx.graph_context.context_arena.get_ref();
+    arena.get_context(context_id)?;
+    while let Some(parent) = arena.get_parent_context(context_id) {
+        let graph_id = arena.get_context(parent.ctx_id)?.get_graph_id();
+        let graph = ctx.graph_context.resources.animation_graph_assets.get(graph_id)?;
+        let node = graph.nodes.get(&parent.node_id)?;
+        if node.try_inner_downcast_ref::<crate::extensions::LayeredGraphNode>().is_some() {
+            return Some(context_id);
+        }
+        context_id = parent.ctx_id;
+    }
+    Some(context_id)
+}
+
+pub(crate) fn source_notify_instance_id(ctx: &NodeContext) -> Result<u64, GraphError> {
+    source_instance_properties(ctx)?;
+    let owner = linked_instance_context(ctx, ctx.graph_context.context_id).ok_or_else(|| GraphError::UnknownErrorNode {
+        graph: ctx.graph_context.context_id, node: ctx.node_id,
+        error: "Notify queue has no owning animation instance".to_owned(),
+    })?;
+    Ok(ctx.graph_context.context_arena.get_mut().get_context_mut(owner).unwrap().node_states
+        .get_mut_or_insert_with(source_notify_instance_node(), StateKey::Default, SourceInstanceProperties::default)?.instance_id)
+}
+
+pub(crate) fn source_notify_instance_node() -> NodeId {
+    bevy::asset::uuid::Uuid::from_u128(0x73c93986_c1b9_4711_ab60_e628fa6b36e6).into()
+}
+
 pub fn source_input_data(ctx: &NodeContext, key: &str) -> Option<DataValue> {
     let arena = ctx.graph_context.context_arena.get_ref();
     let state = arena

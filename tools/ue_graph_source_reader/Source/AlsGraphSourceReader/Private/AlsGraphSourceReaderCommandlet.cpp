@@ -11,6 +11,7 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimNode_SaveCachedPose.h"
 #include "Animation/AnimNotifyQueue.h"
+#include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/BlendSpace.h"
 #include "Animation/Skeleton.h"
@@ -904,6 +905,46 @@ TSharedPtr<FJsonObject> CaptureNotifyClockProbe(UObject* Asset)
     return Probe;
 }
 
+TSharedRef<FJsonObject> CaptureNotifyChanceProbe(UObject* Asset)
+{
+    FAnimNotifyQueue Queue;
+    FAnimNotifyEvent Event;
+    const auto Accept = [&Event, Asset](FAnimNotifyQueue& Target)
+    {
+        Target.AnimNotifies.Reset();
+        Target.AddAnimNotifies(true, {FAnimNotifyEventReference(&Event, Asset)}, 1.0f);
+        return !Target.AnimNotifies.IsEmpty();
+    };
+    TArray<TSharedPtr<FJsonValue>> Results;
+    for (const float Chance : {0.0f, 1.0f, 0.25f, 0.5f, 0.75f, 0.0f, 1.0f, 0.5f})
+    {
+        Event.NotifyTriggerChance = Chance;
+        TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+        Result->SetNumberField(TEXT("chance"), Chance);
+        Result->SetBoolField(TEXT("accepted"), Accept(Queue));
+        Result->SetNumberField(TEXT("seed"), Queue.RandomStream.GetCurrentSeed());
+        Results.Add(MakeShared<FJsonValueObject>(Result));
+    }
+    TSharedRef<FJsonObject> Probe = MakeShared<FJsonObject>();
+    Probe->SetArrayField(TEXT("points"), Results);
+    Probe->SetNumberField(TEXT("seed_before_state"), Queue.RandomStream.GetCurrentSeed());
+    Event.NotifyTriggerChance = 0.0f;
+    Event.NotifyStateClass = GetMutableDefault<UAnimNotifyState>();
+    Probe->SetBoolField(TEXT("state_accepted"), Accept(Queue));
+    Probe->SetNumberField(TEXT("seed_after_state"), Queue.RandomStream.GetCurrentSeed());
+    Queue.AnimNotifies.Reset();
+    Queue.UnfilteredMontageAnimNotifies.Reset();
+    Probe->SetNumberField(TEXT("seed_after_clear_events"), Queue.RandomStream.GetCurrentSeed());
+    Event.NotifyStateClass = nullptr;
+    Event.NotifyTriggerChance = 0.5f;
+    Probe->SetBoolField(TEXT("after_clear_accepted"), Accept(Queue));
+    Probe->SetNumberField(TEXT("after_clear_seed"), Queue.RandomStream.GetCurrentSeed());
+    FAnimNotifyQueue Fresh;
+    Probe->SetBoolField(TEXT("fresh_accepted"), Accept(Fresh));
+    Probe->SetNumberField(TEXT("fresh_seed"), Fresh.RandomStream.GetCurrentSeed());
+    return Probe;
+}
+
 TSharedRef<FJsonObject> CaptureCachedPoseLifecycleProbe()
 {
     struct FProbeProxy : FAnimInstanceProxy
@@ -1225,6 +1266,10 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
             return 7;
         }
         Root->SetObjectField(TEXT("notify_clock_probe"), Probe.ToSharedRef());
+    }
+    if (FParse::Param(*Params, TEXT("NotifyChanceProbe")))
+    {
+        Root->SetObjectField(TEXT("notify_chance_probe"), CaptureNotifyChanceProbe(Asset));
     }
 
     FString Json;
