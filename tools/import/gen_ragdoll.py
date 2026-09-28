@@ -782,6 +782,7 @@ def build_profile(source, project_max_angular_velocity_degrees):
                 "linear_damping": numeric(body["default_instance_properties"], "LinearDamping"),
                 "angular_damping": numeric(body["default_instance_properties"], "AngularDamping"),
                 "max_angular_speed_radians_per_second": target_max_angular_speed(body["default_instance_properties"], project_max_angular_velocity_degrees),
+                "gyroscopic_torque_enabled": boolean(body["default_instance_properties"], "bGyroscopicTorqueEnabled"),
                 "gravity_scale": 1.0 if boolean(body["default_instance_properties"], "bEnableGravity", True) else 0.0,
                 "material": target_material(body["physical_material_properties"]),
                 **({"mass_properties": mass_properties} if mass_properties is not None else {}),

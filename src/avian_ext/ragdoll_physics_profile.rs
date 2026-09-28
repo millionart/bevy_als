@@ -3,9 +3,11 @@ use std::sync::Arc;
 use avian3d::prelude::{
     ActiveCollisionHooks, AngularDamping, AngularInertia, CenterOfMass, Collider, CollisionLayers,
     CoefficientCombine, CollisionHooks, Friction, GravityScale, JointDamping, JointDisabled,
-    LinearDamping, Mass, MaxAngularSpeed, NoAutoAngularInertia, NoAutoCenterOfMass, NoAutoMass, PhysicsSystems,
+    LinearDamping, Mass, MaxAngularSpeed, NoAutoAngularInertia, NoAutoCenterOfMass, NoAutoMass, PhysicsSchedule,
+    PhysicsSystems, SolverSystems,
     Position, Restitution, RevoluteJoint, Rotation, SphericalJoint,
 };
+use avian3d::dynamics::solver::solver_body::{SolverBody, SolverBodyFlags};
 use bevy::ecs::schedule::ApplyDeferred;
 use bevy::ecs::system::SystemParam;
 use bevy::math::Isometry3d;
@@ -43,6 +45,7 @@ pub struct RagdollBodyPhysicsProfile {
     pub friction: Friction,
     pub restitution: Restitution,
     pub mass_properties: Option<RagdollMassProperties>,
+    pub gyroscopic_torque_enabled: bool,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -51,6 +54,9 @@ pub struct RagdollMassProperties {
     pub center_of_mass_m: Vec3,
     pub inertia_tensor_kg_m2: Mat3,
 }
+
+#[derive(Component)]
+struct RagdollGyroscopicTorqueDisabled;
 
 #[derive(Clone, Debug)]
 pub struct RagdollColliderPhysicsProfile {
@@ -110,6 +116,8 @@ struct PhysicsAssetBodyTarget {
     material: PhysicsAssetMaterial,
     #[serde(default)]
     mass_properties: Option<PhysicsAssetMassProperties>,
+    #[serde(default)]
+    gyroscopic_torque_enabled: bool,
 }
 
 #[derive(Deserialize)]
@@ -250,6 +258,7 @@ impl RagdollPhysicsProfile {
                         center_of_mass_m: Vec3::from_array(value.center_of_mass_m),
                         inertia_tensor_kg_m2: Mat3::from_cols_array_2d(&value.inertia_tensor_kg_m2),
                     }),
+                    gyroscopic_torque_enabled: body.target.gyroscopic_torque_enabled,
                 })
             })
             .collect::<Result<Vec<_>, String>>()?;
@@ -422,7 +431,17 @@ impl Plugin for RagdollPhysicsProfilePlugin {
                 .after(RagdollPhysicsHandoffSet)
                 .before(RagdollAngularDriveSet)
                 .before(PhysicsSystems::First),
-        );
+        )
+        .add_systems(PhysicsSchedule, disable_ragdoll_gyroscopic_torque
+            .in_set(SolverSystems::PreSubstep));
+    }
+}
+
+fn disable_ragdoll_gyroscopic_torque(
+    mut bodies: Query<&mut SolverBody, With<RagdollGyroscopicTorqueDisabled>>,
+) {
+    for mut body in &mut bodies {
+        body.flags.remove(SolverBodyFlags::GYROSCOPIC_MOTION);
     }
 }
 
@@ -490,7 +509,7 @@ fn profile_application_change(
 fn apply_ragdoll_physics_profiles(
     mut commands: Commands,
     mut players: Query<
-        (Entity, &AnimationGraphPlayer, &RagdollPhysicsProfile, Option<&mut RagdollPhysicsProfileApplied>),
+        (Entity, &AnimationGraphPlayer, Ref<RagdollPhysicsProfile>, Option<&mut RagdollPhysicsProfileApplied>),
     >,
     body_labels: Query<&BodyLabel>,
     collider_labels: Query<&ColliderLabel>,
@@ -508,16 +527,18 @@ fn apply_ragdoll_physics_profiles(
             continue;
         };
         let scale = ragdoll_positive_uniform_scale(player_entity, &scenes, &transform_helper);
-        let Some((scale_factor, old_root)) = profile_application_change(
+        let (scale_factor, old_root) = match profile_application_change(
             applied.as_ref().map(|applied| **applied), spawned.root, scale,
-        ) else {
-            continue;
+        ) {
+            Some(change) => change,
+            None if profile.is_changed() => (1.0, None),
+            None => continue,
         };
         if let Some(old_root) = old_root { commands.entity(old_root).try_despawn(); }
         let next = apply_profile_to_spawned_ragdoll(
             &mut commands,
             spawned,
-            profile,
+            &profile,
             scale,
             scale_factor,
             &body_labels,
@@ -596,6 +617,11 @@ fn apply_profile_to_spawned_ragdoll(
                 AngularInertia::from_mat3_unchecked(mass.inertia_tensor_kg_m2 * scale * scale),
                 NoAutoMass, NoAutoCenterOfMass, NoAutoAngularInertia,
             ));
+        }
+        if body.gyroscopic_torque_enabled {
+            commands.entity(*body_entity).remove::<RagdollGyroscopicTorqueDisabled>();
+        } else {
+            commands.entity(*body_entity).insert(RagdollGyroscopicTorqueDisabled);
         }
         applied.body_count += 1;
     }
@@ -1056,6 +1082,7 @@ mod tests {
             assert!((world.get::<Friction>(entity).unwrap().static_coefficient - 0.7).abs() < 1e-6);
             assert!((world.get::<Restitution>(entity).unwrap().coefficient - 0.3).abs() < 1e-6);
             assert!((world.get::<MaxAngularSpeed>(entity).unwrap().0 - std::f32::consts::TAU * 10.0).abs() < 1e-5);
+            assert!(world.get::<RagdollGyroscopicTorqueDisabled>(entity).is_some());
         }
         assert_eq!(world.get::<avian3d::prelude::CollisionLayers>(root_collider),
             Some(&avian3d::prelude::CollisionLayers::NONE));
@@ -1103,8 +1130,11 @@ mod tests {
         body["target"]["material"]["dynamic_friction"] = serde_json::json!(0.8);
         body["target"]["material"]["static_friction"] = serde_json::json!(0.8);
         body["target"]["material"]["restitution"] = serde_json::json!(0.6);
+        body["target"]["gyroscopic_torque_enabled"] = serde_json::json!(true);
         let mass_profile = RagdollPhysicsProfile::from_json(&source.to_string()).unwrap();
-        let mass_profile_scaled = mass_profile.clone();
+        let mut mass_profile_scaled = mass_profile.clone();
+        mass_profile_scaled.bodies.iter_mut().find(|body| body.label == "pelvis").unwrap()
+            .gyroscopic_torque_enabled = false;
         let mass_again_scaled = SpawnedRagdoll {
             root: mass_again.root, bodies: mass_again.bodies.clone(),
             colliders: mass_again.colliders.clone(), joints: mass_again.joints.clone(),
@@ -1125,6 +1155,8 @@ mod tests {
         assert_eq!(world.get::<Restitution>(pelvis_body).unwrap().coefficient, 0.6);
         assert_eq!(world.get::<Friction>(spine_body).unwrap().dynamic_coefficient, 0.7);
         assert_eq!(world.get::<Restitution>(spine_body).unwrap().coefficient, 0.3);
+        assert!(world.get::<RagdollGyroscopicTorqueDisabled>(pelvis_body).is_none());
+        assert!(world.get::<RagdollGyroscopicTorqueDisabled>(spine_body).is_some());
         assert!(world.get::<NoAutoMass>(pelvis_body).is_some());
         assert!(world.get::<NoAutoCenterOfMass>(pelvis_body).is_some());
         assert!(world.get::<NoAutoAngularInertia>(pelvis_body).is_some());
@@ -1140,6 +1172,7 @@ mod tests {
         }).unwrap();
         assert_eq!(world.get::<CenterOfMass>(pelvis_body).unwrap().0, Vec3::new(0.2, 0.6, 0.4));
         assert_eq!(world.get::<MaxAngularSpeed>(pelvis_body).unwrap().0, 2.0);
+        assert!(world.get::<RagdollGyroscopicTorqueDisabled>(pelvis_body).is_some());
         let mut principal = world.get::<AngularInertia>(pelvis_body).unwrap().principal.to_array();
         principal.sort_by(f32::total_cmp);
         assert!(principal.iter().zip([0.4, 0.8, 1.2]).all(|(actual, expected)| (actual - expected).abs() < 1e-5));
@@ -1171,6 +1204,62 @@ mod tests {
         let velocity = app.world().get::<AngularVelocity>(entity).unwrap().0;
         assert!((velocity.length() - 2.0).abs() < 1e-5, "{velocity:?}");
         assert!((velocity.normalize() - Vec3::new(0.6, 0.8, 0.0)).length() < 1e-5);
+    }
+
+    #[test]
+    fn disabled_ragdoll_gyroscopic_torque_preserves_multi_axis_spin() {
+        use avian3d::prelude::{AngularVelocity, ConstantTorque, RigidBody, Sleeping};
+        use bevy::time::TimeUpdateStrategy;
+        use std::time::Duration;
+
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin,
+            TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate),
+            RagdollPhysicsProfilePlugin));
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0 / 60.0)));
+        app.finish();
+        app.cleanup();
+        let initial = Vec3::new(1.0, 2.0, 3.0);
+        let spawn = |world: &mut World, x: f32, inertia: Vec3| world.spawn((RigidBody::Dynamic,
+            Collider::sphere(0.5), Position(Vec3::X * x), GravityScale(0.0),
+            AngularVelocity(initial), AngularDamping(0.0), Mass(1.0), NoAutoMass,
+            AngularInertia::new(inertia), NoAutoAngularInertia)).id();
+        let anisotropic = Vec3::new(1.0, 2.0, 3.0);
+        let disabled = spawn(app.world_mut(), 0.0, anisotropic);
+        app.world_mut().entity_mut(disabled).insert(RagdollGyroscopicTorqueDisabled);
+        let enabled = spawn(app.world_mut(), 5.0, anisotropic);
+        let isotropic = spawn(app.world_mut(), 10.0, Vec3::ONE);
+        app.update();
+        app.update();
+        let disabled_velocity = app.world().get::<AngularVelocity>(disabled).unwrap().0;
+        let enabled_velocity = app.world().get::<AngularVelocity>(enabled).unwrap().0;
+        assert!((disabled_velocity - initial).length() < 1e-4, "{disabled_velocity:?}");
+        assert!((enabled_velocity - initial).length() > 1e-3, "{enabled_velocity:?}");
+        assert!((app.world().get::<AngularVelocity>(isotropic).unwrap().0 - initial).length() < 1e-4);
+        assert!(!app.world().get::<SolverBody>(disabled).unwrap().is_gyroscopic());
+        assert!(app.world().get::<SolverBody>(enabled).unwrap().is_gyroscopic());
+        app.world_mut().entity_mut(disabled).remove::<RagdollGyroscopicTorqueDisabled>();
+        app.world_mut().entity_mut(disabled).insert(AngularVelocity(initial));
+        app.update();
+        assert!((app.world().get::<AngularVelocity>(disabled).unwrap().0 - initial).length() > 1e-3);
+        app.world_mut().entity_mut(disabled).insert((RagdollGyroscopicTorqueDisabled, AngularVelocity(initial)));
+        app.update();
+        assert!((app.world().get::<AngularVelocity>(disabled).unwrap().0 - initial).length() < 1e-4);
+        app.world_mut().entity_mut(disabled).insert(Sleeping);
+        app.update();
+        assert!(app.world().get::<SolverBody>(disabled).is_none());
+        app.world_mut().entity_mut(disabled).remove::<Sleeping>();
+        app.world_mut().entity_mut(disabled).insert(AngularVelocity(initial));
+        app.update();
+        assert!((app.world().get::<AngularVelocity>(disabled).unwrap().0 - initial).length() < 1e-4);
+        assert!(!app.world().get::<SolverBody>(disabled).unwrap().is_gyroscopic());
+        let rebuilt = spawn(app.world_mut(), 15.0, anisotropic);
+        app.world_mut().entity_mut(rebuilt).insert(RagdollGyroscopicTorqueDisabled);
+        app.update();
+        assert!((app.world().get::<AngularVelocity>(rebuilt).unwrap().0 - initial).length() < 1e-4);
+        app.world_mut().entity_mut(disabled).insert((AngularVelocity(initial), ConstantTorque::new(6.0, 0.0, 0.0)));
+        app.update();
+        assert!(app.world().get::<AngularVelocity>(disabled).unwrap().0.x > initial.x + 0.05);
     }
 
     #[test]
@@ -1282,6 +1371,15 @@ mod tests {
             .abs_diff_eq(collider_extent * 2.0, 1e-5));
         assert!(world.get::<SourcePhysicsJoint>(fresh_joint).unwrap().parent_frame.translation
             .abs_diff_eq(joint_offset * 2.0, 1e-5));
+        assert!(world.get::<RagdollGyroscopicTorqueDisabled>(fresh_body).is_some());
+        world.get_mut::<RagdollPhysicsProfile>(player).unwrap().bodies.iter_mut()
+            .find(|body| body.label == body_label).unwrap().gyroscopic_torque_enabled = true;
+        world.run_system_once(apply_ragdoll_physics_profiles).unwrap();
+        assert!(world.get::<RagdollGyroscopicTorqueDisabled>(fresh_body).is_none());
+        world.get_mut::<RagdollPhysicsProfile>(player).unwrap().bodies.iter_mut()
+            .find(|body| body.label == body_label).unwrap().gyroscopic_torque_enabled = false;
+        world.run_system_once(apply_ragdoll_physics_profiles).unwrap();
+        assert!(world.get::<RagdollGyroscopicTorqueDisabled>(fresh_body).is_some());
         assert!(world.get_entity(old_root).is_err());
         assert!(world.get_entity(body).is_err());
     }

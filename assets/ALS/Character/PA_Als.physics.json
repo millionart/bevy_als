@@ -270,6 +270,7 @@
         "angular_damping": 0.0,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
+        "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
         "material": {
           "dynamic_friction": 0.7,
@@ -551,6 +552,7 @@
         "angular_damping": 0.0,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
+        "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
         "material": {
           "dynamic_friction": 0.7,
@@ -832,6 +834,7 @@
         "angular_damping": 0.0,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
+        "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
         "material": {
           "dynamic_friction": 0.7,
@@ -1288,6 +1291,7 @@
         "angular_damping": 0.0,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
+        "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
         "material": {
           "dynamic_friction": 0.7,
@@ -1569,6 +1573,7 @@
         "angular_damping": 0.0,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
+        "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
         "material": {
           "dynamic_friction": 0.7,
@@ -1850,6 +1855,7 @@
         "angular_damping": 0.0,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
+        "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
         "material": {
           "dynamic_friction": 0.7,
@@ -2131,6 +2137,7 @@
         "angular_damping": 0.0,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
+        "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
         "material": {
           "dynamic_friction": 0.7,
@@ -2412,6 +2419,7 @@
         "angular_damping": 0.0,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
+        "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
         "material": {
           "dynamic_friction": 0.7,
@@ -2693,6 +2701,7 @@
         "angular_damping": 0.0,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
+        "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
         "material": {
           "dynamic_friction": 0.7,
@@ -2974,6 +2983,7 @@
         "angular_damping": 0.0,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
+        "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
         "material": {
           "dynamic_friction": 0.7,
@@ -3255,6 +3265,7 @@
         "angular_damping": 0.0,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
+        "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
         "material": {
           "dynamic_friction": 0.7,
@@ -3536,6 +3547,7 @@
         "angular_damping": 0.0,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
+        "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
         "material": {
           "dynamic_friction": 0.7,
@@ -3817,6 +3829,7 @@
         "angular_damping": 0.0,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
+        "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
         "material": {
           "dynamic_friction": 0.7,
@@ -4098,6 +4111,7 @@
         "angular_damping": 0.0,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
+        "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
         "material": {
           "dynamic_friction": 0.7,
@@ -4379,6 +4393,7 @@
         "angular_damping": 0.0,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
+        "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
         "material": {
           "dynamic_friction": 0.7,
@@ -4660,6 +4675,7 @@
         "angular_damping": 0.0,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
+        "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
         "material": {
           "dynamic_friction": 0.7,
@@ -4954,6 +4970,7 @@
         "angular_damping": 0.0,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
+        "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
         "material": {
           "dynamic_friction": 0.7,
@@ -5248,6 +5265,7 @@
         "angular_damping": 0.0,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
+        "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
         "material": {
           "dynamic_friction": 0.7,
@@ -5475,6 +5493,7 @@
         "angular_damping": 0.0,
         "default_mode": "Kinematic",
         "gravity_scale": 1.0,
+        "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
         "material": {
           "dynamic_friction": 0.7,
@@ -5769,6 +5788,7 @@
         "angular_damping": 0.0,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
+        "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
         "material": {
           "dynamic_friction": 0.7,
@@ -6063,6 +6083,7 @@
         "angular_damping": 0.0,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
+        "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
         "material": {
           "dynamic_friction": 0.7,
