@@ -73,7 +73,7 @@
 - [x] **BF131.A75 — SequencePlayer 初始化未保留默认倒播起点语义，非循环负倍率停在首帧**。Gate：默认负倍率从源规定终点初始化；显式起点、循环/非循环及重初始化通过。
 - [x] **BF131.A76 — StateResult 完全混入／完全混出回调被解析和生成，但 FSM 从不触发**。Gate：实际状态权重到达端点触发对应回调，连续帧不重复，打断/重入符合源生命周期。
 - [x] **BF131.A77 — 根运动平移按固定轨迹坐标相减，遗漏前一 root 旋转的相对空间转换**。Gate：带旋转轨迹按前一 root 局部空间提取位移，正倒播和循环连续，直线控制通过。
-- [ ] **BF131.A78 — GroundPlane 将 yaw 同时发布为根运动并保留在输出 root 姿态中**。Gate：消费 yaw 后输出 root 去除对应旋转，保留源规定的高度/其他轴，角色不重复旋转。
+- [x] **BF131.A78 — GroundPlane 将 yaw 同时发布为根运动并保留在输出 root 姿态中**。Gate：消费 yaw 后输出 root 去除对应旋转，保留源规定的高度/其他轴，角色不重复旋转。
 
 ### PhysicsAsset、关节与布娃娃回读
 
@@ -293,3 +293,10 @@
 - BF131.A77-S3：开始 2026-09-28 13:35 +08:00；预估结束 2026-09-28 14:10 +08:00。用 run_manual 同一 target_game/play 优化构建刷新全部图规格、审计 Grounded/根作者合同和旧 RollSlot 加载，再跑 startup、grounded、state_machine 公共功能 Gate；核对滚动 slot 根运动、图/时序/watchdog 与保留的原始性能结果。通过后勾选并单独提交 A77。
   - Runtime 前摘要（13:40 +08:00）：fresh UE 根变换相对提取/逐段循环累积、旋转/直线及正反单次/多次跨循环实际 GraphContext、两项移除消融和完整库 1265 项闭合；同 run_manual 的 target_game/play 优化构建、349 图 fresh 规格与旧 RollSlot 缺省字段加载通过，Grounded/根作者合同 20 条声明命令通过。RON/转换器未改，沿用 A72 全入口 374 文件零 diff；开始公共功能 Gate，保留原始性能报告。
   - S3 实际结束 2026-09-28 13:43 +08:00，偏差 -27 分钟；结果：startup、grounded 15/15（含 roll_slot/退出）、state_machine 10/10 公共功能 Gate 全部 PASS，三份报告故障/图错误/时序异常/watchdog 为 0，手工与校验进程均退出 0；原始报告保留既定延期的 max_eval_p95_ms 超预算。源相对根公式、旋转/直线与多圈正反循环、两项消融、完整库 1265 项、旧 RollSlot/349 图加载及 20 条声明命令闭合；RON/转换器/原始资产未改，沿用 A72 的 374 文件零 diff，勾选 A77。
+- BF131.A78-S1：开始 2026-09-28 13:44 +08:00；预估结束 2026-09-28 14:09 +08:00。依据：fresh UE AnimSequence 的 RootMotionReset 在提取后把 root 恢复到参考/首帧/单位姿态，目标 `RootMotionMode::GroundPlane` 依契约只提水平位移和 Y yaw、保留竖直与 XZ tilt，但项目 RootMotionClipNode 当前留下完整旋转，RollSlot 同时将 yaw 交给角色与骨骼。先确认参考根基及实际消费者，建立带 yaw+tilt、高度、无 yaw 的实际 GraphContext 红色输出姿态与根运动反例；不复开 A77 相对根轨迹和循环实现。
+  - S1 实际结束 2026-09-28 13:49 +08:00，偏差 -20 分钟；结果：UE RootMotionReset 对提取后的 root 使用参考/首帧/单位锁，目标 GroundPlane 明确只提水平位移/Y yaw 且保留高度/XZ tilt，RollSlot 的 `roll_drive` 又把根旋转应用于角色。实际 GraphContext 混合 yaw+XZ tilt、非零参考根、高度与无 yaw 控制稳定 red：无 yaw 的纯 tilt 被轴角 Y 投影误报 0.015 rad，带 yaw 时输出 root 保留完整旋转。统一 YXZ 分解提取 yaw 并从参考根相对姿态中去除后定向 green；下一步补角色合成不双转、移除姿态修正消融和回归，不更改 A77 平移/循环。
+- BF131.A78-S2：开始 2026-09-28 13:49 +08:00；预估结束 2026-09-28 14:19 +08:00。沿现有 GroundPlane 分支仅对旋转做一致 YXZ 分解，根运动输出 yaw、可见 root 保留参考姿态与 XZ tilt；实际图验算角色 yaw 与剩余姿态合成等于原输入。移除姿态修正与 yaw 分解分别消融，跑根节点/完整库与旧 RollSlot 加载 Gate；RON/转换器不动，真实入口另起 S3。
+  - S2 实际结束 2026-09-28 13:58 +08:00，偏差 -21 分钟；结果：GroundPlane 逐段从相对参考姿态的绝对 YXZ yaw 求差并积累到根运动；可见 root 移除当前绝对 yaw、保留参考朝向与 XZ tilt，原高度及水平位移筛选未动。实际 GraphContext 以非零参考根、纯 tilt、混合 yaw+tilt 和两帧角色 yaw×可见 root 合成验证无双转/漂移；移除姿态修正或回退到相对轴角/相对欧拉提取均 red，恢复后完整库 1266/1266、git diff --check 通过。只改项目 RootMotionClipNode 与测试，RON/转换器/原始资产未改，旧 RollSlot 加载留 S3。
+- BF131.A78-S3：开始 2026-09-28 13:58 +08:00；预估结束 2026-09-28 14:28 +08:00。同 run_manual 的 target_game/play 优化构建刷新 349 图规格和旧 RollSlot 加载，审计 Grounded/根作者合同，再跑 startup、grounded、state_machine 公共功能 Gate，核对角色旋转/姿态、图/时序/watchdog 与保留的原始性能结果。通过后勾选并单独提交 A78。
+  - Runtime 前摘要（14:02 +08:00）：fresh UE RootMotionReset 参考姿态规则、实际 GraphContext 单帧/连续帧高度与 XZ tilt 保留、角色累计 yaw×可见 root 不双转、姿态与 yaw 路由消融及完整库 1266 项闭合；同 run_manual 的 target_game/play 优化构建、349 图 fresh 规格/旧 RollSlot 加载和 Grounded/根作者合同 20 条声明命令通过。RON/转换器未改，沿用 A72 全入口 374 文件零 diff；开始公共功能 Gate，保留原始性能延期结果。
+  - S3 实际结束 2026-09-28 14:05 +08:00，偏差 -23 分钟；结果：startup、grounded 15/15（含 roll_slot/退出）、state_machine 10/10 公共功能 Gate 全部 PASS，三份报告故障/图错误/时序异常/watchdog 为 0，手工与校验进程均退出 0；原始报告保留既定延期的 max_eval_p95_ms 超预算。源参考根规则、单帧/连续帧 yaw 与 tilt/高度及角色合成、三项姿态/yaw 消融、完整库 1266 项、旧 RollSlot/349 图加载和 20 条声明命令闭合；RON/转换器/原始资产未改，沿用 A72 的 374 文件零 diff，勾选 A78。

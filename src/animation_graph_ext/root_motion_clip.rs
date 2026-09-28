@@ -3,7 +3,7 @@ use std::any::TypeId;
 use bevy::{
     animation::animation_curves::WeightsCurveSample,
     asset::Handle,
-    math::{Quat, Vec3},
+    math::{EulerRot, Quat, Vec3},
     platform::hash::Hashed,
     prelude::{EvaluatorId, Transform, VariableCurve},
     reflect::prelude::*,
@@ -207,13 +207,24 @@ impl NodeLike for RootMotionClipNode {
                 }
                 let empty: Vec<VariableCurve> = Vec::new();
                 let root_curves = clip.curves.get(&target_id).unwrap_or(&empty);
+                let rest_local = skeleton.default_transforms(root_bone_id).map(|dt| dt.local);
+                let rest_translation = rest_local.map(|t| t.translation).unwrap_or(Vec3::ZERO);
+                let rest_rotation = rest_local.map(|t| t.rotation).unwrap_or(Quat::IDENTITY);
                 let mut delta_translation = Vec3::ZERO;
                 let mut delta_rotation = Quat::IDENTITY;
+                let mut ground_yaw_delta = Quat::IDENTITY;
                 let mut accumulate = |from, to| {
                     let (start_tr, start_rot) = sample_root(root_curves, from);
                     let (end_tr, end_rot) = sample_root(root_curves, to);
                     delta_translation += delta_rotation * (start_rot.inverse() * (end_tr - start_tr));
                     delta_rotation = (delta_rotation * start_rot.inverse() * end_rot).normalize();
+                    if matches!(self.root_motion_mode, RootMotionMode::GroundPlane) {
+                        let start_yaw = Quat::from_rotation_y(
+                            (rest_rotation.inverse() * start_rot).to_euler(EulerRot::YXZ).0);
+                        let end_yaw = Quat::from_rotation_y(
+                            (rest_rotation.inverse() * end_rot).to_euler(EulerRot::YXZ).0);
+                        ground_yaw_delta = (ground_yaw_delta * start_yaw.inverse() * end_yaw).normalize();
+                    }
                 };
                 if self.loop_animation && clip_duration > f32::EPSILON
                     && let TimeUpdate::Delta(delta) = &time_update {
@@ -238,10 +249,6 @@ impl NodeLike for RootMotionClipNode {
                     accumulate(clamped_prev, current_time);
                 }
 
-                let rest_local = skeleton.default_transforms(root_bone_id).map(|dt| dt.local);
-                let rest_translation = rest_local.map(|t| t.translation).unwrap_or(Vec3::ZERO);
-                let rest_rotation = rest_local.map(|t| t.rotation).unwrap_or(Quat::IDENTITY);
-
                 match self.root_motion_mode {
                     RootMotionMode::Full => {
                         if let Some(bone_idx) = out_pose.paths.get(&root_bone_id).copied() {
@@ -251,14 +258,19 @@ impl NodeLike for RootMotionClipNode {
                     }
                     RootMotionMode::GroundPlane => {
                         delta_translation.y = 0.0;
-                        let (axis, angle) = delta_rotation.to_axis_angle();
-                        let y_angle = angle * axis.y;
-                        delta_rotation = Quat::from_rotation_y(y_angle);
+                        delta_rotation = ground_yaw_delta;
                         if let Some(bone_idx) = out_pose.paths.get(&root_bone_id).copied()
                             && let Some(ref mut t) = out_pose.bones[bone_idx].translation
                         {
                             t.x = rest_translation.x;
                             t.z = rest_translation.z;
+                        }
+                        if let Some(bone_idx) = out_pose.paths.get(&root_bone_id).copied()
+                            && let Some(rotation) = out_pose.bones[bone_idx].rotation
+                        {
+                            let relative = rest_rotation.inverse() * rotation;
+                            let yaw = Quat::from_rotation_y(relative.to_euler(EulerRot::YXZ).0);
+                            out_pose.bones[bone_idx].rotation = Some(rest_rotation * yaw.inverse() * relative);
                         }
                     }
                     RootMotionMode::Disabled => {}
@@ -397,6 +409,88 @@ mod tests {
                     assert!(1.0 - deltas[1].rotation.dot(half.inverse() * end).abs() < 1e-5);
                 }
             }
+        }
+    }
+
+    #[test]
+    fn ground_plane_root_motion_removes_consumed_yaw_but_keeps_tilt_and_height() {
+        fn query(In(handle): In<Handle<AnimationGraph>>, resources: SystemResources) -> Vec<(RootMotionDelta, BonePose)> {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = default();
+            let inputs = default();
+            let env = TestIoEnv::default();
+            [0.5, 1.0].into_iter().map(|time| {
+                let output = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Absolute(time)),
+                    GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources,
+                        &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs)).unwrap();
+                let pose = output["Pose"].as_pose().unwrap();
+                (pose.root_motion.clone().unwrap(),
+                    pose.get_bone(EntityPath::default().child("root").id()).unwrap().clone())
+            }).collect()
+        }
+
+        let root = EntityPath::default().child("root");
+        let reference = Transform::from_translation(Vec3::Y * 0.1)
+            .with_rotation(Quat::from_rotation_y(0.2));
+        let tilt = Quat::from_rotation_x(0.3) * Quat::from_rotation_z(-0.2);
+        let mut world = World::new();
+        world.init_resource::<Assets<AnimationGraph>>();
+        world.init_resource::<Assets<GraphClip>>();
+        world.init_resource::<Assets<Skeleton>>();
+        world.init_resource::<Assets<bevy_animation_graph::core::state_machine::high_level::StateMachine>>();
+        let mut skeleton = Skeleton::default();
+        skeleton.set_root(root.id());
+        skeleton.add_bone(root.clone(), reference, reference);
+        let skeleton = world.resource_mut::<Assets<Skeleton>>().add(skeleton);
+        for yaw in [0.0, std::f32::consts::FRAC_PI_2] {
+            let mut clip = bevy::animation::AnimationClip::default();
+            clip.add_curve_to_target(root.id().animation_target_id(), AnimatableCurve::new(
+                animated_field!(Transform::translation), UnevenSampleAutoCurve::new([
+                    (0.0, reference.translation), (1.0, Vec3::new(1.0, 0.5, 2.0)),
+                ]).unwrap()));
+            clip.add_curve_to_target(root.id().animation_target_id(), AnimatableCurve::new(
+                animated_field!(Transform::rotation), UnevenSampleAutoCurve::new([
+                    (0.0, reference.rotation),
+                    (1.0, reference.rotation * Quat::from_rotation_y(yaw) * tilt),
+                ]).unwrap()));
+            let clip = world.resource_mut::<Assets<GraphClip>>().add(
+                GraphClip::from_bevy_clip(clip, skeleton.clone(), default(), None));
+            let raw_rotations = {
+                let clips = world.resource::<Assets<GraphClip>>();
+                let curves = &clips.get(&clip).unwrap().curves[&root.id().animation_target_id()];
+                [0.5, 1.0].map(|time| sample_root(curves, time).1)
+            };
+            let node = AnimationNode::new("ground root", RootMotionClipNode {
+                clip: clip.clone(), root_motion_mode: RootMotionMode::GroundPlane,
+                root_motion_bone: Some(root.clone()), loop_animation: false,
+            });
+            let mut graph = AnimationGraph::new();
+            graph.add_node(node.clone());
+            graph.add_output_data("Pose".into(), DataSpec::Pose);
+            graph.add_output_data_edge(node.id, "pose", "Pose");
+            graph.add_output_time();
+            graph.add_output_pose_edge(node.id);
+            let graph = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
+            let frames = world.run_system_cached_with(query, graph).unwrap();
+            let (motion, pose) = &frames[1];
+            let expected_yaw = Quat::from_rotation_y(yaw);
+            let previous_yaw = (reference.rotation.inverse() * raw_rotations[0]).to_euler(EulerRot::YXZ).0;
+            let expected_step = Quat::from_rotation_y(yaw - previous_yaw);
+            let expected_pose = reference.rotation * tilt;
+            assert!(1.0 - motion.rotation.dot(expected_step).abs() < 1e-5, "yaw={yaw}: motion={motion:?}");
+            assert!(1.0 - pose.rotation.unwrap().dot(expected_pose).abs() < 1e-5, "yaw={yaw}: pose={pose:?}");
+            let mut actor = Quat::IDENTITY;
+            for ((delta, pose), raw_rotation) in frames.iter().zip(raw_rotations) {
+                actor = (actor * delta.rotation).normalize();
+                let combined = actor * pose.rotation.unwrap();
+                assert!(1.0 - combined.dot(raw_rotation).abs() < 1e-5,
+                    "yaw={yaw}: accumulated root rotation doubled or drifted");
+            }
+            assert!(1.0 - actor.dot(expected_yaw).abs() < 1e-5);
+            assert_eq!(pose.translation.unwrap(), Vec3::Y * 0.5);
+            assert_eq!(motion.translation.y, 0.0);
         }
     }
 }
