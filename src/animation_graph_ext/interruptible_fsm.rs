@@ -520,6 +520,38 @@ impl InterruptibleFsmNode {
             .collect())
     }
 
+    fn blend_endpoint_notifications(
+        machine: &LowLevelStateMachine,
+        previous: &[SourceFsmStateWeight],
+        current: &[SourceFsmStateWeight],
+        graphs: &Assets<AnimationGraph>,
+    ) -> Result<Vec<SourceTransitionNotification>, GraphError> {
+        let state_id = |id: &str| machine.states.keys().find_map(|state| match state {
+            LowLevelStateId::HlState(value) if value.uuid().to_string() == id => Some(*value),
+            _ => None,
+        });
+        let mut notifications = Vec::new();
+        for weight in previous {
+            if weight.value > f32::EPSILON
+                && current.iter().all(|value| value.state_id != weight.state_id || value.value <= f32::EPSILON)
+                && let Some(state) = state_id(&weight.state_id)
+            {
+                notifications.extend(Self::state_function_notifications(machine, state,
+                    "OnStateFullyBlendedOut", graphs)?);
+            }
+        }
+        for weight in current {
+            if weight.value >= 1.0 - f32::EPSILON
+                && previous.iter().all(|value| value.state_id != weight.state_id || value.value < 1.0 - f32::EPSILON)
+                && let Some(state) = state_id(&weight.state_id)
+            {
+                notifications.extend(Self::state_function_notifications(machine, state,
+                    "OnStateFullyBlendedIn", graphs)?);
+            }
+        }
+        Ok(notifications)
+    }
+
     fn can_interrupt(
         machine: &LowLevelStateMachine,
         state: &InterruptibleFsmState,
@@ -1265,6 +1297,10 @@ impl InterruptibleFsmNode {
         }
         let now = ctx.time();
         let weights = Self::state_weight_values(machine, &state, ctx, now)?;
+        state.transition_notifications.extend(Self::blend_endpoint_notifications(
+            machine, &state.recorded_state_weights, &weights,
+            &ctx.graph_context.resources.animation_graph_assets,
+        )?);
         let mut source_pose = None;
         for source in state.interrupted_sources.iter().rev() {
             Self::prewarm_active_state_caches(machine, &source.state, ctx, &weights)?;
@@ -2430,7 +2466,7 @@ mod tests {
     fn query_result_propagation(
         In((root, first, second)): In<(Handle<AnimationGraph>, Pose, Pose)>,
         resources: SystemResources,
-    ) -> Result<(Pose, Pose, Vec<String>, u64), GraphError> {
+    ) -> Result<(Pose, Pose, Vec<String>, Vec<String>, u64), GraphError> {
         let graph = resources
             .animation_graph_assets
             .get(&root)
@@ -2516,11 +2552,20 @@ mod tests {
             .iter()
             .map(|event| event.name.clone())
             .collect();
+        let generation = state.notification_generation();
+        graph.query_with_context(
+            QueryOutputTime::Forced(TimeUpdate::Delta(1.0 / 60.0)),
+            GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources, &env,
+                Entity::PLACEHOLDER, &entity_map, &mut gizmos, &inputs),
+        )?;
+        let state = arena.get_toplevel().node_states.get::<InterruptibleFsmState>(fsm_node.id, StateKey::Default)?;
+        let repeated = state.transition_notifications().iter().map(|event| event.name.clone()).collect();
         Ok((
             first,
             second,
             notifications,
-            state.notification_generation(),
+            repeated,
+            generation,
         ))
     }
 
@@ -2567,7 +2612,14 @@ mod tests {
         state_graph.add_node_parameter_edge(cached.id, "Pose", blend.id, "Poses_0");
         state_graph.add_node_parameter_edge(blend.id, "Pose", output.id, "Source");
         state_graph.add_output_data_edge(output.id, "Result", "Result");
-        let first_state_graph = graphs.add(state_graph.clone());
+        let mut first_graph = state_graph.clone();
+        first_graph.add_node(AnimationNode::new("fixture fully out", SourcePosePassthroughNode {
+            source_function: "FixtureFullyOut".to_owned(),
+            call_site: "OnStateFullyBlendedOut".to_owned(),
+            output_time: false,
+            ..default()
+        }));
+        let first_state_graph = graphs.add(first_graph);
         let mut entry_output = AnimationNode::new(
             "fixture output",
             SourcePosePassthroughNode {
@@ -2581,6 +2633,12 @@ mod tests {
         );
         entry_output.id = output.id;
         state_graph.add_node(entry_output);
+        state_graph.add_node(AnimationNode::new("fixture fully in", SourcePosePassthroughNode {
+            source_function: "FixtureFullyIn".to_owned(),
+            call_site: "OnStateFullyBlendedIn".to_owned(),
+            output_time: false,
+            ..default()
+        }));
         let state_graph = graphs.add(state_graph);
 
         let mut condition_graph = AnimationGraph::new();
@@ -2695,7 +2753,7 @@ mod tests {
         world.insert_resource(state_machines);
         world.insert_resource(Assets::<GraphClip>::default());
         world.insert_resource(Assets::<Skeleton>::default());
-        let (first, second, notifications, generation) = world
+        let (first, second, notifications, repeated, generation) = world
             .run_system_cached_with(
                 query_result_propagation,
                 (root.clone(), fixture_pose(1.0), fixture_pose(2.0)),
@@ -2704,9 +2762,12 @@ mod tests {
             .unwrap();
         assert_eq!(first.bones[0].translation, Some(Vec3::X));
         assert_eq!(second.bones[0].translation, Some(Vec3::new(2.0, 0.0, 0.0)));
-        let expected = if member_matches { vec!["FixtureExit", "FixtureEntry"] } else { Vec::new() };
+        let expected = if member_matches {
+            vec!["FixtureExit", "FixtureEntry", "FixtureFullyOut", "FixtureFullyIn"]
+        } else { Vec::new() };
         assert_eq!(notifications, expected);
-        let (_, _, notifications, reinitialized_generation) = world
+        assert!(repeated.is_empty());
+        let (_, _, notifications, repeated, reinitialized_generation) = world
             .run_system_cached_with(
                 query_result_propagation,
                 (root, fixture_pose(1.0), fixture_pose(2.0)),
@@ -2714,6 +2775,7 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(notifications, expected);
+        assert!(repeated.is_empty());
         if member_matches { assert_ne!(generation, reinitialized_generation); }
         }
     }
@@ -4116,6 +4178,44 @@ mod tests {
                 LowLevelStateId::HlState(target),
             ])
         );
+    }
+
+    #[test]
+    fn interrupted_state_weights_emit_endpoint_callbacks_once_and_allow_reentry() {
+        let states: [StateId; 3] = [
+            serde_json::from_str("\"10000000-0000-4000-8000-000000000001\"").unwrap(),
+            serde_json::from_str("\"10000000-0000-4000-8000-000000000002\"").unwrap(),
+            serde_json::from_str("\"10000000-0000-4000-8000-000000000003\"").unwrap(),
+        ];
+        let mut graphs = Assets::<AnimationGraph>::default();
+        let mut machine = LowLevelStateMachine::default();
+        for (index, state) in states.iter().enumerate() {
+            let mut graph = AnimationGraph::new();
+            for (phase, suffix) in [("OnStateFullyBlendedOut", "Out"), ("OnStateFullyBlendedIn", "In")] {
+                graph.add_node(AnimationNode::new("callback", SourcePosePassthroughNode {
+                    source_function: format!("{index}{suffix}"),
+                    call_site: phase.to_owned(),
+                    output_time: false,
+                    ..default()
+                }));
+            }
+            let id = LowLevelStateId::HlState(*state);
+            machine.states.insert(id.clone(), LowLevelState {
+                id, graph: graphs.add(graph), hl_transition: None,
+            });
+        }
+        let weights = |values: &[(usize, f32)]| values.iter().map(|(index, value)| SourceFsmStateWeight {
+            state_id: states[*index].uuid().to_string(), value: *value,
+        }).collect::<Vec<_>>();
+        let names = |previous: &[(usize, f32)], current: &[(usize, f32)]| {
+            InterruptibleFsmNode::blend_endpoint_notifications(&machine,
+                &weights(previous), &weights(current), &graphs).unwrap()
+                .into_iter().map(|event| event.name).collect::<Vec<_>>()
+        };
+        assert_eq!(names(&[(0, 0.5), (1, 0.5)], &[(2, 1.0)]), ["0Out", "1Out", "2In"]);
+        assert!(names(&[(2, 1.0)], &[(2, 1.0)]).is_empty());
+        assert!(names(&[(2, 1.0)], &[(2, 0.5), (0, 0.5)]).is_empty());
+        assert_eq!(names(&[(2, 0.5), (0, 0.5)], &[(0, 1.0)]), ["2Out", "0In"]);
     }
 
     #[test]

@@ -71,7 +71,7 @@
 - [x] **BF131.A73 — 惯性化 root 历史没有按组件／Actor 附着空间变化重表达**。Gate：组件/Actor 附着空间改变后历史按源坐标系重表达，世界连续姿态和不变空间控制通过。
 - [x] **BF131.A74 — 关闭跨被跳过缓存分支的惯性请求转发仍向全部消费者复制请求**。Gate：关闭转发时跳过分支不接收请求，开启转发及实际求值消费者保持源语义。
 - [x] **BF131.A75 — SequencePlayer 初始化未保留默认倒播起点语义，非循环负倍率停在首帧**。Gate：默认负倍率从源规定终点初始化；显式起点、循环/非循环及重初始化通过。
-- [ ] **BF131.A76 — StateResult 完全混入／完全混出回调被解析和生成，但 FSM 从不触发**。Gate：实际状态权重到达端点触发对应回调，连续帧不重复，打断/重入符合源生命周期。
+- [x] **BF131.A76 — StateResult 完全混入／完全混出回调被解析和生成，但 FSM 从不触发**。Gate：实际状态权重到达端点触发对应回调，连续帧不重复，打断/重入符合源生命周期。
 - [ ] **BF131.A77 — 根运动平移按固定轨迹坐标相减，遗漏前一 root 旋转的相对空间转换**。Gate：带旋转轨迹按前一 root 局部空间提取位移，正倒播和循环连续，直线控制通过。
 - [ ] **BF131.A78 — GroundPlane 将 yaw 同时发布为根运动并保留在输出 root 姿态中**。Gate：消费 yaw 后输出 root 去除对应旋转，保留源规定的高度/其他轴，角色不重复旋转。
 
@@ -279,3 +279,10 @@
 - BF131.A75-S3：开始 2026-09-28 12:51 +08:00；预估结束 2026-09-28 13:21 +08:00。以 run_manual 相同 target_game/play 优化 profile 预构建，fresh 349 图规格和 Standing/Locomotion/根作者审计通过后，执行 startup、standing_direction、state_machine 公共功能 Gate，核对首帧、错误/时序/watchdog 与原始性能报告；通过后勾选并单独提交 A75。
   - Runtime 前摘要（12:55 +08:00）：本地 UE SequencePlayer 初始化/更新和负有效倍率的尾端起点、24 组实际图时钟、重初始化/Absolute 控制、两处消融及完整库 1263 项闭合。同 run_manual 的 target_game/play 优化预构建、fresh 349 图规格和 Standing/Locomotion/根作者合同 30 条声明命令通过；RON/转换器未改，沿用 A72 全入口 374 文件零 diff。开始三项公共功能 Gate，保留既定延期的原始性能结果。
   - S3 实际结束 2026-09-28 12:58 +08:00，偏差 -23 分钟；结果：startup、standing_direction 5/5、state_machine 10/10 公共功能 Gate 全部 PASS，三份报告故障/图错误/时序异常/watchdog 为 0，手工与校验进程均退出 0；原始报告保留既定延期的 max_eval_p95_ms 超预算。源初始化条件、24 组实际图时钟/重建控制、两项消融、完整库 1263 项、fresh 349 图规格及 30 条声明命令闭合；RON/转换器/原始资产未改，沿用 A72 的 374 文件零 diff，勾选 A75。
+- BF131.A76-S1：开始 2026-09-28 12:59 +08:00；预估结束 2026-09-28 13:29 +08:00。依据：fresh 本地 UE StateMachine 在已完成过渡中对真正归零的 PreviousState 调 StateFullyBlendedOut，最后一个过渡完成时先补旧状态 Out 再调 NextState 的 StateFullyBlendedIn，同轮去重；目标 StateResult 已物化 OnStateFullyBlendedIn/Out 调用点，FSM 只分发 Entry/Exit。先核对目标中断栈权重、端点完成与通知消费，在实际 FSM 图上建立连续帧、打断/重入的红色回调夹具；不改现有通知消费器或转换规则。
+  - S1 实际结束 2026-09-28 13:07 +08:00，偏差 -22 分钟；结果：UE 完成过渡时先对归零的旧状态调 Out、最后目标调 In，当前轮 BlendedOutStates 去重；目标同帧已有 recorded_state_weights 和中断源权重递归求值，但只分发 Entry/Exit。实际 FSM StateResult 图补充两种回调后的反例稳定 red：只收到 FixtureExit/FixtureEntry；首次端点补发后 green。额外三状态权重夹具验证中断时两个旧状态先 Out 再目标 In、连续满权重不重复、局部重入未到端点不触发、重入到端点再次触发；当前仍需消融和完整回归。
+- BF131.A76-S2：开始 2026-09-28 13:07 +08:00；预估结束 2026-09-28 13:37 +08:00。复用现有状态权重快照，在 active-state 求值时仅对正权重→零和未满→满端点分发已生成的 StateResult 调用，旧状态 Out 先于目标 In；不加独立回调状态。做移除端点分发消融，检查连续/中断/重入与 Entry/Exit 既有通知，再跑 FSM 定向、完整库和声明式 Gate；真实入口另起 S3。
+  - S2 实际结束 2026-09-28 13:09 +08:00，偏差 -28 分钟；结果：复用已有逐帧状态权重快照比较端点，旧状态 Out 先于新状态 In，通知仍走现有 StateResult 函数扫描和分发；无新持久状态。实际 FSM 图 red→green 后连续帧不重复，三状态中断、局部重入与完全重入控制通过；移除分发调用再次 red，恢复后完整库 1264/1264、git diff --check 通过。当前 15 根安装图未发现非空 FullyBlended 回调，源通用规则由合成实际 FSM 图验收；RON/转换器未改，沿用 A72 全入口 374 文件零 diff。
+- BF131.A76-S3：开始 2026-09-28 13:09 +08:00；预估结束 2026-09-28 13:39 +08:00。按 run_manual 实际 target_game/play 优化构建刷新 349 图规格，审计 Standing/Grounded/根作者合同，再跑 startup/state_machine/standing_direction 公共功能 Gate；核对新旧状态切换、错误/时序/watchdog 与保留的原始性能结果。通过后勾选并单独提交 A76。
+  - Runtime 前摘要（13:13 +08:00）：fresh UE StateMachine/StateResult 完全混入/混出顺序、实际 FSM 状态切换红绿夹具、中断/重入权重端点与移除分发消融、完整库 1264 项闭合；同 run_manual 的 target_game/play 优化构建、fresh 349 图规格、Standing/Grounded/根作者合同 32 条声明命令通过。当前安装图无非空 FullyBlended 回调，通用运行规则由合成实际 FSM 图验证；RON/转换器未改，沿用 A72 全入口 374 文件零 diff。开始公共功能 Gate，原始性能延期结果保留。
+  - S3 实际结束 2026-09-28 13:16 +08:00，偏差 -23 分钟；结果：startup、state_machine 10/10、standing_direction 5/5 公共功能 Gate 全部 PASS，三份报告故障/图错误/时序异常/watchdog 为 0，手工与校验进程均退出 0；原始报告保留既定延期的 max_eval_p95_ms 超预算。源回调顺序、实际 FSM 状态图和中断/重入端点、移除分发消融、完整库 1264 项、fresh 349 图规格及 32 条声明命令闭合；RON/转换器/原始资产未改，沿用 A72 的 374 文件零 diff，勾选 A76。
