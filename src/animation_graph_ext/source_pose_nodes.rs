@@ -1178,30 +1178,43 @@ impl NodeLike for SourceCurveModifyNode {
         let pose = ctx.data_back(self.source_pose_pin.clone())?.into_pose()?;
         let mut context = pose_input_context_state(&ctx, &self.source_pose_pin).unwrap_or_default();
         let curve_names = self.curve_pin_names();
-        let value_keys = self.value_keys();
-        let value_pin_names = self.value_pin_names();
         let alpha = self.alpha_value(&ctx)?;
-        for (index, curve_name) in curve_names.iter().enumerate() {
-            let default = self
-                .pin_defaults
-                .get(index)
-                .copied()
-                .unwrap_or(self.pin_default);
-            let input_value = value_pin_names
-                .get(index)
-                .and_then(|pin| ctx.data_back(pin.clone()).ok())
-                .and_then(|value| value.as_f32().ok());
-            let target = if let Some(value) = input_value {
-                value
-            } else if let Some(key) = value_keys.get(index).filter(|key| !key.is_empty()) {
-                global_f32_or_root_default(&ctx, key)?
-            } else {
-                default
-            };
-            let curve_name = crate::extensions::SourceCurveName::from(curve_name.as_str());
-            let source = context.curves.get(&curve_name).copied().unwrap_or(0.0);
-            let value = source_curve_modify_value(source, target, alpha, &self.apply_mode);
-            context.curves.insert(curve_name, value);
+        if self.apply_mode.eq_ignore_ascii_case("WeightedMovingAverage") {
+            if let Ok(previous) = ctx.state::<AnimationContextState>() {
+                let alpha = alpha.clamp(0.0, 1.0);
+                for curve_name in &curve_names {
+                    let curve_name = crate::extensions::SourceCurveName::from(curve_name.as_str());
+                    if let Some(last) = previous.curves.get(&curve_name) {
+                        let current = context.curves.get(&curve_name).copied().unwrap_or(0.0);
+                        context.curves.insert(curve_name, current * alpha + last * (1.0 - alpha));
+                    }
+                }
+            }
+        } else {
+            let value_keys = self.value_keys();
+            let value_pin_names = self.value_pin_names();
+            for (index, curve_name) in curve_names.iter().enumerate() {
+                let default = self
+                    .pin_defaults
+                    .get(index)
+                    .copied()
+                    .unwrap_or(self.pin_default);
+                let input_value = value_pin_names
+                    .get(index)
+                    .and_then(|pin| ctx.data_back(pin.clone()).ok())
+                    .and_then(|value| value.as_f32().ok());
+                let target = if let Some(value) = input_value {
+                    value
+                } else if let Some(key) = value_keys.get(index).filter(|key| !key.is_empty()) {
+                    global_f32_or_root_default(&ctx, key)?
+                } else {
+                    default
+                };
+                let curve_name = crate::extensions::SourceCurveName::from(curve_name.as_str());
+                let source = context.curves.get(&curve_name).copied().unwrap_or(0.0);
+                let value = source_curve_modify_value(source, target, alpha, &self.apply_mode);
+                context.curves.insert(curve_name, value);
+            }
         }
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd("Pose", pose);
@@ -1241,6 +1254,7 @@ mod tests {
             skeleton::Skeleton, state_machine::high_level::StateMachine,
             utils::testing::TestIoEnv,
         };
+
         fn query(In((handle, switching, reentry)): In<(Handle<AnimationGraph>, bool, bool)>, resources: SystemResources) -> Vec<f32> {
             let mut source_inputs = crate::extensions::SourceAnimationInputs::default();
             let graph = resources.animation_graph_assets.get(&handle).unwrap();
@@ -2196,6 +2210,109 @@ mod tests {
         assert_eq!(source_curve_modify_value(0.2, 0.8, 1.0, "Blend"), 0.8);
         assert!((source_curve_modify_value(0.9, 0.5, 1.0, "RemapCurve") - 0.8).abs() < 1e-6);
         assert_eq!(source_curve_modify_value(2.0, 3.0, 0.25, "Scale"), 3.0);
+    }
+
+    #[test]
+    fn weighted_moving_average_keeps_curve_history_per_node_and_resets_on_initialize() {
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip,
+            animation_graph::{AnimationGraph, TimeUpdate},
+            animation_node::AnimationNode,
+            context::{deferred_gizmos::DeferredGizmos,
+                graph_context::GraphState, graph_context::QueryOutputTime,
+                graph_context_arena::GraphContextArena, new_context::GraphContext,
+                system_resources::SystemResources},
+            edge_data::DataValue,
+            skeleton::Skeleton,
+            state_machine::high_level::StateMachine,
+            utils::testing::TestIoEnv,
+        };
+
+        #[derive(Reflect, Clone, Debug)]
+        #[reflect(NodeLike)]
+        struct InputCurves;
+
+        impl NodeLike for InputCurves {
+            fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+                let mut state = AnimationContextState { curves_are_authoritative: true, ..default() };
+                for (input, name) in [("masked", "Masked"), ("other", "Other")] {
+                    if let Some(value) = ctx.graph_context.global_input_data.get(input) {
+                        state.curves.insert(crate::extensions::SourceCurveName::from(name), value.as_f32()?);
+                    }
+                }
+                ctx.set_time(0.0);
+                ctx.set_data_fwd("Pose", Pose::default());
+                *ctx.state_mut_or_else(AnimationContextState::default)? = state;
+                Ok(())
+            }
+
+            fn spec(&self, mut ctx: SpecContext) -> Result<(), GraphError> {
+                ctx.add_output_data("Pose", DataSpec::Pose);
+                Ok(())
+            }
+
+            fn display_name(&self) -> String { "Input curves".into() }
+        }
+
+        fn query(In(handle): In<Handle<AnimationGraph>>, resources: SystemResources) -> Vec<[f32; 4]> {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            let mut results = Vec::new();
+            for (frame, (masked, other)) in [(Some(0.0), 2.0), (Some(1.0), 3.0), (None, 4.0), (Some(1.0), 5.0)].into_iter().enumerate() {
+                if frame == 3 {
+                    *arena.get_toplevel_mut() = GraphState::new(handle.id());
+                }
+                let mut inputs = HashMap::from([("other".to_owned(), DataValue::F32(other))]);
+                if let Some(masked) = masked {
+                    inputs.insert("masked".to_owned(), DataValue::F32(masked));
+                }
+                let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
+                    &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+                graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.1)), context.clone()).unwrap();
+                let values = ["A", "B"].map(|output| {
+                    let state = crate::extensions::animation_context::graph_output_context_state(graph, &context, output).unwrap();
+                    [state.curves[&crate::extensions::SourceCurveName::from("Masked")],
+                        state.curves[&crate::extensions::SourceCurveName::from("Other")]]
+                });
+                results.push([values[0][0], values[1][0], values[0][1], values[1][1]]);
+            }
+            results
+        }
+
+        let mut graph = AnimationGraph::new();
+        let input = AnimationNode::new("input", InputCurves);
+        graph.add_node(input.clone());
+        for (output, alpha) in [("A", 0.25), ("B", 0.5)] {
+            let node = AnimationNode::new(output, SourceCurveModifyNode {
+                source_pose_pin: "SourcePose".into(),
+                curve_names: vec!["Masked".into()],
+                pin_defaults: vec![999.0],
+                alpha,
+                apply_mode: "WeightedMovingAverage".into(),
+                ..default()
+            });
+            graph.add_node(node.clone());
+            graph.add_node_parameter_edge(input.id, "Pose", node.id, "SourcePose");
+            graph.add_output_data(output.into(), DataSpec::Pose);
+            graph.add_output_data_edge(node.id, "Pose", output);
+        }
+        let mut world = World::new();
+        let mut graphs = Assets::<AnimationGraph>::default();
+        let handle = graphs.add(graph);
+        world.insert_resource(graphs);
+        world.insert_resource(Assets::<GraphClip>::default());
+        world.insert_resource(Assets::<Skeleton>::default());
+        world.insert_resource(Assets::<StateMachine>::default());
+        let actual = world.run_system_cached_with(query, handle).unwrap();
+        for (index, expected) in [[0.0, 0.0, 2.0, 2.0], [0.25, 0.5, 3.0, 3.0],
+            [0.1875, 0.25, 4.0, 4.0], [1.0, 1.0, 5.0, 5.0]].into_iter().enumerate() {
+            assert!(actual[index].into_iter().zip(expected).all(|(left, right)| (left - right).abs() < 1e-6),
+                "frame {index}: {:?} != {expected:?}", actual[index]);
+        }
     }
 
     #[test]

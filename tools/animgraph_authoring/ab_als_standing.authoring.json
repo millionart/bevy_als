@@ -181,6 +181,22 @@
     {
       "path": "target/bf131/a68/AnimSequenceBase.cpp",
       "sha256": "538cedbee8cad1313c301078374a2750c2929e5ec198a54d2254d0c79ae6c3f7"
+    },
+    {
+      "path": "target/bf131/a69/AnimNode_ModifyCurve.cpp",
+      "sha256": "53327e5f0184f018c095e8c6ef78912a28ac16ba29a36da7a391e4e241a96d9d"
+    },
+    {
+      "path": "target/bf131/a69/AnimNode_ModifyCurve.h",
+      "sha256": "60902dba1af5df9765209953c52d2e68ef9bd79301dffe35853ce8240d5ab009"
+    },
+    {
+      "path": "target/bf131/a69/NamedValueArray.h",
+      "sha256": "6da11c129d24884a483274a1314f5a8c5220814a68cb5c03492c3e0dd51e045b"
+    },
+    {
+      "path": "target/bf131/a65/UnrealMathUtility.h",
+      "sha256": "42feaa58fe6da3d00cbd11a9255e303cd88aeadf8caac4a800f9f141fd2218b1"
     }
   ],
   "graphs": [
@@ -1921,6 +1937,16 @@
       "label": "shared_sync_marker_names_and_sample_clocks",
       "argv": ["cargo", "test", "--locked", "--offline", "--profile", "play", "--lib", "sync_", "--jobs", "2"],
       "evidence": "target/bf1295/bf131-a68-sync-final.json"
+    },
+    {
+      "label": "modify_curve_weighted_moving_average_history",
+      "argv": ["cargo", "test", "--locked", "--offline", "--profile", "play", "--lib", "weighted_moving_average_keeps_curve_history_per_node_and_resets_on_initialize", "--jobs", "2"],
+      "evidence": "target/bf1295/bf131-a69-wma-boundary.json"
+    },
+    {
+      "label": "modify_curve_other_modes",
+      "argv": ["cargo", "test", "--locked", "--offline", "--profile", "play", "--lib", "curve_modify", "--jobs", "2"],
+      "evidence": "target/bf1295/bf131-a69-curve-focused.json"
     }
   ]
 }
