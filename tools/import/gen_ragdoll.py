@@ -74,6 +74,22 @@ def active_linear_drive(profile):
     )
 
 
+def active_angular_drive(profile):
+    if profile["angular_drive_mode"] != "TwistAndSwing":
+        return False
+    twist = profile["angular_drives"]["TwistDrive"]
+    swing = profile["angular_drives"]["SwingDrive"]
+    return (
+        profile["twist_motion"] != "ACM_Locked" and (twist["position_enabled"] or twist["velocity_enabled"])
+        or (profile["swing_1_motion"] != "ACM_Locked" or profile["swing_2_motion"] != "ACM_Locked")
+        and (swing["position_enabled"] or swing["velocity_enabled"])
+    )
+
+
+def ue_angular_velocity(values):
+    return [-values[0] * math.tau, -values[2] * math.tau, -values[1] * math.tau]
+
+
 def target_linear_drive(profile, stiffness_scale, damping_scale):
     return {
         "linear_position_target_m": ue_point(profile["linear_position_target_ue_cm"]),
@@ -354,6 +370,21 @@ def self_test():
     assert target_drive["linear_drives"][2]["velocity_enabled"] is True
     parsed["linear_x_motion"] = parsed["linear_y_motion"] = parsed["linear_z_motion"] = "LCM_Locked"
     assert not active_linear_drive(parsed)
+    swing = parsed_profile([{"name": "ProfileInstance", "exported_text": "()", "fields": [
+        {"name": "AngularDrive", "exported_text": "(AngularDriveMode=TwistAndSwing,AngularVelocityTarget=(X=0,Y=1,Z=0),TwistDrive=(Stiffness=50,Damping=4,MaxForce=0,bEnablePositionDrive=False,bEnableVelocityDrive=False),SwingDrive=(Stiffness=50,Damping=4,MaxForce=0,bEnablePositionDrive=True,bEnableVelocityDrive=True),SlerpDrive=(Stiffness=50,Damping=4,MaxForce=0,bEnablePositionDrive=False,bEnableVelocityDrive=False))"},
+    ]}])
+    assert swing["angular_drive_enabled"]
+    assert swing["angular_velocity_target"] == [0.0, 1.0, 0.0]
+    assert_close(ue_angular_velocity(swing["angular_velocity_target"]), [0.0, 0.0, -math.tau])
+    for axis in ([1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]):
+        mapped = ue_angular_velocity(axis)
+        target = quat_axis(normalize(mapped), math.tau * 0.2)
+        source = ue_quat_to_bevy(quat_axis(axis, math.tau * 0.2))
+        assert abs(sum(left * right for left, right in zip(target, source))) > 1.0 - 1e-6
+    swing["swing_1_motion"] = swing["swing_2_motion"] = "ACM_Locked"
+    assert not active_angular_drive(swing)
+    swing["angular_drives"]["TwistDrive"]["velocity_enabled"] = True
+    assert active_angular_drive(swing)
 
 
 def volume(shape):
@@ -515,7 +546,6 @@ def parsed_profile(entries):
         ],
         "angular_drive_stiffness": number_after(nested_after(angular_drive, "TwistDrive"), "Stiffness"),
         "angular_drive_damping": number_after(nested_after(angular_drive, "TwistDrive"), "Damping"),
-        "angular_drive_enabled": bool_after(nested_after(angular_drive, "TwistDrive"), "bEnablePositionDrive", False),
         "angular_drive_mode": word_after(angular_drive, "AngularDriveMode"),
         "angular_drives": {
             name: {
@@ -548,6 +578,7 @@ def parsed_profile(entries):
         "linear_plasticity": bool_after(text, "bLinearPlasticity", False),
         "angular_plasticity": bool_after(text, "bAngularPlasticity", False),
     }
+    result["angular_drive_enabled"] = active_angular_drive(result)
     return result
 
 
@@ -683,6 +714,7 @@ def build_profile(source):
                 "twist_spring": target_spring(profile["twist_stiffness"], profile["twist_damping"], True, limit_stiffness_scale, limit_damping_scale) if profile["twist_soft"] else None,
                 "drive_mode": profile["angular_drive_mode"],
                 "drive_target_xyzw": ue_rotator(profile["angular_drive_target_ue"]),
+                "drive_velocity_target_radians_per_second": ue_angular_velocity(profile["angular_velocity_target"]),
                 "drives": [
                     {
                         **target_spring(profile["angular_drives"][name]["stiffness"], profile["angular_drives"][name]["damping"], profile["angular_drive_acceleration_mode"], drive_stiffness_scale, drive_damping_scale),
@@ -871,8 +903,8 @@ def generate(source, mesh, gltf, asset_root, skeleton_path, ragdoll_path, bone_m
             if fields[feature]:
                 raise ValueError(f"unsupported active constraint feature: {joint['joint_name']}:{feature}")
         active_drive = any(drive["position_enabled"] or drive["velocity_enabled"] for drive in fields["angular_drives"].values())
-        if active_drive and (fields["angular_drive_mode"] != "TwistAndSwing" or any(fields["angular_velocity_target"])):
-            raise ValueError(f"unsupported angular drive mode or velocity target: {joint['joint_name']}")
+        if active_drive and fields["angular_drive_mode"] != "TwistAndSwing":
+            raise ValueError(f"unsupported angular drive mode: {joint['joint_name']}")
         if fields["projection_enabled"] and fields["projection_angular_alpha"] != 0.0:
             raise ValueError(f"unsupported angular projection: {joint['joint_name']}")
         if any(drive["max_force"] != 0.0 for drive in fields["angular_drives"].values()):

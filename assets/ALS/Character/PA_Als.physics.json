@@ -6465,6 +6465,11 @@
           -0.0,
           1.0
         ],
+        "drive_velocity_target_radians_per_second": [
+          -0.0,
+          -0.0,
+          -0.0
+        ],
         "drives": [
           {
             "acceleration_mode": true,
@@ -6771,6 +6776,11 @@
           -0.0,
           -0.0,
           1.0
+        ],
+        "drive_velocity_target_radians_per_second": [
+          -0.0,
+          -0.0,
+          -0.0
         ],
         "drives": [
           {
@@ -7079,6 +7089,11 @@
           -0.0,
           1.0
         ],
+        "drive_velocity_target_radians_per_second": [
+          -0.0,
+          -0.0,
+          -0.0
+        ],
         "drives": [
           {
             "acceleration_mode": true,
@@ -7383,6 +7398,11 @@
           -0.0,
           -0.0,
           1.0
+        ],
+        "drive_velocity_target_radians_per_second": [
+          -0.0,
+          -0.0,
+          -0.0
         ],
         "drives": [
           {
@@ -7691,6 +7711,11 @@
           -0.0,
           1.0
         ],
+        "drive_velocity_target_radians_per_second": [
+          -0.0,
+          -0.0,
+          -0.0
+        ],
         "drives": [
           {
             "acceleration_mode": true,
@@ -7997,6 +8022,11 @@
           -0.38194990076107566,
           -0.029956421718195757,
           0.9146679795289898
+        ],
+        "drive_velocity_target_radians_per_second": [
+          -0.0,
+          -0.0,
+          -0.0
         ],
         "drives": [
           {
@@ -8305,6 +8335,11 @@
           -0.029956421718195757,
           0.9146679795289898
         ],
+        "drive_velocity_target_radians_per_second": [
+          -0.0,
+          -0.0,
+          -0.0
+        ],
         "drives": [
           {
             "acceleration_mode": true,
@@ -8607,6 +8642,11 @@
           0.4591823947874276,
           0.058776065670033774,
           0.8862017076096925
+        ],
+        "drive_velocity_target_radians_per_second": [
+          -0.0,
+          -0.0,
+          -0.0
         ],
         "drives": [
           {
@@ -8917,6 +8957,11 @@
           0.4591823947874276,
           0.058776065670033774,
           0.8862017076096925
+        ],
+        "drive_velocity_target_radians_per_second": [
+          -0.0,
+          -0.0,
+          -0.0
         ],
         "drives": [
           {
@@ -9230,6 +9275,11 @@
           -0.04324621745963609,
           0.9905012255519768
         ],
+        "drive_velocity_target_radians_per_second": [
+          -0.0,
+          -0.0,
+          -0.0
+        ],
         "drives": [
           {
             "acceleration_mode": true,
@@ -9537,6 +9587,11 @@
           0.13040196020729425,
           -0.04324621745963609,
           0.9905012255519768
+        ],
+        "drive_velocity_target_radians_per_second": [
+          -0.0,
+          -0.0,
+          -0.0
         ],
         "drives": [
           {
@@ -9848,6 +9903,11 @@
           -0.014520255143568018,
           0.9915366082050334
         ],
+        "drive_velocity_target_radians_per_second": [
+          -0.0,
+          -0.0,
+          -0.0
+        ],
         "drives": [
           {
             "acceleration_mode": true,
@@ -10155,6 +10215,11 @@
           -0.014520255143568018,
           0.9915366082050334
         ],
+        "drive_velocity_target_radians_per_second": [
+          -0.0,
+          -0.0,
+          -0.0
+        ],
         "drives": [
           {
             "acceleration_mode": true,
@@ -10457,6 +10522,11 @@
           0.21711114998150316,
           0.01183879771480737,
           0.9749287252371973
+        ],
+        "drive_velocity_target_radians_per_second": [
+          -0.0,
+          -0.0,
+          -0.0
         ],
         "drives": [
           {
@@ -10767,6 +10837,11 @@
           0.21711114998150316,
           0.01183879771480737,
           0.9749287252371973
+        ],
+        "drive_velocity_target_radians_per_second": [
+          -0.0,
+          -0.0,
+          -0.0
         ],
         "drives": [
           {
@@ -11080,6 +11155,11 @@
           -0.0,
           1.0
         ],
+        "drive_velocity_target_radians_per_second": [
+          -0.0,
+          -0.0,
+          -0.0
+        ],
         "drives": [
           {
             "acceleration_mode": true,
@@ -11385,6 +11465,11 @@
           -0.0,
           1.0
         ],
+        "drive_velocity_target_radians_per_second": [
+          -0.0,
+          -0.0,
+          -0.0
+        ],
         "drives": [
           {
             "acceleration_mode": true,
@@ -11685,6 +11770,11 @@
           -0.0,
           -0.0,
           1.0
+        ],
+        "drive_velocity_target_radians_per_second": [
+          -0.0,
+          -0.0,
+          -0.0
         ],
         "drives": [
           {
@@ -11987,6 +12077,11 @@
           0.21643961393810288,
           -0.0,
           0.9762960071199334
+        ],
+        "drive_velocity_target_radians_per_second": [
+          -0.0,
+          -0.0,
+          -0.0
         ],
         "drives": [
           {
@@ -12292,6 +12387,11 @@
           0.21643961393810288,
           -0.0,
           0.9762960071199334
+        ],
+        "drive_velocity_target_radians_per_second": [
+          -0.0,
+          -0.0,
+          -0.0
         ],
         "drives": [
           {

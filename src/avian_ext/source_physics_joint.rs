@@ -78,6 +78,7 @@ pub struct SourcePhysicsJoint {
     pub twist_spring: Option<SourceAngularSpring>,
     pub motors: [SourceAngularMotor; 3],
     pub motor_target: Quat,
+    pub motor_velocity_target: Vec3,
     pub motor_stiffness_scale: f32,
     pub motor_damping_scale: f32,
     pub linear_locked: bool,
@@ -202,6 +203,7 @@ impl XpbdConstraint<2> for SourcePhysicsJoint {
                 data,
                 correction,
                 spring,
+                0.0,
                 &mut limit_lambdas[index],
                 false,
                 self.settings.angle_tolerance_radians,
@@ -255,6 +257,7 @@ impl XpbdConstraint<2> for SourcePhysicsJoint {
                 data,
                 Some((axis, errors[index])),
                 Some(spring),
+                (parent_frame * self.motor_velocity_target).dot(axis),
                 &mut motor_lambdas[index],
                 true,
                 0.0,
@@ -424,6 +427,7 @@ fn apply_angular_correction(
     data: &mut SourcePhysicsJointSolverData,
     correction: Option<(Vec3, f32)>,
     spring: Option<SourceAngularSpring>,
+    target_velocity: f32,
     lambda: &mut f32,
     axis_only: bool,
     tolerance: f32,
@@ -453,7 +457,7 @@ fn apply_angular_correction(
         let velocity_dt = axis.dot(
             (child.angular_velocity - parent.angular_velocity) * dt + correction_child
                 - correction_parent,
-        );
+        ) - target_velocity * dt;
         spring_impulse(spring, error, velocity_dt, inverse_mass, *lambda, dt)
     } else {
         error / inverse_mass
@@ -658,6 +662,7 @@ mod tests {
             twist_spring: None,
             motors: [SourceAngularMotor::default(); 3],
             motor_target: Quat::IDENTITY,
+            motor_velocity_target: Vec3::ZERO,
             motor_stiffness_scale: 1.5,
             motor_damping_scale: 1.5,
             linear_locked: false,
@@ -751,6 +756,32 @@ mod tests {
         };
         assert!((solve(1.0, true) - solve(100.0, true)).abs() < 1e-6);
         assert!((solve(1.0, false) - solve(100.0, false)).abs() > 0.01);
+    }
+
+    #[test]
+    fn free_swing_drive_uses_position_and_nonzero_angular_velocity_targets() {
+        let solve = |position_enabled, velocity_enabled, speed, locked| {
+            let mut drive_joint = joint();
+            drive_joint.angular_limits[1] = if locked { SourceAngularLimit::Locked } else { SourceAngularLimit::Free };
+            drive_joint.motors[1] = SourceAngularMotor {
+                spring: SourceAngularSpring {
+                    stiffness: 1000.0, damping: 50.0, acceleration_mode: true,
+                },
+                position_enabled, velocity_enabled,
+            };
+            drive_joint.motor_target = Quat::from_rotation_y(if position_enabled { 0.3 } else { 0.0 });
+            drive_joint.motor_velocity_target = Vec3::Y * speed;
+            let mut parent = SolverBody::default();
+            let mut child = SolverBody::default();
+            drive_joint.solve([&mut parent, &mut child],
+                [&SolverBodyInertia::DUMMY, &inertia(1.0, Vec3::ONE)],
+                &mut SourcePhysicsJointSolverData::default(), 0.1);
+            child.delta_rotation.0.to_scaled_axis().y
+        };
+        assert!(solve(true, false, 0.0, false) > 0.01);
+        assert!(solve(false, true, 1.0, false) > 0.01);
+        assert!(solve(false, true, 0.0, false).abs() < 1e-6);
+        assert!(solve(false, true, 1.0, true).abs() < 1e-6);
     }
 
     #[test]
@@ -1036,6 +1067,36 @@ mod tests {
         for _ in 0..8 { app.update(); }
         let position = app.world().get::<Position>(child).unwrap().0.x;
         assert!(position > 0.05 && position < 0.6, "position={position}");
+    }
+
+    #[test]
+    fn real_physics_schedule_applies_a_free_swing_velocity_drive() {
+        use avian3d::prelude::{Gravity, Mass, PhysicsPlugins, RigidBody, Rotation};
+        use bevy::time::TimeUpdateStrategy;
+        use std::time::Duration;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin,
+            TransformPlugin, PhysicsPlugins::new(PostUpdate), SourcePhysicsJointPlugin));
+        app.insert_resource(Gravity(Vec3::ZERO));
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0 / 60.0)));
+        app.finish();
+        app.cleanup();
+        let parent = app.world_mut().spawn((RigidBody::Kinematic, Transform::IDENTITY)).id();
+        let child = app.world_mut().spawn((RigidBody::Dynamic, Mass(1.0),
+            AngularInertia { principal: Vec3::splat(0.1), local_frame: Quat::IDENTITY },
+            Transform::IDENTITY)).id();
+        let mut drive_joint = joint();
+        drive_joint.parent = parent;
+        drive_joint.child = child;
+        drive_joint.motor_velocity_target = Vec3::Y;
+        drive_joint.motors[1] = SourceAngularMotor {
+            spring: SourceAngularSpring { damping: 50.0, acceleration_mode: true, ..default() },
+            velocity_enabled: true, ..default()
+        };
+        app.world_mut().spawn(drive_joint);
+        for _ in 0..8 { app.update(); }
+        let angle = app.world().get::<Rotation>(child).unwrap().0.to_scaled_axis().y;
+        assert!(angle > 0.01, "angle={angle}");
     }
 }
 

@@ -133,6 +133,8 @@ struct PhysicsAssetConstraintTarget {
     twist_spring: Option<SourceAngularSpring>,
     drives: [SourceAngularMotor; 3],
     drive_target_xyzw: [f32; 4],
+    #[serde(default)]
+    drive_velocity_target_radians_per_second: [f32; 3],
     angular_drive_stiffness_scale: f32,
     angular_drive_damping_scale: f32,
     linear_locked: bool,
@@ -250,6 +252,7 @@ impl RagdollPhysicsProfile {
                         twist_spring: target.twist_spring,
                         motors: target.drives,
                         motor_target: Quat::from_array(target.drive_target_xyzw),
+                        motor_velocity_target: Vec3::from_array(target.drive_velocity_target_radians_per_second),
                         motor_stiffness_scale: target.angular_drive_stiffness_scale,
                         motor_damping_scale: target.angular_drive_damping_scale,
                         linear_locked: target.linear_locked,
@@ -882,6 +885,23 @@ mod tests {
         assert_eq!(joint.definition.linear_motors[0].stiffness, 123.0);
         assert_eq!(joint.definition.linear_motors[0].max_force, 2.0);
         assert_eq!(joint.definition.linear_position_target, Vec3::X * 0.2);
+    }
+
+    #[test]
+    fn swing_velocity_json_fields_reach_a_pure_drive_joint() {
+        let mut source: serde_json::Value = serde_json::from_str(include_str!(
+            "../../assets/ALS/Character/PA_Als.physics.json"
+        )).unwrap();
+        let pelvis = source["constraints"].as_array_mut().unwrap().iter_mut()
+            .find(|joint| joint["joint_name"] == "pelvis").unwrap();
+        pelvis["target"]["enabled"] = serde_json::json!(true);
+        pelvis["target"]["drives"][1]["velocity_enabled"] = serde_json::json!(true);
+        pelvis["target"]["drives"][1]["damping"] = serde_json::json!(50.0);
+        pelvis["target"]["drive_velocity_target_radians_per_second"] = serde_json::json!([0.0, 1.0, 0.0]);
+        let profile = RagdollPhysicsProfile::from_json(&source.to_string()).unwrap();
+        let joint = profile.joints.iter().find(|joint| joint.label == "pelvis").unwrap();
+        assert!(joint.enabled && joint.definition.motors[1].velocity_enabled);
+        assert_eq!(joint.definition.motor_velocity_target, Vec3::Y);
     }
 
     #[test]
