@@ -12,7 +12,7 @@ use bevy_animation_graph::core::{
 use crate::extensions::animation_context::{AnimationContextState, pose_input_context_state};
 use crate::extensions::sync_group_phase::{
     SOURCE_SYNC_RESOLVED, resolve_source_sync_phases, source_sync_excluded_key,
-    source_sync_full_weight_key,
+    source_sync_full_weight_key, source_sync_marker_name_key, source_sync_marker_set_key,
 };
 
 #[derive(Reflect, Clone, Debug)]
@@ -95,7 +95,7 @@ impl NodeLike for SourcePosePassthroughNode {
                     );
                 }
             }
-            for (key, phase, ungrouped) in
+            for (key, phase, ungrouped, common) in
                 resolve_source_sync_phases(&current.sync_players, &previous.sync_players)
             {
                 if let Some(phase) = phase {
@@ -103,6 +103,10 @@ impl NodeLike for SourcePosePassthroughNode {
                         format!("{SOURCE_SYNC_RESOLVED}.{key}"),
                         DataValue::F32(phase),
                     );
+                    global_inputs.to_mut().insert(source_sync_marker_set_key(&key), DataValue::Bool(true));
+                    for name in common {
+                        global_inputs.to_mut().insert(source_sync_marker_name_key(&key, &name), DataValue::Bool(true));
+                    }
                 }
                 for identity in ungrouped {
                     global_inputs
@@ -234,7 +238,7 @@ mod tests {
             utils::testing::TestIoEnv,
         };
         fn query(
-            In(handle): In<Handle<AnimationGraph>>,
+            In((handle, shifted)): In<(Handle<AnimationGraph>, bool)>,
             resources: SystemResources,
         ) -> Vec<AnimationContextState> {
             let graph = resources.animation_graph_assets.get(&handle).unwrap();
@@ -251,6 +255,7 @@ mod tests {
                 ([0.5, 0.5, 0.0], 0.0, 0.1),
                 ([0.5, 0.5, 0.0], 0.1, 0.05),
             ] {
+                let weights = if shifted && result.len() == 1 { [0.6, 0.6, 0.2] } else { weights };
                 let inputs = HashMap::from([
                     ("delta".to_owned(), DataValue::F32(global_delta)),
                     ("rate".to_owned(), DataValue::F32(1.0)),
@@ -327,6 +332,13 @@ mod tests {
                     let blend = graph.nodes.values().find(|node| node.try_inner_downcast_ref::<NormalizedBlendSpaceNode>().is_some()).unwrap();
                     let state = arena.get_toplevel().node_states.get::<crate::extensions::normalized_blendspace::NormalizedBlendSpaceState>(blend.id, StateKey::Default).unwrap();
                     assert_eq!(state.context.relevant_asset.as_ref().map(|clock| clock.duration), Some(1.0));
+                    if shifted {
+                        let sequence = graph.nodes.values().find(|node| node.try_inner_downcast_ref::<crate::extensions::SourceSequencePlayerNode>().is_some()).unwrap();
+                        let sequence_state = arena.get_toplevel().node_states.get::<crate::extensions::source_sequence_player::SourceSequencePlayerState>(sequence.id, StateKey::Default).unwrap();
+                        assert!((observed.unwrap() - 0.3076923).abs() < 1e-5, "group phase={observed:?}");
+                        assert!((state.context.relevant_asset.as_ref().unwrap().position - 0.4).abs() < 1e-5);
+                        assert!((sequence_state.context.relevant_asset.as_ref().unwrap().position - 0.6153846).abs() < 1e-5);
+                    }
                 }
                 result.push(
                     crate::extensions::animation_context::graph_output_context_state(graph, &context, "Pose")
@@ -343,7 +355,7 @@ mod tests {
             ..default()
         });
         let mut handles = Vec::new();
-        for synchronize_groups in [true, false] {
+        for (synchronize_groups, shifted) in [(true, false), (false, false), (true, true)] {
             let mut graph = AnimationGraph::new();
             graph.set_default_data(
                 GraphInputPin::Passthrough("position".into()),
@@ -418,16 +430,16 @@ mod tests {
                                 id: "sample".into(),
                                 point: Vec2::ZERO,
                                 duration,
-                                markers: vec![
-                                    SyncMarker {
-                                        name: "Left".into(),
-                                        time: 0.0,
-                                    },
-                                    SyncMarker {
-                                        name: "Right".into(),
-                                        time: duration * 0.5,
-                                    },
-                                ],
+                                markers: {
+                                    let mut markers = vec![
+                                        SyncMarker { name: "Left".into(), time: 0.0 },
+                                        SyncMarker { name: "Right".into(), time: duration * if shifted { 0.65 } else { 0.5 } },
+                                    ];
+                                    if shifted {
+                                        markers.insert(1, SyncMarker { name: "Extra".into(), time: duration * 0.25 });
+                                    }
+                                    markers
+                                },
                                 ..default()
                             }],
                             playback: Some(SourceSyncPlayerBinding {
@@ -501,7 +513,7 @@ mod tests {
         world.insert_resource(Assets::<Skeleton>::default());
         world.insert_resource(Assets::<StateMachine>::default());
         let actual = world
-            .run_system_cached_with(query, handles[0].clone())
+            .run_system_cached_with(query, (handles[0].clone(), false))
             .unwrap();
         for (frame, expected) in [0.3, 0.35, 0.4, 0.5, 0.5, 0.55].into_iter().enumerate() {
             for player in &actual[frame].sync_players {
@@ -513,13 +525,15 @@ mod tests {
             }
         }
         assert_eq!(actual[1].sync_players.len(), 2);
+        assert!(actual[1].sync_players.iter().all(|player| player.markers.len() == 2));
         assert!((actual[1].sync_players[0].weight - 0.3).abs() < 1e-5);
         assert!(actual[4].sync_players.iter().all(|player| player.delta_seconds == 0.0));
         assert!(actual[5].sync_players.iter().all(|player| (player.delta_seconds - 0.05).abs() < 1e-5));
         let ablated = world
-            .run_system_cached_with(query, handles[1].clone())
+            .run_system_cached_with(query, (handles[1].clone(), false))
             .unwrap();
         assert!((ablated[1].sync_players[1].phase - 0.35).abs() > 0.3);
+        world.run_system_cached_with(query, (handles[2].clone(), true)).unwrap();
     }
 
     #[test]
@@ -715,7 +729,7 @@ mod tests {
 
     #[test]
     fn transition_player_remembers_full_weight_until_reinitialized() {
-        use crate::extensions::sync_group_phase::SourceSyncGroupRole;
+        use crate::extensions::sync_group_phase::{SourceSyncGroupRole, SyncMarker};
         use crate::extensions::{SourceMultiWayBlendNode, SourceSequencePlayerNode};
         use bevy::platform::collections::HashMap;
         use bevy_animation_graph::core::{
@@ -767,6 +781,7 @@ mod tests {
                 let grouped = state.asset_samples.iter().find(|sample| sample.sync_identity == Some(player.identity));
                 assert_eq!(player.has_been_full_weight, (1..5).contains(&frame));
                 assert_eq!(grouped.is_some(), (1..5).contains(&frame) && frame != 3);
+                assert_eq!(player.markers.len(), if frame == 2 || frame == 4 { 2 } else { 3 }, "frame {frame}");
                 results.push((state, phase));
             }
             results
@@ -782,11 +797,19 @@ mod tests {
             (0.8, SourceSyncGroupRole::TransitionLeader),
             (0.2, SourceSyncGroupRole::CanBeLeader),
         ] {
+            let phase_markers = vec![
+                SyncMarker { name: "A".into(), time: 0.0 },
+                SyncMarker { name: "B".into(), time: 0.5 },
+            ];
+            let mut markers = phase_markers.clone();
+            if role == SourceSyncGroupRole::TransitionLeader {
+                markers.insert(1, SyncMarker { name: "Extra".into(), time: 0.25 });
+            }
             let node = AnimationNode::new("player", SourceSequencePlayerNode {
                 clip: clip.clone(), start_position: start,
                 synchronization: Some(crate::extensions::source_sequence_player::SourceSequenceSynchronization {
                     key: "Movement".into(), role, delta_seconds_key: "delta".into(),
-                    phase_duration: 1.0, ..default()
+                    phase_duration: 1.0, phase_markers, markers, ..default()
                 }),
                 ..default()
             });

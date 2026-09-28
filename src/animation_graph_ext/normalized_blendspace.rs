@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use crate::extensions::global_f32_input::global_f32_or_root_default;
 use crate::extensions::sync_group_phase::{
     SourceSyncPlayerBinding, SourceSyncPlayerTick, resolved_source_sync_phase,
+    resolved_source_sync_markers,
 };
 use crate::extensions::{AnimationContextState, marker_phase_from_sample_time};
 use crate::extensions::{SyncMarker, follower_sample_time, marker_phase_sample_time, phase_to_time};
@@ -549,6 +550,8 @@ impl NormalizedBlendSpaceNode {
         previous_phase: Option<f32>,
         delta_seconds: f32,
         play_rate: f32,
+        phase_markers: &[SyncMarker],
+        sample_markers: &[SyncMarker],
     ) -> SourceSyncPlayerTick {
         let point = &self.points[leader];
         SourceSyncPlayerTick {
@@ -559,16 +562,16 @@ impl NormalizedBlendSpaceNode {
                 marker_phase_from_sample_time(
                     binding.start_position * point.duration,
                     point.duration,
-                    &point.markers,
+                    sample_markers,
                     self.phase_duration,
-                    &self.phase_markers,
+                    phase_markers,
                     self.looped,
                 )
             }),
             phase_duration: self.phase_duration,
-            phase_markers: self.phase_markers.clone(),
+            phase_markers: phase_markers.to_vec(),
             duration: point.duration,
-            markers: point.markers.clone(),
+            markers: sample_markers.to_vec(),
             looped: self.looped,
             delta_seconds,
             play_rate: play_rate * point.asset_rate_scale,
@@ -582,10 +585,6 @@ impl NormalizedBlendSpaceNode {
 
     pub fn time_pin(id: &str) -> String {
         format!("time_{id}")
-    }
-
-    fn uses_marker_phase(&self) -> bool {
-        self.phase_duration > EPSILON && self.phase_markers.len() >= 2
     }
 
     fn point_duration(
@@ -688,6 +687,14 @@ impl NodeLike for NormalizedBlendSpaceNode {
         let leader = &self.points[leader_index];
         let leader_duration = self.point_duration(&mut ctx, leader)?;
         let sample_looped = self.looped && !self.teleport_to_normalized_time;
+        let phase_markers = self.playback.as_ref().map_or_else(
+            || std::borrow::Cow::Borrowed(self.phase_markers.as_slice()),
+            |playback| resolved_source_sync_markers(&ctx, &playback.key, &self.phase_markers));
+        let leader_markers = self.playback.as_ref().map_or_else(
+            || std::borrow::Cow::Borrowed(leader.markers.as_slice()),
+            |playback| resolved_source_sync_markers(&ctx, &playback.key, &leader.markers));
+        let uses_marker_phase = self.phase_duration > EPSILON
+            && !phase_markers.is_empty() && !leader_markers.is_empty();
         let phase = if let Some(playback) = &self.playback {
             let delta_seconds = crate::extensions::sync_group_phase::source_sync_delta_seconds(&ctx, &playback.delta_seconds_key)?;
             let play_rate = if playback.play_rate_key.is_empty() {
@@ -700,7 +707,8 @@ impl NodeLike for NormalizedBlendSpaceNode {
                 .ok()
                 .and_then(|state| state.context.sync_players.first());
             let mut tick =
-                self.player_tick(playback, leader_index, previous.map(|tick| tick.phase), delta_seconds, play_rate);
+                self.player_tick(playback, leader_index, previous.map(|tick| tick.phase), delta_seconds, play_rate,
+                    &phase_markers, &leader_markers);
             tick.identity = (ctx.graph_context.context_id, ctx.node_id);
             tick.has_been_full_weight = previous.is_some_and(|tick| tick.has_been_full_weight)
                 || (matches!(playback.role,
@@ -723,13 +731,13 @@ impl NodeLike for NormalizedBlendSpaceNode {
         } else {
             normalize_phase(ctx.data_back(IN_PHASE)?.as_f32()?, sample_looped)
         };
-        let leader_time = if self.uses_marker_phase() {
+        let leader_time = if uses_marker_phase {
             marker_phase_sample_time(
                 phase,
                 self.phase_duration,
-                &self.phase_markers,
+                &phase_markers,
                 leader_duration,
-                &leader.markers,
+                &leader_markers,
                 sample_looped,
             )
         } else {
@@ -742,13 +750,16 @@ impl NodeLike for NormalizedBlendSpaceNode {
         for (index, weight) in weights {
             let point = &self.points[index];
             let duration = self.point_duration(&mut ctx, point)?;
-            let time = if self.uses_marker_phase() {
+            let point_markers = self.playback.as_ref().map_or_else(
+                || std::borrow::Cow::Borrowed(point.markers.as_slice()),
+                |playback| resolved_source_sync_markers(&ctx, &playback.key, &point.markers));
+            let time = if uses_marker_phase {
                 marker_phase_sample_time(
                     phase,
                     self.phase_duration,
-                    &self.phase_markers,
+                    &phase_markers,
                     duration,
-                    &point.markers,
+                    &point_markers,
                     sample_looped,
                 )
             } else if index == leader_index {
@@ -757,9 +768,9 @@ impl NodeLike for NormalizedBlendSpaceNode {
                 follower_sample_time(
                     phase,
                     leader_duration,
-                    &leader.markers,
+                    &leader_markers,
                     duration,
-                    &point.markers,
+                    &point_markers,
                     sample_looped,
                 )
             };
@@ -791,7 +802,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
         context.asset_samples.clear();
         if !self.teleport_to_normalized_time && let Some(tick) = context.sync_players.first() {
             let previous_position = marker_phase_sample_time(tick.previous_phase, self.phase_duration,
-                &self.phase_markers, leader_duration, &leader.markers, sample_looped);
+                &phase_markers, leader_duration, &leader_markers, sample_looped);
             let clock = crate::extensions::SourceRelevantAsset {
                 duration: leader_duration,
                 position: leader_time,
@@ -992,7 +1003,8 @@ mod tests {
                 ..default()
             };
             let binding = SourceSyncPlayerBinding { start_position: 0.25, ..default() };
-            let tick = node.player_tick(&binding, 0, None, 0.1, 3.0);
+            let tick = node.player_tick(&binding, 0, None, 0.1, 3.0,
+                &node.phase_markers, &node.points[0].markers);
             assert_eq!(tick.play_rate, 3.0 * rate);
             let time = marker_phase_sample_time(tick.advance(tick.phase), 1.0, &[], 2.0, &[], true);
             assert!((time - (0.5 + 0.1 * 3.0 * rate).rem_euclid(2.0)).abs() < 1e-5);
@@ -1344,6 +1356,8 @@ mod tests {
                     phase,
                     delta,
                     input["play_rate"].as_f64().unwrap() as f32,
+                    &node.phase_markers,
+                    &node.points[leader].markers,
                 );
                 let current = tick.advance(tick.phase);
                 phase = Some(current);
@@ -1360,6 +1374,8 @@ mod tests {
                     ablated_phase,
                     delta,
                     input["play_rate"].as_f64().unwrap() as f32,
+                    &ablated.phase_markers,
+                    &ablated.points[ablated_leader].markers,
                 );
                 let ablated_current = ablated_tick.advance(ablated_tick.phase);
                 ablated_phase = Some(ablated_current);

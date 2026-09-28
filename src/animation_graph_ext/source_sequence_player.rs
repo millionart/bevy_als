@@ -23,6 +23,7 @@ use crate::extensions::global_f32_input::root_defaults_enabled;
 use crate::extensions::sync_group_phase::{
     SourceSyncGroupRole, SourceSyncPlayerTick, SyncMarker, marker_phase_from_sample_time,
     marker_phase_sample_time, resolved_source_sync_phase, source_sync_delta_seconds,
+    resolved_source_sync_markers,
 };
 use crate::extensions::{
     AnimationContextState, SourceRelevantAsset, context_time_update, make_local_difference,
@@ -373,6 +374,10 @@ impl NodeLike for SourceSequencePlayerNode {
         let requested_inertialization = ctx.graph_context.global_input_data.get(
             crate::extensions::sync_group_phase::SOURCE_SYNC_INERTIAL_SCOPE)
             .is_some_and(|value| value.as_bool().unwrap_or(false));
+        let sync_markers = self.synchronization.as_ref().map(|sync| (
+            resolved_source_sync_markers(&ctx, &sync.key, &sync.phase_markers),
+            resolved_source_sync_markers(&ctx, &sync.key, &sync.markers),
+        ));
         let notify_instance_id = crate::extensions::source_instance::source_notify_instance_id(&ctx)?;
         let state = ctx.state_mut_or_else(SourceSequencePlayerState::default)?;
         let play_rate = apply_source_input_scale_bias_clamp(
@@ -387,6 +392,7 @@ impl NodeLike for SourceSequencePlayerNode {
         ) * self.asset_rate_scale;
         let mut sync_players = Vec::new();
         let position = if let Some(sync) = &self.synchronization {
+            let (phase_markers, markers) = sync_markers.as_ref().unwrap();
             let previous_phase = state
                 .context
                 .sync_players
@@ -396,9 +402,9 @@ impl NodeLike for SourceSequencePlayerNode {
                     marker_phase_from_sample_time(
                         start_position,
                         clip.duration(),
-                        &sync.markers,
+                        markers,
                         sync.phase_duration,
-                        &sync.phase_markers,
+                        phase_markers,
                         loop_animation,
                     )
                 });
@@ -414,9 +420,9 @@ impl NodeLike for SourceSequencePlayerNode {
                 requested_inertialization,
                 previous_phase,
                 phase_duration: sync.phase_duration,
-                phase_markers: sync.phase_markers.clone(),
+                phase_markers: phase_markers.to_vec(),
                 duration: clip.duration(),
-                markers: sync.markers.clone(),
+                markers: markers.to_vec(),
                 looped: loop_animation,
                 delta_seconds: delta,
                 play_rate,
@@ -426,9 +432,9 @@ impl NodeLike for SourceSequencePlayerNode {
             state.previous_position = marker_phase_sample_time(
                 previous_phase,
                 sync.phase_duration,
-                &sync.phase_markers,
+                phase_markers,
                 clip.duration(),
-                &sync.markers,
+                markers,
                 loop_animation,
             );
             state.has_previous_position = state.initialized;
@@ -437,9 +443,9 @@ impl NodeLike for SourceSequencePlayerNode {
             state.position = marker_phase_sample_time(
                 tick.phase,
                 sync.phase_duration,
-                &sync.phase_markers,
+                phase_markers,
                 clip.duration(),
-                &sync.markers,
+                markers,
                 loop_animation,
             );
             sync_players.push(tick);

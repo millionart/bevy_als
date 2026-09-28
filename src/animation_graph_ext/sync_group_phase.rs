@@ -128,6 +128,25 @@ pub fn source_sync_full_weight_key(identity: (GraphContextId, NodeId)) -> String
     format!("{SOURCE_SYNC_RESOLVED}.full_weight.{:?}.{:?}", identity.0, identity.1)
 }
 
+pub fn source_sync_marker_set_key(key: &str) -> String {
+    format!("{SOURCE_SYNC_RESOLVED}.markers.{key}")
+}
+
+pub fn source_sync_marker_name_key(key: &str, name: &str) -> String {
+    format!("{SOURCE_SYNC_RESOLVED}.markers.{key}.{name}")
+}
+
+pub fn resolved_source_sync_markers<'a>(ctx: &NodeContext, key: &str, markers: &'a [SyncMarker]) -> std::borrow::Cow<'a, [SyncMarker]> {
+    let inputs = ctx.graph_context.global_input_data;
+    if !inputs.contains_key(&source_sync_marker_set_key(key))
+        || inputs.contains_key(&source_sync_excluded_key((ctx.graph_context.context_id, ctx.node_id)))
+    {
+        return std::borrow::Cow::Borrowed(markers);
+    }
+    std::borrow::Cow::Owned(markers.iter().filter(|marker|
+        inputs.contains_key(&source_sync_marker_name_key(key, &marker.name))).cloned().collect())
+}
+
 pub fn source_sync_delta_seconds(ctx: &NodeContext, key: &str) -> Result<f32, GraphError> {
     let delta = global_f32_or_root_default(ctx, key)?;
     let player_update = match ctx.graph_context.context_arena.get_ref()
@@ -225,13 +244,28 @@ fn group_leader<'a>(players: &[&'a SourceSyncPlayerTick]) -> Option<&'a SourceSy
     players.get(candidates.get(select_source_sync_group_leader(&candidates, marker_sync)?)?.source_order).copied()
 }
 
+fn common_marker_names(players: &[&SourceSyncPlayerTick], leader: &SourceSyncPlayerTick) -> Vec<String> {
+    let mut common = leader.markers.iter().map(|marker| marker.name.clone()).collect::<Vec<_>>();
+    common.sort();
+    common.dedup();
+    for candidate in players {
+        if candidate.sync_group_eligible() && !candidate.markers.is_empty()
+            && (candidate.role != SourceSyncGroupRole::ExclusiveAlwaysLeader
+                || candidate.identity == leader.identity)
+        {
+            common.retain(|name| candidate.markers.iter().any(|marker| &marker.name == name));
+        }
+    }
+    common
+}
+
 pub fn resolve_source_sync_phases(
     current: &[SourceSyncPlayerTick],
     previous: &[SourceSyncPlayerTick],
-) -> Vec<(String, Option<f32>, Vec<(GraphContextId, NodeId)>)> {
+) -> Vec<(String, Option<f32>, Vec<(GraphContextId, NodeId)>, Vec<String>)> {
     let mut groups = Vec::new();
     for player in current {
-        if groups.iter().any(|(key, _, _)| key == &player.key) {
+        if groups.iter().any(|(key, _, _, _)| key == &player.key) {
             continue;
         }
         let players = current
@@ -239,24 +273,56 @@ pub fn resolve_source_sync_phases(
             .filter(|candidate| candidate.key == player.key)
             .collect::<Vec<_>>();
         let leader = group_leader(&players);
+        let common = leader.map_or_else(Vec::new, |leader| common_marker_names(&players, leader));
         let previous_players = previous
             .iter()
             .filter(|prior| prior.key == player.key)
             .collect::<Vec<_>>();
         let previous_leader = group_leader(&previous_players);
+        let previous_common = previous_leader.map_or_else(Vec::new, |prior|
+            common_marker_names(&previous_players, prior));
         let phase = leader.map(|leader| {
             let joined = previous_leader.is_some_and(|prior| {
                 prior.identity != leader.identity || prior.source_asset != leader.source_asset
             });
-            let phase = previous_leader
-                .map(|prior| prior.phase)
-                .unwrap_or(leader.previous_phase);
-            let phase = if leader.override_position_when_joining_sync_group_as_leader && joined {
-                leader.previous_phase
+            let mut grouped = leader.clone();
+            grouped.markers.retain(|marker| common.contains(&marker.name));
+            grouped.phase_markers.retain(|marker| common.contains(&marker.name));
+            let prior_phase = if leader.override_position_when_joining_sync_group_as_leader && joined {
+                None
+            } else if common == previous_common {
+                previous_leader.map(|prior| prior.phase)
             } else {
-                phase
+                previous_leader.and_then(|prior| {
+                    let prior_time = marker_phase_sample_time(prior.phase, prior.phase_duration,
+                        &prior.phase_markers, prior.duration, &prior.markers, prior.looped);
+                    let position = marker_position_at_time(&prior.markers, prior.duration, prior_time, prior.looped)?;
+                    if !common.contains(&position.previous) || !common.contains(&position.next) {
+                        return None;
+                    }
+                    time_for_marker_position(&grouped.phase_markers, grouped.phase_duration,
+                        &position, grouped.looped)
+                        .map(|time| time_to_phase(time, grouped.phase_duration, grouped.looped))
+                })
             };
-            leader.advance(phase)
+            if let Some(phase) = prior_phase {
+                grouped.advance(phase)
+            } else {
+                let independent_time = previous.iter()
+                    .find(|prior| prior.identity == leader.identity && prior.source_asset == leader.source_asset
+                        && (prior.duration - leader.duration).abs() <= EPSILON)
+                    .map(|prior| {
+                        let time = marker_phase_sample_time(prior.phase, prior.phase_duration,
+                            &prior.phase_markers, prior.duration, &prior.markers, prior.looped);
+                        let duration = leader.duration.max(EPSILON);
+                        phase_to_time((time + leader.delta_seconds * leader.play_rate) / duration,
+                            duration, leader.looped)
+                    })
+                    .unwrap_or_else(|| marker_phase_sample_time(leader.phase, leader.phase_duration,
+                        &leader.phase_markers, leader.duration, &leader.markers, leader.looped));
+                marker_phase_from_sample_time(independent_time, grouped.duration, &grouped.markers,
+                    grouped.phase_duration, &grouped.phase_markers, grouped.looped)
+            }
         });
         let ungrouped = players
             .iter()
@@ -267,7 +333,7 @@ pub fn resolve_source_sync_phases(
             })
             .map(|candidate| candidate.identity)
             .collect();
-        groups.push((player.key.clone(), phase, ungrouped));
+        groups.push((player.key.clone(), phase, ungrouped, common));
     }
     groups
 }
@@ -439,7 +505,7 @@ pub fn marker_position_at_time(
 ) -> Option<SyncMarkerPosition> {
     let duration = duration.max(EPSILON);
     let markers = sorted_markers(markers, duration);
-    if markers.len() < 2 {
+    if markers.is_empty() || (!looped && markers.len() < 2) {
         return None;
     }
     let time = if looped {
@@ -491,7 +557,7 @@ pub fn time_for_marker_position(
 ) -> Option<f32> {
     let duration = duration.max(EPSILON);
     let markers = sorted_markers(markers, duration);
-    if markers.len() < 2 {
+    if markers.is_empty() || (!looped && markers.len() < 2) {
         return None;
     }
     for index in 0..markers.len() {
@@ -889,6 +955,7 @@ mod tests {
         };
         let old = tick(old_id, old_clip.clone(), 0.8, false);
         let mut joining = tick(new_id, new_clip.clone(), 0.2, true);
+        joining.phase = 0.3;
         let phase = |current: &SourceSyncPlayerTick, previous: &[SourceSyncPlayerTick]| {
             resolve_source_sync_phases(&[current.clone()], previous)[0].1.unwrap()
         };
@@ -1124,6 +1191,86 @@ mod tests {
         let inertialized = resolve_source_sync_phases(&[full, entering], &[]);
         assert_eq!(inertialized[0].1, None);
         assert_eq!(inertialized[0].2.len(), 2);
+    }
+
+    #[test]
+    fn sync_group_uses_only_marker_names_shared_by_marked_players() {
+        let leader = SourceSyncPlayerTick {
+            key: "Movement".into(),
+            role: SourceSyncGroupRole::AlwaysLeader,
+            weight: 0.6,
+            phase_duration: 1.0,
+            phase_markers: markers(&[("A", 0.0), ("B", 0.8)]),
+            duration: 1.0,
+            markers: markers(&[("A", 0.0), ("Extra", 0.25), ("B", 0.5)]),
+            phase: 0.3,
+            previous_phase: 0.2,
+            delta_seconds: 0.1,
+            play_rate: 1.0,
+            looped: true,
+            ..default()
+        };
+        let follower = SourceSyncPlayerTick {
+            key: "Movement".into(),
+            role: SourceSyncGroupRole::AlwaysFollower,
+            weight: 0.4,
+            phase_duration: 1.0,
+            phase_markers: markers(&[("A", 0.0), ("B", 0.8)]),
+            duration: 1.0,
+            markers: markers(&[("A", 0.0), ("B", 0.8)]),
+            ..default()
+        };
+        let shared = resolve_source_sync_phases(&[leader.clone(), follower.clone()], &[]);
+        assert!((shared[0].1.unwrap() - 0.48).abs() < EPSILON, "{:?}", shared[0].1);
+        assert_eq!(shared[0].3, ["A", "B"]);
+        let mut unmarked = follower.clone();
+        unmarked.markers.clear();
+        let unmarked_group = resolve_source_sync_phases(&[leader.clone(), unmarked], &[]);
+        assert_eq!(unmarked_group[0].3, ["A", "B", "Extra"]);
+        let mut disjoint = follower.clone();
+        disjoint.markers = markers(&[("C", 0.0), ("D", 0.8)]);
+        let length_sync = resolve_source_sync_phases(&[leader.clone(), disjoint], &[]);
+        assert!(length_sync[0].3.is_empty());
+        assert!((length_sync[0].1.unwrap() - 0.3).abs() < EPSILON);
+        let mut single = follower.clone();
+        single.markers = markers(&[("A", 0.0), ("C", 0.8)]);
+        let single_group = resolve_source_sync_phases(&[leader.clone(), single], &[]);
+        assert_eq!(single_group[0].3, ["A"]);
+        let single_clock = marker_phase_sample_time(
+            0.3, 1.0, &markers(&[("A", 0.2)]), 1.0, &markers(&[("A", 0.5)]), true);
+        assert!((single_clock - 0.6).abs() < EPSILON);
+        let mut next = leader.clone();
+        next.phase = 0.4;
+        next.previous_phase = 0.3;
+        let changed = resolve_source_sync_phases(&[next.clone(), follower.clone()], &[leader.clone()]);
+        assert!((changed[0].1.unwrap() - 0.64).abs() < EPSILON, "{:?}", changed[0].1);
+        let mut prior_valid = leader;
+        prior_valid.phase = 0.9;
+        let retained = resolve_source_sync_phases(&[next, follower], &[prior_valid]);
+        assert!((retained[0].1.unwrap() - 0.94).abs() < EPSILON, "{:?}", retained[0].1);
+    }
+
+    #[test]
+    fn losing_exclusive_player_does_not_reduce_common_markers() {
+        let first: NodeId = serde_json::from_str("\"10000000-0000-4000-8000-000000000001\"").unwrap();
+        let second: NodeId = serde_json::from_str("\"10000000-0000-4000-8000-000000000002\"").unwrap();
+        let tick = |id, names: &[(&str, f32)]| SourceSyncPlayerTick {
+            identity: (GraphContextId::default(), id),
+            key: "Movement".into(),
+            role: SourceSyncGroupRole::ExclusiveAlwaysLeader,
+            weight: 0.5,
+            phase_duration: 1.0,
+            phase_markers: markers(names),
+            duration: 1.0,
+            markers: markers(names),
+            looped: true,
+            ..default()
+        };
+        let loser = tick(first, &[("C", 0.0), ("D", 0.5)]);
+        let winner = tick(second, &[("A", 0.0), ("B", 0.5)]);
+        let result = resolve_source_sync_phases(&[loser.clone(), winner], &[]);
+        assert_eq!(result[0].2, [loser.identity]);
+        assert_eq!(result[0].3, ["A", "B"]);
     }
 
     #[test]

@@ -165,6 +165,22 @@
     {
       "path": "target/bf131/a63/AnimNode_StateMachine.cpp",
       "sha256": "8dca0f41f0378ad8858f193d69cc8a4fdf43139c8114d20842c67d16ef8c161b"
+    },
+    {
+      "path": "target/bf131/a68/AnimationAsset.cpp",
+      "sha256": "d6bed3680c974fc6663965e6ef0a4dfc1e1d50c4b08bfbf8719cfc9a537e4f84"
+    },
+    {
+      "path": "target/bf131/a68/AnimSync.cpp",
+      "sha256": "7893a6c0c01cb984440c35e782c9db3aa47a51cd77a0185f1d2944bc6dafb84f"
+    },
+    {
+      "path": "target/bf131/a68/AnimSequence.cpp",
+      "sha256": "08986b39c6e9d933d523b5ede2e7bbc110bf6ee1d532ed21241d173d0040799c"
+    },
+    {
+      "path": "target/bf131/a68/AnimSequenceBase.cpp",
+      "sha256": "538cedbee8cad1313c301078374a2750c2929e5ec198a54d2254d0c79ae6c3f7"
     }
   ],
   "graphs": [
@@ -1900,6 +1916,11 @@
       "label": "transition_sync_group_full_weight_and_inertial_scope",
       "argv": ["cargo", "test", "--locked", "--offline", "--profile", "play", "--lib", "transition_", "--jobs", "2"],
       "evidence": "target/bf1295/bf131-a67-transition-final.json"
+    },
+    {
+      "label": "shared_sync_marker_names_and_sample_clocks",
+      "argv": ["cargo", "test", "--locked", "--offline", "--profile", "play", "--lib", "sync_", "--jobs", "2"],
+      "evidence": "target/bf1295/bf131-a68-sync-final.json"
     }
   ]
 }
