@@ -9,7 +9,8 @@ use crate::als::{
     },
 };
 use crate::extensions::source_instance::{set_source_frame_input, source_player_property};
-use avian3d::prelude::{Collider, ShapeCastConfig, SpatialQuery, SpatialQueryFilter};
+use avian3d::prelude::{Collider, ShapeCastConfig, SpatialQueryFilter};
+use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
     animated_scene::AnimatedSceneInstance, animation_graph_player::AnimationGraphPlayer,
@@ -343,7 +344,7 @@ mod tests {
 
     #[test]
     fn ground_prediction_uses_the_source_mesh_scaled_sweep() {
-        fn sample(spatial: SpatialQuery) -> [f32; 5] {
+        fn sample(spatial: crate::extensions::RagdollSpatialQuery) -> [f32; 5] {
             let filter = SpatialQueryFilter::default().with_mask(IN_AIR_SETTINGS.prediction_trace_layer);
             let unfiltered = SpatialQueryFilter::default();
             [

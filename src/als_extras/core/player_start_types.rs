@@ -1,4 +1,5 @@
-use avian3d::prelude::{ColliderAabb, SpatialQuery, SpatialQueryFilter};
+use avian3d::prelude::{ColliderAabb, SpatialQueryFilter};
+use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy::prelude::*;
 
 pub const ALS_PLAYER_START_SOURCE_CLEARANCE: f32 = 0.019;

@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use avian3d::prelude::{
-    ActiveCollisionHooks, AngularDamping, AngularInertia, CenterOfMass, Collider, CollisionLayers,
+    ActiveCollisionHooks, AngularDamping, AngularInertia, CenterOfMass, Collider, ColliderDisabled, CollisionLayers,
     CoefficientCombine, CollisionHooks, Friction, GravityScale, JointDamping, JointDisabled,
     LinearDamping, Mass, MaxAngularSpeed, NoAutoAngularInertia, NoAutoCenterOfMass, NoAutoMass, PhysicsSchedule,
-    PhysicsSystems, SolverSystems,
-    Position, Restitution, RevoluteJoint, Rotation, SphericalJoint,
+    PhysicsSystems, RayHitData, ShapeCastConfig, ShapeHitData, SolverSystems, SpatialQuery, SpatialQueryFilter,
+    Position, Restitution, RevoluteJoint, Rotation, Sensor, SphericalJoint,
 };
 use avian3d::dynamics::solver::solver_body::{SolverBody, SolverBodyFlags};
 use bevy::ecs::schedule::ApplyDeferred;
@@ -64,6 +64,35 @@ pub struct RagdollColliderPhysicsProfile {
     pub source_body_index: u8,
     pub source_layers: CollisionLayers,
     pub consider_for_bounds: bool,
+    pub collision_mode: RagdollShapeCollisionMode,
+}
+
+#[derive(Component, Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RagdollShapeCollisionMode {
+    NoCollision,
+    QueryOnly,
+    PhysicsOnly,
+    QueryAndPhysics,
+    ProbeOnly,
+    QueryAndProbe,
+}
+
+impl RagdollShapeCollisionMode {
+    fn from_source(value: &str) -> Result<Self, String> {
+        match value {
+            "NoCollision" => Ok(Self::NoCollision),
+            "QueryOnly" => Ok(Self::QueryOnly),
+            "PhysicsOnly" => Ok(Self::PhysicsOnly),
+            "QueryAndPhysics" => Ok(Self::QueryAndPhysics),
+            "ProbeOnly" => Ok(Self::ProbeOnly),
+            "QueryAndProbe" => Ok(Self::QueryAndProbe),
+            _ => Err(format!("unsupported shape collision mode: {value}")),
+        }
+    }
+
+    pub fn has_query(self) -> bool {
+        matches!(self, Self::QueryOnly | Self::QueryAndPhysics | Self::QueryAndProbe)
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -145,6 +174,7 @@ struct PhysicsAssetShape {
 #[derive(Deserialize)]
 struct PhysicsAssetShapeTarget {
     kind: String,
+    collision_enabled: String,
 }
 
 #[derive(Deserialize)]
@@ -269,7 +299,7 @@ impl RagdollPhysicsProfile {
             .flat_map(|(body, profile)| {
                 body.shapes
                     .iter()
-                    .map(|shape| RagdollColliderPhysicsProfile {
+                    .map(|shape| Ok(RagdollColliderPhysicsProfile {
                         label: format!(
                             "{}_{}_{}",
                             body.bone_name, shape.source_shape_index, shape.target.kind
@@ -277,9 +307,10 @@ impl RagdollPhysicsProfile {
                         source_body_index: body.source_index,
                         source_layers: profile.source_layers,
                         consider_for_bounds: body.source_properties.consider_for_bounds == "True",
-                    })
+                        collision_mode: RagdollShapeCollisionMode::from_source(&shape.target.collision_enabled)?,
+                    }))
             })
-            .collect();
+            .collect::<Result<Vec<_>, String>>()?;
         let joints = document
             .constraints
             .into_iter()
@@ -378,6 +409,7 @@ pub struct RagdollPhysicsProfileApplied {
 #[derive(SystemParam)]
 pub struct RagdollCollisionHooks<'w, 's> {
     members: Query<'w, 's, &'static RagdollCollisionMember>,
+    modes: Query<'w, 's, &'static RagdollShapeCollisionMode>,
 }
 
 impl CollisionHooks for RagdollCollisionHooks<'_, '_> {
@@ -387,10 +419,103 @@ impl CollisionHooks for RagdollCollisionHooks<'_, '_> {
         collider_2: Entity,
         _commands: &mut Commands,
     ) -> bool {
+        if [collider_1, collider_2].into_iter().any(|entity| self.modes.get(entity)
+            .is_ok_and(|mode| matches!(mode, RagdollShapeCollisionMode::NoCollision | RagdollShapeCollisionMode::QueryOnly))) {
+            return false;
+        }
         let Ok([member_1, member_2]) = self.members.get_many([collider_1, collider_2]) else {
             return true;
         };
         !member_1.disables(member_2)
+    }
+}
+
+#[derive(SystemParam)]
+pub struct RagdollSpatialQuery<'w, 's> {
+    spatial: SpatialQuery<'w, 's>,
+    modes: Query<'w, 's, &'static RagdollShapeCollisionMode>,
+}
+
+impl RagdollSpatialQuery<'_, '_> {
+    fn queryable(&self, entity: Entity) -> bool {
+        self.modes.get(entity).map_or(true, |mode| mode.has_query())
+    }
+
+    pub fn cast_ray(
+        &self,
+        origin: Vec3,
+        direction: Dir3,
+        max_distance: f32,
+        solid: bool,
+        filter: &SpatialQueryFilter,
+    ) -> Option<RayHitData> {
+        self.cast_ray_predicate(origin, direction, max_distance, solid, filter, &|_| true)
+    }
+
+    pub fn cast_ray_predicate(
+        &self,
+        origin: Vec3,
+        direction: Dir3,
+        max_distance: f32,
+        solid: bool,
+        filter: &SpatialQueryFilter,
+        predicate: &dyn Fn(Entity) -> bool,
+    ) -> Option<RayHitData> {
+        self.spatial.cast_ray_predicate(origin, direction, max_distance, solid, filter,
+            &|entity| self.queryable(entity) && predicate(entity))
+    }
+
+    pub fn cast_shape(
+        &self,
+        shape: &Collider,
+        origin: Vec3,
+        rotation: Quat,
+        direction: Dir3,
+        config: &ShapeCastConfig,
+        filter: &SpatialQueryFilter,
+    ) -> Option<ShapeHitData> {
+        self.cast_shape_predicate(shape, origin, rotation, direction, config, filter, &|_| true)
+    }
+
+    pub fn cast_shape_predicate(
+        &self,
+        shape: &Collider,
+        origin: Vec3,
+        rotation: Quat,
+        direction: Dir3,
+        config: &ShapeCastConfig,
+        filter: &SpatialQueryFilter,
+        predicate: &dyn Fn(Entity) -> bool,
+    ) -> Option<ShapeHitData> {
+        self.spatial.cast_shape_predicate(shape, origin, rotation, direction, config, filter,
+            &|entity| self.queryable(entity) && predicate(entity))
+    }
+
+    pub fn shape_intersections(
+        &self,
+        shape: &Collider,
+        position: Vec3,
+        rotation: Quat,
+        filter: &SpatialQueryFilter,
+    ) -> Vec<Entity> {
+        let mut hits = Vec::new();
+        self.shape_intersections_callback(shape, position, rotation, filter, |entity| {
+            hits.push(entity);
+            true
+        });
+        hits
+    }
+
+    pub fn shape_intersections_callback(
+        &self,
+        shape: &Collider,
+        position: Vec3,
+        rotation: Quat,
+        filter: &SpatialQueryFilter,
+        mut callback: impl FnMut(Entity) -> bool,
+    ) {
+        self.spatial.shape_intersections_callback(shape, position, rotation, filter,
+            |entity| !self.queryable(entity) || callback(entity));
     }
 }
 
@@ -643,6 +768,7 @@ fn apply_profile_to_spawned_ragdoll(
         };
         commands.entity(*collider_entity).insert((
             ActiveCollisionHooks::FILTER_PAIRS,
+            collider.collision_mode,
             RagdollCollisionMember {
                 group: spawned.root,
                 body_index: collider.source_body_index,
@@ -650,6 +776,16 @@ fn apply_profile_to_spawned_ragdoll(
                 disabled_pairs: profile.collision_disabled_pairs.clone(),
             },
         ));
+        if collider.collision_mode == RagdollShapeCollisionMode::NoCollision {
+            commands.entity(*collider_entity).insert(ColliderDisabled).remove::<Sensor>();
+        } else {
+            commands.entity(*collider_entity).remove::<ColliderDisabled>();
+            if matches!(collider.collision_mode, RagdollShapeCollisionMode::ProbeOnly | RagdollShapeCollisionMode::QueryAndProbe) {
+                commands.entity(*collider_entity).insert(Sensor);
+            } else {
+                commands.entity(*collider_entity).remove::<Sensor>();
+            }
+        }
         if collider.source_layers == CollisionLayers::NONE {
             commands.entity(*collider_entity).insert(CollisionLayers::NONE);
         }
@@ -1032,6 +1168,17 @@ mod tests {
             world.get::<BodyLabel>(**entity).unwrap().0 == "pelvis").unwrap();
         let spine_body = *spawned.bodies.values().find(|entity|
             world.get::<BodyLabel>(**entity).unwrap().0 == "spine_01").unwrap();
+        let spine_main = *spawned.colliders.values().find(|entity|
+            world.get::<ColliderLabel>(**entity).unwrap().0 == "spine_03_0_capsule").unwrap();
+        let spine_aux = *spawned.colliders.values().find(|entity|
+            world.get::<ColliderLabel>(**entity).unwrap().0 == "spine_03_1_capsule").unwrap();
+        let pelvis_collider = *spawned.colliders.values().find(|entity|
+            world.get::<ColliderLabel>(**entity).unwrap().0 == "pelvis_0_capsule").unwrap();
+        let probe_collider = *spawned.colliders.values().find(|entity|
+            world.get::<ColliderLabel>(**entity).unwrap().0 == "spine_01_0_capsule").unwrap();
+        let physics_only_collider = *spawned.colliders.values().find(|entity|
+            world.get::<ColliderLabel>(**entity).unwrap().0 == "spine_02_0_capsule").unwrap();
+        let outside = world.spawn_empty().id();
         let again = SpawnedRagdoll {
             root: spawned.root, bodies: spawned.bodies.clone(),
             colliders: spawned.colliders.clone(), joints: spawned.joints.clone(),
@@ -1131,10 +1278,23 @@ mod tests {
         body["target"]["material"]["static_friction"] = serde_json::json!(0.8);
         body["target"]["material"]["restitution"] = serde_json::json!(0.6);
         body["target"]["gyroscopic_torque_enabled"] = serde_json::json!(true);
+        body["shapes"][0]["target"]["collision_enabled"] = serde_json::json!("QueryAndProbe");
+        let spine = source["bodies"].as_array_mut().unwrap().iter_mut()
+            .find(|body| body["bone_name"] == "spine_03").unwrap();
+        spine["shapes"][1]["target"]["collision_enabled"] = serde_json::json!("QueryOnly");
+        for (name, mode) in [("spine_01", "ProbeOnly"), ("spine_02", "PhysicsOnly"), ("root", "NoCollision")] {
+            let body = source["bodies"].as_array_mut().unwrap().iter_mut()
+                .find(|body| body["bone_name"] == name).unwrap();
+            body["shapes"][0]["target"]["collision_enabled"] = serde_json::json!(mode);
+        }
         let mass_profile = RagdollPhysicsProfile::from_json(&source.to_string()).unwrap();
         let mut mass_profile_scaled = mass_profile.clone();
         mass_profile_scaled.bodies.iter_mut().find(|body| body.label == "pelvis").unwrap()
             .gyroscopic_torque_enabled = false;
+        for label in ["pelvis_0_capsule", "spine_03_1_capsule", "spine_01_0_capsule", "spine_02_0_capsule", "root_0_sphere"] {
+            mass_profile_scaled.colliders.iter_mut().find(|collider| collider.label == label).unwrap()
+                .collision_mode = RagdollShapeCollisionMode::QueryAndPhysics;
+        }
         let mass_again_scaled = SpawnedRagdoll {
             root: mass_again.root, bodies: mass_again.bodies.clone(),
             colliders: mass_again.colliders.clone(), joints: mass_again.joints.clone(),
@@ -1157,6 +1317,16 @@ mod tests {
         assert_eq!(world.get::<Restitution>(spine_body).unwrap().coefficient, 0.3);
         assert!(world.get::<RagdollGyroscopicTorqueDisabled>(pelvis_body).is_none());
         assert!(world.get::<RagdollGyroscopicTorqueDisabled>(spine_body).is_some());
+        let pair_filters = world.run_system_once(move |hooks: RagdollCollisionHooks,
+            mut commands: Commands| (hooks.filter_pairs(spine_main, outside, &mut commands),
+                hooks.filter_pairs(spine_aux, outside, &mut commands))).unwrap();
+        assert_eq!(pair_filters, (true, false));
+        assert!(world.get::<Sensor>(pelvis_collider).is_some());
+        assert!(world.get::<Sensor>(probe_collider).is_some());
+        assert!(world.get::<Sensor>(physics_only_collider).is_none());
+        assert!(world.get::<ColliderDisabled>(root_collider).is_some());
+        assert!(!world.get::<RagdollShapeCollisionMode>(probe_collider).unwrap().has_query());
+        assert!(!world.get::<RagdollShapeCollisionMode>(physics_only_collider).unwrap().has_query());
         assert!(world.get::<NoAutoMass>(pelvis_body).is_some());
         assert!(world.get::<NoAutoCenterOfMass>(pelvis_body).is_some());
         assert!(world.get::<NoAutoAngularInertia>(pelvis_body).is_some());
@@ -1173,6 +1343,12 @@ mod tests {
         assert_eq!(world.get::<CenterOfMass>(pelvis_body).unwrap().0, Vec3::new(0.2, 0.6, 0.4));
         assert_eq!(world.get::<MaxAngularSpeed>(pelvis_body).unwrap().0, 2.0);
         assert!(world.get::<RagdollGyroscopicTorqueDisabled>(pelvis_body).is_some());
+        assert!(world.get::<Sensor>(pelvis_collider).is_none());
+        assert!(world.get::<Sensor>(probe_collider).is_none());
+        assert!(world.get::<ColliderDisabled>(root_collider).is_none());
+        let restored = world.run_system_once(move |hooks: RagdollCollisionHooks,
+            mut commands: Commands| hooks.filter_pairs(spine_aux, outside, &mut commands)).unwrap();
+        assert!(restored);
         let mut principal = world.get::<AngularInertia>(pelvis_body).unwrap().principal.to_array();
         principal.sort_by(f32::total_cmp);
         assert!(principal.iter().zip([0.4, 0.8, 1.2]).all(|(actual, expected)| (actual - expected).abs() < 1e-5));
@@ -1260,6 +1436,84 @@ mod tests {
         app.world_mut().entity_mut(disabled).insert((AngularVelocity(initial), ConstantTorque::new(6.0, 0.0, 0.0)));
         app.update();
         assert!(app.world().get::<AngularVelocity>(disabled).unwrap().0.x > initial.x + 0.05);
+    }
+
+    #[test]
+    fn query_only_shape_remains_queryable_without_a_physics_pair() {
+        use avian3d::prelude::{Collisions, RigidBody, SpatialQuery, SpatialQueryFilter};
+        use bevy::{ecs::system::RunSystemOnce, time::TimeUpdateStrategy};
+        use std::time::Duration;
+
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin,
+            TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)
+                .with_collision_hooks::<RagdollCollisionHooks>()));
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0 / 60.0)));
+        app.finish();
+        app.cleanup();
+        let world = app.world_mut();
+        let main = world.spawn((RigidBody::Dynamic, Collider::sphere(0.5), Position(Vec3::ZERO),
+            ActiveCollisionHooks::FILTER_PAIRS, RagdollShapeCollisionMode::QueryAndPhysics)).id();
+        let main_other = world.spawn((RigidBody::Static, Collider::sphere(0.5), Position(Vec3::X * 0.75))).id();
+        let auxiliary = world.spawn((RigidBody::Dynamic, Collider::sphere(0.5), Position(Vec3::X * 5.0),
+            ActiveCollisionHooks::FILTER_PAIRS, RagdollShapeCollisionMode::QueryOnly)).id();
+        let auxiliary_other = world.spawn((RigidBody::Static, Collider::sphere(0.5), Position(Vec3::X * 5.75))).id();
+        let probe = world.spawn((RigidBody::Dynamic, Collider::sphere(0.5), Position(Vec3::X * 10.0),
+            ActiveCollisionHooks::FILTER_PAIRS, RagdollShapeCollisionMode::ProbeOnly, Sensor,
+            Mass(3.0), NoAutoMass, AngularInertia::new(Vec3::splat(0.1)), NoAutoAngularInertia)).id();
+        let probe_other = world.spawn((RigidBody::Static, Collider::sphere(0.5), Position(Vec3::X * 10.75))).id();
+        let disabled = world.spawn((RigidBody::Dynamic, Collider::sphere(0.5), Position(Vec3::X * 20.0),
+            ActiveCollisionHooks::FILTER_PAIRS, RagdollShapeCollisionMode::NoCollision, ColliderDisabled)).id();
+        let disabled_other = world.spawn((RigidBody::Static, Collider::sphere(0.5), Position(Vec3::X * 20.75))).id();
+        let physics_only = world.spawn((RigidBody::Dynamic, Collider::sphere(0.5), Position(Vec3::X * 25.0),
+            ActiveCollisionHooks::FILTER_PAIRS, RagdollShapeCollisionMode::PhysicsOnly)).id();
+        let physics_other = world.spawn((RigidBody::Static, Collider::sphere(0.5), Position(Vec3::X * 25.75))).id();
+        let query_probe = world.spawn((RigidBody::Dynamic, Collider::sphere(0.5), Position(Vec3::X * 30.0),
+            ActiveCollisionHooks::FILTER_PAIRS, RagdollShapeCollisionMode::QueryAndProbe, Sensor)).id();
+        let query_probe_other = world.spawn((RigidBody::Static, Collider::sphere(0.5), Position(Vec3::X * 30.75))).id();
+        app.update();
+        app.update();
+        assert!((app.world().get::<avian3d::prelude::ComputedMass>(probe).unwrap().value() - 3.0).abs() < 1e-5);
+        let contacts = app.world_mut().run_system_once(move |collisions: Collisions| {
+            (collisions.get(main, main_other).is_some(), collisions.get(auxiliary, auxiliary_other).is_some(),
+                collisions.get(probe, probe_other).map(|pair| (pair.is_touching(), pair.generates_constraints())),
+                collisions.get(disabled, disabled_other).is_some(), collisions.get(physics_only, physics_other).is_some(),
+                collisions.get(query_probe, query_probe_other).map(|pair| (pair.is_touching(), pair.generates_constraints())))
+        }).unwrap();
+        assert_eq!(contacts, (true, false, Some((true, false)), false, true, Some((true, false))));
+        let hit = app.world_mut().run_system_once(move |spatial: SpatialQuery| {
+            spatial.cast_ray(Vec3::X * 4.0, Dir3::X, 2.0, true, &SpatialQueryFilter::default())
+        }).unwrap().unwrap();
+        assert_eq!(hit.entity, auxiliary);
+        let no_hit = app.world_mut().run_system_once(move |spatial: SpatialQuery| {
+            spatial.cast_ray(Vec3::X * 18.5, Dir3::X, 1.1, true, &SpatialQueryFilter::default())
+        }).unwrap();
+        assert!(no_hit.is_none());
+        let raw_hit = app.world_mut().run_system_once(move |spatial: SpatialQuery| {
+            spatial.cast_ray(Vec3::X * 23.5, Dir3::X, 1.1, true, &SpatialQueryFilter::default())
+        }).unwrap().unwrap();
+        assert_eq!(raw_hit.entity, physics_only);
+        let filtered = app.world_mut().run_system_once(move |spatial: RagdollSpatialQuery| {
+            let filter = SpatialQueryFilter::default();
+            let shape = Collider::sphere(0.1);
+            let config = ShapeCastConfig { max_distance: 1.1, ..default() };
+            let mut callback_hits = Vec::new();
+            spatial.shape_intersections_callback(&shape, Vec3::X * 25.0, Quat::IDENTITY,
+                &filter, |entity| { callback_hits.push(entity); true });
+            (
+                spatial.cast_ray(Vec3::X * 23.5, Dir3::X, 1.1, true, &filter).is_none(),
+                spatial.cast_ray_predicate(Vec3::X * 23.5, Dir3::X, 1.1, true, &filter, &|_| true).is_none(),
+                spatial.cast_shape(&shape, Vec3::X * 23.5, Quat::IDENTITY, Dir3::X, &config, &filter).is_none(),
+                spatial.cast_shape_predicate(&shape, Vec3::X * 23.5, Quat::IDENTITY, Dir3::X,
+                    &config, &filter, &|_| true).is_none(),
+                spatial.shape_intersections(&shape, Vec3::X * 25.0, Quat::IDENTITY, &filter).is_empty(),
+                callback_hits.is_empty(),
+                spatial.cast_ray(Vec3::X * 4.0, Dir3::X, 2.0, true, &filter).map(|hit| hit.entity),
+                spatial.cast_ray(Vec3::X * 8.5, Dir3::X, 1.1, true, &filter).is_none(),
+                spatial.cast_ray(Vec3::X * 28.5, Dir3::X, 1.1, true, &filter).map(|hit| hit.entity),
+            )
+        }).unwrap();
+        assert_eq!(filtered, (true, true, true, true, true, true, Some(auxiliary), true, Some(query_probe)));
     }
 
     #[test]

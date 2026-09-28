@@ -15,7 +15,7 @@ use serde::Deserialize;
 use std::sync::Arc;
 use avian3d::{collider_tree::ColliderTrees, prelude::{Collider, Position, Rotation, SpatialQueryFilter}};
 use crate::extensions::{control_rig_hierarchy::RigTransform, control_rig_query::{RigQueryContext, RigQueryWorld},
-    source_instance::set_source_frame_input};
+    source_instance::set_source_frame_input, RagdollShapeCollisionMode};
 
 use crate::animation_context_projection::AlsRootAnimationContext;
 use crate::actual_motion::AlsActualMotion;
@@ -392,7 +392,7 @@ fn publish_control_rig_inputs(
     mut players: Query<&mut AnimationGraphPlayer>,
     transforms: TransformHelper,
     trees: Option<Res<ColliderTrees>>,
-    colliders: Query<(Entity, &Position, &Rotation, &Collider)>,
+    colliders: Query<(Entity, &Position, &Rotation, &Collider, Option<&RagdollShapeCollisionMode>)>,
     capture: Option<Res<crate::foot_ik_apply::AlsFootIkTelemetryEnabled>>,
 ) {
     let mut world: Option<Arc<RigQueryWorld>> = None;
@@ -430,8 +430,10 @@ fn publish_control_rig_inputs(
         let context = if input.foot_transforms_valid {
             trees.as_ref().and_then(|trees| transforms.compute_global_transform(avatar).ok().map(|transform| {
                 let world = world.get_or_insert_with(|| Arc::new(RigQueryWorld {
-                    trees: (**trees).clone(), colliders: colliders.iter().map(|(entity, position, rotation, collider)|
-                        (entity, (*position, *rotation, collider.clone()))).collect(),
+                    trees: (**trees).clone(), colliders: colliders.iter()
+                        .filter(|(_, _, _, _, mode)| mode.is_none_or(|mode| mode.has_query()))
+                        .map(|(entity, position, rotation, collider, _)|
+                            (entity, (*position, *rotation, collider.clone()))).collect(),
                 })).clone();
                 let transform = transform.compute_transform();
                 RigQueryContext { world, filter, channel: "ECC_Visibility".to_owned(),

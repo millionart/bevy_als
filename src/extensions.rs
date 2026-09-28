@@ -299,8 +299,8 @@ pub use ragdoll_angular_drive::{
 pub use ragdoll_config_node::RagdollConfigNode;
 pub use ragdoll_physics_profile::{
     RagdollActiveMode, RagdollBodyPhysicsProfile, RagdollColliderPhysicsProfile,
-    RagdollCollisionHooks, RagdollCollisionMember, RagdollJointPhysicsProfile,
-    RagdollPhysicsHandoffSet, RagdollPhysicsProfile, RagdollPhysicsProfileApplied,
+    RagdollCollisionHooks, RagdollCollisionMember, RagdollJointPhysicsProfile, RagdollShapeCollisionMode,
+    RagdollPhysicsHandoffSet, RagdollPhysicsProfile, RagdollPhysicsProfileApplied, RagdollSpatialQuery,
     RagdollPhysicsProfilePlugin, RagdollPhysicsProfileSet,
 };
 pub use ragdolling_tag_blend::RagdollingTagBlendNode;

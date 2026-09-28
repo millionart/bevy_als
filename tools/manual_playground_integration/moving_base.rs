@@ -4,7 +4,8 @@ use crate::als::dynamics::{AlsMovementBase, AlsComponentVelocity, component_velo
 use crate::als::mantle::{AlsMantleTargetBase, AlsMantleTargetPermission, MantleDetectionInput, detect_mantle};
 use crate::als::motion::AlsActualVelocity;
 use crate::extensions::{PlaygroundKinematic, PlaygroundKinematicKind};
-use avian3d::prelude::{Collider, ColliderOf, CollisionLayers, Sensor, SpatialQuery, SpatialQueryFilter};
+use avian3d::prelude::{Collider, ColliderOf, CollisionLayers, Sensor, SpatialQueryFilter};
+use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 
 const POSITION_TOLERANCE: f32 = 0.001;
 

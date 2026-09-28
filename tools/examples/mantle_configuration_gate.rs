@@ -11,6 +11,7 @@ use bevy_als::als::mantle::{
 };
 use bevy_als::als::state::{LocomotionState, OverlayState, Stance};
 use avian3d::prelude::*;
+use bevy_als::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 

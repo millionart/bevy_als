@@ -1,6 +1,7 @@
 use avian3d::prelude::{
-    Collider, ColliderOf, LinearVelocity, RigidBody, ShapeCastConfig, SpatialQuery, SpatialQueryFilter,
+    Collider, ColliderOf, LinearVelocity, RigidBody, ShapeCastConfig, SpatialQueryFilter,
 };
+use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy::prelude::*;
 use crate::als::dynamics::{AlsComponentVelocity, component_velocity};
 use std::{collections::HashMap, sync::LazyLock};

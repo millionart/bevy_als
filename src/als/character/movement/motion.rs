@@ -1,7 +1,8 @@
 use avian3d::prelude::{
     Collider, ColliderOf, CollisionLayers, Collisions, ContactPair, ContactPairFlags, Gravity, GravityScale, LinearVelocity, PhysicsSystems, Position, Rotation,
-    RigidBody, Sensor, ShapeCastConfig, ShapeHitData, SpatialQuery, SpatialQueryFilter, SpeculativeMargin,
+    RigidBody, Sensor, ShapeCastConfig, ShapeHitData, SpatialQueryFilter, SpeculativeMargin,
 };
+use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy::asset::Assets;
 use bevy::prelude::*;
 use bevy_tnua::builtins::{

@@ -4,9 +4,10 @@ use crate::als::{character::{AlsCharacter, AlsCollisionLayerOwnership}, state::{
 use avian3d::dynamics::{integrator::{IntegrationSystems, VelocityIntegrationData}, solver::solver_body::SolverBody};
 use avian3d::prelude::{
     Collider, ColliderOf, CollisionLayers, CustomPositionIntegration, Physics, PhysicsSchedule,
-    PhysicsSystems, Position, RigidBody, Sensor, ShapeCastConfig, SpatialQuery, SpatialQueryFilter,
+    PhysicsSystems, Position, RigidBody, Sensor, ShapeCastConfig, SpatialQueryFilter,
     SubstepCount, SubstepSchedule,
 };
+use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy::prelude::*;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 

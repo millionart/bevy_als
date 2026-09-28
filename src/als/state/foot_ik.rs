@@ -1,4 +1,5 @@
-use avian3d::prelude::{SpatialQuery, SpatialQueryFilter};
+use avian3d::prelude::SpatialQueryFilter;
+use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy::prelude::*;
 
 use bevy::animation::AnimationTargetId;

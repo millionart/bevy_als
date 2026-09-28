@@ -1,7 +1,8 @@
 use super::*;
 use crate::als::character::AlsCollisionLayerOwnership;
 use crate::als::aim::AlsLastFreeRotationMode;
-use avian3d::prelude::{ColliderOf, CollisionLayers, Collisions, Sensor, SpatialQuery, SpatialQueryFilter};
+use avian3d::prelude::{ColliderOf, CollisionLayers, Collisions, Sensor, SpatialQueryFilter};
+use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy_tnua::TnuaController;
 use crate::playground_collision::PlaygroundMeshColliderBuilt;
 

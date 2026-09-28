@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use avian3d::{collider_tree::ColliderTrees, prelude::*};
+use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy::{math::DVec3, platform::collections::HashMap, prelude::*};
 
 use crate::extensions::control_rig_hierarchy::RigTransform;

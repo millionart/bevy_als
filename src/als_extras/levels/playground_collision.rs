@@ -7,6 +7,8 @@ use crate::extensions::{
     PlaygroundPhysicsDriven, playground_moving_object_system,
 };
 use avian3d::prelude::*;
+#[cfg(test)]
+use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy::prelude::*;
 
 pub struct PlaygroundCollisionPlugin;

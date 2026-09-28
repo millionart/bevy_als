@@ -14,8 +14,9 @@ use crate::extensions::ragdoll_angular_drive::{
 use crate::extensions::{RagdollActiveMode, RagdollCollisionMember, RagdollPhysicsHandoffSet, RagdollPhysicsProfileApplied};
 use avian3d::prelude::{
     AngularVelocity, Collider, ColliderOf, CollisionLayers, LinearVelocity, PhysicsSystems, Position,
-    RigidBody, Rotation, Sensor, ShapeCastConfig, ShapeHitData, SpatialQuery, SpatialQueryFilter,
+    RigidBody, Rotation, Sensor, ShapeCastConfig, ShapeHitData, SpatialQueryFilter,
 };
+use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy::ecs::schedule::ApplyDeferred;
 use bevy::prelude::*;
 use bevy::transform::helper::TransformHelper;

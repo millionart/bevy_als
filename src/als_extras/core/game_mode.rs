@@ -6,7 +6,8 @@ use crate::als::player_start::{
     AlsPlayerStartSettings, AlsPlayerStartOccupancy, PLAYER_START_TELEPORT_SKIN,
     choose_player_start, teleport_xy_adjustments,
 };
-use avian3d::prelude::{SpatialQuery, SpatialQueryFilter};
+use avian3d::prelude::SpatialQueryFilter;
+use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy::prelude::*;
 
 use crate::character_assembly::{AlsCharacterBlueprint, spawn_als_character_with_materials};

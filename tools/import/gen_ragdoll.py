@@ -12,6 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 NAMESPACE = uuid.UUID("a4ea5f25-7f81-5f46-bb37-15ebc4778125")
 CM_TO_M = 0.01
+COLLISION_MODES = ("NoCollision", "QueryOnly", "PhysicsOnly", "QueryAndPhysics", "ProbeOnly", "QueryAndProbe")
 
 
 def stable_id(source_asset, kind, label):
@@ -49,6 +50,15 @@ def body_collision_layers(response):
     if response == "BodyCollision_Disabled":
         return (0, 0)
     raise ValueError(f"unsupported body collision response: {response}")
+
+
+def collision_enabled_intersection(body, shape):
+    body_bits = COLLISION_MODES.index(body)
+    shape_bits = COLLISION_MODES.index(shape)
+    query = body_bits & shape_bits & 1
+    simulation = bool(body_bits & 6) and bool(shape_bits & 6)
+    probe = simulation and bool((body_bits | shape_bits) & 4)
+    return COLLISION_MODES[query | (4 if probe else 2 if simulation else 0)]
 
 
 def target_material(entries):
@@ -349,6 +359,17 @@ def assert_close(left, right, tolerance=1e-5):
 
 def self_test():
     assert_close(ue_point([100.0, 200.0, 300.0]), [1.0, 3.0, 2.0])
+    intersections = (
+        ("NoCollision",) * 6,
+        ("NoCollision", "QueryOnly", "NoCollision", "QueryOnly", "NoCollision", "QueryOnly"),
+        ("NoCollision", "NoCollision", "PhysicsOnly", "PhysicsOnly", "ProbeOnly", "ProbeOnly"),
+        ("NoCollision", "QueryOnly", "PhysicsOnly", "QueryAndPhysics", "ProbeOnly", "QueryAndProbe"),
+        ("NoCollision", "NoCollision", "ProbeOnly", "ProbeOnly", "ProbeOnly", "ProbeOnly"),
+        ("NoCollision", "QueryOnly", "ProbeOnly", "QueryAndProbe", "ProbeOnly", "QueryAndProbe"),
+    )
+    for body, row in zip(COLLISION_MODES, intersections):
+        for shape, expected in zip(COLLISION_MODES, row):
+            assert collision_enabled_intersection(body, shape) == expected
     entries = [{"name": "bOverrideMaxAngularVelocity", "exported_text": "False"},
         {"name": "MaxAngularVelocity", "exported_text": "720.000000"}]
     assert math.isclose(target_max_angular_speed(entries, 400.0), math.radians(400.0))
@@ -398,6 +419,9 @@ def self_test():
     assert_close([mass["inertia_tensor_kg_m2"][i][i] for i in range(3)],
         [0.0866666667, 0.2666666667, 0.1133333333])
     assert target_mass_properties([box], 2.0, [0.0, 0.0, 0.0], [1.0, 1.0, 1.0]) is None
+    forced = target_mass_properties([box], 2.0, [0.0, 0.0, 0.0], [1.0, 1.0, 1.0], True)
+    assert_close([forced["inertia_tensor_kg_m2"][i][i] for i in range(3)],
+        [0.0866666667, 0.0666666667, 0.0333333333])
     sphere = {"kind": "sphere", "mass_kg": 1.0, "radius_m": 0.5,
         "translation_m": [0.0, 0.0, 0.0], "rotation_xyzw": [0.0, 0.0, 0.0, 1.0]}
     sphere_mass = target_mass_properties([sphere], 1.0, [0.1, 0.0, 0.0], [1.0, 1.0, 1.0])
@@ -483,8 +507,8 @@ def target_shape(shape):
     return result
 
 
-def target_mass_properties(shapes, mass, nudge_m, inertia_scale):
-    if all(value == 0.0 for value in nudge_m) and all(abs(value - 1.0) <= 1e-3 for value in inertia_scale):
+def target_mass_properties(shapes, mass, nudge_m, inertia_scale, force=False):
+    if not force and all(value == 0.0 for value in nudge_m) and all(abs(value - 1.0) <= 1e-3 for value in inertia_scale):
         return None
     if not shapes or mass <= 0.0 or abs(sum(shape["mass_kg"] for shape in shapes) - mass) > 1e-3:
         raise ValueError("body mass properties lack a valid shape mass closure")
@@ -754,20 +778,23 @@ def build_profile(source, project_max_angular_velocity_degrees):
             raise ValueError(f"unsupported source collision geometry: {body['bone_name']}")
         bone = body["bone_name"]
         original = source_map[("body", bone)]
+        default_instance = props(body["default_instance_properties"])
         shapes = []
         total = sum(volume(shape) for shape in body["shapes"])
         for index, shape in enumerate(body["shapes"]):
             item = dict(shape)
             item["source_shape_index"] = index
             item["target"] = target_shape(shape)
+            item["target"]["collision_enabled"] = collision_enabled_intersection(
+                default_instance["CollisionEnabled"], props(shape["properties"])["CollisionEnabled"])
             item["target"]["mass_kg"] = body["calculated_mass"] * volume(shape) / total
             shapes.append(item)
         physics_type = original["PhysicsType"]
         mode = "Kinematic" if physics_type == "PhysType_Kinematic" else "Dynamic"
-        default_instance = props(body["default_instance_properties"])
         nudge = ue_point(vector_after("COMNudge=" + default_instance["COMNudge"], "COMNudge"))
         inertia_scale = direction(vector_after("InertiaTensorScale=" + default_instance["InertiaTensorScale"], "InertiaTensorScale"))
-        mass_properties = target_mass_properties([shape["target"] for shape in shapes], body["calculated_mass"], nudge, inertia_scale)
+        mass_properties = target_mass_properties([shape["target"] for shape in shapes], body["calculated_mass"], nudge, inertia_scale,
+            any(shape["target"]["collision_enabled"] in {"NoCollision", "ProbeOnly", "QueryAndProbe"} for shape in shapes))
         bodies.append({
             "source_index": body["index"],
             "bone_name": bone,

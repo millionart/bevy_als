@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use avian3d::prelude::*;
+use bevy_als::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy::anti_alias::taa::TemporalAntiAliasing;
 use bevy::pbr::ScreenSpaceAmbientOcclusion;
 use bevy::prelude::*;

@@ -1,7 +1,8 @@
 use crate::als::character::AlsCollisionLayer;
 use avian3d::prelude::{
-    Collider, Position, Rotation, ShapeCastConfig, SimpleCollider, SpatialQuery, SpatialQueryFilter,
+    Collider, Position, Rotation, ShapeCastConfig, SimpleCollider, SpatialQueryFilter,
 };
+use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 #[path = "notifies/shake.rs"]
 mod shake;
 #[path = "settings/source_definition.rs"]

@@ -1,6 +1,7 @@
 use std::num::NonZeroU8;
 
 use avian3d::prelude::*;
+use bevy_als::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy::ecs::message::MessageWriter;
 use bevy::prelude::*;
 use bevy_animation_graph::AnimationGraphPlugin;

@@ -2,7 +2,8 @@ use super::*;
 use crate::als::aim::AlsLastFreeRotationMode;
 use crate::als::input::AlsInputCommand;
 use crate::als::turn_in_place::wrap_angle_degrees;
-use avian3d::prelude::{ShapeCastConfig, SpatialQuery, SpatialQueryFilter};
+use avian3d::prelude::{ShapeCastConfig, SpatialQueryFilter};
+use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use crate::playground_collision::PlaygroundMeshColliderBuilt;
 
 const MESHES: [&str; 3] = ["SM_Als_Stairs_01", "SM_Als_Stairs_02", "SM_Als_Stairs_03"];
@@ -205,7 +206,7 @@ mod tests {
 
     #[test]
     fn stairs_route_ends_on_a_supported_tread_before_the_original_terminal_wall() {
-        use avian3d::prelude::{PhysicsPlugins, SpatialQuery, SpatialQueryFilter};
+        use avian3d::prelude::{PhysicsPlugins, SpatialQueryFilter};
         use bevy::ecs::system::RunSystemOnce;
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin, PhysicsPlugins::new(PostUpdate)))

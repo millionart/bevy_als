@@ -164,6 +164,7 @@
           },
           "source_shape_index": 0,
           "target": {
+            "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.035,
             "kind": "capsule",
             "mass_kg": 7.926393985748291,
@@ -446,6 +447,7 @@
           },
           "source_shape_index": 0,
           "target": {
+            "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.0375,
             "kind": "capsule",
             "mass_kg": 6.391964912414551,
@@ -728,6 +730,7 @@
           },
           "source_shape_index": 0,
           "target": {
+            "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.035,
             "kind": "capsule",
             "mass_kg": 7.926393985748291,
@@ -1010,6 +1013,7 @@
           },
           "source_shape_index": 0,
           "target": {
+            "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.0375,
             "kind": "capsule",
             "mass_kg": 9.49226093630139,
@@ -1185,6 +1189,7 @@
           },
           "source_shape_index": 1,
           "target": {
+            "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.08,
             "kind": "capsule",
             "mass_kg": 1.7412424053734155,
@@ -1467,6 +1472,7 @@
           },
           "source_shape_index": 0,
           "target": {
+            "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.025,
             "kind": "capsule",
             "mass_kg": 1.8103585243225098,
@@ -1749,6 +1755,7 @@
           },
           "source_shape_index": 0,
           "target": {
+            "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.045,
             "kind": "capsule",
             "mass_kg": 3.5146818161010738,
@@ -2031,6 +2038,7 @@
           },
           "source_shape_index": 0,
           "target": {
+            "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.1625,
             "kind": "capsule",
             "mass_kg": 6.1729679107666025,
@@ -2313,6 +2321,7 @@
           },
           "source_shape_index": 0,
           "target": {
+            "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.1625,
             "kind": "capsule",
             "mass_kg": 6.1729679107666025,
@@ -2595,6 +2604,7 @@
           },
           "source_shape_index": 0,
           "target": {
+            "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.1575,
             "kind": "capsule",
             "mass_kg": 3.969801187515259,
@@ -2877,6 +2887,7 @@
           },
           "source_shape_index": 0,
           "target": {
+            "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.1575,
             "kind": "capsule",
             "mass_kg": 3.969801187515259,
@@ -3159,6 +3170,7 @@
           },
           "source_shape_index": 0,
           "target": {
+            "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.0675,
             "kind": "capsule",
             "mass_kg": 2.5670430660247803,
@@ -3441,6 +3453,7 @@
           },
           "source_shape_index": 0,
           "target": {
+            "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.0675,
             "kind": "capsule",
             "mass_kg": 2.5670430660247803,
@@ -3723,6 +3736,7 @@
           },
           "source_shape_index": 0,
           "target": {
+            "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.115,
             "kind": "capsule",
             "mass_kg": 2.5621731281280518,
@@ -4005,6 +4019,7 @@
           },
           "source_shape_index": 0,
           "target": {
+            "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.115,
             "kind": "capsule",
             "mass_kg": 2.5621731281280518,
@@ -4287,6 +4302,7 @@
           },
           "source_shape_index": 0,
           "target": {
+            "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.105,
             "kind": "capsule",
             "mass_kg": 1.5003832578659058,
@@ -4569,6 +4585,7 @@
           },
           "source_shape_index": 0,
           "target": {
+            "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.105,
             "kind": "capsule",
             "mass_kg": 1.5003832578659058,
@@ -4858,6 +4875,7 @@
           },
           "source_shape_index": 0,
           "target": {
+            "collision_enabled": "QueryAndPhysics",
             "half_extents_m": [
               0.08,
               0.055,
@@ -5153,6 +5171,7 @@
           },
           "source_shape_index": 0,
           "target": {
+            "collision_enabled": "QueryAndPhysics",
             "half_extents_m": [
               0.08,
               0.055,
@@ -5388,6 +5407,7 @@
           "radius": 10,
           "source_shape_index": 0,
           "target": {
+            "collision_enabled": "QueryAndPhysics",
             "kind": "sphere",
             "mass_kg": 2.9279141426086426,
             "radius_m": 0.1,
@@ -5676,6 +5696,7 @@
           },
           "source_shape_index": 0,
           "target": {
+            "collision_enabled": "QueryAndPhysics",
             "half_extents_m": [
               0.06,
               0.06,
@@ -5971,6 +5992,7 @@
           },
           "source_shape_index": 0,
           "target": {
+            "collision_enabled": "QueryAndPhysics",
             "half_extents_m": [
               0.06,
               0.06,

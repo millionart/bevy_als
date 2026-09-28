@@ -3,7 +3,8 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use crate::als::{character::AlsCharacter, foot_ik::AlsFootBones, state::LocomotionState};
 use crate::extensions::projected_decal::{NoDecalReceiver, PackedDecal, PackedDecalMaterial, PhysicalSurface};
-use avian3d::{collider_tree::ColliderTrees, prelude::{SpatialQuery, SpatialQueryFilter}};
+use avian3d::{collider_tree::ColliderTrees, prelude::SpatialQueryFilter};
+use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy_animation_graph::core::{animated_scene::AnimatedSceneInstance, animation_graph_player::AnimationGraphPlayer};
 use crate::{animation_events::{AlsAnimationEvent, AlsAnimationEventSet}, character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar}};
 
