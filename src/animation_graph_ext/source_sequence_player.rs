@@ -147,7 +147,7 @@ fn next_position(
     loop_animation: bool,
 ) -> f32 {
     let duration = duration.max(1e-4);
-    let previous_position = state.position;
+    let previous_position = if state.initialized { state.position } else { start_position };
     let has_previous_position = state.initialized && matches!(&update, TimeUpdate::Delta(_));
     if !state.initialized {
         state.initialized = true;
@@ -391,6 +391,9 @@ impl NodeLike for SourceSequencePlayerNode {
             &self.play_rate_mapping,
             delta,
         ) * self.asset_rate_scale;
+        let start_position = if start_position == 0.0 && play_rate < 0.0 {
+            clip.duration()
+        } else { start_position };
         let mut sync_players = Vec::new();
         let position = if let Some(sync) = &self.synchronization {
             let (phase_markers, markers) = sync_markers.as_ref().unwrap();
@@ -527,7 +530,7 @@ mod tests {
                 system_resources::SystemResources},
             edge_data::DataSpec, state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
         };
-        fn query(In((handle, node)): In<(Handle<AnimationGraph>, NodeId)>, resources: SystemResources) -> (f32, f32) {
+        fn query(In((handle, node)): In<(Handle<AnimationGraph>, NodeId)>, resources: SystemResources) -> (f32, f32, f32, f32) {
             let graph = resources.animation_graph_assets.get(&handle).unwrap();
             let mut arena = GraphContextArena::new(handle.id());
             let mut gizmos = DeferredGizmos::default();
@@ -538,7 +541,10 @@ mod tests {
                 &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
             let output = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.6)), context).unwrap();
             let state = arena.get_toplevel().node_states.get::<SourceSequencePlayerState>(node, StateKey::Default).unwrap();
-            (output["Pose"].as_pose().unwrap().timestamp, state.context.relevant_asset.as_ref().unwrap().playback_delta_seconds)
+            (output["Pose"].as_pose().unwrap().timestamp,
+                state.context.relevant_asset.as_ref().unwrap().playback_delta_seconds,
+                state.context.relevant_asset.as_ref().unwrap().previous_position,
+                state.context.asset_samples[0].clock.previous_position)
         }
         let mut world = World::new();
         world.init_resource::<Assets<AnimationGraph>>();
@@ -547,27 +553,32 @@ mod tests {
         world.init_resource::<Assets<StateMachine>>();
         let clip = world.resource_mut::<Assets<GraphClip>>().add(GraphClip { duration: 2.0, ..default() });
         for rate_scale in [2.0_f32, -2.0, 0.0] {
-            for looped in [false, true] {
-                for synchronized in [false, true] {
-                    let node = AnimationNode::new("rate-scaled sequence", SourceSequencePlayerNode {
-                        clip: clip.clone(), asset_rate_scale: rate_scale, play_rate: 99.0, play_rate_key: "rate".to_owned(),
-                        expose_play_rate_pin: false, play_rate_basis: 2.0,
-                        play_rate_mapping: SourceAlphaMapping { source_semantics: true, clamp_result: true,
-                            clamp_min: -1.5, clamp_max: 1.5, ..default() },
-                        start_position: 0.5, expose_start_position_pin: false, loop_animation: looped, expose_loop_animation_pin: false,
-                        synchronization: synchronized.then(|| SourceSequenceSynchronization { key: "fixture".into(),
-                            delta_seconds_key: "delta".into(), ..default() }), ..default()
-                    });
-                    let mut graph = AnimationGraph::new();
-                    graph.add_output_data("Pose".into(), DataSpec::Pose);
-                    graph.add_output_data_edge(node.id, "Pose", "Pose");
-                    graph.add_node(node.clone());
-                    let graph = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
-                    let (position, delta) = world.run_system_cached_with(query, (graph, node.id)).unwrap();
-                    let expected_delta = 0.6 * 1.5 * rate_scale;
-                    let expected = if looped { (0.5 + expected_delta).rem_euclid(2.0) } else { (0.5 + expected_delta).clamp(0.0, 2.0) };
-                    assert!((position - expected).abs() < 1e-5, "rate={rate_scale}, looped={looped}, sync={synchronized}: {position} != {expected}");
-                    assert!((delta - expected_delta).abs() < 1e-5);
+            for start_position in [0.0_f32, 0.5] {
+                for looped in [false, true] {
+                    for synchronized in [false, true] {
+                        let node = AnimationNode::new("rate-scaled sequence", SourceSequencePlayerNode {
+                            clip: clip.clone(), asset_rate_scale: rate_scale, play_rate: 99.0, play_rate_key: "rate".to_owned(),
+                            expose_play_rate_pin: false, play_rate_basis: 2.0,
+                            play_rate_mapping: SourceAlphaMapping { source_semantics: true, clamp_result: true,
+                                clamp_min: -1.5, clamp_max: 1.5, ..default() },
+                            start_position, expose_start_position_pin: false, loop_animation: looped, expose_loop_animation_pin: false,
+                            synchronization: synchronized.then(|| SourceSequenceSynchronization { key: "fixture".into(),
+                                delta_seconds_key: "delta".into(), ..default() }), ..default()
+                        });
+                        let mut graph = AnimationGraph::new();
+                        graph.add_output_data("Pose".into(), DataSpec::Pose);
+                        graph.add_output_data_edge(node.id, "Pose", "Pose");
+                        graph.add_node(node.clone());
+                        let graph = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
+                        let (position, delta, previous, sample_previous) = world.run_system_cached_with(query, (graph, node.id)).unwrap();
+                        let expected_delta = 0.6 * 1.5 * rate_scale;
+                        let initial = if start_position == 0.0 && expected_delta < 0.0 { 2.0 } else { start_position };
+                        let expected = if looped { (initial + expected_delta).rem_euclid(2.0) } else { (initial + expected_delta).clamp(0.0, 2.0) };
+                        assert!((position - expected).abs() < 1e-5, "rate={rate_scale}, start={start_position}, looped={looped}, sync={synchronized}: {position} != {expected}");
+                        assert!((delta - expected_delta).abs() < 1e-5);
+                        assert!((previous - initial).abs() < 1e-5, "rate={rate_scale}, start={start_position}, looped={looped}, sync={synchronized}: previous {previous} != {initial}");
+                        assert!((sample_previous - initial).abs() < 1e-5, "rate={rate_scale}, start={start_position}, looped={looped}, sync={synchronized}: sample previous {sample_previous} != {initial}");
+                    }
                 }
             }
         }
@@ -774,6 +785,17 @@ mod tests {
         let mut long = SourceSequencePlayerState::default();
         assert!((next_position(&mut long, TimeUpdate::Delta(0.1), 2.5, 1.75, 1.0, true) - 1.85).abs() < 1e-6);
         assert!((marker_phase_from_sample_time(1.75, 2.5, &[], 2.5, &[], true) - 0.7).abs() < 1e-6);
+    }
+
+    #[test]
+    fn reverse_sequence_restarts_from_the_effective_start_on_reinitialization() {
+        let mut state = SourceSequencePlayerState::default();
+        assert!((next_position(&mut state, TimeUpdate::Delta(0.2), 1.0, 1.0, -1.0, false) - 0.8).abs() < 1e-6);
+        assert_eq!(state.previous_position, 1.0);
+        assert!((next_position(&mut state, TimeUpdate::Delta(0.2), 1.0, 1.0, -1.0, false) - 0.6).abs() < 1e-6);
+        state = SourceSequencePlayerState::default();
+        assert!((next_position(&mut state, TimeUpdate::Absolute(0.2), 1.0, 1.0, -1.0, false) - 0.8).abs() < 1e-6);
+        assert_eq!(state.previous_position, 1.0);
     }
 
     #[test]

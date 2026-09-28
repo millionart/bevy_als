@@ -70,7 +70,7 @@
 - [x] **BF131.A72 — 惯性过渡的显式 BlendProfile 在生成、请求和逐骨消费链中丢失**。Gate：显式 profile 贯穿生成、惯性请求与逐骨持续时间，默认 profile 和无覆盖控制通过。
 - [x] **BF131.A73 — 惯性化 root 历史没有按组件／Actor 附着空间变化重表达**。Gate：组件/Actor 附着空间改变后历史按源坐标系重表达，世界连续姿态和不变空间控制通过。
 - [x] **BF131.A74 — 关闭跨被跳过缓存分支的惯性请求转发仍向全部消费者复制请求**。Gate：关闭转发时跳过分支不接收请求，开启转发及实际求值消费者保持源语义。
-- [ ] **BF131.A75 — SequencePlayer 初始化未保留默认倒播起点语义，非循环负倍率停在首帧**。Gate：默认负倍率从源规定终点初始化；显式起点、循环/非循环及重初始化通过。
+- [x] **BF131.A75 — SequencePlayer 初始化未保留默认倒播起点语义，非循环负倍率停在首帧**。Gate：默认负倍率从源规定终点初始化；显式起点、循环/非循环及重初始化通过。
 - [ ] **BF131.A76 — StateResult 完全混入／完全混出回调被解析和生成，但 FSM 从不触发**。Gate：实际状态权重到达端点触发对应回调，连续帧不重复，打断/重入符合源生命周期。
 - [ ] **BF131.A77 — 根运动平移按固定轨迹坐标相减，遗漏前一 root 旋转的相对空间转换**。Gate：带旋转轨迹按前一 root 局部空间提取位移，正倒播和循环连续，直线控制通过。
 - [ ] **BF131.A78 — GroundPlane 将 yaw 同时发布为根运动并保留在输出 root 姿态中**。Gate：消费 yaw 后输出 root 去除对应旋转，保留源规定的高度/其他轴，角色不重复旋转。
@@ -272,3 +272,10 @@
 - BF131.A74-S3：开始 2026-09-28 12:33 +08:00；预估结束 2026-09-28 13:08 +08:00。用 run_manual 同一 target_game/play 优化预构建刷新全图规格，审计 Standing/Grounded/Locomotion/根作者合同，再跑 startup、standing_direction、state_machine、default_overlay 公共功能 Gate；逐份检查原始报告和错误/时序/watchdog。完成后勾选并单独提交 A74。
   - Runtime 前摘要（12:37 +08:00）：fresh 本地 UE Inertialization/Save/UseCachedPose 消息链、普通与缓存内部请求四组实际 GraphContext、scoped 实例与合并反例、两项最终路由移除消融、完整库 1262 项闭合；同 run_manual 的 target_game/play 优化构建成功，349 张图 fresh 规格通过。Standing/Grounded/Locomotion/根作者合同共 44 条声明命令均通过，RON/转换器未改，沿用 A72 全入口 374 文件零 diff；开始公共功能 Gate，保留原始性能报告供既定延期核对。
   - S3 实际结束 2026-09-28 12:41 +08:00，偏差 -27 分钟；结果：startup、standing_direction 5/5、state_machine 10/10、default_overlay 17/17 公共功能 Gate 全部 PASS，四份报告故障/图错误/时序异常/watchdog 为 0，手工与校验进程均退出 0；原始报告保留既定延期的 max_eval_p95_ms 超预算。缓存外部/内部两类请求开关、scope 与合并、两个最终消融、完整库 1262 项、349 图规格及 44 条声明命令闭合；RON/转换器/原始资产未改，沿用 A72 的 374 文件零 diff，勾选 A74。
+- BF131.A75-S1：开始 2026-09-28 12:42 +08:00；预估结束 2026-09-28 13:07 +08:00。依据：fresh 本地 UE AnimNode_SequencePlayer::Initialize_AnyThread 在 EffectiveStartPosition 恰为 0 且 Sequence RateScale×映射后 PlayRate 为负时设时间到序列终点；目标 next_position 在先从零开始加负增量后钳制/取模，非循环停首帧。先核对初始化/更新与显式起点、同步组和重建的调用链，用实际 GraphContext 建立默认倒播及非零起点失败反例；不改 A62 的 RateScale 或 A67–70 同步组算法。
+  - S1 实际结束 2026-09-28 12:45 +08:00，偏差 -22 分钟；结果：UE 初始化在暴露输入求值与 rate 映射、资产 RateScale 合成之后，仅当有效起点恰为零且有效倍率为负时改为序列长度；随后 UpdateAssetPlayer 用当前累计时间建 TickRecord。目标非同步路径从零负步进钳为零，同步路径的初始相位/提示时间和首帧样本历史也沿用原零。实际 GraphContext 把资产倍率正/负/零、默认零/显式非零、循环/非循环及同步分支组合后稳定 red：负倍率、零起点、非循环得到 0 而应为 0.2。下一步只统一有效初始化起点及首帧历史，保留原倍率映射与同步组调度。
+- BF131.A75-S2：开始 2026-09-28 12:45 +08:00；预估结束 2026-09-28 13:20 +08:00。在播放器共享更新入口把零起点/负有效倍率映射到序列终点，同一值供非同步步进、同步初相位与首帧样本历史使用；验证显式起点与循环控制、重建、Absolute 更新时间和源映射倍率，再做移除条件消融与定向/完整库回归。RON/转换器不改，真实入口另起 S3。
+  - S2 实际结束 2026-09-28 12:51 +08:00，偏差 -29 分钟；结果：在资产 RateScale 与节点 Basis/ScaleBiasClamp 合成之后，仅将零起点且有效负倍率的初始化时间设为片段长度；同一值进入非同步步进、同步相位/提示时间、首帧相关资产与采样历史。实际图 24 组正/负/零资产倍率×零/显式起点×循环×同步、直接 Absolute/重建控制通过；删除终点条件或首帧历史修正均 red，恢复后播放器定向 14/14、完整库 1263/1263。只改共享播放器运行时及夹具，RON/转换器/原始资产不变，沿用 A72 全入口 374 文件零 diff。
+- BF131.A75-S3：开始 2026-09-28 12:51 +08:00；预估结束 2026-09-28 13:21 +08:00。以 run_manual 相同 target_game/play 优化 profile 预构建，fresh 349 图规格和 Standing/Locomotion/根作者审计通过后，执行 startup、standing_direction、state_machine 公共功能 Gate，核对首帧、错误/时序/watchdog 与原始性能报告；通过后勾选并单独提交 A75。
+  - Runtime 前摘要（12:55 +08:00）：本地 UE SequencePlayer 初始化/更新和负有效倍率的尾端起点、24 组实际图时钟、重初始化/Absolute 控制、两处消融及完整库 1263 项闭合。同 run_manual 的 target_game/play 优化预构建、fresh 349 图规格和 Standing/Locomotion/根作者合同 30 条声明命令通过；RON/转换器未改，沿用 A72 全入口 374 文件零 diff。开始三项公共功能 Gate，保留既定延期的原始性能结果。
+  - S3 实际结束 2026-09-28 12:58 +08:00，偏差 -23 分钟；结果：startup、standing_direction 5/5、state_machine 10/10 公共功能 Gate 全部 PASS，三份报告故障/图错误/时序异常/watchdog 为 0，手工与校验进程均退出 0；原始报告保留既定延期的 max_eval_p95_ms 超预算。源初始化条件、24 组实际图时钟/重建控制、两项消融、完整库 1263 项、fresh 349 图规格及 30 条声明命令闭合；RON/转换器/原始资产未改，沿用 A72 的 374 文件零 diff，勾选 A75。
