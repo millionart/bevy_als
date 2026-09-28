@@ -63,7 +63,7 @@
 - [x] **BF131.A64 — Animation curves lose case-insensitive FName identity and name-based basis conversion**。Gate：大小写变体共享曲线身份，名称驱动的坐标转换一致且只执行一次。
 - [x] **BF131.A65 — BlendSpace Player accepts then discards per-bone sample weight smoothing overrides**。Gate：逐骨平滑覆盖由 source 进入生成与实际混合；未覆盖骨保持默认，连续时间及重建通过。
 - [x] **BF131.A66 — CurvesBlend omits fractional update weight before its child FSM runs**。Gate：子 FSM 更新时已收到实际分数权重，0/中间/1 权重及嵌套更新通过。
-- [ ] **BF131.A67 — TransitionLeader/TransitionFollower are not excluded during fade-in**。Gate：淡入阶段按角色和源有效权重选 leader，退出淡入后恢复候选资格；实际脚步分派使用同一选举规则，被排除播放器保持独立通知。
+- [x] **BF131.A67 — TransitionLeader/TransitionFollower are not excluded during fade-in**。Gate：淡入阶段按角色和源有效权重选 leader，退出淡入后恢复候选资格；实际脚步分派使用同一选举规则，被排除播放器保持独立通知。
 - [x] **BF131.A68 — Sync marker mapping does not filter to common marker names**。Gate：先求组内共同 marker 集，再定位/映射，非共同 marker 不改变有效相位。
 - [x] **BF131.A69 — Modify Curve accepts WeightedMovingAverage but evaluates it as stateless Blend**。Gate：逐实例历史参与加权移动平均，初始化/更新/重建及其他模式控制通过。
 - [ ] **BF131.A70 — Repeated marker-name pairs collapse later timeline occurrences into the first pair**。Gate：同名重复 marker 对保留时间位置，跨多个区间、多周期、倒播与精确边界不跳到较早 occurrence；实际播放器自身映射保持时间。
@@ -412,3 +412,13 @@
 - BF131.A40b-S3：开始 2026-09-29 01:41 +08:00；预估结束 2026-09-29 02:06 +08:00。按 run_manual 的 target_game/play 优化预构建后执行 startup、footprint 公共功能 Gate；同 handle 资格转换由真实 ECS 夹具验收，原 Playground 验证正常接收、GPU 属性与原材质替换仍成立。无图/转换器修改，完成后单独提交。
   - Runtime 前摘要：fresh Footprint 材质与 UE DBuffer 接收规则、共享 handle 的完整透明往返 ECS 反例/修复/消融、projected_decal 9/9 回归及 diff check 均闭合；同 target_game/play 优化预构建 PASS。开始 startup/footprint 可见功能 Gate，图/原始资产/转换算法未改。
   - S3 实际结束 2026-09-29 01:47 +08:00，偏差 -19 分钟；结果：startup、footprint 公共功能 Gate PASS，footprint 22/22（含原材质替换），GPU 36 请求/576 采样通过；图/故障/时序/primary_failure 均空，watchdog 未触发，手工和校验进程均退出 0。源资格、同 handle 往返/共享 ECS 反例、移除条件消融与真实入口闭合，勾选 A40b；性能预算保留既定延期。下一项 A67 真实事件分派。
+- BF131.A67-R1-S1：开始 2026-09-29 01:49 +08:00；预估结束 2026-09-29 02:19 +08:00。依据：当次 Standing 原生记录、UE GetSyncParams/AnimSync 独立通知与现有真实 sprint 双播放器夹具；仅扩展已证明的 sync root→asset_samples→dispatch_graph_footsteps 消费闭包。用 CanBeLeader=0.4、TransitionLeader/TransitionFollower=0.6，完整权重前后和惯性请求矩阵直接统计最终 FootstepEffects；保留独立播放器通知及已有 CameraShake 控制，先确认旧分派重选规则 red。
+  - S1 实际结束 2026-09-29 01:51 +08:00，偏差 -28 分钟；结果：真实 SourceSequencePlayer→同步根→dispatch_graph_footsteps 的首个矩阵稳定 red，TransitionLeader 尚未完整混入时正常 0.4 播放器脚步为 0、独立 0.6 播放器为 10，前者被错误压制。源独立 tick 与目标同步根清除被排除样本组名已闭合；漏检点是分派器独立重选时忽略资格。
+- BF131.A67-R1-S2：开始 2026-09-29 01:51 +08:00；预估结束 2026-09-29 02:16 +08:00。把现有 source_sync_phase 的 leader 查询提为共享 source_sync_leader，脚步分派直接复用现有 group_leader 资格规则；独立样本已由同步根去组，沿用原独立通知路径。无新增缓存/状态/资产，六组 TransitionLeader/Follower×完整权重/惯性请求实际事件与已有 CameraShake 控制、定向回归及移除路由消融后进入真实 Gate。
+  - S2 实际结束 2026-09-29 01:58 +08:00，偏差 -18 分钟；结果：六组实际 FootstepEffects 矩阵与 CameraShake 控制 green，sync 24/24 和通知模块 14/14 通过。恢复旧分派选举作消融，再次得到正常播放器 0 条/独立播放器 10 条的 red；共享查询恢复后通过。Standing manifest 绑定当次原生记录，无转换规则或运行资产变化；下一步图规范/作者合同与可见入口。
+- BF131.A67-R1-S3：开始 2026-09-29 01:58 +08:00；预估结束 2026-09-29 02:23 +08:00。用 target_game/play 同入口优化预构建，刷新全部正式图规范并执行 Standing/根作者合同完整命令；通过后跑 startup、notify、footprint 公共功能 Gate，核对真实脚步/GPU 与图/时序/watchdog。原非默认 sync 角色边界由源绑定的真实事件夹具验收。
+  - 预构建诊断（02:05）：manual/spec 优化构建与 349 图规范已通过；优化库测试预构建被外层无进展 watchdog 终止。报告证明实际静默上限为 150 秒，原因是本地复用启动脚本 dot-source 时用默认参数覆盖调用者传入的 300 秒；修正参数转交后，1 秒停滞反例在 1.173 秒终止，旧编译进程已退出。继续以明确的 300 秒静默/1200 秒总上限预构建，再执行完整作者合同；未重启 runtime，也未变更测试或功能阈值。
+  - Runtime 前摘要（02:10）：优化库测试预构建在 201 秒正常完成；fresh Standing/source C++、六组真实事件矩阵、sync 24/24 与通知 14/14、移除共享查询消融、同入口优化构建和 349 图规范闭合。Standing/根作者合同完整命令均 PASS，开始 startup/notify/footprint；不改转换器或资产，独立样本原有去组规则保留。
+  - 工具步骤消融：Standing 的 12 条 verification_commands 与根的 6 条命令均为 Python；其 focused_tests 是独立声明，不由作者合同执行。此前为避免测试命令超时而单列的优化库测试预构建并非作者合同所需，后续删除该重复步骤，继续执行受影响定向测试和真实入口优化构建。
+  - Runtime 后诊断（02:21）：startup/notify 功能 PASS；footprint 仅 moving_gpu 未覆盖，其余脚印与 GPU 36 请求/576 采样通过。移动段左右脚印由 10/11 增至 15/15、附着移动成立，但 shader checked_frame/positive_frame 停在清理阶段。正式图无 Transition 角色，本次 leader 资格改动不改变其选举；容量扩展时 180 个接收材质均重绑且 GPU 无数据错误。沿现有 footprint→移动平台→实际渲染视角补齐 view/脚目标像素坐标观测，再以同场景复核未覆盖原因；不修改算法或放宽覆盖条件。
+  - S3 实际结束 2026-09-29 02:26 +08:00，偏差 +3 分钟；结果：startup、notify 12/12、footprint 21/21 功能 Gate PASS，GPU 36 请求/576 采样与移动观测通过；faults/graph_errors/temporal_anomalies/primary_failure 均空，watchdog 未触发，进程退出 0/0。新增移动视角记录 241 帧、脚目标像素均在 1280×720 视口内，32 容量下 checked/positive 帧推进到 1535；首次移动 GPU 缺失未复现，保留原报告，不声称修复了未知渲染原因。源资格、独立通知、六组最终事件矩阵、24+14 定向回归、消融、349 图与 18 条作者命令闭合，恢复 A67 勾选；性能继续延期，下一项 A70。

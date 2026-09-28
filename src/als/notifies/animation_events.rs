@@ -316,7 +316,7 @@ fn dispatch_graph_footsteps(
     mut shakes: MessageWriter<AlsCameraShakeRequest>,
 ) {
     use bevy_animation_graph::core::{animation_graph_player::AnimationSource, context::node_states::StateKey};
-    use crate::extensions::sync_group_phase::{source_sync_players, select_source_sync_group_leader, SourceSyncGroupCandidate};
+    use crate::extensions::sync_group_phase::source_sync_leader;
     let Some(manifest) = manifest_handle.as_ref().and_then(|handle| manifests.get(&handle.0)) else { return; };
     for (avatar, instance) in &avatars {
         let entity = instance.player_entity();
@@ -356,14 +356,8 @@ fn dispatch_graph_footsteps(
                 else { previous.map_or(sample.clock.position, |previous| previous.0) };
             if !sample.clock.has_previous_position && !sample.clock.looping && sample.clock.position < previous_time { continue; }
             let is_leader = if sample.sync_group.is_empty() { true } else {
-                source_sync_players(arena, &graphs, &sample.sync_group).is_some_and(|players| {
-                    let players = players.iter().filter(|player| player.key == sample.sync_group).collect::<Vec<_>>();
-                    let candidates = players.iter().enumerate().map(|(index, player)| SourceSyncGroupCandidate {
-                        role: player.role, blend_weight: player.weight, source_order: index, marker_sync_valid: player.markers.len() >= 2,
-                    }).collect::<Vec<_>>();
-                    select_source_sync_group_leader(&candidates, players.first().is_some_and(|player| !player.phase_markers.is_empty()))
-                        .is_some_and(|index| Some(players[index].identity) == sample.sync_identity)
-                })
+                source_sync_leader(arena, &graphs, &sample.sync_group)
+                    .is_some_and(|player| Some(player.identity) == sample.sync_identity)
             };
             let sprint = source.source_asset == SOURCE_SPRINT || source.source_asset == SOURCE_SPRINT_ACCELERATION;
             let definitions = timed_events(source).into_iter().filter(|definition| {
@@ -1385,7 +1379,7 @@ mod tests {
         let graph = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(graph);
         app.world_mut().entity_mut(player_entity)
             .remove::<crate::extensions::post_physics_animation::ManualAnimationPlayer>()
-            .insert(AnimationGraphPlayer::new(skeleton).with_graph(graph));
+            .insert(AnimationGraphPlayer::new(skeleton.clone()).with_graph(graph.clone()));
         {
             let mut player = app.world_mut().get_mut::<AnimationGraphPlayer>(player_entity).unwrap();
             player.set_global_input_data("animation.delta_seconds", 0.05_f32);
@@ -1409,6 +1403,54 @@ mod tests {
         assert_eq!(app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain()
             .filter(|event| event.class_name == "AlsAnimNotify_CameraShake").count(), 1);
         assert_eq!(app.world_mut().resource_mut::<Messages<AlsCameraShakeRequest>>().drain().count(), 1);
+
+        use crate::extensions::sync_group_phase::{SourceSyncGroupRole, SOURCE_SYNC_INERTIAL_SCOPE};
+        let manifest_handle = app.world().resource::<AlsNotifyManifestHandle>().0.clone();
+        for source in &mut app.world_mut().resource_mut::<Assets<AlsNotifyManifest>>().get_mut(&manifest_handle).unwrap().clips {
+            for event in &mut source.events {
+                event.filter.trigger_on_follower = false;
+                event.filter.trigger_chance = 1.0;
+                event.weight_threshold = 0.01;
+            }
+        }
+        for role in [SourceSyncGroupRole::TransitionLeader, SourceSyncGroupRole::TransitionFollower] {
+            let mut sequence = sequences[1].try_inner_downcast_ref::<crate::extensions::SourceSequencePlayerNode>().unwrap().clone();
+            sequence.synchronization.as_mut().unwrap().role = role;
+            let mut transition = AnimationNode::new("transition sprint", sequence);
+            transition.id = sequences[1].id;
+            app.world_mut().resource_mut::<Assets<AnimationGraph>>().get_mut(&graph).unwrap().add_node(transition);
+            for (full, inertial) in [(false, false), (true, false), (true, true)] {
+                let mut player = AnimationGraphPlayer::new(skeleton.clone()).with_graph(graph.clone());
+                player.set_global_input_data("animation.delta_seconds", 0.05_f32);
+                player.set_global_input_data("sprint_base_weight", if full { 0.0_f32 } else { 0.4_f32 });
+                player.set_global_input_data("sprint_accel_weight", if full { 1.0_f32 } else { 0.6_f32 });
+                app.world_mut().entity_mut(player_entity).insert(player);
+                app.update();
+                {
+                    let mut player = app.world_mut().get_mut::<AnimationGraphPlayer>(player_entity).unwrap();
+                    player.set_global_input_data("sprint_base_weight", 0.4_f32);
+                    player.set_global_input_data("sprint_accel_weight", 0.6_f32);
+                    player.set_global_input_data(SOURCE_SYNC_INERTIAL_SCOPE, inertial);
+                }
+                app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().clear();
+                let mut footsteps = [0; 2];
+                for _ in 0..60 {
+                    app.update();
+                    let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+                    assert!(player.get_error().is_none(), "{:?}", player.get_error());
+                    for event in app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain()
+                        .filter(|event| event.class_name == "AlsAnimNotify_FootstepEffects") {
+                        if let Some(index) = [SOURCE_SPRINT, SOURCE_SPRINT_ACCELERATION].iter()
+                            .position(|source| *source == event.source_asset) { footsteps[index] += 1; }
+                    }
+                }
+                let independent = !full || inertial;
+                let transition_leads = role == SourceSyncGroupRole::TransitionLeader;
+                assert_eq!(footsteps.map(|count| count > 0),
+                    [independent || !transition_leads, independent || transition_leads],
+                    "role={role:?} full={full} inertial={inertial}: {footsteps:?}");
+            }
+        }
     }
 
     #[test]

@@ -334,7 +334,7 @@ pub(super) fn observe(
         }
         _ => {}
     }
-    report.moving_base_trace.push(serde_json::json!({
+    let mut snapshot = serde_json::json!({
         "stage":stage,"time":now,"body":format!("{body:?}"),"collider":format!("{collider:?}"),"object":object,
         "period":period,"span":span,"platform":global.translation(),"platform_rotation":global.rotation(),
         "platform_velocity":platform_velocity.0,"position":position.0,"rotation":transform.rotation,"local":local,
@@ -355,7 +355,14 @@ pub(super) fn observe(
             "blend_in":entry.blend_in,"stop_elapsed":entry.stop_elapsed,"stop_start_weight":entry.stop_start_weight,"stop_duration":entry.stop_duration
         })).collect::<Vec<_>>()).unwrap_or_default(),
         "slot":slot.map(|slot| serde_json::json!({"active":slot.active,"pose_ready":slot.pose_ready,"weight":slot.weight})),
-    }));
+    });
+    snapshot["view"] = motion.rendered_views.iter().find(|(camera, _, owner)| camera.is_active && owner.character == character)
+        .map(|(camera, transform, _)| serde_json::json!({
+            "position":transform.translation,"rotation":transform.rotation,"viewport":camera.logical_viewport_size(),
+            "foot_pixels":feet.map(|feet| [&feet.left, &feet.right].map(|foot|
+                camera.world_to_viewport(&GlobalTransform::from(*transform), foot.target_location).ok())),
+        })).unwrap_or(serde_json::Value::Null);
+    report.moving_base_trace.push(snapshot);
     if rotating && stage == Stage::Ride
         && let Some(playback) = playback.filter(|playback| playback.kind == AlsTransitionKind::StandingDynamic) {
         let side = usize::from(playback.index > 0.5);

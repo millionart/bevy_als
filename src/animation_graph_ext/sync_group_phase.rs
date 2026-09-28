@@ -167,13 +167,21 @@ pub fn source_sync_phase(
     graphs: &Assets<AnimationGraph>,
     key: &str,
 ) -> Option<f32> {
+    source_sync_leader(arena, graphs, key)
+        .map(|player| player.phase)
+        .filter(|phase| phase.is_finite())
+}
+
+pub fn source_sync_leader<'a>(
+    arena: &'a GraphContextArena,
+    graphs: &Assets<AnimationGraph>,
+    key: &str,
+) -> Option<&'a SourceSyncPlayerTick> {
     let players = source_sync_players(arena, graphs, key)?
         .iter()
         .filter(|player| player.key == key)
         .collect::<Vec<_>>();
     group_leader(&players)
-        .map(|player| player.phase)
-        .filter(|phase| phase.is_finite())
 }
 
 pub fn source_sync_players<'a>(

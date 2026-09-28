@@ -23,8 +23,8 @@
       "sha256": "1659c7d63cc7341ece055dc8ee570a2578bf16659bb44b211da2e5e011410fe0"
     },
     {
-      "path": "target/bf131/a59/AB_Als_Standing.ue.json",
-      "sha256": "8680bc1f5a964c85c908b0706463b84ea00f19c3b523ef99fbd9014d21b39a75"
+      "path": "target/bf131/review/a67/AB_Als_Standing.ue.json",
+      "sha256": "16a19c4f838aeabd570519da09aa57bd53318f7e6bf6e26d229784afaab706e6"
     },
     {
       "path": "target/bf116_projection/source/ALS_ALS_Character_AB_Als.AB_Als.ue.json",
@@ -1956,6 +1956,11 @@
     "manual_case": "standing_dynamic"
   },
   "focused_tests": [
+    {
+      "label": "sync_leader_and_independent_player_notify_dispatch",
+      "argv": ["cargo", "test", "--lib", "animation_events::tests", "--jobs", "2"],
+      "evidence": "target/bf128/bf131-review-a67-restored.report.json"
+    },
     {
       "label": "state_getter_linked_instance_ownership",
       "argv": [
