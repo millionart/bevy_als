@@ -43,6 +43,14 @@ def collision_disabled_pairs(physics):
     return sorted([pair["body_index_1"], pair["body_index_2"]] for pair in physics["collision_disabled_pairs"])
 
 
+def body_collision_layers(response):
+    if response == "BodyCollision_Enabled":
+        return (1, 1)
+    if response == "BodyCollision_Disabled":
+        return (0, 0)
+    raise ValueError(f"unsupported body collision response: {response}")
+
+
 def target_material(entries):
     values = props(entries)
     friction = float(values["Friction"])
@@ -350,6 +358,8 @@ def self_test():
     assert material["static_friction"] == material["dynamic_friction"] == 0.7
     assert expanded_text({"exported_text": "()", "fields": [{"name": "Enabled", "exported_text": "True"}]}) == "(Enabled=True)"
     assert collision_disabled_pairs({"collision_disabled_pairs": [{"body_index_1": 0, "body_index_2": 1, "disabled": False}]}) == [[0, 1]]
+    assert body_collision_layers("BodyCollision_Enabled") == (1, 1)
+    assert body_collision_layers("BodyCollision_Disabled") == (0, 0)
     drive = "(PositionTarget=(X=100,Y=200,Z=300),VelocityTarget=(X=10,Y=20,Z=30),XDrive=(Stiffness=40,Damping=2,MaxForce=100,bEnablePositionDrive=True,bEnableVelocityDrive=False),YDrive=(Stiffness=50,Damping=3,MaxForce=0,bEnablePositionDrive=False,bEnableVelocityDrive=True),ZDrive=(Stiffness=60,Damping=4,MaxForce=80,bEnablePositionDrive=False,bEnableVelocityDrive=False),bAccelerationMode=False)"
     parsed = parsed_profile([{"name": "ProfileInstance", "exported_text": "()", "fields": [
         {"name": "LinearDrive", "exported_text": drive},
@@ -778,6 +788,7 @@ def write_ragdoll(profile, rest, output):
     lines.append("    colliders: {")
     for body in profile["bodies"]:
         bone = body["bone_name"]
+        membership, filtering = body_collision_layers(body["collision_response"])
         for shape in body["shapes"]:
             target = shape["target"]
             key = f"{bone}/{shape['source_shape_index']}"
@@ -790,7 +801,7 @@ def write_ragdoll(profile, rest, output):
             lines.extend([
                 "        (", f'            uuid: "{collider_ids[key]}",', "        ): (", "            id: (", f'                uuid: "{collider_ids[key]}",', "            ),",
                 "            local_offset: (", f"                rotation: {text_vec(target['rotation_xyzw'])},", f"                translation: {text_vec(target['translation_m'])},", "            ),",
-                f"            shape: {geometry},", "            layer_membership: 1,", "            layer_filter: 1,", "            override_layers: false,", f"            mass_mode: Override({text_number(target['mass_kg'])}),",
+                f"            shape: {geometry},", f"            layer_membership: {membership},", f"            layer_filter: {filtering},", "            override_layers: false,", f"            mass_mode: Override({text_number(target['mass_kg'])}),",
                 f'            label: "{bone}_{shape["source_shape_index"]}_{target["kind"]}",', "            created_from: None,", "        ),",
             ])
     lines.append("    },")

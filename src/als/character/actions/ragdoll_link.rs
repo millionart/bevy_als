@@ -11,7 +11,7 @@ use crate::als::transition::{Dimension, StateTransitionEvent, StateValue};
 use crate::extensions::ragdoll_angular_drive::{
     RagdollAngularDrive, RagdollAngularDriveMetrics, RagdollAngularDriveSet,
 };
-use crate::extensions::{RagdollActiveMode, RagdollPhysicsHandoffSet, RagdollPhysicsProfileApplied};
+use crate::extensions::{RagdollActiveMode, RagdollCollisionMember, RagdollPhysicsHandoffSet, RagdollPhysicsProfileApplied};
 use avian3d::prelude::{
     AngularVelocity, Collider, ColliderOf, CollisionLayers, LinearVelocity, PhysicsSystems, Position,
     RigidBody, Rotation, Sensor, ShapeCastConfig, ShapeHitData, SpatialQuery, SpatialQueryFilter,
@@ -1073,7 +1073,7 @@ fn ragdoll_link_system(
     mut q: Query<(Entity, Option<&AlsNotifyLocomotionAction>, Option<&AlsCharacterAssembly>, &mut AlsRagdollLink), With<AlsCharacter>>,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     mut players: Query<&mut AnimationGraphPlayer>,
-    layers: Query<(Option<&AlsRagdollColliderLayers>, &CollisionLayers)>,
+    layers: Query<(Option<&AlsRagdollColliderLayers>, &CollisionLayers, Option<&RagdollCollisionMember>)>,
 ) {
     for (character, action, assembly, mut link) in &mut q {
         let is_ragdoll = action == Some(&AlsNotifyLocomotionAction::Ragdolling);
@@ -1092,14 +1092,14 @@ fn ragdoll_link_system(
 
         if let Some(spawned) = player.get_spawned_ragdoll() {
             for collider in spawned.colliders.values() {
-                let Ok((stored, current)) = layers.get(*collider) else {
+                let Ok((stored, current, member)) = layers.get(*collider) else {
                     continue;
                 };
                 if is_ragdoll {
-                    if let Some(stored) = stored
-                        && *current != stored.0
+                    if let Some(desired) = member.map(|member| member.source_layers).or(stored.map(|stored| stored.0))
+                        && *current != desired
                     {
-                        commands.entity(*collider).insert(stored.0);
+                        commands.entity(*collider).insert(desired);
                     }
                 } else {
                     if stored.is_none() {
@@ -1235,6 +1235,43 @@ mod tests {
             app.world().get::<crate::als_camera::AlsCameraTraceOwner>(new_ragdoll).unwrap().0,
             character
         );
+    }
+
+    #[test]
+    fn ragdoll_activation_prefers_profile_collision_layers_over_saved_birth_layers() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::reflect::{PartialReflect, ReflectMut};
+        use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner};
+        use bevy_animation_graph::AnimationGraphPlugin;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), AnimationGraphPlugin::default()));
+        let character = app.world_mut().spawn((AlsCharacter, AlsRagdollLink::default(),
+            AlsNotifyLocomotionAction::Ragdolling)).id();
+        let avatar = app.world_mut().spawn((AlsCharacterAvatar { character },
+            AnimatedSceneHandle::default(), ChildOf(character))).id();
+        let player = app.world_mut().spawn((AnimationGraphPlayer::new(Handle::default()),
+            ChildOf(avatar))).id();
+        app.world_mut().trigger(WorldInstanceReady {
+            entity: avatar,
+            instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()),
+        });
+        app.world_mut().flush();
+        app.world_mut().entity_mut(character).insert(AlsCharacterAssembly { avatar, camera: None });
+        let root = app.world_mut().spawn_empty().id();
+        let collider = app.world_mut().spawn((CollisionLayers::NONE,
+            AlsRagdollColliderLayers(CollisionLayers::from_bits(1, 1)),
+            RagdollCollisionMember { group: root, body_index: 18,
+                source_layers: CollisionLayers::NONE, disabled_pairs: std::sync::Arc::from([]) },
+        )).id();
+        let mut spawned = SpawnedRagdoll::new(root);
+        spawned.colliders.insert(ron::from_str("(uuid: \"30000000-0000-4000-8000-000000000001\")").unwrap(), collider);
+        let mut component = app.world_mut().get_mut::<AnimationGraphPlayer>(player).unwrap();
+        let ReflectMut::Struct(fields) = component.reflect_mut() else { panic!("player must reflect as a struct") };
+        *fields.field_mut("spawned_ragdoll").unwrap()
+            .try_downcast_mut::<Option<SpawnedRagdoll>>().unwrap() = Some(spawned);
+        drop(component);
+        app.world_mut().run_system_once(ragdoll_link_system).unwrap();
+        assert_eq!(app.world().get::<CollisionLayers>(collider), Some(&CollisionLayers::NONE));
     }
 
     #[test]

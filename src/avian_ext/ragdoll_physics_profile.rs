@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use avian3d::prelude::{
-    ActiveCollisionHooks, AngularDamping, Collider, CoefficientCombine, CollisionHooks, Friction,
+    ActiveCollisionHooks, AngularDamping, Collider, CollisionLayers, CoefficientCombine, CollisionHooks, Friction,
     GravityScale, JointDamping, JointDisabled, LinearDamping, MaxAngularSpeed, PhysicsSystems,
     Position, Restitution, RevoluteJoint, Rotation, SphericalJoint,
 };
@@ -33,6 +33,7 @@ use crate::extensions::{
 pub struct RagdollBodyPhysicsProfile {
     pub label: String,
     pub source_index: u8,
+    pub source_layers: CollisionLayers,
     pub active_mode: BodyMode,
     pub linear_damping: f32,
     pub angular_damping: f32,
@@ -46,6 +47,7 @@ pub struct RagdollBodyPhysicsProfile {
 pub struct RagdollColliderPhysicsProfile {
     pub label: String,
     pub source_body_index: u8,
+    pub source_layers: CollisionLayers,
     pub consider_for_bounds: bool,
 }
 
@@ -77,6 +79,7 @@ struct PhysicsAssetDocument {
 struct PhysicsAssetBody {
     source_index: u8,
     bone_name: String,
+    collision_response: String,
     source_properties: PhysicsAssetBounds,
     target: PhysicsAssetBodyTarget,
     shapes: Vec<PhysicsAssetShape>,
@@ -179,6 +182,14 @@ fn coefficient_combine(value: &str) -> Result<CoefficientCombine, String> {
     }
 }
 
+fn source_body_collision_layers(value: &str) -> Result<CollisionLayers, String> {
+    match value {
+        "BodyCollision_Enabled" => Ok(CollisionLayers::from_bits(1, 1)),
+        "BodyCollision_Disabled" => Ok(CollisionLayers::NONE),
+        _ => Err(format!("unsupported body collision response: {value}")),
+    }
+}
+
 impl RagdollPhysicsProfile {
     pub fn from_json(text: &str) -> Result<Self, String> {
         let document: PhysicsAssetDocument =
@@ -197,6 +208,7 @@ impl RagdollPhysicsProfile {
                 Ok(RagdollBodyPhysicsProfile {
                     label: body.bone_name.clone(),
                     source_index: body.source_index,
+                    source_layers: source_body_collision_layers(&body.collision_response)?,
                     active_mode: match body.target.active_mode.as_str() {
                         "Dynamic" => BodyMode::Dynamic,
                         "Kinematic" => BodyMode::Kinematic,
@@ -221,7 +233,8 @@ impl RagdollPhysicsProfile {
         let colliders = document
             .bodies
             .iter()
-            .flat_map(|body| {
+            .zip(&bodies)
+            .flat_map(|(body, profile)| {
                 body.shapes
                     .iter()
                     .map(|shape| RagdollColliderPhysicsProfile {
@@ -230,6 +243,7 @@ impl RagdollPhysicsProfile {
                             body.bone_name, shape.source_shape_index, shape.target.kind
                         ),
                         source_body_index: body.source_index,
+                        source_layers: profile.source_layers,
                         consider_for_bounds: body.source_properties.consider_for_bounds == "True",
                     })
             })
@@ -290,6 +304,7 @@ pub struct RagdollActiveMode(pub BodyMode);
 pub struct RagdollCollisionMember {
     pub group: Entity,
     pub body_index: u8,
+    pub source_layers: CollisionLayers,
     pub disabled_pairs: Arc<[(u8, u8)]>,
 }
 
@@ -574,9 +589,13 @@ fn apply_profile_to_spawned_ragdoll(
             RagdollCollisionMember {
                 group: spawned.root,
                 body_index: collider.source_body_index,
+                source_layers: collider.source_layers,
                 disabled_pairs: profile.collision_disabled_pairs.clone(),
             },
         ));
+        if collider.source_layers == CollisionLayers::NONE {
+            commands.entity(*collider_entity).insert(CollisionLayers::NONE);
+        }
         applied.collider_count += 1;
     }
     for joint_entity in spawned.joints.values() {
@@ -935,6 +954,9 @@ mod tests {
             })
             .unwrap();
         let bodies = spawned.bodies.values().copied().collect::<Vec<_>>();
+        let root_collider = *spawned.colliders.values().find(|entity|
+            world.get::<ColliderLabel>(**entity).unwrap().0.starts_with("root_")).unwrap();
+        world.entity_mut(root_collider).insert(avian3d::prelude::CollisionLayers::from_bits(1, 1));
         let joints = spawned
             .joints
             .values()
@@ -995,6 +1017,8 @@ mod tests {
             assert!((world.get::<Friction>(entity).unwrap().static_coefficient - 0.7).abs() < 1e-6);
             assert!((world.get::<Restitution>(entity).unwrap().coefficient - 0.3).abs() < 1e-6);
         }
+        assert_eq!(world.get::<avian3d::prelude::CollisionLayers>(root_collider),
+            Some(&avian3d::prelude::CollisionLayers::NONE));
         for (entity, parent, child) in joints {
             assert!(world.get::<SphericalJoint>(entity).is_none());
             assert!(world.get::<RevoluteJoint>(entity).is_none());

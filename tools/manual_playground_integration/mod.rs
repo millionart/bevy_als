@@ -3542,6 +3542,7 @@ struct RagdollPaProbe<'w, 's> {
         ),
     >,
     collision_members: Query<'w, 's, &'static RagdollCollisionMember>,
+    collision_layers: Query<'w, 's, &'static CollisionLayers>,
     body_modes: Query<'w, 's, &'static RigidBody>,
     get_ups: Query<
         'w,
@@ -9442,7 +9443,7 @@ fn observe_manual_integration(
             state.ragdoll_handoff_rotation_error_radians =
                 applied.handoff_animated_body_rotation_error_radians;
         }
-        let profile_valid = profile.is_some_and(|(applied, _)| {
+        let profile_valid = profile.is_some_and(|(applied, source)| {
             applied.spawned_root == Some(spawned.root)
                 && applied.body_count == 21
                 && applied.collider_count == 22
@@ -9452,12 +9453,17 @@ fn observe_manual_integration(
                 && applied.handoff_animated_body_count == applied.body_count
                 && applied.handoff_animated_body_position_error_m <= 1e-4
                 && applied.handoff_animated_body_rotation_error_radians <= 1e-4
-        }) && spawned.colliders.values().all(|collider| {
-            ragdoll_probe
-                .collision_members
-                .get(*collider)
-                .is_ok_and(|member| {
-                    member.group == spawned.root && member.disabled_pairs.len() == 49
+                && spawned.colliders.values().all(|collider| {
+                    ragdoll_probe.collision_members.get(*collider).is_ok_and(|member| {
+                        let expected = source.bodies.iter().find(|body| body.source_index == member.body_index)
+                            .map(|body| body.source_layers);
+                        expected.is_some_and(|expected| member.source_layers == expected
+                            && member.group == spawned.root && member.disabled_pairs.len() == 49
+                            && ragdoll_probe.collision_layers.get(*collider).is_ok_and(|layers|
+                                *layers == if notify_action == Some(&AlsNotifyLocomotionAction::Ragdolling) {
+                                    expected
+                                } else { CollisionLayers::NONE }))
+                    })
                 })
         });
         state.coverage.ragdoll_player_replaced |= profile_valid
