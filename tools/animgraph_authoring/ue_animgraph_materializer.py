@@ -12,6 +12,7 @@ sys.path.insert(0, str(ROOT / "tools" / "import"))
 from extract_ue_visible_graph_contract import contract
 import generate_ue_transition_expression_graph as transition_renderer
 from ue_animgraph_pose_renderer import PoseRenderError, render as render_pose_graph
+from ue_animgraph_fsm_renderer import FsmRenderError, blend_profile_ron
 
 
 class MaterializationError(ValueError):
@@ -273,7 +274,11 @@ def transition_graph_text(source_asset, transition):
     duration = render["duration"]
     if render["logic"] == "inertialization":
         node_type = "als_ext::InertializationNode"
-        inner = f"(transition_duration: {duration!r})"
+        try:
+            profile = blend_profile_ron(render["blend_profile"])
+        except FsmRenderError as error:
+            raise MaterializationError(str(error)) from error
+        inner = f"(transition_duration: {duration!r})" if profile == "None" else f"(transition_duration: {duration!r}, blend_profile: {profile})"
     else:
         profile = render["blend_profile"]
         scales = profile.get("bone_scales", [])
@@ -977,6 +982,10 @@ def run_self_test():
     standard["render"]["blend_profile"]["mode"] = "WeightFactor"
     assert "InertializationNode" in transition_graph_text("/Asset", inertial)
     assert "half_life" not in transition_graph_text("/Asset", inertial)
+    assert "blend_profile:" not in transition_graph_text("/Asset", inertial)
+    inertial["render"]["blend_profile"] = {"source_profile": "/Profile", "mode": "TimeFactor", "bone_scales": [{"bone": "foot_l", "scale": 0.5}]}
+    assert "profile_mode: TimeFactor" in transition_graph_text("/Asset", inertial)
+    assert 'bone: "foot_l"' in transition_graph_text("/Asset", inertial)
     custom = {
         "id": "10000000-0000-4000-8000-000000000003",
         "title": "Custom",

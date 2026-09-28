@@ -1,3 +1,4 @@
+import json
 import sys
 from pathlib import Path
 
@@ -30,6 +31,23 @@ from ue_animgraph_lifecycle import LifecycleRenderError, TRANSITION_NOTIFY_FUNCT
 
 class FsmRenderError(ValueError):
     pass
+
+
+def blend_profile_ron(profile):
+    if profile is None or profile.get("source_profile") is None:
+        return "None"
+    mode = profile.get("mode")
+    scales = profile.get("bone_scales")
+    if mode not in {"TimeFactor", "WeightFactor"} or not isinstance(scales, list):
+        raise FsmRenderError("source blend profile is invalid")
+    rows = []
+    for entry in scales:
+        bone = entry.get("bone") if isinstance(entry, dict) else None
+        scale = entry.get("scale") if isinstance(entry, dict) else None
+        if not isinstance(bone, str) or not bone or not isinstance(scale, (int, float)) or isinstance(scale, bool):
+            raise FsmRenderError("source blend profile entry is invalid")
+        rows.append(f"(bone: {json.dumps(bone, ensure_ascii=False)}, scale: {float(scale)!r})")
+    return f"Some((profile_mode: {mode}, bone_scales: [{', '.join(rows)}]))"
 
 
 SUPPORTED_TRANSITION_NOTIFY_NAMES = {

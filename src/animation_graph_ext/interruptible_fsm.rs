@@ -647,6 +647,10 @@ impl InterruptibleFsmNode {
                 Some(&crate::extensions::animation_context::SourceInertializationRequest {
                     frame: ctx.graph_context.frame_index(),
                     duration: node.transition_duration,
+                    parts: vec![crate::extensions::animation_context::SourceInertializationPart {
+                        duration: node.transition_duration,
+                        profile: node.blend_profile.clone(),
+                    }],
                 }),
             );
             return Ok(Some(0.0));
@@ -3152,6 +3156,14 @@ mod tests {
                     );
                 }
                 assert!(!state.context.sync_players.is_empty());
+                if inertial && !sync && frame == 2 {
+                    let request = state.context.inertialization_request.as_ref().unwrap();
+                    assert_eq!(request.parts.len(), 1);
+                    let profile = request.parts[0].profile.as_ref().unwrap();
+                    assert_eq!(profile.profile_mode, crate::extensions::BlendProfileMode::TimeFactor);
+                    assert_eq!(profile.bone_scales[0].bone, "unused_bone");
+                    assert_eq!(profile.bone_scales[0].scale, 0.5);
+                }
                 if inertial && !sync {
                     assert_eq!(
                         state.context.sync_players.iter().any(|player| player.requested_inertialization),
@@ -3320,7 +3332,13 @@ mod tests {
             }
             let mut transition_graph = AnimationGraph::new();
             let blend = if inertial {
-                AnimationNode::new("transition", InertializationNode::default())
+                AnimationNode::new("transition", InertializationNode {
+                    blend_profile: Some(crate::extensions::SourceBlendProfile {
+                        profile_mode: crate::extensions::BlendProfileMode::TimeFactor,
+                        bone_scales: vec![crate::extensions::BoneBlendScale { bone: "unused_bone".into(), scale: 0.5 }],
+                    }),
+                    ..default()
+                })
             } else {
                 AnimationNode::new("transition", ProfiledBlendNode::default())
             };
@@ -3383,7 +3401,7 @@ mod tests {
                     let mut graph = graphs.get(&transition_graph).unwrap().clone();
                     graph.add_node(AnimationNode {
                         id: blend.id,
-                        ..AnimationNode::new("transition", InertializationNode { transition_duration: [0.5, 0.2, 0.4][index] })
+                        ..AnimationNode::new("transition", InertializationNode { transition_duration: [0.5, 0.2, 0.4][index], ..default() })
                     });
                     graphs.add(graph)
                 } else { transition_graph.clone() };

@@ -1277,8 +1277,6 @@ def inertialization_contract(node):
         },
     )
     inputs, issues = validate_inputs(node, renderer, ("Source",))
-    if field(fields, "DefaultBlendProfile", "None") != "None":
-        issues.append(issue(node, renderer, "source_inertialization_profile_unsupported", "DefaultBlendProfile"))
     if parse_list(field(fields, "FilteredBones", "()")):
         issues.append(issue(node, renderer, "source_inertialization_bones_unsupported", "FilteredBones"))
     outputs = visible_output_names(node)
@@ -1297,6 +1295,7 @@ def inertialization_contract(node):
         "input_pins": inputs,
         "output_pins": outputs,
         "filtered_curves": [parse_quoted(value) for value in parse_list(field(fields, "FilteredCurves", "()"))],
+        "default_blend_profile_source": field(fields, "DefaultBlendProfile", "None"),
         "reset_on_becoming_relevant": parse_bool(field(fields, "bResetOnBecomingRelevant", "True")),
         "forward_requests_through_skipped_cached_poses": parse_bool(
             field(fields, "bForwardRequestsThroughSkippedCachedPoseNodes", "True")
@@ -2129,9 +2128,10 @@ def run_self_test():
     ]
     inertial_contract, issues = pose_contract(inertial, "inertialization")
     assert not issues and inertial_contract["filtered_curves"] == []
+    assert inertial_contract["default_blend_profile_source"] == "None"
     inertial["properties"][0]["fields"][0]["exported_text"] = "/Asset.Profile"
-    _, issues = pose_contract(inertial, "inertialization")
-    assert issues[0]["kind"] == "source_inertialization_profile_unsupported"
+    inertial_contract, issues = pose_contract(inertial, "inertialization")
+    assert not issues and inertial_contract["default_blend_profile_source"] == "/Asset.Profile"
     lifecycle = fixture_node(
         "pose_lifecycle_call",
         "Node",

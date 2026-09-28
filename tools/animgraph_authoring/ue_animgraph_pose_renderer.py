@@ -13,6 +13,7 @@ import generate_ue_transition_expression_graph as scalar_renderer
 from coordinate_basis import source_heading_yaw_degrees_to_runtime
 from camera_curve_conversion import camera_curve_target
 from ue_control_rig_target import definition_ron
+from ue_animgraph_fsm_renderer import FsmRenderError, blend_profile_ron
 
 
 class PoseRenderError(ValueError):
@@ -1094,6 +1095,10 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             + ", expose_context_curves: false, exposed_output_data: [], missing_curve_value: None, internalize_time: true)",
         )
     if renderer == "inertialization":
+        try:
+            profile = blend_profile_ron(value.get("default_blend_profile"))
+        except FsmRenderError as error:
+            raise PoseRenderError(str(error)) from error
         return (
             "als_ext::InertializationPassthroughNode",
             "(reset_on_becoming_relevant: "
@@ -1106,6 +1111,7 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
             + quoted(value.get("request_epoch_key", ""))
             + ", request_duration_key: "
             + quoted(value.get("request_duration_key", ""))
+            + (", default_blend_profile: " + profile if profile != "None" else "")
             + ")",
         )
     if renderer == "pose_lifecycle_call":
@@ -1775,6 +1781,17 @@ def fixture_graph():
 
 
 def run_self_test():
+    inertial = {"renderer": "inertialization", "semantic": {
+        "reset_on_becoming_relevant": True,
+        "forward_requests_through_skipped_cached_poses": True,
+        "filtered_curves": [],
+        "default_blend_profile": {"source_profile": "/Profile", "mode": "WeightFactor",
+            "bone_scales": [{"bone": "foot_l", "scale": 0.5}]},
+    }}
+    _, inertial_inner = rendered_inner({}, {}, inertial, {}, {})
+    assert 'default_blend_profile: Some((profile_mode: WeightFactor, bone_scales: [(bone: "foot_l", scale: 0.5)]))' in inertial_inner
+    inertial["semantic"]["default_blend_profile"] = None
+    assert "default_blend_profile:" not in rendered_inner({}, {}, inertial, {}, {})[1]
     camera_curve = {"source_node": "/Fixture:Graph.Offset", "renderer": "modify_curve", "semantic": {
         "input_pins": ["SourcePose", "CurveValues_0", "CurveValues_1", "CurveValues_2"], "source_pose_pin": "SourcePose",
         "curve_names": ["CameraOffsetX", "CameraOffsetY", "CameraOffsetZ"], "curve_values": [-320.0, 55.0, 50.0],

@@ -1,6 +1,6 @@
 use std::{fs, path::Path};
 
-use bevy_als::extensions::{AlsExtPlugin, InterruptibleFsmNode, SourceSlotNode};
+use bevy_als::extensions::{AlsExtPlugin, BlendProfileMode, InertializationNode, InterruptibleFsmNode, SourceSlotNode};
 use bevy::{
     asset::{AssetPlugin, AssetServer},
     prelude::*,
@@ -251,4 +251,34 @@ fn generated_root_stays_source_only_while_the_wrapper_adds_ragdoll_config() {
     assert!(!wrapper.contains("OutputData(\"Result\")"));
     assert!(wrapper.contains("output_data: { \"pose\": Pose, \"ragdoll_config\": RagdollConfig }"));
     assert!(scene.contains(RAGDOLL_WRAPPER_GRAPH));
+}
+
+#[test]
+fn explicit_inertial_profile_graph_loads_with_its_bone_scale() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins)
+        .add_plugins(AssetPlugin {
+            file_path: "tools/animgraph_authoring/fixtures".into(),
+            ..default()
+        })
+        .add_plugins(AlsExtPlugin)
+        .init_asset::<GraphClip>()
+        .init_asset::<Skeleton>()
+        .init_asset::<AnimationGraph>()
+        .init_asset_loader::<AnimationGraphLoader>();
+    let handle = app.world().resource::<AssetServer>()
+        .load::<AnimationGraph>("inertial_profile.animgraph.ron");
+    for _ in 0..60 {
+        app.update();
+        if let Some(graph) = app.world().resource::<Assets<AnimationGraph>>().get(&handle) {
+            let node = graph.nodes.values().next().unwrap()
+                .try_inner_downcast_ref::<InertializationNode>().unwrap();
+            let profile = node.blend_profile.as_ref().unwrap();
+            assert_eq!(profile.profile_mode, BlendProfileMode::TimeFactor);
+            assert_eq!(profile.bone_scales[0].bone, "foot_l");
+            assert_eq!(profile.bone_scales[0].scale, 0.5);
+            return;
+        }
+    }
+    panic!("explicit inertial profile graph did not load");
 }

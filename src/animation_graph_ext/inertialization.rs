@@ -79,12 +79,14 @@ pub(crate) struct InertializationState {
 #[type_path = "als_ext"]
 pub struct InertializationNode {
     pub transition_duration: f32,
+    pub blend_profile: Option<crate::extensions::SourceBlendProfile>,
 }
 
 impl Default for InertializationNode {
     fn default() -> Self {
         Self {
             transition_duration: 0.2,
+            blend_profile: None,
         }
     }
 }

@@ -6,6 +6,7 @@ use bevy_animation_graph::core::{
     edge_data::DataSpec,
     errors::GraphError,
     pose::{BoneId, Pose},
+    skeleton::Skeleton,
 };
 
 use crate::extensions::animation_context::{
@@ -31,6 +32,7 @@ pub struct InertializationPassthroughNode {
     pub output: String,
     pub request_epoch_key: String,
     pub request_duration_key: String,
+    pub default_blend_profile: Option<crate::extensions::SourceBlendProfile>,
 }
 
 impl Default for InertializationPassthroughNode {
@@ -49,13 +51,23 @@ impl Default for InertializationPassthroughNode {
             output: "pose".to_owned(),
             request_epoch_key: default(),
             request_duration_key: default(),
+            default_blend_profile: None,
         }
+    }
+}
+
+fn source_inertial_bone_duration(duration: f32, mode: crate::extensions::BlendProfileMode, scale: f32) -> f32 {
+    match mode {
+        crate::extensions::BlendProfileMode::TimeFactor => duration * scale,
+        crate::extensions::BlendProfileMode::WeightFactor if scale > 1e-8 => duration / scale,
+        crate::extensions::BlendProfileMode::WeightFactor => duration,
     }
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
 struct SourceInertialBone {
     bone: BoneId,
+    duration: f32,
     translation_direction: Vec3,
     translation_magnitude: f32,
     translation_speed: f32,
@@ -76,6 +88,7 @@ pub(crate) struct SourceInertializationState {
     last_update_frame: Option<u64>,
     last_request_epoch: f32,
     duration: f32,
+    max_duration: f32,
     elapsed: f32,
     deficit: f32,
     active: bool,
@@ -215,6 +228,7 @@ fn source_inertial_bones(
             );
             Some(SourceInertialBone {
                 bone,
+                duration: 0.0,
                 translation_direction,
                 translation_magnitude,
                 translation_speed,
@@ -246,7 +260,7 @@ fn apply_source_inertialization(target: &Pose, state: &SourceInertializationStat
                             difference.translation_magnitude,
                             difference.translation_speed,
                             state.elapsed,
-                            state.duration,
+                            difference.duration,
                         ),
             );
         }
@@ -257,7 +271,7 @@ fn apply_source_inertialization(target: &Pose, state: &SourceInertializationStat
                 difference.rotation_angle,
                 difference.rotation_speed,
                 state.elapsed,
-                state.duration,
+                difference.duration,
             );
             bone.rotation = Some(
                 (Quat::from_axis_angle(difference.rotation_axis, angle) * rotation).normalize(),
@@ -271,7 +285,7 @@ fn apply_source_inertialization(target: &Pose, state: &SourceInertializationStat
                             difference.scale_magnitude,
                             difference.scale_speed,
                             state.elapsed,
-                            state.duration,
+                            difference.duration,
                         ),
             );
         }
@@ -282,7 +296,9 @@ fn apply_source_inertialization(target: &Pose, state: &SourceInertializationStat
 fn begin_source_inertialization(
     state: &mut SourceInertializationState,
     target: &Pose,
-    request_duration: f32,
+    requests: &[crate::extensions::animation_context::SourceInertializationPart],
+    default_profile: Option<&crate::extensions::SourceBlendProfile>,
+    skeleton: Option<&Skeleton>,
 ) {
     let Some(previous) = state.previous.clone() else {
         return;
@@ -299,11 +315,26 @@ fn begin_source_inertialization(
     if state.active {
         state.deficit = (state.duration - state.elapsed).max(0.0);
     }
-    state.duration = (request_duration.max(0.0) - applied_deficit).max(0.0);
+    state.duration = requests.iter().map(|request|
+        (request.duration.max(0.0) - applied_deficit).max(0.0))
+        .reduce(f32::min).unwrap_or(0.0);
     state.elapsed = 0.0;
     state.bones =
         source_inertial_bones(target, &previous, &previous_previous, state.previous_delta);
-    state.active = state.duration > f32::EPSILON && !state.bones.is_empty();
+    state.max_duration = state.duration;
+    for difference in &mut state.bones {
+        let bone_name = skeleton.and_then(|skeleton| skeleton.id_to_path(difference.bone))
+            .and_then(|path| path.parts.last().map(|name| name.to_string()));
+        difference.duration = requests.iter().map(|request| {
+            let duration = (request.duration.max(0.0) - applied_deficit).max(0.0);
+            let Some(profile) = request.profile.as_ref().or(default_profile) else { return duration; };
+            let scale = bone_name.as_deref().and_then(|name| profile.bone_scales.iter()
+                .find(|entry| entry.bone.eq_ignore_ascii_case(name)).map(|entry| entry.scale));
+            scale.map_or(duration, |scale| source_inertial_bone_duration(duration, profile.profile_mode, scale))
+        }).reduce(f32::min).unwrap_or(state.duration);
+        state.max_duration = state.max_duration.max(difference.duration);
+    }
+    state.active = state.max_duration > f32::EPSILON && !state.bones.is_empty();
 }
 
 fn record_source_inertial_history(state: &mut SourceInertializationState, pose: &Pose, delta: f32) {
@@ -354,6 +385,7 @@ impl NodeLike for InertializationPassthroughNode {
         let request_duration = optional_global_f32(&ctx, &self.request_duration_key);
         let frame = ctx.graph_context.frame_index();
         let graph_request = source_context.inertialization_request.take().filter(|request| request.frame == frame);
+        let skeleton = ctx.graph_context.resources.skeleton_assets.get(&source_pose.skeleton);
         let threshold = optional_global_f32(&ctx, "component.teleport_distance_threshold");
         let root = ctx.graph_context.global_input_data.get("component.root_bone")
             .and_then(|value| value.as_entity_path().ok()).map(|path| path.id());
@@ -379,6 +411,7 @@ impl NodeLike for InertializationPassthroughNode {
                 state.previous_delta = 0.0;
                 state.previous_root_world = None;
                 state.duration = 0.0;
+                state.max_duration = 0.0;
                 state.elapsed = 0.0;
                 state.deficit = 0.0;
                 state.active = false;
@@ -390,19 +423,27 @@ impl NodeLike for InertializationPassthroughNode {
             state.last_update_frame = Some(frame);
             let teleported = threshold > 0.0 && current_root_world.zip(state.previous_root_world)
                 .is_some_and(|(current, previous)| current.distance_squared(previous) > threshold * threshold);
-            let mut duration = graph_request.map(|request| request.duration);
+            let mut requests = graph_request.map(|request| if request.parts.is_empty() {
+                vec![crate::extensions::animation_context::SourceInertializationPart {
+                    duration: request.duration, ..default()
+                }]
+            } else { request.parts }).unwrap_or_default();
             if request_epoch > state.last_request_epoch + f32::EPSILON {
                 state.last_request_epoch = request_epoch;
-                duration = Some(duration.map_or(request_duration, |value| value.min(request_duration)));
+                requests.push(crate::extensions::animation_context::SourceInertializationPart {
+                    duration: request_duration, ..default()
+                });
             }
-            if teleported && duration.is_some() {
+            if teleported && !requests.is_empty() {
                 state.active = false;
+                state.max_duration = 0.0;
                 state.deficit = 0.0;
                 state.bones.clear();
                 state.curve_differences.clear();
-            } else if let Some(duration) = duration {
+            } else if !requests.is_empty() {
                 let has_history = state.previous.is_some();
-                begin_source_inertialization(state, &source_pose, duration);
+                begin_source_inertialization(state, &source_pose, &requests,
+                    self.default_blend_profile.as_ref(), skeleton);
                 state.curve_differences.clear();
                 if has_history {
                     state.curve_differences = source_context.curves.keys().chain(state.context.curves.keys())
@@ -426,7 +467,7 @@ impl NodeLike for InertializationPassthroughNode {
                     *source_context.curves.entry(name.clone()).or_default() +=
                         source_inertial_float(*difference, *derivative, state.elapsed, state.duration);
                 }
-                if state.elapsed >= state.duration {
+                if state.elapsed >= state.max_duration {
                     state.active = false;
                     state.deficit = 0.0;
                 } else {
@@ -478,6 +519,68 @@ mod tests {
     use bevy_animation_graph::core::pose::BonePose;
 
     #[test]
+    fn explicit_inertial_profile_scales_each_bone_duration() {
+        use crate::extensions::BlendProfileMode;
+        assert_eq!(source_inertial_bone_duration(0.2, BlendProfileMode::TimeFactor, 0.5), 0.1);
+        assert_eq!(source_inertial_bone_duration(0.2, BlendProfileMode::TimeFactor, 2.0), 0.4);
+        assert_eq!(source_inertial_bone_duration(0.2, BlendProfileMode::WeightFactor, 0.5), 0.4);
+        assert_eq!(source_inertial_bone_duration(0.2, BlendProfileMode::WeightFactor, 0.0), 0.2);
+    }
+
+    #[test]
+    fn inertial_profile_requests_drive_distinct_bone_clocks() {
+        use bevy_animation_graph::core::animation_clip::EntityPath;
+        use crate::extensions::{BlendProfileMode, BoneBlendScale, SourceBlendProfile};
+        use crate::extensions::animation_context::SourceInertializationPart;
+        let root_path = EntityPath::default().child("root");
+        let foot_path = root_path.clone().child("foot_l");
+        let root = root_path.id();
+        let foot = foot_path.id();
+        let mut skeleton = Skeleton::default();
+        skeleton.set_root(root);
+        skeleton.add_bone(root_path, Transform::IDENTITY, Transform::IDENTITY);
+        skeleton.add_bone(foot_path, Transform::IDENTITY, Transform::IDENTITY);
+        let mut previous = Pose::default();
+        previous.add_bone(BonePose::from_transform(Transform::from_translation(Vec3::X)), root);
+        previous.add_bone(BonePose::from_transform(Transform::from_translation(Vec3::Y)), foot);
+        let mut target = Pose::default();
+        target.add_bone(BonePose::from_transform(Transform::IDENTITY), root);
+        target.add_bone(BonePose::from_transform(Transform::IDENTITY), foot);
+        let new_state = || SourceInertializationState {
+            previous: Some(previous.clone()), previous_previous: Some(previous.clone()), ..default()
+        };
+        let profile = |scale| SourceBlendProfile {
+            profile_mode: BlendProfileMode::TimeFactor,
+            bone_scales: vec![BoneBlendScale { bone: "foot_l".into(), scale }],
+        };
+        let duration = |state: &SourceInertializationState, bone| state.bones.iter()
+            .find(|entry| entry.bone == bone).unwrap().duration;
+        let mut explicit = new_state();
+        begin_source_inertialization(&mut explicit, &target,
+            &[SourceInertializationPart { duration: 0.2, profile: Some(profile(0.5)) }],
+            Some(&profile(2.0)), Some(&skeleton));
+        assert_eq!((duration(&explicit, root), duration(&explicit, foot), explicit.max_duration), (0.2, 0.1, 0.2));
+        explicit.elapsed = 0.15;
+        let output = apply_source_inertialization(&target, &explicit);
+        assert!(output.get_bone(root).unwrap().translation.unwrap().x > 0.0);
+        assert_eq!(output.get_bone(foot).unwrap().translation.unwrap().y, 0.0);
+        let mut defaulted = new_state();
+        begin_source_inertialization(&mut defaulted, &target,
+            &[SourceInertializationPart { duration: 0.2, ..default() }],
+            Some(&profile(2.0)), Some(&skeleton));
+        assert_eq!((duration(&defaulted, root), duration(&defaulted, foot), defaulted.max_duration), (0.2, 0.4, 0.4));
+        let mut uniform = new_state();
+        begin_source_inertialization(&mut uniform, &target,
+            &[SourceInertializationPart { duration: 0.2, ..default() }], None, Some(&skeleton));
+        assert_eq!((duration(&uniform, root), duration(&uniform, foot)), (0.2, 0.2));
+        let mut merged = new_state();
+        begin_source_inertialization(&mut merged, &target,
+            &[SourceInertializationPart { duration: 0.2, profile: Some(profile(2.0)) },
+                SourceInertializationPart { duration: 0.3, ..default() }], None, Some(&skeleton));
+        assert_eq!((merged.duration, duration(&merged, foot), merged.max_duration), (0.2, 0.3, 0.3));
+    }
+
+    #[test]
     fn source_teleport_uses_world_root_motion_and_invalidates_velocity_history() {
         use bevy::ecs::system::SystemState;
         use bevy_animation_graph::core::{animation_clip::{EntityPath, GraphClip}, animation_graph::AnimationGraph,
@@ -486,6 +589,8 @@ mod tests {
             edge_data::DataValue, skeleton::Skeleton, state_machine::high_level::StateMachine, utils::testing::TestIoEnv};
         let path = EntityPath::default().child("root");
         let bone = path.id();
+        let foot_path = path.clone().child("foot_l");
+        let foot = foot_path.id();
         let mut world = World::new();
         world.init_resource::<Assets<AnimationGraph>>();
         world.init_resource::<Assets<GraphClip>>();
@@ -496,10 +601,16 @@ mod tests {
         let mut skeleton = Skeleton::default();
         skeleton.set_root(bone);
         skeleton.add_bone(path.clone(), Transform::IDENTITY, Transform::IDENTITY);
+        skeleton.add_bone(foot_path, Transform::IDENTITY, Transform::IDENTITY);
         let skeleton = world.resource_mut::<Assets<Skeleton>>().add(skeleton);
         let source = AnimationNode::new("Source", crate::extensions::GlobalPoseInputNode { key:"input".into(), output:"Pose".into() });
         let inertial = AnimationNode::new("Inertialization", InertializationPassthroughNode {
-            internalize_time:true, request_epoch_key:"epoch".into(), request_duration_key:"duration".into(), ..default() });
+            internalize_time:true, request_epoch_key:"epoch".into(), request_duration_key:"duration".into(),
+            default_blend_profile: Some(crate::extensions::SourceBlendProfile {
+                profile_mode: crate::extensions::BlendProfileMode::TimeFactor,
+                bone_scales: vec![crate::extensions::BoneBlendScale { bone: "foot_l".into(), scale: 2.0 }],
+            }),
+            ..default() });
         let mut graph = AnimationGraph::new();
         graph.add_node(source.clone());
         graph.add_node(inertial.clone());
@@ -524,6 +635,7 @@ mod tests {
                 let rotation = Quat::from_rotation_y(if frame == 4 { 2.0 } else if frame >= 2 { 1.0 } else { 0.0 });
                 let mut input = Pose { skeleton:skeleton.clone(), ..default() };
                 input.add_bone(BonePose::from_transform(Transform::from_translation(Vec3::X * if jump { root_jump } else { 0.0 }).with_rotation(rotation)), bone);
+                input.add_bone(BonePose::from_transform(Transform::IDENTITY), foot);
                 let inputs = HashMap::from([
                     ("input".into(), DataValue::Pose(input)), ("epoch".into(), DataValue::F32(if frame == 4 { 3.0 } else if frame < 2 { 0.0 } else if jump && request_on_jump { 2.0 } else { 1.0 })),
                     ("duration".into(), DataValue::F32(0.2)), ("component.teleport_distance_threshold".into(), DataValue::F32(threshold)),
@@ -533,6 +645,12 @@ mod tests {
                 let graph = resources.animation_graph_assets.get(&handle).unwrap();
                 let result = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)),
                     GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources, &env, entity, &entities, &mut gizmos, &inputs)).unwrap();
+                if frame == 2 {
+                    let state = arena.get_toplevel().node_states.get::<SourceInertializationState>(inertial.id, StateKey::Default).unwrap();
+                    assert_eq!(state.bones.iter().find(|entry| entry.bone == bone).unwrap().duration, 0.2);
+                    assert_eq!(state.bones.iter().find(|entry| entry.bone == foot).unwrap().duration, 0.4);
+                    assert_eq!(state.max_duration, 0.4);
+                }
                 if frame == 3 {
                     let state = arena.get_toplevel().node_states.get::<SourceInertializationState>(inertial.id, StateKey::Default).unwrap();
                     assert_eq!(state.previous_delta, if teleported { 0.0 } else { 0.02 });
@@ -613,7 +731,8 @@ mod tests {
             previous_previous: Some(previous),
             ..default()
         };
-        begin_source_inertialization(&mut state, &target, 0.2);
+        begin_source_inertialization(&mut state, &target,
+            &[crate::extensions::animation_context::SourceInertializationPart { duration: 0.2, ..default() }], None, None);
         let initial = apply_source_inertialization(&target, &state);
         let initial_rotation = initial.get_bone(bone).unwrap().rotation.unwrap();
         assert!(
@@ -630,8 +749,84 @@ mod tests {
         state.duration = 0.5;
         state.elapsed = 0.1;
         state.deficit = 0.3;
-        begin_source_inertialization(&mut state, &target, 0.5);
+        begin_source_inertialization(&mut state, &target,
+            &[crate::extensions::animation_context::SourceInertializationPart { duration: 0.5, ..default() }], None, None);
         assert!((state.duration - 0.1).abs() < 1e-6);
+    }
+
+    #[test]
+    fn default_profile_keeps_inertialization_active_until_the_longest_bone_finishes() {
+        use bevy_animation_graph::core::{
+            animation_clip::{EntityPath, GraphClip}, animation_graph::{AnimationGraph, NodeId},
+            animation_node::AnimationNode,
+            context::{deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+                graph_context_arena::GraphContextArena, new_context::GraphContext,
+                node_states::StateKey, system_resources::SystemResources},
+            edge_data::DataValue, state_machine::high_level::StateMachine,
+            utils::testing::TestIoEnv,
+        };
+
+        fn query(In((handle, node, skeleton, root, foot)): In<(Handle<AnimationGraph>, NodeId, Handle<Skeleton>, BoneId, BoneId)>,
+            resources: SystemResources) -> Vec<(bool, f32, f32)> {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            let mut result = Vec::new();
+            for frame in 0..5 {
+                let mut pose = Pose { skeleton: skeleton.clone(), ..default() };
+                let translation = if frame == 0 { Vec3::X } else { Vec3::ZERO };
+                pose.add_bone(BonePose::from_transform(Transform::from_translation(translation)), root);
+                pose.add_bone(BonePose::from_transform(Transform::from_translation(translation)), foot);
+                let inputs = HashMap::from([
+                    ("input".to_owned(), DataValue::Pose(pose)),
+                    ("epoch".to_owned(), DataValue::F32(if frame == 0 { 0.0 } else { 1.0 })),
+                    ("duration".to_owned(), DataValue::F32(0.1)),
+                ]);
+                let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
+                    &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+                graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.05)), context).unwrap();
+                let state = arena.get_toplevel().node_states.get::<SourceInertializationState>(node, StateKey::Default).unwrap();
+                result.push((state.active, state.duration, state.max_duration));
+            }
+            result
+        }
+
+        let root_path = EntityPath::default().child("root");
+        let foot_path = root_path.clone().child("foot_l");
+        let root = root_path.id();
+        let foot = foot_path.id();
+        let mut skeleton = Skeleton::default();
+        skeleton.set_root(root);
+        skeleton.add_bone(root_path, Transform::IDENTITY, Transform::IDENTITY);
+        skeleton.add_bone(foot_path, Transform::IDENTITY, Transform::IDENTITY);
+        let mut world = World::new();
+        world.init_resource::<Assets<AnimationGraph>>();
+        world.init_resource::<Assets<GraphClip>>();
+        world.init_resource::<Assets<Skeleton>>();
+        world.init_resource::<Assets<StateMachine>>();
+        let skeleton = world.resource_mut::<Assets<Skeleton>>().add(skeleton);
+        let source = AnimationNode::new("source", crate::extensions::GlobalPoseInputNode { key: "input".into(), output: "Pose".into() });
+        let inertial = AnimationNode::new("inertial", InertializationPassthroughNode {
+            internalize_time: true, request_epoch_key: "epoch".into(), request_duration_key: "duration".into(),
+            default_blend_profile: Some(crate::extensions::SourceBlendProfile {
+                profile_mode: crate::extensions::BlendProfileMode::TimeFactor,
+                bone_scales: vec![crate::extensions::BoneBlendScale { bone: "foot_l".into(), scale: 2.0 }],
+            }), ..default()
+        });
+        let mut graph = AnimationGraph::new();
+        graph.add_node(source.clone());
+        graph.add_node(inertial.clone());
+        graph.add_node_parameter_edge(source.id, "Pose", inertial.id, "Source");
+        graph.add_output_data("Pose".into(), DataSpec::Pose);
+        graph.add_output_data_edge(inertial.id, "pose", "Pose");
+        let handle = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
+        let result = world.run_system_cached_with(query, (handle, inertial.id, skeleton, root, foot)).unwrap();
+        assert_eq!(result[1], (true, 0.1, 0.2));
+        assert_eq!(result[2].0, true);
+        assert_eq!(result[3].0, true);
+        assert_eq!(result[4].0, false);
     }
 
     #[test]

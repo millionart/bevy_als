@@ -62,9 +62,17 @@ pub struct SourceAssetSample {
 
 #[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default)]
+pub struct SourceInertializationPart {
+    pub duration: f32,
+    pub profile: Option<crate::extensions::SourceBlendProfile>,
+}
+
+#[derive(Reflect, Clone, Debug, Default)]
+#[reflect(Default)]
 pub struct SourceInertializationRequest {
     pub frame: u64,
     pub duration: f32,
+    pub parts: Vec<SourceInertializationPart>,
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -344,7 +352,17 @@ pub(crate) fn merge_inertialization_request(
 ) {
     let Some(source) = source else { return; };
     match target {
-        Some(current) if current.frame == source.frame => current.duration = current.duration.min(source.duration),
+        Some(current) if current.frame == source.frame => {
+            if current.parts.is_empty() {
+                current.parts.push(SourceInertializationPart { duration: current.duration, ..default() });
+            }
+            if source.parts.is_empty() {
+                current.parts.push(SourceInertializationPart { duration: source.duration, ..default() });
+            } else {
+                current.parts.extend(source.parts.iter().cloned());
+            }
+            current.duration = current.duration.min(source.duration);
+        }
         Some(current) if current.frame > source.frame => {}
         _ => *target = Some(source.clone()),
     }
@@ -590,11 +608,34 @@ mod tests {
     fn inertial_requests_merge_by_frame_and_shortest_duration() {
         let mut request = None;
         for (frame, duration) in [(2, 0.4), (2, 0.2), (1, 0.1), (2, 0.3)] {
-            merge_inertialization_request(&mut request, Some(&SourceInertializationRequest { frame, duration }));
+            merge_inertialization_request(&mut request, Some(&SourceInertializationRequest { frame, duration, ..default() }));
         }
         assert_eq!(request.as_ref().map(|value| (value.frame, value.duration)), Some((2, 0.2)));
-        merge_inertialization_request(&mut request, Some(&SourceInertializationRequest { frame: 3, duration: 0.5 }));
+        assert_eq!(request.as_ref().unwrap().parts.iter().map(|part| part.duration).collect::<Vec<_>>(), [0.4, 0.2, 0.3]);
+        merge_inertialization_request(&mut request, Some(&SourceInertializationRequest { frame: 3, duration: 0.5, ..default() }));
         assert_eq!(request.as_ref().map(|value| (value.frame, value.duration)), Some((3, 0.5)));
+    }
+
+    #[test]
+    fn inertial_requests_keep_explicit_profile_and_unprofiled_duration() {
+        let profile = crate::extensions::SourceBlendProfile {
+            profile_mode: crate::extensions::BlendProfileMode::TimeFactor,
+            bone_scales: vec![crate::extensions::BoneBlendScale { bone: "foot_l".into(), scale: 2.0 }],
+        };
+        let mut request = None;
+        merge_inertialization_request(&mut request, Some(&SourceInertializationRequest {
+            frame: 2, duration: 0.2,
+            parts: vec![SourceInertializationPart { duration: 0.2, profile: Some(profile.clone()) }],
+        }));
+        merge_inertialization_request(&mut request, Some(&SourceInertializationRequest {
+            frame: 2, duration: 0.3, ..default()
+        }));
+        let request = request.unwrap();
+        assert_eq!(request.duration, 0.2);
+        assert_eq!(request.parts.len(), 2);
+        assert_eq!(request.parts[0].profile, Some(profile));
+        assert_eq!(request.parts[1].duration, 0.3);
+        assert!(request.parts[1].profile.is_none());
     }
 
     #[test]

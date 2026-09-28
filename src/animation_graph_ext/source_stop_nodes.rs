@@ -732,7 +732,7 @@ mod tests {
                 let state = arena.get_toplevel_mut().node_states.get_mut_or_insert_with(
                     node.id, StateKey::Default, AnimationContextState::default,
                 ).unwrap();
-                state.inertialization_request = Some(SourceInertializationRequest { frame: 0, duration });
+                state.inertialization_request = Some(SourceInertializationRequest { frame: 0, duration, ..default() });
             }
             let inputs = HashMap::from([
                 ("input_0".to_owned(), DataValue::Pose(Pose::default())),

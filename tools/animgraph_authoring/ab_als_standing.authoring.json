@@ -209,6 +209,30 @@
     {
       "path": "target/bf131/a70/AnimSequence.h",
       "sha256": "fcf84df7779d2f2be19ce84d5428e9c8561f05d285de252fd467c4f4bcae1d94"
+    },
+    {
+      "path": "target/bf131/a72/AnimNode_StateMachine.cpp",
+      "sha256": "8dca0f41f0378ad8858f193d69cc8a4fdf43139c8114d20842c67d16ef8c161b"
+    },
+    {
+      "path": "target/bf131/a72/AnimNode_Inertialization.cpp",
+      "sha256": "256d0ac42889b34d27c7e3cca307e27db08065b78ee45b6795af753a06525005"
+    },
+    {
+      "path": "target/bf131/a72/AnimNode_Inertialization.h",
+      "sha256": "17979156b5da66e5c5a8e3e023af80359944726000556ba2a2d490409ae0b54e"
+    },
+    {
+      "path": "target/bf131/a72/AnimInertializationRequest.h",
+      "sha256": "7890a1bbc592bfec474b67e10c5ba7bf09d7bbc2e6d74c2f1054053774abc8c8"
+    },
+    {
+      "path": "target/bf131/a72/BlendProfile.cpp",
+      "sha256": "fed61dc681961a89d87dddf0e8f0495516f8caaab5b3c8937ad5213973daa292"
+    },
+    {
+      "path": "target/bf131/a72/BlendProfile.h",
+      "sha256": "1fc47919d6d8c45e3ad15972978eb3c2f9368036bb1a4613824bbcf8fed2b4e5"
     }
   ],
   "graphs": [
@@ -1964,6 +1988,26 @@
       "label": "repeated_sync_marker_pair_timeline_continuity",
       "argv": ["cargo", "test", "--locked", "--offline", "--profile", "play", "--lib", "repeated_", "--jobs", "2"],
       "evidence": "target/bf1295/bf131-a70-repeated-final.json"
+    },
+    {
+      "label": "inertial_profile_bone_clocks",
+      "argv": ["cargo", "test", "--locked", "--offline", "--profile", "play", "--lib", "inertial_profile", "--jobs", "2"],
+      "evidence": "target/bf1295/bf131-a72-bone-clocks.json"
+    },
+    {
+      "label": "inertial_profile_request_route",
+      "argv": ["cargo", "test", "--locked", "--offline", "--profile", "play", "--lib", "source_transition_preserves_a_target_that_is_still_blending", "--jobs", "2"],
+      "evidence": "target/bf1295/bf131-a72-request-profile.json"
+    },
+    {
+      "label": "inertial_profile_maximum_bone_lifetime",
+      "argv": ["cargo", "test", "--locked", "--offline", "--profile", "play", "--lib", "default_profile_keeps_inertialization_active_until_the_longest_bone_finishes", "--jobs", "2"],
+      "evidence": "target/bf1295/bf131-a72-max-bone-lifecycle.json"
+    },
+    {
+      "label": "inertial_profile_explicit_graph_loader",
+      "argv": ["cargo", "test", "--locked", "--offline", "--profile", "play", "--test", "animgraph_assets", "explicit_inertial_profile_graph_loads_with_its_bone_scale", "--jobs", "2"],
+      "evidence": "target/bf1295/bf131-a72-explicit-graph-load.json"
     }
   ]
 }

@@ -50,6 +50,13 @@ pub enum BlendProfileMode {
     WeightFactor,
 }
 
+#[derive(Reflect, Clone, Debug, Default, PartialEq)]
+#[reflect(Default)]
+pub struct SourceBlendProfile {
+    pub profile_mode: BlendProfileMode,
+    pub bone_scales: Vec<BoneBlendScale>,
+}
+
 #[derive(Reflect, Clone, Debug, Default)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]

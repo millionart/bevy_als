@@ -22,7 +22,7 @@ from apply_additive_reference_deltas import (
     referenced_animation_names,
     source_animation_assets,
 )
-from ue_animation_asset_resolver import AssetResolutionError, resolve_graph_animation_assets, source_curve_float, source_object_path
+from ue_animation_asset_resolver import AssetResolutionError, resolve_graph_animation_assets, source_blend_profile, source_curve_float, source_object_path
 from ue_animgraph_pose_contract import (
     PoseContractError,
     input_is_linked,
@@ -1532,6 +1532,17 @@ def build_ir(
             linked_graph_targets,
         )
         for node in graph_value["nodes"]:
+            if node.get("renderer") == "inertialization" and node.get("semantic") is not None:
+                semantic = node["semantic"]
+                semantic["default_blend_profile"] = None
+                reference = semantic["default_blend_profile_source"]
+                if reference != "None":
+                    try:
+                        semantic["default_blend_profile"] = source_blend_profile(
+                            source_content_root, source_mount, source_object_path(reference), source_reader)
+                    except (AssetResolutionError, TypeError, KeyError) as error:
+                        graph_unsupported.append({"kind": "source_inertialization_default_profile_unavailable",
+                            "source_node": node["source_node"], "detail": str(error)})
             if node.get("renderer") == "bool_blend" and node.get("semantic") is not None:
                 semantic = node["semantic"]
                 semantic["custom_curve"] = []

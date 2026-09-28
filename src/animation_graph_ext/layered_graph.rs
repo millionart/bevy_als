@@ -468,7 +468,7 @@ impl NodeLike for LayeredGraphNode {
                 for duration in [state.blend_out, binding.as_ref().map(|input| input.blend_in)].into_iter().flatten().filter(|duration| *duration >= 0.0) {
                     crate::extensions::animation_context::merge_inertialization_request(
                         &mut context_state.inertialization_request,
-                        Some(&crate::extensions::animation_context::SourceInertializationRequest { frame, duration }),
+                        Some(&crate::extensions::animation_context::SourceInertializationRequest { frame, duration, ..default() }),
                     );
                 }
             }
