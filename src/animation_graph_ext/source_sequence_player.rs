@@ -366,6 +366,13 @@ impl NodeLike for SourceSequencePlayerNode {
             .transpose()?
             .flatten();
         let identity = (ctx.graph_context.context_id, ctx.node_id);
+        let reached_full_weight = self.synchronization.as_ref().is_some_and(|sync|
+            matches!(sync.role, SourceSyncGroupRole::TransitionLeader | SourceSyncGroupRole::TransitionFollower))
+            && ctx.graph_context.global_input_data.contains_key(
+                &crate::extensions::sync_group_phase::source_sync_full_weight_key(identity));
+        let requested_inertialization = ctx.graph_context.global_input_data.get(
+            crate::extensions::sync_group_phase::SOURCE_SYNC_INERTIAL_SCOPE)
+            .is_some_and(|value| value.as_bool().unwrap_or(false));
         let notify_instance_id = crate::extensions::source_instance::source_notify_instance_id(&ctx)?;
         let state = ctx.state_mut_or_else(SourceSequencePlayerState::default)?;
         let play_rate = apply_source_input_scale_bias_clamp(
@@ -402,6 +409,9 @@ impl NodeLike for SourceSequencePlayerNode {
                 source_asset: Some(self.clip.clone()),
                 override_position_when_joining_sync_group_as_leader: self.override_position_when_joining_sync_group_as_leader,
                 weight: 1.0,
+                has_been_full_weight: state.context.sync_players.first().is_some_and(|tick| tick.has_been_full_weight)
+                    || reached_full_weight,
+                requested_inertialization,
                 previous_phase,
                 phase_duration: sync.phase_duration,
                 phase_markers: sync.phase_markers.clone(),

@@ -1739,11 +1739,23 @@ impl<'a> InterruptibleFsmIo<'a> {
             .animation_graph_assets
             .get(&graph_handle)
             .ok_or(GraphError::FSMGraphAssetMissing)?;
-        let sub_ctx = self
+        let mut sub_ctx = self
             .node_context
             .create_child_context(graph_handle.id(), graph, Some(state.clone()))
             .with_state_key(ctx.state_key)
             .with_io(&io);
+        let mut global_inputs = std::borrow::Cow::Borrowed(sub_ctx.global_input_data);
+        if matches!(role, FsmRole::Target)
+            && self.node_context.state::<InterruptibleFsmState>()?
+                .context.inertialization_request.as_ref()
+                .is_some_and(|request| request.frame == self.node_context.graph_context.frame_index())
+        {
+            global_inputs.to_mut().insert(
+                crate::extensions::sync_group_phase::SOURCE_SYNC_INERTIAL_SCOPE.to_owned(),
+                DataValue::Bool(true),
+            );
+        }
+        sub_ctx.global_input_data = &global_inputs;
         let weight = self.evaluated_state_weight(&state)?;
         with_machine_weight(weight, || {
             let result = graph.get_data(TargetPin::OutputData(pin.clone()), sub_ctx.clone());
@@ -3133,6 +3145,13 @@ mod tests {
                     );
                 }
                 assert!(!state.context.sync_players.is_empty());
+                if inertial && !sync {
+                    assert_eq!(
+                        state.context.sync_players.iter().any(|player| player.requested_inertialization),
+                        frame == 2 || frame == interrupt_frame,
+                        "inertial sync scope frame={frame}"
+                    );
+                }
                 if sync {
                     let phase = crate::extensions::sync_group_phase::source_sync_phase(
                         &arena,
@@ -3255,6 +3274,11 @@ mod tests {
                         synchronization: Some(
                             crate::extensions::source_sequence_player::SourceSequenceSynchronization {
                                 key: "fixture".to_owned(),
+                                role: if inertial && !sync {
+                                    crate::extensions::sync_group_phase::SourceSyncGroupRole::TransitionLeader
+                                } else {
+                                    default()
+                                },
                                 phase_duration: duration,
                                 delta_seconds_key: "delta".to_owned(),
                                 ..default()

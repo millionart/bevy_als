@@ -365,6 +365,8 @@ pub fn merge_sync_players(
             .find(|existing| existing.identity == player.identity)
         {
             existing.weight = existing.weight.max(weight);
+            existing.has_been_full_weight |= player.has_been_full_weight;
+            existing.requested_inertialization |= player.requested_inertialization;
         } else {
             let mut player = player.clone();
             player.weight = weight;

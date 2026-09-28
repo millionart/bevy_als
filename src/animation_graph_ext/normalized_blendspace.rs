@@ -698,11 +698,19 @@ impl NodeLike for NormalizedBlendSpaceNode {
             let previous = ctx
                 .state::<NormalizedBlendSpaceState>()
                 .ok()
-                .and_then(|state| state.context.sync_players.first())
-                .map(|tick| tick.phase);
+                .and_then(|state| state.context.sync_players.first());
             let mut tick =
-                self.player_tick(playback, leader_index, previous, delta_seconds, play_rate);
+                self.player_tick(playback, leader_index, previous.map(|tick| tick.phase), delta_seconds, play_rate);
             tick.identity = (ctx.graph_context.context_id, ctx.node_id);
+            tick.has_been_full_weight = previous.is_some_and(|tick| tick.has_been_full_weight)
+                || (matches!(playback.role,
+                    crate::extensions::sync_group_phase::SourceSyncGroupRole::TransitionLeader
+                        | crate::extensions::sync_group_phase::SourceSyncGroupRole::TransitionFollower)
+                    && ctx.graph_context.global_input_data.contains_key(
+                        &crate::extensions::sync_group_phase::source_sync_full_weight_key(tick.identity)));
+            tick.requested_inertialization = ctx.graph_context.global_input_data.get(
+                crate::extensions::sync_group_phase::SOURCE_SYNC_INERTIAL_SCOPE)
+                .is_some_and(|value| value.as_bool().unwrap_or(false));
             tick.previous_phase = tick.phase;
             let phase = resolved_source_sync_phase(&ctx, &playback.key)?
                 .unwrap_or_else(|| tick.advance(tick.phase));

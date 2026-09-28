@@ -153,6 +153,18 @@
     {
       "path": "target/bf116_projection/source/ALS_ALS_Animations_Air_Lean_BS_Als_Air_Lean.BS_Als_Air_Lean.ue.json",
       "sha256": "2bc7aa3d9be47e97d1a0aecbfdc7e7976696633afc32a2c1969ea825ae9aa7e8"
+    },
+    {
+      "path": "target/bf131/a67/AnimNode_AssetPlayerBase.cpp",
+      "sha256": "b436241d9513645aefdd3a9d68b1a72935bf6ae02309e22bb30e0ad05ee37041"
+    },
+    {
+      "path": "target/bf131/a67/AB_Als_Standing.ue.json",
+      "sha256": "6c20b51415c86c9d33fd733cf257b9e6888e78ad36e4f728774a2c465e620a0e"
+    },
+    {
+      "path": "target/bf131/a63/AnimNode_StateMachine.cpp",
+      "sha256": "8dca0f41f0378ad8858f193d69cc8a4fdf43139c8114d20842c67d16ef8c161b"
     }
   ],
   "graphs": [
@@ -1883,6 +1895,11 @@
         "2"
       ],
       "evidence": "target/bf1295/bf131-a59-final-getter.json"
+    },
+    {
+      "label": "transition_sync_group_full_weight_and_inertial_scope",
+      "argv": ["cargo", "test", "--locked", "--offline", "--profile", "play", "--lib", "transition_", "--jobs", "2"],
+      "evidence": "target/bf1295/bf131-a67-transition-final.json"
     }
   ]
 }

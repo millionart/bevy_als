@@ -101,6 +101,8 @@ pub struct SourceSyncPlayerTick {
     pub source_asset: Option<Handle<bevy_animation_graph::core::animation_clip::GraphClip>>,
     pub override_position_when_joining_sync_group_as_leader: bool,
     pub weight: f32,
+    pub has_been_full_weight: bool,
+    pub requested_inertialization: bool,
     pub phase: f32,
     pub previous_phase: f32,
     pub phase_duration: f32,
@@ -113,12 +115,17 @@ pub struct SourceSyncPlayerTick {
 }
 
 pub const SOURCE_SYNC_RESOLVED: &str = "__source_sync_resolved";
+pub const SOURCE_SYNC_INERTIAL_SCOPE: &str = "__source_sync_inertial_scope";
 
 pub fn source_sync_excluded_key(identity: (GraphContextId, NodeId)) -> String {
     format!(
         "{SOURCE_SYNC_RESOLVED}.ungrouped.{:?}.{:?}",
         identity.0, identity.1
     )
+}
+
+pub fn source_sync_full_weight_key(identity: (GraphContextId, NodeId)) -> String {
+    format!("{SOURCE_SYNC_RESOLVED}.full_weight.{:?}.{:?}", identity.0, identity.1)
 }
 
 pub fn source_sync_delta_seconds(ctx: &NodeContext, key: &str) -> Result<f32, GraphError> {
@@ -208,20 +215,20 @@ pub fn resolved_source_sync_phase(ctx: &NodeContext, key: &str) -> Result<Option
 }
 
 fn group_leader<'a>(players: &[&'a SourceSyncPlayerTick]) -> Option<&'a SourceSyncPlayerTick> {
-    let marker_sync = !players.first()?.phase_markers.is_empty();
-    let candidates = players.iter().enumerate().map(|(index, player)| SourceSyncGroupCandidate {
+    let marker_sync = !players.iter().find(|player| player.sync_group_eligible())?.phase_markers.is_empty();
+    let candidates = players.iter().enumerate().filter(|(_, player)| player.sync_group_eligible()).map(|(index, player)| SourceSyncGroupCandidate {
         role: player.role,
         blend_weight: player.weight,
         source_order: index,
         marker_sync_valid: player.markers.len() >= 2,
     }).collect::<Vec<_>>();
-    players.get(select_source_sync_group_leader(&candidates, marker_sync)?).copied()
+    players.get(candidates.get(select_source_sync_group_leader(&candidates, marker_sync)?)?.source_order).copied()
 }
 
 pub fn resolve_source_sync_phases(
     current: &[SourceSyncPlayerTick],
     previous: &[SourceSyncPlayerTick],
-) -> Vec<(String, f32, Vec<(GraphContextId, NodeId)>)> {
+) -> Vec<(String, Option<f32>, Vec<(GraphContextId, NodeId)>)> {
     let mut groups = Vec::new();
     for player in current {
         if groups.iter().any(|(key, _, _)| key == &player.key) {
@@ -231,39 +238,47 @@ pub fn resolve_source_sync_phases(
             .iter()
             .filter(|candidate| candidate.key == player.key)
             .collect::<Vec<_>>();
-        let Some(leader) = group_leader(&players) else {
-            continue;
-        };
+        let leader = group_leader(&players);
         let previous_players = previous
             .iter()
             .filter(|prior| prior.key == player.key)
             .collect::<Vec<_>>();
         let previous_leader = group_leader(&previous_players);
-        let joined = previous_leader.is_some_and(|prior| {
-            prior.identity != leader.identity || prior.source_asset != leader.source_asset
+        let phase = leader.map(|leader| {
+            let joined = previous_leader.is_some_and(|prior| {
+                prior.identity != leader.identity || prior.source_asset != leader.source_asset
+            });
+            let phase = previous_leader
+                .map(|prior| prior.phase)
+                .unwrap_or(leader.previous_phase);
+            let phase = if leader.override_position_when_joining_sync_group_as_leader && joined {
+                leader.previous_phase
+            } else {
+                phase
+            };
+            leader.advance(phase)
         });
-        let phase = previous_leader
-            .map(|prior| prior.phase)
-            .unwrap_or(leader.previous_phase);
-        let phase = if leader.override_position_when_joining_sync_group_as_leader && joined {
-            leader.previous_phase
-        } else {
-            phase
-        };
         let ungrouped = players
             .iter()
             .filter(|candidate| {
-                candidate.role == SourceSyncGroupRole::ExclusiveAlwaysLeader
-                    && candidate.identity != leader.identity
+                !candidate.sync_group_eligible()
+                    || (candidate.role == SourceSyncGroupRole::ExclusiveAlwaysLeader
+                        && leader.is_some_and(|leader| candidate.identity != leader.identity))
             })
             .map(|candidate| candidate.identity)
             .collect();
-        groups.push((player.key.clone(), leader.advance(phase), ungrouped));
+        groups.push((player.key.clone(), phase, ungrouped));
     }
     groups
 }
 
 impl SourceSyncPlayerTick {
+    pub fn sync_group_eligible(&self) -> bool {
+        !matches!(self.role, SourceSyncGroupRole::TransitionLeader | SourceSyncGroupRole::TransitionFollower)
+            || (!self.requested_inertialization
+                && (self.has_been_full_weight || self.weight >= 1.0 - 1e-5))
+    }
+
     pub fn advance(&self, previous_phase: f32) -> f32 {
         let previous_time = marker_phase_sample_time(
             previous_phase,
@@ -869,11 +884,13 @@ mod tests {
             looped: true,
             delta_seconds: 0.1,
             play_rate: 1.0,
+            has_been_full_weight: false,
+            requested_inertialization: false,
         };
         let old = tick(old_id, old_clip.clone(), 0.8, false);
         let mut joining = tick(new_id, new_clip.clone(), 0.2, true);
         let phase = |current: &SourceSyncPlayerTick, previous: &[SourceSyncPlayerTick]| {
-            resolve_source_sync_phases(&[current.clone()], previous)[0].1
+            resolve_source_sync_phases(&[current.clone()], previous)[0].1.unwrap()
         };
         assert!((phase(&joining, &[old.clone()]) - 0.3).abs() < EPSILON);
         joining.override_position_when_joining_sync_group_as_leader = false;
@@ -1066,6 +1083,47 @@ mod tests {
         assert_eq!(source_sync_group_leader_score(candidates[1]), 0.75);
         assert_eq!(source_sync_group_leader_score(candidates[2]), 2.0);
         assert_eq!(select_source_sync_group_leader(&candidates, false), Some(2));
+    }
+
+    #[test]
+    fn transition_roles_join_only_after_full_weight() {
+        let first: NodeId = serde_json::from_str("\"10000000-0000-4000-8000-000000000001\"").unwrap();
+        let second: NodeId = serde_json::from_str("\"10000000-0000-4000-8000-000000000002\"").unwrap();
+        let third: NodeId = serde_json::from_str("\"10000000-0000-4000-8000-000000000003\"").unwrap();
+        let tick = |id, role, weight, phase| SourceSyncPlayerTick {
+            identity: (GraphContextId::default(), id), key: "Movement".into(), role, weight,
+            phase, previous_phase: phase, phase_duration: 1.0, duration: 1.0,
+            looped: true, delta_seconds: 0.0, play_rate: 1.0, ..default()
+        };
+        let entering = tick(first, SourceSyncGroupRole::TransitionLeader, 0.4, 0.8);
+        let follower = tick(second, SourceSyncGroupRole::TransitionFollower, 0.8, 0.6);
+        let normal = tick(third, SourceSyncGroupRole::CanBeLeader, 0.2, 0.2);
+        let result = resolve_source_sync_phases(&[entering.clone(), follower.clone(), normal.clone()], &[]);
+        assert_eq!(result.len(), 1);
+        assert!((result[0].1.unwrap() - 0.2).abs() < EPSILON);
+        assert_eq!(result[0].2, vec![entering.identity, follower.identity]);
+        let alone = resolve_source_sync_phases(&[entering.clone(), follower.clone()], &[]);
+        assert_eq!(alone[0].1, None);
+        assert_eq!(alone[0].2, vec![entering.identity, follower.identity]);
+        let mut full = entering.clone();
+        full.weight = 1.0 - 1e-5;
+        let joined = resolve_source_sync_phases(&[full.clone(), normal.clone()], &[]);
+        assert!((joined[0].1.unwrap() - 0.8).abs() < EPSILON);
+        assert!(joined[0].2.is_empty());
+        full.weight = 0.4;
+        full.has_been_full_weight = true;
+        let fading_out = resolve_source_sync_phases(&[full.clone(), normal.clone()], &[]);
+        assert!((fading_out[0].1.unwrap() - 0.8).abs() < EPSILON);
+        assert!(fading_out[0].2.is_empty());
+        let mut joined_follower = follower;
+        joined_follower.has_been_full_weight = true;
+        let followers = resolve_source_sync_phases(&[joined_follower, normal], &[]);
+        assert_eq!(followers[0].2.len(), 0);
+        assert!((followers[0].1.unwrap() - 0.2).abs() < EPSILON);
+        full.requested_inertialization = true;
+        let inertialized = resolve_source_sync_phases(&[full, entering], &[]);
+        assert_eq!(inertialized[0].1, None);
+        assert_eq!(inertialized[0].2.len(), 2);
     }
 
     #[test]
