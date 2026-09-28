@@ -696,7 +696,7 @@ mod tests {
     }
 
     #[test]
-    fn independent_swing_limits_follow_the_runtime_basis() {
+    fn swing_limit_axes_follow_the_runtime_basis() {
         let limits = [
             SourceAngularLimit::Free,
             SourceAngularLimit::Limited(65.0_f32.to_radians()),
@@ -718,6 +718,27 @@ mod tests {
             )
             .is_some()
         );
+    }
+
+    #[test]
+    fn two_limited_swings_use_the_source_elliptical_cone() {
+        let limits = [
+            SourceAngularLimit::Free,
+            SourceAngularLimit::Limited(65.0_f32.to_radians()),
+            SourceAngularLimit::Limited(20.0_f32.to_radians()),
+        ];
+        let diagonal = Quat::from_rotation_y(55.0_f32.to_radians())
+            * Quat::from_rotation_z(16.0_f32.to_radians());
+        let swing = relative_swing(Quat::IDENTITY, diagonal).unwrap();
+        let angles = Vec2::new(swing_angle(swing.y, swing.w), swing_angle(swing.z, swing.w));
+        let bounds = Vec2::new(65.0_f32.to_radians(), 20.0_f32.to_radians());
+        assert!(angles.abs().cmplt(bounds).all());
+        assert!((angles / bounds).length_squared() > 1.0);
+        assert!(angular_limit_correction((Quat::IDENTITY, diagonal), limits, 1).is_some());
+        assert!(angular_limit_correction((Quat::IDENTITY, diagonal), limits, 2).is_none());
+        let inside = Quat::from_rotation_y(30.0_f32.to_radians())
+            * Quat::from_rotation_z(8.0_f32.to_radians());
+        assert!(angular_limit_correction((Quat::IDENTITY, inside), limits, 1).is_none());
     }
 
     #[test]

@@ -77,7 +77,7 @@
 
 ### PhysicsAsset、关节与布娃娃回读
 
-- [ ] **BF131.A79 — 线性化关节的两个独立 Swing 限位被当成椭圆锥／圆锥，界内斜向姿态受到错误修正**。Gate：源独立轴界内斜向姿态保持，越界轴单独修正，限位模式和坐标基控制通过。
+- [x] **BF131.A79 — 双 Limited Swing 被误判为两个独立限位（源证伪，无运行时代码修改）**。Gate：UE 双 Limited 实际建立 Angular_Cone，椭圆外斜向姿态应修正；轴基、椭圆内及单轴分支控制通过。
 - [ ] **BF131.A80 — 自由线性轴的位置／速度驱动通过最终校验，却未保留到运行时并可使纯驱动关节禁用**。Gate：纯线性位置/速度驱动保留并启用，目标/强度/阻尼/限力按源消费，自由无驱动控制通过。
 - [ ] **BF131.A81 — 完全自由关节只按 Twist 位置驱动判定启用，导致有效 Swing／角速度驱动被 JointDisabled 屏蔽**。Gate：逐驱动启用条件与实际活动轴一致，纯 Swing/速度驱动可工作，完全无约束控制通过。
 - [ ] **BF131.A82 — PhysicsAsset 刚体禁碰撞响应被记录但未消费，布娃娃激活又恢复默认阻挡层**。Gate：Body 响应在生成、安装、激活/退出及重建中保留，禁碰撞体不恢复默认阻挡。
@@ -300,3 +300,5 @@
 - BF131.A78-S3：开始 2026-09-28 13:58 +08:00；预估结束 2026-09-28 14:28 +08:00。同 run_manual 的 target_game/play 优化构建刷新 349 图规格和旧 RollSlot 加载，审计 Grounded/根作者合同，再跑 startup、grounded、state_machine 公共功能 Gate，核对角色旋转/姿态、图/时序/watchdog 与保留的原始性能结果。通过后勾选并单独提交 A78。
   - Runtime 前摘要（14:02 +08:00）：fresh UE RootMotionReset 参考姿态规则、实际 GraphContext 单帧/连续帧高度与 XZ tilt 保留、角色累计 yaw×可见 root 不双转、姿态与 yaw 路由消融及完整库 1266 项闭合；同 run_manual 的 target_game/play 优化构建、349 图 fresh 规格/旧 RollSlot 加载和 Grounded/根作者合同 20 条声明命令通过。RON/转换器未改，沿用 A72 全入口 374 文件零 diff；开始公共功能 Gate，保留原始性能延期结果。
   - S3 实际结束 2026-09-28 14:05 +08:00，偏差 -23 分钟；结果：startup、grounded 15/15（含 roll_slot/退出）、state_machine 10/10 公共功能 Gate 全部 PASS，三份报告故障/图错误/时序异常/watchdog 为 0，手工与校验进程均退出 0；原始报告保留既定延期的 max_eval_p95_ms 超预算。源参考根规则、单帧/连续帧 yaw 与 tilt/高度及角色合成、三项姿态/yaw 消融、完整库 1266 项、旧 RollSlot/349 图加载和 20 条声明命令闭合；RON/转换器/原始资产未改，沿用 A72 的 374 文件零 diff，勾选 A78。
+- BF131.A79-S1：开始 2026-09-28 14:06 +08:00；预估结束 2026-09-28 14:26 +08:00。此反馈的“两个 Limited Swing 应独立裁剪”先受 source-first 复核：fresh UE Chaos `JointSolverConstraints` 对双 Limited 建立 `Angular_Cone`，`PBDJointConstraintUtilities` 将两个角按各自限位归一化后按椭圆单位圆判定，单轴 Limited/另一 Free 才走 DualCone；目标 custom joint 的双 Limited 分支同样走椭圆。先用各轴界内但斜向越过椭圆的姿态和 UE 轴基映射做定向复算，确认是真差异还是审阅误报；若源一致则修正本项 Gate 并登记不改运行时的证据，不为迎合误报破坏源等价。
+  - S1 实际结束 2026-09-28 14:10 +08:00，偏差 -16 分钟；结果：本地 UE `JointSolverConstraints` 与 GaussSeidel 同时确认双 Limited 走 Angular_Cone，`GetEllipticalConeAxisErrorLocal` 按 `((SwingAngleY/LimitY)^2+(SwingAngleZ/LimitZ)^2)>1` 修正；UE Swing1=源 Z/Swing2=源 Y，经项目坐标基映到目标 Y/Z，目标 `elliptical_correction` 与此一致。55°/16° 组合的各目标分量都小于 65°/20°，但椭圆归一化和大于 1，目标修正；30°/8° 保持，另一轴单独分支的既有测试保留。focused `two_limited_swings_use_the_source_elliptical_cone` PASS，原审阅要求的矩形独立限位与源相反，修正 Gate 并勾选为误报；未改生产行为/资产/转换器，故无运行时 Gate 和消融项，拆分结果：无需 S2/S3。
