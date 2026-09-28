@@ -440,6 +440,9 @@ def self_test():
     assert material["static_friction"] == material["dynamic_friction"] == 0.7
     assert expanded_text({"exported_text": "()", "fields": [{"name": "Enabled", "exported_text": "True"}]}) == "(Enabled=True)"
     assert collision_disabled_pairs({"collision_disabled_pairs": [{"body_index_1": 0, "body_index_2": 1, "disabled": False}]}) == [[0, 1]]
+    assert parsed_profile([{"name": "ProfileInstance", "exported_text": "()", "fields": [
+        {"name": "bDisableCollision", "exported_text": "True"},
+    ]}])["collision_disabled"]
     assert body_collision_layers("BodyCollision_Enabled") == (1, 1)
     assert body_collision_layers("BodyCollision_Disabled") == (0, 0)
     drive = "(PositionTarget=(X=100,Y=200,Z=300),VelocityTarget=(X=10,Y=20,Z=30),XDrive=(Stiffness=40,Damping=2,MaxForce=100,bEnablePositionDrive=True,bEnableVelocityDrive=False),YDrive=(Stiffness=50,Damping=3,MaxForce=0,bEnablePositionDrive=False,bEnableVelocityDrive=True),ZDrive=(Stiffness=60,Damping=4,MaxForce=80,bEnablePositionDrive=False,bEnableVelocityDrive=False),bAccelerationMode=False)"
@@ -708,6 +711,7 @@ def parsed_profile(entries):
         "cone_soft": bool_after(cone, "bSoftConstraint", False),
         "twist_soft": bool_after(twist, "bSoftConstraint", False),
         "projection_enabled": bool_after(text, "bEnableProjection", False),
+        "collision_disabled": bool_after(text, "bDisableCollision", False),
         "mass_conditioning_enabled": bool_after(text, "bEnableMassConditioning", False),
         "linear_joint_solver": bool_after(text, "bUseLinearJointSolver", False),
         "angular_drive_acceleration_mode": bool_after(angular_drive, "bAccelerationMode", False),
@@ -880,6 +884,7 @@ def build_profile(source, project_max_angular_velocity_degrees):
                 "linear_locked": linear_locked,
                 **target_linear_drive(profile, linear_drive_stiffness_scale, linear_drive_damping_scale),
                 "enabled": linear_locked or swing_1 is not None or swing_2 is not None or twist is not None or profile["angular_drive_enabled"] or active_linear_drive(profile),
+                "collision_disabled": profile["collision_disabled"],
             },
         })
     return {

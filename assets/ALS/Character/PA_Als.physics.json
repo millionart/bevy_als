@@ -6417,6 +6417,7 @@
           0.0,
           0.0
         ],
+        "collision_disabled": false,
         "cone_damping": 5.0,
         "cone_soft": true,
         "cone_stiffness": 50.0,
@@ -6501,6 +6502,7 @@
             "Limited": 0.17453292519943295
           }
         ],
+        "collision_disabled": false,
         "drive_mode": "TwistAndSwing",
         "drive_target_xyzw": [
           -0.0,
@@ -6729,6 +6731,7 @@
           0.0,
           0.0
         ],
+        "collision_disabled": false,
         "cone_damping": 5.0,
         "cone_soft": true,
         "cone_stiffness": 50.0,
@@ -6813,6 +6816,7 @@
             "Limited": 0.17453292519943295
           }
         ],
+        "collision_disabled": false,
         "drive_mode": "TwistAndSwing",
         "drive_target_xyzw": [
           -0.0,
@@ -7041,6 +7045,7 @@
           0.0,
           0.0
         ],
+        "collision_disabled": false,
         "cone_damping": 5.0,
         "cone_soft": true,
         "cone_stiffness": 50.0,
@@ -7125,6 +7130,7 @@
             "Limited": 0.17453292519943295
           }
         ],
+        "collision_disabled": false,
         "drive_mode": "TwistAndSwing",
         "drive_target_xyzw": [
           -0.0,
@@ -7353,6 +7359,7 @@
           0.0,
           0.0
         ],
+        "collision_disabled": false,
         "cone_damping": 5.0,
         "cone_soft": true,
         "cone_stiffness": 50.0,
@@ -7435,6 +7442,7 @@
           },
           "Locked"
         ],
+        "collision_disabled": false,
         "drive_mode": "TwistAndSwing",
         "drive_target_xyzw": [
           -0.0,
@@ -7663,6 +7671,7 @@
           0.0,
           0.0
         ],
+        "collision_disabled": false,
         "cone_damping": 5.0,
         "cone_soft": true,
         "cone_stiffness": 50.0,
@@ -7747,6 +7756,7 @@
             "Limited": 0.4363323129985824
           }
         ],
+        "collision_disabled": false,
         "drive_mode": "TwistAndSwing",
         "drive_target_xyzw": [
           -0.0,
@@ -7975,6 +7985,7 @@
           0.0,
           0.0
         ],
+        "collision_disabled": false,
         "cone_damping": 5.0,
         "cone_soft": true,
         "cone_stiffness": 50.0,
@@ -8059,6 +8070,7 @@
             "Limited": 0.3490658503988659
           }
         ],
+        "collision_disabled": false,
         "drive_mode": "TwistAndSwing",
         "drive_target_xyzw": [
           -0.12883855529615945,
@@ -8287,6 +8299,7 @@
           0.0,
           0.0
         ],
+        "collision_disabled": false,
         "cone_damping": 5.0,
         "cone_soft": true,
         "cone_stiffness": 50.0,
@@ -8371,6 +8384,7 @@
             "Limited": 0.3490658503988659
           }
         ],
+        "collision_disabled": false,
         "drive_mode": "TwistAndSwing",
         "drive_target_xyzw": [
           -0.12883855529615945,
@@ -8599,6 +8613,7 @@
           0.0,
           0.0
         ],
+        "collision_disabled": false,
         "cone_damping": 5.0,
         "cone_soft": true,
         "cone_stiffness": 50.0,
@@ -8679,6 +8694,7 @@
           },
           "Locked"
         ],
+        "collision_disabled": false,
         "drive_mode": "TwistAndSwing",
         "drive_target_xyzw": [
           -0.018532022320833258,
@@ -8914,6 +8930,7 @@
           0.0,
           0.0
         ],
+        "collision_disabled": false,
         "cone_damping": 5.0,
         "cone_soft": true,
         "cone_stiffness": 50.0,
@@ -8994,6 +9011,7 @@
           },
           "Locked"
         ],
+        "collision_disabled": false,
         "drive_mode": "TwistAndSwing",
         "drive_target_xyzw": [
           -0.018532022320833258,
@@ -9229,6 +9247,7 @@
           0.0,
           0.0
         ],
+        "collision_disabled": false,
         "cone_damping": 5.0,
         "cone_soft": true,
         "cone_stiffness": 50.0,
@@ -9311,6 +9330,7 @@
             "Limited": 0.3490658503988659
           }
         ],
+        "collision_disabled": false,
         "drive_mode": "TwistAndSwing",
         "drive_target_xyzw": [
           -0.0056934725397687356,
@@ -9542,6 +9562,7 @@
           0.0,
           0.0
         ],
+        "collision_disabled": false,
         "cone_damping": 5.0,
         "cone_soft": true,
         "cone_stiffness": 50.0,
@@ -9624,6 +9645,7 @@
             "Limited": 0.3490658503988659
           }
         ],
+        "collision_disabled": false,
         "drive_mode": "TwistAndSwing",
         "drive_target_xyzw": [
           -0.0056934725397687356,
@@ -9855,6 +9877,7 @@
           0.0,
           0.0
         ],
+        "collision_disabled": false,
         "cone_damping": 5.0,
         "cone_soft": true,
         "cone_stiffness": 50.0,
@@ -9939,6 +9962,7 @@
             "Limited": 0.6981317007977318
           }
         ],
+        "collision_disabled": false,
         "drive_mode": "TwistAndSwing",
         "drive_target_xyzw": [
           0.06736875696179415,
@@ -10167,6 +10191,7 @@
           0.0,
           0.0
         ],
+        "collision_disabled": false,
         "cone_damping": 5.0,
         "cone_soft": true,
         "cone_stiffness": 50.0,
@@ -10251,6 +10276,7 @@
             "Limited": 0.6981317007977318
           }
         ],
+        "collision_disabled": false,
         "drive_mode": "TwistAndSwing",
         "drive_target_xyzw": [
           0.06736875696179415,
@@ -10479,6 +10505,7 @@
           0.0,
           0.0
         ],
+        "collision_disabled": false,
         "cone_damping": 5.0,
         "cone_soft": true,
         "cone_stiffness": 50.0,
@@ -10559,6 +10586,7 @@
           },
           "Locked"
         ],
+        "collision_disabled": false,
         "drive_mode": "TwistAndSwing",
         "drive_target_xyzw": [
           0.0472924109107458,
@@ -10794,6 +10822,7 @@
           0.0,
           0.0
         ],
+        "collision_disabled": false,
         "cone_damping": 5.0,
         "cone_soft": true,
         "cone_stiffness": 50.0,
@@ -10874,6 +10903,7 @@
           },
           "Locked"
         ],
+        "collision_disabled": false,
         "drive_mode": "TwistAndSwing",
         "drive_target_xyzw": [
           0.0472924109107458,
@@ -11109,6 +11139,7 @@
           0.0,
           0.0
         ],
+        "collision_disabled": false,
         "cone_damping": 5.0,
         "cone_soft": true,
         "cone_stiffness": 50.0,
@@ -11191,6 +11222,7 @@
             "Limited": 0.4363323129985824
           }
         ],
+        "collision_disabled": false,
         "drive_mode": "TwistAndSwing",
         "drive_target_xyzw": [
           -0.0,
@@ -11419,6 +11451,7 @@
           0.0,
           0.0
         ],
+        "collision_disabled": false,
         "cone_damping": 5.0,
         "cone_soft": true,
         "cone_stiffness": 50.0,
@@ -11501,6 +11534,7 @@
             "Limited": 0.4363323129985824
           }
         ],
+        "collision_disabled": false,
         "drive_mode": "TwistAndSwing",
         "drive_target_xyzw": [
           -0.0,
@@ -11729,6 +11763,7 @@
           0.0,
           0.0
         ],
+        "collision_disabled": false,
         "cone_damping": 5.0,
         "cone_soft": true,
         "cone_stiffness": 50.0,
@@ -11807,6 +11842,7 @@
           "Free",
           "Free"
         ],
+        "collision_disabled": false,
         "drive_mode": "SLERP",
         "drive_target_xyzw": [
           -0.0,
@@ -12032,6 +12068,7 @@
           0.0,
           0.0
         ],
+        "collision_disabled": false,
         "cone_damping": 5.0,
         "cone_soft": true,
         "cone_stiffness": 50.0,
@@ -12114,6 +12151,7 @@
             "Limited": 0.2617993877991494
           }
         ],
+        "collision_disabled": false,
         "drive_mode": "TwistAndSwing",
         "drive_target_xyzw": [
           -0.0,
@@ -12342,6 +12380,7 @@
           0.0,
           0.0
         ],
+        "collision_disabled": false,
         "cone_damping": 5.0,
         "cone_soft": true,
         "cone_stiffness": 50.0,
@@ -12424,6 +12463,7 @@
             "Limited": 0.2617993877991494
           }
         ],
+        "collision_disabled": false,
         "drive_mode": "TwistAndSwing",
         "drive_target_xyzw": [
           -0.0,

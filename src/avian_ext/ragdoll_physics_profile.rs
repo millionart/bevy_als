@@ -2,12 +2,13 @@ use std::sync::Arc;
 
 use avian3d::prelude::{
     ActiveCollisionHooks, AngularDamping, AngularInertia, CenterOfMass, Collider, ColliderDisabled, CollisionLayers,
-    CoefficientCombine, CollisionHooks, Friction, GravityScale, JointDamping, JointDisabled,
+    CoefficientCombine, CollisionHooks, Friction, GravityScale, JointCollisionDisabled, JointDamping, JointDisabled,
     LinearDamping, Mass, MaxAngularSpeed, NoAutoAngularInertia, NoAutoCenterOfMass, NoAutoMass, PhysicsSchedule,
     PhysicsSystems, RayHitData, ShapeCastConfig, ShapeHitData, SolverSystems, SpatialQuery, SpatialQueryFilter,
     Position, Restitution, RevoluteJoint, Rotation, Sensor, SphericalJoint,
 };
 use avian3d::dynamics::solver::solver_body::{SolverBody, SolverBodyFlags};
+use avian3d::collider_tree::{ColliderTreeProxyKey, MovedProxies};
 use bevy::ecs::schedule::ApplyDeferred;
 use bevy::ecs::system::SystemParam;
 use bevy::math::Isometry3d;
@@ -100,6 +101,7 @@ pub struct RagdollJointPhysicsProfile {
     pub label: String,
     pub definition: SourcePhysicsJoint,
     pub enabled: bool,
+    pub collision_disabled: bool,
 }
 
 #[derive(Component, Clone, Debug)]
@@ -209,6 +211,8 @@ struct PhysicsAssetConstraintTarget {
     projection_linear_alpha: f32,
     projection_linear_tolerance_m: f32,
     enabled: bool,
+    #[serde(default)]
+    collision_disabled: bool,
 }
 
 #[derive(Deserialize)]
@@ -319,6 +323,7 @@ impl RagdollPhysicsProfile {
                 RagdollJointPhysicsProfile {
                     label: constraint.joint_name,
                     enabled: target.enabled,
+                    collision_disabled: target.collision_disabled,
                     definition: SourcePhysicsJoint {
                         parent: Entity::PLACEHOLDER,
                         child: Entity::PLACEHOLDER,
@@ -562,6 +567,29 @@ impl Plugin for RagdollPhysicsProfilePlugin {
     }
 }
 
+fn refresh_ragdoll_collision_pairs(world: &mut World, colliders: &[Entity]) {
+    let active = colliders.iter().copied().filter(|entity|
+        world.get::<Collider>(*entity).is_some() && world.get::<ColliderDisabled>(*entity).is_none())
+        .collect::<Vec<_>>();
+    for entity in &active { world.entity_mut(*entity).insert(ColliderDisabled); }
+    for entity in active { world.entity_mut(entity).remove::<ColliderDisabled>(); }
+}
+
+fn set_joint_collision_disabled(world: &mut World, joint: Entity, colliders: &[Entity], disabled: bool) {
+    if world.get::<JointCollisionDisabled>(joint).is_some() == disabled { return; }
+    if disabled {
+        refresh_ragdoll_collision_pairs(world, colliders);
+        world.entity_mut(joint).insert(JointCollisionDisabled);
+    } else {
+        world.entity_mut(joint).remove::<JointCollisionDisabled>();
+        let keys = colliders.iter().filter_map(|entity| world.get::<ColliderTreeProxyKey>(*entity).copied())
+            .filter(|key| *key != ColliderTreeProxyKey::PLACEHOLDER).collect::<Vec<_>>();
+        for key in keys {
+            world.resource_mut::<MovedProxies>().insert(key);
+        }
+    }
+}
+
 fn disable_ragdoll_gyroscopic_torque(
     mut bodies: Query<&mut SolverBody, With<RagdollGyroscopicTorqueDisabled>>,
 ) {
@@ -675,6 +703,10 @@ fn apply_ragdoll_physics_profiles(
             &transforms,
             &mut colliders,
         );
+        if profile.is_changed() && applied.is_some() && old_root.is_none() {
+            let collider_entities = spawned.colliders.values().copied().collect::<Vec<_>>();
+            commands.queue(move |world: &mut World| refresh_ragdoll_collision_pairs(world, &collider_entities));
+        }
         if let Some(mut applied) = applied {
             if old_root.is_some() {
                 *applied = next;
@@ -825,11 +857,17 @@ fn apply_profile_to_spawned_ragdoll(
             .entity(*joint_entity)
             .remove::<(SphericalJoint, RevoluteJoint, JointDamping)>()
             .insert(joint);
+        let collision_disabled = joint_profile.collision_disabled;
+        let collider_entities = spawned.colliders.values().copied().collect::<Vec<_>>();
+        let joint_entity = *joint_entity;
+        commands.queue(move |world: &mut World| {
+            set_joint_collision_disabled(world, joint_entity, &collider_entities, collision_disabled);
+        });
         if joint_profile.enabled {
-            commands.entity(*joint_entity).remove::<JointDisabled>();
+            commands.entity(joint_entity).remove::<JointDisabled>();
             applied.source_joint_count += 1;
         } else {
-            commands.entity(*joint_entity).insert(JointDisabled);
+            commands.entity(joint_entity).insert(JointDisabled);
         }
         applied.joint_count += 1;
     }
@@ -1164,6 +1202,9 @@ mod tests {
             .collect::<Vec<_>>();
         let pelvis = *spawned.joints.values().find(|entity|
             world.get::<JointLabel>(**entity).unwrap().0 == "pelvis").unwrap();
+        let allowed_joint = *spawned.joints.values().find(|entity|
+            world.get::<JointLabel>(**entity).unwrap().0 == "clavicle_l").unwrap();
+        assert!(world.get::<JointCollisionDisabled>(allowed_joint).is_some());
         let pelvis_body = *spawned.bodies.values().find(|entity|
             world.get::<BodyLabel>(**entity).unwrap().0 == "pelvis").unwrap();
         let spine_body = *spawned.bodies.values().find(|entity|
@@ -1172,6 +1213,8 @@ mod tests {
             world.get::<ColliderLabel>(**entity).unwrap().0 == "spine_03_0_capsule").unwrap();
         let spine_aux = *spawned.colliders.values().find(|entity|
             world.get::<ColliderLabel>(**entity).unwrap().0 == "spine_03_1_capsule").unwrap();
+        let clavicle_collider = *spawned.colliders.values().find(|entity|
+            world.get::<ColliderLabel>(**entity).unwrap().0 == "clavicle_l_0_capsule").unwrap();
         let pelvis_collider = *spawned.colliders.values().find(|entity|
             world.get::<ColliderLabel>(**entity).unwrap().0 == "pelvis_0_capsule").unwrap();
         let probe_collider = *spawned.colliders.values().find(|entity|
@@ -1266,6 +1309,8 @@ mod tests {
         let mut source: serde_json::Value = serde_json::from_str(include_str!(
             "../../assets/ALS/Character/PA_Als.physics.json"
         )).unwrap();
+        source["collision_disabled_pairs"].as_array_mut().unwrap()
+            .retain(|pair| *pair != serde_json::json!([3, 10]));
         let body = source["bodies"].as_array_mut().unwrap().iter_mut()
             .find(|body| body["bone_name"] == "pelvis").unwrap();
         body["target"]["mass_properties"] = serde_json::json!({
@@ -1295,6 +1340,8 @@ mod tests {
             mass_profile_scaled.colliders.iter_mut().find(|collider| collider.label == label).unwrap()
                 .collision_mode = RagdollShapeCollisionMode::QueryAndPhysics;
         }
+        mass_profile_scaled.joints.iter_mut().find(|joint| joint.label == "clavicle_l").unwrap()
+            .collision_disabled = true;
         let mass_again_scaled = SpawnedRagdoll {
             root: mass_again.root, bodies: mass_again.bodies.clone(),
             colliders: mass_again.colliders.clone(), joints: mass_again.joints.clone(),
@@ -1308,6 +1355,10 @@ mod tests {
                 1.0, 1.0, &body_labels, &collider_labels, &joint_labels,
                 &spherical, &revolute, &source_joints, &transforms, &mut colliders)
         }).unwrap();
+        assert!(world.get::<JointCollisionDisabled>(allowed_joint).is_none());
+        let hook_allows = world.run_system_once(move |hooks: RagdollCollisionHooks,
+            mut commands: Commands| hooks.filter_pairs(spine_main, clavicle_collider, &mut commands)).unwrap();
+        assert!(hook_allows);
         assert_eq!(world.get::<avian3d::prelude::CenterOfMass>(pelvis_body).unwrap().0,
             Vec3::new(0.1, 0.3, 0.2));
         assert_eq!(world.get::<MaxAngularSpeed>(pelvis_body).unwrap().0, 2.0);
@@ -1343,6 +1394,7 @@ mod tests {
         assert_eq!(world.get::<CenterOfMass>(pelvis_body).unwrap().0, Vec3::new(0.2, 0.6, 0.4));
         assert_eq!(world.get::<MaxAngularSpeed>(pelvis_body).unwrap().0, 2.0);
         assert!(world.get::<RagdollGyroscopicTorqueDisabled>(pelvis_body).is_some());
+        assert!(world.get::<JointCollisionDisabled>(allowed_joint).is_some());
         assert!(world.get::<Sensor>(pelvis_collider).is_none());
         assert!(world.get::<Sensor>(probe_collider).is_none());
         assert!(world.get::<ColliderDisabled>(root_collider).is_none());
@@ -1517,6 +1569,157 @@ mod tests {
     }
 
     #[test]
+    fn joint_and_asset_collision_switches_reach_joint_graph_and_broad_phase() {
+        use avian3d::{dynamics::solver::joint_graph::JointGraph, prelude::{Collisions, GravityScale, RigidBody}};
+        use bevy::{ecs::system::RunSystemOnce, time::TimeUpdateStrategy};
+        use std::time::Duration;
+
+        let profile = RagdollPhysicsProfile::from_json(include_str!(
+            "../../assets/ALS/Character/PA_Als.physics.json"
+        )).unwrap();
+        let template = &profile.joints.iter().find(|joint| joint.label == "clavicle_l").unwrap().definition;
+        for joint_disabled in [false, true] {
+            for asset_disabled in [false, true] {
+                let mut app = App::new();
+                app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin,
+                    TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)
+                        .with_collision_hooks::<RagdollCollisionHooks>(),
+                    crate::extensions::SourcePhysicsJointPlugin, RagdollPhysicsProfilePlugin));
+                app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0 / 60.0)));
+                app.finish();
+                app.cleanup();
+                let world = app.world_mut();
+                let group = world.spawn_empty().id();
+                let pairs: Arc<[(u8, u8)]> = if asset_disabled { Arc::from([(0, 1)]) } else { Arc::from([]) };
+                let make_body = |world: &mut World, index: u8, x: f32| world.spawn((
+                    RigidBody::Dynamic, Collider::sphere(0.5), Position(Vec3::X * x), GravityScale(0.0),
+                    ActiveCollisionHooks::FILTER_PAIRS,
+                    RagdollCollisionMember { group, body_index: index, source_layers: CollisionLayers::from_bits(1, 1),
+                        disabled_pairs: pairs.clone() },
+                )).id();
+                let parent = make_body(world, 0, 0.0);
+                let child = make_body(world, 1, 0.75);
+                let mut source_joint = template.clone();
+                source_joint.parent = parent;
+                source_joint.child = child;
+                source_joint.settings.position_iterations = 0;
+                source_joint.settings.projection_iterations = 0;
+                source_joint.angular_limits = [SourceAngularLimit::Free; 3];
+                source_joint.linear_locked = false;
+                source_joint.swing_spring = None;
+                source_joint.twist_spring = None;
+                source_joint.motors = [SourceAngularMotor::default(); 3];
+                source_joint.linear_motors = [SourceLinearMotor::default(); 3];
+                let joint = world.spawn((source_joint, JointCollisionDisabled)).id();
+                if !joint_disabled { set_joint_collision_disabled(world, joint, &[parent, child], false); }
+                app.update();
+                app.update();
+                let edge = app.world().resource::<JointGraph>().get(joint).unwrap();
+                assert_eq!(edge.collision_disabled, joint_disabled);
+                let pair = app.world_mut().run_system_once(move |collisions: Collisions| collisions.get(parent, child).is_some()).unwrap();
+                assert_eq!(pair, !joint_disabled && !asset_disabled, "joint={joint_disabled} asset={asset_disabled}");
+                if !joint_disabled && !asset_disabled {
+                    set_joint_collision_disabled(app.world_mut(), joint, &[parent, child], true);
+                    app.update();
+                    assert!(app.world().resource::<JointGraph>().get(joint).unwrap().collision_disabled);
+                    let blocked = app.world_mut().run_system_once(move |collisions: Collisions| collisions.get(parent, child).is_none()).unwrap();
+                    assert!(blocked);
+                    set_joint_collision_disabled(app.world_mut(), joint, &[parent, child], false);
+                    app.update();
+                    assert!(!app.world().resource::<JointGraph>().get(joint).unwrap().collision_disabled);
+                    let restored = app.world_mut().run_system_once(move |collisions: Collisions| collisions.get(parent, child).is_some()).unwrap();
+                    assert!(restored, "distance={} parent={:?} child={:?}",
+                        app.world().get::<Position>(parent).unwrap().0.distance(app.world().get::<Position>(child).unwrap().0),
+                        app.world().get::<Position>(parent).unwrap().0, app.world().get::<Position>(child).unwrap().0);
+                    for entity in [parent, child] {
+                        app.world_mut().get_mut::<RagdollCollisionMember>(entity).unwrap().disabled_pairs = Arc::from([(0, 1)]);
+                    }
+                    refresh_ragdoll_collision_pairs(app.world_mut(), &[parent, child]);
+                    app.update();
+                    let asset_blocked = app.world_mut().run_system_once(move |collisions: Collisions| collisions.get(parent, child).is_none()).unwrap();
+                    assert!(asset_blocked);
+                    for entity in [parent, child] {
+                        app.world_mut().get_mut::<RagdollCollisionMember>(entity).unwrap().disabled_pairs = Arc::from([]);
+                    }
+                    refresh_ragdoll_collision_pairs(app.world_mut(), &[parent, child]);
+                    app.update();
+                    let asset_restored = app.world_mut().run_system_once(move |collisions: Collisions| collisions.get(parent, child).is_some()).unwrap();
+                    assert!(asset_restored);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn changed_profile_pair_table_refreshes_existing_contact() {
+        use avian3d::prelude::{Collisions, GravityScale, RigidBody};
+        use bevy::{ecs::system::RunSystemOnce, reflect::{PartialReflect, ReflectMut}, time::TimeUpdateStrategy};
+        use bevy_animation_graph::core::ragdoll::definition::Ragdoll;
+        use std::time::Duration;
+
+        let ragdoll: Ragdoll = ron::from_str(include_str!(
+            "../../assets/ALS/Character/PA_Als.rag.ron"
+        )).unwrap();
+        let mut profile = RagdollPhysicsProfile::from_json(include_str!(
+            "../../assets/ALS/Character/PA_Als.physics.json"
+        )).unwrap();
+        profile.collision_disabled_pairs = Arc::from([]);
+        let source_joint = profile.joints.iter_mut().find(|joint| joint.label == "clavicle_l").unwrap();
+        source_joint.definition.settings.position_iterations = 0;
+        source_joint.definition.settings.projection_iterations = 0;
+        source_joint.definition.angular_limits = [SourceAngularLimit::Free; 3];
+        source_joint.definition.linear_locked = false;
+        source_joint.definition.swing_spring = None;
+        source_joint.definition.twist_spring = None;
+        source_joint.definition.motors = [SourceAngularMotor::default(); 3];
+        source_joint.definition.linear_motors = [SourceLinearMotor::default(); 3];
+
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin,
+            TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)
+                .with_collision_hooks::<RagdollCollisionHooks>(),
+            crate::extensions::SourcePhysicsJointPlugin, RagdollPhysicsProfilePlugin));
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0 / 60.0)));
+        app.finish();
+        app.cleanup();
+        let world = app.world_mut();
+        let root = world.spawn_empty().id();
+        let parent = world.spawn((RigidBody::Dynamic, Collider::sphere(0.5), Position(Vec3::ZERO),
+            Transform::IDENTITY, GravityScale(0.0), BodyLabel("spine_03".into()),
+            ColliderLabel("spine_03_0_capsule".into()))).id();
+        let child = world.spawn((RigidBody::Dynamic, Collider::sphere(0.5), Position(Vec3::X * 0.75),
+            Transform::from_xyz(0.75, 0.0, 0.0), GravityScale(0.0), BodyLabel("clavicle_l".into()),
+            ColliderLabel("clavicle_l_0_capsule".into()))).id();
+        let joint = world.spawn((JointLabel("clavicle_l".into()), SphericalJoint::new(parent, child),
+            JointCollisionDisabled)).id();
+        let mut spawned = SpawnedRagdoll::new(root);
+        let mut body_ids = ragdoll.bodies.keys();
+        spawned.bodies.insert(body_ids.next().unwrap().clone(), parent);
+        spawned.bodies.insert(body_ids.next().unwrap().clone(), child);
+        let mut collider_ids = ragdoll.colliders.keys();
+        spawned.colliders.insert(collider_ids.next().unwrap().clone(), parent);
+        spawned.colliders.insert(collider_ids.next().unwrap().clone(), child);
+        spawned.joints.insert(ragdoll.joints.keys().next().unwrap().clone(), joint);
+        let mut player = AnimationGraphPlayer::new(Handle::default());
+        let ReflectMut::Struct(fields) = player.reflect_mut() else { panic!("player must reflect as a struct") };
+        *fields.field_mut("spawned_ragdoll").unwrap()
+            .try_downcast_mut::<Option<SpawnedRagdoll>>().unwrap() = Some(spawned);
+        let player = world.spawn((player, profile, Transform::IDENTITY)).id();
+        app.update();
+        app.update();
+        let initial = app.world_mut().run_system_once(move |collisions: Collisions| collisions.get(parent, child).is_some()).unwrap();
+        assert!(initial);
+        app.world_mut().get_mut::<RagdollPhysicsProfile>(player).unwrap().collision_disabled_pairs = Arc::from([(3, 10)]);
+        app.update();
+        let blocked = app.world_mut().run_system_once(move |collisions: Collisions| collisions.get(parent, child).is_none()).unwrap();
+        assert!(blocked);
+        app.world_mut().get_mut::<RagdollPhysicsProfile>(player).unwrap().collision_disabled_pairs = Arc::from([]);
+        app.update();
+        let restored = app.world_mut().run_system_once(move |collisions: Collisions| collisions.get(parent, child).is_some()).unwrap();
+        assert!(restored);
+    }
+
+    #[test]
     fn positive_uniform_scale_reaches_ragdoll_shapes_offsets_and_joint_frames() {
         use avian3d::prelude::Collider;
         use bevy::ecs::system::RunSystemOnce;
@@ -1585,6 +1788,7 @@ mod tests {
             "baseline={collider_extent:?} scaled={scaled_extent:?} collider_scale={:?}", scaled_collider.scale());
         assert!(world.get::<SourcePhysicsJoint>(joint).unwrap().parent_frame.translation
             .abs_diff_eq(joint_offset * 2.0, 1e-5));
+        assert!(world.get::<JointCollisionDisabled>(joint).is_none());
         app.update();
         let next_extent = app.world().get::<Collider>(collider).unwrap().shape_scaled().compute_local_aabb().half_extents();
         assert!(next_extent.abs_diff_eq(collider_extent * 2.0, 1e-5),
@@ -1625,6 +1829,7 @@ mod tests {
             .abs_diff_eq(collider_extent * 2.0, 1e-5));
         assert!(world.get::<SourcePhysicsJoint>(fresh_joint).unwrap().parent_frame.translation
             .abs_diff_eq(joint_offset * 2.0, 1e-5));
+        assert!(world.get::<JointCollisionDisabled>(fresh_joint).is_none());
         assert!(world.get::<RagdollGyroscopicTorqueDisabled>(fresh_body).is_some());
         world.get_mut::<RagdollPhysicsProfile>(player).unwrap().bodies.iter_mut()
             .find(|body| body.label == body_label).unwrap().gyroscopic_torque_enabled = true;
