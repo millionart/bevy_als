@@ -554,7 +554,8 @@ TSharedRef<FJsonObject> CapturePhysicsBody(const USkeletalBodySetup* Body, int32
     Value->SetNumberField(TEXT("collision_response"), static_cast<int32>(Body->CollisionReponse.GetValue()));
     Value->SetNumberField(TEXT("calculated_mass"), Body->CalculateMass());
     Value->SetNumberField(TEXT("shape_count"), Body->AggGeom.GetElementCount());
-    if (UPhysicalMaterial* Material = Body->GetPhysMaterial())
+    if (UPhysicalMaterial* Material = FBodyInstance::GetSimplePhysicalMaterial(
+        &Body->DefaultInstance, nullptr, const_cast<USkeletalBodySetup*>(Body)))
     {
         Value->SetStringField(TEXT("physical_material_path"), ObjectPath(Material));
         Value->SetArrayField(TEXT("physical_material_properties"), CaptureProperties(Material->GetClass(), Material, Material));
@@ -681,6 +682,31 @@ TSharedRef<FJsonObject> CapturePhysicsAsset(const UPhysicsAsset* Asset)
         CollisionDisabledPairs.Add(MakeShared<FJsonValueObject>(PairValue));
     }
     Value->SetArrayField(TEXT("collision_disabled_pairs"), CollisionDisabledPairs);
+    return Value;
+}
+
+TSharedRef<FJsonObject> CapturePhysicsMaterialProbe()
+{
+    UPhysicalMaterial* Shared = NewObject<UPhysicalMaterial>(GetTransientPackage());
+    Shared->Friction = 0.2f;
+    Shared->Restitution = 0.1f;
+    UPhysicalMaterial* Override = NewObject<UPhysicalMaterial>(GetTransientPackage());
+    Override->Friction = 0.8f;
+    Override->Restitution = 0.6f;
+    USkeletalBodySetup* Overridden = NewObject<USkeletalBodySetup>(GetTransientPackage());
+    Overridden->BoneName = TEXT("probe_overridden");
+    Overridden->PhysMaterial = Shared;
+    Overridden->DefaultInstance.SetPhysMaterialOverride(Override);
+    Overridden->AggGeom.SphereElems.AddDefaulted_GetRef().Radius = 10.0f;
+    USkeletalBodySetup* Fallback = NewObject<USkeletalBodySetup>(GetTransientPackage());
+    Fallback->BoneName = TEXT("probe_fallback");
+    Fallback->PhysMaterial = Shared;
+    Fallback->AggGeom.SphereElems.AddDefaulted_GetRef().Radius = 10.0f;
+    TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+    Value->SetStringField(TEXT("shared_path"), ObjectPath(Shared));
+    Value->SetStringField(TEXT("override_path"), ObjectPath(Override));
+    Value->SetObjectField(TEXT("overridden_body"), CapturePhysicsBody(Overridden, 0));
+    Value->SetObjectField(TEXT("fallback_body"), CapturePhysicsBody(Fallback, 1));
     return Value;
 }
 
@@ -1270,6 +1296,10 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
     if (FParse::Param(*Params, TEXT("NotifyChanceProbe")))
     {
         Root->SetObjectField(TEXT("notify_chance_probe"), CaptureNotifyChanceProbe(Asset));
+    }
+    if (FParse::Param(*Params, TEXT("PhysicsMaterialProbe")))
+    {
+        Root->SetObjectField(TEXT("physics_material_probe"), CapturePhysicsMaterialProbe());
     }
 
     FString Json;

@@ -1004,6 +1004,8 @@ mod tests {
             world.get::<JointLabel>(**entity).unwrap().0 == "pelvis").unwrap();
         let pelvis_body = *spawned.bodies.values().find(|entity|
             world.get::<BodyLabel>(**entity).unwrap().0 == "pelvis").unwrap();
+        let spine_body = *spawned.bodies.values().find(|entity|
+            world.get::<BodyLabel>(**entity).unwrap().0 == "spine_01").unwrap();
         let again = SpawnedRagdoll {
             root: spawned.root, bodies: spawned.bodies.clone(),
             colliders: spawned.colliders.clone(), joints: spawned.joints.clone(),
@@ -1098,6 +1100,9 @@ mod tests {
             "inertia_tensor_kg_m2": [[0.1, 0.0, 0.0], [0.0, 0.2, 0.0], [0.0, 0.0, 0.3]],
         });
         body["target"]["max_angular_speed_radians_per_second"] = serde_json::json!(2.0);
+        body["target"]["material"]["dynamic_friction"] = serde_json::json!(0.8);
+        body["target"]["material"]["static_friction"] = serde_json::json!(0.8);
+        body["target"]["material"]["restitution"] = serde_json::json!(0.6);
         let mass_profile = RagdollPhysicsProfile::from_json(&source.to_string()).unwrap();
         let mass_profile_scaled = mass_profile.clone();
         let mass_again_scaled = SpawnedRagdoll {
@@ -1116,6 +1121,10 @@ mod tests {
         assert_eq!(world.get::<avian3d::prelude::CenterOfMass>(pelvis_body).unwrap().0,
             Vec3::new(0.1, 0.3, 0.2));
         assert_eq!(world.get::<MaxAngularSpeed>(pelvis_body).unwrap().0, 2.0);
+        assert_eq!(world.get::<Friction>(pelvis_body).unwrap().dynamic_coefficient, 0.8);
+        assert_eq!(world.get::<Restitution>(pelvis_body).unwrap().coefficient, 0.6);
+        assert_eq!(world.get::<Friction>(spine_body).unwrap().dynamic_coefficient, 0.7);
+        assert_eq!(world.get::<Restitution>(spine_body).unwrap().coefficient, 0.3);
         assert!(world.get::<NoAutoMass>(pelvis_body).is_some());
         assert!(world.get::<NoAutoCenterOfMass>(pelvis_body).is_some());
         assert!(world.get::<NoAutoAngularInertia>(pelvis_body).is_some());
