@@ -3,6 +3,7 @@ use avian3d::{
         joints::EntityConstraint,
         solver::{
             joint_graph::JointGraphPlugin,
+            schedule::SubstepSolverSystems,
             solver_body::{SolverBody, SolverBodyInertia},
             xpbd::{
                 XpbdConstraint, XpbdConstraintSolverData, XpbdSolverSystems,
@@ -58,6 +59,7 @@ pub struct SourceLinearMotor {
 #[derive(Clone, Copy, Debug, Deserialize)]
 pub struct SourceJointSolverSettings {
     pub position_iterations: u32,
+    pub velocity_iterations: u32,
     pub projection_iterations: u32,
     pub min_parent_mass_ratio: f32,
     pub max_inertia_ratio: f32,
@@ -114,6 +116,7 @@ pub struct SourcePhysicsJointSolverData {
     center_difference: Vec3,
     pre_solve_rotation: [Quat; 2],
     limit_lambdas: [f32; 3],
+    limit_axes: [Vec3; 3],
     motor_lambdas: [f32; 3],
     linear_motor_lambdas: [f32; 3],
     total_angular_impulse: Vec3,
@@ -129,6 +132,7 @@ impl Default for SourcePhysicsJointSolverData {
             center_difference: Vec3::ZERO,
             pre_solve_rotation: [Quat::IDENTITY; 2],
             limit_lambdas: [0.0; 3],
+            limit_axes: [Vec3::ZERO; 3],
             motor_lambdas: [0.0; 3],
             linear_motor_lambdas: [0.0; 3],
             total_angular_impulse: Vec3::ZERO,
@@ -140,6 +144,7 @@ impl XpbdConstraintSolverData for SourcePhysicsJointSolverData {
     fn clear_lagrange_multipliers(&mut self) {
         self.point_data.clear_lagrange_multipliers();
         self.limit_lambdas = [0.0; 3];
+        self.limit_axes = [Vec3::ZERO; 3];
         self.motor_lambdas = [0.0; 3];
         self.linear_motor_lambdas = [0.0; 3];
         self.total_angular_impulse = Vec3::ZERO;
@@ -196,6 +201,9 @@ impl XpbdConstraint<2> for SourcePhysicsJoint {
                 SourceAngularLimit::Limited(_) => self.swing_spring,
                 _ => None,
             };
+            if spring.is_none() && let Some((axis, _)) = correction {
+                data.limit_axes[index] = axis;
+            }
             apply_angular_correction(
                 parent,
                 child,
@@ -543,6 +551,7 @@ fn capture_pre_solve_rotation(
 ) {
     for (joint, mut data) in &mut joints {
         data.limit_lambdas = [0.0; 3];
+        data.limit_axes = [Vec3::ZERO; 3];
         data.motor_lambdas = [0.0; 3];
         data.linear_motor_lambdas = [0.0; 3];
         for (index, entity) in joint.entities().into_iter().enumerate() {
@@ -607,6 +616,97 @@ fn solve_source_joint_iterations(
     }
 }
 
+fn apply_source_joint_linear_velocity(
+    joint: &SourcePhysicsJoint,
+    parent: &mut SolverBody,
+    child: &mut SolverBody,
+    inertias: [&SolverBodyInertia; 2],
+    data: &SourcePhysicsJointSolverData,
+) {
+    if !joint.linear_locked { return; }
+    let position_impulse = data.point_data.total_position_lagrange();
+    if position_impulse.length_squared() <= 1e-12 { return; }
+    let conditioned = conditioned_inertias(inertias, joint.mass_conditioning, joint.settings);
+    let inertias = [&conditioned[0], &conditioned[1]];
+    let arms = [parent.delta_rotation.0 * data.arms[0], child.delta_rotation.0 * data.arms[1]];
+    let relative = child.linear_velocity + child.angular_velocity.cross(arms[1])
+        - parent.linear_velocity - parent.angular_velocity.cross(arms[0]);
+    let frame = current_frames(parent, child, data).0;
+    let mut impulse = Vec3::ZERO;
+    let mut angular_impulse = [Vec3::ZERO; 2];
+    for axis_index in 0..3 {
+        let axis = frame * Vec3::AXES[axis_index];
+        if position_impulse.dot(axis).abs() <= 1e-6 { continue; }
+        let angular_axes = [arms[0].cross(axis), arms[1].cross(axis)];
+        let inverse_angular = [inertias[0].effective_inv_angular_inertia(), inertias[1].effective_inv_angular_inertia()];
+        let inverse_mass = inertias[0].effective_inv_mass() + inertias[1].effective_inv_mass();
+        let response = inverse_mass * axis
+            + (inverse_angular[0] * angular_axes[0]).cross(arms[0])
+            + (inverse_angular[1] * angular_axes[1]).cross(arms[1]);
+        let denominator = axis.dot(response);
+        if denominator <= f32::EPSILON { continue; }
+        let lambda = relative.dot(axis) / denominator;
+        impulse += axis * lambda;
+        angular_impulse[0] += inverse_angular[0] * angular_axes[0] * lambda;
+        angular_impulse[1] -= inverse_angular[1] * angular_axes[1] * lambda;
+    }
+    parent.linear_velocity += inertias[0].effective_inv_mass() * impulse;
+    child.linear_velocity -= inertias[1].effective_inv_mass() * impulse;
+    parent.angular_velocity += angular_impulse[0];
+    child.angular_velocity += angular_impulse[1];
+}
+
+fn apply_source_joint_angular_velocity(
+    joint: &SourcePhysicsJoint,
+    parent: &mut SolverBody,
+    child: &mut SolverBody,
+    inertias: [&SolverBodyInertia; 2],
+    data: &SourcePhysicsJointSolverData,
+) {
+    let conditioned = conditioned_inertias(inertias, joint.mass_conditioning, joint.settings);
+    let inverse = [conditioned[0].effective_inv_angular_inertia(),
+        conditioned[1].effective_inv_angular_inertia()];
+    for index in 0..3 {
+        if data.limit_lambdas[index].abs() <= 1e-6 { continue; }
+        let Some(axis) = data.limit_axes[index].try_normalize() else { continue; };
+        let responses = [inverse[0] * axis, inverse[1] * axis];
+        let denominator = axis.dot(responses[0] + responses[1]);
+        if denominator <= f32::EPSILON { continue; }
+        let lambda = (child.angular_velocity - parent.angular_velocity).dot(axis) / denominator;
+        parent.angular_velocity += responses[0] * lambda;
+        child.angular_velocity -= responses[1] * lambda;
+    }
+}
+
+fn solve_source_joint_velocity_iterations(
+    joints: Query<(&SourcePhysicsJoint, &SourcePhysicsJointSolverData), Without<JointDisabled>>,
+    mut bodies: Query<(&mut SolverBody, &SolverBodyInertia), Without<RigidBodyDisabled>>,
+) {
+    let count = joints.iter().map(|(joint, _)| joint.settings.velocity_iterations).max().unwrap_or(0);
+    for iteration in 0..count {
+        for (joint, data) in &joints {
+            if iteration >= joint.settings.velocity_iterations { continue; }
+            let mut dummy = SolverBody::default();
+            if let Ok([(mut parent, parent_inertia), (mut child, child_inertia)]) = bodies.get_many_mut(joint.entities()) {
+                apply_source_joint_angular_velocity(joint, &mut parent, &mut child,
+                    [parent_inertia, child_inertia], data);
+                apply_source_joint_linear_velocity(joint, &mut parent, &mut child,
+                    [parent_inertia, child_inertia], data);
+            } else if let Ok((mut parent, inertia)) = bodies.get_mut(joint.parent) {
+                apply_source_joint_angular_velocity(joint, &mut parent, &mut dummy,
+                    [inertia, &SolverBodyInertia::DUMMY], data);
+                apply_source_joint_linear_velocity(joint, &mut parent, &mut dummy,
+                    [inertia, &SolverBodyInertia::DUMMY], data);
+            } else if let Ok((mut child, inertia)) = bodies.get_mut(joint.child) {
+                apply_source_joint_angular_velocity(joint, &mut dummy, &mut child,
+                    [&SolverBodyInertia::DUMMY, inertia], data);
+                apply_source_joint_linear_velocity(joint, &mut dummy, &mut child,
+                    [&SolverBodyInertia::DUMMY, inertia], data);
+            }
+        }
+    }
+}
+
 fn project_source_joints(
     mut joints: Query<
         (&SourcePhysicsJoint, &mut SourcePhysicsJointSolverData),
@@ -642,6 +742,7 @@ mod tests {
     fn settings() -> SourceJointSolverSettings {
         SourceJointSolverSettings {
             position_iterations: 1,
+            velocity_iterations: 1,
             projection_iterations: 1,
             min_parent_mass_ratio: 0.2,
             max_inertia_ratio: 5.0,
@@ -1070,6 +1171,189 @@ mod tests {
     }
 
     #[test]
+    fn single_substep_hard_joint_does_not_turn_position_error_into_velocity() {
+        use avian3d::prelude::{Gravity, LinearVelocity, Mass, PhysicsPlugins, Position, RigidBody, SubstepCount};
+        use bevy::time::TimeUpdateStrategy;
+        use std::time::Duration;
+
+        let run = |velocity_iterations, linear_locked| {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin,
+                TransformPlugin, PhysicsPlugins::new(PostUpdate), SourcePhysicsJointPlugin));
+            app.insert_resource(Gravity(Vec3::ZERO));
+            app.insert_resource(SubstepCount(1));
+            app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0 / 60.0)));
+            app.finish();
+            app.cleanup();
+            let parent = app.world_mut().spawn((RigidBody::Kinematic, Transform::IDENTITY)).id();
+            let child = app.world_mut().spawn((RigidBody::Dynamic, Mass(1.0),
+                AngularInertia { principal: Vec3::splat(0.1), local_frame: Quat::IDENTITY },
+                Transform::from_xyz(0.2, 0.0, 0.0))).id();
+            let mut source_joint = joint();
+            source_joint.parent = parent;
+            source_joint.child = child;
+            source_joint.linear_locked = linear_locked;
+            source_joint.settings.position_iterations = 1;
+            source_joint.settings.velocity_iterations = velocity_iterations;
+            source_joint.settings.projection_iterations = 0;
+            app.world_mut().spawn(source_joint);
+            app.update();
+            app.update();
+            (app.world().get::<Position>(child).unwrap().0.x,
+                app.world().get::<LinearVelocity>(child).unwrap().0.x)
+        };
+        let locked = run(1, true);
+        assert!(locked.0.abs() < 1e-3 && locked.1.abs() < 1e-3, "{locked:?}");
+        let zero = run(0, true);
+        assert!(zero.0.abs() < 1e-3 && (zero.1 + 12.0).abs() < 1e-3, "{zero:?}");
+        let free = run(1, false);
+        assert!((free.0 - 0.2).abs() < 1e-3 && free.1.abs() < 1e-3, "{free:?}");
+    }
+
+    #[test]
+    fn hard_joint_velocity_stage_uses_both_dynamic_anchor_arms() {
+        use avian3d::prelude::{AngularVelocity, Collider, Gravity, LinearVelocity, Mass, PhysicsPlugins, Position,
+            RigidBody, Rotation, SubstepCount};
+        use bevy::time::TimeUpdateStrategy;
+        use std::time::Duration;
+
+        let run = |velocity_iterations| {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin,
+                TransformPlugin, PhysicsPlugins::new(PostUpdate), SourcePhysicsJointPlugin));
+            app.insert_resource(Gravity(Vec3::ZERO));
+            app.insert_resource(SubstepCount(1));
+            app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0 / 60.0)));
+            app.finish();
+            app.cleanup();
+            let parent = app.world_mut().spawn((RigidBody::Dynamic, Mass(1.0),
+                AngularInertia { principal: Vec3::splat(0.1), local_frame: Quat::IDENTITY },
+                Transform::IDENTITY)).id();
+            let child = app.world_mut().spawn((RigidBody::Dynamic, Mass(2.0),
+                AngularInertia { principal: Vec3::splat(0.2), local_frame: Quat::IDENTITY },
+                Transform::from_xyz(0.4, 0.0, 0.0))).id();
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(10.0, 0.5, 10.0),
+                Transform::from_xyz(5.0, -0.5, 0.0)));
+            let contact = app.world_mut().spawn((RigidBody::Dynamic, Collider::sphere(0.5),
+                Transform::from_xyz(5.0, 0.15, 0.0), LinearVelocity(Vec3::NEG_Y))).id();
+            let mut source_joint = joint();
+            source_joint.parent = parent;
+            source_joint.child = child;
+            source_joint.parent_frame = Isometry3d::from_translation(Vec3::Y * 0.2);
+            source_joint.child_frame = Isometry3d::from_translation(Vec3::Y * -0.1);
+            source_joint.linear_locked = true;
+            source_joint.settings.position_iterations = 1;
+            source_joint.settings.velocity_iterations = velocity_iterations;
+            source_joint.settings.projection_iterations = 0;
+            app.world_mut().spawn(source_joint);
+            app.update();
+            app.update();
+            let world = app.world();
+            let parent_arm = world.get::<Rotation>(parent).unwrap().0 * Vec3::Y * 0.2;
+            let child_arm = world.get::<Rotation>(child).unwrap().0 * Vec3::Y * -0.1;
+            let parent_velocity = world.get::<LinearVelocity>(parent).unwrap().0
+                + world.get::<AngularVelocity>(parent).unwrap().0.cross(parent_arm);
+            let child_velocity = world.get::<LinearVelocity>(child).unwrap().0
+                + world.get::<AngularVelocity>(child).unwrap().0.cross(child_arm);
+            let parent_position = world.get::<Position>(parent).unwrap().0;
+            let child_position = world.get::<Position>(child).unwrap().0;
+            (child_velocity - parent_velocity, parent_velocity, child_velocity,
+                (parent_position + parent_arm).distance(child_position + child_arm),
+                world.get::<LinearVelocity>(contact).unwrap().0, world.get::<Position>(contact).unwrap().0)
+        };
+        let without = run(0);
+        let with = run(1);
+        assert!(without.0.length() > 1.0, "{without:?}");
+        assert!(with.0.length() < 1.0, "{with:?} {without:?}");
+        assert!(with.1.is_finite() && with.2.is_finite());
+        assert!(with.1.length() > 0.01 && with.2.length() > 0.01);
+        assert!((with.3 - without.3).abs() < 1e-5, "{with:?} {without:?}");
+        assert!(with.4.abs_diff_eq(without.4, 1e-5) && with.5.abs_diff_eq(without.5, 1e-5));
+    }
+
+    fn angular_velocity_case(
+        limits: [SourceAngularLimit; 3],
+        rotation: Quat,
+        velocity_iterations: u32,
+        position_iterations: u32,
+        twist_spring: Option<SourceAngularSpring>,
+        swing_spring: Option<SourceAngularSpring>,
+    ) -> (Quat, Vec3, [Vec3; 3]) {
+        use avian3d::prelude::{AngularVelocity, Gravity, Mass, PhysicsPlugins, RigidBody, Rotation, SubstepCount};
+        use bevy::time::TimeUpdateStrategy;
+        use std::time::Duration;
+
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin,
+            TransformPlugin, PhysicsPlugins::new(PostUpdate), SourcePhysicsJointPlugin));
+        app.insert_resource(Gravity(Vec3::ZERO));
+        app.insert_resource(SubstepCount(1));
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0 / 60.0)));
+        app.finish();
+        app.cleanup();
+        let parent = app.world_mut().spawn((RigidBody::Kinematic, Transform::IDENTITY)).id();
+        let child = app.world_mut().spawn((RigidBody::Dynamic, Mass(1.0),
+            AngularInertia { principal: Vec3::splat(0.1), local_frame: Quat::IDENTITY },
+            Transform::from_rotation(rotation))).id();
+        let mut source_joint = joint();
+        source_joint.parent = parent;
+        source_joint.child = child;
+        source_joint.angular_limits = limits;
+        source_joint.twist_spring = twist_spring;
+        source_joint.swing_spring = swing_spring;
+        source_joint.settings.position_iterations = position_iterations;
+        source_joint.settings.velocity_iterations = velocity_iterations;
+        source_joint.settings.projection_iterations = 0;
+        let joint = app.world_mut().spawn(source_joint).id();
+        app.update();
+        app.update();
+        (app.world().get::<Rotation>(child).unwrap().0,
+            app.world().get::<AngularVelocity>(child).unwrap().0,
+            app.world().get::<SourcePhysicsJointSolverData>(joint).unwrap().limit_axes)
+    }
+
+    #[test]
+    fn single_substep_locked_twist_does_not_turn_error_into_spin() {
+        let mut locked_limits = [SourceAngularLimit::Free; 3];
+        locked_limits[0] = SourceAngularLimit::Locked;
+        let locked = angular_velocity_case(locked_limits, Quat::from_rotation_x(0.5), 1, 1, None, None);
+        let zero = angular_velocity_case(locked_limits, Quat::from_rotation_x(0.5), 0, 1, None, None);
+        assert!(locked.0.to_scaled_axis().x.abs() < 1e-3 && locked.1.x.abs() < 1e-3, "{locked:?}");
+        assert!(zero.1.x < -20.0, "{zero:?}");
+        let no_position = angular_velocity_case(locked_limits, Quat::from_rotation_x(0.5), 1, 0, None, None);
+        assert!((no_position.0.to_scaled_axis().x - 0.5).abs() < 1e-3
+            && no_position.1.length() < 1e-3, "{no_position:?}");
+        let free = angular_velocity_case([SourceAngularLimit::Free; 3], Quat::from_rotation_x(0.5), 1, 1, None, None);
+        assert!((free.0.to_scaled_axis().x - 0.5).abs() < 1e-3 && free.1.length() < 1e-3, "{free:?}");
+        let mut soft_limits = [SourceAngularLimit::Free; 3];
+        soft_limits[0] = SourceAngularLimit::Limited(0.1);
+        let spring = Some(SourceAngularSpring { stiffness: 1000.0, damping: 0.0, acceleration_mode: true });
+        let soft = angular_velocity_case(soft_limits, Quat::from_rotation_x(0.5), 1, 1, spring, None);
+        let soft_zero = angular_velocity_case(soft_limits, Quat::from_rotation_x(0.5), 0, 1, spring, None);
+        assert!(soft.0.to_array().into_iter().zip(soft_zero.0.to_array())
+            .all(|(left, right)| (left - right).abs() < 1e-6) && soft.1.abs_diff_eq(soft_zero.1, 1e-5),
+            "soft={soft:?} zero={soft_zero:?}");
+    }
+
+    #[test]
+    fn hard_swing_velocity_uses_the_active_limit_axis() {
+        let mut locked = [SourceAngularLimit::Free; 3];
+        locked[1] = SourceAngularLimit::Locked;
+        let swing = angular_velocity_case(locked, Quat::from_rotation_y(0.5), 1, 1, None, None);
+        assert!(swing.1.y.abs() < 1e-3, "{swing:?}");
+        let mut ellipse = [SourceAngularLimit::Free; 3];
+        ellipse[1] = SourceAngularLimit::Limited(65.0_f32.to_radians());
+        ellipse[2] = SourceAngularLimit::Limited(20.0_f32.to_radians());
+        let rotation = Quat::from_rotation_y(55.0_f32.to_radians())
+            * Quat::from_rotation_z(16.0_f32.to_radians());
+        let zero = angular_velocity_case(ellipse, rotation, 0, 1, None, None);
+        let solved = angular_velocity_case(ellipse, rotation, 1, 1, None, None);
+        let axis = solved.2[1].normalize();
+        assert!(axis.is_finite() && zero.1.dot(axis).abs() > 0.1, "{zero:?} {solved:?}");
+        assert!(solved.1.dot(axis).abs() < zero.1.dot(axis).abs() * 0.25, "{zero:?} {solved:?}");
+    }
+
+    #[test]
     fn real_physics_schedule_applies_a_free_swing_velocity_drive() {
         use avian3d::prelude::{Gravity, Mass, PhysicsPlugins, RigidBody, Rotation};
         use bevy::time::TimeUpdateStrategy;
@@ -1174,6 +1458,12 @@ impl Plugin for SourcePhysicsJointPlugin {
                 (capture_pre_solve_rotation, solve_source_joint_iterations)
                     .chain()
                     .in_set(XpbdSolverSystems::SolveUserConstraints),
+            )
+            .add_systems(
+                SubstepSchedule,
+                solve_source_joint_velocity_iterations
+                    .after(XpbdSolverSystems::VelocityProjection)
+                    .after(SubstepSolverSystems::Damping),
             );
     }
 }

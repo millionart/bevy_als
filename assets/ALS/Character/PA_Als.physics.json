@@ -12618,6 +12618,7 @@
     "position_iterations": 6,
     "position_tolerance_m": 0.00025,
     "projection_iterations": 1,
-    "projection_velocity_alpha": 0.1
+    "projection_velocity_alpha": 0.1,
+    "velocity_iterations": 1
   }
 }

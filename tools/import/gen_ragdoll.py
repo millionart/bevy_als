@@ -895,6 +895,7 @@ def build_profile(source, project_max_angular_velocity_degrees):
         "solver_settings": props(physics["solver_settings_properties"]),
         "target_solver": {
             "position_iterations": int(props(physics["solver_settings_properties"])["PositionIterations"]),
+            "velocity_iterations": int(props(physics["solver_settings_properties"])["VelocityIterations"]),
             "projection_iterations": int(props(physics["solver_settings_properties"])["ProjectionIterations"]),
             "min_parent_mass_ratio": float(cvars["p.Chaos.Solver.Joint.MinParentMassRatio"]),
             "max_inertia_ratio": float(cvars["p.Chaos.Solver.Joint.MaxInertiaRatio"]),
