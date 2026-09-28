@@ -53,6 +53,22 @@
     {
       "path": "target/bf115_camera/native_source/B_Als_CameraShake_Sprint.ue.json",
       "sha256": "fecffae3207214bc9ea3fc7f2a07f69c2b1e8d9026019929a594ea293f9e7e7d"
+    },
+    {
+      "path": "target/bf131/a71/AnimNode_StateMachine.cpp",
+      "sha256": "8dca0f41f0378ad8858f193d69cc8a4fdf43139c8114d20842c67d16ef8c161b"
+    },
+    {
+      "path": "target/bf131/a71/AnimNode_StateMachine.h",
+      "sha256": "d67552193534e40eaedd210ad14c8cd51295c1146af109df623d8fb9c2894e55"
+    },
+    {
+      "path": "target/bf131/a71/AlphaBlend.cpp",
+      "sha256": "b0de2b7f79cd79fcb24956e63e4fa6b740d75c4c59d836773f3684366c09c11b"
+    },
+    {
+      "path": "target/bf131/a71/AlphaBlend.h",
+      "sha256": "44740435fbea19fb16ac353ef8b86cee4b319fc86ffa145828d5b481bd7ebbe4"
     }
   ],
   "graphs": [
@@ -1889,6 +1905,11 @@
         "actual_ragdoll_root_retains_camera_actor_ownership_after_detachment"
       ],
       "evidence": "target/bf116_camera_ragdoll/final_camera_project.watchdog.json"
+    },
+    {
+      "label": "custom_fsm_blend_terminal_completion",
+      "argv": ["cargo", "test", "--locked", "--offline", "--profile", "play", "--lib", "custom_transition_", "--jobs", "2"],
+      "evidence": "target/bf1295/bf131-a71-custom-final.json"
     }
   ]
 }

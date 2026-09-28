@@ -66,7 +66,7 @@
 - [x] **BF131.A68 — Sync marker mapping does not filter to common marker names**。Gate：先求组内共同 marker 集，再定位/映射，非共同 marker 不改变有效相位。
 - [x] **BF131.A69 — Modify Curve accepts WeightedMovingAverage but evaluates it as stateless Blend**。Gate：逐实例历史参与加权移动平均，初始化/更新/重建及其他模式控制通过。
 - [x] **BF131.A70 — Repeated marker-name pairs collapse later timeline occurrences into the first pair**。Gate：同名重复 marker 对保留时间位置，跨周期与倒播不跳到第一对。
-- [ ] **BF131.A71 — Custom 状态迁移按总时长结束，遗漏 FAlphaBlend 提前达到终值的完成语义**。Gate：源曲线提前达到终值时迁移完成，未达到终值及正常总时长控制通过。
+- [x] **BF131.A71 — Custom 状态迁移按总时长结束，遗漏 FAlphaBlend 提前达到终值的完成语义**。Gate：源曲线提前达到终值时迁移完成，未达到终值及正常总时长控制通过。
 - [ ] **BF131.A72 — 惯性过渡的显式 BlendProfile 在生成、请求和逐骨消费链中丢失**。Gate：显式 profile 贯穿生成、惯性请求与逐骨持续时间，默认 profile 和无覆盖控制通过。
 - [ ] **BF131.A73 — 惯性化 root 历史没有按组件／Actor 附着空间变化重表达**。Gate：组件/Actor 附着空间改变后历史按源坐标系重表达，世界连续姿态和不变空间控制通过。
 - [ ] **BF131.A74 — 关闭跨被跳过缓存分支的惯性请求转发仍向全部消费者复制请求**。Gate：关闭转发时跳过分支不接收请求，开启转发及实际求值消费者保持源语义。
@@ -240,3 +240,10 @@
   - S3 开始 2026-09-28 09:45 +08:00；预估结束 2026-09-28 10:15 +08:00。用 run_manual 实际 target_game/play 优化构建刷新 349 图规格并重跑 Standing/根声明审计，再执行 startup、standing_direction、state_machine 公共功能 Gate。报告逐项核对功能、图错误、故障、时序、watchdog 和保留的性能结果，Gate 通过后勾选并单独提交 A70。
   - Runtime 前摘要（09:49 +08:00）：fresh UE 重复标记定位/跟随源合同、纯相位与实际 Sequence/BlendSpace 多实例的后半周期/正反跨界/重建夹具、移除样本历史与播放器提示消融、完整库 1251 项已通过。同 target_game/play 优化 profile 已重建 manual_playground/spec_dump，fresh 349 图规格及 Standing/根完整声明审计通过；开始 startup、standing_direction、state_machine 公共功能 Gate，性能原始结果继续保留。
   - S3 实际结束 2026-09-28 09:52 +08:00，偏差 -23 分钟；结果：startup、standing_direction 5/5、state_machine 10/10 公共功能 Gate 全部 PASS，故障/图错误/时序异常/watchdog 为 0；三个原始报告继续保留 max_eval_p95_ms 性能失败。源重复候选/缓存方向事实、纯映射与实际 Sequence/BlendSpace 双实例的正反跨界/重建、两项必要性消融、完整库 1251 项、fresh 349 图规格及 Standing/根声明审计均闭合；RON、转换器和原始资产未改，勾选 A70。
+- BF131.A71-S1：开始 2026-09-28 09:53 +08:00；预估结束 2026-09-28 10:18 +08:00。依据：本地 UE AnimNode_StateMachine 与 FAlphaBlend 源码、目标 interruptible_fsm 的 transition_alpha/EndTransition 合同和已有 Custom 过渡测试。先确认源提前完成由时间、blend 输出还是两者共同决定，再用源曲线提前到 1 与未到 1 的控制建立最小 red；不更改 A63 BlendProfile 曲线采样和其它迁移方式。
+  - S1 实际结束 2026-09-28 09:57 +08:00，偏差 -21 分钟；结果：fresh UE StateMachine/AlphaBlend .cpp/.h 证实每次 active transition Update 先推进 Blend，再以 IsComplete 比较当前 BlendedValue 与曲线 alpha=1 对应的终值，非仅 ElapsedTime/CrossfadeDuration；源 Blend 值域固定 0→1。目标当前与被打断迁移都只用 timed_transition_progress，Custom 曲线在 0.4 达到终值 1 或 0.6 的两类控制均仍未完成，focused red；未到终值与正常总时长控制已登记。下一轮复用现有 transition_alpha，统一 current/interrupted 完成谓词，不改 FsmBuiltin 时间百分比与姿态权重算法。
+  - S2 开始 2026-09-28 09:57 +08:00；预估结束 2026-09-28 10:37 +08:00。共享完成谓词对有效时长先算原始进度，再比较当前 profiled blended value 与终点值；在当前迁移事件与被打断栈清理两处复用，并用实际 FSM GraphContext 验证提前结束、未提前、总时长及打断控制。先补静态合同、消融与定向回归，再登记公共 runtime Gate；只修已证实的完成语义，不改 A63 自定义曲线采样。
+  - S2 实际结束 2026-09-28 10:07 +08:00，偏差 -30 分钟；结果：共享完成谓词沿现有 transition_alpha 比较当前与终点 Blend 值，保持 FsmBuiltin 原始时间百分比，并在当前迁移结束事件与被打断栈清理复用。Custom 提前到终值 1/0.6、未到终值、Linear 与总时长控制通过；实际 FSM 证明过渡先激活、提前曲线于时长前退出而普通曲线仍迁移，关闭新判定时两项定向测试均失败。恢复后完整库 1253/1253、Custom 2/2，Camera/Grounded/Overlay/根完整声明审计通过；RON/转换器/原始资产未改，沿用 A65 15 入口 374 产物零 diff。
+  - S3 开始 2026-09-28 10:07 +08:00；预估结束 2026-09-28 10:37 +08:00。用 run_manual 实际 target_game/play 优化构建刷新 349 图规格并重跑 Camera/Grounded/Overlay/根声明审计，再执行 startup、camera、state_machine 公共功能 Gate；核对当前/打断迁移真实消费者、报告图错误/故障/时序/watchdog 和既定性能延期，Gate 通过后勾选并单独提交 A71。
+  - Runtime 前摘要（10:11 +08:00）：fresh UE StateMachine/AlphaBlend 终值比较、Custom 早到/未到/Linear/总时长纯合同与实际 FSM 先激活后提前退出、关闭新分支消融、完整库 1253 项和 Custom 2 项通过。同 target_game/play 优化 profile 已重建 manual_playground/spec_dump，fresh 349 图规格及 Camera/Grounded/Overlay/根完整声明审计通过；开始三项公共功能 Gate，性能原始结果继续保留。
+  - S3 实际结束 2026-09-28 10:14 +08:00，偏差 -23 分钟；结果：startup、camera 11/11、state_machine 10/10 公共功能 Gate 全部 PASS，故障/图错误/时序异常/watchdog 为 0；三个原始报告继续保留 max_eval_p95_ms 性能失败。源 FAlphaBlend 终值合同、共享 current/interrupted 完成谓词、实际 FSM 早退与未早退控制、消融、完整库 1253 项、fresh 349 图规格及 Camera/Grounded/Overlay/根声明审计均闭合；RON、转换器与原始资产未改，勾选 A71。
