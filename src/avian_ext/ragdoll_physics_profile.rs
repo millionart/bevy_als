@@ -24,7 +24,7 @@ use serde::Deserialize;
 use crate::extensions::{
     ragdoll_angular_drive::RagdollAngularDriveSet,
     source_physics_joint::{
-        SourceAngularLimit, SourceAngularMotor, SourceAngularSpring, SourceJointSolverSettings,
+        SourceAngularLimit, SourceAngularMotor, SourceAngularSpring, SourceJointSolverSettings, SourceLinearMotor,
         SourcePhysicsJoint,
     },
 };
@@ -136,6 +136,14 @@ struct PhysicsAssetConstraintTarget {
     angular_drive_stiffness_scale: f32,
     angular_drive_damping_scale: f32,
     linear_locked: bool,
+    #[serde(default)]
+    linear_drives: [SourceLinearMotor; 3],
+    #[serde(default)]
+    linear_position_target_m: [f32; 3],
+    #[serde(default)]
+    linear_velocity_target_m_per_second: [f32; 3],
+    #[serde(default)]
+    linear_drive_acceleration_mode: bool,
     mass_conditioning: bool,
     projection_linear_alpha: f32,
     projection_linear_tolerance_m: f32,
@@ -245,6 +253,10 @@ impl RagdollPhysicsProfile {
                         motor_stiffness_scale: target.angular_drive_stiffness_scale,
                         motor_damping_scale: target.angular_drive_damping_scale,
                         linear_locked: target.linear_locked,
+                        linear_motors: target.linear_drives,
+                        linear_position_target: Vec3::from_array(target.linear_position_target_m),
+                        linear_velocity_target: Vec3::from_array(target.linear_velocity_target_m_per_second),
+                        linear_drive_acceleration_mode: target.linear_drive_acceleration_mode,
                         mass_conditioning: target.mass_conditioning,
                         projection_linear_alpha: target.projection_linear_alpha,
                         projection_linear_tolerance_m: target.projection_linear_tolerance_m,
@@ -591,12 +603,15 @@ fn apply_profile_to_spawned_ragdoll(
         if scale != 1.0 {
             joint.parent_frame.translation *= scale;
             joint.child_frame.translation *= scale;
+            joint.linear_position_target *= scale;
+            joint.linear_velocity_target *= scale;
         }
         commands
             .entity(*joint_entity)
             .remove::<(SphericalJoint, RevoluteJoint, JointDamping)>()
             .insert(joint);
         if joint_profile.enabled {
+            commands.entity(*joint_entity).remove::<JointDisabled>();
             applied.source_joint_count += 1;
         } else {
             commands.entity(*joint_entity).insert(JointDisabled);
@@ -850,6 +865,26 @@ mod tests {
     }
 
     #[test]
+    fn linear_drive_json_fields_reach_the_joint_definition() {
+        let mut source: serde_json::Value = serde_json::from_str(include_str!(
+            "../../assets/ALS/Character/PA_Als.physics.json"
+        )).unwrap();
+        let pelvis = source["constraints"].as_array_mut().unwrap().iter_mut()
+            .find(|joint| joint["joint_name"] == "pelvis").unwrap();
+        pelvis["target"]["enabled"] = serde_json::json!(true);
+        pelvis["target"]["linear_drives"][0]["position_enabled"] = serde_json::json!(true);
+        pelvis["target"]["linear_drives"][0]["stiffness"] = serde_json::json!(123.0);
+        pelvis["target"]["linear_drives"][0]["max_force"] = serde_json::json!(2.0);
+        pelvis["target"]["linear_position_target_m"] = serde_json::json!([0.2, 0.0, 0.0]);
+        let profile = RagdollPhysicsProfile::from_json(&source.to_string()).unwrap();
+        let joint = profile.joints.iter().find(|joint| joint.label == "pelvis").unwrap();
+        assert!(joint.enabled && joint.definition.linear_motors[0].position_enabled);
+        assert_eq!(joint.definition.linear_motors[0].stiffness, 123.0);
+        assert_eq!(joint.definition.linear_motors[0].max_force, 2.0);
+        assert_eq!(joint.definition.linear_position_target, Vec3::X * 0.2);
+    }
+
+    #[test]
     fn profile_replaces_every_spawned_joint_and_applies_body_materials() {
         use bevy::ecs::system::RunSystemOnce;
         use bevy_animation_graph::core::ragdoll::{
@@ -892,6 +927,13 @@ mod tests {
                 }
             })
             .collect::<Vec<_>>();
+        let pelvis = *spawned.joints.values().find(|entity|
+            world.get::<JointLabel>(**entity).unwrap().0 == "pelvis").unwrap();
+        let again = SpawnedRagdoll {
+            root: spawned.root, bodies: spawned.bodies.clone(),
+            colliders: spawned.colliders.clone(), joints: spawned.joints.clone(),
+        };
+        let mut driven_profile = profile.clone();
         let applied = world
             .run_system_once(
                 move |mut commands: Commands,
@@ -942,6 +984,27 @@ mod tests {
             assert_eq!(joint.settings.position_iterations, 6);
             assert_eq!(joint.swing_spring.unwrap().stiffness, 5_000_000.0);
         }
+        assert!(world.get::<JointDisabled>(pelvis).is_some());
+        let driven = driven_profile.joints.iter_mut().find(|joint| joint.label == "pelvis").unwrap();
+        driven.enabled = true;
+        driven.definition.linear_motors[0] = SourceLinearMotor {
+            stiffness: 100.0, position_enabled: true, ..default()
+        };
+        driven.definition.linear_position_target = Vec3::X * 0.2;
+        let reapplied = world.run_system_once(move |mut commands: Commands,
+            body_labels: Query<&BodyLabel>, collider_labels: Query<&ColliderLabel>,
+            joint_labels: Query<&JointLabel>, spherical: Query<&SphericalJoint>,
+            revolute: Query<&RevoluteJoint>, source_joints: Query<&SourcePhysicsJoint>,
+            transforms: Query<&Transform>, mut colliders: Query<&mut Collider>| {
+            apply_profile_to_spawned_ragdoll(&mut commands, &again, &driven_profile,
+                1.0, 1.0, &body_labels, &collider_labels, &joint_labels,
+                &spherical, &revolute, &source_joints, &transforms, &mut colliders)
+        }).unwrap();
+        assert_eq!(reapplied.source_joint_count, 20);
+        assert!(world.get::<JointDisabled>(pelvis).is_none());
+        let motor = world.get::<SourcePhysicsJoint>(pelvis).unwrap();
+        assert!(motor.linear_motors[0].position_enabled);
+        assert_eq!(motor.linear_position_target, Vec3::X * 0.2);
     }
 
     #[test]

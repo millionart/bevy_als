@@ -64,6 +64,32 @@ def target_spring(stiffness, damping, acceleration_mode, stiffness_scale, dampin
     }
 
 
+def active_linear_drive(profile):
+    return any(
+        motion != "LCM_Locked" and (drive["position_enabled"] or drive["velocity_enabled"])
+        for motion, drive in zip(
+            (profile["linear_x_motion"], profile["linear_y_motion"], profile["linear_z_motion"]),
+            profile["linear_drives"],
+        )
+    )
+
+
+def target_linear_drive(profile, stiffness_scale, damping_scale):
+    return {
+        "linear_position_target_m": ue_point(profile["linear_position_target_ue_cm"]),
+        "linear_velocity_target_m_per_second": ue_point(profile["linear_velocity_target_ue_cm_per_second"]),
+        "linear_drive_acceleration_mode": profile["linear_drive_acceleration_mode"],
+        "linear_drives": [
+            {
+                **profile["linear_drives"][index],
+                "stiffness": profile["linear_drives"][index]["stiffness"] * stiffness_scale,
+                "damping": profile["linear_drives"][index]["damping"] * damping_scale,
+                "max_force": profile["linear_drives"][index]["max_force"] * CM_TO_M,
+            } for index in (0, 2, 1)
+        ],
+    }
+
+
 def target_angular_limit(mode, radians):
     return {"Limited": radians} if mode == "ACM_Limited" else mode.removeprefix("ACM_")
 
@@ -308,6 +334,26 @@ def self_test():
     assert material["static_friction"] == material["dynamic_friction"] == 0.7
     assert expanded_text({"exported_text": "()", "fields": [{"name": "Enabled", "exported_text": "True"}]}) == "(Enabled=True)"
     assert collision_disabled_pairs({"collision_disabled_pairs": [{"body_index_1": 0, "body_index_2": 1, "disabled": False}]}) == [[0, 1]]
+    drive = "(PositionTarget=(X=100,Y=200,Z=300),VelocityTarget=(X=10,Y=20,Z=30),XDrive=(Stiffness=40,Damping=2,MaxForce=100,bEnablePositionDrive=True,bEnableVelocityDrive=False),YDrive=(Stiffness=50,Damping=3,MaxForce=0,bEnablePositionDrive=False,bEnableVelocityDrive=True),ZDrive=(Stiffness=60,Damping=4,MaxForce=80,bEnablePositionDrive=False,bEnableVelocityDrive=False),bAccelerationMode=False)"
+    parsed = parsed_profile([{"name": "ProfileInstance", "exported_text": "()", "fields": [
+        {"name": "LinearDrive", "exported_text": drive},
+    ]}])
+    assert parsed["linear_position_target_ue_cm"] == [100.0, 200.0, 300.0]
+    assert parsed["linear_velocity_target_ue_cm_per_second"] == [10.0, 20.0, 30.0]
+    assert parsed["linear_drives"][0] == {"stiffness": 40.0, "damping": 2.0, "max_force": 100.0,
+        "position_enabled": True, "velocity_enabled": False}
+    assert parsed["linear_drives"][1]["velocity_enabled"] and not parsed["linear_drive_acceleration_mode"]
+    assert active_linear_drive(parsed)
+    target_drive = target_linear_drive(parsed, 2.0, 3.0)
+    assert target_drive["linear_position_target_m"] == [1.0, 3.0, 2.0]
+    assert target_drive["linear_velocity_target_m_per_second"] == [0.1, 0.3, 0.2]
+    assert target_drive["linear_drives"][0]["stiffness"] == 80.0
+    assert target_drive["linear_drives"][0]["damping"] == 6.0
+    assert target_drive["linear_drives"][0]["max_force"] == 1.0
+    assert target_drive["linear_drives"][1]["position_enabled"] is False
+    assert target_drive["linear_drives"][2]["velocity_enabled"] is True
+    parsed["linear_x_motion"] = parsed["linear_y_motion"] = parsed["linear_z_motion"] = "LCM_Locked"
+    assert not active_linear_drive(parsed)
 
 
 def volume(shape):
@@ -455,6 +501,18 @@ def parsed_profile(entries):
         "twist_damping": number_after(twist, "Damping"),
         "linear_drive_stiffness": number_after(nested_after(linear_drive, "XDrive"), "Stiffness"),
         "linear_drive_damping": number_after(nested_after(linear_drive, "XDrive"), "Damping"),
+        "linear_position_target_ue_cm": vector_after(linear_drive, "PositionTarget"),
+        "linear_velocity_target_ue_cm_per_second": vector_after(linear_drive, "VelocityTarget"),
+        "linear_drive_acceleration_mode": bool_after(linear_drive, "bAccelerationMode", True),
+        "linear_drives": [
+            {
+                "stiffness": number_after(nested_after(linear_drive, name), "Stiffness"),
+                "damping": number_after(nested_after(linear_drive, name), "Damping"),
+                "max_force": number_after(nested_after(linear_drive, name), "MaxForce"),
+                "position_enabled": bool_after(nested_after(linear_drive, name), "bEnablePositionDrive"),
+                "velocity_enabled": bool_after(nested_after(linear_drive, name), "bEnableVelocityDrive"),
+            } for name in ("XDrive", "YDrive", "ZDrive")
+        ],
         "angular_drive_stiffness": number_after(nested_after(angular_drive, "TwistDrive"), "Stiffness"),
         "angular_drive_damping": number_after(nested_after(angular_drive, "TwistDrive"), "Damping"),
         "angular_drive_enabled": bool_after(nested_after(angular_drive, "TwistDrive"), "bEnablePositionDrive", False),
@@ -539,6 +597,8 @@ def build_profile(source):
     cvars = physics["constraint_console_variables"]
     limit_stiffness_scale = float(cvars["p.Chaos.JointConstraint.SoftAngularStiffnessScale"])
     limit_damping_scale = float(cvars["p.Chaos.JointConstraint.SoftAngularDampingScale"])
+    linear_drive_stiffness_scale = float(cvars["p.Chaos.JointConstraint.LinearDriveStiffnessScale"])
+    linear_drive_damping_scale = float(cvars["p.Chaos.JointConstraint.LinaearDriveDampingScale"])
     drive_stiffness_scale = float(cvars["p.Chaos.JointConstraint.AngularDriveStiffnessScale"])
     drive_damping_scale = float(cvars["p.Chaos.JointConstraint.AngularDriveDampingScale"])
     bodies = []
@@ -637,7 +697,8 @@ def build_profile(source):
                 "projection_linear_tolerance_m": profile["projection_linear_tolerance_cm"] * CM_TO_M if profile["projection_enabled"] else 0.0,
                 "projection_angular_alpha": profile["projection_angular_alpha"] if profile["projection_enabled"] else 0.0,
                 "linear_locked": linear_locked,
-                "enabled": linear_locked or swing_1 is not None or swing_2 is not None or twist is not None or profile["angular_drive_enabled"],
+                **target_linear_drive(profile, linear_drive_stiffness_scale, linear_drive_damping_scale),
+                "enabled": linear_locked or swing_1 is not None or swing_2 is not None or twist is not None or profile["angular_drive_enabled"] or active_linear_drive(profile),
             },
         })
     return {

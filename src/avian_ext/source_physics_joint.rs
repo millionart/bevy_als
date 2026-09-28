@@ -46,6 +46,15 @@ pub struct SourceAngularMotor {
     pub velocity_enabled: bool,
 }
 
+#[derive(Clone, Copy, Debug, Default, Deserialize)]
+pub struct SourceLinearMotor {
+    pub stiffness: f32,
+    pub damping: f32,
+    pub max_force: f32,
+    pub position_enabled: bool,
+    pub velocity_enabled: bool,
+}
+
 #[derive(Clone, Copy, Debug, Deserialize)]
 pub struct SourceJointSolverSettings {
     pub position_iterations: u32,
@@ -72,6 +81,10 @@ pub struct SourcePhysicsJoint {
     pub motor_stiffness_scale: f32,
     pub motor_damping_scale: f32,
     pub linear_locked: bool,
+    pub linear_motors: [SourceLinearMotor; 3],
+    pub linear_position_target: Vec3,
+    pub linear_velocity_target: Vec3,
+    pub linear_drive_acceleration_mode: bool,
     pub mass_conditioning: bool,
     pub projection_linear_alpha: f32,
     pub projection_linear_tolerance_m: f32,
@@ -101,6 +114,7 @@ pub struct SourcePhysicsJointSolverData {
     pre_solve_rotation: [Quat; 2],
     limit_lambdas: [f32; 3],
     motor_lambdas: [f32; 3],
+    linear_motor_lambdas: [f32; 3],
     total_angular_impulse: Vec3,
 }
 
@@ -115,6 +129,7 @@ impl Default for SourcePhysicsJointSolverData {
             pre_solve_rotation: [Quat::IDENTITY; 2],
             limit_lambdas: [0.0; 3],
             motor_lambdas: [0.0; 3],
+            linear_motor_lambdas: [0.0; 3],
             total_angular_impulse: Vec3::ZERO,
         }
     }
@@ -125,6 +140,7 @@ impl XpbdConstraintSolverData for SourcePhysicsJointSolverData {
         self.point_data.clear_lagrange_multipliers();
         self.limit_lambdas = [0.0; 3];
         self.motor_lambdas = [0.0; 3];
+        self.linear_motor_lambdas = [0.0; 3];
         self.total_angular_impulse = Vec3::ZERO;
     }
 
@@ -195,6 +211,16 @@ impl XpbdConstraint<2> for SourcePhysicsJoint {
         if self.linear_locked {
             data.point
                 .solve([parent, child], inertias, &mut data.point_data, dt);
+        } else {
+            for index in 0..3 {
+                let motor = self.linear_motors[index];
+                if !motor.position_enabled && !motor.velocity_enabled {
+                    continue;
+                }
+                apply_linear_motor(parent, child, inertias, data, index,
+                    motor, self.linear_position_target[index], self.linear_velocity_target[index],
+                    self.linear_drive_acceleration_mode, dt);
+            }
         }
         for index in 0..3 {
             if self.angular_limits[index] == SourceAngularLimit::Locked {
@@ -333,6 +359,64 @@ fn spring_impulse(
         / (1.0 + (stiffness + damping) * inverse_mass)
 }
 
+fn apply_linear_motor(
+    parent: &mut SolverBody,
+    child: &mut SolverBody,
+    inertias: [&SolverBodyInertia; 2],
+    data: &mut SourcePhysicsJointSolverData,
+    index: usize,
+    motor: SourceLinearMotor,
+    target_position: f32,
+    target_velocity: f32,
+    acceleration_mode: bool,
+    dt: f32,
+) {
+    let stiffness = if motor.position_enabled { motor.stiffness } else { 0.0 };
+    let damping = if motor.velocity_enabled { motor.damping } else { 0.0 };
+    if stiffness <= 0.0 && damping <= 0.0 || dt <= 0.0 {
+        return;
+    }
+    let axis = parent.delta_rotation.0 * data.frames[0] * Vec3::AXES[index];
+    let arms = [parent.delta_rotation.0 * data.arms[0], child.delta_rotation.0 * data.arms[1]];
+    let inverse_masses = [inertias[0].effective_inv_mass(), inertias[1].effective_inv_mass()];
+    let responses = [inverse_masses[0] * axis, inverse_masses[1] * axis];
+    let angular_axes = [arms[0].cross(axis), arms[1].cross(axis)];
+    let angular_responses = [
+        inertias[0].effective_inv_angular_inertia() * angular_axes[0],
+        inertias[1].effective_inv_angular_inertia() * angular_axes[1],
+    ];
+    let linear_inverse_mass = axis.dot(responses[0] + responses[1]);
+    let inverse_mass = linear_inverse_mass
+        + angular_axes[0].dot(angular_responses[0])
+        + angular_axes[1].dot(angular_responses[1]);
+    if inverse_mass <= f32::EPSILON || acceleration_mode && linear_inverse_mass <= f32::EPSILON {
+        return;
+    }
+    let separation = child.delta_position - parent.delta_position + data.center_difference
+        + arms[1] - arms[0];
+    let error = axis.dot(separation) - target_position;
+    let velocity = child.linear_velocity + child.angular_velocity.cross(arms[1])
+        - parent.linear_velocity - parent.angular_velocity.cross(arms[0]);
+    let velocity_dt = (axis.dot(velocity) - target_velocity) * dt;
+    let scale = if acceleration_mode { linear_inverse_mass.recip() } else { 1.0 };
+    let spring = scale * stiffness * dt * dt;
+    let damper = scale * damping * dt;
+    let lambda = &mut data.linear_motor_lambdas[index];
+    let mut delta = (spring * error + damper * velocity_dt - *lambda)
+        / (1.0 + (spring + damper) * inverse_mass);
+    let limit = motor.max_force * dt * dt;
+    if limit > 0.0 {
+        delta = delta.clamp(-limit - *lambda, limit - *lambda);
+    }
+    *lambda += delta;
+    parent.delta_position += responses[0] * delta;
+    child.delta_position -= responses[1] * delta;
+    parent.delta_rotation.0 =
+        (Quat::from_scaled_axis(angular_responses[0] * delta) * parent.delta_rotation.0).normalize();
+    child.delta_rotation.0 =
+        (Quat::from_scaled_axis(-angular_responses[1] * delta) * child.delta_rotation.0).normalize();
+}
+
 fn apply_angular_correction(
     parent: &mut SolverBody,
     child: &mut SolverBody,
@@ -456,6 +540,7 @@ fn capture_pre_solve_rotation(
     for (joint, mut data) in &mut joints {
         data.limit_lambdas = [0.0; 3];
         data.motor_lambdas = [0.0; 3];
+        data.linear_motor_lambdas = [0.0; 3];
         for (index, entity) in joint.entities().into_iter().enumerate() {
             data.pre_solve_rotation[index] = bodies
                 .get(entity)
@@ -576,6 +661,10 @@ mod tests {
             motor_stiffness_scale: 1.5,
             motor_damping_scale: 1.5,
             linear_locked: false,
+            linear_motors: [SourceLinearMotor::default(); 3],
+            linear_position_target: Vec3::ZERO,
+            linear_velocity_target: Vec3::ZERO,
+            linear_drive_acceleration_mode: true,
             mass_conditioning: false,
             projection_linear_alpha: 1.0,
             projection_linear_tolerance_m: 0.05,
@@ -608,6 +697,60 @@ mod tests {
         let first = spring_impulse(spring, 0.2, 0.0, 2.0, 0.0, 1.0 / 60.0) * 2.0;
         let second = spring_impulse(spring, 0.2, 0.0, 200.0, 0.0, 1.0 / 60.0) * 200.0;
         assert!((first - second).abs() > 0.001);
+    }
+
+    #[test]
+    fn free_linear_axes_drive_position_and_velocity_with_force_limits() {
+        let mut drive_joint = joint();
+        drive_joint.linear_motors[0] = SourceLinearMotor {
+            stiffness: 2000.0, position_enabled: true, ..default()
+        };
+        drive_joint.linear_motors[1] = SourceLinearMotor {
+            damping: 50.0, velocity_enabled: true, ..default()
+        };
+        drive_joint.linear_position_target = Vec3::X * 0.3;
+        drive_joint.linear_velocity_target = Vec3::Y;
+        for force_limit in [0.0, 1.0] {
+            drive_joint.linear_motors[0].max_force = force_limit;
+            let mut parent = SolverBody::default();
+            let mut child = SolverBody::default();
+            let mut data = SourcePhysicsJointSolverData::default();
+            drive_joint.solve([&mut parent, &mut child], [&SolverBodyInertia::DUMMY, &inertia(1.0, Vec3::ONE)],
+                &mut data, 0.1);
+            if force_limit == 0.0 {
+                assert!(child.delta_position.x > 0.1);
+            } else {
+                assert!(child.delta_position.x > 0.0 && child.delta_position.x <= 0.010001);
+            }
+            assert!(child.delta_position.y > 0.01);
+            assert_eq!(child.delta_position.z, 0.0);
+        }
+        let mut no_drive = joint();
+        let mut parent = SolverBody::default();
+        let mut child = SolverBody::default();
+        no_drive.solve([&mut parent, &mut child], [&SolverBodyInertia::DUMMY, &inertia(1.0, Vec3::ONE)],
+            &mut SourcePhysicsJointSolverData::default(), 0.1);
+        assert_eq!(child.delta_position, Vec3::ZERO);
+    }
+
+    #[test]
+    fn linear_drive_acceleration_mode_is_mass_independent() {
+        let solve = |inverse_mass, acceleration_mode| {
+            let mut drive_joint = joint();
+            drive_joint.linear_motors[0] = SourceLinearMotor {
+                stiffness: 1000.0, position_enabled: true, ..default()
+            };
+            drive_joint.linear_position_target = Vec3::X * 0.3;
+            drive_joint.linear_drive_acceleration_mode = acceleration_mode;
+            let mut parent = SolverBody::default();
+            let mut child = SolverBody::default();
+            drive_joint.solve([&mut parent, &mut child],
+                [&SolverBodyInertia::DUMMY, &inertia(inverse_mass, Vec3::ONE)],
+                &mut SourcePhysicsJointSolverData::default(), 0.1);
+            child.delta_position.x
+        };
+        assert!((solve(1.0, true) - solve(100.0, true)).abs() < 1e-6);
+        assert!((solve(1.0, false) - solve(100.0, false)).abs() > 0.01);
     }
 
     #[test]
@@ -864,6 +1007,35 @@ mod tests {
         let child_anchor = app.world().get::<Position>(child).unwrap().0
             + app.world().get::<Rotation>(child).unwrap().0 * Vec3::from(child_frame.translation);
         assert!(parent_anchor.distance(child_anchor) > 0.02);
+    }
+
+    #[test]
+    fn real_physics_schedule_applies_a_free_linear_position_drive() {
+        use avian3d::prelude::{Gravity, Mass, PhysicsPlugins, Position, RigidBody};
+        use bevy::time::TimeUpdateStrategy;
+        use std::time::Duration;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin,
+            TransformPlugin, PhysicsPlugins::new(PostUpdate), SourcePhysicsJointPlugin));
+        app.insert_resource(Gravity(Vec3::ZERO));
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0 / 60.0)));
+        app.finish();
+        app.cleanup();
+        let parent = app.world_mut().spawn((RigidBody::Kinematic, Transform::IDENTITY)).id();
+        let child = app.world_mut().spawn((RigidBody::Dynamic, Mass(1.0),
+            AngularInertia { principal: Vec3::splat(0.1), local_frame: Quat::IDENTITY },
+            Transform::IDENTITY)).id();
+        let mut drive_joint = joint();
+        drive_joint.parent = parent;
+        drive_joint.child = child;
+        drive_joint.linear_position_target = Vec3::X * 0.5;
+        drive_joint.linear_motors[0] = SourceLinearMotor {
+            stiffness: 2000.0, position_enabled: true, ..default()
+        };
+        app.world_mut().spawn(drive_joint);
+        for _ in 0..8 { app.update(); }
+        let position = app.world().get::<Position>(child).unwrap().0.x;
+        assert!(position > 0.05 && position < 0.6, "position={position}");
     }
 }
 

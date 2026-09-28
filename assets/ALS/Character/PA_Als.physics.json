@@ -6379,10 +6379,44 @@
         "cone_stiffness": 50.0,
         "linear_break_threshold": 300.0,
         "linear_breakable": false,
+        "linear_drive_acceleration_mode": true,
         "linear_drive_damping": 1.0,
         "linear_drive_stiffness": 50.0,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_joint_solver": true,
         "linear_plasticity": false,
+        "linear_position_target_ue_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_ue_cm_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "linear_x_motion": "LCM_Locked",
         "linear_y_motion": "LCM_Locked",
         "linear_z_motion": "LCM_Locked",
@@ -6484,7 +6518,41 @@
         "hinge_axis": null,
         "hinge_limit_radians": null,
         "joint_variant": "Spherical",
+        "linear_drive_acceleration_mode": true,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_locked": true,
+        "linear_position_target_m": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_m_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "mass_conditioning": true,
         "projection_angular_alpha": 0.0,
         "projection_linear_alpha": 1.0,
@@ -6618,10 +6686,44 @@
         "cone_stiffness": 50.0,
         "linear_break_threshold": 300.0,
         "linear_breakable": false,
+        "linear_drive_acceleration_mode": true,
         "linear_drive_damping": 1.0,
         "linear_drive_stiffness": 50.0,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_joint_solver": true,
         "linear_plasticity": false,
+        "linear_position_target_ue_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_ue_cm_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "linear_x_motion": "LCM_Locked",
         "linear_y_motion": "LCM_Locked",
         "linear_z_motion": "LCM_Locked",
@@ -6723,7 +6825,41 @@
         "hinge_axis": null,
         "hinge_limit_radians": null,
         "joint_variant": "Spherical",
+        "linear_drive_acceleration_mode": true,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_locked": true,
+        "linear_position_target_m": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_m_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "mass_conditioning": true,
         "projection_angular_alpha": 0.0,
         "projection_linear_alpha": 1.0,
@@ -6857,10 +6993,44 @@
         "cone_stiffness": 50.0,
         "linear_break_threshold": 300.0,
         "linear_breakable": false,
+        "linear_drive_acceleration_mode": true,
         "linear_drive_damping": 1.0,
         "linear_drive_stiffness": 50.0,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_joint_solver": true,
         "linear_plasticity": false,
+        "linear_position_target_ue_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_ue_cm_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "linear_x_motion": "LCM_Locked",
         "linear_y_motion": "LCM_Locked",
         "linear_z_motion": "LCM_Locked",
@@ -6962,7 +7132,41 @@
         "hinge_axis": null,
         "hinge_limit_radians": null,
         "joint_variant": "Spherical",
+        "linear_drive_acceleration_mode": true,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_locked": true,
+        "linear_position_target_m": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_m_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "mass_conditioning": true,
         "projection_angular_alpha": 0.0,
         "projection_linear_alpha": 1.0,
@@ -7096,10 +7300,44 @@
         "cone_stiffness": 50.0,
         "linear_break_threshold": 300.0,
         "linear_breakable": false,
+        "linear_drive_acceleration_mode": true,
         "linear_drive_damping": 1.0,
         "linear_drive_stiffness": 50.0,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_joint_solver": true,
         "linear_plasticity": false,
+        "linear_position_target_ue_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_ue_cm_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "linear_x_motion": "LCM_Locked",
         "linear_y_motion": "LCM_Locked",
         "linear_z_motion": "LCM_Locked",
@@ -7199,7 +7437,41 @@
         "hinge_axis": null,
         "hinge_limit_radians": null,
         "joint_variant": "Spherical",
+        "linear_drive_acceleration_mode": true,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_locked": true,
+        "linear_position_target_m": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_m_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "mass_conditioning": true,
         "projection_angular_alpha": 0.0,
         "projection_linear_alpha": 1.0,
@@ -7333,10 +7605,44 @@
         "cone_stiffness": 50.0,
         "linear_break_threshold": 300.0,
         "linear_breakable": false,
+        "linear_drive_acceleration_mode": true,
         "linear_drive_damping": 1.0,
         "linear_drive_stiffness": 50.0,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_joint_solver": true,
         "linear_plasticity": false,
+        "linear_position_target_ue_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_ue_cm_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "linear_x_motion": "LCM_Locked",
         "linear_y_motion": "LCM_Locked",
         "linear_z_motion": "LCM_Locked",
@@ -7438,7 +7744,41 @@
         "hinge_axis": null,
         "hinge_limit_radians": null,
         "joint_variant": "Spherical",
+        "linear_drive_acceleration_mode": true,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_locked": true,
+        "linear_position_target_m": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_m_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "mass_conditioning": true,
         "projection_angular_alpha": 0.0,
         "projection_linear_alpha": 1.0,
@@ -7572,10 +7912,44 @@
         "cone_stiffness": 50.0,
         "linear_break_threshold": 300.0,
         "linear_breakable": false,
+        "linear_drive_acceleration_mode": true,
         "linear_drive_damping": 1.0,
         "linear_drive_stiffness": 50.0,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_joint_solver": true,
         "linear_plasticity": false,
+        "linear_position_target_ue_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_ue_cm_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "linear_x_motion": "LCM_Locked",
         "linear_y_motion": "LCM_Locked",
         "linear_z_motion": "LCM_Locked",
@@ -7677,7 +8051,41 @@
         "hinge_axis": null,
         "hinge_limit_radians": null,
         "joint_variant": "Spherical",
+        "linear_drive_acceleration_mode": true,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_locked": true,
+        "linear_position_target_m": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_m_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "mass_conditioning": true,
         "projection_angular_alpha": 0.0,
         "projection_linear_alpha": 1.0,
@@ -7811,10 +8219,44 @@
         "cone_stiffness": 50.0,
         "linear_break_threshold": 300.0,
         "linear_breakable": false,
+        "linear_drive_acceleration_mode": true,
         "linear_drive_damping": 1.0,
         "linear_drive_stiffness": 50.0,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_joint_solver": true,
         "linear_plasticity": false,
+        "linear_position_target_ue_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_ue_cm_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "linear_x_motion": "LCM_Locked",
         "linear_y_motion": "LCM_Locked",
         "linear_z_motion": "LCM_Locked",
@@ -7916,7 +8358,41 @@
         "hinge_axis": null,
         "hinge_limit_radians": null,
         "joint_variant": "Spherical",
+        "linear_drive_acceleration_mode": true,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_locked": true,
+        "linear_position_target_m": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_m_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "mass_conditioning": true,
         "projection_angular_alpha": 0.0,
         "projection_linear_alpha": 1.0,
@@ -8050,10 +8526,44 @@
         "cone_stiffness": 50.0,
         "linear_break_threshold": 300.0,
         "linear_breakable": false,
+        "linear_drive_acceleration_mode": true,
         "linear_drive_damping": 1.0,
         "linear_drive_stiffness": 50.0,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_joint_solver": true,
         "linear_plasticity": false,
+        "linear_position_target_ue_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_ue_cm_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "linear_x_motion": "LCM_Locked",
         "linear_y_motion": "LCM_Locked",
         "linear_z_motion": "LCM_Locked",
@@ -8158,7 +8668,41 @@
           1.0471975511965976
         ],
         "joint_variant": "Revolute",
+        "linear_drive_acceleration_mode": true,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_locked": true,
+        "linear_position_target_m": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_m_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "mass_conditioning": true,
         "projection_angular_alpha": 0.0,
         "projection_linear_alpha": 1.0,
@@ -8292,10 +8836,44 @@
         "cone_stiffness": 50.0,
         "linear_break_threshold": 300.0,
         "linear_breakable": false,
+        "linear_drive_acceleration_mode": true,
         "linear_drive_damping": 1.0,
         "linear_drive_stiffness": 50.0,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_joint_solver": true,
         "linear_plasticity": false,
+        "linear_position_target_ue_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_ue_cm_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "linear_x_motion": "LCM_Locked",
         "linear_y_motion": "LCM_Locked",
         "linear_z_motion": "LCM_Locked",
@@ -8400,7 +8978,41 @@
           1.0471975511965976
         ],
         "joint_variant": "Revolute",
+        "linear_drive_acceleration_mode": true,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_locked": true,
+        "linear_position_target_m": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_m_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "mass_conditioning": true,
         "projection_angular_alpha": 0.0,
         "projection_linear_alpha": 1.0,
@@ -8534,10 +9146,44 @@
         "cone_stiffness": 50.0,
         "linear_break_threshold": 300.0,
         "linear_breakable": false,
+        "linear_drive_acceleration_mode": true,
         "linear_drive_damping": 1.0,
         "linear_drive_stiffness": 50.0,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_joint_solver": true,
         "linear_plasticity": false,
+        "linear_position_target_ue_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_ue_cm_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "linear_x_motion": "LCM_Locked",
         "linear_y_motion": "LCM_Locked",
         "linear_z_motion": "LCM_Locked",
@@ -8637,7 +9283,41 @@
         "hinge_axis": null,
         "hinge_limit_radians": null,
         "joint_variant": "Spherical",
+        "linear_drive_acceleration_mode": true,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_locked": true,
+        "linear_position_target_m": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_m_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "mass_conditioning": true,
         "projection_angular_alpha": 0.0,
         "projection_linear_alpha": 1.0,
@@ -8774,10 +9454,44 @@
         "cone_stiffness": 50.0,
         "linear_break_threshold": 300.0,
         "linear_breakable": false,
+        "linear_drive_acceleration_mode": true,
         "linear_drive_damping": 1.0,
         "linear_drive_stiffness": 50.0,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_joint_solver": true,
         "linear_plasticity": false,
+        "linear_position_target_ue_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_ue_cm_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "linear_x_motion": "LCM_Locked",
         "linear_y_motion": "LCM_Locked",
         "linear_z_motion": "LCM_Locked",
@@ -8877,7 +9591,41 @@
         "hinge_axis": null,
         "hinge_limit_radians": null,
         "joint_variant": "Spherical",
+        "linear_drive_acceleration_mode": true,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_locked": true,
+        "linear_position_target_m": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_m_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "mass_conditioning": true,
         "projection_angular_alpha": 0.0,
         "projection_linear_alpha": 1.0,
@@ -9014,10 +9762,44 @@
         "cone_stiffness": 50.0,
         "linear_break_threshold": 300.0,
         "linear_breakable": false,
+        "linear_drive_acceleration_mode": true,
         "linear_drive_damping": 1.0,
         "linear_drive_stiffness": 50.0,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_joint_solver": true,
         "linear_plasticity": false,
+        "linear_position_target_ue_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_ue_cm_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "linear_x_motion": "LCM_Locked",
         "linear_y_motion": "LCM_Locked",
         "linear_z_motion": "LCM_Locked",
@@ -9119,7 +9901,41 @@
         "hinge_axis": null,
         "hinge_limit_radians": null,
         "joint_variant": "Spherical",
+        "linear_drive_acceleration_mode": true,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_locked": true,
+        "linear_position_target_m": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_m_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "mass_conditioning": true,
         "projection_angular_alpha": 0.0,
         "projection_linear_alpha": 1.0,
@@ -9253,10 +10069,44 @@
         "cone_stiffness": 50.0,
         "linear_break_threshold": 300.0,
         "linear_breakable": false,
+        "linear_drive_acceleration_mode": true,
         "linear_drive_damping": 1.0,
         "linear_drive_stiffness": 50.0,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_joint_solver": true,
         "linear_plasticity": false,
+        "linear_position_target_ue_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_ue_cm_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "linear_x_motion": "LCM_Locked",
         "linear_y_motion": "LCM_Locked",
         "linear_z_motion": "LCM_Locked",
@@ -9358,7 +10208,41 @@
         "hinge_axis": null,
         "hinge_limit_radians": null,
         "joint_variant": "Spherical",
+        "linear_drive_acceleration_mode": true,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_locked": true,
+        "linear_position_target_m": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_m_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "mass_conditioning": true,
         "projection_angular_alpha": 0.0,
         "projection_linear_alpha": 1.0,
@@ -9492,10 +10376,44 @@
         "cone_stiffness": 50.0,
         "linear_break_threshold": 300.0,
         "linear_breakable": false,
+        "linear_drive_acceleration_mode": true,
         "linear_drive_damping": 1.0,
         "linear_drive_stiffness": 50.0,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_joint_solver": true,
         "linear_plasticity": false,
+        "linear_position_target_ue_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_ue_cm_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "linear_x_motion": "LCM_Locked",
         "linear_y_motion": "LCM_Locked",
         "linear_z_motion": "LCM_Locked",
@@ -9600,7 +10518,41 @@
           0.8726646259971648
         ],
         "joint_variant": "Revolute",
+        "linear_drive_acceleration_mode": true,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_locked": true,
+        "linear_position_target_m": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_m_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "mass_conditioning": true,
         "projection_angular_alpha": 0.0,
         "projection_linear_alpha": 1.0,
@@ -9734,10 +10686,44 @@
         "cone_stiffness": 50.0,
         "linear_break_threshold": 300.0,
         "linear_breakable": false,
+        "linear_drive_acceleration_mode": true,
         "linear_drive_damping": 1.0,
         "linear_drive_stiffness": 50.0,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_joint_solver": true,
         "linear_plasticity": false,
+        "linear_position_target_ue_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_ue_cm_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "linear_x_motion": "LCM_Locked",
         "linear_y_motion": "LCM_Locked",
         "linear_z_motion": "LCM_Locked",
@@ -9842,7 +10828,41 @@
           0.8726646259971648
         ],
         "joint_variant": "Revolute",
+        "linear_drive_acceleration_mode": true,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_locked": true,
+        "linear_position_target_m": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_m_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "mass_conditioning": true,
         "projection_angular_alpha": 0.0,
         "projection_linear_alpha": 1.0,
@@ -9976,10 +10996,44 @@
         "cone_stiffness": 50.0,
         "linear_break_threshold": 300.0,
         "linear_breakable": false,
+        "linear_drive_acceleration_mode": true,
         "linear_drive_damping": 1.0,
         "linear_drive_stiffness": 50.0,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_joint_solver": true,
         "linear_plasticity": false,
+        "linear_position_target_ue_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_ue_cm_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "linear_x_motion": "LCM_Locked",
         "linear_y_motion": "LCM_Locked",
         "linear_z_motion": "LCM_Locked",
@@ -10079,7 +11133,41 @@
         "hinge_axis": null,
         "hinge_limit_radians": null,
         "joint_variant": "Spherical",
+        "linear_drive_acceleration_mode": true,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_locked": true,
+        "linear_position_target_m": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_m_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "mass_conditioning": true,
         "projection_angular_alpha": 0.0,
         "projection_linear_alpha": 1.0,
@@ -10213,10 +11301,44 @@
         "cone_stiffness": 50.0,
         "linear_break_threshold": 300.0,
         "linear_breakable": false,
+        "linear_drive_acceleration_mode": true,
         "linear_drive_damping": 1.0,
         "linear_drive_stiffness": 50.0,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_joint_solver": true,
         "linear_plasticity": false,
+        "linear_position_target_ue_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_ue_cm_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "linear_x_motion": "LCM_Locked",
         "linear_y_motion": "LCM_Locked",
         "linear_z_motion": "LCM_Locked",
@@ -10316,7 +11438,41 @@
         "hinge_axis": null,
         "hinge_limit_radians": null,
         "joint_variant": "Spherical",
+        "linear_drive_acceleration_mode": true,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_locked": true,
+        "linear_position_target_m": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_m_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "mass_conditioning": true,
         "projection_angular_alpha": 0.0,
         "projection_linear_alpha": 1.0,
@@ -10450,10 +11606,44 @@
         "cone_stiffness": 50.0,
         "linear_break_threshold": 300.0,
         "linear_breakable": false,
+        "linear_drive_acceleration_mode": true,
         "linear_drive_damping": 1.0,
         "linear_drive_stiffness": 50.0,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_joint_solver": true,
         "linear_plasticity": false,
+        "linear_position_target_ue_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_ue_cm_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "linear_x_motion": "LCM_Free",
         "linear_y_motion": "LCM_Free",
         "linear_z_motion": "LCM_Free",
@@ -10549,7 +11739,41 @@
         "hinge_axis": null,
         "hinge_limit_radians": null,
         "joint_variant": "Spherical",
+        "linear_drive_acceleration_mode": true,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_locked": false,
+        "linear_position_target_m": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_m_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "mass_conditioning": true,
         "projection_angular_alpha": 0.0,
         "projection_linear_alpha": 1.0,
@@ -10680,10 +11904,44 @@
         "cone_stiffness": 50.0,
         "linear_break_threshold": 300.0,
         "linear_breakable": false,
+        "linear_drive_acceleration_mode": true,
         "linear_drive_damping": 1.0,
         "linear_drive_stiffness": 50.0,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_joint_solver": true,
         "linear_plasticity": false,
+        "linear_position_target_ue_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_ue_cm_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "linear_x_motion": "LCM_Locked",
         "linear_y_motion": "LCM_Locked",
         "linear_z_motion": "LCM_Locked",
@@ -10783,7 +12041,41 @@
         "hinge_axis": null,
         "hinge_limit_radians": null,
         "joint_variant": "Spherical",
+        "linear_drive_acceleration_mode": true,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_locked": true,
+        "linear_position_target_m": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_m_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "mass_conditioning": true,
         "projection_angular_alpha": 0.0,
         "projection_linear_alpha": 1.0,
@@ -10917,10 +12209,44 @@
         "cone_stiffness": 50.0,
         "linear_break_threshold": 300.0,
         "linear_breakable": false,
+        "linear_drive_acceleration_mode": true,
         "linear_drive_damping": 1.0,
         "linear_drive_stiffness": 50.0,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_joint_solver": true,
         "linear_plasticity": false,
+        "linear_position_target_ue_cm": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_ue_cm_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "linear_x_motion": "LCM_Locked",
         "linear_y_motion": "LCM_Locked",
         "linear_z_motion": "LCM_Locked",
@@ -11020,7 +12346,41 @@
         "hinge_axis": null,
         "hinge_limit_radians": null,
         "joint_variant": "Spherical",
+        "linear_drive_acceleration_mode": true,
+        "linear_drives": [
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          },
+          {
+            "damping": 1.0,
+            "max_force": 0.0,
+            "position_enabled": false,
+            "stiffness": 50.0,
+            "velocity_enabled": false
+          }
+        ],
         "linear_locked": true,
+        "linear_position_target_m": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "linear_velocity_target_m_per_second": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "mass_conditioning": true,
         "projection_angular_alpha": 0.0,
         "projection_linear_alpha": 1.0,
