@@ -3,6 +3,22 @@
   "id": "ab_als_actor",
   "source_evidence": [
     {
+      "path": "target/bf131/review/a90/AB_Als_Ragdolling.ue.json",
+      "sha256": "30826893a2b12c29e32148d71747994fdd87cc4c06afa3b06d2690fea1d57df8"
+    },
+    {
+      "path": "target/bf131/review/a90/PhysAnim.cpp",
+      "sha256": "d64f349c895d78dcc33918033e45ffc98e8468f003a55c861a54e65fc115254b"
+    },
+    {
+      "path": "target/bf131/review/a90/read_pose_avian.rs",
+      "sha256": "c8511c0ec69c2bbd1d9faf7dc936f58aff8085befe38b8c6d8a82ee60419360d"
+    },
+    {
+      "path": "target/bf131/review/a90/space_conversion.rs",
+      "sha256": "dc7ee00478bd78f9d46c8437192fef0d83b7e6c41ab134eac29078b3e761efa1"
+    },
+    {
       "path": "target/bf131/review/a83/PA_Als.ue.json",
       "sha256": "253e21fbb3c102a3c00b92230bdb5d402ef9ba15ff055d422abc1418aaa9c8a5"
     },
@@ -602,6 +618,11 @@
     "manual_case": "rotating_base"
   },
   "focused_tests": [
+    {
+      "label": "scaled_ragdoll_readback_world_space_and_animation_masks",
+      "argv": ["cargo", "test", "--lib", "post_physics_animation::tests", "--jobs", "2"],
+      "evidence": "target/bf128/bf131-review-a90-world-green.report.json"
+    },
     {
       "label": "ragdoll_mass_override_revoke_and_restore_ownership",
       "argv": ["cargo", "test", "--lib", "ragdoll_physics_profile::tests", "--jobs", "2"],
