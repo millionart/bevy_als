@@ -12,6 +12,7 @@ use crate::als::{
     state::{Gait, RotationMode, Stance},
 };
 use bevy::ecs::hierarchy::ChildOf;
+use bevy::platform::collections::HashMap;
 use avian3d::prelude::{ColliderOf, RigidBody};
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
@@ -40,6 +41,14 @@ fn write_animation_component_inputs(
         player.set_global_input_data("component.root_bone", root.clone());
         player.set_global_input_data("component.teleport_distance_threshold", ANIMATION_COMPONENT.teleport_distance_threshold);
     }
+}
+
+fn update_attachment_epoch(cursor: &mut (Option<Entity>, u32), parent: Option<Entity>) -> u32 {
+    if cursor.0 != parent {
+        cursor.0 = parent;
+        cursor.1 = cursor.1.wrapping_add(1);
+    }
+    cursor.1
 }
 
 use crate::{
@@ -245,6 +254,8 @@ fn ab_als_input_writer(
     mut players: Query<(&mut AnimationGraphPlayer, Option<&AlsRootAnimationContext>)>,
     owners: Query<&ColliderOf>,
     bodies: Query<&RigidBody>,
+    parents: Query<&ChildOf>,
+    mut attachment_state: Local<HashMap<Entity, (Option<Entity>, u32)>>,
 ) {
     for (
         character,
@@ -267,6 +278,9 @@ fn ab_als_input_writer(
         let Some(params) = params_assets.get(&params_handle.0) else {
             continue;
         };
+        let attach_parent = parents.get(character).ok().map(ChildOf::parent);
+        let cursor = attachment_state.entry(character).or_insert((attach_parent, 0));
+        let attachment_epoch = update_attachment_epoch(cursor, attach_parent) as f32;
         for (parent, instance, avatar_transform) in &avatars {
             if parent.parent() != character {
                 continue;
@@ -277,6 +291,8 @@ fn ab_als_input_writer(
             if let Some(skeleton) = skeletons.get(player.skeleton()) {
                 write_animation_component_inputs(&mut player, skeleton);
             }
+            player.set_global_input_data("component.attach_parent_epoch", attachment_epoch);
+            player.set_global_input_data("component.attached_to_actor", attach_parent.is_some());
             let velocity_yaw_angle_view_space =
                 source_velocity_yaw_angle_view_space(motion, view_yaw.0);
             let (forward, backward, left, right) =
@@ -447,6 +463,7 @@ fn ab_als_input_writer(
             set_source_slot_defaults(&mut player);
         }
     }
+    attachment_state.retain(|entity, _| characters.contains(*entity));
 }
 
 #[cfg(test)]
@@ -586,6 +603,9 @@ mod tests {
                 }
             }
         }
+        let player = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+        assert_eq!(player.get_global_input_data("component.attach_parent_epoch").unwrap().as_f32().unwrap(), 0.0);
+        assert!(!player.get_global_input_data("component.attached_to_actor").unwrap().as_bool().unwrap());
     }
 
     #[test]
@@ -601,6 +621,19 @@ mod tests {
         write_animation_component_inputs(&mut player, &skeleton);
         assert_eq!(player.get_global_input_data("component.root_bone").unwrap().as_entity_path().unwrap(), &root);
         assert_eq!(player.get_global_input_data("component.teleport_distance_threshold").unwrap().as_f32().unwrap(), 3.0);
+    }
+
+    #[test]
+    fn attachment_epoch_changes_only_when_actor_parent_identity_changes() {
+        let first = Entity::from_raw_u32(301).unwrap();
+        let second = Entity::from_raw_u32(302).unwrap();
+        let mut cursor = (None, 0);
+        assert_eq!(update_attachment_epoch(&mut cursor, None), 0);
+        assert_eq!(update_attachment_epoch(&mut cursor, Some(first)), 1);
+        assert_eq!(update_attachment_epoch(&mut cursor, Some(first)), 1);
+        assert_eq!(update_attachment_epoch(&mut cursor, Some(second)), 2);
+        assert_eq!(update_attachment_epoch(&mut cursor, None), 3);
+        assert_eq!(update_attachment_epoch(&mut cursor, None), 3);
     }
 
     #[test]

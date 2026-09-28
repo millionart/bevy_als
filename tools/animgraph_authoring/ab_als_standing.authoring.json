@@ -233,6 +233,14 @@
     {
       "path": "target/bf131/a72/BlendProfile.h",
       "sha256": "1fc47919d6d8c45e3ad15972978eb3c2f9368036bb1a4613824bbcf8fed2b4e5"
+    },
+    {
+      "path": "target/bf131/a73/AnimNode_Inertialization.cpp",
+      "sha256": "256d0ac42889b34d27c7e3cca307e27db08065b78ee45b6795af753a06525005"
+    },
+    {
+      "path": "target/bf131/a73/AnimNode_Inertialization.h",
+      "sha256": "17979156b5da66e5c5a8e3e023af80359944726000556ba2a2d490409ae0b54e"
     }
   ],
   "graphs": [
@@ -2008,6 +2016,16 @@
       "label": "inertial_profile_explicit_graph_loader",
       "argv": ["cargo", "test", "--locked", "--offline", "--profile", "play", "--test", "animgraph_assets", "explicit_inertial_profile_graph_loads_with_its_bone_scale", "--jobs", "2"],
       "evidence": "target/bf1295/bf131-a72-explicit-graph-load.json"
+    },
+    {
+      "label": "inertial_root_history_attachment_and_component_space",
+      "argv": ["cargo", "test", "--locked", "--offline", "--profile", "play", "--lib", "root_history", "--jobs", "2"],
+      "evidence": "target/bf1295/bf131-a73-root-final.json"
+    },
+    {
+      "label": "actor_attachment_epoch_provider",
+      "argv": ["cargo", "test", "--locked", "--offline", "--profile", "play", "--lib", "attachment_", "--jobs", "2"],
+      "evidence": "target/bf1295/bf131-a73-attachment-tests.json"
     }
   ]
 }
