@@ -10,6 +10,7 @@ use bevy::{
 };
 use bevy_animation_graph::core::{
     animation_clip::{EntityPath, GraphClip},
+    animation_graph::TimeUpdate,
     animation_node::{NodeLike, ReflectNodeLike},
     context::{new_context::NodeContext, spec_context::SpecContext},
     edge_data::{DataSpec, DataValue, events::EventQueue},
@@ -93,6 +94,7 @@ pub struct RootMotionClipNode {
     pub clip: Handle<GraphClip>,
     pub root_motion_mode: RootMotionMode,
     pub root_motion_bone: Option<EntityPath>,
+    pub loop_animation: bool,
 }
 
 impl RootMotionClipNode {
@@ -134,10 +136,13 @@ impl NodeLike for RootMotionClipNode {
             let prev = ctx.state_mut_or_else(RmPrevState::default)?;
             prev.time.clamp(0.0, clip_duration)
         };
-        let current_time = time_update
+        let requested_time = time_update
             .partial_update_with_tracks(clamped_prev, &clip.event_tracks)
-            .unwrap_or(clamped_prev)
-            .clamp(0.0, clip_duration);
+            .unwrap_or(clamped_prev);
+        let current_time = if self.loop_animation && clip_duration > f32::EPSILON
+            && matches!(&time_update, TimeUpdate::Delta(_)) {
+            requested_time.rem_euclid(clip_duration)
+        } else { requested_time.clamp(0.0, clip_duration) };
         let events =
             EventQueue::with_events(sample_tracks(clip.event_tracks.values(), current_time));
 
@@ -202,10 +207,36 @@ impl NodeLike for RootMotionClipNode {
                 }
                 let empty: Vec<VariableCurve> = Vec::new();
                 let root_curves = clip.curves.get(&target_id).unwrap_or(&empty);
-                let (cur_tr, cur_rot) = sample_root(root_curves, current_time);
-                let (prev_tr, prev_rot) = sample_root(root_curves, clamped_prev);
-                let mut delta_translation = cur_tr - prev_tr;
-                let mut delta_rotation = prev_rot.inverse() * cur_rot;
+                let mut delta_translation = Vec3::ZERO;
+                let mut delta_rotation = Quat::IDENTITY;
+                let mut accumulate = |from, to| {
+                    let (start_tr, start_rot) = sample_root(root_curves, from);
+                    let (end_tr, end_rot) = sample_root(root_curves, to);
+                    delta_translation += delta_rotation * (start_rot.inverse() * (end_tr - start_tr));
+                    delta_rotation = (delta_rotation * start_rot.inverse() * end_rot).normalize();
+                };
+                if self.loop_animation && clip_duration > f32::EPSILON
+                    && let TimeUpdate::Delta(delta) = &time_update {
+                    let forward = *delta >= 0.0;
+                    let mut remaining = delta.abs();
+                    let mut from = clamped_prev;
+                    while remaining > f32::EPSILON {
+                        let boundary = if forward { clip_duration - from } else { from };
+                        if boundary <= f32::EPSILON {
+                            from = if forward { 0.0 } else { clip_duration };
+                            continue;
+                        }
+                        let step = remaining.min(boundary);
+                        let to = if forward { from + step } else { from - step };
+                        accumulate(from, to);
+                        remaining -= step;
+                        from = if forward && remaining > f32::EPSILON && step >= boundary { 0.0 }
+                            else if !forward && remaining > f32::EPSILON && step >= boundary { clip_duration }
+                            else { to };
+                    }
+                } else {
+                    accumulate(clamped_prev, current_time);
+                }
 
                 let rest_local = skeleton.default_transforms(root_bone_id).map(|dt| dt.local);
                 let rest_translation = rest_local.map(|t| t.translation).unwrap_or(Vec3::ZERO);
@@ -256,5 +287,116 @@ impl NodeLike for RootMotionClipNode {
             .add_output_data(OUT_EVENTS, DataSpec::EventQueue)
             .add_output_time();
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy::{animation::animated_field, prelude::*};
+    use bevy_animation_graph::core::{
+        animation_graph::{AnimationGraph, TimeUpdate}, animation_node::AnimationNode,
+        context::{deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+            graph_context_arena::GraphContextArena, new_context::GraphContext,
+            system_resources::SystemResources}, pose::RootMotionMode, skeleton::Skeleton,
+        utils::testing::TestIoEnv,
+    };
+
+    #[test]
+    fn root_motion_translation_uses_the_previous_root_rotation_in_both_directions() {
+        fn query(In((handle, updates)): In<(Handle<AnimationGraph>, Vec<TimeUpdate>)>, resources: SystemResources) -> Vec<RootMotionDelta> {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = default();
+            let inputs = default();
+            let env = TestIoEnv::default();
+            updates.into_iter().map(|update| {
+                graph.query_with_context(QueryOutputTime::Forced(update),
+                    GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources,
+                        &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs)).unwrap()
+                    ["Pose"].as_pose().unwrap().root_motion.clone().unwrap()
+            }).collect()
+        }
+
+        let root = EntityPath::default().child("root");
+        let mut world = World::new();
+        world.init_resource::<Assets<AnimationGraph>>();
+        world.init_resource::<Assets<GraphClip>>();
+        world.init_resource::<Assets<Skeleton>>();
+        world.init_resource::<Assets<bevy_animation_graph::core::state_machine::high_level::StateMachine>>();
+        let mut skeleton = Skeleton::default();
+        skeleton.set_root(root.id());
+        let reference = Transform::from_rotation(Quat::from_rotation_y(0.3));
+        skeleton.add_bone(root.clone(), reference, reference);
+        let skeleton = world.resource_mut::<Assets<Skeleton>>().add(skeleton);
+        for rotating in [false, true] {
+            let mut clip = bevy::animation::AnimationClip::default();
+            clip.add_curve_to_target(root.id().animation_target_id(), AnimatableCurve::new(
+                animated_field!(Transform::translation), UnevenSampleAutoCurve::new([
+                    (0.0, Vec3::ZERO), (0.5, Vec3::X), (1.0, Vec3::X + Vec3::Z),
+                ]).unwrap()));
+            let rotations = if rotating { [0.5, 0.5, 1.0] } else { [0.0; 3] };
+            clip.add_curve_to_target(root.id().animation_target_id(), AnimatableCurve::new(
+                animated_field!(Transform::rotation), UnevenSampleAutoCurve::new([
+                    (0.0, Quat::from_rotation_y(std::f32::consts::PI * rotations[0])),
+                    (0.5, Quat::from_rotation_y(std::f32::consts::PI * rotations[1])),
+                    (1.0, Quat::from_rotation_y(std::f32::consts::PI * rotations[2])),
+                ]).unwrap()));
+            let clip = world.resource_mut::<Assets<GraphClip>>().add(
+                GraphClip::from_bevy_clip(clip, skeleton.clone(), default(), None));
+            for looping in [true, false] {
+                let node = AnimationNode::new("root clip", RootMotionClipNode {
+                    clip: clip.clone(), root_motion_mode: RootMotionMode::Full,
+                    root_motion_bone: Some(root.clone()), loop_animation: looping,
+                });
+                let mut graph = AnimationGraph::new();
+                graph.add_node(node.clone());
+                graph.add_output_data("Pose".into(), DataSpec::Pose);
+                graph.add_output_data_edge(node.id, "pose", "Pose");
+                graph.add_output_time();
+                graph.add_output_pose_edge(node.id);
+                let graph = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
+                let updates = if looping {
+                    vec![TimeUpdate::Absolute(0.8), TimeUpdate::Delta(0.4), TimeUpdate::Delta(-0.4),
+                        TimeUpdate::Delta(2.4), TimeUpdate::Delta(-2.4)]
+                } else {
+                    vec![TimeUpdate::Absolute(0.5), TimeUpdate::Absolute(1.0), TimeUpdate::Absolute(0.5)]
+                };
+                let deltas = world.run_system_cached_with(query, (graph, updates)).unwrap();
+                let half = Quat::from_rotation_y(if rotating { std::f32::consts::FRAC_PI_2 } else { 0.0 });
+                let end = Quat::from_rotation_y(if rotating { std::f32::consts::PI } else { 0.0 });
+                if looping {
+                    let at_eight = half.slerp(end, 0.6);
+                    let first = at_eight.inverse() * Vec3::Z * 0.4;
+                    let turn = at_eight.inverse() * end;
+                    let second = half.inverse() * Vec3::X * 0.4;
+                    let forward = first + turn * second;
+                    let reverse = half.inverse() * -Vec3::X * 0.4 + end.inverse() * -Vec3::Z * 0.4;
+                    assert!(deltas[1].translation.distance(forward) < 1e-5, "forward wrap={:?}", deltas[1]);
+                    assert!(deltas[2].translation.distance(reverse) < 1e-5, "reverse wrap={:?}", deltas[2]);
+                    let segment = |(start_tr, start_rot): (Vec3, Quat), (end_tr, end_rot): (Vec3, Quat)| {
+                        Transform::from_translation(start_rot.inverse() * (end_tr - start_tr))
+                            .with_rotation(start_rot.inverse() * end_rot)
+                    };
+                    let start = (Vec3::ZERO, half);
+                    let early = (Vec3::X * 0.4, half);
+                    let late = (Vec3::X + Vec3::Z * 0.6, at_eight);
+                    let finish = (Vec3::X + Vec3::Z, end);
+                    let forward_multi = segment(late, finish) * segment(start, finish)
+                        * segment(start, finish) * segment(start, early);
+                    let reverse_multi = segment(early, start) * segment(finish, start)
+                        * segment(finish, start) * segment(finish, late);
+                    assert!(deltas[3].translation.distance(forward_multi.translation) < 1e-5);
+                    assert!(deltas[4].translation.distance(reverse_multi.translation) < 1e-5);
+                    assert!(1.0 - deltas[3].rotation.dot(forward_multi.rotation).abs() < 1e-5);
+                    assert!(1.0 - deltas[4].rotation.dot(reverse_multi.rotation).abs() < 1e-5);
+                } else {
+                    assert!(deltas[1].translation.distance(half.inverse() * Vec3::Z) < 1e-5, "forward={:?}", deltas[1]);
+                    assert!(deltas[2].translation.distance(end.inverse() * -Vec3::Z) < 1e-5, "reverse={:?}", deltas[2]);
+                    assert!(1.0 - deltas[1].rotation.dot(half.inverse() * end).abs() < 1e-5);
+                }
+            }
+        }
     }
 }

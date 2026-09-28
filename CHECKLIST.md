@@ -72,7 +72,7 @@
 - [x] **BF131.A74 — 关闭跨被跳过缓存分支的惯性请求转发仍向全部消费者复制请求**。Gate：关闭转发时跳过分支不接收请求，开启转发及实际求值消费者保持源语义。
 - [x] **BF131.A75 — SequencePlayer 初始化未保留默认倒播起点语义，非循环负倍率停在首帧**。Gate：默认负倍率从源规定终点初始化；显式起点、循环/非循环及重初始化通过。
 - [x] **BF131.A76 — StateResult 完全混入／完全混出回调被解析和生成，但 FSM 从不触发**。Gate：实际状态权重到达端点触发对应回调，连续帧不重复，打断/重入符合源生命周期。
-- [ ] **BF131.A77 — 根运动平移按固定轨迹坐标相减，遗漏前一 root 旋转的相对空间转换**。Gate：带旋转轨迹按前一 root 局部空间提取位移，正倒播和循环连续，直线控制通过。
+- [x] **BF131.A77 — 根运动平移按固定轨迹坐标相减，遗漏前一 root 旋转的相对空间转换**。Gate：带旋转轨迹按前一 root 局部空间提取位移，正倒播和循环连续，直线控制通过。
 - [ ] **BF131.A78 — GroundPlane 将 yaw 同时发布为根运动并保留在输出 root 姿态中**。Gate：消费 yaw 后输出 root 去除对应旋转，保留源规定的高度/其他轴，角色不重复旋转。
 
 ### PhysicsAsset、关节与布娃娃回读
@@ -286,3 +286,10 @@
 - BF131.A76-S3：开始 2026-09-28 13:09 +08:00；预估结束 2026-09-28 13:39 +08:00。按 run_manual 实际 target_game/play 优化构建刷新 349 图规格，审计 Standing/Grounded/根作者合同，再跑 startup/state_machine/standing_direction 公共功能 Gate；核对新旧状态切换、错误/时序/watchdog 与保留的原始性能结果。通过后勾选并单独提交 A76。
   - Runtime 前摘要（13:13 +08:00）：fresh UE StateMachine/StateResult 完全混入/混出顺序、实际 FSM 状态切换红绿夹具、中断/重入权重端点与移除分发消融、完整库 1264 项闭合；同 run_manual 的 target_game/play 优化构建、fresh 349 图规格、Standing/Grounded/根作者合同 32 条声明命令通过。当前安装图无非空 FullyBlended 回调，通用运行规则由合成实际 FSM 图验证；RON/转换器未改，沿用 A72 全入口 374 文件零 diff。开始公共功能 Gate，原始性能延期结果保留。
   - S3 实际结束 2026-09-28 13:16 +08:00，偏差 -23 分钟；结果：startup、state_machine 10/10、standing_direction 5/5 公共功能 Gate 全部 PASS，三份报告故障/图错误/时序异常/watchdog 为 0，手工与校验进程均退出 0；原始报告保留既定延期的 max_eval_p95_ms 超预算。源回调顺序、实际 FSM 状态图和中断/重入端点、移除分发消融、完整库 1264 项、fresh 349 图规格及 32 条声明命令闭合；RON/转换器/原始资产未改，沿用 A72 的 374 文件零 diff，勾选 A76。
+- BF131.A77-S1：开始 2026-09-28 13:17 +08:00；预估结束 2026-09-28 13:52 +08:00。依据：fresh 本地 UE AnimSequence::ExtractRootMotionFromRange 将根轨迹先转组件空间再取 End 相对 Start，循环按前进/倒退逐段 Accumulate；目标单个 RollSlot 使用项目 RootMotionClipNode，当前仅用 cur_tr-prev_tr 且时间钳制，五处内置 ClipNode 仅作 BlendSpace 样本、默认不提根运动。先在真实 GraphContext 建立带旋转轨迹的正/倒播、跨循环及直线控制 red，核对 root reference 基与源 Accumulate 次序；限定项目根运动节点，不碰 A78 的 GroundPlane 输出姿态处理。
+  - S1 实际结束 2026-09-28 13:29 +08:00，偏差 -23 分钟；结果：UE `EndTransform.GetRelativeTransform(StartTransform)` 将平移变为前一 root 局部向量，根参考姿态在相对变换中抵消；循环按 DeltaTimeRecord 正负拆段，`RootMotionParams.Accumulate` 以变换乘法组合。目标实际 RollSlot 根节点直接相减平移且 TimeUpdate 钳在边界；五处内置 ClipNode 均为未启用提根的 BlendSpace 样本，不改依赖。真实 GraphContext 的旋转正/倒播夹具 red：前进仍输出固定坐标 `+Z`；循环开关受控夹具 red：从 0.8 前进 0.4 只剩末端 0.4 段。直线与非循环控制同夹具保留，下一步仅改项目根节点的相对变换/可选循环时间和逐段累积。
+- BF131.A77-S2：开始 2026-09-28 13:29 +08:00；预估结束 2026-09-28 14:14 +08:00。用前一根朝向逆旋转段位移、根相对旋转组合，并按源正/负时钟拆跨循环段；旧 RollSlot 默认不循环，新的布尔字段只给显式循环调用。验证旋转/直线、正倒播、单次与多次循环及首帧，再分别移除旋转基与跨循环累积做消融，跑定向/完整库与资产加载 Gate；不更动 A78 的 GroundPlane 输出姿态、RON 转换器或原始资产。
+  - S2 实际结束 2026-09-28 13:35 +08:00，偏差 -39 分钟；结果：项目根节点用前一轨迹旋转逆变换每段位移，再按前段旋转合成平移/旋转；可选 loop_animation 仅对 Delta 时钟逐段跨终点/起点，旧 RollSlot 缺省保持非循环。真实 GraphContext 覆盖参考根非零朝向、旋转与直线正/倒播、正反单次和多圈跨循环；移除前一旋转基或跨循环分段分别 red，恢复后完整库 1265/1265、git diff --check 通过。五处内置 ClipNode 默认禁用提根，不改依赖；RON/转换器/原始资产未动，正式旧资产兼容与 349 图加载留 S3 验证。
+- BF131.A77-S3：开始 2026-09-28 13:35 +08:00；预估结束 2026-09-28 14:10 +08:00。用 run_manual 同一 target_game/play 优化构建刷新全部图规格、审计 Grounded/根作者合同和旧 RollSlot 加载，再跑 startup、grounded、state_machine 公共功能 Gate；核对滚动 slot 根运动、图/时序/watchdog 与保留的原始性能结果。通过后勾选并单独提交 A77。
+  - Runtime 前摘要（13:40 +08:00）：fresh UE 根变换相对提取/逐段循环累积、旋转/直线及正反单次/多次跨循环实际 GraphContext、两项移除消融和完整库 1265 项闭合；同 run_manual 的 target_game/play 优化构建、349 图 fresh 规格与旧 RollSlot 缺省字段加载通过，Grounded/根作者合同 20 条声明命令通过。RON/转换器未改，沿用 A72 全入口 374 文件零 diff；开始公共功能 Gate，保留原始性能报告。
+  - S3 实际结束 2026-09-28 13:43 +08:00，偏差 -27 分钟；结果：startup、grounded 15/15（含 roll_slot/退出）、state_machine 10/10 公共功能 Gate 全部 PASS，三份报告故障/图错误/时序异常/watchdog 为 0，手工与校验进程均退出 0；原始报告保留既定延期的 max_eval_p95_ms 超预算。源相对根公式、旋转/直线与多圈正反循环、两项消融、完整库 1265 项、旧 RollSlot/349 图加载及 20 条声明命令闭合；RON/转换器/原始资产未改，沿用 A72 的 374 文件零 diff，勾选 A77。
