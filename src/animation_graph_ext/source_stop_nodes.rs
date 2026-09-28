@@ -327,6 +327,7 @@ impl NodeLike for SourceLayeredBoneBlendNode {
                 );
                 merge_asset_samples(&mut context.asset_samples, &overlay_context.asset_samples, weight);
                 merge_inertialization_request(&mut context.inertialization_request, overlay_context.inertialization_request.as_ref());
+                merge_inertialization_request(&mut context.skipped_cached_pose_request, overlay_context.skipped_cached_pose_request.as_ref());
                 context.curves.extend(overlay_context.curves);
                 context.curves_are_authoritative |= overlay_context.curves_are_authoritative;
             }

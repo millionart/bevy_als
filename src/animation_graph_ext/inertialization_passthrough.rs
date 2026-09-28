@@ -438,6 +438,13 @@ impl NodeLike for InertializationPassthroughNode {
         let request_duration = optional_global_f32(&ctx, &self.request_duration_key);
         let frame = ctx.graph_context.frame_index();
         let graph_request = source_context.inertialization_request.take().filter(|request| request.frame == frame);
+        let mut skipped_cached_pose_request = source_context.skipped_cached_pose_request.take()
+            .filter(|request| request.frame == frame);
+        if let Some(request) = &graph_request {
+            crate::extensions::source_cached_pose::forward_cached_pose_requests(
+                &mut ctx, request, self.forward_requests_through_skipped_cached_poses,
+            );
+        }
         let attachment_epoch = optional_global_f32(&ctx, "component.attach_parent_epoch");
         let attached_to_actor = ctx.graph_context.global_input_data.get("component.attached_to_actor")
             .is_some_and(|value| value.as_bool().unwrap_or(false));
@@ -494,6 +501,17 @@ impl NodeLike for InertializationPassthroughNode {
                     duration: request_duration, ..default()
                 });
             }
+            if self.forward_requests_through_skipped_cached_poses && !requests.is_empty() {
+                crate::extensions::animation_context::merge_inertialization_request(
+                    &mut skipped_cached_pose_request,
+                    Some(&crate::extensions::animation_context::SourceInertializationRequest {
+                        frame,
+                        duration: requests.iter().map(|part| part.duration).reduce(f32::min).unwrap(),
+                        parts: requests.clone(),
+                        ..default()
+                    }),
+                );
+            }
             if teleported && !requests.is_empty() {
                 state.active = false;
                 state.max_duration = 0.0;
@@ -545,6 +563,7 @@ impl NodeLike for InertializationPassthroughNode {
         };
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd(self.output.clone(), pose);
+        source_context.skipped_cached_pose_request = skipped_cached_pose_request;
         let context = source_context;
         for curve in &self.curve_names {
             if self.expose_output(curve) {
@@ -1002,5 +1021,98 @@ mod tests {
         assert!(!became_relevant(None, 4));
         assert!(!became_relevant(Some(4), 5));
         assert!(became_relevant(Some(4), 6));
+    }
+
+    #[test]
+    fn cached_pose_request_reaches_skipped_consumer_only_when_forwarding_is_enabled() {
+        use crate::extensions::animation_context::{AnimationContextState, SourceInertializationRequest};
+        use crate::extensions::source_cached_pose::{SourceCachedPoseSaveNode, SourceCachedPoseUseNode};
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip,
+            animation_graph::{AnimationGraph, NodeId, TargetPin, TimeUpdate},
+            animation_node::AnimationNode,
+            context::{deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+                graph_context_arena::GraphContextArena, new_context::GraphContext,
+                node_states::StateKey, system_resources::SystemResources},
+            edge_data::DataValue, state_machine::high_level::StateMachine,
+            utils::testing::TestIoEnv,
+        };
+
+        fn query(In((handle, first, second, source, inner)): In<(Handle<AnimationGraph>, NodeId, NodeId, NodeId, Option<NodeId>)>,
+            resources: SystemResources) -> (f32, f32, f32) {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            for frame in 0..2 {
+                let inputs = HashMap::from([("input".to_owned(), DataValue::Pose(Pose::default()))]);
+                if frame == 1 {
+                    arena.get_toplevel_mut().node_states.get_mut_or_insert_with(
+                        source, StateKey::Default, AnimationContextState::default,
+                    ).unwrap().inertialization_request = Some(SourceInertializationRequest {
+                        frame, duration: 0.2, ..default()
+                    });
+                }
+                let mut context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
+                    &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+                context.context_mut().query_output_time = QueryOutputTime::Forced(TimeUpdate::Delta(0.02));
+                graph.get_data(TargetPin::OutputData("First".into()), context.clone()).unwrap();
+                graph.get_data(TargetPin::OutputData("Second".into()), context).unwrap();
+                if frame == 0 { arena.next_frame(); }
+            }
+            let states = &arena.get_toplevel().node_states;
+            (states.get::<SourceInertializationState>(first, StateKey::Default).unwrap().duration,
+                states.get::<SourceInertializationState>(second, StateKey::Default).unwrap().duration,
+                inner.map(|node| states.get::<SourceInertializationState>(node, StateKey::Default).unwrap().duration).unwrap_or(0.0))
+        }
+
+        let mut world = World::new();
+        world.init_resource::<Assets<AnimationGraph>>();
+        world.init_resource::<Assets<GraphClip>>();
+        world.init_resource::<Assets<Skeleton>>();
+        world.init_resource::<Assets<StateMachine>>();
+        for (forward, inner_forward, expected) in [
+            (false, None, (0.2, 0.0, 0.0)),
+            (true, None, (0.2, 0.2, 0.0)),
+            (false, Some(false), (0.0, 0.0, 0.2)),
+            (false, Some(true), (0.0, 0.2, 0.2)),
+        ] {
+            let source = AnimationNode::new("source", crate::extensions::GlobalPoseInputNode {
+                key: "input".into(), output: "Pose".into()
+            });
+            let cache = AnimationNode::new("cache", SourceCachedPoseSaveNode::default());
+            let inner = AnimationNode::new("inner consumer", InertializationPassthroughNode {
+                internalize_time: true, forward_requests_through_skipped_cached_poses: inner_forward.unwrap_or(false), ..default()
+            });
+            let first_use = AnimationNode::new("first use", SourceCachedPoseUseNode { cache_node: "cache".into() });
+            let second_use = AnimationNode::new("second use", SourceCachedPoseUseNode { cache_node: "cache".into() });
+            let first = AnimationNode::new("first consumer", InertializationPassthroughNode {
+                internalize_time: true, forward_requests_through_skipped_cached_poses: forward, ..default()
+            });
+            let second = AnimationNode::new("second consumer", InertializationPassthroughNode {
+                internalize_time: true, forward_requests_through_skipped_cached_poses: !forward, ..default()
+            });
+            let mut graph = AnimationGraph::new();
+            for node in [&source, &cache, &inner, &first_use, &second_use, &first, &second] {
+                graph.add_node(node.clone());
+            }
+            if inner_forward.is_some() {
+                graph.add_node_parameter_edge(source.id, "Pose", inner.id, "Source");
+                graph.add_node_parameter_edge(inner.id, "pose", cache.id, "Pose");
+            } else {
+                graph.add_node_parameter_edge(source.id, "Pose", cache.id, "Pose");
+            }
+            graph.add_node_parameter_edge(first_use.id, "Pose", first.id, "Source");
+            graph.add_node_parameter_edge(second_use.id, "Pose", second.id, "Source");
+            graph.add_output_data("First".into(), DataSpec::Pose);
+            graph.add_output_data("Second".into(), DataSpec::Pose);
+            graph.add_output_data_edge(first.id, "pose", "First");
+            graph.add_output_data_edge(second.id, "pose", "Second");
+            let handle = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
+            let actual = world.run_system_cached_with(query,
+                (handle, first.id, second.id, source.id, inner_forward.map(|_| inner.id))).unwrap();
+            assert_eq!(actual, expected);
+        }
     }
 }

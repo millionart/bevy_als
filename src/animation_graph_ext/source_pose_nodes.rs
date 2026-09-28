@@ -666,6 +666,7 @@ impl NodeLike for SourceMakeDynamicAdditiveNode {
         merge_sync_players(&mut context.sync_players, &base_context.sync_players, 1.0);
         merge_asset_samples(&mut context.asset_samples, &base_context.asset_samples, 1.0);
         merge_inertialization_request(&mut context.inertialization_request, base_context.inertialization_request.as_ref());
+        merge_inertialization_request(&mut context.skipped_cached_pose_request, base_context.skipped_cached_pose_request.as_ref());
         context.relevant_asset = select_relevant_asset([(base_context.relevant_asset, 1.0), (context.relevant_asset, 1.0)]);
         context.curves_are_authoritative |= base_context.curves_are_authoritative;
         for (key, value) in base_context.curves {
@@ -705,6 +706,7 @@ fn blend_source_curve_context(
     merge_asset_samples(&mut base.asset_samples, &curve.asset_samples, blend_amount);
     if blend_amount > 1e-5 {
         merge_inertialization_request(&mut base.inertialization_request, curve.inertialization_request.as_ref());
+        merge_inertialization_request(&mut base.skipped_cached_pose_request, curve.skipped_cached_pose_request.as_ref());
     }
     let relevant_asset = select_relevant_asset([
         (base.relevant_asset.clone(), 1.0),
@@ -730,6 +732,8 @@ fn blend_source_curve_context(
             sync_players: base.sync_players,
             asset_samples: base.asset_samples,
             inertialization_request: base.inertialization_request,
+            skipped_cached_pose_request: base.skipped_cached_pose_request,
+            ..default()
         },
     }
 }
@@ -875,6 +879,7 @@ pub fn blend_animation_contexts(
         let weight = weight.max(0.0);
         if weight > 1e-5 {
             merge_inertialization_request(&mut output.inertialization_request, context.inertialization_request.as_ref());
+            merge_inertialization_request(&mut output.skipped_cached_pose_request, context.skipped_cached_pose_request.as_ref());
         }
         merge_sync_players(&mut output.sync_players, &context.sync_players, weight);
         merge_asset_samples(&mut output.asset_samples, &context.asset_samples, weight);

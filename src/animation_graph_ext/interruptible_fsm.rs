@@ -651,6 +651,7 @@ impl InterruptibleFsmNode {
                         duration: node.transition_duration,
                         profile: node.blend_profile.clone(),
                     }],
+                    ..default()
                 }),
             );
             return Ok(Some(0.0));
@@ -1358,6 +1359,8 @@ impl InterruptibleFsmNode {
         }
         crate::extensions::animation_context::merge_inertialization_request(
             &mut context_state.inertialization_request, state.context.inertialization_request.as_ref());
+        crate::extensions::animation_context::merge_inertialization_request(
+            &mut context_state.skipped_cached_pose_request, state.context.skipped_cached_pose_request.as_ref());
         let snapshot = ctx.state::<InterruptibleFsmState>()?.clone();
         ctx.state_mut_or_else(|| snapshot)?.context = context_state;
         self.record_state_weights(machine, ctx)?;
@@ -1441,6 +1444,7 @@ impl NodeLike for InterruptibleFsmNode {
             .map_err(|error| entry_error("state finalization", error))?;
         state.transition_notifications.clear();
         state.context.inertialization_request = None;
+        state.context.skipped_cached_pose_request = None;
         state.notification_generation = NOTIFICATION_GENERATION.fetch_add(1, Ordering::Relaxed).wrapping_add(1);
         if select_entry && let Some(entry) = Self::source_condition_state(machine, &state.state) {
             state.transition_notifications.extend(Self::state_function_notifications(

@@ -73,6 +73,15 @@ pub struct SourceInertializationRequest {
     pub frame: u64,
     pub duration: f32,
     pub parts: Vec<SourceInertializationPart>,
+    pub cached_pose_origins: Vec<SourceCachedPoseRequestOrigin>,
+}
+
+#[derive(Reflect, Clone, Debug, PartialEq, Eq)]
+pub struct SourceCachedPoseRequestOrigin {
+    pub context_id: bevy_animation_graph::core::context::graph_context_arena::GraphContextId,
+    pub node_id: NodeId,
+    pub state_key: StateKey,
+    pub owner: bool,
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -84,6 +93,8 @@ pub struct AnimationContextState {
     pub sync_players: Vec<crate::extensions::sync_group_phase::SourceSyncPlayerTick>,
     pub asset_samples: Vec<SourceAssetSample>,
     pub inertialization_request: Option<SourceInertializationRequest>,
+    pub skipped_cached_pose_request: Option<SourceInertializationRequest>,
+    pub(crate) cached_pose_request_route: Option<(u64, bool)>,
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -344,6 +355,7 @@ pub fn merge_missing_context_curves(
     merge_sync_players(&mut target.sync_players, &source.sync_players, 1.0);
     merge_asset_samples(&mut target.asset_samples, &source.asset_samples, 1.0);
     merge_inertialization_request(&mut target.inertialization_request, source.inertialization_request.as_ref());
+    merge_inertialization_request(&mut target.skipped_cached_pose_request, source.skipped_cached_pose_request.as_ref());
 }
 
 pub(crate) fn merge_inertialization_request(
@@ -353,6 +365,11 @@ pub(crate) fn merge_inertialization_request(
     let Some(source) = source else { return; };
     match target {
         Some(current) if current.frame == source.frame => {
+            for origin in &source.cached_pose_origins {
+                if !current.cached_pose_origins.contains(origin) {
+                    current.cached_pose_origins.push(origin.clone());
+                }
+            }
             if current.parts.is_empty() {
                 current.parts.push(SourceInertializationPart { duration: current.duration, ..default() });
             }
@@ -398,6 +415,7 @@ pub fn merge_linked_input_context(
     source: &AnimationContextState,
 ) {
     merge_inertialization_request(&mut target.inertialization_request, source.inertialization_request.as_ref());
+    merge_inertialization_request(&mut target.skipped_cached_pose_request, source.skipped_cached_pose_request.as_ref());
     if !target.curves_are_authoritative {
         for (name, value) in &source.curves {
             target.curves.entry(name.clone()).or_insert(*value);
@@ -626,6 +644,7 @@ mod tests {
         merge_inertialization_request(&mut request, Some(&SourceInertializationRequest {
             frame: 2, duration: 0.2,
             parts: vec![SourceInertializationPart { duration: 0.2, profile: Some(profile.clone()) }],
+            ..default()
         }));
         merge_inertialization_request(&mut request, Some(&SourceInertializationRequest {
             frame: 2, duration: 0.3, ..default()
@@ -636,6 +655,25 @@ mod tests {
         assert_eq!(request.parts[0].profile, Some(profile));
         assert_eq!(request.parts[1].duration, 0.3);
         assert!(request.parts[1].profile.is_none());
+    }
+
+    #[test]
+    fn skipped_cached_pose_requests_do_not_become_direct_inertial_requests_when_merged() {
+        let mut context = AnimationContextState {
+            skipped_cached_pose_request: Some(SourceInertializationRequest {
+                frame: 2, duration: 0.3, ..default()
+            }),
+            ..default()
+        };
+        let source = AnimationContextState {
+            inertialization_request: Some(SourceInertializationRequest {
+                frame: 2, duration: 0.2, ..default()
+            }),
+            ..default()
+        };
+        merge_missing_context_curves(&mut context, &source);
+        assert_eq!(context.inertialization_request.unwrap().duration, 0.2);
+        assert_eq!(context.skipped_cached_pose_request.unwrap().duration, 0.3);
     }
 
     #[test]

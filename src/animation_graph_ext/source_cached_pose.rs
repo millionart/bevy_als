@@ -13,7 +13,10 @@ use bevy_animation_graph::core::{
     pose::Pose,
 };
 
-use crate::extensions::animation_context::{AnimationContextState, pose_input_context_state};
+use crate::extensions::animation_context::{
+    AnimationContextState, SourceCachedPoseRequestOrigin, SourceInertializationRequest,
+    pose_input_context_state,
+};
 use crate::extensions::source_instance::linked_instance_context;
 
 pub const CACHED_POSE_VALUE: &str = "__als_source_cached_pose";
@@ -42,38 +45,80 @@ fn cache_error(ctx: &NodeContext, message: String) -> GraphError {
     }
 }
 
-fn cached_context_state(ctx: &NodeContext, cache_node: &str) -> Option<AnimationContextState> {
+fn use_cached_context_state(
+    ctx: &mut NodeContext,
+    context_id: GraphContextId,
+    cache_id: NodeId,
+    state_key: StateKey,
+) -> Option<AnimationContextState> {
+    let frame = ctx.graph_context.frame_index();
+    let state = ctx.graph_context.context_arena.get_mut().get_context_mut(context_id)?
+        .node_states.get_mut_or_insert_with(cache_id, state_key, AnimationContextState::default).ok()?;
+    let mut context = state.clone();
+    let mut request = context.inertialization_request.take().filter(|request| request.frame == frame);
+    let skipped = context.skipped_cached_pose_request.take().filter(|request| request.frame == frame);
+    if request.is_some() || skipped.is_some() {
+        let owner = state.cached_pose_request_route.is_none_or(|(claimed, _)| claimed != frame);
+        if owner {
+            state.cached_pose_request_route = Some((frame, false));
+        }
+        let forward = state.cached_pose_request_route.is_some_and(|(_, forward)| forward);
+        if !owner {
+            if !forward {
+                request = None;
+            }
+            crate::extensions::animation_context::merge_inertialization_request(&mut request, skipped.as_ref());
+            if let Some(request) = request.as_mut() {
+                for origin in &mut request.cached_pose_origins {
+                    origin.owner = false;
+                }
+            }
+        }
+        if let Some(request) = request.as_mut() {
+            request.cached_pose_origins.push(SourceCachedPoseRequestOrigin {
+                context_id, node_id: cache_id, state_key, owner,
+            });
+        }
+    }
+    context.inertialization_request = request;
+    Some(context)
+}
+
+pub(crate) fn forward_cached_pose_requests(
+    ctx: &mut NodeContext,
+    request: &SourceInertializationRequest,
+    forward: bool,
+) {
+    for origin in request.cached_pose_origins.iter().filter(|origin| origin.owner) {
+        if let Some(context) = ctx.graph_context.context_arena.get_mut().get_context_mut(origin.context_id)
+            && let Ok(state) = context.node_states.get_mut_or_insert_with(
+                origin.node_id, origin.state_key, AnimationContextState::default,
+            )
+            && state.cached_pose_request_route.is_some_and(|(frame, _)| frame == request.frame)
+        {
+            state.cached_pose_request_route = Some((request.frame, forward));
+        }
+    }
+}
+
+fn cached_context_state(ctx: &mut NodeContext, cache_node: &str) -> Option<AnimationContextState> {
     let cache = ctx
         .graph_context
         .graph
         .nodes
         .values()
         .find(|node| node.name == cache_node)?;
-    ctx.graph_context
-        .node_states()
-        .get::<AnimationContextState>(cache.id, ctx.graph_context.state_key)
-        .ok()
-        .cloned()
+    use_cached_context_state(ctx, ctx.graph_context.context_id, cache.id, ctx.graph_context.state_key)
 }
 
 fn scoped_cached_context_state(
-    ctx: &NodeContext,
+    ctx: &mut NodeContext,
     cache_node: &str,
     cache_key: &str,
 ) -> Option<AnimationContextState> {
     let requested_key = requested_cache_key(cache_node, cache_key);
-    let (context_id, graph, cache_id) = scoped_cache_context(ctx, requested_key)?;
-    let scoped_context = GraphContext {
-        context_id,
-        graph,
-        ..ctx.graph_context.clone()
-    }
-    .with_state_key(StateKey::Default);
-    scoped_context
-        .node_states()
-        .get::<AnimationContextState>(cache_id, StateKey::Default)
-        .ok()
-        .cloned()
+    let (context_id, _, cache_id) = scoped_cache_context(ctx, requested_key)?;
+    use_cached_context_state(ctx, context_id, cache_id, StateKey::Default)
 }
 
 fn scoped_cache_context<'a>(ctx: &NodeContext<'a>, key: &str) -> Option<(GraphContextId, &'a AnimationGraph, NodeId)> {
@@ -235,7 +280,9 @@ impl NodeLike for SourceCachedPoseSaveNode {
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd(CACHED_POSE_VALUE, pose);
         if let Some(context) = pose_input_context_state(&ctx, "Pose") {
-            *ctx.state_mut_or_else(AnimationContextState::default)? = context;
+            *ctx.state_mut_or_else(AnimationContextState::default)? = AnimationContextState {
+                cached_pose_request_route: None, ..context
+            };
         }
         Ok(())
     }
@@ -271,7 +318,7 @@ impl NodeLike for SourceScopedCachedPoseUseNode {
         let pose = resolve_scoped_cached_pose(&mut ctx, &self.cache_node, &self.cache_key)?;
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd("Pose", pose);
-        let mut context = scoped_cached_context_state(&ctx, &self.cache_node, &self.cache_key)
+        let mut context = scoped_cached_context_state(&mut ctx, &self.cache_node, &self.cache_key)
             .unwrap_or_default();
         merge_context_defaults(&mut context, &self.context_defaults);
         *ctx.state_mut_or_else(AnimationContextState::default)? = context;
@@ -293,7 +340,7 @@ impl NodeLike for SourceCachedPoseUseNode {
         let pose = resolve_cached_pose(&mut ctx, &self.cache_node)?;
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd("Pose", pose);
-        if let Some(context) = cached_context_state(&ctx, &self.cache_node) {
+        if let Some(context) = cached_context_state(&mut ctx, &self.cache_node) {
             *ctx.state_mut_or_else(AnimationContextState::default)? = context;
         }
         Ok(())
@@ -337,8 +384,12 @@ mod tests {
                 let mut instance_ctx = root_ctx.create_node_context(instance).create_child_context(shared.0, shared.1, None);
                 crate::extensions::animation_context::write_linked_input_context(&mut instance_ctx,
                     bevy_animation_graph::core::animation_graph::GraphInputPin::Passthrough("external".into()), default()).unwrap();
-                instance_ctx.create_node_context(input_id).state_mut_or_else(AnimationContextState::default)
-                    .unwrap().curves.insert("Scope".into(), expected);
+                let mut input_state = instance_ctx.create_node_context(input_id);
+                let input_state = input_state.state_mut_or_else(AnimationContextState::default).unwrap();
+                input_state.curves.insert("Scope".into(), expected);
+                input_state.inertialization_request = Some(SourceInertializationRequest {
+                    frame: 0, duration: 0.2, ..default()
+                });
                 let state_ctx = instance_ctx.create_node_context(machine_id).create_child_context(state.0, state.1, None);
                 let mut use_ctx = state_ctx.create_node_context(use_id);
                 let notify_instance = crate::extensions::source_instance::source_notify_instance_id(&use_ctx).unwrap();
@@ -349,11 +400,20 @@ mod tests {
                 assert_eq!(pose.timestamp, expected, "Cache pose crossed linked instances");
                 assert_eq!(use_ctx.state::<AnimationContextState>().unwrap().curves[&crate::extensions::SourceCurveName::from("Scope")], expected,
                     "Cache curves crossed linked instances");
+                let request = use_ctx.state::<AnimationContextState>().unwrap()
+                    .inertialization_request.as_ref().unwrap().clone();
+                assert_eq!(request.cached_pose_origins.len(), 1);
+                assert!(request.cached_pose_origins[0].owner);
                 let sibling = instance_ctx.create_node_context(machine_id).create_child_context(state.0, state.1,
                     Some(bevy_animation_graph::core::state_machine::low_level::LowLevelStateId::HlState(default())));
                 let mut sibling = sibling.create_node_context(use_id);
                 assert_eq!(crate::extensions::source_instance::source_notify_instance_id(&sibling).unwrap(), notify_instance);
                 assert_eq!(resolve_scoped_cached_pose(&mut sibling, "cache", "shared").unwrap().timestamp, expected);
+                state.1.nodes[&use_id].update(sibling.clone()).unwrap();
+                assert!(sibling.state::<AnimationContextState>().unwrap().inertialization_request.is_none());
+                forward_cached_pose_requests(&mut use_ctx, &request, true);
+                state.1.nodes[&use_id].update(sibling.clone()).unwrap();
+                assert!(sibling.state::<AnimationContextState>().unwrap().inertialization_request.is_some());
             }
             let inputs = HashMap::new();
             let root_ctx = GraphContext::new(arena.get_toplevel_id(), root.1, &mut arena, &resources,
@@ -362,7 +422,7 @@ mod tests {
             let mut missing = missing.create_node_context(use_id);
             assert!(prewarm_scoped_cached_pose(&mut missing, "cache", "shared").is_err());
             assert!(resolve_scoped_cached_pose(&mut missing, "cache", "shared").is_err());
-            assert!(scoped_cached_context_state(&missing, "cache", "shared").is_none());
+            assert!(scoped_cached_context_state(&mut missing, "cache", "shared").is_none());
         }
 
         let mut graphs = Assets::<AnimationGraph>::default();
