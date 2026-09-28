@@ -1053,6 +1053,7 @@ mod tests {
         for entity in bodies {
             assert!((world.get::<Friction>(entity).unwrap().static_coefficient - 0.7).abs() < 1e-6);
             assert!((world.get::<Restitution>(entity).unwrap().coefficient - 0.3).abs() < 1e-6);
+            assert!((world.get::<MaxAngularSpeed>(entity).unwrap().0 - std::f32::consts::TAU * 10.0).abs() < 1e-5);
         }
         assert_eq!(world.get::<avian3d::prelude::CollisionLayers>(root_collider),
             Some(&avian3d::prelude::CollisionLayers::NONE));
@@ -1096,6 +1097,7 @@ mod tests {
             "center_of_mass_m": [0.1, 0.3, 0.2],
             "inertia_tensor_kg_m2": [[0.1, 0.0, 0.0], [0.0, 0.2, 0.0], [0.0, 0.0, 0.3]],
         });
+        body["target"]["max_angular_speed_radians_per_second"] = serde_json::json!(2.0);
         let mass_profile = RagdollPhysicsProfile::from_json(&source.to_string()).unwrap();
         let mass_profile_scaled = mass_profile.clone();
         let mass_again_scaled = SpawnedRagdoll {
@@ -1113,6 +1115,7 @@ mod tests {
         }).unwrap();
         assert_eq!(world.get::<avian3d::prelude::CenterOfMass>(pelvis_body).unwrap().0,
             Vec3::new(0.1, 0.3, 0.2));
+        assert_eq!(world.get::<MaxAngularSpeed>(pelvis_body).unwrap().0, 2.0);
         assert!(world.get::<NoAutoMass>(pelvis_body).is_some());
         assert!(world.get::<NoAutoCenterOfMass>(pelvis_body).is_some());
         assert!(world.get::<NoAutoAngularInertia>(pelvis_body).is_some());
@@ -1127,6 +1130,7 @@ mod tests {
                 &spherical, &revolute, &source_joints, &transforms, &mut colliders)
         }).unwrap();
         assert_eq!(world.get::<CenterOfMass>(pelvis_body).unwrap().0, Vec3::new(0.2, 0.6, 0.4));
+        assert_eq!(world.get::<MaxAngularSpeed>(pelvis_body).unwrap().0, 2.0);
         let mut principal = world.get::<AngularInertia>(pelvis_body).unwrap().principal.to_array();
         principal.sort_by(f32::total_cmp);
         assert!(principal.iter().zip([0.4, 0.8, 1.2]).all(|(actual, expected)| (actual - expected).abs() < 1e-5));
@@ -1136,6 +1140,28 @@ mod tests {
         assert!((app.world().get::<avian3d::prelude::ComputedMass>(pelvis_body).unwrap().value() - 7.926394).abs() < 1e-5);
         let tensor = app.world().get::<avian3d::prelude::ComputedAngularInertia>(pelvis_body).unwrap().value();
         assert!((tensor.m00 - 0.4).abs() + (tensor.m11 - 0.8).abs() + (tensor.m22 - 1.2).abs() < 1e-5);
+    }
+
+    #[test]
+    fn avian_max_angular_speed_clamps_vector_magnitude() {
+        use avian3d::prelude::{AngularVelocity, RigidBody};
+        use bevy::time::TimeUpdateStrategy;
+        use std::time::Duration;
+
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, TransformPlugin,
+            avian3d::prelude::PhysicsPlugins::new(PostUpdate)));
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0 / 60.0)));
+        app.finish();
+        app.cleanup();
+        let entity = app.world_mut().spawn((RigidBody::Dynamic, Collider::sphere(0.5),
+            GravityScale(0.0), AngularVelocity(Vec3::new(3.0, 4.0, 0.0)),
+            MaxAngularSpeed(2.0))).id();
+        app.update();
+        app.update();
+        let velocity = app.world().get::<AngularVelocity>(entity).unwrap().0;
+        assert!((velocity.length() - 2.0).abs() < 1e-5, "{velocity:?}");
+        assert!((velocity.normalize() - Vec3::new(0.6, 0.8, 0.0)).length() < 1e-5);
     }
 
     #[test]

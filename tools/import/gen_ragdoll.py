@@ -134,6 +134,32 @@ def boolean(entries, key, default=False):
     raise ValueError(f"invalid boolean: {key}={value}")
 
 
+def project_max_angular_velocity_degrees(uasset):
+    project = next((parent for parent in uasset.absolute().parents if next(parent.glob("*.uproject"), None)), None)
+    if project is None:
+        raise ValueError("PhysicsAsset input is not inside an Unreal project")
+    config = project / "Config" / "DefaultEngine.ini"
+    effective = 3600.0
+    if config.is_file():
+        in_physics_settings = False
+        for raw in config.read_text(encoding="utf-8-sig").splitlines():
+            line = raw.split(";", 1)[0].strip()
+            if line.startswith("["):
+                in_physics_settings = line == "[/Script/Engine.PhysicsSettings]"
+            elif in_physics_settings and line.startswith("MaxAngularVelocity="):
+                effective = float(line.split("=", 1)[1].strip())
+    if not math.isfinite(effective) or effective < 0.0:
+        raise ValueError("invalid project MaxAngularVelocity")
+    return effective
+
+
+def target_max_angular_speed(entries, project_degrees):
+    degrees = numeric(entries, "MaxAngularVelocity") if boolean(entries, "bOverrideMaxAngularVelocity") else project_degrees
+    if not math.isfinite(degrees) or degrees < 0.0:
+        raise ValueError("invalid body MaxAngularVelocity")
+    return math.radians(degrees)
+
+
 def source_props(source):
     result = {}
     for obj in source["asset_objects"]:
@@ -323,6 +349,22 @@ def assert_close(left, right, tolerance=1e-5):
 
 def self_test():
     assert_close(ue_point([100.0, 200.0, 300.0]), [1.0, 3.0, 2.0])
+    entries = [{"name": "bOverrideMaxAngularVelocity", "exported_text": "False"},
+        {"name": "MaxAngularVelocity", "exported_text": "720.000000"}]
+    assert math.isclose(target_max_angular_speed(entries, 400.0), math.radians(400.0))
+    assert math.isclose(target_max_angular_speed(entries, 3600.0), math.radians(3600.0))
+    entries[0]["exported_text"] = "True"
+    assert math.isclose(target_max_angular_speed(entries, 400.0), math.radians(720.0))
+    with tempfile.TemporaryDirectory() as temporary:
+        project = Path(temporary)
+        (project / "Project.uproject").write_text("{}", encoding="utf-8")
+        uasset = project / "Plugins" / "Example" / "Content" / "PA.uasset"
+        assert project_max_angular_velocity_degrees(uasset) == 3600.0
+        (project / "Config").mkdir()
+        (project / "Config" / "DefaultEngine.ini").write_text(
+            "[/Script/Engine.PhysicsSettings]\nMaxAngularVelocity=400.0 ; degrees per second\n",
+            encoding="utf-8")
+        assert project_max_angular_velocity_degrees(uasset) == 400.0
     for rotator in [(0.0, 0.0, 0.0), (10.0, 30.0, 0.0), (90.0, 90.0, 0.0), (-20.0, -120.0, 60.0)]:
         source = source_rotator(rotator)
         target = ue_rotator(rotator)
@@ -696,7 +738,7 @@ def native_swing_limit(swing_1, swing_2):
     return [-swing_1, swing_1]
 
 
-def build_profile(source):
+def build_profile(source, project_max_angular_velocity_degrees):
     source_map = source_props(source)
     physics = source["physics_asset"]
     cvars = physics["constraint_console_variables"]
@@ -739,7 +781,7 @@ def build_profile(source):
                 "active_mode": mode,
                 "linear_damping": numeric(body["default_instance_properties"], "LinearDamping"),
                 "angular_damping": numeric(body["default_instance_properties"], "AngularDamping"),
-                "max_angular_speed_radians_per_second": math.radians(numeric(body["default_instance_properties"], "MaxAngularVelocity")),
+                "max_angular_speed_radians_per_second": target_max_angular_speed(body["default_instance_properties"], project_max_angular_velocity_degrees),
                 "gravity_scale": 1.0 if boolean(body["default_instance_properties"], "bEnableGravity", True) else 0.0,
                 "material": target_material(body["physical_material_properties"]),
                 **({"mass_properties": mass_properties} if mass_properties is not None else {}),
@@ -947,10 +989,10 @@ def validate_native_reference(mesh, rest, body_names):
             raise ValueError(f"runtime skeleton reference rotation differs from source: {name}")
 
 
-def generate(source, mesh, gltf, asset_root, skeleton_path, ragdoll_path, bone_map_path, profile_path):
+def generate(source, mesh, gltf, asset_root, skeleton_path, ragdoll_path, bone_map_path, profile_path, project_max_angular_velocity_degrees):
     if source.get("asset_class") != "/Script/Engine.PhysicsAsset" or "physics_asset" not in source:
         raise ValueError("source input is not a PhysicsAsset")
-    profile = build_profile(source)
+    profile = build_profile(source, project_max_angular_velocity_degrees)
     document, rest, names, parents = load_skeleton(gltf)
     missing = [body["bone_name"] for body in profile["bodies"] if body["bone_name"] not in rest]
     if missing:
@@ -1052,6 +1094,7 @@ def main():
             args.ragdoll_output or args.asset_root / "ragdolls" / (name + ".rag.ron"),
             args.bone_map_output or args.asset_root / "ragdoll_bone_maps" / (name + ".bm.ron"),
             args.profile_output or args.asset_root / "ragdolls" / (name + ".physics.json"),
+            project_max_angular_velocity_degrees(args.uasset),
         ))
         report["success"] = True
     except (ValueError, KeyError, OSError, AssertionError, RuntimeError, StopIteration) as error:
