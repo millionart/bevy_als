@@ -10,7 +10,7 @@ use bevy_animation_graph::core::{
         node_states::StateKey,
         spec_context::SpecContext,
     },
-    edge_data::DataSpec,
+    edge_data::{DataSpec, DataValue, events::{AnimationEvent, EventQueue, SampledEvent}},
     errors::GraphError,
 };
 use serde::{Deserialize, Serialize};
@@ -115,6 +115,21 @@ pub struct SourceSyncPlayerTick {
     pub play_rate: f32,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct SourceMarkerAdvance {
+    pub forward: bool,
+    pub markers: Vec<String>,
+}
+
+impl SourceMarkerAdvance {
+    pub fn into_inputs(self, key: &str) -> [(String, DataValue); 2] {
+        let key = format!("{SOURCE_SYNC_RESOLVED}.marker_advance.{key}");
+        [(format!("{key}.forward"), DataValue::Bool(self.forward)),
+            (key, DataValue::EventQueue(EventQueue::with_events(self.markers.into_iter()
+                .map(|name| SampledEvent::instant(AnimationEvent::StringId(name))).collect::<Vec<_>>()))) ]
+    }
+}
+
 pub const SOURCE_SYNC_RESOLVED: &str = "__source_sync_resolved";
 pub const SOURCE_SYNC_INERTIAL_SCOPE: &str = "__source_sync_inertial_scope";
 
@@ -135,6 +150,18 @@ pub fn source_sync_marker_set_key(key: &str) -> String {
 
 pub fn source_sync_marker_name_key(key: &str, name: &str) -> String {
     format!("{SOURCE_SYNC_RESOLVED}.markers.{key}.{name}")
+}
+
+pub fn resolved_source_marker_advance(ctx: &NodeContext, key: &str) -> Result<Option<SourceMarkerAdvance>, GraphError> {
+    let key = format!("{SOURCE_SYNC_RESOLVED}.marker_advance.{key}");
+    let inputs = ctx.graph_context.global_input_data;
+    let Some(value) = inputs.get(&key) else { return Ok(None); };
+    let forward = inputs.get(&format!("{key}.forward")).ok_or(GraphError::MissingStateValue)?.as_bool()?;
+    let markers = value.as_event_queue()?.events.iter().map(|event| match &event.event {
+        AnimationEvent::StringId(name) => Ok(name.clone()),
+        _ => Err(GraphError::MissingStateValue),
+    }).collect::<Result<Vec<_>, _>>()?;
+    Ok(Some(SourceMarkerAdvance { forward, markers }))
 }
 
 pub fn resolved_source_sync_markers<'a>(ctx: &NodeContext, key: &str, markers: &'a [SyncMarker]) -> std::borrow::Cow<'a, [SyncMarker]> {
@@ -271,10 +298,10 @@ fn common_marker_names(players: &[&SourceSyncPlayerTick], leader: &SourceSyncPla
 pub fn resolve_source_sync_phases(
     current: &[SourceSyncPlayerTick],
     previous: &[SourceSyncPlayerTick],
-) -> Vec<(String, Option<f32>, Vec<(GraphContextId, NodeId)>, Vec<String>)> {
+) -> Vec<(String, Option<f32>, Vec<(GraphContextId, NodeId)>, Vec<String>, Option<SourceMarkerAdvance>)> {
     let mut groups = Vec::new();
     for player in current {
-        if groups.iter().any(|(key, _, _, _)| key == &player.key) {
+        if groups.iter().any(|(key, _, _, _, _)| key == &player.key) {
             continue;
         }
         let players = current
@@ -290,6 +317,7 @@ pub fn resolve_source_sync_phases(
         let previous_leader = group_leader(&previous_players);
         let previous_common = previous_leader.map_or_else(Vec::new, |prior|
             common_marker_names(&previous_players, prior));
+        let mut marker_advance = None;
         let phase = leader.map(|leader| {
             let joined = previous_leader.is_some_and(|prior| {
                 prior.identity != leader.identity || prior.source_asset != leader.source_asset
@@ -315,7 +343,9 @@ pub fn resolve_source_sync_phases(
                 })
             };
             if let Some(phase) = prior_phase {
-                grouped.advance(phase)
+                let (phase, advance) = grouped.advance(phase);
+                marker_advance = Some(advance);
+                phase
             } else {
                 let independent_time = previous.iter()
                     .find(|prior| prior.identity == leader.identity && prior.source_asset == leader.source_asset
@@ -342,7 +372,7 @@ pub fn resolve_source_sync_phases(
             })
             .map(|candidate| candidate.identity)
             .collect();
-        groups.push((player.key.clone(), phase, ungrouped, common));
+        groups.push((player.key.clone(), phase, ungrouped, common, marker_advance));
     }
     groups
 }
@@ -354,7 +384,7 @@ impl SourceSyncPlayerTick {
                 && (self.has_been_full_weight || self.weight >= 1.0 - 1e-5))
     }
 
-    pub fn advance(&self, previous_phase: f32) -> f32 {
+    pub fn advance(&self, previous_phase: f32) -> (f32, SourceMarkerAdvance) {
         let previous_time = marker_phase_sample_time_near(
             previous_phase,
             self.phase_duration,
@@ -364,19 +394,35 @@ impl SourceSyncPlayerTick {
             self.sample_time_hint.unwrap_or_else(|| phase_to_time(previous_phase, self.duration, self.looped)),
             self.looped,
         );
+        let duration = self.duration.max(EPSILON);
+        let next_unwrapped = previous_time + self.delta_seconds * self.play_rate;
+        let markers = sorted_markers(&self.markers, duration);
+        let marker_index = |time: f32| {
+            let (time, cycle) = if self.looped { (time.rem_euclid(duration), (time / duration).floor() as i64) }
+                else { (time.clamp(0.0, duration), 0) };
+            cycle * markers.len() as i64 + markers.iter().rposition(|marker| marker.time <= time)
+                .map_or(-1, |index| index as i64)
+        };
+        let previous_index = marker_index(previous_time);
+        let steps = marker_index(next_unwrapped) - previous_index;
+        let forward = next_unwrapped >= previous_time;
+        let passed = (0..steps.unsigned_abs()).map(|offset| {
+            let index = if forward { previous_index + 1 + offset as i64 } else { previous_index - offset as i64 };
+            markers[index.rem_euclid(markers.len() as i64) as usize].name.clone()
+        }).collect();
         let next_time = phase_to_time(
-            (previous_time + self.delta_seconds * self.play_rate) / self.duration,
+            next_unwrapped / duration,
             self.duration,
             self.looped,
         );
-        marker_phase_from_sample_time(
+        (marker_phase_from_sample_time(
             next_time,
             self.duration,
             &self.markers,
             self.phase_duration,
             &self.phase_markers,
             self.looped,
-        )
+        ), SourceMarkerAdvance { forward, markers: passed })
     }
 }
 
@@ -676,7 +722,7 @@ pub fn marker_phase_sample_time_near(
 
 pub fn marker_phase_sample_time_continuous(
     phase: f32,
-    previous_phase: f32,
+    advance: &SourceMarkerAdvance,
     phase_duration: f32,
     phase_markers: &[SyncMarker],
     sample_duration: f32,
@@ -686,44 +732,53 @@ pub fn marker_phase_sample_time_continuous(
 ) -> f32 {
     let fallback = || marker_phase_sample_time_near(phase, phase_duration, phase_markers,
         sample_duration, sample_markers, previous_sample_time, looped);
-    if !looped {
-        return fallback();
-    }
     let phase_markers = sorted_markers(phase_markers, phase_duration);
     let sample_markers = sorted_markers(sample_markers, sample_duration);
     if phase_markers.len() < 2 || sample_markers.len() < 2 {
         return fallback();
     }
-    let phase_time = phase_to_time(phase, phase_duration, true);
-    let previous_phase_time = phase_to_time(previous_phase, phase_duration, true);
-    let previous_sample_time = previous_sample_time.rem_euclid(sample_duration.max(EPSILON));
-    let interval = |markers: &[SyncMarker], time: f32| markers.iter()
-        .rposition(|marker| marker.time <= time).unwrap_or(markers.len() - 1);
-    let current_index = interval(&phase_markers, phase_time);
-    let previous_index = interval(&phase_markers, previous_phase_time);
-    let sample_index = interval(&sample_markers, previous_sample_time);
-    let candidate = if current_index == previous_index {
-        Some(sample_index)
-    } else if current_index == (previous_index + 1) % phase_markers.len() {
-        Some((sample_index + 1) % sample_markers.len())
-    } else if previous_index != 0
-        && current_index == (previous_index + phase_markers.len() - 1) % phase_markers.len() {
-        Some((sample_index + sample_markers.len() - 1) % sample_markers.len())
-    } else {
-        None
-    };
-    let Some(candidate) = candidate else { return fallback(); };
-    let Some(position) = marker_position_at_time(&phase_markers, phase_duration, phase_time, true) else {
+    let phase_time = phase_to_time(phase, phase_duration, looped);
+    let previous_sample_time = if looped { previous_sample_time.rem_euclid(sample_duration.max(EPSILON)) }
+        else { previous_sample_time.clamp(0.0, sample_duration.max(EPSILON)) };
+    let mut previous = sample_markers.iter().rposition(|marker| marker.time <= previous_sample_time)
+        .map_or(-1, |index| index as i64);
+    let mut next = previous + 1;
+    let Some(position) = marker_position_at_time(&phase_markers, phase_duration, phase_time, looped) else {
         return fallback();
     };
-    let next = (candidate + 1) % sample_markers.len();
-    if sample_markers[candidate].name != position.previous || sample_markers[next].name != position.next {
+    let count = sample_markers.len() as i64;
+    let find = |start: i64, name: &str, direction: i64| (0..count)
+        .map(|offset| start + direction * offset)
+        .take_while(|index| looped || (0..count).contains(index))
+        .find(|index| sample_markers[index.rem_euclid(count) as usize].name == name);
+    if !advance.markers.is_empty() {
+        let direction = if advance.forward { 1 } else { -1 };
+        let mut cursor = if advance.forward { next } else { previous };
+        for marker in &advance.markers {
+            let Some(index) = find(cursor, marker, direction) else { return fallback(); };
+            cursor = index;
+        }
+        if advance.forward {
+            previous = cursor;
+            let Some(index) = find(cursor, &position.next, 1) else { return fallback(); };
+            next = index;
+        } else {
+            next = cursor;
+            let Some(index) = find(cursor, &position.previous, -1) else { return fallback(); };
+            previous = index;
+        }
+    }
+    if !looped && (previous < 0 || next >= count) { return fallback(); }
+    if sample_markers[previous.rem_euclid(count) as usize].name != position.previous
+        || sample_markers[next.rem_euclid(count) as usize].name != position.next {
         return fallback();
     }
-    let end = sample_markers[next].time + if next == 0 { sample_duration } else { 0.0 };
-    (sample_markers[candidate].time
-        + (end - sample_markers[candidate].time).max(EPSILON) * position.alpha.clamp(0.0, 1.0))
-        .rem_euclid(sample_duration.max(EPSILON))
+    let time_at = |index: i64| sample_markers[index.rem_euclid(count) as usize].time
+        + index.div_euclid(count) as f32 * sample_duration;
+    let start = time_at(previous);
+    let end = time_at(next);
+    let time = start + (end - start).max(EPSILON) * position.alpha.clamp(0.0, 1.0);
+    if looped { time.rem_euclid(sample_duration.max(EPSILON)) } else { time }
 }
 
 pub fn marker_phase_from_sample_time(
@@ -1107,6 +1162,69 @@ mod tests {
     }
 
     #[test]
+    fn repeated_marker_continuity_preserves_multi_interval_self_mapping() {
+        let markers = [("A", 0.1), ("B", 0.3), ("A", 0.6), ("B", 0.8)]
+            .map(|(name, time)| SyncMarker { name: name.into(), time });
+        for looped in [true, false] {
+            for (previous, next, forward, passed) in [(0.15, 0.75, true, vec!["B", "A"]),
+                (0.75, 0.15, false, vec!["A", "B"]), (0.15, 0.8, true, vec!["B", "A", "B"]),
+                (0.8, 0.1, false, vec!["B", "A", "B"])] {
+                let advance = SourceMarkerAdvance { forward, markers: passed.into_iter().map(str::to_owned).collect() };
+                let actual = marker_phase_sample_time_continuous(next, &advance, 1.0, &markers,
+                    1.0, &markers, previous, looped);
+                assert!((actual - next).abs() < 1e-5, "{previous} -> {next}, looped={looped}: {actual}");
+            }
+        }
+    }
+
+    #[test]
+    fn repeated_marker_steps_preserve_signed_cycles_and_nonuniform_spacing() {
+        let markers = [("A", 0.1), ("B", 0.3), ("A", 0.6), ("B", 0.8)]
+            .map(|(name, time)| SyncMarker { name: name.into(), time }).to_vec();
+        for (previous, rate, phase, steps) in [(0.15, 3.0, 0.75, 2), (0.75, -3.0, 0.15, -2),
+            (0.15, 13.0, 0.75, 10), (0.75, -13.0, 0.15, -10), (0.1, 2.5, 0.6, 2)] {
+            let player = SourceSyncPlayerTick { phase_duration: 1.0, duration: 1.0,
+                phase_markers: markers.clone(), markers: markers.clone(), looped: true,
+                sample_time_hint: Some(previous), delta_seconds: 0.2, play_rate: rate, ..default() };
+            let (actual, advance) = player.advance(previous);
+            assert!((actual - phase).abs() < 1e-5, "{previous} at {rate}: {actual}");
+            assert_eq!(advance.forward, steps > 0);
+            assert_eq!(advance.markers.len() as i64, i64::abs(steps));
+        }
+        let phase_markers = [("A", 0.1), ("B", 0.6)]
+            .map(|(name, time)| SyncMarker { name: name.into(), time }).to_vec();
+        let sample_markers = [("A", 0.05), ("B", 0.2), ("A", 0.35), ("B", 0.5), ("A", 0.7), ("B", 0.9)]
+            .map(|(name, time)| SyncMarker { name: name.into(), time });
+        for (rate, previous_sample, expected, steps) in [(10.0, 0.08, 0.74, 4), (-10.0, 0.74, 0.08, -4)] {
+            let player = SourceSyncPlayerTick { key: "Movement".into(), phase: 0.2,
+                phase_duration: 1.0, duration: 1.0, phase_markers: phase_markers.clone(),
+                markers: phase_markers.clone(), looped: true, sample_time_hint: Some(0.2),
+                delta_seconds: 0.2, play_rate: rate, ..default() };
+            let resolved = resolve_source_sync_phases(&[player.clone()], &[player]);
+            let advance = resolved[0].4.as_ref().unwrap();
+            assert_eq!(advance.forward, steps > 0);
+            assert_eq!(advance.markers.len() as i64, i64::abs(steps));
+            let actual = marker_phase_sample_time_continuous(resolved[0].1.unwrap(), advance,
+                1.0, &phase_markers, 1.0, &sample_markers, previous_sample, true);
+            assert!((actual - expected).abs() < 1e-5, "rate={rate}: {actual} != {expected}");
+        }
+        let source = [("A", 0.1), ("B", 0.2), ("A", 0.4), ("C", 0.6), ("A", 0.8), ("B", 0.9)]
+            .map(|(name, time)| SyncMarker { name: name.into(), time });
+        let target = [("A", 0.05), ("B", 0.15), ("A", 0.25), ("B", 0.35), ("A", 0.45), ("C", 0.65), ("A", 0.75), ("B", 0.85)]
+            .map(|(name, time)| SyncMarker { name: name.into(), time });
+        for (previous, rate, hint, expected, passed) in [(0.12, 7.0, 0.07, 0.77, vec!["B", "A", "C", "A"]),
+            (0.82, -7.0, 0.77, 0.27, vec!["A", "C", "A", "B"])] {
+            let player = SourceSyncPlayerTick { phase_duration: 1.0, duration: 1.0,
+                phase_markers: source.to_vec(), markers: source.to_vec(), looped: true,
+                sample_time_hint: Some(previous), delta_seconds: 0.1, play_rate: rate, ..default() };
+            let (phase, advance) = player.advance(previous);
+            assert_eq!(advance.markers, passed);
+            let actual = marker_phase_sample_time_continuous(phase, &advance, 1.0, &source, 1.0, &target, hint, true);
+            assert!((actual - expected).abs() < 1e-5, "Mixed repeated marker path: {actual} != {expected}");
+        }
+    }
+
+    #[test]
     fn repeated_marker_pairs_follow_the_nearest_timeline_occurrence() {
         let phase = markers(&[("A", 0.1), ("B", 0.3), ("A", 0.6), ("B", 0.8)]);
         let sample = markers(&[("A", 0.05), ("B", 0.25), ("A", 0.55), ("B", 0.95)]);
@@ -1120,7 +1238,7 @@ mod tests {
             sample_time_hint: Some(0.65), delta_seconds: 0.1, play_rate: 1.0,
             looped: true, ..default()
         };
-        assert!((player.advance(0.2) - 0.75).abs() < 1e-5);
+        assert!((player.advance(0.2).0 - 0.75).abs() < 1e-5);
     }
 
     #[test]

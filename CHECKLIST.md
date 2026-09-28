@@ -66,7 +66,7 @@
 - [x] **BF131.A67 — TransitionLeader/TransitionFollower are not excluded during fade-in**。Gate：淡入阶段按角色和源有效权重选 leader，退出淡入后恢复候选资格；实际脚步分派使用同一选举规则，被排除播放器保持独立通知。
 - [x] **BF131.A68 — Sync marker mapping does not filter to common marker names**。Gate：先求组内共同 marker 集，再定位/映射，非共同 marker 不改变有效相位。
 - [x] **BF131.A69 — Modify Curve accepts WeightedMovingAverage but evaluates it as stateless Blend**。Gate：逐实例历史参与加权移动平均，初始化/更新/重建及其他模式控制通过。
-- [ ] **BF131.A70 — Repeated marker-name pairs collapse later timeline occurrences into the first pair**。Gate：同名重复 marker 对保留时间位置，跨多个区间、多周期、倒播与精确边界不跳到较早 occurrence；实际播放器自身映射保持时间。
+- [x] **BF131.A70 — Repeated marker-name pairs collapse later timeline occurrences into the first pair**。Gate：同名重复 marker 对保留时间位置，跨多个区间、多周期、倒播与精确边界不跳到较早 occurrence；实际播放器自身映射保持时间。
 - [x] **BF131.A71 — Custom 状态迁移按总时长结束，遗漏 FAlphaBlend 提前达到终值的完成语义**。Gate：源曲线提前达到终值时迁移完成，未达到终值及正常总时长控制通过。
 - [x] **BF131.A72 — 惯性过渡的显式 BlendProfile 在生成、请求和逐骨消费链中丢失**。Gate：显式 profile 贯穿生成、惯性请求与逐骨持续时间，默认 profile 和无覆盖控制通过。
 - [x] **BF131.A73 — 惯性化 root 历史没有按组件／Actor 附着空间变化重表达**。Gate：组件/Actor 附着空间改变后历史按源坐标系重表达，世界连续姿态和不变空间控制通过。
@@ -422,3 +422,11 @@
   - 工具步骤消融：Standing 的 12 条 verification_commands 与根的 6 条命令均为 Python；其 focused_tests 是独立声明，不由作者合同执行。此前为避免测试命令超时而单列的优化库测试预构建并非作者合同所需，后续删除该重复步骤，继续执行受影响定向测试和真实入口优化构建。
   - Runtime 后诊断（02:21）：startup/notify 功能 PASS；footprint 仅 moving_gpu 未覆盖，其余脚印与 GPU 36 请求/576 采样通过。移动段左右脚印由 10/11 增至 15/15、附着移动成立，但 shader checked_frame/positive_frame 停在清理阶段。正式图无 Transition 角色，本次 leader 资格改动不改变其选举；容量扩展时 180 个接收材质均重绑且 GPU 无数据错误。沿现有 footprint→移动平台→实际渲染视角补齐 view/脚目标像素坐标观测，再以同场景复核未覆盖原因；不修改算法或放宽覆盖条件。
   - S3 实际结束 2026-09-29 02:26 +08:00，偏差 +3 分钟；结果：startup、notify 12/12、footprint 21/21 功能 Gate PASS，GPU 36 请求/576 采样与移动观测通过；faults/graph_errors/temporal_anomalies/primary_failure 均空，watchdog 未触发，进程退出 0/0。新增移动视角记录 241 帧、脚目标像素均在 1280×720 视口内，32 容量下 checked/positive 帧推进到 1535；首次移动 GPU 缺失未复现，保留原报告，不声称修复了未知渲染原因。源资格、独立通知、六组最终事件矩阵、24+14 定向回归、消融、349 图与 18 条作者命令闭合，恢复 A67 勾选；性能继续延期，下一项 A70。
+- BF131.A70-R1-S1：开始 2026-09-29 02:27 +08:00；预估结束 2026-09-29 03:07 +08:00。依据：fresh AnimSequence 的 AdvanceMarkerPhaseAsLeader 记录所有有向 MarkersPassed，Follower 逐个推进，现有连续 helper 却仅处理同/相邻区间后回退 nearest。先复现同轴 A@0.1/B@0.3/A@0.6/B@0.8 的 0.15→0.75 得到 0.25，再覆盖倒播、跨圈/多圈、非均匀间距和精确边界；只追踪 SourceSequencePlayer、NormalizedBlendSpace 与同步根的实际推进参数，确认必要的最小传递数据后进入修复。
+  - S1 实际结束 2026-09-29 02:31 +08:00，偏差 -36 分钟；结果：Rust 最小自身映射测试稳定 red，0.15→0.75 得到 0.25。现有两个播放器测试对从 canonical 索引 0 倒播跨圈也预期 nearest 收敛，未证明各自 occurrence 连续。源有向推进在 leader 采样时已知，需保留当次跨 marker 数；仅凭首尾归一化相位无法区分方向和整圈，不能修补 nearest 的距离规则。
+- BF131.A70-R1-S2：开始 2026-09-29 02:32 +08:00；预估结束 2026-09-29 03:12 +08:00。由 leader 未折返的真实采样步长计算有向 marker 区间数，通过现有同步解析临时输入传给 Sequence/BlendSpace；连续样本按该数量推进自身 occurrence，初始化/重加入仍使用现有近邻定位。保留正倒播、多圈、不同重复数/非均匀间距、边界和两消费者的最小测试，再消融当次推进传递，不新增持续状态或资产字段。
+  - S2 中间闭环（02:58）：原 0.15→0.75 及两消费者 11 帧矩阵转绿，删除同步根推进传递会重现 0.25；fresh Walk 原生记录确认合法 marker 名称/时间与 RateScale。进一步对照 UE AdvanceMarkerForwards/Backwards 的按名称搜索，计数方案在夹有 C、且目标多一个 A/B 对时稳定 red（0.07 而应为 0.77）。最终改为有向经过名称序列，复用现有 EventQueue 作为单次求值输入，不增加持久状态；混合名称正倒播、不同重复数、非均匀间距、多圈、精确边界、重初始化与真实同步根→Sequence/BlendSpace 共 8 项通过，正在做最终传递消融与完整回归。
+  - S2 实际结束 2026-09-29 03:05 +08:00，偏差 -7 分钟；结果：最终按名称搜索的方向、重复 occurrence 和跨圈路径与本地 UE 对应；删除最终同步根传递再次使真实 Sequence 从 0.75 回到 0.25，恢复后完整库 1290/1290 PASS。废弃仅计数适配，保留单次有向名称值与既有 EventQueue 传递，无新增长期状态、配置或转换规则；Standing manifest 绑定当次 Walk/AnimSequence source，diff check 通过。
+- BF131.A70-R1-S3：开始 2026-09-29 03:05 +08:00；预估结束 2026-09-29 03:30 +08:00。用 target_game/play 预构建并刷新 349 图规范，完整执行 Standing/根作者合同，再跑 startup、standing_direction、state_machine、notify 公共功能 Gate；重点核对正常共同 marker 组、实际姿态/曲线、转换和通知消费，通过后恢复 A70 勾选并单独提交。
+  - Runtime 前摘要（03:10）：fresh Walk 原生记录、UE 按有向经过名称搜索的 source 闭包，0.25/0.07 两个失败反例、两消费者 11 帧与真实同步根回归、最终传递删除消融、完整库 1290/1290、同入口优化构建、349/349 图规范与 Standing/根 18 条完整审计命令全部闭合。开始四个公共功能场景；无资产/转换规则修改，既有性能延期保持。
+  - S3 实际结束 2026-09-29 03:17 +08:00，偏差 -13 分钟；结果：startup、standing_direction 5/5、state_machine 10/10、notify 12/12 公共功能 Gate 全部 PASS；faults/graph_errors/temporal_anomalies/primary_failure 均空，watchdog 未触发，进程退出 0/0。两个失败反例、混合名称和多圈路径、两消费者及实际同步根、消融、完整库 1290、349 图与 18 条作者命令闭合，恢复 A70 勾选；性能保留既定延期，下一项 A83。

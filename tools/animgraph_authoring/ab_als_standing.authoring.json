@@ -3,8 +3,8 @@
   "id": "ab_als_standing_native_functions",
   "source_evidence": [
     {
-      "path": "target/bf115_standing/curves/A_Als_Walk_Forward.fresh.ue.json",
-      "sha256": "84794611ce5ca5d3869fc05d93455de755b70bb7f97f62e31a126d46267f16ce"
+      "path": "target/bf131/review/a70/A_Als_Walk_Forward.ue.json",
+      "sha256": "a3cf0d7af32d39bb474213f6aa16c03ac678091fdfe5a025ff94ed397eb7eebc"
     },
     {
       "path": "target/bf115_standing/curves/A_Als_Sprint_Acceleration.fresh.ue.json",
@@ -199,7 +199,7 @@
       "sha256": "42feaa58fe6da3d00cbd11a9255e303cd88aeadf8caac4a800f9f141fd2218b1"
     },
     {
-      "path": "target/bf131/a70/AnimSequence.cpp",
+      "path": "target/bf131/review/a70/AnimSequence.cpp",
       "sha256": "08986b39c6e9d933d523b5ede2e7bbc110bf6ee1d532ed21241d173d0040799c"
     },
     {
@@ -1999,8 +1999,8 @@
     },
     {
       "label": "repeated_sync_marker_pair_timeline_continuity",
-      "argv": ["cargo", "test", "--locked", "--offline", "--profile", "play", "--lib", "repeated_", "--jobs", "2"],
-      "evidence": "target/bf1295/bf131-a70-repeated-final.json"
+      "argv": ["cargo", "test", "--lib", "repeated_", "--jobs", "2"],
+      "evidence": "target/bf128/bf131-review-a70-path-green.report.json"
     },
     {
       "label": "inertial_profile_bone_clocks",

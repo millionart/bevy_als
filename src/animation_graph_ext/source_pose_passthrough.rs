@@ -95,7 +95,7 @@ impl NodeLike for SourcePosePassthroughNode {
                     );
                 }
             }
-            for (key, phase, ungrouped, common) in
+            for (key, phase, ungrouped, common, marker_advance) in
                 resolve_source_sync_phases(&current.sync_players, &previous.sync_players)
             {
                 if let Some(phase) = phase {
@@ -104,6 +104,9 @@ impl NodeLike for SourcePosePassthroughNode {
                         DataValue::F32(phase),
                     );
                     global_inputs.to_mut().insert(source_sync_marker_set_key(&key), DataValue::Bool(true));
+                    if let Some(advance) = marker_advance {
+                        global_inputs.to_mut().extend(advance.into_inputs(&key));
+                    }
                     for name in common {
                         global_inputs.to_mut().insert(source_sync_marker_name_key(&key, &name), DataValue::Bool(true));
                     }
@@ -213,6 +216,88 @@ mod tests {
                 .unwrap(),
             11
         );
+    }
+
+    #[test]
+    fn repeated_marker_steps_reach_sequence_and_blendspace_through_sync_scope() {
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip, animation_graph::{AnimationGraph, GraphInputPin, NodeId, TimeUpdate},
+            animation_node::AnimationNode,
+            context::{graph_context::QueryOutputTime, node_states::StateKey, system_resources::SystemResources},
+            pose::Pose, skeleton::Skeleton, state_machine::high_level::StateMachine,
+            utils::testing::TestIoEnv,
+        };
+        use crate::extensions::{SourceMultiWayBlendNode, SourceSequencePlayerNode};
+        use crate::extensions::normalized_blendspace::{NormalizedBlendSpaceNode, NormalizedBlendSpacePoint, NormalizedBlendSpaceState};
+        use crate::extensions::source_sequence_player::{SourceSequenceSynchronization, SourceSequencePlayerState};
+        use crate::extensions::sync_group_phase::{SourceSyncGroupRole, SourceSyncPlayerBinding, SyncMarker};
+
+        fn query(In((handle, leader, follower, blendspace)): In<(Handle<AnimationGraph>, NodeId, NodeId, bool)>, resources: SystemResources) {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            for (delta, rate, expected) in [(0.0, 3.0, 0.15), (0.2, 3.0, 0.75), (0.2, 13.0, 0.35), (0.2, -13.0, 0.75)] {
+                let inputs = HashMap::from([("delta".to_owned(), DataValue::F32(delta)), ("rate".to_owned(), DataValue::F32(rate))]);
+                let context = bevy_animation_graph::core::context::new_context::GraphContext::new(
+                    arena.get_toplevel_id(), graph, &mut arena, &resources, &env,
+                    Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+                graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(delta)), context).unwrap();
+                let states = &arena.get_toplevel().node_states;
+                let leader_time = states.get::<SourceSequencePlayerState>(leader, StateKey::Default).unwrap().context.relevant_asset.as_ref().unwrap().position;
+                let follower_time = if blendspace {
+                    states.get::<NormalizedBlendSpaceState>(follower, StateKey::Default).unwrap().context.relevant_asset.as_ref().unwrap().position
+                } else { states.get::<SourceSequencePlayerState>(follower, StateKey::Default).unwrap().context.relevant_asset.as_ref().unwrap().position };
+                for actual in [leader_time, follower_time] {
+                    assert!((actual - expected).abs() < 1e-5, "blendspace={blendspace} delta={delta} rate={rate}: {actual} != {expected}");
+                }
+            }
+        }
+
+        let mut world = World::new();
+        world.init_resource::<Assets<AnimationGraph>>();
+        world.init_resource::<Assets<GraphClip>>();
+        world.init_resource::<Assets<Skeleton>>();
+        world.init_resource::<Assets<StateMachine>>();
+        let clip = world.resource_mut::<Assets<GraphClip>>().add(GraphClip { duration: 1.0, ..default() });
+        let markers = [("A", 0.1), ("B", 0.3), ("A", 0.6), ("B", 0.8)]
+            .map(|(name, time)| SyncMarker { name: name.into(), time }).to_vec();
+        for blendspace in [false, true] {
+            let sync = |role| SourceSequenceSynchronization { key: "Movement".into(), delta_seconds_key: "delta".into(),
+                phase_duration: 1.0, phase_markers: markers.clone(), markers: markers.clone(), role, ..default() };
+            let leader = AnimationNode::new("leader", SourceSequencePlayerNode { clip: clip.clone(), start_position: 0.15,
+                play_rate_key: "rate".into(), synchronization: Some(sync(SourceSyncGroupRole::AlwaysLeader)), ..default() });
+            let follower = if blendspace {
+                AnimationNode::new("follower", NormalizedBlendSpaceNode { looped: true, phase_duration: 1.0, phase_markers: markers.clone(),
+                    points: vec![NormalizedBlendSpacePoint { id: "sample".into(), duration: 1.0, markers: markers.clone(), ..default() }],
+                    playback: Some(SourceSyncPlayerBinding { key: "Movement".into(), delta_seconds_key: "delta".into(),
+                        start_position: 0.15, role: SourceSyncGroupRole::AlwaysFollower, ..default() }), ..default() })
+            } else {
+                AnimationNode::new("follower", SourceSequencePlayerNode { clip: clip.clone(), start_position: 0.15,
+                    synchronization: Some(sync(SourceSyncGroupRole::AlwaysFollower)), ..default() })
+            };
+            let blend = AnimationNode::new("blend", SourceMultiWayBlendNode { pose_count: 2,
+                desired_alpha_keys: vec![String::new(); 2], desired_alpha_defaults: vec![0.5, 0.5], ..default() });
+            let root = AnimationNode::new("sync", SourcePosePassthroughNode { synchronize_groups: true, output_time: false, ..default() });
+            let mut graph = AnimationGraph::new();
+            if blendspace {
+                graph.set_default_data(GraphInputPin::passthrough("sample"), DataValue::Pose(Pose::default()));
+                graph.set_default_data(GraphInputPin::passthrough("position"), DataValue::Vec2(Vec2::ZERO));
+                graph.add_input_data_edge(GraphInputPin::passthrough("position"), follower.id, crate::extensions::normalized_blendspace::IN_POSITION);
+                graph.add_input_data_edge(GraphInputPin::passthrough("sample"), follower.id, NormalizedBlendSpaceNode::pose_pin("sample"));
+                graph.add_input_time_edge(GraphInputPin::passthrough("time"), follower.id, NormalizedBlendSpaceNode::time_pin("sample"));
+            }
+            graph.add_node_parameter_edge(leader.id, "Pose", blend.id, "Poses 0");
+            graph.add_node_parameter_edge(follower.id, if blendspace { crate::extensions::normalized_blendspace::OUT_POSE } else { "Pose" }, blend.id, "Poses 1");
+            graph.add_node_parameter_edge(blend.id, "Pose", root.id, "Source");
+            graph.add_output_data("Pose".into(), DataSpec::Pose);
+            graph.add_output_data_edge(root.id, "Pose", "Pose");
+            for node in [leader.clone(), follower.clone(), blend, root] { graph.add_node(node); }
+            let handle = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
+            world.run_system_cached_with(query, (handle, leader.id, follower.id, blendspace)).unwrap();
+        }
     }
 
     #[test]

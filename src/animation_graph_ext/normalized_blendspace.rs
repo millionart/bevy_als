@@ -14,7 +14,7 @@ use crate::extensions::global_f32_input::global_f32_or_root_default;
 use crate::extensions::sync_group_phase::{
     SourceSyncPlayerBinding, SourceSyncPlayerTick, resolved_source_sync_phase,
     resolved_source_sync_markers, marker_phase_sample_time_near, follower_sample_time_near,
-    marker_phase_sample_time_continuous,
+    marker_phase_sample_time_continuous, resolved_source_marker_advance,
 };
 use crate::extensions::{AnimationContextState, marker_phase_from_sample_time};
 use crate::extensions::{SyncMarker, follower_sample_time, marker_phase_sample_time, phase_to_time};
@@ -688,8 +688,6 @@ impl NodeLike for NormalizedBlendSpaceNode {
             samples.iter().map(|sample| (sample.index, sample.weight)).collect());
         let mut sample_times = ctx.state::<NormalizedBlendSpaceState>().ok()
             .map(|state| state.sample_times.clone()).unwrap_or_default();
-        let previous_phase = ctx.state::<NormalizedBlendSpaceState>().ok()
-            .and_then(|state| state.context.sync_players.first()).map(|tick| tick.phase);
         sample_times.resize(self.points.len(), None);
         let leader = &self.points[leader_index];
         let leader_duration = self.point_duration(&mut ctx, leader)?;
@@ -702,6 +700,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
             |playback| resolved_source_sync_markers(&ctx, &playback.key, &leader.markers));
         let uses_marker_phase = self.phase_duration > EPSILON
             && !phase_markers.is_empty() && !leader_markers.is_empty();
+        let mut marker_advance = None;
         let phase = if let Some(playback) = &self.playback {
             let delta_seconds = crate::extensions::sync_group_phase::source_sync_delta_seconds(&ctx, &playback.delta_seconds_key)?;
             let play_rate = if playback.play_rate_key.is_empty() {
@@ -729,8 +728,14 @@ impl NodeLike for NormalizedBlendSpaceNode {
                 crate::extensions::sync_group_phase::SOURCE_SYNC_INERTIAL_SCOPE)
                 .is_some_and(|value| value.as_bool().unwrap_or(false));
             tick.previous_phase = tick.phase;
-            let phase = resolved_source_sync_phase(&ctx, &playback.key)?
-                .unwrap_or_else(|| tick.advance(tick.phase));
+            let phase = if let Some(phase) = resolved_source_sync_phase(&ctx, &playback.key)? {
+                marker_advance = resolved_source_marker_advance(&ctx, &playback.key)?;
+                phase
+            } else {
+                let (phase, advance) = tick.advance(tick.phase);
+                marker_advance = Some(advance);
+                phase
+            };
             tick.phase = phase;
             ctx.state_mut::<NormalizedBlendSpaceState>()?.context = AnimationContextState {
                 sync_players: vec![tick],
@@ -744,8 +749,8 @@ impl NodeLike for NormalizedBlendSpaceNode {
             .map_or_else(|| phase_to_time(phase, leader_duration, sample_looped),
                 |playback| playback.start_position * leader_duration));
         let map_time = |markers: &[SyncMarker], duration: f32, hint: f32, has_history: bool| {
-            if let Some(previous_phase) = previous_phase.filter(|_| has_history && self.playback.is_some()) {
-                marker_phase_sample_time_continuous(phase, previous_phase, self.phase_duration,
+            if let Some(advance) = marker_advance.as_ref().filter(|_| has_history) {
+                marker_phase_sample_time_continuous(phase, advance, self.phase_duration,
                     &phase_markers, duration, markers, hint, sample_looped)
             } else {
                 marker_phase_sample_time_near(phase, self.phase_duration, &phase_markers,
@@ -1023,7 +1028,7 @@ mod tests {
             let tick = node.player_tick(&binding, 0, None, 0.1, 3.0,
                 &node.phase_markers, &node.points[0].markers);
             assert_eq!(tick.play_rate, 3.0 * rate);
-            let time = marker_phase_sample_time(tick.advance(tick.phase), 1.0, &[], 2.0, &[], true);
+            let time = marker_phase_sample_time(tick.advance(tick.phase).0, 1.0, &[], 2.0, &[], true);
             assert!((time - (0.5 + 0.1 * 3.0 * rate).rem_euclid(2.0)).abs() < 1e-5);
         }
     }
@@ -1050,15 +1055,24 @@ mod tests {
             let entities = HashMap::new();
             let env = TestIoEnv::default();
             let mut results = Vec::new();
-            for (frame, phase) in [0.2, 0.19, 0.95, 0.11, 0.94, 0.2].into_iter().enumerate() {
-                if frame == 5 {
+            let frames: &[(f32, bool, &[&str])] = &[(0.2, true, &[]), (0.19, false, &[]),
+                (0.95, false, &["A"]), (0.11, true, &["A"]), (0.94, false, &["A"]), (0.75, false, &["B"]),
+                (0.15, true, &["B", "A"]), (0.75, true, &["B", "A", "B", "A", "B", "A", "B", "A", "B", "A"]),
+                (0.8, true, &["B"]), (0.1, false, &["B", "A", "B", "A", "B", "A", "B", "A", "B", "A", "B"]), (0.2, true, &[])];
+            for (frame, &(phase, forward, passed)) in frames.iter().enumerate() {
+                if frame == 10 {
                     *arena.get_toplevel_mut() = GraphState::new(handle.id());
                 }
-                let inputs = HashMap::from([
+                let mut inputs = HashMap::from([
                     ("delta".to_owned(), DataValue::F32(0.1)),
                     (crate::extensions::sync_group_phase::SOURCE_SYNC_RESOLVED.to_owned(), DataValue::Bool(true)),
                     (format!("{}.Movement", crate::extensions::sync_group_phase::SOURCE_SYNC_RESOLVED), DataValue::F32(phase)),
                 ]);
+                if frame != 0 && frame != 10 {
+                    inputs.extend(crate::extensions::sync_group_phase::SourceMarkerAdvance {
+                        forward, markers: passed.iter().map(|name| (*name).to_owned()).collect(),
+                    }.into_inputs("Movement"));
+                }
                 let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
                     &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
                 graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.1)), context).unwrap();
@@ -1112,10 +1126,12 @@ mod tests {
         world.init_resource::<Assets<StateMachine>>();
         let handle = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
         let actual = world.run_system_cached_with(query, (handle, node.id)).unwrap();
-        for (frame, expected) in [[0.75, 0.7], [0.73, 0.68], [1.0, 0.95],
-            [0.06, 0.01], [0.9966667, 0.9466667], [0.75, 0.7]].into_iter().enumerate() {
+        for (frame, expected) in [[0.75, 0.7], [0.73, 0.68], [0.4, 0.35],
+            [0.57, 0.52], [0.39, 0.34], [0.2, 0.15], [0.65, 0.6],
+            [0.2, 0.15], [0.25, 0.2], [0.55, 0.5], [0.75, 0.7]].into_iter().enumerate() {
             for index in 0..2 {
-                assert!((actual[frame][index] - expected[index]).abs() < 1e-5,
+                let error = (actual[frame][index] - expected[index]).abs();
+                assert!(error.min((1.0 - error).abs()) < 1e-5,
                     "frame {frame} sample {index}: {} != {}", actual[frame][index], expected[index]);
             }
         }
@@ -1469,7 +1485,7 @@ mod tests {
                     &node.phase_markers,
                     &node.points[leader].markers,
                 );
-                let current = tick.advance(tick.phase);
+                let current = tick.advance(tick.phase).0;
                 phase = Some(current);
                 let ablated_weights = ablated.source_weights(position, &mut None).unwrap();
                 let ablated_leader = ablated_weights
@@ -1487,7 +1503,7 @@ mod tests {
                     &ablated.phase_markers,
                     &ablated.points[ablated_leader].markers,
                 );
-                let ablated_current = ablated_tick.advance(ablated_tick.phase);
+                let ablated_current = ablated_tick.advance(ablated_tick.phase).0;
                 ablated_phase = Some(ablated_current);
                 for sample in frame["samples"].as_array().unwrap() {
                     let index = sample["sample_index"].as_u64().unwrap() as usize;

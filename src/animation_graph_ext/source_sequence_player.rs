@@ -24,7 +24,7 @@ use crate::extensions::sync_group_phase::{
     SourceSyncGroupRole, SourceSyncPlayerTick, SyncMarker, marker_phase_from_sample_time,
     resolved_source_sync_phase, source_sync_delta_seconds,
     resolved_source_sync_markers, marker_phase_sample_time_near,
-    marker_phase_sample_time_continuous,
+    marker_phase_sample_time_continuous, resolved_source_marker_advance,
 };
 use crate::extensions::{
     AnimationContextState, SourceRelevantAsset, context_time_update, make_local_difference,
@@ -367,6 +367,8 @@ impl NodeLike for SourceSequencePlayerNode {
             .map(|sync| resolved_source_sync_phase(&ctx, &sync.key))
             .transpose()?
             .flatten();
+        let resolved_advance = self.synchronization.as_ref()
+            .map(|sync| resolved_source_marker_advance(&ctx, &sync.key)).transpose()?.flatten();
         let identity = (ctx.graph_context.context_id, ctx.node_id);
         let reached_full_weight = self.synchronization.as_ref().is_some_and(|sync|
             matches!(sync.role, SourceSyncGroupRole::TransitionLeader | SourceSyncGroupRole::TransitionFollower))
@@ -434,13 +436,20 @@ impl NodeLike for SourceSequencePlayerNode {
                 play_rate,
                 ..Default::default()
             };
-            tick.phase = resolved_phase.unwrap_or_else(|| tick.advance(previous_phase));
             state.previous_position = previous_sample_time;
             state.has_previous_position = state.initialized;
             state.initialized = true;
             state.delta_seconds = delta;
-            state.position = if state.has_previous_position && resolved_phase.is_some() {
-                marker_phase_sample_time_continuous(tick.phase, previous_phase,
+            let marker_advance = if let Some(phase) = resolved_phase {
+                tick.phase = phase;
+                resolved_advance.filter(|_| state.has_previous_position)
+            } else {
+                let (phase, advance) = tick.advance(previous_phase);
+                tick.phase = phase;
+                Some(advance)
+            };
+            state.position = if let Some(advance) = &marker_advance {
+                marker_phase_sample_time_continuous(tick.phase, advance,
                     sync.phase_duration, phase_markers, clip.duration(), markers,
                     previous_sample_time, loop_animation)
             } else {
@@ -604,15 +613,24 @@ mod tests {
             let entities = HashMap::new();
             let env = TestIoEnv::default();
             let mut results = Vec::new();
-            for (frame, phase) in [0.2, 0.19, 0.95, 0.11, 0.94, 0.2].into_iter().enumerate() {
-                if frame == 5 {
+            let frames: &[(f32, bool, &[&str])] = &[(0.2, true, &[]), (0.19, false, &[]),
+                (0.95, false, &["A"]), (0.11, true, &["A"]), (0.94, false, &["A"]), (0.75, false, &["B"]),
+                (0.15, true, &["B", "A"]), (0.75, true, &["B", "A", "B", "A", "B", "A", "B", "A", "B", "A"]),
+                (0.8, true, &["B"]), (0.1, false, &["B", "A", "B", "A", "B", "A", "B", "A", "B", "A", "B"]), (0.2, true, &[])];
+            for (frame, &(phase, forward, passed)) in frames.iter().enumerate() {
+                if frame == 10 {
                     *arena.get_toplevel_mut() = GraphState::new(handle.id());
                 }
-                let inputs = HashMap::from([
+                let mut inputs = HashMap::from([
                     ("delta".to_owned(), DataValue::F32(0.1)),
                     (crate::extensions::sync_group_phase::SOURCE_SYNC_RESOLVED.to_owned(), DataValue::Bool(true)),
                     (format!("{}.Movement", crate::extensions::sync_group_phase::SOURCE_SYNC_RESOLVED), DataValue::F32(phase)),
                 ]);
+                if frame != 0 && frame != 10 {
+                    inputs.extend(crate::extensions::sync_group_phase::SourceMarkerAdvance {
+                        forward, markers: passed.iter().map(|name| (*name).to_owned()).collect(),
+                    }.into_inputs("Movement"));
+                }
                 let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources,
                     &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
                 graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.1)), context).unwrap();
@@ -653,10 +671,12 @@ mod tests {
         }
         let handle = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
         let actual = world.run_system_cached_with(query, (handle, [players[0].id, players[1].id])).unwrap();
-        for (frame, expected) in [[0.75, 0.15], [0.73, 0.14], [1.0, 1.0],
-            [0.06, 0.06], [0.9966667, 0.9966667], [0.75, 0.15]].into_iter().enumerate() {
+        for (frame, expected) in [[0.75, 0.15], [0.73, 0.14], [0.4, 0.0],
+            [0.57, 0.06], [0.39, 0.9966667], [0.2, 0.85], [0.65, 0.1],
+            [0.2, 0.85], [0.25, 0.95], [0.55, 0.05], [0.75, 0.15]].into_iter().enumerate() {
             for index in 0..2 {
-                assert!((actual[frame][index] - expected[index]).abs() < 1e-5,
+                let error = (actual[frame][index] - expected[index]).abs();
+                assert!(error.min((1.0 - error).abs()) < 1e-5,
                     "frame {frame} player {index}: {} != {}", actual[frame][index], expected[index]);
             }
         }
