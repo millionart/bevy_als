@@ -283,12 +283,13 @@ fn prepare_receivers(
     mut cache: Local<HashMap<AssetId<StandardMaterial>, Handle<PackedDecalReceiverMaterial>>>,
 ) {
     let ignored = |entity| excluded.contains(entity);
+    let eligible = |base: &StandardMaterial| matches!(base.alpha_mode, AlphaMode::Opaque | AlphaMode::Mask(_) | AlphaMode::AlphaToCoverage);
     let changed: HashSet<_> = changes.read().filter_map(|event| match event {
         AssetEvent::Modified { id } => Some(*id), _ => None,
     }).collect();
     let mut active = HashSet::new();
     for (entity, material) in &converted {
-        if ignored(entity) || meshes.contains(entity) {
+        if ignored(entity) || meshes.contains(entity) || source.get(&material.0).is_some_and(|base| !eligible(base)) {
             commands.entity(entity).remove::<(MeshMaterial3d<PackedDecalReceiverMaterial>, StandardMaterialSource)>();
             if meshes.get(entity).is_err() { commands.entity(entity).insert(MeshMaterial3d(material.0.clone())); }
         } else { active.insert(material.0.id()); }
@@ -296,7 +297,7 @@ fn prepare_receivers(
     for (entity, material) in &meshes {
         if ignored(entity) { continue; }
         let Some(base) = source.get(&material.0) else { continue; };
-        if !matches!(base.alpha_mode, AlphaMode::Opaque | AlphaMode::Mask(_) | AlphaMode::AlphaToCoverage) { continue; }
+        if !eligible(base) { continue; }
         active.insert(material.0.id());
         let target = cache.entry(material.0.id()).or_insert_with(|| targets.add(PackedDecalReceiverMaterial {
             base: base.clone(), extension: PackedDecalReceiverExtension { decals: handles.materials.clone(), probe: handles.probe.clone() },
@@ -444,6 +445,40 @@ mod tests {
             assert_eq!(indices, (0..count as u32).collect::<Vec<_>>());
         }
         assert!(failures.is_empty(), "{}", failures.join("; "));
+    }
+
+    #[test]
+    fn receivers_recheck_in_place_material_alpha_mode() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default()))
+            .init_asset::<StandardMaterial>().init_asset::<PackedDecalReceiverMaterial>()
+            .init_resource::<PackedDecalBuffers>().add_systems(Update, prepare_receivers);
+        let material = app.world_mut().resource_mut::<Assets<StandardMaterial>>().add(StandardMaterial::default());
+        let first = app.world_mut().spawn((Mesh3d::default(), MeshMaterial3d(material.clone()))).id();
+        let second = app.world_mut().spawn((Mesh3d::default(), MeshMaterial3d(material.clone()))).id();
+        app.update();
+        assert!(app.world().get::<MeshMaterial3d<PackedDecalReceiverMaterial>>(first).is_some());
+        app.world_mut().resource_mut::<Assets<StandardMaterial>>().get_mut(&material).unwrap().alpha_mode = AlphaMode::Blend;
+        app.update();
+        for entity in [first, second] {
+            assert!(app.world().get::<MeshMaterial3d<PackedDecalReceiverMaterial>>(entity).is_none());
+            assert!(app.world().get::<StandardMaterialSource>(entity).is_none());
+            assert_eq!(app.world().get::<MeshMaterial3d<StandardMaterial>>(entity).unwrap().0, material);
+        }
+        {
+            let mut materials = app.world_mut().resource_mut::<Assets<StandardMaterial>>();
+            let mut base = materials.get_mut(&material).unwrap();
+            base.alpha_mode = AlphaMode::Opaque;
+            base.metallic = 0.7;
+        }
+        app.update();
+        let restored = app.world().get::<MeshMaterial3d<PackedDecalReceiverMaterial>>(first).unwrap();
+        assert_eq!(app.world().get::<MeshMaterial3d<PackedDecalReceiverMaterial>>(second).unwrap().0, restored.0);
+        assert_eq!(app.world().resource::<Assets<PackedDecalReceiverMaterial>>().get(&restored.0).unwrap().base.metallic, 0.7);
+        for entity in [first, second] {
+            assert!(app.world().get::<MeshMaterial3d<StandardMaterial>>(entity).is_none());
+            assert_eq!(app.world().get::<StandardMaterialSource>(entity).unwrap().0, material);
+        }
     }
 
     #[test]

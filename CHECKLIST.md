@@ -48,6 +48,7 @@
 
 - [x] **BF131.A13 — 当前脚骨映射已更新，但保留旧 Avatar 时脚目标仍可能按旧坐标系转换**。Gate：新旧 Avatar 使用不同平移/旋转/缩放，目标转换只依赖当前 Assembly/player；旧实体保留与两种拆装顺序均通过，原脚锁行为不回退。
 - [x] **BF131.A40 — 透明标准材质替换没有显式退出标记时，旧贴花代理残留并可抢占渲染材质**。Gate：Opaque→透明材质同帧交接不留旧代理，当前材质保留；显式退出和正常贴花接收控制通过。
+- [x] **BF131.A40b — 同一标准材质资产原地切换透明模式后仍保留贴花代理**。Gate：同 handle 的 Opaque→Blend→Opaque 在实际接收器系统中退出并恢复代理；共享材质、原材质更新、显式排除与组件替换控制通过。
 
 ### 动画图、曲线、同步和根运动
 
@@ -62,10 +63,10 @@
 - [x] **BF131.A64 — Animation curves lose case-insensitive FName identity and name-based basis conversion**。Gate：大小写变体共享曲线身份，名称驱动的坐标转换一致且只执行一次。
 - [x] **BF131.A65 — BlendSpace Player accepts then discards per-bone sample weight smoothing overrides**。Gate：逐骨平滑覆盖由 source 进入生成与实际混合；未覆盖骨保持默认，连续时间及重建通过。
 - [x] **BF131.A66 — CurvesBlend omits fractional update weight before its child FSM runs**。Gate：子 FSM 更新时已收到实际分数权重，0/中间/1 权重及嵌套更新通过。
-- [x] **BF131.A67 — TransitionLeader/TransitionFollower are not excluded during fade-in**。Gate：淡入阶段按角色和源有效权重选 leader，退出淡入后恢复候选资格。
+- [ ] **BF131.A67 — TransitionLeader/TransitionFollower are not excluded during fade-in**。Gate：淡入阶段按角色和源有效权重选 leader，退出淡入后恢复候选资格；实际脚步分派使用同一选举规则，被排除播放器保持独立通知。
 - [x] **BF131.A68 — Sync marker mapping does not filter to common marker names**。Gate：先求组内共同 marker 集，再定位/映射，非共同 marker 不改变有效相位。
 - [x] **BF131.A69 — Modify Curve accepts WeightedMovingAverage but evaluates it as stateless Blend**。Gate：逐实例历史参与加权移动平均，初始化/更新/重建及其他模式控制通过。
-- [x] **BF131.A70 — Repeated marker-name pairs collapse later timeline occurrences into the first pair**。Gate：同名重复 marker 对保留时间位置，跨周期与倒播不跳到第一对。
+- [ ] **BF131.A70 — Repeated marker-name pairs collapse later timeline occurrences into the first pair**。Gate：同名重复 marker 对保留时间位置，跨多个区间、多周期、倒播与精确边界不跳到较早 occurrence；实际播放器自身映射保持时间。
 - [x] **BF131.A71 — Custom 状态迁移按总时长结束，遗漏 FAlphaBlend 提前达到终值的完成语义**。Gate：源曲线提前达到终值时迁移完成，未达到终值及正常总时长控制通过。
 - [x] **BF131.A72 — 惯性过渡的显式 BlendProfile 在生成、请求和逐骨消费链中丢失**。Gate：显式 profile 贯穿生成、惯性请求与逐骨持续时间，默认 profile 和无覆盖控制通过。
 - [x] **BF131.A73 — 惯性化 root 历史没有按组件／Actor 附着空间变化重表达**。Gate：组件/Actor 附着空间改变后历史按源坐标系重表达，世界连续姿态和不变空间控制通过。
@@ -81,14 +82,14 @@
 - [x] **BF131.A80 — 自由线性轴的位置／速度驱动通过最终校验，却未保留到运行时并可使纯驱动关节禁用**。Gate：纯线性位置/速度驱动保留并启用，目标/强度/阻尼/限力按源消费，自由无驱动控制通过。
 - [x] **BF131.A81 — 完全自由关节只按 Twist 位置驱动判定启用，导致有效 Swing／角速度驱动被 JointDisabled 屏蔽**。Gate：逐驱动启用条件与实际活动轴一致，纯 Swing/速度驱动可工作，完全无约束控制通过。
 - [x] **BF131.A82 — PhysicsAsset 刚体禁碰撞响应被记录但未消费，布娃娃激活又恢复默认阻挡层**。Gate：Body 响应在生成、安装、激活/退出及重建中保留，禁碰撞体不恢复默认阻挡。
-- [x] **BF131.A83 — PhysicsAsset 的 COMNudge／InertiaTensorScale 未进入运行质量属性，质量相同但质心与转动响应错误**。Gate：坐标/单位正确的 COM 与惯量实际安装，非零偏移、非均匀惯量和单位控制通过。
+- [ ] **BF131.A83 — PhysicsAsset 的 COMNudge／InertiaTensorScale 未进入运行质量属性，质量相同但质心与转动响应错误**。Gate：坐标/单位正确的 COM 与惯量实际安装，非零偏移、非均匀惯量和单位控制通过；同 root/scale 的 Some→None→Some 撤销恢复由 profile 拥有的覆盖，并核对实际计算质量属性。
 - [x] **BF131.A84 — 关闭角速度覆盖时仍将 BodyInstance 原始 MaxAngularVelocity 作为强制上限，遗漏项目有效值**。Gate：按覆盖开关解析项目/实例有效上限，多个默认值、新建/重建与实际向量钳制通过。
 - [x] **BF131.A85 — 原生 PhysicsAsset 读取器使用 BodySetup 材质而绕过 BodyInstance PhysMaterialOverride，安装错误接触系数**。Gate：有效材质路径与属性同源，单体覆盖不污染共享材质，无覆盖正确回退，运行摩擦/恢复系数通过。
 - [x] **BF131.A86 — 关闭源陀螺力矩后，目标仍按非球对称惯量自动施加陀螺修正**。Gate：开关贯穿源到积分；非球对称多轴旋转、开关切换、睡眠唤醒/重建及其他力学作用控制通过。
 - [x] **BF131.A87 — 单个物理形状的 CollisionEnabled 未进入运行过滤，QueryOnly 等模式被当成普通阻挡 Collider**。Gate：六种 shape 模式与 Body 模式按源交集消费；同 Body 主阻挡形状与辅助 QueryOnly 并存，查询和物理解耦。
 - [x] **BF131.A88 — 源端允许相互碰撞的关节仍保留 JointCollisionDisabled，在用户钩子前屏蔽合法碰撞对**。Gate：关节标志与资产对子表四种组合经过实际 spawn/替换/JointGraph/broad phase，运行开关和重建通过。
 - [x] **BF131.A89 — 自定义关节缺少源端速度约束阶段，单子步下位置纠错留下非物理速度**。Gate：正确调度位置求解活动轴速度；单子步误差、零迭代、自由轴、双 Dynamic、非零锚臂和接触控制通过。
-- [x] **BF131.A90 — 缩放布娃娃回读归一化忽略逐骨屏蔽，改写本应保留的动画骨骼**。Gate：按实际成功回读及父空间归一化；root/child 四种组合、全关闭、缺失实体、中间未映射骨及完整回读控制通过。
+- [ ] **BF131.A90 — 缩放布娃娃回读归一化忽略逐骨屏蔽，改写本应保留的动画骨骼**。Gate：按实际成功回读及父空间归一化；root/child 四种组合、全关闭、缺失实体、中间未映射/被屏蔽/缺体骨及完整回读控制通过，实际回读后的完整骨链世界位置与物理体一致。
 
 ### 活动记录
 
@@ -398,3 +399,16 @@
   - Runtime 前摘要：本地 UE PhysAnim 逐 Body PhysicsBlendWeight>0 与 AB_Als_Ragdolling PoseSnapshot、依赖 read_pose 的配置/实体成功条件均已取证；四种 root/child 屏蔽、全关、缺体、未映射中间骨、完整回读的定向测试与四项消融闭合，完整库 1286/1286、diff check、target_game/play 优化构建、349/349 图规范和 root/grounded authoring 均 PASS。当前正式图默认全读回，可见场景负责真实入口，非默认屏蔽由 source-bound fixture 验证；下一步公共真实 Gate。
   - S3 实际结束 2026-09-29 00:01 +08:00，偏差 -34 分钟；结果：startup、ragdoll 11/11、get_up 11/11 公共功能 Gate 全部 PASS；报告 faults/graph_errors/temporal_anomalies/primary_failure 均空，watchdog 未触发，手工与校验进程退出 0。四组合、全关、缺体、未映射中间骨及完整回读测试与消融、完整库 1286、349 图规范、相关 authoring 和真实入口均闭合，勾选 A90；原始 max_eval_p95_ms 超预算按既定延期。
 - BF131 旧路径收尾：开始 2026-09-29 00:03 +08:00；预估结束 2026-09-29 00:15 +08:00；实际结束 2026-09-29 00:04 +08:00；偏差 -11 分钟。用户要求清除迁移遗留后，发现转换工具自测夹具仍用 `assets/generated`，正式 authoring 已使用 `tools/animgraph_authoring/*.transition_conditions`；夹具改用当前目录，递归生成、source map 与 stale 检测自测 3/3 通过，`tools/src/assets` 不再引用旧目录。仅改自测路径，不改转换算法或正式产物。
+
+### 1d31df2 复审修复
+
+来源：内置浏览器《Review BF131修复》，目标 `1d31df2971d007b60f11d41ad72816ced59e29e2`。用户要求处理全部反馈：A67 脚步通知与同步资格分歧、A70 多 marker 区间连续推进、A83 显式质量覆盖撤销、A90 中间动画骨的世界空间回读，以及独立新增的 A40b 同材质透明切换。按 A40b→A67→A70→A83→A90 顺序处理；四个原条目在当次 source/target 链证实残留后取消勾选，并记录原 Gate 漏检边界。性能仍按既定 FunctionalOnly 范围验收。
+
+- 复审源核验：开始 2026-09-29 01:31 +08:00；预估结束 2026-09-29 01:51 +08:00；实际结束 2026-09-29 01:43 +08:00；偏差 -8 分钟。利用 A40b 编译窗口只读取其余反馈链，fresh Standing、PA_Als、Ragdolling 原生 reader/watchdog 均 PASS；四个原条目现取消勾选，等待依次修复。A67：UE GetSyncParams 将淡入/惯性 transition 置为独立播放器，目标同步根已经清除其通知样本组名，但 dispatch_graph_footsteps 仍用未过滤 tick 重选 leader；旧 Gate 只验证同步相位，未断言真实事件。A70：UE leader 记录全部有向 MarkersPassed、follower 依次推进，目标连续映射只支持相邻区间，其余回退 nearest；旧 Gate 缺多区间/多圈。A83：UE UpdateMassProperties 每次从当前形状和修饰重算并安装 COM/惯量，目标 Some 分支没有 None 撤销；旧 Gate 只测安装/缩放。A90：UE PhysAnim 以更新后的实际父世界变换求局部值，依赖 read_pose 按深度混入骨链，目标只按成功祖先统一除 scale；旧中间骨夹具只核局部值，漏掉完整世界坐标。
+
+- BF131.A40b-S1：开始 2026-09-29 01:25 +08:00；预估结束 2026-09-29 01:55 +08:00。依据：原 A40 的同帧材质交接与现成 footprint Gate；本地 UE BasePassPixelShader 的 DBuffer 分支明确排除 ANY_TRANSLUCENT，目标 prepare_receivers 却只在首次转换检查 alpha_mode，已转换实体的 AssetEvent 仅复制 base。先重提 Footprint 材质源记录，并用实际 ECS 的同 handle Opaque→Blend→Opaque、共享接收器建立失败反例；不复开已通过的组件替换反例。
+  - S1 实际结束 2026-09-29 01:35 +08:00，偏差 -20 分钟；结果：fresh Footprint 原生记录为 DeferredDecal，UE BasePassPixelShader 的 `USE_DBUFFER && !MATERIALBLENDING_ANY_TRANSLUCENT` 证实接收资格；watchdog 自测通过。新 ECS 测试稳定 red：同 handle 改成 Blend 后旧 Packed 代理仍存在，旧测试只改 metallic 或替换组件，漏掉资格变化。S2 开始 2026-09-29 01:35 +08:00；预估结束 2026-09-29 02:00 +08:00。同一透明资格谓词用于初次转换与已转换实体，失去资格时复用现有退出/恢复路径；定向测试和去掉新增条件的消融后再做原 Playground 验收。
+  - S2 实际结束 2026-09-29 01:41 +08:00，偏差 -19 分钟；结果：同一 alpha 资格谓词覆盖两处生命周期入口，共享 handle 的 Opaque→Blend→Opaque、材质值更新和既有替换/排除/释放等 9/9 定向测试通过；移除已转换实体的资格条件即重现 red，恢复后 9/9 再通过。未新增状态、配置或资产变更，source 与静态闭环完成。
+- BF131.A40b-S3：开始 2026-09-29 01:41 +08:00；预估结束 2026-09-29 02:06 +08:00。按 run_manual 的 target_game/play 优化预构建后执行 startup、footprint 公共功能 Gate；同 handle 资格转换由真实 ECS 夹具验收，原 Playground 验证正常接收、GPU 属性与原材质替换仍成立。无图/转换器修改，完成后单独提交。
+  - Runtime 前摘要：fresh Footprint 材质与 UE DBuffer 接收规则、共享 handle 的完整透明往返 ECS 反例/修复/消融、projected_decal 9/9 回归及 diff check 均闭合；同 target_game/play 优化预构建 PASS。开始 startup/footprint 可见功能 Gate，图/原始资产/转换算法未改。
+  - S3 实际结束 2026-09-29 01:47 +08:00，偏差 -19 分钟；结果：startup、footprint 公共功能 Gate PASS，footprint 22/22（含原材质替换），GPU 36 请求/576 采样通过；图/故障/时序/primary_failure 均空，watchdog 未触发，手工和校验进程均退出 0。源资格、同 handle 往返/共享 ECS 反例、移除条件消融与真实入口闭合，勾选 A40b；性能预算保留既定延期。下一项 A67 真实事件分派。
