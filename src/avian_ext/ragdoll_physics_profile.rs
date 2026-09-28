@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use avian3d::prelude::{
-    ActiveCollisionHooks, AngularDamping, Collider, CollisionLayers, CoefficientCombine, CollisionHooks, Friction,
-    GravityScale, JointDamping, JointDisabled, LinearDamping, MaxAngularSpeed, PhysicsSystems,
+    ActiveCollisionHooks, AngularDamping, AngularInertia, CenterOfMass, Collider, CollisionLayers,
+    CoefficientCombine, CollisionHooks, Friction, GravityScale, JointDamping, JointDisabled,
+    LinearDamping, Mass, MaxAngularSpeed, NoAutoAngularInertia, NoAutoCenterOfMass, NoAutoMass, PhysicsSystems,
     Position, Restitution, RevoluteJoint, Rotation, SphericalJoint,
 };
 use bevy::ecs::schedule::ApplyDeferred;
@@ -41,6 +42,14 @@ pub struct RagdollBodyPhysicsProfile {
     pub gravity_scale: f32,
     pub friction: Friction,
     pub restitution: Restitution,
+    pub mass_properties: Option<RagdollMassProperties>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct RagdollMassProperties {
+    pub mass_kg: f32,
+    pub center_of_mass_m: Vec3,
+    pub inertia_tensor_kg_m2: Mat3,
 }
 
 #[derive(Clone, Debug)]
@@ -99,6 +108,15 @@ struct PhysicsAssetBodyTarget {
     max_angular_speed_radians_per_second: f32,
     gravity_scale: f32,
     material: PhysicsAssetMaterial,
+    #[serde(default)]
+    mass_properties: Option<PhysicsAssetMassProperties>,
+}
+
+#[derive(Deserialize)]
+struct PhysicsAssetMassProperties {
+    mass_kg: f32,
+    center_of_mass_m: [f32; 3],
+    inertia_tensor_kg_m2: [[f32; 3]; 3],
 }
 
 #[derive(Deserialize)]
@@ -227,6 +245,11 @@ impl RagdollPhysicsProfile {
                         coefficient: material.restitution,
                         combine_rule: coefficient_combine(&material.restitution_combine)?,
                     },
+                    mass_properties: body.target.mass_properties.as_ref().map(|value| RagdollMassProperties {
+                        mass_kg: value.mass_kg,
+                        center_of_mass_m: Vec3::from_array(value.center_of_mass_m),
+                        inertia_tensor_kg_m2: Mat3::from_cols_array_2d(&value.inertia_tensor_kg_m2),
+                    }),
                 })
             })
             .collect::<Result<Vec<_>, String>>()?;
@@ -566,6 +589,14 @@ fn apply_profile_to_spawned_ragdoll(
             body.friction,
             body.restitution,
         ));
+        if let Some(mass) = body.mass_properties {
+            commands.entity(*body_entity).insert((
+                Mass(mass.mass_kg),
+                CenterOfMass(mass.center_of_mass_m * scale),
+                AngularInertia::from_mat3_unchecked(mass.inertia_tensor_kg_m2 * scale * scale),
+                NoAutoMass, NoAutoCenterOfMass, NoAutoAngularInertia,
+            ));
+        }
         applied.body_count += 1;
     }
     for collider_entity in spawned.colliders.values() {
@@ -971,7 +1002,13 @@ mod tests {
             .collect::<Vec<_>>();
         let pelvis = *spawned.joints.values().find(|entity|
             world.get::<JointLabel>(**entity).unwrap().0 == "pelvis").unwrap();
+        let pelvis_body = *spawned.bodies.values().find(|entity|
+            world.get::<BodyLabel>(**entity).unwrap().0 == "pelvis").unwrap();
         let again = SpawnedRagdoll {
+            root: spawned.root, bodies: spawned.bodies.clone(),
+            colliders: spawned.colliders.clone(), joints: spawned.joints.clone(),
+        };
+        let mass_again = SpawnedRagdoll {
             root: spawned.root, bodies: spawned.bodies.clone(),
             colliders: spawned.colliders.clone(), joints: spawned.joints.clone(),
         };
@@ -1049,6 +1086,56 @@ mod tests {
         let motor = world.get::<SourcePhysicsJoint>(pelvis).unwrap();
         assert!(motor.linear_motors[0].position_enabled);
         assert_eq!(motor.linear_position_target, Vec3::X * 0.2);
+        let mut source: serde_json::Value = serde_json::from_str(include_str!(
+            "../../assets/ALS/Character/PA_Als.physics.json"
+        )).unwrap();
+        let body = source["bodies"].as_array_mut().unwrap().iter_mut()
+            .find(|body| body["bone_name"] == "pelvis").unwrap();
+        body["target"]["mass_properties"] = serde_json::json!({
+            "mass_kg": 7.926393985748291,
+            "center_of_mass_m": [0.1, 0.3, 0.2],
+            "inertia_tensor_kg_m2": [[0.1, 0.0, 0.0], [0.0, 0.2, 0.0], [0.0, 0.0, 0.3]],
+        });
+        let mass_profile = RagdollPhysicsProfile::from_json(&source.to_string()).unwrap();
+        let mass_profile_scaled = mass_profile.clone();
+        let mass_again_scaled = SpawnedRagdoll {
+            root: mass_again.root, bodies: mass_again.bodies.clone(),
+            colliders: mass_again.colliders.clone(), joints: mass_again.joints.clone(),
+        };
+        world.run_system_once(move |mut commands: Commands,
+            body_labels: Query<&BodyLabel>, collider_labels: Query<&ColliderLabel>,
+            joint_labels: Query<&JointLabel>, spherical: Query<&SphericalJoint>,
+            revolute: Query<&RevoluteJoint>, source_joints: Query<&SourcePhysicsJoint>,
+            transforms: Query<&Transform>, mut colliders: Query<&mut Collider>| {
+            apply_profile_to_spawned_ragdoll(&mut commands, &mass_again, &mass_profile,
+                1.0, 1.0, &body_labels, &collider_labels, &joint_labels,
+                &spherical, &revolute, &source_joints, &transforms, &mut colliders)
+        }).unwrap();
+        assert_eq!(world.get::<avian3d::prelude::CenterOfMass>(pelvis_body).unwrap().0,
+            Vec3::new(0.1, 0.3, 0.2));
+        assert!(world.get::<NoAutoMass>(pelvis_body).is_some());
+        assert!(world.get::<NoAutoCenterOfMass>(pelvis_body).is_some());
+        assert!(world.get::<NoAutoAngularInertia>(pelvis_body).is_some());
+        assert!((world.get::<Mass>(pelvis_body).unwrap().0 - 7.926394).abs() < 1e-5);
+        world.run_system_once(move |mut commands: Commands,
+            body_labels: Query<&BodyLabel>, collider_labels: Query<&ColliderLabel>,
+            joint_labels: Query<&JointLabel>, spherical: Query<&SphericalJoint>,
+            revolute: Query<&RevoluteJoint>, source_joints: Query<&SourcePhysicsJoint>,
+            transforms: Query<&Transform>, mut colliders: Query<&mut Collider>| {
+            apply_profile_to_spawned_ragdoll(&mut commands, &mass_again_scaled, &mass_profile_scaled,
+                2.0, 2.0, &body_labels, &collider_labels, &joint_labels,
+                &spherical, &revolute, &source_joints, &transforms, &mut colliders)
+        }).unwrap();
+        assert_eq!(world.get::<CenterOfMass>(pelvis_body).unwrap().0, Vec3::new(0.2, 0.6, 0.4));
+        let mut principal = world.get::<AngularInertia>(pelvis_body).unwrap().principal.to_array();
+        principal.sort_by(f32::total_cmp);
+        assert!(principal.iter().zip([0.4, 0.8, 1.2]).all(|(actual, expected)| (actual - expected).abs() < 1e-5));
+        app.update();
+        assert_eq!(app.world().get::<avian3d::prelude::ComputedCenterOfMass>(pelvis_body).unwrap().0,
+            Vec3::new(0.2, 0.6, 0.4));
+        assert!((app.world().get::<avian3d::prelude::ComputedMass>(pelvis_body).unwrap().value() - 7.926394).abs() < 1e-5);
+        let tensor = app.world().get::<avian3d::prelude::ComputedAngularInertia>(pelvis_body).unwrap().value();
+        assert!((tensor.m00 - 0.4).abs() + (tensor.m11 - 0.8).abs() + (tensor.m22 - 1.2).abs() < 1e-5);
     }
 
     #[test]

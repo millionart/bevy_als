@@ -349,6 +349,22 @@ def self_test():
     assert math.isclose(target_spring(50.0, 0.0, False, 1.5, 1.5)["stiffness"], 0.0075)
     assert target_angular_limit("ACM_Locked", 0.0) == "Locked"
     assert target_angular_limit("ACM_Limited", 0.0) == {"Limited": 0.0}
+    box = {"kind": "box", "mass_kg": 2.0, "half_extents_m": [0.1, 0.2, 0.3],
+        "translation_m": [0.0, 0.0, 0.0], "rotation_xyzw": [0.0, 0.0, 0.0, 1.0]}
+    mass = target_mass_properties([box], 2.0, ue_point([10.0, 20.0, 30.0]), direction([2.0, 1.0, 0.5]))
+    assert_close(mass["center_of_mass_m"], [0.1, 0.3, 0.2])
+    assert_close([mass["inertia_tensor_kg_m2"][i][i] for i in range(3)],
+        [0.0866666667, 0.2666666667, 0.1133333333])
+    assert target_mass_properties([box], 2.0, [0.0, 0.0, 0.0], [1.0, 1.0, 1.0]) is None
+    sphere = {"kind": "sphere", "mass_kg": 1.0, "radius_m": 0.5,
+        "translation_m": [0.0, 0.0, 0.0], "rotation_xyzw": [0.0, 0.0, 0.0, 1.0]}
+    sphere_mass = target_mass_properties([sphere], 1.0, [0.1, 0.0, 0.0], [1.0, 1.0, 1.0])
+    assert_close([sphere_mass["inertia_tensor_kg_m2"][i][i] for i in range(3)], [0.11, 0.1, 0.1])
+    capsule = {"kind": "capsule", "mass_kg": 3.0, "radius_m": 0.2, "half_length_m": 0.4,
+        "translation_m": [0.0, 0.0, 0.0], "rotation_xyzw": [0.0, 0.0, 0.0, 1.0]}
+    capsule_mass = target_mass_properties([capsule], 3.0, [0.0, 0.0, 0.0], [1.2, 1.0, 0.8])
+    assert capsule_mass["inertia_tensor_kg_m2"][0][0] > capsule_mass["inertia_tensor_kg_m2"][1][1] > 0.0
+    assert_close(capsule_mass["center_of_mass_m"], [0.0, 0.0, 0.0])
     material = target_material([
         {"name": key, "exported_text": value} for key, value in {
             "Friction": "0.7", "StaticFriction": "0", "Restitution": "0.3",
@@ -423,6 +439,54 @@ def target_shape(shape):
         result["radius_m"] = shape["radius"] * CM_TO_M
         result["half_length_m"] = shape["length"] * 0.5 * CM_TO_M
     return result
+
+
+def target_mass_properties(shapes, mass, nudge_m, inertia_scale):
+    if all(value == 0.0 for value in nudge_m) and all(abs(value - 1.0) <= 1e-3 for value in inertia_scale):
+        return None
+    if not shapes or mass <= 0.0 or abs(sum(shape["mass_kg"] for shape in shapes) - mass) > 1e-3:
+        raise ValueError("body mass properties lack a valid shape mass closure")
+    center = [sum(shape["mass_kg"] * shape["translation_m"][axis] for shape in shapes) / mass for axis in range(3)]
+    tensor = [[0.0] * 3 for _ in range(3)]
+    for shape in shapes:
+        shape_mass = shape["mass_kg"]
+        if shape["kind"] == "sphere":
+            diagonal = [0.4 * shape_mass * shape["radius_m"] ** 2] * 3
+        elif shape["kind"] == "box":
+            x, y, z = shape["half_extents_m"]
+            diagonal = [shape_mass * (y * y + z * z) / 3,
+                shape_mass * (x * x + z * z) / 3,
+                shape_mass * (x * x + y * y) / 3]
+        elif shape["kind"] == "capsule":
+            radius = shape["radius_m"]
+            height = 2.0 * shape["half_length_m"]
+            perpendicular = shape_mass * (5 * height ** 3 + 20 * height ** 2 * radius
+                + 45 * height * radius ** 2 + 32 * radius ** 3) / (60 * height + 80 * radius)
+            axial = shape_mass * radius ** 2 * (15 * height + 16 * radius) / (30 * height + 40 * radius)
+            diagonal = [perpendicular, axial, perpendicular]
+        else:
+            raise ValueError(f"unsupported mass shape: {shape['kind']}")
+        basis = [quat_rotate(shape["rotation_xyzw"], axis) for axis in ([1, 0, 0], [0, 1, 0], [0, 0, 1])]
+        offset = [shape["translation_m"][axis] - center[axis] for axis in range(3)]
+        radius_squared = sum(value * value for value in offset)
+        for row in range(3):
+            for column in range(3):
+                tensor[row][column] += sum(diagonal[axis] * basis[axis][row] * basis[axis][column] for axis in range(3))
+                tensor[row][column] += shape_mass * ((radius_squared if row == column else 0.0) - offset[row] * offset[column])
+    scale = [abs(value) for value in inertia_scale]
+    if all(abs(value - 1.0) <= 1e-3 for value in scale):
+        scale = [1.0] * 3
+    half_trace = sum(tensor[axis][axis] for axis in range(3)) * 0.5
+    axis_squared = [(half_trace - tensor[axis][axis]) * scale[axis] ** 2 for axis in range(3)]
+    scaled = [[tensor[row][column] * scale[row] * scale[column] for column in range(3)] for row in range(3)]
+    for axis in range(3):
+        scaled[axis][axis] = axis_squared[(axis + 1) % 3] + axis_squared[(axis + 2) % 3]
+        scaled[axis][axis] += mass * nudge_m[axis] ** 2
+    return {
+        "mass_kg": mass,
+        "center_of_mass_m": [center[axis] + nudge_m[axis] for axis in range(3)],
+        "inertia_tensor_kg_m2": scaled,
+    }
 
 
 def multiply(left, right):
@@ -658,6 +722,10 @@ def build_profile(source):
             shapes.append(item)
         physics_type = original["PhysicsType"]
         mode = "Kinematic" if physics_type == "PhysType_Kinematic" else "Dynamic"
+        default_instance = props(body["default_instance_properties"])
+        nudge = ue_point(vector_after("COMNudge=" + default_instance["COMNudge"], "COMNudge"))
+        inertia_scale = direction(vector_after("InertiaTensorScale=" + default_instance["InertiaTensorScale"], "InertiaTensorScale"))
+        mass_properties = target_mass_properties([shape["target"] for shape in shapes], body["calculated_mass"], nudge, inertia_scale)
         bodies.append({
             "source_index": body["index"],
             "bone_name": bone,
@@ -665,7 +733,7 @@ def build_profile(source):
             "collision_response": original["CollisionReponse"],
             "calculated_mass_kg": body["calculated_mass"],
             "source_properties": original,
-            "source_default_instance": props(body["default_instance_properties"]),
+            "source_default_instance": default_instance,
             "target": {
                 "default_mode": mode,
                 "active_mode": mode,
@@ -674,6 +742,7 @@ def build_profile(source):
                 "max_angular_speed_radians_per_second": math.radians(numeric(body["default_instance_properties"], "MaxAngularVelocity")),
                 "gravity_scale": 1.0 if boolean(body["default_instance_properties"], "bEnableGravity", True) else 0.0,
                 "material": target_material(body["physical_material_properties"]),
+                **({"mass_properties": mass_properties} if mass_properties is not None else {}),
             },
             "shapes": shapes,
         })
