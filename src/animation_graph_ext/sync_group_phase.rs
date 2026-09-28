@@ -105,6 +105,7 @@ pub struct SourceSyncPlayerTick {
     pub requested_inertialization: bool,
     pub phase: f32,
     pub previous_phase: f32,
+    pub sample_time_hint: Option<f32>,
     pub phase_duration: f32,
     pub phase_markers: Vec<SyncMarker>,
     pub duration: f32,
@@ -301,7 +302,7 @@ pub fn resolve_source_sync_phases(
                         return None;
                     }
                     time_for_marker_position(&grouped.phase_markers, grouped.phase_duration,
-                        &position, grouped.looped)
+                        &position, prior.phase * grouped.phase_duration, grouped.looped)
                         .map(|time| time_to_phase(time, grouped.phase_duration, grouped.looped))
                 })
             };
@@ -346,12 +347,13 @@ impl SourceSyncPlayerTick {
     }
 
     pub fn advance(&self, previous_phase: f32) -> f32 {
-        let previous_time = marker_phase_sample_time(
+        let previous_time = marker_phase_sample_time_near(
             previous_phase,
             self.phase_duration,
             &self.phase_markers,
             self.duration,
             &self.markers,
+            self.sample_time_hint.unwrap_or_else(|| phase_to_time(previous_phase, self.duration, self.looped)),
             self.looped,
         );
         let next_time = phase_to_time(
@@ -553,6 +555,7 @@ pub fn time_for_marker_position(
     markers: &[SyncMarker],
     duration: f32,
     position: &SyncMarkerPosition,
+    current_time: f32,
     looped: bool,
 ) -> Option<f32> {
     let duration = duration.max(EPSILON);
@@ -560,6 +563,8 @@ pub fn time_for_marker_position(
     if markers.is_empty() || (!looped && markers.len() < 2) {
         return None;
     }
+    let current_time = if looped { current_time.rem_euclid(duration) } else { current_time.clamp(0.0, duration) };
+    let mut closest = None;
     for index in 0..markers.len() {
         let next_index = if index + 1 == markers.len() {
             if !looped {
@@ -575,13 +580,16 @@ pub fn time_for_marker_position(
         let start = markers[index].time;
         let end = markers[next_index].time + if next_index == 0 { duration } else { 0.0 };
         let time = start + (end - start).max(EPSILON) * position.alpha.clamp(0.0, 1.0);
-        return Some(if looped {
-            time.rem_euclid(duration)
+        let distance = if looped && next_index == 0 {
+            (time - current_time).abs().min((time - duration - current_time).abs())
         } else {
-            time
-        });
+            (time - current_time).abs()
+        };
+        if closest.is_none_or(|(best, _)| distance < best) {
+            closest = Some((distance, if looped { time.rem_euclid(duration) } else { time }));
+        }
     }
-    None
+    closest.map(|(_, time)| time)
 }
 
 pub fn follower_sample_time(
@@ -592,10 +600,24 @@ pub fn follower_sample_time(
     follower_markers: &[SyncMarker],
     looped: bool,
 ) -> f32 {
+    follower_sample_time_near(phase, leader_duration, leader_markers, follower_duration,
+        follower_markers, phase_to_time(phase, follower_duration, looped), looped)
+}
+
+pub fn follower_sample_time_near(
+    phase: f32,
+    leader_duration: f32,
+    leader_markers: &[SyncMarker],
+    follower_duration: f32,
+    follower_markers: &[SyncMarker],
+    current_time: f32,
+    looped: bool,
+) -> f32 {
     let leader_time = phase_to_time(phase, leader_duration, looped);
     marker_position_at_time(leader_markers, leader_duration, leader_time, looped)
         .and_then(|position| {
-            time_for_marker_position(follower_markers, follower_duration, &position, looped)
+            time_for_marker_position(follower_markers, follower_duration, &position,
+                current_time, looped)
         })
         .unwrap_or_else(|| phase_to_time(phase, follower_duration, looped))
 }
@@ -622,13 +644,78 @@ pub fn marker_phase_sample_time(
     sample_markers: &[SyncMarker],
     looped: bool,
 ) -> f32 {
+    marker_phase_sample_time_near(phase, phase_duration, phase_markers, sample_duration,
+        sample_markers, phase_to_time(phase, sample_duration, looped), looped)
+}
+
+pub fn marker_phase_sample_time_near(
+    phase: f32,
+    phase_duration: f32,
+    phase_markers: &[SyncMarker],
+    sample_duration: f32,
+    sample_markers: &[SyncMarker],
+    current_time: f32,
+    looped: bool,
+) -> f32 {
     let fallback = phase_to_time(phase, sample_duration, looped);
     let phase_time = phase_to_time(phase, phase_duration, looped);
     marker_position_at_time(phase_markers, phase_duration, phase_time, looped)
         .and_then(|position| {
-            time_for_marker_position(sample_markers, sample_duration, &position, looped)
+            time_for_marker_position(sample_markers, sample_duration, &position, current_time, looped)
         })
         .unwrap_or(fallback)
+}
+
+pub fn marker_phase_sample_time_continuous(
+    phase: f32,
+    previous_phase: f32,
+    phase_duration: f32,
+    phase_markers: &[SyncMarker],
+    sample_duration: f32,
+    sample_markers: &[SyncMarker],
+    previous_sample_time: f32,
+    looped: bool,
+) -> f32 {
+    let fallback = || marker_phase_sample_time_near(phase, phase_duration, phase_markers,
+        sample_duration, sample_markers, previous_sample_time, looped);
+    if !looped {
+        return fallback();
+    }
+    let phase_markers = sorted_markers(phase_markers, phase_duration);
+    let sample_markers = sorted_markers(sample_markers, sample_duration);
+    if phase_markers.len() < 2 || sample_markers.len() < 2 {
+        return fallback();
+    }
+    let phase_time = phase_to_time(phase, phase_duration, true);
+    let previous_phase_time = phase_to_time(previous_phase, phase_duration, true);
+    let previous_sample_time = previous_sample_time.rem_euclid(sample_duration.max(EPSILON));
+    let interval = |markers: &[SyncMarker], time: f32| markers.iter()
+        .rposition(|marker| marker.time <= time).unwrap_or(markers.len() - 1);
+    let current_index = interval(&phase_markers, phase_time);
+    let previous_index = interval(&phase_markers, previous_phase_time);
+    let sample_index = interval(&sample_markers, previous_sample_time);
+    let candidate = if current_index == previous_index {
+        Some(sample_index)
+    } else if current_index == (previous_index + 1) % phase_markers.len() {
+        Some((sample_index + 1) % sample_markers.len())
+    } else if previous_index != 0
+        && current_index == (previous_index + phase_markers.len() - 1) % phase_markers.len() {
+        Some((sample_index + sample_markers.len() - 1) % sample_markers.len())
+    } else {
+        None
+    };
+    let Some(candidate) = candidate else { return fallback(); };
+    let Some(position) = marker_position_at_time(&phase_markers, phase_duration, phase_time, true) else {
+        return fallback();
+    };
+    let next = (candidate + 1) % sample_markers.len();
+    if sample_markers[candidate].name != position.previous || sample_markers[next].name != position.next {
+        return fallback();
+    }
+    let end = sample_markers[next].time + if next == 0 { sample_duration } else { 0.0 };
+    (sample_markers[candidate].time
+        + (end - sample_markers[candidate].time).max(EPSILON) * position.alpha.clamp(0.0, 1.0))
+        .rem_euclid(sample_duration.max(EPSILON))
 }
 
 pub fn marker_phase_from_sample_time(
@@ -642,7 +729,8 @@ pub fn marker_phase_from_sample_time(
     let fallback = time_to_phase(sample_time, sample_duration, looped);
     marker_position_at_time(sample_markers, sample_duration, sample_time, looped)
         .and_then(|position| {
-            time_for_marker_position(phase_markers, phase_duration, &position, looped)
+            time_for_marker_position(phase_markers, phase_duration, &position,
+                phase_to_time(fallback, phase_duration, looped), looped)
         })
         .map(|phase_time| time_to_phase(phase_time, phase_duration, looped))
         .unwrap_or(fallback)
@@ -943,6 +1031,7 @@ mod tests {
             weight: 1.0,
             phase,
             previous_phase: phase,
+            sample_time_hint: None,
             phase_duration: 1.0,
             phase_markers: markers(&[("Left", 0.0), ("Right", 0.5)]),
             duration: 1.0,
@@ -1007,6 +1096,23 @@ mod tests {
         let follower = markers(&[("Left", 0.033333), ("Right", 0.433333)]);
         let time = follower_sample_time(0.2, 1.133333, &leader, 0.8, &follower, true);
         assert!((time - 0.13451).abs() < 1e-3);
+    }
+
+    #[test]
+    fn repeated_marker_pairs_follow_the_nearest_timeline_occurrence() {
+        let phase = markers(&[("A", 0.1), ("B", 0.3), ("A", 0.6), ("B", 0.8)]);
+        let sample = markers(&[("A", 0.05), ("B", 0.25), ("A", 0.55), ("B", 0.95)]);
+        for (phase_time, expected) in [(0.65, 0.65), (0.62, 0.59), (0.61, 0.57), (0.95, 1.0)] {
+            let actual = marker_phase_sample_time(phase_time, 1.0, &phase, 1.0, &sample, true);
+            assert!((actual - expected).abs() < 1e-5, "phase={phase_time} time={actual} expected={expected}");
+        }
+        let player = SourceSyncPlayerTick {
+            phase_duration: 1.0, phase_markers: phase,
+            duration: 1.0, markers: sample,
+            sample_time_hint: Some(0.65), delta_seconds: 0.1, play_rate: 1.0,
+            looped: true, ..default()
+        };
+        assert!((player.advance(0.2) - 0.75).abs() < 1e-5);
     }
 
     #[test]

@@ -197,6 +197,18 @@
     {
       "path": "target/bf131/a65/UnrealMathUtility.h",
       "sha256": "42feaa58fe6da3d00cbd11a9255e303cd88aeadf8caac4a800f9f141fd2218b1"
+    },
+    {
+      "path": "target/bf131/a70/AnimSequence.cpp",
+      "sha256": "08986b39c6e9d933d523b5ede2e7bbc110bf6ee1d532ed21241d173d0040799c"
+    },
+    {
+      "path": "target/bf131/a70/AnimSequenceBase.cpp",
+      "sha256": "538cedbee8cad1313c301078374a2750c2929e5ec198a54d2254d0c79ae6c3f7"
+    },
+    {
+      "path": "target/bf131/a70/AnimSequence.h",
+      "sha256": "fcf84df7779d2f2be19ce84d5428e9c8561f05d285de252fd467c4f4bcae1d94"
     }
   ],
   "graphs": [
@@ -1947,6 +1959,11 @@
       "label": "modify_curve_other_modes",
       "argv": ["cargo", "test", "--locked", "--offline", "--profile", "play", "--lib", "curve_modify", "--jobs", "2"],
       "evidence": "target/bf1295/bf131-a69-curve-focused.json"
+    },
+    {
+      "label": "repeated_sync_marker_pair_timeline_continuity",
+      "argv": ["cargo", "test", "--locked", "--offline", "--profile", "play", "--lib", "repeated_", "--jobs", "2"],
+      "evidence": "target/bf1295/bf131-a70-repeated-final.json"
     }
   ]
 }
