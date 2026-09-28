@@ -57,6 +57,16 @@ pub struct RagdollMassProperties {
 }
 
 #[derive(Component)]
+struct RagdollMassPropertiesBaseline {
+    mass: Option<Mass>,
+    center_of_mass: Option<CenterOfMass>,
+    angular_inertia: Option<AngularInertia>,
+    no_auto_mass: bool,
+    no_auto_center_of_mass: bool,
+    no_auto_angular_inertia: bool,
+}
+
+#[derive(Component)]
 struct RagdollGyroscopicTorqueDisabled;
 
 #[derive(Clone, Debug)]
@@ -767,14 +777,32 @@ fn apply_profile_to_spawned_ragdoll(
             body.friction,
             body.restitution,
         ));
-        if let Some(mass) = body.mass_properties {
-            commands.entity(*body_entity).insert((
-                Mass(mass.mass_kg),
-                CenterOfMass(mass.center_of_mass_m * scale),
-                AngularInertia::from_mat3_unchecked(mass.inertia_tensor_kg_m2 * scale * scale),
-                NoAutoMass, NoAutoCenterOfMass, NoAutoAngularInertia,
-            ));
-        }
+        let mass = body.mass_properties;
+        commands.entity(*body_entity).queue(move |mut entity: EntityWorldMut| {
+            if let Some(mass) = mass {
+                if !entity.contains::<RagdollMassPropertiesBaseline>() {
+                    let baseline = RagdollMassPropertiesBaseline {
+                        mass: entity.get::<Mass>().copied(),
+                        center_of_mass: entity.get::<CenterOfMass>().copied(),
+                        angular_inertia: entity.get::<AngularInertia>().copied(),
+                        no_auto_mass: entity.contains::<NoAutoMass>(),
+                        no_auto_center_of_mass: entity.contains::<NoAutoCenterOfMass>(),
+                        no_auto_angular_inertia: entity.contains::<NoAutoAngularInertia>(),
+                    };
+                    entity.insert(baseline);
+                }
+                entity.insert((Mass(mass.mass_kg), CenterOfMass(mass.center_of_mass_m * scale),
+                    AngularInertia::from_mat3_unchecked(mass.inertia_tensor_kg_m2 * scale * scale),
+                    NoAutoMass, NoAutoCenterOfMass, NoAutoAngularInertia));
+            } else if let Some(baseline) = entity.take::<RagdollMassPropertiesBaseline>() {
+                if let Some(value) = baseline.mass { entity.insert(value); } else { entity.remove::<Mass>(); }
+                if let Some(value) = baseline.center_of_mass { entity.insert(value); } else { entity.remove::<CenterOfMass>(); }
+                if let Some(value) = baseline.angular_inertia { entity.insert(value); } else { entity.remove::<AngularInertia>(); }
+                if !baseline.no_auto_mass { entity.remove::<NoAutoMass>(); }
+                if !baseline.no_auto_center_of_mass { entity.remove::<NoAutoCenterOfMass>(); }
+                if !baseline.no_auto_angular_inertia { entity.remove::<NoAutoAngularInertia>(); }
+            }
+        });
         if body.gyroscopic_torque_enabled {
             commands.entity(*body_entity).remove::<RagdollGyroscopicTorqueDisabled>();
         } else {
@@ -1152,6 +1180,72 @@ mod tests {
         let joint = profile.joints.iter().find(|joint| joint.label == "pelvis").unwrap();
         assert!(joint.enabled && joint.definition.motors[1].velocity_enabled);
         assert_eq!(joint.definition.motor_velocity_target, Vec3::Y);
+    }
+
+    #[test]
+    fn profile_mass_overrides_restore_automatic_and_preexisting_mass_properties() {
+        use avian3d::prelude::{ComputedAngularInertia, ComputedCenterOfMass, ComputedMass, PhysicsPlugins, RigidBody};
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy_animation_graph::core::ragdoll::definition::Body;
+
+        fn apply(In((profile, spawned)): In<(RagdollPhysicsProfile, SpawnedRagdoll)>,
+            mut commands: Commands, body_labels: Query<&BodyLabel>, collider_labels: Query<&ColliderLabel>,
+            joint_labels: Query<&JointLabel>, spherical: Query<&SphericalJoint>, revolute: Query<&RevoluteJoint>,
+            source_joints: Query<&SourcePhysicsJoint>, transforms: Query<&Transform>, mut colliders: Query<&mut Collider>,
+        ) -> RagdollPhysicsProfileApplied {
+            apply_profile_to_spawned_ragdoll(&mut commands, &spawned, &profile, 1.0, 1.0,
+                &body_labels, &collider_labels, &joint_labels, &spherical, &revolute, &source_joints, &transforms, &mut colliders)
+        }
+
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin,
+            TransformPlugin, PhysicsPlugins::new(PostUpdate)));
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
+        app.finish();
+        app.cleanup();
+        let root = app.world_mut().spawn(Transform::default()).id();
+        let bodies = ["pelvis", "spine_03"].map(|label| {
+            let entity = app.world_mut().spawn((RigidBody::Dynamic, BodyLabel(label.into()), ChildOf(root),
+                Transform::from_xyz(if label == "pelvis" { 0.0 } else { 4.0 }, 0.0, 0.0))).id();
+            app.world_mut().spawn((Collider::sphere(0.5), Mass(2.0), Transform::from_xyz(0.0, 0.4, 0.0), ChildOf(entity)));
+            (Body::new().id, entity)
+        });
+        app.world_mut().entity_mut(bodies[1].1).insert((Mass(9.0), CenterOfMass(Vec3::X * 0.6),
+            AngularInertia::new(Vec3::new(0.9, 1.2, 1.5)), NoAutoMass, NoAutoCenterOfMass, NoAutoAngularInertia));
+        app.update();
+        let profile = RagdollPhysicsProfile::from_json(include_str!("../../assets/ALS/Character/PA_Als.physics.json")).unwrap();
+        for mass in [None, Some(3.0), Some(5.0), None, Some(3.0)] {
+            let mut profile = profile.clone();
+            for body in &mut profile.bodies {
+                body.mass_properties = mass.map(|mass_kg| RagdollMassProperties { mass_kg,
+                    center_of_mass_m: Vec3::X * mass_kg * 0.1,
+                    inertia_tensor_kg_m2: Mat3::from_diagonal(Vec3::new(0.1, 0.2, 0.3) * mass_kg) });
+            }
+            let mut spawned = SpawnedRagdoll::new(root);
+            spawned.bodies.extend(bodies);
+            let applied = app.world_mut().run_system_once_with(apply, (profile, spawned)).unwrap();
+            assert_eq!((applied.spawned_root, applied.scale, applied.body_count), (Some(root), 1.0, 2));
+            app.update();
+            for (index, (_, entity)) in bodies.iter().enumerate() {
+                let expected_mass = mass.unwrap_or(if index == 0 { 2.0 } else { 9.0 });
+                let expected_center = mass.map_or(if index == 0 { Vec3::Y * 0.4 } else { Vec3::X * 0.6 }, |mass| Vec3::X * mass * 0.1);
+                let expected_inertia = mass.map_or(if index == 0 { Vec3::splat(0.2) } else { Vec3::new(0.9, 1.2, 1.5) },
+                    |mass| Vec3::new(0.1, 0.2, 0.3) * mass);
+                let world = app.world();
+                let actual_mass = world.get::<ComputedMass>(*entity).unwrap().value();
+                let actual_center = world.get::<ComputedCenterOfMass>(*entity).unwrap().0;
+                let actual_inertia = world.get::<ComputedAngularInertia>(*entity).unwrap().value();
+                assert!((actual_mass - expected_mass).abs() < 1e-5, "mass={mass:?} body={index}: {actual_mass} != {expected_mass}");
+                assert!(actual_center.distance(expected_center) < 1e-5, "mass={mass:?} body={index}: {actual_center} != {expected_center}");
+                assert!(Vec3::new(actual_inertia.m00, actual_inertia.m11, actual_inertia.m22).distance(expected_inertia) < 1e-5,
+                    "mass={mass:?} body={index}: {actual_inertia:?}");
+                if mass.is_none() {
+                    assert_eq!(world.get::<NoAutoMass>(*entity).is_some(), index == 1);
+                    assert_eq!(world.get::<NoAutoCenterOfMass>(*entity).is_some(), index == 1);
+                    assert_eq!(world.get::<NoAutoAngularInertia>(*entity).is_some(), index == 1);
+                }
+            }
+        }
     }
 
     #[test]

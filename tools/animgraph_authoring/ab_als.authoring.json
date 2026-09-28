@@ -3,6 +3,18 @@
   "id": "ab_als_actor",
   "source_evidence": [
     {
+      "path": "target/bf131/review/a83/PA_Als.ue.json",
+      "sha256": "253e21fbb3c102a3c00b92230bdb5d402ef9ba15ff055d422abc1418aaa9c8a5"
+    },
+    {
+      "path": "target/bf131/review/a83/BodyInstance.cpp",
+      "sha256": "576add474807e3b9fbe63a735c217f82d4b57de9947f25673bb4b3deb8b2c07a"
+    },
+    {
+      "path": "target/bf131/review/a83/BodyUtils.cpp",
+      "sha256": "943cb5c9afe0f733989aaa7cee9fe44257c789d0ab47090858e492cd6c2853eb"
+    },
+    {
       "path": "target/bf116_04e/AB_Als.source.json",
       "sha256": "5ac4302e8a06c290dcea522120e8d103cfa94a5cdd63924ee8898497678b506a"
     },
@@ -590,6 +602,11 @@
     "manual_case": "rotating_base"
   },
   "focused_tests": [
+    {
+      "label": "ragdoll_mass_override_revoke_and_restore_ownership",
+      "argv": ["cargo", "test", "--lib", "ragdoll_physics_profile::tests", "--jobs", "2"],
+      "evidence": "target/bf128/bf131-review-a83-green.report.json"
+    },
     {
       "label": "mantle_current_moving_target_transform",
       "argv": [

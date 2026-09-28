@@ -82,7 +82,7 @@
 - [x] **BF131.A80 — 自由线性轴的位置／速度驱动通过最终校验，却未保留到运行时并可使纯驱动关节禁用**。Gate：纯线性位置/速度驱动保留并启用，目标/强度/阻尼/限力按源消费，自由无驱动控制通过。
 - [x] **BF131.A81 — 完全自由关节只按 Twist 位置驱动判定启用，导致有效 Swing／角速度驱动被 JointDisabled 屏蔽**。Gate：逐驱动启用条件与实际活动轴一致，纯 Swing/速度驱动可工作，完全无约束控制通过。
 - [x] **BF131.A82 — PhysicsAsset 刚体禁碰撞响应被记录但未消费，布娃娃激活又恢复默认阻挡层**。Gate：Body 响应在生成、安装、激活/退出及重建中保留，禁碰撞体不恢复默认阻挡。
-- [ ] **BF131.A83 — PhysicsAsset 的 COMNudge／InertiaTensorScale 未进入运行质量属性，质量相同但质心与转动响应错误**。Gate：坐标/单位正确的 COM 与惯量实际安装，非零偏移、非均匀惯量和单位控制通过；同 root/scale 的 Some→None→Some 撤销恢复由 profile 拥有的覆盖，并核对实际计算质量属性。
+- [x] **BF131.A83 — PhysicsAsset 的 COMNudge／InertiaTensorScale 未进入运行质量属性，质量相同但质心与转动响应错误**。Gate：坐标/单位正确的 COM 与惯量实际安装，非零偏移、非均匀惯量和单位控制通过；同 root/scale 的 Some→None→Some 撤销恢复由 profile 拥有的覆盖，并核对实际计算质量属性。
 - [x] **BF131.A84 — 关闭角速度覆盖时仍将 BodyInstance 原始 MaxAngularVelocity 作为强制上限，遗漏项目有效值**。Gate：按覆盖开关解析项目/实例有效上限，多个默认值、新建/重建与实际向量钳制通过。
 - [x] **BF131.A85 — 原生 PhysicsAsset 读取器使用 BodySetup 材质而绕过 BodyInstance PhysMaterialOverride，安装错误接触系数**。Gate：有效材质路径与属性同源，单体覆盖不污染共享材质，无覆盖正确回退，运行摩擦/恢复系数通过。
 - [x] **BF131.A86 — 关闭源陀螺力矩后，目标仍按非球对称惯量自动施加陀螺修正**。Gate：开关贯穿源到积分；非球对称多轴旋转、开关切换、睡眠唤醒/重建及其他力学作用控制通过。
@@ -430,3 +430,10 @@
 - BF131.A70-R1-S3：开始 2026-09-29 03:05 +08:00；预估结束 2026-09-29 03:30 +08:00。用 target_game/play 预构建并刷新 349 图规范，完整执行 Standing/根作者合同，再跑 startup、standing_direction、state_machine、notify 公共功能 Gate；重点核对正常共同 marker 组、实际姿态/曲线、转换和通知消费，通过后恢复 A70 勾选并单独提交。
   - Runtime 前摘要（03:10）：fresh Walk 原生记录、UE 按有向经过名称搜索的 source 闭包，0.25/0.07 两个失败反例、两消费者 11 帧与真实同步根回归、最终传递删除消融、完整库 1290/1290、同入口优化构建、349/349 图规范与 Standing/根 18 条完整审计命令全部闭合。开始四个公共功能场景；无资产/转换规则修改，既有性能延期保持。
   - S3 实际结束 2026-09-29 03:17 +08:00，偏差 -13 分钟；结果：startup、standing_direction 5/5、state_machine 10/10、notify 12/12 公共功能 Gate 全部 PASS；faults/graph_errors/temporal_anomalies/primary_failure 均空，watchdog 未触发，进程退出 0/0。两个失败反例、混合名称和多圈路径、两消费者及实际同步根、消融、完整库 1290、349 图与 18 条作者命令闭合，恢复 A70 勾选；性能保留既定延期，下一项 A83。
+- BF131.A83-R1-S1：开始 2026-09-29 03:19 +08:00；预估结束 2026-09-29 03:49 +08:00。依据：当次 PA_Als 原生记录和 BodyInstance/BodyUtils 的当前修饰重算规则，apply_profile_to_spawned_ragdoll 只有 Some 安装分支，而 profile.is_changed 已允许同 root/scale 重新安装。用实际 Avian 质量更新验证 None→Some→Some→None→Some；同时覆盖自动球体质量和另一系统原有显式质量/NoAuto 标记，先确认撤销后计算质心/惯量仍旧的 red。
+  - S1 实际结束 2026-09-29 03:22 +08:00，偏差 -27 分钟；结果：同 root/scale 的真实 apply 入口经过 Avian 质量更新，初始自动 2 kg 与外部显式 9 kg、两次覆盖 3/5 kg 均正确，但 None 撤销时 body 0 的 ComputedMass 仍为 5 而应为 2，稳定 red。旧测试仅重复安装与缩放，未覆盖恢复所有权。
+- BF131.A83-R1-S2：开始 2026-09-29 03:23 +08:00；预估结束 2026-09-29 03:48 +08:00。首次 profile 质量覆盖时在刚体保存原 Mass/CenterOfMass/AngularInertia 输入及原 NoAuto 标记；再次覆盖不覆盖原记录，None 只恢复该 profile 的记录并清除其新增标记。以计算结果验证自动质量恢复、外部覆盖保留和再次启用，消融撤销/原记录保留后回归实际 profile 安装链；不改转换器或资产。
+  - S2 实际结束 2026-09-29 03:38 +08:00，偏差 -10 分钟；结果：None→Some(3)→Some(5)→None→Some(3) 在同 root/scale 经真实 Avian 质量更新通过，自动 2 kg/COM/惯量恢复且原外部 9 kg/显式 COM/非均匀惯量与 NoAuto 标记保留。去掉首次记录保护会恢复成 3 而非 2 kg；把恢复简化为统一删除则外部 9 kg 降为 2 kg，两个消融均 red。最终 profile 15/15、完整库 1291/1291 与 diff check PASS；仅新增必要的刚体原状态记录，原始资产/转换器未改。
+- BF131.A83-R1-S3：开始 2026-09-29 03:38 +08:00；预估结束 2026-09-29 04:03 +08:00。按同 target_game/play 优化预构建刷新全部图规范，并执行 root/grounded 作者合同；然后 startup/ragdoll/get_up 公共功能 Gate 核对正式 profile、物理姿态与生命周期。质量撤销由源绑定的实际计算属性夹具验收，完成后恢复勾选并单独提交。
+  - Runtime 前摘要（03:43）：fresh PA_Als/BodyInstance/BodyUtils、同 root/scale 的实际计算质量/COM/惯量撤销恢复、外部所有权控制、两项消融、profile 15/15 与完整库 1291/1291、diff check、同入口优化构建、349 图规范及 root/grounded 完整审计均 PASS；开始 startup/ragdoll/get_up，未改资产或转换规则。
+  - S3 实际结束 2026-09-29 03:52 +08:00，偏差 -11 分钟；结果：startup、ragdoll 11/11（含实际 2 倍缩放）、get_up 11/11 公共功能 Gate PASS；faults/graph_errors/temporal_anomalies/primary_failure 均空，watchdog 未触发，进程退出 0/0。质量/质心/惯量的实际计算恢复、外部覆盖保留、两项消融、1291 库测试、349 图规范与作者合同闭合，恢复 A83 勾选；性能保持既定延期，下一项 A90。
