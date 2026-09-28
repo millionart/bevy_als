@@ -115,6 +115,7 @@ def run_self_test():
         root = Path(directory)
         contract_dir = Path("contracts")
         contract_name = "transition.source.json"
+        target_dir = Path("tools/animgraph_authoring/fixture.transition_conditions")
         write_json(root / contract_dir / contract_name, GENERATOR.fixture_contract())
         inventory_path = Path("inventory.json")
         write_json(
@@ -133,7 +134,7 @@ def run_self_test():
             root,
             inventory_path,
             contract_dir,
-            Path("assets/generated"),
+            target_dir,
             Path("maps"),
             "fixture",
         )
@@ -144,11 +145,11 @@ def run_self_test():
             index_path,
             index,
             generated,
-            Path("assets/generated"),
+            target_dir,
             Path("maps"),
             "fixture",
         )
-        stale = root / "assets/generated/ue_source_transition_99_stale.animgraph.ron"
+        stale = root / target_dir / "ue_source_transition_99_stale.animgraph.ron"
         stale.write_text("()\n", encoding="utf-8")
         assert any(
             "stale" in issue
@@ -157,7 +158,7 @@ def run_self_test():
                 index_path,
                 index,
                 generated,
-                Path("assets/generated"),
+                target_dir,
                 Path("maps"),
                 "fixture",
             )
