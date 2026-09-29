@@ -1522,30 +1522,35 @@ mod tests {
         use crate::extensions::normalized_blendspace::{NormalizedBlendSpaceNode, NormalizedBlendSpacePoint, NormalizedBlendSpaceState};
         use crate::extensions::sync_group_phase::SourceSyncPlayerBinding;
         let clip = sequences[0].try_inner_downcast_ref::<crate::extensions::SourceSequencePlayerNode>().unwrap().clip.clone();
-        for (resync, blendspace_leader) in [(false, true), (true, true), (true, false)] {
+        for (resync, blendspace_leader, joins_as_follower) in [(false, true, false), (true, true, false), (true, false, false), (true, false, true), (true, true, true)] {
             let markers = vec![SyncMarker { name: "A".into(), time: 0.25 }, SyncMarker { name: "B".into(), time: 0.75 }];
             let mut follower = sequences[1].try_inner_downcast_ref::<crate::extensions::SourceSequencePlayerNode>().unwrap().clone();
-            follower.start_position = if resync { 1.6 } else { 1.25 };
+            assert_ne!(clip, follower.clip);
+            let follower_duration = if joins_as_follower { 1.0 } else { 2.0 };
+            app.world_mut().resource_mut::<Assets<GraphClip>>().get_mut(&follower.clip).unwrap().duration = follower_duration;
+            follower.start_position = if joins_as_follower { 0.8125 } else if resync { 1.6 } else { 1.25 };
             follower.loop_animation = resync;
             follower.synchronization = Some(SourceSequenceSynchronization {
-                key: "sample.history".into(), role: SourceSyncGroupRole::AlwaysFollower,
+                key: "sample.history".into(), role: if joins_as_follower { SourceSyncGroupRole::AlwaysLeader } else { SourceSyncGroupRole::AlwaysFollower },
                 delta_seconds_key: "animation.delta_seconds".into(), phase_duration: 1.0,
                 phase_markers: markers.clone(), markers: markers.iter().map(|marker|
-                    SyncMarker { name: marker.name.clone(), time: marker.time * 2.0 }).collect(), ..default()
+                    SyncMarker { name: marker.name.clone(), time: marker.time * follower_duration }).collect(), ..default()
             });
             let follower = AnimationNode::new("history follower", follower);
             let sample = AnimationNode::new("history clip", ClipNode::new(clip.clone(), None, None));
+            let role = if joins_as_follower { SourceSyncGroupRole::AlwaysFollower } else { SourceSyncGroupRole::AlwaysLeader };
+            let start = if joins_as_follower { 0.25 } else if resync { 0.2 } else { 0.625 };
             let leader = if blendspace_leader { AnimationNode::new("history blendspace", NormalizedBlendSpaceNode {
                 looped: resync, phase_duration: 1.0, phase_markers: markers.clone(),
                 points: vec![NormalizedBlendSpacePoint { id: "sample".into(), duration: 1.0, markers, ..default() }],
-                playback: Some(SourceSyncPlayerBinding { key: "sample.history".into(), role: SourceSyncGroupRole::AlwaysLeader,
-                    delta_seconds_key: "animation.delta_seconds".into(), start_position: if resync { 0.2 } else { 0.625 }, ..default() }), ..default()
+                playback: Some(SourceSyncPlayerBinding { key: "sample.history".into(), role,
+                    delta_seconds_key: "animation.delta_seconds".into(), start_position: start, ..default() }), ..default()
             })
             } else {
                 AnimationNode::new("history sequence", crate::extensions::SourceSequencePlayerNode {
-                    clip: clip.clone(), start_position: 0.2, loop_animation: true,
+                    clip: clip.clone(), start_position: start, loop_animation: true,
                     synchronization: Some(SourceSequenceSynchronization { key: "sample.history".into(),
-                        role: SourceSyncGroupRole::AlwaysLeader, delta_seconds_key: "animation.delta_seconds".into(),
+                        role, delta_seconds_key: "animation.delta_seconds".into(),
                         phase_duration: 1.0, phase_markers: markers.clone(), markers, ..default() }), ..default()
                 })
             };
@@ -1569,9 +1574,12 @@ mod tests {
                 let mut manifest = manifests.get_mut(&manifest_handle).unwrap();
                 let source = manifest.clips.iter_mut().find(|clip| clip.source_asset == SOURCE_SPRINT).unwrap();
                 let template = source.events[0].clone();
-                source.events = [("sample_a", if resync { 0.25 } else { 0.78125 }), ("sample_b", if resync { 0.85 } else { 0.90625 })]
+                let events = if joins_as_follower { [("stale_a", 0.5), ("current_b", 0.84375)] }
+                    else { [("sample_a", if resync { 0.25 } else { 0.78125 }), ("sample_b", if resync { 0.85 } else { 0.90625 })] };
+                source.events = events
                     .map(|(id, time)| { let mut event = template.clone(); event.event_id = id.into(); event.id = id.into();
-                        event.start_time = time; event.end_time = time; event }).to_vec();
+                        event.start_time = time; event.end_time = time; event.trigger_time_offset = 0.0;
+                        event.filter.trigger_on_follower = joins_as_follower; event.filter.trigger_chance = 1.0; event }).to_vec();
             }
             let mut player = AnimationGraphPlayer::new(skeleton.clone()).with_graph(history);
             player.set_global_input_data("animation.delta_seconds", 0.0_f32);
@@ -1579,7 +1587,8 @@ mod tests {
             player.set_global_input_data("sprint_accel_weight", if resync { 1.0_f32 } else { 0.5_f32 });
             app.world_mut().entity_mut(player_entity).insert(player);
             app.update();
-            let frames = if resync { vec![(0.1, 0.8, 0.9, Some("sample_b"))] }
+            let frames = if joins_as_follower { vec![(0.0625, 0.8125, 0.875, Some("current_b")), (0.0625, 0.875, 0.9375, None), (0.03125, 0.9375, 0.96875, None)] }
+                else if resync { vec![(0.1, 0.8, 0.9, Some("sample_b"))] }
                 else { vec![(0.25, 0.625, 0.875, Some("sample_a")), (0.0625, 0.875, 0.9375, Some("sample_b")), (0.03125, 0.9375, 0.96875, None)] };
             for (delta, previous, current, expected) in frames {
                 app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().clear();
@@ -1603,12 +1612,19 @@ mod tests {
                 if blendspace_leader { assert!(matches!(arena.get_toplevel().node_caches.get_input_time_update(leader.id, StateKey::Default,
                     NormalizedBlendSpaceNode::time_pin("sample")).unwrap(), TimeUpdate::Absolute(time) if (time-current).abs()<1e-5)); }
                 assert_eq!(source_sync_leader(arena, app.world().resource::<Assets<AnimationGraph>>(), "sample.history").unwrap().identity.1,
-                    if resync { leader.id } else { follower.id });
+                    if resync && !joins_as_follower { leader.id } else { follower.id });
+                if joins_as_follower {
+                    let member = arena.get_toplevel().node_states.get::<crate::extensions::AnimationContextState>(root.id, StateKey::Default).unwrap()
+                        .sync_players.iter().find(|member| member.identity.1 == leader.id).unwrap();
+                    assert!(!member.ticked_as_leader && !member.selected_leader);
+                    let selected = arena.get_toplevel().node_states.get::<SourceSequencePlayerState>(follower.id, StateKey::Default).unwrap();
+                    assert!((selected.context.relevant_asset.as_ref().unwrap().position - current).abs() < 1e-5);
+                }
                 let events = app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain()
                     .filter(|event| event.source_asset == SOURCE_SPRINT && event.class_name == "AlsAnimNotify_FootstepEffects")
                     .map(|event| event.event_id).collect::<Vec<_>>();
                 assert_eq!(events, expected.into_iter().map(str::to_owned).collect::<Vec<_>>(),
-                    "blendspace={blendspace_leader} resync={resync} previous={} current={} expected_previous={previous}", clock.previous_position, clock.position);
+                    "blendspace={blendspace_leader} resync={resync} follower={joins_as_follower} previous={} current={} expected_previous={previous}", clock.previous_position, clock.position);
                 assert!((clock.previous_position - previous).abs() < 1e-5);
             }
         }

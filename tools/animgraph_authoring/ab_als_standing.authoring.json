@@ -1969,7 +1969,7 @@
   },
   "focused_tests": [
     {
-      "label": "blendspace_trial_sample_history_and_resynchronized_notify_start",
+      "label": "trial_and_ordinary_follower_actual_notify_start_and_history",
       "argv": [
         "cargo",
         "test",
@@ -1978,7 +1978,7 @@
         "--jobs",
         "2"
       ],
-      "evidence": "target/bf128/bf131-r3-a91-final.report.json"
+      "evidence": "target/bf128/bf131-r4-a91-final.report.json"
     },
     {
       "label": "persistent_marker_endpoints_and_source_reset_lifecycle",
@@ -2002,7 +2002,7 @@
         "--jobs",
         "2"
       ],
-      "evidence": "target/bf128/bf131-r3-a91-final.report.json"
+      "evidence": "target/bf128/bf131-r4-a91-final.report.json"
     },
     {
       "label": "retained_marker_arrival_turnaround_and_repeated_follower_cycle",

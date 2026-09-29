@@ -67,7 +67,7 @@
 - [x] **BF131.A68 — Sync marker mapping does not filter to common marker names**。Gate：先求组内共同 marker 集，再定位/映射，非共同 marker 不改变有效相位。
 - [x] **BF131.A69 — Modify Curve accepts WeightedMovingAverage but evaluates it as stateless Blend**。Gate：逐实例历史参与加权移动平均，初始化/更新/重建及其他模式控制通过。
 - [x] **BF131.A70 — Repeated marker-name pairs collapse later timeline occurrences into the first pair**。Gate：同名重复 marker 对保留时间位置，跨多个区间、多周期、倒播与精确边界不跳到较早 occurrence；实际播放器自身映射保持时间，包含相邻同名和共同 marker 过滤后的 leader。两类播放器保留实际端点及到达距离，组起止位置沿真实同步根传递，精确到点后正反掉头、连续采样/曲线与源规定的失效清理一致。
-- [ ] **BF131.A91 — 非循环同步候选结束 marker 无效时未试选后续 leader**。Gate：实际同步根按源候选顺序试 tick；前进/倒播边界、精确落 marker、全无效控制及最终采样/leader/通知一致；失败 BlendSpace 候选连续通知使用自身实际历史，新成员使用源调整后的起点。
+- [x] **BF131.A91 — 非循环同步候选结束 marker 无效时未试选后续 leader**。Gate：实际同步根按源候选顺序试 tick；前进/倒播边界、精确落 marker、全无效控制及最终采样/leader/通知一致。失败候选及持续 follower 使用自身实际历史；新成员和未试选普通 follower 使用源初始化后的实际起点，开启 follower 通知时只发当前区间事件，真实 ClipNode、asset_samples 和后续无重复一致。
 - [x] **BF131.A71 — Custom 状态迁移按总时长结束，遗漏 FAlphaBlend 提前达到终值的完成语义**。Gate：源曲线提前达到终值时迁移完成，未达到终值及正常总时长控制通过。
 - [x] **BF131.A72 — 惯性过渡的显式 BlendProfile 在生成、请求和逐骨消费链中丢失**。Gate：显式 profile 贯穿生成、惯性请求与逐骨持续时间，默认 profile 和无覆盖控制通过。
 - [x] **BF131.A73 — 惯性化 root 历史没有按组件／Actor 附着空间变化重表达**。Gate：组件/Actor 附着空间改变后历史按源坐标系重表达，世界连续姿态和不变空间控制通过。
@@ -509,3 +509,16 @@
   - S3 standing_direction 5/5 PASS（20:23）：同样零故障/图错误/时序异常、无 watchdog、退出 0/0；继续状态机及通知场景，当前 source/static 闭包与延期边界不变。
   - S3 state_machine 10/10 PASS（20:24）：ready、零故障/图错误/时序异常、无 watchdog、退出 0/0；最后执行 notify，继续保留原始性能失败，不展开其他已完成模块。
   - S3 实际结束 2026-09-29 20:25 +08:00，偏差 -17 分钟；结果：startup、standing_direction 5/5、state_machine 10/10、notify 12/12 公共功能 PASS。四份报告 ready、faults/graph_errors/temporal_anomalies/primary_failure 为空，watchdog 未触发、进程退出 0/0；1289 库测试、正反精确掉头/经过记录/实际曲线、三项必要性消融、349 图规范和 18 条作者合同闭合。恢复 A70 勾选并单独提交，性能仍延期；剩余 A91 普通 follower 通知起点。
+- BF131.A91-R2-S1：开始 2026-09-29 20:25 +08:00；预估结束 2026-09-29 20:40 +08:00。依据当次 TickByMarkerAsFollower 的 GetMarkerIndicesForPosition→OutPreviousTime 与上一轮真实 ClipNode/最终通知夹具。两份不同资产、共同 AB marker，leader 在 0.8125，普通 AlwaysFollower 从自身 0.25 加入，增量 0.0625 到 0.875；开启 follower 通知，断言只发 current_b@0.84375、不发 stale_a@0.5，覆盖 Sequence 与 BlendSpace，并验证下一帧连续历史。A70 已提交 `a83555c`；先稳定 red，再以 S2 修复和消融、S3 公共 Gate 单独闭合。
+  - S1 实际结束 2026-09-29 20:29 +08:00，偏差 -11 分钟；结果：未试选的普通 Sequence follower 最终采样 0.875 正确，通知起点却为 0.25，真实最终事件为 stale_a+current_b，稳定 red。源在初始化 marker record 后保存的 0.8125 未从共享 follower 采样函数返回给通知时钟。
+- BF131.A91-R2-S2：开始 2026-09-29 20:29 +08:00；预估结束 2026-09-29 20:54 +08:00。共享 follower 推进返回实际起止时刻；仅在无有效记录时使用源已调整的开始位置，持续播放保留自己的实际历史。两类节点直接消费该返回值，不新增通知缓存；覆盖未试选的新成员、相邻同名持续 follower 和既有失败候选历史，做共享起点/消费者的必要性消融及整库回归。
+  - S2 静态进展（20:32）：两类普通 follower 均从实际 0.8125 起算，只发 current_b，后两帧无重复；真实 ClipNode 的 Absolute 采样请求、asset_samples、选中身份与未试选标志一致。既有试选/重同步通知用例通过，共享函数直接返回实际开始/结束时刻，持久记录有效时保留自身前一采样时间；继续共享起点、两类消费者与首次历史标志消融。
+  - S2 实际结束 2026-09-29 20:40 +08:00，偏差 -14 分钟；结果：共享起点、Sequence 消费/首次历史标志、BlendSpace 普通 follower 消费四项消融均稳定错播 stale_a，恢复后完整库 1289/1289。首次 BlendSpace 宽泛消融先破坏已有候选重同步控制，随后保留候选起点传递，仅去掉普通 follower 起点，独立重现本轮缺陷。不同资产、原 leader 实际时间、新成员未试选、真实 ClipNode/asset_samples/最终事件、持续 AA follower 自身历史均闭合；复用一次函数返回，不新增通知持久缓存。
+- BF131.A91-R2-S3：开始 2026-09-29 20:40 +08:00；预估结束 2026-09-29 20:55 +08:00。依据本轮 A70 实际构建/审计/四场景记录，执行最终 target_game/play 构建、349 图规范及 root/Standing 完整合同，再运行 startup→standing_direction→state_machine→notify 公共功能 Gate。保持零截图与性能延期，全部通过后勾选 A91、单独提交并核对本轮两项反馈。
+  - S3 runtime 前（20:45）：最终 target_game/play、349 图规范及 root/Standing 18 条作者命令 PASS，源 Standing 62 子图/108 target 资产合同保持闭合。source 同步初始化→实际采样起止→asset_samples→最终事件路径、两类普通 follower/连续历史、四项失败消融及 1289 库测试已通过；开始四个公共功能场景，当前未通过边界只剩真实 runtime，性能仍延期。
+  - S3 startup PASS（20:46）：ready、零故障/图错误/时序异常、无 watchdog、退出 0/0；同一二进制继续 standing_direction、state_machine、notify，静态闭包与性能延期边界不变。
+  - S3 standing_direction 5/5 PASS（20:46）：零故障/图错误/时序异常、无 watchdog、退出 0/0；继续状态机及通知，沿用同一 source/static 闭包与二进制。
+  - S3 state_machine 10/10 PASS（20:48）：ready、零故障/图错误/时序异常、无 watchdog、退出 0/0；执行最后的 notify 功能 Gate，性能延期边界不变。
+  - S3 实际结束 2026-09-29 20:48 +08:00，偏差 -7 分钟；结果：startup、standing_direction 5/5、state_machine 10/10、notify 12/12 最终公共功能 PASS。四份报告 ready、faults/graph_errors/temporal_anomalies/primary_failure 为空，watchdog 未触发、进程退出 0/0；1289 库测试、四项必要性消融、349 图规范和 18 条作者命令通过，原始性能预算失败保留。恢复 A91 勾选并单独提交。
+
+- 本轮边界复审收尾（20:48）：A70 的精确到点后换向与 A91 普通 follower 加入时的通知区间均已闭合，清单恢复 39/39。A70 提交 `a83555c`；A91 以独立提交保留。复核本轮 8 份公共功能报告、4 份作者合同及失败反例/消融；原始资产、转换器、依赖和性能阈值未修改。

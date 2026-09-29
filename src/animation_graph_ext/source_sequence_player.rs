@@ -464,9 +464,12 @@ impl NodeLike for SourceSequencePlayerNode {
                 if resolved_phase.is_some() { state.marker_record = resolved_record; }
                 time
             } else if let Some(advance) = &marker_advance {
-                marker_phase_sample_time_continuous(tick.phase, advance,
+                let (time, previous_time) = marker_phase_sample_time_continuous(tick.phase, advance,
                     sync.phase_duration, phase_markers, clip.duration(), markers,
-                    previous_sample_time, loop_animation, &mut state.marker_record, Some(self.clip.clone()))
+                    previous_sample_time, loop_animation, &mut state.marker_record, Some(self.clip.clone()));
+                state.previous_position = previous_time;
+                state.has_previous_position = true;
+                time
             } else {
                 state.marker_record = None;
                 marker_phase_sample_time_near(tick.phase, sync.phase_duration, phase_markers,

@@ -1001,24 +1001,27 @@ pub fn marker_phase_sample_time_continuous(
     looped: bool,
     record: &mut Option<SourceMarkerRecord>,
     asset: Option<Handle<bevy_animation_graph::core::animation_clip::GraphClip>>,
-) -> f32 {
+) -> (f32, f32) {
     let fallback = || marker_phase_sample_time_near(phase, phase_duration, phase_markers,
         sample_duration, sample_markers, previous_sample_time, looped);
     let phase_markers = sorted_markers(phase_markers, phase_duration);
     let sample_markers = sorted_markers(sample_markers, sample_duration);
     let saved = record.take().filter(|record| record.asset == asset && record.valid(&sample_markers, sample_duration, looped));
-    if phase_markers.is_empty() || sample_markers.is_empty() { return fallback(); }
+    let mut previous_time = previous_sample_time;
+    if phase_markers.is_empty() || sample_markers.is_empty() { return (fallback(), previous_time); }
     let phase_time = phase_to_time(phase, phase_duration, looped);
     let mut current = if let Some(record) = saved { record }
         else if let Some(start) = advance.start.as_ref().filter(|position| position.is_valid()) {
-            SourceMarkerRecord::from_position(&sample_markers, sample_duration, looped, previous_sample_time, start, asset.clone()).1
+            let (time, record) = SourceMarkerRecord::from_position(&sample_markers, sample_duration, looped, previous_sample_time, start, asset.clone());
+            previous_time = time;
+            record
         } else {
             SourceMarkerRecord::at_time(&sample_markers, sample_duration, looped, previous_sample_time, asset.clone())
         };
     let (mut previous, mut next) = (current.previous, current.next);
     let position = advance.end.clone().or_else(|| marker_position_at_time_in_direction(&phase_markers,
         phase_duration, phase_time, looped, advance.forward));
-    let Some(position) = position else { return fallback(); };
+    let Some(position) = position else { return (fallback(), previous_time); };
     let count = sample_markers.len() as i64;
     let find = |start: i64, name: &str, direction: i64| (0..count)
         .map(|offset| start + direction * offset)
@@ -1028,29 +1031,29 @@ pub fn marker_phase_sample_time_continuous(
         let direction = if advance.forward { 1 } else { -1 };
         let mut cursor = if advance.forward { next } else { previous };
         for marker in &advance.markers {
-            let Some(index) = find(cursor, marker, direction) else { return fallback(); };
+            let Some(index) = find(cursor, marker, direction) else { return (fallback(), previous_time); };
             cursor = index;
         }
         if advance.forward {
             previous = cursor;
-            let Some(index) = find(cursor, &position.next, 1) else { return fallback(); };
+            let Some(index) = find(cursor, &position.next, 1) else { return (fallback(), previous_time); };
             next = index;
         } else {
             next = cursor;
-            let Some(index) = find(cursor, &position.previous, -1) else { return fallback(); };
+            let Some(index) = find(cursor, &position.previous, -1) else { return (fallback(), previous_time); };
             previous = index;
         }
     }
-    if !looped && (previous < 0 || next >= count) { return fallback(); }
+    if !looped && (previous < 0 || next >= count) { return (fallback(), previous_time); }
     if sample_markers[previous.rem_euclid(count) as usize].name != position.previous
         || sample_markers[next.rem_euclid(count) as usize].name != position.next {
-        return fallback();
+        return (fallback(), previous_time);
     }
     current.previous = previous.rem_euclid(count);
     current.next = next.rem_euclid(count);
     let time = current.sample(position.alpha);
     *record = Some(current);
-    time
+    (time, previous_time)
 }
 
 pub fn marker_phase_from_sample_time(
@@ -1447,16 +1450,16 @@ mod tests {
         let empty = SourceMarkerAdvance { forward: true, markers: vec![], ..default() };
         let mut record = None;
         assert_eq!(marker_phase_sample_time_continuous(0.1875, &passed, 1.0, &adjacent,
-            1.0, &adjacent, 0.875, true, &mut record, Some(first.clone())), 0.375);
+            1.0, &adjacent, 0.875, true, &mut record, Some(first.clone())), (0.375, 0.875));
         let saved = record.clone();
         assert_eq!((record.as_ref().unwrap().previous, record.as_ref().unwrap().next), (0, 0));
         for looped in [true, false] {
             let mut record = saved.clone();
             assert_eq!(marker_phase_sample_time_continuous(0.203125, &empty, 1.0, &adjacent,
-                1.0, &adjacent, 0.375, looped, &mut record, Some(first.clone())), 0.4375);
+                1.0, &adjacent, 0.375, looped, &mut record, Some(first.clone())), (0.4375, 0.375));
         }
         assert_eq!(marker_phase_sample_time_continuous(0.203125, &empty, 1.0, &adjacent,
-            1.0, &adjacent, 0.375, true, &mut record, Some(second.clone())), 0.203125);
+            1.0, &adjacent, 0.375, true, &mut record, Some(second.clone())), (0.203125, 0.375));
 
         let ids: [NodeId; 4] = std::array::from_fn(|index| serde_json::from_value(
             serde_json::Value::String(format!("10000000-0000-4000-8000-00000000000{}", index + 1))).unwrap());
@@ -1499,7 +1502,7 @@ mod tests {
                 (0.8, 0.1, false, vec!["A", "B"])] {
                 let advance = SourceMarkerAdvance { forward, markers: passed.into_iter().map(str::to_owned).collect(), ..default() };
                 let actual = marker_phase_sample_time_continuous(next, &advance, 1.0, &markers,
-                    1.0, &markers, previous, looped, &mut None, None);
+                    1.0, &markers, previous, looped, &mut None, None).0;
                 assert!((actual - next).abs() < 1e-5, "{previous} -> {next}, looped={looped}: {actual}");
             }
         }
@@ -1533,7 +1536,7 @@ mod tests {
             assert_eq!(advance.forward, steps > 0);
             assert_eq!(advance.markers.len() as i64, i64::abs(steps));
             let actual = marker_phase_sample_time_continuous(resolved[0].phase.unwrap(), advance,
-                1.0, &phase_markers, 1.0, &sample_markers, previous_sample, true, &mut None, None);
+                1.0, &phase_markers, 1.0, &sample_markers, previous_sample, true, &mut None, None).0;
             assert!((actual - expected).abs() < 1e-5, "rate={rate}: {actual} != {expected}");
         }
         let source = [("A", 0.1), ("B", 0.2), ("A", 0.4), ("C", 0.6), ("A", 0.8), ("B", 0.9)]
@@ -1547,7 +1550,7 @@ mod tests {
                 sample_time_hint: Some(previous), delta_seconds: 0.1, play_rate: rate, ..default() };
             let SourceSyncPlayerStep { phase, advance, .. } = player.advance(previous);
             assert_eq!(advance.markers, passed);
-            let actual = marker_phase_sample_time_continuous(phase, &advance, 1.0, &source, 1.0, &target, hint, true, &mut None, None);
+            let actual = marker_phase_sample_time_continuous(phase, &advance, 1.0, &source, 1.0, &target, hint, true, &mut None, None).0;
             assert!((actual - expected).abs() < 1e-5, "Mixed repeated marker path: {actual} != {expected}");
         }
     }

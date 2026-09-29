@@ -781,17 +781,17 @@ impl NodeLike for NormalizedBlendSpaceNode {
                     &phase_markers, duration, markers, hint, sample_looped, &mut marker_records[index], sample_clips[index].clone())
             } else {
                 marker_records[index] = None;
-                marker_phase_sample_time_near(phase, self.phase_duration, &phase_markers,
-                    duration, markers, hint, sample_looped)
+                (marker_phase_sample_time_near(phase, self.phase_duration, &phase_markers,
+                    duration, markers, hint, sample_looped), hint)
             }
         };
-        let leader_time = if let Some(time) = leader_sample_time {
-            time
+        let (leader_time, leader_previous_time) = if let Some(time) = leader_sample_time {
+            (time, resolved_previous_time.unwrap_or(leader_hint))
         } else if uses_marker_phase {
             map_time(leader_index, &leader_markers, leader_duration, leader_hint,
                 sample_times[leader_index].is_some())
         } else {
-            phase_to_time(phase, leader_duration, sample_looped)
+            (phase_to_time(phase, leader_duration, sample_looped), leader_hint)
         };
         let output_time = if self.teleport_to_normalized_time && leader.asset_rate_scale < 0.0 { leader_duration - leader_time } else { leader_time };
         let mut poses = Vec::with_capacity(weights.len());
@@ -809,7 +809,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
             let time = if index == leader_index {
                 leader_time
             } else if uses_marker_phase {
-                map_time(index, &point_markers, duration, point_hint, sample_times[index].is_some())
+                map_time(index, &point_markers, duration, point_hint, sample_times[index].is_some()).0
             } else {
                 follower_sample_time_near(
                     phase,
@@ -846,11 +846,10 @@ impl NodeLike for NormalizedBlendSpaceNode {
         context.curves_are_authoritative = true;
         context.asset_samples.clear();
         if !self.teleport_to_normalized_time && let Some(tick) = context.sync_players.first() {
-            let previous_position = resolved_previous_time.unwrap_or(leader_hint);
             let clock = crate::extensions::SourceRelevantAsset {
                 duration: leader_duration,
                 position: leader_time,
-                previous_position,
+                previous_position: leader_previous_time,
                 has_previous_position: true,
                 delta_seconds: tick.delta_seconds,
                 playback_delta_seconds: tick.delta_seconds * tick.play_rate,
