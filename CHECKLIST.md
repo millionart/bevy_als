@@ -67,7 +67,7 @@
 - [x] **BF131.A68 — Sync marker mapping does not filter to common marker names**。Gate：先求组内共同 marker 集，再定位/映射，非共同 marker 不改变有效相位。
 - [x] **BF131.A69 — Modify Curve accepts WeightedMovingAverage but evaluates it as stateless Blend**。Gate：逐实例历史参与加权移动平均，初始化/更新/重建及其他模式控制通过。
 - [x] **BF131.A70 — Repeated marker-name pairs collapse later timeline occurrences into the first pair**。Gate：同名重复 marker 对保留时间位置，跨多个区间、多周期、倒播与精确边界不跳到较早 occurrence；实际播放器自身映射保持时间，包含相邻同名和共同 marker 过滤后的 leader。
-- [ ] **BF131.A91 — 非循环同步候选结束 marker 无效时未试选后续 leader**。Gate：实际同步根按源候选顺序试 tick；前进/倒播边界、精确落 marker、全无效控制及最终采样/leader/通知一致。
+- [x] **BF131.A91 — 非循环同步候选结束 marker 无效时未试选后续 leader**。Gate：实际同步根按源候选顺序试 tick；前进/倒播边界、精确落 marker、全无效控制及最终采样/leader/通知一致。
 - [x] **BF131.A71 — Custom 状态迁移按总时长结束，遗漏 FAlphaBlend 提前达到终值的完成语义**。Gate：源曲线提前达到终值时迁移完成，未达到终值及正常总时长控制通过。
 - [x] **BF131.A72 — 惯性过渡的显式 BlendProfile 在生成、请求和逐骨消费链中丢失**。Gate：显式 profile 贯穿生成、惯性请求与逐骨持续时间，默认 profile 和无覆盖控制通过。
 - [x] **BF131.A73 — 惯性化 root 历史没有按组件／Actor 附着空间变化重表达**。Gate：组件/Actor 附着空间改变后历史按源坐标系重表达，世界连续姿态和不变空间控制通过。
@@ -458,3 +458,16 @@
 - BF131.A70-R2-S3：开始 2026-09-29 16:36 +08:00；预估结束 2026-09-29 17:01 +08:00。使用 target_game/play 同入口预构建、刷新 349 图规范及 root/Standing 完整作者合同；随后 startup、standing_direction、state_machine、notify 公共功能 Gate，核对姿态/曲线/状态/通知、图错误、时序和 watchdog。非默认重复 marker 用源绑定同步根夹具验收；通过后恢复勾选并单独提交，再开始 A91。
   - S3 runtime 进展（16:44）：优化构建、349 图规范与 root/Standing 完整作者合同 PASS；startup、standing_direction（5/5）、state_machine（10/10）公共功能 Gate PASS，故障/图错误/时序为空、watchdog 未触发、进程退出 0/0，性能预算保持延期。继续同一产物的 notify。
   - S3 实际结束 2026-09-29 16:45 +08:00，偏差 -16 分钟；结果：startup、standing_direction 5/5、state_machine 10/10、notify 12/12 公共功能 PASS。四份报告 ready，faults/graph_errors/temporal_anomalies/primary_failure 为空，watchdog 未触发、进程退出 0/0；保留原性能预算失败。源事实、同步根样本/曲线、两项消融、1289 库测试、349 图与作者合同闭合，恢复 A70 勾选并单独提交。下一项 A91。
+- BF131.A91-S1：开始 2026-09-29 16:47 +08:00；预估结束 2026-09-29 17:17 +08:00。依据：fresh 本地 AnimationAsset::Prepare、AnimSync 的逐候选 tick 与结束 marker 有效性、AnimSequence 的严格越过边界和通知队列接收条件；复用已加载的真实 AnimationGraphPlayer/dispatch_graph_footsteps 夹具。构造非循环 L(1 秒、0.625) 与 F(2 秒、1.25)，推进 0.25 秒后应 L=0.875、F=1.5 且 F 为最终 leader；失败候选已按 leader tick 的通知也保留。先稳定 red，再在 S2 修复解析结果与消费端，S3 独立声明/公共功能 Gate。
+  - S1 实际结束 2026-09-29 16:53 +08:00，偏差 -24 分钟；结果：实际同步根及事件入口稳定选择 L 而非 F，red。夹具覆盖正/倒播、精确末/首 marker、全部候选无效、循环与无 marker 七组，并断言样本与最终通知；源 AnimSync 只让最终候选之后的成员作为 follower tick，之前失败候选的本帧采样和 leader 通知不能丢弃。
+- BF131.A91-S2：开始 2026-09-29 16:53 +08:00；预估结束 2026-09-29 17:38 +08:00。复用现有角色排序，以当帧实际结束区间逐候选试推进；输出尝试顺序、真实时间及最终 leader，采样与通知直接消费该结果。精确边界按源严格越过规则解释，原独立/淡入与共同 marker 语义回归；先定向红绿、移除动态有效性与尝试通知的消融，再完整库回归，不新增注册器或资产字段。
+  - S2 静态闭环进展（17:06）：七组同步根采样/leader/实际事件通过，旧淡入与独立通知控制保持。删除静态 marker 数量选择和旧孤立自测，用尝试序列及最终标记复用既有 context；重同步的 phase 定位与已有实际时间的推进分别调用。旧人工 passed-marker 夹具把恰好到达记成跨过，按本次 UE 的严格边界更正序列，所有原样本值断言保留；完整库 1288/1288。取消动态候选验证、只按最终 leader 发通知、只传最终 leader 时间三个消融均已 red；继续边界消融与恢复回归。
+  - S2 实际结束 2026-09-29 17:09 +08:00，偏差 -29 分钟；结果：四项消融全部 red，分别为重选 L、通知 [0,1]≠[1,1]、L 时间 0.75≠0.875，以及精确末 marker 错选 F；恢复后完整库 1288/1288。只保留当次试选时间和两种 leader 身份，七组源绑定事件矩阵与原 marker/独立控制闭合；转换器和资产未修改。
+- BF131.A91-S3：开始 2026-09-29 17:09 +08:00；预估结束 2026-09-29 17:34 +08:00。按 target_game/play 预构建并刷新 349 图规范，执行 root/Standing 完整作者合同；通过后依次 startup、standing_direction、state_machine、notify 公共功能 Gate。实际非循环候选和边界由同步根事件夹具验收，真实场景验证正式图采样与通知回归；全部通过后勾选 A91、暂存隐私检查并单独提交。
+  - S3 runtime 进展（17:15）：target_game/play 优化构建、349 图规范和 root/Standing 完整作者合同 PASS。source 覆盖为 Standing→sync root→两类采样器→真实通知，未展开相邻图或转换器；startup、standing_direction（5/5）、state_machine（10/10）公共功能 Gate PASS，故障/图错误/时序为空、watchdog 未触发、退出 0/0。继续同一产物的 notify。
+  - S3 边界回查（17:18）：首轮四个公共场景均通过，notify 12/12；收尾 source/target 核对发现本次起点统一使用严格小于，会在倒播已到达 marker 后的下一帧漏算该 marker。源 AdvanceMarkerPhaseAsLeader 在反向恰好到达时保留 PreviousMarker，为下一次倒播继续使用；A91 起点重建需保持该方向。先补 AAB 的 0.5→0.375→0.3125 真实同步根反例，限定修复本次边界改动引入的续帧回归；原 A70 已关闭的正向反馈不复开，S3 暂停新场景直至定向静态闭环恢复。
+  - S3 静态恢复（17:24）：新增续帧反例得到 follower 0.3125≠源 0.125，已稳定 red；起点按当前推进方向保留 forward 的 next 端与 reverse 的 previous 端，仅修正两处比较。同步根矩阵扩为 12 组，8 项定向通过；移除方向分支再现同一 red，恢复后完整库 1288/1288。更新作者合同到最终测试报告，重新构建同入口产物并重跑四个公共场景，首轮报告保留但不替代最终产物验收。
+  - S3 最终 runtime 进展（17:32）：最终 target_game/play 优化构建、349 图规范、root/Standing 作者合同 18 条命令全部通过；最终 startup、standing_direction（5/5）、state_machine（10/10）PASS，故障/图错误/时序为空、watchdog 未触发、退出 0/0，继续 notify。报告单独存于 `target/animation_visual/bf131-review2-a91-final`。
+  - S3 实际结束 2026-09-29 17:33 +08:00，偏差 -1 分钟；结果：最终 startup、standing_direction 5/5、state_machine 10/10、notify 12/12 公共功能 PASS，四份报告 ready、faults/graph_errors/temporal_anomalies/primary_failure 为空、watchdog 未触发、退出 0/0。源 Standing 62/62 子图、108 个相关 target 资产、349 图规范及 18 条作者命令闭合；七组候选事件矩阵、12 组重复 marker 同步根、五项消融与最终库 1288/1288 全部通过。勾选 A91、单独提交，保留性能预算延期。
+
+- 本轮收尾（17:33）：浏览器对 `71abab1` 的两条反馈已闭合；A70 单独提交 `95c482e`，A91 包含其严格边界改动带来的倒播续帧回归。核对两个条目的 8 份最终公共功能报告及 4 份作者合同，清单 39/39；A91 首轮报告保留为过程记录，最终接受 `bf131-review2-a91-final`。原 A40b/A67/A83/A90 完成状态保持，未修改原始资产、转换器或性能阈值。

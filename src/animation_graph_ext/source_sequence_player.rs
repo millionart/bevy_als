@@ -445,7 +445,7 @@ impl NodeLike for SourceSequencePlayerNode {
                 tick.phase = phase;
                 resolved_advance.filter(|_| state.has_previous_position)
             } else {
-                let (phase, _, time) = tick.advance(previous_phase);
+                let (phase, _, time) = tick.advance_from_time(previous_sample_time);
                 tick.phase = phase;
                 leader_sample_time = Some(time);
                 None
@@ -620,7 +620,7 @@ mod tests {
             let frames: &[(f32, bool, &[&str])] = &[(0.2, true, &[]), (0.19, false, &[]),
                 (0.95, false, &["A"]), (0.11, true, &["A"]), (0.94, false, &["A"]), (0.75, false, &["B"]),
                 (0.15, true, &["B", "A"]), (0.75, true, &["B", "A", "B", "A", "B", "A", "B", "A", "B", "A"]),
-                (0.8, true, &["B"]), (0.1, false, &["B", "A", "B", "A", "B", "A", "B", "A", "B", "A", "B"]), (0.2, true, &[])];
+                (0.8, true, &[]), (0.1, false, &["A", "B", "A", "B", "A", "B", "A", "B", "A", "B"]), (0.2, true, &[])];
             for (frame, &(phase, forward, passed)) in frames.iter().enumerate() {
                 if frame == 10 {
                     *arena.get_toplevel_mut() = GraphState::new(handle.id());

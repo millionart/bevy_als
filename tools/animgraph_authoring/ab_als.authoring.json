@@ -3,6 +3,18 @@
   "id": "ab_als_actor",
   "source_evidence": [
     {
+      "path": "target/bf131/review2/source/AnimSync.cpp",
+      "sha256": "7893a6c0c01cb984440c35e782c9db3aa47a51cd77a0185f1d2944bc6dafb84f"
+    },
+    {
+      "path": "target/bf131/review2/source/AnimationAsset.h",
+      "sha256": "d5e7317e5496d4b811fa2fdc8726432a857f05a68288c8862a34d8fc3c5050ae"
+    },
+    {
+      "path": "target/bf131/review2/source/AnimNotifyQueue.cpp",
+      "sha256": "082686bc5b5ec128c919a44b92e9dfeb0de6291e8775c9ab1c9c49714124ea8e"
+    },
+    {
       "path": "target/bf131/review2/source/AB_Als_Standing.ue.json",
       "sha256": "3caeaad85777ec820c2c29d489d39222d6c60687a25971276cba0ddccf05fec1"
     },
@@ -263,7 +275,7 @@
       "sha256": "8dca0f41f0378ad8858f193d69cc8a4fdf43139c8114d20842c67d16ef8c161b"
     },
     {
-      "path": "target/bf131/a63/AnimationAsset.cpp",
+      "path": "target/bf131/review2/source/AnimationAsset.cpp",
       "sha256": "d6bed3680c974fc6663965e6ef0a4dfc1e1d50c4b08bfbf8719cfc9a537e4f84"
     },
     {
@@ -627,6 +639,18 @@
   },
   "focused_tests": [
     {
+      "label": "nonloop_sync_candidate_times_leader_and_notify_dispatch",
+      "argv": [
+        "cargo",
+        "test",
+        "--lib",
+        "sprint_shake_uses_evaluated_sync_leader",
+        "--jobs",
+        "2"
+      ],
+      "evidence": "target/bf128/bf131-r2-a91-final.report.json"
+    },
+    {
       "label": "adjacent_marker_leader_clock_and_follower_cycle",
       "argv": [
         "cargo",
@@ -636,7 +660,7 @@
         "--jobs",
         "2"
       ],
-      "evidence": "target/bf128/bf131-r2-a70-restored.report.json"
+      "evidence": "target/bf128/bf131-r2-a91-final.report.json"
     },
     {
       "label": "scaled_ragdoll_readback_world_space_and_animation_masks",

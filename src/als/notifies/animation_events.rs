@@ -316,7 +316,7 @@ fn dispatch_graph_footsteps(
     mut shakes: MessageWriter<AlsCameraShakeRequest>,
 ) {
     use bevy_animation_graph::core::{animation_graph_player::AnimationSource, context::node_states::StateKey};
-    use crate::extensions::sync_group_phase::source_sync_leader;
+    use crate::extensions::sync_group_phase::source_sync_players;
     let Some(manifest) = manifest_handle.as_ref().and_then(|handle| manifests.get(&handle.0)) else { return; };
     for (avatar, instance) in &avatars {
         let entity = instance.player_entity();
@@ -356,8 +356,9 @@ fn dispatch_graph_footsteps(
                 else { previous.map_or(sample.clock.position, |previous| previous.0) };
             if !sample.clock.has_previous_position && !sample.clock.looping && sample.clock.position < previous_time { continue; }
             let is_leader = if sample.sync_group.is_empty() { true } else {
-                source_sync_leader(arena, &graphs, &sample.sync_group)
-                    .is_some_and(|player| Some(player.identity) == sample.sync_identity)
+                source_sync_players(arena, &graphs, &sample.sync_group)
+                    .is_some_and(|players| players.iter().any(|player|
+                        Some(player.identity) == sample.sync_identity && player.ticked_as_leader))
             };
             let sprint = source.source_asset == SOURCE_SPRINT || source.source_asset == SOURCE_SPRINT_ACCELERATION;
             let definitions = timed_events(source).into_iter().filter(|definition| {
@@ -1450,6 +1451,70 @@ mod tests {
                     [independent || !transition_leads, independent || transition_leads],
                     "role={role:?} full={full} inertial={inertial}: {footsteps:?}");
             }
+        }
+
+        use crate::extensions::source_sequence_player::{SourceSequenceSynchronization, SourceSequencePlayerState};
+        use crate::extensions::sync_group_phase::{SyncMarker, source_sync_leader};
+        use bevy_animation_graph::core::context::node_states::StateKey;
+        for (start, delta, rate, looped, marked, expected_leader, expected_times) in [
+            ([0.625, 1.25], 0.25, 1.0, false, true, 1, [0.875, 1.5]),
+            ([0.375, 0.75], 0.25, -1.0, false, true, 1, [0.125, 0.5]),
+            ([0.5, 1.0], 0.25, 1.0, false, true, 0, [0.75, 1.5]),
+            ([0.5, 1.0], 0.25, -1.0, false, true, 0, [0.25, 0.5]),
+            ([0.625, 1.25], 0.6, 1.0, false, true, 1, [1.0, 1.85]),
+            ([0.625, 1.25], 0.25, 1.0, true, true, 0, [0.875, 1.75]),
+            ([0.625, 1.25], 0.25, 1.0, false, false, 0, [0.875, 1.75]),
+        ] {
+            for (index, sequence) in sequences.iter().enumerate() {
+                let duration = (index + 1) as f32;
+                let mut node = sequence.try_inner_downcast_ref::<crate::extensions::SourceSequencePlayerNode>().unwrap().clone();
+                app.world_mut().resource_mut::<Assets<GraphClip>>().get_mut(&node.clip).unwrap().duration = duration;
+                node.start_position = start[index];
+                node.play_rate = rate;
+                node.loop_animation = looped;
+                let phase_markers = if marked { vec![SyncMarker { name: "A".into(), time: 0.25 }, SyncMarker { name: "B".into(), time: 0.75 }] } else { vec![] };
+                node.synchronization = Some(SourceSequenceSynchronization {
+                    key: "boundary.test".into(), delta_seconds_key: "animation.delta_seconds".into(), phase_duration: 1.0,
+                    markers: phase_markers.iter().map(|marker| SyncMarker { name: marker.name.clone(), time: marker.time * duration }).collect(),
+                    phase_markers, role: if index == 0 { SourceSyncGroupRole::AlwaysLeader } else { SourceSyncGroupRole::AlwaysFollower }, ..default()
+                });
+                let mut replacement = AnimationNode::new("boundary player", node);
+                replacement.id = sequence.id;
+                app.world_mut().resource_mut::<Assets<AnimationGraph>>().get_mut(&graph).unwrap().add_node(replacement);
+                let mut manifests = app.world_mut().resource_mut::<Assets<AlsNotifyManifest>>();
+                let mut manifest = manifests.get_mut(&manifest_handle).unwrap();
+                let source = manifest.clips
+                    .iter_mut().find(|clip| clip.source_asset == [SOURCE_SPRINT, SOURCE_SPRINT_ACCELERATION][index]).unwrap();
+                let mut event = source.events.iter().find(|event| event.class_name == "AlsAnimNotify_FootstepEffects").unwrap().clone();
+                event.start_time = start[index] + delta * rate * 0.5;
+                event.end_time = event.start_time;
+                event.trigger_time_offset = 0.0;
+                source.events = vec![event];
+                source.sync_markers.clear();
+            }
+            let mut player = AnimationGraphPlayer::new(skeleton.clone()).with_graph(graph.clone());
+            player.set_global_input_data("animation.delta_seconds", 0.0_f32);
+            player.set_global_input_data("sprint_base_weight", 0.5_f32);
+            player.set_global_input_data("sprint_accel_weight", 0.5_f32);
+            app.world_mut().entity_mut(player_entity).insert(player);
+            app.update();
+            app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().clear();
+            app.world_mut().get_mut::<AnimationGraphPlayer>(player_entity).unwrap().set_global_input_data("animation.delta_seconds", delta);
+            app.update();
+            let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+            assert!(player.get_error().is_none(), "{:?}", player.get_error());
+            let arena = player.get_context_arena().unwrap();
+            let actual_leader = source_sync_leader(arena, app.world().resource::<Assets<AnimationGraph>>(), "boundary.test").unwrap();
+            assert_eq!(actual_leader.identity.1, sequences[expected_leader].id, "start={start:?} delta={delta} rate={rate} looped={looped} marked={marked}");
+            for (index, sequence) in sequences.iter().enumerate() {
+                let state = arena.get_toplevel().node_states.get::<SourceSequencePlayerState>(sequence.id, StateKey::Default).unwrap();
+                let actual = state.context.relevant_asset.as_ref().unwrap().position;
+                assert!((actual - expected_times[index]).abs() < 1e-5, "player={index} start={start:?} delta={delta} rate={rate}: {actual} != {}", expected_times[index]);
+            }
+            let events = app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain().collect::<Vec<_>>();
+            let counts = [SOURCE_SPRINT, SOURCE_SPRINT_ACCELERATION].map(|source| events.iter()
+                .filter(|event| event.source_asset == source && event.class_name == "AlsAnimNotify_FootstepEffects").count());
+            assert_eq!(counts, [1, usize::from(expected_leader == 1)], "start={start:?} delta={delta} rate={rate}: {counts:?}");
         }
     }
 
