@@ -140,6 +140,16 @@ pub fn source_sync_excluded_key(identity: (GraphContextId, NodeId)) -> String {
     )
 }
 
+pub fn source_sync_sample_time_key(identity: (GraphContextId, NodeId)) -> String {
+    format!("{SOURCE_SYNC_RESOLVED}.sample_time.{:?}.{:?}", identity.0, identity.1)
+}
+
+pub fn resolved_source_sync_sample_time(ctx: &NodeContext) -> Result<Option<f32>, GraphError> {
+    ctx.graph_context.global_input_data
+        .get(&source_sync_sample_time_key((ctx.graph_context.context_id, ctx.node_id)))
+        .map(|value| value.as_f32()).transpose()
+}
+
 pub fn source_sync_full_weight_key(identity: (GraphContextId, NodeId)) -> String {
     format!("{SOURCE_SYNC_RESOLVED}.full_weight.{:?}.{:?}", identity.0, identity.1)
 }
@@ -298,10 +308,10 @@ fn common_marker_names(players: &[&SourceSyncPlayerTick], leader: &SourceSyncPla
 pub fn resolve_source_sync_phases(
     current: &[SourceSyncPlayerTick],
     previous: &[SourceSyncPlayerTick],
-) -> Vec<(String, Option<f32>, Vec<(GraphContextId, NodeId)>, Vec<String>, Option<SourceMarkerAdvance>)> {
+) -> Vec<(String, Option<f32>, Vec<(GraphContextId, NodeId)>, Vec<String>, Option<SourceMarkerAdvance>, Option<((GraphContextId, NodeId), f32)>)> {
     let mut groups = Vec::new();
     for player in current {
-        if groups.iter().any(|(key, _, _, _, _)| key == &player.key) {
+        if groups.iter().any(|(key, _, _, _, _, _)| key == &player.key) {
             continue;
         }
         let players = current
@@ -318,6 +328,7 @@ pub fn resolve_source_sync_phases(
         let previous_common = previous_leader.map_or_else(Vec::new, |prior|
             common_marker_names(&previous_players, prior));
         let mut marker_advance = None;
+        let mut leader_sample_time = None;
         let phase = leader.map(|leader| {
             let joined = previous_leader.is_some_and(|prior| {
                 prior.identity != leader.identity || prior.source_asset != leader.source_asset
@@ -343,7 +354,8 @@ pub fn resolve_source_sync_phases(
                 })
             };
             if let Some(phase) = prior_phase {
-                let (phase, advance) = grouped.advance(phase);
+                let (phase, advance, time) = grouped.advance(phase);
+                leader_sample_time = Some((leader.identity, time));
                 marker_advance = Some(advance);
                 phase
             } else {
@@ -359,6 +371,7 @@ pub fn resolve_source_sync_phases(
                     })
                     .unwrap_or_else(|| marker_phase_sample_time(leader.phase, leader.phase_duration,
                         &leader.phase_markers, leader.duration, &leader.markers, leader.looped));
+                leader_sample_time = Some((leader.identity, independent_time));
                 marker_phase_from_sample_time(independent_time, grouped.duration, &grouped.markers,
                     grouped.phase_duration, &grouped.phase_markers, grouped.looped)
             }
@@ -372,7 +385,7 @@ pub fn resolve_source_sync_phases(
             })
             .map(|candidate| candidate.identity)
             .collect();
-        groups.push((player.key.clone(), phase, ungrouped, common, marker_advance));
+        groups.push((player.key.clone(), phase, ungrouped, common, marker_advance, leader_sample_time));
     }
     groups
 }
@@ -384,7 +397,7 @@ impl SourceSyncPlayerTick {
                 && (self.has_been_full_weight || self.weight >= 1.0 - 1e-5))
     }
 
-    pub fn advance(&self, previous_phase: f32) -> (f32, SourceMarkerAdvance) {
+    pub fn advance(&self, previous_phase: f32) -> (f32, SourceMarkerAdvance, f32) {
         let previous_time = marker_phase_sample_time_near(
             previous_phase,
             self.phase_duration,
@@ -422,7 +435,7 @@ impl SourceSyncPlayerTick {
             self.phase_duration,
             &self.phase_markers,
             self.looped,
-        ), SourceMarkerAdvance { forward, markers: passed })
+        ), SourceMarkerAdvance { forward, markers: passed }, next_time)
     }
 }
 
@@ -773,12 +786,11 @@ pub fn marker_phase_sample_time_continuous(
         || sample_markers[next.rem_euclid(count) as usize].name != position.next {
         return fallback();
     }
-    let time_at = |index: i64| sample_markers[index.rem_euclid(count) as usize].time
-        + index.div_euclid(count) as f32 * sample_duration;
-    let start = time_at(previous);
-    let end = time_at(next);
-    let time = start + (end - start).max(EPSILON) * position.alpha.clamp(0.0, 1.0);
-    if looped { time.rem_euclid(sample_duration.max(EPSILON)) } else { time }
+    let mut start = sample_markers[previous.rem_euclid(count) as usize].time;
+    let end = sample_markers[next.rem_euclid(count) as usize].time;
+    if start >= end { start -= sample_duration; }
+    let time = start + (end - start) * position.alpha.clamp(0.0, 1.0);
+    (if time < 0.0 { time + sample_duration } else { time }).clamp(0.0, sample_duration)
 }
 
 pub fn marker_phase_from_sample_time(
@@ -1186,7 +1198,7 @@ mod tests {
             let player = SourceSyncPlayerTick { phase_duration: 1.0, duration: 1.0,
                 phase_markers: markers.clone(), markers: markers.clone(), looped: true,
                 sample_time_hint: Some(previous), delta_seconds: 0.2, play_rate: rate, ..default() };
-            let (actual, advance) = player.advance(previous);
+            let (actual, advance, _) = player.advance(previous);
             assert!((actual - phase).abs() < 1e-5, "{previous} at {rate}: {actual}");
             assert_eq!(advance.forward, steps > 0);
             assert_eq!(advance.markers.len() as i64, i64::abs(steps));
@@ -1217,7 +1229,7 @@ mod tests {
             let player = SourceSyncPlayerTick { phase_duration: 1.0, duration: 1.0,
                 phase_markers: source.to_vec(), markers: source.to_vec(), looped: true,
                 sample_time_hint: Some(previous), delta_seconds: 0.1, play_rate: rate, ..default() };
-            let (phase, advance) = player.advance(previous);
+            let (phase, advance, _) = player.advance(previous);
             assert_eq!(advance.markers, passed);
             let actual = marker_phase_sample_time_continuous(phase, &advance, 1.0, &source, 1.0, &target, hint, true);
             assert!((actual - expected).abs() < 1e-5, "Mixed repeated marker path: {actual} != {expected}");

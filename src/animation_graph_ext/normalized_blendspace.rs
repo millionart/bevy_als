@@ -14,7 +14,7 @@ use crate::extensions::global_f32_input::global_f32_or_root_default;
 use crate::extensions::sync_group_phase::{
     SourceSyncPlayerBinding, SourceSyncPlayerTick, resolved_source_sync_phase,
     resolved_source_sync_markers, marker_phase_sample_time_near, follower_sample_time_near,
-    marker_phase_sample_time_continuous, resolved_source_marker_advance,
+    marker_phase_sample_time_continuous, resolved_source_marker_advance, resolved_source_sync_sample_time,
 };
 use crate::extensions::{AnimationContextState, marker_phase_from_sample_time};
 use crate::extensions::{SyncMarker, follower_sample_time, marker_phase_sample_time, phase_to_time};
@@ -701,6 +701,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
         let uses_marker_phase = self.phase_duration > EPSILON
             && !phase_markers.is_empty() && !leader_markers.is_empty();
         let mut marker_advance = None;
+        let mut leader_sample_time = resolved_source_sync_sample_time(&ctx)?;
         let phase = if let Some(playback) = &self.playback {
             let delta_seconds = crate::extensions::sync_group_phase::source_sync_delta_seconds(&ctx, &playback.delta_seconds_key)?;
             let play_rate = if playback.play_rate_key.is_empty() {
@@ -732,7 +733,8 @@ impl NodeLike for NormalizedBlendSpaceNode {
                 marker_advance = resolved_source_marker_advance(&ctx, &playback.key)?;
                 phase
             } else {
-                let (phase, advance) = tick.advance(tick.phase);
+                let (phase, advance, time) = tick.advance(tick.phase);
+                leader_sample_time = Some(time);
                 marker_advance = Some(advance);
                 phase
             };
@@ -757,7 +759,9 @@ impl NodeLike for NormalizedBlendSpaceNode {
                     duration, markers, hint, sample_looped)
             }
         };
-        let leader_time = if uses_marker_phase {
+        let leader_time = if let Some(time) = leader_sample_time {
+            time
+        } else if uses_marker_phase {
             map_time(&leader_markers, leader_duration, leader_hint,
                 sample_times[leader_index].is_some())
         } else {
@@ -776,10 +780,10 @@ impl NodeLike for NormalizedBlendSpaceNode {
             let point_hint = sample_times[index].unwrap_or_else(|| self.playback.as_ref()
                 .map_or_else(|| phase_to_time(phase, duration, sample_looped),
                     |playback| playback.start_position * duration));
-            let time = if uses_marker_phase {
-                map_time(&point_markers, duration, point_hint, sample_times[index].is_some())
-            } else if index == leader_index {
+            let time = if index == leader_index {
                 leader_time
+            } else if uses_marker_phase {
+                map_time(&point_markers, duration, point_hint, sample_times[index].is_some())
             } else {
                 follower_sample_time_near(
                     phase,

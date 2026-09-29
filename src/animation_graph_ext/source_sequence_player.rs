@@ -24,7 +24,7 @@ use crate::extensions::sync_group_phase::{
     SourceSyncGroupRole, SourceSyncPlayerTick, SyncMarker, marker_phase_from_sample_time,
     resolved_source_sync_phase, source_sync_delta_seconds,
     resolved_source_sync_markers, marker_phase_sample_time_near,
-    marker_phase_sample_time_continuous, resolved_source_marker_advance,
+    marker_phase_sample_time_continuous, resolved_source_marker_advance, resolved_source_sync_sample_time,
 };
 use crate::extensions::{
     AnimationContextState, SourceRelevantAsset, context_time_update, make_local_difference,
@@ -369,6 +369,7 @@ impl NodeLike for SourceSequencePlayerNode {
             .flatten();
         let resolved_advance = self.synchronization.as_ref()
             .map(|sync| resolved_source_marker_advance(&ctx, &sync.key)).transpose()?.flatten();
+        let mut leader_sample_time = resolved_source_sync_sample_time(&ctx)?;
         let identity = (ctx.graph_context.context_id, ctx.node_id);
         let reached_full_weight = self.synchronization.as_ref().is_some_and(|sync|
             matches!(sync.role, SourceSyncGroupRole::TransitionLeader | SourceSyncGroupRole::TransitionFollower))
@@ -444,11 +445,14 @@ impl NodeLike for SourceSequencePlayerNode {
                 tick.phase = phase;
                 resolved_advance.filter(|_| state.has_previous_position)
             } else {
-                let (phase, advance) = tick.advance(previous_phase);
+                let (phase, _, time) = tick.advance(previous_phase);
                 tick.phase = phase;
-                Some(advance)
+                leader_sample_time = Some(time);
+                None
             };
-            state.position = if let Some(advance) = &marker_advance {
+            state.position = if let Some(time) = leader_sample_time {
+                time
+            } else if let Some(advance) = &marker_advance {
                 marker_phase_sample_time_continuous(tick.phase, advance,
                     sync.phase_duration, phase_markers, clip.duration(), markers,
                     previous_sample_time, loop_animation)

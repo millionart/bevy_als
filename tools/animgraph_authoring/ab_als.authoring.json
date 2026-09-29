@@ -3,6 +3,14 @@
   "id": "ab_als_actor",
   "source_evidence": [
     {
+      "path": "target/bf131/review2/source/AB_Als_Standing.ue.json",
+      "sha256": "3caeaad85777ec820c2c29d489d39222d6c60687a25971276cba0ddccf05fec1"
+    },
+    {
+      "path": "target/bf131/review2/source/AnimSequenceBase.cpp",
+      "sha256": "538cedbee8cad1313c301078374a2750c2929e5ec198a54d2254d0c79ae6c3f7"
+    },
+    {
       "path": "target/bf131/review/a90/AB_Als_Ragdolling.ue.json",
       "sha256": "30826893a2b12c29e32148d71747994fdd87cc4c06afa3b06d2690fea1d57df8"
     },
@@ -215,7 +223,7 @@
       "sha256": "98228ce84724be8d5618a3ac51ebdcd61bd73e3758b6794fe30cbce153ff872f"
     },
     {
-      "path": "target/bf116_projection/source/AnimSequence.cpp",
+      "path": "target/bf131/review2/source/AnimSequence.cpp",
       "sha256": "08986b39c6e9d933d523b5ede2e7bbc110bf6ee1d532ed21241d173d0040799c"
     },
     {
@@ -235,8 +243,8 @@
       "sha256": "50b036788fdc57cba9f230b7c69e36188d2115f7842d42383a1c5044dc3312e4"
     },
     {
-      "path": "target/bf131/a62/A_Als_Walk_Forward.ue.json",
-      "sha256": "6046ec9b5102f9098d9ca2b7132edbab4923780d1b09bda4aaf720af5db3b971"
+      "path": "target/bf131/review2/source/A_Als_Walk_Forward.ue.json",
+      "sha256": "53cb5e41e104655947eaf97a509d20a2fe06a66ce9dd7a1444483a04640ecc3e"
     },
     {
       "path": "target/bf131/a62/BS_Als_WalkRun_Forward.ue.json",
@@ -283,7 +291,7 @@
       "sha256": "1c27aef16d8415e7839bfda4d50bb2f93a7447aaa73cf17fa3e94a4aabc23154"
     },
     {
-      "path": "target/bf131/a65/BlendSpace.cpp",
+      "path": "target/bf131/review2/source/BlendSpace.cpp",
       "sha256": "69fb35e0daa26373d7741bd8e21c96562facca8b7c1f02ea86700ffd1fffd932"
     },
     {
@@ -618,6 +626,18 @@
     "manual_case": "rotating_base"
   },
   "focused_tests": [
+    {
+      "label": "adjacent_marker_leader_clock_and_follower_cycle",
+      "argv": [
+        "cargo",
+        "test",
+        "--lib",
+        "repeated_marker",
+        "--jobs",
+        "2"
+      ],
+      "evidence": "target/bf128/bf131-r2-a70-restored.report.json"
+    },
     {
       "label": "scaled_ragdoll_readback_world_space_and_animation_masks",
       "argv": ["cargo", "test", "--lib", "post_physics_animation::tests", "--jobs", "2"],
