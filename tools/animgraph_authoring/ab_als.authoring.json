@@ -3,7 +3,11 @@
   "id": "ab_als_actor",
   "source_evidence": [
     {
-      "path": "target/bf131/review5/source/AnimSync.cpp",
+      "path": "target/bf131/review6/source/AnimNode_AssetPlayerBase.cpp",
+      "sha256": "b436241d9513645aefdd3a9d68b1a72935bf6ae02309e22bb30e0ad05ee37041"
+    },
+    {
+      "path": "target/bf131/review6/source/AnimSync.cpp",
       "sha256": "7893a6c0c01cb984440c35e782c9db3aa47a51cd77a0185f1d2944bc6dafb84f"
     },
     {
@@ -15,8 +19,8 @@
       "sha256": "082686bc5b5ec128c919a44b92e9dfeb0de6291e8775c9ab1c9c49714124ea8e"
     },
     {
-      "path": "target/bf131/review5/source/AB_Als_Standing.ue.json",
-      "sha256": "3baefe044450f29e5ac5fb4285c1f2519f5c006b5183452e00633edd35a6a39e"
+      "path": "target/bf131/review6/source/AB_Als_Standing.ue.json",
+      "sha256": "6d5b8c223f668b531b2b3e38e74e9cc01362b7556dacc1d3cdb697cb682f43eb"
     },
     {
       "path": "target/bf131/review5/source/AnimSequenceBase.cpp",
@@ -275,7 +279,7 @@
       "sha256": "8dca0f41f0378ad8858f193d69cc8a4fdf43139c8114d20842c67d16ef8c161b"
     },
     {
-      "path": "target/bf131/review5/source/AnimationAsset.cpp",
+      "path": "target/bf131/review6/source/AnimationAsset.cpp",
       "sha256": "d6bed3680c974fc6663965e6ef0a4dfc1e1d50c4b08bfbf8719cfc9a537e4f84"
     },
     {
@@ -303,7 +307,7 @@
       "sha256": "1c27aef16d8415e7839bfda4d50bb2f93a7447aaa73cf17fa3e94a4aabc23154"
     },
     {
-      "path": "target/bf131/review5/source/BlendSpace.cpp",
+      "path": "target/bf131/review6/source/BlendSpace.cpp",
       "sha256": "69fb35e0daa26373d7741bd8e21c96562facca8b7c1f02ea86700ffd1fffd932"
     },
     {
@@ -638,6 +642,18 @@
     "manual_case": "rotating_base"
   },
   "focused_tests": [
+    {
+      "label": "excluded_multisample_blendspace_clip_requests_pose_and_curves",
+      "argv": [
+        "cargo",
+        "test",
+        "--lib",
+        "excluded_blendspace_samples_keep",
+        "--jobs",
+        "2"
+      ],
+      "evidence": "target/bf128/bf131-r6-a92-final.report.json"
+    },
     {
       "label": "marker_and_length_sync_actual_notify_start_and_history",
       "argv": [

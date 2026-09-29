@@ -337,6 +337,7 @@ pub fn resolved_source_sync_phase(ctx: &NodeContext, key: &str) -> Result<Option
 }
 
 pub fn resolved_source_sync_length_ratios(ctx: &NodeContext, key: &str) -> Result<Option<Vec2>, GraphError> {
+    if resolved_source_sync_phase(ctx, key)?.is_none() { return Ok(None); }
     ctx.graph_context.global_input_data.get(&format!("{SOURCE_SYNC_RESOLVED}.length_ratios.{key}"))
         .map(|value| value.as_vec2()).transpose()
 }
