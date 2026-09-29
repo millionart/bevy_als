@@ -66,8 +66,8 @@
 - [x] **BF131.A67 — TransitionLeader/TransitionFollower are not excluded during fade-in**。Gate：淡入阶段按角色和源有效权重选 leader，退出淡入后恢复候选资格；实际脚步分派使用同一选举规则，被排除播放器保持独立通知。
 - [x] **BF131.A68 — Sync marker mapping does not filter to common marker names**。Gate：先求组内共同 marker 集，再定位/映射，非共同 marker 不改变有效相位。
 - [x] **BF131.A69 — Modify Curve accepts WeightedMovingAverage but evaluates it as stateless Blend**。Gate：逐实例历史参与加权移动平均，初始化/更新/重建及其他模式控制通过。
-- [x] **BF131.A70 — Repeated marker-name pairs collapse later timeline occurrences into the first pair**。Gate：同名重复 marker 对保留时间位置，跨多个区间、多周期、倒播与精确边界不跳到较早 occurrence；实际播放器自身映射保持时间，包含相邻同名和共同 marker 过滤后的 leader，follower 保留实际端点身份并通过连续多帧采样/曲线与源规定的失效清理。
-- [x] **BF131.A91 — 非循环同步候选结束 marker 无效时未试选后续 leader**。Gate：实际同步根按源候选顺序试 tick；前进/倒播边界、精确落 marker、全无效控制及最终采样/leader/通知一致；失败 BlendSpace 候选连续通知使用自身实际历史，新成员使用源调整后的起点。
+- [x] **BF131.A70 — Repeated marker-name pairs collapse later timeline occurrences into the first pair**。Gate：同名重复 marker 对保留时间位置，跨多个区间、多周期、倒播与精确边界不跳到较早 occurrence；实际播放器自身映射保持时间，包含相邻同名和共同 marker 过滤后的 leader。两类播放器保留实际端点及到达距离，组起止位置沿真实同步根传递，精确到点后正反掉头、连续采样/曲线与源规定的失效清理一致。
+- [ ] **BF131.A91 — 非循环同步候选结束 marker 无效时未试选后续 leader**。Gate：实际同步根按源候选顺序试 tick；前进/倒播边界、精确落 marker、全无效控制及最终采样/leader/通知一致；失败 BlendSpace 候选连续通知使用自身实际历史，新成员使用源调整后的起点。
 - [x] **BF131.A71 — Custom 状态迁移按总时长结束，遗漏 FAlphaBlend 提前达到终值的完成语义**。Gate：源曲线提前达到终值时迁移完成，未达到终值及正常总时长控制通过。
 - [x] **BF131.A72 — 惯性过渡的显式 BlendProfile 在生成、请求和逐骨消费链中丢失**。Gate：显式 profile 贯穿生成、惯性请求与逐骨持续时间，默认 profile 和无覆盖控制通过。
 - [x] **BF131.A73 — 惯性化 root 历史没有按组件／Actor 附着空间变化重表达**。Gate：组件/Actor 附着空间改变后历史按源坐标系重表达，世界连续姿态和不变空间控制通过。
@@ -493,3 +493,19 @@
   - S3 实际结束 2026-09-29 19:20 +08:00，偏差 -16 分钟；结果：startup、standing_direction 5/5、state_machine 10/10、notify 12/12 最终公共功能 PASS。四份报告 ready、faults/graph_errors/temporal_anomalies/primary_failure 为空，watchdog 未触发、退出 0/0；保留原性能预算失败。实际采样请求、asset_samples 起止值、跨三帧最终事件和两类新成员重同步、四项消融、1289 库测试与完整图合同闭合，恢复 A91 勾选并单独提交。
 
 - 本轮续帧复审收尾（19:20）：A70 持久端点与 A91 实际通知起点两条反馈已分别修复；A70 提交 `919ad82`。核对本轮 8 份公共功能报告、4 份作者合同、失败反例及消融结果，清单恢复 39/39。A70 保留合法首次 follower 0.375，后续为 0.4375/0.5；A91 连续事件为 A、B、无重复，重同步使用实际 0.8 起点。原始资产、转换器、依赖和性能阈值未修改。
+
+### 63d643e 边界复审修复
+
+来源：内置浏览器《Review BF131修复》，目标 `63d643e5995ad696425b07c358af0ed2e71471eb`。复开 A70 的 leader 精确落点后反向推进，以及 A91 新加入的普通 follower 通知起点；原有 follower 端点续帧与失败候选真实通知起点修复保留。fresh Standing 原生 reader PASS；当次 UE AdvanceMarkerPhaseAsLeader 按保留的 marker pair 和 TimeToMarker 严格跨点，TickByMarkerAsFollower 在记录失效时先按组开始位置重同步，再保存 OutPreviousTime。目标只持久化 follower 端点、leader 仍由当前方向反推；普通 follower 也未收到开始同步位置。旧 Gate 缺精确到达后改负倍率、未试选的 follower 入组并开启 follower 通知两个组合。按 A70→A91 完成并分别提交，性能继续延期。
+
+- BF131.A70-R4-S1：开始 2026-09-29 19:38 +08:00；预估结束 2026-09-29 20:03 +08:00。依据：当次 AnimSequence/AnimSequenceBase/AnimSync 与已有同步根夹具；添加 A@0.125/B@0.375/A@0.625/B@0.875 的 0.25→0.375→反向 0.3125，验证两类 leader/消费者实际时间、曲线及经过记录。先稳定 red，再在 S2 保留 leader 同一 marker record 与严格跨点状态，S3 独立完成图合同和真实功能 Gate。
+  - S1 实际结束 2026-09-29 19:51 +08:00，偏差 -12 分钟；结果：真实同步根中 follower=0.8125≠0.3125，稳定 red。复盘前几轮：仅保存 follower 端点、仍从时刻/当前方向重建 leader 或组同步位置，会割裂同一份 marker 状态；本轮改为统一保留 pair/到 marker 的距离以及组起止同步位置，消除该信息丢失，保留既有实际 leader 时间与试选语义。
+- BF131.A70-R4-S2：开始 2026-09-29 19:51 +08:00；预估结束 2026-09-29 20:46 +08:00。按源同一 marker record 推进 leader，保留严格落点后的端点与 TimeToMarker，Root 传递实际记录和组开始/结束位置给两类播放器；回归跨点记录、曲线、连续正倒播、方向反转、多圈、相邻同名与共同集过滤，并消融历史/路由。此轮只闭合采样及推进合同，普通 follower 的通知起点由后续 A91 单独接入；S3 独立编译/作者合同/真实场景验收。
+  - S2 静态进展（20:11）：原始掉头反例、反向到点后改正倍率、共同标记过滤及两类 leader/消费者的实际采样与曲线均 PASS；完整库 1289/1289。fresh Walk reader PASS，补齐组开始/结束与持久记录路由。原强制清空 AA 记录的旧预期依据不足；按当次 GetMarkerIndicesForPosition 从组开始位置重选最近合法端点，后续应为 0.703125/0.75，已修正该控制项。无标记相位同步回归已恢复。删除未消费的剩余 delta 传输和恒为 Some 的开始时刻包装；继续历史/记录传输/组开始位置消融。
+  - S2 实际结束 2026-09-29 20:17 +08:00，偏差 -29 分钟；结果：删除 leader 历史和记录传输均破坏倒播端点，删除组开始位置破坏 AA 记录重新初始化，三项消融按预期失败；恢复且删除冗余传输后完整库 1289/1289。两类播放器在公共同步根的正反掉头、共同集过滤、重复同名、多圈、采样曲线与经过记录闭合；未增加持久通知状态。
+- BF131.A70-R4-S3：开始 2026-09-29 20:17 +08:00；预估结束 2026-09-29 20:42 +08:00。依据同类任务最近的优化构建、349 图规范、18 条作者审计和四个公共场景记录，执行 target_game/play 最终构建、root/Standing 合同以及 startup→standing_direction→state_machine→notify。保持 FunctionalOnly、零截图与原始性能结果，验收后恢复 A70 勾选并单独提交，再开始 A91 普通 follower 通知起点。
+  - S3 runtime 前（20:22）：target_game/play 优化构建、349 图规范及 root/Standing 18 条作者命令 PASS，原生 Standing 62 子图/108 target 资产合同闭合。当前仅修改共享 marker 状态与同步根→Sequence/BlendSpace 的记录传递，实际曲线/采样/经过记录、三项失败消融及 1289 库测试通过；开始四个公共功能场景，A91 普通 follower 的通知区间尚未修复。
+  - S3 startup PASS（20:22）：ready、零故障/图错误/时序异常，watchdog 未触发，退出 0/0；同一二进制继续 standing_direction、state_machine、notify 功能 Gate，性能延期边界不变。
+  - S3 standing_direction 5/5 PASS（20:23）：同样零故障/图错误/时序异常、无 watchdog、退出 0/0；继续状态机及通知场景，当前 source/static 闭包与延期边界不变。
+  - S3 state_machine 10/10 PASS（20:24）：ready、零故障/图错误/时序异常、无 watchdog、退出 0/0；最后执行 notify，继续保留原始性能失败，不展开其他已完成模块。
+  - S3 实际结束 2026-09-29 20:25 +08:00，偏差 -17 分钟；结果：startup、standing_direction 5/5、state_machine 10/10、notify 12/12 公共功能 PASS。四份报告 ready、faults/graph_errors/temporal_anomalies/primary_failure 为空，watchdog 未触发、进程退出 0/0；1289 库测试、正反精确掉头/经过记录/实际曲线、三项必要性消融、349 图规范和 18 条作者合同闭合。恢复 A70 勾选并单独提交，性能仍延期；剩余 A91 普通 follower 通知起点。

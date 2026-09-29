@@ -106,12 +106,11 @@ impl NodeLike for SourcePosePassthroughNode {
                     let key = crate::extensions::sync_group_phase::source_sync_sample_time_key(*identity);
                     global_inputs.to_mut().insert(format!("{key}.selected"), DataValue::Bool(true));
                 }
-                for (identity, previous_time, time) in leader_samples {
+                for (identity, step) in leader_samples {
                     let sample_key = crate::extensions::sync_group_phase::source_sync_sample_time_key(identity);
-                    if let Some(previous_time) = previous_time {
-                        global_inputs.to_mut().insert(format!("{sample_key}.previous"), DataValue::F32(previous_time));
-                    }
-                    global_inputs.to_mut().insert(sample_key, DataValue::F32(time));
+                    global_inputs.to_mut().insert(format!("{sample_key}.previous"), DataValue::F32(step.previous_time));
+                    if let Some(record) = step.record { global_inputs.to_mut().extend(record.into_inputs(&sample_key)); }
+                    global_inputs.to_mut().insert(sample_key, DataValue::F32(step.time));
                 }
                 if let Some(phase) = phase {
                     global_inputs.to_mut().insert(
@@ -154,6 +153,9 @@ impl NodeLike for SourcePosePassthroughNode {
                     let key = crate::extensions::sync_group_phase::source_sync_sample_time_key(player.identity);
                     player.ticked_as_leader = global_inputs.contains_key(&key);
                     player.selected_leader = global_inputs.contains_key(&format!("{key}.selected"));
+                    if player.selected_leader {
+                        player.marker_advance = crate::extensions::sync_group_phase::resolved_source_marker_advance(&source_ctx, &player.key)?;
+                    }
                     if global_inputs.contains_key(&source_sync_excluded_key(player.identity)) {
                         continue;
                     }
@@ -251,13 +253,15 @@ mod tests {
         use crate::extensions::source_sequence_player::{SourceSequenceSynchronization, SourceSequencePlayerState};
         use crate::extensions::sync_group_phase::{SourceSyncGroupRole, SourceSyncPlayerBinding, SyncMarker};
 
-        fn query(In((handle, leader, follower, blendspace, adjacent, blendspace_leads, reverse)): In<(Handle<AnimationGraph>, NodeId, NodeId, bool, bool, bool, bool)>, resources: SystemResources) {
+        fn query(In((handle, leader, follower, blendspace, adjacent, blendspace_leads, reverse, turnaround)): In<(Handle<AnimationGraph>, NodeId, NodeId, bool, bool, bool, bool, bool)>, resources: SystemResources) {
             let graph = resources.animation_graph_assets.get(&handle).unwrap();
             let mut arena = GraphContextArena::new(handle.id());
             let mut gizmos = DeferredGizmos::default();
             let entities = HashMap::new();
             let env = TestIoEnv::default();
-            let frames = if reverse { vec![(0.0, -1.0, 0.5), (0.125, -1.0, 0.375), (0.0625, -1.0, 0.3125)] }
+            let frames = if turnaround && reverse { vec![(0.0, -1.0, 0.75), (0.125, -1.0, 0.625), (0.0625, 1.0, 0.6875), (0.0625, -1.0, 0.625), (0.0625, -1.0, 0.5625)] }
+                else if turnaround { vec![(0.0, 1.0, 0.25), (0.125, 1.0, 0.375), (0.0625, -1.0, 0.3125), (0.0625, 1.0, 0.375), (0.0625, 1.0, 0.4375)] }
+                else if reverse { vec![(0.0, -1.0, 0.5), (0.125, -1.0, 0.375), (0.0625, -1.0, 0.3125)] }
                 else if adjacent { vec![(0.0, 5.0, 0.875), (0.0625, 5.0, 0.1875), (0.015625, 1.0, 0.203125), (0.015625, 1.0, 0.21875), (0.015625, 1.0, 0.234375), (0.015625, 1.0, 0.25)] }
                 else { vec![(0.0, 3.0, 0.15), (0.2, 3.0, 0.75), (0.2, 13.0, 0.35), (0.2, -13.0, 0.75)] };
             for (delta, rate, expected) in frames {
@@ -286,9 +290,15 @@ mod tests {
                 } else { sequence_time(follower) };
                 let selected = crate::extensions::sync_group_phase::source_sync_leader(&arena, &resources.animation_graph_assets, "Movement").unwrap();
                 assert_eq!(selected.identity.1, if blendspace_leads { follower } else { leader });
+                if turnaround && (expected == 0.3125 || expected == 0.6875) { assert!(selected.marker_advance.as_ref().unwrap().markers.is_empty()); }
                 assert!((selected.phase - expected).abs() < 1e-5);
                 let (leader_time, follower_time) = if blendspace_leads { (follower_time, leader_time) } else { (leader_time, follower_time) };
-                for (actual, expected) in [(leader_time, expected), (follower_time, if reverse && delta == 0.0625 { 0.125 } else if adjacent && delta > 0.0 && !reverse && expected < 0.234375 { 0.125 + 4.0 * (expected - 0.125) } else { expected })] {
+                let expected_follower = if adjacent && reverse && delta == 0.0625 { 0.125 }
+                    else if adjacent && delta > 0.0 && !reverse {
+                        if expected < 0.234375 { 0.125 + 4.0 * (expected - 0.125) }
+                        else { 0.375 + 3.0 * (expected - 0.125) }
+                    } else { expected };
+                for (actual, expected) in [(leader_time, expected), (follower_time, expected_follower)] {
                     assert!((actual - expected).abs() < 1e-5, "blendspace={blendspace} leads={blendspace_leads} adjacent={adjacent} delta={delta} rate={rate}: {actual} != {expected}");
                 }
             }
@@ -303,13 +313,13 @@ mod tests {
         let clock_curve = crate::extensions::parse_curves(&serde_json::json!({"curves": [{
             "name": "SampleTime", "times": [0.0, 1.0], "values": [0.0, 1.0], "interps": ["LINEAR", "LINEAR"]
         }]})).unwrap();
-        for (adjacent, filtered, reverse) in [(false, false, false), (true, false, false), (true, true, false), (true, false, true)] {
-            let markers = if adjacent { vec![("A", 0.125), ("A", 0.375), ("B", 0.75)] }
+        for (adjacent, filtered, reverse, turnaround) in [(false, false, false, false), (true, false, false, false), (true, true, false, false), (true, false, true, false), (false, false, false, true), (false, false, true, true), (false, true, false, true), (false, true, true, true)] {
+            let markers = if turnaround { vec![("A", 0.125), ("B", 0.375), ("A", 0.625), ("B", 0.875)] } else if adjacent { vec![("A", 0.125), ("A", 0.375), ("B", 0.75)] }
                 else { vec![("A", 0.1), ("B", 0.3), ("A", 0.6), ("B", 0.8)] };
             let markers = markers.into_iter().map(|(name, time)| SyncMarker { name: name.into(), time }).collect::<Vec<_>>();
             let mut sequence_markers = markers.clone();
             if filtered { sequence_markers.insert(1, SyncMarker { name: "Extra".into(), time: 0.25 }); }
-            let start = if reverse { 0.5 } else if adjacent { 0.875 } else { 0.15 };
+            let start = if turnaround { if reverse { 0.75 } else { 0.25 } } else if reverse { 0.5 } else if adjacent { 0.875 } else { 0.15 };
             for (blendspace, blendspace_leads) in [(false, false), (true, false), (true, true)] {
                 let sync = |role| SourceSequenceSynchronization { key: "Movement".into(), delta_seconds_key: "delta".into(),
                     phase_duration: 1.0, phase_markers: markers.clone(), markers: sequence_markers.clone(), role, ..default() };
@@ -342,7 +352,7 @@ mod tests {
                 graph.add_output_data_edge(root.id, "Pose", "Pose");
                 for node in [leader.clone(), follower.clone(), blend, root] { graph.add_node(node); }
                 let handle = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
-                world.run_system_cached_with(query, (handle, leader.id, follower.id, blendspace, adjacent, blendspace_leads, reverse)).unwrap();
+                world.run_system_cached_with(query, (handle, leader.id, follower.id, blendspace, adjacent, blendspace_leads, reverse, turnaround)).unwrap();
             }
         }
     }

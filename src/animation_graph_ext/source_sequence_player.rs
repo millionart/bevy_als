@@ -384,6 +384,9 @@ impl NodeLike for SourceSequencePlayerNode {
             resolved_source_sync_markers(&ctx, &sync.key, &sync.phase_markers),
             resolved_source_sync_markers(&ctx, &sync.key, &sync.markers),
         ));
+        let resolved_record = if let Some((_, markers)) = sync_markers.as_ref() {
+            crate::extensions::sync_group_phase::resolved_source_marker_record(&ctx, markers, clip.duration(), Some(self.clip.clone()))?
+        } else { None };
         let reset_markers = crate::extensions::sync_group_phase::source_sync_markers_reset(&ctx);
         let notify_instance_id = crate::extensions::source_instance::source_notify_instance_id(&ctx)?;
         let state = ctx.state_mut_or_else(SourceSequencePlayerState::default)?;
@@ -431,6 +434,7 @@ impl NodeLike for SourceSequencePlayerNode {
                     || reached_full_weight,
                 requested_inertialization,
                 previous_phase,
+                previous_marker_record: state.marker_record.clone().filter(|record| record.asset.as_ref() == Some(&self.clip)),
                 sample_time_hint: Some(previous_sample_time),
                 phase_duration: sync.phase_duration,
                 phase_markers: phase_markers.to_vec(),
@@ -447,15 +451,17 @@ impl NodeLike for SourceSequencePlayerNode {
             state.delta_seconds = delta;
             let marker_advance = if let Some(phase) = resolved_phase {
                 tick.phase = phase;
-                resolved_advance.filter(|_| state.has_previous_position)
+                resolved_advance
             } else {
-                let (phase, _, time, _) = tick.advance_from_time(previous_sample_time);
-                tick.phase = phase;
-                leader_sample_time = Some(time);
-                None
+                let step = tick.advance_from_time(previous_sample_time);
+                tick.phase = step.phase;
+                leader_sample_time = Some(step.time);
+                state.marker_record = step.record;
+                Some(step.advance)
             };
+            tick.marker_advance = marker_advance.clone();
             state.position = if let Some(time) = leader_sample_time {
-                state.marker_record = None;
+                if resolved_phase.is_some() { state.marker_record = resolved_record; }
                 time
             } else if let Some(advance) = &marker_advance {
                 marker_phase_sample_time_continuous(tick.phase, advance,
@@ -638,7 +644,7 @@ mod tests {
                 ]);
                 if frame != 0 && frame != 10 {
                     inputs.extend(crate::extensions::sync_group_phase::SourceMarkerAdvance {
-                        forward, markers: passed.iter().map(|name| (*name).to_owned()).collect(),
+                        forward, markers: passed.iter().map(|name| (*name).to_owned()).collect(), ..default()
                     }.into_inputs("Movement"));
                 }
                 let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources,

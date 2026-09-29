@@ -38,7 +38,7 @@ pub struct SyncMarker {
     pub time: f32,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Reflect, Clone, Debug, Default, PartialEq)]
 pub struct SyncMarkerPosition {
     pub previous: String,
     pub next: String,
@@ -106,6 +106,8 @@ pub struct SourceSyncPlayerTick {
     pub ticked_as_leader: bool,
     pub phase: f32,
     pub previous_phase: f32,
+    pub previous_marker_record: Option<SourceMarkerRecord>,
+    pub marker_advance: Option<SourceMarkerAdvance>,
     pub sample_time_hint: Option<f32>,
     pub phase_duration: f32,
     pub phase_markers: Vec<SyncMarker>,
@@ -116,19 +118,38 @@ pub struct SourceSyncPlayerTick {
     pub play_rate: f32,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Reflect, Clone, Debug, Default, PartialEq)]
 pub struct SourceMarkerAdvance {
     pub forward: bool,
     pub markers: Vec<String>,
+    pub start: Option<SyncMarkerPosition>,
+    pub end: Option<SyncMarkerPosition>,
 }
 
 impl SourceMarkerAdvance {
-    pub fn into_inputs(self, key: &str) -> [(String, DataValue); 2] {
-        let key = format!("{SOURCE_SYNC_RESOLVED}.marker_advance.{key}");
-        [(format!("{key}.forward"), DataValue::Bool(self.forward)),
-            (key, DataValue::EventQueue(EventQueue::with_events(self.markers.into_iter()
-                .map(|name| SampledEvent::instant(AnimationEvent::StringId(name))).collect::<Vec<_>>()))) ]
+    pub fn into_inputs(self, group: &str) -> Vec<(String, DataValue)> {
+        let key = format!("{SOURCE_SYNC_RESOLVED}.marker_advance.{group}");
+        let mut inputs = vec![(format!("{key}.forward"), DataValue::Bool(self.forward)),
+            (key.clone(), DataValue::EventQueue(EventQueue::with_events(self.markers.into_iter()
+                .map(|name| SampledEvent::instant(AnimationEvent::StringId(name))).collect::<Vec<_>>())))];
+        for (suffix, position) in [("start", self.start), ("end", self.end)] {
+            if let Some(position) = position {
+                inputs.push((format!("{key}.{suffix}"), DataValue::EventQueue(EventQueue::with_events(
+                    [position.previous, position.next].into_iter().map(|name|
+                        SampledEvent::instant(AnimationEvent::StringId(name))).collect::<Vec<_>>()))));
+                inputs.push((format!("{key}.{suffix}.alpha"), DataValue::F32(position.alpha)));
+            }
+        }
+        inputs
     }
+}
+
+pub struct SourceSyncPlayerStep {
+    pub phase: f32,
+    pub advance: SourceMarkerAdvance,
+    pub time: f32,
+    pub previous_time: f32,
+    pub record: Option<SourceMarkerRecord>,
 }
 
 pub const SOURCE_SYNC_RESOLVED: &str = "__source_sync_resolved";
@@ -177,16 +198,40 @@ pub fn source_sync_marker_name_key(key: &str, name: &str) -> String {
     format!("{SOURCE_SYNC_RESOLVED}.markers.{key}.{name}")
 }
 
-pub fn resolved_source_marker_advance(ctx: &NodeContext, key: &str) -> Result<Option<SourceMarkerAdvance>, GraphError> {
-    let key = format!("{SOURCE_SYNC_RESOLVED}.marker_advance.{key}");
+pub fn resolved_source_marker_advance(ctx: &NodeContext, group: &str) -> Result<Option<SourceMarkerAdvance>, GraphError> {
+    let key = format!("{SOURCE_SYNC_RESOLVED}.marker_advance.{group}");
     let inputs = ctx.graph_context.global_input_data;
     let Some(value) = inputs.get(&key) else { return Ok(None); };
-    let forward = inputs.get(&format!("{key}.forward")).ok_or(GraphError::MissingStateValue)?.as_bool()?;
-    let markers = value.as_event_queue()?.events.iter().map(|event| match &event.event {
+    let names = |value: &DataValue| value.as_event_queue()?.events.iter().map(|event| match &event.event {
         AnimationEvent::StringId(name) => Ok(name.clone()),
         _ => Err(GraphError::MissingStateValue),
-    }).collect::<Result<Vec<_>, _>>()?;
-    Ok(Some(SourceMarkerAdvance { forward, markers }))
+    }).collect::<Result<Vec<_>, _>>();
+    let position = |suffix: &str| -> Result<Option<SyncMarkerPosition>, GraphError> {
+        let Some(value) = inputs.get(&format!("{key}.{suffix}")) else { return Ok(None); };
+        let names = names(value)?;
+        let [previous, next] = names.as_slice() else { return Err(GraphError::MissingStateValue); };
+        let alpha = inputs.get(&format!("{key}.{suffix}.alpha")).ok_or(GraphError::MissingStateValue)?.as_f32()?;
+        Ok(Some(SyncMarkerPosition { previous: previous.clone(), next: next.clone(), alpha }))
+    };
+    let forward = inputs.get(&format!("{key}.forward")).ok_or(GraphError::MissingStateValue)?.as_bool()?;
+    let markers = names(value)?;
+    Ok(Some(SourceMarkerAdvance { forward, markers, start: position("start")?, end: position("end")? }))
+}
+
+pub fn resolved_source_marker_record(ctx: &NodeContext, markers: &[SyncMarker], duration: f32,
+    asset: Option<Handle<bevy_animation_graph::core::animation_clip::GraphClip>>) -> Result<Option<SourceMarkerRecord>, GraphError> {
+    let key = source_sync_sample_time_key((ctx.graph_context.context_id, ctx.node_id));
+    let inputs = ctx.graph_context.global_input_data;
+    let Some(indices) = inputs.get(&format!("{key}.record.indices")) else { return Ok(None); };
+    let indices = indices.as_vec2()?;
+    let distances = inputs.get(&format!("{key}.record.distances")).ok_or(GraphError::MissingStateValue)?.as_vec2()?;
+    if !indices.is_finite() || !distances.is_finite() || [indices.x, indices.y].iter()
+        .any(|index| index.fract() != 0.0 || *index < -1.0 || *index >= markers.len() as f32) {
+        return Err(GraphError::MissingStateValue);
+    }
+    Ok(Some(SourceMarkerRecord { previous: indices.x as i64, next: indices.y as i64,
+        previous_distance: distances.x, next_distance: distances.y,
+        markers: sorted_markers(markers, duration), duration, asset }))
 }
 
 pub fn resolved_source_sync_markers<'a>(ctx: &NodeContext, key: &str, markers: &'a [SyncMarker]) -> std::borrow::Cow<'a, [SyncMarker]> {
@@ -324,7 +369,7 @@ pub struct SourceSyncGroupResolution {
     pub ungrouped: Vec<(GraphContextId, NodeId)>,
     pub markers: Vec<String>,
     pub marker_advance: Option<SourceMarkerAdvance>,
-    pub leader_samples: Vec<((GraphContextId, NodeId), Option<f32>, f32)>,
+    pub leader_samples: Vec<((GraphContextId, NodeId), SourceSyncPlayerStep)>,
     pub marker_resets: Vec<(GraphContextId, NodeId)>,
 }
 
@@ -377,41 +422,41 @@ pub fn resolve_source_sync_phases(
                         .map(|time| time_to_phase(time, grouped.phase_duration, grouped.looped))
                 })
             };
-            let (mut candidate_phase, advance, time, previous_time) = if let Some(phase) = prior_phase {
+            let step = if let Some(phase) = prior_phase {
                 let continuing = common == previous_common && previous_players.iter().any(|prior|
                     prior.identity == leader.identity && prior.source_asset == leader.source_asset
                         && (prior.duration - leader.duration).abs() <= EPSILON);
-                let (phase, advance, time, previous_time) = if let Some(time) = grouped.sample_time_hint.filter(|_| continuing) {
+                if let Some(time) = grouped.sample_time_hint.filter(|_| continuing) {
                     grouped.advance_from_time(time)
                 } else {
-                    grouped.advance(phase)
-                };
-                (phase, advance, time, Some(previous_time))
+                    grouped.previous_marker_record = None;
+                    let position = previous_leader.and_then(|prior| prior.marker_advance.as_ref())
+                        .and_then(|advance| advance.end.as_ref()).filter(|position| position.is_valid());
+                    if let Some(position) = position {
+                        grouped.advance_from_position(grouped.sample_time_hint.unwrap_or(phase * grouped.duration), Some(position))
+                    } else { grouped.advance(phase) }
+                }
             } else {
                 let previous_time = leader.sample_time_hint.or_else(|| previous.iter()
                     .find(|prior| prior.identity == leader.identity && prior.source_asset == leader.source_asset
                         && (prior.duration - leader.duration).abs() <= EPSILON)
                     .map(|prior| marker_phase_sample_time(prior.phase, prior.phase_duration,
                         &prior.phase_markers, prior.duration, &prior.markers, prior.looped)));
-                let independent_time = previous_time.map(|time|
-                    phase_to_time((time + leader.delta_seconds * leader.play_rate) / leader.duration.max(EPSILON), leader.duration, leader.looped))
-                    .unwrap_or_else(|| marker_phase_sample_time(leader.phase, leader.phase_duration,
-                        &leader.phase_markers, leader.duration, &leader.markers, leader.looped));
-                (marker_phase_from_sample_time(independent_time, grouped.duration, &grouped.markers,
-                    grouped.phase_duration, &grouped.phase_markers, grouped.looped),
-                    SourceMarkerAdvance { forward: leader.play_rate >= 0.0, markers: Vec::new() }, independent_time, previous_time)
-            };
-            let position = marker_position_at_time_in_direction(&grouped.markers, grouped.duration, time, grouped.looped, advance.forward);
-            if let Some(position) = &position {
-                if let Some(time) = time_for_marker_position(&grouped.phase_markers, grouped.phase_duration,
-                    position, candidate_phase * grouped.phase_duration, grouped.looped) {
-                    candidate_phase = time_to_phase(time, grouped.phase_duration, grouped.looped);
+                if let Some(time) = previous_time {
+                    grouped.advance_from_time(time)
+                } else {
+                    let time = marker_phase_sample_time(leader.phase, leader.phase_duration,
+                        &leader.phase_markers, leader.duration, &leader.markers, leader.looped);
+                    let mut initial = grouped.clone();
+                    initial.delta_seconds = 0.0;
+                    initial.advance_from_time(time)
                 }
-            }
-            phase = Some(candidate_phase);
-            marker_advance = prior_phase.map(|_| advance);
-            leader_samples.push((leader.identity, previous_time, time));
-            if common.is_empty() || position.is_some() { break; }
+            };
+            let valid_end = step.advance.end.as_ref().is_some_and(|position| position.is_valid());
+            phase = Some(step.phase);
+            marker_advance = Some(step.advance.clone());
+            leader_samples.push((leader.identity, step));
+            if common.is_empty() || valid_end { break; }
         }
         let previous_order = ordered_group_players(&previous_players);
         let previous_leader_index = previous_leader.and_then(|leader|
@@ -445,51 +490,44 @@ impl SourceSyncPlayerTick {
                 && (self.has_been_full_weight || self.weight >= 1.0 - 1e-5))
     }
 
-    pub fn advance(&self, previous_phase: f32) -> (f32, SourceMarkerAdvance, f32, f32) {
-        let previous_time = marker_phase_sample_time_near(
-            previous_phase,
-            self.phase_duration,
-            &self.phase_markers,
-            self.duration,
-            &self.markers,
-            self.sample_time_hint.unwrap_or_else(|| phase_to_time(previous_phase, self.duration, self.looped)),
-            self.looped,
-        );
-        self.advance_from_time(previous_time)
+    pub fn advance(&self, previous_phase: f32) -> SourceSyncPlayerStep {
+        let position = marker_position_at_time(&self.phase_markers, self.phase_duration,
+            phase_to_time(previous_phase, self.phase_duration, self.looped), self.looped);
+        let time = phase_to_time(previous_phase, self.duration, self.looped);
+        self.advance_from_position(if position.is_some() { self.sample_time_hint.unwrap_or(time) } else { time }, position.as_ref())
     }
 
-    pub fn advance_from_time(&self, previous_time: f32) -> (f32, SourceMarkerAdvance, f32, f32) {
-        let duration = self.duration.max(EPSILON);
-        let next_unwrapped = previous_time + self.delta_seconds * self.play_rate;
-        let markers = sorted_markers(&self.markers, duration);
-        let marker_index = |time: f32, forward: bool| {
-            let (time, cycle) = if self.looped { (time.rem_euclid(duration), (time / duration).floor() as i64) }
-                else { (time.clamp(0.0, duration), 0) };
-            cycle * markers.len() as i64 + markers.iter().rposition(|marker| if forward { marker.time < time } else { marker.time <= time })
-                .map_or(-1, |index| index as i64)
-        };
-        let forward = next_unwrapped >= previous_time;
-        let previous_index = marker_index(previous_time, forward);
-        let steps = marker_index(next_unwrapped, forward) - previous_index;
-        let passed = (0..steps.unsigned_abs()).map(|offset| {
-            let index = if forward { previous_index + 1 + offset as i64 } else { previous_index - offset as i64 };
-            markers[index.rem_euclid(markers.len() as i64) as usize].name.clone()
-        }).collect();
-        let next_time = phase_to_time(
-            next_unwrapped / duration,
-            self.duration,
-            self.looped,
-        );
-        (marker_phase_from_sample_time(
-            next_time,
-            self.duration,
-            &self.markers,
-            self.phase_duration,
-            &self.phase_markers,
-            self.looped,
-        ), SourceMarkerAdvance { forward, markers: passed }, next_time, previous_time)
+    pub fn advance_from_position(&self, hint: f32, position: Option<&SyncMarkerPosition>) -> SourceSyncPlayerStep {
+        let markers = sorted_markers(&self.markers, self.duration);
+        let (time, record) = if let Some(position) = position.filter(|position| position.is_valid()) {
+            SourceMarkerRecord::from_position(&markers, self.duration, self.looped, hint, position, self.source_asset.clone())
+        } else { (hint, SourceMarkerRecord::at_time(&markers, self.duration, self.looped, hint, self.source_asset.clone())) };
+        self.advance_with_record(time, record)
+    }
+
+    pub fn advance_from_time(&self, previous_time: f32) -> SourceSyncPlayerStep {
+        let markers = sorted_markers(&self.markers, self.duration);
+        let record = self.previous_marker_record.clone().filter(|record| record.valid(&markers, self.duration, self.looped))
+            .unwrap_or_else(|| SourceMarkerRecord::at_time(&markers, self.duration, self.looped, previous_time, self.source_asset.clone()));
+        self.advance_with_record(previous_time, record)
+    }
+
+    fn advance_with_record(&self, previous_time: f32, mut record: SourceMarkerRecord) -> SourceSyncPlayerStep {
+        let delta = self.delta_seconds * self.play_rate;
+        let (time, advance) = if record.markers.is_empty() {
+            (phase_to_time((previous_time + delta) / self.duration.max(EPSILON), self.duration, self.looped),
+                SourceMarkerAdvance { forward: delta >= 0.0, ..default() })
+        } else { record.advance(previous_time, delta, self.looped) };
+        let phase = advance.end.as_ref().filter(|position| position.is_valid())
+            .and_then(|position| time_for_marker_position(&self.phase_markers, self.phase_duration,
+                position, time / self.duration.max(EPSILON) * self.phase_duration, self.looped))
+            .map(|time| time_to_phase(time, self.phase_duration, self.looped))
+            .unwrap_or_else(|| time_to_phase(time, self.duration, self.looped));
+        SourceSyncPlayerStep { phase, advance, time, previous_time,
+            record: (!record.markers.is_empty()).then_some(record) }
     }
 }
+
 
 pub fn source_sync_group_leader_score(candidate: SourceSyncGroupCandidate) -> f32 {
     match candidate.role {
@@ -784,11 +822,172 @@ pub fn marker_phase_sample_time_near(
         .unwrap_or(fallback)
 }
 
+impl SyncMarkerPosition {
+    fn is_valid(&self) -> bool { !self.previous.is_empty() && !self.next.is_empty() }
+}
+
 #[derive(Reflect, Clone, Debug)]
 pub struct SourceMarkerRecord {
     previous: i64,
     next: i64,
-    asset: Option<Handle<bevy_animation_graph::core::animation_clip::GraphClip>>,
+    previous_distance: f32,
+    next_distance: f32,
+    markers: Vec<SyncMarker>,
+    duration: f32,
+    pub asset: Option<Handle<bevy_animation_graph::core::animation_clip::GraphClip>>,
+}
+
+impl SourceMarkerRecord {
+    fn valid(&self, markers: &[SyncMarker], duration: f32, looped: bool) -> bool {
+        self.markers == markers && self.duration == duration && [self.previous, self.next].iter()
+            .all(|index| *index >= if looped { 0 } else { -1 } && *index < markers.len() as i64)
+    }
+
+    fn at_time(markers: &[SyncMarker], duration: f32, looped: bool, time: f32,
+        asset: Option<Handle<bevy_animation_graph::core::animation_clip::GraphClip>>) -> Self {
+        let previous = markers.iter().rposition(|marker| marker.time < time);
+        let next = markers.iter().position(|marker| marker.time >= time);
+        let mut record = Self { previous: previous.map_or(-1, |index| index as i64),
+            next: next.map_or(-1, |index| index as i64), previous_distance: -time, next_distance: duration - time,
+            markers: markers.to_vec(), duration, asset };
+        if let Some(index) = previous { record.previous_distance = markers[index].time - time; }
+        else if looped && !markers.is_empty() {
+            record.previous = markers.len() as i64 - 1;
+            record.previous_distance = markers.last().unwrap().time - duration - time;
+        }
+        if let Some(index) = next { record.next_distance = markers[index].time - time; }
+        else if looped && !markers.is_empty() {
+            record.next = 0;
+            record.next_distance = markers[0].time + duration - time;
+        }
+        record
+    }
+
+    fn from_position(markers: &[SyncMarker], duration: f32, looped: bool, hint: f32,
+        position: &SyncMarkerPosition, asset: Option<Handle<bevy_animation_graph::core::animation_clip::GraphClip>>) -> (f32, Self) {
+        let mut record = Self::at_time(markers, duration, looped, hint, asset);
+        if !looped || !position.is_valid() {
+            record.previous = markers.iter().rposition(|marker| marker.time < hint && marker.name == position.previous).map_or(-1, |index| index as i64);
+            record.next = markers.iter().position(|marker| marker.time > hint && marker.name == position.next).map_or(-1, |index| index as i64);
+            record.previous_distance = record.previous_time() - hint;
+            record.next_distance = record.next_time() - hint;
+            return (hint, record);
+        }
+        let mut best = None;
+        for previous in 0..markers.len() {
+            if markers[previous].name != position.previous { continue; }
+            for offset in 1..=markers.len() {
+                let next = (previous + offset) % markers.len();
+                if markers[next].name != position.next { continue; }
+                let wrapped = markers[next].time < markers[previous].time;
+                let end = markers[next].time + if wrapped { duration } else { 0.0 };
+                let time = markers[previous].time + position.alpha * (end - markers[previous].time);
+                let distance = (time - hint).abs();
+                if best.is_none_or(|(old, _, _)| distance < old) { best = Some((distance, previous, next)); }
+                else if wrapped {
+                    let distance = (time - duration - hint).abs();
+                    if best.is_none_or(|(old, _, _)| distance < old) { best = Some((distance, previous, next)); }
+                }
+                break;
+            }
+        }
+        if let Some((_, previous, next)) = best {
+            record.previous = previous as i64;
+            record.next = next as i64;
+            (record.sample(position.alpha), record)
+        } else { (hint, record) }
+    }
+
+    fn previous_time(&self) -> f32 { if self.previous < 0 { 0.0 } else { self.markers[self.previous as usize].time } }
+    fn next_time(&self) -> f32 { if self.next < 0 { self.duration } else { self.markers[self.next as usize].time } }
+
+    fn position(&self, mut time: f32) -> SyncMarkerPosition {
+        let mut previous = self.previous_time();
+        let mut next = self.next_time();
+        if previous > next {
+            if previous > time { previous -= self.duration; }
+            if next < time { next += self.duration; }
+        } else if previous > time { time += self.duration; }
+        if previous == next { previous -= self.duration; }
+        SyncMarkerPosition {
+            previous: if self.previous < 0 { String::new() } else { self.markers[self.previous as usize].name.clone() },
+            next: if self.next < 0 { String::new() } else { self.markers[self.next as usize].name.clone() },
+            alpha: (time - previous) / (next - previous).max(EPSILON),
+        }
+    }
+
+    fn sample(&mut self, alpha: f32) -> f32 {
+        let mut previous = self.previous_time();
+        let next = self.next_time();
+        if previous >= next { previous -= self.duration; }
+        let time = previous + alpha * (next - previous);
+        self.previous_distance = previous - time;
+        self.next_distance = next - time;
+        (if time < 0.0 { time + self.duration } else { time }).clamp(0.0, self.duration)
+    }
+
+    fn advance(&mut self, time: f32, delta: f32, looped: bool) -> (f32, SourceMarkerAdvance) {
+        let mut advance = SourceMarkerAdvance { forward: delta >= 0.0,
+            start: Some(self.position(time)), ..default() };
+        let mut time = time.clamp(0.0, self.duration);
+        let mut remaining = delta;
+        while remaining != 0.0 {
+            if advance.forward {
+                if self.next < 0 {
+                    let old = time;
+                    time = (time + remaining).min(self.duration);
+                    self.next_distance = self.duration - time;
+                    self.previous_distance -= time - old;
+                    break;
+                }
+                if remaining > self.next_distance {
+                    time = self.next_time();
+                    remaining -= self.next_distance;
+                    self.previous = self.next;
+                    self.previous_distance = 0.0;
+                    advance.markers.push(self.markers[self.next as usize].name.clone());
+                    self.next += 1;
+                    let mut offset = 0.0;
+                    if self.next == self.markers.len() as i64 {
+                        self.next = if looped { offset = self.duration; 0 } else { -1 };
+                    }
+                    if self.next >= 0 { self.next_distance = offset + self.next_time() - time; }
+                    continue;
+                }
+            } else {
+                if self.previous < 0 {
+                    let old = time;
+                    time = (time + remaining).max(0.0);
+                    self.previous_distance = time;
+                    self.next_distance -= time - old;
+                    break;
+                }
+                if remaining < self.previous_distance {
+                    time = self.previous_time();
+                    remaining -= self.previous_distance;
+                    self.next = self.previous;
+                    self.next_distance = 0.0;
+                    advance.markers.push(self.markers[self.previous as usize].name.clone());
+                    self.previous -= 1;
+                    let mut offset = 0.0;
+                    if self.previous < 0 && looped { self.previous = self.markers.len() as i64 - 1; offset = -self.duration; }
+                    if self.previous >= 0 { self.previous_distance = offset + self.previous_time() - time; }
+                    continue;
+                }
+            }
+            time = (time + remaining).rem_euclid(self.duration.max(EPSILON));
+            self.previous_distance -= remaining;
+            self.next_distance -= remaining;
+            break;
+        }
+        advance.end = Some(self.position(time));
+        (time, advance)
+    }
+
+    pub fn into_inputs(&self, key: &str) -> [(String, DataValue); 2] {
+        [(format!("{key}.record.indices"), DataValue::Vec2(Vec2::new(self.previous as f32, self.next as f32))),
+            (format!("{key}.record.distances"), DataValue::Vec2(Vec2::new(self.previous_distance, self.next_distance)))]
+    }
 }
 
 pub fn marker_phase_sample_time_continuous(
@@ -807,22 +1006,19 @@ pub fn marker_phase_sample_time_continuous(
         sample_duration, sample_markers, previous_sample_time, looped);
     let phase_markers = sorted_markers(phase_markers, phase_duration);
     let sample_markers = sorted_markers(sample_markers, sample_duration);
-    let saved = record.take().filter(|record| record.asset == asset);
-    if phase_markers.is_empty() || sample_markers.is_empty() {
-        return fallback();
-    }
+    let saved = record.take().filter(|record| record.asset == asset && record.valid(&sample_markers, sample_duration, looped));
+    if phase_markers.is_empty() || sample_markers.is_empty() { return fallback(); }
     let phase_time = phase_to_time(phase, phase_duration, looped);
-    let previous_sample_time = if looped { previous_sample_time.rem_euclid(sample_duration.max(EPSILON)) }
-        else { previous_sample_time.clamp(0.0, sample_duration.max(EPSILON)) };
-    let (mut previous, mut next) = saved.map_or_else(|| {
-        let previous = sample_markers.iter().rposition(|marker|
-            if advance.forward { marker.time < previous_sample_time } else { marker.time <= previous_sample_time })
-            .map_or(-1, |index| index as i64);
-        (previous, previous + 1)
-    }, |record| (record.previous, record.next));
-    let Some(position) = marker_position_at_time_in_direction(&phase_markers, phase_duration, phase_time, looped, advance.forward) else {
-        return fallback();
-    };
+    let mut current = if let Some(record) = saved { record }
+        else if let Some(start) = advance.start.as_ref().filter(|position| position.is_valid()) {
+            SourceMarkerRecord::from_position(&sample_markers, sample_duration, looped, previous_sample_time, start, asset.clone()).1
+        } else {
+            SourceMarkerRecord::at_time(&sample_markers, sample_duration, looped, previous_sample_time, asset.clone())
+        };
+    let (mut previous, mut next) = (current.previous, current.next);
+    let position = advance.end.clone().or_else(|| marker_position_at_time_in_direction(&phase_markers,
+        phase_duration, phase_time, looped, advance.forward));
+    let Some(position) = position else { return fallback(); };
     let count = sample_markers.len() as i64;
     let find = |start: i64, name: &str, direction: i64| (0..count)
         .map(|offset| start + direction * offset)
@@ -850,13 +1046,11 @@ pub fn marker_phase_sample_time_continuous(
         || sample_markers[next.rem_euclid(count) as usize].name != position.next {
         return fallback();
     }
-    let mut start = sample_markers[previous.rem_euclid(count) as usize].time;
-    let end = sample_markers[next.rem_euclid(count) as usize].time;
-    if start >= end { start -= sample_duration; }
-    let time = start + (end - start) * position.alpha.clamp(0.0, 1.0);
-    *record = Some(SourceMarkerRecord { previous: previous.rem_euclid(count), next: next.rem_euclid(count),
-        asset });
-    (if time < 0.0 { time + sample_duration } else { time }).clamp(0.0, sample_duration)
+    current.previous = previous.rem_euclid(count);
+    current.next = next.rem_euclid(count);
+    let time = current.sample(position.alpha);
+    *record = Some(current);
+    time
 }
 
 pub fn marker_phase_from_sample_time(
@@ -1172,6 +1366,8 @@ mod tests {
             weight: 1.0,
             phase,
             previous_phase: phase,
+            previous_marker_record: None,
+            marker_advance: None,
             sample_time_hint: None,
             phase_duration: 1.0,
             phase_markers: markers(&[("Left", 0.0), ("Right", 0.5)]),
@@ -1247,8 +1443,8 @@ mod tests {
         let mut clips = Assets::<bevy_animation_graph::core::animation_clip::GraphClip>::default();
         let first = clips.add(bevy_animation_graph::core::animation_clip::GraphClip::default());
         let second = clips.add(bevy_animation_graph::core::animation_clip::GraphClip::default());
-        let passed = SourceMarkerAdvance { forward: true, markers: vec!["A".into()] };
-        let empty = SourceMarkerAdvance { forward: true, markers: vec![] };
+        let passed = SourceMarkerAdvance { forward: true, markers: vec!["A".into()], ..default() };
+        let empty = SourceMarkerAdvance { forward: true, markers: vec![], ..default() };
         let mut record = None;
         assert_eq!(marker_phase_sample_time_continuous(0.1875, &passed, 1.0, &adjacent,
             1.0, &adjacent, 0.875, true, &mut record, Some(first.clone())), 0.375);
@@ -1301,7 +1497,7 @@ mod tests {
             for (previous, next, forward, passed) in [(0.15, 0.75, true, vec!["B", "A"]),
                 (0.75, 0.15, false, vec!["A", "B"]), (0.15, 0.8, true, vec!["B", "A"]),
                 (0.8, 0.1, false, vec!["A", "B"])] {
-                let advance = SourceMarkerAdvance { forward, markers: passed.into_iter().map(str::to_owned).collect() };
+                let advance = SourceMarkerAdvance { forward, markers: passed.into_iter().map(str::to_owned).collect(), ..default() };
                 let actual = marker_phase_sample_time_continuous(next, &advance, 1.0, &markers,
                     1.0, &markers, previous, looped, &mut None, None);
                 assert!((actual - next).abs() < 1e-5, "{previous} -> {next}, looped={looped}: {actual}");
@@ -1318,7 +1514,7 @@ mod tests {
             let player = SourceSyncPlayerTick { phase_duration: 1.0, duration: 1.0,
                 phase_markers: markers.clone(), markers: markers.clone(), looped: true,
                 sample_time_hint: Some(previous), delta_seconds: 0.2, play_rate: rate, ..default() };
-            let (actual, advance, _, _) = player.advance(previous);
+            let SourceSyncPlayerStep { phase: actual, advance, .. } = player.advance_from_time(previous);
             assert!((actual - phase).abs() < 1e-5, "{previous} at {rate}: {actual}");
             assert_eq!(advance.forward, steps > 0);
             assert_eq!(advance.markers.len() as i64, i64::abs(steps));
@@ -1349,7 +1545,7 @@ mod tests {
             let player = SourceSyncPlayerTick { phase_duration: 1.0, duration: 1.0,
                 phase_markers: source.to_vec(), markers: source.to_vec(), looped: true,
                 sample_time_hint: Some(previous), delta_seconds: 0.1, play_rate: rate, ..default() };
-            let (phase, advance, _, _) = player.advance(previous);
+            let SourceSyncPlayerStep { phase, advance, .. } = player.advance(previous);
             assert_eq!(advance.markers, passed);
             let actual = marker_phase_sample_time_continuous(phase, &advance, 1.0, &source, 1.0, &target, hint, true, &mut None, None);
             assert!((actual - expected).abs() < 1e-5, "Mixed repeated marker path: {actual} != {expected}");
@@ -1370,7 +1566,7 @@ mod tests {
             sample_time_hint: Some(0.65), delta_seconds: 0.1, play_rate: 1.0,
             looped: true, ..default()
         };
-        assert!((player.advance(0.2).0 - 0.75).abs() < 1e-5);
+        assert!((player.advance(0.2).phase - 0.75).abs() < 1e-5);
     }
 
     #[test]

@@ -718,6 +718,9 @@ impl NodeLike for NormalizedBlendSpaceNode {
             && !phase_markers.is_empty() && !leader_markers.is_empty();
         let mut marker_advance = None;
         let mut leader_sample_time = resolved_source_sync_sample_time(&ctx)?;
+        let resolved_time = leader_sample_time.is_some();
+        let resolved_record = crate::extensions::sync_group_phase::resolved_source_marker_record(
+            &ctx, &leader_markers, leader_duration, sample_clips[leader_index].clone())?;
         let resolved_previous_time = crate::extensions::sync_group_phase::resolved_source_sync_previous_time(&ctx)?;
         let phase = if let Some(playback) = &self.playback {
             let delta_seconds = crate::extensions::sync_group_phase::source_sync_delta_seconds(&ctx, &playback.delta_seconds_key)?;
@@ -746,16 +749,20 @@ impl NodeLike for NormalizedBlendSpaceNode {
                 crate::extensions::sync_group_phase::SOURCE_SYNC_INERTIAL_SCOPE)
                 .is_some_and(|value| value.as_bool().unwrap_or(false));
             tick.previous_phase = tick.phase;
+            tick.previous_marker_record = marker_records[leader_index].clone().filter(|record| record.asset == sample_clips[leader_index]);
             let phase = if let Some(phase) = resolved_source_sync_phase(&ctx, &playback.key)? {
                 marker_advance = resolved_source_marker_advance(&ctx, &playback.key)?;
                 phase
             } else {
-                let (phase, advance, time, _) = tick.advance_from_time(tick.sample_time_hint.unwrap());
-                leader_sample_time = Some(time);
-                marker_advance = Some(advance);
-                phase
+                let mut step = tick.advance_from_time(tick.sample_time_hint.unwrap());
+                if let Some(record) = &mut step.record { record.asset = sample_clips[leader_index].clone(); }
+                leader_sample_time = Some(step.time);
+                marker_records[leader_index] = step.record;
+                marker_advance = Some(step.advance);
+                step.phase
             };
             tick.phase = phase;
+            tick.marker_advance = marker_advance.clone();
             ctx.state_mut::<NormalizedBlendSpaceState>()?.context = AnimationContextState {
                 sync_players: vec![tick],
                 ..default()
@@ -768,7 +775,8 @@ impl NodeLike for NormalizedBlendSpaceNode {
             .map_or_else(|| phase_to_time(phase, leader_duration, sample_looped),
                 |playback| playback.start_position * leader_duration));
         let mut map_time = |index: usize, markers: &[SyncMarker], duration: f32, hint: f32, has_history: bool| {
-            if let Some(advance) = marker_advance.as_ref().filter(|_| has_history) {
+            if let Some(advance) = marker_advance.as_ref() {
+                if !has_history { marker_records[index] = None; }
                 marker_phase_sample_time_continuous(phase, advance, self.phase_duration,
                     &phase_markers, duration, markers, hint, sample_looped, &mut marker_records[index], sample_clips[index].clone())
             } else {
@@ -825,7 +833,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
                 *curves.entry(name).or_insert(0.0) += value * weight;
             }
         }
-        if leader_sample_time.is_some() { marker_records[leader_index] = None; }
+        if resolved_time { marker_records[leader_index] = resolved_record; }
         let sample_clip = sample_clips[leader_index].clone();
         let notify_instance_id = crate::extensions::source_instance::source_notify_instance_id(&ctx)?;
         let state = ctx.state_mut::<NormalizedBlendSpaceState>()?;
@@ -1042,7 +1050,7 @@ mod tests {
             let tick = node.player_tick(&binding, 0, None, 0.1, 3.0,
                 &node.phase_markers, &node.points[0].markers);
             assert_eq!(tick.play_rate, 3.0 * rate);
-            let time = marker_phase_sample_time(tick.advance(tick.phase).0, 1.0, &[], 2.0, &[], true);
+            let time = marker_phase_sample_time(tick.advance(tick.phase).phase, 1.0, &[], 2.0, &[], true);
             assert!((time - (0.5 + 0.1 * 3.0 * rate).rem_euclid(2.0)).abs() < 1e-5);
         }
     }
@@ -1084,7 +1092,7 @@ mod tests {
                 ]);
                 if frame != 0 && frame != 10 {
                     inputs.extend(crate::extensions::sync_group_phase::SourceMarkerAdvance {
-                        forward, markers: passed.iter().map(|name| (*name).to_owned()).collect(),
+                        forward, markers: passed.iter().map(|name| (*name).to_owned()).collect(), ..default()
                     }.into_inputs("Movement"));
                 }
                 let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
@@ -1499,7 +1507,7 @@ mod tests {
                     &node.phase_markers,
                     &node.points[leader].markers,
                 );
-                let current = tick.advance(tick.phase).0;
+                let current = tick.advance(tick.phase).phase;
                 phase = Some(current);
                 let ablated_weights = ablated.source_weights(position, &mut None).unwrap();
                 let ablated_leader = ablated_weights
@@ -1517,7 +1525,7 @@ mod tests {
                     &ablated.phase_markers,
                     &ablated.points[ablated_leader].markers,
                 );
-                let ablated_current = ablated_tick.advance(ablated_tick.phase).0;
+                let ablated_current = ablated_tick.advance(ablated_tick.phase).phase;
                 ablated_phase = Some(ablated_current);
                 for sample in frame["samples"].as_array().unwrap() {
                     let index = sample["sample_index"].as_u64().unwrap() as usize;
