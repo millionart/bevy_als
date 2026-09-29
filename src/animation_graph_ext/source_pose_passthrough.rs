@@ -95,7 +95,7 @@ impl NodeLike for SourcePosePassthroughNode {
                     );
                 }
             }
-            for crate::extensions::sync_group_phase::SourceSyncGroupResolution { key, phase, ungrouped, markers: common, marker_advance, leader_samples, marker_resets } in
+            for crate::extensions::sync_group_phase::SourceSyncGroupResolution { key, phase, length_ratios, ungrouped, markers: common, marker_advance, leader_samples, marker_resets } in
                 resolve_source_sync_phases(&current.sync_players, &previous.sync_players)
             {
                 for identity in marker_resets {
@@ -113,6 +113,9 @@ impl NodeLike for SourcePosePassthroughNode {
                     global_inputs.to_mut().insert(sample_key, DataValue::F32(step.time));
                 }
                 if let Some(phase) = phase {
+                    if let Some(ratios) = length_ratios {
+                        global_inputs.to_mut().insert(format!("{SOURCE_SYNC_RESOLVED}.length_ratios.{key}"), DataValue::Vec2(ratios));
+                    }
                     global_inputs.to_mut().insert(
                         format!("{SOURCE_SYNC_RESOLVED}.{key}"),
                         DataValue::F32(phase),

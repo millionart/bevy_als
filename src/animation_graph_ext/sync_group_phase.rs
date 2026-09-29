@@ -336,6 +336,11 @@ pub fn resolved_source_sync_phase(ctx: &NodeContext, key: &str) -> Result<Option
         .transpose()
 }
 
+pub fn resolved_source_sync_length_ratios(ctx: &NodeContext, key: &str) -> Result<Option<Vec2>, GraphError> {
+    ctx.graph_context.global_input_data.get(&format!("{SOURCE_SYNC_RESOLVED}.length_ratios.{key}"))
+        .map(|value| value.as_vec2()).transpose()
+}
+
 fn ordered_group_players<'a>(players: &[&'a SourceSyncPlayerTick]) -> Vec<&'a SourceSyncPlayerTick> {
     let candidates = players.iter().enumerate().filter(|(_, player)| player.sync_group_eligible()).map(|(index, player)| SourceSyncGroupCandidate {
         role: player.role, blend_weight: player.weight, source_order: index,
@@ -366,6 +371,7 @@ fn common_marker_names(players: &[&SourceSyncPlayerTick], leader: &SourceSyncPla
 pub struct SourceSyncGroupResolution {
     pub key: String,
     pub phase: Option<f32>,
+    pub length_ratios: Option<Vec2>,
     pub ungrouped: Vec<(GraphContextId, NodeId)>,
     pub markers: Vec<String>,
     pub marker_advance: Option<SourceMarkerAdvance>,
@@ -398,6 +404,7 @@ pub fn resolve_source_sync_phases(
         let mut marker_advance = None;
         let mut leader_samples = Vec::new();
         let mut phase = None;
+        let mut length_ratios = None;
         for leader in ordered {
             let joined = previous_leader.is_some_and(|prior| {
                 prior.identity != leader.identity || prior.source_asset != leader.source_asset
@@ -454,6 +461,7 @@ pub fn resolve_source_sync_phases(
             };
             let valid_end = step.advance.end.as_ref().is_some_and(|position| position.is_valid());
             phase = Some(step.phase);
+            length_ratios = Some(Vec2::new(step.previous_time, step.time) / leader.duration.max(EPSILON));
             marker_advance = Some(step.advance.clone());
             leader_samples.push((leader.identity, step));
             if common.is_empty() || valid_end { break; }
@@ -478,7 +486,7 @@ pub fn resolve_source_sync_phases(
             })
             .map(|candidate| candidate.identity)
             .collect();
-        groups.push(SourceSyncGroupResolution { key: player.key.clone(), phase, ungrouped, markers: common, marker_advance, leader_samples, marker_resets });
+        groups.push(SourceSyncGroupResolution { key: player.key.clone(), phase, length_ratios, ungrouped, markers: common, marker_advance, leader_samples, marker_resets });
     }
     groups
 }

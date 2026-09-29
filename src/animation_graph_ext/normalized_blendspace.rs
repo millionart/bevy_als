@@ -722,6 +722,8 @@ impl NodeLike for NormalizedBlendSpaceNode {
         let resolved_record = crate::extensions::sync_group_phase::resolved_source_marker_record(
             &ctx, &leader_markers, leader_duration, sample_clips[leader_index].clone())?;
         let resolved_previous_time = crate::extensions::sync_group_phase::resolved_source_sync_previous_time(&ctx)?;
+        let length_ratios = self.playback.as_ref()
+            .map(|playback| crate::extensions::sync_group_phase::resolved_source_sync_length_ratios(&ctx, &playback.key)).transpose()?.flatten();
         let phase = if let Some(playback) = &self.playback {
             let delta_seconds = crate::extensions::sync_group_phase::source_sync_delta_seconds(&ctx, &playback.delta_seconds_key)?;
             let play_rate = if playback.play_rate_key.is_empty() {
@@ -791,7 +793,8 @@ impl NodeLike for NormalizedBlendSpaceNode {
             map_time(leader_index, &leader_markers, leader_duration, leader_hint,
                 sample_times[leader_index].is_some())
         } else {
-            (phase_to_time(phase, leader_duration, sample_looped), leader_hint)
+            length_ratios.map(|ratios| (ratios.y * leader_duration, ratios.x * leader_duration))
+                .unwrap_or((phase_to_time(phase, leader_duration, sample_looped), leader_hint))
         };
         let output_time = if self.teleport_to_normalized_time && leader.asset_rate_scale < 0.0 { leader_duration - leader_time } else { leader_time };
         let mut poses = Vec::with_capacity(weights.len());
@@ -810,6 +813,8 @@ impl NodeLike for NormalizedBlendSpaceNode {
                 leader_time
             } else if uses_marker_phase {
                 map_time(index, &point_markers, duration, point_hint, sample_times[index].is_some()).0
+            } else if let Some(ratios) = length_ratios {
+                ratios.y * duration
             } else {
                 follower_sample_time_near(
                     phase,

@@ -370,6 +370,8 @@ impl NodeLike for SourceSequencePlayerNode {
             .flatten();
         let resolved_advance = self.synchronization.as_ref()
             .map(|sync| resolved_source_marker_advance(&ctx, &sync.key)).transpose()?.flatten();
+        let length_ratios = self.synchronization.as_ref()
+            .map(|sync| crate::extensions::sync_group_phase::resolved_source_sync_length_ratios(&ctx, &sync.key)).transpose()?.flatten();
         let mut leader_sample_time = resolved_source_sync_sample_time(&ctx)?;
         let resolved_previous_time = crate::extensions::sync_group_phase::resolved_source_sync_previous_time(&ctx)?;
         let identity = (ctx.graph_context.context_id, ctx.node_id);
@@ -463,6 +465,11 @@ impl NodeLike for SourceSequencePlayerNode {
             state.position = if let Some(time) = leader_sample_time {
                 if resolved_phase.is_some() { state.marker_record = resolved_record; }
                 time
+            } else if let Some(ratios) = length_ratios.filter(|_| phase_markers.is_empty() || markers.is_empty()) {
+                state.marker_record = None;
+                state.previous_position = ratios.x * clip.duration();
+                state.has_previous_position = true;
+                ratios.y * clip.duration()
             } else if let Some(advance) = &marker_advance {
                 let (time, previous_time) = marker_phase_sample_time_continuous(tick.phase, advance,
                     sync.phase_duration, phase_markers, clip.duration(), markers,

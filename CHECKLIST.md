@@ -67,7 +67,7 @@
 - [x] **BF131.A68 — Sync marker mapping does not filter to common marker names**。Gate：先求组内共同 marker 集，再定位/映射，非共同 marker 不改变有效相位。
 - [x] **BF131.A69 — Modify Curve accepts WeightedMovingAverage but evaluates it as stateless Blend**。Gate：逐实例历史参与加权移动平均，初始化/更新/重建及其他模式控制通过。
 - [x] **BF131.A70 — Repeated marker-name pairs collapse later timeline occurrences into the first pair**。Gate：同名重复 marker 对保留时间位置，跨多个区间、多周期、倒播与精确边界不跳到较早 occurrence；实际播放器自身映射保持时间，包含相邻同名和共同 marker 过滤后的 leader。两类播放器保留实际端点及到达距离，组起止位置沿真实同步根传递，精确到点后正反掉头、连续采样/曲线与源规定的失效清理一致。
-- [x] **BF131.A91 — 非循环同步候选结束 marker 无效时未试选后续 leader**。Gate：实际同步根按源候选顺序试 tick；前进/倒播边界、精确落 marker、全无效控制及最终采样/leader/通知一致。失败候选及持续 follower 使用自身实际历史；新成员和未试选普通 follower 使用源初始化后的实际起点，开启 follower 通知时只发当前区间事件，真实 ClipNode、asset_samples 和后续无重复一致。
+- [x] **BF131.A91 — 非循环同步候选结束 marker 无效时未试选后续 leader**。Gate：实际同步根按源候选顺序试 tick；前进/倒播边界、精确落 marker、全无效控制及最终采样/leader/通知一致。marker 模式的失败候选及持续 follower 使用自身实际历史，新成员使用源初始化后的实际起点；长度比例同步的普通 follower 同时消费组起始/结束比例。开启 follower 通知时只发当前区间事件，真实 ClipNode、不同样本时长、asset_samples 和后续无重复一致。
 - [x] **BF131.A71 — Custom 状态迁移按总时长结束，遗漏 FAlphaBlend 提前达到终值的完成语义**。Gate：源曲线提前达到终值时迁移完成，未达到终值及正常总时长控制通过。
 - [x] **BF131.A72 — 惯性过渡的显式 BlendProfile 在生成、请求和逐骨消费链中丢失**。Gate：显式 profile 贯穿生成、惯性请求与逐骨持续时间，默认 profile 和无覆盖控制通过。
 - [x] **BF131.A73 — 惯性化 root 历史没有按组件／Actor 附着空间变化重表达**。Gate：组件/Actor 附着空间改变后历史按源坐标系重表达，世界连续姿态和不变空间控制通过。
@@ -522,3 +522,22 @@
   - S3 实际结束 2026-09-29 20:48 +08:00，偏差 -7 分钟；结果：startup、standing_direction 5/5、state_machine 10/10、notify 12/12 最终公共功能 PASS。四份报告 ready、faults/graph_errors/temporal_anomalies/primary_failure 为空，watchdog 未触发、进程退出 0/0；1289 库测试、四项必要性消融、349 图规范和 18 条作者命令通过，原始性能预算失败保留。恢复 A91 勾选并单独提交。
 
 - 本轮边界复审收尾（20:48）：A70 的精确到点后换向与 A91 普通 follower 加入时的通知区间均已闭合，清单恢复 39/39。A70 提交 `a83555c`；A91 以独立提交保留。复核本轮 8 份公共功能报告、4 份作者合同及失败反例/消融；原始资产、转换器、依赖和性能阈值未修改。
+
+
+### 1390c49 长度同步通知复审修复
+
+来源：内置浏览器《Review BF131修复》，目标 `1390c494056215e14b1b7232461ec9d50c32fd67`。本轮唯一确认的 P2 是 A91 无 marker 的普通 follower 入组通知起点，A70 及带 marker 的起点修复保留关闭。fresh 本地 AnimSequenceBase.cpp 明确同时消费 PreviousAnimationPositionRatio/AnimationPositionRatio；BlendSpace.cpp 也用两比例分别换算 sample 起止。目标同步根只传组终点及试选候选的专属起点，Sequence 的无 marker fallback 和 BlendSpace 的长度分支仍拼接旧自身起点。旧 Gate 虽覆盖两类普通 follower，但 marker 固定为 AB，未进入长度分支。仅复开这条已证实的 source-target 链，不展开其他已完成模块；性能和截图继续延期。
+
+- BF131.A91-R3-S1：开始 2026-09-29 22:04 +08:00；预估结束 2026-09-29 22:19 +08:00。依据当次本地同步组/Sequence/BlendSpace 源实现及上一轮真实通知夹具，刷新 Standing 原生记录，给普通 follower 入组增加有/无 marker 维度，并覆盖不同时长。先稳定重现旧起点 0.25→0.875 错播 stale_a；S2 传递源组起止比例、按模式消费并消融，S3 独立构建/作者合同/公共功能 Gate。
+  - S1 source 闭包（22:12）：Standing 原生 reader PASS；fresh AnimationAsset::Prepare 明确允许无 marker 成员留在有 marker 的同步组并使用长度同步。因而当前范围包含两类无 marker 消费者、不同资产时长及带 marker leader/无 marker follower 的同一长度分支；源组长度比例来自实际 leader 起止时间除以自身时长，不能用重表达到 canonical marker 轴的 phase 代替。新增同组控制令 canonical phase 与实际长度比例不同，以验证通道语义；其他 marker 端点算法不复开。
+  - S1 实际结束 2026-09-29 22:13 +08:00，偏差 -6 分钟；结果：无 marker 的未试选 Sequence follower 采样终点 0.875 正确，通知 previous=0.25≠0.8125，实际事件 stale_a+current_b，稳定 red。原有带 marker 的两类消费者和 2 秒样本控制均先通过，失败集中在本轮长度同步分支。
+- BF131.A91-R3-S2：开始 2026-09-29 22:13 +08:00；预估结束 2026-09-29 22:43 +08:00。从实际选中 leader 的起止时间/时长发布当次组长度比例，两类普通 follower 只在长度模式消费，并按自己的 sample 时长换算；试选候选与 marker 历史路径继续使用原实际时钟。回归不同 leader/follower 时长、同组混合 marker 能力、真实采样/通知和连续帧，消融比例来源及两类消费者，再做整库回归。
+  - S2 静态进展（22:20）：真实通知入口通过全部新增组合：Sequence/BlendSpace 的无 marker 入组仅发 current_b，1→2 秒和 2→1 秒时长换算正确，后两帧无重复；有 marker leader/无 marker follower 使用实际长度比例而非 canonical marker phase。先前带 marker 入组、失败候选与连续实际历史控制同时通过。比例仅经已有当次同步输入传递，未新增持久时钟；正在消融发布、比例基准及两类消费者。
+  - S2 实际结束 2026-09-29 22:27 +08:00，偏差 -16 分钟；结果：去掉发布或任一消费者均重现 stale_a，改用 canonical phase 则使混合组采样失败，四项消融闭合。恢复后删除 reader 中重复的已解析 phase 查询，完整库 1289/1289 通过，包含原淡入资格/独立播放、marker 历史、失败候选及本轮长度模式控制；保留最小当次比例通道，无新增持久缓存。
+- BF131.A91-R3-S3：开始 2026-09-29 22:27 +08:00；预估结束 2026-09-29 22:42 +08:00。参照上一轮实际构建/审计/四场景用时，执行最终 target_game/play 构建、349 图规范和 root/Standing 完整作者合同，再按 startup→standing_direction→state_machine→notify 执行公共功能 Gate。保持 FunctionalOnly 与 CaptureCount 0，核对机器报告后恢复勾选并单独提交。
+  - S3 runtime 前（22:32）：最终 target_game/play 构建、349 图规范和 root/Standing 18 条作者命令 PASS，Standing 62 子图/108 target 资产合同闭合。当前 source 闭包为组真实长度比例→两类长度消费者→实际样本/通知，包含不同时长及混合 marker 能力；四项失败消融与 1289 库测试通过。开始四个公共功能场景，剩余边界只是真实 runtime，性能和截图延期不变。
+  - S3 startup、standing_direction 5/5 PASS（22:33）：ready、零故障/图错误/时序异常、无 watchdog、退出 0/0；同一二进制继续 state_machine 与 notify，source/static 闭包及性能延期边界不变。
+  - S3 state_machine 10/10 PASS（22:34）：ready、零故障/图错误/时序异常、无 watchdog、退出 0/0；执行最后 notify 功能 Gate，保留原始性能结果。
+  - S3 实际结束 2026-09-29 22:35 +08:00，偏差 -7 分钟；结果：startup、standing_direction 5/5、state_machine 10/10、notify 12/12 公共功能 PASS。四份报告 ready、faults/graph_errors/temporal_anomalies/primary_failure 为空，watchdog 未触发、进程退出 0/0；1289 库测试、四项失败消融、349 图规范和 18 条作者命令闭合，原始性能预算失败保留。恢复 A91 勾选并单独提交。
+
+- 本轮长度同步复审收尾（22:35）：唯一确认的 A91 长度同步通知缺口已修复，清单恢复 39/39。组的实际起始/结束长度比例通过同步根到达 Sequence 与 BlendSpace，入组帧及不同时长只发当前通知，持续帧无重复；同组混合 marker 能力控制证明未误用 canonical phase。A70 与原 marker/试选时钟控制保持通过；原始资产、转换器、依赖和性能阈值未修改。
