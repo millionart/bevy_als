@@ -67,7 +67,7 @@
 - [x] **BF131.A68 — Sync marker mapping does not filter to common marker names**。Gate：先求组内共同 marker 集，再定位/映射，非共同 marker 不改变有效相位。
 - [x] **BF131.A69 — Modify Curve accepts WeightedMovingAverage but evaluates it as stateless Blend**。Gate：逐实例历史参与加权移动平均，初始化/更新/重建及其他模式控制通过。
 - [x] **BF131.A70 — Repeated marker-name pairs collapse later timeline occurrences into the first pair**。Gate：同名重复 marker 对保留时间位置，跨多个区间、多周期、倒播与精确边界不跳到较早 occurrence；实际播放器自身映射保持时间，包含相邻同名和共同 marker 过滤后的 leader，follower 保留实际端点身份并通过连续多帧采样/曲线与源规定的失效清理。
-- [ ] **BF131.A91 — 非循环同步候选结束 marker 无效时未试选后续 leader**。Gate：实际同步根按源候选顺序试 tick；前进/倒播边界、精确落 marker、全无效控制及最终采样/leader/通知一致。
+- [x] **BF131.A91 — 非循环同步候选结束 marker 无效时未试选后续 leader**。Gate：实际同步根按源候选顺序试 tick；前进/倒播边界、精确落 marker、全无效控制及最终采样/leader/通知一致；失败 BlendSpace 候选连续通知使用自身实际历史，新成员使用源调整后的起点。
 - [x] **BF131.A71 — Custom 状态迁移按总时长结束，遗漏 FAlphaBlend 提前达到终值的完成语义**。Gate：源曲线提前达到终值时迁移完成，未达到终值及正常总时长控制通过。
 - [x] **BF131.A72 — 惯性过渡的显式 BlendProfile 在生成、请求和逐骨消费链中丢失**。Gate：显式 profile 贯穿生成、惯性请求与逐骨持续时间，默认 profile 和无覆盖控制通过。
 - [x] **BF131.A73 — 惯性化 root 历史没有按组件／Actor 附着空间变化重表达**。Gate：组件/Actor 附着空间改变后历史按源坐标系重表达，世界连续姿态和不变空间控制通过。
@@ -483,3 +483,13 @@
 - BF131.A70-R3-S3：开始 2026-09-29 18:36 +08:00；预估结束 2026-09-29 19:01 +08:00。使用 target_game/play 最终预构建、349 图规范与 root/Standing 完整作者合同；source 闭包为 Standing 同步根与两类实际 sample 状态，图/转换器/原始资产未改。随后依次 startup、standing_direction、state_machine、notify 公共功能 Gate，审计原始报告与进程退出，完成 A70 后单独提交，再处理 A91。
   - S3 runtime 进展（18:46）：最终优化构建、349 图规范与 18 条 root/Standing 作者命令 PASS；源 Standing 62/62 子图、108 个 target 资产不变，持久端点与清理合同、三帧/重入采样曲线、消融和完整库闭合。startup、standing_direction（5/5）、state_machine（10/10）公共功能 PASS，故障/图错误/时序为空、watchdog 未触发、退出 0/0；继续同一二进制的 notify。
   - S3 实际结束 2026-09-29 18:47 +08:00，偏差 -14 分钟；结果：startup、standing_direction 5/5、state_machine 10/10、notify 12/12 公共功能 PASS，报告 ready、故障/图错误/时序/primary_failure 为空，watchdog 未触发、进程退出 0/0。源清理规则、端点身份、连续多帧的实际采样/曲线、四项失败消融及重复缓存删除、1289 库测试和图合同闭合，恢复 A70 勾选并单独提交。性能仍延期；下一项 A91 的 BlendSpace 实际通知起点。
+- BF131.A91-R1-S1：开始 2026-09-29 18:48 +08:00；预估结束 2026-09-29 19:13 +08:00。依据：本轮 fresh BlendSpace.cpp 的 SampleEntry.PreviousTime→GetAnimNotifies→DeltaTimeRecord，与现有真实加载场景/通知清单。以真实 ClipNode 接入单样本 BlendSpace L 与 Sequence F，验证 0.625→0.875→0.9375 两段的事件分别为 0.78125 的 A、0.90625 的 B，再验证后续无重复；另覆盖新成员从自身 0.2 重同步到组起点 0.8 的实际起点。先建立红例，S2 修复时钟与消融，S3 单独公共功能 Gate。
+  - S1 实际结束 2026-09-29 18:52 +08:00，偏差 -21 分钟；结果：真实 ClipNode 的采样请求与输出时间 0.9375 正确，asset_samples 通知 previous_position 却为 0.75，实际再次发出 sample_a 而非 sample_b，稳定 red。此前只验证两个 Sequence 的首个增量帧，未覆盖此 BlendSpace 消费者。
+- BF131.A91-R1-S2：开始 2026-09-29 18:52 +08:00；预估结束 2026-09-29 19:27 +08:00。连续通知使用实际 sample 历史；当同步解析调整候选起点时，同时传递真实起点与终点，避免消费者自行反算。先用仅保留 history 的简化版本核对重同步边界，再实现最小共享时钟传递、实际最终事件/采样断言与消融；最后定向及完整库回归，S3 独立公共功能 Gate。
+  - S2 静态闭环进展（19:03）：仅使用 history 修复连续 A→B 后，重同步仍从 0.2 错播 A，未使用已调整的 0.8 起点；已保留该 red。解析现在输出每个试 tick 的已知真实起点/终点，两类播放器共同消费，Sequence 首次入组也保留已知起点。真实 ClipNode、asset_samples、最终 A/B/后续无事件和两类新成员重同步均通过，完整库 1289/1289；正在消融相位反算、映射起点传播与 Sequence 的起点/首次历史标志。
+  - S2 实际结束 2026-09-29 19:11 +08:00，偏差 -16 分钟；结果：原组相位反算、漏传调整起点、Sequence 忽略起点、首次入组丢弃已知历史四项消融全部按预期错播 sample_a，恢复后完整库 1289/1289。实际 ClipNode 的采样请求、asset_samples、三帧 A/B/无重复与两类新成员重同步起点/最终事件均闭合；复用现有当次同步输入传递起止值，未增加持久通知缓存。
+- BF131.A91-R1-S3：开始 2026-09-29 19:11 +08:00；预估结束 2026-09-29 19:36 +08:00。使用 target_game/play 最终预构建、349 图规范及 root/Standing 完整作者合同；随后 startup、standing_direction、state_machine、notify 公共功能 Gate，核对真实进程退出、故障、图错误、时序、覆盖项与 watchdog。完成后勾选 A91、单独提交并核对本轮两条续帧反馈。
+  - S3 runtime 进展（19:18）：最终优化构建、349 图规范和 root/Standing 18 条作者命令 PASS；本轮 source 闭包为同步试 tick→两类实际采样→asset_samples→真实事件分派，三帧历史及重新加入的起点/通知、四项消融和整库均闭合。startup、standing_direction（5/5）、state_machine（10/10）公共功能 PASS，故障/图错误/时序为空、watchdog 未触发、退出 0/0；继续 notify，性能延期。
+  - S3 实际结束 2026-09-29 19:20 +08:00，偏差 -16 分钟；结果：startup、standing_direction 5/5、state_machine 10/10、notify 12/12 最终公共功能 PASS。四份报告 ready、faults/graph_errors/temporal_anomalies/primary_failure 为空，watchdog 未触发、退出 0/0；保留原性能预算失败。实际采样请求、asset_samples 起止值、跨三帧最终事件和两类新成员重同步、四项消融、1289 库测试与完整图合同闭合，恢复 A91 勾选并单独提交。
+
+- 本轮续帧复审收尾（19:20）：A70 持久端点与 A91 实际通知起点两条反馈已分别修复；A70 提交 `919ad82`。核对本轮 8 份公共功能报告、4 份作者合同、失败反例及消融结果，清单恢复 39/39。A70 保留合法首次 follower 0.375，后续为 0.4375/0.5；A91 连续事件为 A、B、无重复，重同步使用实际 0.8 起点。原始资产、转换器、依赖和性能阈值未修改。

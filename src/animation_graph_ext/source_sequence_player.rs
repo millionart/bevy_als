@@ -371,6 +371,7 @@ impl NodeLike for SourceSequencePlayerNode {
         let resolved_advance = self.synchronization.as_ref()
             .map(|sync| resolved_source_marker_advance(&ctx, &sync.key)).transpose()?.flatten();
         let mut leader_sample_time = resolved_source_sync_sample_time(&ctx)?;
+        let resolved_previous_time = crate::extensions::sync_group_phase::resolved_source_sync_previous_time(&ctx)?;
         let identity = (ctx.graph_context.context_id, ctx.node_id);
         let reached_full_weight = self.synchronization.as_ref().is_some_and(|sync|
             matches!(sync.role, SourceSyncGroupRole::TransitionLeader | SourceSyncGroupRole::TransitionFollower))
@@ -440,15 +441,15 @@ impl NodeLike for SourceSequencePlayerNode {
                 play_rate,
                 ..Default::default()
             };
-            state.previous_position = previous_sample_time;
-            state.has_previous_position = state.initialized;
+            state.previous_position = resolved_previous_time.unwrap_or(previous_sample_time);
+            state.has_previous_position = state.initialized || resolved_previous_time.is_some();
             state.initialized = true;
             state.delta_seconds = delta;
             let marker_advance = if let Some(phase) = resolved_phase {
                 tick.phase = phase;
                 resolved_advance.filter(|_| state.has_previous_position)
             } else {
-                let (phase, _, time) = tick.advance_from_time(previous_sample_time);
+                let (phase, _, time, _) = tick.advance_from_time(previous_sample_time);
                 tick.phase = phase;
                 leader_sample_time = Some(time);
                 None

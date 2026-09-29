@@ -718,6 +718,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
             && !phase_markers.is_empty() && !leader_markers.is_empty();
         let mut marker_advance = None;
         let mut leader_sample_time = resolved_source_sync_sample_time(&ctx)?;
+        let resolved_previous_time = crate::extensions::sync_group_phase::resolved_source_sync_previous_time(&ctx)?;
         let phase = if let Some(playback) = &self.playback {
             let delta_seconds = crate::extensions::sync_group_phase::source_sync_delta_seconds(&ctx, &playback.delta_seconds_key)?;
             let play_rate = if playback.play_rate_key.is_empty() {
@@ -749,7 +750,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
                 marker_advance = resolved_source_marker_advance(&ctx, &playback.key)?;
                 phase
             } else {
-                let (phase, advance, time) = tick.advance_from_time(tick.sample_time_hint.unwrap());
+                let (phase, advance, time, _) = tick.advance_from_time(tick.sample_time_hint.unwrap());
                 leader_sample_time = Some(time);
                 marker_advance = Some(advance);
                 phase
@@ -837,8 +838,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
         context.curves_are_authoritative = true;
         context.asset_samples.clear();
         if !self.teleport_to_normalized_time && let Some(tick) = context.sync_players.first() {
-            let previous_position = marker_phase_sample_time_near(tick.previous_phase, self.phase_duration,
-                &phase_markers, leader_duration, &leader_markers, leader_hint, sample_looped);
+            let previous_position = resolved_previous_time.unwrap_or(leader_hint);
             let clock = crate::extensions::SourceRelevantAsset {
                 duration: leader_duration,
                 position: leader_time,

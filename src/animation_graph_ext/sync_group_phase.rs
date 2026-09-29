@@ -153,6 +153,12 @@ pub fn source_sync_markers_reset(ctx: &NodeContext) -> bool {
     ctx.graph_context.global_input_data.contains_key(&source_sync_marker_reset_key((ctx.graph_context.context_id, ctx.node_id)))
 }
 
+pub fn resolved_source_sync_previous_time(ctx: &NodeContext) -> Result<Option<f32>, GraphError> {
+    let key = source_sync_sample_time_key((ctx.graph_context.context_id, ctx.node_id));
+    ctx.graph_context.global_input_data.get(&format!("{key}.previous"))
+        .map(|value| value.as_f32()).transpose()
+}
+
 pub fn resolved_source_sync_sample_time(ctx: &NodeContext) -> Result<Option<f32>, GraphError> {
     ctx.graph_context.global_input_data
         .get(&source_sync_sample_time_key((ctx.graph_context.context_id, ctx.node_id)))
@@ -318,7 +324,7 @@ pub struct SourceSyncGroupResolution {
     pub ungrouped: Vec<(GraphContextId, NodeId)>,
     pub markers: Vec<String>,
     pub marker_advance: Option<SourceMarkerAdvance>,
-    pub leader_samples: Vec<((GraphContextId, NodeId), f32)>,
+    pub leader_samples: Vec<((GraphContextId, NodeId), Option<f32>, f32)>,
     pub marker_resets: Vec<(GraphContextId, NodeId)>,
 }
 
@@ -371,33 +377,29 @@ pub fn resolve_source_sync_phases(
                         .map(|time| time_to_phase(time, grouped.phase_duration, grouped.looped))
                 })
             };
-            let (mut candidate_phase, advance, time) = if let Some(phase) = prior_phase {
+            let (mut candidate_phase, advance, time, previous_time) = if let Some(phase) = prior_phase {
                 let continuing = common == previous_common && previous_players.iter().any(|prior|
                     prior.identity == leader.identity && prior.source_asset == leader.source_asset
                         && (prior.duration - leader.duration).abs() <= EPSILON);
-                if let Some(time) = grouped.sample_time_hint.filter(|_| continuing) {
+                let (phase, advance, time, previous_time) = if let Some(time) = grouped.sample_time_hint.filter(|_| continuing) {
                     grouped.advance_from_time(time)
                 } else {
                     grouped.advance(phase)
-                }
+                };
+                (phase, advance, time, Some(previous_time))
             } else {
-                let independent_time = leader.sample_time_hint.map(|time|
-                    phase_to_time((time + leader.delta_seconds * leader.play_rate) / leader.duration.max(EPSILON), leader.duration, leader.looped))
-                    .or_else(|| previous.iter()
+                let previous_time = leader.sample_time_hint.or_else(|| previous.iter()
                     .find(|prior| prior.identity == leader.identity && prior.source_asset == leader.source_asset
                         && (prior.duration - leader.duration).abs() <= EPSILON)
-                    .map(|prior| {
-                        let time = marker_phase_sample_time(prior.phase, prior.phase_duration,
-                            &prior.phase_markers, prior.duration, &prior.markers, prior.looped);
-                        let duration = leader.duration.max(EPSILON);
-                        phase_to_time((time + leader.delta_seconds * leader.play_rate) / duration,
-                            duration, leader.looped)
-                    }))
+                    .map(|prior| marker_phase_sample_time(prior.phase, prior.phase_duration,
+                        &prior.phase_markers, prior.duration, &prior.markers, prior.looped)));
+                let independent_time = previous_time.map(|time|
+                    phase_to_time((time + leader.delta_seconds * leader.play_rate) / leader.duration.max(EPSILON), leader.duration, leader.looped))
                     .unwrap_or_else(|| marker_phase_sample_time(leader.phase, leader.phase_duration,
                         &leader.phase_markers, leader.duration, &leader.markers, leader.looped));
                 (marker_phase_from_sample_time(independent_time, grouped.duration, &grouped.markers,
                     grouped.phase_duration, &grouped.phase_markers, grouped.looped),
-                    SourceMarkerAdvance { forward: leader.play_rate >= 0.0, markers: Vec::new() }, independent_time)
+                    SourceMarkerAdvance { forward: leader.play_rate >= 0.0, markers: Vec::new() }, independent_time, previous_time)
             };
             let position = marker_position_at_time_in_direction(&grouped.markers, grouped.duration, time, grouped.looped, advance.forward);
             if let Some(position) = &position {
@@ -408,7 +410,7 @@ pub fn resolve_source_sync_phases(
             }
             phase = Some(candidate_phase);
             marker_advance = prior_phase.map(|_| advance);
-            leader_samples.push((leader.identity, time));
+            leader_samples.push((leader.identity, previous_time, time));
             if common.is_empty() || position.is_some() { break; }
         }
         let previous_order = ordered_group_players(&previous_players);
@@ -420,14 +422,14 @@ pub fn resolve_source_sync_phases(
                 && prior.sync_group_eligible()
                 && (prior.role != SourceSyncGroupRole::ExclusiveAlwaysLeader || prior.ticked_as_leader));
             common != previous_common || prior.is_none_or(|prior| prior.source_asset != player.source_asset)
-                || (leader_changed && !leader_samples.iter().any(|(identity, _)| *identity == player.identity))
+                || (leader_changed && !leader_samples.iter().any(|(identity, ..)| *identity == player.identity))
         }).map(|player| player.identity).collect();
         let ungrouped = players
             .iter()
             .filter(|candidate| {
                 !candidate.sync_group_eligible()
                     || (candidate.role == SourceSyncGroupRole::ExclusiveAlwaysLeader
-                        && !leader_samples.iter().any(|(identity, _)| *identity == candidate.identity))
+                        && !leader_samples.iter().any(|(identity, ..)| *identity == candidate.identity))
             })
             .map(|candidate| candidate.identity)
             .collect();
@@ -443,7 +445,7 @@ impl SourceSyncPlayerTick {
                 && (self.has_been_full_weight || self.weight >= 1.0 - 1e-5))
     }
 
-    pub fn advance(&self, previous_phase: f32) -> (f32, SourceMarkerAdvance, f32) {
+    pub fn advance(&self, previous_phase: f32) -> (f32, SourceMarkerAdvance, f32, f32) {
         let previous_time = marker_phase_sample_time_near(
             previous_phase,
             self.phase_duration,
@@ -456,7 +458,7 @@ impl SourceSyncPlayerTick {
         self.advance_from_time(previous_time)
     }
 
-    pub fn advance_from_time(&self, previous_time: f32) -> (f32, SourceMarkerAdvance, f32) {
+    pub fn advance_from_time(&self, previous_time: f32) -> (f32, SourceMarkerAdvance, f32, f32) {
         let duration = self.duration.max(EPSILON);
         let next_unwrapped = previous_time + self.delta_seconds * self.play_rate;
         let markers = sorted_markers(&self.markers, duration);
@@ -485,7 +487,7 @@ impl SourceSyncPlayerTick {
             self.phase_duration,
             &self.phase_markers,
             self.looped,
-        ), SourceMarkerAdvance { forward, markers: passed }, next_time)
+        ), SourceMarkerAdvance { forward, markers: passed }, next_time, previous_time)
     }
 }
 
@@ -1316,7 +1318,7 @@ mod tests {
             let player = SourceSyncPlayerTick { phase_duration: 1.0, duration: 1.0,
                 phase_markers: markers.clone(), markers: markers.clone(), looped: true,
                 sample_time_hint: Some(previous), delta_seconds: 0.2, play_rate: rate, ..default() };
-            let (actual, advance, _) = player.advance(previous);
+            let (actual, advance, _, _) = player.advance(previous);
             assert!((actual - phase).abs() < 1e-5, "{previous} at {rate}: {actual}");
             assert_eq!(advance.forward, steps > 0);
             assert_eq!(advance.markers.len() as i64, i64::abs(steps));
@@ -1347,7 +1349,7 @@ mod tests {
             let player = SourceSyncPlayerTick { phase_duration: 1.0, duration: 1.0,
                 phase_markers: source.to_vec(), markers: source.to_vec(), looped: true,
                 sample_time_hint: Some(previous), delta_seconds: 0.1, play_rate: rate, ..default() };
-            let (phase, advance, _) = player.advance(previous);
+            let (phase, advance, _, _) = player.advance(previous);
             assert_eq!(advance.markers, passed);
             let actual = marker_phase_sample_time_continuous(phase, &advance, 1.0, &source, 1.0, &target, hint, true, &mut None, None);
             assert!((actual - expected).abs() < 1e-5, "Mixed repeated marker path: {actual} != {expected}");

@@ -1516,6 +1516,102 @@ mod tests {
                 .filter(|event| event.source_asset == source && event.class_name == "AlsAnimNotify_FootstepEffects").count());
             assert_eq!(counts, [1, usize::from(expected_leader == 1)], "start={start:?} delta={delta} rate={rate}: {counts:?}");
         }
+
+        use bevy_animation_graph::builtin_nodes::clip_node::ClipNode;
+        use bevy_animation_graph::core::animation_graph::{GraphInputPin, TimeUpdate};
+        use crate::extensions::normalized_blendspace::{NormalizedBlendSpaceNode, NormalizedBlendSpacePoint, NormalizedBlendSpaceState};
+        use crate::extensions::sync_group_phase::SourceSyncPlayerBinding;
+        let clip = sequences[0].try_inner_downcast_ref::<crate::extensions::SourceSequencePlayerNode>().unwrap().clip.clone();
+        for (resync, blendspace_leader) in [(false, true), (true, true), (true, false)] {
+            let markers = vec![SyncMarker { name: "A".into(), time: 0.25 }, SyncMarker { name: "B".into(), time: 0.75 }];
+            let mut follower = sequences[1].try_inner_downcast_ref::<crate::extensions::SourceSequencePlayerNode>().unwrap().clone();
+            follower.start_position = if resync { 1.6 } else { 1.25 };
+            follower.loop_animation = resync;
+            follower.synchronization = Some(SourceSequenceSynchronization {
+                key: "sample.history".into(), role: SourceSyncGroupRole::AlwaysFollower,
+                delta_seconds_key: "animation.delta_seconds".into(), phase_duration: 1.0,
+                phase_markers: markers.clone(), markers: markers.iter().map(|marker|
+                    SyncMarker { name: marker.name.clone(), time: marker.time * 2.0 }).collect(), ..default()
+            });
+            let follower = AnimationNode::new("history follower", follower);
+            let sample = AnimationNode::new("history clip", ClipNode::new(clip.clone(), None, None));
+            let leader = if blendspace_leader { AnimationNode::new("history blendspace", NormalizedBlendSpaceNode {
+                looped: resync, phase_duration: 1.0, phase_markers: markers.clone(),
+                points: vec![NormalizedBlendSpacePoint { id: "sample".into(), duration: 1.0, markers, ..default() }],
+                playback: Some(SourceSyncPlayerBinding { key: "sample.history".into(), role: SourceSyncGroupRole::AlwaysLeader,
+                    delta_seconds_key: "animation.delta_seconds".into(), start_position: if resync { 0.2 } else { 0.625 }, ..default() }), ..default()
+            })
+            } else {
+                AnimationNode::new("history sequence", crate::extensions::SourceSequencePlayerNode {
+                    clip: clip.clone(), start_position: 0.2, loop_animation: true,
+                    synchronization: Some(SourceSequenceSynchronization { key: "sample.history".into(),
+                        role: SourceSyncGroupRole::AlwaysLeader, delta_seconds_key: "animation.delta_seconds".into(),
+                        phase_duration: 1.0, phase_markers: markers.clone(), markers, ..default() }), ..default()
+                })
+            };
+            let mut history = AnimationGraph::default();
+            history.add_output_data("pose".into(), DataSpec::Pose);
+            if blendspace_leader {
+                history.set_default_data(GraphInputPin::passthrough("position"), bevy_animation_graph::core::edge_data::DataValue::Vec2(Vec2::ZERO));
+                history.add_input_data_edge(GraphInputPin::passthrough("position"), leader.id, crate::extensions::normalized_blendspace::IN_POSITION);
+                history.add_node_parameter_edge(sample.id, ClipNode::OUT_POSE, leader.id, NormalizedBlendSpaceNode::pose_pin("sample"));
+                history.add_node_pose_edge(sample.id, leader.id, NormalizedBlendSpaceNode::time_pin("sample"));
+                history.add_node(sample);
+            }
+            history.add_node_parameter_edge(leader.id, if blendspace_leader { crate::extensions::normalized_blendspace::OUT_POSE } else { "Pose" }, blend.id, "Poses 0");
+            history.add_node_parameter_edge(follower.id, "Pose", blend.id, "Poses 1");
+            history.add_node_parameter_edge(blend.id, "Pose", root.id, "Source");
+            history.add_output_data_edge(root.id, "Pose", "pose");
+            for node in [leader.clone(), follower.clone(), blend.clone(), root.clone()] { history.add_node(node); }
+            let history = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(history);
+            {
+                let mut manifests = app.world_mut().resource_mut::<Assets<AlsNotifyManifest>>();
+                let mut manifest = manifests.get_mut(&manifest_handle).unwrap();
+                let source = manifest.clips.iter_mut().find(|clip| clip.source_asset == SOURCE_SPRINT).unwrap();
+                let template = source.events[0].clone();
+                source.events = [("sample_a", if resync { 0.25 } else { 0.78125 }), ("sample_b", if resync { 0.85 } else { 0.90625 })]
+                    .map(|(id, time)| { let mut event = template.clone(); event.event_id = id.into(); event.id = id.into();
+                        event.start_time = time; event.end_time = time; event }).to_vec();
+            }
+            let mut player = AnimationGraphPlayer::new(skeleton.clone()).with_graph(history);
+            player.set_global_input_data("animation.delta_seconds", 0.0_f32);
+            player.set_global_input_data("sprint_base_weight", if resync { 0.0_f32 } else { 0.5_f32 });
+            player.set_global_input_data("sprint_accel_weight", if resync { 1.0_f32 } else { 0.5_f32 });
+            app.world_mut().entity_mut(player_entity).insert(player);
+            app.update();
+            let frames = if resync { vec![(0.1, 0.8, 0.9, Some("sample_b"))] }
+                else { vec![(0.25, 0.625, 0.875, Some("sample_a")), (0.0625, 0.875, 0.9375, Some("sample_b")), (0.03125, 0.9375, 0.96875, None)] };
+            for (delta, previous, current, expected) in frames {
+                app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().clear();
+                {
+                    let mut player = app.world_mut().get_mut::<AnimationGraphPlayer>(player_entity).unwrap();
+                    player.set_global_input_data("animation.delta_seconds", delta);
+                    player.set_global_input_data("sprint_base_weight", 0.5_f32);
+                    player.set_global_input_data("sprint_accel_weight", 0.5_f32);
+                }
+                app.update();
+                let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+                assert!(player.get_error().is_none(), "{:?}", player.get_error());
+                let arena = player.get_context_arena().unwrap();
+                let context = if blendspace_leader {
+                    &arena.get_toplevel().node_states.get::<NormalizedBlendSpaceState>(leader.id, StateKey::Default).unwrap().context
+                } else { &arena.get_toplevel().node_states.get::<SourceSequencePlayerState>(leader.id, StateKey::Default).unwrap().context };
+                assert_eq!(context.asset_samples.len(), 1);
+                let clock = context.asset_samples[0].clock.clone();
+                assert_eq!(context.asset_samples[0].clip, clip);
+                assert!((clock.position - current).abs() < 1e-5);
+                if blendspace_leader { assert!(matches!(arena.get_toplevel().node_caches.get_input_time_update(leader.id, StateKey::Default,
+                    NormalizedBlendSpaceNode::time_pin("sample")).unwrap(), TimeUpdate::Absolute(time) if (time-current).abs()<1e-5)); }
+                assert_eq!(source_sync_leader(arena, app.world().resource::<Assets<AnimationGraph>>(), "sample.history").unwrap().identity.1,
+                    if resync { leader.id } else { follower.id });
+                let events = app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain()
+                    .filter(|event| event.source_asset == SOURCE_SPRINT && event.class_name == "AlsAnimNotify_FootstepEffects")
+                    .map(|event| event.event_id).collect::<Vec<_>>();
+                assert_eq!(events, expected.into_iter().map(str::to_owned).collect::<Vec<_>>(),
+                    "blendspace={blendspace_leader} resync={resync} previous={} current={} expected_previous={previous}", clock.previous_position, clock.position);
+                assert!((clock.previous_position - previous).abs() < 1e-5);
+            }
+        }
     }
 
     #[test]

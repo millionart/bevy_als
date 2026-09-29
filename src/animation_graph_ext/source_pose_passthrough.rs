@@ -102,13 +102,16 @@ impl NodeLike for SourcePosePassthroughNode {
                     global_inputs.to_mut().insert(
                         crate::extensions::sync_group_phase::source_sync_marker_reset_key(identity), DataValue::Bool(true));
                 }
-                if let Some((identity, _)) = leader_samples.last() {
+                if let Some((identity, ..)) = leader_samples.last() {
                     let key = crate::extensions::sync_group_phase::source_sync_sample_time_key(*identity);
                     global_inputs.to_mut().insert(format!("{key}.selected"), DataValue::Bool(true));
                 }
-                for (identity, time) in leader_samples {
-                    global_inputs.to_mut().insert(
-                        crate::extensions::sync_group_phase::source_sync_sample_time_key(identity), DataValue::F32(time));
+                for (identity, previous_time, time) in leader_samples {
+                    let sample_key = crate::extensions::sync_group_phase::source_sync_sample_time_key(identity);
+                    if let Some(previous_time) = previous_time {
+                        global_inputs.to_mut().insert(format!("{sample_key}.previous"), DataValue::F32(previous_time));
+                    }
+                    global_inputs.to_mut().insert(sample_key, DataValue::F32(time));
                 }
                 if let Some(phase) = phase {
                     global_inputs.to_mut().insert(

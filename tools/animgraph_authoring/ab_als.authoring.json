@@ -639,6 +639,18 @@
   },
   "focused_tests": [
     {
+      "label": "blendspace_trial_sample_history_and_resynchronized_notify_start",
+      "argv": [
+        "cargo",
+        "test",
+        "--lib",
+        "sprint_shake_uses_evaluated_sync_leader",
+        "--jobs",
+        "2"
+      ],
+      "evidence": "target/bf128/bf131-r3-a91-final.report.json"
+    },
+    {
       "label": "persistent_marker_endpoints_and_source_reset_lifecycle",
       "argv": [
         "cargo",
@@ -648,7 +660,7 @@
         "--jobs",
         "2"
       ],
-      "evidence": "target/bf128/bf131-r3-a70-final.report.json"
+      "evidence": "target/bf128/bf131-r3-a91-final.report.json"
     },
     {
       "label": "nonloop_sync_candidate_times_leader_and_notify_dispatch",
@@ -660,7 +672,7 @@
         "--jobs",
         "2"
       ],
-      "evidence": "target/bf128/bf131-r3-a70-final.report.json"
+      "evidence": "target/bf128/bf131-r3-a91-final.report.json"
     },
     {
       "label": "adjacent_marker_leader_clock_and_follower_cycle",
@@ -672,7 +684,7 @@
         "--jobs",
         "2"
       ],
-      "evidence": "target/bf128/bf131-r3-a70-final.report.json"
+      "evidence": "target/bf128/bf131-r3-a91-final.report.json"
     },
     {
       "label": "scaled_ragdoll_readback_world_space_and_animation_masks",
