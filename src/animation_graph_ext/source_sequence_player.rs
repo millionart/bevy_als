@@ -36,6 +36,7 @@ use crate::extensions::{
 
 #[derive(Reflect, Clone, Debug, Default)]
 pub(crate) struct SourceSequencePlayerState {
+    marker_record: Option<crate::extensions::sync_group_phase::SourceMarkerRecord>,
     initialized: bool,
     position: f32,
     previous_position: f32,
@@ -382,8 +383,10 @@ impl NodeLike for SourceSequencePlayerNode {
             resolved_source_sync_markers(&ctx, &sync.key, &sync.phase_markers),
             resolved_source_sync_markers(&ctx, &sync.key, &sync.markers),
         ));
+        let reset_markers = crate::extensions::sync_group_phase::source_sync_markers_reset(&ctx);
         let notify_instance_id = crate::extensions::source_instance::source_notify_instance_id(&ctx)?;
         let state = ctx.state_mut_or_else(SourceSequencePlayerState::default)?;
+        if reset_markers { state.marker_record = None; }
         let play_rate = apply_source_input_scale_bias_clamp(
             &mut state.play_rate_state,
             if self.play_rate_basis.abs() <= f32::EPSILON {
@@ -451,12 +454,14 @@ impl NodeLike for SourceSequencePlayerNode {
                 None
             };
             state.position = if let Some(time) = leader_sample_time {
+                state.marker_record = None;
                 time
             } else if let Some(advance) = &marker_advance {
                 marker_phase_sample_time_continuous(tick.phase, advance,
                     sync.phase_duration, phase_markers, clip.duration(), markers,
-                    previous_sample_time, loop_animation)
+                    previous_sample_time, loop_animation, &mut state.marker_record, Some(self.clip.clone()))
             } else {
+                state.marker_record = None;
                 marker_phase_sample_time_near(tick.phase, sync.phase_duration, phase_markers,
                     clip.duration(), markers, previous_sample_time, loop_animation)
             };

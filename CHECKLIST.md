@@ -66,8 +66,8 @@
 - [x] **BF131.A67 — TransitionLeader/TransitionFollower are not excluded during fade-in**。Gate：淡入阶段按角色和源有效权重选 leader，退出淡入后恢复候选资格；实际脚步分派使用同一选举规则，被排除播放器保持独立通知。
 - [x] **BF131.A68 — Sync marker mapping does not filter to common marker names**。Gate：先求组内共同 marker 集，再定位/映射，非共同 marker 不改变有效相位。
 - [x] **BF131.A69 — Modify Curve accepts WeightedMovingAverage but evaluates it as stateless Blend**。Gate：逐实例历史参与加权移动平均，初始化/更新/重建及其他模式控制通过。
-- [x] **BF131.A70 — Repeated marker-name pairs collapse later timeline occurrences into the first pair**。Gate：同名重复 marker 对保留时间位置，跨多个区间、多周期、倒播与精确边界不跳到较早 occurrence；实际播放器自身映射保持时间，包含相邻同名和共同 marker 过滤后的 leader。
-- [x] **BF131.A91 — 非循环同步候选结束 marker 无效时未试选后续 leader**。Gate：实际同步根按源候选顺序试 tick；前进/倒播边界、精确落 marker、全无效控制及最终采样/leader/通知一致。
+- [x] **BF131.A70 — Repeated marker-name pairs collapse later timeline occurrences into the first pair**。Gate：同名重复 marker 对保留时间位置，跨多个区间、多周期、倒播与精确边界不跳到较早 occurrence；实际播放器自身映射保持时间，包含相邻同名和共同 marker 过滤后的 leader，follower 保留实际端点身份并通过连续多帧采样/曲线与源规定的失效清理。
+- [ ] **BF131.A91 — 非循环同步候选结束 marker 无效时未试选后续 leader**。Gate：实际同步根按源候选顺序试 tick；前进/倒播边界、精确落 marker、全无效控制及最终采样/leader/通知一致。
 - [x] **BF131.A71 — Custom 状态迁移按总时长结束，遗漏 FAlphaBlend 提前达到终值的完成语义**。Gate：源曲线提前达到终值时迁移完成，未达到终值及正常总时长控制通过。
 - [x] **BF131.A72 — 惯性过渡的显式 BlendProfile 在生成、请求和逐骨消费链中丢失**。Gate：显式 profile 贯穿生成、惯性请求与逐骨持续时间，默认 profile 和无覆盖控制通过。
 - [x] **BF131.A73 — 惯性化 root 历史没有按组件／Actor 附着空间变化重表达**。Gate：组件/Actor 附着空间改变后历史按源坐标系重表达，世界连续姿态和不变空间控制通过。
@@ -471,3 +471,15 @@
   - S3 实际结束 2026-09-29 17:33 +08:00，偏差 -1 分钟；结果：最终 startup、standing_direction 5/5、state_machine 10/10、notify 12/12 公共功能 PASS，四份报告 ready、faults/graph_errors/temporal_anomalies/primary_failure 为空、watchdog 未触发、退出 0/0。源 Standing 62/62 子图、108 个相关 target 资产、349 图规范及 18 条作者命令闭合；七组候选事件矩阵、12 组重复 marker 同步根、五项消融与最终库 1288/1288 全部通过。勾选 A91、单独提交，保留性能预算延期。
 
 - 本轮收尾（17:33）：浏览器对 `71abab1` 的两条反馈已闭合；A70 单独提交 `95c482e`，A91 包含其严格边界改动带来的倒播续帧回归。核对两个条目的 8 份最终公共功能报告及 4 份作者合同，清单 39/39；A91 首轮报告保留为过程记录，最终接受 `bf131-review2-a91-final`。原 A40b/A67/A83/A90 完成状态保持，未修改原始资产、转换器或性能阈值。
+
+### 0d473ed 续帧复审修复
+
+来源：内置浏览器《Review BF131修复》，目标 `0d473ed172bff66a2f9bbfdecd8d67a5b6f6557a`。复开 A70 与 A91，保留其单帧修复，按 A70→A91 依赖顺序处理。fresh Standing 原生 reader PASS；本地 UE ValidateCurrentPosition 在名称匹配时保留 PreviousMarker/NextMarker 索引，只有失效/Prepare/Finalize 指定条件才重建；目标每帧从采样时间推断，丢失相同端点的整圈身份。BlendSpace 源通知用 SampleEntry.PreviousTime/DeltaTimeRecord；目标却从上一组相位反算。旧 Gate 漏检分别为同名 follower 第三帧、失败 BlendSpace 候选的第二个有增量帧；原 A40b/A67/A83/A90 不复开，性能继续 FunctionalOnly。
+
+- BF131.A70-R3-S1：开始 2026-09-29 17:58 +08:00；预估结束 2026-09-29 18:23 +08:00。依据：fresh AnimSequence 的持久 marker pair 与现有真实同步根夹具；把 AAB 首次得到 follower 0.375 后的两帧补齐，期望 leader 0.203125/0.21875、follower 0.4375/0.5，并验证两类播放器的曲线/采样输出。先稳定 red，再在 S2 保留端点与源规定的失效生命周期；S3 独立完成图合同与可见功能 Gate。
+  - S1 实际结束 2026-09-29 18:07 +08:00，偏差 -16 分钟；结果：实际同步根稳定得到 follower 0.203125≠0.4375，重现反馈；源 ValidateCurrentPosition/AdvanceMarkerPhaseAsFollower 保持既有索引，目标以时间重建导致区间更换。只在当前同步链内修复，旧首次推进 0.375 断言保留。
+- BF131.A70-R3-S2：开始 2026-09-29 18:07 +08:00；预估结束 2026-09-29 18:52 +08:00。让 Sequence 状态及每个 BlendSpace sample 各自持有实际端点记录，记录与资产/marker 布局/时长/循环配置绑定；同步根沿 source Prepare/Finalize 规则传播失效条件。覆盖连续无跨点帧、重复跨点、方向变化与清理后重新加入，移除历史/清理的消融后定向及整库回归，不用继续调整比较符替代历史。
+  - S2 实际结束 2026-09-29 18:36 +08:00，偏差 -16 分钟；结果：follower 的 0.375→0.4375→0.5 及清理后重新加入、两类播放器实际曲线/采样通过。Prepare 的成员/资产/共同 marker 集变化与 Finalize 的实际 leader 排序索引变化经合同测试，稳定组不清理；有效端点不因循环开关改变而重建。丢弃历史、屏蔽清理消费、漏发清理及忽略资产身份四项消融均 red；去掉重复布局缓存及无源码依据的时长/循环缓存后 Gate 不变，已删除，只保留端点与资产归属。最终完整库 1289/1289。BlendSpace 通知起点仍由 A91 单独修复。
+- BF131.A70-R3-S3：开始 2026-09-29 18:36 +08:00；预估结束 2026-09-29 19:01 +08:00。使用 target_game/play 最终预构建、349 图规范与 root/Standing 完整作者合同；source 闭包为 Standing 同步根与两类实际 sample 状态，图/转换器/原始资产未改。随后依次 startup、standing_direction、state_machine、notify 公共功能 Gate，审计原始报告与进程退出，完成 A70 后单独提交，再处理 A91。
+  - S3 runtime 进展（18:46）：最终优化构建、349 图规范与 18 条 root/Standing 作者命令 PASS；源 Standing 62/62 子图、108 个 target 资产不变，持久端点与清理合同、三帧/重入采样曲线、消融和完整库闭合。startup、standing_direction（5/5）、state_machine（10/10）公共功能 PASS，故障/图错误/时序为空、watchdog 未触发、退出 0/0；继续同一二进制的 notify。
+  - S3 实际结束 2026-09-29 18:47 +08:00，偏差 -14 分钟；结果：startup、standing_direction 5/5、state_machine 10/10、notify 12/12 公共功能 PASS，报告 ready、故障/图错误/时序/primary_failure 为空，watchdog 未触发、进程退出 0/0。源清理规则、端点身份、连续多帧的实际采样/曲线、四项失败消融及重复缓存删除、1289 库测试和图合同闭合，恢复 A70 勾选并单独提交。性能仍延期；下一项 A91 的 BlendSpace 实际通知起点。

@@ -3,7 +3,7 @@
   "id": "ab_als_standing_native_functions",
   "source_evidence": [
     {
-      "path": "target/bf131/review2/source/AnimationAsset.h",
+      "path": "target/bf131/review3/source/AnimationAsset.h",
       "sha256": "d5e7317e5496d4b811fa2fdc8726432a857f05a68288c8862a34d8fc3c5050ae"
     },
     {
@@ -11,12 +11,12 @@
       "sha256": "082686bc5b5ec128c919a44b92e9dfeb0de6291e8775c9ab1c9c49714124ea8e"
     },
     {
-      "path": "target/bf131/review2/source/BlendSpace.cpp",
+      "path": "target/bf131/review3/source/BlendSpace.cpp",
       "sha256": "69fb35e0daa26373d7741bd8e21c96562facca8b7c1f02ea86700ffd1fffd932"
     },
     {
-      "path": "target/bf131/review2/source/A_Als_Walk_Forward.ue.json",
-      "sha256": "53cb5e41e104655947eaf97a509d20a2fe06a66ce9dd7a1444483a04640ecc3e"
+      "path": "target/bf131/review3/source/A_Als_Walk_Forward.ue.json",
+      "sha256": "81edb3a0dd24a2d77662f78fddd2e8c9256e8349aed6a6116b34b1b83b33b2b0"
     },
     {
       "path": "target/bf115_standing/curves/A_Als_Sprint_Acceleration.fresh.ue.json",
@@ -35,8 +35,8 @@
       "sha256": "1659c7d63cc7341ece055dc8ee570a2578bf16659bb44b211da2e5e011410fe0"
     },
     {
-      "path": "target/bf131/review2/source/AB_Als_Standing.ue.json",
-      "sha256": "3caeaad85777ec820c2c29d489d39222d6c60687a25971276cba0ddccf05fec1"
+      "path": "target/bf131/review3/source/AB_Als_Standing.ue.json",
+      "sha256": "21e850e6b81299ec38a4ebfd017e0aa21faf4c0f5c0964be32dc856947743a43"
     },
     {
       "path": "target/bf116_projection/source/ALS_ALS_Character_AB_Als.AB_Als.ue.json",
@@ -179,19 +179,19 @@
       "sha256": "8dca0f41f0378ad8858f193d69cc8a4fdf43139c8114d20842c67d16ef8c161b"
     },
     {
-      "path": "target/bf131/review2/source/AnimationAsset.cpp",
+      "path": "target/bf131/review3/source/AnimationAsset.cpp",
       "sha256": "d6bed3680c974fc6663965e6ef0a4dfc1e1d50c4b08bfbf8719cfc9a537e4f84"
     },
     {
-      "path": "target/bf131/review2/source/AnimSync.cpp",
+      "path": "target/bf131/review3/source/AnimSync.cpp",
       "sha256": "7893a6c0c01cb984440c35e782c9db3aa47a51cd77a0185f1d2944bc6dafb84f"
     },
     {
-      "path": "target/bf131/review2/source/AnimSequence.cpp",
+      "path": "target/bf131/review3/source/AnimSequence.cpp",
       "sha256": "08986b39c6e9d933d523b5ede2e7bbc110bf6ee1d532ed21241d173d0040799c"
     },
     {
-      "path": "target/bf131/review2/source/AnimSequenceBase.cpp",
+      "path": "target/bf131/review3/source/AnimSequenceBase.cpp",
       "sha256": "538cedbee8cad1313c301078374a2750c2929e5ec198a54d2254d0c79ae6c3f7"
     },
     {
@@ -1969,6 +1969,18 @@
   },
   "focused_tests": [
     {
+      "label": "persistent_marker_endpoints_and_source_reset_lifecycle",
+      "argv": [
+        "cargo",
+        "test",
+        "--lib",
+        "marker_records_",
+        "--jobs",
+        "2"
+      ],
+      "evidence": "target/bf128/bf131-r3-a70-final.report.json"
+    },
+    {
       "label": "nonloop_sync_candidate_times_leader_and_notify_dispatch",
       "argv": [
         "cargo",
@@ -1978,7 +1990,7 @@
         "--jobs",
         "2"
       ],
-      "evidence": "target/bf128/bf131-r2-a91-final.report.json"
+      "evidence": "target/bf128/bf131-r3-a70-final.report.json"
     },
     {
       "label": "adjacent_marker_leader_clock_and_follower_cycle",
@@ -1990,7 +2002,7 @@
         "--jobs",
         "2"
       ],
-      "evidence": "target/bf128/bf131-r2-a91-final.report.json"
+      "evidence": "target/bf128/bf131-r3-a70-final.report.json"
     },
     {
       "label": "sync_leader_and_independent_player_notify_dispatch",

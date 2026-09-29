@@ -253,6 +253,7 @@ pub(crate) struct NormalizedBlendSpaceState {
     triangle: Option<usize>,
     samples: Vec<SourceBlendSpaceSampleWeight>,
     sample_times: Vec<Option<f32>>,
+    marker_records: Vec<Option<crate::extensions::sync_group_phase::SourceMarkerRecord>>,
 }
 
 #[derive(Reflect, Clone, Debug, Default)]
@@ -689,6 +690,21 @@ impl NodeLike for NormalizedBlendSpaceNode {
         let mut sample_times = ctx.state::<NormalizedBlendSpaceState>().ok()
             .map(|state| state.sample_times.clone()).unwrap_or_default();
         sample_times.resize(self.points.len(), None);
+        let mut marker_records = ctx.state::<NormalizedBlendSpaceState>().ok()
+            .map(|state| state.marker_records.clone()).unwrap_or_default();
+        marker_records.resize(self.points.len(), None);
+        if crate::extensions::sync_group_phase::source_sync_markers_reset(&ctx) { marker_records.fill(None); }
+        let sample_clip = |point: &NormalizedBlendSpacePoint| ctx.graph_context.graph.edges_inverted
+            .get(&bevy_animation_graph::core::animation_graph::TargetPin::NodeData(ctx.node_id, Self::pose_pin(&point.id)))
+            .and_then(|source| match source {
+                bevy_animation_graph::core::animation_graph::SourcePin::NodeData(node, _) => ctx.graph_context.graph.nodes.get(node),
+                _ => None,
+            })
+            .and_then(|node| node.try_inner_downcast_ref::<bevy_animation_graph::builtin_nodes::clip_node::ClipNode>())
+            .and_then(|node| node.reflect_ref().as_struct().ok()?.field("clip"))
+            .and_then(|value| value.try_downcast_ref::<Handle<bevy_animation_graph::core::animation_clip::GraphClip>>())
+            .cloned();
+        let sample_clips = self.points.iter().map(sample_clip).collect::<Vec<_>>();
         let leader = &self.points[leader_index];
         let leader_duration = self.point_duration(&mut ctx, leader)?;
         let sample_looped = self.looped && !self.teleport_to_normalized_time;
@@ -750,11 +766,12 @@ impl NodeLike for NormalizedBlendSpaceNode {
         let leader_hint = sample_times[leader_index].unwrap_or_else(|| self.playback.as_ref()
             .map_or_else(|| phase_to_time(phase, leader_duration, sample_looped),
                 |playback| playback.start_position * leader_duration));
-        let map_time = |markers: &[SyncMarker], duration: f32, hint: f32, has_history: bool| {
+        let mut map_time = |index: usize, markers: &[SyncMarker], duration: f32, hint: f32, has_history: bool| {
             if let Some(advance) = marker_advance.as_ref().filter(|_| has_history) {
                 marker_phase_sample_time_continuous(phase, advance, self.phase_duration,
-                    &phase_markers, duration, markers, hint, sample_looped)
+                    &phase_markers, duration, markers, hint, sample_looped, &mut marker_records[index], sample_clips[index].clone())
             } else {
+                marker_records[index] = None;
                 marker_phase_sample_time_near(phase, self.phase_duration, &phase_markers,
                     duration, markers, hint, sample_looped)
             }
@@ -762,7 +779,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
         let leader_time = if let Some(time) = leader_sample_time {
             time
         } else if uses_marker_phase {
-            map_time(&leader_markers, leader_duration, leader_hint,
+            map_time(leader_index, &leader_markers, leader_duration, leader_hint,
                 sample_times[leader_index].is_some())
         } else {
             phase_to_time(phase, leader_duration, sample_looped)
@@ -783,7 +800,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
             let time = if index == leader_index {
                 leader_time
             } else if uses_marker_phase {
-                map_time(&point_markers, duration, point_hint, sample_times[index].is_some())
+                map_time(index, &point_markers, duration, point_hint, sample_times[index].is_some())
             } else {
                 follower_sample_time_near(
                     phase,
@@ -807,20 +824,13 @@ impl NodeLike for NormalizedBlendSpaceNode {
                 *curves.entry(name).or_insert(0.0) += value * weight;
             }
         }
-        let sample_clip = ctx.graph_context.graph.edges_inverted
-            .get(&bevy_animation_graph::core::animation_graph::TargetPin::NodeData(ctx.node_id, Self::pose_pin(&leader.id)))
-            .and_then(|source| match source {
-                bevy_animation_graph::core::animation_graph::SourcePin::NodeData(node, _) => ctx.graph_context.graph.nodes.get(node),
-                _ => None,
-            })
-            .and_then(|node| node.try_inner_downcast_ref::<bevy_animation_graph::builtin_nodes::clip_node::ClipNode>())
-            .and_then(|node| node.reflect_ref().as_struct().ok()?.field("clip"))
-            .and_then(|value| value.try_downcast_ref::<Handle<bevy_animation_graph::core::animation_clip::GraphClip>>())
-            .cloned();
+        if leader_sample_time.is_some() { marker_records[leader_index] = None; }
+        let sample_clip = sample_clips[leader_index].clone();
         let notify_instance_id = crate::extensions::source_instance::source_notify_instance_id(&ctx)?;
         let state = ctx.state_mut::<NormalizedBlendSpaceState>()?;
         if self.playback.is_some() {
             state.sample_times = sample_times;
+            state.marker_records = marker_records;
         }
         let context = &mut state.context;
         context.curves = curves;
