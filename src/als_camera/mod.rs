@@ -943,6 +943,8 @@ fn camera_rig_system(
             &mut AlsCameraRuntime,
             Option<&AlsCameraFovOverride>,
             &AlsCharacterCamera,
+            &AlsCameraCurveValues,
+            &AlsCameraAnimationFrame,
         ),
         Without<AlsCameraTarget>,
     >,
@@ -953,12 +955,10 @@ fn camera_rig_system(
             &RotationMode,
             &AlsViewYaw,
             Option<&AlsViewPitch>,
-            &AlsCameraCurveValues,
             &AlsCameraSocketLocations,
             Option<&AlsCameraMovementBase>,
             Has<crate::als::input_request::AlsCameraLeftShoulder>,
             &AlsCameraDefinitionHandle,
-            &AlsCameraAnimationFrame,
         ),
         With<AlsCameraTarget>,
     >,
@@ -978,6 +978,8 @@ fn camera_rig_system(
         mut runtime,
         field_of_view_override,
         owner,
+        curves,
+        animation_frame,
     ) in &mut cameras
     {
         view_info.camera_cut = false;
@@ -987,12 +989,10 @@ fn camera_rig_system(
             rotation_mode,
             view_yaw,
             view_pitch,
-            curves,
             socket_locations,
             movement_base,
             left_shoulder,
             definition_handle,
-            animation_frame,
         )) = targets.get(owner.character)
         else {
             continue;
@@ -1250,11 +1250,14 @@ fn apply_camera_view(
         Option<&AlsViewPitch>,
         &crate::als::state::Stance,
         &AlsCameraDefinitionHandle,
-        &AlsCameraAnimationFrame,
     )>,
+    frames: Query<&AlsCameraAnimationFrame>,
 ) {
     for (mut transform, mut projection, mut field_of_view, source, owner, taa) in &mut cameras {
-        let Ok((position, yaw, pitch, stance, handle, frame)) = owners.get(owner.character) else {
+        let Ok((position, yaw, pitch, stance, handle)) = owners.get(owner.character) else {
+            continue;
+        };
+        let Ok(frame) = frames.get(source.0) else {
             continue;
         };
         let Some(definition) = definitions.get(&handle.0) else {
@@ -1369,6 +1372,51 @@ mod tests {
     }
 
     #[test]
+    fn source_cameras_keep_independent_frame_and_view_validity() {
+        use bevy::ecs::system::RunSystemOnce;
+        use crate::camera_component::{AlsSourceCameraComponent, tests::loaded_camera_scene};
+        use bevy_animation_graph::core::animated_scene::{AnimatedSceneHandle, AnimatedSceneInstance};
+        let (mut app, character, primary, scene) = loaded_camera_scene();
+        let secondary = app.world_mut().spawn((Name::new("RetainedCamera"),
+            AlsCharacterCamera { character }, AlsSourceCameraComponent::default(),
+            AnimatedSceneHandle::new(scene), ChildOf(character))).id();
+        for _ in 0..20 {
+            app.update();
+            if app.world().get::<AnimatedSceneInstance>(secondary).is_some() { break; }
+        }
+        assert!(app.world().get::<AnimatedSceneInstance>(secondary).is_some());
+        for (active, inactive) in [(primary, secondary), (secondary, primary)] {
+            app.world_mut().get_mut::<AlsSourceCameraComponent>(active).unwrap().activate(true);
+            app.world_mut().get_mut::<AlsSourceCameraComponent>(inactive).unwrap().deactivate();
+            app.update();
+            assert!(app.world().get::<crate::als_camera::AlsCameraViewInfo>(active).unwrap().valid);
+            assert!(!app.world().get::<crate::als_camera::AlsCameraViewInfo>(inactive).unwrap().valid);
+        }
+        app.world_mut().get_mut::<AlsSourceCameraComponent>(primary).unwrap().activate(true);
+        app.update();
+        for (source, offset) in [(primary, 10.0), (secondary, -10.0)] {
+            app.world_mut().entity_mut(source).insert(AlsCameraCurveValues::from_pairs([
+                (crate::als_camera::AlsCameraCurve::FovOffset, offset),
+            ]));
+        }
+        app.world_mut().run_system_once(crate::als_camera::camera_rig_system).unwrap();
+        let primary_view = app.world().get::<crate::als_camera::AlsCameraViewInfo>(primary).unwrap();
+        let secondary_view = app.world().get::<crate::als_camera::AlsCameraViewInfo>(secondary).unwrap();
+        assert!((primary_view.field_of_view_deg - 100.0).abs() < 1e-5);
+        assert!((secondary_view.field_of_view_deg - 80.0).abs() < 1e-5);
+        for (source, expected) in [(primary, 100.0), (secondary, 80.0)] {
+            let view = app.world_mut().spawn((Camera3d::default(), Transform::IDENTITY,
+                AlsCameraViewSource(source), AlsCharacterCamera { character })).id();
+            app.world_mut().run_system_once(apply_camera_view).unwrap();
+            assert!((app.world().get::<AlsCameraFieldOfView>(view).unwrap().0 - expected).abs() < 1e-5);
+        }
+        app.world_mut().entity_mut(secondary).remove::<AnimatedSceneInstance>();
+        app.update();
+        assert!(app.world().get::<AlsCameraViewInfo>(primary).unwrap().valid);
+        assert!(!app.world().get::<AlsCameraViewInfo>(secondary).unwrap().valid);
+    }
+
+    #[test]
     fn source_camera_requires_explicit_owner_settings_and_animation_frame() {
         use bevy::ecs::system::RunSystemOnce;
         for (has_owner, has_definition, has_frame) in [
@@ -1422,7 +1470,9 @@ mod tests {
                     .entity_mut(component)
                     .insert(AlsCharacterCamera { character: owner });
             }
-            world.run_system_once(camera_rig_system).unwrap();
+            if let Some(frame) = world.entity_mut(owner).take::<AlsCameraAnimationFrame>() { world.entity_mut(component).insert(frame); }
+        if let Some(curves) = world.entity_mut(owner).take::<AlsCameraCurveValues>() { world.entity_mut(component).insert(curves); }
+        world.run_system_once(camera_rig_system).unwrap();
             assert!(
                 !world.get::<AlsCameraViewInfo>(component).unwrap().valid,
                 "Missing source camera inputs were accepted: owner={has_owner}, definition={has_definition}, frame={has_frame}"
@@ -1492,6 +1542,8 @@ mod tests {
             .world_mut()
             .spawn((AlsCameraRig::default(), AlsCharacterCamera { character }))
             .id();
+        if let Some(frame) = app.world_mut().entity_mut(character).take::<AlsCameraAnimationFrame>() { app.world_mut().entity_mut(component).insert(frame); }
+        if let Some(curves) = app.world_mut().entity_mut(character).take::<AlsCameraCurveValues>() { app.world_mut().entity_mut(component).insert(curves); }
         let view = app
             .world_mut()
             .spawn((
@@ -1536,7 +1588,7 @@ mod tests {
         assert!((actual.rotation * Vec3::NEG_Z).distance(expected.rotation * Vec3::NEG_Z) < 2e-7);
         assert!(actual.translation.distance(component_view.location) > 1e-5);
         app.world_mut()
-            .get_mut::<AlsCameraAnimationFrame>(character)
+            .get_mut::<AlsCameraAnimationFrame>(component)
             .unwrap()
             .active = false;
         app.update();
@@ -1697,7 +1749,9 @@ mod tests {
                     AlsCharacterCamera { character: owner },
                 ))
                 .id();
-            for (memberships, expected) in [
+            if let Some(frame) = app.world_mut().entity_mut(owner).take::<AlsCameraAnimationFrame>() { app.world_mut().entity_mut(camera).insert(frame); }
+        if let Some(curves) = app.world_mut().entity_mut(owner).take::<AlsCameraCurveValues>() { app.world_mut().entity_mut(camera).insert(curves); }
+        for (memberships, expected) in [
                 (LayerMask::from(AlsCollisionLayer::Default), false),
                 (
                     LayerMask::from([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility]),
@@ -2262,6 +2316,8 @@ mod tests {
                 ..default()
             })
             .id();
+        if let Some(frame) = app.world_mut().entity_mut(owner).take::<AlsCameraAnimationFrame>() { app.world_mut().entity_mut(source).insert(frame); }
+        if let Some(curves) = app.world_mut().entity_mut(owner).take::<AlsCameraCurveValues>() { app.world_mut().entity_mut(source).insert(curves); }
         let view = app
             .world_mut()
             .spawn((
@@ -2331,7 +2387,8 @@ mod tests {
             }
         }
         let info = *app.world().get::<AlsCameraViewInfo>(source).unwrap();
-        let replacement = app.world_mut().spawn(info).id();
+        let frame = *app.world().get::<AlsCameraAnimationFrame>(source).unwrap();
+        let replacement = app.world_mut().spawn((info, frame)).id();
         app.world_mut().entity_mut(view).insert((
             AlsCameraViewSource(replacement),
             bevy::anti_alias::taa::TemporalAntiAliasing { reset: false },
@@ -2496,6 +2553,8 @@ mod tests {
                 },
             ))
             .id();
+        if let Some(frame) = world.entity_mut(owner).take::<AlsCameraAnimationFrame>() { world.entity_mut(component).insert(frame); }
+        if let Some(curves) = world.entity_mut(owner).take::<AlsCameraCurveValues>() { world.entity_mut(component).insert(curves); }
         world.run_system_once(camera_rig_system).unwrap();
         let runtime = *world.get::<AlsCameraRuntime>(component).unwrap();
         assert_eq!(runtime.movement_base, Some(base));
@@ -2537,11 +2596,11 @@ mod tests {
         );
         assert_eq!(next.trace_distance_ratio, 0.4);
         world
-            .get_mut::<AlsCameraCurveValues>(owner)
+            .get_mut::<AlsCameraCurveValues>(component)
             .unwrap()
             .set(AlsCameraCurve::FirstPersonOverride, 0.0);
         world
-            .get_mut::<AlsCameraAnimationFrame>(owner)
+            .get_mut::<AlsCameraAnimationFrame>(component)
             .unwrap()
             .force_no_lag = true;
         world.run_system_once(camera_rig_system).unwrap();
@@ -2553,7 +2612,7 @@ mod tests {
                 < 1e-6
         );
         world
-            .get_mut::<AlsCameraCurveValues>(owner)
+            .get_mut::<AlsCameraCurveValues>(component)
             .unwrap()
             .set(AlsCameraCurve::FirstPersonOverride, 5e-6);
         world.run_system_once(camera_rig_system).unwrap();
@@ -2562,7 +2621,7 @@ mod tests {
             Vec3::Y
         );
         world
-            .get_mut::<AlsCameraCurveValues>(owner)
+            .get_mut::<AlsCameraCurveValues>(component)
             .unwrap()
             .set(AlsCameraCurve::FirstPersonOverride, 1.0);
         world.entity_mut(owner).remove::<AlsCameraMovementBase>();
@@ -2576,9 +2635,9 @@ mod tests {
             entity: base,
             has_relative_rotation: false,
         });
-        world.get_mut::<AlsCameraCurveValues>(owner).unwrap()
+        world.get_mut::<AlsCameraCurveValues>(component).unwrap()
             .set(AlsCameraCurve::FirstPersonOverride, 0.0);
-        world.get_mut::<AlsCameraAnimationFrame>(owner).unwrap().force_no_lag = false;
+        world.get_mut::<AlsCameraAnimationFrame>(component).unwrap().force_no_lag = false;
         let absolute_view = Quat::from_euler(EulerRot::YXZ, 0.2, 0.1, 0.0);
         for yaw in [1.2, 1.5] {
             world.entity_mut(base).insert(GlobalTransform::from(

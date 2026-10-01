@@ -246,8 +246,6 @@ fn spawn_als_character_internal(
             AlsViewYaw(world_forward_to_yaw(*fwd)),
             AlsViewPitch(0.0),
             AlsCameraTarget,
-            crate::als_camera::AlsCameraCurveValues::default(),
-            crate::als_camera::AlsCameraAnimationFrame::default(),
             crate::als_camera::AlsCameraDefinitionHandle(assets.load("ALSCamera/Data/als_camera.camera_component.ron")),
             AlsAnimationEventPlaybacks::default(),
             AlsNotifyLocomotionAction::None,

@@ -22,7 +22,7 @@ use bevy_animation_graph::core::{
 };
 
 #[derive(Component)]
-#[require(crate::als_camera::AlsCameraRig)]
+#[require(crate::als_camera::AlsCameraRig, AlsCameraCurveValues, AlsCameraAnimationFrame)]
 pub struct AlsSourceCameraComponent {
     bound_player: Option<Entity>,
     active: bool,
@@ -95,7 +95,7 @@ fn initialize_components(
 ) {
     for (entity, owner, mut component, mut transform, mut visibility, scene) in &mut components {
         let Some(scene) = scene else {
-            if let Ok(mut frame) = frames.get_mut(owner.character) {
+            if let Ok(mut frame) = frames.get_mut(entity) {
                 frame.active = false;
             }
             continue;
@@ -153,8 +153,10 @@ fn update_camera_animation(
         &AlsCharacterCamera,
         &mut AlsSourceCameraComponent,
         &AnimatedSceneInstance,
+        &mut AlsCameraCurveValues,
+        &mut AlsCameraAnimationFrame,
     )>,
-    mut characters: Query<(
+    characters: Query<(
         &AlsCameraDefinitionHandle,
         &Gait,
         &Stance,
@@ -167,13 +169,11 @@ fn update_camera_animation(
         Option<&crate::animation_events::AlsNotifyLocomotionAction>,
         Option<&crate::als::mantle::AlsMantleState>,
         Option<&crate::als::roll::AlsRollState>,
-        &mut AlsCameraCurveValues,
-        &mut AlsCameraAnimationFrame,
     )>,
     mut players: Query<&mut AnimationGraphPlayer>,
     resources: SystemResources,
 ) {
-    for (owner, mut component, scene) in &mut components {
+    for (owner, mut component, scene, mut curves, mut frame) in &mut components {
         let Ok((
             handle,
             gait,
@@ -187,9 +187,7 @@ fn update_camera_animation(
             action,
             mantle,
             roll,
-            mut curves,
-            mut frame,
-        )) = characters.get_mut(owner.character)
+        )) = characters.get(owner.character)
         else {
             continue;
         };
@@ -362,8 +360,6 @@ pub(crate) mod tests {
                 Stance::Standing,
                 LocomotionState::Grounded,
                 RotationMode::ViewDirection,
-                AlsCameraCurveValues::default(),
-                AlsCameraAnimationFrame::default(),
                 crate::als_camera::AlsCameraCustomTimeDilation(0.5),
             ))
             .id();
@@ -634,13 +630,13 @@ pub(crate) mod tests {
         let frame = player.get_context_arena().unwrap().frame_index();
         let right = app
             .world()
-            .get::<AlsCameraCurveValues>(character)
+            .get::<AlsCameraCurveValues>(component)
             .unwrap()
             .values[0];
         assert!(right > 0.1 && right < 1.0, "right offset {right}");
         assert!(
             (app.world()
-                .get::<AlsCameraAnimationFrame>(character)
+                .get::<AlsCameraAnimationFrame>(component)
                 .unwrap()
                 .delta_seconds
                 - 0.1)
@@ -666,7 +662,7 @@ pub(crate) mod tests {
         }
         let left = app
             .world()
-            .get::<AlsCameraCurveValues>(character)
+            .get::<AlsCameraCurveValues>(component)
             .unwrap()
             .values[0];
         assert!(
@@ -685,7 +681,7 @@ pub(crate) mod tests {
         for _ in 0..10 {
             app.update();
         }
-        let values = app.world().get::<AlsCameraCurveValues>(character).unwrap();
+        let values = app.world().get::<AlsCameraCurveValues>(component).unwrap();
         assert!((values.get(crate::als_camera::AlsCameraCurve::FirstPersonOverride) - 1.0).abs() < 1e-6);
         assert!(values.get(crate::als_camera::AlsCameraCurve::CameraOffsetX).abs() < 1e-5, "first-person curves: {:?}", values.values);
         assert!((values.get(crate::als_camera::AlsCameraCurve::CameraOffsetZ) - 3.25).abs() < 1e-5);
@@ -695,7 +691,7 @@ pub(crate) mod tests {
         );
         assert!(
             (app.world()
-                .get::<AlsCameraAnimationFrame>(character)
+                .get::<AlsCameraAnimationFrame>(component)
                 .unwrap()
                 .delta_seconds
                 - 0.1)
@@ -708,7 +704,7 @@ pub(crate) mod tests {
         for _ in 0..10 {
             app.update();
         }
-        let values = app.world().get::<AlsCameraCurveValues>(character).unwrap();
+        let values = app.world().get::<AlsCameraCurveValues>(component).unwrap();
         assert!((values.get(crate::als_camera::AlsCameraCurve::CameraOffsetX) - left).abs() < 1e-5);
         let view = app
             .world_mut()
