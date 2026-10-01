@@ -469,12 +469,17 @@ fn resolve_camera_socket_locations(
     names: Query<&Name, With<bevy::animation::AnimationTargetId>>,
     globals: Query<&GlobalTransform>,
     definitions: Res<Assets<AlsCameraDefinition>>,
+    instances: Query<&bevy_animation_graph::core::animated_scene::AnimatedSceneInstance>,
+    animated_bones: Query<&bevy::animation::AnimatedBy>,
 ) {
     for (mut binding, mut locations, actor, collider, handle) in &mut targets {
         let Some(definition) = definitions.get(&handle.0) else {
             continue;
         };
-        if binding.root_avatar != Some(binding.avatar) {
+        let player = instances.get(binding.avatar).ok().map(|instance| instance.player_entity());
+        if binding.root_avatar != Some(binding.avatar)
+            || player.is_some_and(|player| binding.root_bone.is_some_and(|root|
+                !animated_bones.get(root).is_ok_and(|owner| owner.0 == player))) {
             binding.root_bone = None;
             binding.root_avatar = Some(binding.avatar);
         }
@@ -482,7 +487,7 @@ fn resolve_camera_socket_locations(
             .root_bone
             .is_none_or(|entity| globals.get(entity).is_err())
         {
-            binding.root_bone = find_named_descendant(binding.avatar, "root", &children, &names);
+            binding.root_bone = find_named_descendant(player.unwrap_or(binding.avatar), "root", &children, &names);
         }
         let Some(root_bone) = binding.root_bone else {
             locations.valid = false;
@@ -1870,6 +1875,50 @@ mod tests {
         );
         assert!(!trace.blocking_hit);
         assert!(recovered > blocked + 0.02);
+    }
+
+    #[test]
+    fn camera_rebinds_root_when_player_changes_on_retained_avatar() {
+        use bevy::{ecs::system::RunSystemOnce, world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner}};
+        use bevy_animation_graph::core::{animated_scene::AnimatedSceneHandle, animation_graph_player::AnimationGraphPlayer};
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy_animation_graph::AnimationGraphPlugin::default()));
+        let mut definitions = Assets::<AlsCameraDefinition>::default();
+        let definition = definitions.add(ron::from_str::<AlsCameraDefinition>(include_str!(
+            "../../assets/ALSCamera/Data/als_camera.camera_component.ron"
+        )).unwrap());
+        app.world_mut().insert_resource(definitions);
+        let actor = app.world_mut().spawn((GlobalTransform::IDENTITY,
+            crate::als::character::als_character_capsule(0.9, 0.3))).id();
+        let avatar = app.world_mut().spawn((AnimatedSceneHandle::default(), ChildOf(actor))).id();
+        app.world_mut().entity_mut(actor).insert((AlsCameraSocketBinding::new(avatar),
+            AlsCameraSocketLocations::default(), AlsCameraDefinitionHandle(definition)));
+        let spawn_mesh = |app: &mut App, location: Vec3| {
+            let player = app.world_mut().spawn((AnimationGraphPlayer::new(default()), ChildOf(avatar),
+                GlobalTransform::from_translation(location))).id();
+            let root = app.world_mut().spawn((Name::new("root"),
+                bevy::animation::AnimationTargetId::from_names([Name::new("root")].iter()),
+                bevy::animation::AnimatedBy(player), ChildOf(player), GlobalTransform::from_translation(location))).id();
+            app.world_mut().trigger(WorldInstanceReady { entity: avatar,
+                instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
+            app.world_mut().flush();
+            (player, root)
+        };
+        let (old_player, old_root) = spawn_mesh(&mut app, Vec3::X);
+        app.world_mut().run_system_once(resolve_camera_socket_locations).unwrap();
+        assert_eq!(app.world().get::<AlsCameraSocketBinding>(actor).unwrap().root_bone, Some(old_root));
+        app.world_mut().entity_mut(old_player).remove::<ChildOf>();
+        let (player, root) = spawn_mesh(&mut app, Vec3::Z * 2.0);
+        app.world_mut().entity_mut(old_player).insert(ChildOf(avatar));
+        app.world_mut().run_system_once(resolve_camera_socket_locations).unwrap();
+        assert!(app.world().entities().contains(old_root));
+        assert_eq!(app.world().get::<AlsCameraSocketBinding>(actor).unwrap().avatar, avatar);
+        assert_eq!(app.world().get::<AlsCameraSocketBinding>(actor).unwrap().root_bone, Some(root));
+        assert_eq!(app.world().get::<AlsCameraSocketLocations>(actor).unwrap().root, Vec3::Z * 2.0);
+        app.world_mut().entity_mut(player).remove::<ChildOf>();
+        app.world_mut().run_system_once(resolve_camera_socket_locations).unwrap();
+        assert_eq!(app.world().get::<AlsCameraSocketBinding>(actor).unwrap().root_bone, Some(root));
+        assert!(app.world().get::<AlsCameraSocketLocations>(actor).unwrap().valid);
     }
 
     #[test]

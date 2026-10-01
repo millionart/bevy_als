@@ -3119,6 +3119,7 @@ struct IntegrationCoverage {
     foot_ik_mantle: bool,
     foot_ik_terrain_cleaned: bool,
     foot_bones_replaced: bool,
+    animation_phase_rebound: bool,
     camera_root_rebound: bool,
     sprint_curve_relay: bool,
     roll_started: bool,
@@ -3828,9 +3829,14 @@ fn drive_foot_ik_avatar_replacement(
     children: Query<&Children>,
     names: Query<&Name>,
     targets: Query<&AnimationTargetId>,
-    alive: Query<Entity>,
     mut camera_bindings: Query<(&mut AlsCameraSocketBinding, &AlsCameraSocketLocations)>,
+    rebuild_queries: (
+        ResMut<bevy::world_serialization::WorldInstanceSpawner>, Query<&GlobalTransform>,
+        Query<&bevy::animation::AnimatedBy>,
+        Query<Entity, With<crate::extensions::post_physics_animation::PostPhysicsAnimation>>, Query<Entity>,
+    ),
 ) {
+    let (mut world_spawner, globals, bone_players, late_players, alive) = rebuild_queries;
     if state.scenario != IntegrationScenario::FootIk
         || state.phase != IntegrationPhase::Roll
         || state.phase_elapsed() < FOOT_AVATAR_REPLACEMENT_START_SECONDS
@@ -3845,7 +3851,18 @@ fn drive_foot_ik_avatar_replacement(
         let Ok((camera_binding, _)) = camera_bindings.get_mut(character) else { return; };
         let Some(old_root) = camera_binding.root_bone else { return; };
         commands.entity(character).insert(Visibility::Inherited);
-        let new_avatar = commands.spawn((
+        let rebuild = std::env::var_os("ALS_MANUAL_ANIMATION_PHASE_REBUILD").is_some();
+        let new_avatar = if rebuild {
+            let Ok(instance) = instances.get(old_avatar) else { return; };
+            let Ok(handle) = scene_handles.get(old_avatar) else { return; };
+            let Some(scene) = scenes.get(&handle.handle) else { return; };
+            let Some(processed) = scene.processed_scene.as_ref() else { return; };
+            let Ok(world) = globals.get(instance.player_entity()) else { return; };
+            commands.entity(instance.player_entity()).remove::<ChildOf>()
+                .insert((world.compute_transform(), Visibility::Hidden));
+            world_spawner.spawn_as_child(processed.clone(), old_avatar);
+            old_avatar
+        } else { commands.spawn((
             AnimatedSceneHandle {
                 handle: assets.load(ALS_LINKED_ANIMATED_SCENE),
                 override_source: Some(AnimationSource::None),
@@ -3854,7 +3871,7 @@ fn drive_foot_ik_avatar_replacement(
             avatar_transform(),
             Visibility::Hidden,
             ChildOf(character),
-        )).id();
+        )).id() };
         state.foot_replacement_avatar = Some(new_avatar);
         state.foot_replacement_old_left = Some(old_bones.left);
         state.foot_replacement_old_root = Some(old_root);
@@ -3864,10 +3881,28 @@ fn drive_foot_ik_avatar_replacement(
     };
     let Ok(instance) = instances.get(new_avatar) else { return; };
     state.foot_replacement_progress = "await_player";
-    let Ok(mut player) = players.get_mut(instance.player_entity()) else { return; };
+    if !players.contains(instance.player_entity()) { return; }
     state.foot_replacement_progress = "await_bones";
     let Some(new_bones) = build_foot_bone_map(instance.player_entity(), &children, &names, &targets) else { return; };
+    if std::env::var_os("ALS_MANUAL_ANIMATION_PHASE_REBUILD").is_some() {
+        let Some(old_left) = state.foot_replacement_old_left else { return; };
+        if new_bones.left == old_left { return; }
+        let Ok(old_player) = bone_players.get(old_left) else { return; };
+        if !late_players.contains(instance.player_entity()) || late_players.contains(old_player.0) {
+            state.foot_replacement_progress = "await_player_phase";
+            return;
+        }
+        if !state.coverage.animation_phase_rebound {
+            if let Ok(mut previous) = players.get_mut(old_player.0) {
+                previous.set_animation(AnimationSource::None);
+            }
+            state.coverage.animation_phase_rebound = true;
+            rebase_temporal_fixture(&mut state, &mut phase_evidence, "retained_avatar_player_rebuild");
+            info!("[MANUAL-INTEGRATION][ANIMATION-PHASE-REBUILD] avatar={old_avatar:?} old_player={:?} current_player={:?} -> PASS", old_player.0, instance.player_entity());
+        }
+    }
     if old_avatar != new_avatar {
+        let Ok(mut player) = players.get_mut(instance.player_entity()) else { return; };
         let Ok(mut assembly) = assemblies.get_mut(character) else { return; };
         let Ok(scene_handle) = scene_handles.get(new_avatar) else { return; };
         let Some(scene) = scenes.get(&scene_handle.handle) else { return; };
@@ -10288,10 +10323,11 @@ fn observe_manual_integration(
                         "no_progress_limit_seconds": FOOT_AVATAR_REPLACEMENT_NO_PROGRESS_LIMIT_SECONDS,
                         "current_conditions": {"selected": state.avatar == state.foot_replacement_avatar,
                             "covered": coverage.foot_bones_replaced,
-                            "camera_root_rebound": coverage.camera_root_rebound}
+                            "camera_root_rebound": coverage.camera_root_rebound,
+                            "animation_phase_rebound": coverage.animation_phase_rebound}
                     }}));
                 }
-                vec![
+                let mut results = vec![
                 ("runtime_assembly", coverage.assembly),
                 ("animation_graph", coverage.graph),
                 ("standing_graph", coverage.standing_graph),
@@ -10317,7 +10353,11 @@ fn observe_manual_integration(
                 ("foot_ik_terrain_cleaned", coverage.foot_ik_terrain_cleaned),
                 ("foot_bones_replaced", coverage.foot_bones_replaced),
                 ("camera_root_rebound", coverage.camera_root_rebound),
-            ]
+            ];
+                if std::env::var_os("ALS_MANUAL_ANIMATION_PHASE_REBUILD").is_some() {
+                    results.push(("animation_phase_rebound", coverage.animation_phase_rebound));
+                }
+                results
             },
             IntegrationScenario::Ragdoll => vec![
                 ("runtime_assembly", coverage.assembly),
