@@ -3142,30 +3142,53 @@ fn grounded_step_up_system(
             if hit.point1.y <= center.y - half - clearance || hit.point1.y > center.y + half - radius {
                 continue;
             }
-            let Some((_, impact_y, _)) = find_ground_floor(&spatial_query, center, half, radius, &params.cmc, *loco, &filter, entity, &candidates) else { continue };
+            let Some((floor_center, impact_y, _)) = find_ground_floor(&spatial_query, center, half, radius, &params.cmc, *loco, &filter, entity, &candidates) else { continue };
             initial_floor_y = Some(impact_y);
             let up_config = ShapeCastConfig {
                 ignore_origin_penetration: true,
-                ..ShapeCastConfig::from_max_distance(MAX_STEP_HEIGHT - clearance)
+                ..ShapeCastConfig::from_max_distance((MAX_STEP_HEIGHT - (center.y - floor_center).max(0.0)).max(0.0))
             };
             let lift = spatial_query.cast_shape_predicate(capsule, raised, Quat::IDENTITY, Dir3::Y, &up_config, &filter, &accepts)
-                .map_or(up_config.max_distance, |hit| hit.distance);
+                .map_or(up_config.max_distance, |hit| movement_sweep_travel(up_config.max_distance, hit.distance));
             raised.y += lift;
-            if spatial_query.cast_shape_predicate(capsule, raised, Quat::IDENTITY, direction, &forward_config, &filter, &accepts).is_some() {
-                continue;
+            if let Some(hit) = spatial_query.cast_shape_predicate(capsule, raised, Quat::IDENTITY,
+                direction, &forward_config, &filter, &accepts) {
+                if hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0 { continue; }
+                let advance = *direction * movement_sweep_travel(forward_config.max_distance, hit.distance);
+                let normal = if hit.normal1.y > 0.0 && hit.normal1.y < deg_to_rad(MAX_SLOPE_DEGREES).cos() {
+                    hit.normal1.with_y(0.0).normalize_or_zero()
+                } else { hit.normal1 };
+                let tail = remaining_delta - advance;
+                let slide = tail - normal * tail.dot(normal);
+                let mut progressed = advance;
+                if slide.dot(remaining_delta) > 0.0 && let Ok((slide_direction, slide_distance)) = Dir3::new_and_length(slide) {
+                    let slide_config = ShapeCastConfig { max_distance: slide_distance, ..forward_config };
+                    let slide_hit = spatial_query.cast_shape_predicate(capsule, raised + advance, Quat::IDENTITY,
+                        slide_direction, &slide_config, &filter, &accepts);
+                    if slide_hit.is_some_and(|hit| hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0) { continue; }
+                    progressed += *slide_direction * slide_hit.map_or(slide_distance,
+                        |hit| movement_sweep_travel(slide_distance, hit.distance));
+                }
+                if progressed.length_squared() <= f32::EPSILON { continue; }
+                remaining_delta = progressed;
             }
         }
         let destination = raised + remaining_delta;
         let Some(floor) = floor_sweep_hit(&spatial_query, capsule, radius, destination,
-            MAX_STEP_HEIGHT + clearance * 2.0, &filter, &accepts)
+            MAX_STEP_HEIGHT + MAX_FLOOR_DISTANCE * 2.0, &filter, &accepts)
             .filter(|hit| hit.normal1.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos()) else {
             continue;
         };
+        if floor.distance == 0.0 && (floor.point1 - floor.point2).dot(floor.normal1) > 0.0 { continue; }
         let next_y = destination.y - floor.distance + clearance;
+        if initial_floor_y.is_some() && find_ground_floor(&spatial_query, destination.with_y(next_y), half, radius,
+            &params.cmc, *loco, &filter, entity, &candidates).is_none() { continue; }
         if (next_y - center.y).abs() > MAX_STEP_HEIGHT
             || initial_floor_y.is_some_and(|initial| floor.point1.y - initial > MAX_STEP_HEIGHT) {
             continue;
         }
+        if initial_floor_y.is_some() && spatial_query.shape_intersections(capsule, destination.with_y(next_y),
+            transform.rotation, &filter).into_iter().any(accepts) { continue; }
         if next_y > center.y {
             transform.translation.y = next_y;
             commands.entity(entity).insert(Position(transform.translation));
@@ -3615,6 +3638,65 @@ mod tests {
                         assert!(!overlaps.contains(&roof), "Actual capsule overlaps the roof: kind={kind} frame={frame}");
                     }
                 }).unwrap();
+            }
+        }
+    }
+
+    #[test]
+    fn partial_forward_step_keeps_progress_before_a_blocking_wall() {
+        use bevy::ecs::system::RunSystemOnce;
+        for prior_advance in [0.0, 0.07] {
+            for (delta_seconds, distance) in [(1.0 / 60.0, 0.325), (0.1, 0.325), (0.1, 0.2)] {
+                for case in ["close", "none", "far", "zero", "ceiling", "low_ceiling", "too_high", "slide"] {
+                    let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+                    for _ in 0..30 { app.update(); }
+                    let old: Vec<_> = app.world_mut().query::<(Entity, &RigidBody)>().iter(app.world())
+                        .filter_map(|(entity, body)| (*body == RigidBody::Static).then_some(entity)).collect();
+                    for entity in old { app.world_mut().despawn(entity); }
+                    app.world_mut().spawn((RigidBody::Static, Collider::cuboid(20.0, 0.2, 20.0), Transform::from_xyz(0.0, -0.1, 0.0)));
+                    let height = if case == "too_high" { 0.55 } else { 0.2 };
+                    app.world_mut().spawn((RigidBody::Static, Collider::cuboid(1.0, height, 20.0), Transform::from_xyz(0.9, height * 0.5, 0.0)));
+                    let mut blockers = Vec::new();
+                    if case != "none" {
+                        let face = if case == "far" { 0.9 } else if case == "zero" { 0.4 } else { 0.58 };
+                        blockers.push(app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.2, 4.0, 20.0), Transform::from_xyz(face + 0.1, 2.0, 0.0))).id());
+                    }
+                    if matches!(case, "ceiling" | "low_ceiling") {
+                        let bottom = if case == "ceiling" { 1.825 } else { 1.85 };
+                        blockers.push(app.world_mut().spawn((RigidBody::Static, Collider::cuboid(20.0, 0.2, 20.0), Transform::from_xyz(0.0, bottom + 0.1, 0.0))).id());
+                    }
+                    app.update();
+                    let start = Vec3::new(prior_advance, 0.924, 0.0);
+                    app.world_mut().entity_mut(character).insert((Position(start), Transform::from_translation(start), LinearVelocity::ZERO, LocomotionState::Grounded));
+                    let direction = if case == "slide" { Vec3::new(1.0, 0.0, 0.3).normalize() } else { Vec3::X };
+                    let request = direction * distance;
+                    let mut time = Time::<()>::default(); time.advance_by(std::time::Duration::from_secs_f32(delta_seconds)); app.insert_resource(time);
+                    let mut motor = app.world_mut().get_mut::<TnuaMotor>(character).unwrap();
+                    motor.lin.boost = request / delta_seconds; motor.lin.acceleration = Vec3::ZERO;
+                    app.world_mut().run_system_once(grounded_step_up_system).unwrap();
+                    let position = app.world().get::<Position>(character).unwrap().0;
+                    let motor = app.world().get::<TnuaMotor>(character).unwrap();
+                    let endpoint = position + (motor.lin.boost + motor.lin.acceleration * delta_seconds).with_y(0.0) * delta_seconds;
+                    if matches!(case, "zero" | "ceiling" | "too_high") {
+                        assert!((endpoint.y - start.y).abs() < 0.0001, "Failed step did not roll back: {case} {endpoint:?}");
+                    } else if case == "low_ceiling" {
+                        assert!(endpoint.y >= start.y && endpoint.y <= 0.95, "Partial rise exceeded available headroom: {endpoint:?}");
+                    } else {
+                        assert!(endpoint.y > 1.02, "Valid step lost its landing: {case} {endpoint:?}");
+                        if matches!(case, "none" | "far") {
+                            assert!((endpoint.x - start.x - request.x).abs() < 0.0001);
+                        } else if start.x + request.x > 0.28 {
+                            assert!(endpoint.x > 0.25 && endpoint.x < 0.28, "Partial step progress lost: {case} {endpoint:?}");
+                        } else { assert!((endpoint.x - start.x - request.x).abs() < 0.011); }
+                        if case == "slide" { assert!((endpoint.z - request.z).abs() < 0.0001, "Step slide discarded progress: {endpoint:?}"); }
+                    }
+                    let checked = if matches!(case, "zero" | "ceiling" | "too_high") { position } else { endpoint };
+                    app.world_mut().run_system_once(move |spatial: SpatialQuery, colliders: Query<&Collider>| {
+                        let overlaps = spatial.shape_intersections(colliders.get(character).unwrap(), checked, Quat::IDENTITY,
+                            &SpatialQueryFilter::from_excluded_entities([character]));
+                        assert!(blockers.iter().all(|entity| !overlaps.contains(entity)), "Committed step position overlaps a blocker: {case} {checked:?}");
+                    }).unwrap();
+                }
             }
         }
     }
