@@ -308,9 +308,9 @@ fn dispatch_graph_footsteps(
     manifests: Res<Assets<AlsNotifyManifest>>,
     graphs: Res<Assets<bevy_animation_graph::core::animation_graph::AnimationGraph>>,
     server: Res<AssetServer>,
-    avatars: Query<(&crate::character_assembly::AlsCharacterAvatar, &bevy_animation_graph::core::animated_scene::AnimatedSceneInstance)>,
+    avatars: Query<(Entity, &crate::character_assembly::AlsCharacterAvatar, &bevy_animation_graph::core::animated_scene::AnimatedSceneInstance)>,
     players: Query<&bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer>,
-    mut runtimes: Query<&mut AlsAnimationEventRuntime>,
+    mut runtimes: Query<(&crate::character_assembly::AlsCharacterAssembly, &mut AlsAnimationEventRuntime)>,
     mut frames: Local<HashMap<Entity, GraphFootstepDispatch>>,
     mut events: MessageWriter<AlsAnimationEvent>,
     mut shakes: MessageWriter<AlsCameraShakeRequest>,
@@ -318,7 +318,9 @@ fn dispatch_graph_footsteps(
     use bevy_animation_graph::core::{animation_graph_player::AnimationSource, context::node_states::StateKey};
     use crate::extensions::sync_group_phase::source_sync_players;
     let Some(manifest) = manifest_handle.as_ref().and_then(|handle| manifests.get(&handle.0)) else { return; };
-    for (avatar, instance) in &avatars {
+    for (avatar_entity, avatar, instance) in &avatars {
+        let Ok((assembly, mut runtime)) = runtimes.get_mut(avatar.character) else { continue; };
+        if assembly.avatar != avatar_entity { continue; }
         let entity = instance.player_entity();
         let Ok(player) = players.get(entity) else { continue; };
         if player.is_paused() || player.get_error().is_some() { continue; }
@@ -328,7 +330,6 @@ fn dispatch_graph_footsteps(
         let Some(node) = crate::animation_context_projection::root_pose_source_node(graph) else { continue; };
         let Some(context) = crate::extensions::animation_context::node_context_state(&arena.get_toplevel().node_states, StateKey::Default, node) else { continue; };
         let source_instance = notify_root_instance(arena);
-        let Ok(mut runtime) = runtimes.get_mut(avatar.character) else { continue; };
         runtime.set_instance(source_instance);
         let state = frames.entry(entity).or_default();
         let frame = (source_instance, arena.frame_index());
@@ -1136,6 +1137,85 @@ mod tests {
     }
 
     #[test]
+    fn graph_notifications_ignore_retained_avatars_in_both_orders() {
+        use bevy_animation_graph::core::{animated_scene::{AnimatedSceneHandle, AnimatedSceneInstance},
+            animation_graph::AnimationGraph, animation_graph_player::AnimationGraphPlayer,
+            animation_node::AnimationNode, edge_data::DataSpec};
+        use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar};
+        let (mut app, character, first, scene) = crate::camera_component::tests::loaded_camera_scene();
+        app.world_mut().entity_mut(first)
+            .remove::<(crate::camera_component::AlsSourceCameraComponent, crate::character_assembly::AlsCharacterCamera)>()
+            .insert(AlsCharacterAvatar { character });
+        app.world_mut().entity_mut(character).insert((AlsCharacter, AlsCharacterAssembly { avatar: first, camera: None }));
+        let second = app.world_mut().spawn((AlsCharacterAvatar { character }, AnimatedSceneHandle::new(scene),
+            Transform::from_xyz(10.0, 0.0, 0.0), ChildOf(character))).id();
+        for _ in 0..20 {
+            app.update();
+            if app.world().get::<AnimatedSceneInstance>(second).is_some() { break; }
+        }
+        let players = [first, second].map(|avatar| app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity());
+        let clip: Handle<GraphClip> = app.world().resource::<AssetServer>()
+            .load("ALS/Animations/Grounded/Sprint/A_Als_Sprint.anim.ron");
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        while app.world().resource::<Assets<GraphClip>>().get(&clip).is_none() {
+            app.update();
+            assert!(std::time::Instant::now() < deadline, "Retained avatar source clip load timed out");
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        let skeleton = app.world().resource::<Assets<GraphClip>>().get(&clip).unwrap().skeleton.clone();
+        let node = AnimationNode::new("source sprint", crate::extensions::SourceSequencePlayerNode {
+            clip, loop_animation: true, ..default()
+        });
+        let mut graph = AnimationGraph::default();
+        graph.add_output_data("pose".to_owned(), DataSpec::Pose);
+        graph.add_output_data_edge(node.id, "Pose", "pose");
+        graph.add_node(node);
+        let graph = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(graph);
+        for player in players {
+            app.world_mut().entity_mut(player).remove::<crate::extensions::post_physics_animation::ManualAnimationPlayer>()
+                .insert(AnimationGraphPlayer::new(skeleton.clone()).with_graph(graph.clone()));
+        }
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
+        for selected in [0, 1] {
+            let current = players[selected];
+            let old = players[1 - selected];
+            app.world_mut().get_mut::<AlsCharacterAssembly>(character).unwrap().avatar = [first, second][selected];
+            app.world_mut().get_mut::<AnimationGraphPlayer>(current).unwrap().resume();
+            app.world_mut().get_mut::<AnimationGraphPlayer>(old).unwrap().resume();
+            app.update();
+            let generation = notify_root_instance(app.world().get::<AnimationGraphPlayer>(current).unwrap().get_context_arena().unwrap());
+            app.world_mut().get_mut::<AnimationGraphPlayer>(current).unwrap().pause();
+            app.world_mut().get_mut::<AlsAnimationEventRuntime>(character).unwrap().montage_chance.0 = 17;
+            app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().clear();
+            app.world_mut().resource_mut::<Messages<AlsCameraShakeRequest>>().clear();
+            for _ in 0..90 {
+                app.update();
+                let old_player = app.world().get::<AnimationGraphPlayer>(old).unwrap();
+                assert!(old_player.get_error().is_none(), "{:?}", old_player.get_error());
+                assert!(!app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain()
+                    .any(|event| event.character == character && event.source_asset == SOURCE_SPRINT),
+                    "The retained moving avatar must not dispatch notifications for the stopped current avatar");
+                assert_eq!(app.world_mut().resource_mut::<Messages<AlsCameraShakeRequest>>().drain().count(), 0);
+                let runtime = app.world().get::<AlsAnimationEventRuntime>(character).unwrap();
+                assert_eq!(runtime.instance_id, generation);
+                assert_eq!(runtime.montage_chance.0, 17);
+            }
+            app.world_mut().get_mut::<AnimationGraphPlayer>(current).unwrap().resume();
+            let mut steps = 0;
+            for _ in 0..90 {
+                app.update();
+                for event in app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain() {
+                    if event.character == character && event.class_name == "AlsAnimNotify_FootstepEffects" {
+                        assert_eq!(event.instance_id, generation);
+                        steps += 1;
+                    }
+                }
+            }
+            assert!(steps >= 2, "The current avatar must still dispatch its own source footsteps");
+        }
+    }
+
+    #[test]
     fn generated_clip_playback_dispatches_footsteps_from_its_actual_clock() {
         use bevy_animation_graph::core::{animated_scene::AnimatedSceneInstance,
             animation_graph::AnimationGraph, animation_graph_player::AnimationGraphPlayer,
@@ -1145,7 +1225,8 @@ mod tests {
         app.world_mut().entity_mut(avatar)
             .remove::<(crate::camera_component::AlsSourceCameraComponent, crate::character_assembly::AlsCharacterCamera)>()
             .insert(crate::character_assembly::AlsCharacterAvatar { character });
-        app.world_mut().entity_mut(character).insert(AlsCharacter);
+        app.world_mut().entity_mut(character).insert((AlsCharacter,
+            crate::character_assembly::AlsCharacterAssembly { avatar, camera: None }));
         let clip: Handle<GraphClip> = app.world().resource::<AssetServer>()
             .load("ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.anim.ron");
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
@@ -1331,7 +1412,8 @@ mod tests {
         app.world_mut().entity_mut(avatar)
             .remove::<(crate::camera_component::AlsSourceCameraComponent, crate::character_assembly::AlsCharacterCamera)>()
             .insert(crate::character_assembly::AlsCharacterAvatar { character });
-        app.world_mut().entity_mut(character).insert(AlsCharacter);
+        app.world_mut().entity_mut(character).insert((AlsCharacter,
+            crate::character_assembly::AlsCharacterAssembly { avatar, camera: None }));
         let clips = [SOURCE_SPRINT, SOURCE_SPRINT_ACCELERATION].map(|source| {
             let path = if source == SOURCE_SPRINT {
                 "ALS/Animations/Grounded/Sprint/A_Als_Sprint.anim.ron"
@@ -1653,7 +1735,8 @@ mod tests {
         app.world_mut().entity_mut(avatar)
             .remove::<(crate::camera_component::AlsSourceCameraComponent, crate::character_assembly::AlsCharacterCamera)>()
             .insert(crate::character_assembly::AlsCharacterAvatar { character });
-        app.world_mut().entity_mut(character).insert(AlsCharacter);
+        app.world_mut().entity_mut(character).insert((AlsCharacter,
+            crate::character_assembly::AlsCharacterAssembly { avatar, camera: None }));
         let clip: Handle<GraphClip> = app.world().resource::<AssetServer>()
             .load("ALS/Animations/Grounded/WalkRun/A_Als_Walk_Forward.anim.ron");
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
