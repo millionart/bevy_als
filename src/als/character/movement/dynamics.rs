@@ -164,29 +164,33 @@ pub fn grounded_velocity_step_with_braking_friction(
     let desired_amount = desired_horizontal.length().min(1.0);
     let speed = horizontal_velocity.length();
     let delta_seconds = delta_seconds.max(0.0);
-    if desired_amount <= 1e-6 {
+    let target_speed = analog_target_speed(max_speed, desired_amount, min_analog_walk_speed);
+    let overspeed = horizontal_velocity.length_squared() > target_speed * target_speed * MAX_SPEED_SQUARED_RATIO;
+    let desired_direction = desired_horizontal.normalize_or_zero();
+    let mut next = horizontal_velocity;
+    if desired_amount <= 1e-6 || overspeed {
         let friction_alpha =
             (dynamics.ground_friction.max(0.0) * braking_friction_factor.max(0.0) * delta_seconds)
                 .clamp(0.0, 1.0);
         let frictioned_velocity = horizontal_velocity * (1.0 - friction_alpha);
         let braking_delta = (dynamics.braking_deceleration.max(0.0) * delta_seconds)
             .min(frictioned_velocity.length());
-        return frictioned_velocity - frictioned_velocity.normalize_or_zero() * braking_delta;
+        next = frictioned_velocity - frictioned_velocity.normalize_or_zero() * braking_delta;
+        if overspeed && next.length_squared() < target_speed * target_speed
+            && desired_direction.dot(horizontal_velocity) > 0.0
+        {
+            next = horizontal_velocity.normalize_or_zero() * target_speed;
+        }
+    } else {
+        let friction_alpha = (dynamics.ground_friction.max(0.0) * delta_seconds).clamp(0.0, 1.0);
+        next -= (next - desired_direction * speed) * friction_alpha;
     }
-    let desired_direction = desired_horizontal.normalize_or_zero();
-    let friction_alpha = (dynamics.ground_friction.max(0.0) * delta_seconds).clamp(0.0, 1.0);
-    let direction_adjusted =
-        horizontal_velocity - (horizontal_velocity - desired_direction * speed) * friction_alpha;
-    let accelerated = direction_adjusted
-        + desired_direction * dynamics.acceleration.max(0.0) * desired_amount * delta_seconds;
-    let target_speed = analog_target_speed(max_speed, desired_amount, min_analog_walk_speed);
-    if horizontal_velocity.length_squared() > target_speed * target_speed * MAX_SPEED_SQUARED_RATIO
-        && accelerated.dot(horizontal_velocity) > 0.0 {
-        let braking_delta = (dynamics.braking_deceleration.max(0.0) * delta_seconds).min(speed);
-        let minimum_speed = if desired_direction.dot(horizontal_velocity) > 0.0 { target_speed } else { 0.0 };
-        return horizontal_velocity.normalize_or_zero() * (speed - braking_delta).max(minimum_speed);
-    }
-    accelerated.clamp_length_max(target_speed)
+    if desired_amount <= 1e-6 { return next; }
+    let input_limit = if next.length_squared() > target_speed * target_speed * MAX_SPEED_SQUARED_RATIO {
+        next.length()
+    } else { target_speed };
+    (next + desired_direction * dynamics.acceleration.max(0.0) * desired_amount * delta_seconds)
+        .clamp_length_max(input_limit)
 }
 
 pub fn analog_target_speed(max_speed: f32, desired_amount: f32, min_analog_walk_speed: f32) -> f32 {
@@ -498,6 +502,62 @@ impl Plugin for AlsGroundedDynamicsPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn overspeed_turn_reaches_the_actual_motor_without_rewriting_world_velocity() {
+        use bevy::ecs::system::RunSystemOnce;
+        for stance in [Stance::Standing, Stance::Crouching] {
+            for amount in [1.0, 0.4] {
+                let mut world = World::new();
+                let delta = 1.0 / 60.0;
+                let mut time = Time::<()>::default();
+                time.advance_by(std::time::Duration::from_secs_f32(delta));
+                world.insert_resource(time);
+                let mut params = Assets::<AlsMovementParams>::default();
+                let handle = params.add(AlsMovementParams::default());
+                world.insert_resource(params);
+                let mut controller = TnuaController::<AlsControlScheme>::default();
+                controller.basis.desired_motion = Vec3::Z * amount;
+                let velocity = Vec3::X * 3.75;
+                let character = world.spawn((AlsCharacter, LocomotionState::Grounded, stance, RotationMode::ViewDirection,
+                    AlsViewYaw::default(), AlsMaxAllowedGait(Gait::Walking), AlsGroundedDynamics::default(),
+                    AlsGaitAmount::default(), Position(Vec3::Y * 0.92), LinearVelocity(velocity),
+                    AlsMovementParamsHandle(handle.clone()), controller, TnuaMotor::default(), AlsCmcAdapterRuntime::default())).id();
+                world.run_system_once(grounded_dynamics_motor_system).unwrap();
+                let dynamics = world.get::<AlsGroundedDynamics>(character).unwrap().0;
+                let max_speed = max_allowed_speed(world.resource::<Assets<AlsMovementParams>>().get(&handle).unwrap(),
+                    stance, RotationMode::ViewDirection, Gait::Walking, velocity, 0.0);
+                let braked = Vec3::X * (3.75 - dynamics.braking_deceleration * delta).max(0.0);
+                let expected = (braked + Vec3::Z * dynamics.acceleration * amount * delta).clamp_length_max(braked.length());
+                assert!(braked.length() > analog_target_speed(max_speed, amount, 0.25));
+                let actual = velocity + world.get::<TnuaMotor>(character).unwrap().lin.boost;
+                assert!(actual.distance(expected) < 1e-5, "stance={stance:?} amount={amount}: {actual:?} != {expected:?}");
+                assert!(actual.z > 0.0);
+                assert_eq!(world.get::<LinearVelocity>(character).unwrap().0, velocity);
+                assert_eq!(world.get::<AlsMovementBaseDynamicsState>(character).unwrap().pre_collision_velocity, Some(actual));
+            }
+        }
+    }
+
+    #[test]
+    fn overspeed_braking_keeps_same_frame_turn_acceleration() {
+        let dynamics = GroundedDynamics { acceleration: 20.0, braking_deceleration: 15.0, ground_friction: 4.0 };
+        let next = grounded_velocity_step_with_braking_friction(Vec3::X * 3.75, Vec3::Z, 1.5,
+            dynamics, 0.25, 0.0, 1.0 / 60.0);
+        let expected = Vec3::new(3.4842343, 0.0, 0.33183184);
+        assert!(next.distance(expected) < 1e-6, "Overspeed input must follow braking: {next:?}");
+        for factor in [0.0_f32, 0.5, 3.0] {
+            for delta in [1.0_f32 / 120.0, 1.0 / 60.0, 0.02] {
+                let braked = (3.75 * (1.0 - 4.0 * factor * delta) - 15.0 * delta).max(0.0);
+                for direction in [Vec3::X, Vec3::NEG_X, Vec3::Z] {
+                    let expected = (Vec3::X * braked + direction * 20.0 * delta).clamp_length_max(braked);
+                    let actual = grounded_velocity_step_with_braking_friction(Vec3::X * 3.75, direction, 1.5,
+                        dynamics, 0.25, factor, delta);
+                    assert!(actual.distance(expected) < 1e-5, "factor={factor} delta={delta} direction={direction:?}: {actual:?} != {expected:?}");
+                }
+            }
+        }
+    }
 
     #[test]
     fn source_speed_tolerance_does_not_brake_below_the_requested_limit() {
