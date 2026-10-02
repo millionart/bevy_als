@@ -209,6 +209,11 @@ impl Plugin for AlsCharacterPlugin {
     fn build(&self, app: &mut App) {
         app.init_asset::<AlsMovementParams>()
             .init_asset::<AlsControlSchemeConfig>()
+            .init_resource::<crate::als::dynamics::AlsDefaultPhysicsVolume>()
+            .add_systems(avian3d::prelude::SubstepSchedule,
+                crate::als::dynamics::limit_falling_velocity
+                    .after(avian3d::dynamics::integrator::IntegrationSystems::Velocity)
+                    .before(avian3d::dynamics::solver::schedule::SubstepSolverSystems::WarmStart))
             .add_systems(
                 PostUpdate,
                 character_crush_recovery_system.in_set(PhysicsSystems::Last),

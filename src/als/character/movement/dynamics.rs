@@ -496,6 +496,48 @@ pub fn grounded_dynamics_motor_system(
     }
 }
 
+#[derive(Component, Debug, Clone, Copy)]
+pub struct AlsPhysicsVolume {
+    pub terminal_velocity: f32,
+}
+
+impl Default for AlsPhysicsVolume {
+    fn default() -> Self {
+        Self {
+            terminal_velocity: crate::als::movement_constants::DEFAULT_TERMINAL_VELOCITY,
+        }
+    }
+}
+
+#[derive(Resource, Debug, Default, Clone, Copy)]
+pub struct AlsDefaultPhysicsVolume(pub AlsPhysicsVolume);
+
+pub(crate) fn limit_falling_velocity(
+    time: Res<Time>,
+    gravity: Res<avian3d::prelude::Gravity>,
+    default_volume: Res<AlsDefaultPhysicsVolume>,
+    mut characters: Query<(
+        &LocomotionState, &RigidBody, &mut avian3d::dynamics::solver::solver_body::SolverBody,
+        Option<&AlsPhysicsVolume>, Option<&avian3d::prelude::GravityScale>, Option<&bevy_tnua::TnuaGravity>,
+        Option<&AlsRollState>, Option<&AlsMantleState>,
+    ), With<AlsCharacter>>,
+) {
+    if time.delta().is_zero() { return; }
+    for (mode, body, mut velocity, volume, scale, tnua_gravity, roll, mantle) in &mut characters {
+        if *mode != LocomotionState::Air || *body != RigidBody::Dynamic
+            || roll.is_some_and(AlsRollState::root_motion_active)
+            || mantle.is_some_and(|state| state.active) { continue; }
+        let gravity = crate::als::motion::effective_tnua_gravity(gravity.0,
+            scale.map_or(1.0, |scale| scale.0), tnua_gravity.map(|gravity| gravity.0));
+        let Some(direction) = gravity.try_normalize() else { continue; };
+        let limit = volume.unwrap_or(&default_volume.0).terminal_velocity.abs();
+        let falling = velocity.linear_velocity.dot(direction);
+        if falling > limit {
+            velocity.linear_velocity += direction * (limit - falling);
+        }
+    }
+}
+
 pub struct AlsGroundedDynamicsPlugin;
 
 impl Plugin for AlsGroundedDynamicsPlugin {

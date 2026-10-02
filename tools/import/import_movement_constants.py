@@ -116,6 +116,16 @@ def self_test():
             pass
         else:
             raise AssertionError('Invalid source must block generation')
+    terminal_pattern = rf'DefaultTerminalVelocity\(\s*{NUMBER}f?\s*\)'
+    assert literal('DefaultTerminalVelocity(4000.f)', terminal_pattern, 'terminal') * SOURCE_LENGTH_TO_RUNTIME_SCALE == 40.0
+    assert literal('DefaultTerminalVelocity(8000.f)', terminal_pattern, 'terminal') * SOURCE_LENGTH_TO_RUNTIME_SCALE == 80.0
+    for broken in ['Missing(4000.f)', 'DefaultTerminalVelocity(4000.f) DefaultTerminalVelocity(4000.f)']:
+        try:
+            literal(broken, terminal_pattern, 'terminal')
+        except ValueError:
+            pass
+        else:
+            raise AssertionError('Invalid terminal source must block generation')
     assert len(render(values).splitlines()) == 19
     print('Movement constants self-test PASS')
 
@@ -142,6 +152,8 @@ def main():
         (engine / 'Engine/Private/Components/PrimitiveComponent.cpp').read_text(encoding='utf-8-sig'),
         (engine / 'Engine/Private/Components/MovementComponent.cpp').read_text(encoding='utf-8-sig'),
         (engine / 'Core/Public/Math/UnrealMathUtility.h').read_text(encoding='utf-8-sig'))
+    physics = (engine / 'PhysicsCore/Private/PhysicsSettingsCore.cpp').read_text(encoding='utf-8-sig')
+    values['DEFAULT_TERMINAL_VELOCITY'] = literal(physics, rf'DefaultTerminalVelocity\(\s*{NUMBER}f?\s*\)', 'default terminal velocity') * SOURCE_LENGTH_TO_RUNTIME_SCALE
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(render(values), encoding='utf-8')
     result = {'success': True, 'source_actor': actor['asset_path'], 'length_scale': SOURCE_LENGTH_TO_RUNTIME_SCALE, 'runtime_values': values}

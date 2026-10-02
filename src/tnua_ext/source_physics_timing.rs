@@ -267,6 +267,79 @@ mod tests {
     }
 
     #[test]
+    fn ordinary_free_fall_respects_the_source_terminal_component() {
+        for gravity in [Vec3::NEG_Y * 9.8, Vec3::NEG_X * 5.0, Vec3::ZERO] {
+            for initial in [Vec3::new(30.0, -39.95, 0.0), Vec3::new(100.0, -20.0, 3.0),
+                Vec3::new(1.0, 45.0, 2.0), Vec3::new(-60.0, -60.0, 7.0)] {
+                for delta in [1.0 / 120.0, 1.0 / 60.0, 0.1] {
+                    for (default_limit, actor_limit) in [(40.0, None), (25.0, None),
+                        (25.0, Some(10.0)), (40.0, Some(-20.0))] {
+                        let mut app = App::new();
+                        app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+                            avian3d::prelude::PhysicsPlugins::new(PostUpdate), SourcePhysicsTimingPlugin,
+                            crate::als::character::AlsCharacterPlugin))
+                            .init_asset::<Mesh>().add_message::<bevy::asset::AssetEvent<Mesh>>()
+                            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(delta)))
+                            .insert_resource(avian3d::prelude::Gravity(gravity))
+                            .insert_resource(crate::als::dynamics::AlsDefaultPhysicsVolume(
+                                crate::als::dynamics::AlsPhysicsVolume { terminal_velocity: default_limit }));
+                        app.finish();
+                        app.update();
+                        let character = app.world_mut().spawn((AlsCharacter, LocomotionState::Air, RigidBody::Dynamic,
+                            Collider::capsule(0.3, 1.2), Position(Vec3::Y * 100.0), Transform::from_xyz(0.0, 100.0, 0.0),
+                            LinearVelocity(initial))).id();
+                        if let Some(limit) = actor_limit {
+                            app.world_mut().entity_mut(character).insert(crate::als::dynamics::AlsPhysicsVolume { terminal_velocity: limit });
+                        }
+                        app.update();
+                        let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
+                        let mut expected = initial + gravity * delta;
+                        let limit = actor_limit.unwrap_or(default_limit).abs();
+                        if let Some(direction) = gravity.try_normalize() {
+                            let falling = expected.dot(direction);
+                            if falling > limit { expected += direction * (limit - falling); }
+                        }
+                        assert!(velocity.distance(expected) < 1e-4,
+                            "gravity={gravity:?} initial={initial:?} delta={delta} default={default_limit} actor={actor_limit:?}: {velocity:?} != {expected:?}");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn terminal_volume_preserves_root_motion_and_scaled_gravity() {
+        for root_motion in [false, true] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+                avian3d::prelude::PhysicsPlugins::new(PostUpdate), SourcePhysicsTimingPlugin,
+                crate::als::character::AlsCharacterPlugin))
+                .init_asset::<Mesh>().add_message::<bevy::asset::AssetEvent<Mesh>>()
+                .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0 / 60.0)))
+                .insert_resource(avian3d::prelude::Gravity(Vec3::NEG_Y * 9.8));
+            app.finish();
+            app.update();
+            let character = app.world_mut().spawn((AlsCharacter, LocomotionState::Air, RigidBody::Dynamic,
+                Collider::capsule(0.3, 1.2), Position(Vec3::Y * 1000.0), Transform::from_xyz(0.0, 1000.0, 0.0),
+                LinearVelocity(Vec3::new(100.0, -60.0, 3.0)), avian3d::prelude::GravityScale(0.5),
+                crate::als::dynamics::AlsPhysicsVolume { terminal_velocity: 20.0 })).id();
+            if root_motion {
+                app.world_mut().entity_mut(character).insert(crate::als::roll::AlsRollState { active: true, time: 0.0, ..default() });
+            }
+            app.update();
+            let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
+            let expected = if root_motion { -60.0 - 4.9 / 60.0 } else { -20.0 };
+            assert!((velocity.y - expected).abs() < 1e-4);
+            assert_eq!(velocity.x, 100.0);
+            assert_eq!(velocity.z, 3.0);
+            app.world_mut().entity_mut(character).remove::<crate::als::roll::AlsRollState>();
+            app.world_mut().get_mut::<LinearVelocity>(character).unwrap().0 = Vec3::ZERO;
+            for _ in 0..300 { app.update(); }
+            assert!((app.world().get::<LinearVelocity>(character).unwrap().y + 20.0).abs() < 1e-4);
+        }
+    }
+
+    #[test]
     fn horizontal_acceleration_consumes_the_full_character_frame() {
         for mode in [LocomotionState::Grounded, LocomotionState::Air] {
             let mut app = App::new();
