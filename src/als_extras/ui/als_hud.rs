@@ -629,6 +629,52 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn source_ui_bindings_reach_hud_and_virtual_time_once_per_press() {
+        use crate::als::input::{AlsInputMap, AlsInputPlugin, spawn_als_actions};
+        for custom in [false, true] {
+            for (button, key, toggle_ui) in [
+                (Some(if custom { GamepadButton::Start } else { GamepadButton::Select }), None, true),
+                (Some(if custom { GamepadButton::Select } else { GamepadButton::Start }), None, false),
+                (None, Some(KeyCode::Tab), true), (None, Some(KeyCode::KeyZ), false)] {
+                let mut app = App::new();
+                app.add_plugins((MinimalPlugins, EnhancedInputPlugin, AlsInputPlugin))
+                    .insert_resource(ButtonInput::<KeyCode>::default()).init_resource::<AlsHudState>()
+                    .add_systems(Update, (toggle_ui_system, slomo_system));
+                app.finish();
+                let gamepad = app.world_mut().spawn(Gamepad::default()).id();
+                let player = app.world_mut().spawn_empty().id();
+                let debug = app.world_mut().spawn((Node::default(), AlsHudDebugSection)).id();
+                let input = app.world_mut().spawn((Node::default(), AlsHudInputSection)).id();
+                let mut map = AlsInputMap::default();
+                if custom {
+                    map.toggle_ui = vec![KeyCode::Tab.into(), GamepadButton::Start.into()];
+                    map.slomo = vec![KeyCode::KeyZ.into(), GamepadButton::Select.into()];
+                }
+                spawn_als_actions(&mut app.world_mut().commands(), player, &map);
+                app.update(); app.update();
+                for (frame, pressed) in [true, true, false, true].into_iter().enumerate() {
+                    if let Some(button) = button {
+                        app.world_mut().get_mut::<Gamepad>(gamepad).unwrap().analog_mut().set(button, if pressed { 1.0 } else { 0.0 });
+                    }
+                    if let Some(key) = key {
+                        let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+                        if pressed { keys.press(key); } else { keys.release(key); }
+                    }
+                    app.update();
+                    let state = *app.world().resource::<AlsHudState>();
+                    let active = frame < 3;
+                    assert_eq!(state.ui_visible, !(toggle_ui && active), "custom={custom} button={button:?} key={key:?} frame={frame}: {state:?}");
+                    assert_eq!(state.slomo_active, !toggle_ui && active);
+                    assert_eq!(app.world().resource::<Time<Virtual>>().relative_speed(), if !toggle_ui && active { SLMO_TIME_SCALE } else { 1.0 });
+                    for section in [debug, input] {
+                        assert_eq!(app.world().get::<Node>(section).unwrap().display, if toggle_ui && active { Display::None } else { Display::Flex });
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
     fn widget_slots_fill_headers_and_keep_padding_inside_the_first_cell() {
         let mut app = hud_layout_app();
         let root = app

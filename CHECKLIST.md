@@ -68,7 +68,7 @@
 - [x] **BF132.R5E-11 — 出生解重叠只选单个最短轴，丢掉多障碍所需的组合 MTD**。Gate：单/多障碍组合调整与源重试顺序一致，成功与不可恢复出生点区分。
 - [x] **BF132.R5E-12 — 默认高位向下探地把合法室内出生点搬到屋顶**。Gate：合法室内出生位置保留，确有重叠/落地需要时按源查找，不以屋顶替换。
 - [x] **BF132.R5E-13 — 补充完整半径地面检测绕过源缩小半径停靠复检**。Gate：边缘/侧墙接触不能绕过缩半径复检，可靠地面与已接地控制通过。
-- [ ] **BF132.R5E-14 — 手柄 Select/Start 的默认 ToggleUI 与 Slomo 绑定相反**。Gate：fresh 源输入资产与运行绑定逐键一致，两个动作各自触发。
+- [x] **BF132.R5E-14 — 手柄 Select/Start 的默认 ToggleUI 与 Slomo 绑定相反**。Gate：fresh 源输入资产与运行绑定逐键一致，两个动作各自触发。
 - [ ] **BF132.R5E-15 — 平台变换跟随的 sweep 把普通 Sensor/不相交碰撞层当作阻挡**。Gate：同一路径区分非阻挡重叠与有效 Block，平台移动/旋转及真实障碍通过。
 - [ ] **BF132.R5E-16 — 移动基座起跳首个长帧漏掉整帧重力速度补偿**。Gate：首帧长 Delta、普通帧与脱离平台使用源整帧重力与相对速度合同。
 - [ ] **BF132.R5E-17 — 有效出生点尚在稳定采样时被 GameMode 误判为终止入场失败**。Gate：进展、稳定等待与终止失败分别处理，正常出生不提前报失败且有 watchdog。
@@ -273,3 +273,9 @@
 - BF132.R5E-13-S2：开始2026-10-03 02:42 +08:00；预估结束2026-10-03 03:12 +08:00。依据：55项定向与source/static/消融已闭合，同类同入口构建约143秒，startup/stairs/uphill_jump/moving_base/foot_ik约200秒；本轮仅真实入口及报告审计后单独提交，截图/完整性能原暂停范围保留。
   - Runtime前摘要（02:45 +08:00）：target_game/play实际启动器最终预构建149.669秒通过；55项定向、56组perch/3法线矩阵、实际两mode20帧拒绝contact清base、sweep-only正负轨迹、perch与consumer独立消融red/恢复green，fresh source/CDO/23项完整数值diff与static通过。无持久cache/新类型/状态，图/转换未改；开始同一二进制startup/stairs/uphill_jump/moving_base/foot_ik真实功能Gate，截图/完整性能原暂停范围保留。
   - S2实际结束2026-10-03 02:51 +08:00；相对03:12预估偏差-21分钟；结果：同一恢复版二进制startup、Stairs 9/9、UphillJump 6/6、MovingBase 10/10、FootIk 22/22真实功能runner/manual/validator均退出0，五报告图错误/primary failure/故障/时序/watchdog均0；五报告完整max_eval_p95_ms预算未通过，截图/完整性能原暂停范围保留。55项定向、56半径/距离矩阵、3法线、当帧真实mode/base与sweep-only正负轨迹，perch/consumer独立消融及源码恢复全部闭合；复用原生hit/局部compute和现有cmc参数、合并当帧重复查询，未新增持久cache/类型/状态，原21数值完整diff不变且图/共享AnimBP转换未改。S1静态与S2真实入口分别提前通过，勾选R5E-13单独提交；下一项R5E-14，30项待处理。
+- BF132.R5E-14-S1：开始2026-10-03 02:54 +08:00；预估结束2026-10-03 03:14 +08:00。依据：本地IMC_Als_UI native reader、UE Back/Start名称与当前Bevy gilrs/InputReader映射事实，目标仅两默认binding及既有EnhancedInput→START→HUD/VirtualTime consumer；同类原生输入/HUD fixture可用最小矩阵。先验证默认Select/Start consumer red，交换默认值并保持键盘/其他键及custom map；受控custom映射检验配置边界，真实Interface Gate另登记S2，不改输入触发器/硬件驱动。
+  - source/static摘要（02:57 +08:00）：fresh native IMC_Als_UI在UE5.8 DefaultKeyMappings明确10条，legacy Mappings为空；ToggleUI=Tab/Special_Left，Slomo=Z/Special_Right，源Xbox名称Back/Start与本机Bevy gilrs Select/Start一一对应。原生EnhancedInput→START→实际HUD consumer旧默认Select没有切UI，稳定red；仅交换两默认binding并更新既有全map断言，键盘及其余配置未改。测试复用真实consumer，涵盖两个pad键/Tab/Z、custom反向重绑定、按下/保持/释放/再按的UI Node与VirtualTime；删除初版重复终态断言和无用局部变量，不新增生产抽象/状态/触发条件。下一步最小native consumer green与输入/HUD定向回归，然后真实Interface Gate。
+  - S1实际结束2026-10-03 03:00 +08:00；相对03:14预估偏差-14分钟；结果：10项input/11项HUD共21项通过，8种默认/custom/键盘/pad路径各按下/保持/释放/再按验证实际HUD Node、两个状态及VirtualTime 1↔.15。默认Select旧UI未切稳定red，交换后green；受控custom反向映射恢复旧键→动作关系并仍单次触发，默认源路径恢复，证明配置边界，无新生产抽象/状态/触发器。fresh native DefaultKeyMappings 10条与实际map/正负滚轮安装链完整对账，修改前仅两个Special键相反、修改后0差异；UE Back/Start与本机gilrs对应、static root/layout/editor/资产边界通过，source/图/转换未改。下一步同入口构建与Interface真实功能Gate。
+- BF132.R5E-14-S2：开始2026-10-03 03:00 +08:00；预估结束2026-10-03 03:25 +08:00。依据：两默认值/21项定向和完整10映射已闭合，同类入口构建约143秒、Interface约24秒，本轮仅真实入口/报告审计与单独提交，截图/完整性能原暂停范围保留。
+  - Runtime前摘要（03:03 +08:00）：target_game/play实际启动器最终预构建142.212秒通过；fresh native 10条完整键→动作对账、21项定向、默认red/恢复green与custom反向配置受控消融、按键保持START一次及实际HUD/VirtualTime、static通过。无新生产抽象/状态/触发器，图/转换未改；开始同一二进制Interface真实功能Gate，截图/完整性能原暂停范围保留。
+  - S2实际结束2026-10-03 03:05 +08:00；相对03:25预估偏差-20分钟；结果：同一最终二进制Interface 15/15真实功能runner/manual/validator均退出0，图错误/primary failure/故障/时序/watchdog均0；完整max_eval_p95_ms预算未通过，截图/完整性能原暂停范围保留。fresh native 10键映射修改前2差异/修改后0，21项定向与默认/custom/键盘/保持/二次按下的实际Node及VirtualTime验证闭合；只交换两默认pad值，无新抽象/状态/触发器/设备代码，原source/图/转换未改。S1/S2均提前通过，勾选R5E-14单独提交；下一项R5E-15，29项待处理。

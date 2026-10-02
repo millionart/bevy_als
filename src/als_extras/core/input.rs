@@ -187,8 +187,8 @@ impl Default for AlsInputMap {
             view_mode: vec![KeyCode::Digit2.into(), GamepadButton::DPadRight.into()],
             switch_shoulder: vec![KeyCode::KeyC.into(), GamepadButton::RightThumb.into()],
             overlay_menu: vec![KeyCode::KeyQ.into(), GamepadButton::North.into()],
-            slomo: vec![KeyCode::KeyZ.into(), GamepadButton::Select.into()],
-            toggle_ui: vec![KeyCode::Tab.into(), GamepadButton::Start.into()],
+            slomo: vec![KeyCode::KeyZ.into(), GamepadButton::Start.into()],
+            toggle_ui: vec![KeyCode::Tab.into(), GamepadButton::Select.into()],
         }
     }
 }
@@ -670,11 +670,11 @@ mod tests {
         );
         assert_eq!(
             map.slomo,
-            vec![KeyCode::KeyZ.into(), GamepadButton::Select.into()]
+            vec![KeyCode::KeyZ.into(), GamepadButton::Start.into()]
         );
         assert_eq!(
             map.toggle_ui,
-            vec![KeyCode::Tab.into(), GamepadButton::Start.into()]
+            vec![KeyCode::Tab.into(), GamepadButton::Select.into()]
         );
     }
 
