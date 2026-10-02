@@ -126,13 +126,13 @@ fn input_value(value: DataValue) -> Result<RigValue, String> {
     }
 }
 
-fn merge_transferred_input_context(
-    transfer_input_curves: bool,
+fn merge_upstream_pose_context(
     target: &mut AnimationContextState,
     source: Option<AnimationContextState>,
 ) {
-    if transfer_input_curves && let Some(source) = source {
+    if let Some(source) = source {
         merge_missing_context_curves(target, &source);
+        if target.cached_pose_request_route.is_none() { target.cached_pose_request_route = source.cached_pose_request_route; }
     }
 }
 
@@ -476,13 +476,10 @@ impl NodeLike for ControlRigBoundaryNode {
                 ctx.set_data_fwd(curve.clone(), value);
             }
         }
-        if self.capture_context {
-            merge_transferred_input_context(
-                self.transfer_input_curves,
-                &mut state,
-                pose_input_context_state(&ctx, &self.pose_input),
-            );
-        }
+        merge_upstream_pose_context(
+            &mut state,
+            pose_input_context_state(&ctx, &self.pose_input),
+        );
         let resources = ctx.graph_context.resources;
         let skeleton = resources
             .skeleton_assets
@@ -600,20 +597,126 @@ mod tests {
     }
 
     #[test]
+    fn disabled_rig_input_curves_keep_noncurve_animation_context() {
+        use crate::extensions::animation_context::{SourceAssetSample, SourceRelevantAsset, SourceInertializationRequest};
+        let mut source = AnimationContextState {
+            relevant_asset: Some(SourceRelevantAsset { duration: 1.0, position: 0.4, previous_position: 0.3,
+                has_previous_position: true, delta_seconds: 0.1, playback_delta_seconds: 0.1, weight: 1.0, ..default() }),
+            asset_samples: vec![SourceAssetSample { identity: "Footstep".into(), notify_instance_id: 42,
+                clock: SourceRelevantAsset { position: 0.4, previous_position: 0.3, weight: 1.0, ..default() }, ..default() }],
+            inertialization_request: Some(SourceInertializationRequest { frame: 8, duration: 0.2, ..default() }),
+            skipped_cached_pose_request: Some(SourceInertializationRequest { frame: 8, duration: 0.3, ..default() }),
+            ..default()
+        };
+        source.curves.insert("RigInput".into(), 0.75);
+        let mut target = AnimationContextState::default();
+        merge_upstream_pose_context(&mut target, Some(source));
+        assert_eq!(target.asset_samples.len(), 1, "Disabling rig input curves lost the upstream notify sample");
+        assert_eq!(target.asset_samples[0].notify_instance_id, 42);
+        assert_eq!(target.relevant_asset.unwrap().position, 0.4);
+        assert_eq!(target.inertialization_request.unwrap().frame, 8);
+        assert_eq!(target.skipped_cached_pose_request.unwrap().duration, 0.3);
+    }
+
+    #[test]
+    fn rig_curve_transfer_only_controls_hierarchy_input_during_graph_evaluation() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{animation_clip::GraphClip,
+            animation_graph::{AnimationGraph, TimeUpdate}, animation_node::AnimationNode,
+            context::{deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+                graph_context_arena::GraphContextArena, new_context::GraphContext, system_resources::SystemResources},
+            state_machine::high_level::StateMachine};
+        use bevy_animation_graph::core::animation_graph::GraphInputPin;
+        struct PoseInputEnv(Pose);
+        impl bevy_animation_graph::core::context::io_env::GraphIoEnv for PoseInputEnv {
+            fn get_data_back(&self, pin: GraphInputPin, _: GraphContext) -> Result<DataValue, GraphError> {
+                assert_eq!(pin, GraphInputPin::passthrough("source"));
+                Ok(DataValue::Pose(self.0.clone()))
+            }
+            fn get_duration_back(&self, _: GraphInputPin, _: GraphContext)
+                -> Result<bevy_animation_graph::core::duration_data::DurationData, GraphError> { Ok(None) }
+            fn get_time_fwd(&self, _: GraphContext) -> Result<TimeUpdate, GraphError> { Ok(TimeUpdate::Delta(0.02)) }
+        }
+        fn query(In((handle, skeleton)): In<(Handle<AnimationGraph>, Handle<Skeleton>)>, resources: SystemResources) {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let node = graph.nodes.values().find(|node| node.try_inner_downcast_ref::<ControlRigBoundaryNode>().is_some()).unwrap();
+            let transfer = node.try_inner_downcast_ref::<ControlRigBoundaryNode>().unwrap().transfer_input_curves;
+            let mut arena = GraphContextArena::new(handle.id());
+            let env = PoseInputEnv(Pose { skeleton: skeleton.clone(), ..default() }); let entities = HashMap::default(); let mut gizmos = DeferredGizmos::default();
+            let inputs = HashMap::from([("source".into(), DataValue::Pose(Pose { skeleton: skeleton.clone(), ..default() })),
+                ("animation.delta_seconds".into(), DataValue::F32(0.02))]);
+            let source_inputs = crate::extensions::SourceAnimationInputs::default();
+            for frame in 0..3 {
+                let mut context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources, &env,
+                    Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+                let mut upstream = AnimationContextState::default();
+                upstream.curves.insert("RigInput".into(), 0.75);
+                upstream.relevant_asset = Some(crate::extensions::animation_context::SourceRelevantAsset {
+                    duration: 1.0, position: frame as f32 * 0.02, delta_seconds: 0.02, weight: 1.0, ..default() });
+                upstream.skipped_cached_pose_request = Some(crate::extensions::animation_context::SourceInertializationRequest { frame, duration: 0.3, ..default() });
+                upstream.cached_pose_request_route = Some((frame, true));
+                upstream.asset_samples.push(crate::extensions::animation_context::SourceAssetSample { identity: "Footstep".into(),
+                    notify_instance_id: 42, clock: crate::extensions::animation_context::SourceRelevantAsset { weight: 1.0, position: frame as f32 * 0.02, ..default() }, ..default() });
+                upstream.inertialization_request = Some(crate::extensions::animation_context::SourceInertializationRequest { frame, duration: 0.2, ..default() });
+                for (identity, role) in [(node.id, crate::extensions::sync_group_phase::SourceSyncGroupRole::AlwaysLeader),
+                    (bevy_animation_graph::core::animation_graph::NodeId::default(), crate::extensions::sync_group_phase::SourceSyncGroupRole::AlwaysFollower)] {
+                    upstream.sync_players.push(crate::extensions::sync_group_phase::SourceSyncPlayerTick { identity: (context.context_id, identity),
+                        key: "Locomotion".into(), role, weight: 1.0, phase: frame as f32 * 0.02, ..default() });
+                }
+                crate::extensions::animation_context::write_linked_input_context(&mut context, GraphInputPin::passthrough("source"), upstream).unwrap();
+                source_inputs.evaluate(context.root_entity, || graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)), context)).unwrap();
+                let state = arena.get_toplevel().node_states.get::<ControlRigNodeState>(node.id,
+                    bevy_animation_graph::core::context::node_states::StateKey::Default).unwrap();
+                assert_eq!(state.runtime.as_ref().unwrap().curves.get(&crate::extensions::SourceCurveName::from("RigInput")).copied(), if transfer { Some(0.75) } else { None });
+                assert_eq!(state.context.curves[&crate::extensions::SourceCurveName::from("RigInput")], 0.75);
+                assert_eq!(state.context.asset_samples.len(), 1);
+                assert_eq!(state.context.asset_samples[0].notify_instance_id, 42);
+                assert_eq!(state.context.sync_players.len(), 2);
+                assert_eq!(state.context.sync_players[0].phase, frame as f32 * 0.02);
+                assert_eq!(state.context.sync_players[1].role, crate::extensions::sync_group_phase::SourceSyncGroupRole::AlwaysFollower);
+                assert_eq!(state.context.inertialization_request.as_ref().unwrap().frame, frame);
+                assert_eq!(state.context.skipped_cached_pose_request.as_ref().unwrap().frame, frame);
+                assert_eq!(state.context.relevant_asset.as_ref().unwrap().position, frame as f32 * 0.02);
+                assert_eq!(state.context.cached_pose_request_route, Some((frame, true)));
+                arena.next_frame();
+            }
+        }
+        for capture_context in [false, true] {
+            for transfer_input_curves in [false, true] {
+                let mut world = World::new();
+                world.insert_resource(Assets::<AnimationGraph>::default()); world.insert_resource(Assets::<GraphClip>::default());
+                world.insert_resource(Assets::<Skeleton>::default()); world.insert_resource(Assets::<StateMachine>::default());
+                let skeleton = world.resource_mut::<Assets<Skeleton>>().add(Skeleton::default());
+                let mut definition = hot_swap_definition(); definition.curves.insert("RigInput".into(), None);
+                let rig = AnimationNode::new("Control Rig", ControlRigBoundaryNode { definition: Some(definition),
+                    transfer_input_pose: false, transfer_input_curves, capture_context, internalize_time: true, ..default() });
+                let source = AnimationNode::new("Source pose", crate::extensions::source_pose_passthrough::SourcePosePassthroughNode { output_time: false, ..default() });
+                let mut graph = AnimationGraph::new(); graph.add_node(source.clone()); graph.add_node(rig.clone());
+                graph.add_input_data_edge(GraphInputPin::passthrough("source"), source.id, "Source");
+                graph.add_node_parameter_edge(source.id, "Pose", rig.id, "source_pose");
+                graph.add_output_data("Pose".into(), DataSpec::Pose); graph.add_output_data_edge(rig.id, "Pose", "Pose");
+                let handle = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
+                world.run_system_once_with(query, (handle, skeleton)).unwrap();
+            }
+        }
+    }
+
+    #[test]
     fn control_rig_transfer_input_curves_preserves_full_upstream_context() {
         let mut context = AnimationContextState::default();
         context.curves.insert("Explicit".into(), 0.5);
         let mut source = AnimationContextState::default();
         source.curves.insert("Explicit".into(), 0.25);
         source.curves.insert("Transferred".into(), 0.75);
-        merge_transferred_input_context(true, &mut context, Some(source));
+        merge_upstream_pose_context(&mut context, Some(source));
         assert_eq!(context.curves.get(&crate::extensions::SourceCurveName::from("Explicit")), Some(&0.5));
         assert_eq!(context.curves.get(&crate::extensions::SourceCurveName::from("Transferred")), Some(&0.75));
 
         let mut ignored = AnimationContextState::default();
         ignored.curves.insert("Ignored".into(), 1.0);
-        merge_transferred_input_context(false, &mut context, Some(ignored));
-        assert!(!context.curves.contains_key(&crate::extensions::SourceCurveName::from("Ignored")));
+        merge_upstream_pose_context(&mut context, Some(ignored));
+        assert_eq!(context.curves.get(&crate::extensions::SourceCurveName::from("Ignored")), Some(&1.0));
     }
 
     #[test]
