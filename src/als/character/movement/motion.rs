@@ -2416,6 +2416,7 @@ fn follow_movement_base_system(
         &mut AlsCmcAdapterRuntime, &Collider, Has<avian3d::prelude::CustomPositionIntegration>), With<AlsCharacter>>,
     mut space: ParamSet<(bevy::transform::helper::TransformHelper, SpatialQuery,
         Query<(&mut Position, &mut Transform), With<AlsCharacter>>)>,
+    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
     owners: Query<&avian3d::prelude::ColliderOf>,
     bodies: Query<&RigidBody>,
     children: Query<&Children>,
@@ -2446,7 +2447,8 @@ fn follow_movement_base_system(
                     [entity, owner, target].into_iter().chain(children.iter_descendants(owner)));
                 let config = ShapeCastConfig { ignore_origin_penetration: true,
                     ..ShapeCastConfig::from_max_distance(distance) };
-                let hit = space.p1().cast_shape(capsule, origin, Quat::IDENTITY, direction, &config, &filter);
+                let hit = space.p1().cast_shape_predicate(capsule, origin, Quat::IDENTITY, direction, &config, &filter,
+                    &|candidate| character_blocks_collider(entity, candidate, &candidates));
                 let applied = *direction * hit.map_or(distance, |hit| movement_sweep_travel(distance, hit.distance));
                 let mut query = space.p2();
                 let (mut position, mut transform) = query.get_mut(entity).unwrap();
@@ -4086,6 +4088,67 @@ mod tests {
             if maximum > 1e-4 { failures.push((child, step, maximum)); }
         }
         assert!(failures.is_empty(), "Component movement was discarded without a velocity: {failures:?}");
+    }
+
+    #[test]
+    fn transform_base_follow_only_sweeps_character_blocking_shapes() {
+        use bevy::ecs::system::RunSystemOnce;
+        use crate::als::character::AlsCollisionLayer;
+        let blocking = CollisionLayers::new(AlsCollisionLayer::Default, AlsCollisionLayer::Default);
+        for case in ["sensor", "membership", "response", "solid", "physics_only", "zero_members", "sensor_wall", "base_child", "character_child"] {
+            let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+            let base_origin = Vec3::new(0.0, 2.0, 5.0);
+            let platform = app.world_mut().spawn((RigidBody::Kinematic, Collider::cuboid(4.0, 0.5, 4.0),
+                Transform::from_translation(base_origin))).id();
+            let position = base_origin + Vec3::new(0.5, 1.174, 0.0);
+            app.world_mut().entity_mut(character).insert((Position(position), Transform::from_translation(position), blocking));
+            for _ in 0..60 { app.update(); }
+            assert_eq!(app.world().get::<crate::als::dynamics::AlsMovementBase>(character).unwrap().entity, Some(platform));
+            assert_eq!(app.world().get::<LinearVelocity>(platform).unwrap().0, Vec3::ZERO);
+            let origin = app.world().get::<Position>(character).unwrap().0;
+            let layers = match case {
+                "membership" => CollisionLayers::new(AlsCollisionLayer::Visibility, avian3d::prelude::LayerMask::ALL),
+                "response" => CollisionLayers::new(AlsCollisionLayer::Default, AlsCollisionLayer::Visibility),
+                "zero_members" => CollisionLayers::new(avian3d::prelude::LayerMask::NONE, avian3d::prelude::LayerMask::ALL),
+                _ => blocking,
+            };
+            let obstacle = app.world_mut().spawn((Collider::cuboid(0.05, 1.0, 4.0), layers,
+                Transform::from_translation(origin + Vec3::X * 0.35))).id();
+            match case {
+                "sensor" | "sensor_wall" => { app.world_mut().entity_mut(obstacle).insert((RigidBody::Static, Sensor)); }
+                "physics_only" => { app.world_mut().entity_mut(obstacle).insert((RigidBody::Static,
+                    crate::extensions::RagdollShapeCollisionMode::PhysicsOnly)); }
+                "base_child" | "character_child" => {
+                    let parent = if case == "base_child" { platform } else { character };
+                    let parent_origin = app.world().get::<Transform>(parent).unwrap().translation;
+                    app.world_mut().entity_mut(obstacle).insert((ChildOf(parent),
+                        Transform::from_translation(origin + Vec3::X * 0.35 - parent_origin)));
+                }
+                _ => { app.world_mut().entity_mut(obstacle).insert(RigidBody::Static); }
+            }
+            if case == "sensor_wall" {
+                app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.05, 1.0, 4.0), blocking,
+                    Transform::from_translation(origin + Vec3::X * 0.4)));
+            }
+            app.update();
+            let origin = app.world().get::<Position>(character).unwrap().0;
+            let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
+            assert_eq!(app.world().get::<crate::als::dynamics::AlsMovementBaseDynamicsState>(character).unwrap().support_velocity, Vec3::ZERO);
+            app.world_mut().get_mut::<AlsCmcAdapterRuntime>(character).unwrap().grounded_move_start = Some(origin);
+            let target = base_origin + Vec3::X * 0.1;
+            app.world_mut().entity_mut(platform).insert((Position(target), Transform::from_translation(target)));
+            app.world_mut().run_system_once((|| false).pipe(follow_movement_base_system)).unwrap();
+            let after = app.world().get::<Position>(character).unwrap().0;
+            let applied = (after - origin).x;
+            if case == "solid" { assert!(applied > 0.0 && applied < 0.025, "{case}: {applied}"); }
+            else if case == "sensor_wall" { assert!(applied > 0.05 && applied < 0.075, "{case}: {applied}"); }
+            else { assert!((applied - 0.1).abs() < 0.0001, "{case} clipped nonblocking carry: {applied}"); }
+            assert_eq!(app.world().get::<LinearVelocity>(character).unwrap().0, velocity);
+            assert!(app.world().get::<AlsCmcAdapterRuntime>(character).unwrap().grounded_move_start.unwrap().distance(after) < 0.0001);
+            assert_eq!(app.world().get::<crate::als::dynamics::AlsMovementBase>(character).unwrap().location, target);
+            app.world_mut().run_system_once((|| false).pipe(follow_movement_base_system)).unwrap();
+            assert_eq!(app.world().get::<Position>(character).unwrap().0, after);
+        }
     }
 
     #[test]
