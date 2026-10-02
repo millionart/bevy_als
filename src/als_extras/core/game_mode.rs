@@ -152,7 +152,7 @@ fn admit_pending_players(
     settings: Res<AlsPlayerStartSettings>,
     spatial: SpatialQuery,
     mut random: ResMut<AlsGameModeRandom>,
-    all_starts: Query<Entity, With<AlsPlayerStart>>,
+    all_starts: Query<(Entity, Option<&crate::als::player_start::AlsPlayerStartProbe>), With<AlsPlayerStart>>,
     starts: Query<(Entity, &AlsPlayerStart, &AlsPlayerStartReady)>,
     pending: Query<(Entity, &AlsPlayerAdmission), With<AlsPlayerAdmissionPending>>,
     assets: Res<AssetServer>,
@@ -178,7 +178,8 @@ fn admit_pending_players(
         })
         .collect();
     if candidates.is_empty() {
-        if barrier.as_ref().is_some_and(|barrier| barrier.ready) && !all_starts.is_empty() {
+        let preparing = all_starts.iter().any(|(_, probe)| probe.is_none_or(|probe| probe.occupancy.is_some()));
+        if !all_starts.is_empty() && !preparing {
             for (request, _) in &pending {
                 commands
                     .entity(request)
@@ -250,6 +251,66 @@ mod tests {
     use avian3d::prelude::{Collider, PhysicsPlugins, RigidBody};
     use bevy::asset::AssetPlugin;
     use bevy_animation_graph::core::animated_scene::AnimatedScene;
+
+    #[test]
+    fn mature_scene_admission_waits_for_player_start_stabilization() {
+        for stable in [2, 1, 3] {
+            for case in ["new", "changed_fit", "prewarmed", "barrier_later", "no_barrier", "unfit", "fit_becomes_unfit", "no_barrier_unfit", "barrier_later_unfit"] {
+                for request_count in [1, 2] {
+                    let mut app = App::new();
+                    app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin,
+                        bevy::transform::TransformPlugin, PhysicsPlugins::new(FixedPostUpdate),
+                        crate::als::player_start::AlsPlayerStartPlugin, AlsGameModePlugin))
+                        .init_asset::<StandardMaterial>().init_asset::<AlsMovementParams>()
+                        .init_asset::<AlsControlSchemeConfig>().init_asset::<AnimatedScene>()
+                        .init_asset::<crate::als_camera::AlsCameraDefinition>();
+                    app.world_mut().resource_mut::<AlsPlayerStartSettings>().required_stable_frames = stable;
+                    app.finish(); app.cleanup(); app.update();
+                    if !case.starts_with("no_barrier") { app.insert_resource(AlsScenePhysicsReady { ready: !case.starts_with("barrier_later") }); }
+                    let start = app.world_mut().spawn((AlsPlayerStart::default(), Transform::from_xyz(0.0, 0.919, 0.0))).id();
+                    let prewarmed = matches!(case, "changed_fit" | "prewarmed" | "fit_becomes_unfit");
+                    if prewarmed {
+                        for _ in 0..stable { app.update(); }
+                        assert!(app.world().get::<AlsPlayerStartReady>(start).is_some());
+                    }
+                    if case == "changed_fit" { app.world_mut().get_mut::<Transform>(start).unwrap().translation.y += 0.1; }
+                    let unfit = matches!(case, "unfit" | "fit_becomes_unfit" | "no_barrier_unfit" | "barrier_later_unfit");
+                    if unfit {
+                        for (axis, dimensions) in [(Vec3::X, Vec3::new(2.0, 20.0, 20.0)), (Vec3::Z, Vec3::new(20.0, 20.0, 2.0))] {
+                            for sign in [-1.0, 1.0] {
+                                app.world_mut().spawn((RigidBody::Static, Collider::cuboid(dimensions.x, dimensions.y, dimensions.z),
+                                    Transform::from_translation(Vec3::Y * 0.919 + axis * sign * 1.2)));
+                            }
+                        }
+                        app.world_mut().run_schedule(FixedPostUpdate);
+                    }
+                    let requests: Vec<_> = (0..request_count).map(|_| app.world_mut().spawn((AlsPlayerAdmission {
+                        spawn_input: false, spawn_camera: false, ..AlsPlayerAdmission::new() }, AlsPlayerAdmissionPending)).id()).collect();
+                    let ready_frame = if case == "prewarmed" { 1 } else { stable };
+                    for frame in 1..=stable + 2 {
+                        if case.starts_with("barrier_later") && frame == stable + 2 { app.world_mut().resource_mut::<AlsScenePhysicsReady>().ready = true; }
+                        app.update();
+                        let barrier_ready = !case.starts_with("barrier_later") || frame == stable + 2;
+                        let complete = !unfit && frame >= ready_frame && barrier_ready;
+                        let failed = unfit && barrier_ready;
+                        for request in &requests {
+                            assert_eq!(app.world().get::<AlsPlayerAdmissionComplete>(*request).is_some(), complete,
+                                "case={case} stable={stable} requests={request_count} frame={frame}");
+                            assert_eq!(app.world().get::<AlsPlayerAdmissionFailed>(*request).is_some(), failed,
+                                "case={case} stable={stable} requests={request_count} frame={frame}");
+                            assert_eq!(app.world().get::<AlsPlayerAdmissionPending>(*request).is_some(), !complete && !failed);
+                            if complete {
+                                let admitted = app.world().get::<AlsPlayerAdmissionComplete>(*request).unwrap();
+                                let height = app.world().get::<Transform>(admitted.character).unwrap().translation.y;
+                                assert!((height - if case == "changed_fit" { 1.019 } else { 0.919 }).abs() < 0.0001);
+                            }
+                        }
+                        if complete || failed { break; }
+                    }
+                }
+            }
+        }
+    }
 
     #[test]
     fn source_player_start_preserves_legal_indoor_and_airborne_locations() {

@@ -38,11 +38,11 @@ pub struct AlsPlayerStartReady {
 }
 
 #[derive(Component, Debug, Default, Clone, Copy)]
-struct AlsPlayerStartProbe {
+pub(crate) struct AlsPlayerStartProbe {
     ground_y: f32,
     adjustment: f32,
     teleport_adjustment: Vec3,
-    occupancy: Option<AlsPlayerStartOccupancy>,
+    pub(crate) occupancy: Option<AlsPlayerStartOccupancy>,
     stable_frames: u32,
 }
 
@@ -381,7 +381,7 @@ fn prepare_player_starts(
                 true,
                 &ground_filter,
             ) else {
-                commands.entity(entity).remove::<AlsPlayerStartReady>();
+                commands.entity(entity).remove::<AlsPlayerStartReady>().insert(AlsPlayerStartProbe::default());
                 continue;
             };
             probe_origin.y - hit.distance
@@ -397,7 +397,7 @@ fn prepare_player_starts(
             &colliders,
             &occupancy_filter,
         ) else {
-            commands.entity(entity).remove::<AlsPlayerStartReady>();
+            commands.entity(entity).remove::<AlsPlayerStartReady>().insert(AlsPlayerStartProbe::default());
             continue;
         };
         let stable_frames = match probe {
