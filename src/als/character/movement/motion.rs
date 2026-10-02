@@ -1693,6 +1693,80 @@ mod rotation_cap_tests {
     }
 
     #[test]
+    fn stand_up_overlap_uses_character_blocking_policy() {
+        use bevy::ecs::system::RunSystemOnce;
+        use crate::als::character::AlsCollisionLayer;
+        for forced in [false, true] {
+            for kind in ["sensor", "query_sensor", "disjoint", "solid", "foreign", "owned", "self"] {
+                let mut app = App::new();
+                app.add_plugins((MinimalPlugins, AssetPlugin::default(), PhysicsPlugins::new(FixedPostUpdate),
+                    TransformPlugin, AlsStateTransitionPlugin, AlsCharacterPlugin))
+                    .init_resource::<Assets<Mesh>>().add_message::<AssetEvent<Mesh>>()
+                    .add_systems(Update, capsule_reshape_system);
+                app.finish();
+                let params_value = AlsMovementParams::default();
+                let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(params_value.clone());
+                let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>()
+                    .add(initial_als_control_scheme_config(&params_value));
+                let center = Vec3::Y * (params_value.crouch.crouched_capsule_half_height + 0.019);
+                let mut bundle = AlsCharacterBundle::new(params, config);
+                bundle.rigid_body = RigidBody::Kinematic;
+                bundle.transform = Transform::from_translation(center);
+                bundle.collider = capsule_for(&params_value, Stance::Crouching);
+                bundle.stance = Stance::Crouching;
+                bundle.desired_stance = AlsDesiredStance(Stance::Crouching);
+                let character = app.world_mut().spawn((bundle, Position(center), GravityScale(0.0), AlsCapsuleCrouched,
+                    CollisionLayers::new(AlsCollisionLayer::Default, AlsCollisionLayer::Default))).id();
+                let obstacle = if kind == "self" { character } else {
+                    let mut obstacle = app.world_mut().spawn((Collider::cuboid(1.0, 0.05, 1.0),
+                        Transform::from_xyz(0.0, 1.55, 0.0)));
+                    match kind {
+                        "sensor" => { obstacle.insert((RigidBody::Static, Sensor)); }
+                        "query_sensor" => { obstacle.insert(Sensor); }
+                        "disjoint" => { obstacle.insert((RigidBody::Static,
+                            CollisionLayers::new(AlsCollisionLayer::Visibility, AlsCollisionLayer::Visibility))); }
+                        "foreign" => { obstacle.insert((RigidBody::Static, AlsCharacter)); }
+                        "owned" => { obstacle.insert((ChildOf(character),
+                            Transform::from_xyz(0.0, 1.55 - center.y, 0.0))); }
+                        _ => { obstacle.insert(RigidBody::Static); }
+                    }
+                    obstacle.id()
+                };
+                app.update();
+                app.world_mut().run_schedule(FixedPostUpdate);
+                let shape = capsule_for(&params_value, Stance::Standing);
+                let standing_center = center + Vec3::Y * (params_value.crouch.standing_capsule_half_height
+                    - params_value.crouch.crouched_capsule_half_height);
+                app.world_mut().run_system_once(move |spatial: SpatialQuery| {
+                    assert!(spatial.shape_intersections(&shape, standing_center, Quat::IDENTITY,
+                        &SpatialQueryFilter::default()).contains(&obstacle), "Native overlap missing: {kind}");
+                }).unwrap();
+                if kind == "owned" {
+                    assert_eq!(app.world().get::<ColliderOf>(obstacle).unwrap().body, character);
+                }
+                if forced {
+                    *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = LocomotionState::Air;
+                } else {
+                    app.world_mut().get_mut::<AlsDesiredStance>(character).unwrap().0 = Stance::Standing;
+                }
+                app.update();
+                let blocked = matches!(kind, "solid" | "foreign");
+                let actual = if blocked { Stance::Crouching } else { Stance::Standing };
+                let position = if blocked { center } else { standing_center };
+                assert_eq!(app.world().get::<Stance>(character), Some(&actual), "kind={kind} forced={forced}");
+                assert_eq!(app.world().get::<AlsCrouchTransaction>(character).unwrap().headroom_blocked, blocked);
+                assert_eq!(app.world().get::<AlsDesiredStance>(character).unwrap().0,
+                    if forced { Stance::Crouching } else { Stance::Standing });
+                assert!(app.world().get::<Position>(character).unwrap().0.distance(position) < 1e-5);
+                app.update();
+                let transaction = app.world().get::<AlsCrouchTransaction>(character).unwrap();
+                assert_eq!(transaction.blocked_retry_count, if blocked { 2 } else { 0 });
+                assert_eq!(transaction.headroom_blocked, blocked);
+            }
+        }
+    }
+
+    #[test]
     fn scaled_stand_up_query_rejects_a_low_ceiling() {
         let mut app = App::new();
         app.add_plugins((
@@ -2686,6 +2760,7 @@ fn capsule_reshape_system(
     params_assets: Res<Assets<AlsMovementParams>>,
     mut transitions: MessageWriter<StateTransitionEvent>,
     mut q: Query<ReshapeQueryItem, With<AlsCharacter>>,
+    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
 ) {
     for (
         entity,
@@ -2730,6 +2805,7 @@ fn capsule_reshape_system(
         apply_capsule_for_stance(
             &mut commands,
             &spatial_query,
+            &candidates,
             params,
             entity,
             target,
@@ -2747,6 +2823,7 @@ fn capsule_reshape_system(
 fn apply_capsule_for_stance(
     commands: &mut Commands,
     spatial_query: &SpatialQuery,
+    candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
     params: &AlsMovementParams,
     entity: Entity,
     target: Stance,
@@ -2776,9 +2853,9 @@ fn apply_capsule_for_stance(
             let filter = SpatialQueryFilter::from_excluded_entities([entity]);
             let mut standing_capsule = capsule_for(params, Stance::Standing);
             standing_capsule.set_scale(Vec3::splat(effective_scale), 16);
-            let blocked = !spatial_query
+            let blocked = spatial_query
                 .shape_intersections(&standing_capsule, target_center, rotation, &filter)
-                .is_empty();
+                .into_iter().any(|candidate| character_blocks_collider(entity, candidate, candidates));
             if blocked {
                 let (half_height, radius) = capsule_dimensions(params, Stance::Crouching);
                 transaction.stand_blocked(half_height, radius, center);
