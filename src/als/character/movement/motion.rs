@@ -3466,6 +3466,34 @@ mod tests {
     }
 
     #[test]
+    fn airborne_side_input_reaches_physics_without_losing_horizontal_momentum() {
+        let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+        let start = Vec3::new(0.0, 10.0, 1.0);
+        app.world_mut().get_mut::<Position>(character).unwrap().0 = start;
+        app.world_mut().get_mut::<Transform>(character).unwrap().translation = start;
+        app.world_mut().get_mut::<LinearVelocity>(character).unwrap().0 = Vec3::NEG_Z * 3.75;
+        *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = LocomotionState::Air;
+        app.world_mut().entity_mut(character).insert(AlsInputOverride(AlsInputCommand {
+            move_dir: Vec2::X, ..default()
+        }));
+        let mut expected = Vec3::NEG_Z * 3.75;
+        for frame in 0..15 {
+            expected = (expected + Vec3::X * 3.0 / 60.0).clamp_length_max(3.75);
+            app.update();
+            let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
+            assert!(velocity.with_y(0.0).distance(expected) < 2e-5,
+                "Air steering differed after physical integration: frame={frame} actual={velocity:?} expected={expected:?}");
+            assert!(velocity.y < 0.0);
+            assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Air));
+        }
+        app.world_mut().get_mut::<AlsInputOverride>(character).unwrap().0.move_dir = Vec2::ZERO;
+        for _ in 0..10 {
+            app.update();
+            assert!(app.world().get::<LinearVelocity>(character).unwrap().0.with_y(0.0).distance(expected) < 2e-5);
+        }
+    }
+
+    #[test]
     fn floor_height_adjustment_sweeps_the_actual_capsule_below_a_ceiling() {
         use bevy::ecs::system::RunSystemOnce;
         use crate::als::character::AlsCollisionLayer;
