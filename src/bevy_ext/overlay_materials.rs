@@ -28,15 +28,13 @@ fn avatar_material_bridge(
         Entity,
         &AvatarMaterialOverride,
         Option<&AvatarMaterialApplied>,
-        Option<Ref<NoDecalReceiver>>,
+        Has<NoDecalReceiver>,
     )>,
     children: Query<&Children>,
-    mesh_materials: Query<(Option<&MeshMaterial3d<StandardMaterial>>, Option<&crate::extensions::projected_decal::StandardMaterialSource>), With<Mesh3d>>,
+    mesh_materials: Query<(Option<&MeshMaterial3d<StandardMaterial>>, Option<&crate::extensions::projected_decal::StandardMaterialSource>, Has<NoDecalReceiver>), With<Mesh3d>>,
 ) {
     for (root, override_comp, applied, no_decals) in &avatars {
-        if applied.is_some() && !no_decals.as_ref().is_some_and(Ref::is_added) {
-            continue;
-        }
+        let Some(fallback) = override_comp.0.last() else { continue; };
         let mut stack = vec![root];
         let mut mesh_entities = Vec::new();
         while let Some(e) = stack.pop() {
@@ -48,17 +46,11 @@ fn avatar_material_bridge(
                     stack.push(child);
                 }
             }
-            if mesh_materials.get(e).is_ok_and(|(material, source)| material.is_some() || source.is_some()) {
+            if mesh_materials.get(e).is_ok_and(|(material, source, _)| material.is_some() || source.is_some()) {
                 mesh_entities.push(e);
             }
         }
         if mesh_entities.is_empty() {
-            continue;
-        }
-        if applied.is_some() {
-            for entity in mesh_entities {
-                commands.entity(entity).insert(NoDecalReceiver);
-            }
             continue;
         }
         let source_materials: Vec<_> = mesh_entities
@@ -67,13 +59,13 @@ fn avatar_material_bridge(
                 mesh_materials
                     .get(*entity)
                     .ok()
-                    .and_then(|(material, source)| material.map(|material| material.0.id()).or_else(|| source.map(|source| source.0.id())))
+                    .and_then(|(material, source, _)| material.map(|material| material.0.id()).or_else(|| source.map(|source| source.0.id())))
             })
             .collect();
         if source_materials.len() != mesh_entities.len() {
             continue;
         }
-        let source_slot_pattern = source_materials.len() == override_comp.0.len()
+        let source_slot_pattern = applied.map_or_else(|| source_materials.len() == override_comp.0.len()
             && source_materials.iter().enumerate().all(|(slot, source)| {
                 source_materials[..slot]
                     .iter()
@@ -81,24 +73,32 @@ fn avatar_material_bridge(
                     .all(|(previous, other)| {
                         (*source == *other) == (override_comp.0[slot] == override_comp.0[previous])
                     })
-            });
+            }), |applied| applied.source_slot_pattern);
         let mut body_slots = 0u32;
         let mut main_slots = 0u32;
+        let mut replaced = 0u32;
         for (slot, entity) in mesh_entities.iter().enumerate() {
             let material = override_comp
                 .0
                 .get(slot)
-                .unwrap_or(override_comp.0.last().unwrap());
-            if no_decals.is_some() {
+                .unwrap_or(fallback);
+            let (current, source, excluded) = mesh_materials.get(*entity).unwrap();
+            if no_decals && !excluded {
                 commands.entity(*entity).insert(NoDecalReceiver);
             }
-            commands.entity(*entity).remove::<(MeshMaterial3d<crate::extensions::projected_decal::PackedDecalReceiverMaterial>, crate::extensions::projected_decal::StandardMaterialSource)>()
-                .insert(MeshMaterial3d(material.clone()));
+            if current.map(|current| current.0.id()).or_else(|| source.map(|source| source.0.id())) != Some(material.id()) {
+                commands.entity(*entity).remove::<(MeshMaterial3d<crate::extensions::projected_decal::PackedDecalReceiverMaterial>, crate::extensions::projected_decal::StandardMaterialSource)>()
+                    .insert(MeshMaterial3d(material.clone()));
+                replaced += 1;
+            }
             if slot == AVATAR_MAIN_MATERIAL_SLOT {
                 main_slots += 1;
             } else {
                 body_slots += 1;
             }
+        }
+        if replaced == 0 && applied.is_some_and(|applied| applied.slots == mesh_entities.len() as u32) {
+            continue;
         }
         if !source_slot_pattern {
             error!(
@@ -114,9 +114,10 @@ fn avatar_material_bridge(
             source_slot_pattern,
         });
         info!(
-            "[OVMAT] avatar root={:?} replaced={} body={} main={} source_pattern={}",
+            "[OVMAT] avatar root={:?} slots={} updated={} body={} main={} source_pattern={}",
             root,
             mesh_entities.len(),
+            replaced,
             body_slots,
             main_slots,
             source_slot_pattern
@@ -128,6 +129,53 @@ fn avatar_material_bridge(
 mod tests {
     use super::*;
     use bevy::ecs::system::RunSystemOnce;
+
+    #[test]
+    fn material_overrides_follow_changes_and_rebuilt_meshes_without_rewriting_stable_frames() {
+        use crate::extensions::projected_decal::{PackedDecalReceiverMaterial, StandardMaterialSource};
+        let mut world = World::new();
+        let mut materials = Assets::<StandardMaterial>::default();
+        let source = materials.add(StandardMaterial::default());
+        let first = materials.add(StandardMaterial::default());
+        let second = materials.add(StandardMaterial::default());
+        let camera_material = materials.add(StandardMaterial::default());
+        world.insert_resource(materials);
+        let root = world.spawn(AvatarMaterialOverride(Vec::new())).id();
+        world.run_system_cached(avatar_material_bridge).unwrap();
+        assert!(world.get::<AvatarMaterialApplied>(root).is_none());
+        world.get_mut::<AvatarMaterialOverride>(root).unwrap().0 = vec![first.clone(), first.clone()];
+        let parent = world.spawn(ChildOf(root)).id();
+        let meshes = [0, 1].map(|_| world.spawn((ChildOf(parent), Mesh3d::default(), MeshMaterial3d(source.clone()))).id());
+        let camera = world.spawn((ChildOf(root), AvatarMaterialOverride(vec![camera_material.clone()]))).id();
+        let camera_mesh = world.spawn((ChildOf(camera), Mesh3d::default(), MeshMaterial3d(source.clone()))).id();
+        world.run_system_cached(avatar_material_bridge).unwrap();
+        assert!(world.get::<AvatarMaterialApplied>(root).unwrap().source_slot_pattern);
+        world.get_mut::<AvatarMaterialOverride>(root).unwrap().0[0] = second.clone();
+        world.run_system_cached(avatar_material_bridge).unwrap();
+        assert_eq!(world.get::<MeshMaterial3d<StandardMaterial>>(meshes[0]).unwrap().0, second);
+        assert_eq!(world.get::<MeshMaterial3d<StandardMaterial>>(meshes[1]).unwrap().0, first);
+        assert!(world.get::<AvatarMaterialApplied>(root).unwrap().source_slot_pattern,
+            "Changing runtime overrides must not invalidate the original source slot evidence");
+        world.entity_mut(meshes[0]).remove::<MeshMaterial3d<StandardMaterial>>()
+            .insert((MeshMaterial3d::<PackedDecalReceiverMaterial>::default(), StandardMaterialSource(second.clone())));
+        world.clear_trackers();
+        world.increment_change_tick();
+        world.run_system_cached(avatar_material_bridge).unwrap();
+        assert!(world.get::<MeshMaterial3d<PackedDecalReceiverMaterial>>(meshes[0]).is_some());
+        assert!(!world.entity(meshes[1]).get_ref::<MeshMaterial3d<StandardMaterial>>().unwrap().is_changed());
+        assert!(!world.entity(root).get_ref::<AvatarMaterialApplied>().unwrap().is_changed());
+        world.get_mut::<AvatarMaterialOverride>(root).unwrap().0.fill(first.clone());
+        world.run_system_cached(avatar_material_bridge).unwrap();
+        assert!(world.get::<StandardMaterialSource>(meshes[0]).is_none());
+        assert_eq!(world.get::<MeshMaterial3d<StandardMaterial>>(meshes[0]).unwrap().0, first);
+        for mesh in meshes { world.despawn(mesh); }
+        let rebuilt = [0, 1].map(|_| world.spawn((ChildOf(parent), Mesh3d::default(), MeshMaterial3d(source.clone()))).id());
+        world.run_system_cached(avatar_material_bridge).unwrap();
+        assert!(rebuilt.iter().all(|mesh| world.get::<MeshMaterial3d<StandardMaterial>>(*mesh).unwrap().0 == first));
+        assert_eq!(world.get::<MeshMaterial3d<StandardMaterial>>(camera_mesh).unwrap().0, camera_material);
+        assert_eq!(world.get::<AvatarMaterialApplied>(root).unwrap().slots, 2);
+        assert_eq!(world.get::<AvatarMaterialApplied>(camera).unwrap().slots, 1);
+    }
 
     #[test]
     fn nested_camera_materials_preserve_source_mesh_slot_ownership() {
@@ -228,6 +276,11 @@ mod tests {
         assert_eq!(world.get::<MeshMaterial3d<StandardMaterial>>(body).unwrap().0, target);
         assert_eq!(world.get::<MeshMaterial3d<StandardMaterial>>(second).unwrap().0, target);
         assert_eq!(world.get::<MeshMaterial3d<StandardMaterial>>(nested).unwrap().0, target);
+        world.clear_trackers();
+        world.increment_change_tick();
+        world.run_system_cached(avatar_material_bridge).unwrap();
+        assert!(!world.entity(body).get_ref::<NoDecalReceiver>().unwrap().is_changed());
+        assert!(!world.entity(body).get_ref::<MeshMaterial3d<StandardMaterial>>().unwrap().is_changed());
     }
 
     #[test]
