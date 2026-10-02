@@ -267,6 +267,86 @@ mod tests {
     }
 
     #[test]
+    fn accepted_moving_base_jump_integrates_the_entire_takeoff_frame() {
+        use crate::als::character::{AlsCharacterBundle, AlsCharacterPlugin, AlsEffectiveGravity};
+        use crate::als::control_scheme::{AlsControlScheme, AlsControlSchemeConfig};
+        use crate::als::motion::{AlsMotionPlugin, initial_als_control_scheme_config};
+        use crate::als::params::AlsMovementParams;
+        use crate::als::transition::AlsStateTransitionPlugin;
+        use bevy_tnua::TnuaControllerPlugin;
+        use bevy_tnua_avian3d::TnuaAvian3dPlugin;
+        #[derive(Resource, Default)]
+        struct PostMotorSample(Option<(Vec3, Vec3, Vec3, bool, LocomotionState, Option<Entity>)>);
+        for delta_ms in [100_u64, 16, 33, 50] {
+            println!("Takeoff frame progress: delta={delta_ms} ms");
+            for substeps in [1, 2, 6] {
+                for (support_body, support_speed) in [(RigidBody::Kinematic, 2.0_f32), (RigidBody::Kinematic, 0.0), (RigidBody::Static, 0.0)] {
+                    for changed in [false, true] {
+                        for (gravity_strength, horizontal_input) in [(9.8, Vec2::ZERO), (9.8, Vec2::Y * 0.4),
+                            (19.6, Vec2::ZERO), (19.6, Vec2::Y * 0.4)] {
+                        let mut app = App::new();
+                        app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+                            avian3d::prelude::PhysicsPlugins::new(PostUpdate),
+                            TnuaAvian3dPlugin::new(Update), TnuaControllerPlugin::<AlsControlScheme>::new(Update),
+                            AlsStateTransitionPlugin, AlsCharacterPlugin, AlsMotionPlugin, SourcePhysicsTimingPlugin))
+                            .init_asset::<Mesh>().add_message::<bevy::asset::AssetEvent<Mesh>>()
+                            .init_resource::<PostMotorSample>().insert_resource(SubstepCount(substeps))
+                            .insert_resource(avian3d::prelude::Gravity(Vec3::NEG_Y * gravity_strength))
+                            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0 / 60.0)))
+                            .add_systems(PostUpdate, (|mut sample: ResMut<PostMotorSample>,
+                                characters: Query<(&LinearVelocity, &Position, &AlsEffectiveGravity, Ref<Collider>, &bevy_tnua::TnuaController<AlsControlScheme>, &LocomotionState, Option<&crate::als::dynamics::AlsMovementBaseDynamicsState>)>| {
+                                for (velocity, position, gravity, collider, controller, mode, base) in &characters {
+                                    if controller.action_flow_status().just_starting() == Some(crate::als::control_scheme::AlsControlSchemeActionDiscriminant::Jump) {
+                                        sample.0 = Some((velocity.0, position.0, gravity.value, collider.is_changed(), *mode, base.and_then(|base| base.entity)));
+                                    }
+                                }
+                            }).before(SourcePhysicsTimingSet::Clamp).before(PhysicsSystems::First));
+                        app.finish(); app.update();
+                        let value = AlsMovementParams::default();
+                        let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(value.clone());
+                        let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>().add(initial_als_control_scheme_config(&value));
+                        let mut bundle = AlsCharacterBundle::new(params, config);
+                        bundle.transform.translation = Vec3::new(0.0, 3.174, 0.0);
+                        let character = app.world_mut().spawn(bundle).id();
+                        let platform = app.world_mut().spawn((support_body, Collider::cuboid(8.0, 0.5, 8.0),
+                            Transform::from_xyz(0.0, 2.0, 0.0), LinearVelocity(Vec3::X * support_speed))).id();
+                        let ordinary = app.world_mut().spawn((RigidBody::Dynamic, Collider::cuboid(0.2, 0.2, 0.2),
+                            Transform::from_xyz(100.0, 100.0, 0.0))).id();
+                        for _ in 0..60 { app.update(); }
+                        assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Grounded);
+                        assert_eq!(app.world().get::<crate::als::dynamics::AlsMovementBaseDynamicsState>(character).unwrap().support_velocity.x, support_speed);
+                        if changed { *app.world_mut().get_mut::<Collider>(character).unwrap() = Collider::capsule(0.29, 1.22); }
+                        *app.world_mut().resource_mut::<TimeUpdateStrategy>() = TimeUpdateStrategy::ManualDuration(Duration::from_millis(delta_ms));
+                        {
+                            let mut input = app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap();
+                            input.jump_pressed = true;
+                            input.move_dir = horizontal_input;
+                        }
+                        let ordinary_velocity = app.world().get::<LinearVelocity>(ordinary).unwrap().y;
+                        let platform_start = app.world().get::<Position>(platform).unwrap().0;
+                        app.update();
+                        let (before, position, gravity, collider_changed, mode, base) = app.world().resource::<PostMotorSample>().0.expect("The real jump must start during the sampled frame");
+                        assert_eq!(collider_changed, changed);
+                        let delta = delta_ms as f32 / 1000.0;
+                        let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
+                        let expected = before + gravity * delta;
+                        assert!(velocity.distance(expected) < 0.0001,
+                            "delta={delta_ms} substeps={substeps} support={support_speed} changed={changed}: post_motor={before:?} actual={velocity:?} expected={expected:?}");
+                        assert_eq!(mode, LocomotionState::Air);
+                        assert_eq!(base, None);
+                        let physics_delta = delta.min(SOURCE_MAX_PHYSICS_DELTA.as_secs_f32());
+                        assert!((app.world().get::<LinearVelocity>(ordinary).unwrap().y - ordinary_velocity + gravity_strength * physics_delta).abs() < 0.0001);
+                        assert!((app.world().get::<Position>(platform).unwrap().x - platform_start.x - support_speed * physics_delta).abs() < 0.0001);
+                        assert!((app.world().get::<Position>(character).unwrap().x - position.x - before.x * delta).abs() < 0.0001);
+                        assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Air);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
     fn ordinary_free_fall_respects_the_source_terminal_component() {
         for gravity in [Vec3::NEG_Y * 9.8, Vec3::NEG_X * 5.0, Vec3::ZERO] {
             for initial in [Vec3::new(30.0, -39.95, 0.0), Vec3::new(100.0, -20.0, 3.0),

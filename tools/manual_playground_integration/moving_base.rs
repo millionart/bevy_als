@@ -55,6 +55,8 @@ pub(super) fn install(app: &mut App) {
             .after(observe_manual_integration).in_set(ManualIntegrationObservationSet));
 }
 
+const TAKEOFF_DISTANCE: f32 = 0.45;
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
 pub(super) enum Stage { #[default] Place, Settle, Ride, Exit, Flight, PrepareMantle, WaitMantle, Mantle, AfterMantle, Done }
 
@@ -99,7 +101,7 @@ impl Probe {
         match self.stage {
             Stage::Exit => {
                 input.move_dir = Vec2::NEG_Y;
-                if exit_distance >= 0.45 {
+                if exit_distance >= TAKEOFF_DISTANCE {
                     input.jump_pressed = true;
                     input.jump_held = true;
                     self.begin(Stage::Flight, now);
@@ -362,6 +364,8 @@ pub(super) fn observe(
             "foot_pixels":feet.map(|feet| [&feet.left, &feet.right].map(|foot|
                 camera.world_to_viewport(&GlobalTransform::from(*transform), foot.target_location).ok())),
         })).unwrap_or(serde_json::Value::Null);
+    snapshot["takeoff_ready"] = serde_json::Value::Bool(probe.stage == Stage::Exit
+        && probe.anchor.is_some_and(|anchor| (local - anchor).with_y(0.0).length() >= TAKEOFF_DISTANCE));
     report.moving_base_trace.push(snapshot);
     if rotating && stage == Stage::Ride
         && let Some(playback) = playback.filter(|playback| playback.kind == AlsTransitionKind::StandingDynamic) {

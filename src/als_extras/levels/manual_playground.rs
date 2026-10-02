@@ -181,8 +181,8 @@ fn apply_gate_frame_hitch(
         *strategy = TimeUpdateStrategy::ManualDuration(hitch.baseline);
         hitch.restore_next = false;
     } else if !hitch.fired && report.moving_base_trace.last().is_some_and(|frame| {
-        frame.get("stage").and_then(serde_json::Value::as_str) == Some("Flight")
-            && frame.get("mode").and_then(serde_json::Value::as_str) == Some("Air")
+        frame.get("takeoff_ready").and_then(serde_json::Value::as_bool) == Some(true)
+            && frame.get("mode").and_then(serde_json::Value::as_str) == Some("Grounded")
     }) {
         *strategy = TimeUpdateStrategy::ManualDuration(hitch.hitch);
         hitch.fired = true;
@@ -954,7 +954,7 @@ mod tests {
     }
 
     #[test]
-    fn gate_frame_hitch_arms_once_in_air_and_restores() {
+    fn gate_frame_hitch_arms_at_stable_takeoff_and_restores() {
         let baseline = Duration::from_secs_f64(1.0 / 60.0);
         let hitch = Duration::from_millis(200);
         let mut app = App::new();
@@ -964,13 +964,13 @@ mod tests {
         app.add_systems(Last, apply_gate_frame_hitch);
         app.update();
         assert!(matches!(app.world().resource::<TimeUpdateStrategy>(), TimeUpdateStrategy::ManualDuration(value) if *value == baseline));
-        app.world_mut().resource_mut::<ManualIntegrationGateReport>().moving_base_trace.push(serde_json::json!({"stage":"Exit","mode":"Grounded"}));
+        app.world_mut().resource_mut::<ManualIntegrationGateReport>().moving_base_trace.push(serde_json::json!({"stage":"Exit","mode":"Grounded","takeoff_ready":false}));
         app.update();
         assert!(matches!(app.world().resource::<TimeUpdateStrategy>(), TimeUpdateStrategy::ManualDuration(value) if *value == baseline));
-        *app.world_mut().resource_mut::<ManualIntegrationGateReport>().moving_base_trace.last_mut().unwrap() = serde_json::json!({"stage":"Flight","mode":"Grounded"});
+        *app.world_mut().resource_mut::<ManualIntegrationGateReport>().moving_base_trace.last_mut().unwrap() = serde_json::json!({"stage":"Exit","mode":"Air","takeoff_ready":true});
         app.update();
         assert!(matches!(app.world().resource::<TimeUpdateStrategy>(), TimeUpdateStrategy::ManualDuration(value) if *value == baseline));
-        *app.world_mut().resource_mut::<ManualIntegrationGateReport>().moving_base_trace.last_mut().unwrap() = serde_json::json!({"stage":"Flight","mode":"Air"});
+        *app.world_mut().resource_mut::<ManualIntegrationGateReport>().moving_base_trace.last_mut().unwrap() = serde_json::json!({"stage":"Exit","mode":"Grounded","takeoff_ready":true});
         app.update();
         assert!(matches!(app.world().resource::<TimeUpdateStrategy>(), TimeUpdateStrategy::ManualDuration(value) if *value == hitch));
         app.update();

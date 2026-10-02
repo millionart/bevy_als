@@ -2348,6 +2348,8 @@ impl Plugin for AlsMotionPlugin {
                     crouch_controller_transaction_system
                         .after(locomotion_drive_system)
                         .after(capsule_reshape_system),
+                    accepted_jump_state_system.after(TnuaPipelineSystems::Logic)
+                        .before(crate::als::dynamics::grounded_dynamics_motor_system),
                     grounded_step_up_system.after(crate::als::dynamics::grounded_dynamics_motor_system)
                         .before(TnuaPipelineSystems::Motors),
                     (|| false).pipe(follow_movement_base_system)
@@ -2379,6 +2381,22 @@ impl Plugin for AlsMotionPlugin {
                 PostUpdate,
                 rotation_response_system.in_set(AlsRotationResponseSet),
             );
+    }
+}
+
+fn accepted_jump_state_system(
+    mut transitions: MessageWriter<StateTransitionEvent>,
+    mut characters: Query<(Entity, &TnuaController<AlsControlScheme>, &mut LocomotionState,
+        &mut crate::als::dynamics::AlsMovementBase, Option<&mut crate::als::dynamics::AlsMovementBaseDynamicsState>), With<AlsCharacter>>,
+) {
+    for (entity, controller, mut mode, mut base, dynamics) in &mut characters {
+        if *mode != LocomotionState::Grounded || controller.action_flow_status().just_starting()
+            != Some(AlsControlSchemeActionDiscriminant::Jump) { continue; }
+        transitions.write(StateTransitionEvent { entity, dimension: Dimension::LocomotionState,
+            from: StateValue::LocomotionState(*mode), to: StateValue::LocomotionState(LocomotionState::Air) });
+        *mode = LocomotionState::Air;
+        base.entity = None;
+        if let Some(mut dynamics) = dynamics { *dynamics = default(); }
     }
 }
 
