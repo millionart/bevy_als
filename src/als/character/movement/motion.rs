@@ -22,6 +22,7 @@ use crate::als::gait::AlsMaxAllowedGait;
 use crate::als::movement_constants::{
     EDGE_REJECT_DISTANCE, FLOOR_RETRY_SHRINK_FRACTION, FLOOR_SWEEP_SHRINK_FRACTION,
     MIN_FLOOR_DISTANCE, MAX_FLOOR_DISTANCE, MAX_SLOPE_DEGREES, MAX_STEP_HEIGHT, PULLBACK_MAX_DISTANCE,
+    STAND_UP_SWEEP_INFLATION, STAND_UP_MIN_FLOOR_DISTANCE,
     PULLBACK_MIN_DISTANCE, PULLBACK_PROPORTION, PULLBACK_TIME_BIAS, SWEEP_EDGE_MIN_RADIUS,
 };
 use crate::als::input::AlsInputCommand;
@@ -1693,6 +1694,76 @@ mod rotation_cap_tests {
     }
 
     #[test]
+    fn stand_up_uses_blocking_floor_clearance_before_committing() {
+        use crate::character_assembly::{AlsCharacterAvatar, avatar_transform, sync_avatar_stance_offset};
+        use crate::als::character::AlsCollisionLayer;
+        for (scale, mode, gap, ceiling, floor_kind, standing_y) in [
+            (1.0, LocomotionState::Grounded, 0.0215, 1.81, "solid", Some(0.90002)),
+            (1.0, LocomotionState::Grounded, 0.0215, 1.79, "solid", None),
+            (1.0, LocomotionState::Grounded, 0.0215, 2.0, "solid", Some(0.92151)),
+            (1.0, LocomotionState::Air, 0.0215, 1.81, "solid", None),
+            (1.0, LocomotionState::Grounded, 0.0215, 1.81, "none", None),
+            (1.0, LocomotionState::Grounded, 0.0215, 1.81, "sensor", None),
+            (1.0, LocomotionState::Grounded, 0.0215, 1.81, "disjoint", None),
+            (1.0, LocomotionState::Grounded, 0.000005, 1.800015, "solid", None),
+            (2.0, LocomotionState::Grounded, 0.0215, 3.61, "solid", Some(1.80002)),
+        ] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AssetPlugin::default(), PhysicsPlugins::new(FixedPostUpdate),
+                TransformPlugin, AlsStateTransitionPlugin, AlsCharacterPlugin))
+                .init_resource::<Assets<Mesh>>().add_message::<AssetEvent<Mesh>>()
+                .add_systems(Update, capsule_reshape_system)
+                .add_systems(PostUpdate, sync_avatar_stance_offset.before(bevy::transform::TransformSystems::Propagate));
+            app.finish();
+            if floor_kind != "none" {
+                let mut floor = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.1, 4.0),
+                    Transform::from_xyz(0.0, -0.05, 0.0)));
+                if floor_kind == "sensor" { floor.insert(Sensor); }
+                if floor_kind == "disjoint" {
+                    floor.insert(CollisionLayers::new(AlsCollisionLayer::Visibility, AlsCollisionLayer::Visibility));
+                }
+            }
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.1, 4.0),
+                Transform::from_xyz(0.0, ceiling + 0.05, 0.0)));
+            let params_value = AlsMovementParams::default();
+            let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(params_value.clone());
+            let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>()
+                .add(initial_als_control_scheme_config(&params_value));
+            let center = Vec3::Y * (params_value.crouch.crouched_capsule_half_height * scale + gap);
+            let mut bundle = AlsCharacterBundle::new(params, config);
+            bundle.rigid_body = RigidBody::Kinematic;
+            bundle.transform = Transform::from_translation(center).with_scale(Vec3::splat(scale));
+            bundle.collider = capsule_for(&params_value, Stance::Crouching);
+            bundle.stance = Stance::Crouching;
+            bundle.desired_stance = AlsDesiredStance(Stance::Crouching);
+            let character = app.world_mut().spawn((bundle, Position(center), GravityScale(0.0), AlsCapsuleCrouched,
+                CollisionLayers::new(AlsCollisionLayer::Default, AlsCollisionLayer::Default))).id();
+            let avatar = app.world_mut().spawn((AlsCharacterAvatar { character }, ChildOf(character), avatar_transform())).id();
+            app.update();
+            app.world_mut().run_schedule(FixedPostUpdate);
+            *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = mode;
+            app.world_mut().get_mut::<AlsDesiredStance>(character).unwrap().0 = Stance::Standing;
+            app.update();
+            let expected_stance = if standing_y.is_some() { Stance::Standing } else { Stance::Crouching };
+            let expected_y = standing_y.unwrap_or(center.y);
+            let mesh_offset = if standing_y.is_some() { -0.92 } else { -0.58 };
+            assert_eq!(app.world().get::<Stance>(character), Some(&expected_stance),
+                "mode={mode:?} floor={floor_kind} scale={scale} gap={gap} ceiling={ceiling}");
+            assert_eq!(app.world().get::<AlsDesiredStance>(character).unwrap().0, Stance::Standing);
+            assert!((app.world().get::<Position>(character).unwrap().y - expected_y).abs() < 2e-6);
+            let transaction = app.world().get::<AlsCrouchTransaction>(character).unwrap();
+            assert_eq!(transaction.headroom_blocked, standing_y.is_none());
+            assert!((transaction.collider_half_height - if standing_y.is_some() { 0.9 } else { 0.56 }).abs() < 1e-6);
+            assert!((app.world().get::<Transform>(avatar).unwrap().translation.y - mesh_offset).abs() < 1e-6);
+            assert!((app.world().get::<GlobalTransform>(avatar).unwrap().translation().y
+                - expected_y - mesh_offset * scale).abs() < 2e-6);
+            app.world_mut().run_schedule(FixedPostUpdate);
+            assert_eq!(app.world().get::<Stance>(character), Some(&expected_stance));
+            assert!((app.world().get::<Position>(character).unwrap().y - expected_y).abs() < 2e-6);
+        }
+    }
+
+    #[test]
     fn stand_up_overlap_uses_character_blocking_policy() {
         use bevy::ecs::system::RunSystemOnce;
         use crate::als::character::AlsCollisionLayer;
@@ -1752,7 +1823,7 @@ mod rotation_cap_tests {
                 app.update();
                 let blocked = matches!(kind, "solid" | "foreign");
                 let actual = if blocked { Stance::Crouching } else { Stance::Standing };
-                let position = if blocked { center } else { standing_center };
+                let position = if blocked { center } else { standing_center + Vec3::Y * STAND_UP_SWEEP_INFLATION };
                 assert_eq!(app.world().get::<Stance>(character), Some(&actual), "kind={kind} forced={forced}");
                 assert_eq!(app.world().get::<AlsCrouchTransaction>(character).unwrap().headroom_blocked, blocked);
                 assert_eq!(app.world().get::<AlsDesiredStance>(character).unwrap().0,
@@ -2809,6 +2880,7 @@ fn capsule_reshape_system(
             params,
             entity,
             target,
+            *locomotion,
             &mut stance,
             &mut transaction,
             transform.translation,
@@ -2827,6 +2899,7 @@ fn apply_capsule_for_stance(
     params: &AlsMovementParams,
     entity: Entity,
     target: Stance,
+    locomotion: LocomotionState,
     stance: &mut Stance,
     transaction: &mut AlsCrouchTransaction,
     center: Vec3,
@@ -2836,7 +2909,7 @@ fn apply_capsule_for_stance(
     transitions: &mut MessageWriter<StateTransitionEvent>,
 ) {
     let effective_scale = transform.scale.abs().min_element();
-    let target_center = capsule_center_for_stance(params, center, *stance, target, effective_scale);
+    let mut target_center = capsule_center_for_stance(params, center, *stance, target, effective_scale);
     match target {
         Stance::Crouching => {
             let (half_height, radius) = capsule_dimensions(params, target);
@@ -2851,11 +2924,26 @@ fn apply_capsule_for_stance(
         }
         Stance::Standing => {
             let filter = SpatialQueryFilter::from_excluded_entities([entity]);
-            let mut standing_capsule = capsule_for(params, Stance::Standing);
-            standing_capsule.set_scale(Vec3::splat(effective_scale), 16);
-            let blocked = spatial_query
+            let (standing_half, radius) = capsule_dimensions(params, Stance::Standing);
+            let standing_capsule = als_character_capsule(standing_half * effective_scale + STAND_UP_SWEEP_INFLATION,
+                radius * effective_scale);
+            target_center.y += STAND_UP_SWEEP_INFLATION;
+            let mut blocked = spatial_query
                 .shape_intersections(&standing_capsule, target_center, rotation, &filter)
                 .into_iter().any(|candidate| character_blocks_collider(entity, candidate, candidates));
+            if blocked && locomotion == LocomotionState::Grounded {
+                let (half, radius) = capsule_dimensions(params, *stance);
+                if let Some((floor_center, _, _)) = find_ground_floor(spatial_query, center,
+                    half * effective_scale, radius * effective_scale, &filter, entity, candidates) {
+                    let floor_distance = center.y - floor_center;
+                    if floor_distance > STAND_UP_MIN_FLOOR_DISTANCE {
+                        target_center.y -= floor_distance - STAND_UP_MIN_FLOOR_DISTANCE;
+                        blocked = spatial_query
+                            .shape_intersections(&standing_capsule, target_center, rotation, &filter)
+                            .into_iter().any(|candidate| character_blocks_collider(entity, candidate, candidates));
+                    }
+                }
+            }
             if blocked {
                 let (half_height, radius) = capsule_dimensions(params, Stance::Crouching);
                 transaction.stand_blocked(half_height, radius, center);

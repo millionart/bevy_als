@@ -65,6 +65,8 @@ def extract(actor, character_cpp, floor_cpp, primitive_cpp, movement_cpp, math_h
         'FLOOR_SWEEP_SHRINK_FRACTION': f32(1.0 - f32(shrink)),
         'FLOOR_RETRY_SHRINK_FRACTION': f32(1.0 - f32(overlap_shrink)),
         'MAX_SPEED_SQUARED_RATIO': literal(movement_cpp, rf'OverVelocityPercent\s*=\s*{NUMBER}f?\s*;', 'speed tolerance'),
+        'STAND_UP_SWEEP_INFLATION': small * literal(character_cpp, rf'const float SweepInflation\s*=\s*UE_KINDA_SMALL_NUMBER\s*\*\s*{NUMBER}f?\s*;', 'stand-up inflation') * scale,
+        'STAND_UP_MIN_FLOOR_DISTANCE': small * literal(character_cpp, rf'const float MinFloorDist\s*=\s*UE_KINDA_SMALL_NUMBER\s*\*\s*{NUMBER}f?\s*;', 'stand-up floor distance') * scale,
     }
 
 
@@ -76,7 +78,7 @@ def self_test():
     actor = {'blueprint_cdo_subobjects': [{'class_path': '/Script/ALS.AlsCharacterMovementComponent',
         'properties': [{'name': 'MaxStepHeight', 'exported_text': '45.000000'},
                        {'name': 'WalkableFloorAngle', 'exported_text': '44.765083'}]}]}
-    character = 'SWEEP_EDGE_REJECT_DISTANCE = 0.15f; MIN_FLOOR_DIST = 1.9f; MAX_FLOOR_DIST = 2.4f; const float ShrinkScale = 0.9f; const float ShrinkScaleOverlap = 0.1f;'
+    character = 'SWEEP_EDGE_REJECT_DISTANCE = 0.15f; MIN_FLOOR_DIST = 1.9f; MAX_FLOOR_DIST = 2.4f; const float ShrinkScale = 0.9f; const float ShrinkScaleOverlap = 0.1f; const float SweepInflation = UE_KINDA_SMALL_NUMBER * 10.f; const float MinFloorDist = UE_KINDA_SMALL_NUMBER * 10.f;'
     primitive = 'const float DesiredTimeBack = FMath::Clamp(0.1f, 0.1f/Dist, 1.f/Dist) + 0.001f;'
     movement = 'const float OverVelocityPercent = 1.01f;'
     header = '#define UE_KINDA_SMALL_NUMBER (1.e-4f)'
@@ -88,18 +90,23 @@ def self_test():
     assert values['PULLBACK_MIN_DISTANCE'] == 0.001
     assert values['PULLBACK_MAX_DISTANCE'] == 0.01
     assert values['MAX_SPEED_SQUARED_RATIO'] == 1.01
+    assert values['STAND_UP_SWEEP_INFLATION'] == 1e-5
+    assert values['STAND_UP_MIN_FLOOR_DISTANCE'] == 1e-5
     assert values['FLOOR_SWEEP_SHRINK_FRACTION'] == f32(1.0 - f32(0.9))
     changed = extract(actor, character.replace('0.15f', '0.25f'), character, primitive.replace('1.f/Dist', '2.f/Dist'), movement, header)
     assert changed['EDGE_REJECT_DISTANCE'] == 0.0025
     assert changed['PULLBACK_MAX_DISTANCE'] == 0.02
-    for broken in [character.replace('MAX_FLOOR_DIST', 'MISSING'), character + ' MAX_FLOOR_DIST = 4.f;']:
+    independent = extract(actor, character.replace('SweepInflation = UE_KINDA_SMALL_NUMBER * 10.f', 'SweepInflation = UE_KINDA_SMALL_NUMBER * 20.f'), character, primitive, movement, header)
+    assert independent['STAND_UP_SWEEP_INFLATION'] == 2e-5
+    assert independent['STAND_UP_MIN_FLOOR_DISTANCE'] == 1e-5
+    for broken in [character.replace('MAX_FLOOR_DIST', 'MISSING'), character + ' MAX_FLOOR_DIST = 4.f;', character.replace('SweepInflation', 'MISSING'), character + ' const float MinFloorDist = UE_KINDA_SMALL_NUMBER * 10.f;']:
         try:
             extract(actor, broken, character, primitive, movement, header)
         except ValueError:
             pass
         else:
             raise AssertionError('Invalid source must block generation')
-    assert len(render(values).splitlines()) == 13
+    assert len(render(values).splitlines()) == 15
     print('Movement constants self-test PASS')
 
 
