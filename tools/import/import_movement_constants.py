@@ -67,6 +67,10 @@ def extract(actor, character_cpp, floor_cpp, primitive_cpp, movement_cpp, math_h
         'MAX_SPEED_SQUARED_RATIO': literal(movement_cpp, rf'OverVelocityPercent\s*=\s*{NUMBER}f?\s*;', 'speed tolerance'),
         'STAND_UP_SWEEP_INFLATION': small * literal(character_cpp, rf'const float SweepInflation\s*=\s*UE_KINDA_SMALL_NUMBER\s*\*\s*{NUMBER}f?\s*;', 'stand-up inflation') * scale,
         'STAND_UP_MIN_FLOOR_DISTANCE': small * literal(character_cpp, rf'const float MinFloorDist\s*=\s*UE_KINDA_SMALL_NUMBER\s*\*\s*{NUMBER}f?\s*;', 'stand-up floor distance') * scale,
+        'MAX_DEPENETRATION_WITH_GEOMETRY': property_number('MaxDepenetrationWithGeometry') * scale,
+        'MAX_DEPENETRATION_WITH_PAWN': property_number('MaxDepenetrationWithPawn') * scale,
+        'PENETRATION_PULLBACK_DISTANCE': literal(movement_cpp, rf'float PenetrationPullbackDistance\s*=\s*{NUMBER}f?\s*;', 'penetration pullback') * scale,
+        'PENETRATION_OVERLAP_INFLATION': literal(movement_cpp, rf'float PenetrationOverlapCheckInflation\s*=\s*{NUMBER}f?\s*;', 'penetration overlap inflation') * scale,
     }
 
 
@@ -77,10 +81,12 @@ def render(values):
 def self_test():
     actor = {'blueprint_cdo_subobjects': [{'class_path': '/Script/ALS.AlsCharacterMovementComponent',
         'properties': [{'name': 'MaxStepHeight', 'exported_text': '45.000000'},
-                       {'name': 'WalkableFloorAngle', 'exported_text': '44.765083'}]}]}
+                       {'name': 'WalkableFloorAngle', 'exported_text': '44.765083'},
+                       {'name': 'MaxDepenetrationWithGeometry', 'exported_text': '500.000000'},
+                       {'name': 'MaxDepenetrationWithPawn', 'exported_text': '100.000000'}]}]}
     character = 'SWEEP_EDGE_REJECT_DISTANCE = 0.15f; MIN_FLOOR_DIST = 1.9f; MAX_FLOOR_DIST = 2.4f; const float ShrinkScale = 0.9f; const float ShrinkScaleOverlap = 0.1f; const float SweepInflation = UE_KINDA_SMALL_NUMBER * 10.f; const float MinFloorDist = UE_KINDA_SMALL_NUMBER * 10.f;'
     primitive = 'const float DesiredTimeBack = FMath::Clamp(0.1f, 0.1f/Dist, 1.f/Dist) + 0.001f;'
-    movement = 'const float OverVelocityPercent = 1.01f;'
+    movement = 'const float OverVelocityPercent = 1.01f; float PenetrationPullbackDistance = 0.125f; float PenetrationOverlapCheckInflation = 0.100f;'
     header = '#define UE_KINDA_SMALL_NUMBER (1.e-4f)'
     values = extract(actor, character, character, primitive, movement, header)
     assert values['MAX_STEP_HEIGHT'] == 0.45
@@ -92,6 +98,10 @@ def self_test():
     assert values['MAX_SPEED_SQUARED_RATIO'] == 1.01
     assert values['STAND_UP_SWEEP_INFLATION'] == 1e-5
     assert values['STAND_UP_MIN_FLOOR_DISTANCE'] == 1e-5
+    assert values['MAX_DEPENETRATION_WITH_GEOMETRY'] == 5.0
+    assert values['MAX_DEPENETRATION_WITH_PAWN'] == 1.0
+    assert values['PENETRATION_PULLBACK_DISTANCE'] == 0.00125
+    assert values['PENETRATION_OVERLAP_INFLATION'] == 0.001
     assert values['FLOOR_SWEEP_SHRINK_FRACTION'] == f32(1.0 - f32(0.9))
     changed = extract(actor, character.replace('0.15f', '0.25f'), character, primitive.replace('1.f/Dist', '2.f/Dist'), movement, header)
     assert changed['EDGE_REJECT_DISTANCE'] == 0.0025
@@ -106,7 +116,7 @@ def self_test():
             pass
         else:
             raise AssertionError('Invalid source must block generation')
-    assert len(render(values).splitlines()) == 15
+    assert len(render(values).splitlines()) == 19
     print('Movement constants self-test PASS')
 
 

@@ -23,6 +23,8 @@ use crate::als::movement_constants::{
     EDGE_REJECT_DISTANCE, FLOOR_RETRY_SHRINK_FRACTION, FLOOR_SWEEP_SHRINK_FRACTION,
     MIN_FLOOR_DISTANCE, MAX_FLOOR_DISTANCE, MAX_SLOPE_DEGREES, MAX_STEP_HEIGHT, PULLBACK_MAX_DISTANCE,
     STAND_UP_SWEEP_INFLATION, STAND_UP_MIN_FLOOR_DISTANCE,
+    MAX_DEPENETRATION_WITH_GEOMETRY, MAX_DEPENETRATION_WITH_PAWN,
+    PENETRATION_PULLBACK_DISTANCE, PENETRATION_OVERLAP_INFLATION,
     PULLBACK_MIN_DISTANCE, PULLBACK_PROPORTION, PULLBACK_TIME_BIAS, SWEEP_EDGE_MIN_RADIUS,
 };
 use crate::als::input::AlsInputCommand;
@@ -3221,6 +3223,7 @@ pub(crate) fn locomotion_state_sync_system(
     candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
     params_assets: Res<Assets<AlsMovementParams>>,
     blocked: Query<(), With<AlsMovementInputBlocked>>,
+    pawns: Query<(), With<AlsCharacter>>,
     collisions: Collisions,
     mut transitions: MessageWriter<StateTransitionEvent>,
     transforms: bevy::transform::helper::TransformHelper,
@@ -3230,6 +3233,7 @@ pub(crate) fn locomotion_state_sync_system(
             Entity,
             &Transform,
             &Position,
+            &Collider,
             &mut LinearVelocity,
             &TnuaController<AlsControlScheme>,
             &mut LocomotionState,
@@ -3243,7 +3247,7 @@ pub(crate) fn locomotion_state_sync_system(
         With<AlsCharacter>,
     >,
 ) {
-    for (entity, transform, position, mut velocity, controller, mut current, request, ragdoll_air_exit, action, handle, stance, mut runtime) in &mut q {
+    for (entity, transform, position, capsule, mut velocity, controller, mut current, request, ragdoll_air_exit, action, handle, stance, mut runtime) in &mut q {
         let sweep_contact = std::mem::take(&mut runtime.airborne_sweep_contact);
         if !matches!(*current, LocomotionState::Grounded | LocomotionState::Air) || ragdoll_air_exit
             || action == Some(&crate::als::state::AlsNotifyLocomotionAction::Ragdolling) {
@@ -3269,7 +3273,47 @@ pub(crate) fn locomotion_state_sync_system(
                 };
                 if (next_y - position.y).abs() <= MAX_STEP_HEIGHT {
                     let mut next_transform = *transform;
-                    next_transform.translation = Vec3::new(position.x, next_y, position.z);
+                    next_transform.translation = position.0;
+                    if let Ok((direction, distance)) = Dir3::new_and_length(Vec3::Y * (next_y - position.y)) {
+                        let config = ShapeCastConfig { ignore_origin_penetration: true,
+                            ..ShapeCastConfig::from_max_distance(distance) };
+                        let accepts = |candidate| character_blocks_collider(entity, candidate, &candidates);
+                        let mut hit = spatial.cast_shape_predicate(capsule, position.0, transform.rotation,
+                            direction, &config, &filter, &accepts);
+                        if let Some(initial) = hit.filter(|hit| hit.distance == 0.0) {
+                            let depth = (initial.point1 - initial.point2).dot(initial.normal1);
+                            if depth > 0.0 {
+                                let body = candidates.get(initial.entity).ok().and_then(|(_, _, owner, _)| owner)
+                                    .map_or(initial.entity, |owner| owner.body);
+                                let maximum = if pawns.contains(body) { MAX_DEPENETRATION_WITH_PAWN }
+                                    else { MAX_DEPENETRATION_WITH_GEOMETRY };
+                                let adjustment = (initial.normal1 * (depth + PENETRATION_PULLBACK_DISTANCE))
+                                    .clamp_length_max(maximum);
+                                let extent = capsule.shape_scaled().compute_local_aabb().half_extents();
+                                let inflated = als_character_capsule(extent.y + PENETRATION_OVERLAP_INFLATION,
+                                    extent.x + PENETRATION_OVERLAP_INFLATION);
+                                let encroached = spatial.shape_intersections(&inflated, position.0 + adjustment,
+                                    transform.rotation, &filter).into_iter().any(accepts);
+                                let applied = if !encroached {
+                                    adjustment
+                                } else if let Ok((exit, exit_distance)) = Dir3::new_and_length(adjustment) {
+                                    let exit_config = ShapeCastConfig { max_distance: exit_distance, ..config };
+                                    let exit_hit = spatial.cast_shape_predicate(capsule, position.0, transform.rotation,
+                                        exit, &exit_config, &filter, &accepts);
+                                    *exit * exit_hit.map_or(exit_distance,
+                                        |hit| movement_sweep_travel(exit_distance, hit.distance))
+                                } else { Vec3::ZERO };
+                                if applied.length_squared() > 0.0 {
+                                    next_transform.translation += applied;
+                                    if let Some(start) = runtime.grounded_move_start.as_mut() { *start += applied; }
+                                    hit = spatial.cast_shape_predicate(capsule, next_transform.translation,
+                                        transform.rotation, direction, &config, &filter, &accepts);
+                                }
+                            }
+                        }
+                        next_transform.translation += *direction
+                            * hit.map_or(distance, |hit| movement_sweep_travel(distance, hit.distance));
+                    }
                     commands.entity(entity).insert((Position(next_transform.translation), next_transform));
                     velocity.0.y = 0.0;
                     floor_supported = true;
@@ -3419,6 +3463,69 @@ mod tests {
             app.update();
         }
         (app, character, start_z)
+    }
+
+    #[test]
+    fn floor_height_adjustment_sweeps_the_actual_capsule_below_a_ceiling() {
+        use bevy::ecs::system::RunSystemOnce;
+        use crate::als::character::AlsCollisionLayer;
+        for (origin_y, ceiling, kind) in [
+            (0.905, 1.81, "solid"), (0.905, 2.0, "solid"),
+            (0.920, 2.0, "solid"), (1.005, 2.0, "solid"),
+            (0.890, 2.0, "solid"), (0.905, 1.81, "sensor"),
+            (0.905, 1.81, "disjoint"), (0.5815, 1.81, "uncrouch"),
+        ] {
+            let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+            let origin = Vec3::new(0.0, origin_y, 1.0);
+            app.world_mut().get_mut::<Position>(character).unwrap().0 = origin;
+            app.world_mut().get_mut::<Transform>(character).unwrap().translation = origin;
+            app.world_mut().get_mut::<LinearVelocity>(character).unwrap().0 = Vec3::ZERO;
+            app.world_mut().entity_mut(character).insert(CollisionLayers::new(
+                AlsCollisionLayer::Default, AlsCollisionLayer::Default));
+            if kind == "uncrouch" {
+                let handle = app.world().get::<AlsMovementParamsHandle>(character).unwrap().0.clone();
+                let params = app.world().resource::<Assets<AlsMovementParams>>().get(&handle).unwrap();
+                let crouched = capsule_for(params, Stance::Crouching);
+                app.world_mut().entity_mut(character).insert((crouched, Stance::Crouching,
+                    AlsDesiredStance(Stance::Crouching), AlsCapsuleCrouched));
+            }
+            let mut roof = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.1, 1.0),
+                Transform::from_xyz(0.0, ceiling + 0.05, 1.0)));
+            if kind == "sensor" { roof.insert(Sensor); }
+            if kind == "disjoint" {
+                roof.insert(CollisionLayers::new(AlsCollisionLayer::Visibility, AlsCollisionLayer::Visibility));
+            }
+            let roof = roof.id();
+            assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Grounded));
+            if kind == "uncrouch" {
+                app.update();
+                app.world_mut().get_mut::<AlsDesiredStance>(character).unwrap().0 = Stance::Standing;
+            }
+            for frame in 0..4 {
+                app.update();
+                let position = app.world().get::<Position>(character).unwrap().0;
+                let constrained = ceiling < 1.82 && !matches!(kind, "sensor" | "disjoint");
+                if constrained {
+                    assert!(position.y <= ceiling - 0.9 + 1e-6,
+                        "Post-physics ceiling penetration: kind={kind} frame={frame} position={position:?}");
+                } else {
+                    assert!((MIN_FLOOR_DISTANCE - 1e-4..=MAX_FLOOR_DISTANCE + 1e-4).contains(&(position.y - 0.9)),
+                        "Floor clearance differs: kind={kind} frame={frame} position={position:?}");
+                }
+                assert_eq!(app.world().get::<Stance>(character), Some(&Stance::Standing));
+                assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Grounded));
+                assert!(position.distance(app.world().get::<Transform>(character).unwrap().translation) < 1e-6);
+                assert!(app.world().get::<LinearVelocity>(character).unwrap().length() < 1e-4,
+                    "Height adjustment must not create locomotion velocity");
+                app.world_mut().run_system_once(move |spatial: SpatialQuery, colliders: Query<&Collider>| {
+                    let overlaps = spatial.shape_intersections(colliders.get(character).unwrap(), position,
+                        Quat::IDENTITY, &SpatialQueryFilter::from_excluded_entities([character]));
+                    if !matches!(kind, "sensor" | "disjoint") {
+                        assert!(!overlaps.contains(&roof), "Actual capsule overlaps the roof: kind={kind} frame={frame}");
+                    }
+                }).unwrap();
+            }
+        }
     }
 
     #[test]
