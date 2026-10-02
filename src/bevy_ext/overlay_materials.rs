@@ -11,7 +11,11 @@ impl Plugin for OverlayMaterialsPlugin {
     }
 }
 
+#[derive(Component, Default)]
+pub struct AvatarMaterialRoot;
+
 #[derive(Component)]
+#[require(AvatarMaterialRoot)]
 pub struct AvatarMaterialOverride(pub Vec<Handle<StandardMaterial>>);
 
 #[derive(Component, Debug, Clone, Copy)]
@@ -26,15 +30,14 @@ fn avatar_material_bridge(
     mut commands: Commands,
     avatars: Query<(
         Entity,
-        &AvatarMaterialOverride,
+        Option<&AvatarMaterialOverride>,
         Option<&AvatarMaterialApplied>,
         Has<NoDecalReceiver>,
-    )>,
+    ), With<AvatarMaterialRoot>>,
     children: Query<&Children>,
     mesh_materials: Query<(Option<&MeshMaterial3d<StandardMaterial>>, Option<&crate::extensions::projected_decal::StandardMaterialSource>, Has<NoDecalReceiver>), With<Mesh3d>>,
 ) {
     for (root, override_comp, applied, no_decals) in &avatars {
-        let Some(fallback) = override_comp.0.last() else { continue; };
         let mut stack = vec![root];
         let mut mesh_entities = Vec::new();
         while let Some(e) = stack.pop() {
@@ -46,10 +49,13 @@ fn avatar_material_bridge(
                     stack.push(child);
                 }
             }
-            if mesh_materials.get(e).is_ok_and(|(material, source, _)| material.is_some() || source.is_some()) {
-                mesh_entities.push(e);
+            if let Ok((material, source, excluded)) = mesh_materials.get(e) {
+                if no_decals && !excluded { commands.entity(e).insert(NoDecalReceiver); }
+                if material.is_some() || source.is_some() { mesh_entities.push(e); }
             }
         }
+        let Some(override_comp) = override_comp else { continue; };
+        let Some(fallback) = override_comp.0.last() else { continue; };
         if mesh_entities.is_empty() {
             continue;
         }
@@ -82,10 +88,7 @@ fn avatar_material_bridge(
                 .0
                 .get(slot)
                 .unwrap_or(fallback);
-            let (current, source, excluded) = mesh_materials.get(*entity).unwrap();
-            if no_decals && !excluded {
-                commands.entity(*entity).insert(NoDecalReceiver);
-            }
+            let (current, source, _) = mesh_materials.get(*entity).unwrap();
             if current.map(|current| current.0.id()).or_else(|| source.map(|source| source.0.id())) != Some(material.id()) {
                 commands.entity(*entity).remove::<(MeshMaterial3d<crate::extensions::projected_decal::PackedDecalReceiverMaterial>, crate::extensions::projected_decal::StandardMaterialSource)>()
                     .insert(MeshMaterial3d(material.clone()));
@@ -129,6 +132,42 @@ fn avatar_material_bridge(
 mod tests {
     use super::*;
     use bevy::ecs::system::RunSystemOnce;
+
+    #[test]
+    fn no_decal_policy_reaches_meshes_without_material_overrides() {
+        for empty_override in [false, true] {
+            let mut world = World::new();
+            let mut materials = Assets::<StandardMaterial>::default();
+            let source = materials.add(StandardMaterial::default());
+            world.insert_resource(materials);
+            let character = world.spawn_empty().id();
+            let root = world.spawn(crate::character_assembly::AlsCharacterAvatar { character }).id();
+            if empty_override { world.entity_mut(root).insert(AvatarMaterialOverride(Vec::new())); }
+            let body = world.spawn((ChildOf(root), Mesh3d::default(), MeshMaterial3d(source.clone()))).id();
+            let pending = world.spawn((ChildOf(root), Mesh3d::default())).id();
+            let nested_root = world.spawn((ChildOf(root), AvatarMaterialOverride(vec![source.clone()]))).id();
+            let nested = world.spawn((ChildOf(nested_root), Mesh3d::default(), MeshMaterial3d(source.clone()))).id();
+            let environment = world.spawn((Mesh3d::default(), MeshMaterial3d(source.clone()))).id();
+            let camera = world.spawn((ChildOf(root), crate::character_assembly::AlsCharacterCamera { character })).id();
+            let camera_mesh = world.spawn((ChildOf(camera), Mesh3d::default(), MeshMaterial3d(source.clone()))).id();
+            world.run_system_cached(avatar_material_bridge).unwrap();
+            assert!(world.get::<NoDecalReceiver>(body).is_none());
+            world.entity_mut(root).insert(NoDecalReceiver);
+            world.run_system_cached(avatar_material_bridge).unwrap();
+            assert!(world.get::<NoDecalReceiver>(body).is_some(), "Decal policy must not depend on optional overrides");
+            assert!(world.get::<NoDecalReceiver>(pending).is_some(), "The policy must reach a mesh before its material arrives");
+            assert!(world.get::<NoDecalReceiver>(nested).is_none());
+            assert!(world.get::<NoDecalReceiver>(environment).is_none());
+            assert!(world.get::<NoDecalReceiver>(camera_mesh).is_none(), "The source Camera keeps its own decal policy without an override");
+            assert_eq!(world.get::<MeshMaterial3d<StandardMaterial>>(body).unwrap().0, source);
+            assert!(world.get::<AvatarMaterialApplied>(root).is_none());
+            world.clear_trackers();
+            world.increment_change_tick();
+            world.run_system_cached(avatar_material_bridge).unwrap();
+            assert!(!world.entity(body).get_ref::<NoDecalReceiver>().unwrap().is_changed());
+            assert_eq!(world.get::<MeshMaterial3d<StandardMaterial>>(body).unwrap().0, source);
+        }
+    }
 
     #[test]
     fn material_overrides_follow_changes_and_rebuilt_meshes_without_rewriting_stable_frames() {

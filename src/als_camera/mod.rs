@@ -230,6 +230,7 @@ impl Default for AlsCameraFieldOfView {
 pub struct AlsCameraTarget;
 
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+#[require(crate::extensions::overlay_materials::AvatarMaterialRoot)]
 pub struct AlsCharacterCamera {
     pub character: Entity,
 }

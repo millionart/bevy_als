@@ -32,6 +32,7 @@ pub const ALS_CHARACTER_MATERIAL_SLOT_COUNT: usize = 15;
 pub const ALS_CHARACTER_EYES_MATERIAL_SLOT: usize = AVATAR_MAIN_MATERIAL_SLOT;
 
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+#[require(crate::extensions::overlay_materials::AvatarMaterialRoot)]
 pub struct AlsCharacterAvatar {
     pub character: Entity,
 }
