@@ -1,5 +1,5 @@
 use avian3d::prelude::{
-    Collider, CollisionLayers, ContactGraph, LinearVelocity, LockedAxes, PhysicsLayer, PhysicsSchedule,
+    SimpleCollider, Collider, ColliderOf, CollisionLayers, ContactGraph, Sensor, LinearVelocity, LockedAxes, PhysicsLayer, PhysicsSchedule,
     PhysicsStepSystems, PhysicsSystems, Position, RigidBody,
     SpeculativeMargin,
 };
@@ -247,10 +247,6 @@ fn character_contact_friction_system(
     }
 }
 
-fn character_half_height(params: &AlsMovementParams, stance: Stance) -> f32 {
-    if stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height }
-}
-
 fn vertical_intervals_overlap(
     first_bottom: f32,
     first_top: f32,
@@ -270,31 +266,29 @@ fn crush_recovery_floor_vertical_bounds(transform: &Transform, half_extents: Vec
 }
 
 fn character_crush_recovery_system(
-    floors: Query<(&GlobalTransform, &AlsCrushRecoveryFloor)>,
-    params_assets: Res<Assets<AlsMovementParams>>,
+    floors: Query<(Entity, &GlobalTransform, &AlsCrushRecoveryFloor, &Collider)>,
+    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
     mut characters: Query<
         (
+            Entity,
             &mut Position,
             &mut Transform,
             &mut LinearVelocity,
-            &Stance,
-            &AlsMovementParamsHandle,
+            &Collider,
             &mut AlsCrushRecovery,
         ),
         With<AlsCharacter>,
     >,
 ) {
-    for (mut position, mut transform, mut velocity, stance, params_handle, mut recovery) in
+    for (entity, mut position, mut transform, mut velocity, capsule, mut recovery) in
         &mut characters
     {
-        let half_height = params_assets
-            .get(params_handle.0.id())
-            .map(|params| character_half_height(params, *stance))
-            .unwrap_or(ALS_CHARACTER_CAPSULE_HALF_HEIGHT);
+        let half_height = capsule.shape_scaled().compute_local_aabb().half_extents().y;
         let capsule_bottom = position.0.y - half_height;
         let capsule_top = position.0.y + half_height;
         let mut recovery_top = None;
-        for (floor_transform, floor) in &floors {
+        for (floor_entity, floor_transform, floor, floor_collider) in &floors {
+            if !crate::als::motion::character_blocks_collider(entity, floor_entity, &candidates) { continue; }
             let floor_transform = floor_transform.compute_transform();
             let floor_matrix = floor_transform.to_matrix();
             let local_position = floor_matrix.inverse().transform_point3(position.0);
@@ -306,7 +300,12 @@ fn character_crush_recovery_system(
             let (floor_bottom, top) =
                 crush_recovery_floor_vertical_bounds(&floor_transform, floor.half_extents);
             if vertical_intervals_overlap(capsule_bottom, capsule_top, floor_bottom, top) {
-                recovery_top = Some(recovery_top.map_or(top, |current: f32| current.max(top)));
+                let mut manifolds = Vec::new();
+                capsule.contact_manifolds(floor_collider, position.0, transform.rotation,
+                    floor_transform.translation, floor_transform.rotation, 0.0, &mut manifolds);
+                if manifolds.iter().any(|manifold| manifold.points.iter().any(|point| point.penetration > 0.0)) {
+                    recovery_top = Some(recovery_top.map_or(top, |current: f32| current.max(top)));
+                }
             }
         }
         let Some(top) = recovery_top else {
@@ -440,6 +439,7 @@ mod tests {
                 Transform::from_translation(center),
                 LinearVelocity(Vec3::Y * vertical_velocity),
                 Stance::Standing,
+                als_character_capsule(ALS_CHARACTER_CAPSULE_HALF_HEIGHT, ALS_CHARACTER_CAPSULE_RADIUS),
                 AlsMovementParamsHandle(params),
             ))
             .id()
@@ -449,6 +449,7 @@ mod tests {
         app.world_mut().spawn((
             GlobalTransform::from(Transform::from_translation(center)),
             AlsCrushRecoveryFloor { half_extents },
+            Collider::cuboid(half_extents.x * 2.0, half_extents.y * 2.0, half_extents.z * 2.0),
         ));
     }
 
@@ -520,6 +521,84 @@ mod tests {
             ),
             Some(None)
         );
+    }
+
+    #[test]
+    fn crush_recovery_keeps_scaled_air_and_recovers_real_penetration() {
+        for scale in [0.5, 1.0, 2.0] {
+            for stance in [Stance::Standing, Stance::Crouching] {
+                for penetrating in [false, true] {
+                    let (mut app, params) = crush_recovery_test_app();
+                    let half = if stance == Stance::Standing { 0.9 } else { 0.56 };
+                    let center = Vec3::Y * (half * scale + if penetrating { -0.05 } else { 0.15 });
+                    let character = spawn_crush_recovery_character(&mut app, params, center, -1.0);
+                    let mut capsule = als_character_capsule(half, 0.3);
+                    capsule.set_scale(Vec3::splat(scale), 16);
+                    app.world_mut().entity_mut(character).insert((capsule, stance, LocomotionState::Air));
+                    app.world_mut().get_mut::<Transform>(character).unwrap().scale = Vec3::splat(scale);
+                    spawn_crush_recovery_floor(&mut app, Vec3::Y * -0.1, Vec3::new(2.0, 0.1, 2.0));
+                    app.update();
+                    let expected = if penetrating { Vec3::Y * (half * scale + CRUSH_RECOVERY_SKIN) } else { center };
+                    assert!(app.world().get::<Position>(character).unwrap().0.distance(expected) < 1e-6,
+                        "scale={scale} stance={stance:?} penetrating={penetrating}");
+                    assert_eq!(app.world().get::<Transform>(character).unwrap().translation,
+                        app.world().get::<Position>(character).unwrap().0);
+                    assert_eq!(app.world().get::<LinearVelocity>(character).unwrap().y, if penetrating { 0.0 } else { -1.0 });
+                    assert_eq!(app.world().get::<AlsCrushRecovery>(character).unwrap().corrections, u32::from(penetrating));
+                    app.update();
+                    assert_eq!(app.world().get::<AlsCrushRecovery>(character).unwrap().corrections, u32::from(penetrating));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn crush_recovery_rejects_nonblocking_floor_candidates() {
+        for sensor in [true, false] {
+            let (mut app, params) = crush_recovery_test_app();
+            let character = spawn_crush_recovery_character(&mut app, params, Vec3::Y * 0.85, -1.0);
+            app.world_mut().entity_mut(character).insert(CollisionLayers::new(
+                AlsCollisionLayer::Default, AlsCollisionLayer::Default));
+            spawn_crush_recovery_floor(&mut app, Vec3::Y * -0.1, Vec3::new(2.0, 0.1, 2.0));
+            let floor = app.world_mut().query_filtered::<Entity, With<AlsCrushRecoveryFloor>>()
+                .single(app.world()).unwrap();
+            if sensor { app.world_mut().entity_mut(floor).insert(avian3d::prelude::Sensor); }
+            else { app.world_mut().entity_mut(floor).insert(CollisionLayers::new(
+                AlsCollisionLayer::Visibility, AlsCollisionLayer::Visibility)); }
+            app.update();
+            assert_eq!(app.world().get::<Position>(character).unwrap().0, Vec3::Y * 0.85,
+                "A nonblocking floor must not trigger recovery: sensor={sensor}");
+            assert_eq!(app.world().get::<LinearVelocity>(character).unwrap().y, -1.0);
+            assert_eq!(app.world().get::<AlsCrushRecovery>(character).unwrap().corrections, 0);
+        }
+    }
+
+    #[test]
+    fn crush_recovery_uses_real_floor_geometry_after_transforming() {
+        for (rotation, scale, outside) in [
+            (Quat::IDENTITY, Vec3::splat(2.0), false),
+            (Quat::from_rotation_y(0.7), Vec3::splat(2.0), true),
+            (Quat::from_rotation_z(0.35), Vec3::ONE, false),
+        ] {
+            let (mut app, params) = crush_recovery_test_app();
+            let center = if outside { Vec3::new(8.0, 0.6, 0.0) } else { Vec3::Y * 0.6 };
+            let character = spawn_crush_recovery_character(&mut app, params, center, -1.0);
+            let mut capsule = als_character_capsule(0.9, 0.3);
+            capsule.set_scale(Vec3::splat(0.5), 16);
+            app.world_mut().entity_mut(character).insert((capsule, LocomotionState::Air));
+            app.world_mut().get_mut::<Transform>(character).unwrap().scale = Vec3::splat(0.5);
+            let transform = Transform::from_xyz(0.0, -0.1 * scale.y, 0.0)
+                .with_rotation(rotation).with_scale(scale);
+            let mut floor = Collider::cuboid(4.0, 0.2, 4.0);
+            floor.set_scale(scale, 16);
+            app.world_mut().spawn((GlobalTransform::from(transform),
+                AlsCrushRecoveryFloor { half_extents: Vec3::new(2.0, 0.1, 2.0) }, floor));
+            app.update();
+            assert_eq!(app.world().get::<Position>(character).unwrap().0, center,
+                "A transformed floor bounding box is not proof of capsule penetration");
+            assert_eq!(app.world().get::<LinearVelocity>(character).unwrap().y, -1.0);
+            assert_eq!(app.world().get::<AlsCrushRecovery>(character).unwrap().corrections, 0);
+        }
     }
 
     #[test]
