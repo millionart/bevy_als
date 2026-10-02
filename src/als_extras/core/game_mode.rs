@@ -252,6 +252,70 @@ mod tests {
     use bevy_animation_graph::core::animated_scene::AnimatedScene;
 
     #[test]
+    fn orthogonal_overlap_admits_at_the_combined_native_adjustment() {
+        let mut cases = Vec::new();
+        for depths in [Vec2::new(0.1, 0.2), Vec2::splat(0.15)] {
+            for signs in [Vec2::ONE, Vec2::new(-1.0, 1.0), Vec2::new(1.0, -1.0), Vec2::NEG_ONE] {
+                cases.push((depths, signs, false));
+            }
+        }
+        cases.extend([(Vec2::new(0.1, 0.0), Vec2::ONE, false),
+            (Vec2::new(0.0, 0.2), Vec2::NEG_ONE, false),
+            (Vec2::ZERO, Vec2::ONE, false), (Vec2::new(0.1, 0.2), Vec2::ONE, true)]);
+        for (depths, signs, enclosed) in cases {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin,
+                bevy::transform::TransformPlugin, PhysicsPlugins::new(FixedPostUpdate),
+                crate::als::player_start::AlsPlayerStartPlugin, AlsGameModePlugin))
+                .init_asset::<StandardMaterial>().init_asset::<AlsMovementParams>()
+                .init_asset::<AlsControlSchemeConfig>().init_asset::<AnimatedScene>()
+                .init_asset::<crate::als_camera::AlsCameraDefinition>();
+            app.world_mut().resource_mut::<AlsPlayerStartSettings>().required_stable_frames = 1;
+            app.finish(); app.cleanup();
+            let center = Vec3::Y * 0.919;
+            let start = app.world_mut().spawn((AlsPlayerStart { snap_to_ground: false, ..default() },
+                Transform::from_translation(center))).id();
+            for (depth, sign, axis, dimensions) in [
+                (depths.x, signs.x, Vec3::X, Vec3::new(2.0, 20.0, 20.0)),
+                (depths.y, signs.y, Vec3::Z, Vec3::new(20.0, 20.0, 2.0))] {
+                if depth > 0.0 {
+                    app.world_mut().spawn((RigidBody::Static, Collider::cuboid(dimensions.x, dimensions.y, dimensions.z),
+                        Transform::from_translation(center - axis * sign * (1.3 - depth))));
+                    if enclosed {
+                        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(dimensions.x, dimensions.y, dimensions.z),
+                            Transform::from_translation(center + axis * sign * (1.3 - depth))));
+                    }
+                }
+            }
+            app.update(); app.world_mut().run_schedule(FixedPostUpdate); app.update();
+            let expected = Vec3::new(depths.x * signs.x, 0.0, depths.y * signs.y);
+            if enclosed {
+                assert!(app.world().get::<AlsPlayerStartReady>(start).is_none());
+            } else {
+                let ready = app.world().get::<AlsPlayerStartReady>(start)
+                    .expect("Combined wall penetration must publish PlayerStart readiness");
+                assert!(ready.teleport_adjustment.distance(expected) < 0.0001,
+                    "depths={depths:?} signs={signs:?}: {:?} != {expected:?}", ready.teleport_adjustment);
+            }
+            app.insert_resource(AlsScenePhysicsReady { ready: true });
+            let request = app.world_mut().spawn((AlsPlayerAdmission { spawn_input: false, spawn_camera: false,
+                ..AlsPlayerAdmission::new() }, AlsPlayerAdmissionPending)).id();
+            app.update();
+            assert!(app.world().get::<AlsPlayerAdmissionPending>(request).is_none());
+            if enclosed {
+                assert!(app.world().get::<AlsPlayerAdmissionComplete>(request).is_none());
+                assert!(app.world().get::<AlsPlayerAdmissionFailed>(request).is_some());
+            } else {
+                let admitted = app.world().get::<AlsPlayerAdmissionComplete>(request)
+                    .expect("A recoverable orthogonal overlap must admit the pawn");
+                assert!(app.world().get::<Transform>(admitted.character).unwrap().translation
+                    .distance(center + expected) < 0.0001);
+                assert!(app.world().get::<AlsPlayerAdmissionFailed>(request).is_none());
+            }
+        }
+    }
+
+    #[test]
     fn same_frame_admissions_do_not_share_one_capsule_space() {
         assert!(spawn_capsules_overlap(Vec3::ZERO, Vec3::ZERO, 0.9, 0.3));
         assert!(!spawn_capsules_overlap(Vec3::ZERO, Vec3::X * 0.61, 0.9, 0.3));

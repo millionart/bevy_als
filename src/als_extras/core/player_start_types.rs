@@ -1,4 +1,4 @@
-use avian3d::prelude::{ColliderAabb, SpatialQueryFilter};
+use avian3d::prelude::{Collider, SpatialQueryFilter};
 use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy::prelude::*;
 
@@ -188,36 +188,28 @@ fn shape_intersections(
 
 fn proposed_overlap_adjustment(
     transform: &Transform,
-    half_height: f32,
-    radius: f32,
+    shape: &Collider,
     intersections: &[Entity],
-    aabbs: &Query<&ColliderAabb>,
+    colliders: &Query<(&Collider, &GlobalTransform)>,
 ) -> Option<Vec3> {
-    let character_min = transform.translation - Vec3::new(radius, half_height, radius);
-    let character_max = transform.translation + Vec3::new(radius, half_height, radius);
-    let mut best: Option<Vec3> = None;
+    let mut adjustment = Vec3::ZERO;
     for entity in intersections {
-        let Ok(aabb) = aabbs.get(*entity) else {
-            continue;
-        };
-        let candidates = [
-            Vec3::X * (aabb.max.x - character_min.x + PLAYER_START_TELEPORT_SKIN),
-            Vec3::NEG_X * (character_max.x - aabb.min.x + PLAYER_START_TELEPORT_SKIN),
-            Vec3::Y * (aabb.max.y - character_min.y + PLAYER_START_TELEPORT_SKIN),
-            Vec3::NEG_Y * (character_max.y - aabb.min.y + PLAYER_START_TELEPORT_SKIN),
-            Vec3::Z * (aabb.max.z - character_min.z + PLAYER_START_TELEPORT_SKIN),
-            Vec3::NEG_Z * (character_max.z - aabb.min.z + PLAYER_START_TELEPORT_SKIN),
-        ];
-        for candidate in candidates {
-            if candidate.length_squared() <= f32::EPSILON {
-                continue;
-            }
-            if best.is_none_or(|current| candidate.length_squared() < current.length_squared()) {
-                best = Some(candidate);
-            }
-        }
+        let (collider, obstacle) = colliders.get(*entity).ok()?;
+        let obstacle = obstacle.compute_transform();
+        let contact = avian3d::collision::collider::contact_query::contact(
+            shape, transform.translation, transform.rotation,
+            collider, obstacle.translation, obstacle.rotation, 0.0,
+        ).ok()??;
+        let normal = transform.rotation * contact.local_normal1;
+        let depth = if let (Some(first), Some(second)) =
+            (shape.shape_scaled().as_support_map(), collider.shape_scaled().as_support_map()) {
+            let first = transform.translation + transform.rotation * first.local_support_point(contact.local_normal1);
+            let second = obstacle.translation + obstacle.rotation * second.local_support_point(contact.local_normal2);
+            (first - second).dot(normal)
+        } else { contact.penetration };
+        adjustment -= normal * depth;
     }
-    best
+    (adjustment.length_squared() > f32::EPSILON).then_some(adjustment)
 }
 
 pub fn find_teleport_spot(
@@ -225,20 +217,21 @@ pub fn find_teleport_spot(
     transform: Transform,
     capsule_half_height: f32,
     capsule_radius: f32,
-    aabbs: &Query<&ColliderAabb>,
+    colliders: &Query<(&Collider, &GlobalTransform)>,
     filter: &SpatialQueryFilter,
 ) -> Option<(Transform, Vec3)> {
-    let shape = spawn_shape(capsule_half_height, capsule_radius);
+    let full_shape = spawn_shape(capsule_half_height, capsule_radius);
+    let shrink = crate::als::movement_constants::SPAWN_ENCROACH_EPSILON;
+    let shape = spawn_shape(capsule_half_height - shrink, capsule_radius - shrink);
     let intersections = shape_intersections(spatial, &shape, &transform, filter);
     if intersections.is_empty() {
         return Some((transform, Vec3::ZERO));
     }
     let adjustment = proposed_overlap_adjustment(
         &transform,
-        capsule_half_height,
-        capsule_radius,
+        &full_shape,
         &intersections,
-        aabbs,
+        colliders,
     )?;
     if adjustment.y.abs() > f32::EPSILON {
         let mut candidate = transform;
@@ -276,12 +269,13 @@ pub fn fit_player_start(
     ground_y: f32,
     capsule_half_height: f32,
     capsule_radius: f32,
-    aabbs: &Query<&ColliderAabb>,
+    colliders: &Query<(&Collider, &GlobalTransform)>,
     filter: &SpatialQueryFilter,
 ) -> Option<AlsPlayerSpawnFit> {
     let mut base = yaw_only_transform(start);
     base.translation.y = player_start_grounded_height(ground_y, capsule_half_height);
-    let shape = spawn_shape(capsule_half_height, capsule_radius);
+    let shrink = crate::als::movement_constants::SPAWN_ENCROACH_EPSILON;
+    let shape = spawn_shape(capsule_half_height - shrink, capsule_radius - shrink);
     if shape_intersections(spatial, &shape, &base, filter).is_empty() {
         return Some(AlsPlayerSpawnFit {
             transform: base,
@@ -296,7 +290,7 @@ pub fn fit_player_start(
         base,
         capsule_half_height,
         capsule_radius,
-        aabbs,
+        colliders,
         filter,
     ) {
         return Some(AlsPlayerSpawnFit {
@@ -361,7 +355,7 @@ fn prepare_player_starts(
     mut commands: Commands,
     settings: Res<AlsPlayerStartSettings>,
     spatial: SpatialQuery,
-    aabbs: Query<&ColliderAabb>,
+    colliders: Query<(&Collider, &GlobalTransform)>,
     characters: Query<Entity, With<crate::als::character::AlsCharacter>>,
     mut starts: Query<
         (
@@ -400,7 +394,7 @@ fn prepare_player_starts(
             ground_y,
             settings.capsule_half_height,
             settings.capsule_radius,
-            &aabbs,
+            &colliders,
             &occupancy_filter,
         ) else {
             commands.entity(entity).remove::<AlsPlayerStartReady>();
