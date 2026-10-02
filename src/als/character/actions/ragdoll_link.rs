@@ -305,10 +305,19 @@ fn capture_ragdoll_player_world_transform(
         (&ChildOf, &Transform),
         (With<AnimationGraphPlayer>, Without<AlsCharacter>),
     >,
-    detached_players: Query<(), With<AlsRagdollDetachedPlayer>>,
+    detached_players: Query<(Entity, &AlsRagdollDetachedPlayer)>,
+    assemblies: Query<&AlsCharacterAssembly, With<AlsCharacter>>,
+    alive: Query<()>,
     children: Query<&Children>,
     mut globals: Query<&mut GlobalTransform>,
 ) {
+    for (player, detached) in &detached_players {
+        if !alive.contains(detached.parent)
+            || animated_player_for_character(detached.character, assemblies.get(detached.character).ok(), &avatars) != Some(player)
+        {
+            commands.entity(player).despawn();
+        }
+    }
     for (character, action, assembly) in &characters {
         if action != Some(&AlsNotifyLocomotionAction::Ragdolling) {
             continue;
@@ -1892,6 +1901,79 @@ mod tests {
         app.update();
         let selected = app.world().get::<crate::debug_target::AlsDebugTarget>(actor).is_some();
         assert!(stamped && selected, "stamped={stamped} selected={selected} master={master:?}");
+    }
+
+    #[test]
+    fn detached_ragdoll_cleanup_follows_current_owner_and_normal_despawn() {
+        use bevy::reflect::{PartialReflect, ReflectMut};
+        use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner};
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+            bevy_animation_graph::AnimationGraphPlugin::default()));
+        let spawn = |app: &mut App| {
+            let actor = app.world_mut().spawn((AlsCharacter, Transform::IDENTITY,
+                AlsNotifyLocomotionAction::Ragdolling)).id();
+            let avatar = app.world_mut().spawn((AlsCharacterAvatar { character: actor },
+                AnimatedSceneHandle::default(), Transform::IDENTITY, ChildOf(actor))).id();
+            let parent = app.world_mut().spawn((Transform::IDENTITY, ChildOf(avatar))).id();
+            let player = app.world_mut().spawn((AnimationGraphPlayer::new(default()),
+                Transform::IDENTITY, ChildOf(parent))).id();
+            app.world_mut().trigger(WorldInstanceReady { entity: avatar,
+                instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
+            app.world_mut().flush();
+            app.world_mut().entity_mut(actor).insert(AlsCharacterAssembly { avatar, camera: None });
+            let root = app.world_mut().spawn_empty().id();
+            let body = app.world_mut().spawn((RigidBody::Dynamic, ChildOf(root))).id();
+            let collider = app.world_mut().spawn((Collider::sphere(0.1), ChildOf(body))).id();
+            let joint = app.world_mut().spawn(ChildOf(root)).id();
+            let spawned = SpawnedRagdoll::new(root);
+            let mut component = app.world_mut().get_mut::<AnimationGraphPlayer>(player).unwrap();
+            let ReflectMut::Struct(fields) = component.reflect_mut() else { panic!("player must reflect as a struct") };
+            *fields.field_mut("spawned_ragdoll").unwrap()
+                .try_downcast_mut::<Option<SpawnedRagdoll>>().unwrap() = Some(spawned);
+            drop(component);
+            app.world_mut().run_system_cached(capture_ragdoll_player_world_transform).unwrap();
+            assert!(app.world().get::<ChildOf>(player).is_none());
+            (actor, avatar, parent, player, [root, body, collider, joint])
+        };
+        for order in 0..8 {
+            let (other_actor, other_avatar, _, other_player, other_members) = spawn(&mut app);
+            let (actor, avatar, parent, player, members) = spawn(&mut app);
+            match order {
+                0 => { app.world_mut().despawn(actor); }
+                1 => { app.world_mut().despawn(avatar); }
+                2 => { app.world_mut().despawn(parent); }
+                3 => { app.world_mut().despawn(avatar); app.world_mut().despawn(actor); }
+                4 => { app.world_mut().despawn(player); app.world_mut().despawn(avatar); }
+                5 => { app.world_mut().despawn(avatar); app.world_mut().despawn(player); }
+                6 | 7 => {
+                    let replacement = if order == 7 { avatar } else {
+                        app.world_mut().spawn((AlsCharacterAvatar { character: actor },
+                            AnimatedSceneHandle::default(), Transform::IDENTITY, ChildOf(actor))).id()
+                    };
+                    let replacement_player = app.world_mut().spawn((AnimationGraphPlayer::new(default()),
+                        Transform::IDENTITY, ChildOf(replacement))).id();
+                    app.world_mut().trigger(WorldInstanceReady { entity: replacement,
+                        instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
+                    app.world_mut().flush();
+                    app.world_mut().get_mut::<AlsCharacterAssembly>(actor).unwrap().avatar = replacement;
+                    assert!(app.world().entities().contains(replacement_player));
+                }
+                _ => unreachable!(),
+            }
+            app.world_mut().run_system_cached(capture_ragdoll_player_world_transform).unwrap();
+            app.world_mut().flush();
+            assert!(!app.world().entities().contains(player), "Detached player survives owner removal, order {order}");
+            assert!(members.iter().all(|entity| !app.world().entities().contains(*entity)),
+                "The player discard hook must clean its ragdoll hierarchy, order {order}");
+            assert!(app.world().entities().contains(other_actor) && app.world().entities().contains(other_avatar));
+            assert!(app.world().entities().contains(other_player));
+            assert!(other_members.iter().all(|entity| app.world().entities().contains(*entity)));
+            app.world_mut().despawn(other_actor);
+            if app.world().entities().contains(actor) { app.world_mut().despawn(actor); }
+            app.world_mut().run_system_cached(capture_ragdoll_player_world_transform).unwrap();
+            app.world_mut().flush();
+        }
     }
 
     #[test]
