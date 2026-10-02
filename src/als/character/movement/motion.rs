@@ -2936,7 +2936,7 @@ fn apply_capsule_for_stance(
             if blocked && locomotion == LocomotionState::Grounded {
                 let (half, radius) = capsule_dimensions(params, *stance);
                 if let Some((floor_center, _, _)) = find_ground_floor(spatial_query, center,
-                    half * effective_scale, radius * effective_scale, &filter, entity, candidates) {
+                    half * effective_scale, radius * effective_scale, &params.cmc, locomotion, &filter, entity, candidates) {
                     let floor_distance = center.y - floor_center;
                     if floor_distance > STAND_UP_MIN_FLOOR_DISTANCE {
                         target_center.y -= floor_distance - STAND_UP_MIN_FLOOR_DISTANCE;
@@ -3122,7 +3122,7 @@ fn grounded_step_up_system(
             if hit.point1.y <= center.y - half - clearance || hit.point1.y > center.y + half - radius {
                 continue;
             }
-            let Some((_, impact_y, _)) = find_ground_floor(&spatial_query, center, half, radius, &filter, entity, &candidates) else { continue };
+            let Some((_, impact_y, _)) = find_ground_floor(&spatial_query, center, half, radius, &params.cmc, *loco, &filter, entity, &candidates) else { continue };
             initial_floor_y = Some(impact_y);
             let up_config = ShapeCastConfig {
                 ignore_origin_penetration: true,
@@ -3136,8 +3136,9 @@ fn grounded_step_up_system(
             }
         }
         let destination = raised + remaining_delta;
-        let Some(floor) = walkable_floor_hit(&spatial_query, capsule, radius, destination,
-            MAX_STEP_HEIGHT + clearance * 2.0, &filter, &accepts) else {
+        let Some(floor) = floor_sweep_hit(&spatial_query, capsule, radius, destination,
+            MAX_STEP_HEIGHT + clearance * 2.0, &filter, &accepts)
+            .filter(|hit| hit.normal1.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos()) else {
             continue;
         };
         let next_y = destination.y - floor.distance + clearance;
@@ -3172,9 +3173,9 @@ pub fn character_blocks_collider(character: Entity, candidate: Entity,
     })
 }
 
-fn walkable_floor_hit(spatial: &SpatialQuery, capsule: &Collider, radius: f32, origin: Vec3,
+fn floor_sweep_hit(spatial: &SpatialQuery, capsule: &Collider, radius: f32, origin: Vec3,
     distance: f32, filter: &SpatialQueryFilter, accepts: &dyn Fn(Entity) -> bool) -> Option<ShapeHitData> {
-    let hit = spatial.cast_shape_predicate(capsule, origin, Quat::IDENTITY, Dir3::NEG_Y,
+    let mut hit = spatial.cast_shape_predicate(capsule, origin, Quat::IDENTITY, Dir3::NEG_Y,
         &ShapeCastConfig::from_max_distance(distance), filter, accepts)?;
     let reduced_radius = (radius - EDGE_REJECT_DISTANCE).max(SWEEP_EDGE_MIN_RADIUS);
     if Vec2::new(hit.point1.x - origin.x, hit.point1.z - origin.z).length_squared() >= reduced_radius * reduced_radius {
@@ -3188,24 +3189,68 @@ fn walkable_floor_hit(spatial: &SpatialQuery, capsule: &Collider, radius: f32, o
             normal = surface.normal;
         }
     }
-    (normal.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos()).then_some(hit)
+    hit.normal1 = normal;
+    Some(hit)
 }
 
 pub fn find_ground_floor(spatial: &SpatialQuery, origin: Vec3, half: f32, radius: f32,
+    cmc: &crate::als::params::CmcAdapterParams, mode: LocomotionState,
     filter: &SpatialQueryFilter, character: Entity,
     candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>) -> Option<(f32, f32, Entity)> {
     let accepts = |candidate| character_blocks_collider(character, candidate, candidates);
-    for (shrink_scale, radius_reduction) in [(FLOOR_SWEEP_SHRINK_FRACTION, 0.0),
-        (FLOOR_RETRY_SHRINK_FRACTION, SWEEP_EDGE_MIN_RADIUS)] {
-        let shrink_height = (half - radius) * shrink_scale;
-        let sweep_radius = radius - radius_reduction;
-        let capsule = als_character_capsule((half - shrink_height).max(sweep_radius), sweep_radius);
-        if let Some(hit) = walkable_floor_hit(spatial, &capsule, sweep_radius, origin,
-            MAX_STEP_HEIGHT + MAX_FLOOR_DISTANCE + shrink_height, filter, &accepts) {
-            return Some((origin.y - hit.distance + shrink_height, hit.point1.y, hit.entity));
+    let walkable = |hit: &ShapeHitData| hit.normal1.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos()
+        && !(hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0);
+    let compute = |at: Vec3, test_radius: f32, line_distance: f32, sweep_distance: f32| {
+        let mut result = None;
+        for (shrink_scale, radius_reduction) in [(FLOOR_SWEEP_SHRINK_FRACTION, 0.0),
+            (FLOOR_RETRY_SHRINK_FRACTION, SWEEP_EDGE_MIN_RADIUS)] {
+            let shrink_height = (half - radius) * shrink_scale;
+            let sweep_radius = (test_radius - radius_reduction).max(SWEEP_EDGE_MIN_RADIUS);
+            let capsule = als_character_capsule((half - shrink_height).max(sweep_radius), sweep_radius);
+            if let Some(hit) = floor_sweep_hit(spatial, &capsule, sweep_radius, at,
+                sweep_distance + shrink_height, filter, &accepts) {
+                let floor_distance = (hit.distance - shrink_height).max(-MAX_FLOOR_DISTANCE.max(radius));
+                let valid = walkable(&hit) && floor_distance <= sweep_distance;
+                result = Some((hit, floor_distance, valid, false));
+                if valid { return result; }
+                if hit.distance != 0.0 { break; }
+            }
         }
-    }
-    None
+        if result.is_some() && line_distance > 0.0
+            && let Some(ray) = spatial.cast_ray_predicate(at, Dir3::NEG_Y,
+                line_distance + half, false, filter, &accepts)
+            && ray.distance > 0.0 && ray.normal.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos() {
+            let floor_distance = (ray.distance - half).max(-MAX_FLOOR_DISTANCE.max(radius));
+            if floor_distance <= line_distance {
+                let point = at - Vec3::Y * ray.distance;
+                return Some((ShapeHitData { entity: ray.entity, distance: ray.distance,
+                    point1: point, point2: point, normal1: ray.normal, normal2: -ray.normal },
+                    floor_distance, true, true));
+            }
+        }
+        result
+    };
+    let height_adjust = if mode == LocomotionState::Grounded {
+        MAX_FLOOR_DISTANCE + crate::als::movement_constants::FLOOR_HEIGHT_CHECK_EPSILON
+    } else { -MAX_FLOOR_DISTANCE };
+    let max_floor = MAX_FLOOR_DISTANCE.max(MAX_STEP_HEIGHT + height_adjust);
+    let (mut hit, mut floor_distance, valid, line) = compute(origin, radius, max_floor, max_floor)?;
+    let threshold = cmc.perch_radius_threshold.max(0.0);
+    let perch_radius = (radius - threshold).max(crate::als::movement_constants::MIN_PERCH_RADIUS).min(radius);
+    let edge_distance = Vec2::new(hit.point1.x - origin.x, hit.point1.z - origin.z).length_squared();
+    if !line && threshold > EDGE_REJECT_DISTANCE && edge_distance > perch_radius * perch_radius
+        && !(hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0) {
+        let at = origin - Vec3::Y * hit.distance;
+        let above_base = (hit.point1.y - at.y + half).max(0.0);
+        let max_perch = max_floor + if mode == LocomotionState::Grounded { cmc.perch_additional_height.max(0.0) } else { 0.0 };
+        let (perch, perch_distance, perch_valid, _) = compute(at, perch_radius,
+            (max_perch - above_base).max(0.0), max_perch + radius)?;
+        if !perch_valid || above_base + perch_distance > max_perch { return None; }
+        let average = (MIN_FLOOR_DISTANCE + MAX_FLOOR_DISTANCE) * 0.5;
+        if average - floor_distance + perch_distance >= max_perch { floor_distance = average; }
+        if !valid { hit = perch; }
+    } else if !valid { return None; }
+    Some((origin.y - floor_distance, hit.point1.y, hit.entity))
 }
 
 fn resolved_walkable_contact(contact: &ContactPair, character: Entity) -> bool {
@@ -3257,14 +3302,19 @@ pub(crate) fn locomotion_state_sync_system(
             continue;
         };
         let jumping = controller.action_flow_status().ongoing() == Some(AlsControlSchemeActionDiscriminant::Jump);
+        let validated_floor = params_assets.get(handle.id()).and_then(|params| {
+            let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height }
+                else { params.crouch.standing_capsule_half_height } * transform.scale.y;
+            let radius = params.crouch.standing_capsule_radius * transform.scale.x.min(transform.scale.z);
+            find_ground_floor(&spatial, position.0, half, radius, &params.cmc, *current,
+                &SpatialQueryFilter::from_excluded_entities([entity]), entity, &candidates)
+        });
         let mut floor_supported = false;
         let mut floor_entity = None;
         if *current == LocomotionState::Grounded && !blocked.contains(entity) && !jumping
-            && let Some(params) = params_assets.get(handle.id()) {
-            let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height } * transform.scale.y;
-            let radius = params.crouch.standing_capsule_radius * transform.scale.x.min(transform.scale.z);
+            && params_assets.get(handle.id()).is_some() {
             let filter = SpatialQueryFilter::from_excluded_entities([entity]);
-            if let Some((floor_center_y, _, floor)) = find_ground_floor(&spatial, position.0, half, radius, &filter, entity, &candidates) {
+            if let Some((floor_center_y, _, floor)) = validated_floor {
                 let floor_distance = position.y - floor_center_y;
                 let next_y = if (MIN_FLOOR_DISTANCE..=MAX_FLOOR_DISTANCE).contains(&floor_distance) {
                     position.y
@@ -3322,8 +3372,8 @@ pub(crate) fn locomotion_state_sync_system(
             }
         }
         let airborne = TnuaBuiltinWalk::displacement(&basis).is_none()
-            || jumping;
-        let landed_on_contact = airborne && collisions.collisions_with(entity)
+            || jumping || validated_floor.is_none();
+        let landed_on_contact = airborne && validated_floor.is_some() && collisions.collisions_with(entity)
             .any(|contact| resolved_walkable_contact(contact, entity));
         let capsule_contact = airborne && !landed_on_contact && !floor_supported
             && collisions.collisions_with(entity).any(|contact| {
@@ -3338,8 +3388,7 @@ pub(crate) fn locomotion_state_sync_system(
             && params_assets.get(handle.id()).is_some_and(|params| {
                 let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height } * transform.scale.y;
                 let radius = params.crouch.standing_capsule_radius * transform.scale.x.min(transform.scale.z);
-                find_ground_floor(&spatial, position.0, half, radius, &SpatialQueryFilter::from_excluded_entities([entity]), entity, &candidates)
-                    .is_some_and(|(center, impact, _)| (position.y - center).abs() <= MAX_FLOOR_DISTANCE
+                validated_floor.is_some_and(|(center, impact, _)| (position.y - center).abs() <= MAX_FLOOR_DISTANCE
                         && impact < position.y - half + radius)
             });
         let target = if airborne && !landed_on_contact && !floor_supported && !landed_on_capsule {
@@ -3361,13 +3410,7 @@ pub(crate) fn locomotion_state_sync_system(
             *current = target;
         }
         if let Ok((mut base, dynamics)) = movement_bases.get_mut(entity) {
-            if *current == LocomotionState::Grounded && floor_entity.is_none()
-                && let Some(params) = params_assets.get(handle.id()) {
-                let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height } * transform.scale.y;
-                let radius = params.crouch.standing_capsule_radius * transform.scale.x.min(transform.scale.z);
-                floor_entity = find_ground_floor(&spatial, position.0, half, radius,
-                    &SpatialQueryFilter::from_excluded_entities([entity]), entity, &candidates).map(|(_, _, entity)| entity);
-            }
+            if floor_entity.is_none() { floor_entity = validated_floor.map(|(_, _, entity)| entity); }
             base.entity = if *current == LocomotionState::Grounded { floor_entity } else { None };
             if let Some(entity) = base.entity && let Ok(global) = transforms.compute_global_transform(entity) {
                 base.location = global.translation();
@@ -3638,7 +3681,7 @@ mod tests {
                             if airborne && velocity.y.abs() < 0.001 {
                                 let supported = app.world_mut().run_system_once(move |spatial: SpatialQuery, collisions: Collisions,
                                     candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
-                                    let floor = find_ground_floor(&spatial, position, 0.9, 0.3, &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates);
+                                    let floor = find_ground_floor(&spatial, position, 0.9, 0.3, &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded, &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates);
                                     let contact = collisions.collisions_with(character).any(|pair| pair.manifolds.iter().any(|manifold| {
                                         let normal = if pair.collider1 == character { -manifold.normal } else { manifold.normal };
                                         normal.y > 0.0 && manifold.points.iter().any(|point| point.normal_impulse > 0.0)
@@ -3649,7 +3692,7 @@ mod tests {
                                 if supported_air_frames >= 2 {
                                     let evidence = app.world_mut().run_system_once(move |spatial: SpatialQuery, collisions: Collisions,
                                     candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
-                                        let floor = find_ground_floor(&spatial, position, 0.9, 0.3, &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates);
+                                        let floor = find_ground_floor(&spatial, position, 0.9, 0.3, &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded, &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates);
                                         let normals: Vec<_> = collisions.collisions_with(character).flat_map(|pair| pair.manifolds.iter().map(|manifold| {
                                             let normal = if pair.collider1 == character { -manifold.normal } else { manifold.normal };
                                             (normal, manifold.points.iter().map(|point| (point.normal_speed, point.normal_impulse)).collect::<Vec<_>>())
@@ -3720,7 +3763,7 @@ mod tests {
         let position = app.world().get::<Position>(character).unwrap().0;
         let query_floor = move |spatial: SpatialQuery,
             candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
-            find_ground_floor(&spatial, position, 0.9, 0.3,
+            find_ground_floor(&spatial, position, 0.9, 0.3, &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded,
                 &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates)
         };
         let original_floor = app.world_mut().run_system_once(query_floor).unwrap().unwrap().2;
@@ -3737,6 +3780,116 @@ mod tests {
         app.world_mut().entity_mut(character).insert(CollisionLayers::NONE);
         assert!(app.world_mut().run_system_once(query_floor).unwrap().is_none(),
             "an inactive ownership record overrode the current response");
+    }
+
+    #[test]
+    fn rejected_perch_clears_cached_support_and_prevents_contact_landing() {
+        for mode in [LocomotionState::Grounded, LocomotionState::Air] {
+            let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+            for _ in 0..30 { app.update(); }
+            let old_base = app.world().get::<crate::als::dynamics::AlsMovementBase>(character).unwrap().entity;
+            assert!(old_base.is_some());
+            let obstacles: Vec<_> = app.world_mut().query::<(Entity, &RigidBody)>().iter(app.world())
+                .filter_map(|(entity, body)| (*body == RigidBody::Static).then_some(entity)).collect();
+            for obstacle in obstacles { app.world_mut().despawn(obstacle); }
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 4.0, 4.0),
+                Transform::from_xyz(-2.0, -2.0, 0.0)));
+            let center = Vec3::new(0.2, 0.83, -1.0);
+            app.world_mut().entity_mut(character).insert((Transform::from_translation(center), Position(center),
+                LinearVelocity(Vec3::NEG_Y * 0.3), mode, AlsInputOverride(AlsInputCommand::default())));
+            for frame in 0..20 {
+                app.update();
+                assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Air,
+                    "A rejected perch regained Grounded through contact at frame {frame}, starting {mode:?}");
+                assert!(app.world().get::<crate::als::dynamics::AlsMovementBase>(character).unwrap().entity.is_none());
+            }
+        }
+    }
+
+    #[test]
+    fn perch_queries_observe_radius_distance_and_locomotion_bounds() {
+        use bevy::ecs::system::RunSystemOnce;
+        for offset in [0.1, 0.14, 0.16, 0.2] {
+            for threshold in [0.0, 0.15] {
+                for (lower, mode, additional) in [(None, LocomotionState::Grounded, 0.0),
+                    (Some(0.2), LocomotionState::Grounded, 0.0),
+                    (Some(0.43), LocomotionState::Grounded, 0.0),
+                    (Some(0.43), LocomotionState::Air, 0.0),
+                    (Some(0.6), LocomotionState::Grounded, 0.0),
+                    (Some(0.6), LocomotionState::Grounded, 0.3),
+                    (Some(0.6), LocomotionState::Air, 0.3)] {
+                    let mut app = App::new();
+                    app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+                        avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+                        .init_asset::<Mesh>().add_message::<bevy::asset::AssetEvent<Mesh>>();
+                    app.finish();
+                    let character = app.world_mut().spawn((RigidBody::Kinematic, Transform::default())).id();
+                    let ledge = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 4.0, 4.0),
+                        Transform::from_xyz(-2.0, -2.0, 0.0))).id();
+                    if let Some(drop) = lower {
+                        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(8.0, 0.1, 8.0),
+                            Transform::from_xyz(0.0, -drop - 0.05, 0.0)));
+                    }
+                    for _ in 0..2 { app.update(); }
+                    let found = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                        candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
+                        let cmc = crate::als::params::CmcAdapterParams { perch_radius_threshold: threshold,
+                            perch_additional_height: additional, ..default() };
+                        find_ground_floor(&spatial, Vec3::new(offset, 0.919, 0.0), 0.9, 0.3,
+                            &cmc, mode, &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates)
+                    }).unwrap();
+                    let limit = 0.45 + if mode == LocomotionState::Grounded { 0.024 + additional } else { -0.024 };
+                    let valid = threshold == 0.0 || offset <= 0.15 || lower.is_some_and(|drop| drop <= limit);
+                    assert_eq!(found.is_some(), valid,
+                        "offset={offset} threshold={threshold} lower={lower:?} mode={mode:?} additional={additional}: {found:?}");
+                    if valid { assert_eq!(found.unwrap().2, ledge); }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn perch_floor_keeps_the_source_walkable_normal_boundary() {
+        use bevy::ecs::system::RunSystemOnce;
+        for angle in [44.7_f32, 44.8, 50.0] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+                avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+                .init_asset::<Mesh>().add_message::<bevy::asset::AssetEvent<Mesh>>();
+            app.finish();
+            let character = app.world_mut().spawn((RigidBody::Kinematic, Transform::default())).id();
+            let rotation = Quat::from_rotation_z(angle.to_radians());
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(20.0, 0.2, 20.0),
+                Transform::from_translation(rotation * Vec3::NEG_Y * 0.1).with_rotation(rotation)));
+            for _ in 0..2 { app.update(); }
+            let found = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
+                find_ground_floor(&spatial, Vec3::new(0.0, 1.2, 0.0), 0.9, 0.3,
+                    &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded,
+                    &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates)
+            }).unwrap();
+            assert_eq!(found.is_some(), angle <= 44.765083, "angle={angle}: {found:?}");
+        }
+    }
+
+    #[test]
+    fn full_radius_floor_must_not_restore_a_rejected_perch() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+            avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+            .init_asset::<Mesh>().add_message::<bevy::asset::AssetEvent<Mesh>>();
+        app.finish();
+        let character = app.world_mut().spawn((RigidBody::Kinematic, Transform::default())).id();
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 4.0, 4.0),
+            Transform::from_xyz(-2.0, -2.0, 0.0)));
+        for _ in 0..2 { app.update(); }
+        let found = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
+            find_ground_floor(&spatial, Vec3::new(0.2, 0.919, 0.0), 0.9, 0.3, &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded,
+                &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates)
+        }).unwrap();
+        assert!(found.is_none(), "The full capsule edge cannot restore failed reduced-radius perch: {found:?}");
     }
 
     #[test]
@@ -3782,7 +3935,7 @@ mod tests {
             let query_floor = move |spatial: SpatialQuery,
                 candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
                 find_ground_floor(&spatial, Vec3::new(if edge { 0.25 } else { 0.0 }, 1.0, 0.0),
-                    0.9, 0.3, &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates)
+                    0.9, 0.3, &crate::als::params::CmcAdapterParams { perch_radius_threshold: 0.0, ..default() }, LocomotionState::Grounded, &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates)
             };
             let found = app.world_mut().run_system_once(query_floor).unwrap();
             assert_eq!(found.map(|(_, _, entity)| entity), Some(floor),
@@ -4332,7 +4485,7 @@ mod tests {
                     if *app.world().get::<LocomotionState>(character).unwrap() == LocomotionState::Air {
                         let floor = app.world_mut().run_system_once(move |spatial: SpatialQuery,
                             candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
-                            find_ground_floor(&spatial, position, 0.9, 0.3, &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates)
+                            find_ground_floor(&spatial, position, 0.9, 0.3, &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded, &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates)
                         }).unwrap();
                         let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
                         failures.push((rise, delta, frame, position, velocity, floor));
@@ -4479,7 +4632,11 @@ mod tests {
                     let airborne = TnuaBuiltinWalk::displacement(&basis).is_none();
                     landed |= !airborne && seen[1];
                     assert!(!landed || !airborne, "landing rebounded at frame={frame}");
-                    let expected = if airborne && !impact { LocomotionState::Air } else { LocomotionState::Grounded };
+                    let floor_limit = MAX_STEP_HEIGHT + if previous == LocomotionState::Grounded {
+                        MAX_FLOOR_DISTANCE + crate::als::movement_constants::FLOOR_HEIGHT_CHECK_EPSILON
+                    } else { -MAX_FLOOR_DISTANCE };
+                    let supported = position.y - ALS_CHARACTER_CAPSULE_HALF_HEIGHT <= floor_limit;
+                    let expected = if (airborne || !supported) && !impact { LocomotionState::Air } else { LocomotionState::Grounded };
                     assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), expected, "frame={frame}");
                     let events: Vec<_> = app.world_mut().resource_mut::<Messages<StateTransitionEvent>>().drain()
                         .filter(|event| event.entity == character && event.dimension == Dimension::LocomotionState).collect();

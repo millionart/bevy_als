@@ -209,7 +209,7 @@ pub(super) fn drive(
             + if matches!(state.scenario, IntegrationScenario::RotatingBase | IntegrationScenario::Footprint) { global.rotation() * Vec3::X * 0.65 } else { Vec3::ZERO }),
         Stage::PrepareMantle => {
             let horizontal = mantle_approach(path.kind, global, bounds.half_extents(), radius);
-            crate::als::motion::find_ground_floor(&spatial, horizontal + Vec3::Y * (half + 0.024), half, radius,
+            crate::als::motion::find_ground_floor(&spatial, horizontal + Vec3::Y * (half + 0.024), half, radius, &params.cmc, *mode,
                 &SpatialQueryFilter::from_excluded_entities([character, body, collider]), character, &candidates)
                 .map(|(floor, _, _)| horizontal.with_y(floor + 0.024))
         }

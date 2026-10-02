@@ -127,6 +127,7 @@ def self_test():
         else:
             raise AssertionError('Invalid terminal source must block generation')
     assert literal('TEXT("p.EncroachEpsilon"), 0.15f,', rf'\"p\.EncroachEpsilon\"\s*\)\s*,\s*{NUMBER}f?\s*,', 'spawn epsilon') * SOURCE_LENGTH_TO_RUNTIME_SCALE == 0.0015
+    assert literal('PawnRadius - GetPerchRadiusThreshold(), 0.11f, PawnRadius', rf'PawnRadius - GetPerchRadiusThreshold\(\),\s*{NUMBER}f?\s*,\s*PawnRadius', 'perch minimum') * SOURCE_LENGTH_TO_RUNTIME_SCALE == 0.0011
     assert len(render(values).splitlines()) == 19
     print('Movement constants self-test PASS')
 
@@ -157,6 +158,9 @@ def main():
     values['DEFAULT_TERMINAL_VELOCITY'] = literal(physics, rf'DefaultTerminalVelocity\(\s*{NUMBER}f?\s*\)', 'default terminal velocity') * SOURCE_LENGTH_TO_RUNTIME_SCALE
     level = (engine / 'Engine/Private/LevelActor.cpp').read_text(encoding='utf-8-sig')
     values['SPAWN_ENCROACH_EPSILON'] = literal(level, rf'\"p\.EncroachEpsilon\"\s*\)\s*,\s*{NUMBER}f?\s*,', 'spawn encroach epsilon') * SOURCE_LENGTH_TO_RUNTIME_SCALE
+    values['MIN_PERCH_RADIUS'] = literal(character, rf'PawnRadius - GetPerchRadiusThreshold\(\),\s*{NUMBER}f?\s*,\s*PawnRadius', 'minimum perch radius') * SOURCE_LENGTH_TO_RUNTIME_SCALE
+    math = (engine / 'Core/Public/Math/UnrealMathUtility.h').read_text(encoding='utf-8-sig')
+    values['FLOOR_HEIGHT_CHECK_EPSILON'] = literal(math, rf'#define\s+UE_KINDA_SMALL_NUMBER\s+\(?{NUMBER}f?\)?', 'floor height epsilon') * SOURCE_LENGTH_TO_RUNTIME_SCALE
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(render(values), encoding='utf-8')
     result = {'success': True, 'source_actor': actor['asset_path'], 'length_scale': SOURCE_LENGTH_TO_RUNTIME_SCALE, 'runtime_values': values}

@@ -169,7 +169,7 @@ pub(super) fn observe(
     let graph = locomotion_graph_sample(player, &motion);
     let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height  } else { params.crouch.standing_capsule_half_height } * transform.scale.y;
     let radius = params.crouch.standing_capsule_radius * transform.scale.x.min(transform.scale.z);
-    let floor = crate::als::motion::find_ground_floor(&spatial, position.0, half, radius,
+    let floor = crate::als::motion::find_ground_floor(&spatial, position.0, half, radius, &params.cmc, *mode,
         &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates);
     let contact = collisions.collisions_with(character).any(|pair| pair.manifolds.iter().any(|manifold| {
         let normal = if pair.collider1 == character { -manifold.normal } else { manifold.normal };

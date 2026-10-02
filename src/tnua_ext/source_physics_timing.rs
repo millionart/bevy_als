@@ -512,6 +512,7 @@ mod tests {
         use bevy_tnua::TnuaControllerPlugin;
         use bevy_tnua_avian3d::TnuaAvian3dPlugin;
         use bevy::ecs::system::RunSystemOnce;
+        for edge_start in [0.3, 0.417345] {
         let mut app = App::new();
         app.add_plugins((
             MinimalPlugins, AssetPlugin::default(), TransformPlugin,
@@ -530,7 +531,7 @@ mod tests {
         let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>()
             .add(initial_als_control_scheme_config(&value));
         let mut bundle = AlsCharacterBundle::new(params, config);
-        bundle.transform.translation = Vec3::new(0.0, 5.0, 0.417345);
+        bundle.transform.translation = Vec3::new(0.0, 5.0, edge_start);
         let character = app.world_mut().spawn(bundle).id();
         *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = LocomotionState::Air;
         app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().move_dir = Vec2::Y;
@@ -538,7 +539,7 @@ mod tests {
             Transform::from_xyz(0.0, -2.0, -10.0)));
         for _ in 0..3 { app.update(); }
         assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Air);
-        let start = Vec3::new(0.0, 1.0146527, 0.417345);
+        let start = Vec3::new(0.0, 1.0146527, edge_start);
         app.world_mut().get_mut::<Position>(character).unwrap().0 = start;
         app.world_mut().get_mut::<Transform>(character).unwrap().translation = start;
         app.world_mut().get_mut::<LinearVelocity>(character).unwrap().0 = Vec3::new(0.0, -1.686, -2.3968756);
@@ -549,19 +550,27 @@ mod tests {
                 let (floor, contact) = app.world_mut().run_system_once(move |spatial: SpatialQuery,
                     collisions: avian3d::prelude::Collisions,
                     candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
-                    let floor = crate::als::motion::find_ground_floor(&spatial, position, 0.9, 0.3,
+                    let floor = crate::als::motion::find_ground_floor(&spatial, position, 0.9, 0.3, &crate::als::params::CmcAdapterParams::default(), LocomotionState::Air,
                         &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates);
                     let contact = collisions.collisions_with(character).any(|pair| pair.manifolds.iter()
                         .any(|manifold| manifold.points.iter().any(|point| point.normal_impulse > 0.0)));
                     (floor, contact)
                 }).unwrap();
-                assert!(!contact && floor.is_some_and(|(center, _, _)| (position.y - center).abs() <= 0.024),
-                    "fixture requires a sweep-only walkable contact: {floor:?} {contact}");
-                assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Grounded,
-                    "first blocking sweep did not land: {position:?}");
+                let valid_perch = edge_start == 0.3;
+                assert!(!contact);
+                assert_eq!(floor.is_some_and(|(center, _, _)| (position.y - center).abs() <= 0.024), valid_perch,
+                    "sweep-only perch eligibility at {position:?}: {floor:?}");
+                assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(),
+                    if valid_perch { LocomotionState::Grounded } else { LocomotionState::Air },
+                    "first blocking sweep ignored perch eligibility: {position:?}");
             }
         }
-        assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Grounded);
+        let final_position = app.world().get::<Position>(character).unwrap().0;
+        assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(),
+            if edge_start == 0.3 { LocomotionState::Grounded } else { LocomotionState::Air },
+            "edge_start={edge_start} final_position={final_position:?}");
+        if edge_start != 0.3 { assert!(final_position.z > 0.15, "{final_position:?}"); }
+        }
     }
 
     #[test]
