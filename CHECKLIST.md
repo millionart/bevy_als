@@ -58,7 +58,7 @@
 ### 角色运动、碰撞、出生与默认输入
 
 - [x] **BF132.R5E-01 — 地面超速分支提前返回，刹车后未继续施加转向输入加速度**。Gate：超速/同向/转向/无输入按源 CalcVelocity 顺序消费刹车与加速度。
-- [ ] **BF132.R5E-02 — 移动平台速度混入期望速度朝向，VelocityDirection 朝平台合成速度转身**。Gate：平台携带与角色相对运动分别消费，碰撞前 yaw 与低速回退符合源合同。
+- [x] **BF132.R5E-02 — 移动平台速度混入期望速度朝向，VelocityDirection 朝平台合成速度转身**。Gate：平台携带与角色相对运动分别消费，碰撞前 yaw 与低速回退符合源合同。
 - [ ] **BF132.R5E-04 — 起身空间检查把普通 Sensor 的非阻挡重叠当成头顶障碍**。Gate：Sensor、碰撞层不相交与实际阻挡低顶分别得到源规定结果。
 - [ ] **BF132.R5E-06 — 起身缺少利用地面间隙下移后重试的源分支**。Gate：Grounded 有可用间隙时下移重试成功，间隙不足与真实阻挡保持蹲姿。
 - [ ] **BF132.R5E-07 — 物理后地面高度修正未做胶囊 sweep，可把已站立角色推入低顶**。Gate：补偿位移按源 sweep 截断，低顶不穿透，无遮挡地面高度控制通过。
@@ -193,3 +193,11 @@
   - S3 超时复盘：开始 2026-10-02 13:43 +08:00；预估结束 14:13；实际窗口结束 15:36；偏差 +83 分钟，结果：未完成 moving_base，不能勾选。实际预构建、startup 与 StandingResponse 已分别功能通过，后者在 13:51 完成；之后没有新的实现/测试/运行成果，长时间分析停滞造成执行漂移。已回读当前条目、fresh CalcVelocity 顺序和当前 target/motor/static 证据；闭包未扩大、代码仍为通过的恢复版本。纠正：停止进一步设计，只审计现有报告并运行缺少的真实平台 Gate；原失败/暂停性能记录保持，按上轮 30 分钟的 1.5 倍重建窗口后自动继续同一任务。
 - BF132.R5E-01-S3R：开始 2026-10-02 15:40 +08:00；预估结束 2026-10-02 16:25 +08:00。依据：剩余仅同一已构建二进制的 moving_base 功能 Gate、报告审核和本项提交，source/static/12 项回归及消融已完成；45 分钟窗口为原 30 分钟的 1.5 倍，不新增实现或场景。现有 startup/StandingResponse 报告图错误/姿态/时序未失败，先复核再启动剩余 Gate；仍不实施 R5E-02 朝向修复。
   - S3R 实际结束 2026-10-02 15:48 +08:00；相对重估 16:25 偏差 -37 分钟；结果：同一恢复版二进制的 startup、StandingResponse 6/6、MovingBase 10/10 功能 runner/manual/validator 均退出 0；平台携带/起跳/换支撑/翻越/翻越后相对运动通过。三个报告图错误/primary failure/故障/时序/watchdog 均 0，原完整性能预算延期保留；12 项速度/motor、27 组输入/摩擦/Delta、站立/下蹲/摇杆与两项 input stage 消融闭合，勾选 R5E-01 并单独提交。拆分结果：S1 source/red、S2 源顺序/实际 motor、S3 启动/地面响应后分析漂移、S3R 回读后缺失真实 Gate 完成；漂移如实记录，下一项 R5E-02，40 项待处理。
+- BF132.R5E-02-S1：开始 2026-10-02 16:00 +08:00；预估结束 2026-10-02 16:25 +08:00。依据：fresh ALS PhysWalking 的 MoveVelocity/一次消费与旋转 consumer、当前 producer 中 world+boost 的单个语义错位；复用已有真实 motor 和 pre-collision rotation fixture。先核对支持速度、世界轴和同帧样本生命周期，建立平台平移/切向速度影响 desired yaw 的最小 red；只改本帧自身 pre-collision 发布，不减后续平台速度，不改入/离平台继承或 ViewDirection 普通路径。
+  - S1 实际结束 2026-10-02 16:42 +08:00；偏差 +17 分钟；结果：fresh PhysWalking 保存自身 MoveVelocity，旋转 TryConsume 一次读/清；基座 UpdateBasedMovement 搬运独立于自身速度，同一世界轴无需基向量旋转。真实 Tnua walk apply 的合法 ground sensor 建立站立支撑后，motor producer 发布 (2,0,-3.75) 而自身为 (0,0,-3.75)，稳定 red。首个夹具没有真正的 basis standing memory 而误绿，已补齐原生 apply 并排除；私有 sensors 模块 import 编译错误改用公开 reexport。闭包只限同帧 producer→desired yaw，未扩大空气/基座继承。
+- BF132.R5E-02-S2：开始 2026-10-02 16:42 +08:00；预估结束 2026-10-02 17:07 +08:00。依据：将 pre_collision 样本直接发布已求得的自身 next，一行即可保留同帧支持速度/原坐标轴语义；复用实际 motor 和 rotation fixture。验证平移/切向、相对零速/多个方向、低速回退、碰撞前样本消费和入/离支持控制，并消融恢复 world+boost；不增加缓存、帧状态或坐标转换。
+  - Source/static 摘要（16:55 +08:00）：fresh PhysWalking/UpdateBasedMovement/一次消费证明样本为世界轴的角色自身速度；producer 直接发布已有 next，支持速度仍只参与实际 motor。9 组自身方向/相对零速与静止/平移/角速度支撑通过；rotation consumer 增补非零平台、滑移后的实际相对速度回退及零/低速样本一次读清，29 项旋转回归通过，合计 42 项。恢复 world+boost 消融稳定重现 (2,0,-3.75) 对 (0,0,-3.75) red，已恢复正确源码并回归中；未变 root ABI/layout/editor/资产边界通过。没有新状态、分支或转换规则；真实 moving_base/rotating_base 留 S3。
+  - S2 实际结束 2026-10-02 16:57 +08:00；偏差 -10 分钟；结果：恢复后的 dynamics 13/13 与 rotation 29/29 全部通过，静止/平移/角速度支撑和自身双向/零速 9 组、滑移后 fallback、零/低速及一次消费闭合。world+boost 消融稳定 red/恢复 green；一行直接发布 next，没有额外状态、坐标旋转或消费端扣速。静态 root ABI/layout/editor/资产边界通过，图/转换未变。
+- BF132.R5E-02-S3：开始 2026-10-02 16:57 +08:00；预估结束 2026-10-02 17:22 +08:00。依据：42 项定向回归与原生支持速度消融已闭合；同入口预构建约 142 秒，复用 startup/moving_base/rotating_base 真实场景验证移动与角速度支持、平台上/下及动画求值。保持原 Playground，图/资产/转换未改，沿用已暂停的完整性能与截图范围。
+  - Runtime 前摘要（17:01 +08:00）：最终 target_game/play 构建完成（141.556 秒），恢复版 42 项速度/旋转回归、9 组原生基座样本与 world+boost 消融 red/恢复 green 已闭合；实际物理世界速度和支持速度未被改写。fresh 自身 MoveVelocity→一次消费→低速 fallback 与静态 root ABI/layout/editor/资产边界通过。开始同一二进制 startup/moving_base/rotating_base 功能 Gate；没有新增工具、状态或图/资产/转换修改，原性能与截图暂停范围保留。
+  - S3 实际结束 2026-10-02 17:03 +08:00；偏差 -19 分钟；结果：同一恢复版二进制 startup、MovingBase 10/10、RotatingBase 12/12 功能 runner/manual/validator 均退出 0，图错误/primary failure/故障/时序/watchdog 均 0。42 项定向速度/旋转 Gate、原生 walk 支撑矩阵、碰撞后/零/低速 fallback 与一次读清通过；撤回一行的消融 red/恢复 green，原完整性能预算延期保留。直接发布自身 next 是最小修复，无缓存/补偿/图或转换变化；勾选 R5E-02 单独提交。拆分结果：S1 缺失支撑夹具误绿后真实 red、S2 同帧自身采样与消费静态闭环、S3 真实入口通过；下一项 R5E-04，39 项待处理。

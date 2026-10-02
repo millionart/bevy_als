@@ -470,7 +470,7 @@ pub fn grounded_dynamics_motor_system(
             support_velocity,
             relative_velocity: current,
             motor_boost,
-            pre_collision_velocity: Some(world_velocity + motor_boost),
+            pre_collision_velocity: Some(next),
         };
         if let Some(mut current_base_state) = current_base_state {
             *current_base_state = base_state;
@@ -502,6 +502,59 @@ impl Plugin for AlsGroundedDynamicsPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn precollision_motor_sample_keeps_own_velocity_on_moving_support() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy_tnua::{
+            TnuaBasis, TnuaBasisContext, TnuaProximitySensor, TnuaProximitySensorOutput,
+            TnuaRigidBodyTracker,
+        };
+        for own in [Vec3::NEG_Z * 3.75, Vec3::X * 3.75, Vec3::ZERO] {
+            for (linear, angular) in [(Vec3::ZERO, Vec3::ZERO), (Vec3::X * 2.0, Vec3::ZERO),
+                (Vec3::ZERO, Vec3::Y * 2.0)] {
+                let mut world = World::new();
+                let mut time = Time::<()>::default();
+                time.advance_by(std::time::Duration::from_secs_f32(1.0 / 60.0));
+                world.insert_resource(time);
+                let mut params = Assets::<AlsMovementParams>::default();
+                let handle = params.add(AlsMovementParams::default());
+                world.insert_resource(params);
+                let support = support_point_velocity(Vec3::ZERO, linear, angular, Vec3::X);
+                let platform = world.spawn((Position(Vec3::ZERO), LinearVelocity(linear), AngularVelocity(angular))).id();
+                let mut controller = TnuaController::<AlsControlScheme>::default();
+                controller.basis.desired_motion = own.normalize_or_zero();
+                let sensor = TnuaProximitySensor {
+                    output: Some(TnuaProximitySensorOutput {
+                        entity: platform, proximity: 0.92, normal: Dir3::Y,
+                        entity_linvel: support, entity_angvel: angular,
+                    }), ..default()
+                };
+                controller.basis.apply(&default(), &mut controller.basis_memory,
+                    &bevy_tnua::builtins::TnuaBuiltinWalkSensors { ground: &sensor, headroom: None },
+                    TnuaBasisContext { frame_duration: 1.0 / 60.0,
+                        tracker: &TnuaRigidBodyTracker { velocity: own + support, ..default() },
+                        up_direction: Dir3::Y }, &mut TnuaMotor::default());
+                assert_eq!(controller.basis_memory.standing_on_entity(), Some(platform));
+                let character = world.spawn((
+                    AlsCharacter, LocomotionState::Grounded, Stance::Standing, RotationMode::VelocityDirection,
+                    AlsViewYaw::default(), AlsMaxAllowedGait(Gait::Running), AlsGroundedDynamics::default(),
+                    AlsGaitAmount::default(), Position(Vec3::X + Vec3::Y * 0.92), LinearVelocity(own + support),
+                    AlsMovementParamsHandle(handle), controller, TnuaMotor::default(), AlsCmcAdapterRuntime::default(),
+                    AlsMovementBaseDynamicsState { entity: Some(platform), world_velocity: own + support,
+                        support_velocity: support, relative_velocity: own, ..default() },
+                )).id();
+                world.run_system_once(grounded_dynamics_motor_system).unwrap();
+                let state = world.get::<AlsMovementBaseDynamicsState>(character).unwrap();
+                assert_eq!(state.support_velocity, support);
+                assert_eq!(state.relative_velocity, own);
+                assert_eq!(state.pre_collision_velocity, Some(state.relative_velocity + state.motor_boost),
+                    "The producer must publish own pre-collision velocity, not world velocity");
+                assert!(state.pre_collision_velocity.unwrap().distance(
+                    own + support + world.get::<TnuaMotor>(character).unwrap().lin.boost - support) < 1e-5);
+            }
+        }
+    }
 
     #[test]
     fn overspeed_turn_reaches_the_actual_motor_without_rewriting_world_velocity() {

@@ -1239,15 +1239,18 @@ mod rotation_cap_tests {
             .add_systems(Update, rotation_response_system);
         let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>()
             .add(AlsMovementParams::default());
+        let support = Vec3::X * 2.0;
+        let platform = app.world_mut().spawn_empty().id();
         let sideways = Vec3::X * 3.75;
         let intended = Vec3::NEG_Z * 3.75;
         let character = app.world_mut().spawn((
             AlsCharacter, Stance::Standing, Transform::IDENTITY, Gait::Running,
             LocomotionState::Grounded, RotationMode::VelocityDirection, AlsViewYaw(0.0),
-            AlsMovementParamsHandle(params), LinearVelocity(sideways),
+            AlsMovementParamsHandle(params), LinearVelocity(sideways + support),
             AlsInputCommand { move_dir: Vec2::Y, ..default() },
             crate::als::dynamics::AlsMovementBaseDynamicsState {
-                world_velocity: sideways, motor_boost: intended - sideways,
+                entity: Some(platform), support_velocity: support, relative_velocity: sideways,
+                world_velocity: sideways + support, motor_boost: intended - sideways,
                 pre_collision_velocity: Some(intended), ..default()
             },
             AlsRotationResponseState { initialized: true,
@@ -1269,6 +1272,13 @@ mod rotation_cap_tests {
         app.update();
         let low_speed_fallback = app.world().get::<AlsRotationResponseState>(character).unwrap().target_yaw;
         assert!((low_speed_fallback + std::f32::consts::FRAC_PI_2).abs() < 1e-6);
+        assert!(app.world().get::<crate::als::dynamics::AlsMovementBaseDynamicsState>(character)
+            .unwrap().pre_collision_velocity.is_none());
+        app.world_mut().get_mut::<crate::als::dynamics::AlsMovementBaseDynamicsState>(character)
+            .unwrap().pre_collision_velocity = Some(Vec3::ZERO);
+        app.update();
+        assert!((app.world().get::<AlsRotationResponseState>(character).unwrap().target_yaw
+            + std::f32::consts::FRAC_PI_2).abs() < 1e-6);
         assert!(app.world().get::<crate::als::dynamics::AlsMovementBaseDynamicsState>(character)
             .unwrap().pre_collision_velocity.is_none());
     }
