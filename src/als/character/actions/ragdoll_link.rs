@@ -206,14 +206,16 @@ impl Plugin for AlsRagdollLinkPlugin {
     }
 }
 
-fn register_ragdoll_camera_trace_owner(
+pub(crate) fn register_ragdoll_camera_trace_owner(
     event: On<RagdollSpawned>,
     avatars: Query<(Entity, &AlsCharacterAvatar, &AnimatedSceneInstance)>,
     assemblies: Query<&AlsCharacterAssembly>,
+    owners: Query<&crate::als_camera::AlsCameraTraceOwner>,
     mut commands: Commands,
 ) {
     if let Some((avatar_entity, avatar, _)) = avatars.iter().find(|(_, _, scene)| scene.player_entity() == event.animation_player)
         && assemblies.get(avatar.character).is_ok_and(|assembly| assembly.avatar == avatar_entity)
+        && !owners.get(event.ragdoll).is_ok_and(|owner| owner.0 == avatar.character)
     {
         commands.entity(event.ragdoll).insert(crate::als_camera::AlsCameraTraceOwner(avatar.character));
     }
@@ -1189,6 +1191,44 @@ mod tests {
         app.world_mut().run_system_once(ragdoll_character_physics_system).unwrap();
         assert!(app.world().get::<AlsTransitionMontageStack>(character).unwrap()
             .entries.iter().all(|entry| entry.stop_elapsed == Some(0.0)));
+    }
+
+    #[test]
+    fn native_ragdoll_spawner_reports_completion_once_after_all_joints() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy_animation_graph::core::ragdoll::{definition::Ragdoll, spawning::spawn_ragdoll_avian};
+        #[derive(Resource, Default)]
+        struct Completions(Vec<(Entity, usize)>);
+        let source: Ragdoll = ron::from_str(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/ALS/Character/PA_Als.rag.ron"))).unwrap();
+        for joint_count in [0, 1, source.joints.len()] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin, avian3d::prelude::PhysicsPlugins::default()));
+            app.init_resource::<Completions>().add_observer(|event: On<RagdollSpawned>,
+                joints: Query<&bevy_animation_graph::core::ragdoll::definition::JointLabel>,
+                mut completed: ResMut<Completions>| {
+                completed.0.push((event.ragdoll, joints.iter().count()));
+            });
+            app.finish();
+            app.cleanup();
+            let player = app.world_mut().spawn_empty().id();
+            let mut asset = source.clone();
+            let selected = asset.joints.keys().copied().take(joint_count).collect::<std::collections::HashSet<_>>();
+            asset.joints.retain(|id, _| selected.contains(id));
+            if joint_count == 0 {
+                asset.bodies.retain(|_, body| body.label == PELVIS_LABEL);
+                let colliders = asset.bodies.values().flat_map(|body| body.colliders.iter().copied()).collect::<std::collections::HashSet<_>>();
+                asset.colliders.retain(|id, _| colliders.contains(id));
+                assert_eq!(asset.bodies.len(), 1);
+                assert!(!asset.colliders.is_empty());
+            }
+            let spawned = app.world_mut().run_system_once(move |mut commands: Commands| {
+                spawn_ragdoll_avian(player, &asset, bevy::math::Isometry3d::IDENTITY, None, &mut commands)
+            }).unwrap();
+            app.world_mut().flush();
+            let completed = &app.world().resource::<Completions>().0;
+            assert_eq!(completed.len(), 1, "Each accepted ragdoll needs one completion, joints={joint_count}");
+            assert_eq!(completed[0], (spawned.root, joint_count), "Completion must follow all joint creation");
+        }
     }
 
     #[test]

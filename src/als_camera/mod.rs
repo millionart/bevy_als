@@ -1678,6 +1678,81 @@ mod tests {
     }
 
     #[test]
+    fn zero_joint_ragdoll_completion_excludes_self_from_camera_queries() {
+        use avian3d::prelude::CollisionLayers;
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner};
+        use bevy_animation_graph::core::{animated_scene::AnimatedSceneHandle, animation_graph_player::AnimationGraphPlayer,
+            ragdoll::{definition::{Ragdoll, ColliderShape, BodyMode}, spawning::spawn_ragdoll_avian}};
+        use crate::character_assembly::{AlsCharacterAvatar, AlsCharacterAssembly};
+        for penetrating in [false, true] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, TransformPlugin, bevy::gizmos::GizmoPlugin,
+                avian3d::prelude::PhysicsPlugins::new(PostUpdate), bevy_animation_graph::AnimationGraphPlugin::default()))
+                .init_asset::<WorldAsset>().init_asset::<AlsCameraDefinition>()
+                .add_observer(crate::ragdoll_link::register_ragdoll_camera_trace_owner);
+            app.finish();
+            app.cleanup();
+            let mut settings: AlsCameraDefinition = ron::from_str(include_str!("../../assets/ALSCamera/Data/als_camera.camera_component.ron")).unwrap();
+            settings.settings.trace_distance_smoothing = false;
+            let definition = app.world_mut().resource_mut::<Assets<AlsCameraDefinition>>().add(settings);
+            let owner = app.world_mut().spawn((AlsCameraTarget, GlobalTransform::IDENTITY, RotationMode::ViewDirection,
+                AlsViewYaw(0.0), AlsCameraSocketLocations { valid: true, ..default() }, AlsCameraDefinitionHandle(definition))).id();
+            let avatar = app.world_mut().spawn((AlsCharacterAvatar { character: owner }, AnimatedSceneHandle::default())).id();
+            let player = app.world_mut().spawn((AnimationGraphPlayer::new(default()), ChildOf(avatar))).id();
+            app.world_mut().trigger(WorldInstanceReady { entity: avatar,
+                instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
+            app.world_mut().flush();
+            app.world_mut().entity_mut(owner).insert(AlsCharacterAssembly { avatar, camera: None });
+            let camera = app.world_mut().spawn((AlsCameraRig::default(), AlsCharacterCamera { character: owner },
+                AlsCameraCurveValues::from_pairs([(AlsCameraCurve::CameraOffsetZ, 2.0)]),
+                AlsCameraAnimationFrame { active: true, force_no_lag: true, delta_seconds: 0.1 })).id();
+            let point = if penetrating { Vec3::new(-0.1, 0.0, 0.0) } else { Vec3::Z };
+            let mut asset: Ragdoll = ron::from_str(include_str!("../../assets/ALS/Character/PA_Als.rag.ron")).unwrap();
+            asset.joints.clear();
+            asset.bodies.retain(|_, body| body.label == "pelvis");
+            let body = asset.bodies.values_mut().next().unwrap();
+            body.offset = Vec3::ZERO;
+            body.default_mode = BodyMode::Kinematic;
+            body.colliders.truncate(1);
+            let collider_id = body.colliders[0];
+            asset.colliders.retain(|id, _| *id == collider_id);
+            let collider = asset.colliders.get_mut(&collider_id).unwrap();
+            collider.local_offset = bevy::math::Isometry3d::IDENTITY;
+            collider.shape = ColliderShape::Cuboid(bevy::math::primitives::Cuboid::new(0.1, 0.6, 0.6));
+            let spawned = app.world_mut().run_system_once(move |mut commands: Commands| {
+                spawn_ragdoll_avian(player, &asset, bevy::math::Isometry3d::from_translation(point), None, &mut commands)
+            }).unwrap();
+            app.world_mut().flush();
+            assert_eq!(app.world().get::<AlsCameraTraceOwner>(spawned.root).unwrap().0, owner);
+            app.world_mut().clear_trackers();
+            app.world_mut().increment_change_tick();
+            app.world_mut().trigger(bevy_animation_graph::core::ragdoll::spawning::RagdollSpawned { ragdoll: spawned.root, animation_player: player });
+            app.world_mut().flush();
+            assert!(!app.world().entity(spawned.root).get_ref::<AlsCameraTraceOwner>().unwrap().is_changed());
+            for collider in spawned.colliders.values() {
+                app.world_mut().entity_mut(*collider).insert(CollisionLayers::new(AlsCollisionLayer::Visibility, avian3d::prelude::LayerMask::ALL));
+            }
+            let other = app.world_mut().spawn((avian3d::prelude::RigidBody::Static, Collider::cuboid(0.1, 0.6, 0.6),
+                Transform::from_translation(point), CollisionLayers::NONE)).id();
+            for blocked in [false, true, false] {
+                app.world_mut().entity_mut(other).insert(if blocked {
+                    CollisionLayers::new(AlsCollisionLayer::Visibility, avian3d::prelude::LayerMask::ALL)
+                } else { CollisionLayers::NONE });
+                app.update();
+                app.update();
+                app.world_mut().run_system_once(camera_rig_system).unwrap();
+                let debug = app.world().get::<AlsCameraDebugInfo>(camera).unwrap();
+                assert_eq!(debug.trace_blocking_hit, blocked, "Self ragdoll exclusion failed, penetrating={penetrating}: {debug:?}");
+                assert_eq!(debug.trace_adjusted_start, blocked && penetrating);
+            }
+            app.world_mut().despawn(spawned.root);
+            app.world_mut().flush();
+            assert!(spawned.colliders.values().all(|entity| !app.world().entities().contains(*entity)));
+        }
+    }
+
+    #[test]
     fn camera_collision_layers_control_sweep_and_penetration() {
         use avian3d::prelude::{CollisionLayers, LayerMask};
         use bevy::ecs::system::RunSystemOnce;

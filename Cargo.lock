@@ -666,7 +666,7 @@ dependencies = [
 [[package]]
 name = "bevy_animation_graph"
 version = "0.11.0"
-source = "git+https://github.com/millionart/bevy_animation_graph?branch=codex%2Fbevy-als-support#a119afece831284261267711c6d2e490339e8098"
+source = "git+https://github.com/millionart/bevy_animation_graph?branch=codex%2Fbevy-als-support#37136ae6381650134aa139dddf7f1ecf6fb1551f"
 dependencies = [
  "avian3d",
  "bevy",
@@ -685,7 +685,7 @@ dependencies = [
 [[package]]
 name = "bevy_animation_graph_builtin_nodes"
 version = "0.11.0"
-source = "git+https://github.com/millionart/bevy_animation_graph?branch=codex%2Fbevy-als-support#a119afece831284261267711c6d2e490339e8098"
+source = "git+https://github.com/millionart/bevy_animation_graph?branch=codex%2Fbevy-als-support#37136ae6381650134aa139dddf7f1ecf6fb1551f"
 dependencies = [
  "avian3d",
  "bevy",
@@ -703,7 +703,7 @@ dependencies = [
 [[package]]
 name = "bevy_animation_graph_core"
 version = "0.11.0"
-source = "git+https://github.com/millionart/bevy_animation_graph?branch=codex%2Fbevy-als-support#a119afece831284261267711c6d2e490339e8098"
+source = "git+https://github.com/millionart/bevy_animation_graph?branch=codex%2Fbevy-als-support#37136ae6381650134aa139dddf7f1ecf6fb1551f"
 dependencies = [
  "avian3d",
  "bevy",
@@ -720,7 +720,7 @@ dependencies = [
 [[package]]
 name = "bevy_animation_graph_editor"
 version = "0.11.0"
-source = "git+https://github.com/millionart/bevy_animation_graph?branch=codex%2Fbevy-als-support#a119afece831284261267711c6d2e490339e8098"
+source = "git+https://github.com/millionart/bevy_animation_graph?branch=codex%2Fbevy-als-support#37136ae6381650134aa139dddf7f1ecf6fb1551f"
 dependencies = [
  "avian3d",
  "bevy",
@@ -743,7 +743,7 @@ dependencies = [
 [[package]]
 name = "bevy_animation_graph_proc_macros"
 version = "0.11.0"
-source = "git+https://github.com/millionart/bevy_animation_graph?branch=codex%2Fbevy-als-support#a119afece831284261267711c6d2e490339e8098"
+source = "git+https://github.com/millionart/bevy_animation_graph?branch=codex%2Fbevy-als-support#37136ae6381650134aa139dddf7f1ecf6fb1551f"
 dependencies = [
  "quote",
  "syn 2.0.119",
