@@ -82,6 +82,7 @@ impl AlsMantleMontage {
 pub(crate) struct AlsMantleMontages {
     pub entries: Vec<AlsMantleMontage>,
     next_id: u64,
+    published_player: Option<Entity>,
 }
 
 impl AlsMantleMontages {
@@ -411,20 +412,36 @@ fn publish_mantle_slot(
             &mut AlsMantleMontages,
             Option<&crate::get_up::AlsGetUpState>,
             Option<&crate::als::roll::AlsRollState>,
+            Option<&crate::character_assembly::AlsCharacterAssembly>,
         ),
         With<AlsCharacter>,
     >,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
-    for (character, mut montages, get_up, roll) in &mut characters {
-        let Some(instance) = avatars
-            .iter()
-            .find_map(|(avatar, instance)| (avatar.character == character).then_some(instance))
-        else {
+    for (character, mut montages, get_up, roll, assembly) in &mut characters {
+        let selected = assembly.and_then(|assembly| avatars.get(assembly.avatar).ok())
+            .filter(|(avatar, _)| avatar.character == character)
+            .map(|(_, instance)| instance.player_entity()).filter(|entity| players.contains(*entity));
+        if montages.published_player != selected {
+            if let Some(previous) = montages.published_player
+                && !avatars.iter().any(|(avatar, instance)| avatar.character != character && instance.player_entity() == previous)
+            {
+                if let Ok(mut player) = players.get_mut(previous) {
+                    player.set_global_input_data(POST_LOCOMOTION_POSE, DataValue::Pose(bevy_animation_graph::core::pose::Pose::default()));
+                    player.set_global_input_data(POST_LOCOMOTION_WEIGHT, 0.0_f32);
+                    player.set_global_input_data(POST_LOCOMOTION_LAYER_WEIGHT, 0.0_f32);
+                }
+                if let Ok(mut inputs) = source_inputs.get_mut(previous) {
+                    inputs.set_slot_input_context(POST_LOCOMOTION_POSE, None);
+                }
+            }
+            montages.published_player = selected;
+        }
+        let Some(player_entity) = selected else {
+            for entry in &mut montages.entries { entry.pose_ready = false; }
             continue;
         };
-        let player_entity = instance.player_entity();
         let Ok(mut player) = players.get_mut(player_entity) else {
             continue;
         };
@@ -1634,6 +1651,83 @@ mod tests {
     }
 
     #[test]
+    fn mantle_slot_follows_current_assembly_and_cleans_only_its_old_player() {
+        use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner};
+        use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
+        use crate::character_assembly::AlsCharacterAssembly;
+        let mut app = mantle_clip_test_app();
+        let clip = app.world().resource::<MantleAssets>().clip(MantleKind::Low).clone();
+        let skeleton = app.world().resource::<Assets<GraphClip>>().get(&clip).unwrap().skeleton.clone();
+        for current_first in [false, true] {
+            let actor = app.world_mut().spawn((AlsCharacter, AlsMantleMontages {
+                entries: vec![AlsMantleMontage { id: 1, kind: MantleKind::Low, elapsed: 0.2,
+                    clip_time: 0.6, previous_clip_time: 0.5, weight: 1.0, pose_ready: false, interrupted: false, stop: None }],
+                ..default()
+            })).id();
+            let spawn_avatar = |app: &mut App| {
+                let avatar = app.world_mut().spawn((AlsCharacterAvatar { character: actor },
+                    AnimatedSceneHandle::default(), Transform::IDENTITY, ChildOf(actor))).id();
+                let player = app.world_mut().spawn((AnimationGraphPlayer::new(skeleton.clone()),
+                    Transform::IDENTITY, ChildOf(avatar))).id();
+                app.world_mut().trigger(WorldInstanceReady { entity: avatar,
+                    instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
+                app.world_mut().flush();
+                (avatar, player)
+            };
+            let pair = [spawn_avatar(&mut app), spawn_avatar(&mut app)];
+            let current = pair[usize::from(!current_first)];
+            let old = pair[usize::from(current_first)];
+            app.world_mut().entity_mut(actor).insert(AlsCharacterAssembly { avatar: current.0, camera: None });
+            let unrelated = app.world_mut().spawn(AnimationGraphPlayer::new(skeleton.clone())).id();
+            app.world_mut().get_mut::<AnimationGraphPlayer>(unrelated).unwrap().set_global_input_data(POST_LOCOMOTION_WEIGHT, 0.37_f32);
+            app.world_mut().run_system_cached(publish_mantle_slot).unwrap();
+            assert_eq!(app.world().get::<AnimationGraphPlayer>(current.1).unwrap()
+                .get_global_input_data(POST_LOCOMOTION_WEIGHT).and_then(|v| v.as_f32().ok()), Some(1.0),
+                "The current Assembly player must receive the mantle slot in both creation orders");
+            assert_eq!(app.world().get::<AnimationGraphPlayer>(current.1).unwrap()
+                .get_global_input_data(POST_LOCOMOTION_POSE).unwrap().as_pose().unwrap().paths.len(), 79);
+            assert!(app.world().get::<AnimationGraphPlayer>(old.1).unwrap().get_global_input_data(POST_LOCOMOTION_WEIGHT).is_none());
+            assert!(app.world().get::<crate::extensions::SourceAnimationInputs>(current.1).unwrap().slot_input_context(POST_LOCOMOTION_POSE).is_some());
+            app.world_mut().get_mut::<AnimationGraphPlayer>(old.1).unwrap().pause();
+            app.world_mut().get_mut::<AlsCharacterAssembly>(actor).unwrap().avatar = old.0;
+            app.world_mut().get_mut::<AlsMantleMontages>(actor).unwrap().entries[0].weight = 0.5;
+            app.world_mut().run_system_cached(publish_mantle_slot).unwrap();
+            assert_eq!(app.world().get::<AnimationGraphPlayer>(current.1).unwrap()
+                .get_global_input_data(POST_LOCOMOTION_WEIGHT).and_then(|v| v.as_f32().ok()), Some(0.0));
+            assert!(app.world().get::<AnimationGraphPlayer>(current.1).unwrap()
+                .get_global_input_data(POST_LOCOMOTION_POSE).unwrap().as_pose().unwrap().paths.is_empty());
+            assert_eq!(app.world().get::<AnimationGraphPlayer>(current.1).unwrap()
+                .get_global_input_data(POST_LOCOMOTION_LAYER_WEIGHT).and_then(|v| v.as_f32().ok()), Some(0.0));
+            assert!(app.world().get::<crate::extensions::SourceAnimationInputs>(current.1).unwrap().slot_input_context(POST_LOCOMOTION_POSE).is_none());
+            assert_eq!(app.world().get::<AnimationGraphPlayer>(old.1).unwrap()
+                .get_global_input_data(POST_LOCOMOTION_WEIGHT).and_then(|v| v.as_f32().ok()), Some(0.5));
+            app.world_mut().entity_mut(old.1).remove::<ChildOf>();
+            let rebuilt = app.world_mut().spawn((AnimationGraphPlayer::new(skeleton.clone()), Transform::IDENTITY, ChildOf(old.0))).id();
+            app.world_mut().trigger(WorldInstanceReady { entity: old.0,
+                instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
+            app.world_mut().flush();
+            app.world_mut().run_system_cached(publish_mantle_slot).unwrap();
+            assert_eq!(app.world().get::<AnimationGraphPlayer>(rebuilt).unwrap()
+                .get_global_input_data(POST_LOCOMOTION_WEIGHT).and_then(|v| v.as_f32().ok()), Some(0.5));
+            assert_eq!(app.world().get::<AnimationGraphPlayer>(old.1).unwrap()
+                .get_global_input_data(POST_LOCOMOTION_WEIGHT).and_then(|v| v.as_f32().ok()), Some(0.0));
+            assert!(app.world().get::<crate::extensions::SourceAnimationInputs>(old.1).unwrap().slot_input_context(POST_LOCOMOTION_POSE).is_none());
+            let foreign = app.world_mut().spawn((AlsCharacter, AlsCharacterAssembly { avatar: old.0, camera: None })).id();
+            app.world_mut().get_mut::<AlsCharacterAvatar>(old.0).unwrap().character = foreign;
+            app.world_mut().get_mut::<AnimationGraphPlayer>(rebuilt).unwrap().set_global_input_data(POST_LOCOMOTION_WEIGHT, 0.37_f32);
+            app.world_mut().run_system_cached(publish_mantle_slot).unwrap();
+            assert_eq!(app.world().get::<AnimationGraphPlayer>(rebuilt).unwrap()
+                .get_global_input_data(POST_LOCOMOTION_WEIGHT).and_then(|v| v.as_f32().ok()), Some(0.37));
+            assert_eq!(app.world().get::<AnimationGraphPlayer>(unrelated).unwrap()
+                .get_global_input_data(POST_LOCOMOTION_WEIGHT).and_then(|v| v.as_f32().ok()), Some(0.37));
+            app.world_mut().despawn(actor);
+            app.world_mut().despawn(foreign);
+            app.world_mut().despawn(old.1);
+            app.world_mut().despawn(unrelated);
+        }
+    }
+
+    #[test]
     fn mantle_absolute_root_drives_actual_clips_to_source_endpoints() {
         let mut app = mantle_clip_test_app();
         for kind in [
@@ -1792,6 +1886,7 @@ mod tests {
                 instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()),
             });
             app.world_mut().flush();
+            app.world_mut().entity_mut(entity).insert(crate::character_assembly::AlsCharacterAssembly { avatar, camera: None });
             let delta = 1.0 / 60.0;
             for _ in 0..=(duration / delta).ceil() as usize {
                 app.world_mut()
