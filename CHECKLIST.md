@@ -66,7 +66,7 @@
 - [x] **BF132.R5E-09 — 空中有输入时仍按 Tnua 目标速度纠偏，额外刹掉原方向动量**。Gate：空中转向输入只施加源允许加速度，原方向动量、无输入与超速控制通过。
 - [x] **BF132.R5E-10 — 普通自由下落链缺少源终端速度限制，预测用 -40 不能代替实际速度限制**。Gate：实际自由下落速度使用当前 PhysicsVolume 有效终端速度，普通/覆盖与预测独立。
 - [x] **BF132.R5E-11 — 出生解重叠只选单个最短轴，丢掉多障碍所需的组合 MTD**。Gate：单/多障碍组合调整与源重试顺序一致，成功与不可恢复出生点区分。
-- [ ] **BF132.R5E-12 — 默认高位向下探地把合法室内出生点搬到屋顶**。Gate：合法室内出生位置保留，确有重叠/落地需要时按源查找，不以屋顶替换。
+- [x] **BF132.R5E-12 — 默认高位向下探地把合法室内出生点搬到屋顶**。Gate：合法室内出生位置保留，确有重叠/落地需要时按源查找，不以屋顶替换。
 - [ ] **BF132.R5E-13 — 补充完整半径地面检测绕过源缩小半径停靠复检**。Gate：边缘/侧墙接触不能绕过缩半径复检，可靠地面与已接地控制通过。
 - [ ] **BF132.R5E-14 — 手柄 Select/Start 的默认 ToggleUI 与 Slomo 绑定相反**。Gate：fresh 源输入资产与运行绑定逐键一致，两个动作各自触发。
 - [ ] **BF132.R5E-15 — 平台变换跟随的 sweep 把普通 Sensor/不相交碰撞层当作阻挡**。Gate：同一路径区分非阻挡重叠与有效 Block，平台移动/旋转及真实障碍通过。
@@ -260,3 +260,9 @@
 - BF132.R5E-11-S2：开始2026-10-03 01:50 +08:00；预估结束2026-10-03 02:25 +08:00。依据：9项定向与12组合已闭合，实际入口构建同类约145秒，startup/interface验证实际admission/current actor装配及相关Ready生命周期；本轮只做预构建、真实Gate、审计与单独提交，原截图/完整性能暂停保留。
   - Runtime前摘要（01:53 +08:00）：同入口target_game/play最终预构建143.235秒通过；fresh GameMode native/LevelActor/source shrink与实际MTD/复检/Ready/admission闭包、9项定向/12组矩阵、组合与完整分离深度消融red/恢复green、原20数值完整diff及static通过。没有动画图/转换变更；开始同一二进制startup/interface真实功能Gate，原截图/完整性能暂停保留。
   - S2实际结束2026-10-03 01:54 +08:00；相对02:25预估偏差-31分钟；结果：同一恢复版二进制startup和Interface 15/15真实功能runner/manual/validator均退出0，图错误/primary failure/故障/时序/watchdog均0；两报告max_eval_p95_ms完整预算未通过，原截图/完整性能暂停保留。9项定向/12原生admission矩阵、旧AABB缺Ready反例、完整分离深度占位反例及组合求和消融red/恢复green闭合，fresh源完整MTD和收缩复检顺序与数值全量diff通过；删除AABB单轴及skin，不新增抽象/状态/候选步骤，图/转换未改。勾选R5E-11单独提交；S1静态/消融与S2真实入口分别通过、未超时，下一项R5E-12，32项待处理。
+- BF132.R5E-12-S1：开始2026-10-03 01:56 +08:00；预估结束2026-10-03 02:16 +08:00。依据：fresh GameModeBase SpawnDefaultPawnFor/AtTransform直接使用StartSpot位置及上一项native GameMode/FindTeleportSpot，目标唯一默认snap策略一行与prepare/Ready/admission闭包；9项刚通过定向复用，仅新增室内/多层/悬空/显式策略/阻挡的实际位置矩阵。先确认默认室内屋顶red，最小修改默认值并消融；真实入口另登记S2，不改后续地面检测或源关卡。
+  - source/static摘要（01:59 +08:00）：fresh native B_Als_GameMode默认Pawn仍为B_Als_Character，GameModeBase SpawnDefaultPawnFor/AtTransform直接使用StartSpot位置、只保留Yaw；目标Playground公开入口采用AlsPlayerStart::default，无独立高位贴地源事实。首版fixture误用目标默认策略作期望而false green，已改为独立源期望并重新证明red：室内初始0.919、屋顶3.2，实际Ready=4.119而源=0.919。修改唯一默认snap=false保留现有显式true能力，无新分支/抽象/状态；下一步8组真实admission位置及出生回归、默认值消融，尚未开始真实Gate。
+  - S1实际结束2026-10-03 02:02 +08:00；相对02:16预估偏差-14分钟；结果：10项唯一出生/关卡/admission定向通过，8组真实位置覆盖室内屋顶/多层/无顶/刻意悬空/显式false/显式true/真实单墙阻挡，上一项12组组合仍通过。默认修复前0.919→4.119稳定red，恢复默认false后位置green；受控策略消融显式true恢复同一屋顶4.119、悬空1.8→0.919的旧移动信号，恢复默认路径保留位置，证明现有可选策略边界，无新增抽象/状态/运行时分支。fresh native/source直接StartSpot闭合，static root ABI/layout/editor/资产边界通过，源关卡/图/转换未改；下一步同入口startup/interface。
+- BF132.R5E-12-S2：开始2026-10-03 02:02 +08:00；预估结束2026-10-03 02:32 +08:00。依据：最小默认策略及10项定向/8+12组native admission已通过，同类入口预构建约143秒、startup/interface约39秒，本轮仅实际入口构建、功能Gate与报告审计后单独提交，原截图/完整性能暂停保留。
+  - Runtime前摘要（02:05 +08:00）：target_game/play实际启动器最终预构建142.1秒通过；fresh GameMode native/StartSpot→SpawnTransform、10项定向/8组室内策略与12组阻挡admission、旧默认red/恢复green及显式策略受控消融、static通过。仅默认snap=false，无新生产分支/抽象，源关卡/图/转换未改；开始同一二进制startup/interface真实功能Gate，截图/完整性能原暂停范围保留。
+  - S2实际结束2026-10-03 02:07 +08:00；相对02:32预估偏差-25分钟；结果：同一恢复版二进制startup、Interface 15/15真实功能runner/manual/validator均退出0，图错误/primary failure/故障/时序/watchdog均0；两报告完整max_eval_p95_ms预算未通过，截图/完整性能原暂停范围保留。10项唯一定向、8组室内/策略及12组组合admission、源期望red/默认恢复green/显式策略受控消融闭合；只改默认snap=false与对应断言，没有新抽象/状态/生产分支或源关卡改写，graph/转换未改。S1静态与S2真实入口均提前通过，勾选R5E-12单独提交；下一项R5E-13，31项待处理。

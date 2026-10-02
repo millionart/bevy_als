@@ -17,7 +17,7 @@ impl Default for AlsPlayerStart {
     fn default() -> Self {
         Self {
             tag: None,
-            snap_to_ground: true,
+            snap_to_ground: false,
         }
     }
 }
@@ -621,6 +621,6 @@ mod tests {
             crate::als::character::ALS_CHARACTER_CAPSULE_RADIUS
         );
         assert_eq!(settings.required_stable_frames, 2);
-        assert!(AlsPlayerStart::default().snap_to_ground);
+        assert!(!AlsPlayerStart::default().snap_to_ground);
     }
 }

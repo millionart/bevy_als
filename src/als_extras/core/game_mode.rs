@@ -252,6 +252,54 @@ mod tests {
     use bevy_animation_graph::core::animated_scene::AnimatedScene;
 
     #[test]
+    fn source_player_start_preserves_legal_indoor_and_airborne_locations() {
+        for (height, roofs, snap, blocked) in [
+            (0.919, vec![3.2], None, false),
+            (0.919, vec![3.2, 6.2], None, false),
+            (0.919, vec![], None, false),
+            (1.8, vec![], None, false),
+            (1.8, vec![3.2], Some(false), false),
+            (1.8, vec![], Some(true), false),
+            (0.919, vec![3.2], Some(true), false),
+            (0.919, vec![3.2], None, true)] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin,
+                bevy::transform::TransformPlugin, PhysicsPlugins::new(FixedPostUpdate),
+                crate::als::player_start::AlsPlayerStartPlugin, AlsGameModePlugin))
+                .init_asset::<StandardMaterial>().init_asset::<AlsMovementParams>()
+                .init_asset::<AlsControlSchemeConfig>().init_asset::<AnimatedScene>()
+                .init_asset::<crate::als_camera::AlsCameraDefinition>();
+            app.world_mut().resource_mut::<AlsPlayerStartSettings>().required_stable_frames = 1;
+            app.finish(); app.cleanup();
+            let mut policy = AlsPlayerStart::default();
+            if let Some(snap) = snap { policy.snap_to_ground = snap; }
+            let start = app.world_mut().spawn((policy, Transform::from_xyz(0.0, height, 0.0))).id();
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(20.0, 0.2, 20.0),
+                Transform::from_xyz(0.0, -0.1, 0.0)));
+            for roof in &roofs {
+                app.world_mut().spawn((RigidBody::Static, Collider::cuboid(20.0, 0.2, 20.0),
+                    Transform::from_xyz(0.0, roof - 0.1, 0.0)));
+            }
+            if blocked {
+                app.world_mut().spawn((RigidBody::Static, Collider::cuboid(2.0, 20.0, 20.0),
+                    Transform::from_xyz(-1.2, height, 0.0)));
+            }
+            app.update(); app.world_mut().run_schedule(FixedPostUpdate); app.update();
+            let expected_y = if snap == Some(true) { roofs.first().copied().unwrap_or(0.0) + 0.919 } else { height };
+            let expected = Vec3::new(if blocked { 0.1 } else { 0.0 }, expected_y, 0.0);
+            let ready = app.world().get::<AlsPlayerStartReady>(start).unwrap();
+            assert!(ready.transform.translation.distance(expected) < 0.0001,
+                "height={height} roofs={roofs:?} snap={snap:?}: {:?} != {expected:?}", ready.transform.translation);
+            let request = app.world_mut().spawn((AlsPlayerAdmission { spawn_input: false, spawn_camera: false,
+                ..AlsPlayerAdmission::new() }, AlsPlayerAdmissionPending)).id();
+            app.update();
+            let admitted = app.world().get::<AlsPlayerAdmissionComplete>(request).unwrap();
+            assert!(app.world().get::<Transform>(admitted.character).unwrap().translation.distance(expected) < 0.0001);
+            assert!(app.world().get::<AlsPlayerAdmissionFailed>(request).is_none());
+        }
+    }
+
+    #[test]
     fn orthogonal_overlap_admits_at_the_combined_native_adjustment() {
         let mut cases = Vec::new();
         for depths in [Vec2::new(0.1, 0.2), Vec2::splat(0.15)] {
