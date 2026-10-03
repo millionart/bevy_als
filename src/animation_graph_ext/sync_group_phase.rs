@@ -116,6 +116,7 @@ pub struct SourceSyncPlayerTick {
     pub looped: bool,
     pub delta_seconds: f32,
     pub play_rate: f32,
+    pub length_play_rate: Option<f32>,
 }
 
 #[derive(Reflect, Clone, Debug, Default, PartialEq)]
@@ -413,6 +414,9 @@ pub fn resolve_source_sync_phases(
             let mut grouped = leader.clone();
             grouped.markers.retain(|marker| common.contains(&marker.name));
             grouped.phase_markers.retain(|marker| common.contains(&marker.name));
+            if common.is_empty() {
+                grouped.play_rate = grouped.length_play_rate.unwrap_or(grouped.play_rate);
+            }
             let length_resync = (common.is_empty() || previous_common.is_empty())
                 && !leader.override_position_when_joining_sync_group_as_leader && leader.requested_inertialization;
             let prior_phase = if length_resync {
@@ -1392,6 +1396,7 @@ mod tests {
             previous_marker_record: None,
             marker_advance: None,
             sample_time_hint: None,
+            length_play_rate: None,
             phase_duration: 1.0,
             phase_markers: markers(&[("Left", 0.0), ("Right", 0.5)]),
             duration: 1.0,
@@ -1510,6 +1515,28 @@ mod tests {
         current = ticks(0.0625);
         current[2].role = SourceSyncGroupRole::AlwaysLeader;
         assert!(resolve_source_sync_phases(&current, &previous)[0].marker_resets.is_empty());
+    }
+
+    #[test]
+    fn markerless_blendspace_sync_uses_the_weighted_rate_when_group_markers_are_filtered_out() {
+        let leader = SourceSyncPlayerTick {
+            key: "Movement".into(), role: SourceSyncGroupRole::AlwaysLeader, weight: 1.0,
+            duration: 2.0, phase_duration: 2.0, sample_time_hint: Some(0.0), delta_seconds: 0.1,
+            play_rate: 1.0, length_play_rate: Some(1.4), looped: true,
+            markers: markers(&[("A", 0.2), ("B", 1.2)]), phase_markers: markers(&[("A", 0.2), ("B", 1.2)]),
+            ..default()
+        };
+        for filtered in [false, true] {
+        let follower = SourceSyncPlayerTick {
+            key: "Movement".into(), role: SourceSyncGroupRole::AlwaysFollower, weight: 0.5,
+            duration: 1.0, phase_duration: 1.0, markers: markers(if filtered { &[("X", 0.1), ("Y", 0.6)] } else { &[("A", 0.1), ("B", 0.6)] }),
+            ..default()
+        };
+        let result = resolve_source_sync_phases(&[leader.clone(), follower], &[]);
+        assert_eq!(result[0].markers.is_empty(), filtered);
+        assert!((result[0].phase.unwrap() - if filtered { 0.07 } else { 0.05 }).abs() < 1e-6);
+        assert!((result[0].leader_samples[0].1.time - if filtered { 0.14 } else { 0.1 }).abs() < 1e-6);
+        }
     }
 
     #[test]

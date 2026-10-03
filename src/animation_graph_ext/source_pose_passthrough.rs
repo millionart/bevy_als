@@ -344,8 +344,8 @@ mod tests {
                 else { vec![(0.0, 0.5, false, 1.0)] };
             let rate = if full_history { if external_start == 0.75 { 5.0 } else { 0.0 } } else { 1.0 };
             frames.extend([(0.125, 0.5, inertial, rate); 2]);
-            let mut own_time = 0.25;
-            let mut external_time = if full_history { 0.25 } else { external_start };
+            let mut own_time = if full_history { external_start } else { 0.25 };
+            let mut external_time = external_start;
             for (delta, weight, request, rate) in frames {
                 let inputs = HashMap::from([
                     ("delta".into(), DataValue::F32(delta)), ("rate".into(), DataValue::F32(rate)),
@@ -357,7 +357,7 @@ mod tests {
                     Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
                 let outputs = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(delta)), context).unwrap();
                 if delta == 0.0 { continue; }
-                own_time += delta;
+                own_time = (own_time + delta).rem_euclid(1.0);
                 external_time = (external_time + delta * rate).rem_euclid(1.0);
                 let expected = if excluded { own_time } else { external_time };
                 let states = &arena.get_toplevel().node_states;
@@ -365,7 +365,8 @@ mod tests {
                 assert_eq!(state.context.sync_players[0].has_been_full_weight, full_history);
                 assert_eq!(state.context.sync_players[0].requested_inertialization, request);
                 let leader = states.get::<SourceSequencePlayerState>(leader_id, StateKey::Default).unwrap();
-                assert!((leader.context.relevant_asset.as_ref().unwrap().position - external_time).abs() < 1e-5);
+                assert!((leader.context.relevant_asset.as_ref().unwrap().position - external_time).abs() < 1e-5,
+                    "Wrong external leader: external={external_start}, full={full_history}, inertial={request}, excluded={excluded}, external_time={external_time}, actual={:?}", leader.context.relevant_asset);
                 let curve = state.context.curves[&crate::extensions::SourceCurveName::from("SampleTime")];
                 for sample in ["a", "b"] {
                     let update = arena.get_toplevel().node_caches.get_input_time_update(player_id, StateKey::Default,

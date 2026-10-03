@@ -731,6 +731,11 @@ impl NodeLike for NormalizedBlendSpaceNode {
             } else {
                 global_f32_or_root_default(&ctx, &playback.play_rate_key)?
             };
+            let normalized_speed = weights.iter().try_fold(0.0, |speed, (index, weight)| {
+                let point = &self.points[*index];
+                let duration = self.point_duration(&mut ctx, point)?;
+                Ok::<_, GraphError>(speed + if duration != 0.0 { weight.clamp(0.0, 1.0) * point.asset_rate_scale / duration } else { 0.0 })
+            })?;
             let previous = ctx
                 .state::<NormalizedBlendSpaceState>()
                 .ok()
@@ -738,6 +743,8 @@ impl NodeLike for NormalizedBlendSpaceNode {
             let mut tick =
                 self.player_tick(playback, leader_index, previous.map(|tick| tick.phase), delta_seconds, play_rate,
                     &phase_markers, &leader_markers);
+            tick.length_play_rate = Some(play_rate * leader_duration * normalized_speed);
+            if !uses_marker_phase { tick.play_rate = tick.length_play_rate.unwrap(); }
             tick.sample_time_hint = Some(sample_times[leader_index]
                 .unwrap_or(playback.start_position * leader_duration));
             tick.identity = (ctx.graph_context.context_id, ctx.node_id);
@@ -1040,6 +1047,228 @@ mod tests {
         graph.add_node(node.clone());
         let handle = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
         world.run_system_cached_with(query, (handle, node.id)).unwrap();
+    }
+
+    #[test]
+    fn markerless_blendspace_signed_clock_matrix_keeps_samples_curves_and_relevant_time() {
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip, animation_graph::{AnimationGraph, GraphInputPin, TimeUpdate}, animation_node::AnimationNode,
+            context::{deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime, graph_context_arena::GraphContextArena,
+                new_context::GraphContext, node_states::StateKey, system_resources::SystemResources},
+            edge_data::DataValue, skeleton::Skeleton, state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
+        };
+        fn query(In((handle, rate, start, looped, speed)): In<(Handle<AnimationGraph>, f32, f32, bool, f32)>, resources: SystemResources) {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let node = graph.nodes.values().find(|node| node.name == "player").unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            let inputs = HashMap::from([("delta".to_owned(), DataValue::F32(0.1)), ("rate".to_owned(), DataValue::F32(rate))]);
+            let mut expected = start;
+            for _ in 0..4 {
+                expected = if looped { (expected + 0.1 * rate * speed).rem_euclid(1.0) }
+                    else { (expected + 0.1 * rate * speed).clamp(0.0, 1.0) };
+                graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.1)), GraphContext::new(
+                    arena.get_toplevel_id(), graph, &mut arena, &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs)).unwrap();
+                let state = arena.get_toplevel().node_states.get::<NormalizedBlendSpaceState>(node.id, StateKey::Default).unwrap();
+                let clock = state.context.relevant_asset.as_ref().unwrap();
+                assert!((clock.position - expected * 2.0).abs() < 1e-5, "Wrong sample clock: rate={rate}, speed={speed}, start={start}, loop={looped}, clock={clock:?}");
+                assert!((clock.playback_delta_seconds - 0.1 * rate * speed * 2.0).abs() < 1e-5);
+                assert!((state.sample_times[0].unwrap() - expected * 2.0).abs() < 1e-5);
+                assert!((state.sample_times[1].unwrap() - expected).abs() < 1e-5);
+                let curve = state.context.curves[&crate::extensions::SourceCurveName::from("SampleTime")];
+                assert!((curve - expected * 1.6).abs() < 1e-5, "Curves used a different sample clock: {curve}");
+            }
+        }
+        let mut world = World::new();
+        world.init_resource::<Assets<AnimationGraph>>();
+        world.init_resource::<Assets<GraphClip>>();
+        world.init_resource::<Assets<Skeleton>>();
+        world.init_resource::<Assets<StateMachine>>();
+        for rates in [[1.0_f32, 1.0], [2.0, 0.5], [1.0, -0.75], [-1.0, -1.0], [0.0, 0.0]] {
+            for rate in [-2.0_f32, 0.0, 0.5, 2.0] {
+                for start in [0.02, 0.98] {
+                    for looped in [false, true] {
+                        let mut graph = AnimationGraph::new();
+                        graph.set_default_data(GraphInputPin::passthrough("position"), DataValue::Vec2(Vec2::X * 0.4));
+                        graph.set_default_data(GraphInputPin::passthrough("sample"), DataValue::Pose(Pose::default()));
+                        let points = [2.0_f32, 1.0].into_iter().enumerate().map(|(index, duration)| NormalizedBlendSpacePoint {
+                            id: index.to_string(), point: Vec2::X * index as f32, duration, asset_rate_scale: rates[index],
+                            curves: crate::extensions::parse_curves(&serde_json::json!({"curves": [{
+                                "name": "SampleTime", "times": [0.0, duration], "values": [0.0, duration], "interps": ["LINEAR", "LINEAR"]
+                            }]})).unwrap(), ..default()
+                        }).collect();
+                        let node = AnimationNode::new("player", NormalizedBlendSpaceNode { points, looped, phase_duration: 1.0,
+                            playback: Some(SourceSyncPlayerBinding { key: "group".into(), start_position: start,
+                                delta_seconds_key: "delta".into(), play_rate_key: "rate".into(), ..default() }), ..default() });
+                        graph.add_input_data_edge(GraphInputPin::passthrough("position"), node.id, IN_POSITION);
+                        for id in ["0", "1"] { graph.add_input_data_edge(GraphInputPin::passthrough("sample"), node.id, NormalizedBlendSpaceNode::pose_pin(id)); }
+                        graph.add_output_data("Pose".into(), DataSpec::Pose);
+                        graph.add_output_data_edge(node.id, OUT_POSE, "Pose");
+                        graph.add_node(node);
+                        let handle = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
+                        world.run_system_cached_with(query, (handle, rate, start, looped, 0.6 * rates[0] / 2.0 + 0.4 * rates[1])).unwrap();
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn markerless_blendspace_clock_uses_all_weighted_normalized_sample_speeds() {
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip,
+            animation_graph::{AnimationGraph, GraphInputPin, TimeUpdate},
+            animation_node::AnimationNode,
+            context::{
+                deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+                graph_context_arena::GraphContextArena, new_context::GraphContext,
+                node_states::StateKey, system_resources::SystemResources,
+            },
+            edge_data::DataValue,
+            pose::Pose,
+            skeleton::Skeleton,
+            state_machine::high_level::StateMachine,
+            utils::testing::TestIoEnv,
+        };
+
+        fn query(In((handle, delta)): In<(Handle<AnimationGraph>, f32)>, resources: SystemResources) -> (f32, f32, usize) {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let node = graph.nodes.values().find(|node| node.name == "player").unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            let inputs = HashMap::from([
+                ("sample".to_owned(), DataValue::Pose(Pose::default())),
+                ("delta".to_owned(), DataValue::F32(delta)),
+            ]);
+            let context = GraphContext::new(
+                arena.get_toplevel_id(), graph, &mut arena, &resources, &env,
+                Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs,
+            );
+            graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(delta)), context).unwrap();
+            let state = arena.get_toplevel().node_states.get::<NormalizedBlendSpaceState>(node.id, StateKey::Default).unwrap();
+            let clock = state.context.relevant_asset.as_ref().unwrap();
+            (clock.duration, clock.position, state.context.asset_samples.len())
+        }
+
+        let mut graphs = Assets::<AnimationGraph>::default();
+        let mut handles = Vec::new();
+        for position in [Vec2::X * 0.4] {
+            let mut graph = AnimationGraph::new();
+            graph.set_default_data(GraphInputPin::passthrough("position"), DataValue::Vec2(position));
+            graph.set_default_data(GraphInputPin::passthrough("sample"), DataValue::Pose(Pose::default()));
+            let node = AnimationNode::new("player", NormalizedBlendSpaceNode {
+                looped: true,
+                phase_duration: 1.0,
+                points: [("a", Vec2::ZERO, 2.0), ("b", Vec2::X, 1.0)].into_iter().map(|(id, point, duration)| NormalizedBlendSpacePoint {
+                    id: id.to_owned(), point, duration, ..default()
+                }).collect(),
+                playback: Some(SourceSyncPlayerBinding {
+                    key: "group".into(), start_position: 0.0, delta_seconds_key: "delta".into(), ..default()
+                }),
+                ..default()
+            });
+            graph.add_node(node.clone());
+            graph.add_input_data_edge(GraphInputPin::passthrough("position"), node.id, "position");
+            for id in ["a", "b"] {
+                graph.add_input_data_edge(GraphInputPin::passthrough("sample"), node.id, NormalizedBlendSpaceNode::pose_pin(id));
+            }
+            graph.add_output_data("Pose".into(), DataSpec::Pose);
+            graph.add_output_data_edge(node.id, "pose", "Pose");
+            handles.push(graphs.add(graph));
+        }
+        let mut world = World::new();
+        world.insert_resource(graphs);
+        world.insert_resource(Assets::<GraphClip>::default());
+        world.insert_resource(Assets::<Skeleton>::default());
+        world.insert_resource(Assets::<StateMachine>::default());
+        let actual = handles.iter().cloned().map(|handle| world.run_system_cached_with(query, (handle, 0.1)).unwrap()).collect::<Vec<_>>();
+        assert_eq!(actual[0].0, 2.0);
+        assert!((actual[0].1 - 0.14).abs() < 1e-6, "Actual .6/.4 blend advanced at .05 instead of .07: {actual:?}");
+    }
+
+    #[test]
+    fn markerless_blendspace_clock_reaches_the_actual_group_resolution() {
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip,
+            animation_graph::{AnimationGraph, GraphInputPin, TimeUpdate},
+            animation_node::AnimationNode,
+            context::{
+                deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+                graph_context_arena::GraphContextArena, new_context::GraphContext,
+                node_states::StateKey, system_resources::SystemResources,
+            },
+            edge_data::DataValue,
+            pose::Pose,
+            skeleton::Skeleton,
+            state_machine::high_level::StateMachine,
+            utils::testing::TestIoEnv,
+        };
+
+        fn query(In((handle, delta)): In<(Handle<AnimationGraph>, f32)>, resources: SystemResources) -> (f32, f32, usize) {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let node = graph.nodes.values().find(|node| node.name == "player").unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            let inputs = HashMap::from([
+                ("sample".to_owned(), DataValue::Pose(Pose::default())),
+                ("delta".to_owned(), DataValue::F32(delta)),
+            ]);
+            let context = GraphContext::new(
+                arena.get_toplevel_id(), graph, &mut arena, &resources, &env,
+                Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs,
+            );
+            graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(delta)), context).unwrap();
+            let state = arena.get_toplevel().node_states.get::<NormalizedBlendSpaceState>(node.id, StateKey::Default).unwrap();
+            let clock = state.context.relevant_asset.as_ref().unwrap();
+            (clock.duration, clock.position, state.context.asset_samples.len())
+        }
+
+        let mut graphs = Assets::<AnimationGraph>::default();
+        let mut handles = Vec::new();
+        for position in [Vec2::X * 0.4] {
+            let mut graph = AnimationGraph::new();
+            graph.set_default_data(GraphInputPin::passthrough("position"), DataValue::Vec2(position));
+            graph.set_default_data(GraphInputPin::passthrough("sample"), DataValue::Pose(Pose::default()));
+            let node = AnimationNode::new("player", NormalizedBlendSpaceNode {
+                looped: true,
+                phase_duration: 1.0,
+                points: [("a", Vec2::ZERO, 2.0), ("b", Vec2::X, 1.0)].into_iter().map(|(id, point, duration)| NormalizedBlendSpacePoint {
+                    id: id.to_owned(), point, duration, ..default()
+                }).collect(),
+                playback: Some(SourceSyncPlayerBinding {
+                    key: "group".into(), start_position: 0.0, delta_seconds_key: "delta".into(), ..default()
+                }),
+                ..default()
+            });
+            graph.add_node(node.clone());
+            graph.add_input_data_edge(GraphInputPin::passthrough("position"), node.id, "position");
+            for id in ["a", "b"] {
+                graph.add_input_data_edge(GraphInputPin::passthrough("sample"), node.id, NormalizedBlendSpaceNode::pose_pin(id));
+            }
+            graph.add_output_data("Pose".into(), DataSpec::Pose);
+            let root = AnimationNode::new("sync", crate::extensions::SourcePosePassthroughNode { synchronize_groups: true, output_time: false, ..default() });
+            graph.add_node_parameter_edge(node.id, "pose", root.id, "Source");
+            graph.add_output_data_edge(root.id, "Pose", "Pose");
+            graph.add_node(root);
+            handles.push(graphs.add(graph));
+        }
+        let mut world = World::new();
+        world.insert_resource(graphs);
+        world.insert_resource(Assets::<GraphClip>::default());
+        world.insert_resource(Assets::<Skeleton>::default());
+        world.insert_resource(Assets::<StateMachine>::default());
+        let actual = handles.iter().cloned().map(|handle| world.run_system_cached_with(query, (handle, 0.1)).unwrap()).collect::<Vec<_>>();
+        assert_eq!(actual[0].0, 2.0);
+        assert!((actual[0].1 - 0.14).abs() < 1e-6, "Actual .6/.4 blend advanced at .05 instead of .07: {actual:?}");
     }
 
     #[test]
