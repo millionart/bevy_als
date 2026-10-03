@@ -43,6 +43,10 @@ macro_rules! tag_state {
     };
 }
 
+tag_state!(AlsGroundedEntryMode, None, {
+    None: "", FromRoll: "Als.GroundedEntryMode.FromRoll",
+});
+
 tag_state!(AlsNotifyLocomotionAction, None, {
     None: "", Mantling: "Als.LocomotionAction.Mantling", GettingUp: "Als.LocomotionAction.GettingUp",
     Rolling: "Als.LocomotionAction.Rolling", Ragdolling: "Als.LocomotionAction.Ragdolling",

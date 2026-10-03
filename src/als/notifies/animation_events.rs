@@ -927,12 +927,10 @@ fn dispatch_animation_events(
                 }
                 if class_name == "AlsAnimNotify_SetGroundedEntryMode"
                     && signal.phase == EventPhase::Point
-                    && parameter_tag(&parameters, "GroundedEntryMode")
-                        == Some("Als.GroundedEntryMode.FromRoll")
                 {
-                    commands
-                        .entity(character)
-                        .insert(AlsGroundedEntryMode::FromRoll);
+                    if let Ok(mode) = AlsGroundedEntryMode::new(parameter_tag(&parameters, "GroundedEntryMode").unwrap_or_default()) {
+                        commands.entity(character).insert(mode);
+                    }
                 }
                 if class_name == "AlsAnimNotifyState_SetLocomotionAction" {
                     let next_action = notify_action(parameter_tag(&parameters, "LocomotionAction"));
@@ -1169,6 +1167,45 @@ pub(crate) mod tests {
         runtime.set_instance(2);
         assert!(runtime.montage_chance.accepts(&event));
         assert_eq!(runtime.montage_chance.0 as i32, seeds[0]);
+    }
+
+    #[test]
+    fn grounded_entry_point_notify_assigns_empty_and_custom_tags() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut manifest: AlsNotifyManifest = serde_json::from_str(include_str!("../../../assets/ALS/Animations/als_notify_manifest.json")).unwrap();
+        let source = manifest.clips.iter_mut().find(|source| source.source_asset == SOURCE_ROLL_SEQUENCE).unwrap();
+        let mut event = source.events.iter().find(|event| event.class_name == "AlsAnimNotify_SetGroundedEntryMode").unwrap().clone();
+        event.event_id = "grounded_entry_empty".into();
+        event.start_time = 0.1;
+        event.end_time = 0.1;
+        event.trigger_time_offset = 0.0;
+        event.parameters = serde_json::json!({"GroundedEntryMode": {"__tagged__": {"TagName": ""}}});
+        let tags = ["", "Als.GroundedEntryMode.Custom", "Als.GroundedEntryMode.FromRoll", "Als.GroundedEntryMode.FromRoll", ""];
+        source.events = tags.iter().enumerate().map(|(index, tag)| {
+            let mut event = event.clone();
+            event.event_id = format!("grounded_entry_{index}");
+            event.start_time = 0.1 + index as f32 * 0.2;
+            event.end_time = event.start_time;
+            event.parameters = serde_json::json!({"GroundedEntryMode": {"__tagged__": {"TagName": tag}}});
+            event
+        }).collect();
+        source.sync_markers.clear();
+        let graph_clip = source.runtime_segments[0].graph_clip.clone();
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default())).init_asset::<GraphClip>().init_asset::<AlsNotifyManifest>()
+            .init_resource::<AlsNotifyGraphClipHandles>().add_message::<AlsAnimationEvent>().add_message::<AlsCameraShakeRequest>();
+        let handle = app.world_mut().resource_mut::<Assets<AlsNotifyManifest>>().add(manifest);
+        app.insert_resource(AlsNotifyManifestHandle(handle));
+        let mut entries = Vec::new();
+        push_playback(&mut entries, SOURCE_ROLL_SEQUENCE, &graph_clip, 0.0, 1.0, false, false);
+        let character = app.world_mut().spawn((AlsCharacter, AlsAnimationEventPlaybacks { entries }, AlsGroundedEntryMode::FromRoll)).id();
+        app.world_mut().run_system_once(ensure_animation_event_components).unwrap();
+        app.world_mut().run_system_once(dispatch_animation_events).unwrap();
+        for (index, tag) in tags.into_iter().enumerate() {
+            app.world_mut().get_mut::<AlsAnimationEventPlaybacks>(character).unwrap().entries[0].time = 0.2 + index as f32 * 0.2;
+            app.world_mut().run_system_once(dispatch_animation_events).unwrap();
+            assert_eq!(app.world().get::<AlsGroundedEntryMode>(character).unwrap().as_str(), tag);
+        }
     }
 
     #[test]

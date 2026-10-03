@@ -18,7 +18,6 @@ use bevy::prelude::*;
 use bevy_animation_graph::core::{
     animated_scene::AnimatedSceneInstance, animation_graph_player::AnimationGraphPlayer,
 };
-use bevy_gameplay_tag::GameplayTag;
 use serde::Deserialize;
 use std::sync::LazyLock;
 
@@ -410,13 +409,7 @@ fn ab_als_input_writer(
                 .unwrap_or(0.0)
                 .clamp(-1.0, 1.0);
             source_inputs.get_mut(instance.player_entity()).unwrap().set_gameplay_tag_input("grounded_entry_mode",
-                GameplayTag::new(
-                    if grounded_entry_mode == Some(&AlsGroundedEntryMode::FromRoll) {
-                        "Als.GroundedEntryMode.FromRoll"
-                    } else {
-                        ""
-                    },
-                ),);
+                grounded_entry_mode.copied().unwrap_or_default().tag());
             for (key, value) in [
                 ("animation.delta_seconds", time.delta_secs() * custom_dilation.map_or(1.0, |value| value.0)),
                 (
@@ -621,6 +614,41 @@ mod tests {
         write_animation_component_inputs(&mut player, &skeleton);
         assert_eq!(player.get_global_input_data("component.root_bone").unwrap().as_entity_path().unwrap(), &root);
         assert_eq!(player.get_global_input_data("component.teleport_distance_threshold").unwrap().as_f32().unwrap(), 3.0);
+    }
+
+    #[test]
+    fn grounded_entry_tags_reach_the_authored_roll_entry_condition() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{animation_graph::AnimationGraph, edge_data::DataValue, context::{graph_context_arena::GraphContextArena, deferred_gizmos::DeferredGizmos, system_resources::SystemResources}};
+        fn query(In((root, entity, source, moving, rotating)): In<(Handle<AnimationGraph>, Entity, crate::extensions::SourceAnimationInputs, bool, bool)>, resources: SystemResources) -> bool {
+            let graph = resources.animation_graph_assets.get(&root).unwrap();
+            let mut arena = GraphContextArena::new(root.id());
+            let globals = HashMap::from([
+                ("locomotion_state.b_moving_smooth".to_owned(), DataValue::Bool(moving)),
+                ("rotate_in_place_state.b_rotating_left".to_owned(), DataValue::Bool(rotating)),
+                ("rotate_in_place_state.b_rotating_right".to_owned(), DataValue::Bool(false)),
+            ]);
+            source.evaluate(entity, || graph.query(bevy_animation_graph::core::animation_graph::TimeUpdate::Delta(0.0), &mut arena, &resources, entity, &HashMap::new(), &mut DeferredGizmos::default(), &globals).unwrap()["bCanEnterTransition"].as_bool().unwrap())
+        }
+        let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let condition: Handle<AnimationGraph> = app.world().resource::<AssetServer>().load("ALS/Character/AnimationInstances/AB_Als_Grounded/AnimGraph/SM11_Grounded_States/T2_Transition.condition.animgraph.ron");
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        while app.world().resource::<Assets<AnimationGraph>>().get(&condition).is_none() {
+            app.update();
+            assert!(std::time::Instant::now() < deadline, "Grounded entry condition did not load");
+        }
+        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        for tag in ["Als.GroundedEntryMode.FromRoll", "", "Als.GroundedEntryMode.Custom", "Als.GroundedEntryMode.FromRoll", ""] {
+            app.world_mut().entity_mut(character).insert(AlsGroundedEntryMode::new(tag).unwrap());
+            app.world_mut().run_system_once(ab_als_input_writer).unwrap();
+            let source = app.world().get::<crate::extensions::SourceAnimationInputs>(player).unwrap().clone();
+            assert_eq!(source.gameplay_tag_input("grounded_entry_mode").unwrap().as_str(), tag);
+            for (moving, rotating) in [(false, false), (true, false), (false, true), (true, true)] {
+                let actual = app.world_mut().run_system_once_with(query, (condition.clone(), player, source.clone(), moving, rotating)).unwrap();
+                assert_eq!(actual, tag == "Als.GroundedEntryMode.FromRoll" && !moving && !rotating, "Authored T2 differs for tag={tag}, moving={moving}, rotating={rotating}");
+            }
+        }
     }
 
     #[test]

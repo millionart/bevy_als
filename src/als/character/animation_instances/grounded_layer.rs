@@ -14,12 +14,7 @@ use crate::{character_assembly::AlsCharacterAvatar, crouching_layer::AlsCrouchin
 const GROUNDED_GRAPH: &str = "ALS/Character/AnimationInstances/AB_Als_Grounded/AnimGraph.animgraph.ron";
 const GROUNDED_STATES_NODE_NAME: &str = "Grounded States\nState Machine";
 
-#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum AlsGroundedEntryMode {
-    #[default]
-    None,
-    FromRoll,
-}
+pub use crate::als::state::AlsGroundedEntryMode;
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AlsGroundedLayerSet;

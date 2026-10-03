@@ -83,7 +83,7 @@
 - [x] **BF132.R5E-19 — 根运动缩放通知在 Active 阶段反复夺回数值，偏离源 Begin-only 生命周期**。Gate：重叠通知、外部写入与 End 条件恢复，Active 不夺回缩放。
 - [x] **BF132.R5E-20 — Pivot 请求只携带角色，下一帧用新速度重新判断激活门槛**。Gate：保存通知当次输入的严格门槛结果，跨阈值、Initialize/Reset 覆盖通过。
 - [x] **BF132.R5E-21 — 过渡 montage 把负 PlayRate 钳成正 EPSILON，倒播近乎变为冻结**。Gate：有符号采样、方向相关终止/寿命、零速率、反向通知与曲线时钟通过。
-- [ ] **BF132.R5E-22 — 设置落地入口通知忽略空标签，不能清除既有 FromRoll**。Gate：空/自定义/FromRoll 标签完整赋值，独立 Reset 与真实入口分支通过。
+- [x] **BF132.R5E-22 — 设置落地入口通知忽略空标签，不能清除既有 FromRoll**。Gate：空/自定义/FromRoll 标签完整赋值，独立 Reset 与真实入口分支通过。
 - [ ] **BF132.R5E-23 — 翻滚首次通知采样丢弃已推进的首个时间区间**。Gate：首帧长 Delta、不为零的起播、seek、资产迟到与后续无重复通知通过。
 - [ ] **BF132.R5E-24 — 移动下蹲交叉混合期间，仍相关的 Standing 分支使用陈旧输入**。Gate：T19 淡出期 Standing 按实际相关性刷新 Gait/stride/rate，结束后生命周期与脚锁归属正确。
 - [ ] **BF132.R5E-25 — 缺少源默认可见性驱动的动画停更与恢复生命周期**。Gate：最近渲染/多视图、隐藏后的图停更、Montage 继续与 PendingUpdate 恢复分别符合源策略。
@@ -378,3 +378,12 @@
   - Runtime前摘要（17:29 +08:00）：target_game/play实际入口最终预构建143.798秒通过；25项定向、18+3时钟寿命/10×6帧native Slot姿态曲线与反向事件、三个消融red/恢复green、source/static/manifest闭合。仅现有advance signed/方向/零寿命修复，graph/converter不变；开始同一二进制startup/standing_stop/transition_notify功能Gate，截图/完整性能原暂停保留。
 
   - S2实际结束2026-10-03 17:32 +08:00；相对17:52预估偏差-20分钟；结果：143.798秒同入口预构建，同一二进制startup、StandingStop 10/10、TransitionNotify 3/3公共功能runner/manual/validator退出0，三报告graph/primary failure/fault/temporal/watchdog均0；完整max_eval_p95_ms未通过，截图及完整性能原暂停保留。25匹配回归、18方向起终点寿命/3零与near-zero/停止替换fade、10×6帧实际Slot bone/curve/signed clock与反向event-crossing、原算法/方向寿命/零寿命消融red和byte恢复green、fresh source/native/manifest/static闭合。只替换既有advance的正EPSILON时钟和正向寿命，保留signed/方向边界/源近零，不增加生产状态/框架；合法有限参数单段无TimeStretch边界保留，默认正向路径仅作控制，图/转换/原始资产未改。S1/S2各自提前完成；勾选R5E-21单独提交，下一项R5E-22，18项待处理。
+
+- BF132.R5E-22-S1：开始2026-10-03 17:34 +08:00；预估结束2026-10-03 18:04 +08:00。依据：fresh Notify CPP无条件setter与header空Tag Reset、native AB_Als_Grounded/T2入口，目标point dispatch→两值enum→AB provider tag projection及独立Reset闭包，四处调用可复用现有tag_state而无需新标签框架。先FromRoll→Empty实际通知dispatch red，改完整赋值并保留合法custom tag，验证重复/反向/移动与旋转掩盖/独立Reset和真实generated入口；消融丢值及projection，source/static后真实入口独立S2，不声称默认资产发空通知。
+  - source/static摘要（17:43 +08:00）：fresh Native Grounded/T2与Notify无条件setter/header EmptyTag Reset闭合；合法__tagged__空通知FromRoll保留稳定red→完整赋值green，5顺序通知含custom/同值，provider完整Tag投影与实际generated T2的20静止/移动/旋转组合、现有独立Reset current-frame合同通过。首版fixture缺__tagged__已纠正后重新red；condition首次测试导入缺失修正，不计为行为red。删除two-value enum复用既有tag_state与原公开常量，provider删除特例/无用GameplayTag import；没有新标签框架/state/cache。notify与projection受控消融分别检验丢值，未runtime、图/converter/原始资产未改。
+
+  - S1实际结束2026-10-03 17:46 +08:00；相对18:04预估偏差-18分钟；结果：3恢复（point完整标签、20实际T2条件、current-frame独立Reset）及18通知/15provider共33项回归通过，合法空通知旧FromRoll red、notify特例和provider丢custom两消融分别red，byte恢复/mtime更新green。完整赋值及空/custom/FromRoll/同值/独立Reset/移动和旋转掩盖已闭合；fixture __tagged__与导入错误保留且不计为行为证据。删除two-value enum与provider条件投影，复用已有tag_state、Tag验证与constants，保留公开grounded_layer reexport，无新生产状态/框架；fresh原生/CPP/header/T2及manifest/static通过，source/图/converter不变。下一步真实入口。
+- BF132.R5E-22-S2：开始2026-10-03 17:46 +08:00；预估结束2026-10-03 18:11 +08:00。依据：静态/source/消融已闭合，同类入口预构建约144秒、startup/Notify/FootIk约120秒；本轮仅公共真实标签/落地/Reset控制及报告审计/单独提交，截图/完整性能原暂停保留。
+  - Runtime前摘要（17:49 +08:00）：144.571秒target_game/play实际启动器预构建通过；fresh Notify/Setter/Reset/native Grounded/T2、3恢复/20条件/33定向回归与两丢值消融red/byte恢复green、manifest/static闭合。复用已有tag_state完整赋值/投影，不新状态或改graph/converter；开始同版startup/Notify/FootIk公共功能Gate，原截图/完整性能暂停保留。
+
+  - S2实际结束2026-10-03 17:53 +08:00；相对18:11预估偏差-18分钟；结果：144.571秒同入口预构建，同版startup、Notify 13/13、FootIk 22/22公共功能runner/manual/validator退出0，三报告graph/primary failure/fault/temporal/watchdog均0；完整max_eval_p95_ms未通过，截图及完整性能原暂停保留。合法point空/自定义/FromRoll/同值顺序、provider完整tag与20真实T2条件/移动旋转掩盖/current-frame独立Reset、33回归、两丢值消融red恢复green及fresh source/native/static闭合；默认资产未声称发清空，实际落地入口通知与Reset路径作公共控制。删除two-value enum/特例投影，复用既有tag_state验证与公开constants/reexport，不新增框架/状态，graph/converter/源导出不变；S1/S2各自提前完成，勾选R5E-22单独提交，下一项R5E-23，17项待处理。
