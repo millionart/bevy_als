@@ -122,10 +122,11 @@ pub struct AlsStandingLayerSet;
 #[derive(Message, Debug, Clone, Copy, PartialEq)]
 pub struct AlsPivotNotify {
     pub character: Entity,
+    pub activated: bool,
 }
 
 #[derive(Component, Debug, Clone, Copy, Default, PartialEq, Eq)]
-struct AlsPivotRequest;
+struct AlsPivotRequest(bool);
 
 #[derive(Resource)]
 pub(crate) struct StandingCurveHandles {
@@ -828,7 +829,7 @@ impl Plugin for StandingLayerPlugin {
 
 fn pivot_notify_system(mut commands: Commands, mut notices: MessageReader<AlsPivotNotify>) {
     for notice in notices.read() {
-        commands.entity(notice.character).insert(AlsPivotRequest);
+        commands.entity(notice.character).insert(AlsPivotRequest(notice.activated));
     }
 }
 
@@ -1369,7 +1370,7 @@ fn detail_for(
     runtime.detail
 }
 
-fn source_pivot_activates(requested: bool, horizontal_speed: f32) -> bool {
+pub(crate) fn source_pivot_activates(requested: bool, horizontal_speed: f32) -> bool {
     requested && horizontal_speed.is_finite() && horizontal_speed < 2.0
 }
 
@@ -1473,7 +1474,6 @@ fn update_standing_inputs(
     unweighted_gait_sprinting_amount: f32,
     gait_is_sprinting: f32,
     sprint_block_amount: f32,
-    pivot_requested: bool,
     rotation_mode: RotationMode,
     view_yaw: f32,
     input: &AlsInputCommand,
@@ -1564,9 +1564,6 @@ fn update_standing_inputs(
     let direction_index = direction_index(direction);
     let movement_state_index = movement_state_index(direction);
     let velocity_yaw = actual_motion.velocity_yaw_degrees;
-    if source_pivot_activates(pivot_requested, horizontal_speed) {
-        runtime.pivot_pending = true;
-    }
     let pivot = runtime.pivot_pending;
     let source_curve = |name| {
         source_context
@@ -2320,10 +2317,11 @@ fn standing_layer_writer(
             .unwrap_or(0.0)
             .clamp(0.0, 1.0);
         let mut runtime = current_runtime.as_deref().cloned().unwrap_or_default();
+        if let Some(request) = pivot_request { runtime.pivot_pending = request.0; }
         player.set_global_input_data("standing_source.pivot_requested", pivot_request.is_some());
         player.set_global_input_data(
             "standing_source.pivot_activated",
-            source_pivot_activates(pivot_request.is_some(), actual_motion.horizontal_speed),
+            pivot_request.is_some_and(|request| request.0),
         );
         let input = override_command.map_or(command, |value| &value.0);
         let inputs = update_standing_inputs(
@@ -2343,7 +2341,6 @@ fn standing_layer_writer(
             unweighted_gait_sprinting_amount,
             gait_is_sprinting,
             sprint_block_amount,
-            pivot_request.is_some(),
             *rotation_mode,
             view_yaw.0,
             input,
@@ -3106,6 +3103,27 @@ mod tests {
     fn movement_yaw_curve_blend_uses_the_source_transition_modes() {
         assert!((StandingMovementState::transition_alpha(0.0, 0.25) - 0.15625).abs() < 1e-6);
         assert!((StandingMovementState::transition_alpha(14.0, 0.25) - 0.125).abs() < 1e-6);
+    }
+
+    #[test]
+    fn pivot_request_uses_the_call_frame_decision_after_speed_changes() {
+        use bevy::ecs::system::RunSystemOnce;
+        for prior_active in [false, true] {
+        for (call_speed, next_speed) in [(1.9_f32, 2.1_f32), (2.1, 1.9), (2.0, 1.9), (1.9, 1.9), (2.1, 2.1)] {
+            let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            app.world_mut().get_mut::<StandingLayerRuntime>(avatar).unwrap().pivot_pending = prior_active;
+            let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+            app.world_mut().get_mut::<AnimationGraphPlayer>(player_entity).unwrap().set_global_input_data("locomotion_state.speed", call_speed);
+            app.world_mut().resource_mut::<Messages<AlsPivotNotify>>().write(AlsPivotNotify { character, activated: source_pivot_activates(true, call_speed) });
+            app.world_mut().get_mut::<AlsActualMotion>(character).unwrap().horizontal_speed = next_speed;
+            app.world_mut().run_system_once(pivot_notify_system).unwrap();
+            app.world_mut().run_system_once(standing_layer_writer).unwrap();
+            let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+            assert!(player.get_global_input_data("standing_source.pivot_requested").unwrap().as_bool().unwrap());
+            assert_eq!(player.get_global_input_data("standing_source.pivot_activated").unwrap().as_bool().unwrap(), call_speed < 2.0,
+                "Pivot recomputed its qualification in the consumption frame: call={call_speed}, next={next_speed}");
+        }
+        }
     }
 
     #[test]

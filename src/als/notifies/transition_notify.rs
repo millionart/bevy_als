@@ -318,8 +318,12 @@ fn dispatch_transition_notifications(
                             if let Ok(mut telemetry) = telemetry.get_mut(avatar.character) {
                                 telemetry.activate_pivot_count += 1;
                             }
+                            let speed = crate::extensions::source_instance::source_player_property(player, "locomotion_state.speed")
+                                .or_else(|| player.get_global_input_data("locomotion_state.speed"))
+                                .and_then(|value| value.as_f32().ok()).unwrap_or_default();
                             pivot_notices.write(AlsPivotNotify {
                                 character: avatar.character,
+                                activated: crate::standing_layer::source_pivot_activates(true, speed),
                             });
                         }
                         Some(TransitionNotifyAction::StopQuick) => {
@@ -483,6 +487,71 @@ fn dispatch_transition_notifications(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn generated_pivot_notifications_capture_the_evaluated_instance_speed() {
+        use bevy::ecs::system::RunSystemOnce;
+        use avian3d::prelude::{LinearVelocity, RigidBody};
+        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().entity_mut(character).insert((RigidBody::Kinematic, bevy_tnua::TnuaToggle::Disabled,
+            crate::als::state::RotationMode::ViewDirection));
+        #[derive(Resource)]
+        struct PivotFixtureInput(f32, f32);
+        app.insert_resource(PivotFixtureInput(0.0, 0.0));
+        app.add_systems(PostUpdate, (move |input: Res<PivotFixtureInput>, mut motion: Query<(&mut crate::actual_motion::AlsActualMotion, &mut crate::als::state::LocomotionState, &mut crate::als::state::Gait)>| {
+            let (mut motion, mut mode, mut gait) = motion.get_mut(character).unwrap();
+            *gait = crate::als::state::Gait::Running;
+            motion.horizontal_speed = input.0;
+            motion.world_velocity = Quat::from_rotation_y(input.1.to_radians()) * Vec3::NEG_Z * input.0;
+            motion.velocity_yaw_degrees = input.1;
+            motion.local_velocity = Vec2::new(motion.world_velocity.x, -motion.world_velocity.z);
+            motion.signed_direction_radians = input.1.to_radians();
+            motion.has_input = input.0 > 0.0;
+            motion.input_yaw_degrees = input.1;
+            *mode = crate::als::state::LocomotionState::Grounded;
+        }).after(crate::actual_motion::AlsActualMotionSet).before(crate::gait_layer::AlsGaitLayerSet));
+        let mut observed = 0;
+        let mut notice_cursor = bevy::ecs::message::MessageCursor::<AlsPivotNotify>::default();
+        let mut run_observed = false;
+        let mut pivot_consumed = false;
+        for (frame, speed) in (0..240).map(|frame| (frame, if frame < 120 { 1.9_f32 } else { 2.1 })) {
+                        {
+                let mut input = app.world_mut().resource_mut::<PivotFixtureInput>();
+                input.0 = speed;
+                input.1 = if frame % 120 < 60 { 0.0 } else { 180.0 };
+            }
+            app.world_mut().get_mut::<LinearVelocity>(character).unwrap().0 = Vec3::NEG_Z * speed;
+            app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().move_dir = if frame % 120 < 60 { Vec2::Y } else { Vec2::new(0.8660254, 0.5) };
+            app.update();
+            let avatar = app.world().get::<AlsCharacterAssembly>(character).unwrap().avatar;
+            let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+            let instance = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+            if let Some(telemetry) = app.world().get::<crate::standing_layer::AlsStandingGraphTelemetry>(character) {
+                run_observed |= telemetry.actual_detail_state == Some(1);
+                if telemetry.actual_detail_state == Some(2) {
+                    pivot_consumed = true;
+                    assert!(!crate::extensions::source_instance::source_player_property(instance, "standing_state.b_pivot_active").unwrap().as_bool().unwrap(), "First Pivot did not consume ResetPivot");
+                }
+            }
+            let snapshot = crate::extensions::source_instance::source_player_property(instance, "locomotion_state.speed")
+                .or_else(|| instance.get_global_input_data("locomotion_state.speed")).unwrap().as_f32().unwrap();
+            let notices = notice_cursor.read(app.world().resource::<Messages<AlsPivotNotify>>()).copied().collect::<Vec<_>>();
+            for notice in notices.into_iter().filter(|notice| notice.character == character) {
+                observed += 1;
+                assert_eq!(notice.activated, snapshot < 2.0, "Generated notify used another input frame");
+            }
+        }
+        let avatar = app.world().get::<AlsCharacterAssembly>(character).unwrap().avatar;
+        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let instance = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+        assert!(observed > 0, "Actual generated Standing FSM did not emit ActivatePivot: mode={:?}, motion={:?}, speed={:?}, moving={:?}, telemetry={:?}",
+            app.world().get::<crate::als::state::LocomotionState>(character), app.world().get::<crate::actual_motion::AlsActualMotion>(character),
+            instance.get_global_input_data("locomotion_state.speed"), instance.get_global_input_data("locomotion_state.b_moving_smooth"),
+            app.world().get::<TransitionNotifyTelemetry>(character));
+        assert!(app.world().get::<TransitionNotifyTelemetry>(character).unwrap().activate_pivot_count > 0);
+        assert!(run_observed && pivot_consumed, "Actual Run -> First Pivot transition was not consumed: run={run_observed}, pivot={pivot_consumed}, telemetry={:?}", app.world().get::<crate::standing_layer::AlsStandingGraphTelemetry>(character));
+        app.world_mut().run_system_once(dispatch_transition_notifications).unwrap();
+    }
 
     #[test]
     fn queued_turn_with_loaded_clip_is_ready_for_the_next_update() {

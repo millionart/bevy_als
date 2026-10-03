@@ -5004,7 +5004,7 @@ fn drive_manual_integration(
                 input.0.move_dir = Vec2::NEG_Y;
                 let horizontal_speed = Vec2::new(velocity.0.x, velocity.0.z).length();
                 if !state.p1_pivot_sent && (0.1..2.0).contains(&horizontal_speed) {
-                    pivot_notices.write(AlsPivotNotify { character });
+                    pivot_notices.write(AlsPivotNotify { character, activated: true });
                     state.p1_pivot_sent = true;
                     info!(
                         "[MANUAL-INTEGRATION][P1][GROUND] pivot_notice speed={horizontal_speed:.3}"
