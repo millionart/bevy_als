@@ -413,7 +413,18 @@ pub fn resolve_source_sync_phases(
             let mut grouped = leader.clone();
             grouped.markers.retain(|marker| common.contains(&marker.name));
             grouped.phase_markers.retain(|marker| common.contains(&marker.name));
-            let prior_phase = if leader.override_position_when_joining_sync_group_as_leader && joined {
+            let length_resync = (common.is_empty() || previous_common.is_empty())
+                && !leader.override_position_when_joining_sync_group_as_leader && leader.requested_inertialization;
+            let prior_phase = if length_resync {
+                previous_leader.filter(|prior| source_sync_group_leader_score(SourceSyncGroupCandidate {
+                        role: prior.role, blend_weight: prior.weight, source_order: 0,
+                    }) >= source_sync_group_leader_score(SourceSyncGroupCandidate {
+                        role: leader.role, blend_weight: leader.weight, source_order: 0,
+                    })).map(|prior| marker_phase_sample_time(prior.phase, prior.phase_duration,
+                        &prior.phase_markers, prior.duration, &prior.markers, prior.looped) / prior.duration.max(EPSILON))
+            } else if common.is_empty() {
+                None
+            } else if leader.override_position_when_joining_sync_group_as_leader && joined {
                 None
             } else if common == previous_common {
                 previous_leader.map(|prior| prior.phase)
@@ -1416,7 +1427,7 @@ mod tests {
         old_length.markers.clear();
         assert!((phase(&joining, &[old_length.clone()]) - 0.3).abs() < EPSILON);
         joining.override_position_when_joining_sync_group_as_leader = false;
-        assert!((phase(&joining, &[old_length]) - 0.9).abs() < EPSILON);
+        assert!((phase(&joining, &[old_length]) - 0.3).abs() < EPSILON);
     }
 
     #[test]
@@ -1499,6 +1510,88 @@ mod tests {
         current = ticks(0.0625);
         current[2].role = SourceSyncGroupRole::AlwaysLeader;
         assert!(resolve_source_sync_phases(&current, &previous)[0].marker_resets.is_empty());
+    }
+
+    #[test]
+    fn leader_resync_without_markers_preserves_the_new_players_time() {
+        let mut clips = Assets::<bevy_animation_graph::core::animation_clip::GraphClip>::default();
+        let prior_clip = clips.add(bevy_animation_graph::core::animation_clip::GraphClip::default());
+        let clip = clips.add(bevy_animation_graph::core::animation_clip::GraphClip::default());
+        let prior = SourceSyncPlayerTick {
+            key: "Movement".into(), source_asset: Some(prior_clip), selected_leader: true,
+            phase: 0.8, previous_phase: 0.8, duration: 1.0, phase_duration: 1.0, weight: 1.0,
+            ..default()
+        };
+        let current = SourceSyncPlayerTick {
+            key: "Movement".into(), source_asset: Some(clip), phase: 0.2, previous_phase: 0.2,
+            sample_time_hint: Some(0.2), duration: 1.0, phase_duration: 1.0, weight: 1.0,
+            delta_seconds: 0.1, play_rate: 1.0, ..default()
+        };
+        let result = resolve_source_sync_phases(&[current], &[prior]);
+        assert!((result[0].leader_samples[0].1.previous_time - 0.2).abs() < 1e-6);
+        assert!((result[0].leader_samples[0].1.time - 0.3).abs() < 1e-6);
+    }
+
+    #[test]
+    fn leader_resync_length_rules_preserve_override_inertialization_and_scores() {
+        let mut clips = Assets::<bevy_animation_graph::core::animation_clip::GraphClip>::default();
+        let old = clips.add(bevy_animation_graph::core::animation_clip::GraphClip::default());
+        let new = clips.add(bevy_animation_graph::core::animation_clip::GraphClip::default());
+        for previous_weight in [0.25_f32, 0.5, 0.75] {
+            for weight in [0.25, 0.5, 0.75] {
+                for requested in [false, true] {
+                    for override_position in [false, true] {
+                        for rate in [-1.0_f32, 0.0, 1.0] {
+                            let previous = SourceSyncPlayerTick {
+                                key: "Movement".into(), source_asset: Some(old.clone()), selected_leader: true,
+                                phase: 0.8, previous_phase: 0.8, duration: 1.0, phase_duration: 1.0, weight: previous_weight,
+                                ..default()
+                            };
+                            let current = SourceSyncPlayerTick {
+                                key: "Movement".into(), source_asset: Some(new.clone()), phase: 0.2, previous_phase: 0.2,
+                                sample_time_hint: Some(0.2), duration: 1.0, phase_duration: 1.0, weight,
+                                requested_inertialization: requested, override_position_when_joining_sync_group_as_leader: override_position,
+                                delta_seconds: 0.1, play_rate: rate, ..default()
+                            };
+                            let result = resolve_source_sync_phases(&[current], &[previous]);
+                            let start = if requested && !override_position && previous_weight >= weight { 0.8 } else { 0.2 };
+                            let step = &result[0].leader_samples[0].1;
+                            assert!((step.previous_time - start).abs() < 1e-6);
+                            assert!((step.time - (start + 0.1 * rate)).abs() < 1e-6);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn leader_resync_marker_changes_use_valid_marker_sync_or_qualified_length_resync() {
+        let mut clips = Assets::<bevy_animation_graph::core::animation_clip::GraphClip>::default();
+        let old = clips.add(bevy_animation_graph::core::animation_clip::GraphClip::default());
+        let new = clips.add(bevy_animation_graph::core::animation_clip::GraphClip::default());
+        for (previous_markers, current_markers, expected_marker_sync) in [
+            (vec![], markers(&[("A", 0.1), ("B", 0.6)]), false),
+            (markers(&[("A", 0.1), ("B", 0.6)]), vec![], false),
+            (markers(&[("A", 0.1), ("B", 0.6)]), markers(&[("A", 0.1), ("B", 0.6)]), true),
+        ] {
+            for requested in [false, true] {
+                for override_position in [false, true] {
+                    let previous = SourceSyncPlayerTick { key: "Movement".into(), source_asset: Some(old.clone()),
+                        selected_leader: true, phase: 0.8, previous_phase: 0.8, markers: previous_markers.clone(),
+                        phase_markers: previous_markers.clone(), duration: 1.0, phase_duration: 1.0, weight: 1.0, ..default() };
+                    let current = SourceSyncPlayerTick { key: "Movement".into(), source_asset: Some(new.clone()),
+                        phase: 0.2, previous_phase: 0.2, sample_time_hint: Some(0.2), markers: current_markers.clone(),
+                        phase_markers: current_markers.clone(), duration: 1.0, phase_duration: 1.0, weight: 1.0,
+                        requested_inertialization: requested, override_position_when_joining_sync_group_as_leader: override_position,
+                        delta_seconds: 0.1, play_rate: 1.0, ..default() };
+                    let result = resolve_source_sync_phases(&[current], &[previous]);
+                    let start = if !override_position && (expected_marker_sync || requested) { 0.8 } else { 0.2 };
+                    assert!((result[0].leader_samples[0].1.previous_time - start).abs() < 1e-6,
+                        "Wrong source qualification: markers={expected_marker_sync}, inertial={requested}, override={override_position}");
+                }
+            }
+        }
     }
 
     #[test]

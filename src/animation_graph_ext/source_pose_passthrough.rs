@@ -242,6 +242,85 @@ mod tests {
     }
 
     #[test]
+    fn leader_resync_uses_actual_sequence_and_blendspace_own_times_without_markers() {
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip, animation_graph::{AnimationGraph, GraphInputPin, NodeId, TimeUpdate},
+            animation_node::AnimationNode, context::{graph_context::QueryOutputTime, new_context::GraphContext, node_states::StateKey, system_resources::SystemResources},
+            pose::Pose,
+            skeleton::Skeleton, state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
+        };
+        use crate::extensions::{SourceSequencePlayerNode, SourceTwoWayBlendNode};
+        use crate::extensions::source_sequence_player::{SourceSequenceSynchronization, SourceSequencePlayerState};
+        use crate::extensions::normalized_blendspace::{NormalizedBlendSpaceNode, NormalizedBlendSpacePoint, NormalizedBlendSpaceState};
+        use crate::extensions::sync_group_phase::{SourceSyncGroupRole, SourceSyncPlayerBinding};
+        fn query(In((handle, player_id, blendspace)): In<(Handle<AnimationGraph>, NodeId, bool)>, resources: SystemResources) -> Vec<f32> {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let env = TestIoEnv::default();
+            let entities = HashMap::new();
+            let mut times = Vec::new();
+            for (frame, alpha) in [0.0, 1.0, 1.0].into_iter().enumerate() {
+                let inputs = HashMap::from([("alpha".into(), DataValue::F32(alpha)), ("delta".into(), DataValue::F32(0.1))]);
+                graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.1)),
+                    GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources, &env,
+                        Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs)).unwrap();
+                if frame == 0 { continue; }
+                let time = if blendspace {
+                    arena.get_toplevel().node_states.get::<NormalizedBlendSpaceState>(player_id, StateKey::Default).unwrap()
+                        .context.sync_players[0].phase
+                } else {
+                    arena.get_toplevel().node_states.get::<SourceSequencePlayerState>(player_id, StateKey::Default).unwrap().context.sync_players[0].phase
+                };
+                times.push(time);
+            }
+            times
+        }
+        let mut world = World::new();
+        world.init_resource::<Assets<AnimationGraph>>();
+        world.init_resource::<Assets<GraphClip>>();
+        world.init_resource::<Assets<Skeleton>>();
+        world.init_resource::<Assets<StateMachine>>();
+        let clips = [0, 1].map(|_| world.resource_mut::<Assets<GraphClip>>().add(GraphClip { duration: 1.0, ..default() }));
+        let mut actual = Vec::new();
+        for blendspace in [false, true] {
+            let sync = || SourceSequenceSynchronization { key: "Movement".into(), delta_seconds_key: "delta".into(),
+                phase_duration: 1.0, role: SourceSyncGroupRole::CanBeLeader, ..default() };
+            let leader = AnimationNode::new("prior", SourceSequencePlayerNode { clip: clips[0].clone(), start_position: 0.7,
+                loop_animation: true, synchronization: Some(sync()), ..default() });
+            let player = if blendspace {
+                AnimationNode::new("new", NormalizedBlendSpaceNode { looped: true, phase_duration: 1.0,
+                    points: vec![NormalizedBlendSpacePoint { id: "sample".into(), duration: 1.0, ..default() }],
+                    playback: Some(SourceSyncPlayerBinding { key: "Movement".into(), delta_seconds_key: "delta".into(),
+                        start_position: 0.2, role: SourceSyncGroupRole::CanBeLeader, ..default() }), ..default() })
+            } else {
+                AnimationNode::new("new", SourceSequencePlayerNode { clip: clips[1].clone(), start_position: 0.2,
+                    loop_animation: true, synchronization: Some(sync()), ..default() })
+            };
+            let blend = AnimationNode::new("blend", SourceTwoWayBlendNode { alpha_key: "alpha".into(), expose_alpha_pin: false, ..default() });
+            let root = AnimationNode::new("sync", SourcePosePassthroughNode { synchronize_groups: true, output_time: false, ..default() });
+            let mut graph = AnimationGraph::new();
+            if blendspace {
+                graph.set_default_data(GraphInputPin::passthrough("sample"), DataValue::Pose(Pose::default()));
+                graph.set_default_data(GraphInputPin::passthrough("position"), DataValue::Vec2(Vec2::ZERO));
+                graph.add_input_data_edge(GraphInputPin::passthrough("sample"), player.id, NormalizedBlendSpaceNode::pose_pin("sample"));
+                graph.add_input_data_edge(GraphInputPin::passthrough("position"), player.id, crate::extensions::normalized_blendspace::IN_POSITION);
+            }
+            graph.add_node_parameter_edge(leader.id, "Pose", blend.id, "A");
+            graph.add_node_parameter_edge(player.id, if blendspace { "pose" } else { "Pose" }, blend.id, "B");
+            graph.add_node_parameter_edge(blend.id, "Pose", root.id, "Source");
+            graph.add_output_data("Pose".into(), DataSpec::Pose);
+            graph.add_output_data_edge(root.id, "Pose", "Pose");
+            for node in [leader, player.clone(), blend, root] { graph.add_node(node); }
+            let handle = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
+            actual.push(world.run_system_cached_with(query, (handle, player.id, blendspace)).unwrap());
+        }
+        assert!(actual.iter().all(|times| times.iter().zip([0.3, 0.4]).all(|(time, expected)| (time - expected).abs() < 1e-6)),
+            "New Sequence/BlendSpace leader used the previous group phase: {actual:?}");
+    }
+
+    #[test]
     fn excluded_blendspace_samples_keep_their_own_clock() {
         use bevy::{animation::animated_field, platform::collections::HashMap};
         use bevy_animation_graph::{builtin_nodes::clip_node::ClipNode, core::{
