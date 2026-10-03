@@ -625,18 +625,17 @@ fn apply_source_joint_linear_velocity(
 ) {
     if !joint.linear_locked { return; }
     let position_impulse = data.point_data.total_position_lagrange();
-    if position_impulse.length_squared() <= 1e-12 { return; }
+    let frame = data.frames[0];
+    if (frame.inverse() * position_impulse).abs().max_element() <= 1e-10 { return; }
     let conditioned = conditioned_inertias(inertias, joint.mass_conditioning, joint.settings);
     let inertias = [&conditioned[0], &conditioned[1]];
-    let arms = [parent.delta_rotation.0 * data.arms[0], child.delta_rotation.0 * data.arms[1]];
+    let arms = data.arms;
     let relative = child.linear_velocity + child.angular_velocity.cross(arms[1])
         - parent.linear_velocity - parent.angular_velocity.cross(arms[0]);
-    let frame = current_frames(parent, child, data).0;
     let mut impulse = Vec3::ZERO;
     let mut angular_impulse = [Vec3::ZERO; 2];
     for axis_index in 0..3 {
         let axis = frame * Vec3::AXES[axis_index];
-        if position_impulse.dot(axis).abs() <= 1e-6 { continue; }
         let angular_axes = [arms[0].cross(axis), arms[1].cross(axis)];
         let inverse_angular = [inertias[0].effective_inv_angular_inertia(), inertias[1].effective_inv_angular_inertia()];
         let inverse_mass = inertias[0].effective_inv_mass() + inertias[1].effective_inv_mass();
@@ -1168,6 +1167,88 @@ mod tests {
         for _ in 0..8 { app.update(); }
         let position = app.world().get::<Position>(child).unwrap().0.x;
         assert!(position > 0.05 && position < 0.6, "position={position}");
+    }
+
+    #[test]
+    fn locked_linear_velocity_block_matches_cached_axes_arms_and_lambda_gate() {
+        use bevy::reflect::ReflectMut;
+        let lambdas = [Vec3::ZERO, Vec3::X * 0.2, Vec3::Y * -0.3, Vec3::Z * 0.4,
+            Vec3::new(0.2, -0.3, 0.0), Vec3::new(-0.2, 0.3, 0.4), Vec3::X * 1e-10,
+            Vec3::X * 1.01e-10, Vec3::splat(0.75e-10)];
+        for frame in [Quat::IDENTITY, Quat::from_rotation_z(0.6)] {
+            for arms in [[Vec3::ZERO; 2], [Vec3::Y * 0.2, Vec3::Z * -0.3]] {
+                for parent_dynamic in [false, true] {
+                    for shifted in [false, true] {
+                        for lambda in lambdas {
+                            let mut data = SourcePhysicsJointSolverData { frames: [frame; 2],
+                                arms: arms.map(|arm| frame * arm), ..default() };
+                            let ReflectMut::Struct(point) = data.point_data.reflect_mut() else { unreachable!() };
+                            let ReflectMut::Struct(point) = point.field_mut("point_constraint").unwrap().reflect_mut() else { unreachable!() };
+                            *point.field_mut("total_lagrange").unwrap().try_downcast_mut::<Vec3>().unwrap() = frame * lambda;
+                            let mut joint = joint();
+                            joint.linear_locked = true;
+                            let parent_inertia = if parent_dynamic { inertia(1.0, Vec3::ONE) } else { SolverBodyInertia::DUMMY };
+                            let child_inertia = inertia(0.5, Vec3::splat(2.0));
+                            let mut parent = SolverBody { linear_velocity: frame * Vec3::new(0.1, -0.2, 0.3),
+                                angular_velocity: frame * Vec3::new(-0.1, 0.3, 0.2), ..default() };
+                            let mut child = SolverBody { linear_velocity: frame * Vec3::new(0.4, 1.0, -0.7),
+                                angular_velocity: frame * Vec3::new(0.2, -0.3, 0.1), ..default() };
+                            if shifted {
+                                parent.delta_rotation.0 = Quat::from_rotation_x(0.4);
+                                child.delta_rotation.0 = Quat::from_rotation_y(-0.5);
+                            }
+                            let before = child.linear_velocity + child.angular_velocity.cross(data.arms[1])
+                                - parent.linear_velocity - parent.angular_velocity.cross(data.arms[0]);
+                            apply_source_joint_linear_velocity(&joint, &mut parent, &mut child,
+                                [&parent_inertia, &child_inertia], &data);
+                            let after = child.linear_velocity + child.angular_velocity.cross(data.arms[1])
+                                - parent.linear_velocity - parent.angular_velocity.cross(data.arms[0]);
+                            let source_lambda_cm = (frame.inverse() * data.point_data.total_position_lagrange()) * 100.0;
+                            let active = source_lambda_cm.abs().max_element() > 1e-8;
+                            assert!(after.abs_diff_eq(if active { Vec3::ZERO } else { before }, 1e-5),
+                                "Wrong cached block: lambda={lambda:?}, frame={frame:?}, arms={arms:?}, dynamic={parent_dynamic}, shifted={shifted}, before={before:?}, after={after:?}");
+                            assert!(parent.linear_velocity.is_finite() && child.linear_velocity.is_finite()
+                                && parent.angular_velocity.is_finite() && child.angular_velocity.is_finite());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn locked_linear_velocity_activates_all_axes_when_only_x_has_position_lambda() {
+        use avian3d::prelude::{Gravity, Mass, PhysicsPlugins, RigidBody, SubstepCount};
+        use bevy::time::TimeUpdateStrategy;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin,
+            TransformPlugin, PhysicsPlugins::new(PostUpdate), SourcePhysicsJointPlugin));
+        app.insert_resource(Gravity(Vec3::ZERO));
+        app.insert_resource(SubstepCount(1));
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
+        app.finish();
+        app.cleanup();
+        let parent = app.world_mut().spawn((RigidBody::Kinematic, Transform::IDENTITY)).id();
+        let child = app.world_mut().spawn((RigidBody::Dynamic, Mass(1.0),
+            AngularInertia { principal: Vec3::ONE, local_frame: Quat::IDENTITY }, Transform::from_xyz(0.2, 0.0, 0.0))).id();
+        let mut source_joint = joint();
+        source_joint.parent = parent;
+        source_joint.child = child;
+        source_joint.linear_locked = true;
+        source_joint.settings.position_iterations = 1;
+        source_joint.settings.velocity_iterations = 0;
+        source_joint.settings.projection_iterations = 0;
+        let entity = app.world_mut().spawn(source_joint.clone()).id();
+        app.update();
+        app.update();
+        let data = app.world().get::<SourcePhysicsJointSolverData>(entity).unwrap();
+        let lambda = data.point_data.total_position_lagrange();
+        assert!(lambda.x.abs() > 1e-3 && lambda.y == 0.0 && lambda.z == 0.0, "The actual position solve did not isolate X: {lambda:?}");
+        let mut parent = SolverBody::default();
+        let mut child = SolverBody { linear_velocity: Vec3::Y, ..default() };
+        apply_source_joint_linear_velocity(&source_joint, &mut parent, &mut child,
+            [&SolverBodyInertia::DUMMY, &inertia(1.0, Vec3::ONE)], data);
+        assert!(child.linear_velocity.abs_diff_eq(Vec3::ZERO, 1e-6), "The cached three-axis block left Y velocity unconstrained: {:?}", child.linear_velocity);
     }
 
     #[test]
