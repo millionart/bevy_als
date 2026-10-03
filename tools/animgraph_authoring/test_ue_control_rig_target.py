@@ -1,11 +1,13 @@
 import argparse
 import copy
 import json
+import sys
+from tempfile import TemporaryDirectory
 from pathlib import Path
 from unittest.mock import patch
 
 from ue_control_rig_contract import ControlRigContractError, compile_contract
-from ue_control_rig_target import compile_target, f32
+from ue_control_rig_target import compile_target, f32, main as target_main
 
 
 def read(result, ref):
@@ -75,11 +77,36 @@ def validate(contract, result):
     changed = copy.deepcopy(contract)
     changed["program"]["instructions"][86]["operands"][5] = copy.deepcopy(changed["program"]["instructions"][86]["operands"][7])
     failures.append((changed, "units conflict"))
+    for channel in ["ECC_Camera", "ECC_Pawn", "ECC_Unknown"]:
+        changed = copy.deepcopy(contract)
+        channel_ref = changed["program"]["instructions"][31]["operands"][1]
+        assert channel_ref["memory"] == "Literal"
+        changed["program"]["memories"]["Literal"][channel_ref["register"]]["default_text"] = channel
+        failures.append((changed, "trace channel"))
+    changed = copy.deepcopy(contract)
+    channel_ref = changed["program"]["instructions"][31]["operands"][1]
+    row = copy.deepcopy(changed["program"]["memories"]["Literal"][channel_ref["register"]])
+    channel_ref["memory"] = "Work"
+    channel_ref["register"] = len(changed["program"]["memories"]["Work"])
+    changed["program"]["memories"]["Work"].append(row)
+    failures.append((changed, "constant trace channel"))
     for changed, message in failures:
         try:
             compile_target(changed)
         except ControlRigContractError as error:
             assert message in str(error), str(error)
+            with TemporaryDirectory() as folder:
+                source_path = Path(folder) / "contract.json"
+                output_path = Path(folder) / "target.json"
+                source_path.write_text(json.dumps(changed), encoding="utf-8")
+                with patch.object(sys, "argv", ["ue_control_rig_target", "--contract", str(source_path), "--output", str(output_path)]):
+                    try:
+                        target_main()
+                    except ControlRigContractError as cli_error:
+                        assert message in str(cli_error)
+                    else:
+                        raise AssertionError("invalid target CLI completed")
+                assert not output_path.exists(), "Rejected target CLI wrote a loadable partial asset"
         else:
             raise AssertionError("invalid target contract was accepted: " + message)
 

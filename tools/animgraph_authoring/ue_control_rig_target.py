@@ -188,6 +188,11 @@ def equal(constraints, *nodes):
 
 def unit_dimensions(name, args, constraints, constant_args):
     stem = name.split("::")[0]
+    if stem == "FAlsRigUnit_FootOffsetTrace":
+        if "TraceChannel" not in constant_args:
+            raise ControlRigContractError("target requires a constant trace channel")
+        if args["TraceChannel"].data != "ECC_Visibility":
+            raise ControlRigContractError("target rig trace channel is unsupported: " + args["TraceChannel"].data)
     fixed = {
         "FRigUnit_GetCurveValue": {"Value": 1},
         "FRigUnit_SetScale": {"Scale": 1, "Weight": 1},
