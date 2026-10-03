@@ -22,12 +22,14 @@ use serde::Deserialize;
 use std::sync::LazyLock;
 
 #[derive(Deserialize)]
-struct AnimationComponentDefinition {
+pub(crate) struct AnimationComponentDefinition {
     root_bone: String,
     teleport_distance_threshold: f32,
+    pub(crate) visibility_tick_option: crate::animation_visibility::AlsAnimationTickOption,
+    pub(crate) recently_rendered_seconds: f64,
 }
 
-static ANIMATION_COMPONENT: LazyLock<AnimationComponentDefinition> = LazyLock::new(|| {
+pub(crate) static ANIMATION_COMPONENT: LazyLock<AnimationComponentDefinition> = LazyLock::new(|| {
     serde_json::from_str(include_str!("../../../../assets/ALS/Character/animation_component.runtime.json"))
         .expect("Animation component definition must be valid")
 });
@@ -250,7 +252,7 @@ fn ab_als_input_writer(
         With<AlsCharacter>,
     >,
     avatars: Query<(&ChildOf, &AnimatedSceneInstance, &GlobalTransform), With<AlsCharacterAvatar>>,
-    mut players: Query<(&mut AnimationGraphPlayer, Option<&AlsRootAnimationContext>)>,
+    mut players: Query<(&mut AnimationGraphPlayer, Option<&AlsRootAnimationContext>, Option<&crate::extensions::post_physics_animation::AnimationPoseUpdateGate>)>,
     owners: Query<&ColliderOf>,
     bodies: Query<&RigidBody>,
     parents: Query<&ChildOf>,
@@ -284,7 +286,7 @@ fn ab_als_input_writer(
             if parent.parent() != character {
                 continue;
             }
-            let Ok((mut player, context)) = players.get_mut(instance.player_entity()) else {
+            let Ok((mut player, context, tick)) = players.get_mut(instance.player_entity()) else {
                 continue;
             };
             if let Some(skeleton) = skeletons.get(player.skeleton()) {
@@ -331,7 +333,7 @@ fn ab_als_input_writer(
             );
             let pending_update = player
                 .get_context_arena()
-                .is_none_or(|arena| arena.frame_index() == 0);
+                .is_none_or(|arena| arena.frame_index() == 0) || tick.is_some_and(|tick| tick.pending_update);
             player.set_global_input_data("animation.pending_update", pending_update);
             player.set_global_input_data(
                 "locomotion_state.velocity_world_space",

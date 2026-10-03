@@ -625,6 +625,7 @@ impl Plugin for ManualPlaygroundIntegrationPlugin {
                     .after(AlsRotationResponseSet)
                     .in_set(ManualIntegrationObservationSet),
             );
+        app.add_systems(PostUpdate, observe_visibility_case.after(bevy_animation_graph::core::plugin::AnimationGraphSet::Final).before(observe_manual_integration).in_set(ManualIntegrationObservationSet));
         moving_base::install(app);
         footprints::install(app);
         hud_layout::install(app);
@@ -984,6 +985,7 @@ enum IntegrationScenario {
     RotatingBase,
     Interface,
     Notify,
+    Visibility,
 }
 
 impl IntegrationScenario {
@@ -1017,6 +1019,7 @@ impl IntegrationScenario {
             Some("rotating_base") => Self::RotatingBase,
             Some("interface") => Self::Interface,
             Some("notify") => Self::Notify,
+            Some("visibility") => Self::Visibility,
             _ => Self::Base,
         }
     }
@@ -1051,7 +1054,7 @@ fn initial_phase(scenario: IntegrationScenario) -> IntegrationPhase {
         IntegrationScenario::UphillJump => IntegrationPhase::UphillJump,
         IntegrationScenario::MovingBase | IntegrationScenario::RotatingBase => IntegrationPhase::MovingBase,
         IntegrationScenario::Interface => IntegrationPhase::Interface,
-        IntegrationScenario::Notify => IntegrationPhase::Notify,
+        IntegrationScenario::Notify | IntegrationScenario::Visibility => IntegrationPhase::Notify,
     }
 }
 
@@ -3988,6 +3991,66 @@ fn replace_ragdoll_player_once(world: &mut World) {
     info!("[MANUAL-INTEGRATION][RAGDOLL-PLAYER-REPLACEMENT] player={player_entity:?} old_root={old_root:?} -> PASS");
 }
 
+fn visibility_case_phase(elapsed: f32) -> &'static str {
+    if elapsed < 2.0 { "visible" }
+    else if elapsed < 4.5 { "hidden" }
+    else if elapsed < 6.5 { "resume" }
+    else if elapsed < 9.5 { "montage" }
+    else if elapsed < 11.5 { "always_pose" }
+    else if elapsed < 13.5 { "visible_final" }
+    else { "finish" }
+}
+
+fn visibility_case_results(rows: &[serde_json::Value]) -> Vec<(&'static str, bool)> {
+    let stage = |name: &'static str, minimum: f64| rows.iter().filter(move |row| row["visibility_phase"] == name && row["elapsed"].as_f64().is_some_and(|time| time >= minimum));
+    let frozen = |name: &'static str, minimum: f64| {
+        let values = stage(name, minimum).collect::<Vec<_>>();
+        values.len() >= 2 && values.iter().all(|row| row["update_graph"] == false && row["refresh_bones"] == false && row["frame"] == values[0]["frame"])
+    };
+    let advancing = |name: &'static str, minimum: f64, bones: bool| {
+        let values = stage(name, minimum).collect::<Vec<_>>();
+        values.len() >= 2 && values.iter().all(|row| row["update_graph"] == true && row["refresh_bones"] == bones)
+            && values.last().unwrap()["frame"].as_u64() > values.first().unwrap()["frame"].as_u64()
+    };
+    vec![
+        ("visibility_initial", advancing("visible", 0.5, true)),
+        ("visibility_graph_stopped", frozen("hidden", 3.5)),
+        ("visibility_pending_resume", stage("resume", 4.5).any(|row| row["pending"] == true && row["update_graph"] == true)),
+        ("visibility_montage_graph_stopped", frozen("montage", 8.0)),
+        ("visibility_montage_clock", stage("montage", 8.0).any(|row| row["roll_time"].as_f64().is_some_and(|time| time > 0.9))),
+        ("visibility_montage_notifications", rows.iter().map(|row| row["shakes"].as_u64().unwrap_or(0)).sum::<u64>() == 2 && rows.iter().map(|row| row["footsteps"].as_u64().unwrap_or(0)).sum::<u64>() == 3),
+        ("visibility_always_pose", advancing("always_pose", 9.6, false)),
+        ("visibility_final_resume", advancing("visible_final", 12.0, true)),
+    ]
+}
+
+fn observe_visibility_case(
+    state: Res<ManualIntegrationState>,
+    mut report: ResMut<ManualIntegrationGateReport>,
+    instances: Query<&AnimatedSceneInstance>,
+    players: Query<(&AnimationGraphPlayer, &crate::extensions::post_physics_animation::AnimationPoseUpdateGate)>,
+    rolls: Query<&AlsRollState>,
+    mut shakes: MessageReader<AlsCameraShakeRequest>,
+    mut events: MessageReader<AlsAnimationEvent>,
+) {
+    if state.scenario != IntegrationScenario::Visibility || state.phase != IntegrationPhase::Notify { return; }
+    let Some((character, avatar)) = state.character.zip(state.avatar) else { return; };
+    let Ok(instance) = instances.get(avatar) else { return; };
+    let Ok((player, gate)) = players.get(instance.player_entity()) else { return; };
+    let Some(arena) = player.get_context_arena() else { return; };
+    let elapsed = state.phase_elapsed();
+    let phase = visibility_case_phase(elapsed);
+    let pending = player.get_global_input_data("animation.pending_update").and_then(|value| value.as_bool().ok()).unwrap_or(false);
+    let shakes = shakes.read().filter(|event| event.target == character).count();
+    let footsteps = events.read().filter(|event| event.character == character && event.class_name == "AlsAnimNotify_FootstepEffects").count();
+    let bucket = (elapsed * 4.0) as u32;
+    if shakes == 0 && footsteps == 0 && report.direction_trace.last().is_some_and(|row| row["bucket"] == bucket && row["pending"] == pending && row["update_graph"] == gate.update_graph) { return; }
+    report.direction_trace.push(serde_json::json!({"visibility_phase": phase, "bucket": bucket, "elapsed": elapsed, "frame": arena.frame_index(),
+        "pending": pending, "update_graph": gate.update_graph, "refresh_bones": gate.refresh_bones,
+        "roll_time": rolls.get(character).map_or(0.0, |roll| roll.time), "shakes": shakes, "footsteps": footsteps}));
+    info!("[MANUAL-INTEGRATION][VISIBILITY] phase={phase} elapsed={elapsed:.3} frame={} graph={} bones={} pending={pending}", arena.frame_index(), gate.update_graph, gate.refresh_bones);
+}
+
 fn roll_tail_reentry_ready(roll: Option<&AlsRollState>, locomotion: LocomotionState, requested: bool) -> bool {
     !requested && locomotion == LocomotionState::Grounded && roll.is_some_and(|roll|
         roll.active && roll.time >= crate::als::roll::ROLL_DURATION_SECS - crate::als::roll::ROLL_WEIGHT_OUT_SECS + 0.04
@@ -6236,6 +6299,26 @@ fn drive_manual_integration(
             }
         }
         IntegrationPhase::Notify => {
+            if state.scenario == IntegrationScenario::Visibility {
+                if entering {
+                    state.notify_roll_armed = false;
+                    reset_character(&mut transform, &mut position, rotation, &mut velocity, &mut view_yaw, &mut view_pitch, fixture.locomotion_start, fixture.facing_yaw);
+                    request.locomotion_state = Some(LocomotionState::Grounded);
+                    request.stance = Some(Stance::Standing);
+                }
+                if let Some(avatar) = state.avatar {
+                    let phase = visibility_case_phase(elapsed);
+                    commands.entity(avatar).insert(if matches!(phase, "hidden" | "montage" | "always_pose") { Visibility::Hidden } else { Visibility::Visible });
+                    if phase == "always_pose" { commands.entity(avatar).insert(crate::animation_visibility::AlsAnimationTickOption::AlwaysTickPose); }
+                    else { commands.entity(avatar).remove::<crate::animation_visibility::AlsAnimationTickOption>(); }
+                    if phase == "montage" && elapsed >= 8.1 && !state.notify_roll_armed {
+                        input.0.roll_pressed = true;
+                        state.notify_roll_armed = true;
+                    }
+                    if phase == "finish" { begin_phase(&mut state, IntegrationPhase::Finish); }
+                }
+                return;
+            }
             if entering {
                 state.notify_roll_armed = false;
                 state.notify_roll_restarted = false;
@@ -10506,6 +10589,11 @@ fn observe_manual_integration(
                 ("debug_values", gate_report.direction_trace.iter().any(|entry| entry.get("hud_data_valid").is_some())
                     && gate_report.direction_trace.iter().filter_map(|entry| entry.get("hud_data_valid").and_then(serde_json::Value::as_bool)).all(|valid| valid)),
             ],
+            IntegrationScenario::Visibility => {
+                let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph)];
+                results.extend(visibility_case_results(&gate_report.direction_trace));
+                results
+            }
             IntegrationScenario::Notify => vec![
                 ("runtime_assembly", coverage.assembly),
                 ("animation_graph", coverage.graph),
@@ -10647,6 +10735,28 @@ fn observe_manual_integration(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn visibility_case_gate_rejects_missing_freeze_pending_clock_and_notifications() {
+        let row = |phase, elapsed, frame, graph, bones, pending, roll_time, shakes, footsteps| serde_json::json!({"visibility_phase":phase,"elapsed":elapsed,"frame":frame,"update_graph":graph,"refresh_bones":bones,"pending":pending,"roll_time":roll_time,"shakes":shakes,"footsteps":footsteps});
+        let rows = vec![
+            row("visible", 1.0, 10, true, true, false, 0.0, 0, 0), row("visible", 1.5, 20, true, true, false, 0.0, 0, 0),
+            row("hidden", 3.5, 30, false, false, true, 0.0, 0, 0), row("hidden", 4.0, 30, false, false, true, 0.0, 0, 0),
+            row("resume", 4.6, 31, true, true, true, 0.0, 0, 0),
+            row("montage", 8.1, 60, false, false, true, 0.0, 0, 0), row("montage", 9.0, 60, false, false, true, 1.0, 2, 3),
+            row("always_pose", 9.8, 61, true, false, true, 1.1, 0, 0), row("always_pose", 10.5, 71, true, false, false, 1.2, 0, 0),
+            row("visible_final", 12.0, 81, true, true, false, 1.2, 0, 0), row("visible_final", 12.5, 91, true, true, false, 1.2, 0, 0),
+        ];
+        assert!(visibility_case_results(&rows).iter().all(|(_, passed)| *passed));
+        for (index, key, value) in [(3, "frame", serde_json::json!(31)), (4, "pending", serde_json::json!(false)),
+            (6, "roll_time", serde_json::json!(0.0)), (6, "footsteps", serde_json::json!(0)), (8, "frame", serde_json::json!(61))] {
+            let mut changed = rows.clone(); changed[index][key] = value;
+            assert!(visibility_case_results(&changed).iter().any(|(_, passed)| !passed));
+        }
+        for (time, phase) in [(1.99,"visible"),(2.0,"hidden"),(4.5,"resume"),(6.5,"montage"),(9.5,"always_pose"),(11.5,"visible_final"),(13.5,"finish")] {
+            assert_eq!(visibility_case_phase(time), phase);
+        }
+    }
+
     #[test]
     fn notify_reentry_driver_waits_for_a_stopped_tail_and_requests_once() {
         for elapsed in [0.4, 0.83, 0.9, 0.95, crate::als::roll::ROLL_DURATION_SECS] {

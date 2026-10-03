@@ -23,6 +23,13 @@ pub struct PostPhysicsAnimation;
 #[derive(Component)]
 pub struct ManualAnimationPlayer;
 
+#[derive(Component, Clone, Copy, Debug)]
+pub struct AnimationPoseUpdateGate {
+    pub update_graph: bool,
+    pub refresh_bones: bool,
+    pub pending_update: bool,
+}
+
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PostPhysicsAnimationSet {
     Inputs,
@@ -56,10 +63,14 @@ impl Plugin for PostPhysicsAnimationPlugin {
             let count = schedule.remove_systems_in_set(animation_player, world,
                 ScheduleCleanupPolicy::RemoveSystemsOnly).expect("animation evaluation schedule must initialize");
             assert_eq!(count, 1, "animation evaluation must replace exactly one default player system");
+            let count = schedule.remove_systems_in_set(bevy_animation_graph::core::systems::apply_animation_to_targets, world,
+                ScheduleCleanupPolicy::RemoveSystemsOnly).expect("bone refresh schedule must initialize");
+            assert_eq!(count, 1, "bone refresh must replace exactly one default player system");
             let count = schedule.remove_systems_in_set(read_back_poses_avian, world,
                 ScheduleCleanupPolicy::RemoveSystemsOnly).expect("physics readback schedule must initialize");
             assert_eq!(count, 1, "physics readback must replace exactly one default readback system");
         });
+        app.add_systems(PostUpdate, apply_animation_to_visible_targets.in_set(AnimationGraphSet::Final));
         app.add_systems(PostUpdate,
             (read_back_poses_avian, normalize_scaled_readback_pose, apply_readback_pose)
                 .chain().in_set(PostPhysicsAnimationSet::Readback),
@@ -146,11 +157,11 @@ fn normalize_scaled_readback_pose(
 
 fn apply_readback_pose(
     mut targets: Query<(&mut Transform, &AnimationTargetId, &AnimatedBy)>,
-    players: Query<&AnimationGraphPlayer>,
+    players: Query<(&AnimationGraphPlayer, Option<&AnimationPoseUpdateGate>)>,
 ) {
     for (mut transform, id, animated_by) in &mut targets {
-        let Ok(player) = players.get(animated_by.0) else { continue; };
-        if !has_physics_readback(player) { continue; }
+        let Ok((player, gate)) = players.get(animated_by.0) else { continue; };
+        if gate.is_some_and(|gate| !gate.refresh_bones) || !has_physics_readback(player) { continue; }
         let Some(pose) = player.get_default_output_pose() else { continue; };
         let Some(index) = pose.paths.get(&BoneId::from(*id)) else { continue; };
         let bone = &pose.bones[*index];
@@ -162,14 +173,46 @@ fn apply_readback_pose(
 
 pub fn evaluate_players<F: QueryFilter>(
     time: Res<Time>,
-    mut players: Query<(Entity, &mut AnimationGraphPlayer, &mut crate::extensions::SourceAnimationInputs), (F, Without<ManualAnimationPlayer>)>,
+    mut players: Query<(Entity, &mut AnimationGraphPlayer, &mut crate::extensions::SourceAnimationInputs, Option<&mut AnimationPoseUpdateGate>), (F, Without<ManualAnimationPlayer>)>,
     resources: SystemResources,
 ) {
-    players.par_iter_mut().for_each(|(entity, player, inputs)| inputs.evaluate(entity, || run_animation_player(entity, player, &time, &resources)));
-    players.par_iter_mut().for_each(|(_, player, mut inputs)| {
+    players.par_iter_mut().for_each(|(entity, mut player, inputs, mut gate)| {
+        if gate.as_ref().is_some_and(|gate| !gate.update_graph) { return; }
+        let playing = !player.is_paused();
+        let initialize = gate.is_some() && player.get_context_arena().is_none_or(|arena| arena.frame_index() == 0);
+        if initialize {
+            let delta = player.get_global_input_data("animation.delta_seconds").cloned();
+            player.set_global_input_data("animation.delta_seconds", 0.0_f32);
+            inputs.evaluate(entity, || run_animation_player(entity, player.reborrow(), &Time::default(), &resources));
+            if let Some(delta) = delta { player.set_global_input_data("animation.delta_seconds", delta); }
+        } else {
+            inputs.evaluate(entity, || run_animation_player(entity, player.reborrow(), &time, &resources));
+        }
+        if playing && player.get_error().is_none() && player.get_default_output_pose().is_some()
+            && let Some(gate) = gate.as_mut() { gate.pending_update = false; }
+    });
+    players.par_iter_mut().for_each(|(_, player, mut inputs, _)| {
         debug_draw_animation_players(player, &resources);
         inputs.set_rig_query_context(None);
     });
+}
+
+fn apply_animation_to_visible_targets(
+    mut targets: Query<(&mut Transform, Option<&mut bevy::mesh::morph::MorphWeights>, &AnimationTargetId, &AnimatedBy)>,
+    players: Query<(&AnimationGraphPlayer, Option<&AnimationPoseUpdateGate>)>,
+) {
+    for (mut transform, morphs, id, animated_by) in &mut targets {
+        let Ok((player, gate)) = players.get(animated_by.0) else { continue; };
+        if gate.is_some_and(|gate| !gate.refresh_bones) { continue; }
+        let Some(pose) = player.get_default_output_pose() else { continue; };
+        let Some(bone) = pose.get_bone(BoneId::from(*id)) else { continue; };
+        if let Some(value) = bone.translation { transform.translation = value; }
+        if let Some(value) = bone.rotation { transform.rotation = value; }
+        if let Some(value) = bone.scale { transform.scale = value; }
+        if let Some(weights) = &bone.weights && let Some(mut morphs) = morphs {
+            for (target, source) in morphs.weights_mut().iter_mut().zip(weights) { *target = *source; }
+        }
+    }
 }
 
 fn extract_late_root_motion(
@@ -189,6 +232,25 @@ mod tests {
         ragdoll::bone_mapping::BoneMapping,
         skeleton::Skeleton, state_machine::high_level::StateMachine,
     };
+
+    #[test]
+    fn bone_visibility_gate_keeps_the_last_transforms_until_refresh_is_allowed() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut world = World::new();
+        let id = AnimationTargetId::from_name(&Name::new("bone"));
+        let expected = Transform::from_xyz(1.0, 2.0, 3.0).with_rotation(Quat::from_rotation_y(0.4)).with_scale(Vec3::splat(2.0));
+        let mut pose = Pose::default();
+        pose.add_bone(BonePose::from_transform(expected), BoneId::from(id));
+        let mut player = AnimationGraphPlayer::default();
+        player.set_animation(bevy_animation_graph::core::animation_graph_player::AnimationSource::Pose(pose));
+        let player = world.spawn((player, AnimationPoseUpdateGate { update_graph: true, refresh_bones: false, pending_update: false })).id();
+        let bone = world.spawn((Transform::IDENTITY, id, AnimatedBy(player))).id();
+        world.run_system_once(apply_animation_to_visible_targets).unwrap();
+        assert_eq!(*world.get::<Transform>(bone).unwrap(), Transform::IDENTITY);
+        world.get_mut::<AnimationPoseUpdateGate>(player).unwrap().refresh_bones = true;
+        world.run_system_once(apply_animation_to_visible_targets).unwrap();
+        assert_eq!(*world.get::<Transform>(bone).unwrap(), expected);
+    }
 
     #[test]
     fn scaled_readback_preserves_physics_world_transforms_across_animated_gaps() {
@@ -313,6 +375,7 @@ mod tests {
             .init_resource::<Assets<bevy_animation_graph::core::ragdoll::bone_mapping::RagdollBoneMap>>()
             .add_systems(PostUpdate, (animation_player, extract_root_motion).chain().in_set(AnimationGraphSet::PrePhysics))
             .add_systems(PostUpdate, read_back_poses_avian.in_set(AnimationGraphSet::PostPhysics))
+            .add_systems(PostUpdate, bevy_animation_graph::core::systems::apply_animation_to_targets.in_set(AnimationGraphSet::Final))
             .configure_sets(PostUpdate, (
                 AnimationGraphSet::PrePhysics.before(PhysicsSystems::First),
                 PhysicsSystems::Last.after(PhysicsSystems::First),

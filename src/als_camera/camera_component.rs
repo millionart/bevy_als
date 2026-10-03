@@ -317,6 +317,7 @@ pub(crate) mod tests {
 
     pub(crate) fn loaded_camera_scene() -> (App, Entity, Entity, Handle<bevy_animation_graph::core::animated_scene::AnimatedScene>) {
         let mut app = App::new();
+        app.register_required_components::<crate::character_assembly::AlsCharacterAvatar, crate::animation_visibility::AlsAnimationTickOption>();
         app.add_plugins((
             MinimalPlugins,
             AssetPlugin {

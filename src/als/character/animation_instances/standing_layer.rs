@@ -3106,6 +3106,51 @@ mod tests {
     }
 
     #[test]
+    fn visibility_initializes_a_new_hidden_instance_before_applying_tick_policy() {
+        let (mut app, _, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().entity_mut(avatar).remove::<crate::animation_visibility::AlsAnimationTickOption>().insert(Visibility::Hidden);
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.1)));
+        for _ in 0..16 { app.update(); }
+        let entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let original = app.world().get::<AnimationGraphPlayer>(entity).unwrap();
+        let bevy_animation_graph::core::animation_graph_player::AnimationSource::Graph(graph) = original.get_animation_source() else { panic!("Source graph is missing"); };
+        let replacement = AnimationGraphPlayer::new(original.skeleton().clone()).with_graph(graph.clone());
+        app.world_mut().entity_mut(entity).insert(replacement);
+        app.update();
+        let player = app.world().get::<AnimationGraphPlayer>(entity).unwrap();
+        assert!(player.get_error().is_none() && player.get_default_output_pose().is_some(), "Source InitAnim did not initialize the hidden instance");
+        assert_eq!(player.elapsed(), 0.0, "Initialization advanced the animation clock");
+        let frame = player.get_context_arena().unwrap().frame_index();
+        app.update();
+        assert_eq!(app.world().get::<AnimationGraphPlayer>(entity).unwrap().get_context_arena().unwrap().frame_index(), frame);
+        let clip = app.world().resource::<AssetServer>().load("ALS/Animations/Actions/Roll/A_Als_Roll.anim.ron");
+        let node = bevy_animation_graph::core::animation_node::AnimationNode::new("unsynchronized source clip", crate::extensions::SourceSequencePlayerNode { clip, ..default() });
+        let mut graph = AnimationGraph::new();
+        graph.add_node(node.clone());
+        graph.add_output_data("pose".into(), bevy_animation_graph::core::edge_data::DataSpec::Pose);
+        graph.add_output_data_edge(node.id, "Pose", "pose");
+        let graph = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(graph);
+        let skeleton = app.world().get::<AnimationGraphPlayer>(entity).unwrap().skeleton().clone();
+        app.world_mut().entity_mut(entity).insert(AnimationGraphPlayer::new(skeleton).with_graph(graph));
+        app.update();
+        assert_eq!(app.world().get::<AnimationGraphPlayer>(entity).unwrap().elapsed(), 0.0, "Unsynchronized initialization advanced engine time");
+    }
+
+    #[test]
+    fn visibility_hidden_mesh_stops_the_default_animation_graph_after_render_recentness_expires() {
+        let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().entity_mut(avatar).remove::<crate::animation_visibility::AlsAnimationTickOption>().insert(Visibility::Hidden);
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.1)));
+        for _ in 0..16 { app.update(); }
+        assert!(!app.world().get::<crate::als::roll::AlsRollState>(character).unwrap().active);
+        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let before = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_context_arena().unwrap().frame_index();
+        for _ in 0..5 { app.update(); }
+        let after = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_context_arena().unwrap().frame_index();
+        assert_eq!(after, before, "Hidden mesh without a montage kept ticking its graph");
+    }
+
+    #[test]
     fn outgoing_standing_refresh_uses_current_gait_during_the_crouching_fade() {
         use crate::extensions::source_instance::SourceInstanceProperties;
         use bevy_animation_graph::core::{animation_graph::NodeId, context::node_states::StateKey};

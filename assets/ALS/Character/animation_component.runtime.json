@@ -1,5 +1,7 @@
 {
   "source_mesh": "/ALS/ALS/Character/SKM_Als.SKM_Als",
   "root_bone": "root",
-  "teleport_distance_threshold": 3.0
+  "teleport_distance_threshold": 3.0,
+  "visibility_tick_option": "OnlyTickMontagesWhenNotRendered",
+  "recently_rendered_seconds": 1.0
 }

@@ -1,0 +1,181 @@
+{
+  "format": "als_animgraph_authoring_gate_v1",
+  "graphs": [
+    {
+      "path": "assets/ALS/Character/AB_Als.runtime.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "b113030b-0000-4000-8000-000000000001",
+          "name": "AB_Als",
+          "position": [
+            -480.0,
+            0.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000002",
+          "name": "Ragdoll Dynamic",
+          "position": [
+            -480.0,
+            160.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000003",
+          "name": "Ragdoll Readback",
+          "position": [
+            -480.0,
+            240.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000004",
+          "name": "Ragdoll Config",
+          "position": [
+            -224.0,
+            192.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000002\", \"als_ragdolling_dynamic\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"dynamic\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000003\", \"als_ragdolling_readback\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"readback\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000001\", \"pose\")",
+          "target": "OutputData(\"pose\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"ragdoll_config\")",
+          "target": "OutputData(\"ragdoll_config\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "pose": "Pose",
+          "ragdoll_config": "RagdollConfig"
+        }
+      },
+      "root_output_exceptions": [
+        {
+          "name": "ragdoll_config",
+          "reason": "The framework consumes body simulation and pose readback controls independently from the source pose.",
+          "evidence": "docs/bf114-ragdoll-contract.md"
+        }
+      ]
+    }
+  ],
+  "id": "mesh_visibility_animation_lifecycle",
+  "source_evidence": [
+    {
+      "path": "target/bf132/r5e_25/character.ue.json",
+      "sha256": "12915979a2a2a2fa8183307b20510d02ce5b81bd9d219a5044291bded1233679"
+    },
+    {
+      "path": "target/bf132/r5e_25/mesh.ue.json",
+      "sha256": "2cbf0077f4b8124d85909092b7697ad10c0e1c6cfa01c7b507f132efec8823d0"
+    },
+    {
+      "path": "target/bf132/r5e_25/AlsCharacter.cpp",
+      "sha256": "779192e94d0a1ac13ccf95cfa9db540cc4f6230a2dc3ab9113848f8d983ace84"
+    },
+    {
+      "path": "target/bf132/r5e_25/AlsAnimationInstance.cpp",
+      "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c"
+    },
+    {
+      "path": "target/bf132/r5e_25/SkeletalMeshComponent.cpp",
+      "sha256": "06179d38ebff3138b6412fe14b14331c0a9e8c1623b760801ba6276602223378"
+    },
+    {
+      "path": "target/bf132/r5e_25/SkinnedMeshComponent.cpp",
+      "sha256": "8e6aee6dce3e382080deadaaf6bdaf92a32e981d446f7d7eb5b74d876747dc3e"
+    },
+    {
+      "path": "target/bf132/r5e_25/SceneVisibility.cpp",
+      "sha256": "6d5f5aef220736dcf17a97d869ec24c02fab90a5b3c0ab64a9d039805bd0e07f"
+    },
+    {
+      "path": "target/bf132/r5e_25/EngineDefines.h",
+      "sha256": "06a1b72eaaeb9caeb79ea325e7406b57210ce61bc2f2b219a6653c751ea87881"
+    },
+    {
+      "path": "target/bf132/r5e_25/PrimitiveComponent.cpp",
+      "sha256": "5ce231cfef144d2263883a495290108fa7fee0162ed4ed99912c4e34377b39ee"
+    },
+    {
+      "path": "target/bf132/r5e_25/AnimationSettings.cpp",
+      "sha256": "0a9ab06179e5cd3732f3e4008e720b21e5adace1dc0673354a5cdacc09d10ac8"
+    }
+  ],
+  "verification_commands": [
+    {
+      "label": "generated_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets",
+        "--include",
+        "ALS",
+        "--include",
+        "ALSCamera"
+      ]
+    },
+    {
+      "label": "generated_editor",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets"
+      ]
+    },
+    {
+      "label": "runtime_asset_boundary",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/validate_runtime_graph_asset_boundary.py",
+        "--assets-root",
+        "assets",
+        "--check"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "animgraph_assets",
+    "manual_case": "visibility"
+  },
+  "focused_tests": [
+    {
+      "label": "visibility_lifecycle_and_architecture_regression",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "--",
+        "--test-threads=2"
+      ],
+      "evidence": "target/bf132/r5e_25/init_final.watchdog.json"
+    }
+  ]
+}

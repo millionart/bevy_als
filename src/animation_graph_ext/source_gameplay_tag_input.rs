@@ -58,6 +58,10 @@ impl SourceAnimationInputs {
         else { values.slots.remove(key); }
     }
 
+    pub fn slot_input_contexts(&self) -> impl Iterator<Item = &crate::extensions::animation_context::AnimationContextState> {
+        self.0.slots.values()
+    }
+
     pub fn slot_input_context(&self, key: &str) -> Option<crate::extensions::animation_context::AnimationContextState> {
         self.0.slots.get(key).cloned()
     }

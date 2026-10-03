@@ -24,6 +24,8 @@ pub mod character_assembly;
 pub mod camera_component;
 #[path = "als/character/character_runtime.rs"]
 pub mod character_runtime;
+#[path = "als/character/animation_instances/animation_visibility.rs"]
+pub mod animation_visibility;
 #[path = "als/character/control_rig_apply.rs"]
 pub mod control_rig_apply;
 #[path = "als/character/animation_instances/crouching_layer.rs"]

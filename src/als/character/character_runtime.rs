@@ -39,6 +39,7 @@ impl Plugin for AlsCharacterRuntimePlugin {
             "assets/ALS/Data/als_gameplay_tags.json",
         ))
         .add_plugins(AlsActualMotionPlugin)
+        .add_plugins(crate::animation_visibility::AlsAnimationVisibilityPlugin)
         .add_plugins(crate::camera_component::AlsSourceCameraPlugin)
         .add_plugins(crate::footprint::FootprintPlugin)
         .add_plugins(SourcePhysicsTimingPlugin)
