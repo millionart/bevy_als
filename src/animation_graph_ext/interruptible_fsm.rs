@@ -209,7 +209,7 @@ fn source_automatic_transition_adjustment(
         && remaining > 0.0
         && relevant_asset.has_previous_position
         && (relevant_asset.position - relevant_asset.previous_position)
-            * relevant_asset.delta_seconds
+            * relevant_asset.playback_delta_seconds
             < 0.0
     {
         remaining = 0.0;
@@ -3659,6 +3659,114 @@ mod tests {
     }
 
     #[test]
+    fn automatic_transition_uses_signed_asset_delta_for_reverse_loop_detection() {
+        for (rate, dt) in [-2.0_f32, -1.0, -0.5, 0.0, 0.5, 1.0, 2.0].into_iter().flat_map(|rate| [0.0_f32, 0.1].map(|dt| (rate, dt))) {
+            for (previous, position) in [(0.6_f32, 0.5_f32), (0.05, 0.95), (0.5, 0.6), (0.95, 0.05)] {
+                for looping in [false, true] {
+                    for history in [false, true] {
+                        for weight in [0.0_f32, 1.0] {
+                            for trigger in [-1.0_f32, 0.0, 0.2] {
+                                let asset = SourceRelevantAsset { duration: 1.0, position, previous_position: previous, has_previous_position: history,
+                                    delta_seconds: dt, playback_delta_seconds: rate * dt, looping, weight, ..default() };
+                                let crossed = looping && history && (position - previous) * (rate * dt) < 0.0;
+                                let remaining = if crossed { 0.0 } else { 1.0 - position };
+                                let threshold = if trigger < 0.0 { 0.2 } else { trigger };
+                                let expected = (weight > 0.0 && remaining <= threshold).then_some(threshold - remaining);
+                                let actual = source_automatic_transition_adjustment(Some(&asset), trigger, 0.2);
+                                assert_eq!(actual, expected, "Signed automatic transition differs: rate={rate}, prev={previous}, pos={position}, loop={looping}, history={history}, weight={weight}, trigger={trigger}");
+                                if let Some(adjustment) = actual {
+                                    assert!((source_transition_duration(0.2, 0.0, adjustment, AlphaBlendMode::Linear) - (0.2-adjustment).max(0.0)).abs() < 1e-6);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn automatic_transition_signed_clock_drives_the_actual_fsm_and_fade() {
+        use bevy::ecs::system::RunSystemOnce;
+        fn query(In((root, node)): In<(Handle<AnimationGraph>, NodeId)>, resources: SystemResources) -> Vec<(LowLevelStateId, Option<f32>)> {
+            let graph = resources.animation_graph_assets.get(&root).unwrap();
+            let mut arena = GraphContextArena::new(root.id());
+            let mut values = Vec::new();
+            for frame in 0..4 {
+                let dt = if frame == 0 { 0.0_f32 } else { 0.1 };
+                let inputs = HashMap::from([("delta".to_owned(), DataValue::F32(dt)), ("condition".to_owned(), DataValue::Bool(false))]);
+                graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(dt)), GraphContext::new(arena.get_toplevel_id(), graph,
+                    &mut arena, &resources, &TestIoEnv::default(), Entity::PLACEHOLDER, &HashMap::new(), &mut DeferredGizmos::default(), &inputs)).unwrap();
+                let state = arena.get_toplevel().node_states.get::<InterruptibleFsmState>(node, StateKey::Default).unwrap();
+                values.push((state.state.clone(), state.blend_duration));
+            }
+            values
+        }
+        for (rate, start, trigger, expected_transition, expected_duration) in [
+            (-1.0_f32, 0.7_f32, 0.2_f32, false, 0.0_f32),
+            (-1.0, 0.05, 0.0, true, 0.2),
+            (1.0, 0.6, 0.0, false, 0.0),
+            (1.0, 0.95, 0.0, true, 0.2),
+        ] {
+            let mut graphs = Assets::<AnimationGraph>::default();
+            let mut clips = Assets::<GraphClip>::default();
+            let clip = clips.add(GraphClip { duration: 1.0, ..default() });
+            let mut machine = StateMachine::default();
+            let first: StateId = serde_json::from_str("\"10000000-0000-4000-8000-000000000001\"").unwrap();
+            let second: StateId = serde_json::from_str("\"10000000-0000-4000-8000-000000000002\"").unwrap();
+            let transition: DirectTransitionId = serde_json::from_str("\"20000000-0000-4000-8000-000000000001\"").unwrap();
+            machine.start_state = first;
+            machine.node_spec.add_output_data("pose".to_owned(), DataSpec::Pose);
+            for (id, position) in [(first, start), (second, 0.0)] {
+                let player = AnimationNode::new("source sequence", crate::extensions::SourceSequencePlayerNode {
+                    clip: clip.clone(), play_rate: rate, start_position: position, loop_animation: true, expose_play_rate_pin: false,
+                    expose_start_position_pin: false, expose_loop_animation_pin: false, ..default()
+                });
+                let mut graph = AnimationGraph::new(); graph.add_node(player.clone());
+                graph.add_output_data("pose".to_owned(), DataSpec::Pose); graph.add_output_data_edge(player.id, "Pose", "pose");
+                machine.add_state(State { id, label: "Sequence".to_owned(), graph: graphs.add(graph), ..default() });
+            }
+            let blend = AnimationNode::new("source crossfade", ProfiledBlendNode::default());
+            let mut graph = AnimationGraph::new(); graph.add_node(blend.clone());
+            for (pin, input, spec) in [("factor", GraphInputPin::FsmBuiltin(FsmBuiltinPin::PercentThroughDuration), DataSpec::F32),
+                ("pose_a", GraphInputPin::FromFsmSource("pose".to_owned()), DataSpec::Pose), ("pose_b", GraphInputPin::FromFsmTarget("pose".to_owned()), DataSpec::Pose)] {
+                graph.add_input_data(input.clone(), spec); graph.add_input_data_edge(input, blend.id, pin);
+            }
+            for (pin, input) in [("time_a", GraphInputPin::FromFsmSource("time".to_owned())), ("time_b", GraphInputPin::FromFsmTarget("time".to_owned()))] {
+                graph.add_input_time(input.clone()); graph.add_input_time_edge(input, blend.id, pin);
+            }
+            graph.add_output_time(); graph.add_output_pose_edge(blend.id);
+            graph.add_output_data("pose".to_owned(), DataSpec::Pose); graph.add_output_data_edge(blend.id, "pose", "pose");
+            machine.add_transition_unchecked(DirectTransition { id: transition, source: first, target: second,
+                data: TransitionData { kind: bevy_animation_graph::core::state_machine::high_level::TransitionKind::Graph { graph: graphs.add(graph), timed: Some(0.2) }, ..default() } });
+            machine.update_low_level_fsm();
+            let mut machines = Assets::<StateMachine>::default();
+            let condition_node = AnimationNode::new("source condition", GlobalBoolInputNode { key: "condition".to_owned() });
+            let mut condition_graph = AnimationGraph::new(); condition_graph.add_node(condition_node.clone());
+            condition_graph.add_output_data("bCanEnterTransition".to_owned(), DataSpec::Bool);
+            condition_graph.add_output_data_edge(condition_node.id, "condition", "bCanEnterTransition");
+            let condition = graphs.add(condition_graph);
+            let fsm = AnimationNode::new("automatic source FSM", InterruptibleFsmNode {
+                fsm: machines.add(machine), source_transition_conditions: vec![SourceTransitionCondition {
+                    transition_id: transition.uuid().to_string(), source_state_id: first.uuid().to_string(), context_state: first,
+                    condition, output: "bCanEnterTransition".to_owned(), automatic_trigger_time: Some(trigger), transition_duration: 0.2, ..default()
+                }], internal_time_key: "delta".to_owned(), expose_telemetry: false, ..default()
+            });
+            let mut root = AnimationGraph::new(); root.add_node(fsm.clone());
+            root.add_output_data("pose".to_owned(), DataSpec::Pose); root.add_output_data_edge(fsm.id, "pose", "pose");
+            let root = graphs.add(root);
+            let mut world = World::new(); world.insert_resource(graphs); world.insert_resource(clips); world.insert_resource(machines); world.init_resource::<Assets<Skeleton>>();
+            let values = world.run_system_once_with(query, (root, fsm.id)).unwrap();
+            if expected_transition {
+                assert!(matches!(values[2].0, LowLevelStateId::HlTransition(_)), "Actual FSM did not transition: rate={rate}, start={start}, values={values:?}");
+                assert!((values[2].1.unwrap() - expected_duration).abs() < 1e-6);
+            } else {
+                assert_eq!(values[2].0, LowLevelStateId::HlState(first), "Actual FSM took a false automatic transition: rate={rate}, start={start}, values={values:?}");
+            }
+        }
+    }
+
+    #[test]
     fn automatic_transition_uses_relevant_asset_remaining_time() {
         let asset = SourceRelevantAsset {
             duration: 1.0,
@@ -3673,6 +3781,7 @@ mod tests {
             previous_position: 0.9,
             has_previous_position: true,
             delta_seconds: 0.2,
+            playback_delta_seconds: 0.2,
             looping: true,
             ..asset.clone()
         };
