@@ -254,6 +254,49 @@ fn source_two_way_child_relevancy(
     (a_is_relevant, b_is_relevant, reset_a, reset_b)
 }
 
+pub(crate) fn cached_update_branch_weights(ctx: &NodeContext) -> Result<Option<Vec<(String, f32)>>, GraphError> {
+    let node = &ctx.graph_context.graph.nodes[&ctx.node_id];
+    if let Some(blend) = node.try_inner_downcast_ref::<SourceTwoWayBlendNode>() {
+        let mut state = ctx.state::<SourceTwoWayBlendState>().cloned().unwrap_or_default();
+        let alpha = source_blend_alpha(&mut state.alpha, blend.alpha_input(ctx)?, blend.mapping_max,
+            &blend.mapping, blend.alpha_scale, blend.alpha_bias, 0.0, 1.0, blend.increasing_speed,
+            blend.decreasing_speed, delta_seconds(ctx)?);
+        let (a, b, _, _) = source_two_way_child_relevancy(&mut state, alpha);
+        return Ok(Some(vec![("A".into(), if a { if b { 1.0 - alpha } else { 1.0 } } else { 0.0 }),
+            ("B".into(), if b { if a { alpha } else { 1.0 } } else { 0.0 })]));
+    }
+    if let Some(blend) = node.try_inner_downcast_ref::<SourceGameplayTagBlendNode>() {
+        blend.validate(ctx)?;
+        let active = blend.active_index(ctx.graph_context.root_entity)
+            .ok_or_else(|| GraphError::GlobalInputDataMissing(blend.active_key.clone()))?;
+        let mut state = ctx.state::<SourceGameplayTagBlendState>().cloned().unwrap_or_default();
+        let weights = advance_gameplay_tag_weights(&mut state.blend, blend.child_count(), active,
+            blend.blend_time(ctx, active), blend.blend_mode, delta_seconds(ctx)?);
+        return Ok(Some(blend.pose_pin_names.iter().cloned().zip(weights).collect()));
+    }
+    if let Some(blend) = node.try_inner_downcast_ref::<SourceBoolBlendNode>() {
+        let active = ctx.data_back("bActiveValue").and_then(|value| value.as_bool()).or_else(|_| {
+            if blend.active_key.is_empty() { Ok(blend.active_value) } else {
+                crate::extensions::source_instance::source_input_data(ctx, &blend.active_key)
+                    .ok_or_else(|| GraphError::GlobalInputDataMissing(blend.active_key.clone()))?.as_bool()
+            }
+        })?;
+        let index = usize::from(!active);
+        let duration = ctx.data_back(format!("BlendTime_{index}")).ok().and_then(|value| value.as_f32().ok())
+            .unwrap_or(blend.blend_times[index]).max(0.0);
+        let mut state = ctx.state::<SourceGameplayTagBlendState>().cloned().unwrap_or_default();
+        let weights = crate::extensions::gameplay_tag_blend::advance_blend_list_weights(&mut state.blend,
+            2, index, duration, delta_seconds(ctx)?, |alpha| crate::extensions::profile_blend::transition_alpha(alpha, blend.blend_mode, &blend.custom_curve));
+        return Ok(Some(weights.into_iter().enumerate().map(|(index, weight)| (format!("BlendPose_{index}"), weight)).collect()));
+    }
+    if let Some(blend) = node.try_inner_downcast_ref::<crate::extensions::ProfiledBlendNode>() {
+        let factor = ctx.data_back(crate::extensions::ProfiledBlendNode::FACTOR)?.as_f32()?;
+        let alpha = crate::extensions::profile_blend::transition_alpha(factor, blend.alpha_blend_mode, &blend.custom_curve);
+        return Ok(Some(vec![("pose_a".into(), 1.0 - alpha), ("pose_b".into(), alpha)]));
+    }
+    Ok(None)
+}
+
 #[derive(Reflect, Clone, Debug)]
 #[reflect(Default, NodeLike)]
 #[type_path = "als_ext"]
@@ -289,9 +332,9 @@ impl Default for SourceTwoWayBlendNode {
     }
 }
 
-impl NodeLike for SourceTwoWayBlendNode {
-    fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        let raw = if self.expose_alpha_pin {
+impl SourceTwoWayBlendNode {
+    fn alpha_input(&self, ctx: &NodeContext) -> Result<f32, GraphError> {
+        Ok(if self.expose_alpha_pin {
             ctx.data_back(self.alpha_pin.clone())
                 .and_then(|value| value.as_f32())
                 .or_else(|_| {
@@ -307,7 +350,13 @@ impl NodeLike for SourceTwoWayBlendNode {
                 &self.alpha_key,
                 self.pin_default,
             )?
-        };
+        })
+    }
+}
+
+impl NodeLike for SourceTwoWayBlendNode {
+    fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+        let raw = self.alpha_input(&ctx)?;
         let delta = delta_seconds(&ctx)?;
         let (alpha, a_is_relevant, b_is_relevant, reset_a, reset_b) = {
             let state = ctx.state_mut::<SourceTwoWayBlendState>()?;
@@ -331,13 +380,19 @@ impl NodeLike for SourceTwoWayBlendNode {
             (alpha, a_is_relevant, b_is_relevant, reset_a, reset_b)
         };
         let mut child_contexts = std::mem::take(&mut ctx.state_mut::<SourceTwoWayBlendState>()?.child_contexts);
+        crate::extensions::source_cached_pose::prewarm_input_cached_poses(&ctx, [
+            ("A".into(), if a_is_relevant { if b_is_relevant { 1.0 - alpha } else { 1.0 } } else { 0.0 }),
+            ("B".into(), if b_is_relevant { if a_is_relevant { alpha } else { 1.0 } } else { 0.0 }),
+        ])?;
         let (mut base, context_a) = if a_is_relevant {
-            read_blend_list_child(&ctx, "A", 0, self.reset_child_on_activation, reset_a, &mut child_contexts)?
+            crate::extensions::interruptible_fsm::with_machine_weight(if b_is_relevant { 1.0 - alpha } else { 1.0 }, ||
+                read_blend_list_child(&ctx, "A", 0, self.reset_child_on_activation, reset_a, &mut child_contexts))?
         } else {
             (Pose::default(), None)
         };
         let (overlay, context_b) = if b_is_relevant {
-            read_blend_list_child(&ctx, "B", 1, self.reset_child_on_activation, reset_b, &mut child_contexts)?
+            crate::extensions::interruptible_fsm::with_machine_weight(if a_is_relevant { alpha } else { 1.0 }, ||
+                read_blend_list_child(&ctx, "B", 1, self.reset_child_on_activation, reset_b, &mut child_contexts))?
         } else {
             (Pose::default(), None)
         };
@@ -919,12 +974,14 @@ impl NodeLike for SourceGameplayTagBlendNode {
         );
         let mut poses = Vec::new();
         let mut contexts = Vec::new();
+        crate::extensions::source_cached_pose::prewarm_input_cached_poses(&ctx, self.pose_pin_names.iter().cloned().zip(weights.iter().copied()))?;
         for (index, weight) in weights.into_iter().enumerate() {
             if weight <= crate::extensions::gameplay_tag_blend::WEIGHT_THRESHOLD {
                 continue;
             }
-            let (pose, context) = read_blend_list_child(&ctx, &self.pose_pin_names[index], index,
-                self.reset_child_on_activation, reset && index == active_index, &mut child_contexts)?;
+            let (pose, context) = crate::extensions::interruptible_fsm::with_machine_weight(weight, ||
+                read_blend_list_child(&ctx, &self.pose_pin_names[index], index,
+                    self.reset_child_on_activation, reset && index == active_index, &mut child_contexts))?;
             if let Some(context) = context {
                 contexts.push((context, weight));
             }
@@ -1038,13 +1095,15 @@ impl NodeLike for SourceBoolBlendNode {
         );
         let mut poses = Vec::new();
         let mut contexts = Vec::new();
+        crate::extensions::source_cached_pose::prewarm_input_cached_poses(&ctx, weights.iter().enumerate().map(|(index, weight)| (format!("BlendPose_{index}"), *weight)))?;
         for (child_index, weight) in weights.into_iter().enumerate() {
             if weight <= crate::extensions::gameplay_tag_blend::WEIGHT_THRESHOLD {
                 continue;
             }
             let pin = format!("BlendPose_{child_index}");
-            let (pose, context) = read_blend_list_child(&ctx, &pin, child_index, self.reset_child_on_activation,
-                reset && child_index == index, &mut child_contexts)?;
+            let (pose, context) = crate::extensions::interruptible_fsm::with_machine_weight(weight, ||
+                read_blend_list_child(&ctx, &pin, child_index, self.reset_child_on_activation,
+                    reset && child_index == index, &mut child_contexts))?;
             poses.push((pose, weight));
             if let Some(context) = context {
                 contexts.push((context, weight));

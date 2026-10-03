@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
-    animation_graph::{AnimationGraph, NodeId},
+    animation_graph::{AnimationGraph, NodeId, SourcePin, TargetPin},
     animation_node::{NodeLike, ReflectNodeLike},
     context::{
         graph_context_arena::GraphContextId,
@@ -20,6 +20,104 @@ use crate::extensions::animation_context::{
 use crate::extensions::source_instance::linked_instance_context;
 
 pub const CACHED_POSE_VALUE: &str = "__als_source_cached_pose";
+
+struct CachedUpdateRequest<'a> {
+    owner: (GraphContextId, NodeId),
+    ctx: NodeContext<'a>,
+    name: String,
+    key: String,
+    scoped: bool,
+    weight: f32,
+}
+
+fn collect_cached_requests<'a>(
+    ctx: &NodeContext<'a>,
+    source: &SourcePin,
+    weight: f32,
+    requests: &mut Vec<CachedUpdateRequest<'a>>,
+    path: &mut std::collections::HashSet<NodeId>,
+) -> Result<(), GraphError> {
+    let SourcePin::NodeData(id, _) = source else { return Ok(()); };
+    let graph = ctx.graph_context.graph;
+    let node = &graph.nodes[id];
+    if !path.insert(*id) { return Err(cache_error(ctx, "Cached update request has a pose cycle".into())); }
+    let request = if let Some(value) = node.try_inner_downcast_ref::<SourceScopedCachedPoseUseNode>() {
+        Some((value.cache_node.as_str(), value.cache_key.as_str(), true))
+    } else {
+        node.try_inner_downcast_ref::<SourceCachedPoseUseNode>().map(|value| (value.cache_node.as_str(), "", false))
+    };
+    if let Some((name, key, scoped)) = request {
+        let owner = if scoped {
+            let requested = requested_cache_key(name, key);
+            let local = graph.nodes.values().find(|node| node.try_inner_downcast_ref::<SourceCachedPoseSaveNode>()
+                .is_some_and(|cache| saved_cache_key(cache, &node.name) == requested));
+            local.map(|node| (ctx.graph_context.context_id, node.id))
+                .or_else(|| scoped_cache_context(ctx, requested).map(|(context, _, node)| (context, node)))
+        } else { graph.nodes.values().find(|node| node.name == name).map(|node| (ctx.graph_context.context_id, node.id)) }
+            .ok_or_else(|| cache_error(ctx, format!("Cached update target is missing: {name}")))?;
+        if let Some(request) = requests.iter_mut().find(|request| request.owner == owner) {
+            if weight > request.weight {
+                *request = CachedUpdateRequest { owner, ctx: ctx.clone(), name: name.into(), key: key.into(), scoped, weight };
+            }
+        } else { requests.push(CachedUpdateRequest { owner, ctx: ctx.clone(), name: name.into(), key: key.into(), scoped, weight }); }
+    } else {
+        let node_ctx = ctx.graph_context.create_node_context(*id);
+        let weights = crate::extensions::source_pose_nodes::cached_update_branch_weights(&node_ctx)?;
+        let spec = node.new_spec(bevy_animation_graph::core::context::spec_context::SpecResources {
+            graph_assets: &ctx.graph_context.resources.animation_graph_assets,
+            fsm_assets: &ctx.graph_context.resources.state_machine_assets,
+        })?;
+        for input in spec.sorted_inputs() {
+            let bevy_animation_graph::core::context::spec_context::NodeInput::Data(pin, DataSpec::Pose) = input else { continue; };
+            let factor = weights.as_ref().map_or(1.0, |weights| weights.iter().find(|entry| entry.0 == pin).map_or(0.0, |entry| entry.1));
+            if factor <= 1e-5 { continue; }
+            if let Some(source) = graph.edges_inverted.get(&TargetPin::NodeData(*id, pin.clone())) {
+                collect_cached_requests(ctx, source, weight * factor, requests, path)?;
+            }
+        }
+    }
+    path.remove(id);
+    Ok(())
+}
+
+fn update_cached_requests(requests: Vec<CachedUpdateRequest>) -> Result<(), GraphError> {
+    for request in requests {
+        crate::extensions::interruptible_fsm::with_machine_weight(request.weight, || {
+            let mut ctx = request.ctx;
+            if request.scoped { prewarm_scoped_cached_pose(&mut ctx, &request.name, &request.key) }
+            else { resolve_cached_pose(&mut ctx, &request.name).map(|_| ()) }
+        })?;
+    }
+    Ok(())
+}
+
+pub(crate) fn prewarm_input_cached_poses(ctx: &NodeContext, inputs: impl IntoIterator<Item = (String, f32)>) -> Result<(), GraphError> {
+    if !ctx.graph_context.graph.nodes.values().any(|node| node.try_inner_downcast_ref::<SourceScopedCachedPoseUseNode>().is_some()
+        || node.try_inner_downcast_ref::<SourceCachedPoseUseNode>().is_some()) { return Ok(()); }
+    let mut requests = Vec::new();
+    for (pin, weight) in inputs {
+        if weight <= 1e-5 { continue; }
+        if let Some(source) = ctx.graph_context.graph.edges_inverted.get(&TargetPin::NodeData(ctx.node_id, pin)) {
+            collect_cached_requests(ctx, source, weight, &mut requests, &mut default())?;
+        }
+    }
+    update_cached_requests(requests)
+}
+
+pub(crate) fn prewarm_graph_cached_poses<'a>(contexts: impl IntoIterator<Item = (NodeContext<'a>, f32)>) -> Result<(), GraphError> {
+    let mut requests = Vec::new();
+    for (ctx, weight) in contexts {
+        if !ctx.graph_context.graph.nodes.values().any(|node| node.try_inner_downcast_ref::<SourceScopedCachedPoseUseNode>().is_some()
+            || node.try_inner_downcast_ref::<SourceCachedPoseUseNode>().is_some()) { continue; }
+        for (pin, kind) in ctx.graph_context.graph.io_spec.iter_output_data() {
+            if *kind != DataSpec::Pose { continue; }
+            if let Some(source) = ctx.graph_context.graph.edges_inverted.get(&TargetPin::OutputData(pin.clone())) {
+                collect_cached_requests(&ctx, source, weight, &mut requests, &mut default())?;
+            }
+        }
+    }
+    update_cached_requests(requests)
+}
 
 fn saved_cache_key<'a>(cache: &'a SourceCachedPoseSaveNode, node_name: &'a str) -> &'a str {
     if cache.cache_key.is_empty() {
@@ -361,6 +459,41 @@ mod tests {
     use super::*;
 
     #[test]
+    fn cached_update_request_cycle_returns_a_readable_error() {
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip, animation_node::AnimationNode,
+            context::{deferred_gizmos::DeferredGizmos, graph_context_arena::GraphContextArena, system_resources::SystemResources},
+            skeleton::Skeleton, state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
+        };
+        fn query(In(handle): In<Handle<AnimationGraph>>, resources: SystemResources) -> GraphError {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let env = TestIoEnv::default();
+            let entities = default();
+            let inputs = default();
+            let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources,
+                &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+            prewarm_graph_cached_poses([(context.create_node_context(NodeId::default()), 1.0)]).unwrap_err()
+        }
+        let mut graph = AnimationGraph::new();
+        let node = AnimationNode::new("cycle", crate::extensions::SourcePosePassthroughNode::default());
+        graph.add_node(node.clone());
+        graph.add_node(AnimationNode::new("unused cache", SourceCachedPoseUseNode::default()));
+        graph.add_node_parameter_edge(node.id, "Pose", node.id, "Source");
+        graph.add_output_data("Pose".into(), DataSpec::Pose);
+        graph.add_output_data_edge(node.id, "Pose", "Pose");
+        let mut world = World::new();
+        world.init_resource::<Assets<AnimationGraph>>();
+        world.init_resource::<Assets<GraphClip>>();
+        world.init_resource::<Assets<Skeleton>>();
+        world.init_resource::<Assets<StateMachine>>();
+        let handle = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
+        let error = world.run_system_cached_with(query, handle).unwrap();
+        assert!(format!("{error:?}").contains("Cached update request has a pose cycle"));
+    }
+
+    #[test]
     fn scoped_cache_keeps_pose_and_curves_in_the_owning_linked_instance() {
         use bevy::platform::collections::HashMap;
         use bevy_animation_graph::core::{
@@ -407,6 +540,11 @@ mod tests {
                 let sibling = instance_ctx.create_node_context(machine_id).create_child_context(state.0, state.1,
                     Some(bevy_animation_graph::core::state_machine::low_level::LowLevelStateId::HlState(default())));
                 let mut sibling = sibling.create_node_context(use_id);
+                let nested = sibling.graph_context.create_node_context(machine_id).create_child_context(state.0, state.1,
+                    Some(bevy_animation_graph::core::state_machine::low_level::LowLevelStateId::HlState(default())));
+                let mut nested = nested.create_node_context(use_id);
+                assert_eq!(crate::extensions::source_instance::source_notify_instance_id(&nested).unwrap(), notify_instance);
+                assert_eq!(resolve_scoped_cached_pose(&mut nested, "cache", "shared").unwrap().timestamp, expected);
                 assert_eq!(crate::extensions::source_instance::source_notify_instance_id(&sibling).unwrap(), notify_instance);
                 assert_eq!(resolve_scoped_cached_pose(&mut sibling, "cache", "shared").unwrap().timestamp, expected);
                 state.1.nodes[&use_id].update(sibling.clone()).unwrap();

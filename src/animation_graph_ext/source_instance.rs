@@ -54,8 +54,8 @@ pub(crate) fn linked_instance_context(ctx: &NodeContext, mut context_id: GraphCo
     while let Some(parent) = arena.get_parent_context(context_id) {
         let graph_id = arena.get_context(parent.ctx_id)?.get_graph_id();
         let graph = ctx.graph_context.resources.animation_graph_assets.get(graph_id)?;
-        let node = graph.nodes.get(&parent.node_id)?;
-        if node.try_inner_downcast_ref::<crate::extensions::LayeredGraphNode>().is_some() {
+        if graph.nodes.get(&parent.node_id).is_some_and(|node|
+            node.try_inner_downcast_ref::<crate::extensions::LayeredGraphNode>().is_some()) {
             return Some(context_id);
         }
         context_id = parent.ctx_id;

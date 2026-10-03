@@ -34,7 +34,6 @@ use crate::extensions::animation_context::{
 use crate::extensions::global_f32_input::global_f32_or_root_default;
 use crate::extensions::inertialization::InertializationNode;
 use crate::extensions::profile_blend::{AlphaBlendMode, ProfiledBlendNode, transition_alpha};
-use crate::extensions::source_cached_pose::{SourceScopedCachedPoseUseNode, prewarm_scoped_cached_pose};
 use crate::extensions::source_pose_passthrough::SourcePosePassthroughNode;
 use crate::extensions::state_label_event::state_label_index;
 
@@ -1247,19 +1246,6 @@ impl InterruptibleFsmNode {
         Ok(())
     }
 
-    fn prewarm_scoped_caches(
-        graph: &AnimationGraph,
-        ctx: &mut NodeContext,
-    ) -> Result<(), GraphError> {
-        for (cache_node, cache_key) in graph.nodes.values().filter_map(|node| {
-            node.try_inner_downcast_ref::<SourceScopedCachedPoseUseNode>()
-                .map(|value| (value.cache_node.as_str(), value.cache_key.as_str()))
-        }) {
-            prewarm_scoped_cached_pose(ctx, cache_node, cache_key)?;
-        }
-        Ok(())
-    }
-
     fn transition_endpoint_states(state: &LowLevelState) -> Option<[LowLevelStateId; 2]> {
         state.hl_transition.as_ref().map(|transition| {
             [
@@ -1271,19 +1257,23 @@ impl InterruptibleFsmNode {
 
     fn prewarm_active_state_caches(
         machine: &LowLevelStateMachine,
-        state: &LowLevelStateId,
+        states: &[(LowLevelStateId, usize)],
         ctx: &mut NodeContext,
         weights: &[SourceFsmStateWeight],
     ) -> Result<(), GraphError> {
-        let (state_data, graph) = Self::active_graph(machine, state, ctx)?;
-        with_machine_weight(Self::local_state_weight(weights, state), || Self::prewarm_scoped_caches(graph, ctx))?;
-        if let Some(states) = Self::transition_endpoint_states(state_data) {
-            for state in states {
-                let (_, graph) = Self::active_graph(machine, &state, ctx)?;
-                with_machine_weight(Self::local_state_weight(weights, &state), || Self::prewarm_scoped_caches(graph, ctx))?;
+        let mut contexts = Vec::new();
+        for (state, slot) in states {
+            let (state_data, _) = Self::active_graph(machine, state, ctx)?;
+            let endpoints = Self::transition_endpoint_states(state_data);
+            for state in std::iter::once(state.clone()).chain(endpoints.into_iter().flatten()) {
+                let (state_data, graph) = Self::active_graph(machine, &state, ctx)?;
+                let mut context = state_graph_context(ctx, state_data, graph, *slot);
+                context.context_mut().query_output_time = bevy_animation_graph::core::context::graph_context::QueryOutputTime::Forced(
+                    crate::extensions::animation_context::context_time_update(ctx)?);
+                contexts.push((context.create_node_context(ctx.node_id), Self::local_state_weight(weights, &state)));
             }
         }
-        Ok(())
+        crate::extensions::source_cached_pose::prewarm_graph_cached_poses(contexts)
     }
 
     fn evaluate_active_state(
@@ -1309,8 +1299,10 @@ impl InterruptibleFsmNode {
             &ctx.graph_context.resources.animation_graph_assets,
         )?);
         let mut source_pose = None;
+        let cache_states = state.interrupted_sources.iter().rev().map(|source| (source.state.clone(), source.context_slot))
+            .chain(std::iter::once((state.state.clone(), state.context_slot))).collect::<Vec<_>>();
+        Self::prewarm_active_state_caches(machine, &cache_states, ctx, &weights)?;
         for source in state.interrupted_sources.iter().rev() {
-            Self::prewarm_active_state_caches(machine, &source.state, ctx, &weights)?;
             let (source_data, source_graph) = Self::active_graph(machine, &source.state, ctx)?;
             let io = InterruptibleFsmIo {
                 node_context: ctx.clone(),
@@ -1345,7 +1337,6 @@ impl InterruptibleFsmNode {
         }
         state.source_pose = source_pose;
         *ctx.state_mut_or_else(|| state.clone())? = state.clone();
-        Self::prewarm_active_state_caches(machine, &state.state, ctx, &weights)?;
         let (state_data, graph) = Self::active_graph(machine, &state.state, ctx)?;
         let elapsed = (ctx.time() - state.state_entered_time).max(0.0);
         let io = InterruptibleFsmIo {
@@ -2179,6 +2170,7 @@ mod tests {
         ) -> f32 {
             let graph = resources.animation_graph_assets.get(&root).unwrap();
             let mut arena = GraphContextArena::new(root.id());
+            arena.get_toplevel_mut().query_output_time = QueryOutputTime::Forced(TimeUpdate::Delta(0.02));
             let mut gizmos = DeferredGizmos::default();
             let entities = HashMap::new();
             let inputs = HashMap::new();
@@ -2191,7 +2183,7 @@ mod tests {
             let mut machine = LowLevelStateMachine::new();
             machine.add_state(LowLevelState { id: state.clone(), graph: state_graph, hl_transition: None });
             let weights = vec![SourceFsmStateWeight { state_id: state_id.uuid().to_string(), value: 0.4 }];
-            InterruptibleFsmNode::prewarm_active_state_caches(&machine, &state, &mut ctx, &weights).unwrap();
+            InterruptibleFsmNode::prewarm_active_state_caches(&machine, &[(state, 0)], &mut ctx, &weights).unwrap();
             drop(ctx);
             arena.get_toplevel().node_caches
                 .get_output_data(cache_id, StateKey::Default, CACHED_POSE_VALUE.to_owned())
@@ -2200,6 +2192,9 @@ mod tests {
 
         let mut graphs = Assets::<AnimationGraph>::default();
         let mut root = AnimationGraph::new();
+        let mut machine_node = AnimationNode::new("machine", InterruptibleFsmNode::default());
+        machine_node.id = NodeId::default();
+        root.add_node(machine_node);
         let probe = AnimationNode::new("weight", MachineWeightProbe);
         let cache = AnimationNode::new("fixture", SourceCachedPoseSaveNode { cache_key: "fixture".to_owned() });
         root.add_node(probe.clone());
@@ -2207,9 +2202,12 @@ mod tests {
         root.add_node_parameter_edge(probe.id, "Pose", cache.id, "Pose");
         let root = graphs.add(root);
         let mut state_graph = AnimationGraph::new();
-        state_graph.add_node(AnimationNode::new("use fixture", SourceScopedCachedPoseUseNode {
+        let use_cache = AnimationNode::new("use fixture", SourceScopedCachedPoseUseNode {
             cache_node: "fixture".to_owned(), cache_key: "fixture".to_owned(), ..default()
-        }));
+        });
+        state_graph.add_node(use_cache.clone());
+        state_graph.add_output_data("Pose".into(), DataSpec::Pose);
+        state_graph.add_output_data_edge(use_cache.id, "Pose", "Pose");
         let state_graph = graphs.add(state_graph);
         let mut world = World::new();
         world.insert_resource(graphs);
@@ -2218,6 +2216,124 @@ mod tests {
         world.insert_resource(Assets::<StateMachine>::default());
         let actual = world.run_system_cached_with(query, (root, state_graph, cache.id, StateId::default())).unwrap();
         assert_eq!(actual, 0.4);
+    }
+
+    #[test]
+    fn cached_blend_without_cache_preserves_each_child_update_weight() {
+        fn query(In((handle, ids)): In<(Handle<AnimationGraph>, [NodeId; 2])>, resources: SystemResources) -> [f32; 2] {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let mut source = crate::extensions::SourceAnimationInputs::default();
+            for frame in 0..2 {
+                source.set_gameplay_tag_input("active", bevy_gameplay_tag::GameplayTag::new(if frame == 0 { "Fixture.A" } else { "Fixture.B" }));
+                let inputs = HashMap::from([("alpha".to_owned(), DataValue::F32(0.25)), ("active".to_owned(), DataValue::Bool(frame == 0))]);
+                source.evaluate(Entity::PLACEHOLDER, || with_machine_weight(0.4, || graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.1)),
+                    GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources, &TestIoEnv::default(),
+                        Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs)))).unwrap();
+            }
+            ids.map(|id| arena.get_toplevel().node_caches.get_output_data(id, StateKey::Default, "Pose".into()).unwrap().into_pose().unwrap().timestamp)
+        }
+        let mut actual_cases = Vec::new();
+        for kind in 0..3 {
+        let mut graph = AnimationGraph::new();
+        let probes = ["A", "B"].map(|name| AnimationNode::new(name, MachineWeightProbe));
+        let blend = match kind {
+            0 => AnimationNode::new("blend", crate::extensions::SourceTwoWayBlendNode { alpha_key: "alpha".into(), expose_alpha_pin: false, ..default() }),
+            1 => AnimationNode::new("blend", crate::extensions::source_pose_nodes::SourceBoolBlendNode { active_key: "active".into(), blend_times: vec![0.4; 2], source_blend_times: vec![0.4; 2], ..default() }),
+            _ => AnimationNode::new("blend", crate::extensions::SourceGameplayTagBlendNode { active_key: "active".into(), tags: vec!["Fixture.B".into()], blend_times: vec![0.4; 2], source_blend_times: vec![0.4; 2], pose_pin_names: vec!["A".into(), "B".into()], blend_time_pin_names: vec!["TimeA".into(), "TimeB".into()], ..default() }),
+        };
+        graph.add_node(blend.clone());
+        for (index, node) in probes.iter().enumerate() {
+            graph.add_node(node.clone());
+            let pin = if kind == 1 { format!("BlendPose_{index}") } else { node.name.clone() };
+            graph.add_node_parameter_edge(node.id, "Pose", blend.id, pin);
+        }
+        graph.add_output_data("Pose".into(), DataSpec::Pose);
+        graph.add_output_data_edge(blend.id, "Pose", "Pose");
+        let mut world = World::new();
+        world.init_resource::<Assets<AnimationGraph>>();
+        world.init_resource::<Assets<GraphClip>>();
+        world.init_resource::<Assets<Skeleton>>();
+        world.init_resource::<Assets<StateMachine>>();
+        let handle = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
+        let actual = world.run_system_cached_with(query, (handle, probes.map(|node| node.id))).unwrap();
+        actual_cases.push(actual);
+        }
+        assert!(actual_cases.iter().all(|actual| actual.iter().zip([0.3, 0.1]).all(|(actual, expected)| (actual - expected).abs() < 1e-6)),
+            "Wrong fractional child weights for TwoWay/Bool/Tag: {actual_cases:?}");
+    }
+
+    #[test]
+    fn cached_blend_update_uses_the_maximum_fractional_request() {
+        fn query(
+            In((root, state_graph, cache_id, state_id, alpha, values, reverse)): In<(Handle<AnimationGraph>, Handle<AnimationGraph>, NodeId, StateId, f32, [f32; 2], bool)>,
+            resources: SystemResources,
+        ) -> f32 {
+            let graph = resources.animation_graph_assets.get(&root).unwrap();
+            let mut arena = GraphContextArena::new(root.id());
+            arena.get_toplevel_mut().query_output_time = QueryOutputTime::Forced(TimeUpdate::Delta(0.02));
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let inputs = HashMap::from([("fixture_alpha".to_owned(), DataValue::F32(alpha))]);
+            let env = TestIoEnv::default();
+            let mut ctx = GraphContext::new(
+                arena.get_toplevel_id(), graph, &mut arena, &resources, &env,
+                Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs,
+            ).create_node_context(NodeId::default());
+            let state = LowLevelStateId::HlState(state_id);
+            let mut machine = LowLevelStateMachine::new();
+            machine.add_state(LowLevelState { id: state.clone(), graph: state_graph.clone(), hl_transition: None });
+            let second: StateId = serde_json::from_str("\"10000000-0000-4000-8000-000000000002\"").unwrap();
+            let second_state = LowLevelStateId::HlState(second);
+            machine.add_state(LowLevelState { id: second_state.clone(), graph: state_graph, hl_transition: None });
+            let weights = vec![SourceFsmStateWeight { state_id: state_id.uuid().to_string(), value: values[0] },
+                SourceFsmStateWeight { state_id: second.uuid().to_string(), value: values[1] }];
+            let states = if reverse { vec![(second_state, 0), (state, 0)] } else { vec![(state, 0), (second_state, 0)] };
+            InterruptibleFsmNode::prewarm_active_state_caches(&machine, &states, &mut ctx, &weights).unwrap();
+            drop(ctx);
+            arena.get_toplevel().node_caches
+                .get_output_data(cache_id, StateKey::Default, CACHED_POSE_VALUE.to_owned())
+                .unwrap().into_pose().unwrap().timestamp
+        }
+
+        let mut graphs = Assets::<AnimationGraph>::default();
+        let mut root = AnimationGraph::new();
+        let mut machine_node = AnimationNode::new("machine", InterruptibleFsmNode::default());
+        machine_node.id = NodeId::default();
+        root.add_node(machine_node);
+        let probe = AnimationNode::new("weight", MachineWeightProbe);
+        let cache = AnimationNode::new("fixture", SourceCachedPoseSaveNode { cache_key: "fixture".to_owned() });
+        root.add_node(probe.clone());
+        root.add_node(cache.clone());
+        root.add_node_parameter_edge(probe.id, "Pose", cache.id, "Pose");
+        let root = graphs.add(root);
+        let mut state_graph = AnimationGraph::new();
+        let uses = ["A", "B"].map(|name| AnimationNode::new(name, SourceScopedCachedPoseUseNode {
+            cache_node: "fixture".to_owned(), cache_key: "fixture".to_owned(), ..default()
+        }));
+        let blend = AnimationNode::new("blend", crate::extensions::SourceTwoWayBlendNode { alpha_key: "fixture_alpha".into(), pin_default: 0.25, expose_alpha_pin: false, ..default() });
+        state_graph.add_node(blend.clone());
+        for node in &uses {
+            state_graph.add_node(node.clone());
+            state_graph.add_node_parameter_edge(node.id, "Pose", blend.id, &node.name);
+        }
+        state_graph.add_output_data("Pose".into(), DataSpec::Pose);
+        state_graph.add_output_data_edge(blend.id, "Pose", "Pose");
+        let state_graph = graphs.add(state_graph);
+        let mut world = World::new();
+        world.insert_resource(graphs);
+        world.insert_resource(Assets::<GraphClip>::default());
+        world.insert_resource(Assets::<Skeleton>::default());
+        world.insert_resource(Assets::<StateMachine>::default());
+        for (values, reverse) in [([0.4_f32, 0.6], false), ([0.4, 0.6], true), ([0.8, 0.2], false), ([0.8, 0.2], true), ([0.0, 0.0], false)] {
+        for alpha in [0.0_f32, 0.25, 0.5, 0.75, 1.0] {
+            let actual = world.run_system_cached_with(query, (root.clone(), state_graph.clone(), cache.id, StateId::default(), alpha, values, reverse)).unwrap();
+            let expected = values[0].max(values[1]) * alpha.max(1.0 - alpha);
+            assert!((actual - expected).abs() < 1e-6, "Cache updated before collecting branch requests: alpha={alpha}, actual={actual}, expected={expected}");
+        }
+        }
     }
 
     #[test]

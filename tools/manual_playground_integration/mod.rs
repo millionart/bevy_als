@@ -11040,7 +11040,8 @@ mod tests {
         use bevy::ecs::schedule::ScheduleCleanupPolicy;
         use crate::extensions::post_physics_animation::PostPhysicsAnimationSet;
         let mut app = App::new();
-        app.add_plugins((MinimalPlugins, ManualPlaygroundIntegrationPlugin))
+        app.add_plugins((MinimalPlugins, bevy::asset::AssetPlugin::default(), ManualPlaygroundIntegrationPlugin))
+            .init_asset::<StateMachine>().add_message::<AlsCameraShakeRequest>().add_message::<AlsAnimationEvent>()
             .init_resource::<Assets<AnimationGraph>>().init_resource::<AlsFootIkWeightOverride>()
             .configure_sets(PostUpdate, (
                 PostPhysicsAnimationSet::Inputs.after(avian3d::prelude::PhysicsSystems::Last),
