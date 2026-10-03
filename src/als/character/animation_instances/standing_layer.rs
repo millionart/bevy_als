@@ -886,7 +886,7 @@ fn animation_world_scale(transform: &GlobalTransform) -> f32 {
         .max(f32::EPSILON)
 }
 
-fn unweighted_gait_amounts(gait_amount: f32, pose_grounded_amount: f32) -> (f32, f32) {
+pub(crate) fn unweighted_gait_amounts(gait_amount: f32, pose_grounded_amount: f32) -> (f32, f32) {
     let unweighted = if pose_grounded_amount > 1e-8 {
         gait_amount / pose_grounded_amount
     } else {
@@ -3103,6 +3103,91 @@ mod tests {
     fn movement_yaw_curve_blend_uses_the_source_transition_modes() {
         assert!((StandingMovementState::transition_alpha(0.0, 0.25) - 0.15625).abs() < 1e-6);
         assert!((StandingMovementState::transition_alpha(14.0, 0.25) - 0.125).abs() < 1e-6);
+    }
+
+    #[test]
+    fn outgoing_standing_refresh_uses_current_gait_during_the_crouching_fade() {
+        use crate::extensions::source_instance::SourceInstanceProperties;
+        use bevy_animation_graph::core::{animation_graph::NodeId, context::node_states::StateKey};
+        let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().entity_mut(character).insert((avian3d::prelude::RigidBody::Kinematic, bevy_tnua::TnuaToggle::Disabled));
+        #[derive(Resource)]
+        struct FadeFixture(Stance, Gait, f32);
+        app.insert_resource(FadeFixture(Stance::Standing, Gait::Running, 2.5));
+        app.add_systems(PostUpdate, (move |fixture: Res<FadeFixture>, mut characters: Query<(&mut AlsActualMotion, &mut Gait, &mut Stance, &mut LocomotionState, &mut AlsInputCommand)>| {
+            let (mut motion, mut gait, mut stance, mut mode, mut input) = characters.get_mut(character).unwrap();
+            *gait = fixture.1;
+            *stance = fixture.0;
+            *mode = LocomotionState::Grounded;
+            motion.horizontal_speed = fixture.2;
+            motion.world_velocity = Vec3::NEG_Z * fixture.2;
+            motion.has_input = fixture.2 > 0.0;
+            input.move_dir = if fixture.2 > 0.0 { Vec2::Y } else { Vec2::ZERO };
+        }).after(crate::actual_motion::AlsActualMotionSet).before(crate::gait_layer::AlsGaitLayerSet));
+        for _ in 0..90 { app.update(); }
+        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let mut relevant_frames = 0;
+        let mut inactive_frames = 0;
+        let mut transition_observed = false;
+        let mut walking_filter_min = 1.0_f32;
+        for (stance, gait, speed, scale, frames) in [
+            (Stance::Crouching, Gait::Walking, 1.0, 2.0, 15),
+            (Stance::Crouching, Gait::Running, 3.5, 0.5, 45),
+            (Stance::Standing, Gait::Walking, 0.8, 1.0, 40),
+        ] {
+            *app.world_mut().resource_mut::<FadeFixture>() = FadeFixture(stance, gait, speed);
+            app.world_mut().get_mut::<Transform>(avatar).unwrap().scale = Vec3::splat(scale);
+            for _ in 0..frames {
+                app.update();
+                let instance = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+                assert!(instance.get_error().is_none() && instance.get_default_output_pose().is_some());
+                let arena = instance.get_context_arena().unwrap();
+                let state = arena.get_toplevel().node_states.get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default).unwrap();
+                let relevant = state.write_frames.get("standing_state.sprint_time") == Some(&arena.frame_index());
+                if stance == Stance::Crouching && relevant {
+                    relevant_frames += 1;
+                    assert_eq!(state.values["standing_state.walk_run_blend_amount"].as_f32().unwrap(), if gait == Gait::Walking { 0.0 } else { 1.0 }, "Outgoing Standing reused the previous gait");
+                }
+                if stance == Stance::Crouching && !relevant { inactive_frames += 1; }
+                if stance == Stance::Crouching && gait == Gait::Walking && relevant {
+                    for context_id in arena.iter_context_ids() {
+                        let context = arena.get_context(context_id).unwrap();
+                        if !app.world().resource::<AssetServer>().get_path(context.get_graph_id()).is_some_and(|path| is_generated_standing_graph(path.path())) { continue; }
+                        let graphs = app.world().resource::<Assets<AnimationGraph>>();
+                        let Some(graph) = graphs.get(context.get_graph_id()) else { continue; };
+                        for node in graph.nodes.values().filter(|node| node.try_inner_downcast_ref::<crate::extensions::normalized_blendspace::CubicVec2AxisFilterNode>().is_some()) {
+                            if !context.node_caches.is_updated(node.id, StateKey::Default) { continue; }
+                            if let Some(value) = context.node_caches.get_output_data(node.id, StateKey::Default, "value".to_owned()).and_then(|value| value.as_vec2().ok()) {
+                                walking_filter_min = walking_filter_min.min(value.y);
+                            }
+                        }
+                    }
+                }
+                if relevant {
+                    for key in ["standing_state.walk_run_blend_amount", "standing_state.stride_blend_amount", "standing_state.play_rate", "standing_state.sprint_block_amount"] {
+                        assert_eq!(state.write_frames.get(key), Some(&arena.frame_index()), "Relevant source callback did not refresh {key}");
+                        let expected = instance.get_global_input_data(format!("source_frame_input.{key}")).unwrap().as_f32().unwrap();
+                        assert!((state.values[key].as_f32().unwrap() - expected).abs() < 1e-6, "Stale relevant input: {key}");
+                    }
+                }
+                transition_observed |= app.world().get::<crate::grounded_layer::AlsGroundedGraphTelemetry>(character).unwrap().transition_active == Some(true);
+            }
+        }
+        assert!(relevant_frames > 3 && inactive_frames > 3 && transition_observed, "Standing fade relevance lifecycle was not exercised: relevant={relevant_frames}, inactive={inactive_frames}, transition={transition_observed}");
+        assert!(walking_filter_min < 0.9, "The actual Standing BlendSpace filter did not receive Walking: {walking_filter_min}");
+        *app.world_mut().resource_mut::<FadeFixture>() = FadeFixture(Stance::Standing, Gait::Walking, 0.0);
+        for _ in 0..90 { app.update(); }
+        *app.world_mut().resource_mut::<FadeFixture>() = FadeFixture(Stance::Crouching, Gait::Running, 0.0);
+        let mut inertial_state_observed = false;
+        for _ in 0..90 {
+            app.update();
+            let telemetry = app.world().get::<crate::grounded_layer::AlsGroundedGraphTelemetry>(character).unwrap();
+            inertial_state_observed |= telemetry.actual_state == Some(3);
+            let instance = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+            assert!(instance.get_error().is_none() && instance.get_default_output_pose().is_some());
+        }
+        assert!(inertial_state_observed, "The separate T18 inertialization path was not exercised");
+        assert_eq!(app.world().get::<crate::grounded_layer::AlsGroundedGraphTelemetry>(character).unwrap().actual_state, Some(2));
     }
 
     #[test]

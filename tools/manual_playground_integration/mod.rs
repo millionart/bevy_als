@@ -10610,6 +10610,8 @@ fn observe_manual_integration(
                     state.uphill_probe.failure.clone().unwrap_or_else(|| "all uphill landings returned to grounded animation".to_owned())
                 } else if *name == "moving_base_progress" {
                     state.moving_base_probe.failure.clone().unwrap_or_else(|| "source object traversal completed".to_owned())
+                } else if *name == "runtime_assembly" {
+                    format!("game_time_seconds={:.3}; relative_speed={:.3}; slomo_active={}", state.game_time_seconds, interface.virtual_time.relative_speed(), interface.hud_state.slomo_active)
                 } else if *covered {
                     "covered".to_owned()
                 } else {

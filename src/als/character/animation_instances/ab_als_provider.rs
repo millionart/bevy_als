@@ -404,6 +404,20 @@ fn ab_als_input_writer(
                 let owner = owners.get(entity).map_or(entity, |collider| collider.body);
                 bodies.get(owner).is_ok_and(|body| *body != RigidBody::Static)
             });
+            let pose_gait = context.and_then(|state| state.f32("PoseGait")).unwrap_or(0.0).clamp(0.0, 3.0);
+            let pose_grounded = context.and_then(|state| state.f32("PoseGrounded")).unwrap_or(0.0);
+            let (running, sprinting) = crate::standing_layer::unweighted_gait_amounts(pose_gait, pose_grounded);
+            let speed = motion.horizontal_speed / avatar_transform.to_scale_rotation_translation().0.y;
+            let stride = crate::standing_source::standing_stride_amount(running, speed);
+            for (key, value) in [
+                ("standing_state.walk_run_blend_amount", if *gait == Gait::Walking { 0.0 } else { 1.0 }),
+                ("standing_state.stride_blend_amount", stride),
+                ("standing_state.sprint_block_amount", context.and_then(|state| state.f32("SprintBlock")).unwrap_or(0.0).clamp(0.0, 1.0)),
+                ("standing_state.play_rate", crate::standing_layer::standing_play_rate(params, speed, stride, running, sprinting)),
+            ] {
+                crate::extensions::source_instance::set_source_frame_input(&mut player, key, value);
+            }
+            player.set_global_input_data("als_standing_gait_is_sprinting", (*gait == Gait::Sprinting) as u8 as f32);
             let hips_direction_lock = context
                 .and_then(|state| state.f32("HipsDirectionLock"))
                 .unwrap_or(0.0)

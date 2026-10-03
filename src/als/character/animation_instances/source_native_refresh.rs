@@ -210,6 +210,14 @@ impl AlsSourceRefreshNode {
         let boolean = |key, default| {
             source_input_data(&ctx, key).map_or(Ok(default), |value| value.as_bool())
         };
+        for (key, default) in [
+            ("standing_state.walk_run_blend_amount", 0.0),
+            ("standing_state.stride_blend_amount", 1.0),
+            ("standing_state.sprint_block_amount", 0.0),
+            ("standing_state.play_rate", 1.0),
+        ] {
+            set_source_property(ctx, key, scalar(key, default)?)?;
+        }
         let initialized = source_instance_properties(&ctx)?
             .write_frames
             .get("standing_state.sprint_time")
