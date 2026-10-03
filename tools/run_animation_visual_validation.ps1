@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet("startup", "base", "grounded", "standing_direction", "standing_response", "standing_stop", "standing_turn", "standing_dynamic", "crouching", "crouching_actions", "locomotion", "control_rig", "default_overlay", "bow", "overlays", "footprint", "head", "state_machine", "transition_notify", "foot_ik", "sprint", "ragdoll", "get_up", "camera", "stairs", "uphill_jump", "moving_base", "rotating_base", "interface", "notify", "visibility")]
+    [ValidateSet("startup", "base", "grounded", "standing_direction", "standing_response", "standing_stop", "standing_turn", "standing_dynamic", "crouching", "crouching_actions", "locomotion", "control_rig", "default_overlay", "bow", "overlays", "footprint", "head", "state_machine", "transition_notify", "foot_ik", "sprint", "ragdoll", "get_up", "camera", "stairs", "uphill_jump", "moving_base", "rotating_base", "interface", "notify", "visibility", "animation_clock")]
     [string]$Case = "state_machine",
     [string]$OutputDirectory,
     [int]$CaptureCount = 0,

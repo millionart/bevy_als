@@ -625,6 +625,7 @@ impl Plugin for ManualPlaygroundIntegrationPlugin {
                     .after(AlsRotationResponseSet)
                     .in_set(ManualIntegrationObservationSet),
             );
+        app.add_systems(PostUpdate, observe_animation_clock.after(bevy_animation_graph::core::plugin::AnimationGraphSet::Final).before(observe_manual_integration).in_set(ManualIntegrationObservationSet));
         app.add_systems(PostUpdate, observe_visibility_case.after(bevy_animation_graph::core::plugin::AnimationGraphSet::Final).before(observe_manual_integration).in_set(ManualIntegrationObservationSet));
         moving_base::install(app);
         footprints::install(app);
@@ -986,6 +987,7 @@ enum IntegrationScenario {
     Interface,
     Notify,
     Visibility,
+    AnimationClock,
 }
 
 impl IntegrationScenario {
@@ -1020,6 +1022,7 @@ impl IntegrationScenario {
             Some("interface") => Self::Interface,
             Some("notify") => Self::Notify,
             Some("visibility") => Self::Visibility,
+            Some("animation_clock") => Self::AnimationClock,
             _ => Self::Base,
         }
     }
@@ -1054,7 +1057,7 @@ fn initial_phase(scenario: IntegrationScenario) -> IntegrationPhase {
         IntegrationScenario::UphillJump => IntegrationPhase::UphillJump,
         IntegrationScenario::MovingBase | IntegrationScenario::RotatingBase => IntegrationPhase::MovingBase,
         IntegrationScenario::Interface => IntegrationPhase::Interface,
-        IntegrationScenario::Notify | IntegrationScenario::Visibility => IntegrationPhase::Notify,
+        IntegrationScenario::Notify | IntegrationScenario::Visibility | IntegrationScenario::AnimationClock => IntegrationPhase::Notify,
     }
 }
 
@@ -3991,6 +3994,44 @@ fn replace_ragdoll_player_once(world: &mut World) {
     info!("[MANUAL-INTEGRATION][RAGDOLL-PLAYER-REPLACEMENT] player={player_entity:?} old_root={old_root:?} -> PASS");
 }
 
+fn animation_clock_results(rows: &[serde_json::Value]) -> Vec<(&'static str, bool)> {
+    let frozen = |start: f64, end: f64| {
+        let rows = rows.iter().filter(|row| row["elapsed"].as_f64().is_some_and(|time| time >= start && time < end)).collect::<Vec<_>>();
+        rows.len() >= 2 && rows.iter().all(|row| row["state"] == rows[0]["state"] && row["state_elapsed"] == rows[0]["state_elapsed"])
+    };
+    let advancing = |start: f64, end: f64| {
+        let rows = rows.iter().filter(|row| row["elapsed"].as_f64().is_some_and(|time| time >= start && time < end)).collect::<Vec<_>>();
+        rows.len() >= 2 && rows.last().unwrap()["state_elapsed"].as_f64() > rows.first().unwrap()["state_elapsed"].as_f64()
+    };
+    let one = rows.iter().filter(|row| row["elapsed"].as_f64().is_some_and(|time| time >= 2.4 && time < 3.6)).map(|row| &row["state_elapsed"]).collect::<std::collections::HashSet<_>>();
+    vec![("clock_paused_transition", frozen(2.4, 2.9)), ("clock_one_frame", one.len() == 2),
+        ("clock_repaused", frozen(3.3, 3.7)), ("clock_custom_dilation", advancing(3.85, 4.25)), ("clock_resumed", advancing(4.6, 5.8))]
+}
+
+fn observe_animation_clock(
+    state: Res<ManualIntegrationState>, mut report: ResMut<ManualIntegrationGateReport>,
+    instances: Query<&AnimatedSceneInstance>, players: Query<&AnimationGraphPlayer>,
+    assets: Res<AssetServer>, graphs: Res<Assets<AnimationGraph>>,
+) {
+    if state.scenario != IntegrationScenario::AnimationClock || state.phase != IntegrationPhase::Notify { return; }
+    let Some(avatar) = state.avatar else { return; };
+    let Ok(instance) = instances.get(avatar) else { return; };
+    let Ok(player) = players.get(instance.player_entity()) else { return; };
+    let Some(arena) = player.get_context_arena() else { return; };
+    for id in arena.iter_context_ids() {
+        let Some(context) = arena.get_context(id) else { continue; };
+        if assets.get_path(context.get_graph_id()).is_none_or(|path| path.path() != std::path::Path::new("ALS/Character/AnimationInstances/AB_Als_Grounded/AnimGraph.animgraph.ron")) { continue; }
+        let Some(graph) = graphs.get(context.get_graph_id()) else { continue; };
+        let Some(node) = graph.nodes.values().find(|node| node.name == "Grounded States\nState Machine") else { continue; };
+        let Some(fsm) = context.node_states.get_all_upcoming_states::<crate::extensions::InterruptibleFsmState>(node.id).ok().and_then(|mut states| states.find(|state| state.last_output_pose().is_some())) else { continue; };
+        let elapsed = state.phase_elapsed(); let bucket = (elapsed * 10.0) as u32;
+        let current = fsm.current_state_elapsed_time();
+        if report.direction_trace.last().is_some_and(|row| row["bucket"] == bucket && row["state_elapsed"].as_f64() == Some(current as f64)) { return; }
+        report.direction_trace.push(serde_json::json!({"bucket":bucket,"elapsed":elapsed,"state":format!("{:?}",fsm.state),"state_elapsed":current,"paused":player.is_paused()}));
+        info!("[MANUAL-INTEGRATION][ANIMATION-CLOCK] elapsed={elapsed:.3} state_elapsed={current:.6} paused={}", player.is_paused());
+    }
+}
+
 fn visibility_case_phase(elapsed: f32) -> &'static str {
     if elapsed < 2.0 { "visible" }
     else if elapsed < 4.5 { "hidden" }
@@ -6299,6 +6340,26 @@ fn drive_manual_integration(
             }
         }
         IntegrationPhase::Notify => {
+            if state.scenario == IntegrationScenario::AnimationClock {
+                if entering { state.notify_roll_armed = false; }
+                input.0.move_dir = Vec2::Y;
+                request.gait = Some(Gait::Running);
+                request.stance = Some(if elapsed < 2.0 { Stance::Standing } else { Stance::Crouching });
+                if let Some(avatar) = state.avatar {
+                    let one_frame = (3.0..3.1).contains(&elapsed) && !state.notify_roll_armed;
+                    if one_frame { state.notify_roll_armed = true; }
+                    let paused = (2.2..3.8).contains(&elapsed);
+                    commands.queue(move |world: &mut World| {
+                        let Some(entity) = world.get::<AnimatedSceneInstance>(avatar).map(AnimatedSceneInstance::player_entity) else { return; };
+                        let Some(mut player) = world.get_mut::<AnimationGraphPlayer>(entity) else { return; };
+                        if one_frame { player.play_one_frame(); } else if paused { player.pause(); } else { player.resume(); }
+                    });
+                    if (3.8..4.3).contains(&elapsed) { commands.entity(character).insert(crate::als_camera::AlsCameraCustomTimeDilation(0.5)); }
+                    else { commands.entity(character).remove::<crate::als_camera::AlsCameraCustomTimeDilation>(); }
+                }
+                if elapsed >= 6.0 { begin_phase(&mut state, IntegrationPhase::Finish); }
+                return;
+            }
             if state.scenario == IntegrationScenario::Visibility {
                 if entering {
                     state.notify_roll_armed = false;
@@ -10589,6 +10650,11 @@ fn observe_manual_integration(
                 ("debug_values", gate_report.direction_trace.iter().any(|entry| entry.get("hud_data_valid").is_some())
                     && gate_report.direction_trace.iter().filter_map(|entry| entry.get("hud_data_valid").and_then(serde_json::Value::as_bool)).all(|valid| valid)),
             ],
+            IntegrationScenario::AnimationClock => {
+                let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph)];
+                results.extend(animation_clock_results(&gate_report.direction_trace));
+                results
+            }
             IntegrationScenario::Visibility => {
                 let mut results = vec![("runtime_assembly", coverage.assembly), ("animation_graph", coverage.graph)];
                 results.extend(visibility_case_results(&gate_report.direction_trace));
@@ -10735,6 +10801,17 @@ fn observe_manual_integration(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn animation_clock_gate_rejects_pause_drift_and_missing_one_frame() {
+        let row = |elapsed, state_elapsed| serde_json::json!({"elapsed":elapsed,"state_elapsed":state_elapsed,"state":"T19"});
+        let rows = vec![row(2.4,0.1),row(2.8,0.1),row(3.02,0.12),row(3.4,0.12),row(3.6,0.12),row(3.9,0.15),row(4.1,0.25),row(4.8,0.5),row(5.5,1.2)];
+        assert!(animation_clock_results(&rows).iter().all(|(_, passed)| *passed));
+        let mut drift = rows.clone(); drift[1]["state_elapsed"] = serde_json::json!(0.2);
+        assert!(animation_clock_results(&drift).iter().any(|(_, passed)| !passed));
+        let mut missing = rows.clone(); for row in &mut missing { if row["elapsed"].as_f64().unwrap() < 3.8 { row["state_elapsed"] = serde_json::json!(0.1); } }
+        assert!(animation_clock_results(&missing).iter().any(|(_, passed)| !passed));
+    }
+
     #[test]
     fn visibility_case_gate_rejects_missing_freeze_pending_clock_and_notifications() {
         let row = |phase, elapsed, frame, graph, bones, pending, roll_time, shakes, footsteps| serde_json::json!({"visibility_phase":phase,"elapsed":elapsed,"frame":frame,"update_graph":graph,"refresh_bones":bones,"pending":pending,"roll_time":roll_time,"shakes":shakes,"footsteps":footsteps});

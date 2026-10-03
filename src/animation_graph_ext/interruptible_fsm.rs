@@ -711,8 +711,15 @@ impl InterruptibleFsmNode {
         if self.internal_time_key.is_empty() {
             return ctx.time_update_fwd();
         }
-        let delta = global_f32_or_root_default(ctx, &self.internal_time_key)?;
-        Ok(TimeUpdate::Delta(delta.max(0.0)))
+        let root = match ctx.graph_context.context_arena.get_ref().get_toplevel().query_output_time.get(bevy_animation_graph::core::context::node_states::StateKey::Default) {
+            Some(update) => update,
+            None => crate::extensions::animation_context::context_time_update(ctx)?,
+        };
+        match root {
+            TimeUpdate::Delta(value) if value > 0.0 => Ok(TimeUpdate::Delta(global_f32_or_root_default(ctx, &self.internal_time_key)?.max(0.0))),
+            TimeUpdate::Delta(_) => Ok(TimeUpdate::Delta(0.0)),
+            _ => crate::extensions::animation_context::context_time_update(ctx),
+        }
     }
 
     fn process_events(
@@ -4109,6 +4116,42 @@ mod tests {
         );
         assert!(state.active_state_id().is_some());
         assert_eq!(active.active_state_id(), None);
+    }
+
+    #[test]
+    fn fsm_internal_clock_respects_root_pause_absolute_seek_and_world_delta() {
+        use bevy::ecs::system::RunSystemOnce;
+        fn query(In((handle, node)): In<(Handle<AnimationGraph>, NodeId)>, resources: SystemResources) {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let env = TestIoEnv::default(); let entities = HashMap::new(); let mut gizmos = DeferredGizmos::default();
+            for (root_update, global_delta, expected) in [
+                (TimeUpdate::Delta(0.1), 0.1_f32, TimeUpdate::Delta(0.1)),
+                (TimeUpdate::Delta(0.0), 0.1, TimeUpdate::Delta(0.0)),
+                (TimeUpdate::Absolute(0.3), 0.0, TimeUpdate::Absolute(0.3)),
+                (TimeUpdate::Delta(0.1), 0.05, TimeUpdate::Delta(0.05)),
+                (TimeUpdate::Delta(0.0), 0.0, TimeUpdate::Delta(0.0)),
+            ] {
+                arena.get_toplevel_mut().query_output_time = QueryOutputTime::Forced(root_update.clone());
+                let inputs = HashMap::from([("delta".to_owned(), DataValue::F32(global_delta))]);
+                let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+                let actual = InterruptibleFsmNode { internal_time_key: "delta".to_owned(), ..default() }.time_update(&context.create_node_context(node)).unwrap();
+                match (actual, expected) {
+                    (TimeUpdate::Delta(actual), TimeUpdate::Delta(expected)) | (TimeUpdate::Absolute(actual), TimeUpdate::Absolute(expected)) => assert_eq!(actual, expected),
+                    _ => panic!("Effective FSM time request type changed"),
+                }
+                let inherited = InterruptibleFsmNode::default().time_update(&context.create_node_context(node)).unwrap();
+                match (inherited, root_update) {
+                    (TimeUpdate::Delta(actual), TimeUpdate::Delta(expected)) | (TimeUpdate::Absolute(actual), TimeUpdate::Absolute(expected)) => assert_eq!(actual, expected),
+                    _ => panic!("Inherited FSM time request type changed"),
+                }
+            }
+        }
+        let node = AnimationNode::new("time fixture", GlobalPoseInputNode { key: "Pose".to_owned(), output: "Pose".to_owned() });
+        let mut graph = AnimationGraph::new(); graph.add_node(node.clone()); graph.add_output_time(); graph.add_output_pose_edge(node.id);
+        let mut graphs = Assets::<AnimationGraph>::default(); let root = graphs.add(graph);
+        let mut world = World::new(); world.insert_resource(graphs); world.init_resource::<Assets<GraphClip>>();world.init_resource::<Assets<Skeleton>>();world.init_resource::<Assets<StateMachine>>();
+        world.run_system_once_with(query, (root, node.id)).unwrap();
     }
 
     #[test]

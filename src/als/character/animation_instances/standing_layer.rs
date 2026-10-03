@@ -3106,6 +3106,55 @@ mod tests {
     }
 
     #[test]
+    fn paused_generated_fsm_keeps_the_actual_crouching_transition_elapsed() {
+        fn elapsed(app: &App, player: Entity) -> f32 {
+            let instance = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+            let arena = instance.get_context_arena().unwrap();
+            arena.iter_context_ids().find_map(|id| {
+                let context = arena.get_context(id)?;
+                if app.world().resource::<AssetServer>().get_path(context.get_graph_id())?.path() != Path::new("ALS/Character/AnimationInstances/AB_Als_Grounded/AnimGraph.animgraph.ron") { return None; }
+                let graph = app.world().resource::<Assets<AnimationGraph>>().get(context.get_graph_id())?;
+                let node = graph.nodes.values().find(|node| node.name == "Grounded States\nState Machine")?;
+                let state = context.node_states.get_all_upcoming_states::<InterruptibleFsmState>(node.id).ok()?.find(|state| state.last_output_pose().is_some())?;
+                assert!(matches!(state.state, LowLevelStateId::HlTransition(_)), "The actual T19 transition was not active");
+                Some(state.current_state_elapsed_time())
+            }).unwrap()
+        }
+        let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().entity_mut(character).insert((avian3d::prelude::RigidBody::Kinematic, bevy_tnua::TnuaToggle::Disabled));
+        #[derive(Resource)]
+        struct PauseFixture(Stance);
+        app.insert_resource(PauseFixture(Stance::Standing));
+        app.add_systems(PostUpdate, (move |fixture: Res<PauseFixture>, mut actors: Query<(&mut AlsActualMotion, &mut Gait, &mut Stance, &mut LocomotionState, &mut AlsInputCommand)>| {
+            let (mut motion, mut gait, mut stance, mut mode, mut input) = actors.get_mut(character).unwrap();
+            *gait = Gait::Running; *stance = fixture.0; *mode = LocomotionState::Grounded;
+            motion.horizontal_speed = 2.5; motion.world_velocity = Vec3::NEG_Z * 2.5; motion.has_input = true; input.move_dir = Vec2::Y;
+        }).after(crate::actual_motion::AlsActualMotionSet).before(crate::gait_layer::AlsGaitLayerSet));
+        for _ in 0..90 { app.update(); }
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.1)));
+        app.world_mut().resource_mut::<PauseFixture>().0 = Stance::Crouching;
+        app.update();
+        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let before = elapsed(&app, player);
+        app.world_mut().get_mut::<AnimationGraphPlayer>(player).unwrap().pause();
+        for _ in 0..3 {
+            app.update();
+            assert_eq!(elapsed(&app, player), before, "The paused generated FSM consumed positive global delta");
+        }
+        app.world_mut().get_mut::<AnimationGraphPlayer>(player).unwrap().play_one_frame();
+        app.update();
+        let one_frame = elapsed(&app, player);
+        assert!((one_frame - before - 0.1).abs() < 1e-5);
+        assert!(app.world().get::<AnimationGraphPlayer>(player).unwrap().is_paused());
+        app.update();
+        assert_eq!(elapsed(&app, player), one_frame);
+        app.world_mut().entity_mut(character).insert(crate::als_camera::AlsCameraCustomTimeDilation(0.5));
+        app.world_mut().get_mut::<AnimationGraphPlayer>(player).unwrap().resume();
+        app.update();
+        assert!((elapsed(&app, player) - one_frame - 0.05).abs() < 1e-5);
+    }
+
+    #[test]
     fn visibility_initializes_a_new_hidden_instance_before_applying_tick_policy() {
         let (mut app, _, avatar) = crate::roll_drive::tests::loaded_roll_character();
         app.world_mut().entity_mut(avatar).remove::<crate::animation_visibility::AlsAnimationTickOption>().insert(Visibility::Hidden);
