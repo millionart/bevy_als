@@ -92,7 +92,7 @@ fn successful_readback_bones(
 ) -> HashSet<BoneId> {
     map.bones_from_bodies.iter().filter_map(|(path, mapping)| {
         if !config.should_readback(path.id()).unwrap_or(true) { return None; }
-        mapping.bodies.iter().any(|body| spawned.bodies.get(&body.body)
+        mapping.bodies.iter().any(|body| body.weight > 0.0 && spawned.bodies.get(&body.body)
             .is_some_and(|entity| bodies.get(*entity).is_ok())).then_some(path.id())
     }).collect()
 }
@@ -226,6 +226,129 @@ fn extract_late_root_motion(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn weighted_ragdoll_readback_keeps_shortest_rotation_and_zero_weight_input() {
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{animation_graph::AnimationGraph, animation_clip::{EntityPath, GraphClip},
+            pose::BonePose, ragdoll::{bone_mapping::{BodyWeight, BoneMapping}, definition::Body, read_pose_avian::read_pose},
+            state_machine::high_level::StateMachine};
+        fn read(In((input, map, spawned, id, enabled, entities)): In<(Pose, RagdollBoneMap, SpawnedRagdoll, BoneId, bool, HashMap<BoneId, Entity>)>,
+            resources: SystemResources, bodies: Query<(&Position, &Rotation)>) -> Transform {
+            let fallback = PoseFallbackContext { entity_map: &entities, resources: &resources, fallback_to_identity: true };
+            let config = RagdollConfig { default_readback: Some(enabled), ..default() };
+            read_pose(&spawned, &map, resources.skeleton_assets.get(&input.skeleton).unwrap(), &bodies, fallback,
+                &input, &config).get_bone(id).unwrap().to_transform()
+        }
+        for parent in [Quat::IDENTITY, Quat::from_rotation_z(0.4)] {
+            for offset in [Quat::IDENTITY, Quat::from_rotation_x(-0.3)] {
+                for angle in [0.0_f32, 0.7, 2.9] {
+                    for signs in [[1.0, 1.0], [1.0, -1.0], [-1.0, 1.0], [-1.0, -1.0]] {
+                        for weights in [[0.5_f32, 0.5], [0.2, 0.8], [1.0, 0.0], [0.0, 1.0], [0.0, 0.0]] {
+                            for enabled in [false, true] {
+                                for mapping in ["normal", "reversed", "duplicated", "missing", "unspawned"] {
+                                    let mut world = World::new();
+                                    world.init_resource::<Assets<AnimationGraph>>();
+                                    world.init_resource::<Assets<GraphClip>>();
+                                    world.init_resource::<Assets<Skeleton>>();
+                                    world.init_resource::<Assets<StateMachine>>();
+                                    let root = EntityPath::from_slashed_string("root".into());
+                                    let path = root.child("child");
+                                    let id = path.id();
+                                    let parent_transform = Transform::from_xyz(1.0, 2.0, 3.0).with_rotation(parent);
+                                    let base = Transform::from_xyz(0.3, 0.2, 0.1).with_rotation(Quat::from_rotation_y(-0.2));
+                                    let mut skeleton = Skeleton::default();
+                                    skeleton.add_bone(root.clone(), parent_transform, parent_transform);
+                                    skeleton.set_root(root.id());
+                                    skeleton.add_bone(path.clone(), base, parent_transform * base);
+                                    let skeleton = world.resource_mut::<Assets<Skeleton>>().add(skeleton);
+                                    let mut input = Pose { skeleton: skeleton.clone(), ..default() };
+                                    input.add_bone(BonePose::from_transform(parent_transform), root.id());
+                                    input.add_bone(BonePose::from_transform(base), id);
+                                    let rotations = [Quat::from_rotation_y(0.3), Quat::from_rotation_y(angle)];
+                                    let mut spawned = SpawnedRagdoll::new(Entity::PLACEHOLDER);
+                                    let bodies = [0, 1].map(|index| {
+                                        let body = Body::new().id;
+                                        spawned.bodies.insert(body, world.spawn((Position(Vec3::new(2.0, 3.0, 4.0)), Rotation(rotations[index] * signs[index]))).id());
+                                        BodyWeight { body, weight: weights[index], offset: Isometry3d::new(Vec3::ZERO, offset), ..default() }
+                                    });
+                                    let mut mappings = bodies.to_vec();
+                                    match mapping {
+                                        "reversed" => mappings.reverse(),
+                                        "duplicated" => {
+                                            mappings[0].weight *= 0.5;
+                                            mappings.push(mappings[0].clone());
+                                        }
+                                        "missing" => { world.despawn(spawned.bodies[&bodies[1].body]); }
+                                        "unspawned" => { spawned.bodies.remove(&bodies[1].body); }
+                                        _ => {}
+                                    }
+                                    let map = RagdollBoneMap { skeleton, ragdoll: default(), skeleton_symmetry: default(),
+                                        bones_from_bodies: [(path.clone(), BoneMapping { bone_id: path, bodies: mappings, ..default() })].into(),
+                                        bodies_from_bones: default() };
+                                    let root_entity = world.spawn((parent_transform, GlobalTransform::from(parent_transform))).id();
+                                    let entities = [(root.id(), root_entity)].into();
+                                    let actual = world.run_system_cached_with(read, (input, map, spawned, id, enabled, entities)).unwrap();
+                                    let effective_weights = if matches!(mapping, "missing" | "unspawned") { [weights[0], 0.0] } else { weights };
+                                    let total_weight = effective_weights.iter().sum::<f32>();
+                                    let expected = if enabled && total_weight > 0.0 {
+                                        let first = parent.conjugate() * rotations[0] * offset;
+                                        let second = parent.conjugate() * rotations[1] * offset;
+                                        first.lerp(second, effective_weights[1] / total_weight)
+                                    } else { base.rotation };
+                                    assert!(actual.rotation.is_finite() && (actual.rotation.length_squared() - 1.0).abs() < 1e-5
+                                        && actual.rotation.dot(expected).abs() > 1.0 - 1e-5,
+                                        "Wrong weighted readback: angle={angle}, signs={signs:?}, weights={weights:?}, enabled={enabled}, mapping={mapping}, actual={actual:?}");
+                                    if !enabled || total_weight == 0.0 { assert!(actual.translation.abs_diff_eq(base.translation, 1e-6)); }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn weighted_ragdoll_readback_preserves_antipodal_body_rotations() {
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{animation_graph::AnimationGraph, animation_clip::{EntityPath, GraphClip},
+            pose::BonePose, ragdoll::{bone_mapping::{BodyWeight, BoneMapping}, definition::Body, read_pose_avian::read_pose},
+            state_machine::high_level::StateMachine};
+        fn read(In((input, map, spawned, id)): In<(Pose, RagdollBoneMap, SpawnedRagdoll, BoneId)>,
+            resources: SystemResources, bodies: Query<(&Position, &Rotation)>) -> Quat {
+            let entities = HashMap::new();
+            let fallback = PoseFallbackContext { entity_map: &entities, resources: &resources, fallback_to_identity: true };
+            read_pose(&spawned, &map, resources.skeleton_assets.get(&input.skeleton).unwrap(), &bodies, fallback,
+                &input, &RagdollConfig::default()).get_bone(id).unwrap().rotation.unwrap()
+        }
+        let mut world = World::new();
+        world.init_resource::<Assets<AnimationGraph>>();
+        world.init_resource::<Assets<GraphClip>>();
+        world.init_resource::<Assets<Skeleton>>();
+        world.init_resource::<Assets<StateMachine>>();
+        let path = EntityPath::from_slashed_string("root".into());
+        let id = path.id();
+        let mut skeleton = Skeleton::default();
+        skeleton.add_bone(path.clone(), Transform::IDENTITY, Transform::IDENTITY);
+        skeleton.set_root(id);
+        let skeleton = world.resource_mut::<Assets<Skeleton>>().add(skeleton);
+        let mut input = Pose { skeleton: skeleton.clone(), ..default() };
+        input.add_bone(BonePose::from_transform(Transform::IDENTITY), id);
+        let rotation = Quat::from_rotation_y(0.7);
+        let mut map = RagdollBoneMap { skeleton, ragdoll: default(), skeleton_symmetry: default(),
+            bones_from_bodies: default(), bodies_from_bones: default() };
+        let mut spawned = SpawnedRagdoll::new(Entity::PLACEHOLDER);
+        let bodies = [rotation, -rotation].map(|rotation| {
+            let body = Body::new().id;
+            spawned.bodies.insert(body, world.spawn((Position(Vec3::ZERO), Rotation(rotation))).id());
+            BodyWeight { body, weight: 0.5, ..default() }
+        });
+        map.bones_from_bodies.insert(path.clone(), BoneMapping { bone_id: path, bodies: bodies.into(), ..default() });
+        let actual = world.run_system_cached_with(read, (input, map, spawned, id)).unwrap();
+        assert!(actual.is_finite() && (actual.length_squared() - 1.0).abs() < 1e-6
+            && actual.dot(rotation).abs() > 1.0 - 1e-6, "Antipodal body weights destroyed rotation: {actual:?}");
+    }
     use bevy_animation_graph::core::{
         animation_clip::{EntityPath, GraphClip}, animation_graph::AnimationGraph, animation_node::AnimationNode,
         edge_data::{DataSpec, DataValue}, pose::{BonePose, Pose, RootMotionDelta},
@@ -288,7 +411,7 @@ mod tests {
             for scale in [2.0, 0.5, 1.0] {
                 for root_readback in [true, false] {
                     for child_readback in [true, false] {
-                        for gap in ["unmapped", "masked", "missing", "unspawned", "read"] {
+                        for gap in ["unmapped", "masked", "missing", "unspawned", "zero", "read"] {
                             let mut world = World::new();
                             world.init_resource::<Assets<AnimationGraph>>();
                             world.init_resource::<Assets<GraphClip>>();
@@ -333,7 +456,8 @@ mod tests {
                                 if index != 1 || gap != "unspawned" { spawned.bodies.insert(body, entity); }
                                 if index != 1 || gap != "unmapped" {
                                     map.bones_from_bodies.insert(paths[index].clone(), BoneMapping {
-                                        bone_id: paths[index].clone(), bodies: vec![BodyWeight { body, weight: 1.0, ..default() }], ..default()
+                                        bone_id: paths[index].clone(), bodies: vec![BodyWeight { body,
+                                            weight: if index == 1 && gap == "zero" { 0.0 } else { 1.0 }, ..default() }], ..default()
                                     });
                                 }
                                 if index == 1 && gap == "missing" { world.despawn(entity); }

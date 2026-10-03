@@ -97,7 +97,7 @@
 ### PhysicsAsset、关节求解与布娃娃回读
 
 - [x] **BF132.R71-01 — 全锁线性关节的速度约束门限与源 cached SIMD 三轴块语义不一致**。Gate：确认实际源求解器分支；全零/单轴/多轴位置 lambda、速度变化与非零锚臂保留三轴合同。
-- [ ] **BF132.R71-02 — 多权重 ragdoll 回读直接相加四元数，符号相消后产生无效旋转**。Gate：q/-q 等价旋转混合保持单位/有限，部分回读及零权重控制通过。
+- [x] **BF132.R71-02 — 多权重 ragdoll 回读直接相加四元数，符号相消后产生无效旋转**。Gate：q/-q 等价旋转混合保持单位/有限，部分回读及零权重控制通过。
 - [ ] **BF132.R71-05 — 源要求随缩放更新质量，目标却固定生成的 Override 质量**。Gate：effective Body scale、密度/质量幂与 Override 开关分别按源生成及重算。
 - [ ] **BF132.R71-10 — 脱离后的 ragdoll 物理配置仍读取原 avatar 宿主缩放**。Gate：脱离前后实际 root/world scale 正确重配，宿主变化不污染脱离体。
 - [ ] **BF132.R71-11 — 默认 PA_Als 的 cached 双轴摆动限制被替换成更窄的椭圆边界**。Gate：fresh 实际 cached/ordinary 分支与默认 PA 配置共同证明正确边界，斜向/轴向与内外控制通过。
@@ -496,3 +496,19 @@
 - BF132.R71-01-S2：开始2026-10-04 06:25 +08:00；预估结束2026-10-04 06:50 +08:00。依据：当前source/static/最小red/三层消融与真实Avian回归完成，target_game/play约145秒重建、startup/Ragdoll/GetUp真实原场景功能与报告审计/单项提交，原截图/完整性能暂停保留。
   - Runtime前摘要（2026-10-04 06:28 +08:00）：18关节/native调度/144 lambda/frame/arms/dynamic矩阵、whole/snapshot/arms三层消融red→byte恢复mtimegreen、fresh PA/UE实际cached SIMD/单位/source manifest静态闭合；143.470秒target_game/play实际启动器最终重建完成。velocity仅块激活与已有prepared basis/arms，原angular/drive/原始资产/图/转换未改；开始startup/Ragdoll/GetUp同版公共功能，截图/完整性能原暂停保留。
   - S2实际结束2026-10-04 06:36 +08:00；相对06:50预估提前13分钟；结果：143.470秒target_game/play同启动器预构建，同版startup/Ragdoll11/11/GetUp11/11公共功能runner/manual/validator退出0，三报告graph/primary failure/fault/temporal/watchdog均0；完整max_eval_p95_ms未通过、截图/完整性能原暂停保留。fresh PA cached配置20（19显式linear locked，root/pelvis free）/world UseSimd默认true无ALS override/cached全锁bool分支，ANYlambda>UE_SMALL_NUMBER触发3轴SIMD块、Init快照axis/arm及英语logs/单位闭合；targetλ世界量复算local，kg·cm→kg·m threshold1e-10严格>，不L2/peraxis过滤。实际Avian position仅X lambda/Y速度1 old red→Y0 green；144控制含零/单/多轴、静动态/非零arm/旋转变化/边界、18 joint真实调度/drive/angle回归通过，旧whole2red/snapshot1red/arms1red保留→byte恢复mtimegreen，source/static/manifest通过。只velocity函数用已有data.frames/arms，没有新state/抽象/special算法或PhysicsAsset/graph/converter修改。S1开始05:49/预计06:24/实际06:25+1分钟，S2有效估时内完成；勾选R71-01单独提交，42/49完成，下一项R71-02，7项待处理。
+
+- BF132.R71-02-S1：开始2026-10-04 06:43 +08:00；预估结束2026-10-04 07:23 +08:00。依据：fresh PhysAnim physics transform Blend→Quat FastLerp shortest hemisphere→Normalize 与目标公开read_pose唯一加权累加；先真实read_pose合法两Body .5q/.5(-q) red，最小同半球相加/零weight不写回，单/多/重复/顺序/offset/parent/readback开关和当前帧输入合同、消融/定向回归。公开read_pose没有rotation reducer回调；项目system可替换但复制读回/空间变换及整个遍历约130行会长期维护同一能力两份，sanitize map会逐帧clone且仍zero失败，无法用现有公开点最小修数学根因。只在已经使用的codex/bevy-als-support fork补通用数学（不改ID/ALS图）、记录维护成本为此函数6行左右及新pin一次，与此前fork维护边界相同；不新fork/vendor，静态通过后真实入口S2。
+
+  - S1中间闭环 2026-10-04 07:13 +08:00：fresh native PA_Als/PhysAnim Transform::Blend/Quat::FastLerp 两种Transform实现证明positive权重最短路径归一、零权重不覆盖当帧动画；实际公开read_pose .5q/.5(-q)稳定red→6行数学green，480 parent/offset/sign/weight/enable组合green。扩展2400组合含顺序/三Body重复/缺失/未生成；hemisphere消融2red，zero过滤消融1red（仅剩zero Body后NaN）；各消融均有watchdog机器报告，不增加fallback/epsilon/state。图ABI/布局/editor/runtime boundary及source哈希通过。当前按zero读回成功条件验证scale-normalizer衔接，静态完成后只做同pin真实入口；尚未通过最终pin、缩放zero控制、公共runtime Gate。
+
+  - S1实际结束2026-10-04 07:22 +08:00；相对07:23预估提前1分钟，结果：fresh PA/PhysAnim/两种Transform/Quat闭包、2400实际read_pose parent/offset/符号/权重/开关/顺序/三Body/partial控制及144 scaled-gap组合通过，hemisphere2red、zero1red及scale-success1red→字节恢复/一个positive-weight成功条件green。1377库测试全部通过；已有支持fork通用6行数学e77d149已推送，正式锁5包仅SHA变更，下载源码与全库验证版逐字相同，正式pin 5项post_physics回归及authoring ABI/layout/editor/boundary/source hashes通过。没有新state/抽象/graph或converter改动；仅成功回读集合与依赖zero语义同步，维护成本仍为唯一generic reducer6行与pin。真实入口尚未通过，保持未勾选。
+
+- BF132.R71-02-S2：开始2026-10-04 07:22 +08:00；预估结束2026-10-04 07:52 +08:00。依据：source/static/三个独立反例及恢复Gate已通过、正式依赖已锁；同入口target_game/play预构建预计2–3分钟，startup/Ragdoll/GetUp公共功能约一分钟及报告审计/单独提交；截图与完整性能原暂停范围保留。
+
+  - S2/runtime前 2026-10-04 07:25 +08:00：正式e77d149锁定版149.841秒target_game/play真实启动器预构建退出0；fresh source/static/1377恢复+正式pin5项及三反例Gate闭合，开始原Playground startup公共功能Gate，随后仅验证Ragdoll/GetUp消费者；不启动截图/完整性能。
+
+  - S2/startup后、Ragdoll前 2026-10-04 07:26 +08:00：同版startup功能runner/manual/validator退出0、ready=true、graph/primary failure/fault/temporal/watchdog均0；完整max_eval_p95_ms未通过并维持原暂停。只继续fresh source及静态已覆盖的Ragdoll实际姿态回读/消费者公共Gate。
+
+  - S2/Ragdoll后、GetUp前 2026-10-04 07:26 +08:00：同版Ragdoll 11/11功能项通过（scaled/关节/恢复/相机与输入消费者），runner/manual/validator退出0、图/primary failure/fault/temporal/watchdog均0；完整性能与截图仍暂停。继续已覆盖GetUp公共姿态及生命周期Gate。
+
+  - S2实际结束2026-10-04 07:27 +08:00；相对07:52预估提前25分钟；结果：正式e77d149锁定版149.841秒target_game/play预构建，同版startup/Ragdoll11/11/GetUp11/11公共功能runner/manual/validator均退出0，三报告ready=true、graph/primary failure/fault/temporal/watchdog均0；完整max_eval_p95_ms未通过、截图/完整性能原暂停保留。2400实际Body权重/父级/offset/符号/顺序/duplicate/partial/zero与144缩放gap控制、原NaN/hemisphere2red/zero1red/scale-success1red→恢复green、1377全库及正式pin5项回归/source/static/manifest通过。最小实现为既有fork6行generic quaternion reducer/zero过滤与目标成功集合一个positive-weight判断，无新状态/抽象、ID特例、source asset或图/converter变化。S1开始06:43/预计07:23/实际07:22提前1分钟，S2有效估时内完成；勾选R71-02单独提交，43/49完成，下一项R71-05，6项待处理。
