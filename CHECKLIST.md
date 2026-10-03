@@ -82,7 +82,7 @@
 - [x] **BF132.R71-18 — 翻滚把已停止 Montage 的淡出尾段继续视为不可重入，丢弃源端允许的新翻滚请求**。Gate：停止/播放/淡出区分，尾段重入被接受且旧实例完成清理。
 - [x] **BF132.R5E-19 — 根运动缩放通知在 Active 阶段反复夺回数值，偏离源 Begin-only 生命周期**。Gate：重叠通知、外部写入与 End 条件恢复，Active 不夺回缩放。
 - [x] **BF132.R5E-20 — Pivot 请求只携带角色，下一帧用新速度重新判断激活门槛**。Gate：保存通知当次输入的严格门槛结果，跨阈值、Initialize/Reset 覆盖通过。
-- [ ] **BF132.R5E-21 — 过渡 montage 把负 PlayRate 钳成正 EPSILON，倒播近乎变为冻结**。Gate：有符号采样、方向相关终止/寿命、零速率、反向通知与曲线时钟通过。
+- [x] **BF132.R5E-21 — 过渡 montage 把负 PlayRate 钳成正 EPSILON，倒播近乎变为冻结**。Gate：有符号采样、方向相关终止/寿命、零速率、反向通知与曲线时钟通过。
 - [ ] **BF132.R5E-22 — 设置落地入口通知忽略空标签，不能清除既有 FromRoll**。Gate：空/自定义/FromRoll 标签完整赋值，独立 Reset 与真实入口分支通过。
 - [ ] **BF132.R5E-23 — 翻滚首次通知采样丢弃已推进的首个时间区间**。Gate：首帧长 Delta、不为零的起播、seek、资产迟到与后续无重复通知通过。
 - [ ] **BF132.R5E-24 — 移动下蹲交叉混合期间，仍相关的 Standing 分支使用陈旧输入**。Gate：T19 淡出期 Standing 按实际相关性刷新 Gait/stride/rate，结束后生命周期与脚锁归属正确。
@@ -369,3 +369,12 @@
   - Runtime前摘要（17:07 +08:00）：target_game/play实际启动器最终预构建145.354秒通过；fresh source/current-instance speed→captured bool→writer→T32→First Pivot Reset、10组跨阈值/prior-active/相关生命周期、producer/consumer独立消融及适用回归、最终manifest/static通过。图/转换/资产未改；开始同一二进制startup/standing_response/Notify公共功能Gate，原截图/完整性能暂停保留。
 
   - S2实际结束2026-10-03 17:09 +08:00；相对17:29预估偏差-20分钟；结果：同一最终二进制startup、StandingResponse 6/6、Notify 13/13公共功能runner/manual/validator退出0，三报告graph/primary failure/fault/temporal/watchdog均0。完整max_eval_p95_ms未通过、截图及完整性能原暂停保留。10跨阈值/prior-active、source7帧相关/重相关/无notify、240帧真实generated派发及T32 Run→First Pivot/Reset、producer/consumer独立消融red恢复green、41standing/9transition回归与manifest/static闭合；只沿现有通知/request传当次bool，writer不重判，legacy pending显式false覆盖且无通知保持，没有timer/新状态机/图/转换/原始资产变更。四轮漂移与夹具错误均记录，第四轮重拆静态/真实入口后分别通过；勾选R5E-20单独提交，下一项R5E-21，19项待处理。
+
+- BF132.R5E-21-S1：开始2026-10-03 17:11 +08:00；预估结束2026-10-03 17:46 +08:00。依据：fresh ALS公开Transition调用→queued dynamic montage→UE signed instance/substep/section boundary，目标唯一AlsTransitionPlayback.advance及真实Slot clock/curve/notify消费者闭包；已有loaded transition fixture和stop/replacement控制可复用。本轮先0.5起点/-1/.1秒真实时钟red，再保留signed rate、方向剩余时间及零速率，覆盖-2/-.5/正向/边界/零Delta/停止与替换，并消融各必要分支；不声称默认选择器生成负率，不增加Montage框架，图/转换若未改无需全量转换。source/static后真实入口独立S2。
+  - source/static摘要（17:18 +08:00）：fresh本地Transition Right原生71keys及ALS公开signed参数/Queued trigger0、UE instance保存符号/单段无TimeStretch substep与方向section end、factory未重复应用InPlayRate闭合。0.5/-1/.1最小旧时钟0.5稳定red；18方向/起终点寿命、3零/near-zero及替换淡出green；10真实Standing/Crouching×rate组合各6帧slot骨骼/曲线/previous/current/signed delta与root graph输出green。只修现有advance的signed/clamp/direction/zero寿命，不引入状态或Montage框架；正在对原算法和方向寿命分别消融，事件跨越负向控制与最终回归/static待结束，未真实Gate。
+
+  - S1实际结束2026-10-03 17:27 +08:00；相对17:46预估偏差-19分钟；结果：最小倒播red，18方向/合法起终点寿命+3零/near-zero+停止/替换fade、10实际Standing/Crouching×rate各6帧slot bone/curve/clock/反向event-crossing通过，16stop与9notify回归通过；旧算法/反向寿命/零寿命三消融分别red、byte恢复刷新mtime最终2native测试green。source dynamic factory/queued signed参数/trigger0/UE近零1e-8与方向section end闭合，manifest/root ABI/layout/editor/原始资产边界通过；只改已有advance，不新增组件/状态/适配框架，graph/转换未改。本项限定有限速率、合法片段内起点、单段无TimeStretch；默认自动选择器仍只作正向控制，不声称其生成负率。下一步公共入口。
+- BF132.R5E-21-S2：开始2026-10-03 17:27 +08:00；预估结束2026-10-03 17:52 +08:00。依据：source/static/消融闭合，同类预构建146秒、startup/standing_stop/transition_notify约100秒，本轮实际入口同版与报告审计/单独提交，原截图/完整性能暂停保留。
+  - Runtime前摘要（17:29 +08:00）：target_game/play实际入口最终预构建143.798秒通过；25项定向、18+3时钟寿命/10×6帧native Slot姿态曲线与反向事件、三个消融red/恢复green、source/static/manifest闭合。仅现有advance signed/方向/零寿命修复，graph/converter不变；开始同一二进制startup/standing_stop/transition_notify功能Gate，截图/完整性能原暂停保留。
+
+  - S2实际结束2026-10-03 17:32 +08:00；相对17:52预估偏差-20分钟；结果：143.798秒同入口预构建，同一二进制startup、StandingStop 10/10、TransitionNotify 3/3公共功能runner/manual/validator退出0，三报告graph/primary failure/fault/temporal/watchdog均0；完整max_eval_p95_ms未通过，截图及完整性能原暂停保留。25匹配回归、18方向起终点寿命/3零与near-zero/停止替换fade、10×6帧实际Slot bone/curve/signed clock与反向event-crossing、原算法/方向寿命/零寿命消融red和byte恢复green、fresh source/native/manifest/static闭合。只替换既有advance的正EPSILON时钟和正向寿命，保留signed/方向边界/源近零，不增加生产状态/框架；合法有限参数单段无TimeStretch边界保留，默认正向路径仅作控制，图/转换/原始资产未改。S1/S2各自提前完成；勾选R5E-21单独提交，下一项R5E-22，18项待处理。

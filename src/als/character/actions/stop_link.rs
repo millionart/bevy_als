@@ -252,9 +252,15 @@ impl AlsTransitionPlayback {
         }
         self.previous_clip_time = self.clip_time;
         self.elapsed += delta_seconds.max(0.0);
-        let play_rate = self.play_rate.max(f32::EPSILON);
-        self.clip_time = (self.start_time + self.elapsed * play_rate).min(self.duration);
-        let playback_duration = (self.duration - self.start_time).max(0.0) / play_rate;
+        let play_rate = if self.play_rate.abs() <= 1e-8 { 0.0 } else { self.play_rate };
+        self.clip_time = (self.start_time + self.elapsed * play_rate).clamp(0.0, self.duration);
+        let playback_duration = if play_rate == 0.0 {
+            f32::INFINITY
+        } else if play_rate < 0.0 {
+            self.start_time.max(0.0) / -play_rate
+        } else {
+            (self.duration - self.start_time).max(0.0) / play_rate
+        };
         if let Some(stop_elapsed) = &mut self.stop_elapsed {
             *stop_elapsed += delta_seconds.max(0.0);
         } else {
@@ -1048,6 +1054,109 @@ mod tests {
                 assert!(sample.clock.playback_delta_seconds > 0.0);
                 assert!((sample.clock.playback_delta_seconds
                     - (sample.clock.position - sample.clock.previous_position)).abs() < 1e-6);
+            }
+        }
+    }
+
+    #[test]
+    fn transition_signed_playback_preserves_direction_and_boundary_lifetime() {
+        for rate in [-2.0_f32, -1.0, -0.5, 0.5, 1.0, 2.0] {
+            for start in [0.0_f32, 0.5, 1.0] {
+                let mut playback = AlsTransitionPlayback::new(AlsTransitionKind::StandingTransition, 1.0, 0.0, 0.2, rate, start, 1.0);
+                playback.advance(0.0);
+                assert_eq!(playback.clip_time, start);
+                let lifetime = if rate < 0.0 { start / -rate } else { (1.0 - start) / rate };
+                let dt = lifetime.min(0.1);
+                playback.advance(dt);
+                assert!((playback.clip_time - (start + dt * rate).clamp(0.0, 1.0)).abs() < 1e-6, "Signed time failed: rate={rate}, start={start}, actual={}", playback.clip_time);
+                playback.advance((lifetime - dt).max(0.0));
+                assert!((playback.clip_time - if rate < 0.0 { 0.0 } else { 1.0 }).abs() < 1e-6);
+                assert!(playback.active && playback.stop_elapsed.is_some());
+                playback.advance(0.1);
+                assert!((playback.weight - 0.5).abs() < 1e-5);
+                playback.advance(0.1);
+                assert!(!playback.active && playback.weight == 0.0);
+            }
+        }
+        for rate in [0.0, 1e-9, -1e-9] {
+            let mut playback = AlsTransitionPlayback::new(AlsTransitionKind::StandingTransition, 1.0, 0.1, 0.2, rate, 0.5, 1.0);
+            playback.advance(100.0);
+            assert_eq!(playback.clip_time, 0.5);
+            assert!(playback.active && playback.weight == 1.0 && playback.stop_elapsed.is_none());
+            playback.request_stop();
+            playback.advance(0.2);
+            assert!(!playback.active && playback.clip_time == 0.5);
+        }
+        let mut stack = AlsTransitionMontageStack::default();
+        stack.begin(AlsTransitionPlayback::new(AlsTransitionKind::StandingTransition, 1.0, 0.0, 0.2, -1.0, 0.5, 1.0));
+        stack.advance(0.1);
+        stack.begin(AlsTransitionPlayback::new(AlsTransitionKind::StandingTransition, 0.0, 0.1, 0.2, 1.0, 0.2, 1.0));
+        stack.advance(0.05);
+        assert_eq!(stack.entries.len(), 2);
+        assert!((stack.entries[0].clip_time - 0.35).abs() < 1e-6);
+        assert!((stack.latest().unwrap().clip_time - 0.25).abs() < 1e-6);
+        stack.advance(0.05);
+        assert_eq!(stack.entries.len(), 1);
+    }
+
+    #[test]
+    fn transition_signed_playback_reaches_actual_slot_pose_curves_and_event_clock() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy_animation_graph::core::{animation_clip::GraphClip, skeleton::Skeleton};
+        for crouching in [false, true] {
+            for rate in [-2.0_f32, -1.0, -0.5, 0.0, 1.0] {
+                let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+                play_loaded_transition(&mut app, character);
+                app.world_mut().get_mut::<Stance>(character).map(|mut stance| *stance = if crouching { Stance::Crouching } else { Stance::Standing });
+                app.world_mut().run_system_once(move |mut commands: Commands| {
+                    play_transition(&mut commands, character, AlsTransitionPlayback::transition_animation(crouching, false, 0.0, 0.2, rate, 0.5));
+                }).unwrap();
+                let target = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+                let mut last_time = 0.5;
+                let mut pose_changed = false;
+                let mut last_pose = None;
+                for _ in 0..6 {
+                    app.update();
+                    let entry = app.world().get::<AlsTransitionMontageStack>(character).unwrap().latest().unwrap();
+                    let dt = app.world().resource::<Time>().delta_secs();
+                    let expected_time = (0.5 + entry.elapsed * rate).clamp(0.0, entry.duration);
+                    assert!((entry.clip_time - expected_time).abs() < 1e-6);
+                    let context = app.world().get::<crate::extensions::SourceAnimationInputs>(target).unwrap().slot_input_context(GENERATED_TRANSITION_SLOT_POSE_KEY).unwrap();
+                    let sample = context.asset_samples.iter().find(|sample| sample.identity == format!("transition:{}", entry.instance_id)).unwrap();
+                    assert!((sample.clock.position - expected_time).abs() < 1e-6);
+                    assert!((sample.clock.previous_position - last_time).abs() < 1e-6);
+                    assert!((sample.clock.playback_delta_seconds - rate * dt).abs() < 1e-6);
+                    if rate != 0.0 {
+                        let clock = crate::extensions::EventClock {
+                            previous_time: sample.clock.previous_position, current_time: sample.clock.position,
+                            duration: sample.clock.duration, wrapped: false,
+                            direction: if rate < 0.0 { crate::extensions::PlaybackDirection::Backward } else { crate::extensions::PlaybackDirection::Forward },
+                        };
+                        assert!(crate::extensions::event_lifecycle::crossed_time((last_time + expected_time) * 0.5, clock));
+                        assert!(!crate::extensions::event_lifecycle::crossed_time(if rate < 0.0 { last_time + 0.01 } else { last_time - 0.01 }, clock));
+                    }
+                    let (expected_pose, expected_context) = crate::standing_source::sample_source_montage(source_transition_sequence(entry).unwrap(), expected_time,
+                        app.world().resource::<crate::standing_source::SourceMontageAssets>(), app.world().resource::<Assets<GraphClip>>(), app.world().resource::<Assets<Skeleton>>()).unwrap();
+                    for (curve, expected) in &expected_context.curves {
+                        assert!((context.curves[curve] - expected).abs() < 1e-5);
+                    }
+                    let player = app.world().get::<AnimationGraphPlayer>(target).unwrap();
+                    assert!(player.get_error().is_none() && player.get_default_output_pose().is_some());
+                    let actual_pose = player.get_global_input_data(GENERATED_TRANSITION_SLOT_POSE_KEY).unwrap().as_pose().unwrap();
+                    for bone in expected_pose.paths.keys() {
+                        let actual = actual_pose.get_bone(*bone).unwrap();
+                        let expected = expected_pose.get_bone(*bone).unwrap();
+                        if let (Some(a), Some(e)) = (actual.rotation, expected.rotation) { assert!(a.dot(e).abs() > 1.0 - 1e-5); }
+                        if let (Some(a), Some(e)) = (actual.translation, expected.translation) { assert!((a-e).length() < 1e-5); }
+                    }
+                    if let Some(previous) = last_pose.as_ref() {
+                        let previous: &bevy_animation_graph::core::pose::Pose = previous;
+                        pose_changed |= actual_pose.paths.keys().any(|bone| actual_pose.get_bone(*bone).unwrap().rotation != previous.get_bone(*bone).unwrap().rotation);
+                    }
+                    last_pose = Some(actual_pose.clone());
+                    last_time = expected_time;
+                }
+                assert_eq!(pose_changed, rate != 0.0);
             }
         }
     }
