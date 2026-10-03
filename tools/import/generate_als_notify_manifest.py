@@ -106,6 +106,12 @@ def manifest(audit, assets_root):
                 raise ValidationError("invalid_event_time:" + event_id)
             if start < 0.0 or end < start or end > row["sequence_length"] + 0.0001:
                 raise ValidationError("event_time_out_of_range:" + event_id)
+            if str(event.get("filter_type")).removeprefix("ENotifyFilterType::") not in ("NoFiltering", "LOD"):
+                raise ValidationError("unsupported_notify_filter:" + event_id)
+            if str(event.get("montage_tick_type")).removeprefix("EMontageNotifyTickType::") not in ("Queued", "BranchingPoint"):
+                raise ValidationError("unsupported_notify_tick_type:" + event_id)
+            if type(event.get("filter_lod")) is not int or not -(2**31) <= event["filter_lod"] < 2**31:
+                raise ValidationError("invalid_notify_filter_lod:" + event_id)
             events.append(
                 {
                     "id": source_id,

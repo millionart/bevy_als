@@ -84,12 +84,28 @@ pub struct AlsNotifyManifestEvent {
 #[derive(Deserialize, Clone, Debug)]
 pub struct AlsNotifyManifestFilter {
     #[serde(rename = "type")]
-    pub filter_type: String,
+    pub filter_type: AlsNotifyFilterType,
     pub lod: i32,
     pub trigger_on_follower: bool,
     pub trigger_on_dedicated_server: bool,
     pub trigger_chance: f32,
-    pub montage_tick_type: String,
+    pub montage_tick_type: AlsMontageNotifyTickType,
+}
+
+#[derive(Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AlsNotifyFilterType {
+    #[serde(rename = "ENotifyFilterType::NoFiltering", alias = "NoFiltering")]
+    NoFiltering,
+    #[serde(rename = "ENotifyFilterType::LOD", alias = "LOD")]
+    Lod,
+}
+
+#[derive(Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AlsMontageNotifyTickType {
+    #[serde(rename = "EMontageNotifyTickType::Queued", alias = "Queued")]
+    Queued,
+    #[serde(rename = "EMontageNotifyTickType::BranchingPoint", alias = "BranchingPoint")]
+    BranchingPoint,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -367,7 +383,7 @@ fn dispatch_graph_footsteps(
                         Some(player.identity) == sample.sync_identity && player.ticked_as_leader))
             };
             let sprint = source.source_asset == SOURCE_SPRINT || source.source_asset == SOURCE_SPRINT_ACCELERATION;
-            let definitions = timed_events(source).into_iter().filter(|definition| {
+            let definitions = timed_events(source, crate::character_assembly::ALS_RENDERED_MESH_LOD).into_iter().filter(|definition| {
                 source.events.iter().any(|event| event.event_id == definition.id
                     && (event.class_name == "AlsAnimNotify_FootstepEffects"
                         || (sprint && event.class_name == "AlsAnimNotify_CameraShake")))
@@ -630,10 +646,17 @@ fn event_boundary(event: &AlsNotifyManifestEvent) -> StateIntervalBoundary {
     }
 }
 
-fn timed_events(clip: &AlsNotifyManifestClip) -> Vec<TimedEvent> {
+fn timed_events(clip: &AlsNotifyManifestClip, predicted_lod: i32) -> Vec<TimedEvent> {
     let mut events = clip
         .events
         .iter()
+        .filter(|event| {
+            let branching_point = clip.source_kind == "AnimMontage"
+                && (event.filter.montage_tick_type == AlsMontageNotifyTickType::BranchingPoint
+                    || matches!(event.class_name.as_str(), "AlsAnimNotifyState_SetLocomotionAction" | "AlsAnimNotifyState_EarlyBlendOut"));
+            branching_point || event.filter.filter_type == AlsNotifyFilterType::NoFiltering
+                || event.filter.lod > predicted_lod
+        })
         .map(|event| TimedEvent {
             id: event.event_id.clone(),
             kind: event_kind(event),
@@ -890,7 +913,7 @@ fn dispatch_animation_events(
                 .or_default();
             if playback.interrupted { continue; }
             let clock = playback_clock(source_runtime, playback);
-            let definitions = timed_events(source);
+            let definitions = timed_events(source, crate::character_assembly::ALS_RENDERED_MESH_LOD);
             let signals = source_runtime.lifecycle.update_with_context(
                 &definitions,
                 &queue,
@@ -1042,6 +1065,134 @@ pub(crate) mod tests {
         app.world_mut().entity_mut(actor).insert((AlsAnimationEventPlaybacks { entries }, AlsNotifyRootMotionScale::default()));
         app.world_mut().run_system_once(ensure_animation_event_components).unwrap();
         app.world_mut().get_mut::<AlsAnimationEventRuntime>(actor).unwrap().sources.clear();
+    }
+
+    #[test]
+    fn notify_lod_zero_rejects_the_actual_root_scale_begin() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default())).init_asset::<GraphClip>().init_asset::<AlsNotifyManifest>()
+            .init_resource::<AlsNotifyGraphClipHandles>().add_message::<AlsAnimationEvent>().add_message::<AlsCameraShakeRequest>();
+        let actor = app.world_mut().spawn(AlsCharacter).id();
+        configure_root_scale_notifications(&mut app, actor, &[(0.1, 0.8, 1.3)]);
+        let handle = app.world().resource::<AlsNotifyManifestHandle>().0.clone();
+        let mut assets = app.world_mut().resource_mut::<Assets<AlsNotifyManifest>>();
+        let mut manifest = assets.get_mut(&handle).unwrap();
+        let event = &mut manifest.clips.iter_mut().find(|clip| clip.source_asset == SOURCE_ROLL_SEQUENCE).unwrap().events[0];
+        event.filter.filter_type = AlsNotifyFilterType::Lod;
+        event.filter.lod = 0;
+        drop(manifest);
+        drop(assets);
+        app.world_mut().get_mut::<AlsAnimationEventPlaybacks>(actor).unwrap().entries[0].time = 0.2;
+        app.world_mut().run_system_once(dispatch_animation_events).unwrap();
+        assert_eq!(app.world().get::<AlsNotifyRootMotionScale>(actor).unwrap().0, 1.0);
+    }
+
+    #[test]
+    fn notify_lod_filter_preserves_montage_branching_and_marker_paths() {
+        let manifest: AlsNotifyManifest = serde_json::from_str(include_str!("../../../assets/ALS/Animations/als_notify_manifest.json")).unwrap();
+        let mut clip = manifest.clips.iter().find(|clip| clip.source_asset == SOURCE_ROLL_SEQUENCE).unwrap().clone();
+        let mut event = clip.events.iter().find(|event| event.class_name == "AlsAnimNotifyState_SetRootMotionScale").unwrap().clone();
+        clip.events.clear();
+        for kind in ["AnimSequence", "AnimMontage"] {
+            clip.source_kind = kind.into();
+            for class in ["AlsAnimNotifyState_SetRootMotionScale", "AlsAnimNotifyState_SetLocomotionAction", "AlsAnimNotifyState_EarlyBlendOut"] {
+                event.class_name = class.into();
+                for tick in [AlsMontageNotifyTickType::Queued, AlsMontageNotifyTickType::BranchingPoint] {
+                    event.filter.montage_tick_type = tick;
+                    for filter in [AlsNotifyFilterType::NoFiltering, AlsNotifyFilterType::Lod] {
+                        event.filter.filter_type = filter;
+                        for threshold in [0, 1, 2] {
+                            event.filter.lod = threshold;
+                            for lod in [0, 1, 2] {
+                                clip.events = vec![event.clone()];
+                                let definitions = timed_events(&clip, lod);
+                                let expected = filter == AlsNotifyFilterType::NoFiltering || threshold > lod
+                                    || (kind == "AnimMontage" && (tick == AlsMontageNotifyTickType::BranchingPoint || class != "AlsAnimNotifyState_SetRootMotionScale"));
+                                assert_eq!(definitions.iter().any(|definition| definition.id == event.event_id), expected,
+                                    "Wrong filtering: {kind} {class} {tick:?} {filter:?} threshold={threshold} lod={lod}");
+                                assert_eq!(definitions.iter().filter(|definition| definition.kind == TimedEventKind::Marker).count(), clip.sync_markers.len());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn notify_lod_filter_change_ends_and_reenters_the_actual_state() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default())).init_asset::<GraphClip>().init_asset::<AlsNotifyManifest>()
+            .init_resource::<AlsNotifyGraphClipHandles>().add_message::<AlsAnimationEvent>().add_message::<AlsCameraShakeRequest>();
+        let actor = app.world_mut().spawn(AlsCharacter).id();
+        configure_root_scale_notifications(&mut app, actor, &[(0.1, 0.8, 1.3)]);
+        let handle = app.world().resource::<AlsNotifyManifestHandle>().0.clone();
+        for (time, threshold, expected, phase) in [(0.2, 1, 1.3, EventPhase::Begin), (0.3, 0, 1.0, EventPhase::End), (0.4, 0, 1.0, EventPhase::End), (0.5, 1, 1.3, EventPhase::Begin), (0.9, 1, 1.0, EventPhase::End)] {
+            let mut assets = app.world_mut().resource_mut::<Assets<AlsNotifyManifest>>();
+            let mut manifest = assets.get_mut(&handle).unwrap();
+            let event = &mut manifest.clips.iter_mut().find(|clip| clip.source_asset == SOURCE_ROLL_SEQUENCE).unwrap().events[0];
+            event.filter.filter_type = AlsNotifyFilterType::Lod;
+            event.filter.lod = threshold;
+            drop(manifest);
+            drop(assets);
+            app.world_mut().get_mut::<AlsAnimationEventPlaybacks>(actor).unwrap().entries[0].time = time;
+            app.world_mut().run_system_once(dispatch_animation_events).unwrap();
+            assert_eq!(app.world().get::<AlsNotifyRootMotionScale>(actor).unwrap().0, expected, "Missing state cleanup at {time}");
+            let signals = app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain().collect::<Vec<_>>();
+            assert_eq!(signals.iter().filter(|signal| signal.phase == phase).count(), usize::from(time != 0.4));
+        }
+    }
+
+    #[test]
+    fn notify_lod_loaded_roll_filters_root_scale_camera_and_graph_footsteps() {
+        for threshold in [0, 1] {
+            let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+            let handle = app.world().resource::<AlsNotifyManifestHandle>().0.clone();
+            let mut assets = app.world_mut().resource_mut::<Assets<AlsNotifyManifest>>();
+            let mut manifest = assets.get_mut(&handle).unwrap();
+            for event in &mut manifest.clips.iter_mut().find(|clip| clip.source_asset == SOURCE_ROLL_SEQUENCE).unwrap().events {
+                event.filter.filter_type = AlsNotifyFilterType::Lod;
+                event.filter.lod = threshold;
+            }
+            for event in &mut manifest.clips.iter_mut().find(|clip| clip.source_asset == SOURCE_ROLL_MONTAGE).unwrap().events {
+                event.filter.filter_type = AlsNotifyFilterType::Lod;
+                event.filter.lod = 0;
+            }
+            drop(manifest);
+            drop(assets);
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.1)));
+            app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().clear();
+            app.world_mut().resource_mut::<Messages<AlsCameraShakeRequest>>().clear();
+            let mut shakes = 0;
+            let mut footsteps = 0;
+            for frame in 0..10 {
+                app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = frame == 0;
+                app.update();
+                assert_eq!(app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0, if threshold == 0 { 1.0 } else { 1.3 });
+                shakes += app.world_mut().resource_mut::<Messages<AlsCameraShakeRequest>>().drain().filter(|request| request.target == character).count();
+                footsteps += app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain().filter(|event| event.character == character && event.source_asset == SOURCE_ROLL_SEQUENCE && event.class_name == "AlsAnimNotify_FootstepEffects").count();
+                assert!(*app.world().get::<AlsNotifyLocomotionAction>(character).unwrap() == AlsNotifyLocomotionAction::Rolling || frame >= 7);
+            }
+            assert_eq!((shakes, footsteps), if threshold == 0 { (0, 0) } else { (2, 3) });
+        }
+    }
+
+    #[test]
+    fn notify_lod_installation_rejects_unknown_filter_and_tick_types() {
+        for (field, unknown) in [("type", "ENotifyFilterType::Unknown"), ("montage_tick_type", "EMontageNotifyTickType::Unknown")] {
+            let mut value = serde_json::json!({"type": "ENotifyFilterType::LOD", "lod": 0, "trigger_on_follower": false,
+                "trigger_on_dedicated_server": true, "trigger_chance": 1.0, "montage_tick_type": "EMontageNotifyTickType::Queued"});
+            value[field] = unknown.into();
+            assert!(serde_json::from_value::<AlsNotifyManifestFilter>(value).is_err());
+        }
+        let scene = include_str!("../../../assets/ALS/Character/B_Als.animscn.ron");
+        assert!(scene.contains("ALS/Animations/Base/A_Als_Idle.gltf#Scene0"));
+        let mesh: Value = serde_json::from_str(include_str!("../../../assets/ALS/Animations/Base/A_Als_Idle.gltf")).unwrap();
+        assert_eq!(mesh["meshes"].as_array().unwrap().len(), 1);
+        assert!(!mesh.to_string().contains("MSFT_lod"));
+        assert_eq!(crate::character_assembly::ALS_RENDERED_MESH_LOD, 0);
     }
 
     #[test]
@@ -2004,7 +2155,7 @@ pub(crate) mod tests {
         let manifest: AlsNotifyManifest = serde_json::from_str(include_str!("../../../assets/ALS/Animations/als_notify_manifest.json")).unwrap();
         for side in ["Left", "Right"] {
             let source = manifest.clips.iter().find(|clip| clip.source_asset.ends_with(&format!("A_Als_Jump_Run_{side}"))).unwrap();
-            let events = timed_events(source);
+            let events = timed_events(source, crate::character_assembly::ALS_RENDERED_MESH_LOD);
             let signals = EventLifecycle::default().update(&events, &EventQueue::default(), Some(EventClock {
                 previous_time: 0.0, current_time: 1.0 / 60.0, duration: source.sequence_length,
                 direction: PlaybackDirection::Forward, wrapped: false,

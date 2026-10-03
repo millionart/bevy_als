@@ -24,6 +24,7 @@ pub const AVATAR_FORWARD_YAW: f32 = std::f32::consts::PI;
 pub const AVATAR_CAPSULE_BOTTOM_OFFSET: f32 = -0.92;
 pub const AVATAR_MESH_ROOT_WORLD_Y: f32 = -0.02;
 pub const ALS_LINKED_ANIMATED_SCENE: &str = "ALS/Character/B_Als.animscn.ron";
+pub const ALS_RENDERED_MESH_LOD: i32 = 0;
 pub const ALS_CHARACTER_MATERIAL_LINEAR_RGB: [f32; 3] = [0.2, 0.2, 1.0];
 pub const ALS_CHARACTER_MAIN_MATERIAL_LINEAR_RGB: [f32; 3] = [1.0, 1.0, 1.0];
 pub const ALS_CHARACTER_MATERIAL_PERCEPTUAL_ROUGHNESS: f32 = 1.0;

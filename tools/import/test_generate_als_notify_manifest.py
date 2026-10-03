@@ -64,6 +64,23 @@ class NotifyManifestTests(unittest.TestCase):
         with self.assertRaisesRegex(ValidationError, "duplicate_event_id"):
             manifest({"animations": [duplicate]}, self.assets)
 
+    def test_lod_filter_thresholds_and_tick_types_are_preserved(self):
+        for filter_type in ("NoFiltering", "LOD", "ENotifyFilterType::LOD"):
+            for lod in (0, 1, 2):
+                for tick_type in ("Queued", "BranchingPoint", "EMontageNotifyTickType::BranchingPoint"):
+                    value = event()
+                    value.update(filter_type=filter_type, filter_lod=lod, montage_tick_type=tick_type)
+                    result = manifest({"animations": [sequence(self.source, "assets/animations/Test/Test.gltf", [value])]}, self.assets)
+                    actual = result["clips"][0]["events"][0]["filter"]
+                    self.assertEqual((actual["type"], actual["lod"], actual["montage_tick_type"]), (filter_type, lod, tick_type))
+
+    def test_unsupported_notify_filter_configuration_is_rejected(self):
+        for field, value, error in (("filter_type", "Unknown", "unsupported_notify_filter"), ("montage_tick_type", "Unknown", "unsupported_notify_tick_type"), ("filter_lod", 0.5, "invalid_notify_filter_lod"), ("filter_lod", True, "invalid_notify_filter_lod"), ("filter_lod", 2**31, "invalid_notify_filter_lod")):
+            notify = event()
+            notify[field] = value
+            with self.assertRaisesRegex(ValidationError, error):
+                manifest({"animations": [sequence(self.source, "assets/animations/Test/Test.gltf", [notify])]}, self.assets)
+
     def test_invalid_event_range_is_rejected(self):
         invalid = sequence(self.source, "assets/animations/Test/Test.gltf", [event(start=0.9, end=1.1)])
         with self.assertRaisesRegex(ValidationError, "event_time_out_of_range"):
