@@ -3157,6 +3157,7 @@ struct IntegrationCoverage {
     notify_sprint: bool,
     notify_sprint_acceleration: bool,
     notify_roll: bool,
+    notify_roll_reentry: bool,
     notify_marker: bool,
     notify_grounded_entry: bool,
     notify_root_scale: bool,
@@ -3243,6 +3244,7 @@ struct ManualIntegrationState {
     interface_parent_instance: Option<u64>,
     interface_parent_preserved: bool,
     notify_roll_armed: bool,
+    notify_roll_restarted: bool,
     notify_mantle_armed: bool,
     direction_case_index: usize,
     sprint_signature_phase: Option<f32>,
@@ -3385,6 +3387,7 @@ impl Default for ManualIntegrationState {
             interface_parent_instance: None,
             interface_parent_preserved: true,
             notify_roll_armed: false,
+            notify_roll_restarted: false,
             notify_mantle_armed: false,
             direction_case_index: usize::MAX,
             sprint_signature_phase: None,
@@ -3985,6 +3988,12 @@ fn replace_ragdoll_player_once(world: &mut World) {
     info!("[MANUAL-INTEGRATION][RAGDOLL-PLAYER-REPLACEMENT] player={player_entity:?} old_root={old_root:?} -> PASS");
 }
 
+fn roll_tail_reentry_ready(roll: Option<&AlsRollState>, locomotion: LocomotionState, requested: bool) -> bool {
+    !requested && locomotion == LocomotionState::Grounded && roll.is_some_and(|roll|
+        roll.active && roll.time >= crate::als::roll::ROLL_DURATION_SECS - crate::als::roll::ROLL_WEIGHT_OUT_SECS + 0.04
+        && crate::als::roll::roll_weight_at(roll.time) > 0.0)
+}
+
 fn drive_manual_integration(
     mut commands: Commands,
     fixture: Option<Res<ManualIntegrationFixture>>,
@@ -4026,6 +4035,7 @@ fn drive_manual_integration(
             &mut AlsAimingYawConstraint,
             Option<&mut AlsRotationAnimationState>,
             Option<&AlsCrouchingGraphTelemetry>,
+            Option<&AlsRollState>,
         ),
         With<AlsCharacter>,
     >,
@@ -4088,6 +4098,7 @@ fn drive_manual_integration(
         mut aiming_yaw_constraint,
         rotation_animation,
         crouching_graph,
+        roll_for_input,
     )) = crouch_state.get_mut(character)
     else {
         return;
@@ -6227,6 +6238,8 @@ fn drive_manual_integration(
         IntegrationPhase::Notify => {
             if entering {
                 state.notify_roll_armed = false;
+                state.notify_roll_restarted = false;
+                state.coverage.notify_roll_reentry = false;
                 state.notify_mantle_armed = false;
                 state.coverage.notify_sprint = false;
                 state.coverage.notify_sprint_acceleration = false;
@@ -6274,6 +6287,10 @@ fn drive_manual_integration(
                 }
                 input.0.move_dir = Vec2::Y;
                 input.0.roll_pressed = (3.5..3.8).contains(&elapsed);
+                if roll_tail_reentry_ready(roll_for_input, *locomotion, state.notify_roll_restarted) {
+                    input.0.roll_pressed = true;
+                    state.notify_roll_restarted = true;
+                }
             } else {
                 if !state.notify_mantle_armed {
                     reset_character_without_rotation(
@@ -6419,6 +6436,11 @@ fn stance_center_from_standing_center(
 }
 
 fn begin_phase(state: &mut ManualIntegrationState, phase: IntegrationPhase) {
+    if phase == IntegrationPhase::Mantle {
+        state.coverage.mantle_started = false;
+        state.mantle_root_released = false;
+        state.coverage.mantle_completed = false;
+    }
     state.phase = phase;
     state.phase_started_seconds = state.game_time_seconds;
     state.entered = true;
@@ -8147,6 +8169,12 @@ fn observe_manual_integration(
         );
     }
     if state.scenario == IntegrationScenario::Notify {
+        state.coverage.notify_roll_reentry |= state.notify_roll_restarted
+            && roll.is_some_and(|roll| roll.active && roll.time < 0.1)
+            && motion_probe.source_inputs.get(instance.player_entity()).ok()
+                .and_then(|inputs| inputs.slot_input_context("roll.pose"))
+                .is_some_and(|context| context.asset_samples.iter().filter(|sample|
+                    sample.identity.starts_with("roll:") && sample.clock.weight > 0.0).count() >= 2);
         state.coverage.notify_rolling_action |=
             notify_action.is_some_and(|action| *action == AlsNotifyLocomotionAction::Rolling);
         state.coverage.notify_mantling_action |=
@@ -10487,6 +10515,7 @@ fn observe_manual_integration(
                     coverage.notify_sprint_acceleration,
                 ),
                 ("notify_roll", coverage.notify_roll),
+                ("notify_roll_reentry", coverage.notify_roll_reentry),
                 ("notify_marker", coverage.notify_marker),
                 ("notify_grounded_entry", coverage.notify_grounded_entry),
                 ("notify_root_scale", coverage.notify_root_scale),
@@ -10616,6 +10645,17 @@ fn observe_manual_integration(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn notify_reentry_driver_waits_for_a_stopped_tail_and_requests_once() {
+        for elapsed in [0.4, 0.83, 0.9, 0.95, crate::als::roll::ROLL_DURATION_SECS] {
+            let roll = AlsRollState { active: true, time: elapsed, ..default() };
+            assert_eq!(roll_tail_reentry_ready(Some(&roll), LocomotionState::Grounded, false), elapsed >= 0.9 && elapsed < crate::als::roll::ROLL_DURATION_SECS);
+            assert!(!roll_tail_reentry_ready(Some(&roll), LocomotionState::Grounded, true));
+            assert!(!roll_tail_reentry_ready(Some(&roll), LocomotionState::Air, false));
+        }
+        assert!(!roll_tail_reentry_ready(None, LocomotionState::Grounded, false));
+    }
+
     #[test]
     fn state_machine_rotation_rebases_each_scripted_input_discontinuity_once() {
         for (boundary, label) in [(1.3, "state_machine_aim_view_flip"),
@@ -12078,6 +12118,21 @@ mod tests {
                 .rotation_mode,
             Some(RotationMode::Aiming)
         );
+    }
+
+    #[test]
+    fn a_new_mantle_window_cannot_reuse_an_earlier_completion() {
+        let mut state = ManualIntegrationState::default();
+        state.coverage.mantle_started = true;
+        state.mantle_root_released = true;
+        state.coverage.mantle_completed = true;
+        begin_phase(&mut state, IntegrationPhase::Mantle);
+        let mut window = ManualAnimationWindowEvidence::default();
+        let mantle = AlsMantleState { active: true, root_motion_ready: true, target: Vec3::Y, ..default() };
+        observe_mantle(&mut state, &mut window, &mantle, None,
+            &AnimationGraphPlayer::new(Handle::default()), &Assets::default(),
+            LocomotionState::Custom, Some(AlsNotifyLocomotionAction::Mantling), Vec3::Y);
+        assert!(window.observed_lifecycle_stages.is_empty(), "Earlier completion contaminated the new mantle window");
     }
 
     #[test]

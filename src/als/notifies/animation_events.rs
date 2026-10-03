@@ -536,8 +536,10 @@ fn graph_clip_for_source<'a>(
 fn refresh_animation_event_playbacks(
     manifest_handle: Option<Res<AlsNotifyManifestHandle>>,
     manifests: Res<Assets<AlsNotifyManifest>>,
+    samplers: Query<(Entity, &crate::roll_drive::AlsRollSlotSampler, Option<&crate::roll_drive::AlsRollTail>)>,
     mut characters: Query<
         (
+            Entity,
             &mut AlsAnimationEventPlaybacks,
             Option<&AlsRollState>,
             Option<&crate::roll_drive::AlsRollBlendOut>,
@@ -553,31 +555,22 @@ fn refresh_animation_event_playbacks(
     let Some(manifest) = manifests.get(&handle.0) else {
         return;
     };
-    for (mut playbacks, roll, roll_blend_out, mantle, get_up) in &mut characters {
+    for (character, mut playbacks, roll, roll_blend_out, mantle, get_up) in &mut characters {
         let mut entries = Vec::new();
+        let current = samplers.iter().find(|(_, sampler, tail)| sampler.character == character && tail.is_none()).map(|(entity, _, _)| entity.to_bits()).unwrap_or(0);
+        let mut roll_instances = samplers.iter().filter_map(|(entity, sampler, tail)| {
+            (sampler.character == character).then_some(tail.map(|tail| (entity.to_bits(), tail.time, tail.weight(), true))) .flatten()
+        }).collect::<Vec<_>>();
         if let Some(roll) = roll.filter(|state| state.active) {
-            let time = (roll.time * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS);
-            if let Some(graph_clip) = graph_clip_for_source(manifest, SOURCE_ROLL_SEQUENCE) {
-                push_playback(
-                    &mut entries,
-                    SOURCE_ROLL_SEQUENCE,
-                    graph_clip,
-                    time,
-                    1.0,
-                    false,
-                    roll_blend_out.is_some(),
-                );
-            }
-            if let Some(graph_clip) = graph_clip_for_source(manifest, SOURCE_ROLL_MONTAGE) {
-                push_playback(
-                    &mut entries,
-                    SOURCE_ROLL_MONTAGE,
-                    graph_clip,
-                    time,
-                    1.0,
-                    false,
-                    roll_blend_out.is_some(),
-                );
+            roll_instances.push((current, roll.time, 1.0, roll_blend_out.is_some()));
+        }
+        for (instance_id, elapsed, weight, interrupted) in roll_instances {
+            let time = (elapsed * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS);
+            for source in [SOURCE_ROLL_SEQUENCE, SOURCE_ROLL_MONTAGE] {
+                if let Some(graph_clip) = graph_clip_for_source(manifest, source) {
+                    push_playback(&mut entries, source, graph_clip, time, weight, false, interrupted);
+                    if let Some(entry) = entries.last_mut() { entry.instance_id = instance_id; }
+                }
             }
         }
         if let Some(mantle) = mantle {
@@ -829,6 +822,8 @@ fn dispatch_animation_events(
             let Some(source) = source_clip(manifest, &source_asset) else {
                 continue;
             };
+            let superseded_roll = [SOURCE_ROLL_SEQUENCE, SOURCE_ROLL_MONTAGE].contains(&source_asset.as_str())
+                && playbacks.entries.iter().any(|entry| entry.source_asset == source_asset && entry.instance_id != instance_id && !entry.interrupted);
             let source_runtime = runtime
                 .sources
                 .get_mut(&(source_asset.clone(), instance_id))
@@ -839,20 +834,20 @@ fn dispatch_animation_events(
                     .iter()
                     .find(|event| event.event_id == signal.id);
                 if let Some(event) = event {
-                    if event.class_name == "AlsAnimNotifyState_SetLocomotionAction" {
+                    if !superseded_roll && event.class_name == "AlsAnimNotifyState_SetLocomotionAction" {
                         let next_action =
                             notify_action(parameter_tag(&event.parameters, "LocomotionAction"));
                         if *action == next_action {
                             *action = AlsNotifyLocomotionAction::None;
                         }
                     }
-                    if event.class_name == "AlsAnimNotifyState_SetRootMotionScale" {
+                    if !superseded_roll && event.class_name == "AlsAnimNotifyState_SetRootMotionScale" {
                         let scale = parameter_f32(&event.parameters, "TranslationScale", 1.0);
                         if (root_scale.0 - scale).abs() <= 1e-4 {
                             root_scale.0 = 1.0;
                         }
                     }
-                    if event.class_name == "AlsAnimNotifyState_EarlyBlendOut" {
+                    if !superseded_roll && event.class_name == "AlsAnimNotifyState_EarlyBlendOut" {
                         *early_blend_out = AlsNotifyEarlyBlendOut::default();
                     }
                     events.write(AlsAnimationEvent {

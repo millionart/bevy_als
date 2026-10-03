@@ -106,7 +106,7 @@ impl AlsRollState {
         actor_yaw: f32,
         stance: Stance,
     ) -> RollLifecycle {
-        if self.active || landing_speed < ROLL_ON_LAND_SPEED_THRESHOLD {
+        if self.root_motion_active() || landing_speed < ROLL_ON_LAND_SPEED_THRESHOLD {
             return RollLifecycle::default();
         }
         let horizontal = Vec3::new(horizontal_velocity.x, 0.0, horizontal_velocity.z);
@@ -136,13 +136,14 @@ impl AlsRollState {
         let mut lifecycle = RollLifecycle::default();
         self.cooldown = 0.0;
         if self.active {
+            let playing = self.root_motion_active();
             self.time += dt;
             if self.time >= ROLL_DURATION_SECS {
                 self.active = false;
                 self.time = ROLL_DURATION_SECS;
                 lifecycle.ended = true;
             }
-            return lifecycle;
+            if playing { return lifecycle; }
         }
         if *loco == LocomotionState::Grounded && cmd.roll_pressed {
             let (direction, yaw) = select_roll_direction(cmd, view_yaw);

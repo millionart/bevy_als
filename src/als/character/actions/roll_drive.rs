@@ -36,10 +36,20 @@ const ROLL_SLOT_CURVES: &str = "ALS/Animations/Actions/Roll/A_Als_Roll.gltf#AlsC
 const ROLL_SLOT_CURVE_NAMES: [&str; 2] = ["PoseStanding", "PoseGrounded"];
 
 #[derive(Component, Debug, Clone, Copy)]
-struct AlsRollSlotSampler {
-    character: Entity,
+pub(crate) struct AlsRollSlotSampler {
+    pub(crate) character: Entity,
     target_player: Entity,
     reported_unready: bool,
+}
+
+#[derive(Component, Debug, Clone, Copy)]
+pub(crate) struct AlsRollTail {
+    pub(crate) time: f32,
+    blend: AlsRollBlendOut,
+}
+
+impl AlsRollTail {
+    pub(crate) fn weight(&self) -> f32 { self.blend.weight() }
 }
 
 #[cfg(test)]
@@ -175,6 +185,135 @@ pub(crate) mod tests {
                     }
                     assert!(actual_sum.distance(expected_sum) < 0.0001);
                     assert!(expected_sum.length() > 0.001, "The real RollSlot did not advance its root track");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn stopped_roll_tail_accepts_a_new_loaded_montage() {
+        for explicit_stop in [false, true] {
+            for delta in [1.0 / 60.0_f32, 0.1] {
+                let (mut app, character, _) = loaded_roll_character();
+                let old = play_loaded_roll(&mut app, character);
+                let old_roll = AlsRollState { active: true, time: if explicit_stop { 0.4 } else { 0.95 }, ..default() };
+                app.world_mut().entity_mut(character).insert((old_roll, AlsNotifyLocomotionAction::Rolling,
+                    AlsInputCommand { roll_pressed: true, ..default() }));
+                if explicit_stop { app.world_mut().entity_mut(character).insert(AlsRollBlendOut::new(&old_roll, 0.2)); }
+                app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(delta));
+                app.world_mut().run_system_once(advance_rolls).unwrap();
+                app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().roll_pressed = false;
+                let roll = app.world().get::<AlsRollState>(character).unwrap();
+                assert!(roll.active && (roll.time - delta).abs() < 1e-6, "Stopped montage blocked reentry: {roll:?}");
+                assert!(app.world().get::<AlsRollBlendOut>(character).is_none());
+                let current = app.world_mut().query_filtered::<(Entity, &AlsRollSlotSampler), Without<AlsRollTail>>()
+                    .iter(app.world()).find(|(_, sampler)| sampler.character == character).unwrap().0;
+                assert_ne!(old, current, "Restart reused the old montage instance");
+                let tail = app.world().get::<AlsRollTail>(old).unwrap();
+                assert!((tail.time - old_roll.time - delta).abs() < 1e-6);
+                if delta < 0.1 { assert!(tail.weight() > 0.0, "Restart cleared the old pose prematurely"); }
+                app.world_mut().entity_mut(character).insert((avian3d::prelude::RigidBody::Kinematic, bevy_tnua::TnuaToggle::Disabled));
+                app.world_mut().run_system_once(prepare_roll_slot_samples).unwrap();
+                assert!((app.world().get::<AnimationGraphPlayer>(old).unwrap().get_global_input_data(ROLL_SLOT_TIME_KEY).unwrap().as_f32().unwrap()
+                    - ((old_roll.time + delta) * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS)).abs() < 1e-6);
+                let mut tail_visible = false;
+                for frame in 0..10 {
+                    app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(1.0 / 60.0));
+                    app.world_mut().run_schedule(PostUpdate);
+                    let runtime = app.world().get::<AlsRollSlotRuntime>(character).unwrap();
+                    assert!(runtime.pose_ready && runtime.active);
+                    let root = app.world().get::<RootMotionOutput>(current).unwrap();
+                    assert!(runtime.root_motion_delta.distance(root.translation_delta) < 1e-6, "Old root motion won frame {frame}");
+                    if let Some(tail) = app.world().get::<AlsRollTail>(old) {
+                        tail_visible |= tail.weight() > 0.0;
+                        if tail.weight() > 0.0 {
+                            let target = app.world().get::<AlsRollSlotSampler>(current).unwrap().target_player;
+                            let inputs = app.world().get::<crate::extensions::SourceAnimationInputs>(target).unwrap();
+                            let context = inputs.slot_input_context("roll.pose").unwrap();
+                            assert!(context.asset_samples.iter().any(|sample| sample.identity == format!("roll:{}", old.to_bits())), "Old pose was omitted from the blend");
+                            assert!(context.asset_samples.iter().any(|sample| sample.identity == format!("roll:{}", current.to_bits())));
+                            let current_pose = app.world().get::<AnimationGraphPlayer>(current).unwrap().get_default_output_pose().unwrap();
+                            let old_pose = app.world().get::<AnimationGraphPlayer>(old).unwrap().get_default_output_pose().unwrap();
+                            let mixed = app.world().get::<AnimationGraphPlayer>(target).unwrap().get_global_input_data("roll.pose").unwrap().as_pose().unwrap();
+                            let current_weight = roll_weight_at(app.world().get::<AlsRollState>(character).unwrap().time);
+                            let total = current_weight + tail.weight();
+                            for (bone, index) in &current_pose.paths {
+                                let Some(old_index) = old_pose.paths.get(bone) else { continue; };
+                                let Some(mixed_index) = mixed.paths.get(bone) else { panic!("Blended bone is missing"); };
+                                let new_bone = &current_pose.bones[*index];
+                                let old_bone = &old_pose.bones[*old_index];
+                                let actual = &mixed.bones[*mixed_index];
+                                if let (Some(new), Some(old), Some(actual)) = (new_bone.rotation, old_bone.rotation, actual.rotation) {
+                                    let old = if new.dot(old) < 0.0 { -old } else { old };
+                                    let expected = (new * (current_weight / total) + old * (tail.weight() / total)).normalize();
+                                    assert!(actual.dot(expected).abs() > 1.0 - 1e-6, "Montage rotation did not use the source weighted accumulation");
+                                }
+                                if let (Some(new), Some(old), Some(actual)) = (new_bone.translation, old_bone.translation, actual.translation) {
+                                    let expected = (new * current_weight + old * tail.weight()) / total;
+                                    assert!(actual.distance(expected) < 1e-5, "Old montage translation was not blended");
+                                }
+                            }
+                        }
+                    }
+                    if frame >= 1 {
+                        assert_eq!(*app.world().get::<AlsNotifyLocomotionAction>(character).unwrap(), AlsNotifyLocomotionAction::Rolling,
+                            "Old notify cleanup cleared the new roll");
+                    }
+                }
+                if delta < 0.1 { assert!(tail_visible, "Old tail never contributed an evaluated pose"); }
+                assert!(app.world().get_entity(old).is_err(), "Finished tail was not released");
+                assert!(app.world().get_entity(current).is_ok());
+                assert!(app.world().get::<AlsRollState>(character).unwrap().root_motion_active());
+                assert!(app.world().get::<AlsRollState>(character).unwrap().time < 0.3);
+            }
+        }
+    }
+
+    #[test]
+    fn an_old_tail_cannot_supply_root_motion_in_any_query_order() {
+        for old_first in [true, false] {
+        let mut world = World::new();
+        let mut time = Time::<()>::default();
+        time.advance_by(std::time::Duration::from_secs_f32(0.05));
+        world.insert_resource(time);
+        let roll = AlsRollState { active: true, time: 0.1, ..default() };
+        let character = world.spawn((crate::als::character::AlsCharacter, roll, Transform::default(), LinearVelocity::ZERO)).id();
+        let mesh = world.spawn((ChildOf(character), Transform::from_rotation(Quat::from_rotation_y(std::f32::consts::PI)))).id();
+        for old in [old_first, !old_first] {
+            let entity = world.spawn((AlsRollSlotSampler { character, target_player: mesh, reported_unready: false },
+                RootMotionOutput { translation_delta: Vec3::NEG_Z * if old { 10.0 } else { 0.2 }, ..default() })).id();
+            if old { world.entity_mut(entity).insert(AlsRollTail { time: 1.0, blend: AlsRollBlendOut::new(&roll, 0.1) }); }
+        }
+        world.run_system_once(roll_drive_system).unwrap();
+        assert!(world.get::<LinearVelocity>(character).unwrap().distance(Vec3::Z * 4.0) < 1e-5,
+            "Old tail root motion displaced the new montage");
+        }
+    }
+
+    #[test]
+    fn roll_reentry_obeys_playing_ground_and_action_gates() {
+        for delta in [1.0 / 60.0_f32, 0.1] {
+            for elapsed in [0.4, 0.83, 0.95, crate::als::roll::ROLL_DURATION_SECS - 0.001] {
+                for explicit_stop in [false, true] {
+                    for (loco, action, allowed) in [(LocomotionState::Grounded, AlsNotifyLocomotionAction::Rolling, true),
+                        (LocomotionState::Grounded, AlsNotifyLocomotionAction::None, true),
+                        (LocomotionState::Air, AlsNotifyLocomotionAction::Rolling, false),
+                        (LocomotionState::Grounded, AlsNotifyLocomotionAction::Mantling, false),
+                        (LocomotionState::Grounded, AlsNotifyLocomotionAction::Ragdolling, false)] {
+                        let mut world = World::new();
+                        let mut time = Time::<()>::default();
+                        time.advance_by(std::time::Duration::from_secs_f32(delta));
+                        world.insert_resource(time);
+                        let roll = AlsRollState { active: true, time: elapsed, ..default() };
+                        let character = world.spawn((crate::als::character::AlsCharacter, roll, loco, action, Stance::Standing,
+                            AlsViewYaw::default(), Transform::default(), LinearVelocity::ZERO,
+                            AlsInputCommand { roll_pressed: true, ..default() })).id();
+                        if explicit_stop { world.entity_mut(character).insert(AlsRollBlendOut::new(&roll, 0.2)); }
+                        world.run_system_once(advance_rolls).unwrap();
+                        let started = world.get::<AlsRollState>(character).unwrap().time < delta + 1e-5;
+                        assert_eq!(started, allowed && (action == AlsNotifyLocomotionAction::None || explicit_stop || !roll.root_motion_active()),
+                            "Wrong start qualification: elapsed={elapsed}, delta={delta}, stop={explicit_stop}, loco={loco:?}, action={action:?}");
+                    }
                 }
             }
         }
@@ -506,7 +645,7 @@ fn ensure_roll_slot_samplers(
     asset_server: Res<AssetServer>,
     characters: Query<(Entity, &AlsCharacterAssembly), With<crate::als::character::AlsCharacter>>,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
-    samplers: Query<(Entity, &AlsRollSlotSampler)>,
+    samplers: Query<(Entity, &AlsRollSlotSampler, Option<&AlsRollTail>)>,
     players: Query<&AnimationGraphPlayer>,
     mut states: Query<(&mut AlsRollState, Option<&mut AlsRollSlotRuntime>, Option<&mut AlsNotifyLocomotionAction>)>,
     mut commands: Commands,
@@ -516,9 +655,9 @@ fn ensure_roll_slot_samplers(
         let (avatar, instance) = avatars.get(assembly.avatar).ok()?;
         (avatar.character == character && players.contains(instance.player_entity())).then_some(instance.player_entity())
     };
-    for (entity, sampler) in &samplers {
+    for (entity, sampler, tail) in &samplers {
         if current_target(sampler.character) == Some(sampler.target_player) { continue; }
-        if let Ok((mut roll, runtime, action)) = states.get_mut(sampler.character) {
+        if tail.is_none() && let Ok((mut roll, runtime, action)) = states.get_mut(sampler.character) {
             end_roll_instance(&mut roll, runtime, action);
             commands.entity(sampler.character).try_remove::<AlsRollBlendOut>();
         }
@@ -528,7 +667,7 @@ fn ensure_roll_slot_samplers(
         let Some(target_player) = current_target(character) else { continue; };
         if samplers
             .iter()
-            .any(|(_, sampler)| sampler.character == character && sampler.target_player == target_player)
+            .any(|(_, sampler, tail)| tail.is_none() && sampler.character == character && sampler.target_player == target_player)
         {
             continue;
         }
@@ -559,13 +698,13 @@ fn end_roll_instance(roll: &mut AlsRollState, runtime: Option<Mut<AlsRollSlotRun
 
 fn discard_roll_target(
     event: On<Discard, AnimationGraphPlayer>,
-    samplers: Query<(Entity, &AlsRollSlotSampler)>,
+    samplers: Query<(Entity, &AlsRollSlotSampler, Option<&AlsRollTail>)>,
     mut states: Query<(&mut AlsRollState, Option<&mut AlsRollSlotRuntime>, Option<&mut AlsNotifyLocomotionAction>)>,
     mut commands: Commands,
 ) {
-    for (entity, sampler) in &samplers {
+    for (entity, sampler, tail) in &samplers {
         if sampler.target_player != event.entity { continue; }
-        if let Ok((mut roll, runtime, action)) = states.get_mut(sampler.character) {
+        if tail.is_none() && let Ok((mut roll, runtime, action)) = states.get_mut(sampler.character) {
             end_roll_instance(&mut roll, runtime, action);
             commands.entity(sampler.character).try_remove::<AlsRollBlendOut>();
         }
@@ -575,37 +714,17 @@ fn discard_roll_target(
 
 fn prepare_roll_slot_samples(
     rolls: Query<&AlsRollState, With<crate::als::character::AlsCharacter>>,
-    mut samplers: Query<(&AlsRollSlotSampler, &mut AnimationGraphPlayer)>,
+    mut samplers: Query<(&AlsRollSlotSampler, &mut AnimationGraphPlayer, Option<&AlsRollTail>)>,
 ) {
-    for (sampler, mut player) in &mut samplers {
-        let clip_time = rolls
+    for (sampler, mut player, tail) in &mut samplers {
+        let clip_time = tail.map(|tail| (tail.time * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS)).unwrap_or_else(|| rolls
             .get(sampler.character)
             .ok()
             .filter(|roll| roll.active)
             .map(|roll| (roll.time * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS))
-            .unwrap_or(0.0);
+            .unwrap_or(0.0));
         player.set_global_input_data(ROLL_SLOT_TIME_KEY, clip_time);
     }
-}
-
-fn write_roll_slot_curves(
-    player: &mut AnimationGraphPlayer,
-    curves: Option<&crate::extensions::AlsPoseCurves>,
-    clip_time: f32,
-) -> (f32, f32) {
-    let mut values = [0.0_f32; 2];
-    for (index, name) in ROLL_SLOT_CURVE_NAMES.iter().enumerate() {
-        let value = curves
-            .and_then(|curves| curves.sample(name, clip_time))
-            .filter(|value| value.is_finite())
-            .unwrap_or_default();
-        player.set_global_input_data(
-            format!("{ROOT_POST_LOCOMOTION_SLOT_CURVE_PREFIX}{name}"),
-            value,
-        );
-        values[index] = value;
-    }
-    (values[0], values[1])
 }
 
 fn bridge_roll_slot_samples(
@@ -615,127 +734,83 @@ fn bridge_roll_slot_samples(
     blend_outs: Query<&AlsRollBlendOut>,
     curve_handle: Res<RollSlotCurveHandle>,
     curves: Res<Assets<AlsAnimCurves>>,
-    mut samplers: Query<
-        (
-            &mut AlsRollSlotSampler,
-            &AnimationGraphPlayer,
-            &RootMotionOutput,
-        ),
-        With<AlsRollSlotSampler>,
-    >,
+    mut samplers: Query<(Entity, &mut AlsRollSlotSampler, &AnimationGraphPlayer, &RootMotionOutput, Option<&AlsRollTail>)>,
     mut target_players: Query<&mut AnimationGraphPlayer, Without<AlsRollSlotSampler>>,
     mut commands: Commands,
 ) {
-    for (mut sampler, source_player, root_motion) in &mut samplers {
-        let Ok(mut target_player) = target_players.get_mut(sampler.target_player) else {
-            continue;
-        };
-        let Some(roll) = rolls.get(sampler.character).ok().filter(|roll| roll.active) else {
-            target_player.set_global_input_data("roll.weight", 0.0_f32);
-            source_inputs.get_mut(sampler.target_player).unwrap().set_slot_input_context("roll.pose",
-                None,);
-            if get_ups.contains(sampler.character) {
+    for (character, target) in samplers.iter().filter(|(_, _, _, _, tail)| tail.is_none())
+        .map(|(_, sampler, _, _, _)| (sampler.character, sampler.target_player)).collect::<Vec<_>>() {
+        let Ok(mut target_player) = target_players.get_mut(target) else { continue; };
+        let roll = rolls.get(character).ok().filter(|roll| roll.active);
+        let mut samples = Vec::new();
+        let mut root_motion = RootMotionOutput::default();
+        for (entity, mut sampler, player, output, tail) in &mut samplers {
+            if sampler.character != character || sampler.target_player != target { continue; }
+            let (elapsed, weight) = if let Some(tail) = tail { (tail.time, tail.weight()) }
+                else if let Some(roll) = roll {
+                    root_motion = RootMotionOutput { translation_delta: output.translation_delta, rotation_delta: output.rotation_delta };
+                    (roll.time, blend_outs.get(character).map_or_else(|_| roll_weight_at(roll.time), |blend| blend.weight()))
+                } else { continue; };
+            let Some(mut pose) = player.get_default_output_pose().cloned() else {
+                if !sampler.reported_unready {
+                    warn!("[ROLL-SLOT] sampler unavailable character={:?} error={:?}", character, player.get_error());
+                    sampler.reported_unready = true;
+                }
                 continue;
-            }
-            source_inputs.get_mut(sampler.target_player).unwrap().set_slot_input_context(GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY,
-                None,);
-            target_player.set_global_input_data(ROOT_POST_LOCOMOTION_SLOT_WEIGHT_KEY, 0.0_f32);
-            target_player
-                .set_global_input_data(ROOT_POST_LOCOMOTION_SLOT_LAYER_WEIGHT_KEY, 0.0_f32);
-            target_player.set_global_input_data(GENERATED_POST_LOCOMOTION_SLOT_WEIGHT_KEY, 0.0_f32);
-            target_player
-                .set_global_input_data(GENERATED_POST_LOCOMOTION_SLOT_LAYER_WEIGHT_KEY, 0.0_f32);
-            write_roll_slot_curves(&mut target_player, None, 0.0);
-            commands
-                .entity(sampler.character)
-                .insert(AlsRollSlotRuntime::default());
-            continue;
-        };
-        let weight = blend_outs
-            .get(sampler.character)
-            .map_or_else(|_| roll_weight_at(roll.time), |blend| blend.weight());
-        let Some(pose) = source_player.get_default_output_pose().cloned() else {
-            if !sampler.reported_unready {
-                warn!(
-                    "[ROLL-SLOT] sampler unavailable character={:?} error={:?}",
-                    sampler.character,
-                    source_player.get_error()
-                );
-                sampler.reported_unready = true;
-            }
-            target_player.set_global_input_data(ROOT_POST_LOCOMOTION_SLOT_WEIGHT_KEY, 0.0_f32);
-            target_player
-                .set_global_input_data(ROOT_POST_LOCOMOTION_SLOT_LAYER_WEIGHT_KEY, 0.0_f32);
-            target_player.set_global_input_data(GENERATED_POST_LOCOMOTION_SLOT_WEIGHT_KEY, 0.0_f32);
-            target_player
-                .set_global_input_data(GENERATED_POST_LOCOMOTION_SLOT_LAYER_WEIGHT_KEY, 0.0_f32);
-            write_roll_slot_curves(&mut target_player, None, 0.0);
-            commands
-                .entity(sampler.character)
-                .insert(AlsRollSlotRuntime {
-                    active: true,
-                    weight: 0.0,
-                    pose_ready: false,
-                    root_motion_delta: root_motion.translation_delta,
-                    root_motion_rotation: root_motion.rotation_delta,
-                    pose_standing: 0.0,
-                    pose_grounded: 0.0,
-                });
-            continue;
-        };
-        target_player.set_global_input_data("roll.pose", DataValue::Pose(pose.clone()));
-        target_player.set_global_input_data("roll.weight", weight);
-        let clip_time = (roll.time * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS);
-        let context = curves
-            .get(&curve_handle.0)
-            .and_then(AlsAnimCurves::first)
-            .map(|curves| {
-                let mut context = crate::get_up::sampled_curve_context(curves, clip_time);
-                context.asset_samples.push(crate::extensions::animation_context::SourceAssetSample {
-                    identity: "roll".to_owned(), clip: curve_handle.1.clone(), montage: true,
-                    clock: crate::extensions::SourceRelevantAsset { duration: ROLL_MONTAGE_SEQUENCE_LENGTH_SECS, position: clip_time, weight, ..default() },
-                    ..default()
-                });
-                context
+            };
+            if tail.is_some() { pose.root_motion = None; }
+            sampler.reported_unready = false;
+            let clip_time = (elapsed * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS);
+            let mut context = curves.get(&curve_handle.0).and_then(AlsAnimCurves::first)
+                .map(|curves| crate::get_up::sampled_curve_context(curves, clip_time)).unwrap_or_default();
+            context.asset_samples.push(crate::extensions::animation_context::SourceAssetSample {
+                identity: format!("roll:{}", entity.to_bits()), clip: curve_handle.1.clone(), montage: true,
+                clock: crate::extensions::SourceRelevantAsset { duration: ROLL_MONTAGE_SEQUENCE_LENGTH_SECS,
+                    position: clip_time, weight: 1.0, ..default() }, ..default()
             });
-        source_inputs.get_mut(sampler.target_player).unwrap().set_slot_input_context("roll.pose",
-            context.clone(),);
-        if get_ups.contains(sampler.character) {
-            continue;
+            samples.push((pose, context, weight, tail.is_none()));
         }
-        source_inputs.get_mut(sampler.target_player).unwrap().set_slot_input_context(GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY,
-            context,);
-        target_player.set_global_input_data(
-            ROOT_POST_LOCOMOTION_SLOT_POSE_KEY,
-            DataValue::Pose(pose.clone()),
-        );
-        target_player.set_global_input_data(ROOT_POST_LOCOMOTION_SLOT_WEIGHT_KEY, weight);
-        target_player.set_global_input_data(ROOT_POST_LOCOMOTION_SLOT_LAYER_WEIGHT_KEY, weight);
-        target_player.set_global_input_data(
-            GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY,
-            DataValue::Pose(pose),
-        );
-        target_player.set_global_input_data(GENERATED_POST_LOCOMOTION_SLOT_WEIGHT_KEY, weight);
-        target_player
-            .set_global_input_data(GENERATED_POST_LOCOMOTION_SLOT_LAYER_WEIGHT_KEY, 1.0_f32);
-        let clip_time = (roll.time * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS);
-        let (pose_standing, pose_grounded) = write_roll_slot_curves(
-            &mut target_player,
-            curves.get(&curve_handle.0).and_then(AlsAnimCurves::first),
-            clip_time,
-        );
-        sampler.reported_unready = false;
-        commands
-            .entity(sampler.character)
-            .insert(AlsRollSlotRuntime {
-                active: true,
-                weight,
-                pose_ready: true,
-                root_motion_delta: root_motion.translation_delta,
-                root_motion_rotation: root_motion.rotation_delta,
-                pose_standing,
-                pose_grounded,
-            });
+        samples.sort_by_key(|(_, _, _, current)| !*current);
+        let total_weight = samples.iter().map(|(_, _, weight, _)| weight).sum::<f32>();
+        let primary_root = samples.first().and_then(|(pose, _, _, _)| pose.root_motion.clone());
+        let mut pose: Option<bevy_animation_graph::core::pose::Pose> = None;
+        for (sample, _, weight, _) in &samples {
+            if *weight <= f32::EPSILON { continue; }
+            let sample = sample.scalar_mult(weight / total_weight.max(f32::EPSILON));
+            pose = Some(pose.map_or_else(|| sample.clone(), |previous| previous.linear_add(&sample)));
+        }
+        let pose = pose.map(|pose| {
+            let mut pose = pose.normalize_quat();
+            pose.root_motion = primary_root;
+            pose
+        });
+        let context = pose.as_ref().map(|_| crate::extensions::source_pose_nodes::blend_animation_contexts(
+            samples.iter().map(|(_, context, weight, _)| (context.clone(), weight / total_weight.max(f32::EPSILON)))));
+        let weight = total_weight.clamp(0.0, 1.0);
+        let pose_ready = pose.is_some();
+        if let Some(pose) = &pose { target_player.set_global_input_data("roll.pose", DataValue::Pose(pose.clone())); }
+        target_player.set_global_input_data("roll.weight", weight);
+        source_inputs.get_mut(target).unwrap().set_slot_input_context("roll.pose", context.clone());
+        let curve_values = ROLL_SLOT_CURVE_NAMES.map(|name| context.as_ref().and_then(|context| context.curves.get(&crate::extensions::SourceCurveName::from(name))).copied().unwrap_or_default());
+        for (name, value) in ROLL_SLOT_CURVE_NAMES.into_iter().zip(curve_values) {
+            target_player.set_global_input_data(format!("{ROOT_POST_LOCOMOTION_SLOT_CURVE_PREFIX}{name}"), value);
+        }
+        if !get_ups.contains(character) {
+            source_inputs.get_mut(target).unwrap().set_slot_input_context(GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY, context);
+            if let Some(pose) = pose {
+                target_player.set_global_input_data(ROOT_POST_LOCOMOTION_SLOT_POSE_KEY, DataValue::Pose(pose.clone()));
+                target_player.set_global_input_data(GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY, DataValue::Pose(pose));
+            }
+            for key in [ROOT_POST_LOCOMOTION_SLOT_WEIGHT_KEY, ROOT_POST_LOCOMOTION_SLOT_LAYER_WEIGHT_KEY, GENERATED_POST_LOCOMOTION_SLOT_WEIGHT_KEY] {
+                target_player.set_global_input_data(key, weight);
+            }
+            target_player.set_global_input_data(GENERATED_POST_LOCOMOTION_SLOT_LAYER_WEIGHT_KEY, if pose_ready { 1.0_f32 } else { 0.0 });
+        }
+        commands.entity(character).insert(AlsRollSlotRuntime {
+            active: roll.is_some() || samples.iter().any(|(_, _, _, current)| !current), weight, pose_ready,
+            root_motion_delta: root_motion.translation_delta, root_motion_rotation: root_motion.rotation_delta,
+            pose_standing: curve_values[0], pose_grounded: curve_values[1],
+        });
     }
 }
 
@@ -746,6 +821,8 @@ fn advance_rolls(
     blocked: Query<(), With<crate::als::motion::AlsMovementInputBlocked>>,
     actions: Query<&crate::animation_events::AlsNotifyLocomotionAction>,
     mut blend_outs: Query<&mut AlsRollBlendOut>,
+    mut tails: Query<(Entity, &mut AlsRollTail)>,
+    samplers: Query<(Entity, &AlsRollSlotSampler, &AnimationGraphPlayer), Without<AlsRollTail>>,
     mut q: Query<
         (
             Entity,
@@ -763,6 +840,11 @@ fn advance_rolls(
     >,
 ) {
     let dt = time.delta_secs();
+    for (entity, mut tail) in &mut tails {
+        tail.time += dt;
+        tail.blend.elapsed += dt;
+        if tail.weight() <= f32::EPSILON { commands.entity(entity).try_despawn(); }
+    }
     for (
         character,
         mut roll,
@@ -783,14 +865,22 @@ fn advance_rolls(
             blocked.contains(character) || action_blocked,
         );
 
+        let previous_roll = *roll;
+        let landing_ready = *loco == LocomotionState::Grounded && !blocked.contains(character) && !action_blocked
+            && air.is_some_and(|air| air.landing_time <= dt.max(0.05) && air.last_impact_vy >= crate::als::roll::ROLL_ON_LAND_SPEED_THRESHOLD);
+        let empty_action = actions.get(character).ok().is_none_or(|action| *action == AlsNotifyLocomotionAction::None);
+        if empty_action && *loco == LocomotionState::Grounded && effective.roll_pressed { roll.active = false; }
+        let mut stopped_blend = None;
         if let Ok(mut blend) = blend_outs.get_mut(character) {
+            stopped_blend = Some(*blend);
             roll.time += dt;
             blend.elapsed += dt;
             if blend.weight() <= 0.0 {
                 roll.active = false;
                 commands.entity(character).remove::<AlsRollBlendOut>();
             }
-            continue;
+            if !(*loco == LocomotionState::Grounded && effective.roll_pressed) && !landing_ready { continue; }
+            roll.active = false;
         }
 
         let direction_basis = AlsViewYaw(if effective.move_dir.length_squared() > 1e-6 {
@@ -798,16 +888,28 @@ fn advance_rolls(
         } else { transform.rotation.to_euler(EulerRot::YXZ).0 });
         let mut lifecycle = roll.update(&effective, &direction_basis, loco, stance, dt);
         if !lifecycle.started
-            && !roll.active
-            && *loco == LocomotionState::Grounded
-            && !blocked.contains(character)
-            && !action_blocked
-            && air.is_some_and(|air| air.landing_time <= dt.max(0.05))
+            && (empty_action || stopped_blend.is_some() || !previous_roll.root_motion_active())
+            && landing_ready
         {
             let (actor_yaw, _, _) = transform.rotation.to_euler(EulerRot::YXZ);
             lifecycle = roll.start_from_landing(air.unwrap().last_impact_vy, vel.0, actor_yaw, *stance);
         }
         if lifecycle.started {
+            if previous_roll.active {
+                let mut blend = stopped_blend.unwrap_or_else(|| AlsRollBlendOut::new(&previous_roll,
+                    (crate::als::roll::ROLL_DURATION_SECS - previous_roll.time).max(0.0)));
+                blend.stop(crate::als::roll::ROLL_WEIGHT_IN_SECS);
+                blend.elapsed += dt;
+                for (entity, sampler, player) in &samplers {
+                    if sampler.character != character { continue; }
+                    commands.entity(entity).insert(AlsRollTail { time: previous_roll.time + dt, blend });
+                    let bevy_animation_graph::core::animation_graph_player::AnimationSource::Graph(graph) = player.get_animation_source() else { continue; };
+                    commands.spawn((Name::new("als_roll_slot_sampler"), Children::default(), ChildOf(character),
+                        AnimationGraphPlayer::new(player.skeleton().clone()).with_graph(graph.clone()),
+                        RootMotionOutput::default(), *sampler));
+                }
+                commands.entity(character).remove::<AlsRollBlendOut>();
+            }
             roll.time = dt;
         }
     }
@@ -819,7 +921,7 @@ fn roll_drive_system(
     mut space: ParamSet<(bevy::transform::helper::TransformHelper,
         Query<(Entity, &AlsRollState, Option<&AlsNotifyLocomotionAction>, &mut Transform, Option<&mut Rotation>,
             &mut LinearVelocity, Option<&AlsNotifyRootMotionScale>), With<crate::als::character::AlsCharacter>>)> ,
-    sampler_root_motion: Query<(&AlsRollSlotSampler, &RootMotionOutput)>,
+    sampler_root_motion: Query<(&AlsRollSlotSampler, &RootMotionOutput), Without<AlsRollTail>>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
     let dt = time.delta_secs();
