@@ -84,7 +84,7 @@
 - [x] **BF132.R5E-20 — Pivot 请求只携带角色，下一帧用新速度重新判断激活门槛**。Gate：保存通知当次输入的严格门槛结果，跨阈值、Initialize/Reset 覆盖通过。
 - [x] **BF132.R5E-21 — 过渡 montage 把负 PlayRate 钳成正 EPSILON，倒播近乎变为冻结**。Gate：有符号采样、方向相关终止/寿命、零速率、反向通知与曲线时钟通过。
 - [x] **BF132.R5E-22 — 设置落地入口通知忽略空标签，不能清除既有 FromRoll**。Gate：空/自定义/FromRoll 标签完整赋值，独立 Reset 与真实入口分支通过。
-- [ ] **BF132.R5E-23 — 翻滚首次通知采样丢弃已推进的首个时间区间**。Gate：首帧长 Delta、不为零的起播、seek、资产迟到与后续无重复通知通过。
+- [x] **BF132.R5E-23 — 翻滚首次通知采样丢弃已推进的首个时间区间**。Gate：首帧长 Delta、不为零的起播、seek、资产迟到与后续无重复通知通过。
 - [ ] **BF132.R5E-24 — 移动下蹲交叉混合期间，仍相关的 Standing 分支使用陈旧输入**。Gate：T19 淡出期 Standing 按实际相关性刷新 Gait/stride/rate，结束后生命周期与脚锁归属正确。
 - [ ] **BF132.R5E-25 — 缺少源默认可见性驱动的动画停更与恢复生命周期**。Gate：最近渲染/多视图、隐藏后的图停更、Montage 继续与 PendingUpdate 恢复分别符合源策略。
 - [ ] **BF132.R5E-26 — 自动过渡的循环判定使用无符号帧时长，倒播误触发或漏触发跳转**。Gate：有符号实际播放增量判定正反向跨循环，保留源剩余时间与淡出公式。
@@ -387,3 +387,13 @@
   - Runtime前摘要（17:49 +08:00）：144.571秒target_game/play实际启动器预构建通过；fresh Notify/Setter/Reset/native Grounded/T2、3恢复/20条件/33定向回归与两丢值消融red/byte恢复green、manifest/static闭合。复用已有tag_state完整赋值/投影，不新状态或改graph/converter；开始同版startup/Notify/FootIk公共功能Gate，原截图/完整性能暂停保留。
 
   - S2实际结束2026-10-03 17:53 +08:00；相对18:11预估偏差-18分钟；结果：144.571秒同入口预构建，同版startup、Notify 13/13、FootIk 22/22公共功能runner/manual/validator退出0，三报告graph/primary failure/fault/temporal/watchdog均0；完整max_eval_p95_ms未通过，截图及完整性能原暂停保留。合法point空/自定义/FromRoll/同值顺序、provider完整tag与20真实T2条件/移动旋转掩盖/current-frame独立Reset、33回归、两丢值消融red恢复green及fresh source/native/static闭合；默认资产未声称发清空，实际落地入口通知与Reset路径作公共控制。删除two-value enum/特例投影，复用既有tag_state验证与公开constants/reexport，不新增框架/状态，graph/converter/源导出不变；S1/S2各自提前完成，勾选R5E-22单独提交，下一项R5E-23，17项待处理。
+
+- BF132.R5E-23-S1：开始2026-10-03 17:56 +08:00；预估结束2026-10-03 18:31 +08:00。依据：fresh ALS StartRolling默认起点/UE Montage instance起点和notify Previous<point<=Current，native A_Als_Roll的.1 CameraShake，目标Roll.update/start→advance_rolls dt→legacy refresh→first playback_clock及真实相机request闭包。已有真实loaded RollSlot与native notification fixture可复用，先100ms首步漏Shake red；保存实际实例前位置、不对所有首次观察补0，区别新播/非零起点/seek/晚可用/重入/同帧重派发。新增前位置数据必须独立消融red；覆盖首帧零/16/50/100/200ms、常规/后续长步/无重复与替换，source/static后真实Gate另S2；不扩展相邻Footstep或通用Montage框架。
+  - source/static摘要（18:05 +08:00）：fresh A_Roll原生两CameraShake=.1/.466667、ALS默认Montage起点、UE初始化与点区间闭合；native 100ms当前Roll.time=.1/clip=.13且相机request0稳定red，保存当前Roll前位置并传现有playback后1请求green。5首步0/16/50/100/200ms×真实调度、后续两shake共2且同帧重复不发、seek回零仅当前步1请求及unknown/非零/首次晚观察不补0的clock控制通过。删除advance_rolls重复赋值后仍green，只保留Roll.update/start的前位置字段及playback optional数据，其他播放者首次边界不改；追加结束重播及前位置/consumer消融，尚未真实Gate，图/转换未改。
+
+  - S1实际结束2026-10-03 18:11 +08:00；相对18:31预估偏差-20分钟；结果：5真实首步时长/后续两shake/零Delta/同帧去重/seek/结束重播以及实际notify数据晚可用仅.39→.52当前区间第二shake通过，unknown/合法非零/晚首次/同帧clock控制通过；20通知和43roll匹配回归通过。移除Roll前位置记录稳定重复7而源2，移除captured区间消费使seek/late缺请求分别red，byte恢复刷新mtime最终2native测试green；删除advance_rolls冗余保存后信号不变，已移除，只保留Roll.update/start时钟和既有playback optional前位置，没有新组件/框架。fresh原生/source/manifest/static通过，首次未知观察仍同位置，不补零，source/graph/converter不变；下一步同入口公共Gate。
+- BF132.R5E-23-S2：开始2026-10-03 18:11 +08:00；预估结束2026-10-03 18:36 +08:00。依据：source/static/消融闭合，同类实际入口预构建144秒、startup/100ms Notify/FootIk约120秒；本轮只实际功能Gate/报告审计与单独提交，截图/完整性能原暂停保留。
+  - Runtime前摘要（18:14 +08:00）：145.323秒target_game/play实际启动器最终预构建通过；fresh .1/.466667 native点/ALS起点/UE区间、5首步/seek/replay/late-data/同帧去重、20通知/43roll、前位置与consumer消融red恢复green及冗余driver赋值删除、manifest/static闭合。graph/converter不变；开始同版startup/100ms Notify/FootIk公共功能Gate，截图/完整性能原暂停保留。
+  - Runtime中摘要（18:17 +08:00）：startup退出0；额外100ms公开Notify在场景接入前SPAWN/GROUND固定max_vertical_velocity<=.15合同失败，实际.16，未产生animation report，外层watchdog在96.676秒记录最后spawn错误并no_progress_timeout结束。当前Roll inactive且变化仅实例通知前位置，不涉及spawn/floor/velocity，缺症状→fresh source→本条target根因链，不能猜测复开已完成出生项或放宽门槛；失败完整保留，不作100ms公开通过声明。本条100ms首步/seek/replay/late-data已有native实际调度与相机request red→green、源区间证明；声明式manifest的公共Gate仍为默认Notify，下一步正常时钟Notify与FootIk继续同二进制验收，不重复失败调用或修改地面/阈值。
+
+  - S2实际结束2026-10-03 18:21 +08:00；相对18:36预估偏差-15分钟；结果：145.323秒同入口预构建，同版startup、默认Notify 13/13、FootIk 22/22公共功能runner/manual/validator退出0，三报告graph/primary failure/fault/temporal/watchdog均0。额外100ms公开Notify在独立出生Gate maxV .16>.15被拦、96.676秒watchdog结束且无animation report，完整保留失败，不冒充100ms公开通过/不放宽门槛或猜测复开spawn；100ms本项由真实loaded input→Roll→CameraShake queue首步red/green及5Delta矩阵验收，声明式默认Notify功能Gate通过。完整max_eval_p95_ms未通过、截图/完整性能原暂停保留。20通知/43roll、seek/结束重播/late-data当前区间/非零与unknown首次/同帧无重复、前位置与consumer两消融red恢复green，fresh原生/source/static闭合。删除重复driver赋值，保留必要Roll前位置和现有playback可选数据；其他首次未知观察不补零，无新组件/框架/图/converter/原始资产改动。S1/S2各自提前完成，勾选R5E-23单独提交，下一项R5E-24，16项待处理。

@@ -24,6 +24,7 @@ pub struct RollLifecycle {
 pub struct AlsRollState {
     pub active: bool,
     pub time: f32,
+    pub previous_time: f32,
     pub cooldown: f32,
     pub direction_yaw: f32,
     pub last_direction: MoveDirection,
@@ -35,6 +36,7 @@ impl Default for AlsRollState {
         Self {
             active: false,
             time: 0.0,
+            previous_time: 0.0,
             cooldown: 0.0,
             direction_yaw: 0.0,
             last_direction: MoveDirection::Forward,
@@ -119,6 +121,7 @@ impl AlsRollState {
         self.stance_before_roll = stance;
         self.active = true;
         self.time = 0.0;
+        self.previous_time = 0.0;
         RollLifecycle {
             started: true,
             ended: false,
@@ -135,6 +138,7 @@ impl AlsRollState {
     ) -> RollLifecycle {
         let mut lifecycle = RollLifecycle::default();
         self.cooldown = 0.0;
+        self.previous_time = self.time;
         if self.active {
             let playing = self.root_motion_active();
             self.time += dt;
@@ -152,6 +156,7 @@ impl AlsRollState {
             self.stance_before_roll = *stance;
             self.active = true;
             self.time = 0.0;
+            self.previous_time = 0.0;
             lifecycle.started = true;
         }
         lifecycle

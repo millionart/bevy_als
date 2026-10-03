@@ -160,6 +160,7 @@ pub struct AlsAnimationEventPlayback {
     pub source_asset: String,
     pub graph_clip: String,
     pub time: f32,
+    pub previous_time: Option<f32>,
     pub weight: f32,
     pub looped: bool,
 }
@@ -511,6 +512,7 @@ fn push_playback(
         source_asset: source_asset.into(),
         graph_clip: graph_clip.into(),
         time,
+        previous_time: None,
         weight: weight.clamp(0.0, 1.0),
         looped,
     });
@@ -559,17 +561,20 @@ fn refresh_animation_event_playbacks(
         let mut entries = Vec::new();
         let current = samplers.iter().find(|(_, sampler, tail)| sampler.character == character && tail.is_none()).map(|(entity, _, _)| entity.to_bits()).unwrap_or(0);
         let mut roll_instances = samplers.iter().filter_map(|(entity, sampler, tail)| {
-            (sampler.character == character).then_some(tail.map(|tail| (entity.to_bits(), tail.time, tail.weight(), true))) .flatten()
+            (sampler.character == character).then_some(tail.map(|tail| (entity.to_bits(), tail.time, None, tail.weight(), true))) .flatten()
         }).collect::<Vec<_>>();
         if let Some(roll) = roll.filter(|state| state.active) {
-            roll_instances.push((current, roll.time, 1.0, roll_blend_out.is_some()));
+            roll_instances.push((current, roll.time, Some(roll.previous_time), 1.0, roll_blend_out.is_some()));
         }
-        for (instance_id, elapsed, weight, interrupted) in roll_instances {
+        for (instance_id, elapsed, previous, weight, interrupted) in roll_instances {
             let time = (elapsed * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS);
             for source in [SOURCE_ROLL_SEQUENCE, SOURCE_ROLL_MONTAGE] {
                 if let Some(graph_clip) = graph_clip_for_source(manifest, source) {
                     push_playback(&mut entries, source, graph_clip, time, weight, false, interrupted);
-                    if let Some(entry) = entries.last_mut() { entry.instance_id = instance_id; }
+                    if let Some(entry) = entries.last_mut() {
+                        entry.instance_id = instance_id;
+                        entry.previous_time = previous.map(|time| (time * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS));
+                    }
                 }
             }
         }
@@ -681,14 +686,11 @@ fn playback_clock(
     runtime: &mut AlsAnimationEventSourceRuntime,
     playback: &AlsAnimationEventPlayback,
 ) -> Option<EventClock> {
-    let Some(previous) = runtime.previous_time.replace(playback.time) else {
-        return Some(EventClock {
-            previous_time: playback.time,
-            current_time: playback.time,
-            duration: 0.0,
-            direction: PlaybackDirection::Forward,
-            wrapped: false,
-        });
+    let observed = runtime.previous_time.replace(playback.time);
+    let previous = if observed == Some(playback.time) {
+        playback.time
+    } else {
+        playback.previous_time.or(observed).unwrap_or(playback.time)
     };
     if !playback.looped && playback.time + 1e-5 < previous {
         runtime.previous_time = Some(playback.time);
@@ -1167,6 +1169,69 @@ pub(crate) mod tests {
         runtime.set_instance(2);
         assert!(runtime.montage_chance.accepts(&event));
         assert_eq!(runtime.montage_chance.0 as i32, seeds[0]);
+    }
+
+    #[test]
+    fn roll_first_interval_dispatches_the_actual_camera_shake() {
+        use bevy::ecs::system::RunSystemOnce;
+        for first_dt in [0.0_f32, 1.0/60.0, 0.05, 0.1, 0.2] {
+            let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(first_dt)));
+            app.world_mut().resource_mut::<Messages<AlsCameraShakeRequest>>().clear();
+            app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().clear();
+            app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = true;
+            app.update();
+            app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = false;
+            assert!((app.world().get::<AlsRollState>(character).unwrap().time - first_dt).abs() < 1e-6);
+            let count = app.world_mut().resource_mut::<Messages<AlsCameraShakeRequest>>().drain().filter(|request| request.target == character).count();
+            assert_eq!(count, usize::from(first_dt * ROLL_PLAY_RATE >= 0.1), "First interval dropped the .1 camera shake: dt={first_dt}");
+            app.world_mut().run_system_once(dispatch_animation_events).unwrap();
+            assert_eq!(app.world_mut().resource_mut::<Messages<AlsCameraShakeRequest>>().drain().count(), 0, "Repeated same-frame dispatch duplicated a point");
+            let mut total = count;
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.1)));
+            for _ in 0..5 {
+                app.update();
+                total += app.world_mut().resource_mut::<Messages<AlsCameraShakeRequest>>().drain().filter(|request| request.target == character).count();
+            }
+            assert_eq!(total, 2, "Default roll shake intervals were lost or duplicated");
+            app.world_mut().get_mut::<AlsRollState>(character).unwrap().time = 0.0;
+            app.update();
+            assert_eq!(app.world_mut().resource_mut::<Messages<AlsCameraShakeRequest>>().drain().filter(|request| request.target == character).count(), 1, "A seek used the last observed time instead of the true pre-step position");
+            for _ in 0..13 { app.update(); }
+            assert!(!app.world().get::<AlsRollState>(character).unwrap().active);
+            app.world_mut().resource_mut::<Messages<AlsCameraShakeRequest>>().clear();
+            app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = true;
+            app.update();
+            app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = false;
+            assert_eq!(app.world_mut().resource_mut::<Messages<AlsCameraShakeRequest>>().drain().filter(|request| request.target == character).count(), 1, "A replay inherited the old instance cursor");
+        }
+        let mut runtime = AlsAnimationEventSourceRuntime::default();
+        let mut entries = Vec::new();
+        push_playback(&mut entries, SOURCE_ROLL_SEQUENCE, "fixture", 0.6, 1.0, false, false);
+        let mut playback = entries.remove(0);
+        assert_eq!(playback_clock(&mut runtime, &playback).unwrap().previous_time, 0.6);
+        runtime = default();
+        playback.previous_time = Some(0.5);
+        assert_eq!(playback_clock(&mut runtime, &playback).unwrap().previous_time, 0.5);
+        runtime.previous_time = Some(0.1);
+        playback.previous_time = Some(0.55);
+        assert_eq!(playback_clock(&mut runtime, &playback).unwrap().previous_time, 0.55);
+        assert_eq!(playback_clock(&mut runtime, &playback).unwrap().previous_time, 0.6);
+    }
+
+    #[test]
+    fn roll_first_interval_late_assets_use_the_current_instance_interval() {
+        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        let handle = app.world_mut().remove_resource::<AlsNotifyManifestHandle>().unwrap();
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.1)));
+        app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = true;
+        app.update();
+        app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = false;
+        for _ in 0..2 { app.update(); }
+        app.world_mut().resource_mut::<Messages<AlsCameraShakeRequest>>().clear();
+        app.insert_resource(handle);
+        app.update();
+        assert_eq!(app.world_mut().resource_mut::<Messages<AlsCameraShakeRequest>>().drain().filter(|request| request.target == character).count(), 1, "Late notify data replayed the old .1 point or lost the current .466667 point");
     }
 
     #[test]
