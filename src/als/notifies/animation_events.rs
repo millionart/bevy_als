@@ -843,7 +843,7 @@ fn dispatch_animation_events(
                     }
                     if !superseded_roll && event.class_name == "AlsAnimNotifyState_SetRootMotionScale" {
                         let scale = parameter_f32(&event.parameters, "TranslationScale", 1.0);
-                        if (root_scale.0 - scale).abs() <= 1e-4 {
+                        if (root_scale.0 - scale).abs() <= 1e-8 {
                             root_scale.0 = 1.0;
                         }
                     }
@@ -947,8 +947,8 @@ fn dispatch_animation_events(
                 if class_name == "AlsAnimNotifyState_SetRootMotionScale" {
                     let scale = parameter_f32(&parameters, "TranslationScale", 1.0);
                     match signal.phase {
-                        EventPhase::Begin | EventPhase::Active => root_scale.0 = scale,
-                        EventPhase::End if (root_scale.0 - scale).abs() <= 1e-4 => {
+                        EventPhase::Begin => root_scale.0 = scale,
+                        EventPhase::End if (root_scale.0 - scale).abs() <= 1e-8 => {
                             root_scale.0 = 1.0;
                         }
                         _ => {}
@@ -997,8 +997,100 @@ fn dispatch_animation_events(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
+
+    pub(crate) fn configure_root_scale_notifications(app: &mut App, actor: Entity, definitions: &[(f32, f32, f32)]) {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy_animation_graph::core::event_track::{EventTrack, TrackItemValue};
+        use bevy_animation_graph::core::edge_data::events::AnimationEvent;
+        let mut manifest: AlsNotifyManifest = serde_json::from_str(include_str!("../../../assets/ALS/Animations/als_notify_manifest.json")).unwrap();
+        let template = manifest.clips.iter().flat_map(|clip| &clip.events)
+            .find(|event| event.class_name == "AlsAnimNotifyState_SetRootMotionScale").unwrap().clone();
+        let source = manifest.clips.iter_mut().find(|clip| clip.source_asset == SOURCE_ROLL_SEQUENCE).unwrap();
+        source.events.clear();
+        source.sync_markers.clear();
+        let graph_clip = source.runtime_segments[0].graph_clip.clone();
+        let mut clip = GraphClip::default();
+        let mut track = EventTrack { name: "root_scale".to_owned(), events: Vec::new() };
+        for (index, &(start, end, scale)) in definitions.iter().enumerate() {
+            let mut event = template.clone();
+            event.event_id = format!("root_scale_{index}");
+            event.kind = "state".to_owned();
+            event.start_time = start;
+            event.end_time = end;
+            event.trigger_time_offset = 0.0;
+            event.filter.trigger_chance = 1.0;
+            event.parameters = serde_json::json!({"TranslationScale": scale});
+            track.add_item(TrackItemValue { event: AnimationEvent::StringId(event.event_id.clone()), start_time: start, end_time: end });
+            source.events.push(event);
+        }
+        clip.event_tracks.insert(track.name.clone(), track);
+        let clip_handle = app.world_mut().resource_mut::<Assets<GraphClip>>().add(clip);
+        app.world_mut().resource_mut::<AlsNotifyGraphClipHandles>().0.insert(graph_clip.clone(), clip_handle);
+        for clip in &mut manifest.clips {
+            if clip.source_asset != SOURCE_ROLL_SEQUENCE { clip.events.clear(); clip.sync_markers.clear(); }
+        }
+        let handle = app.world_mut().resource_mut::<Assets<AlsNotifyManifest>>().add(manifest);
+        app.insert_resource(AlsNotifyManifestHandle(handle));
+        let mut entries = Vec::new();
+        push_playback(&mut entries, SOURCE_ROLL_SEQUENCE, &graph_clip, 0.0, 1.0, false, false);
+        app.world_mut().entity_mut(actor).insert((AlsAnimationEventPlaybacks { entries }, AlsNotifyRootMotionScale::default()));
+        app.world_mut().run_system_once(ensure_animation_event_components).unwrap();
+        app.world_mut().get_mut::<AlsAnimationEventRuntime>(actor).unwrap().sources.clear();
+    }
+
+    #[test]
+    fn root_motion_scale_active_preserves_source_overlap_and_external_writes() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (outer, inner, inner_start, inner_end) in [(0.5_f32, 2.0_f32, 0.2, 0.5), (0.5, 0.5, 0.2, 0.5), (1.0, 2.0, 0.2, 0.5), (0.5, 2.0, 0.81, 0.9), (0.5, 0.0, 1.2, 1.3)] {
+            for external in [None, Some(0.0), Some(2.0), Some(outer), Some(outer + 0.00001)] {
+                let mut app = App::new();
+                app.add_plugins((MinimalPlugins, AssetPlugin::default())).init_asset::<GraphClip>().init_asset::<AlsNotifyManifest>()
+                    .init_resource::<AlsNotifyGraphClipHandles>().add_message::<AlsAnimationEvent>().add_message::<AlsCameraShakeRequest>();
+                let actor = app.world_mut().spawn(AlsCharacter).id();
+                let definitions = if inner_start > 1.0 { vec![(0.1, 0.8, outer)] }
+                    else { vec![(0.1, 0.8, outer), (inner_start, inner_end, inner)] };
+                configure_root_scale_notifications(&mut app, actor, &definitions);
+                let mut expected = 1.0_f32;
+                let mut previous = 0.0_f32;
+                for time in [0.0, 0.11, 0.21, 0.35, 0.46, 0.55, 0.7, 0.8, 0.82, 0.91] {
+                    if time == 0.35 && let Some(value) = external {
+                        expected = value;
+                        app.world_mut().get_mut::<AlsNotifyRootMotionScale>(actor).unwrap().0 = value;
+                    }
+                    for &(start, end, scale) in &definitions {
+                        if previous < end && time >= end && (expected - scale).abs() <= 1e-8 { expected = 1.0; }
+                        if previous < start && time >= start { expected = scale; }
+                    }
+                    app.world_mut().get_mut::<AlsAnimationEventPlaybacks>(actor).unwrap().entries[0].time = time;
+                    app.world_mut().run_system_once(dispatch_animation_events).unwrap();
+                    assert!((app.world().get::<AlsNotifyRootMotionScale>(actor).unwrap().0 - expected).abs() < 1e-8,
+                        "Wrong source lifecycle: outer={outer}, inner={inner}, external={external:?}, time={time}, expected={expected}");
+                    previous = time;
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn root_motion_scale_instance_exit_preserves_unmatched_external_values() {
+        use bevy::ecs::system::RunSystemOnce;
+        for external in [0.0_f32, 2.0, 2.00001, 0.5, 0.50001] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AssetPlugin::default())).init_asset::<GraphClip>().init_asset::<AlsNotifyManifest>()
+                .init_resource::<AlsNotifyGraphClipHandles>().add_message::<AlsAnimationEvent>().add_message::<AlsCameraShakeRequest>();
+            let actor = app.world_mut().spawn(AlsCharacter).id();
+            configure_root_scale_notifications(&mut app, actor, &[(0.1, 0.8, 0.5), (0.2, 0.5, 2.0)]);
+            app.world_mut().get_mut::<AlsAnimationEventPlaybacks>(actor).unwrap().entries[0].time = 0.3;
+            app.world_mut().run_system_once(dispatch_animation_events).unwrap();
+            app.world_mut().get_mut::<AlsNotifyRootMotionScale>(actor).unwrap().0 = external;
+            app.world_mut().get_mut::<AlsAnimationEventPlaybacks>(actor).unwrap().entries.clear();
+            app.world_mut().run_system_once(dispatch_animation_events).unwrap();
+            let expected = if external == 0.5 || external == 2.0 { 1.0 } else { external };
+            assert_eq!(app.world().get::<AlsNotifyRootMotionScale>(actor).unwrap().0, expected);
+        }
+    }
 
     #[test]
     fn point_notify_chance_matches_native_queue_and_preserves_state_notifies() {

@@ -142,6 +142,45 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn root_motion_scale_lifecycle_drives_actual_roll_velocity_and_displacement() {
+        let (mut app, character, avatar) = loaded_roll_character();
+        let sampler = play_loaded_roll(&mut app, character);
+        crate::animation_events::tests::configure_root_scale_notifications(&mut app, character,
+            &[(0.1, 0.8, 0.5), (0.2, 0.5, 2.0)]);
+        app.world_mut().entity_mut(character).insert((avian3d::prelude::RigidBody::Kinematic,
+            bevy_tnua::TnuaToggle::Disabled, AlsRollState { active: true, ..default() }, AlsInputCommand::default()));
+        app.world_mut().get_mut::<Transform>(avatar).unwrap().scale = Vec3::splat(1.7);
+        let target = app.world().get::<AlsRollSlotSampler>(sampler).unwrap().target_player;
+        let mut after_inner_end = false;
+        let mut expected_total = Vec3::ZERO;
+        let mut actual_total = Vec3::ZERO;
+        for _ in 0..65 {
+            let before = app.world().get::<avian3d::prelude::Position>(character).unwrap().0;
+            app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.01));
+            app.world_mut().run_schedule(PostUpdate);
+            let clip_time = app.world().get::<AlsRollState>(character).unwrap().time * ROLL_PLAY_RATE;
+            let expected_scale = if (0.2..0.5).contains(&clip_time) { 2.0 } else if (0.1..0.2).contains(&clip_time) { 0.5 } else { 1.0 };
+            assert_eq!(app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0, expected_scale,
+                "Active notify reclaimed scale at actual roll time {clip_time}");
+            let raw = app.world().get::<RootMotionOutput>(sampler).unwrap().translation_delta;
+            let mesh = app.world_mut().run_system_once(move |transforms: bevy::transform::helper::TransformHelper|
+                transforms.compute_global_transform(target).unwrap()).unwrap();
+            let expected = mesh.affine().transform_vector3(raw) * expected_scale;
+            app.world_mut().run_system_once(roll_drive_system).unwrap();
+            let actual = app.world().get::<LinearVelocity>(character).unwrap().0 * app.world().resource::<Time>().delta_secs();
+            assert!(actual.distance(expected) < 1e-5, "Actual root motion did not consume the source scale");
+            let after = app.world().get::<avian3d::prelude::Position>(character).unwrap().0;
+            assert!(Vec2::new(after.x - before.x, after.z - before.z).distance(Vec2::new(expected.x, expected.z)) < 1e-4,
+                "Actual roll physics did not apply the scaled root displacement");
+            actual_total += after - before;
+            expected_total += expected;
+            after_inner_end |= clip_time > 0.5 && clip_time < 0.7 && raw.length() > 1e-6;
+        }
+        assert!(after_inner_end, "No real root sample was observed while the outer notify remained active");
+        assert!(Vec2::new(actual_total.x, actual_total.z).distance(Vec2::new(expected_total.x, expected_total.z)) < 1e-4);
+    }
+
+    #[test]
     fn actual_roll_slot_uses_current_mesh_scale_and_basis() {
         #[derive(Component, Default)]
         struct RequestedRootStep { start: Vec3, delta: Vec3 }
