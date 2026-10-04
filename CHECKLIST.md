@@ -35,3 +35,17 @@
 - Distance matching / motion matching 类高级特性仅实现 Stop 所需子集（M8.3）。
 - ALSExtras（AI 控制器示例）不在范围内。
 - 音频（Metasound）、Niagara 特效仅保留挂钩点。ALSCamera 完整移植已纳入 BF116.01。
+
+## BF134 — 全范围 P2 及以上移植差异审计与修复
+
+用户于 2026-10-05 将全部移植范围选为当前任务。按本地 ALS/UE source 与真实 target 消费链逐模块核对；排除附录 A 的刻意差异、网络同步、AI 示例和仅编辑器功能。P0 为核心入口不可用/数据损坏，P1 为常用核心行为错误，P2 为受支持输入、配置或生命周期下的明确行为错误。未经 source 证实的观察不定级、不修复。
+
+- [x] BF134.00 建立 fresh source/target 覆盖清单与差异台账。开始：2026-10-05 06:12 +08:00；预估结束：2026-10-05 06:42 +08:00；实际结束：2026-10-05 06:17 +08:00，偏差 -25 分钟，结果：完成覆盖登记。依据：本地插件 146 个 C++/header、目标 181 个 Rust 文件、已安装 15 AnimBP/递归资产与 BF131–BF133 的真实记录；先确认实际源位置、模块入口、既有 Gate 与刻意差异，不重新运行已归档任务。Gate：覆盖清单包含全部移植模块和未审计边界，台账记录每个确认差异的源函数/资产、触发条件、target consumer、严重级、反例与修复验证。
+- [ ] BF134.01 角色状态、输入、运动与动作逐链审计及修复；按发现项拆为独立 Gate/提交，完成 native 算法、参数、坐标与生命周期闭包。
+- [ ] BF134.02 动画图、播放器、曲线、同步、通知、根运动与 Control Rig 逐链审计及修复；遵循 animation-graph-equivalence，转换规则修改后全量重转并核对完整 diff。
+- [ ] BF134.03 PhysicsAsset/物理时钟、相机、Overlay、关卡、材质与 UI 逐链审计及修复；只有限复开有 fresh source/症状/consumer 证据的旧项。
+- [ ] BF134.04 全范围覆盖核销与真实 Playground 最终 Gate；所有确认的 P2+ 项通过自身 Gate 后才可核销总目标。
+
+活动摘要（06:12 +08:00）：仓库起始 HEAD `9105cdf`，工作区干净；实际可读源在插件源码 checkout，工程插件是打包目录的符号链接。BF132 的 49 项与 BF133 的两项已完成，作为漏检边界参考，不凭标题复开。当前只有清单/覆盖登记，尚未宣称任何模块审计通过；下一步从角色和 CMC 的 native 入口建立 source-target 清单。
+
+覆盖 Gate（06:17 +08:00）：当次 inventory 列出全部 146 个源文件（ALS 112/Camera 12/Editor 16/Extras 6）及 SHA-256、181 个 target Rust、15 个 installed root/359 个生成依赖文件，缺失文件 0，连同 15 份 manifest 为 374 个完整生成产物。源码 revision ALS `b754d6f`、UE `396c9f0`；B_Als_Character 原生 reader 39.050 秒退出 0，watchdog 的停滞/子进程/正常完成/构建时效 self-test 全 PASS。台账覆盖八个运行时闭包且明确未核销边界；只完成 inventory，不宣称功能审计完成。下一步 BF134.01 的源刹车归零反例。
