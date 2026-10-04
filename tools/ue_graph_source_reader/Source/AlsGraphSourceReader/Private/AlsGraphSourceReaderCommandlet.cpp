@@ -29,6 +29,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "PhysicsEngine/AggregateGeom.h"
 #include "PhysicsEngine/PhysicsAsset.h"
+#include "PhysicsEngine/PhysicsSettings.h"
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
 #include "PhysicsEngine/SkeletalBodySetup.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
@@ -633,6 +634,7 @@ TSharedRef<FJsonObject> CapturePhysicsConstraint(const UPhysicsConstraintTemplat
 TSharedRef<FJsonObject> CapturePhysicsAsset(const UPhysicsAsset* Asset)
 {
     TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+    Value->SetNumberField(TEXT("project_default_dof_mode"), static_cast<int32>(UPhysicsSettings::Get()->DefaultDegreesOfFreedom.GetValue()));
     TSharedRef<FJsonObject> ConsoleVariables = MakeShared<FJsonObject>();
     const FConsoleObjectVisitor Visitor = FConsoleObjectVisitor::CreateLambda([&ConsoleVariables](const TCHAR* Name, IConsoleObject* Object)
     {

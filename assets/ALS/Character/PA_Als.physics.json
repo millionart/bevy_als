@@ -274,6 +274,7 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "locked_axes_bits": 0,
         "mass_properties": {
           "center_of_mass_m": [
             0.005,
@@ -586,6 +587,7 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "locked_axes_bits": 0,
         "mass_properties": {
           "center_of_mass_m": [
             0.045,
@@ -898,6 +900,7 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "locked_axes_bits": 0,
         "mass_properties": {
           "center_of_mass_m": [
             0.0,
@@ -1386,6 +1389,7 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "locked_axes_bits": 0,
         "mass_properties": {
           "center_of_mass_m": [
             0.007825505590501613,
@@ -1698,6 +1702,7 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "locked_axes_bits": 0,
         "mass_properties": {
           "center_of_mass_m": [
             0.03,
@@ -2010,6 +2015,7 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "locked_axes_bits": 0,
         "mass_properties": {
           "center_of_mass_m": [
             0.05,
@@ -2322,6 +2328,7 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "locked_axes_bits": 0,
         "mass_properties": {
           "center_of_mass_m": [
             -0.21000000000000002,
@@ -2634,6 +2641,7 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "locked_axes_bits": 0,
         "mass_properties": {
           "center_of_mass_m": [
             0.21000000000000002,
@@ -2946,6 +2954,7 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "locked_axes_bits": 0,
         "mass_properties": {
           "center_of_mass_m": [
             -0.195,
@@ -3258,6 +3267,7 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "locked_axes_bits": 0,
         "mass_properties": {
           "center_of_mass_m": [
             0.195,
@@ -3570,6 +3580,7 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "locked_axes_bits": 0,
         "mass_properties": {
           "center_of_mass_m": [
             0.08,
@@ -3882,6 +3893,7 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "locked_axes_bits": 0,
         "mass_properties": {
           "center_of_mass_m": [
             -0.08,
@@ -4194,6 +4206,7 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "locked_axes_bits": 0,
         "mass_properties": {
           "center_of_mass_m": [
             0.15,
@@ -4506,6 +4519,7 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "locked_axes_bits": 0,
         "mass_properties": {
           "center_of_mass_m": [
             -0.15,
@@ -4818,6 +4832,7 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "locked_axes_bits": 0,
         "mass_properties": {
           "center_of_mass_m": [
             0.115,
@@ -5130,6 +5145,7 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "locked_axes_bits": 0,
         "mass_properties": {
           "center_of_mass_m": [
             -0.115,
@@ -5455,6 +5471,7 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "locked_axes_bits": 0,
         "mass_properties": {
           "center_of_mass_m": [
             0.05,
@@ -5780,6 +5797,7 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "locked_axes_bits": 0,
         "mass_properties": {
           "center_of_mass_m": [
             -0.05,
@@ -6038,6 +6056,7 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "locked_axes_bits": 0,
         "mass_properties": {
           "center_of_mass_m": [
             0.0,
@@ -6363,6 +6382,7 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "locked_axes_bits": 0,
         "mass_properties": {
           "center_of_mass_m": [
             -0.07,
@@ -6688,6 +6708,7 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "locked_axes_bits": 0,
         "mass_properties": {
           "center_of_mass_m": [
             0.07,

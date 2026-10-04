@@ -102,7 +102,7 @@
 - [x] **BF132.R71-10 — 脱离后的 ragdoll 物理配置仍读取原 avatar 宿主缩放**。Gate：脱离前后实际 root/world scale 正确重配，宿主变化不污染脱离体。
 - [x] **BF132.R71-11 — 默认 PA_Als 的 cached 双轴摆动限制被替换成更窄的椭圆边界**。Gate：fresh 实际 cached/ordinary 分支与默认 PA 配置共同证明正确边界，斜向/轴向与内外控制通过。
 - [x] **BF132.R71-16 — PhysicsAsset 的 bUseCCD 被接受但未传入 ragdoll 的实际 CCD 配置**。Gate：源开关贯穿生成/安装/重建与实际高速碰撞，不以字段存在宣称实现。
-- [ ] **BF132.R71-17 — PhysicsAsset 的 SixDOF 逐轴锁定未生成或安装有效约束**。Gate：SixDOF 项目/实例有效模式及逐轴锁实际限制运动，自由轴与重建通过。
+- [x] **BF132.R71-17 — PhysicsAsset 的 SixDOF 逐轴锁定未生成或安装有效约束**。Gate：SixDOF 项目/实例有效模式及逐轴锁实际限制运动，自由轴与重建通过。
 - [ ] **BF132.R5E-31 — Body 惯量条件化被丢弃；现有 Joint 质量条件化不是等价替代**。Gate：独立 solver 惯量消费 Body 标志、几何/约束臂及失效重算，物理质量保持源值；缩放、拓扑/动态切换和 Joint 条件化共存通过。
 
 ### 活动记录
@@ -602,3 +602,31 @@
   - S3-R1/Ragdoll后、GetUp前 2026-10-04 19:53 +08:00：同版Ragdoll 11/11功能通过，profile/动态/scale/关节/恢复/相机/输入实际consumer覆盖，runner/manual/validator退出0、ready=true、graph/primary failure/fault/temporal/watchdog均0；完整性能/截图仍暂停。继续同版GetUp正反起身与输入锁生命周期功能Gate，不重启已通过的startup或库。
 
   - S3-R1实际结束2026-10-04 19:54 +08:00；相对20:30预估提前36分钟；结果：最终恢复版149.078秒target_game/play实际入口预构建，同版startup/Ragdoll11/11/GetUp11/11公共功能runner/manual/validator均退出0，三报告ready=true、graph/primary failure/fault/temporal/watchdog均0；完整max_eval_p95_ms未通过、截图/完整性能原暂停保留。1383库/19profile/5资产/shape/self-test/nativeCCD生成/静态/source参数/三消融及恢复、168条件+12旋转CoM缩放/连续frame/4substeps完整覆盖；全15 AnimBP+39source/374产物fresh重放完整diff0。target只21flag+六源配置，raw/其他PA字段/rag/bone-map不变，无Node/graph专用算法、依赖fork/vendor/持久frame cache，补充源linear sweep在公开Substep phase执行，单纯Marker安装失败边界已固化，Source_CVAR取证由原生reader可复跑。只复刻bUseCCD及此次已证实sweep合同，不声明完整Chaos岛/碰撞求解器已克隆。S1及R1/R2无工具漂移/时钟/API漏检失败记录保留，第四轮先整体复审、S1R3有效窗口内闭合，S2有效窗口diff0，S3超时复盘后R1在新窗口完成；勾选R71-16单独提交，47/49完成，下一项R71-17，2项待处理。
+
+- BF132.R71-17-S1：开始2026-10-04 19:56 +08:00；预估结束2026-10-04 20:36 +08:00。依据：fresh BodyInstance ResolveDOFMode(Default→项目)与CreateDOFLock SixDOF逐轴flags/世界axes/动态初始化重建，目标gen/profile丢锁但Avian公开LockedAxes存在；预计PA21 Body+PhysicsSettings闭包、UE XYZ→target XZY手性映射、native运动红例、partial/free/两组rotation/translation及重建控制，先核对公开锁世界/局部语义与源world constraints，必要时只补真实缺口。S1只source/static/消融/定向回归，source生成规则后S2全15 AnimBP+递归source完整重放/diff，runtime另S3；Body惯量条件化尚未启动。
+
+  - S1超时复盘2026-10-04 21:15 +08:00：开始19:56/预估20:36/实际检查21:15，偏差+39分钟，Gate未通过，已暂停实现/新runtime并回读source/机器报告。fresh native PhysicsAsset project_default_dof_mode=0(Full3D)、21 Body Default→SixDOF且六独立flags=false，不使用整体bLockTranslation/Rotation；原X世界运动red已稳定复现。新增reader源字段/离线XZY轴bits及LockedAxes安装后同red仍存在：实际x=.016665，说明公开Axes只屏蔽力/惯量，并不把已赋值速度转为源约束。source.CreateDOFLock世界anchor/动态筛选/重建证明当前责任不止字段接通。另有模型长分析且没有工具进展的漂移，不是权限/外部阻塞；纠正：按实测入口补最小dynamic速度/pose合同，partial/free/rotated/mode/rebuild控制反例优先，不探索相邻Body惯量，不重复已通过CCD。原40×1.5=60拆40 source/native/消融与20恢复/库，S2全15根转换/diff及S3真实入口仍保持依赖。
+
+- BF132.R71-17-S1-R1A：开始2026-10-04 21:15 +08:00；预估结束2026-10-04 21:55 +08:00。依据：复盘剩余为既有SDK Axis与源world DOF运动/生命周期差异，source读回与生成已闭合；只最小补运动并用六轴/自由/旋转/force/velocity/初始化重建控制、消融/静态决定必要state，不启动Playground。R1B剩余20在A通过后登记实际开始/预计结束。
+
+  - Source/native 摘要2026-10-04 21:44 +08:00：384 Default/SixDOF/None逐轴/整体flag生成控制通过；安装SDK锁后速度red、补速度后原例green，增加非零CoM/允许Z旋转再次stable red（锁X仍漂移.002513m），证明不能以CoM速度屏蔽代替源Body原点世界anchor。fresh CreateDOFLock.Pos2/世界Frame与Chaos.InitLockedPositionConstraint/GetLockedRotationAxes/单body静态world约束Jacobian重新读取；移除临时速度补丁和SDK惯量屏蔽，正在原public SolverBody上求解源逐轴hard世界约束，anchor仅动态初始化/模式重建保留，逐帧不重置，不改变CCD或Body惯量条件化。原小夹具没有CoM偏移/旋转而漏检已固化；不启动runtime。
+
+  - S1-R1A实际结束2026-10-04 21:59 +08:00；相对21:55预估偏差+4分钟，未超20分钟容差；结果：源world DOF硬约束代替SDK惯量掩码/临时速度补丁，CoM偏移稳定red→green；64 masks×两初始旋转×4连续帧的锁定/自由/速度/力与非零CoM、固定anchor外部位移、flags清零/恢复、kinematic自由控制→dynamic重建、同player新root/旧state清理通过。移除persistent anchor及velocity solve两独立消融均stable red，逐字节恢复/mtime后21 profile回归green（109.069秒）；384 native Default/SixDOF/None整体/逐轴与unsupported plane显式失败、source hashes/根ABI/layout/editor/boundary/static通过。初版矩阵错用UE轴bits作为target轴assert已纠正，不是source反例；source.GetLockedRotationAxes叉积按fresh公式纠正；standalone缺SourceJointPlugin时仍显式afterDamping消除schedule歧义，已有SourceJoint算法未改只公开crate函数作顺序依赖。仅新immutable config+必要world anchor状态，无世界实体/额外adapter/依赖修改。新target只有21 locked_axes_bits=0，其余physics字段完整diff0；全库/资产与全15递归转换/实际runtime待后续，尚未勾选。
+
+- BF132.R71-17-S1-R1B：开始2026-10-04 21:59 +08:00；预估结束2026-10-04 22:19 +08:00。依据：A闭合source/native/两消融/21恢复与static，剩余跨物理最终全库/5资产/工具恢复审计和source产物边界，已有二进制无需全量重复编译；预计20窗口含Gate审计和S2转换计划。S2全15/39/374 fresh转换diff在本阶段通过后独立35窗口，runtime仍单独S3；Body惯量未开始。
+
+  - S1-R1B实际结束2026-10-04 22:06 +08:00；相对22:19预估提前13分钟；结果：最终1385库全通过（224.14秒、threads2）、21 profile恢复、5 ragdoll_assets新源码重编译通过（68.15秒）、native DOF/CCD/joint selector/shape producer与gen self-test、最终ABI/layout/editor/boundary/source hashes通过。单参数测试wrapper把可执行路径作为filter而运行0 tests，已保留原无效报告并改显式test参数，1385 actual count与0 filtered重新核对；shape fixture缺source参数错误已读报告并改为当次native record，未记为通过。source世界anchor/初始rot/CoM Jacobi及dynamic切换/新root闭包、两独立必要性消融与byte恢复有效，无算法变更的SourceJoint只公开函数用于明确物理顺序。21 default axes=0，其余PA物理字段完整diff0，raw/rag/bone-map未改；依赖Gate闭合，可开始S2全量转换，不预选图或节点类型。
+
+- BF132.R71-17-S2：开始2026-10-04 22:06 +08:00；预估结束2026-10-04 22:41 +08:00。依据：S1全部source/static/native/消融/1385/5资产通过；前轮全15根+39递归source/374 files原生重放实际约26分钟，35窗口只fresh native全根转换、完整新旧diff与迁移审计，不改相邻已完成图。每root/dependency固定watchdog与进展信号沿R71-03已自测路径；真实入口另S3，Body惯量尚未开始。
+
+  - S2实际结束2026-10-04 22:33 +08:00；相对22:41预估提前8分钟；结果：15 installed AnimBP+39递归source fresh原生重放完成（1574.005秒），374 old/new完整diff新增/删除/修改均0，不复开或改写完成图。原生reader新项目DOF事实只进入PhysicsAsset独立target；21 locked_axes_bits=0源默认保留，其他physics字段完整diff0、raw/rag/bone-map不变。S1 source世界DOF/384 producer/64×2 native边界/两消融/21恢复/1385库/5资产/static仍有效，转换闭包Gate通过；等待同启动器可见runtime，尚未勾选。
+
+- BF132.R71-17-S3：开始2026-10-04 22:33 +08:00；预估结束2026-10-04 22:58 +08:00。依据：S1 source/static/native/消融/1385/5资产与S2全15/39/374 diff0闭合；启动器target_game/play预构建约149秒，原Playground startup/Ragdoll/GetUp三场景约一分钟、报告审计/单独提交。仅验收SixDOF消费者，默认源flags=false由真实入口验证，非默认逐轴锁通过native完整矩阵；截图与完整性能原暂停范围保留，Body惯量尚未开始。
+
+  - S3/runtime前2026-10-04 22:36 +08:00：148.432秒启动器同target_game/play最终版预构建退出0；source/native64×2/384 modes/CoM/flags自由与kinematic/dynamic/root重建、两消融byte恢复、1385库/21profile/5资产/static与全15/39/374 fresh转换完整diff0均闭合。PA源21 DOF=Default→Full3D/SixDOF且六flags=false默认保留，非默认由真实物理fixtures证明；开始原Playground startup，随后同版Ragdoll/GetUp消费者，截图/完整性能原暂停保留。
+
+  - S3/startup后、Ragdoll前2026-10-04 22:37 +08:00：同版startup公共功能Gate通过（16.504秒），ready=true、runner/manual/validator退出0，graph/primary failure/fault/temporal/watchdog均0；1385/21/5/source/static/全15递归完整diff0仍有效。原max_eval_p95_ms未通过，完整性能与截图原暂停保留；继续同版Ragdoll实际安装/动态/回读/恢复，不改source默认false locks。
+
+  - S3/Ragdoll后、GetUp前2026-10-04 22:38 +08:00：同版Ragdoll 11/11功能通过（11.309秒），profile/动态/scale/关节/回读/恢复/相机/input生命周期实际consumer覆盖，ready=true、runner/manual/validator退出0，graph/primary failure/fault/temporal/watchdog均0；source/static/全15递归diff0与恢复仍有效。继续同版GetUp正反起身与输入锁验证，截图/完整性能原暂停不变。
+
+  - S3实际结束2026-10-04 22:39 +08:00；相对22:58预估提前19分钟；结果：最终148.432秒target_game/play启动器预构建，同版startup16.504秒/Ragdoll11/11（11.309秒）/GetUp11/11（13.368秒）公共功能runner/manual/validator退出0，ready=true、graph/primary failure/fault/temporal/watchdog均0。完整max_eval_p95_ms仍未通过，截图/完整性能原暂停保留。fresh UE项目Full3D/实例Default→SixDOF/独立flags/初始化Term旧constraint/世界anchor及Chaos一动态body对staticworld hard Jacobi证明闭合；384模式/整体flag控制、64 masks×两初始rot×4帧的自由/锁定/速度/力、非零CoM允许旋转、固定anchor外部位移、free/relock、kinematic自由→dynamic重建、同player新root/旧state清理通过。SDK安装与临时velocity-only两失败边界固化，persistent anchor与velocity solve两独立消融red→byte恢复/mtime green；1385库/21profile/5资产/producer/self-test/static、全15/39/374 fresh全量转换完整diff0通过。target仅21 locked_axes_bits=0，其他physics字段/raw/rag/bone-map不变；最小一项config+必要world anchor组件，公开现有SolverBody入口，不建world实体/新适配/fork，不改变SourceJoint算法。S1原40窗口超时已复盘并1.5倍拆A40/B20，A+4分钟容差内、B提前13、S2提前8、S3提前19；勾选R71-17单独提交，48/49完成，仅R5E-31 Body惯量待处理。

@@ -526,6 +526,20 @@ def target_shape(shape):
     return result
 
 
+def target_locked_axes(body, project_mode):
+    values = props(body["default_instance_properties"])
+    mode = values["DOFMode"]
+    if mode == "Default":
+        mode = {0: "SixDOF", 1: "YZPlane", 2: "XZPlane", 3: "XYPlane"}[project_mode]
+    if mode == "None":
+        return 0
+    if mode != "SixDOF":
+        raise ValueError(f"unsupported effective body DOF mode: {mode}")
+    return sum((1 << bit) for bit, key in enumerate([
+        "bLockYRotation", "bLockZRotation", "bLockXRotation",
+        "bLockYTranslation", "bLockZTranslation", "bLockXTranslation",
+    ]) if values[key] == "True")
+
 
 def target_body_mass(body):
     instance = props(body["default_instance_properties"])
@@ -844,6 +858,7 @@ def build_profile(source, project_max_angular_velocity_degrees):
                 "linear_damping": numeric(body["default_instance_properties"], "LinearDamping"),
                 "angular_damping": numeric(body["default_instance_properties"], "AngularDamping"),
                 "max_angular_speed_radians_per_second": target_max_angular_speed(body["default_instance_properties"], project_max_angular_velocity_degrees),
+                "locked_axes_bits": target_locked_axes(body, physics["project_default_dof_mode"]),
                 "ccd_enabled": boolean(body["default_instance_properties"], "bUseCCD"),
                 "gyroscopic_torque_enabled": boolean(body["default_instance_properties"], "bGyroscopicTorqueEnabled"),
                 "gravity_scale": 1.0 if boolean(body["default_instance_properties"], "bEnableGravity", True) else 0.0,

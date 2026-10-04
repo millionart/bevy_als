@@ -686,7 +686,7 @@ fn apply_source_joint_angular_velocity(
     }
 }
 
-fn solve_source_joint_velocity_iterations(
+pub(crate) fn solve_source_joint_velocity_iterations(
     joints: Query<(&SourcePhysicsJoint, &SourcePhysicsJointSolverData), Without<JointDisabled>>,
     mut bodies: Query<(&mut SolverBody, &SolverBodyInertia), Without<RigidBodyDisabled>>,
 ) {
