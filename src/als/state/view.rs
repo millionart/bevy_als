@@ -6,7 +6,7 @@ use crate::als::motion::{AlsInputOverride, AlsViewYaw};
 
 pub const PITCH_LIMIT_DEGREES: f32 = 85.0;
 pub const LOOK_HALF_LIFE_SECONDS: f32 = 0.08;
-pub const LOOK_MOUSE_RADIANS_PER_COUNT: f32 = 0.0025;
+pub const LOOK_MOUSE_RADIANS_PER_COUNT: f32 = std::f32::consts::PI / 180.0;
 pub const LOOK_UP_MOUSE_SENSITIVITY: f32 = 1.0;
 pub const LOOK_RIGHT_MOUSE_SENSITIVITY: f32 = 1.0;
 pub const LOOK_UP_RATE_DEGREES_PER_SECOND: f32 = 90.0;
@@ -137,10 +137,8 @@ mod tests {
             ..default()
         };
         let delta = look_delta_radians(&command, 0.5);
-        let expected_x = 4.0 * LOOK_MOUSE_RADIANS_PER_COUNT
-            + 0.5 * LOOK_RIGHT_RATE_DEGREES_PER_SECOND.to_radians() * 0.5;
-        let expected_y = -2.0 * LOOK_MOUSE_RADIANS_PER_COUNT
-            - 0.25 * LOOK_UP_RATE_DEGREES_PER_SECOND.to_radians() * 0.5;
+        let expected_x = (4.0_f32 + 0.5 * 240.0 * 0.5).to_radians();
+        let expected_y = (-2.0_f32 - 0.25 * 90.0 * 0.5).to_radians();
         assert!((delta.x - expected_x).abs() < 1e-6);
         assert!((delta.y - expected_y).abs() < 1e-6);
     }

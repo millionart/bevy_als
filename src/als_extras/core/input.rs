@@ -860,4 +860,26 @@ mod tests {
         let cmd = *app.world().get::<AlsInputCommand>(player).unwrap();
         assert_eq!(cmd, AlsInputCommand::default());
     }
+
+    #[test]
+    fn mouse_motion_reaches_source_degree_angles_through_the_actual_action_bridge() {
+        use crate::als::character::AlsCharacter;
+        use crate::als::motion::AlsViewYaw;
+        use crate::als::view::{AlsViewInputPlugin, AlsViewPitch};
+        use bevy::input::{InputPlugin, mouse::MouseMotion};
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, InputPlugin, EnhancedInputPlugin, AlsInputPlugin, AlsViewInputPlugin));
+        app.finish();
+        let character = app.world_mut().spawn((AlsCharacter, AlsViewYaw(0.0), AlsViewPitch(0.0))).id();
+        spawn_als_actions(&mut app.world_mut().commands(), character, &AlsInputMap::default());
+        app.update();
+        app.world_mut().write_message(MouseMotion { delta: Vec2::new(12.0, -8.0) });
+        app.update();
+        assert_eq!(app.world().get::<AlsInputCommand>(character).unwrap().look_delta, Vec2::new(12.0, -8.0));
+        assert!((app.world().get::<AlsViewYaw>(character).unwrap().0 + 12.0_f32.to_radians()).abs() < 1e-6);
+        assert!((app.world().get::<AlsViewPitch>(character).unwrap().0 - 8.0_f32.to_radians()).abs() < 1e-6);
+        app.update();
+        assert_eq!(app.world().get::<AlsInputCommand>(character).unwrap().look_delta, Vec2::ZERO);
+        assert!((app.world().get::<AlsViewYaw>(character).unwrap().0 + 12.0_f32.to_radians()).abs() < 1e-6);
+    }
 }
