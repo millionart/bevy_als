@@ -2429,6 +2429,7 @@ mod tests {
                 collision_disabled_pairs: std::sync::Arc::from([]),
                 ccd_settings: crate::pa_als::parse_pa_als_profile().ccd_settings,
                 solver_settings: crate::pa_als::parse_pa_als_profile().solver_settings,
+                inertia_conditioning_settings: crate::pa_als::parse_pa_als_profile().inertia_conditioning_settings,
             },
             RagdollPhysicsProfileApplied {
                 body_count: 1,

@@ -47,6 +47,7 @@ pub struct RagdollBodyPhysicsProfile {
     pub restitution: Restitution,
     pub mass_properties: Option<RagdollMassProperties>,
     pub locked_axes_bits: u8,
+    pub inertia_conditioning_enabled: bool,
     pub ccd_enabled: bool,
     pub gyroscopic_torque_enabled: bool,
 }
@@ -136,6 +137,38 @@ pub struct SourceCcdSettings {
     only_dynamic_static: bool,
 }
 
+#[derive(Component, Clone, Copy, Debug, Deserialize)]
+pub struct SourceInertiaConditioningSettings {
+    enabled: bool,
+    distance_m: f32,
+    rotation_ratio: f32,
+    max_inverse_inertia_component_ratio: f32,
+    inverse_mass_tolerance: f32,
+    inverse_inertia_tolerance: f32,
+    extent_tolerance_m: f32,
+    exclude_free_joints: bool,
+}
+
+impl SourceInertiaConditioningSettings {
+    fn inverse_scale(self, inverse_mass: f32, inverse: Vec3, extents: Vec3) -> Vec3 {
+        if !(self.enabled && inverse_mass > self.inverse_mass_tolerance
+            && inverse.min_element() > self.inverse_inertia_tolerance && extents.min_element() > self.extent_tolerance_m) {
+            return Vec3::ONE;
+        }
+        let squared = extents * extents;
+        let ratio = inverse / inverse_mass * Vec3::new(squared.y.max(squared.z), squared.x.max(squared.z), squared.x.max(squared.y));
+        let maximum = self.rotation_ratio * if self.distance_m > 0.0 { (extents.max_element() / self.distance_m).min(1.0) } else { 1.0 };
+        let mut scale = (Vec3::splat(maximum) / ratio).min(Vec3::ONE);
+        if self.max_inverse_inertia_component_ratio > 1.0 {
+            let scaled = scale * inverse;
+            let limit = scaled.min_element() * self.max_inverse_inertia_component_ratio;
+            for index in 0..3 { if scaled[index] > limit { scale[index] = limit / scaled[index]; } }
+            scale = scale.min(Vec3::ONE);
+        }
+        scale
+    }
+}
+
 #[derive(Component, Clone, Debug)]
 pub struct RagdollPhysicsProfile {
     pub bodies: Vec<RagdollBodyPhysicsProfile>,
@@ -144,6 +177,7 @@ pub struct RagdollPhysicsProfile {
     pub collision_disabled_pairs: Arc<[(u8, u8)]>,
     pub ccd_settings: SourceCcdSettings,
     pub solver_settings: SourceJointSolverSettings,
+    pub inertia_conditioning_settings: SourceInertiaConditioningSettings,
 }
 
 #[derive(Deserialize)]
@@ -154,6 +188,7 @@ struct PhysicsAssetDocument {
     collision_disabled_pairs: Vec<[u8; 2]>,
     target_solver: SourceJointSolverSettings,
     target_ccd: SourceCcdSettings,
+    target_inertia_conditioning: SourceInertiaConditioningSettings,
 }
 
 #[derive(Deserialize)]
@@ -183,6 +218,7 @@ struct PhysicsAssetBodyTarget {
     #[serde(default)]
     mass_properties: Option<PhysicsAssetMassProperties>,
     locked_axes_bits: u8,
+    inertia_conditioning_enabled: bool,
     ccd_enabled: bool,
     #[serde(default)]
     gyroscopic_torque_enabled: bool,
@@ -337,6 +373,7 @@ impl RagdollPhysicsProfile {
                         inertia_tensor_kg_m2: Mat3::from_cols_array_2d(&value.inertia_tensor_kg_m2),
                     }),
                     locked_axes_bits: body.target.locked_axes_bits,
+                    inertia_conditioning_enabled: body.target.inertia_conditioning_enabled,
                     ccd_enabled: body.target.ccd_enabled,
                     gyroscopic_torque_enabled: body.target.gyroscopic_torque_enabled,
                 })
@@ -410,6 +447,7 @@ impl RagdollPhysicsProfile {
             collision_disabled_pairs: disabled_pairs.into(),
             ccd_settings: document.target_ccd,
             solver_settings: document.target_solver,
+            inertia_conditioning_settings: document.target_inertia_conditioning,
         })
     }
 }
@@ -612,6 +650,14 @@ impl Plugin for RagdollPhysicsProfilePlugin {
                 .before(PhysicsSystems::First),
         )
         .add_systems(PhysicsSchedule, initialize_profile_dof.in_set(SolverSystems::PrepareJoints))
+        .add_systems(PhysicsSchedule, condition_profile_solver_inertia
+            .in_set(SolverSystems::PrepareJoints)
+            .after(initialize_profile_dof)
+            .after(avian3d::dynamics::solver::xpbd::prepare_xpbd_joint::<SourcePhysicsJoint>))
+        .add_systems(avian3d::prelude::SubstepSchedule, condition_profile_solver_inertia
+            .after(avian3d::dynamics::integrator::IntegrationSystems::Position)
+            .after(solve_profile_linear_ccd)
+            .before(avian3d::dynamics::solver::schedule::SubstepSolverSystems::Relax))
         .add_systems(avian3d::prelude::SubstepSchedule, solve_profile_dof
             .after(avian3d::dynamics::solver::xpbd::XpbdSolverSystems::VelocityProjection)
             .after(avian3d::dynamics::solver::schedule::SubstepSolverSystems::Damping)
@@ -628,6 +674,46 @@ fn initialize_profile_dof(mut bodies: Query<(&RigidBody, &Position, &Rotation, &
     for (mode, position, rotation, mut dof) in &mut bodies {
         if !mode.is_dynamic() { dof.anchor = None; }
         else if dof.anchor.is_none() { dof.anchor = Some(Isometry3d::new(position.0, rotation.0)); }
+    }
+}
+
+#[allow(clippy::type_complexity)]
+fn condition_profile_solver_inertia(
+    mut bodies: Query<(Entity, &RigidBody, &Rotation, &avian3d::prelude::ComputedMass,
+        &avian3d::prelude::ComputedAngularInertia, &avian3d::prelude::ComputedCenterOfMass,
+        &SourceInertiaConditioningSettings, Option<&SourceBodyDof>, &SolverBody, &mut avian3d::dynamics::solver::solver_body::SolverBodyInertia)>,
+    colliders: Query<(&Collider, &avian3d::prelude::ColliderOf, &avian3d::prelude::ColliderTransform)>,
+    joints: Query<&SourcePhysicsJoint, Without<JointDisabled>>,
+) {
+    for (entity, mode, rotation, mass, angular, com, settings, dof, body, mut solver) in &mut bodies {
+        if !mode.is_dynamic() { continue; }
+        let principal = AngularInertia::from_tensor(angular.inverse());
+        let local_basis = Mat3::from_quat(principal.local_frame.conjugate());
+        let mut min = Vec3::splat(f32::INFINITY);
+        let mut max = Vec3::splat(f32::NEG_INFINITY);
+        for (shape, owner, transform) in &colliders {
+            if owner.body != entity { continue; }
+            let pose = avian3d::parry::math::Pose3::from_parts(transform.translation, transform.rotation.0);
+            let bounds = shape.shape_scaled().compute_aabb(&pose);
+            min = min.min(bounds.mins);max = max.max(bounds.maxs);
+        }
+        let half = ((max - min) * 0.5).max(Vec3::ZERO);
+        let mut extents = local_basis.x_axis.abs() * half.x + local_basis.y_axis.abs() * half.y + local_basis.z_axis.abs() * half.z;
+        for joint in &joints {
+            if settings.exclude_free_joints && !joint.linear_locked && !joint.linear_motors.iter().any(|motor| motor.position_enabled) { continue; }
+            let arm = if joint.parent == entity { Some(Vec3::from(joint.parent_frame.translation)) }
+                else if joint.child == entity { Some(Vec3::from(joint.child_frame.translation)) } else { None };
+            if let Some(arm) = arm { extents = extents.max((local_basis * (arm - com.0)).abs()); }
+        }
+        if dof.is_some_and(|dof| !settings.exclude_free_joints || dof.axes.is_translation_x_locked() || dof.axes.is_translation_y_locked() || dof.axes.is_translation_z_locked()) {
+            extents = extents.max((local_basis * -com.0).abs());
+        }
+        let scale = settings.inverse_scale(mass.inverse(), principal.principal, extents);
+        let basis = Mat3::from_quat(body.delta_rotation.0 * rotation.0 * principal.local_frame);
+        let inverse = avian3d::math::SymmetricMatrix::from_mat3_unchecked(
+            basis * Mat3::from_diagonal(principal.principal * scale) * basis.transpose());
+        *solver = avian3d::dynamics::solver::solver_body::SolverBodyInertia::new(mass.inverse(), inverse,
+            solver.flags().locked_axes(), solver.dominance() as i8, true);
     }
 }
 
@@ -1026,6 +1112,11 @@ fn apply_profile_to_spawned_ragdoll(
             body.restitution,
         ));
         let bits = body.locked_axes_bits;
+        if body.inertia_conditioning_enabled {
+            commands.entity(*body_entity).insert(profile.inertia_conditioning_settings);
+        } else {
+            commands.entity(*body_entity).remove::<SourceInertiaConditioningSettings>();
+        }
         let settings = profile.solver_settings;
         commands.entity(*body_entity).queue(move |mut entity: EntityWorldMut| {
             entity.remove::<avian3d::prelude::LockedAxes>();
@@ -2324,6 +2415,197 @@ mod tests {
             }
            }
           }
+        }
+    }
+
+    #[test]
+    fn source_body_inertia_algorithm_matches_native_ue_samples() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!("../../tools/tests/fixtures/body_inertia_conditioning.native.json")).unwrap();
+        let settings: SourceInertiaConditioningSettings = serde_json::from_value(fixture["settings"].clone()).unwrap();
+        let vector = |value: &serde_json::Value| Vec3::new(value[0].as_f64().unwrap() as f32, value[1].as_f64().unwrap() as f32, value[2].as_f64().unwrap() as f32);
+        for (index, sample) in fixture["samples"].as_array().unwrap().iter().enumerate() {
+            let settings = SourceInertiaConditioningSettings { enabled: true,
+                distance_m: sample["maximum_distance_m"].as_f64().unwrap() as f32,
+                rotation_ratio: sample["maximum_rotation_ratio"].as_f64().unwrap() as f32,
+                max_inverse_inertia_component_ratio: sample["maximum_component_ratio"].as_f64().unwrap() as f32, ..settings };
+            let actual = settings.inverse_scale(sample["inverse_mass"].as_f64().unwrap() as f32, vector(&sample["inverse_inertia"]), vector(&sample["extents_m"]));
+            assert!(actual.abs_diff_eq(vector(&sample["inverse_scale"]), 1e-6), "native inertia sample {index}: {actual:?} != {:?}", vector(&sample["inverse_scale"]));
+        }
+    }
+
+    #[test]
+    fn source_body_inertia_conditioning_reaches_contact_response() {
+        use avian3d::prelude::{AngularVelocity, Gravity, LinearVelocity, PhysicsPlugins};
+        use bevy::reflect::{PartialReflect, ReflectMut};
+        use bevy_animation_graph::core::ragdoll::definition::Body;
+        let mut angular_response = Vec::new();
+        for enabled in [false, true] {
+            let mut profile = crate::pa_als::parse_pa_als_profile();
+            profile.bodies.retain(|body| body.label == "pelvis");profile.colliders.clear();profile.joints.clear();
+            let body_profile = &mut profile.bodies[0];
+            body_profile.inertia_conditioning_enabled = enabled;
+            body_profile.linear_damping = 0.0;body_profile.angular_damping = 0.0;
+            body_profile.friction = Friction::new(0.0);body_profile.restitution = Restitution::new(0.0);
+            body_profile.mass_properties = Some(RagdollMassProperties { mass_kg: 1.0, unclamped_mass_kg: 1.0,
+                scale_exponent: 0.0, update_with_scale: false, center_of_mass_m: Vec3::ZERO,
+                inertia_tensor_kg_m2: Mat3::IDENTITY / 600.0 });
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, TransformPlugin,
+                PhysicsPlugins::new(PostUpdate), RagdollPhysicsProfilePlugin));
+            app.insert_resource(Gravity(Vec3::ZERO));
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
+            app.finish();app.cleanup();
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(10.0, 0.1, 10.0), Friction::new(0.0), Restitution::new(0.0), Transform::from_xyz(0.0, -0.05, 0.0)));
+            let player = app.world_mut().spawn((AnimationGraphPlayer::new(Handle::default()), profile, Transform::IDENTITY)).id();
+            let root = app.world_mut().spawn(Transform::IDENTITY).id();
+            let body = app.world_mut().spawn((RigidBody::Dynamic, BodyLabel("pelvis".into()), Transform::from_xyz(0.0, 0.06, 0.0).with_rotation(Quat::from_rotation_z(0.3)), ChildOf(root))).id();
+            app.world_mut().spawn((Collider::cuboid(0.1, 0.1, 0.1), Transform::IDENTITY, ChildOf(body)));
+            let mut spawned = SpawnedRagdoll::new(root);spawned.bodies.insert(Body::new().id, body);
+            let mut graph_player = app.world_mut().get_mut::<AnimationGraphPlayer>(player).unwrap();
+            let ReflectMut::Struct(fields) = graph_player.reflect_mut() else { panic!("player must be a struct") };
+            *fields.field_mut("spawned_ragdoll").unwrap().try_downcast_mut::<Option<SpawnedRagdoll>>().unwrap() = Some(spawned);
+            app.update();
+            app.world_mut().entity_mut(body).insert(LinearVelocity(Vec3::NEG_Y));
+            app.update();
+            let angular = app.world().get::<AngularVelocity>(body).unwrap().0.z.abs();
+            assert!(angular.is_finite() && angular > 0.1, "contact control must create angular correction: {angular}");
+            angular_response.push(angular);
+        }
+        assert!(angular_response[1] < angular_response[0] * 0.9, "Body conditioning must reach contact constraints: {angular_response:?}");
+    }
+
+    #[test]
+    fn source_body_inertia_conditioning_changes_solver_without_changing_mass() {
+        use avian3d::prelude::{ComputedAngularInertia, ComputedMass, Gravity, PhysicsPlugins};
+        use avian3d::dynamics::solver::solver_body::SolverBodyInertia;
+        use bevy::reflect::{PartialReflect, ReflectMut};
+        use bevy_animation_graph::core::ragdoll::definition::Body;
+        for enabled in [false, true] {
+            let mut document: serde_json::Value = serde_json::from_str(include_str!("../../assets/ALS/Character/PA_Als.physics.json")).unwrap();
+            for body in document["bodies"].as_array_mut().unwrap() { body["target"]["inertia_conditioning_enabled"] = serde_json::json!(enabled); }
+            let mut profile = RagdollPhysicsProfile::from_json(&document.to_string()).unwrap();
+            profile.bodies.retain(|body| body.label == "pelvis");profile.colliders.clear();profile.joints.clear();
+            profile.bodies[0].mass_properties = Some(RagdollMassProperties { mass_kg: 1.0, unclamped_mass_kg: 1.0,
+                scale_exponent: 0.0, update_with_scale: false, center_of_mass_m: Vec3::ZERO,
+                inertia_tensor_kg_m2: Mat3::IDENTITY / 600.0 });
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, TransformPlugin,
+                PhysicsPlugins::new(PostUpdate), crate::extensions::SourcePhysicsJointPlugin, RagdollPhysicsProfilePlugin));
+            app.insert_resource(Gravity(Vec3::ZERO));
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
+            app.finish();app.cleanup();
+            let player = app.world_mut().spawn((AnimationGraphPlayer::new(Handle::default()), profile, Transform::IDENTITY)).id();
+            let root = app.world_mut().spawn(Transform::IDENTITY).id();
+            let body = app.world_mut().spawn((RigidBody::Dynamic, BodyLabel("pelvis".into()), Transform::IDENTITY, ChildOf(root))).id();
+            let collider = app.world_mut().spawn((Collider::cuboid(0.1, 0.1, 0.1), Transform::IDENTITY, ChildOf(body))).id();
+            let mut spawned = SpawnedRagdoll::new(root);spawned.bodies.insert(Body::new().id, body);
+            spawned.colliders.insert(bevy_animation_graph::core::ragdoll::definition::Collider::new().id, collider);
+            let mut graph_player = app.world_mut().get_mut::<AnimationGraphPlayer>(player).unwrap();
+            let ReflectMut::Struct(fields) = graph_player.reflect_mut() else { panic!("player must be a struct") };
+            *fields.field_mut("spawned_ragdoll").unwrap().try_downcast_mut::<Option<SpawnedRagdoll>>().unwrap() = Some(spawned);
+            app.update();app.update();
+            assert_eq!(app.world().get::<ComputedMass>(body).unwrap().value(), 1.0);
+            assert!((app.world().get::<ComputedAngularInertia>(body).unwrap().inverse() * Vec3::X).abs_diff_eq(Vec3::X * 600.0, 1e-3));
+            let inverse = app.world().get::<SolverBodyInertia>(body).unwrap().effective_inv_angular_inertia() * Vec3::X;
+            let expected = if enabled { 250.0 } else { 600.0 };
+            assert!(inverse.abs_diff_eq(Vec3::X * expected, 1e-3), "Body conditioning must only change solver inertia: enabled={enabled}, inverse={inverse:?}");
+            if !enabled { continue; }
+            let assert_inverse = |app: &App, expected: Vec3| {
+                let actual = app.world().get::<SolverBodyInertia>(body).unwrap().effective_inv_angular_inertia();
+                for index in 0..3 {
+                    assert!((actual * Vec3::AXES[index]).abs_diff_eq(Vec3::AXES[index] * expected[index], 1e-3), "conditioned inertia expected={expected:?}, axis={index}: {:?}", actual * Vec3::AXES[index]);
+                }
+                assert_eq!(app.world().get::<ComputedMass>(body).unwrap().value(), 1.0);
+                assert!((app.world().get::<ComputedAngularInertia>(body).unwrap().inverse() * Vec3::X).abs_diff_eq(Vec3::X * 600.0, 1e-3));
+            };
+            app.world_mut().get_mut::<RagdollPhysicsProfile>(player).unwrap().bodies[0].inertia_conditioning_enabled = false;
+            app.update();assert_inverse(&app, Vec3::splat(600.0));
+            app.world_mut().get_mut::<RagdollPhysicsProfile>(player).unwrap().bodies[0].inertia_conditioning_enabled = true;
+            app.world_mut().get_mut::<RagdollPhysicsProfile>(player).unwrap().inertia_conditioning_settings.enabled = false;
+            app.update();assert_inverse(&app, Vec3::splat(600.0));
+            app.world_mut().get_mut::<RagdollPhysicsProfile>(player).unwrap().inertia_conditioning_settings.enabled = true;
+            app.update();assert_inverse(&app, Vec3::splat(250.0));
+            app.world_mut().get_mut::<Transform>(collider).unwrap().translation = Vec3::X * 0.3;
+            app.update();assert_inverse(&app, Vec3::splat(250.0));
+            app.world_mut().get_mut::<Transform>(player).unwrap().scale = Vec3::splat(2.0);
+            app.update();assert_inverse(&app, Vec3::splat(125.0));
+            app.world_mut().get_mut::<Transform>(player).unwrap().scale = Vec3::ONE;
+            app.update();assert_inverse(&app, Vec3::splat(250.0));
+            let extra = app.world_mut().spawn((Collider::cuboid(0.1, 0.1, 0.1), Transform::from_xyz(-0.3, 0.0, 0.0), ChildOf(body))).id();
+            app.update();assert_inverse(&app, Vec3::new(600.0, 2.5 / (0.35 * 0.35), 2.5 / (0.35 * 0.35)));
+            app.world_mut().entity_mut(extra).despawn();
+            app.update();assert_inverse(&app, Vec3::splat(250.0));
+            let anchor = app.world_mut().spawn((RigidBody::Static, Transform::from_xyz(0.3, 0.0, 0.0))).id();
+            let mut joint = crate::pa_als::parse_pa_als_profile().joints.iter().find(|joint| joint.definition.linear_locked).unwrap().definition.clone();
+            joint.parent = anchor;joint.child = body;
+            joint.parent_frame = Isometry3d::IDENTITY;joint.child_frame = Isometry3d::from_translation(Vec3::X * 0.3);
+            joint.angular_limits = [SourceAngularLimit::Free; 3];joint.mass_conditioning = false;
+            let joint_entity = app.world_mut().spawn(joint).id();
+            app.update();assert_inverse(&app, Vec3::new(600.0, 2.5 / 0.09, 2.5 / 0.09));
+            app.world_mut().get_mut::<SourcePhysicsJoint>(joint_entity).unwrap().mass_conditioning = true;
+            app.update();assert_inverse(&app, Vec3::new(600.0, 2.5 / 0.09, 2.5 / 0.09));
+            app.world_mut().get_mut::<SourcePhysicsJoint>(joint_entity).unwrap().linear_locked = false;
+            app.update();assert_inverse(&app, Vec3::splat(250.0));
+            app.world_mut().get_mut::<SourcePhysicsJoint>(joint_entity).unwrap().linear_motors[0].velocity_enabled = true;
+            app.update();assert_inverse(&app, Vec3::splat(250.0));
+            app.world_mut().get_mut::<SourcePhysicsJoint>(joint_entity).unwrap().linear_motors[0].position_enabled = true;
+            app.update();assert_inverse(&app, Vec3::new(600.0, 2.5 / 0.09, 2.5 / 0.09));
+            app.world_mut().entity_mut(joint_entity).insert(JointDisabled);
+            app.update();assert_inverse(&app, Vec3::splat(250.0));
+            app.world_mut().entity_mut(joint_entity).remove::<JointDisabled>();
+            app.update();assert_inverse(&app, Vec3::new(600.0, 2.5 / 0.09, 2.5 / 0.09));
+            app.world_mut().entity_mut(joint_entity).despawn();
+            app.update();assert_inverse(&app, Vec3::splat(250.0));
+            app.world_mut().entity_mut(body).insert(RigidBody::Kinematic);
+            app.update();
+            assert_inverse(&app, Vec3::splat(600.0));
+            app.world_mut().entity_mut(body).insert(RigidBody::Dynamic);
+            app.update();assert_inverse(&app, Vec3::splat(250.0));
+            let mass_rotation = Quat::from_rotation_z(0.4);
+            let mass_basis = Mat3::from_quat(mass_rotation);
+            let physical = mass_basis * Mat3::from_diagonal(Vec3::new(1.0 / 600.0, 1.0 / 300.0, 1.0 / 200.0)) * mass_basis.transpose();
+            let body_rotation = Quat::from_euler(EulerRot::XYZ, 0.7, -0.5, 0.2);
+            let shape_rotation = Quat::from_rotation_z(0.3);
+            {
+                let mut profile = app.world_mut().get_mut::<RagdollPhysicsProfile>(player).unwrap();
+                let mass = profile.bodies[0].mass_properties.as_mut().unwrap();
+                mass.inertia_tensor_kg_m2 = physical;mass.center_of_mass_m = Vec3::new(0.1, -0.2, 0.3);
+            }
+            app.world_mut().get_mut::<Transform>(body).unwrap().rotation = body_rotation;
+            app.world_mut().entity_mut(collider).insert(Collider::cuboid(0.1, 0.2, 0.4));
+            app.world_mut().get_mut::<Transform>(collider).unwrap().rotation = shape_rotation;
+            app.update();
+            let shape_basis = Mat3::from_quat(shape_rotation);
+            let half = shape_basis.x_axis.abs() * 0.05 + shape_basis.y_axis.abs() * 0.1 + shape_basis.z_axis.abs() * 0.2;
+            let inverse_basis = mass_basis.transpose();
+            let extents = inverse_basis.x_axis.abs() * half.x + inverse_basis.y_axis.abs() * half.y + inverse_basis.z_axis.abs() * half.z;
+            let diagonal = Vec3::new(2.5 / extents.y.powi(2).max(extents.z.powi(2)),
+                2.5 / extents.x.powi(2).max(extents.z.powi(2)), 2.5 / extents.x.powi(2).max(extents.y.powi(2)));
+            let world_basis = Mat3::from_quat(body_rotation * mass_rotation);
+            let expected = world_basis * Mat3::from_diagonal(diagonal) * world_basis.transpose();
+            let actual = app.world().get::<SolverBodyInertia>(body).unwrap().effective_inv_angular_inertia();
+            for axis in Vec3::AXES { assert!((actual * axis).abs_diff_eq(expected * axis, 1e-3), "actor AABB then principal frame must match the source: {:?} != {:?}", actual * axis, expected * axis); }
+            assert!((app.world().get::<ComputedAngularInertia>(body).unwrap().value() * Vec3::X).abs_diff_eq(physical * Vec3::X, 1e-6));
+            app.world_mut().entity_mut(body).insert(avian3d::prelude::AngularVelocity(Vec3::new(0.2, 0.4, 0.6)));
+            app.update();
+            let current_basis = Mat3::from_quat(app.world().get::<Rotation>(body).unwrap().0 * mass_rotation);
+            let expected = current_basis * Mat3::from_diagonal(diagonal) * current_basis.transpose();
+            let actual = app.world().get::<SolverBodyInertia>(body).unwrap().effective_inv_angular_inertia();
+            for axis in Vec3::AXES { assert!((actual * axis).abs_diff_eq(expected * axis, 1e-3), "solver inertia must use the integrated pose: {:?} != {:?}", actual * axis, expected * axis); }
+            app.world_mut().get_mut::<RagdollPhysicsProfile>(player).unwrap().bodies[0].mass_properties = Some(RagdollMassProperties {
+                mass_kg: 1.0, unclamped_mass_kg: 1.0, scale_exponent: 0.0, update_with_scale: false,
+                center_of_mass_m: Vec3::ZERO, inertia_tensor_kg_m2: Mat3::IDENTITY / 600.0 });
+            let fresh_root = app.world_mut().spawn(Transform::IDENTITY).id();
+            let fresh_body = app.world_mut().spawn((RigidBody::Dynamic, BodyLabel("pelvis".into()), Transform::from_xyz(4.0, 5.0, 6.0), ChildOf(fresh_root))).id();
+            app.world_mut().spawn((Collider::cuboid(0.1, 0.1, 0.1), Transform::IDENTITY, ChildOf(fresh_body)));
+            let mut fresh = SpawnedRagdoll::new(fresh_root);fresh.bodies.insert(Body::new().id, fresh_body);
+            let mut graph_player = app.world_mut().get_mut::<AnimationGraphPlayer>(player).unwrap();
+            let ReflectMut::Struct(fields) = graph_player.reflect_mut() else { panic!("player must be a struct") };
+            *fields.field_mut("spawned_ragdoll").unwrap().try_downcast_mut::<Option<SpawnedRagdoll>>().unwrap() = Some(fresh);
+            app.update();
+            assert!(app.world().get_entity(root).is_err() && app.world().get_entity(body).is_err());
+            assert!(app.world().entity(fresh_body).contains::<SourceInertiaConditioningSettings>());
+            assert!((app.world().get::<SolverBodyInertia>(fresh_body).unwrap().effective_inv_angular_inertia() * Vec3::X).abs_diff_eq(Vec3::X * 250.0, 1e-3));
         }
     }
 

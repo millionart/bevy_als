@@ -30,6 +30,7 @@
 #include "PhysicsEngine/AggregateGeom.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "PhysicsEngine/PhysicsSettings.h"
+#include "Chaos/MassConditioning.h"
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
 #include "PhysicsEngine/SkeletalBodySetup.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
@@ -643,11 +644,36 @@ TSharedRef<FJsonObject> CapturePhysicsAsset(const UPhysicsAsset* Asset)
             ConsoleVariables->SetStringField(Name, Variable->GetString());
         }
     });
-    for (const TCHAR* Prefix : {TEXT("p.Chaos.JointConstraint."), TEXT("p.Chaos.Solver.Joint."), TEXT("p.Chaos.Joint."), TEXT("p.Chaos.CCD.")})
+    for (const TCHAR* Prefix : {TEXT("p.Chaos.JointConstraint."), TEXT("p.Chaos.Solver.Joint."), TEXT("p.Chaos.Joint."), TEXT("p.Chaos.CCD."), TEXT("p.Chaos.Solver.InertiaConditioning."), TEXT("p.Chaos.InertiaConditioning."), TEXT("p.Chaos.ExcludeFreeJointForInertiaConditioning")})
     {
         IConsoleManager::Get().ForEachConsoleObjectThatStartsWith(Visitor, Prefix);
     }
     Value->SetObjectField(TEXT("constraint_console_variables"), ConsoleVariables);
+    Chaos::FInertiaConditioningTolerances ConditioningTolerances;
+    ConditioningTolerances.InvMassTolerance = FCString::Atof(*ConsoleVariables->GetStringField(TEXT("p.Chaos.InertiaConditioning.InvMassTolerance")));
+    ConditioningTolerances.InvInertiaTolerance = FCString::Atof(*ConsoleVariables->GetStringField(TEXT("p.Chaos.InertiaConditioning.InvInertiaTolerance")));
+    ConditioningTolerances.ExtentTolerance = FCString::Atof(*ConsoleVariables->GetStringField(TEXT("p.Chaos.InertiaConditioning.ExtentTolerance")));
+    const float ConditioningDistance = FCString::Atof(*ConsoleVariables->GetStringField(TEXT("p.Chaos.Solver.InertiaConditioning.Distance")));
+    const float ConditioningRatio = FCString::Atof(*ConsoleVariables->GetStringField(TEXT("p.Chaos.Solver.InertiaConditioning.RotationRatio")));
+    TArray<TSharedPtr<FJsonValue>> ConditioningFixtures;
+    for (const float InvMass : {0.f, 1.f, 10.f})
+    for (const Chaos::FVec3f InvInertia : {Chaos::FVec3f(0.06f), Chaos::FVec3f(0.04f, 0.02f, 0.01f), Chaos::FVec3f(0.0001f, 0.0002f, 0.0003f), Chaos::FVec3f(3.f, 30.f, 300.f)})
+    for (const Chaos::FVec3f Extents : {Chaos::FVec3f(5.f), Chaos::FVec3f(0.5f, 10.f, 0.25f), Chaos::FVec3f(0.f, 5.f, 5.f), Chaos::FVec3f(20.f, 10.f, 50.f)})
+    for (const float MaxDistance : {0.f, ConditioningDistance})
+    for (const float MaxComponentRatio : {0.f, 2.f})
+    {
+        TSharedRef<FJsonObject> Fixture = MakeShared<FJsonObject>();
+        Fixture->SetNumberField(TEXT("inverse_mass"), InvMass);
+        Fixture->SetObjectField(TEXT("inverse_inertia"), CaptureVector(FVector(InvInertia)));
+        Fixture->SetObjectField(TEXT("extents"), CaptureVector(FVector(Extents)));
+        Fixture->SetNumberField(TEXT("maximum_distance"), MaxDistance);
+        Fixture->SetNumberField(TEXT("maximum_rotation_ratio"), ConditioningRatio);
+        Fixture->SetNumberField(TEXT("maximum_component_ratio"), MaxComponentRatio);
+        const Chaos::FVec3f Scale = Chaos::CalculateInertiaConditioning(InvMass, InvInertia, Extents, MaxDistance, ConditioningRatio, MaxComponentRatio, ConditioningTolerances);
+        Fixture->SetObjectField(TEXT("inverse_scale"), CaptureVector(FVector(Scale)));
+        ConditioningFixtures.Add(MakeShared<FJsonValueObject>(Fixture));
+    }
+    Value->SetArrayField(TEXT("inertia_conditioning_fixtures"), ConditioningFixtures);
     Value->SetArrayField(
         TEXT("solver_settings_properties"),
         CaptureProperties(FPhysicsAssetSolverSettings::StaticStruct(), &Asset->SolverSettings, const_cast<UPhysicsAsset*>(Asset))

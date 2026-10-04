@@ -273,6 +273,7 @@
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
+        "inertia_conditioning_enabled": true,
         "linear_damping": 0.01,
         "locked_axes_bits": 0,
         "mass_properties": {
@@ -586,6 +587,7 @@
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
+        "inertia_conditioning_enabled": true,
         "linear_damping": 0.01,
         "locked_axes_bits": 0,
         "mass_properties": {
@@ -899,6 +901,7 @@
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
+        "inertia_conditioning_enabled": true,
         "linear_damping": 0.01,
         "locked_axes_bits": 0,
         "mass_properties": {
@@ -1388,6 +1391,7 @@
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
+        "inertia_conditioning_enabled": true,
         "linear_damping": 0.01,
         "locked_axes_bits": 0,
         "mass_properties": {
@@ -1701,6 +1705,7 @@
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
+        "inertia_conditioning_enabled": true,
         "linear_damping": 0.01,
         "locked_axes_bits": 0,
         "mass_properties": {
@@ -2014,6 +2019,7 @@
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
+        "inertia_conditioning_enabled": true,
         "linear_damping": 0.01,
         "locked_axes_bits": 0,
         "mass_properties": {
@@ -2327,6 +2333,7 @@
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
+        "inertia_conditioning_enabled": true,
         "linear_damping": 0.01,
         "locked_axes_bits": 0,
         "mass_properties": {
@@ -2640,6 +2647,7 @@
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
+        "inertia_conditioning_enabled": true,
         "linear_damping": 0.01,
         "locked_axes_bits": 0,
         "mass_properties": {
@@ -2953,6 +2961,7 @@
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
+        "inertia_conditioning_enabled": true,
         "linear_damping": 0.01,
         "locked_axes_bits": 0,
         "mass_properties": {
@@ -3266,6 +3275,7 @@
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
+        "inertia_conditioning_enabled": true,
         "linear_damping": 0.01,
         "locked_axes_bits": 0,
         "mass_properties": {
@@ -3579,6 +3589,7 @@
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
+        "inertia_conditioning_enabled": true,
         "linear_damping": 0.01,
         "locked_axes_bits": 0,
         "mass_properties": {
@@ -3892,6 +3903,7 @@
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
+        "inertia_conditioning_enabled": true,
         "linear_damping": 0.01,
         "locked_axes_bits": 0,
         "mass_properties": {
@@ -4205,6 +4217,7 @@
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
+        "inertia_conditioning_enabled": true,
         "linear_damping": 0.01,
         "locked_axes_bits": 0,
         "mass_properties": {
@@ -4518,6 +4531,7 @@
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
+        "inertia_conditioning_enabled": true,
         "linear_damping": 0.01,
         "locked_axes_bits": 0,
         "mass_properties": {
@@ -4831,6 +4845,7 @@
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
+        "inertia_conditioning_enabled": true,
         "linear_damping": 0.01,
         "locked_axes_bits": 0,
         "mass_properties": {
@@ -5144,6 +5159,7 @@
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
+        "inertia_conditioning_enabled": true,
         "linear_damping": 0.01,
         "locked_axes_bits": 0,
         "mass_properties": {
@@ -5470,6 +5486,7 @@
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
+        "inertia_conditioning_enabled": true,
         "linear_damping": 0.01,
         "locked_axes_bits": 0,
         "mass_properties": {
@@ -5796,6 +5813,7 @@
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
+        "inertia_conditioning_enabled": true,
         "linear_damping": 0.01,
         "locked_axes_bits": 0,
         "mass_properties": {
@@ -6055,6 +6073,7 @@
         "default_mode": "Kinematic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
+        "inertia_conditioning_enabled": true,
         "linear_damping": 0.01,
         "locked_axes_bits": 0,
         "mass_properties": {
@@ -6381,6 +6400,7 @@
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
+        "inertia_conditioning_enabled": true,
         "linear_damping": 0.01,
         "locked_axes_bits": 0,
         "mass_properties": {
@@ -6707,6 +6727,7 @@
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
+        "inertia_conditioning_enabled": true,
         "linear_damping": 0.01,
         "locked_axes_bits": 0,
         "mass_properties": {
@@ -13268,6 +13289,16 @@
     "include_probe_shapes": false,
     "new_target_depth_mode": true,
     "only_dynamic_static": false
+  },
+  "target_inertia_conditioning": {
+    "distance_m": 0.2,
+    "enabled": true,
+    "exclude_free_joints": true,
+    "extent_tolerance_m": 1e-10,
+    "inverse_inertia_tolerance": 1.0,
+    "inverse_mass_tolerance": 1e-20,
+    "max_inverse_inertia_component_ratio": 0.0,
+    "rotation_ratio": 2.5
   },
   "target_solver": {
     "angle_tolerance_radians": 0.001,
