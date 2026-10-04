@@ -99,7 +99,7 @@
 - [x] **BF132.R71-01 — 全锁线性关节的速度约束门限与源 cached SIMD 三轴块语义不一致**。Gate：确认实际源求解器分支；全零/单轴/多轴位置 lambda、速度变化与非零锚臂保留三轴合同。
 - [x] **BF132.R71-02 — 多权重 ragdoll 回读直接相加四元数，符号相消后产生无效旋转**。Gate：q/-q 等价旋转混合保持单位/有限，部分回读及零权重控制通过。
 - [x] **BF132.R71-05 — 源要求随缩放更新质量，目标却固定生成的 Override 质量**。Gate：effective Body scale、密度/质量幂与 Override 开关分别按源生成及重算。
-- [ ] **BF132.R71-10 — 脱离后的 ragdoll 物理配置仍读取原 avatar 宿主缩放**。Gate：脱离前后实际 root/world scale 正确重配，宿主变化不污染脱离体。
+- [x] **BF132.R71-10 — 脱离后的 ragdoll 物理配置仍读取原 avatar 宿主缩放**。Gate：脱离前后实际 root/world scale 正确重配，宿主变化不污染脱离体。
 - [ ] **BF132.R71-11 — 默认 PA_Als 的 cached 双轴摆动限制被替换成更窄的椭圆边界**。Gate：fresh 实际 cached/ordinary 分支与默认 PA 配置共同证明正确边界，斜向/轴向与内外控制通过。
 - [ ] **BF132.R71-16 — PhysicsAsset 的 bUseCCD 被接受但未传入 ragdoll 的实际 CCD 配置**。Gate：源开关贯穿生成/安装/重建与实际高速碰撞，不以字段存在宣称实现。
 - [ ] **BF132.R71-17 — PhysicsAsset 的 SixDOF 逐轴锁定未生成或安装有效约束**。Gate：SixDOF 项目/实例有效模式及逐轴锁实际限制运动，自由轴与重建通过。
@@ -530,3 +530,19 @@
   - S2/Ragdoll后、GetUp前 2026-10-04 08:12 +08:00：同版Ragdoll 11/11功能项通过，scaled/PA/关节/恢复/相机/输入实际consumer覆盖，runner/manual/validator退出0、ready=true、graph/primary failure/fault/temporal/watchdog均0；完整性能和截图仍暂停。开始同版GetUp正反起身与输入锁生命周期公共Gate。
 
   - S2实际结束2026-10-04 08:12 +08:00；相对08:38预估提前26分钟；结果：恢复版146.418秒target_game/play实际入口预构建，同版startup/Ragdoll11/11/GetUp11/11公共功能runner/manual/validator均退出0，三报告ready=true、graph/primary failure/fault/temporal/watchdog均0；完整max_eval_p95_ms未通过，截图/完整性能原暂停保留。source physical density/power/override/update lifecycle、36×6原生控制、三消融red→字节恢复/mtime、1378库/16profile/5资产/6shape/self-test、最终PA+mesh三产物diff0/质量影响范围审计通过；全15已生成AnimBP及39递归source全量重放374新旧diff0，无相邻完成项复开。最小实现为已有MassProperties三字段+源initial/profile/rebuild重算bool与mass ratio、无新状态/cache/adapter，obsolete force与None producer删除；RAW字段未动，不再以编辑器CalculateMass冒充solver质量oracle。S1开始07:28/预计08:18/实际08:08提前10分钟，S2有效窗口内完成；勾选R71-05单独提交，44/49完成，下一项R71-10，5项待处理。
+
+- BF132.R71-10-S1：开始2026-10-04 08:15 +08:00；预估结束2026-10-04 08:50 +08:00。依据：fresh AlsCharacter_Actions KeepWorldTransform明确脱离后actor变换不得影响mesh；SceneComponent KeepWorld scale与SkeletalMesh Init/relative-scale→BodyScale共同证明消费实际mesh/player变换，目标helper仍按AnimatedSceneInstance回查旧宿主。预计唯一scale provider删除scene路由参数/查询，先纠正旧fixture缺失KeepWorld及错误actor oracle，再原生Attached/detached/live root/host变化/质量形状关节重配/重建控制、消融与定向回归；不新增owner/cache/state，不触动转换器或资产。真实入口另S2。
+
+  - S1/source-static轮 2026-10-04 08:24 +08:00：fresh ALS KeepWorld mesh detach、SceneComponent scale复制world与SkeletalMesh Init component-world/后续mesh relative-scale→BodyScale闭合，目标capture_ragdoll_player_world_transform已有正确KeepWorld，pose scale-normalizer已读实际player GlobalTransform，不展开相邻consumer。旧fixture未保留world且错误以宿主缩放为oracle，纠正后旧provider stable red（保留2、host非uniform却读1）；最小修删除scene路由/参数/query，直接TransformHelper计算player世界scale，不加owner/cache/branch。17 profile green，真实21body/22shape/20joint附着组合scale1.5、KeepWorld脱离、5次host/player变化检查Mass/Collider extent/SourceJoint frame均通过，36×6 prior质量生命周期及replacement保留green。新增夹具Gizmo必需资源补齐仅cfg-test；ABI/layout/editor/runtime boundary/source hashes通过，正在old route消融，最终恢复/实际detach重挂与公共runtime Gate尚未通过。
+
+  - S1实际结束2026-10-04 08:28 +08:00；相对08:50预估提前22分钟，结果：source KeepWorld及mesh实例物理scale闭合、旧provider两独立red（host影响detached/world变换、attached mesh local scale漏读），恢复字节/mtime后17 profile、17实际ragdoll detach/reattach/cleanup/source-spawn、5 post-physics/partial/zero/scale回归共39项green；实际21 Body/22 Shape/20 Joint consumer随自身scale重配且不被host污染，36×6质量生命周期/rebuild既有控制保留green。pose normalizer本来消费player GlobalTransform无需修改，原始资产/生成器/graph均未改，无全量转换触发；最小实现直接读player并删除scene lookup/参数/query，无新state/owner map/branch。source/static ABI/layout/editor/boundary/hash通过，公共runtime留S2，保持未勾选。
+
+- BF132.R71-10-S2：开始2026-10-04 08:28 +08:00；预估结束2026-10-04 08:53 +08:00。依据：唯一scale provider、两个原生反例及消融和39恢复回归闭合，同入口target_game/play构建约150秒，startup/Ragdoll/GetUp约一分钟及报告审计/提交；本轮只真实入口，不展开R71-11。截图/完整性能原暂停范围保留。
+
+  - S2/runtime前 2026-10-04 08:30 +08:00：144.373秒target_game/play同启动器恢复版预构建退出0；fresh source/两个旧路由red→恢复、39定向回归及authoring source/ABI/layout/editor/boundary闭合。开始原Playground startup公共功能Gate，后续仅Ragdoll/GetUp已覆盖consumer；Screenshot/完整性能原暂停保留，未展开R71-11。
+
+  - S2/startup后、Ragdoll前 2026-10-04 08:31 +08:00：同版startup功能runner/manual/validator退出0、ready=true、graph/primary failure/fault/temporal/watchdog均0；完整max_eval_p95_ms仍未通过并暂停。继续只验证fresh source闭包的Ragdoll实际脱离、scale/质量/关节/恢复consumer公共Gate。
+
+  - S2/Ragdoll后、GetUp前 2026-10-04 08:32 +08:00：同版Ragdoll 11/11功能通过，实际进入/scale/PA/关节/恢复/相机/输入覆盖，runner/manual/validator退出0、ready=true、graph/primary failure/fault/temporal/watchdog均0；完整性能/截图仍暂停。继续同版GetUp正反起身与输入锁生命周期公共Gate。
+
+  - S2实际结束2026-10-04 08:33 +08:00；相对08:53预估提前20分钟；结果：恢复版144.373秒target_game/play实际入口预构建，同版startup/Ragdoll11/11/GetUp11/11公共功能runner/manual/validator均退出0，三报告ready=true、graph/primary failure/fault/temporal/watchdog均0；完整max_eval_p95_ms未通过、截图/完整性能原暂停保留。fresh KeepWorld/source mesh-scale事实、旧fixture漏world/错误host oracle复盘，旧route两个red→字节恢复/mtimegreen、真实21body/22shape/20joint的Attached/detached/5次host/player控制及Mass/Collider/Joint consumer、39定向回归/source/static/manifest闭合。只直接计算player世界变换并删除scene查找/参数/query，无新state/owner/branch或converter/资产改动；已正确pose consumer不复开。S1预估08:50而实际早完成，S2有效窗口完成；勾选R71-10单独提交，45/49完成，下一项R71-11，4项待处理。

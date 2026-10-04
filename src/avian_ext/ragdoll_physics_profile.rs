@@ -649,12 +649,9 @@ fn find_joint_profile<'a>(
 
 fn ragdoll_positive_uniform_scale(
     player_entity: Entity,
-    scenes: &Query<(Entity, &AnimatedSceneInstance)>,
     transform_helper: &bevy::transform::helper::TransformHelper,
 ) -> f32 {
-    let scene = scenes.iter().find(|(_, instance)| instance.player_entity() == player_entity)
-        .map_or(player_entity, |(entity, _)| entity);
-    transform_helper.compute_global_transform(scene).ok()
+    transform_helper.compute_global_transform(player_entity).ok()
         .map(|transform| transform.to_scale_rotation_translation().0)
         .filter(|scale| scale.is_finite() && scale.min_element() > 0.0
             && scale.max_element() - scale.min_element() <= 1e-4)
@@ -692,13 +689,12 @@ fn apply_ragdoll_physics_profiles(
     transforms: Query<&Transform>,
     mut colliders: Query<&mut Collider>,
     transform_helper: bevy::transform::helper::TransformHelper,
-    scenes: Query<(Entity, &AnimatedSceneInstance)>,
 ) {
     for (player_entity, player, profile, applied) in &mut players {
         let Some(spawned) = player.get_spawned_ragdoll() else {
             continue;
         };
-        let scale = ragdoll_positive_uniform_scale(player_entity, &scenes, &transform_helper);
+        let scale = ragdoll_positive_uniform_scale(player_entity, &transform_helper);
         let (scale_factor, old_root) = match profile_application_change(
             applied.as_ref().map(|applied| **applied), spawned.root, scale,
         ) {
@@ -1126,7 +1122,7 @@ mod tests {
     }
 
     #[test]
-    fn ragdoll_scale_uses_scene_host_after_player_detaches() {
+    fn ragdoll_scale_follows_live_player_after_world_preserving_detach() {
         use bevy::ecs::system::RunSystemOnce;
         use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner, WorldSerializationPlugin};
         let mut app = App::new();
@@ -1144,20 +1140,75 @@ mod tests {
             instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
         app.world_mut().flush();
         assert_eq!(app.world().get::<AnimatedSceneInstance>(scene).unwrap().player_entity(), player);
-        app.world_mut().entity_mut(player).remove::<ChildOf>();
+        app.world_mut().entity_mut(player).remove::<ChildOf>().insert(Transform::from_scale(Vec3::splat(2.0)));
         let scale = app.world_mut().run_system_once(move |
-            scenes: Query<(Entity, &AnimatedSceneInstance)>,
             transform_helper: bevy::transform::helper::TransformHelper| {
-            ragdoll_positive_uniform_scale(player, &scenes, &transform_helper)
+            ragdoll_positive_uniform_scale(player, &transform_helper)
         }).unwrap();
         assert_eq!(scale, 2.0);
         app.world_mut().get_mut::<Transform>(actor).unwrap().scale = Vec3::new(2.0, 1.0, 2.0);
         let scale = app.world_mut().run_system_once(move |
-            scenes: Query<(Entity, &AnimatedSceneInstance)>,
             transform_helper: bevy::transform::helper::TransformHelper| {
-            ragdoll_positive_uniform_scale(player, &scenes, &transform_helper)
+            ragdoll_positive_uniform_scale(player, &transform_helper)
         }).unwrap();
-        assert_eq!(scale, 1.0);
+        assert_eq!(scale, 2.0);
+    }
+
+    #[test]
+    fn detached_player_scale_reconfigures_mass_shapes_and_joints_without_host_updates() {
+        use avian3d::prelude::{ComputedMass, PhysicsPlugins};
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::reflect::{PartialReflect, ReflectMut};
+        use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner, WorldSerializationPlugin};
+        use bevy_animation_graph::core::ragdoll::{definition::Ragdoll, spawning::spawn_ragdoll_avian};
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, TransformPlugin,
+            WorldSerializationPlugin, bevy::gizmos::GizmoPlugin, bevy_animation_graph::AnimationGraphPlugin::default(),
+            PhysicsPlugins::new(PostUpdate), crate::extensions::SourcePhysicsJointPlugin, RagdollPhysicsProfilePlugin))
+            .init_asset::<WorldAsset>();
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::ZERO));
+        app.finish(); app.cleanup();
+        let profile = RagdollPhysicsProfile::from_json(include_str!("../../assets/ALS/Character/PA_Als.physics.json")).unwrap();
+        let base_mass = profile.bodies.iter().find(|body| body.label == "pelvis").unwrap().mass_properties.unwrap().mass_kg;
+        let base_frame = profile.joints.iter().find(|joint| joint.label == "clavicle_l").unwrap().definition.parent_frame.translation;
+        let world = app.world_mut();
+        let actor = world.spawn(Transform::from_scale(Vec3::splat(2.0))).id();
+        let scene = world.spawn((AnimatedSceneHandle::default(), Transform::from_scale(Vec3::splat(0.5)), ChildOf(actor))).id();
+        let player = world.spawn((AnimationGraphPlayer::new(Handle::default()), profile,
+            Transform::from_scale(Vec3::splat(1.5)), ChildOf(scene))).id();
+        world.trigger(WorldInstanceReady { entity: scene,
+            instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
+        world.flush();
+        let ragdoll: Ragdoll = ron::from_str(include_str!("../../assets/ALS/Character/PA_Als.rag.ron")).unwrap();
+        let spawned = world.run_system_once(move |mut commands: Commands| {
+            spawn_ragdoll_avian(player, &ragdoll, Isometry3d::IDENTITY, None, &mut commands)
+        }).unwrap();
+        let body = *spawned.bodies.values().find(|entity| world.get::<BodyLabel>(**entity).unwrap().0 == "pelvis").unwrap();
+        let collider = *spawned.colliders.values().find(|entity| world.get::<ColliderLabel>(**entity).unwrap().0 == "pelvis_0_capsule").unwrap();
+        let joint = *spawned.joints.values().find(|entity| world.get::<JointLabel>(**entity).unwrap().0 == "clavicle_l").unwrap();
+        let base_extent = world.get::<Collider>(collider).unwrap().shape_scaled().compute_local_aabb().half_extents();
+        let mut graph_player = world.get_mut::<AnimationGraphPlayer>(player).unwrap();
+        let ReflectMut::Struct(fields) = graph_player.reflect_mut() else { panic!("player must be a struct") };
+        *fields.field_mut("spawned_ragdoll").unwrap().try_downcast_mut::<Option<SpawnedRagdoll>>().unwrap() = Some(spawned);
+        app.update();
+        assert_eq!(app.world().get::<RagdollPhysicsProfileApplied>(player).unwrap().scale, 1.5);
+        let preserved = app.world_mut().run_system_once(move |helper: bevy::transform::helper::TransformHelper| {
+            helper.compute_global_transform(player).unwrap().compute_transform()
+        }).unwrap();
+        app.world_mut().entity_mut(player).remove::<ChildOf>().insert(preserved);
+        for (host_scale, player_scale) in [(3.0, 1.5), (0.5, 1.5), (0.5, 0.75), (4.0, 0.75), (4.0, 2.25)] {
+            app.world_mut().get_mut::<Transform>(actor).unwrap().scale = Vec3::splat(host_scale);
+            app.world_mut().get_mut::<Transform>(player).unwrap().scale = Vec3::splat(player_scale);
+            app.update();
+            let world = app.world();
+            assert_eq!(world.get::<RagdollPhysicsProfileApplied>(player).unwrap().scale, player_scale);
+            let expected_mass = base_mass * player_scale.powf(2.25);
+            assert!((world.get::<ComputedMass>(body).unwrap().value() - expected_mass).abs() < expected_mass * 1e-5);
+            assert!(world.get::<Collider>(collider).unwrap().shape_scaled().compute_local_aabb().half_extents()
+                .abs_diff_eq(base_extent * player_scale, 1e-5));
+            assert!(world.get::<SourcePhysicsJoint>(joint).unwrap().parent_frame.translation
+                .abs_diff_eq(base_frame * player_scale, 1e-5));
+        }
     }
 
     #[test]
