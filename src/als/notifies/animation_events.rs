@@ -206,6 +206,7 @@ pub struct AlsNotifyEarlyBlendOut {
 #[derive(Message, Clone, Debug)]
 pub struct AlsAnimationEvent {
     pub character: Entity,
+    pub source: Option<(Entity, Entity, u64)>,
     pub instance_id: u64,
     pub source_asset: String,
     pub graph_clip: String,
@@ -268,7 +269,7 @@ impl NotifyChance {
     }
 }
 
-fn notify_root_instance(arena: &bevy_animation_graph::core::context::graph_context_arena::GraphContextArena) -> u64 {
+pub(crate) fn notify_root_instance(arena: &bevy_animation_graph::core::context::graph_context_arena::GraphContextArena) -> u64 {
     use bevy_animation_graph::core::{animation_graph::NodeId, context::node_states::StateKey};
     arena.get_toplevel().node_states
         .get::<crate::extensions::source_instance::SourceInstanceProperties>(NodeId::default(), StateKey::Default)
@@ -418,6 +419,7 @@ fn dispatch_graph_footsteps(
                 };
                 events.write(AlsAnimationEvent {
                     character: avatar.character,
+                    source: Some((avatar_entity, entity, source_instance)),
                     instance_id: if sample.montage { sample.identity.rsplit(':').next().and_then(|value| value.parse().ok()).unwrap_or(0) } else { source_instance },
                     source_asset: source.source_asset.clone(), graph_clip: path.clone(), event_id: signal.id,
                     class_name, name, phase: signal.phase,
@@ -830,12 +832,13 @@ fn dispatch_animation_events(
         assembly,
     ) in &mut characters
     {
-        if let Some(arena) = avatars.iter().find(|(entity, avatar, _)| avatar.character == character
+        let event_source = avatars.iter().find(|(entity, avatar, _)| avatar.character == character
             && assembly.is_none_or(|assembly| assembly.avatar == *entity))
-            .and_then(|(_, _, instance)| instance)
-            .and_then(|instance| players.get(instance.player_entity()).ok())
-            .and_then(|player| player.get_context_arena()) {
-            runtime.set_instance(notify_root_instance(arena));
+            .and_then(|(avatar, _, instance)| instance.as_ref().and_then(|instance|
+                players.get(instance.player_entity()).ok().map(|player|
+                    (avatar, instance.player_entity(), player.get_context_arena().map_or(0, notify_root_instance)))));
+        if let Some((_, _, instance)) = event_source {
+            runtime.set_instance(instance);
         }
         let active_sources = playbacks.entries.iter()
             .filter(|playback| source_clip(manifest, &playback.source_asset).is_some())
@@ -881,6 +884,7 @@ fn dispatch_animation_events(
                     }
                     events.write(AlsAnimationEvent {
                         character,
+                        source: event_source,
                         instance_id,
                         source_asset: source_asset.clone(),
                         graph_clip: source
@@ -994,6 +998,7 @@ fn dispatch_animation_events(
                 }
                 events.write(AlsAnimationEvent {
                     character,
+                    source: event_source,
                     instance_id: playback.instance_id,
                     source_asset: playback.source_asset.clone(),
                     graph_clip: playback.graph_clip.clone(),
@@ -1551,6 +1556,7 @@ pub(crate) mod tests {
             let old = players[1 - selected];
             app.world_mut().get_mut::<AlsCharacterAssembly>(character).unwrap().avatar = [first, second][selected];
             app.world_mut().get_mut::<AnimationGraphPlayer>(current).unwrap().resume();
+            let current_avatar = app.world().get::<crate::character_assembly::AlsCharacterAssembly>(character).unwrap().avatar;
             app.world_mut().get_mut::<AnimationGraphPlayer>(old).unwrap().resume();
             app.update();
             let generation = notify_root_instance(app.world().get::<AnimationGraphPlayer>(current).unwrap().get_context_arena().unwrap());
@@ -1577,6 +1583,7 @@ pub(crate) mod tests {
                 for event in app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain() {
                     if event.character == character && event.class_name == "AlsAnimNotify_FootstepEffects" {
                         assert_eq!(event.instance_id, generation);
+                        assert_eq!(event.source, Some((current_avatar, current, generation)));
                         steps += 1;
                     }
                 }

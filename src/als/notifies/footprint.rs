@@ -218,6 +218,12 @@ fn spawn_footprints(
     let Some(library) = libraries.get(&assets.library) else { return; };
     for event in events.read().filter(|event| event.class_name == "AlsAnimNotify_FootstepEffects" && event.phase == crate::extensions::EventPhase::Point) {
         let Ok((bones, locomotion, assembly, mut diagnostics, player)) = characters.get_mut(event.character) else { continue; };
+        let Some((source_avatar, source_player, source_instance)) = event.source else { continue; };
+        if source_avatar != assembly.avatar { continue; }
+        let Ok((owner, instance)) = avatars.get(source_avatar) else { continue; };
+        if owner.character != event.character || instance.player_entity() != source_player { continue; }
+        let Ok(source_player) = players.get(source_player) else { continue; };
+        if source_player.get_context_arena().map_or(0, crate::animation_events::notify_root_instance) != source_instance { continue; }
         diagnostics.notifications += 1;
         let reference = event.parameters.get("FootstepEffectsSettings").and_then(serde_json::Value::as_str);
         let Some(settings) = library.definitions.iter().find(|settings| Some(settings.notify_settings_reference.as_str()) == reference) else {
@@ -499,6 +505,10 @@ mod tests {
             .add_message::<AlsAnimationEvent>()
             .init_resource::<Assets<PackedDecalMaterial>>()
             .init_resource::<Assets<FootprintLibrary>>();
+        app.add_plugins((bevy::world_serialization::WorldSerializationPlugin,
+            bevy::gizmos::GizmoPlugin, bevy_animation_graph::AnimationGraphPlugin::default()))
+            .init_asset::<bevy::world_serialization::WorldAsset>()
+            .init_asset::<bevy::mesh::skinning::SkinnedMeshInverseBindposes>();
         app.init_resource::<FootstepDebugHistory>()
             .insert_resource(crate::show_debug_hud::AlsShowDebugHudState { visible: true, traces: true, ..default() });
         let library = app.world_mut().resource_mut::<Assets<FootprintLibrary>>().add(library());
@@ -518,11 +528,19 @@ mod tests {
             AlsCharacterAssembly { avatar, camera: None }, AlsFootBones { left_thigh: left, left_calf: left, left,
                 left_target: None, left_virtual_target: None, right_thigh: right, right_calf: right, right,
                 right_target: None, right_virtual_target: None })).id();
+        app.world_mut().entity_mut(avatar).insert((AlsCharacterAvatar { character },
+            bevy_animation_graph::core::animated_scene::AnimatedSceneHandle::default()));
+        let source_player = app.world_mut().spawn((Name::new("Source player"), AnimationGraphPlayer::new(Handle::default()), Transform::IDENTITY, ChildOf(avatar))).id();
+        app.world_mut().spawn((Name::new("Source bone"), Transform::IDENTITY, ChildOf(source_player)));
+        app.world_mut().trigger(bevy::world_serialization::WorldInstanceReady { entity: avatar,
+            instance_id: bevy::world_serialization::WorldInstanceSpawner::default().spawn(Handle::<bevy::world_serialization::WorldAsset>::default()) });
+        app.world_mut().flush();
         app.update();
         app.update();
         let emit = |world: &mut World, side: &str, spawn: bool, skip_air: bool, settings: &str| {
             world.resource_mut::<Messages<AlsAnimationEvent>>().write(AlsAnimationEvent {
                 character, instance_id: 1, source_asset: "source fixture".into(), graph_clip: "source fixture".into(), event_id: "step".into(),
+                source: Some((avatar, source_player, 0)),
                 class_name: "AlsAnimNotify_FootstepEffects".into(), name: "Step".into(), phase: crate::extensions::EventPhase::Point,
                 time: 0.5, weight: 1.0, percentage: 1.0,
                 parameters: serde_json::json!({"FootstepEffectsSettings": settings,
@@ -628,6 +646,55 @@ mod tests {
             emit(app.world_mut(), "Left", false, false, &FOOTPRINT.notify_settings_reference);
             app.world_mut().run_system_once(spawn_footprints).unwrap();
             assert_eq!(app.world().resource::<FootstepDebugHistory>().0.len(), count, "Only the current debug target records enabled traces");
+        }
+        app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().clear();
+        let pending = app.world_mut().resource_mut::<Assets<FootprintLibrary>>().remove(handle.id()).unwrap();
+        let before = app.world().get::<FootprintDiagnostics>(character).unwrap().notifications;
+        emit(app.world_mut(), "Left", true, false, &FOOTPRINT.notify_settings_reference);
+        app.world_mut().run_system_once(spawn_footprints).unwrap();
+        assert_eq!(app.world().get::<FootprintDiagnostics>(character).unwrap().notifications, before);
+        let replacement = app.world_mut().spawn(Transform::IDENTITY).id();
+        let replacement_foot = app.world_mut().spawn(Transform::from_xyz(0.9, 0.05, 0.0).with_rotation(rotation)).id();
+        app.world_mut().get_mut::<AlsCharacterAssembly>(character).unwrap().avatar = replacement;
+        app.world_mut().get_mut::<AlsFootBones>(character).unwrap().left = replacement_foot;
+        app.world_mut().resource_mut::<Assets<FootprintLibrary>>().insert(handle.id(), pending).unwrap();
+        app.update();
+        app.world_mut().run_system_once(spawn_footprints).unwrap();
+        assert_eq!(app.world().get::<FootprintDiagnostics>(character).unwrap().notifications, before,
+            "A queued footstep must not consume the replacement avatar's bones");
+        app.world_mut().get_mut::<AlsCharacterAssembly>(character).unwrap().avatar = avatar;
+        app.world_mut().get_mut::<AlsFootBones>(character).unwrap().left = left;
+        let pending = app.world_mut().resource_mut::<Assets<FootprintLibrary>>().remove(handle.id()).unwrap();
+        emit(app.world_mut(), "Left", true, false, &FOOTPRINT.notify_settings_reference);
+        app.world_mut().run_system_once(spawn_footprints).unwrap();
+        app.update();
+        app.world_mut().resource_mut::<Assets<FootprintLibrary>>().insert(handle.id(), pending).unwrap();
+        app.world_mut().run_system_once(spawn_footprints).unwrap();
+        assert_eq!(app.world().get::<FootprintDiagnostics>(character).unwrap().notifications, before + 1,
+            "An unchanged binding must still consume a delayed current footstep");
+        let pending = app.world_mut().resource_mut::<Assets<FootprintLibrary>>().remove(handle.id()).unwrap();
+        emit(app.world_mut(), "Left", true, false, &FOOTPRINT.notify_settings_reference);
+        app.world_mut().run_system_once(spawn_footprints).unwrap();
+        app.world_mut().entity_mut(source_player).remove::<ChildOf>();
+        let replacement_player = app.world_mut().spawn((Name::new("Replacement player"), AnimationGraphPlayer::new(Handle::default()), Transform::IDENTITY, ChildOf(avatar))).id();
+        app.world_mut().spawn((Name::new("Replacement bone"), Transform::IDENTITY, ChildOf(replacement_player)));
+        app.world_mut().trigger(bevy::world_serialization::WorldInstanceReady { entity: avatar,
+            instance_id: bevy::world_serialization::WorldInstanceSpawner::default().spawn(Handle::<bevy::world_serialization::WorldAsset>::default()) });
+        app.world_mut().flush();
+        assert_eq!(app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity(), replacement_player);
+        app.update();
+        app.world_mut().resource_mut::<Assets<FootprintLibrary>>().insert(handle.id(), pending).unwrap();
+        app.world_mut().run_system_once(spawn_footprints).unwrap();
+        assert_eq!(app.world().get::<FootprintDiagnostics>(character).unwrap().notifications, before + 1,
+            "Rebuilding the player on the same avatar must reject the old queued source");
+        for (generation, expected) in [(1, before + 1), (0, before + 2)] {
+            emit(app.world_mut(), "Left", true, false, &FOOTPRINT.notify_settings_reference);
+            let mut event = app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain().next().unwrap();
+            event.source = Some((avatar, replacement_player, generation));
+            app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().write(event);
+            app.world_mut().run_system_once(spawn_footprints).unwrap();
+            assert_eq!(app.world().get::<FootprintDiagnostics>(character).unwrap().notifications, expected,
+                "Only the current player generation may consume the footstep");
         }
     }
 

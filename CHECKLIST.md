@@ -101,7 +101,7 @@
 - [x] **BF132.R71-05 — 源要求随缩放更新质量，目标却固定生成的 Override 质量**。Gate：effective Body scale、密度/质量幂与 Override 开关分别按源生成及重算。
 - [x] **BF132.R71-10 — 脱离后的 ragdoll 物理配置仍读取原 avatar 宿主缩放**。Gate：脱离前后实际 root/world scale 正确重配，宿主变化不污染脱离体。
 - [x] **BF132.R71-11 — 默认 PA_Als 的 cached 双轴摆动限制被替换成更窄的椭圆边界**。Gate：fresh 实际 cached/ordinary 分支与默认 PA 配置共同证明正确边界，斜向/轴向与内外控制通过。
-- [x] **BF132.R71-16 — PhysicsAsset 的 bUseCCD 被接受但未传入 ragdoll 的实际 CCD 配置**。Gate：源开关贯穿生成/安装/重建与实际高速碰撞，不以字段存在宣称实现。
+- [ ] **BF132.R71-16 — PhysicsAsset 的 bUseCCD 被接受但未传入 ragdoll 的实际 CCD 配置**。Gate：源开关贯穿生成/安装/重建与实际高速碰撞，不以字段存在宣称实现。
 - [x] **BF132.R71-17 — PhysicsAsset 的 SixDOF 逐轴锁定未生成或安装有效约束**。Gate：SixDOF 项目/实例有效模式及逐轴锁实际限制运动，自由轴与重建通过。
 - [x] **BF132.R5E-31 — Body 惯量条件化被丢弃；现有 Joint 质量条件化不是等价替代**。Gate：独立 solver 惯量消费 Body 标志、几何/约束臂及失效重算，物理质量保持源值；缩放、拓扑/动态切换和 Joint 条件化共存通过。
 
@@ -656,3 +656,33 @@
   - S4/Ragdoll后、GetUp前2026-10-05 00:25 +08:00：同版Ragdoll11/11功能通过，Body默认conditioning/动态/scale/源关节并存/pose回读/恢复/相机/input真实consumer覆盖，ready=true、runner/manual/validator退出0，graph/primary failure/fault/temporal/watchdog均0；完整source/static/1388/24/5/两消融/15递归diff0有效。继续同版GetUp正反起身和input锁生命周期，截图/完整性能仍按原暂停范围。
 
   - S4实际结束2026-10-05 00:26 +08:00；相对00:44预估提前18分钟；结果：最终157.206秒target_game/play同启动器实际版预构建，同版startup16.011秒/Ragdoll11/11（11.349秒）/GetUp11/11（13.410秒）公共功能runner/manual/validator均退出0，ready=true、graph/primary failure/fault/temporal/watchdog均0；默认21 Body flag=true实际消费且Joint conditioning并存，物理mass/inertia仍源值。完整max_eval_p95_ms未通过，截图与完整性能保持用户原暂停范围，不宣称完整视觉/性能验收。fresh BodyInstance→particle→MassConditioning→solver.Q/InvI source闭包、192直接UE函数samples/单位/8参数/Body-global开关/scale2→1/actor bounds宽度/compound增删/非free及position drive connector臂/禁用删除/动态切换/三frame+移动pose/新root与旧清理/实际contact通过；prepare与post-position hook分别消融stable red→byte恢复/freshmtime green，仅一项源常量组件与必要两阶段覆盖，没有额外缓存/dirty框架/派生pose状态。1388库/24profile/5资产/全部producer/self-test/static/source hashes与全15/39/374 fresh转换完整diff0通过；target只21 bool+8 source常量，其他PA字段/raw/rag/bone-map不改，原始source record未手补。S1提前28分钟，S2+8在容差内，S3提前7、S4提前18；全部估时/失败及源证明纠正保留。勾选R5E-31单独提交，本批49唯一原编号全部49/49修复完成，R71-06撤回排除，未扩展TODO或相邻完成项。
+
+
+## BF133 — cd4b89ec 修复复审的两个已确认 P2
+
+本轮读取内置浏览器对 `cd4b89ec` 及锁定图依赖 `e77d1494` 的最新复审：47 项在原触发范围静态认可，R71-07 和 R71-16 各有一个需要补修的边界。当前工作树干净；原完成证据保留，仅按 fresh source-target 链复开这两项，不把未定级 dominance/休眠候选作为已确认缺陷实现。
+
+- [x] **BF133.RCD4-01 — 排队脚步事件缺少消费阶段的当前 Avatar/player/实例身份核验**。关联复开 BF132.R71-07。Gate：真实消息队列、实际 spawn_footprints 消费者，库未就绪延迟一帧后换到分离的 B 不得把 A 的事件解释为 B；同绑定/同帧、保留旧 Avatar、同根 player 重建及实例更替控制通过，原 Playground Notify/Footprint 功能 Gate。
+- [ ] **BF133.RCD4-02 — 新 CCD 扫掠源及候选没有物理形状资格，QueryOnly 可错误回退刚体**。关联复开 BF132.R71-16。Gate：源/候选分别切换六形状模式，PhysicsOnly/QueryAndPhysics 实际 TOI/位移阻挡，QueryOnly/NoCollision/Probe 不产生物理回退，已有碰撞对/层/禁用/速度/连续帧控制保持通过，实际 Playground Ragdoll/GetUp 功能 Gate。
+
+### 活动记录
+
+- BF133 登记/复开：开始2026-10-05 02:23 +08:00；预估结束2026-10-05 02:33 +08:00。依据：浏览器两个完整反馈与当前 consumer 查询已读取，fresh 本地 Notify(Mesh) 从传入 Mesh 取 socket/scale，当前消费者在库未就绪时未读消息、恢复后只用 character 当前 bones/assembly；fresh Chaos CCD 排除 IsProbe，当前 sweep 不读已有形状模式。R71-07 旧 Gate 仅证明派发时当前 Assembly 及同帧消费，未模拟库 pending 跨帧换绑；R71-16 旧 168 矩阵覆盖 Sensor/layers/disabled，未覆盖源与候选 QueryOnly。先取消这两项勾选再补最小真实反例；待办与已认可47项保持隔离，源码/原始资产尚未修改。
+
+- BF133.RCD4-01-S1：开始2026-10-05 02:23 +08:00；预估结束2026-10-05 02:58 +08:00。依据：fresh ALS Footstep Notify Mesh/socket/scale 合同、两个现有 producer 与单个 footprint consumer，沿旧 reader约60秒/定向Rust约80秒记录估计；本轮35窗口只 fresh通知资产/源、实际MessageReader延迟换绑稳定red、最小来源数据传递与consumer核验、同绑定/重建/保留旧控制及必要性消融。数据归属优先复用当前 Assembly、AnimatedSceneInstance 与现有 source instance ID，不预建身份管理层；runtime另S2。RCD4-02尚未实现。
+
+  - RCD4-01 source/native轮2026-10-05 02:40 +08:00：fresh GetUp_Back 原生通知资产读取37.025秒及ALS Notify(Mesh)当次socket/scale闭合；真实Messages+实际spawn_footprints在库missing早退→下一帧换到分离B的反例stable red（notifications12而应11），非模型/编译失败。旧同帧Gate不覆盖跨帧consumer。现有根SourceInstanceProperties已有world/实例唯一ID，增加事件只读来源tuple(Avatar,player,root instance)、图与独立playback两producer携带，消费者在统计/trace前核对当前Assembly/AnimatedSceneInstance/player/原有root instance；不建身份manager/额外generation counter/延迟pose缓存。现有bare骨骼fixture改用真正WorldInstanceReady observer生成场景绑定，保留旧Avatar；类型shadow与Entity解引用编译错误已读报告纠正，不当作语义red。当前focused编译运行中，后续same绑定pending/current事件、同根player替换/实例拒绝及guard消融，尚不启动runtime。
+
+  - RCD4-01消融轮2026-10-05 02:56 +08:00：实际MessageReader consumer的pending库→换Avatar/B脚骨反例修复后green，绑定不变延迟仍消费、同Avatar WorldInstanceReady实际重绑新player保留旧player、错误instance与当前instance控制通过。Avatar/player/instance三核验分别移除后，各自针对的counter断言stable red（12/11、13/12、13/12），逐字节恢复并刷新源码时间戳；额外manager、generation计数器、pose副本、兼容分支均未新增。原bare骨骼fixture扩充真实scene observer绑定所需Gizmo inverse-bindpose/Name/Children组件，三次夹具准备panic已保留、未算成根因/不改依赖；实际source graph两个Avatar顺序fixture补事件来源正向断言。当前正在8脚印/通知模块最终恢复回归，source hashes/ABI/layout/editor/资产边界通过；预估02:58将按实际结束记录容差，静态未闭合前不启动runtime。
+
+  - RCD4-01-S1实际结束2026-10-05 02:59 +08:00；相对02:58预估偏差+1分钟，在容差内；结果：8 footprint恢复/26 notification通过（实际双Avatar顺序、根generation/source tuple生产者、graph与montage/首区间/LOD/暂停控制），Avatar/player/instance三独立消融red→byte恢复/mtime green。真实Messages跨帧库pending换绑定、保持绑定、同根WorldInstanceReady重绑保留旧player、过期epoch与当前epoch控制通过；native资产+ALS Mesh/socket source与当前root ABI/layout/editor/510编辑器/资产边界静态闭合。仅增加既有消息的来源tuple并在consumer当前映射核验，不加新消息类型/身份manager/state counter/缓存，source generation复用现有SourceInstanceProperties；原生scene observer夹具补Name/Children/Gizmo inverse-bindposes需要已核对，不因夹具准备失败改依赖。RON/FSM/转换器修改0，不重复全量转换；候选未扩展。可启动本项实际入口，原复开项仍未勾选。
+
+- BF133.RCD4-01-S2：开始2026-10-05 02:59 +08:00；预估结束2026-10-05 03:24 +08:00。依据：S1全部source/static/34定向与三消融恢复闭合；实际启动器target_game/play预构建约150秒，原Playground startup/Notify12/Footprint21公共功能/GPU回读与报告审计/独立提交。当前只脚步来源consumer，截图/完整性能暂停沿已有明确指示，功能/图/pose/生命周期/watchdog全部仍验收；通过后再开始RCD4-02。
+
+  - RCD4-01 runtime前2026-10-05 03:02 +08:00：146.283秒同启动器target_game/play最终版预构建退出0；34定向、真实消息延迟/换绑/同根重绑/代际控制、实际双Avatar producer来源断言、三字段各消融及byte恢复、fresh通知/Notify Mesh source和ABI/layout/editor/boundary闭合。开始原Playground startup功能Gate，随后Notify/Footprint实际默认图→消息→最终脚骨/地面trace→GPU材质；截图/完整性能暂停保持，不放宽功能/pose/watchdog。
+
+  - RCD4-01 startup后/Notify前2026-10-05 03:03 +08:00：同版startup公共功能通过，ready/退出0、graph/primary/fault/temporal/watchdog0；source/static/34恢复和三消融有效。继续Notify实际图、roll camera/footstep消息消费；截图/完整性能仍暂停，原max_eval_p95_ms失败保留。
+
+  - RCD4-01 Notify后/Footprint前2026-10-05 03:04 +08:00：同版Notify实际消息、roll footstep/camera/source窗口功能全部通过，ready/runner/manual/validator退出0、graph/primary/fault/temporal/watchdog0；source/static/34与三消融恢复有效。继续Footprint默认真实脚骨/走跑蹲/表面trace/贴花GPU回读和生命周期；截图/完整性能暂停保持。
+
+  - RCD4-01-S2实际结束2026-10-05 03:05 +08:00；相对03:24预估提前19分钟；结果：146.283秒同启动器最终版预构建，同版startup16.074秒/Notify13项（24.699秒）/Footprint21项（32.609秒）公共功能runner/manual/validator退出0，ready/graph/primary/fault/temporal/watchdog均正常，GPU36请求/576采样通过。34定向、pending库延迟A→B/绑定不变/同根WorldInstanceReady重绑保留旧player/过期与当前epoch控制、实际图producer来源断言、三独立身份消融及byte恢复/static闭合；仅现有消息来源tuple和consumer校验，没有新缓存/manager/生成规则/资产改动。S1+1分钟容差内、S2提前19；登记实际结束02:26相对02:33提前7分钟，两条反馈原编号及有限复开范围核对通过。恢复R71-07并勾选RCD4-01，单独提交；RCD4-02与关联R71-16保持未勾选。截图/完整性能暂停不变，max_eval_p95_ms失败保留，只有功能验收通过。最后审计首次将startup的空manual字段当dict造成Python错误，未改勾选；已读取报告并明确空值后修正文档，同一提交amend，不把该错误记作功能失败。
