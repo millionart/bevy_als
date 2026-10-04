@@ -65,6 +65,9 @@ def extract(actor, character_cpp, floor_cpp, primitive_cpp, movement_cpp, math_h
         'FLOOR_SWEEP_SHRINK_FRACTION': f32(1.0 - f32(shrink)),
         'FLOOR_RETRY_SHRINK_FRACTION': f32(1.0 - f32(overlap_shrink)),
         'MAX_SPEED_SQUARED_RATIO': literal(movement_cpp, rf'OverVelocityPercent\s*=\s*{NUMBER}f?\s*;', 'speed tolerance'),
+        'BRAKE_TO_STOP_VELOCITY': literal(character_cpp, rf'BRAKE_TO_STOP_VELOCITY\s*=\s*{NUMBER}f?\s*;', 'braking stop velocity') * scale,
+        'BRAKING_SMALL_VELOCITY_SQUARED': small * scale * scale,
+        'MIN_MOVEMENT_DELTA_SECONDS': literal(character_cpp, rf'MIN_TICK_TIME\s*=\s*{NUMBER}f?\s*;', 'minimum movement delta'),
         'STAND_UP_SWEEP_INFLATION': small * literal(character_cpp, rf'const float SweepInflation\s*=\s*UE_KINDA_SMALL_NUMBER\s*\*\s*{NUMBER}f?\s*;', 'stand-up inflation') * scale,
         'STAND_UP_MIN_FLOOR_DISTANCE': small * literal(character_cpp, rf'const float MinFloorDist\s*=\s*UE_KINDA_SMALL_NUMBER\s*\*\s*{NUMBER}f?\s*;', 'stand-up floor distance') * scale,
         'MAX_DEPENETRATION_WITH_GEOMETRY': property_number('MaxDepenetrationWithGeometry') * scale,
@@ -84,7 +87,7 @@ def self_test():
                        {'name': 'WalkableFloorAngle', 'exported_text': '44.765083'},
                        {'name': 'MaxDepenetrationWithGeometry', 'exported_text': '500.000000'},
                        {'name': 'MaxDepenetrationWithPawn', 'exported_text': '100.000000'}]}]}
-    character = 'SWEEP_EDGE_REJECT_DISTANCE = 0.15f; MIN_FLOOR_DIST = 1.9f; MAX_FLOOR_DIST = 2.4f; const float ShrinkScale = 0.9f; const float ShrinkScaleOverlap = 0.1f; const float SweepInflation = UE_KINDA_SMALL_NUMBER * 10.f; const float MinFloorDist = UE_KINDA_SMALL_NUMBER * 10.f;'
+    character = 'SWEEP_EDGE_REJECT_DISTANCE = 0.15f; MIN_FLOOR_DIST = 1.9f; MAX_FLOOR_DIST = 2.4f; BRAKE_TO_STOP_VELOCITY = 10.f; MIN_TICK_TIME = 1e-6f; const float ShrinkScale = 0.9f; const float ShrinkScaleOverlap = 0.1f; const float SweepInflation = UE_KINDA_SMALL_NUMBER * 10.f; const float MinFloorDist = UE_KINDA_SMALL_NUMBER * 10.f;'
     primitive = 'const float DesiredTimeBack = FMath::Clamp(0.1f, 0.1f/Dist, 1.f/Dist) + 0.001f;'
     movement = 'const float OverVelocityPercent = 1.01f; float PenetrationPullbackDistance = 0.125f; float PenetrationOverlapCheckInflation = 0.100f;'
     header = '#define UE_KINDA_SMALL_NUMBER (1.e-4f)'
@@ -96,6 +99,11 @@ def self_test():
     assert values['PULLBACK_MIN_DISTANCE'] == 0.001
     assert values['PULLBACK_MAX_DISTANCE'] == 0.01
     assert values['MAX_SPEED_SQUARED_RATIO'] == 1.01
+    assert values['BRAKE_TO_STOP_VELOCITY'] == 0.1
+    assert abs(values['BRAKING_SMALL_VELOCITY_SQUARED'] - 1e-8) < 1e-20
+    assert values['MIN_MOVEMENT_DELTA_SECONDS'] == 1e-6
+    changed_stop = extract(actor, character.replace('BRAKE_TO_STOP_VELOCITY = 10.f', 'BRAKE_TO_STOP_VELOCITY = 20.f'), character, primitive, movement, header)
+    assert changed_stop['BRAKE_TO_STOP_VELOCITY'] == 0.2
     assert values['STAND_UP_SWEEP_INFLATION'] == 1e-5
     assert values['STAND_UP_MIN_FLOOR_DISTANCE'] == 1e-5
     assert values['MAX_DEPENETRATION_WITH_GEOMETRY'] == 5.0
@@ -109,7 +117,7 @@ def self_test():
     independent = extract(actor, character.replace('SweepInflation = UE_KINDA_SMALL_NUMBER * 10.f', 'SweepInflation = UE_KINDA_SMALL_NUMBER * 20.f'), character, primitive, movement, header)
     assert independent['STAND_UP_SWEEP_INFLATION'] == 2e-5
     assert independent['STAND_UP_MIN_FLOOR_DISTANCE'] == 1e-5
-    for broken in [character.replace('MAX_FLOOR_DIST', 'MISSING'), character + ' MAX_FLOOR_DIST = 4.f;', character.replace('SweepInflation', 'MISSING'), character + ' const float MinFloorDist = UE_KINDA_SMALL_NUMBER * 10.f;']:
+    for broken in [character.replace('MAX_FLOOR_DIST', 'MISSING'), character + ' MAX_FLOOR_DIST = 4.f;', character.replace('SweepInflation', 'MISSING'), character + ' const float MinFloorDist = UE_KINDA_SMALL_NUMBER * 10.f;', character.replace('BRAKE_TO_STOP_VELOCITY', 'MISSING'), character + ' MIN_TICK_TIME = 1e-5f;']:
         try:
             extract(actor, broken, character, primitive, movement, header)
         except ValueError:
@@ -128,7 +136,7 @@ def self_test():
             raise AssertionError('Invalid terminal source must block generation')
     assert literal('TEXT("p.EncroachEpsilon"), 0.15f,', rf'\"p\.EncroachEpsilon\"\s*\)\s*,\s*{NUMBER}f?\s*,', 'spawn epsilon') * SOURCE_LENGTH_TO_RUNTIME_SCALE == 0.0015
     assert literal('PawnRadius - GetPerchRadiusThreshold(), 0.11f, PawnRadius', rf'PawnRadius - GetPerchRadiusThreshold\(\),\s*{NUMBER}f?\s*,\s*PawnRadius', 'perch minimum') * SOURCE_LENGTH_TO_RUNTIME_SCALE == 0.0011
-    assert len(render(values).splitlines()) == 19
+    assert len(render(values).splitlines()) == 22
     print('Movement constants self-test PASS')
 
 
