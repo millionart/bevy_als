@@ -205,6 +205,7 @@ struct PhysicsAssetConstraint {
 struct PhysicsAssetConstraintTarget {
     frame_1: PhysicsAssetFrame,
     frame_2: PhysicsAssetFrame,
+    use_linear_solver: bool,
     angular_limits: [SourceAngularLimit; 3],
     swing_spring: Option<SourceAngularSpring>,
     twist_spring: Option<SourceAngularSpring>,
@@ -348,6 +349,7 @@ impl RagdollPhysicsProfile {
                         child: Entity::PLACEHOLDER,
                         parent_frame: target.frame_2.into(),
                         child_frame: target.frame_1.into(),
+                        use_linear_solver: target.use_linear_solver,
                         angular_limits: target.angular_limits,
                         swing_spring: target.swing_spring,
                         twist_spring: target.twist_spring,

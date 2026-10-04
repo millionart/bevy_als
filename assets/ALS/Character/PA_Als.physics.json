@@ -7216,7 +7216,8 @@
           "acceleration_mode": true,
           "damping": 5000.0,
           "stiffness": 5000000.0
-        }
+        },
+        "use_linear_solver": true
       }
     },
     {
@@ -7530,7 +7531,8 @@
           "acceleration_mode": true,
           "damping": 5000.0,
           "stiffness": 5000000.0
-        }
+        },
+        "use_linear_solver": true
       }
     },
     {
@@ -7844,7 +7846,8 @@
           "acceleration_mode": true,
           "damping": 5000.0,
           "stiffness": 5000000.0
-        }
+        },
+        "use_linear_solver": true
       }
     },
     {
@@ -8156,7 +8159,8 @@
           "acceleration_mode": true,
           "damping": 5000.0,
           "stiffness": 5000000.0
-        }
+        },
+        "use_linear_solver": true
       }
     },
     {
@@ -8470,7 +8474,8 @@
           "acceleration_mode": true,
           "damping": 5000.0,
           "stiffness": 5000000.0
-        }
+        },
+        "use_linear_solver": true
       }
     },
     {
@@ -8784,7 +8789,8 @@
           "acceleration_mode": true,
           "damping": 5000.0,
           "stiffness": 5000000.0
-        }
+        },
+        "use_linear_solver": true
       }
     },
     {
@@ -9098,7 +9104,8 @@
           "acceleration_mode": true,
           "damping": 5000.0,
           "stiffness": 5000000.0
-        }
+        },
+        "use_linear_solver": true
       }
     },
     {
@@ -9415,7 +9422,8 @@
           "acceleration_mode": true,
           "damping": 5000.0,
           "stiffness": 5000000.0
-        }
+        },
+        "use_linear_solver": true
       }
     },
     {
@@ -9732,7 +9740,8 @@
           "acceleration_mode": true,
           "damping": 5000.0,
           "stiffness": 5000000.0
-        }
+        },
+        "use_linear_solver": true
       }
     },
     {
@@ -10047,7 +10056,8 @@
           "acceleration_mode": true,
           "damping": 5000.0,
           "stiffness": 5000000.0
-        }
+        },
+        "use_linear_solver": true
       }
     },
     {
@@ -10362,7 +10372,8 @@
           "acceleration_mode": true,
           "damping": 5000.0,
           "stiffness": 5000000.0
-        }
+        },
+        "use_linear_solver": true
       }
     },
     {
@@ -10676,7 +10687,8 @@
           "acceleration_mode": true,
           "damping": 5000.0,
           "stiffness": 5000000.0
-        }
+        },
+        "use_linear_solver": true
       }
     },
     {
@@ -10990,7 +11002,8 @@
           "acceleration_mode": true,
           "damping": 5000.0,
           "stiffness": 5000000.0
-        }
+        },
+        "use_linear_solver": true
       }
     },
     {
@@ -11307,7 +11320,8 @@
           "acceleration_mode": true,
           "damping": 5000.0,
           "stiffness": 5000000.0
-        }
+        },
+        "use_linear_solver": true
       }
     },
     {
@@ -11624,7 +11638,8 @@
           "acceleration_mode": true,
           "damping": 5000.0,
           "stiffness": 5000000.0
-        }
+        },
+        "use_linear_solver": true
       }
     },
     {
@@ -11936,7 +11951,8 @@
           "acceleration_mode": true,
           "damping": 5000.0,
           "stiffness": 5000000.0
-        }
+        },
+        "use_linear_solver": true
       }
     },
     {
@@ -12248,7 +12264,8 @@
           "acceleration_mode": true,
           "damping": 5000.0,
           "stiffness": 5000000.0
-        }
+        },
+        "use_linear_solver": true
       }
     },
     {
@@ -12553,7 +12570,8 @@
           "acceleration_mode": true,
           "damping": 5000.0,
           "stiffness": 5000000.0
-        }
+        },
+        "use_linear_solver": true
       }
     },
     {
@@ -12865,7 +12883,8 @@
           "acceleration_mode": true,
           "damping": 5000.0,
           "stiffness": 5000000.0
-        }
+        },
+        "use_linear_solver": true
       }
     },
     {
@@ -13177,7 +13196,8 @@
           "acceleration_mode": true,
           "damping": 5000.0,
           "stiffness": 5000000.0
-        }
+        },
+        "use_linear_solver": true
       }
     }
   ],

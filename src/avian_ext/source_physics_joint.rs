@@ -75,6 +75,7 @@ pub struct SourcePhysicsJoint {
     pub child: Entity,
     pub parent_frame: Isometry3d,
     pub child_frame: Isometry3d,
+    pub use_linear_solver: bool,
     pub angular_limits: [SourceAngularLimit; 3],
     pub swing_spring: Option<SourceAngularSpring>,
     pub twist_spring: Option<SourceAngularSpring>,
@@ -195,7 +196,7 @@ impl XpbdConstraint<2> for SourcePhysicsJoint {
         let mut motor_lambdas = data.motor_lambdas;
         for index in 0..3 {
             let frames = current_frames(parent, child, data);
-            let correction = angular_limit_correction(frames, self.angular_limits, index);
+            let correction = angular_limit_correction(frames, self.angular_limits, index, self.use_linear_solver);
             let spring = match self.angular_limits[index] {
                 SourceAngularLimit::Limited(_) if index == 0 => self.twist_spring,
                 SourceAngularLimit::Limited(_) => self.swing_spring,
@@ -300,6 +301,7 @@ fn angular_limit_correction(
     frames: (Quat, Quat),
     limits: [SourceAngularLimit; 3],
     index: usize,
+    use_linear_solver: bool,
 ) -> Option<(Vec3, f32)> {
     let (parent, child) = frames;
     if index == 0 {
@@ -317,6 +319,13 @@ fn angular_limit_correction(
         SourceAngularLimit::Limited(right),
     ] = limits
     {
+        if use_linear_solver {
+            let swing = relative_swing(parent, child)?;
+            let (component, local_axis) = if index == 1 { (swing.y, Vec3::Y) } else { (swing.z, Vec3::Z) };
+            let angle = swing_angle(component, swing.w);
+            let axis = parent * swing * local_axis;
+            return limit_error(limits[index], angle).map(|error| (axis * error.signum(), error.abs()));
+        }
         if index != 1 {
             return None;
         }
@@ -757,6 +766,7 @@ mod tests {
             child: Entity::from_raw_u32(2).unwrap(),
             parent_frame: Isometry3d::IDENTITY,
             child_frame: Isometry3d::IDENTITY,
+            use_linear_solver: false,
             angular_limits: [SourceAngularLimit::Free; 3],
             swing_spring: None,
             twist_spring: None,
@@ -980,7 +990,8 @@ mod tests {
             angular_limit_correction(
                 (Quat::IDENTITY, Quat::from_rotation_y(45.0_f32.to_radians())),
                 limits,
-                1
+                1,
+                false,
             )
             .is_none()
         );
@@ -988,14 +999,82 @@ mod tests {
             angular_limit_correction(
                 (Quat::IDENTITY, Quat::from_rotation_z(45.0_f32.to_radians())),
                 limits,
-                1
+                1,
+                false,
             )
             .is_some()
         );
     }
 
     #[test]
-    fn two_limited_swings_use_the_source_elliptical_cone() {
+    fn default_cached_thigh_preserves_a_diagonal_inside_both_swing_limits() {
+        let manifest: serde_json::Value = serde_json::from_str(include_str!("../../assets/ALS/Character/PA_Als.physics.json")).unwrap();
+        let source = manifest["constraints"].as_array().unwrap().iter().find(|joint| joint["joint_name"] == "thigh_l").unwrap();
+        assert_eq!(source["source_profile"]["linear_joint_solver"], true);
+        let profile = crate::extensions::RagdollPhysicsProfile::from_json(include_str!("../../assets/ALS/Character/PA_Als.physics.json")).unwrap();
+        let thigh = &profile.joints.iter().find(|joint| joint.label == "thigh_l").unwrap().definition;
+        let diagonal = Quat::from_rotation_y(55.0_f32.to_radians()) * Quat::from_rotation_z(16.0_f32.to_radians());
+        let SourceAngularLimit::Limited(first) = thigh.angular_limits[1] else { panic!("first swing must be limited") };
+        let SourceAngularLimit::Limited(second) = thigh.angular_limits[2] else { panic!("second swing must be limited") };
+        let swing = relative_swing(Quat::IDENTITY, diagonal).unwrap();
+        let angles = Vec2::new(swing_angle(swing.y, swing.w), swing_angle(swing.z, swing.w));
+        let limits = Vec2::new(first, second);
+        assert!(angles.abs().cmplt(limits).all() && (angles / limits).length_squared() > 1.0);
+        let actual = angular_velocity_case(thigh.angular_limits, diagonal, 1, 1, thigh.twist_spring, thigh.swing_spring, thigh.use_linear_solver);
+        assert!(actual.0.abs_diff_eq(diagonal, 1e-6) && actual.1.length() < 1e-6,
+            "Cached pyramid must preserve a legal diagonal: {actual:?}");
+    }
+
+    #[test]
+    fn cached_pyramid_uses_independent_signed_angles_and_swing_axes() {
+        for degrees in [[65.0_f32, 20.0], [20.0, 20.0]] {
+            let bounds = degrees.map(f32::to_radians);
+            let limits = [SourceAngularLimit::Free, SourceAngularLimit::Limited(bounds[0]), SourceAngularLimit::Limited(bounds[1])];
+            for parent in [Quat::IDENTITY, Quat::from_rotation_z(0.7)] {
+                for twist in [0.0, 0.4] {
+                    for sign in [1.0, -1.0] {
+                        for first in [0.0_f32, 0.4, 0.85, 1.2] {
+                            for second in [0.0_f32, 0.4, 0.85, 1.2] {
+                                for directions in [[1.0, 1.0], [1.0, -1.0], [-1.0, 1.0], [-1.0, -1.0]] {
+                                    let angles = [bounds[0] * first * directions[0], bounds[1] * second * directions[1]];
+                                    let [u, v] = angles.map(|angle| (angle * 0.25).tan());
+                                    let denominator = 1.0 + u * u + v * v;
+                                    let swing = Quat::from_xyzw(0.0, 2.0 * u / denominator, 2.0 * v / denominator,
+                                        (1.0 - u * u - v * v) / denominator);
+                                    let child = parent * swing * Quat::from_rotation_x(twist) * sign;
+                                    for index in 1..=2 {
+                                        let actual = angular_limit_correction((parent, child), limits, index, true);
+                                        let factor = [first, second][index - 1];
+                                        if factor <= 1.0 { assert!(actual.is_none(), "Legal pyramid diagonal: {degrees:?} {angles:?} axis={index}"); }
+                                        else {
+                                            let (axis, error) = actual.expect("outside pyramid axis must constrain");
+                                            let expected_axis = parent * swing * [Vec3::Y, Vec3::Z][index - 1] * directions[index - 1];
+                                            assert!(axis.dot(expected_axis) > 1.0 - 1e-5);
+                                            assert!((error - (factor - 1.0) * bounds[index - 1]).abs() < 1e-5);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        let mut document: serde_json::Value = serde_json::from_str(include_str!("../../assets/ALS/Character/PA_Als.physics.json")).unwrap();
+        for cached in [false, true] {
+            document["constraints"].as_array_mut().unwrap().iter_mut().find(|joint| joint["joint_name"] == "thigh_l").unwrap()
+                ["target"]["use_linear_solver"] = serde_json::json!(cached);
+            let profile = crate::extensions::RagdollPhysicsProfile::from_json(&document.to_string()).unwrap();
+            let thigh = &profile.joints.iter().find(|joint| joint.label == "thigh_l").unwrap().definition;
+            assert_eq!(thigh.use_linear_solver, cached);
+            let diagonal = Quat::from_rotation_y(55.0_f32.to_radians()) * Quat::from_rotation_z(16.0_f32.to_radians());
+            let actual = angular_velocity_case(thigh.angular_limits, diagonal, 1, 1, thigh.twist_spring, thigh.swing_spring, cached);
+            assert_eq!(actual.0.abs_diff_eq(diagonal, 1e-6) && actual.1.length() < 1e-6, cached);
+        }
+    }
+
+    #[test]
+    fn ordinary_limited_swings_keep_the_source_elliptical_cone() {
         let limits = [
             SourceAngularLimit::Free,
             SourceAngularLimit::Limited(65.0_f32.to_radians()),
@@ -1008,11 +1087,11 @@ mod tests {
         let bounds = Vec2::new(65.0_f32.to_radians(), 20.0_f32.to_radians());
         assert!(angles.abs().cmplt(bounds).all());
         assert!((angles / bounds).length_squared() > 1.0);
-        assert!(angular_limit_correction((Quat::IDENTITY, diagonal), limits, 1).is_some());
-        assert!(angular_limit_correction((Quat::IDENTITY, diagonal), limits, 2).is_none());
+        assert!(angular_limit_correction((Quat::IDENTITY, diagonal), limits, 1, false).is_some());
+        assert!(angular_limit_correction((Quat::IDENTITY, diagonal), limits, 2, false).is_none());
         let inside = Quat::from_rotation_y(30.0_f32.to_radians())
             * Quat::from_rotation_z(8.0_f32.to_radians());
-        assert!(angular_limit_correction((Quat::IDENTITY, inside), limits, 1).is_none());
+        assert!(angular_limit_correction((Quat::IDENTITY, inside), limits, 1, false).is_none());
     }
 
     #[test]
@@ -1359,6 +1438,7 @@ mod tests {
         position_iterations: u32,
         twist_spring: Option<SourceAngularSpring>,
         swing_spring: Option<SourceAngularSpring>,
+        use_linear_solver: bool,
     ) -> (Quat, Vec3, [Vec3; 3]) {
         use avian3d::prelude::{AngularVelocity, Gravity, Mass, PhysicsPlugins, RigidBody, Rotation, SubstepCount};
         use bevy::time::TimeUpdateStrategy;
@@ -1382,6 +1462,7 @@ mod tests {
         source_joint.angular_limits = limits;
         source_joint.twist_spring = twist_spring;
         source_joint.swing_spring = swing_spring;
+        source_joint.use_linear_solver = use_linear_solver;
         source_joint.settings.position_iterations = position_iterations;
         source_joint.settings.velocity_iterations = velocity_iterations;
         source_joint.settings.projection_iterations = 0;
@@ -1397,20 +1478,20 @@ mod tests {
     fn single_substep_locked_twist_does_not_turn_error_into_spin() {
         let mut locked_limits = [SourceAngularLimit::Free; 3];
         locked_limits[0] = SourceAngularLimit::Locked;
-        let locked = angular_velocity_case(locked_limits, Quat::from_rotation_x(0.5), 1, 1, None, None);
-        let zero = angular_velocity_case(locked_limits, Quat::from_rotation_x(0.5), 0, 1, None, None);
+        let locked = angular_velocity_case(locked_limits, Quat::from_rotation_x(0.5), 1, 1, None, None, false);
+        let zero = angular_velocity_case(locked_limits, Quat::from_rotation_x(0.5), 0, 1, None, None, false);
         assert!(locked.0.to_scaled_axis().x.abs() < 1e-3 && locked.1.x.abs() < 1e-3, "{locked:?}");
         assert!(zero.1.x < -20.0, "{zero:?}");
-        let no_position = angular_velocity_case(locked_limits, Quat::from_rotation_x(0.5), 1, 0, None, None);
+        let no_position = angular_velocity_case(locked_limits, Quat::from_rotation_x(0.5), 1, 0, None, None, false);
         assert!((no_position.0.to_scaled_axis().x - 0.5).abs() < 1e-3
             && no_position.1.length() < 1e-3, "{no_position:?}");
-        let free = angular_velocity_case([SourceAngularLimit::Free; 3], Quat::from_rotation_x(0.5), 1, 1, None, None);
+        let free = angular_velocity_case([SourceAngularLimit::Free; 3], Quat::from_rotation_x(0.5), 1, 1, None, None, false);
         assert!((free.0.to_scaled_axis().x - 0.5).abs() < 1e-3 && free.1.length() < 1e-3, "{free:?}");
         let mut soft_limits = [SourceAngularLimit::Free; 3];
         soft_limits[0] = SourceAngularLimit::Limited(0.1);
         let spring = Some(SourceAngularSpring { stiffness: 1000.0, damping: 0.0, acceleration_mode: true });
-        let soft = angular_velocity_case(soft_limits, Quat::from_rotation_x(0.5), 1, 1, spring, None);
-        let soft_zero = angular_velocity_case(soft_limits, Quat::from_rotation_x(0.5), 0, 1, spring, None);
+        let soft = angular_velocity_case(soft_limits, Quat::from_rotation_x(0.5), 1, 1, spring, None, false);
+        let soft_zero = angular_velocity_case(soft_limits, Quat::from_rotation_x(0.5), 0, 1, spring, None, false);
         assert!(soft.0.to_array().into_iter().zip(soft_zero.0.to_array())
             .all(|(left, right)| (left - right).abs() < 1e-6) && soft.1.abs_diff_eq(soft_zero.1, 1e-5),
             "soft={soft:?} zero={soft_zero:?}");
@@ -1420,15 +1501,15 @@ mod tests {
     fn hard_swing_velocity_uses_the_active_limit_axis() {
         let mut locked = [SourceAngularLimit::Free; 3];
         locked[1] = SourceAngularLimit::Locked;
-        let swing = angular_velocity_case(locked, Quat::from_rotation_y(0.5), 1, 1, None, None);
+        let swing = angular_velocity_case(locked, Quat::from_rotation_y(0.5), 1, 1, None, None, false);
         assert!(swing.1.y.abs() < 1e-3, "{swing:?}");
         let mut ellipse = [SourceAngularLimit::Free; 3];
         ellipse[1] = SourceAngularLimit::Limited(65.0_f32.to_radians());
         ellipse[2] = SourceAngularLimit::Limited(20.0_f32.to_radians());
         let rotation = Quat::from_rotation_y(55.0_f32.to_radians())
             * Quat::from_rotation_z(16.0_f32.to_radians());
-        let zero = angular_velocity_case(ellipse, rotation, 0, 1, None, None);
-        let solved = angular_velocity_case(ellipse, rotation, 1, 1, None, None);
+        let zero = angular_velocity_case(ellipse, rotation, 0, 1, None, None, false);
+        let solved = angular_velocity_case(ellipse, rotation, 1, 1, None, None, false);
         let axis = solved.2[1].normalize();
         assert!(axis.is_finite() && zero.1.dot(axis).abs() > 0.1, "{zero:?} {solved:?}");
         assert!(solved.1.dot(axis).abs() < zero.1.dot(axis).abs() * 0.25, "{zero:?} {solved:?}");

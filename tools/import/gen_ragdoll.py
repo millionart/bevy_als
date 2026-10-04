@@ -359,6 +359,10 @@ def assert_close(left, right, tolerance=1e-5):
 
 def self_test():
     assert_close(ue_point([100.0, 200.0, 300.0]), [1.0, 3.0, 2.0])
+    for cached in [False, True]:
+        profile = parsed_profile([{"name": "ProfileInstance", "exported_text": "()", "fields": [
+            {"name": "bUseLinearJointSolver", "exported_text": str(cached)}]}])
+        assert profile["linear_joint_solver"] == cached
     for density, power, exponent in [(1.0, 0.75, 2.25), (2.0, 1.0, 3.0), (0.0, 0.0, 0.0003), (1.0, 2.0, 3.0)]:
         for override in [False, True]:
             for update in [False, True]:
@@ -904,6 +908,7 @@ def build_profile(source, project_max_angular_velocity_degrees):
                 ],
                 "angular_drive_stiffness_scale": drive_stiffness_scale * (1.0 if profile["angular_drive_acceleration_mode"] else CM_TO_M ** 2),
                 "angular_drive_damping_scale": drive_damping_scale * (1.0 if profile["angular_drive_acceleration_mode"] else CM_TO_M ** 2),
+                "use_linear_solver": profile["linear_joint_solver"],
                 "mass_conditioning": profile["mass_conditioning_enabled"],
                 "projection_linear_alpha": profile["projection_linear_alpha"] if profile["projection_enabled"] else 0.0,
                 "projection_linear_tolerance_m": profile["projection_linear_tolerance_cm"] * CM_TO_M if profile["projection_enabled"] else 0.0,

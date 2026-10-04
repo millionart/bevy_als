@@ -100,7 +100,7 @@
 - [x] **BF132.R71-02 — 多权重 ragdoll 回读直接相加四元数，符号相消后产生无效旋转**。Gate：q/-q 等价旋转混合保持单位/有限，部分回读及零权重控制通过。
 - [x] **BF132.R71-05 — 源要求随缩放更新质量，目标却固定生成的 Override 质量**。Gate：effective Body scale、密度/质量幂与 Override 开关分别按源生成及重算。
 - [x] **BF132.R71-10 — 脱离后的 ragdoll 物理配置仍读取原 avatar 宿主缩放**。Gate：脱离前后实际 root/world scale 正确重配，宿主变化不污染脱离体。
-- [ ] **BF132.R71-11 — 默认 PA_Als 的 cached 双轴摆动限制被替换成更窄的椭圆边界**。Gate：fresh 实际 cached/ordinary 分支与默认 PA 配置共同证明正确边界，斜向/轴向与内外控制通过。
+- [x] **BF132.R71-11 — 默认 PA_Als 的 cached 双轴摆动限制被替换成更窄的椭圆边界**。Gate：fresh 实际 cached/ordinary 分支与默认 PA 配置共同证明正确边界，斜向/轴向与内外控制通过。
 - [ ] **BF132.R71-16 — PhysicsAsset 的 bUseCCD 被接受但未传入 ragdoll 的实际 CCD 配置**。Gate：源开关贯穿生成/安装/重建与实际高速碰撞，不以字段存在宣称实现。
 - [ ] **BF132.R71-17 — PhysicsAsset 的 SixDOF 逐轴锁定未生成或安装有效约束**。Gate：SixDOF 项目/实例有效模式及逐轴锁实际限制运动，自由轴与重建通过。
 - [ ] **BF132.R5E-31 — Body 惯量条件化被丢弃；现有 Joint 质量条件化不是等价替代**。Gate：独立 solver 惯量消费 Body 标志、几何/约束臂及失效重算，物理质量保持源值；缩放、拓扑/动态切换和 Joint 条件化共存通过。
@@ -546,3 +546,25 @@
   - S2/Ragdoll后、GetUp前 2026-10-04 08:32 +08:00：同版Ragdoll 11/11功能通过，实际进入/scale/PA/关节/恢复/相机/输入覆盖，runner/manual/validator退出0、ready=true、graph/primary failure/fault/temporal/watchdog均0；完整性能/截图仍暂停。继续同版GetUp正反起身与输入锁生命周期公共Gate。
 
   - S2实际结束2026-10-04 08:33 +08:00；相对08:53预估提前20分钟；结果：恢复版144.373秒target_game/play实际入口预构建，同版startup/Ragdoll11/11/GetUp11/11公共功能runner/manual/validator均退出0，三报告ready=true、graph/primary failure/fault/temporal/watchdog均0；完整max_eval_p95_ms未通过、截图/完整性能原暂停保留。fresh KeepWorld/source mesh-scale事实、旧fixture漏world/错误host oracle复盘，旧route两个red→字节恢复/mtimegreen、真实21body/22shape/20joint的Attached/detached/5次host/player控制及Mass/Collider/Joint consumer、39定向回归/source/static/manifest闭合。只直接计算player世界变换并删除scene查找/参数/query，无新state/owner/branch或converter/资产改动；已正确pose consumer不复开。S1预估08:50而实际早完成，S2有效窗口完成；勾选R71-10单独提交，45/49完成，下一项R71-11，4项待处理。
+
+- BF132.R71-11-S1：开始2026-10-04 08:37 +08:00；预估结束2026-10-04 09:17 +08:00。依据：fresh cached InitPyramidSwingConstraint两轴分别4*atan2(component,1+w)，ordinary GetEllipticalConeAxisErrorLocal；目标双limited固定ellipse/circle且未消费per-constraint bUseLinearJointSolver。先fresh PA证明实际cached/ordinary flag及坐标基映射、使用默认thigh valid diagonal建立red，最小传递源分支/双轴各自边界，等/不等limit、正负轴/对角内外、ordinary对照、实际native求解与消融/定向回归。源未证实的其他锁/drive分支不扩展，source/static S1单独验收；若转换规则需增加源flag，S2全15已生成AnimBP与递归source完整转换/diff，不预选，runtime另S3。
+
+  - S1/source-static轮 2026-10-04 08:56 +08:00：fresh PA20约束全bUseLinearJointSolver=true，ConstraintInstance→ChaosEngineInterface.SetUseLinearSolver→CombinedConstraints cached/ordinary container闭包证明分支；cached dual-limited InitPyramid为每轴4atan2(component,1+w)、R0Swing*axis、负角翻axis，ordinary保留cone。native默认thigh55°/16°两轴各自合法却原ellipse改pose/产生spin stable red→selector/pyramid green；1024四元数输入/2048轴检查（65/20与20/20、parent旋转、twist、q/-q、正负/内外）及真实cached/ordinary配置对照、20 joint回归green。移除cached geometry与忽略selector load两独立消融各2red，恢复字节/mtime正在全库回归。PA完整JSON只新增20 target selector，raw及其他字段diff0，rag/bone-map无语义变动；只传已有源配置并加双limited源分支，不新增cache/state/节点ID算法，其他锁/drive/整套cached solver生命周期未声明全部移植。转换器自测true/false通过，source/static/root ABI/layout/editor/boundary通过；完整15-root转换/diff及真实runtime尚待S2/S3。
+
+  - S1实际结束2026-10-04 09:01 +08:00；结果：fresh20 source solver flags/Engine→Chaos container/defaultcached/ordinary cone/cached pyramid坐标及符号闭包，defaultthigh实际pose/spin原red→green、1024输入/2048轴+实际两个配置控制通过，cached-geometry与selector-load两消融各2red→字节恢复/mtime后1381全库/20joint回归通过。转换器自测及native record true/false字段反事实→target bool全链通过；完整PA数据diff仅20 target selector、raw/其他profile/rag/bone-map不变。source/static/ABI/layout/editor/boundary已通过，当前双limited有独立失败边界的一个bool选择和原两种算法，无新state/cache/helper；不声明完整cached生命周期移植。原预估09:17尚未到达，S2全量转换/diff及S3真实入口尚未通过，保持未勾选。
+
+- BF132.R71-11-S2：开始2026-10-04 09:01 +08:00；预估结束2026-10-04 09:36 +08:00。依据：20源selector生成/双limited定向/static与1381恢复闭合，当前15 installed AnimBP+39同类递归source/374产物，上轮R71-05 fresh全量重放实际25分钟；本轮35分钟窗口只全根递归重放/完整diff/source audit及资产检查，不按当前节点预选、不迁移未经源证明相邻完成图。native固定300/150，外层3600/180进展watchdog沿已有self-test；真实入口另S3。
+
+  - S2/source轮 2026-10-04 09:10 +08:00：fresh JointContainerSolver GetJointParticle/GetJointFrame显式1-index交换及AddBodies→SetSolverBodies，确认目标frame_2 parent/frame_1 child与cached轴/角输入排序一致；新增source hash。5资产回归green；保留native joint solver selector工具fixture，真实源record内存反事实true/false→parsed source→target selector通过，硬编码True消融stable red→字节恢复/mtimegreen，避免仅默认PA通过漏掉ordinary配置。当前全15-root重放仍有进展且watchdog未触发，未迁移相邻图/未启动新runtime；最终全量diff尚未完成。
+
+  - S2实际结束2026-10-04 09:27 +08:00；相对09:36预估提前9分钟；结果：1495.802秒fresh全15 installed AnimBP+39 source递归转换，新旧374完整diff新增/删除/修改均0，不复开相邻完成图。5资产/1381库已通过；native selector fixture true/false、hardcodeTrue red→字节恢复green已保留为工具，CPP交换frame顺序已hash闭合。全部PA产物source/metadata除20 target selector之外diff0，rag/bone-map不变；原始source record未动，当前代码/产物与S1恢复版一致，runtime尚未通过。
+
+- BF132.R71-11-S3：开始2026-10-04 09:27 +08:00；预估结束2026-10-04 09:52 +08:00。依据：source/static/反例/消融/1381库、5资产及15/39/374完整转换diff闭合，同入口target_game/play预构建约145秒，startup/Ragdoll/GetUp约一分钟及报告审计/单独提交；只验证双limited消费者，不展开CCD/SixDOF/inertia。Screenshot/完整性能原暂停保留。
+
+  - S3/runtime前 2026-10-04 09:30 +08:00：148.451秒target_game/play同启动器恢复版预构建退出0；1381库/20joint/5资产及三消融、native selector、完整15/39/374重放diff0/source排序及最终authoring闭合。开始原Playground startup公共功能Gate，随后只验证双limited cached消费者Ragdoll/GetUp；截图/完整性能原暂停范围保留。
+
+  - S3/startup后、Ragdoll前 2026-10-04 09:30 +08:00：同版startup功能runner/manual/validator退出0、ready=true、graph/primary failure/fault/temporal/watchdog均0；完整max_eval_p95_ms未通过仍暂停。继续fresh/defaultPA cached双limited已覆盖的实际Ragdoll关节/scale/恢复公共消费者Gate。
+
+  - S3/Ragdoll后、GetUp前 2026-10-04 09:31 +08:00：同版Ragdoll 11/11功能通过，PA/default cached/关节/scale/恢复/相机/输入实际consumer覆盖，runner/manual/validator退出0、ready=true、graph/primary failure/fault/temporal/watchdog均0；完整性能/截图仍暂停。继续同版GetUp正反起身及锁输入生命周期公共Gate。
+
+  - S3实际结束2026-10-04 09:32 +08:00；相对09:52预估提前20分钟；结果：恢复版148.451秒target_game/play实际入口预构建，同版startup/Ragdoll11/11/GetUp11/11公共功能runner/manual/validator均退出0，三报告ready=true、graph/primary failure/fault/temporal/watchdog均0；完整max_eval_p95_ms未通过、截图/完整性能原暂停保留。fresh20 cached flag/CPP container与frame交换/双limited pyramid角轴及ordinary cone闭包，default thigh原错误pose/spin red→green、1024输入/2048轴+真实cached/ordinary控制、三消融（geometry2red、load2red、generation1red）→字节恢复/mtimegreen、1381库/20joint/5资产/self-test/native selector通过。全15已生成AnimBP+39 source完整重放374 old/new diff0，PA只有20 target selector/raw不变/rag与bone-map不变，source/static/manifest闭合。一个已有源bool及双limited最小分支，没有新state/cache/helper或节点ID算法；保持其他锁/drive既有边界，不声明完整cached生命周期全部移植。S1开始08:37/预计09:17/实际09:01提前16分钟，S2实际09:27在有效窗口内，S3有效窗口内完成；勾选R71-11单独提交，46/49完成，下一项R71-16，3项待处理。
