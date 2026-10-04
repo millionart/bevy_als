@@ -5,7 +5,7 @@ use avian3d::prelude::{
     CoefficientCombine, CollisionHooks, Friction, GravityScale, JointCollisionDisabled, JointDamping, JointDisabled,
     LinearDamping, Mass, MaxAngularSpeed, NoAutoAngularInertia, NoAutoCenterOfMass, NoAutoMass, PhysicsSchedule,
     PhysicsSystems, RayHitData, ShapeCastConfig, ShapeHitData, SolverSystems, SpatialQuery, SpatialQueryFilter,
-    Position, Restitution, RevoluteJoint, Rotation, Sensor, SphericalJoint,
+    Position, Restitution, RevoluteJoint, RigidBody, Rotation, Sensor, SphericalJoint,
 };
 use avian3d::dynamics::solver::solver_body::{SolverBody, SolverBodyFlags};
 use avian3d::collider_tree::{ColliderTreeProxyKey, MovedProxies};
@@ -46,6 +46,7 @@ pub struct RagdollBodyPhysicsProfile {
     pub friction: Friction,
     pub restitution: Restitution,
     pub mass_properties: Option<RagdollMassProperties>,
+    pub ccd_enabled: bool,
     pub gyroscopic_torque_enabled: bool,
 }
 
@@ -117,12 +118,23 @@ pub struct RagdollJointPhysicsProfile {
     pub collision_disabled: bool,
 }
 
+#[derive(Component, Clone, Copy, Debug, Deserialize)]
+pub struct SourceCcdSettings {
+    enable_threshold_bounds_scale: f32,
+    allowed_depth_bounds_scale: f32,
+    axis_threshold_mode: u8,
+    new_target_depth_mode: bool,
+    include_probe_shapes: bool,
+    only_dynamic_static: bool,
+}
+
 #[derive(Component, Clone, Debug)]
 pub struct RagdollPhysicsProfile {
     pub bodies: Vec<RagdollBodyPhysicsProfile>,
     pub colliders: Vec<RagdollColliderPhysicsProfile>,
     pub joints: Vec<RagdollJointPhysicsProfile>,
     pub collision_disabled_pairs: Arc<[(u8, u8)]>,
+    pub ccd_settings: SourceCcdSettings,
 }
 
 #[derive(Deserialize)]
@@ -132,6 +144,7 @@ struct PhysicsAssetDocument {
     constraints: Vec<PhysicsAssetConstraint>,
     collision_disabled_pairs: Vec<[u8; 2]>,
     target_solver: SourceJointSolverSettings,
+    target_ccd: SourceCcdSettings,
 }
 
 #[derive(Deserialize)]
@@ -160,6 +173,7 @@ struct PhysicsAssetBodyTarget {
     material: PhysicsAssetMaterial,
     #[serde(default)]
     mass_properties: Option<PhysicsAssetMassProperties>,
+    ccd_enabled: bool,
     #[serde(default)]
     gyroscopic_torque_enabled: bool,
 }
@@ -312,6 +326,7 @@ impl RagdollPhysicsProfile {
                         center_of_mass_m: Vec3::from_array(value.center_of_mass_m),
                         inertia_tensor_kg_m2: Mat3::from_cols_array_2d(&value.inertia_tensor_kg_m2),
                     }),
+                    ccd_enabled: body.target.ccd_enabled,
                     gyroscopic_torque_enabled: body.target.gyroscopic_torque_enabled,
                 })
             })
@@ -382,6 +397,7 @@ impl RagdollPhysicsProfile {
             colliders,
             joints,
             collision_disabled_pairs: disabled_pairs.into(),
+            ccd_settings: document.target_ccd,
         })
     }
 }
@@ -583,8 +599,139 @@ impl Plugin for RagdollPhysicsProfilePlugin {
                 .before(RagdollAngularDriveSet)
                 .before(PhysicsSystems::First),
         )
+        .add_systems(avian3d::prelude::SubstepSchedule, solve_profile_linear_ccd
+            .after(avian3d::dynamics::integrator::IntegrationSystems::Position)
+            .before(avian3d::dynamics::solver::schedule::SubstepSolverSystems::Relax))
         .add_systems(PhysicsSchedule, disable_ragdoll_gyroscopic_torque
             .in_set(SolverSystems::PreSubstep));
+    }
+}
+
+fn ccd_time_at_depth(
+    pose: avian3d::parry::math::Pose3, velocity: Vec3, shape: &Collider,
+    other_pose: avian3d::parry::math::Pose3, other_velocity: Vec3, other: &Collider,
+    first_time: f32, max_time: f32, depth: f32,
+) -> Option<f32> {
+    use avian3d::parry::query::contact;
+    let mut time = first_time;
+    for _ in 0..32 {
+        let mut first = pose; first.translation += velocity * time;
+        let mut second = other_pose; second.translation += other_velocity * time;
+        let contact = contact(&first, shape.shape_scaled().as_ref(), &second, other.shape_scaled().as_ref(), depth).ok()??;
+        if contact.dist <= -depth { return Some(time); }
+        let speed = (velocity - other_velocity).dot(contact.normal1);
+        if speed <= 0.0 { return None; }
+        let next = time + (contact.dist + depth) / speed;
+        if next <= time { return Some(time); }
+        if next >= max_time { return None; }
+        time = next;
+    }
+    None
+}
+
+#[allow(clippy::type_complexity)]
+fn solve_profile_linear_ccd(
+    time: Res<Time>,
+    profiles: Query<(Entity, &SourceCcdSettings), With<avian3d::prelude::SweptCcd>>,
+    colliders: Query<(&Collider, &avian3d::prelude::ColliderOf, &avian3d::prelude::ColliderTransform,
+        Option<&Sensor>, Option<&CollisionLayers>, Option<&RagdollCollisionMember>), Without<ColliderDisabled>>,
+    mut bodies: ParamSet<(Query<(&Position, &Rotation, &RigidBody, &avian3d::prelude::ComputedCenterOfMass, Option<&SolverBody>), Without<avian3d::prelude::RigidBodyDisabled>>,
+        Query<&mut SolverBody>)>,
+) {
+    use avian3d::parry::{math::Pose3, query::{DefaultQueryDispatcher, QueryDispatcher, ShapeCastOptions}};
+    let dt = time.delta_secs();
+    if dt <= 0.0 || profiles.is_empty() { return; }
+    let mut hits = Vec::new();
+    {
+        let read = bodies.p0();
+        for (body, settings) in &profiles {
+            let Ok((position, rotation, mode, center, Some(solver))) = read.get(body) else { continue; };
+            if !mode.is_dynamic() { continue; }
+            let velocity = solver.linear_velocity;
+            let end_rotation = solver.delta_rotation.0 * rotation.0;
+            let end_position = position.0 + solver.delta_position + rotation.0 * center.0 - end_rotation * center.0;
+            let start_position = end_position - velocity * dt;
+            let mut aggregate_min = Vec3::splat(f32::INFINITY);
+            let mut aggregate_max = Vec3::splat(f32::NEG_INFINITY);
+            let mut thinnest = Vec3::splat(f32::INFINITY);
+            for (shape, owner, local, sensor, _, _) in &colliders {
+                if owner.body != body || sensor.is_some() && !settings.include_probe_shapes { continue; }
+                let bounds = shape.shape_scaled().compute_aabb(&Pose3::from_parts(local.translation, local.rotation.0));
+                aggregate_min = aggregate_min.min(bounds.mins);
+                aggregate_max = aggregate_max.max(bounds.maxs);
+                thinnest = thinnest.min(bounds.maxs - bounds.mins);
+            }
+            if !thinnest.is_finite() { continue; }
+            let aggregate = aggregate_max - aggregate_min;
+            let axis_threshold = match settings.axis_threshold_mode {
+                0 => aggregate,
+                1 => Vec3::splat(aggregate.min_element()),
+                2 => thinnest,
+                3 => Vec3::splat(thinnest.min_element()),
+                _ => continue,
+            };
+            let local_delta = (end_rotation.conjugate() * (velocity * dt)).abs();
+            let threshold = settings.enable_threshold_bounds_scale;
+            if threshold < 0.0 || threshold > 0.0 && (local_delta - axis_threshold * threshold).max_element() <= 0.0 { continue; }
+            let mut earliest = dt;
+            let mut hit_body = None;
+            for (shape, owner, local, sensor, layers, member) in &colliders {
+                if owner.body != body || sensor.is_some() && !settings.include_probe_shapes { continue; }
+                let pose = Pose3::from_parts(start_position + end_rotation * local.translation, end_rotation * local.rotation.0);
+                for (other, other_owner, other_local, other_sensor, other_layers, other_member) in &colliders {
+                    if other_owner.body == body || other_sensor.is_some() && !settings.include_probe_shapes { continue; }
+                    if !layers.copied().unwrap_or_default().interacts_with(other_layers.copied().unwrap_or_default()) { continue; }
+                    if member.zip(other_member).is_some_and(|(left, right)| left.disables(right)) { continue; }
+                    let Ok((other_position, other_rotation, other_mode, other_center, other_solver)) = read.get(other_owner.body) else { continue; };
+                    if settings.only_dynamic_static && !other_mode.is_static() { continue; }
+                    let other_velocity = other_solver.map_or(Vec3::ZERO, |solver| solver.linear_velocity);
+                    let other_end_rotation = other_solver.map_or(other_rotation.0, |solver| solver.delta_rotation.0 * other_rotation.0);
+                    let other_end_position = other_position.0 + other_solver.map_or(Vec3::ZERO, |solver| solver.delta_position)
+                        + other_rotation.0 * other_center.0 - other_end_rotation * other_center.0;
+                    let other_start = other_end_position - other_velocity * dt;
+                    let other_pose = Pose3::from_parts(other_start + other_end_rotation * other_local.translation,
+                        other_end_rotation * other_local.rotation.0);
+                    if let Ok(Some(hit)) = DefaultQueryDispatcher.cast_shapes(&pose.inv_mul(&other_pose),
+                        pose.rotation.conjugate() * (other_velocity - velocity), shape.shape_scaled().as_ref(),
+                        other.shape_scaled().as_ref(), ShapeCastOptions {
+                            max_time_of_impact: earliest, stop_at_penetration: false, ..default()
+                        }) && hit.time_of_impact >= 0.0 && hit.time_of_impact < earliest {
+                        let own_bounds = shape.shape_scaled().compute_local_aabb();
+                        let other_bounds = other.shape_scaled().compute_local_aabb();
+                        let min_bounds = (own_bounds.maxs - own_bounds.mins).min_element().max(
+                            if profiles.get(other_owner.body).is_ok() { (other_bounds.maxs - other_bounds.mins).min_element() } else { 0.0 });
+                        let speed = (velocity - other_velocity).dot(pose.rotation * hit.normal1);
+                        if (dt - hit.time_of_impact) * speed < min_bounds * settings.enable_threshold_bounds_scale { continue; }
+                        let depth = min_bounds * settings.allowed_depth_bounds_scale;
+                        let candidate = if settings.new_target_depth_mode && depth > 0.0 {
+                            ccd_time_at_depth(pose, velocity, shape, other_pose, other_velocity, other, hit.time_of_impact, earliest, depth)
+                        } else {
+                            (speed > 0.0).then_some(hit.time_of_impact + depth / speed).filter(|time| *time < earliest)
+                        };
+                        if let Some(time) = candidate {
+                            earliest = time;
+                            hit_body = Some((other_owner.body, other_velocity, other_mode.is_dynamic(),
+                                other_solver.map_or(Vec3::ZERO, |solver| solver.delta_position - other_velocity * dt)));
+                        }
+                    }
+                }
+            }
+            if let Some((other, other_velocity, other_dynamic, other_shift)) = hit_body {
+                let origin_shift = solver.delta_position - velocity * dt;
+                hits.push((body, other, earliest, velocity, other_velocity, origin_shift, other_dynamic, other_shift));
+            }
+        }
+    }
+    hits.sort_by(|left, right| left.2.total_cmp(&right.2));
+    let mut write = bodies.p1();
+    let mut advanced = bevy::platform::collections::HashSet::new();
+    for (body, other, toi, velocity, other_velocity, origin_shift, other_dynamic, other_shift) in hits {
+        if advanced.insert(body) && let Ok(mut solver) = write.get_mut(body) {
+            solver.delta_position = origin_shift + velocity * toi;
+        }
+        if other_dynamic && advanced.insert(other) && let Ok(mut solver) = write.get_mut(other) {
+            solver.delta_position = other_shift + other_velocity * toi;
+        }
     }
 }
 
@@ -786,6 +933,12 @@ fn apply_profile_to_spawned_ragdoll(
             body.friction,
             body.restitution,
         ));
+        if body.ccd_enabled {
+            commands.entity(*body_entity).insert((profile.ccd_settings,
+                avian3d::prelude::SweptCcd::LINEAR.with_velocity_threshold(f32::INFINITY, f32::INFINITY)));
+        } else {
+            commands.entity(*body_entity).remove::<(avian3d::prelude::SweptCcd, SourceCcdSettings)>();
+        }
         let mass = body.mass_properties;
         commands.entity(*body_entity).queue(move |mut entity: EntityWorldMut| {
             if let Some(mass) = mass {
@@ -1925,6 +2078,7 @@ mod tests {
                         let mut profile = RagdollPhysicsProfile::from_json(include_str!("../../assets/ALS/Character/PA_Als.physics.json")).unwrap();
                         profile.bodies.retain(|body| body.label == "pelvis");
                         profile.bodies[0].mass_properties = Some(input);
+                        profile.bodies[0].ccd_enabled = update;
                         profile.colliders.clear(); profile.joints.clear();
                         let player = app.world_mut().spawn((AnimationGraphPlayer::new(Handle::default()), profile,
                             Transform::from_scale(Vec3::splat(initial)))).id();
@@ -1933,22 +2087,140 @@ mod tests {
                             app.world_mut().get_mut::<Transform>(player).unwrap().scale = Vec3::splat(scale);
                             app.update();
                             check(app.world(), body, input, if update { scale } else { initial });
+                            assert_eq!(app.world().get::<avian3d::prelude::SweptCcd>(body).is_some(), update);
                         }
                         let mut changed = input;
                         changed.unclamped_mass_kg += 2.0;
                         changed.mass_kg = changed.unclamped_mass_kg;
                         app.world_mut().get_mut::<RagdollPhysicsProfile>(player).unwrap().bodies[0].mass_properties = Some(changed);
+                        app.world_mut().get_mut::<RagdollPhysicsProfile>(player).unwrap().bodies[0].ccd_enabled = !update;
                         app.update();
                         check(app.world(), body, changed, initial * 0.5);
+                        assert_eq!(app.world().get::<avian3d::prelude::SweptCcd>(body).is_some(), !update);
                         let (new_root, new_body) = attach(app.world_mut(), player);
                         app.update();
                         assert!(app.world().get_entity(old_root).is_err() && app.world().get_entity(new_root).is_ok());
                         check(app.world(), new_body, changed, initial * 0.5);
+                        assert_eq!(app.world().get::<avian3d::prelude::SweptCcd>(new_body).is_some(), !update);
                         app.update();
                         check(app.world(), new_body, changed, initial * 0.5);
                     }
                 }
             }
+        }
+    }
+
+    #[test]
+    fn ccd_sweep_uses_end_rotation_com_and_scaled_child_geometry() {
+        use avian3d::prelude::{ColliderOf, ColliderTransform, ComputedCenterOfMass, RigidBodyDisabled, SweptCcd};
+        use bevy::ecs::system::RunSystemOnce;
+        let settings = RagdollPhysicsProfile::from_json(include_str!("../../assets/ALS/Character/PA_Als.physics.json")).unwrap().ccd_settings;
+        for initial_angle in [-0.4_f32, 0.7] {
+            for delta_angle in [0.0_f32, 0.6] {
+                for scale in [0.5_f32, 1.0, 2.0] {
+                    let mut world = World::new();
+                    let mut time = Time::<()>::default();time.advance_by(std::time::Duration::from_secs_f32(1.0 / 60.0));world.insert_resource(time);
+                    let position = Vec3::new(-1.0, 0.0, 0.0);
+                    let rotation = Quat::from_rotation_z(initial_angle);
+                    let delta_rotation = Quat::from_rotation_z(delta_angle);
+                    let end_rotation = delta_rotation * rotation;
+                    let center = Vec3::new(0.0, 0.1, 0.0);
+                    let offset = Vec3::new(0.2, 0.1, 0.0);
+                    let body = world.spawn((RigidBody::Dynamic, Position(position), Rotation(rotation),
+                        ComputedCenterOfMass(center), SolverBody { delta_position: Vec3::X * 4.0,
+                            linear_velocity: Vec3::X * 240.0, delta_rotation: Rotation(delta_rotation), ..default() },
+                        settings, SweptCcd::LINEAR)).id();
+                    let mut sphere = Collider::sphere(0.05);sphere.set_scale(Vec3::splat(scale), 16);
+                    world.spawn((sphere, ColliderOf { body }, ColliderTransform { translation: offset, ..default() }));
+                    let wall = world.spawn((RigidBody::Static, Position(Vec3::X), Rotation::IDENTITY, ComputedCenterOfMass(Vec3::ZERO))).id();
+                    world.spawn((Collider::cuboid(0.01, 4.0, 4.0), ColliderOf { body: wall }, ColliderTransform::default()));
+                    world.run_system_once(solve_profile_linear_ccd).unwrap();
+                    let solver = world.get::<SolverBody>(body).unwrap();
+                    let actual = position + solver.delta_position + rotation * center - end_rotation * center;
+                    let expected_x = 1.0 - 0.005 - 0.05 * scale + 0.1 * scale * settings.allowed_depth_bounds_scale
+                        - (end_rotation * offset).x;
+                    assert!((actual.x - expected_x).abs() < 1e-5,
+                        "End-pose CCD: initial={initial_angle} delta={delta_angle} scale={scale} {actual:?} != {expected_x}");
+                    assert!(solver.delta_rotation.0.abs_diff_eq(delta_rotation, 1e-6));
+                    let before = solver.delta_position;
+                    world.entity_mut(body).insert(RigidBodyDisabled);
+                    world.run_system_once(solve_profile_linear_ccd).unwrap();
+                    assert_eq!(world.get::<SolverBody>(body).unwrap().delta_position, before);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn source_ccd_switch_reaches_high_speed_thin_wall_collision() {
+        use avian3d::prelude::{Gravity, LinearVelocity, PhysicsPlugins, RigidBody, SpeculativeMargin, SubstepCount, SweptCcd};
+        use bevy::reflect::{PartialReflect, ReflectMut};
+        use bevy_animation_graph::core::ragdoll::definition::Body;
+        for enabled in [false, true] {
+          for child_layout in [0, 1, 2] {
+           for obstacle in ["static", "child_static", "kinematic", "dynamic", "sensor", "layers", "disabled"] {
+            for threshold in [-1.0_f32, 0.0, 0.4, 1e6] {
+            let mut document: serde_json::Value = serde_json::from_str(include_str!("../../assets/ALS/Character/PA_Als.physics.json")).unwrap();
+            document["target_ccd"]["enable_threshold_bounds_scale"] = serde_json::json!(threshold);
+            for body in document["bodies"].as_array_mut().unwrap() { body["target"]["ccd_enabled"] = serde_json::json!(enabled); }
+            let mut profile = RagdollPhysicsProfile::from_json(&document.to_string()).unwrap();
+            profile.bodies.retain(|body| body.label == "pelvis");
+            profile.colliders.clear(); profile.joints.clear();
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, TransformPlugin,
+                PhysicsPlugins::new(PostUpdate), RagdollPhysicsProfilePlugin));
+            app.insert_resource(Gravity(Vec3::ZERO));
+            app.insert_resource(SubstepCount(if enabled && child_layout == 2 && obstacle == "static" && threshold == 0.4 { 4 } else { 1 }));
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
+            app.finish(); app.cleanup();
+            let player = app.world_mut().spawn((AnimationGraphPlayer::new(Handle::default()), profile, Transform::IDENTITY)).id();
+            let root = app.world_mut().spawn((Transform::IDENTITY, ChildOf(player))).id();
+            let body = app.world_mut().spawn((RigidBody::Dynamic, BodyLabel("pelvis".into()),
+                Transform::from_xyz(-1.0, 0.0, 0.0), ChildOf(root))).id();
+            if child_layout != 0 {
+                app.world_mut().spawn((Collider::sphere(0.05), SpeculativeMargin(0.0), Transform::from_xyz(0.0, 0.2, 0.0), ChildOf(body)));
+                if child_layout == 2 { app.world_mut().spawn((Collider::sphere(0.05), SpeculativeMargin(0.0),
+                    Transform::from_xyz(0.2, -0.2, 0.0), ChildOf(body))); }
+            } else { app.world_mut().entity_mut(body).insert((Collider::sphere(0.05), SpeculativeMargin(0.0))); }
+            let mode = match obstacle { "kinematic" => RigidBody::Kinematic, "dynamic" => RigidBody::Dynamic, _ => RigidBody::Static };
+            let wall = app.world_mut().spawn((mode, Transform::IDENTITY)).id();
+            let wall_collider = if obstacle == "child_static" {
+                app.world_mut().spawn((Collider::cuboid(0.01, 2.0, 2.0), Transform::IDENTITY, ChildOf(wall))).id()
+            } else { app.world_mut().entity_mut(wall).insert(Collider::cuboid(0.01, 2.0, 2.0)); wall };
+            match obstacle {
+                "sensor" => { app.world_mut().entity_mut(wall_collider).insert(Sensor); }
+                "layers" => { app.world_mut().entity_mut(wall_collider).insert(CollisionLayers::NONE); }
+                "disabled" => { app.world_mut().entity_mut(wall_collider).insert(ColliderDisabled); }
+                _ => {}
+            }
+            let mut spawned = SpawnedRagdoll::new(root);spawned.bodies.insert(Body::new().id, body);
+            let mut graph_player = app.world_mut().get_mut::<AnimationGraphPlayer>(player).unwrap();
+            let ReflectMut::Struct(fields) = graph_player.reflect_mut() else { panic!("player must be a struct") };
+            *fields.field_mut("spawned_ragdoll").unwrap().try_downcast_mut::<Option<SpawnedRagdoll>>().unwrap() = Some(spawned);
+            app.update();
+            app.world_mut().entity_mut(body).insert(LinearVelocity(Vec3::X * 240.0));
+            if matches!(obstacle, "dynamic" | "kinematic") { app.world_mut().entity_mut(wall).insert(LinearVelocity(Vec3::X * 30.0)); }
+            app.update();
+            let position = app.world().get::<avian3d::prelude::Position>(body).unwrap().0;
+            assert_eq!(app.world().get::<SweptCcd>(body).is_some(), enabled,
+                "Source CCD flag must reach the actual body, enabled={enabled}, child={child_layout}, position={position:?}");
+            if enabled && threshold >= 0.0 && threshold < 1e6 && !matches!(obstacle, "sensor" | "layers" | "disabled") {
+                let wall_position = app.world().get::<avian3d::prelude::Position>(wall).unwrap().0;
+                assert!(position.x < wall_position.x, "CCD body tunneled: child={child_layout} wall={obstacle} threshold={threshold} {position:?} >= {wall_position:?}");
+                if obstacle == "static" && child_layout == 0 {
+                    assert!((position.x + 0.035).abs() < 1e-5, "Source target depth must be .2 * .1: {position:?}");
+                    if threshold == 0.4 {
+                        for _ in 0..3 {
+                            app.update();
+                            let continued = app.world().get::<avian3d::prelude::Position>(body).unwrap().0;
+                            assert!(continued.x < 0.0, "CCD contact must remain blocking on later frames: {continued:?}");
+                        }
+                    }
+                }
+            } else { assert!(position.x > 1.0, "Discrete/filtered control must expose tunneling: {obstacle} threshold={threshold} {position:?}"); }
+            }
+           }
+          }
         }
     }
 

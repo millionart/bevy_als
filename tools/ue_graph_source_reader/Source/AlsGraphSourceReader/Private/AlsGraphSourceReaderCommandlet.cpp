@@ -641,7 +641,7 @@ TSharedRef<FJsonObject> CapturePhysicsAsset(const UPhysicsAsset* Asset)
             ConsoleVariables->SetStringField(Name, Variable->GetString());
         }
     });
-    for (const TCHAR* Prefix : {TEXT("p.Chaos.JointConstraint."), TEXT("p.Chaos.Solver.Joint."), TEXT("p.Chaos.Joint.")})
+    for (const TCHAR* Prefix : {TEXT("p.Chaos.JointConstraint."), TEXT("p.Chaos.Solver.Joint."), TEXT("p.Chaos.Joint."), TEXT("p.Chaos.CCD.")})
     {
         IConsoleManager::Get().ForEachConsoleObjectThatStartsWith(Visitor, Prefix);
     }

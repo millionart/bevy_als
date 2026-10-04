@@ -269,6 +269,7 @@
       "target": {
         "active_mode": "Dynamic",
         "angular_damping": 0.0,
+        "ccd_enabled": false,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
@@ -580,6 +581,7 @@
       "target": {
         "active_mode": "Dynamic",
         "angular_damping": 0.0,
+        "ccd_enabled": false,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
@@ -891,6 +893,7 @@
       "target": {
         "active_mode": "Dynamic",
         "angular_damping": 0.0,
+        "ccd_enabled": false,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
@@ -1378,6 +1381,7 @@
       "target": {
         "active_mode": "Dynamic",
         "angular_damping": 0.0,
+        "ccd_enabled": false,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
@@ -1689,6 +1693,7 @@
       "target": {
         "active_mode": "Dynamic",
         "angular_damping": 0.0,
+        "ccd_enabled": false,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
@@ -2000,6 +2005,7 @@
       "target": {
         "active_mode": "Dynamic",
         "angular_damping": 0.0,
+        "ccd_enabled": false,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
@@ -2311,6 +2317,7 @@
       "target": {
         "active_mode": "Dynamic",
         "angular_damping": 0.0,
+        "ccd_enabled": false,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
@@ -2622,6 +2629,7 @@
       "target": {
         "active_mode": "Dynamic",
         "angular_damping": 0.0,
+        "ccd_enabled": false,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
@@ -2933,6 +2941,7 @@
       "target": {
         "active_mode": "Dynamic",
         "angular_damping": 0.0,
+        "ccd_enabled": false,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
@@ -3244,6 +3253,7 @@
       "target": {
         "active_mode": "Dynamic",
         "angular_damping": 0.0,
+        "ccd_enabled": false,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
@@ -3555,6 +3565,7 @@
       "target": {
         "active_mode": "Dynamic",
         "angular_damping": 0.0,
+        "ccd_enabled": false,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
@@ -3866,6 +3877,7 @@
       "target": {
         "active_mode": "Dynamic",
         "angular_damping": 0.0,
+        "ccd_enabled": false,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
@@ -4177,6 +4189,7 @@
       "target": {
         "active_mode": "Dynamic",
         "angular_damping": 0.0,
+        "ccd_enabled": false,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
@@ -4488,6 +4501,7 @@
       "target": {
         "active_mode": "Dynamic",
         "angular_damping": 0.0,
+        "ccd_enabled": false,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
@@ -4799,6 +4813,7 @@
       "target": {
         "active_mode": "Dynamic",
         "angular_damping": 0.0,
+        "ccd_enabled": false,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
@@ -5110,6 +5125,7 @@
       "target": {
         "active_mode": "Dynamic",
         "angular_damping": 0.0,
+        "ccd_enabled": false,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
@@ -5434,6 +5450,7 @@
       "target": {
         "active_mode": "Dynamic",
         "angular_damping": 0.0,
+        "ccd_enabled": false,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
@@ -5758,6 +5775,7 @@
       "target": {
         "active_mode": "Dynamic",
         "angular_damping": 0.0,
+        "ccd_enabled": false,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
@@ -6015,6 +6033,7 @@
       "target": {
         "active_mode": "Kinematic",
         "angular_damping": 0.0,
+        "ccd_enabled": false,
         "default_mode": "Kinematic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
@@ -6339,6 +6358,7 @@
       "target": {
         "active_mode": "Dynamic",
         "angular_damping": 0.0,
+        "ccd_enabled": false,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
@@ -6663,6 +6683,7 @@
       "target": {
         "active_mode": "Dynamic",
         "angular_damping": 0.0,
+        "ccd_enabled": false,
         "default_mode": "Dynamic",
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
@@ -13219,6 +13240,14 @@
     "z",
     "y"
   ],
+  "target_ccd": {
+    "allowed_depth_bounds_scale": 0.2,
+    "axis_threshold_mode": 2,
+    "enable_threshold_bounds_scale": 0.4,
+    "include_probe_shapes": false,
+    "new_target_depth_mode": true,
+    "only_dynamic_static": false
+  },
   "target_solver": {
     "angle_tolerance_radians": 0.001,
     "max_inertia_ratio": 5.0,
