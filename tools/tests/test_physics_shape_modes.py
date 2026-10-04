@@ -23,9 +23,12 @@ for body_mode, shape_mode, expected in (
     profile = build_profile(fixture, 3600.0)
     target = next(x for x in profile["bodies"] if x["bone_name"] == "spine_03")
     assert target["shapes"][1]["target"]["collision_enabled"] == expected
-    assert math.isclose(sum(shape["target"]["mass_kg"] for shape in target["shapes"]), body["calculated_mass"])
+    volume_cm3 = sum(math.pi * shape["radius"] ** 2 * shape.get("length", 0.0)
+        + (4.0 / 3.0) * math.pi * shape["radius"] ** 3 for shape in body["shapes"])
+    expected_mass = (volume_cm3 * 0.001) ** 0.75
+    assert math.isclose(sum(shape["target"]["mass_kg"] for shape in target["shapes"]), expected_mass)
     if any(shape["target"]["collision_enabled"] in ("NoCollision", "ProbeOnly", "QueryAndProbe") for shape in target["shapes"]):
         mass = target["target"]["mass_properties"]
-        assert math.isclose(mass["mass_kg"], body["calculated_mass"])
+        assert math.isclose(mass["mass_kg"], expected_mass)
         assert all(math.isfinite(mass["inertia_tensor_kg_m2"][i][i]) and mass["inertia_tensor_kg_m2"][i][i] > 0 for i in range(3))
 print("shape collision mode fixtures PASS")

@@ -89,7 +89,6 @@ fn als_manny_ragdoll_definition_loads_with_expected_topology() {
         vec!["root"],
         "source root remains kinematic"
     );
-    assert!((rag.total_mass - 83.30548).abs() <= 1e-4);
 
     for body in rag.bodies.values() {
         assert!(
@@ -135,34 +134,15 @@ fn als_manny_ragdoll_definition_loads_with_expected_topology() {
             .sum::<f32>();
         body_mass.insert(body.label.as_str(), mass);
     }
-    for (label, expected) in [
-        ("pelvis", 7.926394),
-        ("spine_01", 6.391965),
-        ("spine_02", 7.926394),
-        ("spine_03", 11.233503),
-        ("neck_01", 1.810359),
-        ("head", 3.514682),
-        ("thigh_l", 6.172968),
-        ("thigh_r", 6.172968),
-        ("calf_l", 3.969801),
-        ("calf_r", 3.969801),
-        ("clavicle_l", 2.567043),
-        ("clavicle_r", 2.567043),
-        ("upperarm_l", 2.562173),
-        ("upperarm_r", 2.562173),
-        ("lowerarm_l", 1.500383),
-        ("lowerarm_r", 1.500383),
-        ("hand_l", 1.169386),
-        ("hand_r", 1.169386),
-        ("root", 2.927914),
-        ("foot_l", 2.845381),
-        ("foot_r", 2.845381),
-    ] {
-        assert!(
-            (body_mass[label] - expected).abs() <= 1e-5,
-            "source calculated mass matches for {label}"
-        );
+    let mut expected_total = 0.0;
+    for body in rag.bodies.values() {
+        let volume_m3 = body.colliders.iter().map(|id| rag.colliders[id].volume()).sum::<f32>();
+        let expected = (volume_m3 * 1000.0).powf(0.75).max(0.001);
+        expected_total += expected;
+        assert!((body_mass[body.label.as_str()] - expected).abs() <= 1e-5,
+            "Source solver density and power must reach {}", body.label);
     }
+    assert!((rag.total_mass - expected_total).abs() <= 1e-4);
 
     let expected_constraints = [
         ("spine_01", "spine_01", "pelvis"),

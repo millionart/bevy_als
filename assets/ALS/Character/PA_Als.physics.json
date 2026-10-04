@@ -167,7 +167,7 @@
             "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.035,
             "kind": "capsule",
-            "mass_kg": 7.926393985748291,
+            "mass_kg": 7.926501768888799,
             "radius_m": 0.14,
             "rotation_xyzw": [
               -0.0,
@@ -273,6 +273,34 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "mass_properties": {
+          "center_of_mass_m": [
+            0.005,
+            5.759267196481232e-10,
+            -0.005
+          ],
+          "inertia_tensor_kg_m2": [
+            [
+              0.0849180546322455,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.06638084935909419,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0849180546322455
+            ]
+          ],
+          "mass_kg": 7.926501768888799,
+          "scale_exponent": 2.25,
+          "unclamped_mass_kg": 7.926501768888799,
+          "update_with_scale": true
+        },
         "material": {
           "dynamic_friction": 0.7,
           "friction_combine": "Average",
@@ -450,7 +478,7 @@
             "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.0375,
             "kind": "capsule",
-            "mass_kg": 6.391964912414551,
+            "mass_kg": 6.3920474163083,
             "radius_m": 0.125,
             "rotation_xyzw": [
               -0.0,
@@ -556,6 +584,34 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "mass_properties": {
+          "center_of_mass_m": [
+            0.045,
+            0.0,
+            -0.01
+          ],
+          "inertia_tensor_kg_m2": [
+            [
+              0.05792792971029397,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.04304988831026603,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.05792792971029397
+            ]
+          ],
+          "mass_kg": 6.3920474163083,
+          "scale_exponent": 2.25,
+          "unclamped_mass_kg": 6.3920474163083,
+          "update_with_scale": true
+        },
         "material": {
           "dynamic_friction": 0.7,
           "friction_combine": "Average",
@@ -733,7 +789,7 @@
             "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.035,
             "kind": "capsule",
-            "mass_kg": 7.926393985748291,
+            "mass_kg": 7.926501768888799,
             "radius_m": 0.14,
             "rotation_xyzw": [
               -0.0,
@@ -839,6 +895,34 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "mass_properties": {
+          "center_of_mass_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "inertia_tensor_kg_m2": [
+            [
+              0.0849180546322455,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.06638084935909419,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0849180546322455
+            ]
+          ],
+          "mass_kg": 7.926501768888799,
+          "scale_exponent": 2.25,
+          "unclamped_mass_kg": 7.926501768888799,
+          "update_with_scale": true
+        },
         "material": {
           "dynamic_friction": 0.7,
           "friction_combine": "Average",
@@ -1016,7 +1100,7 @@
             "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.0375,
             "kind": "capsule",
-            "mass_kg": 9.49226093630139,
+            "mass_kg": 9.492380856150616,
             "radius_m": 0.155,
             "rotation_xyzw": [
               -0.0,
@@ -1192,7 +1276,7 @@
             "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.08,
             "kind": "capsule",
-            "mass_kg": 1.7412424053734155,
+            "mass_kg": 1.741264403243904,
             "radius_m": 0.07,
             "rotation_xyzw": [
               -0.0,
@@ -1298,6 +1382,34 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "mass_properties": {
+          "center_of_mass_m": [
+            0.007825505590501613,
+            0.0,
+            -0.020425153875370056
+          ],
+          "inertia_tensor_kg_m2": [
+            [
+              0.13700765338178755,
+              0.0,
+              0.005922227080646915
+            ],
+            [
+              0.0,
+              0.12250715259880432,
+              0.0
+            ],
+            [
+              0.005922227080646915,
+              0.0,
+              0.1546639825663249
+            ]
+          ],
+          "mass_kg": 11.23364525939452,
+          "scale_exponent": 2.25,
+          "unclamped_mass_kg": 11.23364525939452,
+          "update_with_scale": true
+        },
         "material": {
           "dynamic_friction": 0.7,
           "friction_combine": "Average",
@@ -1475,7 +1587,7 @@
             "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.025,
             "kind": "capsule",
-            "mass_kg": 1.8103585243225098,
+            "mass_kg": 1.8103805087326135,
             "radius_m": 0.07,
             "rotation_xyzw": [
               -0.0,
@@ -1581,6 +1693,34 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "mass_properties": {
+          "center_of_mass_m": [
+            0.03,
+            0.0,
+            0.0
+          ],
+          "inertia_tensor_kg_m2": [
+            [
+              0.0038577945584923126,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.005499767578040498,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.005499767578040498
+            ]
+          ],
+          "mass_kg": 1.8103805087326135,
+          "scale_exponent": 2.25,
+          "unclamped_mass_kg": 1.8103805087326135,
+          "update_with_scale": true
+        },
         "material": {
           "dynamic_friction": 0.7,
           "friction_combine": "Average",
@@ -1758,7 +1898,7 @@
             "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.045,
             "kind": "capsule",
-            "mass_kg": 3.5146818161010738,
+            "mass_kg": 3.5147192477220823,
             "radius_m": 0.09,
             "rotation_xyzw": [
               0.2126311099715939,
@@ -1864,6 +2004,34 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "mass_properties": {
+          "center_of_mass_m": [
+            0.05,
+            0.0,
+            0.03
+          ],
+          "inertia_tensor_kg_m2": [
+            [
+              0.015283825355988816,
+              2.1678824170725259e-19,
+              0.0038217602148387124
+            ],
+            [
+              2.167882417072526e-19,
+              0.02074186458905704,
+              1.50536604424642e-19
+            ],
+            [
+              0.0038217602148387124,
+              1.50536604424642e-19,
+              0.018065839277397012
+            ]
+          ],
+          "mass_kg": 3.5147192477220823,
+          "scale_exponent": 2.25,
+          "unclamped_mass_kg": 3.5147192477220823,
+          "update_with_scale": true
+        },
         "material": {
           "dynamic_friction": 0.7,
           "friction_combine": "Average",
@@ -2041,7 +2209,7 @@
             "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.1625,
             "kind": "capsule",
-            "mass_kg": 6.1729679107666025,
+            "mass_kg": 6.172998577877779,
             "radius_m": 0.09,
             "rotation_xyzw": [
               -0.0,
@@ -2147,6 +2315,34 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "mass_properties": {
+          "center_of_mass_m": [
+            -0.21000000000000002,
+            0.0,
+            0.0
+          ],
+          "inertia_tensor_kg_m2": [
+            [
+              0.02365229488811349,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.11642139488788936,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.11642139488788936
+            ]
+          ],
+          "mass_kg": 6.172998577877778,
+          "scale_exponent": 2.25,
+          "unclamped_mass_kg": 6.172998577877778,
+          "update_with_scale": true
+        },
         "material": {
           "dynamic_friction": 0.7,
           "friction_combine": "Average",
@@ -2324,7 +2520,7 @@
             "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.1625,
             "kind": "capsule",
-            "mass_kg": 6.1729679107666025,
+            "mass_kg": 6.172998577877779,
             "radius_m": 0.09,
             "rotation_xyzw": [
               -0.0,
@@ -2430,6 +2626,34 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "mass_properties": {
+          "center_of_mass_m": [
+            0.21000000000000002,
+            0.0,
+            0.0
+          ],
+          "inertia_tensor_kg_m2": [
+            [
+              0.02365229488811349,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.11642139488788936,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.11642139488788936
+            ]
+          ],
+          "mass_kg": 6.172998577877778,
+          "scale_exponent": 2.25,
+          "unclamped_mass_kg": 6.172998577877778,
+          "update_with_scale": true
+        },
         "material": {
           "dynamic_friction": 0.7,
           "friction_combine": "Average",
@@ -2607,7 +2831,7 @@
             "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.1575,
             "kind": "capsule",
-            "mass_kg": 3.969801187515259,
+            "mass_kg": 3.9698179400612985,
             "radius_m": 0.07,
             "rotation_xyzw": [
               -0.0,
@@ -2713,6 +2937,34 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "mass_properties": {
+          "center_of_mass_m": [
+            -0.195,
+            -0.005,
+            0.0
+          ],
+          "inertia_tensor_kg_m2": [
+            [
+              0.009281434343863318,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.06086425620253485,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.06086425620253485
+            ]
+          ],
+          "mass_kg": 3.9698179400612985,
+          "scale_exponent": 2.25,
+          "unclamped_mass_kg": 3.9698179400612985,
+          "update_with_scale": true
+        },
         "material": {
           "dynamic_friction": 0.7,
           "friction_combine": "Average",
@@ -2890,7 +3142,7 @@
             "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.1575,
             "kind": "capsule",
-            "mass_kg": 3.969801187515259,
+            "mass_kg": 3.9698179400612985,
             "radius_m": 0.07,
             "rotation_xyzw": [
               -0.0,
@@ -2996,6 +3248,34 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "mass_properties": {
+          "center_of_mass_m": [
+            0.195,
+            0.005,
+            0.0
+          ],
+          "inertia_tensor_kg_m2": [
+            [
+              0.009281434343863318,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.06086425620253485,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.06086425620253485
+            ]
+          ],
+          "mass_kg": 3.9698179400612985,
+          "scale_exponent": 2.25,
+          "unclamped_mass_kg": 3.9698179400612985,
+          "update_with_scale": true
+        },
         "material": {
           "dynamic_friction": 0.7,
           "friction_combine": "Average",
@@ -3173,7 +3453,7 @@
             "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.0675,
             "kind": "capsule",
-            "mass_kg": 2.5670430660247803,
+            "mass_kg": 2.567062556741124,
             "radius_m": 0.07,
             "rotation_xyzw": [
               -0.0,
@@ -3279,6 +3559,34 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "mass_properties": {
+          "center_of_mass_m": [
+            0.08,
+            -0.015,
+            0.0
+          ],
+          "inertia_tensor_kg_m2": [
+            [
+              0.005775141245351695,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0147203939493461,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0147203939493461
+            ]
+          ],
+          "mass_kg": 2.567062556741124,
+          "scale_exponent": 2.25,
+          "unclamped_mass_kg": 2.567062556741124,
+          "update_with_scale": true
+        },
         "material": {
           "dynamic_friction": 0.7,
           "friction_combine": "Average",
@@ -3456,7 +3764,7 @@
             "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.0675,
             "kind": "capsule",
-            "mass_kg": 2.5670430660247803,
+            "mass_kg": 2.567062556741124,
             "radius_m": 0.07,
             "rotation_xyzw": [
               -0.0,
@@ -3562,6 +3870,34 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "mass_properties": {
+          "center_of_mass_m": [
+            -0.08,
+            0.015,
+            0.0
+          ],
+          "inertia_tensor_kg_m2": [
+            [
+              0.005775141245351695,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0147203939493461,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0147203939493461
+            ]
+          ],
+          "mass_kg": 2.567062556741124,
+          "scale_exponent": 2.25,
+          "unclamped_mass_kg": 2.567062556741124,
+          "update_with_scale": true
+        },
         "material": {
           "dynamic_friction": 0.7,
           "friction_combine": "Average",
@@ -3739,7 +4075,7 @@
             "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.115,
             "kind": "capsule",
-            "mass_kg": 2.5621731281280518,
+            "mass_kg": 2.562185390162523,
             "radius_m": 0.06,
             "rotation_xyzw": [
               -0.0,
@@ -3845,6 +4181,34 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "mass_properties": {
+          "center_of_mass_m": [
+            0.15,
+            0.0,
+            0.0
+          ],
+          "inertia_tensor_kg_m2": [
+            [
+              0.004373898414432281,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.023209404829694254,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.023209404829694254
+            ]
+          ],
+          "mass_kg": 2.562185390162523,
+          "scale_exponent": 2.25,
+          "unclamped_mass_kg": 2.562185390162523,
+          "update_with_scale": true
+        },
         "material": {
           "dynamic_friction": 0.7,
           "friction_combine": "Average",
@@ -4022,7 +4386,7 @@
             "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.115,
             "kind": "capsule",
-            "mass_kg": 2.5621731281280518,
+            "mass_kg": 2.562185390162523,
             "radius_m": 0.06,
             "rotation_xyzw": [
               -0.0,
@@ -4128,6 +4492,34 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "mass_properties": {
+          "center_of_mass_m": [
+            -0.15,
+            0.0,
+            0.0
+          ],
+          "inertia_tensor_kg_m2": [
+            [
+              0.004373898414432281,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.023209404829694254,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.023209404829694254
+            ]
+          ],
+          "mass_kg": 2.562185390162523,
+          "scale_exponent": 2.25,
+          "unclamped_mass_kg": 2.562185390162523,
+          "update_with_scale": true
+        },
         "material": {
           "dynamic_friction": 0.7,
           "friction_combine": "Average",
@@ -4305,7 +4697,7 @@
             "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.105,
             "kind": "capsule",
-            "mass_kg": 1.5003832578659058,
+            "mass_kg": 1.5003894381101768,
             "radius_m": 0.045,
             "rotation_xyzw": [
               -0.0,
@@ -4411,6 +4803,34 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "mass_properties": {
+          "center_of_mass_m": [
+            0.115,
+            0.0,
+            0.0
+          ],
+          "inertia_tensor_kg_m2": [
+            [
+              0.001451626781371597,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.010006972389929003,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.010006972389929003
+            ]
+          ],
+          "mass_kg": 1.5003894381101768,
+          "scale_exponent": 2.25,
+          "unclamped_mass_kg": 1.5003894381101768,
+          "update_with_scale": true
+        },
         "material": {
           "dynamic_friction": 0.7,
           "friction_combine": "Average",
@@ -4588,7 +5008,7 @@
             "collision_enabled": "QueryAndPhysics",
             "half_length_m": 0.105,
             "kind": "capsule",
-            "mass_kg": 1.5003832578659058,
+            "mass_kg": 1.5003894381101768,
             "radius_m": 0.045,
             "rotation_xyzw": [
               -0.0,
@@ -4694,6 +5114,34 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "mass_properties": {
+          "center_of_mass_m": [
+            -0.115,
+            0.0,
+            0.0
+          ],
+          "inertia_tensor_kg_m2": [
+            [
+              0.001451626781371597,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.010006972389929003,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.010006972389929003
+            ]
+          ],
+          "mass_kg": 1.5003894381101768,
+          "scale_exponent": 2.25,
+          "unclamped_mass_kg": 1.5003894381101768,
+          "update_with_scale": true
+        },
         "material": {
           "dynamic_friction": 0.7,
           "friction_combine": "Average",
@@ -4882,7 +5330,7 @@
               0.035
             ],
             "kind": "box",
-            "mass_kg": 1.169386386871338,
+            "mass_kg": 1.1693863789947376,
             "rotation_xyzw": [
               0.0038016801040236755,
               0.0870727897926938,
@@ -4990,6 +5438,34 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "mass_properties": {
+          "center_of_mass_m": [
+            0.05,
+            0.0,
+            -0.01
+          ],
+          "inertia_tensor_kg_m2": [
+            [
+              0.0017271482933668616,
+              -0.00011248697726630569,
+              0.00034325113367513106
+            ],
+            [
+              -0.00011248697726630569,
+              0.002962197226179669,
+              1.9834489070389435e-05
+            ],
+            [
+              0.00034325113367513095,
+              1.983448907038943e-05,
+              0.0036132977713161066
+            ]
+          ],
+          "mass_kg": 1.1693863789947376,
+          "scale_exponent": 2.25,
+          "unclamped_mass_kg": 1.1693863789947376,
+          "update_with_scale": true
+        },
         "material": {
           "dynamic_friction": 0.7,
           "friction_combine": "Average",
@@ -5178,7 +5654,7 @@
               0.035
             ],
             "kind": "box",
-            "mass_kg": 1.169386386871338,
+            "mass_kg": 1.1693863789947376,
             "rotation_xyzw": [
               0.0038016801040236755,
               0.0870727897926938,
@@ -5286,6 +5762,34 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "mass_properties": {
+          "center_of_mass_m": [
+            -0.05,
+            0.0,
+            0.01
+          ],
+          "inertia_tensor_kg_m2": [
+            [
+              0.0017271482933668616,
+              -0.00011248697726630569,
+              0.00034325113367513106
+            ],
+            [
+              -0.00011248697726630569,
+              0.002962197226179669,
+              1.9834489070389435e-05
+            ],
+            [
+              0.00034325113367513095,
+              1.983448907038943e-05,
+              0.0036132977713161066
+            ]
+          ],
+          "mass_kg": 1.1693863789947376,
+          "scale_exponent": 2.25,
+          "unclamped_mass_kg": 1.1693863789947376,
+          "update_with_scale": true
+        },
         "material": {
           "dynamic_friction": 0.7,
           "friction_combine": "Average",
@@ -5409,7 +5913,7 @@
           "target": {
             "collision_enabled": "QueryAndPhysics",
             "kind": "sphere",
-            "mass_kg": 2.9279141426086426,
+            "mass_kg": 2.9279688832166757,
             "radius_m": 0.1,
             "rotation_xyzw": [
               -0.0,
@@ -5515,6 +6019,34 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "mass_properties": {
+          "center_of_mass_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "inertia_tensor_kg_m2": [
+            [
+              0.011711875532866702,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.011711875532866702,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.011711875532866702
+            ]
+          ],
+          "mass_kg": 2.9279688832166757,
+          "scale_exponent": 2.25,
+          "unclamped_mass_kg": 2.9279688832166757,
+          "update_with_scale": true
+        },
         "material": {
           "dynamic_friction": 0.7,
           "friction_combine": "Average",
@@ -5703,7 +6235,7 @@
               0.14
             ],
             "kind": "box",
-            "mass_kg": 2.8453807830810547,
+            "mass_kg": 2.845380773247219,
             "rotation_xyzw": [
               -0.0,
               -0.0,
@@ -5811,6 +6343,34 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "mass_properties": {
+          "center_of_mass_m": [
+            -0.07,
+            -0.005,
+            0.075
+          ],
+          "inertia_tensor_kg_m2": [
+            [
+              0.022004277979778494,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.022004277979778494,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.006828913855793324
+            ]
+          ],
+          "mass_kg": 2.845380773247219,
+          "scale_exponent": 2.25,
+          "unclamped_mass_kg": 2.845380773247219,
+          "update_with_scale": true
+        },
         "material": {
           "dynamic_friction": 0.7,
           "friction_combine": "Average",
@@ -5999,7 +6559,7 @@
               0.14
             ],
             "kind": "box",
-            "mass_kg": 2.8453807830810547,
+            "mass_kg": 2.845380773247219,
             "rotation_xyzw": [
               -0.0,
               -0.0,
@@ -6107,6 +6667,34 @@
         "gravity_scale": 1.0,
         "gyroscopic_torque_enabled": false,
         "linear_damping": 0.01,
+        "mass_properties": {
+          "center_of_mass_m": [
+            0.07,
+            0.005,
+            -0.075
+          ],
+          "inertia_tensor_kg_m2": [
+            [
+              0.022004277979778494,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.022004277979778494,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.006828913855793324
+            ]
+          ],
+          "mass_kg": 2.845380773247219,
+          "scale_exponent": 2.25,
+          "unclamped_mass_kg": 2.845380773247219,
+          "update_with_scale": true
+        },
         "material": {
           "dynamic_friction": 0.7,
           "friction_combine": "Average",

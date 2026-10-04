@@ -52,6 +52,9 @@ pub struct RagdollBodyPhysicsProfile {
 #[derive(Clone, Copy, Debug)]
 pub struct RagdollMassProperties {
     pub mass_kg: f32,
+    pub unclamped_mass_kg: f32,
+    pub scale_exponent: f32,
+    pub update_with_scale: bool,
     pub center_of_mass_m: Vec3,
     pub inertia_tensor_kg_m2: Mat3,
 }
@@ -164,6 +167,9 @@ struct PhysicsAssetBodyTarget {
 #[derive(Deserialize)]
 struct PhysicsAssetMassProperties {
     mass_kg: f32,
+    unclamped_mass_kg: f32,
+    scale_exponent: f32,
+    update_with_scale: bool,
     center_of_mass_m: [f32; 3],
     inertia_tensor_kg_m2: [[f32; 3]; 3],
 }
@@ -299,6 +305,9 @@ impl RagdollPhysicsProfile {
                     },
                     mass_properties: body.target.mass_properties.as_ref().map(|value| RagdollMassProperties {
                         mass_kg: value.mass_kg,
+                        unclamped_mass_kg: value.unclamped_mass_kg,
+                        scale_exponent: value.scale_exponent,
+                        update_with_scale: value.update_with_scale,
                         center_of_mass_m: Vec3::from_array(value.center_of_mass_m),
                         inertia_tensor_kg_m2: Mat3::from_cols_array_2d(&value.inertia_tensor_kg_m2),
                     }),
@@ -704,6 +713,7 @@ fn apply_ragdoll_physics_profiles(
             &profile,
             scale,
             scale_factor,
+            applied.is_none() || old_root.is_some() || profile.is_changed(),
             &body_labels,
             &collider_labels,
             &joint_labels,
@@ -741,6 +751,7 @@ fn apply_profile_to_spawned_ragdoll(
     profile: &RagdollPhysicsProfile,
     scale: f32,
     scale_factor: f32,
+    recalculate_mass: bool,
     body_labels: &Query<&BodyLabel>,
     collider_labels: &Query<&ColliderLabel>,
     joint_labels: &Query<&JointLabel>,
@@ -791,9 +802,13 @@ fn apply_profile_to_spawned_ragdoll(
                     };
                     entity.insert(baseline);
                 }
-                entity.insert((Mass(mass.mass_kg), CenterOfMass(mass.center_of_mass_m * scale),
-                    AngularInertia::from_mat3_unchecked(mass.inertia_tensor_kg_m2 * scale * scale),
-                    NoAutoMass, NoAutoCenterOfMass, NoAutoAngularInertia));
+                if recalculate_mass || mass.update_with_scale {
+                    let scaled_mass = (mass.unclamped_mass_kg * scale.powf(mass.scale_exponent)).max(0.001);
+                    let mass_ratio = scaled_mass / mass.mass_kg;
+                    entity.insert((Mass(scaled_mass), CenterOfMass(mass.center_of_mass_m * scale),
+                        AngularInertia::from_mat3_unchecked(mass.inertia_tensor_kg_m2 * scale * scale * mass_ratio),
+                        NoAutoMass, NoAutoCenterOfMass, NoAutoAngularInertia));
+                }
             } else if let Some(baseline) = entity.take::<RagdollMassPropertiesBaseline>() {
                 if let Some(value) = baseline.mass { entity.insert(value); } else { entity.remove::<Mass>(); }
                 if let Some(value) = baseline.center_of_mass { entity.insert(value); } else { entity.remove::<CenterOfMass>(); }
@@ -1193,7 +1208,7 @@ mod tests {
             joint_labels: Query<&JointLabel>, spherical: Query<&SphericalJoint>, revolute: Query<&RevoluteJoint>,
             source_joints: Query<&SourcePhysicsJoint>, transforms: Query<&Transform>, mut colliders: Query<&mut Collider>,
         ) -> RagdollPhysicsProfileApplied {
-            apply_profile_to_spawned_ragdoll(&mut commands, &spawned, &profile, 1.0, 1.0,
+            apply_profile_to_spawned_ragdoll(&mut commands, &spawned, &profile, 1.0, 1.0, true,
                 &body_labels, &collider_labels, &joint_labels, &spherical, &revolute, &source_joints, &transforms, &mut colliders)
         }
 
@@ -1217,7 +1232,7 @@ mod tests {
         for mass in [None, Some(3.0), Some(5.0), None, Some(3.0)] {
             let mut profile = profile.clone();
             for body in &mut profile.bodies {
-                body.mass_properties = mass.map(|mass_kg| RagdollMassProperties { mass_kg,
+                body.mass_properties = mass.map(|mass_kg| RagdollMassProperties { mass_kg, unclamped_mass_kg: mass_kg, scale_exponent: 0.0, update_with_scale: true,
                     center_of_mass_m: Vec3::X * mass_kg * 0.1,
                     inertia_tensor_kg_m2: Mat3::from_diagonal(Vec3::new(0.1, 0.2, 0.3) * mass_kg) });
             }
@@ -1341,6 +1356,7 @@ mod tests {
                         &profile,
                         1.0,
                         1.0,
+                        true,
                         &body_labels,
                         &collider_labels,
                         &joint_labels,
@@ -1392,7 +1408,7 @@ mod tests {
             revolute: Query<&RevoluteJoint>, source_joints: Query<&SourcePhysicsJoint>,
             transforms: Query<&Transform>, mut colliders: Query<&mut Collider>| {
             apply_profile_to_spawned_ragdoll(&mut commands, &again, &driven_profile,
-                1.0, 1.0, &body_labels, &collider_labels, &joint_labels,
+                1.0, 1.0, true, &body_labels, &collider_labels, &joint_labels,
                 &spherical, &revolute, &source_joints, &transforms, &mut colliders)
         }).unwrap();
         assert_eq!(reapplied.source_joint_count, 20);
@@ -1409,6 +1425,7 @@ mod tests {
             .find(|body| body["bone_name"] == "pelvis").unwrap();
         body["target"]["mass_properties"] = serde_json::json!({
             "mass_kg": 7.926393985748291,
+            "unclamped_mass_kg": 7.926393985748291, "scale_exponent": 0.0, "update_with_scale": true,
             "center_of_mass_m": [0.1, 0.3, 0.2],
             "inertia_tensor_kg_m2": [[0.1, 0.0, 0.0], [0.0, 0.2, 0.0], [0.0, 0.0, 0.3]],
         });
@@ -1446,7 +1463,7 @@ mod tests {
             revolute: Query<&RevoluteJoint>, source_joints: Query<&SourcePhysicsJoint>,
             transforms: Query<&Transform>, mut colliders: Query<&mut Collider>| {
             apply_profile_to_spawned_ragdoll(&mut commands, &mass_again, &mass_profile,
-                1.0, 1.0, &body_labels, &collider_labels, &joint_labels,
+                1.0, 1.0, true, &body_labels, &collider_labels, &joint_labels,
                 &spherical, &revolute, &source_joints, &transforms, &mut colliders)
         }).unwrap();
         assert!(world.get::<JointCollisionDisabled>(allowed_joint).is_none());
@@ -1482,7 +1499,7 @@ mod tests {
             revolute: Query<&RevoluteJoint>, source_joints: Query<&SourcePhysicsJoint>,
             transforms: Query<&Transform>, mut colliders: Query<&mut Collider>| {
             apply_profile_to_spawned_ragdoll(&mut commands, &mass_again_scaled, &mass_profile_scaled,
-                2.0, 2.0, &body_labels, &collider_labels, &joint_labels,
+                2.0, 2.0, true, &body_labels, &collider_labels, &joint_labels,
                 &spherical, &revolute, &source_joints, &transforms, &mut colliders)
         }).unwrap();
         assert_eq!(world.get::<CenterOfMass>(pelvis_body).unwrap().0, Vec3::new(0.2, 0.6, 0.4));
@@ -1814,6 +1831,75 @@ mod tests {
     }
 
     #[test]
+    fn source_mass_scale_policy_reaches_initialization_updates_and_rebuilds() {
+        use avian3d::prelude::{ComputedAngularInertia, ComputedCenterOfMass, ComputedMass, PhysicsPlugins, RigidBody};
+        use bevy::reflect::{PartialReflect, ReflectMut};
+        use bevy_animation_graph::core::ragdoll::definition::Body;
+        fn attach(world: &mut World, player: Entity) -> (Entity, Entity) {
+            let root = world.spawn((Transform::IDENTITY, ChildOf(player))).id();
+            let body = world.spawn((RigidBody::Dynamic, BodyLabel("pelvis".into()), Transform::IDENTITY, ChildOf(root))).id();
+            world.spawn((Collider::sphere(0.5), Mass(1.0), Transform::IDENTITY, ChildOf(body)));
+            let mut spawned = SpawnedRagdoll::new(root);
+            spawned.bodies.insert(Body::new().id, body);
+            let mut graph_player = world.get_mut::<AnimationGraphPlayer>(player).unwrap();
+            let ReflectMut::Struct(fields) = graph_player.reflect_mut() else { panic!("player must be a struct") };
+            *fields.field_mut("spawned_ragdoll").unwrap().try_downcast_mut::<Option<SpawnedRagdoll>>().unwrap() = Some(spawned);
+            (root, body)
+        }
+        fn check(world: &World, body: Entity, input: RagdollMassProperties, scale: f32) {
+            let expected = (input.unclamped_mass_kg * scale.powf(input.scale_exponent)).max(0.001);
+            let mass = world.get::<ComputedMass>(body).unwrap().value();
+            assert!((mass - expected).abs() < expected * 1e-5, "Mass policy input={input:?} scale={scale}: {mass} != {expected}");
+            assert!(world.get::<ComputedCenterOfMass>(body).unwrap().0.abs_diff_eq(input.center_of_mass_m * scale, 1e-5));
+            let tensor = world.get::<ComputedAngularInertia>(body).unwrap().value();
+            let expected_tensor = input.inertia_tensor_kg_m2 * scale * scale * (expected / input.mass_kg);
+            assert!(Vec3::new(tensor.m00, tensor.m11, tensor.m22).abs_diff_eq(
+                Vec3::new(expected_tensor.x_axis.x, expected_tensor.y_axis.y, expected_tensor.z_axis.z), 1e-5));
+        }
+        for exponent in [0.0, 2.25, 3.0] {
+            for update in [false, true] {
+                for base_mass in [0.0_f32, 0.0005, 2.0] {
+                    for initial in [0.5, 2.0] {
+                        let mut app = App::new();
+                        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, TransformPlugin,
+                            PhysicsPlugins::new(PostUpdate), RagdollPhysicsProfilePlugin));
+                        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::ZERO));
+                        app.finish(); app.cleanup();
+                        let input = RagdollMassProperties { mass_kg: base_mass.max(0.001), unclamped_mass_kg: base_mass,
+                            scale_exponent: exponent, update_with_scale: update,
+                            center_of_mass_m: Vec3::new(0.1, 0.2, 0.3),
+                            inertia_tensor_kg_m2: Mat3::from_diagonal(Vec3::new(0.1, 0.2, 0.3) * base_mass.max(0.001)) };
+                        let mut profile = RagdollPhysicsProfile::from_json(include_str!("../../assets/ALS/Character/PA_Als.physics.json")).unwrap();
+                        profile.bodies.retain(|body| body.label == "pelvis");
+                        profile.bodies[0].mass_properties = Some(input);
+                        profile.colliders.clear(); profile.joints.clear();
+                        let player = app.world_mut().spawn((AnimationGraphPlayer::new(Handle::default()), profile,
+                            Transform::from_scale(Vec3::splat(initial)))).id();
+                        let (old_root, body) = attach(app.world_mut(), player);
+                        for scale in [initial, initial * 2.0, initial * 0.5] {
+                            app.world_mut().get_mut::<Transform>(player).unwrap().scale = Vec3::splat(scale);
+                            app.update();
+                            check(app.world(), body, input, if update { scale } else { initial });
+                        }
+                        let mut changed = input;
+                        changed.unclamped_mass_kg += 2.0;
+                        changed.mass_kg = changed.unclamped_mass_kg;
+                        app.world_mut().get_mut::<RagdollPhysicsProfile>(player).unwrap().bodies[0].mass_properties = Some(changed);
+                        app.update();
+                        check(app.world(), body, changed, initial * 0.5);
+                        let (new_root, new_body) = attach(app.world_mut(), player);
+                        app.update();
+                        assert!(app.world().get_entity(old_root).is_err() && app.world().get_entity(new_root).is_ok());
+                        check(app.world(), new_body, changed, initial * 0.5);
+                        app.update();
+                        check(app.world(), new_body, changed, initial * 0.5);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
     fn positive_uniform_scale_reaches_ragdoll_shapes_offsets_and_joint_frames() {
         use avian3d::prelude::Collider;
         use bevy::ecs::system::RunSystemOnce;
@@ -1853,6 +1939,7 @@ mod tests {
             world.get::<JointLabel>(**entity).unwrap().0 == joint_profile.label).unwrap();
         let joint_label = joint_profile.label.clone();
         let joint_offset = joint_profile.definition.parent_frame.translation;
+        let pelvis = *spawned.bodies.values().find(|entity| world.get::<BodyLabel>(**entity).unwrap().0 == "pelvis").unwrap();
         let old_root = spawned.root;
         let first = SpawnedRagdoll { root: spawned.root, bodies: spawned.bodies.clone(),
             colliders: spawned.colliders.clone(), joints: spawned.joints.clone() };
@@ -1861,16 +1948,19 @@ mod tests {
             joint_labels: Query<&JointLabel>, spherical: Query<&SphericalJoint>,
             revolute: Query<&RevoluteJoint>, source_joints: Query<&SourcePhysicsJoint>,
             transforms: Query<&Transform>, mut colliders: Query<&mut Collider>| {
-            apply_profile_to_spawned_ragdoll(&mut commands, &first, &profile, 1.0, 1.0,
+            apply_profile_to_spawned_ragdoll(&mut commands, &first, &profile, 1.0, 1.0, true,
                 &body_labels, &collider_labels, &joint_labels, &spherical, &revolute,
                 &source_joints, &transforms, &mut colliders)
         }}).unwrap();
+        app.update();
+        let base_mass = app.world().get::<avian3d::prelude::ComputedMass>(pelvis).unwrap().value();
+        let world = app.world_mut();
         world.run_system_once(move |mut commands: Commands,
             body_labels: Query<&BodyLabel>, collider_labels: Query<&ColliderLabel>,
             joint_labels: Query<&JointLabel>, spherical: Query<&SphericalJoint>,
             revolute: Query<&RevoluteJoint>, source_joints: Query<&SourcePhysicsJoint>, transforms: Query<&Transform>,
             mut colliders: Query<&mut Collider>| {
-            apply_profile_to_spawned_ragdoll(&mut commands, &spawned, &profile, 2.0, 2.0,
+            apply_profile_to_spawned_ragdoll(&mut commands, &spawned, &profile, 2.0, 2.0, false,
                 &body_labels, &collider_labels, &joint_labels, &spherical, &revolute,
                 &source_joints, &transforms, &mut colliders)
         }).unwrap();
@@ -1884,6 +1974,10 @@ mod tests {
             .abs_diff_eq(joint_offset * 2.0, 1e-5));
         assert!(world.get::<JointCollisionDisabled>(joint).is_none());
         app.update();
+        let expected_mass = base_mass * 2.0_f32.powf(3.0 * 0.75);
+        let actual_mass = app.world().get::<avian3d::prelude::ComputedMass>(pelvis).unwrap().value();
+        assert!((actual_mass - expected_mass).abs() < expected_mass * 1e-5,
+            "Scaled source mass must reach the solver: {actual_mass} != {expected_mass}");
         let next_extent = app.world().get::<Collider>(collider).unwrap().shape_scaled().compute_local_aabb().half_extents();
         assert!(next_extent.abs_diff_eq(collider_extent * 2.0, 1e-5),
             "Collider scale was lost after physics: {next_extent:?}");

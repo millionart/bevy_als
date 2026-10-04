@@ -359,6 +359,19 @@ def assert_close(left, right, tolerance=1e-5):
 
 def self_test():
     assert_close(ue_point([100.0, 200.0, 300.0]), [1.0, 3.0, 2.0])
+    for density, power, exponent in [(1.0, 0.75, 2.25), (2.0, 1.0, 3.0), (0.0, 0.0, 0.0003), (1.0, 2.0, 3.0)]:
+        for override in [False, True]:
+            for update in [False, True]:
+                body = {"shapes": [{"kind": "box", "x": 10.0, "y": 10.0, "z": 10.0}],
+                    "default_instance_properties": [{"name": key, "exported_text": str(value)} for key, value in
+                        {"bOverrideMass": override, "MassInKgOverride": 0.2, "MassScale": 2.0,
+                         "bUpdateMassWhenScaleChanges": update}.items()],
+                    "physical_material_properties": [{"name": key, "exported_text": str(value)} for key, value in
+                        {"Density": density, "RaiseMassToPower": power}.items()]}
+                mass, actual_exponent, actual_update = target_body_mass(body)
+                assert math.isclose(actual_exponent, 0.0 if override else exponent, rel_tol=1e-10) and actual_update == update
+                expected = 0.2 if override else (max(density, 0.00009) ** (exponent / 3.0)) * 2.0
+                assert math.isclose(mass, expected, rel_tol=1e-10)
     intersections = (
         ("NoCollision",) * 6,
         ("NoCollision", "QueryOnly", "NoCollision", "QueryOnly", "NoCollision", "QueryOnly"),
@@ -418,8 +431,7 @@ def self_test():
     assert_close(mass["center_of_mass_m"], [0.1, 0.3, 0.2])
     assert_close([mass["inertia_tensor_kg_m2"][i][i] for i in range(3)],
         [0.0866666667, 0.2666666667, 0.1133333333])
-    assert target_mass_properties([box], 2.0, [0.0, 0.0, 0.0], [1.0, 1.0, 1.0]) is None
-    forced = target_mass_properties([box], 2.0, [0.0, 0.0, 0.0], [1.0, 1.0, 1.0], True)
+    forced = target_mass_properties([box], 2.0, [0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
     assert_close([forced["inertia_tensor_kg_m2"][i][i] for i in range(3)],
         [0.0866666667, 0.0666666667, 0.0333333333])
     sphere = {"kind": "sphere", "mass_kg": 1.0, "radius_m": 0.5,
@@ -510,9 +522,21 @@ def target_shape(shape):
     return result
 
 
-def target_mass_properties(shapes, mass, nudge_m, inertia_scale, force=False):
-    if not force and all(value == 0.0 for value in nudge_m) and all(abs(value - 1.0) <= 1e-3 for value in inertia_scale):
-        return None
+
+def target_body_mass(body):
+    instance = props(body["default_instance_properties"])
+    material = props(body["physical_material_properties"])
+    override = boolean(body["default_instance_properties"], "bOverrideMass")
+    exponent = 0.0 if override else 3.0 * min(1.0, max(1e-4, float(material["RaiseMassToPower"])))
+    if override:
+        mass = float(instance["MassInKgOverride"])
+    else:
+        density = max(0.09 / 1e6, float(material["Density"]) * 0.001)
+        mass = (sum(volume(shape) for shape in body["shapes"]) * density) ** (exponent / 3.0) * float(instance["MassScale"])
+    return max(mass, 0.0), exponent, boolean(body["default_instance_properties"], "bUpdateMassWhenScaleChanges")
+
+
+def target_mass_properties(shapes, mass, nudge_m, inertia_scale):
     if not shapes or mass <= 0.0 or abs(sum(shape["mass_kg"] for shape in shapes) - mass) > 1e-3:
         raise ValueError("body mass properties lack a valid shape mass closure")
     center = [sum(shape["mass_kg"] * shape["translation_m"][axis] for shape in shapes) / mass for axis in range(3)]
@@ -784,6 +808,8 @@ def build_profile(source, project_max_angular_velocity_degrees):
         original = source_map[("body", bone)]
         default_instance = props(body["default_instance_properties"])
         shapes = []
+        base_mass, mass_scale_exponent, update_mass_with_scale = target_body_mass(body)
+        mass = max(base_mass, 0.001)
         total = sum(volume(shape) for shape in body["shapes"])
         for index, shape in enumerate(body["shapes"]):
             item = dict(shape)
@@ -791,14 +817,15 @@ def build_profile(source, project_max_angular_velocity_degrees):
             item["target"] = target_shape(shape)
             item["target"]["collision_enabled"] = collision_enabled_intersection(
                 default_instance["CollisionEnabled"], props(shape["properties"])["CollisionEnabled"])
-            item["target"]["mass_kg"] = body["calculated_mass"] * volume(shape) / total
+            item["target"]["mass_kg"] = mass * volume(shape) / total
             shapes.append(item)
         physics_type = original["PhysicsType"]
         mode = "Kinematic" if physics_type == "PhysType_Kinematic" else "Dynamic"
         nudge = ue_point(vector_after("COMNudge=" + default_instance["COMNudge"], "COMNudge"))
         inertia_scale = direction(vector_after("InertiaTensorScale=" + default_instance["InertiaTensorScale"], "InertiaTensorScale"))
-        mass_properties = target_mass_properties([shape["target"] for shape in shapes], body["calculated_mass"], nudge, inertia_scale,
-            any(shape["target"]["collision_enabled"] in {"NoCollision", "ProbeOnly", "QueryAndProbe"} for shape in shapes))
+        mass_properties = target_mass_properties([shape["target"] for shape in shapes], mass, nudge, inertia_scale)
+        mass_properties.update({"unclamped_mass_kg": base_mass, "scale_exponent": mass_scale_exponent,
+            "update_with_scale": update_mass_with_scale})
         bodies.append({
             "source_index": body["index"],
             "bone_name": bone,
@@ -816,7 +843,7 @@ def build_profile(source, project_max_angular_velocity_degrees):
                 "gyroscopic_torque_enabled": boolean(body["default_instance_properties"], "bGyroscopicTorqueEnabled"),
                 "gravity_scale": 1.0 if boolean(body["default_instance_properties"], "bEnableGravity", True) else 0.0,
                 "material": target_material(body["physical_material_properties"]),
-                **({"mass_properties": mass_properties} if mass_properties is not None else {}),
+                "mass_properties": mass_properties,
             },
             "shapes": shapes,
         })
@@ -981,7 +1008,7 @@ def write_ragdoll(profile, rest, output):
                 "                point_compliance: 0,", "                swing_compliance: 0,", "                twist_compliance: 0,", "            )),",
             ])
         lines.append("        ),")
-    total_mass = sum(body["calculated_mass_kg"] for body in profile["bodies"])
+    total_mass = sum(body["target"]["mass_properties"]["mass_kg"] for body in profile["bodies"])
     lines.extend(["    },", "    suffixes: (", '        original: ".R",', '        mirror: ".L",', "    ),", f"    total_mass: {text_number(total_mass)},", ")", ""])
     output.write_text("\n".join(lines), encoding="utf-8")
     return ids

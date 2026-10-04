@@ -98,7 +98,7 @@
 
 - [x] **BF132.R71-01 — 全锁线性关节的速度约束门限与源 cached SIMD 三轴块语义不一致**。Gate：确认实际源求解器分支；全零/单轴/多轴位置 lambda、速度变化与非零锚臂保留三轴合同。
 - [x] **BF132.R71-02 — 多权重 ragdoll 回读直接相加四元数，符号相消后产生无效旋转**。Gate：q/-q 等价旋转混合保持单位/有限，部分回读及零权重控制通过。
-- [ ] **BF132.R71-05 — 源要求随缩放更新质量，目标却固定生成的 Override 质量**。Gate：effective Body scale、密度/质量幂与 Override 开关分别按源生成及重算。
+- [x] **BF132.R71-05 — 源要求随缩放更新质量，目标却固定生成的 Override 质量**。Gate：effective Body scale、密度/质量幂与 Override 开关分别按源生成及重算。
 - [ ] **BF132.R71-10 — 脱离后的 ragdoll 物理配置仍读取原 avatar 宿主缩放**。Gate：脱离前后实际 root/world scale 正确重配，宿主变化不污染脱离体。
 - [ ] **BF132.R71-11 — 默认 PA_Als 的 cached 双轴摆动限制被替换成更窄的椭圆边界**。Gate：fresh 实际 cached/ordinary 分支与默认 PA 配置共同证明正确边界，斜向/轴向与内外控制通过。
 - [ ] **BF132.R71-16 — PhysicsAsset 的 bUseCCD 被接受但未传入 ragdoll 的实际 CCD 配置**。Gate：源开关贯穿生成/安装/重建与实际高速碰撞，不以字段存在宣称实现。
@@ -512,3 +512,21 @@
   - S2/Ragdoll后、GetUp前 2026-10-04 07:26 +08:00：同版Ragdoll 11/11功能项通过（scaled/关节/恢复/相机与输入消费者），runner/manual/validator退出0、图/primary failure/fault/temporal/watchdog均0；完整性能与截图仍暂停。继续已覆盖GetUp公共姿态及生命周期Gate。
 
   - S2实际结束2026-10-04 07:27 +08:00；相对07:52预估提前25分钟；结果：正式e77d149锁定版149.841秒target_game/play预构建，同版startup/Ragdoll11/11/GetUp11/11公共功能runner/manual/validator均退出0，三报告ready=true、graph/primary failure/fault/temporal/watchdog均0；完整max_eval_p95_ms未通过、截图/完整性能原暂停保留。2400实际Body权重/父级/offset/符号/顺序/duplicate/partial/zero与144缩放gap控制、原NaN/hemisphere2red/zero1red/scale-success1red→恢复green、1377全库及正式pin5项回归/source/static/manifest通过。最小实现为既有fork6行generic quaternion reducer/zero过滤与目标成功集合一个positive-weight判断，无新状态/抽象、ID特例、source asset或图/converter变化。S1开始06:43/预计07:23/实际07:22提前1分钟，S2有效估时内完成；勾选R71-02单独提交，43/49完成，下一项R71-05，6项待处理。
+
+- BF132.R71-05-S1：开始2026-10-04 07:28 +08:00；预估结束2026-10-04 08:18 +08:00。依据：fresh本地BodyInstance UpdateBodyScale/UpdateMassProperties及BodySetup CalculateMass已有scale-update开关、密度/质量幂/override分支，目标gen_ragdoll质量分配与profile安装两处消费；预计PA20 body+递归PhysMaterial/shape.mass闭包、生成器self-test及实际Avian缩放/重建反例，源值与单位先复算再最小修。S1只source/static/红绿/消融/定向回归，超出50分钟剩余先复盘拆分；真实入口另登记S2。R71-10尚未启动，不展开脱离宿主根因。
+
+  - S1/source-static轮 2026-10-04 07:46 +08:00：fresh native PA21 Body全bOverrideMass=false/bUpdateMassWhenScaleChanges=true、默认材质Density1/RaiseMassToPower.75；UpdateBodyScale→bDirtyMassProps/动态即时重算、BodyUtils density kg/cm³ floor.09kg/m³、幂[1e-4,1]、MassScale与1g下限、COM nudge及inertia MassRatio闭合。BodySetup编辑器CalculateMass用1.3333f而Chaos Capsule物理GetVolume用4/3f，不能把编辑器calculated_mass当solver oracle；保留raw field，独立生成物理解算base mass并标明完整产物diff（rag仅质量数字、physics新增21 Body质量属性）。旧solver scale1→2实际质量不变稳定red，源幂2.25要求倍率4.7568；恢复15项profile定向green。当前沿已有MassProperties安装/restore，生成基准/unclamped/幂/update flag、只复算当帧源scale，不新缓存；新增initial/flag/override/1g/配置变更/重建控制在编译。全部15 AnimBP+递归闭包已在隔离candidate重放，未经完整diff不勾选或复开相邻项；原PA/原始UE record未重写，public runtime未开始。
+
+  - S1恢复轮 2026-10-04 08:05 +08:00：36实际Avian配置×6生命周期检查（初始化/两次scale/显式profile变更/同玩家新root/重复帧），exp0/2.25/3、update开关、raw0/.0005/2、initial.5/2及1g/COM/inertia控制通过；update switch/unclamped mass/inertia ratio三独立消融均稳定red，字节恢复/mtime后1378全库green，16 profile与5资产、6 shape控制通过。旧两套资产Gate直接使用编辑器calculated_mass的漏检已以fresh BodyUtils/Chaos vsBodySetup事实证明，严格原1e-5容差下改为独立几何体积×源density/power oracle，不放宽阈值。源基准质量/幂/update flag只补已有MassProperties三字段与初始化/显式重算bool，没有新component/state/cache；移除obsolete force开关及None producer分支后self-test保持green，最终native PA+mesh完整重放三产物diff0，raw record未改。全部AnimBP重放已13/15，等待完整diff；公共runtime尚未开始。
+
+  - S1实际结束2026-10-04 08:08 +08:00；相对08:18预估提前10分钟，结果：fresh source/scale lifecycle/primitive物理质量与inertia合同、三个消融red→字节恢复、1378全库/16 profile/5资产/6 shape/self-test通过；native完整PA+mesh生成三产物与最终简化版diff0。全部15已生成AnimBP+递归39 source在隔离树全量重放，374 old/new完整diff新增/删除/修改均0，没有复开相邻完成图；质量profile完整JSON剥离mass_properties/shape.mass后diff0，source record不变、bone-map不变，仅21 Body属性/22 shape质量及rag质量数字/总量变化。源原始导出没有手补；已删force开关及无信号None producer分支，保留有独立red的三数据字段与已有生命周期bool。authoring及最终真实入口待S2，继续未勾选。
+
+- BF132.R71-05-S2：开始2026-10-04 08:08 +08:00；预估结束2026-10-04 08:38 +08:00。依据：fresh静态/定向/full corpus/full diff闭环已通过，实际target_game/play预构建约150秒、startup/Ragdoll/GetUp约一分钟及报告审计/单独提交；不展开R71-10，截图与完整性能原暂停保留。
+
+  - S2/runtime前 2026-10-04 08:11 +08:00：最小恢复版146.418秒target_game/play同启动器预构建退出0；authoring root ABI/layout/editor/boundary/source hashes、1378库/5资产及36×6生命周期/三个消融/final生成diff0、15/39/374全量AnimBP新旧diff0闭合。开始原Playground startup功能Gate，随后仅已证实质量/scale/恢复消费者Ragdoll/GetUp；截图与完整性能保持原暂停。
+
+  - S2/startup后、Ragdoll前 2026-10-04 08:11 +08:00：同版startup功能runner/manual/validator退出0、ready=true、graph/primary failure/fault/temporal/watchdog均0，完整max_eval_p95_ms未通过仍暂停。开始已静态证明的Ragdoll实际scaled/PA profile/关节/恢复公共消费者Gate。
+
+  - S2/Ragdoll后、GetUp前 2026-10-04 08:12 +08:00：同版Ragdoll 11/11功能项通过，scaled/PA/关节/恢复/相机/输入实际consumer覆盖，runner/manual/validator退出0、ready=true、graph/primary failure/fault/temporal/watchdog均0；完整性能和截图仍暂停。开始同版GetUp正反起身与输入锁生命周期公共Gate。
+
+  - S2实际结束2026-10-04 08:12 +08:00；相对08:38预估提前26分钟；结果：恢复版146.418秒target_game/play实际入口预构建，同版startup/Ragdoll11/11/GetUp11/11公共功能runner/manual/validator均退出0，三报告ready=true、graph/primary failure/fault/temporal/watchdog均0；完整max_eval_p95_ms未通过，截图/完整性能原暂停保留。source physical density/power/override/update lifecycle、36×6原生控制、三消融red→字节恢复/mtime、1378库/16profile/5资产/6shape/self-test、最终PA+mesh三产物diff0/质量影响范围审计通过；全15已生成AnimBP及39递归source全量重放374新旧diff0，无相邻完成项复开。最小实现为已有MassProperties三字段+源initial/profile/rebuild重算bool与mass ratio、无新状态/cache/adapter，obsolete force与None producer删除；RAW字段未动，不再以编辑器CalculateMass冒充solver质量oracle。S1开始07:28/预计08:18/实际08:08提前10分钟，S2有效窗口内完成；勾选R71-05单独提交，44/49完成，下一项R71-10，5项待处理。
