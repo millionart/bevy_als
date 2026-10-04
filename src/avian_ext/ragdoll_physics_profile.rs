@@ -117,6 +117,10 @@ impl RagdollShapeCollisionMode {
     pub fn has_query(self) -> bool {
         matches!(self, Self::QueryOnly | Self::QueryAndPhysics | Self::QueryAndProbe)
     }
+
+    fn has_physics_response(self) -> bool {
+        matches!(self, Self::PhysicsOnly | Self::QueryAndPhysics)
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -812,7 +816,7 @@ fn solve_profile_linear_ccd(
     time: Res<Time>,
     profiles: Query<(Entity, &SourceCcdSettings), With<avian3d::prelude::SweptCcd>>,
     colliders: Query<(&Collider, &avian3d::prelude::ColliderOf, &avian3d::prelude::ColliderTransform,
-        Option<&Sensor>, Option<&CollisionLayers>, Option<&RagdollCollisionMember>), Without<ColliderDisabled>>,
+        Option<&Sensor>, Option<&CollisionLayers>, Option<&RagdollCollisionMember>, Option<&RagdollShapeCollisionMode>), Without<ColliderDisabled>>,
     mut bodies: ParamSet<(Query<(&Position, &Rotation, &RigidBody, &avian3d::prelude::ComputedCenterOfMass, Option<&SolverBody>), Without<avian3d::prelude::RigidBodyDisabled>>,
         Query<&mut SolverBody>)>,
 ) {
@@ -832,8 +836,8 @@ fn solve_profile_linear_ccd(
             let mut aggregate_min = Vec3::splat(f32::INFINITY);
             let mut aggregate_max = Vec3::splat(f32::NEG_INFINITY);
             let mut thinnest = Vec3::splat(f32::INFINITY);
-            for (shape, owner, local, sensor, _, _) in &colliders {
-                if owner.body != body || sensor.is_some() && !settings.include_probe_shapes { continue; }
+            for (shape, owner, local, sensor, _, _, mode) in &colliders {
+                if owner.body != body || sensor.is_some() || mode.is_some_and(|mode| !mode.has_physics_response()) { continue; }
                 let bounds = shape.shape_scaled().compute_aabb(&Pose3::from_parts(local.translation, local.rotation.0));
                 aggregate_min = aggregate_min.min(bounds.mins);
                 aggregate_max = aggregate_max.max(bounds.maxs);
@@ -853,11 +857,11 @@ fn solve_profile_linear_ccd(
             if threshold < 0.0 || threshold > 0.0 && (local_delta - axis_threshold * threshold).max_element() <= 0.0 { continue; }
             let mut earliest = dt;
             let mut hit_body = None;
-            for (shape, owner, local, sensor, layers, member) in &colliders {
-                if owner.body != body || sensor.is_some() && !settings.include_probe_shapes { continue; }
+            for (shape, owner, local, sensor, layers, member, mode) in &colliders {
+                if owner.body != body || sensor.is_some() || mode.is_some_and(|mode| !mode.has_physics_response()) { continue; }
                 let pose = Pose3::from_parts(start_position + end_rotation * local.translation, end_rotation * local.rotation.0);
-                for (other, other_owner, other_local, other_sensor, other_layers, other_member) in &colliders {
-                    if other_owner.body == body || other_sensor.is_some() && !settings.include_probe_shapes { continue; }
+                for (other, other_owner, other_local, other_sensor, other_layers, other_member, other_collision) in &colliders {
+                    if other_owner.body == body || other_sensor.is_some() || other_collision.is_some_and(|mode| !mode.has_physics_response()) { continue; }
                     if !layers.copied().unwrap_or_default().interacts_with(other_layers.copied().unwrap_or_default()) { continue; }
                     if member.zip(other_member).is_some_and(|(left, right)| left.disables(right)) { continue; }
                     let Ok((other_position, other_rotation, other_mode, other_center, other_solver)) = read.get(other_owner.body) else { continue; };
@@ -2342,6 +2346,54 @@ mod tests {
                     assert_eq!(world.get::<SolverBody>(body).unwrap().delta_position, before);
                 }
             }
+        }
+    }
+
+    #[test]
+    fn ccd_shape_modes_control_actual_source_and_obstacle_motion() {
+        use avian3d::prelude::{Gravity, LinearVelocity, PhysicsPlugins, SpeculativeMargin, SubstepCount};
+        use bevy::reflect::{PartialReflect, ReflectMut};
+        use bevy_animation_graph::core::ragdoll::definition::Body;
+        let modes = [Some(RagdollShapeCollisionMode::QueryOnly), Some(RagdollShapeCollisionMode::PhysicsOnly),
+            Some(RagdollShapeCollisionMode::QueryAndPhysics), Some(RagdollShapeCollisionMode::NoCollision),
+            Some(RagdollShapeCollisionMode::ProbeOnly), Some(RagdollShapeCollisionMode::QueryAndProbe), None];
+        for source in [false, true] {
+         for mode in modes {
+          for probe_sweeps in [false, true] {
+            let mut profile = crate::pa_als::parse_pa_als_profile();
+            profile.bodies.retain(|body| body.label == "pelvis");profile.colliders.clear();profile.joints.clear();
+            profile.bodies[0].ccd_enabled = true;profile.bodies[0].linear_damping = 0.0;
+            profile.ccd_settings.include_probe_shapes = probe_sweeps;
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, TransformPlugin,
+                PhysicsPlugins::new(PostUpdate).with_collision_hooks::<RagdollCollisionHooks>(), RagdollPhysicsProfilePlugin));
+            app.insert_resource(Gravity(Vec3::ZERO));app.insert_resource(SubstepCount(1));
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
+            app.finish();app.cleanup();
+            let player = app.world_mut().spawn((AnimationGraphPlayer::new(Handle::default()), profile, Transform::IDENTITY)).id();
+            let root = app.world_mut().spawn(Transform::IDENTITY).id();
+            let body = app.world_mut().spawn((RigidBody::Dynamic, BodyLabel("pelvis".into()), Transform::from_xyz(-1.0, 0.0, 0.0), ChildOf(root))).id();
+            let collider = app.world_mut().spawn((Collider::sphere(0.05), SpeculativeMargin(0.0), Transform::IDENTITY, ChildOf(body),
+                ActiveCollisionHooks::FILTER_PAIRS, if source { mode.unwrap_or(RagdollShapeCollisionMode::QueryAndPhysics) } else { RagdollShapeCollisionMode::QueryAndPhysics })).id();
+            let wall = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.01, 2.0, 2.0), Transform::IDENTITY,
+                ActiveCollisionHooks::FILTER_PAIRS, if source { RagdollShapeCollisionMode::QueryAndPhysics } else { mode.unwrap_or(RagdollShapeCollisionMode::QueryAndPhysics) })).id();
+            let selected = if source { collider } else { wall };
+            if mode == Some(RagdollShapeCollisionMode::NoCollision) { app.world_mut().entity_mut(selected).insert(ColliderDisabled); }
+            if matches!(mode, Some(RagdollShapeCollisionMode::ProbeOnly | RagdollShapeCollisionMode::QueryAndProbe)) { app.world_mut().entity_mut(selected).insert(Sensor); }
+            if mode.is_none() { app.world_mut().entity_mut(selected).remove::<RagdollShapeCollisionMode>().insert(Sensor); }
+            let mut spawned = SpawnedRagdoll::new(root);spawned.bodies.insert(Body::new().id, body);
+            let mut graph_player = app.world_mut().get_mut::<AnimationGraphPlayer>(player).unwrap();
+            let ReflectMut::Struct(fields) = graph_player.reflect_mut() else { panic!("player must be a struct") };
+            *fields.field_mut("spawned_ragdoll").unwrap().try_downcast_mut::<Option<SpawnedRagdoll>>().unwrap() = Some(spawned);
+            app.update();app.world_mut().entity_mut(body).insert(LinearVelocity(Vec3::X * 240.0));app.update();
+            let position = app.world().get::<Position>(body).unwrap().0;
+            let solver = app.world().get::<SolverBody>(body).unwrap();
+            let blocks = matches!(mode, Some(RagdollShapeCollisionMode::PhysicsOnly | RagdollShapeCollisionMode::QueryAndPhysics));
+            assert_eq!(solver.delta_position.x < 4.0, blocks, "CCD delta mode={mode:?}, source={source}, probes={probe_sweeps}: {:?}", solver.delta_position);
+            if blocks { assert!((position.x + 0.035).abs() < 1e-5, "Physical mode must keep source TOI/depth: {position:?}"); }
+            else { assert!(position.x > 2.9, "Nonphysical mode must not rewind CCD: {mode:?}, source={source}, probes={probe_sweeps}, {position:?}"); }
+          }
+         }
         }
     }
 
