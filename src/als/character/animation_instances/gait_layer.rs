@@ -100,6 +100,7 @@ mod tests {
                     world_velocity: Vec3::Z * 1.2,
                     horizontal_speed: 1.2,
                 },
+                crate::actual_motion::AlsActualMotion::default(),
                 AlsMovementParamsHandle(params),
             ))
             .id();

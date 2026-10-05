@@ -561,7 +561,6 @@ impl Plugin for AlsGroundedDynamicsPlugin {
                     .after(crate::als::motion::locomotion_state_sync_system)
                     .before(grounded_dynamics_motor_system),
                 grounded_dynamics_motor_system
-                    .after(crate::als::gait::refresh_gait_system)
                     .after(TnuaPipelineSystems::Logic)
                     .before(TnuaPipelineSystems::Motors),
             ),
@@ -572,6 +571,35 @@ impl Plugin for AlsGroundedDynamicsPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn gait_changes_take_effect_after_the_current_source_movement_tick() {
+        #[derive(Resource, Default)]
+        struct Samples(Vec<(Gait, f32)>);
+        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.05)))
+            .init_resource::<Samples>()
+            .add_systems(Update, (move |mut samples: ResMut<Samples>, q: Query<(&AlsMaxAllowedGait, &LinearVelocity, &TnuaMotor)>| {
+                let (gait, velocity, motor) = q.get(character).unwrap();
+                samples.0.push((gait.0, velocity.x + motor.lin.boost.x));
+            }).after(grounded_dynamics_motor_system).before(TnuaPipelineSystems::Motors));
+        app.world_mut().entity_mut(character).insert((
+            crate::als::gait::AlsDesiredGait(Gait::Walking), AlsMaxAllowedGait(Gait::Running),
+            LinearVelocity(Vec3::X * 3.75), AlsViewYaw(0.0),
+            AlsLandingBrakingFriction::default(),
+            crate::als::input::AlsInputCommand { move_dir: Vec2::X, ..default() },
+        ));
+        app.update();
+        let first = app.world().resource::<Samples>().0[0];
+        assert!((first.1 - 3.75).abs() < 1e-5, "The current source tick must keep 3.75 m/s: {first:?}");
+        assert_eq!(first.0, Gait::Running, "The current motor must use the previous owner gait");
+        assert_eq!(app.world().get::<AlsMaxAllowedGait>(character).unwrap().0, Gait::Walking);
+        app.world_mut().get_mut::<LinearVelocity>(character).unwrap().0 = Vec3::X * 3.75;
+        app.update();
+        let second = app.world().resource::<Samples>().0[1];
+        assert_eq!(second.0, Gait::Walking);
+        assert!((second.1 - 3.125).abs() < 1e-5, "The next source tick must use walking braking: {second:?}");
+    }
 
     #[test]
     fn landing_braking_reads_retained_character_input_before_the_owner_refresh() {

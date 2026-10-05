@@ -2335,10 +2335,7 @@ impl Plugin for AlsMotionPlugin {
             .add_systems(
                 Update,
                 (
-                    crate::als::gait::refresh_gait_system
-                        .after(crate::als::gait::gait_request_system).after(crate::als::view::AlsViewInputSet),
                     tnua_config_sync_system
-                        .after(crate::als::gait::refresh_gait_system)
                         .after(crate::als::transition::state_transition_system)
                         .after(capsule_reshape_system)
                         .before(TnuaPipelineSystems::Sensors),
@@ -2379,7 +2376,13 @@ impl Plugin for AlsMotionPlugin {
             )
             .add_systems(
                 PostUpdate,
-                rotation_response_system.in_set(AlsRotationResponseSet),
+                (
+                    crate::als::gait::refresh_gait_system
+                        .after(crate::actual_motion::AlsActualMotionSet)
+                        .before(AlsRotationResponseSet)
+                        .before(crate::gait_layer::AlsGaitLayerSet),
+                    rotation_response_system.in_set(AlsRotationResponseSet),
+                ),
             );
     }
 }

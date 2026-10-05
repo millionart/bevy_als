@@ -257,7 +257,7 @@ pub fn refresh_gait_system(
             &LocomotionState,
             &Stance,
             &RotationMode,
-            (&AlsViewYaw, Option<&crate::als::view::AlsPlayerViewYaw>),
+            (&AlsViewYaw, &crate::actual_motion::AlsActualMotion),
             Option<&AlsLastFreeRotationMode>,
             Has<AlsFirstPersonView>,
             &AlsInputCommand,
@@ -279,7 +279,7 @@ pub fn refresh_gait_system(
         locomotion,
         stance,
         rotation_mode,
-        (view_yaw, player_view),
+        (view_yaw, motion),
         last_free,
         first_person,
         command,
@@ -308,7 +308,11 @@ pub fn refresh_gait_system(
             *stance,
             first_person,
             desired_rotation_mode,
-            crate::als::motion::view_relative_move_axes(input.move_dir, player_view.map_or(view_yaw.0, |view| view.0) - view_yaw.0),
+            if motion.has_input {
+                crate::als::motion::view_relative_move_axes(Vec2::Y, motion.input_yaw_degrees.to_radians() - view_yaw.0)
+            } else {
+                Vec2::ZERO
+            },
             input.aim_held,
         );
         let speed = actual_velocity.horizontal_speed;
@@ -342,8 +346,6 @@ impl Plugin for AlsGaitPlugin {
             Update,
             gait_request_system
                 .after(crate::als::input_request::input_state_request_system)
-                .before(refresh_gait_system)
-                .before(crate::als::aim::aim_rotation_mode_system)
                 .before(state_transition_system),
         );
     }
@@ -352,6 +354,32 @@ impl Plugin for AlsGaitPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn gait_permission_reads_consumed_character_input_and_world_direction() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins).init_resource::<Assets<AlsMovementParams>>()
+            .add_message::<StateTransitionEvent>().add_systems(Update, refresh_gait_system);
+        let handle = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(AlsMovementParams::default());
+        let entity = app.world_mut().spawn((AlsCharacter, LocomotionState::Grounded, Stance::Standing,
+            RotationMode::ViewDirection, AlsViewYaw(0.0), AlsFirstPersonView,
+            AlsDesiredGait(Gait::Sprinting), AlsMaxAllowedGait::default(), AlsGaitAmount::default(),
+            Gait::Walking, AlsActualVelocity::default(), AlsMovementParamsHandle(handle))).id();
+        for (has_input, input_yaw, raw_input, expected) in [
+            (false, 0.0_f32, Vec2::Y, Gait::Running),
+            (true, 49.0, Vec2::ZERO, Gait::Sprinting),
+            (true, 51.0, Vec2::Y, Gait::Running),
+            (true, 0.0, Vec2::Y * 0.0002, Gait::Sprinting),
+        ] {
+            app.world_mut().entity_mut(entity).insert((
+                AlsInputCommand { move_dir: raw_input, ..default() },
+                crate::actual_motion::AlsActualMotion { has_input, input_yaw_degrees: input_yaw, ..default() },
+            ));
+            app.update();
+            assert_eq!(app.world().get::<AlsMaxAllowedGait>(entity).unwrap().0, expected,
+                "Source gait permission differs: has_input={has_input}, yaw={input_yaw}, raw={raw_input:?}");
+        }
+    }
 
     fn settings() -> StanceGaitSpeeds {
         StanceGaitSpeeds {
@@ -524,6 +552,7 @@ mod tests {
                     world_velocity: Vec3::Z * 1.2,
                     horizontal_speed: 1.2,
                 },
+                crate::actual_motion::AlsActualMotion::default(),
                 AlsMovementParamsHandle(handle),
             ))
             .id();
@@ -569,6 +598,7 @@ mod tests {
                 AlsGaitAmount::default(),
                 Gait::Walking,
                 AlsActualVelocity::default(),
+                crate::actual_motion::AlsActualMotion { has_input: true, input_yaw_degrees: -90.0, ..default() },
                 AlsMovementParamsHandle(handle),
             ))
             .id();
@@ -593,6 +623,7 @@ mod tests {
             .get_mut::<AlsInputCommand>(entity)
             .unwrap()
             .move_dir = Vec2::ZERO;
+        app.world_mut().get_mut::<crate::actual_motion::AlsActualMotion>(entity).unwrap().has_input = false;
         app.update();
         assert_eq!(
             app.world().get::<AlsMaxAllowedGait>(entity).unwrap().0,

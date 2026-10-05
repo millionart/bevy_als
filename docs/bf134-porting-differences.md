@@ -86,7 +86,7 @@ source/static/ABI/layout/editor/boundary闭合；target_game/play最终正常优
 
 ## 待反例核对的源差异
 
-BF134.01G1/G2a已修复并验收；G2其他consumer/H仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复九项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
+BF134.01G1/G2a/G2b已修复并验收；G2其他consumer/H仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复十项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
 
 ### BF134.01G1 — P2：动画输入绕过已消费状态
 
@@ -105,3 +105,13 @@ fresh角色原生读取37.562秒，CharMoveComp的bTickBeforeOwner=True；当次
 BF102.18已有限复开；旧Gate只给window helper直接传bool，未验证输入来源/阶段。候选已删除raw query及额外门槛，复用既有快照，没有新状态/helper/adapter；20项dynamics回归78.650秒通过，八组前帧状态/当前按键/override/细小输入边界及实际motor、旧窗口/预测与F1/F2/base/air控制覆盖。source hashes/root ABI/layout/editor/runtime-boundary通过（2.420秒）。状态：已修复并验收，G2a独立提交；G2其他consumer及全范围未核销。
 
 消融移除/强制保留输入77.995/78.823秒，分别在源速度/源factor断言稳定exit101，三个不同hash与byte/mtime恢复已核对。恢复后20项运动回归77.941秒、真实motor→snapshot→writer集成1.365秒通过；该状态的actual producer亦覆盖。S1开始01:12、预估01:37、实际01:26:12、偏差−10分48秒成功；最终target_game/play正常优化预构建149.405秒成功；startup15.558秒、Grounded15/15（42.860秒）与原variable UphillJump6/6（36.289秒）全部功能Gate通过，ready=true、graph/primary/fault/temporal零，证据 `target/animation_visual/bf134/01g2a/{startup,grounded,uphill_jump}`。S2开始01:26、预估01:41、实际01:33、偏差−8分钟成功，BF102.18有限复开已重新核销。图/共享转换/资产和原始记录未变，已有15/39/374完整生成diff=0有效；截图关闭、完整max_eval_p95_ms失败保留，不核销性能或其他输入consumer。
+
+
+### BF134.01G2b — P2：步态及派生旋转模式绕过owner阶段
+
+fresh角色37.136秒、TickBeforeOwner=True，当次ALS setter只保存DesiredGait；CMC先移动，owner随后RefreshInput/Locomotion→RefreshGait→RefreshRotationMode/Rotation，速度上限供下一次movement消费。target gait/aim却在Update motor前刷新，Running→Walking切换首帧实际(Walking,3.125m/s)、源应(Running,3.75m/s)，数值反例80.710秒稳定red。当前未消费输入false/raw Y时目标Sprint、源Running，独立实际system反例0.296秒red；两者指向同一owner状态归属，不能只放宽raw输入门槛。
+
+候选复用ActualMotion的已消费标志与世界方向，把gait和派生mode移到physics/snapshot之后、响应之前；mode直接写入并发布既有合法StateTransitionEvent，删除request转发及跨schedule伪依赖，无新cache/set/第二次通用处理。actual两帧motor84.218秒、69项定向回归通过，source/static2.416秒通过。首次Query tuple超上限36.207秒编译失败已修正；随后80.859秒schedule cycle由已存在的旧动画曲线准备→rotation链暴露，fresh GetCurveValue证明不能反转该链，保留原链并删除多余provider直连。状态：已修复并验收，G2b单独提交；原始记录/图/转换规则未变，rotation输入门槛与底层归一化仍待核对，parent G/G2未提前核销。
+
+
+G2b最终验收：四actual-source消融88.105/83.304/85.352/86.535秒均语义red，三文件byte/mtime恢复确认；两条冗余调度边分别删除后最终同一69项回归82.392秒通过，算法不增加cache/新set/第二次通用处理。最终source/static2.394秒与正常target_game/play构建149.370秒通过；startup15.693秒、Grounded15/15（42.342秒）及Sprint8/8（17.388秒）功能Gate全部通过，ready=true、graph/primary/fault/temporal零，证据 `target/animation_visual/bf134/01g2b/{startup,grounded,sprint}`。S1实际02:04:33/偏差−16分27秒，S2实际02:17/偏差−7分钟成功。已有15/39/374全量生成diff=0有效，截图关闭与完整max_eval_p95_ms失败保留，不宣称性能或全范围完成。

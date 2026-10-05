@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use crate::als::gait::AlsMaxAllowedGait;
 use crate::als::input::AlsInputCommand;
 use crate::als::state::{Gait, LocomotionState, RotationMode, Stance};
-use crate::als::transition::AlsStateRequest;
+use crate::als::transition::{Dimension, StateTransitionEvent, StateValue};
 
 pub const SPRINT_HAS_PRIORITY_OVER_AIMING: bool = true;
 pub const ROTATE_TO_VELOCITY_WHEN_SPRINTING: bool = true;
@@ -21,6 +21,7 @@ pub struct AimStateChanged {
 
 pub fn aim_rotation_mode_system(
     mut events: MessageWriter<AimStateChanged>,
+    mut transitions: MessageWriter<StateTransitionEvent>,
     mut q: Query<
         (
             Entity,
@@ -30,9 +31,8 @@ pub fn aim_rotation_mode_system(
             &Stance,
             &LocomotionState,
             Has<crate::als::input_request::AlsFirstPersonView>,
-            &RotationMode,
+            &mut RotationMode,
             Option<&mut AlsLastFreeRotationMode>,
-            &mut AlsStateRequest,
         ),
         With<crate::als::character::AlsCharacter>,
     >,
@@ -46,9 +46,8 @@ pub fn aim_rotation_mode_system(
         stance,
         loco,
         first_person,
-        current,
+        mut current,
         last_free,
-        mut request,
     ) in &mut q
     {
         let want_aim = crate::als::motion::effective_input(cmd, ovr).aim_held;
@@ -96,7 +95,14 @@ pub fn aim_rotation_mode_system(
         };
 
         if *current != desired {
-            request.rotation_mode = Some(desired);
+            let previous = *current;
+            *current = desired;
+            transitions.write(StateTransitionEvent {
+                entity,
+                dimension: Dimension::RotationMode,
+                from: StateValue::RotationMode(previous),
+                to: StateValue::RotationMode(desired),
+            });
             events.write(AimStateChanged {
                 entity,
                 aiming: desired == RotationMode::Aiming,
@@ -113,11 +119,12 @@ pub struct AlsAimPlugin;
 
 impl Plugin for AlsAimPlugin {
     fn build(&self, app: &mut App) {
-        app.add_message::<AimStateChanged>().add_systems(
-            Update,
+        app.add_message::<AimStateChanged>().add_message::<StateTransitionEvent>().add_systems(
+            PostUpdate,
             aim_rotation_mode_system
                 .after(crate::als::gait::refresh_gait_system)
-                .before(crate::als::transition::state_transition_system),
+                .before(crate::als::motion::AlsRotationResponseSet)
+                .before(crate::gait_layer::AlsGaitLayerSet),
         );
     }
 }
@@ -140,6 +147,7 @@ mod tests {
     use crate::als::motion::AlsInputOverride;
     use crate::als::state::{Gait, LocomotionState, OverlayState, Stance};
     use crate::als::transition::AlsStateTransitionPlugin;
+    use crate::als::transition::AlsStateRequest;
     use bevy::MinimalPlugins;
 
     fn spawn_character(app: &mut App, aim_held: bool, initial: RotationMode) -> Entity {
@@ -166,7 +174,7 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, AlsStateTransitionPlugin, AlsAimPlugin));
         app.init_resource::<EventLog>();
-        app.add_systems(Update, collect_events);
+        app.add_systems(PostUpdate, collect_events.after(aim_rotation_mode_system));
         let e = spawn_character(&mut app, aim_held, initial);
         app.update();
         (app, e)
