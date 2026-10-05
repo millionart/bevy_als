@@ -234,21 +234,15 @@ pub fn simulate_grounded_velocity_with_braking_friction(
     delta_seconds: f32,
 ) -> (Vec3, u32) {
     let mut remaining = delta_seconds.max(0.0);
-    let braking_step = cmc.braking_substep_time.clamp(1.0 / 75.0, 1.0 / 20.0);
-    let max_step = if desired_motion.length_squared() <= 1e-6 && braking_friction_factor > 0.0 {
-        cmc.max_simulation_time_step.min(braking_step).max(1e-4)
-    } else {
-        cmc.max_simulation_time_step.max(1e-4)
-    };
-    let max_iterations = cmc.max_simulation_iterations.max(1);
+    let max_iterations = cmc.max_simulation_iterations;
     let mut current = velocity;
     let mut substeps = 0;
     while remaining >= MIN_MOVEMENT_DELTA_SECONDS && substeps < max_iterations {
-        let step = if substeps + 1 == max_iterations {
-            remaining
+        let step = if remaining > cmc.max_simulation_time_step && substeps + 1 < max_iterations {
+            cmc.max_simulation_time_step.min(remaining * 0.5)
         } else {
-            remaining.min(max_step)
-        };
+            remaining
+        }.max(MIN_MOVEMENT_DELTA_SECONDS);
         current = grounded_velocity_step_with_braking_friction(
             current,
             desired_motion,
@@ -956,6 +950,55 @@ mod tests {
         );
         assert!(next.x < 3.0);
         assert!(next.z < 0.0);
+    }
+
+    #[test]
+    fn source_cmc_tail_steps_reach_the_actual_motor() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut world = World::new();
+        let mut time = Time::<()>::default();
+        time.advance_by(std::time::Duration::from_secs_f32(0.075));
+        world.insert_resource(time);
+        let mut params = Assets::<AlsMovementParams>::default();
+        let handle = params.add(AlsMovementParams::default());
+        world.insert_resource(params);
+        let mut controller = TnuaController::<AlsControlScheme>::default();
+        controller.basis.desired_motion = Vec3::Z;
+        let velocity = Vec3::X * 1.5;
+        let character = world.spawn((
+            AlsCharacter, LocomotionState::Grounded, Stance::Standing, RotationMode::ViewDirection,
+            AlsViewYaw::default(), AlsMaxAllowedGait(Gait::Sprinting), AlsGroundedDynamics::default(),
+            AlsGaitAmount::default(), Position(Vec3::Y * 0.92), LinearVelocity(velocity),
+            AlsMovementParamsHandle(handle), controller, TnuaMotor::default(), AlsCmcAdapterRuntime::default(),
+        )).id();
+        world.run_system_once(grounded_dynamics_motor_system).unwrap();
+        let dynamics = world.get::<AlsGroundedDynamics>(character).unwrap().0;
+        assert_eq!((dynamics.acceleration, dynamics.ground_friction), (20.0, 5.0));
+        let actual = velocity + world.get::<TnuaMotor>(character).unwrap().lin.boost;
+        let expected = Vec3::new(0.9902344, 0.0, 1.8872353);
+        assert!(actual.distance(expected) < 1e-5, "Source tail-step motor velocity: {actual:?} != {expected:?}");
+        assert_eq!(world.get::<AlsCmcAdapterRuntime>(character).unwrap().simulation_substeps, 2);
+        assert_eq!(world.get::<LinearVelocity>(character).unwrap().0, velocity);
+        assert_eq!(world.get::<AlsMovementBaseDynamicsState>(character).unwrap().pre_collision_velocity, Some(actual));
+    }
+
+    #[test]
+    fn source_cmc_outer_budget_is_independent_of_braking_settings() {
+        for (delta, max_step, iterations, factor, expected_steps) in [
+            (0.0, 0.05, 8, 0.0, 0), (0.0000001, 0.05, 8, 0.0, 0),
+            (0.000001, 0.05, 8, 0.0, 1), (0.075, 0.05, 8, 0.0, 2),
+            (0.075, 0.05, 8, 3.0, 2), (0.075, 0.05, 1, 3.0, 1),
+            (0.075, 0.05, 0, 3.0, 0), (0.12, 0.05, 8, 0.0, 3),
+            (0.00012, 0.00005, 8, 0.0, 3),
+        ] {
+            let cmc = CmcAdapterParams { max_simulation_time_step: max_step,
+                max_simulation_iterations: iterations, ..default() };
+            let dynamics = GroundedDynamics { acceleration: 0.0, braking_deceleration: 0.0, ground_friction: 0.0 };
+            let (actual, steps) = simulate_grounded_velocity_with_braking_friction(
+                Vec3::X, Vec3::ZERO, 6.5, dynamics, &cmc, factor, delta);
+            assert_eq!(steps, expected_steps, "Source outer budget: delta={delta} max={max_step} iterations={iterations} factor={factor}");
+            assert_eq!(actual, Vec3::X);
+        }
     }
 
     #[test]
