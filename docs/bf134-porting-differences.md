@@ -50,6 +50,14 @@ fresh IA_Als_Look 使用 ScaleByDeltaTime、禁止暂停触发；UE EnhancedPlay
 
 最终target_game/play预构建144.005秒通过，startup/Camera 11/11/Head 14/14/AnimationClock 7/7/StandingTurn 11/11公共功能Gate均通过，ready=true、graph/primary/fault/temporal异常全零；证据 `target/animation_visual/bf134/01d/{startup,camera,head,animation_clock,standing_turn}`。source hashes、root ABI/layout/editor/资产边界通过；图/资产/转换器未变，全量生成diff=0仍有效。状态：已修复并验收，单独提交；截图关闭，完整性能max_eval_p95_ms失败未核销。临时批处理误用空LASTEXITCODE造成未执行场景，已按逐份success报告核对并补齐，不能把批处理退出0当全场景通过。
 
+### BF134.01E — P2：view pitch 范围和绕回与原生 CameraManager 不符
+
+当次原生Controller的PlayerCameraManagerClass=None、父类为PlayerController，12图/179节点无pitch/manager/modifier覆盖；UE SpawnPlayerCameraManager回退原生类。当次native CDO的ViewPitchMin/Max为±89.900002度（源89.9f的导出值），ProcessViewRotation经ClampAngle归一化到(-180,180]再限制对称范围。Target常量±85且直接线性clamp，实际87度被截为85，大幅鼠标输入的绕回方向也错误。旧单元测试从同一个target常量重算期望，200度错误方向亦被断言为正确。
+
+实际MouseMotion→Action→view先在87度稳定red；仅修正范围后-180度再次red，源为+89.9而旧target为-89.9。离线工具从两份fresh原生记录生成原字段，现有clamp复用标准库余数和两条源绕回分支，无新配置module/资源/state/cache。15 input/6 view通过，含范围两侧、±180、±200、整圈与多圈及鼠标下一帧清零。实际函数的独立标准库fixture在移除源值、remainder或任一绕回分支时分别语义失败，源码未变；源字段唯一性消融亦稳定拒绝重复缺口。source hashes、root ABI/layout/editor/boundary与常量check通过，图/图转换器/共享规则/资产未变。
+
+最终target_game/play预构建156.307秒成功，公共startup（15.727秒）、Camera 11/11（20.292秒）、Head 14/14（22.093秒）功能Gate均通过，ready=true、graph/primary/fault/temporal异常零；证据 `target/animation_visual/bf134/01e/{startup,camera,head}`。状态：已修复并验收、单独提交。五份focused fixture的不同hash与实际source hash未变已核对，实际入口单独验证；原始记录不变，15/39/374完整生成diff=0证据继续有效。截图关闭，完整性能max_eval_p95_ms失败保留，未核销性能验收。
+
 ## 待反例核对的源差异
 
-当前执行清单 BF134.01E–H 已登记 view pitch 限制、CMC/braking 子步、输入有效性/阻塞和 gamepad 二维 dead-zone 归属。它们已有具体 source-target 链，尚未通过本轮最小反例与修复 Gate，不计作已完成项。其余模块仍按覆盖表继续核对；本轮四项完成不代表全范围目标已完成。
+当前执行清单 BF134.01F–H 已登记 CMC/braking 子步、输入有效性/阻塞和 gamepad 二维 dead-zone 归属。它们已有具体 source-target 链，尚未通过本轮最小反例与修复 Gate，不计作已完成项。其余模块仍按覆盖表继续核对；本轮五项完成不代表全范围目标已完成。

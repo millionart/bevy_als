@@ -889,6 +889,35 @@ mod tests {
     }
 
     #[test]
+    fn mouse_pitch_preserves_source_camera_limits_and_winding() {
+        use crate::als::character::AlsCharacter;
+        use crate::als::motion::AlsViewYaw;
+        use crate::als::view::{AlsViewInputPlugin, AlsViewPitch};
+        use bevy::input::{InputPlugin, mouse::MouseMotion};
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, InputPlugin, EnhancedInputPlugin, AlsInputPlugin, AlsViewInputPlugin));
+        app.finish();
+        let character = app.world_mut().spawn((AlsCharacter, AlsViewYaw(0.0), AlsViewPitch(0.0))).id();
+        spawn_als_actions(&mut app.world_mut().commands(), character, &AlsInputMap::default());
+        app.update();
+        for (degrees, expected) in [
+            (87.0, 87.0_f32), (-87.0, -87.0), (89.9, 89.9), (-89.9, -89.9),
+            (90.0, 89.9), (-90.0, -89.9), (179.0, 89.9), (-179.0, -89.9),
+            (180.0, 89.9), (-180.0, 89.9), (200.0, -89.9), (-200.0, 89.9),
+            (360.0, 0.0), (400.0, 40.0), (-400.0, -40.0), (720.0, 0.0),
+        ] {
+            app.world_mut().get_mut::<AlsViewPitch>(character).unwrap().0 = 0.0;
+            app.world_mut().write_message(MouseMotion { delta: Vec2::new(0.0, -degrees) });
+            app.update();
+            let actual = app.world().get::<AlsViewPitch>(character).unwrap().0;
+            assert!((actual - expected.to_radians()).abs() < 1e-6,
+                "Source pitch for {degrees} degrees: expected {expected}, actual {}", actual.to_degrees());
+        }
+        app.update();
+        assert_eq!(app.world().get::<AlsInputCommand>(character).unwrap().look_delta, Vec2::ZERO);
+    }
+
+    #[test]
     fn opposing_keys_preserve_source_maximum_magnitude_and_mapping_order() {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, EnhancedInputPlugin, AlsInputPlugin));

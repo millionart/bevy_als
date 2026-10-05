@@ -4,7 +4,7 @@ use crate::als::character::AlsCharacter;
 use crate::als::input::AlsInputCommand;
 use crate::als::motion::{AlsInputOverride, AlsViewYaw};
 
-pub const PITCH_LIMIT_DEGREES: f32 = 85.0;
+pub const PITCH_LIMIT_DEGREES: f32 = 89.900002;
 pub const LOOK_HALF_LIFE_SECONDS: f32 = 0.08;
 pub const LOOK_MOUSE_RADIANS_PER_COUNT: f32 = std::f32::consts::PI / 180.0;
 pub const LOOK_UP_MOUSE_SENSITIVITY: f32 = 1.0;
@@ -74,7 +74,13 @@ impl Plugin for AlsViewInputPlugin {
 
 pub fn clamp_pitch(pitch_radians: f32) -> f32 {
     let limit = PITCH_LIMIT_DEGREES.to_radians();
-    pitch_radians.clamp(-limit, limit)
+    let mut pitch = pitch_radians % std::f32::consts::TAU;
+    if pitch > std::f32::consts::PI {
+        pitch -= std::f32::consts::TAU;
+    } else if pitch <= -std::f32::consts::PI {
+        pitch += std::f32::consts::TAU;
+    }
+    pitch.clamp(-limit, limit)
 }
 
 pub fn damp_view(current: f32, target: f32, half_life_seconds: f32, dt: f32) -> f32 {
@@ -97,11 +103,11 @@ mod tests {
     fn pitch_clamps_to_limit() {
         assert_eq!(
             clamp_pitch(200.0_f32.to_radians()),
-            PITCH_LIMIT_DEGREES.to_radians()
+            -89.9_f32.to_radians()
         );
         assert_eq!(
             clamp_pitch(-200.0_f32.to_radians()),
-            -PITCH_LIMIT_DEGREES.to_radians()
+            89.9_f32.to_radians()
         );
         assert!((clamp_pitch(0.5) - 0.5).abs() < 1e-6);
     }
@@ -111,7 +117,7 @@ mod tests {
         assert!((view_pitch_norm(PITCH_LIMIT_DEGREES.to_radians()) - 1.0).abs() < 1e-6);
         assert!((view_pitch_norm(-PITCH_LIMIT_DEGREES.to_radians()) + 1.0).abs() < 1e-6);
         assert!(view_pitch_norm(0.0).abs() < 1e-6);
-        let over = view_pitch_norm(400.0_f32.to_radians());
+        let over = view_pitch_norm(100.0_f32.to_radians());
         assert!((over - 1.0).abs() < 1e-6);
     }
 
