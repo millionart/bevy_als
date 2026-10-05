@@ -6,9 +6,9 @@ use crate::als::character::{AlsCharacter, AlsCmcAdapterRuntime, AlsMovementParam
 use crate::als::control_scheme::AlsControlScheme;
 use crate::als::gait::{AlsGaitAmount, AlsMaxAllowedGait, calculate_gait_amount_for_thresholds};
 use crate::als::movement_constants::{BRAKE_TO_STOP_VELOCITY, BRAKING_SMALL_VELOCITY_SQUARED, MAX_SPEED_SQUARED_RATIO, MIN_MOVEMENT_DELTA_SECONDS};
-use crate::als::input::AlsInputCommand;
+use crate::actual_motion::AlsActualMotion;
 use crate::als::mantle::AlsMantleState;
-use crate::als::motion::{AlsInputOverride, AlsViewYaw};
+use crate::als::motion::AlsViewYaw;
 use crate::als::params::{AlsMovementParams, CmcAdapterParams, GroundedDynamics};
 use crate::als::roll::AlsRollState;
 use crate::als::state::{Gait, LocomotionState, RotationMode, Stance};
@@ -324,8 +324,7 @@ fn landing_braking_friction_system(
     mut q: Query<
         (
             &LocomotionState,
-            &AlsInputCommand,
-            Option<&AlsInputOverride>,
+            &AlsActualMotion,
             Option<&AlsRollState>,
             Option<&AlsMantleState>,
             &mut AlsLandingBrakingFriction,
@@ -333,12 +332,11 @@ fn landing_braking_friction_system(
         With<AlsCharacter>,
     >,
 ) {
-    for (locomotion, input, input_override, roll, mantle, mut braking) in &mut q {
-        let effective_input = input_override.map_or(input, |input| &input.0);
+    for (locomotion, motion, roll, mantle, mut braking) in &mut q {
         update_landing_braking_friction(
             &mut braking,
             *locomotion,
-            effective_input.move_dir.length_squared() > 1e-6,
+            motion.has_input,
             roll.is_some_and(|state| state.active) || mantle.is_some_and(|state| state.active),
             time.delta_secs(),
         );
@@ -574,6 +572,59 @@ impl Plugin for AlsGroundedDynamicsPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn landing_braking_reads_retained_character_input_before_the_owner_refresh() {
+        use bevy::ecs::system::RunSystemOnce;
+        use crate::als::{input::AlsInputCommand, motion::AlsInputOverride};
+        let mut world = World::new();
+        let mut time = Time::<()>::default();
+        time.advance_by(std::time::Duration::from_secs_f32(0.05));
+        world.insert_resource(time);
+        let mut value = AlsMovementParams::default();
+        value.cmc.max_simulation_iterations = 1;
+        let mut params = Assets::<AlsMovementParams>::default();
+        let handle = params.add(value);
+        world.insert_resource(params);
+        let velocity = Vec3::X * 3.75;
+        let character = world.spawn((
+            AlsCharacter, LocomotionState::Grounded, Stance::Standing, RotationMode::ViewDirection,
+            AlsViewYaw::default(), AlsMaxAllowedGait(Gait::Walking), AlsGroundedDynamics::default(),
+            AlsGaitAmount::default(), Position(Vec3::Y * 0.92), LinearVelocity(velocity),
+            AlsMovementParamsHandle(handle), TnuaController::<AlsControlScheme>::default(),
+            TnuaMotor::default(), AlsCmcAdapterRuntime::default(),
+        )).id();
+        for (retained_input, command, override_input, expected_factor) in [
+            (true, Vec2::ZERO, None, 0.5_f32),
+            (false, Vec2::Y, None, 3.0),
+            (true, Vec2::Y * 0.0002, None, 0.5),
+            (false, Vec2::Y, Some(Vec2::ZERO), 3.0),
+            (true, Vec2::Y, Some(Vec2::ZERO), 0.5),
+            (false, Vec2::ZERO, Some(Vec2::Y), 3.0),
+            (true, Vec2::Y, None, 0.5),
+            (false, Vec2::ZERO, None, 3.0),
+        ] {
+            world.entity_mut(character).insert((
+                AlsActualMotion { has_input: retained_input, ..default() },
+                AlsInputCommand { move_dir: command, ..default() },
+                AlsLandingBrakingFriction { previous_locomotion: LocomotionState::Air, ..default() },
+            ));
+            if let Some(move_dir) = override_input {
+                world.entity_mut(character).insert(AlsInputOverride(AlsInputCommand { move_dir, ..default() }));
+            } else {
+                world.entity_mut(character).remove::<AlsInputOverride>();
+            }
+            world.run_system_once(landing_braking_friction_system).unwrap();
+            if retained_input && command == Vec2::ZERO && override_input.is_none() {
+                world.run_system_once(grounded_dynamics_motor_system).unwrap();
+                let actual = velocity + world.get::<TnuaMotor>(character).unwrap().lin.boost;
+                assert!(actual.distance(Vec3::X * 2.775) < 1e-5,
+                    "Landing release must keep the source input factor and 2.775 m/s: {actual:?}");
+            }
+            assert_eq!(world.get::<AlsLandingBrakingFriction>(character).unwrap().factor, expected_factor,
+                "Landing input differs: retained={retained_input}, command={command:?}, override={override_input:?}");
+        }
+    }
 
     #[test]
     fn airborne_motor_preserves_momentum_while_applying_input_acceleration() {

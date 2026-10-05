@@ -86,7 +86,7 @@ source/static/ABI/layout/editor/boundary闭合；target_game/play最终正常优
 
 ## 待反例核对的源差异
 
-BF134.01G1已修复并验收；G2/H仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复八项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
+BF134.01G1/G2a已修复并验收；G2其他consumer/H仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复九项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
 
 ### BF134.01G1 — P2：动画输入绕过已消费状态
 
@@ -97,3 +97,11 @@ Target locomotion_drive 已清零阻塞输入，AlsActualMotion 已记录该实�
 候选14项provider回归通过（84.597秒），新的实际角色夹具保留阻塞前后的输入方向、override清零/细小值和世界角度；第一次45度检查因相机producer覆盖手工PlayerView而失败，已设置真正的view输入后重跑，不把夹具误设当source差异。分别删除消费标志和保留方向，两次实际consumer消融81.817/81.780秒均稳定exit101，三个不同source hash及最终byte/mtime恢复已核对；没有新增状态、helper、缓存或适配层。最终14项恢复回归81.357秒通过，最终manifest source hashes/root ABI/layout/editor/runtime asset boundary通过（2.397秒）。
 
 当前启动器target_game/play正常优化预构建150.885秒成功，公共startup15.799秒、Grounded15/15（42.562秒）、StandingResponse6/6（20.011秒）功能Gate全部通过，ready=true、graph/primary/fault/temporal零，证据 `target/animation_visual/bf134/01g1/{startup,grounded,standing_response}`。状态：已修复并验收，G1单独提交，parent G及全范围继续；S1实际00:56:12/偏差−19分48秒，S2实际01:04/偏差−12分钟。原始记录、图和共享转换规则不变，完整15/39/374生成diff=0仍有效。截图关闭及完整max_eval_p95_ms失败保留，不宣称性能验收。
+
+### BF134.01G2a — P2：着地制动读取了错误帧的输入
+
+fresh角色原生读取37.562秒，CharMoveComp的bTickBeforeOwner=True；当次UE MovementComponent注册owner Tick对CMC的prerequisite。ALS着地通知在CMC内部读LocomotionState.bHasInput选factor0.5/3，之后owner RefreshInput才更新该状态。Target landing系统却重读当帧raw/override并用平方1e-6门槛，上一轮ActualMotion.has_input已有角色消费结果。着地同时松开输入、初速3.75m/s/50ms，实际landing→motor输出1.3062501m/s，源应保留factor0.5输出2.775m/s，最小反例80.132秒稳定exit101。
+
+BF102.18已有限复开；旧Gate只给window helper直接传bool，未验证输入来源/阶段。候选已删除raw query及额外门槛，复用既有快照，没有新状态/helper/adapter；20项dynamics回归78.650秒通过，八组前帧状态/当前按键/override/细小输入边界及实际motor、旧窗口/预测与F1/F2/base/air控制覆盖。source hashes/root ABI/layout/editor/runtime-boundary通过（2.420秒）。状态：已修复并验收，G2a独立提交；G2其他consumer及全范围未核销。
+
+消融移除/强制保留输入77.995/78.823秒，分别在源速度/源factor断言稳定exit101，三个不同hash与byte/mtime恢复已核对。恢复后20项运动回归77.941秒、真实motor→snapshot→writer集成1.365秒通过；该状态的actual producer亦覆盖。S1开始01:12、预估01:37、实际01:26:12、偏差−10分48秒成功；最终target_game/play正常优化预构建149.405秒成功；startup15.558秒、Grounded15/15（42.860秒）与原variable UphillJump6/6（36.289秒）全部功能Gate通过，ready=true、graph/primary/fault/temporal零，证据 `target/animation_visual/bf134/01g2a/{startup,grounded,uphill_jump}`。S2开始01:26、预估01:41、实际01:33、偏差−8分钟成功，BF102.18有限复开已重新核销。图/共享转换/资产和原始记录未变，已有15/39/374完整生成diff=0有效；截图关闭、完整max_eval_p95_ms失败保留，不核销性能或其他输入consumer。
