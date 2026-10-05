@@ -938,4 +938,41 @@ mod tests {
             assert_eq!(command.look_rate, -expected, "Source look component winner for stick={stick}");
         }
     }
+
+    #[test]
+    fn look_rate_uses_source_nondilated_time_and_rejects_paused_actions() {
+        use crate::als::character::AlsCharacter;
+        use crate::als::motion::AlsViewYaw;
+        use crate::als::view::{AlsViewInputPlugin, AlsViewPitch};
+        use bevy::input::{InputPlugin, mouse::MouseMotion};
+        use bevy::time::TimeUpdateStrategy;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, InputPlugin, EnhancedInputPlugin, AlsInputPlugin, AlsViewInputPlugin))
+            .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.1)));
+        app.finish();
+        let character = app.world_mut().spawn((AlsCharacter, AlsViewYaw(0.0), AlsViewPitch(0.0))).id();
+        spawn_als_actions(&mut app.world_mut().commands(), character, &AlsInputMap::default());
+        app.update();
+        for speed in [1.0, 0.15, 2.0, 0.0] {
+            app.world_mut().resource_mut::<Time<Virtual>>().set_relative_speed(speed);
+            app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::ArrowRight);
+            app.world_mut().write_message(MouseMotion { delta: Vec2::new(4.0, -2.0) });
+            app.world_mut().entity_mut(character).insert((AlsViewYaw(0.0), AlsViewPitch(0.0)));
+            app.update();
+            assert!((app.world().get::<AlsViewYaw>(character).unwrap().0 + 28.0_f32.to_radians()).abs() < 1e-6, "Source view Delta for speed={speed}");
+            assert!((app.world().get::<AlsViewPitch>(character).unwrap().0 - 2.0_f32.to_radians()).abs() < 1e-6);
+        }
+        app.world_mut().resource_mut::<Time<Virtual>>().set_max_delta(std::time::Duration::from_secs_f32(0.05));
+        app.world_mut().resource_mut::<Time<Virtual>>().set_relative_speed(0.15);
+        app.world_mut().entity_mut(character).insert((AlsViewYaw(0.0), AlsViewPitch(0.0)));
+        app.world_mut().write_message(MouseMotion { delta: Vec2::new(4.0, -2.0) });
+        app.update();
+        assert!((app.world().get::<AlsViewYaw>(character).unwrap().0 + 16.0_f32.to_radians()).abs() < 1e-6, "Source nondilated input must preserve the effective frame clamp");
+        app.world_mut().resource_mut::<Time<Virtual>>().pause();
+        app.world_mut().entity_mut(character).insert((AlsViewYaw(0.0), AlsViewPitch(0.0)));
+        app.world_mut().write_message(MouseMotion { delta: Vec2::new(4.0, -2.0) });
+        app.update();
+        assert_eq!(app.world().get::<AlsViewYaw>(character).unwrap().0, 0.0);
+        assert_eq!(app.world().get::<AlsViewPitch>(character).unwrap().0, 0.0);
+    }
 }

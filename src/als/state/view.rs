@@ -36,7 +36,8 @@ pub fn look_delta_radians(command: &AlsInputCommand, dt: f32) -> Vec2 {
 }
 
 pub fn apply_view_input_system(
-    time: Res<Time>,
+    time: Res<Time<Real>>,
+    virtual_time: Res<Time<Virtual>>,
     mut characters: Query<
         (
             &mut AlsViewYaw,
@@ -47,11 +48,17 @@ pub fn apply_view_input_system(
         With<AlsCharacter>,
     >,
 ) {
+    if virtual_time.is_paused() { return; }
+    let delta_seconds = if virtual_time.effective_speed() == 0.0 {
+        time.delta_secs()
+    } else {
+        virtual_time.delta_secs() / virtual_time.effective_speed()
+    };
     for (mut yaw, mut pitch, command, override_command) in &mut characters {
         let effective = override_command
             .map(|override_command| &override_command.0)
             .unwrap_or(command);
-        let delta = look_delta_radians(effective, time.delta_secs());
+        let delta = look_delta_radians(effective, delta_seconds);
         yaw.0 -= delta.x;
         pitch.0 = clamp_pitch(pitch.0 - delta.y);
     }

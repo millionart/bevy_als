@@ -11772,7 +11772,13 @@ mod tests {
                 let mut app = App::new();
                 let mut time = Time::<()>::default();
                 time.advance_by(Duration::from_secs_f32(dt));
+                let mut real_time = Time::<Real>::default();
+                real_time.advance_by(Duration::from_secs_f32(dt));
+                let mut virtual_time = Time::<Virtual>::default();
+                virtual_time.advance_by(Duration::from_secs_f32(dt));
                 app.insert_resource(time)
+                    .insert_resource(real_time)
+                    .insert_resource(virtual_time)
                     .add_plugins(crate::als::transition::AlsStateTransitionPlugin)
                     .add_message::<crate::als::aim::AimStateChanged>()
                     .add_systems(Update, (

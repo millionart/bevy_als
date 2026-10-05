@@ -91,7 +91,8 @@ fn inject_look_input(
 fn verify_look_input(
     mut state: ResMut<GateState>,
     characters: Query<(&AlsInputCommand, &AlsViewYaw, &AlsViewPitch), With<AlsCharacter>>,
-    time: Res<Time>,
+    time: Res<Time<Real>>,
+    virtual_time: Res<Time<Virtual>>,
     mut exit: MessageWriter<AppExit>,
 ) {
     let Ok((command, yaw, pitch)) = characters.single() else {
@@ -101,7 +102,12 @@ fn verify_look_input(
         if command.look_delta == Vec2::ZERO && command.look_rate == Vec2::ZERO {
             return;
         }
-        let delta = look_delta_radians(command, time.delta_secs());
+        let nondilated_delta = if virtual_time.effective_speed() == 0.0 {
+            time.delta_secs()
+        } else {
+            virtual_time.delta_secs() / virtual_time.effective_speed()
+        };
+        let delta = look_delta_radians(command, nondilated_delta);
         let active_pass = (yaw.0 + delta.x).abs() < 1e-5
             && (pitch.0 + delta.y).abs() < 1e-5
             && command.look_delta == Vec2::new(4.0, -2.0)

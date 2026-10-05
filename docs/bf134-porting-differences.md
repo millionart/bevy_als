@@ -44,6 +44,12 @@ fresh Move/Look 均为 TakeHighestAbsoluteValue。UE 普通映射保持资产顺
 
 最终同启动器构建 146.414 秒，startup/Interface 15/15/Grounded 15/15 公共功能 Gate 通过，图/primary/fault/temporal 异常全零；证据 `target/animation_visual/bf134/01c/{startup,interface,grounded}`。源码 hashes、root ABI/layout/editor/资产边界通过，图/资产/converter 未变；完整生成 diff=0 证据仍有效。状态：已修复并单独提交；截图/完整性能原暂停范围保留，max_eval_p95_ms 失败未核销。
 
+### BF134.01D — P2：rate Look 使用缩放时钟
+
+fresh IA_Als_Look 使用 ScaleByDeltaTime、禁止暂停触发；UE EnhancedPlayerInput 将当前游戏 Delta 除以 effective dilation 后传给 modifier，零 dilation 以 RealTimeDeltaSeconds 回退。Target view 使用游戏 Delta，导致0.15 Slomo时同样真实输入角度只有源0.15倍。真实 Action→bridge→view 反例先red，再按源完整公式消费现有 Virtual/Real；直接用Real的初版会绕过有效帧clamp，追加失败反例后删除该简化。暂停时不消费Look/Mouse（source两Action均禁止暂停触发），零速未暂停仍沿源回退。普通/0.15/2/0速、clamp、鼠标独立与暂停控制通过；unscale/pause/zero-dilation三消融分别red，byte/mtime恢复后14 input/6 view/Turn驱动夹具green。无新clock/cache/state/依赖，两个旧caller迁移真实资源/期望，look_input_gate同入口profile编译通过。
+
+最终target_game/play预构建144.005秒通过，startup/Camera 11/11/Head 14/14/AnimationClock 7/7/StandingTurn 11/11公共功能Gate均通过，ready=true、graph/primary/fault/temporal异常全零；证据 `target/animation_visual/bf134/01d/{startup,camera,head,animation_clock,standing_turn}`。source hashes、root ABI/layout/editor/资产边界通过；图/资产/转换器未变，全量生成diff=0仍有效。状态：已修复并验收，单独提交；截图关闭，完整性能max_eval_p95_ms失败未核销。临时批处理误用空LASTEXITCODE造成未执行场景，已按逐份success报告核对并补齐，不能把批处理退出0当全场景通过。
+
 ## 待反例核对的源差异
 
-当前执行清单 BF134.01D–H 已登记 rate Look 非缩放时钟、view pitch 限制、CMC/braking 子步、输入有效性/阻塞和 gamepad 二维 dead-zone 归属。它们已有具体 source-target 链，尚未通过本轮最小反例与修复 Gate，不计作已完成项。其余模块仍按覆盖表继续核对；本轮三项完成不代表全范围目标已完成。
+当前执行清单 BF134.01E–H 已登记 view pitch 限制、CMC/braking 子步、输入有效性/阻塞和 gamepad 二维 dead-zone 归属。它们已有具体 source-target 链，尚未通过本轮最小反例与修复 Gate，不计作已完成项。其余模块仍按覆盖表继续核对；本轮四项完成不代表全范围目标已完成。
