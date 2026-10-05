@@ -38,6 +38,12 @@
 - 真实入口：最终正常优化 `target_game/play` 构建 145.414 秒；startup、Camera 11/11、Head 14/14、StandingTurn 11/11 功能 Gate 通过，graph/primary/fault/temporal 异常为零。证据：`target/animation_visual/bf134/01b/{startup,camera,head,standing_turn}`。截图关闭，完整 max_eval_p95_ms 失败仍保留。
 - 状态：已修复、验收并单独提交。图、生成器和资产未改，BF134.01A 的全量生成树证据继续有效；manifest 首次空 graph 的 schema 失败已纠正并通过，不修改验证器。
 
+### BF134.01C — P2：输入累加与平值映射优先级
+
+fresh Move/Look 均为 TakeHighestAbsoluteValue。UE 普通映射保持资产顺序，逐轴 `>=` 接受后者；Bevy 默认 Cumulative 把相反键归零，其公开 MaxAbs 用 `<` 保留前者。真实 W+S 反例旧值 `(0,0)`、源期望 `(0,-1)` 稳定 red。使用现有 ActionSettings::MaxAbs 并反向排列 source 对应的绑定，13 项真实输入回归通过，包括所有相反键、两轴组合、键盘/手柄强弱竞争和平值；鼠标、普通按键、清零/Shift/trigger 控制保留。移除 accumulation、恢复旧绑定顺序分别 11 pass/2 semantic fail，byte/mtime 恢复后13 green；没有新 evaluator、消息、状态缓存或依赖修改。首次把 Bundle 当 SpawnableList、测试多余 Into 两编译错误，以及只读 stderr 而漏掉 stdout panic 的摘要错误均已纠正，不计新语义反例。
+
+最终同启动器构建 146.414 秒，startup/Interface 15/15/Grounded 15/15 公共功能 Gate 通过，图/primary/fault/temporal 异常全零；证据 `target/animation_visual/bf134/01c/{startup,interface,grounded}`。源码 hashes、root ABI/layout/editor/资产边界通过，图/资产/converter 未变；完整生成 diff=0 证据仍有效。状态：已修复并单独提交；截图/完整性能原暂停范围保留，max_eval_p95_ms 失败未核销。
+
 ## 待反例核对的源差异
 
-当前执行清单 BF134.01C–G 已登记 Action 累加/平值顺序、rate Look 非缩放时钟、view pitch 限制、CMC/braking 子步和输入有效性/阻塞归属。它们已有具体 source-target 链，尚未通过本轮最小反例与修复 Gate，不计作已完成项。其余模块仍按覆盖表继续核对；本轮两项完成不代表全范围目标已完成。
+当前执行清单 BF134.01D–H 已登记 rate Look 非缩放时钟、view pitch 限制、CMC/braking 子步、输入有效性/阻塞和 gamepad 二维 dead-zone 归属。它们已有具体 source-target 链，尚未通过本轮最小反例与修复 Gate，不计作已完成项。其余模块仍按覆盖表继续核对；本轮三项完成不代表全范围目标已完成。

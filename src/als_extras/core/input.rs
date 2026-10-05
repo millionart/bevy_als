@@ -200,12 +200,14 @@ pub fn spawn_als_actions(cmds: &mut Commands, player: Entity, map: &AlsInputMap)
         actions!(OnFoot[
             (
                 Action::<MoveAction>::new(),
+                ActionSettings { accumulation: Accumulation::MaxAbs, ..default() },
                 Bindings::spawn((
-                    Bidirectional::new(map.move_east, map.move_west),
-                    Bidirectional::new(map.move_north, map.move_south)
-                        .with(SwizzleAxis::YXZ),
                     Axial::new(map.move_stick[0], map.move_stick[1])
                         .with(DeadZone::default()),
+                    Spawn(map.move_east),
+                    Spawn((map.move_south, SwizzleAxis::YXZ, Negate::all())),
+                    Spawn((map.move_west, Negate::all())),
+                    Spawn((map.move_north, SwizzleAxis::YXZ)),
                 )),
             ),
             (
@@ -214,11 +216,14 @@ pub fn spawn_als_actions(cmds: &mut Commands, player: Entity, map: &AlsInputMap)
             ),
             (
                 Action::<LookAction>::new(),
+                ActionSettings { accumulation: Accumulation::MaxAbs, ..default() },
                 Bindings::spawn((
-                    Bidirectional::new(map.look_right, map.look_left),
-                    Bidirectional::new(map.look_down, map.look_up).with(SwizzleAxis::YXZ),
                     Axial::new(map.look_stick[0], map.look_stick[1])
                         .with(DeadZone::default()),
+                    Spawn(map.look_right),
+                    Spawn((map.look_down, SwizzleAxis::YXZ)),
+                    Spawn((map.look_left, Negate::all())),
+                    Spawn((map.look_up, SwizzleAxis::YXZ, Negate::all())),
                 )),
             ),
             (
@@ -881,5 +886,56 @@ mod tests {
         app.update();
         assert_eq!(app.world().get::<AlsInputCommand>(character).unwrap().look_delta, Vec2::ZERO);
         assert!((app.world().get::<AlsViewYaw>(character).unwrap().0 + 12.0_f32.to_radians()).abs() < 1e-6);
+    }
+
+    #[test]
+    fn opposing_keys_preserve_source_maximum_magnitude_and_mapping_order() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, EnhancedInputPlugin, AlsInputPlugin));
+        app.finish();
+        let player = app.world_mut().spawn_empty().id();
+        spawn_als_actions(&mut app.world_mut().commands(), player, &AlsInputMap::default());
+        app.update();
+        for (keys, movement, look) in [
+            (vec![KeyCode::KeyW, KeyCode::KeyS], Vec2::NEG_Y, Vec2::ZERO),
+            (vec![KeyCode::KeyA, KeyCode::KeyD], Vec2::X, Vec2::ZERO),
+            (vec![KeyCode::KeyW, KeyCode::KeyA, KeyCode::KeyS, KeyCode::KeyD], Vec2::new(1.0, -1.0), Vec2::ZERO),
+            (vec![KeyCode::ArrowUp, KeyCode::ArrowDown], Vec2::ZERO, Vec2::Y),
+            (vec![KeyCode::ArrowLeft, KeyCode::ArrowRight], Vec2::ZERO, Vec2::X),
+            (vec![KeyCode::ArrowUp, KeyCode::ArrowLeft, KeyCode::ArrowDown, KeyCode::ArrowRight], Vec2::ZERO, Vec2::ONE),
+            (vec![], Vec2::ZERO, Vec2::ZERO),
+        ] {
+            let mut pressed = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+            pressed.release_all();
+            for key in &keys { pressed.press(*key); }
+            app.update();
+            let command = app.world().get::<AlsInputCommand>(player).unwrap();
+            assert_eq!(command.move_dir, movement, "Source movement priority for {keys:?}");
+            assert_eq!(command.look_rate, look, "Source look priority for {keys:?}");
+        }
+    }
+
+    #[test]
+    fn gamepad_and_keyboard_preserve_source_component_winners_and_ties() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, EnhancedInputPlugin, AlsInputPlugin));
+        app.finish();
+        let player = app.world_mut().spawn_empty().id();
+        let gamepad = app.world_mut().spawn(Gamepad::default()).id();
+        spawn_als_actions(&mut app.world_mut().commands(), player, &AlsInputMap::default());
+        app.update();
+        for (stick, expected) in [(-0.5, Vec2::Y), (-1.0, Vec2::NEG_Y), (0.5, Vec2::Y)] {
+            let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+            keys.release_all();
+            keys.press(KeyCode::KeyW);
+            keys.press(KeyCode::ArrowUp);
+            let mut device = app.world_mut().get_mut::<Gamepad>(gamepad).unwrap();
+            device.analog_mut().set(GamepadAxis::LeftStickY, stick);
+            device.analog_mut().set(GamepadAxis::RightStickY, -stick);
+            app.update();
+            let command = app.world().get::<AlsInputCommand>(player).unwrap();
+            assert_eq!(command.move_dir, expected, "Source move component winner for stick={stick}");
+            assert_eq!(command.look_rate, -expected, "Source look component winner for stick={stick}");
+        }
     }
 }
