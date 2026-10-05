@@ -86,4 +86,14 @@ source/static/ABI/layout/editor/boundary闭合；target_game/play最终正常优
 
 ## 待反例核对的源差异
 
-BF134.01G/H仍登记输入有效性/阻塞和gamepad二维dead-zone归属，尚未通过本轮修复Gate；不计已完成。当前已修复七项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
+BF134.01G1已修复并验收；G2/H仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复八项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
+
+### BF134.01G1 — P2：动画输入绕过已消费状态
+
+当次 ALS ConsumeInputVector 在 bInputBlocked 时返回零；Character.RefreshInput 从实际 CMC acceleration 获取并归一化 InputDirection，再生成 bHasInput 和保留世界方向。AnimationInstance.RefreshLocomotionOnGameThread 直接复制角色状态，不重新读取按键。fresh角色原生读取82.632秒成功，相关三份CPP当次快照与SHA已保存。
+
+Target locomotion_drive 已清零阻塞输入，AlsActualMotion 已记录该实际basis及停止保向，provider却用raw command/override重新判定并计算方向；同一帧角色无输入而动画有输入，可达生成FSM/locomotion/head consumer。实际loaded角色的按键Y+阻塞，经motor、快照与writer后，快照has_input=false、动画true，最小测试92.415秒稳定exit101。旧测试只验证raw helper/override，漏掉消费阶段。已复用现有has_input/input_yaw_degrees，删除两个raw helper、相关query字段和player重复保向分支；G2的角色/CMC门槛与其他consumer独立待核对。
+
+候选14项provider回归通过（84.597秒），新的实际角色夹具保留阻塞前后的输入方向、override清零/细小值和世界角度；第一次45度检查因相机producer覆盖手工PlayerView而失败，已设置真正的view输入后重跑，不把夹具误设当source差异。分别删除消费标志和保留方向，两次实际consumer消融81.817/81.780秒均稳定exit101，三个不同source hash及最终byte/mtime恢复已核对；没有新增状态、helper、缓存或适配层。最终14项恢复回归81.357秒通过，最终manifest source hashes/root ABI/layout/editor/runtime asset boundary通过（2.397秒）。
+
+当前启动器target_game/play正常优化预构建150.885秒成功，公共startup15.799秒、Grounded15/15（42.562秒）、StandingResponse6/6（20.011秒）功能Gate全部通过，ready=true、graph/primary/fault/temporal零，证据 `target/animation_visual/bf134/01g1/{startup,grounded,standing_response}`。状态：已修复并验收，G1单独提交，parent G及全范围继续；S1实际00:56:12/偏差−19分48秒，S2实际01:04/偏差−12分钟。原始记录、图和共享转换规则不变，完整15/39/374生成diff=0仍有效。截图关闭及完整max_eval_p95_ms失败保留，不宣称性能验收。

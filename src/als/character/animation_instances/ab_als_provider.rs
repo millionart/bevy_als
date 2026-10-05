@@ -4,9 +4,8 @@ use crate::als::{
     character::{AlsCharacter, AlsMovementParamsHandle},
     dynamics::{AlsGroundedDynamics, AlsMovementBase},
     foot_ik::AlsFootLockState,
-    input::AlsInputCommand,
     input_request::AlsFirstPersonView,
-    motion::{AlsInputOverride, AlsViewYaw},
+    motion::AlsViewYaw,
     movement_direction::{AlsGroundedMovementIntent, classify_grounded_movement_intent},
     params::AlsMovementParams,
     state::{Gait, RotationMode, Stance},
@@ -124,28 +123,6 @@ fn source_velocity_yaw_angle_view_space(motion: &AlsActualMotion, view_yaw: f32)
     view_space_direction_angle_from_radians(motion.velocity_yaw_degrees, view_yaw)
 }
 
-fn source_has_input(
-    input: Option<&AlsInputCommand>,
-    input_override: Option<&AlsInputOverride>,
-) -> bool {
-    input_override
-        .map(|value| &value.0)
-        .or(input)
-        .is_some_and(|value| value.move_dir.length_squared() > f32::EPSILON)
-}
-
-fn source_input_yaw(
-    input: Option<&AlsInputCommand>,
-    input_override: Option<&AlsInputOverride>,
-    view_yaw: f32,
-) -> Option<f32> {
-    if !source_has_input(input, input_override) { return None; }
-    let input = input_override.map(|value| &value.0).or(input)?;
-    Some(-crate::als::orientation::world_forward_to_yaw(
-        crate::als::motion::view_relative_move_direction(input.move_dir, view_yaw),
-    ).to_degrees())
-}
-
 fn source_locomotion_flags(has_input: bool, speed: f32) -> [(&'static str, bool); 2] {
     [
         (
@@ -238,9 +215,7 @@ fn ab_als_input_writer(
             &Stance,
             &RotationMode,
             &AlsActualMotion,
-            (&AlsViewYaw, Option<&crate::als::view::AlsPlayerViewYaw>),
-            Option<&AlsInputCommand>,
-            Option<&AlsInputOverride>,
+            &AlsViewYaw,
             Option<&AlsMovementBase>,
             Option<&AlsGroundedEntryMode>,
             &Transform,
@@ -264,9 +239,7 @@ fn ab_als_input_writer(
         stance,
         rotation_mode,
         motion,
-        (view_yaw, player_view),
-        input,
-        input_override,
+        view_yaw,
         movement_base,
         grounded_entry_mode,
         transform,
@@ -300,7 +273,7 @@ fn ab_als_input_writer(
                 source_direction_inputs(*rotation_mode, *gait, velocity_yaw_angle_view_space);
             let (yaw_forward, yaw_backward, yaw_left, yaw_right) =
                 standing_rotation_yaw_offsets(-velocity_yaw_angle_view_space);
-            let has_input = source_has_input(input, input_override);
+            let has_input = motion.has_input;
             let view_degrees = crate::als::turn_in_place::wrap_angle_degrees(view_yaw.0.to_degrees());
             let previous_view = player
                 .get_global_input_data("view_state.rotation_yaw")
@@ -315,11 +288,7 @@ fn ab_als_input_writer(
             player.set_global_input_data("view_state.rotation_yaw", view_degrees);
             let body_degrees =
                 crate::als::orientation::world_forward_to_yaw(*transform.forward()).to_degrees();
-            if let Some(yaw) = source_input_yaw(input, input_override, player_view.map_or(view_yaw.0, |view| view.0)) {
-                player.set_global_input_data("locomotion_state.input_yaw_angle_world_space", yaw);
-            } else if player.get_global_input_data("locomotion_state.input_yaw_angle_world_space").is_none() {
-                player.set_global_input_data("locomotion_state.input_yaw_angle_world_space", -body_degrees);
-            }
+            player.set_global_input_data("locomotion_state.input_yaw_angle_world_space", -motion.input_yaw_degrees);
             let action_active = source_inputs.get(instance.player_entity()).ok().and_then(|inputs| inputs.gameplay_tag_input("locomotion_action")).is_some_and(|tag| tag.is_valid());
             if !action_active {
                 player.set_global_input_data(
@@ -478,6 +447,47 @@ fn ab_als_input_writer(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::als::{input::AlsInputCommand, motion::AlsInputOverride};
+
+    #[test]
+    fn animation_input_follows_consumed_motion_through_the_actual_motor_and_writer() {
+        let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        app.world_mut().get_mut::<Transform>(character).unwrap().rotation = Quat::IDENTITY;
+        for (blocked, command, override_input, control_yaw, expected_input, expected_yaw) in [
+            (true, Vec2::Y, None, 0.0_f32, false, 0.0_f32),
+            (false, Vec2::X, None, 0.0, true, 90.0),
+            (true, Vec2::Y, None, 0.0, false, 90.0),
+            (false, Vec2::Y, Some(Vec2::ZERO), 0.0, false, 90.0),
+            (false, Vec2::ZERO, Some(Vec2::X * 0.0002), 0.0, true, 90.0),
+            (false, Vec2::Y, None, 0.0, true, 0.0),
+            (false, Vec2::ZERO, None, 0.0, false, 0.0),
+            (false, Vec2::Y, None, 45.0, true, -45.0),
+        ] {
+            app.world_mut().entity_mut(character).insert((
+                AlsInputCommand { move_dir: command, ..default() }, AlsViewYaw(control_yaw.to_radians()),
+                crate::als::view::AlsPlayerViewYaw(control_yaw.to_radians()),
+            ));
+            if blocked {
+                app.world_mut().entity_mut(character).insert(crate::als::motion::AlsMovementInputBlocked);
+            } else {
+                app.world_mut().entity_mut(character).remove::<crate::als::motion::AlsMovementInputBlocked>();
+            }
+            if let Some(move_dir) = override_input {
+                app.world_mut().entity_mut(character).insert(AlsInputOverride(AlsInputCommand { move_dir, ..default() }));
+            } else {
+                app.world_mut().entity_mut(character).remove::<AlsInputOverride>();
+            }
+            app.update();
+            let motion = app.world().get::<AlsActualMotion>(character).unwrap();
+            assert_eq!(motion.has_input, expected_input, "Consumed motion differs: blocked={blocked}, command={command:?}, override={override_input:?}");
+            let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+            assert_eq!(player.get_global_input_data("locomotion_state.b_has_input").unwrap().as_bool().unwrap(),
+                expected_input, "Animation input differs: blocked={blocked}, command={command:?}, override={override_input:?}");
+            let yaw = player.get_global_input_data("locomotion_state.input_yaw_angle_world_space").unwrap().as_f32().unwrap();
+            assert!((yaw - expected_yaw).abs() < 1e-4, "Consumed input yaw differs: {yaw} != {expected_yaw}");
+        }
+    }
 
     #[test]
     fn animation_input_projection_uses_source_state_through_the_actual_writers() {
@@ -522,6 +532,7 @@ mod tests {
             app.world_mut().entity_mut(character).insert((stance, AlsInputOverride(AlsInputCommand {
                 move_dir: if moving { Vec2::Y } else { Vec2::ZERO }, ..default()
             })));
+            app.world_mut().get_mut::<AlsActualMotion>(character).unwrap().has_input = moving;
             let values = curve_values.unwrap_or([0.0; 5]);
             let curves = curve_values.map(|values| ["PoseStanding", "PoseCrouching", "PoseInAir", "PoseGait", "AllowTransitions"]
                 .into_iter().zip(values).map(|(key, value)| (key.into(), value)).collect()).unwrap_or_default();
@@ -681,15 +692,6 @@ mod tests {
     }
 
     #[test]
-    fn source_input_yaw_uses_current_control_input_and_the_native_yaw_basis() {
-        let input = AlsInputCommand { move_dir: Vec2::Y, ..default() };
-        assert!((source_input_yaw(Some(&input), None, 45.0_f32.to_radians()).unwrap() + 45.0).abs() < 1e-5);
-        let override_input = AlsInputOverride(AlsInputCommand { move_dir: Vec2::X, ..default() });
-        assert!((source_input_yaw(Some(&input), Some(&override_input), 0.0).unwrap() - 90.0).abs() < 1e-5);
-        assert!(source_input_yaw(Some(&AlsInputCommand::default()), None, 1.0).is_none());
-    }
-
-    #[test]
     fn source_locomotion_flags_keep_moving_and_moving_smooth_distinct() {
         assert_eq!(
             source_locomotion_flags(false, 0.75),
@@ -720,25 +722,6 @@ mod tests {
         assert!((inputs[1].1 - 0.583 / (1.5 * 0.55)).abs() < 1e-6);
         assert_eq!(source_crouching_movement_inputs(0.0, 1.0, 1.5)[1].1, 1e-4);
         assert_eq!(source_crouching_movement_inputs(10.0, 1.0, 1.5)[1].1, 2.0);
-    }
-
-    #[test]
-    fn source_has_input_uses_the_same_override_as_character_movement() {
-        let idle = AlsInputCommand::default();
-        let moving = AlsInputCommand {
-            move_dir: Vec2::Y,
-            ..default()
-        };
-        assert!(source_has_input(
-            Some(&idle),
-            Some(&AlsInputOverride(moving))
-        ));
-        assert!(!source_has_input(
-            Some(&moving),
-            Some(&AlsInputOverride(idle))
-        ));
-        assert!(source_has_input(Some(&moving), None));
-        assert!(!source_has_input(None, None));
     }
 
     #[test]
