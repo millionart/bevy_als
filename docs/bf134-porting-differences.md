@@ -86,7 +86,7 @@ source/static/ABI/layout/editor/boundary闭合；target_game/play最终正常优
 
 ## 待反例核对的源差异
 
-BF134.01G1/G2a/G2b/G2c已修复并验收；G2其他consumer/H仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复十一项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
+BF134.01G1/G2a/G2b/G2c/G2d1已修复并验收；G2其他consumer/H仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复十二项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
 
 ### BF134.01G1 — P2：动画输入绕过已消费状态
 
@@ -125,3 +125,12 @@ fresh角色37.554秒、Character与Vector.h证明SetInputDirection先GetSafeNorm
 
 
 G2c最终验收：消费标志/世界角度两actual-source消融81.678/81.501秒均语义red，三hash及byte/mtime恢复确认；32 rotation+10 gait+5 aim+21 dynamics+1 gait-layer+1完整schedule共70项回归green（driver90.096秒）。当前正常target_game/play构建154.958秒成功；startup15.560秒、Grounded15/15（42.704秒）、StandingResponse6/6（19.962秒）公共功能Gate全通过，ready=true、graph/primary/fault/temporal零，证据 `target/animation_visual/bf134/01g2c/{startup,grounded,standing_response}`。S1实际02:38:42/偏差−26分18秒、S2实际02:46/偏差−12分钟成功；原始记录/图/转换规则未改，完整15/39/374生成diff=0有效。截图关闭与完整max_eval_p95_ms失败保留，不宣称性能或全范围完成；底层输入normalization/motor及二维dead-zone后续继续。
+
+
+### BF134.01G2d1 — P2：drive额外归零微小非零输入，误触发制动
+
+fresh角色37.016秒及当次UE CMC/Vector/Math源闭合：ScaleInputAcceleration仅clamp最大长度，ComputeAnalog对非零加速度算modifier，CalcVelocity用Acceleration.IsZero判制动；GetSafeNormal的unitless门槛属于角色locomotion flag。Target drive却在move_len≤1e-4时清零。actual drive→motor在输入1e-5、初速0.2m/s、50ms时旧desired/velocity均0，源应0.20001m/s，反例82.432秒稳定red；旧正常/0.01模拟量Gate未覆盖微小非零输入与已存在速度。
+
+候选删除drive截断分支，真实反例80.960秒green且角色has_input保持false。新的独立source常量提取器生成既有Motion文件中的UE_SMALL_NUMBER unitless tolerance，保持物理非零输入与角色flag归属分离；原始记录不改，没有修改已有graph converter或共享转换规则。self-test/生成0.304/0.266秒、源门槛两侧和保向fixture78.945秒、source/static2.387秒通过。drive-cutoff/owner-tolerance两actual-source消融86.017/81.563秒均语义red，两文件byte/mtime恢复确认；最终79项回归driver90.842秒green，含actual drive→motor→snapshot→writer和完整调度。
+
+状态：已修复并验收，G2d1独立提交；当前入口正常构建154.790秒成功，startup16.568秒、Grounded15/15（43.471秒）、StandingStop10/10（26.573秒）功能Gate全部通过，ready=true、graph/primary/fault/temporal零，证据 `target/animation_visual/bf134/01g2d1/{startup,grounded,standing_stop}`。S2开始03:12、预估03:32、实际03:22、偏差−10分钟成功；既有converter/共享规则与原始记录未改，完整15/39/374生成diff=0有效。截图关闭与完整max_eval_p95_ms失败保留，不宣称性能或总目标完成。S1开始02:52、预估03:17、实际03:11:50、偏差−5分10秒成功；其他motor<=1e-6/物理方向安全归一化按G2d2继续，不能把角色flag容差重新用作加速度归零门槛。

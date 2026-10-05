@@ -6,6 +6,8 @@ use crate::extensions::{HorizontalVelocityBlend, horizontal_motion_from_world_ve
 use avian3d::prelude::{ColliderOf, LinearVelocity, RigidBody};
 use bevy::prelude::*;
 
+const INPUT_DIRECTION_MIN_LENGTH_SQUARED: f32 = 1e-08;
+
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
 pub struct AlsActualMotion {
     pub world_velocity: Vec3,
@@ -99,7 +101,12 @@ fn snapshot_actual_motion_system(
             next.world_acceleration = (next.world_velocity - previous_velocity) / time.delta_secs();
         }
         let initial_yaw = world_forward_to_yaw(*transform.forward()).to_degrees();
-        let input = controller.map_or(Vec3::ZERO, |controller| controller.basis.desired_motion).normalize_or_zero();
+        let input = controller.map_or(Vec3::ZERO, |controller| controller.basis.desired_motion);
+        let input = if input.length_squared() < INPUT_DIRECTION_MIN_LENGTH_SQUARED {
+            Vec3::ZERO
+        } else {
+            input.normalize_or_zero()
+        };
         next.has_input = input != Vec3::ZERO;
         next.input_yaw_degrees = if next.has_input {
             world_forward_to_yaw(input).to_degrees()
@@ -122,6 +129,29 @@ fn snapshot_actual_motion_system(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn consumed_input_validity_uses_the_source_unitless_safe_normal_boundary() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins).add_systems(PostUpdate, snapshot_actual_motion_system);
+        let character = app.world_mut().spawn((AlsCharacter, Transform::IDENTITY,
+            LocomotionState::Grounded, LinearVelocity::ZERO,
+            bevy_tnua::prelude::TnuaController::<crate::als::control_scheme::AlsControlScheme>::default())).id();
+        for (amount, expected_input, expected_yaw) in [
+            (0.0_f32, false, 0.0_f32), (0.00001, false, 0.0),
+            (0.000099, false, 0.0), (0.000101, true, -90.0),
+            (0.0002, true, -90.0), (1.0, true, -90.0),
+            (0.00001, false, -90.0), (0.0, false, -90.0),
+        ] {
+            app.world_mut().get_mut::<bevy_tnua::prelude::TnuaController<crate::als::control_scheme::AlsControlScheme>>(character)
+                .unwrap().basis.desired_motion = Vec3::X * amount;
+            app.world_mut().run_schedule(PostUpdate);
+            let motion = app.world().get::<AlsActualMotion>(character).unwrap();
+            assert_eq!(motion.has_input, expected_input, "Source unitless input boundary differs: {amount}");
+            assert!((motion.input_yaw_degrees - expected_yaw).abs() < 1e-5,
+                "Source retained input yaw differs: {amount}, {} != {expected_yaw}", motion.input_yaw_degrees);
+        }
+    }
 
     #[test]
     fn idle_motion_initializes_retained_directions_from_the_actor() {

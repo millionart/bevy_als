@@ -573,6 +573,30 @@ mod tests {
     use super::*;
 
     #[test]
+    fn tiny_nonzero_move_reaches_the_actual_drive_and_motor() {
+        #[derive(Resource, Default)]
+        struct Samples(Vec<(f32, f32)>);
+        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.05)))
+            .init_resource::<Samples>()
+            .add_systems(Update, (move |mut samples: ResMut<Samples>, q: Query<(&TnuaController<AlsControlScheme>, &LinearVelocity, &TnuaMotor)>| {
+                let (controller, velocity, motor) = q.get(character).unwrap();
+                samples.0.push((controller.basis.desired_motion.x, velocity.x + motor.lin.boost.x));
+            }).after(grounded_dynamics_motor_system).before(TnuaPipelineSystems::Motors));
+        app.world_mut().entity_mut(character).insert((
+            AlsLandingBrakingFriction::default(), LinearVelocity(Vec3::X * 0.2), AlsViewYaw(0.0),
+            crate::als::input::AlsInputCommand { move_dir: Vec2::X * 0.00001, ..default() },
+        ));
+        app.update();
+        let observed = app.world().resource::<Samples>().0[0];
+        assert!((observed.1 - 0.20001).abs() < 1e-6,
+            "Source nonzero acceleration must avoid braking: {observed:?}");
+        assert!((observed.0 - 0.00001).abs() < 1e-9);
+        assert!(!app.world().get::<crate::actual_motion::AlsActualMotion>(character).unwrap().has_input,
+            "Source locomotion input validity must remain separate from nonzero acceleration");
+    }
+
+    #[test]
     fn gait_changes_take_effect_after_the_current_source_movement_tick() {
         #[derive(Resource, Default)]
         struct Samples(Vec<(Gait, f32)>);

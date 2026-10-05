@@ -2702,11 +2702,7 @@ fn locomotion_drive_system(
             movement_input_for_action(*effective_input(cmd, override_cmd), input_blocked);
 
         let move_len = effective.move_dir.length().min(1.0);
-        let world_dir = if move_len > 1e-4 {
-            view_relative_move_direction(effective.move_dir, player_view.map_or(view_yaw.0, |view| view.0))
-        } else {
-            Vec3::ZERO
-        };
+        let world_dir = view_relative_move_direction(effective.move_dir, player_view.map_or(view_yaw.0, |view| view.0));
 
         let desired_forward = roll
             .filter(|state| state.active)
