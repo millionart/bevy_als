@@ -146,6 +146,7 @@ pub fn grounded_velocity_step(
         dynamics,
         min_analog_walk_speed,
         BRAKING_FRICTION_FACTOR,
+        CmcAdapterParams::default().braking_substep_time,
         delta_seconds,
     )
 }
@@ -157,6 +158,7 @@ pub fn grounded_velocity_step_with_braking_friction(
     dynamics: GroundedDynamics,
     min_analog_walk_speed: f32,
     braking_friction_factor: f32,
+    braking_substep_time: f32,
     delta_seconds: f32,
 ) -> Vec3 {
     let horizontal_velocity = Vec3::new(velocity.x, 0.0, velocity.z);
@@ -170,18 +172,28 @@ pub fn grounded_velocity_step_with_braking_friction(
     let desired_direction = desired_horizontal.normalize_or_zero();
     let mut next = horizontal_velocity;
     if desired_amount <= 1e-6 || overspeed {
-        let friction_alpha =
-            (dynamics.ground_friction.max(0.0) * braking_friction_factor.max(0.0) * delta_seconds)
-                .clamp(0.0, 1.0);
-        let frictioned_velocity = horizontal_velocity * (1.0 - friction_alpha);
-        let braking_delta = (dynamics.braking_deceleration.max(0.0) * delta_seconds)
-            .min(frictioned_velocity.length());
-        next = frictioned_velocity - frictioned_velocity.normalize_or_zero() * braking_delta;
-        if (dynamics.braking_deceleration > 0.0 || friction_alpha > 0.0)
-            && (next.length_squared() <= BRAKING_SMALL_VELOCITY_SQUARED
-                || dynamics.braking_deceleration > 0.0 && next.length_squared() <= BRAKE_TO_STOP_VELOCITY.powi(2))
-        {
-            next = Vec3::ZERO;
+        let friction = dynamics.ground_friction.max(0.0) * braking_friction_factor.max(0.0);
+        let deceleration = dynamics.braking_deceleration.max(0.0);
+        if friction > 0.0 || deceleration > 0.0 {
+            let reverse_acceleration = -horizontal_velocity.normalize_or_zero() * deceleration;
+            let mut remaining = delta_seconds;
+            let max_step = braking_substep_time.clamp(1.0 / 75.0, 1.0 / 20.0);
+            while remaining >= MIN_MOVEMENT_DELTA_SECONDS {
+                let step = if remaining > max_step && friction > 0.0 {
+                    max_step.min(remaining * 0.5)
+                } else { remaining };
+                remaining -= step;
+                next += (-next * friction + reverse_acceleration) * step;
+                if next.dot(horizontal_velocity) <= 0.0 {
+                    next = Vec3::ZERO;
+                    break;
+                }
+            }
+            if next.length_squared() <= BRAKING_SMALL_VELOCITY_SQUARED
+                || deceleration > 0.0 && next.length_squared() <= BRAKE_TO_STOP_VELOCITY.powi(2)
+            {
+                next = Vec3::ZERO;
+            }
         }
         if overspeed && next.length_squared() < target_speed * target_speed
             && desired_direction.dot(horizontal_velocity) > 0.0
@@ -250,6 +262,7 @@ pub fn simulate_grounded_velocity_with_braking_friction(
             dynamics,
             cmc.min_analog_walk_speed,
             braking_friction_factor,
+            cmc.braking_substep_time,
             step,
         );
         remaining -= step;
@@ -715,7 +728,7 @@ mod tests {
     fn overspeed_braking_keeps_same_frame_turn_acceleration() {
         let dynamics = GroundedDynamics { acceleration: 20.0, braking_deceleration: 15.0, ground_friction: 4.0 };
         let next = grounded_velocity_step_with_braking_friction(Vec3::X * 3.75, Vec3::Z, 1.5,
-            dynamics, 0.25, 0.0, 1.0 / 60.0);
+            dynamics, 0.25, 0.0, 1.0 / 33.0, 1.0 / 60.0);
         let expected = Vec3::new(3.4842343, 0.0, 0.33183184);
         assert!(next.distance(expected) < 1e-6, "Overspeed input must follow braking: {next:?}");
         for factor in [0.0_f32, 0.5, 3.0] {
@@ -724,7 +737,7 @@ mod tests {
                 for direction in [Vec3::X, Vec3::NEG_X, Vec3::Z] {
                     let expected = (Vec3::X * braked + direction * 20.0 * delta).clamp_length_max(braked);
                     let actual = grounded_velocity_step_with_braking_friction(Vec3::X * 3.75, direction, 1.5,
-                        dynamics, 0.25, factor, delta);
+                        dynamics, 0.25, factor, 1.0 / 33.0, delta);
                     assert!(actual.distance(expected) < 1e-5, "factor={factor} delta={delta} direction={direction:?}: {actual:?} != {expected:?}");
                 }
             }
@@ -774,8 +787,8 @@ mod tests {
         let no_braking = GroundedDynamics { braking_deceleration: 0.0, ..dynamics };
         assert_eq!(grounded_velocity_step(Vec3::X * 0.08, Vec3::ZERO, 1.0, no_braking, 0.0, 0.002), Vec3::X * 0.08);
         let friction_only = GroundedDynamics { ground_friction: 1.0, ..no_braking };
-        assert_eq!(grounded_velocity_step_with_braking_friction(Vec3::X * 0.00005, Vec3::ZERO, 1.0, friction_only, 0.0, 1.0, 0.002), Vec3::ZERO);
-        assert!(grounded_velocity_step_with_braking_friction(Vec3::X * 0.08, Vec3::ZERO, 1.0, friction_only, 0.0, 1.0, 0.002).x > 0.079);
+        assert_eq!(grounded_velocity_step_with_braking_friction(Vec3::X * 0.00005, Vec3::ZERO, 1.0, friction_only, 0.0, 1.0, 1.0 / 33.0, 0.002), Vec3::ZERO);
+        assert!(grounded_velocity_step_with_braking_friction(Vec3::X * 0.08, Vec3::ZERO, 1.0, friction_only, 0.0, 1.0, 1.0 / 33.0, 0.002).x > 0.079);
         assert!(grounded_velocity_step(Vec3::X * 0.08, Vec3::ZERO, 1.0, no_braking, 0.0, 0.0000001).x > 0.079);
         assert!(grounded_velocity_step(Vec3::X * 0.103, Vec3::X, 0.05, GroundedDynamics { acceleration: 1.0, ..dynamics }, 0.0, 0.01).distance(Vec3::X * 0.05) < 1e-6);
     }
@@ -950,6 +963,63 @@ mod tests {
         );
         assert!(next.x < 3.0);
         assert!(next.z < 0.0);
+    }
+
+    #[test]
+    fn source_braking_step_configuration_and_same_frame_input_are_preserved() {
+        let dynamics = GroundedDynamics { acceleration: 20.0, braking_deceleration: 12.5, ground_friction: 4.0 };
+        for (configured, expected) in [(0.001, 1.458921), (1.0 / 33.0, 1.30625), (0.2, 0.875)] {
+            let cmc = CmcAdapterParams { braking_substep_time: configured, max_simulation_iterations: 1, ..default() };
+            let (next, steps) = simulate_grounded_velocity_with_braking_friction(Vec3::X * 3.75,
+                Vec3::ZERO, 6.5, dynamics, &cmc, 3.0, 0.05);
+            assert!((next.x - expected).abs() < 1e-5, "Source braking setting={configured}: {next:?} != {expected}");
+            assert_eq!(steps, 1);
+        }
+        for (direction, expected) in [(Vec3::X, Vec3::X * 1.5), (Vec3::NEG_X, Vec3::X * 0.30625)] {
+            let next = grounded_velocity_step_with_braking_friction(Vec3::X * 3.75, direction, 1.5,
+                dynamics, 0.25, 3.0, 1.0 / 33.0, 0.05);
+            assert!(next.distance(expected) < 1e-5, "Source post-braking input for {direction:?}: {next:?} != {expected:?}");
+        }
+        let next = grounded_velocity_step_with_braking_friction(Vec3::X * 3.75, Vec3::Z, 1.5,
+            dynamics, 0.25, 3.0, 1.0 / 33.0, 0.05);
+        assert!(next.distance(Vec3::new(1.1910513, 0.0, 0.9118096)) < 1e-5);
+        for configured in [0.001, 1.0 / 33.0, 0.2] {
+            assert_eq!(grounded_velocity_step_with_braking_friction(Vec3::X * 3.75, Vec3::ZERO, 6.5,
+                dynamics, 0.25, 0.0, configured, 0.05), Vec3::X * 3.125);
+        }
+        assert_eq!(grounded_velocity_step_with_braking_friction(Vec3::X * 0.5, Vec3::ZERO, 6.5,
+            dynamics, 0.25, 3.0, 1.0 / 33.0, 0.1), Vec3::ZERO);
+    }
+
+    #[test]
+    fn source_braking_substeps_reach_the_actual_motor_without_sharing_the_cmc_budget() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut world = World::new();
+        let mut time = Time::<()>::default();
+        time.advance_by(std::time::Duration::from_secs_f32(0.05));
+        world.insert_resource(time);
+        let mut value = AlsMovementParams::default();
+        value.cmc.max_simulation_iterations = 1;
+        let mut params = Assets::<AlsMovementParams>::default();
+        let handle = params.add(value);
+        world.insert_resource(params);
+        let velocity = Vec3::X * 3.75;
+        let character = world.spawn((
+            AlsCharacter, LocomotionState::Grounded, Stance::Standing, RotationMode::ViewDirection,
+            AlsViewYaw::default(), AlsMaxAllowedGait(Gait::Walking), AlsGroundedDynamics::default(),
+            AlsGaitAmount::default(), Position(Vec3::Y * 0.92), LinearVelocity(velocity),
+            AlsMovementParamsHandle(handle), TnuaController::<AlsControlScheme>::default(),
+            TnuaMotor::default(), AlsCmcAdapterRuntime::default(),
+            AlsLandingBrakingFriction { factor: 3.0, ..default() },
+        )).id();
+        world.run_system_once(grounded_dynamics_motor_system).unwrap();
+        let dynamics = world.get::<AlsGroundedDynamics>(character).unwrap().0;
+        assert_eq!((dynamics.braking_deceleration, dynamics.ground_friction), (12.5, 4.0));
+        let actual = velocity + world.get::<TnuaMotor>(character).unwrap().lin.boost;
+        assert!(actual.distance(Vec3::X * 1.30625) < 1e-5,
+            "Source independent braking steps must produce 1.30625 m/s, actual {actual:?}");
+        assert_eq!(world.get::<AlsCmcAdapterRuntime>(character).unwrap().simulation_substeps, 1);
+        assert_eq!(world.get::<LinearVelocity>(character).unwrap().0, velocity);
     }
 
     #[test]

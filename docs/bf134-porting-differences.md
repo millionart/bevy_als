@@ -75,6 +75,15 @@ fresh CR_Als原生读取41.912秒，79 initial global的position/rotation/scale�
 source/static/ABI/layout/editor/boundary通过；正常优化target_game/play最终构建145.665秒及时效补查16.639秒成功。最终startup15.423秒、原variable UphillJump6/6（33.590秒）、Grounded15/15（42.311秒）、FootIk22/22（80.233秒）功能Gate全部通过，graph/primary/fault/temporal异常零。variable自然重跑未触发SOURCE-MOTION，不声称再命中原帧；原33.227秒失败与fixed控制、源三帧证明及fixture独立保留。状态：工具验收完成、单独提交，F1代码随后按其独立Gate提交；完整性能max_eval_p95_ms失败保留，截图关闭。G2相对14:42偏差+21分31秒，时间纪律漏检和纠正记录在清单，未抹除失败或沿用旧窗口。
 
 
+### BF134.01F2 — P2：缺少独立制动子步，着地制动过强
+
+当次UE ApplyVelocityBraking在非零摩擦时用clamp(braking_substep_time,1/75,1/20)与remaining/2分步；RevAccel从本次初始速度一次确定，每步防反向，全部内部步后才应用源停止阈值。fresh角色39.849秒、normal CV35.720秒确认配置≈1/33、ground friction供braking使用、gait2=2000/1250cm/s²与friction4；ALS落地factor3已有源规则。Target仅一次friction/减速度更新，原外层曾错误地用braking步长模拟内层，F1删除该混合后未消除内部算法差异。
+
+actual motor在50ms、3.75m/s、factor3、CMC预算1时旧.875m/s、源1.30625m/s，稳定red；源内部为25+25ms，不受CMC预算限制。向原helper传现有配置并inline唯一源循环，19项回归通过，含三个clamp/default值、无输入、超速正反/正交同帧输入、zero-friction一次处理、防反向、停止门槛、F1/air/base/预测/roll控制。配置、half-tail、zero-friction和防反向四actual-block focused消融分别red，control通过，实际源码未变。独立正交期望数字一度抄错导致18pass/1fail，已按源向量归一化公式复算纠正，不把此失败当新移植缺陷；无新state/helper/module/适配层/图或转换规则。
+
+source/static/ABI/layout/editor/boundary闭合；target_game/play最终正常优化构建156.028秒成功，startup（16.116秒）、Grounded15/15（42.257秒）、StandingStop10/10（26.758秒）、原variable UphillJump6/6（32.539秒）功能Gate全部通过，graph/primary/fault/temporal零。状态：已修复并验收，F2独立提交、父F核销；图/共享转换/原始记录未改，全量生成diff=0有效。S1数小时超时与估时漏检已复盘，第二轮按1.5倍窗口20:14闭合，S2实际20:36:47/偏差+1分47秒完成。完整max_eval_p95_ms失败及uphill max_frame_ms失败保留，截图关闭，不核销性能或全范围。
+
+
 ## 待反例核对的源差异
 
-BF134.01F2/G/H仍登记独立braking内层、输入有效性/阻塞和gamepad二维dead-zone归属，尚未通过本轮修复Gate；不计已完成。当前已修复六项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
+BF134.01G/H仍登记输入有效性/阻塞和gamepad二维dead-zone归属，尚未通过本轮修复Gate；不计已完成。当前已修复七项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
