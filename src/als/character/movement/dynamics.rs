@@ -14,6 +14,7 @@ use crate::als::roll::AlsRollState;
 use crate::als::state::{Gait, LocomotionState, RotationMode, Stance};
 
 pub const BRAKING_FRICTION_FACTOR: f32 = 0.0;
+const PHYSICAL_VECTOR_MIN_LENGTH_SQUARED: f32 = 1e-12;
 pub const LANDING_BRAKING_FRICTION_WITH_INPUT: f32 = 0.5;
 pub const LANDING_BRAKING_FRICTION_WITHOUT_INPUT: f32 = 3.0;
 pub const LANDING_BRAKING_FRICTION_DURATION: f32 = 0.5;
@@ -167,11 +168,17 @@ pub fn grounded_velocity_step_with_braking_friction(
     let speed = horizontal_velocity.length();
     let delta_seconds = delta_seconds.max(0.0);
     if delta_seconds < MIN_MOVEMENT_DELTA_SECONDS { return horizontal_velocity; }
-    let target_speed = analog_target_speed(max_speed, desired_amount, min_analog_walk_speed);
+    let acceleration = desired_horizontal.clamp_length_max(1.0) * dynamics.acceleration.max(0.0);
+    let has_acceleration = acceleration != Vec3::ZERO;
+    let target_speed = analog_target_speed(max_speed, if has_acceleration { desired_amount } else { 0.0 }, min_analog_walk_speed);
     let overspeed = horizontal_velocity.length_squared() > target_speed * target_speed * MAX_SPEED_SQUARED_RATIO;
-    let desired_direction = desired_horizontal.normalize_or_zero();
+    let acceleration_direction = if acceleration.length_squared() < PHYSICAL_VECTOR_MIN_LENGTH_SQUARED {
+        Vec3::ZERO
+    } else {
+        acceleration.normalize_or_zero()
+    };
     let mut next = horizontal_velocity;
-    if desired_amount <= 1e-6 || overspeed {
+    if !has_acceleration || overspeed {
         let friction = dynamics.ground_friction.max(0.0) * braking_friction_factor.max(0.0);
         let deceleration = dynamics.braking_deceleration.max(0.0);
         if friction > 0.0 || deceleration > 0.0 {
@@ -196,19 +203,19 @@ pub fn grounded_velocity_step_with_braking_friction(
             }
         }
         if overspeed && next.length_squared() < target_speed * target_speed
-            && desired_direction.dot(horizontal_velocity) > 0.0
+            && acceleration.dot(horizontal_velocity) > 0.0
         {
             next = horizontal_velocity.normalize_or_zero() * target_speed;
         }
     } else {
         let friction_alpha = (dynamics.ground_friction.max(0.0) * delta_seconds).clamp(0.0, 1.0);
-        next -= (next - desired_direction * speed) * friction_alpha;
+        next -= (next - acceleration_direction * speed) * friction_alpha;
     }
-    if desired_amount <= 1e-6 { return next; }
+    if !has_acceleration { return next; }
     let input_limit = if next.length_squared() > target_speed * target_speed * MAX_SPEED_SQUARED_RATIO {
         next.length()
     } else { target_speed };
-    (next + desired_direction * dynamics.acceleration.max(0.0) * desired_amount * delta_seconds)
+    (next + acceleration * delta_seconds)
         .clamp_length_max(input_limit)
 }
 
@@ -487,7 +494,7 @@ pub fn grounded_dynamics_motor_system(
         );
         cmc_runtime.simulation_delta_seconds = time.delta_secs();
         cmc_runtime.simulation_substeps = simulation_substeps;
-        cmc_runtime.min_analog_speed_applied = desired_motion.length_squared() > 1e-6
+        cmc_runtime.min_analog_speed_applied = desired_motion.with_y(0.0) != Vec3::ZERO && dynamics.0.acceleration > 0.0
             && max_speed * desired_motion.length().min(1.0) < params.cmc.min_analog_walk_speed;
         let motor_boost = next - current;
         motor.lin.boost.x = next.x + support_velocity.x - world_velocity.x;
@@ -571,6 +578,38 @@ impl Plugin for AlsGroundedDynamicsPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_nonzero_acceleration_and_physical_normalization_reach_the_actual_motor() {
+        #[derive(Resource, Default)]
+        struct Samples(Vec<(f32, f32, bool)>);
+        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.05)))
+            .init_resource::<Samples>()
+            .add_systems(Update, (move |mut samples: ResMut<Samples>, q: Query<(&TnuaController<AlsControlScheme>, &LinearVelocity, &TnuaMotor, &AlsCmcAdapterRuntime)>| {
+                let (controller, velocity, motor, runtime) = q.get(character).unwrap();
+                samples.0.push((controller.basis.desired_motion.x, velocity.x + motor.lin.boost.x, runtime.min_analog_speed_applied));
+            }).after(grounded_dynamics_motor_system).before(TnuaPipelineSystems::Motors));
+        for (amount, expected) in [(0.0000001_f32, 0.2000001_f32), (0.00000002, 0.15000002)] {
+            app.world_mut().entity_mut(character).insert((AlsLandingBrakingFriction::default(),
+                LinearVelocity(Vec3::X * 0.2), AlsViewYaw(0.0),
+                crate::als::input::AlsInputCommand { move_dir: Vec2::X * amount, ..default() }));
+            app.update();
+            let observed = *app.world().resource::<Samples>().0.last().unwrap();
+            assert!((observed.1 - expected).abs() < 1e-8,
+                "Source acceleration must remain nonzero while its direction uses physical tolerance: {amount}, {observed:?} != {expected}");
+            assert!((observed.0 - amount).abs() < 1e-12);
+            assert!(observed.2, "Source minimum analog speed must be reported for nonzero acceleration");
+        }
+    }
+
+    #[test]
+    fn zero_max_acceleration_brakes_even_when_the_move_command_is_nonzero() {
+        let result = grounded_velocity_step(Vec3::X * 0.2, Vec3::X, 3.75,
+            GroundedDynamics { acceleration: 0.0, braking_deceleration: 15.0, ground_friction: 5.0 },
+            0.25, 0.05);
+        assert_eq!(result, Vec3::ZERO, "Source Acceleration.IsZero must select braking");
+    }
 
     #[test]
     fn tiny_nonzero_move_reaches_the_actual_drive_and_motor() {
@@ -1057,15 +1096,15 @@ mod tests {
             Vec3::NEG_Z,
             6.5,
             GroundedDynamics {
-                acceleration: 0.0,
+                acceleration: 1.0,
                 braking_deceleration: 10.0,
                 ground_friction: 5.0,
             },
             0.25,
             0.02,
         );
-        assert!(next.x < 3.0);
-        assert!(next.z < 0.0);
+        assert!(next.distance(Vec3::new(2.7, 0.0, -0.32)) < 1e-6,
+            "Source nonzero acceleration must rotate velocity through friction: {next:?}");
     }
 
     #[test]

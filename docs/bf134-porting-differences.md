@@ -86,7 +86,7 @@ source/static/ABI/layout/editor/boundary闭合；target_game/play最终正常优
 
 ## 待反例核对的源差异
 
-BF134.01G1/G2a/G2b/G2c/G2d1已修复并验收；G2其他consumer/H仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复十二项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
+BF134.01G1/G2a/G2b/G2c/G2d1/G2d2已修复并验收；G2其他consumer/H仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复十三项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
 
 ### BF134.01G1 — P2：动画输入绕过已消费状态
 
@@ -134,3 +134,10 @@ fresh角色37.016秒及当次UE CMC/Vector/Math源闭合：ScaleInputAcceleratio
 候选删除drive截断分支，真实反例80.960秒green且角色has_input保持false。新的独立source常量提取器生成既有Motion文件中的UE_SMALL_NUMBER unitless tolerance，保持物理非零输入与角色flag归属分离；原始记录不改，没有修改已有graph converter或共享转换规则。self-test/生成0.304/0.266秒、源门槛两侧和保向fixture78.945秒、source/static2.387秒通过。drive-cutoff/owner-tolerance两actual-source消融86.017/81.563秒均语义red，两文件byte/mtime恢复确认；最终79项回归driver90.842秒green，含actual drive→motor→snapshot→writer和完整调度。
 
 状态：已修复并验收，G2d1独立提交；当前入口正常构建154.790秒成功，startup16.568秒、Grounded15/15（43.471秒）、StandingStop10/10（26.573秒）功能Gate全部通过，ready=true、graph/primary/fault/temporal零，证据 `target/animation_visual/bf134/01g2d1/{startup,grounded,standing_stop}`。S2开始03:12、预估03:32、实际03:22、偏差−10分钟成功；既有converter/共享规则与原始记录未改，完整15/39/374生成diff=0有效。截图关闭与完整max_eval_p95_ms失败保留，不宣称性能或总目标完成。S1开始02:52、预估03:17、实际03:11:50、偏差−5分10秒成功；其他motor<=1e-6/物理方向安全归一化按G2d2继续，不能把角色flag容差重新用作加速度归零门槛。
+
+
+### BF134.01G2d2 — P2：motor把非零加速度误判为零，物理方向容差归属错误
+
+fresh角色49.715秒与当次CMC/Vector/Math：Acceleration.IsZero决定刹车，AccelDir对实际厘米加速度GetSafeNormal，输入增量仍用原Acceleration，overspeed回保检查Acceleration·OldVelocity。target按desired_amount≤1e-6截断且归一化输入，微小输入驱动错误刹车；actual amount1e-7/初速0.2/50ms旧0和诊断false、源0.2000001，86.394秒稳定red。MaxAcceleration0+command1旧0.2、源0，独立native binary0.289秒red。
+
+候选先构造实际加速度、用零向量选源分支、以既有源基转换的physical EPS=1e-12归一化friction方向并保留raw加速度增量，诊断同步；原unitless输出不变。24 dynamics修正回归83.384秒通过，旧friction夹具的acc0错误期望已按源分支改为acc1与独立数值(2.7,0,-0.32)，不放宽反例。四关键分支消融均语义red，额外reverse guard删除后green并裁去，最终81项回归driver90.533秒通过。状态：已修复并验收、G2d2单独提交。全量15根/39当次source/374完整新旧产物diff added/removed/changed=0（1510.609秒），同次全部递归closure48.057秒PASS；未安装candidate或复开无影响的其它图。当前正常target_game/play构建155.080秒成功，startup15.505秒、Grounded15/15（42.338秒）、StandingStop10/10（26.232秒）功能Gate全部通过，ready=true、graph/primary/fault/temporal零，证据 `target/animation_visual/bf134/01g2d2/{startup,grounded,standing_stop}`。S1开始03:28、预估04:03、实际04:04:09、偏差+1分9秒；S2开始04:04、预估04:24、实际04:16、偏差−8分钟，均成功。原始record未改，截图关闭及完整max_eval_p95_ms、grounded max_frame_ms性能失败保留，不宣称性能或总目标完成；min-analog floor相邻事实独立待定级。
