@@ -377,11 +377,10 @@ fn rotation_response_system(
             &Gait,
             &LocomotionState,
             &RotationMode,
-            (&AlsViewYaw, Option<&crate::als::view::AlsPlayerViewYaw>),
+            &AlsViewYaw,
             &AlsMovementParamsHandle,
             (&LinearVelocity, Option<&mut crate::als::dynamics::AlsMovementBaseDynamicsState>),
-            Option<&AlsInputOverride>,
-            &AlsInputCommand,
+            &crate::actual_motion::AlsActualMotion,
             Option<&AlsRotationAnimationState>,
             Option<&mut AlsRotationResponseState>,
             Option<&crate::als::roll::AlsRollState>,
@@ -398,11 +397,10 @@ fn rotation_response_system(
         gait,
         locomotion,
         rotation_mode,
-        (view_yaw, player_view),
+        view_yaw,
         params_handle,
         (velocity, mut base),
-        input_override,
-        input,
+        motion,
         animation,
         mut current_runtime,
         roll,
@@ -447,11 +445,8 @@ fn rotation_response_system(
         } else {
             0.0
         };
-        let effective = effective_input(input, input_override);
-        let has_input = effective.move_dir.length_squared() > f32::EPSILON;
-        let input_yaw = (effective.move_dir.length_squared() > f32::EPSILON).then(|| {
-            world_forward_to_yaw(view_relative_move_direction(effective.move_dir, player_view.map_or(view_yaw.0, |view| view.0)))
-        });
+        let has_input = motion.has_input;
+        let input_yaw = has_input.then(|| motion.input_yaw_degrees.to_radians());
         let velocity = LinearVelocity(crate::als::dynamics::locomotion_velocity(velocity.0, *locomotion, base.as_deref()));
         let horizontal_speed = Vec2::new(velocity.x, velocity.z).length();
         let (has_velocity, moving) = locomotion_movement_flags(has_input, horizontal_speed);
@@ -611,12 +606,39 @@ mod rotation_cap_tests {
     use super::*;
 
     #[test]
+    fn rotation_uses_consumed_input_at_the_source_low_speed_boundary() {
+        let mut app = App::new();
+        let mut time = Time::<()>::default();
+        time.advance_by(std::time::Duration::from_millis(16));
+        app.insert_resource(time).init_resource::<Assets<AlsMovementParams>>()
+            .register_required_components::<AlsCharacter, crate::actual_motion::AlsActualMotion>()
+            .add_systems(Update, rotation_response_system);
+        let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(AlsMovementParams::default());
+        let character = app.world_mut().spawn((AlsCharacter, Stance::Standing, Transform::IDENTITY,
+            Gait::Walking, LocomotionState::Grounded, RotationMode::ViewDirection,
+            AlsViewYaw(30.0_f32.to_radians()), AlsMovementParamsHandle(params),
+            LinearVelocity(Vec3::NEG_Z * 0.01),
+            AlsInputCommand { move_dir: Vec2::Y * 0.0002, ..default() },
+            crate::actual_motion::AlsActualMotion { has_input: true, input_yaw_degrees: 30.0, ..default() },
+            AlsRotationResponseState { initialized: true, previous_view_yaw: 30.0_f32.to_radians(),
+                previous_rotation_mode: Some(RotationMode::ViewDirection), ..default() },
+        )).id();
+        app.update();
+        let yaw = world_forward_to_yaw(*app.world().get::<Transform>(character).unwrap().forward());
+        assert!(yaw > 0.001, "Source valid input must rotate at 0.01 m/s: {yaw}");
+        let state = app.world().get::<AlsRotationResponseState>(character).unwrap();
+        assert_eq!(state.input_yaw, Some(30.0_f32.to_radians()));
+        assert!(!state.rotation_towards_last_input_direction_blocked);
+    }
+
+    #[test]
     fn custom_mode_preserves_actor_rotation_and_physical_stance() {
         let mut app = App::new();
         let mut time = Time::<()>::default();
         time.advance_by(std::time::Duration::from_millis(16));
         app.insert_resource(time)
             .init_resource::<Assets<AlsMovementParams>>()
+            .register_required_components::<AlsCharacter, crate::actual_motion::AlsActualMotion>()
             .add_systems(Update, rotation_response_system);
         let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>()
             .add(AlsMovementParams::default());
@@ -672,6 +694,7 @@ mod rotation_cap_tests {
         time.advance_by(std::time::Duration::from_millis(16));
         app.insert_resource(time)
             .init_resource::<Assets<AlsMovementParams>>()
+            .register_required_components::<AlsCharacter, crate::actual_motion::AlsActualMotion>()
             .add_systems(Update, rotation_response_system);
         let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>()
             .add(AlsMovementParams::default());
@@ -684,6 +707,7 @@ mod rotation_cap_tests {
                     LocomotionState::Grounded, RotationMode::Aiming, AlsViewYaw(30.0_f32.to_radians()),
                     AlsMovementParamsHandle(params.clone()), LinearVelocity(Vec3::NEG_Z * speed),
                     AlsInputCommand { move_dir: if input { Vec2::Y } else { Vec2::ZERO }, ..default() },
+                    crate::actual_motion::AlsActualMotion { has_input: input, input_yaw_degrees: 30.0, ..default() },
                     AlsRotationAnimationState { yaw_speed_degrees: 60.0, ..default() },
                 )).id();
                 app.update();
@@ -707,6 +731,7 @@ mod rotation_cap_tests {
             .add_message::<crate::als::aim::AimStateChanged>()
             .add_systems(Update, (crate::als::input_request::input_state_request_system, crate::als::aim::aim_rotation_mode_system)
                 .chain().before(crate::als::transition::state_transition_system))
+            .register_required_components::<AlsCharacter, crate::actual_motion::AlsActualMotion>()
             .add_systems(Update, rotation_response_system.after(crate::als::transition::state_transition_system));
         let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(AlsMovementParams::default());
         let characters = [Stance::Standing, Stance::Crouching].map(|stance| app.world_mut().spawn((
@@ -722,6 +747,7 @@ mod rotation_cap_tests {
             assert_eq!(*app.world().get::<RotationMode>(character).unwrap(), RotationMode::Aiming);
             app.world_mut().entity_mut(character).insert((
                 AlsInputCommand { aim_held: true, move_dir: Vec2::Y, ..default() },
+                crate::actual_motion::AlsActualMotion { has_input: true, input_yaw_degrees: 30.0, ..default() },
                 LinearVelocity(Vec3::NEG_Z * 1.75), AlsViewYaw(30.0_f32.to_radians()),
             ));
         }
@@ -748,6 +774,7 @@ mod rotation_cap_tests {
         app.world_mut().entity_mut(character).insert((
             LocomotionState::Air, Transform::IDENTITY, Rotation::IDENTITY,
             AlsInputCommand { aim_held: true, ..default() }, LinearVelocity(Vec3::Y),
+            crate::actual_motion::AlsActualMotion::default(),
             AlsViewYaw(30.0_f32.to_radians()), AlsRotationResponseState::default(),
             AlsRotationAnimationState { yaw_speed_degrees: 120.0, ..default() },
         ));
@@ -766,6 +793,7 @@ mod rotation_cap_tests {
         time.advance_by(std::time::Duration::from_millis(16));
         app.insert_resource(time)
             .init_resource::<Assets<AlsMovementParams>>()
+            .register_required_components::<AlsCharacter, crate::actual_motion::AlsActualMotion>()
             .add_systems(Update, rotation_response_system);
         let params = app
             .world_mut()
@@ -804,6 +832,7 @@ mod rotation_cap_tests {
             time.advance_by(std::time::Duration::from_millis(16));
             app.insert_resource(time)
                 .init_resource::<Assets<AlsMovementParams>>()
+                .register_required_components::<AlsCharacter, crate::actual_motion::AlsActualMotion>()
                 .add_systems(Update, rotation_response_system);
             let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>()
                 .add(AlsMovementParams::default());
@@ -842,6 +871,7 @@ mod rotation_cap_tests {
             app.world_mut().entity_mut(character).insert((
                 AlsViewYaw(1.5),
                 AlsInputCommand { move_dir: Vec2::Y, ..default() },
+                crate::actual_motion::AlsActualMotion { has_input: true, input_yaw_degrees: 1.5_f32.to_degrees(), ..default() },
                 AlsRotationAnimationState { yaw_speed_degrees: 120.0, yaw_offset_degrees: 30.0 },
             ));
             app.update();
@@ -1066,6 +1096,7 @@ mod rotation_cap_tests {
         time.advance_by(std::time::Duration::from_millis(100));
         app.insert_resource(time)
             .init_resource::<Assets<AlsMovementParams>>()
+            .register_required_components::<AlsCharacter, crate::actual_motion::AlsActualMotion>()
             .add_systems(Update, rotation_response_system);
         let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>()
             .add(AlsMovementParams::default());
@@ -1075,6 +1106,7 @@ mod rotation_cap_tests {
             AlsViewYaw(90.0_f32.to_radians()), AlsMovementParamsHandle(params),
             LinearVelocity(Vec3::NEG_Z * 1.75),
             AlsInputCommand { move_dir: Vec2::Y, ..default() },
+            crate::actual_motion::AlsActualMotion { has_input: true, input_yaw_degrees: 90.0, ..default() },
             AlsRotationResponseState { initialized: true, previous_view_yaw: 0.0,
                 previous_rotation_mode: Some(RotationMode::ViewDirection), ..default() },
         )).id();
@@ -1099,6 +1131,7 @@ mod rotation_cap_tests {
             time.advance_by(std::time::Duration::from_millis(100));
             app.insert_resource(time)
                 .init_resource::<Assets<AlsMovementParams>>()
+                .register_required_components::<AlsCharacter, crate::actual_motion::AlsActualMotion>()
                 .add_systems(Update, rotation_response_system);
             let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>()
                 .add(AlsMovementParams::default());
@@ -1108,6 +1141,7 @@ mod rotation_cap_tests {
                 Transform::IDENTITY, Gait::Running, locomotion, mode, AlsViewYaw(view),
                 AlsMovementParamsHandle(params), LinearVelocity(velocity),
                 AlsInputCommand { move_dir: input, ..default() },
+                crate::actual_motion::AlsActualMotion { has_input: input != Vec2::ZERO, input_yaw_degrees: view_degrees, ..default() },
                 AlsRotationResponseState { initialized: true, previous_view_yaw: view,
                     previous_locomotion: locomotion, previous_rotation_mode: Some(mode), ..default() },
                 AlsAimingYawConstraint { active_limit_degrees: if limit_active { 70.0 } else { 180.0 },
@@ -1136,6 +1170,7 @@ mod rotation_cap_tests {
             time.advance_by(std::time::Duration::from_millis(100));
             app.insert_resource(time)
                 .init_resource::<Assets<AlsMovementParams>>()
+                .register_required_components::<AlsCharacter, crate::actual_motion::AlsActualMotion>()
                 .add_systems(Update, rotation_response_system);
             let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>()
                 .add(AlsMovementParams::default());
@@ -1146,6 +1181,7 @@ mod rotation_cap_tests {
                 Gait::Running, LocomotionState::Air, mode, AlsViewYaw(1.0),
                 AlsMovementParamsHandle(params), LinearVelocity(velocity),
                 AlsInputCommand { move_dir: input, ..default() },
+                crate::actual_motion::AlsActualMotion { has_input: input != Vec2::ZERO, input_yaw_degrees: 1.0_f32.to_degrees(), ..default() },
                 AlsRotationResponseState { initialized: true, smooth_target_yaw: 1.0,
                     target_yaw: 1.0, previous_locomotion: LocomotionState::Air,
                     previous_rotation_mode: Some(mode), ..default() },
@@ -1172,6 +1208,7 @@ mod rotation_cap_tests {
             time.advance_by(std::time::Duration::from_millis(100));
             app.insert_resource(time)
                 .init_resource::<Assets<AlsMovementParams>>()
+                .register_required_components::<AlsCharacter, crate::actual_motion::AlsActualMotion>()
                 .add_systems(Update, rotation_response_system);
             let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>()
                 .add(AlsMovementParams::default());
@@ -1181,6 +1218,7 @@ mod rotation_cap_tests {
                 crate::als::gait::AlsGaitAmount(amount), LocomotionState::Grounded,
                 mode, AlsViewYaw(view), AlsMovementParamsHandle(params),
                 LinearVelocity(velocity), AlsInputCommand { move_dir: Vec2::Y, ..default() },
+                crate::actual_motion::AlsActualMotion { has_input: true, input_yaw_degrees: 90.0, ..default() },
                 AlsRotationResponseState { initialized: true, previous_view_yaw: view,
                     previous_rotation_mode: Some(mode), ..default() },
             )).id();
@@ -1200,6 +1238,7 @@ mod rotation_cap_tests {
             time.advance_by(std::time::Duration::from_millis(100));
             app.insert_resource(time)
                 .init_resource::<Assets<AlsMovementParams>>()
+                .register_required_components::<AlsCharacter, crate::actual_motion::AlsActualMotion>()
                 .add_systems(Update, rotation_response_system);
             let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>()
                 .add(AlsMovementParams::default());
@@ -1225,7 +1264,8 @@ mod rotation_cap_tests {
                 assert!((response.smooth_target_yaw - actor_yaw).abs() < 1e-6);
             }
             app.world_mut().entity_mut(character).insert((LinearVelocity(Vec3::X),
-                AlsInputCommand { move_dir: Vec2::Y, ..default() }));
+                AlsInputCommand { move_dir: Vec2::Y, ..default() },
+                crate::actual_motion::AlsActualMotion { has_input: true, input_yaw_degrees: -1.0_f32.to_degrees(), ..default() }));
             app.update();
             assert!(!app.world().get::<AlsRotationResponseState>(character).unwrap()
                 .rotation_towards_last_input_direction_blocked);
@@ -1239,6 +1279,7 @@ mod rotation_cap_tests {
         time.advance_by(std::time::Duration::from_millis(100));
         app.insert_resource(time)
             .init_resource::<Assets<AlsMovementParams>>()
+            .register_required_components::<AlsCharacter, crate::actual_motion::AlsActualMotion>()
             .add_systems(Update, rotation_response_system);
         let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>()
             .add(AlsMovementParams::default());
@@ -1251,6 +1292,7 @@ mod rotation_cap_tests {
             LocomotionState::Grounded, RotationMode::VelocityDirection, AlsViewYaw(0.0),
             AlsMovementParamsHandle(params), LinearVelocity(sideways + support),
             AlsInputCommand { move_dir: Vec2::Y, ..default() },
+            crate::actual_motion::AlsActualMotion { has_input: true, input_yaw_degrees: 0.0, ..default() },
             crate::als::dynamics::AlsMovementBaseDynamicsState {
                 entity: Some(platform), support_velocity: support, relative_velocity: sideways,
                 world_velocity: sideways + support, motor_boost: intended - sideways,

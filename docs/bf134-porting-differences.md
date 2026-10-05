@@ -86,7 +86,7 @@ source/static/ABI/layout/editor/boundary闭合；target_game/play最终正常优
 
 ## 待反例核对的源差异
 
-BF134.01G1/G2a/G2b已修复并验收；G2其他consumer/H仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复十项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
+BF134.01G1/G2a/G2b/G2c已修复并验收；G2其他consumer/H仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复十一项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
 
 ### BF134.01G1 — P2：动画输入绕过已消费状态
 
@@ -115,3 +115,13 @@ fresh角色37.136秒、TickBeforeOwner=True，当次ALS setter只保存DesiredGa
 
 
 G2b最终验收：四actual-source消融88.105/83.304/85.352/86.535秒均语义red，三文件byte/mtime恢复确认；两条冗余调度边分别删除后最终同一69项回归82.392秒通过，算法不增加cache/新set/第二次通用处理。最终source/static2.394秒与正常target_game/play构建149.370秒通过；startup15.693秒、Grounded15/15（42.342秒）及Sprint8/8（17.388秒）功能Gate全部通过，ready=true、graph/primary/fault/temporal零，证据 `target/animation_visual/bf134/01g2b/{startup,grounded,sprint}`。S1实际02:04:33/偏差−16分27秒，S2实际02:17/偏差−7分钟成功。已有15/39/374全量生成diff=0有效，截图关闭与完整max_eval_p95_ms失败保留，不宣称性能或全范围完成。
+
+
+### BF134.01G2c — P2：旋转重新判定raw输入，低速有效输入误停转
+
+fresh角色37.554秒、Character与Vector.h证明SetInputDirection先GetSafeNormal，再按角色bHasInput/bHasVelocity生成moving，旋转读取该状态。target却重取raw/override/player-view并按length²>f32 EPS判定；0.0002有效输入与0.01m/s边界实际actor yaw=0，源应进入moving并转向，consumer最小反例83.835秒稳定red。BF102.11已有限复开，旧单位输入测试未覆盖消费门槛/来源。
+
+候选直接读取已有ActualMotion.has_input/input_yaw_degrees，删除重复raw判断/方向重建与query。32项rotation回归86.436秒通过，fixture明确提供源消费状态，无运行时fallback/cache/new helper；source/static2.375秒通过。状态：已修复并验收，G2c独立提交，BF102.11有限输入消费边界复验关闭。source唯一blocked=true调用在同一函数进入GettingUp，未证明独立default P2边界，不把这个API差异当已修复项；原始资产/图/共享转换未改，其他normalization/motor边界继续审计。
+
+
+G2c最终验收：消费标志/世界角度两actual-source消融81.678/81.501秒均语义red，三hash及byte/mtime恢复确认；32 rotation+10 gait+5 aim+21 dynamics+1 gait-layer+1完整schedule共70项回归green（driver90.096秒）。当前正常target_game/play构建154.958秒成功；startup15.560秒、Grounded15/15（42.704秒）、StandingResponse6/6（19.962秒）公共功能Gate全通过，ready=true、graph/primary/fault/temporal零，证据 `target/animation_visual/bf134/01g2c/{startup,grounded,standing_response}`。S1实际02:38:42/偏差−26分18秒、S2实际02:46/偏差−12分钟成功；原始记录/图/转换规则未改，完整15/39/374生成diff=0有效。截图关闭与完整max_eval_p95_ms失败保留，不宣称性能或全范围完成；底层输入normalization/motor及二维dead-zone后续继续。
