@@ -2689,6 +2689,56 @@ fn foot_ik_side_sample(
     }
 }
 
+fn rotation_rate_matches_source_ik(
+    metric: &TemporalSkeletonMetric,
+    previous: &crate::foot_ik_apply::FootIkSolveInput,
+    current: &crate::foot_ik_apply::FootIkSolveInput,
+    definition: &crate::extensions::control_rig_program::RigDefinition,
+    bones: &BTreeMap<String, FinalBone>,
+) -> bool {
+    if metric.kind != "local_rotation_spike" || metric.trigger != "rate" { return false; }
+    let names = match metric.subject.as_str() {
+        "calf_l" => ["thigh_l", "calf_l", "foot_l"],
+        "calf_r" => ["thigh_r", "calf_r", "foot_r"],
+        _ => return false,
+    };
+    let reference = |input: &crate::foot_ik_apply::FootIkSolveInput| -> Option<([Quat; 2], Quat)> {
+        let armature = Transform { translation: Vec3::from_array(input.armature_world_trs.0),
+            rotation: Quat::from_array(input.armature_world_trs.1), scale: Vec3::from_array(input.armature_world_trs.2) };
+        let inverse = armature.rotation.inverse();
+        let point = |value| inverse * (Vec3::from_array(value) - armature.translation) / armature.scale;
+        let rotation = |value| inverse * Quat::from_array(value);
+        let hip = rotation(input.thigh_world_trs.1);
+        let calf = rotation(input.calf_world_trs.1);
+        let mut lengths = [input.upper_length, input.lower_length];
+        for index in 0..2 {
+            if lengths[index] > 0.0 { continue; }
+            let a = definition.bones.iter().find(|bone| bone.name == names[index])?.initial_global;
+            let b = definition.bones.iter().find(|bone| bone.name == names[index + 1])?.initial_global;
+            let scale = Vec3::from_array(input.thigh_world_trs.2) / armature.scale;
+            lengths[index] = crate::extensions::ik::scaled_initial_bone_length(
+                (a.translation - b.translation).as_vec3(), a.scale.as_vec3(), scale);
+        }
+        let solved = crate::extensions::ik::solve_basic_two_bone_ik(
+            point(input.thigh_world_trs.0), hip, point(input.calf_world_trs.0), point(input.target_world),
+            point(input.pole_world), lengths[0], lengths[1], Vec3::from_array(input.primary_axis),
+            Vec3::from_array(input.secondary_axis), 1.0)?;
+        let hip = hip.slerp(solved.hip_rotation_world, input.weight);
+        let calf = calf.slerp(solved.knee_rotation_world, input.weight);
+        Some(([armature.rotation * hip, armature.rotation * calf], hip.inverse() * calf))
+    };
+    let Some((_, previous_local)) = reference(previous) else { return false; };
+    let Some((world, current_local)) = reference(current) else { return false; };
+    if (rotation_delta_radians(previous_local, current_local) - metric.current).abs() > 0.0001 { return false; }
+    names[..2].iter().zip(world).all(|(name, expected)| {
+        bones.get(*name).is_some_and(|(_, actual, _, _)| {
+            actual.is_finite() && expected.is_finite()
+                && (actual.to_array().into_iter().zip(expected.to_array()).map(|(a, b)| (a - b).abs()).fold(0.0_f32, f32::max)
+                    .min(actual.to_array().into_iter().zip(expected.to_array()).map(|(a, b)| (a + b).abs()).fold(0.0_f32, f32::max)) < 0.00005)
+        })
+    })
+}
+
 fn foot_ik_sample(
     spaces: &AlsFootIkSpaceState,
     apply: &AlsFootIkApplyTelemetry,
@@ -3571,7 +3621,7 @@ fn collect_animation_visual_evidence(
     let avatar_position = avatar_transform.translation();
     let frame_seconds = pre_rig.temporal_delta_seconds();
     let segments = segment_lengths(&bones);
-    let (pre_rig_metrics, final_metrics) = if temporal_observable {
+    let (pre_rig_metrics, mut final_metrics) = if temporal_observable {
         let pre_rig = state.temporal_pre_rig_guard.observe(
             &pre_rig.bones,
             &pre_rig.global_bones,
@@ -3586,6 +3636,19 @@ fn collect_animation_visual_evidence(
     } else {
         (Vec::new(), Vec::new())
     };
+    if let Some(sample) = &foot_ik_sample
+        && let Some((_, node, _)) = crate::extensions::root_graph_boundaries::current_control_rig(player, &graphs)
+        && let Some(definition) = node.try_inner_downcast_ref::<crate::extensions::root_graph_boundaries::ControlRigBoundaryNode>()
+            .and_then(|node| node.definition.as_ref())
+    {
+        final_metrics.retain(|metric| {
+            let side = match metric.subject.as_str() { "calf_l" => &sample.left, "calf_r" => &sample.right, _ => return true };
+            let (Some(previous), Some(current)) = (&side.previous_solve_input, &side.solve_input) else { return true; };
+            let source_motion = side.valid && rotation_rate_matches_source_ik(metric, previous, current, definition, &bones);
+            if source_motion { debug!("[ANIMATION-VISUAL][SOURCE-MOTION] subject={} rotation_delta={:.6}", metric.subject, metric.current); }
+            !source_motion
+        });
+    }
     if elapsed >= config.warmup && temporal_observable {
         fault_detected |= record_temporal_metrics(
             &mut state,
@@ -4038,6 +4101,36 @@ mod tests {
             assert!(!report_path.exists());
         }
         fs::remove_dir(directory).unwrap();
+    }
+
+    #[test]
+    fn temporal_rate_guard_recognizes_source_equivalent_near_extended_ik() {
+        let (previous, current, hip, calf) = include!("fixtures/source_ik_rate_boundary.rs");
+        let definition = serde_json::from_str(include_str!("../assets/ALS/Character/CR_Als.program.json")).unwrap();
+        let bones = BTreeMap::from([
+            ("thigh_r".to_owned(), (Vec3::ZERO, Quat::from_array(hip), Vec3::ONE, Vec3::ONE)),
+            ("calf_r".to_owned(), (Vec3::ZERO, Quat::from_array(calf), Vec3::ONE, Vec3::ONE)),
+        ]);
+        let metric = TemporalSkeletonMetric { kind: "local_rotation_spike", subject: "calf_r".to_owned(),
+            previous: 0.0, current: 1.3006219, threshold: 80.0, trigger: "rate",
+            rate: Some(87.05111), rate_threshold: Some(80.0) };
+        assert!(rotation_rate_matches_source_ik(&metric, &previous, &current, &definition, &bones),
+            "Native IK produces this same calf motion; a raw rate cannot classify it as a porting fault");
+        let mut wrong_output = bones.clone();
+        wrong_output.get_mut("calf_r").unwrap().1 = Quat::from_rotation_x(0.2) * Quat::from_array(calf);
+        assert!(!rotation_rate_matches_source_ik(&metric, &previous, &current, &definition, &wrong_output));
+        let mut wrong_previous = previous;
+        wrong_previous.target_world[2] += 0.2;
+        assert!(!rotation_rate_matches_source_ik(&metric, &wrong_previous, &current, &definition, &bones));
+        let mut wrong_metric = metric.clone();
+        wrong_metric.current = 0.9;
+        assert!(!rotation_rate_matches_source_ik(&wrong_metric, &previous, &current, &definition, &bones));
+        let mut wrong_metric = metric.clone();
+        wrong_metric.subject = "head".to_owned();
+        assert!(!rotation_rate_matches_source_ik(&wrong_metric, &previous, &current, &definition, &bones));
+        let mut wrong_metric = metric;
+        wrong_metric.trigger = "jump";
+        assert!(!rotation_rate_matches_source_ik(&wrong_metric, &previous, &current, &definition, &bones));
     }
 
     #[test]

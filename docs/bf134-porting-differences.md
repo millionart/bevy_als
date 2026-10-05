@@ -61,3 +61,19 @@ fresh IA_Als_Look 使用 ScaleByDeltaTime、禁止暂停触发；UE EnhancedPlay
 ## 待反例核对的源差异
 
 当前执行清单 BF134.01F–H 已登记 CMC/braking 子步、输入有效性/阻塞和 gamepad 二维 dead-zone 归属。它们已有具体 source-target 链，尚未通过本轮最小反例与修复 Gate，不计作已完成项。其余模块仍按覆盖表继续核对；本轮五项完成不代表全范围目标已完成。
+
+### BF134.01F1 — P2：CMC尾段时间步及braking预算耦合
+
+fresh角色/MS_Normal/normal CV确认源最大时间步.05秒、8次预算、braking_substep≈1/33，低gait源curve为2000cm/s² acceleration、friction5。当次ALS PhysWalking与UE PhysFalling递增Iterations后调用原生GetSimulationTimeStep：只在remaining>max且非末轮时取min(max,remaining/2)，末轮消费剩余量，最后按MIN_TICK_TIME保底。Target取min(max,remaining)，还在无输入且非零braking factor时用制动步长降低CMC上限，额外强制max_step≥1e-4/iterations≥1。75ms的实际motor旧50+25ms、源37.5+37.5ms，旧最终速度(0.984375,0,1.9251981)、源(0.9902344,0,1.8872353)稳定red；factor3使旧outer步数3、源2的另一反例亦red。旧测试只数3步，没有约束每步时长或实际最终速度。
+
+现有单循环删除braking耦合与额外下限，消费源half-tail/末轮/最低Tick；没有新helper/module/state/cache/依赖。17项dynamics回归通过，含实际grounded/air motor、停止边界、预测、基座和roll恢复。实际outer函数的step-recording focused fixture分别移除half-tail、末轮消费、最低Tick、原生零预算及恢复braking耦合，五项均语义red，control通过，实际源码未改；该夹具只验证步长传递，实际motor单独验证。原有全部movement常量以当次native source重生成到临时文件后逐字一致，source hashes/root ABI/layout/editor/boundary通过；图/转换器/共享规则/资产未改，全量生成diff=0仍有效。状态：source/static闭合，等待startup/grounded/uphill_jump功能Gate；F2内部braking与stop预测独立积分算法未在本项核销。
+
+真实入口当前结果：最终预构建153.948秒、startup16.087秒、Grounded15/15（42.205秒）功能通过。variable UphillJump manual6/6通过，但右calf local_rotation1.3006219rad/.0149409s触发80rad/s时序Gate，仍未验收或提交。原报告最长帧25.0795ms，此范围Update中的新旧outer单步一致，尚无本项导致异常的证据。固定1/60同Playground控制29.193秒、6/6且所有graph/primary/fault/temporal零，只作诊断，不能替代variable失败。原失败与三帧IK输入保留；当次native IK源码已取证，接下来核对初始骨长/scale、pole和weight写回，确认source-target差异前不改姿态、阈值或复开旧Rig项。F1保持未完成、F2不启动；完整性能延后失败仍保留。
+
+### BF134.01F1-G — 验收工具误报，不计作移植差异
+
+fresh CR_Als原生读取41.912秒，79 initial global的position/rotation/scale按完整坐标基与program逐项一致，translation误差0。当次RigUnit_TwoBoneIKSimple→ControlRigMathLibrary→AnimationCore公式复算保存三帧，source local calf delta1.300658994rad、target1.3006219rad，world quaternion最大角误差1.88e-5rad；两个相邻目标距离由.57456m增至.81941m，腿接近源总长度.82769m。源同样产生约87rad/s的运动，不能把它当移植姿态缺陷或补偿，旧100ms source IK测试未覆盖该边界。
+
+最小实际输入fixture先red，再用已有相邻输入/program初始数据/独立basic solver，只有源预期local delta和实际hip/calf世界rotation同时匹配时分类为源运动。仅作用于calf的local rate，其他subject、jump/plane flip、位置/scale/端点和错误输出保留原检查；所有阈值及pose代码未改。错输出/错历史/错delta/其他骨骼/全flip反例通过；移除输出核对、相邻delta核对分别稳定red，byte/mtime恢复后12 temporal+17 dynamics green。额外NaN疑点探针原样green，撤回测试且源码hash与29项恢复完全一致，没有新增guard。
+
+source/static/ABI/layout/editor/boundary通过；正常优化target_game/play最终构建145.665秒及时效补查16.639秒成功。最终startup15.423秒、原variable UphillJump6/6（33.590秒）、Grounded15/15（42.311秒）、FootIk22/22（80.233秒）功能Gate全部通过，graph/primary/fault/temporal异常零。variable自然重跑未触发SOURCE-MOTION，不声称再命中原帧；原33.227秒失败与fixed控制、源三帧证明及fixture独立保留。状态：工具验收完成、单独提交，F1代码随后按其独立Gate提交；完整性能max_eval_p95_ms失败保留，截图关闭。G2相对14:42偏差+21分31秒，时间纪律漏检和纠正记录在清单，未抹除失败或沿用旧窗口。
