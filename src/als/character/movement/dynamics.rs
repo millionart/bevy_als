@@ -221,7 +221,7 @@ pub fn grounded_velocity_step_with_braking_friction(
 
 pub fn analog_target_speed(max_speed: f32, desired_amount: f32, min_analog_walk_speed: f32) -> f32 {
     let max_speed = max_speed.max(0.0);
-    (max_speed * desired_amount.clamp(0.0, 1.0)).max(min_analog_walk_speed.max(0.0).min(max_speed))
+    (max_speed * desired_amount.clamp(0.0, 1.0)).max(min_analog_walk_speed.max(0.0))
 }
 
 pub fn simulate_grounded_velocity(
@@ -578,6 +578,39 @@ impl Plugin for AlsGroundedDynamicsPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_minimum_analog_speed_survives_a_lower_configured_gait_speed() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut world = World::new();
+        let mut time = Time::<()>::default();
+        time.advance_by(std::time::Duration::from_secs_f32(0.05));
+        world.insert_resource(time);
+        let mut value = AlsMovementParams::default();
+        value.speeds.standing.max_walk_speed = 0.1;
+        let mut params = Assets::<AlsMovementParams>::default();
+        let handle = params.add(value);
+        world.insert_resource(params);
+        let mut controller = TnuaController::<AlsControlScheme>::default();
+        controller.basis.desired_motion = Vec3::X * 0.01;
+        let character = world.spawn((AlsCharacter, LocomotionState::Grounded, Stance::Standing,
+            RotationMode::ViewDirection, AlsViewYaw::default(), AlsMaxAllowedGait(Gait::Walking),
+            AlsGroundedDynamics::default(), AlsGaitAmount::default(), Position(Vec3::Y * 0.92),
+            LinearVelocity(Vec3::X * 0.2), AlsMovementParamsHandle(handle), controller,
+            TnuaMotor::default(), AlsCmcAdapterRuntime::default())).id();
+        world.run_system_once(grounded_dynamics_motor_system).unwrap();
+        let actual = 0.2 + world.get::<TnuaMotor>(character).unwrap().lin.boost.x;
+        assert!((actual - 0.21).abs() < 1e-6,
+            "Source minimum analog floor must avoid braking below 0.25 m/s: {actual}");
+        assert!(world.get::<AlsCmcAdapterRuntime>(character).unwrap().min_analog_speed_applied);
+        for (max_speed, amount, minimum, expected) in [
+            (0.0_f32, 1.0, 0.25, 0.25), (0.1, 0.01, 0.25, 0.25),
+            (0.25, 1.0, 0.25, 0.25), (3.75, 0.01, 0.25, 0.25),
+            (3.75, 1.0, 0.25, 3.75), (0.1, 1.0, 0.0, 0.1),
+        ] {
+            assert_eq!(analog_target_speed(max_speed, amount, minimum), expected);
+        }
+    }
 
     #[test]
     fn source_nonzero_acceleration_and_physical_normalization_reach_the_actual_motor() {
