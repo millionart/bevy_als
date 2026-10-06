@@ -2,6 +2,7 @@ use bevy::ecs::spawn::{SpawnWith, WithRelated};
 use bevy::input::gamepad::GamepadSettings;
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::Press as EIPress;
+use bevy_enhanced_input::prelude::Release as EIRelease;
 use bevy_enhanced_input::prelude::*;
 
 pub const SPRINT_HOLD_SECS: f32 = 0.1;
@@ -29,6 +30,23 @@ struct DebugShiftAction;
 
 #[derive(Component)]
 struct DebugShiftContext;
+
+#[derive(Component, Debug, Default)]
+struct GamePauseBlocker(bool);
+
+impl InputCondition for GamePauseBlocker {
+    fn evaluate(&mut self, _actions: &ActionsQuery, _time: &ContextTime, _value: ActionValue) -> TriggerState {
+        if self.0 { TriggerState::None } else { TriggerState::Fired }
+    }
+
+    fn kind(&self) -> ConditionKind {
+        ConditionKind::Blocker
+    }
+}
+
+fn sync_game_pause_blockers(time: Res<Time<Virtual>>, mut blockers: Query<&mut GamePauseBlocker>) {
+    for mut blocker in &mut blockers { blocker.0 = time.is_paused(); }
+}
 
 #[derive(Component, Debug)]
 struct StickValue(Entity);
@@ -295,6 +313,9 @@ pub fn spawn_als_actions(cmds: &mut Commands, player: Entity, map: &AlsInputMap)
             ),
             (
                 Action::<AimAction>::new(),
+                EIPress::default(),
+                EIRelease::default(),
+                GamePauseBlocker::default(),
                 Bindings::spawn(map.aim.clone()),
             ),
             (
@@ -378,7 +399,7 @@ pub fn als_input_bridge_system(
     looks: Query<&Action<LookAction>>,
     jumps: Query<(&TriggerState, &ActionEvents), With<Action<JumpAction>>>,
     sprints: Query<(&TriggerState, &Action<SprintAction>), With<Action<SprintAction>>>,
-    aims: Query<&TriggerState, With<Action<AimAction>>>,
+    aims: Query<(&Action<AimAction>, &ActionEvents)>,
     crouches: Query<&ActionEvents, With<Action<CrouchAction>>>,
     rolls: Query<&ActionEvents, With<Action<RollAction>>>,
     walks: Query<&ActionEvents, With<Action<WalkAction>>>,
@@ -395,7 +416,9 @@ pub fn als_input_bridge_system(
     ),
 ) {
     for (mut cmd, actions, mut sprint_latch) in &mut receivers {
+        let saved_aim = cmd.aim_held;
         cmd.reset();
+        cmd.aim_held = saved_aim;
 
         if let Some(mv) = moves.iter_many(actions).next() {
             cmd.move_dir = **mv;
@@ -419,8 +442,10 @@ pub fn als_input_bridge_system(
             cmd.sprint_held = sprint_held_from(*state, raw_held, &mut sprint_latch.0);
         }
 
-        if let Some(state) = aims.iter_many(actions).next() {
-            cmd.aim_held = *state == TriggerState::Fired;
+        if let Some((value, events)) = aims.iter_many(actions).next() {
+            if events.intersects(ActionEvents::FIRE | ActionEvents::CANCEL) {
+                cmd.aim_held = **value;
+            }
         }
 
         if let Some(events) = crouches.iter_many(actions).next() {
@@ -483,6 +508,8 @@ impl Plugin for AlsInputPlugin {
         app.add_input_context::<OnFoot>()
             .add_input_context::<DebugShiftContext>()
             .add_input_modifier::<StickValue>()
+            .add_input_condition::<GamePauseBlocker>()
+            .add_systems(PreUpdate, sync_game_pause_blockers.before(EnhancedInputSystems::Update))
             .add_observer(|gamepad: On<Add, Gamepad>, mut settings: Query<&mut GamepadSettings>| {
                 let mut settings = settings.get_mut(gamepad.entity).unwrap();
                 for axis in [GamepadAxis::LeftStickX, GamepadAxis::LeftStickY,
@@ -899,6 +926,9 @@ mod tests {
             "move_dir should persist within hold span"
         );
 
+        app.world_mut().commands().entity(player)
+            .mock_once::<OnFoot, AimAction>(TriggerState::Fired, false);
+        app.update();
         let actions = app
             .world()
             .get::<Actions<OnFoot>>(player)
@@ -1366,6 +1396,64 @@ mod tests {
             let command = app.world().get::<AlsInputCommand>(player).unwrap();
             assert!(!command.rotation_mode_pressed && !command.view_mode_pressed);
         }
+    }
+    #[test]
+    fn aim_pressed_during_pause_preserves_source_saved_aim_until_a_fresh_trigger() {
+        use crate::als::character::AlsCharacter;
+        use crate::als::aim::{AlsAimPlugin, AlsLastFreeRotationMode};
+        use crate::als::gait::AlsMaxAllowedGait;
+        use crate::als::state::{Gait, LocomotionState, RotationMode, Stance};
+        use bevy::input::gamepad::{RawGamepadButtonChangedEvent, RawGamepadEvent};
+        let cases = [
+            vec![(true,true,false,false),(false,true,false,false),(false,false,false,false),
+                (false,true,true,true),(false,true,true,true),(true,true,true,true),
+                (true,false,true,true),(false,false,true,true),(false,true,true,true),
+                (false,true,true,true),(false,false,false,false)],
+            vec![(false,true,true,true),(false,true,true,true),(true,false,false,true),(false,false,false,false)],
+            vec![(false,true,true,true),(true,false,true,true),(false,false,true,true),
+                (false,true,true,true),(false,true,true,true),(false,false,false,false)],
+        ];
+        for gamepad_input in [false, true] {
+            for (case_index, steps) in cases.iter().enumerate() {
+                let mut app = App::new();
+                app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, EnhancedInputPlugin, AlsInputPlugin, AlsAimPlugin));
+                app.finish();
+                let player = app.world_mut().spawn((AlsCharacter, Stance::Standing, LocomotionState::Grounded,
+                    RotationMode::ViewDirection, AlsLastFreeRotationMode(RotationMode::ViewDirection),
+                    AlsMaxAllowedGait(Gait::Running))).id();
+                let gamepad = app.world_mut().spawn(Gamepad::default()).id();
+                spawn_als_actions(&mut app.world_mut().commands(), player, &AlsInputMap::default());
+                app.update();
+                for (step_index, &(paused, held, expected_aim, expected_mode)) in steps.iter().enumerate() {
+                    let mut time = app.world_mut().resource_mut::<Time<Virtual>>();
+                    if paused { time.pause(); } else { time.unpause(); }
+                    if gamepad_input {
+                        app.world_mut().write_message(RawGamepadEvent::Button(
+                            RawGamepadButtonChangedEvent::new(gamepad, GamepadButton::LeftTrigger, if held { 1.0 } else { 0.0 })));
+                    } else {
+                        let mut buttons = app.world_mut().resource_mut::<ButtonInput<MouseButton>>();
+                        if held { buttons.press(MouseButton::Right); } else { buttons.release(MouseButton::Right); }
+                    }
+                    app.update();
+                    assert_eq!(app.world().get::<AlsInputCommand>(player).unwrap().aim_held, expected_aim,
+                        "Source Aim saved intent for device={gamepad_input}, case={case_index}, step={step_index}");
+                    assert_eq!(*app.world().get::<RotationMode>(player).unwrap(),
+                        if expected_mode { RotationMode::Aiming } else { RotationMode::ViewDirection },
+                        "Source Aim owner phase for device={gamepad_input}, case={case_index}, step={step_index}");
+                }
+            }
+        }
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, EnhancedInputPlugin, AlsInputPlugin));
+        app.finish();
+        let player = app.world_mut().spawn_empty().id();
+        spawn_als_actions(&mut app.world_mut().commands(), player, &AlsInputMap::default());
+        app.update();
+        app.world_mut().resource_mut::<Time<Virtual>>().set_relative_speed(0.0);
+        app.world_mut().resource_mut::<ButtonInput<MouseButton>>().press(MouseButton::Right);
+        app.update();
+        assert!(app.world().get::<AlsInputCommand>(player).unwrap().aim_held,
+            "Source zero game-time rate must not be mistaken for game pause");
     }
     #[test]
     fn look_rate_uses_source_nondilated_time_and_rejects_paused_actions() {

@@ -723,6 +723,7 @@ mod rotation_cap_tests {
     #[test]
     fn moving_aiming_follows_view_before_constraining_in_both_stances() {
         let mut app = App::new();
+        app.init_resource::<Time<Virtual>>();
         let mut time = Time::<()>::default();
         time.advance_by(std::time::Duration::from_millis(16));
         app.insert_resource(time)

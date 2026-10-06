@@ -20,6 +20,7 @@ pub struct AimStateChanged {
 }
 
 pub fn aim_rotation_mode_system(
+    time: Res<Time<Virtual>>,
     mut events: MessageWriter<AimStateChanged>,
     mut transitions: MessageWriter<StateTransitionEvent>,
     mut q: Query<
@@ -38,6 +39,7 @@ pub fn aim_rotation_mode_system(
     >,
     mut commands: Commands,
 ) {
+    if time.is_paused() { return; }
     for (
         entity,
         cmd,

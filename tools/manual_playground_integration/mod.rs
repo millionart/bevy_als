@@ -11991,6 +11991,7 @@ mod tests {
                 assert!(travel.iter().all(|angle| *angle > 3.99 * std::f32::consts::TAU));
             }
             let mut app = App::new();
+            app.init_resource::<Time<Virtual>>();
             app.add_plugins(crate::als::transition::AlsStateTransitionPlugin)
                 .add_message::<crate::als::aim::AimStateChanged>()
                 .add_systems(Update, (
@@ -12039,6 +12040,7 @@ mod tests {
     fn standing_stop_modes_survive_actual_input_and_aim_systems() {
         for (crouching, index) in [false, true].into_iter().flat_map(|crouching| (0..stop_cases(crouching).len()).map(move |index| (crouching, index))) {
             let mut app = App::new();
+            app.init_resource::<Time<Virtual>>();
             app.add_plugins(crate::als::transition::AlsStateTransitionPlugin)
                 .add_message::<crate::als::aim::AimStateChanged>()
                 .add_systems(Update, (

@@ -86,7 +86,7 @@ source/static/ABI/layout/editor/boundary闭合；target_game/play最终正常优
 
 ## 待反例核对的源差异
 
-BF134.01G1/G2a/G2b/G2c/G2d1/G2d2/G2d3/G2d4已修复并验收；G2其他consumer/H2及剩余Action仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复二十三项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
+BF134.01G1/G2a/G2b/G2c/G2d1/G2d2/G2d3/G2d4已修复并验收；G2其他consumer/H2及剩余Action仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复二十四项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
 
 ### BF134.01G1 — P2：动画输入绕过已消费状态
 
@@ -229,3 +229,10 @@ fresh角色37.548秒、当次CMC ComputeAnalogInputModifier与公开CurveVector�
 - 实际可达反例：首次Q按下发生paused，resume仍held无Pressed dispatch，随后unpaused release触发Released批准空Tag。target保持closed/selected=None并跳过请求，red87.283秒；源/目标保存Overlay状态不一致，定级P2。
 - 最小修复：删除Released批准的open guard，批准时将现有None selection映射源空Tag；正常Construct/open仍从owner赋值，c2b pause/history边界保持。不添加构造标记/cache/state，不把Source空Tag行为补偿为Default。BF123.02a仅首次释放边界有限复开。
 - 状态：red87.283→green87.749秒，恢复open guard/补偿Default两消融red95.087/84.750秒，67恢复回归与source/static2.670秒通过。当前生产166.908秒，startup16.348/Interface15/15（25.367）/Overlays115/115（104.990）功能通过，graph/primary/fault/temporal零，BF123.02a首次release有限边界关闭并单独提交，P2累计二十三。布局/省略号/停靠/点击音用户决策与c2b pause/history保持；截图关闭，max_eval_p95_ms与Overlays max_frame_ms失败保留，整体目标仍未完成。图/转换规则/原始资产未改。证据target/bf134/01i2c2c。
+
+### BF134.01I3a1 — P2：Aim逐帧raw held绕过源事件保存意图
+
+- Source：fresh Aim IA为Boolean Pressed+Released/paused=false，Example只绑Triggered/Canceled到SetDesiredAiming。UE默认GetValue返回真值，Ongoing→None产生Canceled、Triggered→None产生未绑定的Completed；paused仍更新trigger history但有效state=None。fresh角色PrimaryActorTick.bTickEvenWhenPaused=false，owner实际mode刷新在pause不执行。
+- 反例：paused新按鼠标Aim后target桥接raw Fired立即设aim_held=true并进入Aiming，source保存intent应保持false，red88.260秒；恢复held也不应重放Pressed。旧bool/mock验证没有source事件表或owner pause证据。
+- 根因与最小修复：Aim按源接Pressed+Released，用公开InputCondition Blocker同步真实Time<Virtual>.is_paused，在更新内部历史后阻断最终state，使框架前态/事件与源一致；ContextTime没有Virtual暂停状态，不能用delta0代替paused。复用已有cmd.aim_held作为保存意图，无事件时保持，FIRE/CANCEL读取实际Action值，owner在pause不刷新。不加新desired组件/自定义事件状态机，不触碰尚未核对Jump或其他Actor暂停逻辑。
+- 验证：mouse/raw-pad源事件表与zero倍率非pausegreen82.537秒，最小red88.260→green84.800秒、source/static2.681秒；同步/Released/无事件保存/同步顺序/owner pause五消融均语义失败，恢复63项回归通过。旧mock补明确Released(false)、三个direct fixture补Time而不加生产fallback。当前生产149.490秒，startup15.531/Grounded15/15（42.358）/Head14/14（20.254）功能通过，graph/primary/fault/temporal零，本项验收单独提交，P2累计二十四。截图关闭、max_eval_p95_ms失败保留；其他held/cancel与全范围目标未完成，图/转换规则/原始资产未改。证据target/bf134/01i3a1。
