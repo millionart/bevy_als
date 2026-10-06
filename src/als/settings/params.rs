@@ -778,6 +778,8 @@ impl CrouchParams {
 
 #[derive(Reflect, Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct JumpParams {
+    #[serde(default)]
+    pub max_hold_time: f32,
     pub jump_z_velocity: f32,
     pub gravity_scale: f32,
     pub coyote_time: f32,
@@ -787,6 +789,7 @@ pub struct JumpParams {
 impl Default for JumpParams {
     fn default() -> Self {
         Self {
+            max_hold_time: 0.0,
             jump_z_velocity: 420.0 * UE_CM_TO_M,
             gravity_scale: 1.0,
             coyote_time: 0.0,
@@ -797,6 +800,9 @@ impl Default for JumpParams {
 
 impl JumpParams {
     pub fn apply_override(&mut self, ovr: &JumpParamsOverride) {
+        if let Some(v) = ovr.max_hold_time {
+            self.max_hold_time = v;
+        }
         if let Some(v) = ovr.jump_z_velocity {
             self.jump_z_velocity = v;
         }
@@ -937,6 +943,7 @@ pub struct CrouchParamsOverride {
 #[derive(Reflect, Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 #[serde(default)]
 pub struct JumpParamsOverride {
+    pub max_hold_time: Option<f32>,
     pub jump_z_velocity: Option<f32>,
     pub gravity_scale: Option<f32>,
     pub coyote_time: Option<f32>,
@@ -1023,6 +1030,7 @@ mod tests {
 
         assert!((p.jump.jump_z_velocity - 4.20).abs() < 1e-6);
         assert!((p.jump.gravity_scale - 1.0).abs() < 1e-6);
+        assert_eq!(p.jump.max_hold_time, 0.0);
         assert_eq!(p.jump.coyote_time, 0.0);
         assert_eq!(p.jump.jump_buffer_time, 0.0);
     }
@@ -1101,6 +1109,10 @@ mod tests {
         assert_eq!(standing.max_sprint_speed, Some(7.0));
         assert_eq!(standing.max_walk_speed, None);
         assert_eq!(standing.max_run_speed, None);
+        let legacy: JumpParams = ron::from_str(
+            "(jump_z_velocity:4.2,gravity_scale:1.0,coyote_time:0.0,jump_buffer_time:0.0)",
+        ).unwrap();
+        assert_eq!(legacy.max_hold_time, 0.0);
     }
 
     #[test]
@@ -1113,7 +1125,7 @@ mod tests {
                 speeds: Some((crouching: Some((max_walk_speed: Some(1.2))))), \
                 cmc: Some((min_analog_walk_speed: Some(0.3))), \
                 rotation: Some((in_air_aiming_half_life: Some(0.08))), \
-                jump: Some((jump_z_velocity: Some(4.5))), \
+                jump: Some((max_hold_time: Some(0.2), jump_z_velocity: Some(4.5))), \
             )",
         )
         .unwrap();
@@ -1122,6 +1134,7 @@ mod tests {
         assert!((p.speeds.crouching.max_walk_speed - 1.2).abs() < 1e-6);
         assert!((p.cmc.min_analog_walk_speed - 0.3).abs() < 1e-6);
         assert!((p.rotation.in_air_aiming_half_life - 0.08).abs() < 1e-6);
+        assert_eq!(p.jump.max_hold_time, 0.2);
         assert!((p.jump.jump_z_velocity - 4.5).abs() < 1e-6);
 
         assert_eq!(p.speeds.standing, before.speeds.standing);

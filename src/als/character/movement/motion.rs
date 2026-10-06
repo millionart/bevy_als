@@ -2845,7 +2845,12 @@ fn locomotion_drive_system(
                 }
                 JumpChain::Jump => {
                     if !action_active && *loco == LocomotionState::Grounded {
-                        controller.action(AlsControlScheme::Jump(TnuaBuiltinJump { allow_in_air: true, ..default() }));
+                        let Some(params) = params_assets.get(params_handle.id()) else { continue; };
+                        controller.action(AlsControlScheme::Jump(crate::als::control_scheme::AlsBuiltinJump {
+                            builtin: TnuaBuiltinJump { allow_in_air: true, ..default() },
+                            max_hold_time: params.jump.max_hold_time,
+                            jump_z_velocity: params.jump.jump_z_velocity,
+                        }));
                     }
                 }
             }
@@ -3548,7 +3553,8 @@ mod tests {
         app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
             PhysicsPlugins::new(PostUpdate), TnuaAvian3dPlugin::new(Update),
             TnuaControllerPlugin::<AlsControlScheme>::new(Update),
-            AlsStateTransitionPlugin, AlsCharacterPlugin, AlsMotionPlugin))
+            AlsStateTransitionPlugin, AlsCharacterPlugin, AlsMotionPlugin, crate::actual_motion::AlsActualMotionPlugin))
+            .configure_sets(PostUpdate, crate::actual_motion::AlsActualMotionSet.after(AlsActualVelocitySet))
             .init_resource::<Assets<Mesh>>()
             .add_message::<AssetEvent<Mesh>>()
             .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
@@ -4498,6 +4504,7 @@ mod tests {
     fn ground_sensor_surface_fallback_prevents_the_recorded_slipping_impulse() {
         let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
         app.world_mut().get_mut::<crate::als::gait::AlsDesiredGait>(character).unwrap().0 = Gait::Walking;
+        app.update();
         app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = Vec2::Y;
         app.world_mut().get_mut::<LinearVelocity>(character).unwrap().0 = Vec3::NEG_Z * 1.75;
         app.add_systems(Update, (move |entities: Query<&TnuaSensorsEntities<AlsControlScheme>>, mut sensors: Query<&mut TnuaProximitySensor>| {
@@ -4508,7 +4515,12 @@ mod tests {
         app.update();
         let sensor = app.world().get::<TnuaSensorsEntities<AlsControlScheme>>(character).unwrap().ground.unwrap();
         assert_eq!(app.world().get::<TnuaProximitySensor>(sensor).unwrap().output.as_ref().unwrap().normal, Dir3::Y);
-        assert!(app.world().get::<LinearVelocity>(character).unwrap().0.abs_diff_eq(Vec3::NEG_Z * 1.75, 1e-4));
+        let actual = app.world().get::<LinearVelocity>(character).unwrap().0;
+        assert!(actual.abs_diff_eq(Vec3::NEG_Z * 1.75, 1e-4),
+            "Refined ground speed differs: actual={actual:?}, max_gait={:?}, desired={:?}, motor={:?}",
+            app.world().get::<crate::als::gait::AlsMaxAllowedGait>(character),
+            app.world().get::<crate::als::gait::AlsDesiredGait>(character),
+            app.world().get::<TnuaMotor>(character));
     }
 
     #[test]
@@ -5045,6 +5057,67 @@ mod tests {
                 }
             } else {
                 baseline = Some(samples);
+            }
+        }
+    }
+
+    #[test]
+    fn configured_source_jump_hold_maintains_launch_velocity_until_release() {
+        for (delta, speed, held_frames, max_hold_time) in [
+            (1.0 / 60.0, 4.2, 6, 0.2),
+            (1.0 / 60.0, 4.2, 24, 0.2),
+            (1.0 / 30.0, 5.0, 16, 0.2),
+            (1.0 / 120.0, 3.5, 32, 0.07),
+        ] {
+            let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+            *app.world_mut().resource_mut::<bevy::time::TimeUpdateStrategy>() =
+                bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta));
+            let params_handle = app.world().get::<AlsMovementParamsHandle>(character).unwrap().0.clone();
+            let source_override: crate::als::params::AlsMovementParamsOverride = serde_json::from_value(
+                serde_json::json!({"jump":{"max_hold_time":max_hold_time,"jump_z_velocity":speed}})).unwrap();
+            app.world_mut().resource_mut::<Assets<AlsMovementParams>>().get_mut(&params_handle).unwrap()
+                .apply_override(&source_override);
+            let mut elapsed = 0.0_f32;
+            let mut expected_velocity = 0.0_f32;
+            for frame in 0..held_frames + 4 {
+                let mut input = app.world_mut().get_mut::<AlsInputCommand>(character).unwrap();
+                input.jump_pressed = frame == 0;
+                input.jump_held = frame < held_frames;
+                if frame == 0 || (frame < held_frames && elapsed < max_hold_time) {
+                    expected_velocity = expected_velocity.max(speed);
+                }
+                expected_velocity -= 9.81 * delta;
+                app.update();
+                let velocity = app.world().get::<LinearVelocity>(character).unwrap().y;
+                assert!((velocity - expected_velocity).abs() < 0.02,
+                    "Source CheckJumpInput/ClearJumpInput hold timing differs: hold={max_hold_time}, held_frames={held_frames}, delta={delta}, frame={frame}, actual={velocity}, expected={expected_velocity}");
+                elapsed += delta;
+            }
+        }
+    }
+
+    #[test]
+    fn configured_source_jump_hold_uses_source_speed_without_gravity_or_velocity_loss() {
+        for (max_hold_time, gravity, initial_velocity) in [(0.2, 0.0, 0.0), (0.2, 9.81, 6.2), (0.0, 0.0, 0.0), (0.0, 9.81, 6.2)] {
+            let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+            let params_handle = app.world().get::<AlsMovementParamsHandle>(character).unwrap().0.clone();
+            app.world_mut().resource_mut::<Assets<AlsMovementParams>>().get_mut(&params_handle).unwrap()
+                .jump.max_hold_time = max_hold_time;
+            app.world_mut().resource_mut::<Gravity>().0 = Vec3::NEG_Y * gravity;
+            app.world_mut().get_mut::<LinearVelocity>(character).unwrap().y = initial_velocity;
+            let mut expected = initial_velocity;
+            for frame in 0..6 {
+                let mut input = app.world_mut().get_mut::<AlsInputCommand>(character).unwrap();
+                input.jump_pressed = frame == 0;
+                input.jump_held = true;
+                expected = expected.max(4.2) - gravity / 60.0;
+                app.update();
+                let actual = app.world().get::<LinearVelocity>(character).unwrap().y;
+                assert!((actual - expected).abs() < 0.02,
+                    "Source DoJump keeps max of current and source launch velocity: hold={max_hold_time}, gravity={gravity}, initial={initial_velocity}, frame={frame}, actual={actual}, expected={expected}, mode={:?}, position={:?}, motor={:?}, action={:?}",
+                    app.world().get::<LocomotionState>(character), app.world().get::<Position>(character),
+                    app.world().get::<TnuaMotor>(character),
+                    app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().action_flow_status());
             }
         }
     }

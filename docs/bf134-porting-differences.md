@@ -86,7 +86,7 @@ source/static/ABI/layout/editor/boundary闭合；target_game/play最终正常优
 
 ## 待反例核对的源差异
 
-BF134.01G1/G2a/G2b/G2c/G2d1/G2d2/G2d3/G2d4已修复并验收；G2其他consumer/H2及剩余Action仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复二十五项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
+BF134.01G1/G2a/G2b/G2c/G2d1/G2d2/G2d3/G2d4已修复并验收；G2其他consumer/H2及剩余Action仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复二十六项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
 
 ### BF134.01G1 — P2：动画输入绕过已消费状态
 
@@ -249,3 +249,12 @@ fresh角色37.548秒、当次CMC ComputeAnalogInputModifier与公开CurveVector�
 - 当次Actor JumpMaxHoldTime=0/MaxCount1；Source Jump/Check/Clear/Stop无持续Jump force，target source launch height与所有extra/shorten gravity为0。Tnua的raw held/prolong改变内部Maintaining状态，不足以证明输出差异。
 - 实际physics：hold0/4/30/60×90帧的垂直position/velocity/locomotion全部相同，初始4.2减当帧重力与launch/landing成立；无prolong的hold0路径信号不变。新轨迹test82.641秒、旧完整physical locomotion1.064秒、source/static2.400秒通过，仅提交必要断言，无生产更改或重复runtime。
 - 此结论只证明源默认zero hold，正值合法JumpMaxHoldTime配置与actual ragdoll/mantle/uncrouch/hold其他action仍保留独立b1/b2范围，P2计数仍二十五。证据target/bf134/01i3a2b。
+
+
+### BF134.01I3a2b1 — P2：Jump遗漏正值hold和源首跳速度语义
+
+- Source：fresh Character的JumpMaxHoldTime公开允许正值，默认0/MaxCount1；CheckJumpInput在已按下且未到期时DoJump，首次及默认velocity-floor配置按max(current upward velocity,JumpZVelocity)，PhysFalling继续应用当帧重力，ClearJumpInput累计game Delta，Released重置。原生读取确认JumpZ420cm/s、velocity-floor/gravity均true。
+- Target：参数override忽略hold，原生Jump没有源持续补速；用高度反算速度还漏掉零重力首跳。Tnua负standing-offset会保留StartingJump，在下一帧重复注入目标速度，从而归零或截低既有较高上升速度。旧A38零重力Gate只测GetMaxJumpHeight0，漏了actual launch。
+- 最小修复：max_hold_time默认0且兼容旧RON/partial override；复用Tnua公开Jump的初次launch/基础影响，首跳后进入已有MaintainingJump，用唯一elapsed决定后续源速度下限，Released/Cancelled停止补速。直接使用已有target jump_z_velocity，保持较高上升速度；删除试验energy重写。两个旧physics fixture按真实producer/owner阶段补齐，生产gait算法不变。
+- 验证：合法0.2秒actual red→green，hold到期/释放、多Delta/速度、hold0/0.2与零重力/高初速覆盖；elapsed/Released去除均red，首跳floor与native状态切换去除路径均red。恢复motion45/45、params11/11、Jump动画信号1/1与source/static通过；正常target_game/play构建166.991秒，startup16.415、Grounded15/15（42.723）、UphillJump6/6/18窗口（34.901）功能通过，graph/primary/fault/temporal零。A38有限边界关闭，单独提交，P2累计二十六。
+- 边界：截图关闭；完整max_eval_p95_ms与Grounded max_frame_ms失败保留，只作功能验收。图/转换规则/原始资产未改，全部15根/39 source/374完整diff零证据有效；b2实际ragdoll/mantle/uncrouch/其他action以及全范围审计仍未完成。证据target/bf134/01i3a2b1。
