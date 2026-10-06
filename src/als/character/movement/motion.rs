@@ -2696,6 +2696,11 @@ fn locomotion_drive_system(
         let roll = rolls.get(entity).ok();
         controller.initiate_action_feeding();
         let ragdolling = actions.get(entity).ok() == Some(&crate::als::state::AlsNotifyLocomotionAction::Ragdolling);
+        if (*loco != LocomotionState::Air || ragdolling)
+            && let Some(crate::als::control_scheme::AlsControlSchemeActionState::Jump(jump)) = controller.current_action.as_mut()
+        {
+            jump.memory.hold_elapsed = f32::INFINITY;
+        }
         let input_blocked = blocked.contains(entity) && !ragdolling;
         let effective =
             movement_input_for_action(*effective_input(cmd, override_cmd), input_blocked);
@@ -5057,6 +5062,36 @@ mod tests {
             } else {
                 baseline = Some(samples);
             }
+        }
+    }
+
+    #[test]
+    fn active_jump_hold_resets_when_custom_movement_interrupts_flight() {
+        for (mode, action) in [
+            (LocomotionState::Custom, crate::als::state::AlsNotifyLocomotionAction::Mantling),
+            (LocomotionState::Air, crate::als::state::AlsNotifyLocomotionAction::Ragdolling),
+            (LocomotionState::Grounded, crate::als::state::AlsNotifyLocomotionAction::None),
+        ] {
+            let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+            let handle = app.world().get::<AlsMovementParamsHandle>(character).unwrap().0.clone();
+            app.world_mut().resource_mut::<Assets<AlsMovementParams>>().get_mut(&handle).unwrap().jump.max_hold_time = 0.2;
+            app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().jump_pressed = true;
+            app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().jump_held = true;
+            app.update();
+            assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Air));
+            app.world_mut().entity_mut(character).insert((mode, action,
+                bevy_tnua::TnuaToggle::Disabled, RigidBody::Kinematic,
+                AlsInputCommand { jump_held: true, ..default() },
+                Position(Vec3::new(0.0, 10.0, 1.0)), Transform::from_xyz(0.0, 10.0, 1.0),
+                LinearVelocity::ZERO));
+            for _ in 0..4 { app.update(); }
+            app.world_mut().entity_mut(character).insert((LocomotionState::Air,
+                crate::als::state::AlsNotifyLocomotionAction::None,
+                bevy_tnua::TnuaToggle::Enabled, RigidBody::Dynamic, LinearVelocity::ZERO));
+            app.update();
+            let actual = app.world().get::<LinearVelocity>(character).unwrap().y;
+            assert!((actual + 9.81 / 60.0).abs() < 0.02,
+                "Source non-Falling mode resets active Jump force; later Falling cannot resume physical hold without a new Jump: mode={mode:?}, action={action:?}, actual={actual}");
         }
     }
 

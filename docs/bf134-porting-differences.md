@@ -86,7 +86,7 @@ source/static/ABI/layout/editor/boundary闭合；target_game/play最终正常优
 
 ## 待反例核对的源差异
 
-BF134.01G1/G2a/G2b/G2c/G2d1/G2d2/G2d3/G2d4已修复并验收；G2其他consumer/H2及剩余Action仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复二十八项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
+BF134.01G1/G2a/G2b/G2c/G2d1/G2d2/G2d3/G2d4已修复并验收；G2其他consumer/H2及剩余Action仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复二十九项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
 
 ### BF134.01G1 — P2：动画输入绕过已消费状态
 
@@ -284,3 +284,12 @@ fresh角色37.548秒、当次CMC ComputeAnalogInputModifier与公开CurveVector�
 - Actual五分支actor+几何矩阵83.232秒、hold0/0.2 Custom press→Walking held但无新press85.470秒通过。GetUp退出驱动改走Jump，最小两driver87.120秒通过；直接exit绕过分支的消融red85.066秒，同target重编motion49/49与driver2/2恢复green。生产算法未改，当前P2仍二十八。
 - 当前生产152.269秒，startup15.304/GetUp12/12（13.043）/Base完整覆盖（125.875）功能通过，实际ragdoll stop/GetUp、mantle start/complete和普通动作通过，graph/primary/fault/temporal零。source/static2.396秒通过，仅工具/合同验收；截图关闭，max_eval_p95_ms/Base max_frame_ms失败保留，15/39/374全量diff0证据有效。
 - 范围只核销当前actual分支和尚未成功Jump的mode-reset路径；已在flight时切换mode的hold重置与其余全范围闭包仍保持开放。证据target/bf134/01i3a2b2c。
+
+
+### BF134.01I3a2b2d — P2：non-Falling mode未清理已有Jump hold
+
+- Source：fresh native OnMovementModeChanged进入非Falling时ResetJumpState，清Pressed/WasJumping/KeyHold/ForceRemaining；mantle Custom与ragdoll None均重置。Source b1旧Gate只覆盖单一flight的到期/释放，b2c只覆盖尚未启动Jump的Custom pending，漏了禁用motor期间的active memory。
+- Actual反例：合法hold.2实际Jump→Custom/Kinematic/TnuaDisabled→Air/Dynamic/Enabled，仍held但无新press。目标恢复时vy4.036501，源应该只有自然重力−0.1635，red89.837秒。disabled controller不推进hold memory，旧force在恢复时重新执行。
+- 最小修复：复用公开AlsControlSchemeActionState::Jump.memory.hold_elapsed，在non-Air或exact Ragdolling路径写既有结束值Infinity；五行条件，无新state/cache/system/依赖。单例green88.355、Custom/Grounded/Ragdolling reset矩阵89.035通过，删除条件消融red88.870；同target恢复motion50/50和GetUp driver2/2/source静态2.389通过。
+- 当前正常target_game/play生产159.697秒，startup15.548/GetUp12/12（13.475）/Base51/51（126.006）功能通过，actual ragdoll/mantle mode路径、普通Jump/hold与其他动作无回归，graph/primary/fault/temporal零。b1有限复开边界关闭，单独提交，P2累计二十九。
+- 截图关闭、完整max_eval_p95_ms失败保留，仅功能验收。图/转换规则/原始资产未改，15/39/374完整diff0证据有效；父项/余下输入与角色、全动画及其他模块总Gate仍待核销。证据target/bf134/01i3a2b2d。
