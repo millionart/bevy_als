@@ -86,7 +86,7 @@ source/static/ABI/layout/editor/boundary闭合；target_game/play最终正常优
 
 ## 待反例核对的源差异
 
-BF134.01G1/G2a/G2b/G2c/G2d1/G2d2/G2d3/G2d4已修复并验收；G2其他consumer/H2及剩余Action仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复十八项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
+BF134.01G1/G2a/G2b/G2c/G2d1/G2d2/G2d3/G2d4已修复并验收；G2其他consumer/H2及剩余Action仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复十九项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
 
 ### BF134.01G1 — P2：动画输入绕过已消费状态
 
@@ -194,3 +194,10 @@ fresh角色37.548秒、当次CMC ComputeAnalogInputModifier与公开CurveVector�
 - 实际反例：Shift按住时raw DPad_Left/Right使Action触发，但bridge在聚合后清零所有mode事件，两个消费者均失去请求；实际键盘+原始gamepad事件red93.209秒，定级P2。旧BF9 gate用ActionMock命名为Digit1，没有真实binding来源证据；有限复开仅该输入边界，其他HUD/debug已完成项保持。
 - 最小修复：公开BlockBy只附加Digit1/2 keyboard binding，由先求值的private Debug Shift context提供当帧值，保留原aggregate Pressed及非数字/gamepad binding。删除bridge全Action mask及多余ButtonInput依赖；无自定义filter/cache/逐帧system。新增context与优先级须由focused消融确认必要性，信号相同即删。
 - 状态：20输入初次green81.205秒，三语义消融82.246/87.206/96.964秒均为所需失败；46项恢复回归与source/static2.398秒通过。direct-exe Head的资产目录环境漏配失败保留、按已安装Bevy规则注入环境后同binary通过，未改加载器/资产/阈值。当前生产+旧专项例子编译187.755秒，startup17.111秒/Interface15/15（24.729秒）/Head14/14（21.552秒）功能通过，graph/primary/fault/temporal零；BF9有限复开已关闭，本项验收单独提交，P2累计十八。截图关闭、max_eval_p95_ms失败保留，未核销性能与整体目标；图/转换规则/原始资产未改，完整diff零有效。证据target/bf134/01i2a。
+
+### BF134.01I2b — P2：暂停时Pressed事件改变保存意图
+
+- Source：当次Walk/Crouch/Ragdoll/SwitchShoulder均Boolean/Pressed/actuation0.5、bTriggerWhenPaused=false。UE先更新trigger内部历史，再在pause时令最终状态None并决定dispatch，恢复按住的Pressed不会重放。
+- 实际反例：暂停按Walk经过真实Action→bridge→input_state_request，将保存gait从Running改Walking，red98.329秒。旧Look pause只在view consumer拒绝变更，未覆盖其他保存意图；此行为可达，定级P2。
+- 最小修复：只给四个已取证Pressed事件的bridge消费者加pause条件，触发器继续正常求值，不停context、不冻结timer、不做按键缓存；source held/cancel消费者另列I3，不能统一清零。World-only fixture补真实Time资源。
+- 状态：red98.329→green95.778秒，删除门槛消融red94.968秒；keyboard/raw-gamepad四请求/组件的暂停按下/恢复按住/释放重按/held不重复全部成立，59项恢复回归和source/static2.676秒通过。当前生产构建161.399秒，startup16.045/Interface15/15（24.525）/CrouchingActions11/11（28.165）功能通过，graph/primary/fault/temporal零。本项验收单独提交，P2累计十九；截图关闭、max_eval_p95_ms失败保留，未核销性能与全范围目标。Mode/UI pause、held/cancel consumer保留独立后续范围，图/转换规则/原始资产未改。证据target/bf134/01i2b。

@@ -367,6 +367,7 @@ pub fn spawn_als_actions(cmds: &mut Commands, player: Entity, map: &AlsInputMap)
 
 #[allow(clippy::too_many_arguments)]
 pub fn als_input_bridge_system(
+    virtual_time: Res<Time<Virtual>>,
     mut receivers: Query<(
         &mut AlsInputCommand,
         &Actions<OnFoot>,
@@ -423,7 +424,7 @@ pub fn als_input_bridge_system(
         }
 
         if let Some(events) = crouches.iter_many(actions).next() {
-            cmd.crouch_pressed = events.contains(ActionEvents::START);
+            cmd.crouch_pressed = !virtual_time.is_paused() && events.contains(ActionEvents::START);
         }
 
         if let Some(events) = rolls.iter_many(actions).next() {
@@ -431,11 +432,11 @@ pub fn als_input_bridge_system(
         }
 
         if let Some(events) = walks.iter_many(actions).next() {
-            cmd.walk_pressed = events.contains(ActionEvents::START);
+            cmd.walk_pressed = !virtual_time.is_paused() && events.contains(ActionEvents::START);
         }
 
         if let Some(events) = ragdolls.iter_many(actions).next() {
-            cmd.ragdoll_pressed = events.contains(ActionEvents::START);
+            cmd.ragdoll_pressed = !virtual_time.is_paused() && events.contains(ActionEvents::START);
         }
 
         if let Some(events) = rotation_modes.iter_many(actions).next() {
@@ -447,7 +448,7 @@ pub fn als_input_bridge_system(
         }
 
         if let Some(events) = switch_shoulders.iter_many(actions).next() {
-            cmd.switch_shoulder_pressed = events.contains(ActionEvents::START);
+            cmd.switch_shoulder_pressed = !virtual_time.is_paused() && events.contains(ActionEvents::START);
         }
 
         let (overlay_menus, next_overlays, previous_overlays, slomos, toggle_uis) = &mut ui_actions;
@@ -579,6 +580,7 @@ mod tests {
     fn bridge_tolerates_missing_actions_and_entities() {
         let mut world = World::new();
         world.insert_resource(ButtonInput::<KeyCode>::default());
+        world.insert_resource(Time::<Virtual>::default());
 
         world.run_system_once(als_input_bridge_system).unwrap();
 
@@ -1249,6 +1251,67 @@ mod tests {
         }
     }
 
+    #[test]
+    fn paused_pressed_actions_do_not_change_source_saved_intent() {
+        use crate::als::character::AlsCharacter;
+        use crate::als::gait::AlsDesiredGait;
+        use crate::als::state::{Gait, RotationMode, Stance};
+        use crate::als::transition::AlsStateRequest;
+        use bevy::input::gamepad::{RawGamepadButtonChangedEvent, RawGamepadEvent};
+        for gamepad_input in [false, true] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, EnhancedInputPlugin, AlsInputPlugin))
+                .add_systems(Update, crate::als::input_request::input_state_request_system);
+            app.finish();
+            let player = app.world_mut().spawn((AlsCharacter, Stance::Standing,
+                RotationMode::ViewDirection, AlsDesiredGait(Gait::Running), AlsStateRequest::default())).id();
+            let gamepad = app.world_mut().spawn(Gamepad::default()).id();
+            spawn_als_actions(&mut app.world_mut().commands(), player, &AlsInputMap::default());
+            app.update();
+            app.world_mut().resource_mut::<Time<Virtual>>().pause();
+            for value in [1.0, 0.0, 1.0] {
+                if value == 0.0 { app.world_mut().resource_mut::<Time<Virtual>>().unpause(); }
+                for (key, button) in [(KeyCode::AltLeft, GamepadButton::RightTrigger),
+                    (KeyCode::ControlLeft, GamepadButton::LeftThumb), (KeyCode::KeyX, GamepadButton::West),
+                    (KeyCode::KeyC, GamepadButton::RightThumb)] {
+                    if gamepad_input {
+                        app.world_mut().write_message(RawGamepadEvent::Button(
+                            RawGamepadButtonChangedEvent::new(gamepad, button, value)));
+                    } else {
+                        let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+                        if value > 0.0 { keys.press(key); } else { keys.release(key); }
+                    }
+                }
+                app.update();
+                let command = *app.world().get::<AlsInputCommand>(player).unwrap();
+                let paused = app.world().resource::<Time<Virtual>>().is_paused();
+                let expected = value > 0.0 && !paused;
+                assert_eq!([command.walk_pressed, command.crouch_pressed, command.ragdoll_pressed,
+                    command.switch_shoulder_pressed], [expected; 4],
+                    "Source paused Pressed events for gamepad={gamepad_input}, value={value}, paused={paused}");
+                let request = app.world().get::<AlsStateRequest>(player).unwrap();
+                assert_eq!(request.stance, expected.then_some(Stance::Crouching));
+                assert_eq!(request.ragdoll_start, expected);
+                assert_eq!(app.world().get::<crate::als::input_request::AlsCameraLeftShoulder>(player).is_some(), expected);
+                assert_eq!(app.world().get::<AlsDesiredGait>(player).unwrap().0,
+                    if expected { Gait::Walking } else { Gait::Running },
+                    "Source paused Walk trigger must not change saved gait intent");
+                if paused {
+                    app.world_mut().resource_mut::<Time<Virtual>>().unpause();
+                    app.update();
+                    let command = app.world().get::<AlsInputCommand>(player).unwrap();
+                    assert_eq!([command.walk_pressed, command.crouch_pressed, command.ragdoll_pressed,
+                        command.switch_shoulder_pressed], [false; 4],
+                        "Source Pressed history must advance during pause without replay on resume");
+                    assert_eq!(app.world().get::<AlsDesiredGait>(player).unwrap().0, Gait::Running);
+                }
+            }
+            app.update();
+            let command = app.world().get::<AlsInputCommand>(player).unwrap();
+            assert_eq!([command.walk_pressed, command.crouch_pressed, command.ragdoll_pressed,
+                command.switch_shoulder_pressed], [false; 4], "Source held Pressed must not repeat");
+        }
+    }
     #[test]
     fn look_rate_uses_source_nondilated_time_and_rejects_paused_actions() {
         use crate::als::character::AlsCharacter;
