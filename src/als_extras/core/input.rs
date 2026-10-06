@@ -1048,6 +1048,48 @@ mod tests {
     }
 
     #[test]
+    fn right_stick_preserves_source_final_view_direction_without_extra_negation() {
+        use crate::als::character::AlsCharacter;
+        use crate::als::motion::AlsViewYaw;
+        use crate::als::view::{AlsViewInputPlugin, AlsViewPitch};
+        use bevy::time::TimeUpdateStrategy;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, EnhancedInputPlugin,
+            AlsInputPlugin, AlsViewInputPlugin))
+            .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.1)));
+        app.finish();
+        let character = app.world_mut().spawn((AlsCharacter, AlsViewYaw(0.0), AlsViewPitch(0.0))).id();
+        let gamepad = app.world_mut().spawn(Gamepad::default()).id();
+        spawn_als_actions(&mut app.world_mut().commands(), character, &AlsInputMap::default());
+        app.update();
+        for (raw, source_degrees) in [
+            (Vec2::new(0.0, 0.5), Vec2::new(0.0, -3.375)),
+            (Vec2::new(0.0, -0.5), Vec2::new(0.0, 3.375)),
+            (Vec2::new(0.5, 0.0), Vec2::new(9.0, 0.0)),
+            (Vec2::new(-0.5, 0.0), Vec2::new(-9.0, 0.0)),
+            (Vec2::new(0.3, 0.4), Vec2::new(5.4, -2.7)),
+            (Vec2::new(-0.3, -0.4), Vec2::new(-5.4, 2.7)),
+        ] {
+            app.world_mut().entity_mut(character).insert((AlsViewYaw(0.0), AlsViewPitch(0.0)));
+            let mut device = app.world_mut().get_mut::<Gamepad>(gamepad).unwrap();
+            device.analog_mut().set(GamepadAxis::RightStickX, raw.x);
+            device.analog_mut().set(GamepadAxis::RightStickY, raw.y);
+            app.update();
+            let yaw = app.world().get::<AlsViewYaw>(character).unwrap().0;
+            let pitch = app.world().get::<AlsViewPitch>(character).unwrap().0;
+            let source_yaw = source_degrees.x.to_radians();
+            let source_pitch = source_degrees.y.to_radians();
+            assert!((yaw + source_yaw).abs() < 1e-6 && (pitch - source_pitch).abs() < 1e-6,
+                "Source final stick angles for {raw}: actual yaw={yaw}, pitch={pitch}");
+            let expected = Vec3::new(source_pitch.cos() * source_yaw.sin(),
+                source_pitch.sin(), -source_pitch.cos() * source_yaw.cos());
+            let actual = Quat::from_euler(EulerRot::YXZ, yaw, pitch, 0.0) * Vec3::NEG_Z;
+            assert!((actual - expected).length() < 1e-6,
+                "Source physical view direction for {raw}: expected {expected}, actual {actual}");
+        }
+    }
+
+    #[test]
     fn look_rate_uses_source_nondilated_time_and_rejects_paused_actions() {
         use crate::als::character::AlsCharacter;
         use crate::als::motion::AlsViewYaw;

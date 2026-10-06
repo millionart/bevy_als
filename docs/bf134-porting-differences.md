@@ -168,3 +168,9 @@ fresh角色37.548秒、当次CMC ComputeAnalogInputModifier与公开CurveVector�
 - 原始公共Head报告前三pitch窗口通过，case3实际速度1.75、has-input=true但velocity-direction=false，工具等待该分支后超时。源公式无错误，graph/primary/fault/temporal均零；保留该失败。
 - 当次B_Als_Character原生默认DesiredRotationMode和RotationMode均ViewDirection；C++ SetDesiredRotationMode保存意图，owner RefreshRotationMode据此派生actual。工具仅写actual请求会被正确的owner刷新覆盖，G2b生产生命周期无源差异证据，不复开生产算法。
 - 最小实际driver→input_request→owner测试稳定red；工具在窗口入口走既有rotation-mode input边沿改变保存意图，删除无效actual请求，无新状态/helper/schedule。source/static、移除press消融和36恢复回归通过；新生产构建167.434秒，startup16.282秒/Head14/14（20.847秒）功能通过，graph/primary/fault/temporal零。原失败保留，不改阈值，工具子项单独提交；截图关闭、max_eval_p95_ms延后失败保留。证据target/bf134/01h_gate。
+
+### BF134.01H2 — right-stick Y候选：最终物理方向源等价
+
+- Source：Right2D mapping仅Negate Y；Look的非缩放Delta modifier之后由AlsCharacterExample调用AddControllerPitchInput(Value.Y*90)。UE XInput保留设备Y，EnhancedInput读取RawValue；项目legacy scales关闭。gilrs XInput保留Y，WGI捕获反Y但axis_value再反Y，两个Windows后端最终方向一致。
+- Target：right-stick binding保留Y，view更新减去Y*90*非缩放Delta；相机使用正pitch上抬的Quat。源Rotator.Vector=(cosP*cosY,cosP*sinY,sinP)经(Y,Z,-X)基变换后同向，runtime yaw=-source yaw、pitch=source pitch。mapping与consumer的取反位置不同，最终物理结果一致，不计P2。
+- 证明：六方向/斜向实际Gamepad→Action→view→相机目标视线green，scope source/static通过；额外NegateY受控反例red81.662秒，恢复后23项input/view回归通过；生产符号已证实等价，候选核销并单独提交。只保留source方向断言，生产实现不改，H新二进制startup/grounded/head功能证据继续有效；设备层数值filter单列H3，不能从方向等价推断其数值等价。
