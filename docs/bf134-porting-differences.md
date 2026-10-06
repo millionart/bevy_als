@@ -276,3 +276,11 @@ fresh角色37.548秒、当次CMC ComputeAnalogInputModifier与公开CurveVector�
 - 最小修复：仅把prolong限定既有Jump discriminant，无新state/adapter/算法；删除临时trace，保留精确轨迹反例。已有Grounded CrouchToStand窗口改用source Jump press并held0.5秒，原graph/clip/pose/位移检查不改。
 - Gate：motion47/47及driver1/1恢复通过；恢复任意action prolong消融red96.365秒，源码字节恢复且不回退mtime后重编。source/static2.404秒与正常target_game/play生产166.668秒通过，startup15.810/Grounded15/15（42.563）/UphillJump6/6/18窗口（35.280）功能通过，graph/primary/fault/temporal零。单独提交，P2累计二十八；截图关闭，max_eval_p95_ms及Grounded max_frame_ms失败保留，仅功能验收。
 - 剩余：真实ragdoll/mantle/priority、其他输入/状态、全部动画与其他模块仍待BF134覆盖核销；无转换器或原始资产修改，15/39/374完整diff0证据有效。证据target/bf134/01i3a2b2b。
+
+
+### BF134.01I3a2b2c — actual Jump优先级及Custom pending核销
+
+- Fresh Source：StopRagdolling exact action优先，成功mantle优先，实际Crouching保存DesiredStanding后return，最后才native Jump；native进入非Falling mode重置Jump，EndMantling恢复Walking。无需新增Custom pending状态。
+- Actual五分支actor+几何矩阵83.232秒、hold0/0.2 Custom press→Walking held但无新press85.470秒通过。GetUp退出驱动改走Jump，最小两driver87.120秒通过；直接exit绕过分支的消融red85.066秒，同target重编motion49/49与driver2/2恢复green。生产算法未改，当前P2仍二十八。
+- 当前生产152.269秒，startup15.304/GetUp12/12（13.043）/Base完整覆盖（125.875）功能通过，实际ragdoll stop/GetUp、mantle start/complete和普通动作通过，graph/primary/fault/temporal零。source/static2.396秒通过，仅工具/合同验收；截图关闭，max_eval_p95_ms/Base max_frame_ms失败保留，15/39/374全量diff0证据有效。
+- 范围只核销当前actual分支和尚未成功Jump的mode-reset路径；已在flight时切换mode的hold重置与其余全范围闭包仍保持开放。证据target/bf134/01i3a2b2c。

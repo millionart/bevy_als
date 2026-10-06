@@ -5061,6 +5061,63 @@ mod tests {
     }
 
     #[test]
+    fn actual_jump_priority_uses_ragdoll_mantle_stance_then_native_jump() {
+        for (ragdolling, crouching, allows_mantle) in [
+            (true, true, true), (false, true, true), (false, true, false),
+            (false, false, true), (false, false, false),
+        ] {
+            let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+            let target = app.world_mut().spawn((RigidBody::Static,
+                Collider::cuboid(2.4, 0.8, 1.2), Transform::from_xyz(0.0, 0.4, 4.6),
+                crate::als::mantle::AlsMantleTargetPermission { allows_step_up: allows_mantle },
+                CollisionLayers::new([crate::als::character::AlsCollisionLayer::Default,
+                    crate::als::character::AlsCollisionLayer::Visibility], avian3d::prelude::LayerMask::ALL))).id();
+            app.world_mut().entity_mut(character).insert((AlsMantleState::default(),
+                Position(Vec3::new(0.0, 0.924, 6.0)), Transform::from_xyz(0.0, 0.924, 6.0)));
+            if crouching { app.world_mut().get_mut::<AlsDesiredStance>(character).unwrap().0 = Stance::Crouching; }
+            for _ in 0..10 { app.update(); }
+            if ragdolling {
+                app.world_mut().entity_mut(character).insert(crate::als::state::AlsNotifyLocomotionAction::Ragdolling);
+            }
+            app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().jump_pressed = true;
+            app.update();
+            let exit = app.world().get::<AlsStateRequest>(character).unwrap().ragdoll_exit;
+            let mantle = app.world().get::<AlsMantleState>(character).unwrap();
+            let flow = app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().action_flow_status();
+            assert_eq!(exit, ragdolling, "Actual source stopRagdolling priority differs");
+            assert_eq!(mantle.active, !ragdolling && allows_mantle, "Actual source StartMantling return priority differs");
+            if mantle.active { assert_eq!(mantle.target_base.unwrap().entity, target); }
+            if !ragdolling && !allows_mantle && crouching {
+                assert_eq!(app.world().get::<AlsDesiredStance>(character).unwrap().0, Stance::Standing);
+            }
+            assert_eq!(flow.just_starting() == Some(AlsControlSchemeActionDiscriminant::Jump),
+                !ragdolling && !allows_mantle && !crouching,
+                "Actual native Jump must only run after earlier source branches return false");
+        }
+    }
+
+    #[test]
+    fn native_mode_reset_does_not_replay_jump_pressed_during_mantle() {
+        for max_hold_time in [0.0, 0.2] {
+            let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+            let handle = app.world().get::<AlsMovementParamsHandle>(character).unwrap().0.clone();
+            app.world_mut().resource_mut::<Assets<AlsMovementParams>>().get_mut(&handle).unwrap().jump.max_hold_time = max_hold_time;
+            app.world_mut().entity_mut(character).insert((LocomotionState::Custom,
+                crate::als::state::AlsNotifyLocomotionAction::Mantling,
+                AlsInputCommand { jump_pressed: true, jump_held: true, ..default() }));
+            app.update();
+            assert!(app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().action_flow_status().ongoing().is_none());
+            app.world_mut().entity_mut(character).insert((LocomotionState::Grounded,
+                crate::als::state::AlsNotifyLocomotionAction::None,
+                AlsInputCommand { jump_held: true, ..default() }));
+            for _ in 0..6 { app.update(); }
+            assert!(app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().action_flow_status().ongoing().is_none(),
+                "Source entering Walking resets pending native Jump: hold={max_hold_time}");
+            assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Grounded));
+        }
+    }
+
+    #[test]
     fn source_crouched_jump_stands_without_physical_hold_affecting_crouch() {
         let mut baseline: Option<Vec<(f32, f32, Stance)>> = None;
         for held_frames in [0, 30] {

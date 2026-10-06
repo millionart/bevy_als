@@ -6120,7 +6120,11 @@ fn drive_manual_integration(
             } else if !ready_to_exit {
                 request.ragdoll_start = true;
             } else {
-                request.ragdoll_exit = true;
+                if state.scenario == IntegrationScenario::GetUp {
+                    input.0.jump_pressed = true;
+                } else {
+                    request.ragdoll_exit = true;
+                }
                 state.ragdoll_exit_requested = true;
             }
             if state.scenario == IntegrationScenario::GetUp && state.get_up_case == 1 {
@@ -12545,6 +12549,25 @@ mod tests {
         apply.left.valid = true;
         apply.right.effector_error = 0.03;
         assert!(!foot_ik_matches_source(&apply, [0.0, 0.0]));
+    }
+
+    #[test]
+    fn get_up_driver_exits_ragdoll_through_source_jump_chain() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut world, character, _) = manual_driver_fixture();
+        world.entity_mut(character).insert(AlsRagdollGroundFollow { grounded: true, ..default() });
+        let mut state = world.resource_mut::<ManualIntegrationState>();
+        state.scenario = IntegrationScenario::GetUp;
+        state.phase = IntegrationPhase::Ragdoll;
+        state.entered = false;
+        state.phase_started_seconds = -1.0;
+        state.coverage.ragdoll_follow = true;
+        state.coverage.ragdoll_joint_drive = true;
+        world.run_system_once(drive_manual_integration).unwrap();
+        assert!(world.get::<AlsInputOverride>(character).unwrap().0.jump_pressed,
+            "Source GetUp fixture must exercise Jump stopRagdolling branch");
+        assert!(!world.get::<AlsStateRequest>(character).unwrap().ragdoll_exit,
+            "Direct exit request bypasses the source Jump priority consumer");
     }
 
     #[test]
