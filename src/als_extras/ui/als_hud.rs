@@ -504,12 +504,13 @@ fn spawn_input_section(commands: &mut Commands, root: Entity) {
 }
 
 fn toggle_ui_system(
+    time: Res<Time<Virtual>>,
     events: Query<&ActionEvents, With<Action<ToggleUiAction>>>,
     mut state: ResMut<AlsHudState>,
     mut debug_sections: Query<&mut Node, (With<AlsHudDebugSection>, Without<AlsHudInputSection>)>,
     mut input_sections: Query<&mut Node, With<AlsHudInputSection>>,
 ) {
-    let pressed = events
+    let pressed = !time.is_paused() && events
         .iter()
         .any(|events| events.contains(ActionEvents::START));
     if pressed {
@@ -537,7 +538,7 @@ fn slomo_system(
     mut state: ResMut<AlsHudState>,
     mut time: ResMut<Time<Virtual>>,
 ) {
-    let pressed = events
+    let pressed = !time.is_paused() && events
         .iter()
         .any(|events| events.contains(ActionEvents::START));
     if !pressed {
@@ -628,6 +629,61 @@ pub(crate) mod tests {
         app
     }
 
+    #[test]
+    fn paused_ui_pressed_actions_preserve_source_hud_and_time_state() {
+        use crate::als::input::{AlsInputCommand, AlsInputMap, AlsInputPlugin, spawn_als_actions};
+        use bevy::input::gamepad::{RawGamepadButtonChangedEvent, RawGamepadEvent};
+        for gamepad_input in [false, true] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, EnhancedInputPlugin, AlsInputPlugin))
+                .init_resource::<AlsHudState>()
+                .add_systems(Update, (toggle_ui_system, slomo_system));
+            app.finish();
+            let player = app.world_mut().spawn_empty().id();
+            let gamepad = app.world_mut().spawn(Gamepad::default()).id();
+            let debug = app.world_mut().spawn((Node::default(), AlsHudDebugSection)).id();
+            let input = app.world_mut().spawn((Node::default(), AlsHudInputSection)).id();
+            spawn_als_actions(&mut app.world_mut().commands(), player, &AlsInputMap::default());
+            app.update();
+            app.world_mut().resource_mut::<Time<Virtual>>().pause();
+            for value in [1.0, 0.0, 1.0] {
+                if value == 0.0 { app.world_mut().resource_mut::<Time<Virtual>>().unpause(); }
+                for (key, button) in [(KeyCode::Tab, GamepadButton::Select), (KeyCode::KeyZ, GamepadButton::Start)] {
+                    if gamepad_input {
+                        app.world_mut().write_message(RawGamepadEvent::Button(
+                            RawGamepadButtonChangedEvent::new(gamepad, button, value)));
+                    } else {
+                        let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+                        if value > 0.0 { keys.press(key); } else { keys.release(key); }
+                    }
+                }
+                app.update();
+                let paused = app.world().resource::<Time<Virtual>>().is_paused();
+                let expected = value > 0.0 && !paused;
+                assert_eq!(*app.world().resource::<AlsHudState>(),
+                    AlsHudState { ui_visible: !expected, slomo_active: expected },
+                    "Source paused UI Pressed actions must preserve HUD and Slomo state");
+                assert_eq!(app.world().resource::<Time<Virtual>>().relative_speed(),
+                    if expected { SLMO_TIME_SCALE } else { 1.0 });
+                for section in [debug, input] {
+                    assert_eq!(app.world().get::<Node>(section).unwrap().display,
+                        if expected { Display::None } else { Display::Flex });
+                }
+                let command = app.world().get::<AlsInputCommand>(player).unwrap();
+                assert_eq!([command.toggle_ui_pressed, command.slomo_pressed], [expected; 2],
+                    "Source paused UI bridge contract must match the actual HUD consumer");
+                if paused {
+                    app.world_mut().resource_mut::<Time<Virtual>>().unpause();
+                    app.update();
+                    assert_eq!(*app.world().resource::<AlsHudState>(), AlsHudState::default(),
+                        "Source paused UI Pressed history must not replay after resume");
+                }
+            }
+            app.update();
+            assert_eq!(*app.world().resource::<AlsHudState>(), AlsHudState { ui_visible: false, slomo_active: true },
+                "Source held UI Pressed must not toggle again");
+        }
+    }
     #[test]
     fn source_ui_bindings_reach_hud_and_virtual_time_once_per_press() {
         use crate::als::input::{AlsInputMap, AlsInputPlugin, spawn_als_actions};

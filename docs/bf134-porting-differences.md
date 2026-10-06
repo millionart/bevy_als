@@ -86,7 +86,7 @@ source/static/ABI/layout/editor/boundary闭合；target_game/play最终正常优
 
 ## 待反例核对的源差异
 
-BF134.01G1/G2a/G2b/G2c/G2d1/G2d2/G2d3/G2d4已修复并验收；G2其他consumer/H2及剩余Action仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复二十项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
+BF134.01G1/G2a/G2b/G2c/G2d1/G2d2/G2d3/G2d4已修复并验收；G2其他consumer/H2及剩余Action仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复二十一项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
 
 ### BF134.01G1 — P2：动画输入绕过已消费状态
 
@@ -208,3 +208,10 @@ fresh角色37.548秒、当次CMC ComputeAnalogInputModifier与公开CurveVector�
 - 反例：actual paused Digit1/2→bridge→input_state_request将保存rotation从ViewDirection改VelocityDirection，并触发first-person变更，red111.115秒。四其他Pressed修复的边界不涵盖这两个consumer；本项独立定级P2。
 - 最小修复：仅两个mode事件增加已证实的pause条件，保留Pressed history、binding级用户debug数字策略和source保存意图。UI直接Action读取、菜单Pressed+Released和其他held/cancel另列后续，不统一阻断context。
 - 状态：red111.115→green90.136秒，删除两条件消融red84.572秒；keyboard/raw-gamepad暂停/恢复按住不重放/释放重按与保存mode矩阵和60恢复回归通过，source/static2.622秒通过。当前生产构建156.269秒，startup15.729/Interface15/15（23.695）/Head14/14（20.748）功能通过，graph/primary/fault/temporal零，本项验收单独提交，P2累计二十。截图关闭、max_eval_p95_ms失败保留，未核销性能与整体目标；图/转换规则/原始资产未改，UI直接Action/menu与held/cancel仍留独立后续。证据target/bf134/01i2c1。
+
+### BF134.01I2c2a — P2：暂停UI事件直接改HUD与全局时间
+
+- Source：fresh Slomo/ToggleUI均Pressed/actuation0.5、bTriggerWhenPaused=false；当次Controller EventGraph仅Triggered连状态toggle和GlobalTimeDilation，UE在pause时无该dispatch。
+- 反例：actual paused Tab/Z→Action→直接AlsHud consumer使ui_visible=false/slomo_active=true且relative speed=.15，red84.569秒。consumer读取ActionEvents，不经bridge字段；旧R5E-14真实键位/保持/释放/custom gate漏掉pause，有限复开该边界。
+- 最小修复：两个实际HUD event判定加pause条件，显示Node正常同步；桥接字段保持同一source合同，trigger历史继续求值、恢复按住不重放，不新增缓存/状态或停止context。正确默认Select/Start、custom绑定、字体/布局/样式和Source Slomo倍率保留。
+- 状态：red84.569→green83.482秒，direct/bridge条件消融red89.817/97.384秒；keyboard/raw-gamepad暂停/恢复held无重放/释放重按/held不重复、HUD/Node/time与命令合同和55回归通过，source/static2.384秒通过。当前生产构建173.536秒，startup16.274/Interface15/15（25.068）功能通过，graph/primary/fault/temporal零，R5E-14有限边界关闭，本项验收单独提交，P2累计二十一。截图关闭、max_eval_p95_ms失败保留；menu/selection和held/cancel未核销，图/转换规则/原始资产未改。证据target/bf134/01i2c2a。

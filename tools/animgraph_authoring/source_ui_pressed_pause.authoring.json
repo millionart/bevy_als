@@ -1,0 +1,168 @@
+{
+  "format": "als_animgraph_authoring_gate_v1",
+  "graphs": [
+    {
+      "path": "assets/ALS/Character/AB_Als.runtime.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "b113030b-0000-4000-8000-000000000001",
+          "name": "AB_Als",
+          "position": [
+            -480.0,
+            0.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000002",
+          "name": "Ragdoll Dynamic",
+          "position": [
+            -480.0,
+            160.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000003",
+          "name": "Ragdoll Readback",
+          "position": [
+            -480.0,
+            240.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000004",
+          "name": "Ragdoll Config",
+          "position": [
+            -224.0,
+            192.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000002\", \"als_ragdolling_dynamic\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"dynamic\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000003\", \"als_ragdolling_readback\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"readback\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000001\", \"pose\")",
+          "target": "OutputData(\"pose\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"ragdoll_config\")",
+          "target": "OutputData(\"ragdoll_config\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "pose": "Pose",
+          "ragdoll_config": "RagdollConfig"
+        }
+      },
+      "root_output_exceptions": [
+        {
+          "name": "ragdoll_config",
+          "reason": "The framework consumes body simulation and pose readback controls independently from the source pose.",
+          "evidence": "docs/bf114-ragdoll-contract.md"
+        }
+      ]
+    }
+  ],
+  "id": "source_ui_pressed_pause_consumers",
+  "source_evidence": [
+    {
+      "path": "target/bf134/01i2c2a/controller.ue.json",
+      "sha256": "ce3a61aa73d762c64528b23daf874977fbb6acc95d74428f75e58b8abddba374"
+    },
+    {
+      "path": "target/bf134/01i2c2a/source_hud_pause.json",
+      "sha256": "532755e3660a11e139ec99536b44d6f51d2cc027423f0ce81f5a883b40e86fa6"
+    },
+    {
+      "path": "target/bf134/01i2c2a/player_input.cpp",
+      "sha256": "d4d84a5ff3f035411496d19a87658beef5d4e5ef7f49d53d53dad92502d319b8"
+    },
+    {
+      "path": "target/bf134/01i2c2a/target_hud_before.rs",
+      "sha256": "a44433e10fa30a84ddd649bfa43db68b24701f45300fb07a16f87336d74f6f71"
+    },
+    {
+      "path": "target/bf134/01i2c/slomo.ue.json",
+      "sha256": "ed7b5f0b7f8bbc87785444813a3cdc8d883588d1724d023bc56e729ab7b92b1b"
+    },
+    {
+      "path": "target/bf134/01i2c/toggleui.ue.json",
+      "sha256": "f3167709527f7713850c50bafac74c7ad257c42dcb8058ea05b1c4bf2e8762ae"
+    },
+    {
+      "path": "target/bf134/01i1/ui.ue.json",
+      "sha256": "67bae2f843409b1e72049623141949582d230918139b7e93669a9e13d7337360"
+    }
+  ],
+  "verification_commands": [
+    {
+      "label": "generated_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets",
+        "--include",
+        "ALS",
+        "--include",
+        "ALSCamera"
+      ]
+    },
+    {
+      "label": "generated_editor",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets"
+      ]
+    },
+    {
+      "label": "runtime_asset_boundary",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/validate_runtime_graph_asset_boundary.py",
+        "--assets-root",
+        "assets",
+        "--check"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "animgraph_assets",
+    "manual_case": "interface"
+  },
+  "focused_tests": [
+    {
+      "label": "actual_paused_ui_actions_hud_time_and_held_repress_regression",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "als_hud::tests"
+      ],
+      "evidence": "target/bf134/01i2c2a/final_hud.watchdog.json"
+    }
+  ]
+}

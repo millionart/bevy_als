@@ -466,11 +466,11 @@ pub fn als_input_bridge_system(
         }
 
         if let Some(events) = slomos.iter_many(actions).next() {
-            cmd.slomo_pressed = events.contains(ActionEvents::START);
+            cmd.slomo_pressed = !virtual_time.is_paused() && events.contains(ActionEvents::START);
         }
 
         if let Some(events) = toggle_uis.iter_many(actions).next() {
-            cmd.toggle_ui_pressed = events.contains(ActionEvents::START);
+            cmd.toggle_ui_pressed = !virtual_time.is_paused() && events.contains(ActionEvents::START);
         }
 
     }
