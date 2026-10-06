@@ -155,3 +155,16 @@ fresh角色39.208秒与当次CMC GetMinAnalogSpeed/CalcVelocity、公开Blueprin
 fresh角色37.548秒、当次CMC ComputeAnalogInputModifier与公开CurveVector配置：MaxAccel>UE_SMALL_NUMBER且加速度非零才计算modifier，否则modifier0；Acceleration.IsZero与输入增量保持独立。目标将非零加速度直接等价于modifier有值，合法MaxAcceleration1e-11m/s²/初速1.5/50ms的actual motor旧1.125、源应0.75，85.135秒稳定red。
 
 候选补按0.01转换的1e-10 scalar门槛，诊断复用同一规则，无新cache/helper/状态；26 dynamics85.888秒、门槛两侧/zero/diagnostic81.337秒与最终83项回归driver90.106秒通过。去scalar/恢复raw诊断两消融77.994/77.162秒均语义red、byte/mtime/hash恢复，source/static2.644秒通过。扩展提取分支后已重新全量15根/39 source/374完整新旧产物diff0（1485.621秒），同次全部递归closure50.020秒通过；原始record未改且candidate未安装。S1开始04:56、预估05:41、实际末项Gate05:56:32、偏差+15分32秒成功，协调处理延迟如实记录。状态：已修复并验收，G2d4单独提交；当前正常target_game/play构建152.028秒通过，startup16.053秒、Grounded15/15（43.155秒）、StandingStop10/10（27.002秒）公共功能Gate全部通过，ready=true、graph/primary/fault/temporal零，证据 `target/animation_visual/bf134/01g2d4/{startup,grounded,standing_stop}`。S2开始06:02、预估06:22、实际末项Gate06:19:19、偏差−2分41秒成功，协调处理滞后如实保留。原始record未改，candidate未安装，截图关闭与完整max_eval_p95_ms失败保留，不宣称性能或总目标完成。
+
+### BF134.01H — P2：摇杆径向死区被逐轴执行
+
+- Source：当次原生IMC_Als_Default的Gamepad_Left2D/Right2D分别使用DeadZone_0/_2，均Type=Radial、LowerThreshold=0.2、UpperThreshold=1.0。UE InputModifiers.cpp先计算Size2D和GetSafeNormal2D，再将重映射长度乘回方向；动作累加在mapping modifier之后。
+- Target/触发：spawn_als_actions把Axial preset的两个独立binding各自附加DeadZone；斜向(0.15,0.15)被逐轴归零，而源输出(0.010723304,0.010723304)。中等斜向(0.5,0.5)源每轴0.4482233，旧目标0.375；非均匀斜向也改变方向。普通手柄移动和视角可达，定级P2。
+- 最小修复：通过公开InputModifier把两个已有binding先聚合为私有二维group，再复用插件内置DeadZone，转发处理后的mapping值给原Move/Look；不添加自定义死区算法、输入资源、逐帧缓存或依赖fork。键盘继续在mapping之后按源MaxAbs与优先级竞争。插件Binding没有二维摇杆类型且InputReader为私有，不能直接在单个binding读取另一轴；合并死区到整个Action会改变组合键与混合输入，须由消融确认。
+- 验证/状态：actual Action→bridge最小red成立，16输入测试初次green；单轴、死区内、径向边界、饱和、正负斜向、mixed keyboard fixtures与两个设计消融待最终恢复验收。源Right2D额外Y取反另列H2，不将径向测试当作该符号的证明。公共startup/grounded/head功能Gate待执行，本项尚未勾选；证据target/bf134/01h。
+
+### BF134.01H-G — Head验收驱动意图遗漏，不计移植差异
+
+- 原始公共Head报告前三pitch窗口通过，case3实际速度1.75、has-input=true但velocity-direction=false，工具等待该分支后超时。源公式无错误，graph/primary/fault/temporal均零；保留该失败。
+- 当次B_Als_Character原生默认DesiredRotationMode和RotationMode均ViewDirection；C++ SetDesiredRotationMode保存意图，owner RefreshRotationMode据此派生actual。工具仅写actual请求会被正确的owner刷新覆盖，G2b生产生命周期无源差异证据，不复开生产算法。
+- 最小实际driver→input_request→owner测试稳定red；工具在窗口入口走既有rotation-mode input边沿改变保存意图，删除无效actual请求，无新状态/helper/schedule。source/static、移除press消融和36恢复回归通过；新生产构建167.434秒，startup16.282秒/Head14/14（20.847秒）功能通过，graph/primary/fault/temporal零。原失败保留，不改阈值，工具子项单独提交；截图关闭、max_eval_p95_ms延后失败保留。证据target/bf134/01h_gate。

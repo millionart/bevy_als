@@ -4927,7 +4927,8 @@ fn drive_manual_integration(
                 commands.entity(character).remove::<crate::als_camera::AlsCameraCustomTimeDilation>();
             }
             request.overlay_state = Some(OverlayState::Default);
-            request.rotation_mode = Some(if matches!(index, 3 | 4) { RotationMode::VelocityDirection } else { RotationMode::ViewDirection });
+            let desired_mode = if matches!(index, 3 | 4) { RotationMode::VelocityDirection } else { RotationMode::ViewDirection };
+            input.0.rotation_mode_pressed = entering && *rotation_mode != desired_mode;
             request.stance = Some(Stance::Standing);
             request.gait = Some(Gait::Walking);
             view_yaw.0 = SPRINT_YAW + (elapsed * 2.0).sin() * 55.0_f32.to_radians();
@@ -11072,6 +11073,63 @@ mod tests {
             if index == 3 { app.world_mut().resource_mut::<ManualIntegrationState>().phase = IntegrationPhase::Finish; }
             app.world_mut().get_mut::<Transform>(actor).unwrap().rotation = rotation;
             app.world_mut().run_schedule(PostUpdate);
+        }
+    }
+
+    #[test]
+    fn head_driver_changes_saved_rotation_intent_through_actual_input() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, crate::als::transition::AlsStateTransitionPlugin))
+            .add_message::<crate::als::aim::AimStateChanged>()
+            .add_message::<AlsCameraShakeRequest>()
+            .add_message::<AlsPivotNotify>()
+            .init_resource::<ManualIntegrationState>()
+            .init_resource::<ManualAnimationWindowEvidence>()
+            .init_resource::<ManualRuntimePhaseEvidence>()
+            .init_resource::<AlsShowDebugHudState>()
+            .init_resource::<AlsFootIkWeightOverride>()
+            .init_resource::<Assets<AlsMovementParams>>()
+            .init_resource::<ButtonInput<KeyCode>>()
+            .insert_resource(ManualIntegrationFixture {
+                platform: Entity::PLACEHOLDER, platform_home: Vec3::ZERO,
+                locomotion_start: Vec3::ZERO, mantle_start: Vec3::ZERO,
+                roll_start: Vec3::ZERO, facing_yaw: 0.0,
+                obstacle_mesh: Handle::default(), obstacle_material: Handle::default(),
+            })
+            .add_systems(PreUpdate, drive_manual_integration)
+            .add_systems(Update, crate::als::input_request::input_state_request_system
+                .before(crate::als::transition::state_transition_system))
+            .add_systems(PostUpdate, crate::als::aim::aim_rotation_mode_system);
+        let entity = app.world_mut().spawn((
+            AlsCharacter, crate::als::input::AlsInputCommand::default(),
+            AlsInputOverride::default(), AlsMaxAllowedGait(Gait::Walking),
+            Stance::Standing, LocomotionState::Grounded, Gait::Walking,
+            RotationMode::ViewDirection, OverlayState::Default,
+            crate::als::aim::AlsLastFreeRotationMode(RotationMode::ViewDirection),
+            AlsStateRequest::default(),
+            (Transform::default(), Position::default(), LinearVelocity::default(),
+                AlsViewYaw::default(), AlsViewPitch::default(),
+                AlsMovementParamsHandle::default(), AlsAimingYawConstraint::default()),
+        )).id();
+        for (index, expected) in [(3, RotationMode::VelocityDirection),
+            (4, RotationMode::VelocityDirection), (5, RotationMode::ViewDirection),
+            (6, RotationMode::ViewDirection)] {
+            let mut state = app.world_mut().resource_mut::<ManualIntegrationState>();
+            state.initialized = true;
+            state.character = Some(entity);
+            state.scenario = IntegrationScenario::Head;
+            state.phase = IntegrationPhase::Head;
+            state.entered = true;
+            state.head_probe.case_index = index;
+            state.phase_started_seconds = 0.0;
+            app.update();
+            assert_eq!(*app.world().get::<RotationMode>(entity).unwrap(), expected,
+                "Source Head branch after owner refresh for case {index}");
+            assert_eq!(app.world().get::<crate::als::aim::AlsLastFreeRotationMode>(entity).unwrap().0,
+                expected, "Source Head branch must update saved intent for case {index}");
+            app.update();
+            assert_eq!(*app.world().get::<RotationMode>(entity).unwrap(), expected,
+                "Source Head branch must remain stable for case {index}");
         }
     }
 
