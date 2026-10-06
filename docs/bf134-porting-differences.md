@@ -181,3 +181,9 @@ fresh角色37.548秒、当次CMC ComputeAnalogInputModifier与公开CurveVector�
 - 触发/consumer：actual RawGamepadEvent→InputPlugin→Action→bridge从x=0.5变0.505，源径向mapping输出0.38125，旧目标仍0.375；普通设备精细摇杆可达，定级P2。此前直接analog_mut的测试绕过该实际事件链，留下漏检。
 - 最小修复：在Gamepad Add的公开observer中只将四个stick轴的change threshold设0，增强输入仍使用raw轴与既有径向modifier。现有dead/live-zone只改变scaled event，没有当前raw consumer影响，保留；按钮和其他轴设置保持。没有自定义filter、缓存、额外逐帧系统或依赖修改。
 - 状态：最小red82.527秒→green94.080秒，恢复旧门槛消融red94.180秒；34项恢复回归（input18/view6/gait10）通过，raw矩阵覆盖Any/Single/新设备Add、四轴其他设置保持和LeftZ默认，source/static2.657秒通过。当前生产构建173.187秒，startup16.069秒/Grounded15/15（42.803秒）/Head14/14（21.540秒）功能通过，graph/primary/fault/temporal零。本项已修复验收并单独提交，P2累计十七；截图关闭、max_eval_p95_ms失败保留，未核销性能与全范围目标。图/转换规则/原始资产未改，完整转换diff零证据有效。证据target/bf134/01h3。
+
+### BF134.01I1 — Sprint/Roll共享输入候选：当前consumer源等价
+
+- 当次原生Sprint为Hold0.1/one-shot+Released，Roll为Tap0.3，actuation0.5、非缩放clock。UE只在一个context处理结束后追加consumed keys，允许同context共享key；target ActionSettings默认consume_input=false，实际两Action未覆写。预测的Hold提前消费在最小实际按键test中未出现，不修改生产设置。
+- 当前UI十个key不与ShiftLeft/FaceButton_Right重合，没有该key的下层consumer。source Released触发Input_OnSprint(false)，现有latch在raw=false释放、one-shot None期间保持保存意图；12个keyboard/raw-gamepad×短/中/长按×正常/Slomo组合通过，Roll释放窗口和Sprint保持/释放与实际ALS consumer等价。未消费的内部release事件状态不相同，单独保留边界，不能据此推定可达P2。
+- controlled consume=true反例red93.645秒，恢复后35项input/view/gait回归通过，source/static4.230秒通过，候选核销并单独提交。只有test/manifest/source记录，生产实现保持。当前Playground功能证据继续有效，累计已验收P2仍十七项。

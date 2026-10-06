@@ -1150,6 +1150,52 @@ mod tests {
             .get_axis_settings(GamepadAxis::RightStickX), &expected);
     }
     #[test]
+    fn shared_sprint_roll_key_preserves_source_tap_after_hold_waiting() {
+        use bevy::input::gamepad::{RawGamepadButtonChangedEvent, RawGamepadEvent};
+        use bevy::time::TimeUpdateStrategy;
+        for gamepad_input in [false, true] {
+            for frames in [2, 8, 20] {
+                for speed in [1.0, 0.25] {
+                    let mut app = App::new();
+                    app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, EnhancedInputPlugin, AlsInputPlugin))
+                        .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_millis(20)));
+                    app.finish();
+                    let player = app.world_mut().spawn_empty().id();
+                    let gamepad = app.world_mut().spawn(Gamepad::default()).id();
+                    spawn_als_actions(&mut app.world_mut().commands(), player, &AlsInputMap::default());
+                    app.update();
+                    app.world_mut().resource_mut::<Time<Virtual>>().set_relative_speed(speed);
+                    if gamepad_input {
+                        app.world_mut().write_message(RawGamepadEvent::Button(
+                            RawGamepadButtonChangedEvent::new(gamepad, GamepadButton::East, 1.0)));
+                    } else {
+                        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::ShiftLeft);
+                    }
+                    for _ in 0..frames {
+                        app.update();
+                        assert!(!app.world().get::<AlsInputCommand>(player).unwrap().roll_pressed,
+                            "Source Tap must wait for release");
+                    }
+                    assert_eq!(app.world().get::<AlsInputCommand>(player).unwrap().sprint_held, frames >= 8,
+                        "Source one-shot Hold intent for gamepad={gamepad_input}, frames={frames}, speed={speed}");
+                    if gamepad_input {
+                        app.world_mut().write_message(RawGamepadEvent::Button(
+                            RawGamepadButtonChangedEvent::new(gamepad, GamepadButton::East, 0.0)));
+                    } else {
+                        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().release(KeyCode::ShiftLeft);
+                    }
+                    app.update();
+                    let released = app.world().get::<AlsInputCommand>(player).unwrap();
+                    assert_eq!(released.roll_pressed, frames < 20,
+                        "Source shared Sprint/Roll Tap release for gamepad={gamepad_input}, frames={frames}, speed={speed}");
+                    assert!(!released.sprint_held, "Source Released trigger must clear Sprint intent");
+                    app.update();
+                    assert!(!app.world().get::<AlsInputCommand>(player).unwrap().roll_pressed);
+                }
+            }
+        }
+    }
+    #[test]
     fn look_rate_uses_source_nondilated_time_and_rejects_paused_actions() {
         use crate::als::character::AlsCharacter;
         use crate::als::motion::AlsViewYaw;
