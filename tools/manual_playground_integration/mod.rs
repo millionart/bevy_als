@@ -2016,6 +2016,7 @@ fn grounded_joint_command(
         };
     crate::als::input::AlsInputCommand {
         aim_held: aiming,
+        jump_held: index == 1 && (0.0..0.5).contains(&elapsed),
         move_dir: if moving || (aiming && elapsed >= 0.5) {
             Vec2::Y
         } else {
@@ -6026,7 +6027,8 @@ fn drive_manual_integration(
                     .is_some_and(|since| state.game_time_seconds - since >= 0.4)
                 {
                     request.stance = None;
-                    input.0.crouch_pressed = !aiming;
+                    input.0.crouch_pressed = !aiming && index != 1;
+                    input.0.jump_pressed = index == 1;
                     state.grounded_joint_probe.triggered_at = Some(state.game_time_seconds);
                 }
             }
@@ -11803,6 +11805,9 @@ mod tests {
             assert!(right.look_delta.x < 0.0 && left.look_delta.x > 0.0 && stopped.look_delta == Vec2::ZERO);
             assert_eq!([right.move_dir, left.move_dir, stopped.move_dir], [Vec2::ZERO; 3]);
         }
+        assert!(!grounded_joint_command(1, None, 0.0, 0.0).jump_held);
+        assert!(grounded_joint_command(1, Some(0.25), 0.0, 0.0).jump_held);
+        assert!(!grounded_joint_command(1, Some(0.6), 0.0, 0.0).jump_held);
         assert_eq!(grounded_joint_command(2, None, 0.0, 0.0).move_dir, Vec2::Y);
         assert_eq!(
             grounded_joint_command(0, None, 0.0, 0.0).move_dir,

@@ -86,7 +86,7 @@ source/static/ABI/layout/editor/boundary闭合；target_game/play最终正常优
 
 ## 待反例核对的源差异
 
-BF134.01G1/G2a/G2b/G2c/G2d1/G2d2/G2d3/G2d4已修复并验收；G2其他consumer/H2及剩余Action仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复二十七项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
+BF134.01G1/G2a/G2b/G2c/G2d1/G2d2/G2d3/G2d4已修复并验收；G2其他consumer/H2及剩余Action仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复二十八项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
 
 ### BF134.01G1 — P2：动画输入绕过已消费状态
 
@@ -267,3 +267,12 @@ fresh角色37.548秒、当次CMC ComputeAnalogInputModifier与公开CurveVector�
 - 修复：删除Jump mask和无源action guard，复用已有movement mode与Tnua能力；Move与Roll原消费边界保持，真实Mantling fixture迁为Custom及真实Grounded退出。新增真实GetUp第二变体单次Jump请求和必须通过的GettingUp+blocked+Air+vy>3覆盖，保留front/back source pose与锁定/解锁窗口。
 - 验证：motion46/46、GetUp8/8、Roll14/14、driver1/1，共69恢复回归；恢复Jump mask/action guard和删除driver单次状态分别red94.494/91.541/84.689秒，源码恢复。Cargo回退mtime误用消融binary由同driver0.293秒失败复现，advance mtime后重编86.961秒恢复green，纪律固化agents.md。source/static2.407与正常target_game/play生产168.371秒通过，startup15.603/GetUp12/12（13.451）/UphillJump6/6/18窗口（34.324）功能通过，graph/primary/fault/temporal零；单独提交，P2累计二十七。
 - 边界：截图关闭、完整max_eval_p95_ms失败保留，只作功能验收。无新生产state/helper/branch、依赖/图/转换规则/原始资产修改，15/39/374完整diff0证据有效；b2其他真实priority/prolong/mantle边界和整体审计尚未完成。证据target/bf134/01i3a2b2。
+
+
+### BF134.01I3a2b2b — P2：Jump held错误延续已站立的Crouch action
+
+- Source：当次Example crouched Jump只SetDesiredStance Standing并return；Pressed/Released处理不会在保持按住时重放该请求，也没有持续Crouch force。Target却在raw jump_held时prolong任意ongoing action；Tnua Crouch的StillFed保持Maintaining/负float offset，NoLongerFed才转Rising。
+- Actual反例：source crouch→Jump stand后hold0/30的35帧position/velocity/stance对比red83.575秒；完整诊断93.986秒证明hold30在Standing时反复四帧周期下降/重置floor，hold0正常收敛，最大差异约2mm，释放后恢复。该额外Crouch执行已改变真实物理输出，不以内部状态名称单独定级。
+- 最小修复：仅把prolong限定既有Jump discriminant，无新state/adapter/算法；删除临时trace，保留精确轨迹反例。已有Grounded CrouchToStand窗口改用source Jump press并held0.5秒，原graph/clip/pose/位移检查不改。
+- Gate：motion47/47及driver1/1恢复通过；恢复任意action prolong消融red96.365秒，源码字节恢复且不回退mtime后重编。source/static2.404秒与正常target_game/play生产166.668秒通过，startup15.810/Grounded15/15（42.563）/UphillJump6/6/18窗口（35.280）功能通过，graph/primary/fault/temporal零。单独提交，P2累计二十八；截图关闭，max_eval_p95_ms及Grounded max_frame_ms失败保留，仅功能验收。
+- 剩余：真实ragdoll/mantle/priority、其他输入/状态、全部动画与其他模块仍待BF134覆盖核销；无转换器或原始资产修改，15/39/374完整diff0证据有效。证据target/bf134/01i3a2b2b。

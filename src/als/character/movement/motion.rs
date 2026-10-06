@@ -2872,7 +2872,7 @@ fn locomotion_drive_system(
                 "[MOTION] entity={entity:?} auto mantle begin kind={:?} height={:.2} start_time={start_time:.3}",
                 i.kind, i.mantling_height,
             );
-        } else if effective.jump_held && controller.action_flow_status().ongoing().is_some() {
+        } else if effective.jump_held && controller.action_flow_status().ongoing() == Some(AlsControlSchemeActionDiscriminant::Jump) {
             controller.prolong_action();
         }
     }
@@ -5057,6 +5057,37 @@ mod tests {
             } else {
                 baseline = Some(samples);
             }
+        }
+    }
+
+    #[test]
+    fn source_crouched_jump_stands_without_physical_hold_affecting_crouch() {
+        let mut baseline: Option<Vec<(f32, f32, Stance)>> = None;
+        for held_frames in [0, 30] {
+            let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+            app.world_mut().get_mut::<AlsDesiredStance>(character).unwrap().0 = Stance::Crouching;
+            for _ in 0..10 { app.update(); }
+            assert_eq!(app.world().get::<Stance>(character), Some(&Stance::Crouching));
+            assert_eq!(app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().action_flow_status().ongoing(),
+                Some(AlsControlSchemeActionDiscriminant::Crouch));
+            let mut samples = Vec::new();
+            for frame in 0..35 {
+                let mut input = app.world_mut().get_mut::<AlsInputCommand>(character).unwrap();
+                input.jump_pressed = frame == 0;
+                input.jump_held = frame < held_frames;
+                app.update();
+                assert_eq!(app.world().get::<AlsDesiredStance>(character).unwrap().0, Stance::Standing);
+                let sample = (app.world().get::<Position>(character).unwrap().y,
+                    app.world().get::<LinearVelocity>(character).unwrap().y,
+                    *app.world().get::<Stance>(character).unwrap());
+                samples.push(sample);
+            }
+            if let Some(ref reference) = baseline {
+                for (frame, (actual, expected)) in samples.iter().zip(reference).enumerate() {
+                    assert!((actual.0 - expected.0).abs() < 1e-5 && (actual.1 - expected.1).abs() < 1e-5 && actual.2 == expected.2,
+                        "Source crouched Jump only sets DesiredStanding; held must not alter physical crouch exit: frame={frame}, actual={actual:?}, expected={expected:?}");
+                }
+            } else { baseline = Some(samples); }
         }
     }
 
