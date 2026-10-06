@@ -3661,6 +3661,35 @@ mod tests {
             let resumed = app.world().get::<crate::actual_motion::AlsActualMotion>(character).unwrap();
             assert!(resumed.has_input && (resumed.input_yaw_degrees + 90.0).abs() < 1e-5,
                 "Source resumed Character must refresh the current held movement for device={gamepad_input}");
+            let retained_yaw = resumed.input_yaw_degrees;
+            if gamepad_input { app.world_mut().write_message(RawGamepadEvent::Axis(
+                RawGamepadAxisChangedEvent::new(gamepad, GamepadAxis::LeftStickX, 0.0))); }
+            else { app.world_mut().resource_mut::<ButtonInput<KeyCode>>().release(KeyCode::KeyD); }
+            for _ in 0..3 {
+                app.update();
+                let released = app.world().get::<crate::actual_motion::AlsActualMotion>(character).unwrap();
+                assert!(!released.has_input && released.input_yaw_degrees == retained_yaw,
+                    "Source Move release must consume zero each tick without clearing its retained direction");
+                assert_eq!(app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().basis.desired_motion, Vec3::ZERO);
+            }
+            if gamepad_input { app.world_mut().write_message(RawGamepadEvent::Axis(
+                RawGamepadAxisChangedEvent::new(gamepad, GamepadAxis::LeftStickX, 1.0))); }
+            else { app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::KeyD); }
+            app.update();
+            assert!(app.world().get::<crate::actual_motion::AlsActualMotion>(character).unwrap().has_input);
+            app.world_mut().resource_mut::<Time<Virtual>>().pause();
+            if gamepad_input { app.world_mut().write_message(RawGamepadEvent::Axis(
+                RawGamepadAxisChangedEvent::new(gamepad, GamepadAxis::LeftStickX, 0.0))); }
+            else { app.world_mut().resource_mut::<ButtonInput<KeyCode>>().release(KeyCode::KeyD); }
+            app.update();
+            assert!(app.world().get::<crate::actual_motion::AlsActualMotion>(character).unwrap().has_input);
+            app.world_mut().resource_mut::<Time<Virtual>>().unpause();
+            for _ in 0..3 {
+                app.update();
+                assert!(!app.world().get::<crate::actual_motion::AlsActualMotion>(character).unwrap().has_input,
+                    "Source Move released while paused must not leave pending input on resume");
+                assert_eq!(app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().basis.desired_motion, Vec3::ZERO);
+            }
         }
     }
     #[test]
