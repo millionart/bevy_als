@@ -1,3 +1,4 @@
+use bevy::ecs::spawn::WithRelated;
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::Press as EIPress;
 use bevy_enhanced_input::prelude::*;
@@ -16,6 +17,24 @@ pub struct LookAction;
 #[derive(InputAction)]
 #[action_output(Vec2)]
 pub struct LookMouseAction;
+
+#[derive(InputAction)]
+#[action_output(Vec2)]
+struct StickAction;
+
+#[derive(Component, Debug)]
+struct StickValue(Entity);
+
+impl InputModifier for StickValue {
+    fn transform(
+        &mut self,
+        actions: &ActionsQuery,
+        _time: &ContextTime,
+        value: ActionValue,
+    ) -> ActionValue {
+        actions.get(self.0).map_or(value, |(value, ..)| *value)
+    }
+}
 
 #[derive(InputAction)]
 #[action_output(bool)]
@@ -194,16 +213,27 @@ impl Default for AlsInputMap {
 }
 
 pub fn spawn_als_actions(cmds: &mut Commands, player: Entity, map: &AlsInputMap) {
+    let move_stick = cmds.spawn((
+        Action::<StickAction>::new(),
+        DeadZone::default(),
+        Bindings::spawn(Axial::new(map.move_stick[0], map.move_stick[1])),
+    )).id();
+    let look_stick = cmds.spawn((
+        Action::<StickAction>::new(),
+        DeadZone::default(),
+        Bindings::spawn(Axial::new(map.look_stick[0], map.look_stick[1])),
+    )).id();
     cmds.entity(player).insert((
         OnFoot,
         AlsInputCommand::default(),
-        actions!(OnFoot[
+        Actions::<OnFoot>::spawn((
+            WithRelated([move_stick, look_stick].into_iter()),
+            bevy::ecs::recursive_spawn!(
             (
                 Action::<MoveAction>::new(),
                 ActionSettings { accumulation: Accumulation::MaxAbs, ..default() },
                 Bindings::spawn((
-                    Axial::new(map.move_stick[0], map.move_stick[1])
-                        .with(DeadZone::default()),
+                    Spawn((Binding::None, StickValue(move_stick))),
                     Spawn(map.move_east),
                     Spawn((map.move_south, SwizzleAxis::YXZ, Negate::all())),
                     Spawn((map.move_west, Negate::all())),
@@ -218,8 +248,7 @@ pub fn spawn_als_actions(cmds: &mut Commands, player: Entity, map: &AlsInputMap)
                 Action::<LookAction>::new(),
                 ActionSettings { accumulation: Accumulation::MaxAbs, ..default() },
                 Bindings::spawn((
-                    Axial::new(map.look_stick[0], map.look_stick[1])
-                        .with(DeadZone::default()),
+                    Spawn((Binding::None, StickValue(look_stick))),
                     Spawn(map.look_right),
                     Spawn((map.look_down, SwizzleAxis::YXZ)),
                     Spawn((map.look_left, Negate::all())),
@@ -306,8 +335,9 @@ pub fn spawn_als_actions(cmds: &mut Commands, player: Entity, map: &AlsInputMap)
                 Action::<ToggleUiAction>::new(),
                 EIPress::default(),
                 Bindings::spawn(map.toggle_ui.clone()),
+            )
             ),
-        ]),
+        )),
     ));
 }
 
@@ -431,7 +461,7 @@ pub struct AlsInputPlugin;
 
 impl Plugin for AlsInputPlugin {
     fn build(&self, app: &mut App) {
-        app.add_input_context::<OnFoot>().add_systems(
+        app.add_input_context::<OnFoot>().add_input_modifier::<StickValue>().add_systems(
             PreUpdate,
             als_input_bridge_system.after(EnhancedInputSystems::Apply),
         );
@@ -540,7 +570,7 @@ mod tests {
     }
 
     #[test]
-    fn spawn_creates_eighteen_actions_with_bindings() {
+    fn spawn_creates_eighteen_actions_and_two_stick_groups_with_bindings() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
             .add_plugins(EnhancedInputPlugin)
@@ -554,7 +584,7 @@ mod tests {
         app.update();
 
         let world = app.world_mut();
-        assert_eq!(world.get::<Actions<OnFoot>>(player).unwrap().len(), 18);
+        assert_eq!(world.get::<Actions<OnFoot>>(player).unwrap().len(), 20);
 
         for action in world.get::<Actions<OnFoot>>(player).unwrap().iter() {
             let bindings = world.get::<Bindings>(action).unwrap();
@@ -966,6 +996,55 @@ mod tests {
             assert_eq!(command.move_dir, expected, "Source move component winner for stick={stick}");
             assert_eq!(command.look_rate, -expected, "Source look component winner for stick={stick}");
         }
+    }
+
+    #[test]
+    fn stick_dead_zone_uses_the_source_two_dimensional_magnitude() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, EnhancedInputPlugin, AlsInputPlugin));
+        app.finish();
+        let player = app.world_mut().spawn_empty().id();
+        let gamepad = app.world_mut().spawn(Gamepad::default()).id();
+        spawn_als_actions(&mut app.world_mut().commands(), player, &AlsInputMap::default());
+        app.update();
+        for (raw, expected) in [
+            (Vec2::splat(0.15), Vec2::splat(0.010723304)),
+            (Vec2::splat(0.5), Vec2::splat(0.4482233)),
+            (Vec2::ONE, Vec2::splat(std::f32::consts::FRAC_1_SQRT_2)),
+            (Vec2::new(0.3, 0.4), Vec2::new(0.225, 0.3)),
+            (Vec2::new(-0.3, 0.4), Vec2::new(-0.225, 0.3)),
+            (Vec2::new(0.5, 0.0), Vec2::new(0.375, 0.0)),
+            (Vec2::new(0.0, -0.5), Vec2::new(0.0, -0.375)),
+            (Vec2::new(0.2, 0.0), Vec2::ZERO),
+            (Vec2::splat(0.1), Vec2::ZERO),
+            (Vec2::ZERO, Vec2::ZERO),
+        ] {
+            let mut device = app.world_mut().get_mut::<Gamepad>(gamepad).unwrap();
+            device.analog_mut().set(GamepadAxis::LeftStickX, raw.x);
+            device.analog_mut().set(GamepadAxis::LeftStickY, raw.y);
+            device.analog_mut().set(GamepadAxis::RightStickX, raw.x);
+            device.analog_mut().set(GamepadAxis::RightStickY, raw.y);
+            app.update();
+            let command = app.world().get::<AlsInputCommand>(player).unwrap();
+            assert!((command.move_dir - expected).length() < 1e-6,
+                "Source radial move for {raw}: expected {expected}, actual {}", command.move_dir);
+            assert!((command.look_rate - expected).length() < 1e-6,
+                "Source radial look magnitude for {raw}: expected {expected}, actual {}", command.look_rate);
+        }
+        let mut device = app.world_mut().get_mut::<Gamepad>(gamepad).unwrap();
+        device.analog_mut().set(GamepadAxis::LeftStickX, 0.3);
+        device.analog_mut().set(GamepadAxis::LeftStickY, 0.4);
+        device.analog_mut().set(GamepadAxis::RightStickX, 0.3);
+        device.analog_mut().set(GamepadAxis::RightStickY, 0.4);
+        let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+        keys.press(KeyCode::KeyD);
+        keys.press(KeyCode::ArrowLeft);
+        app.update();
+        let command = app.world().get::<AlsInputCommand>(player).unwrap();
+        assert!((command.move_dir - Vec2::new(1.0, 0.3)).length() < 1e-6,
+            "Source keyboard competition occurs after the radial mapping: {}", command.move_dir);
+        assert!((command.look_rate - Vec2::new(-1.0, 0.3)).length() < 1e-6,
+            "Source look keyboard competition occurs after the radial mapping: {}", command.look_rate);
     }
 
     #[test]

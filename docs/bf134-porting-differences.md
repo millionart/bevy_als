@@ -86,7 +86,7 @@ source/static/ABI/layout/editor/boundary闭合；target_game/play最终正常优
 
 ## 待反例核对的源差异
 
-BF134.01G1/G2a/G2b/G2c/G2d1/G2d2/G2d3/G2d4已修复并验收；G2其他consumer/H仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复十五项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
+BF134.01G1/G2a/G2b/G2c/G2d1/G2d2/G2d3/G2d4已修复并验收；G2其他consumer/H2及剩余Action仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复十六项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
 
 ### BF134.01G1 — P2：动画输入绕过已消费状态
 
@@ -161,7 +161,7 @@ fresh角色37.548秒、当次CMC ComputeAnalogInputModifier与公开CurveVector�
 - Source：当次原生IMC_Als_Default的Gamepad_Left2D/Right2D分别使用DeadZone_0/_2，均Type=Radial、LowerThreshold=0.2、UpperThreshold=1.0。UE InputModifiers.cpp先计算Size2D和GetSafeNormal2D，再将重映射长度乘回方向；动作累加在mapping modifier之后。
 - Target/触发：spawn_als_actions把Axial preset的两个独立binding各自附加DeadZone；斜向(0.15,0.15)被逐轴归零，而源输出(0.010723304,0.010723304)。中等斜向(0.5,0.5)源每轴0.4482233，旧目标0.375；非均匀斜向也改变方向。普通手柄移动和视角可达，定级P2。
 - 最小修复：通过公开InputModifier把两个已有binding先聚合为私有二维group，再复用插件内置DeadZone，转发处理后的mapping值给原Move/Look；不添加自定义死区算法、输入资源、逐帧缓存或依赖fork。键盘继续在mapping之后按源MaxAbs与优先级竞争。插件Binding没有二维摇杆类型且InputReader为私有，不能直接在单个binding读取另一轴；合并死区到整个Action会改变组合键与混合输入，须由消融确认。
-- 验证/状态：actual Action→bridge最小red成立，16输入测试初次green；单轴、死区内、径向边界、饱和、正负斜向、mixed keyboard fixtures与两个设计消融待最终恢复验收。源Right2D额外Y取反另列H2，不将径向测试当作该符号的证明。公共startup/grounded/head功能Gate待执行，本项尚未勾选；证据target/bf134/01h。
+- 验证/状态：actual Action→bridge最小red106.845秒成立，32项恢复回归通过，两设计消融均为预期语义失败；单轴、死区内、径向边界、饱和、正负斜向、mixed keyboard、原鼠标/时钟/暂停合同闭合。H-G修复后36恢复回归再次覆盖输入/视角/步态；Input代码hash保持一致，新startup16.282秒、原Grounded15/15（42.926秒）、新Head14/14（20.847秒）功能通过，graph/primary/fault/temporal零。source/static8.187秒通过，H已修复验收并单独提交；原Head工具失败保留，Y方向候选另留H2。图/转换规则/原始资产未改，全15/39/374转换diff=0证据继续有效；截图关闭、max_eval_p95_ms失败保留，仅功能验收。证据target/bf134/01h。
 
 ### BF134.01H-G — Head验收驱动意图遗漏，不计移植差异
 
