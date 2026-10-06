@@ -5012,6 +5012,44 @@ mod tests {
     }
 
     #[test]
+    fn default_source_jump_trajectory_is_independent_of_physical_hold_duration() {
+        let mut baseline: Option<Vec<(f32, f32, LocomotionState)>> = None;
+        for hold_frames in [0, 4, 30, 60] {
+            let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+            let mut samples = Vec::new();
+            let start_y = app.world().get::<Position>(character).unwrap().y;
+            let mut launched = false;
+            let mut landed = false;
+            for frame in 0..90 {
+                let mut input = app.world_mut().get_mut::<AlsInputCommand>(character).unwrap();
+                input.jump_pressed = frame == 0;
+                input.jump_held = frame < hold_frames;
+                app.update();
+                let position = app.world().get::<Position>(character).unwrap().y - start_y;
+                let velocity = app.world().get::<LinearVelocity>(character).unwrap().y;
+                let mode = *app.world().get::<LocomotionState>(character).unwrap();
+                if frame == 0 {
+                    assert!((velocity - (4.2 - 9.81 / 60.0)).abs() < 0.02,
+                        "Source default Jump launch after gravity for hold={hold_frames}: velocity={velocity}");
+                }
+                launched |= mode == LocomotionState::Air;
+                landed |= frame > 4 && launched && mode == LocomotionState::Grounded;
+                samples.push((position, velocity, mode));
+            }
+            assert!(launched && landed, "Actual default Jump must launch and land for hold={hold_frames}");
+            if let Some(ref reference) = baseline {
+                for (frame, (actual, expected)) in samples.iter().zip(reference.iter()).enumerate() {
+                    assert!((actual.0 - expected.0).abs() < 1e-5 && (actual.1 - expected.1).abs() < 1e-5
+                        && actual.2 == expected.2,
+                        "Source MaxHoldTime zero trajectory changed with hold={hold_frames}, frame={frame}: actual={actual:?}, expected={expected:?}");
+                }
+            } else {
+                baseline = Some(samples);
+            }
+        }
+    }
+
+    #[test]
     fn jump_height_keeps_source_launch_speed_when_world_gravity_changes() {
         for (global, scale, extra) in [
             (Vec3::Y * -12.0, 1.0, Vec3::ZERO),

@@ -243,3 +243,9 @@ fresh角色37.548秒、当次CMC ComputeAnalogInputModifier与公开CurveVector�
 - 反例：paused新按Space→target默认Down START仍发positive jump chain请求，red77.534秒；恢复/释放必须依据Source真实事件而非统一held/START。
 - 最小修复：按源接Pressed+Released、复用已证实public pause Blocker，只有正值FIRE/CANCEL发chain请求；Released false不走positive链，START resumed Ongoing不重放。既有raw physical held输出保持，bPressedJump/ClearJumpInput/MaxHoldTime与Tnua prolong/action_flow及实际动作优先级在a2b独立核对，不以本项替代。
 - 状态：red77.534→green76.445、source event matrix75.860、静态2.409秒，四语义消融red75.814/74.681/74.594/74.498秒、63恢复回归通过。当前生产146.734秒，startup15.476/Grounded15/15（42.300）/UphillJump6/6（32.775）功能通过，graph/primary/fault/temporal零，本项验收单独提交，P2累计二十五。截图关闭、max_eval_p95_ms失败保留；物理held/MaxHoldTime与priority实际分支未核销，整体目标未完成。图/转换规则/原始资产未改。证据target/bf134/01i3a2a。
+
+### BF134.01I3a2b0 — 默认Zero-hold Jump物理源等价
+
+- 当次Actor JumpMaxHoldTime=0/MaxCount1；Source Jump/Check/Clear/Stop无持续Jump force，target source launch height与所有extra/shorten gravity为0。Tnua的raw held/prolong改变内部Maintaining状态，不足以证明输出差异。
+- 实际physics：hold0/4/30/60×90帧的垂直position/velocity/locomotion全部相同，初始4.2减当帧重力与launch/landing成立；无prolong的hold0路径信号不变。新轨迹test82.641秒、旧完整physical locomotion1.064秒、source/static2.400秒通过，仅提交必要断言，无生产更改或重复runtime。
+- 此结论只证明源默认zero hold，正值合法JumpMaxHoldTime配置与actual ragdoll/mantle/uncrouch/hold其他action仍保留独立b1/b2范围，P2计数仍二十五。证据target/bf134/01i3a2b。
