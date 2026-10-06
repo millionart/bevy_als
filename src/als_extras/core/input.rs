@@ -1534,6 +1534,47 @@ mod tests {
         }
     }
     #[test]
+    fn paused_look_events_preserve_actual_view_and_do_not_replay_mouse_deltas() {
+        use crate::als::character::AlsCharacter;
+        use crate::als::motion::AlsViewYaw;
+        use crate::als::view::{AlsViewInputPlugin, AlsViewPitch};
+        use bevy::input::{gamepad::{RawGamepadAxisChangedEvent, RawGamepadEvent}, mouse::MouseMotion};
+        use bevy::time::TimeUpdateStrategy;
+        for gamepad_input in [false, true] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, EnhancedInputPlugin, AlsInputPlugin, AlsViewInputPlugin))
+                .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_millis(20)));
+            app.finish();
+            let character = app.world_mut().spawn((AlsCharacter, AlsViewYaw(0.0), AlsViewPitch(0.0))).id();
+            let gamepad = app.world_mut().spawn(Gamepad::default()).id();
+            spawn_als_actions(&mut app.world_mut().commands(), character, &AlsInputMap::default());
+            app.update();
+            let mut expected = Vec2::ZERO;
+            for (paused, held, mouse) in [
+                (true,true,Vec2::new(8.0,-4.0)), (false,true,Vec2::ZERO),
+                (true,false,Vec2::new(7.0,-3.0)), (false,false,Vec2::ZERO),
+                (false,true,Vec2::new(2.0,-3.0)), (true,true,Vec2::new(-7.0,4.0)),
+                (false,true,Vec2::ZERO), (false,false,Vec2::ZERO),
+            ] {
+                let mut time = app.world_mut().resource_mut::<Time<Virtual>>();
+                if paused { time.pause(); } else { time.unpause(); }
+                if gamepad_input {
+                    app.world_mut().write_message(RawGamepadEvent::Axis(
+                        RawGamepadAxisChangedEvent::new(gamepad, GamepadAxis::RightStickX, if held { 1.0 } else { 0.0 })));
+                } else {
+                    let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+                    if held { keys.press(KeyCode::ArrowRight); } else { keys.release(KeyCode::ArrowRight); }
+                }
+                if mouse != Vec2::ZERO { app.world_mut().write_message(MouseMotion { delta: mouse }); }
+                app.update();
+                if !paused { expected -= Vec2::new(mouse.x + if held { 4.8 } else { 0.0 }, mouse.y) * std::f32::consts::PI / 180.0; }
+                assert!((app.world().get::<AlsViewYaw>(character).unwrap().0 - expected.x).abs() < 1e-6
+                    && (app.world().get::<AlsViewPitch>(character).unwrap().0 - expected.y).abs() < 1e-6,
+                    "Source paused view output for device={gamepad_input}, paused={paused}, held={held}, mouse={mouse:?}");
+            }
+        }
+    }
+    #[test]
     fn look_rate_uses_source_nondilated_time_and_rejects_paused_actions() {
         use crate::als::character::AlsCharacter;
         use crate::als::motion::AlsViewYaw;
