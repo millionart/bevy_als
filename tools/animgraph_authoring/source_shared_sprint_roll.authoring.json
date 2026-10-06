@@ -124,8 +124,8 @@
       "sha256": "8ae68350cb5c2a10600c90bdd0c83c8b63e64ebf71a56d7cdd6b1571fe54e873"
     },
     {
-      "path": "target/bf134/01i1/source_shared_key.json",
-      "sha256": "2e2182cccbc9f532d227bc4cb7ba1df464e7e967c7447d8900628595c1681df5"
+      "path": "target/bf134/01i3b1/source_shared_key.json",
+      "sha256": "aa550460426310d752df32891d6a116b75055690bc3f93369a6984ce930ec96d"
     },
     {
       "path": "target/bf134/01h/imc.ue.json",
@@ -194,7 +194,7 @@
         "--lib",
         "als::input::tests"
       ],
-      "evidence": "target/bf134/01i1/final_input.watchdog.json"
+      "evidence": "target/bf134/01i3b1/final_input.watchdog.json"
     }
   ]
 }

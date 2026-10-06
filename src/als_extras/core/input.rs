@@ -125,12 +125,8 @@ pub struct ToggleUiAction;
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct OnFoot;
 
-#[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub struct AlsSprintInputLatch(pub bool);
-
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq, Reflect)]
 #[reflect(Default)]
-#[require(AlsSprintInputLatch)]
 pub struct AlsInputCommand {
     pub move_dir: Vec2,
     pub look_delta: Vec2,
@@ -161,16 +157,6 @@ impl AlsInputCommand {
 
 pub fn roll_pressed_from_events(events: ActionEvents) -> bool {
     events.contains(ActionEvents::FIRE)
-}
-
-pub fn sprint_held_from(trigger: TriggerState, raw_held: bool, latched: &mut bool) -> bool {
-    if trigger == TriggerState::Fired {
-        *latched = true;
-    }
-    if !raw_held {
-        *latched = false;
-    }
-    *latched
 }
 
 #[derive(Debug, Clone)]
@@ -312,6 +298,8 @@ pub fn spawn_als_actions(cmds: &mut Commands, player: Entity, map: &AlsInputMap)
             (
                 Action::<SprintAction>::new(),
                 Hold::new(SPRINT_HOLD_SECS).one_shot(true),
+                EIRelease::default(),
+                GamePauseBlocker::default(),
                 Bindings::spawn(map.sprint.clone()),
             ),
             (
@@ -395,13 +383,12 @@ pub fn als_input_bridge_system(
     mut receivers: Query<(
         &mut AlsInputCommand,
         &Actions<OnFoot>,
-        &mut AlsSprintInputLatch,
     )>,
     moves: Query<&Action<MoveAction>>,
     mouse_looks: Query<&Action<LookMouseAction>>,
     looks: Query<&Action<LookAction>>,
     jumps: Query<(&Action<JumpAction>, &ActionEvents)>,
-    sprints: Query<(&TriggerState, &Action<SprintAction>), With<Action<SprintAction>>>,
+    sprints: Query<(&Action<SprintAction>, &ActionEvents)>,
     aims: Query<(&Action<AimAction>, &ActionEvents)>,
     crouches: Query<&ActionEvents, With<Action<CrouchAction>>>,
     rolls: Query<&ActionEvents, With<Action<RollAction>>>,
@@ -418,10 +405,12 @@ pub fn als_input_bridge_system(
         Query<&ActionEvents, With<Action<ToggleUiAction>>>,
     ),
 ) {
-    for (mut cmd, actions, mut sprint_latch) in &mut receivers {
+    for (mut cmd, actions) in &mut receivers {
         let saved_aim = cmd.aim_held;
+        let saved_sprint = cmd.sprint_held;
         cmd.reset();
         cmd.aim_held = saved_aim;
+        cmd.sprint_held = saved_sprint;
 
         if let Some(mv) = moves.iter_many(actions).next() {
             cmd.move_dir = **mv;
@@ -440,9 +429,10 @@ pub fn als_input_bridge_system(
             cmd.jump_pressed = **value && events.intersects(ActionEvents::FIRE | ActionEvents::CANCEL);
         }
 
-        if let Some((state, action)) = sprints.iter_many(actions).next() {
-            let raw_held = **action;
-            cmd.sprint_held = sprint_held_from(*state, raw_held, &mut sprint_latch.0);
+        if let Some((value, events)) = sprints.iter_many(actions).next() {
+            if events.intersects(ActionEvents::FIRE | ActionEvents::CANCEL) {
+                cmd.sprint_held = **value;
+            }
         }
 
         if let Some((value, events)) = aims.iter_many(actions).next() {
@@ -598,15 +588,6 @@ mod tests {
     }
 
     #[test]
-    fn sprint_latch_persists_after_one_shot_hold_and_clears_on_release() {
-        let mut latched = false;
-        assert!(!sprint_held_from(TriggerState::Ongoing, true, &mut latched));
-        assert!(sprint_held_from(TriggerState::Fired, true, &mut latched));
-        assert!(sprint_held_from(TriggerState::None, true, &mut latched));
-        assert!(!sprint_held_from(TriggerState::None, false, &mut latched));
-    }
-
-    #[test]
     fn bridge_tolerates_missing_actions_and_entities() {
         let mut world = World::new();
         world.insert_resource(ButtonInput::<KeyCode>::default());
@@ -628,7 +609,8 @@ mod tests {
         world.run_system_once(als_input_bridge_system).unwrap();
 
         let cmd = world.get::<AlsInputCommand>(player).unwrap();
-        assert_eq!(*cmd, AlsInputCommand::default());
+        assert_eq!(*cmd, AlsInputCommand { sprint_held: true, ..default() },
+            "Source saved intent has no callback when actions are absent");
     }
 
     #[test]
@@ -930,7 +912,8 @@ mod tests {
         );
 
         app.world_mut().commands().entity(player)
-            .mock_once::<OnFoot, AimAction>(TriggerState::Fired, false);
+            .mock_once::<OnFoot, AimAction>(TriggerState::Fired, false)
+            .mock_once::<OnFoot, SprintAction>(TriggerState::Fired, false);
         app.update();
         let actions = app
             .world()
@@ -1188,6 +1171,57 @@ mod tests {
         let reconnected = app.world_mut().spawn(Gamepad::default()).id();
         assert_eq!(app.world().get::<GamepadSettings>(reconnected).unwrap()
             .get_axis_settings(GamepadAxis::RightStickX), &expected);
+    }
+    #[test]
+    fn sprint_hold_pause_cancel_updates_the_actual_source_desired_gait() {
+        use crate::als::character::AlsCharacter;
+        use crate::als::gait::AlsDesiredGait;
+        use crate::als::state::{Gait, RotationMode, Stance};
+        use crate::als::transition::AlsStateRequest;
+        use bevy::input::gamepad::{RawGamepadButtonChangedEvent, RawGamepadEvent};
+        use bevy::time::TimeUpdateStrategy;
+        let cases = [
+            vec![(false,true,8,true),(true,true,1,true),(true,false,2,true),
+                (false,false,1,true),(false,true,8,true),(false,false,1,false)],
+            vec![(true,true,8,false),(false,true,2,false),(false,false,1,false),
+                (false,true,8,true),(false,false,1,false)],
+            vec![(false,true,2,false),(true,true,8,true),(false,true,2,true),(false,false,1,false)],
+            vec![(false,true,8,true),(true,false,2,false),(false,false,1,false)],
+        ];
+        for gamepad_input in [false, true] {
+            for speed in [1.0, 0.25] {
+                for (case_index, steps) in cases.iter().enumerate() {
+                    let mut app = App::new();
+                    app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, EnhancedInputPlugin, AlsInputPlugin))
+                        .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_millis(20)))
+                        .add_systems(Update, crate::als::input_request::input_state_request_system);
+                    app.finish();
+                    let player = app.world_mut().spawn((AlsCharacter, Stance::Standing,
+                        RotationMode::ViewDirection, AlsDesiredGait(Gait::Running), AlsStateRequest::default())).id();
+                    let gamepad = app.world_mut().spawn(Gamepad::default()).id();
+                    spawn_als_actions(&mut app.world_mut().commands(), player, &AlsInputMap::default());
+                    app.update();
+                    app.world_mut().resource_mut::<Time<Virtual>>().set_relative_speed(speed);
+                    for (step_index, &(paused, held, frames, expected)) in steps.iter().enumerate() {
+                        let mut time = app.world_mut().resource_mut::<Time<Virtual>>();
+                        if paused { time.pause(); } else { time.unpause(); }
+                        if gamepad_input {
+                            app.world_mut().write_message(RawGamepadEvent::Button(
+                                RawGamepadButtonChangedEvent::new(gamepad, GamepadButton::East, if held { 1.0 } else { 0.0 })));
+                        } else {
+                            let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+                            if held { keys.press(KeyCode::ShiftLeft); } else { keys.release(KeyCode::ShiftLeft); }
+                        }
+                        for _ in 0..frames { app.update(); }
+                        assert_eq!(app.world().get::<AlsInputCommand>(player).unwrap().sprint_held, expected,
+                            "Source saved Sprint intent for device={gamepad_input}, speed={speed}, case={case_index}, step={step_index}");
+                        assert_eq!(app.world().get::<AlsDesiredGait>(player).unwrap().0,
+                            if expected { Gait::Sprinting } else { Gait::Running },
+                            "Source saved DesiredGait for device={gamepad_input}, speed={speed}, case={case_index}, step={step_index}");
+                    }
+                }
+            }
+        }
     }
     #[test]
     fn shared_sprint_roll_key_preserves_source_tap_after_hold_waiting() {

@@ -293,3 +293,9 @@ fresh角色37.548秒、当次CMC ComputeAnalogInputModifier与公开CurveVector�
 - 最小修复：复用公开AlsControlSchemeActionState::Jump.memory.hold_elapsed，在non-Air或exact Ragdolling路径写既有结束值Infinity；五行条件，无新state/cache/system/依赖。单例green88.355、Custom/Grounded/Ragdolling reset矩阵89.035通过，删除条件消融red88.870；同target恢复motion50/50和GetUp driver2/2/source静态2.389通过。
 - 当前正常target_game/play生产159.697秒，startup15.548/GetUp12/12（13.475）/Base51/51（126.006）功能通过，actual ragdoll/mantle mode路径、普通Jump/hold与其他动作无回归，graph/primary/fault/temporal零。b1有限复开边界关闭，单独提交，P2累计二十九。
 - 截图关闭、完整max_eval_p95_ms失败保留，仅功能验收。图/转换规则/原始资产未改，15/39/374完整diff0证据有效；父项/余下输入与角色、全动画及其他模块总Gate仍待核销。证据target/bf134/01i3a2b2d。
+
+### BF134.01I3b1 — P2：Sprint raw释放绕过暂停事件语义
+
+- Source：fresh IA Hold0.1 one-shot+Released/paused=false、Example Triggered/Canceled；UE在更新内部触发历史后将暂停有效state置None，GetValue默认CVar1保留实际Boolean。长按后Ongoing→暂停Canceled(true)保持Sprint，随后暂停松键None→None无回调，desired-gait仍Sprint；旧target raw=false直接清latch并写Running。实际keyboard→Action→bridge→DesiredGait red112.194秒确认。
+- 初始Canceled零value假设被当次CVar事实否定，114.543秒的失败不是有效反例；有效修复没有改源码或切换到工程打包目录的自定义Sprint toggle。inventory基准checkout的Example与I1旧SHA一致。
+- 最小实现补Release与已有GamePauseBlocker，只在FIRE/CANCEL保存实际value；cmd保存意图替代独立latch/component/helper。原反例green106.177秒、16个keyboard/raw-pad×生命周期×速度组合和完整input25/25通过92.152秒、source/static3.692秒；旧mock补真实Released的ABI，生产无额外状态。三语义消融98.600/101.458/105.786秒均red，恢复后input25重编108.656秒加input_request14/aim5/gait10/view6共60项通过；两个source/static manifest3.692/2.945秒闭合。同target_game/play正常生产168.070秒，startup19.360/Sprint8/8（22.318）功能通过，graph/primary/fault/temporal零。I1有限复开边界关闭，单独提交，P2累计三十。截图关闭，完整max_eval_p95_ms/Sprint max_frame_p95_ms失败保留；图/共享转换/原始资产未改，15/39/374完整生成diff0证据有效。余下输入与paused owner消费/其他模块和总目标仍开放。证据target/bf134/01i3b1。
