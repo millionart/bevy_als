@@ -3603,6 +3603,67 @@ mod tests {
     }
 
     #[test]
+    fn paused_move_events_do_not_refresh_source_actual_character_input() {
+        use crate::als::character::{AlsCharacterBundle, AlsCharacterPlugin};
+        use crate::als::input::{AlsInputMap, AlsInputPlugin, spawn_als_actions};
+        use crate::als::transition::AlsStateTransitionPlugin;
+        use avian3d::prelude::PhysicsPlugins;
+        use bevy::asset::AssetEvent;
+        use bevy::time::TimeUpdateStrategy;
+        use bevy::input::gamepad::{RawGamepadAxisChangedEvent, RawGamepadEvent};
+        use bevy_enhanced_input::prelude::EnhancedInputPlugin;
+        use bevy_tnua::TnuaControllerPlugin;
+        use bevy_tnua_avian3d::TnuaAvian3dPlugin;
+        for (initial, gamepad_input) in [(Vec2::ZERO,false),(Vec2::Y,false),(Vec2::ZERO,true),(Vec2::Y,true)] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin, bevy::input::InputPlugin,
+                EnhancedInputPlugin, AlsInputPlugin, PhysicsPlugins::new(PostUpdate), TnuaAvian3dPlugin::new(Update),
+                TnuaControllerPlugin::<AlsControlScheme>::new(Update), AlsStateTransitionPlugin,
+                AlsCharacterPlugin, AlsMotionPlugin, crate::actual_motion::AlsActualMotionPlugin))
+                .configure_sets(PostUpdate, crate::actual_motion::AlsActualMotionSet.after(AlsActualVelocitySet))
+                .init_resource::<Assets<Mesh>>().add_message::<AssetEvent<Mesh>>()
+                .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
+            app.finish();
+            let params = AlsMovementParams::default();
+            let handle = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(params.clone());
+            let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>().add(initial_als_control_scheme_config(&params));
+            let mut bundle = AlsCharacterBundle::new(handle, config);
+            bundle.transform.translation = Vec3::new(0.0, 0.924, 0.0);
+            let character = app.world_mut().spawn(bundle).id();
+            let gamepad = app.world_mut().spawn(Gamepad::default()).id();
+            spawn_als_actions(&mut app.world_mut().commands(), character, &AlsInputMap::default());
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(20.0, 0.2, 20.0), Transform::from_xyz(0.0, -0.1, 0.0)));
+            for _ in 0..30 { app.update(); }
+            if initial == Vec2::Y {
+                if gamepad_input { app.world_mut().write_message(RawGamepadEvent::Axis(
+                    RawGamepadAxisChangedEvent::new(gamepad, GamepadAxis::LeftStickY, -1.0))); }
+                else { app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::KeyW); }
+            }
+            for _ in 0..5 { app.update(); }
+            let before = *app.world().get::<crate::actual_motion::AlsActualMotion>(character).unwrap();
+            app.world_mut().resource_mut::<Time<Virtual>>().pause();
+            if gamepad_input {
+                for (axis,value) in [(GamepadAxis::LeftStickY,0.0),(GamepadAxis::LeftStickX,1.0)] {
+                    app.world_mut().write_message(RawGamepadEvent::Axis(RawGamepadAxisChangedEvent::new(gamepad, axis, value)));
+                }
+            } else {
+                let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+                keys.release(KeyCode::KeyW);
+                keys.press(KeyCode::KeyD);
+            }
+            for _ in 0..3 { app.update(); }
+            let actual = app.world().get::<crate::actual_motion::AlsActualMotion>(character).unwrap();
+            assert_eq!((actual.has_input, actual.input_yaw_degrees), (before.has_input, before.input_yaw_degrees),
+                "Source paused Character owner must preserve its last refreshed input for initial={initial:?}");
+            assert_eq!(*actual, before, "Source paused owner must retain its complete motion snapshot");
+            app.world_mut().resource_mut::<Time<Virtual>>().unpause();
+            app.update();
+            let resumed = app.world().get::<crate::actual_motion::AlsActualMotion>(character).unwrap();
+            assert!(resumed.has_input && (resumed.input_yaw_degrees + 90.0).abs() < 1e-5,
+                "Source resumed Character must refresh the current held movement for device={gamepad_input}");
+        }
+    }
+    #[test]
     fn admitted_spawn_bootstrap_preserves_source_grounded_velocity() {
         use bevy::time::TimeUpdateStrategy;
         for delta in [1.0_f32 / 120.0, 1.0 / 60.0, 1.0 / 30.0, 0.075, 0.12, 0.2, 0.25] {

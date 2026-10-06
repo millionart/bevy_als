@@ -305,3 +305,10 @@ fresh角色37.548秒、当次CMC ComputeAnalogInputModifier与公开CurveVector�
 - Source：fresh Roll IA Tap0.3/actuation0.5/非缩放clock/paused=false；Example只绑定Triggered→StartRollingGrounded(1.3)。UE更新Tap内部历史后暂停有效state为None，因此暂停松键没有启动handler，恢复不重放；暂停按下、恢复后在有效Real时间内松开仍可触发。
 - Actual：真实keyboard→Action→bridge→生产advance_rolls在暂停release后active=true，Source应false，actor矩阵109.132秒red。102.657秒的先前输入断言只证明误发请求；新断言直接读取实际RollState，不能以未执行的actor断言证明行为。
 - 最小修复只给现有Roll Action加GamePauseBlocker一行；20个actual actor输入组合green105.045秒，input25/25与roll_drive15/15通过，source/static2.657秒。不加零dt拒绝/补偿/额外状态；删除唯一条件104.930秒实际active语义red，字节恢复与mtime推进后actor矩阵95.804秒/输入25通过，旧roll_drive15/15（65.333）同字节闭合。真实Grounded首轮在出生probe误读未完成movement的速度后失败/无报告；完整source/真实physicsclock反例证明0.2delta时raw0.200586、完成态0，工具只调整观察阶段并补captures0错误退出/机器条件记录（5277d95），不改物理或阈值。motion51/input25/exit1、两个原静态2.657/3.198和startup静态2.657通过；同target_game/play正常生产191.738、startup18.881/Grounded15/15（47.852）功能通过，graph/primary/fault/temporal零，实际Roll全链完成，b2独立提交，P2累计三十一。原失败与max_frame_p95_ms/max_eval_p95_ms完整失败保留，截图关闭，仅功能验收；图/原始资产/转换器未改，15/39/374完整生成diff0证据有效。余下Move/Look与paused owner/其他模块和总目标仍开放。证据target/bf134/01i3b2。
+
+### BF134.01I3c2 — P2：暂停Move仍刷新角色运动快照
+
+- Source：fresh Actor PrimaryActorTick.bTickEvenWhenPaused=false；ALS Tick→RefreshInput读CMC当前加速度并保存HasInput/InputYaw，暂停owner不刷新。三个Move/Look IA均Axis2D/Triggers空/paused=false；Look的视角消费者已有正确pause保护，内部raw暂存差异未证明P2，实际键盘/raw-pad/mouse暂停与恢复角度矩阵已核销。
+- Actual：真实keyboard→Action→bridge→生产locomotion_drive→ActualMotion，在暂停新按D后把旧(false,0)改成(true,-90)，Source保持旧快照，red96.632秒。根因是owner snapshot每帧执行，不能仅在bridge抑制raw输入来遮掉保存状态生命周期。
+- 最小修复：snapshot直接读取既有Time<Virtual>.is_paused并return，不把delta0/dilation0当pause，无新state/cache/system。原反例green110.259，键盘/raw-pad×已有/无输入的完整快照保存/恢复通过；删guard110.359秒red，恢复字节/mtime后input26重编96.620及motion52/actual7共85通过，source/static2.402/2.405闭合。Look合同a4c7825独立提交，生产未改。
+- 正常target_game/play生产166.775，startup15.595/Grounded15/15（42.899）/Sprint8/8（18.461）功能通过，graph/primary/fault/temporal零；c2单独提交，P2累计三十二。截图关闭，原max_eval_p95_ms/Sprint max_frame_ms失败保留；原始资产/图/转换器未改，15/39/374完整生成diff0有效。其余Move pending/owner暂停消费者、全动画和其他模块及总目标仍开放。证据target/bf134/01i3c。

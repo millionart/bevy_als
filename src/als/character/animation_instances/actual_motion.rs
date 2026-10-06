@@ -64,6 +64,7 @@ impl Plugin for AlsActualMotionPlugin {
 
 fn snapshot_actual_motion_system(
     time: Res<Time>,
+    virtual_time: Res<Time<Virtual>>,
     mut commands: Commands,
     mut characters: Query<
         (
@@ -81,6 +82,7 @@ fn snapshot_actual_motion_system(
     owners: Query<&ColliderOf>,
     bodies: Query<&RigidBody>,
 ) {
+    if virtual_time.is_paused() { return; }
     for (entity, velocity, transform, locomotion, base, movement_base, controller, current) in &mut characters {
         let mut next =
             AlsActualMotion::from_physics_velocity(
