@@ -1,4 +1,4 @@
-use bevy::ecs::spawn::WithRelated;
+use bevy::ecs::spawn::{SpawnWith, WithRelated};
 use bevy::input::gamepad::GamepadSettings;
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::Press as EIPress;
@@ -22,6 +22,13 @@ pub struct LookMouseAction;
 #[derive(InputAction)]
 #[action_output(Vec2)]
 struct StickAction;
+
+#[derive(InputAction)]
+#[action_output(bool)]
+struct DebugShiftAction;
+
+#[derive(Component)]
+struct DebugShiftContext;
 
 #[derive(Component, Debug)]
 struct StickValue(Entity);
@@ -214,6 +221,19 @@ impl Default for AlsInputMap {
 }
 
 pub fn spawn_als_actions(cmds: &mut Commands, player: Entity, map: &AlsInputMap) {
+    let debug_shift = cmds.spawn((
+        Action::<DebugShiftAction>::new(),
+        Bindings::spawn(vec![Binding::from(KeyCode::ShiftLeft), Binding::from(KeyCode::ShiftRight)]),
+    )).id();
+    let mode_bindings = |inputs: Vec<Binding>| Bindings::spawn(SpawnWith(move |bindings: &mut BindingSpawner| {
+        for binding in inputs {
+            if matches!(binding, Binding::Keyboard { key: KeyCode::Digit1 | KeyCode::Digit2, .. }) {
+                bindings.spawn((binding, BlockBy::single(debug_shift)));
+            } else {
+                bindings.spawn(binding);
+            }
+        }
+    }));
     let move_stick = cmds.spawn((
         Action::<StickAction>::new(),
         DeadZone::default(),
@@ -225,6 +245,9 @@ pub fn spawn_als_actions(cmds: &mut Commands, player: Entity, map: &AlsInputMap)
         Bindings::spawn(Axial::new(map.look_stick[0], map.look_stick[1])),
     )).id();
     cmds.entity(player).insert((
+        DebugShiftContext,
+        ContextPriority::<DebugShiftContext>::new(1),
+        Actions::<DebugShiftContext>::spawn(WithRelated([debug_shift].into_iter())),
         OnFoot,
         AlsInputCommand::default(),
         Actions::<OnFoot>::spawn((
@@ -292,12 +315,12 @@ pub fn spawn_als_actions(cmds: &mut Commands, player: Entity, map: &AlsInputMap)
             (
                 Action::<RotationModeAction>::new(),
                 EIPress::default(),
-                Bindings::spawn(map.rotation_mode.clone()),
+                mode_bindings(map.rotation_mode.clone()),
             ),
             (
                 Action::<ViewModeAction>::new(),
                 EIPress::default(),
-                Bindings::spawn(map.view_mode.clone()),
+                mode_bindings(map.view_mode.clone()),
             ),
             (
                 Action::<SwitchShoulderAction>::new(),
@@ -349,7 +372,6 @@ pub fn als_input_bridge_system(
         &Actions<OnFoot>,
         &mut AlsSprintInputLatch,
     )>,
-    keys: Res<ButtonInput<KeyCode>>,
     moves: Query<&Action<MoveAction>>,
     mouse_looks: Query<&Action<LookMouseAction>>,
     looks: Query<&Action<LookAction>>,
@@ -450,11 +472,6 @@ pub fn als_input_bridge_system(
             cmd.toggle_ui_pressed = events.contains(ActionEvents::START);
         }
 
-        let shift_held = keys.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]);
-        if shift_held {
-            cmd.rotation_mode_pressed = false;
-            cmd.view_mode_pressed = false;
-        }
     }
 }
 
@@ -463,6 +480,7 @@ pub struct AlsInputPlugin;
 impl Plugin for AlsInputPlugin {
     fn build(&self, app: &mut App) {
         app.add_input_context::<OnFoot>()
+            .add_input_context::<DebugShiftContext>()
             .add_input_modifier::<StickValue>()
             .add_observer(|gamepad: On<Add, Gamepad>, mut settings: Query<&mut GamepadSettings>| {
                 let mut settings = settings.get_mut(gamepad.entity).unwrap();
@@ -727,45 +745,32 @@ mod tests {
 
     #[test]
     fn shift_suppresses_digit_key_actions() {
-        let mut app = App::new();
-        app.add_plugins(MinimalPlugins)
-            .add_plugins(EnhancedInputPlugin)
-            .add_plugins(AlsInputPlugin)
-            .insert_resource(ButtonInput::<KeyCode>::default());
-        app.finish();
-
-        let player = app.world_mut().spawn_empty().id();
-        let mut cmds = app.world_mut().commands();
-        spawn_als_actions(&mut cmds, player, &AlsInputMap::default());
-        app.update();
-
-        app.world_mut()
-            .resource_mut::<ButtonInput<KeyCode>>()
-            .press(KeyCode::ShiftLeft);
-        app.world_mut()
-            .commands()
-            .entity(player)
-            .mock_once::<OnFoot, RotationModeAction>(TriggerState::Fired, true);
-        app.update();
-        let cmd = *app.world().get::<AlsInputCommand>(player).unwrap();
-        assert!(
-            !cmd.rotation_mode_pressed,
-            "shift must suppress digit-key gameplay actions"
-        );
-
-        app.world_mut()
-            .resource_mut::<ButtonInput<KeyCode>>()
-            .release(KeyCode::ShiftLeft);
-        app.update();
-        app.world_mut()
-            .commands()
-            .entity(player)
-            .mock_once::<OnFoot, RotationModeAction>(TriggerState::Fired, true);
-        app.update();
-        let cmd = *app.world().get::<AlsInputCommand>(player).unwrap();
-        assert!(cmd.rotation_mode_pressed, "bare digit key must actuate");
+        for shift in [KeyCode::ShiftLeft, KeyCode::ShiftRight] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, EnhancedInputPlugin, AlsInputPlugin));
+            app.finish();
+            let player = app.world_mut().spawn_empty().id();
+            spawn_als_actions(&mut app.world_mut().commands(), player, &AlsInputMap::default());
+            app.update();
+            let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+            keys.press(shift);
+            keys.press(KeyCode::Digit1);
+            keys.press(KeyCode::Digit2);
+            app.update();
+            let command = app.world().get::<AlsInputCommand>(player).unwrap();
+            assert!(!command.rotation_mode_pressed && !command.view_mode_pressed,
+                "User-approved Shift debug digits must not actuate mode bindings");
+            app.world_mut().resource_mut::<ButtonInput<KeyCode>>().release_all();
+            app.update();
+            let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+            keys.press(KeyCode::Digit1);
+            keys.press(KeyCode::Digit2);
+            app.update();
+            let command = app.world().get::<AlsInputCommand>(player).unwrap();
+            assert!(command.rotation_mode_pressed && command.view_mode_pressed,
+                "Source bare mode digit bindings must remain active");
+        }
     }
-
     #[test]
     fn movement_keys_remain_live_while_holding_and_changing_direction() {
         let mut app = App::new();
@@ -1195,6 +1200,55 @@ mod tests {
             }
         }
     }
+    #[test]
+    fn shift_debug_digits_do_not_block_source_gamepad_mode_actions() {
+        use bevy::input::gamepad::{RawGamepadButtonChangedEvent, RawGamepadEvent};
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, EnhancedInputPlugin, AlsInputPlugin));
+        app.finish();
+        let player = app.world_mut().spawn_empty().id();
+        let gamepad = app.world_mut().spawn(Gamepad::default()).id();
+        spawn_als_actions(&mut app.world_mut().commands(), player, &AlsInputMap::default());
+        app.update();
+        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::ShiftLeft);
+        for button in [GamepadButton::DPadLeft, GamepadButton::DPadRight] {
+            app.world_mut().write_message(RawGamepadEvent::Button(
+                RawGamepadButtonChangedEvent::new(gamepad, button, 1.0)));
+        }
+        app.update();
+        let command = app.world().get::<AlsInputCommand>(player).unwrap();
+        assert!(command.rotation_mode_pressed && command.view_mode_pressed,
+            "Source gamepad mode presses must remain active while the keyboard debug Shift is held");
+        app.update();
+        let command = app.world().get::<AlsInputCommand>(player).unwrap();
+        assert!(!command.rotation_mode_pressed && !command.view_mode_pressed,
+            "Source mode Pressed trigger must not repeat while held");
+    }
+
+    #[test]
+    fn shift_policy_preserves_custom_mode_keys_and_current_frame_digit_chords() {
+        for digits in [false, true] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, EnhancedInputPlugin, AlsInputPlugin));
+            app.finish();
+            let player = app.world_mut().spawn_empty().id();
+            let keys = if digits { [KeyCode::Digit1, KeyCode::Digit2] } else { [KeyCode::KeyR, KeyCode::KeyF] };
+            let mut map = AlsInputMap::default();
+            map.rotation_mode = vec![keys[0].with_mod_keys(ModKeys::CONTROL)];
+            map.view_mode = vec![keys[1].with_mod_keys(ModKeys::CONTROL)];
+            spawn_als_actions(&mut app.world_mut().commands(), player, &map);
+            app.update();
+            let mut pressed = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+            for key in [KeyCode::ShiftLeft, KeyCode::ControlLeft, keys[0], keys[1]] { pressed.press(key); }
+            app.update();
+            let command = app.world().get::<AlsInputCommand>(player).unwrap();
+            assert_eq!(command.rotation_mode_pressed, !digits,
+                "Current-frame debug Shift must apply only to numeric mode bindings");
+            assert_eq!(command.view_mode_pressed, !digits,
+                "Current-frame debug Shift must preserve custom nonnumeric mode bindings");
+        }
+    }
+
     #[test]
     fn look_rate_uses_source_nondilated_time_and_rejects_paused_actions() {
         use crate::als::character::AlsCharacter;

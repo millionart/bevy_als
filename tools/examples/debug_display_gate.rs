@@ -256,9 +256,8 @@ fn script_driver(world: &mut World) {
             .resource_mut::<ButtonInput<KeyCode>>()
             .press(KeyCode::ShiftLeft);
         world
-            .commands()
-            .entity(player)
-            .mock_once::<OnFoot, RotationModeAction>(TriggerState::Fired, true);
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::Digit1);
         true
     }) {}
 
@@ -289,14 +288,14 @@ fn script_driver(world: &mut World) {
         world
             .resource_mut::<ButtonInput<KeyCode>>()
             .release(KeyCode::ShiftLeft);
+        world.resource_mut::<ButtonInput<KeyCode>>().release(KeyCode::Digit1);
         true
     }) {}
 
     if phase!(8, 1.75, {
         world
-            .commands()
-            .entity(player)
-            .mock::<OnFoot, RotationModeAction>(TriggerState::Fired, true, MockSpan::Manual);
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::Digit1);
         true
     }) {}
 
@@ -352,6 +351,7 @@ fn script_driver(world: &mut World) {
     if phase!(10, 1.82, { true }) {}
 
     if phase!(11, 1.83, {
+        world.resource_mut::<ButtonInput<KeyCode>>().release(KeyCode::Digit1);
         if let Some(action) = find_rotation_mode_action(world, player) {
             if let Some(mut mock) = world.get_mut::<ActionMock>(action) {
                 mock.enabled = false;

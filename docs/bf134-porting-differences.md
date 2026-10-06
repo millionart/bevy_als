@@ -86,7 +86,7 @@ source/static/ABI/layout/editor/boundary闭合；target_game/play最终正常优
 
 ## 待反例核对的源差异
 
-BF134.01G1/G2a/G2b/G2c/G2d1/G2d2/G2d3/G2d4已修复并验收；G2其他consumer/H2及剩余Action仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复十七项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
+BF134.01G1/G2a/G2b/G2c/G2d1/G2d2/G2d3/G2d4已修复并验收；G2其他consumer/H2及剩余Action仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复十八项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
 
 ### BF134.01G1 — P2：动画输入绕过已消费状态
 
@@ -187,3 +187,10 @@ fresh角色37.548秒、当次CMC ComputeAnalogInputModifier与公开CurveVector�
 - 当次原生Sprint为Hold0.1/one-shot+Released，Roll为Tap0.3，actuation0.5、非缩放clock。UE只在一个context处理结束后追加consumed keys，允许同context共享key；target ActionSettings默认consume_input=false，实际两Action未覆写。预测的Hold提前消费在最小实际按键test中未出现，不修改生产设置。
 - 当前UI十个key不与ShiftLeft/FaceButton_Right重合，没有该key的下层consumer。source Released触发Input_OnSprint(false)，现有latch在raw=false释放、one-shot None期间保持保存意图；12个keyboard/raw-gamepad×短/中/长按×正常/Slomo组合通过，Roll释放窗口和Sprint保持/释放与实际ALS consumer等价。未消费的内部release事件状态不相同，单独保留边界，不能据此推定可达P2。
 - controlled consume=true反例red93.645秒，恢复后35项input/view/gait回归通过，source/static4.230秒通过，候选核销并单独提交。只有test/manifest/source记录，生产实现保持。当前Playground功能证据继续有效，累计已验收P2仍十七项。
+
+### BF134.01I2a — P2：Shift数字键抑制误吞手柄模式切换
+
+- Source与用户边界：当次RotationMode/ViewMode IA为Pressed/actuation0.5，默认IMC One/Two与DPad_Left/Right没有Shift chord；Character Example保存所需mode。BF9/4018824明确用户决定Shift+数字用于Debug时只抑制数字键玩法，源UE本来不吞数字；该刻意差异已补入附录A，手柄/其他binding仍应走源行为。
+- 实际反例：Shift按住时raw DPad_Left/Right使Action触发，但bridge在聚合后清零所有mode事件，两个消费者均失去请求；实际键盘+原始gamepad事件red93.209秒，定级P2。旧BF9 gate用ActionMock命名为Digit1，没有真实binding来源证据；有限复开仅该输入边界，其他HUD/debug已完成项保持。
+- 最小修复：公开BlockBy只附加Digit1/2 keyboard binding，由先求值的private Debug Shift context提供当帧值，保留原aggregate Pressed及非数字/gamepad binding。删除bridge全Action mask及多余ButtonInput依赖；无自定义filter/cache/逐帧system。新增context与优先级须由focused消融确认必要性，信号相同即删。
+- 状态：20输入初次green81.205秒，三语义消融82.246/87.206/96.964秒均为所需失败；46项恢复回归与source/static2.398秒通过。direct-exe Head的资产目录环境漏配失败保留、按已安装Bevy规则注入环境后同binary通过，未改加载器/资产/阈值。当前生产+旧专项例子编译187.755秒，startup17.111秒/Interface15/15（24.729秒）/Head14/14（21.552秒）功能通过，graph/primary/fault/temporal零；BF9有限复开已关闭，本项验收单独提交，P2累计十八。截图关闭、max_eval_p95_ms失败保留，未核销性能与整体目标；图/转换规则/原始资产未改，完整diff零有效。证据target/bf134/01i2a。
