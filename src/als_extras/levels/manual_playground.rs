@@ -137,7 +137,7 @@ fn main() {
             screenshot_runner,
         ),
     )
-    .add_systems(PostUpdate, grounded_spawn_probe.after(PhysicsSystems::Last));
+    .add_systems(PostUpdate, grounded_spawn_probe.after(bevy_als::als::motion::AlsActualVelocitySet));
     if std::env::var("ALS_PLAYGROUND_STARTUP_VARIANT").as_deref() == Ok("multi_raised") {
         app.add_systems(Update, setup_multi_raised_startup_variant
             .before(bevy_als::als::player_start::AlsPlayerStartPrepared));
@@ -309,7 +309,23 @@ fn screenshot_runner(
     mut commands: Commands,
     cameras: Query<Entity, With<Camera3d>>,
     mut exit: MessageWriter<AppExit>,
+    mut report: Option<ResMut<ManualIntegrationGateReport>>,
 ) {
+    if ground_probe.passed == Some(false) {
+        if let Some(report) = report.as_deref_mut() {
+            if report.scenario.is_empty() { report.scenario = "startup".into(); }
+            report.completed = true;
+            report.passed = Some(false);
+            report.results.push(bevy_als::manual_playground_integration::ManualIntegrationGateResult {
+                name: "grounded_spawn".into(), covered: false,
+                detail: format!("pre_enable_center_error={:.6} pre_enable_vertical_velocity={:.6} max_center_error={:.6} max_vertical_velocity={:.6} controller_enabled={}",
+                    ground_probe.pre_enable_max_center_error, ground_probe.pre_enable_max_vertical_velocity,
+                    ground_probe.max_center_error, ground_probe.max_vertical_velocity, ground_probe.controller_enabled),
+            });
+        }
+        exit.write(AppExit::Error(NonZeroU8::new(13).unwrap()));
+        return;
+    }
     let Some(mut plan) = plan else {
         return;
     };
@@ -909,6 +925,24 @@ mod tests {
     use super::*;
     use bevy::ecs::system::RunSystemOnce;
 
+    #[test]
+    fn failed_grounded_spawn_exits_without_a_screenshot_plan() {
+        let mut world = World::new();
+        world.init_resource::<Messages<AppExit>>();
+        world.init_resource::<ManualIntegrationGateReport>();
+        world.insert_resource(GroundedSpawnProbe {
+            passed: Some(false), done: true, max_vertical_velocity: 0.163349,
+            ..default()
+        });
+        world.run_system_once(screenshot_runner).unwrap();
+        assert!(world.resource_mut::<Messages<AppExit>>().drain()
+            .any(|exit| matches!(exit, AppExit::Error(code) if code.get() == 13)),
+            "Failed startup must terminate without a screenshot plan");
+        let report = world.resource::<ManualIntegrationGateReport>();
+        assert!(report.completed && report.passed == Some(false));
+        assert_eq!(report.results[0].name, "grounded_spawn");
+        assert!(report.results[0].detail.contains("max_vertical_velocity=0.163349"));
+    }
     #[test]
     fn scene_ready_accepts_multiple_valid_player_starts() {
         for start_count in [1, 2] {

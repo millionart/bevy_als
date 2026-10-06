@@ -3603,6 +3603,40 @@ mod tests {
     }
 
     #[test]
+    fn admitted_spawn_bootstrap_preserves_source_grounded_velocity() {
+        use bevy::time::TimeUpdateStrategy;
+        for delta in [1.0_f32 / 120.0, 1.0 / 60.0, 1.0 / 30.0, 0.075, 0.12, 0.2, 0.25] {
+            let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+            crate::source_physics_timing::SourcePhysicsTimingPlugin.build(&mut app);
+            let observed = std::sync::Arc::new(std::sync::Mutex::new(0.0_f32));
+            let sampler = observed.clone();
+            app.add_systems(PostUpdate, (move |velocities: Query<&LinearVelocity, With<AlsCharacter>>| {
+                let mut peak = sampler.lock().unwrap();
+                for velocity in &velocities { *peak = peak.max(velocity.0.y.abs()); }
+            }).after(AlsActualVelocitySet));
+            app.world_mut().insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
+            let fit = Vec3::new(0.0, 0.904, 1.0);
+            app.world_mut().entity_mut(character).insert((Position(fit), Transform::from_translation(fit),
+                bevy_tnua::TnuaToggle::SenseOnly, GravityScale(0.0), LinearVelocity::ZERO,
+                TnuaMotor::default(), TnuaController::<AlsControlScheme>::default()));
+            for _ in 0..3 { app.update(); }
+            app.world_mut().entity_mut(character).insert((bevy_tnua::TnuaToggle::Enabled,
+                GravityScale(1.0), LinearVelocity::ZERO, TnuaMotor::default()));
+            let mut peak = 0.0_f32;
+            for _ in 0..20 {
+                app.update();
+                let world = app.world();
+                let velocity = world.get::<LinearVelocity>(character).unwrap().0;
+                peak = peak.max(velocity.y.abs());
+            }
+            assert!(peak <= 0.15, "Source grounded spawn velocity exceeded the unchanged actual gate: delta={delta}, peak={peak}");
+            let sampled_peak = *observed.lock().unwrap();
+            eprintln!("{}", serde_json::json!({"delta":delta,"completed_peak":peak,"sampled_peak":sampled_peak}));
+            assert!(sampled_peak <= 0.15,
+                "Source spawn observation must use the completed movement velocity: delta={delta}, peak={sampled_peak}");
+        }
+    }
+    #[test]
     fn airborne_side_input_reaches_physics_without_losing_horizontal_momentum() {
         let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
         let start = Vec3::new(0.0, 10.0, 1.0);
