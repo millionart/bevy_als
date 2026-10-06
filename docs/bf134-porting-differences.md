@@ -86,7 +86,7 @@ source/static/ABI/layout/editor/boundary闭合；target_game/play最终正常优
 
 ## 待反例核对的源差异
 
-BF134.01G1/G2a/G2b/G2c/G2d1/G2d2/G2d3/G2d4已修复并验收；G2其他consumer/H2及剩余Action仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复二十四项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
+BF134.01G1/G2a/G2b/G2c/G2d1/G2d2/G2d3/G2d4已修复并验收；G2其他consumer/H2及剩余Action仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复二十五项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
 
 ### BF134.01G1 — P2：动画输入绕过已消费状态
 
@@ -236,3 +236,10 @@ fresh角色37.548秒、当次CMC ComputeAnalogInputModifier与公开CurveVector�
 - 反例：paused新按鼠标Aim后target桥接raw Fired立即设aim_held=true并进入Aiming，source保存intent应保持false，red88.260秒；恢复held也不应重放Pressed。旧bool/mock验证没有source事件表或owner pause证据。
 - 根因与最小修复：Aim按源接Pressed+Released，用公开InputCondition Blocker同步真实Time<Virtual>.is_paused，在更新内部历史后阻断最终state，使框架前态/事件与源一致；ContextTime没有Virtual暂停状态，不能用delta0代替paused。复用已有cmd.aim_held作为保存意图，无事件时保持，FIRE/CANCEL读取实际Action值，owner在pause不刷新。不加新desired组件/自定义事件状态机，不触碰尚未核对Jump或其他Actor暂停逻辑。
 - 验证：mouse/raw-pad源事件表与zero倍率非pausegreen82.537秒，最小red88.260→green84.800秒、source/static2.681秒；同步/Released/无事件保存/同步顺序/owner pause五消融均语义失败，恢复63项回归通过。旧mock补明确Released(false)、三个direct fixture补Time而不加生产fallback。当前生产149.490秒，startup15.531/Grounded15/15（42.358）/Head14/14（20.254）功能通过，graph/primary/fault/temporal零，本项验收单独提交，P2累计二十四。截图关闭、max_eval_p95_ms失败保留；其他held/cancel与全范围目标未完成，图/转换规则/原始资产未改。证据target/bf134/01i3a1。
+
+### BF134.01I3a2a — P2：Jump按默认Down/START误发Source动作链
+
+- Source：fresh Jump为Pressed+Released/paused=false；Example绑定Triggered/Canceled，用真实值true走ragdoll停止→mantle→uncrouch→Jump，false StopJumping。Paused仍更新trigger历史，有效前态Ongoing取消可按正值调用；未绑定Completed和仅Started/Ongoing不能冒充handler。
+- 反例：paused新按Space→target默认Down START仍发positive jump chain请求，red77.534秒；恢复/释放必须依据Source真实事件而非统一held/START。
+- 最小修复：按源接Pressed+Released、复用已证实public pause Blocker，只有正值FIRE/CANCEL发chain请求；Released false不走positive链，START resumed Ongoing不重放。既有raw physical held输出保持，bPressedJump/ClearJumpInput/MaxHoldTime与Tnua prolong/action_flow及实际动作优先级在a2b独立核对，不以本项替代。
+- 状态：red77.534→green76.445、source event matrix75.860、静态2.409秒，四语义消融red75.814/74.681/74.594/74.498秒、63恢复回归通过。当前生产146.734秒，startup15.476/Grounded15/15（42.300）/UphillJump6/6（32.775）功能通过，graph/primary/fault/temporal零，本项验收单独提交，P2累计二十五。截图关闭、max_eval_p95_ms失败保留；物理held/MaxHoldTime与priority实际分支未核销，整体目标未完成。图/转换规则/原始资产未改。证据target/bf134/01i3a2a。

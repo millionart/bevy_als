@@ -299,6 +299,9 @@ pub fn spawn_als_actions(cmds: &mut Commands, player: Entity, map: &AlsInputMap)
             ),
             (
                 Action::<JumpAction>::new(),
+                EIPress::default(),
+                EIRelease::default(),
+                GamePauseBlocker::default(),
                 Bindings::spawn(map.jump.clone()),
             ),
             (
@@ -397,7 +400,7 @@ pub fn als_input_bridge_system(
     moves: Query<&Action<MoveAction>>,
     mouse_looks: Query<&Action<LookMouseAction>>,
     looks: Query<&Action<LookAction>>,
-    jumps: Query<(&TriggerState, &ActionEvents), With<Action<JumpAction>>>,
+    jumps: Query<(&Action<JumpAction>, &ActionEvents)>,
     sprints: Query<(&TriggerState, &Action<SprintAction>), With<Action<SprintAction>>>,
     aims: Query<(&Action<AimAction>, &ActionEvents)>,
     crouches: Query<&ActionEvents, With<Action<CrouchAction>>>,
@@ -432,9 +435,9 @@ pub fn als_input_bridge_system(
             cmd.look_rate = **lk;
         }
 
-        if let Some((state, events)) = jumps.iter_many(actions).next() {
-            cmd.jump_held = *state == TriggerState::Fired;
-            cmd.jump_pressed = events.contains(ActionEvents::START);
+        if let Some((value, events)) = jumps.iter_many(actions).next() {
+            cmd.jump_held = **value;
+            cmd.jump_pressed = **value && events.intersects(ActionEvents::FIRE | ActionEvents::CANCEL);
         }
 
         if let Some((state, action)) = sprints.iter_many(actions).next() {
@@ -1454,6 +1457,46 @@ mod tests {
         app.update();
         assert!(app.world().get::<AlsInputCommand>(player).unwrap().aim_held,
             "Source zero game-time rate must not be mistaken for game pause");
+    }
+    #[test]
+    fn paused_jump_press_does_not_dispatch_source_action_chain_or_replay_on_resume() {
+        use bevy::input::gamepad::{RawGamepadButtonChangedEvent, RawGamepadEvent};
+        let cases = [
+            vec![(true,true,false),(false,true,false),(false,false,false),
+                (false,true,true),(false,true,false),(false,false,false)],
+            vec![(false,true,true),(false,true,false),(true,true,true),
+                (true,true,false),(true,false,false),(false,false,false)],
+            vec![(false,true,true),(true,true,false),(false,true,false),(false,false,false)],
+            vec![(false,true,true),(false,true,false),(true,false,false),(false,false,false)],
+        ];
+        for gamepad_input in [false, true] {
+            for (case_index, steps) in cases.iter().enumerate() {
+                let mut app = App::new();
+                app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, EnhancedInputPlugin, AlsInputPlugin));
+                app.finish();
+                let player = app.world_mut().spawn_empty().id();
+                let gamepad = app.world_mut().spawn(Gamepad::default()).id();
+                spawn_als_actions(&mut app.world_mut().commands(), player, &AlsInputMap::default());
+                app.update();
+                for (step_index, &(paused, held, expected_dispatch)) in steps.iter().enumerate() {
+                    let mut time = app.world_mut().resource_mut::<Time<Virtual>>();
+                    if paused { time.pause(); } else { time.unpause(); }
+                    if gamepad_input {
+                        app.world_mut().write_message(RawGamepadEvent::Button(
+                            RawGamepadButtonChangedEvent::new(gamepad, GamepadButton::South, if held { 1.0 } else { 0.0 })));
+                    } else {
+                        let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+                        if held { keys.press(KeyCode::Space); } else { keys.release(KeyCode::Space); }
+                    }
+                    app.update();
+                    let command = app.world().get::<AlsInputCommand>(player).unwrap();
+                    assert_eq!(command.jump_pressed, expected_dispatch,
+                        "Source Jump positive Triggered/Canceled dispatch for device={gamepad_input}, case={case_index}, step={step_index}");
+                    assert_eq!(command.jump_held, held,
+                        "Existing raw physical Jump hold must remain available for separate motor validation");
+                }
+            }
+        }
     }
     #[test]
     fn look_rate_uses_source_nondilated_time_and_rejects_paused_actions() {
