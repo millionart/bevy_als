@@ -11,10 +11,12 @@ def extract(math_header):
     return float(values[0])
 
 
-def generate(text, value, physical=False):
-    name = 'PHYSICAL_VECTOR_MIN_LENGTH_SQUARED' if physical else 'INPUT_DIRECTION_MIN_LENGTH_SQUARED'
+def generate(text, value, physical=False, acceleration=False):
+    name = 'MAX_ACCELERATION_MIN_FOR_ANALOG_MODIFIER' if acceleration else 'PHYSICAL_VECTOR_MIN_LENGTH_SQUARED' if physical else 'INPUT_DIRECTION_MIN_LENGTH_SQUARED'
     if physical:
         value *= SOURCE_LENGTH_TO_RUNTIME_SCALE ** 2
+    elif acceleration:
+        value *= SOURCE_LENGTH_TO_RUNTIME_SCALE
     pattern = rf'const {name}: f32 = [^;]+;'
     if len(re.findall(pattern, text)) != 1:
         raise ValueError('Target input tolerance is missing or ambiguous')
@@ -27,6 +29,8 @@ def self_test():
     assert generate(target, extract(source)) == 'const INPUT_DIRECTION_MIN_LENGTH_SQUARED: f32 = 1e-08;\n'
     physical = 'const PHYSICAL_VECTOR_MIN_LENGTH_SQUARED: f32 = 0.0;\n'
     assert generate(physical, extract(source), True) == 'const PHYSICAL_VECTOR_MIN_LENGTH_SQUARED: f32 = 1e-12;\n'
+    scalar = 'const MAX_ACCELERATION_MIN_FOR_ANALOG_MODIFIER: f32 = 0.0;\n'
+    assert generate(scalar, extract(source), acceleration=True) == 'const MAX_ACCELERATION_MIN_FOR_ANALOG_MODIFIER: f32 = 1e-10;\n'
     assert generate(target, extract(source.replace('1.e-8', '2.e-8'))) != generate(target, extract(source))
     for broken in ['', source + source]:
         try:
@@ -50,7 +54,9 @@ def main():
     parser.add_argument('--math-header', type=Path)
     parser.add_argument('--output', type=Path)
     parser.add_argument('--check', action='store_true')
-    parser.add_argument('--physical', action='store_true')
+    units = parser.add_mutually_exclusive_group()
+    units.add_argument('--physical', action='store_true')
+    units.add_argument('--acceleration', action='store_true')
     parser.add_argument('--self-test', action='store_true')
     args = parser.parse_args()
     if args.self_test:
@@ -59,7 +65,7 @@ def main():
     if not all([args.math_header, args.output]):
         parser.error('--math-header and --output are required')
     original = args.output.read_text(encoding='utf-8')
-    generated = generate(original, extract(args.math_header.read_text(encoding='utf-8-sig')), args.physical)
+    generated = generate(original, extract(args.math_header.read_text(encoding='utf-8-sig')), args.physical, args.acceleration)
     if args.check:
         if original != generated:
             raise ValueError('Target input tolerance differs from source')

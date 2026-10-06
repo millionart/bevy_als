@@ -86,7 +86,7 @@ source/static/ABI/layout/editor/boundary闭合；target_game/play最终正常优
 
 ## 待反例核对的源差异
 
-BF134.01G1/G2a/G2b/G2c/G2d1/G2d2/G2d3已修复并验收；G2其他consumer/H仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复十四项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
+BF134.01G1/G2a/G2b/G2c/G2d1/G2d2/G2d3/G2d4已修复并验收；G2其他consumer/H仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复十五项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
 
 ### BF134.01G1 — P2：动画输入绕过已消费状态
 
@@ -148,3 +148,10 @@ fresh角色49.715秒与当次CMC/Vector/Math：Acceleration.IsZero决定刹车�
 fresh角色39.208秒与当次CMC GetMinAnalogSpeed/CalcVelocity、公开BlueprintReadWrite/ClampMin=0速度设置闭合。源MaxInputSpeed=max(MaxSpeed*Analog,MinAnalog)，target增加min(minAnalog,MaxSpeed)。合法WalkSpeed0.1m/s/MinAnalog0.25m/s/amount0.01/初速0.2/50ms，actual motor旧0.100000024、源0.21，92.041秒稳定red；默认较高速度会隐藏该合法配置故障。
 
 仅删除无源封顶，actual motor与六floor边界/25 dynamics86.827秒green；恢复旧cap消融79.223秒语义red，byte/mtime/hash恢复确认。最终82项恢复回归driver87.002秒、source/static2.394秒通过，没有新状态/抽象/分支或资产修改。S1开始04:24、预估04:49、实际04:37:38、偏差−11分22秒成功。状态：已修复并验收、G2d3独立提交；当前正常target_game/play构建148.427秒成功，startup15.541秒、Grounded15/15（43.108秒）、StandingStop10/10（26.827秒）公共功能Gate全通过，ready=true、graph/primary/fault/temporal零，证据 `target/animation_visual/bf134/01g2d3/{startup,grounded,standing_stop}`。S2开始04:38、预估04:58、实际04:49、偏差−9分钟成功。图/转换规则/原始记录未变，15/39/374完整生成diff0有效；截图关闭和完整max_eval_p95_ms失败保留，不宣称性能或总目标完成。
+
+
+### BF134.01G2d4 — P2：模拟量modifier遗漏MaxAcceleration门槛
+
+fresh角色37.548秒、当次CMC ComputeAnalogInputModifier与公开CurveVector配置：MaxAccel>UE_SMALL_NUMBER且加速度非零才计算modifier，否则modifier0；Acceleration.IsZero与输入增量保持独立。目标将非零加速度直接等价于modifier有值，合法MaxAcceleration1e-11m/s²/初速1.5/50ms的actual motor旧1.125、源应0.75，85.135秒稳定red。
+
+候选补按0.01转换的1e-10 scalar门槛，诊断复用同一规则，无新cache/helper/状态；26 dynamics85.888秒、门槛两侧/zero/diagnostic81.337秒与最终83项回归driver90.106秒通过。去scalar/恢复raw诊断两消融77.994/77.162秒均语义red、byte/mtime/hash恢复，source/static2.644秒通过。扩展提取分支后已重新全量15根/39 source/374完整新旧产物diff0（1485.621秒），同次全部递归closure50.020秒通过；原始record未改且candidate未安装。S1开始04:56、预估05:41、实际末项Gate05:56:32、偏差+15分32秒成功，协调处理延迟如实记录。状态：已修复并验收，G2d4单独提交；当前正常target_game/play构建152.028秒通过，startup16.053秒、Grounded15/15（43.155秒）、StandingStop10/10（27.002秒）公共功能Gate全部通过，ready=true、graph/primary/fault/temporal零，证据 `target/animation_visual/bf134/01g2d4/{startup,grounded,standing_stop}`。S2开始06:02、预估06:22、实际末项Gate06:19:19、偏差−2分41秒成功，协调处理滞后如实保留。原始record未改，candidate未安装，截图关闭与完整max_eval_p95_ms失败保留，不宣称性能或总目标完成。

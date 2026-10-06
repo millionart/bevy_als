@@ -15,6 +15,7 @@ use crate::als::state::{Gait, LocomotionState, RotationMode, Stance};
 
 pub const BRAKING_FRICTION_FACTOR: f32 = 0.0;
 const PHYSICAL_VECTOR_MIN_LENGTH_SQUARED: f32 = 1e-12;
+const MAX_ACCELERATION_MIN_FOR_ANALOG_MODIFIER: f32 = 1e-10;
 pub const LANDING_BRAKING_FRICTION_WITH_INPUT: f32 = 0.5;
 pub const LANDING_BRAKING_FRICTION_WITHOUT_INPUT: f32 = 3.0;
 pub const LANDING_BRAKING_FRICTION_DURATION: f32 = 0.5;
@@ -170,7 +171,8 @@ pub fn grounded_velocity_step_with_braking_friction(
     if delta_seconds < MIN_MOVEMENT_DELTA_SECONDS { return horizontal_velocity; }
     let acceleration = desired_horizontal.clamp_length_max(1.0) * dynamics.acceleration.max(0.0);
     let has_acceleration = acceleration != Vec3::ZERO;
-    let target_speed = analog_target_speed(max_speed, if has_acceleration { desired_amount } else { 0.0 }, min_analog_walk_speed);
+    let analog_modifier = if has_acceleration && dynamics.acceleration > MAX_ACCELERATION_MIN_FOR_ANALOG_MODIFIER { desired_amount } else { 0.0 };
+    let target_speed = analog_target_speed(max_speed, analog_modifier, min_analog_walk_speed);
     let overspeed = horizontal_velocity.length_squared() > target_speed * target_speed * MAX_SPEED_SQUARED_RATIO;
     let acceleration_direction = if acceleration.length_squared() < PHYSICAL_VECTOR_MIN_LENGTH_SQUARED {
         Vec3::ZERO
@@ -494,8 +496,9 @@ pub fn grounded_dynamics_motor_system(
         );
         cmc_runtime.simulation_delta_seconds = time.delta_secs();
         cmc_runtime.simulation_substeps = simulation_substeps;
+        let analog_modifier = if dynamics.0.acceleration > MAX_ACCELERATION_MIN_FOR_ANALOG_MODIFIER { desired_motion.length().min(1.0) } else { 0.0 };
         cmc_runtime.min_analog_speed_applied = desired_motion.with_y(0.0) != Vec3::ZERO && dynamics.0.acceleration > 0.0
-            && max_speed * desired_motion.length().min(1.0) < params.cmc.min_analog_walk_speed;
+            && max_speed * analog_modifier < params.cmc.min_analog_walk_speed;
         let motor_boost = next - current;
         motor.lin.boost.x = next.x + support_velocity.x - world_velocity.x;
         motor.lin.boost.z = next.z + support_velocity.z - world_velocity.z;
@@ -578,6 +581,39 @@ impl Plugin for AlsGroundedDynamicsPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn analog_modifier_uses_the_source_max_acceleration_scalar_boundary() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (maximum_acceleration, expected, expected_minimum) in [(1e-11_f32, 0.75_f32, true), (2e-10, 1.125, false), (0.0, 0.75, false)] {
+            let mut world = World::new();
+            let mut time = Time::<()>::default();
+            time.advance_by(std::time::Duration::from_secs_f32(0.05));
+            world.insert_resource(time);
+            let mut value = AlsMovementParams::default();
+            for key in &mut value.acceleration.grounded.normal.acceleration.keys {
+                key.value = maximum_acceleration;
+                key.arrive_tangent = 0.0;
+                key.leave_tangent = 0.0;
+            }
+            let mut params = Assets::<AlsMovementParams>::default();
+            let handle = params.add(value);
+            world.insert_resource(params);
+            let mut controller = TnuaController::<AlsControlScheme>::default();
+            controller.basis.desired_motion = Vec3::X;
+            let character = world.spawn((AlsCharacter, LocomotionState::Grounded, Stance::Standing,
+                RotationMode::ViewDirection, AlsViewYaw::default(), AlsMaxAllowedGait(Gait::Running),
+                AlsGroundedDynamics::default(), AlsGaitAmount::default(), Position(Vec3::Y * 0.92),
+                LinearVelocity(Vec3::X * 1.5), AlsMovementParamsHandle(handle), controller,
+                TnuaMotor::default(), AlsCmcAdapterRuntime::default())).id();
+            world.run_system_once(grounded_dynamics_motor_system).unwrap();
+            let actual = 1.5 + world.get::<TnuaMotor>(character).unwrap().lin.boost.x;
+            assert!((actual - expected).abs() < 1e-6,
+                "Source analog modifier scalar boundary: max_acceleration={maximum_acceleration}, {actual} != {expected}");
+            assert_eq!(world.get::<AlsCmcAdapterRuntime>(character).unwrap().min_analog_speed_applied, expected_minimum,
+                "Source analog modifier floor diagnostic differs: {maximum_acceleration}");
+        }
+    }
 
     #[test]
     fn source_minimum_analog_speed_survives_a_lower_configured_gait_speed() {
