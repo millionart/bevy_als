@@ -2177,8 +2177,6 @@ pub struct AlsMovementInputBlocked;
 pub fn movement_input_for_action(mut input: AlsInputCommand, blocked: bool) -> AlsInputCommand {
     if blocked {
         input.move_dir = Vec2::ZERO;
-        input.jump_pressed = false;
-        input.jump_held = false;
         input.roll_pressed = false;
     }
     input
@@ -2844,7 +2842,7 @@ fn locomotion_drive_system(
                     request.stance = Some(Stance::Standing);
                 }
                 JumpChain::Jump => {
-                    if !action_active && *loco == LocomotionState::Grounded {
+                    if *loco == LocomotionState::Grounded {
                         let Some(params) = params_assets.get(params_handle.id()) else { continue; };
                         controller.action(AlsControlScheme::Jump(crate::als::control_scheme::AlsBuiltinJump {
                             builtin: TnuaBuiltinJump { allow_in_air: true, ..default() },
@@ -4898,7 +4896,7 @@ mod tests {
             app.update();
             assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Custom));
             assert!(app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap().action_flow_status().ongoing().is_none());
-            app.world_mut().entity_mut(character).insert((LocomotionState::Grounded,
+            app.world_mut().entity_mut(character).insert((LocomotionState::Custom,
                 crate::als::state::AlsNotifyLocomotionAction::Mantling, AlsInputCommand::default()));
             app.update();
             app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().jump_pressed = true;
@@ -4908,7 +4906,8 @@ mod tests {
             app.update();
             assert_eq!(app.world().get::<Stance>(character), Some(&Stance::Standing));
             assert_eq!(app.world().get::<AlsDesiredStance>(character).unwrap().0, Stance::Crouching);
-            app.world_mut().entity_mut(character).insert(crate::als::state::AlsNotifyLocomotionAction::None);
+            app.world_mut().entity_mut(character).insert((LocomotionState::Grounded,
+                crate::als::state::AlsNotifyLocomotionAction::None));
             app.update();
             assert_eq!(app.world().get::<Stance>(character), Some(&Stance::Crouching));
             *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = LocomotionState::Custom;
@@ -4948,7 +4947,7 @@ mod tests {
         };
         let blocked = movement_input_for_action(input, true);
         assert_eq!(blocked.move_dir, Vec2::ZERO);
-        assert!(!blocked.jump_pressed && !blocked.roll_pressed);
+        assert!(blocked.jump_pressed && !blocked.roll_pressed);
         assert_eq!(blocked.look_delta, input.look_delta);
         assert!(blocked.ragdoll_pressed);
         assert_eq!(input.move_dir, Vec2::Y);
@@ -5059,6 +5058,27 @@ mod tests {
                 baseline = Some(samples);
             }
         }
+    }
+
+    #[test]
+    fn getting_up_blocks_movement_but_keeps_source_jump_action() {
+        let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+        app.world_mut().entity_mut(character).insert((
+            crate::get_up::AlsGetUpState::new(false),
+            crate::als::state::AlsNotifyLocomotionAction::GettingUp,
+            AlsMovementInputBlocked,
+            AlsInputCommand { move_dir: Vec2::Y, jump_pressed: true, jump_held: true, ..default() },
+        ));
+        app.update();
+        let controller = app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap();
+        assert_eq!(controller.basis.desired_motion, Vec3::ZERO,
+            "Source GetUp InputBlocked must consume zero movement");
+        assert_eq!(controller.action_flow_status().just_starting(), Some(AlsControlSchemeActionDiscriminant::Jump),
+            "Source GetUp InputBlocked does not prevent native Jump after StopRagdolling and StartMantling return false");
+        let velocity = app.world().get::<LinearVelocity>(character).unwrap().y;
+        assert!((velocity - (4.2 - 9.81 / 60.0)).abs() < 0.02,
+            "Source falling root motion preserves native jump vertical velocity: {velocity}");
+        assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Air));
     }
 
     #[test]

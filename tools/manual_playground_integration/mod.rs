@@ -3147,6 +3147,7 @@ struct IntegrationCoverage {
     get_up_back: bool,
     get_up_input_locked: [bool; 2],
     get_up_input_released: [bool; 2],
+    get_up_jump_during_input_lock: bool,
     camera_rig: bool,
     camera_collision: bool,
     camera_recovery: bool,
@@ -3216,6 +3217,7 @@ struct ManualIntegrationState {
     ragdoll_exit_requested: bool,
     ragdoll_frames: u32,
     get_up_case: usize,
+    get_up_jump_requested_at: Option<f64>,
     get_up_fixture_seeded: bool,
     ragdoll_grounded_at: Option<f64>,
     ragdoll_recovered_at: Option<f64>,
@@ -3359,6 +3361,7 @@ impl Default for ManualIntegrationState {
             ragdoll_exit_requested: false,
             ragdoll_frames: 0,
             get_up_case: 0,
+            get_up_jump_requested_at: None,
             get_up_fixture_seeded: false,
             ragdoll_grounded_at: None,
             ragdoll_recovered_at: None,
@@ -4110,7 +4113,7 @@ fn drive_manual_integration(
     mut shake_requests: MessageWriter<AlsCameraShakeRequest>,
     mut pivot_notices: MessageWriter<AlsPivotNotify>,
     mut foot_ik_weight_override: ResMut<AlsFootIkWeightOverride>,
-    params_assets: Res<Assets<AlsMovementParams>>,
+    (params_assets, get_ups): (Res<Assets<AlsMovementParams>>, Query<(&crate::get_up::AlsGetUpState, Has<crate::als::motion::AlsMovementInputBlocked>)>),
     mut characters: Query<
         (
             &mut AlsInputOverride,
@@ -6047,6 +6050,7 @@ fn drive_manual_integration(
                 state.ragdoll_exit_requested = false;
                 state.ragdoll_frames = 0;
                 state.get_up_fixture_seeded = false;
+                state.get_up_jump_requested_at = None;
                 state.ragdoll_grounded_at = None;
                 state.ragdoll_recovered_at = None;
                 state.coverage.ragdoll_entered = false;
@@ -6116,6 +6120,16 @@ fn drive_manual_integration(
             } else {
                 request.ragdoll_exit = true;
                 state.ragdoll_exit_requested = true;
+            }
+            if state.scenario == IntegrationScenario::GetUp && state.get_up_case == 1 {
+                if state.get_up_jump_requested_at.is_none()
+                    && get_ups.get(character).is_ok_and(|(get_up, blocked)| blocked && get_up.pose_ready && get_up.clip_time >= 0.9)
+                {
+                    input.0.jump_pressed = true;
+                    state.get_up_jump_requested_at = Some(state.game_time_seconds);
+                    info!("[MANUAL-INTEGRATION][GET-UP] jump requested during input lock");
+                }
+                input.0.jump_held = state.get_up_jump_requested_at.is_some_and(|at| state.game_time_seconds - at < 0.1);
             }
             if state
                 .ragdoll_recovered_at
@@ -9805,6 +9819,11 @@ fn observe_manual_integration(
                 state.coverage.get_up_input_released[usize::from(get_up.facing_up)] |=
                     !blocked && notify_action == Some(&AlsNotifyLocomotionAction::None);
             }
+            if state.scenario == IntegrationScenario::GetUp && state.get_up_jump_requested_at.is_some() {
+                state.coverage.get_up_jump_during_input_lock |= active && blocked
+                    && notify_action == Some(&AlsNotifyLocomotionAction::GettingUp)
+                    && *locomotion == LocomotionState::Air && velocity.y > 3.0;
+            }
             let variant = if get_up.facing_up {
                 "GetUpBack"
             } else {
@@ -10572,6 +10591,7 @@ fn observe_manual_integration(
                     "get_up_back_input_released",
                     coverage.get_up_input_released[1],
                 ),
+                ("get_up_jump_during_input_lock", coverage.get_up_jump_during_input_lock),
             ],
             IntegrationScenario::Camera => vec![
                 ("runtime_assembly", coverage.assembly),
@@ -12520,6 +12540,35 @@ mod tests {
         apply.left.valid = true;
         apply.right.effector_error = 0.03;
         assert!(!foot_ik_matches_source(&apply, [0.0, 0.0]));
+    }
+
+    #[test]
+    fn get_up_driver_requests_source_jump_once_after_pose_window_while_locked() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut world, character, _) = manual_driver_fixture();
+        let mut state = world.resource_mut::<ManualIntegrationState>();
+        state.scenario = IntegrationScenario::GetUp;
+        state.phase = IntegrationPhase::Ragdoll;
+        state.entered = false;
+        state.get_up_case = 1;
+        state.ragdoll_exit_requested = true;
+        for (clip_time, ready, blocked, expected) in [
+            (0.8, true, true, false), (0.91, false, true, false),
+            (0.91, true, false, false), (0.91, true, true, true),
+            (1.0, true, true, false),
+        ] {
+            let mut get_up = crate::get_up::AlsGetUpState::new(true);
+            get_up.clip_time = clip_time;
+            get_up.pose_ready = ready;
+            world.entity_mut(character).insert(get_up);
+            if blocked { world.entity_mut(character).insert(crate::als::motion::AlsMovementInputBlocked); }
+            else { world.entity_mut(character).remove::<crate::als::motion::AlsMovementInputBlocked>(); }
+            world.resource_mut::<Time<Virtual>>().advance_by(Duration::from_secs_f32(0.02));
+            world.run_system_once(drive_manual_integration).unwrap();
+            assert_eq!(world.get::<AlsInputOverride>(character).unwrap().0.jump_pressed, expected,
+                "Source GetUp jump driver readiness or repeated pulse differs: clip={clip_time} ready={ready} blocked={blocked}");
+        }
+        assert!(world.resource::<ManualIntegrationState>().get_up_jump_requested_at.is_some());
     }
 
     #[test]

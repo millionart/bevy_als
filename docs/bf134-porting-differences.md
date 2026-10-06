@@ -86,7 +86,7 @@ source/static/ABI/layout/editor/boundary闭合；target_game/play最终正常优
 
 ## 待反例核对的源差异
 
-BF134.01G1/G2a/G2b/G2c/G2d1/G2d2/G2d3/G2d4已修复并验收；G2其他consumer/H2及剩余Action仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复二十六项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
+BF134.01G1/G2a/G2b/G2c/G2d1/G2d2/G2d3/G2d4已修复并验收；G2其他consumer/H2及剩余Action仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复二十七项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
 
 ### BF134.01G1 — P2：动画输入绕过已消费状态
 
@@ -258,3 +258,12 @@ fresh角色37.548秒、当次CMC ComputeAnalogInputModifier与公开CurveVector�
 - 最小修复：max_hold_time默认0且兼容旧RON/partial override；复用Tnua公开Jump的初次launch/基础影响，首跳后进入已有MaintainingJump，用唯一elapsed决定后续源速度下限，Released/Cancelled停止补速。直接使用已有target jump_z_velocity，保持较高上升速度；删除试验energy重写。两个旧physics fixture按真实producer/owner阶段补齐，生产gait算法不变。
 - 验证：合法0.2秒actual red→green，hold到期/释放、多Delta/速度、hold0/0.2与零重力/高初速覆盖；elapsed/Released去除均red，首跳floor与native状态切换去除路径均red。恢复motion45/45、params11/11、Jump动画信号1/1与source/static通过；正常target_game/play构建166.991秒，startup16.415、Grounded15/15（42.723）、UphillJump6/6/18窗口（34.901）功能通过，graph/primary/fault/temporal零。A38有限边界关闭，单独提交，P2累计二十六。
 - 边界：截图关闭；完整max_eval_p95_ms与Grounded max_frame_ms失败保留，只作功能验收。图/转换规则/原始资产未改，全部15根/39 source/374完整diff零证据有效；b2实际ragdoll/mantle/uncrouch/其他action以及全范围审计仍未完成。证据target/bf134/01i3a2b1。
+
+
+### BF134.01I3a2b2a — P2：GetUp的移动阻塞误吞native Jump
+
+- Source：fresh Actor原生reader45.682秒确认Jump允许且无BP/ALS override；grounded ragdoll stop解锁并设Walking，播放GetUp成功后设置InputBlocked/GettingUp。ALS CMC ConsumeInputVector只清移动，Example的StopRagdolling/Mantling均false后调用native Jump；CanJump不读InputBlocked或任意action tag，Falling动画根运动保留垂直速度。
+- Target：movement_input_for_action额外清jump_pressed/jump_held，Jump consumer还用任意非空action拒绝。actual GettingUp+blocked physics反例red100.374秒没有Jump，旧helper把拒绝直接当合同；旧Mantling fixture伪造Grounded，与source MOVE_Custom/target Custom不符。
+- 修复：删除Jump mask和无源action guard，复用已有movement mode与Tnua能力；Move与Roll原消费边界保持，真实Mantling fixture迁为Custom及真实Grounded退出。新增真实GetUp第二变体单次Jump请求和必须通过的GettingUp+blocked+Air+vy>3覆盖，保留front/back source pose与锁定/解锁窗口。
+- 验证：motion46/46、GetUp8/8、Roll14/14、driver1/1，共69恢复回归；恢复Jump mask/action guard和删除driver单次状态分别red94.494/91.541/84.689秒，源码恢复。Cargo回退mtime误用消融binary由同driver0.293秒失败复现，advance mtime后重编86.961秒恢复green，纪律固化agents.md。source/static2.407与正常target_game/play生产168.371秒通过，startup15.603/GetUp12/12（13.451）/UphillJump6/6/18窗口（34.324）功能通过，graph/primary/fault/temporal零；单独提交，P2累计二十七。
+- 边界：截图关闭、完整max_eval_p95_ms失败保留，只作功能验收。无新生产state/helper/branch、依赖/图/转换规则/原始资产修改，15/39/374完整diff0证据有效；b2其他真实priority/prolong/mantle边界和整体审计尚未完成。证据target/bf134/01i3a2b2。
