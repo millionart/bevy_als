@@ -86,7 +86,7 @@ source/static/ABI/layout/editor/boundary闭合；target_game/play最终正常优
 
 ## 待反例核对的源差异
 
-BF134.01G1/G2a/G2b/G2c/G2d1/G2d2/G2d3/G2d4已修复并验收；G2其他consumer/H2及剩余Action仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复十九项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
+BF134.01G1/G2a/G2b/G2c/G2d1/G2d2/G2d3/G2d4已修复并验收；G2其他consumer/H2及剩余Action仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复二十项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
 
 ### BF134.01G1 — P2：动画输入绕过已消费状态
 
@@ -201,3 +201,10 @@ fresh角色37.548秒、当次CMC ComputeAnalogInputModifier与公开CurveVector�
 - 实际反例：暂停按Walk经过真实Action→bridge→input_state_request，将保存gait从Running改Walking，red98.329秒。旧Look pause只在view consumer拒绝变更，未覆盖其他保存意图；此行为可达，定级P2。
 - 最小修复：只给四个已取证Pressed事件的bridge消费者加pause条件，触发器继续正常求值，不停context、不冻结timer、不做按键缓存；source held/cancel消费者另列I3，不能统一清零。World-only fixture补真实Time资源。
 - 状态：red98.329→green95.778秒，删除门槛消融red94.968秒；keyboard/raw-gamepad四请求/组件的暂停按下/恢复按住/释放重按/held不重复全部成立，59项恢复回归和source/static2.676秒通过。当前生产构建161.399秒，startup16.045/Interface15/15（24.525）/CrouchingActions11/11（28.165）功能通过，graph/primary/fault/temporal零。本项验收单独提交，P2累计十九；截图关闭、max_eval_p95_ms失败保留，未核销性能与全范围目标。Mode/UI pause、held/cancel consumer保留独立后续范围，图/转换规则/原始资产未改。证据target/bf134/01i2b。
+
+### BF134.01I2c1 — P2：暂停模式键改变保存旋转与视角模式
+
+- Source：fresh RotationMode/ViewMode均Boolean/Pressed/actuation0.5、bTriggerWhenPaused=false，UE继续更新trigger历史后在pause时使最终状态None。native handler保存desired rotation或view mode。
+- 反例：actual paused Digit1/2→bridge→input_state_request将保存rotation从ViewDirection改VelocityDirection，并触发first-person变更，red111.115秒。四其他Pressed修复的边界不涵盖这两个consumer；本项独立定级P2。
+- 最小修复：仅两个mode事件增加已证实的pause条件，保留Pressed history、binding级用户debug数字策略和source保存意图。UI直接Action读取、菜单Pressed+Released和其他held/cancel另列后续，不统一阻断context。
+- 状态：red111.115→green90.136秒，删除两条件消融red84.572秒；keyboard/raw-gamepad暂停/恢复按住不重放/释放重按与保存mode矩阵和60恢复回归通过，source/static2.622秒通过。当前生产构建156.269秒，startup15.729/Interface15/15（23.695）/Head14/14（20.748）功能通过，graph/primary/fault/temporal零，本项验收单独提交，P2累计二十。截图关闭、max_eval_p95_ms失败保留，未核销性能与整体目标；图/转换规则/原始资产未改，UI直接Action/menu与held/cancel仍留独立后续。证据target/bf134/01i2c1。

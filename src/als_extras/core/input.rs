@@ -440,11 +440,11 @@ pub fn als_input_bridge_system(
         }
 
         if let Some(events) = rotation_modes.iter_many(actions).next() {
-            cmd.rotation_mode_pressed = events.contains(ActionEvents::START);
+            cmd.rotation_mode_pressed = !virtual_time.is_paused() && events.contains(ActionEvents::START);
         }
 
         if let Some(events) = view_modes.iter_many(actions).next() {
-            cmd.view_mode_pressed = events.contains(ActionEvents::START);
+            cmd.view_mode_pressed = !virtual_time.is_paused() && events.contains(ActionEvents::START);
         }
 
         if let Some(events) = switch_shoulders.iter_many(actions).next() {
@@ -1310,6 +1310,61 @@ mod tests {
             let command = app.world().get::<AlsInputCommand>(player).unwrap();
             assert_eq!([command.walk_pressed, command.crouch_pressed, command.ragdoll_pressed,
                 command.switch_shoulder_pressed], [false; 4], "Source held Pressed must not repeat");
+        }
+    }
+    #[test]
+    fn paused_mode_pressed_actions_preserve_source_saved_modes() {
+        use crate::als::character::AlsCharacter;
+        use crate::als::aim::AlsLastFreeRotationMode;
+        use crate::als::gait::AlsDesiredGait;
+        use crate::als::state::{Gait, RotationMode, Stance};
+        use crate::als::transition::AlsStateRequest;
+        use bevy::input::gamepad::{RawGamepadButtonChangedEvent, RawGamepadEvent};
+        for gamepad_input in [false, true] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, EnhancedInputPlugin, AlsInputPlugin))
+                .add_systems(Update, crate::als::input_request::input_state_request_system);
+            app.finish();
+            let player = app.world_mut().spawn((AlsCharacter, Stance::Standing,
+                RotationMode::ViewDirection, AlsLastFreeRotationMode(RotationMode::ViewDirection),
+                AlsDesiredGait(Gait::Running), AlsStateRequest::default())).id();
+            let gamepad = app.world_mut().spawn(Gamepad::default()).id();
+            spawn_als_actions(&mut app.world_mut().commands(), player, &AlsInputMap::default());
+            app.update();
+            app.world_mut().resource_mut::<Time<Virtual>>().pause();
+            for value in [1.0, 0.0, 1.0] {
+                if value == 0.0 { app.world_mut().resource_mut::<Time<Virtual>>().unpause(); }
+                for (key, button) in [(KeyCode::Digit1, GamepadButton::DPadLeft),
+                    (KeyCode::Digit2, GamepadButton::DPadRight)] {
+                    if gamepad_input {
+                        app.world_mut().write_message(RawGamepadEvent::Button(
+                            RawGamepadButtonChangedEvent::new(gamepad, button, value)));
+                    } else {
+                        let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+                        if value > 0.0 { keys.press(key); } else { keys.release(key); }
+                    }
+                }
+                app.update();
+                let paused = app.world().resource::<Time<Virtual>>().is_paused();
+                let expected = value > 0.0 && !paused;
+                let command = app.world().get::<AlsInputCommand>(player).unwrap();
+                assert_eq!([command.rotation_mode_pressed, command.view_mode_pressed], [expected; 2],
+                    "Source paused mode events for gamepad={gamepad_input}, value={value}, paused={paused}");
+                assert_eq!(app.world().get::<AlsLastFreeRotationMode>(player).unwrap().0,
+                    if expected { RotationMode::VelocityDirection } else { RotationMode::ViewDirection },
+                    "Source paused RotationMode trigger must preserve saved rotation intent");
+                assert_eq!(app.world().get::<crate::als::input_request::AlsFirstPersonView>(player).is_some(), expected);
+                if paused {
+                    app.world_mut().resource_mut::<Time<Virtual>>().unpause();
+                    app.update();
+                    let command = app.world().get::<AlsInputCommand>(player).unwrap();
+                    assert_eq!([command.rotation_mode_pressed, command.view_mode_pressed], [false; 2],
+                        "Source paused Pressed mode input must not replay on resume");
+                }
+            }
+            app.update();
+            let command = app.world().get::<AlsInputCommand>(player).unwrap();
+            assert!(!command.rotation_mode_pressed && !command.view_mode_pressed);
         }
     }
     #[test]
