@@ -86,7 +86,7 @@ source/static/ABI/layout/editor/boundary闭合；target_game/play最终正常优
 
 ## 待反例核对的源差异
 
-BF134.01G1/G2a/G2b/G2c/G2d1/G2d2/G2d3/G2d4已修复并验收；G2其他consumer/H2及剩余Action仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复十六项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
+BF134.01G1/G2a/G2b/G2c/G2d1/G2d2/G2d3/G2d4已修复并验收；G2其他consumer/H2及剩余Action仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复十七项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
 
 ### BF134.01G1 — P2：动画输入绕过已消费状态
 
@@ -174,3 +174,10 @@ fresh角色37.548秒、当次CMC ComputeAnalogInputModifier与公开CurveVector�
 - Source：Right2D mapping仅Negate Y；Look的非缩放Delta modifier之后由AlsCharacterExample调用AddControllerPitchInput(Value.Y*90)。UE XInput保留设备Y，EnhancedInput读取RawValue；项目legacy scales关闭。gilrs XInput保留Y，WGI捕获反Y但axis_value再反Y，两个Windows后端最终方向一致。
 - Target：right-stick binding保留Y，view更新减去Y*90*非缩放Delta；相机使用正pitch上抬的Quat。源Rotator.Vector=(cosP*cosY,cosP*sinY,sinP)经(Y,Z,-X)基变换后同向，runtime yaw=-source yaw、pitch=source pitch。mapping与consumer的取反位置不同，最终物理结果一致，不计P2。
 - 证明：六方向/斜向实际Gamepad→Action→view→相机目标视线green，scope source/static通过；额外NegateY受控反例red81.662秒，恢复后23项input/view回归通过；生产符号已证实等价，候选核销并单独提交。只保留source方向断言，生产实现不改，H新二进制startup/grounded/head功能证据继续有效；设备层数值filter单列H3，不能从方向等价推断其数值等价。
+
+### BF134.01H3 — P2：设备事件过滤丢失摇杆细小变化
+
+- Source：当次UE XInput在raw值改变或超硬件dead-zone时发normalized raw；EnhancedInput读取RawValue，不追加0.01变化门槛。目标Bevy明确关闭gilrs默认filter，但GamepadSettings默认0.01变化门槛会拒绝事件，所需raw值不进入增强输入。
+- 触发/consumer：actual RawGamepadEvent→InputPlugin→Action→bridge从x=0.5变0.505，源径向mapping输出0.38125，旧目标仍0.375；普通设备精细摇杆可达，定级P2。此前直接analog_mut的测试绕过该实际事件链，留下漏检。
+- 最小修复：在Gamepad Add的公开observer中只将四个stick轴的change threshold设0，增强输入仍使用raw轴与既有径向modifier。现有dead/live-zone只改变scaled event，没有当前raw consumer影响，保留；按钮和其他轴设置保持。没有自定义filter、缓存、额外逐帧系统或依赖修改。
+- 状态：最小red82.527秒→green94.080秒，恢复旧门槛消融red94.180秒；34项恢复回归（input18/view6/gait10）通过，raw矩阵覆盖Any/Single/新设备Add、四轴其他设置保持和LeftZ默认，source/static2.657秒通过。当前生产构建173.187秒，startup16.069秒/Grounded15/15（42.803秒）/Head14/14（21.540秒）功能通过，graph/primary/fault/temporal零。本项已修复验收并单独提交，P2累计十七；截图关闭、max_eval_p95_ms失败保留，未核销性能与全范围目标。图/转换规则/原始资产未改，完整转换diff零证据有效。证据target/bf134/01h3。

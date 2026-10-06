@@ -1,4 +1,5 @@
 use bevy::ecs::spawn::WithRelated;
+use bevy::input::gamepad::GamepadSettings;
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::Press as EIPress;
 use bevy_enhanced_input::prelude::*;
@@ -461,10 +462,21 @@ pub struct AlsInputPlugin;
 
 impl Plugin for AlsInputPlugin {
     fn build(&self, app: &mut App) {
-        app.add_input_context::<OnFoot>().add_input_modifier::<StickValue>().add_systems(
-            PreUpdate,
-            als_input_bridge_system.after(EnhancedInputSystems::Apply),
-        );
+        app.add_input_context::<OnFoot>()
+            .add_input_modifier::<StickValue>()
+            .add_observer(|gamepad: On<Add, Gamepad>, mut settings: Query<&mut GamepadSettings>| {
+                let mut settings = settings.get_mut(gamepad.entity).unwrap();
+                for axis in [GamepadAxis::LeftStickX, GamepadAxis::LeftStickY,
+                    GamepadAxis::RightStickX, GamepadAxis::RightStickY] {
+                    let mut axis_settings = settings.get_axis_settings(axis).clone();
+                    axis_settings.set_threshold(0.0);
+                    settings.axis_settings.insert(axis, axis_settings);
+                }
+            })
+            .add_systems(
+                PreUpdate,
+                als_input_bridge_system.after(EnhancedInputSystems::Apply),
+            );
     }
 }
 
@@ -1089,6 +1101,54 @@ mod tests {
         }
     }
 
+    #[test]
+    fn raw_stick_events_preserve_source_changes_below_platform_filter_thresholds() {
+        use bevy::input::gamepad::{RawGamepadAxisChangedEvent, RawGamepadEvent};
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, EnhancedInputPlugin, AlsInputPlugin));
+        app.finish();
+        let player = app.world_mut().spawn_empty().id();
+        let gamepad = app.world_mut().spawn(Gamepad::default()).id();
+        spawn_als_actions(&mut app.world_mut().commands(), player, &AlsInputMap::default());
+        app.update();
+        for device in [GamepadDevice::Any, GamepadDevice::Single(gamepad)] {
+            app.world_mut().entity_mut(player).insert(device);
+            for (raw, expected) in [
+                (Vec2::new(0.5, 0.0), Vec2::new(0.375, 0.0)),
+                (Vec2::new(0.505, 0.0), Vec2::new(0.38125, 0.0)),
+                (Vec2::new(0.5, 0.004), Vec2::new(0.375008, 0.003000064)),
+                (Vec2::new(0.5, -0.004), Vec2::new(0.375008, -0.003000064)),
+                (Vec2::new(0.0, 0.5), Vec2::new(0.0, 0.375)),
+                (Vec2::new(0.0, 0.505), Vec2::new(0.0, 0.38125)),
+                (Vec2::ZERO, Vec2::ZERO),
+            ] {
+                for (axis, value) in [(GamepadAxis::LeftStickX, raw.x), (GamepadAxis::LeftStickY, raw.y),
+                    (GamepadAxis::RightStickX, raw.x), (GamepadAxis::RightStickY, raw.y)] {
+                    app.world_mut().write_message(RawGamepadEvent::Axis(
+                        RawGamepadAxisChangedEvent::new(gamepad, axis, value)));
+                }
+                app.update();
+                let command = app.world().get::<AlsInputCommand>(player).unwrap();
+                assert!((command.move_dir - expected).length() < 1e-6,
+                    "Source raw stick move for {raw}: expected {expected}, actual {}", command.move_dir);
+                assert!((command.look_rate - expected).length() < 1e-6,
+                    "Source raw stick look for {raw}: expected {expected}, actual {}", command.look_rate);
+            }
+        }
+        let settings = app.world().get::<GamepadSettings>(gamepad).unwrap();
+        let mut expected = bevy::input::gamepad::AxisSettings::default();
+        expected.set_threshold(0.0);
+        for axis in [GamepadAxis::LeftStickX, GamepadAxis::LeftStickY,
+            GamepadAxis::RightStickX, GamepadAxis::RightStickY] {
+            assert_eq!(settings.get_axis_settings(axis), &expected,
+                "Source stick event configuration must change only the threshold for {axis:?}");
+        }
+        assert_eq!(settings.get_axis_settings(GamepadAxis::LeftZ),
+            &bevy::input::gamepad::AxisSettings::default());
+        let reconnected = app.world_mut().spawn(Gamepad::default()).id();
+        assert_eq!(app.world().get::<GamepadSettings>(reconnected).unwrap()
+            .get_axis_settings(GamepadAxis::RightStickX), &expected);
+    }
     #[test]
     fn look_rate_uses_source_nondilated_time_and_rejects_paused_actions() {
         use crate::als::character::AlsCharacter;
