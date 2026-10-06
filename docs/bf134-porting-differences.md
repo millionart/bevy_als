@@ -86,7 +86,7 @@ source/static/ABI/layout/editor/boundary闭合；target_game/play最终正常优
 
 ## 待反例核对的源差异
 
-BF134.01G1/G2a/G2b/G2c/G2d1/G2d2/G2d3/G2d4已修复并验收；G2其他consumer/H2及剩余Action仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复二十一项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
+BF134.01G1/G2a/G2b/G2c/G2d1/G2d2/G2d3/G2d4已修复并验收；G2其他consumer/H2及剩余Action仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复二十二项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
 
 ### BF134.01G1 — P2：动画输入绕过已消费状态
 
@@ -215,3 +215,10 @@ fresh角色37.548秒、当次CMC ComputeAnalogInputModifier与公开CurveVector�
 - 反例：actual paused Tab/Z→Action→直接AlsHud consumer使ui_visible=false/slomo_active=true且relative speed=.15，red84.569秒。consumer读取ActionEvents，不经bridge字段；旧R5E-14真实键位/保持/释放/custom gate漏掉pause，有限复开该边界。
 - 最小修复：两个实际HUD event判定加pause条件，显示Node正常同步；桥接字段保持同一source合同，trigger历史继续求值、恢复按住不重放，不新增缓存/状态或停止context。正确默认Select/Start、custom绑定、字体/布局/样式和Source Slomo倍率保留。
 - 状态：red84.569→green83.482秒，direct/bridge条件消融red89.817/97.384秒；keyboard/raw-gamepad暂停/恢复held无重放/释放重按/held不重复、HUD/Node/time与命令合同和55回归通过，source/static2.384秒通过。当前生产构建173.536秒，startup16.274/Interface15/15（25.068）功能通过，graph/primary/fault/temporal零，R5E-14有限边界关闭，本项验收单独提交，P2累计二十一。截图关闭、max_eval_p95_ms失败保留；menu/selection和held/cancel未核销，图/转换规则/原始资产未改。证据target/bf134/01i2c2a。
+
+### BF134.01I2c2b — P2：暂停菜单仍选择、关闭与批准Overlay
+
+- Source：fresh Controller Menu Triggered按ActionValue开viewport/设倍率或批准Overlay/RemoveParent，源Menu为Pressed+Released，Next/Previous为Down，三IA均不在paused时触发。Widget Construct读OwningPawn overlay，Approve使用SelectedOverlayMode；source暂停时不发相关副作用，trigger历史继续更新。
+- 实际反例：已开菜单pause后Down输入使selection由Default改Feminine，red95.803秒；target直接读取Action/TriggerState并执行状态/时间/请求，bridge字段不能保护实际consumer。BF123.02a仅暂停consumer有限复开，旧归属/复用/布局Gate缺pause。
+- 最小修复：更新已有prev_held历史后跳过paused菜单副作用，保持已开/所选/请求/倍率；三个bridge字段同步已取证的pause合同。不强关菜单、不停止trigger/timer、不加缓存/状态。未Construct widget首次release批准空Tag的源边界尚无本项target症状，记录后独立核对，不凭猜测补偿。
+- 状态：red95.803→green93.224秒，consumer/history/bridge三消融red92.294/92.313/95.300秒；66项恢复回归与source/static2.936秒通过。当前生产构建176.367秒，startup16.927/Interface15/15（24.265）/Overlays115/115（104.890）功能通过，graph/primary/fault/temporal零，BF123.02a有限边界关闭，本项验收单独提交，P2累计二十二。菜单样式/省略号/停靠/点击音决策保持；截图关闭，startup max_frame_ms与max_eval_p95_ms失败完整保留，仅功能验收。未Construct首次release空Tag与I3 held/cancel边界仍独立待查，图/转换规则/原始资产未改。证据target/bf134/01i2c2b。

@@ -454,15 +454,15 @@ pub fn als_input_bridge_system(
         let (overlay_menus, next_overlays, previous_overlays, slomos, toggle_uis) = &mut ui_actions;
 
         if let Some((state, _)) = overlay_menus.iter_many(actions).next() {
-            cmd.overlay_menu_held = *state == TriggerState::Fired;
+            cmd.overlay_menu_held = !virtual_time.is_paused() && *state == TriggerState::Fired;
         }
 
         if let Some(state) = next_overlays.iter_many(actions).next() {
-            cmd.next_overlay_mode_pressed = *state == TriggerState::Fired;
+            cmd.next_overlay_mode_pressed = !virtual_time.is_paused() && *state == TriggerState::Fired;
         }
 
         if let Some(state) = previous_overlays.iter_many(actions).next() {
-            cmd.previous_overlay_mode_pressed = *state == TriggerState::Fired;
+            cmd.previous_overlay_mode_pressed = !virtual_time.is_paused() && *state == TriggerState::Fired;
         }
 
         if let Some(events) = slomos.iter_many(actions).next() {

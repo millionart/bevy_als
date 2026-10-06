@@ -129,6 +129,7 @@ fn menu_control_system(
     let pressed = held && !*prev_held;
     let released = !held && *prev_held;
     *prev_held = held;
+    if time.is_paused() { return; }
 
     let next = next_states
         .iter()
@@ -371,6 +372,79 @@ pub(crate) mod tests {
         bevy_gameplay_tag::GameplayTagsManager::from_world(&mut world)
     }
 
+    #[test]
+    fn paused_menu_events_preserve_source_open_selection_and_commit_state() {
+        use crate::als::input::{AlsInputCommand, AlsInputMap, AlsInputPlugin, spawn_als_actions};
+        use bevy::input::gamepad::{RawGamepadButtonChangedEvent, RawGamepadEvent};
+        for gamepad_menu in [false, true] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, EnhancedInputPlugin, AlsInputPlugin))
+                .init_resource::<AlsHudState>()
+                .insert_resource(OverlayMenuState { options: menu_display_order(&tag_manager(&[])), ..default() })
+                .add_systems(Update, menu_control_system);
+            app.finish();
+            let player = app.world_mut().spawn((AlsCharacter, AlsPlayerCharacter,
+                OverlayState::Default, AlsStateRequest::default())).id();
+            let gamepad = app.world_mut().spawn(Gamepad::default()).id();
+            spawn_als_actions(&mut app.world_mut().commands(), player, &AlsInputMap::default());
+            app.update();
+            if gamepad_menu {
+                app.world_mut().write_message(RawGamepadEvent::Button(
+                    RawGamepadButtonChangedEvent::new(gamepad, GamepadButton::North, 1.0)));
+            } else {
+                app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::KeyQ);
+            }
+            app.update();
+            assert!(app.world().resource::<OverlayMenuState>().open);
+            let selected = app.world().resource::<OverlayMenuState>().selected;
+            app.world_mut().resource_mut::<Time<Virtual>>().pause();
+            for button in [GamepadButton::DPadUp, GamepadButton::DPadDown] {
+                app.world_mut().write_message(RawGamepadEvent::Button(
+                    RawGamepadButtonChangedEvent::new(gamepad, button, 1.0)));
+                app.update();
+                assert_eq!(app.world().resource::<OverlayMenuState>().selected, selected,
+                    "Source paused Down selection must preserve the open menu selection");
+                let command = app.world().get::<AlsInputCommand>(player).unwrap();
+                assert_eq!([command.overlay_menu_held, command.next_overlay_mode_pressed,
+                    command.previous_overlay_mode_pressed], [false; 3],
+                    "Source paused menu bridge fields must match no source dispatch");
+                app.world_mut().write_message(RawGamepadEvent::Button(
+                    RawGamepadButtonChangedEvent::new(gamepad, button, 0.0)));
+            }
+            if gamepad_menu {
+                app.world_mut().write_message(RawGamepadEvent::Button(
+                    RawGamepadButtonChangedEvent::new(gamepad, GamepadButton::North, 0.0)));
+            } else {
+                app.world_mut().resource_mut::<ButtonInput<KeyCode>>().release(KeyCode::KeyQ);
+            }
+            app.update();
+            assert!(app.world().resource::<OverlayMenuState>().open,
+                "Source paused menu Released event must not close or approve the menu");
+            assert_eq!(app.world().get::<AlsStateRequest>(player).unwrap().overlay_state, None);
+            assert_eq!(app.world().resource::<Time<Virtual>>().relative_speed(), MENU_DILATION);
+            app.world_mut().resource_mut::<Time<Virtual>>().unpause();
+            app.update();
+            assert!(app.world().resource::<OverlayMenuState>().open,
+                "Source menu release history must not replay approval after resume");
+            if gamepad_menu {
+                app.world_mut().write_message(RawGamepadEvent::Button(
+                    RawGamepadButtonChangedEvent::new(gamepad, GamepadButton::North, 1.0)));
+            } else {
+                app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::KeyQ);
+            }
+            app.update();
+            if gamepad_menu {
+                app.world_mut().write_message(RawGamepadEvent::Button(
+                    RawGamepadButtonChangedEvent::new(gamepad, GamepadButton::North, 0.0)));
+            } else {
+                app.world_mut().resource_mut::<ButtonInput<KeyCode>>().release(KeyCode::KeyQ);
+            }
+            app.update();
+            assert!(!app.world().resource::<OverlayMenuState>().open);
+            assert_eq!(app.world().get::<AlsStateRequest>(player).unwrap().overlay_state, selected);
+            assert_eq!(app.world().resource::<Time<Virtual>>().relative_speed(), 1.0);
+        }
+    }
     #[test]
     fn menu_uses_registered_descendants_and_source_tree_order() {
         let tags = tag_manager(&[
