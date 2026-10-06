@@ -86,7 +86,7 @@ source/static/ABI/layout/editor/boundary闭合；target_game/play最终正常优
 
 ## 待反例核对的源差异
 
-BF134.01G1/G2a/G2b/G2c/G2d1/G2d2/G2d3/G2d4已修复并验收；G2其他consumer/H2及剩余Action仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复二十二项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
+BF134.01G1/G2a/G2b/G2c/G2d1/G2d2/G2d3/G2d4已修复并验收；G2其他consumer/H2及剩余Action仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复二十三项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
 
 ### BF134.01G1 — P2：动画输入绕过已消费状态
 
@@ -222,3 +222,10 @@ fresh角色37.548秒、当次CMC ComputeAnalogInputModifier与公开CurveVector�
 - 实际反例：已开菜单pause后Down输入使selection由Default改Feminine，red95.803秒；target直接读取Action/TriggerState并执行状态/时间/请求，bridge字段不能保护实际consumer。BF123.02a仅暂停consumer有限复开，旧归属/复用/布局Gate缺pause。
 - 最小修复：更新已有prev_held历史后跳过paused菜单副作用，保持已开/所选/请求/倍率；三个bridge字段同步已取证的pause合同。不强关菜单、不停止trigger/timer、不加缓存/状态。未Construct widget首次release批准空Tag的源边界尚无本项target症状，记录后独立核对，不凭猜测补偿。
 - 状态：red95.803→green93.224秒，consumer/history/bridge三消融red92.294/92.313/95.300秒；66项恢复回归与source/static2.936秒通过。当前生产构建176.367秒，startup16.927/Interface15/15（24.265）/Overlays115/115（104.890）功能通过，graph/primary/fault/temporal零，BF123.02a有限边界关闭，本项验收单独提交，P2累计二十二。菜单样式/省略号/停靠/点击音决策保持；截图关闭，startup max_frame_ms与max_eval_p95_ms失败完整保留，仅功能验收。未Construct首次release空Tag与I3 held/cancel边界仍独立待查，图/转换规则/原始资产未改。证据target/bf134/01i2c2b。
+
+### BF134.01I2c2c — P2：首次未Construct菜单的Released批准遗漏
+
+- Source：local UE CreateWidget→Initialize只调用OnInitialized；AddToViewport→TakeWidget/Rebuild→OnWidgetRebuilt才调用Construct。fresh Widget OnInitialized只建字典/选项，SelectedOverlayMode默认为空Tag，Construct才从OwningPawn初始化；Controller Released分支无viewport/open前提，Approve调用允许空Tag的SetOverlayMode。
+- 实际可达反例：首次Q按下发生paused，resume仍held无Pressed dispatch，随后unpaused release触发Released批准空Tag。target保持closed/selected=None并跳过请求，red87.283秒；源/目标保存Overlay状态不一致，定级P2。
+- 最小修复：删除Released批准的open guard，批准时将现有None selection映射源空Tag；正常Construct/open仍从owner赋值，c2b pause/history边界保持。不添加构造标记/cache/state，不把Source空Tag行为补偿为Default。BF123.02a仅首次释放边界有限复开。
+- 状态：red87.283→green87.749秒，恢复open guard/补偿Default两消融red95.087/84.750秒，67恢复回归与source/static2.670秒通过。当前生产166.908秒，startup16.348/Interface15/15（25.367）/Overlays115/115（104.990）功能通过，graph/primary/fault/temporal零，BF123.02a首次release有限边界关闭并单独提交，P2累计二十三。布局/省略号/停靠/点击音用户决策与c2b pause/history保持；截图关闭，max_eval_p95_ms与Overlays max_frame_ms失败保留，整体目标仍未完成。图/转换规则/原始资产未改。证据target/bf134/01i2c2c。

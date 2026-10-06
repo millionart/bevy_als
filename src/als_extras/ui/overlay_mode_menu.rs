@@ -160,10 +160,9 @@ fn menu_control_system(
         }
     }
 
-    if released && state.open {
-        if let Some(selected) = state.selected
-            && let Ok((entity, _)) = characters.single()
-        {
+    if released {
+        if let Ok((entity, _)) = characters.single() {
+            let selected = state.selected.unwrap_or(OverlayState::new("").unwrap());
             match requests.get_mut(entity) {
                 Ok(mut request) => request.overlay_state = Some(selected),
                 Err(_) => {
@@ -445,6 +444,34 @@ pub(crate) mod tests {
             assert_eq!(app.world().resource::<Time<Virtual>>().relative_speed(), 1.0);
         }
     }
+    #[test]
+    fn first_menu_release_after_paused_press_approves_source_empty_selection() {
+        use crate::als::input::{AlsInputMap, AlsInputPlugin, spawn_als_actions};
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, EnhancedInputPlugin, AlsInputPlugin))
+            .init_resource::<AlsHudState>()
+            .insert_resource(OverlayMenuState { options: menu_display_order(&tag_manager(&[])), ..default() })
+            .add_systems(Update, menu_control_system);
+        app.finish();
+        let player = app.world_mut().spawn((AlsCharacter, AlsPlayerCharacter,
+            OverlayState::Default, AlsStateRequest::default())).id();
+        spawn_als_actions(&mut app.world_mut().commands(), player, &AlsInputMap::default());
+        app.update();
+        app.world_mut().resource_mut::<Time<Virtual>>().pause();
+        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::KeyQ);
+        app.update();
+        assert!(!app.world().resource::<OverlayMenuState>().open);
+        app.world_mut().resource_mut::<Time<Virtual>>().unpause();
+        app.update();
+        assert!(!app.world().resource::<OverlayMenuState>().open);
+        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().release(KeyCode::KeyQ);
+        app.update();
+        assert_eq!(app.world().get::<AlsStateRequest>(player).unwrap().overlay_state,
+            Some(OverlayState::new("").unwrap()),
+            "Source Released callback must approve the default empty Tag before first Construct");
+        assert_eq!(app.world().resource::<Time<Virtual>>().relative_speed(), 1.0);
+    }
+
     #[test]
     fn menu_uses_registered_descendants_and_source_tree_order() {
         let tags = tag_manager(&[
