@@ -1,0 +1,164 @@
+{
+  "format": "als_animgraph_authoring_gate_v1",
+  "graphs": [
+    {
+      "path": "assets/ALS/Character/AB_Als.runtime.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "b113030b-0000-4000-8000-000000000001",
+          "name": "AB_Als",
+          "position": [
+            -480.0,
+            0.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000002",
+          "name": "Ragdoll Dynamic",
+          "position": [
+            -480.0,
+            160.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000003",
+          "name": "Ragdoll Readback",
+          "position": [
+            -480.0,
+            240.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000004",
+          "name": "Ragdoll Config",
+          "position": [
+            -224.0,
+            192.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000002\", \"als_ragdolling_dynamic\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"dynamic\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000003\", \"als_ragdolling_readback\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"readback\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000001\", \"pose\")",
+          "target": "OutputData(\"pose\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"ragdoll_config\")",
+          "target": "OutputData(\"ragdoll_config\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "pose": "Pose",
+          "ragdoll_config": "RagdollConfig"
+        }
+      },
+      "root_output_exceptions": [
+        {
+          "name": "ragdoll_config",
+          "reason": "The framework consumes body simulation and pose readback controls independently from the source pose.",
+          "evidence": "docs/bf114-ragdoll-contract.md"
+        }
+      ]
+    }
+  ],
+  "id": "source_roll_tap_pause_and_actual_driver_lifecycle",
+  "source_evidence": [
+    {
+      "path": "target/bf134/01i3b2/roll.ue.json",
+      "sha256": "ef62e214c04aa49d2dc396f404bb8042d1cd21563f7549e19ce4a75b19f4ba6b"
+    },
+    {
+      "path": "target/bf134/01i3b2/character_example.cpp",
+      "sha256": "ba558540dd414d57bd61bb37c57cf3db9d6a1b6a15088463616588845fc1afa4"
+    },
+    {
+      "path": "target/bf134/01i3b2/character_actions.cpp",
+      "sha256": "3dbd91f26154fd99297a7c7bb293993d938a86b8937d7071760cabc8517aa317"
+    },
+    {
+      "path": "target/bf134/01i3b2/player_input.cpp",
+      "sha256": "d4d84a5ff3f035411496d19a87658beef5d4e5ef7f49d53d53dad92502d319b8"
+    },
+    {
+      "path": "target/bf134/01i3b2/input_triggers.cpp",
+      "sha256": "6e90dbfc1807b1c4df863c7a97ad900a8973fb5af29d89e990b5598575fe2c89"
+    },
+    {
+      "path": "target/bf134/01i3b2/source_contract.json",
+      "sha256": "96716b8331985e11ada414a13b8d86858080cf6f50957d98ad39ed68432ecf43"
+    }
+  ],
+  "verification_commands": [
+    {
+      "label": "generated_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets",
+        "--include",
+        "ALS",
+        "--include",
+        "ALSCamera"
+      ]
+    },
+    {
+      "label": "generated_editor",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets"
+      ]
+    },
+    {
+      "label": "runtime_asset_boundary",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/validate_runtime_graph_asset_boundary.py",
+        "--assets-root",
+        "assets",
+        "--check"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "animgraph_assets",
+    "manual_case": "grounded"
+  },
+  "focused_tests": [
+    {
+      "label": "actual_keyboard_raw_gamepad_tap_pause_and_production_roll_activation_matrix",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "roll_paused_tap_release_does_not_start_the_actual_roll_driver"
+      ],
+      "evidence": "target/bf134/01i3b2/final_actor_matrix.watchdog.json"
+    }
+  ]
+}

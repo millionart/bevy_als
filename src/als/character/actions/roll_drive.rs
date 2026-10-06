@@ -58,6 +58,62 @@ pub(crate) mod tests {
     use bevy::ecs::system::RunSystemOnce;
 
     #[test]
+    fn roll_paused_tap_release_does_not_start_the_actual_roll_driver() {
+        use crate::als::input::{AlsInputMap, AlsInputPlugin, spawn_als_actions};
+        use bevy::input::gamepad::{RawGamepadButtonChangedEvent, RawGamepadEvent};
+        use bevy::time::TimeUpdateStrategy;
+        use bevy_enhanced_input::prelude::EnhancedInputPlugin;
+        let cases = [
+            vec![(false,true,2,false),(true,true,1,false),(true,false,2,false),
+                (false,false,1,false),(false,true,2,false),(false,false,1,true)],
+            vec![(true,true,2,false),(true,false,2,false),(false,false,1,false)],
+            vec![(true,true,2,false),(false,true,1,false),(false,false,1,true)],
+            vec![(false,true,2,false),(true,true,20,false),(false,true,1,false),(false,false,1,false)],
+            vec![(false,true,2,false),(true,true,2,false),(false,false,1,true)],
+        ];
+        for gamepad_input in [false, true] {
+            for speed in [1.0, 0.25] {
+                for (case_index, steps) in cases.iter().enumerate() {
+                    let mut app = App::new();
+                    app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, EnhancedInputPlugin, AlsInputPlugin))
+                        .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_millis(20)))
+                        .add_systems(PostUpdate, advance_rolls);
+                    app.finish();
+                    let character = app.world_mut().spawn((crate::als::character::AlsCharacter,
+                        AlsRollState::default(), LocomotionState::Grounded, Stance::Standing,
+                        AlsViewYaw(0.0), Transform::IDENTITY, LinearVelocity::ZERO)).id();
+                    let gamepad = app.world_mut().spawn(Gamepad::default()).id();
+                    spawn_als_actions(&mut app.world_mut().commands(), character, &AlsInputMap::default());
+                    app.update();
+                    app.world_mut().resource_mut::<Time<Virtual>>().set_relative_speed(speed);
+                    for (step_index, &(paused, held, frames, expected)) in steps.iter().enumerate() {
+                        let mut time = app.world_mut().resource_mut::<Time<Virtual>>();
+                        if paused { time.pause(); } else { time.unpause(); }
+                        if gamepad_input {
+                            app.world_mut().write_message(RawGamepadEvent::Button(
+                                RawGamepadButtonChangedEvent::new(gamepad, GamepadButton::East, if held { 1.0 } else { 0.0 })));
+                        } else {
+                            let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+                            if held { keys.press(KeyCode::ShiftLeft); } else { keys.release(KeyCode::ShiftLeft); }
+                        }
+                        for _ in 0..frames { app.update(); }
+                        assert_eq!(app.world().get::<AlsRollState>(character).unwrap().active, expected,
+                            "Source actual Roll activation for device={gamepad_input}, speed={speed}, case={case_index}, step={step_index}");
+                        if paused {
+                            assert!(!app.world().get::<AlsInputCommand>(character).unwrap().roll_pressed,
+                                "Source paused Tap release has no Triggered callback");
+                        }
+                    }
+                    app.update();
+                    assert!(!app.world().get::<AlsInputCommand>(character).unwrap().roll_pressed,
+                        "Source Tap callback is a single-frame pulse");
+                    assert_eq!(app.world().get::<AlsRollState>(character).unwrap().active, steps.last().unwrap().3,
+                        "Source actual Roll activation must survive its pulse without replaying a paused release");
+                }
+            }
+        }
+    }
+    #[test]
     fn roll_direction_uses_player_view_for_input_and_actor_yaw_without_input() {
         let mut failures = Vec::new();
         for (input, expected) in [(Vec2::Y, 0.4_f32), (Vec2::ZERO, 0.7)] {

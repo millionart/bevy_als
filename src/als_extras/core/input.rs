@@ -312,6 +312,7 @@ pub fn spawn_als_actions(cmds: &mut Commands, player: Entity, map: &AlsInputMap)
             (
                 Action::<RollAction>::new(),
                 Tap::new(ROLL_TAP_SECS),
+                GamePauseBlocker::default(),
                 Bindings::spawn(map.roll.clone()),
             ),
             (
