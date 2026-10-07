@@ -4367,6 +4367,44 @@ mod tests {
     }
 
     #[test]
+    fn source_valid_downward_floor_sweep_matches_current_capsule_recheck() {
+        use bevy::ecs::system::RunSystemOnce;
+        for scale in [0.5, 1.0, 1.5] {
+            for mode in [LocomotionState::Grounded, LocomotionState::Air] {
+                let mut app = App::new();
+                app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+                    avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+                    .init_asset::<Mesh>().add_message::<bevy::asset::AssetEvent<Mesh>>();
+                app.finish();
+                let character = app.world_mut().spawn((RigidBody::Kinematic, Transform::default())).id();
+                let floor = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(8.0, 0.1, 8.0),
+                    Transform::from_xyz(0.0, -0.05, 0.0))).id();
+                for _ in 0..2 { app.update(); }
+                app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
+                    let half = 0.9 * scale;
+                    let radius = 0.3 * scale;
+                    let filter = SpatialQueryFilter::from_excluded_entities([character]);
+                    let origin = Vec3::Y * (half + 0.1);
+                    let capsule = als_character_capsule(half, radius);
+                    let supplied = spatial.cast_shape(&capsule, origin, Quat::IDENTITY, Dir3::NEG_Y,
+                        &ShapeCastConfig::from_max_distance(0.2), &filter).unwrap();
+                    assert_eq!(supplied.entity, floor);
+                    assert!(supplied.distance > 0.0 && supplied.normal1.y > 0.99);
+                    let location = origin - Vec3::Y * supplied.distance;
+                    assert!((supplied.point1 - location).with_y(0.0).length() < radius - EDGE_REJECT_DISTANCE);
+                    let query_origin = location + Vec3::Y * 0.0215;
+                    let found = find_ground_floor(&spatial, query_origin, half, radius,
+                        &crate::als::params::CmcAdapterParams::default(), mode, &filter, character, &candidates).unwrap();
+                    assert_eq!(found.2, supplied.entity);
+                    assert!((found.0 - location.y).abs() < 1e-4,
+                        "Supplied downward walkable sweep and current floor recheck differ: scale={scale} mode={mode:?} supplied={supplied:?} found={found:?}");
+                }).unwrap();
+            }
+        }
+    }
+
+    #[test]
     fn source_floor_edge_rejection_retries_the_capsule_before_accepting_no_floor() {
         use bevy::ecs::system::RunSystemOnce;
         for edge_x in [0.2986_f32, 0.299, 0.2995] {
