@@ -1,0 +1,218 @@
+{
+  "format": "als_animgraph_authoring_gate_v1",
+  "graphs": [
+    {
+      "path": "assets/ALS/Character/AB_Als.runtime.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "b113030b-0000-4000-8000-000000000001",
+          "name": "AB_Als",
+          "position": [
+            -480.0,
+            0.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000002",
+          "name": "Ragdoll Dynamic",
+          "position": [
+            -480.0,
+            160.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000003",
+          "name": "Ragdoll Readback",
+          "position": [
+            -480.0,
+            240.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000004",
+          "name": "Ragdoll Config",
+          "position": [
+            -224.0,
+            192.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000002\", \"als_ragdolling_dynamic\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"dynamic\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000003\", \"als_ragdolling_readback\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"readback\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000001\", \"pose\")",
+          "target": "OutputData(\"pose\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"ragdoll_config\")",
+          "target": "OutputData(\"ragdoll_config\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "pose": "Pose",
+          "ragdoll_config": "RagdollConfig"
+        }
+      },
+      "root_output_exceptions": [
+        {
+          "name": "ragdoll_config",
+          "reason": "The framework consumes body simulation and pose readback controls independently from the source pose.",
+          "evidence": "docs/bf114-ragdoll-contract.md"
+        }
+      ]
+    }
+  ],
+  "id": "source_camera_overlay_virtual_entry_contract",
+  "source_evidence": [
+    {
+      "path": "target/bf134/01k12/als_character.cpp",
+      "sha256": "779192e94d0a1ac13ccf95cfa9db540cc4f6230a2dc3ab9113848f8d983ace84"
+    },
+    {
+      "path": "target/bf134/01k12/actor.cpp",
+      "sha256": "53022fa18c2e33a389fdfa8cc49e63f2795eef648fb755157f78625965e6f329"
+    },
+    {
+      "path": "target/bf134/01k12/als_example.cpp",
+      "sha256": "ba558540dd414d57bd61bb37c57cf3db9d6a1b6a15088463616588845fc1afa4"
+    },
+    {
+      "path": "target/bf134/01k12/als_camera_component.cpp",
+      "sha256": "55cebe93625b590ad74704511ae959822e1eb9a849d4b39297a57be965754614"
+    },
+    {
+      "path": "target/bf134/01k12/camera_overlay_virtual_contract.json",
+      "sha256": "33a95328359e41b101f4c54194a19e43aff17850df051eef7101c7d06dfa2206"
+    },
+    {
+      "path": "target/bf134/01j1/character.ue.json",
+      "sha256": "bb138443652e202a08ee2f6c1e12b071133caa6440fe75657b71e744c2d72925"
+    }
+  ],
+  "verification_commands": [
+    {
+      "label": "generated_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets",
+        "--include",
+        "ALS",
+        "--include",
+        "ALSCamera"
+      ]
+    },
+    {
+      "label": "generated_editor",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets"
+      ]
+    },
+    {
+      "label": "runtime_asset_boundary",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/validate_runtime_graph_asset_boundary.py",
+        "--assets-root",
+        "assets",
+        "--check"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "animgraph_assets",
+    "manual_case": "camera"
+  },
+  "focused_tests": [
+    {
+      "label": "inactive_source_camera_uses_character_eye_view_without_resetting_owner",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "inactive_source_camera_uses_character_eye_view_without_resetting_owner"
+      ],
+      "evidence": "target/bf134/01k12/current_actual_inactive_camera_fallback.watchdog.json"
+    },
+    {
+      "label": "source_overlay_map_selects_every_generated_class_without_restarting_the_parent",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "source_overlay_map_selects_every_generated_class_without_restarting_the_parent"
+      ],
+      "evidence": "target/bf134/01k12/current_actual_overlay_class_selection.watchdog.json"
+    },
+    {
+      "label": "linked_output_retains_source_curves_and_sync_ticks",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "linked_output_retains_source_curves_and_sync_ticks"
+      ],
+      "evidence": "target/bf134/01k12/current_linked_anim_layer_tests.watchdog.json"
+    },
+    {
+      "label": "source_lifecycle_clears_high_mantle_and_ragdoll_but_keeps_low_mantle",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "source_lifecycle_clears_high_mantle_and_ragdoll_but_keeps_low_mantle"
+      ],
+      "evidence": "target/bf134/01k12/current_overlay_object_tests.watchdog.json"
+    }
+  ]
+}

@@ -487,6 +487,29 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn inactive_source_camera_uses_character_eye_view_without_resetting_owner() {
+        use crate::als::{motion::AlsViewYaw, view::AlsViewPitch};
+        let (mut app, character, component, _) = loaded_camera_scene();
+        let view = app.world_mut().spawn((Camera3d::default(), Transform::IDENTITY,
+            crate::als_camera::AlsCameraViewSource(component), AlsCharacterCamera { character })).id();
+        app.world_mut().get_mut::<AlsSourceCameraComponent>(component).unwrap().deactivate();
+        for stance in [Stance::Standing, Stance::Crouching] {
+            app.world_mut().entity_mut(character).insert((stance, AlsViewYaw(0.7), AlsViewPitch(0.2)));
+            app.update();
+            let transform = app.world().get::<Transform>(view).unwrap();
+            let owner = app.world().get::<Transform>(character).unwrap();
+            let height = if stance == Stance::Standing { 0.64 } else { 0.44799999 };
+            assert!(transform.translation.abs_diff_eq(owner.translation + Vec3::Y * height, 1e-5));
+            assert!(transform.rotation.abs_diff_eq(Quat::from_euler(EulerRot::YXZ, 0.7, 0.2, 0.0), 1e-5));
+            assert!((app.world().get::<crate::als_camera::AlsCameraFieldOfView>(view).unwrap().0 - 90.0).abs() < 1e-5);
+            assert!(!app.world().get::<AlsSourceCameraComponent>(component).unwrap().is_active());
+        }
+        app.world_mut().get_mut::<AlsSourceCameraComponent>(component).unwrap().activate(false);
+        app.update();
+        assert!(app.world().get::<crate::als_camera::AlsCameraViewInfo>(component).unwrap().valid);
+    }
+
+    #[test]
     fn actual_ragdoll_root_retains_camera_actor_ownership_after_detachment() {
         use bevy::ecs::system::RunSystemOnce;
         use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterBlueprint, spawn_als_character};
