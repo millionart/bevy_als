@@ -89,7 +89,8 @@ impl Plugin for AlsGameModePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AlsGameModeRandom>()
             .init_resource::<AlsPlayerStartSettings>()
-            .add_systems(Update, admit_pending_players.after(crate::als::player_start::AlsPlayerStartPrepared));
+            .add_systems(Update, admit_pending_players.after(crate::als::player_start::AlsPlayerStartPrepared)
+                .before(crate::als::motion::locomotion_drive_system));
     }
 }
 
@@ -155,7 +156,7 @@ fn admit_pending_players(
     all_starts: Query<(Entity, Option<&crate::als::player_start::AlsPlayerStartProbe>), With<AlsPlayerStart>>,
     starts: Query<(Entity, &AlsPlayerStart, &AlsPlayerStartReady)>,
     pending: Query<(Entity, &AlsPlayerAdmission, Option<&AlsPlayerAdmissionComplete>), With<AlsPlayerAdmissionPending>>,
-    characters: Query<(), With<crate::als::character::AlsCharacter>>,
+    mut characters: Query<Option<&mut crate::als::input::AlsInputCommand>, With<crate::als::character::AlsCharacter>>,
     assets: Res<AssetServer>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut params_assets: ResMut<Assets<AlsMovementParams>>,
@@ -166,6 +167,10 @@ fn admit_pending_players(
     }
     for (request, _, previous) in &pending {
         if let Some(previous) = previous && characters.contains(previous.character) {
+            if let Ok(Some(mut input)) = characters.get_mut(previous.character) {
+                input.jump_pressed = false;
+                input.jump_held = false;
+            }
             commands.entity(previous.character).insert(avian3d::prelude::LinearVelocity::ZERO);
             commands.entity(request).remove::<AlsPlayerAdmissionPending>();
         }
@@ -431,6 +436,41 @@ mod tests {
                 assert!(app.world().get::<AlsPlayerAdmissionFailed>(request).is_none());
             }
         }
+    }
+
+    #[test]
+    fn actual_existing_pawn_restart_clears_source_jump_force() {
+        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        AlsGameModePlugin.build(&mut app);
+        let handle = app.world().get::<crate::als::character::AlsMovementParamsHandle>(character).unwrap().0.clone();
+        app.world_mut().resource_mut::<Assets<AlsMovementParams>>().get_mut(&handle).unwrap().jump.max_hold_time = 0.2;
+        app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().jump_pressed = true;
+        app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().jump_held = true;
+        app.update();
+        app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().jump_pressed = false;
+        app.update();
+        assert_eq!(app.world().get::<crate::als::state::LocomotionState>(character), Some(&crate::als::state::LocomotionState::Air));
+        assert!(app.world().get::<avian3d::prelude::LinearVelocity>(character).unwrap().y > 3.0);
+        let selection = crate::als::player_start::AlsPlayerStartSelection {
+            entity: Entity::PLACEHOLDER,
+            tag: None,
+            fit: crate::als::player_start::AlsPlayerSpawnFit {
+                transform: *app.world().get::<Transform>(character).unwrap(), ground_y: 0.0,
+                adjustment: 0.0, teleport_adjustment: Vec3::ZERO,
+                occupancy: AlsPlayerStartOccupancy::Unoccupied,
+            }, used_occupied_fallback: false,
+        };
+        let request = app.world_mut().spawn((AlsPlayerAdmission::new(), AlsPlayerAdmissionPending,
+            AlsPlayerAdmissionComplete { character, selection })).id();
+        app.update();
+        assert!(app.world().get::<AlsPlayerAdmissionPending>(request).is_none());
+        let actual = app.world().get::<avian3d::prelude::LinearVelocity>(character).unwrap().y;
+        assert!((actual + 9.81 / 60.0).abs() < 0.02,
+            "Source Restart stops actual movement and clears active Jump force before the next physics tick: {actual}");
+        app.update();
+        let after = app.world().get::<avian3d::prelude::LinearVelocity>(character).unwrap().y;
+        assert!(after < actual - 0.1,
+            "Source reset Jump cannot resume its old held force without a new press: before={actual}, after={after}");
     }
 
     #[test]

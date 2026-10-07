@@ -2793,7 +2793,7 @@ type DriveQueryItem<'a> = (
 );
 
 #[allow(clippy::type_complexity)]
-fn locomotion_drive_system(
+pub(crate) fn locomotion_drive_system(
     time: Res<Time<Virtual>>,
     mut commands: Commands,
     spatial: SpatialQuery,
