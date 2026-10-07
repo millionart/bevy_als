@@ -154,7 +154,8 @@ fn admit_pending_players(
     mut random: ResMut<AlsGameModeRandom>,
     all_starts: Query<(Entity, Option<&crate::als::player_start::AlsPlayerStartProbe>), With<AlsPlayerStart>>,
     starts: Query<(Entity, &AlsPlayerStart, &AlsPlayerStartReady)>,
-    pending: Query<(Entity, &AlsPlayerAdmission), With<AlsPlayerAdmissionPending>>,
+    pending: Query<(Entity, &AlsPlayerAdmission, Option<&AlsPlayerAdmissionComplete>), With<AlsPlayerAdmissionPending>>,
+    characters: Query<(), With<crate::als::character::AlsCharacter>>,
     assets: Res<AssetServer>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut params_assets: ResMut<Assets<AlsMovementParams>>,
@@ -162,6 +163,12 @@ fn admit_pending_players(
 ) {
     if barrier.as_ref().is_some_and(|barrier| !barrier.ready) {
         return;
+    }
+    for (request, _, previous) in &pending {
+        if let Some(previous) = previous && characters.contains(previous.character) {
+            commands.entity(previous.character).insert(avian3d::prelude::LinearVelocity::ZERO);
+            commands.entity(request).remove::<AlsPlayerAdmissionPending>();
+        }
     }
     let candidates: Vec<AlsPlayerStartCandidate> = starts
         .iter()
@@ -180,7 +187,8 @@ fn admit_pending_players(
     if candidates.is_empty() {
         let preparing = all_starts.iter().any(|(_, probe)| probe.is_none_or(|probe| probe.occupancy.is_some()));
         if !all_starts.is_empty() && !preparing {
-            for (request, _) in &pending {
+            for (request, _, previous) in &pending {
+                if previous.is_some_and(|previous| characters.contains(previous.character)) { continue; }
                 commands
                     .entity(request)
                     .remove::<AlsPlayerAdmissionPending>();
@@ -193,7 +201,8 @@ fn admit_pending_players(
         return;
     }
     let mut reserved = Vec::new();
-    for (request, admission) in &pending {
+    for (request, admission, previous) in &pending {
+        if previous.is_some_and(|previous| characters.contains(previous.character)) { continue; }
         let available: Vec<_> = candidates.iter()
             .filter_map(|candidate| fit_reserved_player_start(candidate, &reserved, &settings, &spatial))
             .collect();
@@ -422,6 +431,48 @@ mod tests {
                 assert!(app.world().get::<AlsPlayerAdmissionFailed>(request).is_none());
             }
         }
+    }
+
+    #[test]
+    fn repeated_player_admission_restarts_the_existing_source_pawn() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin,
+            bevy::transform::TransformPlugin, PhysicsPlugins::new(FixedPostUpdate), AlsGameModePlugin))
+            .init_asset::<StandardMaterial>().init_asset::<AlsMovementParams>()
+            .init_asset::<AlsControlSchemeConfig>().init_asset::<AnimatedScene>()
+            .init_asset::<crate::als_camera::AlsCameraDefinition>();
+        app.finish(); app.cleanup();
+        app.world_mut().spawn((AlsPlayerStart::default(), AlsPlayerStartReady {
+            transform: Transform::from_xyz(0.0, 0.919, 0.0), ground_y: 0.0, adjustment: 0.0,
+            teleport_adjustment: Vec3::ZERO, occupancy: AlsPlayerStartOccupancy::Unoccupied,
+        }));
+        let request = app.world_mut().spawn((AlsPlayerAdmission { spawn_input: false, spawn_camera: false,
+            ..AlsPlayerAdmission::new() }, AlsPlayerAdmissionPending)).id();
+        app.update();
+        let character = app.world().get::<AlsPlayerAdmissionComplete>(request).unwrap().character;
+        let assembly = *app.world().get::<crate::character_assembly::AlsCharacterAssembly>(character).unwrap();
+        let retained = Transform::from_xyz(4.0, 0.919, 2.0).with_rotation(Quat::from_rotation_y(0.7));
+        app.world_mut().entity_mut(character).insert((retained, avian3d::prelude::LinearVelocity(Vec3::X * 3.75),
+            crate::als::transition::AlsDesiredStance(crate::als::state::Stance::Crouching),
+            crate::als::gait::AlsDesiredGait(crate::als::state::Gait::Walking)));
+        app.world_mut().entity_mut(request).insert(AlsPlayerAdmissionPending);
+        app.update();
+        let restarted = app.world().get::<AlsPlayerAdmissionComplete>(request).unwrap().character;
+        assert_eq!(restarted, character, "Source RestartPlayer reuses its existing pawn");
+        assert_eq!(*app.world().get::<crate::character_assembly::AlsCharacterAssembly>(character).unwrap(), assembly);
+        assert_eq!(app.world_mut().query_filtered::<Entity, With<crate::als::character::AlsCharacter>>().iter(app.world()).count(), 1);
+        assert_eq!(app.world().get::<avian3d::prelude::LinearVelocity>(character).unwrap().0, Vec3::ZERO);
+        assert_eq!(app.world().get::<Transform>(character), Some(&retained));
+        assert_eq!(app.world().get::<crate::als::transition::AlsDesiredStance>(character).unwrap().0, crate::als::state::Stance::Crouching);
+        assert_eq!(app.world().get::<crate::als::gait::AlsDesiredGait>(character).unwrap().0, crate::als::state::Gait::Walking);
+        let starts: Vec<_> = app.world_mut().query_filtered::<Entity, With<AlsPlayerStart>>().iter(app.world()).collect();
+        for start in starts { app.world_mut().despawn(start); }
+        app.world_mut().entity_mut(character).insert(avian3d::prelude::LinearVelocity(Vec3::X));
+        app.world_mut().entity_mut(request).insert(AlsPlayerAdmissionPending);
+        app.update();
+        assert!(app.world().get::<AlsPlayerAdmissionPending>(request).is_none());
+        assert_eq!(app.world().get::<AlsPlayerAdmissionComplete>(request).unwrap().character, character);
+        assert_eq!(app.world().get::<avian3d::prelude::LinearVelocity>(character).unwrap().0, Vec3::ZERO);
     }
 
     #[test]
