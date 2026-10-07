@@ -329,7 +329,6 @@ pub fn predict_grounded_stop_distance_with_braking_friction(
 }
 
 fn landing_braking_friction_system(
-    time: Res<Time>,
     mut q: Query<
         (
             &LocomotionState,
@@ -347,8 +346,18 @@ fn landing_braking_friction_system(
             *locomotion,
             motion.has_input,
             roll.is_some_and(|state| state.active) || mantle.is_some_and(|state| state.active),
-            time.delta_secs(),
         );
+    }
+}
+
+fn advance_landing_braking_timer_system(
+    time: Res<Time>,
+    mut characters: Query<&mut AlsLandingBrakingFriction, With<AlsCharacter>>,
+) {
+    for mut braking in &mut characters {
+        if braking.factor != BRAKING_FRICTION_FACTOR {
+            braking.remaining_seconds -= f64::from(time.delta_secs().max(0.0));
+        }
     }
 }
 
@@ -357,7 +366,6 @@ fn update_landing_braking_friction(
     locomotion: LocomotionState,
     has_input: bool,
     suppress: bool,
-    delta_seconds: f32,
 ) {
     let landed = braking.previous_locomotion == LocomotionState::Air
         && locomotion == LocomotionState::Grounded;
@@ -373,9 +381,6 @@ fn update_landing_braking_friction(
             };
             braking.remaining_seconds = f64::from(LANDING_BRAKING_FRICTION_DURATION);
         }
-    }
-    if braking.factor != BRAKING_FRICTION_FACTOR {
-        braking.remaining_seconds -= f64::from(delta_seconds.max(0.0));
     }
     braking.previous_locomotion = locomotion;
 }
@@ -575,23 +580,74 @@ impl Plugin for AlsGroundedDynamicsPlugin {
         app.add_systems(
             Update,
             (
-                landing_braking_friction_system
-                    .after(crate::als::motion::locomotion_state_sync_system)
+                advance_landing_braking_timer_system
                     .before(grounded_dynamics_motor_system),
                 grounded_dynamics_motor_system
                     .after(TnuaPipelineSystems::Logic)
                     .before(TnuaPipelineSystems::Motors),
             ),
         )
-        .add_systems(PostUpdate, reset_landing_braking_friction_system
-            .after(avian3d::prelude::PhysicsSystems::Last)
-            .after(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate));
+        .add_systems(PostUpdate, (
+            landing_braking_friction_system
+                .after(crate::als::motion::AlsActualVelocitySet)
+                .before(crate::actual_motion::AlsActualMotionSet),
+            reset_landing_braking_friction_system
+                .after(avian3d::prelude::PhysicsSystems::Last)
+                .after(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate),
+        ));
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn actual_landing_callback_retains_source_input_and_publishes_friction() {
+        let release_frame = 6;
+        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        let mut transform = *app.world().get::<Transform>(character).unwrap();
+        transform.translation.y += 0.5;
+        app.world_mut().entity_mut(character).insert((Position(transform.translation), transform,
+            GlobalTransform::from(transform), LinearVelocity(Vec3::X * 0.2)));
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.05)));
+        let mut airborne = false;
+        let mut captured = None;
+        for frame in 0..80 {
+            let saved_input = app.world().get::<AlsActualMotion>(character).unwrap().has_input;
+            app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().move_dir =
+                if frame < release_frame { Vec2::Y } else { Vec2::ZERO };
+            app.update();
+            let mode = *app.world().get::<LocomotionState>(character).unwrap();
+            airborne |= mode == LocomotionState::Air;
+            if airborne && mode == LocomotionState::Grounded {
+                if frame == release_frame && saved_input {
+                    captured = Some((frame, if saved_input { 0.5 } else { 3.0 }));
+                }
+                break;
+            }
+        }
+        let (frame, expected_factor) = captured.expect("Actual low landing must reach the held-to-released source callback");
+        assert_eq!(app.world().get::<crate::als::state::AlsNotifyLocomotionAction>(character),
+            Some(&crate::als::state::AlsNotifyLocomotionAction::None));
+        assert!(!app.world().get::<AlsActualMotion>(character).unwrap().has_input);
+        let braking = *app.world().get::<AlsLandingBrakingFriction>(character).unwrap();
+        let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
+        let handle = app.world().get::<AlsMovementParamsHandle>(character).unwrap();
+        let params = app.world().resource::<Assets<AlsMovementParams>>().get(handle.id()).unwrap();
+        assert_eq!(braking.factor, expected_factor, "Landing callback must publish friction from saved input in its creation frame");
+        assert_eq!(braking.remaining_seconds, 0.5, "Source pending timer must keep its entire creation-frame delay");
+        let horizontal_velocity = velocity.with_y(0.0);
+        let thresholds = params.gait_speed_thresholds(Stance::Standing, RotationMode::ViewDirection, horizontal_velocity, app.world().get::<AlsViewYaw>(character).unwrap().0);
+        let dynamics = params.grounded_dynamics(Stance::Standing, RotationMode::ViewDirection, calculate_gait_amount_for_thresholds(horizontal_velocity.length(), thresholds));
+        let expected_velocity = simulate_grounded_velocity_with_braking_friction(velocity,
+            Vec3::ZERO, 3.75, dynamics, &params.cmc, expected_factor, 0.05).0;
+        app.update();
+        let actual_velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
+        assert!(actual_velocity.with_y(0.0).abs_diff_eq(expected_velocity.with_y(0.0), 1e-4),
+            "First grounded motor must retain callback friction from saved input: expected={expected_velocity:?}, actual={actual_velocity:?}");
+
+    }
 
     #[test]
     fn actual_landing_braking_keeps_the_source_timer_window() {
@@ -1144,36 +1200,23 @@ mod tests {
             previous_locomotion: LocomotionState::Air,
             ..Default::default()
         };
-        update_landing_braking_friction(
-            &mut with_input,
-            LocomotionState::Grounded,
-            true,
-            false,
-            0.0,
-        );
+        update_landing_braking_friction(&mut with_input, LocomotionState::Grounded, true, false);
         let mut without_input = AlsLandingBrakingFriction {
             previous_locomotion: LocomotionState::Air,
             ..Default::default()
         };
-        update_landing_braking_friction(
-            &mut without_input,
-            LocomotionState::Grounded,
-            false,
-            false,
-            0.0,
-        );
+        update_landing_braking_friction(&mut without_input, LocomotionState::Grounded, false, false);
         let initial_factor = without_input.factor;
-        update_landing_braking_friction(
-            &mut without_input,
-            LocomotionState::Grounded,
-            false,
-            false,
-            LANDING_BRAKING_FRICTION_DURATION,
-        );
-        assert_eq!(without_input.factor, initial_factor);
-        update_landing_braking_friction(&mut without_input, LocomotionState::Grounded, false, false, 0.01);
         let mut world = World::new();
         let actor = world.spawn((AlsCharacter, without_input)).id();
+        let mut time = Time::<()>::default();
+        time.advance_by(std::time::Duration::from_secs_f32(LANDING_BRAKING_FRICTION_DURATION));
+        world.insert_resource(time);
+        world.run_system_once(advance_landing_braking_timer_system).unwrap();
+        world.run_system_once(reset_landing_braking_friction_system).unwrap();
+        assert_eq!(world.get::<AlsLandingBrakingFriction>(actor).unwrap().factor, initial_factor);
+        world.resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.01));
+        world.run_system_once(advance_landing_braking_timer_system).unwrap();
         world.run_system_once(reset_landing_braking_friction_system).unwrap();
         without_input = *world.get::<AlsLandingBrakingFriction>(actor).unwrap();
         let params = AlsMovementParams::default();
