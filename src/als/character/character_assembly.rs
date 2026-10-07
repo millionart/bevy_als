@@ -246,7 +246,7 @@ fn spawn_als_character_internal(
         .spawn(bundle)
         .insert((
             AlsViewYaw(world_forward_to_yaw(*fwd)),
-            AlsViewPitch(0.0),
+            AlsViewPitch(fwd.y.atan2(Vec2::new(fwd.x, fwd.z).length())),
             AlsCameraTarget,
             crate::als_camera::AlsCameraDefinitionHandle(assets.load("ALSCamera/Data/als_camera.camera_component.ron")),
             AlsAnimationEventPlaybacks::default(),
@@ -382,6 +382,43 @@ mod tests {
         let blueprint = AlsCharacterBlueprint::new(Transform::IDENTITY);
         assert!(blueprint.spawn_input);
         assert!(!blueprint.spawn_camera);
+    }
+
+    #[test]
+    fn pitched_spawn_initializes_the_actual_source_camera_view_direction() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (yaw, pitch) in [(0.7, 0.35), (-2.0, -0.35), (0.0, 0.0)] {
+        let (mut app, _, _, _) = crate::camera_component::tests::loaded_camera_scene();
+        let rotation = Quat::from_euler(EulerRot::YXZ, yaw, pitch, 0.0);
+        let character = app.world_mut().run_system_once(move |mut commands: Commands,
+            assets: Res<AssetServer>, mut params: ResMut<Assets<AlsMovementParams>>,
+            mut configs: ResMut<Assets<AlsControlSchemeConfig>>| {
+            spawn_als_character(&mut commands, &assets, &mut params, &mut configs,
+                AlsCharacterBlueprint { spawn_input: false, spawn_camera: true,
+                    ..AlsCharacterBlueprint::new(Transform::from_xyz(0.0, 1.5, 0.0).with_rotation(rotation)) })
+        }).unwrap();
+        let expected = rotation * Vec3::NEG_Z;
+        let camera = app.world().get::<AlsCharacterAssembly>(character).unwrap().camera.unwrap();
+        let component = app.world().get::<crate::als_camera::AlsCameraViewSource>(camera).unwrap().0;
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+        let mut ready = false;
+        let mut valid_frames = 0;
+        while std::time::Instant::now() < deadline {
+            app.update();
+            if let Some(view) = app.world().get::<crate::als_camera::AlsCameraViewInfo>(component)
+                && view.valid {
+                valid_frames += 1;
+                if valid_frames < 30 { continue; }
+                let actual = view.rotation * Vec3::NEG_Z;
+                assert!(actual.abs_diff_eq(expected, 1e-4),
+                    "Source spawn camera inherits actor view pitch and yaw: expected={expected:?} actual={actual:?}");
+                ready = true;
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        assert!(ready, "Actual source camera must become ready after pitched spawn");
+        }
     }
 
     #[test]

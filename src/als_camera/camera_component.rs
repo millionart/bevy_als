@@ -297,7 +297,8 @@ pub(crate) mod tests {
         assert!(app.world().get::<AlsPlayerViewYaw>(character).is_none());
         app.update();
         assert!((app.world().get::<AlsPlayerViewYaw>(character).unwrap().0 - 0.4).abs() < 1e-6);
-        assert!((app.world().get::<AlsViewYaw>(character).unwrap().0 - 1.1).abs() < 1e-6);
+        assert!((app.world().get::<AlsViewYaw>(character).unwrap().0
+            - (1.2 - 2.0 * 20.0_f32.to_radians())).abs() < 1e-6);
         app.world_mut().get_mut::<Transform>(view).unwrap().rotation = Quat::from_rotation_y(0.8);
         app.update();
         assert!((app.world().get::<AlsPlayerViewYaw>(character).unwrap().0 - 0.4).abs() < 1e-6);
