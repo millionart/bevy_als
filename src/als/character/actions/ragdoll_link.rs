@@ -802,6 +802,7 @@ fn ragdoll_character_physics_system(
 }
 
 fn limit_initial_ragdoll_speed(
+    time: Res<Time<Virtual>>,
     mut characters: Query<
         (Entity, Option<&AlsNotifyLocomotionAction>, Option<&AlsCharacterAssembly>, &mut AlsRagdollInitialSpeedLimit),
         With<AlsCharacter>,
@@ -810,6 +811,7 @@ fn limit_initial_ragdoll_speed(
     players: Query<&AnimationGraphPlayer>,
     mut velocities: Query<&mut LinearVelocity>,
 ) {
+    if time.is_paused() { return; }
     for (character, action, assembly, mut limit) in &mut characters {
         if action != Some(&AlsNotifyLocomotionAction::Ragdolling) {
             continue;
@@ -1529,6 +1531,48 @@ mod tests {
             + ALS_CHARACTER_FLOOR_CLEARANCE;
         let source_y = 0.1 + standing_half * 2.0 + ALS_CHARACTER_FLOOR_CLEARANCE;
         assert!((target_y - source_y).abs() < 1e-4);
+    }
+
+    #[test]
+    fn paused_ragdoll_owner_preserves_the_initial_body_speed_limit_budget() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::reflect::{PartialReflect, ReflectMut};
+        use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner};
+        use bevy_animation_graph::AnimationGraphPlugin;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), AnimationGraphPlugin::default()));
+        let character = app.world_mut().spawn((AlsCharacter, AlsRagdollInitialSpeedLimit::new(0.5),
+            AlsNotifyLocomotionAction::Ragdolling)).id();
+        let avatar = app.world_mut().spawn((AlsCharacterAvatar { character },
+            AnimatedSceneHandle::default(), ChildOf(character))).id();
+        let player = app.world_mut().spawn((AnimationGraphPlayer::new(Handle::default()), ChildOf(avatar))).id();
+        app.world_mut().trigger(WorldInstanceReady { entity: avatar,
+            instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
+        app.world_mut().flush();
+        app.world_mut().entity_mut(character).insert(AlsCharacterAssembly { avatar, camera: None });
+        let root = app.world_mut().spawn_empty().id();
+        let body = app.world_mut().spawn(LinearVelocity(Vec3::X * 10.0)).id();
+        let mut spawned = SpawnedRagdoll::new(root);
+        spawned.bodies.insert(Body::new().id, body);
+        let mut component = app.world_mut().get_mut::<AnimationGraphPlayer>(player).unwrap();
+        let ReflectMut::Struct(fields) = component.reflect_mut() else { panic!("Player must reflect as a struct") };
+        *fields.field_mut("spawned_ragdoll").unwrap()
+            .try_downcast_mut::<Option<SpawnedRagdoll>>().unwrap() = Some(spawned);
+        drop(component);
+        app.world_mut().run_system_once(limit_initial_ragdoll_speed).unwrap();
+        assert_eq!(app.world().get::<LinearVelocity>(body).unwrap().0, Vec3::X * 2.0);
+        app.world_mut().resource_mut::<Time<Virtual>>().pause();
+        for _ in 0..12 { app.world_mut().run_system_once(limit_initial_ragdoll_speed).unwrap(); }
+        app.world_mut().resource_mut::<Time<Virtual>>().unpause();
+        for _ in 0..8 {
+            app.world_mut().get_mut::<LinearVelocity>(body).unwrap().0 = Vec3::X * 10.0;
+            app.world_mut().run_system_once(limit_initial_ragdoll_speed).unwrap();
+            assert_eq!(app.world().get::<LinearVelocity>(body).unwrap().0, Vec3::X * 2.0,
+                "Source paused owner must preserve all eight resumed body speed limit refreshes");
+        }
+        app.world_mut().get_mut::<LinearVelocity>(body).unwrap().0 = Vec3::X * 10.0;
+        app.world_mut().run_system_once(limit_initial_ragdoll_speed).unwrap();
+        assert_eq!(app.world().get::<LinearVelocity>(body).unwrap().0, Vec3::X * 10.0);
     }
 
     #[test]

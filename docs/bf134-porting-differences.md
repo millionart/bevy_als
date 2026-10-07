@@ -333,3 +333,10 @@ fresh角色37.548秒、当次CMC ComputeAnalogInputModifier与公开CurveVector�
 - Actual：有效active/Custom/Mantling+montage在pause中despawn目标，生产mantle_pose立即结束并写None/Ragdolling，81.441秒red；源应保留直到resume。旧stop-priority只覆盖活动World，漏测暂停生命周期，本次只有限修正这一边界。
 - 最小生产只在原owner函数读取Time<Virtual>.is_paused并return。green85.224秒，删唯一guard86.281秒同语义red，精确字节/自然mtime恢复同target92.314秒最小反例green；旧physics夹具缺当前旋转Query要求的ActualMotion，经90.421秒诊断只补测试组件，最终mantle9项重编84.256全green、motion53/rotation33共95通过，source/static2.381闭合。两个direct World测试只补Time<Virtual>资源，所有旧物理/旋转/priority断言保留，无生产fallback/阈值变化。
 - 正常target_game/play生产158.469，公共startup15.826/Base51/51（126.182）功能通过，graph/primary/fault/temporal零；独立提交，P2累计三十五。截图0/FunctionalOnly，完整max_eval_p95_ms失败保留；图/原始资产/转换器未改，全15/39/374完整diff0有效。剩余Ragdoll/Roll owner、全动画和其他模块及总目标仍开放。证据target/bf134/01i3d4。
+
+### BF134.01I3d5 — P2：暂停耗尽布娃娃初始限速预算
+
+- Source：fresh ALS StartRagdolling在entry限速并保留八次RefreshRagdolling预算，UE暂停跳过角色owner Tick；速度门槛保持max(entry speed,2m/s)。target每PostUpdate调用next_limit，不检查pause。
+- Actual：真实AnimationGraphPlayer/SpawnedRagdoll body进入时10→2正确，暂停十二次调用后预算耗尽，恢复首帧body仍10而源须2，84.696秒red。旧helper九次计数测试没有实际schedule/暂停/身体速度consumer，有限修正这一生命周期盲区。
+- 最小只在既有限速owner函数读取Time<Virtual>.is_paused并return；green82.387秒，恢复八次真实body限速及正常到期均通过。删除guard80.528秒同语义red，精确字节/自然mtime恢复同target84.355秒重编ragdoll18/18，motion53合计71通过，source/static2.404闭合；无新state/cache/system/数学或资产改动。
+- 正常target_game/play生产161.367，公共startup15.325/Ragdoll11/11（10.810）功能通过，PA profile/身体跟随/驱动/恢复/相机/输入锁定释放完整，graph/primary/fault/temporal零；独立提交，P2累计三十六。截图0/FunctionalOnly，完整max_eval_p95_ms失败保留；原始资产/图/转换器未改，全15/39/374完整diff0有效。剩余owner和全范围目标开放。证据target/bf134/01i3d5。
