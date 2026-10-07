@@ -318,6 +318,85 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn loaded_get_up_landing_cannot_queue_a_roll_for_its_end_notify() {
+        let (mut app, character, _) = loaded_roll_character();
+        app.world_mut().entity_mut(character).insert(crate::get_up::AlsGetUpRequest(false));
+        for _ in 0..4 { app.update(); }
+        assert!(app.world().get::<crate::get_up::AlsGetUpState>(character).unwrap().pose_ready);
+        let mut approaching_end = false;
+        for _ in 0..150 {
+            let state = app.world().get::<crate::get_up::AlsGetUpState>(character).unwrap();
+            if state.clip_time >= crate::get_up::get_up_settings(false).notify_end_clip_seconds
+                - 2.0 * app.world().resource::<Time>().delta_secs() * crate::get_up::get_up_settings(false).play_rate {
+                approaching_end = true;
+                break;
+            }
+            app.update();
+        }
+        assert!(approaching_end, "Actual GetUp must approach its source end notify");
+        assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(character), Some(&AlsNotifyLocomotionAction::GettingUp));
+        assert!(app.world().get::<crate::als::motion::AlsMovementInputBlocked>(character).is_some());
+        *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = LocomotionState::Air;
+        app.world_mut().get_mut::<crate::actual_motion::AlsActualMotion>(character).unwrap().world_velocity = Vec3::NEG_Y * 8.0;
+        app.world_mut().entity_mut(character).insert((
+            AlsAirState { phase: crate::als::air::AirPhase::Airborne, last_air_vertical_velocity: -8.0, ..default() },
+            crate::als::air::AlsPreImpactVelocity { last_air_vertical_velocity: -8.0 }));
+        app.world_mut().run_system_once(crate::als::motion::locomotion_state_sync_system).unwrap();
+        assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Grounded);
+        let mut notify_released = false;
+        for _ in 0..4 {
+            app.update();
+            assert!(!app.world().get::<AlsRollState>(character).unwrap().active,
+                "Actual source GetUp end notify cannot replay a previously rejected landing roll");
+            if app.world().get::<AlsNotifyLocomotionAction>(character) == Some(&AlsNotifyLocomotionAction::None) {
+                notify_released = true;
+                break;
+            }
+        }
+        assert!(notify_released, "Actual GetUp end notify must release the source action");
+    }
+
+    #[test]
+    fn loaded_medium_landing_roll_uses_the_source_saved_velocity_direction() {
+        for input in [Vec2::ZERO, Vec2::X] {
+        let (mut app, character, _) = loaded_roll_character();
+        let position = Vec3::new(0.0, 4.824, 0.0);
+        let transform = Transform::from_translation(position).with_rotation(Quat::from_rotation_y(0.4));
+        app.world_mut().entity_mut(character).insert((avian3d::prelude::Position(position), transform,
+            GlobalTransform::from(transform), LinearVelocity(Vec3::X * 0.2)));
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = input;
+        let mut entered_air = false;
+        let mut landed = false;
+        let mut saved = Vec3::ZERO;
+        let mut landing_actor_yaw = 0.0;
+        for _ in 0..100 {
+            let previous_mode = *app.world().get::<LocomotionState>(character).unwrap();
+            let previous_velocity = app.world().get::<crate::actual_motion::AlsActualMotion>(character).unwrap().world_velocity;
+            app.update();
+            let mode = *app.world().get::<LocomotionState>(character).unwrap();
+            entered_air |= mode == LocomotionState::Air;
+            if entered_air && previous_mode == LocomotionState::Air && mode == LocomotionState::Grounded {
+                saved = previous_velocity;
+                landing_actor_yaw = app.world().get::<Transform>(character).unwrap().rotation.to_euler(EulerRot::YXZ).0;
+                landed = true;
+                break;
+            }
+        }
+        assert!(landed && -saved.y >= 7.0 && -saved.y < 10.0,
+            "Actual source medium landing fixture must reach the roll branch: {saved:?}");
+        app.update();
+        let roll = app.world().get::<AlsRollState>(character).unwrap();
+        assert!(roll.active, "Source medium landing starts its loaded Roll montage");
+        let horizontal = Vec3::new(saved.x, 0.0, saved.z);
+        let expected = if horizontal.length() >= 0.01 {
+            crate::als::orientation::world_forward_to_yaw(horizontal)
+        } else { landing_actor_yaw };
+        assert!(crate::als::roll::wrap_angle(roll.direction_yaw - expected).abs() < 1e-4,
+            "Source landing Roll uses saved velocity yaw: expected={expected} actual={} saved={saved:?}", roll.direction_yaw);
+        }
+    }
+
+    #[test]
     fn loaded_roll_pause_preserves_actor_and_slot_then_resumes() {
         let (mut app, character, _) = loaded_roll_character();
         let sampler = play_loaded_roll(&mut app, character);

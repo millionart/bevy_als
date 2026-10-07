@@ -282,17 +282,11 @@ mod tests {
 
     #[test]
     fn source_landing_roll_threshold_uses_preimpact_velocity() {
-        let mut state = AlsRollState::default();
-        assert!(
-            !state
-                .start_from_landing(6.99, Vec3::NEG_Z, 0.0, Stance::Standing)
-                .started
-        );
-        assert!(
-            state
-                .start_from_landing(7.0, Vec3::X, 0.0, Stance::Standing)
-                .started
-        );
-        assert!(roll_displacement_dir(state.direction_yaw).distance(Vec3::X) < 1e-6);
+        for speed in [6.999, 7.0, 7.001] {
+            let mut state = AlsRollState::default();
+            let started = state.start_from_landing(speed, Vec3::X, 0.0, Stance::Standing).started;
+            assert_eq!(started, speed >= 7.0);
+            if started { assert!(roll_displacement_dir(state.direction_yaw).distance(Vec3::X) < 1e-6); }
+        }
     }
 }
