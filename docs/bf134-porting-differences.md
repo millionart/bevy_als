@@ -326,3 +326,10 @@ fresh角色37.548秒、当次CMC ComputeAnalogInputModifier与公开CurveVector�
 - Actual：真实spatial/角色/Tnua fixture在有效Air与台阶几何pause首帧将MantleState.active从false改true，red87.694秒，源应false；旧Jump priority和手动攀爬Gate未覆盖无输入auto owner生命周期。
 - 最小修复给auto_mantle条件读取既有Time<Virtual>.is_paused，未改变其他drive分支/算法/资产。green83.267秒；用实际native Jump达到Air替代手填mode，allow/auto/action四组合82.510秒green；删唯一pause条件82.491秒同语义red，精确字节/自然mtime恢复同target85.554秒green，motion53/input26/rotation33共112通过，source/static2.395秒闭合。
 - 正常target_game/play生产158.822，公共startup15.854/Base51/51（126.004）功能通过，actual mantle_start/complete/debug_geometry与原动作/pose完整，graph/primary/fault/temporal零；独立提交，P2累计三十四。截图0/FunctionalOnly，完整max_eval_p95_ms失败保留；原始资产/图/转换器未改，15/39/374全量diff0有效。剩余动作owner、全动画和其他模块及总目标仍开放。证据target/bf134/01i3d3。
+
+### BF134.01I3d4 — P2：暂停目标销毁提前结束攀爬
+
+- Source：fresh UE TickTaskManager pause分派跳过TickEvenPaused=false角色，ALS RefreshMantling才处理目标失效后StopMantling/Ragdoll。RootMotion Prepare遇失效或零Delta清本次RootMotion，不替代角色owner退出。
+- Actual：有效active/Custom/Mantling+montage在pause中despawn目标，生产mantle_pose立即结束并写None/Ragdolling，81.441秒red；源应保留直到resume。旧stop-priority只覆盖活动World，漏测暂停生命周期，本次只有限修正这一边界。
+- 最小生产只在原owner函数读取Time<Virtual>.is_paused并return。green85.224秒，删唯一guard86.281秒同语义red，精确字节/自然mtime恢复同target92.314秒最小反例green；旧physics夹具缺当前旋转Query要求的ActualMotion，经90.421秒诊断只补测试组件，最终mantle9项重编84.256全green、motion53/rotation33共95通过，source/static2.381闭合。两个direct World测试只补Time<Virtual>资源，所有旧物理/旋转/priority断言保留，无生产fallback/阈值变化。
+- 正常target_game/play生产158.469，公共startup15.826/Base51/51（126.182）功能通过，graph/primary/fault/temporal零；独立提交，P2累计三十五。截图0/FunctionalOnly，完整max_eval_p95_ms失败保留；图/原始资产/转换器未改，全15/39/374完整diff0有效。剩余Ragdoll/Roll owner、全动画和其他模块及总目标仍开放。证据target/bf134/01i3d4。

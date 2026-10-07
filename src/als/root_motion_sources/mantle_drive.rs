@@ -545,6 +545,7 @@ fn ensure_mantle_state(
 }
 
 fn mantle_pose_system(
+    time: Res<Time<Virtual>>,
     mut commands: Commands,
     mut transitions: MessageWriter<StateTransitionEvent>,
     target_transforms: Query<&GlobalTransform, Without<crate::als::character::AlsCharacter>>,
@@ -560,6 +561,7 @@ fn mantle_pose_system(
         With<AlsCharacter>,
     >,
 ) {
+    if time.is_paused() { return; }
     for (entity, mut m, mut locomotion, mut vel, action, montages) in &mut q {
         if !m.active && !m.root_motion_ready {
             continue;
@@ -906,6 +908,7 @@ mod tests {
                 crate::als::state::Gait::Running,
                 crate::als::state::RotationMode::Aiming,
                 crate::als::motion::AlsViewYaw(1.4),
+                crate::actual_motion::AlsActualMotion::default(),
                 crate::als::input::AlsInputCommand {
                     move_dir: Vec2::Y,
                     ..default()
@@ -1055,7 +1058,8 @@ mod tests {
                     .unwrap()
                     .rotation
                     .angle_between(previous_rotation)
-                    > 1e-3
+                    > 1e-3,
+                "Completed mantle did not resume rotation: delta={delta} original={original}"
             );
             app.world_mut().despawn(actor);
         }
@@ -1216,6 +1220,7 @@ mod tests {
     #[test]
     fn mantle_action_end_releases_motion_before_the_montage_ends() {
         let mut world = World::new();
+        world.init_resource::<Time<Virtual>>();
         world.init_resource::<Messages<crate::als::transition::StateTransitionEvent>>();
         let mut mantle = AlsMantleState::default();
         mantle.begin(MantleKind::Low, Vec3::ZERO, Vec3::Y, 1.0, 0.0, 0.0);
@@ -1242,6 +1247,41 @@ mod tests {
                 .unwrap()
                 .root_motion_ready
         );
+    }
+
+    #[test]
+    fn paused_mantle_owner_defers_target_destruction_until_resume() {
+        let mut world = World::new();
+        world.init_resource::<Messages<StateTransitionEvent>>();
+        world.init_resource::<Time<Virtual>>();
+        let target = world.spawn(GlobalTransform::IDENTITY).id();
+        let mut mantle = AlsMantleState::default();
+        mantle.begin(MantleKind::Low, Vec3::ZERO, Vec3::Y, 0.75, 0.0, 0.0);
+        mantle.root_motion_ready = true;
+        mantle.target_base = Some(AlsMantleTargetBase {
+            entity: target, translation: Vec3::ZERO, rotation: Quat::IDENTITY,
+            scale: Vec3::ONE, relative_location: false,
+        });
+        let mut montages = AlsMantleMontages::default();
+        montages.begin(&mantle);
+        montages.entries[0].advance(0.3, None);
+        let actor = world.spawn((AlsCharacter, mantle, montages, LocomotionState::Custom,
+            AlsNotifyLocomotionAction::Mantling, LinearVelocity(Vec3::Y))).id();
+        world.run_system_once(mantle_pose_system).unwrap();
+        assert!(world.get::<AlsMantleState>(actor).unwrap().active);
+        world.resource_mut::<Time<Virtual>>().pause();
+        world.despawn(target);
+        world.run_system_once(mantle_pose_system).unwrap();
+        assert!(world.get::<AlsMantleState>(actor).unwrap().active,
+            "Source paused Character must retain its active mantle after target destruction");
+        assert_eq!(world.get::<LocomotionState>(actor), Some(&LocomotionState::Custom));
+        assert_eq!(world.get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::Mantling));
+        assert!(world.get::<AlsMantleMontages>(actor).unwrap().entries[0].stop.is_none());
+        world.resource_mut::<Time<Virtual>>().unpause();
+        world.run_system_once(mantle_pose_system).unwrap();
+        assert!(!world.get::<AlsMantleState>(actor).unwrap().active);
+        assert!(world.get::<AlsMantleState>(actor).unwrap().target_invalid);
+        assert_eq!(world.get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::Ragdolling));
     }
 
     #[test]
@@ -1307,6 +1347,7 @@ mod tests {
             ),
         ] {
             let mut world = World::new();
+            world.init_resource::<Time<Virtual>>();
             world.init_resource::<Messages<StateTransitionEvent>>();
             let mut mantle = AlsMantleState::default();
             mantle.begin(MantleKind::Low, Vec3::ZERO, Vec3::Y, 0.75, 0.0, 0.0);
