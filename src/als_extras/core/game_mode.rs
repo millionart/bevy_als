@@ -169,7 +169,11 @@ fn admit_pending_players(
     for (request, _, previous) in &pending {
         if let Some(previous) = previous && characters.contains(previous.character) {
             if let Ok((input, mode)) = characters.get_mut(previous.character) {
-                if let Some(mut input) = input { input.jump_pressed = false; input.jump_held = false; }
+                if let Some(mut input) = input {
+                    input.jump_pressed = false;
+                    input.jump_held = false;
+                    input.move_dir = Vec2::ZERO;
+                }
                 if let Some(mut mode) = mode {
                     mode.locomotion_state = Some(crate::als::state::LocomotionState::Grounded);
                 }
@@ -438,6 +442,44 @@ mod tests {
                     .distance(center + expected) < 0.0001);
                 assert!(app.world().get::<AlsPlayerAdmissionFailed>(request).is_none());
             }
+        }
+    }
+
+    #[test]
+    fn actual_existing_pawn_restart_consumes_pending_move_before_new_device_input() {
+        use bevy::input::gamepad::{RawGamepadAxisChangedEvent, RawGamepadEvent};
+        for gamepad_input in [false, true] {
+            let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+            AlsGameModePlugin.build(&mut app);
+            let gamepad = app.world_mut().spawn(Gamepad::default()).id();
+            crate::als::input::spawn_als_actions(&mut app.world_mut().commands(), character, &AlsInputMap::default());
+            app.update();
+            if gamepad_input {
+                app.world_mut().write_message(RawGamepadEvent::Axis(RawGamepadAxisChangedEvent::new(gamepad, GamepadAxis::LeftStickY, 1.0)));
+            } else {
+                app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::KeyW);
+            }
+            app.update();
+            assert!(app.world().get::<crate::actual_motion::AlsActualMotion>(character).unwrap().has_input);
+            assert!(app.world().get::<avian3d::prelude::LinearVelocity>(character).unwrap().0.with_y(0.0).length() > 0.01);
+            let selection = crate::als::player_start::AlsPlayerStartSelection {
+                entity: Entity::PLACEHOLDER, tag: None, fit: crate::als::player_start::AlsPlayerSpawnFit {
+                    transform: *app.world().get::<Transform>(character).unwrap(), ground_y: 0.0,
+                    adjustment: 0.0, teleport_adjustment: Vec3::ZERO,
+                    occupancy: AlsPlayerStartOccupancy::Unoccupied,
+                }, used_occupied_fallback: false,
+            };
+            let request = app.world_mut().spawn((AlsPlayerAdmission::new(), AlsPlayerAdmissionPending,
+                AlsPlayerAdmissionComplete { character, selection })).id();
+            app.update();
+            assert!(app.world().get::<AlsPlayerAdmissionPending>(request).is_none());
+            let actual = app.world().get::<avian3d::prelude::LinearVelocity>(character).unwrap().0.with_y(0.0);
+            assert!(actual.length() < 1e-4,
+                "Source Restart consumes pending movement before the current motor tick: gamepad={gamepad_input}, actual={actual:?}");
+            app.update();
+            let next = app.world().get::<avian3d::prelude::LinearVelocity>(character).unwrap().0.with_y(0.0);
+            assert!(next.length() > 0.01,
+                "Source held device must provide new movement after Restart consumed its pending input: gamepad={gamepad_input}, actual={next:?}");
         }
     }
 
