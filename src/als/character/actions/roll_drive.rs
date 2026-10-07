@@ -318,6 +318,41 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn loaded_get_up_ragdoll_replacement_keeps_source_input_block_until_action_empty() {
+        let (mut app, character, _) = loaded_roll_character();
+        app.world_mut().entity_mut(character).insert(crate::get_up::AlsGetUpRequest(false));
+        for _ in 0..4 { app.update(); }
+        assert!(app.world().get::<crate::get_up::AlsGetUpState>(character).unwrap().pose_ready);
+        assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(character), Some(&AlsNotifyLocomotionAction::GettingUp));
+        assert!(app.world().get::<crate::als::motion::AlsMovementInputBlocked>(character).is_some());
+        app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(character).unwrap().ragdoll_start = true;
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = Vec2::Y;
+        for _ in 0..20 {
+            app.update();
+            assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(character), Some(&AlsNotifyLocomotionAction::Ragdolling));
+            assert!(!app.world().get::<crate::actual_motion::AlsActualMotion>(character).unwrap().has_input,
+                "Source blocked ConsumeInputVector must publish no animation input during GetUp-to-Ragdoll replacement");
+        }
+        assert!(app.world().get::<crate::als::motion::AlsMovementInputBlocked>(character).is_some(),
+            "Source action replacement is still valid and cannot release input blocked by GettingUp");
+        app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(character).unwrap().ragdoll_exit = true;
+        let mut released = false;
+        for _ in 0..240 {
+            app.update();
+            if app.world().get::<AlsNotifyLocomotionAction>(character) == Some(&AlsNotifyLocomotionAction::None) {
+                assert!(app.world().get::<crate::als::motion::AlsMovementInputBlocked>(character).is_none(),
+                    "Source empty action must release the previous input block");
+                app.update();
+                assert!(app.world().get::<crate::actual_motion::AlsActualMotion>(character).unwrap().has_input,
+                    "Source input must resume after the action is empty");
+                released = true;
+                break;
+            }
+        }
+        assert!(released, "Actual public Ragdoll exit must complete the action and release input");
+    }
+
+    #[test]
     fn loaded_get_up_landing_cannot_queue_a_roll_for_its_end_notify() {
         let (mut app, character, _) = loaded_roll_character();
         app.world_mut().entity_mut(character).insert(crate::get_up::AlsGetUpRequest(false));

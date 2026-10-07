@@ -2835,7 +2835,7 @@ fn locomotion_drive_system(
         {
             jump.memory.hold_elapsed = f32::INFINITY;
         }
-        let input_blocked = blocked.contains(entity) && !ragdolling;
+        let input_blocked = blocked.contains(entity);
         let effective =
             movement_input_for_action(*effective_input(cmd, override_cmd), input_blocked);
 

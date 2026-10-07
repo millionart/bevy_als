@@ -189,7 +189,10 @@ fn clear_get_up_slot(player: &mut AnimationGraphPlayer, inputs: Option<Mut<crate
 }
 
 fn end_get_up_instance(commands: &mut Commands, character: Entity, action: Option<&AlsNotifyLocomotionAction>) {
-    commands.entity(character).try_remove::<(AlsGetUpState, AlsMovementInputBlocked)>();
+    commands.entity(character).try_remove::<AlsGetUpState>();
+    if action.is_none_or(|action| *action == AlsNotifyLocomotionAction::None || *action == AlsNotifyLocomotionAction::GettingUp) {
+        commands.entity(character).try_remove::<AlsMovementInputBlocked>();
+    }
     if action == Some(&AlsNotifyLocomotionAction::GettingUp) {
         commands.entity(character).try_insert(AlsNotifyLocomotionAction::None);
     }
@@ -327,7 +330,7 @@ fn release_get_up_input(
     characters: Query<(Entity, &AlsNotifyLocomotionAction), With<AlsMovementInputBlocked>>,
 ) {
     for (entity, action) in &characters {
-        if *action != AlsNotifyLocomotionAction::GettingUp {
+        if *action == AlsNotifyLocomotionAction::None {
             commands.entity(entity).remove::<AlsMovementInputBlocked>();
         }
     }
