@@ -489,6 +489,37 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn loaded_mantle_override_updates_velocity_below_minimum_without_moving() {
+        use std::sync::{Arc, Mutex};
+        for delta in [0.5e-6_f32, 1.0e-6, 0.1] {
+            let (mut app, character, _) = loaded_roll_character();
+            let start = app.world().get::<Transform>(character).unwrap().translation;
+            app.world_mut().get_mut::<crate::als::mantle::AlsMantleState>(character).unwrap().begin(
+                crate::als::mantle::MantleKind::Low, start, start + Vec3::Y + Vec3::NEG_Z,
+                0.75, 0.0, 0.0);
+            for _ in 0..10 { app.update(); }
+            let mantle = app.world().get::<crate::als::mantle::AlsMantleState>(character).unwrap();
+            assert!(mantle.active && mantle.root_motion_ready);
+            assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Custom);
+            let before = app.world().get::<avian3d::prelude::Position>(character).unwrap().0;
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
+            let source_velocity = Arc::new(Mutex::new(Vec3::ZERO));
+            let capture = source_velocity.clone();
+            app.add_systems(PostUpdate, (move |actors: Query<&LinearVelocity>| {
+                *capture.lock().unwrap() = actors.get(character).unwrap().0;
+            }).after(crate::mantle_drive::AlsMantleDriveSet).before(crate::source_physics_timing::SourcePhysicsTimingSet::Clamp));
+            app.update();
+            let expected = *source_velocity.lock().unwrap();
+            assert!(expected.length() > 0.1, "Actual Mantle must publish its current override velocity: delta={delta} velocity={expected:?}");
+            assert!(app.world().get::<LinearVelocity>(character).unwrap().0.abs_diff_eq(expected, 1e-4));
+            let movement = if delta < crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS { Vec3::ZERO } else { expected * delta };
+            let actual = app.world().get::<avian3d::prelude::Position>(character).unwrap().0 - before;
+            assert!(actual.abs_diff_eq(movement, 1e-7),
+                "Source Mantle override velocity precedes StartNewPhysics minimum movement gate: delta={delta} expected={movement:?} actual={actual:?}");
+        }
+    }
+
+    #[test]
     fn loaded_custom_roll_consumes_root_at_the_source_minimum_delta() {
         use std::sync::{Arc, Mutex};
         for delta in [0.5e-6_f32, 1.0e-6, 5.0e-6, 1.0e-5, 2.0e-5] {

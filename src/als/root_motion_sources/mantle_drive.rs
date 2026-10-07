@@ -714,9 +714,11 @@ fn mantle_drive_system(
         };
         let target_actor_transform = m.target_actor_transform_at(current_time, root);
         *vel = LinearVelocity((target_actor_transform.translation - transform.translation) / dt);
-        transform.translation = target_actor_transform.translation;
-        if let Some(mut position) = position {
-            position.0 = target_actor_transform.translation;
+        if dt >= crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS {
+            transform.translation = target_actor_transform.translation;
+            if let Some(mut position) = position {
+                position.0 = target_actor_transform.translation;
+            }
         }
         transform.rotation = target_actor_transform.rotation;
         if let Some(mut rotation) = rotation {
