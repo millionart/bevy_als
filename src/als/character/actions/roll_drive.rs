@@ -426,6 +426,31 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn loaded_roll_late_rotation_refresh_matches_the_actual_actor_yaw() {
+        let (mut app, character, _) = loaded_roll_character();
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = Vec2::X;
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().roll_pressed = true;
+        app.world_mut().run_system_once(advance_rolls).unwrap();
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().roll_pressed = false;
+        for _ in 0..5 { app.update(); }
+        assert!(app.world().get::<AlsRollSlotRuntime>(character).unwrap().pose_ready);
+        let mut rotated = false;
+        for _ in 0..8 {
+            let before = app.world().get::<Transform>(character).unwrap().rotation;
+            app.update();
+            let actor = app.world().get::<Transform>(character).unwrap();
+            rotated |= actor.rotation.dot(before).abs() < 1.0 - 1e-7;
+            let yaw = crate::als::orientation::world_forward_to_yaw(*actor.forward());
+            let state = app.world().get::<crate::als::motion::AlsRotationResponseState>(character).unwrap();
+            assert!(crate::als::roll::wrap_angle(state.target_yaw - yaw).abs() < 1e-4
+                && crate::als::roll::wrap_angle(state.smooth_target_yaw - yaw).abs() < 1e-4,
+                "Source active Roll late refresh resets target and smooth yaw to its actual actor: actor={yaw} target={} smooth={}",
+                state.target_yaw, state.smooth_target_yaw);
+        }
+        assert!(rotated, "Actual loaded Roll must change actor yaw to exercise late refresh");
+    }
+
+    #[test]
     fn root_motion_scale_lifecycle_drives_actual_roll_velocity_and_displacement() {
         let (mut app, character, avatar) = loaded_roll_character();
         let sampler = play_loaded_roll(&mut app, character);

@@ -708,7 +708,7 @@ mod rotation_cap_tests {
         assert_eq!(*app.world().get::<Transform>(actor).unwrap(), transform);
         assert_eq!(app.world().get::<Rotation>(actor).unwrap().0, transform.rotation);
         app.world_mut().entity_mut(actor).insert((
-            LocomotionState::Grounded,
+            LocomotionState::Custom,
             crate::als::state::AlsNotifyLocomotionAction::Mantling,
             AlsRotationResponseState { initialized: true, target_yaw: 1.0, smooth_target_yaw: 1.0,
                 previous_view_yaw: -1.0, previous_locomotion: LocomotionState::Air,
@@ -721,7 +721,7 @@ mod rotation_cap_tests {
         assert!((response.target_yaw + 0.6).abs() < 1e-6);
         assert!((response.smooth_target_yaw + 0.6).abs() < 1e-6);
         assert_eq!(response.previous_view_yaw, 1.2);
-        assert_eq!(response.previous_locomotion, LocomotionState::Grounded);
+        assert_eq!(response.previous_locomotion, LocomotionState::Custom);
         assert!(!app.world().get::<AlsAimingYawConstraint>(actor).unwrap().applied_last_frame);
         let moved = Transform::IDENTITY.with_rotation(Quat::from_rotation_y(-1.1));
         app.world_mut().entity_mut(actor).insert((
@@ -738,6 +738,20 @@ mod rotation_cap_tests {
         app.update();
         let limit = app.world().get::<AlsAimingYawConstraint>(actor).unwrap();
         assert!(limit.applied_last_frame && limit.active_limit_degrees > 100.0);
+        for (mode, action, yaw) in [
+            (LocomotionState::Grounded, crate::als::state::AlsNotifyLocomotionAction::GettingUp, 0.7),
+            (LocomotionState::None, crate::als::state::AlsNotifyLocomotionAction::Ragdolling, -0.8),
+            (LocomotionState::None, crate::als::state::AlsNotifyLocomotionAction::None, 0.9),
+        ] {
+            let transform = Transform::from_rotation(Quat::from_rotation_y(yaw));
+            app.world_mut().entity_mut(actor).insert((mode, action, transform, Rotation(transform.rotation),
+                AlsAimingYawConstraint { active_limit_degrees: 70.0, applied_last_frame: true }));
+            app.update();
+            assert_eq!(*app.world().get::<Transform>(actor).unwrap(), transform);
+            let response = app.world().get::<AlsRotationResponseState>(actor).unwrap();
+            assert!((response.target_yaw - yaw).abs() < 1e-6 && (response.smooth_target_yaw - yaw).abs() < 1e-6);
+            assert!(!app.world().get::<AlsAimingYawConstraint>(actor).unwrap().applied_last_frame);
+        }
         for (desired, actual) in [(Stance::Crouching, Stance::Standing), (Stance::Standing, Stance::Crouching)] {
             assert_eq!(capsule_target_for_locomotion(desired, actual, LocomotionState::Custom, false, None), actual);
             assert_eq!(capsule_target_for_locomotion(desired, actual, LocomotionState::Grounded, false, None), desired);
