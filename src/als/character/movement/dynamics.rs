@@ -328,23 +328,27 @@ pub fn predict_grounded_stop_distance_with_braking_friction(
     distance
 }
 
-fn landing_braking_friction_system(
+pub(crate) fn landing_braking_friction_system(
     mut q: Query<
         (
             &LocomotionState,
             &AlsActualMotion,
             &mut AlsLandingBrakingFriction,
+            Option<&mut crate::als::motion::AlsRotationResponseState>,
         ),
         With<AlsCharacter>,
     >,
 ) {
-    for (locomotion, motion, mut braking) in &mut q {
-        update_landing_braking_friction(
+    for (locomotion, motion, mut braking, rotation) in &mut q {
+        let ordinary_landing = update_landing_braking_friction(
             &mut braking,
             *locomotion,
             motion.has_input,
             motion.world_velocity.y <= -crate::als::roll::ROLL_ON_LAND_SPEED_THRESHOLD,
         );
+        if ordinary_landing && let Some(mut rotation) = rotation {
+            rotation.rotation_towards_last_input_direction_blocked = true;
+        }
     }
 }
 
@@ -364,7 +368,7 @@ fn update_landing_braking_friction(
     locomotion: LocomotionState,
     has_input: bool,
     suppress: bool,
-) {
+) -> bool {
     let landed = braking.previous_locomotion == LocomotionState::Air
         && locomotion == LocomotionState::Grounded;
     if landed && !suppress {
@@ -376,6 +380,7 @@ fn update_landing_braking_friction(
         braking.remaining_seconds = f64::from(LANDING_BRAKING_FRICTION_DURATION);
     }
     braking.previous_locomotion = locomotion;
+    landed && !suppress
 }
 
 fn reset_landing_braking_friction_system(
@@ -594,6 +599,50 @@ impl Plugin for AlsGroundedDynamicsPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn actual_get_up_ordinary_landing_blocks_old_velocity_rotation() {
+        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().rotation_mode_pressed = true;
+        app.update();
+        app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().rotation_mode_pressed = false;
+        assert_eq!(app.world().get::<RotationMode>(character), Some(&RotationMode::VelocityDirection));
+        app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().move_dir = Vec2::Y;
+        for _ in 0..45 { app.update(); }
+        assert!(!app.world().get::<crate::als::motion::AlsRotationResponseState>(character).unwrap().rotation_towards_last_input_direction_blocked);
+        app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().move_dir = Vec2::ZERO;
+        app.world_mut().entity_mut(character).insert(crate::get_up::AlsGetUpRequest(false));
+        for _ in 0..4 { app.update(); }
+        assert!(app.world().get::<crate::get_up::AlsGetUpState>(character).unwrap().pose_ready);
+        let mut transform = *app.world().get::<Transform>(character).unwrap();
+        transform.translation.y += 0.5;
+        app.world_mut().entity_mut(character).insert((Position(transform.translation), transform,
+            GlobalTransform::from(transform), LinearVelocity(Vec3::X * 0.2)));
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.05)));
+        let mut airborne = false;
+        let mut landed = false;
+        for _ in 0..80 {
+            app.update();
+            let mode = *app.world().get::<LocomotionState>(character).unwrap();
+            airborne |= mode == LocomotionState::Air;
+            if airborne && mode == LocomotionState::Grounded { landed = true; break; }
+        }
+        assert!(landed);
+        assert_eq!(app.world().get::<crate::als::state::AlsNotifyLocomotionAction>(character), Some(&crate::als::state::AlsNotifyLocomotionAction::GettingUp));
+        let mut ended = false;
+        for _ in 0..80 {
+            app.update();
+            if app.world().get::<crate::als::state::AlsNotifyLocomotionAction>(character) == Some(&crate::als::state::AlsNotifyLocomotionAction::None) { ended = true; break; }
+        }
+        assert!(ended);
+        assert_eq!(app.world().get::<RotationMode>(character), Some(&RotationMode::VelocityDirection));
+        let before = app.world().get::<Transform>(character).unwrap().rotation;
+        app.world_mut().entity_mut(character).insert(LinearVelocity(Vec3::X * 3.75));
+        app.update();
+        let after = app.world().get::<Transform>(character).unwrap().rotation;
+        assert!(after.abs_diff_eq(before, 1e-5),
+            "Source ordinary landing block must survive GetUp until new input; before={before:?}, actual={after:?}");
+    }
 
     #[test]
     fn landing_automatic_action_condition_preserves_the_existing_timer() {

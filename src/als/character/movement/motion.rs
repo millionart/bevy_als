@@ -457,11 +457,7 @@ fn rotation_response_system(
             .map(world_forward_to_yaw);
         let animation = animation.copied().unwrap_or_default();
         if runtime.initialized
-            && (runtime.previous_locomotion == LocomotionState::Air
-                && *locomotion == LocomotionState::Grounded
-                || runtime
-                    .previous_rotation_mode
-                    .is_some_and(|previous| previous != *rotation_mode))
+            && runtime.previous_rotation_mode.is_some_and(|previous| previous != *rotation_mode)
         {
             runtime.rotation_towards_last_input_direction_blocked = true;
         }
@@ -1304,6 +1300,7 @@ mod rotation_cap_tests {
 
     #[test]
     fn landing_residual_speed_keeps_rotation_blocked_until_new_input() {
+        use bevy::ecs::system::RunSystemOnce;
         for mode in [RotationMode::VelocityDirection, RotationMode::ViewDirection] {
             let mut app = App::new();
             let mut time = Time::<()>::default();
@@ -1325,6 +1322,10 @@ mod rotation_cap_tests {
                     target_yaw: -1.0, previous_locomotion: LocomotionState::Air,
                     previous_rotation_mode: Some(mode), ..default() },
             )).id();
+            app.world_mut().entity_mut(character).insert(crate::als::dynamics::AlsLandingBrakingFriction {
+                previous_locomotion: LocomotionState::Air, ..default()
+            });
+            app.world_mut().run_system_once(crate::als::dynamics::landing_braking_friction_system).unwrap();
             for velocity in [Vec3::X, Vec3::X * 0.1, Vec3::ZERO] {
                 app.world_mut().entity_mut(character).insert(LinearVelocity(velocity));
                 app.update();
