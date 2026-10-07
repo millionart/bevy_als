@@ -489,6 +489,51 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn loaded_custom_roll_keeps_crossing_frame_root_then_stops_in_the_tail() {
+        use std::sync::{Arc, Mutex};
+        for delta in [1.0_f32 / 60.0, 0.1] {
+            let (mut app, character, _) = loaded_roll_character();
+            let sampler = play_loaded_roll(&mut app, character);
+            app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(character).unwrap().locomotion_state = Some(LocomotionState::Custom);
+            app.update();
+            let mut transform = *app.world().get::<Transform>(character).unwrap();
+            transform.translation.y += 5.0;
+            app.world_mut().entity_mut(character).insert((avian3d::prelude::Position(transform.translation),
+                transform, GlobalTransform::from(transform)));
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
+            let root_velocity = Arc::new(Mutex::new(Vec3::ZERO));
+            let capture = root_velocity.clone();
+            app.add_systems(PostUpdate, (move |actors: Query<&LinearVelocity>| {
+                *capture.lock().unwrap() = actors.get(character).unwrap().0;
+            }).after(AlsRollDriveSet).before(crate::source_physics_timing::SourcePhysicsTimingSet::Clamp));
+            let cutoff = crate::als::roll::ROLL_DURATION_SECS - crate::als::roll::ROLL_WEIGHT_OUT_SECS;
+            let mut crossed = false;
+            let mut tail = false;
+            for _ in 0..80 {
+                let before = *app.world().get::<AlsRollState>(character).unwrap();
+                let position = app.world().get::<avian3d::prelude::Position>(character).unwrap().0;
+                app.update();
+                let after = *app.world().get::<AlsRollState>(character).unwrap();
+                if before.time < cutoff && after.time >= cutoff {
+                    crossed = true;
+                    let expected = *root_velocity.lock().unwrap();
+                    assert!(expected.length() > 1e-5);
+                    assert!(app.world().get::<RootMotionOutput>(sampler).unwrap().translation_delta.length() > 1e-5);
+                    assert!(app.world().get::<LinearVelocity>(character).unwrap().0.abs_diff_eq(expected, 1e-4),
+                        "Source crossing BlendOut frame still consumes extracted root velocity: delta={delta} expected={expected:?} actual={:?}",
+                        app.world().get::<LinearVelocity>(character).unwrap().0);
+                } else if crossed && before.time >= cutoff && after.active {
+                    tail = true;
+                    assert!(app.world().get::<LinearVelocity>(character).unwrap().0.abs_diff_eq(Vec3::ZERO, 1e-5));
+                    assert!(app.world().get::<avian3d::prelude::Position>(character).unwrap().0.abs_diff_eq(position, 1e-5));
+                }
+                if crossed && !after.active { break; }
+            }
+            assert!(crossed && tail, "Actual Roll must cover the crossing frame and relevant tail: delta={delta}");
+        }
+    }
+
+    #[test]
     fn loaded_custom_roll_root_uses_the_full_source_frame_displacement() {
         use std::sync::{Arc, Mutex};
         for custom_position in [false, true] {
@@ -1061,7 +1106,7 @@ pub struct AlsRollDrivePlugin;
 pub struct AlsRollDriveSet;
 
 #[derive(Component)]
-struct AlsCustomRollPhysicsFrame {
+pub(crate) struct AlsCustomRollPhysicsFrame {
     rigid_body: avian3d::prelude::RigidBody,
     custom_position: bool,
 }

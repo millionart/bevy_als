@@ -2505,13 +2505,14 @@ impl Plugin for AlsMotionPlugin {
 
 fn custom_movement_velocity_system(
     time: Res<Time<avian3d::prelude::Physics>>,
-    mut characters: Query<(&LocomotionState, Option<&AlsMantleState>, Option<&crate::als::roll::AlsRollState>,
+    mut characters: Query<(&LocomotionState, Option<&AlsMantleState>,
+        Has<crate::roll_drive::AlsCustomRollPhysicsFrame>,
         &mut avian3d::dynamics::solver::solver_body::SolverBody), With<AlsCharacter>>,
 ) {
     if time.delta_secs() < crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS { return; }
-    for (mode, mantle, roll, mut body) in &mut characters {
+    for (mode, mantle, root_frame, mut body) in &mut characters {
         if *mode == LocomotionState::Custom && mantle.is_none_or(|state| !state.active && !state.root_motion_ready)
-            && !roll.is_some_and(crate::als::roll::AlsRollState::root_motion_active) {
+            && !root_frame {
             body.linear_velocity = Vec3::ZERO;
         }
     }
