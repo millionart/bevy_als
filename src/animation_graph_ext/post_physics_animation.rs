@@ -8,7 +8,9 @@ use bevy_animation_graph::core::{
     animation_graph_player::AnimationGraphPlayer,
     context::{pose_fallback::PoseFallbackContext, system_resources::SystemResources},
     id::BoneId,
-    physics_systems_avian::{read_back_poses_avian, spawn_missing_ragdolls_avian},
+    physics_systems_avian::{read_back_poses_avian, spawn_missing_ragdolls_avian,
+        update_ragdolls_avian, update_relative_kinematic_body_velocities,
+        update_relative_kinematic_position_based_body_velocities},
     plugin::AnimationGraphSet,
     pose::Pose,
     ragdoll::{bone_mapping::RagdollBoneMap, configuration::RagdollConfig, spawning::SpawnedRagdoll},
@@ -69,7 +71,13 @@ impl Plugin for PostPhysicsAnimationPlugin {
             let count = schedule.remove_systems_in_set(read_back_poses_avian, world,
                 ScheduleCleanupPolicy::RemoveSystemsOnly).expect("physics readback schedule must initialize");
             assert_eq!(count, 1, "physics readback must replace exactly one default readback system");
+            let count = schedule.remove_systems_in_set(update_relative_kinematic_position_based_body_velocities, world,
+                ScheduleCleanupPolicy::RemoveSystemsOnly).expect("kinematic velocity schedule must initialize");
+            assert_eq!(count, 1, "kinematic velocity update must replace exactly one default system");
         });
+        app.add_systems(PostUpdate, update_relative_kinematic_position_based_body_velocities
+            .after(update_ragdolls_avian).before(update_relative_kinematic_body_velocities)
+            .in_set(AnimationGraphSet::PrePhysics).run_if(|time: Res<Time>| !time.delta().is_zero()));
         app.add_systems(PostUpdate, apply_animation_to_visible_targets.in_set(AnimationGraphSet::Final));
         app.add_systems(PostUpdate,
             (read_back_poses_avian, normalize_scaled_readback_pose, apply_readback_pose)
@@ -501,7 +509,8 @@ mod tests {
             .init_resource::<Assets<GraphClip>>().init_resource::<Assets<AnimationGraph>>()
             .init_resource::<Assets<Skeleton>>().init_resource::<Assets<StateMachine>>()
             .init_resource::<Assets<bevy_animation_graph::core::ragdoll::bone_mapping::RagdollBoneMap>>()
-            .add_systems(PostUpdate, (animation_player, extract_root_motion).chain().in_set(AnimationGraphSet::PrePhysics))
+            .add_systems(PostUpdate, (animation_player, extract_root_motion,
+                update_relative_kinematic_position_based_body_velocities).chain().in_set(AnimationGraphSet::PrePhysics))
             .add_systems(PostUpdate, read_back_poses_avian.in_set(AnimationGraphSet::PostPhysics))
             .add_systems(PostUpdate, bevy_animation_graph::core::systems::apply_animation_to_targets.in_set(AnimationGraphSet::Final))
             .configure_sets(PostUpdate, (

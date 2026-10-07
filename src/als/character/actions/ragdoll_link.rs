@@ -527,6 +527,7 @@ fn ragdoll_pelvis_velocity(
 }
 
 fn ragdoll_joint_drive_adapter_system(
+    time: Res<Time<Virtual>>,
     mut commands: Commands,
     mut characters: Query<
         (Entity, Option<&AlsNotifyLocomotionAction>, Option<&AlsCharacterAssembly>, Option<&mut AlsRagdollJointDrive>),
@@ -542,6 +543,7 @@ fn ragdoll_joint_drive_adapter_system(
     labels: Query<&BodyLabel>,
     velocities: Query<&LinearVelocity>,
 ) {
+    if time.is_paused() { return; }
     for (character, action, assembly, current_drive) in &mut characters {
         let mut drive = AlsRagdollJointDrive::default();
         let player = animated_player_for_character(character, assembly, &avatars)
@@ -1625,6 +1627,47 @@ mod tests {
             "Source initial ragdoll limit must preserve a body speed below saved entry speed: saved={saved_entry_speed} actual={:?}",
             app.world().get::<LinearVelocity>(body).unwrap().0);
         }
+    }
+
+    #[test]
+    fn loaded_active_ragdoll_pause_preserves_follow_body_and_joint_drive_outputs() {
+        let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(character).unwrap().ragdoll_start = true;
+        for _ in 0..4 { app.update(); }
+        assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(character), Some(&AlsNotifyLocomotionAction::Ragdolling));
+        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let spawned = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap();
+        let bodies = spawned.bodies.values().map(|entity| (*entity,
+            app.world().get::<Position>(*entity).unwrap().0,
+            app.world().get::<Rotation>(*entity).unwrap().0,
+            app.world().get::<LinearVelocity>(*entity).unwrap().0,
+            app.world().get::<AngularVelocity>(*entity).unwrap().0)).collect::<Vec<_>>();
+        assert_eq!(bodies.len(), 21);
+        let actor = *app.world().get::<Transform>(character).unwrap();
+        let follow = *app.world().get::<AlsRagdollGroundFollow>(character).unwrap();
+        let drive = *app.world().get::<RagdollAngularDrive>(player).unwrap();
+        app.world_mut().resource_mut::<Time<Virtual>>().pause();
+        for _ in 0..4 {
+            app.update();
+            assert_eq!(*app.world().get::<Transform>(character).unwrap(), actor,
+                "Source paused ragdoll owner preserves its actor transform");
+            let current = app.world().get::<AlsRagdollGroundFollow>(character).unwrap();
+            assert_eq!((current.pelvis, current.target, current.velocity, current.grounded),
+                (follow.pelvis, follow.target, follow.velocity, follow.grounded));
+            assert_eq!(*app.world().get::<RagdollAngularDrive>(player).unwrap(), drive,
+                "Source paused ragdoll owner preserves its actual joint drive parameters");
+            for (entity, position, rotation, velocity, angular) in &bodies {
+                assert_eq!(app.world().get::<Position>(*entity).unwrap().0, *position);
+                assert_eq!(app.world().get::<Rotation>(*entity).unwrap().0, *rotation);
+                assert_eq!(app.world().get::<LinearVelocity>(*entity).unwrap().0, *velocity);
+                assert_eq!(app.world().get::<AngularVelocity>(*entity).unwrap().0, *angular);
+            }
+        }
+        app.world_mut().resource_mut::<Time<Virtual>>().unpause();
+        app.update();
+        assert!(bodies.iter().any(|(entity, position, _, _, _)|
+            app.world().get::<Position>(*entity).unwrap().0.distance(*position) > 1e-6),
+            "Source resumed ragdoll physics continues moving its active bodies");
     }
 
     #[test]
