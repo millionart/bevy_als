@@ -185,6 +185,7 @@ impl Plugin for AlsRagdollLinkPlugin {
             )
                 .chain()
                 .after(crate::als::motion::AlsActualVelocitySet)
+                .before(crate::actual_motion::AlsActualMotionSet)
                 .before(ragdoll_ground_follow)
                 .run_if(
                     |characters: Query<Option<&AlsNotifyLocomotionAction>,
@@ -685,6 +686,7 @@ fn release_ragdoll_air_exit_on_ground(
 #[allow(clippy::type_complexity)]
 fn ragdoll_character_physics_system(
     mut commands: Commands,
+    motion: Query<&crate::actual_motion::AlsActualMotion, With<AlsCharacter>>,
     rolls: Query<&crate::als::roll::AlsRollState>,
     mut transitions: Query<&mut crate::stop_link::AlsTransitionMontageStack>,
     mut turns: Query<(&AlsCharacterAvatar, &mut crate::turn_layer::AlsTurnMontageStack)>,
@@ -745,9 +747,7 @@ fn ragdoll_character_physics_system(
                     tnua_toggle: tnua_toggle.copied(),
                 });
                 if crate::get_up::RAGDOLL_SETTINGS.limit_initial_speed {
-                    let entry_speed = velocity
-                        .as_ref()
-                        .map_or(0.0, |velocity| velocity.0.length());
+                    let entry_speed = motion.get(entity).map_or(0.0, |motion| motion.world_velocity.length());
                     commands
                         .entity(entity)
                         .insert(AlsRagdollInitialSpeedLimit::new(entry_speed));
@@ -1591,6 +1591,40 @@ mod tests {
         app.world_mut().get_mut::<LinearVelocity>(body).unwrap().0 = Vec3::X * 10.0;
         app.world_mut().run_system_once(limit_initial_ragdoll_speed).unwrap();
         assert_eq!(app.world().get::<LinearVelocity>(body).unwrap().0, Vec3::X * 10.0);
+    }
+
+    #[test]
+    fn actual_high_landing_speed_limit_preserves_body_speed_below_saved_entry_speed() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let position = Vec3::new(0.0, 9.824, 0.0);
+        let transform = Transform::from_translation(position);
+        app.world_mut().entity_mut(character).insert((Position(position), transform,
+            GlobalTransform::from(transform), LinearVelocity::ZERO));
+        let mut saved_entry_speed = 0.0;
+        let mut entered = false;
+        for _ in 0..150 {
+            let saved = app.world().get::<crate::actual_motion::AlsActualMotion>(character).unwrap().world_velocity.length();
+            app.update();
+            if app.world().get::<AlsNotifyLocomotionAction>(character) == Some(&AlsNotifyLocomotionAction::Ragdolling) {
+                saved_entry_speed = saved;
+                entered = true;
+                break;
+            }
+        }
+        assert!(entered && saved_entry_speed >= 10.0,
+            "Actual high landing must enter ragdoll with source saved velocity: {saved_entry_speed}");
+        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let spawned = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap();
+        let body = *spawned.bodies.values().find(|entity| app.world().get::<RigidBody>(**entity) == Some(&RigidBody::Dynamic)).unwrap();
+        for speed in [5.0_f32, 20.0] {
+        let expected_velocity = Vec3::X * speed.min(saved_entry_speed.max(2.0));
+        app.world_mut().get_mut::<LinearVelocity>(body).unwrap().0 = Vec3::X * speed;
+        app.world_mut().run_system_once(limit_initial_ragdoll_speed).unwrap();
+        assert!(app.world().get::<LinearVelocity>(body).unwrap().0.abs_diff_eq(expected_velocity, 1e-5),
+            "Source initial ragdoll limit must preserve a body speed below saved entry speed: saved={saved_entry_speed} actual={:?}",
+            app.world().get::<LinearVelocity>(body).unwrap().0);
+        }
     }
 
     #[test]
