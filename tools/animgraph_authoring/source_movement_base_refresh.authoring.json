@@ -1,0 +1,316 @@
+{
+  "format": "als_animgraph_authoring_gate_v1",
+  "graphs": [
+    {
+      "path": "assets/ALS/Character/AB_Als.runtime.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "b113030b-0000-4000-8000-000000000001",
+          "name": "AB_Als",
+          "position": [
+            -480.0,
+            0.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000002",
+          "name": "Ragdoll Dynamic",
+          "position": [
+            -480.0,
+            160.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000003",
+          "name": "Ragdoll Readback",
+          "position": [
+            -480.0,
+            240.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000004",
+          "name": "Ragdoll Config",
+          "position": [
+            -224.0,
+            192.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000002\", \"als_ragdolling_dynamic\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"dynamic\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000003\", \"als_ragdolling_readback\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"readback\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000001\", \"pose\")",
+          "target": "OutputData(\"pose\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"ragdoll_config\")",
+          "target": "OutputData(\"ragdoll_config\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "pose": "Pose",
+          "ragdoll_config": "RagdollConfig"
+        }
+      },
+      "root_output_exceptions": [
+        {
+          "name": "ragdoll_config",
+          "reason": "The framework consumes body simulation and pose readback controls independently from the source pose.",
+          "evidence": "docs/bf114-ragdoll-contract.md"
+        }
+      ]
+    }
+  ],
+  "id": "source_default_movement_base_refresh_and_foot_lock_consumers",
+  "source_evidence": [
+    {
+      "path": "target/bf134/01j2/als_character.cpp",
+      "sha256": "779192e94d0a1ac13ccf95cfa9db540cc4f6230a2dc3ab9113848f8d983ace84"
+    },
+    {
+      "path": "target/bf134/01j2/als_animation_instance.cpp",
+      "sha256": "f5ccecad4c9408dbd500d8b3f661975cf2830ed62436c591ffa91bb4f9b11c26"
+    },
+    {
+      "path": "target/bf134/01j2/als_character_movement.cpp",
+      "sha256": "e37d349bc41a5de208cbdd1799c32741cf84aa5bddfe5580906c50f2a6360dda"
+    },
+    {
+      "path": "target/bf134/01j2/character_movement.cpp",
+      "sha256": "fcf827d7c5adaa73a4f272a716a53b03f66fc7352f3eacc1be4d51cc9b3e15a8"
+    },
+    {
+      "path": "target/bf134/01j2/character.cpp",
+      "sha256": "f5f4690ec18854ddba912489d6b74e7ac1366cd07a93097b8478185b62fa43e8"
+    },
+    {
+      "path": "target/bf134/01j2/character.h",
+      "sha256": "fdd9a98c16db6f057437a14f9162cedcd0a66bbaa5003609e97a1f652710ce48"
+    },
+    {
+      "path": "target/bf134/01j1/character.ue.json",
+      "sha256": "bb138443652e202a08ee2f6c1e12b071133caa6440fe75657b71e744c2d72925"
+    },
+    {
+      "path": "target/bf134/01j2/source_target_summary.json",
+      "sha256": "9c31fb15d2e27332cce4b349443d02fb57ca8858f890ed63971c34de83f3b131"
+    }
+  ],
+  "verification_commands": [
+    {
+      "label": "generated_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets",
+        "--include",
+        "ALS",
+        "--include",
+        "ALSCamera"
+      ]
+    },
+    {
+      "label": "generated_editor",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets"
+      ]
+    },
+    {
+      "label": "runtime_asset_boundary",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/validate_runtime_graph_asset_boundary.py",
+        "--assets-root",
+        "assets",
+        "--check"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "animgraph_assets",
+    "manual_case": "moving_base"
+  },
+  "focused_tests": [
+    {
+      "label": "base_owner",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "animation_movement_base_input_reads_the_actual_physics_owner"
+      ],
+      "evidence": "target/bf134/01j2/current_base_owner.watchdog.json"
+    },
+    {
+      "label": "foot_base",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "animation_movement_base_foot_lock_keeps_custom_targets_and_rejects_static_owners"
+      ],
+      "evidence": "target/bf134/01j2/current_foot_base.watchdog.json"
+    },
+    {
+      "label": "base_anchor",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "movement_base_rotation_keeps_the_capsule_bottom_anchor"
+      ],
+      "evidence": "target/bf134/01j2/current_base_anchor.watchdog.json"
+    },
+    {
+      "label": "support",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "moving_support_keeps_an_idle_character_on_root_and_child_colliders"
+      ],
+      "evidence": "target/bf134/01j2/current_support.watchdog.json"
+    },
+    {
+      "label": "component_transport",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "component_transport_precedes_the_character_movement_sweep"
+      ],
+      "evidence": "target/bf134/01j2/current_component_transport.watchdog.json"
+    },
+    {
+      "label": "foot_reverse",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "rotating_base_reversal_keeps_unclamped_rotation_history"
+      ],
+      "evidence": "target/bf134/01j2/current_foot_reverse.watchdog.json"
+    },
+    {
+      "label": "foot_rebase",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "foot_lock_rebases_and_detaches_without_losing_its_world_transform"
+      ],
+      "evidence": "target/bf134/01j2/current_foot_rebase.watchdog.json"
+    },
+    {
+      "label": "foot_base_change",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "foot_lock_refresh_captures_relocks_and_base_changes_at_source_boundaries"
+      ],
+      "evidence": "target/bf134/01j2/current_foot_base_change.watchdog.json"
+    },
+    {
+      "label": "foot_tracking",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "foot_lock_tracks_translation_and_rotation_of_its_movement_base"
+      ],
+      "evidence": "target/bf134/01j2/current_foot_tracking.watchdog.json"
+    }
+  ]
+}
