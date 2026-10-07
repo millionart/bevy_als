@@ -407,6 +407,17 @@ mod tests {
             app.update();
             if let Some(view) = app.world().get::<crate::als_camera::AlsCameraViewInfo>(component)
                 && view.valid {
+                if valid_frames == 0 {
+                    let motion = app.world().get::<crate::actual_motion::AlsActualMotion>(character).unwrap();
+                    let response = app.world().get::<crate::als::motion::AlsRotationResponseState>(character).unwrap();
+                    assert!((motion.input_yaw_degrees - yaw.to_degrees()).abs() < 1e-4);
+                    assert!((motion.velocity_yaw_degrees - yaw.to_degrees()).abs() < 1e-4);
+                    assert!(crate::als::roll::wrap_angle(response.target_yaw - yaw).abs() < 1e-4);
+                    assert!(crate::als::roll::wrap_angle(response.smooth_target_yaw - yaw).abs() < 1e-4);
+                    assert_eq!(*app.world().get::<crate::als::state::Stance>(character).unwrap(), crate::als::state::Stance::Standing);
+                    assert_eq!(*app.world().get::<crate::als::gait::AlsDesiredGait>(character).unwrap(), crate::als::gait::AlsDesiredGait(crate::als::state::Gait::Running));
+                    assert_eq!(*app.world().get::<crate::als::state::RotationMode>(character).unwrap(), crate::als::state::RotationMode::ViewDirection);
+                }
                 valid_frames += 1;
                 if valid_frames < 30 { continue; }
                 let actual = view.rotation * Vec3::NEG_Z;
