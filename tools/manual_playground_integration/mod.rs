@@ -6071,7 +6071,7 @@ fn drive_manual_integration(
                         .map_or(ALS_CHARACTER_CAPSULE_HALF_HEIGHT, |params| {
                             params.crouch.standing_capsule_half_height
                         });
-                    spawn_translation.y += standing_half;
+                    spawn_translation.y += standing_half + 9.0;
                     rebase_temporal_fixture(&mut state, &mut phase_evidence, "ragdoll_scaled_start");
                 }
                 let spawn_yaw = state.spawn_yaw.unwrap_or(fixture.facing_yaw);
@@ -6088,7 +6088,7 @@ fn drive_manual_integration(
                 *gait = Gait::Running;
                 *overlay = if state.scenario == IntegrationScenario::BowOverlay { OverlayState::Bow } else { OverlayState::Default };
                 if state.scenario == IntegrationScenario::BowOverlay { rebase_temporal_fixture(&mut state, &mut phase_evidence, "bow_ragdoll_start"); }
-                request.locomotion_state = Some(LocomotionState::Grounded);
+                request.locomotion_state = (state.scenario != IntegrationScenario::Ragdoll).then_some(LocomotionState::Grounded);
                 request.stance = Some(Stance::Standing);
                 if state.scenario == IntegrationScenario::GetUp {
                     rebase_temporal_fixture(
@@ -6108,7 +6108,7 @@ fn drive_manual_integration(
                 && state.coverage.ragdoll_joint_drive
                 && ground_follow.is_some_and(|follow| follow.grounded);
             if state.ragdoll_exit_requested {
-            } else if matches!(state.scenario, IntegrationScenario::Ragdoll | IntegrationScenario::GetUp) && elapsed < 0.3 {
+            } else if state.scenario == IntegrationScenario::GetUp && elapsed < 0.3 {
                 request.locomotion_state = Some(LocomotionState::Grounded);
             } else if elapsed < 1.0
                 && !matches!(
@@ -6118,7 +6118,7 @@ fn drive_manual_integration(
             {
                 input.0.move_dir = Vec2::Y;
             } else if !ready_to_exit {
-                request.ragdoll_start = true;
+                request.ragdoll_start = state.scenario != IntegrationScenario::Ragdoll;
             } else {
                 if state.scenario == IntegrationScenario::GetUp {
                     input.0.jump_pressed = true;
@@ -12549,6 +12549,27 @@ mod tests {
         apply.left.valid = true;
         apply.right.effector_error = 0.03;
         assert!(!foot_ik_matches_source(&apply, [0.0, 0.0]));
+    }
+
+    #[test]
+    fn ragdoll_driver_uses_high_landing_without_direct_start() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut world, character, start) = manual_driver_fixture();
+        let mut state = world.resource_mut::<ManualIntegrationState>();
+        state.scenario = IntegrationScenario::Ragdoll;
+        state.phase = IntegrationPhase::Ragdoll;
+        state.entered = true;
+        state.spawn_translation = Some(start);
+        world.run_system_once(drive_manual_integration).unwrap();
+        assert!((world.get::<Position>(character).unwrap().y - start.y - ALS_CHARACTER_CAPSULE_HALF_HEIGHT - 9.0).abs() < 1e-5,
+            "Ragdoll fixture must reach the source high landing speed through an actual fall");
+        for delta in [0.0, 0.4, 1.0] {
+            world.resource_mut::<Time<Virtual>>().advance_by(Duration::from_secs_f32(delta));
+            world.run_system_once(drive_manual_integration).unwrap();
+            let request = world.get::<AlsStateRequest>(character).unwrap();
+            assert!(!request.ragdoll_start, "Direct ragdoll start bypasses the source landing consumer");
+            assert!(request.locomotion_state.is_none(), "Grounded override suppresses the actual source fall");
+        }
     }
 
     #[test]

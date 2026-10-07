@@ -3415,6 +3415,7 @@ fn resolved_walkable_contact(contact: &ContactPair, character: Entity) -> bool {
 
 pub(crate) fn locomotion_state_sync_system(
     mut commands: Commands,
+    motion: Query<&crate::actual_motion::AlsActualMotion, With<AlsCharacter>>,
     spatial: SpatialQuery,
     candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
     params_assets: Res<Assets<AlsMovementParams>>,
@@ -3558,7 +3559,17 @@ pub(crate) fn locomotion_state_sync_system(
                 from: StateValue::LocomotionState(*current),
                 to: StateValue::LocomotionState(target),
             });
+            let ragdoll_on_land = *current == LocomotionState::Air && target == LocomotionState::Grounded
+                && crate::get_up::RAGDOLL_SETTINGS.start_on_land
+                && motion.get(entity).is_ok_and(|state| state.world_velocity.y
+                    <= -crate::get_up::RAGDOLL_SETTINGS.on_land_speed_threshold_mps);
             *current = target;
+            if ragdoll_on_land {
+                *current = LocomotionState::None;
+                transitions.write(StateTransitionEvent { entity, dimension: Dimension::LocomotionState,
+                    from: StateValue::LocomotionState(target), to: StateValue::LocomotionState(LocomotionState::None) });
+                commands.entity(entity).insert(crate::als::state::AlsNotifyLocomotionAction::Ragdolling);
+            }
         }
         if let Ok((mut base, dynamics)) = movement_bases.get_mut(entity) {
             if floor_entity.is_none() { floor_entity = validated_floor.map(|(_, _, entity)| entity); }

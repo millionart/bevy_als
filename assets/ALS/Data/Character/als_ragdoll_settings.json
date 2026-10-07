@@ -5,6 +5,8 @@
   "angular_stiffness": 25000.0,
   "stop_montage_blend_seconds": 0.2,
   "limit_initial_speed": true,
+  "start_on_land": true,
+  "on_land_speed_threshold_mps": 10.0,
   "front": {
     "source_montage": "/ALS/ALS/Animations/Actions/GetUp/AM_Als_GetUp_Front.AM_Als_GetUp_Front",
     "source_sequence": "/ALS/ALS/Animations/Actions/GetUp/A_Als_GetUp_Front.A_Als_GetUp_Front",

@@ -38,6 +38,8 @@ pub struct GetUpClipSettings {
 
 #[derive(Deserialize)]
 pub struct AlsRagdollSettings {
+    pub start_on_land: bool,
+    pub on_land_speed_threshold_mps: f32,
     pub minimum_initial_speed_limit_mps: f32,
     pub initial_speed_limit_refresh_frames: u8,
     pub reference_speed_mps: f32,

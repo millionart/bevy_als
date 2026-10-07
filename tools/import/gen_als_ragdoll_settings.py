@@ -56,7 +56,7 @@ def montage_settings(asset, assets_root):
     if 'SlotName="PostLocomotion"' not in tracks:
         raise ValueError("get-up montage does not use PostLocomotion")
     sequence = object_path(tracks.split("AnimReference=", 1)[1])
-    clip = "animations/" + sequence.split("/Animations/", 1)[1].split(".", 1)[0] + ".anim.ron"
+    clip = sequence.split(".", 1)[0].removeprefix("/ALS/") + ".anim.ron"
     if not (assets_root / clip).is_file():
         raise ValueError(f"missing runtime get-up clip: {clip}")
     blend_in = field_text(asset, "BlendIn")
@@ -100,6 +100,21 @@ def main():
         "stop_montage_blend_seconds": 0.2,
     }
     if args.self_test:
+        landing = "(bStartRagdollingOnLand=False,RagdollingOnLandSpeedThreshold=1250.000000)"
+        assert not bool_after(landing, "bStartRagdollingOnLand")
+        assert number_after(landing, "RagdollingOnLandSpeedThreshold") * 0.01 == 12.5
+        montage = {"asset_path": "/ALS/ALS/Animations/Actions/GetUp/AM_Als_GetUp_Front.AM_Als_GetUp_Front",
+            "asset_properties": [{"name": name, "exported_text": value} for name, value in {
+                "SlotAnimTracks": 'SlotName="PostLocomotion",AnimReference="/ALS/ALS/Animations/Actions/GetUp/A_Als_GetUp_Front.A_Als_GetUp_Front"',
+                "BlendIn": "(BlendTime=0.000000,BlendOption=Cubic)",
+                "BlendOut": "(BlendTime=0.300000,BlendOption=Cubic)",
+                "BlendOutTriggerTime": "-1.000000", "bEnableAutoBlendOut": "True",
+                "Notifies": "AlsAnimNotifyState_SetLocomotionAction,Duration=1.166667",
+                "SequenceLength": "1.500000", "RateScale": "1.200000",
+            }.items()]}
+        converted = montage_settings(montage, ROOT / "assets")
+        assert converted["clip"] == "ALS/Animations/Actions/GetUp/A_Als_GetUp_Front.anim.ron"
+        assert converted["curves"] == "ALS/Animations/Actions/GetUp/A_Als_GetUp_Front.gltf#AlsCurves"
         print("ALS ragdoll settings self-test PASS")
         return
     report = {"success": False}
@@ -116,6 +131,8 @@ def main():
         cpp = args.source_cpp or content_root.parent / "Source/ALS/Private/AlsCharacter_Actions.cpp"
         output = source_motion_settings(cpp.read_text(encoding="utf-8-sig"))
         output["limit_initial_speed"] = bool_after(fields, "bLimitInitialRagdollSpeed")
+        output["start_on_land"] = bool_after(fields, "bStartRagdollingOnLand")
+        output["on_land_speed_threshold_mps"] = number_after(fields, "RagdollingOnLandSpeedThreshold") * 0.01
         for direction in ("front", "back"):
             key = "GetUp" + direction.title() + "Montage="
             reference = object_path(fields.split(key, 1)[1].split(",", 1)[0])

@@ -268,6 +268,10 @@ struct TemporalSkeletonAnomaly {
     animation_delta_seconds: f32,
     direction_case: Option<String>,
     phase: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source_boundary: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source_selector_inputs: Option<[[f32; 2]; 2]>,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -353,6 +357,9 @@ struct AnimationVisualPreRigPose {
     global_bones: BTreeMap<String, FinalBone>,
     root_position: Vec3,
     delta_seconds: f32,
+    landing_selector: Option<[f32; 2]>,
+    physics_readback_active: bool,
+    source_selector_inputs: Option<[[f32; 2]; 2]>,
 }
 
 impl AnimationVisualPreRigPose {
@@ -1106,10 +1113,15 @@ fn record_temporal_metrics(
 ) -> bool {
     let mut detected = false;
     for metric in metrics {
+        let source_boundary = (stage == "pre_rig_source_landing_selector"
+            && metric.kind == "global_position_speed"
+            && matches!(metric.subject.as_str(), "hand_l" | "hand_r"))
+            .then_some("source_fall_heavy_to_light_on_physics_entry");
         let duplicate = state
             .temporal_anomalies
             .iter()
-            .any(|value| value.kind == metric.kind && value.subject == metric.subject);
+            .any(|value| value.kind == metric.kind && value.subject == metric.subject
+                && value.source_boundary == source_boundary);
         if !duplicate && state.temporal_anomalies.len() < MAX_TEMPORAL_ANOMALIES {
             warn!(
                 "[ANIMATION-VISUAL][TEMPORAL] stage={} kind={} trigger={} subject={} previous={:.6} current={:.6} threshold={:.6} rate={:?} rate_threshold={:?} elapsed={:.6} frame_ms={:.3}",
@@ -1126,7 +1138,7 @@ fn record_temporal_metrics(
                 frame_ms,
             );
             state.temporal_anomalies.push(TemporalSkeletonAnomaly {
-                stage: stage.to_owned(),
+                stage: if source_boundary.is_some() { "pre_rig".to_owned() } else { stage.to_owned() },
                 kind: metric.kind.to_owned(),
                 subject: metric.subject.clone(),
                 previous: metric.previous,
@@ -1140,8 +1152,11 @@ fn record_temporal_metrics(
                 animation_delta_seconds,
                 direction_case: direction_case.map(str::to_owned),
                 phase: phase.map(str::to_owned),
+                source_boundary,
+                source_selector_inputs: None,
             });
         }
+        if source_boundary.is_some() { continue; }
         detected |= append_unique(
             &mut state.faults,
             format!("temporal_{stage}_{}:{}", metric.kind, metric.subject),
@@ -1398,7 +1413,12 @@ fn capture_animation_visual_pre_rig_pose(
     transforms: bevy::transform::helper::TransformHelper,
     graphs: Res<Assets<AnimationGraph>>,
     skeletons: Res<Assets<Skeleton>>,
+    bodies: Query<(&avian3d::prelude::RigidBody, &crate::extensions::RagdollActiveMode)>,
 ) {
+    let previous_selector = pre_rig.landing_selector.take();
+    let previously_active = pre_rig.physics_readback_active;
+    pre_rig.physics_readback_active = false;
+    pre_rig.source_selector_inputs = None;
     pre_rig.bones.clear();
     pre_rig.global_bones.clear();
     pre_rig.delta_seconds = time.delta_secs();
@@ -1411,6 +1431,40 @@ fn capture_animation_visual_pre_rig_pose(
     let Some(SourcePin::NodeData(source, pin)) = graph.edges_inverted.get(&TargetPin::NodeData(node.id, rig.pose_input.clone())) else { return; };
     let Some(DataValue::Pose(pose)) = context.node_caches.get_output_data(*source, StateKey::Default, pin.clone()) else { return; };
     let Some(skeleton) = skeletons.get(&pose.skeleton) else { return; };
+    if let Some(arena) = player.get_context_arena() {
+        for id in arena.iter_context_ids() {
+            let Some(context) = arena.get_context(id) else { continue; };
+            let Some(graph) = graphs.get(context.get_graph_id()) else { continue; };
+            let Some(node) = graph.nodes.values().find(|node| node.id.uuid().to_string() == "10be798e-43e2-1f53-a3b6-6aaf258498ff") else { continue; };
+            if !context.node_caches.is_updated(node.id, StateKey::Default) { continue; }
+            let Some(blend) = node.try_inner_downcast_ref::<crate::extensions::SourceTwoWayBlendNode>() else { continue; };
+            let mapping = &blend.mapping;
+            if blend.alpha_key != "in_air_state.vertical_velocity_world_space"
+                || !mapping.source_semantics || !mapping.map_range || mapping.interpolate_result
+                || mapping.input_min != -10.0 || mapping.input_max != -5.0
+                || mapping.output_min != 0.0 || mapping.output_max != 1.0
+                || mapping.scale != 1.0 || mapping.bias != 0.0 || mapping.clamp_result
+                || blend.alpha_scale != 1.0 || blend.alpha_bias != 0.0
+            { continue; }
+            let Ok(state) = context.node_states.get::<crate::extensions::source_pose_nodes::SourceTwoWayBlendState>(node.id, StateKey::Default) else { continue; };
+            pre_rig.landing_selector = Some([state.input_alpha, state.blend_alpha]);
+        }
+    }
+    pre_rig.physics_readback_active = player.get_outputs().get("ragdoll_config")
+        .and_then(|value| value.as_ragdoll_config().ok())
+        .is_some_and(|config| config.default_readback == Some(true) && config.readback_overrides.values().all(|enabled| *enabled))
+        && player.get_spawned_ragdoll().is_some_and(|spawned| !spawned.bodies.is_empty()
+            && spawned.bodies.values().all(|entity| bodies.get(*entity).is_ok_and(|(actual, expected)| {
+                *actual == match expected.0 {
+                    bevy_animation_graph::core::ragdoll::definition::BodyMode::Dynamic => avian3d::prelude::RigidBody::Dynamic,
+                    bevy_animation_graph::core::ragdoll::definition::BodyMode::Kinematic => avian3d::prelude::RigidBody::Kinematic,
+                }
+            })));
+    if source_landing_selector_boundary(previous_selector,
+        pre_rig.landing_selector, previously_active, pre_rig.physics_readback_active) {
+        pre_rig.source_selector_inputs = previous_selector.zip(pre_rig.landing_selector)
+            .map(|(previous, current)| [previous, current]);
+    }
     pre_rig.global_bones = pose_global_bones(&pose, skeleton, &player_world);
     pre_rig.root_position = player_world.translation();
     for path in skeleton.iter_paths() {
@@ -1424,6 +1478,13 @@ fn capture_animation_visual_pre_rig_pose(
             scale: bone.and_then(|bone| bone.scale).unwrap_or(reference.local.scale),
         });
     }
+}
+
+fn source_landing_selector_boundary(previous: Option<[f32; 2]>, current: Option<[f32; 2]>, previously_active: bool, active: bool) -> bool {
+    !previously_active && active && previous.zip(current).is_some_and(|(previous, current)|
+        previous[0].is_finite() && current[0].is_finite()
+        && previous[0] <= -10.0 && previous[1] == 0.0
+        && current[0] >= -5.0 && current[1] == 1.0)
 }
 
 fn pose_global_bones(pose: &Pose, skeleton: &Skeleton, root: &GlobalTransform) -> BTreeMap<String, FinalBone> {
@@ -3653,13 +3714,20 @@ fn collect_animation_visual_evidence(
         fault_detected |= record_temporal_metrics(
             &mut state,
             pre_rig_metrics,
-            "pre_rig",
+            if pre_rig.source_selector_inputs.is_some() { "pre_rig_source_landing_selector" } else { "pre_rig" },
             elapsed.as_secs_f64(),
             frame_ms,
             frame_seconds,
             direction_case.as_deref(),
             phase,
         );
+        if pre_rig.source_selector_inputs.is_some() {
+            for metric in &mut state.temporal_anomalies {
+                if metric.source_boundary.is_some() && metric.source_selector_inputs.is_none() {
+                    metric.source_selector_inputs = pre_rig.source_selector_inputs;
+                }
+            }
+        }
         fault_detected |= record_temporal_metrics(
             &mut state,
             final_metrics,
@@ -3951,6 +4019,90 @@ mod tests {
         assert!(metrics.iter().any(|metric| metric.kind == "global_position_speed" && metric.subject == "hand_l"));
         let sample = bone_samples(&after);
         assert_eq!(sample["hand_l"].translation, after["hand_l"].0.to_array());
+    }
+
+    #[test]
+    fn high_landing_pre_rig_hands_keep_the_source_stage_space() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.0122101)));
+        app.init_resource::<AnimationVisualPreRigPose>();
+        let position = Vec3::new(-15.0, 10.824, -15.0);
+        let transform = Transform::from_translation(position).with_scale(Vec3::splat(2.0))
+            .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_4));
+        app.world_mut().entity_mut(character).insert((avian3d::prelude::Position(position), transform,
+            GlobalTransform::from(transform), avian3d::prelude::LinearVelocity::ZERO));
+        let mut guard = TemporalSkeletonGuard::default();
+        let mut state = AnimationVisualValidationState::default();
+        let mut saw_ragdoll = false;
+        for _ in 0..130 {
+            app.update();
+            app.world_mut().run_system_once(capture_animation_visual_pre_rig_pose).unwrap();
+            let capture = app.world().resource::<AnimationVisualPreRigPose>();
+            if !capture.global_bones.is_empty() {
+                let observed = guard.observe(&capture.bones, &capture.global_bones, capture.root_position, capture.temporal_delta_seconds());
+                let failed = record_temporal_metrics(&mut state, observed.metrics,
+                    if capture.source_selector_inputs.is_some() { "pre_rig_source_landing_selector" } else { "pre_rig" },
+                    0.0, 12.2101, capture.temporal_delta_seconds(), None, None);
+                assert!(!failed, "Actual high landing has an unclassified temporal fault: {:?}", state.faults);
+            }
+            saw_ragdoll |= app.world().get::<crate::animation_events::AlsNotifyLocomotionAction>(character)
+                == Some(&crate::animation_events::AlsNotifyLocomotionAction::Ragdolling);
+            if saw_ragdoll { break; }
+        }
+        assert!(saw_ragdoll);
+        assert_eq!(state.temporal_anomalies.len(), 2);
+        assert!(state.temporal_anomalies.iter().all(|metric| metric.source_boundary.is_some()
+            && metric.current > metric.threshold && metric.threshold == 40.0));
+        assert!(state.faults.is_empty());
+    }
+
+    #[test]
+    fn source_landing_selector_classification_rejects_wrong_input_stage_and_physics() {
+        let previous = Some([-13.295677, 0.0]);
+        let current = Some([0.0, 1.0]);
+        assert!(source_landing_selector_boundary(previous, current, false, true));
+        for (previous, current, was_active, active) in [
+            (previous, current, false, false), (previous, current, true, true),
+            (None, current, false, true), (previous, None, false, true),
+            (Some([-9.999, 0.0]), current, false, true),
+            (previous, Some([-5.001, 1.0]), false, true),
+            (Some([-13.295677, 0.2]), current, false, true),
+            (previous, Some([0.0, 0.8]), false, true),
+            (Some([f32::NAN, 0.0]), current, false, true),
+        ] { assert!(!source_landing_selector_boundary(previous, current, was_active, active)); }
+        let metric = |kind, subject: &str| TemporalSkeletonMetric { kind, subject: subject.into(),
+            previous: 0.0, current: 46.0, threshold: 40.0, trigger: "rate", rate: Some(46.0), rate_threshold: Some(40.0) };
+        for (stage, kind, subject, expected_failure) in [
+            ("pre_rig_source_landing_selector", "global_position_speed", "hand_l", false),
+            ("pre_rig_source_landing_selector", "global_position_speed", "hand_r", false),
+            ("pre_rig", "global_position_speed", "hand_l", true),
+            ("final", "global_position_speed", "hand_l", true),
+            ("pre_rig_source_landing_selector", "global_position_speed", "head", true),
+            ("pre_rig_source_landing_selector", "local_rotation_spike", "hand_l", true),
+        ] {
+            let mut state = AnimationVisualValidationState::default();
+            assert_eq!(record_temporal_metrics(&mut state, vec![metric(kind, subject)], stage,
+                1.0, 12.2101, 0.0122101, None, None), expected_failure);
+            assert_eq!(state.temporal_anomalies.len(), 1);
+            assert_eq!(state.temporal_anomalies[0].source_boundary.is_none(), expected_failure);
+            assert_eq!(!state.faults.is_empty(), expected_failure);
+        }
+    }
+
+    #[test]
+    fn source_landing_classification_preserves_later_final_fault_evidence() {
+        let mut state = AnimationVisualValidationState::default();
+        for (stage, expected_failure) in [("pre_rig_source_landing_selector", false), ("final", true)] {
+            let metric = TemporalSkeletonMetric { kind: "global_position_speed", subject: "hand_l".into(),
+                previous: 0.0, current: 46.0, threshold: 40.0, trigger: "rate", rate: Some(46.0), rate_threshold: Some(40.0) };
+            assert_eq!(record_temporal_metrics(&mut state, vec![metric], stage, 1.0, 12.21, 0.01221, None, None), expected_failure);
+        }
+        assert_eq!(state.temporal_anomalies.len(), 2);
+        assert!(state.temporal_anomalies[0].source_boundary.is_some());
+        assert_eq!(state.temporal_anomalies[1].stage, "final");
+        assert!(state.temporal_anomalies[1].source_boundary.is_none());
+        assert_eq!(state.faults, ["temporal_final_global_position_speed:hand_l"]);
     }
 
     #[test]

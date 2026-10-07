@@ -198,6 +198,126 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn mantle_target_destruction_detaches_before_the_physics_handoff() {
+        let (mut app, character, avatar) = loaded_roll_character();
+        let target = app.world_mut().spawn(GlobalTransform::IDENTITY).id();
+        let origin = app.world().get::<Transform>(character).unwrap().translation;
+        let mut mantle = crate::als::mantle::AlsMantleState::default();
+        mantle.begin(crate::als::mantle::MantleKind::Low, origin, origin + Vec3::Y, 0.75, 0.0, 0.0);
+        mantle.root_motion_ready = true;
+        mantle.target_base = Some(crate::als::mantle::AlsMantleTargetBase { entity: target,
+            translation: Vec3::ZERO, rotation: Quat::IDENTITY, scale: Vec3::ONE, relative_location: false });
+        app.world_mut().entity_mut(character).insert((mantle, LocomotionState::Custom,
+            AlsNotifyLocomotionAction::Mantling));
+        app.world_mut().despawn(target);
+        app.add_systems(PostUpdate, (move |actions: Query<&AlsNotifyLocomotionAction>,
+            instances: Query<&AnimatedSceneInstance>, parents: Query<&ChildOf>| {
+                assert_eq!(actions.get(character).unwrap(), &AlsNotifyLocomotionAction::Ragdolling);
+                let player = instances.get(avatar).unwrap().player_entity();
+                assert!(parents.get(player).is_err(),
+                    "Source target destruction must detach before activating the ragdoll physics bodies");
+            }).after(crate::mantle_drive::AlsMantleDriveSet)
+                .after(crate::extensions::RagdollPhysicsHandoffSet).before(crate::extensions::RagdollAngularDriveSet));
+        app.update();
+    }
+
+    #[test]
+    fn source_landing_ragdoll_uses_saved_speed_and_interrupts_get_up() {
+        use crate::actual_motion::AlsActualMotion;
+        for (saved_downward_speed, getting_up, expected_ragdoll) in [
+            (9.999, false, false), (10.0, false, true), (10.001, false, true), (10.0, true, true),
+        ] {
+            let (mut app, character, _) = loaded_roll_character();
+            *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = LocomotionState::Air;
+            app.world_mut().get_mut::<AlsActualMotion>(character).unwrap().world_velocity = Vec3::NEG_Y * saved_downward_speed;
+            if getting_up {
+                app.world_mut().entity_mut(character).insert((crate::als::motion::AlsMovementInputBlocked,
+                    AlsNotifyLocomotionAction::GettingUp));
+            }
+            app.world_mut().run_system_once(crate::als::motion::locomotion_state_sync_system).unwrap();
+            assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(character) == Some(&AlsNotifyLocomotionAction::Ragdolling),
+                expected_ragdoll, "Source landing callback must use saved speed and its inclusive threshold");
+            assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(),
+                if expected_ragdoll { LocomotionState::None } else { LocomotionState::Grounded });
+        }
+    }
+
+    #[test]
+    fn source_high_speed_landing_starts_ragdoll_before_roll() {
+        for (horizontal_position, scale, delta) in [(0.0, 1.0, 1.0_f32 / 60.0), (-15.0, 2.0, 1.0 / 60.0), (-15.0, 2.0, 0.0119366), (-15.0, 2.0, 0.0)] {
+        let (mut app, character, avatar) = loaded_roll_character();
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta.max(0.0119366))));
+        let drop_position = Vec3::new(horizontal_position, if horizontal_position == -15.0 { 10.824 } else { 9.0 }, horizontal_position);
+        let drop_transform = Transform::from_translation(drop_position).with_scale(Vec3::splat(scale))
+            .with_rotation(Quat::from_rotation_y(if horizontal_position == -15.0 { -std::f32::consts::FRAC_PI_4 } else { 0.0 }));
+        app.world_mut().entity_mut(character).insert((
+            avian3d::prelude::Position(drop_position), drop_transform,
+            GlobalTransform::from(drop_transform),
+            LinearVelocity(Vec3::ZERO),
+        ));
+        let mut entered_air = false;
+        let mut landed = false;
+        let mut maximum_downward_speed = 0.0_f32;
+        for frame in 0..150 {
+            if delta == 0.0 {
+                let cadence = [0.0119366, 0.0136784, 0.0118618, 0.0123884, 0.015421, 0.0274669];
+                *app.world_mut().resource_mut::<bevy::time::TimeUpdateStrategy>() = bevy::time::TimeUpdateStrategy::ManualDuration(
+                    std::time::Duration::from_secs_f32(cadence[frame % cadence.len()]));
+            }
+            app.update();
+            maximum_downward_speed = maximum_downward_speed.max(-app.world().get::<LinearVelocity>(character).unwrap().y);
+            let locomotion = *app.world().get::<LocomotionState>(character).unwrap();
+            entered_air |= locomotion == LocomotionState::Air;
+            if entered_air && (locomotion == LocomotionState::Grounded
+                || app.world().get::<AlsNotifyLocomotionAction>(character) == Some(&AlsNotifyLocomotionAction::Ragdolling)) {
+                landed = true; break;
+            }
+        }
+        assert!(entered_air && landed, "Actual source landing fixture must fall and reach the blocking floor");
+        let impact = -app.world().get::<crate::als::air::AlsPreImpactVelocity>(character).unwrap().last_air_vertical_velocity;
+        assert!(impact >= 10.0, "Actual impact must exceed the source ragdoll threshold: impact={impact} maximum={maximum_downward_speed}");
+        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        assert!(app.world().get::<ChildOf>(player).is_none(),
+            "Source ragdoll entry must detach the visible mesh before the capsule follows its pelvis");
+        for body in app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap().bodies.values() {
+            let expected = app.world().get::<crate::extensions::RagdollActiveMode>(*body).unwrap().0;
+            let expected = match expected {
+                bevy_animation_graph::core::ragdoll::definition::BodyMode::Dynamic => avian3d::prelude::RigidBody::Dynamic,
+                bevy_animation_graph::core::ragdoll::definition::BodyMode::Kinematic => avian3d::prelude::RigidBody::Kinematic,
+            };
+            assert_eq!(*app.world().get::<avian3d::prelude::RigidBody>(*body).unwrap(), expected,
+                "Source ragdoll entry must activate each configured body mode in the same callback");
+        }
+        let scene = app.world().get::<bevy_animation_graph::core::animated_scene::AnimatedSceneHandle>(avatar).unwrap();
+        let scene = app.world().resource::<Assets<bevy_animation_graph::core::animated_scene::AnimatedScene>>().get(&scene.handle).unwrap();
+        let mapping = app.world().resource::<Assets<bevy_animation_graph::core::ragdoll::bone_mapping::RagdollBoneMap>>()
+            .get(scene.ragdoll_bone_map.as_ref().unwrap()).unwrap();
+        let animation = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+        for (id, body) in &animation.get_spawned_ragdoll().unwrap().bodies {
+            let bone = &mapping.bodies_from_bones[id].bone;
+            let global = app.world().get::<GlobalTransform>(animation.bone_entity(bone.bone.id()).unwrap()).unwrap();
+            let expected = global.to_isometry() * bone.offset;
+            let actual = app.world().get::<avian3d::prelude::Position>(*body).unwrap().0;
+            assert!(Vec3::from(expected.translation).distance(actual) <= 1e-4,
+                "Source entry body must match the visible bone before any physics step: scale={scale} delta={delta} label={:?} expected={:?} actual={actual:?} error={}",
+                app.world().get::<bevy_animation_graph::core::ragdoll::definition::BodyLabel>(*body).map(|label| &label.0),
+                Vec3::from(expected.translation), Vec3::from(expected.translation).distance(actual));
+        }
+        app.update();
+        assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(character), Some(&AlsNotifyLocomotionAction::Ragdolling),
+            "Source high speed landing must start ragdoll before evaluating rolling");
+        assert!(!app.world().get::<AlsRollState>(character).unwrap().active);
+        for _ in 0..3 { app.update(); }
+        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let profile = app.world().get::<crate::extensions::RagdollPhysicsProfileApplied>(player).unwrap();
+        assert_eq!(profile.handoff_animated_body_count, 21);
+        assert!(profile.handoff_animated_body_position_error_m <= 1e-4,
+            "Actual high landing handoff must match the current visible pose: scale={scale} delta={delta} error={}",
+            profile.handoff_animated_body_position_error_m);
+        }
+    }
+
+    #[test]
     fn loaded_roll_pause_preserves_actor_and_slot_then_resumes() {
         let (mut app, character, _) = loaded_roll_character();
         let sampler = play_loaded_roll(&mut app, character);

@@ -1004,7 +1004,28 @@ def temporal_anomaly_issues(values):
             label = value.get(key)
             if label is not None and (not isinstance(label, str) or not label):
                 issues.append(f"temporal anomaly label is invalid: {key}")
-    if values:
+    source_values = 0
+    for value in values:
+        if not isinstance(value, dict) or value.get("source_boundary") is None:
+            continue
+        inputs = value.get("source_selector_inputs")
+        source_match = (
+            value.get("source_boundary") == "source_fall_heavy_to_light_on_physics_entry"
+            and value.get("stage") == "pre_rig"
+            and value.get("kind") == "global_position_speed"
+            and value.get("subject") in ("hand_l", "hand_r")
+            and value.get("trigger") == "rate"
+            and value.get("threshold") == 40.0
+            and isinstance(inputs, list) and len(inputs) == 2
+            and all(isinstance(sample, list) and len(sample) == 2 and all(finite(number) for number in sample) for sample in inputs)
+            and inputs[0][0] <= -10.0 and inputs[0][1] == 0.0
+            and inputs[1][0] >= -5.0 and inputs[1][1] == 1.0
+        )
+        if source_match:
+            source_values += 1
+        else:
+            issues.append("temporal anomaly source boundary is invalid")
+    if len(values) != source_values:
         issues.append("temporal_anomalies is non-empty")
     return issues
 
@@ -2775,6 +2796,22 @@ def run_self_test():
         missing_trigger = copy.deepcopy(report["temporal_anomalies"])
         missing_trigger[0].pop("trigger")
         assert any("trigger" in issue for issue in temporal_anomaly_issues(missing_trigger))
+        source_metric = {
+            "stage": "pre_rig", "kind": "global_position_speed", "subject": "hand_l",
+            "previous": 0.0, "current": 46.0, "threshold": 40.0, "trigger": "rate",
+            "rate": 46.0, "rate_threshold": 40.0, "elapsed_secs": 1.36, "frame_ms": 12.21,
+            "source_boundary": "source_fall_heavy_to_light_on_physics_entry",
+            "source_selector_inputs": [[-13.295677, 0.0], [0.0, 1.0]],
+        }
+        assert not temporal_anomaly_issues([source_metric])
+        for key, value in (("stage", "final"), ("subject", "head"), ("kind", "local_rotation_spike"),
+            ("source_boundary", "unknown"), ("source_selector_inputs", None),
+            ("source_selector_inputs", [[-9.0, 0.0], [0.0, 1.0]]),
+            ("source_selector_inputs", [[-13.0, 0.0], [0.0, 0.8]])):
+            changed = copy.deepcopy(source_metric)
+            changed[key] = value
+            assert temporal_anomaly_issues([changed])
+        assert temporal_anomaly_issues([source_metric, report["temporal_anomalies"][0]])
         report = fixture_report(paths)
         report.pop("temporal_anomalies")
         assert not audit(report, 2)["pass"]
@@ -3329,6 +3366,7 @@ def run_self_test():
         "montage_clip_trace_without_actor_yaw_checked": "PASS",
         "wrong_direction_state_rejected": "PASS",
         "single_airborne_frame_hitch_verified": "PASS",
+        "source_landing_selector_classification_checked": "PASS",
     }
 
 

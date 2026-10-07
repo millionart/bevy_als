@@ -178,6 +178,24 @@ impl Plugin for AlsRagdollLinkPlugin {
         .add_systems(
             PostUpdate,
             (
+                capture_ragdoll_player_world_transform,
+                ragdoll_character_physics_system,
+                ragdoll_link_system,
+                sync_ragdoll_body_modes,
+            )
+                .chain()
+                .after(crate::als::motion::AlsActualVelocitySet)
+                .before(ragdoll_ground_follow)
+                .run_if(
+                    |characters: Query<Option<&AlsNotifyLocomotionAction>,
+                        (With<AlsCharacter>, Without<AlsRagdollCharacterPhysics>)>| {
+                        characters.iter().any(|action| action == Some(&AlsNotifyLocomotionAction::Ragdolling))
+                    },
+                ),
+        )
+        .add_systems(
+            PostUpdate,
+            (
                 sync_ragdoll_body_modes,
                 limit_initial_ragdoll_speed,
                 ragdoll_joint_drive_adapter_system,
@@ -2231,6 +2249,8 @@ mod tests {
             PostUpdate,
             crate::ragdolling_layer::AlsRagdollingLayerSet.before(AnimationGraphSet::PrePhysics),
         )
+        .configure_sets(PostUpdate, crate::ab_als_root::AlsRootGraphSet
+            .in_set(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Inputs))
         .add_systems(PostUpdate, corrupt_unmapped_ecs_pose.after(TransformSystems::Propagate))
         .configure_sets(PostUpdate, crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Readback.after(corrupt_unmapped_ecs_pose))
         .add_systems(
@@ -2466,6 +2486,7 @@ mod tests {
             .unwrap()
             .bodies[&body_id];
         app.world_mut().entity_mut(player_entity).insert((
+            crate::extensions::post_physics_animation::PostPhysicsAnimation,
             crate::extensions::RagdollPhysicsProfile {
                 bodies: vec![],
                 colliders: vec![],
@@ -2510,7 +2531,7 @@ mod tests {
                 .with_rotation(app.world().get::<Rotation>(body_entity).unwrap().0);
         assert!(transforms_match(actual, expected));
 
-        app.world_mut().entity_mut(actor).insert((LocomotionState::Grounded, AlsNotifyLocomotionAction::Ragdolling));
+        app.world_mut().entity_mut(actor).insert((LocomotionState::None, AlsNotifyLocomotionAction::Ragdolling));
         let index = pose.paths[&joint_path.id()];
         pose.bones[index].translation = Some(joint_local.translation + Vec3::X * 0.09);
         app.world_mut().get_mut::<AnimationGraphPlayer>(player_entity).unwrap().set_input_data("pose", DataValue::Pose(pose));
@@ -2528,7 +2549,7 @@ mod tests {
         app.update();
         assert!(app.world().get::<ChildOf>(player_entity).is_none());
         let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
-        assert_eq!(player.get_outputs()["grounded"].as_bool().unwrap(), true);
+        assert_eq!(player.get_outputs()["grounded"].as_bool().unwrap(), false);
         assert_eq!(player.get_outputs()["ragdolling"].as_bool().unwrap(), true);
         assert_eq!(app.world().get::<crate::extensions::SourceAnimationInputs>(player_entity).unwrap().gameplay_tag_input("locomotion_action"), Some(AlsNotifyLocomotionAction::Ragdolling.tag()));
         let handoff = app
