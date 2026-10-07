@@ -168,7 +168,7 @@
         "--lib",
         "mantle_absolute_root_drives_actual_clips_to_source_endpoints"
       ],
-      "evidence": "target/bf134/01k6d2/current_seven_mantle_clips.watchdog.json"
+      "evidence": "target/bf134/01k6d2/current_mantle_drive_tests.watchdog.json"
     }
   ]
 }

@@ -164,7 +164,7 @@
         "--lib",
         "native_custom_mode_without_root_motion_keeps_actual_velocity_and_position_zero"
       ],
-      "evidence": "target/bf134/01k6b2b2b2/current_no_root.watchdog.json"
+      "evidence": "target/bf134/01k6b2b2b2/current_motion_tests.watchdog.json"
     }
   ]
 }
