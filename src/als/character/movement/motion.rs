@@ -4313,6 +4313,39 @@ mod tests {
     }
 
     #[test]
+    fn source_floor_edge_rejection_retries_the_capsule_before_accepting_no_floor() {
+        use bevy::ecs::system::RunSystemOnce;
+        for edge_x in [0.2986_f32, 0.299, 0.2995] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+                avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+                .init_asset::<Mesh>().add_message::<bevy::asset::AssetEvent<Mesh>>();
+            app.finish();
+            let character = app.world_mut().spawn((RigidBody::Kinematic, Transform::default())).id();
+            let floor = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(8.0, 0.1, 8.0),
+                Transform::from_xyz(0.0, -0.25, 0.0))).id();
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.004, 1.5, 0.2),
+                Transform::from_xyz(edge_x + 0.002, 0.5, 0.0)));
+            for _ in 0..2 { app.update(); }
+            let found = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+                candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
+                let cmc = crate::als::params::CmcAdapterParams { perch_radius_threshold: 0.0, ..default() };
+                let origin = Vec3::new(0.0, 0.919, 0.0);
+                let capsule = als_character_capsule(0.84, 0.3);
+                let raw = spatial.cast_shape(&capsule, origin, Quat::IDENTITY, Dir3::NEG_Y,
+                    &ShapeCastConfig::from_max_distance(0.535), &SpatialQueryFilter::from_excluded_entities([character])).unwrap();
+                let edge_distance = Vec2::new(raw.point1.x, raw.point1.z).length();
+                assert!(edge_distance >= 0.2985,
+                    "Source edge-retry fixture must reject its first capsule hit: edge={edge_x}, distance={edge_distance}, raw={raw:?}");
+                find_ground_floor(&spatial, Vec3::new(0.0, 0.919, 0.0), 0.9, 0.3, &cmc, LocomotionState::Grounded,
+                    &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates)
+            }).unwrap();
+            assert_eq!(found.map(|found| found.2), Some(floor),
+                "Source rejected near-radius hit retries its reduced capsule and keeps the lower walkable floor: edge={edge_x}, found={found:?}");
+        }
+    }
+
+    #[test]
     fn perch_queries_observe_radius_distance_and_locomotion_bounds() {
         use bevy::ecs::system::RunSystemOnce;
         for offset in [0.1, 0.14, 0.16, 0.2] {
