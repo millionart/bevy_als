@@ -156,7 +156,8 @@ fn admit_pending_players(
     all_starts: Query<(Entity, Option<&crate::als::player_start::AlsPlayerStartProbe>), With<AlsPlayerStart>>,
     starts: Query<(Entity, &AlsPlayerStart, &AlsPlayerStartReady)>,
     pending: Query<(Entity, &AlsPlayerAdmission, Option<&AlsPlayerAdmissionComplete>), With<AlsPlayerAdmissionPending>>,
-    mut characters: Query<Option<&mut crate::als::input::AlsInputCommand>, With<crate::als::character::AlsCharacter>>,
+    mut characters: Query<(Option<&mut crate::als::input::AlsInputCommand>,
+        Option<&mut crate::als::transition::AlsStateRequest>), With<crate::als::character::AlsCharacter>>,
     assets: Res<AssetServer>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut params_assets: ResMut<Assets<AlsMovementParams>>,
@@ -167,9 +168,11 @@ fn admit_pending_players(
     }
     for (request, _, previous) in &pending {
         if let Some(previous) = previous && characters.contains(previous.character) {
-            if let Ok(Some(mut input)) = characters.get_mut(previous.character) {
-                input.jump_pressed = false;
-                input.jump_held = false;
+            if let Ok((input, mode)) = characters.get_mut(previous.character) {
+                if let Some(mut input) = input { input.jump_pressed = false; input.jump_held = false; }
+                if let Some(mut mode) = mode {
+                    mode.locomotion_state = Some(crate::als::state::LocomotionState::Grounded);
+                }
             }
             commands.entity(previous.character).insert(avian3d::prelude::LinearVelocity::ZERO);
             commands.entity(request).remove::<AlsPlayerAdmissionPending>();
@@ -439,6 +442,75 @@ mod tests {
     }
 
     #[test]
+    fn actual_existing_pawn_restart_preserves_source_movement_owner_locks() {
+        for ragdolling in [false, true] {
+            let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+            AlsGameModePlugin.build(&mut app);
+            if ragdolling {
+                app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(character).unwrap().ragdoll_start = true;
+            } else {
+                let start = app.world().get::<Transform>(character).unwrap().translation;
+                app.world_mut().get_mut::<crate::als::mantle::AlsMantleState>(character).unwrap().begin(
+                    crate::als::mantle::MantleKind::Low, start, start + Vec3::Y + Vec3::NEG_Z, 0.75, 0.0, 0.0);
+            }
+            for _ in 0..10 { app.update(); }
+            let expected_mode = if ragdolling { crate::als::state::LocomotionState::None } else { crate::als::state::LocomotionState::Custom };
+            let expected_action = if ragdolling { crate::als::state::AlsNotifyLocomotionAction::Ragdolling } else { crate::als::state::AlsNotifyLocomotionAction::Mantling };
+            assert_eq!(app.world().get::<crate::als::state::LocomotionState>(character), Some(&expected_mode));
+            let selection = crate::als::player_start::AlsPlayerStartSelection {
+                entity: Entity::PLACEHOLDER, tag: None, fit: crate::als::player_start::AlsPlayerSpawnFit {
+                    transform: *app.world().get::<Transform>(character).unwrap(), ground_y: 0.0,
+                    adjustment: 0.0, teleport_adjustment: Vec3::ZERO,
+                    occupancy: AlsPlayerStartOccupancy::Unoccupied,
+                }, used_occupied_fallback: false,
+            };
+            let request = app.world_mut().spawn((AlsPlayerAdmission::new(), AlsPlayerAdmissionPending,
+                AlsPlayerAdmissionComplete { character, selection })).id();
+            app.update();
+            assert!(app.world().get::<AlsPlayerAdmissionPending>(request).is_none());
+            assert_eq!(app.world().get::<crate::als::state::LocomotionState>(character), Some(&expected_mode));
+            assert_eq!(app.world().get::<crate::als::state::AlsNotifyLocomotionAction>(character), Some(&expected_action));
+            if !ragdolling {
+                let mantle = app.world().get::<crate::als::mantle::AlsMantleState>(character).unwrap();
+                assert!(mantle.active && mantle.root_motion_ready);
+            }
+        }
+    }
+
+    #[test]
+    fn actual_existing_pawn_restart_restores_source_default_movement_mode() {
+        for height in [0.0, 2.0] {
+        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        AlsGameModePlugin.build(&mut app);
+        app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(character).unwrap().locomotion_state = Some(crate::als::state::LocomotionState::Custom);
+        app.update();
+        let mut transform = *app.world().get::<Transform>(character).unwrap();
+        transform.translation.y += height;
+        app.world_mut().entity_mut(character).insert((avian3d::prelude::Position(transform.translation), transform,
+            GlobalTransform::from(transform)));
+        app.update();
+        assert_eq!(app.world().get::<crate::als::state::LocomotionState>(character), Some(&crate::als::state::LocomotionState::Custom));
+        assert_eq!(app.world().get::<avian3d::prelude::LinearVelocity>(character).unwrap().0, Vec3::ZERO);
+        let selection = crate::als::player_start::AlsPlayerStartSelection {
+            entity: Entity::PLACEHOLDER, tag: None,
+            fit: crate::als::player_start::AlsPlayerSpawnFit {
+                transform, ground_y: 0.0, adjustment: 0.0, teleport_adjustment: Vec3::ZERO,
+                occupancy: AlsPlayerStartOccupancy::Unoccupied,
+            }, used_occupied_fallback: false,
+        };
+        app.world_mut().spawn((AlsPlayerAdmission::new(), AlsPlayerAdmissionPending,
+            AlsPlayerAdmissionComplete { character, selection }));
+        app.update();
+        let actual = app.world().get::<avian3d::prelude::LinearVelocity>(character).unwrap().y;
+        let mode = if height == 0.0 { crate::als::state::LocomotionState::Grounded } else { crate::als::state::LocomotionState::Air };
+        let expected = if height == 0.0 { 0.0 } else { -9.81 / 60.0 };
+        assert!((actual - expected).abs() < 0.02,
+            "Source Restart restores Walking with a supporting floor or Falling without one: height={height}, actual={actual}, mode={:?}", app.world().get::<crate::als::state::LocomotionState>(character));
+        assert_eq!(app.world().get::<crate::als::state::LocomotionState>(character), Some(&mode));
+        }
+    }
+
+    #[test]
     fn actual_existing_pawn_restart_clears_source_jump_force() {
         let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
         AlsGameModePlugin.build(&mut app);
@@ -451,6 +523,10 @@ mod tests {
         app.update();
         assert_eq!(app.world().get::<crate::als::state::LocomotionState>(character), Some(&crate::als::state::LocomotionState::Air));
         assert!(app.world().get::<avian3d::prelude::LinearVelocity>(character).unwrap().y > 3.0);
+        let mut unsupported = *app.world().get::<Transform>(character).unwrap();
+        unsupported.translation.y += 2.0;
+        app.world_mut().entity_mut(character).insert((avian3d::prelude::Position(unsupported.translation),
+            unsupported, GlobalTransform::from(unsupported)));
         let selection = crate::als::player_start::AlsPlayerStartSelection {
             entity: Entity::PLACEHOLDER,
             tag: None,
