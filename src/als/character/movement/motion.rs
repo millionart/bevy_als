@@ -2495,7 +2495,24 @@ impl Plugin for AlsMotionPlugin {
                         .before(crate::gait_layer::AlsGaitLayerSet),
                     rotation_response_system.in_set(AlsRotationResponseSet),
                 ),
-            );
+            )
+            .add_systems(avian3d::prelude::SubstepSchedule, custom_movement_velocity_system
+                .after(avian3d::dynamics::integrator::IntegrationSystems::Velocity)
+                .after(crate::als::dynamics::limit_falling_velocity)
+                .before(avian3d::dynamics::solver::schedule::SubstepSolverSystems::WarmStart));
+    }
+}
+
+fn custom_movement_velocity_system(
+    time: Res<Time<avian3d::prelude::Physics>>,
+    mut characters: Query<(&LocomotionState, Option<&AlsMantleState>,
+        &mut avian3d::dynamics::solver::solver_body::SolverBody), With<AlsCharacter>>,
+) {
+    if time.delta_secs() < crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS { return; }
+    for (mode, mantle, mut body) in &mut characters {
+        if *mode == LocomotionState::Custom && mantle.is_none_or(|state| !state.active && !state.root_motion_ready) {
+            body.linear_velocity = Vec3::ZERO;
+        }
     }
 }
 
@@ -3623,6 +3640,38 @@ mod tests {
         assert_eq!(params.gait_speeds(stance, RotationMode::ViewDirection).max_walk_speed, 1.75);
         assert_eq!(params.gait_speeds(Stance::Standing, rotation).max_run_speed, 3.75);
         assert_eq!(gait_max_speed_for_velocity(&params, &Stance::Standing, &gait, RotationMode::ViewDirection, Vec3::Z, 0.0), params.speeds.standing.max_run_speed);
+    }
+
+    #[test]
+    fn native_custom_mode_without_root_motion_keeps_actual_velocity_and_position_zero() {
+        for airborne in [true, false] {
+        for input in [Vec2::ZERO, Vec2::X] {
+            let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+            for _ in 0..30 { app.update(); }
+            if airborne {
+                let position = app.world().get::<Position>(character).unwrap().0 + Vec3::Y * 5.0;
+                let mut transform = *app.world().get::<Transform>(character).unwrap();
+                transform.translation = position;
+                app.world_mut().entity_mut(character).insert((Position(position), transform, GlobalTransform::from(transform), LinearVelocity::ZERO));
+            }
+            app.world_mut().get_mut::<AlsStateRequest>(character).unwrap().locomotion_state = Some(LocomotionState::Custom);
+            app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = input;
+            app.update();
+            assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Custom);
+            assert!(app.world().get::<crate::als::mantle::AlsMantleState>(character).is_none_or(|state| !state.active));
+            let position = app.world().get::<Position>(character).unwrap().0;
+            let mut maximum_speed = 0.0_f32;
+            for _ in 0..4 {
+                app.update();
+                maximum_speed = maximum_speed.max(app.world().get::<LinearVelocity>(character).unwrap().0.length());
+            }
+            let final_position = app.world().get::<Position>(character).unwrap().0;
+            assert!(maximum_speed < 1e-5,
+                "Source PhysCustom without root motion resets actual velocity: airborne={airborne} input={input:?} speed={maximum_speed}");
+            assert!(final_position.abs_diff_eq(position, 1e-5),
+                "Source PhysCustom without root motion cannot move the actor: airborne={airborne} input={input:?} actual={:?}", final_position - position);
+        }
+        }
     }
 
 
