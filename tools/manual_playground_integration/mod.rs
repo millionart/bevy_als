@@ -3148,7 +3148,7 @@ struct IntegrationCoverage {
     get_up_back: bool,
     get_up_input_locked: [bool; 2],
     get_up_input_released: [bool; 2],
-    get_up_jump_during_input_lock: bool,
+    get_up_native_jump_rejected_during_action: bool,
     camera_rig: bool,
     camera_collision: bool,
     camera_recovery: bool,
@@ -9826,9 +9826,10 @@ fn observe_manual_integration(
                     !blocked && notify_action == Some(&AlsNotifyLocomotionAction::None);
             }
             if state.scenario == IntegrationScenario::GetUp && state.get_up_jump_requested_at.is_some() {
-                state.coverage.get_up_jump_during_input_lock |= active && blocked
+                state.coverage.get_up_native_jump_rejected_during_action |= active && blocked
                     && notify_action == Some(&AlsNotifyLocomotionAction::GettingUp)
-                    && *locomotion == LocomotionState::Air && velocity.y > 3.0;
+                    && *locomotion == LocomotionState::Grounded && velocity.y.abs() < 0.02;
+
             }
             let variant = if get_up.facing_up {
                 "GetUpBack"
@@ -10597,7 +10598,7 @@ fn observe_manual_integration(
                     "get_up_back_input_released",
                     coverage.get_up_input_released[1],
                 ),
-                ("get_up_jump_during_input_lock", coverage.get_up_jump_during_input_lock),
+                ("get_up_native_jump_rejected_during_action", coverage.get_up_native_jump_rejected_during_action),
             ],
             IntegrationScenario::Camera => vec![
                 ("runtime_assembly", coverage.assembly),

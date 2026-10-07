@@ -73,47 +73,27 @@
       ]
     }
   ],
-  "id": "source_get_up_jump_permission",
+  "id": "source_get_up_native_jump_rejection",
   "source_evidence": [
     {
-      "path": "target/bf134/01i3a2b2/character.ue.json",
-      "sha256": "17c20f86022c7b1beebb8e9888d70c406a48c213b50ab0be8ebd52581d1b06f2"
-    },
-    {
-      "path": "target/bf134/01i3a2b2/example.cpp",
-      "sha256": "bcfacb62ffc48eb77937c4c9a74ac68d49d8b5a9d687374530c0e72f406cb833"
-    },
-    {
-      "path": "target/bf134/01i3a2b2/als_character.cpp",
+      "path": "target/bf134/01k11/als_character.cpp",
       "sha256": "779192e94d0a1ac13ccf95cfa9db540cc4f6230a2dc3ab9113848f8d983ace84"
     },
     {
-      "path": "target/bf134/01i3a2b2/als_actions.cpp",
-      "sha256": "3dbd91f26154fd99297a7c7bb293993d938a86b8937d7071760cabc8517aa317"
-    },
-    {
-      "path": "target/bf134/01i3a2b2/als_movement.cpp",
-      "sha256": "e37d349bc41a5de208cbdd1799c32741cf84aa5bddfe5580906c50f2a6360dda"
-    },
-    {
-      "path": "target/bf134/01i3a2b2/als_character.h",
-      "sha256": "b5f0772b9f008b863a22330c02e2686af18c8b1f1485ede5018cf03f62f1ae8a"
-    },
-    {
-      "path": "target/bf134/01i3a2b2/als_movement.h",
-      "sha256": "d9dd7da93f266ebc8e82251f9e8efbba960d42c50ad59e13df0b615fe207fde4"
-    },
-    {
-      "path": "target/bf134/01i3a2b2/native_character.cpp",
+      "path": "target/bf134/01k11/character.cpp",
       "sha256": "f5f4690ec18854ddba912489d6b74e7ac1366cd07a93097b8478185b62fa43e8"
     },
     {
-      "path": "target/bf134/01i3a2b2/native_movement.cpp",
-      "sha256": "fcf827d7c5adaa73a4f272a716a53b03f66fc7352f3eacc1be4d51cc9b3e15a8"
+      "path": "target/bf134/01k11/als_example.cpp",
+      "sha256": "ba558540dd414d57bd61bb37c57cf3db9d6a1b6a15088463616588845fc1afa4"
     },
     {
-      "path": "target/bf134/01i3a2b2/source_get_up_jump.json",
-      "sha256": "dfd50c187d786e95d69e0744121d36cc9d3862ce37cef857c7969f97b24d4e97"
+      "path": "target/bf134/01k11/als_actions.cpp",
+      "sha256": "3dbd91f26154fd99297a7c7bb293993d938a86b8937d7071760cabc8517aa317"
+    },
+    {
+      "path": "target/bf134/01k11/native_jump_permission_contract.json",
+      "sha256": "69848050641b4d75ec2263062f2e974a241e8a9c9bb9398a758a4da04bfdaa7e"
     }
   ],
   "verification_commands": [
@@ -159,7 +139,7 @@
   },
   "focused_tests": [
     {
-      "label": "actual_source_get_up_jump_permission",
+      "label": "actual_nonempty_action_rejects_native_jump",
       "argv": [
         "cargo",
         "test",
@@ -172,9 +152,9 @@
         "--config",
         "profile.play.package.bevy_als.opt-level=0",
         "--lib",
-        "getting_up_blocks_movement_but_keeps_source_jump_action"
+        "getting_up_consumes_zero_movement_and_rejects_native_jump"
       ],
-      "evidence": "target/bf134/01i3a2b2/green_get_up_jump.watchdog.json"
+      "evidence": "target/bf134/01k11/restored_native_jump_permission.watchdog.json"
     },
     {
       "label": "real_get_up_driver_single_pulse",

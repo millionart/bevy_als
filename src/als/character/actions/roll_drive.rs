@@ -318,6 +318,35 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn actual_get_up_action_rejects_source_native_jump_until_empty() {
+        let (mut app, character, _) = loaded_roll_character();
+        crate::als::input::spawn_als_actions(&mut app.world_mut().commands(), character, &crate::als::input::AlsInputMap::default());
+        app.update();
+        app.world_mut().entity_mut(character).insert(crate::get_up::AlsGetUpRequest(false));
+        for _ in 0..4 { app.update(); }
+        assert!(app.world().get::<crate::get_up::AlsGetUpState>(character).unwrap().pose_ready);
+        assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(character), Some(&AlsNotifyLocomotionAction::GettingUp));
+        assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Grounded));
+        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::Space);
+        app.update();
+        let velocity = app.world().get::<LinearVelocity>(character).unwrap().y;
+        assert!(velocity.abs() < 0.02,
+            "Source native Jump rejects any nonempty action even when input reaches Input_OnJump: velocity={velocity}, action={:?}", app.world().get::<AlsNotifyLocomotionAction>(character));
+        assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Grounded));
+        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().release(KeyCode::Space);
+        let mut ended = false;
+        for _ in 0..120 {
+            app.update();
+            if app.world().get::<AlsNotifyLocomotionAction>(character) == Some(&AlsNotifyLocomotionAction::None) { ended = true; break; }
+        }
+        assert!(ended);
+        app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::Space);
+        app.update();
+        assert!(app.world().get::<LinearVelocity>(character).unwrap().y > 3.0,
+            "Source empty action accepts a fresh native Jump after the loaded end notify");
+    }
+
+    #[test]
     fn loaded_get_up_ragdoll_replacement_keeps_source_input_block_until_action_empty() {
         let (mut app, character, _) = loaded_roll_character();
         app.world_mut().entity_mut(character).insert(crate::get_up::AlsGetUpRequest(false));

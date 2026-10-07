@@ -2982,7 +2982,8 @@ pub(crate) fn locomotion_drive_system(
                     request.stance = Some(Stance::Standing);
                 }
                 JumpChain::Jump => {
-                    if *loco == LocomotionState::Grounded {
+                    if *loco == LocomotionState::Grounded
+                        && actions.get(entity).ok().is_none_or(|action| *action == crate::als::state::AlsNotifyLocomotionAction::None) {
                         let Some(params) = params_assets.get(params_handle.id()) else { continue; };
                         controller.action(AlsControlScheme::Jump(crate::als::control_scheme::AlsBuiltinJump {
                             builtin: TnuaBuiltinJump { allow_in_air: true, ..default() },
@@ -5577,7 +5578,7 @@ mod tests {
     }
 
     #[test]
-    fn getting_up_blocks_movement_but_keeps_source_jump_action() {
+    fn getting_up_consumes_zero_movement_and_rejects_native_jump() {
         let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
         app.world_mut().entity_mut(character).insert((
             crate::get_up::AlsGetUpState::new(false),
@@ -5589,12 +5590,11 @@ mod tests {
         let controller = app.world().get::<TnuaController<AlsControlScheme>>(character).unwrap();
         assert_eq!(controller.basis.desired_motion, Vec3::ZERO,
             "Source GetUp InputBlocked must consume zero movement");
-        assert_eq!(controller.action_flow_status().just_starting(), Some(AlsControlSchemeActionDiscriminant::Jump),
-            "Source GetUp InputBlocked does not prevent native Jump after StopRagdolling and StartMantling return false");
+        assert_eq!(controller.action_flow_status().just_starting(), None,
+            "Source nonempty GetUp action rejects the final native Jump even when its input event is dispatched");
         let velocity = app.world().get::<LinearVelocity>(character).unwrap().y;
-        assert!((velocity - (4.2 - 9.81 / 60.0)).abs() < 0.02,
-            "Source falling root motion preserves native jump vertical velocity: {velocity}");
-        assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Air));
+        assert!(velocity.abs() < 0.02, "Source rejected Jump keeps the grounded vertical velocity: {velocity}");
+        assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Grounded));
     }
 
     #[test]
