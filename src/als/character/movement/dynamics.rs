@@ -254,10 +254,20 @@ pub fn simulate_grounded_velocity_with_braking_friction(
     braking_friction_factor: f32,
     delta_seconds: f32,
 ) -> (Vec3, u32) {
+    let (velocity, substeps, _) = simulate_grounded_motion_with_braking_friction(velocity, desired_motion,
+        max_speed, dynamics, cmc, braking_friction_factor, delta_seconds);
+    (velocity, substeps)
+}
+
+fn simulate_grounded_motion_with_braking_friction(
+    velocity: Vec3, desired_motion: Vec3, max_speed: f32, dynamics: GroundedDynamics,
+    cmc: &CmcAdapterParams, braking_friction_factor: f32, delta_seconds: f32,
+) -> (Vec3, u32, Vec3) {
     let mut remaining = delta_seconds.max(0.0);
     let max_iterations = cmc.max_simulation_iterations;
     let mut current = velocity;
     let mut substeps = 0;
+    let mut displacement = Vec3::ZERO;
     while remaining >= MIN_MOVEMENT_DELTA_SECONDS && substeps < max_iterations {
         let step = if remaining > cmc.max_simulation_time_step && substeps + 1 < max_iterations {
             cmc.max_simulation_time_step.min(remaining * 0.5)
@@ -276,8 +286,9 @@ pub fn simulate_grounded_velocity_with_braking_friction(
         );
         remaining -= step;
         substeps += 1;
+        displacement += current * step;
     }
-    (current, substeps)
+    (current, substeps, displacement)
 }
 
 pub fn predict_grounded_stop_distance(
@@ -441,6 +452,7 @@ pub fn grounded_dynamics_motor_system(
         current_base_state,
     ) in &mut q
     {
+        cmc_runtime.grounded_movement_delta = None;
         let Ok((roll, mantle)) = actions.get(entity) else {
             continue;
         };
@@ -496,7 +508,7 @@ pub fn grounded_dynamics_motor_system(
         let braking_friction_factor = landing_braking
             .get(entity)
             .map_or(BRAKING_FRICTION_FACTOR, |state| state.factor);
-        let (next, simulation_substeps) = simulate_grounded_velocity_with_braking_friction(
+        let (next, simulation_substeps, displacement) = simulate_grounded_motion_with_braking_friction(
             current,
             desired_motion,
             max_speed,
@@ -507,6 +519,7 @@ pub fn grounded_dynamics_motor_system(
         );
         cmc_runtime.simulation_delta_seconds = time.delta_secs();
         cmc_runtime.simulation_substeps = simulation_substeps;
+        cmc_runtime.grounded_movement_delta = Some(displacement + support_velocity * time.delta_secs());
         let analog_modifier = if dynamics.0.acceleration > MAX_ACCELERATION_MIN_FOR_ANALOG_MODIFIER { desired_motion.length().min(1.0) } else { 0.0 };
         cmc_runtime.min_analog_speed_applied = desired_motion.with_y(0.0) != Vec3::ZERO && dynamics.0.acceleration > 0.0
             && max_speed * analog_modifier < params.cmc.min_analog_walk_speed;
@@ -599,6 +612,82 @@ impl Plugin for AlsGroundedDynamicsPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn actual_walking_displacement_integrates_each_source_velocity_substep() {
+        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        for _ in 0..35 { app.update(); }
+        let before = app.world().get::<Position>(character).unwrap().0;
+        app.world_mut().entity_mut(character).insert((LinearVelocity::ZERO,
+            crate::als::input::AlsInputCommand { move_dir: Vec2::Y, ..default() }));
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_millis(100)));
+        app.update();
+        let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
+        let after = app.world().get::<Position>(character).unwrap().0;
+        let dynamics = app.world().get::<AlsGroundedDynamics>(character).unwrap().0;
+        let runtime = app.world().get::<AlsCmcAdapterRuntime>(character).unwrap();
+        assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Grounded));
+        assert!((dynamics.acceleration - 20.0).abs() < 1e-5);
+        assert_eq!(runtime.simulation_substeps, 2);
+        assert!((velocity.with_y(0.0).length() - 2.0).abs() < 1e-4,
+            "Source walking tail velocity must remain2m/s: {velocity:?}");
+        let source_distance = 1.0 * 0.05 + 2.0 * 0.05;
+        let actual_distance = (after - before).with_y(0.0).length();
+        assert!((actual_distance - source_distance).abs() < 1e-4,
+            "Source PhysWalking moves with each substep velocity: before={before:?} after={after:?} actual={actual_distance} expected={source_distance}");
+    }
+
+    #[test]
+    fn actual_walking_displacement_keeps_source_tail_velocity_across_step_budgets() {
+        for (delta, max_step, iterations, initial, input) in [
+            (0.075, 0.05, 8, Vec3::ZERO, Vec2::Y),
+            (0.12, 0.05, 8, Vec3::ZERO, Vec2::Y),
+            (0.1, 0.05, 1, Vec3::ZERO, Vec2::Y),
+            (0.02, 0.005, 8, Vec3::ZERO, Vec2::Y),
+            (0.1, 0.05, 8, Vec3::X * 1.5, Vec2::Y),
+            (0.1, 0.05, 8, Vec3::NEG_Z * 3.75, Vec2::ZERO),
+        ] {
+            let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+            for _ in 0..35 { app.update(); }
+            let handle = app.world().get::<AlsMovementParamsHandle>(character).unwrap().0.clone();
+            let mut settings = app.world().resource::<Assets<AlsMovementParams>>().get(&handle).unwrap().clone();
+            settings.cmc.max_simulation_time_step = max_step;
+            settings.cmc.max_simulation_iterations = iterations;
+            let constant = |value| crate::als::params::HermiteCurve { keys: vec![crate::als::params::HermiteKey {
+                time: 0.0, value, arrive_tangent: 0.0, leave_tangent: 0.0 }] };
+            settings.acceleration.grounded.normal.acceleration = constant(20.0);
+            settings.acceleration.grounded.normal.braking_deceleration = constant(12.5);
+            settings.acceleration.grounded.normal.ground_friction = constant(5.0);
+            settings.acceleration.grounded.responsive = settings.acceleration.grounded.normal.clone();
+            let replacement = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(settings.clone());
+            let before = app.world().get::<Position>(character).unwrap().0;
+            app.world_mut().entity_mut(character).insert((AlsMovementParamsHandle(replacement), LinearVelocity(initial),
+                AlsLandingBrakingFriction::default(), crate::als::input::AlsInputCommand { move_dir: input, ..default() }));
+            let delta = std::time::Duration::from_secs_f32(delta).as_secs_f32();
+            let mut remaining = delta;
+            let mut expected_velocity = initial;
+            let mut expected_delta = Vec3::ZERO;
+            let mut count = 0;
+            while remaining >= MIN_MOVEMENT_DELTA_SECONDS && count < iterations {
+                count += 1;
+                let step = if remaining > max_step && count < iterations { max_step.min(remaining * 0.5) } else { remaining };
+                expected_velocity = grounded_velocity_step_with_braking_friction(expected_velocity,
+                    Vec3::new(input.x, 0.0, -input.y), 3.75,
+                    GroundedDynamics { acceleration: 20.0, braking_deceleration: 12.5, ground_friction: 5.0 },
+                    settings.cmc.min_analog_walk_speed, 0.0, settings.cmc.braking_substep_time, step);
+                expected_delta += expected_velocity * step;
+                remaining -= step;
+            }
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
+            app.update();
+            let actual_velocity = app.world().get::<LinearVelocity>(character).unwrap().0.with_y(0.0);
+            let actual_delta = (app.world().get::<Position>(character).unwrap().0 - before).with_y(0.0);
+            assert!(actual_velocity.distance(expected_velocity) < 1e-4,
+                "Source tail velocity differs: delta={delta} max_step={max_step} iterations={iterations} initial={initial:?} input={input:?} actual={actual_velocity:?} expected={expected_velocity:?}");
+            assert!(actual_delta.distance(expected_delta) < 1e-4,
+                "Source per-step walking displacement differs: delta={delta} max_step={max_step} iterations={iterations} initial={initial:?} input={input:?} actual={actual_delta:?} expected={expected_delta:?}");
+        }
+    }
 
     #[test]
     fn actual_stance_noop_and_settings_replacement_follow_source_consumers() {

@@ -120,13 +120,15 @@ fn enable_character_full_frame(
     frame_time: Res<Time<Virtual>>,
     mut commands: Commands,
     characters: Query<(Entity, &LocomotionState, &RigidBody, Option<&AlsNotifyLocomotionAction>,
-        Option<&crate::als::dynamics::AlsMovementBaseDynamicsState>),
+        Option<&crate::als::dynamics::AlsMovementBaseDynamicsState>, &crate::als::character::AlsCmcAdapterRuntime),
         (With<AlsCharacter>, Without<CustomPositionIntegration>)>,
 ) {
-    if frame_time.delta() <= SOURCE_MAX_PHYSICS_DELTA {
-        return;
-    }
-    for (entity, locomotion, body, action, base) in &characters {
+    for (entity, locomotion, body, action, base, runtime) in &characters {
+        if frame_time.delta() <= SOURCE_MAX_PHYSICS_DELTA
+            && !(*locomotion == LocomotionState::Grounded && runtime.simulation_substeps > 1
+                && runtime.grounded_movement_delta.is_some() && runtime.grounded_move_start.is_none()) {
+            continue;
+        }
         if base.is_some_and(|base| base.entity.is_some() && base.support_velocity.length_squared() > 0.0) {
             continue;
         }
@@ -157,14 +159,14 @@ fn integrate_character_position(
         Has<SourceCharacterFullFrame>, Has<CustomPositionIntegration>,
         &mut crate::als::character::AlsCmcAdapterRuntime), With<AlsCharacter>>,
 ) {
-    if frame_time.delta() <= SOURCE_MAX_PHYSICS_DELTA {
-        return;
-    }
     let frame_step = frame_time.delta_secs() / substeps.0 as f32;
     let extra_step = (frame_time.delta_secs() - physics_time.delta_secs()) / substeps.0 as f32;
     for (entity, mut body, position, collider, locomotion, action, rigid_body, base, full_frame, custom_position, mut runtime) in &mut characters {
         let movement = if full_frame {
-            body.linear_velocity * frame_step
+            if *locomotion == LocomotionState::Grounded && runtime.grounded_move_start.is_none()
+                && let Some(delta) = runtime.grounded_movement_delta {
+                delta / substeps.0 as f32 + Vec3::Y * body.linear_velocity.y * frame_step
+            } else { body.linear_velocity * frame_step }
         } else if !custom_position && extra_step > 0.0 && *rigid_body == RigidBody::Dynamic
             && *locomotion == LocomotionState::Grounded
             && action != Some(&AlsNotifyLocomotionAction::Ragdolling)

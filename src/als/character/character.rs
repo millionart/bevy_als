@@ -161,6 +161,7 @@ pub struct AlsCmcAdapterRuntime {
     pub simulation_substeps: u32,
     pub min_analog_speed_applied: bool,
     pub grounded_move_start: Option<Vec3>,
+    pub grounded_movement_delta: Option<Vec3>,
     pub airborne_sweep_contact: bool,
 }
 
@@ -172,6 +173,7 @@ impl Default for AlsCmcAdapterRuntime {
             simulation_substeps: 0,
             min_analog_speed_applied: false,
             grounded_move_start: None,
+            grounded_movement_delta: None,
             airborne_sweep_contact: false,
         }
     }
