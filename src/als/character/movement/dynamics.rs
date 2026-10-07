@@ -601,6 +601,31 @@ mod tests {
     use super::*;
 
     #[test]
+    fn actual_landing_stance_waits_for_the_next_source_movement_tick() {
+        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        let mut transform = *app.world().get::<Transform>(character).unwrap();
+        transform.translation.y += 0.5;
+        app.world_mut().entity_mut(character).insert((Position(transform.translation), transform,
+            GlobalTransform::from(transform), LinearVelocity(Vec3::ZERO)));
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.05)));
+        app.update();
+        assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Air));
+        app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(character).unwrap().stance = Some(Stance::Crouching);
+        let mut landed = false;
+        for _ in 0..80 {
+            app.update();
+            assert_eq!(app.world().get::<Stance>(character), Some(&Stance::Standing));
+            assert_eq!(app.world().get::<crate::als::transition::AlsDesiredStance>(character).unwrap().0, Stance::Crouching);
+            if app.world().get::<LocomotionState>(character) == Some(&LocomotionState::Grounded) { landed = true; break; }
+        }
+        assert!(landed);
+        let capsule_height = app.world().get::<crate::als::motion::AlsCrouchTransaction>(character).unwrap().collider_half_height;
+        app.update();
+        assert_eq!(app.world().get::<Stance>(character), Some(&Stance::Crouching));
+        assert!(app.world().get::<crate::als::motion::AlsCrouchTransaction>(character).unwrap().collider_half_height < capsule_height);
+    }
+
+    #[test]
     fn actual_get_up_ordinary_landing_blocks_old_velocity_rotation() {
         let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
         app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().rotation_mode_pressed = true;
