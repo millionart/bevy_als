@@ -468,6 +468,27 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn loaded_unlocked_custom_mode_accepts_public_air_requests() {
+        for rolling in [false, true] {
+            let (mut app, character, _) = loaded_roll_character();
+            if rolling { play_loaded_roll(&mut app, character); }
+            app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(character).unwrap().locomotion_state = Some(LocomotionState::Custom);
+            app.update();
+            assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Custom);
+            let mut transform = *app.world().get::<Transform>(character).unwrap();
+            transform.translation.y += 5.0;
+            app.world_mut().entity_mut(character).insert((avian3d::prelude::Position(transform.translation),
+                transform, GlobalTransform::from(transform)));
+            app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(character).unwrap().locomotion_state = Some(LocomotionState::Air);
+            app.update();
+            assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Air,
+                "Source Custom alone does not lock SetMovementMode: rolling={rolling}");
+            assert!(app.world().get::<LinearVelocity>(character).unwrap().0.y < 0.0,
+                "Accepted source Falling must resume actual gravity: rolling={rolling}");
+        }
+    }
+
+    #[test]
     fn loaded_custom_roll_root_uses_the_full_source_frame_displacement() {
         use std::sync::{Arc, Mutex};
         for custom_position in [false, true] {

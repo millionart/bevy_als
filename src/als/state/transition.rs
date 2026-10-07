@@ -333,6 +333,7 @@ pub fn state_transition_system(
         &mut RotationMode,
         &mut OverlayState,
         Option<&mut AlsNotifyLocomotionAction>,
+        Option<&crate::als::mantle::AlsMantleState>,
     )>,
 ) {
     for (
@@ -345,9 +346,11 @@ pub fn state_transition_system(
         mut rotation,
         mut overlay,
         mut action,
+        mantle,
     ) in &mut actors
     {
-        let mode_locked = *loco == LocomotionState::Custom
+        let mode_locked = (*loco == LocomotionState::Custom
+            && mantle.is_some_and(|state| state.active || state.root_motion_ready))
             || (*loco == LocomotionState::None
                 && action.as_deref() == Some(&AlsNotifyLocomotionAction::Ragdolling));
         if mode_locked {
@@ -628,8 +631,11 @@ mod tests {
                         ragdoll_start: true,
                         ..default()
                     },
-                ))
+            ))
                 .id();
+            if mode == LocomotionState::Custom {
+                app.world_mut().entity_mut(actor).insert(crate::als::mantle::AlsMantleState { active: true, root_motion_ready: true, ..default() });
+            }
             app.update();
             assert_eq!(app.world().get::<LocomotionState>(actor), Some(&expected));
             assert_eq!(
@@ -678,7 +684,7 @@ mod tests {
     }
 
     #[test]
-    fn custom_mode_locks_ordinary_requests_and_keeps_desired_stance() {
+    fn active_mantle_locks_ordinary_requests_and_keeps_desired_stance() {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, AlsStateTransitionPlugin));
         let actor = app
@@ -691,6 +697,7 @@ mod tests {
                 RotationMode::ViewDirection,
                 OverlayState::Default,
                 AlsStateRequest::default(),
+                crate::als::mantle::AlsMantleState { active: true, root_motion_ready: true, ..default() },
             ))
             .id();
         for requested in [LocomotionState::Grounded, LocomotionState::Air] {

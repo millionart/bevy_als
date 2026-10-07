@@ -1928,6 +1928,13 @@ mod tests {
             });
             app.world_mut().flush();
             app.world_mut().entity_mut(entity).insert(crate::character_assembly::AlsCharacterAssembly { avatar, camera: None });
+            app.world_mut().entity_mut(entity).insert((
+                crate::als::transition::AlsStateRequest::default(),
+                crate::als::state::Stance::Standing,
+                crate::als::state::Gait::Walking,
+                crate::als::state::RotationMode::ViewDirection,
+                crate::als::state::OverlayState::Default,
+            ));
             let delta = 1.0 / 60.0;
             for _ in 0..=(duration / delta).ceil() as usize {
                 app.world_mut()
@@ -1940,6 +1947,16 @@ mod tests {
                     app.world().get::<crate::als::state::LocomotionState>(entity),
                     Some(&crate::als::state::LocomotionState::Custom)
                 );
+                let owner = app.world().get::<AlsMantleState>(entity).unwrap();
+                if owner.active || owner.root_motion_ready {
+                    for requested in [LocomotionState::Grounded, LocomotionState::Air] {
+                        app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(entity).unwrap().locomotion_state = Some(requested);
+                        app.world_mut().run_schedule(Update);
+                        assert_eq!(*app.world().get::<LocomotionState>(entity).unwrap(), LocomotionState::Custom,
+                            "Source active Mantle owns the mode lock: kind={kind:?} requested={requested:?}");
+                        assert!(app.world().get::<crate::als::transition::AlsStateRequest>(entity).unwrap().locomotion_state.is_none());
+                    }
+                }
                 app.world_mut()
                     .run_system_once(mantle_drive_system)
                     .unwrap();
