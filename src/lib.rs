@@ -88,7 +88,7 @@ pub mod roll_drive;
 pub mod root_motion_link;
 #[path = "als/utility/show_debug_hud/mod.rs"]
 pub mod show_debug_hud;
-#[path = "tnua_ext/source_physics_timing.rs"]
+#[path = "als/character/movement/source_physics_timing.rs"]
 pub mod source_physics_timing;
 #[path = "als/character/animation_instances/stance_layer.rs"]
 pub mod stance_layer;

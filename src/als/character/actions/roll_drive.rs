@@ -468,6 +468,85 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn loaded_custom_roll_root_uses_the_full_source_frame_displacement() {
+        use std::sync::{Arc, Mutex};
+        for custom_position in [false, true] {
+        for blocked in [false, true] {
+        for delta in [1.0_f32 / 60.0, 0.1] {
+            let (mut app, character, _) = loaded_roll_character();
+            play_loaded_roll(&mut app, character);
+            app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(character).unwrap().locomotion_state = Some(LocomotionState::Custom);
+            app.update();
+            let position = app.world().get::<avian3d::prelude::Position>(character).unwrap().0 + Vec3::Y * 5.0;
+            let mut transform = *app.world().get::<Transform>(character).unwrap();
+            transform.translation = position;
+            app.world_mut().entity_mut(character).insert((avian3d::prelude::Position(position), transform, GlobalTransform::from(transform)));
+            if custom_position {
+                app.world_mut().entity_mut(character).insert(avian3d::prelude::CustomPositionIntegration);
+            }
+            if blocked {
+                let wall = position + transform.forward().as_vec3() * 0.36;
+                app.world_mut().spawn((avian3d::prelude::RigidBody::Static,
+                    avian3d::prelude::Collider::cuboid(4.0, 4.0, 0.1),
+                    Transform::from_translation(wall).with_rotation(transform.rotation),
+                    avian3d::prelude::CollisionLayers::new(crate::als::character::AlsCollisionLayer::Default,
+                        avian3d::prelude::LayerMask::ALL)));
+            }
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
+            let sample = Arc::new(Mutex::new((None, None)));
+            let capture_start = sample.clone();
+            app.add_systems(PostUpdate, (move |actors: Query<&avian3d::prelude::Position>| {
+                capture_start.lock().unwrap().0 = Some(actors.get(character).unwrap().0);
+            }).before(AlsRollDriveSet).before(crate::source_physics_timing::SourcePhysicsTimingSet::Clamp));
+            let capture = sample.clone();
+            app.add_systems(PostUpdate, (move |actors: Query<(&avian3d::prelude::Position, &LinearVelocity)>, time: Res<Time>| {
+                let (_, velocity) = actors.get(character).unwrap();
+                capture.lock().unwrap().1 = Some(velocity.0 * time.delta_secs());
+            }).after(AlsRollDriveSet).before(crate::source_physics_timing::SourcePhysicsTimingSet::Clamp));
+            app.update();
+            let sample = sample.lock().unwrap();
+            let (before, expected) = (sample.0.unwrap(), sample.1.unwrap());
+            assert!(expected.length() > 1e-4, "Actual loaded Roll must publish a nonzero root velocity");
+            let actual = app.world().get::<avian3d::prelude::Position>(character).unwrap().0 - before;
+            assert!(actual.abs_diff_eq(expected, 1e-4),
+                "Source PhysCustom moves unswept by full root velocity times frame Delta: blocked={blocked} delta={delta} expected={expected:?} actual={actual:?}");
+            let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
+            assert!(velocity.abs_diff_eq(expected / delta, 1e-4),
+                "Source PhysCustom preserves animation root velocity: blocked={blocked} delta={delta} expected={:?} actual={velocity:?}", expected / delta);
+            assert_eq!(*app.world().get::<avian3d::prelude::RigidBody>(character).unwrap(), avian3d::prelude::RigidBody::Dynamic);
+            assert!(app.world().get::<AlsCustomRollPhysicsFrame>(character).is_none());
+            assert_eq!(app.world().get::<avian3d::prelude::CustomPositionIntegration>(character).is_some(), custom_position);
+            assert!(app.world().get::<avian3d::prelude::CustomVelocityIntegration>(character).is_none());
+            drop(sample);
+            if !blocked {
+                let before = *app.world().get::<Transform>(character).unwrap();
+                let roll_time = app.world().get::<AlsRollState>(character).unwrap().time;
+                app.world_mut().resource_mut::<Time<Virtual>>().pause();
+                for _ in 0..4 {
+                    app.update();
+                    assert_eq!(*app.world().get::<Transform>(character).unwrap(), before);
+                    assert_eq!(app.world().get::<AlsRollState>(character).unwrap().time, roll_time);
+                    assert!(app.world().get::<AlsCustomRollPhysicsFrame>(character).is_none());
+                }
+                app.world_mut().resource_mut::<Time<Virtual>>().unpause();
+                app.update();
+                assert!(app.world().get::<AlsRollState>(character).unwrap().time > roll_time);
+                assert_eq!(*app.world().get::<avian3d::prelude::RigidBody>(character).unwrap(), avian3d::prelude::RigidBody::Dynamic);
+                assert_eq!(app.world().get::<avian3d::prelude::CustomPositionIntegration>(character).is_some(), custom_position);
+                app.world_mut().entity_mut(character).remove::<avian3d::prelude::CustomPositionIntegration>();
+                *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = LocomotionState::Air;
+                app.update();
+                assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Air);
+                assert!(app.world().get::<LinearVelocity>(character).unwrap().0.y < 0.0);
+                assert!(app.world().get::<AlsCustomRollPhysicsFrame>(character).is_none());
+                assert!(app.world().get::<avian3d::prelude::CustomPositionIntegration>(character).is_none());
+            }
+        }
+        }
+        }
+    }
+
+    #[test]
     fn root_motion_scale_lifecycle_drives_actual_roll_velocity_and_displacement() {
         let (mut app, character, avatar) = loaded_roll_character();
         let sampler = play_loaded_roll(&mut app, character);
@@ -960,6 +1039,12 @@ pub struct AlsRollDrivePlugin;
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AlsRollDriveSet;
 
+#[derive(Component)]
+struct AlsCustomRollPhysicsFrame {
+    rigid_body: avian3d::prelude::RigidBody,
+    custom_position: bool,
+}
+
 impl Plugin for AlsRollDrivePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, load_roll_slot_curve_asset)
@@ -983,7 +1068,10 @@ impl Plugin for AlsRollDrivePlugin {
                         .after(AnimationGraphSet::PrePhysics)
                         .in_set(AlsRollDriveSet),
                 ),
-            );
+            )
+            .add_systems(PostUpdate, release_custom_roll_physics
+                .after(avian3d::prelude::PhysicsSystems::Last)
+                .before(crate::als::motion::AlsActualVelocitySet));
     }
 }
 
@@ -1282,6 +1370,9 @@ fn advance_rolls(
 
 fn roll_drive_system(
     time: Res<Time>,
+    mut commands: Commands,
+    modes: Query<(&LocomotionState, &avian3d::prelude::RigidBody,
+        Has<avian3d::prelude::CustomPositionIntegration>)>,
     blend_outs: Query<(), With<AlsRollBlendOut>>,
     mut space: ParamSet<(bevy::transform::helper::TransformHelper,
         Query<(Entity, &AlsRollState, Option<&AlsNotifyLocomotionAction>, &mut Transform, Option<&mut Rotation>,
@@ -1328,10 +1419,29 @@ fn roll_drive_system(
         let weight = roll_weight_at(roll.time);
         let clip_time = (roll.time * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS);
         vel.0 = world_translation / dt;
+        if let Ok((mode, body, custom_position)) = modes.get(character)
+            && *mode == LocomotionState::Custom {
+            transform.translation += world_translation;
+            commands.entity(character).insert((avian3d::prelude::Position(transform.translation),
+                avian3d::prelude::RigidBody::Kinematic,
+                avian3d::prelude::CustomPositionIntegration,
+                AlsCustomRollPhysicsFrame { rigid_body: *body, custom_position }));
+        }
 
         if let Some((sampler, _)) = sample && let Ok(mut player) = players.get_mut(sampler.target_player) {
             player.set_input_data("roll_clip_time", DataValue::from(clip_time));
             player.set_input_data("roll_weight", DataValue::from(weight));
         }
+    }
+}
+
+fn release_custom_roll_physics(
+    mut commands: Commands,
+    characters: Query<(Entity, &AlsCustomRollPhysicsFrame)>,
+) {
+    for (entity, frame) in &characters {
+        let mut character = commands.entity(entity);
+        character.insert(frame.rigid_body).remove::<AlsCustomRollPhysicsFrame>();
+        if !frame.custom_position { character.remove::<avian3d::prelude::CustomPositionIntegration>(); }
     }
 }
