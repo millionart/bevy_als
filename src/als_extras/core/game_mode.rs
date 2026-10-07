@@ -446,6 +446,48 @@ mod tests {
     }
 
     #[test]
+    fn actual_existing_pawn_restart_preserves_desired_crouch_and_allows_new_jump() {
+        for crouched in [false, true] {
+            let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+            AlsGameModePlugin.build(&mut app);
+            let desired = if crouched { crate::als::state::Stance::Crouching } else { crate::als::state::Stance::Standing };
+            app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(character).unwrap().stance = Some(desired);
+            for _ in 0..3 { app.update(); }
+            assert_eq!(app.world().get::<crate::als::state::Stance>(character), Some(&desired));
+            app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().jump_pressed = true;
+            let selection = crate::als::player_start::AlsPlayerStartSelection {
+                entity: Entity::PLACEHOLDER, tag: None, fit: crate::als::player_start::AlsPlayerSpawnFit {
+                    transform: *app.world().get::<Transform>(character).unwrap(), ground_y: 0.0,
+                    adjustment: 0.0, teleport_adjustment: Vec3::ZERO,
+                    occupancy: AlsPlayerStartOccupancy::Unoccupied,
+                }, used_occupied_fallback: false,
+            };
+            let request = app.world_mut().spawn((AlsPlayerAdmission::new(), AlsPlayerAdmissionPending,
+                AlsPlayerAdmissionComplete { character, selection })).id();
+            app.update();
+            assert!(app.world().get::<AlsPlayerAdmissionPending>(request).is_none());
+            assert_eq!(app.world().get::<crate::als::state::Stance>(character), Some(&desired));
+            assert_eq!(app.world().get::<crate::als::transition::AlsDesiredStance>(character).unwrap().0, desired);
+            assert_eq!(app.world().get::<crate::als::state::LocomotionState>(character), Some(&crate::als::state::LocomotionState::Grounded));
+            assert!(app.world().get::<avian3d::prelude::LinearVelocity>(character).unwrap().y.abs() < 0.02);
+            app.update();
+            app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().jump_pressed = true;
+            app.update();
+            if crouched {
+                assert_eq!(app.world().get::<crate::als::state::Stance>(character), Some(&crate::als::state::Stance::Standing));
+                assert_eq!(app.world().get::<crate::als::state::LocomotionState>(character), Some(&crate::als::state::LocomotionState::Grounded));
+                app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().jump_pressed = false;
+                app.update();
+                app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().jump_pressed = true;
+                app.update();
+            }
+            assert_eq!(app.world().get::<crate::als::state::LocomotionState>(character), Some(&crate::als::state::LocomotionState::Air));
+            assert!(app.world().get::<avian3d::prelude::LinearVelocity>(character).unwrap().y > 3.0,
+                "Source fresh Jump after Restart must remain usable: crouched={crouched}");
+        }
+    }
+
+    #[test]
     fn actual_existing_pawn_restart_consumes_pending_move_before_new_device_input() {
         use bevy::input::gamepad::{RawGamepadAxisChangedEvent, RawGamepadEvent};
         for gamepad_input in [false, true] {
