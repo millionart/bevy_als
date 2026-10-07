@@ -451,6 +451,23 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn loaded_roll_root_motion_keeps_moving_in_source_custom_mode() {
+        let (mut app, character, _) = loaded_roll_character();
+        let sampler = play_loaded_roll(&mut app, character);
+        app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(character).unwrap().locomotion_state = Some(LocomotionState::Custom);
+        app.update();
+        assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Custom);
+        let start = app.world().get::<avian3d::prelude::Position>(character).unwrap().0;
+        for _ in 0..3 { app.update(); }
+        assert!(app.world().get::<AlsRollState>(character).unwrap().root_motion_active());
+        assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(character), Some(&AlsNotifyLocomotionAction::Rolling));
+        assert!(app.world().get::<RootMotionOutput>(sampler).unwrap().translation_delta.length() > 1e-5);
+        let actual = app.world().get::<avian3d::prelude::Position>(character).unwrap().0 - start;
+        assert!(Vec2::new(actual.x, actual.z).length() > 0.05,
+            "Source PhysCustom keeps active animation root motion: displacement={actual:?}");
+    }
+
+    #[test]
     fn root_motion_scale_lifecycle_drives_actual_roll_velocity_and_displacement() {
         let (mut app, character, avatar) = loaded_roll_character();
         let sampler = play_loaded_roll(&mut app, character);
