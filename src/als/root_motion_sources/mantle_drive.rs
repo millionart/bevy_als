@@ -666,7 +666,7 @@ fn mantle_drive_system(
     {
         if (!m.active && !m.root_motion_ready)
             || *locomotion != LocomotionState::Custom
-            || dt <= 1e-8
+            || dt <= 0.0
         {
             continue;
         }
@@ -686,6 +686,11 @@ fn mantle_drive_system(
             AlsCollisionLayerOwner::Mantle,
             true,
         );
+        if dt <= 1e-8 {
+            vel.0 = Vec3::ZERO;
+            m.time += dt;
+            continue;
+        }
         let target_base = mantle_target_base(&m, &target_transforms);
         if !m.active || (m.target_base.is_some() && target_base.is_none()) {
             *vel = LinearVelocity(Vec3::ZERO);
