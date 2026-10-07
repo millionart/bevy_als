@@ -489,6 +489,47 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn loaded_custom_roll_consumes_root_at_the_source_minimum_delta() {
+        use std::sync::{Arc, Mutex};
+        for delta in [1.0e-6_f32, 5.0e-6, 1.0e-5, 2.0e-5] {
+            let (mut app, character, _) = loaded_roll_character();
+            let sampler = play_loaded_roll(&mut app, character);
+            app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(character).unwrap().locomotion_state = Some(LocomotionState::Custom);
+            app.update();
+            let mut transform = *app.world().get::<Transform>(character).unwrap();
+            transform.translation.y += 5.0;
+            app.world_mut().entity_mut(character).insert((avian3d::prelude::Position(transform.translation),
+                transform, GlobalTransform::from(transform)));
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
+            let source_delta = Arc::new(Mutex::new(Vec3::ZERO));
+            let capture = source_delta.clone();
+            app.add_systems(PostUpdate, (move |samplers: Query<(&AlsRollSlotSampler, &RootMotionOutput)>,
+                actors: Query<&AlsNotifyRootMotionScale>, transforms: bevy::transform::helper::TransformHelper| {
+                let (sampler, root) = samplers.get(sampler).unwrap();
+                let mesh = transforms.compute_global_transform(sampler.target_player).unwrap();
+                let actor = transforms.compute_global_transform(character).unwrap();
+                *capture.lock().unwrap() = root_motion_world_transform(actor, mesh,
+                    root.translation_delta * actors.get(character).unwrap().0, root.rotation_delta).0;
+            }).after(AnimationGraphSet::PrePhysics).before(AlsRollDriveSet));
+            let before = transform.translation;
+            app.update();
+            let root = app.world().get::<RootMotionOutput>(sampler).unwrap().translation_delta;
+            let expected = *source_delta.lock().unwrap();
+            assert!(expected.length() > 1e-7, "Actual source animation must advance at its minimum Delta: delta={delta} root={root:?}");
+            let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
+            assert!(velocity.length() > 1e-3,
+                "Source PhysCustom consumes active animation root at Delta >= 1us: delta={delta} root={root:?} velocity={velocity:?}");
+            assert!(velocity.abs_diff_eq(expected / delta, 1e-3),
+                "Source minimum Delta keeps the full root velocity: delta={delta} expected={:?} actual={velocity:?}", expected / delta);
+            let actual = app.world().get::<avian3d::prelude::Position>(character).unwrap().0 - before;
+            assert!(actual.length() > 1e-7,
+                "Source PhysCustom must move from the actual tiny root delta: delta={delta} root={root:?} moved={actual:?}");
+            assert!(actual.abs_diff_eq(expected, 1e-7),
+                "Source minimum Delta keeps the complete root displacement: delta={delta} expected={expected:?} actual={actual:?}");
+        }
+    }
+
+    #[test]
     fn loaded_custom_roll_keeps_crossing_frame_root_then_stops_in_the_tail() {
         use std::sync::{Arc, Mutex};
         for delta in [1.0_f32 / 60.0, 0.1] {
@@ -1457,7 +1498,9 @@ fn roll_drive_system(
         } else { actor_world };
         let mut query = space.p1();
         let (_, roll, action, mut transform, rotation, mut vel, notify_root_scale) = query.get_mut(character).unwrap();
-        if !roll.active || action == Some(&AlsNotifyLocomotionAction::Ragdolling) || dt <= 1e-5 || blend_outs.contains(character)
+        let custom = modes.get(character).is_ok_and(|(mode, ..)| *mode == LocomotionState::Custom);
+        let delta_too_small = if custom { dt < crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS } else { dt <= 1e-5 };
+        if !roll.active || action == Some(&AlsNotifyLocomotionAction::Ragdolling) || delta_too_small || blend_outs.contains(character)
             || roll.time - dt >= crate::als::roll::ROLL_DURATION_SECS - crate::als::roll::ROLL_WEIGHT_OUT_SECS {
             continue;
         }

@@ -23,7 +23,7 @@ pub mod foot_ik;
 #[path = "state/gait.rs"]
 pub mod gait;
 #[path = "settings/movement_constants.rs"]
-mod movement_constants;
+pub(crate) mod movement_constants;
 #[path = "character/animation_instances/graph_router.rs"]
 pub mod graph_router;
 #[path = "state/head.rs"]
