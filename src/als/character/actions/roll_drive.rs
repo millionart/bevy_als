@@ -198,6 +198,35 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn loaded_roll_pause_preserves_actor_and_slot_then_resumes() {
+        let (mut app, character, _) = loaded_roll_character();
+        let sampler = play_loaded_roll(&mut app, character);
+        let before_transform = *app.world().get::<Transform>(character).unwrap();
+        let before_roll_time = app.world().get::<AlsRollState>(character).unwrap().time;
+        let before_weight = app.world().get::<AlsRollSlotRuntime>(character).unwrap().weight;
+        app.world_mut().resource_mut::<Time<Virtual>>().pause();
+        for _ in 0..4 {
+            app.update();
+            assert_eq!(*app.world().get::<Transform>(character).unwrap(), before_transform,
+                "Source paused Roll must preserve its actual actor transform");
+            let roll = app.world().get::<AlsRollState>(character).unwrap();
+            assert!(roll.active);
+            assert_eq!(roll.time, before_roll_time, "Source paused Roll must retain montage time");
+            let runtime = app.world().get::<AlsRollSlotRuntime>(character).unwrap();
+            assert!(runtime.active && runtime.pose_ready);
+            assert_eq!(runtime.weight, before_weight);
+            let player = app.world().get::<AnimationGraphPlayer>(sampler).unwrap();
+            assert!(player.get_error().is_none() && player.get_default_output_pose().is_some());
+        }
+        app.world_mut().resource_mut::<Time<Virtual>>().unpause();
+        app.update();
+        assert!(app.world().get::<AlsRollState>(character).unwrap().time > before_roll_time,
+            "Source resumed Roll must continue montage time");
+        assert!(app.world().get::<Transform>(character).unwrap().translation.distance(before_transform.translation) > 1e-5,
+            "Source resumed Roll must continue actual root motion");
+    }
+
+    #[test]
     fn root_motion_scale_lifecycle_drives_actual_roll_velocity_and_displacement() {
         let (mut app, character, avatar) = loaded_roll_character();
         let sampler = play_loaded_roll(&mut app, character);
