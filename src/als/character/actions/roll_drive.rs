@@ -491,7 +491,7 @@ pub(crate) mod tests {
     #[test]
     fn loaded_custom_roll_consumes_root_at_the_source_minimum_delta() {
         use std::sync::{Arc, Mutex};
-        for delta in [1.0e-6_f32, 5.0e-6, 1.0e-5, 2.0e-5] {
+        for delta in [0.5e-6_f32, 1.0e-6, 5.0e-6, 1.0e-5, 2.0e-5] {
             let (mut app, character, _) = loaded_roll_character();
             let sampler = play_loaded_roll(&mut app, character);
             app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(character).unwrap().locomotion_state = Some(LocomotionState::Custom);
@@ -522,10 +522,9 @@ pub(crate) mod tests {
             assert!(velocity.abs_diff_eq(expected / delta, 1e-3),
                 "Source minimum Delta keeps the full root velocity: delta={delta} expected={:?} actual={velocity:?}", expected / delta);
             let actual = app.world().get::<avian3d::prelude::Position>(character).unwrap().0 - before;
-            assert!(actual.length() > 1e-7,
-                "Source PhysCustom must move from the actual tiny root delta: delta={delta} root={root:?} moved={actual:?}");
-            assert!(actual.abs_diff_eq(expected, 1e-7),
-                "Source minimum Delta keeps the complete root displacement: delta={delta} expected={expected:?} actual={actual:?}");
+            let movement = if delta < crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS { Vec3::ZERO } else { expected };
+            assert!(actual.abs_diff_eq(movement, 1e-7),
+                "Source StartNewPhysics skips movement below its minimum Delta: delta={delta} expected={movement:?} actual={actual:?}");
         }
     }
 
@@ -1499,7 +1498,7 @@ fn roll_drive_system(
         let mut query = space.p1();
         let (_, roll, action, mut transform, rotation, mut vel, notify_root_scale) = query.get_mut(character).unwrap();
         let custom = modes.get(character).is_ok_and(|(mode, ..)| *mode == LocomotionState::Custom);
-        let delta_too_small = if custom { dt < crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS } else { dt <= 1e-5 };
+        let delta_too_small = if custom { dt <= 0.0 } else { dt <= 1e-5 };
         if !roll.active || action == Some(&AlsNotifyLocomotionAction::Ragdolling) || delta_too_small || blend_outs.contains(character)
             || roll.time - dt >= crate::als::roll::ROLL_DURATION_SECS - crate::als::roll::ROLL_WEIGHT_OUT_SECS {
             continue;
@@ -1530,7 +1529,9 @@ fn roll_drive_system(
         vel.0 = world_translation / dt;
         if let Ok((mode, body, custom_position)) = modes.get(character)
             && *mode == LocomotionState::Custom {
-            transform.translation += world_translation;
+            if dt >= crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS {
+                transform.translation += world_translation;
+            }
             commands.entity(character).insert((avian3d::prelude::Position(transform.translation),
                 avian3d::prelude::RigidBody::Kinematic,
                 avian3d::prelude::CustomPositionIntegration,
