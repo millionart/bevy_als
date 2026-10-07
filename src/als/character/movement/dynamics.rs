@@ -333,19 +333,17 @@ fn landing_braking_friction_system(
         (
             &LocomotionState,
             &AlsActualMotion,
-            Option<&AlsRollState>,
-            Option<&AlsMantleState>,
             &mut AlsLandingBrakingFriction,
         ),
         With<AlsCharacter>,
     >,
 ) {
-    for (locomotion, motion, roll, mantle, mut braking) in &mut q {
+    for (locomotion, motion, mut braking) in &mut q {
         update_landing_braking_friction(
             &mut braking,
             *locomotion,
             motion.has_input,
-            roll.is_some_and(|state| state.active) || mantle.is_some_and(|state| state.active),
+            motion.world_velocity.y <= -crate::als::roll::ROLL_ON_LAND_SPEED_THRESHOLD,
         );
     }
 }
@@ -369,18 +367,13 @@ fn update_landing_braking_friction(
 ) {
     let landed = braking.previous_locomotion == LocomotionState::Air
         && locomotion == LocomotionState::Grounded;
-    if landed {
-        if suppress {
-            braking.factor = BRAKING_FRICTION_FACTOR;
-            braking.remaining_seconds = 0.0;
+    if landed && !suppress {
+        braking.factor = if has_input {
+            LANDING_BRAKING_FRICTION_WITH_INPUT
         } else {
-            braking.factor = if has_input {
-                LANDING_BRAKING_FRICTION_WITH_INPUT
-            } else {
-                LANDING_BRAKING_FRICTION_WITHOUT_INPUT
-            };
-            braking.remaining_seconds = f64::from(LANDING_BRAKING_FRICTION_DURATION);
-        }
+            LANDING_BRAKING_FRICTION_WITHOUT_INPUT
+        };
+        braking.remaining_seconds = f64::from(LANDING_BRAKING_FRICTION_DURATION);
     }
     braking.previous_locomotion = locomotion;
 }
@@ -601,6 +594,82 @@ impl Plugin for AlsGroundedDynamicsPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn landing_automatic_action_condition_preserves_the_existing_timer() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut world = World::new();
+        for saved_vertical_speed in [-6.999_f32, -7.0, -7.001] {
+            let original = AlsLandingBrakingFriction {
+                factor: 0.5, remaining_seconds: 0.25,
+                previous_locomotion: LocomotionState::Air,
+            };
+            let character = world.spawn((AlsCharacter, LocomotionState::Grounded,
+                AlsActualMotion { has_input: false, world_velocity: Vec3::Y * saved_vertical_speed, ..default() },
+                original)).id();
+            world.run_system_once(landing_braking_friction_system).unwrap();
+            let actual = world.get::<AlsLandingBrakingFriction>(character).unwrap();
+            if saved_vertical_speed <= -7.0 {
+                assert_eq!(actual.factor, original.factor);
+                assert_eq!(actual.remaining_seconds, original.remaining_seconds);
+            } else {
+                assert_eq!(actual.factor, 3.0);
+                assert_eq!(actual.remaining_seconds, 0.5);
+            }
+            assert_eq!(actual.previous_locomotion, LocomotionState::Grounded);
+            world.despawn(character);
+        }
+    }
+
+    #[test]
+    fn actual_rejected_landing_roll_skips_the_ordinary_friction_branch() {
+        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        for _ in 0..60 { app.update(); }
+        assert_eq!(app.world().get::<AlsLandingBrakingFriction>(character).unwrap().factor, 0.0,
+            "Previous ordinary landing timer must expire before testing the rejected Roll callback");
+        app.world_mut().entity_mut(character).insert(crate::get_up::AlsGetUpRequest(false));
+        for _ in 0..4 { app.update(); }
+        assert!(app.world().get::<crate::get_up::AlsGetUpState>(character).unwrap().pose_ready);
+        let mut transform = *app.world().get::<Transform>(character).unwrap();
+        transform.translation.y += 0.5;
+        app.world_mut().entity_mut(character).insert((Position(transform.translation), transform,
+            GlobalTransform::from(transform), LinearVelocity(Vec3::new(6.5, -8.0, 0.0))));
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.05)));
+        let mut airborne = false;
+        let mut landed = false;
+        let mut saved = Vec3::ZERO;
+        for _ in 0..40 {
+            let previous = app.world().get::<AlsActualMotion>(character).unwrap().world_velocity;
+            app.update();
+            let mode = *app.world().get::<LocomotionState>(character).unwrap();
+            airborne |= mode == LocomotionState::Air;
+            if airborne && mode == LocomotionState::Grounded {
+                saved = previous;
+                landed = true;
+                break;
+            }
+        }
+        assert!(landed && saved.y <= -7.0 && saved.y > -10.0,
+            "Actual GetUp landing must reach the source rejected medium Roll branch: {saved:?}");
+        assert_eq!(app.world().get::<crate::als::state::AlsNotifyLocomotionAction>(character),
+            Some(&crate::als::state::AlsNotifyLocomotionAction::GettingUp));
+        assert!(!app.world().get::<crate::als::roll::AlsRollState>(character).unwrap().active);
+        let factor = app.world().get::<AlsLandingBrakingFriction>(character).unwrap().factor;
+        let before = app.world().get::<LinearVelocity>(character).unwrap().0.with_y(0.0);
+        let handle = app.world().get::<AlsMovementParamsHandle>(character).unwrap();
+        let params = app.world().resource::<Assets<AlsMovementParams>>().get(handle.id()).unwrap();
+        let stance = *app.world().get::<Stance>(character).unwrap();
+        let rotation = *app.world().get::<RotationMode>(character).unwrap();
+        let thresholds = params.gait_speed_thresholds(stance, rotation, before, app.world().get::<AlsViewYaw>(character).unwrap().0);
+        let dynamics = params.grounded_dynamics(stance, rotation, calculate_gait_amount_for_thresholds(before.length(), thresholds));
+        let source = simulate_grounded_velocity_with_braking_friction(before, Vec3::ZERO, 3.75,
+            dynamics, &params.cmc, 0.0, app.world().resource::<Time>().delta_secs()).0;
+        assert!(source.length() > 0.1, "Source baseline must retain measurable momentum at the friction consumer: before={before:?}, source={source:?}");
+        app.update();
+        let actual = app.world().get::<LinearVelocity>(character).unwrap().0.with_y(0.0);
+        assert!(actual.abs_diff_eq(source, 1e-4),
+            "Source rejected landing Roll cannot enter ordinary friction: factor={factor}, source={source:?}, actual={actual:?}");
+    }
 
     #[test]
     fn actual_landing_callback_retains_source_input_and_publishes_friction() {
