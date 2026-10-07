@@ -2717,6 +2717,7 @@ type DriveQueryItem<'a> = (
 
 #[allow(clippy::type_complexity)]
 fn locomotion_drive_system(
+    time: Res<Time<Virtual>>,
     mut commands: Commands,
     spatial: SpatialQuery,
     velocities: Query<(&RigidBody, &LinearVelocity, Option<&crate::als::dynamics::AlsComponentVelocity>), Without<AlsCharacter>>,
@@ -2802,7 +2803,7 @@ fn locomotion_drive_system(
         );
         let mantle_ready = mantle.as_deref().is_some_and(|m| !m.active)
             && mantle_start_allowed(mantle_control, action_active);
-        let auto_mantle = mantle.as_deref().is_some_and(|m| !m.active)
+        let auto_mantle = !time.is_paused() && mantle.as_deref().is_some_and(|m| !m.active)
             && auto_mantle_start_allowed(mantle_control, action_active, *loco);
         let should_probe_mantle = mantle_ready && (jump_edge || auto_mantle);
         let detection = if should_probe_mantle {
@@ -5273,6 +5274,47 @@ mod tests {
             let actual = app.world().get::<LinearVelocity>(character).unwrap().y;
             assert!((actual + 9.81 / 60.0).abs() < 0.02,
                 "Source non-Falling mode resets active Jump force; later Falling cannot resume physical hold without a new Jump: mode={mode:?}, action={action:?}, actual={actual}");
+        }
+    }
+
+    #[test]
+    fn paused_source_owner_does_not_auto_start_a_valid_air_mantle() {
+        for (allow_mantling, auto_start_in_air, action_active) in [
+            (true, true, false), (false, true, false), (true, false, false), (true, true, true),
+        ] {
+            let (mut app, character, _) = stair_motion_fixture(0.18, false, false, 0.0);
+            app.world_mut().spawn((RigidBody::Static,
+                Collider::cuboid(2.4, 0.8, 1.2), Transform::from_xyz(0.0, 0.4, 4.6),
+                crate::als::mantle::AlsMantleTargetPermission::default(),
+                CollisionLayers::new([crate::als::character::AlsCollisionLayer::Default,
+                    crate::als::character::AlsCollisionLayer::Visibility], avian3d::prelude::LayerMask::ALL)));
+            app.world_mut().entity_mut(character).insert((AlsMantleState::default(),
+                Position(Vec3::new(0.0, 0.924, 6.0)), Transform::from_xyz(0.0, 0.924, 6.0)));
+            for _ in 0..10 { app.update(); }
+            assert!(!app.world().get::<AlsMantleState>(character).unwrap().active);
+            app.world_mut().entity_mut(character).insert(AlsMantleControlSettings {
+                allow_mantling: false, ..default()
+            });
+            app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().jump_pressed = true;
+            app.update();
+            assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Air,
+                "Actual native Jump must reach the source valid air mode before pause");
+            app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().jump_pressed = false;
+            app.world_mut().entity_mut(character).insert(AlsMantleControlSettings {
+                allow_mantling, auto_start_in_air, ..default()
+            });
+            if action_active {
+                app.world_mut().entity_mut(character).insert(crate::als::state::AlsNotifyLocomotionAction::Rolling);
+            }
+            app.world_mut().resource_mut::<Time<Virtual>>().pause();
+            app.update();
+            assert!(!app.world().get::<AlsMantleState>(character).unwrap().active,
+                "Source paused Character must not run AutoStartMantling even when its air trace is valid");
+            app.world_mut().resource_mut::<Time<Virtual>>().unpause();
+            app.update();
+            assert_eq!(app.world().get::<AlsMantleState>(character).unwrap().active,
+                allow_mantling && auto_start_in_air && !action_active,
+                "Source resumed Character must auto start the same valid air mantle");
         }
     }
 

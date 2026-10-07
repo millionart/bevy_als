@@ -319,3 +319,10 @@ fresh角色37.548秒、当次CMC ComputeAnalogInputModifier与公开CurveVector�
 - Actual：真实keyboard/raw-pad→Sprint Action→request→生产RefreshGait，在短按后pause把MaxAllowedRunning立即改成Sprinting，源保持Running；red89.205秒。旧输入和motion Gate分别验证saved intent及motion snapshot，没有覆盖后续gait owner生命周期。
 - 最小修复只在refresh_gait_system读取既有Time<Virtual>.is_paused并return，恢复后消费保存desired；无新state/cache/system/算法。green110.109秒，删唯一guard84.386秒同语义red；精确字节/自然mtime恢复、同target重编113.158秒green，最终gait11/input26共37项通过，source/static5.822秒闭合。
 - 正常target_game/play生产161.297秒，公共startup15.815/Sprint8/8（17.669）功能通过，graph/primary/fault/temporal零；独立提交，P2累计三十三。截图0/FunctionalOnly，完整max_eval_p95_ms失败保留；原始资产/图/转换器未改，15/39/374全量diff0仍有效。其他Tick owner、全动画和其他模块及总目标仍开放。证据target/bf134/01i3d1。
+
+### BF134.01I3d3 — P2：暂停中自动启动空中攀爬
+
+- Source：fresh ALS Tick→AutoStartMantling仅在owner活动Tick消费allow/inAir/local/合法trace/action-none；Actor bTickEvenWhenPaused=false。手动Input_OnJump有独立事件入口，不能用全drive暂停早退抑制合法输入保存与动作链。
+- Actual：真实spatial/角色/Tnua fixture在有效Air与台阶几何pause首帧将MantleState.active从false改true，red87.694秒，源应false；旧Jump priority和手动攀爬Gate未覆盖无输入auto owner生命周期。
+- 最小修复给auto_mantle条件读取既有Time<Virtual>.is_paused，未改变其他drive分支/算法/资产。green83.267秒；用实际native Jump达到Air替代手填mode，allow/auto/action四组合82.510秒green；删唯一pause条件82.491秒同语义red，精确字节/自然mtime恢复同target85.554秒green，motion53/input26/rotation33共112通过，source/static2.395秒闭合。
+- 正常target_game/play生产158.822，公共startup15.854/Base51/51（126.004）功能通过，actual mantle_start/complete/debug_geometry与原动作/pose完整，graph/primary/fault/temporal零；独立提交，P2累计三十四。截图0/FunctionalOnly，完整max_eval_p95_ms失败保留；原始资产/图/转换器未改，15/39/374全量diff0有效。剩余动作owner、全动画和其他模块及总目标仍开放。证据target/bf134/01i3d3。
