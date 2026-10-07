@@ -553,10 +553,13 @@ mod tests {
                     occupancy: AlsPlayerStartOccupancy::Unoccupied,
                 }, used_occupied_fallback: false,
             };
+            let action_count = app.world_mut().query_filtered::<Entity, With<bevy_enhanced_input::prelude::Action<crate::als::input::MoveAction>>>().iter(app.world()).count();
             let request = app.world_mut().spawn((AlsPlayerAdmission::new(), AlsPlayerAdmissionPending,
                 AlsPlayerAdmissionComplete { character, selection })).id();
             app.update();
             assert!(app.world().get::<AlsPlayerAdmissionPending>(request).is_none());
+            assert_eq!(app.world_mut().query_filtered::<Entity, With<bevy_enhanced_input::prelude::Action<crate::als::input::MoveAction>>>().iter(app.world()).count(), action_count,
+                "Source existing input component is reused without adding actions");
             let actual = app.world().get::<avian3d::prelude::LinearVelocity>(character).unwrap().0.with_y(0.0);
             assert!(actual.length() < 1e-4,
                 "Source Restart consumes pending movement before the current motor tick: gamepad={gamepad_input}, actual={actual:?}");
@@ -715,6 +718,17 @@ mod tests {
         assert!(app.world().get::<AlsPlayerAdmissionPending>(request).is_none());
         assert_eq!(app.world().get::<AlsPlayerAdmissionComplete>(request).unwrap().character, character);
         assert_eq!(app.world().get::<avian3d::prelude::LinearVelocity>(character).unwrap().0, Vec3::ZERO);
+        app.world_mut().despawn(character);
+        app.world_mut().spawn((AlsPlayerStart::default(), AlsPlayerStartReady {
+            transform: retained, ground_y: 0.0, adjustment: 0.0, teleport_adjustment: Vec3::ZERO,
+            occupancy: AlsPlayerStartOccupancy::Unoccupied,
+        }));
+        app.world_mut().entity_mut(request).insert(AlsPlayerAdmissionPending);
+        app.update();
+        let replacement = app.world().get::<AlsPlayerAdmissionComplete>(request).unwrap().character;
+        assert_ne!(replacement, character, "Source missing existing Pawn must use the original new Pawn branch");
+        assert!(app.world().get::<crate::als::character::AlsCharacter>(replacement).is_some());
+        assert!(app.world().get::<AlsPlayerAdmissionPending>(request).is_none());
     }
 
     #[test]
