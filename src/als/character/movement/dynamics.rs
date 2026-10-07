@@ -601,6 +601,39 @@ mod tests {
     use super::*;
 
     #[test]
+    fn actual_stance_noop_and_settings_replacement_follow_source_consumers() {
+        use bevy::ecs::system::RunSystemOnce;
+        for stance in [Stance::Standing, Stance::Crouching] {
+            let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+            app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(character).unwrap().stance = Some(stance);
+            for _ in 0..3 { app.update(); }
+            assert_eq!(app.world().get::<Stance>(character), Some(&stance));
+            app.world_mut().resource_mut::<Messages<crate::als::transition::StateTransitionEvent>>().clear();
+            let capsule = app.world().get::<crate::als::motion::AlsCrouchTransaction>(character).unwrap().collider_half_height;
+            app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(character).unwrap().stance = Some(stance);
+            app.update();
+            let stance_events = app.world_mut().run_system_once(|mut events: MessageReader<crate::als::transition::StateTransitionEvent>| {
+                events.read().filter(|event| event.dimension == crate::als::transition::Dimension::Stance).count()
+            }).unwrap();
+            assert_eq!(stance_events, 0, "Source same-value stance does not publish a changed event");
+            assert_eq!(app.world().get::<crate::als::motion::AlsCrouchTransaction>(character).unwrap().collider_half_height, capsule);
+            let handle = app.world().get::<AlsMovementParamsHandle>(character).unwrap().0.clone();
+            let mut source_settings = app.world().resource::<Assets<AlsMovementParams>>().get(&handle).unwrap().clone();
+            source_settings.acceleration.grounded.normal.braking_deceleration.keys = vec![crate::als::params::HermiteKey { time: 0.0, value: 2.0, arrive_tangent: 0.0, leave_tangent: 0.0 }];
+            source_settings.acceleration.grounded.responsive.braking_deceleration = source_settings.acceleration.grounded.normal.braking_deceleration.clone();
+            let replacement = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(source_settings);
+            app.world_mut().entity_mut(character).insert((AlsMovementParamsHandle(replacement), LinearVelocity(Vec3::X * 3.75)));
+            for _ in 0..35 { app.update(); }
+            app.world_mut().entity_mut(character).insert(LinearVelocity(Vec3::X * 3.75));
+            let delta = app.world().resource::<Time>().delta_secs();
+            app.update();
+            let actual = app.world().get::<LinearVelocity>(character).unwrap().x;
+            assert!((actual - (3.75 - 2.0 * delta)).abs() < 1e-4,
+                "Source SetMovementSettings refreshes the next actual braking consumer: stance={stance:?}, actual={actual}, delta={delta}");
+        }
+    }
+
+    #[test]
     fn actual_landing_stance_waits_for_the_next_source_movement_tick() {
         let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
         let mut transform = *app.world().get::<Transform>(character).unwrap();
