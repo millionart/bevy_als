@@ -90,6 +90,18 @@
     {
       "path": "target/bf134/01i3d7b/character_settings.ue.json",
       "sha256": "5a7069c33046b7aed6c8a5038035fb031d360724efcc3cf59955f8279ea74ba4"
+    },
+    {
+      "path": "target/bf134/01i3d7b/als_character.h",
+      "sha256": "b5f0772b9f008b863a22330c02e2686af18c8b1f1485ede5018cf03f62f1ae8a"
+    },
+    {
+      "path": "target/bf134/01i3d7b/character_settings.h",
+      "sha256": "f6f50441d3f094bb8792d938ba9bb4ac32bd8e28da68c4d4443c55e70b65bb62"
+    },
+    {
+      "path": "target/bf134/01i3d7b/config_source_boundary.json",
+      "sha256": "699af7580e0d9669e61b640c46267a34481ca26a494707f1849448373fe517ec"
     }
   ],
   "verification_commands": [
