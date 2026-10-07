@@ -2433,6 +2433,12 @@ pub struct AlsMotionPlugin;
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AlsActualVelocitySet;
 
+#[derive(Component)]
+pub(crate) struct AlsCustomMovementPhysicsFrame {
+    pub(crate) rigid_body: avian3d::prelude::RigidBody,
+    pub(crate) custom_position: bool,
+}
+
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AlsRotationResponseSet;
 
@@ -2486,6 +2492,15 @@ impl Plugin for AlsMotionPlugin {
                 ((|| true).pipe(follow_movement_base_system), locomotion_state_sync_system, snapshot_actual_velocity_system)
                     .chain().in_set(AlsActualVelocitySet),
             )
+            .add_systems(PostUpdate, (
+                prepare_subminimum_custom_physics
+                    .after(crate::roll_drive::AlsRollDriveSet)
+                    .after(crate::mantle_drive::AlsMantleDriveSet)
+                    .before(crate::source_physics_timing::SourcePhysicsTimingSet::Clamp),
+                release_custom_movement_physics
+                    .after(PhysicsSystems::Last)
+                    .before(AlsActualVelocitySet),
+            ))
             .add_systems(
                 PostUpdate,
                 (
@@ -2503,10 +2518,38 @@ impl Plugin for AlsMotionPlugin {
     }
 }
 
+fn prepare_subminimum_custom_physics(
+    time: Res<Time<Virtual>>,
+    mut commands: Commands,
+    characters: Query<(Entity, &LocomotionState, Option<&AlsMantleState>, &avian3d::prelude::RigidBody,
+        Has<avian3d::prelude::CustomPositionIntegration>),
+        (With<AlsCharacter>, Without<AlsCustomMovementPhysicsFrame>)>,
+) {
+    if time.delta_secs() <= 0.0 || time.delta_secs() >= crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS { return; }
+    for (entity, mode, mantle, body, custom_position) in &characters {
+        if *mode == LocomotionState::Custom && mantle.is_none_or(|state| !state.active && !state.root_motion_ready) {
+            commands.entity(entity).insert((avian3d::prelude::RigidBody::Kinematic,
+                avian3d::prelude::CustomPositionIntegration,
+                AlsCustomMovementPhysicsFrame { rigid_body: *body, custom_position }));
+        }
+    }
+}
+
+fn release_custom_movement_physics(
+    mut commands: Commands,
+    characters: Query<(Entity, &AlsCustomMovementPhysicsFrame)>,
+) {
+    for (entity, frame) in &characters {
+        let mut character = commands.entity(entity);
+        character.insert(frame.rigid_body).remove::<AlsCustomMovementPhysicsFrame>();
+        if !frame.custom_position { character.remove::<avian3d::prelude::CustomPositionIntegration>(); }
+    }
+}
+
 fn custom_movement_velocity_system(
     time: Res<Time<avian3d::prelude::Physics>>,
     mut characters: Query<(&LocomotionState, Option<&AlsMantleState>,
-        Has<crate::roll_drive::AlsCustomRollPhysicsFrame>,
+        Has<AlsCustomMovementPhysicsFrame>,
         &mut avian3d::dynamics::solver::solver_body::SolverBody), With<AlsCharacter>>,
 ) {
     if time.delta_secs() < crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS { return; }
@@ -3642,6 +3685,56 @@ mod tests {
         assert_eq!(params.gait_speeds(stance, RotationMode::ViewDirection).max_walk_speed, 1.75);
         assert_eq!(params.gait_speeds(Stance::Standing, rotation).max_run_speed, 3.75);
         assert_eq!(gait_max_speed_for_velocity(&params, &Stance::Standing, &gait, RotationMode::ViewDirection, Vec3::Z, 0.0), params.speeds.standing.max_run_speed);
+    }
+
+    #[test]
+    fn native_custom_mode_below_source_minimum_keeps_velocity_without_moving() {
+        for custom_position in [false, true] {
+        for delta in [0.5e-6_f32, 1.0e-6] {
+            let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+            app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = Vec2::Y;
+            for _ in 0..30 { app.update(); }
+            let before_velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
+            assert!(before_velocity.length() > 1.0, "Actual source character must enter Custom from existing movement");
+            let mut transform = *app.world().get::<Transform>(character).unwrap();
+            transform.translation.y += 5.0;
+            app.world_mut().entity_mut(character).insert((Position(transform.translation), transform, GlobalTransform::from(transform)));
+            if custom_position { app.world_mut().entity_mut(character).insert(avian3d::prelude::CustomPositionIntegration); }
+            app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = Vec2::ZERO;
+            app.world_mut().get_mut::<AlsStateRequest>(character).unwrap().locomotion_state = Some(LocomotionState::Custom);
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
+            app.update();
+            assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Custom);
+            let expected = if delta < crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS { before_velocity } else { Vec3::ZERO };
+            let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
+            assert!(velocity.abs_diff_eq(expected, 1e-6),
+                "Source StartNewPhysics only clears Custom velocity at Delta >= MIN: delta={delta} expected={expected:?} actual={velocity:?}");
+            let position = app.world().get::<Position>(character).unwrap().0;
+            assert!(position.abs_diff_eq(transform.translation, 1e-7),
+                "Source below-min Custom and legal no-root Custom do not move: delta={delta} expected={:?} actual={position:?}", transform.translation);
+            assert_eq!(*app.world().get::<RigidBody>(character).unwrap(), RigidBody::Dynamic);
+            assert!(app.world().get::<AlsCustomMovementPhysicsFrame>(character).is_none());
+            assert_eq!(app.world().get::<avian3d::prelude::CustomPositionIntegration>(character).is_some(), custom_position);
+            if delta < crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS {
+                app.world_mut().resource_mut::<Time<Virtual>>().pause();
+                for _ in 0..4 {
+                    app.update();
+                    assert_eq!(app.world().get::<Position>(character).unwrap().0, position);
+                    assert_eq!(app.world().get::<LinearVelocity>(character).unwrap().0, velocity);
+                    assert!(app.world().get::<AlsCustomMovementPhysicsFrame>(character).is_none());
+                }
+                app.world_mut().resource_mut::<Time<Virtual>>().unpause();
+                app.update();
+                assert!(app.world().get::<Position>(character).unwrap().0.abs_diff_eq(position, 1e-7));
+                app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0e-6)));
+                app.update();
+                assert!(app.world().get::<LinearVelocity>(character).unwrap().0.abs_diff_eq(Vec3::ZERO, 1e-6));
+                assert_eq!(*app.world().get::<RigidBody>(character).unwrap(), RigidBody::Dynamic);
+                assert!(app.world().get::<AlsCustomMovementPhysicsFrame>(character).is_none());
+                assert_eq!(app.world().get::<avian3d::prelude::CustomPositionIntegration>(character).is_some(), custom_position);
+            }
+        }
+        }
     }
 
     #[test]

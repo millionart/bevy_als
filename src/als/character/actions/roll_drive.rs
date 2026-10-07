@@ -620,7 +620,7 @@ pub(crate) mod tests {
             assert!(velocity.abs_diff_eq(expected / delta, 1e-4),
                 "Source PhysCustom preserves animation root velocity: blocked={blocked} delta={delta} expected={:?} actual={velocity:?}", expected / delta);
             assert_eq!(*app.world().get::<avian3d::prelude::RigidBody>(character).unwrap(), avian3d::prelude::RigidBody::Dynamic);
-            assert!(app.world().get::<AlsCustomRollPhysicsFrame>(character).is_none());
+            assert!(app.world().get::<crate::als::motion::AlsCustomMovementPhysicsFrame>(character).is_none());
             assert_eq!(app.world().get::<avian3d::prelude::CustomPositionIntegration>(character).is_some(), custom_position);
             assert!(app.world().get::<avian3d::prelude::CustomVelocityIntegration>(character).is_none());
             drop(sample);
@@ -632,7 +632,7 @@ pub(crate) mod tests {
                     app.update();
                     assert_eq!(*app.world().get::<Transform>(character).unwrap(), before);
                     assert_eq!(app.world().get::<AlsRollState>(character).unwrap().time, roll_time);
-                    assert!(app.world().get::<AlsCustomRollPhysicsFrame>(character).is_none());
+                    assert!(app.world().get::<crate::als::motion::AlsCustomMovementPhysicsFrame>(character).is_none());
                 }
                 app.world_mut().resource_mut::<Time<Virtual>>().unpause();
                 app.update();
@@ -644,7 +644,7 @@ pub(crate) mod tests {
                 app.update();
                 assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Air);
                 assert!(app.world().get::<LinearVelocity>(character).unwrap().0.y < 0.0);
-                assert!(app.world().get::<AlsCustomRollPhysicsFrame>(character).is_none());
+                assert!(app.world().get::<crate::als::motion::AlsCustomMovementPhysicsFrame>(character).is_none());
                 assert!(app.world().get::<avian3d::prelude::CustomPositionIntegration>(character).is_none());
             }
         }
@@ -1145,12 +1145,6 @@ pub struct AlsRollDrivePlugin;
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AlsRollDriveSet;
 
-#[derive(Component)]
-pub(crate) struct AlsCustomRollPhysicsFrame {
-    rigid_body: avian3d::prelude::RigidBody,
-    custom_position: bool,
-}
-
 impl Plugin for AlsRollDrivePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, load_roll_slot_curve_asset)
@@ -1174,10 +1168,7 @@ impl Plugin for AlsRollDrivePlugin {
                         .after(AnimationGraphSet::PrePhysics)
                         .in_set(AlsRollDriveSet),
                 ),
-            )
-            .add_systems(PostUpdate, release_custom_roll_physics
-                .after(avian3d::prelude::PhysicsSystems::Last)
-                .before(crate::als::motion::AlsActualVelocitySet));
+            );
     }
 }
 
@@ -1535,23 +1526,12 @@ fn roll_drive_system(
             commands.entity(character).insert((avian3d::prelude::Position(transform.translation),
                 avian3d::prelude::RigidBody::Kinematic,
                 avian3d::prelude::CustomPositionIntegration,
-                AlsCustomRollPhysicsFrame { rigid_body: *body, custom_position }));
+                crate::als::motion::AlsCustomMovementPhysicsFrame { rigid_body: *body, custom_position }));
         }
 
         if let Some((sampler, _)) = sample && let Ok(mut player) = players.get_mut(sampler.target_player) {
             player.set_input_data("roll_clip_time", DataValue::from(clip_time));
             player.set_input_data("roll_weight", DataValue::from(weight));
         }
-    }
-}
-
-fn release_custom_roll_physics(
-    mut commands: Commands,
-    characters: Query<(Entity, &AlsCustomRollPhysicsFrame)>,
-) {
-    for (entity, frame) in &characters {
-        let mut character = commands.entity(entity);
-        character.insert(frame.rigid_body).remove::<AlsCustomRollPhysicsFrame>();
-        if !frame.custom_position { character.remove::<avian3d::prelude::CustomPositionIntegration>(); }
     }
 }
