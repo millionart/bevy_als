@@ -167,11 +167,16 @@ fn integrate_character_position(
                 && let Some(delta) = runtime.grounded_movement_delta {
                 delta / substeps.0 as f32 + Vec3::Y * body.linear_velocity.y * frame_step
             } else { body.linear_velocity * frame_step }
-        } else if !custom_position && extra_step > 0.0 && *rigid_body == RigidBody::Dynamic
+        } else if !custom_position && *rigid_body == RigidBody::Dynamic
             && *locomotion == LocomotionState::Grounded
             && action != Some(&AlsNotifyLocomotionAction::Ragdolling)
             && base.is_some_and(|base| base.entity.is_some() && base.support_velocity.length_squared() > 0.0) {
-            crate::als::dynamics::locomotion_velocity(body.linear_velocity, *locomotion, base) * extra_step
+            let relative_velocity = crate::als::dynamics::locomotion_velocity(body.linear_velocity, *locomotion, base);
+            if runtime.grounded_move_start.is_none() && let Some(delta) = runtime.grounded_movement_delta {
+                (delta - base.unwrap().support_velocity * frame_time.delta_secs()
+                    - relative_velocity * physics_time.delta_secs()).with_y(0.0) / substeps.0 as f32
+                    + Vec3::Y * relative_velocity.y * extra_step
+            } else { relative_velocity * extra_step }
         } else {
             continue;
         };
@@ -1050,7 +1055,7 @@ mod tests {
         let base = app.world().get::<crate::als::dynamics::AlsMovementBaseDynamicsState>(character).unwrap();
         assert_eq!(base.entity, Some(platform));
         app.world_mut().get_mut::<avian3d::prelude::LinearVelocity>(platform).unwrap().0 = Vec3::X;
-        app.world_mut().get_mut::<avian3d::prelude::LinearVelocity>(character).unwrap().0 = Vec3::X;
+        assert_eq!(app.world().get::<avian3d::prelude::LinearVelocity>(character).unwrap().0.with_y(0.0), Vec3::ZERO);
         let carried_before = app.world().get::<Position>(character).unwrap().x
             - app.world().get::<Position>(platform).unwrap().x;
         app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(100)));
@@ -1059,6 +1064,16 @@ mod tests {
             - app.world().get::<Position>(platform).unwrap().x;
         assert!((carried_after - carried_before).abs() < 1e-3,
             "moving base changed idle character offset: {carried_before} -> {carried_after}");
+
+        let braking_before = app.world().get::<Position>(character).unwrap().x
+            - app.world().get::<Position>(platform).unwrap().x;
+        app.world_mut().get_mut::<avian3d::prelude::LinearVelocity>(character).unwrap().0 = Vec3::X * 2.0;
+        app.update();
+        let braking_after = app.world().get::<Position>(character).unwrap().x
+            - app.world().get::<Position>(platform).unwrap().x;
+        assert!((braking_after - braking_before - 0.0125).abs() < 1e-4,
+            "Source relative braking moves before tail velocity reaches zero: {braking_before} -> {braking_after}");
+        assert!((app.world().get::<avian3d::prelude::LinearVelocity>(character).unwrap().x - 1.0).abs() < 1e-4);
 
         app.world_mut().get_mut::<avian3d::prelude::LinearVelocity>(character).unwrap().0 = Vec3::X * 4.75;
         app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = Vec2::X;

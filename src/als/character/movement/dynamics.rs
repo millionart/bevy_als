@@ -690,6 +690,47 @@ mod tests {
     }
 
     #[test]
+    fn actual_walking_on_moving_support_integrates_source_relative_substeps() {
+        use avian3d::prelude::Collider;
+        for (delta, max_step) in [(0.1_f32, 0.05_f32), (0.075, 0.05), (0.02, 0.005)] {
+            let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+            let platform = app.world_mut().spawn((RigidBody::Kinematic, Collider::cuboid(8.0, 0.5, 8.0),
+                Transform::from_xyz(0.0, 2.0, 0.0), LinearVelocity::ZERO)).id();
+            app.world_mut().entity_mut(character).insert((Position(Vec3::new(0.0, 3.174, 0.0)),
+                Transform::from_xyz(0.0, 3.174, 0.0), LinearVelocity::ZERO));
+            for _ in 0..60 { app.update(); }
+            app.world_mut().entity_mut(platform).insert(LinearVelocity(Vec3::X * 2.0));
+            app.world_mut().entity_mut(character).insert(LinearVelocity(Vec3::X * 2.0));
+            for _ in 0..20 { app.update(); }
+            let base = app.world().get::<AlsMovementBaseDynamicsState>(character).unwrap();
+            assert_eq!(base.entity, Some(platform));
+            assert!((base.support_velocity.x - 2.0).abs() < 1e-5);
+            let before = app.world().get::<Position>(character).unwrap().0;
+            let handle = app.world().get::<AlsMovementParamsHandle>(character).unwrap().0.clone();
+            app.world_mut().resource_mut::<Assets<AlsMovementParams>>().get_mut(&handle).unwrap().cmc.max_simulation_time_step = max_step;
+            app.world_mut().entity_mut(character).insert((LinearVelocity(Vec3::X * 2.0),
+                crate::als::input::AlsInputCommand { move_dir: Vec2::Y, ..default() }));
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
+            app.update();
+            let after = app.world().get::<Position>(character).unwrap().0;
+            let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
+            assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Grounded));
+            let mut remaining = delta;
+            let mut source_velocity = 0.0;
+            let mut source_distance = 0.0;
+            while remaining >= MIN_MOVEMENT_DELTA_SECONDS {
+                let step = if remaining > max_step { max_step.min(remaining * 0.5) } else { remaining };
+                source_velocity += 20.0 * step;
+                source_distance += source_velocity * step;
+                remaining -= step;
+            }
+            assert!((velocity.z + source_velocity).abs() < 1e-4, "Source moving-support tail velocity differs: {velocity:?}");
+            assert!((after.z - before.z + source_distance).abs() < 1e-4,
+                "Source walking integrates relative substep movement independently of perpendicular base carry: delta={delta} max_step={max_step} before={before:?} after={after:?} velocity={velocity:?} expected={source_distance}");
+        }
+    }
+
+    #[test]
     fn actual_stance_noop_and_settings_replacement_follow_source_consumers() {
         use bevy::ecs::system::RunSystemOnce;
         for stance in [Stance::Standing, Stance::Crouching] {
