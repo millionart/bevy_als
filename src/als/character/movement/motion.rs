@@ -3426,6 +3426,15 @@ pub fn find_ground_floor(spatial: &SpatialQuery, origin: Vec3, half: f32, radius
     cmc: &crate::als::params::CmcAdapterParams, mode: LocomotionState,
     filter: &SpatialQueryFilter, character: Entity,
     candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>) -> Option<(f32, f32, Entity)> {
+    find_ground_floor_with_penetration(spatial, origin, half, radius, cmc, mode, filter, character, candidates)
+        .map(|(floor, _)| floor)
+}
+
+fn find_ground_floor_with_penetration(spatial: &SpatialQuery, origin: Vec3, half: f32, radius: f32,
+    cmc: &crate::als::params::CmcAdapterParams, mode: LocomotionState,
+    filter: &SpatialQueryFilter, character: Entity,
+    candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>)
+    -> Option<((f32, f32, Entity), Option<ShapeHitData>)> {
     let accepts = |candidate| character_blocks_collider(character, candidate, candidates);
     let walkable = |hit: &ShapeHitData| hit.normal1.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos()
         && !(hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0);
@@ -3440,7 +3449,7 @@ pub fn find_ground_floor(spatial: &SpatialQuery, origin: Vec3, half: f32, radius
                 sweep_distance + shrink_height, filter, &accepts) {
                 let floor_distance = (hit.distance - shrink_height).max(-MAX_FLOOR_DISTANCE.max(radius));
                 let valid = walkable(&hit) && floor_distance <= sweep_distance;
-                result = Some((hit, floor_distance, valid, false));
+                result = Some((hit, floor_distance, valid, false, None));
                 if valid { return result; }
                 if hit.distance != 0.0 { break; }
             }
@@ -3454,7 +3463,8 @@ pub fn find_ground_floor(spatial: &SpatialQuery, origin: Vec3, half: f32, radius
                 let point = at - Vec3::Y * ray.distance;
                 return Some((ShapeHitData { entity: ray.entity, distance: ray.distance,
                     point1: point, point2: point, normal1: ray.normal, normal2: -ray.normal },
-                    floor_distance, true, true));
+                    floor_distance, true, true, result.and_then(|(hit, _, _, _, _)|
+                        (hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0).then_some(hit))));
             }
         }
         result
@@ -3463,7 +3473,7 @@ pub fn find_ground_floor(spatial: &SpatialQuery, origin: Vec3, half: f32, radius
         MAX_FLOOR_DISTANCE + crate::als::movement_constants::FLOOR_HEIGHT_CHECK_EPSILON
     } else { -MAX_FLOOR_DISTANCE };
     let max_floor = MAX_FLOOR_DISTANCE.max(MAX_STEP_HEIGHT + height_adjust);
-    let (mut hit, mut floor_distance, valid, line) = compute(origin, radius, max_floor, max_floor)?;
+    let (mut hit, mut floor_distance, valid, line, retained_penetration) = compute(origin, radius, max_floor, max_floor)?;
     let threshold = cmc.perch_radius_threshold.max(0.0);
     let perch_radius = (radius - threshold).max(crate::als::movement_constants::MIN_PERCH_RADIUS).min(radius);
     let edge_distance = Vec2::new(hit.point1.x - origin.x, hit.point1.z - origin.z).length_squared();
@@ -3472,14 +3482,14 @@ pub fn find_ground_floor(spatial: &SpatialQuery, origin: Vec3, half: f32, radius
         let at = origin - Vec3::Y * hit.distance;
         let above_base = (hit.point1.y - at.y + half).max(0.0);
         let max_perch = max_floor + if mode == LocomotionState::Grounded { cmc.perch_additional_height.max(0.0) } else { 0.0 };
-        let (perch, perch_distance, perch_valid, _) = compute(at, perch_radius,
+        let (perch, perch_distance, perch_valid, _, _) = compute(at, perch_radius,
             (max_perch - above_base).max(0.0), max_perch + radius)?;
         if !perch_valid || above_base + perch_distance > max_perch { return None; }
         let average = (MIN_FLOOR_DISTANCE + MAX_FLOOR_DISTANCE) * 0.5;
         if average - floor_distance + perch_distance >= max_perch { floor_distance = average; }
         if !valid { hit = perch; }
     } else if !valid { return None; }
-    Some((origin.y - floor_distance, hit.point1.y, hit.entity))
+    Some(((origin.y - floor_distance, hit.point1.y, hit.entity), retained_penetration))
 }
 
 fn resolved_walkable_contact(contact: &ContactPair, character: Entity) -> bool {
@@ -3532,13 +3542,15 @@ pub(crate) fn locomotion_state_sync_system(
             continue;
         };
         let jumping = controller.action_flow_status().ongoing() == Some(AlsControlSchemeActionDiscriminant::Jump);
-        let validated_floor = params_assets.get(handle.id()).and_then(|params| {
+        let floor_result = params_assets.get(handle.id()).and_then(|params| {
             let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height }
                 else { params.crouch.standing_capsule_half_height } * transform.scale.y;
             let radius = params.crouch.standing_capsule_radius * transform.scale.x.min(transform.scale.z);
-            find_ground_floor(&spatial, position.0, half, radius, &params.cmc, *current,
+            find_ground_floor_with_penetration(&spatial, position.0, half, radius, &params.cmc, *current,
                 &SpatialQueryFilter::from_excluded_entities([entity]), entity, &candidates)
         });
+        let validated_floor = floor_result.map(|(floor, _)| floor);
+        let floor_penetration = floor_result.and_then(|(_, penetration)| penetration);
         let mut floor_supported = false;
         let mut floor_entity = None;
         if *current == LocomotionState::Grounded && !blocked.contains(entity) && !jumping
@@ -3554,46 +3566,47 @@ pub(crate) fn locomotion_state_sync_system(
                 if (next_y - position.y).abs() <= MAX_STEP_HEIGHT {
                     let mut next_transform = *transform;
                     next_transform.translation = position.0;
-                    if let Ok((direction, distance)) = Dir3::new_and_length(Vec3::Y * (next_y - position.y)) {
-                        let config = ShapeCastConfig { ignore_origin_penetration: true,
-                            ..ShapeCastConfig::from_max_distance(distance) };
-                        let accepts = |candidate| character_blocks_collider(entity, candidate, &candidates);
-                        let mut hit = spatial.cast_shape_predicate(capsule, position.0, transform.rotation,
-                            direction, &config, &filter, &accepts);
-                        if let Some(initial) = hit.filter(|hit| hit.distance == 0.0) {
-                            let depth = (initial.point1 - initial.point2).dot(initial.normal1);
-                            if depth > 0.0 {
-                                let body = candidates.get(initial.entity).ok().and_then(|(_, _, owner, _)| owner)
-                                    .map_or(initial.entity, |owner| owner.body);
-                                let maximum = if pawns.contains(body) { MAX_DEPENETRATION_WITH_PAWN }
-                                    else { MAX_DEPENETRATION_WITH_GEOMETRY };
-                                let adjustment = (initial.normal1 * (depth + PENETRATION_PULLBACK_DISTANCE))
-                                    .clamp_length_max(maximum);
-                                let extent = capsule.shape_scaled().compute_local_aabb().half_extents();
-                                let inflated = als_character_capsule(extent.y + PENETRATION_OVERLAP_INFLATION,
-                                    extent.x + PENETRATION_OVERLAP_INFLATION);
-                                let encroached = spatial.shape_intersections(&inflated, position.0 + adjustment,
-                                    transform.rotation, &filter).into_iter().any(accepts);
-                                let applied = if !encroached {
-                                    adjustment
-                                } else if let Ok((exit, exit_distance)) = Dir3::new_and_length(adjustment) {
-                                    let exit_config = ShapeCastConfig { max_distance: exit_distance, ..config };
-                                    let exit_hit = spatial.cast_shape_predicate(capsule, position.0, transform.rotation,
-                                        exit, &exit_config, &filter, &accepts);
-                                    *exit * exit_hit.map_or(exit_distance,
-                                        |hit| movement_sweep_travel(exit_distance, hit.distance))
-                                } else { Vec3::ZERO };
-                                if applied.length_squared() > 0.0 {
-                                    next_transform.translation += applied;
-                                    if let Some(start) = runtime.grounded_move_start.as_mut() { *start += applied; }
-                                    hit = spatial.cast_shape_predicate(capsule, next_transform.translation,
-                                        transform.rotation, direction, &config, &filter, &accepts);
-                                }
+                    let (direction, distance) = Dir3::new_and_length(Vec3::Y * (next_y - position.y))
+                        .unwrap_or((Dir3::NEG_Y, 0.0));
+                    let config = ShapeCastConfig { ignore_origin_penetration: true,
+                        ..ShapeCastConfig::from_max_distance(distance) };
+                    let accepts = |candidate| character_blocks_collider(entity, candidate, &candidates);
+                    let mut hit = spatial.cast_shape_predicate(capsule, position.0, transform.rotation,
+                        direction, &config, &filter, &accepts);
+                    let initial_penetration = floor_penetration.or(hit.filter(|hit| hit.distance == 0.0));
+                    if let Some(initial) = initial_penetration {
+                        let depth = (initial.point1 - initial.point2).dot(initial.normal1);
+                        if depth > 0.0 {
+                            let body = candidates.get(initial.entity).ok().and_then(|(_, _, owner, _)| owner)
+                                .map_or(initial.entity, |owner| owner.body);
+                            let maximum = if pawns.contains(body) { MAX_DEPENETRATION_WITH_PAWN }
+                                else { MAX_DEPENETRATION_WITH_GEOMETRY };
+                            let adjustment = (initial.normal1 * (depth + PENETRATION_PULLBACK_DISTANCE))
+                                .clamp_length_max(maximum);
+                            let extent = capsule.shape_scaled().compute_local_aabb().half_extents();
+                            let inflated = als_character_capsule(extent.y + PENETRATION_OVERLAP_INFLATION,
+                                extent.x + PENETRATION_OVERLAP_INFLATION);
+                            let encroached = spatial.shape_intersections(&inflated, position.0 + adjustment,
+                                transform.rotation, &filter).into_iter().any(accepts);
+                            let applied = if !encroached {
+                                adjustment
+                            } else if let Ok((exit, exit_distance)) = Dir3::new_and_length(adjustment) {
+                                let exit_config = ShapeCastConfig { max_distance: exit_distance, ..config };
+                                let exit_hit = spatial.cast_shape_predicate(capsule, position.0, transform.rotation,
+                                    exit, &exit_config, &filter, &accepts);
+                                *exit * exit_hit.map_or(exit_distance,
+                                    |hit| movement_sweep_travel(exit_distance, hit.distance))
+                            } else { Vec3::ZERO };
+                            if applied.length_squared() > 0.0 {
+                                next_transform.translation += applied;
+                                if let Some(start) = runtime.grounded_move_start.as_mut() { *start += applied; }
+                                hit = spatial.cast_shape_predicate(capsule, next_transform.translation,
+                                    transform.rotation, direction, &config, &filter, &accepts);
                             }
                         }
-                        next_transform.translation += *direction
-                            * hit.map_or(distance, |hit| movement_sweep_travel(distance, hit.distance));
                     }
+                    next_transform.translation += *direction
+                        * hit.map_or(distance, |hit| movement_sweep_travel(distance, hit.distance));
                     commands.entity(entity).insert((Position(next_transform.translation), next_transform));
                     velocity.0.y = 0.0;
                     floor_supported = true;
@@ -4310,6 +4323,47 @@ mod tests {
                 assert!(app.world().get::<crate::als::dynamics::AlsMovementBase>(character).unwrap().entity.is_none());
             }
         }
+    }
+
+    #[test]
+    fn actual_walkable_line_floor_keeps_source_side_penetration_recovery() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        let mut transform = *app.world().get::<Transform>(character).unwrap();
+        transform.translation.y = 0.9215;
+        let origin = transform.translation;
+        app.world_mut().entity_mut(character).insert((Position(origin), transform,
+            GlobalTransform::from(transform), LinearVelocity::ZERO));
+        let wall_x = origin.x + 0.1;
+        let wall = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.1, 0.5, 4.0),
+            Transform::from_xyz(wall_x + 0.05, origin.y, origin.z))).id();
+        app.update();
+        let before = app.world().get::<Position>(character).unwrap().0;
+        let remaining = app.world_mut().run_system_once(move |spatial: SpatialQuery| {
+            let capsule = als_character_capsule(0.36, 0.298499);
+            spatial.cast_shape(&capsule, origin, Quat::IDENTITY, Dir3::NEG_Y,
+                &ShapeCastConfig::from_max_distance(1.015), &SpatialQueryFilter::from_excluded_entities([character]))
+        }).unwrap().unwrap();
+        assert_eq!(remaining.entity, wall);
+        assert_eq!(remaining.distance, 0.0);
+        assert!((remaining.point1 - remaining.point2).dot(remaining.normal1) > 0.0,
+            "Source retry sweep must retain a real side penetration");
+        let ray = app.world_mut().run_system_once(move |spatial: SpatialQuery| {
+            spatial.cast_ray(before, Dir3::NEG_Y, 1.375, false, &SpatialQueryFilter::from_excluded_entities([character]))
+        }).unwrap().unwrap();
+        assert!(ray.normal.y > 0.9 && ray.distance > 0.9,
+            "Source line floor must remain a valid center ray while the sweep is penetrating: {ray:?}");
+        let found = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>| {
+            find_ground_floor(&spatial, before, 0.9, 0.3, &crate::als::params::CmcAdapterParams::default(), LocomotionState::Grounded,
+                &SpatialQueryFilter::from_excluded_entities([character]), character, &candidates)
+        }).unwrap();
+        assert!(found.is_some(), "Source current line floor must remain valid while side sweep starts penetrating: {found:?}");
+        let source_minimum_x = wall_x - 0.3;
+        app.update();
+        let actual = app.world().get::<Position>(character).unwrap().0;
+        assert!(actual.x <= source_minimum_x + 0.002,
+            "Source walkable line floor still resolves side penetration before the final walking iteration: before={before:?}, actual={actual:?}, maximum_x={source_minimum_x}");
     }
 
     #[test]
