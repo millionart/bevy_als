@@ -112,7 +112,7 @@ fn normalize_ragdoll_pose_scale(
     for (path, index, target) in targets {
         let parent = path.parent().map(|path|
             conversions.global_transform_of_bone(pose, skeleton, path.id())).unwrap_or_default();
-        let local = Transform::from_matrix(parent.compute_affine().inverse().into()) * target;
+        let local = Transform::from_matrix((parent.compute_affine().inverse() * target.compute_affine()).into());
         let bone = &mut pose.bones[index];
         bone.translation = Some(local.translation);
         bone.rotation = Some(local.rotation);
@@ -408,6 +408,7 @@ mod tests {
         let paths = [root, middle, child];
         let ids = paths.each_ref().map(|path| path.id());
         for complex in [false, true] {
+            for runtime_basis in [false, true] {
             for scale in [2.0, 0.5, 1.0] {
                 for root_readback in [true, false] {
                     for child_readback in [true, false] {
@@ -418,8 +419,10 @@ mod tests {
                             world.init_resource::<Assets<StateMachine>>();
                             world.init_resource::<Assets<Skeleton>>();
                             let scene_transform = Transform {
-                                translation: if complex { Vec3::new(3.0, 2.0, -1.0) } else { Vec3::ZERO },
-                                rotation: if complex { Quat::from_euler(EulerRot::YXZ, 0.4, -0.2, 0.1) } else { Quat::IDENTITY },
+                                translation: if runtime_basis { Vec3::new(-15.0, -0.04, -15.0) }
+                                    else if complex { Vec3::new(3.0, 2.0, -1.0) } else { Vec3::ZERO },
+                                rotation: if runtime_basis { Quat::from_rotation_y(-std::f32::consts::FRAC_PI_4) }
+                                    else if complex { Quat::from_euler(EulerRot::YXZ, 0.4, -0.2, 0.1) } else { Quat::IDENTITY },
                                 scale: Vec3::splat(scale),
                             };
                             let locals = [if complex { Transform::from_xyz(0.0, 0.3, 0.0)
@@ -486,6 +489,7 @@ mod tests {
                         }
                     }
                 }
+            }
             }
         }
     }
