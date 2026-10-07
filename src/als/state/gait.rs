@@ -251,6 +251,7 @@ pub(crate) fn gait_request_system(
 }
 
 pub fn refresh_gait_system(
+    time: Res<Time<Virtual>>,
     mut q: Query<
         (
             Entity,
@@ -274,6 +275,7 @@ pub fn refresh_gait_system(
     params_assets: Res<Assets<AlsMovementParams>>,
     mut transitions: MessageWriter<StateTransitionEvent>,
 ) {
+    if time.is_paused() { return; }
     for (
         entity,
         locomotion,
@@ -355,6 +357,48 @@ impl Plugin for AlsGaitPlugin {
 mod tests {
     use super::*;
 
+    #[test]
+    fn paused_sprint_cancel_preserves_the_actual_source_max_allowed_gait() {
+        use crate::als::input::{AlsInputMap, AlsInputPlugin, spawn_als_actions};
+        use bevy::input::gamepad::{RawGamepadButtonChangedEvent, RawGamepadEvent};
+        use bevy::time::TimeUpdateStrategy;
+        use bevy_enhanced_input::prelude::EnhancedInputPlugin;
+        for gamepad_input in [false, true] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, EnhancedInputPlugin, AlsInputPlugin))
+                .init_resource::<Assets<AlsMovementParams>>()
+                .add_message::<StateTransitionEvent>()
+                .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_millis(20)))
+                .add_systems(Update, crate::als::input_request::input_state_request_system)
+                .add_systems(PostUpdate, refresh_gait_system);
+            app.finish();
+            let handle = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(AlsMovementParams::default());
+            let character = app.world_mut().spawn((AlsCharacter, LocomotionState::Grounded, Stance::Standing,
+                RotationMode::VelocityDirection, AlsViewYaw(0.0), AlsDesiredGait(Gait::Running),
+                AlsMaxAllowedGait(Gait::Running), AlsGaitAmount::default(), Gait::Walking,
+                AlsActualVelocity::default(), AlsMovementParamsHandle(handle), AlsStateRequest::default(),
+                crate::actual_motion::AlsActualMotion { has_input: true, ..default() })).id();
+            let gamepad = app.world_mut().spawn(Gamepad::default()).id();
+            spawn_als_actions(&mut app.world_mut().commands(), character, &AlsInputMap::default());
+            app.update();
+            if gamepad_input {
+                app.world_mut().write_message(RawGamepadEvent::Button(
+                    RawGamepadButtonChangedEvent::new(gamepad, GamepadButton::East, 1.0)));
+            } else { app.world_mut().resource_mut::<ButtonInput<KeyCode>>().press(KeyCode::ShiftLeft); }
+            for _ in 0..2 { app.update(); }
+            assert_eq!(app.world().get::<AlsDesiredGait>(character).unwrap().0, Gait::Running);
+            app.world_mut().resource_mut::<Time<Virtual>>().pause();
+            app.update();
+            assert_eq!(app.world().get::<AlsDesiredGait>(character).unwrap().0, Gait::Sprinting,
+                "Source Sprint Canceled callback preserves its actual positive value during pause");
+            assert_eq!(app.world().get::<AlsMaxAllowedGait>(character).unwrap().0, Gait::Running,
+                "Source paused Character must retain its last refreshed max allowed gait");
+            app.world_mut().resource_mut::<Time<Virtual>>().unpause();
+            app.update();
+            assert_eq!(app.world().get::<AlsMaxAllowedGait>(character).unwrap().0, Gait::Sprinting,
+                "Source resumed Character must consume its saved desired gait");
+        }
+    }
     #[test]
     fn gait_permission_reads_consumed_character_input_and_world_direction() {
         let mut app = App::new();

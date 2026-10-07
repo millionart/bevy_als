@@ -312,3 +312,10 @@ fresh角色37.548秒、当次CMC ComputeAnalogInputModifier与公开CurveVector�
 - Actual：真实keyboard→Action→bridge→生产locomotion_drive→ActualMotion，在暂停新按D后把旧(false,0)改成(true,-90)，Source保持旧快照，red96.632秒。根因是owner snapshot每帧执行，不能仅在bridge抑制raw输入来遮掉保存状态生命周期。
 - 最小修复：snapshot直接读取既有Time<Virtual>.is_paused并return，不把delta0/dilation0当pause，无新state/cache/system。原反例green110.259，键盘/raw-pad×已有/无输入的完整快照保存/恢复通过；删guard110.359秒red，恢复字节/mtime后input26重编96.620及motion52/actual7共85通过，source/static2.402/2.405闭合。Look合同a4c7825独立提交，生产未改。
 - 正常target_game/play生产166.775，startup15.595/Grounded15/15（42.899）/Sprint8/8（18.461）功能通过，graph/primary/fault/temporal零；c2单独提交，P2累计三十二。截图关闭，原max_eval_p95_ms/Sprint max_frame_ms失败保留；原始资产/图/转换器未改，15/39/374完整生成diff0有效。其余Move pending/owner暂停消费者、全动画和其他模块及总目标仍开放。证据target/bf134/01i3c。
+
+### BF134.01I3d1 — P2：暂停 Sprint 事件提前刷新允许步态
+
+- Source：fresh Actor PrimaryActorTick.bTickEvenWhenPaused=false；原始checkout SetDesiredGait只保存intent，随后角色Tick中的RefreshGait才设置CMC MaxAllowedGait/actualGait。Sprint短Hold在暂停时可产生Canceled(true)，事件保存Sprinting正确，暂停角色仍须保留既有派生步态。
+- Actual：真实keyboard/raw-pad→Sprint Action→request→生产RefreshGait，在短按后pause把MaxAllowedRunning立即改成Sprinting，源保持Running；red89.205秒。旧输入和motion Gate分别验证saved intent及motion snapshot，没有覆盖后续gait owner生命周期。
+- 最小修复只在refresh_gait_system读取既有Time<Virtual>.is_paused并return，恢复后消费保存desired；无新state/cache/system/算法。green110.109秒，删唯一guard84.386秒同语义red；精确字节/自然mtime恢复、同target重编113.158秒green，最终gait11/input26共37项通过，source/static5.822秒闭合。
+- 正常target_game/play生产161.297秒，公共startup15.815/Sprint8/8（17.669）功能通过，graph/primary/fault/temporal零；独立提交，P2累计三十三。截图0/FunctionalOnly，完整max_eval_p95_ms失败保留；原始资产/图/转换器未改，15/39/374全量diff0仍有效。其他Tick owner、全动画和其他模块及总目标仍开放。证据target/bf134/01i3d1。
