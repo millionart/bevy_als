@@ -606,6 +606,63 @@ mod rotation_cap_tests {
     use super::*;
 
     #[test]
+    fn paused_character_retains_the_actual_rotation_owner_outputs() {
+        for (locomotion, mode, velocity, has_input, first_person) in [
+            (LocomotionState::Grounded, RotationMode::Aiming, Vec3::ZERO, false, false),
+            (LocomotionState::Grounded, RotationMode::Aiming, Vec3::NEG_Z * 1.75, true, false),
+            (LocomotionState::Grounded, RotationMode::ViewDirection, Vec3::NEG_Z * 1.75, true, false),
+            (LocomotionState::Grounded, RotationMode::VelocityDirection, Vec3::X * 1.75, true, false),
+            (LocomotionState::Grounded, RotationMode::ViewDirection, Vec3::ZERO, false, true),
+            (LocomotionState::Air, RotationMode::Aiming, Vec3::X * 1.75, true, false),
+            (LocomotionState::Air, RotationMode::ViewDirection, Vec3::X * 1.75, true, false),
+        ] {
+            let mut app = App::new();
+            app.add_plugins(MinimalPlugins)
+                .insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_millis(20)))
+                .init_resource::<Assets<AlsMovementParams>>()
+                .register_required_components::<AlsCharacter, crate::actual_motion::AlsActualMotion>()
+                .add_systems(Update, rotation_response_system);
+            let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>()
+                .add(AlsMovementParams::default());
+            let actor = app.world_mut().spawn((
+                AlsCharacter, Stance::Standing, Transform::IDENTITY, Gait::Walking,
+                locomotion, mode,
+                AlsViewYaw(170.0_f32.to_radians()), AlsMovementParamsHandle(params),
+                LinearVelocity(velocity),
+                crate::actual_motion::AlsActualMotion { has_input, input_yaw_degrees: 170.0, ..default() },
+            )).id();
+            if first_person { app.world_mut().entity_mut(actor).insert(crate::als::input_request::AlsFirstPersonView); }
+            for _ in 0..8 { app.update(); }
+            let before_transform = *app.world().get::<Transform>(actor).unwrap();
+            let before_response = *app.world().get::<AlsRotationResponseState>(actor).unwrap();
+            let before_constraint = *app.world().get::<AlsAimingYawConstraint>(actor).unwrap();
+            app.world_mut().resource_mut::<Time<Virtual>>().pause();
+            for _ in 0..3 {
+                app.update();
+                assert_eq!(*app.world().get::<Transform>(actor).unwrap(), before_transform,
+                    "Source paused Character must preserve its actual actor rotation");
+                let after = app.world().get::<AlsRotationResponseState>(actor).unwrap();
+                assert_eq!((after.initialized, after.smooth_target_yaw, after.previous_view_yaw,
+                    after.input_yaw, after.velocity_yaw, after.target_yaw,
+                    after.rotation_towards_last_input_direction_blocked, after.previous_locomotion, after.previous_rotation_mode),
+                    (before_response.initialized, before_response.smooth_target_yaw, before_response.previous_view_yaw,
+                    before_response.input_yaw, before_response.velocity_yaw, before_response.target_yaw,
+                    before_response.rotation_towards_last_input_direction_blocked, before_response.previous_locomotion, before_response.previous_rotation_mode),
+                    "Source paused Character must preserve its rotation owner state");
+                assert_eq!(*app.world().get::<AlsAimingYawConstraint>(actor).unwrap(), before_constraint,
+                    "Source paused Character must preserve its aiming constraint state");
+            }
+            app.world_mut().resource_mut::<Time<Virtual>>().unpause();
+            app.update();
+            let rotation = app.world().get::<Transform>(actor).unwrap().rotation;
+            assert!(rotation.is_finite());
+            if locomotion == LocomotionState::Grounded {
+                assert_ne!(rotation, before_transform.rotation, "Source resumed Character must continue rotating toward its target");
+            }
+        }
+    }
+
+    #[test]
     fn rotation_uses_consumed_input_at_the_source_low_speed_boundary() {
         let mut app = App::new();
         let mut time = Time::<()>::default();
