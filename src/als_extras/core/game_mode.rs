@@ -157,7 +157,9 @@ fn admit_pending_players(
     starts: Query<(Entity, &AlsPlayerStart, &AlsPlayerStartReady)>,
     pending: Query<(Entity, &AlsPlayerAdmission, Option<&AlsPlayerAdmissionComplete>), With<AlsPlayerAdmissionPending>>,
     mut characters: Query<(Option<&mut crate::als::input::AlsInputCommand>,
-        Option<&mut crate::als::transition::AlsStateRequest>), With<crate::als::character::AlsCharacter>>,
+        Option<&mut crate::als::transition::AlsStateRequest>, &Transform,
+        Option<&mut crate::als::motion::AlsViewYaw>, Option<&mut crate::als::view::AlsViewPitch>),
+        With<crate::als::character::AlsCharacter>>,
     assets: Res<AssetServer>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut params_assets: ResMut<Assets<AlsMovementParams>>,
@@ -168,7 +170,10 @@ fn admit_pending_players(
     }
     for (request, _, previous) in &pending {
         if let Some(previous) = previous && characters.contains(previous.character) {
-            if let Ok((input, mode)) = characters.get_mut(previous.character) {
+            if let Ok((input, mode, transform, yaw, pitch)) = characters.get_mut(previous.character) {
+                let forward = transform.forward().as_vec3();
+                if let Some(mut yaw) = yaw { yaw.0 = crate::als::orientation::world_forward_to_yaw(forward); }
+                if let Some(mut pitch) = pitch { pitch.0 = forward.y.atan2(Vec2::new(forward.x, forward.z).length()); }
                 if let Some(mut input) = input {
                     input.jump_pressed = false;
                     input.jump_held = false;
@@ -443,6 +448,43 @@ mod tests {
                 assert!(app.world().get::<AlsPlayerAdmissionFailed>(request).is_none());
             }
         }
+    }
+
+    #[test]
+    fn actual_existing_pawn_restart_player_restores_actor_control_rotation() {
+        let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        AlsGameModePlugin.build(&mut app);
+        app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().look_delta = Vec2::new(40.0, -25.0);
+        app.update();
+        app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().look_delta = Vec2::ZERO;
+        for _ in 0..5 { app.update(); }
+        let component = app.world().get::<Children>(avatar).unwrap().iter()
+            .find(|entity| app.world().get::<crate::camera_component::AlsSourceCameraComponent>(*entity).is_some()).unwrap();
+        let before = app.world().get::<crate::als_camera::AlsCameraViewInfo>(component).unwrap().rotation;
+        let actor = *app.world().get::<Transform>(character).unwrap();
+        let source_target = Quat::from_rotation_y(crate::als::orientation::world_forward_to_yaw(*actor.forward()));
+        assert!(before.angle_between(source_target) > 0.2);
+        let selection = crate::als::player_start::AlsPlayerStartSelection {
+            entity: Entity::PLACEHOLDER, tag: None, fit: crate::als::player_start::AlsPlayerSpawnFit {
+                transform: actor, ground_y: 0.0, adjustment: 0.0, teleport_adjustment: Vec3::ZERO,
+                occupancy: AlsPlayerStartOccupancy::Unoccupied,
+            }, used_occupied_fallback: false,
+        };
+        app.world_mut().spawn((AlsPlayerAdmission::new(), AlsPlayerAdmissionPending,
+            AlsPlayerAdmissionComplete { character, selection }));
+        app.update();
+        let info = app.world().get::<crate::als_camera::AlsCameraViewInfo>(component).unwrap();
+        assert!(info.valid);
+        let debug = app.world().get::<crate::als_camera::AlsCameraDebugInfo>(component).unwrap();
+        let lag = debug.curve_value("RotationLag");
+        let alpha = crate::extensions::control_rig_math::rig_damper_alpha(debug.unscaled_delta_seconds, lag);
+        let (yaw, pitch, roll) = before.to_euler(EulerRot::YXZ);
+        let target_yaw = source_target.to_euler(EulerRot::YXZ).0;
+        let expected = Quat::from_euler(EulerRot::YXZ,
+            yaw + crate::als::roll::wrap_angle(target_yaw - yaw) * alpha,
+            pitch * (1.0 - alpha), roll * (1.0 - alpha));
+        assert!(info.rotation.angle_between(expected) < 1e-4,
+            "Source RestartPlayer sets actor control rotation before actual camera lag: expected={expected:?}, actual={:?}", info.rotation);
     }
 
     #[test]
