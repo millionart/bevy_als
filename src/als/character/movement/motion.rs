@@ -3585,7 +3585,7 @@ fn find_ground_floor_with_penetration(spatial: &SpatialQuery, origin: Vec3, half
         result
     };
     let height_adjust = if mode == LocomotionState::Grounded {
-        MAX_FLOOR_DISTANCE + crate::als::movement_constants::FLOOR_HEIGHT_CHECK_EPSILON
+        MAX_FLOOR_DISTANCE + crate::als::movement_constants::SMALL_MOVEMENT_DISTANCE
     } else { -MAX_FLOOR_DISTANCE };
     let max_floor = MAX_FLOOR_DISTANCE.max(MAX_STEP_HEIGHT + height_adjust);
     let (mut hit, mut floor_distance, valid, line, retained_penetration) = compute(origin, radius, max_floor, max_floor)?;
@@ -5447,7 +5447,7 @@ mod tests {
                     landed |= !airborne && seen[1];
                     assert!(!landed || !airborne, "landing rebounded at frame={frame}");
                     let floor_limit = MAX_STEP_HEIGHT + if previous == LocomotionState::Grounded {
-                        MAX_FLOOR_DISTANCE + crate::als::movement_constants::FLOOR_HEIGHT_CHECK_EPSILON
+                        MAX_FLOOR_DISTANCE + crate::als::movement_constants::SMALL_MOVEMENT_DISTANCE
                     } else { -MAX_FLOOR_DISTANCE };
                     let supported = position.y - ALS_CHARACTER_CAPSULE_HALF_HEIGHT <= floor_limit;
                     let expected = if (airborne || !supported) && !impact { LocomotionState::Air } else { LocomotionState::Grounded };

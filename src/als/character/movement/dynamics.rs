@@ -307,11 +307,19 @@ pub(crate) fn simulate_grounded_motion_until_mode_change(
             step,
         );
         let (actual_velocity, applied, continue_walking) = movement(current, step);
-        current = actual_velocity;
         remaining -= step;
         substeps += 1;
         displacement += applied;
-        if !continue_walking { break; }
+        if !continue_walking {
+            let desired_distance = current.length() * step;
+            remaining = if desired_distance < crate::als::movement_constants::SMALL_MOVEMENT_DISTANCE {
+                0.0
+            } else {
+                remaining + step * (1.0 - (applied.with_y(0.0).length() / desired_distance).min(1.0))
+            };
+            break;
+        }
+        current = actual_velocity;
     }
     (current, substeps, displacement, remaining)
 }
@@ -1060,6 +1068,97 @@ mod tests {
     }
 
     #[test]
+    fn source_falling_refunds_the_unconsumed_fraction_of_a_shortened_walking_step() {
+        let velocity = Vec3::NEG_Z * 6.0;
+        let dynamics = GroundedDynamics { acceleration: 0.0, braking_deceleration: 0.0, ground_friction: 0.0 };
+        let (actual, steps, displacement, remaining) = simulate_grounded_motion_until_mode_change(
+            velocity, Vec3::NEG_Z, 6.0, dynamics, &CmcAdapterParams::default(), 0.0, 0.1,
+            |planned, step| (planned * 0.8, planned * (step * 0.8), false));
+        assert_eq!(steps, 1);
+        assert!(displacement.abs_diff_eq(Vec3::NEG_Z * 0.24, 1e-6));
+        assert!((remaining - 0.06).abs() < 1e-6,
+            "Source StartFalling refunds the unconsumed20percent of the current50ms step: remaining={remaining}");
+        assert!(actual.abs_diff_eq(velocity, 1e-6),
+            "Source CheckFall returns before replacing the planned velocity with walking displacement velocity: actual={actual:?} source={velocity:?}");
+    }
+
+    #[test]
+    fn source_falling_refund_uses_horizontal_actual_distance_and_clamps_overshoot() {
+        let dynamics = GroundedDynamics { acceleration: 0.0, braking_deceleration: 0.0, ground_friction: 0.0 };
+        for (fraction, vertical, expected) in [(0.0, 0.0, 0.1), (0.8, 0.2, 0.06), (1.0, 0.0, 0.05), (1.2, 0.0, 0.05)] {
+            let (_, steps, _, remaining) = simulate_grounded_motion_until_mode_change(
+                Vec3::NEG_Z * 6.0, Vec3::NEG_Z, 6.0, dynamics, &CmcAdapterParams::default(), 0.0, 0.1,
+                |planned, step| (planned * fraction, planned * (step * fraction) + Vec3::Y * vertical, false));
+            assert_eq!(steps, 1);
+            assert!((remaining - expected).abs() < 1e-6,
+                "Source refund uses horizontal travel and never negative refund: fraction={fraction} vertical={vertical} remaining={remaining} expected={expected}");
+        }
+        for speed in [0.0, crate::als::movement_constants::SMALL_MOVEMENT_DISTANCE * 10.0] {
+            let (_, _, _, remaining) = simulate_grounded_motion_until_mode_change(
+                Vec3::NEG_Z * speed, Vec3::ZERO, 0.0, dynamics, &CmcAdapterParams::default(), 0.0, 0.1,
+                |_, _| (Vec3::ZERO, Vec3::ZERO, false));
+            assert_eq!(remaining, 0.0, "Source near-zero desired movement discards the unused time: speed={speed}");
+        }
+    }
+
+    #[test]
+    fn actual_shortened_walking_step_refunds_time_to_falling() {
+        use avian3d::prelude::{Collider, CollisionLayers, ColliderOf, Sensor, SpatialQueryFilter, ShapeCastConfig};
+        use bevy::ecs::system::RunSystemOnce;
+        let source_input = std::sync::Arc::new(std::sync::Mutex::new(None));
+        let source_sample = source_input.clone();
+        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        let platform = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(8.0, 0.5, 4.0),
+            Transform::from_xyz(0.0, 2.0, 2.0))).id();
+        let center = Vec3::new(0.0, 3.174, 0.12);
+        app.world_mut().entity_mut(character).insert((Position(center), Transform::from_translation(center), LinearVelocity::ZERO));
+        for _ in 0..60 { app.update(); }
+        assert_eq!(app.world().get::<AlsMovementBaseDynamicsState>(character).unwrap().entity, Some(platform));
+        let wall = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 4.0, 0.1),
+            Transform::from_xyz(0.0, 3.0, -0.52))).id();
+        app.update();
+        let origin = app.world().get::<Position>(character).unwrap().0;
+        let handle = app.world().get::<AlsMovementParamsHandle>(character).unwrap().0.clone();
+        let cmc = app.world().resource::<Assets<AlsMovementParams>>().get(&handle).unwrap().cmc.clone();
+        let source_distance = 6.25 * 0.05;
+        let applied_distance = app.world_mut().run_system_once(move |spatial: crate::extensions::RagdollSpatialQuery,
+            colliders: Query<&Collider>, candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&crate::als::character::AlsCollisionLayerOwnership>)>| {
+            let filter = SpatialQueryFilter::from_excluded_entities([character]);
+            assert!(crate::als::motion::find_ground_floor(&spatial, origin, 0.9, 0.3,
+                &cmc, LocomotionState::Grounded, &filter, character, &candidates).is_some());
+            let hit = spatial.cast_shape(colliders.get(character).unwrap(), origin, Quat::IDENTITY, Dir3::NEG_Z,
+                &ShapeCastConfig { ignore_origin_penetration: true, ..ShapeCastConfig::from_max_distance(source_distance) }, &filter).unwrap();
+            assert_eq!(hit.entity, wall);
+            let applied = crate::als::motion::movement_sweep_travel(source_distance, hit.distance);
+            assert!(applied > 0.27 && applied < source_distance,
+                "The source first walking sweep must be shortened after passing the perch boundary: applied={applied} hit={hit:?}");
+            let end = origin + Vec3::NEG_Z * applied;
+            assert!(crate::als::motion::find_ground_floor(&spatial, end, 0.9, 0.3,
+                &cmc, LocomotionState::Grounded, &filter, character, &candidates).is_none(),
+                "The collision-shortened first source step must lose its floor");
+            applied
+        }).unwrap();
+        app.add_systems(Update, (move |states: Query<&AlsMovementBaseDynamicsState>| {
+            *source_sample.lock().unwrap() = states.get(character).unwrap().pre_collision_velocity;
+        }).after(TnuaPipelineSystems::Motors));
+        app.world_mut().get_mut::<crate::als::gait::AlsDesiredGait>(character).unwrap().0 = Gait::Running;
+        app.world_mut().get_mut::<AlsMaxAllowedGait>(character).unwrap().0 = Gait::Running;
+        app.world_mut().entity_mut(character).insert((LinearVelocity(Vec3::NEG_Z * 6.5),
+            crate::als::input::AlsInputCommand { move_dir: Vec2::Y, ..default() }));
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_millis(100)));
+        app.update();
+        let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
+        let gravity = app.world().get::<crate::als::character::AlsEffectiveGravity>(character).unwrap().value.y;
+        let source_first_velocity = source_input.lock().unwrap().expect("The source walking step must publish its input before the Air snapshot clears based state");
+        assert!((source_first_velocity.z + 6.25).abs() < 1e-4,
+            "The real first walking source input must match the measured0.3125m sweep: planned={source_first_velocity:?}");
+        let source_remaining = 0.05 + 0.05 * (1.0 - applied_distance / source_distance);
+        assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Air));
+        assert!((velocity.y - gravity * source_remaining).abs() < 0.001,
+            "Source shortened Walking step refunds time before Falling gravity: applied={applied_distance} desired={source_distance} remaining={source_remaining} velocity={velocity:?} source_y={}", gravity * source_remaining);
+    }
+
+    #[test]
     fn actual_walking_off_a_ledge_gives_remaining_source_time_to_falling() {
         use avian3d::prelude::{Collider, CollisionLayers, ColliderOf, Sensor, SpatialQueryFilter};
         use bevy::ecs::system::RunSystemOnce;
@@ -1276,6 +1375,7 @@ mod tests {
             Some(&crate::als::state::AlsNotifyLocomotionAction::GettingUp));
         assert!(!app.world().get::<crate::als::roll::AlsRollState>(character).unwrap().active);
         let factor = app.world().get::<AlsLandingBrakingFriction>(character).unwrap().factor;
+        app.world_mut().entity_mut(character).insert(LinearVelocity(Vec3::X * 3.75));
         let before = app.world().get::<LinearVelocity>(character).unwrap().0.with_y(0.0);
         let handle = app.world().get::<AlsMovementParamsHandle>(character).unwrap();
         let params = app.world().resource::<Assets<AlsMovementParams>>().get(handle.id()).unwrap();
