@@ -206,6 +206,7 @@ fn set_source_slot_defaults(player: &mut AnimationGraphPlayer) {
 fn ab_als_input_writer(
     mut source_inputs: Query<&mut crate::extensions::SourceAnimationInputs>,
     time: Res<Time>,
+    virtual_time: Res<Time<Virtual>>,
     params_assets: Res<Assets<AlsMovementParams>>,
     skeletons: Res<Assets<bevy_animation_graph::core::skeleton::Skeleton>>,
     characters: Query<
@@ -287,6 +288,10 @@ fn ab_als_input_writer(
                 );
             }
             player.set_global_input_data("view_state.rotation_yaw", view_degrees);
+            player.set_global_input_data("movement_base.b_has_relative_rotation", motion.movement_base_snapshot.is_some());
+            player.set_global_input_data("movement_base.delta_yaw", if !virtual_time.is_paused() {
+                motion.movement_base_delta_yaw_degrees
+            } else { 0.0 });
             let body_degrees =
                 crate::als::orientation::world_forward_to_yaw(*transform.forward()).to_degrees();
             player.set_global_input_data("locomotion_state.input_yaw_angle_world_space", -motion.input_yaw_degrees);

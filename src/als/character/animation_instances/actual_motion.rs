@@ -13,6 +13,7 @@ pub struct AlsActualMotion {
     pub world_velocity: Vec3,
     pub world_acceleration: Vec3,
     pub movement_base_snapshot: Option<(Entity, Quat)>,
+    pub movement_base_delta_yaw_degrees: f32,
     pub local_velocity: Vec2,
     pub horizontal_speed: f32,
     pub velocity_yaw_degrees: f32,
@@ -94,6 +95,11 @@ fn snapshot_actual_motion_system(
                 let owner = owners.get(*entity).map_or(*entity, |collider| collider.body);
                 bodies.get(owner).is_ok_and(|body| *body != RigidBody::Static)
             });
+        next.movement_base_delta_yaw_degrees = match (current.as_deref().and_then(|motion| motion.movement_base_snapshot), next.movement_base_snapshot) {
+            (Some((previous_entity, previous_rotation)), Some((entity, rotation))) if previous_entity == entity =>
+                -world_forward_to_yaw(rotation * previous_rotation.conjugate() * Vec3::NEG_Z).to_degrees(),
+            _ => 0.0,
+        };
         if let Some(previous) = current.as_deref().filter(|_| time.delta_secs() > 1e-8) {
             let previous_velocity = match (previous.movement_base_snapshot, next.movement_base_snapshot) {
                 (Some((previous_entity, previous_rotation)), Some((entity, rotation))) if previous_entity == entity =>
@@ -287,6 +293,7 @@ mod tests {
             Quat::from_rotation_y(std::f32::consts::FRAC_PI_2);
         app.world_mut().get_mut::<LinearVelocity>(character).unwrap().0 = Vec3::NEG_X;
         app.world_mut().run_schedule(PostUpdate);
+        assert!((app.world().get::<AlsActualMotion>(character).unwrap().movement_base_delta_yaw_degrees + 90.0).abs() < 1e-5);
         assert!(
             app.world()
                 .get::<AlsActualMotion>(character)
@@ -318,6 +325,7 @@ mod tests {
         movement_base.entity = Some(next_base);
         movement_base.rotation = Quat::IDENTITY;
         app.world_mut().run_schedule(PostUpdate);
+        assert_eq!(app.world().get::<AlsActualMotion>(character).unwrap().movement_base_delta_yaw_degrees, 0.0);
         assert_eq!(
             app.world()
                 .get::<AlsActualMotion>(character)
