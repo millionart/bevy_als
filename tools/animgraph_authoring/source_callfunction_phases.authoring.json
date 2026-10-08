@@ -1,0 +1,238 @@
+{
+  "format": "als_animgraph_authoring_gate_v1",
+  "graphs": [
+    {
+      "path": "assets/ALS/Character/AB_Als.runtime.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "b113030b-0000-4000-8000-000000000001",
+          "name": "AB_Als",
+          "position": [
+            -480.0,
+            0.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000002",
+          "name": "Ragdoll Dynamic",
+          "position": [
+            -480.0,
+            160.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000003",
+          "name": "Ragdoll Readback",
+          "position": [
+            -480.0,
+            240.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000004",
+          "name": "Ragdoll Config",
+          "position": [
+            -224.0,
+            192.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000002\", \"als_ragdolling_dynamic\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"dynamic\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000003\", \"als_ragdolling_readback\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"readback\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000001\", \"pose\")",
+          "target": "OutputData(\"pose\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"ragdoll_config\")",
+          "target": "OutputData(\"ragdoll_config\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "pose": "Pose",
+          "ragdoll_config": "RagdollConfig"
+        }
+      },
+      "root_output_exceptions": [
+        {
+          "name": "ragdoll_config",
+          "reason": "The framework consumes body simulation and pose readback controls independently from the source pose.",
+          "evidence": "docs/bf114-ragdoll-contract.md"
+        }
+      ]
+    }
+  ],
+  "id": "source_callfunction_phases_contract",
+  "source_evidence": [
+    {
+      "path": "target/bf134/02m2b/ue_call_function.cpp",
+      "sha256": "20e16f71b0123c07252c20af6e5707f16f64e5fcd95b825095b67446a7c65526"
+    },
+    {
+      "path": "target/bf134/02m2b/crouching.ue.json",
+      "sha256": "d6e2f257c60401822c426693a784bd5598618f59e957f7afc7e68934201f52eb"
+    },
+    {
+      "path": "target/bf134/02m2b/grounded.ue.json",
+      "sha256": "a202232f79cacf36baefe6d6540c0eed8e4da951c9c482f81b828c578cf7d076"
+    },
+    {
+      "path": "target/bf134/02m2b/head.ue.json",
+      "sha256": "04cf6ac664503d2adbe2908619c08e50ed168823da88c12204aa864d72dfbe76"
+    },
+    {
+      "path": "target/bf134/02m2a/standing.ue.json",
+      "sha256": "8254082e30160bc6b64123d71af9907e4b33b59db4862a48f083222e27f3ff99"
+    },
+    {
+      "path": "target/bf134/02m1/locomotion.ue.json",
+      "sha256": "e82552b35d32e71e5da28c0170aa51ecfe817462623a4988948b4bda77aa45ad"
+    },
+    {
+      "path": "target/bf134/02m2b/current_callsite_inventory.json",
+      "sha256": "506272caab1327fd498e84842b772607c69e866ce51db4976aa0751af1bf6b0a"
+    },
+    {
+      "path": "target/bf134/02e2/grounded_movement_source_contract.json",
+      "sha256": "db0fc77f21f74ae81ff539da7efc62deb0c8116681a67f3df1c297d0f2c1b187"
+    },
+    {
+      "path": "target/bf134/02f3/crouching_movement_source_contract.json",
+      "sha256": "1758ca87665539515d344a1e2177ec1acd16d401016155547c4bf3cad7c48b82"
+    },
+    {
+      "path": "target/bf134/02m2b/current_renderer_selftest.stdout.log",
+      "sha256": "bcabd4318b68c059d4327101ee08fd86d488992e9ff1a52b8be434d56d2e8e5b"
+    },
+    {
+      "path": "target/bf134/02m2b/callfunction_phase_source_contract.json",
+      "sha256": "6dff9106124e61b9d9304b0c4eeaa98cf8bae4bdc51066dd64b440c3b22c5454"
+    }
+  ],
+  "verification_commands": [
+    {
+      "label": "generated_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets",
+        "--include",
+        "ALS",
+        "--include",
+        "ALSCamera"
+      ]
+    },
+    {
+      "label": "generated_editor",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets"
+      ]
+    },
+    {
+      "label": "runtime_asset_boundary",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/validate_runtime_graph_asset_boundary.py",
+        "--assets-root",
+        "assets",
+        "--check"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "animgraph_assets",
+    "manual_case": "standing_stop"
+  },
+  "focused_tests": [
+    {
+      "label": "current_native_order",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "source_native_refresh::tests::"
+      ],
+      "evidence": "target/bf134/02m2b/current_native_order.watchdog.json"
+    },
+    {
+      "label": "current_hips_child_order",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "source_movement_nodes::tests::"
+      ],
+      "evidence": "target/bf134/02m2b/current_hips_child_order.watchdog.json"
+    },
+    {
+      "label": "current_crouch_prepared",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "crouching_movement_uses_the_native_stride_curve_and_mesh_world_scale"
+      ],
+      "evidence": "target/bf134/02m2b/current_crouch_prepared.watchdog.json"
+    },
+    {
+      "label": "current_grounded_prepared",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "source_grounded_direction_is_exclusive_and_forces_velocity_or_sprint_forward"
+      ],
+      "evidence": "target/bf134/02m2b/current_grounded_prepared.watchdog.json"
+    }
+  ]
+}
