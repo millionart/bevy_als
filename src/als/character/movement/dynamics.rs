@@ -259,9 +259,18 @@ pub fn simulate_grounded_velocity_with_braking_friction(
     (velocity, substeps)
 }
 
-fn simulate_grounded_motion_with_braking_friction(
+pub(crate) fn simulate_grounded_motion_with_braking_friction(
     velocity: Vec3, desired_motion: Vec3, max_speed: f32, dynamics: GroundedDynamics,
     cmc: &CmcAdapterParams, braking_friction_factor: f32, delta_seconds: f32,
+) -> (Vec3, u32, Vec3) {
+    simulate_grounded_motion_with_feedback(velocity, desired_motion, max_speed, dynamics, cmc,
+        braking_friction_factor, delta_seconds, |velocity, step| (velocity, velocity * step))
+}
+
+pub(crate) fn simulate_grounded_motion_with_feedback(
+    velocity: Vec3, desired_motion: Vec3, max_speed: f32, dynamics: GroundedDynamics,
+    cmc: &CmcAdapterParams, braking_friction_factor: f32, delta_seconds: f32,
+    mut movement: impl FnMut(Vec3, f32) -> (Vec3, Vec3),
 ) -> (Vec3, u32, Vec3) {
     let mut remaining = delta_seconds.max(0.0);
     let max_iterations = cmc.max_simulation_iterations;
@@ -284,9 +293,11 @@ fn simulate_grounded_motion_with_braking_friction(
             cmc.braking_substep_time,
             step,
         );
+        let (actual_velocity, applied) = movement(current, step);
+        current = actual_velocity;
         remaining -= step;
         substeps += 1;
-        displacement += current * step;
+        displacement += applied;
     }
     (current, substeps, displacement)
 }
@@ -453,6 +464,7 @@ pub fn grounded_dynamics_motor_system(
     ) in &mut q
     {
         cmc_runtime.grounded_movement_delta = None;
+        cmc_runtime.grounded_collision_velocity = None;
         let Ok((roll, mantle)) = actions.get(entity) else {
             continue;
         };
@@ -771,6 +783,73 @@ mod tests {
             } else {
                 assert!(after.z - before.z >= -gap - 1e-4,
                     "A real wall within source movement must still block the capsule: gap={gap} before={before:?} after={after:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn actual_walking_collision_velocity_uses_the_final_source_substep() {
+        use avian3d::prelude::Collider;
+        use bevy::ecs::system::RunSystemOnce;
+        #[derive(Resource, Default)]
+        struct LastCollisionInput(Option<Vec3>);
+        for delta_ms in [100_u64, 125] {
+            let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+            for _ in 0..35 { app.update(); }
+            let before = app.world().get::<Position>(character).unwrap().0;
+            let wall = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 3.0, 0.1),
+                Transform::from_xyz(before.x, 1.5, before.z - 0.5))).id();
+            app.update();
+            let before = app.world().get::<Position>(character).unwrap().0;
+            app.world_mut().run_system_once(move |spatial: crate::extensions::RagdollSpatialQuery,
+                colliders: Query<&Collider>| {
+                let capsule = colliders.get(character).unwrap();
+                let filter = avian3d::prelude::SpatialQueryFilter::from_excluded_entities([character]);
+                assert!(spatial.cast_shape(capsule, before, Quat::IDENTITY, Dir3::NEG_Z,
+                    &avian3d::prelude::ShapeCastConfig::from_max_distance(0.1), &filter).is_none());
+                let hit = spatial.cast_shape(capsule, before, Quat::IDENTITY, Dir3::NEG_Z,
+                    &avian3d::prelude::ShapeCastConfig::from_max_distance(0.2), &filter).unwrap();
+                assert_eq!(hit.entity, wall);
+                assert!((before.z - hit.point1.z - 0.45).abs() < 1e-4 && hit.normal1.z > 0.99,
+                    "The geometric wall face must leave source capsule clearance0.15m: before={before:?} hit={hit:?}");
+                assert!(hit.distance > 0.1 && hit.distance <= 0.15,
+                    "The real wall must be reached during the final source substep: {hit:?}");
+            }).unwrap();
+            let handle = app.world().get::<AlsMovementParamsHandle>(character).unwrap().0.clone();
+            let mut settings = app.world().resource::<Assets<AlsMovementParams>>().get(&handle).unwrap().clone();
+            settings.speeds.standing.max_walk_speed = 2.0;
+            settings.speeds.standing.max_walk_backward_speed = 2.0;
+            settings.speeds.standing.max_run_speed = 2.0;
+            settings.speeds.standing.max_run_backward_speed = 2.0;
+            settings.speeds.standing.max_sprint_speed = 2.0;
+            if delta_ms == 125 { settings.cmc.max_simulation_time_step = 0.03125; }
+            let replacement = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(settings);
+            app.init_resource::<LastCollisionInput>().add_systems(PostUpdate,
+                (move |mut sampled: ResMut<LastCollisionInput>, states: Query<&AlsMovementBaseDynamicsState>| {
+                    sampled.0 = states.get(character).ok().and_then(|state| state.pre_collision_velocity);
+                }).after(crate::als::motion::AlsActualVelocitySet).before(crate::als::motion::AlsRotationResponseSet));
+            app.world_mut().entity_mut(character).insert((AlsMovementParamsHandle(replacement),
+                LinearVelocity(Vec3::NEG_Z * 2.0), crate::als::input::AlsInputCommand { move_dir: Vec2::Y, ..default() }));
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_millis(delta_ms)));
+            app.update();
+            let after = app.world().get::<Position>(character).unwrap().0;
+            let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
+            let runtime = app.world().get::<AlsCmcAdapterRuntime>(character).unwrap();
+            assert_eq!(runtime.simulation_substeps, if delta_ms == 100 { 2 } else { 4 });
+            assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Grounded));
+            assert!(before.z - after.z > 0.1 && before.z - after.z < 0.15,
+                "The real capsule must complete the first source step and collide during the final step: {before:?} -> {after:?}");
+            let source_speed_upper_bound = if delta_ms == 100 { 1.0 } else { 0.2 };
+            assert!(velocity.z >= -source_speed_upper_bound - 1e-4,
+                "Source final step only has at most0.05m remaining before collision in0.05s; frame-average velocity must not replace the final step: before={before:?} after={after:?} velocity={velocity:?}");
+            if delta_ms == 100 {
+                assert!(velocity.z <= -0.75,
+                    "Source final step advances remaining wall clearance minus bounded pullback; zero velocity cannot replace that actual movement: {velocity:?}");
+            }
+            if delta_ms == 125 {
+                let last_input = app.world().resource::<LastCollisionInput>().0.unwrap();
+                assert!(last_input.z >= -1.5,
+                    "The final source step must consume prior collision velocity before applying fresh acceleration: {last_input:?}");
             }
         }
     }

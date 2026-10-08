@@ -2583,7 +2583,10 @@ fn snapshot_actual_velocity_system(
         &LocomotionState, Option<&mut crate::als::dynamics::AlsMovementBaseDynamicsState>), With<AlsCharacter>>,
 ) {
     for (mut velocity, mut actual, position, runtime, locomotion, mut base) in &mut characters {
-        if let Some(start) = runtime.grounded_move_start
+        if let Some(collision_velocity) = runtime.grounded_collision_velocity {
+            velocity.x = collision_velocity.x;
+            velocity.z = collision_velocity.z;
+        } else if let Some(start) = runtime.grounded_move_start
             && let Some(position) = position
             && runtime.simulation_delta_seconds > 0.0 {
             velocity.x = (position.x - start.x) / runtime.simulation_delta_seconds;
@@ -3256,6 +3259,88 @@ fn apply_actual_stance(
     });
 }
 
+fn grounded_movement_transaction(
+    spatial_query: &SpatialQuery, capsule: &Collider, center: Vec3, rotation: Quat,
+    half: f32, radius: f32, delta: Vec3, cmc: &crate::als::params::CmcAdapterParams,
+    mode: LocomotionState, entity: Entity,
+    candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+) -> Option<(Vec3, Option<Vec3>, Option<f32>)> {
+    let (direction, distance) = Dir3::new_and_length(delta).ok()?;
+    let filter = SpatialQueryFilter::from_excluded_entities([entity]);
+    let accepts = |candidate| character_blocks_collider(entity, candidate, &candidates);
+    let mut forward_config = ShapeCastConfig {
+        ignore_origin_penetration: true,
+        ..ShapeCastConfig::from_max_distance(distance)
+    };
+    let clearance = ALS_CHARACTER_FLOOR_CLEARANCE + ALS_CHARACTER_TNUA_FLOAT_EPSILON;
+    let mut raised = center;
+    let mut remaining_delta = delta;
+    let mut initial_floor_y = None;
+    let mut result = (center, None, None);
+    if let Some(hit) = spatial_query.cast_shape_predicate(capsule, center, Quat::IDENTITY, direction, &forward_config, &filter, &accepts) {
+        let advance = *direction * movement_sweep_travel(distance, hit.distance);
+        raised += advance;
+        remaining_delta -= advance;
+        forward_config.max_distance = remaining_delta.length();
+        result.0 = raised;
+        let slide_normal = Vec3::new(hit.normal1.x, 0.0, hit.normal1.z).normalize_or_zero();
+        let slide = remaining_delta - slide_normal * remaining_delta.dot(slide_normal);
+        result.1 = Some(slide);
+        if hit.point1.y <= center.y - half - clearance || hit.point1.y > center.y + half - radius {
+            return Some(result);
+        }
+        let Some((floor_center, impact_y, _)) = find_ground_floor(&spatial_query, center, half, radius, cmc, mode, &filter, entity, &candidates) else { return Some(result) };
+        initial_floor_y = Some(impact_y);
+        let up_config = ShapeCastConfig {
+            ignore_origin_penetration: true,
+            ..ShapeCastConfig::from_max_distance((MAX_STEP_HEIGHT - (center.y - floor_center).max(0.0)).max(0.0))
+        };
+        let lift = spatial_query.cast_shape_predicate(capsule, raised, Quat::IDENTITY, Dir3::Y, &up_config, &filter, &accepts)
+            .map_or(up_config.max_distance, |hit| movement_sweep_travel(up_config.max_distance, hit.distance));
+        raised.y += lift;
+        if let Some(hit) = spatial_query.cast_shape_predicate(capsule, raised, Quat::IDENTITY,
+            direction, &forward_config, &filter, &accepts) {
+            if hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0 { return Some(result); }
+            let advance = *direction * movement_sweep_travel(forward_config.max_distance, hit.distance);
+            let normal = if hit.normal1.y > 0.0 && hit.normal1.y < deg_to_rad(MAX_SLOPE_DEGREES).cos() {
+                hit.normal1.with_y(0.0).normalize_or_zero()
+            } else { hit.normal1 };
+            let tail = remaining_delta - advance;
+            let slide = tail - normal * tail.dot(normal);
+            let mut progressed = advance;
+            if slide.dot(remaining_delta) > 0.0 && let Ok((slide_direction, slide_distance)) = Dir3::new_and_length(slide) {
+                let slide_config = ShapeCastConfig { max_distance: slide_distance, ..forward_config };
+                let slide_hit = spatial_query.cast_shape_predicate(capsule, raised + advance, Quat::IDENTITY,
+                    slide_direction, &slide_config, &filter, &accepts);
+                if slide_hit.is_some_and(|hit| hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0) { return Some(result); }
+                progressed += *slide_direction * slide_hit.map_or(slide_distance,
+                    |hit| movement_sweep_travel(slide_distance, hit.distance));
+            }
+            if progressed.length_squared() <= f32::EPSILON { return Some(result); }
+            remaining_delta = progressed;
+        }
+    }
+    let destination = raised + remaining_delta;
+    let Some(floor) = floor_sweep_hit(&spatial_query, capsule, radius, destination,
+        MAX_STEP_HEIGHT + MAX_FLOOR_DISTANCE * 2.0, &filter, &accepts)
+        .filter(|hit| hit.normal1.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos()) else {
+        return Some(result);
+    };
+    if floor.distance == 0.0 && (floor.point1 - floor.point2).dot(floor.normal1) > 0.0 { return Some(result); }
+    let next_y = destination.y - floor.distance + clearance;
+    if initial_floor_y.is_some() && find_ground_floor(&spatial_query, destination.with_y(next_y), half, radius,
+        cmc, mode, &filter, entity, &candidates).is_none() { return Some(result); }
+    if (next_y - center.y).abs() > MAX_STEP_HEIGHT
+        || initial_floor_y.is_some_and(|initial| floor.point1.y - initial > MAX_STEP_HEIGHT) {
+        return Some(result);
+    }
+    if initial_floor_y.is_some() && spatial_query.shape_intersections(capsule, destination.with_y(next_y),
+        rotation, &filter).into_iter().any(accepts) { return Some(result); }
+    if result.1.is_some() { result.1 = Some(remaining_delta); }
+    result.2 = Some(next_y);
+    Some(result)
+}
+
 fn grounded_step_up_system(
     time: Res<Time>,
     mut commands: Commands,
@@ -3278,11 +3363,15 @@ fn grounded_step_up_system(
             &TnuaController<AlsControlScheme>,
             &AlsMovementParamsHandle,
             &Stance,
+            (&RotationMode, &AlsViewYaw, &AlsMaxAllowedGait,
+                Option<&crate::als::dynamics::AlsGroundedDynamics>,
+                Option<&crate::als::dynamics::AlsLandingBrakingFriction>,
+                Option<&mut crate::als::dynamics::AlsMovementBaseDynamicsState>),
         ),
         With<AlsCharacter>,
     >,
 ) {
-    for (entity, mut transform, position, capsule, velocity, mut motor, mut margin, mut runtime, gravity, loco, controller, handle, stance) in &mut q {
+    for (entity, mut transform, position, capsule, velocity, mut motor, mut margin, mut runtime, gravity, loco, controller, handle, stance, (rotation_mode, view_yaw, max_allowed_gait, dynamics, braking, mut base)) in &mut q {
         *margin = SpeculativeMargin::MAX;
         runtime.grounded_move_start = None;
         if *loco != LocomotionState::Grounded || blocked.contains(entity)
@@ -3297,93 +3386,69 @@ fn grounded_step_up_system(
         let next_velocity = velocity.0 + motor.lin.boost + motor.lin.acceleration * time.delta_secs();
         let delta = runtime.grounded_movement_delta
             .unwrap_or(next_velocity * time.delta_secs()).with_y(0.0);
-        let Ok((direction, distance)) = Dir3::new_and_length(delta) else {
+        if runtime.simulation_substeps > 1 && runtime.grounded_movement_delta.is_some()
+            && let (Some(base), Some(dynamics)) = (base.as_deref_mut(), dynamics)
+            && spatial_query.cast_shape_predicate(capsule, position.0, transform.rotation,
+                Dir3::new(delta).unwrap_or(Dir3::NEG_Z), &ShapeCastConfig::from_max_distance(delta.length()),
+                &SpatialQueryFilter::from_excluded_entities([entity]),
+                &|candidate| character_blocks_collider(entity, candidate, &candidates)).is_some() {
+            let initial = position.0;
+            let mut current_transform = *transform;
+            current_transform.translation = initial;
+            let max_speed = crate::als::dynamics::max_allowed_speed(params, *stance, *rotation_mode,
+                max_allowed_gait.0, base.relative_velocity, view_yaw.0);
+            let factor = braking.map_or(crate::als::dynamics::BRAKING_FRICTION_FACTOR, |state| state.factor);
+            let support = base.support_velocity.with_y(0.0);
+            let mut last_input = base.relative_velocity;
+            let (final_velocity, _, _) = crate::als::dynamics::simulate_grounded_motion_with_feedback(
+                base.relative_velocity, controller.basis.desired_motion, max_speed, dynamics.0, &params.cmc,
+                factor, time.delta_secs(), |step_velocity, step_seconds| {
+                last_input = step_velocity;
+                let center = current_transform.translation;
+                let requested = (step_velocity + support) * step_seconds;
+                let Some((advanced, remaining, next_y)) = grounded_movement_transaction(&spatial_query,
+                    capsule, center, current_transform.rotation, half, radius, requested,
+                    &params.cmc, *loco, entity, &candidates) else { return (step_velocity, Vec3::ZERO) };
+                let remaining = remaining.unwrap_or(requested);
+                let mut endpoint = advanced + remaining;
+                if let Some(next_y) = next_y && next_y > center.y { endpoint.y = next_y; }
+                current_transform.translation = endpoint;
+                let applied = endpoint - center;
+                (applied.with_y(0.0) / step_seconds - support, applied)
+            });
+            runtime.grounded_collision_velocity = Some(final_velocity + support);
+            runtime.grounded_move_start = None;
+            base.pre_collision_velocity = Some(last_input);
+            let physics_delta = crate::source_physics_timing::SOURCE_MAX_PHYSICS_DELTA.as_secs_f32().min(time.delta_secs());
+            current_transform.translation -= support * physics_delta;
+            *transform = current_transform;
+            commands.entity(entity).insert(Position(transform.translation));
+            motor.lin.boost.x = support.x - velocity.x;
+            motor.lin.boost.z = support.z - velocity.z;
+            motor.lin.acceleration.x = 0.0;
+            motor.lin.acceleration.z = 0.0;
+            motor.lin.boost.y = -velocity.y;
+            motor.lin.acceleration.y = -gravity.value.y;
+            *margin = SpeculativeMargin::ZERO;
             continue;
-        };
+        }
         let center = position.0;
-        let filter = SpatialQueryFilter::from_excluded_entities([entity]);
-        let accepts = |candidate| character_blocks_collider(entity, candidate, &candidates);
-        let mut forward_config = ShapeCastConfig {
-            ignore_origin_penetration: true,
-            ..ShapeCastConfig::from_max_distance(distance)
-        };
-        let clearance = ALS_CHARACTER_FLOOR_CLEARANCE + ALS_CHARACTER_TNUA_FLOAT_EPSILON;
-        let mut raised = center;
-        let mut remaining_delta = delta;
-        let mut initial_floor_y = None;
-        if let Some(hit) = spatial_query.cast_shape_predicate(capsule, center, Quat::IDENTITY, direction, &forward_config, &filter, &accepts) {
-            let advance = *direction * movement_sweep_travel(distance, hit.distance);
-            raised += advance;
-            remaining_delta -= advance;
-            forward_config.max_distance = remaining_delta.length();
+        let Some((advanced, remaining, next_y)) = grounded_movement_transaction(&spatial_query, capsule,
+            center, transform.rotation, half, radius, delta, &params.cmc, *loco, entity, &candidates) else { continue };
+        if let Some(remaining) = remaining {
             runtime.grounded_move_start = Some(center);
-            transform.translation = raised;
-            commands.entity(entity).insert(Position(raised));
-            let slide_normal = Vec3::new(hit.normal1.x, 0.0, hit.normal1.z).normalize_or_zero();
-            let slide = remaining_delta - slide_normal * remaining_delta.dot(slide_normal);
-            let remaining_velocity = slide / time.delta_secs();
+            transform.translation = advanced;
+            commands.entity(entity).insert(Position(advanced));
+            let remaining_velocity = remaining / time.delta_secs();
             motor.lin.boost.x = remaining_velocity.x - velocity.x;
             motor.lin.boost.z = remaining_velocity.z - velocity.z;
             motor.lin.acceleration.x = 0.0;
             motor.lin.acceleration.z = 0.0;
-            if hit.point1.y <= center.y - half - clearance || hit.point1.y > center.y + half - radius {
-                continue;
-            }
-            let Some((floor_center, impact_y, _)) = find_ground_floor(&spatial_query, center, half, radius, &params.cmc, *loco, &filter, entity, &candidates) else { continue };
-            initial_floor_y = Some(impact_y);
-            let up_config = ShapeCastConfig {
-                ignore_origin_penetration: true,
-                ..ShapeCastConfig::from_max_distance((MAX_STEP_HEIGHT - (center.y - floor_center).max(0.0)).max(0.0))
-            };
-            let lift = spatial_query.cast_shape_predicate(capsule, raised, Quat::IDENTITY, Dir3::Y, &up_config, &filter, &accepts)
-                .map_or(up_config.max_distance, |hit| movement_sweep_travel(up_config.max_distance, hit.distance));
-            raised.y += lift;
-            if let Some(hit) = spatial_query.cast_shape_predicate(capsule, raised, Quat::IDENTITY,
-                direction, &forward_config, &filter, &accepts) {
-                if hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0 { continue; }
-                let advance = *direction * movement_sweep_travel(forward_config.max_distance, hit.distance);
-                let normal = if hit.normal1.y > 0.0 && hit.normal1.y < deg_to_rad(MAX_SLOPE_DEGREES).cos() {
-                    hit.normal1.with_y(0.0).normalize_or_zero()
-                } else { hit.normal1 };
-                let tail = remaining_delta - advance;
-                let slide = tail - normal * tail.dot(normal);
-                let mut progressed = advance;
-                if slide.dot(remaining_delta) > 0.0 && let Ok((slide_direction, slide_distance)) = Dir3::new_and_length(slide) {
-                    let slide_config = ShapeCastConfig { max_distance: slide_distance, ..forward_config };
-                    let slide_hit = spatial_query.cast_shape_predicate(capsule, raised + advance, Quat::IDENTITY,
-                        slide_direction, &slide_config, &filter, &accepts);
-                    if slide_hit.is_some_and(|hit| hit.distance == 0.0 && (hit.point1 - hit.point2).dot(hit.normal1) > 0.0) { continue; }
-                    progressed += *slide_direction * slide_hit.map_or(slide_distance,
-                        |hit| movement_sweep_travel(slide_distance, hit.distance));
-                }
-                if progressed.length_squared() <= f32::EPSILON { continue; }
-                remaining_delta = progressed;
-            }
         }
-        let destination = raised + remaining_delta;
-        let Some(floor) = floor_sweep_hit(&spatial_query, capsule, radius, destination,
-            MAX_STEP_HEIGHT + MAX_FLOOR_DISTANCE * 2.0, &filter, &accepts)
-            .filter(|hit| hit.normal1.y >= deg_to_rad(MAX_SLOPE_DEGREES).cos()) else {
-            continue;
-        };
-        if floor.distance == 0.0 && (floor.point1 - floor.point2).dot(floor.normal1) > 0.0 { continue; }
-        let next_y = destination.y - floor.distance + clearance;
-        if initial_floor_y.is_some() && find_ground_floor(&spatial_query, destination.with_y(next_y), half, radius,
-            &params.cmc, *loco, &filter, entity, &candidates).is_none() { continue; }
-        if (next_y - center.y).abs() > MAX_STEP_HEIGHT
-            || initial_floor_y.is_some_and(|initial| floor.point1.y - initial > MAX_STEP_HEIGHT) {
-            continue;
-        }
-        if initial_floor_y.is_some() && spatial_query.shape_intersections(capsule, destination.with_y(next_y),
-            transform.rotation, &filter).into_iter().any(accepts) { continue; }
+        let Some(next_y) = next_y else { continue };
         if next_y > center.y {
             transform.translation.y = next_y;
             commands.entity(entity).insert(Position(transform.translation));
-        }
-        if runtime.grounded_move_start.is_some() {
-            let remaining_velocity = remaining_delta / time.delta_secs();
-            motor.lin.boost.x = remaining_velocity.x - velocity.x;
-            motor.lin.boost.z = remaining_velocity.z - velocity.z;
         }
         motor.lin.boost.y = -velocity.y;
         motor.lin.acceleration.y = -gravity.value.y;
