@@ -115,7 +115,7 @@ impl Probe {
         let speed = frame.velocity.with_y(0.0).length();
         command.look_delta.x = -yaw_error / crate::als::view::LOOK_MOUSE_RADIANS_PER_COUNT;
         command.crouch_pressed = frame.stance != Stance::Standing;
-        let gait = if self.stage != Stage::Traverse || distance < 3.5 || remaining < 4.5 {
+        let gait = if self.stage != Stage::Traverse || distance < 3.5 || remaining < 3.5 {
             Gait::Walking
         } else if distance < 8.0 { Gait::Running } else { Gait::Sprinting };
         command.sprint_held = gait == Gait::Sprinting;
@@ -247,6 +247,28 @@ mod tests {
         assert!(intersections.is_empty(), "route endpoint intersects the stair tread");
         assert!(supported, "route endpoint has no capsule floor support");
         assert!(route.top.z < -3.0 && route.top.z > -3.74);
+    }
+
+    #[test]
+    fn stairs_sprint_segment_preserves_stable_visual_samples_at_source_speed() {
+        for delta in [0.07051209_f64, 0.1] {
+            let route = Route { bottom: Vec3::ZERO, top: Vec3::new(0.0, 8.1, -16.475) };
+            let mut probe = Probe { route: Some(route), stage: Stage::Traverse, ..default() };
+            let mut observations = Vec::new();
+            for index in 0..32 {
+                let elapsed = index as f64 * delta;
+                let mut sample = frame(Vec3::NEG_Z * (8.0 + 6.5 * elapsed as f32));
+                sample.velocity = Vec3::NEG_Z * 6.5;
+                sample.desired_gait = Gait::Sprinting;
+                let command = probe.command(elapsed, sample);
+                if !command.sprint_held { break; }
+                if elapsed >= 0.5 { observations.push(elapsed); }
+            }
+            assert!(observations.len() >= 3,
+                "Source-speed sprint must hold long enough for three stable visual samples: delta={delta} observations={observations:?}");
+            assert!(observations.last().unwrap() - observations.first().unwrap() >= 0.12,
+                "Source-speed sprint must preserve the original pose observation span: delta={delta} observations={observations:?}");
+        }
     }
 
     #[test]
