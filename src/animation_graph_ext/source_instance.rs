@@ -153,7 +153,7 @@ pub fn source_call_became_relevant(ctx: &NodeContext) -> Result<bool, GraphError
     let previous = source_instance_properties(ctx)?
         .call_frames
         .insert((ctx.graph_context.context_id, ctx.node_id), frame);
-    Ok(previous.is_none_or(|previous| frame > previous.saturating_add(1)))
+    Ok(previous.is_none_or(|previous| frame.wrapping_sub(previous) % u64::from(u16::MAX) > 1))
 }
 
 #[derive(Reflect, Clone, Debug)]

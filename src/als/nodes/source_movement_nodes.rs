@@ -334,12 +334,17 @@ mod tests {
                 ("fixture".to_owned(), DataValue::Pose(Pose::default())),
             ]);
             let mut results = Vec::new();
-            for frame in 0..4 {
+            for frame in 0..6 {
                 if frame == 2 {
                     arena.next_frame();
                 }
                 if frame == 3 {
                     arena = GraphContextArena::new(root.id());
+                }
+                if frame >= 4 {
+                    for _ in 0..if frame == 4 { u16::MAX as usize - 1 } else { u16::MAX as usize } {
+                        arena.next_frame();
+                    }
                 }
                 let context = GraphContext::new(
                     arena.get_toplevel_id(),
@@ -352,7 +357,7 @@ mod tests {
                     &mut gizmos,
                     &inputs,
                 );
-                if frame == 1 {
+                if frame == 1 || frame >= 4 {
                     crate::extensions::source_instance::set_source_property(
                         &context.create_node_context(NodeId::default()),
                         "grounded_state.hips_direction",
@@ -426,8 +431,104 @@ mod tests {
         world.insert_resource(Assets::<StateMachine>::default());
         assert_eq!(
             world.run_system_cached_with(query, graph).unwrap(),
-            [3.0, 0.0, 3.0, 3.0]
+            [3.0, 0.0, 3.0, 3.0, 0.0, 0.0]
         );
+    }
+
+    #[test]
+    fn call_counter_wrap_preserves_the_native_plant_foot_pose() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_graph::{AnimationGraph, NodeId, TimeUpdate},
+            animation_node::AnimationNode,
+            context::{deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+                graph_context_arena::GraphContextArena, new_context::GraphContext,
+                system_resources::SystemResources},
+            edge_data::DataValue, utils::testing::TestIoEnv,
+        };
+        fn query(In((handle,gap,initial,base)):In<(Handle<AnimationGraph>,usize,f32,Pose)>,resources:SystemResources)->Pose {
+            let graph=resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena=GraphContextArena::new(handle.id());
+            let mut gizmos=DeferredGizmos::default();
+            let entities=HashMap::new();
+            let env=TestIoEnv::default();
+            let inputs=HashMap::from([
+                ("grounded_state.hips_direction".into(),DataValue::F32(initial)),
+                ("grounded_state.velocity_blend.forward_amount".into(),DataValue::F32(0.0)),
+                ("grounded_state.velocity_blend.backward_amount".into(),DataValue::F32(0.0)),
+                ("grounded_state.velocity_blend.left_amount".into(),DataValue::F32(1.0)),
+                ("grounded_state.velocity_blend.right_amount".into(),DataValue::F32(0.0)),
+                ("movement_details".into(),DataValue::Pose(base)),
+            ]);
+            let context=GraphContext::new(arena.get_toplevel_id(),graph,&mut arena,&resources,&env,
+                Entity::PLACEHOLDER,&entities,&mut gizmos,&inputs);
+            let first=graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.0)),context)
+                .unwrap().remove("Pose").unwrap().into_pose().unwrap();
+            if gap==0 {return first;}
+            for _ in 1..gap {arena.next_frame();}
+            let context=GraphContext::new(arena.get_toplevel_id(),graph,&mut arena,&resources,&env,
+                Entity::PLACEHOLDER,&entities,&mut gizmos,&inputs);
+            crate::extensions::source_instance::set_source_property(
+                &context.create_node_context(NodeId::default()),"grounded_state.hips_direction",0.0_f32).unwrap();
+            graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.0)),context)
+                .unwrap().remove("Pose").unwrap().into_pose().unwrap()
+        }
+        let (mut app,_,avatar)=crate::roll_drive::tests::loaded_roll_character();
+        let source:Handle<AnimationGraph>=app.world().resource::<AssetServer>().load(
+            "ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph/SM6_Standing_States/S4_Stop/SM0_Stop_States/S3_Plant_Right_Foot.animgraph.ron");
+        let deadline=std::time::Instant::now()+std::time::Duration::from_secs(30);
+        while !app.world().resource::<AssetServer>().is_loaded_with_dependencies(source.id()) {
+            app.update();
+            assert!(std::time::Instant::now()<deadline,"Current Plant Foot graph did not load");
+        }
+        let player=app.world().get::<bevy_animation_graph::core::animated_scene::AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let base=app.world().get::<bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer>(player)
+            .unwrap().get_default_output_pose().unwrap().clone();
+        let cache=NodeId::from(bevy::asset::uuid::Uuid::parse_str("c39c0018-4c52-cdf4-3681-2cb2c6b0f489").unwrap());
+        let output=NodeId::from(bevy::asset::uuid::Uuid::parse_str("d49f14a1-4521-847a-81db-3a888dd8e01e").unwrap());
+        let source=app.world().resource::<Assets<AnimationGraph>>().get(&source).unwrap();
+        let mut native_leaf=AnimationGraph::new();
+        for node in source.nodes.values() {
+            if node.id==cache {
+                let mut input=AnimationNode::new(node.name.clone(),crate::extensions::GlobalPoseInputNode {
+                    key:"movement_details".into(),output:"Pose".into()
+                });
+                input.id=cache;
+                native_leaf.add_node(input);
+            } else {native_leaf.add_node(node.clone());}
+        }
+        for (target,value) in &source.edges_inverted {
+            if matches!(target,bevy_animation_graph::core::animation_graph::TargetPin::NodeData(..)) {
+                native_leaf.edges_inverted.insert(target.clone(),value.clone());
+            }
+        }
+        native_leaf.add_output_data("Pose".into(),DataSpec::Pose);
+        native_leaf.add_output_data_edge(output,"Pose","Pose");
+        let mut actual_leaf=native_leaf.clone();
+        let write=AnimationNode::new("Current source hips call",SourceSetHipsDirectionNode {
+            new_hips_direction:"LeftBackward".into(),..default()
+        });
+        actual_leaf.add_node(write.clone());
+        actual_leaf.add_node_parameter_edge(output,"Pose",write.id,"Source");
+        actual_leaf.add_output_data_edge(write.id,"Pose","Pose");
+        let native_leaf=app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(native_leaf);
+        let actual_leaf=app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(actual_leaf);
+        for (gap,expected_hips) in [(1,0.0_f32),(2,3.0),(65535,0.0),(65536,0.0),(65537,3.0)] {
+            let expected=app.world_mut().run_system_once_with(query,(native_leaf.clone(),0,expected_hips,base.clone())).unwrap();
+            let actual=app.world_mut().run_system_once_with(query,(actual_leaf.clone(),gap,0.0,base.clone())).unwrap();
+            let mut dot=1.0_f32;
+            let mut distance=0.0_f32;
+            for bone in expected.paths.keys() {
+                let a=actual.get_bone(*bone).unwrap();
+                let e=expected.get_bone(*bone).unwrap();
+                if let (Some(a),Some(e))=(a.rotation,e.rotation) {dot=dot.min(a.dot(e).abs());}
+                if let (Some(a),Some(e))=(a.translation,e.translation) {distance=distance.max(a.distance(e));}
+            }
+            assert!(dot>1.0-1e-5 && distance<1e-5,
+                "Call counter changes the actual native Plant Foot pose: gap={gap}, expected_hips={expected_hips}, rotation_error_degrees={}, location_error={distance}",
+                (2.0*dot.clamp(-1.0,1.0).acos()).to_degrees());
+        }
     }
 
     #[test]
