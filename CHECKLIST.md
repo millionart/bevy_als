@@ -1413,7 +1413,7 @@
       - [x] BF134.02H1c Pelvisvalid source修复正常target_game/play与原startup/visibility/foot_ik真实Gate；b/ffa379a已过，实际开始2026-10-08 22:22 +08:00，预估结束22:32 +08:00。依据normal约174秒+startup16/Visibility21/FootIK82与report核销，10min；父H1原22:20容差22:40须独立检查，不能被c覆盖。Capt0/FunctionalOnly，所有其他pose/graph/数字/physics/coverage/watchdog保持。
       - [x] BF134.02H1d Visibility montage通知Gate阶段范围误报修复（工具差异，不计P2）；实际22:26:57公共报告source相同montage阶段2shake/3foot完备，但visible .311落地额外1foot被全阶段总和误计4而fail。实际开始2026-10-08 22:30 +08:00，预估结束22:50 +08:00；先现self-test补对应visible额外事件稳定红，再只按montage阶段计数保持精确2/3、漏/多/错阶段负控制与旧报告replay、消融恢复，不能改通知生产/放宽数字；之后正常同target/原三public另登记剩余估时，父H1 22:40容差独立复盘。
         - [x] BF134.02H2a1 FootLock source FAnimWeight relevant/full边界到实际锁脚输出；source1416/1437使用UE FAnimWeight，targetFOOT_LOCK_RELEVANCE_THRESHOLD=1e−4且共享full，需actualproducer/consumer验证。实际开始2026-10-08 22:54 +08:00，预估结束23:14 +08:00；20min包括freshUE阈值源码、near-full.99995/previous.5真实Foot/Rig回放和正常full控制，不凭数值名字调整，只证source可观察差后统一规则/消融。contextDelta另独立候选，不同根因不混成一次补丁。
-        - [ ] BF134.02H2a1b Foot权重统一源门槛最小修复/相关边界消融恢复/currentstatic；H2a1实际Rig写回100.237红已证，sourceUE_ZERO1e−5与target1e−4同无单位类型。实际开始2026-10-08 22:59 +08:00，预估结束23:19 +08:00；20min含同helper相关Relevant/Full与动态Transition predicate源码核对、真实near-full/full/relevant控制、消融/原bytes恢复及适度回归，不新增adaptive阈值或图专用rule。正常/public再拆。
+        - [x] BF134.02H2a1b Foot权重统一源门槛最小修复/相关边界消融恢复/currentstatic；H2a1实际Rig写回100.237红已证，sourceUE_ZERO1e−5与target1e−4同无单位类型。实际开始2026-10-08 22:59 +08:00，预估结束23:19 +08:00；20min含同helper相关Relevant/Full与动态Transition predicate源码核对、真实near-full/full/relevant控制、消融/原bytes恢复及适度回归，不新增adaptive阈值或图专用rule。正常/public再拆。
         - [ ] BF134.02H2a1c 权重source修复正常target_game与原startup/FootIK/StandingDynamic等公共consumer；依赖b静态闭环后另估时，未开始。
   - [ ] BF134.02L AnimationPlayer丢弃/重建Gate移除生命周期warning source边界；已数次原FootIK退出warning证明路径，依赖当前native公式闭包后选取最小复现再定级，条目本身不授权提前修改。
 
@@ -1576,6 +1576,10 @@
   - 02H2a1b统一Foot权重四控制绿（2026-10-08 23:02:40.099 +08:00）：一个共享常量1e−4→UE源1e−5后原实际Rig/锁量89.736绿；四loadedRoot控制96.313全过：request.99995保持prev.5且Rig写回源blend、正常1重锁1、sourceRelevant2e−5保留2e−5、边界1e−5按严格>清0。只本Foot runtime helper的Relevant/Full统一同源类型，必要相邻DynamicRelevant也源FAnimWeight；未改转换器/规则/资产，未泛化其他阈值/图。下一还原旧常量独立消融实际Rig必须红，源bytes同target恢复再current/static/正常public；80/P281候选，b估23:19/H2a父23:17容差各独立有效。
 
   - 02H2a1源反例叶完成（实际Rig红2026-10-08 22:58:04.907 +08:00）：freshUE_ZERO1e−5/sourceFoot1416/1437，loadedRoot prevLock.5/request.99995 noMoving条件在target提前full，锁量90.986红1vs.5、实际Rig足部写回100.237红；不是只对比常量/私有flag，正向四控制96.313已证明source规则达实际consumer。a实际22:54/预估23:14/实际22:58:04.907偏差−15分55.093秒成功，独立docs提交；修复/消融/恢复与public由b/c独立Gate，80/P281未accepted，H2a ContextDelta等其他core边界仍待审计，不混修。
+
+  - 02H2a1b旧权重消融红/恢复中（2026-10-08 23:05:10.763 +08:00）：共享常量回旧1e−4 96.901在request.99995/prev.5原actualRig写回断言复现红，source1e−5四控制96.313绿证明rule必要性；native sourceFoot字节已恢复/自然mtime，same target16Footapply含四controls原counter重编中。未新增branch/cache/adapter、未改变验证tolerance或图/转换规则；相关StateFoot/Dynamicpredicate/NativeRefresh/Transition测试随后适度回归，完整动态Transition算法不借共享predicate提前核销。80/P281候选，b23:19/H2a父23:17容差独立有效。
+
+  - 02H2a1b source/static完成（2026-10-08 23:08:51 +08:00）：UE FAnimWeight/ZeroMacro1e−5与sourceFoot.Full/Relevant实际Rig100.237红、锁量90.986红→单常量source值89.736绿→四真实controls96.313绿（.99995留.5/1正常重锁/2e−5相关保留/1e−5严格不相关清0）→旧1e−4消融96.901实际Rig再红→原sourceStateBytes61F10D7D自然mtime同target16Foot/104.246恢复，其他StateFoot18/Native6/Rig5/Visibility1/provider16/notify9全过共71unique，static3.472。相关predicate均sourceFAnimWeight同类型，仅统一本Foot常量，无新branch/cache/helper/图专用rule，转换/资产规则不改all15diff0保持，验证tolerance不动。b实际22:59/预估23:19/实际23:08:51偏差−10分9秒成功，代码独立提交后c同target正常+原startup/foot_ik/standing_dynamic，80/P281未accepted；H2a父23:17误差23:37独立有效，ContextDelta等其他core边界尚待。
 
 - [ ] BF134.03 PhysicsAsset/物理时钟、相机、Overlay、关卡、材质与 UI 逐链审计及修复；只有限复开有 fresh source/症状/consumer 证据的旧项。
 - [ ] BF134.04 全范围覆盖核销与真实 Playground 最终 Gate；所有确认的 P2+ 项通过自身 Gate 后才可核销总目标。

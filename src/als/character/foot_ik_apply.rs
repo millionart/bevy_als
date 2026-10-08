@@ -709,6 +709,42 @@ mod tests {
     use super::*;
 
     #[test]
+    fn near_full_source_weight_keeps_the_existing_foot_lock() {
+        for (requested_amount, source_amount) in [(0.999_95_f32, 0.5_f32), (1.0, 1.0), (0.000_02, 0.000_02), (0.000_01, 0.0)] {
+            #[derive(Resource, Default)]
+            struct SourceFootInput(Option<(f32, f32, Vec3)>);
+            let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            for _ in 0..5 { app.update(); }
+            app.init_resource::<SourceFootInput>().add_systems(PostUpdate,
+                (move |mut states: Query<(&mut AlsFootLockState, &mut AlsFootLockInput)>,
+                    mut source: ResMut<SourceFootInput>| {
+                    let (mut lock, mut input) = states.get_mut(actor).unwrap();
+                    assert!(lock.valid);
+                    lock.left.lock_amount = 0.5;
+                    lock.left.lock_location = lock.left.target_location + Vec3::X * 0.1;
+                    input.left_ik_amount = 1.0;
+                    input.left_lock_amount = requested_amount;
+                    input.moving_smooth = false;
+                    source.0 = Some((lock.left.lock_amount, input.left_lock_amount, lock.left.lock_location));
+                }).after(crate::standing_layer::AlsStandingLayerSet).before(FootIkApplySet::UpdateInputs));
+            app.update();
+            let (previous, requested, source_lock) = app.world().resource::<SourceFootInput>().0.unwrap();
+            assert_eq!(requested, requested_amount);
+            let lock = app.world().get::<AlsFootLockState>(actor).unwrap();
+            let rig = app.world().get::<AlsControlRigInput>(actor).unwrap();
+            let mesh = app.world().get::<GlobalTransform>(avatar).unwrap();
+            if requested < 1.0 - 1e-5 {
+                let source_final = lock.left.target_location.lerp(source_lock, source_amount);
+                assert!(mesh.affine().transform_point3(rig.foot_left_location_armature).distance(source_final) < 1e-4,
+                    "Source FAnimWeight full threshold must reach the actual Rig foot input: requested={requested}");
+                if source_amount > 0.0 { assert!(lock.left.lock_location.distance(source_lock) < 1e-5); }
+            }
+            assert_eq!(lock.left.lock_amount, source_amount,
+                "Source FAnimWeight relevant/full boundary differs: previous={previous}, requested={requested}");
+        }
+    }
+
+    #[test]
     fn invalid_feet_with_identity_pelvis_do_not_execute_the_foot_rig() {
         for prior_valid in [false, true] {
             let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
