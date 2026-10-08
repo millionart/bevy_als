@@ -628,7 +628,8 @@ pub fn detect_mantle(
     let downward_location = downward_start - Vec3::Y * downward_hit.distance;
     trace.downward_hit_center = Some(downward_location);
     let approximate_slope_normal = (downward_location - downward_hit.point1).normalize_or_zero();
-    if downward_hit.normal1.y < MANTLE_SLOPE_ANGLE_COS
+    if (downward_hit.distance == 0.0 && (downward_hit.point2 - downward_hit.point1).dot(downward_hit.normal1) < 0.0)
+        || downward_hit.normal1.y < MANTLE_SLOPE_ANGLE_COS
         || approximate_slope_normal.y < MANTLE_SLOPE_ANGLE_COS
     {
         return MantleDetection {
@@ -1036,6 +1037,25 @@ mod tests {
             assert_eq!(detection.trace.result, MantleProbeResult::ForwardRejected, "height={height}");
             assert!(detection.intent.is_none());
         }
+    }
+
+    #[test]
+    fn mantle_rejects_an_initially_penetrating_downward_sweep() {
+        let (mut app, actor, _) = debug_probe_app(Quat::IDENTITY);
+        let source = debug_probe(&mut app, actor, LocomotionState::Grounded);
+        assert!(source.intent.is_some());
+        let center = source.trace.downward_start.unwrap();
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.16, 0.12, 0.16),
+            CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], LayerMask::ALL),
+            Transform::from_translation(center + Vec3::new(0.0, -0.26, -0.12))));
+        app.update();
+        let detection = debug_probe(&mut app, actor, LocomotionState::Grounded);
+        assert_eq!(detection.trace.forward_hit, source.trace.forward_hit, "The added upper surface must not alter the source forward wall hit: {detection:?}");
+        assert_eq!(detection.trace.downward_hit_center, detection.trace.downward_start,
+            "The downward source counterexample must start penetrating the upper surface: {detection:?}");
+        assert_eq!(detection.trace.result, MantleProbeResult::DownwardRejected,
+            "Source IsWalkable rejects initial penetration before target and start overlaps: {detection:?}");
+        assert!(detection.intent.is_none());
     }
 
     #[test]

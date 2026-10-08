@@ -1,0 +1,164 @@
+{
+  "format": "als_animgraph_authoring_gate_v1",
+  "graphs": [
+    {
+      "path": "assets/ALS/Character/AB_Als.runtime.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "b113030b-0000-4000-8000-000000000001",
+          "name": "AB_Als",
+          "position": [
+            -480.0,
+            0.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000002",
+          "name": "Ragdoll Dynamic",
+          "position": [
+            -480.0,
+            160.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000003",
+          "name": "Ragdoll Readback",
+          "position": [
+            -480.0,
+            240.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000004",
+          "name": "Ragdoll Config",
+          "position": [
+            -224.0,
+            192.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000002\", \"als_ragdolling_dynamic\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"dynamic\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000003\", \"als_ragdolling_readback\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"readback\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000001\", \"pose\")",
+          "target": "OutputData(\"pose\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"ragdoll_config\")",
+          "target": "OutputData(\"ragdoll_config\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "pose": "Pose",
+          "ragdoll_config": "RagdollConfig"
+        }
+      },
+      "root_output_exceptions": [
+        {
+          "name": "ragdoll_config",
+          "reason": "The framework consumes body simulation and pose readback controls independently from the source pose.",
+          "evidence": "docs/bf114-ragdoll-contract.md"
+        }
+      ]
+    }
+  ],
+  "id": "source_mantle_downward_valid_blocking_hit_contract",
+  "source_evidence": [
+    {
+      "path": "target/bf134/01k16a/als_actions.cpp",
+      "sha256": "3dbd91f26154fd99297a7c7bb293993d938a86b8937d7071760cabc8517aa317"
+    },
+    {
+      "path": "target/bf134/01k16a2/ue_walkability_source.cpp",
+      "sha256": "7fcacb15a3d6beabd4a069f1662240cf17b27c7e64b683c611d23418fe1638a2"
+    },
+    {
+      "path": "target/bf134/01k16a2/ue_capsule_scale_source.h",
+      "sha256": "8047b2bd8553b5033ef6c8350f880e4dc2a32fa956c48179cfd3fa1a7045b598"
+    },
+    {
+      "path": "target/bf134/01j1/character.ue.json",
+      "sha256": "bb138443652e202a08ee2f6c1e12b071133caa6440fe75657b71e744c2d72925"
+    },
+    {
+      "path": "target/bf134/01k16a2/static_block.ue.json",
+      "sha256": "7852a8f7234d1a2b5770088e48dfadd1eb5af2a1033cef027ef99d4be3f78216"
+    },
+    {
+      "path": "target/bf134/01k16a2/downward_hit_contract.json",
+      "sha256": "c9895f7aa43af0d50f48871e56fcd8542c0558ad7cbb5e6f3c0620dfb547d61d"
+    }
+  ],
+  "verification_commands": [
+    {
+      "label": "generated_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets",
+        "--include",
+        "ALS",
+        "--include",
+        "ALSCamera"
+      ]
+    },
+    {
+      "label": "generated_editor",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets"
+      ]
+    },
+    {
+      "label": "runtime_asset_boundary",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/validate_runtime_graph_asset_boundary.py",
+        "--assets-root",
+        "assets",
+        "--check"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "animgraph_assets",
+    "manual_case": "base"
+  },
+  "focused_tests": [
+    {
+      "label": "actualDownwardPenetrationReject",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "mantle_rejects_an_initially_penetrating_downward_sweep"
+      ],
+      "evidence": "target/bf134/01k16a2/native_downward_restored_counter.watchdog.json"
+    }
+  ]
+}
