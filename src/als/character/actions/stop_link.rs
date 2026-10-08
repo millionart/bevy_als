@@ -902,9 +902,12 @@ fn quick_stop_notify_system(
     }
 }
 
-fn transition_playback_system(time: Res<Time>, mut playbacks: Query<&mut AlsTransitionMontageStack>) {
-    for mut playback in &mut playbacks {
-        playback.advance(time.delta_secs());
+fn transition_playback_system(
+    time: Res<Time>,
+    mut playbacks: Query<(&mut AlsTransitionMontageStack, Option<&crate::als_camera::AlsCameraCustomTimeDilation>)>,
+) {
+    for (mut playback, custom_dilation) in &mut playbacks {
+        playback.advance(time.delta_secs() * custom_dilation.map_or(1.0, |value| value.0));
     }
 }
 
@@ -1034,6 +1037,57 @@ mod tests {
         assert!(stack.entries.iter().all(|entry| !old_ids.contains(&entry.instance_id)));
         assert!(stack.entries.iter().any(|entry| entry.active && entry.kind == AlsTransitionKind::QuickStop), "Instance cleanup erased a new transition request");
         assert!(app.world().get::<AlsRootTransitionSlotRuntime>(character).unwrap().pose_ready);
+    }
+
+    #[test]
+    fn transition_slot_pose_uses_the_source_actor_animation_clock() {
+        use bevy_animation_graph::core::{animation_clip::GraphClip, skeleton::Skeleton};
+        for (custom_dilation, reverse) in [(1.0_f32, false), (0.5, false), (0.0, false), (0.5, true)] {
+            let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            play_loaded_transition(&mut app, character);
+            for _ in 0..12 { app.update(); }
+            assert_eq!(app.world().get::<AlsTransitionMontageStack>(character).unwrap().entries.len(), 1,
+                "Clock fixture must sample a single settled montage instance");
+            if reverse {
+                let mut stack = app.world_mut().get_mut::<AlsTransitionMontageStack>(character).unwrap();
+                let playback = stack.entries.last_mut().unwrap();
+                playback.start_time = 1.0 + playback.elapsed;
+                playback.clip_time = 1.0;
+                playback.play_rate = -1.0;
+            }
+            let before = *app.world().get::<AlsTransitionMontageStack>(character).unwrap().latest().unwrap();
+            assert!(before.active && before.stop_elapsed.is_none());
+            app.world_mut().entity_mut(character).insert(crate::als_camera::AlsCameraCustomTimeDilation(custom_dilation));
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_millis(100)));
+            app.update();
+            let delta = app.world().resource::<Time>().delta_secs() * custom_dilation;
+            let source_time = (before.clip_time + delta * before.play_rate).clamp(0.0, before.duration);
+            let (source_pose, _) = crate::standing_source::sample_source_montage(source_transition_sequence(&before).unwrap(), source_time,
+                app.world().resource::<crate::standing_source::SourceMontageAssets>(), app.world().resource::<Assets<GraphClip>>(),
+                app.world().resource::<Assets<Skeleton>>()).unwrap();
+            let target = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+            let player = app.world().get::<AnimationGraphPlayer>(target).unwrap();
+            assert!(player.get_error().is_none());
+            let actual = player.get_global_input_data(GENERATED_TRANSITION_SLOT_POSE_KEY).unwrap().as_pose().unwrap();
+            let mut minimum_rotation_dot = 1.0_f32;
+            let mut maximum_location_error = 0.0_f32;
+            for bone in source_pose.paths.keys() {
+                let a = actual.get_bone(*bone).unwrap();
+                let s = source_pose.get_bone(*bone).unwrap();
+                if let (Some(a), Some(s)) = (a.rotation, s.rotation) {
+                    minimum_rotation_dot = minimum_rotation_dot.min(a.dot(s).abs());
+                }
+                if let (Some(a), Some(s)) = (a.translation, s.translation) {
+                    maximum_location_error = maximum_location_error.max(a.distance(s));
+                }
+            }
+            assert!(minimum_rotation_dot > 1.0 - 1e-5 && maximum_location_error < 1e-5,
+                "Transition slot pose uses the wrong actor clock: custom={custom_dilation}, rotation_error_degrees={}, location_error={maximum_location_error}, source_time={source_time}, stack={:?}",
+                (2.0 * minimum_rotation_dot.clamp(-1.0, 1.0).acos()).to_degrees(), app.world().get::<AlsTransitionMontageStack>(character).unwrap());
+            let after = app.world().get::<AlsTransitionMontageStack>(character).unwrap().latest().unwrap();
+            assert_eq!(after.instance_id, before.instance_id);
+            assert!((after.clip_time - source_time).abs() < 1e-6);
+        }
     }
 
     #[test]
