@@ -909,6 +909,62 @@ TSharedPtr<FJsonObject> CaptureBlendSpaceProbe(UObject* Asset, const FString& Re
     return Result;
 }
 
+TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& RequestPath)
+{
+    UAnimSequence* Sequence = Cast<UAnimSequence>(Asset);
+    FString Text;
+    TSharedPtr<FJsonObject> Request;
+    if (Sequence == nullptr || Sequence->GetSkeleton() == nullptr ||
+        !FFileHelper::LoadFileToString(Text, *RequestPath) ||
+        !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Request))
+    {
+        UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Sequence pose probe asset or request is invalid."));
+        return nullptr;
+    }
+    const TArray<TSharedPtr<FJsonValue>>* Times;
+    if (!Request->TryGetArrayField(TEXT("times"), Times) || Times->IsEmpty() || Times->Num() > 600)
+    {
+        UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Sequence pose probe times are invalid."));
+        return nullptr;
+    }
+    const FReferenceSkeleton& Skeleton = Sequence->GetSkeleton()->GetReferenceSkeleton();
+    TArray<TSharedPtr<FJsonValue>> Frames;
+    for (const TSharedPtr<FJsonValue>& Value : *Times)
+    {
+        double Time;
+        if (!Value->TryGetNumber(Time) || !FMath::IsFinite(Time) || Time < 0.0 || Time > Sequence->GetPlayLength())
+        {
+            UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Sequence pose probe time is outside the asset."));
+            return nullptr;
+        }
+        TSharedRef<FJsonObject> Frame = MakeShared<FJsonObject>();
+        Frame->SetNumberField(TEXT("time"), Time);
+        TArray<TSharedPtr<FJsonValue>> Bones;
+        for (int32 Index = 0; Index < Skeleton.GetNum(); ++Index)
+        {
+            FTransform Transform = Skeleton.GetRefBonePose()[Index];
+            Sequence->GetBoneTransform(Transform, FSkeletonPoseBoneIndex(Index), FAnimExtractContext(Time), true);
+            if (Transform.ContainsNaN())
+            {
+                UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Sequence pose probe produced a non-finite transform."));
+                return nullptr;
+            }
+            TSharedRef<FJsonObject> Bone = MakeShared<FJsonObject>();
+            Bone->SetStringField(TEXT("name"), Skeleton.GetBoneName(Index).ToString());
+            Bone->SetNumberField(TEXT("parent_index"), Skeleton.GetParentIndex(Index));
+            Bone->SetObjectField(TEXT("local_transform"), CaptureTransform(Transform));
+            Bones.Add(MakeShared<FJsonValueObject>(Bone));
+        }
+        Frame->SetArrayField(TEXT("bones"), Bones);
+        Frames.Add(MakeShared<FJsonValueObject>(Frame));
+    }
+    TSharedRef<FJsonObject> Probe = MakeShared<FJsonObject>();
+    Probe->SetStringField(TEXT("sampling_mode"), TEXT("raw_local_tracks"));
+    Probe->SetNumberField(TEXT("duration"), Sequence->GetPlayLength());
+    Probe->SetArrayField(TEXT("frames"), Frames);
+    return Probe;
+}
+
 TSharedPtr<FJsonObject> CaptureNotifyClockProbe(UObject* Asset)
 {
     UAnimSequenceBase* Sequence = Cast<UAnimSequenceBase>(Asset);
@@ -1078,9 +1134,11 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
     FString AssetPath;
     FString OutputPath;
     FString BlendSpaceProbePath;
+    FString SequencePoseProbePath;
     FParse::Value(*Params, TEXT("Asset="), AssetPath);
     FParse::Value(*Params, TEXT("Output="), OutputPath);
     FParse::Value(*Params, TEXT("BlendSpaceProbe="), BlendSpaceProbePath);
+    FParse::Value(*Params, TEXT("SequencePoseProbe="), SequencePoseProbePath);
 
     if (AssetPath.IsEmpty() || OutputPath.IsEmpty())
     {
@@ -1307,6 +1365,12 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
             return 7;
         }
         Root->SetObjectField(TEXT("blendspace_probe"), Probe.ToSharedRef());
+    }
+    if (!SequencePoseProbePath.IsEmpty())
+    {
+        const TSharedPtr<FJsonObject> Probe = CaptureSequencePoseProbe(Asset, SequencePoseProbePath);
+        if (!Probe.IsValid()) { return 7; }
+        Root->SetObjectField(TEXT("sequence_pose_probe"), Probe.ToSharedRef());
     }
     if (FParse::Param(*Params, TEXT("CachedPoseLifecycleProbe")))
     {

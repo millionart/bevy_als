@@ -1292,7 +1292,7 @@ def stairs_trace_issues(report):
         distances = []
         route_length = None
         for frame in frames:
-            required = ("elapsed_seconds", "simulation_delta_seconds", "distance_m", "route_length_m", "expected_speed", "requested_speed", "animation_speed")
+            required = ("elapsed_seconds", "simulation_delta_seconds", "distance_m", "route_length_m", "expected_speed", "requested_speed", "requested_displacement_speed", "initial_speed", "animation_speed")
             if not all(finite(frame.get(key)) for key in required) or not all(
                 isinstance(frame.get(key), list) and len(frame[key]) == length and all(finite(value) for value in frame[key])
                 for key, length in (("position", 3), ("velocity", 3), ("input", 2))
@@ -1335,18 +1335,26 @@ def stairs_trace_issues(report):
                 if not 0.0 <= requested_speed <= expected + 0.1:
                     issues.append(f"{prefix}: requested speed exceeds the source gait limit")
                     break
+                requested_displacement_speed = frame["requested_displacement_speed"]
+                initial_speed = frame["initial_speed"]
+                if initial_speed < 0.0 or not 0.0 <= requested_displacement_speed <= max(expected, initial_speed) + 0.1:
+                    issues.append(f"{prefix}: source integrated displacement budget is invalid")
+                    break
                 minimum_speed = requested_speed - 0.1
                 maximum_speed = min(expected, requested_speed) + 0.1
+                minimum_displacement_speed = requested_displacement_speed - 0.1
+                maximum_displacement_speed = requested_displacement_speed + 0.1
                 if frame.get("safe_move") is True:
                     prefix_speed = frame.get("safe_move_prefix_speed")
                     if not finite(prefix_speed) or not 0.0 <= prefix_speed <= requested_speed + 0.1:
                         issues.append(f"{prefix}: source SafeMove prefix evidence is missing or invalid")
                         break
                     minimum_speed = prefix_speed - 0.001
+                    minimum_displacement_speed = prefix_speed - 0.001
                 if not finite(frame.get("displacement_speed")) or abs(frame["displacement_speed"] - moved) > 0.001 or abs(frame["animation_speed"] - speed) > 0.001:
                     issues.append(f"{prefix}: displacement, physics and animation speeds disagree")
                     break
-                if not all(minimum_speed <= value <= maximum_speed for value in (speed, moved)) or (frame.get("safe_move") is True and abs(speed - moved) > 0.001):
+                if not minimum_speed <= speed <= maximum_speed or not minimum_displacement_speed <= moved <= maximum_displacement_speed or (frame.get("safe_move") is True and abs(speed - moved) > 0.001):
                     issues.append(f"{prefix}: {desired} speed exceeds the source sweep bounds")
                     break
                 counts[gait_name] += 1
@@ -2264,7 +2272,7 @@ def fixture_stairs_report():
             "rotation_hotkey": False, "actual_gait": "Walking", "desired_gait": "Walking",
             "position": [0.0, 0.9, 0.0], "velocity": [0.0, 0.0, 0.0],
             "locomotion": "Grounded", "desired_mode": "ViewDirection", "current_mode": "ViewDirection",
-            "expected_speed": 1.75, "requested_speed": 1.75, "animation_speed": 0.0, "safe_move": False,
+            "expected_speed": 1.75, "requested_speed": 1.75, "requested_displacement_speed": 1.75, "initial_speed": 1.75, "animation_speed": 0.0, "safe_move": False,
             "displacement_speed": None, "movement_state": 0, "movement_pose_ready": True, "standing_pose_ready": True,
         }
         frames.append(base.copy())
@@ -2273,7 +2281,7 @@ def fixture_stairs_report():
                 now += 0.1
                 distance += speed * 0.1
                 frames.append({**base, "stage": "Traverse", "elapsed_seconds": now, "distance_m": distance,
-                    "input": [0.0, 1.0], "actual_gait": gait, "desired_gait": gait, "expected_speed": speed, "requested_speed": speed,
+                    "input": [0.0, 1.0], "actual_gait": gait, "desired_gait": gait, "expected_speed": speed, "requested_speed": speed, "requested_displacement_speed": speed, "initial_speed": speed,
                     "position": [0.0, 0.9, -distance], "velocity": [0.0, 0.0, -speed],
                     "animation_speed": speed, "displacement_speed": speed})
         for mode in ("VelocityDirection", "ViewDirection"):
@@ -2575,6 +2583,22 @@ def run_self_test():
         assert manual_integration_issues(invalid), issue
     stairs = fixture_stairs_report()
     assert not stairs_trace_issues(stairs), stairs_trace_issues(stairs)
+    braking_stairs = copy.deepcopy(stairs)
+    braking_trace = braking_stairs["manual_integration"]["stairs_trace"]
+    braking_frame = braking_trace[8]
+    braking_frame.update(requested_displacement_speed=2.0, initial_speed=3.0,
+        requested_speed=1.75, velocity=[0.0, 0.0, -1.75], animation_speed=1.75,
+        displacement_speed=2.0)
+    for later in braking_trace[8:]:
+        if later["route_index"] == 0:
+            later["position"][2] -= 0.025
+            later["distance_m"] += 0.025
+    assert not stairs_trace_issues(braking_stairs), stairs_trace_issues(braking_stairs)
+    for key, value in (("requested_displacement_speed", 4.0), ("initial_speed", -1.0), ("requested_displacement_speed", None)):
+        invalid_braking = copy.deepcopy(braking_stairs)
+        invalid_braking["manual_integration"]["stairs_trace"][8][key] = value
+        assert stairs_trace_issues(invalid_braking), key
+
     tagged_stairs = copy.deepcopy(stairs)
     for frame in tagged_stairs["manual_integration"]["stairs_trace"]:
         for key in ("desired_gait", "actual_gait"):

@@ -103,7 +103,7 @@ impl Probe {
         info!("[MANUAL-INTEGRATION][STAIRS] route={} stage={stage:?}", self.index);
     }
 
-    fn command(&mut self, now: f64, frame: Frame) -> AlsInputCommand {
+    fn command(&mut self, now: f64, frame: Frame, delta_seconds: f32) -> AlsInputCommand {
         let mut command = AlsInputCommand::default();
         let Some(route) = self.route else { return command; };
         let (start, end) = route.endpoints(self.index);
@@ -138,7 +138,9 @@ impl Probe {
                 } else if remaining <= 0.03 {
                     self.begin(Stage::Settle, now);
                 } else {
-                    command.move_dir = Vec2::Y;
+                    command.move_dir = Vec2::Y * if gait == Gait::Walking && delta_seconds > 0.0 {
+                        (remaining / (1.75 * delta_seconds)).clamp(0.0, 1.0)
+                    } else { 1.0 };
                     if distance > self.furthest + 0.1 {
                         if distance.floor() > self.furthest.floor() {
                             info!("[MANUAL-INTEGRATION][STAIRS] route={} distance={distance:.3}", self.index);
@@ -250,6 +252,18 @@ mod tests {
     }
 
     #[test]
+    fn stairs_driver_caps_final_walk_input_to_the_remaining_distance() {
+        let route = Route { bottom: Vec3::ZERO, top: Vec3::new(0.0, 8.1, -16.475) };
+        let mut probe = Probe { route: Some(route), stage: Stage::Traverse, ..default() };
+        let mut sample = frame(route.top + Vec3::Z * 0.2);
+        sample.velocity = Vec3::NEG_Z * 1.75;
+        let command = probe.command(0.1879731, sample, 0.1879731);
+        assert!(command.move_dir.length() * 1.75 * 0.1879731 <= 0.2 + 1e-6,
+            "The source walking input must not request more than the remaining route distance during a long frame: command={command:?}");
+        assert!(command.move_dir.length() > 0.0);
+    }
+
+    #[test]
     fn stairs_sprint_segment_preserves_stable_visual_samples_at_source_speed() {
         for delta in [0.07051209_f64, 0.1] {
             let route = Route { bottom: Vec3::ZERO, top: Vec3::new(0.0, 8.1, -16.475) };
@@ -260,7 +274,7 @@ mod tests {
                 let mut sample = frame(Vec3::NEG_Z * (8.0 + 6.5 * elapsed as f32));
                 sample.velocity = Vec3::NEG_Z * 6.5;
                 sample.desired_gait = Gait::Sprinting;
-                let command = probe.command(elapsed, sample);
+                let command = probe.command(elapsed, sample, delta as f32);
                 if !command.sprint_held { break; }
                 if elapsed >= 0.5 { observations.push(elapsed); }
             }
@@ -277,47 +291,47 @@ mod tests {
         let mut probe = Probe { route: Some(route), ..default() };
         let mut sample = frame(route.bottom);
         sample.locomotion = LocomotionState::Air;
-        assert_eq!(probe.command(0.4, sample).move_dir, Vec2::ZERO);
+        assert_eq!(probe.command(0.4, sample, 1.0 / 60.0).move_dir, Vec2::ZERO);
         assert_eq!(probe.stage, Stage::Ready);
         sample.locomotion = LocomotionState::Grounded;
-        probe.command(0.5, sample);
+        probe.command(0.5, sample, 1.0 / 60.0);
         assert_eq!(probe.stage, Stage::Traverse);
         sample.position.z -= 1.0;
         sample.desired_gait = Gait::Running;
-        assert!(probe.command(0.6, sample).walk_pressed);
+        assert!(probe.command(0.6, sample, 1.0 / 60.0).walk_pressed);
         sample.position.z = route.bottom.z - 5.0;
         sample.desired_gait = Gait::Walking;
-        assert!(probe.command(0.7, sample).walk_pressed);
+        assert!(probe.command(0.7, sample, 1.0 / 60.0).walk_pressed);
         sample.position.z = route.bottom.z - 9.0;
         sample.desired_gait = Gait::Running;
-        assert!(probe.command(0.8, sample).sprint_held);
+        assert!(probe.command(0.8, sample, 1.0 / 60.0).sprint_held);
         sample.position = route.top;
-        probe.command(0.9, sample);
+        probe.command(0.9, sample, 1.0 / 60.0);
         assert_eq!(probe.stage, Stage::Settle);
-        probe.command(1.0, sample);
+        probe.command(1.0, sample, 1.0 / 60.0);
         assert_eq!(probe.stage, Stage::VelocityMode);
-        assert!(probe.command(1.1, sample).rotation_mode_pressed);
+        assert!(probe.command(1.1, sample, 1.0 / 60.0).rotation_mode_pressed);
         sample.desired_mode = RotationMode::VelocityDirection;
-        assert!(!probe.command(1.4, sample).rotation_mode_pressed);
+        assert!(!probe.command(1.4, sample, 1.0 / 60.0).rotation_mode_pressed);
         assert_eq!(probe.stage, Stage::VelocityMode);
         assert!(!probe.completed[0]);
         sample.current_mode = RotationMode::VelocityDirection;
-        probe.command(1.5, sample);
+        probe.command(1.5, sample, 1.0 / 60.0);
         assert_eq!(probe.stage, Stage::ViewMode);
-        assert!(probe.command(1.6, sample).rotation_mode_pressed);
+        assert!(probe.command(1.6, sample, 1.0 / 60.0).rotation_mode_pressed);
         sample.current_mode = RotationMode::ViewDirection;
         sample.desired_mode = RotationMode::ViewDirection;
-        probe.command(1.9, sample);
+        probe.command(1.9, sample, 1.0 / 60.0);
         assert!(probe.completed[0]);
         assert_eq!(probe.index, 1);
         assert!(probe.route.is_some());
-        let command = probe.command(2.0, sample);
+        let command = probe.command(2.0, sample, 1.0 / 60.0);
         assert!((command.look_delta.x.abs() * crate::als::view::LOOK_MOUSE_RADIANS_PER_COUNT - std::f32::consts::PI).abs() < 1e-5);
         assert_eq!(command.move_dir, Vec2::ZERO);
         probe.index = 0;
         probe.stage = Stage::Traverse;
         sample.position = route.top + Vec3::Z * 0.115;
-        assert_eq!(probe.command(2.1, sample).move_dir, Vec2::Y);
+        assert_eq!(probe.command(2.1, sample, 1.0 / 60.0).move_dir, Vec2::Y);
     }
 
     #[test]
@@ -328,7 +342,7 @@ mod tests {
             let mut sample = frame(route.bottom);
             sample.desired_mode = RotationMode::VelocityDirection;
             sample.current_mode = RotationMode::Aiming;
-            probe.command(NO_PROGRESS_SECONDS + 0.1, sample);
+            probe.command(NO_PROGRESS_SECONDS + 0.1, sample, 1.0 / 60.0);
             assert!(probe.failure.as_deref().unwrap().contains("no_progress_seconds="));
             assert!(!probe.completed.into_iter().any(|value| value));
         }
@@ -350,7 +364,11 @@ mod tests {
             AlsCmcAdapterRuntime { simulation_delta_seconds: 0.1, ..default() }, AlsMovementParamsHandle(handle),
             AlsStandingGraphTelemetry { actual_movement_state: Some(0), actual_movement_pose_ready: Some(true),
                 actual_standing_pose_ready: Some(true), ..default() })).id();
-        world.entity_mut(character).insert(AlsMovementBaseDynamicsState { world_velocity: Vec3::NEG_Z * 1.75, ..default() });
+        let mut controller = bevy_tnua::TnuaController::<crate::als::control_scheme::AlsControlScheme>::default();
+        controller.basis.desired_motion = Vec3::NEG_Z;
+        world.entity_mut(character).insert((AlsMovementBaseDynamicsState {
+            world_velocity: Vec3::NEG_Z * 1.75, relative_velocity: Vec3::NEG_Z * 1.75, ..default() },
+            crate::als::dynamics::AlsGroundedDynamics::default(), controller));
         world.insert_resource(ManualIntegrationState { character: Some(character), phase: IntegrationPhase::Stairs,
             stairs_probe: Probe { route: Some(Route { bottom: Vec3::Y * 0.9, top: Vec3::new(0.0, 9.0, -17.215) }),
                 stage: Stage::Traverse, ..default() }, ..default() });
@@ -374,6 +392,14 @@ mod tests {
         assert_eq!(json["position"][2], sample.frame.position.z);
         assert_eq!(json["desired_mode"], "Als.RotationMode.ViewDirection");
         assert_eq!(json["movement_pose_ready"], true);
+        assert!((sample.requested_displacement_speed - 1.75).abs() < 1e-5);
+        assert!((sample.initial_speed - 1.75).abs() < 1e-5);
+        world.get_mut::<AlsMovementBaseDynamicsState>(character).unwrap().relative_velocity = Vec3::NEG_Z * 3.0;
+        world.run_system_once(observe).unwrap();
+        let braking = world.resource::<ManualIntegrationGateReport>().stairs_trace.last().unwrap();
+        assert!((braking.requested_displacement_speed - 2.0).abs() < 1e-5,
+            "Source two50ms braking steps have speeds2.25 and1.75, distinct from the final velocity: actual={}", braking.requested_displacement_speed);
+        world.get_mut::<AlsMovementBaseDynamicsState>(character).unwrap().relative_velocity = Vec3::NEG_Z * 1.75;
         world.get_mut::<LinearVelocity>(character).unwrap().0.z = -2.0;
         world.resource_mut::<ManualIntegrationState>().game_time_seconds = 0.8;
         world.run_system_once(observe).unwrap();
@@ -395,6 +421,7 @@ mod tests {
 }
 
 pub(super) fn drive(
+    time: Res<Time>,
     mut state: ResMut<ManualIntegrationState>,
     mut phase_evidence: ResMut<ManualRuntimePhaseEvidence>,
     stairs: Query<(Entity, &Collider, &GlobalTransform, &PlaygroundMeshColliderBuilt)>,
@@ -436,7 +463,7 @@ pub(super) fn drive(
     input.0 = state.stairs_probe.command(now, Frame {
         position: position.0, velocity: velocity.0, locomotion: *locomotion, stance: *stance,
         desired_gait: gait.0, desired_mode: desired_mode.0, current_mode: *mode, view_yaw: yaw.0,
-    });
+    }, time.delta_secs());
     if let Some(failure) = &state.stairs_probe.failure {
         error!("[MANUAL-INTEGRATION][STAIRS] {failure}");
         state.timed_out = true;
@@ -469,6 +496,8 @@ pub struct Sample {
     frame: Frame,
     expected_speed: f32,
     requested_speed: f32,
+    requested_displacement_speed: f32,
+    initial_speed: f32,
     animation_speed: f32,
     safe_move: bool,
     safe_move_prefix_speed: Option<f32>,
@@ -497,12 +526,14 @@ pub(super) fn observe(
     mut window: ResMut<ManualAnimationWindowEvidence>,
     characters: Query<(&Position, &LinearVelocity, &LocomotionState, &Stance, &AlsDesiredGait, &Gait,
         &AlsLastFreeRotationMode, &RotationMode, &AlsViewYaw, &AlsInputOverride, &AlsActualMotion,
-        &crate::als::character::AlsCmcAdapterRuntime, &AlsMovementParamsHandle, &AlsStandingGraphTelemetry, &AlsMovementBaseDynamicsState), With<AlsCharacter>>,
+        &crate::als::character::AlsCmcAdapterRuntime, &AlsMovementParamsHandle, &AlsStandingGraphTelemetry,
+        (&AlsMovementBaseDynamicsState, &crate::als::dynamics::AlsGroundedDynamics,
+            &bevy_tnua::TnuaController<crate::als::control_scheme::AlsControlScheme>, Option<&crate::als::dynamics::AlsLandingBrakingFriction>)), With<AlsCharacter>>,
     params: Res<Assets<AlsMovementParams>>,
 ) {
     if state.stairs_probe.index >= 6 { return; }
     let Some(character) = state.character else { return; };
-    let Ok((position, velocity, locomotion, stance, desired_gait, gait, desired_mode, mode, yaw, input, motion, cmc, handle, telemetry, dynamics)) = characters.get(character) else { return; };
+    let Ok((position, velocity, locomotion, stance, desired_gait, gait, desired_mode, mode, yaw, input, motion, cmc, handle, telemetry, (dynamics, grounded, controller, braking))) = characters.get(character) else { return; };
     let Some(route) = state.stairs_probe.route else { return; };
     let Some(params) = params.get(handle.id()) else { return; };
     let index = state.stairs_probe.index;
@@ -511,6 +542,11 @@ pub(super) fn observe(
     let (start, end) = route.endpoints(index);
     let direction = (end - start).with_y(0.0).normalize();
     let previous = report.stairs_trace.last().filter(|sample| sample.route_index == index);
+    let max_speed = crate::als::dynamics::max_allowed_speed(params, *stance, *mode, desired_gait.0,
+        dynamics.relative_velocity, yaw.0);
+    let requested_displacement = crate::als::dynamics::simulate_grounded_motion_with_braking_friction(
+        dynamics.relative_velocity, controller.basis.desired_motion, max_speed, grounded.0, &params.cmc,
+        braking.map_or(crate::als::dynamics::BRAKING_FRICTION_FACTOR, |state| state.factor), cmc.simulation_delta_seconds).2;
     let sample = Sample {
         route_index: index, mesh: MESHES[index / 2], stage, elapsed_seconds: now,
         simulation_delta_seconds: cmc.simulation_delta_seconds,
@@ -520,6 +556,8 @@ pub(super) fn observe(
             desired_gait: desired_gait.0, desired_mode: desired_mode.0, current_mode: *mode, view_yaw: yaw.0 },
         expected_speed: crate::als::motion::gait_max_speed(params, stance, &desired_gait.0),
         requested_speed: (dynamics.world_velocity + dynamics.motor_boost).with_y(0.0).length(),
+        requested_displacement_speed: requested_displacement.with_y(0.0).length() / cmc.simulation_delta_seconds,
+        initial_speed: dynamics.relative_velocity.with_y(0.0).length(),
         animation_speed: motion.horizontal_speed, safe_move: cmc.grounded_move_start.is_some(),
         safe_move_prefix_speed: state.stairs_probe.move_prefix_speed,
         displacement_speed: previous.filter(|_| cmc.simulation_delta_seconds > 0.0)

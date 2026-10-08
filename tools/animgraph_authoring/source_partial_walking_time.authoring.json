@@ -94,6 +94,14 @@
     {
       "path": "target/bf134/01k15d/movement_constants_full_diff.json",
       "sha256": "59b22fb8137e0e9d561fd434f4368be44676feeebcc79c53205cf3296439d4bb"
+    },
+    {
+      "path": "target/bf134/01k15d/stairs_frame_contract.json",
+      "sha256": "93fda811ed15f02b71b19555c63fc2dba00dce410927fe2ffcfa58b59627aba5"
+    },
+    {
+      "path": "target/bf134/01k15d/joint_plane_source_contract.json",
+      "sha256": "687e063ba0b88b61ca6ed82eaea5e982bb5fb4af078fabdeb5ebf3d5344e822e"
     }
   ],
   "verification_commands": [
@@ -155,6 +163,69 @@
         "actual_shortened_walking_step_refunds_time_to_falling"
       ],
       "evidence": "target/bf134/01k15d/native_partial_refund_restored_counter.watchdog.json"
+    },
+    {
+      "label": "sourceIntegratedStairObservationAndEndpoint",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "manual_playground_integration::stairs::tests::"
+      ],
+      "evidence": "target/bf134/01k15d/stairs_integrated_observer_exact_source.watchdog.json"
+    },
+    {
+      "label": "sourceStairFrameMeanAndTailDetector",
+      "argv": [
+        "python",
+        "tools/validate_animation_visual_evidence.py",
+        "--self-test"
+      ],
+      "evidence": "target/bf134/01k15d/stairs_integrated_validator_self_test.watchdog.json"
+    },
+    {
+      "label": "sourceJointPlaneConditioningNativeRestore",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "uphill_landing_source_cadence_keeps_the_pre_rig_leg_plane_continuous"
+      ],
+      "evidence": "target/bf134/01k15d/native_joint_guard_restored_stair_counter.watchdog.json"
+    },
+    {
+      "label": "temporalGuardOriginalNegativeCorpus",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "animation_visual_validation::tests::temporal_guard_"
+      ],
+      "evidence": "target/bf134/01k15d/joint_guard_temporal_current.watchdog.json"
     }
   ]
 }

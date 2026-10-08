@@ -933,6 +933,46 @@ fn limb_plane(
     })
 }
 
+fn limb_crosses_degenerate_joint_plane(
+    previous: &BTreeMap<String, LocalBonePose>, current: &BTreeMap<String, LocalBonePose>,
+    previous_positions: &BTreeMap<String, Vec3>, bones: &BTreeMap<String, FinalBone>,
+    first: &str, second: &str, third: &str, frame_seconds: f32,
+) -> bool {
+    let (Some(old_joint), Some(new_joint), Some(old_tip), Some(new_tip)) =
+        (previous.get(second), current.get(second), previous.get(third), current.get(third)) else { return false };
+    if rotation_delta_radians(old_joint.rotation, new_joint.rotation) / frame_seconds
+        >= TEMPORAL_LARGE_ANGULAR_CHANGE_RATE_RADIANS_PER_SECOND {
+        return false;
+    }
+    let (Some(old_a), Some(old_b), Some(old_c), Some(new_a), Some(new_b), Some(new_c)) =
+        (previous_positions.get(first), previous_positions.get(second), previous_positions.get(third),
+            bones.get(first), bones.get(second), bones.get(third)) else { return false };
+    let old_lower = old_joint.rotation * (old_joint.scale * old_tip.translation);
+    let new_lower = new_joint.rotation * (new_joint.scale * new_tip.translation);
+    for (upper, lower, actual_upper, actual_lower) in [
+        (old_joint.translation, old_lower, *old_b - *old_a, *old_c - *old_b),
+        (new_joint.translation, new_lower, new_b.0 - new_a.0, new_c.0 - new_b.0),
+    ] {
+        let local_lengths = upper.length() * lower.length();
+        let actual_lengths = actual_upper.length() * actual_lower.length();
+        if !local_lengths.is_finite() || !actual_lengths.is_finite()
+            || local_lengths <= f32::EPSILON || actual_lengths <= f32::EPSILON
+            || (upper.cross(lower).length() / local_lengths
+                - actual_upper.cross(actual_lower).length() / actual_lengths).abs() > TEMPORAL_LIMB_BEND_SINE {
+            return false;
+        }
+    }
+    (1..32).any(|index| {
+        let alpha = index as f32 / 32.0;
+        let upper = old_joint.translation.lerp(new_joint.translation, alpha);
+        let lower = old_joint.rotation.slerp(new_joint.rotation, alpha)
+            * (old_joint.scale.lerp(new_joint.scale, alpha) * old_tip.translation.lerp(new_tip.translation, alpha));
+        let lengths = upper.length() * lower.length();
+        lengths.is_finite() && lengths > f32::EPSILON
+            && upper.cross(lower).length() / lengths < TEMPORAL_LIMB_BEND_SINE
+    })
+}
+
 fn segment_lengths(bones: &BTreeMap<String, FinalBone>) -> BTreeMap<String, f32> {
     SEGMENTS
         .iter()
@@ -980,7 +1020,6 @@ impl TemporalSkeletonGuard {
                     });
                 }
             }
-            self.previous_relative.insert(name.clone(), relative);
         }
         for (name, current) in local {
             if let Some(previous) = self.previous_local.get(name).copied() {
@@ -1050,7 +1089,6 @@ impl TemporalSkeletonGuard {
                     });
                 }
             }
-            self.previous_local.insert(name.clone(), *current);
         }
         let segments = segment_lengths(bones);
         for (name, length) in &segments {
@@ -1081,7 +1119,9 @@ impl TemporalSkeletonGuard {
                 let dot = previous.normal.dot(current.normal);
                 let plane_rate = dot.clamp(-1.0, 1.0).acos() / frame_seconds;
                 if dot < TEMPORAL_LIMB_PLANE_FLIP_DOT
-                    && plane_rate > TEMPORAL_LARGE_ANGULAR_CHANGE_RATE_RADIANS_PER_SECOND {
+                    && plane_rate > TEMPORAL_LARGE_ANGULAR_CHANGE_RATE_RADIANS_PER_SECOND
+                    && !limb_crosses_degenerate_joint_plane(&self.previous_local, local, &self.previous_relative,
+                        bones, first, second, third, frame_seconds) {
                     metrics.push(TemporalSkeletonMetric {
                         kind: "limb_plane_flip",
                         subject: (*name).to_owned(),
@@ -1097,6 +1137,8 @@ impl TemporalSkeletonGuard {
             limb_planes.insert((*name).to_owned(), current);
         }
         self.previous_limb_planes = limb_planes;
+        for (name, current) in local { self.previous_local.insert(name.clone(), *current); }
+        for (name, (translation, _, _, _)) in bones { self.previous_relative.insert(name.clone(), *translation - avatar_position); }
         TemporalSkeletonObservation { metrics }
     }
 }
@@ -4022,6 +4064,69 @@ mod tests {
     }
 
     #[test]
+    fn uphill_landing_source_cadence_keeps_the_pre_rig_leg_plane_continuous() {
+        use crate::als::{Gait, LocomotionState, RotationMode};
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        crate::playground_collision::PlaygroundCollisionPlugin.build(&mut app);
+        let data: serde_json::Value = serde_json::from_str(include_str!("../assets/ALSExtras/Environment/Meshes/SM_Als_Stairs_01.gltf")).unwrap();
+        let bytes = include_bytes!("../assets/ALSExtras/Environment/Meshes/SM_Als_Stairs_01.bin");
+        let primitive = &data["meshes"][0]["primitives"][0];
+        let accessor_bytes = |index: usize, width: usize| {
+            let accessor = &data["accessors"][index];
+            let view = &data["bufferViews"][accessor["bufferView"].as_u64().unwrap() as usize];
+            let offset = view["byteOffset"].as_u64().unwrap_or(0) as usize + accessor["byteOffset"].as_u64().unwrap_or(0) as usize;
+            &bytes[offset..offset + accessor["count"].as_u64().unwrap() as usize * width]
+        };
+        let positions = accessor_bytes(primitive["attributes"]["POSITION"].as_u64().unwrap() as usize, 12)
+            .chunks_exact(12).map(|point| std::array::from_fn::<_,3,_>(|i| f32::from_le_bytes(point[i*4..i*4+4].try_into().unwrap()))).collect::<Vec<_>>();
+        let indices = accessor_bytes(primitive["indices"].as_u64().unwrap() as usize, 2).chunks_exact(2)
+            .map(|index| u16::from_le_bytes(index.try_into().unwrap()) as u32).collect();
+        let mut mesh = Mesh::new(bevy::render::render_resource::PrimitiveTopology::TriangleList, default());
+        mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
+        mesh.insert_indices(bevy::render::mesh::Indices::U32(indices));
+        let mesh = app.world_mut().resource_mut::<Assets<Mesh>>().add(mesh);
+        let source = Transform::from_xyz(-3.3333, 0.18, -30.0);
+        let stairs = app.world_mut().spawn((crate::extensions::PlaygroundCollisionSource::new("SM_Als_Stairs_01"), source, GlobalTransform::from(source))).id();
+        app.world_mut().spawn((ChildOf(stairs), Mesh3d(mesh), Transform::IDENTITY, GlobalTransform::from(source)));
+        let start = Vec3::new(0.001699686, 0.924, -29.0);
+        app.world_mut().entity_mut(character).insert((avian3d::prelude::Position(start), Transform::from_translation(start), avian3d::prelude::LinearVelocity::ZERO));
+        for _ in 0..30 { app.update(); }
+        assert!(app.world().entity(stairs).contains::<crate::playground_collision::PlaygroundMeshColliderBuilt>());
+        app.init_resource::<AnimationVisualPreRigPose>();
+        app.world_mut().get_mut::<crate::als::gait::AlsDesiredGait>(character).unwrap().0 = Gait::Sprinting;
+        app.world_mut().entity_mut(character).insert((RotationMode::VelocityDirection,
+            crate::als::aim::AlsLastFreeRotationMode(RotationMode::VelocityDirection)));
+        app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().move_dir = Vec2::Y;
+        for _ in 0..60 {
+            if start.z - app.world().get::<avian3d::prelude::Position>(character).unwrap().z >= 0.85 { break; }
+            app.update();
+        }
+        let mut guard = TemporalSkeletonGuard::default();
+        let cadence = [0.1136718_f32, 0.0810643, 0.0513584, 0.054793, 0.0254989, 0.055838, 0.048991, 0.0456682];
+        let mut airborne = false;
+        let mut landed = false;
+        let mut failed = Vec::new();
+        for frame in 0..80 {
+            let delta = cadence[frame % cadence.len()];
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(delta)));
+            app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().jump_pressed = frame == 0;
+            app.update();
+            app.world_mut().run_system_once(capture_animation_visual_pre_rig_pose).unwrap();
+            let mode = *app.world().get::<LocomotionState>(character).unwrap();
+            airborne |= mode == LocomotionState::Air;
+            landed |= airborne && mode == LocomotionState::Grounded;
+            let capture = app.world().resource::<AnimationVisualPreRigPose>();
+            if !capture.global_bones.is_empty() {
+                let observed = guard.observe(&capture.bones, &capture.global_bones, capture.root_position, capture.temporal_delta_seconds());
+                failed.extend(observed.metrics.into_iter().filter(|metric| metric.kind == "limb_plane_flip"));
+            }
+        }
+        assert!(airborne && landed);
+        assert!(failed.is_empty(), "Source landing pre-rig pose must preserve leg-plane continuity under the observed cadence: {failed:?}");
+    }
+
+    #[test]
     fn high_landing_pre_rig_hands_keep_the_source_stage_space() {
         use bevy::ecs::system::RunSystemOnce;
         let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
@@ -4930,6 +5035,46 @@ mod tests {
                 .iter()
                 .any(|value| value.kind == "local_rotation_spike" && value.subject == "calf_l")
         );
+    }
+
+    #[test]
+    fn temporal_guard_accepts_source_additive_joint_motion_through_a_degenerate_plane() {
+        let mut guard = TemporalSkeletonGuard::default();
+        for (thigh, calf) in [
+            (Quat::from_xyzw(0.092057794, 0.34182903, 0.018209398, 0.93506515), Quat::from_xyzw(-0.05224237, -0.82909095, 0.040767312, 0.555173)),
+            (Quat::from_xyzw(0.14291288, 0.78061044, 0.005640864, 0.60843354), Quat::from_xyzw(0.018322527, -0.99552083, 0.083647355, -0.04007089)),
+        ] {
+            let local = BTreeMap::from([
+                ("thigh_l".to_owned(), LocalBonePose { rotation: thigh.normalize(), scale: Vec3::ONE, ..default() }),
+                ("calf_l".to_owned(), LocalBonePose { translation: Vec3::NEG_X * 0.422, rotation: calf.normalize(), scale: Vec3::ONE }),
+                ("foot_l".to_owned(), LocalBonePose { translation: Vec3::NEG_X * 0.402, rotation: Quat::IDENTITY, scale: Vec3::ONE }),
+            ]);
+            let thigh = Transform::from_rotation(thigh.normalize());
+            let knee = thigh * Transform::from_translation(Vec3::NEG_X * 0.422).with_rotation(calf.normalize());
+            let ankle = knee * Transform::from_translation(Vec3::NEG_X * 0.402);
+            let bones = BTreeMap::from([
+                ("thigh_l".to_owned(), (thigh.translation, thigh.rotation, Vec3::ONE, Vec3::ONE)),
+                ("calf_l".to_owned(), (knee.translation, knee.rotation, Vec3::ONE, Vec3::ONE)),
+                ("foot_l".to_owned(), (ankle.translation, ankle.rotation, Vec3::ONE, Vec3::ONE)),
+            ]);
+            let metrics = guard.observe(&local, &bones, Vec3::ZERO, 0.0810643).metrics;
+            assert!(!metrics.iter().any(|metric| metric.kind == "limb_plane_flip"),
+                "Source-equivalent additive motion crosses a collinear knee configuration without an instantaneous joint flip: {metrics:?}");
+        }
+    }
+
+    #[test]
+    fn temporal_guard_rejects_a_global_flip_with_unchanged_valid_local_joint_geometry() {
+        let local = BTreeMap::from([
+            ("thigh_l".to_owned(), LocalBonePose { rotation: Quat::IDENTITY, scale: Vec3::ONE, ..default() }),
+            ("calf_l".to_owned(), LocalBonePose { translation: Vec3::new(0.25, -0.5, 0.0), rotation: Quat::IDENTITY, scale: Vec3::ONE }),
+            ("foot_l".to_owned(), LocalBonePose { translation: Vec3::new(-0.25, -0.5, 0.0), rotation: Quat::IDENTITY, scale: Vec3::ONE }),
+        ]);
+        let mut guard = TemporalSkeletonGuard::default();
+        guard.observe(&local, &temporal_bones(0.25), Vec3::ZERO, 1.0 / 60.0);
+        let metrics = guard.observe(&local, &temporal_bones(-0.25), Vec3::ZERO, 1.0 / 60.0).metrics;
+        assert!(metrics.iter().any(|metric| metric.kind == "limb_plane_flip"),
+            "A global limb flip cannot be excused by unchanged or inconsistent local joint data: {metrics:?}");
     }
 
     #[test]

@@ -2,6 +2,7 @@ param(
     [string]$Asset,
     [string]$Output,
     [string]$BlendSpaceProbe,
+    [string]$SequencePoseProbe,
     [switch]$CachedPoseLifecycleProbe,
     [switch]$NotifyClockProbe,
     [switch]$NotifyChanceProbe,
@@ -266,6 +267,10 @@ $arguments = @(
 if ($BlendSpaceProbe) {
     $probePath = (Resolve-Path -LiteralPath $BlendSpaceProbe -ErrorAction Stop).Path
     $arguments += "-BlendSpaceProbe=$probePath"
+}
+if ($SequencePoseProbe) {
+    $probePath = (Resolve-Path -LiteralPath $SequencePoseProbe -ErrorAction Stop).Path
+    $arguments += "-SequencePoseProbe=$probePath"
 }
 if ($CachedPoseLifecycleProbe) {
     $arguments += "-CachedPoseLifecycleProbe"
