@@ -542,20 +542,22 @@ pub fn foot_lock_location_constraint_rotation(
     lock_location: Vec3,
     thigh_angle_limit_degrees: f32,
 ) -> Option<Quat> {
-    let horizontal_relative = Vec3::new(lock_location.x, 0.0, lock_location.z);
-    let horizontal_axis = Vec3::new(thigh_axis.x, 0.0, thigh_axis.z).normalize_or_zero();
-    if horizontal_relative.length_squared() <= 1e-6 || horizontal_axis.length_squared() <= 1e-6 {
-        return None;
-    }
-    let angle = f32::atan2(
-        horizontal_axis.z * horizontal_relative.x - horizontal_axis.x * horizontal_relative.z,
-        horizontal_axis.dot(horizontal_relative),
-    );
-    let limit = thigh_angle_limit_degrees.clamp(0.0, 180.0).to_radians();
+    let mut horizontal_relative = Vec2::new(lock_location.x, lock_location.z);
+    let mut horizontal_axis = Vec2::new(thigh_axis.x, thigh_axis.z);
+    horizontal_relative = if horizontal_relative.length_squared() > 1e-12 {
+        horizontal_relative.normalize()
+    } else { Vec2::ZERO };
+    horizontal_axis = if horizontal_axis.length_squared() > 1e-8 {
+        horizontal_axis.normalize()
+    } else { Vec2::ZERO };
+    let cross = horizontal_axis.y * horizontal_relative.x - horizontal_axis.x * horizontal_relative.y;
+    let sign = if cross > 0.0 { 1.0 } else if cross < 0.0 { -1.0 } else { 0.0 };
+    let angle = horizontal_axis.dot(horizontal_relative).clamp(-1.0, 1.0).acos().to_degrees() * sign;
+    let limit = thigh_angle_limit_degrees;
     if angle.abs() <= limit + 1e-4 {
         return None;
     }
-    Some(Quat::from_rotation_y(limit.copysign(angle) - angle))
+    Some(Quat::from_rotation_y((angle.clamp(-limit, limit) - angle).to_radians()))
 }
 
 pub fn constrain_foot_lock_location(

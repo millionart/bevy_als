@@ -710,6 +710,52 @@ mod tests {
     use super::*;
 
     #[test]
+    fn source_signed_thigh_angle_reaches_the_actual_foot_rig() {
+        for (source_lock, source_final) in [
+            (Vec3::new(-0.2, -0.8, 0.0), Vec3::new(-0.2, -0.8, 0.0)),
+            (Vec3::new(0.2, -0.8, 0.0), Vec3::new(0.2, -0.8, 0.0)),
+            (Vec3::new(-0.1, -0.8, 0.17320508), Vec3::new(0.0, -0.8, 0.2)),
+            (Vec3::new(-0.000_002, -0.8, 0.000_003_464_101_6), Vec3::new(0.0, -0.8, 0.000_004)),
+        ] {
+            let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            for _ in 0..5 { app.update(); }
+            let pelvis = app.world().get::<ChildOf>(app.world().get::<AlsFootBones>(actor).unwrap().left_thigh).unwrap().parent();
+            app.add_systems(PostUpdate,
+                (move |mut states: Query<(&mut AlsFootLockState, &mut AlsFootLockInput, &mut LocomotionState)>,
+                    mut transforms: ParamSet<(Query<&mut Transform>, TransformHelper)>,
+                    mut profile: ResMut<CrAlsRuntimeProfileTemplate>| {
+                    transforms.p0().get_mut(pelvis).unwrap().rotation = Quat::IDENTITY;
+                    profile.0.target.foot_left_thigh_axis_pelvis_space = Vec3::X.to_array();
+                    let (mut lock, mut input, mut mode) = states.get_mut(actor).unwrap();
+                    assert!(lock.valid && !lock.became_valid);
+                    lock.left.lock_amount = 1.0;
+                    let mesh = transforms.p1().compute_global_transform(avatar).unwrap();
+                    lock.left.lock_location = mesh.affine().transform_point3(source_lock);
+                    let recovered = mesh.affine().inverse().transform_point3(lock.left.lock_location);
+                    assert!(recovered.distance(source_lock) < 1e-6);
+                    if source_lock.z == 0.0 { assert_eq!(recovered.z, 0.0, "Fixture must preserve exact collinear component axes"); }
+                    lock.left.lock_rotation = Quat::IDENTITY;
+                    lock.left.lock_rotation_before_foot_limit = Quat::IDENTITY;
+                    lock.left.movement_base = None;
+                    input.left_ik_amount = 1.0;
+                    input.left_lock_amount = 1.0;
+                    input.moving_smooth = false;
+                    *mode = LocomotionState::Grounded;
+                }).after(crate::standing_layer::AlsStandingLayerSet).before(FootIkApplySet::UpdateInputs));
+            app.update();
+            let rig = app.world().get::<AlsControlRigInput>(actor).unwrap();
+            assert!(rig.foot_transforms_valid);
+            let expected = source_final;
+            assert!(rig.foot_left_location_armature.distance(expected) < 1e-4,
+                "Source signed thigh angle differs at the actual Rig: input={source_lock:?}, actual={:?}, expected={expected:?}", rig.foot_left_location_armature);
+            let actual_horizontal = Vec2::new(rig.foot_left_location_armature.x, rig.foot_left_location_armature.z).normalize();
+            let source_horizontal = Vec2::new(expected.x, expected.z).normalize();
+            assert!(actual_horizontal.distance(source_horizontal) < 1e-4,
+                "Source normalization boundary must reach the actual Rig direction: input={source_lock:?}, actual={actual_horizontal:?}, source={source_horizontal:?}");
+        }
+    }
+
+    #[test]
     fn moving_foot_lock_uses_the_source_actor_animation_delta() {
         for (custom_dilation, moving_smooth, decrease_speed) in [(1.0_f32, true, 5.0_f32), (0.5, true, 5.0), (0.0, true, 5.0), (0.5, false, 0.6)] {
             #[derive(Resource, Default)]
