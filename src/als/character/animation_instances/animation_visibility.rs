@@ -20,7 +20,7 @@ impl Plugin for AlsAnimationVisibilityPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(PostUpdate, refresh_mesh_animation_visibility.before(bevy_animation_graph::core::plugin::AnimationGraphSet::PrePhysics))
             .add_observer(|event: On<Discard, AnimationGraphPlayer>, mut commands: Commands| {
-                commands.entity(event.entity).remove::<AnimationPoseUpdateGate>();
+                commands.entity(event.entity).try_remove::<AnimationPoseUpdateGate>();
             });
     }
 }
@@ -61,6 +61,47 @@ fn refresh_mesh_animation_visibility(
 mod tests {
     use super::*;
     use bevy::ecs::system::RunSystemOnce;
+
+    #[test]
+    fn player_discard_cleans_live_gates_and_allows_entity_destruction() {
+        use std::sync::{Arc, Mutex};
+        struct Capture(Arc<Mutex<Vec<u8>>>);
+        impl std::io::Write for Capture {
+            fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+                self.0.lock().unwrap().extend_from_slice(bytes);
+                Ok(bytes.len())
+            }
+            fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
+        }
+        let output = Arc::new(Mutex::new(Vec::new()));
+        let writer = output.clone();
+        let subscriber = bevy::log::tracing_subscriber::fmt()
+            .with_ansi(false).without_time()
+            .with_writer(move || Capture(writer.clone())).finish();
+        bevy::log::tracing::subscriber::with_default(subscriber, || {
+            let mut app = App::new();
+            app.add_plugins((bevy::log::LogPlugin::default(), AlsAnimationVisibilityPlugin));
+            bevy::ecs::error::warn("discard logging probe".into(),
+                bevy::ecs::error::ErrorContext::Command { name: "discard logging probe".into() });
+            assert!(String::from_utf8(output.lock().unwrap().clone()).unwrap().contains("discard logging probe"));
+            output.lock().unwrap().clear();
+            let gate = AnimationPoseUpdateGate { update_graph: false, refresh_bones: false, pending_update: false };
+            let player = app.world_mut().spawn((AnimationGraphPlayer::new(default()), gate)).id();
+            app.world_mut().entity_mut(player).remove::<AnimationGraphPlayer>();
+            app.world_mut().flush();
+            assert!(app.world().get::<AnimationPoseUpdateGate>(player).is_none());
+            app.world_mut().entity_mut(player).insert((AnimationGraphPlayer::new(default()), gate));
+            app.world_mut().entity_mut(player).insert(AnimationGraphPlayer::new(default()));
+            app.world_mut().flush();
+            assert!(app.world().get::<AnimationPoseUpdateGate>(player).is_none());
+            app.world_mut().entity_mut(player).insert(gate);
+            app.world_mut().commands().entity(player).despawn();
+            app.world_mut().flush();
+            assert!(app.world().get_entity(player).is_err());
+        });
+        let output = String::from_utf8(output.lock().unwrap().clone()).unwrap();
+        assert!(!output.contains("Encountered an error"), "Discard cleanup queued a command against a destroyed player: {output}");
+    }
 
     #[test]
     fn visibility_policy_uses_any_render_view_strict_recentness_and_pending_resume() {
