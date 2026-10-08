@@ -82,7 +82,7 @@ pub fn update_rotate_in_place(
 }
 
 fn damp_exact(current: f32, target: f32, dt: f32) -> f32 {
-    let alpha = 1.0 - 2.0_f32.powf(-dt.max(0.0) / 0.15);
+    let alpha = 1.0 - crate::als::animation::inv_exp_approx(std::f32::consts::LN_2 / (0.15 + 1e-8) * dt.max(0.0));
     current + (target - current) * alpha
 }
 
@@ -107,7 +107,7 @@ mod tests {
             0.15,
         );
         assert_eq!(s.side, None);
-        assert!((s.play_rate - 1.575).abs() < 1e-6);
+        assert!((s.play_rate - 1.574_904_2).abs() < 1e-6);
         assert_eq!(RotateInPlaceState::default().play_rate, 1.0);
     }
 
@@ -207,7 +207,7 @@ mod tests {
 
     #[test]
     fn source_damping_uses_fifteen_hundredths_half_life() {
-        assert!((damp_exact(0.0, 1.0, 0.15) - 0.5).abs() < 1e-6);
+        assert!((damp_exact(0.0, 1.0, 0.15) - 0.500_112_65).abs() < 1e-6);
     }
 
     #[test]

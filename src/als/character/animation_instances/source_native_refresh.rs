@@ -926,9 +926,77 @@ mod tests {
     }
 
     #[test]
+    fn native_rotate_damper_reaches_the_generated_sequence_pose() {
+        use bevy_animation_graph::core::animation_graph::{SourcePin, TargetPin};
+        use bevy_animation_graph::core::pose::Pose;
+        fn query(In((actual_handle, source_handle, delta)): In<(Handle<AnimationGraph>, Handle<AnimationGraph>, f32)>,
+            resources: SystemResources) -> (f32, f32) {
+            let actual_graph = resources.animation_graph_assets.get(&actual_handle).unwrap();
+            let source_graph = resources.animation_graph_assets.get(&source_handle).unwrap();
+            let mut actual_arena = GraphContextArena::new(actual_handle.id());
+            let mut source_arena = GraphContextArena::new(source_handle.id());
+            let mut source_rate = 1.0_f32;
+            let mut minimum_dot = 1.0_f32;
+            let mut maximum_location_error = 0.0_f32;
+            for _ in 0..2 {
+                let x = std::f32::consts::LN_2 / (0.15 + 1e-8) * delta;
+                let alpha = 1.0 - 1.0 / (1.0 + 1.00746054 * x + 0.45053901 * x * x + 0.25724632 * x * x * x);
+                source_rate += (3.0 - source_rate) * alpha;
+                let mut poses: Vec<Pose> = Vec::new();
+                for (graph, arena, reference) in [(actual_graph, &mut actual_arena, false), (source_graph, &mut source_arena, true)] {
+                    let mut inputs = HashMap::from([
+                        ("animation.delta_seconds".to_owned(), DataValue::F32(delta)),
+                        ("animation.pending_update".to_owned(), DataValue::Bool(false)),
+                        ("rotate_in_place.allowed".to_owned(), DataValue::Bool(true)),
+                        ("view_state.yaw_angle".to_owned(), DataValue::F32(80.0)),
+                        ("view_state.yaw_speed".to_owned(), DataValue::F32(460.0)),
+                        ("rotate_in_place_state.b_rotating_right".to_owned(), DataValue::Bool(true)),
+                    ]);
+                    if reference { inputs.insert("rotate_in_place_state.play_rate".to_owned(), source_rate.into()); }
+                    let mut gizmos = DeferredGizmos::default();
+                    let entities = HashMap::new();
+                    let env = TestIoEnv::default();
+                    let output = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(delta)),
+                        GraphContext::new(arena.get_toplevel_id(), graph, arena, &resources, &env,
+                            Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs)).unwrap();
+                    poses.push(output["Result"].as_pose().unwrap().clone());
+                }
+                for bone in poses[1].paths.keys() {
+                    let a = poses[0].get_bone(*bone).unwrap();
+                    let s = poses[1].get_bone(*bone).unwrap();
+                    if let (Some(a), Some(s)) = (a.rotation, s.rotation) { minimum_dot = minimum_dot.min(a.dot(s).abs()); }
+                    if let (Some(a), Some(s)) = (a.translation, s.translation) { maximum_location_error = maximum_location_error.max(a.distance(s)); }
+                }
+            }
+            (minimum_dot, maximum_location_error)
+        }
+        let (mut app, _, _) = crate::roll_drive::tests::loaded_roll_character();
+        let leaf: Handle<AnimationGraph> = app.world().resource::<AssetServer>().load(
+            "ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph/SM6_Standing_States/S5_Rotate_Right.animgraph.ron");
+        for _ in 0..3 { app.update(); }
+        let source_graph = app.world().resource::<Assets<AnimationGraph>>().get(&leaf).unwrap().clone();
+        let mut actual_graph = source_graph.clone();
+        let SourcePin::NodeData(source_node, source_pin) = actual_graph.edges_inverted[&TargetPin::OutputData("Result".to_owned())].clone() else { panic!("Rotate output must be a pose node"); };
+        let refresh = AnimationNode::new("Native Rotate", AlsSourceRefreshNode { function:AlsSourceRefreshFunction::RefreshRotateInPlace });
+        actual_graph.add_node(refresh.clone());
+        actual_graph.add_node_parameter_edge(source_node, source_pin, refresh.id, "Source");
+        actual_graph.add_output_data_edge(refresh.id, "Pose", "Result");
+        let actual = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(actual_graph);
+        let source = app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(source_graph);
+        let mut errors = Vec::new();
+        for delta in [0.15_f32, 0.25, 1.0] {
+            let (minimum_dot, location_error) = app.world_mut().run_system_cached_with(query, (actual.clone(), source.clone(), delta)).unwrap();
+            if minimum_dot <= 1.0 - 1e-5 || location_error >= 1e-5 {
+                errors.push((delta, (2.0 * minimum_dot.clamp(-1.0, 1.0).acos()).to_degrees(), location_error));
+            }
+        }
+        assert!(errors.is_empty(), "Native Rotate damper changes the generated pose (delta, rotation degrees, location): {errors:?}");
+    }
+
+    #[test]
     fn source_rotate_call_updates_the_actual_instance() {
         fn query(
-            In(root): In<Handle<AnimationGraph>>,
+            In((root, pending, delta)): In<(Handle<AnimationGraph>, bool, f32)>,
             resources: SystemResources,
         ) -> (bool, f32, u64) {
             let graph = resources.animation_graph_assets.get(&root).unwrap();
@@ -938,15 +1006,15 @@ mod tests {
             let env = TestIoEnv::default();
             let inputs = HashMap::from([
                 ("fixture".to_owned(), DataValue::Pose(default())),
-                ("animation.delta_seconds".to_owned(), DataValue::F32(0.15)),
-                ("animation.pending_update".to_owned(), DataValue::Bool(true)),
+                ("animation.delta_seconds".to_owned(), DataValue::F32(delta)),
+                ("animation.pending_update".to_owned(), DataValue::Bool(pending)),
                 ("rotate_in_place.allowed".to_owned(), DataValue::Bool(true)),
                 ("view_state.yaw_angle".to_owned(), DataValue::F32(-80.0)),
                 ("view_state.yaw_speed".to_owned(), DataValue::F32(460.0)),
             ]);
             graph
                 .query_with_context(
-                    QueryOutputTime::Forced(TimeUpdate::Delta(0.15)),
+                    QueryOutputTime::Forced(TimeUpdate::Delta(delta)),
                     GraphContext::new(
                         arena.get_toplevel_id(),
                         graph,
@@ -1002,11 +1070,19 @@ mod tests {
         world.insert_resource(Assets::<GraphClip>::default());
         world.insert_resource(Assets::<Skeleton>::default());
         world.insert_resource(Assets::<StateMachine>::default());
-        let first = world.run_system_cached_with(query, root.clone()).unwrap();
-        let second = world.run_system_cached_with(query, root).unwrap();
+        let first = world.run_system_cached_with(query, (root.clone(), true, 0.15)).unwrap();
+        let second = world.run_system_cached_with(query, (root.clone(), true, 0.15)).unwrap();
         assert_eq!((first.0, first.1), (true, 3.0));
         assert_eq!((second.0, second.1), (true, 3.0));
         assert_ne!(first.2, second.2);
+        for delta in [0.0_f32, 0.15, 0.25, 1.0] {
+            let actual = world.run_system_cached_with(query, (root.clone(), false, delta)).unwrap();
+            let x = std::f32::consts::LN_2 / (0.15 + 1e-8) * delta;
+            let source_alpha = 1.0 - 1.0 / (1.0 + 1.00746054 * x + 0.45053901 * x * x + 0.25724632 * x * x * x);
+            let source_rate = 1.0 + 2.0 * source_alpha;
+            assert!(actual.0 && (actual.1 - source_rate).abs() < 1e-6,
+                "Actual Rotate source instance uses a different damper: delta={delta}, actual={}, source={source_rate}", actual.1);
+        }
     }
 
     #[test]
