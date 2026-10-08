@@ -3295,7 +3295,8 @@ fn grounded_step_up_system(
         let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height } * transform.scale.y;
         let radius = params.crouch.standing_capsule_radius * transform.scale.x.min(transform.scale.z);
         let next_velocity = velocity.0 + motor.lin.boost + motor.lin.acceleration * time.delta_secs();
-        let delta = Vec3::new(next_velocity.x, 0.0, next_velocity.z) * time.delta_secs();
+        let delta = runtime.grounded_movement_delta
+            .unwrap_or(next_velocity * time.delta_secs()).with_y(0.0);
         let Ok((direction, distance)) = Dir3::new_and_length(delta) else {
             continue;
         };
@@ -4087,6 +4088,7 @@ mod tests {
                     app.world_mut().entity_mut(character).insert((Position(start), Transform::from_translation(start), LinearVelocity::ZERO, LocomotionState::Grounded));
                     let direction = if case == "slide" { Vec3::new(1.0, 0.0, 0.3).normalize() } else { Vec3::X };
                     let request = direction * distance;
+                    app.world_mut().get_mut::<AlsCmcAdapterRuntime>(character).unwrap().grounded_movement_delta = Some(request);
                     let mut time = Time::<()>::default(); time.advance_by(std::time::Duration::from_secs_f32(delta_seconds)); app.insert_resource(time);
                     let mut motor = app.world_mut().get_mut::<TnuaMotor>(character).unwrap();
                     motor.lin.boost = request / delta_seconds; motor.lin.acceleration = Vec3::ZERO;

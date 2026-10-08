@@ -731,6 +731,51 @@ mod tests {
     }
 
     #[test]
+    fn actual_walking_forward_sweep_does_not_reach_beyond_source_substep_displacement() {
+        use avian3d::prelude::Collider;
+        use bevy::ecs::system::RunSystemOnce;
+        for gap in [0.18_f32, 0.14] {
+            let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+            for _ in 0..35 { app.update(); }
+            let before = app.world().get::<Position>(character).unwrap().0;
+            let wall = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 3.0, 0.1),
+                Transform::from_xyz(before.x, 1.5, before.z - 0.35 - gap))).id();
+            app.update();
+            let before = app.world().get::<Position>(character).unwrap().0;
+            app.world_mut().run_system_once(move |spatial: crate::extensions::RagdollSpatialQuery,
+                colliders: Query<&Collider>| {
+                let capsule = colliders.get(character).unwrap();
+                let filter = avian3d::prelude::SpatialQueryFilter::from_excluded_entities([character]);
+                let source_hit = spatial.cast_shape(capsule, before, Quat::IDENTITY, Dir3::NEG_Z,
+                    &avian3d::prelude::ShapeCastConfig::from_max_distance(0.15), &filter);
+                assert_eq!(source_hit.is_some(), gap < 0.15,
+                    "The real wall must match source accumulated movement: gap={gap} hit={source_hit:?}");
+                let overextended = spatial.cast_shape(capsule, before, Quat::IDENTITY, Dir3::NEG_Z,
+                    &avian3d::prelude::ShapeCastConfig::from_max_distance(0.2), &filter).unwrap();
+                assert_eq!(overextended.entity, wall);
+                assert!((overextended.distance - gap).abs() < 0.002,
+                    "The real wall must be beyond source displacement but within the old full-tail sweep: {overextended:?}");
+            }).unwrap();
+            app.world_mut().entity_mut(character).insert((LinearVelocity::ZERO,
+                crate::als::input::AlsInputCommand { move_dir: Vec2::Y, ..default() }));
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_millis(100)));
+            app.update();
+            let after = app.world().get::<Position>(character).unwrap().0;
+            let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
+            assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Grounded));
+            if gap > 0.15 {
+                assert!((after.z - before.z + 0.15).abs() < 1e-4,
+                    "Source walking does not hit a wall.18m away when source substeps only move.15m: before={before:?} after={after:?} velocity={velocity:?}");
+                assert!((velocity.z + 2.0).abs() < 1e-4,
+                    "A wall beyond source displacement cannot change the source tail velocity: {velocity:?}");
+            } else {
+                assert!(after.z - before.z >= -gap - 1e-4,
+                    "A real wall within source movement must still block the capsule: gap={gap} before={before:?} after={after:?}");
+            }
+        }
+    }
+
+    #[test]
     fn actual_stance_noop_and_settings_replacement_follow_source_consumers() {
         use bevy::ecs::system::RunSystemOnce;
         for stance in [Stance::Standing, Stance::Crouching] {
