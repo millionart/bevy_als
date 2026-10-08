@@ -29,6 +29,7 @@ use crate::control_rig_apply::{AlsControlRigExecution, AlsControlRigInput, CrAls
 #[derive(Component, Debug, Clone, Copy, Default)]
 pub(crate) struct FootLockLifecycleState {
     previous_character_transform: Option<Transform>,
+    previous_actor_location: Option<Vec3>,
     teleport_remaining: f32,
 }
 
@@ -385,19 +386,17 @@ fn ensure_foot_lock_teleport_telemetry(
 fn detect_foot_lock_teleports(
     mut teleports: MessageWriter<AlsFootLockTeleported>,
     mut lifecycles: Query<
-        (Entity, &AlsCharacterAssembly, &mut FootLockLifecycleState),
+        (Entity, &mut FootLockLifecycleState),
         (With<crate::als::character::AlsCharacter>, With<AlsFootBones>),
     >,
     transforms: TransformHelper,
     mut telemetry: Query<&mut AlsFootLockTeleportTelemetry>,
 ) {
-    for (entity, assembly, lifecycle) in &mut lifecycles {
-        let Ok(armature) = transforms.compute_global_transform(assembly.avatar) else { continue };
-        let current = armature.compute_transform();
-        let Some(previous) = lifecycle.previous_character_transform else {
-            continue;
-        };
-        let translation_delta_m = previous.translation.distance(current.translation);
+    for (entity, mut lifecycle) in &mut lifecycles {
+        let Ok(actor) = transforms.compute_global_transform(entity) else { continue };
+        let current = actor.translation();
+        let Some(previous) = lifecycle.previous_actor_location.replace(current) else { continue; };
+        let translation_delta_m = previous.distance(current);
         if translation_delta_m <= FOOT_LOCK_TELEPORT_DISTANCE_THRESHOLD_M {
             continue;
         }
@@ -423,6 +422,7 @@ fn record_foot_lock_teleports(
                 .entity(teleport.entity)
                 .insert(FootLockLifecycleState {
                     previous_character_transform: None,
+                    previous_actor_location: None,
                     teleport_remaining: FOOT_LOCK_TELEPORT_WINDOW_SECONDS,
                 });
         }
@@ -1028,12 +1028,14 @@ mod tests {
                 },
                 FootLockLifecycleState {
                     previous_character_transform: Some(previous_character_transform),
+                    previous_actor_location: None,
                     teleport_remaining: FOOT_LOCK_TELEPORT_WINDOW_SECONDS,
                 },
             ))
             .id();
         let incomplete = app.world_mut().spawn((crate::als::character::AlsCharacter, FootLockLifecycleState {
             previous_character_transform: Some(previous_character_transform),
+            previous_actor_location: None,
             teleport_remaining: FOOT_LOCK_TELEPORT_WINDOW_SECONDS,
         })).id();
         app.update();
@@ -1169,6 +1171,40 @@ mod tests {
     }
 
     #[test]
+    fn teleport_detection_uses_the_source_actor_location_through_crouching() {
+        use avian3d::prelude::Position;
+        let mut outputs = Vec::new();
+        for source_mark in [false, true] {
+            let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            for _ in 0..60 { app.update(); }
+            let before_actor = app.world().get::<Position>(character).unwrap().0;
+            let before_avatar = app.world().get::<GlobalTransform>(avatar).unwrap().translation();
+            assert!(app.world().get::<AlsFootLockState>(character).unwrap().valid);
+            let before = *app.world().get::<AlsFootLockTeleportTelemetry>(character).unwrap();
+            app.world_mut().get_mut::<Position>(character).unwrap().x += 0.49;
+            app.world_mut().get_mut::<Transform>(character).unwrap().translation.x += 0.49;
+            app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(character).unwrap().stance = Some(Stance::Crouching);
+            if source_mark { app.world_mut().write_message(AlsFootLockTeleported { entity: character }); }
+            app.update();
+            assert_eq!(app.world().get::<Stance>(character), Some(&Stance::Crouching));
+            let actor_delta = app.world().get::<Position>(character).unwrap().0.distance(before_actor);
+            let avatar_delta = app.world().get::<GlobalTransform>(avatar).unwrap().translation().distance(before_avatar);
+            assert!(actor_delta > 0.5 && avatar_delta <= 0.5,
+                "Source actor capsule adjustment must cross .5m while the avatar retains its world floor offset: actor={actor_delta} avatar={avatar_delta}");
+            let current = *app.world().get::<AlsFootLockTeleportTelemetry>(character).unwrap();
+            let lock = *app.world().get::<AlsFootLockState>(character).unwrap();
+            if source_mark {
+                assert!(current.left_rebase_count > before.left_rebase_count && current.right_rebase_count > before.right_rebase_count,
+                    "The source teleport event must reach both actual locked feet: before={before:?} current={current:?} lock={lock:?}");
+            }
+            outputs.push((lock.left.final_location, lock.right.final_location, current.detected_count - before.detected_count));
+        }
+        assert!(outputs[0].0.distance(outputs[1].0) < 1e-4 && outputs[0].1.distance(outputs[1].1) < 1e-4,
+            "Source NativeUpdate actor teleport detection must match the actual FootLock output of its required MarkTeleported event: outputs={outputs:?}");
+        assert_eq!(outputs[0].2, 1, "Source actor displacement must mark teleportation even when crouching offsets the avatar");
+    }
+
+    #[test]
     fn source_teleport_threshold_marks_only_distance_above_half_meter() {
         let mut app = App::new();
         app.add_message::<AlsFootLockTeleported>().add_systems(
@@ -1182,7 +1218,7 @@ mod tests {
             .world_mut()
             .spawn((
                 crate::als::character::AlsCharacter,
-                Transform::IDENTITY,
+                Transform::from_xyz(FOOT_LOCK_TELEPORT_DISTANCE_THRESHOLD_M, 0.0, 0.0),
                 AlsFootBones {
                     left_thigh: fake_bones[0],
                     left_calf: fake_bones[1],
@@ -1197,6 +1233,7 @@ mod tests {
                 },
                 FootLockLifecycleState {
                     previous_character_transform: Some(Transform::IDENTITY),
+                    previous_actor_location: Some(Vec3::ZERO),
                     teleport_remaining: 0.0,
                 },
                 AlsFootLockTeleportTelemetry::default(),
@@ -1207,11 +1244,7 @@ mod tests {
             .spawn((
                 AlsCharacterAvatar { character },
                 ChildOf(character),
-                Transform::from_xyz(
-                    FOOT_LOCK_TELEPORT_DISTANCE_THRESHOLD_M,
-                    0.0,
-                    0.0,
-                ),
+                Transform::IDENTITY,
             ))
             .id();
         app.world_mut().entity_mut(character).insert(AlsCharacterAssembly { avatar, camera: None });
@@ -1220,8 +1253,8 @@ mod tests {
             .world()
             .get::<AlsFootLockTeleportTelemetry>(character)
             .unwrap();
-        *app.world_mut().get_mut::<Transform>(avatar).unwrap() =
-            Transform::from_xyz(FOOT_LOCK_TELEPORT_DISTANCE_THRESHOLD_M + 0.001, 0.0, 0.0);
+        *app.world_mut().get_mut::<Transform>(character).unwrap() =
+            Transform::from_xyz(2.0 * FOOT_LOCK_TELEPORT_DISTANCE_THRESHOLD_M + 0.001, 0.0, 0.0);
         app.update();
         let above_threshold = *app
             .world()
