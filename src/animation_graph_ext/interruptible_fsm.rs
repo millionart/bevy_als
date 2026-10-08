@@ -1228,7 +1228,7 @@ impl InterruptibleFsmNode {
                 entry.value = (entry.value * (1.0 - alpha)).clamp(0.0, 1.0);
             }
             Self::add_state_weight(&mut weights, transition.target, alpha);
-            weights.retain(|entry| entry.value > f32::EPSILON);
+            weights.retain(|entry| entry.value > 0.0);
         }
         Ok(weights)
     }
@@ -4014,6 +4014,143 @@ mod tests {
         }
         assert!(actual.0==expected.0 && dot>1.0-1e-5 && distance<1e-5,
             "Reentry uses stale relevancy in the actual pose: actual_states={:?}, source_states={:?}, rotation_error_degrees={}, location_error={distance}",
+            actual.0,expected.0,(2.0*dot.clamp(-1.0,1.0).acos()).to_degrees());
+        }
+    }
+
+    #[test]
+    fn tiny_positive_active_weight_preserves_the_native_reentry_pose() {
+        use bevy::ecs::system::RunSystemOnce;
+        fn query(In((root,node,source_cache_clear,_automatic)):In<(Handle<AnimationGraph>,NodeId,bool,bool)>,resources:SystemResources)->(Vec<String>,Vec<Pose>) {
+            let graph=resources.animation_graph_assets.get(&root).unwrap();
+            let mut arena=GraphContextArena::new(root.id());
+            let mut values=Vec::new();
+            let mut poses=Vec::new();
+            for frame in 0..4 {
+                let dt=match frame {0=>0.0_f32,1=>0.19995440542697906,2=>0.000001,_=>0.05};
+                let inputs=HashMap::from([
+                    ("delta".into(),DataValue::F32(dt)),("to_b".into(),DataValue::Bool(frame==1)),
+                    ("to_a".into(),DataValue::Bool(frame==2)),
+                    ("allow_auto".into(),DataValue::Bool(false)),
+                ]);
+                if frame==2 && source_cache_clear {
+                    let env=TestIoEnv::default();
+                    let entities=HashMap::new();
+                    let context=GraphContext::new(arena.get_toplevel_id(),graph,&mut arena,&resources,&env,
+                        Entity::PLACEHOLDER,&entities,&mut DeferredGizmos::default(),&inputs);
+                    let mut node_context=context.create_node_context(node);
+                    let state=node_context.state_mut_or_else::<InterruptibleFsmState>(||unreachable!()).unwrap();
+                    let first=serde_json::from_str::<StateId>("\"10000000-0000-4000-8000-000000000001\"").unwrap();
+                    let alpha=transition_alpha(0.19995440542697906_f32/0.2,AlphaBlendMode::HermiteCubic,&[]);
+                    let source_weight=1.0-alpha;
+                    assert!(source_weight>0.0 && source_weight<=f32::EPSILON);
+                    state.recorded_state_weights.push(SourceFsmStateWeight {state_id:first.uuid().to_string(),value:source_weight});
+                }
+                let pose=graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(dt)),
+                    GraphContext::new(arena.get_toplevel_id(),graph,&mut arena,&resources,&TestIoEnv::default(),
+                        Entity::PLACEHOLDER,&HashMap::new(),&mut DeferredGizmos::default(),&inputs))
+                    .unwrap().remove("pose").unwrap().into_pose().unwrap();
+                let state=arena.get_toplevel().node_states.get::<InterruptibleFsmState>(node,StateKey::Default).unwrap();
+                let machine=graph.nodes[&node].try_inner_downcast_ref::<InterruptibleFsmNode>().unwrap()
+                    .state_machine(&resources).unwrap();
+                values.push(InterruptibleFsmNode::source_condition_state(machine,&state.state).unwrap().uuid().to_string());
+                poses.push(pose);
+            }
+            (values,poses)
+        }
+        let mut graphs=Assets::<AnimationGraph>::default();
+        let (mut app,_,_)=crate::roll_drive::tests::loaded_roll_character();
+        let clips=["Left_Forward","Left_Backward","Right_Backward"].map(|direction|
+            app.world().resource::<AssetServer>().load::<GraphClip>(
+                format!("ALS/Animations/Grounded/WalkRun/A_Als_Walk_{direction}.anim.ron")));
+        let deadline=std::time::Instant::now()+std::time::Duration::from_secs(30);
+        while clips.iter().any(|clip|!app.world().resource::<AssetServer>().is_loaded_with_dependencies(clip.id())) {
+            app.update();assert!(std::time::Instant::now()<deadline,"Native reentry pose clips did not load");
+        }
+        let clip_assets=app.world_mut().remove_resource::<Assets<GraphClip>>().unwrap();
+        let skeletons=app.world_mut().remove_resource::<Assets<Skeleton>>().unwrap();
+        let first_duration=clip_assets.get(&clips[0]).unwrap().duration;
+        assert!(first_duration>0.2);
+        let first_start=0.3;
+        let states=[1,2,3].map(|id|serde_json::from_str::<StateId>(&format!("\"10000000-0000-4000-8000-{id:012}\"")).unwrap());
+        let mut machine=StateMachine::default();machine.start_state=states[0];
+        machine.node_spec.add_output_data("pose".into(),DataSpec::Pose);
+        for (index,id) in states.into_iter().enumerate() {
+            let player=AnimationNode::new("source sequence",crate::extensions::SourceSequencePlayerNode {
+                clip:clips[index].clone(),start_position:if index==0 {first_start} else {0.0},loop_animation:false,
+                expose_play_rate_pin:false,expose_start_position_pin:false,expose_loop_animation_pin:false,..default()
+            });
+            let mut leaf=AnimationGraph::new();leaf.add_node(player.clone());leaf.add_output_data("pose".into(),DataSpec::Pose);
+            leaf.add_output_data_edge(player.id,"Pose","pose");
+            machine.add_state(State {id,label:index.to_string(),graph:graphs.add(leaf),..default()});
+        }
+        let blend=AnimationNode::new("source crossfade",ProfiledBlendNode {alpha_blend_mode:AlphaBlendMode::HermiteCubic,..default()});
+        let mut transition=AnimationGraph::new();transition.add_node(blend.clone());
+        for (pin,input,spec) in [
+            ("factor",GraphInputPin::FsmBuiltin(FsmBuiltinPin::PercentThroughDuration),DataSpec::F32),
+            ("pose_a",GraphInputPin::FromFsmSource("pose".into()),DataSpec::Pose),
+            ("pose_b",GraphInputPin::FromFsmTarget("pose".into()),DataSpec::Pose)
+        ] {transition.add_input_data(input.clone(),spec);transition.add_input_data_edge(input,blend.id,pin);}
+        for (pin,input) in [("time_a",GraphInputPin::FromFsmSource("time".into())),("time_b",GraphInputPin::FromFsmTarget("time".into()))] {
+            transition.add_input_time(input.clone());transition.add_input_time_edge(input,blend.id,pin);
+        }
+        transition.add_output_time();transition.add_output_pose_edge(blend.id);
+        transition.add_output_data("pose".into(),DataSpec::Pose);transition.add_output_data_edge(blend.id,"pose","pose");
+        let transition=graphs.add(transition);
+        let mut conditions=Vec::new();
+        let mut allow=AnimationGraph::new();let value=AnimationNode::new("allow auto",GlobalBoolInputNode {key:"allow_auto".into()});
+        allow.add_node(value.clone());allow.add_output_data("allow_auto".into(),DataSpec::Bool);
+        allow.add_output_data_edge(value.id,"allow_auto","allow_auto");let allow=graphs.add(allow);
+        for (index,(from,to,key,automatic)) in [(0,1,"to_b",false),(1,0,"to_a",false),(0,2,"allow_auto",true)].into_iter().enumerate() {
+            let edge=serde_json::from_str::<DirectTransitionId>(&format!("\"30000000-0000-4000-8000-{:012}\"",index+1)).unwrap();
+            machine.add_transition_unchecked(DirectTransition {id:edge,source:states[from],target:states[to],
+                data:TransitionData {kind:bevy_animation_graph::core::state_machine::high_level::TransitionKind::Graph {
+                    graph:transition.clone(),timed:Some(0.2)},reset_target_state:true,..default()}});
+            let mut condition=AnimationGraph::new();let value=AnimationNode::new(key,GlobalBoolInputNode {key:key.into()});
+            condition.add_node(value.clone());condition.add_output_data(key.into(),DataSpec::Bool);
+            condition.add_output_data_edge(value.id,key,key);
+            let context_state=serde_json::from_str::<StateId>(&format!("\"20000000-0000-4000-8000-{:012}\"",index+1)).unwrap();
+            conditions.push(SourceTransitionCondition {
+                transition_id:edge.uuid().to_string(),source_state_id:states[from].uuid().to_string(),
+                condition:graphs.add(condition),output:key.into(),context_state,
+                automatic_trigger_time:automatic.then_some(0.2),transition_duration:0.2,
+                always_reset_target_on_entry:Some(false),
+                gates:if automatic {vec![SourceTransitionConditionGate {condition:allow.clone(),output:"allow_auto".into(),context_state}]} else {Vec::new()},
+                ..default()
+            });
+        }
+        machine.update_low_level_fsm();
+        let mut machines=Assets::<StateMachine>::default();
+        let machine=machines.add(machine);
+        let mut roots=Vec::new();
+        for automatic in [false] {
+            let mut conditions=conditions.clone();
+            if !automatic {
+                conditions.last_mut().unwrap().automatic_trigger_time=None;
+                conditions.last_mut().unwrap().gates.clear();
+            }
+            let fsm=AnimationNode::new("native reentry FSM",InterruptibleFsmNode {fsm:machine.clone(),
+                source_transition_conditions:conditions,internal_time_key:"delta".into(),expose_telemetry:false,..default()});
+            let mut root=AnimationGraph::new();root.add_node(fsm.clone());root.add_output_data("pose".into(),DataSpec::Pose);
+            root.add_output_data_edge(fsm.id,"pose","pose");
+            roots.push((graphs.add(root),fsm.id,automatic));
+        }
+        let mut world=World::new();world.insert_resource(graphs);world.insert_resource(clip_assets);
+        world.insert_resource(machines);world.insert_resource(skeletons);
+        for (root,node,automatic) in roots {
+        let expected=world.run_system_once_with(query,(root.clone(),node,true,automatic)).unwrap();
+        let actual=world.run_system_once_with(query,(root,node,false,automatic)).unwrap();
+        assert_eq!(expected.0[1],states[1].uuid().to_string());
+        assert_eq!(expected.0[2],states[0].uuid().to_string());
+        assert_eq!(expected.0[3],states[0].uuid().to_string());
+        let mut dot=1.0_f32;let mut distance=0.0_f32;
+        for bone in expected.1[3].paths.keys() {
+            let a=actual.1[3].get_bone(*bone).unwrap();let e=expected.1[3].get_bone(*bone).unwrap();
+            if let (Some(a),Some(e))=(a.rotation,e.rotation) {dot=dot.min(a.dot(e).abs());}
+            if let (Some(a),Some(e))=(a.translation,e.translation) {distance=distance.max(a.distance(e));}
+        }
+        assert!(actual.0==expected.0 && dot>1.0-1e-5 && distance<1e-5,
+            "Tiny positive native state weight changes reentry pose: actual_states={:?}, source_states={:?}, rotation_error_degrees={}, location_error={distance}",
             actual.0,expected.0,(2.0*dot.clamp(-1.0,1.0).acos()).to_degrees());
         }
     }
