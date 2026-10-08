@@ -657,7 +657,7 @@ fn write_turn_pins(player: &mut AnimationGraphPlayer, drive: &AlsTurnDrive, crou
 #[allow(clippy::type_complexity)]
 fn turn_pin_driver(
     time: Res<Time>,
-    stances: Query<&Stance, With<crate::als::character::AlsCharacter>>,
+    stances: Query<(&Stance, Option<&crate::als_camera::AlsCameraCustomTimeDilation>), With<crate::als::character::AlsCharacter>>,
     mut source_inputs: Query<&mut crate::extensions::SourceAnimationInputs>,
     mut drives: Query<
         (
@@ -671,11 +671,11 @@ fn turn_pin_driver(
     instances: Query<&AnimatedSceneInstance>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
-    let dt = time.delta_secs().max(1e-4);
     for (entity, parent, mut drive, mut stack) in &mut drives {
-        let Ok(stance) = stances.get(parent.parent()) else {
+        let Ok((stance, custom_dilation)) = stances.get(parent.parent()) else {
             continue;
         };
+        let dt = time.delta_secs() * custom_dilation.map_or(1.0, |value| value.0);
         let current_player = instances.get(entity).ok()
             .map(AnimatedSceneInstance::player_entity)
             .filter(|player| players.contains(*player));
@@ -971,6 +971,56 @@ mod tests {
         assert_eq!(app.world().get::<AnimationGraphPlayer>(new_player).unwrap()
             .get_global_input_data(turn_slot_contract(false).generated_weight_key)
             .and_then(|value| value.as_f32().ok()), Some(0.0));
+    }
+
+    #[test]
+    fn turn_slot_pose_uses_the_source_actor_animation_clock() {
+        use bevy_animation_graph::core::{animation_clip::GraphClip, skeleton::Skeleton};
+        for (custom_dilation, world_paused) in [(1.0_f32, false), (0.5, false), (0.0, false), (1.0, true)] {
+            let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            let request = SourceTurnRequest { variant:TurnVariant::Right90, yaw:90.0, crouching:false };
+            let sequence = request.source_sequence();
+            app.world_mut().run_system_once(move |mut commands: Commands| {
+                crate::transition_notify::queue_turn_in_grounded_group(&mut commands, character, avatar, request);
+            }).unwrap();
+            for _ in 0..18 { app.update(); }
+            let stack = app.world().get::<AlsTurnMontageStack>(avatar).unwrap();
+            assert_eq!(stack.entries.len(), 1);
+            let before = stack.entries[0].clone();
+            assert!(before.sampling_ready && before.blend_out_elapsed.is_none() && (before.weight()-1.0).abs()<1e-6);
+            app.world_mut().entity_mut(character).insert(crate::als_camera::AlsCameraCustomTimeDilation(custom_dilation));
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_millis(100)));
+            if world_paused { app.world_mut().resource_mut::<Time<bevy::time::Virtual>>().pause(); }
+            let mut delta = 0.0_f32;
+            for _ in 0..if custom_dilation == 0.0 || world_paused { 100 } else { 1 } {
+                app.update();
+                delta += app.world().resource::<Time>().delta_secs() * custom_dilation;
+            }
+            if world_paused { assert_eq!(delta, 0.0); }
+            let source_time = before.elapsed + delta * before.play_rate;
+            let source_pose = crate::standing_source::sample_source_montage(sequence, source_time,
+                app.world().resource::<crate::standing_source::SourceMontageAssets>(), app.world().resource::<Assets<GraphClip>>(),
+                app.world().resource::<Assets<Skeleton>>()).unwrap().0;
+            let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+            let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+            assert!(player.get_error().is_none());
+            let pose = player.get_global_input_data(turn_slot_contract(false).generated_pose_key).unwrap().as_pose().unwrap();
+            let mut minimum_rotation_dot = 1.0_f32;
+            let mut maximum_location_error = 0.0_f32;
+            for bone in source_pose.paths.keys() {
+                let actual = pose.get_bone(*bone).unwrap();
+                let source = source_pose.get_bone(*bone).unwrap();
+                if let (Some(a),Some(s))=(actual.rotation,source.rotation) { minimum_rotation_dot=minimum_rotation_dot.min(a.dot(s).abs()); }
+                if let (Some(a),Some(s))=(actual.translation,source.translation) { maximum_location_error=maximum_location_error.max(a.distance(s)); }
+            }
+            assert!(minimum_rotation_dot>1.0-1e-5 && maximum_location_error<1e-5,
+                "Turn slot pose uses the wrong actor clock: custom={custom_dilation}, world_paused={world_paused}, rotation_error_degrees={}, location_error={maximum_location_error}, source_time={source_time}, stack={:?}",
+                (2.0*minimum_rotation_dot.clamp(-1.0,1.0).acos()).to_degrees(), app.world().get::<AlsTurnMontageStack>(avatar).unwrap());
+            let after = &app.world().get::<AlsTurnMontageStack>(avatar).unwrap().entries[0];
+            assert_eq!(after.id, before.id);
+            assert!((after.elapsed-source_time).abs()<1e-6);
+            if world_paused { app.world_mut().resource_mut::<Time<bevy::time::Virtual>>().unpause(); }
+        }
     }
 
     #[test]
