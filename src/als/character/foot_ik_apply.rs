@@ -710,6 +710,56 @@ mod tests {
     use super::*;
 
     #[test]
+    fn source_foot_twist_reaches_the_actual_rig_rotation() {
+        use std::sync::{Arc, Mutex};
+        for delta in [Quat::IDENTITY, Quat::from_rotation_y(90.0_f32.to_radians()), Quat::from_xyzw(0.0, 1.0, 0.0, 0.0), Quat::from_xyzw(0.0, -1.0, 0.0, 0.0), Quat::from_xyzw(1.0, 0.000_01, 0.0, 0.000_01).normalize()] {
+            let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            for _ in 0..5 { app.update(); }
+            let pelvis = app.world().get::<ChildOf>(app.world().get::<AlsFootBones>(actor).unwrap().left_thigh).unwrap().parent();
+            let target = app.world().get::<AlsFootBones>(actor).unwrap().target(0, true);
+            let source = Arc::new(Mutex::new(None));
+            let capture = source.clone();
+            app.add_systems(PostUpdate,
+                (move |mut states: Query<(&mut AlsFootLockState, &mut AlsFootLockInput, &mut LocomotionState)>,
+                    mut transforms: ParamSet<(Query<&mut Transform>, TransformHelper)>,
+                    mut profile: ResMut<CrAlsRuntimeProfileTemplate>| {
+                    transforms.p0().get_mut(pelvis).unwrap().rotation = Quat::IDENTITY;
+                    profile.0.target.foot_left_thigh_axis_pelvis_space = Vec3::X.to_array();
+                    let target_world = transforms.p1().compute_global_transform(target).unwrap();
+                    let mesh = transforms.p1().compute_global_transform(avatar).unwrap();
+                    let (mut lock, mut input, mut mode) = states.get_mut(actor).unwrap();
+                    assert!(lock.valid && !lock.became_valid);
+                    lock.left.lock_amount = 1.0;
+                    lock.left.lock_location = mesh.affine().transform_point3(Vec3::new(0.2, -0.8, 0.0));
+                    lock.left.lock_rotation = (delta * target_world.rotation()).normalize();
+                    lock.left.lock_rotation_before_foot_limit = lock.left.lock_rotation;
+                    lock.left.movement_base = None;
+                    let actual_delta = lock.left.lock_rotation * target_world.rotation().conjugate();
+                    let mut angle = 2.0 * actual_delta.y.atan2(actual_delta.w);
+                    while angle > std::f32::consts::PI { angle -= std::f32::consts::TAU; }
+                    while angle < -std::f32::consts::PI { angle += std::f32::consts::TAU; }
+                    let degrees = angle.to_degrees();
+                    let expected = if degrees.abs() > 40.0 + 1e-4 {
+                        Quat::from_rotation_y((degrees.clamp(-40.0, 40.0) - degrees).to_radians()) * lock.left.lock_rotation
+                    } else { lock.left.lock_rotation };
+                    *capture.lock().unwrap() = Some(expected.normalize());
+                    input.left_ik_amount = 1.0;
+                    input.left_lock_amount = 1.0;
+                    input.moving_smooth = false;
+                    *mode = LocomotionState::Grounded;
+                }).after(crate::standing_layer::AlsStandingLayerSet).before(FootIkApplySet::UpdateInputs));
+            app.update();
+            let source = source.lock().unwrap().unwrap();
+            let rig = app.world().get::<AlsControlRigInput>(actor).unwrap();
+            assert!(rig.foot_transforms_valid);
+            let mesh = app.world().get::<GlobalTransform>(avatar).unwrap();
+            let actual = (mesh.rotation() * rig.foot_left_rotation_armature).normalize();
+            assert!(actual.angle_between(source) < 1e-4,
+                "Source Foot twist differs at the actual Rig: delta={delta:?}, actual={actual:?}, source={source:?}");
+        }
+    }
+
+    #[test]
     fn source_signed_thigh_angle_reaches_the_actual_foot_rig() {
         for (source_lock, source_final) in [
             (Vec3::new(-0.2, -0.8, 0.0), Vec3::new(-0.2, -0.8, 0.0)),

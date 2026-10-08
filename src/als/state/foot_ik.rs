@@ -533,8 +533,10 @@ pub fn slope_is_walkable_relative(normal: Vec3, up: Vec3, max_slope_degrees: f32
     up_dot >= max_slope_degrees.to_radians().cos()
 }
 
-pub fn wrap_foot_yaw(yaw: f32) -> f32 {
-    (yaw + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI
+pub fn wrap_foot_yaw(mut yaw: f32) -> f32 {
+    while yaw > std::f32::consts::PI { yaw -= std::f32::consts::TAU; }
+    while yaw < -std::f32::consts::PI { yaw += std::f32::consts::TAU; }
+    yaw
 }
 
 pub fn foot_lock_location_constraint_rotation(
@@ -575,16 +577,11 @@ pub fn constrain_foot_lock_rotation(
     target_rotation: Quat,
     foot_angle_limit_degrees: f32,
 ) -> Quat {
-    let delta = (lock_rotation * target_rotation.conjugate()).normalize();
-    let twist_length_squared = delta.y.mul_add(delta.y, delta.w * delta.w);
-    let twist_angle = if twist_length_squared > 1e-8 {
-        wrap_foot_yaw(2.0 * delta.y.atan2(delta.w))
-    } else {
-        0.0
-    };
-    let limit = foot_angle_limit_degrees.clamp(0.0, 180.0).to_radians();
-    let constrained_angle = twist_angle.clamp(-limit, limit);
-    (Quat::from_rotation_y(constrained_angle - twist_angle) * lock_rotation).normalize()
+    let delta = lock_rotation * target_rotation.conjugate();
+    let twist_angle = wrap_foot_yaw(2.0 * delta.y.atan2(delta.w)).to_degrees();
+    let limit = foot_angle_limit_degrees;
+    if twist_angle.abs() <= limit + 1e-4 { return lock_rotation; }
+    (Quat::from_rotation_y((twist_angle.clamp(-limit, limit) - twist_angle).to_radians()) * lock_rotation).normalize()
 }
 
 fn move_toward_cap(current: f32, target: f32, max_delta: f32) -> f32 {
