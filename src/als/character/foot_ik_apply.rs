@@ -386,16 +386,20 @@ fn ensure_foot_lock_teleport_telemetry(
 fn detect_foot_lock_teleports(
     mut teleports: MessageWriter<AlsFootLockTeleported>,
     mut lifecycles: Query<
-        (Entity, &mut FootLockLifecycleState),
+        (Entity, &AlsCharacterAssembly, &mut FootLockLifecycleState),
         (With<crate::als::character::AlsCharacter>, With<AlsFootBones>),
     >,
     transforms: TransformHelper,
     mut telemetry: Query<&mut AlsFootLockTeleportTelemetry>,
+    instances: Query<&AnimatedSceneInstance>,
+    update_gates: Query<&crate::extensions::post_physics_animation::AnimationPoseUpdateGate>,
 ) {
-    for (entity, mut lifecycle) in &mut lifecycles {
+    for (entity, assembly, mut lifecycle) in &mut lifecycles {
         let Ok(actor) = transforms.compute_global_transform(entity) else { continue };
         let current = actor.translation();
         let Some(previous) = lifecycle.previous_actor_location.replace(current) else { continue; };
+        if instances.get(assembly.avatar).ok().and_then(|instance| update_gates.get(instance.player_entity()).ok())
+            .is_some_and(|gate| gate.pending_update) { continue; }
         let translation_delta_m = previous.distance(current);
         if translation_delta_m <= FOOT_LOCK_TELEPORT_DISTANCE_THRESHOLD_M {
             continue;
@@ -1180,6 +1184,46 @@ mod tests {
     }
 
     #[test]
+    fn pending_teleport_detection_does_not_rebase_the_restored_feet() {
+        let mut outputs = Vec::new();
+        for source_mark_gate in [false, true] {
+            let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.1)));
+            app.world_mut().entity_mut(avatar).insert(crate::animation_visibility::AlsAnimationTickOption::OnlyTickMontagesWhenNotRendered);
+            let mut pending = vec![avatar];
+            let mut meshes = Vec::new();
+            while let Some(entity) = pending.pop() {
+                if app.world().get::<Mesh3d>(entity).is_some() { meshes.push(entity); }
+                if let Some(children) = app.world().get::<Children>(entity) { pending.extend(children.iter()); }
+            }
+            assert!(!meshes.is_empty());
+            for mesh in &meshes { app.world_mut().entity_mut(*mesh).insert((ViewVisibility::HIDDEN, InheritedVisibility::VISIBLE)); }
+            for _ in 0..15 { app.update(); }
+            assert!(!app.world().get::<crate::extensions::post_physics_animation::AnimationPoseUpdateGate>(player).unwrap().update_graph);
+            app.add_systems(PostUpdate,
+                (move |gates: Query<&crate::extensions::post_physics_animation::AnimationPoseUpdateGate>, mut states: Query<&mut FootLockLifecycleState>| {
+                    if source_mark_gate && gates.get(player).unwrap().pending_update {
+                        states.get_mut(character).unwrap().teleport_remaining = 0.0;
+                    }
+                }).after(record_foot_lock_teleports).before(refresh_foot_lock_inputs));
+            app.world_mut().get_mut::<avian3d::prelude::Position>(character).unwrap().x += 1.0;
+            app.world_mut().get_mut::<Transform>(character).unwrap().translation.x += 1.0;
+            for mesh in &meshes { app.world_mut().entity_mut(*mesh).insert(ViewVisibility::VISIBLE); }
+            app.update();
+            app.update();
+            assert!(app.world().get::<AlsFootLockState>(character).unwrap().valid);
+            app.world_mut().get_mut::<avian3d::prelude::Position>(character).unwrap().x += 0.1;
+            app.world_mut().get_mut::<Transform>(character).unwrap().translation.x += 0.1;
+            app.update();
+            let feet = *app.world().get::<AlsFootLockState>(character).unwrap();
+            outputs.push((feet.left.final_location, feet.right.final_location));
+        }
+        assert!(outputs[0].0.distance(outputs[1].0) < 1e-4 && outputs[0].1.distance(outputs[1].1) < 1e-4,
+            "Source NativeUpdate suppresses pending MarkTeleported, so restored feet must match the source no-window path: outputs={outputs:?}");
+    }
+
+    #[test]
     fn pending_animation_resume_rejects_stale_foot_transforms_before_the_rig() {
         #[derive(Resource, Default)]
         struct ResumeInputs(Vec<(bool, bool)>);
@@ -1240,35 +1284,45 @@ mod tests {
     #[test]
     fn teleport_detection_uses_the_source_actor_location_through_crouching() {
         use avian3d::prelude::Position;
-        let mut outputs = Vec::new();
-        for source_mark in [false, true] {
-            let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
-            for _ in 0..60 { app.update(); }
-            let before_actor = app.world().get::<Position>(character).unwrap().0;
-            let before_avatar = app.world().get::<GlobalTransform>(avatar).unwrap().translation();
-            assert!(app.world().get::<AlsFootLockState>(character).unwrap().valid);
-            let before = *app.world().get::<AlsFootLockTeleportTelemetry>(character).unwrap();
-            app.world_mut().get_mut::<Position>(character).unwrap().x += 0.49;
-            app.world_mut().get_mut::<Transform>(character).unwrap().translation.x += 0.49;
-            app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(character).unwrap().stance = Some(Stance::Crouching);
-            if source_mark { app.world_mut().write_message(AlsFootLockTeleported { entity: character }); }
-            app.update();
-            assert_eq!(app.world().get::<Stance>(character), Some(&Stance::Crouching));
-            let actor_delta = app.world().get::<Position>(character).unwrap().0.distance(before_actor);
-            let avatar_delta = app.world().get::<GlobalTransform>(avatar).unwrap().translation().distance(before_avatar);
-            assert!(actor_delta > 0.5 && avatar_delta <= 0.5,
-                "Source actor capsule adjustment must cross .5m while the avatar retains its world floor offset: actor={actor_delta} avatar={avatar_delta}");
-            let current = *app.world().get::<AlsFootLockTeleportTelemetry>(character).unwrap();
-            let lock = *app.world().get::<AlsFootLockState>(character).unwrap();
-            if source_mark {
-                assert!(current.left_rebase_count > before.left_rebase_count && current.right_rebase_count > before.right_rebase_count,
-                    "The source teleport event must reach both actual locked feet: before={before:?} current={current:?} lock={lock:?}");
-            }
-            outputs.push((lock.left.final_location, lock.right.final_location, current.detected_count - before.detected_count));
-        }
-        assert!(outputs[0].0.distance(outputs[1].0) < 1e-4 && outputs[0].1.distance(outputs[1].1) < 1e-4,
-            "Source NativeUpdate actor teleport detection must match the actual FootLock output of its required MarkTeleported event: outputs={outputs:?}");
-        assert_eq!(outputs[0].2, 1, "Source actor displacement must mark teleportation even when crouching offsets the avatar");
+        use bevy::ecs::system::RunSystemOnce;
+        #[derive(Resource, Default)]
+        struct FootReplay(Option<(FootLockLifecycleState, AlsFootLockState, AlsDynamicTransitionState, AlsFootLockInput, AlsFootLockTeleportTelemetry)>);
+        let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        for _ in 0..60 { app.update(); }
+        let before_actor = app.world().get::<Position>(character).unwrap().0;
+        let before_avatar = app.world().get::<GlobalTransform>(avatar).unwrap().translation();
+        assert!(app.world().get::<AlsFootLockState>(character).unwrap().valid);
+        let before = *app.world().get::<AlsFootLockTeleportTelemetry>(character).unwrap();
+        app.init_resource::<FootReplay>().add_systems(PostUpdate,
+            (move |states: Query<(&FootLockLifecycleState, &AlsFootLockState, &AlsDynamicTransitionState, &AlsFootLockInput, &AlsFootLockTeleportTelemetry)>,
+                mut replay: ResMut<FootReplay>| {
+                let (life, lock, dynamic, input, telemetry) = states.get(character).unwrap();
+                replay.0 = Some((*life, *lock, *dynamic, *input, *telemetry));
+            }).after(record_foot_lock_teleports).before(refresh_foot_lock_inputs));
+        app.add_systems(PostUpdate, (move |world: &mut World| {
+            let actual = *world.get::<AlsFootLockState>(character).unwrap();
+            let (mut life, lock, dynamic, input, telemetry) = world.resource_mut::<FootReplay>().0.take().unwrap();
+            assert_eq!(telemetry.detected_count, before.detected_count + 1,
+                "Source actor displacement must mark teleportation even when crouching offsets the avatar");
+            life.teleport_remaining = FOOT_LOCK_TELEPORT_WINDOW_SECONDS;
+            world.entity_mut(character).insert((life, lock, dynamic, input, telemetry));
+            world.run_system_once(refresh_foot_lock_inputs).unwrap();
+            let source = *world.get::<AlsFootLockState>(character).unwrap();
+            assert!(actual.left.final_location.distance(source.left.final_location) < 1e-4
+                && actual.right.final_location.distance(source.right.final_location) < 1e-4,
+                "Source NativeUpdate actor teleport detection must match the same-frame actual FootLock output of its required MarkTeleported event: actual={actual:?} source={source:?}");
+            let restored = world.get::<AlsFootLockTeleportTelemetry>(character).unwrap();
+            assert!(restored.left_rebase_count > before.left_rebase_count && restored.right_rebase_count > before.right_rebase_count);
+        }).after(refresh_foot_lock_inputs).before(crate::ab_als_provider::AbAlsProviderSet));
+        app.world_mut().get_mut::<Position>(character).unwrap().x += 0.49;
+        app.world_mut().get_mut::<Transform>(character).unwrap().translation.x += 0.49;
+        app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(character).unwrap().stance = Some(Stance::Crouching);
+        app.update();
+        assert_eq!(app.world().get::<Stance>(character), Some(&Stance::Crouching));
+        let actor_delta = app.world().get::<Position>(character).unwrap().0.distance(before_actor);
+        let avatar_delta = app.world().get::<GlobalTransform>(avatar).unwrap().translation().distance(before_avatar);
+        assert!(actor_delta > 0.5 && avatar_delta <= 0.5,
+            "Source actor capsule adjustment must cross .5m while the avatar retains its world floor offset: actor={actor_delta} avatar={avatar_delta}");
     }
 
     #[test]
