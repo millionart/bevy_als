@@ -274,15 +274,16 @@ fn ab_als_input_writer(
             let (yaw_forward, yaw_backward, yaw_left, yaw_right) =
                 standing_rotation_yaw_offsets(-velocity_yaw_angle_view_space);
             let has_input = motion.has_input;
+            let delta_seconds = time.delta_secs() * custom_dilation.map_or(1.0, |value| value.0);
             let view_degrees = crate::als::turn_in_place::wrap_angle_degrees(view_yaw.0.to_degrees());
             let previous_view = player
                 .get_global_input_data("view_state.rotation_yaw")
                 .and_then(|value| value.as_f32().ok())
                 .unwrap_or(view_degrees);
-            if time.delta_secs() > 1e-8 {
+            if delta_seconds > 1e-8 {
                 player.set_global_input_data(
                     "view_state.yaw_speed",
-                    (view_degrees - previous_view).abs() / time.delta_secs(),
+                    (view_degrees - previous_view).abs() / delta_seconds,
                 );
             }
             player.set_global_input_data("view_state.rotation_yaw", view_degrees);
@@ -396,7 +397,7 @@ fn ab_als_input_writer(
             source_inputs.get_mut(instance.player_entity()).unwrap().set_gameplay_tag_input("grounded_entry_mode",
                 grounded_entry_mode.copied().unwrap_or_default().tag());
             for (key, value) in [
-                ("animation.delta_seconds", time.delta_secs() * custom_dilation.map_or(1.0, |value| value.0)),
+                ("animation.delta_seconds", delta_seconds),
                 (
                     "grounded_state.rotation_yaw_offsets.forward_angle",
                     yaw_forward,
@@ -578,6 +579,12 @@ mod tests {
         let scaled = player.get_global_input_data("animation.delta_seconds").unwrap().as_f32().unwrap();
         assert!((unscaled - 0.1).abs() < 1e-6, "unscaled={unscaled}");
         assert!((scaled - 0.05).abs() < 1e-6, "scaled={scaled}");
+        app.world_mut().get_mut::<AlsViewYaw>(character).unwrap().0 = 10.0_f32.to_radians();
+        app.world_mut().run_schedule(PostUpdate);
+        let player = app.world().get::<AnimationGraphPlayer>(
+            app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity()).unwrap();
+        let yaw_speed = player.get_global_input_data("view_state.yaw_speed").unwrap().as_f32().unwrap();
+        assert!((yaw_speed - 200.0).abs() < 1e-4, "Actor view yaw speed differs: {yaw_speed}");
     }
 
     #[test]

@@ -297,7 +297,6 @@ fn source_pelvis_offset_amount(player: &AnimationGraphPlayer, ground_prediction:
 
 #[allow(clippy::type_complexity)]
 fn refresh_control_rig_input(
-    time: Res<Time>,
     mut commands: Commands,
     mut characters: Query<
         (
@@ -355,7 +354,7 @@ fn refresh_control_rig_input(
             movement_base_delta_yaw,
             blend_amount: (1.0 - output_f32(context, "ViewBlock").clamp(0.0, 1.0))
                 * output_f32(context, "PoseAiming").clamp(0.0, 1.0),
-            delta_seconds: time.delta_secs(),
+            delta_seconds: scalar("animation.delta_seconds"),
         });
         if let Some(mut existing) = current_state {
             *existing = state;
@@ -627,6 +626,31 @@ mod tests {
         app.world_mut().get_mut::<AlsActualMotion>(actor).unwrap().movement_base_snapshot = None;
         app.world_mut().run_schedule(PostUpdate);
         assert!((app.world().get::<AlsControlRigState>(actor).unwrap().last_yaw_angle_world_space - 10.0).abs() < 1e-5);
+
+        app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_millis(100));
+        app.world_mut().get_mut::<AlsRootAnimationContext>(player).unwrap().curves =
+            [("ViewBlock".into(), 0.0), ("PoseAiming".into(), 1.0)].into_iter().collect();
+        app.world_mut().entity_mut(actor).insert(AlsControlRigState {
+            spine_rotation_allowed: true,
+            spine_amount: 1.0,
+            yaw_angle: 60.0,
+            ..default()
+        });
+        {
+            let mut player = app.world_mut().get_mut::<AnimationGraphPlayer>(player).unwrap();
+            player.set_global_input_data("animation.delta_seconds", 0.05_f32);
+            player.set_global_input_data("view_state.yaw_speed", 0.0_f32);
+            player.set_global_input_data("locomotion_state.rotation_yaw", 0.0_f32);
+        }
+        app.world_mut().run_schedule(PostUpdate);
+        let x = std::f32::consts::LN_2 / (0.7 + 1e-8) * 0.05;
+        let source_amount = 1.0 / (1.0 + 1.00746054 * x + 0.45053901 * x * x + 0.25724632 * x * x * x);
+        let input = app.world().get::<AlsControlRigInput>(actor).unwrap();
+        assert!((input.spine_yaw_angle_degrees - 60.0 * source_amount).abs() < 1e-5,
+            "Spine must use the actor animation delta: {input:?}, source amount {source_amount}");
+        let published = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+        assert!((source_player_property(published, "control_rig_input.spine_yaw_angle")
+            .and_then(|value| value.as_f32().ok()).unwrap() + 60.0 * source_amount).abs() < 1e-5);
     }
 
     #[test]
