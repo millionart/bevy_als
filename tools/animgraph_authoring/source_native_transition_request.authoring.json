@@ -1,0 +1,222 @@
+{
+  "format": "als_animgraph_authoring_gate_v1",
+  "graphs": [
+    {
+      "path": "assets/ALS/Character/AB_Als.runtime.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "b113030b-0000-4000-8000-000000000001",
+          "name": "AB_Als",
+          "position": [
+            -480.0,
+            0.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000002",
+          "name": "Ragdoll Dynamic",
+          "position": [
+            -480.0,
+            160.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000003",
+          "name": "Ragdoll Readback",
+          "position": [
+            -480.0,
+            240.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000004",
+          "name": "Ragdoll Config",
+          "position": [
+            -224.0,
+            192.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000002\", \"als_ragdolling_dynamic\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"dynamic\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000003\", \"als_ragdolling_readback\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"readback\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000001\", \"pose\")",
+          "target": "OutputData(\"pose\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"ragdoll_config\")",
+          "target": "OutputData(\"ragdoll_config\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "pose": "Pose",
+          "ragdoll_config": "RagdollConfig"
+        }
+      },
+      "root_output_exceptions": [
+        {
+          "name": "ragdoll_config",
+          "reason": "The framework consumes body simulation and pose readback controls independently from the source pose.",
+          "evidence": "docs/bf114-ragdoll-contract.md"
+        }
+      ]
+    }
+  ],
+  "id": "source_native_transition_request_contract",
+  "source_evidence": [
+    {
+      "path": "target/bf134/02i2a/AlsAnimationInstance.cpp",
+      "sha256": "f5ccecad4c9408dbd500d8b3f661975cf2830ed62436c591ffa91bb4f9b11c26"
+    },
+    {
+      "path": "target/bf134/02i2a/AlsAnimationInstance.h",
+      "sha256": "588e40347fe4b694cff4542550bfbc24202830a24a245d5fcbc9aa28331e41f1"
+    },
+    {
+      "path": "target/bf134/02i2a/AlsMontageUtility.cpp",
+      "sha256": "623eb56681abbcd389e491fcc10db05c5f671652f5c684458656e23824734998"
+    },
+    {
+      "path": "target/bf134/02i2a/standing.ue.json",
+      "sha256": "9b2c764ca2d9aa2e4445cc00a55276d4b972cbd475df34083539c913174316b9"
+    },
+    {
+      "path": "target/bf134/02i2a/crouching.ue.json",
+      "sha256": "65006a10ca66294765c9710d8b3aca29ee6e7fcaecb0bd9e30c55a4000304f4b"
+    },
+    {
+      "path": "target/bf134/02i2a/transition_request_source_contract.json",
+      "sha256": "98cae6b1823d417777bb3dc0e8533e85a043ec3b447e85fe4ba497b6e6a102e0"
+    },
+    {
+      "path": "target/bf134/02i1/animation_settings.ue.json",
+      "sha256": "b44551215b7ba1769437d8922f70e0f158b931350cee9ce1e4e228f302a2a8cb"
+    }
+  ],
+  "verification_commands": [
+    {
+      "label": "generated_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets",
+        "--include",
+        "ALS",
+        "--include",
+        "ALSCamera"
+      ]
+    },
+    {
+      "label": "generated_editor",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets"
+      ]
+    },
+    {
+      "label": "runtime_asset_boundary",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/validate_runtime_graph_asset_boundary.py",
+        "--assets-root",
+        "assets",
+        "--check"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "animgraph_assets",
+    "manual_case": "foot_ik"
+  },
+  "focused_tests": [
+    {
+      "label": "source_transition_call_preserves_arguments_and_standing_idle_guard",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "source_transition_call_preserves_arguments_and_standing_idle_guard"
+      ],
+      "evidence": "target/bf134/02i2a/current_arguments.watchdog.json"
+    },
+    {
+      "label": "stop_transition_uses_the_source_blueprint_pin_values",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "stop_transition_uses_the_source_blueprint_pin_values"
+      ],
+      "evidence": "target/bf134/02i2a/current_stop_pins.watchdog.json"
+    },
+    {
+      "label": "source_stop_request_fades_the_active_transition_with_its_source_blend_out",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "source_stop_request_fades_the_active_transition_with_its_source_blend_out"
+      ],
+      "evidence": "target/bf134/02i2a/current_stop_blend.watchdog.json"
+    },
+    {
+      "label": "root_transition_slot_preserves_the_source_variant_and_start_time",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "root_transition_slot_preserves_the_source_variant_and_start_time"
+      ],
+      "evidence": "target/bf134/02i2a/current_crouch_standing_variants.watchdog.json"
+    }
+  ]
+}
