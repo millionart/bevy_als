@@ -1024,7 +1024,7 @@ fn ragdoll_ground_follow(
     labels: Query<&BodyLabel>,
     body_states: Query<(&Position, &LinearVelocity), Without<AlsCharacter>>,
 ) {
-    for (entity, _position, action, stance, params_handle, collision_ownership, assembly) in &characters {
+    for (entity, position, action, stance, params_handle, collision_ownership, assembly) in &characters {
         if action != Some(&AlsNotifyLocomotionAction::Ragdolling) {
             continue;
         }
@@ -1045,13 +1045,14 @@ fn ragdoll_ground_follow(
             continue;
         };
         let pelvis = pelvis_position.0;
+        let ragdoll_location = if pelvis == Vec3::ZERO { position.0 } else { pelvis };
         let Ok(world) = transform_helper.compute_global_transform(entity) else {
             continue;
         };
         let (world_scale, _, _) = world.to_scale_rotation_translation();
         let (half_height, radius) =
             ragdoll_capsule_dimensions(*stance, params_handle, &params_assets, world_scale);
-        let trace_start = pelvis + Vec3::Y * (2.0 * radius);
+        let trace_start = ragdoll_location + Vec3::Y * (2.0 * radius);
         let trace_distance = half_height + radius;
         let mut excluded = Vec::with_capacity(1 + spawned.bodies.len() + spawned.colliders.len());
         excluded.push(entity);
@@ -1063,12 +1064,12 @@ fn ragdoll_ground_follow(
         let target = if let Some(hit) = hit {
             let center = trace_start - Vec3::Y * hit.distance;
             Vec3::new(
-                pelvis.x,
+                ragdoll_location.x,
                 center.y + half_height - radius + ALS_CHARACTER_FLOOR_CLEARANCE,
-                pelvis.z,
+                ragdoll_location.z,
             )
         } else {
-            pelvis
+            ragdoll_location
         };
         commands.entity(entity).insert(AlsRagdollGroundFollow {
             pelvis,
@@ -1668,6 +1669,30 @@ mod tests {
         assert!(bodies.iter().any(|(entity, position, _, _, _)|
             app.world().get::<Position>(*entity).unwrap().0.distance(*position) > 1e-6),
             "Source resumed ragdoll physics continues moving its active bodies");
+    }
+
+    #[test]
+    fn ragdoll_zero_target_uses_actor_location_for_the_ground_trace() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(character).unwrap().ragdoll_start = true;
+        for _ in 0..4 { app.update(); }
+        assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(character), Some(&AlsNotifyLocomotionAction::Ragdolling));
+        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let bodies = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap().bodies.values().copied().collect::<Vec<_>>();
+        let pelvis = bodies.into_iter().find(|entity| app.world().get::<BodyLabel>(*entity).is_some_and(|label| label.0 == PELVIS_LABEL)).unwrap();
+        let actor = Vec3::new(4.0, 3.0, 6.0);
+        app.world_mut().entity_mut(character).insert((Position(actor), Transform::from_translation(actor), GlobalTransform::from_translation(actor)));
+        app.world_mut().entity_mut(pelvis).insert((Position(Vec3::ZERO), LinearVelocity::ZERO));
+        app.world_mut().run_system_once(ragdoll_ground_follow).unwrap();
+        app.world_mut().flush();
+        let follow = *app.world().get::<AlsRagdollGroundFollow>(character).unwrap();
+        assert_eq!(follow.pelvis, Vec3::ZERO);
+        assert_eq!(follow.target.xz(), actor.xz(),
+            "Source zero RagdollTargetLocation uses the actual actor location for ground tracing: {follow:?}");
+        app.world_mut().run_system_once(apply_ragdoll_ground_follow).unwrap();
+        assert_eq!(app.world().get::<Position>(character).unwrap().0.xz(), actor.xz(),
+            "Source zero target must not teleport the actual character horizontally to the world origin");
     }
 
     #[test]
