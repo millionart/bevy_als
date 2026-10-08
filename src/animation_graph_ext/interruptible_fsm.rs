@@ -223,7 +223,7 @@ fn source_automatic_transition_adjustment(
 }
 
 fn became_relevant(previous_frame: Option<u64>, frame: u64) -> bool {
-    previous_frame.is_some_and(|previous| frame > previous.saturating_add(1))
+    previous_frame.is_some_and(|previous| frame.wrapping_sub(previous) % u64::from(u16::MAX) > 1)
 }
 
 impl InterruptibleFsmState {
@@ -4115,6 +4115,96 @@ mod tests {
         assert!(!became_relevant(None, 4));
         assert!(!became_relevant(Some(4), 5));
         assert!(became_relevant(Some(4), 6));
+        assert!(!became_relevant(Some(4), 4 + u64::from(u16::MAX)));
+        assert!(!became_relevant(Some(4), 5 + u64::from(u16::MAX)));
+        assert!(became_relevant(Some(4), 6 + u64::from(u16::MAX)));
+    }
+
+    #[test]
+    fn fsm_counter_wrap_preserves_the_native_active_sequence_pose() {
+        use bevy::ecs::system::RunSystemOnce;
+        fn query(In((root,node,gap)):In<(Handle<AnimationGraph>,NodeId,usize)>,resources:SystemResources)->Pose {
+            let graph=resources.animation_graph_assets.get(&root).unwrap();
+            let mut arena=GraphContextArena::new(root.id());
+            let mut gizmos=DeferredGizmos::default();
+            let entities=HashMap::new();
+            let env=TestIoEnv::default();
+            for frame in 0..3 {
+                if frame==2 {for _ in 1..gap {arena.next_frame();}}
+                let inputs=HashMap::from([("delta".into(),DataValue::F32(0.01)),("move".into(),DataValue::Bool(frame==1))]);
+                let context=GraphContext::new(arena.get_toplevel_id(),graph,&mut arena,&resources,&env,
+                    Entity::PLACEHOLDER,&entities,&mut gizmos,&inputs);
+                let pose=graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.01)),context)
+                    .unwrap().remove("Pose").unwrap().into_pose().unwrap();
+                let state=arena.get_toplevel().node_states.get::<InterruptibleFsmState>(node,StateKey::Default).unwrap();
+                if frame==1 {assert_eq!(state.active_state_id().as_deref(),Some("10000000-0000-4000-8000-000000000002"));}
+                if frame==2 {return pose;}
+            }
+            unreachable!()
+        }
+        fn reference(In(handle):In<Handle<AnimationGraph>>,resources:SystemResources)->Pose {
+            let graph=resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena=GraphContextArena::new(handle.id());
+            graph.query(TimeUpdate::Delta(0.0),&mut arena,&resources,Entity::PLACEHOLDER,&HashMap::new(),
+                &mut DeferredGizmos::default(),&HashMap::new()).unwrap().remove("Pose").unwrap().into_pose().unwrap()
+        }
+        let (mut app,_,_)=crate::roll_drive::tests::loaded_roll_character();
+        let source:Handle<AnimationGraph>=app.world().resource::<AssetServer>().load(
+            "ALS/Character/AnimationInstances/Stances/AB_Als_Standing/AnimGraph/SM6_Standing_States/S4_Stop/SM0_Stop_States/S3_Plant_Right_Foot.animgraph.ron");
+        let deadline=std::time::Instant::now()+std::time::Duration::from_secs(30);
+        while !app.world().resource::<AssetServer>().is_loaded_with_dependencies(source.id()) {
+            app.update();assert!(std::time::Instant::now()<deadline,"Native sequence pose fixture did not load");
+        }
+        let ids=["6e39f265-48b4-cb0b-852b-7ea3615b8263","fbbebfb5-4438-6582-8ee0-5980d6922bce"]
+            .map(|value|NodeId::from(bevy::asset::uuid::Uuid::parse_str(value).unwrap()));
+        let nodes=ids.map(|id|app.world().resource::<Assets<AnimationGraph>>().get(&source).unwrap().nodes[&id].clone());
+        let leaves=nodes.map(|node| {
+            let mut graph=AnimationGraph::new();graph.add_node(node.clone());graph.add_output_data("Pose".into(),DataSpec::Pose);
+            graph.add_output_data_edge(node.id,"Pose","Pose");app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(graph)
+        });
+        let first:StateId=serde_json::from_str("\"10000000-0000-4000-8000-000000000001\"").unwrap();
+        let second:StateId=serde_json::from_str("\"10000000-0000-4000-8000-000000000002\"").unwrap();
+        let edge=DirectTransitionId::default();
+        let mut condition=AnimationGraph::new();
+        let value=AnimationNode::new("Move",GlobalBoolInputNode {key:"move".into()});
+        condition.add_node(value.clone());condition.add_output_data("move".into(),DataSpec::Bool);
+        condition.add_output_data_edge(value.id,"move","move");
+        let condition=app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(condition);
+        let mut machine=StateMachine::default();machine.start_state=first;machine.node_spec.add_output_data("Pose".into(),DataSpec::Pose);
+        for (id,label,graph) in [(first,"First",leaves[0].clone()),(second,"Second",leaves[1].clone())] {
+            machine.add_state(State {id,label:label.into(),graph,state_transition:None});
+        }
+        machine.add_transition_unchecked(DirectTransition {id:edge,source:first,target:second,data:TransitionData::default()});
+        machine.update_low_level_fsm();
+        let machine=app.world_mut().resource_mut::<Assets<StateMachine>>().add(machine);
+        for reset in [true,false] {
+            let fsm=AnimationNode::new("Current native FSM",InterruptibleFsmNode {
+                fsm:machine.clone(),internal_time_key:"delta".into(),state_pose_output:"Pose".into(),outer_pose_output:"Pose".into(),
+                reinitialize_on_becoming_relevant:reset,expose_telemetry:false,
+                source_transition_conditions:vec![SourceTransitionCondition {
+                    transition_id:edge.uuid().to_string(),source_state_id:first.uuid().to_string(),
+                    condition:condition.clone(),output:"move".into(),
+                    context_state:serde_json::from_str("\"10000000-0000-4000-8000-000000000003\"").unwrap(),..default()
+                }],..default()
+            });
+            let mut root=AnimationGraph::new();root.add_node(fsm.clone());root.add_output_data("Pose".into(),DataSpec::Pose);
+            root.add_output_data_edge(fsm.id,"Pose","Pose");
+            let root=app.world_mut().resource_mut::<Assets<AnimationGraph>>().add(root);
+            for gap in [1_usize,2,65535,65536,65537] {
+                let keeps_second=!reset || gap % usize::from(u16::MAX)<=1;
+                let expected=app.world_mut().run_system_once_with(reference,leaves[usize::from(keeps_second)].clone()).unwrap();
+                let actual=app.world_mut().run_system_once_with(query,(root.clone(),fsm.id,gap)).unwrap();
+                let mut dot=1.0_f32;let mut distance=0.0_f32;
+                for bone in expected.paths.keys() {
+                    let a=actual.get_bone(*bone).unwrap();let e=expected.get_bone(*bone).unwrap();
+                    if let (Some(a),Some(e))=(a.rotation,e.rotation) {dot=dot.min(a.dot(e).abs());}
+                    if let (Some(a),Some(e))=(a.translation,e.translation) {distance=distance.max(a.distance(e));}
+                }
+                assert!(dot>1.0-1e-5 && distance<1e-5,
+                    "FSM reentry changes the native active sequence pose: reset={reset}, gap={gap}, rotation_error_degrees={}, location_error={distance}",
+                    (2.0*dot.clamp(-1.0,1.0).acos()).to_degrees());
+            }
+        }
     }
 
     #[test]
