@@ -1416,7 +1416,7 @@
         - [x] BF134.02H2a1b Foot权重统一源门槛最小修复/相关边界消融恢复/currentstatic；H2a1实际Rig写回100.237红已证，sourceUE_ZERO1e−5与target1e−4同无单位类型。实际开始2026-10-08 22:59 +08:00，预估结束23:19 +08:00；20min含同helper相关Relevant/Full与动态Transition predicate源码核对、真实near-full/full/relevant控制、消融/原bytes恢复及适度回归，不新增adaptive阈值或图专用rule。正常/public再拆。
         - [x] BF134.02H2a1c 权重source修复正常target_game与原startup/foot_ik/standing_dynamic公共consumer；b Gate已过，实际开始2026-10-08 23:10 +08:00，预估结束23:20 +08:00。依据正常约185秒+Foot82/StandingDynamic约40秒/startup16及报告，10min含余量，父H2a初23:17容差23:37独立检查；Capt0/FunctionalOnly性能延期，其他Gate保持。
         - [x] BF134.02H2a2 FootLock ContextDelta角色动画clock到实际足部/Rig输出反例；source1297/1312/1412 animationDelta而targetFootInputs当前globalTime.delta，独立于已验收权重rule。实际开始2026-10-08 23:17 +08:00，预估结束23:37 +08:00。依据freshNative/currentprovider已有animation.delta_seconds，20min先loadedRoot+sameWorld preFoot状态回放sourceDelta、normal1与custom.5 moving/air至少当前可达分支，源不同首actualcounter再最小复用现clock；物理Time/世界TeleportTimeSince不用该actorDelta，不能混时钟。
-          - [ ] BF134.02H2a2b FootLock actorContextDelta最小复用/消融恢复/currentstatic；实际foot/Rig94.405红已证custom.5锁脚写回约4.18mm偏差、normal1控制过。实际开始2026-10-08 23:21 +08:00，预估结束23:41 +08:00；20min只读取现actorCustom字段并每actor换算FootCore dt，globalGameTime teleport窗口不改，无新clock/cache/系统；含custom0/air分支控制、一次消融/原bytes重编/适度回归，公共后独立叶。
+          - [x] BF134.02H2a2b FootLock actorContextDelta最小复用/消融恢复/currentstatic；实际foot/Rig94.405红已证custom.5锁脚写回约4.18mm偏差、normal1控制过。实际开始2026-10-08 23:21 +08:00，预估结束23:41 +08:00；20min只读取现actorCustom字段并每actor换算FootCore dt，globalGameTime teleport窗口不改，无新clock/cache/系统；含custom0/air分支控制、一次消融/原bytes重编/适度回归，公共后独立叶。
           - [ ] BF134.02H2a2c ContextDelta source修复正常target_game+原startup/FootIK/AnimationClock真实Gate；依赖b，开始时独立估时，未开始。
   - [ ] BF134.02L AnimationPlayer丢弃/重建Gate移除生命周期warning source边界；已数次原FootIK退出warning证明路径，依赖当前native公式闭包后选取最小复现再定级，条目本身不授权提前修改。
 
@@ -1591,6 +1591,10 @@
   - 02H2a2 FootClock实际Rig红（2026-10-08 23:19:52.288 +08:00）：移除夹具调度环后currentTime×actorCustom源oracle，normal1控制过，custom.5实际RigfootWorld(−.10422203,.13701932,−.07295524) vs源(−.100042954,.13702098,−.07292943)，94.405有效红约4.18mm；sourceContext.Delta来自NativeThreadSafe actor动画值、target当前固定globaldt。最小将现Time.delta移每actor乘现Custom，既有World.TimeSince.2继续global，不能复用错误的provider上帧值或全局物理clock。P282候选/81保持，b23:21/23:41登记；父H2a初23:17误差23:37独立需复盘，不能由子窗口覆盖。
 
   - 02H2a2源反例叶完成（有效Rig红2026-10-08 23:19:52.288 +08:00）：normal1控制通过、custom.5实际Foot/Rig约4.18mm偏差94.405红，根因sourceContextDelta actor动画值 vs原global；初96.088调度环已明确无效不计。a实际23:17/预估23:37/实际23:19:52.288偏差−17分7.712秒成功，独立docs提交。最小复用existingActorCustom×Time.delta，仅FootCore dt，worldGameTime窗口不缩放；95.226原反例绿/95.346四控制（normal/.5/0 moving5及.5 Air.6）全绿，当前只删倍率消融，后Native恢复/current/static与公共由b/c独立Gate。81/P282未accepted，父H2a初23:17容差23:37独立。
+
+  - 02H2a2b ActorDelta消融红/恢复中（2026-10-08 23:26:44.450 +08:00）：normal1/.5/0 moving5与.5 Air.6四实际Foot/Rig控制95.346绿→只删actor倍率98.465重现custom.5约4.18mm写回偏差红。源码原bytes已恢复/自然mtime，same target17Foot模块原counter重编，World.TimeSince全局elapsed不改（原window/pause测试一起回归），新实现仅现custom字段/每actor dt，不加clock/cache/系统。后相关StateFoot/IK/Native输入/visibility/currentStatic再正常public，81/P282候选；b23:41/父H2a误差23:37分别有效，尚未核销整个core算法。
+
+  - 02H2a2b source/static完成（2026-10-08 23:30 +08:00）：currentActorTime源实际Rig94.405红→候选95.226绿→normal1/.5/0 moving5、.5 Air.6四controls95.346绿→仅删倍率98.465实际Rig约4.18mm再红→原footBytes0391E435自然mtime same target17/99.456恢复，其他62current回归全过共79unique/static2.680。只读existingActorCustom并每actor计算FootCore dt，physics/rootanimation/worldTimeSince窗口不缩放，无新clock/cache/helper/system；原pending与P281源weight规则保持、图/转换/资产/all15diff0不变。b实际23:21/预估23:41/实际23:30偏差−11分成功，代码独立提交后c同target正常+原startup/foot_ik/animation_clock另估时。81/P282候选，父H2a初23:17误差23:37独立，剩余公共/整体core source核销若无法纳入须提前复盘重估不机械延后。
 
 - [ ] BF134.03 PhysicsAsset/物理时钟、相机、Overlay、关卡、材质与 UI 逐链审计及修复；只有限复开有 fresh source/症状/consumer 证据的旧项。
 - [ ] BF134.04 全范围覆盖核销与真实 Playground 最终 Gate；所有确认的 P2+ 项通过自身 Gate 后才可核销总目标。

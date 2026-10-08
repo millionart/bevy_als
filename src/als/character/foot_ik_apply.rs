@@ -547,6 +547,7 @@ fn refresh_foot_lock_inputs(
         &AlsFootLockInput, &Stance, &AlsFootLockSettings, Option<&AlsMovementBase>,
         &mut FootLockLifecycleState, &mut AlsFootLockState, &mut AlsDynamicTransitionState,
         Option<&mut AlsControlRigInput>,
+        Option<&crate::als_camera::AlsCameraCustomTimeDilation>,
     ), With<crate::als::character::AlsCharacter>>,
     transforms: TransformHelper,
     parents: Query<&ChildOf>,
@@ -557,10 +558,10 @@ fn refresh_foot_lock_inputs(
     instances: Query<&AnimatedSceneInstance>,
     update_gates: Query<&crate::extensions::post_physics_animation::AnimationPoseUpdateGate>,
 ) {
-    let dt = time.delta_secs();
     for (entity, assembly, bones, selection, locomotion, lock_input, stance, settings, movement_base,
         mut lifecycle, mut lock_state,
-        mut dynamic_transition, mut rig_input) in &mut characters {
+        mut dynamic_transition, mut rig_input, custom_dilation) in &mut characters {
+        let dt = time.delta_secs() * custom_dilation.map_or(1.0, |value| value.0);
         if instances.get(assembly.avatar).ok().and_then(|instance| update_gates.get(instance.player_entity()).ok())
             .is_some_and(|gate| gate.pending_update) {
             lock_state.valid = false;
@@ -707,6 +708,42 @@ fn foot_lock_movement_base(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn moving_foot_lock_uses_the_source_actor_animation_delta() {
+        for (custom_dilation, moving_smooth, decrease_speed) in [(1.0_f32, true, 5.0_f32), (0.5, true, 5.0), (0.0, true, 5.0), (0.5, false, 0.6)] {
+            #[derive(Resource, Default)]
+            struct SourceClockInput(Option<(f32, Vec3)>);
+            let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            for _ in 0..5 { app.update(); }
+            app.world_mut().entity_mut(actor).insert(crate::als_camera::AlsCameraCustomTimeDilation(custom_dilation));
+            app.init_resource::<SourceClockInput>().add_systems(PostUpdate,
+                (move |mut states: Query<(&mut AlsFootLockState, &mut AlsFootLockInput, &mut LocomotionState)>,
+                    time: Res<Time>, mut source: ResMut<SourceClockInput>| {
+                    let (mut lock, mut input, mut mode) = states.get_mut(actor).unwrap();
+                    assert!(lock.valid);
+                    lock.left.lock_amount = 1.0;
+                    lock.left.lock_location = lock.left.target_location + Vec3::X * 0.1;
+                    input.left_ik_amount = 1.0;
+                    input.left_lock_amount = 1.0;
+                    input.moving_smooth = moving_smooth;
+                    *mode = if moving_smooth { LocomotionState::Grounded } else { LocomotionState::Air };
+                    let native_delta = time.delta_secs() * custom_dilation;
+                    source.0 = Some((native_delta, lock.left.lock_location));
+                }).after(crate::standing_layer::AlsStandingLayerSet).before(FootIkApplySet::UpdateInputs));
+            app.update();
+            let (native_delta, source_lock) = app.world().resource::<SourceClockInput>().0.unwrap();
+            let expected_amount = (1.0 - native_delta * decrease_speed).max(0.0);
+            let actual = app.world().get::<AlsFootLockState>(actor).unwrap();
+            let source_final = actual.left.target_location.lerp(source_lock, expected_amount);
+            let rig = app.world().get::<AlsControlRigInput>(actor).unwrap();
+            let mesh = app.world().get::<GlobalTransform>(avatar).unwrap();
+            let actual_final = mesh.affine().transform_point3(rig.foot_left_location_armature);
+            assert!(actual_final.distance(source_final) < 1e-4,
+                "Foot lock uses the wrong actor clock: actual={actual_final:?}, source={source_final:?}, native_delta={native_delta}, custom={custom_dilation}");
+            assert!((actual.left.lock_amount - expected_amount).abs() < 1e-6);
+        }
+    }
 
     #[test]
     fn near_full_source_weight_keeps_the_existing_foot_lock() {
