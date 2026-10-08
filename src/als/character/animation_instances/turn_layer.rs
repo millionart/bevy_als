@@ -1087,6 +1087,35 @@ mod tests {
     }
 
     #[test]
+    fn turn_pause_resume_keeps_the_existing_turn_while_grounded() {
+        let (mut app, character, avatar)=crate::roll_drive::tests::loaded_roll_character();
+        app.add_systems(PostUpdate,(move |mut mode:Query<&mut LocomotionState>| {
+            *mode.get_mut(character).unwrap()=LocomotionState::Grounded;
+        }).after(crate::actual_motion::AlsActualMotionSet).before(crate::ab_als_root::AlsRootGraphSet));
+        app.world_mut().run_system_once(move |mut commands:Commands| {
+            crate::transition_notify::queue_turn_in_grounded_group(&mut commands, character, avatar,
+                SourceTurnRequest { variant:TurnVariant::Right90,yaw:90.0,crouching:false });
+        }).unwrap();
+        for _ in 0..18 {app.update();}
+        let before=app.world().get::<AlsTurnMontageStack>(avatar).unwrap().entries[0].clone();
+        let calls=app.world().get::<crate::transition_notify::TransitionNotifyTelemetry>(character).unwrap().stop_animations_count;
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_millis(100)));
+        app.world_mut().resource_mut::<Time<bevy::time::Virtual>>().pause();
+        for _ in 0..100 {app.update();}
+        assert_eq!(app.world().get::<AlsTurnMontageStack>(avatar).unwrap().entries[0].elapsed,before.elapsed);
+        app.world_mut().resource_mut::<Time<bevy::time::Virtual>>().unpause();
+        app.update();
+        assert_eq!(app.world().get::<crate::transition_notify::TransitionNotifyTelemetry>(character).unwrap().stop_animations_count,calls,
+            "Pause resume fabricated a state-machine stop notification");
+        assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(),LocomotionState::Grounded);
+        let stack=app.world().get::<AlsTurnMontageStack>(avatar).unwrap();
+        assert_eq!(stack.entries.len(),1);
+        assert_eq!(stack.entries[0].id,before.id);
+        assert!(stack.entries[0].blend_out_elapsed.is_none());
+        assert!((stack.entries[0].elapsed-before.elapsed-0.1*before.play_rate).abs()<1e-6);
+    }
+
+    #[test]
     fn crouching_turn_driver_preserves_the_source_queued_montage() {
         let mut app = App::new();
         app.init_resource::<Time>()
