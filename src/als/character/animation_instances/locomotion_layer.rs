@@ -155,7 +155,7 @@ fn locomotion_input_writer(
             &TnuaController<AlsControlScheme>,
             &TnuaConfig<AlsControlScheme>,
             &Transform,
-            &GlobalTransform,
+            &avian3d::prelude::Position,
             &Collider,
             &AlsActualMotion,
         ),
@@ -167,7 +167,7 @@ fn locomotion_input_writer(
 ) {
     let filter = SpatialQueryFilter::from_excluded_entities(non_world_colliders.iter()).with_mask(IN_AIR_SETTINGS.prediction_trace_layer);
     for (avatar, parent, instance, mesh) in &avatars {
-        let Ok((controller, config, transform, global, capsule, motion)) =
+        let Ok((controller, config, transform, position, capsule, motion)) =
             characters.get(parent.parent())
         else {
             commands.entity(avatar).remove::<AlsGroundPredictionTrace>();
@@ -193,7 +193,7 @@ fn locomotion_input_writer(
                 .clamp(0.0, 1.0);
         let (prediction, trace) = ground_prediction_amount(
             &spatial,
-            global.translation(),
+            position.0,
             motion.world_velocity,
             capsule,
             mesh.to_scale_rotation_translation().0.y,
@@ -243,6 +243,54 @@ fn project_in_air_state(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn falling_ground_prediction_starts_at_the_current_actor_position() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(actor).unwrap().jump_pressed = true;
+        app.update();
+        app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(actor).unwrap().jump_pressed = false;
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        let mut falling_samples = 0;
+        let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        for _ in 0..180 {
+            let allowance = 1.0 - app.world().get::<AlsRootAnimationContext>(player_entity)
+                .and_then(|context| context.f32("GroundPredictionBlock")).unwrap_or(0.0).clamp(0.0, 1.0);
+            app.update();
+            let motion = app.world().get::<crate::actual_motion::AlsActualMotion>(actor).unwrap();
+            if motion.world_velocity.y <= IN_AIR_SETTINGS.prediction_velocity_threshold {
+                assert_eq!(*app.world().get::<crate::als::state::LocomotionState>(actor).unwrap(), crate::als::state::LocomotionState::Air);
+                let trace = app.world().get::<AlsGroundPredictionTrace>(avatar).expect("Falling source prediction must execute its sweep");
+                let position = app.world().get::<avian3d::prelude::Position>(actor).unwrap().0;
+                let transform = app.world().get::<Transform>(actor).unwrap();
+                assert!(position.abs_diff_eq(transform.translation, 1e-6), "Actor pose must be synchronized after physics");
+                let trace_start = trace.start;
+                let velocity = motion.world_velocity;
+                let actual_prediction = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap()
+                    .get_global_input_data("in_air_source.ground_prediction_amount").unwrap().as_f32().unwrap();
+                let expected_prediction = app.world_mut().run_system_once(move |spatial: crate::extensions::RagdollSpatialQuery,
+                    actors: Query<(&Collider, &TnuaConfig<AlsControlScheme>)>,
+                    avatars: Query<&GlobalTransform>, configs: Res<Assets<AlsControlSchemeConfig>>,
+                    characters: Query<Entity, With<AlsCharacter>>| {
+                    let (capsule, config) = actors.get(actor).unwrap();
+                    let config = configs.get(&config.0).unwrap();
+                    let filter = SpatialQueryFilter::from_excluded_entities(characters.iter())
+                        .with_mask(IN_AIR_SETTINGS.prediction_trace_layer);
+                    ground_prediction_amount(&spatial, position, velocity, capsule,
+                        avatars.get(avatar).unwrap().to_scale_rotation_translation().0.y,
+                        config.basis.max_slope.cos(), &filter, allowance).0
+                }).unwrap();
+                assert!((actual_prediction - expected_prediction).abs() < 1e-6,
+                    "Ground prediction uses a stale actor origin: actual={actual_prediction}, source={expected_prediction}, trace={trace_start:?}, actor={position:?}, velocity={velocity:?}");
+                assert!(trace_start.abs_diff_eq(position, 1e-6), "Source sweep origin must use the current actor position");
+                falling_samples += 1;
+                if falling_samples == 3 { break; }
+            }
+            assert!(std::time::Instant::now() < deadline, "Falling prediction fixture made no progress");
+        }
+        assert_eq!(falling_samples, 3, "The accepted jump did not reach source prediction velocity");
+    }
     use avian3d::prelude::*;
     use bevy::{asset::AssetEvent, ecs::system::RunSystemOnce};
 
