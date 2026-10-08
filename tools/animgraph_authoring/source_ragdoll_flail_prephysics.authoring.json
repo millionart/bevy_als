@@ -97,7 +97,7 @@
     },
     {
       "path": "target/bf134/02j1/ragdoll_flail_source_phase_contract.json",
-      "sha256": "2609c8608ae75462d2e250c38d7e714dccd4cde92e186c074db53eb144dea811"
+      "sha256": "7a8c626ecc78bf921f39644ba6cf619fb65fbc30b342b29d075d21a74d806718"
     }
   ],
   "verification_commands": [
@@ -158,7 +158,7 @@
         "--lib",
         "active_flail_input_uses_the_source_pre_physics_velocity"
       ],
-      "evidence": "target/bf134/02j1/native_flail_phase_restored.watchdog.json"
+      "evidence": "target/bf134/02j1/native_split_phase_restored.watchdog.json"
     }
   ]
 }

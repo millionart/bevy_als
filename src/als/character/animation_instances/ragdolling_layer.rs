@@ -36,9 +36,11 @@ pub struct RagdollingLayerPlugin;
 
 impl Plugin for RagdollingLayerPlugin {
     fn build(&self, app: &mut App) {
-        app.configure_sets(PostUpdate, AlsRagdollingLayerSet.before(bevy_animation_graph::core::plugin::AnimationGraphSet::PrePhysics)
-            .before(avian3d::prelude::PhysicsSystems::First)
-            .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate))
+        app.configure_sets(PostUpdate, AlsRagdollingLayerSet.before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate))
+            .add_systems(PostUpdate, sample_ragdolling_flail_state
+                .before(bevy_animation_graph::core::plugin::AnimationGraphSet::PrePhysics)
+                .before(avian3d::prelude::PhysicsSystems::First)
+                .before(AlsRagdollingLayerSet))
             .add_systems(
                 PostUpdate,
                 ragdolling_layer_writer.in_set(AlsRagdollingLayerSet),
@@ -78,6 +80,29 @@ fn player_pose_with_skeleton(player: &AnimationGraphPlayer) -> Option<Pose> {
     Some(pose)
 }
 
+fn sample_ragdolling_flail_state(
+    mut commands: Commands,
+    mut characters: Query<(Entity, Option<&AlsNotifyLocomotionAction>, Option<&mut AlsRagdollingAnimationState>), With<AlsCharacter>>,
+    avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
+    labels: Query<&BodyLabel>,
+    velocities: Query<&LinearVelocity>,
+    players: Query<&AnimationGraphPlayer>,
+) {
+    for (entity, action, current_state) in &mut characters {
+        if action != Some(&AlsNotifyLocomotionAction::Ragdolling) { continue; }
+        let mut state = current_state.as_deref().copied().unwrap_or_default();
+        for (parent, instance) in &avatars {
+            if parent.parent() != entity { continue; }
+            if let Ok(player) = players.get(instance.player_entity()) {
+                state.flail_play_rate = ragdoll_pelvis_speed(player, &labels, &velocities)
+                    .map(flail_play_rate_for_speed).unwrap_or_default();
+            }
+        }
+        if let Some(mut current_state) = current_state { *current_state = state; }
+        else { commands.entity(entity).insert(state); }
+    }
+}
+
 #[allow(clippy::type_complexity)]
 fn ragdolling_layer_writer(
     mut commands: Commands,
@@ -90,13 +115,11 @@ fn ragdolling_layer_writer(
         With<AlsCharacter>,
     >,
     avatars: Query<(&ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
-    labels: Query<&BodyLabel>,
-    velocities: Query<&LinearVelocity>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
     for (entity, action, current_state) in &mut characters {
         let ragdolling = action == Some(&AlsNotifyLocomotionAction::Ragdolling);
-        let mut state = current_state.as_deref().copied().unwrap_or_default();
+        let state = current_state.as_deref().copied().unwrap_or_default();
         for (parent, instance) in &avatars {
             if parent.parent() != entity {
                 continue;
@@ -110,11 +133,6 @@ fn ragdolling_layer_writer(
                 && let Some(snapshot) = player_pose_with_skeleton(&player)
             {
                 player.set_global_input_data(RAGDOLLING_FINAL_POSE_KEY, DataValue::Pose(snapshot));
-            }
-            if ragdolling {
-                state.flail_play_rate = ragdoll_pelvis_speed(&player, &labels, &velocities)
-                    .map(flail_play_rate_for_speed)
-                    .unwrap_or_default();
             }
             write_globals(&mut player, ragdolling, state.flail_play_rate);
         }

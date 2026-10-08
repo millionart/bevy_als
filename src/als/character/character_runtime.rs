@@ -91,6 +91,7 @@ impl Plugin for AlsCharacterRuntimePlugin {
             crate::locomotion_layer::AlsLocomotionLayerSet,
             crate::layering_layer::AlsLayeringLayerSet,
             crate::head_layer::AlsHeadLayerSet,
+            crate::ragdolling_layer::AlsRagdollingLayerSet,
             crate::foot_ik_apply::FootIkApplySet::UpdateInputs,
         ).in_set(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Inputs))
         .configure_sets(PostUpdate, crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Inputs
