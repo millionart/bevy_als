@@ -467,6 +467,12 @@ impl Plugin for AlsAnimationEventPlugin {
                 PostUpdate,
                 dispatch_animation_events.in_set(AlsAnimationEventSet::Dispatch),
             )
+            .add_systems(
+                PostUpdate,
+                apply_grounded_entry_point_notifications
+                    .after(crate::ab_als_root::AlsRootGraphSet)
+                    .before(crate::ab_als_provider::AbAlsProviderSet),
+            )
             .configure_sets(PostUpdate, AlsAnimationEventSet::GraphFootsteps
                 .after(AnimationGraphSet::Final).before(crate::als_camera::AlsCameraSet))
             .add_systems(
@@ -958,13 +964,6 @@ fn dispatch_animation_events(
                         parameter_f32(&parameters, "CameraShakeScale", 1.0),
                     ));
                 }
-                if class_name == "AlsAnimNotify_SetGroundedEntryMode"
-                    && signal.phase == EventPhase::Point
-                {
-                    if let Ok(mode) = AlsGroundedEntryMode::new(parameter_tag(&parameters, "GroundedEntryMode").unwrap_or_default()) {
-                        commands.entity(character).insert(mode);
-                    }
-                }
                 if class_name == "AlsAnimNotifyState_SetLocomotionAction" {
                     let next_action = notify_action(parameter_tag(&parameters, "LocomotionAction"));
                     match signal.phase {
@@ -1024,6 +1023,19 @@ fn dispatch_animation_events(
                     .remove::<AlsPhysicalStanceOverride>();
             }
             (None, None) => {}
+        }
+    }
+}
+
+fn apply_grounded_entry_point_notifications(
+    mut commands: Commands,
+    mut events: MessageReader<AlsAnimationEvent>,
+) {
+    for event in events.read() {
+        if event.class_name == "AlsAnimNotify_SetGroundedEntryMode" && event.phase == EventPhase::Point {
+            if let Ok(mode) = AlsGroundedEntryMode::new(parameter_tag(&event.parameters, "GroundedEntryMode").unwrap_or_default()) {
+                commands.entity(event.character).insert(mode);
+            }
         }
     }
 }
@@ -1451,10 +1463,12 @@ pub(crate) mod tests {
         push_playback(&mut entries, SOURCE_ROLL_SEQUENCE, &graph_clip, 0.0, 1.0, false, false);
         let character = app.world_mut().spawn((AlsCharacter, AlsAnimationEventPlaybacks { entries }, AlsGroundedEntryMode::FromRoll)).id();
         app.world_mut().run_system_once(ensure_animation_event_components).unwrap();
-        app.world_mut().run_system_once(dispatch_animation_events).unwrap();
+        let mut dispatch = Schedule::default();
+        dispatch.add_systems((dispatch_animation_events, apply_grounded_entry_point_notifications).chain());
+        dispatch.run(app.world_mut());
         for (index, tag) in tags.into_iter().enumerate() {
             app.world_mut().get_mut::<AlsAnimationEventPlaybacks>(character).unwrap().entries[0].time = 0.2 + index as f32 * 0.2;
-            app.world_mut().run_system_once(dispatch_animation_events).unwrap();
+            dispatch.run(app.world_mut());
             assert_eq!(app.world().get::<AlsGroundedEntryMode>(character).unwrap().as_str(), tag);
         }
     }

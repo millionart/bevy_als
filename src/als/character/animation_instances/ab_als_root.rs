@@ -125,7 +125,7 @@ fn root_graph_writer(
     assets: Res<AssetServer>,
     library_handle: Res<crate::overlay_object::OverlayLibraryHandle>,
     libraries: Res<Assets<crate::overlay_object::OverlayLibrary>>,
-    characters: Query<
+    mut characters: Query<
         (
             Entity,
             &OverlayState,
@@ -136,6 +136,7 @@ fn root_graph_writer(
             Option<&AlsNotifyLocomotionAction>,
             Option<&AlsMantleState>,
             Option<&AlsRollState>,
+            Option<&mut crate::grounded_layer::AlsGroundedEntryMode>,
         ),
         With<AlsCharacter>,
     >,
@@ -152,7 +153,8 @@ fn root_graph_writer(
         notify_action,
         mantle,
         roll,
-    ) in &characters
+        mut grounded_entry,
+    ) in &mut characters
     {
         for (parent, instance) in &avatars {
             if parent.parent() != entity {
@@ -172,8 +174,13 @@ fn root_graph_writer(
             source_inputs.get_mut(instance.player_entity()).unwrap().set_gameplay_tag_input("locomotion_mode",
                 locomotion_mode_tag(*locomotion),);
             source_inputs.get_mut(instance.player_entity()).unwrap().set_gameplay_tag_input("stance", stance_tag(*stance));
-            source_inputs.get_mut(instance.player_entity()).unwrap().set_gameplay_tag_input("locomotion_action",
-                locomotion_action_tag(notify_action, mantle, roll),);
+            let next_action = locomotion_action_tag(notify_action, mantle, roll);
+            let mut inputs = source_inputs.get_mut(instance.player_entity()).unwrap();
+            let previous_action = inputs.gameplay_tag_input("locomotion_action").unwrap_or_else(|| GameplayTag::new(""));
+            if previous_action != next_action && let Some(entry) = grounded_entry.as_deref_mut() {
+                *entry = crate::grounded_layer::AlsGroundedEntryMode::None;
+            }
+            inputs.set_gameplay_tag_input("locomotion_action", next_action);
             source_inputs.get_mut(instance.player_entity()).unwrap().set_gameplay_tag_input("rotation_mode",
                 rotation_mode_tag(*rotation_mode),);
             for (key, value) in [

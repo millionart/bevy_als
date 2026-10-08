@@ -676,6 +676,42 @@ mod tests {
                 assert_eq!(actual, tag == "Als.GroundedEntryMode.FromRoll" && !moving && !rotating, "Authored T2 differs for tag={tag}, moving={moving}, rotating={rotating}");
             }
         }
+        for (action, changed) in [
+            (crate::als::state::AlsNotifyLocomotionAction::None, false),
+            (crate::als::state::AlsNotifyLocomotionAction::GettingUp, true),
+            (crate::als::state::AlsNotifyLocomotionAction::GettingUp, false),
+            (crate::als::state::AlsNotifyLocomotionAction::None, true),
+        ] {
+            app.world_mut().entity_mut(character).insert((AlsGroundedEntryMode::FromRoll, action));
+            app.update();
+            app.world_mut().run_system_once(ab_als_input_writer).unwrap();
+            let source = app.world().get::<crate::extensions::SourceAnimationInputs>(player).unwrap().clone();
+            assert_eq!(app.world_mut().run_system_once_with(query, (condition.clone(), player, source, false, false)).unwrap(), !changed,
+                "Source NativeUpdateAnimation clears GroundedEntryMode only when the actual locomotion action changes before the authored Roll entry condition: action={action:?}");
+        }
+    }
+
+    #[test]
+    fn source_action_snapshot_preserves_the_later_roll_entry_point_notify() {
+        #[derive(Resource, Default)]
+        struct ObservedRollEntry(Vec<(String, String)>);
+        let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        app.init_resource::<ObservedRollEntry>().add_systems(PostUpdate,
+            (move |source: Query<&crate::extensions::SourceAnimationInputs>, mut observed: ResMut<ObservedRollEntry>| {
+                let source = source.get(player).unwrap();
+                observed.0.push((source.gameplay_tag_input("locomotion_action").unwrap().as_str().to_owned(),
+                    source.gameplay_tag_input("grounded_entry_mode").unwrap().as_str().to_owned()));
+            }).after(AbAlsProviderSet).before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate));
+        for _ in 0..30 { app.update(); }
+        app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = true;
+        app.update();
+        app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = false;
+        for _ in 0..100 { app.update(); }
+        let rows = &app.world().resource::<ObservedRollEntry>().0;
+        assert!(rows.iter().any(|(action, _)| action == "Als.LocomotionAction.Rolling"));
+        assert!(rows.iter().any(|(action, entry)| action.is_empty() && entry == "Als.GroundedEntryMode.FromRoll"),
+            "Source branching action end precedes NativeUpdate reset, then the queued FromRoll point reaches the actual graph consumer");
     }
 
     #[test]

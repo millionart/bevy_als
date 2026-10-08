@@ -1,0 +1,198 @@
+{
+  "format": "als_animgraph_authoring_gate_v1",
+  "graphs": [
+    {
+      "path": "assets/ALS/Character/AB_Als.runtime.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "b113030b-0000-4000-8000-000000000001",
+          "name": "AB_Als",
+          "position": [
+            -480.0,
+            0.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000002",
+          "name": "Ragdoll Dynamic",
+          "position": [
+            -480.0,
+            160.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000003",
+          "name": "Ragdoll Readback",
+          "position": [
+            -480.0,
+            240.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000004",
+          "name": "Ragdoll Config",
+          "position": [
+            -224.0,
+            192.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000002\", \"als_ragdolling_dynamic\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"dynamic\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000003\", \"als_ragdolling_readback\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"readback\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000001\", \"pose\")",
+          "target": "OutputData(\"pose\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"ragdoll_config\")",
+          "target": "OutputData(\"ragdoll_config\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "pose": "Pose",
+          "ragdoll_config": "RagdollConfig"
+        }
+      },
+      "root_output_exceptions": [
+        {
+          "name": "ragdoll_config",
+          "reason": "The framework consumes body simulation and pose readback controls independently from the source pose.",
+          "evidence": "docs/bf114-ragdoll-contract.md"
+        }
+      ]
+    }
+  ],
+  "id": "source_animation_action_change_grounded_entry_contract",
+  "source_evidence": [
+    {
+      "path": "target/bf134/02b/AlsAnimationInstance.cpp",
+      "sha256": "f5ccecad4c9408dbd500d8b3f661975cf2830ed62436c591ffa91bb4f9b11c26"
+    },
+    {
+      "path": "target/bf134/02b/AlsAnimationInstance.h",
+      "sha256": "588e40347fe4b694cff4542550bfbc24202830a24a245d5fcbc9aa28331e41f1"
+    },
+    {
+      "path": "target/bf134/02b/grounded.ue.json",
+      "sha256": "26f28c49e6f16acfe969dd772b5880ce16264da44f102fb2b1537ee2230b625c"
+    },
+    {
+      "path": "target/bf134/02b/grounded_entry_consumers.json",
+      "sha256": "9bb0d757388164350d349c09be5a6e93f5ec210bb7ae8139f468ed11894dd31c"
+    },
+    {
+      "path": "target/bf134/02b/grounded_entry_action_contract.json",
+      "sha256": "ca00b57a18c2b2525957d0cc60febb51b0cc2c06b5282313c47b04899e80596d"
+    },
+    {
+      "path": "target/bf134/02b/AlsAnimNotifyState_SetLocomotionAction.cpp",
+      "sha256": "8a80f018448139c877036fbc19cd86730aaf3d1933bce6e5ce247f54cd5a7143"
+    },
+    {
+      "path": "target/bf134/02b/AlsAnimNotify_SetGroundedEntryMode.cpp",
+      "sha256": "de5219484d52775a62f6285d5a71005c258113fc68bc494eaeb0c5cc795caa9b"
+    },
+    {
+      "path": "target/bf134/02b/ue_update_notify_order.cpp",
+      "sha256": "a84ed50d486c052f31f0818014a007cffa5a6b2019b01d0834906e53db5023ca"
+    },
+    {
+      "path": "target/bf134/02b/AM_Als_Roll.ue.json",
+      "sha256": "7fc3d0267becaec4cf5af9790f188ca598c0d5826e1ca13896eda0732ce532a3"
+    },
+    {
+      "path": "target/bf134/02b/A_Als_Roll.ue.json",
+      "sha256": "7f71229920610ca89c894661de9a46faa2585d5b1921d02f84d74c9eeb91bc3c"
+    }
+  ],
+  "verification_commands": [
+    {
+      "label": "generated_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets",
+        "--include",
+        "ALS",
+        "--include",
+        "ALSCamera"
+      ]
+    },
+    {
+      "label": "generated_editor",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets"
+      ]
+    },
+    {
+      "label": "runtime_asset_boundary",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/validate_runtime_graph_asset_boundary.py",
+        "--assets-root",
+        "assets",
+        "--check"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "animgraph_assets",
+    "manual_case": "base"
+  },
+  "focused_tests": [
+    {
+      "label": "actualActionChangeResetsAuthoredRollEntry",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "grounded_entry_tags_reach_the_authored_roll_entry_condition"
+      ],
+      "evidence": "target/bf134/02b/native_action_entry_restored_counter.watchdog.json"
+    },
+    {
+      "label": "actualRollQueuedEntryAfterActionSnapshot",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "source_action_snapshot_preserves_the_later_roll_entry_point_notify"
+      ],
+      "evidence": "target/bf134/02b/native_final_phase_restored_counter.watchdog.json"
+    }
+  ]
+}
