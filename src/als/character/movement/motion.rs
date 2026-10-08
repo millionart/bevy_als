@@ -378,6 +378,7 @@ fn rotation_response_system(
             &LocomotionState,
             &RotationMode,
             &AlsViewYaw,
+            Option<&crate::als_camera::AlsCameraCustomTimeDilation>,
             &AlsMovementParamsHandle,
             (&LinearVelocity, Option<&mut crate::als::dynamics::AlsMovementBaseDynamicsState>),
             &crate::actual_motion::AlsActualMotion,
@@ -389,7 +390,6 @@ fn rotation_response_system(
         With<AlsCharacter>,
     >,
 ) {
-    let delta_seconds = time.delta_secs();
     for (
         entity,
         mut transform,
@@ -398,6 +398,7 @@ fn rotation_response_system(
         locomotion,
         rotation_mode,
         view_yaw,
+        custom_dilation,
         params_handle,
         (velocity, mut base),
         motion,
@@ -407,6 +408,7 @@ fn rotation_response_system(
         mut constraint,
     ) in &mut q
     {
+        let delta_seconds = time.delta_secs() * custom_dilation.map_or(1.0, |value| value.0);
         let pre_collision_velocity = base.as_deref_mut().and_then(|state| state.pre_collision_velocity.take());
         let current_yaw = world_forward_to_yaw(transform.rotation * Vec3::NEG_Z);
         let action_active = collision_owners.get(entity).is_ok_and(|owner| owner.mantle)
@@ -441,7 +443,9 @@ fn rotation_response_system(
         };
         let mut runtime = current_runtime.as_deref().copied().unwrap_or_default();
         let view_yaw_speed = if runtime.initialized && delta_seconds > f32::EPSILON {
-            wrap_yaw_radians(view_yaw.0 - runtime.previous_view_yaw).abs().to_degrees() / delta_seconds
+            (crate::als::turn_in_place::wrap_angle_degrees(view_yaw.0.to_degrees())
+                - crate::als::turn_in_place::wrap_angle_degrees(runtime.previous_view_yaw.to_degrees()))
+                .abs() / delta_seconds
         } else {
             0.0
         };
@@ -1159,30 +1163,45 @@ mod rotation_cap_tests {
 
     #[test]
     fn rotation_response_uses_view_yaw_degrees_per_second() {
-        let mut app = App::new();
-        let mut time = Time::<()>::default();
-        time.advance_by(std::time::Duration::from_millis(100));
-        app.insert_resource(time)
-            .init_resource::<Assets<AlsMovementParams>>()
-            .register_required_components::<AlsCharacter, crate::actual_motion::AlsActualMotion>()
-            .add_systems(Update, rotation_response_system);
-        let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>()
-            .add(AlsMovementParams::default());
-        let character = app.world_mut().spawn((
-            AlsCharacter, Stance::Standing, Transform::IDENTITY, Gait::Running,
-            LocomotionState::Grounded, RotationMode::ViewDirection,
-            AlsViewYaw(90.0_f32.to_radians()), AlsMovementParamsHandle(params),
-            LinearVelocity(Vec3::NEG_Z * 1.75),
-            AlsInputCommand { move_dir: Vec2::Y, ..default() },
-            crate::actual_motion::AlsActualMotion { has_input: true, input_yaw_degrees: 90.0, ..default() },
-            AlsRotationResponseState { initialized: true, previous_view_yaw: 0.0,
-                previous_rotation_mode: Some(RotationMode::ViewDirection), ..default() },
-        )).id();
-        app.update();
-        let yaw = world_forward_to_yaw(*app.world().get::<Transform>(character).unwrap().forward());
-        let expected = 50.0_f32.to_radians()
-            * (1.0 - crate::als::animation::inv_exp_approx(std::f32::consts::LN_2 / (0.05 + 1e-8) * 0.1));
-        assert!((yaw - expected).abs() < 1e-5, "yaw={yaw} expected={expected}");
+        let mut failures = Vec::new();
+        for (previous_view_degrees, view_degrees, custom_dilation) in [
+            (0.0_f32, 90.0_f32, 1.0_f32),
+            (0.0, 10.0, 0.5),
+            (179.0, -179.0, 1.0),
+        ] {
+            let mut app = App::new();
+            let mut time = Time::<()>::default();
+            time.advance_by(std::time::Duration::from_millis(100));
+            app.insert_resource(time)
+                .init_resource::<Assets<AlsMovementParams>>()
+                .register_required_components::<AlsCharacter, crate::actual_motion::AlsActualMotion>()
+                .add_systems(Update, rotation_response_system);
+            let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>()
+                .add(AlsMovementParams::default());
+            let character = app.world_mut().spawn((
+                AlsCharacter, Stance::Standing, Transform::IDENTITY, Gait::Running,
+                LocomotionState::Grounded, RotationMode::ViewDirection,
+                AlsViewYaw(view_degrees.to_radians()), AlsMovementParamsHandle(params),
+                crate::als_camera::AlsCameraCustomTimeDilation(custom_dilation),
+                LinearVelocity(Vec3::NEG_Z * 1.75),
+                AlsInputCommand { move_dir: Vec2::Y, ..default() },
+                crate::actual_motion::AlsActualMotion { has_input: true, input_yaw_degrees: 90.0, ..default() },
+                AlsRotationResponseState { initialized: true, previous_view_yaw: previous_view_degrees.to_radians(),
+                    previous_rotation_mode: Some(RotationMode::ViewDirection), ..default() },
+            )).id();
+            app.update();
+            let yaw = world_forward_to_yaw(*app.world().get::<Transform>(character).unwrap().forward());
+            let actor_delta = 0.1 * custom_dilation;
+            let source_speed = (view_degrees - previous_view_degrees).abs() / actor_delta;
+            let half_life = 0.15 * (1.0 + (0.333333 - 1.0) * (source_speed / 300.0).clamp(0.0, 1.0));
+            let source_target = advance_yaw(0.0, view_degrees.to_radians(), 500.0, actor_delta);
+            let expected = source_target
+                * (1.0 - crate::als::animation::inv_exp_approx(std::f32::consts::LN_2 / (half_life + 1e-8) * actor_delta));
+            if (yaw - expected).abs() >= 1e-5 {
+                failures.push(format!("Actor rotation differs: yaw={yaw} expected={expected}, dilation={custom_dilation}, previous={previous_view_degrees}, view={view_degrees}"));
+            }
+        }
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
     }
 
     #[test]
