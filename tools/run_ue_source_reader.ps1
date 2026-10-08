@@ -4,6 +4,7 @@ param(
     [string]$BlendSpaceProbe,
     [string]$SequencePoseProbe,
     [switch]$CachedPoseLifecycleProbe,
+    [switch]$AlphaBlendProbe,
     [switch]$NotifyClockProbe,
     [switch]$NotifyChanceProbe,
     [switch]$PhysicsMaterialProbe,
@@ -274,6 +275,9 @@ if ($SequencePoseProbe) {
 }
 if ($CachedPoseLifecycleProbe) {
     $arguments += "-CachedPoseLifecycleProbe"
+}
+if ($AlphaBlendProbe) {
+    $arguments += "-AlphaBlendProbe"
 }
 if ($NotifyClockProbe) {
     $arguments += "-NotifyClockProbe"

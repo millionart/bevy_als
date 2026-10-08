@@ -1,0 +1,284 @@
+{
+  "format": "als_animgraph_authoring_gate_v1",
+  "graphs": [
+    {
+      "path": "assets/ALS/Character/AB_Als.runtime.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "b113030b-0000-4000-8000-000000000001",
+          "name": "AB_Als",
+          "position": [
+            -480.0,
+            0.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000002",
+          "name": "Ragdoll Dynamic",
+          "position": [
+            -480.0,
+            160.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000003",
+          "name": "Ragdoll Readback",
+          "position": [
+            -480.0,
+            240.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000004",
+          "name": "Ragdoll Config",
+          "position": [
+            -224.0,
+            192.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000002\", \"als_ragdolling_dynamic\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"dynamic\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000003\", \"als_ragdolling_readback\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"readback\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000001\", \"pose\")",
+          "target": "OutputData(\"pose\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"ragdoll_config\")",
+          "target": "OutputData(\"ragdoll_config\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "pose": "Pose",
+          "ragdoll_config": "RagdollConfig"
+        }
+      },
+      "root_output_exceptions": [
+        {
+          "name": "ragdoll_config",
+          "reason": "The framework consumes body simulation and pose readback controls independently from the source pose.",
+          "evidence": "docs/bf114-ragdoll-contract.md"
+        }
+      ]
+    }
+  ],
+  "id": "source_native_cubic_terminal_contract",
+  "source_evidence": [
+    {
+      "path": "target/bf134/02m3b3a/ue_state_machine.cpp",
+      "sha256": "8dca0f41f0378ad8858f193d69cc8a4fdf43139c8114d20842c67d16ef8c161b"
+    },
+    {
+      "path": "target/bf134/02m3b3a/ue_state_machine.h",
+      "sha256": "d67552193534e40eaedd210ad14c8cd51295c1146af109df623d8fb9c2894e55"
+    },
+    {
+      "path": "target/bf134/02m3b3a/ue_alpha_blend.cpp",
+      "sha256": "b0de2b7f79cd79fcb24956e63e4fa6b740d75c4c59d836773f3684366c09c11b"
+    },
+    {
+      "path": "target/bf134/02m3b3a/ue_math_utility.h",
+      "sha256": "42feaa58fe6da3d00cbd11a9255e303cd88aeadf8caac4a800f9f141fd2218b1"
+    },
+    {
+      "path": "target/bf134/02m3b3a/alpha_probe.ue.json",
+      "sha256": "dcf7db82c478201fdab45a7ab9e4ca80045717983f04cae323b474887d344740"
+    },
+    {
+      "path": "target/bf134/02m3b3a/native_alpha_diff.json",
+      "sha256": "42d7ea87c8a3c3010aaa884bb31d18667c69ac1d24c837d675e7a4fb37196544"
+    },
+    {
+      "path": "target/bf134/02m3b3a/probe_optional_boundary.json",
+      "sha256": "1d26928cce14a06ab340780b3f807e6a7c865dd8266ce19b614427324b2c36ef"
+    },
+    {
+      "path": "target/bf134/02m3b3a/reader_selftest.stdout.log",
+      "sha256": "22d198b2b28dce0d43a8e1d169d94e5920a4a636e2c9e687902ec02ab6a529c3"
+    },
+    {
+      "path": "target/bf134/02m3b3a/cubic_native_source_contract.json",
+      "sha256": "c8f76abadc56ef44b7d92a4652c7dc223c2ad35389f179a411df6f8408b8cb9b"
+    }
+  ],
+  "verification_commands": [
+    {
+      "label": "generated_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets",
+        "--include",
+        "ALS",
+        "--include",
+        "ALSCamera"
+      ]
+    },
+    {
+      "label": "generated_editor",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets"
+      ]
+    },
+    {
+      "label": "runtime_asset_boundary",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/validate_runtime_graph_asset_boundary.py",
+        "--assets-root",
+        "assets",
+        "--check"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "animgraph_assets",
+    "manual_case": "state_machine"
+  },
+  "focused_tests": [
+    {
+      "label": "cubic_native_profile_restored",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "profile_blend::tests::"
+      ],
+      "evidence": "target/bf134/02m3b3a/cubic_native_profile_restored.watchdog.json"
+    },
+    {
+      "label": "cubic_fsm_restored",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "interruptible_fsm::tests::"
+      ],
+      "evidence": "target/bf134/02m3b3a/cubic_fsm_restored.watchdog.json"
+    },
+    {
+      "label": "cubic_source_calls",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "source_movement_nodes::tests::"
+      ],
+      "evidence": "target/bf134/02m3b3a/cubic_source_calls.watchdog.json"
+    },
+    {
+      "label": "cubic_native_calls",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "source_native_refresh::tests::"
+      ],
+      "evidence": "target/bf134/02m3b3a/cubic_native_calls.watchdog.json"
+    },
+    {
+      "label": "cubic_notification_calls",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "transition_notify::tests::"
+      ],
+      "evidence": "target/bf134/02m3b3a/cubic_notification_calls.watchdog.json"
+    },
+    {
+      "label": "cubic_turn_slots",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "turn_layer::tests::"
+      ],
+      "evidence": "target/bf134/02m3b3a/cubic_turn_slots.watchdog.json"
+    },
+    {
+      "label": "cubic_camera_owner",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "camera_component::tests::"
+      ],
+      "evidence": "target/bf134/02m3b3a/cubic_camera_owner.watchdog.json"
+    }
+  ]
+}

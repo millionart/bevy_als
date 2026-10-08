@@ -99,7 +99,12 @@ pub fn transition_alpha(
     let alpha = alpha.clamp(0.0, 1.0);
     let value = match blend_mode {
         AlphaBlendMode::Linear => alpha,
-        AlphaBlendMode::Cubic | AlphaBlendMode::HermiteCubic => alpha * alpha * (3.0 - 2.0 * alpha),
+        AlphaBlendMode::Cubic => {
+            let squared = alpha * alpha;
+            let cubed = squared * alpha;
+            -2.0 * cubed + 3.0 * squared
+        }
+        AlphaBlendMode::HermiteCubic => alpha * alpha * (3.0 - 2.0 * alpha),
         AlphaBlendMode::QuadraticInOut => {
             if alpha < 0.5 {
                 2.0 * alpha * alpha
@@ -345,6 +350,9 @@ mod tests {
 
     #[test]
     fn alpha_blend_options_match_unreal_curve_mapping() {
+        assert_eq!(transition_alpha(0.9997889995574951, AlphaBlendMode::Cubic, &[]), 1.0);
+        assert_eq!(transition_alpha(0.9997889995574951, AlphaBlendMode::HermiteCubic, &[]), 1.0 - f32::EPSILON);
+        assert_eq!(transition_alpha(0.9997720122337341, AlphaBlendMode::Cubic, &[]), 1.0 - 2.0 * f32::EPSILON);
         assert!((transition_alpha(0.25, AlphaBlendMode::Cubic, &[]) - 0.15625).abs() < 1e-6);
         assert!((transition_alpha(0.25, AlphaBlendMode::QuadraticInOut, &[]) - 0.125).abs() < 1e-6);
         assert!((transition_alpha(0.75, AlphaBlendMode::QuadraticInOut, &[]) - 0.875).abs() < 1e-6);

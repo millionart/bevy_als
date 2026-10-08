@@ -8,6 +8,7 @@
 #include "AnimStateNodeBase.h"
 #include "AnimStateTransitionNode.h"
 #include "AnimationRuntime.h"
+#include "AlphaBlend.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimNode_SaveCachedPose.h"
 #include "Animation/AnimNotifyQueue.h"
@@ -1055,6 +1056,38 @@ TSharedRef<FJsonObject> CaptureNotifyChanceProbe(UObject* Asset)
     return Probe;
 }
 
+TSharedRef<FJsonObject> CaptureAlphaBlendProbe()
+{
+    TArray<TSharedPtr<FJsonValue>> Rows;
+    const EAlphaBlendOption Modes[] = {EAlphaBlendOption::Cubic, EAlphaBlendOption::HermiteCubic, EAlphaBlendOption::QuadraticInOut};
+    for (const EAlphaBlendOption Mode : Modes)
+    {
+        for (const float Alpha : {0.0f, 0.25f, 0.5f, 0.75f, 0.9997720122337341f, 0.9997889995574951f, 1.0f})
+        {
+            const float Delta = Alpha * 0.2f;
+            const float QueryAlpha = Delta / 0.2f;
+            FAlphaBlend Blend;
+            Blend.SetBlendTime(0.2f);
+            Blend.SetBlendOption(Mode);
+            Blend.SetValueRange(0.0f, 1.0f);
+            Blend.Update(Delta);
+            TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>();
+            Row->SetStringField(TEXT("mode"), Mode == EAlphaBlendOption::Cubic ? TEXT("Cubic") : Mode == EAlphaBlendOption::HermiteCubic ? TEXT("HermiteCubic") : TEXT("QuadraticInOut"));
+            Row->SetNumberField(TEXT("delta"), Delta);
+            Row->SetNumberField(TEXT("query_alpha"), QueryAlpha);
+            Row->SetNumberField(TEXT("curve_value"), FAlphaBlend::AlphaToBlendOption(QueryAlpha, Mode, nullptr));
+            Row->SetNumberField(TEXT("blend_value"), Blend.GetBlendedValue());
+            Row->SetBoolField(TEXT("complete"), Blend.IsComplete());
+            Rows.Add(MakeShared<FJsonValueObject>(Row));
+        }
+        UE_LOG(LogAlsGraphSourceReader, Display, TEXT("Alpha blend probe mode %d/3 completed."), static_cast<int32>(Rows.Num()) / 7);
+    }
+    TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+    Result->SetStringField(TEXT("format"), TEXT("ue_alpha_blend_probe_v1"));
+    Result->SetArrayField(TEXT("rows"), Rows);
+    return Result;
+}
+
 TSharedRef<FJsonObject> CaptureCachedPoseLifecycleProbe()
 {
     struct FProbeProxy : FAnimInstanceProxy
@@ -1375,6 +1408,10 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
     if (FParse::Param(*Params, TEXT("CachedPoseLifecycleProbe")))
     {
         Root->SetObjectField(TEXT("cached_pose_lifecycle_probe"), CaptureCachedPoseLifecycleProbe());
+    }
+    if (FParse::Param(*Params, TEXT("AlphaBlendProbe")))
+    {
+        Root->SetObjectField(TEXT("alpha_blend_probe"), CaptureAlphaBlendProbe());
     }
     if (FParse::Param(*Params, TEXT("NotifyClockProbe")))
     {
