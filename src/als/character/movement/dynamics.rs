@@ -855,6 +855,37 @@ mod tests {
     }
 
     #[test]
+    fn actual_walking_without_progress_keeps_source_final_velocity_and_attempt_input() {
+        use avian3d::prelude::Collider;
+        #[derive(Resource, Default)]
+        struct SampledAttempt(Option<Vec3>);
+        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        for _ in 0..35 { app.update(); }
+        let origin = app.world().get::<Position>(character).unwrap().0;
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 3.0, 0.1),
+            Transform::from_xyz(origin.x, 1.5, origin.z - 0.5)));
+        app.init_resource::<SampledAttempt>().add_systems(PostUpdate,
+            (move |mut sample: ResMut<SampledAttempt>, states: Query<&AlsMovementBaseDynamicsState>| {
+                sample.0 = states.get(character).ok().and_then(|state| state.pre_collision_velocity);
+            }).after(crate::als::motion::AlsActualVelocitySet).before(crate::als::motion::AlsRotationResponseSet));
+        app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().move_dir = Vec2::Y;
+        for _ in 0..45 { app.update(); }
+        let handle = app.world().get::<AlsMovementParamsHandle>(character).unwrap().0.clone();
+        app.world_mut().resource_mut::<Assets<AlsMovementParams>>().get_mut(&handle).unwrap().cmc.max_simulation_time_step = 0.03125;
+        app.world_mut().entity_mut(character).insert(LinearVelocity::ZERO);
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_millis(125)));
+        let before = app.world().get::<Position>(character).unwrap().0;
+        app.update();
+        let after = app.world().get::<Position>(character).unwrap().0;
+        let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
+        let attempt = app.world().resource::<SampledAttempt>().0.unwrap();
+        assert!(velocity.with_y(0.0).length() < 0.05 && (after - before).with_y(0.0).length() < 0.002,
+            "Source blocked walking must not create motion: before={before:?} after={after:?} velocity={velocity:?}");
+        assert!(attempt.z.abs() <= 0.625 + 1e-3,
+            "Source no-progress exit keeps the first source acceleration attempt: {attempt:?}");
+    }
+
+    #[test]
     fn actual_stance_noop_and_settings_replacement_follow_source_consumers() {
         use bevy::ecs::system::RunSystemOnce;
         for stance in [Stance::Standing, Stance::Crouching] {
