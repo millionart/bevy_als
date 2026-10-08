@@ -416,7 +416,7 @@ pub fn quick_stop_selection(
     (if selection.right { 1.0 } else { 0.0 }, selection.play_rate)
 }
 
-fn transition_blend_amount(elapsed: f32, duration: f32) -> f32 {
+pub(crate) fn transition_blend_amount(elapsed: f32, duration: f32) -> f32 {
     if duration <= 0.0 { return 1.0; }
     let alpha = (elapsed / duration.max(f32::EPSILON)).clamp(0.0, 1.0);
     alpha * alpha * (3.0 - 2.0 * alpha)

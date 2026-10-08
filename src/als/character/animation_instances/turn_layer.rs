@@ -163,11 +163,10 @@ pub struct AlsTurnMontage {
 impl AlsTurnMontage {
     pub fn weight(&self) -> f32 {
         if let Some(elapsed) = self.blend_out_elapsed {
-            let alpha = if self.blend_out_duration <= 0.0 { 1.0 }
-                else { (elapsed / self.blend_out_duration).clamp(0.0, 1.0) };
-            return self.blend_out_start_weight * (1.0 - alpha);
+            return self.blend_out_start_weight
+                * (1.0 - crate::stop_link::transition_blend_amount(elapsed, self.blend_out_duration));
         }
-        (self.blend_in_elapsed / TURN_MONTAGE_BLEND_DURATION).clamp(0.0, 1.0)
+        crate::stop_link::transition_blend_amount(self.blend_in_elapsed, TURN_MONTAGE_BLEND_DURATION)
     }
 
     fn playing(&self) -> bool {
@@ -974,6 +973,70 @@ mod tests {
     }
 
     #[test]
+    fn native_turn_blend_shape_reaches_the_actual_slot_pose() {
+        use bevy_animation_graph::core::{animation_clip::GraphClip, skeleton::Skeleton};
+        for frame_delta in [0.1_f32, 0.05] {
+            let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            app.add_systems(PostUpdate, (move |instances:Query<&AnimatedSceneInstance>,
+                mut players:Query<&mut AnimationGraphPlayer>| {
+                let player = instances.get(avatar).unwrap().player_entity();
+                players.get_mut(player).unwrap().set_global_input_data("turn_in_place.allowed", false);
+            }).after(crate::ab_als_provider::AbAlsProviderSet)
+                .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate));
+            for _ in 0..3 { app.update(); }
+            app.world_mut().run_system_once(move |mut commands:Commands| {
+                crate::transition_notify::queue_turn_in_grounded_group(&mut commands, character, avatar,
+                    SourceTurnRequest { variant:TurnVariant::Left90, yaw:-90.0, crouching:false });
+            }).unwrap();
+            for _ in 0..30 { app.update(); }
+            let stack = app.world().get::<AlsTurnMontageStack>(avatar).unwrap();
+            assert_eq!(stack.entries.len(), 1);
+            assert!((stack.entries[0].weight()-1.0).abs()<1e-6);
+            app.world_mut().run_system_once(move |mut commands:Commands| {
+                crate::transition_notify::queue_turn_in_grounded_group(&mut commands, character, avatar,
+                    SourceTurnRequest { variant:TurnVariant::Right180, yaw:150.0, crouching:false });
+            }).unwrap();
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(frame_delta)));
+            app.update();
+            let stack = app.world().get::<AlsTurnMontageStack>(avatar).unwrap();
+            assert_eq!(stack.entries.len(), 2);
+            assert!(stack.entries.iter().all(|entry| entry.sampling_ready));
+            assert!((stack.entries[1].blend_in_elapsed-frame_delta).abs()<1e-6);
+            let mut source_poses = Vec::new();
+            let mut source_weights = Vec::new();
+            for entry in &stack.entries {
+                let pose = crate::standing_source::sample_source_montage(
+                    source_turn_sequence(entry.crouching, entry.is_180, entry.lr), entry.elapsed,
+                    app.world().resource::<crate::standing_source::SourceMontageAssets>(),
+                    app.world().resource::<Assets<GraphClip>>(), app.world().resource::<Assets<Skeleton>>()).unwrap().0;
+                let elapsed = entry.blend_out_elapsed.unwrap_or(entry.blend_in_elapsed);
+                let alpha = (elapsed/TURN_MONTAGE_BLEND_DURATION).clamp(0.0,1.0);
+                let native_alpha = alpha*alpha*(3.0-2.0*alpha);
+                source_weights.push(if entry.blend_out_elapsed.is_some() { entry.blend_out_start_weight*(1.0-native_alpha) } else { native_alpha });
+                source_poses.push(pose);
+            }
+            let mut source = source_poses[0].clone();
+            LinearInterpolator { bone_mask:BoneMask::all() }.interpolate_pose(
+                &mut source, &source_poses[1], source_weights[1]/source_weights.iter().sum::<f32>());
+            let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+            let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+            assert!(player.get_error().is_none());
+            let actual = player.get_global_input_data(turn_slot_contract(false).generated_pose_key).unwrap().as_pose().unwrap();
+            let mut minimum_dot = 1.0_f32;
+            let mut location_error = 0.0_f32;
+            for bone in source.paths.keys() {
+                let a = actual.get_bone(*bone).unwrap();
+                let s = source.get_bone(*bone).unwrap();
+                if let (Some(a),Some(s))=(a.rotation,s.rotation) { minimum_dot=minimum_dot.min(a.dot(s).abs()); }
+                if let (Some(a),Some(s))=(a.translation,s.translation) { location_error=location_error.max(a.distance(s)); }
+            }
+            assert!(minimum_dot>1.0-1e-5 && location_error<1e-5,
+                "Native Turn Hermite blend changes the actual slot pose: delta={frame_delta}, source_weights={source_weights:?}, rotation_error_degrees={}, location_error={location_error}",
+                (2.0*minimum_dot.clamp(-1.0,1.0).acos()).to_degrees());
+        }
+    }
+
+    #[test]
     fn turn_slot_pose_uses_the_source_actor_animation_clock() {
         use bevy_animation_graph::core::{animation_clip::GraphClip, skeleton::Skeleton};
         for (custom_dilation, world_paused) in [(1.0_f32, false), (0.5, false), (0.0, false), (1.0, true)] {
@@ -1143,9 +1206,14 @@ mod tests {
     }
 
     #[test]
-    fn source_turn_slot_uses_linear_blend_in_and_inertialized_blend_out() {
+    fn source_turn_slot_uses_hermite_blend_in_and_inertialized_blend_out() {
         assert_eq!(TURN_WEIGHT_IN.recip(), 0.2);
         assert_eq!(TURN_INERTIALIZATION_DURATION, 0.2);
+        let mut stack = AlsTurnMontageStack::default();
+        stack.begin(0.0, false, TURN_DUR_90, 1.2, false);
+        stack.entries[0].sampling_ready = true;
+        stack.advance(0.05);
+        assert!((stack.entries[0].weight() - 0.15625).abs() < 1e-6);
     }
 
     #[test]
