@@ -549,11 +549,20 @@ fn refresh_foot_lock_inputs(
     mut telemetry: Query<&mut AlsFootLockTeleportTelemetry>,
     owners: Query<&ColliderOf>,
     bodies: Query<&RigidBody>,
+    instances: Query<&AnimatedSceneInstance>,
+    update_gates: Query<&crate::extensions::post_physics_animation::AnimationPoseUpdateGate>,
 ) {
     let dt = time.delta_secs();
     for (entity, assembly, bones, selection, locomotion, lock_input, stance, settings, movement_base,
         mut lifecycle, mut lock_state,
         mut dynamic_transition, mut rig_input) in &mut characters {
+        if instances.get(assembly.avatar).ok().and_then(|instance| update_gates.get(instance.player_entity()).ok())
+            .is_some_and(|gate| gate.pending_update) {
+            lock_state.valid = false;
+            lock_state.became_valid = false;
+            if let Some(input) = rig_input.as_mut() { input.foot_transforms_valid = false; }
+            continue;
+        }
         let Ok(armature) = transforms.compute_global_transform(assembly.avatar) else { continue };
         let current_character_transform = armature.compute_transform();
         let use_ik_bones = selection.map_or(true, |selection| selection.use_ik_bones);
@@ -1168,6 +1177,64 @@ mod tests {
             assert!(state.lock_location.distance(current.to_matrix().transform_point3(local)) < 1e-5);
             assert!(state.lock_rotation.dot(current.rotation * local_rotation).abs() > 0.99999);
         }
+    }
+
+    #[test]
+    fn pending_animation_resume_rejects_stale_foot_transforms_before_the_rig() {
+        #[derive(Resource, Default)]
+        struct ResumeInputs(Vec<(bool, bool)>);
+        let mut outputs = Vec::new();
+        for source_validity in [false, true] {
+            let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            app.world_mut().resource_mut::<AlsFootIkTelemetryEnabled>().0 = true;
+            let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+            let mut pending = vec![avatar];
+            let mut meshes = Vec::new();
+            while let Some(entity) = pending.pop() {
+                if app.world().get::<Mesh3d>(entity).is_some() { meshes.push(entity); }
+                if let Some(children) = app.world().get::<Children>(entity) { pending.extend(children.iter()); }
+            }
+            assert!(!meshes.is_empty());
+            app.init_resource::<ResumeInputs>().add_systems(PostUpdate,
+                (move |gates: Query<&crate::extensions::post_physics_animation::AnimationPoseUpdateGate>,
+                    rigs: Query<&AlsControlRigInput>, mut players: Query<&mut AnimationGraphPlayer>,
+                    mut observed: ResMut<ResumeInputs>| {
+                    let gate = gates.get(player).unwrap();
+                    if gate.update_graph {
+                        observed.0.push((gate.pending_update, rigs.get(character).unwrap().foot_transforms_valid));
+                        if source_validity && gate.pending_update {
+                            crate::extensions::source_instance::set_source_frame_input(&mut players.get_mut(player).unwrap(),
+                                "control_rig_input.b_foot_transforms_valid", false);
+                        }
+                    }
+                }).after(crate::control_rig_apply::AlsControlRigInputSet)
+                    .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate));
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.1)));
+            app.world_mut().entity_mut(avatar).insert(crate::animation_visibility::AlsAnimationTickOption::OnlyTickMontagesWhenNotRendered);
+            for mesh in &meshes { app.world_mut().entity_mut(*mesh).insert((ViewVisibility::HIDDEN, InheritedVisibility::VISIBLE)); }
+            for _ in 0..15 { app.update(); }
+            let gate = app.world().get::<crate::extensions::post_physics_animation::AnimationPoseUpdateGate>(player).unwrap();
+            assert!(!gate.update_graph && gate.pending_update, "The actual source fixture must stop graph evaluation before testing resume: gate={gate:?}");
+            app.world_mut().resource_mut::<ResumeInputs>().0.clear();
+            for mesh in &meshes { app.world_mut().entity_mut(*mesh).insert(ViewVisibility::VISIBLE); }
+            app.update();
+            let first = app.world().resource::<ResumeInputs>().0.first().copied().unwrap();
+            assert!(first.0);
+            let instance = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+            let graphs = app.world().resource::<Assets<AnimationGraph>>();
+            let (_, node, state) = current_control_rig(instance, graphs).unwrap();
+            let definition = node.try_inner_downcast_ref::<ControlRigBoundaryNode>().unwrap().definition.as_ref().unwrap();
+            let calls = state.calls.iter().filter(|call| rig_call_is(definition, call, "FAlsRigUnit_ApplyFootOffsetLocation::Execute")
+                || rig_call_is(definition, call, "FAlsRigUnit_ApplyFootOffsetRotation::Execute")
+                || rig_call_is(definition, call, "FRigUnit_TwoBoneIKSimplePerItem::Execute")).count();
+            outputs.push((first.1, calls));
+            app.update();
+            assert_eq!(app.world().resource::<ResumeInputs>().0.last().copied(), Some((false, true)),
+                "Source registered next update validates current feet after the pending frame");
+        }
+        assert_eq!(outputs[0].1, outputs[1].1,
+            "Source pending Feet validity must gate the actual first-resume foot solve calls identically to the source-required false input: outputs={outputs:?}");
+        assert!(!outputs[0].0, "Source pending NativeUpdate invalidates Feet before the first resumed ControlRig evaluation");
     }
 
     #[test]
