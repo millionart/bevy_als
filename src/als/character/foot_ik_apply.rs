@@ -570,6 +570,19 @@ fn refresh_foot_lock_inputs(
         }
         let Ok(armature) = transforms.compute_global_transform(assembly.avatar) else { continue };
         let current_character_transform = armature.compute_transform();
+        if !lock_state.valid
+            && let Ok(pelvis_parent) = parents.get(bones.left_thigh)
+            && let Ok(pelvis_world) = transforms.compute_global_transform(pelvis_parent.parent())
+        {
+            let pelvis_component = pelvis_world.reparented_to(&armature);
+            if pelvis_component.translation.abs().max_element() <= 1e-6
+                && (pelvis_component.rotation.abs_diff_eq(Quat::IDENTITY, 1e-4)
+                    || pelvis_component.rotation.abs_diff_eq(-Quat::IDENTITY, 1e-4))
+            {
+                if let Some(input) = rig_input.as_mut() { input.foot_transforms_valid = false; }
+                continue;
+            }
+        }
         let use_ik_bones = selection.map_or(true, |selection| selection.use_ik_bones);
         if !foot_bones_are_valid(bones, use_ik_bones, &bone_globals) {
             if let Some(input) = rig_input.as_mut() { input.foot_transforms_valid = false; }
@@ -694,6 +707,43 @@ fn foot_lock_movement_base(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn invalid_feet_with_identity_pelvis_do_not_execute_the_foot_rig() {
+        for prior_valid in [false, true] {
+            let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+            app.world_mut().resource_mut::<AlsFootIkTelemetryEnabled>().0 = true;
+            let bones = *app.world().get::<AlsFootBones>(actor).unwrap();
+            let pelvis = app.world().get::<ChildOf>(bones.left_thigh).unwrap().parent();
+            let pelvis_parent = app.world().get::<ChildOf>(pelvis).unwrap().parent();
+            app.world_mut().get_mut::<AlsFootLockState>(actor).unwrap().valid = prior_valid;
+            app.world_mut().get_mut::<AlsFootLockState>(actor).unwrap().became_valid = false;
+            app.add_systems(PostUpdate, (move |mut space: ParamSet<(TransformHelper, Query<&mut Transform>)>| {
+                let mesh = space.p0().compute_global_transform(avatar).unwrap();
+                let parent = space.p0().compute_global_transform(pelvis_parent).unwrap();
+                let source_pose = GlobalTransform::from(mesh.compute_transform()
+                    .with_scale(mesh.to_scale_rotation_translation().0 * 2.0));
+                *space.p1().get_mut(pelvis).unwrap() = source_pose.reparented_to(&parent);
+                let actual = space.p0().compute_global_transform(pelvis).unwrap();
+                let component = actual.reparented_to(&mesh);
+                assert!(component.translation.abs().max_element() <= 1e-6 && component.rotation.abs_diff_eq(Quat::IDENTITY, 1e-4),
+                    "Source pelvis identity fixture must use component space: {component:?}");
+            }).before(FootIkApplySet::UpdateInputs).after(crate::als::motion::AlsActualVelocitySet));
+            app.update();
+            let instance = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+            assert!(instance.get_error().is_none());
+            let graphs = app.world().resource::<Assets<bevy_animation_graph::core::animation_graph::AnimationGraph>>();
+            let (_, node, state) = current_control_rig(instance, graphs).unwrap();
+            let definition = node.try_inner_downcast_ref::<ControlRigBoundaryNode>().unwrap().definition.as_ref().unwrap();
+            let calls = state.calls.iter().filter(|call| rig_call_is(definition, call, "FAlsRigUnit_ApplyFootOffsetLocation::Execute")
+                || rig_call_is(definition, call, "FAlsRigUnit_ApplyFootOffsetRotation::Execute")
+                || rig_call_is(definition, call, "FRigUnit_TwoBoneIKSimplePerItem::Execute")).count();
+            assert_eq!(calls, if prior_valid { 8 } else { 2 },
+                "Source pelvis identity is a first-validity gate and ignores scale: prior_valid={prior_valid}");
+            assert_eq!(app.world().get::<AlsFootLockState>(actor).unwrap().valid, prior_valid);
+        }
+    }
     use crate::character_assembly::AlsCharacterAvatar;
     use bevy_animation_graph::core::animation_clip::EntityPath;
 
@@ -1247,42 +1297,56 @@ mod tests {
 
     #[test]
     fn pending_teleport_detection_does_not_rebase_the_restored_feet() {
-        let mut outputs = Vec::new();
-        for source_mark_gate in [false, true] {
-            let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
-            let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
-            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.1)));
-            app.world_mut().entity_mut(avatar).insert(crate::animation_visibility::AlsAnimationTickOption::OnlyTickMontagesWhenNotRendered);
-            let mut pending = vec![avatar];
-            let mut meshes = Vec::new();
-            while let Some(entity) = pending.pop() {
-                if app.world().get::<Mesh3d>(entity).is_some() { meshes.push(entity); }
-                if let Some(children) = app.world().get::<Children>(entity) { pending.extend(children.iter()); }
-            }
-            assert!(!meshes.is_empty());
-            for mesh in &meshes { app.world_mut().entity_mut(*mesh).insert((ViewVisibility::HIDDEN, InheritedVisibility::VISIBLE)); }
-            for _ in 0..15 { app.update(); }
-            assert!(!app.world().get::<crate::extensions::post_physics_animation::AnimationPoseUpdateGate>(player).unwrap().update_graph);
-            app.add_systems(PostUpdate,
-                (move |gates: Query<&crate::extensions::post_physics_animation::AnimationPoseUpdateGate>, mut states: Query<&mut FootLockLifecycleState>| {
-                    if source_mark_gate && gates.get(player).unwrap().pending_update {
-                        states.get_mut(character).unwrap().teleported_at = None;
-                    }
-                }).after(record_foot_lock_teleports).before(refresh_foot_lock_inputs));
-            app.world_mut().get_mut::<avian3d::prelude::Position>(character).unwrap().x += 1.0;
-            app.world_mut().get_mut::<Transform>(character).unwrap().translation.x += 1.0;
-            for mesh in &meshes { app.world_mut().entity_mut(*mesh).insert(ViewVisibility::VISIBLE); }
-            app.update();
-            app.update();
-            assert!(app.world().get::<AlsFootLockState>(character).unwrap().valid);
-            app.world_mut().get_mut::<avian3d::prelude::Position>(character).unwrap().x += 0.1;
-            app.world_mut().get_mut::<Transform>(character).unwrap().translation.x += 0.1;
-            app.update();
-            let feet = *app.world().get::<AlsFootLockState>(character).unwrap();
-            outputs.push((feet.left.final_location, feet.right.final_location));
+        use bevy::ecs::system::RunSystemOnce;
+        #[derive(Resource, Default)]
+        struct SourceReplay {
+            active: bool,
+            inputs: Option<(FootLockLifecycleState, AlsFootLockState, AlsDynamicTransitionState, AlsFootLockInput, AlsFootLockTeleportTelemetry, AlsControlRigInput)>,
         }
-        assert!(outputs[0].0.distance(outputs[1].0) < 1e-4 && outputs[0].1.distance(outputs[1].1) < 1e-4,
-            "Source NativeUpdate suppresses pending MarkTeleported, so restored feet must match the source no-window path: outputs={outputs:?}");
+        let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.1)));
+        app.world_mut().entity_mut(avatar).insert(crate::animation_visibility::AlsAnimationTickOption::OnlyTickMontagesWhenNotRendered);
+        let mut pending = vec![avatar];
+        let mut meshes = Vec::new();
+        while let Some(entity) = pending.pop() {
+            if app.world().get::<Mesh3d>(entity).is_some() { meshes.push(entity); }
+            if let Some(children) = app.world().get::<Children>(entity) { pending.extend(children.iter()); }
+        }
+        assert!(!meshes.is_empty());
+        for mesh in &meshes { app.world_mut().entity_mut(*mesh).insert((ViewVisibility::HIDDEN, InheritedVisibility::VISIBLE)); }
+        for _ in 0..15 { app.update(); }
+        assert!(!app.world().get::<crate::extensions::post_physics_animation::AnimationPoseUpdateGate>(player).unwrap().update_graph);
+        app.init_resource::<SourceReplay>().add_systems(PostUpdate,
+            (move |states: Query<(&FootLockLifecycleState, &AlsFootLockState, &AlsDynamicTransitionState, &AlsFootLockInput, &AlsFootLockTeleportTelemetry, &AlsControlRigInput)>,
+                mut replay: ResMut<SourceReplay>| {
+                if replay.active {
+                    let (life, lock, dynamic, input, telemetry, rig) = states.get(character).unwrap();
+                    replay.inputs = Some((*life, *lock, *dynamic, *input, *telemetry, *rig));
+                }
+            }).after(record_foot_lock_teleports).before(refresh_foot_lock_inputs));
+        app.add_systems(PostUpdate, (move |world: &mut World| {
+            if !world.resource::<SourceReplay>().active { return; }
+            let actual = *world.get::<AlsFootLockState>(character).unwrap();
+            let (mut life, lock, dynamic, input, telemetry, rig) = world.resource_mut::<SourceReplay>().inputs.take().unwrap();
+            life.teleported_at = None;
+            world.entity_mut(character).insert((life, lock, dynamic, input, telemetry, rig));
+            world.run_system_once(refresh_foot_lock_inputs).unwrap();
+            let source = *world.get::<AlsFootLockState>(character).unwrap();
+            assert!(actual.left.final_location.distance(source.left.final_location) < 1e-4
+                && actual.right.final_location.distance(source.right.final_location) < 1e-4,
+                "Source NativeUpdate suppresses pending MarkTeleported, so restored feet must match the same-frame source no-window path: actual={actual:?}, source={source:?}");
+        }).after(refresh_foot_lock_inputs).before(crate::control_rig_apply::AlsControlRigInputSet));
+        app.world_mut().get_mut::<avian3d::prelude::Position>(character).unwrap().x += 1.0;
+        app.world_mut().get_mut::<Transform>(character).unwrap().translation.x += 1.0;
+        for mesh in &meshes { app.world_mut().entity_mut(*mesh).insert(ViewVisibility::VISIBLE); }
+        app.update();
+        app.update();
+        assert!(app.world().get::<AlsFootLockState>(character).unwrap().valid);
+        app.world_mut().get_mut::<avian3d::prelude::Position>(character).unwrap().x += 0.1;
+        app.world_mut().get_mut::<Transform>(character).unwrap().translation.x += 0.1;
+        app.world_mut().resource_mut::<SourceReplay>().active = true;
+        app.update();
     }
 
     #[test]

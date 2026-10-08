@@ -1407,7 +1407,7 @@
     - [ ] BF134.02H2 ProcessFootLockTeleport/BaseChange/RefreshFootLock算法/clock/输入与当前sourcePose闭包；依赖H1，开始时按剩余规模独立估时或拆分，未开始。
     - [ ] BF134.02H3 ConstrainFootLock源几何/阈值/写回与当前consumer；依赖H2，开始时另估时，未开始。
       - [x] BF134.02H1a Feet重新valid前Pelvis component-space identity门槛与实际ControlRig反例；source1263明确EqualsNoScaleIdentity时return且valid仍false，target当前foot_bones_are_valid仅finite无pelvisidentity检查。实际开始2026-10-08 21:58 +08:00，预估结束22:18 +08:00；先sourcecomponent空间无scale反例/首次invalid与alreadyValid控制，观察实际footRig solve调用而非只改flag，20min包括一次约95秒重编与前提核查；未证consumer差不加新guard，H1父22:20估时独立。
-      - [ ] BF134.02H1b Source pelvis identity仅在Feet invalid时阻止首次valid的最小实现/消融/恢复及currentstatic；H1a实际Rig110.748红8call vs源2call，空间前提已过。实际开始2026-10-08 22:00 +08:00，预估结束22:20 +08:00；依据现TransformHelper和现thighParent=pelvis引用可直接复用，不新增bones字段/cache，20min含alreadyValid identity控制、sourceNoScale阈值和恢复跟踪、一次消融重编，公共normal/Gate另拆。
+      - [x] BF134.02H1b Source pelvis identity仅在Feet invalid时阻止首次valid的最小实现/消融/恢复及currentstatic；H1a实际Rig110.748红8call vs源2call，空间前提已过。实际开始2026-10-08 22:00 +08:00，预估结束22:20 +08:00；依据现TransformHelper和现thighParent=pelvis引用可直接复用，不新增bones字段/cache，20min含alreadyValid identity控制、sourceNoScale阈值和恢复跟踪、一次消融重编，公共normal/Gate另拆。
       - [ ] BF134.02H1c Pelvisvalid source修复正常target_game/play与原startup/Visibility/FootIK真实Gate；依赖b静态闭环后实际估时，未开始。
   - [ ] BF134.02L AnimationPlayer丢弃/重建Gate移除生命周期warning source边界；已数次原FootIK退出warning证明路径，依赖当前native公式闭包后选取最小复现再定级，条目本身不授权提前修改。
 
@@ -1542,6 +1542,8 @@
   - 02H1b旧P273同World Gate必要性红（2026-10-08 22:16:48.900 +08:00）：15Foot同World正向103.112绿后只取消原!pendingMark门槛100.705红，两actual锁脚相对同帧/sourceNoWindow回放各多+.1m，pose/旋转/有效状态完全同一输入，稳定保留原缺陷检出能力，不按world差异放宽阈值。原production门槛已按final原bytes恢复/自然mtime，same target全15Foot重编中；原identityGate8vs2消融98.626已独立齐备。待本轮原counter/全回归/static绿后恢复有限复开的B4c3a测试勾选（不重复P273计数），H1b独立代码提交再正常public。79/P280候选，b预估22:20误差22:40/父同22:40有效。
 
   - 02H1a反例完成/旧P273测试Gate有限恢复（2026-10-08 22:20:51 +08:00）：H1a当前pelvis componentIdentity/sourceNoScale/invalid门槛实际Rig110.748红8vs2、controls100.737绿已过；a实际21:58/预估22:18/实际22:04:14.235偏差−13分45.765秒成功，独立docs提交。B4c3a仅测试输入前提复开闭环：原两world105.054失败/同版单测3.476绿→同worldpreRig六快照/sourceNoWindow回放15/103.112绿→只删除旧pendingMark门槛100.705两脚+.1m实际红→finalNative33748445原bytes自然mtime同target15/100.509恢复，其他51回归齐备共66与static4.509pass。恢复旧B4c3a勾选、不改其production判断、不重复计P273；identityGate原消融98.626独立有效。79/P280候选，b代码leaf/正常public尚待，b22:20+20min容差/父H1误差22:40均有效，其他完成leaf不复开。
+
+  - 02H1b source/static完成（2026-10-08 22:21 +08:00）：sourceinvalidFeet+componentPelvisIdentity门槛仅首次valid生效，已valid保持，scale忽略/Quat±/translation单位容差精确；真实Rig110.748红→control100.737绿→gate删除98.626红。最终源码33748445自然mtime same target15/100.509原counter恢复、66unique/current/static4.509全部通过；旧P273仅夹具改同world并经旧guard删除100.705再红/恢复，已有限核销。不新增骨骼字段/history/cache，复用现父骨与TransformHelper/valid布尔；既有pending/teleport算法和图/转换规则/all15diff0保持。b实际22:00/预估22:20/实际22:21偏差+1分容差内成功，代码独立提交后c正常target_game/play noopt0 jobs2+原startup/visibility/foot_ik按顺序验证；79/P280未accepted，父H1误差22:40独立有效。
 
 - [ ] BF134.03 PhysicsAsset/物理时钟、相机、Overlay、关卡、材质与 UI 逐链审计及修复；只有限复开有 fresh source/症状/consumer 证据的旧项。
 - [ ] BF134.04 全范围覆盖核销与真实 Playground 最终 Gate；所有确认的 P2+ 项通过自身 Gate 后才可核销总目标。
