@@ -320,10 +320,10 @@ fn ab_als_input_writer(
             );
             player.set_global_input_data(
                 "locomotion_state.acceleration_world_space",
-                if pending_update {
+                if pending_update || delta_seconds <= 1e-8 {
                     Vec3::ZERO
                 } else {
-                    motion.world_acceleration
+                    motion.world_acceleration * (time.delta_secs() / delta_seconds)
                 },
             );
             player.set_global_input_data(
@@ -454,6 +454,87 @@ fn ab_als_input_writer(
 mod tests {
     use super::*;
     use crate::als::{input::AlsInputCommand, motion::AlsInputOverride};
+
+    #[test]
+    fn generated_grounded_lean_uses_the_source_animation_acceleration_clock() {
+        use crate::actual_motion::AlsActualMotionSet;
+        use crate::extensions::{post_physics_animation::PostPhysicsAnimationSet, source_instance::source_player_property};
+
+        #[derive(Resource)]
+        struct Fixture {
+            actor: Entity,
+            velocity: Vec3,
+            previous_velocity: Vec3,
+            expected_lean: f32,
+        }
+        fn set_velocity(fixture: Res<Fixture>, mut actors: Query<&mut avian3d::prelude::LinearVelocity>) {
+            actors.get_mut(fixture.actor).unwrap().0 = fixture.velocity;
+        }
+        fn source_lean(mut fixture: ResMut<Fixture>, actors: Query<(&crate::character_assembly::AlsCharacterAssembly, &crate::als::state::LocomotionState)>, avatars: Query<&AnimatedSceneInstance>, players: Query<&AnimationGraphPlayer>) {
+            let (assembly, state) = actors.get(fixture.actor).unwrap();
+            assert_eq!(*state, crate::als::state::LocomotionState::Grounded);
+            let player = players.get(avatars.get(assembly.avatar).unwrap().player_entity()).unwrap();
+            let scalar = |key| player.get_global_input_data(key).and_then(|value| value.as_f32().ok()).unwrap();
+            assert_eq!(player.get_global_input_data("animation.pending_update").and_then(|value| value.as_bool().ok()), Some(false));
+            let delta = scalar("animation.delta_seconds");
+            let acceleration = if delta > 1e-8 {
+                (fixture.velocity - fixture.previous_velocity) / delta
+            } else { Vec3::ZERO };
+            let rotation = player.get_global_input_data("locomotion_state.rotation_quaternion_world_space").unwrap().as_quat().unwrap();
+            let target = crate::als::animation::acceleration_amount(acceleration, fixture.velocity, rotation,
+                scalar("locomotion_state.max_acceleration"), scalar("locomotion_state.max_braking_deceleration")).x;
+            let previous = source_player_property(player, "lean_state.forward_amount").and_then(|value| value.as_f32().ok()).unwrap();
+            let alpha = 1.0 - crate::als::animation::inv_exp_approx(std::f32::consts::LN_2 / (0.2 + 1e-8) * delta);
+            fixture.expected_lean = previous + (target - previous) * alpha;
+            fixture.previous_velocity = fixture.velocity;
+        }
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().entity_mut(actor).insert(crate::als::transition::AlsStateRequest::default().with_rotation_mode(RotationMode::ViewDirection));
+        for _ in 0..3 { app.update(); }
+        let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let previous_velocity = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap()
+            .get_global_input_data("locomotion_state.velocity_world_space").unwrap().as_vec3().unwrap();
+        app.insert_resource(Fixture { actor, velocity: Vec3::NEG_Z, previous_velocity, expected_lean: 0.0 });
+        app.add_systems(PostUpdate, set_velocity.after(crate::als::motion::AlsActualVelocitySet).before(AlsActualMotionSet));
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        let mut stable_frames = 0;
+        for _ in 0..240 {
+            app.update();
+            let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+            let arena = player.get_context_arena().unwrap();
+            let properties = arena.get_toplevel().node_states.get::<crate::extensions::source_instance::SourceInstanceProperties>(
+                bevy_animation_graph::core::animation_graph::NodeId::default(), bevy_animation_graph::core::context::node_states::StateKey::Default).unwrap();
+            if properties.write_frames.get("standing_source.acceleration_forward") == Some(&arena.frame_index()) {
+                stable_frames += 1;
+                if stable_frames == 3 { break; }
+            } else { stable_frames = 0; }
+            assert!(std::time::Instant::now() < deadline, "Grounded native lean fixture did not leave its landing state");
+        }
+        assert_eq!(stable_frames, 3, "Grounded native lean fixture did not update on three consecutive frames");
+        {
+            let mut fixture = app.world_mut().resource_mut::<Fixture>();
+            fixture.previous_velocity = fixture.velocity;
+        }
+        app.add_systems(PostUpdate, source_lean.after(crate::head_layer::AlsHeadLayerSet).before(PostPhysicsAnimationSet::Evaluate));
+        for (custom_dilation, speed) in [(1.0_f32, 1.01_f32), (0.5, 1.02)] {
+            app.world_mut().entity_mut(actor).insert(crate::als_camera::AlsCameraCustomTimeDilation(custom_dilation));
+            app.world_mut().resource_mut::<Fixture>().velocity = Vec3::NEG_Z * speed;
+            app.update();
+            let expected = app.world().resource::<Fixture>().expected_lean;
+            let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+            assert!(player.get_error().is_none());
+            let actual = source_player_property(player, "lean_state.forward_amount").and_then(|value| value.as_f32().ok()).unwrap();
+            assert!((actual - expected).abs() < 1e-6,
+                "Native grounded lean uses the wrong acceleration clock: actual={actual}, source={expected}, custom={custom_dilation}");
+        }
+        app.world_mut().entity_mut(actor).insert(crate::als_camera::AlsCameraCustomTimeDilation(0.0));
+        app.world_mut().resource_mut::<Fixture>().velocity = Vec3::NEG_Z * 1.03;
+        app.update();
+        let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+        assert_eq!(player.get_global_input_data("locomotion_state.acceleration_world_space")
+            .and_then(|value| value.as_vec3().ok()), Some(Vec3::ZERO),
+            "Native animation rate-of-change must be zero when its delta is zero");
+    }
 
     #[test]
     fn animation_input_follows_consumed_motion_through_the_actual_motor_and_writer() {
