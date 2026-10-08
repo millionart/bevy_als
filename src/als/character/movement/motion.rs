@@ -2805,6 +2805,7 @@ pub(crate) fn locomotion_drive_system(
     target_bodies: Query<&RigidBody, Without<AlsCharacter>>,
     target_colliders: Query<&avian3d::prelude::ColliderOf>,
     mantle_controls: Query<Option<&AlsMantleControlSettings>, With<AlsCharacter>>,
+    movement_bases: Query<&crate::als::dynamics::AlsMovementBaseDynamicsState, With<AlsCharacter>>,
     mantle_start_time_settings: Query<Option<&AlsMantleStartTimeSettings>, With<AlsCharacter>>,
     params_assets: Res<Assets<AlsMovementParams>>,
     rolls: Query<&crate::als::roll::AlsRollState, With<AlsCharacter>>,
@@ -2909,7 +2910,7 @@ pub(crate) fn locomotion_drive_system(
                 MantleDetectionInput {
                     origin,
                     actor_yaw: yaw_from_direction(fwd),
-                    velocity: velocity.0,
+                    velocity: crate::als::dynamics::locomotion_velocity(velocity.0, *loco, movement_bases.get(entity).ok()),
                     input_direction: world_dir,
                     locomotion: *loco,
                     stance: *stance,
@@ -4833,6 +4834,54 @@ mod tests {
             if maximum > 1e-4 { failures.push((child, step, maximum)); }
         }
         assert!(failures.is_empty(), "Component movement was discarded without a velocity: {failures:?}");
+    }
+
+    #[test]
+    fn mantle_probe_uses_own_locomotion_velocity_on_a_moving_base() {
+        use avian3d::prelude::{CollisionLayers, LayerMask};
+        use bevy::ecs::system::RunSystemOnce;
+        use crate::als::character::AlsCollisionLayer;
+        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        let platform = app.world_mut().spawn((RigidBody::Kinematic, Collider::cuboid(8.0, 0.5, 8.0),
+            Transform::from_xyz(0.0, 2.0, 0.0), LinearVelocity::ZERO)).id();
+        let origin = Vec3::new(0.0, 3.174, 0.0);
+        app.world_mut().entity_mut(character).insert((Position(origin), Transform::from_translation(origin), LinearVelocity::ZERO));
+        for _ in 0..60 { app.update(); }
+        app.world_mut().entity_mut(platform).insert(LinearVelocity(Vec3::X * 2.0));
+        app.world_mut().entity_mut(character).insert(LinearVelocity(Vec3::X * 2.0));
+        for _ in 0..20 { app.update(); }
+        let base = *app.world().get::<crate::als::dynamics::AlsMovementBaseDynamicsState>(character).unwrap();
+        assert_eq!(base.entity, Some(platform));
+        assert!(base.relative_velocity.with_y(0.0).length() < 0.01);
+        let origin = app.world().get::<Position>(character).unwrap().0;
+        let target = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(1.0, 1.0, 0.8),
+            Transform::from_xyz(origin.x, 2.75, origin.z - 0.9),
+            CollisionLayers::new([AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], LayerMask::ALL))).id();
+        app.update();
+        app.world_mut().entity_mut(character).insert(AlsCharacterDebug::default());
+        let origin = app.world().get::<Position>(character).unwrap().0;
+        let source_detection = app.world_mut().run_system_once(move |spatial: SpatialQuery,
+            velocities: Query<(&RigidBody, &LinearVelocity, Option<&crate::als::dynamics::AlsComponentVelocity>), Without<AlsCharacter>>,
+            permissions: Query<Option<&AlsMantleTargetPermission>, Without<AlsCharacter>>, colliders: Query<&ColliderOf>| {
+            detect_mantle(&spatial, character, MantleDetectionInput { origin, actor_yaw: 0.0,
+                velocity: Vec3::ZERO, input_direction: Vec3::NEG_Z, locomotion: LocomotionState::Grounded,
+                capsule_half_height: 0.9, capsule_radius: 0.3, capsule_scale: 1.0, ..default() },
+                &velocities, &permissions, &colliders)
+        }).unwrap();
+        assert_eq!(source_detection.intent.map(|intent| intent.target_entity), Some(target),
+            "Source own-velocity input must detect the forward static ledge before the public attempt: trace={:?}", source_detection.trace);
+        {
+            let mut input = app.world_mut().get_mut::<AlsInputCommand>(character).unwrap();
+            input.move_dir = Vec2::Y;
+            input.jump_pressed = true;
+        }
+        app.update();
+        let trace = app.world().get::<AlsCharacterDebug>(character).unwrap().0.mantle_probe.unwrap();
+        let forward = trace.forward_end.unwrap() - trace.forward_start.unwrap();
+        assert!(forward.normalize_or_zero().dot(Vec3::NEG_Z) > 0.999,
+            "Source stationary-on-base Mantle trace follows character input rather than perpendicular base velocity: origin={origin:?} target={target:?} forward={forward:?} base={base:?}");
+        assert!(app.world().get::<AlsMantleState>(character).unwrap().active,
+            "The actual public Jump Mantle attempt must reach the forward static ledge");
     }
 
     #[test]
