@@ -1,0 +1,200 @@
+{
+  "format": "als_animgraph_authoring_gate_v1",
+  "graphs": [
+    {
+      "path": "assets/ALS/Character/AB_Als.runtime.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "b113030b-0000-4000-8000-000000000001",
+          "name": "AB_Als",
+          "position": [
+            -480.0,
+            0.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000002",
+          "name": "Ragdoll Dynamic",
+          "position": [
+            -480.0,
+            160.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000003",
+          "name": "Ragdoll Readback",
+          "position": [
+            -480.0,
+            240.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000004",
+          "name": "Ragdoll Config",
+          "position": [
+            -224.0,
+            192.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000002\", \"als_ragdolling_dynamic\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"dynamic\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000003\", \"als_ragdolling_readback\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"readback\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000001\", \"pose\")",
+          "target": "OutputData(\"pose\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"ragdoll_config\")",
+          "target": "OutputData(\"ragdoll_config\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "pose": "Pose",
+          "ragdoll_config": "RagdollConfig"
+        }
+      },
+      "root_output_exceptions": [
+        {
+          "name": "ragdoll_config",
+          "reason": "The framework consumes body simulation and pose readback controls independently from the source pose.",
+          "evidence": "docs/bf114-ragdoll-contract.md"
+        }
+      ]
+    }
+  ],
+  "id": "source_native_gameplay_tags_blend_contract",
+  "source_evidence": [
+    {
+      "path": "target/bf134/02k2/AlsAnimNode_GameplayTagsBlend.cpp",
+      "sha256": "b25d5e86269dcc865b9e12ab7574f9ba187283fc153e0824b9d027d0eb81277d"
+    },
+    {
+      "path": "target/bf134/02k2/AlsAnimNode_GameplayTagsBlend.h",
+      "sha256": "59b2e41f54b0b4329dae521f90d52e745822348d9cdc9c4544d29379aca1c5ac"
+    },
+    {
+      "path": "target/bf134/02k2/ue_gameplay_tag_container.h",
+      "sha256": "918b52b5852a8f74d974f436c9076332a7d47833f240b49d6471bd9988c01f3c"
+    },
+    {
+      "path": "target/bf134/02k2/ragdolling.ue.json",
+      "sha256": "26e2f103d275e622de20767bc65e268db3a62843d0e4bade8fc361e76e037db6"
+    },
+    {
+      "path": "target/bf134/02k2/generated_tag_pin_inventory.json",
+      "sha256": "7af6ca7c04b03229569013ef87eb007a958f84b8a849ce21409835def6ccbf39"
+    },
+    {
+      "path": "target/bf134/02k2/gameplay_tags_blend_source_contract.json",
+      "sha256": "1121eb5ff30b3bcc1ee90ae51d965834d941af88e728e15cf4fc0283ccd69249"
+    }
+  ],
+  "verification_commands": [
+    {
+      "label": "generated_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets",
+        "--include",
+        "ALS",
+        "--include",
+        "ALSCamera"
+      ]
+    },
+    {
+      "label": "generated_editor",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets"
+      ]
+    },
+    {
+      "label": "runtime_asset_boundary",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/validate_runtime_graph_asset_boundary.py",
+        "--assets-root",
+        "assets",
+        "--check"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "animgraph_assets",
+    "manual_case": "foot_ik"
+  },
+  "focused_tests": [
+    {
+      "label": "tag_selection",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "selection_uses_default_for_invalid_or_unknown_tags"
+      ],
+      "evidence": "target/bf134/02k2/tag_selection.watchdog.json"
+    },
+    {
+      "label": "source_tag_selection",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "source_tag_blend_uses_real_tag_selection"
+      ],
+      "evidence": "target/bf134/02k2/source_tag_selection.watchdog.json"
+    },
+    {
+      "label": "source_tag_pose",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "source_pose_blends_accumulate_weighted_quaternions_before_normalizing"
+      ],
+      "evidence": "target/bf134/02k2/source_tag_pose.watchdog.json"
+    }
+  ]
+}
