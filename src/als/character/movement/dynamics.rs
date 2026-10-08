@@ -886,6 +886,65 @@ mod tests {
     }
 
     #[test]
+    fn actual_turning_walk_checks_each_source_segment_before_aggregate_chord() {
+        use avian3d::prelude::{Collider, ShapeCastConfig, SpatialQueryFilter};
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        for _ in 0..35 { app.update(); }
+        let origin = app.world().get::<Position>(character).unwrap().0;
+        let first = Vec3::new(0.05625, 0.0, -0.06875);
+        let chord = Vec3::new(0.0984375, 0.0, -0.1925198);
+        let away = Vec3::new(-chord.z, 0.0, chord.x).normalize();
+        let center = origin + first + away * 0.3;
+        let obstacle = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.004, 3.0, 0.004),
+            Transform::from_xyz(center.x, 1.5, center.z))).id();
+        app.update();
+        let origin = app.world().get::<Position>(character).unwrap().0;
+        let source_first_velocity = app.world_mut().run_system_once(move |spatial: crate::extensions::RagdollSpatialQuery,
+            colliders: Query<&Collider>| {
+            let capsule = colliders.get(character).unwrap();
+            let filter = SpatialQueryFilter::from_excluded_entities([character]);
+            let (first_direction, first_distance) = Dir3::new_and_length(first).unwrap();
+            let source_hit = spatial.cast_shape(capsule, origin, Quat::IDENTITY, first_direction,
+                &ShapeCastConfig::from_max_distance(first_distance), &filter).unwrap();
+            assert_eq!(source_hit.entity, obstacle);
+            assert!(source_hit.distance > 0.0,
+                "Source first segment must hit after a free start: {source_hit:?}");
+            let (chord_direction, chord_distance) = Dir3::new_and_length(chord).unwrap();
+            assert!(spatial.cast_shape(capsule, origin, Quat::IDENTITY, chord_direction,
+                &ShapeCastConfig::from_max_distance(chord_distance), &filter).is_none(),
+                "The aggregate chord must miss the source first-segment obstacle");
+            let travel = crate::als::motion::movement_sweep_travel(first_distance, source_hit.distance);
+            let advance = *first_direction * travel;
+            let remaining = first - advance;
+            let slide = remaining - source_hit.normal1 * remaining.dot(source_hit.normal1);
+            if let Ok((direction, distance)) = Dir3::new_and_length(slide) {
+                assert!(spatial.cast_shape(capsule, origin + advance, Quat::IDENTITY, direction,
+                    &ShapeCastConfig { ignore_origin_penetration: true, ..ShapeCastConfig::from_max_distance(distance) }, &filter).is_none(),
+                    "The source tangent continuation must remain unobstructed");
+            }
+            let first_actual = (advance + slide).with_y(0.0) / 0.05;
+            let second = first_actual - (first_actual - Vec3::NEG_Z * first_actual.length()) * 0.25 + Vec3::NEG_Z;
+            let second_delta = second * 0.05;
+            let (direction, distance) = Dir3::new_and_length(second_delta).unwrap();
+            assert!(spatial.cast_shape(capsule, origin + advance + slide, Quat::IDENTITY, direction,
+                &ShapeCastConfig { ignore_origin_penetration: true, ..ShapeCastConfig::from_max_distance(distance) }, &filter).is_none(),
+                "The next source step must remain unobstructed after first collision feedback");
+            first_actual
+        }).unwrap();
+        app.world_mut().entity_mut(character).insert((LinearVelocity(Vec3::X * 1.5),
+            crate::als::input::AlsInputCommand { move_dir: Vec2::Y, ..default() }));
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_millis(100)));
+        app.update();
+        let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
+        let source_speed = source_first_velocity.length();
+        let source_next = source_first_velocity
+            - (source_first_velocity - Vec3::NEG_Z * source_speed) * 0.25 + Vec3::NEG_Z;
+        assert!(velocity.distance(source_next) < 0.03,
+            "The source first-segment impact must affect subsequent walking velocity: first={source_first_velocity:?} actual={velocity:?} source_next={source_next:?}");
+    }
+
+    #[test]
     fn actual_stance_noop_and_settings_replacement_follow_source_consumers() {
         use bevy::ecs::system::RunSystemOnce;
         for stance in [Stance::Standing, Stance::Crouching] {

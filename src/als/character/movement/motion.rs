@@ -3387,11 +3387,7 @@ fn grounded_step_up_system(
         let delta = runtime.grounded_movement_delta
             .unwrap_or(next_velocity * time.delta_secs()).with_y(0.0);
         if runtime.simulation_substeps > 1 && runtime.grounded_movement_delta.is_some()
-            && let (Some(base), Some(dynamics)) = (base.as_deref_mut(), dynamics)
-            && spatial_query.cast_shape_predicate(capsule, position.0, transform.rotation,
-                Dir3::new(delta).unwrap_or(Dir3::NEG_Z), &ShapeCastConfig::from_max_distance(delta.length()),
-                &SpatialQueryFilter::from_excluded_entities([entity]),
-                &|candidate| character_blocks_collider(entity, candidate, &candidates)).is_some() {
+            && let (Some(base), Some(dynamics)) = (base.as_deref_mut(), dynamics) {
             let initial = position.0;
             let mut current_transform = *transform;
             current_transform.translation = initial;
@@ -3399,6 +3395,23 @@ fn grounded_step_up_system(
                 max_allowed_gait.0, base.relative_velocity, view_yaw.0);
             let factor = braking.map_or(crate::als::dynamics::BRAKING_FRICTION_FACTOR, |state| state.factor);
             let support = base.support_velocity.with_y(0.0);
+            let mut probe_origin = initial;
+            let mut source_contact = false;
+            crate::als::dynamics::simulate_grounded_motion_with_feedback(
+                base.relative_velocity, controller.basis.desired_motion, max_speed, dynamics.0, &params.cmc,
+                factor, time.delta_secs(), |step_velocity, step_seconds| {
+                    let segment = (step_velocity + support) * step_seconds;
+                    if let Ok((direction, distance)) = Dir3::new_and_length(segment) {
+                        source_contact |= spatial_query.cast_shape_predicate(capsule, probe_origin,
+                            transform.rotation, direction,
+                            &ShapeCastConfig { ignore_origin_penetration: true, ..ShapeCastConfig::from_max_distance(distance) },
+                            &SpatialQueryFilter::from_excluded_entities([entity]),
+                            &|candidate| character_blocks_collider(entity, candidate, &candidates)).is_some();
+                    }
+                    probe_origin += segment;
+                    (step_velocity, segment)
+                });
+            if !source_contact { continue; }
             let mut last_input = base.relative_velocity;
             let (final_velocity, _, _) = crate::als::dynamics::simulate_grounded_motion_with_feedback(
                 base.relative_velocity, controller.basis.desired_motion, max_speed, dynamics.0, &params.cmc,
