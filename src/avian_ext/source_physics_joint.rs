@@ -195,13 +195,20 @@ impl XpbdConstraint<2> for SourcePhysicsJoint {
         let mut limit_lambdas = data.limit_lambdas;
         let mut motor_lambdas = data.motor_lambdas;
         for index in 0..3 {
-            let frames = current_frames(parent, child, data);
-            let correction = angular_limit_correction(
-                frames,
-                self.angular_limits,
-                index,
-                self.use_linear_solver,
-            );
+            let cached_limit = self.use_linear_solver && matches!(self.angular_limits[index],SourceAngularLimit::Limited(_));
+            let correction = if cached_limit {
+                let frames = (data.pre_solve_rotation[0]*data.frames[0],data.pre_solve_rotation[1]*data.frames[1]);
+                let mut limits = self.angular_limits;
+                limits[index] = SourceAngularLimit::Limited(0.0);
+                let (mut axis, mut angle) = angular_limit_correction(frames,limits,index,true).unwrap_or_else(||
+                    ((if index==0 {frames.1} else {frames.0})*Vec3::AXES[index],0.0));
+                if angle<0.0 {axis=-axis;angle=-angle;}
+                angle += axis.dot(cached_rotation_delta(child.delta_rotation.0*data.pre_solve_rotation[1].conjugate())
+                    -cached_rotation_delta(parent.delta_rotation.0*data.pre_solve_rotation[0].conjugate()));
+                limit_error(self.angular_limits[index],angle).map(|error|(axis,error))
+            } else {
+                angular_limit_correction(current_frames(parent,child,data),self.angular_limits,index,self.use_linear_solver)
+            };
             let spring = match self.angular_limits[index] {
                 SourceAngularLimit::Limited(_) if index == 0 => self.twist_spring,
                 SourceAngularLimit::Limited(_) => self.swing_spring,
@@ -222,7 +229,7 @@ impl XpbdConstraint<2> for SourcePhysicsJoint {
                 0.0,
                 &mut limit_lambdas[index],
                 false,
-                false,
+                cached_limit,
                 self.settings.angle_tolerance_radians,
                 dt,
             );
@@ -495,7 +502,7 @@ fn apply_angular_correction(
     target_velocity: f32,
     lambda: &mut f32,
     axis_only: bool,
-    cached_drive: bool,
+    cached_rotation: bool,
     tolerance: f32,
     dt: f32,
 ) {
@@ -516,12 +523,12 @@ fn apply_angular_correction(
     let delta = if let Some(spring) = spring {
         let parent_rotation = parent.delta_rotation.0 * data.pre_solve_rotation[0].conjugate();
         let child_rotation = child.delta_rotation.0 * data.pre_solve_rotation[1].conjugate();
-        let correction_parent = if cached_drive {
+        let correction_parent = if cached_rotation {
             cached_rotation_delta(parent_rotation)
         } else {
             shortest_quat(parent_rotation).to_scaled_axis()
         };
-        let correction_child = if cached_drive {
+        let correction_child = if cached_rotation {
             cached_rotation_delta(child_rotation)
         } else {
             shortest_quat(child_rotation).to_scaled_axis()
@@ -543,7 +550,7 @@ fn apply_angular_correction(
     } else {
         (response_parent * delta, -response_child * delta)
     };
-    if cached_drive {
+    if cached_rotation {
         for (body, previous, delta) in [
             (parent, data.pre_solve_rotation[0], parent_delta),
             (child, data.pre_solve_rotation[1], child_delta),
@@ -863,6 +870,94 @@ mod tests {
             0,
             true,
         )
+    }
+
+    #[test]
+    fn authored_cached_twist_limit_matches_six_iteration_source_correction() {
+        let profile=crate::pa_als::parse_pa_als_profile();
+        for angle in [0.27_f32,0.35,0.7] {
+            let mut definition=profile.joints.iter().find(|joint|joint.label=="spine_01").unwrap().definition.clone();
+            definition.linear_locked=false;
+            definition.motors=[SourceAngularMotor::default();3];
+            let masses=["pelvis","spine_01"].map(|name|profile.bodies.iter().find(|body|body.label==name).unwrap().mass_properties.unwrap());
+            let rotations=[Quat::IDENTITY,definition.parent_frame.rotation*Quat::from_rotation_x(angle)*definition.child_frame.rotation.conjugate()];
+            let inertias=std::array::from_fn::<_,2,_>(|index| {
+                let basis=Mat3::from_quat(rotations[index]);
+                SolverBodyInertia::new(masses[index].mass_kg.recip(),SymmetricMatrix::from_mat3_unchecked(
+                    basis*masses[index].inertia_tensor_kg_m2.inverse()*basis.transpose()),LockedAxes::default(),0,true)
+            });
+            let conditioned=conditioned_inertias([&inertias[0],&inertias[1]],definition.mass_conditioning,definition.settings);
+            let inverse=conditioned.map(|value|Mat3::from(value.effective_inv_angular_inertia()));
+            let frames=[definition.parent_frame.rotation,rotations[1]*definition.child_frame.rotation];
+            let axis=frames[1]*Vec3::X;
+            let responses=inverse.map(|matrix|matrix*axis);
+            let inv_mass=axis.dot(responses[0]+responses[1]);
+            let spring=definition.twist_spring.unwrap();
+            let dt=1.0_f32/60.0;
+            let scale=if spring.acceleration_mode {inv_mass.recip()} else {1.0};
+            let stiffness=scale*spring.stiffness*dt*dt;
+            let damping=scale*spring.damping*dt;
+            let SourceAngularLimit::Limited(limit)=definition.angular_limits[0] else {unreachable!()};
+            let mut dq=[Vec3::ZERO;2];let mut lambda=0.0_f32;
+            let mut parent=SolverBody::default();let mut child=SolverBody::default();
+            let mut data=SourcePhysicsJointSolverData{frames,..default()};
+            for _ in 0..definition.settings.position_iterations {
+                let accumulated=axis.dot(dq[1]-dq[0]);
+                let error=angle+accumulated-limit;
+                if error>definition.settings.angle_tolerance_radians {
+                    let delta=(stiffness*error+damping*accumulated-lambda)/(1.0+(stiffness+damping)*inv_mass);
+                    lambda+=delta;dq[0]+=responses[0]*delta;dq[1]-=responses[1]*delta;
+                }
+                definition.solve([&mut parent,&mut child],[&inertias[0],&inertias[1]],&mut data,dt);
+            }
+            for (index,actual) in [parent.delta_rotation.0,child.delta_rotation.0].into_iter().enumerate() {
+                let d=dq[index];let expected=Quat::from_xyzw(d.x*0.5,d.y*0.5,d.z*0.5,1.0).normalize();
+                let error=(actual-expected).length().min((actual+expected).length());
+                assert!(error<0.0005,"Current cached twist limit differs: angle={angle}, body={index}, error={error}");
+            }
+        }
+    }
+
+    #[test]
+    fn cached_twist_limit_matches_the_real_single_substep_schedule() {
+        use avian3d::prelude::{Gravity,Mass,PhysicsPlugins,Rotation,RigidBody,SubstepCount};
+        use bevy::time::TimeUpdateStrategy;
+        use std::time::Duration;
+        let mut app=App::new();
+        app.add_plugins((MinimalPlugins,AssetPlugin::default(),bevy::mesh::MeshPlugin,TransformPlugin,
+            PhysicsPlugins::new(PostUpdate),SourcePhysicsJointPlugin));
+        app.insert_resource(Gravity(Vec3::ZERO));
+        app.insert_resource(SubstepCount(1));
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0/60.0)));
+        app.finish();app.cleanup();
+        let angle=0.8_f32;let limit=0.2617994_f32;
+        let parent=app.world_mut().spawn((RigidBody::Kinematic,Transform::IDENTITY)).id();
+        let child=app.world_mut().spawn((RigidBody::Dynamic,Mass(1.0),
+            AngularInertia{principal:Vec3::ONE,local_frame:Quat::IDENTITY},
+            Transform::from_rotation(Quat::from_rotation_x(angle)))).id();
+        let mut definition=joint();definition.parent=parent;definition.child=child;
+        definition.use_linear_solver=true;definition.settings.position_iterations=6;
+        definition.angular_limits[0]=SourceAngularLimit::Limited(limit);
+        definition.twist_spring=Some(SourceAngularSpring{stiffness:5000000.0,damping:5000.0,acceleration_mode:true});
+        app.world_mut().spawn(definition);
+        app.update();
+        app.world_mut().get_mut::<Rotation>(child).unwrap().0=Quat::from_rotation_x(angle);
+        app.world_mut().get_mut::<Transform>(child).unwrap().rotation=Quat::from_rotation_x(angle);
+        app.world_mut().get_mut::<avian3d::prelude::AngularVelocity>(child).unwrap().0=Vec3::ZERO;
+        app.update();
+        let dt=1.0_f32/60.0;let stiffness=5000000.0*dt*dt;let damping=5000.0*dt;
+        let mut dq=0.0_f32;let mut lambda=0.0_f32;
+        for _ in 0..6 {
+            let error=angle+dq-limit;
+            if error>0.001 {
+                let delta=(stiffness*error+damping*dq-lambda)/(1.0+stiffness+damping);
+                lambda+=delta;dq-=delta;
+            }
+        }
+        let expected=Quat::from_xyzw(dq*0.5,0.0,0.0,1.0).normalize()*Quat::from_rotation_x(angle);
+        let actual=app.world().get::<Rotation>(child).unwrap().0;
+        let error=(actual-expected).length().min((actual+expected).length());
+        assert!(error<0.0005,"Real cached twist limit differs: error={error}, actual={actual:?}, expected={expected:?}");
     }
 
     #[test]
