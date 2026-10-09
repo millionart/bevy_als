@@ -222,6 +222,7 @@ fn dispatch_transition_notifications(
     cursor.queued_turns.retain(|character, _| active.values().any(|owner| owner == character));
     for (avatar_entity, avatar, instance) in &avatars {
         let mut stop_requested = false;
+        let mut game_thread_transition = None;
         let player_entity = instance.player_entity();
         if !active.contains_key(&player_entity) { continue; }
         let Ok(player) = players.get(player_entity) else {
@@ -312,7 +313,7 @@ fn dispatch_transition_notifications(
                         if let Ok(stance) = stances.get(avatar.character)
                             && let Some(moving) = player.get_global_input_data("locomotion_state.b_moving").and_then(|value| value.as_bool().ok())
                             && let Some(playback) = transition_animation_call(notification, *stance, moving) {
-                            cursor.queued_transitions.insert(avatar.character, playback);
+                            game_thread_transition = Some(playback);
                             if let Ok(mut telemetry) = telemetry.get_mut(avatar.character) { telemetry.transition_animation_play_count += 1; }
                         }
                         continue;
@@ -344,7 +345,7 @@ fn dispatch_transition_notifications(
                                     |rotation| rotation.target_yaw);
                                 let (index, play_rate) = crate::stop_link::quick_stop_selection(
                                     *rotation_mode, input, player_view.map_or(view_yaw.0, |view| view.0), body, target_yaw);
-                                cursor.queued_transitions.insert(avatar.character,
+                                game_thread_transition = Some(
                                     if *stance == crate::als::state::Stance::Crouching {
                                         AlsTransitionPlayback::crouching_quick_stop(index, play_rate)
                                     } else { AlsTransitionPlayback::quick_stop(index, play_rate) });
@@ -354,7 +355,7 @@ fn dispatch_transition_notifications(
                             if let Ok(mut telemetry) = telemetry.get_mut(avatar.character) {
                                 telemetry.land_to_grounded_count += 1;
                             }
-                            cursor.queued_transitions.insert(avatar.character, AlsTransitionPlayback::standing_transition_right());
+                            game_thread_transition = Some(AlsTransitionPlayback::standing_transition_right());
                         }
                         Some(TransitionNotifyAction::StopLeft) => {
                             cursor
@@ -497,6 +498,10 @@ fn dispatch_transition_notifications(
         {
             queue_turn_in_grounded_group(&mut commands, avatar.character, avatar_entity, request);
         }
+        if let Some(playback) = game_thread_transition {
+            cursor.queued_transitions.remove(&avatar.character);
+            play_transition(&mut commands, avatar.character, playback);
+        }
     }
 }
 
@@ -620,7 +625,7 @@ mod tests {
     #[test]
     fn generated_quick_stop_consumes_the_notifying_frame_inputs() {
         use avian3d::prelude::{LinearVelocity, RigidBody};
-        fn run(change_input:bool)->(crate::stop_link::AlsTransitionPlayback,bevy_animation_graph::core::pose::Pose) {
+        fn run(change_input:bool)->(crate::stop_link::AlsTransitionPlayback,bevy_animation_graph::core::pose::Pose,String) {
         let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
         app.world_mut().entity_mut(character).insert((RigidBody::Kinematic, bevy_tnua::TnuaToggle::Disabled,
             crate::als::state::RotationMode::ViewDirection));
@@ -640,6 +645,9 @@ mod tests {
             *mode = crate::als::state::LocomotionState::Grounded;
         }).after(crate::actual_motion::AlsActualMotionSet).before(crate::gait_layer::AlsGaitLayerSet));
         for frame in 0..110 {
+            if frame==94 {
+                app.world_mut().get_mut::<AlsTransitionMontageStack>(character).unwrap().entries.clear();
+            }
             let speed=if (96..98).contains(&frame) {1.9_f32} else {0.0};
             {
                 let mut input = app.world_mut().resource_mut::<PivotFixtureInput>();
@@ -666,13 +674,13 @@ mod tests {
                 let target=app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
                 let player=app.world().get::<AnimationGraphPlayer>(target).unwrap();
                 let actual=player.get_global_input_data("transition.pose").unwrap().as_pose().unwrap();
-                return (*playback,actual.clone());
+                return (*playback,actual.clone(),format!("entries={:?}, pose_timestamp={:?}, runtime={:?}",stack.entries,actual.timestamp,app.world().get::<crate::stop_link::AlsRootTransitionSlotRuntime>(character)));
             }
         }
         panic!("Actual generated Standing FSM did not emit StopQuick: telemetry={:?}",app.world().get::<TransitionNotifyTelemetry>(character));
         }
-        let (source,expected)=run(false);
-        let (actual,pose)=run(true);
+        let (source,expected,source_stack)=run(false);
+        let (actual,pose,actual_stack)=run(true);
         assert_eq!((source.index,source.play_rate),(0.0,1.75));
         let mut dot=1.0_f32;let mut distance=0.0_f32;
         for bone in expected.paths.keys() {
@@ -681,8 +689,56 @@ mod tests {
             if let (Some(a),Some(b))=(source.translation,target.translation) {distance=distance.max(a.distance(b));}
         }
         assert!((actual.index,actual.play_rate)==(source.index,source.play_rate) && dot>1.0-1e-5 && distance<1e-5,
-            "Native notifying-frame QuickStop changed with later inputs: actual_rate={}, source_rate={}, rotation_degrees={}, translation_meters={distance}",
-            actual.play_rate,source.play_rate,(2.0*dot.clamp(-1.0,1.0).acos()).to_degrees());
+            "Native notifying-frame QuickStop changed with later inputs: actual_rate={}, source_rate={}, actual_clock={}, source_clock={}, rotation_degrees={}, translation_meters={distance}, source_stack={source_stack}, actual_stack={actual_stack}",
+            actual.play_rate,source.play_rate,actual.clip_time,source.clip_time,(2.0*dot.clamp(-1.0,1.0).acos()).to_degrees());
+    }
+
+    #[test]
+    fn game_thread_overlay_notify_plays_after_same_frame_worker_stop() {
+        fn run(leave_ground:bool) {
+            let (mut app,character,avatar)=crate::roll_drive::tests::loaded_roll_character();
+            app.world_mut().entity_mut(avatar).insert(crate::animation_visibility::AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones);
+            app.world_mut().entity_mut(character).insert((avian3d::prelude::RigidBody::Kinematic,
+                bevy_tnua::TnuaToggle::Disabled,crate::als::state::RotationMode::ViewDirection));
+            app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(character).unwrap()
+                .overlay_state=Some(crate::als::state::OverlayState::Rifle);
+            #[derive(Resource)]
+            struct FrameInput(bool,bool);
+            app.insert_resource(FrameInput(false,false));
+            app.add_systems(PostUpdate,(move |input:Res<FrameInput>,
+                mut actors:Query<(&mut crate::actual_motion::AlsActualMotion,
+                    &mut crate::als::state::LocomotionState,&mut crate::als::state::RotationMode)>| {
+                let (mut motion,mut state,mut mode)=actors.get_mut(character).unwrap();
+                motion.horizontal_speed=0.0;motion.world_velocity=Vec3::ZERO;
+                motion.local_velocity=Vec2::ZERO;motion.has_input=false;
+                *state=if input.0 {crate::als::state::LocomotionState::Air} else {crate::als::state::LocomotionState::Grounded};
+                *mode=if input.1 {crate::als::state::RotationMode::Aiming} else {crate::als::state::RotationMode::ViewDirection};
+            }).after(crate::standing_layer::AlsStandingLayerSet).before(crate::ab_als_root::AlsRootGraphSet));
+            for _ in 0..150 {app.update();}
+            let before=app.world().get::<TransitionNotifyTelemetry>(character).unwrap().clone();
+            *app.world_mut().resource_mut::<FrameInput>()=FrameInput(leave_ground,true);
+            app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(character).unwrap().rotation_mode=Some(crate::als::state::RotationMode::Aiming);
+            for _ in 0..4 {
+                app.update();
+                if app.world().get::<TransitionNotifyTelemetry>(character).unwrap().transition_animation_play_count>before.transition_animation_play_count {break;}
+            }
+            let after=app.world().get::<TransitionNotifyTelemetry>(character).unwrap();
+            let avatar=app.world().get::<AlsCharacterAssembly>(character).unwrap().avatar;
+            let target=app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+            let player=app.world().get::<AnimationGraphPlayer>(target).unwrap();
+            assert!(after.transition_animation_play_count>before.transition_animation_play_count,
+                "Actual Rifle did not dispatch its ready notification: {after:?}, rotation={:?}, source_rotation={:?}, moving={:?}, player_error={:?}, paused={}",
+                app.world().get::<crate::extensions::SourceAnimationInputs>(target).unwrap().gameplay_tag_input("rotation_mode"),crate::extensions::source_instance::source_player_property(player,"rotation_mode"),
+                crate::extensions::source_instance::source_player_property(player,"locomotion_state.b_moving"),player.get_error(),player.is_paused());
+            if leave_ground {assert!(after.stop_animations_count>before.stop_animations_count,
+                "Actual Grounded exit did not queue its worker stop: {after:?}");}
+            assert!(app.world().get::<AlsTransitionMontageStack>(character).is_some_and(|stack|
+                stack.entries.iter().any(|entry|entry.active &&
+                    crate::stop_link::source_transition_sequence(entry)==Some("A_Als_Stand_Transition_Left"))),
+                "Game-thread notify must play in its frame after worker stop; leave_ground={leave_ground}, telemetry={after:?}");
+        }
+        run(false);
+        run(true);
     }
 
     #[test]
