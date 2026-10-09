@@ -615,6 +615,54 @@ mod tests {
     use bevy_animation_graph::core::pose::BonePose;
 
     #[test]
+    fn short_grounded_air_contacts_keep_the_actual_pre_rig_pelvis_continuous() {
+        use bevy_animation_graph::core::{animated_scene::AnimatedSceneInstance,
+            animation_graph::{AnimationGraph, SourcePin, TargetPin}, animation_graph_player::AnimationGraphPlayer,
+            context::node_states::StateKey};
+        use crate::als::{state::{Gait, Stance, LocomotionState}, input::AlsInputCommand};
+        fn pelvis(app: &App, player: Entity) -> Vec3 {
+            let instance = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+            assert!(instance.get_error().is_none(), "Contact fixture graph failed: {:?}", instance.get_error());
+            let graphs = app.world().resource::<Assets<AnimationGraph>>();
+            let (context, rig, _) = crate::extensions::root_graph_boundaries::current_control_rig(instance, graphs).unwrap();
+            let graph = graphs.get(context.get_graph_id()).unwrap();
+            let SourcePin::NodeData(source, pin) = graph.edges_inverted.get(&TargetPin::NodeData(rig.id, "Source".into())).unwrap() else {
+                panic!("Rig input is not an authored pose edge");
+            };
+            let pose = context.node_caches.get_output_data(*source, StateKey::Default, pin.clone()).unwrap().into_pose().unwrap();
+            let skeletons = app.world().resource::<Assets<Skeleton>>();
+            let skeleton = skeletons.get(&pose.skeleton).unwrap();
+            let bone = skeleton.iter_paths().find(|path| path.parts.last().is_some_and(|name| name.as_str() == "pelvis")).unwrap().id();
+            pose.get_bone(bone).unwrap().translation.unwrap()
+        }
+        let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().entity_mut(avatar).insert(crate::animation_visibility::AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones);
+        app.world_mut().entity_mut(character).insert((avian3d::prelude::RigidBody::Kinematic, bevy_tnua::TnuaToggle::Disabled));
+        #[derive(Resource)]
+        struct ContactMode(LocomotionState);
+        app.insert_resource(ContactMode(LocomotionState::Grounded));
+        app.add_systems(PostUpdate, (move |mode: Res<ContactMode>, mut actors: Query<(&mut crate::actual_motion::AlsActualMotion,
+            &mut Gait, &mut Stance, &mut LocomotionState, &mut AlsInputCommand)>| {
+            let (mut motion, mut gait, mut stance, mut state, mut input) = actors.get_mut(character).unwrap();
+            *gait = Gait::Walking; *stance = Stance::Standing; *state = mode.0;
+            motion.horizontal_speed = 1.5; motion.world_velocity = Vec3::NEG_Z * 1.5;
+            motion.local_velocity = Vec2::new(0.0, 1.5); motion.has_input = true; input.move_dir = Vec2::Y;
+        }).after(crate::standing_layer::AlsStandingLayerSet).before(crate::ab_als_root::AlsRootGraphSet));
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.0167125)));
+        for _ in 0..90 { app.update(); }
+        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let mut previous = pelvis(&app, player);
+        for frame in 0..240 {
+            app.world_mut().resource_mut::<ContactMode>().0 = if frame % 2 == 0 { LocomotionState::Air } else { LocomotionState::Grounded };
+            app.update();
+            let current = pelvis(&app, player);
+            let rate = current.distance(previous) / 0.0167125;
+            assert!(rate <= 14.0, "Short contact changed pre-rig pelvis too quickly: frame={frame}, rate={rate}, previous={previous:?}, current={current:?}");
+            previous = current;
+        }
+    }
+
+    #[test]
     fn hidden_always_tick_pose_preserves_the_last_evaluated_inertial_history() {
         use bevy_animation_graph::core::{
             animated_scene::AnimatedSceneInstance, animation_graph_player::AnimationGraphPlayer,

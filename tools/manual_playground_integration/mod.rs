@@ -4036,6 +4036,11 @@ fn observe_animation_clock(
     }
 }
 
+fn locomotion_mouse_delta(elapsed: f32, delta: f32) -> Vec2 {
+    let overlap = (elapsed - 0.5).clamp(0.0, 1.0) - (elapsed - delta - 0.5).clamp(0.0, 1.0);
+    Vec2::new(360.0, -180.0) * overlap
+}
+
 fn visibility_case_phase(elapsed: f32) -> &'static str {
     if elapsed < 2.0 { "visible" }
     else if elapsed < 4.5 { "hidden" }
@@ -5268,8 +5273,8 @@ fn drive_manual_integration(
             } else if (14.0..15.0).contains(&elapsed) {
                 request.overlay_state = Some(OverlayState::Default);
             }
+            input.0.look_delta = locomotion_mouse_delta(elapsed, virtual_time.delta_secs());
             if (0.5..1.5).contains(&elapsed) {
-                input.0.look_delta = Vec2::new(6.0, -3.0);
                 input.0.aim_held = true;
             }
             if elapsed >= 15.0 {
@@ -10829,6 +10834,22 @@ fn observe_manual_integration(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn locomotion_mouse_window_keeps_the_same_counts_across_cadences() {
+        for cadence in [vec![1.0_f32 / 30.0], vec![1.0 / 60.0], vec![1.0 / 120.0], vec![0.011, 0.027, 0.019, 0.041]] {
+            let mut elapsed = 0.0_f32;
+            let mut total = Vec2::ZERO;
+            for frame in 0..1000 {
+                let delta = cadence[frame % cadence.len()];
+                elapsed += delta;
+                total += locomotion_mouse_delta(elapsed, delta);
+                if elapsed >= 2.0 { break; }
+            }
+            assert!(total.abs_diff_eq(Vec2::new(360.0, -180.0), 0.002),
+                "Timed locomotion mouse input changed with cadence {cadence:?}: {total:?}");
+        }
+    }
+
     #[test]
     fn animation_clock_gate_rejects_pause_drift_and_missing_one_frame() {
         let row = |elapsed, state_elapsed| serde_json::json!({"elapsed":elapsed,"state_elapsed":state_elapsed,"state":"T19"});
