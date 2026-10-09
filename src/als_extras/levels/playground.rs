@@ -63,13 +63,13 @@ impl Plugin for PlaygroundPlugin {
 fn playground_box_physics_bridge(
     mut commands: Commands,
     bodies: Query<
-        (Entity, &Name, &PlaygroundBoxCollider, Option<&ChildOf>),
+        (Entity, &Name, &PlaygroundBoxCollider, Option<&ChildOf>, Option<&CollisionLayers>),
         Added<PlaygroundBoxCollider>,
     >,
     moving_roots: Query<(), With<PlaygroundMovingObject>>,
     root_names: Query<&Name>,
 ) {
-    for (entity, name, collider, parent) in &bodies {
+    for (entity, name, collider, parent, layers) in &bodies {
         let shape = Collider::cuboid(
             collider.half_extents.x * 2.0,
             collider.half_extents.y * 2.0,
@@ -87,9 +87,9 @@ fn playground_box_physics_bridge(
             });
             let is_floor = parent_is_floor || name.as_str() == "BP_SimpleObject5:aabb";
             let mut entity_commands = commands.entity(entity);
-            entity_commands.insert((RigidBody::Static, shape, CollisionLayers::new(
+            entity_commands.insert((RigidBody::Static, shape, layers.copied().unwrap_or_else(|| CollisionLayers::new(
                 [AlsCollisionLayer::Default, AlsCollisionLayer::Visibility], LayerMask::ALL,
-            )));
+            ))));
             if is_floor {
                 entity_commands.insert(AlsCrushRecoveryFloor {
                     half_extents: collider.half_extents,
@@ -632,6 +632,7 @@ fn spawn_box_visual(
     half_extents: Vec3,
     name: String,
     no_shadow_caster: bool,
+    collision_layers: CollisionLayers,
 ) -> Entity {
     let role = material.role();
     let entity = commands
@@ -645,6 +646,7 @@ fn spawn_box_visual(
             )))),
             PlaygroundStatic,
             PlaygroundBoxCollider { half_extents },
+            collision_layers,
             PlaygroundMaterialApplied(role),
         ))
         .id();
@@ -798,6 +800,10 @@ pub fn playground_setup_system(
     )
     .map(|material| tiles_materials.add(material));
 
+    let visibility: HashMap<String, bool> = serde_json::from_str(include_str!(
+        "../../../assets/ALSExtras/Levels/L_Als_Playground/visibility.runtime.json"
+    )).expect("Generated Playground visibility must be valid");
+
     let mut spawned_static = 0usize;
     let mut spawned_moving = 0usize;
     let mut skipped = 0usize;
@@ -915,6 +921,15 @@ pub fn playground_setup_system(
         }
 
         for plan in &plans {
+            let blocks_visibility = visibility.get(&actor.name).copied().unwrap_or(true);
+            let collision_layers = CollisionLayers::new(
+                if blocks_visibility {
+                    LayerMask::from(AlsCollisionLayer::Default) | AlsCollisionLayer::Visibility
+                } else {
+                    LayerMask::from(AlsCollisionLayer::Default)
+                },
+                LayerMask::ALL,
+            );
             let no_shadow_caster = actor.name == CUBE_8_ACTOR;
             let visual_mat = if no_shadow_caster {
                 translucent_material
@@ -1016,6 +1031,7 @@ pub fn playground_setup_system(
                         plan.half_extents_model,
                         format!("{}:box", actor.name),
                         no_shadow_caster,
+                        collision_layers,
                     );
                     spawned_static += 1;
                 }
@@ -1028,6 +1044,7 @@ pub fn playground_setup_system(
                         plan.half_extents_model,
                         format!("{}:box", actor.name),
                         no_shadow_caster,
+                        collision_layers,
                     );
                     spawned_static += 1;
                 }
@@ -1995,6 +2012,50 @@ fn spawn_sky(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn actual_playground_boxes_preserve_source_visibility_responses() {
+        use avian3d::prelude::{PhysicsPlugins, SpatialQueryFilter, ShapeCastConfig};
+        use bevy::ecs::system::RunSystemOnce;
+        let mut app=App::new();
+        app.add_plugins((MinimalPlugins,TransformPlugin,PhysicsPlugins::new(PostUpdate)))
+            .init_resource::<Assets<Mesh>>()
+            .add_message::<bevy::asset::AssetEvent<Mesh>>()
+            .add_systems(Update,playground_box_physics_bridge);
+        app.finish();
+        let ids=[
+            "StaticMeshActor_UAID_94B86D58D760231001_1996299222",
+            "StaticMeshActor_UAID_94B86D58D760231001_1287870219",
+            "StaticMeshActor_UAID_94B86D58D760231001_1363458220",
+        ];
+        let visibility:HashMap<String,bool>=serde_json::from_str(include_str!(
+            "../../../assets/ALSExtras/Levels/L_Als_Playground/visibility.runtime.json")).unwrap();
+        let bodies=app.world_mut().run_system_once(move |mut commands:Commands,mut meshes:ResMut<Assets<Mesh>>| {
+            ids.into_iter().chain(["S_Arch_01"]).enumerate().map(|(index,name)| {
+                let layers=CollisionLayers::new(
+                    if visibility[name] {LayerMask::from(AlsCollisionLayer::Default) | AlsCollisionLayer::Visibility}
+                    else {LayerMask::from(AlsCollisionLayer::Default)},
+                    LayerMask::ALL);
+                spawn_box_visual(&mut commands,&mut meshes,PlaygroundMaterialTint::Main(Handle::default()),
+                    Transform::from_xyz(index as f32*3.0,0.0,0.0),Vec3::splat(0.5),format!("{name}:aabb"),false,layers)
+            }).collect::<Vec<_>>()
+        }).unwrap();
+        app.update();
+        app.update();
+        app.world_mut().run_system_once(move |spatial:crate::extensions::RagdollSpatialQuery| {
+            let shape=Collider::sphere(0.15);
+            let config=ShapeCastConfig::from_max_distance(3.0);
+            for (index,body) in bodies.iter().enumerate() {
+                let start=Vec3::new(index as f32*3.0,0.0,-1.5);
+                let visibility=spatial.cast_shape(&shape,start,Quat::IDENTITY,Dir3::Z,&config,
+                    &SpatialQueryFilter::from_mask(AlsCollisionLayer::Visibility));
+                let physical=spatial.cast_shape(&shape,start,Quat::IDENTITY,Dir3::Z,&config,
+                    &SpatialQueryFilter::from_mask(AlsCollisionLayer::Default));
+                assert_eq!(physical.map(|hit|hit.entity),Some(*body),"Source physical block was lost");
+                assert_eq!(visibility.is_some(),index==3,"Actual Playground box ignores its source Visibility response: index={index}");
+            }
+        }).unwrap();
+    }
 
     #[test]
     fn tiles_texture_uvs_follow_the_source_shared_tiling_input() {
