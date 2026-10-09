@@ -14,7 +14,7 @@ use crate::extensions::{
 
 use crate::character_assembly::{AlsCharacterAssembly, AlsCharacterAvatar};
 use crate::standing_layer::AlsPivotNotify;
-use crate::stop_link::{AlsQuickStopNotify, AlsTransitionPlayback, AlsTransitionMontageStack, play_transition};
+use crate::stop_link::{AlsTransitionPlayback, AlsTransitionMontageStack, play_transition};
 use crate::turn_layer::{AlsTurnDrive, AlsTurnMontageStack, SourceTurnRequest, TURN_MONTAGE_BLEND_DURATION};
 
 #[derive(Component, Debug, Default, Clone, PartialEq, Eq)]
@@ -197,12 +197,16 @@ fn dispatch_transition_notifications(
     graphs: Res<Assets<AnimationGraph>>,
     mut telemetry: Query<&mut TransitionNotifyTelemetry>,
     mut pivot_notices: MessageWriter<AlsPivotNotify>,
-    mut quick_stop_notices: MessageWriter<AlsQuickStopNotify>,
     mut playbacks: Query<&mut AlsTransitionMontageStack>,
     mut turn_stacks: Query<&mut AlsTurnMontageStack>,
     mut turn_drives: Query<&mut AlsTurnDrive>,
     stances: Query<&crate::als::state::Stance, With<crate::als::character::AlsCharacter>>,
     assemblies: Query<&AlsCharacterAssembly>,
+    quick_stop_inputs: Query<(
+        &Transform, &crate::als::state::RotationMode, &crate::als::motion::AlsViewYaw,
+        Option<&crate::als::view::AlsPlayerViewYaw>, &crate::als::input::AlsInputCommand,
+        Option<&crate::als::motion::AlsInputOverride>, Option<&crate::als::motion::AlsRotationResponseState>,
+    )>,
     mut commands: Commands,
 ) {
     let active: HashMap<_, _> = avatars.iter()
@@ -330,9 +334,21 @@ fn dispatch_transition_notifications(
                             if let Ok(mut telemetry) = telemetry.get_mut(avatar.character) {
                                 telemetry.stop_quick_count += 1;
                             }
-                            quick_stop_notices.write(AlsQuickStopNotify {
-                                character: avatar.character,
-                            });
+                            if let Ok((body, rotation_mode, view_yaw, player_view, command, override_command, rotation)) =
+                                quick_stop_inputs.get(avatar.character)
+                                && let Ok(stance) = stances.get(avatar.character)
+                            {
+                                let input = override_command.map_or(command, |value| &value.0);
+                                let target_yaw = rotation.filter(|rotation| rotation.initialized).map_or_else(
+                                    || crate::als::orientation::world_forward_to_yaw(*body.forward()),
+                                    |rotation| rotation.target_yaw);
+                                let (index, play_rate) = crate::stop_link::quick_stop_selection(
+                                    *rotation_mode, input, player_view.map_or(view_yaw.0, |view| view.0), body, target_yaw);
+                                cursor.queued_transitions.insert(avatar.character,
+                                    if *stance == crate::als::state::Stance::Crouching {
+                                        AlsTransitionPlayback::crouching_quick_stop(index, play_rate)
+                                    } else { AlsTransitionPlayback::quick_stop(index, play_rate) });
+                            }
                         }
                         Some(TransitionNotifyAction::LandToGrounded) => {
                             if let Ok(mut telemetry) = telemetry.get_mut(avatar.character) {
@@ -599,6 +615,74 @@ mod tests {
         }
         assert_eq!(observed,0,"First skipped Forward -> Backward transition must not dispatch ActivatePivot");
         assert_eq!(app.world().get::<TransitionNotifyTelemetry>(character).unwrap().activate_pivot_count,0);
+    }
+
+    #[test]
+    fn generated_quick_stop_consumes_the_notifying_frame_inputs() {
+        use avian3d::prelude::{LinearVelocity, RigidBody};
+        fn run(change_input:bool)->(crate::stop_link::AlsTransitionPlayback,bevy_animation_graph::core::pose::Pose) {
+        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().entity_mut(character).insert((RigidBody::Kinematic, bevy_tnua::TnuaToggle::Disabled,
+            crate::als::state::RotationMode::ViewDirection));
+        #[derive(Resource)]
+        struct PivotFixtureInput(f32, f32);
+        app.insert_resource(PivotFixtureInput(0.0, 0.0));
+        app.add_systems(PostUpdate, (move |input: Res<PivotFixtureInput>, mut motion: Query<(&mut crate::actual_motion::AlsActualMotion, &mut crate::als::state::LocomotionState, &mut crate::als::state::Gait)>| {
+            let (mut motion, mut mode, mut gait) = motion.get_mut(character).unwrap();
+            *gait = crate::als::state::Gait::Running;
+            motion.horizontal_speed = input.0;
+            motion.world_velocity = Quat::from_rotation_y(input.1.to_radians()) * Vec3::NEG_Z * input.0;
+            motion.velocity_yaw_degrees = input.1;
+            motion.local_velocity = Vec2::new(motion.world_velocity.x, -motion.world_velocity.z);
+            motion.signed_direction_radians = input.1.to_radians();
+            motion.has_input = input.0 > 0.0;
+            motion.input_yaw_degrees = input.1;
+            *mode = crate::als::state::LocomotionState::Grounded;
+        }).after(crate::actual_motion::AlsActualMotionSet).before(crate::gait_layer::AlsGaitLayerSet));
+        for frame in 0..110 {
+            let speed=if (96..98).contains(&frame) {1.9_f32} else {0.0};
+            {
+                let mut input = app.world_mut().resource_mut::<PivotFixtureInput>();
+                input.0 = speed;
+                input.1 = 0.0;
+            }
+            app.world_mut().get_mut::<LinearVelocity>(character).unwrap().0 = Vec3::NEG_Z * speed;
+            app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().move_dir = if speed>0.0 {Vec2::Y} else {Vec2::ZERO};
+            app.update();
+            if app.world().get::<TransitionNotifyTelemetry>(character).unwrap().stop_quick_count>0 {
+                assert_eq!(*app.world().get::<crate::als::state::RotationMode>(character).unwrap(),
+                    crate::als::state::RotationMode::ViewDirection);
+                if change_input {
+                    *app.world_mut().get_mut::<crate::als::state::RotationMode>(character).unwrap()=
+                        crate::als::state::RotationMode::VelocityDirection;
+                    app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().move_dir=Vec2::NEG_X;
+                }
+                for _ in 0..3 {app.update();}
+                let stack=app.world().get::<AlsTransitionMontageStack>(character).unwrap();
+                let playback=stack.entries.iter().rev().find(|entry|matches!(entry.kind,
+                    crate::stop_link::AlsTransitionKind::QuickStop|crate::stop_link::AlsTransitionKind::CrouchingQuickStop))
+                    .expect("Actual generated StopQuick must create a transition montage");
+                let avatar=app.world().get::<AlsCharacterAssembly>(character).unwrap().avatar;
+                let target=app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+                let player=app.world().get::<AnimationGraphPlayer>(target).unwrap();
+                let actual=player.get_global_input_data("transition.pose").unwrap().as_pose().unwrap();
+                return (*playback,actual.clone());
+            }
+        }
+        panic!("Actual generated Standing FSM did not emit StopQuick: telemetry={:?}",app.world().get::<TransitionNotifyTelemetry>(character));
+        }
+        let (source,expected)=run(false);
+        let (actual,pose)=run(true);
+        assert_eq!((source.index,source.play_rate),(0.0,1.75));
+        let mut dot=1.0_f32;let mut distance=0.0_f32;
+        for bone in expected.paths.keys() {
+            let source=expected.get_bone(*bone).unwrap();let target=pose.get_bone(*bone).unwrap();
+            if let (Some(a),Some(b))=(source.rotation,target.rotation) {dot=dot.min(a.dot(b).abs());}
+            if let (Some(a),Some(b))=(source.translation,target.translation) {distance=distance.max(a.distance(b));}
+        }
+        assert!((actual.index,actual.play_rate)==(source.index,source.play_rate) && dot>1.0-1e-5 && distance<1e-5,
+            "Native notifying-frame QuickStop changed with later inputs: actual_rate={}, source_rate={}, rotation_degrees={}, translation_meters={distance}",
+            actual.play_rate,source.play_rate,(2.0*dot.clamp(-1.0,1.0).acos()).to_degrees());
     }
 
     #[test]

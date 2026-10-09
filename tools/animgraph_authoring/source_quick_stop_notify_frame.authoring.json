@@ -1,0 +1,286 @@
+{
+  "format": "als_animgraph_authoring_gate_v1",
+  "graphs": [
+    {
+      "path": "assets/ALS/Character/AB_Als.runtime.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "b113030b-0000-4000-8000-000000000001",
+          "name": "AB_Als",
+          "position": [
+            -480.0,
+            0.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000002",
+          "name": "Ragdoll Dynamic",
+          "position": [
+            -480.0,
+            160.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000003",
+          "name": "Ragdoll Readback",
+          "position": [
+            -480.0,
+            240.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000004",
+          "name": "Ragdoll Config",
+          "position": [
+            -224.0,
+            192.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000002\", \"als_ragdolling_dynamic\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"dynamic\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000003\", \"als_ragdolling_readback\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"readback\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000001\", \"pose\")",
+          "target": "OutputData(\"pose\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"ragdoll_config\")",
+          "target": "OutputData(\"ragdoll_config\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "pose": "Pose",
+          "ragdoll_config": "RagdollConfig"
+        }
+      },
+      "root_output_exceptions": [
+        {
+          "name": "ragdoll_config",
+          "reason": "The framework consumes body simulation and pose readback controls independently from the source pose.",
+          "evidence": "docs/bf114-ragdoll-contract.md"
+        }
+      ]
+    }
+  ],
+  "id": "source_quick_stop_notify_frame_contract",
+  "source_evidence": [
+    {
+      "path": "target/bf134/02m3c3/als_animation.cpp",
+      "sha256": "f5ccecad4c9408dbd500d8b3f661975cf2830ed62436c591ffa91bb4f9b11c26"
+    },
+    {
+      "path": "target/bf134/02m3c3/als_proxy.cpp",
+      "sha256": "70c9ecc2afd5a3e209d9b755a7e52815262c8ebce8b58297480ae3cdcd9de4fc"
+    },
+    {
+      "path": "target/bf134/02m3c3/ue_anim_instance.cpp",
+      "sha256": "d593fff1143b0a6f49eac8456bbcb119702d6bd211cfc5f17c2f2b683c6915d2"
+    },
+    {
+      "path": "target/bf134/02m3c3/quick_stop_notify_frame_source_contract.json",
+      "sha256": "fc2ff5d1cd9eb7109966ad99bceb867b4713891f23167d41b108699d8cd832f2"
+    },
+    {
+      "path": "target/bf134/02m3c3/animation_settings.ue.json",
+      "sha256": "b44551215b7ba1769437d8922f70e0f158b931350cee9ce1e4e228f302a2a8cb"
+    }
+  ],
+  "verification_commands": [
+    {
+      "label": "generated_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets",
+        "--include",
+        "ALS",
+        "--include",
+        "ALSCamera"
+      ]
+    },
+    {
+      "label": "generated_editor",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets"
+      ]
+    },
+    {
+      "label": "runtime_asset_boundary",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/validate_runtime_graph_asset_boundary.py",
+        "--assets-root",
+        "assets",
+        "--check"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "animgraph_assets",
+    "manual_case": "state_machine"
+  },
+  "focused_tests": [
+    {
+      "label": "notify_frame_fsm_restored",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "stop_link::tests::"
+      ],
+      "evidence": "target/bf134/02m3c3/notify_frame_fsm_restored.watchdog.json"
+    },
+    {
+      "label": "notify_frame_profile",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "profile_blend::tests::"
+      ],
+      "evidence": "target/bf134/02m3c3/notify_frame_profile.watchdog.json"
+    },
+    {
+      "label": "notify_frame_source_calls",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "source_movement_nodes::tests::"
+      ],
+      "evidence": "target/bf134/02m3c3/notify_frame_source_calls.watchdog.json"
+    },
+    {
+      "label": "notify_frame_native_calls",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "source_native_refresh::tests::"
+      ],
+      "evidence": "target/bf134/02m3c3/notify_frame_native_calls.watchdog.json"
+    },
+    {
+      "label": "notify_frame_notification_calls",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "transition_notify::tests::"
+      ],
+      "evidence": "target/bf134/02m3c3/notify_frame_notification_calls.watchdog.json"
+    },
+    {
+      "label": "notify_frame_turn_slots",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "turn_layer::tests::"
+      ],
+      "evidence": "target/bf134/02m3c3/notify_frame_turn_slots.watchdog.json"
+    },
+    {
+      "label": "notify_frame_camera_owner",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "camera_component::tests::"
+      ],
+      "evidence": "target/bf134/02m3c3/notify_frame_camera_owner.watchdog.json"
+    },
+    {
+      "label": "notify_frame_stop_slots",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "stop_link::tests::"
+      ],
+      "evidence": "target/bf134/02m3c3/notify_frame_stop_slots.watchdog.json"
+    }
+  ]
+}
