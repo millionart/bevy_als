@@ -1,0 +1,366 @@
+{
+  "format": "als_animgraph_authoring_gate_v1",
+  "graphs": [
+    {
+      "path": "assets/ALS/Character/AB_Als.runtime.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "b113030b-0000-4000-8000-000000000001",
+          "name": "AB_Als",
+          "position": [
+            -480.0,
+            0.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000002",
+          "name": "Ragdoll Dynamic",
+          "position": [
+            -480.0,
+            160.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000003",
+          "name": "Ragdoll Readback",
+          "position": [
+            -480.0,
+            240.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000004",
+          "name": "Ragdoll Config",
+          "position": [
+            -224.0,
+            192.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000002\", \"als_ragdolling_dynamic\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"dynamic\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000003\", \"als_ragdolling_readback\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"readback\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000001\", \"pose\")",
+          "target": "OutputData(\"pose\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"ragdoll_config\")",
+          "target": "OutputData(\"ragdoll_config\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "pose": "Pose",
+          "ragdoll_config": "RagdollConfig"
+        }
+      },
+      "root_output_exceptions": [
+        {
+          "name": "ragdoll_config",
+          "reason": "The framework consumes body simulation and pose readback controls independently from the source pose.",
+          "evidence": "docs/bf114-ragdoll-contract.md"
+        }
+      ]
+    }
+  ],
+  "id": "source_player_clock_current_scope_contract",
+  "source_evidence": [
+    {
+      "path": "target/bf134/02m5b/sequence_player.cpp",
+      "sha256": "d7e79c8bb2fec68ecabc1aa9117b70be206def5c37e82ee5b7b47f990bf7a43a"
+    },
+    {
+      "path": "target/bf134/02m5b/sequence_tick.cpp",
+      "sha256": "538cedbee8cad1313c301078374a2750c2929e5ec198a54d2254d0c79ae6c3f7"
+    },
+    {
+      "path": "target/bf134/02m5b/blendspace_player.cpp",
+      "sha256": "fe300521401888b3cafcfc055f218b946ba3c0d78818a7830887dad93ed01766"
+    },
+    {
+      "path": "target/bf134/02m5b/blendspace_tick.cpp",
+      "sha256": "69fb35e0daa26373d7741bd8e21c96562facca8b7c1f02ea86700ffd1fffd932"
+    },
+    {
+      "path": "target/bf134/02m5b/current_player_clock_fields.json",
+      "sha256": "febcc27ff89f0b945d1e525588f03ff370ee301f7074a98ec216e0954c0978b3"
+    },
+    {
+      "path": "target/bf134/02m5b/rifle_native_zero_rate.json",
+      "sha256": "ffa0fe28b32cebe70a6b648ae1f35335fce7e40524be84f106025d7768942f6d"
+    },
+    {
+      "path": "target/bf134/02m5b/current_player_clock_source_contract.json",
+      "sha256": "4a4a1bf2189fb2ad2bb179e18e7508eba53626283cabc0b717453b5b7f7fc5c0"
+    }
+  ],
+  "verification_commands": [
+    {
+      "label": "generated_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets",
+        "--include",
+        "ALS",
+        "--include",
+        "ALSCamera"
+      ]
+    },
+    {
+      "label": "generated_editor",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets"
+      ]
+    },
+    {
+      "label": "runtime_asset_boundary",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/validate_runtime_graph_asset_boundary.py",
+        "--assets-root",
+        "assets",
+        "--check"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "animgraph_assets",
+    "manual_case": "overlays"
+  },
+  "focused_tests": [
+    {
+      "label": "sync_restored",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "sync_group_phase::tests::"
+      ],
+      "evidence": "target/bf134/02m5/sync_restored.watchdog.json"
+    },
+    {
+      "label": "fsm_regression",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "interruptible_fsm::tests::"
+      ],
+      "evidence": "target/bf134/02m5/fsm_regression.watchdog.json"
+    },
+    {
+      "label": "sync_scope_regression",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "source_pose_passthrough::tests::"
+      ],
+      "evidence": "target/bf134/02m5/sync_scope_regression.watchdog.json"
+    },
+    {
+      "label": "inertial_regression",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "inertialization_passthrough::tests::"
+      ],
+      "evidence": "target/bf134/02m5/inertial_regression.watchdog.json"
+    },
+    {
+      "label": "notify_regression",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "transition_notify::tests::"
+      ],
+      "evidence": "target/bf134/02m5/notify_regression.watchdog.json"
+    },
+    {
+      "label": "camera_regression",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "camera_component::tests::"
+      ],
+      "evidence": "target/bf134/02m5/camera_regression.watchdog.json"
+    },
+    {
+      "label": "cache_regression",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "source_cached_pose::tests::"
+      ],
+      "evidence": "target/bf134/02m5/cache_regression.watchdog.json"
+    },
+    {
+      "label": "visibility_regression",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "visibility_"
+      ],
+      "evidence": "target/bf134/02m5/visibility_regression.watchdog.json"
+    },
+    {
+      "label": "provider_regression",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "ab_als_provider::tests::"
+      ],
+      "evidence": "target/bf134/02m5/provider_regression.watchdog.json"
+    },
+    {
+      "label": "pose_regression",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "source_pose_nodes::tests::"
+      ],
+      "evidence": "target/bf134/02m5/pose_regression.watchdog.json"
+    },
+    {
+      "label": "sequence_final_source_zero_rate",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "source_sequence_player::tests::"
+      ],
+      "evidence": "target/bf134/02m5b/sequence_final_source_zero_rate.watchdog.json"
+    },
+    {
+      "label": "blendspace_existing",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "normalized_blendspace::tests::"
+      ],
+      "evidence": "target/bf134/02m5b/blendspace_existing.watchdog.json"
+    }
+  ]
+}

@@ -556,6 +556,55 @@ mod tests {
     use bevy::prelude::*;
 
     #[test]
+    fn rifle_follower_only_group_keeps_the_source_zero_play_rate() {
+        use bevy_animation_graph::core::{animated_scene::AnimatedSceneInstance,
+            animation_graph::AnimationGraph, animation_graph_player::AnimationGraphPlayer};
+        use crate::als::{state::{Gait, Stance, LocomotionState, OverlayState}, input::AlsInputCommand};
+        let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().entity_mut(avatar).insert(crate::animation_visibility::AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones);
+        app.world_mut().entity_mut(character).insert((avian3d::prelude::RigidBody::Kinematic, bevy_tnua::TnuaToggle::Disabled));
+        app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(character).unwrap().overlay_state = Some(OverlayState::Rifle);
+        #[derive(Resource)]
+        struct Speed(f32);
+        app.insert_resource(Speed(0.0));
+        app.add_systems(PostUpdate, (move |speed: Res<Speed>, mut actors: Query<(&mut crate::actual_motion::AlsActualMotion,
+            &mut Gait, &mut Stance, &mut LocomotionState, &mut AlsInputCommand)>| {
+            let (mut motion, mut gait, mut stance, mut mode, mut input) = actors.get_mut(character).unwrap();
+            *gait = Gait::Running; *stance = Stance::Standing; *mode = LocomotionState::Grounded;
+            motion.horizontal_speed = speed.0; motion.world_velocity = Vec3::NEG_Z * speed.0;
+            motion.local_velocity = Vec2::new(0.0, speed.0); motion.has_input = speed.0 > 0.0;
+            input.move_dir = if speed.0 > 0.0 { Vec2::Y } else { Vec2::ZERO };
+        }).after(crate::standing_layer::AlsStandingLayerSet).before(crate::ab_als_root::AlsRootGraphSet));
+        let mut observed = false;
+        for frame in 0..220 {
+            app.world_mut().resource_mut::<Speed>().0 = if (90..186).contains(&frame) { 3.5 } else { 0.0 };
+            app.update();
+            if frame < 186 { continue; }
+            let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+            let instance = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+            assert!(instance.get_error().is_none(), "Actual Rifle graph failed: {:?}", instance.get_error());
+            let arena = instance.get_context_arena().unwrap();
+            let graphs = app.world().resource::<Assets<AnimationGraph>>();
+            let Some(ticks) = crate::extensions::sync_group_phase::source_sync_players(arena, graphs, "sync_groups.movement.phase") else { continue; };
+            let group = ticks.iter().filter(|tick| tick.key == "sync_groups.movement.phase").collect::<Vec<_>>();
+            if group.iter().any(|tick| tick.role != SourceSyncGroupRole::AlwaysFollower) { continue; }
+            let Some(tick) = group.into_iter().find(|tick| tick.selected_leader) else { continue; };
+            let context = arena.get_context(tick.identity.0).unwrap();
+            let states = context.node_states.get_all_upcoming_states::<SourceSequencePlayerState>(tick.identity.1).unwrap().collect::<Vec<_>>();
+            assert_eq!(states.len(), 1, "Follower-only sampling state is ambiguous");
+            let state = states[0];
+            assert!(tick.delta_seconds > 0.0, "Follower-only fixture has no animation update delta");
+            assert_eq!(tick.play_rate, 0.0, "Source Rifle follower-only rate changed");
+            assert!((state.position - state.previous_position).abs() < 1e-4,
+                "Source zero-rate follower-only sequence advanced: frame={frame}, position={}, previous={}",
+                state.position, state.previous_position);
+            observed = true;
+            break;
+        }
+        assert!(observed, "Actual Rifle stop did not expose a follower-only group");
+    }
+
+    #[test]
     fn asset_rate_scale_follows_node_mapping_in_sequence_clocks() {
         use bevy::platform::collections::HashMap;
         use bevy_animation_graph::core::{
