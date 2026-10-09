@@ -510,7 +510,8 @@ fn publish_mantle_slot(
             }
             player.set_global_input_data(
                 POST_LOCOMOTION_POSE,
-                DataValue::Pose(crate::extensions::source_pose_nodes::blend_source_poses(&poses)),
+                DataValue::Pose(poses.iter().map(|(pose, weight)| pose.scalar_mult(*weight))
+                    .reduce(|accumulator, pose| accumulator.linear_add(&pose)).unwrap()),
             );
             player.set_global_input_data(POST_LOCOMOTION_WEIGHT, total.min(1.0));
             player.set_global_input_data(POST_LOCOMOTION_LAYER_WEIGHT, 1.0_f32);
@@ -1506,6 +1507,49 @@ mod tests {
             }
         }
         assert!(maximum < 1e-6, "Current Mantle slot used spherical instead of native weighted blending: error={maximum}");
+    }
+
+    #[test]
+    fn overlapping_current_mantles_keep_the_native_slot_base_quaternion_weight() {
+        let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let base = current_post_locomotion_base(&app, player_entity);
+        let mut old = AlsMantleState::default();
+        old.begin(MantleKind::Low, Vec3::ZERO, Vec3::Y, 0.75, 0.0, 0.0);
+        let mut montages = AlsMantleMontages::default();
+        montages.begin(&old);
+        montages.entries[0].advance(1.5, Some(1.5));
+        montages.entries[0].advance(0.05, None);
+        let mut new = AlsMantleState::default();
+        new.begin(MantleKind::LowLeft, Vec3::ZERO, Vec3::Y, 0.75, 0.0, 0.0);
+        montages.begin(&new);
+        for entry in &mut montages.entries { entry.advance(0.05, None); }
+        let total: f32 = montages.entries.iter().map(|entry| entry.weight).sum();
+        assert!(total > 0.0 && total < 1.0);
+        let mut samples = Vec::new();
+        for entry in &montages.entries {
+            let handle = app.world().resource::<MantleAssets>().clip(entry.kind).clone();
+            let clips = app.world().resource::<Assets<GraphClip>>();
+            let clip = clips.get(&handle).unwrap();
+            let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
+            samples.push((sample_mantle_pose(clip, skeleton, mantle_montage_settings(entry.kind), entry.clip_time).unwrap().0, entry.weight));
+        }
+        app.world_mut().entity_mut(character).insert(montages);
+        app.world_mut().run_system_once(publish_mantle_slot).unwrap();
+        let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+        let overlay = player.get_global_input_data(POST_LOCOMOTION_POSE).unwrap().as_pose().unwrap();
+        let weight = player.get_global_input_data(POST_LOCOMOTION_WEIGHT).unwrap().as_f32().unwrap();
+        let actual = crate::extensions::slot_node::blend_slot_pose(base.clone(), Some(overlay), Some(weight));
+        let mut native_inputs = samples;
+        native_inputs.push((base, 1.0 - total));
+        let expected = crate::extensions::source_pose_nodes::blend_source_poses(&native_inputs);
+        let mut maximum = 0.0_f32;
+        for bone in actual.paths.keys() {
+            if let (Some(a), Some(b)) = (actual.get_bone(*bone).unwrap().rotation, expected.get_bone(*bone).unwrap().rotation) {
+                maximum = maximum.max((a - b).length().min((a + b).length()));
+            }
+        }
+        assert!(maximum < 1e-6, "Current Mantle slot normalized before adding its base: error={maximum}");
     }
 
     #[test]

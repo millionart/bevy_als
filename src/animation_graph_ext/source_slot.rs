@@ -116,7 +116,7 @@ impl NodeLike for SourceSlotNode {
                 sample.slot_key.clone_from(&self.pose_key);
             }
             ctx.set_time(pose.timestamp);
-            ctx.set_data_fwd("Pose", pose.clone());
+            ctx.set_data_fwd("Pose", pose.normalize_quat());
             *ctx.state_mut_or_else(AnimationContextState::default)? = context;
             return Ok(());
         }
@@ -297,6 +297,7 @@ mod tests {
         base.add_bone(
             BonePose {
                 translation: Some(Vec3::ZERO),
+                rotation: Some(Quat::from_rotation_x(0.5)),
                 ..default()
             },
             bone,
@@ -305,6 +306,7 @@ mod tests {
         overlay.add_bone(
             BonePose {
                 translation: Some(Vec3::X * 2.0),
+                rotation: Some(Quat::from_rotation_y(1.8) * 0.8),
                 ..default()
             },
             bone,
@@ -341,6 +343,10 @@ mod tests {
             assert!(
                 (pose.get_bone(bone).unwrap().translation.unwrap().x - 2.0 * weight).abs() < 1e-6
             );
+            let rotation = pose.get_bone(bone).unwrap().rotation.unwrap();
+            let expected = (Quat::from_rotation_x(0.5) * (1.0 - weight)
+                + Quat::from_rotation_y(1.8) * (0.8 * weight)).normalize();
+            assert!((rotation - expected).length().min((rotation + expected).length()) < 1e-6);
             assert!((context.curves[&crate::extensions::SourceCurveName::from("FootLeftIk")] - 0.8 * weight).abs() < 1e-6);
             assert_eq!(
                 source_updated,
