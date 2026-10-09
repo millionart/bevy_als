@@ -10,6 +10,7 @@
 #include "AnimationRuntime.h"
 #include "AlphaBlend.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimClassInterface.h"
 #include "Animation/AnimNode_SaveCachedPose.h"
 #include "Animation/AnimNotifyQueue.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
@@ -1125,6 +1126,49 @@ TSharedRef<FJsonObject> CaptureAlphaBlendProbe()
     return Result;
 }
 
+TSharedPtr<FJsonObject> CaptureCachedPoseSchedule(UBlueprint* Blueprint)
+{
+    UClass* Class = Blueprint != nullptr ? Blueprint->GeneratedClass : nullptr;
+    const IAnimClassInterface* Interface = Class != nullptr ? IAnimClassInterface::GetFromClass(Class) : nullptr;
+    if (Interface == nullptr)
+    {
+        UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Cached pose schedule requires an animation blueprint."));
+        return nullptr;
+    }
+    UObject* DefaultObject = Class->GetDefaultObject();
+    const TArray<FStructProperty*>& Properties = Interface->GetAnimNodeProperties();
+    TArray<TSharedPtr<FJsonValue>> Layers;
+    for (const TPair<FName, FCachedPoseIndices>& Pair : Interface->GetOrderedSavedPoseNodeIndicesMap())
+    {
+        TArray<TSharedPtr<FJsonValue>> Nodes;
+        for (const int32 Index : Pair.Value.OrderedSavedPoseNodeIndices)
+        {
+            const int32 PropertyIndex = Properties.Num() - 1 - Index;
+            if (!Properties.IsValidIndex(PropertyIndex) || !Properties[PropertyIndex]->Struct->IsChildOf(FAnimNode_SaveCachedPose::StaticStruct()))
+            {
+                UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Cached pose schedule contains an invalid property index: %d."), Index);
+                return nullptr;
+            }
+            const FAnimNode_SaveCachedPose* Node = Properties[PropertyIndex]->ContainerPtrToValuePtr<FAnimNode_SaveCachedPose>(DefaultObject);
+            TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>();
+            Row->SetNumberField(TEXT("node_index"), Index);
+            Row->SetNumberField(TEXT("property_index"), PropertyIndex);
+            Row->SetStringField(TEXT("property_name"), Properties[PropertyIndex]->GetName());
+            Row->SetStringField(TEXT("cache_name"), Node->CachePoseName.ToString());
+            Nodes.Add(MakeShared<FJsonValueObject>(Row));
+        }
+        TSharedRef<FJsonObject> Layer = MakeShared<FJsonObject>();
+        Layer->SetStringField(TEXT("name"), Pair.Key.ToString());
+        Layer->SetArrayField(TEXT("nodes"), Nodes);
+        Layers.Add(MakeShared<FJsonValueObject>(Layer));
+        UE_LOG(LogAlsGraphSourceReader, Display, TEXT("Cached pose schedule layer %s captured %d nodes."), *Pair.Key.ToString(), Nodes.Num());
+    }
+    TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+    Result->SetStringField(TEXT("format"), TEXT("ue_cached_pose_schedule_v1"));
+    Result->SetArrayField(TEXT("layers"), Layers);
+    return Result;
+}
+
 TSharedRef<FJsonObject> CaptureCachedPoseLifecycleProbe()
 {
     struct FProbeProxy : FAnimInstanceProxy
@@ -1441,6 +1485,12 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
         const TSharedPtr<FJsonObject> Probe = CaptureSequencePoseProbe(Asset, SequencePoseProbePath);
         if (!Probe.IsValid()) { return 7; }
         Root->SetObjectField(TEXT("sequence_pose_probe"), Probe.ToSharedRef());
+    }
+    if (FParse::Param(*Params, TEXT("CachedPoseSchedule")))
+    {
+        const TSharedPtr<FJsonObject> Schedule = CaptureCachedPoseSchedule(Blueprint);
+        if (!Schedule.IsValid()) { return 7; }
+        Root->SetObjectField(TEXT("cached_pose_schedule"), Schedule.ToSharedRef());
     }
     if (FParse::Param(*Params, TEXT("CachedPoseLifecycleProbe")))
     {

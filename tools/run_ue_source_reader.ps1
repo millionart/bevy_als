@@ -4,6 +4,7 @@ param(
     [string]$BlendSpaceProbe,
     [string]$SequencePoseProbe,
     [switch]$CachedPoseLifecycleProbe,
+    [switch]$CachedPoseSchedule,
     [switch]$AlphaBlendProbe,
     [switch]$NotifyClockProbe,
     [switch]$NotifyChanceProbe,
@@ -272,6 +273,9 @@ if ($BlendSpaceProbe) {
 if ($SequencePoseProbe) {
     $probePath = (Resolve-Path -LiteralPath $SequencePoseProbe -ErrorAction Stop).Path
     $arguments += "-SequencePoseProbe=$probePath"
+}
+if ($CachedPoseSchedule) {
+    $arguments += "-CachedPoseSchedule"
 }
 if ($CachedPoseLifecycleProbe) {
     $arguments += "-CachedPoseLifecycleProbe"
