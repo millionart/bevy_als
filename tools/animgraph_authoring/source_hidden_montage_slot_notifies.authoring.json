@@ -1,0 +1,246 @@
+{
+  "format": "als_animgraph_authoring_gate_v1",
+  "graphs": [
+    {
+      "path": "assets/ALS/Character/AB_Als.runtime.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "b113030b-0000-4000-8000-000000000001",
+          "name": "AB_Als",
+          "position": [
+            -480.0,
+            0.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000002",
+          "name": "Ragdoll Dynamic",
+          "position": [
+            -480.0,
+            160.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000003",
+          "name": "Ragdoll Readback",
+          "position": [
+            -480.0,
+            240.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000004",
+          "name": "Ragdoll Config",
+          "position": [
+            -224.0,
+            192.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000002\", \"als_ragdolling_dynamic\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"dynamic\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000003\", \"als_ragdolling_readback\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"readback\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000001\", \"pose\")",
+          "target": "OutputData(\"pose\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"ragdoll_config\")",
+          "target": "OutputData(\"ragdoll_config\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "pose": "Pose",
+          "ragdoll_config": "RagdollConfig"
+        }
+      },
+      "root_output_exceptions": [
+        {
+          "name": "ragdoll_config",
+          "reason": "The framework consumes body simulation and pose readback controls independently from the source pose.",
+          "evidence": "docs/bf114-ragdoll-contract.md"
+        }
+      ]
+    }
+  ],
+  "id": "source_hidden_montage_slot_notify_caller_contract",
+  "source_evidence": [
+    {
+      "path": "target/bf134/02m6b4d/hidden_slot_caller_contract.json",
+      "sha256": "a05a8f12e7c0403666781e4b7d85b02894fac50f7f2bbfa93c48a99199900be7"
+    },
+    {
+      "path": "target/bf134/02m6b4/current_montage_sequence_root_flags.json",
+      "sha256": "e8aae3b410c3ed0b37acffc9332f3e4af59498dd5b24dde0fb3db2c95e2c3ef4"
+    },
+    {
+      "path": "src/als/notifies/animation_events.rs",
+      "sha256": "7df791d3cc024719fe96533211da1cb9e61d8628a7c7a7bd7d7c27820e4cb68e"
+    },
+    {
+      "path": "target/bf134/02m6b4d/source_bytes.json",
+      "sha256": "6d90e992f1fef782179cff01b495d8e0a4565fe7cd6a3efe1ba96f6120a20097"
+    }
+  ],
+  "verification_commands": [
+    {
+      "label": "generated_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets",
+        "--include",
+        "ALS",
+        "--include",
+        "ALSCamera"
+      ]
+    },
+    {
+      "label": "generated_editor",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets"
+      ]
+    },
+    {
+      "label": "runtime_asset_boundary",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/validate_runtime_graph_asset_boundary.py",
+        "--assets-root",
+        "assets",
+        "--check"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "animgraph_assets",
+    "manual_case": "base"
+  },
+  "focused_tests": [
+    {
+      "label": "hidden_slot_restored",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "hidden_roll_clears_slot_notifications_after_its_autonomous_root_tick_ends"
+      ],
+      "evidence": "target/bf134/02m6b4d/hidden_slot_restored.watchdog.json"
+    },
+    {
+      "label": "notify_regression",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "animation_events::tests::"
+      ],
+      "evidence": "target/bf134/02m6b4d/notify_regression.watchdog.json"
+    },
+    {
+      "label": "provider_regression",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "ab_als_provider::tests::"
+      ],
+      "evidence": "target/bf134/02m6b4d/provider_regression.watchdog.json"
+    },
+    {
+      "label": "pre_tick_scale",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "first_roll_root_step_uses_the_scale_cached_before_notify_dispatch"
+      ],
+      "evidence": "target/bf134/02m6b4d/pre_tick_scale.watchdog.json"
+    },
+    {
+      "label": "actual_velocity",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "root_motion_scale_lifecycle_drives_actual_roll_velocity_and_displacement"
+      ],
+      "evidence": "target/bf134/02m6b4d/actual_velocity.watchdog.json"
+    },
+    {
+      "label": "natural_reentry",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "stopped_roll_tail_accepts_a_new_loaded_montage"
+      ],
+      "evidence": "target/bf134/02m6b4d/natural_reentry.watchdog.json"
+    }
+  ]
+}

@@ -282,6 +282,15 @@ struct GraphFootstepDispatch {
     chance: HashMap<u64, NotifyChance>,
 }
 
+fn applies_montage_slot_notifies(
+    gate: Option<&crate::extensions::post_physics_animation::AnimationPoseUpdateGate>,
+    roll: Option<&AlsRollState>, blending_out: bool, delta: f32,
+) -> bool {
+    gate.is_none_or(|gate| gate.update_graph)
+        || (!blending_out && roll.is_some_and(|roll| roll.active
+            && roll.time - delta < crate::als::roll::ROLL_DURATION_SECS - crate::als::roll::ROLL_WEIGHT_OUT_SECS))
+}
+
 fn graph_footstep_clocks(clock: &crate::extensions::SourceRelevantAsset, previous_time: f32, is_leader: bool) -> Vec<EventClock> {
     let mut remaining = if clock.has_previous_position {
         clock.playback_delta_seconds
@@ -326,7 +335,9 @@ fn dispatch_graph_footsteps(
     server: Res<AssetServer>,
     avatars: Query<(Entity, &crate::character_assembly::AlsCharacterAvatar, &bevy_animation_graph::core::animated_scene::AnimatedSceneInstance)>,
     players: Query<(&bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer, Option<&crate::extensions::post_physics_animation::AnimationPoseUpdateGate>)>,
-    mut runtimes: Query<(&crate::character_assembly::AlsCharacterAssembly, &mut AlsAnimationEventRuntime)>,
+    mut runtimes: Query<(&crate::character_assembly::AlsCharacterAssembly, &mut AlsAnimationEventRuntime,
+        Option<&AlsRollState>, Has<crate::roll_drive::AlsRollBlendOut>)>,
+    time: Res<Time>,
     mut frames: Local<HashMap<Entity, GraphFootstepDispatch>>,
     mut events: MessageWriter<AlsAnimationEvent>,
     mut shakes: MessageWriter<AlsCameraShakeRequest>,
@@ -335,11 +346,12 @@ fn dispatch_graph_footsteps(
     use crate::extensions::sync_group_phase::source_sync_players;
     let Some(manifest) = manifest_handle.as_ref().and_then(|handle| manifests.get(&handle.0)) else { return; };
     for (avatar_entity, avatar, instance) in &avatars {
-        let Ok((assembly, mut runtime)) = runtimes.get_mut(avatar.character) else { continue; };
+        let Ok((assembly, mut runtime, roll, blending_out)) = runtimes.get_mut(avatar.character) else { continue; };
         if assembly.avatar != avatar_entity { continue; }
         let entity = instance.player_entity();
         let Ok((player, gate)) = players.get(entity) else { continue; };
         let frozen = gate.is_some_and(|gate| !gate.update_graph);
+        let slot_notifies = applies_montage_slot_notifies(gate, roll, blending_out, time.delta_secs());
         if player.is_paused() || player.get_error().is_some() { continue; }
         let AnimationSource::Graph(handle) = player.get_animation_source() else { continue; };
         let Some(graph) = graphs.get(handle) else { continue; };
@@ -369,6 +381,7 @@ fn dispatch_graph_footsteps(
         for sample in &samples {
             active.insert(sample.identity.clone());
             let previous = state.previous.insert(sample.identity.clone(), (sample.clock.position, sample.clock.weight));
+            if sample.montage && !slot_notifies { continue; }
             let Some(path) = server.get_path(sample.clip.id()) else { continue; };
             let path = path.to_string();
             let Some(source) = manifest.clips.iter().find(|source| source.source_kind == "AnimSequence"
@@ -800,6 +813,7 @@ fn dispatch_animation_events(
     asset_server: Res<AssetServer>,
     graph_clips: Res<Assets<GraphClip>>,
     mut graph_clip_handles: ResMut<AlsNotifyGraphClipHandles>,
+    time: Res<Time>,
     mut characters: Query<
         (
             Entity,
@@ -810,13 +824,15 @@ fn dispatch_animation_events(
             &mut AlsNotifyRootMotionScale,
             &mut AlsNotifyEarlyBlendOut,
             Option<&crate::character_assembly::AlsCharacterAssembly>,
+            (Option<&AlsRollState>, Has<crate::roll_drive::AlsRollBlendOut>),
         ),
         With<AlsCharacter>,
     >,
     mut events: MessageWriter<AlsAnimationEvent>,
     mut shakes: MessageWriter<AlsCameraShakeRequest>,
     avatars: Query<(Entity, &crate::character_assembly::AlsCharacterAvatar, Option<&bevy_animation_graph::core::animated_scene::AnimatedSceneInstance>)>,
-    players: Query<&bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer>,
+    players: Query<(&bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer,
+        Option<&crate::extensions::post_physics_animation::AnimationPoseUpdateGate>)>,
 ) {
     let Some(handle) = manifest_handle else {
         return;
@@ -833,17 +849,23 @@ fn dispatch_animation_events(
         mut root_scale,
         mut early_blend_out,
         assembly,
+        (roll, blending_out),
     ) in &mut characters
     {
         let event_source = avatars.iter().find(|(entity, avatar, _)| avatar.character == character
             && assembly.is_none_or(|assembly| assembly.avatar == *entity))
             .and_then(|(avatar, _, instance)| instance.as_ref().and_then(|instance|
-                players.get(instance.player_entity()).ok().map(|player|
+                players.get(instance.player_entity()).ok().map(|(player, _)|
                     (avatar, instance.player_entity(), player.get_context_arena().map_or(0, notify_root_instance)))));
         if let Some((_, _, instance)) = event_source {
             runtime.set_instance(instance);
         }
-        let active_sources = playbacks.entries.iter()
+        let slot_notifies = event_source.and_then(|(_, player, _)| players.get(player).ok())
+            .is_none_or(|(_, gate)| applies_montage_slot_notifies(gate, roll, blending_out, time.delta_secs()));
+        let active_playbacks = playbacks.entries.iter()
+            .filter(|playback| slot_notifies || source_clip(manifest, &playback.source_asset)
+                .is_some_and(|source| source.source_kind == "AnimMontage"));
+        let active_sources = active_playbacks.clone()
             .filter(|playback| source_clip(manifest, &playback.source_asset).is_some())
             .map(|playback| (playback.source_asset.clone(), playback.instance_id))
             .collect::<HashSet<_>>();
@@ -907,7 +929,7 @@ fn dispatch_animation_events(
             }
             runtime.sources.remove(&(source_asset, instance_id));
         }
-        for playback in &playbacks.entries {
+        for playback in active_playbacks {
             let Some(source) = source_clip(manifest, &playback.source_asset) else {
                 continue;
             };
@@ -1383,7 +1405,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn visibility_hidden_animation_keeps_actual_roll_camera_and_footstep_notifications() {
+    fn hidden_roll_clears_slot_notifications_after_its_autonomous_root_tick_ends() {
         let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
         app.world_mut().entity_mut(avatar).remove::<crate::animation_visibility::AlsAnimationTickOption>().insert(Visibility::Hidden);
         app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.1)));
@@ -1404,8 +1426,18 @@ pub(crate) mod tests {
         let instance = app.world().get::<bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer>(player).unwrap();
         assert_eq!(instance.get_context_arena().unwrap().frame_index(), before);
         assert_eq!(shakes, 2, "Montage camera notifications were frozen with the graph");
-        assert_eq!(footsteps, 3, "Montage footstep notifications were frozen with the graph");
+        assert_eq!((footsteps, app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0), (2, 1.0),
+            "Hidden component-only montage ticks applied slot notifications after root motion stopped");
         assert!(app.world().get::<AlsRollState>(character).unwrap().time > 1.0);
+        app.world_mut().entity_mut(avatar).insert(crate::animation_visibility::AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones);
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.01)));
+        app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().clear();
+        app.update();
+        let resumed = app.world().get::<bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer>(player).unwrap();
+        assert!(resumed.get_context_arena().unwrap().frame_index() > before);
+        assert_eq!(app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain()
+            .filter(|event| event.character == character && event.class_name == "AlsAnimNotify_FootstepEffects").count(), 0,
+            "Resuming the graph replayed a slot notification discarded by component-only ticking");
     }
 
     #[test]
