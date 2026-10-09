@@ -19,14 +19,14 @@
 | R11 | `AlsGetUpState::advance` 自然零混出在窗口前置权重零 | 待原生确认 | 现 explicit-stop 剩余预算修复未涉及该分支 |
 | R12 | `dispatch_graph_footsteps` 的 montage sample 缺中断状态 | 待原生确认 | 现普通 playback 中断过滤未覆盖最终图 sample |
 | R13 | `bridge_roll_slot_samples` 仍写 `clock.weight=1.0` | 待原生确认 | 现 queued notify 权重修复未覆盖该 bridge |
-| R14 | `source_sequence_player::next_position` 无条件取模丢闭区间末点 | 待原生确认 | BF135.01 |
+| R14 | `source_sequence_player::next_position` 无条件取模丢闭区间末点 | 确认并已修复 | BF135.01：原生 `0!=1.5` 失败→17/17 通过→移除规则再失败→完整字节恢复同 target 17/17；原 startup/state_machine 通过 |
 | R15 | `source_physics_joint::apply_linear_motor` 阻尼未反馈累计 DP/DQ | 待原生确认 | 待执行 |
 | R16 | pose renderer PropertyAccess 仍输出空 `expected_tag` | 待原生确认 | 待执行；修复后必须完整转换 corpus/diff |
 | R17 | state wrappers 与 GameplayTag consumer 仍采用原始大小写身份 | 待原生确认 | 待执行 |
 | R18 | CCD 零允许深度仍只裁剪位置、不施加源冲量 | 待原生确认 | 待执行 |
 | R19 | CCD 仍先快照所有命中再排序、未重扫已变轨迹 | 待原生确认 | 待执行 |
 | R20 | dynamics Air 覆盖 Tnua 起跳帧基座 boost | 待原生确认 | 待执行 |
-| R21 | `next_position` 在旧时间推进后才 clamp 新 clip 长度 | 待原生确认 | BF135.01 |
+| R21 | `next_position` 在旧时间推进后才 clamp 新 clip 长度 | 确认并已修复 | BF135.01：原生 `1!=0.875` 失败→17/17 通过→移除规则再失败→完整字节恢复同 target 17/17；原 startup/state_machine 通过 |
 | R22 | `als_camera::apply_camera_view` 未将世界 view 转成渲染相机 local | 待原生确认 | 待执行 |
 | R23 | Grounded CMC 子步位移历史 | 已修复 | `2f4a4d3`、`60a3287` 及 forward consumer 迁移；当前消费 `grounded_movement_delta` |
 | R24 | `common_marker_names` 过早排除落选 Exclusive | 待原生确认 | 现同名回归期待排除，需依 fresh UE Prepare 修正 oracle |

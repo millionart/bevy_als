@@ -148,18 +148,18 @@ fn next_position(
     loop_animation: bool,
 ) -> f32 {
     let duration = duration.max(1e-4);
-    let previous_position = if state.initialized { state.position } else { start_position };
+    let previous_position = if state.initialized { state.position } else { start_position }.clamp(0.0, duration);
     let has_previous_position = state.initialized && matches!(&update, TimeUpdate::Delta(_));
     if !state.initialized {
         state.initialized = true;
-        state.position = start_position;
     }
+    state.position = previous_position;
     match &update {
         TimeUpdate::Delta(value) => state.position += (*value).max(0.0) * play_rate,
         TimeUpdate::Absolute(value) => state.position = start_position + *value * play_rate,
         TimeUpdate::PercentOfEvent { .. } => {}
     }
-    state.position = if loop_animation {
+    state.position = if loop_animation && (state.position < 0.0 || state.position > duration) {
         state.position.rem_euclid(duration)
     } else {
         state.position.clamp(0.0, duration)
@@ -866,6 +866,32 @@ mod tests {
                 assert_eq!(pose.timestamp, 1.0);
                 assert_eq!(pose.root_motion.unwrap().translation, Vec3::X);
             }
+        }
+    }
+
+    #[test]
+    fn sequence_endpoints_remain_inclusive_when_playback_stops() {
+        for (start, delta, rate, expected) in [
+            (1.5, 1.0 / 60.0, 0.0, 1.5),
+            (1.375, 0.125, 1.0, 1.5),
+            (0.125, 0.125, -1.0, 0.0),
+            (1.375, 0.25, 1.0, 0.125),
+            (0.125, 0.25, -1.0, 1.375),
+        ] {
+            let mut state = SourceSequencePlayerState::default();
+            assert_eq!(next_position(&mut state, TimeUpdate::Delta(delta), 1.5, start, rate, true), expected);
+            assert_eq!(next_position(&mut state, TimeUpdate::Delta(0.25), 1.5, start, 0.0, true), expected);
+        }
+    }
+
+    #[test]
+    fn replacing_a_sequence_clamps_the_previous_time_before_advancing() {
+        for (looping, rate, expected) in [(false, -1.0, 0.875), (true, -1.0, 0.875),
+            (false, 0.0, 1.0), (true, 0.0, 1.0), (true, 1.0, 0.125)] {
+            let mut state = SourceSequencePlayerState::default();
+            assert_eq!(next_position(&mut state, TimeUpdate::Delta(1.5), 2.0, 0.0, 1.0, false), 1.5);
+            assert_eq!(next_position(&mut state, TimeUpdate::Delta(0.125), 1.0, 0.0, rate, looping), expected);
+            assert_eq!(state.previous_position, 1.0);
         }
     }
 
