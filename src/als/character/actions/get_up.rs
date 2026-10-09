@@ -103,7 +103,7 @@ impl AlsGetUpState {
                 .then_some(settings.blend_out_seconds)
         });
         if configured_duration.is_none_or(|previous| duration < previous) {
-            self.stop = Some((self.elapsed, duration.max(0.0), self.weight));
+            self.stop = Some((duration.max(0.0), duration.max(0.0), self.weight));
         }
     }
 
@@ -112,15 +112,14 @@ impl AlsGetUpState {
         self.elapsed += delta;
         self.clip_time = (self.elapsed * settings.play_rate).min(settings.sequence_length);
         let duration = settings.sequence_length / settings.play_rate;
-        let (start, blend_duration, start_weight) = self.stop.unwrap_or((
-            duration - settings.blend_out_seconds,
-            settings.blend_out_seconds,
-            1.0,
-        ));
-        let alpha = if blend_duration > 0.0 {
-            ((self.elapsed - start) / blend_duration).clamp(0.0, 1.0)
+        let (alpha, start_weight) = if let Some((remaining, blend_duration, start_weight)) = self.stop.as_mut() {
+            *remaining = (*remaining - delta).max(0.0);
+            (if *blend_duration > 0.0 { 1.0 - *remaining / *blend_duration } else { 1.0 }, *start_weight)
         } else {
-            1.0
+            let start = duration - settings.blend_out_seconds;
+            (if settings.blend_out_seconds > 0.0 {
+                ((self.elapsed - start) / settings.blend_out_seconds).clamp(0.0, 1.0)
+            } else { 1.0 }, 1.0)
         };
         self.weight = start_weight * (1.0 - transition_alpha(alpha, AlphaBlendMode::Cubic, &[]));
     }
@@ -630,6 +629,24 @@ mod tests {
             state.advance(settings.sequence_length / settings.play_rate - state.elapsed);
             assert_eq!(state.weight, 0.0);
         }
+    }
+
+    #[test]
+    fn interrupted_get_up_ends_on_the_source_blend_budget_boundary() {
+        let (mut app,character,_)=crate::roll_drive::tests::loaded_roll_character();
+        play_loaded_get_up(&mut app,character,true);
+        {
+            let mut state=app.world_mut().get_mut::<AlsGetUpState>(character).unwrap();
+            state.elapsed=0.3;
+            state.weight=1.0;
+            state.stop=None;
+            state.stop(RAGDOLL_SETTINGS.stop_montage_blend_seconds);
+        }
+        for _ in 0..2 {
+            app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.1));
+            app.world_mut().run_schedule(PostUpdate);
+        }
+        assert_get_up_ended(&app,character);
     }
 
     #[test]
