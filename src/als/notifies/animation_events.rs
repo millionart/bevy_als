@@ -1338,6 +1338,50 @@ pub(crate) mod tests {
         assert_eq!(runtime.montage_chance.0 as i32, seeds[0]);
     }
 
+
+    #[test]
+    fn natural_roll_reentry_keeps_branching_action_instances_disjoint() {
+        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().clear();
+        app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = true;
+        let mut signals = Vec::new();
+        let mut ended = false;
+        for frame in 0..90 {
+            app.update();
+            if frame == 0 {
+                app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = false;
+            }
+            signals.extend(app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain()
+                .filter(|event| event.character == character && event.source_asset == SOURCE_ROLL_MONTAGE
+                    && event.class_name == "AlsAnimNotifyState_SetLocomotionAction"));
+            if signals.iter().any(|event| event.phase == EventPhase::End) {
+                ended = true;
+                break;
+            }
+        }
+        assert!(ended, "Actual Roll did not reach its branching action end");
+        let old = signals[0].instance_id;
+        assert_eq!(*app.world().get::<AlsNotifyLocomotionAction>(character).unwrap(), AlsNotifyLocomotionAction::None);
+        assert!(app.world().get::<AlsRollState>(character).unwrap().active);
+        app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = true;
+        app.update();
+        app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = false;
+        signals.extend(app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain()
+            .filter(|event| event.character == character && event.source_asset == SOURCE_ROLL_MONTAGE
+                && event.class_name == "AlsAnimNotifyState_SetLocomotionAction"));
+        for _ in 0..10 {
+            app.update();
+            signals.extend(app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain()
+                .filter(|event| event.character == character && event.source_asset == SOURCE_ROLL_MONTAGE
+                    && event.class_name == "AlsAnimNotifyState_SetLocomotionAction"));
+            assert_eq!(*app.world().get::<AlsNotifyLocomotionAction>(character).unwrap(), AlsNotifyLocomotionAction::Rolling,
+                "Retiring a naturally stopped Roll tail cleared the new branching action");
+        }
+        assert_eq!(signals.iter().filter(|event| event.instance_id == old && event.phase == EventPhase::Begin).count(), 1);
+        assert_eq!(signals.iter().filter(|event| event.instance_id == old && event.phase == EventPhase::End).count(), 1);
+        assert_eq!(signals.iter().filter(|event| event.instance_id != old && event.phase == EventPhase::Begin).count(), 1);
+    }
+
     #[test]
     fn visibility_hidden_animation_keeps_actual_roll_camera_and_footstep_notifications() {
         let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
