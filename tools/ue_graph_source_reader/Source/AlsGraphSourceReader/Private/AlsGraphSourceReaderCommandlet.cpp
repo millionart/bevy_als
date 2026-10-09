@@ -1374,7 +1374,32 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
             return 7;
         }
         const FString ImagePath = FPaths::ChangeExtension(OutputPath, SourceChannels == 4 ? TEXT("tga") : TEXT("png"));
-        if (UExporter::ExportToFile(Texture, nullptr, *ImagePath, false, false, false) != 1)
+        bool bExported = false;
+        if (SourceChannels == 4 && SourceImage.Format == ERawImageFormat::BGRA8
+            && SourceImage.NumSlices == 1 && SourceImage.SizeX <= MAX_uint16 && SourceImage.SizeY <= MAX_uint16)
+        {
+            TArray64<uint8> EncodedSource;
+            EncodedSource.SetNumZeroed(18 + SourceImage.RawData.Num());
+            EncodedSource[2] = 2;
+            EncodedSource[12] = SourceImage.SizeX & 255;
+            EncodedSource[13] = SourceImage.SizeX >> 8;
+            EncodedSource[14] = SourceImage.SizeY & 255;
+            EncodedSource[15] = SourceImage.SizeY >> 8;
+            EncodedSource[16] = 32;
+            EncodedSource[17] = 8;
+            const int64 RowBytes = static_cast<int64>(SourceImage.SizeX) * 4;
+            for (int32 Row = 0; Row < SourceImage.SizeY; ++Row)
+            {
+                FMemory::Memcpy(EncodedSource.GetData() + 18 + Row * RowBytes,
+                    SourceImage.RawData.GetData() + (SourceImage.SizeY - 1 - Row) * RowBytes, RowBytes);
+            }
+            bExported = FFileHelper::SaveArrayToFile(EncodedSource, *ImagePath);
+        }
+        else if (SourceChannels == 3)
+        {
+            bExported = UExporter::ExportToFile(Texture, nullptr, *ImagePath, false, false, false) == 1;
+        }
+        if (!bExported)
         {
             UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Unable to export source texture."));
             return 7;

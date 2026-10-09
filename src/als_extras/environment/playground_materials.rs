@@ -158,16 +158,16 @@ fn add_image(server: &AssetServer, bytes: &[u8], extension: &str, green_to_red: 
 
 fn load_playground_textures(mut commands: Commands, server: Res<AssetServer>, buffers: Res<crate::extensions::projected_decal::PackedDecalBuffers>) {
     let grid = std::fs::read("assets/ALSExtras/Environment/Materials/T_Default_Material_Grid_M.tga");
-    let normal = std::fs::read("assets/ALSExtras/Environment/Materials/T_Als_Tiles_N.png");
-    let masks = std::fs::read("assets/ALSExtras/Environment/Materials/T_Als_Tiles_M.png");
+    let normal = std::fs::read("assets/ALSExtras/Environment/Materials/T_Als_Tiles_N.tga");
+    let masks = std::fs::read("assets/ALSExtras/Environment/Materials/T_Als_Tiles_M.tga");
 
     let library = PlaygroundMaterialLibrary {
         decal_buffers: buffers.clone(),
         tiles_grid: grid.ok().and_then(|bytes| add_image(&server, &bytes, "tga", false)),
         tiles_normal: normal
             .ok()
-            .and_then(|bytes| add_image(&server, &bytes, "png", false)),
-        tiles_occlusion: masks.ok().and_then(|bytes| add_image(&server, &bytes, "png", true)),
+            .and_then(|bytes| add_image(&server, &bytes, "tga", false)),
+        tiles_occlusion: masks.ok().and_then(|bytes| add_image(&server, &bytes, "tga", true)),
     };
     info!(
         "[PGMAT] textures loaded grid={} normal={} occlusion={}",
@@ -184,14 +184,19 @@ mod tests {
 
     #[test]
     fn source_grid_tga_preserves_every_rgba_pixel() {
-        let bytes = include_bytes!("../../../assets/ALSExtras/Environment/Materials/T_Default_Material_Grid_M.tga");
-        assert_eq!(&bytes[16..18], [32, 8]);
-        let image = decode_image(bytes, "tga", false).unwrap();
-        assert_eq!(image.size(), UVec2::splat(512));
-        let pixels = image.data.unwrap();
-        for (index, bgra) in bytes[18..18 + 512 * 512 * 4].chunks_exact(4).enumerate() {
-            let target = ((511 - index / 512) * 512 + index % 512) * 4;
-            assert_eq!(&pixels[target..target + 4], [bgra[2], bgra[1], bgra[0], bgra[3]]);
+        for (bytes, size) in [
+            (include_bytes!("../../../assets/ALSExtras/Environment/Materials/T_Default_Material_Grid_M.tga").as_slice(), 512usize),
+            (include_bytes!("../../../assets/ALSExtras/Environment/Materials/T_Als_Tiles_N.tga").as_slice(), 2048usize),
+            (include_bytes!("../../../assets/ALSExtras/Environment/Materials/T_Als_Tiles_M.tga").as_slice(), 2048usize),
+        ] {
+            assert_eq!(&bytes[16..18], [32, 8]);
+            let image = decode_image(bytes, "tga", false).unwrap();
+            assert_eq!(image.size(), UVec2::splat(size as u32));
+            let pixels = image.data.unwrap();
+            for (index, bgra) in bytes[18..18 + size * size * 4].chunks_exact(4).enumerate() {
+                let target = ((size - 1 - index / size) * size + index % size) * 4;
+                assert_eq!(&pixels[target..target + 4], [bgra[2], bgra[1], bgra[0], bgra[3]]);
+            }
         }
     }
 
