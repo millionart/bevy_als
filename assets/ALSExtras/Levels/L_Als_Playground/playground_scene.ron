@@ -218,7 +218,7 @@ actors: [
     (class: "TextRenderActor", name: "TextRenderActor15", location: (2774.0, -1875.0, 0.0), rotation_yaw: -180.0, rotation: (pitch: -0.0, yaw: -180.0, roll: -0.0), scale: (1.0, 1.0, 1.0), bounds_origin: (2774.0, -1875.0, 25.0), bounds_extent: (0.0, 55.77, 25.0), text: "1.5 M", text_color: (0.462745, 0.8, 0.956863, 1.0), text_world_size: 50.0, text_horizontal_alignment: "EHTA_Center", text_vertical_alignment: "EVRTA_TextBottom", text_x_scale: 1.0, text_y_scale: 1.0, text_horizontal_spacing_adjust: 0.0, text_vertical_spacing_adjust: 0.0),
     (class: "AbstractNavData", name: "AbstractNavData-Default", location: (0.0, 0.0, 0.0), rotation_yaw: 0.0, rotation: (pitch: 0.0, yaw: 0.0, roll: 0.0), scale: (1.0, 1.0, 1.0), bounds_origin: (0.0, 0.0, 0.0), bounds_extent: (0.0, 0.0, 0.0))
 ],
-lighting: Some((sun_direction: None, sun_intensity: Some(10.0), sun_color: Some((1.0, 1.0, 1.0, 1.0)), ambient_brightness: Some(2.0), sky_zenith: Some((0.034046, 0.109247, 0.295, 1.0)), sky_horizon: Some((1.979559, 2.586644, 3.0, 1.0)), sky_sun_brightness: Some(75.0), sky_horizon_falloff: Some(3.0), camera_exposure_ev100: Some(2.0), camera_contrast: Some(1.05))),
+lighting: Some((sun_direction: None, sun_intensity: Some(3.0), sun_color: Some((1.0, 1.0, 1.0, 1.0)), ambient_brightness: Some(2.0), sky_zenith: Some((0.034046, 0.109247, 0.295, 1.0)), sky_horizon: Some((1.979559, 2.586644, 3.0, 1.0)), sky_sun_brightness: Some(75.0), sky_horizon_falloff: Some(3.0), camera_exposure_ev100: Some(2.0), camera_contrast: Some(1.05))),
 sun_rotator: Some((pitch: -45.0, yaw: 45.0, roll: 0.0)),
 terrain: Some((origin_ue_x_cm: -1218.75, origin_ue_y_cm: 843.75, step_cm: 187.5,
  heights_cm: [

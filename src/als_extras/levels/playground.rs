@@ -2058,6 +2058,23 @@ mod tests {
     }
 
     #[test]
+    fn actual_playground_sun_preserves_current_source_lux() {
+        use bevy::ecs::system::RunSystemOnce;
+        let manifest:PlaygroundManifest=ron::from_str(include_str!(
+            "../../../assets/ALSExtras/Levels/L_Als_Playground/playground_scene.ron")).unwrap();
+        let source:serde_json::Value=serde_json::from_str(include_str!(
+            "../../../tools/fixtures/playground_light_source.json")).unwrap();
+        let mut app=App::new();
+        app.world_mut().run_system_once(move |mut commands:Commands| {
+            spawn_sun_light(&mut commands,manifest.lighting.as_ref().unwrap(),manifest.sun_rotator.as_ref());
+        }).unwrap();
+        let mut query=app.world_mut().query::<&DirectionalLight>();
+        let light=query.single(app.world()).unwrap();
+        assert!((light.illuminance-source["intensity_lux"].as_f64().unwrap() as f32).abs()<1e-6,
+            "Actual Playground light differs from current source lux: {}",light.illuminance);
+    }
+
+    #[test]
     fn tiles_texture_uvs_follow_the_source_shared_tiling_input() {
         let library = PlaygroundMaterialLibrary { tiles_grid: Some(Handle::default()), ..default() };
         for tiling in [0.5, 2.0, 5.0] {

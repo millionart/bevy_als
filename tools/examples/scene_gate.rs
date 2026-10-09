@@ -408,7 +408,7 @@ fn stats_collector(
         .fold(f32::INFINITY, f32::min);
     stats.sun_illuminance_error = sun_lights
         .iter()
-        .map(|(light, _, _)| (light.illuminance - 10.0).abs())
+        .map(|(light, _, _)| (light.illuminance - serde_json::from_str::<serde_json::Value>(include_str!("../fixtures/playground_light_source.json")).unwrap()["intensity_lux"].as_f64().unwrap() as f32).abs())
         .fold(f32::INFINITY, f32::min);
     stats.sun_contact_depth_bias = sun_lights
         .iter()
