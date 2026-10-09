@@ -2639,6 +2639,79 @@ mod tests {
     }
 
     #[test]
+    fn cached_mesh_additive_inactive_branch_keeps_the_native_activation_pose() {
+        use bevy::ecs::system::RunSystemOnce;
+        fn query(In(root):In<Handle<AnimationGraph>>,resources:SystemResources)->Vec<Pose> {
+            let graph=resources.animation_graph_assets.get(&root).unwrap();
+            let mut arena=GraphContextArena::new(root.id());let mut poses=Vec::new();
+            for frame in 0..3 {
+                let active=usize::from(frame>=2);
+                let inputs=HashMap::from([("delta".into(),DataValue::F32(0.1)),
+                    ("b".into(),DataValue::F32(if active==1 {1.0} else {0.0})),("outer".into(),DataValue::F32(1.0))]);
+                let env=TestIoEnv::default();let entities=HashMap::new();let mut gizmos=DeferredGizmos::default();
+                let context=GraphContext::new(arena.get_toplevel_id(),graph,&mut arena,&resources,&env,
+                    Entity::PLACEHOLDER,&entities,&mut gizmos,&inputs);
+                poses.push(graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.1)),context)
+                    .unwrap().remove("Pose").unwrap().into_pose().unwrap());
+            }
+            poses
+        }
+        let (mut app,_,_)=crate::roll_drive::tests::loaded_roll_character();
+        let clips=["Left_Forward","Left_Backward"].map(|name|app.world().resource::<AssetServer>()
+            .load::<GraphClip>(format!("ALS/Animations/Grounded/WalkRun/A_Als_Walk_{name}.anim.ron")));
+        let deadline=std::time::Instant::now()+std::time::Duration::from_secs(30);
+        while clips.iter().any(|clip|!app.world().resource::<AssetServer>().is_loaded_with_dependencies(clip.id())) {
+            app.update();assert!(std::time::Instant::now()<deadline,"Cached movement clips did not load");
+        }
+        let native_clip=clips[1].clone();
+        let mut graph=AnimationGraph::new();
+        for (index,clip) in clips.into_iter().enumerate() {
+            let player=AnimationNode::new(format!("player_{index}"),crate::extensions::SourceSequencePlayerNode {
+                clip,loop_animation:false,additive_reference:if index==1 {Some(native_clip.clone())} else {None},additive_mesh_space:index==1,..default()});
+            let cache=AnimationNode::new(if index==0 {"cache_a"} else {"cache_b"},SourceCachedPoseSaveNode::default());
+            let use_cache=AnimationNode::new(format!("use_{index}"),SourceScopedCachedPoseUseNode {
+                cache_node:cache.name.clone(),..default()});
+            for node in [&player,&cache,&use_cache] {graph.add_node(node.clone());}
+            graph.add_node_parameter_edge(player.id,"Pose",cache.id,"Pose");
+        }
+        let blend=AnimationNode::new("blend",crate::extensions::SourceMeshSpaceAdditiveNode {
+            alpha_key:"b".into(),expose_alpha_pin:false,..default()});
+        let mut leaf=AnimationGraph::new();leaf.add_node(blend.clone());
+        for (index,name) in ["use_0","use_1"].into_iter().enumerate() {
+            let node=graph.nodes.values().find(|node|node.name==name).unwrap().clone();
+            leaf.add_node(node.clone());leaf.add_node_parameter_edge(node.id,"Pose",blend.id,if index==0 {"Base"} else {"Additive"});
+        }
+        leaf.add_output_data("Pose".into(),DataSpec::Pose);leaf.add_output_data_edge(blend.id,"Pose","Pose");
+        let mut native_graph=graph.clone();
+        for node in leaf.nodes.values() {native_graph.add_node(node.clone());}
+        native_graph.edges_inverted.extend(leaf.edges_inverted.clone());
+        native_graph.add_output_data("Pose".into(),DataSpec::Pose);
+        native_graph.add_output_data_edge(blend.id,"Pose","Pose");
+        let mut graphs=Assets::<AnimationGraph>::default();
+        let outer=AnimationNode::new("outer",crate::extensions::SourceTwoWayBlendNode {
+            alpha_key:"outer".into(),expose_alpha_pin:false,pin_default:1.0,..default()});
+        for node in leaf.nodes.values() {graph.add_node(node.clone());}
+        graph.edges_inverted.extend(leaf.edges_inverted.clone());
+        graph.add_node(outer.clone());graph.add_node_parameter_edge(blend.id,"Pose",outer.id,"B");
+        graph.add_output_data("Pose".into(),DataSpec::Pose);graph.add_output_data_edge(outer.id,"Pose","Pose");
+        let native=graphs.add(native_graph);
+        let root=graphs.add(graph);let mut world=World::new();world.insert_resource(graphs);world.insert_resource(Assets::<StateMachine>::default());
+        world.insert_resource(app.world_mut().remove_resource::<Assets<GraphClip>>().unwrap());
+        world.insert_resource(app.world_mut().remove_resource::<Assets<Skeleton>>().unwrap());
+        let actual=world.run_system_once_with(query,root).unwrap();
+        let expected=world.run_system_once_with(query,native).unwrap().remove(2);
+        let mut dot=1.0_f32;let mut distance=0.0_f32;
+        for bone in expected.paths.keys() {
+            let a=actual[2].get_bone(*bone).unwrap();let b=expected.get_bone(*bone).unwrap();
+            if let (Some(a),Some(b))=(a.rotation,b.rotation) {dot=dot.min(a.dot(b).abs());}
+            if let (Some(a),Some(b))=(a.translation,b.translation) {distance=distance.max(a.distance(b));}
+        }
+        assert!(dot>1.0-1e-5 && distance<1e-5,
+            "Inactive cached mesh-space additive branch advanced before native activation: rotation_degrees={}, translation_meters={distance}",
+            (2.0*dot.clamp(-1.0,1.0).acos()).to_degrees());
+    }
+
+    #[test]
     fn direct_state_graph_uses_the_parent_transition_weight() {
         fn query(
             In((root, state_graph, transition_graph, fsm_node)): In<(Handle<AnimationGraph>, Handle<AnimationGraph>, Handle<AnimationGraph>, NodeId)>,

@@ -270,6 +270,13 @@ pub(crate) fn cached_update_branch_weights(ctx: &NodeContext) -> Result<Option<V
             blend.increasing_speed, blend.decreasing_speed, delta_seconds(ctx)?);
         return Ok(Some(vec![("Base".into(), 1.0), ("Additive".into(), alpha)]));
     }
+    if let Some(blend) = node.try_inner_downcast_ref::<SourceMeshSpaceAdditiveNode>() {
+        let mut state = ctx.state::<SourceBlendState>().cloned().unwrap_or_default();
+        let alpha = source_blend_alpha(&mut state, blend.alpha_input(ctx)?, 0.0, &blend.mapping,
+            blend.alpha_scale, blend.alpha_bias, blend.minimum_alpha, blend.maximum_alpha,
+            blend.increasing_speed, blend.decreasing_speed, delta_seconds(ctx)?);
+        return Ok(Some(vec![("Base".into(), 1.0), ("Additive".into(), alpha)]));
+    }
     if let Some(blend) = node.try_inner_downcast_ref::<SourceTwoWayBlendNode>() {
         let mut state = ctx.state::<SourceTwoWayBlendState>().cloned().unwrap_or_default();
         let alpha = source_blend_alpha(&mut state.alpha, blend.alpha_input(ctx)?, blend.mapping_max,
@@ -606,18 +613,24 @@ impl Default for SourceMeshSpaceAdditiveNode {
     }
 }
 
-impl NodeLike for SourceMeshSpaceAdditiveNode {
-    fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
-        let mut base = ctx.data_back("Base")?.into_pose()?;
-        let raw = if self.use_constant_alpha {
+impl SourceMeshSpaceAdditiveNode {
+    fn alpha_input(&self, ctx: &NodeContext) -> Result<f32, GraphError> {
+        Ok(if self.use_constant_alpha {
             self.constant_alpha
         } else if self.expose_alpha_pin {
             ctx.data_back(self.alpha_pin.clone())
                 .and_then(|value| value.as_f32())
-                .or_else(|_| global_f32_or_root_default(&ctx, &self.alpha_key))?
+                .or_else(|_| global_f32_or_root_default(ctx, &self.alpha_key))?
         } else {
-            global_f32_or_root_default(&ctx, &self.alpha_key)?
-        };
+            global_f32_or_root_default(ctx, &self.alpha_key)?
+        })
+    }
+}
+
+impl NodeLike for SourceMeshSpaceAdditiveNode {
+    fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+        let mut base = ctx.data_back("Base")?.into_pose()?;
+        let raw = self.alpha_input(&ctx)?;
         let delta = delta_seconds(&ctx)?;
         let alpha = source_blend_alpha(
             ctx.state_mut::<SourceBlendState>()?,
