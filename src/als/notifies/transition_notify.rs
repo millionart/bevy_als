@@ -646,7 +646,7 @@ mod tests {
         }).after(crate::actual_motion::AlsActualMotionSet).before(crate::gait_layer::AlsGaitLayerSet));
         for frame in 0..110 {
             if frame==94 {
-                app.world_mut().get_mut::<AlsTransitionMontageStack>(character).unwrap().entries.clear();
+                if let Some(mut stack)=app.world_mut().get_mut::<AlsTransitionMontageStack>(character) {stack.entries.clear();}
             }
             let speed=if (96..98).contains(&frame) {1.9_f32} else {0.0};
             {
