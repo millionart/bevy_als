@@ -68,6 +68,8 @@ pub struct InterruptibleFsmSource {
     pub state: LowLevelStateId,
     pub state_entered_time: f32,
     elapsed_time: f32,
+    blend_alpha: f32,
+    blend_remaining: f32,
     context_slot: usize,
     blend_duration: Option<f32>,
 }
@@ -136,6 +138,8 @@ pub struct InterruptibleFsmState {
     pub state: LowLevelStateId,
     pub state_entered_time: f32,
     transition_elapsed_time: f32,
+    blend_alpha: f32,
+    blend_remaining: f32,
     context_slot: usize,
     blend_duration: Option<f32>,
     pub interrupted_sources: Vec<InterruptibleFsmSource>,
@@ -176,13 +180,24 @@ fn timed_transition_progress(elapsed: f32, duration: Option<f32>) -> Option<f32>
     })
 }
 
-fn source_transition_blend_finished(elapsed: f32, duration: Option<f32>, graph: &AnimationGraph) -> bool {
-    let Some(progress) = timed_transition_progress(elapsed, duration) else { return false; };
-    if progress >= 1.0 {
+fn advance_transition_blend(alpha: &mut f32, remaining: &mut f32, delta: f32) {
+    if *remaining > delta {
+        let blend_delta = 1.0 - *alpha;
+        *alpha += (blend_delta / *remaining) * delta;
+        *remaining -= delta;
+        *alpha = alpha.clamp(0.0, 1.0);
+    } else {
+        *remaining = 0.0;
+        *alpha = 1.0;
+    }
+}
+
+fn accumulated_transition_finished(alpha: f32, graph: &AnimationGraph) -> bool {
+    if alpha >= 1.0 {
         return true;
     }
     graph.nodes.values().find_map(|node| node.try_inner_downcast_ref::<ProfiledBlendNode>())
-        .is_some_and(|node| transition_alpha(progress, node.alpha_blend_mode, &node.custom_curve)
+        .is_some_and(|node| transition_alpha(alpha, node.alpha_blend_mode, &node.custom_curve)
             == transition_alpha(1.0, node.alpha_blend_mode, &node.custom_curve))
 }
 
@@ -643,7 +658,9 @@ impl InterruptibleFsmNode {
             interrupted_sources.push(InterruptibleFsmSource {
                 state: state.state.clone(),
                 state_entered_time: state.state_entered_time,
-            elapsed_time: state.transition_elapsed_time,
+                elapsed_time: state.transition_elapsed_time,
+                blend_alpha: state.blend_alpha,
+                blend_remaining: state.blend_remaining,
                 context_slot: state.context_slot,
                 blend_duration: state.blend_duration,
             });
@@ -659,6 +676,8 @@ impl InterruptibleFsmNode {
         state.state = transition.target.clone();
         state.state_entered_time = time;
         state.transition_elapsed_time = 0.0;
+        state.blend_alpha = 0.0;
+        state.blend_remaining = blend_duration.unwrap_or_default();
         state.blend_duration = blend_duration;
         state.interrupted_sources = interrupted_sources;
         state.source_pose = None;
@@ -1147,6 +1166,8 @@ impl InterruptibleFsmNode {
             state,
             state_entered_time: time,
             transition_elapsed_time: 0.0,
+            blend_alpha: 0.0,
+            blend_remaining: 0.0,
             context_slot: 0,
             blend_duration: None,
             interrupted_sources: Vec::new(),
@@ -1173,6 +1194,8 @@ impl InterruptibleFsmNode {
             state: state.state.clone(),
             state_entered_time: state.state_entered_time,
             elapsed_time: state.transition_elapsed_time,
+            blend_alpha: state.blend_alpha,
+            blend_remaining: state.blend_remaining,
             context_slot: state.context_slot,
             blend_duration: state.blend_duration,
         };
@@ -1291,10 +1314,9 @@ impl InterruptibleFsmNode {
         let mut state = ctx.state::<InterruptibleFsmState>()?.clone();
         if let Some(completed) = state.interrupted_sources.iter().position(|source| {
             let Some(state_data) = machine.states.get(&source.state) else { return false; };
-            let Some(transition) = state_data.hl_transition.as_ref() else { return false; };
+            let Some(_) = state_data.hl_transition.as_ref() else { return false; };
             let Some(graph) = ctx.graph_context.resources.animation_graph_assets.get(&state_data.graph) else { return false; };
-            source_transition_blend_finished(source.elapsed_time,
-                source.blend_duration.or(transition.timed), graph)
+            accumulated_transition_finished(source.blend_alpha, graph)
         }) {
             state.interrupted_sources.truncate(completed);
         }
@@ -1344,7 +1366,6 @@ impl InterruptibleFsmNode {
         state.source_pose = source_pose;
         *ctx.state_mut_or_else(|| state.clone())? = state.clone();
         let (state_data, graph) = Self::active_graph(machine, &state.state, ctx)?;
-        let elapsed = state.transition_elapsed_time;
         let io = InterruptibleFsmIo {
             node_context: ctx.clone(),
             machine,
@@ -1361,7 +1382,18 @@ impl InterruptibleFsmNode {
             state_pose_output: self.state_pose_output.clone(),
             state_pose_outputs: self.state_pose_outputs.clone(),
         };
-        let sub_ctx = state_graph_context(ctx, state_data, graph, state.context_slot).with_io(&io);
+        let mut sub_ctx = state_graph_context(ctx, state_data, graph, state.context_slot).with_io(&io);
+        let mut global_inputs = std::borrow::Cow::Borrowed(sub_ctx.global_input_data);
+        if matches!(state.state, LowLevelStateId::HlState(_))
+            && state.context.inertialization_request.as_ref()
+                .is_some_and(|request| request.frame == ctx.graph_context.frame_index())
+        {
+            global_inputs.to_mut().insert(
+                crate::extensions::sync_group_phase::SOURCE_SYNC_INERTIAL_SCOPE.to_owned(),
+                DataValue::Bool(true),
+            );
+        }
+        sub_ctx.global_input_data = &global_inputs;
         let mut internal_events = EventQueue::default();
         let mut latest_pose = None;
         let mut pose_output = None;
@@ -1405,18 +1437,6 @@ impl InterruptibleFsmNode {
         let snapshot = ctx.state::<InterruptibleFsmState>()?.clone();
         ctx.state_mut_or_else(|| snapshot)?.context = context_state;
         self.record_state_weights(machine, ctx)?;
-        if machine
-            .states
-            .get(&state.state)
-            .and_then(|state_data| {
-                let transition = state_data.hl_transition.as_ref()?;
-                let graph = ctx.graph_context.resources.animation_graph_assets.get(&state_data.graph)?;
-                Some(source_transition_blend_finished(elapsed, state.blend_duration.or(transition.timed), graph))
-            })
-            .unwrap_or(false)
-        {
-            internal_events.add_instant_event(AnimationEvent::EndTransition);
-        }
         Ok(internal_events)
     }
 }
@@ -1545,15 +1565,45 @@ impl NodeLike for InterruptibleFsmNode {
             let state = ctx.state_mut_or_else(|| initial_state.clone())?;
             if matches!(&update, TimeUpdate::Absolute(_)) {
                 state.transition_elapsed_time = (time - state.state_entered_time).max(0.0);
+                state.blend_alpha = timed_transition_progress(state.transition_elapsed_time, state.blend_duration).unwrap_or_default();
+                state.blend_remaining = (state.blend_duration.unwrap_or_default() - state.transition_elapsed_time).max(0.0);
                 for source in &mut state.interrupted_sources {
                     source.elapsed_time = (time - source.state_entered_time).max(0.0);
+                    source.blend_alpha = timed_transition_progress(source.elapsed_time, source.blend_duration).unwrap_or_default();
+                    source.blend_remaining = (source.blend_duration.unwrap_or_default() - source.elapsed_time).max(0.0);
                 }
             } else {
                 state.transition_elapsed_time += elapsed_delta;
+                if let Some(state_data) = machine.states.get(&state.state)
+                    && state_data.hl_transition.is_some()
+                    && let Some(graph) = resources.animation_graph_assets.get(&state_data.graph)
+                    && !accumulated_transition_finished(state.blend_alpha, graph)
+                {
+                    advance_transition_blend(&mut state.blend_alpha, &mut state.blend_remaining, elapsed_delta);
+                }
                 for source in &mut state.interrupted_sources {
                     source.elapsed_time += elapsed_delta;
+                    if let Some(state_data) = machine.states.get(&source.state)
+                        && let Some(graph) = resources.animation_graph_assets.get(&state_data.graph)
+                        && !accumulated_transition_finished(source.blend_alpha, graph)
+                    {
+                        advance_transition_blend(&mut source.blend_alpha, &mut source.blend_remaining, elapsed_delta);
+                    }
                 }
             }
+        }
+        let state = ctx.state::<InterruptibleFsmState>()?;
+        let completed = machine.states.get(&state.state)
+            .and_then(|state_data| {
+                let transition = state_data.hl_transition.as_ref()?;
+                let graph = resources.animation_graph_assets.get(&state_data.graph)?;
+                Some(transition.timed.is_some() && accumulated_transition_finished(state.blend_alpha, graph))
+            }).unwrap_or(false);
+        if completed {
+            self.process_events(machine,
+                EventQueue::with_events([SampledEvent::instant(AnimationEvent::EndTransition)]),
+                false, &mut remaining_transitions, &mut ctx)
+                .map_err(|error| entry_error("completed transition processing", error))?;
         }
         let internal_events = self
             .evaluate_active_state(machine, update, &mut ctx)
@@ -3722,6 +3772,8 @@ mod tests {
             state,
             state_entered_time: 0.0,
             transition_elapsed_time: 0.0,
+            blend_alpha: 0.0,
+            blend_remaining: 0.0,
             context_slot: 0,
             blend_duration: None,
             interrupted_sources: Vec::new(),
@@ -4316,6 +4368,127 @@ mod tests {
     }
 
     #[test]
+    fn native_accumulated_blend_completion_keeps_the_source_reentry_pose() {
+        use bevy::ecs::system::RunSystemOnce;
+        fn query(In((root,node,source_cache_clear)):In<(Handle<AnimationGraph>,NodeId,bool)>,resources:SystemResources)->(Vec<String>,Vec<Pose>) {
+            let graph=resources.animation_graph_assets.get(&root).unwrap();
+            let mut arena=GraphContextArena::new(root.id());
+            let mut values=Vec::new();
+            let mut poses=Vec::new();
+            for frame in 0..43 {
+                let dt=if frame==0 {0.0_f32} else {0.02};
+                let inputs=HashMap::from([
+                    ("delta".into(),DataValue::F32(dt)),("to_b".into(),DataValue::Bool(frame==1)),
+                    ("to_a".into(),DataValue::Bool(frame==41)),
+                    ("allow_auto".into(),DataValue::Bool(false)),
+                ]);
+                let pose=graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(dt)),
+                    GraphContext::new(arena.get_toplevel_id(),graph,&mut arena,&resources,&TestIoEnv::default(),
+                        Entity::PLACEHOLDER,&HashMap::new(),&mut DeferredGizmos::default(),&inputs))
+                    .unwrap().remove("pose").unwrap().into_pose().unwrap();
+                if frame==40 && source_cache_clear {
+                    let env=TestIoEnv::default();
+                    let entities=HashMap::new();
+                    let context=GraphContext::new(arena.get_toplevel_id(),graph,&mut arena,&resources,&env,
+                        Entity::PLACEHOLDER,&entities,&mut DeferredGizmos::default(),&inputs);
+                    let mut node_context=context.create_node_context(node);
+                    let state=node_context.state_mut_or_else::<InterruptibleFsmState>(||unreachable!()).unwrap();
+                    let first=serde_json::from_str::<StateId>("\"10000000-0000-4000-8000-000000000001\"").unwrap();
+                    state.recorded_state_weights.retain(|weight|weight.state_id!=first.uuid().to_string());
+                }
+                let state=arena.get_toplevel().node_states.get::<InterruptibleFsmState>(node,StateKey::Default).unwrap();
+                let machine=graph.nodes[&node].try_inner_downcast_ref::<InterruptibleFsmNode>().unwrap()
+                    .state_machine(&resources).unwrap();
+                values.push(InterruptibleFsmNode::source_condition_state(machine,&state.state).unwrap().uuid().to_string());
+                poses.push(pose);
+            }
+            (values,poses)
+        }
+        let mut graphs=Assets::<AnimationGraph>::default();
+        let (mut app,_,_)=crate::roll_drive::tests::loaded_roll_character();
+        let clips=["Left_Forward","Left_Backward"].map(|direction|
+            app.world().resource::<AssetServer>().load::<GraphClip>(
+                format!("ALS/Animations/Grounded/WalkRun/A_Als_Walk_{direction}.anim.ron")));
+        let deadline=std::time::Instant::now()+std::time::Duration::from_secs(30);
+        while clips.iter().any(|clip|!app.world().resource::<AssetServer>().is_loaded_with_dependencies(clip.id())) {
+            app.update();assert!(std::time::Instant::now()<deadline,"Native reentry pose clips did not load");
+        }
+        let clip_assets=app.world_mut().remove_resource::<Assets<GraphClip>>().unwrap();
+        let skeletons=app.world_mut().remove_resource::<Assets<Skeleton>>().unwrap();
+        let first_duration=clip_assets.get(&clips[0]).unwrap().duration;
+        assert!(first_duration>0.2);
+        let first_start=0.3;
+        let states=[1,2].map(|id|serde_json::from_str::<StateId>(&format!("\"10000000-0000-4000-8000-{id:012}\"")).unwrap());
+        let mut machine=StateMachine::default();machine.start_state=states[0];
+        machine.node_spec.add_output_data("pose".into(),DataSpec::Pose);
+        for (index,id) in states.into_iter().enumerate() {
+            let player=AnimationNode::new("source sequence",crate::extensions::SourceSequencePlayerNode {
+                clip:clips[index].clone(),start_position:if index==0 {first_start} else {0.0},loop_animation:false,
+                expose_play_rate_pin:false,expose_start_position_pin:false,expose_loop_animation_pin:false,..default()
+            });
+            let mut leaf=AnimationGraph::new();leaf.add_node(player.clone());leaf.add_output_data("pose".into(),DataSpec::Pose);
+            leaf.add_output_data_edge(player.id,"Pose","pose");
+            machine.add_state(State {id,label:index.to_string(),graph:graphs.add(leaf),..default()});
+        }
+        let blend=AnimationNode::new("source crossfade",ProfiledBlendNode {alpha_blend_mode:AlphaBlendMode::Cubic,..default()});
+        let mut transition=AnimationGraph::new();transition.add_node(blend.clone());
+        for (pin,input,spec) in [
+            ("factor",GraphInputPin::FsmBuiltin(FsmBuiltinPin::PercentThroughDuration),DataSpec::F32),
+            ("pose_a",GraphInputPin::FromFsmSource("pose".into()),DataSpec::Pose),
+            ("pose_b",GraphInputPin::FromFsmTarget("pose".into()),DataSpec::Pose)
+        ] {transition.add_input_data(input.clone(),spec);transition.add_input_data_edge(input,blend.id,pin);}
+        for (pin,input) in [("time_a",GraphInputPin::FromFsmSource("time".into())),("time_b",GraphInputPin::FromFsmTarget("time".into()))] {
+            transition.add_input_time(input.clone());transition.add_input_time_edge(input,blend.id,pin);
+        }
+        transition.add_output_time();transition.add_output_pose_edge(blend.id);
+        transition.add_output_data("pose".into(),DataSpec::Pose);transition.add_output_data_edge(blend.id,"pose","pose");
+        let transition=graphs.add(transition);
+        let mut conditions=Vec::new();
+        for (index,(from,to,key)) in [(0,1,"to_b"),(1,0,"to_a")].into_iter().enumerate() {
+            let edge=serde_json::from_str::<DirectTransitionId>(&format!("\"30000000-0000-4000-8000-{:012}\"",index+1)).unwrap();
+            machine.add_transition_unchecked(DirectTransition {id:edge,source:states[from],target:states[to],
+                data:TransitionData {kind:bevy_animation_graph::core::state_machine::high_level::TransitionKind::Graph {
+                    graph:transition.clone(),timed:Some(0.8)},reset_target_state:true,..default()}});
+            let mut condition=AnimationGraph::new();let value=AnimationNode::new(key,GlobalBoolInputNode {key:key.into()});
+            condition.add_node(value.clone());condition.add_output_data(key.into(),DataSpec::Bool);
+            condition.add_output_data_edge(value.id,key,key);
+            let context_state=serde_json::from_str::<StateId>(&format!("\"20000000-0000-4000-8000-{:012}\"",index+1)).unwrap();
+            conditions.push(SourceTransitionCondition {
+                transition_id:edge.uuid().to_string(),source_state_id:states[from].uuid().to_string(),
+                condition:graphs.add(condition),output:key.into(),context_state,
+                transition_duration:0.8,
+                always_reset_target_on_entry:Some(false),
+                ..default()
+            });
+        }
+        machine.update_low_level_fsm();
+        let mut machines=Assets::<StateMachine>::default();
+        let machine=machines.add(machine);
+            let fsm=AnimationNode::new("native reentry FSM",InterruptibleFsmNode {fsm:machine.clone(),
+                source_transition_conditions:conditions,internal_time_key:"delta".into(),expose_telemetry:false,..default()});
+            let mut root=AnimationGraph::new();root.add_node(fsm.clone());root.add_output_data("pose".into(),DataSpec::Pose);
+            root.add_output_data_edge(fsm.id,"pose","pose");
+        let root=graphs.add(root);
+        let node=fsm.id;
+        let mut world=World::new();world.insert_resource(graphs);world.insert_resource(clip_assets);
+        world.insert_resource(machines);world.insert_resource(skeletons);
+        let expected=world.run_system_once_with(query,(root.clone(),node,true)).unwrap();
+        let actual=world.run_system_once_with(query,(root,node,false)).unwrap();
+        assert_eq!(expected.0[1],states[1].uuid().to_string());
+        assert_eq!(expected.0[41],states[0].uuid().to_string());
+        assert_eq!(expected.0[40],states[1].uuid().to_string());
+        let mut dot=1.0_f32;let mut distance=0.0_f32;
+        for bone in expected.1[42].paths.keys() {
+            let a=actual.1[42].get_bone(*bone).unwrap();let e=expected.1[42].get_bone(*bone).unwrap();
+            if let (Some(a),Some(e))=(a.rotation,e.rotation) {dot=dot.min(a.dot(e).abs());}
+            if let (Some(a),Some(e))=(a.translation,e.translation) {distance=distance.max(a.distance(e));}
+        }
+        assert!(actual.0==expected.0 && dot>1.0-1e-5 && distance<1e-5,
+            "Native accumulated Cubic completion changes the actual reentry pose: actual_states={:?}, source_states={:?}, rotation_error_degrees={}, location_error={distance}",
+            actual.0[40..].to_vec(),expected.0[40..].to_vec(),(2.0*dot.clamp(-1.0,1.0).acos()).to_degrees());
+    }
+
+    #[test]
     fn blend_pose_is_invariant_to_the_native_initial_clock_offset() {
         use bevy::ecs::system::RunSystemOnce;
         fn query(In((root,node,offset)):In<(Handle<AnimationGraph>,NodeId,f32)>,resources:SystemResources)->(Vec<String>,Vec<Pose>) {
@@ -4495,6 +4668,8 @@ mod tests {
             state: LowLevelStateId::HlState(member),
             state_entered_time: 0.0,
             transition_elapsed_time: 0.0,
+            blend_alpha: 0.0,
+            blend_remaining: 0.0,
             context_slot: 0,
             blend_duration: None,
             interrupted_sources: Vec::new(),
@@ -4544,6 +4719,8 @@ mod tests {
             state: source,
             state_entered_time: 0.0,
             transition_elapsed_time: 0.0,
+            blend_alpha: 0.0,
+            blend_remaining: 0.0,
             context_slot: 0,
             blend_duration: None,
             interrupted_sources: Vec::new(),
@@ -4939,6 +5116,29 @@ mod tests {
     }
 
     #[test]
+    fn accumulated_completion_matches_native_multistep_probe() {
+        let mut graph=AnimationGraph::new();
+        graph.add_node(AnimationNode::new("Cubic",ProfiledBlendNode {alpha_blend_mode:AlphaBlendMode::Cubic,..default()}));
+        for (delta,frame,expected_alpha,expected_complete) in [
+            (1.0_f32/60.0,6,0.9999999403953552_f32,false),
+            (0.02_f32,5,1.0_f32,true),
+        ] {
+            let mut alpha=0.0;
+            let mut remaining=0.1;
+            for _ in 0..frame {
+                if !accumulated_transition_finished(alpha,&graph) {
+                    advance_transition_blend(&mut alpha,&mut remaining,delta);
+                }
+            }
+            assert_eq!(alpha,expected_alpha);
+            assert_eq!(accumulated_transition_finished(alpha,&graph),expected_complete);
+            let before=(alpha,remaining);
+            advance_transition_blend(&mut alpha,&mut remaining,0.0);
+            assert_eq!((alpha,remaining),before);
+        }
+    }
+
+    #[test]
     fn custom_transition_finishes_when_blend_reaches_its_terminal_value() {
         use bevy_animation_graph::core::animation_node::AnimationNode;
         let graph = |values: [f32; 3], mode| {
@@ -4952,15 +5152,15 @@ mod tests {
             graph
         };
         let early = graph([0.0, 1.0, 1.0], AlphaBlendMode::Custom);
-        assert!(!source_transition_blend_finished(0.3, Some(1.0), &early));
-        assert!(source_transition_blend_finished(0.4, Some(1.0), &early));
-        assert!(source_transition_blend_finished(1.0, Some(1.0), &early));
+        assert!(!accumulated_transition_finished(0.3, &early));
+        assert!(accumulated_transition_finished(0.4, &early));
+        assert!(accumulated_transition_finished(1.0, &early));
         let lower_terminal = graph([0.0, 0.6, 0.6], AlphaBlendMode::Custom);
-        assert!(source_transition_blend_finished(0.4, Some(1.0), &lower_terminal));
+        assert!(accumulated_transition_finished(0.4, &lower_terminal));
         let normal = graph([0.0, 0.4, 1.0], AlphaBlendMode::Custom);
-        assert!(!source_transition_blend_finished(0.4, Some(1.0), &normal));
+        assert!(!accumulated_transition_finished(0.4, &normal));
         let linear = graph([0.0, 1.0, 1.0], AlphaBlendMode::Linear);
-        assert!(!source_transition_blend_finished(0.4, Some(1.0), &linear));
+        assert!(!accumulated_transition_finished(0.4, &linear));
     }
 
     #[test]
@@ -5165,6 +5365,8 @@ mod tests {
             state: LowLevelStateId::HlState(StateId::default()),
             state_entered_time: 0.0,
             transition_elapsed_time: 0.0,
+            blend_alpha: 0.0,
+            blend_remaining: 0.0,
             context_slot: 0,
             blend_duration: None,
             interrupted_sources: Vec::new(),
@@ -5220,6 +5422,8 @@ mod tests {
             state: active_state.clone(),
             state_entered_time: 1.0,
             transition_elapsed_time: 0.0,
+            blend_alpha: 0.0,
+            blend_remaining: 0.0,
             context_slot: 0,
             blend_duration: None,
             interrupted_sources: Vec::new(),

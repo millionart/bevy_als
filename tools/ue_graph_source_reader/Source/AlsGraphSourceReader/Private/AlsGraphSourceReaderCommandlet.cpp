@@ -1085,6 +1085,43 @@ TSharedRef<FJsonObject> CaptureAlphaBlendProbe()
     TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
     Result->SetStringField(TEXT("format"), TEXT("ue_alpha_blend_probe_v1"));
     Result->SetArrayField(TEXT("rows"), Rows);
+    TArray<TSharedPtr<FJsonValue>> Sequences;
+    for (const EAlphaBlendOption Mode : Modes)
+    {
+        for (const FVector2f Timing : {FVector2f(0.1f, 1.0f / 60.0f), FVector2f(0.1f, 0.02f), FVector2f(0.8f, 0.02f)})
+        {
+            const float Duration = Timing.X;
+            const float Delta = Timing.Y;
+            FAlphaBlend Blend;
+            Blend.SetBlendTime(Duration);
+            Blend.SetBlendOption(Mode);
+            Blend.SetValueRange(0.0f, 1.0f);
+            float Elapsed = 0.0f;
+            TArray<TSharedPtr<FJsonValue>> Frames;
+            for (int32 Frame = 1; Frame <= FMath::CeilToInt(Duration / Delta) + 2; ++Frame)
+            {
+                Elapsed += Delta;
+                Blend.Update(Delta);
+                TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>();
+                Row->SetNumberField(TEXT("frame"), Frame);
+                Row->SetNumberField(TEXT("elapsed"), Elapsed);
+                Row->SetNumberField(TEXT("query_alpha"), Elapsed / Duration);
+                Row->SetNumberField(TEXT("curve_value"), FAlphaBlend::AlphaToBlendOption(Elapsed / Duration, Mode, nullptr));
+                Row->SetNumberField(TEXT("alpha_lerp"), Blend.GetAlpha());
+                Row->SetNumberField(TEXT("blend_value"), Blend.GetBlendedValue());
+                Row->SetBoolField(TEXT("complete"), Blend.IsComplete());
+                Frames.Add(MakeShared<FJsonValueObject>(Row));
+            }
+            TSharedRef<FJsonObject> Sequence = MakeShared<FJsonObject>();
+            Sequence->SetStringField(TEXT("mode"), Mode == EAlphaBlendOption::Cubic ? TEXT("Cubic") : Mode == EAlphaBlendOption::HermiteCubic ? TEXT("HermiteCubic") : TEXT("QuadraticInOut"));
+            Sequence->SetNumberField(TEXT("duration"), Duration);
+            Sequence->SetNumberField(TEXT("delta"), Delta);
+            Sequence->SetArrayField(TEXT("frames"), Frames);
+            Sequences.Add(MakeShared<FJsonValueObject>(Sequence));
+        }
+        UE_LOG(LogAlsGraphSourceReader, Display, TEXT("Alpha blend sequence mode %d/3 completed."), static_cast<int32>(Sequences.Num()) / 3);
+    }
+    Result->SetArrayField(TEXT("sequences"), Sequences);
     return Result;
 }
 
