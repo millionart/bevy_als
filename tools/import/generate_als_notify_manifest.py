@@ -121,8 +121,8 @@ def manifest(audit, assets_root):
                     "class": event_class(event),
                     "track": event.get("track_name"),
                     "track_index": event.get("track_index"),
-                    "start_time": start,
-                    "end_time": end,
+                    "start_time": start + event.get("trigger_time_offset", 0.0),
+                    "end_time": end + event.get("trigger_time_offset", 0.0) + event.get("end_trigger_time_offset", 0.0),
                     "trigger_time_offset": event.get("trigger_time_offset", 0.0),
                     "weight_threshold": event.get("weight_threshold"),
                     "filter": {

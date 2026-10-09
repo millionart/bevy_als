@@ -74,8 +74,6 @@ pub struct AlsNotifyManifestEvent {
     pub track_index: i32,
     pub start_time: f32,
     pub end_time: f32,
-    #[serde(default)]
-    pub trigger_time_offset: f32,
     pub weight_threshold: f32,
     pub filter: AlsNotifyManifestFilter,
     pub parameters: Value,
@@ -667,7 +665,7 @@ fn timed_events(clip: &AlsNotifyManifestClip, predicted_lod: i32) -> Vec<TimedEv
         .map(|event| TimedEvent {
             id: event.event_id.clone(),
             kind: event_kind(event),
-            start_time: event.start_time + if event.kind == "point" { event.trigger_time_offset } else { 0.0 },
+            start_time: event.start_time,
             end_time: event.end_time,
             weight_threshold: event.weight_threshold,
             track: Some(event.track.clone()),
@@ -1062,7 +1060,6 @@ pub(crate) mod tests {
             event.kind = "state".to_owned();
             event.start_time = start;
             event.end_time = end;
-            event.trigger_time_offset = 0.0;
             event.filter.trigger_chance = 1.0;
             event.parameters = serde_json::json!({"TranslationScale": scale});
             track.add_item(TrackItemValue { event: AnimationEvent::StringId(event.event_id.clone()), start_time: start, end_time: end });
@@ -1277,7 +1274,6 @@ pub(crate) mod tests {
             event.event_id = format!("chance_{index}");
             event.start_time = (index + 1) as f32 * 0.1;
             event.end_time = event.start_time;
-            event.trigger_time_offset = 0.0;
             event.filter.trigger_chance = chance;
             event
         }).collect();
@@ -1440,7 +1436,6 @@ pub(crate) mod tests {
         event.event_id = "grounded_entry_empty".into();
         event.start_time = 0.1;
         event.end_time = 0.1;
-        event.trigger_time_offset = 0.0;
         event.parameters = serde_json::json!({"GroundedEntryMode": {"__tagged__": {"TagName": ""}}});
         let tags = ["", "Als.GroundedEntryMode.Custom", "Als.GroundedEntryMode.FromRoll", "Als.GroundedEntryMode.FromRoll", ""];
         source.events = tags.iter().enumerate().map(|(index, tag)| {
@@ -1960,7 +1955,6 @@ pub(crate) mod tests {
                 let mut event = source.events.iter().find(|event| event.class_name == "AlsAnimNotify_FootstepEffects").unwrap().clone();
                 event.start_time = start[index] + delta * rate * 0.5;
                 event.end_time = event.start_time;
-                event.trigger_time_offset = 0.0;
                 source.events = vec![event];
                 source.sync_markers.clear();
             }
@@ -2061,7 +2055,7 @@ pub(crate) mod tests {
                     else { [("sample_a", if resync { 0.25 } else { 0.78125 }), ("sample_b", if resync { 0.85 } else { 0.90625 })] };
                 source.events = events
                     .map(|(id, time)| { let mut event = template.clone(); event.event_id = id.into(); event.id = id.into();
-                        event.start_time = time * sample_duration; event.end_time = event.start_time; event.trigger_time_offset = 0.0;
+                        event.start_time = time * sample_duration; event.end_time = event.start_time;
                         event.filter.trigger_on_follower = joins_as_follower; event.filter.trigger_chance = 1.0; event }).to_vec();
             }
             let mut player = AnimationGraphPlayer::new(skeleton.clone()).with_graph(history);
@@ -2454,8 +2448,8 @@ pub(crate) mod tests {
             }
             let action = source_clip(&manifest, montage).unwrap().events.iter()
                 .find(|event| event.class_name == "AlsAnimNotifyState_SetLocomotionAction").unwrap();
-            assert_eq!(action.start_time, 0.0);
-            assert!((action.end_time - if kind.is_high() { 2.066667 } else { 0.966667 }).abs() < 1e-6);
+            assert_eq!(action.start_time, -0.0001);
+            assert!((action.end_time - if kind.is_high() { 2.066567 } else { 0.966567 }).abs() < 1e-6);
         }
         assert_ne!(mantle_sources(MantleKind::Low).1, mantle_sources(MantleKind::LowRight).1);
         assert_eq!(

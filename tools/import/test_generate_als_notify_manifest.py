@@ -59,6 +59,21 @@ class NotifyManifestTests(unittest.TestCase):
         self.assertEqual(output["end_time"], 0.25)
         self.assertTrue(output["event_id"].endswith(":00000000-0000-0000-0000-000000000001"))
 
+    def test_notify_times_include_both_native_trigger_offsets(self):
+        for kind, start, end, start_offset, end_offset in (
+            ("state", 0.0, 0.933333, 0.0001, 0.0),
+            ("state", 0.0, 0.966667, -0.0001, 0.0),
+            ("state", 1.0, 1.5, 0.0, -0.0001),
+            ("point", 0.25, 0.25, -0.0001, 0.0),
+        ):
+            value = event(start=start, end=end)
+            value.update(kind=kind, trigger_time_offset=start_offset, end_trigger_time_offset=end_offset)
+            row = sequence(self.source, "assets/animations/Test/Test.gltf", [value])
+            row["sequence_length"] = 2.0
+            output = manifest({"animations": [row]}, self.assets)["clips"][0]["events"][0]
+            self.assertAlmostEqual(output["start_time"], start + start_offset)
+            self.assertAlmostEqual(output["end_time"], end + start_offset + end_offset)
+
     def test_duplicate_ids_are_rejected(self):
         duplicate = sequence(self.source, "assets/animations/Test/Test.gltf", [event(), event()])
         with self.assertRaisesRegex(ValidationError, "duplicate_event_id"):
