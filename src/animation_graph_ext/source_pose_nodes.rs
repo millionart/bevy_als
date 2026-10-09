@@ -256,6 +256,13 @@ fn source_two_way_child_relevancy(
 
 pub(crate) fn cached_update_branch_weights(ctx: &NodeContext) -> Result<Option<Vec<(String, f32)>>, GraphError> {
     let node = &ctx.graph_context.graph.nodes[&ctx.node_id];
+    if let Some(blend) = node.try_inner_downcast_ref::<crate::extensions::SourceMultiWayBlendNode>() {
+        let weights = blend.active_weights(ctx)?;
+        return Ok(Some((0..blend.pose_count).map(|index| (
+            format!("{}{index}", blend.pose_pin_prefix),
+            weights.iter().find(|entry| entry.0 == index).map_or(0.0, |entry| entry.1),
+        )).collect()));
+    }
     if let Some(blend) = node.try_inner_downcast_ref::<SourceTwoWayBlendNode>() {
         let mut state = ctx.state::<SourceTwoWayBlendState>().cloned().unwrap_or_default();
         let alpha = source_blend_alpha(&mut state.alpha, blend.alpha_input(ctx)?, blend.mapping_max,

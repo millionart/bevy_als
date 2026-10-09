@@ -78,19 +78,16 @@ impl SourceMultiWayBlendNode {
             .and_then(|value| value.as_f32().ok());
         Ok(input.unwrap_or(fallback))
     }
-}
-
-impl NodeLike for SourceMultiWayBlendNode {
-    fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+    pub(crate) fn active_weights(&self, ctx: &NodeContext) -> Result<Vec<(usize, f32)>, GraphError> {
         if self.desired_alpha_keys.len() != self.pose_count
             || self.desired_alpha_defaults.len() != self.pose_count
         {
             return Err(node_error(
-                &ctx,
+                ctx,
                 "desired alpha configuration does not match pose count".to_owned(),
             ));
         }
-        let desired = (0..self.pose_count).map(|index| self.alpha(&ctx, index))
+        let desired = (0..self.pose_count).map(|index| self.alpha(ctx, index))
             .collect::<Result<Vec<_>, _>>()?;
         let total: f32 = desired.iter().sum();
         let mut active = Vec::new();
@@ -100,6 +97,14 @@ impl NodeLike for SourceMultiWayBlendNode {
                 if weight > 1e-5 { active.push((index, weight)); }
             }
         }
+        Ok(active)
+    }
+
+}
+
+impl NodeLike for SourceMultiWayBlendNode {
+    fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+        let active = self.active_weights(&ctx)?;
         let mut poses = Vec::with_capacity(active.len());
         let mut contexts = Vec::new();
         for (index, weight) in active {
