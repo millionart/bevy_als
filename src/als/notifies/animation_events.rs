@@ -470,8 +470,7 @@ impl Plugin for AlsAnimationEventPlugin {
             .add_systems(
                 PostUpdate,
                 apply_grounded_entry_point_notifications
-                    .after(crate::ab_als_root::AlsRootGraphSet)
-                    .before(crate::ab_als_provider::AbAlsProviderSet),
+                    .after(AnimationGraphSet::Final),
             )
             .configure_sets(PostUpdate, AlsAnimationEventSet::GraphFootsteps
                 .after(AnimationGraphSet::Final).before(crate::als_camera::AlsCameraSet))

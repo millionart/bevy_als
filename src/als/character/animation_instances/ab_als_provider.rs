@@ -787,24 +787,33 @@ mod tests {
     #[test]
     fn source_action_snapshot_preserves_the_later_roll_entry_point_notify() {
         #[derive(Resource, Default)]
-        struct ObservedRollEntry(Vec<(String, String)>);
+        struct ObservedRollEntry(Vec<(String, String, bool)>);
         let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
         let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
         app.init_resource::<ObservedRollEntry>().add_systems(PostUpdate,
-            (move |source: Query<&crate::extensions::SourceAnimationInputs>, mut observed: ResMut<ObservedRollEntry>| {
+            (move |source: Query<&crate::extensions::SourceAnimationInputs>, mut observed: ResMut<ObservedRollEntry>,
+                mut events: MessageReader<crate::animation_events::AlsAnimationEvent>| {
                 let source = source.get(player).unwrap();
+                let queued_point = events.read().any(|event| event.character == character
+                    && event.class_name == "AlsAnimNotify_SetGroundedEntryMode"
+                    && event.phase == crate::extensions::EventPhase::Point);
                 observed.0.push((source.gameplay_tag_input("locomotion_action").unwrap().as_str().to_owned(),
-                    source.gameplay_tag_input("grounded_entry_mode").unwrap().as_str().to_owned()));
-            }).after(AbAlsProviderSet).before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate));
+                    source.gameplay_tag_input("grounded_entry_mode").unwrap().as_str().to_owned(), queued_point));
+            }).after(AbAlsProviderSet).after(crate::animation_events::AlsAnimationEventSet::Dispatch)
+                .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate));
         for _ in 0..30 { app.update(); }
         app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = true;
         app.update();
         app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = false;
         for _ in 0..100 { app.update(); }
         let rows = &app.world().resource::<ObservedRollEntry>().0;
-        assert!(rows.iter().any(|(action, _)| action == "Als.LocomotionAction.Rolling"));
-        assert!(rows.iter().any(|(action, entry)| action.is_empty() && entry == "Als.GroundedEntryMode.FromRoll"),
+        assert!(rows.iter().any(|(action, _, _)| action == "Als.LocomotionAction.Rolling"));
+        assert!(rows.iter().any(|(action, entry, _)| action.is_empty() && entry == "Als.GroundedEntryMode.FromRoll"),
             "Source branching action end precedes NativeUpdate reset, then the queued FromRoll point reaches the actual graph consumer");
+        assert!(rows.iter().any(|(_, _, queued)| *queued), "Actual Roll did not dispatch its queued entry point");
+        assert!(rows.iter().filter(|(_, _, queued)| *queued).all(|(_, entry, _)| entry.is_empty()),
+            "Queued Roll entry point reached graph inputs before its source post-graph dispatch: {:?}",
+            rows.iter().filter(|(_, _, queued)| *queued).collect::<Vec<_>>());
     }
 
     #[test]
