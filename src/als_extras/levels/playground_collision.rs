@@ -219,14 +219,17 @@ fn build_mesh_collider_template(
     let collider = match source.kind {
         PlaygroundColliderKind::Box => return None,
         PlaygroundColliderKind::Convex { source_hulls } => {
-            Collider::convex_decomposition_with_config(
-                geometry.vertices,
-                geometry.triangles,
-                VhacdParameters {
-                    max_convex_hulls: source_hulls as u32,
-                    ..default()
-                },
-            )
+            let definitions: HashMap<String, Vec<Vec<[f32; 3]>>> = serde_json::from_str(include_str!(
+                "../../../assets/ALSExtras/Environment/Meshes/static_convex_collision.runtime.json"
+            )).expect("Generated static convex collision must be valid");
+            let hulls = definitions.get(&source.mesh_base).expect("Authored static convex collision is missing");
+            assert_eq!(hulls.len(), source_hulls as usize, "Authored convex element count differs");
+            Collider::compound(hulls.iter().map(|points| (
+                Vec3::ZERO,
+                Quat::IDENTITY,
+                Collider::convex_hull(points.iter().copied().map(Vec3::from_array).collect())
+                    .expect("Authored static convex hull is invalid"),
+            )).collect())
         }
         PlaygroundColliderKind::TriMesh => {
             match Collider::try_trimesh(geometry.vertices, geometry.triangles) {
@@ -373,6 +376,53 @@ mod tests {
         gait::AlsDesiredGait, input::AlsInputCommand, motion::{AlsMotionPlugin, initial_als_control_scheme_config},
         params::AlsMovementParams, state::{Gait, LocomotionState}, transition::AlsStateTransitionPlugin};
     use bevy::{asset::AssetEvent, ecs::system::RunSystemOnce, time::TimeUpdateStrategy};
+
+    #[test]
+    fn current_arch_simple_collision_matches_authored_source_hulls() {
+        use avian3d::parry::{math::Pose as PhysicsPose, query::{cast_shapes, ShapeCastOptions}};
+        let data: serde_json::Value = serde_json::from_str(include_str!("../../../assets/ALSExtras/Environment/Meshes/SM_Als_Arch_01.gltf")).unwrap();
+        let bytes = include_bytes!("../../../assets/ALSExtras/Environment/Meshes/SM_Als_Arch_01.bin");
+        let primitive = &data["meshes"][0]["primitives"][0];
+        let accessor_bytes = |index: usize, width: usize| {
+            let accessor=&data["accessors"][index];
+            let view=&data["bufferViews"][accessor["bufferView"].as_u64().unwrap() as usize];
+            let offset=view["byteOffset"].as_u64().unwrap_or(0) as usize+accessor["byteOffset"].as_u64().unwrap_or(0) as usize;
+            assert_eq!(view["byteStride"].as_u64().unwrap_or(width as u64) as usize,width);
+            &bytes[offset..offset+accessor["count"].as_u64().unwrap() as usize*width]
+        };
+        let positions=accessor_bytes(primitive["attributes"]["POSITION"].as_u64().unwrap() as usize,12).chunks_exact(12)
+            .map(|p|std::array::from_fn::<_,3,_>(|i|f32::from_le_bytes(p[i*4..i*4+4].try_into().unwrap()))).collect::<Vec<_>>();
+        let indices=accessor_bytes(primitive["indices"].as_u64().unwrap() as usize,2).chunks_exact(2)
+            .map(|i|u16::from_le_bytes(i.try_into().unwrap()) as u32).collect();
+        let mut mesh=Mesh::new(bevy::render::render_resource::PrimitiveTopology::TriangleList,default());
+        mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION,positions);
+        mesh.insert_indices(bevy::render::mesh::Indices::U32(indices));
+        let mut app=App::new();
+        app.add_plugins((MinimalPlugins,TransformPlugin,PlaygroundCollisionPlugin))
+            .init_resource::<Assets<Mesh>>().add_message::<AssetEvent<Mesh>>();
+        app.finish();
+        let mesh=app.world_mut().resource_mut::<Assets<Mesh>>().add(mesh);
+        let root=app.world_mut().spawn((PlaygroundCollisionSource::new("SM_Als_Arch_01"),Transform::IDENTITY,GlobalTransform::IDENTITY)).id();
+        app.world_mut().spawn((ChildOf(root),Mesh3d(mesh),Transform::IDENTITY,GlobalTransform::IDENTITY));
+        app.update();
+        let actual=app.world().get::<Collider>(root).unwrap();
+        let fixture:serde_json::Value=serde_json::from_str(include_str!("../../../tools/fixtures/arch_source_simple_collision.json")).unwrap();
+        let source=Collider::compound(fixture["convexes"].as_array().unwrap().iter().map(|hull|{
+            let points=hull.as_array().unwrap().iter().map(|p|Vec3::new(p[0].as_f64().unwrap() as f32,p[1].as_f64().unwrap() as f32,p[2].as_f64().unwrap() as f32)).collect();
+            (Vec3::ZERO,Quat::IDENTITY,Collider::convex_hull(points).unwrap())
+        }).collect());
+        let capsule=Collider::capsule(0.3,1.2);
+        let options=ShapeCastOptions { max_time_of_impact:3.0, ..default() };
+        for position in [Vec3::new(0.0,1.1,-1.5),Vec3::new(-0.7,0.9,-1.5),Vec3::new(0.7,0.9,-1.5)] {
+            let pose=PhysicsPose::from_translation(position);
+            let expected=cast_shapes(&PhysicsPose::IDENTITY,Vec3::ZERO,source.shape().as_ref(),&pose,Vec3::Z,capsule.shape().as_ref(),options).unwrap().map(|h|h.time_of_impact);
+            let observed=cast_shapes(&PhysicsPose::IDENTITY,Vec3::ZERO,actual.shape().as_ref(),&pose,Vec3::Z,capsule.shape().as_ref(),options).unwrap().map(|h|h.time_of_impact);
+            assert_eq!(observed.is_some(),expected.is_some(),"Source blocking state differs at {position:?}");
+            if let (Some(expected),Some(observed))=(expected,observed) {
+                assert!((observed-expected).abs()<0.001,"Current Arch capsule sweep differs at {position:?}: source={expected}, target={observed}");
+            }
+        }
+    }
 
     #[test]
     fn rotating_actor_world_time_and_yaw_match_source() {
