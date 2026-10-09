@@ -250,6 +250,7 @@ const STANDING_DYNAMIC_CASES: [(&str, f32, f32); 2] = [
 ];
 
 fn standing_dynamic_command(index: usize, elapsed: Option<f32>, released: bool, base_yaw: f32, body_yaw: f32, view_yaw: f32, current: RotationMode) -> crate::als::input::AlsInputCommand {
+    let released = released || elapsed.is_some_and(|elapsed| elapsed >= 1.5);
     let target = if released { body_yaw } else {
         let phase = elapsed.unwrap_or(0.0) % 4.0;
         base_yaw + phase.min(4.0 - phase) * STANDING_DYNAMIC_CASES[index].2.to_radians()
@@ -12064,18 +12065,37 @@ mod tests {
     }
 
     #[test]
+    fn standing_dynamic_input_reaches_both_actual_transition_branches() {
+        for index in 0..2 {
+            let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+            app.world_mut().entity_mut(character).insert(AlsInputOverride::default());
+            let base_yaw = world_forward_to_yaw(*app.world().get::<Transform>(character).unwrap().forward());
+            let mut observed = false;
+            let deadline = Instant::now() + Duration::from_secs(25);
+            for frame in 0..420 {
+                let body_yaw = world_forward_to_yaw(*app.world().get::<Transform>(character).unwrap().forward());
+                let view_yaw = app.world().get::<AlsViewYaw>(character).unwrap().0;
+                let mode = *app.world().get::<RotationMode>(character).unwrap();
+                app.world_mut().get_mut::<AlsInputOverride>(character).unwrap().0 = standing_dynamic_command(index,
+                    (frame >= 60).then_some((frame as f32 - 60.0) / 60.0), observed, base_yaw, body_yaw, view_yaw, mode);
+                app.update();
+                observed |= app.world().get::<AlsTransitionMontageStack>(character).is_some_and(|stack|
+                    stack.entries.iter().any(|playback| playback.kind == AlsTransitionKind::StandingDynamic
+                        && playback.index == STANDING_DYNAMIC_CASES[index].1));
+                assert!(Instant::now() < deadline, "Standing dynamic input fixture made no timely progress");
+                if observed { break; }
+            }
+            assert!(observed, "Standing dynamic input did not reach its source branch: case={index}");
+        }
+    }
+
+    #[test]
     fn standing_dynamic_inputs_release_aim_and_require_foot_recovery() {
         for index in 0..2 {
-            for fps in [30, 120] {
-                let mut view = 0.3;
-                let mut travel = [0.0; 2];
-                for frame in 0..=4 * fps {
-                    let command = standing_dynamic_command(index, Some(frame as f32 / fps as f32), false, 0.3, 0.4, view, RotationMode::Aiming);
-                    let delta = -command.look_delta.x * crate::als::view::LOOK_MOUSE_RADIANS_PER_COUNT;
-                    travel[usize::from(delta < 0.0)] += delta.abs();
-                    view += delta;
-                }
-                assert!(travel.iter().all(|angle| *angle > 3.99 * std::f32::consts::TAU));
+            for elapsed in [1.5, 2.0, 4.0] {
+                let command = standing_dynamic_command(index, Some(elapsed), false, 0.3, 0.4, 0.3, RotationMode::Aiming);
+                assert!(!command.aim_held && command.rotation_mode_pressed);
+                assert!((0.3 - command.look_delta.x * crate::als::view::LOOK_MOUSE_RADIANS_PER_COUNT - 0.4).abs() < 1e-5);
             }
             let mut app = App::new();
             app.init_resource::<Time<Virtual>>();
