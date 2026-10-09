@@ -1,0 +1,232 @@
+{
+  "format": "als_animgraph_authoring_gate_v1",
+  "graphs": [
+    {
+      "path": "assets/ALS/Character/AB_Als.runtime.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "b113030b-0000-4000-8000-000000000001",
+          "name": "AB_Als",
+          "position": [
+            -480.0,
+            0.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000002",
+          "name": "Ragdoll Dynamic",
+          "position": [
+            -480.0,
+            160.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000003",
+          "name": "Ragdoll Readback",
+          "position": [
+            -480.0,
+            240.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000004",
+          "name": "Ragdoll Config",
+          "position": [
+            -224.0,
+            192.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000002\", \"als_ragdolling_dynamic\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"dynamic\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000003\", \"als_ragdolling_readback\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"readback\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000001\", \"pose\")",
+          "target": "OutputData(\"pose\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"ragdoll_config\")",
+          "target": "OutputData(\"ragdoll_config\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "pose": "Pose",
+          "ragdoll_config": "RagdollConfig"
+        }
+      },
+      "root_output_exceptions": [
+        {
+          "name": "ragdoll_config",
+          "reason": "The framework consumes body simulation and pose readback controls independently from the source pose.",
+          "evidence": "docs/bf114-ragdoll-contract.md"
+        }
+      ]
+    }
+  ],
+  "id": "base_fixture_pulses_and_source_route_contract",
+  "source_evidence": [
+    {
+      "path": "target/bf134/02m6b4e1/base_fixture_precondition_contract.json",
+      "sha256": "ef375348e05daf210ef96bef8b4dbdb6c8e9336423b8dfaf224a918c50eb6b53"
+    },
+    {
+      "path": "assets/ALSExtras/Levels/L_Als_Playground/playground.json",
+      "sha256": "5074999e0f3ad8dc30233ca3e05468390f385fda22cc0a7c41478a461ec55225"
+    },
+    {
+      "path": "src/als_extras/core/input.rs",
+      "sha256": "8de4c2842e5febe3ad77c862bb52ab63d8f52d40b4dbe4ff5079f9778a101a16"
+    },
+    {
+      "path": "src/als_extras/core/input_request.rs",
+      "sha256": "b510b0dbe2bb97d30dc14cff859fd59953dcf2eb33e49952f3747c678f62ea6d"
+    },
+    {
+      "path": "target/bf134/02m6b4e1/source_bytes.json",
+      "sha256": "d70e4b50b664558fd88d9633a1edc5998dcd3f950372c99df2e78dfea1a7530e"
+    }
+  ],
+  "verification_commands": [
+    {
+      "label": "generated_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets",
+        "--include",
+        "ALS",
+        "--include",
+        "ALSCamera"
+      ]
+    },
+    {
+      "label": "generated_editor",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets"
+      ]
+    },
+    {
+      "label": "runtime_asset_boundary",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/validate_runtime_graph_asset_boundary.py",
+        "--assets-root",
+        "assets",
+        "--check"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "animgraph_assets",
+    "manual_case": "base"
+  },
+  "focused_tests": [
+    {
+      "label": "driver_restored",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "locomotion_crouch_toggles_fire_once_at_each_scripted_boundary"
+      ],
+      "evidence": "target/bf134/02m6b4e1/merged_driver_final.watchdog.json"
+    },
+    {
+      "label": "route_restored",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "sprint_and_grounded_fixtures_have_continuous_original_floor_without_obstacles"
+      ],
+      "evidence": "target/bf134/02m6b4e1/merged_route_final.watchdog.json"
+    },
+    {
+      "label": "mouse_cadence",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "locomotion_mouse_window_keeps_the_same_counts_across_cadences"
+      ],
+      "evidence": "target/bf134/02m6b4e1/mouse_cadence.watchdog.json"
+    },
+    {
+      "label": "startup_input",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "automatic_input_owns_the_actor_before_startup_is_ready"
+      ],
+      "evidence": "target/bf134/02m6b4e1/startup_input.watchdog.json"
+    },
+    {
+      "label": "hidden_slot",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "hidden_roll_clears_slot_notifications_after_its_autonomous_root_tick_ends"
+      ],
+      "evidence": "target/bf134/02m6b4e1/hidden_slot.watchdog.json"
+    }
+  ]
+}

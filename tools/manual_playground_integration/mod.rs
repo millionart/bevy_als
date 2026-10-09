@@ -4037,6 +4037,10 @@ fn observe_animation_clock(
     }
 }
 
+fn locomotion_crouch_pressed(elapsed: f64, delta: f64) -> bool {
+    [7.0, 8.5].into_iter().any(|boundary| elapsed >= boundary && elapsed - delta < boundary)
+}
+
 fn locomotion_mouse_delta(elapsed: f32, delta: f32) -> Vec2 {
     let overlap = (elapsed - 0.5).clamp(0.0, 1.0) - (elapsed - delta - 0.5).clamp(0.0, 1.0);
     Vec2::new(360.0, -180.0) * overlap
@@ -4597,7 +4601,7 @@ fn drive_manual_integration(
             if state.direction_case_index != case_index {
                 let yaw = fixture.facing_yaw + case.yaw_offset;
                 let start = if case.yaw_offset.abs() > f32::EPSILON {
-                    Vec3::new(-10.0, fixture.locomotion_start.y, -26.0)
+                    Vec3::new(-19.0, fixture.locomotion_start.y, -20.0)
                 } else { fixture.locomotion_start };
                 if entering || case.yaw_offset.abs() > f32::EPSILON {
                     reset_character_without_rotation(
@@ -5259,12 +5263,8 @@ fn drive_manual_integration(
             } else if (5.5..7.0).contains(&elapsed) {
                 input.0.move_dir = Vec2::Y;
                 input.0.sprint_held = true;
-            } else if (7.0..8.5).contains(&elapsed) {
+            } else if (7.0..10.0).contains(&elapsed) {
                 input.0.move_dir = Vec2::Y;
-                input.0.crouch_pressed = elapsed < 7.2;
-            } else if (8.5..10.0).contains(&elapsed) {
-                input.0.move_dir = Vec2::Y;
-                input.0.crouch_pressed = elapsed < 8.7;
             } else if (10.0..12.0).contains(&elapsed) {
                 input.0.move_dir = Vec2::Y;
                 input.0.jump_pressed = elapsed < 10.2;
@@ -5274,6 +5274,8 @@ fn drive_manual_integration(
             } else if (14.0..15.0).contains(&elapsed) {
                 request.overlay_state = Some(OverlayState::Default);
             }
+            input.0.crouch_pressed = locomotion_crouch_pressed(
+                state.game_time_seconds - state.phase_started_seconds, virtual_time.delta_secs_f64());
             input.0.look_delta = locomotion_mouse_delta(elapsed, virtual_time.delta_secs());
             if (0.5..1.5).contains(&elapsed) {
                 input.0.aim_held = true;
@@ -10836,6 +10838,27 @@ fn observe_manual_integration(
 #[cfg(test)]
 mod tests {
     #[test]
+    fn locomotion_crouch_toggles_fire_once_at_each_scripted_boundary() {
+        for cadence in [
+            vec![1.0 / 30.0], vec![1.0 / 60.0], vec![1.0 / 120.0], vec![0.011, 0.027, 0.019, 0.041],
+        ] {
+            let mut elapsed = 0.0;
+            let mut frame = 0;
+            let mut pulses = Vec::new();
+            while elapsed < 10.0 {
+                let delta = cadence[frame % cadence.len()];
+                elapsed += delta;
+                if locomotion_crouch_pressed(elapsed, delta) { pulses.push(elapsed); }
+                frame += 1;
+            }
+            assert_eq!(pulses.len(), 2, "Repeated crouch toggles depend on cadence: {pulses:?}");
+            for (pulse, boundary) in pulses.into_iter().zip([7.0, 8.5]) {
+                assert!(pulse >= boundary && pulse - boundary <= cadence.iter().copied().fold(0.0, f64::max));
+            }
+        }
+    }
+
+    #[test]
     fn locomotion_mouse_window_keeps_the_same_counts_across_cadences() {
         for cadence in [vec![1.0_f32 / 30.0], vec![1.0 / 60.0], vec![1.0 / 120.0], vec![0.011, 0.027, 0.019, 0.041]] {
             let mut elapsed = 0.0_f32;
@@ -13201,6 +13224,7 @@ mod tests {
         }).collect();
         let (mut driver, character, _) = manual_driver_fixture();
         driver.resource_mut::<ManualIntegrationFixture>().locomotion_start = world.resource::<ManualIntegrationFixture>().locomotion_start;
+        driver.resource_mut::<ManualIntegrationFixture>().facing_yaw = yaw;
         driver.insert_resource(ManualIntegrationState {
             character: Some(character), initialized: true, entered: false,
             phase: IntegrationPhase::DirectionRegression,
@@ -13209,6 +13233,11 @@ mod tests {
         });
         driver.run_system_once(drive_manual_integration).unwrap();
         let rotated_start = driver.get::<Position>(character).unwrap().0;
+        let case = direction_regression_case(10).unwrap();
+        let direction = crate::als::motion::view_relative_move_direction(case.move_dir, yaw + case.yaw_offset);
+        let distance = AlsMovementParams::default().speeds.standing.max_run_speed
+            * (DIRECTION_CASE_SECONDS + driver.resource::<Time<Virtual>>().max_delta().as_secs_f32());
+        let rotated_end = rotated_start + direction * distance;
         let sprint_end = SPRINT_START + Quat::from_rotation_y(SPRINT_YAW) * Vec3::NEG_Z * (6.5 * 8.5);
         for (min, max) in [
             (
@@ -13220,7 +13249,7 @@ mod tests {
                 Vec3::new(-23.0, 0.0, -25.65),
             ),
             (Vec3::new(-26.0, 0.0, -28.5), Vec3::new(-6.0, 0.0, -21.0)),
-            (rotated_start - Vec3::new(14.0, 0.0, 2.0), rotated_start + Vec3::new(2.0, 0.0, 5.0)),
+            (rotated_start.min(rotated_end) - Vec3::new(0.35, 0.0, 0.35), rotated_start.max(rotated_end) + Vec3::new(0.35, 0.0, 0.35)),
         ] {
             for (lower, upper) in &extra_bounds {
                 assert!(upper.x < min.x || lower.x > max.x || upper.z < min.z || lower.z > max.z, "Movement path intersects an attached integration fixture");
