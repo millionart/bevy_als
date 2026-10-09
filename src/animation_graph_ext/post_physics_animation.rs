@@ -188,6 +188,7 @@ pub fn evaluate_players<F: QueryFilter>(
         if gate.as_ref().is_some_and(|gate| !gate.update_graph) { return; }
         let playing = !player.is_paused();
         let initialize = gate.is_some() && player.get_context_arena().is_none_or(|arena| arena.frame_index() == 0);
+        player.set_global_input_data("animation.evaluate_pose", initialize || gate.as_ref().is_none_or(|gate| gate.refresh_bones));
         if initialize {
             let delta = player.get_global_input_data("animation.delta_seconds").cloned();
             player.set_global_input_data("animation.delta_seconds", 0.0_f32);

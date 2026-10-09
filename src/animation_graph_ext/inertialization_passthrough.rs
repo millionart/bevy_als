@@ -84,6 +84,8 @@ pub(crate) struct SourceInertializationState {
     previous: Option<Pose>,
     previous_previous: Option<Pose>,
     previous_delta: f32,
+    pending_delta: f32,
+    pending_requests: Vec<crate::extensions::animation_context::SourceInertializationPart>,
     previous_root_world: Option<Vec3>,
     previous_component: Option<GlobalTransform>,
     previous_previous_component: Option<GlobalTransform>,
@@ -98,6 +100,7 @@ pub(crate) struct SourceInertializationState {
     active: bool,
     bones: Vec<SourceInertialBone>,
     previous_curves: crate::extensions::SourceCurveValues,
+    evaluated_curves: crate::extensions::SourceCurveValues,
     curve_differences: HashMap<crate::extensions::SourceCurveName, (f32, f32)>,
     pub(crate) context: AnimationContextState,
 }
@@ -437,6 +440,8 @@ impl NodeLike for InertializationPassthroughNode {
         let request_epoch = optional_global_f32(&ctx, &self.request_epoch_key);
         let request_duration = optional_global_f32(&ctx, &self.request_duration_key);
         let frame = ctx.graph_context.frame_index();
+        let evaluate_pose = ctx.graph_context.global_input_data.get("animation.evaluate_pose")
+            .is_none_or(|value| value.as_bool().unwrap_or(true));
         let graph_request = source_context.inertialization_request.take().filter(|request| request.frame == frame);
         let mut skipped_cached_pose_request = source_context.skipped_cached_pose_request.take()
             .filter(|request| request.frame == frame);
@@ -472,6 +477,8 @@ impl NodeLike for InertializationPassthroughNode {
                 state.previous = None;
                 state.previous_previous = None;
                 state.previous_delta = 0.0;
+                state.pending_delta = 0.0;
+                state.pending_requests.clear();
                 state.previous_root_world = None;
                 state.previous_component = None;
                 state.previous_previous_component = None;
@@ -484,10 +491,12 @@ impl NodeLike for InertializationPassthroughNode {
                 state.active = false;
                 state.bones.clear();
                 state.previous_curves.clear();
+                state.evaluated_curves.clear();
                 state.curve_differences.clear();
                 state.context = default();
             }
             state.last_update_frame = Some(frame);
+            state.pending_delta += delta;
             let teleported = threshold > 0.0 && current_root_world.zip(state.previous_root_world)
                 .is_some_and(|(current, previous)| current.distance_squared(previous) > threshold * threshold);
             let mut requests = graph_request.map(|request| if request.parts.is_empty() {
@@ -512,54 +521,61 @@ impl NodeLike for InertializationPassthroughNode {
                     }),
                 );
             }
-            if teleported && !requests.is_empty() {
-                state.active = false;
-                state.max_duration = 0.0;
-                state.deficit = 0.0;
-                state.bones.clear();
-                state.curve_differences.clear();
-            } else if !requests.is_empty() {
-                let has_history = state.previous.is_some();
-                begin_source_inertialization(state, &source_pose, &requests,
-                    self.default_blend_profile.as_ref(), skeleton, component, root,
-                    attachment_epoch, attached_to_actor);
-                state.curve_differences.clear();
-                if has_history {
-                    state.curve_differences = source_context.curves.keys().chain(state.context.curves.keys())
-                        .filter(|name| !self.filtered_curves.iter().any(|filtered| name.eq_ignore_ascii_case(filtered)))
-                        .map(|name| {
-                            let target = source_context.curves.get(name).copied().unwrap_or(0.0);
-                            let difference = state.context.curves.get(name).copied().unwrap_or(0.0) - target;
-                            let derivative = if state.previous_delta > 1e-4 {
-                                (difference - target - state.previous_curves.get(name).copied().unwrap_or(0.0)) / state.previous_delta
-                            } else { 0.0 };
-                            (name.clone(), (difference, derivative))
-                        }).collect();
-                    state.active |= state.duration > f32::EPSILON && state.curve_differences.values()
-                        .any(|(difference, _)| difference.abs() > f32::EPSILON);
-                }
-            }
-            let output = if state.active {
-                state.elapsed += delta;
-                let output = apply_source_inertialization(&source_pose, state);
-                for (name, (difference, derivative)) in &state.curve_differences {
-                    *source_context.curves.entry(name.clone()).or_default() +=
-                        source_inertial_float(*difference, *derivative, state.elapsed, state.duration);
-                }
-                if state.elapsed >= state.max_duration {
-                    state.active = false;
-                    state.deficit = 0.0;
-                } else {
-                    state.deficit = (state.deficit - delta).max(0.0);
-                }
-                output
-            } else {
+            if !evaluate_pose {
+                state.pending_requests.extend(requests);
                 source_pose
-            };
-            record_source_inertial_history(state, &output, if teleported { 0.0 } else { delta }, component, attachment_epoch);
-            state.previous_root_world = root_world(&output);
-            state.previous_curves = state.context.curves.clone();
-            output
+            } else {
+                requests.splice(0..0, std::mem::take(&mut state.pending_requests));
+                let delta = std::mem::take(&mut state.pending_delta);
+                if teleported && !requests.is_empty() {
+                    state.active = false;
+                    state.max_duration = 0.0;
+                    state.deficit = 0.0;
+                    state.bones.clear();
+                    state.curve_differences.clear();
+                } else if !requests.is_empty() {
+                    let has_history = state.previous.is_some();
+                    begin_source_inertialization(state, &source_pose, &requests,
+                        self.default_blend_profile.as_ref(), skeleton, component, root,
+                        attachment_epoch, attached_to_actor);
+                    state.curve_differences.clear();
+                    if has_history {
+                        state.curve_differences = source_context.curves.keys().chain(state.evaluated_curves.keys())
+                            .filter(|name| !self.filtered_curves.iter().any(|filtered| name.eq_ignore_ascii_case(filtered)))
+                            .map(|name| {
+                                let target = source_context.curves.get(name).copied().unwrap_or(0.0);
+                                let difference = state.evaluated_curves.get(name).copied().unwrap_or(0.0) - target;
+                                let derivative = if state.previous_delta > 1e-4 {
+                                    (difference - target - state.previous_curves.get(name).copied().unwrap_or(0.0)) / state.previous_delta
+                                } else { 0.0 };
+                                (name.clone(), (difference, derivative))
+                            }).collect();
+                        state.active |= state.duration > f32::EPSILON && state.curve_differences.values()
+                            .any(|(difference, _)| difference.abs() > f32::EPSILON);
+                    }
+                }
+                let output = if state.active {
+                    state.elapsed += delta;
+                    let output = apply_source_inertialization(&source_pose, state);
+                    for (name, (difference, derivative)) in &state.curve_differences {
+                        *source_context.curves.entry(name.clone()).or_default() +=
+                            source_inertial_float(*difference, *derivative, state.elapsed, state.duration);
+                    }
+                    if state.elapsed >= state.max_duration {
+                        state.active = false;
+                        state.deficit = 0.0;
+                    } else {
+                        state.deficit = (state.deficit - delta).max(0.0);
+                    }
+                    output
+                } else {
+                    source_pose
+                };
+                record_source_inertial_history(state, &output, if teleported { 0.0 } else { delta }, component, attachment_epoch);
+                state.previous_root_world = root_world(&output);
+                state.previous_curves = std::mem::replace(&mut state.evaluated_curves, source_context.curves.clone());
+                output
+            }
         };
         ctx.set_time(pose.timestamp);
         ctx.set_data_fwd(self.output.clone(), pose);
@@ -597,6 +613,123 @@ impl NodeLike for InertializationPassthroughNode {
 mod tests {
     use super::*;
     use bevy_animation_graph::core::pose::BonePose;
+
+    #[test]
+    fn hidden_always_tick_pose_preserves_the_last_evaluated_inertial_history() {
+        use bevy_animation_graph::core::{
+            animated_scene::AnimatedSceneInstance, animation_graph_player::AnimationGraphPlayer,
+            context::node_states::StateKey,
+        };
+        fn history(app: &App, player: Entity) -> Vec<(String, Pose, f32)> {
+            let instance = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+            assert!(instance.get_error().is_none(), "Graph failed: {:?}", instance.get_error());
+            let arena = instance.get_context_arena().unwrap();
+            let graphs = app.world().resource::<Assets<bevy_animation_graph::core::animation_graph::AnimationGraph>>();
+            let mut values = Vec::new();
+            for id in arena.iter_context_ids() {
+                let context = arena.get_context(id).unwrap();
+                let graph = graphs.get(context.get_graph_id()).unwrap();
+                for node in graph.nodes.values() {
+                    if node.try_inner_downcast_ref::<InertializationPassthroughNode>().is_none() {
+                        continue;
+                    }
+                    if let Ok(state) = context.node_states.get::<SourceInertializationState>(node.id, StateKey::Default)
+                        && let Some(pose) = &state.previous
+                    {
+                        values.push((format!("{id:?}/{:?}", node.id), pose.clone(), state.previous_delta));
+                    }
+                }
+            }
+            values.sort_by(|a, b| a.0.cmp(&b.0));
+            values
+        }
+        let (mut app, _, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.02)));
+        for _ in 0..16 { app.update(); }
+        app.world_mut().entity_mut(avatar).insert((Visibility::Hidden, crate::animation_visibility::AlsAnimationTickOption::AlwaysTickPose));
+        for _ in 0..60 { app.update(); }
+        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let gate = app.world().get::<crate::extensions::post_physics_animation::AnimationPoseUpdateGate>(player).unwrap();
+        assert!(gate.update_graph && !gate.refresh_bones, "Fixture did not reach hidden AlwaysTickPose");
+        let before = history(&app, player);
+        assert!(!before.is_empty(), "Fixture has no evaluated inertial history");
+        let frame = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_context_arena().unwrap().frame_index();
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.01)));
+        for _ in 0..4 { app.update(); }
+        assert!(app.world().get::<AnimationGraphPlayer>(player).unwrap().get_context_arena().unwrap().frame_index() > frame);
+        let after = history(&app, player);
+        assert_eq!(after.len(), before.len());
+        for ((node, pose, delta), (previous_node, previous_pose, previous_delta)) in after.iter().zip(&before) {
+            assert_eq!(node, previous_node);
+            assert_eq!(delta, previous_delta, "Update-only frames changed evaluated delta: {node}");
+            assert!(pose == previous_pose, "Update-only frames changed inertial pose history: {node}");
+        }
+    }
+
+    #[test]
+    fn update_only_inertial_frames_accumulate_time_requests_and_keep_evaluated_curves() {
+        use bevy_animation_graph::core::{
+            animation_clip::GraphClip, animation_graph::{AnimationGraph, TimeUpdate},
+            animation_node::AnimationNode, context::{deferred_gizmos::DeferredGizmos,
+                graph_context::QueryOutputTime, graph_context_arena::GraphContextArena,
+                new_context::GraphContext, node_states::StateKey, system_resources::SystemResources},
+            edge_data::DataValue, state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
+        };
+        fn query(In((handle, source, node)): In<(Handle<AnimationGraph>, bevy_animation_graph::core::animation_graph::NodeId, bevy_animation_graph::core::animation_graph::NodeId)>,
+            resources: SystemResources) -> (Pose, f32, f32, f32, usize) {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            let mut output = Pose::default();
+            for (frame, delta) in [0.02, 0.03, 0.04].into_iter().enumerate() {
+                let mut pose = Pose::default();
+                pose.add_bone(BonePose::from_transform(Transform::from_translation(if frame == 0 { Vec3::X } else { Vec3::ZERO })), BoneId::default());
+                let inputs = HashMap::from([
+                    ("input".into(), DataValue::Pose(pose)),
+                    ("animation.evaluate_pose".into(), DataValue::Bool(frame != 1)),
+                    ("epoch".into(), DataValue::F32(f32::from(frame != 0))),
+                    ("duration".into(), DataValue::F32(0.2)),
+                ]);
+                arena.get_toplevel_mut().node_states.get_mut_or_insert_with(source, StateKey::Default, AnimationContextState::default)
+                    .unwrap().curves.insert("Curve".into(), if frame == 0 { 1.0 } else { 0.0 });
+                output = graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(delta)),
+                    GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources,
+                        &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs)).unwrap()["Pose"].clone().into_pose().unwrap();
+                if frame == 1 {
+                    let state = arena.get_toplevel().node_states.get::<SourceInertializationState>(node, StateKey::Default).unwrap();
+                    assert_eq!(state.previous.as_ref().unwrap().get_bone(BoneId::default()).unwrap().translation, Some(Vec3::X));
+                    assert_eq!(state.previous_delta, 0.02);
+                    assert_eq!(state.evaluated_curves[&crate::extensions::SourceCurveName::from("Curve")], 1.0);
+                }
+            }
+            let state = arena.get_toplevel().node_states.get::<SourceInertializationState>(node, StateKey::Default).unwrap();
+            (output, state.previous_delta, state.duration, state.context.curves[&crate::extensions::SourceCurveName::from("Curve")], state.pending_requests.len())
+        }
+        let source = AnimationNode::new("source", crate::extensions::GlobalPoseInputNode { key: "input".into(), output: "Pose".into() });
+        let node = AnimationNode::new("inertial", InertializationPassthroughNode { internalize_time: true,
+            request_epoch_key: "epoch".into(), request_duration_key: "duration".into(), ..default() });
+        let mut graph = AnimationGraph::new();
+        graph.add_node(source.clone());
+        graph.add_node(node.clone());
+        graph.add_node_parameter_edge(source.id, "Pose", node.id, "Source");
+        graph.add_output_data("Pose".into(), DataSpec::Pose);
+        graph.add_output_data_edge(node.id, "pose", "Pose");
+        let mut world = World::new();
+        world.init_resource::<Assets<AnimationGraph>>();
+        world.init_resource::<Assets<GraphClip>>();
+        world.init_resource::<Assets<Skeleton>>();
+        world.init_resource::<Assets<StateMachine>>();
+        let handle = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
+        let (pose, delta, duration, curve, pending) = world.run_system_cached_with(query, (handle, source.id, node.id)).unwrap();
+        let expected = source_inertial_float(1.0, 0.0, 0.07, 0.2);
+        assert!((delta - 0.07).abs() < 1e-6, "Hidden update delta was lost: {delta}");
+        assert_eq!(duration, 0.2, "Hidden request was lost");
+        assert_eq!(pending, 0);
+        assert!((pose.get_bone(BoneId::default()).unwrap().translation.unwrap().x - expected).abs() < 1e-6);
+        assert!((curve - expected).abs() < 1e-6, "Hidden curve evaluation changed history: {curve} != {expected}");
+    }
 
     #[test]
     fn explicit_inertial_profile_scales_each_bone_duration() {
