@@ -810,7 +810,7 @@ fn mantle_target_base(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use bevy::ecs::system::RunSystemOnce;
     use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner};
@@ -1468,7 +1468,7 @@ mod tests {
     }
 
 
-    fn current_post_locomotion_base(app: &App, player: Entity) -> Pose {
+    pub(crate) fn current_post_locomotion_base(app: &App, player: Entity) -> Pose {
         use bevy_animation_graph::core::{animation_graph::{AnimationGraph, SourcePin, TargetPin},
             context::node_states::StateKey};
         let player = app.world().get::<AnimationGraphPlayer>(player).unwrap();

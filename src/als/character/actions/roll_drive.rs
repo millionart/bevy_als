@@ -974,6 +974,53 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn natural_roll_overlap_keeps_native_slot_source_quaternion_weight() {
+        let (mut app, character, avatar) = loaded_roll_character();
+        let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().roll_pressed = true;
+        app.update();
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().roll_pressed = false;
+        for _ in 0..90 {
+            let roll = app.world().get::<AlsRollState>(character).unwrap();
+            if roll.active && roll.time > 1.05
+                && *app.world().get::<AlsNotifyLocomotionAction>(character).unwrap() == AlsNotifyLocomotionAction::None { break; }
+            app.update();
+        }
+        let old = *app.world().get::<AlsRollState>(character).unwrap();
+        assert!(old.active && old.time > 1.05);
+        assert!(app.world().get::<AlsRollBlendOut>(character).is_none());
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().roll_pressed = true;
+        app.update();
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().roll_pressed = false;
+        let base = crate::mantle_drive::tests::current_post_locomotion_base(&app, player_entity);
+        let current = *app.world().get::<AlsRollState>(character).unwrap();
+        assert!(current.time < old.time);
+        let mut samples = Vec::new();
+        for (sampler, player, tail) in app.world_mut().query::<(&AlsRollSlotSampler, &AnimationGraphPlayer, Option<&AlsRollTail>)>().iter(app.world()) {
+            if sampler.character != character || sampler.target_player != player_entity { continue; }
+            let weight = tail.map_or_else(|| roll_weight_at(current.time), |tail| tail.weight());
+            samples.push((player.get_default_output_pose().unwrap().clone(), weight));
+        }
+        assert_eq!(samples.len(), 2);
+        let total: f32 = samples.iter().map(|(_,weight)|weight).sum();
+        assert!(total > 0.0 && total < 1.0, "Actual Roll overlap must include Source: total={total}");
+        let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+        let overlay = player.get_global_input_data(GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY).unwrap().as_pose().unwrap();
+        let weight = player.get_global_input_data(GENERATED_POST_LOCOMOTION_SLOT_WEIGHT_KEY).unwrap().as_f32().unwrap();
+        assert!((weight-total).abs() < 1e-6);
+        let actual = crate::extensions::slot_node::blend_slot_pose(base.clone(), Some(overlay), Some(weight));
+        samples.push((base,1.0-total));
+        let expected = crate::extensions::source_pose_nodes::blend_source_poses(&samples);
+        let mut maximum = 0.0_f32;
+        for bone in actual.paths.keys() {
+            if let (Some(a),Some(b))=(actual.get_bone(*bone).unwrap().rotation,expected.get_bone(*bone).unwrap().rotation) {
+                maximum=maximum.max((a-b).length().min((a+b).length()));
+            }
+        }
+        assert!(maximum < 1e-6, "Actual Roll overlap normalized before adding Source: error={maximum}");
+    }
+
+    #[test]
     fn stopped_roll_tail_accepts_a_new_loaded_montage() {
         for explicit_stop in [false, true] {
             for delta in [1.0 / 60.0_f32, 0.1] {
@@ -1566,8 +1613,7 @@ fn bridge_roll_slot_samples(
             let sample = sample.scalar_mult(weight / total_weight.max(f32::EPSILON));
             pose = Some(pose.map_or_else(|| sample.clone(), |previous| previous.linear_add(&sample)));
         }
-        let pose = pose.map(|pose| {
-            let mut pose = pose.normalize_quat();
+        let pose = pose.map(|mut pose| {
             pose.root_motion = primary_root;
             pose
         });
