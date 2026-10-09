@@ -289,7 +289,8 @@ fn applies_montage_slot_notifies(
     roll: Option<&AlsRollState>, blending_out: bool, delta: f32,
 ) -> bool {
     gate.is_none_or(|gate| gate.update_graph)
-        || (!blending_out && roll.is_some_and(|roll| roll.active
+        || (!blending_out && (delta == 0.0 || delta >= crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS)
+            && roll.is_some_and(|roll| roll.active
             && roll.time - delta < crate::als::roll::ROLL_DURATION_SECS - crate::als::roll::ROLL_WEIGHT_OUT_SECS))
 }
 
@@ -1372,6 +1373,29 @@ pub(crate) mod tests {
     }
 
 
+
+
+    #[test]
+    fn hidden_roll_slot_states_follow_the_native_minimum_pose_tick_delta() {
+        let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().entity_mut(avatar).remove::<crate::animation_visibility::AlsAnimationTickOption>().insert(Visibility::Hidden);
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.1)));
+        for _ in 0..16 { app.update(); }
+        app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = true;
+        app.update();
+        app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = false;
+        assert_eq!(app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0, 1.3);
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.5e-6)));
+        for (frame, expected) in [(0, 1.3), (1, 1.0)] {
+            app.update();
+            assert_eq!(app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0, expected,
+                "Below-minimum CMC pose tick applied slot notifies at component frame {frame}");
+        }
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1e-6)));
+        app.update();
+        assert_eq!(app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0, 1.3,
+            "The native minimum CMC pose delta must re-enable autonomous slot dispatch");
+    }
 
     #[test]
     fn loaded_roll_queued_scale_waits_for_the_native_notify_weight_threshold() {
