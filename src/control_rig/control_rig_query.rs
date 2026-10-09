@@ -1,14 +1,13 @@
 use std::sync::Arc;
 
-use avian3d::{collider_tree::ColliderTrees, prelude::*};
+use avian3d::prelude::*;
 use crate::extensions::RagdollSpatialQuery as SpatialQuery;
 use bevy::{math::DVec3, platform::collections::HashMap, prelude::*};
 
 use crate::extensions::control_rig_hierarchy::RigTransform;
 
 pub struct RigQueryWorld {
-    pub trees: ColliderTrees,
-    pub colliders: HashMap<Entity, (Position, Rotation, Collider)>,
+    pub colliders: HashMap<Entity, (Position, Rotation, Collider, CollisionLayers)>,
 }
 
 #[derive(Clone)]
@@ -37,38 +36,19 @@ impl RigQueryContext {
         let origin = start.as_vec3();
         let mut distance = delta.length();
         let mut hit = None;
-        for tree in self.world.trees.iter_trees() {
-            tree.ray_traverse_closest(Ray3d::new(origin, direction), distance, |id| {
-                let Some(proxy) = tree.get_proxy(id) else {
-                    return f32::MAX;
-                };
-                if !self.filter.test(proxy.collider, proxy.layers) {
-                    return f32::MAX;
-                }
-                let Some((position, rotation, collider)) =
-                    self.world.colliders.get(&proxy.collider)
-                else {
-                    return f32::MAX;
-                };
-                let Some((length, normal)) = collider.cast_ray(
-                    position.0,
-                    *rotation,
-                    origin,
-                    direction.as_vec3(),
-                    distance,
-                    true,
-                ) else {
-                    return f32::MAX;
-                };
-                if length < distance {
-                    distance = length;
-                    hit = Some((
-                        (origin + direction.as_vec3() * length).as_dvec3(),
-                        normal.as_dvec3(),
-                    ));
-                }
-                length
-            });
+        for (entity, (position, rotation, collider, layers)) in &self.world.colliders {
+            if !self.filter.test(*entity, *layers) {
+                continue;
+            }
+            let Some((length, normal)) = collider.cast_ray(
+                position.0, *rotation, origin, direction.as_vec3(), distance, true,
+            ) else {
+                continue;
+            };
+            if length < distance {
+                distance = length;
+                hit = Some(((origin + direction.as_vec3() * length).as_dvec3(), normal.as_dvec3()));
+            }
         }
         Ok(hit)
     }
@@ -86,17 +66,15 @@ mod tests {
     fn control_rig_query_uses_avian_geometry_filters_and_world_transforms() {
         fn capture(
             In(filter): In<SpatialQueryFilter>,
-            trees: Res<ColliderTrees>,
-            colliders: Query<(Entity, &Position, &Rotation, &Collider)>,
+            colliders: Query<(Entity, &Position, &Rotation, &Collider, &CollisionLayers)>,
             spatial: SpatialQuery,
         ) -> (RigQueryWorld, Option<RayHitData>) {
             (
                 RigQueryWorld {
-                    trees: trees.clone(),
                     colliders: colliders
                         .iter()
-                        .map(|(entity, position, rotation, collider)| {
-                            (entity, (*position, *rotation, collider.clone()))
+                        .map(|(entity, position, rotation, collider, layers)| {
+                            (entity, (*position, *rotation, collider.clone(), *layers))
                         })
                         .collect(),
                 },

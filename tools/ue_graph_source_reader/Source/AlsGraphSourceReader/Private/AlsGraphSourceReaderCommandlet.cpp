@@ -26,6 +26,8 @@
 #include "Interfaces/ISlateNullRendererModule.h"
 #include "Modules/ModuleManager.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/StaticMesh.h"
+#include "Interface_CollisionDataProviderCore.h"
 #include "Engine/Texture2D.h"
 #include "Exporters/Exporter.h"
 #include "ImageCore.h"
@@ -1358,6 +1360,31 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
     {
         UObject* DefaultObject = Class->GetDefaultObject();
         Root->SetArrayField(TEXT("class_default_properties"), CaptureProperties(Class, DefaultObject, DefaultObject));
+    }
+    if (UStaticMesh* Mesh = Cast<UStaticMesh>(Asset))
+    {
+        FTriMeshCollisionData Data;
+        const bool bAvailable = Mesh->HasValidRenderData() && Mesh->GetPhysicsTriMeshData(&Data, false);
+        TSharedRef<FJsonObject> Collision = MakeShared<FJsonObject>();
+        Collision->SetBoolField(TEXT("available"), bAvailable);
+        Collision->SetBoolField(TEXT("flip_normals"), Data.bFlipNormals);
+        TArray<TSharedPtr<FJsonValue>> Vertices;
+        for (const FVector3f& Vertex : Data.Vertices)
+        {
+            Vertices.Add(MakeShared<FJsonValueObject>(CaptureVector(FVector(Vertex))));
+        }
+        TArray<TSharedPtr<FJsonValue>> Triangles;
+        for (const FTriIndices& Triangle : Data.Indices)
+        {
+            TArray<TSharedPtr<FJsonValue>> Indices;
+            Indices.Add(MakeShared<FJsonValueNumber>(Triangle.v0));
+            Indices.Add(MakeShared<FJsonValueNumber>(Triangle.v1));
+            Indices.Add(MakeShared<FJsonValueNumber>(Triangle.v2));
+            Triangles.Add(MakeShared<FJsonValueArray>(Indices));
+        }
+        Collision->SetArrayField(TEXT("vertices_source"), Vertices);
+        Collision->SetArrayField(TEXT("triangle_indices"), Triangles);
+        Root->SetObjectField(TEXT("static_mesh_collision"), Collision);
     }
     if (UTexture2D* Texture = Cast<UTexture2D>(Asset))
     {

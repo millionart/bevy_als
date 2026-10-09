@@ -108,6 +108,9 @@ pub mod profile_blend;
 pub mod ragdoll_angular_drive;
 #[path = "animation_graph_ext/ragdoll_config_node.rs"]
 pub mod ragdoll_config_node;
+#[path = "avian_ext/query_collision.rs"]
+pub mod query_collision;
+pub use query_collision::ComplexCollider;
 #[path = "avian_ext/ragdoll_physics_profile.rs"]
 pub mod ragdoll_physics_profile;
 #[path = "als/nodes/ragdolling_tag_blend.rs"]

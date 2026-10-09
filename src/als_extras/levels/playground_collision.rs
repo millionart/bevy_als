@@ -44,6 +44,7 @@ pub struct PlaygroundMeshColliderBuilt {
 #[derive(Clone)]
 struct PlaygroundMeshColliderTemplate {
     collider: Collider,
+    complex: Option<Collider>,
     vertices: usize,
     triangles: usize,
     surface_probes: Vec<Vec3>,
@@ -161,6 +162,9 @@ fn playground_mesh_physics_bridge(
             template.vertices,
             template.triangles
         );
+        if let Some(complex) = template.complex {
+            commands.entity(root).insert(crate::extensions::ComplexCollider(complex));
+        }
         commands.entity(root).insert((
             RigidBody::Static,
             template.collider,
@@ -216,6 +220,10 @@ fn build_mesh_collider_template(
     } else {
         Vec::new()
     };
+    let complex = matches!(source.kind, PlaygroundColliderKind::Convex { .. }).then(|| {
+        Collider::try_trimesh(geometry.vertices.clone(), geometry.triangles.clone())
+            .expect("Source complex collision surface is invalid")
+    });
     let collider = match source.kind {
         PlaygroundColliderKind::Box => return None,
         PlaygroundColliderKind::Convex { source_hulls } => {
@@ -246,6 +254,7 @@ fn build_mesh_collider_template(
     };
     Some(PlaygroundMeshColliderTemplate {
         collider,
+        complex,
         vertices,
         triangles,
         surface_probes,
@@ -392,7 +401,7 @@ mod tests {
         };
         let positions=accessor_bytes(primitive["attributes"]["POSITION"].as_u64().unwrap() as usize,12).chunks_exact(12)
             .map(|p|std::array::from_fn::<_,3,_>(|i|f32::from_le_bytes(p[i*4..i*4+4].try_into().unwrap()))).collect::<Vec<_>>();
-        let indices=accessor_bytes(primitive["indices"].as_u64().unwrap() as usize,2).chunks_exact(2)
+        let indices:Vec<u32>=accessor_bytes(primitive["indices"].as_u64().unwrap() as usize,2).chunks_exact(2)
             .map(|i|u16::from_le_bytes(i.try_into().unwrap()) as u32).collect();
         let mut mesh=Mesh::new(bevy::render::render_resource::PrimitiveTopology::TriangleList,default());
         mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION,positions);
@@ -420,6 +429,71 @@ mod tests {
             assert_eq!(observed.is_some(),expected.is_some(),"Source blocking state differs at {position:?}");
             if let (Some(expected),Some(observed))=(expected,observed) {
                 assert!((observed-expected).abs()<0.001,"Current Arch capsule sweep differs at {position:?}: source={expected}, target={observed}");
+            }
+        }
+    }
+
+    #[test]
+    fn current_convex_foot_queries_use_the_source_complex_surface() {
+        for name in ["SM_Als_Arch_01","SM_Als_Arch_02","SM_Als_Barrel","SM_Als_Barrel_Broken","SM_Als_Bench"] {
+            let folder=std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/ALSExtras/Environment/Meshes");
+            let data:serde_json::Value=serde_json::from_str(&std::fs::read_to_string(folder.join(format!("{name}.gltf"))).unwrap()).unwrap();
+            let bytes=std::fs::read(folder.join(format!("{name}.bin"))).unwrap();
+            let primitive=&data["meshes"][0]["primitives"][0];
+            let accessor=|index:usize,width:usize| {
+                let item=&data["accessors"][index];
+                let view=&data["bufferViews"][item["bufferView"].as_u64().unwrap() as usize];
+                let offset=view["byteOffset"].as_u64().unwrap_or(0) as usize+item["byteOffset"].as_u64().unwrap_or(0) as usize;
+                assert_eq!(view["byteStride"].as_u64().unwrap_or(width as u64) as usize,width);
+                &bytes[offset..offset+item["count"].as_u64().unwrap() as usize*width]
+            };
+            let positions=accessor(primitive["attributes"]["POSITION"].as_u64().unwrap() as usize,12).chunks_exact(12)
+                .map(|p|std::array::from_fn::<_,3,_>(|i|f32::from_le_bytes(p[i*4..i*4+4].try_into().unwrap()))).collect::<Vec<_>>();
+            let index=primitive["indices"].as_u64().unwrap() as usize;
+            let indices:Vec<u32>=match data["accessors"][index]["componentType"].as_u64().unwrap() {
+                5123=>accessor(index,2).chunks_exact(2).map(|p|u16::from_le_bytes(p.try_into().unwrap()) as u32).collect(),
+                5125=>accessor(index,4).chunks_exact(4).map(|p|u32::from_le_bytes(p.try_into().unwrap())).collect(),
+                _=>panic!("Unsupported source mesh index type"),
+            };
+            let complex=Collider::try_trimesh(positions.iter().copied().map(Vec3::from_array).collect(),indices.chunks_exact(3).map(|p|[p[0],p[1],p[2]]).collect()).unwrap();
+            let bounds=complex.aabb(Vec3::ZERO,Quat::IDENTITY);
+            let mut mesh=Mesh::new(bevy::render::render_resource::PrimitiveTopology::TriangleList,default());
+            mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION,positions);
+            mesh.insert_indices(bevy::render::mesh::Indices::U32(indices));
+            let (mut app, character, avatar)=crate::roll_drive::tests::loaded_roll_character();
+            PlaygroundCollisionPlugin.build(&mut app);
+            app.world_mut().entity_mut(character).insert((RigidBody::Kinematic,bevy_tnua::TnuaToggle::Disabled));
+            let mesh=app.world_mut().resource_mut::<Assets<Mesh>>().add(mesh);
+            let transform=Transform::from_xyz(0.0,10.0,0.0);
+            let root=app.world_mut().spawn((PlaygroundCollisionSource::new(name),transform,GlobalTransform::from(transform))).id();
+            app.world_mut().spawn((ChildOf(root),Mesh3d(mesh),Transform::IDENTITY,GlobalTransform::from(transform)));
+            app.update();
+            app.world_mut().get_mut::<crate::control_rig_apply::AlsControlRigInput>(character).unwrap().foot_transforms_valid=true;
+            app.world_mut().run_system_once(crate::control_rig_apply::publish_control_rig_inputs).unwrap();
+            let player=app.world().get::<bevy_animation_graph::core::animated_scene::AnimatedSceneInstance>(avatar).unwrap().player_entity();
+            let query=app.world().get::<crate::extensions::SourceAnimationInputs>(player).unwrap().rig_query_context()
+                .expect("Actual source rig query context is missing");
+            let offset=|hit:Option<(f32,Vec3)>,root_y:f32| {
+                hit.filter(|(_,normal)|normal.y>=45.0_f32.to_radians().cos())
+                    .map_or((0.0,Vec3::Y),|(height,normal)|(height-root_y+0.135/normal.y-0.135,normal))
+            };
+            for x in 1..20 {
+                for z in 1..20 {
+                    let px=bounds.min.x+(bounds.max.x-bounds.min.x)*x as f32/20.0;
+                    let pz=bounds.min.z+(bounds.max.z-bounds.min.z)*z as f32/20.0;
+                    let probe=Vec3::new(px,bounds.max.y+10.5,pz);
+                    let simple=app.world().get::<Collider>(root).unwrap().cast_ray(Vec3::Y*10.0,Quat::IDENTITY,probe,Vec3::NEG_Y,4.0,true);
+                    let Some((distance,_))=simple else {continue};
+                    let root_y=probe.y-distance;
+                    let start=Vec3::new(px,root_y+0.5,pz);
+                    let expected=complex.cast_ray(Vec3::Y*10.0,Quat::IDENTITY,start,Vec3::NEG_Y,1.3,true)
+                        .map(|(distance,normal)|(start.y-distance,normal));
+                    let observed=query.trace(start.as_dvec3(),(start-Vec3::Y*1.3).as_dvec3(),"ECC_Visibility",true).unwrap()
+                        .map(|(point,normal)|(point.y as f32,normal.as_vec3()));
+                    let expected=offset(expected,root_y);let observed=offset(observed,root_y);
+                    assert!((expected.0-observed.0).abs()<0.01 && expected.1.angle_between(observed.1)<1.0_f32.to_radians(),
+                        "Source complex foot offset differs: mesh={name}, x={px}, z={pz}, root={root_y}, source={expected:?}, target={observed:?}");
+                }
             }
         }
     }

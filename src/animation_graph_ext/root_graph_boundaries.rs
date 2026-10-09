@@ -930,7 +930,6 @@ mod tests {
             source_inputs.set_rig_query_context(
                 Some(crate::extensions::control_rig_query::RigQueryContext {
                     world: std::sync::Arc::new(crate::extensions::control_rig_query::RigQueryWorld {
-                        trees: default(),
                         colliders: default(),
                     }),
                     to_world: default(),

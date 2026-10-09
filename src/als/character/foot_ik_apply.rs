@@ -1011,15 +1011,15 @@ mod tests {
     fn rig_observer_reads_actual_execution_hits_weights_and_pose_delivery() {
         use crate::extensions::{control_rig_query::{RigQueryContext, RigQueryWorld}, SourceAnimationInputs,
             root_graph_boundaries::{RigInputBinding, RIG_CAPTURE_KEY, RIG_GAME_WORLD_KEY}};
-        use avian3d::{collider_tree::ColliderTrees, prelude::*};
+        use avian3d::prelude::*;
         use bevy::{animation::AnimatedBy, ecs::system::RunSystemOnce,
             world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner}};
         use bevy_animation_graph::{AnimationGraphPlugin, core::{animated_scene::AnimatedSceneHandle,
             animation_clip::EntityPath, animation_node::AnimationNode, edge_data::{DataSpec, DataValue},
             pose::{BonePose, Pose}, skeleton::Skeleton, systems::apply_animation_to_targets}};
-        fn capture(In((entity, to_world)): In<(Entity, RigTransform)>, mut inputs: Query<&mut SourceAnimationInputs>, trees: Res<ColliderTrees>, colliders: Query<(Entity, &Position, &Rotation, &Collider)>) {
+        fn capture(In((entity, to_world)): In<(Entity, RigTransform)>, mut inputs: Query<&mut SourceAnimationInputs>, colliders: Query<(Entity, &Position, &Rotation, &Collider, &CollisionLayers)>) {
             inputs.get_mut(entity).unwrap().set_rig_query_context(Some(RigQueryContext { world: std::sync::Arc::new(RigQueryWorld {
-                trees: trees.clone(), colliders: colliders.iter().map(|(entity, position, rotation, collider)| (entity, (*position, *rotation, collider.clone()))).collect(),
+                colliders: colliders.iter().map(|(entity, position, rotation, collider, layers)| (entity, (*position, *rotation, collider.clone(), *layers))).collect(),
             }), to_world, channel: "ECC_Visibility".into(), filter: default() }));
         }
         let mut app = App::new();

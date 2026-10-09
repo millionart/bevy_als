@@ -13,7 +13,7 @@ use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use serde::Deserialize;
 use std::sync::Arc;
-use avian3d::{collider_tree::ColliderTrees, prelude::{Collider, Position, Rotation, SpatialQueryFilter}};
+use avian3d::{collider_tree::ColliderTrees, prelude::{Collider, CollisionLayers, Position, Rotation, SpatialQueryFilter}};
 use crate::extensions::{control_rig_hierarchy::RigTransform, control_rig_query::{RigQueryContext, RigQueryWorld},
     source_instance::set_source_frame_input, RagdollShapeCollisionMode};
 
@@ -384,14 +384,14 @@ fn refresh_control_rig_input(
     }
 }
 
-fn publish_control_rig_inputs(
+pub(crate) fn publish_control_rig_inputs(
     mut source_inputs: Query<&mut crate::extensions::SourceAnimationInputs>,
     characters: Query<(Entity, &AlsControlRigInput, Option<&AlsCharacterAssembly>), With<AlsCharacter>>,
     avatars: Query<(Entity, &AlsCharacterAvatar, &AnimatedSceneInstance)>,
     mut players: Query<&mut AnimationGraphPlayer>,
     transforms: TransformHelper,
     trees: Option<Res<ColliderTrees>>,
-    colliders: Query<(Entity, &Position, &Rotation, &Collider, Option<&RagdollShapeCollisionMode>)>,
+    colliders: Query<(Entity, &Position, &Rotation, &Collider, Option<&CollisionLayers>, Option<&crate::extensions::ComplexCollider>, Option<&RagdollShapeCollisionMode>)>,
     capture: Option<Res<crate::foot_ik_apply::AlsFootIkTelemetryEnabled>>,
 ) {
     let mut world: Option<Arc<RigQueryWorld>> = None;
@@ -427,12 +427,15 @@ fn publish_control_rig_inputs(
         set_source_frame_input(&mut player, crate::extensions::root_graph_boundaries::RIG_GAME_WORLD_KEY, true);
         set_source_frame_input(&mut player, crate::extensions::root_graph_boundaries::RIG_CAPTURE_KEY, capture.as_ref().is_some_and(|capture| capture.0));
         let context = if input.foot_transforms_valid {
-            trees.as_ref().and_then(|trees| transforms.compute_global_transform(avatar).ok().map(|transform| {
+            trees.as_ref().and_then(|_| transforms.compute_global_transform(avatar).ok().map(|transform| {
                 let world = world.get_or_insert_with(|| Arc::new(RigQueryWorld {
-                    trees: (**trees).clone(), colliders: colliders.iter()
-                        .filter(|(_, _, _, _, mode)| mode.is_none_or(|mode| mode.has_query()))
-                        .map(|(entity, position, rotation, collider, _)|
-                            (entity, (*position, *rotation, collider.clone()))).collect(),
+                    colliders: colliders.iter()
+                        .filter(|(_, _, _, _, _, _, mode)| mode.is_none_or(|mode| mode.has_query()))
+                        .map(|(entity, position, rotation, collider, layers, complex, _)| {
+                            let mut surface = complex.map_or(collider, |value| &value.0).clone();
+                            surface.set_scale(collider.scale(), 10);
+                            (entity, (*position, *rotation, surface, layers.copied().unwrap_or_default()))
+                        }).collect(),
                 })).clone();
                 let transform = transform.compute_transform();
                 RigQueryContext { world, filter, channel: "ECC_Visibility".to_owned(),
