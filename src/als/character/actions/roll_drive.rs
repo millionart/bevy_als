@@ -751,6 +751,50 @@ pub(crate) mod tests {
         }
     }
 
+
+    #[test]
+    fn first_roll_root_step_uses_the_scale_cached_before_notify_dispatch() {
+        use std::sync::{Arc, Mutex};
+        for hidden in [false, true] {
+        let (mut app, character, avatar) = loaded_roll_character();
+        if hidden {
+            app.world_mut().entity_mut(avatar).remove::<crate::animation_visibility::AlsAnimationTickOption>()
+                .insert(Visibility::Hidden);
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.1)));
+            for _ in 0..16 { app.update(); }
+            let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+            assert!(!app.world().get::<crate::extensions::post_physics_animation::AnimationPoseUpdateGate>(player).unwrap().update_graph);
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
+        } else {
+            app.world_mut().entity_mut(avatar).insert(crate::animation_visibility::AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones);
+        }
+        let cached = Arc::new(Mutex::new(1.0_f32));
+        let before = cached.clone();
+        app.add_systems(PostUpdate, (move |scales: Query<&AlsNotifyRootMotionScale>| {
+            *before.lock().unwrap() = scales.get(character).unwrap().0;
+        }).before(advance_rolls));
+        let sampled = Arc::new(Mutex::new(None));
+        let after = sampled.clone();
+        app.add_systems(PostUpdate, (move |time: Res<Time>,
+            actors: Query<&LinearVelocity>, samplers: Query<(&AlsRollSlotSampler, &RootMotionOutput)>,
+            transforms: bevy::transform::helper::TransformHelper| {
+            let (sampler, root) = samplers.iter().find(|(sampler, _)| sampler.character == character).unwrap();
+            let actor = transforms.compute_global_transform(character).unwrap();
+            let mesh = transforms.compute_global_transform(sampler.target_player).unwrap();
+            let scale = *cached.lock().unwrap();
+            let expected = root_motion_world_transform(actor, mesh, root.translation_delta * scale, root.rotation_delta).0;
+            *after.lock().unwrap() = Some((actors.get(character).unwrap().0 * time.delta_secs(), expected));
+        }).after(AlsRollDriveSet).before(crate::source_physics_timing::SourcePhysicsTimingSet::Clamp));
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().roll_pressed = true;
+        app.update();
+        let (actual, expected) = sampled.lock().unwrap().unwrap();
+        assert!(expected.length() > 1e-5, "Actual first Roll did not extract root motion");
+        assert!((app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0 - 1.3).abs() < 1e-6);
+        assert!(actual.distance(expected) < 1e-5,
+            "First root step consumed the post-notify scale: hidden={hidden}, expected={expected:?}, actual={actual:?}");
+        }
+    }
+
     #[test]
     fn root_motion_scale_lifecycle_drives_actual_roll_velocity_and_displacement() {
         let (mut app, character, avatar) = loaded_roll_character();
@@ -766,6 +810,7 @@ pub(crate) mod tests {
         let mut actual_total = Vec3::ZERO;
         for _ in 0..65 {
             let before = app.world().get::<avian3d::prelude::Position>(character).unwrap().0;
+            let consumed_scale = app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0;
             app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.01));
             app.world_mut().run_schedule(PostUpdate);
             let clip_time = app.world().get::<AlsRollState>(character).unwrap().time * ROLL_PLAY_RATE;
@@ -775,7 +820,7 @@ pub(crate) mod tests {
             let raw = app.world().get::<RootMotionOutput>(sampler).unwrap().translation_delta;
             let mesh = app.world_mut().run_system_once(move |transforms: bevy::transform::helper::TransformHelper|
                 transforms.compute_global_transform(target).unwrap()).unwrap();
-            let expected = mesh.affine().transform_vector3(raw) * expected_scale;
+            let expected = mesh.affine().transform_vector3(raw) * consumed_scale;
             app.world_mut().run_system_once(roll_drive_system).unwrap();
             let actual = app.world().get::<LinearVelocity>(character).unwrap().0 * app.world().resource::<Time>().delta_secs();
             assert!(actual.distance(expected) < 1e-5, "Actual root motion did not consume the source scale");
@@ -1203,6 +1248,7 @@ pub struct AlsRollSlotRuntime {
     pub pose_ready: bool,
     pub root_motion_delta: Vec3,
     pub root_motion_rotation: Quat,
+    pub root_motion_scale: f32,
     pub pose_standing: f32,
     pub pose_grounded: f32,
 }
@@ -1262,7 +1308,7 @@ impl Plugin for AlsRollDrivePlugin {
                     prepare_roll_slot_samples.before(AnimationGraphSet::PrePhysics),
                     ensure_root_motion_output,
                     ensure_roll_state,
-                    bridge_roll_slot_samples.after(AnimationGraphSet::PrePhysics),
+                    bridge_roll_slot_samples.after(AnimationGraphSet::PrePhysics).before(crate::animation_events::AlsAnimationEventSet::Dispatch),
                     roll_drive_system
                         .after(ensure_roll_state)
                         .after(bridge_roll_slot_samples)
@@ -1383,6 +1429,7 @@ fn bridge_roll_slot_samples(
     rolls: Query<&AlsRollState, With<crate::als::character::AlsCharacter>>,
     get_ups: Query<&crate::get_up::AlsGetUpState>,
     blend_outs: Query<&AlsRollBlendOut>,
+    root_scales: Query<&AlsNotifyRootMotionScale>,
     curve_handle: Res<RollSlotCurveHandle>,
     curves: Res<Assets<AlsAnimCurves>>,
     mut samplers: Query<(Entity, &mut AlsRollSlotSampler, &AnimationGraphPlayer, &RootMotionOutput, Option<&AlsRollTail>)>,
@@ -1460,6 +1507,7 @@ fn bridge_roll_slot_samples(
         commands.entity(character).insert(AlsRollSlotRuntime {
             active: roll.is_some() || samples.iter().any(|(_, _, _, current)| !current), weight, pose_ready,
             root_motion_delta: root_motion.translation_delta, root_motion_rotation: root_motion.rotation_delta,
+            root_motion_scale: root_scales.get(character).map_or(1.0, |scale| scale.0),
             pose_standing: curve_values[0], pose_grounded: curve_values[1],
         });
     }
@@ -1574,7 +1622,7 @@ fn roll_drive_system(
     blend_outs: Query<(), With<AlsRollBlendOut>>,
     mut space: ParamSet<(bevy::transform::helper::TransformHelper,
         Query<(Entity, &AlsRollState, Option<&AlsNotifyLocomotionAction>, &mut Transform, Option<&mut Rotation>,
-            &mut LinearVelocity, Option<&AlsNotifyRootMotionScale>), With<crate::als::character::AlsCharacter>>)> ,
+            &mut LinearVelocity, Option<&AlsNotifyRootMotionScale>, Option<&AlsRollSlotRuntime>), With<crate::als::character::AlsCharacter>>)> ,
     sampler_root_motion: Query<(&AlsRollSlotSampler, &RootMotionOutput), Without<AlsRollTail>>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
@@ -1588,7 +1636,7 @@ fn roll_drive_system(
             mesh
         } else { actor_world };
         let mut query = space.p1();
-        let (_, roll, action, mut transform, rotation, mut vel, notify_root_scale) = query.get_mut(character).unwrap();
+        let (_, roll, action, mut transform, rotation, mut vel, notify_root_scale, runtime) = query.get_mut(character).unwrap();
         let custom = modes.get(character).is_ok_and(|(mode, ..)| *mode == LocomotionState::Custom);
         let delta_too_small = if custom { dt <= 0.0 } else { dt <= 1e-5 };
         if !roll.active || action == Some(&AlsNotifyLocomotionAction::Ragdolling) || delta_too_small || blend_outs.contains(character)
@@ -1598,7 +1646,7 @@ fn roll_drive_system(
 
         let (mut local_translation, local_rotation) = sample.map_or((Vec3::ZERO, Quat::IDENTITY),
             |(_, output)| (output.translation_delta, output.rotation_delta));
-        local_translation *= notify_root_scale.map_or(1.0, |scale| scale.0).max(0.0);
+        local_translation *= runtime.map_or_else(|| notify_root_scale.map_or(1.0, |scale| scale.0), |runtime| runtime.root_motion_scale).max(0.0);
         let (world_translation, root_rotation) =
             root_motion_world_transform(actor_world, mesh_world, local_translation, local_rotation);
         let next_rotation = if local_rotation.dot(Quat::IDENTITY).abs() < 1.0 - 1e-6 {
