@@ -67,6 +67,7 @@ pub(crate) fn with_machine_weight<T>(factor: f32, evaluate: impl FnOnce() -> T) 
 pub struct InterruptibleFsmSource {
     pub state: LowLevelStateId,
     pub state_entered_time: f32,
+    elapsed_time: f32,
     context_slot: usize,
     blend_duration: Option<f32>,
 }
@@ -134,6 +135,7 @@ pub struct SourceTransitionCondition {
 pub struct InterruptibleFsmState {
     pub state: LowLevelStateId,
     pub state_entered_time: f32,
+    transition_elapsed_time: f32,
     context_slot: usize,
     blend_duration: Option<f32>,
     pub interrupted_sources: Vec<InterruptibleFsmSource>,
@@ -641,6 +643,7 @@ impl InterruptibleFsmNode {
             interrupted_sources.push(InterruptibleFsmSource {
                 state: state.state.clone(),
                 state_entered_time: state.state_entered_time,
+            elapsed_time: state.transition_elapsed_time,
                 context_slot: state.context_slot,
                 blend_duration: state.blend_duration,
             });
@@ -655,6 +658,7 @@ impl InterruptibleFsmNode {
             .unwrap();
         state.state = transition.target.clone();
         state.state_entered_time = time;
+        state.transition_elapsed_time = 0.0;
         state.blend_duration = blend_duration;
         state.interrupted_sources = interrupted_sources;
         state.source_pose = None;
@@ -985,6 +989,7 @@ impl InterruptibleFsmNode {
             parent_time_update,
             state: state.state.clone(),
             state_entered_time: state.state_entered_time,
+            elapsed_time: state.transition_elapsed_time,
             context_slot: state.context_slot,
             blend_duration: state.blend_duration,
             source_pose: state.source_pose.clone(),
@@ -1141,6 +1146,7 @@ impl InterruptibleFsmNode {
         InterruptibleFsmState {
             state,
             state_entered_time: time,
+            transition_elapsed_time: 0.0,
             context_slot: 0,
             blend_duration: None,
             interrupted_sources: Vec::new(),
@@ -1162,11 +1168,11 @@ impl InterruptibleFsmNode {
         machine: &LowLevelStateMachine,
         state: &InterruptibleFsmState,
         ctx: &NodeContext,
-        time: f32,
     ) -> Result<Vec<SourceFsmStateWeight>, GraphError> {
         let current = InterruptibleFsmSource {
             state: state.state.clone(),
             state_entered_time: state.state_entered_time,
+            elapsed_time: state.transition_elapsed_time,
             context_slot: state.context_slot,
             blend_duration: state.blend_duration,
         };
@@ -1193,7 +1199,7 @@ impl InterruptibleFsmNode {
             let factor = if duration <= f32::EPSILON {
                 1.0
             } else {
-                ((time - source.state_entered_time) / duration).clamp(0.0, 1.0)
+                (source.elapsed_time / duration).clamp(0.0, 1.0)
             };
             let graph = ctx
                 .graph_context
@@ -1238,9 +1244,8 @@ impl InterruptibleFsmNode {
         machine: &LowLevelStateMachine,
         ctx: &mut NodeContext,
     ) -> Result<(), GraphError> {
-        let time = ctx.time();
         let snapshot = ctx.state::<InterruptibleFsmState>()?.clone();
-        let weights = Self::state_weight_values(machine, &snapshot, ctx, time)?;
+        let weights = Self::state_weight_values(machine, &snapshot, ctx)?;
         let state = ctx.state_mut_or_else(|| snapshot.clone())?;
         state.recorded_machine_weight = current_machine_weight();
         state.recorded_state_weights = weights;
@@ -1288,13 +1293,12 @@ impl InterruptibleFsmNode {
             let Some(state_data) = machine.states.get(&source.state) else { return false; };
             let Some(transition) = state_data.hl_transition.as_ref() else { return false; };
             let Some(graph) = ctx.graph_context.resources.animation_graph_assets.get(&state_data.graph) else { return false; };
-            source_transition_blend_finished(ctx.time() - source.state_entered_time,
+            source_transition_blend_finished(source.elapsed_time,
                 source.blend_duration.or(transition.timed), graph)
         }) {
             state.interrupted_sources.truncate(completed);
         }
-        let now = ctx.time();
-        let weights = Self::state_weight_values(machine, &state, ctx, now)?;
+        let weights = Self::state_weight_values(machine, &state, ctx)?;
         state.transition_notifications.extend(Self::blend_endpoint_notifications(
             machine, &state.recorded_state_weights, &weights,
             &ctx.graph_context.resources.animation_graph_assets,
@@ -1312,6 +1316,7 @@ impl InterruptibleFsmNode {
                 parent_time_update: parent_time_update.clone(),
                 state: source.state.clone(),
                 state_entered_time: source.state_entered_time,
+                elapsed_time: source.elapsed_time,
                 context_slot: source.context_slot,
                 blend_duration: source.blend_duration,
                 source_pose,
@@ -1339,7 +1344,7 @@ impl InterruptibleFsmNode {
         state.source_pose = source_pose;
         *ctx.state_mut_or_else(|| state.clone())? = state.clone();
         let (state_data, graph) = Self::active_graph(machine, &state.state, ctx)?;
-        let elapsed = (ctx.time() - state.state_entered_time).max(0.0);
+        let elapsed = state.transition_elapsed_time;
         let io = InterruptibleFsmIo {
             node_context: ctx.clone(),
             machine,
@@ -1347,6 +1352,7 @@ impl InterruptibleFsmNode {
             parent_time_update,
             state: state.state.clone(),
             state_entered_time: state.state_entered_time,
+            elapsed_time: state.transition_elapsed_time,
             context_slot: state.context_slot,
             blend_duration: state.blend_duration,
             source_pose: state.source_pose.clone(),
@@ -1535,6 +1541,20 @@ impl NodeLike for InterruptibleFsmNode {
             )
             .map_err(|error| entry_error("first update transition processing", error))?;
         }
+        {
+            let state = ctx.state_mut_or_else(|| initial_state.clone())?;
+            if matches!(&update, TimeUpdate::Absolute(_)) {
+                state.transition_elapsed_time = (time - state.state_entered_time).max(0.0);
+                for source in &mut state.interrupted_sources {
+                    source.elapsed_time = (time - source.state_entered_time).max(0.0);
+                }
+            } else {
+                state.transition_elapsed_time += elapsed_delta;
+                for source in &mut state.interrupted_sources {
+                    source.elapsed_time += elapsed_delta;
+                }
+            }
+        }
         let internal_events = self
             .evaluate_active_state(machine, update, &mut ctx)
             .map_err(|error| entry_error("active state evaluation", error))?;
@@ -1635,6 +1655,7 @@ fn state_graph_context<'a>(
 struct FsmStackFrame {
     state: LowLevelStateId,
     state_entered_time: f32,
+    elapsed_time: f32,
     context_slot: usize,
     blend_duration: Option<f32>,
     source_pose: Option<(Pose, AnimationContextState)>,
@@ -1646,6 +1667,7 @@ struct InterruptibleFsmIo<'a> {
     node_context: NodeContext<'a>,
     machine: &'a LowLevelStateMachine,
     current_time: f32,
+    elapsed_time: f32,
     parent_time_update: TimeUpdate,
     state: LowLevelStateId,
     state_entered_time: f32,
@@ -1710,7 +1732,7 @@ impl<'a> InterruptibleFsmIo<'a> {
     }
 
     fn builtin(&self, pin: FsmBuiltinPin) -> Result<DataValue, GraphError> {
-        let elapsed = (self.current_time - self.state_entered_time).max(0.0);
+        let elapsed = self.elapsed_time;
         match pin {
             FsmBuiltinPin::TimeElapsed => Ok(DataValue::F32(elapsed)),
             FsmBuiltinPin::PercentThroughDuration => self
@@ -1745,6 +1767,7 @@ impl<'a> InterruptibleFsmIo<'a> {
         stack.push_back(FsmStackFrame {
             state: self.state.clone(),
             state_entered_time: self.state_entered_time,
+            elapsed_time: self.elapsed_time,
             context_slot: self.context_slot,
             blend_duration: self.blend_duration,
             source_pose: self.source_pose.clone(),
@@ -1757,6 +1780,7 @@ impl<'a> InterruptibleFsmIo<'a> {
             parent_time_update: self.parent_time_update.clone(),
             state,
             state_entered_time: self.state_entered_time,
+            elapsed_time: self.elapsed_time,
             context_slot: self.context_slot,
             blend_duration: self.blend_duration,
             source_pose: None,
@@ -1772,7 +1796,7 @@ impl<'a> InterruptibleFsmIo<'a> {
     fn evaluated_state_weight(&self, state: &LowLevelStateId) -> Result<f32, GraphError> {
         let snapshot = self.node_context.state::<InterruptibleFsmState>()?;
         let weights = InterruptibleFsmNode::state_weight_values(
-            self.machine, snapshot, &self.node_context, self.current_time,
+            self.machine, snapshot, &self.node_context,
         )?;
         Ok(InterruptibleFsmNode::local_state_weight(&weights, state))
     }
@@ -1888,6 +1912,7 @@ impl<'a> InterruptibleFsmIo<'a> {
             parent_time_update: self.parent_time_update.clone(),
             state: frame.state.clone(),
             state_entered_time: frame.state_entered_time,
+            elapsed_time: frame.elapsed_time,
             context_slot: frame.context_slot,
             blend_duration: frame.blend_duration,
             source_pose: frame.source_pose,
@@ -2376,9 +2401,9 @@ mod tests {
             node_ctx.set_time(0.4);
             node_ctx.state_mut_or_else(|| InterruptibleFsmNode::initial_state(
                 LowLevelStateId::HlTransition(transition), 0.0, 0,
-            )).unwrap();
+            )).unwrap().transition_elapsed_time = 0.4;
             let io = InterruptibleFsmIo {
-                node_context: node_ctx.clone(), machine: &machine, current_time: 0.4,
+                node_context: node_ctx.clone(), machine: &machine, current_time: 0.4, elapsed_time: 0.4,
                 parent_time_update: TimeUpdate::Delta(0.4),
                 state: LowLevelStateId::HlTransition(transition), state_entered_time: 0.0,
                 context_slot: 0, blend_duration: None, source_pose: None, role: FsmRole::Root,
@@ -3696,6 +3721,7 @@ mod tests {
         let runtime = InterruptibleFsmState {
             state,
             state_entered_time: 0.0,
+            transition_elapsed_time: 0.0,
             context_slot: 0,
             blend_duration: None,
             interrupted_sources: Vec::new(),
@@ -4290,6 +4316,143 @@ mod tests {
     }
 
     #[test]
+    fn blend_pose_is_invariant_to_the_native_initial_clock_offset() {
+        use bevy::ecs::system::RunSystemOnce;
+        fn query(In((root,node,offset)):In<(Handle<AnimationGraph>,NodeId,f32)>,resources:SystemResources)->(Vec<String>,Vec<Pose>) {
+            let graph=resources.animation_graph_assets.get(&root).unwrap();
+            let mut arena=GraphContextArena::new(root.id());
+            let mut values=Vec::new();
+            let mut poses=Vec::new();
+            for frame in 0..9 {
+                let dt=if frame==0 {0.0_f32} else {1.0/60.0};
+                let inputs=HashMap::from([
+                    ("delta".into(),DataValue::F32(dt)),("to_b".into(),DataValue::Bool(frame==1)),
+                    ("to_a".into(),DataValue::Bool(false)),
+                    ("allow_auto".into(),DataValue::Bool(false)),
+                ]);
+                if frame==1 && offset>0.0 {
+                    let env=TestIoEnv::default();
+                    let entities=HashMap::new();
+                    let context=GraphContext::new(arena.get_toplevel_id(),graph,&mut arena,&resources,&env,
+                        Entity::PLACEHOLDER,&entities,&mut DeferredGizmos::default(),&inputs);
+                    let mut node_context=context.create_node_context(node);
+                    node_context.set_time(offset);
+                    node_context.state_mut_or_else::<InterruptibleFsmState>(||unreachable!()).unwrap().state_entered_time+=offset;
+                }
+                let pose=graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(dt)),
+                    GraphContext::new(arena.get_toplevel_id(),graph,&mut arena,&resources,&TestIoEnv::default(),
+                        Entity::PLACEHOLDER,&HashMap::new(),&mut DeferredGizmos::default(),&inputs))
+                    .unwrap().remove("pose").unwrap().into_pose().unwrap();
+                let state=arena.get_toplevel().node_states.get::<InterruptibleFsmState>(node,StateKey::Default).unwrap();
+                let machine=graph.nodes[&node].try_inner_downcast_ref::<InterruptibleFsmNode>().unwrap()
+                    .state_machine(&resources).unwrap();
+                values.push(InterruptibleFsmNode::source_condition_state(machine,&state.state).unwrap().uuid().to_string());
+                poses.push(pose);
+            }
+            (values,poses)
+        }
+        let mut graphs=Assets::<AnimationGraph>::default();
+        let (mut app,_,_)=crate::roll_drive::tests::loaded_roll_character();
+        let clips=["Left_Forward","Left_Backward","Right_Backward"].map(|direction|
+            app.world().resource::<AssetServer>().load::<GraphClip>(
+                format!("ALS/Animations/Grounded/WalkRun/A_Als_Walk_{direction}.anim.ron")));
+        let deadline=std::time::Instant::now()+std::time::Duration::from_secs(30);
+        while clips.iter().any(|clip|!app.world().resource::<AssetServer>().is_loaded_with_dependencies(clip.id())) {
+            app.update();assert!(std::time::Instant::now()<deadline,"Native reentry pose clips did not load");
+        }
+        let clip_assets=app.world_mut().remove_resource::<Assets<GraphClip>>().unwrap();
+        let skeletons=app.world_mut().remove_resource::<Assets<Skeleton>>().unwrap();
+        let first_duration=clip_assets.get(&clips[0]).unwrap().duration;
+        assert!(first_duration>0.2);
+        let first_start=0.3;
+        let states=[1,2,3].map(|id|serde_json::from_str::<StateId>(&format!("\"10000000-0000-4000-8000-{id:012}\"")).unwrap());
+        let mut machine=StateMachine::default();machine.start_state=states[0];
+        machine.node_spec.add_output_data("pose".into(),DataSpec::Pose);
+        for (index,id) in states.into_iter().enumerate() {
+            let player=AnimationNode::new("source sequence",crate::extensions::SourceSequencePlayerNode {
+                clip:clips[index].clone(),start_position:if index==0 {first_start} else {0.0},loop_animation:false,
+                expose_play_rate_pin:false,expose_start_position_pin:false,expose_loop_animation_pin:false,..default()
+            });
+            let mut leaf=AnimationGraph::new();leaf.add_node(player.clone());leaf.add_output_data("pose".into(),DataSpec::Pose);
+            leaf.add_output_data_edge(player.id,"Pose","pose");
+            machine.add_state(State {id,label:index.to_string(),graph:graphs.add(leaf),..default()});
+        }
+        let blend=AnimationNode::new("source crossfade",ProfiledBlendNode {alpha_blend_mode:AlphaBlendMode::HermiteCubic,..default()});
+        let mut transition=AnimationGraph::new();transition.add_node(blend.clone());
+        for (pin,input,spec) in [
+            ("factor",GraphInputPin::FsmBuiltin(FsmBuiltinPin::PercentThroughDuration),DataSpec::F32),
+            ("pose_a",GraphInputPin::FromFsmSource("pose".into()),DataSpec::Pose),
+            ("pose_b",GraphInputPin::FromFsmTarget("pose".into()),DataSpec::Pose)
+        ] {transition.add_input_data(input.clone(),spec);transition.add_input_data_edge(input,blend.id,pin);}
+        for (pin,input) in [("time_a",GraphInputPin::FromFsmSource("time".into())),("time_b",GraphInputPin::FromFsmTarget("time".into()))] {
+            transition.add_input_time(input.clone());transition.add_input_time_edge(input,blend.id,pin);
+        }
+        transition.add_output_time();transition.add_output_pose_edge(blend.id);
+        transition.add_output_data("pose".into(),DataSpec::Pose);transition.add_output_data_edge(blend.id,"pose","pose");
+        let transition=graphs.add(transition);
+        let mut conditions=Vec::new();
+        let mut allow=AnimationGraph::new();let value=AnimationNode::new("allow auto",GlobalBoolInputNode {key:"allow_auto".into()});
+        allow.add_node(value.clone());allow.add_output_data("allow_auto".into(),DataSpec::Bool);
+        allow.add_output_data_edge(value.id,"allow_auto","allow_auto");let allow=graphs.add(allow);
+        for (index,(from,to,key,automatic)) in [(0,1,"to_b",false),(1,0,"to_a",false),(0,2,"allow_auto",true)].into_iter().enumerate() {
+            let edge=serde_json::from_str::<DirectTransitionId>(&format!("\"30000000-0000-4000-8000-{:012}\"",index+1)).unwrap();
+            machine.add_transition_unchecked(DirectTransition {id:edge,source:states[from],target:states[to],
+                data:TransitionData {kind:bevy_animation_graph::core::state_machine::high_level::TransitionKind::Graph {
+                    graph:transition.clone(),timed:Some(0.2)},reset_target_state:true,..default()}});
+            let mut condition=AnimationGraph::new();let value=AnimationNode::new(key,GlobalBoolInputNode {key:key.into()});
+            condition.add_node(value.clone());condition.add_output_data(key.into(),DataSpec::Bool);
+            condition.add_output_data_edge(value.id,key,key);
+            let context_state=serde_json::from_str::<StateId>(&format!("\"20000000-0000-4000-8000-{:012}\"",index+1)).unwrap();
+            conditions.push(SourceTransitionCondition {
+                transition_id:edge.uuid().to_string(),source_state_id:states[from].uuid().to_string(),
+                condition:graphs.add(condition),output:key.into(),context_state,
+                automatic_trigger_time:automatic.then_some(0.2),transition_duration:0.2,
+                always_reset_target_on_entry:Some(false),
+                gates:if automatic {vec![SourceTransitionConditionGate {condition:allow.clone(),output:"allow_auto".into(),context_state}]} else {Vec::new()},
+                ..default()
+            });
+        }
+        machine.update_low_level_fsm();
+        let mut machines=Assets::<StateMachine>::default();
+        let machine=machines.add(machine);
+        let mut roots=Vec::new();
+        for automatic in [false] {
+            let mut conditions=conditions.clone();
+            if !automatic {
+                conditions.last_mut().unwrap().automatic_trigger_time=None;
+                conditions.last_mut().unwrap().gates.clear();
+            }
+            let fsm=AnimationNode::new("native reentry FSM",InterruptibleFsmNode {fsm:machine.clone(),
+                source_transition_conditions:conditions,internal_time_key:"delta".into(),expose_telemetry:false,..default()});
+            let mut root=AnimationGraph::new();root.add_node(fsm.clone());root.add_output_data("pose".into(),DataSpec::Pose);
+            root.add_output_data_edge(fsm.id,"pose","pose");
+            roots.push((graphs.add(root),fsm.id,automatic));
+        }
+        let mut world=World::new();world.insert_resource(graphs);world.insert_resource(clip_assets);
+        world.insert_resource(machines);world.insert_resource(skeletons);
+        let mut issues=Vec::new();
+        for (root,node,_) in roots {
+            let expected=world.run_system_once_with(query,(root.clone(),node,0.0_f32)).unwrap();
+            for offset in [1.0_f32,1024.0,65536.0] {
+                let actual=world.run_system_once_with(query,(root.clone(),node,offset)).unwrap();
+                let mut dot=1.0_f32;let mut distance=0.0_f32;
+                for (actual,expected) in actual.1.iter().zip(&expected.1) {
+                    for bone in expected.paths.keys() {
+                        let a=actual.get_bone(*bone).unwrap();let e=expected.get_bone(*bone).unwrap();
+                        if let (Some(a),Some(e))=(a.rotation,e.rotation) {dot=dot.min(a.dot(e).abs());}
+                        if let (Some(a),Some(e))=(a.translation,e.translation) {distance=distance.max(a.distance(e));}
+                    }
+                }
+                if actual.0!=expected.0 || dot<=1.0-1e-5 || distance>=1e-5 {
+                    issues.push(format!("offset={offset}, states_equal={}, rotation_error_degrees={}, location_error={distance}",
+                        actual.0==expected.0,(2.0*dot.clamp(-1.0,1.0).acos()).to_degrees()));
+                }
+            }
+        }
+        assert!(issues.is_empty(),"Native local elapsed changed under a global clock shift: {}",issues.join("; "));
+    }
+
+    #[test]
     fn automatic_transition_uses_relevant_asset_remaining_time() {
         let asset = SourceRelevantAsset {
             duration: 1.0,
@@ -4331,6 +4494,7 @@ mod tests {
         let runtime = InterruptibleFsmState {
             state: LowLevelStateId::HlState(member),
             state_entered_time: 0.0,
+            transition_elapsed_time: 0.0,
             context_slot: 0,
             blend_duration: None,
             interrupted_sources: Vec::new(),
@@ -4379,6 +4543,7 @@ mod tests {
         let mut runtime = InterruptibleFsmState {
             state: source,
             state_entered_time: 0.0,
+            transition_elapsed_time: 0.0,
             context_slot: 0,
             blend_duration: None,
             interrupted_sources: Vec::new(),
@@ -4999,6 +5164,7 @@ mod tests {
         let state = InterruptibleFsmState {
             state: LowLevelStateId::HlState(StateId::default()),
             state_entered_time: 0.0,
+            transition_elapsed_time: 0.0,
             context_slot: 0,
             blend_duration: None,
             interrupted_sources: Vec::new(),
@@ -5053,6 +5219,7 @@ mod tests {
         let mut runtime = InterruptibleFsmState {
             state: active_state.clone(),
             state_entered_time: 1.0,
+            transition_elapsed_time: 0.0,
             context_slot: 0,
             blend_duration: None,
             interrupted_sources: Vec::new(),
