@@ -8,6 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'animgraph_authoring'))
 from coordinate_basis import source_point_to_runtime, source_direction_to_runtime, source_rotator_to_runtime_rotation, quaternion_multiply
 from gen_ragdoll import quat_rotate
+from ue_animgraph_materializer import source_asset_directory
 from ue_animation_asset_resolver import asset_property, object_property, source_object_path
 from ue_exported_text import parse_struct, parse_list, parse_number, parse_bool
 
@@ -92,7 +93,7 @@ def compile_definitions(world, blueprint, mesh):
         actor_frame = transform(root)
         spline_frame = compose(actor_frame, transform(spline))
         actors.append(dict(name=actor['object_path'].rsplit('.', 1)[1], actor=actor_frame, primitive=transform(primitive),
-            mesh_scene='models/playground/' + mesh['asset_path'].rsplit('.', 1)[1] + '.gltf#Scene0',
+            mesh_scene=source_asset_directory(mesh['asset_path']) + '.gltf#Scene0',
             mesh_base=mesh['asset_path'].rsplit('.', 1)[1], **collider,
             start=point(spline_frame, source_point_to_runtime(positions[0])), end=point(spline_frame, source_point_to_runtime(positions[1])), duration=duration))
     if not actors:

@@ -6,6 +6,7 @@ from pathlib import Path
 
 from import_moving_actors import box_definition, transform, vector
 from coordinate_basis import quaternion_multiply, source_rotator_to_runtime_rotation
+from ue_animgraph_materializer import source_asset_directory
 from ue_animation_asset_resolver import object_property, source_object_path
 from ue_exported_text import parse_bool, parse_struct
 
@@ -60,7 +61,7 @@ def compile_definitions(world, blueprint, mesh):
         if physics['CollisionEnabled'] != 'QueryAndPhysics' or physics['CollisionProfileName'] != 'BlockAllDynamic' or parse_bool(physics['bSimulatePhysics']):
             raise ValueError('Rotating primitive physics differs')
         actors.append(dict(name=actor['object_path'].rsplit('.', 1)[1], actor=transform(root), primitive=transform(primitive),
-            mesh_scene='models/playground/' + mesh['asset_path'].rsplit('.', 1)[1] + '.gltf#Scene0',
+            mesh_scene=source_asset_directory(mesh['asset_path']) + '.gltf#Scene0',
             mesh_base=mesh['asset_path'].rsplit('.', 1)[1], **collider,
             rotation_rate_yzx_radians=rotation_rate(vector(object_property(actor, 'RotationSpeed'), ['Pitch', 'Yaw', 'Roll']))))
     if not actors:
