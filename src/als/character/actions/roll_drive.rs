@@ -887,6 +887,44 @@ pub(crate) mod tests {
         assert!(Vec2::new(actual_total.x, actual_total.z).distance(Vec2::new(expected_total.x, expected_total.z)) < 1e-4);
     }
 
+
+    #[test]
+    fn installed_roll_sampler_matches_the_fresh_source_root_track() {
+        use bevy::platform::collections::HashMap;
+        use bevy_animation_graph::core::{
+            animation_graph::AnimationGraph,
+            context::{deferred_gizmos::DeferredGizmos, graph_context_arena::GraphContextArena, system_resources::SystemResources},
+        };
+        fn query(In((graph, actor, samples)): In<(Handle<AnimationGraph>, Entity, Vec<[f32; 4]>)>, resources: SystemResources) {
+            let graph_asset = resources.animation_graph_assets.get(&graph).unwrap();
+            let mut arena = GraphContextArena::new(graph.id());
+            let mut previous = Vec3::ZERO;
+            for [time, x, y, z] in samples {
+                let globals = HashMap::from([(ROLL_SLOT_TIME_KEY.to_owned(), DataValue::F32(time))]);
+                let output = graph_asset.query(bevy_animation_graph::core::animation_graph::TimeUpdate::Delta(0.0),
+                    &mut arena, &resources, actor, &HashMap::new(), &mut DeferredGizmos::default(), &globals).unwrap();
+                let pose = output["pose"].as_pose().unwrap();
+                let current = Vec3::new(x, z, y) * 0.01;
+                assert!(pose.root_motion.as_ref().unwrap().translation.distance(current - previous) < 1e-5,
+                    "Installed Roll root interval differs at time {time}");
+                let root = resources.skeleton_assets.get(&pose.skeleton).unwrap().iter_paths()
+                    .find(|path| path.parts.last().is_some_and(|part| part.as_str() == "root")).unwrap().id();
+                assert!(pose.get_bone(root).unwrap().translation.unwrap_or_default().length() < 1e-5,
+                    "Installed Roll pose retained consumed root translation at time {time}");
+                previous = current;
+            }
+        }
+        let source: serde_json::Value = serde_json::from_str(include_str!("../../../../tools/fixtures/roll_root_source_samples.json")).unwrap();
+        let samples: Vec<[f32; 4]> = serde_json::from_value(source["samples"].clone()).unwrap();
+        let (mut app, character, _) = loaded_roll_character();
+        let sampler = play_loaded_roll(&mut app, character);
+        let graph = match app.world().get::<AnimationGraphPlayer>(sampler).unwrap().get_animation_source() {
+            bevy_animation_graph::core::animation_graph_player::AnimationSource::Graph(graph) => graph.clone(),
+            _ => panic!("Installed Roll sampler did not use its graph"),
+        };
+        app.world_mut().run_system_once_with(query, (graph, character, samples)).unwrap();
+    }
+
     #[test]
     fn actual_roll_slot_uses_current_mesh_scale_and_basis() {
         #[derive(Component, Default)]
@@ -911,13 +949,12 @@ pub(crate) mod tests {
                     }).after(roll_drive_system).before(avian3d::prelude::PhysicsSystems::First));
                     let mut expected_sum = Vec3::ZERO; let mut actual_sum = Vec3::ZERO;
                     for frame in 0..8 {
+                        app.world_mut().get_mut::<AlsNotifyRootMotionScale>(character).unwrap().0 = notify_scale;
                         app.update();
                         let step = app.world().get::<RequestedRootStep>(character).unwrap();
                         let moved = app.world().get::<avian3d::prelude::Position>(character).unwrap().0 - step.start;
                         assert!(moved.with_y(0.0).distance(step.delta.with_y(0.0)) < 0.0001,
                             "Free actual roll changed displacement after collision: scale={mesh_scale} frame={frame} requested={:?} moved={moved:?}", step.delta);
-                        app.world_mut().get_mut::<AlsNotifyRootMotionScale>(character).unwrap().0 = notify_scale;
-                        app.world_mut().run_system_once(roll_drive_system).unwrap();
                         let raw = app.world().get::<RootMotionOutput>(sampler).unwrap().translation_delta;
                         let mesh = app.world_mut().run_system_once(move |transforms: bevy::transform::helper::TransformHelper| {
                             transforms.compute_global_transform(target).unwrap()
