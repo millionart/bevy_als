@@ -460,6 +460,18 @@ pub(crate) mod tests {
         }
     }
 
+
+    #[test]
+    fn paused_floor_owner_does_not_adjust_the_actual_roll_actor() {
+        let (mut app, character, _) = loaded_roll_character();
+        play_loaded_roll(&mut app, character);
+        let before = *app.world().get::<Transform>(character).unwrap();
+        app.world_mut().resource_mut::<Time<Virtual>>().pause();
+        app.world_mut().run_system_once(crate::als::motion::locomotion_state_sync_system).unwrap();
+        assert_eq!(*app.world().get::<Transform>(character).unwrap(), before,
+            "The source CMC floor owner does not tick while the world is paused");
+    }
+
     #[test]
     fn loaded_roll_pause_preserves_actor_and_slot_then_resumes() {
         let (mut app, character, _) = loaded_roll_character();

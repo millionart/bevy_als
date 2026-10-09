@@ -3638,6 +3638,7 @@ fn resolved_walkable_contact(contact: &ContactPair, character: Entity) -> bool {
 
 pub(crate) fn locomotion_state_sync_system(
     mut commands: Commands,
+    time: Res<Time<Virtual>>,
     motion: Query<&crate::actual_motion::AlsActualMotion, With<AlsCharacter>>,
     spatial: SpatialQuery,
     candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
@@ -3667,6 +3668,7 @@ pub(crate) fn locomotion_state_sync_system(
         With<AlsCharacter>,
     >,
 ) {
+    if time.is_paused() { return; }
     for (entity, transform, position, capsule, mut velocity, controller, mut current, request, ragdoll_air_exit, action, handle, stance, mut runtime) in &mut q {
         let sweep_contact = std::mem::take(&mut runtime.airborne_sweep_contact);
         if !matches!(*current, LocomotionState::Grounded | LocomotionState::Air) || ragdoll_air_exit
