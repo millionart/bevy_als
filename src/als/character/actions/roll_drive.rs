@@ -871,6 +871,8 @@ pub(crate) mod tests {
                     app.world_mut().run_schedule(PostUpdate);
                     let runtime = app.world().get::<AlsRollSlotRuntime>(character).unwrap();
                     assert!(runtime.pose_ready && runtime.active);
+                    assert!((app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0 - 1.3).abs() < 1e-6,
+                        "Roll reentry lost the active source root-motion scale at frame {frame}");
                     let root = app.world().get::<RootMotionOutput>(current).unwrap();
                     assert!(runtime.root_motion_delta.distance(root.translation_delta) < 1e-6, "Old root motion won frame {frame}");
                     if let Some(tail) = app.world().get::<AlsRollTail>(old) {
