@@ -1,0 +1,125 @@
+{
+  "format": "als_animgraph_authoring_gate_v1",
+  "id": "source_current_camera_component_contract",
+  "graphs": [
+    {
+      "path": "assets/ALSCamera/AB_Als_Camera.runtime.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "b1160102-0000-4000-8000-000000000001",
+          "name": "AB_Als_Camera",
+          "position": [
+            -240.0,
+            0.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "OutputData(\"pose\")",
+          "source": "NodeData(\"b1160102-0000-4000-8000-000000000001\", \"pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "pose": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    }
+  ],
+  "source_evidence": [
+    {
+      "path": "target/bf134/03b/current_camera_data_contract.json",
+      "sha256": "65c0467d39684ba0c2087ceb1f48ea75df401f95306b3210f1c847f517e1be1d"
+    },
+    {
+      "path": "target/bf134/03b/current_camera_execution_contract.json",
+      "sha256": "906f90487a6518bb5deee8eeae05008cd842eed50d2d09a211a352f6507c1455"
+    },
+    {
+      "path": "target/bf134/03b/camera.ue.json",
+      "sha256": "c26560ecf385edce6763db695b4bff72695f5430489941dadeed50c26ae00b79"
+    },
+    {
+      "path": "target/bf134/03b/fresh_camera_closure_current.json",
+      "sha256": "0ccb550facfc8c01def212afc7a8f7beb56aa6193c4f7c2b8ca6778b8023a1ea"
+    }
+  ],
+  "verification_commands": [
+    {
+      "label": "camera_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets/ALSCamera/AB_Als_Camera"
+      ]
+    },
+    {
+      "label": "camera_editor",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets/ALSCamera/AB_Als_Camera"
+      ]
+    },
+    {
+      "label": "runtime_asset_boundary",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/validate_runtime_graph_asset_boundary.py",
+        "--assets-root",
+        "assets",
+        "--check"
+      ]
+    },
+    {
+      "label": "fresh_camera_source_closure",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/audit_source_closure.py",
+        "--source-directory",
+        "target/bf134/03b/graph_source",
+        "--materialized-directory",
+        "target/bf134/02m5/full_corpus/outputs/14",
+        "--spec",
+        "target/bf134/03b/current_camera_spec.json",
+        "--assets-root",
+        "assets"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "animgraph_assets",
+    "manual_case": "camera"
+  },
+  "focused_tests": [
+    {
+      "label": "independent_source_frame_curves_and_views",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "als_camera::"
+      ],
+      "evidence": "target/bf134/03b/camera_current_tests.watchdog.json"
+    }
+  ]
+}
