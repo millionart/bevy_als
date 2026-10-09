@@ -554,6 +554,54 @@ mod tests {
     }
 
     #[test]
+    fn first_relevant_backward_movement_suppresses_the_native_pivot_start_notify() {
+        use avian3d::prelude::{LinearVelocity, RigidBody};
+        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().entity_mut(character).insert((RigidBody::Kinematic, bevy_tnua::TnuaToggle::Disabled,
+            crate::als::state::RotationMode::ViewDirection));
+        #[derive(Resource)]
+        struct PivotFixtureInput(f32, f32);
+        app.insert_resource(PivotFixtureInput(0.0, 0.0));
+        app.add_systems(PostUpdate, (move |input: Res<PivotFixtureInput>, mut motion: Query<(&mut crate::actual_motion::AlsActualMotion, &mut crate::als::state::LocomotionState, &mut crate::als::state::Gait)>| {
+            let (mut motion, mut mode, mut gait) = motion.get_mut(character).unwrap();
+            *gait = crate::als::state::Gait::Running;
+            motion.horizontal_speed = input.0;
+            motion.world_velocity = Quat::from_rotation_y(input.1.to_radians()) * Vec3::NEG_Z * input.0;
+            motion.velocity_yaw_degrees = input.1;
+            motion.local_velocity = Vec2::new(motion.world_velocity.x, -motion.world_velocity.z);
+            motion.signed_direction_radians = input.1.to_radians();
+            motion.has_input = input.0 > 0.0;
+            motion.input_yaw_degrees = input.1;
+            *mode = crate::als::state::LocomotionState::Grounded;
+        }).after(crate::actual_motion::AlsActualMotionSet).before(crate::gait_layer::AlsGaitLayerSet));
+        let mut observed = 0;
+        let mut notice_cursor = bevy::ecs::message::MessageCursor::<AlsPivotNotify>::default();
+        for _ in 0..4 {
+            let speed=1.9_f32;
+            {
+                let mut input = app.world_mut().resource_mut::<PivotFixtureInput>();
+                input.0 = speed;
+                input.1 = 180.0;
+            }
+            app.world_mut().get_mut::<LinearVelocity>(character).unwrap().0 = Vec3::NEG_Z * speed;
+            app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().move_dir = Vec2::NEG_Y;
+            app.update();
+            let avatar = app.world().get::<AlsCharacterAssembly>(character).unwrap().avatar;
+            let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+            let instance = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+            let snapshot = crate::extensions::source_instance::source_player_property(instance, "locomotion_state.speed")
+                .or_else(|| instance.get_global_input_data("locomotion_state.speed")).unwrap().as_f32().unwrap();
+            let notices = notice_cursor.read(app.world().resource::<Messages<AlsPivotNotify>>()).copied().collect::<Vec<_>>();
+            for notice in notices.into_iter().filter(|notice| notice.character == character) {
+                observed += 1;
+                assert_eq!(notice.activated, snapshot < 2.0, "Generated notify used another input frame");
+            }
+        }
+        assert_eq!(observed,0,"First skipped Forward -> Backward transition must not dispatch ActivatePivot");
+        assert_eq!(app.world().get::<TransitionNotifyTelemetry>(character).unwrap().activate_pivot_count,0);
+    }
+
+    #[test]
     fn queued_turn_with_loaded_clip_is_ready_for_the_next_update() {
         use bevy::ecs::system::RunSystemOnce;
         use crate::character_assembly::{AlsCharacterBlueprint, spawn_als_character};

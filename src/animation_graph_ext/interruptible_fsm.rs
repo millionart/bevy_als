@@ -834,7 +834,9 @@ impl InterruptibleFsmNode {
                         "TransitionInterrupt",
                     );
                 }
-                if let Some(transition_id) = Self::transition_id(transition) {
+                if let Some(transition_id) = Self::transition_id(transition)
+                    && (ending || !state.first_update || !self.skip_first_update_transition)
+                {
                     self.append_transition_notifications(
                         &mut state,
                         transition_id,
