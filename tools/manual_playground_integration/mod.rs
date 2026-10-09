@@ -244,21 +244,15 @@ const STANDING_TURN_CASES: [(&str, &str, f32); 8] = [
     ("aim_continuous", "", 0.0),
 ];
 
-const STANDING_DYNAMIC_CASES: [(&str, f32, f32); 2] = [
-    ("dynamic_right", 1.0, 720.0),
-    ("dynamic_left", 0.0, -720.0),
+const STANDING_DYNAMIC_CASES: [(&str, f32); 2] = [
+    ("dynamic_right", 1.0),
+    ("dynamic_left", 0.0),
 ];
 
-fn standing_dynamic_command(index: usize, elapsed: Option<f32>, released: bool, base_yaw: f32, body_yaw: f32, view_yaw: f32, current: RotationMode) -> crate::als::input::AlsInputCommand {
-    let released = released || elapsed.is_some_and(|elapsed| elapsed >= 1.5);
-    let target = if released { body_yaw } else {
-        let phase = elapsed.unwrap_or(0.0) % 4.0;
-        base_yaw + phase.min(4.0 - phase) * STANDING_DYNAMIC_CASES[index].2.to_radians()
-    };
+fn standing_dynamic_command(body_yaw: f32, view_yaw: f32, current: RotationMode) -> crate::als::input::AlsInputCommand {
     crate::als::input::AlsInputCommand {
-        aim_held: !released,
-        rotation_mode_pressed: released && current != RotationMode::VelocityDirection,
-        look_delta: Vec2::new(-crate::als::motion::wrap_yaw_radians(target - view_yaw)
+        rotation_mode_pressed: current != RotationMode::VelocityDirection,
+        look_delta: Vec2::new(-crate::als::motion::wrap_yaw_radians(body_yaw - view_yaw)
             / crate::als::view::LOOK_MOUSE_RADIANS_PER_COUNT, 0.0),
         ..default()
     }
@@ -4395,6 +4389,11 @@ fn drive_manual_integration(
             request.gait = Some(Gait::Walking);
             if elapsed > 0.5 && state.turn_probe.idle_ready && state.turn_probe.started_at.is_none() {
                 state.turn_probe.started_at = Some(elapsed);
+                if !crouching_actions {
+                    let forward = *transform.forward();
+                    transform.translation += forward * 0.1;
+                    position.0 = transform.translation;
+                }
             }
             if crouching_actions {
                 let started = state.turn_probe.started_at.is_some();
@@ -4402,8 +4401,7 @@ fn drive_manual_integration(
                 input.0 = crouching_dynamic_command(index, started, state.generated_stop_quick_input_released,
                     state.turn_probe.base_yaw, view_yaw.0, *rotation_mode);
             } else {
-                input.0 = standing_dynamic_command(index, state.turn_probe.started_at.map(|start| elapsed - start),
-                    state.stop_branch_seen, state.turn_probe.base_yaw, world_forward_to_yaw(*transform.forward()), view_yaw.0, *rotation_mode);
+                input.0 = standing_dynamic_command(world_forward_to_yaw(*transform.forward()), view_yaw.0, *rotation_mode);
             }
             if state.coverage.standing_dynamic[index] {
                 state.stop_case_index += 1;
@@ -8579,7 +8577,7 @@ fn observe_manual_integration(
         }
         if state.phase == IntegrationPhase::StandingDynamic {
             let index = state.stop_case_index;
-            let (label, right, _) = STANDING_DYNAMIC_CASES[index];
+            let (label, right) = STANDING_DYNAMIC_CASES[index];
             let scale = graph_global_f32(player, "locomotion_state.scale_world_space").unwrap_or(1.0);
             state.turn_probe.idle_ready = idle && speed <= 0.01
                 && transition_playback.is_none_or(|playback| !playback.active);
@@ -12066,24 +12064,33 @@ mod tests {
 
     #[test]
     fn standing_dynamic_input_reaches_both_actual_transition_branches() {
+        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().entity_mut(character).insert(AlsInputOverride::default());
         for index in 0..2 {
-            let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
-            app.world_mut().entity_mut(character).insert(AlsInputOverride::default());
-            let base_yaw = world_forward_to_yaw(*app.world().get::<Transform>(character).unwrap().forward());
+            let old_instances = app.world().get::<AlsTransitionMontageStack>(character)
+                .map(|stack| stack.entries.iter().map(|playback|playback.instance_id).collect::<Vec<_>>()).unwrap_or_default();
             let mut observed = false;
             let deadline = Instant::now() + Duration::from_secs(25);
             for frame in 0..420 {
+                if frame == 60 {
+                    let world = app.world_mut();
+                    let mut query = world.query::<(&mut Transform, &mut Position)>();
+                    let (mut transform, mut position) = query.get_mut(world,character).unwrap();
+                    let forward = *transform.forward();
+                    transform.translation += forward * 0.1;
+                    position.0 = transform.translation;
+                }
                 let body_yaw = world_forward_to_yaw(*app.world().get::<Transform>(character).unwrap().forward());
                 let view_yaw = app.world().get::<AlsViewYaw>(character).unwrap().0;
                 let mode = *app.world().get::<RotationMode>(character).unwrap();
-                app.world_mut().get_mut::<AlsInputOverride>(character).unwrap().0 = standing_dynamic_command(index,
-                    (frame >= 60).then_some((frame as f32 - 60.0) / 60.0), observed, base_yaw, body_yaw, view_yaw, mode);
+                app.world_mut().get_mut::<AlsInputOverride>(character).unwrap().0 = standing_dynamic_command(body_yaw, view_yaw, mode);
                 app.update();
-                observed |= app.world().get::<AlsTransitionMontageStack>(character).is_some_and(|stack|
-                    stack.entries.iter().any(|playback| playback.kind == AlsTransitionKind::StandingDynamic
-                        && playback.index == STANDING_DYNAMIC_CASES[index].1));
+                observed |= frame >= 60 && app.world().get::<AlsTransitionMontageStack>(character).is_some_and(|stack|
+                    stack.entries.iter().any(|playback| playback.kind == AlsTransitionKind::StandingDynamic && playback.active
+                        && !old_instances.contains(&playback.instance_id) && playback.index == STANDING_DYNAMIC_CASES[index].1))
+                    && app.world().get::<crate::stop_link::AlsRootTransitionSlotRuntime>(character)
+                        .is_some_and(|slot| slot.active && slot.pose_ready && slot.weight > 0.05);
                 assert!(Instant::now() < deadline, "Standing dynamic input fixture made no timely progress");
-                if observed { break; }
             }
             assert!(observed, "Standing dynamic input did not reach its source branch: case={index}");
         }
@@ -12091,37 +12098,12 @@ mod tests {
 
     #[test]
     fn standing_dynamic_inputs_release_aim_and_require_foot_recovery() {
-        for index in 0..2 {
-            for elapsed in [1.5, 2.0, 4.0] {
-                let command = standing_dynamic_command(index, Some(elapsed), false, 0.3, 0.4, 0.3, RotationMode::Aiming);
-                assert!(!command.aim_held && command.rotation_mode_pressed);
-                assert!((0.3 - command.look_delta.x * crate::als::view::LOOK_MOUSE_RADIANS_PER_COUNT - 0.4).abs() < 1e-5);
-            }
-            let mut app = App::new();
-            app.init_resource::<Time<Virtual>>();
-            app.add_plugins(crate::als::transition::AlsStateTransitionPlugin)
-                .add_message::<crate::als::aim::AimStateChanged>()
-                .add_systems(Update, (
-                    crate::als::input_request::input_state_request_system,
-                    crate::als::aim::aim_rotation_mode_system,
-                ).chain().before(crate::als::transition::state_transition_system));
-            let entity = app.world_mut().spawn((
-                AlsCharacter, crate::als::input::AlsInputCommand::default(),
-                AlsInputOverride::default(), AlsMaxAllowedGait(Gait::Running),
-                Stance::Standing, LocomotionState::Grounded, Gait::Walking,
-                RotationMode::ViewDirection, OverlayState::Default,
-                crate::als::aim::AlsLastFreeRotationMode(RotationMode::ViewDirection), AlsStateRequest::default(),
-            )).id();
-            for released in [false, true, true] {
-                let current = *app.world().get::<RotationMode>(entity).unwrap();
-                let command = standing_dynamic_command(index, Some(0.1), released, 0.3, 0.4, 0.3, current);
-                assert_eq!(command.move_dir, Vec2::ZERO);
-                let expected_yaw = if released { 0.4 } else { 0.3 + 0.1 * STANDING_DYNAMIC_CASES[index].2.to_radians() };
-                assert!((0.3 - command.look_delta.x * crate::als::view::LOOK_MOUSE_RADIANS_PER_COUNT - expected_yaw).abs() < 1e-5);
-                app.world_mut().get_mut::<AlsInputOverride>(entity).unwrap().0 = command;
-                app.update();
-                assert_eq!(*app.world().get::<RotationMode>(entity).unwrap(), if released { RotationMode::VelocityDirection } else { RotationMode::Aiming });
-            }
+        for current in [RotationMode::ViewDirection, RotationMode::Aiming, RotationMode::VelocityDirection] {
+            let command = standing_dynamic_command(0.4, 0.3, current);
+            assert_eq!(command.move_dir, Vec2::ZERO);
+            assert!(!command.aim_held);
+            assert_eq!(command.rotation_mode_pressed, current != RotationMode::VelocityDirection);
+            assert!((0.3 - command.look_delta.x * crate::als::view::LOOK_MOUSE_RADIANS_PER_COUNT - 0.4).abs() < 1e-5);
         }
         let mut foot = crate::als::foot_ik::AlsFootLockFootState { lock_amount: 1.0, ..default() };
         assert!(standing_dynamic_foot_restored(true, Some(&foot), 1.0));

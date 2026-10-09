@@ -77,7 +77,7 @@
   "source_evidence": [
     {
       "path": "target/bf134/02m7b1d/current_dynamic_fixture_source_contract.json",
-      "sha256": "f71a30f917b7241017ce06addb2f7e2f51877abaa2a3e4b7411dde51f59df4b2"
+      "sha256": "5d5be6bbc756c7557aadb4619d277a5e0b5819cad5b40f859cf17536e44e3834"
     },
     {
       "path": "target/bf134/02m7b1d/standing_current.ue.json",
