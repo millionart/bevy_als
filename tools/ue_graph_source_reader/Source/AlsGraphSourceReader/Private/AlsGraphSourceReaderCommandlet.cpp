@@ -10,6 +10,8 @@
 #include "AnimationRuntime.h"
 #include "AlphaBlend.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimInstance.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimClassInterface.h"
 #include "Animation/AnimNode_SaveCachedPose.h"
 #include "Animation/AnimNotifyQueue.h"
@@ -1057,6 +1059,54 @@ TSharedRef<FJsonObject> CaptureNotifyChanceProbe(UObject* Asset)
     return Probe;
 }
 
+TSharedPtr<FJsonObject> CaptureNotifyDispatchProbe(UObject* Asset)
+{
+    UAnimSequenceBase* Sequence = Cast<UAnimSequenceBase>(Asset);
+    if (Sequence == nullptr) { return nullptr; }
+    const FAnimNotifyEvent* State = Sequence->Notifies.FindByPredicate(
+        [](const FAnimNotifyEvent& Event) { return Event.NotifyStateClass != nullptr; });
+    if (State == nullptr) { return nullptr; }
+    USkeletalMeshComponent* Mesh = NewObject<USkeletalMeshComponent>();
+    UAnimInstance* Instance = NewObject<UAnimInstance>(Mesh);
+    TGuardValue<uint64> FrameGuard(GFrameCounter, 0);
+    check(Mesh->PoseTickedThisFrame());
+    FAnimNotifyEventReference Reference(State, Sequence);
+    Instance->NotifyQueue.AddAnimNotifies({Reference}, 1.0f);
+    TArray<TSharedPtr<FJsonValue>> Rows;
+    const auto Capture = [&Rows, Instance](const TCHAR* Stage)
+    {
+        TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>();
+        Row->SetStringField(TEXT("stage"), Stage);
+        Row->SetNumberField(TEXT("active_state_count"), Instance->ActiveAnimNotifyState.Num());
+        Row->SetNumberField(TEXT("queued_count"), Instance->NotifyQueue.AnimNotifies.Num());
+        Rows.Add(MakeShared<FJsonValueObject>(Row));
+    };
+    Mesh->bIsAutonomousTickPose = true;
+    Instance->DispatchQueuedAnimEvents();
+    Capture(TEXT("autonomous"));
+    Mesh->bIsAutonomousTickPose = false;
+    Instance->ClearQueuedAnimEvents(true);
+    Instance->DispatchQueuedAnimEvents();
+    Capture(TEXT("first_component_only"));
+    Instance->ClearQueuedAnimEvents(true);
+    Instance->DispatchQueuedAnimEvents();
+    Capture(TEXT("second_component_only"));
+    Instance->NotifyQueue.AddAnimNotifies({Reference}, 1.0f);
+    Mesh->bIsAutonomousTickPose = true;
+    Instance->DispatchQueuedAnimEvents();
+    Capture(TEXT("autonomous_again"));
+    Mesh->bIsAutonomousTickPose = false;
+    Instance->ClearQueuedAnimEvents(true);
+    Instance->TriggerAnimNotifies(0.1f, UAnimInstance::ENotifyTriggerMode::ForceMontageOnly);
+    Capture(TEXT("forced_montage_only"));
+    TSharedRef<FJsonObject> Probe = MakeShared<FJsonObject>();
+    Probe->SetArrayField(TEXT("rows"), Rows);
+    Probe->SetNumberField(TEXT("dispatch_policy"),
+        IConsoleManager::Get().FindConsoleVariable(TEXT("a.Notifies.DispatchPolicy"))->GetInt());
+    Probe->SetBoolField(TEXT("pose_ticked_this_frame"), Mesh->PoseTickedThisFrame());
+    return Probe;
+}
+
 TSharedRef<FJsonObject> CaptureAlphaBlendProbe()
 {
     TArray<TSharedPtr<FJsonValue>> Rows;
@@ -1508,6 +1558,12 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
             return 7;
         }
         Root->SetObjectField(TEXT("notify_clock_probe"), Probe.ToSharedRef());
+    }
+    if (FParse::Param(*Params, TEXT("NotifyDispatchProbe")))
+    {
+        const TSharedPtr<FJsonObject> Probe = CaptureNotifyDispatchProbe(Asset);
+        if (!Probe.IsValid()) { return 9; }
+        Root->SetObjectField(TEXT("notify_dispatch_probe"), Probe.ToSharedRef());
     }
     if (FParse::Param(*Params, TEXT("NotifyChanceProbe")))
     {

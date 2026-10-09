@@ -8,6 +8,7 @@ param(
     [switch]$AlphaBlendProbe,
     [switch]$NotifyClockProbe,
     [switch]$NotifyChanceProbe,
+    [switch]$NotifyDispatchProbe,
     [switch]$PhysicsMaterialProbe,
     [string]$Plugin = (Join-Path $PSScriptRoot "..\target\ue_graph_source_reader_package\AlsGraphSourceReader.uplugin"),
     [ValidateRange(1, 3600)]
@@ -288,6 +289,9 @@ if ($NotifyClockProbe) {
 }
 if ($NotifyChanceProbe) {
     $arguments += "-NotifyChanceProbe"
+}
+if ($NotifyDispatchProbe) {
+    $arguments += "-NotifyDispatchProbe"
 }
 if ($PhysicsMaterialProbe) {
     $arguments += "-PhysicsMaterialProbe"
