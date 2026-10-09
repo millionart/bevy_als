@@ -2,9 +2,8 @@ use bevy::prelude::*;
 use bevy_animation_graph::core::{
     animation_node::{NodeLike, ReflectNodeLike},
     context::{new_context::NodeContext, spec_context::SpecContext},
-    edge_data::{DataSpec, bone_mask::BoneMask},
+    edge_data::DataSpec,
     errors::GraphError,
-    interpolation::linear::LinearInterpolator,
     pose::Pose,
 };
 
@@ -17,16 +16,17 @@ pub(crate) fn slot_blend_weight(value: Option<f32>) -> f32 {
 
 pub fn blend_slot_pose(mut base: Pose, overlay: Option<&Pose>, weight: Option<f32>) -> Pose {
     let timestamp = base.timestamp;
+    let skeleton = base.skeleton.clone();
     let weight = slot_blend_weight(weight);
     if weight > 0.0 {
         if let Some(overlay) = overlay {
-            LinearInterpolator {
-                bone_mask: BoneMask::all(),
-            }
-            .interpolate_pose(&mut base, overlay, weight);
+            base = crate::extensions::source_pose_nodes::blend_source_poses(&[
+                (overlay.clone(), weight), (base, 1.0 - weight),
+            ]);
         }
     }
     base.timestamp = timestamp;
+    base.skeleton = skeleton;
     base
 }
 

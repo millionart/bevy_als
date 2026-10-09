@@ -1466,6 +1466,48 @@ mod tests {
         }
     }
 
+
+    fn current_post_locomotion_base(app: &App, player: Entity) -> Pose {
+        use bevy_animation_graph::core::{animation_graph::{AnimationGraph, SourcePin, TargetPin},
+            context::node_states::StateKey};
+        let player = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+        let arena = player.get_context_arena().unwrap();
+        let graphs = app.world().resource::<Assets<AnimationGraph>>();
+        let poses = arena.iter_context_ids().filter_map(|id| {
+            let context = arena.get_context(id)?;
+            let graph = graphs.get(context.get_graph_id())?;
+            let slot = graph.nodes.values().find(|node| node.name == "Slot 'PostLocomotion'\nGroup 'Locomotion'")?;
+            let SourcePin::NodeData(node, pin) = graph.edges_inverted.get(&TargetPin::NodeData(slot.id, "Source".into()))? else { return None; };
+            context.node_caches.get_output_data(*node, StateKey::Default, pin.clone())?.into_pose().ok()
+        }).collect::<Vec<_>>();
+        assert_eq!(poses.len(), 1, "Actual PostLocomotion source pose must be unique");
+        poses.into_iter().next().unwrap()
+    }
+
+    #[test]
+    fn current_mantle_slot_uses_native_weighted_quaternion_blending() {
+        let (app, _, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let base = current_post_locomotion_base(&app, player_entity);
+        let handle = app.world().resource::<MantleAssets>().clip(MantleKind::Low).clone();
+        let clips = app.world().resource::<Assets<GraphClip>>();
+        let clip = clips.get(&handle).unwrap();
+        let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
+        let overlay = sample_mantle_pose(clip, skeleton, mantle_montage_settings(MantleKind::Low), 0.35).unwrap().0;
+        let weight = 0.15625;
+        let actual = crate::extensions::slot_node::blend_slot_pose(base.clone(), Some(&overlay), Some(weight));
+        let expected = crate::extensions::source_pose_nodes::blend_source_poses(&[(overlay, weight), (base, 1.0 - weight)]);
+        assert_eq!(actual.skeleton, expected.skeleton);
+        assert_eq!(actual.paths.len(), expected.paths.len());
+        let mut maximum = 0.0_f32;
+        for bone in actual.paths.keys() {
+            if let (Some(a), Some(b)) = (actual.get_bone(*bone).unwrap().rotation, expected.get_bone(*bone).unwrap().rotation) {
+                maximum = maximum.max((a - b).length().min((a + b).length()));
+            }
+        }
+        assert!(maximum < 1e-6, "Current Mantle slot used spherical instead of native weighted blending: error={maximum}");
+    }
+
     #[test]
     fn mantle_montage_keeps_the_source_tail_and_each_interrupted_instance() {
         let mut mantle = AlsMantleState::default();
