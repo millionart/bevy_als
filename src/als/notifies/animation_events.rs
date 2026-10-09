@@ -242,6 +242,7 @@ struct AlsAnimationEventRuntime {
     sources: HashMap<(String, u64), AlsAnimationEventSourceRuntime>,
     instance_id: u64,
     montage_chance: NotifyChance,
+    dispatched_autonomous_montage: bool,
 }
 
 impl AlsAnimationEventRuntime {
@@ -249,6 +250,7 @@ impl AlsAnimationEventRuntime {
         if self.instance_id != instance_id {
             self.instance_id = instance_id;
             self.montage_chance = NotifyChance::default();
+            self.dispatched_autonomous_montage = false;
         }
     }
 }
@@ -864,8 +866,11 @@ fn dispatch_animation_events(
         if let Some((_, _, instance)) = event_source {
             runtime.set_instance(instance);
         }
-        let slot_notifies = event_source.and_then(|(_, player, _)| players.get(player).ok())
-            .is_none_or(|(_, gate)| applies_montage_slot_notifies(gate, roll, blending_out, time.delta_secs()));
+        let gate = event_source.and_then(|(_, player, _)| players.get(player).ok()).and_then(|(_, gate)| gate);
+        let graph_updates = gate.is_none_or(|gate| gate.update_graph);
+        let slot_notifies = applies_montage_slot_notifies(gate, roll, blending_out, time.delta_secs());
+        let preserve_slot_states = !graph_updates && !slot_notifies && runtime.dispatched_autonomous_montage;
+        runtime.dispatched_autonomous_montage = !graph_updates && slot_notifies;
         let active_playbacks = playbacks.entries.iter()
             .filter(|playback| slot_notifies || source_clip(manifest, &playback.source_asset)
                 .is_some_and(|source| source.source_kind == "AnimMontage"));
@@ -877,6 +882,8 @@ fn dispatch_animation_events(
             .sources
             .keys()
             .filter(|source| !active_sources.contains(*source))
+            .filter(|(source, _)| !preserve_slot_states || source_clip(manifest, source)
+                .is_none_or(|source| source.source_kind == "AnimMontage"))
             .cloned()
             .collect::<Vec<_>>();
         for (source_asset, instance_id) in inactive {
@@ -1440,11 +1447,20 @@ pub(crate) mod tests {
         app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = true;
         let mut shakes = 0;
         let mut footsteps = 0;
+        let mut component_only_frames = 0;
         for frame in 0..11 {
             app.update();
             if frame == 0 { app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = false; }
             shakes += app.world_mut().resource_mut::<Messages<AlsCameraShakeRequest>>().drain().filter(|event| event.target == character).count();
             footsteps += app.world_mut().resource_mut::<Messages<AlsAnimationEvent>>().drain().filter(|event| event.character == character && event.class_name == "AlsAnimNotify_FootstepEffects").count();
+            let roll = app.world().get::<AlsRollState>(character).unwrap();
+            let delta = app.world().resource::<Time>().delta_secs();
+            if roll.time - delta >= crate::als::roll::ROLL_DURATION_SECS - crate::als::roll::ROLL_WEIGHT_OUT_SECS {
+                component_only_frames += 1;
+                let expected = if component_only_frames == 1 { 1.3 } else { 1.0 };
+                assert_eq!(app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0, expected,
+                    "Hidden queued state ignored native skipped-source protection at component frame {component_only_frames}");
+            }
         }
         let instance = app.world().get::<bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer>(player).unwrap();
         assert_eq!(instance.get_context_arena().unwrap().frame_index(), before);

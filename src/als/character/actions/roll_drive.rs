@@ -752,6 +752,46 @@ pub(crate) mod tests {
     }
 
 
+
+    #[test]
+    fn hidden_roll_reentry_uses_the_native_skipped_source_scale() {
+        use std::sync::{Arc, Mutex};
+        let (mut app, character, avatar) = loaded_roll_character();
+        app.world_mut().entity_mut(avatar).remove::<crate::animation_visibility::AlsAnimationTickOption>().insert(Visibility::Hidden);
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.1)));
+        for _ in 0..16 { app.update(); }
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().roll_pressed = true;
+        let mut reached_component = false;
+        for frame in 0..12 {
+            app.update();
+            if frame == 0 { app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().roll_pressed = false; }
+            let roll = app.world().get::<AlsRollState>(character).unwrap();
+            if roll.time - app.world().resource::<Time>().delta_secs()
+                >= crate::als::roll::ROLL_DURATION_SECS - crate::als::roll::ROLL_WEIGHT_OUT_SECS {
+                reached_component = true;
+                break;
+            }
+        }
+        assert!(reached_component);
+        let sampled = Arc::new(Mutex::new(None));
+        let capture = sampled.clone();
+        app.add_systems(PostUpdate, (move |time: Res<Time>, actors: Query<&LinearVelocity>,
+            samplers: Query<(&AlsRollSlotSampler, &RootMotionOutput), Without<AlsRollTail>>,
+            transforms: bevy::transform::helper::TransformHelper| {
+            let (sampler, root) = samplers.iter().find(|(sampler, _)| sampler.character == character).unwrap();
+            let actor = transforms.compute_global_transform(character).unwrap();
+            let mesh = transforms.compute_global_transform(sampler.target_player).unwrap();
+            let expected = root_motion_world_transform(actor, mesh, root.translation_delta * 1.3, root.rotation_delta).0;
+            *capture.lock().unwrap() = Some((actors.get(character).unwrap().0 * time.delta_secs(), expected));
+        }).after(AlsRollDriveSet).before(crate::source_physics_timing::SourcePhysicsTimingSet::Clamp));
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().roll_pressed = true;
+        app.update();
+        let (actual, expected) = sampled.lock().unwrap().unwrap();
+        assert!(expected.length() > 1e-5);
+        assert!(actual.distance(expected) < 1e-5,
+            "Hidden reentry lost native preserved scale: expected={expected:?}, actual={actual:?}");
+    }
+
     #[test]
     fn first_roll_root_step_uses_the_scale_cached_before_notify_dispatch() {
         use std::sync::{Arc, Mutex};
