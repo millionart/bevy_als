@@ -375,9 +375,9 @@ fn begin_source_inertialization(
     for difference in &mut state.bones {
         let bone_name = skeleton.and_then(|skeleton| skeleton.id_to_path(difference.bone))
             .and_then(|path| path.parts.last().map(|name| name.to_string()));
-        difference.duration = requests.iter().map(|request| {
+        difference.duration = requests.iter().enumerate().map(|(request_index, request)| {
             let duration = (request.duration.max(0.0) - applied_deficit).max(0.0);
-            let Some(profile) = request.profile.as_ref().or(default_profile) else { return duration; };
+            let Some(profile) = request.profile.as_ref().or(if request_index == 0 { default_profile } else { None }) else { return duration; };
             let scale = bone_name.as_deref().and_then(|name| profile.bone_scales.iter()
                 .find(|entry| entry.bone.eq_ignore_ascii_case(name)).map(|entry| entry.scale));
             scale.map_or(duration, |scale| source_inertial_bone_duration(duration, profile.profile_mode, scale))
@@ -839,6 +839,16 @@ mod tests {
             &[SourceInertializationPart { duration: 0.2, profile: Some(profile(2.0)) },
                 SourceInertializationPart { duration: 0.3, ..default() }], None, Some(&skeleton), None, None, 0.0, false);
         assert_eq!((merged.duration, duration(&merged, foot), merged.max_duration), (0.2, 0.3, 0.3));
+        let mut defaulted_merged = new_state();
+        begin_source_inertialization(&mut defaulted_merged, &target,
+            &[SourceInertializationPart { duration: 0.125, ..default() },
+                SourceInertializationPart { duration: 0.1875, ..default() }],
+            Some(&profile(2.0)), Some(&skeleton), None, None, 0.0, false);
+        assert_eq!((defaulted_merged.duration, duration(&defaulted_merged, foot), defaulted_merged.max_duration),
+            (0.125, 0.1875, 0.1875));
+        defaulted_merged.elapsed = 0.2;
+        assert_eq!(apply_source_inertialization(&target, &defaulted_merged)
+            .get_bone(foot).unwrap().translation.unwrap(), Vec3::ZERO);
     }
 
     #[test]

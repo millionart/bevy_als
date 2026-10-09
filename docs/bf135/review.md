@@ -33,11 +33,11 @@
 | R25 | `apply_als_control_scheme_config` 使用未缩放 floating 半高 | 待原生确认 | 待执行 |
 | R26 | pending 后脚锁 validity | 已修复 | `79fe359d3`；当前 pending 分支同时清除 valid/became_valid/Rig validity |
 | R27 | `marker_phase_sample_time_continuous` 有效缓存未对齐 leader start pair | 待原生确认 | 待执行 |
-| R28 | `begin_source_inertialization` 对后续空 Profile 请求重复回退默认 Profile | 待原生确认 | 待执行 |
+| R28 | `begin_source_inertialization` 对后续空 Profile 请求重复回退默认 Profile | 确认并已修复 | BF135.02：实际骨骼时长 `.25!=.1875`→修复→移除规则同红→完整字节恢复，相关101项及原 startup/state_machine 通过 |
 | R29 | 缓存预热的 Additive 相关性 | 已修复 | `144b188c`、`0325fa2c`；当前 local/mesh 分支都读取有效 Alpha |
 | R30 | `use_cached_context_state` 仍按首次 Use 读取认领请求 | 待原生确认 | 待执行 |
 | R31 | `SourceAnimationStateGetterNode::target_state` 按静态图定义计候选 | 待原生确认 | 待执行 |
-| R32 | `SourceApplyAdditiveNode::update` 未建立子 FSM Alpha 权重作用域 | 待原生确认 | 待执行 |
+| R32 | `SourceApplyAdditiveNode::update` 未建立子 FSM Alpha 权重作用域 | 确认并已修复 | BF135.02：实际子 FSM `.4!=.1`→12组合通过；fresh source 证明 mesh 同规则，local/mesh 独立消融均红，完整字节恢复，相关101项及原 startup/state_machine 通过 |
 | R33 | MachineWeight Getter 直读持久状态、缺上一完成更新发布 | 待原生确认 | 待执行 |
 
 验收只覆盖本次 33 项结论；未定级候选与浏览器未审范围不计入。沿用 Capture0/FunctionalOnly 的既有约定，保留性能延期，不放宽其他数值、姿态、图或 watchdog 条件。

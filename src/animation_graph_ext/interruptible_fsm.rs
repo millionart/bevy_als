@@ -2245,6 +2245,92 @@ mod tests {
     }
 
     #[test]
+    fn additive_updates_a_real_machine_with_its_fractional_weight() {
+        use bevy_animation_graph::core::{animation_clip::EntityPath, edge_data::DataValue, id::BoneId};
+        fn query(In((root, machine, parent, base, additive, bone)):
+            In<(Handle<AnimationGraph>, NodeId, f32, Pose, Pose, BoneId)>, resources: SystemResources) -> (Option<f32>, f32) {
+            let graph = resources.animation_graph_assets.get(&root).unwrap();
+            let mut arena = GraphContextArena::new(root.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let inputs = HashMap::from([("base".into(), DataValue::Pose(base)),
+                ("additive".into(), DataValue::Pose(additive)), ("delta".into(), DataValue::F32(0.02))]);
+            let env = TestIoEnv::default();
+            let mut translation = 0.0;
+            for _ in 0..3 {
+                let source = crate::extensions::SourceAnimationInputs::default();
+                let output = source.evaluate(Entity::PLACEHOLDER, || with_machine_weight(parent, ||
+                    graph.query_with_context(QueryOutputTime::Forced(TimeUpdate::Delta(0.02)),
+                        GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources,
+                            &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs)))).unwrap();
+                translation = output["Pose"].as_pose().unwrap().get_bone(bone).unwrap().translation.unwrap().x;
+                assert_eq!(current_machine_weight(), 1.0);
+            }
+            (arena.get_toplevel().node_states.get::<InterruptibleFsmState>(machine, StateKey::Default)
+                .ok().map(InterruptibleFsmState::recorded_machine_weight), translation)
+        }
+        for mesh in [false, true] {
+            for alpha in [0.0_f32, 0.25, 1.0] {
+                for parent in [0.4_f32, 1.0] {
+                    let mut graphs = Assets::<AnimationGraph>::default();
+                    let mut machines = Assets::<StateMachine>::default();
+                    let mut skeletons = Assets::<Skeleton>::default();
+                    let path = EntityPath::default().child("root");
+                    let bone = path.id();
+                    let mut skeleton = Skeleton::default();
+                    skeleton.set_root(bone);
+                    skeleton.add_bone(path, Transform::IDENTITY, Transform::IDENTITY);
+                    let skeleton = skeletons.add(skeleton);
+                    let mut base = Pose { skeleton: skeleton.clone(), ..default() };
+                    base.add_bone(BonePose::from_transform(Transform::IDENTITY), bone);
+                    let mut additive = Pose { skeleton, ..default() };
+                    additive.add_bone(BonePose { translation: Some(Vec3::X), rotation: Some(Quat::IDENTITY),
+                        scale: Some(Vec3::ZERO), ..default() }, bone);
+                    let input = AnimationNode::new("additive pose", GlobalPoseInputNode {
+                        key: "additive".into(), output: "Pose".into(),
+                    });
+                    let mut leaf = AnimationGraph::new();
+                    leaf.add_node(input.clone());
+                    leaf.add_output_data("Pose".into(), DataSpec::Pose);
+                    leaf.add_output_data_edge(input.id, "Pose", "Pose");
+                    let mut machine = StateMachine::default();
+                    machine.node_spec.add_output_data("Pose".into(), DataSpec::Pose);
+                    machine.add_state(State { id: machine.start_state, graph: graphs.add(leaf), ..default() });
+                    machine.update_low_level_fsm();
+                    let machine = AnimationNode::new("machine", InterruptibleFsmNode {
+                        fsm: machines.add(machine), state_pose_output: "Pose".into(), outer_pose_output: "Pose".into(),
+                        internal_time_key: "delta".into(), ..default()
+                    });
+                    let base_node = AnimationNode::new("base", GlobalPoseInputNode { key: "base".into(), output: "Pose".into() });
+                    let events = AnimationNode::new("empty events", crate::extensions::direct_transition_event::DirectTransitionEventNode::default());
+                    let blend = if mesh { AnimationNode::new("blend", crate::extensions::SourceMeshSpaceAdditiveNode {
+                        use_constant_alpha: true, constant_alpha: alpha, ..default()
+                    }) } else { AnimationNode::new("blend", crate::extensions::SourceApplyAdditiveNode {
+                        use_constant_alpha: true, constant_alpha: alpha, ..default()
+                    }) };
+                    let mut root = AnimationGraph::new();
+                    for node in [&machine, &base_node, &blend, &events] { root.add_node(node.clone()); }
+                    root.add_node_parameter_edge(events.id, "event", machine.id, LowLevelStateMachine::DRIVER_EVENT_QUEUE);
+                    root.add_node_parameter_edge(base_node.id, "Pose", blend.id, "Base");
+                    root.add_node_parameter_edge(machine.id, "Pose", blend.id, "Additive");
+                    root.add_output_data("Pose".into(), DataSpec::Pose);
+                    root.add_output_data_edge(blend.id, "Pose", "Pose");
+                    let root = graphs.add(root);
+                    let mut world = World::new();
+                    world.insert_resource(graphs);
+                    world.insert_resource(machines);
+                    world.insert_resource(skeletons);
+                    world.insert_resource(Assets::<GraphClip>::default());
+                    let actual = world.run_system_cached_with(query, (root, machine.id, parent, base, additive, bone)).unwrap();
+                    assert_eq!(actual.0, (alpha > 1e-5).then_some(parent * alpha),
+                        "Additive machine weight differs: mesh={mesh}, alpha={alpha}, parent={parent}");
+                    assert_eq!(actual.1, alpha, "The pose alpha was applied more than once");
+                }
+            }
+        }
+    }
+
+    #[test]
     fn scoped_cache_prewarm_uses_the_parent_state_weight() {
         fn query(
             In((root, state_graph, cache_id, state_id)): In<(Handle<AnimationGraph>, Handle<AnimationGraph>, NodeId, StateId)>,

@@ -532,7 +532,8 @@ impl NodeLike for SourceApplyAdditiveNode {
         );
         let additive_is_relevant = alpha > 1e-5;
         if additive_is_relevant {
-            let additive = ctx.data_back("Additive")?.into_pose()?;
+            let additive = crate::extensions::interruptible_fsm::with_machine_weight(alpha,
+                || ctx.data_back("Additive"))?.into_pose()?;
             let skeleton = ctx.graph_context.resources.skeleton_assets.get(&base.skeleton)
                 .ok_or(GraphError::SkeletonMissing(ctx.node_id))?;
             apply_local_space_additive(&mut base, &additive, alpha, skeleton);
@@ -655,7 +656,8 @@ impl NodeLike for SourceMeshSpaceAdditiveNode {
         }
         let additive_is_relevant = alpha > 1e-5;
         if additive_is_relevant {
-            let additive = ctx.data_back("Additive")?.into_pose()?;
+            let additive = crate::extensions::interruptible_fsm::with_machine_weight(alpha,
+                || ctx.data_back("Additive"))?.into_pose()?;
             if ctx
                 .graph_context
                 .resources
