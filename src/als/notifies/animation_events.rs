@@ -602,7 +602,8 @@ fn refresh_animation_event_playbacks(
             (sampler.character == character).then_some(tail.map(|tail| (entity.to_bits(), tail.time, None, tail.weight(), true))) .flatten()
         }).collect::<Vec<_>>();
         if let Some(roll) = roll.filter(|state| state.active) {
-            roll_instances.push((current, roll.time, Some(roll.previous_time), 1.0, roll_blend_out.is_some()));
+            let weight = crate::als::roll::roll_weight_at(roll.time).max(crate::als::roll::roll_weight_at(roll.previous_time));
+            roll_instances.push((current, roll.time, Some(roll.previous_time), weight, roll_blend_out.is_some()));
         }
         for (instance_id, elapsed, previous, weight, interrupted) in roll_instances {
             let time = (elapsed * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS);
@@ -664,15 +665,18 @@ fn event_boundary(event: &AlsNotifyManifestEvent) -> StateIntervalBoundary {
     }
 }
 
+fn is_branching_montage_notify(clip: &AlsNotifyManifestClip, event: &AlsNotifyManifestEvent) -> bool {
+    clip.source_kind == "AnimMontage"
+        && (event.filter.montage_tick_type == AlsMontageNotifyTickType::BranchingPoint
+            || matches!(event.class_name.as_str(), "AlsAnimNotifyState_SetLocomotionAction" | "AlsAnimNotifyState_EarlyBlendOut"))
+}
+
 fn timed_events(clip: &AlsNotifyManifestClip, predicted_lod: i32) -> Vec<TimedEvent> {
     let mut events = clip
         .events
         .iter()
         .filter(|event| {
-            let branching_point = clip.source_kind == "AnimMontage"
-                && (event.filter.montage_tick_type == AlsMontageNotifyTickType::BranchingPoint
-                    || matches!(event.class_name.as_str(), "AlsAnimNotifyState_SetLocomotionAction" | "AlsAnimNotifyState_EarlyBlendOut"));
-            branching_point || event.filter.filter_type == AlsNotifyFilterType::NoFiltering
+            is_branching_montage_notify(clip, event) || event.filter.filter_type == AlsNotifyFilterType::NoFiltering
                 || event.filter.lod > predicted_lod
         })
         .map(|event| TimedEvent {
@@ -680,7 +684,7 @@ fn timed_events(clip: &AlsNotifyManifestClip, predicted_lod: i32) -> Vec<TimedEv
             kind: event_kind(event),
             start_time: event.start_time,
             end_time: event.end_time,
-            weight_threshold: event.weight_threshold,
+            weight_threshold: if is_branching_montage_notify(clip, event) { 0.0 } else { event.weight_threshold },
             track: Some(event.track.clone()),
             state_boundary: event_boundary(event),
             trigger_on_follower: event.filter.trigger_on_follower,
@@ -935,7 +939,7 @@ fn dispatch_animation_events(
             };
             let graph_handle =
                 graph_clip_handle(&mut graph_clip_handles, &asset_server, &playback.graph_clip);
-            let queue = sampled_queue(graph_clips.get(&graph_handle), playback.time);
+            let queue = crate::extensions::weighted_event_queue(sampled_queue(graph_clips.get(&graph_handle), playback.time), playback.weight);
             let source_runtime = runtime
                 .sources
                 .entry((playback.source_asset.clone(), playback.instance_id))
@@ -1360,6 +1364,25 @@ pub(crate) mod tests {
         assert_eq!(runtime.montage_chance.0 as i32, seeds[0]);
     }
 
+
+
+    #[test]
+    fn loaded_roll_queued_scale_waits_for_the_native_notify_weight_threshold() {
+        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.0001)));
+        app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = true;
+        for frame in 0..3 {
+            app.update();
+            app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = false;
+            let weight = app.world().get::<crate::roll_drive::AlsRollSlotRuntime>(character).unwrap().weight;
+            assert_eq!(weight >= 1e-5, frame != 0, "Actual Roll blend no longer covers the native threshold");
+            let expected = if frame == 0 { 1.0 } else { 1.3 };
+            assert_eq!(app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0, expected,
+                "Queued RootScale ignored native montage NotifyWeight at frame {frame}: weight={weight}");
+            assert_eq!(*app.world().get::<AlsNotifyLocomotionAction>(character).unwrap(), AlsNotifyLocomotionAction::Rolling,
+                "Native branching action was incorrectly filtered with queued notifications");
+        }
+    }
 
     #[test]
     fn natural_roll_reentry_keeps_branching_action_instances_disjoint() {
