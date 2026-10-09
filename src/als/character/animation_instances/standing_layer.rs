@@ -2718,13 +2718,13 @@ mod tests {
         );
         assert_eq!(
             player
-                .get_global_input_data("sync_groups.ab_als_standing.movement.phase")
+                .get_global_input_data("sync_groups.movement.phase")
                 .and_then(|value| value.as_f32().ok()),
             None
         );
         assert_eq!(
             player
-                .get_global_input_data("sync_groups.ab_als_standing.first_pivot.phase")
+                .get_global_input_data("sync_groups.first_pivot.phase")
                 .and_then(|value| value.as_f32().ok()),
             None
         );

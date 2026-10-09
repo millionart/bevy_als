@@ -1074,7 +1074,7 @@ const LAYERING_BOUNDARIES: [(&str, &str, &str); 11] = [
     ("layering_arm_right", "Save cached pose 'Arm Right'", CACHED_POSE_VALUE), ("layering_fingers", "d650094f-41a3-2706-67fb-b5a5994b2139", "Pose"),
     ("layering_output", "Output Pose\nAnimGraph", "Pose"),
 ];
-const DEFAULT_OVERLAY_SYNC: &str = "sync_groups.ab_als_default.secondary_motion.phase";
+const DEFAULT_OVERLAY_SYNC: &str = "sync_groups.secondary_motion.phase";
 const DEFAULT_OVERLAY_EVALUATORS: [&str; 5] = [
     "b8f30b3f-4d30-eab1-ce6b-6bb9ec868234", "3890697f-4347-5dd1-f323-f28f64443083",
     "560a6265-48e4-0f6a-f34a-dbb080a5c73a", "8a5fdbcc-4f32-99cb-55d9-0d8111d1c8b0",
@@ -1715,7 +1715,7 @@ fn locomotion_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe) -
     };
     let Some(arena) = player.get_context_arena() else { return output; };
     let ticks = ["jump", "fall", "flail", "land"].iter().find_map(|group| {
-        crate::extensions::sync_group_phase::source_sync_players(arena, &probe.graphs, &format!("sync_groups.ab_als_locomotion.{group}.phase"))
+        crate::extensions::sync_group_phase::source_sync_players(arena, &probe.graphs, &format!("sync_groups.{group}.phase"))
     });
     let mut flail_alpha = None;
     let mut prediction_alpha = None;
@@ -1823,10 +1823,10 @@ fn locomotion_window_canonical(window: &ManualAnimationWindowEvidence, sample: L
 fn locomotion_window(index: usize, sample: LocomotionClipSample, actual: &LocomotionGraphSample) -> ManualAnimationWindowEvidence {
     let graph = locomotion_clip_graph(sample.index);
     let group = match sample.index {
-        0..=3 => Some(("Jump", "sync_groups.ab_als_locomotion.jump.phase")),
-        4..=5 => Some(("Flail", "sync_groups.ab_als_locomotion.flail.phase")),
-        6..=7 => Some(("Fall", "sync_groups.ab_als_locomotion.fall.phase")),
-        9..=12 => Some(("Land", "sync_groups.ab_als_locomotion.land.phase")),
+        0..=3 => Some(("Jump", "sync_groups.jump.phase")),
+        4..=5 => Some(("Flail", "sync_groups.flail.phase")),
+        6..=7 => Some(("Fall", "sync_groups.fall.phase")),
+        9..=12 => Some(("Land", "sync_groups.land.phase")),
         _ => None,
     };
     let mut chain = vec![ManualAnimationPoseBoundary {
@@ -2414,7 +2414,7 @@ fn state_machine_grounded_window(elapsed: f32) -> ManualAnimationWindowEvidence 
         source_node: Some("AB_Als_Standing/Standing States"),
         source_pose_chain: generated_standing_source_pose_chain(),
         source_sync_group: Some("Movement"),
-        sync_phase_global: Some("sync_groups.ab_als_standing.movement.phase"),
+        sync_phase_global: Some("sync_groups.movement.phase"),
         ..default()
     }
 }
@@ -2457,7 +2457,7 @@ fn sprint_window(
         source_state: Some(node),
         source_pose_chain,
         source_sync_group: Some("Movement"),
-        sync_phase_global: Some("sync_groups.ab_als_standing.movement.phase"),
+        sync_phase_global: Some("sync_groups.movement.phase"),
         canonical_sync_phase: Some(phase),
         maximum_sync_phase_distance: 0.12,
         direction_signature_group: Some("AB_Als_Standing/Sprint"),
@@ -4538,7 +4538,7 @@ fn drive_manual_integration(
                 source_sync_group: case.direction_signature_group.map(|_| "Movement"),
                 sync_phase_global: case
                     .direction_signature_group
-                    .map(|_| "sync_groups.ab_als_standing.movement.phase"),
+                    .map(|_| "sync_groups.movement.phase"),
                 canonical_sync_phase: case.direction_signature_group.map(|_| 0.5),
                 canonical_clip_time: None,
                 maximum_clip_time_distance: 0.0,
@@ -5636,7 +5636,7 @@ fn drive_manual_integration(
                     minimum_actor_yaw_convergence_radians: 0.0,
                     minimum_observation_seconds: 0.8,
                     source_sync_group: Some("Movement"),
-                    sync_phase_global: Some("sync_groups.ab_als_crouching.movement.phase"),
+                    sync_phase_global: Some("sync_groups.movement.phase"),
                     canonical_sync_phase: Some(0.25),
                     maximum_sync_phase_distance: 0.08,
                     canonical_clip_time: None,
@@ -7214,8 +7214,8 @@ fn observe_manual_integration(
     let locomotion_phase = |key| player.get_context_arena().and_then(|arena| {
         crate::extensions::sync_group_phase::source_sync_phase(arena, &motion_probe.graphs, key)
     });
-    let jump_phase = locomotion_phase("sync_groups.ab_als_locomotion.jump.phase");
-    let land_phase = locomotion_phase("sync_groups.ab_als_locomotion.land.phase");
+    let jump_phase = locomotion_phase("sync_groups.jump.phase");
+    let land_phase = locomotion_phase("sync_groups.land.phase");
     let overlay_tag = motion_probe.source_inputs.get(instance.player_entity()).ok().and_then(|inputs| inputs.gameplay_tag_input("overlay_mode"));
     let source_ready = matches!(player.get_animation_source(), AnimationSource::Graph(_))
         && player.get_error().is_none();
@@ -8372,7 +8372,7 @@ fn observe_manual_integration(
             if let Some(ticks) = crate::extensions::sync_group_phase::source_sync_players(
                 arena,
                 &motion_probe.graphs,
-                if state.scenario == IntegrationScenario::Crouching || crouching_actions { "sync_groups.ab_als_crouching.movement.phase" } else { "sync_groups.ab_als_standing.movement.phase" },
+                if state.scenario == IntegrationScenario::Crouching || crouching_actions { "sync_groups.movement.phase" } else { "sync_groups.movement.phase" },
             ) {
                 for tick in ticks {
                     let Some(child) = arena.get_context(tick.identity.0) else {
@@ -8809,7 +8809,7 @@ fn observe_manual_integration(
             crate::extensions::sync_group_phase::source_sync_phase(
                 arena,
                 &motion_probe.graphs,
-                "sync_groups.ab_als_standing.movement.phase",
+                "sync_groups.movement.phase",
             )
         });
         let mut weights = [0.0_f32; 2];
@@ -8818,7 +8818,7 @@ fn observe_manual_integration(
             && let Some(ticks) = crate::extensions::sync_group_phase::source_sync_players(
                 arena,
                 &motion_probe.graphs,
-                "sync_groups.ab_als_standing.movement.phase",
+                "sync_groups.movement.phase",
             )
         {
             for tick in ticks {
@@ -13301,7 +13301,7 @@ mod tests {
         assert_eq!(settled.source_sync_group, Some("Movement"));
         assert_eq!(
             settled.sync_phase_global,
-            Some("sync_groups.ab_als_standing.movement.phase")
+            Some("sync_groups.movement.phase")
         );
     }
 

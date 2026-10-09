@@ -3,7 +3,7 @@ use crate::als::input::AlsInputCommand;
 use bevy_animation_graph::core::state_machine::low_level::LowLevelStateId;
 
 const GRAPH: &str = "ALS/Character/AnimationInstances/Overlays/AB_Als_Bow/Overlay.animgraph.ron";
-const SYNC: &str = "sync_groups.ab_als_bow.secondary_motion.phase";
+const SYNC: &str = "sync_groups.secondary_motion.phase";
 pub(super) const LABELS: [&str; 10] = ["bow_relaxed", "bow_standing_aim", "bow_release", "bow_walking_aim", "bow_crouching_aim", "bow_standing_aim_return", "bow_aim_up", "bow_aim_down", "bow_sprint", "bow_in_air"];
 
 #[derive(Default)]

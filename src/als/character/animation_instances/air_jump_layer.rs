@@ -40,9 +40,9 @@ fn actual_jump_variant(
     graphs: &Assets<AnimationGraph>,
 ) -> Option<JumpStartVariant> {
     let arena = player.get_context_arena()?;
-    source_sync_players(arena, graphs, "sync_groups.ab_als_locomotion.jump.phase")?
+    source_sync_players(arena, graphs, "sync_groups.jump.phase")?
         .iter()
-        .filter(|tick| tick.key == "sync_groups.ab_als_locomotion.jump.phase" && tick.weight > 1e-5)
+        .filter(|tick| tick.key == "sync_groups.jump.phase" && tick.weight > 1e-5)
         .filter_map(|tick| {
             let context = arena.get_context(tick.identity.0)?;
             let node = graphs

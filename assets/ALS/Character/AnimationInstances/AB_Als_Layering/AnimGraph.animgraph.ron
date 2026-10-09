@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "251c650f-43b2-91b4-3313-2991b511f1a0", name: "Output Pose\nAnimGraph", inner: { "als_ext::SourcePosePassthroughNode": (input: "Source", output: "Pose", input_time: "source_time", output_time: false, source_function: "", call_site: "", synchronize_groups: false) }, should_debug: false),
+        (id: "251c650f-43b2-91b4-3313-2991b511f1a0", name: "Output Pose\nAnimGraph", inner: { "als_ext::SourcePosePassthroughNode": (input: "Source", output: "Pose", input_time: "source_time", output_time: false, source_function: "", call_site: "", synchronize_groups: true) }, should_debug: false),
         (id: "3bcbb23c-4bf1-415c-bdba-f6b61029c999", name: "Input Pose\nLocomotion Input", inner: { "als_ext::SourceLinkedInputPoseNode": (input: "Locomotion Input", output: "Pose", context_curve_prefix: "", context_curve_names: []) }, should_debug: false),
         (id: "ab939a46-4e58-de16-8f7c-ee8bdc471a19", name: "Input Pose\nOverlay Input", inner: { "als_ext::SourceLinkedInputPoseNode": (input: "Overlay Input", output: "Pose", context_curve_prefix: "", context_curve_names: []) }, should_debug: false),
         (id: "6fc6ad34-44fb-cee4-d29d-fa9cc5439c67", name: "Save cached pose 'Locomotion'", inner: { "als_ext::SourceCachedPoseSaveNode": (cache_key: "ue-cache:3120839a-3720-5028-87ca-c1a288c1a867") }, should_debug: false),

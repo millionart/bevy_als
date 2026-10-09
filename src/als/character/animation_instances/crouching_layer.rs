@@ -29,7 +29,7 @@ const OUTER_RUNTIME_GRAPH: &str =
     "ALS/Character/AnimationInstances/Stances/AB_Als_Crouching/AnimGraph.animgraph.ron";
 const OUTER_FSM_TITLE: &str = "Crouching States\nState Machine";
 const MOVEMENT_FSM_TITLE: &str = "Movement States\nState Machine";
-const MOVEMENT_SYNC_GROUP: &str = "sync_groups.ab_als_crouching.movement.phase";
+const MOVEMENT_SYNC_GROUP: &str = "sync_groups.movement.phase";
 
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AlsCrouchingLayerSet;

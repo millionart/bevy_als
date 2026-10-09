@@ -2728,7 +2728,7 @@ def run_self_test():
                     ],
                     "loop": True,
                     "configured_play_rate": 1.0,
-                    "sync_phase_key": "sync_groups.ab_als_standing.movement.phase",
+                    "sync_phase_key": "sync_groups.movement.phase",
                     "sync_group_role": "CanBeLeader",
                     "sync_phase_looped": True,
                     "start_position": 0.2,
@@ -2777,7 +2777,7 @@ def run_self_test():
         assert f"asset_rate_scale: {rate_scale!r}" in render(blend_contract, player_ir, [])
     player_ir["nodes"][0]["semantic"]["blendspace"]["samples"][0]["source_timing"]["rate_scale"] = 1.0
     assert '"als_ext::CubicVec2AxisFilterNode"' in text
-    assert 'key: "sync_groups.ab_als_standing.movement.phase"' in text
+    assert 'key: "sync_groups.movement.phase"' in text
     assert 'key: "animation.delta_seconds"' in text
     assert "duration: 1.0" in text and 'markers: [(name: "Left", time: 0.0)' in text
     player_nodes, _, _ = blendspace_helpers(

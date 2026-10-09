@@ -1332,6 +1332,80 @@ impl NodeLike for GlobalSyncGroupSampleNode {
 mod tests {
     use super::*;
 
+    #[test]
+    fn rifle_movement_follows_the_outer_linked_instance_sync_group() {
+        use bevy::prelude::*;
+        use bevy_animation_graph::core::{animated_scene::AnimatedSceneInstance, animation_graph::AnimationGraph,
+            animation_graph_player::AnimationGraphPlayer};
+        use crate::als::{state::{Gait, Stance, LocomotionState, OverlayState}, input::AlsInputCommand};
+        let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().entity_mut(avatar).insert(crate::animation_visibility::AlsAnimationTickOption::AlwaysTickPoseAndRefreshBones);
+        app.world_mut().entity_mut(character).insert((avian3d::prelude::RigidBody::Kinematic, bevy_tnua::TnuaToggle::Disabled));
+        app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(character).unwrap().overlay_state = Some(OverlayState::Rifle);
+        app.add_systems(PostUpdate, (move |mut actors: Query<(&mut crate::actual_motion::AlsActualMotion,
+            &mut Gait, &mut Stance, &mut LocomotionState, &mut AlsInputCommand)>| {
+            let (mut motion, mut gait, mut stance, mut mode, mut input) = actors.get_mut(character).unwrap();
+            *gait = Gait::Running;
+            *stance = Stance::Standing;
+            *mode = LocomotionState::Grounded;
+            motion.horizontal_speed = 3.5;
+            motion.world_velocity = Vec3::NEG_Z * 3.5;
+            motion.local_velocity = Vec2::new(0.0, 3.5);
+            motion.has_input = true;
+            input.move_dir = Vec2::Y;
+        }).after(crate::standing_layer::AlsStandingLayerSet).before(crate::ab_als_root::AlsRootGraphSet));
+        for _ in 0..150 { app.update(); }
+        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let instance = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+        assert!(instance.get_error().is_none(), "Actual Rifle graph failed: {:?}", instance.get_error());
+        let arena = instance.get_context_arena().unwrap();
+        let graphs = app.world().resource::<Assets<AnimationGraph>>();
+        let mut ticks = Vec::<SourceSyncPlayerTick>::new();
+        for id in arena.iter_context_ids() {
+            let context = arena.get_context(id).unwrap();
+            let graph = graphs.get(context.get_graph_id()).unwrap();
+            for node in graph.nodes.values() {
+                if !node.try_inner_downcast_ref::<crate::extensions::SourcePosePassthroughNode>().is_some_and(|node| node.synchronize_groups)
+                    || !context.node_caches.is_updated(node.id, bevy_animation_graph::core::context::node_states::StateKey::Default) { continue; }
+                let state = context.node_states.get::<crate::extensions::AnimationContextState>(node.id,
+                    bevy_animation_graph::core::context::node_states::StateKey::Default).unwrap();
+                for tick in state.sync_players.iter().filter(|tick| tick.key == "sync_groups.movement.phase") {
+                    if !ticks.iter().any(|prior| prior.identity == tick.identity) { ticks.push(tick.clone()); }
+                }
+            }
+        }
+        let standing = ticks.iter().filter(|tick| tick.role == SourceSyncGroupRole::CanBeLeader)
+            .max_by(|a,b| a.weight.total_cmp(&b.weight)).expect("Actual Standing Movement leader is missing");
+        let follower = ticks.iter().filter(|tick| tick.role == SourceSyncGroupRole::AlwaysFollower)
+            .max_by(|a,b| a.weight.total_cmp(&b.weight)).unwrap();
+        assert!(follower.role == SourceSyncGroupRole::AlwaysFollower && standing.role == SourceSyncGroupRole::CanBeLeader);
+        let actual_context = arena.get_context(follower.identity.0).unwrap();
+        let actual_states = actual_context.node_states.get_all_upcoming_states::<crate::extensions::source_sequence_player::SourceSequencePlayerState>(follower.identity.1)
+            .unwrap().filter(|state| state.context.sync_players.iter().any(|tick| tick.identity == follower.identity)).collect::<Vec<_>>();
+        assert_eq!(actual_states.len(), 1, "Fixture did not reach a unique active Rifle sampling state");
+        let actual_state = actual_states[0];
+        let actual = actual_state.context.relevant_asset.as_ref().unwrap().position;
+        let expected = standing.marker_advance.as_ref().and_then(|advance| advance.end.as_ref())
+            .and_then(|position| time_for_marker_position(&follower.markers, follower.duration, position, actual, follower.looped))
+            .unwrap_or_else(|| marker_phase_sample_time(standing.phase, standing.phase_duration, &standing.phase_markers,
+                follower.duration, &follower.markers, follower.looped));
+        let clips = app.world().resource::<Assets<bevy_animation_graph::core::animation_clip::GraphClip>>();
+        let clip = clips.get(follower.source_asset.as_ref().unwrap()).unwrap();
+        let actual_pose = crate::extensions::source_sequence_player::sample_pose(clip, actual);
+        let expected_pose = crate::extensions::source_sequence_player::sample_pose(clip, expected);
+        let mut rotation_error = 0.0_f32;
+        let mut translation_error = 0.0_f32;
+        for bone in actual_pose.paths.keys() {
+            let a = actual_pose.get_bone(*bone).unwrap();
+            let b = expected_pose.get_bone(*bone).unwrap();
+            if let (Some(a), Some(b)) = (a.rotation, b.rotation) { rotation_error = rotation_error.max(a.angle_between(b)); }
+            if let (Some(a), Some(b)) = (a.translation, b.translation) { translation_error = translation_error.max(a.distance(b)); }
+        }
+        assert!((actual - expected).abs() < 1e-4,
+            "Rifle Movement was isolated from the outer Standing leader: actual={actual}, expected={expected}, standing_phase={}, rifle_phase={}, selected_as_leader={}, rotation_degrees={}, translation_meters={translation_error}",
+            standing.phase, follower.phase, follower.selected_leader, rotation_error.to_degrees());
+    }
+
     fn markers(entries: &[(&str, f32)]) -> Vec<SyncMarker> {
         entries
             .iter()

@@ -1,6 +1,6 @@
 (
     nodes: [
-        (id: "9602c3f3-4b98-80f4-e3e4-58b04c36b44c", name: "Output Pose\nAnimGraph", inner: { "als_ext::SourcePosePassthroughNode": (input: "Source", output: "Pose", input_time: "source_time", output_time: false, source_function: "", call_site: "", synchronize_groups: false) }, should_debug: false),
+        (id: "9602c3f3-4b98-80f4-e3e4-58b04c36b44c", name: "Output Pose\nAnimGraph", inner: { "als_ext::SourcePosePassthroughNode": (input: "Source", output: "Pose", input_time: "source_time", output_time: false, source_function: "", call_site: "", synchronize_groups: true) }, should_debug: false),
         (id: "cca5a5fa-48ce-5d72-faf1-379e33213f9e", name: "Input Pose\nStanding Input", inner: { "als_ext::SourceLinkedInputPoseNode": (input: "Standing Input", output: "Pose", context_curve_prefix: "", context_curve_names: []) }, should_debug: false),
         (id: "505fc20c-4c04-188f-0bc4-02bf188fc947", name: "Input Pose\nCrouching Input", inner: { "als_ext::SourceLinkedInputPoseNode": (input: "Crouching Input", output: "Pose", context_curve_prefix: "", context_curve_names: []) }, should_debug: false),
         (id: "5dc6c914-4509-0867-468f-e2811486c249", name: "Save cached pose 'Standing'", inner: { "als_ext::SourceCachedPoseSaveNode": (cache_key: "ue-cache:9398b169-da93-558b-a56c-e29d9320e49e") }, should_debug: false),

@@ -81,12 +81,12 @@
     "transitions_state.b_transitions_allowed": "crate::ab_als_provider::AbAlsProviderPlugin"
   },
   "sync_phase_providers": {
-    "sync_groups.ab_als_crouching.movement.phase": "crate::crouching_layer::CrouchingLayerPlugin",
-    "sync_groups.ab_als_default.secondary_motion.phase": "crate::ab_als_root::AlsRootGraphPlugin",
-    "sync_groups.ab_als_locomotion.fall.phase": "crate::locomotion_layer::LocomotionLayerPlugin",
-    "sync_groups.ab_als_locomotion.flail.phase": "crate::locomotion_layer::LocomotionLayerPlugin",
-    "sync_groups.ab_als_locomotion.jump.phase": "crate::locomotion_layer::LocomotionLayerPlugin",
-    "sync_groups.ab_als_locomotion.land.phase": "crate::locomotion_layer::LocomotionLayerPlugin"
+    "sync_groups.movement.phase": "crate::crouching_layer::CrouchingLayerPlugin",
+    "sync_groups.secondary_motion.phase": "crate::ab_als_root::AlsRootGraphPlugin",
+    "sync_groups.fall.phase": "crate::locomotion_layer::LocomotionLayerPlugin",
+    "sync_groups.flail.phase": "crate::locomotion_layer::LocomotionLayerPlugin",
+    "sync_groups.jump.phase": "crate::locomotion_layer::LocomotionLayerPlugin",
+    "sync_groups.land.phase": "crate::locomotion_layer::LocomotionLayerPlugin"
   },
   "slot_providers": {
     "ArmLeft": "crate::ab_als_provider::AbAlsProviderPlugin",

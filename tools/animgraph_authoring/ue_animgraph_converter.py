@@ -1237,7 +1237,6 @@ def build_sync_group_plans(source_asset, graphs, animation_assets):
             if not isinstance(group, str) or not group or semantic.get("sync_method") != "SyncGroup":
                 continue
             grouped.setdefault(group, {})[node["source_node"]] = (graph, node, semantic)
-    asset_name = source_asset.rsplit("/", 1)[-1].split(".", 1)[0]
     plans = []
     issues = []
     supported = set()
@@ -1315,7 +1314,7 @@ def build_sync_group_plans(source_asset, graphs, animation_assets):
             )
             continue
         basis = rows[0]
-        key = "sync_groups." + source_identifier_key(asset_name) + "." + source_identifier_key(group) + ".phase"
+        key = "sync_groups." + source_identifier_key(group) + ".phase"
         plan = {
             "source_sync_group": group,
             "target_phase_key": key,
@@ -1603,7 +1602,7 @@ def build_ir(
         )
     ]
     for graph in graphs:
-        if graph["source_graph"] == root_graph and sync_group_plans:
+        if graph["source_graph"] == root_graph:
             for node in graph["nodes"]:
                 if node.get("renderer") in {"root_output", "state_result"}:
                     node["semantic"] = {**(node.get("semantic") or {}), "synchronize_groups": True}
@@ -3297,9 +3296,16 @@ def run_self_test():
     )
     assert not sync_issues
     assert sync_nodes == {"/Asset:AnimGraph.PlayerA", "/Asset:AnimGraph.PlayerB"}
-    assert sync_plans[0]["target_phase_key"] == "sync_groups.ab_als_test.second_pivot.phase"
+    assert sync_plans[0]["target_phase_key"] == "sync_groups.second_pivot.phase"
     assert sync_plans[0]["phase_basis_source_node"] == "/Asset:AnimGraph.PlayerA"
     assert sync_graphs[0]["nodes"][1]["semantic"]["sync_phase_key"] == sync_plans[0]["target_phase_key"]
+    linked_sync_plans, _, linked_sync_issues = build_sync_group_plans(
+        "/ALS/AnimationInstances/AB_Als_Linked.AB_Als_Linked",
+        copy.deepcopy(sync_graphs),
+        sync_assets,
+    )
+    assert not linked_sync_issues
+    assert linked_sync_plans[0]["target_phase_key"] == sync_plans[0]["target_phase_key"]
     long_sync_graphs = copy.deepcopy(sync_graphs)
     long_sync_assets = copy.deepcopy(sync_assets)
     long_sync_graphs[0]["nodes"][0]["semantic"]["start_position"] = 1.75
@@ -3675,7 +3681,7 @@ def run_self_test():
         "sync_group_plans": [
             {
                 "source_sync_group": "Movement",
-                "target_phase_key": "sync_groups.ab_als_standing.movement.phase",
+                "target_phase_key": "sync_groups.movement.phase",
                 "target_delta_seconds_key": "animation.delta_seconds",
                 "phase_basis_source_node": "/Asset:AnimGraph.Movement",
                 "phase_duration": 1.0,
@@ -3686,7 +3692,7 @@ def run_self_test():
             },
             {
                 "source_sync_group": "Secondary Motion",
-                "target_phase_key": "sync_groups.ab_als_default.secondary_motion.phase",
+                "target_phase_key": "sync_groups.secondary_motion.phase",
                 "target_delta_seconds_key": "animation.delta_seconds",
                 "phase_basis_source_node": "/Asset:AnimGraph.Secondary",
                 "phase_duration": 2.666667,
@@ -3704,7 +3710,7 @@ def run_self_test():
                         "renderer": "blendspace_player",
                         "semantic": {
                             "sync_group": "Movement",
-                            "sync_phase_key": "sync_groups.ab_als_standing.movement.phase",
+                            "sync_phase_key": "sync_groups.movement.phase",
                             "delta_seconds_key": "animation.delta_seconds",
                             "input_pins": [{"name": "PlayRate"}],
                             "input_binding_paths": ["StandingState.PlayRate"],
@@ -3729,7 +3735,7 @@ def run_self_test():
                         "renderer": "sequence_player",
                         "semantic": {
                             "sync_group": "Secondary Motion",
-                            "sync_phase_key": "sync_groups.ab_als_default.secondary_motion.phase",
+                            "sync_phase_key": "sync_groups.secondary_motion.phase",
                             "delta_seconds_key": "animation.delta_seconds",
                             "play_rate": 1.0,
                             "start_position": 0.0,
@@ -3812,10 +3818,13 @@ def run_self_test():
         "mapped",
     ]
     assert integration["unhandled_property_bindings"][0]["status"] == "requires_target_provider"
-    assert integration["sync_phase_providers"][0]["target_phase_key"] == "sync_groups.ab_als_default.secondary_motion.phase"
-    assert integration["sync_phase_providers"][0]["status"] == "mapped"
     assert any(
-        item["target_phase_key"] == "sync_groups.ab_als_standing.movement.phase"
+        item["target_phase_key"] == "sync_groups.secondary_motion.phase"
+        and item["status"] == "mapped"
+        for item in integration["sync_phase_providers"]
+    )
+    assert any(
+        item["target_phase_key"] == "sync_groups.movement.phase"
         and item["phase_basis_source_node"] == "/Asset:AnimGraph.Movement"
         for item in integration["sync_phase_providers"]
     )
@@ -3844,7 +3853,7 @@ def run_self_test():
     assert "## Runtime property inputs" not in blocked_markdown
     assert "## Slot providers" not in blocked_markdown
     assert "## Gameplay tag providers" not in blocked_markdown
-    assert "sync_groups.ab_als_standing.movement.phase" not in blocked_markdown
+    assert "sync_groups.movement.phase" not in blocked_markdown
     assert "get_parent.gait" not in blocked_markdown
     assert build_integration_report(
         integration_ir,
