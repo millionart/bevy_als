@@ -572,7 +572,7 @@ impl Plugin for ManualPlaygroundIntegrationPlugin {
             .init_resource::<ManualAnimationWindowEvidence>()
             .init_resource::<ManualRuntimePhaseEvidence>()
             .init_resource::<ManualIntegrationGateReport>()
-            .add_systems(Update, initialize_manual_integration)
+            .add_systems(Update, initialize_manual_integration.before(crate::als::view::AlsViewInputSet))
             .add_systems(
                 PreUpdate,
                 drive_manual_integration
@@ -3752,10 +3752,14 @@ fn initialize_manual_integration(
     cameras: (Query<(&AlsCameraRig, &AlsCameraDebugInfo)>, Query<&crate::als_camera::AlsCameraViewSource>),
     toggles: Query<&TnuaToggle, With<AlsCharacter>>,
     view: Query<(&AlsViewYaw, &AlsViewPitch), With<AlsCharacter>>,
-    transforms: Query<&Transform, With<AlsCharacter>>,
+    (transforms, unowned): (Query<&Transform, With<AlsCharacter>>,
+        Query<Entity, (With<AlsCharacter>, Without<AlsInputOverride>)>),
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
+    for character in &unowned {
+        commands.entity(character).insert(AlsInputOverride::default());
+    }
     if state.initialized || !startup.passed {
         return;
     }
@@ -3794,9 +3798,6 @@ fn initialize_manual_integration(
     if !graph_ready || !debug.valid || *toggle != TnuaToggle::Enabled {
         return;
     }
-    commands
-        .entity(character)
-        .insert(AlsInputOverride::default());
     let spawn_yaw = transform.rotation.to_euler(EulerRot::YXZ).0;
     spawn_manual_integration_fixture(
         &mut commands,
@@ -12406,11 +12407,43 @@ mod tests {
     }
 
     #[test]
+    fn automatic_input_owns_the_actor_before_startup_is_ready() {
+        use crate::als::input::{AlsInputMap, AlsInputPlugin, spawn_als_actions};
+        use crate::als::view::AlsViewInputPlugin;
+        use bevy::input::{InputPlugin, mouse::MouseMotion};
+        use bevy_enhanced_input::prelude::EnhancedInputPlugin;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, InputPlugin, EnhancedInputPlugin, AlsInputPlugin,
+            AlsViewInputPlugin));
+        app.init_resource::<ManualIntegrationState>()
+            .init_resource::<ManualPlaygroundStartupReady>()
+            .init_resource::<Assets<Mesh>>()
+            .init_resource::<Assets<StandardMaterial>>()
+            .init_resource::<AlsFootIkTelemetryEnabled>()
+            .init_resource::<AlsFootIkWeightOverride>();
+        app.add_systems(Update, initialize_manual_integration.before(crate::als::view::AlsViewInputSet));
+        app.finish();
+        let yaw = -45.0_f32.to_radians();
+        let actor = app.world_mut().spawn((AlsCharacter, AlsViewYaw(yaw),
+            AlsViewPitch::default(), Transform::from_rotation(Quat::from_rotation_y(yaw)))).id();
+        spawn_als_actions(&mut app.world_mut().commands(), actor, &AlsInputMap::default());
+        app.world_mut().write_message(MouseMotion { delta: Vec2::new(-59.53, 8.0) });
+        app.world_mut().run_schedule(PreUpdate);
+        app.world_mut().run_schedule(Update);
+        assert_eq!(app.world().get::<AlsViewYaw>(actor).unwrap().0, yaw,
+            "Live mouse input changed the automatic fixture before readiness");
+        assert_eq!(app.world().get::<AlsViewPitch>(actor).unwrap().0, 0.0);
+        assert!(!app.world().resource::<ManualPlaygroundStartupReady>().passed);
+        assert!(!app.world().resource::<ManualIntegrationState>().initialized);
+    }
+
+    #[test]
     fn direction_fixture_keeps_aiming_through_the_actual_aim_system() {
         let case = direction_regression_case(0).unwrap();
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
             .add_message::<crate::als::aim::AimStateChanged>()
+            .add_message::<crate::als::transition::StateTransitionEvent>()
             .add_systems(Update, crate::als::aim::aim_rotation_mode_system);
         let entity = app
             .world_mut()

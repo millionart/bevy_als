@@ -1,0 +1,228 @@
+{
+  "format": "als_animgraph_authoring_gate_v1",
+  "graphs": [
+    {
+      "path": "assets/ALS/Character/AB_Als.runtime.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "b113030b-0000-4000-8000-000000000001",
+          "name": "AB_Als",
+          "position": [
+            -480.0,
+            0.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000002",
+          "name": "Ragdoll Dynamic",
+          "position": [
+            -480.0,
+            160.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000003",
+          "name": "Ragdoll Readback",
+          "position": [
+            -480.0,
+            240.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000004",
+          "name": "Ragdoll Config",
+          "position": [
+            -224.0,
+            192.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000002\", \"als_ragdolling_dynamic\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"dynamic\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000003\", \"als_ragdolling_readback\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"readback\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000001\", \"pose\")",
+          "target": "OutputData(\"pose\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"ragdoll_config\")",
+          "target": "OutputData(\"ragdoll_config\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "pose": "Pose",
+          "ragdoll_config": "RagdollConfig"
+        }
+      },
+      "root_output_exceptions": [
+        {
+          "name": "ragdoll_config",
+          "reason": "The framework consumes body simulation and pose readback controls independently from the source pose.",
+          "evidence": "docs/bf114-ragdoll-contract.md"
+        }
+      ]
+    }
+  ],
+  "id": "automatic_startup_input_contract",
+  "source_evidence": [
+    {
+      "path": "assets/ALSExtras/Levels/L_Als_Playground/playground.json",
+      "sha256": "5074999e0f3ad8dc30233ca3e05468390f385fda22cc0a7c41478a461ec55225"
+    },
+    {
+      "path": "src/als/state/view.rs",
+      "sha256": "ea7b5ccff68bcce061c638529255616971c9a6d5dc995df36c8dc8e7b2487684"
+    },
+    {
+      "path": "src/als_extras/core/input.rs",
+      "sha256": "8de4c2842e5febe3ad77c862bb52ab63d8f52d40b4dbe4ff5079f9778a101a16"
+    },
+    {
+      "path": "target/bf134/02m6b2c/startup_input_source_contract.json",
+      "sha256": "b1aa0bfe95f4337ecb1996bed965476aa38566f72e15e61f20b6f9d8bbdb0aa7"
+    }
+  ],
+  "verification_commands": [
+    {
+      "label": "generated_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets",
+        "--include",
+        "ALS",
+        "--include",
+        "ALSCamera"
+      ]
+    },
+    {
+      "label": "generated_editor",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets"
+      ]
+    },
+    {
+      "label": "runtime_asset_boundary",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/validate_runtime_graph_asset_boundary.py",
+        "--assets-root",
+        "assets",
+        "--check"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "animgraph_assets",
+    "manual_case": "base"
+  },
+  "focused_tests": [
+    {
+      "label": "startup_input_restored",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "automatic_input_owns_the_actor_before_startup_is_ready"
+      ],
+      "evidence": "target/bf134/02m6b2c/final_fixture_build.watchdog.json"
+    },
+    {
+      "label": "direction_input",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "direction_fixture_keeps_aiming_through_the_actual_aim_system"
+      ],
+      "evidence": "target/bf134/02m6b2c/direction_input_final.watchdog.json"
+    },
+    {
+      "label": "original_floor",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "sprint_and_grounded_fixtures_have_continuous_original_floor_without_obstacles"
+      ],
+      "evidence": "target/bf134/02m6b2c/original_floor.watchdog.json"
+    },
+    {
+      "label": "mouse_cadence",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "locomotion_mouse_window_keeps_the_same_counts_across_cadences"
+      ],
+      "evidence": "target/bf134/02m6b2c/mouse_cadence.watchdog.json"
+    },
+    {
+      "label": "queued_phase",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "source_action_snapshot_preserves_the_later_roll_entry_point_notify"
+      ],
+      "evidence": "target/bf134/02m6b2c/queued_phase.watchdog.json"
+    }
+  ]
+}
