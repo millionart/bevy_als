@@ -13653,7 +13653,8 @@ mod tests {
         let command = standing_turn_mouse_command(4, Some(0.0), live_view, live_view, RotationMode::Aiming);
         assert_eq!(command.look_delta, Vec2::ZERO);
         let from_body = standing_turn_mouse_command(4, Some(0.0), -0.25, live_view, RotationMode::Aiming);
-        assert!(from_body.look_delta.length() > 100.0);
+        assert!((from_body.look_delta.x.to_radians() - 1.25).abs() < 1e-6);
+        assert_eq!(from_body.look_delta.y, 0.0);
         assert!(window.capture_every_frame);
         assert!(!crouch_rotate_window(false, false, &["sequence_completed"]).capture_source_window);
         assert!(crouch_rotate_window(false, false, &["sequence_completed", "settled"]).capture_source_window);

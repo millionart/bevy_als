@@ -3307,7 +3307,7 @@ mod tests {
             motion.world_velocity = Vec3::NEG_Z * fixture.2;
             motion.has_input = fixture.2 > 0.0;
             input.move_dir = if fixture.2 > 0.0 { Vec2::Y } else { Vec2::ZERO };
-        }).after(crate::actual_motion::AlsActualMotionSet).before(crate::gait_layer::AlsGaitLayerSet));
+        }).after(crate::actual_motion::AlsActualMotionSet).after(crate::als::gait::refresh_gait_system).before(crate::gait_layer::AlsGaitLayerSet));
         for _ in 0..90 { app.update(); }
         let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
         let mut relevant_frames = 0;
@@ -3327,7 +3327,8 @@ mod tests {
                 assert!(instance.get_error().is_none() && instance.get_default_output_pose().is_some(), "Outgoing graph failed: {:?}", instance.get_error());
                 let arena = instance.get_context_arena().unwrap();
                 let state = arena.get_toplevel().node_states.get::<SourceInstanceProperties>(NodeId::default(), StateKey::Default).unwrap();
-                let relevant = state.write_frames.get("standing_state.sprint_time") == Some(&arena.frame_index());
+                let relevant = state.write_frames.get("standing_state.walk_run_blend_amount") == Some(&arena.frame_index());
+                assert_eq!(app.world().get::<Gait>(character), Some(&gait), "Source fixture did not establish current actor gait");
                 if stance == Stance::Crouching && relevant {
                     relevant_frames += 1;
                     assert_eq!(state.values["standing_state.walk_run_blend_amount"].as_f32().unwrap(), if gait == Gait::Walking { 0.0 } else { 1.0 }, "Outgoing Standing reused the previous gait");

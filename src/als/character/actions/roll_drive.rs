@@ -1077,8 +1077,10 @@ pub(crate) mod tests {
                                 let actual = &mixed.bones[*mixed_index];
                                 if let (Some(new), Some(old), Some(actual)) = (new_bone.rotation, old_bone.rotation, actual.rotation) {
                                     let old = if new.dot(old) < 0.0 { -old } else { old };
-                                    let expected = (new * (current_weight / total) + old * (tail.weight() / total)).normalize();
-                                    assert!(actual.dot(expected).abs() > 1.0 - 1e-6, "Montage rotation did not use the source weighted accumulation");
+                                    let expected = new * (current_weight / total) + old * (tail.weight() / total);
+                                    let actual = Vec4::from_array(actual.to_array());
+                                    let expected = Vec4::from_array(expected.to_array());
+                                    assert!((actual - expected).length().min((actual + expected).length()) < 1e-6, "Montage rotation did not preserve source raw weighted accumulation");
                                 }
                                 if let (Some(new), Some(old), Some(actual)) = (new_bone.translation, old_bone.translation, actual.translation) {
                                     let expected = (new * current_weight + old * tail.weight()) / total;
@@ -1238,9 +1240,9 @@ pub(crate) mod tests {
             }
         }).after(AnimationGraphSet::PrePhysics).before(bridge_roll_slot_samples));
         for delta in [0.013_f32, 0.025, 0.011, 0.033] {
+            let expected = Vec3::Z * app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0;
             app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(delta));
             app.world_mut().run_schedule(PostUpdate);
-            let expected = Vec3::Z * app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0;
             assert!(app.world().get::<LinearVelocity>(character).unwrap().distance(expected) < 1e-4,
                 "a constant-speed root track must stay constant across frame durations: delta={delta}, actual={:?}, roll={:?}, time={}, scale={:?}",
                 app.world().get::<LinearVelocity>(character), app.world().get::<AlsRollState>(character),
