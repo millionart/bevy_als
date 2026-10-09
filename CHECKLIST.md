@@ -1597,7 +1597,7 @@
   - 02H2a2b source/static完成（2026-10-08 23:30 +08:00）：currentActorTime源实际Rig94.405红→候选95.226绿→normal1/.5/0 moving5、.5 Air.6四controls95.346绿→仅删倍率98.465实际Rig约4.18mm再红→原footBytes0391E435自然mtime same target17/99.456恢复，其他62current回归全过共79unique/static2.680。只读existingActorCustom并每actor计算FootCore dt，physics/rootanimation/worldTimeSince窗口不缩放，无新clock/cache/helper/system；原pending与P281源weight规则保持、图/转换/资产/all15diff0不变。b实际23:21/预估23:41/实际23:30偏差−11分成功，代码独立提交后c同target正常+原startup/foot_ik/animation_clock另估时。81/P282候选，父H2a初23:17误差23:37独立，剩余公共/整体core source核销若无法纳入须提前复盘重估不机械延后。
 
 - [x] BF134.03 PhysicsAsset/物理时钟、相机、Overlay、关卡、材质与 UI 逐链审计及修复；只有限复开有 fresh source/症状/consumer 证据的旧项。
-- [ ] BF134.04 全范围覆盖核销与真实 Playground 最终 Gate；所有确认的 P2+ 项通过自身 Gate 后才可核销总目标。
+- [x] BF134.04 全范围覆盖核销与真实 Playground 最终 Gate；所有确认的 P2+ 项通过自身 Gate 后才可核销总目标。
 
 活动摘要（06:12 +08:00）：仓库起始 HEAD `9105cdf`，工作区干净；实际可读源在插件源码 checkout，工程插件是打包目录的符号链接。BF132 的 49 项与 BF133 的两项已完成，作为漏检边界参考，不凭标题复开。当前只有清单/覆盖登记，尚未宣称任何模块审计通过；下一步从角色和 CMC 的 native 入口建立 source-target 清单。
 
@@ -2846,4 +2846,24 @@
 
   - 04A全覆盖/source/regression核销（2026-10-10 05:47 +08:00）：当前源码ee317e29完整库1569/1569通过494.751，0失败/ignored，前1562/5fail报告保留；P321实际预算根因修复、四test oracle source迁移与P322实际复杂geometry根因均独立Gate/提交，confirmedP2 pending0/累计accepted122。146本地CPP/header hash未变，原181target含源归属迁移+new genericquerydata1共182scope文件可追溯；15roots/23AnimBP/236subgraph/359RON+15installation=374全source/compiledbyte/static47.819与当前spec3.273绿，未发生新AnimBP转换。12域current_scope_coverage.json关联171Character方法/97Native/M1–8/03当前闭包，旧b2b失败superseded且未伪改pass，旧未知pelvis记录与用户例外/性能延期保留。没有以当前Box query冒称全部complex API，P322五source形状/当前消费者已核齐。
   - 时间：A R1 04:22/04:42在04:41复盘，R2 04:41/05:11在05:12复盘，R3实际05:12/05:57/实际05:47偏差−10分成功，累计85分/相对首+65，漂移为完整库5失败source分类/一个真实P321/一个source复杂queryP322及必要原生字段/消融/同target恢复，oracle准备错均保留。A1/A2/A3各源/公共已过，A勾选单独提交，04仍需最终B；旧用户截图0/FunctionalOnly、完整性能失败未核销，全目标未提前complete。
-    - [ ] BF134.04B 当前同版完整Playground公共矩阵32入口；A已过，实际开始2026-10-10 05:47，预估结束06:27。依据已有32case时长总约20–30min及每case独立progress/240wall120stall，40min同版原场景strict serial、每case report功能/graph/rootPose/preRig-final/正式temporal/render-decal/完整covered审计后下一。复用刚过同binary startup/Rag/GetUp/ControlRig/FootIK五报告，剩27入口逐一运行，不能靠重复取绿，失败必须源闭环后纠正。Source/evidence/hash不变，不重复无变更normal或旧已过unit；Capture0/FunctionalOnly/rawperf保留，任何非性能guard不变。过后finalprivacy/cleanworkspace与覆盖总目标commit，才04/goal完成。
+    - [x] BF134.04B 当前同版完整Playground公共矩阵32入口；A已过，实际开始2026-10-10 05:47，预估结束06:27。依据已有32case时长总约20–30min及每case独立progress/240wall120stall，40min同版原场景strict serial、每case report功能/graph/rootPose/preRig-final/正式temporal/render-decal/完整covered审计后下一。复用刚过同binary startup/Rag/GetUp/ControlRig/FootIK五报告，剩27入口逐一运行，不能靠重复取绿，失败必须源闭环后纠正。Source/evidence/hash不变，不重复无变更normal或旧已过unit；Capture0/FunctionalOnly/rawperf保留，任何非性能guard不变。过后finalprivacy/cleanworkspace与覆盖总目标commit，才04/goal完成。
+
+  - 04B首新case后（2026-10-10 05:50 +08:00）：同ee317e29/normal169.881，最终Base126.105（51）原场景功能/manual覆盖/render-decal/rootPose/preRig-final/graph-fault-primary-Temporal绿，rawperffalse保留；刚过同版五leaf报告复用，已6/32 current gates。现Grounded按前case完整审计后运行，后续27严格串行/不变源码和阈值，B06:27/06:47容差有效，122accepted不变/总目标仍待余case。
+
+  - 04B standing批次进展（2026-10-10 05:52 +08:00）：最终Grounded41.427（15）、Direction40.123（5）、Response19.208（6）、Stop25.489（10）与Base126.105（51）全部功能/manual/render-decal/rootPose/preRig-final/正式Temporal/graph-fault-primary绿，累计同版10/32。现StandingTurn按前report审计后启动，Source生产码/参数/threshold均保持ee317e29；raw性能失败仍保留，B06:27/06:47容差有效，已确认P2共122/当前pending0，剩runtime矩阵未完成。
+
+  - 04B站姿/蹲姿批次完成（2026-10-10 05:54 +08:00）：StandingTurn43.980（11）/Dynamic10.961（5）/Crouching43.742（7）/CrouchingActions27.034（11）全部原入口功能/pose/coverage/render-decal/graph-fault-primary/正式Temporal绿，当前14/32同版Gate。原四测试oracle迁移未改这些runtime判据，P322查询改动后原站/蹲动作仍同标准过；现Locomotion后接Default/Bow/Overlays，B06:27有效，源码/hash不变，122accepted/当前confirmedpending0，原raw性能延期保留。
+
+  - 04B动作/Overlay前半（2026-10-10 05:56 +08:00）：Locomotion27.626（18）/DefaultOverlay17.571（17）/Bow36.217（20）原入口全部功能/manual覆盖/render-decal/pose/graph-fault-primary/正式Temporal绿，当前17/32同版Gate。现Overlays115按前报告审计后运行，接footprint/Head/FSM等；所有源码、threshold、功能/性能分类与同binary复用规则不变，B06:27有效，原历史未定级报告和raw性能失败保留，confirmedP2已验122无pending。
+
+  - 04B Overlay/贴花批次（2026-10-10 05:58 +08:00）：Overlays103.376（115）/Footprint31.247（21，36requests/576贴花采样审计）全部原入口功能/manual覆盖/renderer-decal实际GPU/pose/graph-fault-primary/正式Temporal绿，当前19/32同版Gate。现Head/FSM/Notify等接续，源码/hash/矩阵门槛不变；raw性能继续延期保留，未把日志warning单独当P2或放宽report，B06:27有效，122已确认accepted。
+
+  - 04B Head/FSM/通知/冲刺批次（2026-10-10 05:59 +08:00）：Head19.440（14）/StateMachine67.571（10）/TransitionNotify7.593（3）/Sprint16.542（8）全部原入口strict功能/manual覆盖/pose/render-decal/graph-fault-primary/正式Temporal绿，当前23/32同版Gate。现Camera后接Stairs/Uphill/Moving/Rotating/Interface/Notify/Visibility/Clock，旧root-slot/inertial source合约实际也经过原scene窗口，不新增运行/数据调整；raw性能仍延期，源码/hash不变，B06:27有效。
+
+  - 04B相机/地形批次（2026-10-10 06:01 +08:00）：Camera19.441（11）/Stairs45.495（9）/UphillJump31.957（6）全部原入口strict功能/manual覆盖/pose/render-decal/graph-fault-primary/正式Temporal绿，当前26/32同版Gate。P318简单物理与P322复杂FootTrace保留两种源语义后原阶梯/上坡路线仍通过，不改source clock或地形/阈值；现MovingBase→RotatingBase→Interface/Notify/Visibility/Clock，B06:27有效，源码/hash不变，rawperffalse按约定保留。
+
+  - 04B平台/UI/通知后（2026-10-10 06:03 +08:00）：MovingBase20.779（10）/RotatingBase17.625（12）/Interface22.625（15）/Notify23.426（13）/Visibility20.063（10）全部原入口strict功能/manual覆盖/pose/render-decal/graph-fault-primary/正式Temporal绿，当前31/32同版Gate，剩AnimationClock。源生产/依赖/原始资产/threshold自ee317e29后未改，完整lib1569/0fail与15root全source静态继续有效；B06:27窗口内，已验P2共122，raw性能超限按原约定保留，不冒称fullperf通过。
+
+  - BF134.04B/总目标最终Gate完成（2026-10-10 06:04 +08:00）：当前源码ee317e29/同launcher target_game正常169.881，完整lib1569/1569通过494.751（0fail/ignored）；15roots/23AnimBP/236subgraph/907source pose nodes/737links/359RON+15installation=374全部source/compiledbyte audit47.819与currentSpec3.273/sourceStatic2.405绿。最终32个原Playground入口全部functional通过、共495项检查全部covered/completed/passed/不超时，ready/rootPose/preRig-final/graph-fault-primary/正式temporal/render-decal实际GPU全部绿；正式source-boundary preRig记录保留并按原分类接受，未伪造数组空。刚过五同版leaf报告复用、余27严格serial，source/executable/assets从最终build后未改，未重复构建或靠重跑取绿。总报告target/bf134/04_final/final_runtime_summary.json，验收target/bf134/04_final/final_acceptance.json。
+  - B时间开始05:47/预估06:27/末项实际06:02:34偏差−24分26秒成功，汇总审计/记录06:04；本次当前执行域P2累计122均独立source反例/最小修复/必要消融/源码恢复/匹配Gate验收，无已确认P2pending/当前必做未完成工作。BF134.00–04聚合全部完成；旧M6b2b失败叶保留unchecked且明确由c/d替代，不能被误解为旧报告已过；旧自然pelvis单次观察未定级/精确根因未知保留，当前同路径最终Base51通过，不以通过反推旧根因已修。附录A字体/菜单/音效/网络-编辑器-导航/泛UE API边界与既有显示近似均保持，不宣称整个UE引擎逐像素或任意API等价。
+  - 截图Capture0与完整性能暂停为用户已有约定，原raw pass=false/max_eval等性能失败全部保留，本次只核销功能/姿态/图/物理/时序/GPU合同；没有放宽非性能阈值。原始UE导出不追加/改写，转换规则修改时历史15root全量重转/完整diff已执行，后续仅runtime/source读取工具及独立target数据；本次新增genericcomplex metadata6行/删除冗余simple树，GetUp复用现budgetstate，无额外框架。最终隐私与clean状态核对后总目标完成提交。
