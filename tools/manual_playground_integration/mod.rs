@@ -4073,7 +4073,7 @@ fn visibility_case_results(rows: &[serde_json::Value]) -> Vec<(&'static str, boo
         ("visibility_pending_resume", stage("resume", 4.5).any(|row| row["pending"] == true && row["update_graph"] == true)),
         ("visibility_montage_graph_stopped", frozen("montage", 8.0)),
         ("visibility_montage_clock", stage("montage", 8.0).any(|row| row["roll_time"].as_f64().is_some_and(|time| time > 0.9))),
-        ("visibility_montage_notifications", stage("montage", 0.0).map(|row| row["shakes"].as_u64().unwrap_or(0)).sum::<u64>() == 2 && stage("montage", 0.0).map(|row| row["footsteps"].as_u64().unwrap_or(0)).sum::<u64>() == 3),
+        ("visibility_montage_notifications", stage("montage", 0.0).map(|row| row["shakes"].as_u64().unwrap_or(0)).sum::<u64>() == 2 && stage("montage", 0.0).map(|row| row["footsteps"].as_u64().unwrap_or(0)).sum::<u64>() == 2),
         ("visibility_always_pose", advancing("always_pose", 9.6, false)),
         ("visibility_final_resume", advancing("visible_final", 12.0, true)),
     ]
@@ -10892,7 +10892,7 @@ mod tests {
             row("visible", 1.0, 10, true, true, false, 0.0, 0, 0), row("visible", 1.5, 20, true, true, false, 0.0, 0, 0),
             row("hidden", 3.5, 30, false, false, true, 0.0, 0, 0), row("hidden", 4.0, 30, false, false, true, 0.0, 0, 0),
             row("resume", 4.6, 31, true, true, true, 0.0, 0, 0),
-            row("montage", 8.1, 60, false, false, true, 0.0, 0, 0), row("montage", 9.0, 60, false, false, true, 1.0, 2, 3),
+            row("montage", 8.1, 60, false, false, true, 0.0, 0, 0), row("montage", 9.0, 60, false, false, true, 1.0, 2, 2),
             row("always_pose", 9.8, 61, true, false, true, 1.1, 0, 0), row("always_pose", 10.5, 71, true, false, false, 1.2, 0, 0),
             row("visible_final", 12.0, 81, true, true, false, 1.2, 0, 0), row("visible_final", 12.5, 91, true, true, false, 1.2, 0, 0),
         ];
@@ -10903,7 +10903,7 @@ mod tests {
             "A visible landing notification must not change the hidden montage notification gate");
         for (index, key, value) in [(3, "frame", serde_json::json!(31)), (4, "pending", serde_json::json!(false)),
             (6, "roll_time", serde_json::json!(0.0)), (6, "footsteps", serde_json::json!(0)),
-            (6, "footsteps", serde_json::json!(4)), (6, "shakes", serde_json::json!(1)),
+            (6, "footsteps", serde_json::json!(3)), (6, "footsteps", serde_json::json!(4)), (6, "shakes", serde_json::json!(1)),
             (6, "shakes", serde_json::json!(3)), (6, "visibility_phase", serde_json::json!("visible")),
             (8, "frame", serde_json::json!(61))] {
             let mut changed = rows.clone(); changed[index][key] = value;
