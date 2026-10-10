@@ -58,6 +58,106 @@ pub(crate) mod tests {
     use bevy::ecs::system::RunSystemOnce;
 
     #[test]
+    fn fresh_audit_roll_and_tail_use_the_current_actor_clock() {
+        let mut world = World::new();
+        let mut time = Time::<()>::default();
+        time.advance_by(std::time::Duration::from_secs_f32(0.05));
+        world.insert_resource(time);
+        let mut failures = Vec::new();
+        for scale in [0.0_f32, 0.5, 1.0, 2.0] {
+            let roll = AlsRollState { active: true, time: 0.3, previous_time: 0.3, ..default() };
+            let actor = world.spawn((crate::als::character::AlsCharacter, roll, LocomotionState::Grounded,
+                Stance::Standing, AlsViewYaw::default(), Transform::IDENTITY, LinearVelocity::ZERO,
+                AlsInputCommand::default(), crate::als_camera::AlsCameraCustomTimeDilation(scale))).id();
+            let tail = world.spawn((AlsRollTail { time: 0.3, blend: AlsRollBlendOut::new(&roll, 0.2) },
+                AlsRollSlotSampler { character: actor, target_player: Entity::PLACEHOLDER, reported_unready: false })).id();
+            world.run_system_once(advance_rolls).unwrap();
+            let expected = 0.3 + 0.05 * scale;
+            let current = world.get::<AlsRollState>(actor).unwrap().time;
+            let tail_time = world.get::<AlsRollTail>(tail).unwrap().time;
+            if (current - expected).abs() > 1e-6 || (tail_time - expected).abs() > 1e-6 {
+                failures.push((scale, expected, current, tail_time));
+            }
+        }
+        assert!(failures.is_empty(), "Roll ignored actor time dilation: {failures:?}");
+    }
+
+    #[test]
+    fn fresh_audit_roll_rotation_uses_the_current_actor_clock() {
+        let (mut app, character, _) = loaded_roll_character();
+        let sampler = play_loaded_roll(&mut app, character);
+        let mut failures = Vec::new();
+        for scale in [0.0_f32, 0.5, 1.0, 2.0] {
+            app.world_mut().entity_mut(character).insert((Transform::IDENTITY,
+                GlobalTransform::IDENTITY, Rotation(Quat::IDENTITY),
+                crate::als_camera::AlsCameraCustomTimeDilation(scale),
+                AlsRollState { active: true, time: 0.3, previous_time: 0.3, direction_yaw: 1.0, ..default() }));
+            *app.world_mut().get_mut::<RootMotionOutput>(sampler).unwrap() = RootMotionOutput::default();
+            app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.05));
+            app.world_mut().run_system_once(roll_drive_system).unwrap();
+            let expected = damper_exact_angle(0.0, 1.0, 0.05 * scale, ROLL_ROTATION_HALF_LIFE_SECS);
+            let actual = app.world().get::<Transform>(character).unwrap().rotation.to_euler(EulerRot::YXZ).0;
+            if crate::als::roll::wrap_angle(actual - expected).abs() > 1e-5 { failures.push((scale, expected, actual)); }
+        }
+        assert!(failures.is_empty(), "Roll rotation ignored actor time dilation: {failures:?}");
+    }
+
+    #[test]
+    fn fresh_audit_roll_loaded_actor_clock_and_custom_displacement() {
+        let (mut app, character, _) = loaded_roll_character();
+        let sampler = play_loaded_roll(&mut app, character);
+        let target = app.world().get::<AlsRollSlotSampler>(sampler).unwrap().target_player;
+        app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(character).unwrap().locomotion_state = Some(LocomotionState::Custom);
+        app.update();
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.05)));
+        for scale in [0.0_f32, 0.5, 2.0] {
+            app.world_mut().entity_mut(character).insert(crate::als_camera::AlsCameraCustomTimeDilation(scale));
+            let before_time = app.world().get::<AlsRollState>(character).unwrap().time;
+            let (actor, mesh) = app.world_mut().run_system_once(move |helper: bevy::transform::helper::TransformHelper| {
+                (helper.compute_global_transform(character).unwrap(), helper.compute_global_transform(target).unwrap())
+            }).unwrap();
+            app.update();
+            let expected_time = before_time + app.world().resource::<Time>().delta_secs() * scale;
+            let actual_time = app.world().get::<AlsRollState>(character).unwrap().time;
+            let clip_time = app.world().get::<AnimationGraphPlayer>(sampler).unwrap()
+                .get_global_input_data(ROLL_SLOT_TIME_KEY).unwrap().as_f32().unwrap();
+            let root = app.world().get::<RootMotionOutput>(sampler).unwrap();
+            let runtime = app.world().get::<AlsRollSlotRuntime>(character).unwrap();
+            let expected_position = actor.translation() + root_motion_world_transform(actor, mesh,
+                root.translation_delta * runtime.root_motion_scale, root.rotation_delta).0;
+            let actual_position = app.world().get::<avian3d::prelude::Position>(character).unwrap().0;
+            assert!((actual_time - expected_time).abs() < 1e-6
+                && (clip_time - expected_time * ROLL_PLAY_RATE).abs() < 1e-6
+                && actual_position.distance(expected_position) < 1e-4,
+                "Loaded roll clock or full-frame root displacement differs: scale={scale} expected_time={expected_time} actual_time={actual_time} clip_time={clip_time} expected_position={expected_position:?} actual_position={actual_position:?}");
+        }
+    }
+
+    #[test]
+    fn fresh_audit_roll_root_uses_actor_interval_and_minimum_delta() {
+        for (world_delta, scale, crossing) in [(0.05_f32, 2.0_f32, true), (1e-6, 0.5, false)] {
+            let (mut app, character, _) = loaded_roll_character();
+            let sampler = play_loaded_roll(&mut app, character);
+            let end = crate::als::roll::ROLL_DURATION_SECS - crate::als::roll::ROLL_WEIGHT_OUT_SECS;
+            let current = if crossing { end + 0.06 } else { 0.3 + world_delta * scale };
+            let previous = if crossing { end - 0.04 } else { 0.3 };
+            app.world_mut().entity_mut(character).insert((Transform::IDENTITY, GlobalTransform::IDENTITY,
+                avian3d::prelude::Position(Vec3::ZERO), Rotation(Quat::IDENTITY), LocomotionState::Custom,
+                crate::als_camera::AlsCameraCustomTimeDilation(scale),
+                AlsRollState { active: true, time: current, previous_time: previous, ..default() }));
+            *app.world_mut().get_mut::<RootMotionOutput>(sampler).unwrap() = RootMotionOutput {
+                translation_delta: Vec3::NEG_Z * if crossing { 0.01 } else { 1e-6 },
+                rotation_delta: Quat::IDENTITY,
+            };
+            app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(world_delta));
+            app.world_mut().run_system_once(roll_drive_system).unwrap();
+            let distance = app.world().get::<avian3d::prelude::Position>(character).unwrap().0.length();
+            assert!(if crossing { distance > 0.005 } else { distance < 1e-8 },
+                "Roll used the world interval or world movement minimum: crossing={crossing} distance={distance}");
+        }
+    }
+
+    #[test]
     fn roll_paused_tap_release_does_not_start_the_actual_roll_driver() {
         use crate::als::input::{AlsInputMap, AlsInputPlugin, spawn_als_actions};
         use bevy::input::gamepad::{RawGamepadButtonChangedEvent, RawGamepadEvent};
@@ -1693,10 +1793,11 @@ fn bridge_roll_slot_samples(
 fn advance_rolls(
     time: Res<Time>,
     mut commands: Commands,
+    custom_dilations: Query<&crate::als_camera::AlsCameraCustomTimeDilation>,
     blocked: Query<(), With<crate::als::motion::AlsMovementInputBlocked>>,
     actions: Query<&crate::animation_events::AlsNotifyLocomotionAction>,
     mut blend_outs: Query<&mut AlsRollBlendOut>,
-    mut tails: Query<(Entity, &mut AlsRollTail)>,
+    mut tails: Query<(Entity, &mut AlsRollTail, &AlsRollSlotSampler)>,
     samplers: Query<(Entity, &AlsRollSlotSampler, &AnimationGraphPlayer), Without<AlsRollTail>>,
     mut q: Query<
         (
@@ -1714,8 +1815,8 @@ fn advance_rolls(
         With<crate::als::character::AlsCharacter>,
     >,
 ) {
-    let dt = time.delta_secs();
-    for (entity, mut tail) in &mut tails {
+    for (entity, mut tail, sampler) in &mut tails {
+        let dt = time.delta_secs() * custom_dilations.get(sampler.character).map_or(1.0, |value| value.0);
         tail.time += dt;
         tail.blend.elapsed += dt;
         if tail.weight() <= f32::EPSILON { commands.entity(entity).try_despawn(); }
@@ -1733,6 +1834,7 @@ fn advance_rolls(
         ovr,
     ) in &mut q
     {
+        let dt = time.delta_secs() * custom_dilations.get(character).map_or(1.0, |value| value.0);
         let action_blocked = actions.get(character).is_ok_and(|action| !matches!(*action,
             crate::animation_events::AlsNotifyLocomotionAction::None | crate::animation_events::AlsNotifyLocomotionAction::Rolling));
         let effective = crate::als::motion::movement_input_for_action(
@@ -1793,6 +1895,7 @@ fn advance_rolls(
 fn roll_drive_system(
     time: Res<Time>,
     mut commands: Commands,
+    custom_dilations: Query<&crate::als_camera::AlsCameraCustomTimeDilation>,
     modes: Query<(&LocomotionState, &avian3d::prelude::RigidBody,
         Has<avian3d::prelude::CustomPositionIntegration>)>,
     blend_outs: Query<(), With<AlsRollBlendOut>>,
@@ -1805,6 +1908,7 @@ fn roll_drive_system(
     let dt = time.delta_secs();
     let characters: Vec<_> = space.p1().iter().map(|(entity, ..)| entity).collect();
     for character in characters {
+        let actor_delta = dt * custom_dilations.get(character).map_or(1.0, |value| value.0);
         let sample = sampler_root_motion.iter().find(|(sampler, _)| sampler.character == character);
         let Ok(actor_world) = space.p0().compute_global_transform(character) else { continue; };
         let mesh_world = if let Some((sampler, _)) = sample {
@@ -1816,7 +1920,7 @@ fn roll_drive_system(
         let custom = modes.get(character).is_ok_and(|(mode, ..)| *mode == LocomotionState::Custom);
         let delta_too_small = if custom { dt <= 0.0 } else { dt <= 1e-5 };
         if !roll.active || action == Some(&AlsNotifyLocomotionAction::Ragdolling) || delta_too_small || blend_outs.contains(character)
-            || roll.time - dt >= crate::als::roll::ROLL_DURATION_SECS - crate::als::roll::ROLL_WEIGHT_OUT_SECS {
+            || roll.previous_time >= crate::als::roll::ROLL_DURATION_SECS - crate::als::roll::ROLL_WEIGHT_OUT_SECS {
             continue;
         }
 
@@ -1832,7 +1936,7 @@ fn roll_drive_system(
             Quat::from_rotation_y(damper_exact_angle(
                 current_yaw,
                 roll.direction_yaw,
-                dt,
+                actor_delta,
                 ROLL_ROTATION_HALF_LIFE_SECS,
             ))
         };
@@ -1845,7 +1949,7 @@ fn roll_drive_system(
         vel.0 = world_translation / dt;
         if let Ok((mode, body, custom_position)) = modes.get(character)
             && *mode == LocomotionState::Custom {
-            if dt >= crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS {
+            if actor_delta >= crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS {
                 transform.translation += world_translation;
             }
             commands.entity(character).insert((avian3d::prelude::Position(transform.translation),

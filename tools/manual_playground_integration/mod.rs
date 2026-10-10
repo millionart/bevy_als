@@ -4002,8 +4002,8 @@ fn replace_ragdoll_player_once(world: &mut World) {
     info!("[MANUAL-INTEGRATION][RAGDOLL-PLAYER-REPLACEMENT] player={player_entity:?} old_root={old_root:?} -> PASS");
 }
 
-fn get_up_actor_clock_passed(rows: &[serde_json::Value]) -> bool {
-    let rows: Vec<_> = rows.iter().filter(|row| row["get_up_actor_clock"] == true).collect();
+fn actor_montage_clock_passed(rows: &[serde_json::Value], label: &str) -> bool {
+    let rows: Vec<_> = rows.iter().filter(|row| row[label] == true).collect();
     rows.len() >= 8
         && rows.iter().all(|row| row["dilation"].as_f64() == Some(0.5))
         && rows.windows(2).all(|pair| {
@@ -4012,6 +4012,10 @@ fn get_up_actor_clock_passed(rows: &[serde_json::Value]) -> bool {
             matches!(values, [Some(a), Some(b), Some(c), Some(d)]
                 if b > a && ((d - c) - (b - a) * 0.5).abs() < 1e-5)
         })
+}
+
+fn grounded_roll_exit_timed_out(elapsed: f32, completed: bool) -> bool {
+    !completed && elapsed >= 20.0
 }
 
 fn animation_clock_results(rows: &[serde_json::Value]) -> Vec<(&'static str, bool)> {
@@ -5991,7 +5995,11 @@ fn drive_manual_integration(
                 Vec2::ZERO
             };
             input.0.roll_pressed = (1.0..1.2).contains(&elapsed);
-            if elapsed >= FOOT_AVATAR_REPLACEMENT_START_SECONDS {
+            if state.scenario == IntegrationScenario::Grounded && input.0.roll_pressed {
+                commands.entity(character).insert(crate::als_camera::AlsCameraCustomTimeDilation(0.5));
+            }
+            if elapsed >= FOOT_AVATAR_REPLACEMENT_START_SECONDS
+                && (state.scenario != IntegrationScenario::Grounded || state.coverage.grounded_roll_completed) {
                 if state.scenario == IntegrationScenario::FootIk {
                     state.foot_replacement_waited = elapsed - FOOT_AVATAR_REPLACEMENT_START_SECONDS;
                     if state.coverage.foot_bones_replaced && state.coverage.camera_root_rebound {
@@ -6005,6 +6013,7 @@ fn drive_manual_integration(
                     }
                 } else {
                     let next = if state.scenario == IntegrationScenario::Grounded {
+                        commands.entity(character).remove::<crate::als_camera::AlsCameraCustomTimeDilation>();
                         IntegrationPhase::GroundedJoint
                     } else {
                         IntegrationPhase::Finish
@@ -7391,6 +7400,16 @@ fn observe_manual_integration(
                 && matches!(actual_state, Some(1 | 2))
                 && transition_active == Some(false);
             state.coverage.grounded_roll_completed |= completed;
+        if state.scenario == IntegrationScenario::Grounded
+            && grounded_roll_exit_timed_out(state.phase_elapsed(), state.coverage.grounded_roll_completed) {
+            gate_report.direction_trace.push(serde_json::json!({"watchdog": {
+                "exit_reason": "source_transition_completion_timeout", "last_progress": "Roll exit",
+                "waited_game_seconds": state.phase_elapsed(), "no_progress_limit_seconds": 20.0,
+                "current_conditions": state.grounded_roll_exit_diagnostic
+            }}));
+            state.timed_out = true;
+            begin_phase(state, IntegrationPhase::Finish);
+        }
             if let Some(recorded) = state.grounded_roll_playback {
                 let terminal_stance = desired_stance.map_or(*stance, |value| value.0);
                 let mut chain = grounded_joint_source_chain();
@@ -9637,6 +9656,14 @@ fn observe_manual_integration(
     }
     if let Some(roll) = roll {
         state.coverage.roll_started |= roll.active;
+        if state.scenario == IntegrationScenario::Grounded && state.phase == IntegrationPhase::Roll && roll.active {
+            let dilation = ragdoll_probe.get_ups.get(character).ok()
+                .and_then(|(_, _, dilation)| dilation).map_or(1.0, |value| value.0);
+            gate_report.direction_trace.push(serde_json::json!({
+                "roll_actor_clock": true, "game_time": state.game_time_seconds,
+                "elapsed": roll.time, "dilation": dilation
+            }));
+        }
     }
     if let Some(slot) = roll_slot {
         state.coverage.roll_slot |= slot.active
@@ -10387,6 +10414,7 @@ fn observe_manual_integration(
                 ("roll_start", coverage.roll_started),
                 ("roll_slot", coverage.roll_slot),
                 ("grounded_roll_completed", coverage.grounded_roll_completed),
+                ("roll_actor_clock", actor_montage_clock_passed(&gate_report.direction_trace, "roll_actor_clock")),
                 ("grounded_stop_callback", coverage.grounded_stop_callback),
                 (GROUNDED_JOINT_CASES[0].0, coverage.grounded_joint[0]),
                 (GROUNDED_JOINT_CASES[1].0, coverage.grounded_joint[1]),
@@ -10648,7 +10676,7 @@ fn observe_manual_integration(
                     coverage.get_up_input_released[1],
                 ),
                 ("get_up_native_jump_rejected_during_action", coverage.get_up_native_jump_rejected_during_action),
-                ("get_up_actor_clock", get_up_actor_clock_passed(&gate_report.direction_trace)),
+                ("get_up_actor_clock", actor_montage_clock_passed(&gate_report.direction_trace, "get_up_actor_clock")),
             ],
             IntegrationScenario::Camera => vec![
                 ("runtime_assembly", coverage.assembly),
@@ -12791,10 +12819,43 @@ mod tests {
             "get_up_actor_clock": true, "game_time": index as f64 * 0.02,
             "elapsed": index as f64 * 0.02 * scale, "dilation": dilation
         })).collect::<Vec<_>>();
-        assert!(get_up_actor_clock_passed(&rows(0.5, 0.5)));
-        assert!(!get_up_actor_clock_passed(&rows(1.0, 0.5)));
-        assert!(!get_up_actor_clock_passed(&rows(0.5, 1.0)));
-        assert!(!get_up_actor_clock_passed(&[]));
+        assert!(actor_montage_clock_passed(&rows(0.5, 0.5), "get_up_actor_clock"));
+        assert!(!actor_montage_clock_passed(&rows(1.0, 0.5), "get_up_actor_clock"));
+        assert!(!actor_montage_clock_passed(&rows(0.5, 1.0), "get_up_actor_clock"));
+        assert!(!actor_montage_clock_passed(&[], "get_up_actor_clock"));
+    }
+
+    #[test]
+    fn fresh_audit_roll_driver_limits_owner_clock_to_the_roll_phase() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut world, character, _) = manual_driver_fixture();
+        {
+            let mut state = world.resource_mut::<ManualIntegrationState>();
+            state.scenario = IntegrationScenario::Grounded;
+            state.phase = IntegrationPhase::Roll;
+            state.entered = false;
+            state.phase_started_seconds = -1.1;
+        }
+        world.run_system_once(drive_manual_integration).unwrap();
+        assert_eq!(world.get::<crate::als_camera::AlsCameraCustomTimeDilation>(character).unwrap().0, 0.5);
+        world.resource_mut::<ManualIntegrationState>().phase_started_seconds =
+            -(FOOT_AVATAR_REPLACEMENT_START_SECONDS as f64 + 0.1);
+        world.run_system_once(drive_manual_integration).unwrap();
+        assert_eq!(world.resource::<ManualIntegrationState>().phase, IntegrationPhase::Roll,
+            "Roll driver ended before the source transition completed");
+        world.resource_mut::<ManualIntegrationState>().coverage.grounded_roll_completed = true;
+        world.run_system_once(drive_manual_integration).unwrap();
+        assert_eq!(world.resource::<ManualIntegrationState>().phase, IntegrationPhase::GroundedJoint);
+        assert!(world.get::<crate::als_camera::AlsCameraCustomTimeDilation>(character).is_none());
+        let rows = (0..8).map(|index| serde_json::json!({
+            "roll_actor_clock": true, "game_time": index as f64 * 0.02,
+            "elapsed": index as f64 * 0.01, "dilation": 0.5
+        })).collect::<Vec<_>>();
+        assert!(actor_montage_clock_passed(&rows, "roll_actor_clock"));
+        assert!(!actor_montage_clock_passed(&rows, "get_up_actor_clock"));
+        assert!(!grounded_roll_exit_timed_out(19.9, false));
+        assert!(grounded_roll_exit_timed_out(20.0, false));
+        assert!(!grounded_roll_exit_timed_out(21.0, true));
     }
 
     #[test]
