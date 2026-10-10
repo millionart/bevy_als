@@ -2584,16 +2584,15 @@ fn custom_movement_velocity_system(
 fn accepted_jump_state_system(
     mut transitions: MessageWriter<StateTransitionEvent>,
     mut characters: Query<(Entity, &TnuaController<AlsControlScheme>, &mut LocomotionState,
-        &mut crate::als::dynamics::AlsMovementBase, Option<&mut crate::als::dynamics::AlsMovementBaseDynamicsState>), With<AlsCharacter>>,
+        &mut crate::als::dynamics::AlsMovementBase), With<AlsCharacter>>,
 ) {
-    for (entity, controller, mut mode, mut base, dynamics) in &mut characters {
+    for (entity, controller, mut mode, mut base) in &mut characters {
         if *mode != LocomotionState::Grounded || controller.action_flow_status().just_starting()
             != Some(AlsControlSchemeActionDiscriminant::Jump) { continue; }
         transitions.write(StateTransitionEvent { entity, dimension: Dimension::LocomotionState,
             from: StateValue::LocomotionState(*mode), to: StateValue::LocomotionState(LocomotionState::Air) });
         *mode = LocomotionState::Air;
         base.entity = None;
-        if let Some(mut dynamics) = dynamics { *dynamics = default(); }
     }
 }
 

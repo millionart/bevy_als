@@ -24,8 +24,10 @@ struct SourcePhysicsClockRestore {
     previous: Option<Time>,
 }
 
-#[derive(Component)]
-struct SourceCharacterFullFrame;
+#[derive(Component, Default)]
+struct SourceCharacterFullFrame {
+    velocity_before_step: Vec3,
+}
 
 pub struct SourcePhysicsTimingPlugin;
 
@@ -61,6 +63,11 @@ impl Plugin for SourcePhysicsTimingPlugin {
                 integrate_character_velocity
                     .in_set(IntegrationSystems::UpdateVelocityIncrements)
                     .after(avian3d::dynamics::integrator::pre_process_velocity_increments),
+            )
+            .add_systems(
+                SubstepSchedule,
+                record_character_velocity
+                    .before(IntegrationSystems::Velocity),
             )
             .add_systems(
                 SubstepSchedule,
@@ -134,7 +141,7 @@ fn enable_character_full_frame(
         }
         if *body == RigidBody::Dynamic && action != Some(&AlsNotifyLocomotionAction::Ragdolling)
             && matches!(*locomotion, LocomotionState::Grounded | LocomotionState::Air) {
-            commands.entity(entity).insert((CustomPositionIntegration, SourceCharacterFullFrame));
+            commands.entity(entity).insert((CustomPositionIntegration, SourceCharacterFullFrame::default()));
         }
     }
 }
@@ -148,6 +155,12 @@ fn disable_character_full_frame(
     }
 }
 
+fn record_character_velocity(mut characters: Query<(&SolverBody, &mut SourceCharacterFullFrame)>) {
+    for (body, mut frame) in &mut characters {
+        frame.velocity_before_step = body.linear_velocity;
+    }
+}
+
 fn integrate_character_position(
     frame_time: Res<Time<Virtual>>,
     physics_time: Res<Time<Physics>>,
@@ -156,16 +169,18 @@ fn integrate_character_position(
     candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
     mut characters: Query<(Entity, &mut SolverBody, &Position, &Collider, &LocomotionState,
         Option<&AlsNotifyLocomotionAction>, &RigidBody, Option<&crate::als::dynamics::AlsMovementBaseDynamicsState>,
-        Has<SourceCharacterFullFrame>, Has<CustomPositionIntegration>,
+        Option<&SourceCharacterFullFrame>, Has<CustomPositionIntegration>,
         &mut crate::als::character::AlsCmcAdapterRuntime), With<AlsCharacter>>,
 ) {
     let frame_step = frame_time.delta_secs() / substeps.0 as f32;
     let extra_step = (frame_time.delta_secs() - physics_time.delta_secs()) / substeps.0 as f32;
     for (entity, mut body, position, collider, locomotion, action, rigid_body, base, full_frame, custom_position, mut runtime) in &mut characters {
-        let movement = if full_frame {
+        let movement = if let Some(frame) = full_frame {
             if *locomotion == LocomotionState::Grounded && runtime.grounded_move_start.is_none()
                 && let Some(delta) = runtime.grounded_movement_delta {
                 delta / substeps.0 as f32 + Vec3::Y * body.linear_velocity.y * frame_step
+            } else if *locomotion == LocomotionState::Air {
+                (frame.velocity_before_step + body.linear_velocity) * 0.5 * frame_step
             } else { body.linear_velocity * frame_step }
         } else if !custom_position && *rigid_body == RigidBody::Dynamic
             && *locomotion == LocomotionState::Grounded
@@ -287,7 +302,8 @@ mod tests {
         for delta_ms in [100_u64, 16, 33, 50] {
             println!("Takeoff frame progress: delta={delta_ms} ms");
             for substeps in [1, 2, 6] {
-                for (support_body, support_speed) in [(RigidBody::Kinematic, 2.0_f32), (RigidBody::Kinematic, 0.0), (RigidBody::Static, 0.0)] {
+                for (support_body, support_speed, takeoff_speed) in [(RigidBody::Kinematic, 2.0_f32, 2.0_f32),
+                    (RigidBody::Kinematic, 2.0, -2.0), (RigidBody::Kinematic, 0.0, 0.0), (RigidBody::Static, 0.0, 0.0)] {
                     for changed in [false, true] {
                         for (gravity_strength, horizontal_input) in [(9.8, Vec2::ZERO), (9.8, Vec2::Y * 0.4),
                             (19.6, Vec2::ZERO), (19.6, Vec2::Y * 0.4)] {
@@ -322,6 +338,7 @@ mod tests {
                         for _ in 0..60 { app.update(); }
                         assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Grounded);
                         assert_eq!(app.world().get::<crate::als::dynamics::AlsMovementBaseDynamicsState>(character).unwrap().support_velocity.x, support_speed);
+                        app.world_mut().get_mut::<LinearVelocity>(platform).unwrap().0 = Vec3::X * takeoff_speed;
                         if changed { *app.world_mut().get_mut::<Collider>(character).unwrap() = Collider::capsule(0.29, 1.22); }
                         *app.world_mut().resource_mut::<TimeUpdateStrategy>() = TimeUpdateStrategy::ManualDuration(Duration::from_millis(delta_ms));
                         {
@@ -334,6 +351,10 @@ mod tests {
                         app.update();
                         let (before, position, gravity, collider_changed, mode, base) = app.world().resource::<PostMotorSample>().0.expect("The real jump must start during the sampled frame");
                         assert_eq!(collider_changed, changed);
+                        if takeoff_speed != support_speed && horizontal_input == Vec2::ZERO {
+                            assert!((before.x - takeoff_speed).abs() < 0.0001,
+                                "Accepted jump lost the current base velocity before clearing: {before:?}, expected={takeoff_speed}");
+                        }
                         let delta = delta_ms as f32 / 1000.0;
                         let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
                         let expected = before + gravity * delta;
@@ -343,7 +364,7 @@ mod tests {
                         assert_eq!(base, None);
                         let physics_delta = delta.min(SOURCE_MAX_PHYSICS_DELTA.as_secs_f32());
                         assert!((app.world().get::<LinearVelocity>(ordinary).unwrap().y - ordinary_velocity + gravity_strength * physics_delta).abs() < 0.0001);
-                        assert!((app.world().get::<Position>(platform).unwrap().x - platform_start.x - support_speed * physics_delta).abs() < 0.0001);
+                        assert!((app.world().get::<Position>(platform).unwrap().x - platform_start.x - takeoff_speed * physics_delta).abs() < 0.0001);
                         assert!((app.world().get::<Position>(character).unwrap().x - position.x - before.x * delta).abs() < 0.0001);
                         assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Air);
                         }
@@ -494,6 +515,44 @@ mod tests {
     }
 
     #[test]
+    fn browser_review_movement_full_frame_air_matches_source_midpoint_displacement() {
+        for initial_y in [0.0, 5.0, -5.0] {
+            let (position, velocity) = simulate_air_wall_motion(&[], 0.0, Vec3::Y * initial_y);
+            let expected_position = 2.0 + initial_y * 0.1 - 0.5 * 9.81 * 0.1 * 0.1;
+            assert!((position.y - expected_position).abs() < 1e-4,
+                "Full-frame falling displacement differs: initial={initial_y}, {} != {expected_position}", position.y);
+            assert!((velocity.y - (initial_y - 0.981)).abs() < 1e-4,
+                "Full-frame gravity changed while correcting displacement");
+        }
+    }
+
+    #[test]
+    fn full_frame_midpoint_keeps_terminal_falling_displacement() {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+            avian3d::prelude::PhysicsPlugins::new(PostUpdate), SourcePhysicsTimingPlugin))
+            .init_asset::<Mesh>()
+            .add_message::<bevy::asset::AssetEvent<Mesh>>()
+            .insert_resource(SubstepCount(6))
+            .insert_resource(crate::als::dynamics::AlsDefaultPhysicsVolume(crate::als::dynamics::AlsPhysicsVolume {
+                terminal_velocity: 2.0, ..default()
+            }))
+            .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(100)))
+            .add_systems(SubstepSchedule, crate::als::dynamics::limit_falling_velocity
+                .after(IntegrationSystems::Velocity)
+                .before(avian3d::dynamics::solver::schedule::SubstepSolverSystems::WarmStart));
+        app.finish();
+        app.update();
+        let character = app.world_mut().spawn((crate::als::character::AlsCharacter, LocomotionState::Air,
+            RigidBody::Dynamic, Collider::capsule(0.3, 1.2), avian3d::prelude::LockedAxes::ROTATION_LOCKED,
+            Position(Vec3::Y * 2.0), LinearVelocity(Vec3::NEG_Y * 2.0), Transform::from_xyz(0.0, 2.0, 0.0))).id();
+        app.update();
+        let position = app.world().get::<Position>(character).unwrap().0;
+        assert!((position.y - 1.8).abs() < 1e-4, "Terminal falling displacement differs: {position:?}");
+        assert!((app.world().get::<LinearVelocity>(character).unwrap().y + 2.0).abs() < 1e-4);
+    }
+
+    #[test]
     fn first_air_wall_impact_keeps_the_remaining_tangential_motion() {
         let velocity = Vec3::new(3.75, 0.0, 3.75);
         let (free_position, free_velocity) = simulate_air_wall_motion(&[], 0.0, velocity);
@@ -551,7 +610,8 @@ mod tests {
                     assert!(result.y <= 0.0 && position.y <= 2.0,
                         "falling slope created upward motion: {position:?} {result:?}");
                 } else {
-                    assert!(result.y > 0.0 && result.y <= free_velocity.y + 0.002
+                    let source_deflected_y = free_velocity.y + 0.5 * 9.81 * (0.1 / 6.0);
+                    assert!(result.y > 0.0 && (result.y - source_deflected_y).abs() < 0.002
                         && position.y <= free_position.y + 0.002,
                         "slope changed legal jump ascent: {position:?} {result:?} free={free_position:?} {free_velocity:?}");
                 }
@@ -573,7 +633,8 @@ mod tests {
                     &[(normals[0], 0.29), (normals[1], 0.29)], 0.0, velocity);
                 assert!((position.y - free_position.y).abs() < 0.002,
                     "{degrees} degree corner lost falling motion: {position:?} free={free_position:?}");
-                assert!((result.y - free_velocity.y).abs() < 0.002,
+                let source_deflected_y = free_velocity.y + 0.5 * 9.81 * (0.1 / 6.0);
+                assert!((result.y - source_deflected_y).abs() < 0.002,
                     "corner changed falling velocity: {result:?} free={free_velocity:?}");
                 for normal in normals {
                     assert!((position - Vec3::Y * 2.0).dot(normal) >= -0.292,
