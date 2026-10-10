@@ -6,7 +6,7 @@
 
 | 编号 | 差异与当前 consumer | 指定提交判定 | 修复及验证 |
 |---|---|---|---|
-| R01 | `source_physics_joint::solve_source_joint_velocity_iterations` 未屏蔽非动态端响应惯量 | 待原生确认 | 待执行 |
+| R01 | `source_physics_joint::solve_source_joint_velocity_iterations` 未屏蔽非动态端响应惯量 | 确认并已修复 | BF135.06：真实query有限质量Kinematic父`.5!=0`→唯一inertia helper按native NonDynamic编码归一，线性/角向/conditioning16组通过；去掉归一同红，完整byte恢复554回归及原startup/ragdoll11项通过 |
 | R02 | `ragdoll_physics_profile::solve_profile_linear_ccd` 在相对运动读取前按本体位移退出 | 待原生确认 | 待执行 |
 | R03 | 同 CCD 写回缺运动学体剩余法向位移 | 待原生确认 | 待执行 |
 | R04 | 同 CCD pair filter 未消费运行期关节禁碰 | 待原生确认 | 待执行 |
@@ -20,7 +20,7 @@
 | R12 | `dispatch_graph_footsteps` 的 montage sample 缺中断状态 | 待原生确认 | 现普通 playback 中断过滤未覆盖最终图 sample |
 | R13 | `bridge_roll_slot_samples` 仍写 `clock.weight=1.0` | 待原生确认 | 现 queued notify 权重修复未覆盖该 bridge |
 | R14 | `source_sequence_player::next_position` 无条件取模丢闭区间末点 | 确认并已修复 | BF135.01：原生 `0!=1.5` 失败→17/17 通过→移除规则再失败→完整字节恢复同 target 17/17；原 startup/state_machine 通过 |
-| R15 | `source_physics_joint::apply_linear_motor` 阻尼未反馈累计 DP/DQ | 待原生确认 | 待执行 |
+| R15 | `source_physics_joint::apply_linear_motor` 阻尼未反馈累计 DP/DQ | 确认并已修复 | BF135.06：8迭代`.99609375!=.5`及已有DQ力臂方向反例红→预解基线/DP-DQ反馈/源cached模式，192标量/27关节原生通过；反馈、基线无状态替代、DQ、cached模式独立消融红，源码整byte恢复554回归及原startup/ragdoll11项通过 |
 | R16 | pose renderer PropertyAccess 仍输出空 `expected_tag` | 待原生确认 | 待执行；修复后必须完整转换 corpus/diff |
 | R17 | state wrappers 与 GameplayTag consumer 仍采用原始大小写身份 | 待原生确认 | 待执行 |
 | R18 | CCD 零允许深度仍只裁剪位置、不施加源冲量 | 待原生确认 | 待执行 |

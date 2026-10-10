@@ -12,7 +12,7 @@ use avian3d::{
         },
     },
     math::SymmetricMatrix,
-    physics_transform::PreSolveDeltaRotation,
+    physics_transform::{PreSolveDeltaPosition, PreSolveDeltaRotation},
     prelude::{
         AngularInertia, JointDisabled, LockedAxes, PhysicsSchedule, RigidBodyDisabled,
         RigidBodyQueryReadOnlyItem, SolverSystems, SphericalJoint, SubstepSchedule,
@@ -115,6 +115,7 @@ pub struct SourcePhysicsJointSolverData {
     frames: [Quat; 2],
     arms: [Vec3; 2],
     center_difference: Vec3,
+    pre_solve_position: [Vec3; 2],
     pre_solve_rotation: [Quat; 2],
     limit_lambdas: [f32; 3],
     limit_axes: [Vec3; 3],
@@ -131,6 +132,7 @@ impl Default for SourcePhysicsJointSolverData {
             frames: [Quat::IDENTITY; 2],
             arms: [Vec3::ZERO; 2],
             center_difference: Vec3::ZERO,
+            pre_solve_position: [Vec3::ZERO; 2],
             pre_solve_rotation: [Quat::IDENTITY; 2],
             limit_lambdas: [0.0; 3],
             limit_axes: [Vec3::ZERO; 3],
@@ -253,6 +255,7 @@ impl XpbdConstraint<2> for SourcePhysicsJoint {
                     self.linear_position_target[index],
                     self.linear_velocity_target[index],
                     self.linear_drive_acceleration_mode,
+                    self.use_linear_solver,
                     dt,
                 );
             }
@@ -444,6 +447,7 @@ fn apply_linear_motor(
     target_position: f32,
     target_velocity: f32,
     acceleration_mode: bool,
+    cached: bool,
     dt: f32,
 ) {
     let stiffness = if motor.position_enabled { motor.stiffness } else { 0.0 };
@@ -451,8 +455,17 @@ fn apply_linear_motor(
     if stiffness <= 0.0 && damping <= 0.0 || dt <= 0.0 {
         return;
     }
-    let axis = parent.delta_rotation.0 * data.frames[0] * Vec3::AXES[index];
-    let arms = [parent.delta_rotation.0 * data.arms[0], child.delta_rotation.0 * data.arms[1]];
+    let reference_arms = std::array::from_fn::<_, 2, _>(|index| data.pre_solve_rotation[index] * data.arms[index]);
+    let axis = (if cached { data.pre_solve_rotation[0] } else { parent.delta_rotation.0 })
+        * data.frames[0] * Vec3::AXES[index];
+    let arms = if cached { reference_arms }
+        else { [parent.delta_rotation.0 * data.arms[0], child.delta_rotation.0 * data.arms[1]] };
+    let corrections = [(&*parent, 0), (&*child, 1)].map(|(body, index)| {
+        let rotation = if cached {
+            cached_rotation_delta(body.delta_rotation.0 * data.pre_solve_rotation[index].conjugate()).cross(reference_arms[index])
+        } else { arms[index] - reference_arms[index] };
+        body.delta_position - data.pre_solve_position[index] + rotation
+    });
     let inverse_masses = [inertias[0].effective_inv_mass(), inertias[1].effective_inv_mass()];
     let responses = [inverse_masses[0] * axis, inverse_masses[1] * axis];
     let angular_axes = [arms[0].cross(axis), arms[1].cross(axis)];
@@ -467,12 +480,12 @@ fn apply_linear_motor(
     if inverse_mass <= f32::EPSILON || acceleration_mode && linear_inverse_mass <= f32::EPSILON {
         return;
     }
-    let separation = child.delta_position - parent.delta_position + data.center_difference
-        + arms[1] - arms[0];
+    let separation = data.center_difference + data.pre_solve_position[1] - data.pre_solve_position[0]
+        + reference_arms[1] - reference_arms[0] + corrections[1] - corrections[0];
     let error = axis.dot(separation) - target_position;
     let velocity = child.linear_velocity + child.angular_velocity.cross(arms[1])
         - parent.linear_velocity - parent.angular_velocity.cross(arms[0]);
-    let velocity_dt = (axis.dot(velocity) - target_velocity) * dt;
+    let velocity_dt = (axis.dot(velocity) - target_velocity) * dt + axis.dot(corrections[1] - corrections[0]);
     let scale = if acceleration_mode { linear_inverse_mass.recip() } else { 1.0 };
     let spring = scale * stiffness * dt * dt;
     let damper = scale * damping * dt;
@@ -486,10 +499,18 @@ fn apply_linear_motor(
     *lambda += delta;
     parent.delta_position += responses[0] * delta;
     child.delta_position -= responses[1] * delta;
-    parent.delta_rotation.0 =
-        (Quat::from_scaled_axis(angular_responses[0] * delta) * parent.delta_rotation.0).normalize();
-    child.delta_rotation.0 =
-        (Quat::from_scaled_axis(-angular_responses[1] * delta) * child.delta_rotation.0).normalize();
+    if cached {
+        for (body, previous, delta) in [(parent, data.pre_solve_rotation[0], angular_responses[0] * delta),
+            (child, data.pre_solve_rotation[1], -angular_responses[1] * delta)] {
+            let value = cached_rotation_delta(body.delta_rotation.0 * previous.conjugate()) + delta;
+            body.delta_rotation.0 = (Quat::from_xyzw(value.x * 0.5, value.y * 0.5, value.z * 0.5, 1.0).normalize() * previous).normalize();
+        }
+    } else {
+        parent.delta_rotation.0 =
+            (Quat::from_scaled_axis(angular_responses[0] * delta) * parent.delta_rotation.0).normalize();
+        child.delta_rotation.0 =
+            (Quat::from_scaled_axis(-angular_responses[1] * delta) * child.delta_rotation.0).normalize();
+    }
 }
 
 fn apply_angular_correction(
@@ -586,6 +607,9 @@ fn conditioned_inertias(
     enabled: bool,
     settings: SourceJointSolverSettings,
 ) -> [SolverBodyInertia; 2] {
+    let inertias = inertias.map(|inertia| if inertia.dominance() == SolverBodyInertia::DUMMY.dominance() {
+        &SolverBodyInertia::DUMMY
+    } else { inertia });
     if !enabled {
         return [inertias[0].clone(), inertias[1].clone()];
     }
@@ -629,9 +653,9 @@ fn conditioned_inertias(
     })
 }
 
-fn capture_pre_solve_rotation(
+fn capture_pre_solve_transform(
     mut joints: Query<(&SourcePhysicsJoint, &mut SourcePhysicsJointSolverData)>,
-    bodies: Query<&PreSolveDeltaRotation>,
+    bodies: Query<(&PreSolveDeltaPosition, &PreSolveDeltaRotation)>,
 ) {
     for (joint, mut data) in &mut joints {
         data.limit_lambdas = [0.0; 3];
@@ -639,10 +663,10 @@ fn capture_pre_solve_rotation(
         data.motor_lambdas = [0.0; 3];
         data.linear_motor_lambdas = [0.0; 3];
         for (index, entity) in joint.entities().into_iter().enumerate() {
-            data.pre_solve_rotation[index] = bodies
-                .get(entity)
-                .map(|value| value.0.0)
-                .unwrap_or(Quat::IDENTITY);
+            let (position, rotation) = bodies.get(entity).map(|(position, rotation)| (position.0, rotation.0.0))
+                .unwrap_or((Vec3::ZERO, Quat::IDENTITY));
+            data.pre_solve_position[index] = position;
+            data.pre_solve_rotation[index] = rotation;
         }
     }
 }
@@ -870,6 +894,146 @@ mod tests {
             0,
             true,
         )
+    }
+
+    #[test]
+    fn browser_review_joint_non_dynamic_finite_inertias_have_no_response() {
+        use bevy::reflect::ReflectMut;
+        use avian3d::dynamics::solver::solver_body::SolverBodyFlags;
+        for dynamic in [[false, true], [true, false], [false, false], [true, true]] {
+            for conditioning in [false, true] {
+                for angular in [false, true] {
+                    let mut world = World::new();
+                    let inertias = dynamic.map(|is_dynamic| SolverBodyInertia::new(1.0,
+                        SymmetricMatrix::from_diagonal(Vec3::ONE), LockedAxes::default(), 0, is_dynamic));
+                    let parent = world.spawn((SolverBody {
+                        flags: if dynamic[0] { SolverBodyFlags::empty() } else { SolverBodyFlags::IS_KINEMATIC }, ..default()
+                    }, inertias[0].clone())).id();
+                    let child = world.spawn((SolverBody {
+                        linear_velocity: if angular { Vec3::ZERO } else { Vec3::X },
+                        angular_velocity: if angular { Vec3::X } else { Vec3::ZERO },
+                        flags: if dynamic[1] { SolverBodyFlags::empty() } else { SolverBodyFlags::IS_KINEMATIC }, ..default()
+                    }, inertias[1].clone())).id();
+                    let mut definition = joint();
+                    definition.parent = parent;
+                    definition.child = child;
+                    definition.linear_locked = !angular;
+                    if angular { definition.angular_limits[0] = SourceAngularLimit::Locked; }
+                    definition.mass_conditioning = conditioning;
+                    definition.settings.velocity_iterations = 1;
+                    let mut data = SourcePhysicsJointSolverData::default();
+                    if angular {
+                        data.limit_lambdas[0] = 1.0;
+                        data.limit_axes[0] = Vec3::X;
+                    } else {
+                        let ReflectMut::Struct(point) = data.point_data.reflect_mut() else { unreachable!() };
+                        let ReflectMut::Struct(point) = point.field_mut("point_constraint").unwrap().reflect_mut() else { unreachable!() };
+                        *point.field_mut("total_lagrange").unwrap().try_downcast_mut::<Vec3>().unwrap() = Vec3::X;
+                    }
+                    world.spawn((definition, data));
+                    world.run_system_cached(solve_source_joint_velocity_iterations).unwrap();
+                    let weights = dynamic.map(|value| if value { 1.0 } else { 0.0 });
+                    let sum: f32 = weights.iter().sum();
+                    let impulse = if sum > 0.0 { sum.recip() } else { 0.0 };
+                    for (entity, expected) in [(parent, weights[0] * impulse), (child, 1.0 - weights[1] * impulse)] {
+                        let body = world.get::<SolverBody>(entity).unwrap();
+                        let actual = if angular { body.angular_velocity.x } else { body.linear_velocity.x };
+                        assert!((actual - expected).abs() < 1e-6,
+                            "Non-dynamic joint response differs: dynamic={dynamic:?}, conditioning={conditioning}, angular={angular}, {actual} != {expected}");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn browser_review_joint_linear_damping_converges_without_reapplying_the_motor() {
+        use avian3d::physics_transform::PreSolveDeltaPosition;
+        let dt = 1.0 / 64.0;
+        for (inverse, cached) in [([0.5, 0.5], false), ([0.5, 0.5], true), ([0.5, 1.0], false), ([0.5, 1.0], true)] {
+            for acceleration in [false, true] {
+                for damping in [64.0, 256.0] {
+                    for (baseline, offsets) in [([0.0, 0.0], [0.0, 0.0]), ([0.2, 0.5], [0.0, 0.0]),
+                        ([0.2, 0.5], [0.25, -0.5])] {
+                        for max_force in [0.0, 4.0] {
+                            for iterations in [1, 8] {
+                                let mut world = World::new();
+                                let positions = std::array::from_fn::<_, 2, _>(|index| Vec3::X * (baseline[index] * dt + offsets[index]));
+                                let entities = positions.map(|position| world.spawn((
+                                    PreSolveDeltaPosition(position), PreSolveDeltaRotation::default(),
+                                )).id());
+                                let mut definition = joint();
+                                definition.use_linear_solver = cached;
+                                definition.parent = entities[0];
+                                definition.child = entities[1];
+                                definition.linear_velocity_target = Vec3::X;
+                                definition.linear_drive_acceleration_mode = acceleration;
+                                definition.linear_motors[0] = SourceLinearMotor {
+                                    damping, max_force, velocity_enabled: true, ..default()
+                                };
+                                let entity = world.spawn(definition.clone()).id();
+                                world.run_system_cached(capture_pre_solve_transform).unwrap();
+                                let mut data = world.get::<SourcePhysicsJointSolverData>(entity).unwrap().clone();
+                                let [mut parent, mut child] = std::array::from_fn::<_, 2, _>(|index| SolverBody {
+                                    linear_velocity: Vec3::X * baseline[index], delta_position: positions[index], ..default()
+                                });
+                                let inertias = inverse.map(|inverse| inertia(inverse, Vec3::ZERO));
+                                for _ in 0..iterations {
+                                    definition.solve([&mut parent, &mut child], [&inertias[0], &inertias[1]], &mut data, dt);
+                                }
+                                let inverse_sum: f32 = inverse.iter().sum();
+                                let damping_dt = damping * dt * if acceleration { 1.0 } else { inverse_sum };
+                                let relative = baseline[1] - baseline[0];
+                                let mut change = damping_dt / (1.0 + damping_dt) * (1.0 - relative);
+                                if max_force > 0.0 { change = change.min(max_force * dt * inverse_sum); }
+                                let actual = relative + (child.delta_position.x - positions[1].x
+                                    - parent.delta_position.x + positions[0].x) / dt;
+                                let expected = relative + change;
+                                assert!((actual - expected).abs() < 1e-5,
+                                    "Linear damping differs: inverse={inverse:?}, acceleration={acceleration}, damping={damping}, baseline={baseline:?}, force={max_force}, iterations={iterations}, {actual} != {expected}");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    #[test]
+    fn browser_review_joint_cached_drive_uses_accumulated_connector_rotation() {
+        for iterations in [1, 8] {
+            let mut definition = joint();
+            definition.use_linear_solver = true;
+            definition.linear_drive_acceleration_mode = false;
+            definition.linear_velocity_target = Vec3::X;
+            definition.linear_motors[0] = SourceLinearMotor {
+                damping: 64.0, velocity_enabled: true, ..default()
+            };
+            let arms = [Vec3::Y * 0.2, Vec3::NEG_Y * 0.3];
+            let initial_rotation_delta = Vec3::Z * 0.3;
+            let mut parent = SolverBody {
+                delta_rotation: avian3d::prelude::Rotation(Quat::from_xyzw(0.0, 0.0, 0.15, 1.0).normalize()),
+                ..default()
+            };
+            let mut child = SolverBody::default();
+            let mut data = SourcePhysicsJointSolverData { arms, ..default() };
+            let bodies = [inertia(0.5, Vec3::ONE), inertia(0.5, Vec3::ONE)];
+            let dt = 1.0 / 64.0;
+            for _ in 0..iterations {
+                definition.solve([&mut parent, &mut child], [&bodies[0], &bodies[1]], &mut data, dt);
+            }
+            let angular_axes = arms.map(|arm| arm.cross(Vec3::X));
+            let inverse_mass = 1.0 + angular_axes.iter().map(|axis| axis.length_squared()).sum::<f32>();
+            let initial_connector_delta = -initial_rotation_delta.cross(arms[0]).x;
+            let source_lambda = (initial_connector_delta - dt) / (1.0 + inverse_mass);
+            assert!(parent.delta_position.abs_diff_eq(Vec3::X * 0.5 * source_lambda, 1e-6),
+                "Cached motor connector correction differs: iterations={iterations}, {:?}, lambda={source_lambda}", parent.delta_position);
+            assert!(child.delta_position.abs_diff_eq(Vec3::NEG_X * 0.5 * source_lambda, 1e-6));
+            for (body, delta) in [(&parent, initial_rotation_delta + angular_axes[0] * source_lambda),
+                (&child, -angular_axes[1] * source_lambda)] {
+                let expected = Quat::from_xyzw(delta.x * 0.5, delta.y * 0.5, delta.z * 0.5, 1.0).normalize();
+                assert!(body.delta_rotation.0.abs_diff_eq(expected, 1e-6), "Cached motor rotation differs");
+            }
+        }
     }
 
     #[test]
@@ -2006,7 +2170,7 @@ impl Plugin for SourcePhysicsJointPlugin {
             )
             .add_systems(
                 SubstepSchedule,
-                (capture_pre_solve_rotation, solve_source_joint_iterations)
+                (capture_pre_solve_transform, solve_source_joint_iterations)
                     .chain()
                     .in_set(XpbdSolverSystems::SolveUserConstraints),
             )
