@@ -1273,8 +1273,8 @@ impl InterruptibleFsmNode {
         let weights = Self::state_weight_values(machine, &snapshot, ctx)?;
         let state = ctx.state_mut_or_else(|| snapshot.clone())?;
         state.recorded_machine_weight = current_machine_weight();
-        state.recorded_state_weights = weights;
-        Ok(())
+        state.recorded_state_weights = weights.clone();
+        crate::extensions::source_instance::record_source_state_weights(ctx, weights)
     }
 
     fn transition_endpoint_states(state: &LowLevelState) -> Option<[LowLevelStateId; 2]> {
@@ -1465,6 +1465,7 @@ impl NodeLike for InterruptibleFsmNode {
         let frame = ctx.graph_context.frame_index();
         let entry_graph = ctx.graph_context.context_id;
         let entry_node = ctx.node_id;
+        crate::extensions::source_instance::begin_source_machine_update(&ctx, current_machine_weight())?;
         let entry_error = |phase: &str, error: GraphError| GraphError::UnknownErrorNode {
             graph: entry_graph,
             node: entry_node,
@@ -2115,6 +2116,9 @@ mod tests {
                         state.recorded_machine_weight = value / 4.0;
                         state.current_state_elapsed_time = value * 3.0;
                         state.recorded_state_weights = vec![SourceFsmStateWeight { state_id: state_id.uuid().to_string(), value: value / 8.0 }];
+                        let weights = state.recorded_state_weights.clone();
+                        crate::extensions::source_instance::begin_source_machine_update(&node, value / 4.0).unwrap();
+                        crate::extensions::source_instance::record_source_state_weights(&node, weights).unwrap();
                     }
                     for (index, instance) in [first, second].into_iter().take(count).enumerate() {
                         let root_ctx = GraphContext::new(arena.get_toplevel_id(), root.1, &mut arena, &resources,
@@ -2123,7 +2127,8 @@ mod tests {
                         let child = owner.create_node_context(machine).create_child_context(nested.0, nested.1,
                             Some(LowLevelStateId::HlState(state_id)));
                         let value = (index + frame) as f32;
-                        for (getter, expected) in getters.into_iter().zip([value / 4.0, value * 3.0, value / 8.0]) {
+                        let completed = if frame == 1 { 0.0 } else { (index + frame - 1) as f32 };
+                        for (getter, expected) in getters.into_iter().zip([completed / 4.0, value * 3.0, completed / 8.0]) {
                             nested.1.nodes[&getter].update(child.create_node_context(getter)).unwrap();
                             let actual = child.node_caches().get_output_data(getter, StateKey::Default, "ReturnValue".into())
                                 .unwrap().as_f32().unwrap();
@@ -2328,6 +2333,243 @@ mod tests {
                 }
             }
         }
+    }
+
+    fn getter_fixture(reset: bool, reverse: bool) -> (World, Handle<AnimationGraph>, [NodeId; 2], [StateId; 2], [Pose; 2]) {
+        use bevy_animation_graph::core::animation_clip::EntityPath;
+        use crate::extensions::source_scalar_expression::{SourceScalarDataType, SourceScalarExpressionNode, SourceScalarPin};
+        let ids = [1, 2].map(|index| serde_json::from_str::<NodeId>(
+            &format!("\"70000000-0000-4000-8000-{index:012}\"")).unwrap());
+        let states = [1, 2, 3, 4].map(|index| serde_json::from_str::<StateId>(
+            &format!("\"71000000-0000-4000-8000-{index:012}\"")).unwrap());
+        let mut graphs = Assets::<AnimationGraph>::default();
+        let mut machines = Assets::<StateMachine>::default();
+        let mut skeletons = Assets::<Skeleton>::default();
+        let path = EntityPath::default().child("root");
+        let bone = path.id();
+        let mut skeleton = Skeleton::default();
+        skeleton.set_root(bone);
+        skeleton.add_bone(path, Transform::IDENTITY, Transform::IDENTITY);
+        let skeleton = skeletons.add(skeleton);
+        let poses = [0.1, 0.2].map(|x| {
+            let mut pose = Pose { skeleton: skeleton.clone(), ..default() };
+            pose.add_bone(BonePose::from_transform(Transform::from_translation(Vec3::X * x)), bone);
+            pose
+        });
+        let leaves = ["pose_a", "pose_b"].map(|key| {
+            let node = AnimationNode::new(key, GlobalPoseInputNode { key: key.into(), output: "Pose".into() });
+            let mut graph = AnimationGraph::new();
+            graph.add_node(node.clone());
+            graph.add_output_data("Pose".into(), DataSpec::Pose);
+            graph.add_output_data_edge(node.id, "Pose", "Pose");
+            graphs.add(graph)
+        });
+        let nodes = [0, 1].map(|index| {
+            let mut condition = AnimationGraph::new();
+            let getter = AnimationNode::new("getter", crate::extensions::SourceAnimationStateGetterNode {
+                source_function: if index == 0 { "GetInstanceCurrentStateElapsedTime" } else { "GetInstanceMachineWeight" }.into(),
+                fsm_node: ids[0].uuid().to_string(), output: "ReturnValue".into(), ..default()
+            });
+            let compare = AnimationNode::new("condition", SourceScalarExpressionNode {
+                operation: if index == 0 { "greater_equal" } else { "less" }.into(),
+                input_pins: vec![SourceScalarPin { name: "A".into(), ..default() },
+                    SourceScalarPin { name: "B".into(), f32_default: if index == 0 { 0.04 } else { 0.0 },
+                        ..default() }],
+                output_pins: vec![SourceScalarPin { name: "Result".into(), data_type: SourceScalarDataType::Bool, ..default() }],
+                ..default()
+            });
+            condition.add_node(getter.clone());
+            condition.add_node(compare.clone());
+            condition.add_node_parameter_edge(getter.id, "ReturnValue", compare.id, "A");
+            if index == 1 {
+                let threshold = AnimationNode::new("threshold", crate::extensions::GlobalF32InputNode { key: "threshold".into() });
+                condition.add_node(threshold.clone());
+                condition.add_node_parameter_edge(threshold.id, "threshold", compare.id, "B");
+            }
+            condition.add_output_data("Result".into(), DataSpec::Bool);
+            condition.add_output_data_edge(compare.id, "Result", "Result");
+            let transition: DirectTransitionId = serde_json::from_str(
+                &format!("\"72000000-0000-4000-8000-{index:012}\"")).unwrap();
+            let mut machine = StateMachine::default();
+            machine.start_state = states[index * 2];
+            machine.node_spec.add_output_data("Pose".into(), DataSpec::Pose);
+            for local in 0..2 {
+                machine.add_state(State { id: states[index * 2 + local], graph: leaves[local].clone(), ..default() });
+            }
+            machine.add_transition_unchecked(DirectTransition {
+                id: transition, source: states[index * 2], target: states[index * 2 + 1], data: TransitionData::default(),
+            });
+            machine.update_low_level_fsm();
+            let mut node = AnimationNode::new("machine", InterruptibleFsmNode {
+                fsm: machines.add(machine), state_pose_output: "Pose".into(), outer_pose_output: "Pose".into(),
+                internal_time_key: "delta".into(), source_transition_conditions: vec![SourceTransitionCondition {
+                    transition_id: transition.uuid().to_string(), source_state_id: states[index * 2].uuid().to_string(),
+                    condition: graphs.add(condition), output: "Result".into(), context_state: states[index * 2], ..default()
+                }], ..default()
+            });
+            node.id = ids[index];
+            node
+        });
+        let reference = AnimationNode::new("reference", GlobalPoseInputNode { key: "pose_a".into(), output: "Pose".into() });
+        let branch = AnimationNode::new("machine relevance", crate::extensions::SourceTwoWayBlendNode {
+            alpha_key: "select".into(), expose_alpha_pin: false, reset_child_on_activation: reset,
+            mapping: crate::extensions::SourceAlphaMapping { source_semantics: true, ..default() }, ..default()
+        });
+        let outer = AnimationNode::new("observer blend", crate::extensions::SourceTwoWayBlendNode {
+            alpha_key: "outer".into(), expose_alpha_pin: false, pin_default: 0.5, ..default()
+        });
+        let mut root = AnimationGraph::new();
+        for node in [&nodes[0], &nodes[1], &reference, &branch, &outer] { root.add_node(node.clone()); }
+        root.add_node(AnimationNode::new("external elapsed", crate::extensions::SourceAnimationStateGetterNode {
+            source_function: "GetInstanceCurrentStateElapsedTime".into(), fsm_node: ids[0].uuid().to_string(),
+            output: "ReturnValue".into(), ..default()
+        }));
+        root.add_node_parameter_edge(nodes[0].id, "Pose", branch.id, "A");
+        root.add_node_parameter_edge(reference.id, "Pose", branch.id, "B");
+        root.add_node_parameter_edge(branch.id, "Pose", outer.id, if reverse { "B" } else { "A" });
+        root.add_node_parameter_edge(nodes[1].id, "Pose", outer.id, if reverse { "A" } else { "B" });
+        root.add_output_data("Pose".into(), DataSpec::Pose);
+        root.add_output_data_edge(if reset { branch.id } else { outer.id }, "Pose", "Pose");
+        let root = graphs.add(root);
+        let mut world = World::new();
+        world.insert_resource(graphs);
+        world.insert_resource(machines);
+        world.insert_resource(skeletons);
+        world.insert_resource(Assets::<GraphClip>::default());
+        (world, root, ids, [states[1], states[3]], poses)
+    }
+
+    fn query_getter_fixture(In((root, ids, targets, poses, reset, retained)):
+        In<(Handle<AnimationGraph>, [NodeId; 2], [StateId; 2], [Pose; 2], bool, bool)>, resources: SystemResources) {
+        let graph = resources.animation_graph_assets.get(&root).unwrap();
+        let mut arena = GraphContextArena::new(root.id());
+        let mut gizmos = DeferredGizmos::default();
+        let entities = HashMap::new();
+        let env = TestIoEnv::default();
+        let bone = *poses[0].paths.keys().next().unwrap();
+        let mut elapsed = 0.0;
+        if retained {
+            let inputs = HashMap::new();
+            let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources,
+                &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+            let mut node = context.create_node_context(ids[0]);
+            let machine = graph.nodes[&ids[0]].try_inner_downcast_ref::<InterruptibleFsmNode>().unwrap().state_machine(&resources).unwrap();
+            let initial = InterruptibleFsmNode::initial_state(machine.start_state.clone().unwrap(), 0.0, 0);
+            let state = node.state_mut_or_else(|| initial).unwrap();
+            state.state = LowLevelStateId::HlState(targets[0]);
+            state.first_update = false;
+            state.current_state_elapsed_time = 100.0;
+            state.recorded_state_weights = vec![SourceFsmStateWeight { state_id: targets[0].uuid().to_string(), value: 1.0 }];
+            node.set_time(100.0);
+            crate::extensions::source_instance::begin_source_machine_update(&node, 1.0).unwrap();
+            crate::extensions::source_instance::record_source_state_weights(&node,
+                vec![SourceFsmStateWeight { state_id: targets[0].uuid().to_string(), value: 1.0 }]).unwrap();
+        }
+        for frame in 0..if reset { 14 } else { 132 } {
+            let inactive = if reset { (5..8).contains(&frame) } else { frame >= 10 };
+            let inputs = HashMap::from([("pose_a".into(), DataValue::Pose(poses[0].clone())),
+                ("pose_b".into(), DataValue::Pose(poses[1].clone())), ("delta".into(), DataValue::F32(0.02)),
+                ("outer".into(), DataValue::F32(0.5)),
+                ("select".into(), DataValue::F32(if inactive { 1.0 } else { 0.0 })),
+                ("threshold".into(), DataValue::F32(if inactive { 0.25 } else { 0.0 }))]);
+            let source = crate::extensions::SourceAnimationInputs::default();
+            let output = source.evaluate(Entity::PLACEHOLDER, || graph.query_with_context(
+                QueryOutputTime::Forced(TimeUpdate::Delta(0.02)),
+                GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources,
+                    &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs))).unwrap();
+            let states = arena.iter_context_ids().filter(|context| !retained || *context != arena.get_toplevel_id())
+                .filter_map(|context| arena.get_context(context).unwrap()
+                .node_states.get::<InterruptibleFsmState>(ids[0], StateKey::Default).ok()).cloned().collect::<Vec<_>>();
+            assert_eq!(states.len(), 1, "The fixture must have exactly one active machine");
+            if reset {
+                if frame == 4 {
+                    if states[0].state != LowLevelStateId::HlState(targets[0]) {
+                        assert!(states[0].current_state_elapsed_time() >= 0.04, "The machine must have passed its elapsed threshold");
+                    }
+                    let getter = graph.nodes.values().find(|node| node.try_inner_downcast_ref::<crate::extensions::SourceAnimationStateGetterNode>()
+                        .is_some_and(|getter| getter.source_function == "GetInstanceCurrentStateElapsedTime")).unwrap();
+                    let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources,
+                        &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+                    let result = getter.update(context.create_node_context(getter.id));
+                    assert!(result.is_ok(), "Runtime getter failed: {result:?}");
+                    assert_eq!(context.node_caches().get_output_data(getter.id, StateKey::Default, "ReturnValue".into())
+                        .unwrap().as_f32().unwrap(), states[0].current_state_elapsed_time());
+                }
+                if retained { assert_eq!(arena.get_toplevel().node_states.get::<InterruptibleFsmState>(ids[0], StateKey::Default)
+                    .unwrap().current_state_elapsed_time(), 100.0, "An old scope must not be erased to make identity appear unique"); }
+                if frame == 4 || frame == 13 { assert_eq!(states[0].state, LowLevelStateId::HlState(targets[0])); }
+                if frame == 8 { assert_ne!(states[0].state, LowLevelStateId::HlState(targets[0])); }
+            } else {
+                if frame == 9 {
+                    elapsed = states[0].current_state_elapsed_time();
+                    assert!(elapsed > 0.0, "The active machine must have animation progress");
+                }
+                if inactive { assert_eq!(states[0].current_state_elapsed_time(), elapsed, "An inactive machine must keep its animation progress"); }
+                let observer = arena.get_toplevel().node_states.get::<InterruptibleFsmState>(ids[1], StateKey::Default).unwrap();
+                if frame <= 10 { assert_ne!(observer.state, LowLevelStateId::HlState(targets[1]), "The first inactive update must retain the completed weight"); }
+                if frame >= 11 {
+                    assert_eq!(observer.state, LowLevelStateId::HlState(targets[1]), "The second inactive update must publish zero weight");
+                    assert!((output["Pose"].as_pose().unwrap().get_bone(bone).unwrap().translation.unwrap().x - 0.15).abs() < 1e-6,
+                        "The observer did not select the source pose");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn resetting_a_blend_child_keeps_the_getter_bound_to_its_real_machine() {
+        let (mut world, root, ids, targets, poses) = getter_fixture(true, false);
+        world.run_system_cached_with(query_getter_fixture, (root, ids, targets, poses, true, false)).unwrap();
+    }
+
+    #[test]
+    fn an_inactive_machine_publishes_zero_after_its_last_completed_weight() {
+        for reverse in [false, true] {
+            let (mut world, root, ids, targets, poses) = getter_fixture(false, reverse);
+            world.run_system_cached_with(query_getter_fixture, (root, ids, targets, poses, false, false)).unwrap();
+        }
+    }
+
+    #[test]
+    fn a_retained_machine_context_does_not_replace_the_current_reset_scope() {
+        let (mut world, root, ids, targets, poses) = getter_fixture(true, false);
+        world.run_system_cached_with(query_getter_fixture, (root, ids, targets, poses, true, true)).unwrap();
+    }
+
+    #[test]
+    fn temporary_machine_snapshots_do_not_publish_completed_weights() {
+        fn query(In((root, ids, targets)): In<(Handle<AnimationGraph>, [NodeId; 2], [StateId; 2])>, resources: SystemResources) {
+            let graph = resources.animation_graph_assets.get(&root).unwrap();
+            let mut arena = GraphContextArena::new(root.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let inputs = HashMap::new();
+            let env = TestIoEnv::default();
+            let start = graph.nodes[&ids[0]].try_inner_downcast_ref::<InterruptibleFsmNode>().unwrap()
+                .state_machine(&resources).unwrap().start_state.clone().unwrap();
+            let LowLevelStateId::HlState(start) = start else { panic!("Expected a state entry") };
+            for frame in 0..3 {
+                let context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources,
+                    &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+                let node = context.create_node_context(ids[0]);
+                if frame < 2 {
+                    let node = if frame == 1 { node.clone().with_state_key(StateKey::Temporary(default())) } else { node.clone() };
+                    let weight = if frame == 0 { 0.5 } else { 0.9 };
+                    let state_weight = if frame == 0 { 0.75 } else { 0.9 };
+                    crate::extensions::source_instance::begin_source_machine_update(&node, weight).unwrap();
+                    crate::extensions::source_instance::record_source_state_weights(&node, vec![
+                        SourceFsmStateWeight { state_id: start.uuid().to_string(), value: 1.0 - state_weight },
+                        SourceFsmStateWeight { state_id: targets[0].uuid().to_string(), value: state_weight },
+                    ]).unwrap();
+                }
+                let expected = if frame == 1 { (0.5, 0.75) } else { (0.0, 0.0) };
+                assert_eq!((crate::extensions::source_instance::source_machine_weight(&node, ids[0]).unwrap(),
+                    crate::extensions::source_instance::source_state_weight(&node, ids[0], &targets[0].uuid().to_string()).unwrap()), expected);
+                arena.next_frame();
+            }
+        }
+        let (mut world, root, ids, targets, _) = getter_fixture(false, false);
+        world.run_system_cached_with(query, (root, ids, targets)).unwrap();
     }
 
     #[test]
@@ -2870,7 +3112,7 @@ mod tests {
     }
 
     #[test]
-    fn machine_weight_getter_selects_the_source_branch_on_the_first_update() {
+    fn machine_weight_getter_reads_completed_weights_on_the_first_update() {
         use crate::extensions::source_scalar_expression::{SourceScalarDataType, SourceScalarExpressionNode, SourceScalarPin};
 
         fn wrap_curves(mut graph: AnimationGraph, amount: f32) -> AnimationGraph {
@@ -3022,12 +3264,12 @@ mod tests {
         world.insert_resource(machines);
         world.insert_resource(Assets::<GraphClip>::default());
         world.insert_resource(Assets::<Skeleton>::default());
-        assert_eq!(world.run_system_cached_with(query, (direct, fsm_id)).unwrap(), vec![(1.0, 0.4), (2.0, 1.0)]);
+        assert_eq!(world.run_system_cached_with(query, (direct, fsm_id)).unwrap(), vec![(1.0, 0.4), (1.0, 1.0)]);
         for (graph, expected) in [
             (zero, vec![(0.4, None, None), (1.0, None, None)]),
             (half, vec![(0.4, Some(1.0), Some(0.2)), (1.0, Some(1.0), Some(0.5))]),
             (nested, vec![(0.4, Some(1.0), Some(0.1)), (1.0, Some(1.0), Some(0.25))]),
-            (unit, vec![(0.4, Some(1.0), Some(0.4)), (1.0, Some(2.0), Some(1.0))]),
+            (unit, vec![(0.4, Some(1.0), Some(0.4)), (1.0, Some(1.0), Some(1.0))]),
         ] {
             assert_eq!(world.run_system_cached_with(query_wrapped, (graph, fsm_id)).unwrap(), expected);
         }

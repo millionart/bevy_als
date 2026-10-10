@@ -204,6 +204,11 @@ fn generated_stop_quick_input_step(
     )
 }
 
+fn generated_stop_quick_observed(baseline: &mut Option<u32>, released: bool, count: u32) -> bool {
+    if !released { *baseline = Some(count); }
+    released && baseline.is_some_and(|previous| count > previous)
+}
+
 const STANDING_STOP_CASES: [(&str, &str, Vec2, RotationMode, f32); 7] = [
     ("stop_lock_left", "Lock Left Foot", Vec2::Y, RotationMode::Aiming, 0.0),
     ("stop_lock_right", "Lock Right Foot", Vec2::Y, RotationMode::Aiming, 1.0),
@@ -3290,6 +3295,7 @@ struct ManualIntegrationState {
     p1_stance_mask: u8,
     generated_stop_quick_input_started: bool,
     generated_stop_quick_input_released: bool,
+    generated_stop_quick_count_before: Option<u32>,
     stop_case_index: usize,
     stop_foot_planted: Option<f32>,
     stop_branch_seen: bool,
@@ -3434,6 +3440,7 @@ impl Default for ManualIntegrationState {
             p1_stance_mask: 0,
             generated_stop_quick_input_started: false,
             generated_stop_quick_input_released: false,
+            generated_stop_quick_count_before: None,
             stop_case_index: 0,
             stop_foot_planted: None,
             stop_branch_seen: false,
@@ -4119,7 +4126,7 @@ fn drive_manual_integration(
     mut shake_requests: MessageWriter<AlsCameraShakeRequest>,
     mut pivot_notices: MessageWriter<AlsPivotNotify>,
     mut foot_ik_weight_override: ResMut<AlsFootIkWeightOverride>,
-    (params_assets, get_ups): (Res<Assets<AlsMovementParams>>, Query<(&crate::get_up::AlsGetUpState, Has<crate::als::motion::AlsMovementInputBlocked>)>),
+    (params_assets, get_ups, visual_progress): (Res<Assets<AlsMovementParams>>, Query<(&crate::get_up::AlsGetUpState, Has<crate::als::motion::AlsMovementInputBlocked>)>, Option<Res<AnimationVisualValidationProgress>>),
     mut characters: Query<
         (
             &mut AlsInputOverride,
@@ -5139,6 +5146,7 @@ fn drive_manual_integration(
             if entering {
                 state.generated_stop_quick_input_started = false;
                 state.generated_stop_quick_input_released = false;
+                state.generated_stop_quick_count_before = None;
             }
             let (input_started, input_released, should_move) = generated_stop_quick_input_step(
                 state.generated_stop_quick_input_started,
@@ -5187,7 +5195,8 @@ fn drive_manual_integration(
                 );
             }
             input.0.move_dir = if should_move { Vec2::Y } else { Vec2::ZERO };
-            if state.coverage.generated_transition_stop_quick {
+            if state.coverage.generated_transition_stop_quick && stopping
+                && manual_gate_exit_ready(visual_progress.as_deref(), false) {
                 begin_phase(&mut state, IntegrationPhase::Finish);
             } else if elapsed >= 7.0 {
                 state.timed_out = true;
@@ -5868,7 +5877,7 @@ fn drive_manual_integration(
                 view_yaw.0 = body_yaw + 90.0f32.to_radians();
             } else {
                 commands.entity(character).remove::<AlsFirstPersonView>();
-                begin_phase(&mut state, IntegrationPhase::Finish);
+                begin_phase(&mut state, IntegrationPhase::TransitionNotify);
             }
         }
         IntegrationPhase::Mantle => {
@@ -8958,12 +8967,17 @@ fn observe_manual_integration(
         state.scenario,
         IntegrationScenario::StateMachine | IntegrationScenario::TransitionNotify
     ) {
-        state.coverage.generated_transition_stop_quick |= motion_probe
+        let count = motion_probe
             .transition_notify
             .get(character)
             .ok()
             .flatten()
-            .is_some_and(|telemetry| telemetry.stop_quick_count > 0);
+            .map_or(0, |telemetry| telemetry.stop_quick_count);
+        let observed = if state.phase == IntegrationPhase::TransitionNotify {
+            let released = state.generated_stop_quick_input_released;
+            generated_stop_quick_observed(&mut state.generated_stop_quick_count_before, released, count)
+        } else { count > 0 };
+        state.coverage.generated_transition_stop_quick |= observed;
         if let Some(telemetry) = standing_graph {
             let previous_mask = state.p1_ground_mask;
             if source_ready && telemetry.outer_state == Some(0) {
@@ -12229,6 +12243,16 @@ mod tests {
             generated_stop_quick_input_step(true, false, Some(&transitioning)),
             (true, true, false)
         );
+    }
+
+    #[test]
+    fn transition_notify_requires_a_new_count_after_the_current_release() {
+        let mut baseline = None;
+        assert!(!generated_stop_quick_observed(&mut baseline, false, 4));
+        assert!(!generated_stop_quick_observed(&mut baseline, true, 4));
+        assert!(generated_stop_quick_observed(&mut baseline, true, 5));
+        baseline = None;
+        assert!(!generated_stop_quick_observed(&mut baseline, true, 5));
     }
 
     #[test]

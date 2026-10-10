@@ -11,6 +11,7 @@ use bevy_animation_graph::core::{
 };
 
 use crate::extensions::animation_context::{AnimationContextState, pose_input_context_state};
+use crate::extensions::interruptible_fsm::SourceFsmStateWeight;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 #[derive(Reflect, Clone, Debug)]
@@ -19,6 +20,7 @@ pub struct SourceInstanceProperties {
     pub values: HashMap<String, DataValue>,
     pub write_frames: HashMap<String, u64>,
     call_frames: HashMap<(GraphContextId, NodeId), u64>,
+    machine_weights: HashMap<NodeId, SourceMachineWeights>,
 }
 
 impl Default for SourceInstanceProperties {
@@ -29,8 +31,67 @@ impl Default for SourceInstanceProperties {
             values: default(),
             write_frames: default(),
             call_frames: default(),
+            machine_weights: default(),
         }
     }
+}
+
+#[derive(Reflect, Clone, Debug, Default)]
+struct SourceMachineWeights {
+    frame: Option<u64>,
+    context: Option<GraphContextId>,
+    current_machine: f32,
+    current_states: Vec<SourceFsmStateWeight>,
+    previous_machine: f32,
+    previous_states: Vec<SourceFsmStateWeight>,
+}
+
+fn machine_weights<'a>(ctx: &'a NodeContext, node: NodeId) -> Result<&'a mut SourceMachineWeights, GraphError> {
+    let frame = ctx.graph_context.frame_index();
+    let owner = linked_instance_context(ctx, ctx.graph_context.context_id).ok_or_else(|| GraphError::UnknownErrorNode {
+        graph: ctx.graph_context.context_id, node: ctx.node_id,
+        error: "Machine weights have no owning animation instance".into(),
+    })?;
+    let properties = ctx.graph_context.context_arena.get_mut().get_context_mut(owner).unwrap().node_states
+        .get_mut_or_insert_with(source_notify_instance_node(), StateKey::Default, SourceInstanceProperties::default)?;
+    let state = properties.machine_weights.entry(node).or_default();
+    if state.frame != Some(frame) {
+        let continuous = state.frame.is_some_and(|previous| previous.wrapping_add(1) == frame);
+        state.previous_machine = if continuous { state.current_machine } else { 0.0 };
+        state.previous_states = if continuous { std::mem::take(&mut state.current_states) } else { Vec::new() };
+        state.current_machine = 0.0;
+        state.current_states.clear();
+        state.frame = Some(frame);
+    }
+    Ok(state)
+}
+
+pub(crate) fn begin_source_machine_update(ctx: &NodeContext, weight: f32) -> Result<(), GraphError> {
+    if ctx.graph_context.state_key == StateKey::Default {
+        let state = machine_weights(ctx, ctx.node_id)?;
+        state.context = Some(ctx.graph_context.context_id);
+        state.current_machine = weight;
+    }
+    Ok(())
+}
+
+pub(crate) fn record_source_state_weights(ctx: &NodeContext, values: Vec<SourceFsmStateWeight>) -> Result<(), GraphError> {
+    if ctx.graph_context.state_key == StateKey::Default {
+        machine_weights(ctx, ctx.node_id)?.current_states = values;
+    }
+    Ok(())
+}
+
+pub(crate) fn source_machine_context(ctx: &NodeContext, node: NodeId) -> Result<Option<GraphContextId>, GraphError> {
+    Ok(machine_weights(ctx, node)?.context)
+}
+
+pub(crate) fn source_machine_weight(ctx: &NodeContext, node: NodeId) -> Result<f32, GraphError> {
+    Ok(machine_weights(ctx, node)?.previous_machine)
+}
+
+pub(crate) fn source_state_weight(ctx: &NodeContext, node: NodeId, state_id: &str) -> Result<f32, GraphError> {
+    Ok(machine_weights(ctx, node)?.previous_states.iter().find(|value| value.state_id == state_id).map_or(0.0, |value| value.value))
 }
 
 pub fn source_instance_properties<'a>(

@@ -1248,6 +1248,8 @@ fn evidence_capture_complete(
         && state.eval_ms.len() >= config.min_pose_samples
         && stages.physics_steps_per_render.len() >= config.min_pose_samples
         && state.screenshots.len() >= config.capture_count
+        && state.required_motion_windows.iter().all(|label| state.motion_windows.get(label).is_some_and(|window|
+            window.sample_count >= 2 && (!window.requires_non_reference_root_pose || window.root_pose_sample_count >= 2)))
         && state
             .screenshots
             .iter()
@@ -5352,6 +5354,14 @@ mod tests {
         let mut stages = AnimationVisualStageTiming::default();
         assert!(!evidence_capture_complete(&config, &state, &stages));
         stages.physics_steps_per_render.push(1.0);
+        assert!(!evidence_capture_complete(&config, &state, &stages));
+        state.motion_windows.insert("fixture".to_owned(), MotionWindowTracker {
+            requires_non_reference_root_pose: true, sample_count: 1, ..default()
+        });
+        assert!(!evidence_capture_complete(&config, &state, &stages));
+        state.motion_windows.get_mut("fixture").unwrap().sample_count = 2;
+        assert!(!evidence_capture_complete(&config, &state, &stages));
+        state.motion_windows.get_mut("fixture").unwrap().root_pose_sample_count = 2;
         assert!(evidence_capture_complete(&config, &state, &stages));
         config.capture_count = 1;
         assert!(!evidence_capture_complete(&config, &state, &stages));

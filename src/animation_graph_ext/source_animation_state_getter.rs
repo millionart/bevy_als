@@ -1,8 +1,9 @@
 use bevy::prelude::*;
 use bevy_animation_graph::core::{
     animation_node::{NodeLike, ReflectNodeLike},
+    animation_graph::NodeId,
     context::{
-        new_context::{GraphContext, NodeContext},
+        new_context::NodeContext,
         node_states::StateKey,
     },
     edge_data::DataSpec,
@@ -31,7 +32,7 @@ impl SourceAnimationStateGetterNode {
         }
     }
 
-    fn target_state(&self, ctx: &NodeContext) -> Result<InterruptibleFsmState, GraphError> {
+    fn machine_node(&self, ctx: &NodeContext) -> Result<NodeId, GraphError> {
         if self.fsm_node.is_empty() {
             return Err(Self::error(
                 ctx,
@@ -40,7 +41,7 @@ impl SourceAnimationStateGetterNode {
         }
         let owner = linked_instance_context(ctx, ctx.graph_context.context_id)
             .ok_or_else(|| Self::error(ctx, "source animation getter owning instance is unavailable"))?;
-        let matches = ctx
+        ctx
             .graph_context
             .context_arena
             .get_ref()
@@ -63,57 +64,44 @@ impl SourceAnimationStateGetterNode {
                             .try_inner_downcast_ref::<InterruptibleFsmNode>()
                             .is_some()
                 })?;
-                Some((context_id, node.id))
+                Some(node.id)
             })
-            .collect::<Vec<_>>();
-        let [(context_id, node_id)] = matches.as_slice() else {
-            return Err(Self::error(
-                ctx,
-                "source animation getter machine is ambiguous",
-            ));
+            .next()
+            .ok_or_else(|| Self::error(ctx, "source animation getter machine is unavailable"))
+    }
+
+    fn target_state(&self, ctx: &NodeContext, node_id: NodeId) -> Result<Option<InterruptibleFsmState>, GraphError> {
+        let Some(context_id) = crate::extensions::source_instance::source_machine_context(ctx, node_id)? else {
+            return Ok(None);
         };
-        let graph_id = ctx
+        ctx
             .graph_context
             .context_arena
             .get_ref()
-            .get_context(*context_id)
+            .get_context(context_id)
             .ok_or_else(|| Self::error(ctx, "source animation getter context is unavailable"))?
-            .get_graph_id();
-        let graph = ctx
-            .graph_context
-            .resources
-            .animation_graph_assets
-            .get(graph_id)
-            .ok_or(GraphError::GraphAssetMissing)?;
-        let target = GraphContext {
-            context_id: *context_id,
-            graph,
-            ..ctx.graph_context.clone()
-        }
-        .with_state_key(StateKey::Default);
-        target
-            .node_states()
-            .get::<InterruptibleFsmState>(*node_id, StateKey::Default)
+            .node_states
+            .get::<InterruptibleFsmState>(node_id, StateKey::Default)
             .map_err(|error| {
                 Self::error(
                     ctx,
                     &format!("source animation getter target state is unavailable: {error}"),
                 )
             })
-            .cloned()
+            .map(|state| Some(state.clone()))
     }
 
     fn value(&self, ctx: &NodeContext) -> Result<f32, GraphError> {
-        let state = self.target_state(ctx)?;
+        let node = self.machine_node(ctx)?;
         match self.source_function.as_str() {
             "GetInstanceMachineWeight" if self.state_id.is_empty() => {
-                Ok(state.recorded_machine_weight())
+                crate::extensions::source_instance::source_machine_weight(ctx, node)
             }
             "GetInstanceCurrentStateElapsedTime" if self.state_id.is_empty() => {
-                Ok(state.current_state_elapsed_time())
+                Ok(self.target_state(ctx, node)?.map_or(0.0, |state| state.current_state_elapsed_time()))
             }
             "GetInstanceStateWeight" if !self.state_id.is_empty() => {
-                Ok(state.recorded_state_weight(&self.state_id))
+                crate::extensions::source_instance::source_state_weight(ctx, node, &self.state_id)
             }
             _ => Err(Self::error(
                 ctx,
