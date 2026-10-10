@@ -14,7 +14,7 @@
 | R06 | `als/character/movement/source_physics_timing::integrate_character_position` Air 长帧仍用末速度 | 确认并已修复 | BF135.07B：100ms六步位移`1.942775!=1.95095`红→子步速度阶段前旧速度/中点，速度补偿和clamp保持；中点、无状态terminal复算、时机三消融红，整byte恢复65相关回归；原startup/uphill/moving-base/100ms takeoff入口通过 |
 | R07 | `ragdoll_link::apply_ragdoll_ground_follow` 与退出 realign 将世界位置写局部 Transform | 待原生确认 | 现 mesh affine 修复没有改角色本体的这两处写回 |
 | R08 | `gen_ragdoll::target_material` 与 profile 未保留零有效休眠阈值 | 待原生确认 | 待执行 |
-| R09 | `apply_profile_to_spawned_ragdoll` 将两个线性 drive target 再乘几何 scale | 待原生确认 | 待执行 |
+| R09 | `apply_profile_to_spawned_ragdoll` 将两个线性 drive target 再乘几何 scale | 确认并已修复 | BF135.10B：真实spawned三scale非零位置/速度目标被减半红→仅删两重复乘法，geometry/mass/frame/rebuild原断言保持；各target独立消融红→原子完整byte恢复/同target与6相关绿；原startup/ragdoll通过 |
 | R10 | `locomotion_state_sync_system` 进入 Air 缺源 Rolling 中断仲裁 | 待原生确认 | 待执行 |
 | R11 | `AlsGetUpState::advance` 自然零混出在窗口前置权重零 | 确认并已修复 | BF135.08B：自然zero首帧weight0红→等待末窗；剩余预算mid-fade1!=.5红→复用既有stop预算保持natural非interrupted→预算消融红/整byte同target恢复；getup原生与原startup/get_up/base/notify通过 |
 | R12 | `dispatch_graph_footsteps` 的 montage sample 缺中断状态 | 确认并已修复 | BF135.08B：同avatar旧Roll tail脚步1!=0红→final sample统一发布/过滤interrupted；各owner闭包、transition跨自然end counter证明一个持久bit必要；filter/bridge/state推导消融红，恢复128相关与原四case通过 |

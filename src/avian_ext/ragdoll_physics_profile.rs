@@ -1242,8 +1242,6 @@ fn apply_profile_to_spawned_ragdoll(
         if scale != 1.0 {
             joint.parent_frame.translation *= scale;
             joint.child_frame.translation *= scale;
-            joint.linear_position_target *= scale;
-            joint.linear_velocity_target *= scale;
         }
         commands
             .entity(*joint_entity)
@@ -2809,9 +2807,15 @@ mod tests {
             definition::Ragdoll, spawning::spawn_ragdoll_avian,
         };
 
-        let profile = RagdollPhysicsProfile::from_json(include_str!(
+        let mut profile = RagdollPhysicsProfile::from_json(include_str!(
             "../../assets/ALS/Character/PA_Als.physics.json"
         )).unwrap();
+        let position_target = Vec3::new(1.0, -0.5, 0.25);
+        let velocity_target = Vec3::new(0.1, -0.2, 0.3);
+        for joint in &mut profile.joints {
+            joint.definition.linear_position_target = position_target;
+            joint.definition.linear_velocity_target = velocity_target;
+        }
         let ragdoll: Ragdoll = ron::from_str(include_str!(
             "../../assets/ALS/Character/PA_Als.rag.ron"
         )).unwrap();
@@ -2856,15 +2860,23 @@ mod tests {
         app.update();
         let base_mass = app.world().get::<avian3d::prelude::ComputedMass>(pelvis).unwrap().value();
         let world = app.world_mut();
-        world.run_system_once(move |mut commands: Commands,
-            body_labels: Query<&BodyLabel>, collider_labels: Query<&ColliderLabel>,
-            joint_labels: Query<&JointLabel>, spherical: Query<&SphericalJoint>,
-            revolute: Query<&RevoluteJoint>, source_joints: Query<&SourcePhysicsJoint>, transforms: Query<&Transform>,
-            mut colliders: Query<&mut Collider>| {
-            apply_profile_to_spawned_ragdoll(&mut commands, &spawned, &profile, 2.0, 2.0, false,
-                &body_labels, &collider_labels, &joint_labels, &spherical, &revolute,
-                &source_joints, &transforms, &mut colliders)
-        }).unwrap();
+        for (scale, scale_factor) in [(0.5, 0.5), (1.0, 2.0), (2.0, 2.0)] {
+            let current = SpawnedRagdoll { root: spawned.root, bodies: spawned.bodies.clone(),
+                colliders: spawned.colliders.clone(), joints: spawned.joints.clone() };
+            world.run_system_once({ let profile = profile.clone(); move |mut commands: Commands,
+                body_labels: Query<&BodyLabel>, collider_labels: Query<&ColliderLabel>,
+                joint_labels: Query<&JointLabel>, spherical: Query<&SphericalJoint>,
+                revolute: Query<&RevoluteJoint>, source_joints: Query<&SourcePhysicsJoint>, transforms: Query<&Transform>,
+                mut colliders: Query<&mut Collider>| {
+                apply_profile_to_spawned_ragdoll(&mut commands, &current, &profile, scale, scale_factor, false,
+                    &body_labels, &collider_labels, &joint_labels, &spherical, &revolute,
+                    &source_joints, &transforms, &mut colliders)
+            }}).unwrap();
+            let motor = world.get::<SourcePhysicsJoint>(joint).unwrap();
+            assert_eq!((motor.linear_position_target, motor.linear_velocity_target),
+                (position_target, velocity_target), "Geometry scale changed source linear drive targets: scale={scale}");
+            assert!(motor.parent_frame.translation.abs_diff_eq(joint_offset * scale, 1e-5));
+        }
         assert!(world.get::<Transform>(body).unwrap().translation.abs_diff_eq(body_offset * 2.0, 1e-5));
         assert!(world.get::<Transform>(collider).unwrap().translation.abs_diff_eq(collider_offset * 2.0, 1e-5));
         let scaled_collider = world.get::<Collider>(collider).unwrap();
