@@ -2,7 +2,7 @@
 
 本轮起始版本 `9105cdf`；对标本地 ALS-Refactored 与 UE 5.8 的当次 source。严重级与任务边界见 `CHECKLIST.md` BF134。仅登记有源事实、可达 target consumer 与可重复触发条件的 P2 及以上差异；旧结论不代替 fresh 审计。
 
-当前已确认并修复 **153 项 P2 及以上差异**：BF134 验收 122 项、BF135 补修 29 项、BF137.01/.02 修复 GetUp 与 Roll owner 时钟两项。BF135 另 4 项重复不计；BF137 新确认的 Roll 父级空间差异仍待修复，不能宣称未知差异已经穷尽。完整逐项 source、触发条件、反例、修复、消融和 Gate 记录见 [CHECKLIST.md](../CHECKLIST.md)、[BF135 逐项台账](bf135/review.md) 与本页 BF137 表。本页下方早期逐项记录保留当时语义；当前覆盖状态以本节及最新验收记录为准。
+当前已确认并修复 **154 项 P2 及以上差异**：BF134 验收 122 项、BF135 补修 29 项、BF137.01–.03 新修 GetUp 时钟、Roll 时钟与父级空间三项。BF135 另 4 项重复不计；这些是已证实边界的验收，不能宣称未知差异已经穷尽。完整逐项 source、触发条件、反例、修复、消融和 Gate 记录见 [CHECKLIST.md](../CHECKLIST.md)、[BF135 逐项台账](bf135/review.md) 与本页 BF137 表。本页下方早期逐项记录保留当时语义；当前覆盖状态以本节及最新验收记录为准。
 
 初始 inventory：146 个源 C++/header（ALS 112、ALSCamera 12、ALSEditor 16、ALSExtras 6），181 个 target Rust，15 个 installed AnimBP root、359 个生成依赖文件和 15 份安装 manifest，文件缺失 0；完成时的 target scope 为 182 个文件，包含源归属迁移和一个通用查询数据文件。源 revision 为 ALS `b754d6f0f2bb03741d301f8fb88077ebfe561e17`、UE `396c9f059903aed5fec78ecd3d437a40c6415368`；完整相对路径和 SHA-256 在本地证据 `target/bf134/inventory.json` 与 `target/bf134/04/current_inventory.json`。B_Als_Character 原生 reader 39.050 秒成功；watchdog self-test 通过。Editor/AI/网络与刻意差异按执行清单排除。
 
@@ -35,7 +35,7 @@ BF136 当轮没有新增 source-proven P2，完成时已确认待修项为零；
 |---|---|---|---|
 | BF137.01 GetUp owner 时钟 | P2；角色 CustomTimeDilation=0/.5/2 | UE Actor.h 的 ExecuteTickHelper 给 Mesh/CMC tick 乘 owner 倍率，Montage Advance 使用该 Delta；loaded GetUp 的实际 slot 采样在世界 50ms 内仍推进 50ms，0/.5/2 原生失败。现消费同一 actor Delta 推进并发布上下文；四消融确切红、字节恢复同 target 17 相关绿，原 startup/GetUp13/Notify/AnimationClock 功能通过 | 已修复并验收，`target/bf137/get_up_acceptance.json` |
 | BF137.02 Roll owner 时钟 | P2；角色 CustomTimeDilation=0/.5/2，含旧 montage tail | 同一 source 组件/蒙太奇时钟链；当前/tail推进与实际转向均先原生失败。现按owner推进、保留真实previous interval与actor movement minimum；实际slot和Custom位移通过，四native+两实际源码消融确切红，七focused/53相关恢复绿，原六入口71项功能检查通过 | 已修复并验收，`target/bf137/roll_clock_acceptance.json` |
-| BF137 后续 Roll 父级空间 | P2；角色存在平移、旋转、缩放父级 | ALS RefreshRollingPhysics 使用世界 GetComponentRotation/MoveUpdatedComponent；实际 loaded root consumer 将世界位移/旋转直接写局部 Transform，并将局部值写 Physics Position/Rotation。按实际 root-scale 输入重算后，源目标 `(2.1256225,1,-2.8508558)`，渲染实际 `(2.288244,1,-2.9502847)`，Physics 实际仍为局部 `(0.12562251,0,0.14914417)`，原生反例 exit101 | 已确认待修，与 owner-clock 分叶 |
+| BF137.03 Roll 父级空间 | P2；角色存在平移、旋转、缩放父级，含当帧父级变化 | ALS 启动取世界 GetActorRotation，RefreshRollingPhysics 取世界 GetComponentRotation/MoveUpdatedComponent；loaded 反例证实目标误用局部启动 yaw、世界位移直接写局部 Transform、Physics 接收局部值。现从当前 TransformHelper 取世界输入，保留 pitch/roll，Transform 逆映射父级、Physics 写世界值；三种 scale 与当帧变化通过，七独立消融确切红，字节恢复后 9 focused/57 相关及原六入口 71 项功能检查通过 | 已修复并验收，`target/bf137/parent_acceptance.json` |
 
 旧默认时钟的通过记录不能覆盖以上配置边界。原生失败报告见 `target/bf137/old_action_clocks.watchdog.json`，fresh 源资产和 C++ 快照在 `target/bf137/source`；没有将 Mantle 的相似实现直接计作已确认差异。
 

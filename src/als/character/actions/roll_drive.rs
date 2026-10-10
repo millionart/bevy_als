@@ -158,6 +158,70 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn fresh_audit_roll_parent_keeps_world_rotation_and_position() {
+        for (scale, pitch, world_roll, changed_parent) in [
+            (1.5_f32, 0.0_f32, 0.0_f32, false),
+            (0.5, 0.12, -0.18, false),
+            (2.0, -0.1, 0.2, true),
+        ] {
+        let (mut app, character, _) = loaded_roll_character();
+        let sampler = play_loaded_roll(&mut app, character);
+        let target = app.world().get::<AlsRollSlotSampler>(sampler).unwrap().target_player;
+        let parent_transform = Transform::from_xyz(2.0, 1.0, -3.0)
+            .with_rotation(Quat::from_euler(EulerRot::YXZ, 0.7, pitch, world_roll)).with_scale(Vec3::splat(scale));
+        let parent = app.world_mut().spawn((parent_transform, GlobalTransform::from(parent_transform))).id();
+        app.world_mut().entity_mut(character).insert((ChildOf(parent), Transform::IDENTITY,
+            GlobalTransform::from(parent_transform), LocomotionState::Custom,
+            AlsRollState { active: true, time: 0.3, previous_time: 0.3, direction_yaw: 1.0, ..default() }));
+        if changed_parent {
+            let mut current = app.world_mut().get_mut::<Transform>(parent).unwrap();
+            current.translation += Vec3::new(0.4, 0.1, -0.2);
+            current.rotation = Quat::from_euler(EulerRot::YXZ, 1.1, pitch, world_roll);
+        }
+        let (actor_world, mesh_world) = app.world_mut().run_system_once(move |helper: bevy::transform::helper::TransformHelper| {
+            (helper.compute_global_transform(character).unwrap(), helper.compute_global_transform(target).unwrap())
+        }).unwrap();
+        let local_delta = Vec3::NEG_Z * 0.1;
+        *app.world_mut().get_mut::<RootMotionOutput>(sampler).unwrap() = RootMotionOutput {
+            translation_delta: local_delta, rotation_delta: Quat::IDENTITY,
+        };
+        app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.05));
+        app.world_mut().run_system_once(roll_drive_system).unwrap();
+        let actual_world = app.world_mut().run_system_once(move |helper: bevy::transform::helper::TransformHelper| {
+            helper.compute_global_transform(character).unwrap()
+        }).unwrap();
+        let root_scale = app.world().get::<AlsRollSlotRuntime>(character).unwrap().root_motion_scale;
+        let expected_position = actor_world.translation()
+            + root_motion_world_transform(actor_world, mesh_world, local_delta * root_scale, Quat::IDENTITY).0;
+        let (yaw, current_pitch, current_roll) = actor_world.rotation().to_euler(EulerRot::YXZ);
+        let expected_rotation = Quat::from_euler(EulerRot::YXZ,
+            damper_exact_angle(yaw, 1.0, 0.05, ROLL_ROTATION_HALF_LIFE_SECS), current_pitch, current_roll);
+        assert!(actual_world.translation().distance(expected_position) < 1e-5
+            && actual_world.rotation().dot(expected_rotation).abs() > 1.0 - 1e-5
+            && app.world().get::<Rotation>(character).unwrap().0.dot(expected_rotation).abs() > 1.0 - 1e-5
+            && app.world().get::<avian3d::prelude::Position>(character).unwrap().0.distance(expected_position) < 1e-5,
+            "Roll wrote world movement through local transforms: expected_position={expected_position:?} actual_world={actual_world:?} physics={:?}",
+            app.world().get::<avian3d::prelude::Position>(character));
+        }
+    }
+
+    #[test]
+    fn fresh_audit_roll_parent_start_uses_world_actor_yaw_without_input() {
+        let (mut app, character, _) = loaded_roll_character();
+        let parent_transform = Transform::from_rotation(Quat::from_rotation_y(0.7));
+        let parent = app.world_mut().spawn((parent_transform, GlobalTransform::from(parent_transform))).id();
+        app.world_mut().entity_mut(character).insert((ChildOf(parent), Transform::IDENTITY,
+            GlobalTransform::from(parent_transform), AlsRollState::default(),
+            AlsNotifyLocomotionAction::None, LocomotionState::Grounded,
+            AlsInputCommand { roll_pressed: true, ..default() }));
+        app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.05));
+        app.world_mut().run_system_once(advance_rolls).unwrap();
+        let roll = app.world().get::<AlsRollState>(character).unwrap();
+        assert!(roll.active && crate::als::roll::wrap_angle(roll.direction_yaw - 0.7).abs() < 1e-5,
+            "Roll used local actor yaw when source GetActorRotation is world: {roll:?}");
+    }
+
+    #[test]
     fn roll_paused_tap_release_does_not_start_the_actual_roll_driver() {
         use crate::als::input::{AlsInputMap, AlsInputPlugin, spawn_als_actions};
         use bevy::input::gamepad::{RawGamepadButtonChangedEvent, RawGamepadEvent};
@@ -1793,6 +1857,7 @@ fn bridge_roll_slot_samples(
 fn advance_rolls(
     time: Res<Time>,
     mut commands: Commands,
+    transform_helper: bevy::transform::helper::TransformHelper,
     custom_dilations: Query<&crate::als_camera::AlsCameraCustomTimeDilation>,
     blocked: Query<(), With<crate::als::motion::AlsMovementInputBlocked>>,
     actions: Query<&crate::animation_events::AlsNotifyLocomotionAction>,
@@ -1827,13 +1892,15 @@ fn advance_rolls(
         loco,
         stance,
         (view, player_view),
-        transform,
+        _transform,
         vel,
         air,
         cmd,
         ovr,
     ) in &mut q
     {
+        let Ok(actor_world) = transform_helper.compute_global_transform(character) else { continue; };
+        let actor_yaw = actor_world.rotation().to_euler(EulerRot::YXZ).0;
         let dt = time.delta_secs() * custom_dilations.get(character).map_or(1.0, |value| value.0);
         let action_blocked = actions.get(character).is_ok_and(|action| !matches!(*action,
             crate::animation_events::AlsNotifyLocomotionAction::None | crate::animation_events::AlsNotifyLocomotionAction::Rolling));
@@ -1862,13 +1929,12 @@ fn advance_rolls(
 
         let direction_basis = AlsViewYaw(if effective.move_dir.length_squared() > 1e-6 {
             player_view.map_or(view.0, |view| view.0)
-        } else { transform.rotation.to_euler(EulerRot::YXZ).0 });
+        } else { actor_yaw });
         let mut lifecycle = roll.update(&effective, &direction_basis, loco, stance, dt);
         if !lifecycle.started
             && (empty_action || stopped_blend.is_some() || !previous_roll.root_motion_active())
             && landing_ready
         {
-            let (actor_yaw, _, _) = transform.rotation.to_euler(EulerRot::YXZ);
             lifecycle = roll.start_from_landing(air.unwrap().last_impact_vy, vel.0, actor_yaw, *stance);
         }
         if lifecycle.started {
@@ -1896,6 +1962,7 @@ fn roll_drive_system(
     time: Res<Time>,
     mut commands: Commands,
     custom_dilations: Query<&crate::als_camera::AlsCameraCustomTimeDilation>,
+    parents: Query<&ChildOf>,
     modes: Query<(&LocomotionState, &avian3d::prelude::RigidBody,
         Has<avian3d::prelude::CustomPositionIntegration>)>,
     blend_outs: Query<(), With<AlsRollBlendOut>>,
@@ -1911,6 +1978,10 @@ fn roll_drive_system(
         let actor_delta = dt * custom_dilations.get(character).map_or(1.0, |value| value.0);
         let sample = sampler_root_motion.iter().find(|(sampler, _)| sampler.character == character);
         let Ok(actor_world) = space.p0().compute_global_transform(character) else { continue; };
+        let parent_world = if let Ok(parent) = parents.get(character) {
+            let Ok(world) = space.p0().compute_global_transform(parent.parent()) else { continue; };
+            Some(world)
+        } else { None };
         let mesh_world = if let Some((sampler, _)) = sample {
             let Ok(mesh) = space.p0().compute_global_transform(sampler.target_player) else { continue; };
             mesh
@@ -1929,30 +2000,33 @@ fn roll_drive_system(
         local_translation *= runtime.map_or_else(|| notify_root_scale.map_or(1.0, |scale| scale.0), |runtime| runtime.root_motion_scale).max(0.0);
         let (world_translation, root_rotation) =
             root_motion_world_transform(actor_world, mesh_world, local_translation, local_rotation);
-        let next_rotation = if local_rotation.dot(Quat::IDENTITY).abs() < 1.0 - 1e-6 {
-            (actor_world.rotation() * transform.rotation.conjugate()).conjugate() * root_rotation
+        let world_rotation = if local_rotation.dot(Quat::IDENTITY).abs() < 1.0 - 1e-6 {
+            root_rotation
         } else {
-            let (current_yaw, _, _) = transform.rotation.to_euler(EulerRot::YXZ);
-            Quat::from_rotation_y(damper_exact_angle(
+            let (current_yaw, pitch, world_roll) = actor_world.rotation().to_euler(EulerRot::YXZ);
+            Quat::from_euler(EulerRot::YXZ, damper_exact_angle(
                 current_yaw,
                 roll.direction_yaw,
                 actor_delta,
                 ROLL_ROTATION_HALF_LIFE_SECS,
-            ))
+            ), pitch, world_roll)
         };
-        transform.rotation = next_rotation;
+        transform.rotation = parent_world.map_or(world_rotation, |parent| parent.rotation().inverse() * world_rotation);
         if let Some(mut rotation) = rotation {
-            rotation.0 = next_rotation;
+            rotation.0 = world_rotation;
         }
         let weight = roll_weight_at(roll.time);
         let clip_time = (roll.time * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS);
         vel.0 = world_translation / dt;
         if let Ok((mode, body, custom_position)) = modes.get(character)
             && *mode == LocomotionState::Custom {
+            let mut world_position = actor_world.translation();
             if actor_delta >= crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS {
-                transform.translation += world_translation;
+                world_position += world_translation;
+                transform.translation = parent_world.map_or(world_position,
+                    |parent| parent.affine().inverse().transform_point3(world_position));
             }
-            commands.entity(character).insert((avian3d::prelude::Position(transform.translation),
+            commands.entity(character).insert((avian3d::prelude::Position(world_position),
                 avian3d::prelude::RigidBody::Kinematic,
                 avian3d::prelude::CustomPositionIntegration,
                 crate::als::motion::AlsCustomMovementPhysicsFrame { rigid_body: *body, custom_position }));
