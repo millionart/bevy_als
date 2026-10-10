@@ -815,107 +815,177 @@ fn ccd_time_at_depth(
 fn solve_profile_linear_ccd(
     time: Res<Time>,
     profiles: Query<(Entity, &SourceCcdSettings), With<avian3d::prelude::SweptCcd>>,
+    joint_graph: Option<Res<avian3d::dynamics::solver::joint_graph::JointGraph>>,
     colliders: Query<(&Collider, &avian3d::prelude::ColliderOf, &avian3d::prelude::ColliderTransform,
-        Option<&Sensor>, Option<&CollisionLayers>, Option<&RagdollCollisionMember>, Option<&RagdollShapeCollisionMode>), Without<ColliderDisabled>>,
-    mut bodies: ParamSet<(Query<(&Position, &Rotation, &RigidBody, &avian3d::prelude::ComputedCenterOfMass, Option<&SolverBody>), Without<avian3d::prelude::RigidBodyDisabled>>,
-        Query<&mut SolverBody>)>,
+        Option<&Sensor>, Option<&CollisionLayers>, Option<&RagdollCollisionMember>,
+        Option<&RagdollShapeCollisionMode>, Option<&Restitution>), Without<ColliderDisabled>>,
+    mut bodies: ParamSet<(Query<(&Position, &Rotation, &RigidBody, &avian3d::prelude::ComputedCenterOfMass,
+        &avian3d::prelude::ComputedMass, Option<&SolverBody>, Option<&Restitution>),
+        Without<avian3d::prelude::RigidBodyDisabled>>, Query<&mut SolverBody>)>,
 ) {
     use avian3d::parry::{math::Pose3, query::{DefaultQueryDispatcher, QueryDispatcher, ShapeCastOptions}};
+    struct CcdBody {
+        entity: Entity,
+        origin: Vec3,
+        start: Vec3,
+        end: Vec3,
+        rotation: Quat,
+        velocity: Vec3,
+        inverse_mass: f32,
+        dynamic: bool,
+        mode: RigidBody,
+        done: bool,
+        bounds: (Vec3, Vec3, Vec3),
+        settings: Option<SourceCcdSettings>,
+        restitution: Restitution,
+    }
+    struct CcdPair {
+        bodies: [usize; 2],
+        shapes: [usize; 2],
+        settings: SourceCcdSettings,
+        restitution: f32,
+    }
     let dt = time.delta_secs();
     if dt <= 0.0 || profiles.is_empty() { return; }
-    let mut hits = Vec::new();
+    let shapes = colliders.iter().filter(|(_, _, _, sensor, _, _, mode, _)|
+        sensor.is_none() && mode.is_none_or(|mode| mode.has_physics_response())).collect::<Vec<_>>();
+    let mut states = Vec::<CcdBody>::new();
+    let mut indices = bevy::platform::collections::HashMap::<Entity, usize>::new();
     {
         let read = bodies.p0();
-        for (body, settings) in &profiles {
-            let Ok((position, rotation, mode, center, Some(solver))) = read.get(body) else { continue; };
-            if !mode.is_dynamic() { continue; }
-            let velocity = solver.linear_velocity;
-            let end_rotation = solver.delta_rotation.0 * rotation.0;
-            let end_position = position.0 + solver.delta_position + rotation.0 * center.0 - end_rotation * center.0;
-            let start_position = end_position - velocity * dt;
-            let mut aggregate_min = Vec3::splat(f32::INFINITY);
-            let mut aggregate_max = Vec3::splat(f32::NEG_INFINITY);
-            let mut thinnest = Vec3::splat(f32::INFINITY);
-            for (shape, owner, local, sensor, _, _, mode) in &colliders {
-                if owner.body != body || sensor.is_some() || mode.is_some_and(|mode| !mode.has_physics_response()) { continue; }
-                let bounds = shape.shape_scaled().compute_aabb(&Pose3::from_parts(local.translation, local.rotation.0));
-                aggregate_min = aggregate_min.min(bounds.mins);
-                aggregate_max = aggregate_max.max(bounds.maxs);
-                thinnest = thinnest.min(bounds.maxs - bounds.mins);
-            }
-            if !thinnest.is_finite() { continue; }
-            let aggregate = aggregate_max - aggregate_min;
-            let axis_threshold = match settings.axis_threshold_mode {
-                0 => aggregate,
-                1 => Vec3::splat(aggregate.min_element()),
-                2 => thinnest,
-                3 => Vec3::splat(thinnest.min_element()),
-                _ => continue,
+        for (shape, owner, local, _, _, _, _, _) in &shapes {
+            let index = if let Some(index) = indices.get(&owner.body) { *index } else {
+                let Ok((position, rotation, mode, center, mass, solver, restitution)) = read.get(owner.body) else { continue; };
+                let end_rotation = solver.map_or(rotation.0, |solver| solver.delta_rotation.0 * rotation.0);
+                let origin = position.0 + rotation.0 * center.0 - end_rotation * center.0;
+                let velocity = solver.map_or(Vec3::ZERO, |solver| solver.linear_velocity);
+                let end = origin + solver.map_or(Vec3::ZERO, |solver| solver.delta_position);
+                let index = states.len();
+                states.push(CcdBody {
+                    entity: owner.body, origin, start: end - velocity * dt, end, rotation: end_rotation,
+                    velocity, inverse_mass: mass.inverse(), dynamic: mode.is_dynamic() && solver.is_some(),
+                    mode: *mode, done: false,
+                    bounds: (Vec3::splat(f32::INFINITY), Vec3::splat(f32::NEG_INFINITY), Vec3::splat(f32::INFINITY)),
+                    settings: profiles.get(owner.body).ok().map(|(_, settings)| *settings),
+                    restitution: restitution.copied().unwrap_or_default(),
+                });
+                indices.insert(owner.body, index);
+                index
             };
-            let local_delta = (end_rotation.conjugate() * (velocity * dt)).abs();
+            let bounds = shape.shape_scaled().compute_aabb(&Pose3::from_parts(local.translation, local.rotation.0));
+            states[index].bounds.0 = states[index].bounds.0.min(bounds.mins);
+            states[index].bounds.1 = states[index].bounds.1.max(bounds.maxs);
+            states[index].bounds.2 = states[index].bounds.2.min(bounds.maxs - bounds.mins);
+        }
+    }
+    let axis_threshold = |body: &CcdBody, mode: u8| match mode {
+        0 => body.bounds.1 - body.bounds.0,
+        1 => Vec3::splat((body.bounds.1 - body.bounds.0).min_element()),
+        2 => body.bounds.2,
+        3 => Vec3::splat(body.bounds.2.min_element()),
+        _ => Vec3::splat(f32::INFINITY),
+    };
+    let mut pairs = Vec::<CcdPair>::new();
+    for (first, (_, owner, _, _, layers, member, _, restitution)) in shapes.iter().enumerate() {
+        let Some(&a) = indices.get(&owner.body) else { continue; };
+        let Some(settings) = states[a].settings else { continue; };
+        if !states[a].dynamic || settings.enable_threshold_bounds_scale < 0.0 { continue; }
+        for (second, (_, other_owner, _, _, other_layers, other_member, _, other_restitution)) in shapes.iter().enumerate() {
+            let Some(&b) = indices.get(&other_owner.body) else { continue; };
+            if a == b || states[b].dynamic && states[b].settings.is_some() && first > second { continue; }
+            if settings.only_dynamic_static && !states[b].mode.is_static() { continue; }
+            if !layers.copied().unwrap_or_default().interacts_with(other_layers.copied().unwrap_or_default()) { continue; }
+            if member.zip(*other_member).is_some_and(|(left, right)| left.disables(right)) { continue; }
+            if joint_graph.as_ref().is_some_and(|graph|
+                graph.joints_between(owner.body, other_owner.body).any(|edge| edge.collision_disabled)) { continue; }
             let threshold = settings.enable_threshold_bounds_scale;
-            if threshold < 0.0 || threshold > 0.0 && (local_delta - axis_threshold * threshold).max_element() <= 0.0 { continue; }
-            let mut earliest = dt;
-            let mut hit_body = None;
-            for (shape, owner, local, sensor, layers, member, mode) in &colliders {
-                if owner.body != body || sensor.is_some() || mode.is_some_and(|mode| !mode.has_physics_response()) { continue; }
-                let pose = Pose3::from_parts(start_position + end_rotation * local.translation, end_rotation * local.rotation.0);
-                for (other, other_owner, other_local, other_sensor, other_layers, other_member, other_collision) in &colliders {
-                    if other_owner.body == body || other_sensor.is_some() || other_collision.is_some_and(|mode| !mode.has_physics_response()) { continue; }
-                    if !layers.copied().unwrap_or_default().interacts_with(other_layers.copied().unwrap_or_default()) { continue; }
-                    if member.zip(other_member).is_some_and(|(left, right)| left.disables(right)) { continue; }
-                    let Ok((other_position, other_rotation, other_mode, other_center, other_solver)) = read.get(other_owner.body) else { continue; };
-                    if settings.only_dynamic_static && !other_mode.is_static() { continue; }
-                    let other_velocity = other_solver.map_or(Vec3::ZERO, |solver| solver.linear_velocity);
-                    let other_end_rotation = other_solver.map_or(other_rotation.0, |solver| solver.delta_rotation.0 * other_rotation.0);
-                    let other_end_position = other_position.0 + other_solver.map_or(Vec3::ZERO, |solver| solver.delta_position)
-                        + other_rotation.0 * other_center.0 - other_end_rotation * other_center.0;
-                    let other_start = other_end_position - other_velocity * dt;
-                    let other_pose = Pose3::from_parts(other_start + other_end_rotation * other_local.translation,
-                        other_end_rotation * other_local.rotation.0);
-                    if let Ok(Some(hit)) = DefaultQueryDispatcher.cast_shapes(&pose.inv_mul(&other_pose),
-                        pose.rotation.conjugate() * (other_velocity - velocity), shape.shape_scaled().as_ref(),
-                        other.shape_scaled().as_ref(), ShapeCastOptions {
-                            max_time_of_impact: earliest, stop_at_penetration: false, ..default()
-                        }) && hit.time_of_impact >= 0.0 && hit.time_of_impact < earliest {
-                        let own_bounds = shape.shape_scaled().compute_local_aabb();
-                        let other_bounds = other.shape_scaled().compute_local_aabb();
-                        let min_bounds = (own_bounds.maxs - own_bounds.mins).min_element().max(
-                            if profiles.get(other_owner.body).is_ok() { (other_bounds.maxs - other_bounds.mins).min_element() } else { 0.0 });
-                        let speed = (velocity - other_velocity).dot(pose.rotation * hit.normal1);
-                        if (dt - hit.time_of_impact) * speed < min_bounds * settings.enable_threshold_bounds_scale { continue; }
-                        let depth = min_bounds * settings.allowed_depth_bounds_scale;
-                        let candidate = if settings.new_target_depth_mode && depth > 0.0 {
-                            ccd_time_at_depth(pose, velocity, shape, other_pose, other_velocity, other, hit.time_of_impact, earliest, depth)
-                        } else {
-                            (speed > 0.0).then_some(hit.time_of_impact + depth / speed).filter(|time| *time < earliest)
-                        };
-                        if let Some(time) = candidate {
-                            earliest = time;
-                            hit_body = Some((other_owner.body, other_velocity, other_mode.is_dynamic(),
-                                other_solver.map_or(Vec3::ZERO, |solver| solver.delta_position - other_velocity * dt)));
-                        }
-                    }
-                }
+            let combined = axis_threshold(&states[a], settings.axis_threshold_mode).min(
+                (states[a].rotation * states[b].rotation.conjugate()
+                    * axis_threshold(&states[b], settings.axis_threshold_mode)).abs());
+            let relative = (states[a].rotation.conjugate() * ((states[b].velocity - states[a].velocity) * dt)).abs();
+            if threshold > 0.0 && (relative - combined * threshold).max_element() <= 0.0 { continue; }
+            let material = restitution.copied().unwrap_or(states[a].restitution)
+                .combine(other_restitution.copied().unwrap_or(states[b].restitution));
+            pairs.push(CcdPair { bodies: [a, b], shapes: [first, second], settings, restitution: material.coefficient });
+        }
+    }
+    let sweep = |pair: &CcdPair, states: &[CcdBody], from: f32| -> Option<(f32, Vec3)> {
+        let a = &states[pair.bodies[0]];
+        let b = &states[pair.bodies[1]];
+        if (a.done || !a.dynamic) && (b.done || !b.dynamic) { return None; }
+        let velocity = if a.done { Vec3::ZERO } else { a.velocity };
+        let other_velocity = if b.done { Vec3::ZERO } else { b.velocity };
+        let position = if a.done { a.end } else { a.start + a.velocity * from };
+        let other_position = if b.done { b.end } else { b.start + b.velocity * from };
+        let (shape, _, local, _, _, _, _, _) = shapes[pair.shapes[0]];
+        let (other, _, other_local, _, _, _, _, _) = shapes[pair.shapes[1]];
+        let pose = Pose3::from_parts(position + a.rotation * local.translation, a.rotation * local.rotation.0);
+        let other_pose = Pose3::from_parts(other_position + b.rotation * other_local.translation, b.rotation * other_local.rotation.0);
+        let remaining = dt - from;
+        let hit = DefaultQueryDispatcher.cast_shapes(&pose.inv_mul(&other_pose),
+            pose.rotation.conjugate() * (other_velocity - velocity), shape.shape_scaled().as_ref(),
+            other.shape_scaled().as_ref(), ShapeCastOptions { max_time_of_impact: remaining,
+                stop_at_penetration: false, ..default() }).ok()??;
+        let normal = pose.rotation * hit.normal1;
+        let own_bounds = shape.shape_scaled().compute_local_aabb();
+        let other_bounds = other.shape_scaled().compute_local_aabb();
+        let min_bounds = (own_bounds.maxs - own_bounds.mins).min_element().max(
+            if b.settings.is_some() { (other_bounds.maxs - other_bounds.mins).min_element() } else { 0.0 });
+        let speed = (velocity - other_velocity).dot(normal);
+        if (remaining - hit.time_of_impact) * speed < min_bounds * pair.settings.enable_threshold_bounds_scale { return None; }
+        let depth = min_bounds * pair.settings.allowed_depth_bounds_scale;
+        let candidate = if pair.settings.new_target_depth_mode && depth > 0.0 {
+            ccd_time_at_depth(pose, velocity, shape, other_pose, other_velocity, other, hit.time_of_impact, remaining, depth)?
+        } else { hit.time_of_impact + depth / speed.max(f32::MIN_POSITIVE) };
+        (candidate >= 0.0 && candidate < remaining).then_some((from + candidate, normal))
+    };
+    let mut hits = pairs.iter().map(|pair| sweep(pair, &states, 0.0)).collect::<Vec<_>>();
+    for _ in 0..states.iter().filter(|body| body.dynamic).count() {
+        let Some((index, (toi, normal))) = hits.iter().enumerate().filter_map(|(index, hit)| hit.map(|hit| (index, hit)))
+            .min_by(|left, right| left.1.0.total_cmp(&right.1.0)) else { break; };
+        let pair = &pairs[index];
+        let [a, b] = pair.bodies;
+        let fast_kinematic = [a, b].into_iter().find(|index| {
+            let body = &states[*index];
+            body.mode.is_kinematic() && (pair.settings.enable_threshold_bounds_scale == 0.0
+                || ((body.rotation.conjugate() * (body.velocity * dt)).abs()
+                    - axis_threshold(body, pair.settings.axis_threshold_mode) * pair.settings.enable_threshold_bounds_scale).max_element() > 0.0)
+        });
+        let offset = fast_kinematic.map_or(Vec3::ZERO, |index|
+            normal * (states[index].velocity * (dt - toi)).dot(normal));
+        let positions = [a, b].map(|index| states[index].start + states[index].velocity * toi + offset);
+        if pair.settings.allowed_depth_bounds_scale <= 0.0 {
+            let direction = -normal;
+            let normal_velocity = (states[a].velocity - states[b].velocity).dot(direction);
+            let inverse_a = if states[a].dynamic && !states[a].done { states[a].inverse_mass } else { 0.0 };
+            let inverse_b = if states[b].dynamic && !states[b].done { states[b].inverse_mass } else { 0.0 };
+            if normal_velocity < 0.0 && inverse_a + inverse_b > 0.0 {
+                let impulse = direction * (-(1.0 + pair.restitution) * normal_velocity / (inverse_a + inverse_b));
+                states[a].velocity += impulse * inverse_a;
+                states[b].velocity -= impulse * inverse_b;
             }
-            if let Some((other, other_velocity, other_dynamic, other_shift)) = hit_body {
-                let origin_shift = solver.delta_position - velocity * dt;
-                hits.push((body, other, earliest, velocity, other_velocity, origin_shift, other_dynamic, other_shift));
+        }
+        for (index, position) in [a, b].into_iter().zip(positions) {
+            if states[index].dynamic && !states[index].done {
+                states[index].end = position;
+                states[index].done = true;
+            }
+        }
+        for (index, next) in pairs.iter().enumerate() {
+            if next.bodies.iter().any(|index| *index == a || *index == b) {
+                hits[index] = sweep(next, &states, toi);
             }
         }
     }
-    hits.sort_by(|left, right| left.2.total_cmp(&right.2));
     let mut write = bodies.p1();
-    let mut advanced = bevy::platform::collections::HashSet::new();
-    for (body, other, toi, velocity, other_velocity, origin_shift, other_dynamic, other_shift) in hits {
-        if advanced.insert(body) && let Ok(mut solver) = write.get_mut(body) {
-            solver.delta_position = origin_shift + velocity * toi;
-        }
-        if other_dynamic && advanced.insert(other) && let Ok(mut solver) = write.get_mut(other) {
-            solver.delta_position = other_shift + other_velocity * toi;
+    for state in states {
+        if state.done && let Ok(mut solver) = write.get_mut(state.entity) {
+            solver.delta_position = state.end - state.origin;
+            solver.linear_velocity = state.velocity;
         }
     }
 }
+
 
 fn refresh_ragdoll_collision_pairs(world: &mut World, colliders: &[Entity]) {
     let active = colliders.iter().copied().filter(|entity|
@@ -1451,6 +1521,135 @@ fn joint_anchor_distance(
 
 #[cfg(test)]
 mod tests {
+    fn browser_ccd_body(
+        world: &mut World, mode: RigidBody, origin: Vec3, velocity: Vec3, shape: Collider,
+        settings: Option<SourceCcdSettings>,
+    ) -> Entity {
+        use avian3d::prelude::{ColliderOf, ColliderTransform, ComputedCenterOfMass, ComputedMass, SweptCcd};
+        let body = world.spawn((mode, Position(origin), Rotation::IDENTITY,
+            ComputedCenterOfMass(Vec3::ZERO), ComputedMass::new(1.0), Restitution::new(0.5),
+            SolverBody { linear_velocity: velocity, delta_position: velocity / 64.0,
+                flags: if mode.is_dynamic() { SolverBodyFlags::empty() } else { SolverBodyFlags::IS_KINEMATIC },
+                ..default() })).id();
+        if let Some(settings) = settings { world.entity_mut(body).insert((settings, SweptCcd::LINEAR)); }
+        world.spawn((shape, ColliderOf { body }, ColliderTransform::default(), Restitution::new(0.5)));
+        body
+    }
+
+    #[test]
+    fn browser_review_ccd_relative_motion_activates_a_stationary_body() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut world = World::new();
+        let mut time = Time::<()>::default();time.advance_by(std::time::Duration::from_secs_f32(1.0 / 64.0));world.insert_resource(time);
+        let settings = crate::pa_als::parse_pa_als_profile().ccd_settings;
+        browser_ccd_body(&mut world, RigidBody::Dynamic, Vec3::ZERO, Vec3::ZERO, Collider::sphere(0.2), Some(settings));
+        let moving = browser_ccd_body(&mut world, RigidBody::Dynamic, Vec3::NEG_X, Vec3::X * 128.0,
+            Collider::cuboid(0.02, 2.0, 2.0), None);
+        world.run_system_once(solve_profile_linear_ccd).unwrap();
+        assert!(world.get::<SolverBody>(moving).unwrap().delta_position.x < 1.0,
+            "Stationary CCD body ignored the other body's relative sweep");
+    }
+
+    #[test]
+    fn browser_review_ccd_kinematic_push_keeps_remaining_normal_motion() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut world = World::new();
+        let mut time = Time::<()>::default();time.advance_by(std::time::Duration::from_secs_f32(1.0 / 64.0));world.insert_resource(time);
+        let mut settings = crate::pa_als::parse_pa_als_profile().ccd_settings;
+        settings.enable_threshold_bounds_scale = 0.0;
+        let body = browser_ccd_body(&mut world, RigidBody::Dynamic, Vec3::ZERO, Vec3::ZERO,
+            Collider::sphere(0.1), Some(settings));
+        browser_ccd_body(&mut world, RigidBody::Kinematic, Vec3::NEG_X, Vec3::X * 128.0, Collider::sphere(0.1), None);
+        world.run_system_once(solve_profile_linear_ccd).unwrap();
+        let actual = world.get::<SolverBody>(body).unwrap().delta_position.x;
+        assert!((actual - 1.16).abs() < 1e-5,
+            "Fast kinematic CCD lost its remaining normal displacement: {actual}");
+    }
+
+    #[test]
+    fn browser_review_ccd_respects_runtime_joint_collision_policy() {
+        use avian3d::dynamics::solver::joint_graph::{JointGraph, JointGraphEdge};
+        use bevy::ecs::system::RunSystemOnce;
+        for disabled in [true, false] {
+            let mut world = World::new();
+            let mut time = Time::<()>::default();time.advance_by(std::time::Duration::from_secs_f32(1.0 / 64.0));world.insert_resource(time);
+            let settings = crate::pa_als::parse_pa_als_profile().ccd_settings;
+            let body = browser_ccd_body(&mut world, RigidBody::Dynamic, Vec3::NEG_X, Vec3::X * 128.0,
+                Collider::sphere(0.1), Some(settings));
+            let wall = browser_ccd_body(&mut world, RigidBody::Static, Vec3::ZERO, Vec3::ZERO,
+                Collider::cuboid(0.02, 2.0, 2.0), None);
+            let joint = world.spawn_empty().id();
+            let mut graph = JointGraph::default();
+            graph.add_joint(body, wall, JointGraphEdge::new(joint, body, wall, disabled));
+            world.insert_resource(graph);
+            if disabled { world.entity_mut(joint).insert(JointCollisionDisabled); }
+            world.run_system_once(solve_profile_linear_ccd).unwrap();
+            let actual = world.get::<SolverBody>(body).unwrap().delta_position.x;
+            assert_eq!(actual == 2.0, disabled,
+                "Runtime joint collision policy was bypassed by CCD: disabled={disabled}, delta={actual}");
+        }
+    }
+
+    #[test]
+    fn browser_review_ccd_zero_depth_applies_the_source_point_mass_impulse() {
+        use avian3d::prelude::ComputedMass;
+        use bevy::ecs::system::RunSystemOnce;
+        let mut world = World::new();
+        let mut time = Time::<()>::default();time.advance_by(std::time::Duration::from_secs_f32(1.0 / 64.0));world.insert_resource(time);
+        let mut settings = crate::pa_als::parse_pa_als_profile().ccd_settings;
+        settings.enable_threshold_bounds_scale = 0.0;
+        settings.allowed_depth_bounds_scale = 0.0;
+        let body = browser_ccd_body(&mut world, RigidBody::Dynamic, Vec3::NEG_X * 0.25, Vec3::X * 64.0,
+            Collider::sphere(0.0625), Some(settings));
+        world.entity_mut(body).insert(ComputedMass::new(2.0));
+        browser_ccd_body(&mut world, RigidBody::Static, Vec3::ZERO, Vec3::ZERO,
+            Collider::cuboid(0.000001, 2.0, 2.0), None);
+        world.run_system_once(solve_profile_linear_ccd).unwrap();
+        let solver = world.get::<SolverBody>(body).unwrap();
+        assert!((solver.linear_velocity.x + 32.0).abs() < 1e-5,
+            "Zero-depth CCD did not apply the source point-mass restitution: {:?}", solver.linear_velocity);
+        assert!((-0.25 + solver.delta_position.x + 0.0625).abs() < 1e-5);
+        assert_eq!(solver.angular_velocity, Vec3::ZERO);
+        use avian3d::prelude::{Gravity, LinearVelocity, Mass, PhysicsPlugins, SpeculativeMargin, SubstepCount, SweptCcd};
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, TransformPlugin,
+            PhysicsPlugins::new(PostUpdate), RagdollPhysicsProfilePlugin))
+            .insert_resource(Gravity(Vec3::ZERO)).insert_resource(SubstepCount(1))
+            .insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 64.0)));
+        app.finish();app.cleanup();
+        let body = app.world_mut().spawn((RigidBody::Dynamic, Collider::sphere(0.0625), Mass(2.0),
+            Transform::from_xyz(-0.25, 0.0, 0.0), LinearDamping(0.0), Restitution::new(0.5),
+            SpeculativeMargin(0.0), settings, SweptCcd::LINEAR.with_velocity_threshold(f32::INFINITY, f32::INFINITY))).id();
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.000001, 2.0, 2.0),
+            Transform::IDENTITY, Restitution::new(0.5), SpeculativeMargin(0.0)));
+        app.update();
+        app.world_mut().get_mut::<LinearVelocity>(body).unwrap().0 = Vec3::X * 64.0;
+        app.update();
+        let actual = app.world().get::<LinearVelocity>(body).unwrap().0.x;
+        assert!((actual + 32.0).abs() < 1e-4,
+            "Full substep discarded the source zero-depth impulse baseline: {actual}");
+        assert!((app.world().get::<Position>(body).unwrap().0.x + 0.0625).abs() < 1e-5);
+    }
+
+    #[test]
+    fn browser_review_ccd_recomputes_the_sweep_after_a_related_body_is_clipped() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut world = World::new();
+        let mut time = Time::<()>::default();time.advance_by(std::time::Duration::from_secs_f32(1.0 / 64.0));world.insert_resource(time);
+        let settings = crate::pa_als::parse_pa_als_profile().ccd_settings;
+        let a = browser_ccd_body(&mut world, RigidBody::Dynamic, Vec3::ZERO, Vec3::X * 64.0,
+            Collider::sphere(1.0 / 32.0), Some(settings));
+        let b = browser_ccd_body(&mut world, RigidBody::Dynamic, Vec3::new(0.5, 0.0, 0.5), Vec3::NEG_Z * 64.0,
+            Collider::sphere(1.0 / 32.0), Some(settings));
+        browser_ccd_body(&mut world, RigidBody::Static, Vec3::X * 0.25, Vec3::ZERO,
+            Collider::sphere(1.0 / 32.0), None);
+        world.run_system_once(solve_profile_linear_ccd).unwrap();
+        assert!((world.get::<SolverBody>(a).unwrap().delta_position.x - 0.2).abs() < 1e-5);
+        let actual = 0.5 + world.get::<SolverBody>(b).unwrap().delta_position.z;
+        assert!((actual + 0.5).abs() < 1e-5,
+            "A stale CCD time of impact clipped the unrelated remaining path: {actual}");
+    }
+
     use super::*;
 
     #[test]

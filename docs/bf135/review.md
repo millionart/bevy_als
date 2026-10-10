@@ -7,9 +7,9 @@
 | 编号 | 差异与当前 consumer | 指定提交判定 | 修复及验证 |
 |---|---|---|---|
 | R01 | `source_physics_joint::solve_source_joint_velocity_iterations` 未屏蔽非动态端响应惯量 | 确认并已修复 | BF135.06：真实query有限质量Kinematic父`.5!=0`→唯一inertia helper按native NonDynamic编码归一，线性/角向/conditioning16组通过；去掉归一同红，完整byte恢复554回归及原startup/ragdoll11项通过 |
-| R02 | `ragdoll_physics_profile::solve_profile_linear_ccd` 在相对运动读取前按本体位移退出 | 待原生确认 | 待执行 |
-| R03 | 同 CCD 写回缺运动学体剩余法向位移 | 待原生确认 | 待执行 |
-| R04 | 同 CCD pair filter 未消费运行期关节禁碰 | 待原生确认 | 待执行 |
+| R02 | `ragdoll_physics_profile::solve_profile_linear_ccd` 在相对运动读取前按本体位移退出 | 确认并已修复 | BF135.12B：真实stationary CCD忽略对端高速运动红→双方delta与双方轴阈值min，非CCD dynamic对端也按source裁剪；own-only消融同红，byte恢复/旧CCD矩阵与原startup/ragdoll通过 |
+| R03 | 同 CCD 写回缺运动学体剩余法向位移 | 确认并已修复 | BF135.12B：fast-kin剩余normal位移0!=1.16红→按source阈值标记fast kin、在TOI后给dynamic clip投影剩余位移，移除offset同红；恢复/旧CCD矩阵与原startup/ragdoll通过 |
+| R04 | 同 CCD pair filter 未消费运行期关节禁碰 | 确认并已修复 | BF135.12B：runtime graph禁碰仍被CCD裁剪红→读取公开JointGraph当前pair collision_disabled，保留layers/asset策略；移除policy同红、producer graph/旧CCD矩阵与原startup/ragdoll通过 |
 | R05 | `control_rig_apply::refresh_control_rig_input` 脊柱动画时钟 | 已修复 | `e64af0759`；当前传入 `animation.delta_seconds`，不再读世界 delta |
 | R06 | `als/character/movement/source_physics_timing::integrate_character_position` Air 长帧仍用末速度 | 确认并已修复 | BF135.07B：100ms六步位移`1.942775!=1.95095`红→子步速度阶段前旧速度/中点，速度补偿和clamp保持；中点、无状态terminal复算、时机三消融红，整byte恢复65相关回归；原startup/uphill/moving-base/100ms takeoff入口通过 |
 | R07 | `ragdoll_link::apply_ragdoll_ground_follow` 与退出 realign 将世界位置写局部 Transform | 确认并已修复 | BF135.09B：translated/rotated/scaled parent实际follow/exit world目标与loaded恢复旋转/骨盆snapshot红→当前parent逆映射local、恢复以actor_world建world后重投local，Position/Rotation仍world；各映射消融红/三源byte恢复同target，原startup/ragdoll/camera通过 |
@@ -23,8 +23,8 @@
 | R15 | `source_physics_joint::apply_linear_motor` 阻尼未反馈累计 DP/DQ | 确认并已修复 | BF135.06：8迭代`.99609375!=.5`及已有DQ力臂方向反例红→预解基线/DP-DQ反馈/源cached模式，192标量/27关节原生通过；反馈、基线无状态替代、DQ、cached模式独立消融红，源码整byte恢复554回归及原startup/ragdoll11项通过 |
 | R16 | pose renderer PropertyAccess 仍输出空 `expected_tag` | 待原生确认 | 待执行；修复后必须完整转换 corpus/diff |
 | R17 | state wrappers 与 GameplayTag consumer 仍采用原始大小写身份 | 待原生确认 | 待执行 |
-| R18 | CCD 零允许深度仍只裁剪位置、不施加源冲量 | 待原生确认 | 待执行 |
-| R19 | CCD 仍先快照所有命中再排序、未重扫已变轨迹 | 待原生确认 | 待执行 |
+| R18 | CCD 零允许深度仍只裁剪位置、不施加源冲量 | 确认并已修复 | BF135.12B：zero-depth mass2/rest.5速度64!=-32红→source point-mass normal impulse且无angular/friction，现阶段完整substep保持-32，无额外baseline状态；移除impulse同红，恢复/原startup/ragdoll通过 |
+| R19 | CCD 仍先快照所有命中再排序、未重扫已变轨迹 | 确认并已修复 | BF135.12B：A被S先截停后B旧TOI仍停z.035355红→Done轨迹更新关联扫掠/当前remaining区间TOI重排，B达到源-.5；保留旧TOI消融同红，恢复/旧CCD矩阵及原startup/ragdoll通过 |
 | R20 | dynamics Air 覆盖 Tnua 起跳帧基座 boost | 确认并已修复 | BF135.07B：实际basis+2→−2输出target+2红；首全motor方案暴露slipping误接，144.959s独立真实steep producer红→既有base上下文读取纯支持差后清理。384实际管线/65回归、pure/slip/提前清三消融与整byte恢复齐全；原四公共含18跳与100ms takeoff全部通过 |
 | R21 | `next_position` 在旧时间推进后才 clamp 新 clip 长度 | 确认并已修复 | BF135.01：原生 `1!=0.875` 失败→17/17 通过→移除规则再失败→完整字节恢复同 target 17/17；原 startup/state_machine 通过 |
 | R22 | `als_camera::apply_camera_view` 未将世界 view 转成渲染相机 local | 确认并已修复 | BF135.09B：actual Camera3d after-shake parent世界视图被再次叠加红→当前父级逆映射仅在最终shake后一次，world view scale1与有效frame/owner数据边界；当帧变parent/active/fallback/缺输入与原root精度通过，各机制消融红，恢复与原startup/ragdoll/camera通过 |
