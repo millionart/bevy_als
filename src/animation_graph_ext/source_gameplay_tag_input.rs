@@ -141,7 +141,7 @@ impl SourceGameplayTagInputNode {
         }
         let tag = active_gameplay_tag_input(entity, &self.key).ok_or("gameplay tag input is missing")?;
         if !self.expected_tag.is_empty() {
-            return Ok(tag.matches_tag_exact(&GameplayTag::new(&self.expected_tag)));
+            return Ok(tag.as_str().eq_ignore_ascii_case(GameplayTag::new(&self.expected_tag).as_str()));
         }
         Ok(tag.is_valid())
     }
@@ -174,6 +174,18 @@ impl NodeLike for SourceGameplayTagInputNode {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn browser_review_tag_input_compares_source_literal_ignoring_case() {
+        let entity=Entity::PLACEHOLDER;
+        let mut inputs=SourceAnimationInputs::default();
+        inputs.set_gameplay_tag_input("browser_tag",GameplayTag::new("ALS.ROTATIONMODE.AIMING"));
+        let node=SourceGameplayTagInputNode {key:"browser_tag".into(),output:"Value".into(),expected_tag:"Als.RotationMode.Aiming".into(),..default()};
+        inputs.evaluate(entity,|| {
+            assert_eq!(node.value(entity),Ok(true),"Source literal lost its case-insensitive identity");
+            assert_eq!(SourceGameplayTagInputNode {expected_tag:"Als.RotationMode.VelocityDirection".into(),..node.clone()}.value(entity),Ok(false));
+        });
+    }
+
     use super::*;
 
     fn app() -> App {

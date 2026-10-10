@@ -2,7 +2,7 @@
 
 核对目标：`4e2b6bc447ab47a570c85135eb1b6e0de5aa97c2`。浏览器 continuation_13 的累计记录针对 `9105cdf021f668a86c9d580df2e48b8f57d8233d`，共 33 项；完整 JSON 5999 行已读取、解析且数量核对。UE `396c9f059903aed5fec78ecd3d437a40c6415368` 与 ALS plugin `b754d6f0f2bb03741d301f8fb88077ebfe561e17` 的本地身份相符。
 
-“待原生确认”表示指定提交保留相同生产路径，需当次本地 source 和失败反例后才修复；不是沿用浏览器模型的原生通过声明。后续修复和验证填写同一行。
+33 项均已完成指定提交代码、当次本地 source 与实际反例核对：29 项确认存在并已修复，4 项在指定提交中已修复。浏览器模型的原生通过声明未作为验收证据。
 
 | 编号 | 差异与当前 consumer | 指定提交判定 | 修复及验证 |
 |---|---|---|---|
@@ -22,7 +22,7 @@
 | R14 | `source_sequence_player::next_position` 无条件取模丢闭区间末点 | 确认并已修复 | BF135.01：原生 `0!=1.5` 失败→17/17 通过→移除规则再失败→完整字节恢复同 target 17/17；原 startup/state_machine 通过 |
 | R15 | `source_physics_joint::apply_linear_motor` 阻尼未反馈累计 DP/DQ | 确认并已修复 | BF135.06：8迭代`.99609375!=.5`及已有DQ力臂方向反例红→预解基线/DP-DQ反馈/源cached模式，192标量/27关节原生通过；反馈、基线无状态替代、DQ、cached模式独立消融红，源码整byte恢复554回归及原startup/ragdoll11项通过 |
 | R16 | pose renderer PropertyAccess 仍输出空 `expected_tag` | 确认并已修复 | BF135.11B：pose PropertyAccess比较literal旧空值fixture红→唯一renderer保留source expected_tag，移除同红；全15root/23AnimBP/236subgraph/374重转完整diff只有Land_Movement空→Aiming，逐native连接审计/安装byte/static及原四公共通过 |
-| R17 | state wrappers 与 GameplayTag consumer 仍采用原始大小写身份 | 待原生确认 | 待执行 |
+| R17 | state wrappers 与 GameplayTag consumer 仍采用原始大小写身份 | 确认并已修复 | BF135.13B：七实际状态/Hash/精确比较/TagBlend/菜单层级/Root action-reset反例先红→std ASCII身份与一致Hash、同名enum保留known匹配/custom显示，菜单alias去重；七机制消融各红→五源完整byte同target恢复/101相关/static，删除无必要helper层后信号不变；原startup/locomotion/overlays/notify通过，生成树0改 |
 | R18 | CCD 零允许深度仍只裁剪位置、不施加源冲量 | 确认并已修复 | BF135.12B：zero-depth mass2/rest.5速度64!=-32红→source point-mass normal impulse且无angular/friction，现阶段完整substep保持-32，无额外baseline状态；移除impulse同红，恢复/原startup/ragdoll通过 |
 | R19 | CCD 仍先快照所有命中再排序、未重扫已变轨迹 | 确认并已修复 | BF135.12B：A被S先截停后B旧TOI仍停z.035355红→Done轨迹更新关联扫掠/当前remaining区间TOI重排，B达到源-.5；保留旧TOI消融同红，恢复/旧CCD矩阵及原startup/ragdoll通过 |
 | R20 | dynamics Air 覆盖 Tnua 起跳帧基座 boost | 确认并已修复 | BF135.07B：实际basis+2→−2输出target+2红；首全motor方案暴露slipping误接，144.959s独立真实steep producer红→既有base上下文读取纯支持差后清理。384实际管线/65回归、pure/slip/提前清三消融与整byte恢复齐全；原四公共含18跳与100ms takeoff全部通过 |

@@ -1,0 +1,315 @@
+{
+  "format": "als_animgraph_authoring_gate_v1",
+  "graphs": [
+    {
+      "path": "assets/ALS/Character/AB_Als.runtime.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "b113030b-0000-4000-8000-000000000001",
+          "name": "AB_Als",
+          "position": [
+            -480.0,
+            0.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000002",
+          "name": "Ragdoll Dynamic",
+          "position": [
+            -480.0,
+            160.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000003",
+          "name": "Ragdoll Readback",
+          "position": [
+            -480.0,
+            240.0
+          ]
+        },
+        {
+          "id": "b113030b-0000-4000-8000-000000000004",
+          "name": "Ragdoll Config",
+          "position": [
+            -224.0,
+            192.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000002\", \"als_ragdolling_dynamic\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"dynamic\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000003\", \"als_ragdolling_readback\")",
+          "target": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"readback\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000001\", \"pose\")",
+          "target": "OutputData(\"pose\")"
+        },
+        {
+          "source": "NodeData(\"b113030b-0000-4000-8000-000000000004\", \"ragdoll_config\")",
+          "target": "OutputData(\"ragdoll_config\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "pose": "Pose",
+          "ragdoll_config": "RagdollConfig"
+        }
+      },
+      "root_output_exceptions": [
+        {
+          "name": "ragdoll_config",
+          "reason": "The framework consumes body simulation and pose readback controls independently from the source pose.",
+          "evidence": "docs/bf114-ragdoll-contract.md"
+        }
+      ]
+    },
+    {
+      "path": "assets/ALS/Character/AnimationInstances/AB_Als_Locomotion/AnimGraph/SM9_Locomotion_States/S4_Land_Movement.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "6e963845-455f-f687-8d4f-509471e6a4f3",
+          "name": "Output Animation Pose",
+          "position": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "id": "9fce565d-4e82-86d5-3d0f-8db7d81dd006",
+          "name": "A_Als_Land_Light_Additive\nSequence Player\nSync group Land",
+          "position": [
+            -1568.0,
+            32.0
+          ]
+        },
+        {
+          "id": "1582e7d5-42ae-976e-c548-fab8e36b1648",
+          "name": "A_Als_Land_Heavy_Additive\nSequence Player\nSync group Land",
+          "position": [
+            -1568.0,
+            176.0
+          ]
+        },
+        {
+          "id": "be0a083e-4b01-2e80-a622-8cbd910fe14e",
+          "name": "Two Way Blend",
+          "position": [
+            -1296.0,
+            128.0
+          ]
+        },
+        {
+          "id": "9db7c09d-4714-e893-5eb5-fc972388b3bc",
+          "name": "Use cached pose 'Grounded'",
+          "position": [
+            -1168.0,
+            32.0
+          ]
+        },
+        {
+          "id": "f437d492-46eb-68a4-96c1-8e8218ced47d",
+          "name": "Apply Mesh Space Additive",
+          "position": [
+            -896.0,
+            64.0
+          ]
+        },
+        {
+          "id": "2bffd40c-4642-bddd-cdba-969f1bc71c68",
+          "name": "Two Way Blend",
+          "position": [
+            -448.0,
+            0.0
+          ]
+        },
+        {
+          "id": "9869b431-4b0d-d548-930b-72ab2a4d6278",
+          "name": "Use cached pose 'Grounded'",
+          "position": [
+            -720.0,
+            -32.0
+          ]
+        },
+        {
+          "id": "c7b14bfb-4928-f814-ca22-e8964d5ef3dc",
+          "name": "Property Access",
+          "position": [
+            -1712.0,
+            320.0
+          ]
+        },
+        {
+          "id": "cf04e8f4-46bc-6882-4f63-06a2cf6e12c0",
+          "name": "Equal (GameplayTag)",
+          "position": [
+            -1424.0,
+            320.0
+          ]
+        },
+        {
+          "id": "9caa35c1-443e-7952-f6c2-90af7137cfe5",
+          "name": "To Float (Boolean)",
+          "position": [
+            -1072.0,
+            336.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "NodeData(\"cf04e8f4-46bc-6882-4f63-06a2cf6e12c0\", \"A\")",
+          "source": "NodeData(\"c7b14bfb-4928-f814-ca22-e8964d5ef3dc\", \"Value\")"
+        },
+        {
+          "target": "NodeData(\"2bffd40c-4642-bddd-cdba-969f1bc71c68\", \"A\")",
+          "source": "NodeData(\"9869b431-4b0d-d548-930b-72ab2a4d6278\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"9caa35c1-443e-7952-f6c2-90af7137cfe5\", \"InBool\")",
+          "source": "NodeData(\"cf04e8f4-46bc-6882-4f63-06a2cf6e12c0\", \"ReturnValue\")"
+        },
+        {
+          "target": "NodeData(\"f437d492-46eb-68a4-96c1-8e8218ced47d\", \"Alpha\")",
+          "source": "NodeData(\"9caa35c1-443e-7952-f6c2-90af7137cfe5\", \"ReturnValue\")"
+        },
+        {
+          "target": "NodeData(\"6e963845-455f-f687-8d4f-509471e6a4f3\", \"Source\")",
+          "source": "NodeData(\"2bffd40c-4642-bddd-cdba-969f1bc71c68\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"f437d492-46eb-68a4-96c1-8e8218ced47d\", \"Additive\")",
+          "source": "NodeData(\"be0a083e-4b01-2e80-a622-8cbd910fe14e\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"f437d492-46eb-68a4-96c1-8e8218ced47d\", \"Base\")",
+          "source": "NodeData(\"9db7c09d-4714-e893-5eb5-fc972388b3bc\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"be0a083e-4b01-2e80-a622-8cbd910fe14e\", \"B\")",
+          "source": "NodeData(\"1582e7d5-42ae-976e-c548-fab8e36b1648\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"2bffd40c-4642-bddd-cdba-969f1bc71c68\", \"B\")",
+          "source": "NodeData(\"f437d492-46eb-68a4-96c1-8e8218ced47d\", \"Pose\")"
+        },
+        {
+          "target": "NodeData(\"be0a083e-4b01-2e80-a622-8cbd910fe14e\", \"A\")",
+          "source": "NodeData(\"9fce565d-4e82-86d5-3d0f-8db7d81dd006\", \"Pose\")"
+        },
+        {
+          "target": "OutputData(\"Result\")",
+          "source": "NodeData(\"6e963845-455f-f687-8d4f-509471e6a4f3\", \"Pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "Result": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    }
+  ],
+  "id": "source_fname_case_identity_and_actual_tag_consumers_contract",
+  "source_evidence": [
+    {
+      "path": "target/bf135/tags/name_types_current.h",
+      "sha256": "6fde1979ba40be8cf11a284606e28139f3cd655b00f05e05a3903f4cdd36f29e"
+    },
+    {
+      "path": "target/bf135/tags/gameplay_tag_container_current.h",
+      "sha256": "918b52b5852a8f74d974f436c9076332a7d47833f240b49d6471bd9988c01f3c"
+    },
+    {
+      "path": "target/bf135/tags/AlsAnimationInstance.cpp.current",
+      "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c"
+    },
+    {
+      "path": "target/bf135/tags/AlsCharacter.cpp.current",
+      "sha256": "779192e94d0a1ac13ccf95cfa9db540cc4f6230a2dc3ab9113848f8d983ace84"
+    },
+    {
+      "path": "target/bf135/tags/gameplay_tag.rs",
+      "sha256": "3c1fb0a94c63394db5967f7071ce98cb0a3d9504683037a58a81bf0f2f178c46"
+    },
+    {
+      "path": "target/bf135/tags/gameplay_tags_manager.rs",
+      "sha256": "e4d48e83647cdefb416e01cde54bfde3946ac904df09331d6518b87e672d5ea6"
+    }
+  ],
+  "verification_commands": [
+    {
+      "label": "generated_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets",
+        "--include",
+        "ALS",
+        "--include",
+        "ALSCamera"
+      ]
+    },
+    {
+      "label": "generated_editor",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets"
+      ]
+    },
+    {
+      "label": "runtime_asset_boundary",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/validate_runtime_graph_asset_boundary.py",
+        "--assets-root",
+        "assets",
+        "--check"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "animgraph_assets",
+    "manual_case": "overlays"
+  },
+  "focused_tests": [
+    {
+      "label": "case_identity_seven_real_consumers",
+      "argv": [
+        "cargo",
+        "+1.95.0",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "browser_review_tag_",
+        "--",
+        "--test-threads=1"
+      ],
+      "evidence": "target/bf135/tags/restored_counter.watchdog.json"
+    }
+  ]
+}

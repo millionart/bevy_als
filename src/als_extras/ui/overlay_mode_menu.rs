@@ -10,11 +10,12 @@ use crate::als_hud::AlsHudState;
 use crate::character_assembly::AlsPlayerCharacter;
 
 pub fn menu_display_order(tags: &bevy_gameplay_tag::GameplayTagsManager) -> Vec<OverlayState> {
-    let parent = bevy_gameplay_tag::GameplayTag::new("Als.OverlayMode");
+    let parent = "Als.OverlayMode";
     let mut values: Vec<_> = tags
         .tag_map
         .keys()
-        .filter(|tag| *tag != &parent && tag.matches_tag(&parent, tags))
+        .filter(|tag| tag.as_str().get(..parent.len()).is_some_and(|prefix| prefix.eq_ignore_ascii_case(parent))
+            && tag.as_str().as_bytes().get(parent.len()) == Some(&b'.'))
         .map(OverlayState::from_tag)
         .collect();
     let name_key = |name: &str| {
@@ -33,6 +34,7 @@ pub fn menu_display_order(tags: &bevy_gameplay_tag::GameplayTagsManager) -> Vec<
         }
         a.as_str().len().cmp(&b.as_str().len())
     });
+    values.dedup();
     values
 }
 
@@ -353,6 +355,16 @@ fn menu_highlight_system(
 
 #[cfg(test)]
 pub(crate) mod tests {
+    #[test]
+    fn browser_review_tag_menu_uses_case_insensitive_descendants_and_unique_identity() {
+        let tags=tag_manager(&["als.overlaymode.browsercase","ALS.OVERLAYMODE.BROWSERCASE","als.overlaymode.rifle","Als.OverlayMode2.Other"]);
+        let order=menu_display_order(&tags);
+        assert_eq!(order.iter().filter(|tag|tag.as_str().eq_ignore_ascii_case("Als.OverlayMode.BrowserCase")).count(),1,
+            "Source hierarchy lost the registered case aliases");
+        assert_eq!(order.iter().filter(|tag|**tag==OverlayState::Rifle).count(),1);
+        assert_eq!(order.len(),14);
+    }
+
     use super::*;
 
     pub(crate) fn tag_manager(extra: &[&str]) -> bevy_gameplay_tag::GameplayTagsManager {

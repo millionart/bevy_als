@@ -177,7 +177,7 @@ fn root_graph_writer(
             let next_action = locomotion_action_tag(notify_action, mantle, roll);
             let mut inputs = source_inputs.get_mut(instance.player_entity()).unwrap();
             let previous_action = inputs.gameplay_tag_input("locomotion_action").unwrap_or_else(|| GameplayTag::new(""));
-            if previous_action != next_action && let Some(entry) = grounded_entry.as_deref_mut() {
+            if !previous_action.as_str().eq_ignore_ascii_case(next_action.as_str()) && let Some(entry) = grounded_entry.as_deref_mut() {
                 *entry = crate::grounded_layer::AlsGroundedEntryMode::None;
             }
             inputs.set_gameplay_tag_input("locomotion_action", next_action);
@@ -213,6 +213,21 @@ fn root_graph_writer(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn browser_review_tag_action_case_change_preserves_grounded_entry() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, character, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        app.world_mut().entity_mut(character).insert((AlsNotifyLocomotionAction::Rolling,
+            crate::als::state::AlsGroundedEntryMode::FromRoll));
+        app.world_mut().get_mut::<crate::extensions::SourceAnimationInputs>(player).unwrap()
+            .set_gameplay_tag_input("locomotion_action",GameplayTag::new("als.locomotionaction.rolling"));
+        app.world_mut().run_system_once(root_graph_writer).unwrap();
+        assert_eq!(*app.world().get::<crate::als::state::AlsGroundedEntryMode>(character).unwrap(),
+            crate::als::state::AlsGroundedEntryMode::FromRoll,
+            "A display-case change incorrectly cleared source grounded entry");
+    }
+
     use super::*;
 
     #[test]

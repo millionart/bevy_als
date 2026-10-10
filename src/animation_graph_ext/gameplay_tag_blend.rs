@@ -70,7 +70,7 @@ pub(crate) fn select_gameplay_tag_child_index_for_tag(
         .filter(|tag| tag.is_valid())
         .and_then(|tag| {
             tags.iter()
-                .position(|candidate| tag.matches_tag_exact(&GameplayTag::new(candidate)))
+                .position(|candidate| tag.as_str().eq_ignore_ascii_case(GameplayTag::new(candidate).as_str()))
         })
         .map_or(0, |index| index + 1)
 }
@@ -263,6 +263,14 @@ impl NodeLike for GameplayTagBlendNode {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn browser_review_tag_blend_selects_case_alias_with_exact_source_semantics() {
+        let tags=vec!["Als.OverlayMode.Rifle".to_owned()];
+        assert_eq!(select_gameplay_tag_child_index_for_tag(&tags,Some(&GameplayTag::new("als.overlaymode.rifle"))),1);
+        assert_eq!(select_gameplay_tag_child_index_for_tag(&tags,Some(&GameplayTag::new("Als.OverlayMode.Rifle.Child"))),0);
+        assert_eq!(select_gameplay_tag_child_index_for_tag(&tags,Some(&GameplayTag::new(""))),0);
+    }
+
     use super::*;
 
     #[test]
