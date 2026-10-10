@@ -30,7 +30,7 @@
 | R22 | `als_camera::apply_camera_view` 未将世界 view 转成渲染相机 local | 待原生确认 | 待执行 |
 | R23 | Grounded CMC 子步位移历史 | 已修复 | `2f4a4d3`、`60a3287` 及 forward consumer 迁移；当前消费 `grounded_movement_delta` |
 | R24 | `common_marker_names` 过早排除落选 Exclusive | 确认并已修复 | BF135.05：fresh Prepare证明全部marked player先求交，实际三角色反例先红→删提前排除，源length-sync输出通过；旧oracle源迁移，移除规则再红，字节恢复551回归及原startup/locomotion18项通过 |
-| R25 | `apply_als_control_scheme_config` 使用未缩放 floating 半高 | 确认并已修复 | BF135.07C：actual scale.5 float`.924!=.474`及prephysics`4.2005687!=4.2`红→当前world纵向scale/固定clearance/源相对JumpZ，.5/1/2 geometry、16回归/384管线通过；四消融各红/整byte恢复同target、原startup/uphill18窗口通过，未改Tnua或容差 |
+| R25 | `apply_als_control_scheme_config` 使用未缩放 floating 半高 | 确认并已修复 | BF135.07C：actual scale.5 float`.924!=.474`及prephysics`4.2005687!=4.2`红→当前world纵向scale/固定clearance/源相对JumpZ，.5/1/2 geometry、16回归/384管线通过；四消融各红/整byte恢复同target、原startup/uphill18窗口通过，未改Tnua或容差 ；BF135.07D：真实base暴露mid-run scale2快速蹲起2/100，fresh CMC保持底部→现事务按当前Stance在Logic前喂Crouch，三scale100/16 jump含384管线/128动作回归绿，旧/晚阶段两消融红→整byte恢复；原startup/get_up/base/notify全通过|
 | R26 | pending 后脚锁 validity | 已修复 | `79fe359d3`；当前 pending 分支同时清除 valid/became_valid/Rig validity |
 | R27 | `marker_phase_sample_time_continuous` 有效缓存未对齐 leader start pair | 确认并已修复 | BF135.05：实际`.34375!=.84375`半周期反例→按方向对齐start pair，正反48步/previous time与生命周期26回归通过；移除规则同红，字节恢复551回归及原startup/locomotion18项通过 |
 | R28 | `begin_source_inertialization` 对后续空 Profile 请求重复回退默认 Profile | 确认并已修复 | BF135.02：实际骨骼时长 `.25!=.1875`→修复→移除规则同红→完整字节恢复，相关101项及原 startup/state_machine 通过 |

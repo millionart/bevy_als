@@ -2484,7 +2484,8 @@ impl Plugin for AlsMotionPlugin {
                         .before(crate::als::transition::state_transition_system),
                     crouch_controller_transaction_system
                         .after(locomotion_drive_system)
-                        .after(capsule_reshape_system),
+                        .after(capsule_reshape_system)
+                        .before(TnuaPipelineSystems::Logic),
                     accepted_jump_state_system.after(TnuaPipelineSystems::Logic)
                         .before(crate::als::dynamics::grounded_dynamics_motor_system),
                     grounded_step_up_system.after(crate::als::dynamics::grounded_dynamics_motor_system)
@@ -2889,10 +2890,6 @@ pub(crate) fn locomotion_drive_system(
             desired_forward,
         };
 
-        if *stance == Stance::Crouching {
-            controller.action(AlsControlScheme::Crouch(TnuaBuiltinCrouch));
-        }
-
         let jump_now = effective.jump_pressed;
         let jump_was = jump_prev.as_deref().map(|j| j.0).unwrap_or(false);
         let jump_edge = jump_now && !jump_was;
@@ -3266,10 +3263,13 @@ fn capsule_target_for_locomotion(
 }
 
 fn crouch_controller_transaction_system(
-    mut transactions: Query<(&Stance, &mut AlsCrouchTransaction), With<AlsCharacter>>,
+    mut transactions: Query<(&Stance, &mut AlsCrouchTransaction, &mut TnuaController<AlsControlScheme>), With<AlsCharacter>>,
 ) {
-    for (stance, mut transaction) in &mut transactions {
+    for (stance, mut transaction, mut controller) in &mut transactions {
         transaction.controller_crouch_active = *stance == Stance::Crouching;
+        if transaction.controller_crouch_active {
+            controller.action(AlsControlScheme::Crouch(TnuaBuiltinCrouch));
+        }
     }
 }
 

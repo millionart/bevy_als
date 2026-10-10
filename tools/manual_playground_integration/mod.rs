@@ -10854,6 +10854,39 @@ fn observe_manual_integration(
 #[cfg(test)]
 mod tests {
     #[test]
+    fn browser_review_base_midframe_scale_keeps_crouch_cycles_grounded() {
+        use avian3d::prelude::{LinearVelocity, Position};
+        use bevy::prelude::*;
+        use crate::als::{state::{LocomotionState, Stance}, transition::AlsStateRequest};
+        for scale in [0.5, 1.0, 2.0] {
+            let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+            let center = Vec3::new(0.0, 0.9 * scale + 0.024, 0.0);
+            app.world_mut().get_mut::<Transform>(character).unwrap().scale = Vec3::splat(scale);
+            app.world_mut().get_mut::<Transform>(character).unwrap().translation = center;
+            app.world_mut().get_mut::<Position>(character).unwrap().0 = center;
+            app.world_mut().get_mut::<LinearVelocity>(character).unwrap().0 = Vec3::ZERO;
+            let mut previous = Stance::Standing;
+            let mut pairs = 0;
+            let mut trace = Vec::new();
+            for frame in 0..400 {
+                let actual = *app.world().get::<Stance>(character).unwrap();
+                app.world_mut().get_mut::<AlsStateRequest>(character).unwrap().stance = Some(
+                    if actual == Stance::Standing { Stance::Crouching } else { Stance::Standing });
+                app.update();
+                let actual = *app.world().get::<Stance>(character).unwrap();
+                if previous == Stance::Crouching && actual == Stance::Standing { pairs += 1; }
+                previous = actual;
+                trace.push((frame, actual, *app.world().get::<LocomotionState>(character).unwrap(),
+                    app.world().get::<Position>(character).unwrap().0.y,
+                    app.world().get::<LinearVelocity>(character).unwrap().0.y));
+                if pairs == 100 { break; }
+            }
+            assert_eq!(pairs, 100, "Scaled live actor cannot complete the source crouch cycles: scale={scale}, {:?}", &trace[trace.len().saturating_sub(8)..]);
+            assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Grounded);
+        }
+    }
+
+    #[test]
     fn locomotion_crouch_toggles_fire_once_at_each_scripted_boundary() {
         for cadence in [
             vec![1.0 / 30.0], vec![1.0 / 60.0], vec![1.0 / 120.0], vec![0.011, 0.027, 0.019, 0.041],
