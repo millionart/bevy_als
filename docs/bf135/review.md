@@ -12,7 +12,7 @@
 | R04 | 同 CCD pair filter 未消费运行期关节禁碰 | 待原生确认 | 待执行 |
 | R05 | `control_rig_apply::refresh_control_rig_input` 脊柱动画时钟 | 已修复 | `e64af0759`；当前传入 `animation.delta_seconds`，不再读世界 delta |
 | R06 | `als/character/movement/source_physics_timing::integrate_character_position` Air 长帧仍用末速度 | 确认并已修复 | BF135.07B：100ms六步位移`1.942775!=1.95095`红→子步速度阶段前旧速度/中点，速度补偿和clamp保持；中点、无状态terminal复算、时机三消融红，整byte恢复65相关回归；原startup/uphill/moving-base/100ms takeoff入口通过 |
-| R07 | `ragdoll_link::apply_ragdoll_ground_follow` 与退出 realign 将世界位置写局部 Transform | 待原生确认 | 现 mesh affine 修复没有改角色本体的这两处写回 |
+| R07 | `ragdoll_link::apply_ragdoll_ground_follow` 与退出 realign 将世界位置写局部 Transform | 确认并已修复 | BF135.09B：translated/rotated/scaled parent实际follow/exit world目标与loaded恢复旋转/骨盆snapshot红→当前parent逆映射local、恢复以actor_world建world后重投local，Position/Rotation仍world；各映射消融红/三源byte恢复同target，原startup/ragdoll/camera通过 |
 | R08 | `gen_ragdoll::target_material` 与 profile 未保留零有效休眠阈值 | 待原生确认 | 待执行 |
 | R09 | `apply_profile_to_spawned_ragdoll` 将两个线性 drive target 再乘几何 scale | 确认并已修复 | BF135.10B：真实spawned三scale非零位置/速度目标被减半红→仅删两重复乘法，geometry/mass/frame/rebuild原断言保持；各target独立消融红→原子完整byte恢复/同target与6相关绿；原startup/ragdoll通过 |
 | R10 | `locomotion_state_sync_system` 进入 Air 缺源 Rolling 中断仲裁 | 待原生确认 | 待执行 |
@@ -27,7 +27,7 @@
 | R19 | CCD 仍先快照所有命中再排序、未重扫已变轨迹 | 待原生确认 | 待执行 |
 | R20 | dynamics Air 覆盖 Tnua 起跳帧基座 boost | 确认并已修复 | BF135.07B：实际basis+2→−2输出target+2红；首全motor方案暴露slipping误接，144.959s独立真实steep producer红→既有base上下文读取纯支持差后清理。384实际管线/65回归、pure/slip/提前清三消融与整byte恢复齐全；原四公共含18跳与100ms takeoff全部通过 |
 | R21 | `next_position` 在旧时间推进后才 clamp 新 clip 长度 | 确认并已修复 | BF135.01：原生 `1!=0.875` 失败→17/17 通过→移除规则再失败→完整字节恢复同 target 17/17；原 startup/state_machine 通过 |
-| R22 | `als_camera::apply_camera_view` 未将世界 view 转成渲染相机 local | 待原生确认 | 待执行 |
+| R22 | `als_camera::apply_camera_view` 未将世界 view 转成渲染相机 local | 确认并已修复 | BF135.09B：actual Camera3d after-shake parent世界视图被再次叠加红→当前父级逆映射仅在最终shake后一次，world view scale1与有效frame/owner数据边界；当帧变parent/active/fallback/缺输入与原root精度通过，各机制消融红，恢复与原startup/ragdoll/camera通过 |
 | R23 | Grounded CMC 子步位移历史 | 已修复 | `2f4a4d3`、`60a3287` 及 forward consumer 迁移；当前消费 `grounded_movement_delta` |
 | R24 | `common_marker_names` 过早排除落选 Exclusive | 确认并已修复 | BF135.05：fresh Prepare证明全部marked player先求交，实际三角色反例先红→删提前排除，源length-sync输出通过；旧oracle源迁移，移除规则再红，字节恢复551回归及原startup/locomotion18项通过 |
 | R25 | `apply_als_control_scheme_config` 使用未缩放 floating 半高 | 确认并已修复 | BF135.07C：actual scale.5 float`.924!=.474`及prephysics`4.2005687!=4.2`红→当前world纵向scale/固定clearance/源相对JumpZ，.5/1/2 geometry、16回归/384管线通过；四消融各红/整byte恢复同target、原startup/uphill18窗口通过，未改Tnua或容差 ；BF135.07D：真实base暴露mid-run scale2快速蹲起2/100，fresh CMC保持底部→现事务按当前Stance在Logic前喂Crouch，三scale100/16 jump含384管线/128动作回归绿，旧/晚阶段两消融红→整byte恢复；原startup/get_up/base/notify全通过|

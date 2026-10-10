@@ -1282,6 +1282,7 @@ fn apply_camera_view(
                 pitch.map_or(0.0, |value| value.0),
                 0.0,
             );
+            transform.scale = Vec3::ONE;
             set_field_of_view(
                 &mut projection,
                 &mut field_of_view,
@@ -1298,6 +1299,7 @@ fn apply_camera_view(
         }
         transform.translation = info.location;
         transform.rotation = info.rotation;
+        transform.scale = Vec3::ONE;
         set_field_of_view(
             &mut projection,
             &mut field_of_view,
@@ -1482,139 +1484,165 @@ mod tests {
     }
 
     #[test]
-    fn source_camera_shake_applies_after_component_view_and_uses_game_time() {
-        let mut app = App::new();
-        app.add_plugins((
-            MinimalPlugins,
-            AssetPlugin::default(),
-            bevy::mesh::MeshPlugin,
-            TransformPlugin,
-            avian3d::prelude::PhysicsPlugins::new(PostUpdate),
-            AlsCameraPlugin,
-        ))
-        .insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(
-            std::time::Duration::from_millis(100),
-        ));
-        app.world_mut()
-            .resource_mut::<Time<Virtual>>()
-            .set_relative_speed(0.2);
-        let mut definition: AlsCameraDefinition = ron::from_str(include_str!(
-            "../../assets/ALSCamera/Data/als_camera.camera_component.ron"
-        ))
-        .unwrap();
-        for wave in definition
-            .sprint_shake
-            .location
-            .iter_mut()
-            .chain(definition.sprint_shake.rotation_yxz.iter_mut())
-            .chain(std::iter::once(&mut definition.sprint_shake.field_of_view))
-        {
-            wave.random_start = false;
-        }
-        let handle = app
-            .world_mut()
-            .resource_mut::<Assets<AlsCameraDefinition>>()
-            .add(definition);
-        let character = app
-            .world_mut()
-            .spawn((
-                AlsCameraTarget,
-                Transform::IDENTITY,
-                RotationMode::ViewDirection,
-                crate::als::state::Stance::Standing,
-                AlsViewYaw(0.7),
-                AlsViewPitch(0.2),
-                AlsCameraDefinitionHandle(handle),
-                AlsCameraAnimationFrame {
-                    delta_seconds: 0.1,
-                    active: true,
-                    force_no_lag: true,
-                },
-                AlsCameraCurveValues::from_pairs([(AlsCameraCurve::FirstPersonOverride, 1.0)]),
-                AlsCameraSocketLocations {
-                    head: Vec3::Y * 2.0,
-                    first_person: Vec3::Y * 1.8,
-                    valid: true,
-                    ..default()
-                },
+    fn browser_review_parent_camera_shake_and_fallback_keep_the_world_view() {
+        for parented in [false, true] {
+            let tolerance = if parented { 1e-5 } else { 2e-7 };
+            let mut app = App::new();
+            app.add_plugins((
+                MinimalPlugins,
+                AssetPlugin::default(),
+                bevy::mesh::MeshPlugin,
+                TransformPlugin,
+                avian3d::prelude::PhysicsPlugins::new(PostUpdate),
+                AlsCameraPlugin,
             ))
-            .id();
-        let component = app
-            .world_mut()
-            .spawn((AlsCameraRig::default(), AlsCharacterCamera { character }))
-            .id();
-        if let Some(frame) = app.world_mut().entity_mut(character).take::<AlsCameraAnimationFrame>() { app.world_mut().entity_mut(component).insert(frame); }
-        if let Some(curves) = app.world_mut().entity_mut(character).take::<AlsCameraCurveValues>() { app.world_mut().entity_mut(component).insert(curves); }
-        let view = app
-            .world_mut()
-            .spawn((
-                Camera3d::default(),
-                Transform::IDENTITY,
-                AlsCameraViewSource(component),
-                AlsCharacterCamera { character },
-            ))
-            .id();
-        app.finish();
-        app.cleanup();
-        app.update();
-        app.update();
-        let component_view = *app.world().get::<AlsCameraViewInfo>(component).unwrap();
-        for scale in [0.4, 0.7] {
+            .insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(
+                std::time::Duration::from_millis(100),
+            ));
             app.world_mut()
-                .write_message(AlsCameraShakeRequest::sprint(character, scale));
-        }
-        app.update();
-        let unchanged = app.world().get::<AlsCameraViewInfo>(component).unwrap();
-        assert_eq!(
-            unchanged.location, component_view.location,
-            "Camera component view must exclude manager shakes"
-        );
-        assert_eq!(unchanged.rotation, component_view.rotation);
-        let mut expected = Transform::from_translation(component_view.location)
-            .with_rotation(component_view.rotation);
-        let offset = Vec3::new(0.01, 0.01, -0.01) * (std::f32::consts::TAU * 0.02).sin() * 0.2;
-        let angle = 0.1_f32.to_radians() * (std::f32::consts::TAU * 0.1 * 0.02).sin() * 0.2;
-        for scale in [0.4, 0.7] {
-            expected.translation += expected.rotation * offset * scale;
-            expected.rotation *=
-                Quat::from_euler(EulerRot::YXZ, -angle * scale, angle * scale, -angle * scale);
-        }
-        let actual = app.world().get::<Transform>(view).unwrap();
-        assert!(
-            actual.translation.distance(expected.translation) < 2e-7,
-            "Expected {}, got {}",
-            expected.translation,
-            actual.translation
-        );
-        assert!((actual.rotation * Vec3::NEG_Z).distance(expected.rotation * Vec3::NEG_Z) < 2e-7);
-        assert!(actual.translation.distance(component_view.location) > 1e-5);
-        app.world_mut()
-            .get_mut::<AlsCameraAnimationFrame>(component)
-            .unwrap()
-            .active = false;
-        app.update();
-        assert_eq!(
-            app.world()
-                .get::<AlsCameraViewInfo>(component)
-                .unwrap()
-                .location,
-            component_view.location
-        );
-        assert!(
-            app.world()
-                .get::<Transform>(view)
-                .unwrap()
-                .translation
-                .distance(Vec3::Y * 0.64)
-                > 1e-5
-        );
-        for _ in 0..12 {
+                .resource_mut::<Time<Virtual>>()
+                .set_relative_speed(0.2);
+            let mut definition: AlsCameraDefinition = ron::from_str(include_str!(
+                "../../assets/ALSCamera/Data/als_camera.camera_component.ron"
+            ))
+            .unwrap();
+            for wave in definition
+                .sprint_shake
+                .location
+                .iter_mut()
+                .chain(definition.sprint_shake.rotation_yxz.iter_mut())
+                .chain(std::iter::once(&mut definition.sprint_shake.field_of_view))
+            {
+                wave.random_start = false;
+            }
+            let handle = app
+                .world_mut()
+                .resource_mut::<Assets<AlsCameraDefinition>>()
+                .add(definition);
+            let character = app
+                .world_mut()
+                .spawn((
+                    AlsCameraTarget,
+                    Transform::IDENTITY,
+                    RotationMode::ViewDirection,
+                    crate::als::state::Stance::Standing,
+                    AlsViewYaw(0.7),
+                    AlsViewPitch(0.2),
+                    AlsCameraDefinitionHandle(handle),
+                    AlsCameraAnimationFrame {
+                        delta_seconds: 0.1,
+                        active: true,
+                        force_no_lag: true,
+                    },
+                    AlsCameraCurveValues::from_pairs([(AlsCameraCurve::FirstPersonOverride, 1.0)]),
+                    AlsCameraSocketLocations {
+                        head: Vec3::Y * 2.0,
+                        first_person: Vec3::Y * 1.8,
+                        valid: true,
+                        ..default()
+                    },
+                ))
+                .id();
+            let component = app
+                .world_mut()
+                .spawn((AlsCameraRig::default(), AlsCharacterCamera { character }))
+                .id();
+            if let Some(frame) = app.world_mut().entity_mut(character).take::<AlsCameraAnimationFrame>() { app.world_mut().entity_mut(component).insert(frame); }
+            if let Some(curves) = app.world_mut().entity_mut(character).take::<AlsCameraCurveValues>() { app.world_mut().entity_mut(component).insert(curves); }
+            let parent = app.world_mut().spawn(Transform::from_xyz(10.0, 1.0, -2.0)
+                .with_rotation(Quat::from_rotation_y(0.6)).with_scale(Vec3::splat(1.5))).id();
+            let view = app
+                .world_mut()
+                .spawn((
+                    Camera3d::default(),
+                    Transform::IDENTITY,
+                    AlsCameraViewSource(component),
+                    AlsCharacterCamera { character },
+                ))
+                .id();
+            if parented {
+                app.world_mut().entity_mut(view).insert(ChildOf(parent));
+                app.add_systems(PostUpdate, (move |mut transforms: Query<&mut Transform>| {
+                    transforms.get_mut(parent).unwrap().translation.x += 0.1;
+                }).after(camera_rig_system).before(apply_camera_view));
+            }
+            app.finish();
+            app.cleanup();
             app.update();
+            app.update();
+            let component_view = *app.world().get::<AlsCameraViewInfo>(component).unwrap();
+            for scale in [0.4, 0.7] {
+                app.world_mut()
+                    .write_message(AlsCameraShakeRequest::sprint(character, scale));
+            }
+            app.update();
+            let unchanged = app.world().get::<AlsCameraViewInfo>(component).unwrap();
+            assert_eq!(
+                unchanged.location, component_view.location,
+                "Camera component view must exclude manager shakes"
+            );
+            assert_eq!(unchanged.rotation, component_view.rotation);
+            let mut expected = Transform::from_translation(component_view.location)
+                .with_rotation(component_view.rotation);
+            let offset = Vec3::new(0.01, 0.01, -0.01) * (std::f32::consts::TAU * 0.02).sin() * 0.2;
+            let angle = 0.1_f32.to_radians() * (std::f32::consts::TAU * 0.1 * 0.02).sin() * 0.2;
+            for scale in [0.4, 0.7] {
+                expected.translation += expected.rotation * offset * scale;
+                expected.rotation *=
+                    Quat::from_euler(EulerRot::YXZ, -angle * scale, angle * scale, -angle * scale);
+            }
+            let actual = if parented {
+                app.world().get::<GlobalTransform>(view).unwrap().compute_transform()
+            } else { *app.world().get::<Transform>(view).unwrap() };
+            assert!(
+                actual.translation.distance(expected.translation) < tolerance,
+                "Expected {}, got {}",
+                expected.translation,
+                actual.translation
+            );
+            assert!((actual.rotation * Vec3::NEG_Z).distance(expected.rotation * Vec3::NEG_Z) < tolerance);
+            assert!(actual.translation.distance(component_view.location) > 1e-5);
+            app.world_mut()
+                .get_mut::<AlsCameraAnimationFrame>(component)
+                .unwrap()
+                .active = false;
+            app.update();
+            assert_eq!(
+                app.world()
+                    .get::<AlsCameraViewInfo>(component)
+                    .unwrap()
+                    .location,
+                component_view.location
+            );
+            assert!(
+                app.world()
+                    .get::<GlobalTransform>(view).unwrap().translation()
+                    .distance(Vec3::Y * 0.64)
+                    > 1e-5
+            );
+            for _ in 0..12 {
+                app.update();
+            }
+            assert!(app.world().get::<GlobalTransform>(view).unwrap().translation()
+                .distance(Vec3::Y * 0.64) < tolerance);
+            assert!(app.world().get::<GlobalTransform>(view).unwrap().compute_transform().scale
+                .abs_diff_eq(Vec3::ONE, tolerance), "Parented camera changed the world view scale");
+            if parented {
+                let local_before = *app.world().get::<Transform>(view).unwrap();
+                let frame_before = *app.world().get::<AlsCameraAnimationFrame>(component).unwrap();
+                app.world_mut().entity_mut(component).remove::<AlsCameraAnimationFrame>();
+                app.update();
+                let local_after = *app.world().get::<Transform>(view).unwrap();
+                assert!(local_after.translation.distance(local_before.translation) < 1e-6,
+                    "A missing world view was converted from parent space twice");
+                assert!(local_after.scale.abs_diff_eq(local_before.scale, 1e-6));
+                app.world_mut().entity_mut(component).insert(frame_before);
+                app.world_mut().entity_mut(character).remove::<AlsViewYaw>();
+                app.update();
+                assert!(app.world().get::<Transform>(view).unwrap().translation.distance(local_before.translation) < 1e-6,
+                    "An incomplete view owner was converted from parent space twice");
+            }
         }
-        assert_eq!(
-            app.world().get::<Transform>(view).unwrap().translation,
-            Vec3::Y * 0.64
-        );
     }
 
     fn trace_fixture(

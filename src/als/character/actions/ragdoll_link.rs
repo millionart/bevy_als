@@ -688,6 +688,7 @@ fn release_ragdoll_air_exit_on_ground(
 #[allow(clippy::type_complexity)]
 fn ragdoll_character_physics_system(
     mut commands: Commands,
+    transform_helper: TransformHelper,
     motion: Query<&crate::actual_motion::AlsActualMotion, With<AlsCharacter>>,
     rolls: Query<&crate::als::roll::AlsRollState>,
     mut transitions: Query<&mut crate::stop_link::AlsTransitionMontageStack>,
@@ -695,7 +696,7 @@ fn ragdoll_character_physics_system(
     mut characters: Query<
         (
             Entity,
-            &mut Transform,
+            &Transform,
             Option<&mut Position>,
             Option<&mut LinearVelocity>,
             Option<&AlsNotifyLocomotionAction>,
@@ -706,13 +707,14 @@ fn ragdoll_character_physics_system(
             Option<&AlsRagdollCharacterPhysics>,
             Option<&AlsRagdollGroundFollow>,
             Option<&AlsCharacterAssembly>,
+            Option<&ChildOf>,
         ),
         With<AlsCharacter>,
     >,
 ) {
     for (
         entity,
-        mut transform,
+        transform,
         mut position,
         mut velocity,
         action,
@@ -723,6 +725,7 @@ fn ragdoll_character_physics_system(
         previous_physics,
         ground_follow,
         assembly,
+        parent,
     ) in &mut characters
     {
         let is_ragdoll = action == Some(&AlsNotifyLocomotionAction::Ragdolling);
@@ -784,7 +787,12 @@ fn ragdoll_character_physics_system(
         };
         if let Some(follow) = ground_follow {
             let (exit_state, exit_velocity) = ragdoll_exit_route(follow.grounded, follow.velocity);
-            transform.translation = follow.target;
+            let mut aligned = *transform;
+            aligned.translation = if let Some(parent) = parent {
+                let Ok(world) = transform_helper.compute_global_transform(parent.parent()) else { continue; };
+                world.affine().inverse().transform_point3(follow.target)
+            } else { follow.target };
+            commands.entity(entity).insert(aligned);
             if let Some(position) = position.as_deref_mut() {
                 position.0 = follow.target;
             }
@@ -878,7 +886,7 @@ pub(crate) fn restore_ragdoll_player_parent(
     mut commands: Commands,
     transform_helper: TransformHelper,
     avatars: Query<(Entity, &AlsCharacterAvatar, &AnimatedSceneInstance)>,
-    characters: Query<(Option<&AlsNotifyLocomotionAction>, &Transform, &LocomotionState, &AlsCharacterAssembly), With<AlsCharacter>>,
+    characters: Query<(Option<&AlsNotifyLocomotionAction>, &LocomotionState, &AlsCharacterAssembly, Option<&ChildOf>), With<AlsCharacter>>,
     detached_players: Query<&AlsRagdollDetachedPlayer>,
     skeletons: Res<Assets<Skeleton>>,
     bones: Query<(&Name, &Transform, &GlobalTransform, Option<&ChildOf>)>,
@@ -886,7 +894,7 @@ pub(crate) fn restore_ragdoll_player_parent(
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
     for (avatar_entity, avatar, instance) in &avatars {
-        let Ok((action, actor_transform, locomotion, assembly)) = characters.get(avatar.character) else {
+        let Ok((action, locomotion, assembly, actor_parent)) = characters.get(avatar.character) else {
             continue;
         };
         if assembly.avatar != avatar_entity || action == Some(&AlsNotifyLocomotionAction::Ragdolling) {
@@ -918,13 +926,18 @@ pub(crate) fn restore_ragdoll_player_parent(
             continue;
         };
         let (rotation, facing_up) = ragdoll_recovery_rotation(pelvis_world.rotation());
-        let restored_actor = Transform {
+        let Ok(actor_world) = transform_helper.compute_global_transform(avatar.character) else { continue; };
+        let restored_actor_world = Transform {
             rotation,
-            ..*actor_transform
+            ..actor_world.compute_transform()
         };
-        let parent_in_actor = parent_world.reparented_to(&GlobalTransform::from(*actor_transform));
+        let parent_in_actor = parent_world.reparented_to(&actor_world);
         let restored_world =
-            GlobalTransform::from(restored_actor * parent_in_actor * detached.local_transform);
+            GlobalTransform::from(restored_actor_world * parent_in_actor * detached.local_transform);
+        let restored_actor = if let Some(parent) = actor_parent {
+            let Ok(world) = transform_helper.compute_global_transform(parent.parent()) else { continue; };
+            GlobalTransform::from(restored_actor_world).reparented_to(&world)
+        } else { restored_actor_world };
         commands
             .entity(avatar.character)
             .insert((restored_actor, Rotation(rotation)));
@@ -1081,23 +1094,32 @@ fn ragdoll_ground_follow(
 }
 
 fn apply_ragdoll_ground_follow(
+    mut commands: Commands,
+    transform_helper: TransformHelper,
     mut characters: Query<
         (
+            Entity,
             &mut Position,
-            &mut Transform,
+            &Transform,
             &mut LinearVelocity,
             Option<&AlsNotifyLocomotionAction>,
             &AlsRagdollGroundFollow,
+            Option<&ChildOf>,
         ),
         With<AlsCharacter>,
     >,
 ) {
-    for (mut position, mut transform, mut velocity, action, ground_follow) in &mut characters {
+    for (entity, mut position, transform, mut velocity, action, ground_follow, parent) in &mut characters {
         if action != Some(&AlsNotifyLocomotionAction::Ragdolling) {
             continue;
         }
+        let mut aligned = *transform;
+        aligned.translation = if let Some(parent) = parent {
+            let Ok(world) = transform_helper.compute_global_transform(parent.parent()) else { continue; };
+            world.affine().inverse().transform_point3(ground_follow.target)
+        } else { ground_follow.target };
         position.0 = ground_follow.target;
-        transform.translation = ground_follow.target;
+        commands.entity(entity).insert(aligned);
         velocity.0 = Vec3::ZERO;
     }
 }
@@ -1155,6 +1177,96 @@ fn ragdoll_link_system(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn browser_review_parent_ragdoll_follow_and_exit_write_world_positions() {
+        use bevy::ecs::system::RunSystemOnce;
+        for exiting in [false, true] {
+            let mut app = App::new();
+            app.add_plugins(MinimalPlugins);
+            let parent = app.world_mut().spawn((
+                Transform::from_xyz(10.0, 1.0, -2.0).with_rotation(Quat::from_rotation_y(0.6))
+                    .with_scale(Vec3::splat(1.5)), GlobalTransform::IDENTITY,
+            )).id();
+            let target = Vec3::new(2.0, 3.0, -4.0);
+            let actor = app.world_mut().spawn((
+                AlsCharacter, Transform::from_xyz(0.5, 1.0, 0.2), ChildOf(parent),
+                Position(Vec3::ZERO), LinearVelocity(Vec3::ONE), RigidBody::Kinematic,
+                AlsCollisionLayerOwnership::default(),
+                if exiting { AlsNotifyLocomotionAction::None } else { AlsNotifyLocomotionAction::Ragdolling },
+                AlsRagdollGroundFollow { pelvis: target, target, velocity: Vec3::ZERO, grounded: true },
+            )).id();
+            if exiting {
+                app.world_mut().entity_mut(actor).insert(AlsRagdollCharacterPhysics {
+                    rigid_body: RigidBody::Dynamic, tnua_toggle: None,
+                });
+                app.world_mut().run_system_once(ragdoll_character_physics_system).unwrap();
+            } else {
+                app.world_mut().run_system_once(apply_ragdoll_ground_follow).unwrap();
+            }
+            let world = app.world_mut().run_system_once(move |helper: TransformHelper| {
+                helper.compute_global_transform(actor).unwrap()
+            }).unwrap();
+            assert!(world.translation().distance(target) < 1e-5,
+                "Parented ragdoll actor changed the world target: exiting={exiting}, actual={:?}, target={target:?}", world.translation());
+            assert_eq!(app.world().get::<Position>(actor).unwrap().0, target);
+            assert_eq!(app.world().get::<LinearVelocity>(actor).unwrap().0, Vec3::ZERO);
+        }
+    }
+
+    #[test]
+    fn browser_review_parent_ragdoll_recovery_keeps_actor_and_pelvis_world_space() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let actor_world = app.world_mut().run_system_once(move |helper: TransformHelper| {
+            helper.compute_global_transform(actor).unwrap()
+        }).unwrap();
+        let parent_transform = Transform::from_xyz(10.0, 2.0, -3.0)
+            .with_rotation(Quat::from_rotation_y(0.7)).with_scale(Vec3::splat(1.5));
+        let parent = app.world_mut().spawn(parent_transform).id();
+        app.world_mut().entity_mut(actor).insert((ChildOf(parent),
+            actor_world.reparented_to(&GlobalTransform::from(parent_transform)),
+            AlsNotifyLocomotionAction::Ragdolling));
+        let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        app.world_mut().run_system_once(capture_ragdoll_player_world_transform).unwrap();
+        assert!(app.world().get::<AlsRagdollDetachedPlayer>(player_entity).is_some());
+        let (pelvis, old_player_world) = {
+            let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+            let skeleton = app.world().resource::<Assets<Skeleton>>().get(player.skeleton()).unwrap();
+            let pelvis = skeleton.iter_bones().find_map(|bone| player.bone_entity(bone)
+                .filter(|entity| app.world().get::<Name>(*entity).is_some_and(|name| name.as_str() == PELVIS_LABEL)))
+                .unwrap();
+            (pelvis, *app.world().get::<GlobalTransform>(player_entity).unwrap())
+        };
+        let pelvis_world = *app.world().get::<GlobalTransform>(pelvis).unwrap();
+        let bone_parent = app.world().get::<ChildOf>(pelvis).unwrap().parent();
+        let parent_in_player = app.world().get::<GlobalTransform>(bone_parent).unwrap().reparented_to(&old_player_world);
+        let moved_parent = parent_transform.with_translation(Vec3::new(12.0, 2.5, -2.0));
+        *app.world_mut().get_mut::<Transform>(parent).unwrap() = moved_parent;
+        let target = actor_world.translation() + Vec3::new(1.0, 0.2, -0.5);
+        app.world_mut().get_mut::<Transform>(actor).unwrap().translation =
+            GlobalTransform::from(moved_parent).affine().inverse().transform_point3(target);
+        app.world_mut().entity_mut(actor).insert((Position(target), AlsNotifyLocomotionAction::None, LocomotionState::Grounded));
+        let expected_rotation = ragdoll_recovery_rotation(pelvis_world.rotation()).0;
+        app.world_mut().run_system_once(restore_ragdoll_player_parent).unwrap();
+        let actor_after = app.world_mut().run_system_once(move |helper: TransformHelper| {
+            helper.compute_global_transform(actor).unwrap()
+        }).unwrap();
+        assert!(actor_after.translation().distance(target) < 1e-5,
+            "Recovery treated a local actor transform as world: {:?} != {target:?}", actor_after.translation());
+        assert!(actor_after.rotation().dot(expected_rotation).abs() > 1.0 - 1e-5);
+        assert!(app.world().get::<Rotation>(actor).unwrap().0.dot(expected_rotation).abs() > 1.0 - 1e-5);
+        let player_world = app.world_mut().run_system_once(move |helper: TransformHelper| {
+            helper.compute_global_transform(player_entity).unwrap()
+        }).unwrap();
+        let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+        let skeleton = app.world().resource::<Assets<Skeleton>>().get(player.skeleton()).unwrap();
+        let bone = skeleton.iter_bones().find(|bone| player.bone_entity(*bone) == Some(pelvis)).unwrap();
+        let pose = player.get_global_input_data(crate::ragdolling_layer::RAGDOLLING_FINAL_POSE_KEY).unwrap().as_pose().unwrap();
+        let local = pose.get_bone(bone).unwrap().to_transform();
+        let restored_pelvis = player_world * parent_in_player * local;
+        assert!(restored_pelvis.translation().distance(pelvis_world.translation()) < 1e-4);
+    }
+
     use super::*;
 
     #[test]

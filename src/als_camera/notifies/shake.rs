@@ -5,6 +5,7 @@ use bevy::prelude::*;
 use super::{
     AlsCameraDebugInfo, AlsCameraDefinition, AlsCameraDefinitionHandle, AlsCameraFieldOfView,
     AlsCameraShakeRequest, AlsCameraViewSource, AlsCharacterCamera, CameraShakeDefinition,
+    AlsCameraAnimationFrame, AlsCameraViewInfo,
     set_field_of_view,
 };
 
@@ -123,25 +124,32 @@ fn normalized_angle(angle: f32) -> f32 {
 }
 
 pub(super) fn apply_camera_shakes(
+    mut commands: Commands,
+    transform_helper: bevy::transform::helper::TransformHelper,
     mut requests: MessageReader<AlsCameraShakeRequest>,
     time: Res<Time<Virtual>>,
     definitions: Res<Assets<AlsCameraDefinition>>,
     owners: Query<&AlsCameraDefinitionHandle>,
+    valid_view_owners: Query<(), (With<GlobalTransform>, With<crate::als::motion::AlsViewYaw>, With<crate::als::state::Stance>)>,
+    frames: Query<&AlsCameraAnimationFrame>,
+    component_views: Query<&AlsCameraViewInfo>,
     mut views: Query<
         (
+            Entity,
             &AlsCharacterCamera,
             &mut AlsCameraShakes,
-            &mut Transform,
+            &Transform,
             &mut Projection,
             &mut AlsCameraFieldOfView,
             Option<&AlsCameraViewSource>,
+            Option<&ChildOf>,
         ),
         With<Camera3d>,
     >,
     mut diagnostics: Query<&mut AlsCameraDebugInfo>,
 ) {
     let requests: Vec<_> = requests.read().copied().collect();
-    for (owner, mut shakes, mut transform, mut projection, mut field_of_view, source) in &mut views
+    for (entity, owner, mut shakes, current_transform, mut projection, mut field_of_view, source, parent) in &mut views
     {
         let Ok(handle) = owners.get(owner.character) else {
             continue;
@@ -149,13 +157,14 @@ pub(super) fn apply_camera_shakes(
         let Some(definition) = definitions.get(&handle.0) else {
             continue;
         };
+        let mut transform = *current_transform;
         for request in requests
             .iter()
             .filter(|request| request.target == owner.character)
         {
             shakes.start(&definition.sprint_shake, request.scale);
         }
-        let before = *transform;
+        let before = transform;
         let mut fov = field_of_view.0;
         shakes.active.retain_mut(|instance| {
             let Some((location, mut rotation, fov_offset)) = instance.update(time.delta_secs())
@@ -189,6 +198,16 @@ pub(super) fn apply_camera_shakes(
             debug.shake_rotation_degrees =
                 Vec3::new(pitch.to_degrees(), -yaw.to_degrees(), -roll.to_degrees());
         }
+        if let Some(parent) = parent
+            && valid_view_owners.contains(owner.character)
+            && source.is_some_and(|source| frames.get(source.0).is_ok_and(|frame| {
+                !frame.active || component_views.get(source.0).is_ok_and(|view| view.valid)
+            }))
+        {
+            let Ok(world) = transform_helper.compute_global_transform(parent.parent()) else { continue; };
+            transform = GlobalTransform::from(transform).reparented_to(&world);
+        }
+        commands.entity(entity).insert(transform);
     }
 }
 
