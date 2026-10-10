@@ -57,6 +57,7 @@ pub struct SourceAssetSample {
     pub sync_group: String,
     pub sync_identity: Option<(bevy_animation_graph::core::context::graph_context_arena::GraphContextId, NodeId)>,
     pub montage: bool,
+    pub interrupted: bool,
     pub slot_key: String,
 }
 

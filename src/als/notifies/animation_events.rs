@@ -384,7 +384,7 @@ fn dispatch_graph_footsteps(
         for sample in &samples {
             active.insert(sample.identity.clone());
             let previous = state.previous.insert(sample.identity.clone(), (sample.clock.position, sample.clock.weight));
-            if sample.montage && !slot_notifies { continue; }
+            if sample.montage && (sample.interrupted || !slot_notifies) { continue; }
             let Some(path) = server.get_path(sample.clip.id()) else { continue; };
             let path = path.to_string();
             let Some(source) = manifest.clips.iter().find(|source| source.source_kind == "AnimSequence"
@@ -2505,10 +2505,10 @@ pub(crate) mod tests {
                     get_up.elapsed = settings.sequence_length / settings.play_rate
                         - settings.blend_out_seconds * 0.5;
                 }
-                get_up.advance(0.0);
+                get_up.advance(0.0, crate::get_up::get_up_settings(get_up.facing_up));
                 let before = get_up.weight;
                 get_up.stop(if variant >= 3 { 100.0 } else { 0.2 });
-                get_up.advance(0.0);
+                get_up.advance(0.0, crate::get_up::get_up_settings(get_up.facing_up));
                 assert_eq!(get_up.weight, before);
                 world.entity_mut(actor).insert(get_up);
             }

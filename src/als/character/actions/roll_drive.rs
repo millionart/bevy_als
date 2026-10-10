@@ -198,6 +198,44 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn browser_review_montage_roll_slot_samples_keep_the_pose_weight() {
+        let (mut app, character, avatar) = loaded_roll_character();
+        play_loaded_roll(&mut app, character);
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.01)));
+        app.world_mut().get_mut::<AlsRollState>(character).unwrap().time = 0.02;
+        app.update();
+        let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let graph = app.world().get::<AnimationGraphPlayer>(player).unwrap();
+        let expected = graph.get_global_input_data(GENERATED_POST_LOCOMOTION_SLOT_WEIGHT_KEY).unwrap().as_f32().unwrap();
+        assert!(expected > 0.0 && expected < 0.99, "The real pose must use a partial montage weight");
+        let context = app.world().get::<crate::extensions::SourceAnimationInputs>(player).unwrap()
+            .slot_input_context(GENERATED_POST_LOCOMOTION_SLOT_POSE_KEY).unwrap();
+        assert_eq!(context.asset_samples.len(), 1);
+        assert!((context.asset_samples[0].clock.weight - expected).abs() < 1e-6,
+            "The roll sample used full notify weight for a partial pose");
+    }
+
+    #[test]
+    fn browser_review_montage_interrupted_roll_tail_does_not_emit_footsteps() {
+        let (mut app, character, _) = loaded_roll_character();
+        let old = play_loaded_roll(&mut app, character);
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.05)));
+        app.world_mut().get_mut::<AlsRollState>(character).unwrap().time = 0.65;
+        app.update();
+        app.world_mut().resource_mut::<Messages<crate::animation_events::AlsAnimationEvent>>().clear();
+        app.world_mut().entity_mut(character).insert(AlsNotifyLocomotionAction::None);
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().roll_pressed = true;
+        app.update();
+        app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().roll_pressed = false;
+        assert!(app.world().get::<AlsRollTail>(old).is_some(), "The replaced montage must retain its pose tail");
+        let footsteps = app.world_mut().resource_mut::<Messages<crate::animation_events::AlsAnimationEvent>>()
+            .drain().filter(|event| event.character == character
+                && event.source_asset.ends_with("A_Als_Roll.A_Als_Roll")
+                && event.class_name == "AlsAnimNotify_FootstepEffects").count();
+        assert_eq!(footsteps, 0, "The interrupted old montage emitted a graph footstep");
+    }
+
+    #[test]
     fn mantle_target_destruction_detaches_before_the_physics_handoff() {
         let (mut app, character, avatar) = loaded_roll_character();
         let target = app.world_mut().spawn(GlobalTransform::IDENTITY).id();
@@ -1601,8 +1639,9 @@ fn bridge_roll_slot_samples(
                 .map(|curves| crate::get_up::sampled_curve_context(curves, clip_time)).unwrap_or_default();
             context.asset_samples.push(crate::extensions::animation_context::SourceAssetSample {
                 identity: format!("roll:{}", entity.to_bits()), clip: curve_handle.1.clone(), montage: true,
+                interrupted: tail.is_some() || blend_outs.contains(character),
                 clock: crate::extensions::SourceRelevantAsset { duration: ROLL_MONTAGE_SEQUENCE_LENGTH_SECS,
-                    position: clip_time, weight: 1.0, ..default() }, ..default()
+                    position: clip_time, weight, ..default() }, ..default()
             });
             samples.push((pose, context, weight, tail.is_none()));
         }

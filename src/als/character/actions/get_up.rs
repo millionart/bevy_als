@@ -107,19 +107,24 @@ impl AlsGetUpState {
         }
     }
 
-    pub(crate) fn advance(&mut self, delta: f32) {
-        let settings = get_up_settings(self.facing_up);
+    pub(crate) fn advance(&mut self, delta: f32, settings: &GetUpClipSettings) {
         self.elapsed += delta;
         self.clip_time = (self.elapsed * settings.play_rate).min(settings.sequence_length);
         let duration = settings.sequence_length / settings.play_rate;
         let (alpha, start_weight) = if let Some((remaining, blend_duration, start_weight)) = self.stop.as_mut() {
             *remaining = (*remaining - delta).max(0.0);
             (if *blend_duration > 0.0 { 1.0 - *remaining / *blend_duration } else { 1.0 }, *start_weight)
+        } else if settings.blend_out_seconds <= 0.0
+            && (settings.sequence_length - self.clip_time) / settings.play_rate <= 1e-4
+        {
+            let remaining = ((settings.sequence_length - self.clip_time) / settings.play_rate).max(0.0);
+            self.stop = Some((remaining, remaining, self.weight));
+            (if remaining > 0.0 { 0.0 } else { 1.0 }, self.weight)
         } else {
             let start = duration - settings.blend_out_seconds;
             (if settings.blend_out_seconds > 0.0 {
                 ((self.elapsed - start) / settings.blend_out_seconds).clamp(0.0, 1.0)
-            } else { 1.0 }, 1.0)
+            } else { 0.0 }, 1.0)
         };
         self.weight = start_weight * (1.0 - transition_alpha(alpha, AlphaBlendMode::Cubic, &[]));
     }
@@ -260,7 +265,8 @@ fn update_get_up_pose(
         } else if roll.is_some_and(|roll| roll.active) {
             state.stop(crate::als::roll::ROLL_WEIGHT_IN_SECS);
         }
-        state.advance(time.delta_secs());
+        let settings = get_up_settings(state.facing_up);
+        state.advance(time.delta_secs(), settings);
         let mut player = players.get_mut(player_entity).unwrap();
         if state.weight <= 0.0 {
             clear_get_up_slot(&mut player, source_inputs.get_mut(player_entity).ok());
@@ -292,7 +298,8 @@ fn update_get_up_pose(
         let mut clock = context.relevant_asset.clone().unwrap();
         clock.weight = state.weight;
         context.asset_samples.push(crate::extensions::animation_context::SourceAssetSample {
-            identity: "get_up".to_owned(), clip: assets.clips[index].clone(), clock, montage: true, ..default()
+            identity: "get_up".to_owned(), clip: assets.clips[index].clone(), clock, montage: true,
+            interrupted: state.interrupted, ..default()
         });
         let roll_weight = roll
             .filter(|roll| roll.active)
@@ -619,14 +626,41 @@ mod tests {
     }
 
     #[test]
+    fn browser_review_montage_natural_zero_blend_waits_for_its_end() {
+        let settings = GetUpClipSettings {
+            source_montage: String::new(), source_sequence: String::new(), clip: String::new(),
+            curves: String::new(), sequence_length: 1.5, play_rate: 1.2,
+            blend_out_seconds: 0.0, notify_end_clip_seconds: 1.0,
+        };
+        let mut state = AlsGetUpState::new(true);
+        state.advance(1.0 / 60.0, &settings);
+        assert_eq!(state.weight, 1.0, "Natural zero blend ended before the montage end window");
+        state.advance(1.25 - state.elapsed - 0.01, &settings);
+        assert_eq!(state.weight, 1.0);
+        state.advance(0.01 - 0.00005, &settings);
+        assert_eq!(state.weight, 1.0);
+        let remaining = (settings.sequence_length - state.clip_time) / settings.play_rate;
+        state.advance(remaining * 0.5, &settings);
+        assert!((state.weight - 0.5).abs() < 1e-5,
+            "Natural zero end window did not use the source remaining-time blend: {}", state.weight);
+        assert!(!state.interrupted);
+        state.advance(remaining * 0.5, &settings);
+        assert_eq!(state.weight, 0.0);
+        let mut stopped = AlsGetUpState::new(true);
+        stopped.stop(0.0);
+        stopped.advance(0.0, &settings);
+        assert_eq!(stopped.weight, 0.0);
+    }
+
+    #[test]
     fn source_notify_releases_input_before_montage_blend_finishes() {
         for facing_up in [false, true] {
             let settings = get_up_settings(facing_up);
             let mut state = AlsGetUpState::new(facing_up);
-            state.advance(settings.notify_end_clip_seconds / settings.play_rate);
+            state.advance(settings.notify_end_clip_seconds / settings.play_rate, get_up_settings(state.facing_up));
             assert!(state.weight > 0.0 && state.weight < 1.0);
             assert!(state.clip_time < settings.sequence_length);
-            state.advance(settings.sequence_length / settings.play_rate - state.elapsed);
+            state.advance(settings.sequence_length / settings.play_rate - state.elapsed, get_up_settings(state.facing_up));
             assert_eq!(state.weight, 0.0);
         }
     }
@@ -652,24 +686,24 @@ mod tests {
     #[test]
     fn interruption_keeps_source_blend_duration_and_current_weight() {
         let mut state = AlsGetUpState::new(true);
-        state.advance(0.3);
+        state.advance(0.3, get_up_settings(state.facing_up));
         state.stop(RAGDOLL_SETTINGS.stop_montage_blend_seconds);
-        state.advance(0.1);
+        state.advance(0.1, get_up_settings(state.facing_up));
         assert!((state.weight - 0.5).abs() < 1e-5);
-        state.advance(0.1);
+        state.advance(0.1, get_up_settings(state.facing_up));
         assert_eq!(state.weight, 0.0);
     }
 
     #[test]
     fn late_interruption_restarts_a_shorter_configured_blend_once() {
         let mut state = AlsGetUpState::new(true);
-        state.advance(1.18);
+        state.advance(1.18, get_up_settings(state.facing_up));
         let before = state.weight;
         state.stop(0.2);
-        state.advance(0.1);
+        state.advance(0.1, get_up_settings(state.facing_up));
         assert!((state.weight - before * 0.5).abs() < 1e-5);
         state.stop(0.2);
-        state.advance(0.1);
+        state.advance(0.1, get_up_settings(state.facing_up));
         assert_eq!(state.weight, 0.0);
     }
 }

@@ -16,9 +16,9 @@
 | R08 | `gen_ragdoll::target_material` 与 profile 未保留零有效休眠阈值 | 待原生确认 | 待执行 |
 | R09 | `apply_profile_to_spawned_ragdoll` 将两个线性 drive target 再乘几何 scale | 待原生确认 | 待执行 |
 | R10 | `locomotion_state_sync_system` 进入 Air 缺源 Rolling 中断仲裁 | 待原生确认 | 待执行 |
-| R11 | `AlsGetUpState::advance` 自然零混出在窗口前置权重零 | 待原生确认 | 现 explicit-stop 剩余预算修复未涉及该分支 |
-| R12 | `dispatch_graph_footsteps` 的 montage sample 缺中断状态 | 待原生确认 | 现普通 playback 中断过滤未覆盖最终图 sample |
-| R13 | `bridge_roll_slot_samples` 仍写 `clock.weight=1.0` | 待原生确认 | 现 queued notify 权重修复未覆盖该 bridge |
+| R11 | `AlsGetUpState::advance` 自然零混出在窗口前置权重零 | 确认并已修复 | BF135.08B：自然zero首帧weight0红→等待末窗；剩余预算mid-fade1!=.5红→复用既有stop预算保持natural非interrupted→预算消融红/整byte同target恢复；getup原生与原startup/get_up/base/notify通过 |
+| R12 | `dispatch_graph_footsteps` 的 montage sample 缺中断状态 | 确认并已修复 | BF135.08B：同avatar旧Roll tail脚步1!=0红→final sample统一发布/过滤interrupted；各owner闭包、transition跨自然end counter证明一个持久bit必要；filter/bridge/state推导消融红，恢复128相关与原四case通过 |
+| R13 | `bridge_roll_slot_samples` 仍写 `clock.weight=1.0` | 确认并已修复 | BF135.08B：真实partial pose的roll clock仍1红→发布已计算的当前weight一次，原max(previous,current)保持；移除传递同红，整byte恢复原生/128相关与原四case通过 |
 | R14 | `source_sequence_player::next_position` 无条件取模丢闭区间末点 | 确认并已修复 | BF135.01：原生 `0!=1.5` 失败→17/17 通过→移除规则再失败→完整字节恢复同 target 17/17；原 startup/state_machine 通过 |
 | R15 | `source_physics_joint::apply_linear_motor` 阻尼未反馈累计 DP/DQ | 确认并已修复 | BF135.06：8迭代`.99609375!=.5`及已有DQ力臂方向反例红→预解基线/DP-DQ反馈/源cached模式，192标量/27关节原生通过；反馈、基线无状态替代、DQ、cached模式独立消融红，源码整byte恢复554回归及原startup/ragdoll11项通过 |
 | R16 | pose renderer PropertyAccess 仍输出空 `expected_tag` | 待原生确认 | 待执行；修复后必须完整转换 corpus/diff |

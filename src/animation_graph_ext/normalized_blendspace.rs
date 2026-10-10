@@ -877,6 +877,7 @@ impl NodeLike for NormalizedBlendSpaceNode {
                     clock,
                     sync_group: tick.key.clone(), sync_identity: Some(tick.identity),
                     montage: false,
+                    interrupted: false,
                     slot_key: String::new(),
                 });
             }

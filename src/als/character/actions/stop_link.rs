@@ -86,6 +86,7 @@ pub struct AlsTransitionPlayback {
     pub stop_elapsed: Option<f32>,
     pub stop_start_weight: f32,
     pub stop_duration: f32,
+    pub interrupted: bool,
 }
 
 impl AlsTransitionPlayback {
@@ -116,6 +117,7 @@ impl AlsTransitionPlayback {
             stop_elapsed: None,
             stop_start_weight: 0.0,
             stop_duration: 0.0,
+            interrupted: false,
         }
     }
 
@@ -230,10 +232,11 @@ impl AlsTransitionPlayback {
     }
 
     pub fn request_stop(&mut self) {
-        self.stop_with_duration(self.blend_out);
+        self.stop_with_duration(self.blend_out, true);
     }
 
-    fn stop_with_duration(&mut self, duration: f32) {
+    fn stop_with_duration(&mut self, duration: f32, interrupted: bool) {
+        self.interrupted |= interrupted;
         if !self.active || (self.stop_elapsed.is_some() && duration >= self.stop_duration) {
             return;
         }
@@ -268,7 +271,7 @@ impl AlsTransitionPlayback {
             if self.elapsed < playback_duration {
                 return;
             }
-            self.request_stop();
+            self.stop_with_duration(self.blend_out, false);
             self.stop_elapsed = Some(self.elapsed - playback_duration);
         }
         let stop_elapsed = self.stop_elapsed.unwrap();
@@ -290,7 +293,7 @@ impl AlsTransitionMontageStack {
 
     fn begin(&mut self, playback: AlsTransitionPlayback) {
         for entry in &mut self.entries {
-            entry.stop_with_duration(playback.blend_in);
+            entry.stop_with_duration(playback.blend_in, true);
         }
         self.entries.retain(|entry| entry.active && entry.weight > 0.0);
         self.entries.push(playback);
@@ -301,7 +304,7 @@ impl AlsTransitionMontageStack {
     }
 
     pub(crate) fn stop_with_duration(&mut self, duration: f32) {
-        for entry in &mut self.entries { entry.stop_with_duration(duration); }
+        for entry in &mut self.entries { entry.stop_with_duration(duration, true); }
     }
 
     fn advance(&mut self, delta_seconds: f32) {
@@ -635,6 +638,7 @@ fn sample_transition_stack(
                 sample.clock.has_previous_position = true;
                 sample.clock.playback_delta_seconds = sample.clock.position - entry.previous_clip_time;
                 sample.clock.weight = entry.weight;
+                sample.interrupted = entry.interrupted;
             }
             (pose, context, entry.weight)
         }))
@@ -1249,6 +1253,7 @@ mod tests {
         let end = stack.latest().unwrap().duration / stack.latest().unwrap().play_rate;
         stack.advance(end);
         assert_eq!(stack.latest().unwrap().weight, 1.0);
+        assert!(!stack.latest().unwrap().interrupted);
         assert_eq!(stack.latest().unwrap().clip_time, stack.latest().unwrap().duration);
         stack.advance(0.05);
         assert!((stack.latest().unwrap().weight - 0.84375).abs() < 1e-6);
@@ -1268,7 +1273,7 @@ mod tests {
             (quick_stop_notify_system, bridge_root_transition_slot_samples).chain(),
         );
         let mut previous = AlsTransitionPlayback::standing_dynamic(0.0);
-        previous.advance(0.24);
+        previous.advance(previous.duration / previous.play_rate - 0.03);
         let character = app.world_mut().spawn((
             crate::als::character::AlsCharacter,
             Transform::IDENTITY,
@@ -1312,6 +1317,8 @@ mod tests {
         let mut expected = std::collections::HashMap::<crate::extensions::SourceCurveName, f32>::new();
         let total = stack.entries.iter().map(|entry| entry.weight).sum::<f32>().max(1.0);
         for entry in &stack.entries {
+            let sample = actual.asset_samples.iter().find(|sample| sample.identity == format!("transition:{}", entry.instance_id)).unwrap();
+            assert_eq!(sample.interrupted, entry.instance_id == previous.instance_id);
             let settings = &crate::standing_source::MONTAGES[source_transition_sequence(entry).unwrap()];
             for (name, value) in crate::get_up::sampled_curve_context(&settings.curves, entry.clip_time).curves {
                 *expected.entry(name).or_default() += value * entry.weight / total;

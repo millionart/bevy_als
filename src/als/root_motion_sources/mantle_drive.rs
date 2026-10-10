@@ -476,7 +476,7 @@ fn publish_mantle_slot(
             let mut clock = context.relevant_asset.clone().unwrap();
             clock.weight = entry.weight;
             context.asset_samples.push(crate::extensions::animation_context::SourceAssetSample {
-                identity: format!("mantle:{}", entry.id), clip: assets.clip(entry.kind).clone(), clock, montage: true, ..default()
+                identity: format!("mantle:{}", entry.id), clip: assets.clip(entry.kind).clone(), clock, montage: true, interrupted: entry.interrupted, ..default()
             });
             poses.push((pose, entry.weight));
             contexts.push((context, entry.weight));
@@ -2409,7 +2409,8 @@ pub(crate) mod tests {
             .world_mut()
             .get_mut::<crate::get_up::AlsGetUpState>(actor)
             .unwrap();
-        get_up.advance(0.1);
+        let settings = crate::get_up::get_up_settings(get_up.facing_up);
+        get_up.advance(0.1, settings);
         assert!((get_up.weight - 0.5).abs() < 1e-5);
     }
 }

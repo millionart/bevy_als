@@ -565,6 +565,7 @@ fn bridge_turn_slot_samples(
                 for sample in &mut context.asset_samples {
                     sample.identity = format!("turn:{}", entry.id);
                     sample.clock.weight = entry.weight();
+                    sample.interrupted = entry.blend_out_elapsed.is_some();
                 }
                 entry.sampling_ready = true;
                 poses.insert(entry.id, pose);

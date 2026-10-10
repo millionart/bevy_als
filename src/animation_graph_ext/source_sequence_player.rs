@@ -522,6 +522,7 @@ impl NodeLike for SourceSequencePlayerNode {
                 sync_group: self.synchronization.as_ref().map_or_else(String::new, |sync| sync.key.clone()),
                 sync_identity: self.synchronization.as_ref().map(|_| identity),
                 montage: false,
+                interrupted: false,
                 slot_key: String::new(),
             });
         }
