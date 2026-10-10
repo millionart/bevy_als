@@ -7,6 +7,7 @@
   "limit_initial_speed": true,
   "start_on_land": true,
   "on_land_speed_threshold_mps": 10.0,
+  "interrupt_rolling_when_in_air": false,
   "front": {
     "source_montage": "/ALS/ALS/Animations/Actions/GetUp/AM_Als_GetUp_Front.AM_Als_GetUp_Front",
     "source_sequence": "/ALS/ALS/Animations/Actions/GetUp/A_Als_GetUp_Front.A_Als_GetUp_Front",

@@ -3805,8 +3805,11 @@ pub(crate) fn locomotion_state_sync_system(
                 && crate::get_up::RAGDOLL_SETTINGS.start_on_land
                 && motion.get(entity).is_ok_and(|state| state.world_velocity.y
                     <= -crate::get_up::RAGDOLL_SETTINGS.on_land_speed_threshold_mps);
+            let ragdoll_on_air_roll = target == LocomotionState::Air
+                && action == Some(&crate::als::state::AlsNotifyLocomotionAction::Rolling)
+                && params_assets.get(handle.id()).is_some_and(|params| params.rolling.interrupt_when_in_air);
             *current = target;
-            if ragdoll_on_land {
+            if ragdoll_on_land || ragdoll_on_air_roll {
                 *current = LocomotionState::None;
                 transitions.write(StateTransitionEvent { entity, dimension: Dimension::LocomotionState,
                     from: StateValue::LocomotionState(target), to: StateValue::LocomotionState(LocomotionState::None) });

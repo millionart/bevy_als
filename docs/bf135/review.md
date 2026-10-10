@@ -13,15 +13,15 @@
 | R05 | `control_rig_apply::refresh_control_rig_input` 脊柱动画时钟 | 已修复 | `e64af0759`；当前传入 `animation.delta_seconds`，不再读世界 delta |
 | R06 | `als/character/movement/source_physics_timing::integrate_character_position` Air 长帧仍用末速度 | 确认并已修复 | BF135.07B：100ms六步位移`1.942775!=1.95095`红→子步速度阶段前旧速度/中点，速度补偿和clamp保持；中点、无状态terminal复算、时机三消融红，整byte恢复65相关回归；原startup/uphill/moving-base/100ms takeoff入口通过 |
 | R07 | `ragdoll_link::apply_ragdoll_ground_follow` 与退出 realign 将世界位置写局部 Transform | 确认并已修复 | BF135.09B：translated/rotated/scaled parent实际follow/exit world目标与loaded恢复旋转/骨盆snapshot红→当前parent逆映射local、恢复以actor_world建world后重投local，Position/Rotation仍world；各映射消融红/三源byte恢复同target，原startup/ragdoll/camera通过 |
-| R08 | `gen_ragdoll::target_material` 与 profile 未保留零有效休眠阈值 | 待原生确认 | 待执行 |
+| R08 | `gen_ragdoll::target_material` 与 profile 未保留零有效休眠阈值 | 确认并已修复 | BF135.11B：native双零material/custom multiplier0与actual Physics旧自动睡眠红→离线有效阈值策略/已有SleepingDisabled marker，插入/清理/零策略/倍率消融各红→完整byte同target恢复与38相关绿；15root/374全转只一已说明图literal，原四公共通过，默认正阈值保持 |
 | R09 | `apply_profile_to_spawned_ragdoll` 将两个线性 drive target 再乘几何 scale | 确认并已修复 | BF135.10B：真实spawned三scale非零位置/速度目标被减半红→仅删两重复乘法，geometry/mass/frame/rebuild原断言保持；各target独立消融红→原子完整byte恢复/同target与6相关绿；原startup/ragdoll通过 |
-| R10 | `locomotion_state_sync_system` 进入 Air 缺源 Rolling 中断仲裁 | 待原生确认 | 待执行 |
+| R10 | `locomotion_state_sync_system` 进入 Air 缺源 Rolling 中断仲裁 | 确认并已修复 | BF135.11B：loaded真实角色合法interrupt=true入Air仍Rolling红→导出native实际false并在模式变化一次走既有ragdoll入口；false/已Air/非Rolling负对照和Tnua禁用通过，移除回调同红/恢复38相关与原四公共绿 |
 | R11 | `AlsGetUpState::advance` 自然零混出在窗口前置权重零 | 确认并已修复 | BF135.08B：自然zero首帧weight0红→等待末窗；剩余预算mid-fade1!=.5红→复用既有stop预算保持natural非interrupted→预算消融红/整byte同target恢复；getup原生与原startup/get_up/base/notify通过 |
 | R12 | `dispatch_graph_footsteps` 的 montage sample 缺中断状态 | 确认并已修复 | BF135.08B：同avatar旧Roll tail脚步1!=0红→final sample统一发布/过滤interrupted；各owner闭包、transition跨自然end counter证明一个持久bit必要；filter/bridge/state推导消融红，恢复128相关与原四case通过 |
 | R13 | `bridge_roll_slot_samples` 仍写 `clock.weight=1.0` | 确认并已修复 | BF135.08B：真实partial pose的roll clock仍1红→发布已计算的当前weight一次，原max(previous,current)保持；移除传递同红，整byte恢复原生/128相关与原四case通过 |
 | R14 | `source_sequence_player::next_position` 无条件取模丢闭区间末点 | 确认并已修复 | BF135.01：原生 `0!=1.5` 失败→17/17 通过→移除规则再失败→完整字节恢复同 target 17/17；原 startup/state_machine 通过 |
 | R15 | `source_physics_joint::apply_linear_motor` 阻尼未反馈累计 DP/DQ | 确认并已修复 | BF135.06：8迭代`.99609375!=.5`及已有DQ力臂方向反例红→预解基线/DP-DQ反馈/源cached模式，192标量/27关节原生通过；反馈、基线无状态替代、DQ、cached模式独立消融红，源码整byte恢复554回归及原startup/ragdoll11项通过 |
-| R16 | pose renderer PropertyAccess 仍输出空 `expected_tag` | 待原生确认 | 待执行；修复后必须完整转换 corpus/diff |
+| R16 | pose renderer PropertyAccess 仍输出空 `expected_tag` | 确认并已修复 | BF135.11B：pose PropertyAccess比较literal旧空值fixture红→唯一renderer保留source expected_tag，移除同红；全15root/23AnimBP/236subgraph/374重转完整diff只有Land_Movement空→Aiming，逐native连接审计/安装byte/static及原四公共通过 |
 | R17 | state wrappers 与 GameplayTag consumer 仍采用原始大小写身份 | 待原生确认 | 待执行 |
 | R18 | CCD 零允许深度仍只裁剪位置、不施加源冲量 | 确认并已修复 | BF135.12B：zero-depth mass2/rest.5速度64!=-32红→source point-mass normal impulse且无angular/friction，现阶段完整substep保持-32，无额外baseline状态；移除impulse同红，恢复/原startup/ragdoll通过 |
 | R19 | CCD 仍先快照所有命中再排序、未重扫已变轨迹 | 确认并已修复 | BF135.12B：A被S先截停后B旧TOI仍停z.035355红→Done轨迹更新关联扫掠/当前remaining区间TOI重排，B达到源-.5；保留旧TOI消融同红，恢复/旧CCD矩阵及原startup/ragdoll通过 |

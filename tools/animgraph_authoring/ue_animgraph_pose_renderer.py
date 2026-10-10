@@ -591,7 +591,9 @@ def rendered_inner(graph_contract, source, semantic, asset_by_node, fsm_assets):
                 + quoted(tag_input["key"])
                 + ", output: "
                 + quoted(tag_input["output"])
-                + ", expected_tag: \"\", source_property_path: "
+                + ", expected_tag: "
+                + quoted(tag_input["expected_tag"])
+                + ", source_property_path: "
                 + quoted(tag_input["source_property_path"])
                 + ", source_properties: ["
                 + ", ".join(quoted(item) for item in scalar_renderer.source_properties(source))
@@ -2263,6 +2265,14 @@ def run_self_test():
         {},
     )
     assert tag_property_type == "als_ext::SourceGameplayTagInputNode"
+    for property_node in tag_contract["source_graph"]["nodes"]:
+        if not property_node.get("class_path", "").endswith("K2Node_PropertyAccess"):
+            continue
+        tag_input = scalar_renderer.gameplay_tag_input_config(tag_contract, property_node)
+        _, property_inner = rendered_inner(tag_contract, property_node,
+            {"renderer": "property_access", "semantic": {}}, {}, {})
+        assert "expected_tag: " + quoted(tag_input["expected_tag"]) in property_inner, (
+            "Pose tag property lost its source comparison literal", tag_input, property_inner)
     tag_equal = tag_contract["source_graph"]["nodes"][4]
     tag_equal_type, tag_equal_inner = rendered_inner(
         tag_contract,

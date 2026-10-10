@@ -10854,6 +10854,41 @@ fn observe_manual_integration(
 #[cfg(test)]
 mod tests {
     #[test]
+    fn browser_review_air_roll_uses_the_configured_mode_change_ragdoll_entry() {
+        use bevy::prelude::*;
+        use avian3d::prelude::{LinearVelocity, Position};
+        use crate::als::{character::AlsMovementParamsHandle, params::AlsMovementParams,
+            state::{AlsNotifyLocomotionAction, LocomotionState}};
+        for (enabled, already_air, rolling) in [(false, false, true), (true, false, true),
+            (true, true, true), (true, false, false)] {
+            let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+            let handle = app.world().get::<AlsMovementParamsHandle>(character).unwrap().0.clone();
+            let mut values = serde_json::to_value(app.world().resource::<Assets<AlsMovementParams>>().get(&handle).unwrap()).unwrap();
+            values["rolling"] = serde_json::json!({"interrupt_when_in_air": enabled});
+            let configured = serde_json::from_value(values).unwrap();
+            *app.world_mut().resource_mut::<Assets<AlsMovementParams>>().get_mut(&handle).unwrap() = configured;
+            app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = true;
+            app.update();
+            app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().roll_pressed = false;
+            if !rolling { app.world_mut().entity_mut(character).insert(AlsNotifyLocomotionAction::None); }
+            app.world_mut().entity_mut(character).insert(if already_air { LocomotionState::Air } else { LocomotionState::Grounded });
+            let target = app.world().get::<Position>(character).unwrap().0 + Vec3::Y * 3.0;
+            app.world_mut().get_mut::<Position>(character).unwrap().0 = target;
+            app.world_mut().get_mut::<Transform>(character).unwrap().translation = target;
+            app.world_mut().get_mut::<LinearVelocity>(character).unwrap().0 = Vec3::ZERO;
+            app.update();
+            let actual = *app.world().get::<AlsNotifyLocomotionAction>(character).unwrap();
+            let expected = enabled && !already_air && rolling;
+            assert_eq!(actual == AlsNotifyLocomotionAction::Ragdolling, expected,
+                "Air roll mode change did not use the source interrupt configuration: enabled={enabled}, already_air={already_air}, rolling={rolling}, actual={actual:?}");
+            if expected {
+                assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::None);
+                assert_eq!(*app.world().get::<bevy_tnua::TnuaToggle>(character).unwrap(), bevy_tnua::TnuaToggle::Disabled);
+            }
+        }
+    }
+
+    #[test]
     fn browser_review_base_midframe_scale_keeps_crouch_cycles_grounded() {
         use avian3d::prelude::{LinearVelocity, Position};
         use bevy::prelude::*;

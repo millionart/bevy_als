@@ -561,6 +561,7 @@ TSharedRef<FJsonObject> CapturePhysicsBody(const USkeletalBodySetup* Body, int32
     Value->SetNumberField(TEXT("physics_type"), static_cast<int32>(Body->PhysicsType.GetValue()));
     Value->SetNumberField(TEXT("collision_response"), static_cast<int32>(Body->CollisionReponse.GetValue()));
     Value->SetNumberField(TEXT("calculated_mass"), Body->CalculateMass());
+    Value->SetNumberField(TEXT("sleep_threshold_multiplier"), Body->DefaultInstance.GetSleepThresholdMultiplier());
     Value->SetNumberField(TEXT("shape_count"), Body->AggGeom.GetElementCount());
     if (UPhysicalMaterial* Material = FBodyInstance::GetSimplePhysicalMaterial(
         &Body->DefaultInstance, nullptr, const_cast<USkeletalBodySetup*>(Body)))
@@ -741,6 +742,12 @@ TSharedRef<FJsonObject> CapturePhysicsMaterialProbe()
     Value->SetStringField(TEXT("override_path"), ObjectPath(Override));
     Value->SetObjectField(TEXT("overridden_body"), CapturePhysicsBody(Overridden, 0));
     Value->SetObjectField(TEXT("fallback_body"), CapturePhysicsBody(Fallback, 1));
+    Override->SleepLinearVelocityThreshold = 0.0f;
+    Override->SleepAngularVelocityThreshold = 0.0f;
+    Value->SetObjectField(TEXT("zero_material_body"), CapturePhysicsBody(Overridden, 2));
+    Fallback->DefaultInstance.SleepFamily = ESleepFamily::Custom;
+    Fallback->DefaultInstance.CustomSleepThresholdMultiplier = 0.0f;
+    Value->SetObjectField(TEXT("zero_multiplier_body"), CapturePhysicsBody(Fallback, 3));
     return Value;
 }
 

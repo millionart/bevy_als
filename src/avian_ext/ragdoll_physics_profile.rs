@@ -45,6 +45,7 @@ pub struct RagdollBodyPhysicsProfile {
     pub gravity_scale: f32,
     pub friction: Friction,
     pub restitution: Restitution,
+    pub sleeping_disabled: bool,
     pub mass_properties: Option<RagdollMassProperties>,
     pub locked_axes_bits: u8,
     pub inertia_conditioning_enabled: bool,
@@ -245,6 +246,8 @@ struct PhysicsAssetMaterial {
     restitution: f32,
     friction_combine: String,
     restitution_combine: String,
+    #[serde(default)]
+    sleeping_disabled: bool,
 }
 
 #[derive(Deserialize)]
@@ -368,6 +371,7 @@ impl RagdollPhysicsProfile {
                         coefficient: material.restitution,
                         combine_rule: coefficient_combine(&material.restitution_combine)?,
                     },
+                    sleeping_disabled: material.sleeping_disabled,
                     mass_properties: body.target.mass_properties.as_ref().map(|value| RagdollMassProperties {
                         mass_kg: value.mass_kg,
                         unclamped_mass_kg: value.unclamped_mass_kg,
@@ -1185,6 +1189,11 @@ fn apply_profile_to_spawned_ragdoll(
             body.friction,
             body.restitution,
         ));
+        if body.sleeping_disabled {
+            commands.entity(*body_entity).insert(avian3d::prelude::SleepingDisabled);
+        } else {
+            commands.entity(*body_entity).remove::<avian3d::prelude::SleepingDisabled>();
+        }
         let bits = body.locked_axes_bits;
         if body.inertia_conditioning_enabled {
             commands.entity(*body_entity).insert(profile.inertia_conditioning_settings);
@@ -1521,6 +1530,47 @@ fn joint_anchor_distance(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn browser_review_zero_sleep_thresholds_disable_automatic_body_sleep() {
+        use avian3d::prelude::{Gravity, Mass, NoAutoMass, PhysicsPlugins, Sleeping, SubstepCount};
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy_animation_graph::core::ragdoll::definition::Body;
+        for disabled in [false, true] {
+            let mut source: serde_json::Value = serde_json::from_str(include_str!("../../assets/ALS/Character/PA_Als.physics.json")).unwrap();
+            for body in source["bodies"].as_array_mut().unwrap() {
+                body["target"]["material"]["sleeping_disabled"] = serde_json::json!(disabled);
+            }
+            let mut profile = RagdollPhysicsProfile::from_json(&source.to_string()).unwrap();
+            profile.bodies.retain(|body| body.label == "pelvis");
+            profile.colliders.clear();profile.joints.clear();
+            profile.bodies[0].linear_damping = 0.0;
+            profile.bodies[0].angular_damping = 0.0;
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, TransformPlugin,
+                PhysicsPlugins::new(PostUpdate), RagdollPhysicsProfilePlugin))
+                .insert_resource(Gravity(Vec3::ZERO)).insert_resource(SubstepCount(1))
+                .insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
+            app.finish();app.cleanup();
+            let root = app.world_mut().spawn_empty().id();
+            let body = app.world_mut().spawn((BodyLabel("pelvis".into()), RigidBody::Dynamic, Transform::IDENTITY,
+                Mass(1.0), NoAutoMass)).id();
+            if !disabled { app.world_mut().entity_mut(body).insert(avian3d::prelude::SleepingDisabled); }
+            let mut spawned = SpawnedRagdoll::new(root);
+            spawned.bodies.insert(Body::new().id, body);
+            app.world_mut().run_system_once(move |mut commands: Commands,
+                body_labels: Query<&BodyLabel>, collider_labels: Query<&ColliderLabel>, joint_labels: Query<&JointLabel>,
+                spherical: Query<&SphericalJoint>, revolute: Query<&RevoluteJoint>, source_joints: Query<&SourcePhysicsJoint>,
+                transforms: Query<&Transform>, mut colliders: Query<&mut Collider>| {
+                apply_profile_to_spawned_ragdoll(&mut commands, &spawned, &profile, 1.0, 1.0, true,
+                    &body_labels, &collider_labels, &joint_labels, &spherical, &revolute,
+                    &source_joints, &transforms, &mut colliders)
+            }).unwrap();
+            for _ in 0..180 { app.update(); }
+            assert_eq!(app.world().get::<Sleeping>(body).is_none(), disabled,
+                "Zero effective source thresholds still allowed automatic sleep: disabled={disabled}");
+        }
+    }
+
     fn browser_ccd_body(
         world: &mut World, mode: RigidBody, origin: Vec3, velocity: Vec3, shape: Collider,
         settings: Option<SourceCcdSettings>,

@@ -309,6 +309,7 @@
           "friction_combine": "Average",
           "restitution": 0.3,
           "restitution_combine": "Average",
+          "sleeping_disabled": false,
           "static_friction": 0.7
         },
         "max_angular_speed_radians_per_second": 62.83185307179586
@@ -623,6 +624,7 @@
           "friction_combine": "Average",
           "restitution": 0.3,
           "restitution_combine": "Average",
+          "sleeping_disabled": false,
           "static_friction": 0.7
         },
         "max_angular_speed_radians_per_second": 62.83185307179586
@@ -937,6 +939,7 @@
           "friction_combine": "Average",
           "restitution": 0.3,
           "restitution_combine": "Average",
+          "sleeping_disabled": false,
           "static_friction": 0.7
         },
         "max_angular_speed_radians_per_second": 62.83185307179586
@@ -1427,6 +1430,7 @@
           "friction_combine": "Average",
           "restitution": 0.3,
           "restitution_combine": "Average",
+          "sleeping_disabled": false,
           "static_friction": 0.7
         },
         "max_angular_speed_radians_per_second": 62.83185307179586
@@ -1741,6 +1745,7 @@
           "friction_combine": "Average",
           "restitution": 0.3,
           "restitution_combine": "Average",
+          "sleeping_disabled": false,
           "static_friction": 0.7
         },
         "max_angular_speed_radians_per_second": 62.83185307179586
@@ -2055,6 +2060,7 @@
           "friction_combine": "Average",
           "restitution": 0.3,
           "restitution_combine": "Average",
+          "sleeping_disabled": false,
           "static_friction": 0.7
         },
         "max_angular_speed_radians_per_second": 62.83185307179586
@@ -2369,6 +2375,7 @@
           "friction_combine": "Average",
           "restitution": 0.3,
           "restitution_combine": "Average",
+          "sleeping_disabled": false,
           "static_friction": 0.7
         },
         "max_angular_speed_radians_per_second": 62.83185307179586
@@ -2683,6 +2690,7 @@
           "friction_combine": "Average",
           "restitution": 0.3,
           "restitution_combine": "Average",
+          "sleeping_disabled": false,
           "static_friction": 0.7
         },
         "max_angular_speed_radians_per_second": 62.83185307179586
@@ -2997,6 +3005,7 @@
           "friction_combine": "Average",
           "restitution": 0.3,
           "restitution_combine": "Average",
+          "sleeping_disabled": false,
           "static_friction": 0.7
         },
         "max_angular_speed_radians_per_second": 62.83185307179586
@@ -3311,6 +3320,7 @@
           "friction_combine": "Average",
           "restitution": 0.3,
           "restitution_combine": "Average",
+          "sleeping_disabled": false,
           "static_friction": 0.7
         },
         "max_angular_speed_radians_per_second": 62.83185307179586
@@ -3625,6 +3635,7 @@
           "friction_combine": "Average",
           "restitution": 0.3,
           "restitution_combine": "Average",
+          "sleeping_disabled": false,
           "static_friction": 0.7
         },
         "max_angular_speed_radians_per_second": 62.83185307179586
@@ -3939,6 +3950,7 @@
           "friction_combine": "Average",
           "restitution": 0.3,
           "restitution_combine": "Average",
+          "sleeping_disabled": false,
           "static_friction": 0.7
         },
         "max_angular_speed_radians_per_second": 62.83185307179586
@@ -4253,6 +4265,7 @@
           "friction_combine": "Average",
           "restitution": 0.3,
           "restitution_combine": "Average",
+          "sleeping_disabled": false,
           "static_friction": 0.7
         },
         "max_angular_speed_radians_per_second": 62.83185307179586
@@ -4567,6 +4580,7 @@
           "friction_combine": "Average",
           "restitution": 0.3,
           "restitution_combine": "Average",
+          "sleeping_disabled": false,
           "static_friction": 0.7
         },
         "max_angular_speed_radians_per_second": 62.83185307179586
@@ -4881,6 +4895,7 @@
           "friction_combine": "Average",
           "restitution": 0.3,
           "restitution_combine": "Average",
+          "sleeping_disabled": false,
           "static_friction": 0.7
         },
         "max_angular_speed_radians_per_second": 62.83185307179586
@@ -5195,6 +5210,7 @@
           "friction_combine": "Average",
           "restitution": 0.3,
           "restitution_combine": "Average",
+          "sleeping_disabled": false,
           "static_friction": 0.7
         },
         "max_angular_speed_radians_per_second": 62.83185307179586
@@ -5522,6 +5538,7 @@
           "friction_combine": "Average",
           "restitution": 0.3,
           "restitution_combine": "Average",
+          "sleeping_disabled": false,
           "static_friction": 0.7
         },
         "max_angular_speed_radians_per_second": 62.83185307179586
@@ -5849,6 +5866,7 @@
           "friction_combine": "Average",
           "restitution": 0.3,
           "restitution_combine": "Average",
+          "sleeping_disabled": false,
           "static_friction": 0.7
         },
         "max_angular_speed_radians_per_second": 62.83185307179586
@@ -6109,6 +6127,7 @@
           "friction_combine": "Average",
           "restitution": 0.3,
           "restitution_combine": "Average",
+          "sleeping_disabled": false,
           "static_friction": 0.7
         },
         "max_angular_speed_radians_per_second": 62.83185307179586
@@ -6436,6 +6455,7 @@
           "friction_combine": "Average",
           "restitution": 0.3,
           "restitution_combine": "Average",
+          "sleeping_disabled": false,
           "static_friction": 0.7
         },
         "max_angular_speed_radians_per_second": 62.83185307179586
@@ -6763,6 +6783,7 @@
           "friction_combine": "Average",
           "restitution": 0.3,
           "restitution_combine": "Average",
+          "sleeping_disabled": false,
           "static_friction": 0.7
         },
         "max_angular_speed_radians_per_second": 62.83185307179586

@@ -16,6 +16,20 @@ pub struct AlsMovementParams {
     pub rotation: RotationParams,
     pub crouch: CrouchParams,
     pub jump: JumpParams,
+    #[serde(default)]
+    pub rolling: RollingParams,
+}
+
+#[derive(Reflect, Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[reflect(Default)]
+pub struct RollingParams {
+    pub interrupt_when_in_air: bool,
+}
+
+impl Default for RollingParams {
+    fn default() -> Self {
+        Self { interrupt_when_in_air: crate::get_up::RAGDOLL_SETTINGS.interrupt_rolling_when_in_air }
+    }
 }
 
 impl AlsMovementParams {

@@ -133,6 +133,7 @@ def main():
         output["limit_initial_speed"] = bool_after(fields, "bLimitInitialRagdollSpeed")
         output["start_on_land"] = bool_after(fields, "bStartRagdollingOnLand")
         output["on_land_speed_threshold_mps"] = number_after(fields, "RagdollingOnLandSpeedThreshold") * 0.01
+        output["interrupt_rolling_when_in_air"] = bool_after(field_text(settings, "Rolling"), "bInterruptRollingWhenInAir")
         for direction in ("front", "back"):
             key = "GetUp" + direction.title() + "Montage="
             reference = object_path(fields.split(key, 1)[1].split(",", 1)[0])

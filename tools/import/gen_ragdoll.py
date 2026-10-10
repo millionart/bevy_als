@@ -61,7 +61,7 @@ def collision_enabled_intersection(body, shape):
     return COLLISION_MODES[query | (4 if probe else 2 if simulation else 0)]
 
 
-def target_material(entries):
+def target_material(entries, sleep_multiplier=1.0):
     values = props(entries)
     friction = float(values["Friction"])
     return {
@@ -70,6 +70,8 @@ def target_material(entries):
         "restitution": float(values["Restitution"]),
         "friction_combine": values["FrictionCombineMode"],
         "restitution_combine": values["RestitutionCombineMode"],
+        "sleeping_disabled": float(values["SleepLinearVelocityThreshold"]) * sleep_multiplier <= 0.0
+            and float(values["SleepAngularVelocityThreshold"]) * sleep_multiplier <= 0.0,
     }
 
 
@@ -451,9 +453,19 @@ def self_test():
         {"name": key, "exported_text": value} for key, value in {
             "Friction": "0.7", "StaticFriction": "0", "Restitution": "0.3",
             "FrictionCombineMode": "Average", "RestitutionCombineMode": "Average",
+            "SleepLinearVelocityThreshold": "1.0", "SleepAngularVelocityThreshold": "0.05",
         }.items()
     ])
     assert material["static_friction"] == material["dynamic_friction"] == 0.7
+    assert not material["sleeping_disabled"]
+    for linear, angular, multiplier, disabled in [(0.0, 0.0, 1.0, True), (1.0, 0.05, 0.0, True),
+            (0.0, 0.05, 1.0, False), (1.0, 0.0, 1.0, False)]:
+        entries = [{"name": key, "exported_text": str(value)} for key, value in {
+            "Friction": 0.7, "StaticFriction": 0, "Restitution": 0.3,
+            "FrictionCombineMode": "Average", "RestitutionCombineMode": "Average",
+            "SleepLinearVelocityThreshold": linear, "SleepAngularVelocityThreshold": angular,
+        }.items()]
+        assert target_material(entries, multiplier)["sleeping_disabled"] == disabled
     assert expanded_text({"exported_text": "()", "fields": [{"name": "Enabled", "exported_text": "True"}]}) == "(Enabled=True)"
     assert collision_disabled_pairs({"collision_disabled_pairs": [{"body_index_1": 0, "body_index_2": 1, "disabled": False}]}) == [[0, 1]]
     assert parsed_profile([{"name": "ProfileInstance", "exported_text": "()", "fields": [
@@ -863,7 +875,7 @@ def build_profile(source, project_max_angular_velocity_degrees):
                 "ccd_enabled": boolean(body["default_instance_properties"], "bUseCCD"),
                 "gyroscopic_torque_enabled": boolean(body["default_instance_properties"], "bGyroscopicTorqueEnabled"),
                 "gravity_scale": 1.0 if boolean(body["default_instance_properties"], "bEnableGravity", True) else 0.0,
-                "material": target_material(body["physical_material_properties"]),
+                "material": target_material(body["physical_material_properties"], body["sleep_threshold_multiplier"]),
                 "mass_properties": mass_properties,
             },
             "shapes": shapes,
