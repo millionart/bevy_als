@@ -2,7 +2,7 @@
 
 本轮起始版本 `9105cdf`；对标本地 ALS-Refactored 与 UE 5.8 的当次 source。严重级与任务边界见 `CHECKLIST.md` BF134。仅登记有源事实、可达 target consumer 与可重复触发条件的 P2 及以上差异；旧结论不代替 fresh 审计。
 
-当前已确认并修复 **154 项 P2 及以上差异**：BF134 验收 122 项、BF135 补修 29 项、BF137.01–.03 新修 GetUp 时钟、Roll 时钟与父级空间三项。BF135 另 4 项重复不计；这些是已证实边界的验收，不能宣称未知差异已经穷尽。完整逐项 source、触发条件、反例、修复、消融和 Gate 记录见 [CHECKLIST.md](../CHECKLIST.md)、[BF135 逐项台账](bf135/review.md) 与本页 BF137 表。本页下方早期逐项记录保留当时语义；当前覆盖状态以本节及最新验收记录为准。
+当前已确认并修复 **154 项 P2 及以上差异**：BF134 验收 122 项、BF135 补修 29 项、BF137.01–.03 新修 GetUp 时钟、Roll 时钟与父级空间三项。BF135 另 4 项重复不计；BF137.04 新确认 Mantle owner 时钟待修。这些是已证实边界的验收，不能宣称未知差异已经穷尽。完整逐项 source、触发条件、反例、修复、消融和 Gate 记录见 [CHECKLIST.md](../CHECKLIST.md)、[BF135 逐项台账](bf135/review.md) 与本页 BF137 表。本页下方早期逐项记录保留当时语义；当前覆盖状态以本节及最新验收记录为准。
 
 初始 inventory：146 个源 C++/header（ALS 112、ALSCamera 12、ALSEditor 16、ALSExtras 6），181 个 target Rust，15 个 installed AnimBP root、359 个生成依赖文件和 15 份安装 manifest，文件缺失 0；完成时的 target scope 为 182 个文件，包含源归属迁移和一个通用查询数据文件。源 revision 为 ALS `b754d6f0f2bb03741d301f8fb88077ebfe561e17`、UE `396c9f059903aed5fec78ecd3d437a40c6415368`；完整相对路径和 SHA-256 在本地证据 `target/bf134/inventory.json` 与 `target/bf134/04/current_inventory.json`。B_Als_Character 原生 reader 39.050 秒成功；watchdog self-test 通过。Editor/AI/网络与刻意差异按执行清单排除。
 
@@ -37,7 +37,9 @@ BF136 当轮没有新增 source-proven P2，完成时已确认待修项为零；
 | BF137.02 Roll owner 时钟 | P2；角色 CustomTimeDilation=0/.5/2，含旧 montage tail | 同一 source 组件/蒙太奇时钟链；当前/tail推进与实际转向均先原生失败。现按owner推进、保留真实previous interval与actor movement minimum；实际slot和Custom位移通过，四native+两实际源码消融确切红，七focused/53相关恢复绿，原六入口71项功能检查通过 | 已修复并验收，`target/bf137/roll_clock_acceptance.json` |
 | BF137.03 Roll 父级空间 | P2；角色存在平移、旋转、缩放父级，含当帧父级变化 | ALS 启动取世界 GetActorRotation，RefreshRollingPhysics 取世界 GetComponentRotation/MoveUpdatedComponent；loaded 反例证实目标误用局部启动 yaw、世界位移直接写局部 Transform、Physics 接收局部值。现从当前 TransformHelper 取世界输入，保留 pitch/roll，Transform 逆映射父级、Physics 写世界值；三种 scale 与当帧变化通过，七独立消融确切红，字节恢复后 9 focused/57 相关及原六入口 71 项功能检查通过 | 已修复并验收，`target/bf137/parent_acceptance.json` |
 
-旧默认时钟的通过记录不能覆盖以上配置边界。原生失败报告见 `target/bf137/old_action_clocks.watchdog.json`，fresh 源资产和 C++ 快照在 `target/bf137/source`；没有将 Mantle 的相似实现直接计作已确认差异。
+| BF137.04 Mantle owner 时钟 | P2；CustomTimeDilation=0/.5/2，含被替换 montage 尾段 | fresh RootMotionSource/CMC/Actor/Mesh 链证明根运动与蒙太奇都应消费 owner Delta；native High资产字段相同。两个loaded反例证实当前/tail/发布slot仍用世界Delta，0倍移动、2倍退出延后；1倍负对照通过，旧Gate只覆盖默认倍率 | 已确认，04B修复中 |
+
+旧默认时钟的通过记录不能覆盖以上配置边界。原生失败报告见 `target/bf137/old_action_clocks.watchdog.json`，fresh 源资产和 C++ 快照在 `target/bf137/source`；Mantle 在04A取得独立 source/loaded 反例后才定级，没有按相似实现直接计数。
 
 本地原始 ALS 插件仓库的 146 个源文件与原审计逐字节一致。项目安装目录指向插件的 Build 副本，其中 AnimationInstance 只有换行差异，两个 CharacterExample 文件另含 TraceScriptDriver 和 Sprint toggle 本地改动；这些不属于已声明的 `b754d6f0` 原始 source。当前核对明确分别记录原始 source 与安装副本，不将调试驱动误移植为源功能，不修改任何 UE 原始资产。
 
