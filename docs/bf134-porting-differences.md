@@ -27,7 +27,16 @@
 
 BF135 的 29 项补修分别通过当次反例、必要性消融、源码字节恢复、匹配回归及原入口 Gate。BF136 于 2026-10-11 在当前代码 `bf733787` 完成完整库 **1609/1609**、32 个原 Playground 入口及 **495 项功能检查**，全部通过；当前 345 个图规格、15 root 完整递归 source 审计、374 个安装产物字节核对及 15 份补修合同均通过。汇总证据为 `target/bf136/final_acceptance.json`，每个当前场景均有独立报告，没有复用旧版本场景结果。
 
-本轮没有发现新增且经 source 证明的 P2 及以上差异，已确认待修项为零；生产代码、转换器和原始导出均未改动。此次修正的是陈旧覆盖表及进度记录，并对全部既有修复完成当前版本复验。
+BF136 当轮没有新增 source-proven P2，完成时已确认待修项为零；该轮只修正陈旧覆盖表并复验旧修复，不能代表未知差异已经穷尽。后续新审计以以下 BF137 记录为准。
+
+## BF137 新确认差异
+
+| 条目 | 级别与触发条件 | 当次 source → target 证据 | 状态 |
+|---|---|---|---|
+| BF137.01 GetUp owner 时钟 | P2；角色 CustomTimeDilation=0/.5/2 | UE Actor.h 的 ExecuteTickHelper 给 Mesh/CMC tick 乘 owner 倍率，Montage Advance 使用该 Delta；loaded GetUp 的实际 slot 采样在世界 50ms 内仍推进 50ms，0/.5/2 三组原生反例失败，1 倍负对照通过 | 修复与验收中 |
+| BF137 后续 Roll owner 时钟 | P2；角色 CustomTimeDilation=0/.5/2，含旧 montage tail | 同一 source 组件/蒙太奇时钟链；实际 advance_rolls 当前与 tail 都无条件推进世界 50ms，0/.5/2 失败 | 已确认待修，root consumer 继续取证 |
+
+旧默认时钟的通过记录不能覆盖以上配置边界。原生失败报告见 `target/bf137/old_action_clocks.watchdog.json`，fresh 源资产和 C++ 快照在 `target/bf137/source`；没有将 Mantle 的相似实现直接计作已确认差异。
 
 本地原始 ALS 插件仓库的 146 个源文件与原审计逐字节一致。项目安装目录指向插件的 Build 副本，其中 AnimationInstance 只有换行差异，两个 CharacterExample 文件另含 TraceScriptDriver 和 Sprint toggle 本地改动；这些不属于已声明的 `b754d6f0` 原始 source。当前核对明确分别记录原始 source 与安装副本，不将调试驱动误移植为源功能，不修改任何 UE 原始资产。
 
