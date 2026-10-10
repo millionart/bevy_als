@@ -94,7 +94,14 @@ pub struct AnimationContextState {
     pub asset_samples: Vec<SourceAssetSample>,
     pub inertialization_request: Option<SourceInertializationRequest>,
     pub skipped_cached_pose_request: Option<SourceInertializationRequest>,
-    pub(crate) cached_pose_request_route: Option<(u64, bool)>,
+    pub(crate) cached_pose_request_route: Option<SourceCachedPoseRequestRoute>,
+}
+
+#[derive(Reflect, Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct SourceCachedPoseRequestRoute {
+    pub frame: u64,
+    pub caller: (bevy_animation_graph::core::context::graph_context_arena::GraphContextId, NodeId, StateKey),
+    pub forward: bool,
 }
 
 #[derive(Reflect, Clone, Debug, Default)]

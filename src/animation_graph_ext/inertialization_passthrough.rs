@@ -1215,6 +1215,101 @@ mod tests {
     }
 
     #[test]
+    fn cached_pose_request_uses_the_maximum_weight_callers_context() {
+        use crate::extensions::animation_context::{AnimationContextState, SourceInertializationRequest};
+        use crate::extensions::source_cached_pose::{SourceCachedPoseSaveNode, SourceCachedPoseUseNode, SourceScopedCachedPoseUseNode};
+        use bevy_animation_graph::core::{
+            animation_clip::{EntityPath, GraphClip}, animation_graph::{AnimationGraph, NodeId, TargetPin, TimeUpdate},
+            animation_node::AnimationNode,
+            context::{deferred_gizmos::DeferredGizmos, graph_context::QueryOutputTime,
+                graph_context_arena::GraphContextArena, new_context::GraphContext,
+                node_states::StateKey, system_resources::SystemResources},
+            edge_data::DataValue, state_machine::high_level::StateMachine, utils::testing::TestIoEnv,
+        };
+
+        fn query(In((handle, source, consumers, skeleton, bone)): In<(Handle<AnimationGraph>, NodeId,
+            [NodeId; 2], Handle<Skeleton>, BoneId)>, resources: SystemResources) -> ([f32; 2], f32) {
+            let graph = resources.animation_graph_assets.get(&handle).unwrap();
+            let mut arena = GraphContextArena::new(handle.id());
+            let mut gizmos = DeferredGizmos::default();
+            let entities = HashMap::new();
+            let env = TestIoEnv::default();
+            let mut output = 0.0;
+            for frame in 0..3 {
+                let mut pose = Pose { skeleton: skeleton.clone(), ..default() };
+                pose.add_bone(BonePose::from_transform(Transform::from_translation(
+                    Vec3::X * if frame == 2 { 1.0 } else { 0.0 })), bone);
+                let inputs = HashMap::from([
+                    ("input".to_owned(), DataValue::Pose(pose)),
+                    ("blend".to_owned(), DataValue::F32(0.75)),
+                ]);
+                if frame == 2 {
+                    arena.get_toplevel_mut().node_states.get_mut_or_insert_with(source, StateKey::Default,
+                        AnimationContextState::default).unwrap().inertialization_request = Some(
+                            SourceInertializationRequest { frame, duration: 0.2, ..default() });
+                }
+                let mut context = GraphContext::new(arena.get_toplevel_id(), graph, &mut arena,
+                    &resources, &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &inputs);
+                context.context_mut().query_output_time = QueryOutputTime::Forced(TimeUpdate::Delta(0.02));
+                let result = graph.get_data(TargetPin::OutputData("Pose".into()), context).unwrap().into_pose().unwrap();
+                output = result.get_bone(bone).unwrap().translation.unwrap().x;
+                if frame < 2 { arena.next_frame(); }
+            }
+            (consumers.map(|id| arena.get_toplevel().node_states.get::<SourceInertializationState>(
+                id, StateKey::Default).unwrap().duration), output)
+        }
+
+        let mut world = World::new();
+        world.init_resource::<Assets<AnimationGraph>>();
+        world.init_resource::<Assets<GraphClip>>();
+        world.init_resource::<Assets<Skeleton>>();
+        world.init_resource::<Assets<StateMachine>>();
+        let path = EntityPath { parts: vec!["root".into()] };
+        let bone = path.id();
+        let mut skeleton = Skeleton::default();
+        skeleton.add_bone(path, Transform::IDENTITY, Transform::IDENTITY);
+        let skeleton = world.resource_mut::<Assets<Skeleton>>().add(skeleton);
+        for scoped in [false, true] {
+            for forward_a in [false, true] {
+                for forward_b in [false, true] {
+                    let source = AnimationNode::new("source", crate::extensions::GlobalPoseInputNode {
+                        key: "input".into(), output: "Pose".into(),
+                    });
+                    let cache = AnimationNode::new("cache", SourceCachedPoseSaveNode::default());
+                    let uses = ["use A", "use B"].map(|name| if scoped {
+                        AnimationNode::new(name, SourceScopedCachedPoseUseNode { cache_node: "cache".into(), ..default() })
+                    } else { AnimationNode::new(name, SourceCachedPoseUseNode { cache_node: "cache".into() }) });
+                    let consumers = [forward_a, forward_b].map(|forward| AnimationNode::new("consumer",
+                        InertializationPassthroughNode { internalize_time: true,
+                            forward_requests_through_skipped_cached_poses: forward, ..default() }));
+                    let blend = AnimationNode::new("blend", crate::extensions::SourceTwoWayBlendNode {
+                        alpha_key: "blend".into(), expose_alpha_pin: false, ..default()
+                    });
+                    let mut graph = AnimationGraph::new();
+                    for node in [&source, &cache, &uses[0], &uses[1], &consumers[0], &consumers[1], &blend] {
+                        graph.add_node(node.clone());
+                    }
+                    graph.add_node_parameter_edge(source.id, "Pose", cache.id, "Pose");
+                    for (i, pin) in ["A", "B"].into_iter().enumerate() {
+                        graph.add_node_parameter_edge(uses[i].id, "Pose", consumers[i].id, "Source");
+                        graph.add_node_parameter_edge(consumers[i].id, "pose", blend.id, pin);
+                    }
+                    graph.add_output_data("Pose".into(), DataSpec::Pose);
+                    graph.add_output_data_edge(blend.id, "Pose", "Pose");
+                    let handle = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
+                    let (durations, output) = world.run_system_cached_with(query,
+                        (handle, source.id, consumers.map(|node| node.id), skeleton.clone(), bone)).unwrap();
+                    let expected = [if forward_b { 0.2 } else { 0.0 }, 0.2];
+                    assert_eq!(durations, expected, "scoped={scoped}, forward A={forward_a}, B={forward_b}");
+                    let inertial = 1.0 - source_inertial_float(1.0, 0.0, 0.02, 0.2);
+                    let expected_pose = 0.25 * if forward_b { inertial } else { 1.0 } + 0.75 * inertial;
+                    assert!((output - expected_pose).abs() < 1e-5, "Pose differs: {output} != {expected_pose}");
+                }
+            }
+        }
+    }
+
+    #[test]
     fn cached_pose_request_reaches_skipped_consumer_only_when_forwarding_is_enabled() {
         use crate::extensions::animation_context::{AnimationContextState, SourceInertializationRequest};
         use crate::extensions::source_cached_pose::{SourceCachedPoseSaveNode, SourceCachedPoseUseNode};

@@ -5830,10 +5830,10 @@ fn drive_manual_integration(
                 rebase_temporal_fixture(&mut state, &mut phase_evidence, label);
             }
             if entering {
-                reset_character(
+                reset_character_with_rotation(
                     &mut transform,
                     &mut position,
-                    rotation,
+                    rotation.as_deref_mut(),
                     &mut velocity,
                     &mut view_yaw,
                     &mut view_pitch,
@@ -5852,6 +5852,9 @@ fn drive_manual_integration(
             input.0.aim_held = elapsed < 2.6;
             let body_yaw = fixture.facing_yaw;
             transform.rotation = Quat::from_rotation_y(body_yaw);
+            if let Some(mut rotation) = rotation {
+                rotation.0 = transform.rotation;
+            }
             request.locomotion_state = Some(LocomotionState::Grounded);
             request.stance = Some(Stance::Standing);
             request.gait = Some(Gait::Walking);
@@ -13827,6 +13830,28 @@ mod tests {
             actual_velocity_branch_mask(&diagonal),
             DIRECTION_BRANCH_FORWARD | DIRECTION_BRANCH_RIGHT
         );
+    }
+
+    #[test]
+    fn state_machine_rotate_fixture_prescribes_the_physics_yaw_each_frame() {
+        use bevy::ecs::system::RunSystemOnce;
+        for elapsed in [0.5, 1.8, 3.1, 4.4] {
+            let (mut world, character, _) = manual_driver_fixture();
+            let yaw = world.resource::<ManualIntegrationFixture>().facing_yaw;
+            world.entity_mut(character).insert(Rotation(Quat::from_rotation_y(yaw + std::f32::consts::FRAC_PI_2)));
+            {
+                let mut state = world.resource_mut::<ManualIntegrationState>();
+                state.scenario = IntegrationScenario::StateMachine;
+                state.phase = IntegrationPhase::StateMachineRotate;
+                state.phase_started_seconds = -elapsed;
+                state.entered = false;
+            }
+            world.run_system_once(drive_manual_integration).unwrap();
+            let expected = Quat::from_rotation_y(yaw);
+            assert!(world.get::<Transform>(character).unwrap().rotation.abs_diff_eq(expected, 1e-6));
+            assert!(world.get::<Rotation>(character).unwrap().0.abs_diff_eq(expected, 1e-6),
+                "The stationary rotate fixture left a different physics yaw: elapsed={elapsed}");
+        }
     }
 
     #[test]

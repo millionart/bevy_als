@@ -655,7 +655,10 @@ mod tests {
                 upstream.relevant_asset = Some(crate::extensions::animation_context::SourceRelevantAsset {
                     duration: 1.0, position: frame as f32 * 0.02, delta_seconds: 0.02, weight: 1.0, ..default() });
                 upstream.skipped_cached_pose_request = Some(crate::extensions::animation_context::SourceInertializationRequest { frame, duration: 0.3, ..default() });
-                upstream.cached_pose_request_route = Some((frame, true));
+                let route = crate::extensions::animation_context::SourceCachedPoseRequestRoute {
+                    frame, caller: (context.context_id, node.id, bevy_animation_graph::core::context::node_states::StateKey::Default), forward: true,
+                };
+                upstream.cached_pose_request_route = Some(route);
                 upstream.asset_samples.push(crate::extensions::animation_context::SourceAssetSample { identity: "Footstep".into(),
                     notify_instance_id: 42, clock: crate::extensions::animation_context::SourceRelevantAsset { weight: 1.0, position: frame as f32 * 0.02, ..default() }, ..default() });
                 upstream.inertialization_request = Some(crate::extensions::animation_context::SourceInertializationRequest { frame, duration: 0.2, ..default() });
@@ -678,7 +681,7 @@ mod tests {
                 assert_eq!(state.context.inertialization_request.as_ref().unwrap().frame, frame);
                 assert_eq!(state.context.skipped_cached_pose_request.as_ref().unwrap().frame, frame);
                 assert_eq!(state.context.relevant_asset.as_ref().unwrap().position, frame as f32 * 0.02);
-                assert_eq!(state.context.cached_pose_request_route, Some((frame, true)));
+                assert_eq!(state.context.cached_pose_request_route, Some(route));
                 arena.next_frame();
             }
         }
