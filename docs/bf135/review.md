@@ -29,10 +29,10 @@
 | R21 | `next_position` 在旧时间推进后才 clamp 新 clip 长度 | 确认并已修复 | BF135.01：原生 `1!=0.875` 失败→17/17 通过→移除规则再失败→完整字节恢复同 target 17/17；原 startup/state_machine 通过 |
 | R22 | `als_camera::apply_camera_view` 未将世界 view 转成渲染相机 local | 待原生确认 | 待执行 |
 | R23 | Grounded CMC 子步位移历史 | 已修复 | `2f4a4d3`、`60a3287` 及 forward consumer 迁移；当前消费 `grounded_movement_delta` |
-| R24 | `common_marker_names` 过早排除落选 Exclusive | 待原生确认 | 现同名回归期待排除，需依 fresh UE Prepare 修正 oracle |
+| R24 | `common_marker_names` 过早排除落选 Exclusive | 确认并已修复 | BF135.05：fresh Prepare证明全部marked player先求交，实际三角色反例先红→删提前排除，源length-sync输出通过；旧oracle源迁移，移除规则再红，字节恢复551回归及原startup/locomotion18项通过 |
 | R25 | `apply_als_control_scheme_config` 使用未缩放 floating 半高 | 待原生确认 | 待执行 |
 | R26 | pending 后脚锁 validity | 已修复 | `79fe359d3`；当前 pending 分支同时清除 valid/became_valid/Rig validity |
-| R27 | `marker_phase_sample_time_continuous` 有效缓存未对齐 leader start pair | 待原生确认 | 待执行 |
+| R27 | `marker_phase_sample_time_continuous` 有效缓存未对齐 leader start pair | 确认并已修复 | BF135.05：实际`.34375!=.84375`半周期反例→按方向对齐start pair，正反48步/previous time与生命周期26回归通过；移除规则同红，字节恢复551回归及原startup/locomotion18项通过 |
 | R28 | `begin_source_inertialization` 对后续空 Profile 请求重复回退默认 Profile | 确认并已修复 | BF135.02：实际骨骼时长 `.25!=.1875`→修复→移除规则同红→完整字节恢复，相关101项及原 startup/state_machine 通过 |
 | R29 | 缓存预热的 Additive 相关性 | 已修复 | `144b188c`、`0325fa2c`；当前 local/mesh 分支都读取有效 Alpha |
 | R30 | `use_cached_context_state` 仍按首次 Use 读取认领请求 | 确认并已修复 | BF135.04：实际请求 A=.2/B=0 反例→最大权重调用上下文/普通及scoped 8组实际Pose通过；跨状态同Use ID和独立owner通过，选择/forward/重选三消融均红，完整字节恢复549回归；真实入口暴露的旋转fixture双朝向另有实际driver红绿/消融/恢复101回归，原startup/state_machine全部10项通过 |

@@ -361,8 +361,6 @@ fn common_marker_names(players: &[&SourceSyncPlayerTick], leader: &SourceSyncPla
     common.dedup();
     for candidate in players {
         if candidate.sync_group_eligible() && !candidate.markers.is_empty()
-            && (candidate.role != SourceSyncGroupRole::ExclusiveAlwaysLeader
-                || candidate.identity == leader.identity)
         {
             common.retain(|name| candidate.markers.iter().any(|marker| &marker.name == name));
         }
@@ -1051,6 +1049,28 @@ pub fn marker_phase_sample_time_continuous(
         .map(|offset| start + direction * offset)
         .take_while(|index| looped || (0..count).contains(index))
         .find(|index| sample_markers[index.rem_euclid(count) as usize].name == name);
+    if let Some(start) = advance.start.as_ref().filter(|position| position.is_valid()) {
+        let matches = |index: i64, name: &str| index < 0
+            || sample_markers[index.rem_euclid(count) as usize].name == name;
+        if advance.forward {
+            if !matches(previous, &start.previous) {
+                previous = find(previous, &start.previous, 1).map_or(-1, |index| index.rem_euclid(count));
+                next = previous + 1;
+                if next >= count { next = if looped { 0 } else { -1 }; }
+            }
+            if !matches(next, &start.next) {
+                next = find(next, &start.next, 1).map_or(-1, |index| index.rem_euclid(count));
+            }
+        } else {
+            if !matches(next, &start.next) {
+                next = find(next, &start.next, -1).map_or(-1, |index| index.rem_euclid(count));
+                previous = if next < 0 || (next == 0 && looped) { count - 1 } else { next - 1 };
+            }
+            if !matches(previous, &start.previous) {
+                previous = find(previous, &start.previous, -1).map_or(-1, |index| index.rem_euclid(count));
+            }
+        }
+    }
     if !advance.markers.is_empty() {
         let direction = if advance.forward { 1 } else { -1 };
         let mut cursor = if advance.forward { next } else { previous };
@@ -2014,7 +2034,53 @@ mod tests {
     }
 
     #[test]
-    fn losing_exclusive_player_does_not_reduce_common_markers() {
+    fn browser_review_losing_exclusive_markers_force_length_sync() {
+        let ids: [NodeId; 3] = std::array::from_fn(|index| serde_json::from_value(
+            serde_json::Value::String(format!("13500000-0000-4000-8000-00000000000{}", index + 1))).unwrap());
+        let tick = |index, role, weight, names: &[(&str, f32)]| SourceSyncPlayerTick {
+            identity: (GraphContextId::default(), ids[index]), key: "Movement".into(),
+            role, weight, phase: 0.6, phase_duration: 1.0, phase_markers: markers(names),
+            duration: 1.0, markers: markers(names), looped: true, ..default()
+        };
+        let exclusive = tick(0, SourceSyncGroupRole::ExclusiveAlwaysLeader, 0.4, &[("X", 0.1), ("Y", 0.6)]);
+        let follower = tick(1, SourceSyncGroupRole::AlwaysFollower, 0.2, &[("A", 0.2), ("B", 0.9)]);
+        let leader = tick(2, SourceSyncGroupRole::AlwaysLeader, 0.4, &[("A", 0.1), ("B", 0.6)]);
+        let resolved = resolve_source_sync_phases(&[exclusive.clone(), follower.clone(), leader.clone()], &[]);
+        let group = &resolved[0];
+        assert_eq!(group.ungrouped, [exclusive.identity]);
+        assert!(group.markers.is_empty(), "A losing exclusive still participates in Prepare");
+        let filtered = leader.phase_markers.iter().filter(|marker| group.markers.contains(&marker.name)).cloned().collect::<Vec<_>>();
+        let sample = marker_phase_sample_time(group.phase.unwrap(), 1.0, &filtered, 1.0, &follower.markers, true);
+        assert!((sample - 0.6).abs() < EPSILON, "Length-sync follower differs: {sample}");
+    }
+
+    #[test]
+    fn browser_review_valid_follower_record_aligns_to_the_directional_start_pair() {
+        let source = markers(&[("A", 0.0625), ("B", 0.25), ("A", 0.5625), ("B", 0.75)]);
+        for (start, hint, delta) in [(0.828125, 0.578125, 0.015625), (0.984375, 0.234375, -0.015625)] {
+            let mut leader = SourceMarkerRecord::at_time(&source, 1.0, true, start, None);
+            let mut record = Some(SourceMarkerRecord::at_time(&source, 1.0, true, hint, None));
+            let mut leader_time = start;
+            let mut sample_time = hint;
+            for step in 0..24 {
+                let (next, advance) = leader.advance(leader_time, delta, true);
+                let (sample, previous) = marker_phase_sample_time_continuous(next, &advance, 1.0, &source,
+                    1.0, &source, sample_time, true, &mut record, None);
+                assert!((sample - next).abs() < EPSILON,
+                    "Directional start alignment differs: delta={delta}, step={step}, {sample} != {next}");
+                assert!((previous - sample_time).abs() < EPSILON, "A valid record changed the previous tick time");
+                if step == 0 {
+                    let record = record.as_ref().unwrap();
+                    assert_eq!((record.previous, record.next), (3, 0));
+                }
+                leader_time = next;
+                sample_time = sample;
+            }
+        }
+    }
+
+    #[test]
+    fn losing_exclusive_player_still_reduces_common_markers() {
         let first: NodeId = serde_json::from_str("\"10000000-0000-4000-8000-000000000001\"").unwrap();
         let second: NodeId = serde_json::from_str("\"10000000-0000-4000-8000-000000000002\"").unwrap();
         let tick = |id, names: &[(&str, f32)]| SourceSyncPlayerTick {
@@ -2033,7 +2099,7 @@ mod tests {
         let winner = tick(second, &[("A", 0.0), ("B", 0.5)]);
         let result = resolve_source_sync_phases(&[loser.clone(), winner], &[]);
         assert_eq!(result[0].ungrouped, [loser.identity]);
-        assert_eq!(result[0].markers, ["A", "B"]);
+        assert!(result[0].markers.is_empty());
     }
 
     #[test]
