@@ -2,22 +2,38 @@
 
 本轮起始版本 `9105cdf`；对标本地 ALS-Refactored 与 UE 5.8 的当次 source。严重级与任务边界见 `CHECKLIST.md` BF134。仅登记有源事实、可达 target consumer 与可重复触发条件的 P2 及以上差异；旧结论不代替 fresh 审计。
 
-当次覆盖 inventory：146 个源 C++/header（ALS 112、ALSCamera 12、ALSEditor 16、ALSExtras 6），181 个 target Rust，15 个 installed AnimBP root、359 个生成依赖文件和 15 份安装 manifest，文件缺失 0。源 revision 为 ALS `b754d6f0f2bb03741d301f8fb88077ebfe561e17`、UE `396c9f059903aed5fec78ecd3d437a40c6415368`；完整相对路径和 SHA-256 在本地证据 `target/bf134/inventory.json`。B_Als_Character 原生 reader 39.050 秒成功；watchdog self-test 通过。Editor/AI/网络与刻意差异按执行清单排除。
+当前已确认并修复 **151 项 P2 及以上差异**：BF134 全范围审计验收 122 项，BF135 补充复核再修复 29 项。BF135 其余 4 项在 BF134 中已经修复，不重复计数。完整逐项 source、触发条件、反例、修复、消融和 Gate 记录分别见 [CHECKLIST.md 的 BF134](../CHECKLIST.md#bf134--全范围-p2-及以上移植差异审计与修复) 与 [BF135 逐项台账](bf135/review.md)。本页下方保留早期逐项记录，文中的“下一项”“尚未完成”和累计数量描述当时进度；当前覆盖状态以本节及最终验收记录为准。
+
+初始 inventory：146 个源 C++/header（ALS 112、ALSCamera 12、ALSEditor 16、ALSExtras 6），181 个 target Rust，15 个 installed AnimBP root、359 个生成依赖文件和 15 份安装 manifest，文件缺失 0；完成时的 target scope 为 182 个文件，包含源归属迁移和一个通用查询数据文件。源 revision 为 ALS `b754d6f0f2bb03741d301f8fb88077ebfe561e17`、UE `396c9f059903aed5fec78ecd3d437a40c6415368`；完整相对路径和 SHA-256 在本地证据 `target/bf134/inventory.json` 与 `target/bf134/04/current_inventory.json`。B_Als_Character 原生 reader 39.050 秒成功；watchdog self-test 通过。Editor/AI/网络与刻意差异按执行清单排除。
 
 ## 覆盖
 
-| 移植闭包 | 本次 source/target 核对 | 尚未核销边界 |
+| 移植闭包 | 已核销的 source/target 闭包 | 完整记录 |
 |---|---|---|
-| Character/CMC、状态、输入、出生、运动基座 | 实际源码位置与入口清单正在核对 | 算法/配置/坐标/生命周期 |
-| Roll/Mantle/Ragdoll/GetUp/Stop 与 montage | 待执行 | 动作门槛、时钟、根运动、退出与重建 |
-| AnimBP/FSM、cached/linked Pose、BlendSpace、曲线与同步 | 待执行 | 全递归 source 与当前 runtime consumer |
-| Notifies、脚步与贴花 | 待执行 | 消息区间、过滤、所属实例、实际 shader |
-| Control Rig、骨架与 IK | 待执行 | 源 RigVM/坐标/当帧 Pose/生命周期 |
-| PhysicsAsset、关节、CCD、时钟与回读 | 待执行 | 实际求解器配置与 consumer |
-| ALSCamera、相机动画、shake 与 trace | 待执行 | 实例、时钟、坐标、碰撞与 view |
-| Overlay、Extras 场景/材质/UI | 待执行 | 资产/装配/输入与显示的源合同 |
+| Character/CMC、状态、输入、出生、运动基座 | 171 个源方法的分类及当前受支持算法、配置、坐标和生命周期 | CHECKLIST BF134.01；BF135 R06/R17/R20/R25 |
+| Roll/Mantle/Ragdoll/GetUp/Stop 与 montage | 动作门槛、时钟、根运动、退出、重建及 9 个 montage/6 个 sequence 消费闭包 | CHECKLIST BF134.01、.02M7；BF135 R07/R10–13/R22 |
+| 原生动画方法 | 97 个 bound method 及递归 caller | CHECKLIST BF134.02J/K；BF135 R05/R17 |
+| AnimBP/FSM、cached/linked Pose、BlendSpace、曲线与同步 | 15 root、23 AnimBP、236 subgraph、359 个图资产及 15 个安装 manifest | CHECKLIST BF134.02M1–M5；BF135 R14/R16/R21/R24/R27–33 |
+| Notifies、脚步与贴花 | 137 clip/177 event、队列与分支、所属实例、实际 GPU receiver 采样 | CHECKLIST BF134.02M6/M7；BF135 R12/R13 |
+| Control Rig、骨架与 IK | 165 条源指令、2 个入口、当前 5 类复杂查询几何、当帧 Pose 与生命周期 | CHECKLIST BF134.02M8、.04A3；BF135 R05 |
+| PhysicsAsset、关节、CCD、时钟与回读 | 21 body、22 collider、20 joint、49 禁碰 pair 及实际同步物理求解链 | CHECKLIST BF134.03A；BF135 R01–04/R08/R09/R15/R18/R19 |
+| ALSCamera、相机动画、shake 与 trace | 10 个源资产、8 个可达子图、当前相机本地 shake 及最终世界视图 | CHECKLIST BF134.03B；BF135 R07/R22 |
+| Overlay、物件与 Bow | 13 class mapping、8 object mode、7 unique mesh 及弓弦生命周期 | CHECKLIST BF134.03C；BF135 R17 |
+| Playground、碰撞、查询与平台 | 169 static primitive、3 个平台、PlayerStart 与源形状数据 | CHECKLIST BF134.03D1；BF135 R06/R20/R25 |
+| 材质、纹理、灯光与世界文字 | 实际源通道、完整 RGBA 像素、源 3 lux 与 22 个文字对象 | CHECKLIST BF134.03D2；附录 A 显示例外保持 |
+| HUD、菜单、选项与 controller | 4 个源资产、24 个 consumer 测试及真实 Interface 入口 | CHECKLIST BF134.03D3；BF135 R17 |
 
-## 已确认差异
+## 当前版本验收
+
+BF135 的 29 项补修分别通过当次反例、必要性消融、源码字节恢复、匹配回归及原入口 Gate。BF136 于 2026-10-11 在当前代码 `bf733787` 完成完整库 **1609/1609**、32 个原 Playground 入口及 **495 项功能检查**，全部通过；当前 345 个图规格、15 root 完整递归 source 审计、374 个安装产物字节核对及 15 份补修合同均通过。汇总证据为 `target/bf136/final_acceptance.json`，每个当前场景均有独立报告，没有复用旧版本场景结果。
+
+本轮没有发现新增且经 source 证明的 P2 及以上差异，已确认待修项为零；生产代码、转换器和原始导出均未改动。此次修正的是陈旧覆盖表及进度记录，并对全部既有修复完成当前版本复验。
+
+本地原始 ALS 插件仓库的 146 个源文件与原审计逐字节一致。项目安装目录指向插件的 Build 副本，其中 AnimationInstance 只有换行差异，两个 CharacterExample 文件另含 TraceScriptDriver 和 Sprint toggle 本地改动；这些不属于已声明的 `b754d6f0` 原始 source。当前核对明确分别记录原始 source 与安装副本，不将调试驱动误移植为源功能，不修改任何 UE 原始资产。
+
+截图继续关闭，完整性能验收仍按既有约定延期；保留原始性能失败。已声明的字体、菜单位置、点击音等刻意差异和网络、AI、编辑器等范围排除保持。历史自然 pelvis 观察仍未定级，不以之后场景通过反推其根因已经修复。
+
+## 早期逐项差异记录
 
 ### BF134.01A — P2：地面刹车低速未归零
 
@@ -84,9 +100,9 @@ actual motor在50ms、3.75m/s、factor3、CMC预算1时旧.875m/s、源1.30625m/
 source/static/ABI/layout/editor/boundary闭合；target_game/play最终正常优化构建156.028秒成功，startup（16.116秒）、Grounded15/15（42.257秒）、StandingStop10/10（26.758秒）、原variable UphillJump6/6（32.539秒）功能Gate全部通过，graph/primary/fault/temporal零。状态：已修复并验收，F2独立提交、父F核销；图/共享转换/原始记录未改，全量生成diff=0有效。S1数小时超时与估时漏检已复盘，第二轮按1.5倍窗口20:14闭合，S2实际20:36:47/偏差+1分47秒完成。完整max_eval_p95_ms失败及uphill max_frame_ms失败保留，截图关闭，不核销性能或全范围。
 
 
-## 待反例核对的源差异
+## 后续逐项差异记录
 
-BF134.01G1/G2a/G2b/G2c/G2d1/G2d2/G2d3/G2d4已修复并验收；G2其他consumer/H2及剩余Action仍登记角色输入有效性/阻塞和gamepad二维dead-zone归属，未提前核销。当前已修复二十九项P2移植差异，F1-G是工具源等价误报，单独记录且不计移植差异。其余模块仍按覆盖表继续核对，全范围目标未完成。
+以下保留 BF134.01G 起的逐项原始闭环摘要；后续全部模块的最终状态与证据索引见上方覆盖表及 CHECKLIST BF134.04。F1-G 是工具源等价误报，不计移植差异。
 
 ### BF134.01G1 — P2：动画输入绕过已消费状态
 
