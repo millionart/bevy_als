@@ -2,7 +2,7 @@
 
 本轮起始版本 `9105cdf`；对标本地 ALS-Refactored 与 UE 5.8 的当次 source。严重级与任务边界见 `CHECKLIST.md` BF134。仅登记有源事实、可达 target consumer 与可重复触发条件的 P2 及以上差异；旧结论不代替 fresh 审计。
 
-当前已确认并修复 **151 项 P2 及以上差异**：BF134 全范围审计验收 122 项，BF135 补充复核再修复 29 项。BF135 其余 4 项在 BF134 中已经修复，不重复计数。完整逐项 source、触发条件、反例、修复、消融和 Gate 记录分别见 [CHECKLIST.md 的 BF134](../CHECKLIST.md#bf134--全范围-p2-及以上移植差异审计与修复) 与 [BF135 逐项台账](bf135/review.md)。本页下方保留早期逐项记录，文中的“下一项”“尚未完成”和累计数量描述当时进度；当前覆盖状态以本节及最终验收记录为准。
+当前已确认并修复 **152 项 P2 及以上差异**：BF134 验收 122 项、BF135 补修 29 项、BF137.01 新修复 GetUp owner 时钟一项。BF135 另 4 项重复不计；BF137 新确认的 Roll 差异仍待修复，不能宣称未知差异已经穷尽。完整逐项 source、触发条件、反例、修复、消融和 Gate 记录见 [CHECKLIST.md](../CHECKLIST.md)、[BF135 逐项台账](bf135/review.md) 与本页 BF137 表。本页下方早期逐项记录保留当时语义；当前覆盖状态以本节及最新验收记录为准。
 
 初始 inventory：146 个源 C++/header（ALS 112、ALSCamera 12、ALSEditor 16、ALSExtras 6），181 个 target Rust，15 个 installed AnimBP root、359 个生成依赖文件和 15 份安装 manifest，文件缺失 0；完成时的 target scope 为 182 个文件，包含源归属迁移和一个通用查询数据文件。源 revision 为 ALS `b754d6f0f2bb03741d301f8fb88077ebfe561e17`、UE `396c9f059903aed5fec78ecd3d437a40c6415368`；完整相对路径和 SHA-256 在本地证据 `target/bf134/inventory.json` 与 `target/bf134/04/current_inventory.json`。B_Als_Character 原生 reader 39.050 秒成功；watchdog self-test 通过。Editor/AI/网络与刻意差异按执行清单排除。
 
@@ -25,7 +25,7 @@
 
 ## 当前版本验收
 
-BF135 的 29 项补修分别通过当次反例、必要性消融、源码字节恢复、匹配回归及原入口 Gate。BF136 于 2026-10-11 在当前代码 `bf733787` 完成完整库 **1609/1609**、32 个原 Playground 入口及 **495 项功能检查**，全部通过；当前 345 个图规格、15 root 完整递归 source 审计、374 个安装产物字节核对及 15 份补修合同均通过。汇总证据为 `target/bf136/final_acceptance.json`，每个当前场景均有独立报告，没有复用旧版本场景结果。
+BF135 的 29 项补修分别通过当次反例、必要性消融、源码字节恢复、匹配回归及原入口 Gate。BF136 于 2026-10-11 在该轮代码 `bf733787` 完成完整库 **1609/1609**、32 个原 Playground 入口及 **495 项功能检查**，全部通过；该轮 345 个图规格、15 root 完整递归 source 审计、374 个安装产物字节核对及 15 份补修合同均通过。汇总证据为 `target/bf136/final_acceptance.json`。后续修复的当前证据分别记入 BF137，不能沿用该轮报告冒称当前全部验收。
 
 BF136 当轮没有新增 source-proven P2，完成时已确认待修项为零；该轮只修正陈旧覆盖表并复验旧修复，不能代表未知差异已经穷尽。后续新审计以以下 BF137 记录为准。
 
@@ -33,7 +33,7 @@ BF136 当轮没有新增 source-proven P2，完成时已确认待修项为零；
 
 | 条目 | 级别与触发条件 | 当次 source → target 证据 | 状态 |
 |---|---|---|---|
-| BF137.01 GetUp owner 时钟 | P2；角色 CustomTimeDilation=0/.5/2 | UE Actor.h 的 ExecuteTickHelper 给 Mesh/CMC tick 乘 owner 倍率，Montage Advance 使用该 Delta；loaded GetUp 的实际 slot 采样在世界 50ms 内仍推进 50ms，0/.5/2 三组原生反例失败，1 倍负对照通过 | 修复与验收中 |
+| BF137.01 GetUp owner 时钟 | P2；角色 CustomTimeDilation=0/.5/2 | UE Actor.h 的 ExecuteTickHelper 给 Mesh/CMC tick 乘 owner 倍率，Montage Advance 使用该 Delta；loaded GetUp 的实际 slot 采样在世界 50ms 内仍推进 50ms，0/.5/2 原生失败。现消费同一 actor Delta 推进并发布上下文；四消融确切红、字节恢复同 target 17 相关绿，原 startup/GetUp13/Notify/AnimationClock 功能通过 | 已修复并验收，`target/bf137/get_up_acceptance.json` |
 | BF137 后续 Roll owner 时钟 | P2；角色 CustomTimeDilation=0/.5/2，含旧 montage tail | 同一 source 组件/蒙太奇时钟链；实际 advance_rolls 当前与 tail 都无条件推进世界 50ms，0/.5/2 失败 | 已确认待修，root consumer 继续取证 |
 
 旧默认时钟的通过记录不能覆盖以上配置边界。原生失败报告见 `target/bf137/old_action_clocks.watchdog.json`，fresh 源资产和 C++ 快照在 `target/bf137/source`；没有将 Mantle 的相似实现直接计作已确认差异。

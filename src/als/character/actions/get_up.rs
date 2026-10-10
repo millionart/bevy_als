@@ -237,6 +237,7 @@ fn update_get_up_pose(
     assets: Res<GetUpAssets>,
     clips: Res<Assets<GraphClip>>,
     curves: Res<Assets<AlsAnimCurves>>,
+    custom_dilations: Query<&crate::als_camera::AlsCameraCustomTimeDilation>,
     mut characters: Query<
         (
             Entity,
@@ -268,7 +269,8 @@ fn update_get_up_pose(
             state.stop(crate::als::roll::ROLL_WEIGHT_IN_SECS);
         }
         let settings = get_up_settings(state.facing_up);
-        state.advance(time.delta_secs(), settings);
+        let delta = time.delta_secs() * custom_dilations.get(character).map_or(1.0, |value| value.0);
+        state.advance(delta, settings);
         let mut player = players.get_mut(player_entity).unwrap();
         if state.weight <= 0.0 {
             clear_get_up_slot(&mut player, source_inputs.get_mut(player_entity).ok());
@@ -292,7 +294,7 @@ fn update_get_up_pose(
             position: state.clip_time,
             previous_position: previous_clip_time,
             has_previous_position: true,
-            delta_seconds: time.delta_secs(),
+            delta_seconds: delta,
             playback_delta_seconds: state.clip_time - previous_clip_time,
             looping: false,
             weight: 1.0,
@@ -370,6 +372,32 @@ impl Plugin for AlsGetUpPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fresh_audit_get_up_slot_uses_the_current_actor_clock() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+        play_loaded_get_up(&mut app, character, false);
+        let target = app.world().get::<AlsGetUpState>(character).unwrap().target_player;
+        let mut failures = Vec::new();
+        for scale in [0.0_f32, 0.5, 1.0, 2.0] {
+            app.world_mut().entity_mut(character).insert(crate::als_camera::AlsCameraCustomTimeDilation(scale));
+            let before = app.world().get::<AlsGetUpState>(character).unwrap().elapsed;
+            app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.05));
+            app.world_mut().run_system_once(update_get_up_pose).unwrap();
+            let state = app.world().get::<AlsGetUpState>(character).unwrap();
+            let expected = before + 0.05 * scale;
+            let context = app.world().get::<crate::extensions::SourceAnimationInputs>(target).unwrap()
+                .slot_input_context(POST_LOCOMOTION_POSE).unwrap();
+            let sampled = context.asset_samples[0].clock.position;
+            if (state.elapsed - expected).abs() > 1e-6
+                || (sampled - expected * get_up_settings(false).play_rate).abs() > 1e-6
+                || (context.asset_samples[0].clock.delta_seconds - 0.05 * scale).abs() > 1e-6 {
+                failures.push((scale, expected, state.elapsed, sampled, context.asset_samples[0].clock.delta_seconds));
+            }
+        }
+        assert!(failures.is_empty(), "Get-up ignored actor time dilation: {failures:?}");
+    }
 
     fn play_loaded_get_up(app: &mut App, character: Entity, facing_up: bool) {
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);

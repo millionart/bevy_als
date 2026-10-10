@@ -3566,6 +3566,7 @@ struct RagdollPaProbe<'w, 's> {
         (
             Option<&'static crate::get_up::AlsGetUpState>,
             Has<crate::als::motion::AlsMovementInputBlocked>,
+            Option<&'static crate::als_camera::AlsCameraCustomTimeDilation>,
         ),
         With<AlsCharacter>,
     >,
@@ -3999,6 +4000,18 @@ fn replace_ragdoll_player_once(world: &mut World) {
         .try_downcast_mut::<Option<SpawnedRagdoll>>().unwrap() = None;
     world.entity_mut(player_entity).insert((player, ManualRagdollPlayerReplacement { old_root }));
     info!("[MANUAL-INTEGRATION][RAGDOLL-PLAYER-REPLACEMENT] player={player_entity:?} old_root={old_root:?} -> PASS");
+}
+
+fn get_up_actor_clock_passed(rows: &[serde_json::Value]) -> bool {
+    let rows: Vec<_> = rows.iter().filter(|row| row["get_up_actor_clock"] == true).collect();
+    rows.len() >= 8
+        && rows.iter().all(|row| row["dilation"].as_f64() == Some(0.5))
+        && rows.windows(2).all(|pair| {
+            let values = [pair[0]["game_time"].as_f64(), pair[1]["game_time"].as_f64(),
+                pair[0]["elapsed"].as_f64(), pair[1]["elapsed"].as_f64()];
+            matches!(values, [Some(a), Some(b), Some(c), Some(d)]
+                if b > a && ((d - c) - (b - a) * 0.5).abs() < 1e-5)
+        })
 }
 
 fn animation_clock_results(rows: &[serde_json::Value]) -> Vec<(&'static str, bool)> {
@@ -6110,6 +6123,11 @@ fn drive_manual_integration(
                 request.locomotion_state = (state.scenario != IntegrationScenario::Ragdoll).then_some(LocomotionState::Grounded);
                 request.stance = Some(Stance::Standing);
                 if state.scenario == IntegrationScenario::GetUp {
+                    if state.get_up_case == 0 {
+                        commands.entity(character).insert(crate::als_camera::AlsCameraCustomTimeDilation(0.5));
+                    } else {
+                        commands.entity(character).remove::<crate::als_camera::AlsCameraCustomTimeDilation>();
+                    }
                     rebase_temporal_fixture(
                         &mut state,
                         &mut phase_evidence,
@@ -6160,6 +6178,7 @@ fn drive_manual_integration(
                 .ragdoll_recovered_at
                 .is_some_and(|at| state.game_time_seconds - at >= 1.5)
                 && elapsed >= 3.0
+                && (state.scenario != IntegrationScenario::GetUp || get_ups.get(character).is_err())
             {
                 if state.scenario == IntegrationScenario::GetUp && state.get_up_case == 0 {
                     state.get_up_case = 1;
@@ -9830,7 +9849,13 @@ fn observe_manual_integration(
         }
     }
     if state.phase == IntegrationPhase::Ragdoll {
-        if let Ok((Some(get_up), blocked)) = ragdoll_probe.get_ups.get(character) {
+        if let Ok((Some(get_up), blocked, custom_dilation)) = ragdoll_probe.get_ups.get(character) {
+            if state.scenario == IntegrationScenario::GetUp && state.get_up_case == 0 {
+                gate_report.direction_trace.push(serde_json::json!({
+                    "get_up_actor_clock": true, "game_time": state.game_time_seconds,
+                    "elapsed": get_up.elapsed, "dilation": custom_dilation.map_or(1.0, |value| value.0)
+                }));
+            }
             let expected_facing_up = if state.scenario == IntegrationScenario::GetUp {
                 state.get_up_case == 1
             } else {
@@ -10623,6 +10648,7 @@ fn observe_manual_integration(
                     coverage.get_up_input_released[1],
                 ),
                 ("get_up_native_jump_rejected_during_action", coverage.get_up_native_jump_rejected_during_action),
+                ("get_up_actor_clock", get_up_actor_clock_passed(&gate_report.direction_trace)),
             ],
             IntegrationScenario::Camera => vec![
                 ("runtime_assembly", coverage.assembly),
@@ -12757,6 +12783,48 @@ mod tests {
             assert!(!request.ragdoll_start, "Direct ragdoll start bypasses the source landing consumer");
             assert!(request.locomotion_state.is_none(), "Grounded override suppresses the actual source fall");
         }
+    }
+
+    #[test]
+    fn get_up_actor_clock_requires_source_timing_and_the_actual_fixture_input() {
+        let rows = |scale: f64, dilation: f64| (0..8).map(|index| serde_json::json!({
+            "get_up_actor_clock": true, "game_time": index as f64 * 0.02,
+            "elapsed": index as f64 * 0.02 * scale, "dilation": dilation
+        })).collect::<Vec<_>>();
+        assert!(get_up_actor_clock_passed(&rows(0.5, 0.5)));
+        assert!(!get_up_actor_clock_passed(&rows(1.0, 0.5)));
+        assert!(!get_up_actor_clock_passed(&rows(0.5, 1.0)));
+        assert!(!get_up_actor_clock_passed(&[]));
+    }
+
+    #[test]
+    fn fresh_audit_get_up_driver_uses_owner_clock_and_waits_for_natural_end() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut world, character, _) = manual_driver_fixture();
+        {
+            let mut state = world.resource_mut::<ManualIntegrationState>();
+            state.scenario = IntegrationScenario::GetUp;
+            state.phase = IntegrationPhase::Ragdoll;
+            state.entered = true;
+        }
+        world.run_system_once(drive_manual_integration).unwrap();
+        assert_eq!(world.get::<crate::als_camera::AlsCameraCustomTimeDilation>(character).unwrap().0, 0.5);
+        world.entity_mut(character).insert(crate::get_up::AlsGetUpState::new(false));
+        {
+            let mut state = world.resource_mut::<ManualIntegrationState>();
+            state.entered = false;
+            state.phase_started_seconds = -4.0;
+            state.ragdoll_recovered_at = Some(-3.0);
+            state.ragdoll_exit_requested = true;
+        }
+        world.run_system_once(drive_manual_integration).unwrap();
+        assert_eq!(world.resource::<ManualIntegrationState>().get_up_case, 0,
+            "Get-up driver must retain the current montage until its natural end");
+        world.entity_mut(character).remove::<crate::get_up::AlsGetUpState>();
+        world.run_system_once(drive_manual_integration).unwrap();
+        assert_eq!(world.resource::<ManualIntegrationState>().get_up_case, 1);
+        world.run_system_once(drive_manual_integration).unwrap();
+        assert!(world.get::<crate::als_camera::AlsCameraCustomTimeDilation>(character).is_none());
     }
 
     #[test]
