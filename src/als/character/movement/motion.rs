@@ -145,10 +145,11 @@ pub fn apply_als_control_scheme_config(
     velocity: Vec3,
     view_yaw: f32,
     gravity_magnitude: f32,
+    capsule_scale: f32,
 ) {
     config.basis.speed =
         gait_max_speed_for_velocity(params, &stance, &gait, rotation_mode, velocity, view_yaw);
-    config.basis.float_height = params.crouch.standing_capsule_half_height
+    config.basis.float_height = params.crouch.standing_capsule_half_height * capsule_scale
         + ALS_CHARACTER_FLOOR_CLEARANCE
         + ALS_CHARACTER_TNUA_FLOAT_EPSILON;
     config.basis.acceleration = 0.0;
@@ -158,9 +159,9 @@ pub fn apply_als_control_scheme_config(
     config.basis.free_fall_extra_gravity = 0.0;
     config.basis.headroom = Some(TnuaBuiltinWalkHeadroom {
         distance_to_collider_top: if capsule_crouched {
-            params.crouch.crouched_capsule_half_height
+            params.crouch.crouched_capsule_half_height * capsule_scale
         } else {
-            params.crouch.standing_capsule_half_height
+            params.crouch.standing_capsule_half_height * capsule_scale
         },
         ..Default::default()
     });
@@ -180,7 +181,7 @@ pub fn apply_als_control_scheme_config(
     config.jump.peak_prevention_extra_gravity = 0.0;
     config.jump.input_buffer_time = params.jump.jump_buffer_time;
     config.crouch.float_offset =
-        -(params.crouch.standing_capsule_half_height - params.crouch.crouched_capsule_half_height);
+        -(params.crouch.standing_capsule_half_height - params.crouch.crouched_capsule_half_height) * capsule_scale;
 }
 
 pub fn initial_als_control_scheme_config(params: &AlsMovementParams) -> AlsControlSchemeConfig {
@@ -195,6 +196,7 @@ pub fn initial_als_control_scheme_config(params: &AlsMovementParams) -> AlsContr
         Vec3::ZERO,
         0.0,
         Gravity::default().0.length(),
+        1.0,
     );
     config
 }
@@ -2583,12 +2585,20 @@ fn custom_movement_velocity_system(
 
 fn accepted_jump_state_system(
     mut transitions: MessageWriter<StateTransitionEvent>,
+    params_assets: Res<Assets<AlsMovementParams>>,
     mut characters: Query<(Entity, &TnuaController<AlsControlScheme>, &mut LocomotionState,
-        &mut crate::als::dynamics::AlsMovementBase), With<AlsCharacter>>,
+        &mut crate::als::dynamics::AlsMovementBase, &AlsMovementParamsHandle, &mut bevy_tnua::TnuaMotor), With<AlsCharacter>>,
 ) {
-    for (entity, controller, mut mode, mut base) in &mut characters {
+    for (entity, controller, mut mode, mut base, handle, mut motor) in &mut characters {
         if *mode != LocomotionState::Grounded || controller.action_flow_status().just_starting()
             != Some(AlsControlSchemeActionDiscriminant::Jump) { continue; }
+        if let Some(params) = params_assets.get(handle.id())
+            && let Ok(basis) = controller.basis_access() {
+            use bevy_tnua::basis_capabilities::TnuaBasisWithFrameOfReferenceSurface;
+            let relative = TnuaBuiltinWalk::effective_velocity(&basis).y
+                - TnuaBuiltinWalk::vertical_velocity(&basis).max(0.0);
+            motor.lin.boost.y = params.jump.jump_z_velocity.max(relative) - relative;
+        }
         transitions.write(StateTransitionEvent { entity, dimension: Dimension::LocomotionState,
             from: StateValue::LocomotionState(*mode), to: StateValue::LocomotionState(LocomotionState::Air) });
         *mode = LocomotionState::Air;
@@ -2736,7 +2746,9 @@ fn refine_ground_sensor_system(
 
 fn tnua_config_sync_system(
     gravity: Option<Res<Gravity>>,
+    transforms: bevy::transform::helper::TransformHelper,
     q: Query<(
+        Entity,
         &TnuaConfig<AlsControlScheme>,
         &AlsMovementParamsHandle,
         &AlsMaxAllowedGait,
@@ -2755,13 +2767,15 @@ fn tnua_config_sync_system(
     params_assets: Res<Assets<AlsMovementParams>>,
     mut sensors: Query<&mut TnuaProximitySensor>,
 ) {
-    for (config, handle, max_allowed, stance, rotation_mode, view_yaw, velocity, locomotion, controller, sensor_entities, base, gravity_scale, tnua_gravity) in &q {
+    for (entity, config, handle, max_allowed, stance, rotation_mode, view_yaw, velocity, locomotion, controller, sensor_entities, base, gravity_scale, tnua_gravity) in &q {
         let Some(params) = params_assets.get(handle.id()) else {
             continue;
         };
         let Some(mut cfg) = configs.get_mut(&config.0) else {
             continue;
         };
+        let Ok(world_transform) = transforms.compute_global_transform(entity) else { continue; };
+        let capsule_scale = world_transform.to_scale_rotation_translation().0.y;
         apply_als_control_scheme_config(
             &mut cfg,
             params,
@@ -2776,6 +2790,7 @@ fn tnua_config_sync_system(
                 gravity_scale.map_or(1.0, |scale| scale.0),
                 tnua_gravity.map(|gravity| gravity.0),
             ).length(),
+            capsule_scale,
         );
         if controller.basis.desired_motion == Vec3::ZERO {
             cfg.basis.air_acceleration = 0.0;
@@ -3978,6 +3993,76 @@ mod tests {
             app.update();
         }
         (app, character, start_z)
+    }
+
+    #[test]
+    fn browser_review_scaled_capsule_keeps_the_source_jump_velocity() {
+        use crate::als::character::{AlsCharacterBundle, AlsCharacterPlugin};
+        use crate::als::transition::AlsStateTransitionPlugin;
+        use bevy::asset::AssetEvent;
+        use bevy::time::TimeUpdateStrategy;
+        use bevy_tnua::TnuaControllerPlugin;
+        use bevy_tnua_avian3d::TnuaAvian3dPlugin;
+        #[derive(Resource, Default)]
+        struct TakeoffSample(Option<(f32, Option<f32>)>);
+        for scale in [0.5, 1.0, 2.0] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+                avian3d::prelude::PhysicsPlugins::new(PostUpdate), TnuaAvian3dPlugin::new(Update),
+                TnuaControllerPlugin::<AlsControlScheme>::new(Update), AlsStateTransitionPlugin,
+                AlsCharacterPlugin, AlsMotionPlugin, crate::actual_motion::AlsActualMotionPlugin))
+                .configure_sets(PostUpdate, crate::actual_motion::AlsActualMotionSet.after(AlsActualVelocitySet))
+                .init_resource::<Assets<Mesh>>().add_message::<AssetEvent<Mesh>>()
+                .init_resource::<TakeoffSample>()
+                .add_systems(PostUpdate, (|mut sample: ResMut<TakeoffSample>,
+                    actors: Query<(&LinearVelocity, &TnuaController<AlsControlScheme>)>| {
+                    for (velocity, controller) in &actors {
+                        if controller.action_flow_status().just_starting() == Some(AlsControlSchemeActionDiscriminant::Jump) {
+                            sample.0 = Some((velocity.y, controller.basis_access().ok()
+                                .and_then(|basis| TnuaBuiltinWalk::displacement(&basis).map(|value| value.y))));
+                        }
+                    }
+                }).before(avian3d::prelude::PhysicsSystems::First))
+                .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0 / 60.0)));
+            app.finish();
+            let params = AlsMovementParams::default();
+            let params_handle = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(params.clone());
+            let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>().add(initial_als_control_scheme_config(&params));
+            let expected_height = params.crouch.standing_capsule_half_height * scale
+                + ALS_CHARACTER_FLOOR_CLEARANCE + ALS_CHARACTER_TNUA_FLOAT_EPSILON;
+            let mut bundle = AlsCharacterBundle::new(params_handle, config.clone());
+            bundle.transform = Transform::from_xyz(0.0, expected_height, 0.0).with_scale(Vec3::splat(scale));
+            let character = app.world_mut().spawn(bundle).id();
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(20.0, 0.2, 20.0), Transform::from_xyz(0.0, -0.1, 0.0)));
+            for _ in 0..30 { app.update(); }
+            let actual_height = app.world().resource::<Assets<AlsControlSchemeConfig>>().get(&config).unwrap().basis.float_height;
+            assert!((actual_height - expected_height).abs() < 1e-5,
+                "Scaled capsule floating height differs: scale={scale}, {actual_height} != {expected_height}");
+            let standing_half = app.world().get::<Collider>(character).unwrap().shape_scaled().compute_local_aabb().half_extents().y;
+            let top = app.world().resource::<Assets<AlsControlSchemeConfig>>().get(&config).unwrap()
+                .basis.headroom.as_ref().unwrap().distance_to_collider_top;
+            assert!((top - standing_half).abs() < 1e-5, "Scaled standing headroom differs from the physical capsule");
+            app.world_mut().get_mut::<AlsStateRequest>(character).unwrap().stance = Some(Stance::Crouching);
+            for _ in 0..10 { app.update(); }
+            assert_eq!(*app.world().get::<Stance>(character).unwrap(), Stance::Crouching);
+            let crouched_half = app.world().get::<Collider>(character).unwrap().shape_scaled().compute_local_aabb().half_extents().y;
+            {
+                let cfg = app.world().resource::<Assets<AlsControlSchemeConfig>>().get(&config).unwrap();
+                assert!((cfg.crouch.float_offset - (crouched_half - standing_half)).abs() < 1e-5,
+                    "Scaled crouch offset differs from the physical capsule change");
+                assert!((cfg.basis.headroom.as_ref().unwrap().distance_to_collider_top - crouched_half).abs() < 1e-5,
+                    "Scaled crouched headroom differs from the physical capsule");
+            }
+            app.world_mut().get_mut::<AlsStateRequest>(character).unwrap().stance = Some(Stance::Standing);
+            for _ in 0..10 { app.update(); }
+            assert_eq!(*app.world().get::<Stance>(character).unwrap(), Stance::Standing);
+            app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(character).unwrap().jump_pressed = true;
+            app.update();
+            let (velocity, displacement) = app.world().resource::<TakeoffSample>().0.expect("The real jump must start");
+            let expected = params.jump.jump_z_velocity;
+            assert!((velocity - expected).abs() < 1e-4,
+                "Scaled capsule changed source takeoff velocity: scale={scale}, {velocity} != {expected}, displacement={displacement:?}");
+        }
     }
 
     #[test]
@@ -6021,7 +6106,7 @@ mod tests {
             params.crouch.standing_capsule_half_height
         );
         apply_als_control_scheme_config(&mut config, &params, Gait::Running,
-            Stance::Standing, RotationMode::ViewDirection, false, Vec3::ZERO, 0.0, 0.0);
+            Stance::Standing, RotationMode::ViewDirection, false, Vec3::ZERO, 0.0, 0.0, 1.0);
         assert_eq!(config.jump.height, 0.0);
     }
 
@@ -6044,6 +6129,7 @@ mod tests {
             Vec3::Z,
             0.0,
             Gravity::default().0.length(),
+            1.0,
         );
         println!(
             "[BF101.5] tnua_backward_run_speed={:.6}",
