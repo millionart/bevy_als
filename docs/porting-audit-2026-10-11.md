@@ -23,8 +23,8 @@
 | AnimationInstance、状态输入与Feet | 已审计，扩展P2-05/09 | fresh AIS与原始逐帧/相关性回调；Head/Spine/姿态曲线、Grounded/Standing/Crouching/Air/Feet/Turn；19个最小测试 |
 | 图/FSM/同步/曲线、资产转换与 Rig | 已审计，新增P2-13/14 | 15root/23AnimBP/236子图/374产物完整重转与source闭包；Node运行时、127动画、Rig/骨骼/坐标与当帧pose消费者 |
 | 通知、脚步/贴花、Overlay 物件行为 | 已审计，扩展P2-05/08 | 137动画/蒙太奇、177通知、60标记重建一致；Notify队列、脚步与贴花参数/附着生命周期、Overlay绑定/清除/恢复；静态mesh/socket/material留资产批 |
-| Camera、CameraShake | 进行中 | 本地组件与设置到实际view/碰撞/时钟/Camera消费者 |
-| Playground、材质/Overlay静态数据、HUD/UI、PlayerStart | 待审计 | 本地源及资产配置到真实入口 |
+| Camera、CameraShake | 已审计，新增P2-15 | 本地组件/Shake/调度与10个原生数据来源，实际view/碰撞/时钟/Camera消费者 |
+| Playground、材质/Overlay静态数据、HUD/UI、PlayerStart | 进行中 | 本地源及资产配置到真实入口 |
 
 ## 已确认 P2 及以上
 
@@ -127,6 +127,13 @@
 - 反例：完整角色进入ragdoll12帧后给实际body共同5 m/s速度，owner CustomTimeDilation=0。确认player的animation.delta_seconds=0；活跃 `A_Als_Flail` 的clock.delta_seconds=0.016666668，position从0.01987938到0.028212715，按0.5播放率仍推进0.008333秒，原生断言FAIL。
 - 影响：冻结/减速角色的flail pose与关节驱动目标继续按世界帧更新，和角色的其他动画时钟不同。旧时钟测试覆盖FSM、同步玩家和动作montage，没有覆盖root下无同步的序列；Rifle的初始候选未满足活跃player前置条件，未当作缺陷证据。后续修复应找全同一消费者，不只特判Flail。
 
+### P2-15 — 世界暂停时零owner倍率相机仍更新
+
+- Source：UE `Components/SkeletalMeshComponent.cpp:440` 明确 `PrimaryComponentTick.bTickEvenWhenPaused=false`；ALS Camera构造只修改start/tick group，未改变该标志。`TickTaskManager.cpp:1626` 暂停期间只调度允许暂停tick的组件，所以IgnoreTimeDilation的real-delta回退不应在全局暂停时被调用。
+- Target：`src/als_camera/camera_component.rs:146–250` 在Update内不判断world pause；owner CustomTimeDilation=0使 `camera_delta_seconds_from_times` 的分母为0，回退Time<Real>并持续更新图、lag及view。
+- 反例：完整角色真实Camera组件，开启第一人称混合后暂停Time<Virtual>，推进3个真实帧。owner=1时elapsed delta=0、FirstPersonOverride保持0.07407408，对照PASS；owner=0时elapsed delta=0.049999997、混合升到0.7407408、view移动1.9981213 m，原生断言FAIL。
+- 影响：暂停界面/冻结角色的相机仍平移和切换视点。旧测试分别覆盖时间倍率和暂停，没有组合world pause与零owner倍率。修复应保留世界运行中IgnoreTimeDilation对零owner倍率的合法real-time行为；当前只记录。
+
 ## 未定级观察
 
 BF138 的固定 `0.046875` 秒 UphillJump 记录存在 pre-rig 腿平面异常，但旧报告缺少当帧完整图输入与混合源骨骼。它是待核实症状，不能据此认定源/目标差异或复开相邻图。
@@ -166,3 +173,5 @@ BF139.05使用39个本轮原生记录重转全部15个安装根（23AnimBP/236�
 127动画glTF严格raw逐轨比较104通过、23提示差异；原阈值和报告保留。23项为12个源ForceRootLock=RefPose下的raw根旋转差异、3个FName大小写匹配问题、8个小量化误差（最高0.08835 mm/0.18716°），未达到P2。A_Als_Idle的11个虚骨在目标均有动画通道，未把缺少运行中虚骨计算器误当缺失动画。当前22个有效最小测试13.61秒为3PASS/19预期语义FAIL，归并13项未修P2；证据存本地 `target/bf139/phase5/` 与 `target/bf139/graphs/`。无生成器、生产源或原始资产修改。
 
 BF139.06当次读取FES_Als_Default（47.423秒）与B_Als_Character（52.268秒），原始/安装副本字节一致。完整本地通知审计137动画/蒙太奇、177通知、60marker及9montage segments均有效，生成manifest与安装文件byte一致。源AttachOverlayObject三项SnapToTarget、Clear置空mesh/class、非Low攀爬和ragdoll开始清除/结束恢复与目标一致。两QuickStop生产选择函数反例0.09秒失败并归并P2-05/08；无新增独立P2，证据在 `target/bf139/phase6/`。静态mesh/socket/material数据与场景资产批合并核对，尚未计入完成。
+
+BF139.07从10个本轮原生来源重建camera definition，生成及源自测通过，消费数据相同。仅 `graph` metadata有旧generated/前缀：实际Camera加载固定scene wrapper，字段只用于合同测试，因此未当作当前运行时P2，也未宣称整个文件byte一致。原生读取批次最初误读外层LASTEXITCODE，已用reader报告确认两个成功结果并只继续未读项。暂停×零owner倍率的完整角色反例1.74秒确认P2-15，普通owner暂停对照通过，证据在 `target/bf139/phase7_camera_pause/` 与 `camera_source/`；当前有效14项未修P2。
