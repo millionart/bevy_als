@@ -7,7 +7,7 @@
 
 ## BF139 全范围移植差异审计（只记录）
 
-用户当前目标：找出所有 P2 及以上的移植差异，记录进本清单。审计基线为 `bb3dccf3066a217b750670918e30f248ef2c5b98`；本清单登记待修差异，[审计记录](docs/porting-audit-2026-10-11.md) 保存详细证据与覆盖边界。本轮授权 source/target 审阅、最小反例和文档记录，不修复生产实现、不重开历史完成项、不把 TODO 的待验收状态直接视为缺陷。
+用户当前目标：找出所有 P2 及以上的移植差异，确认后实时记录进本清单。审计基线为 `bb3dccf3066a217b750670918e30f248ef2c5b98`；本清单登记待修差异，[审计记录](docs/porting-audit-2026-10-11.md) 保存详细证据与覆盖边界。本轮授权 source/target 审阅、最小反例和文档记录，不修复生产实现、不重开历史完成项、不把 TODO 的待验收状态直接视为缺陷。
 
 - [x] BF139.01 Character / Movement / Input：开始：2026-10-11 11:27 +08:00；预估结束：2026-10-11 12:12 +08:00；实际结束：2026-10-11 11:43:32 +08:00，偏差−28分28秒，审计Gate通过、6项差异未修复。依据本地 Character、CMC、Extras Input 的函数闭包及 BF138 已归档物理审计边界，逐项检查状态、输入、速度、时钟、碰撞、基座和旋转的真实消费者。Gate：源文件当次身份、可定位的算法/输入/生命周期差异、最小反例与漏检原因。后续动作/物理、动画/图/资产、相机/场景/UI 分批独立登记，各批不超过 60 分钟。
   - 初始范围：已确认本地源可用、工作区干净、182 个 Rust 源文件；ALS 插件含 54 个 C++ 与 96 个头文件（含 Editor、网络、调试和本地取证辅助，后者需按职责排除）。已阅读刻意差异与最近 BF135/BF138 结果；历史修复不作为当前缺陷，固定长帧腿平面症状尚未获得 source 根因，不预先定级。
@@ -21,7 +21,11 @@
   - source/static 闭环（2026-10-11 12:05 +08:00）：fresh原生PA及21body/22shape/20constraint/49pair完成；现转换函数重建profile与安装数据全部字段一致。初始非等比尺寸、正数睡眠配置、支撑移除同帧ragdoll退出三个实际消费者反例FAIL，对照通过，新增P2-10/11/12。查询mode过滤、初始限速、驱动输入和已修父级写回不重复登记；不修改生产代码或转换器。
   - 验证收口：当前生产库17个反例/对照10.05秒完成，为3PASS/14预期语义FAIL，归并11项有效P2；Sprint按原始源更正后的对照PASS。原始阶段报告与更正记录分别保留，watchdog无超时，生产源/资产零改动。
 
-- [ ] BF139.04 AnimationInstance / 状态输入 / Feet：开始：2026-10-11 12:05 +08:00；预估结束：2026-10-11 12:55 +08:00。依据原始AnimationInstance的逐帧/相关性回调、View/Spine/Head/Locomotion/Grounded/Standing/Crouching/Air/Feet/Turn函数闭包及现provider/native-refresh/动画时钟，核对算法、生命周期、设置和坐标消费者；图/FSM与离线生成依赖另批。Gate仍为fresh source→消费者→最小反例，只记录源已证实P2。
+- [x] BF139.04 AnimationInstance / 状态输入 / Feet：开始：2026-10-11 12:05 +08:00；预估结束：2026-10-11 12:55 +08:00；实际结束：2026-10-11 12:10:51 +08:00，偏差−44分09秒，审计Gate通过，补充2个同根因消费者、有效总数仍11项P2。依据原始AnimationInstance的逐帧/相关性回调、View/Spine/Head/Locomotion/Grounded/Standing/Crouching/Air/Feet/Turn函数闭包及现provider/native-refresh/动画时钟，核对算法、生命周期、设置和坐标消费者；图/FSM与离线生成依赖另批。Gate仍为fresh source→消费者→最小反例，只记录源已证实P2。
+  - 实时记录（2026-10-11 12:10 +08:00）：fresh AIS_Als_Default原生导出与原始资产身份通过，Head/Spine/Grounded/Standing/Air/Feet/Turn设置和逐帧合同已对照。新增两个实际消费者反例FAIL并归并已有根因：P2-05的Head body world yaw在90°父级下得到0°；P2-09的Transition在结束前20 ms推进100 ms，首个Stop帧weight=0.64799964而源仍1。旧view_pitch_norm与诊断DynamicTransition缩放分支没有真实pose消费者，不计P2。
+  - 收口：19个最小测试11.82秒完成，3PASS/16预期语义FAIL；Head/Transition证据及完整输出存本地phase4。源Turn的惯性混出、raw view yaw speed、不相关图的诊断状态与已实现脚锁base/teleport/时钟均未证实另一项P2，不改生产代码。
+
+- [ ] BF139.05 生成图 / FSM / 曲线 / 同步 / Rig与资产转换：开始：2026-10-11 12:11 +08:00；预估结束：2026-10-11 13:06 +08:00。依据15个安装root、23个递归AnimBP、374个已有生成产物与39个上轮native依赖的规模，重新核对源身份、完整安装闭包和当前共享转换/运行时节点语义；同步对本轮发现的源差异做focused反例。预计原生读取约27分钟、其余时间用于节点/重建/求值顺序审阅及记录；所有新P2确认即写本清单，无转换器或生产图修改。
 
 ### BF139 已确认待修差异（只登记，未授权实现）
 
@@ -33,10 +37,12 @@
 - [ ] **BF139-P2-03 普通运动忽略角色 CustomTimeDilation**：UE `Actor.h:4877` 的组件 tick 使用 owner 倍率；目标 `dynamics.rs:441`/`motion.rs:3447` 的 Walking/Falling 事务使用全局 Delta。3.75 m/s、50 ms 帧、倍率0.5时源水平位移0.09375 m，目标0.1875 m，实际物理反例 FAIL。验收应覆盖 Grounded/Air、0/0.5/1/2 倍率、起跳/落地、基座和动作移交；已完成 Roll/Mantle/GetUp 不因名称相似而复开。
 - [ ] **BF139-P2-04 落地丢失当帧剩余行走时间**：UE CMC `PhysFalling:5050→ProcessLanded:6373→StartNewPhysics` 传递 remainingTime；目标 `motion.rs:2697` 发现地面后直接 break。200 ms帧/50 ms子步、3.75 m/s水平速度、从1 m以3 m/s下落时源约0.75 m，目标0.10516852 m且已Grounded；无落地对照0.75 m PASS。验收覆盖子步内落地后的Walking预算、速度/制动/输入及落地动作仲裁，不以“最终Grounded”代替位移证明。
 - [ ] **BF139-P2-05 普通 locomotion/provider 混用局部与世界旋转**：源 Character/AnimationInstance 使用 actor world transform；目标 `motion.rs:415,577–579`、`actual_motion.rs:90`、`ab_als_provider.rs:319`、`locomotion_layer.rs:209` 以局部旋转计算世界朝向/局部速度并写物理 Rotation。90°父级下前进2 m/s被识别为左移；真实移动管线中渲染world yaw约0°而物理yaw−90°，两个反例 FAIL，无父级对照 PASS。验收覆盖父实体当帧平移/旋转/缩放及普通 Grounded/Air 的最终朝向和动画输入，不复开已修动作/相机项。
+  - 12:10补充：`head_layer.rs:72–118,166` 同样把actor局部Transform作为world rotation/yaw/pitch输入。完整角色在物理后固定local identity、parent yaw90，实际 `locomotion_state.rotation_yaw=0`，源应90；该值继续进入真实Head/Spine消费者，已稳定FAIL，归并本项。
 - [ ] **BF139-P2-06 普通 StepUp 忽略组件跨越许可**：UE CMC `CanStepUp:7525` 必须检查 `CanCharacterStepUp`；目标 `motion.rs:3365` 的台阶事务不消费该许可，现 `AlsMantleTargetPermission.allows_step_up` 仅在 `mantle.rs:569` 使用。20 cm台阶许可true/false两次都走到z=−3.4291668，false反例 FAIL。验收覆盖普通低台阶、允许/禁止、actor/child collider许可所有权及Mantle原有分支。
 - [ ] **BF139-P2-07 Mantle 用局部位置计算世界 root 速度**：源 `AlsRootMotionSource_Mantling.cpp::PrepareRootMotion` 用目标world减actor world；目标 `mantle_drive.rs:727` 用目标world减局部Transform，`:729,795` 也直接写world到local。完整加载角色仅增加x=5父级并保持世界起点不变，横向速度从约0变成299.99997 m/s，实际反例 FAIL。验收应包括父级平移/旋转/缩放、移动目标基座、最终world姿态/速度及退出惯性；BF137的owner-clock已通过边界不重复修复。
 - [ ] **BF139-P2-08 动作方向绕开源已消费输入状态**：源 Roll/Mantle 使用 `LocomotionState.bHasInput/InputYawAngle`（安全归一化阈值平方1e−8）；目标 `roll.rs:57`/`roll_drive.rs:1931` 再用1e−6拒绝有效小输入，Mantle的 `motion.rs→mantle.rs:469` 则先归一化原始输入，使无效微量输入变为有效方向。原生反例：0.0002向右输入已has_input=true，Roll实际yaw0而源−90°；0.00001输入已has_input=false，Mantle trace却向右50°。普通0.01输入对照PASS。验收应从实际消费后的输入状态推导动作方向，覆盖阈值两侧、无输入、真实player-view及已有速度分支。
 - [ ] **BF139-P2-09 Roll/GetUp 自然混出时序及剩余预算不同**：UE `AnimInstance.cpp:573–578` 先UpdateWeight后Advance；`AnimMontage.cpp:2626–2636` 首次进入自然混出窗口才Stop，并用当前剩余播放时间作为混出时长。目标 `roll.rs:48` 与 `get_up.rs:112–130` 从连续elapsed直接计算默认长度的fade。100 ms帧下，Roll到0.9 s的首个Stop帧源weight仍1、实际0.93627644；GetUp到1.0 s源仍1、实际0.92592555，完整角色slot两个反例FAIL，进入窗口前weight1对照PASS。验收应覆盖窗口跨越、不同帧长/RateScale、自然与中断、slot pose/曲线/notify权重，并核对下一帧使用剩余预算。
+  - 12:10补充：源Transition使用自定义TriggerTime=0，首次Stop也保留已UpdateWeight的当前weight；`stop_link.rs:252–279` 却直接将越过末点的时间用作fade elapsed。实际StandingDynamic duration1.533333、rate1.5，结束前20 ms推进100 ms后weight=0.64799964/stop_elapsed=0.08000004，源本帧应1/0；反例FAIL，归并同一蒙太奇生命周期根因。Turn的惯性混出走不同源合同，不据此推断缺陷。
 - [ ] **BF139-P2-10 初始非等比角色缩放被物理配置丢弃**：UE SkeletalMeshComponent以含世界缩放的骨骼Transform初始化body，各形状GetFinalScaled保留尺寸语义；目标 `ragdoll_physics_profile.rs:1055` 对非等比输入返回1。完整角色初始scale(2,3,4)时applied=1、root球半径0.1 m，源min-abs应为0.2 m；动态pelvis质量也退回7.9265018 kg，scale2对照37.70501 kg。验收应分别覆盖初始创建的形状/质量/关节frame与源运行中缩放边界，不将源对运行中非等比变更的拒绝误用于初始化。
 - [ ] **BF139-P2-11 PA正数睡眠参数无消费者**：native线阈值0.01 m/s、角阈值0.05、计数4、倍率1；`gen_ragdoll.py:64`只生成禁睡bool，runtime只切换SleepingDisabled，实际使用Avian默认0.15/0.15和0.5 s。实际profile插件下无外力/阻尼的0.03 m/s刚体位移0.015 m后睡眠，源应保持运动；0.2 m/s对照通过。验收覆盖正/零阈值、倍率、计数与帧长、连接/孤立刚体；旧零阈值修复本身不复开。
 - [ ] **BF139-P2-12 Ragdoll退出读取过时的地面结果**：源StopRagdolling现场RagdollTraceGround；目标 `ragdoll_link.rs:604` 读取上帧GroundFollow。稳定ragdoll后删除唯一支撑并当帧退出，实际Air+GettingUp，源应Air且无起身动作，完整角色反例FAIL。验收覆盖支撑移除/移动/新增同帧退出、当前速度/位置、Grounded/Air路由与输入解除。

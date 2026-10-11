@@ -20,7 +20,8 @@
 | Character、CMC、输入与标签状态 | 已审计，5项P2 | 本地原始 C++、当前 ECS 调度、初始化/状态/输入/旋转/速度/蹲起/基座/碰撞/时钟的实际消费者；网络与纯 Editor 排除；P2-01已撤销 |
 | Roll、Mantle、GetUp、root motion | 已审计，新增3项P2 | 启动/抢占/退出、蒙太奇设置、slot/曲线/notify输入、root、动作时钟与目标基座 |
 | Ragdoll、物理适配 | 已审计，新增3项P2 | 21body/22shape/20constraint/49禁碰pair，进入/跟随/退出、PA配置/驱动/碰撞/查询/重建/CCD/DOF/sleep/缩放 |
-| AnimationInstance、图/FSM/同步/曲线、资产转换与 Rig | 待审计 | 源递归依赖到已安装图及实际求值消费者 |
+| AnimationInstance、状态输入与Feet | 已审计，扩展P2-05/09 | fresh AIS与原始逐帧/相关性回调；Head/Spine/姿态曲线、Grounded/Standing/Crouching/Air/Feet/Turn；19个最小测试 |
+| 图/FSM/同步/曲线、资产转换与 Rig | 进行中 | 源递归依赖到已安装图及实际求值消费者 |
 | 通知、脚步/贴花、Overlay 物件 | 待审计 | 通知时间/权重/结束与最终姿态消费 |
 | Camera、Playground、材质、HUD/UI、PlayerStart | 待审计 | 本地源及资产配置到真实入口 |
 
@@ -55,6 +56,7 @@
 - 反例一：父实体 yaw=90°、角色 local identity、沿角色世界前方以 2 m/s 运动。局部速度应为 `(forward=2,right=0)`，实际 `(0,-2)`；无父实体、相同世界方向的对照通过。
 - 反例二：真实移动插件中给静止角色挂平移+90°父实体，并保持其原世界姿态。更新后渲染 world yaw 约 0°，物理 Rotation 为 −90°。位置本次保持一致，因此不据此声称位置一定出错。
 - 影响：挂接/分组角色的朝向、方向动画、Lean 和物理旋转不同步。此前父空间 Gate 只覆盖 Roll/Ragdoll/Camera 等消费者，没有覆盖普通 locomotion/provider。
+- BF139.04追加：`head_layer.rs:72–118,166` 也读取局部Transform推导world yaw/pitch；完整角色在物理后固定local identity、父级yaw90时，实际Head/Spine共享输入 `locomotion_state.rotation_yaw=0`，源应90，第三个消费者反例FAIL。该父空间根因继续归并本项。
 
 ### P2-06 — 普通台阶跨越忽略组件 CanCharacterStepUp 许可
 
@@ -77,12 +79,13 @@
 - 反例：实际角色输入 `(0.0002,0)` 已 `has_input=true`，源应向右 Roll；实际目标 yaw=0，源 −90°。输入 `(0.01,0)` 正对照正确。另以 `(0.00001,0)` 验证已 `has_input=false` 且无水平速度，实际 Mantle trace 为 `(0.76604444,0,−0.6427875)`，源应 `(0,0,−1)`，相差50°。
 - 影响：模拟量边界的动作方向和攀爬候选选择错误。普通四向/无输入测试绕开了源 safe-normal 边界和真实已消费状态。
 
-### P2-09 — Roll/GetUp 的自然混出提前且未保留实际剩余预算
+### P2-09 — Roll/GetUp/Transition 的自然混出时序不同
 
 - Source：UE `Animation/AnimInstance.cpp:573–578` 先调用 `Montage_UpdateWeight`，再调用 `Montage_Advance`。`Animation/AnimMontage.cpp:2626–2636` 在本次 Advance 首次进入窗口时才执行 Stop，默认负 TriggerTime 使用当前剩余播放时间；Stop 只 `Blend.Update(0)`，不会在该帧额外推进混出。
 - Target：`roll.rs:48` 与 `get_up.rs:112–130` 根据推进后的 elapsed、固定默认 BlendOut 直接计算权重，没有首次进入窗口时的剩余时间状态。
 - 反例：100 ms帧、实际加载的 Roll（序列1.5 s、播放1.3、BlendOut0.3）到elapsed0.9时源weight=1，实际0.93627644。通过真实ragdoll退出启动 GetUp（序列1.5 s、RateScale1.2、BlendOut0.3），elapsed1.0时源weight=1，实际0.92592555。两个实际slot断言FAIL，进入窗口前weight1对照PASS。
 - 影响：动作尾段pose/curve/notify权重与源错位，后续混出还使用不同预算。原有测试验证曲线形状或中断fade，没有验证源 UpdateWeight/Advance/首次自然Stop的顺序。Mantle使用自定义TriggerTime=0的末点停止，不按本项默认自然窗口直接推断缺陷。
+- BF139.04追加：source `AlsAnimationInstance.cpp:1780` 的Transition使用TriggerTime=0，`AnimMontage.cpp:2626–2636` 仍在Advance首次触及末点才Stop，当前weight保持1。目标 `stop_link.rs:252–279` 当帧直接用elapsed越界量计算混出；实际StandingDynamic的duration1.533333/rate1.5，在末点前20 ms推进100 ms后weight=0.64799964、stop_elapsed=0.08000004，源该帧应1/0，实际角色消费者FAIL。Turn明确使用惯性混出，不把不同源合同算作此项缺陷。
 
 ### P2-10 — 初始非等比缩放退回未缩放的布娃娃物理配置
 
@@ -136,3 +139,5 @@ BF139.02 的实际角色反例在资产就绪后执行；根图异步加载期�
 BF139.03 fresh原生PA导出37.93秒通过；使用当前转换函数在本地重建完整physics profile，与安装文件对象逐字段完全一致（21body/20constraint/49pair），故以上为转换字段遗漏或消费者差异，不是旧产物未更新。Ragdoll查询使用带shape mode过滤的公开wrapper，原父空间退出、初始9次限速、驱动当前pose与实际碰撞仲裁已有实现，不重复登记。非默认且转换器明确拒绝的angular projection/capped angular drive等不冒充当前PA缺陷。
 
 更正Sprint源期望后，当前完整最小反例集17测试10.05秒完成：3PASS/14预期语义FAIL，归并11项有效P2，均未修复；源码/日志/JSON保留于本地 `target/bf139/phase3/`，watchdog未超时。
+
+BF139.04的fresh AIS_Als_Default导出41.86秒通过、原始与安装副本资产字节相同；设置及源AnimationInstance函数闭包核对完毕。当前19个最小测试11.82秒完成：3PASS/16预期语义FAIL，两个新增失败归并P2-05/09，11项总数不变；证据存本地 `target/bf139/phase4/`。没有把仅用于诊断的旧DynamicTransition尺度和无当前图consumer的view_pitch_norm计作P2。
