@@ -21,8 +21,8 @@
 | Roll、Mantle、GetUp、root motion | 已审计，新增3项P2 | 启动/抢占/退出、蒙太奇设置、slot/曲线/notify输入、root、动作时钟与目标基座 |
 | Ragdoll、物理适配 | 已审计，新增3项P2 | 21body/22shape/20constraint/49禁碰pair，进入/跟随/退出、PA配置/驱动/碰撞/查询/重建/CCD/DOF/sleep/缩放 |
 | AnimationInstance、状态输入与Feet | 已审计，扩展P2-05/09 | fresh AIS与原始逐帧/相关性回调；Head/Spine/姿态曲线、Grounded/Standing/Crouching/Air/Feet/Turn；19个最小测试 |
-| 图/FSM/同步/曲线、资产转换与 Rig | 进行中 | 源递归依赖到已安装图及实际求值消费者 |
-| 通知、脚步/贴花、Overlay 物件 | 待审计 | 通知时间/权重/结束与最终姿态消费 |
+| 图/FSM/同步/曲线、资产转换与 Rig | 已审计，新增P2-13/14 | 15root/23AnimBP/236子图/374产物完整重转与source闭包；Node运行时、127动画、Rig/骨骼/坐标与当帧pose消费者 |
+| 通知、脚步/贴花、Overlay 物件 | 进行中 | 通知时间/权重/结束与最终姿态消费 |
 | Camera、Playground、材质、HUD/UI、PlayerStart | 待审计 | 本地源及资产配置到真实入口 |
 
 ## 已确认 P2 及以上
@@ -108,6 +108,22 @@
 - 反例：完整角色在平地进入ragdoll并稳定90帧，确认grounded=true；删除唯一支撑体后立即请求退出。实际最终LocomotionState=Air而Action=GettingUp，源当前查询应直接Air且无GetUp，实际消费者断言FAIL。
 - 影响：地面被移除/移走同帧退出时在空中播放起身并阻塞输入，且可能用过时位置/速度恢复。旧退出Gate只比较固定grounded布尔分支，没有验证查询到退出之间的场景生命周期变化。
 
+### P2-13 — Slot 的 SourceWeight 没有进入底层状态机更新上下文
+
+- Source：UE `AnimGraphRuntime/Private/AnimNodes/AnimNode_Slot.cpp:86–92` 用SourceWeight创建FractionalWeight更新源pose；`Engine/Private/Animation/AnimNode_StateMachine.cpp:382` 记录Context.GetFinalBlendWeight，`AnimInstanceProxy.cpp:2487` 的MachineWeight getter读该记录。
+- Target：`src/animation_graph_ext/source_slot.rs:130` 直接读取Source，未使用已有fractional machine weight scope；最终pose/context曲线乘权重不能补回更新阶段记录。
+- 反例：实际生产SourceSlotNode与单状态InterruptibleFsmNode组成最小图，连续3帧。slot weight=0时machine=1对照PASS；slot weight=0.75、layer weight=1时machine仍1，源应0.25，原生断言FAIL。
+- 真实consumer：当次原生AB_Als_Standing的Movement Details States两个转换有 `Machine Weight (Standing States)` getter；安装T8/T9条件图比较该值与1，因而这不是仅遥测数值不同。会改变蒙太奇混合期间的状态选择与后续姿态。
+- 漏检：已有Slot测试验证pose/curve权重和是否更新Source；machine scope测试覆盖普通/加法blend，缺少Slot包裹真实FSM的组合。当前只登记，不修改通用Slot、转换器或已生成图。
+- 完整角色追加：开始Roll首帧PostLocomotion slot=0.07407408，真实Locomotion States machine权重1，源应0.9259259，当前安装图消费者FAIL。fresh根图的PostLocomotion直接包裹AB_Als_Locomotion；UE LinkedAnimGraph `:88–106` 仅WithOtherProxy，保留权重。初次寻找未活跃Grounded子machine的夹具前置失败不计入语义证据。
+
+### P2-14 — 非同步 SequencePlayer 继承全局root查询时间
+
+- Source：UE `Actor.h:4877` 的组件tick乘owner CustomTimeDilation；`Engine/Private/Animation/AnimNode_SequencePlayer.cpp:100–110` 从UpdateContext获取Delta。ALS `RefreshRagdollingOnGameThread` 仅以骨盆速度计算Flail播放率，没有改用全局时间的例外。
+- Target：`src/animation_graph_ext/post_physics_animation.rs:190–202` 向run_animation_player传全局Time；`source_sequence_player.rs:350–362,488` 在无synchronization时用context_time_update。`animation.delta_seconds` 只供部分FSM/sync/辅助链消费，没有统一控制root查询。
+- 反例：完整角色进入ragdoll12帧后给实际body共同5 m/s速度，owner CustomTimeDilation=0。确认player的animation.delta_seconds=0；活跃 `A_Als_Flail` 的clock.delta_seconds=0.016666668，position从0.01987938到0.028212715，按0.5播放率仍推进0.008333秒，原生断言FAIL。
+- 影响：冻结/减速角色的flail pose与关节驱动目标继续按世界帧更新，和角色的其他动画时钟不同。旧时钟测试覆盖FSM、同步玩家和动作montage，没有覆盖root下无同步的序列；Rifle的初始候选未满足活跃player前置条件，未当作缺陷证据。后续修复应找全同一消费者，不只特判Flail。
+
 ## 未定级观察
 
 BF138 的固定 `0.046875` 秒 UphillJump 记录存在 pre-rig 腿平面异常，但旧报告缺少当帧完整图输入与混合源骨骼。它是待核实症状，不能据此认定源/目标差异或复开相邻图。
@@ -141,3 +157,7 @@ BF139.03 fresh原生PA导出37.93秒通过；使用当前转换函数在本地�
 更正Sprint源期望后，当前完整最小反例集17测试10.05秒完成：3PASS/14预期语义FAIL，归并11项有效P2，均未修复；源码/日志/JSON保留于本地 `target/bf139/phase3/`，watchdog未超时。
 
 BF139.04的fresh AIS_Als_Default导出41.86秒通过、原始与安装副本资产字节相同；设置及源AnimationInstance函数闭包核对完毕。当前19个最小测试11.82秒完成：3PASS/16预期语义FAIL，两个新增失败归并P2-05/09，11项总数不变；证据存本地 `target/bf139/phase4/`。没有把仅用于诊断的旧DynamicTransition尺度和无当前图consumer的view_pitch_norm计作P2。
+
+BF139.05使用39个本轮原生记录重转全部15个安装根（23AnimBP/236子图），耗时1720.352秒；359RON+15manifest对安装文件逐byte比较新增/删除/修改均0。当前完整source闭包53.931秒全部通过（98pose图、14FSM、104条件图、907节点、737pose连接）；规格读取使用与当前源码/资产逐byte一致的345份已有规格，审计同时核对各graph_source，未冒称新编译。510文件编辑器/运行时资产边界通过。scoped-cache旧专用合同误收类型规格产生schema失败，未当作资产缺陷；本批使用完整原生生成闭包与当前缓存算法取证。
+
+127动画glTF严格raw逐轨比较104通过、23提示差异；原阈值和报告保留。23项为12个源ForceRootLock=RefPose下的raw根旋转差异、3个FName大小写匹配问题、8个小量化误差（最高0.08835 mm/0.18716°），未达到P2。虚骨11/11在目标有动画通道，未把缺少运行中虚骨计算器误当缺失动画。当前22个有效最小测试13.61秒为3PASS/19预期语义FAIL，归并13项未修P2；证据存本地 `target/bf139/phase5/` 与 `target/bf139/graphs/`。无生成器、生产源或原始资产修改。
