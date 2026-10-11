@@ -5,6 +5,28 @@
 > 基座模块提交前缀沿用 `M<编号>`；缺陷修复清单用 `BF<编号>`。
 > 已归档清单：[archivedchecklist.md](docs/archive/archivedchecklist.md)
 
+## BF139 全范围移植差异审计（只记录）
+
+用户当前目标：找出所有 P2 及以上的移植差异，记录进本清单。审计基线为 `bb3dccf3066a217b750670918e30f248ef2c5b98`；本清单登记待修差异，[审计记录](docs/porting-audit-2026-10-11.md) 保存详细证据与覆盖边界。本轮授权 source/target 审阅、最小反例和文档记录，不修复生产实现、不重开历史完成项、不把 TODO 的待验收状态直接视为缺陷。
+
+- [x] BF139.01 Character / Movement / Input：开始：2026-10-11 11:27 +08:00；预估结束：2026-10-11 12:12 +08:00；实际结束：2026-10-11 11:43:32 +08:00，偏差−28分28秒，审计Gate通过、6项差异未修复。依据本地 Character、CMC、Extras Input 的函数闭包及 BF138 已归档物理审计边界，逐项检查状态、输入、速度、时钟、碰撞、基座和旋转的真实消费者。Gate：源文件当次身份、可定位的算法/输入/生命周期差异、最小反例与漏检原因。后续动作/物理、动画/图/资产、相机/场景/UI 分批独立登记，各批不超过 60 分钟。
+  - 初始范围：已确认本地源可用、工作区干净、182 个 Rust 源文件；ALS 插件含 54 个 C++ 与 96 个头文件（含 Editor、网络、调试和本地取证辅助，后者需按职责排除）。已阅读刻意差异与最近 BF135/BF138 结果；历史修复不作为当前缺陷，固定长帧腿平面症状尚未获得 source 根因，不预先定级。
+
+  - source/static 闭环（2026-10-11 11:42 +08:00）：fresh 本地 Character/CMC/Input、UE Actor component tick/PhysFalling/StepUp、AnimationInstance world-space 输入已核对；原生 reader 导出 IA_Als_Sprint 与 CS_Als_Default，watchdog 自测全部通过。直接链接当前生产库的 9 个最小测试为 2 对照 PASS、7 语义断言 FAIL，归并为以下 6 项 P2；没有运行时实现修改。普通 actual rotation request 被覆盖、未接入当前生成图的旧 stop 输入、以及 default bIgnoreBaseRotation=true 下的速度旋转均不单独算缺陷。
+
+- [ ] BF139.02 Roll / Mantle / GetUp 与动作 RootMotion：开始：2026-10-11 11:43 +08:00；预估结束：2026-10-11 12:28 +08:00。依据当次 `AlsCharacter_Actions`、Mantle RootMotionSource、蒙太奇消费与 BF137 已修 owner-clock/parent-space 边界，检查启动/抢占/退出、设置、目标基座、slot/notify/root 的实际消费者。Gate：fresh source 对照与最小反例/对照、确认差异登记；Ragdoll 的 solver/PA 独立下一批，不把已完成时钟项按猜测复开。
+
+### BF139 已确认待修差异（只登记，未授权实现）
+
+以下条目修复均未开始；本轮审计时点及 Gate 属 BF139.01，修复被选为当前任务后再按 fresh source 依赖拆分估时。详细反例与漏检原因见审计记录的同号条目。
+
+- [ ] **BF139-P2-01 Sprint 事件消费差异**：源 `ALSExtras/Private/AlsCharacterExample.cpp:110,161` 在 Started 切换 Sprint；目标 `src/als_extras/core/input.rs:433` 与 `input_request.rs:66` 按按住/释放设置 Sprinting/Running。Running→Shift 按住→释放后源仍 Sprinting，目标 Running，实际输入插件反例已 FAIL。验收应覆盖 Started、短按、保持、释放、再次按下及键盘/手柄，不能仅核对 IA 的 Hold/Released 触发器。
+- [ ] **BF139-P2-02 DesiredRotationMode=Aiming 无效**：源 `ALS/Private/AlsCharacter.cpp:675` 将 desired Aiming 与 Aim 按钮独立合并；目标 `src/als/state/aim.rs:55–60` 强制把存储 Aiming 改为 ViewDirection。Grounded/Standing、desired=Aiming、按钮未按下时实际反例 FAIL。验收覆盖 desired Aiming、普通自由模式、按键覆盖/释放、空中和第一人称，并修正旧测试中“stored mode never Aiming”的源合同。
+- [ ] **BF139-P2-03 普通运动忽略角色 CustomTimeDilation**：UE `Actor.h:4877` 的组件 tick 使用 owner 倍率；目标 `dynamics.rs:441`/`motion.rs:3447` 的 Walking/Falling 事务使用全局 Delta。3.75 m/s、50 ms 帧、倍率0.5时源水平位移0.09375 m，目标0.1875 m，实际物理反例 FAIL。验收应覆盖 Grounded/Air、0/0.5/1/2 倍率、起跳/落地、基座和动作移交；已完成 Roll/Mantle/GetUp 不因名称相似而复开。
+- [ ] **BF139-P2-04 落地丢失当帧剩余行走时间**：UE CMC `PhysFalling:5050→ProcessLanded:6373→StartNewPhysics` 传递 remainingTime；目标 `motion.rs:2697` 发现地面后直接 break。200 ms帧/50 ms子步、3.75 m/s水平速度、从1 m以3 m/s下落时源约0.75 m，目标0.10516852 m且已Grounded；无落地对照0.75 m PASS。验收覆盖子步内落地后的Walking预算、速度/制动/输入及落地动作仲裁，不以“最终Grounded”代替位移证明。
+- [ ] **BF139-P2-05 普通 locomotion/provider 混用局部与世界旋转**：源 Character/AnimationInstance 使用 actor world transform；目标 `motion.rs:415,577–579`、`actual_motion.rs:90`、`ab_als_provider.rs:319`、`locomotion_layer.rs:209` 以局部旋转计算世界朝向/局部速度并写物理 Rotation。90°父级下前进2 m/s被识别为左移；真实移动管线中渲染world yaw约0°而物理yaw−90°，两个反例 FAIL，无父级对照 PASS。验收覆盖父实体当帧平移/旋转/缩放及普通 Grounded/Air 的最终朝向和动画输入，不复开已修动作/相机项。
+- [ ] **BF139-P2-06 普通 StepUp 忽略组件跨越许可**：UE CMC `CanStepUp:7525` 必须检查 `CanCharacterStepUp`；目标 `motion.rs:3365` 的台阶事务不消费该许可，现 `AlsMantleTargetPermission.allows_step_up` 仅在 `mantle.rs:569` 使用。20 cm台阶许可true/false两次都走到z=−3.4291668，false反例 FAIL。验收覆盖普通低台阶、允许/禁止、actor/child collider许可所有权及Mantle原有分支。
+
 ## 背景与基础事实（已核实，持续有效）
 
 - 本机 bevy 源码：`0.19.1`（release-0.19.1）。`bevy_animation_graph` 0.11.0 与 `bevy-tnua` 均基于 Bevy 0.19，兼容。
