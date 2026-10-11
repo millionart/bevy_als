@@ -2,12 +2,13 @@ use std::sync::Arc;
 
 use avian3d::prelude::{
     ActiveCollisionHooks, AngularDamping, AngularInertia, CenterOfMass, Collider, ColliderDisabled, CollisionLayers,
-    CoefficientCombine, CollisionHooks, Friction, GravityScale, JointCollisionDisabled, JointDamping, JointDisabled,
+    CoefficientCombine, CollisionHooks, ComputedCenterOfMass, Friction, GravityScale, JointCollisionDisabled, JointDamping, JointDisabled,
     LinearDamping, Mass, MaxAngularSpeed, NoAutoAngularInertia, NoAutoCenterOfMass, NoAutoMass, PhysicsSchedule,
     PhysicsSystems, RayHitData, ShapeCastConfig, ShapeHitData, SolverSystems, SpatialQuery, SpatialQueryFilter,
     Position, Restitution, RevoluteJoint, RigidBody, Rotation, Sensor, SphericalJoint,
 };
 use avian3d::dynamics::solver::solver_body::{SolverBody, SolverBodyFlags};
+use avian3d::dynamics::solver::islands::{BodyIslandNode, IslandId, PhysicsIslands, SleepIslands};
 use avian3d::collider_tree::{ColliderTreeProxyKey, MovedProxies};
 use bevy::ecs::schedule::ApplyDeferred;
 use bevy::ecs::system::SystemParam;
@@ -46,6 +47,7 @@ pub struct RagdollBodyPhysicsProfile {
     pub friction: Friction,
     pub restitution: Restitution,
     pub sleeping_disabled: bool,
+    pub sleep: SourceBodySleep,
     pub mass_properties: Option<RagdollMassProperties>,
     pub center_of_mass_nudge_m: Vec3,
     pub inertia_scale: Vec3,
@@ -53,6 +55,19 @@ pub struct RagdollBodyPhysicsProfile {
     pub inertia_conditioning_enabled: bool,
     pub ccd_enabled: bool,
     pub gyroscopic_torque_enabled: bool,
+}
+
+#[derive(Component, Clone, Copy, Debug, Deserialize)]
+pub struct SourceBodySleep {
+    pub linear_threshold_m_per_second: f32,
+    pub angular_threshold_radians_per_second: f32,
+    pub counter_threshold: i32,
+    #[serde(skip)]
+    counter: i32,
+    #[serde(skip)]
+    smooth_linear: Vec3,
+    #[serde(skip)]
+    smooth_angular: Vec3,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -271,6 +286,7 @@ struct PhysicsAssetMaterial {
     restitution_combine: String,
     #[serde(default)]
     sleeping_disabled: bool,
+    sleep: SourceBodySleep,
 }
 
 #[derive(Deserialize)]
@@ -400,6 +416,7 @@ impl RagdollPhysicsProfile {
                         combine_rule: coefficient_combine(&material.restitution_combine)?,
                     },
                     sleeping_disabled: material.sleeping_disabled,
+                    sleep: material.sleep,
                     mass_properties: body.target.mass_properties.as_ref().map(|value| RagdollMassProperties {
                         mass_kg: value.mass_kg,
                         unclamped_mass_kg: value.unclamped_mass_kg,
@@ -715,8 +732,94 @@ impl Plugin for RagdollPhysicsProfilePlugin {
             .after(avian3d::dynamics::integrator::IntegrationSystems::Position)
             .before(avian3d::dynamics::solver::schedule::SubstepSolverSystems::Relax))
         .add_systems(PhysicsSchedule, disable_ragdoll_gyroscopic_torque
-            .in_set(SolverSystems::PreSubstep));
+            .in_set(SolverSystems::PreSubstep))
+        .add_systems(PhysicsSchedule, prepare_profile_sleep_islands
+            .before(SolverSystems::Finalize)
+            .after(SolverSystems::Restitution)
+            .run_if(resource_exists::<PhysicsIslands>))
+        .add_systems(PhysicsSchedule, update_profile_sleep
+            .after(avian3d::prelude::PhysicsStepSystems::Sleeping)
+            .before(avian3d::prelude::PhysicsStepSystems::Finalize)
+            .run_if(resource_exists::<PhysicsIslands>));
     }
+}
+
+fn prepare_profile_sleep_islands(
+    mut islands: ResMut<PhysicsIslands>,
+    bodies: Query<&BodyIslandNode, With<SourceBodySleep>>,
+) {
+    if let Some(node) = bodies.iter().find(|node| islands.get(node.island_id())
+        .is_some_and(|island| island.constraints_removed() > 0)) {
+        islands.split_candidate = Some(node.island_id());
+    }
+}
+
+fn update_profile_sleep(
+    mut commands: Commands,
+    islands: Res<PhysicsIslands>,
+    time: Res<Time>,
+    time_to_sleep: Res<avian3d::prelude::TimeToSleep>,
+    mut bodies: Query<(&BodyIslandNode, &RigidBody, &SolverBody, &Rotation, &ComputedCenterOfMass, &mut SourceBodySleep,
+        Has<avian3d::prelude::SleepingDisabled>, Has<avian3d::prelude::Sleeping>)>,
+    other_bodies: Query<(&BodyIslandNode, &avian3d::prelude::SleepTimer,
+        Has<avian3d::prelude::SleepingDisabled>), Without<SourceBodySleep>>,
+) {
+    let mut groups = bevy::platform::collections::HashMap::<u32, (i32, i32, bool, bool)>::default();
+    for (node, mode, solver, rotation, center, mut sleep, disabled, sleeping) in &mut bodies {
+        if !mode.is_dynamic() {
+            sleep.counter = 0;
+            sleep.smooth_linear = solver.linear_velocity;
+            sleep.smooth_angular = solver.angular_velocity;
+            continue;
+        }
+        if sleeping { continue; }
+        let Some(island) = islands.get(node.island_id()) else { continue; };
+        let isolated = island.contact_count() == 0 && island.joint_count() == 0;
+        if time.delta_secs() > 1e-8 {
+            if isolated {
+                sleep.smooth_linear = solver.linear_velocity;
+                sleep.smooth_angular = solver.angular_velocity;
+            } else {
+                let world_center = rotation.0 * center.0;
+                let origin_delta = solver.delta_position + (solver.delta_rotation.0.conjugate() * world_center - world_center);
+                sleep.smooth_linear = sleep.smooth_linear.lerp(origin_delta / time.delta_secs(), 0.3);
+                let delta = solver.delta_rotation.0;
+                let delta = if delta.w < 0.0 { -delta } else { delta };
+                let angular = Vec3::new(delta.x, delta.y, delta.z) * (2.0 / time.delta_secs());
+                sleep.smooth_angular = sleep.smooth_angular.lerp(angular, 0.3);
+            }
+        }
+        let within = !disabled
+            && (sleep.linear_threshold_m_per_second > 0.0 || sleep.angular_threshold_radians_per_second > 0.0)
+            && sleep.smooth_linear.length_squared() <= sleep.linear_threshold_m_per_second.powi(2)
+            && sleep.smooth_angular.length_squared() <= sleep.angular_threshold_radians_per_second.powi(2);
+        let group = groups.entry(node.island_id().0).or_insert((i32::MAX, 0, true, isolated));
+        group.0 = group.0.min(sleep.counter);
+        group.1 = group.1.max(if isolated { sleep.counter_threshold.min(127) } else { sleep.counter_threshold });
+        group.2 &= within;
+    }
+    for (node, timer, disabled) in &other_bodies {
+        if let Some(group) = groups.get_mut(&node.island_id().0) {
+            group.2 &= !disabled && timer.0 >= time_to_sleep.0;
+        }
+    }
+    let mut to_sleep = Vec::new();
+    for (id, group) in &mut groups {
+        if group.2 {
+            group.0 = group.0.saturating_add(1);
+            if group.3 { group.0 = group.0.min(127); }
+            if group.0 > group.1 {
+                to_sleep.push(IslandId(*id));
+                group.0 = 0;
+            }
+        } else if !group.3 {
+            group.0 = 0;
+        }
+    }
+    for (node, _, _, _, _, mut sleep, _, _) in &mut bodies {
+        if let Some(group) = groups.get(&node.island_id().0) { sleep.counter = group.0; }
+    }
+    if !to_sleep.is_empty() { commands.queue(SleepIslands(to_sleep)); }
 }
 
 fn initialize_profile_dof(mut bodies: Query<(&RigidBody, &Position, &Rotation, &mut SourceBodyDof)>) {
@@ -1267,6 +1370,20 @@ fn apply_profile_to_spawned_ragdoll(
         } else {
             commands.entity(*body_entity).remove::<avian3d::prelude::SleepingDisabled>();
         }
+        let source_sleep = body.sleep;
+        commands.entity(*body_entity).insert(avian3d::prelude::SleepThreshold { linear: -1.0, angular: -1.0 });
+        commands.entity(*body_entity).queue(move |mut entity: EntityWorldMut| {
+            if let Some(mut sleep) = entity.get_mut::<SourceBodySleep>() {
+                sleep.linear_threshold_m_per_second = source_sleep.linear_threshold_m_per_second;
+                sleep.angular_threshold_radians_per_second = source_sleep.angular_threshold_radians_per_second;
+                sleep.counter_threshold = source_sleep.counter_threshold;
+            } else {
+                let mut sleep = source_sleep;
+                sleep.smooth_linear = entity.get::<avian3d::prelude::LinearVelocity>().map_or(Vec3::ZERO, |velocity| velocity.0);
+                sleep.smooth_angular = entity.get::<avian3d::prelude::AngularVelocity>().map_or(Vec3::ZERO, |velocity| velocity.0);
+                entity.insert(sleep);
+            }
+        });
         let bits = body.locked_axes_bits;
         if body.inertia_conditioning_enabled {
             commands.entity(*body_entity).insert(profile.inertia_conditioning_settings);
@@ -1603,6 +1720,232 @@ fn joint_anchor_distance(
 
 #[cfg(test)]
 mod tests {
+    fn source_sleep_fixture(dt: f32, substeps: u32, linear: f32, angular: f32, counter: i32,
+        velocity: Vec3, spin: Vec3) -> (App, Entity) {
+        use bevy::reflect::{PartialReflect, ReflectMut};
+        use bevy_animation_graph::core::ragdoll::definition::Body;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, TransformPlugin,
+            avian3d::prelude::PhysicsPlugins::new(PostUpdate), RagdollPhysicsProfilePlugin))
+            .insert_resource(avian3d::prelude::Gravity(Vec3::ZERO))
+            .insert_resource(avian3d::prelude::SubstepCount(substeps))
+            .insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(dt)));
+        app.finish(); app.cleanup();
+        let mut profile = RagdollPhysicsProfile::from_json(include_str!("../../assets/ALS/Character/PA_Als.physics.json")).unwrap();
+        profile.bodies.retain(|body| body.label == "pelvis");
+        profile.colliders.clear(); profile.joints.clear();
+        let source = &mut profile.bodies[0];
+        source.linear_damping = 0.0; source.angular_damping = 0.0;
+        source.sleeping_disabled = linear <= 0.0 && angular <= 0.0;
+        source.sleep.linear_threshold_m_per_second = linear;
+        source.sleep.angular_threshold_radians_per_second = angular;
+        source.sleep.counter_threshold = counter;
+        let root = app.world_mut().spawn_empty().id();
+        let body = app.world_mut().spawn((BodyLabel("pelvis".into()), RigidBody::Dynamic, Transform::IDENTITY,
+            Mass(1.0), NoAutoMass, avian3d::prelude::LinearVelocity(velocity), avian3d::prelude::AngularVelocity(spin))).id();
+        let mut spawned = SpawnedRagdoll::new(root);
+        spawned.bodies.insert(Body::new().id, body);
+        let mut player = AnimationGraphPlayer::new(Handle::default());
+        let ReflectMut::Struct(fields) = player.reflect_mut() else { panic!("Player must expose struct fields") };
+        *fields.field_mut("spawned_ragdoll").unwrap().try_downcast_mut::<Option<SpawnedRagdoll>>().unwrap() = Some(spawned);
+        app.world_mut().spawn((player, profile, Transform::IDENTITY));
+        app.update();
+        assert_eq!(app.world().get::<SourceBodySleep>(body).unwrap().counter, 0);
+        (app, body)
+    }
+
+    #[test]
+    fn source_sleep_thresholds_counts_and_physics_steps() {
+        use avian3d::prelude::Sleeping;
+        for dt in [1.0 / 30.0, 1.0 / 120.0] {
+            for substeps in [1, 4] {
+                for (linear, angular, counter, speed, spin, first_sleep) in [
+                    (0.01, 0.05, 4, 0.03, 0.0, None),
+                    (0.01, 0.05, 4, 0.01, 0.05, Some(5)),
+                    (0.01, 0.05, 4, 0.01001, 0.0, None),
+                    (0.01, 0.05, 4, 0.0, 0.05001, None),
+                    (0.0, 0.05, 4, 0.0, 0.04, Some(5)),
+                    (0.01, 0.0, 4, 0.005, 0.0, Some(5)),
+                    (0.0, 0.0, 4, 0.0, 0.0, None),
+                    (0.02, 0.1, 4, 0.015, 0.07, Some(5)),
+                    (0.01, 0.05, 0, 0.0, 0.0, Some(1)),
+                    (0.01, 0.05, 1, 0.0, 0.0, Some(2)),
+                    (0.01, 0.05, 9, 0.0, 0.0, Some(10)),
+                    (0.01, 0.05, 127, 0.0, 0.0, None),
+                ] {
+                    let (mut app, body) = source_sleep_fixture(dt, substeps, linear, angular, counter,
+                        Vec3::X * speed, Vec3::Y * spin);
+                    for step in 1..=140 {
+                        app.update();
+                        assert_eq!(app.world().get::<Sleeping>(body).is_some(), first_sleep.is_some_and(|first| step >= first),
+                            "Source sleep step: dt={dt} substeps={substeps} thresholds=({linear},{angular}) counter={counter} velocity=({speed},{spin}) step={step}");
+                        if app.world().get::<Sleeping>(body).is_some() { break; }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn source_sleep_connected_island_uses_longest_counter_and_all_members() {
+        use avian3d::prelude::{LinearVelocity, Sleeping};
+        for moving in [false, true] {
+            let speed = if moving { 0.03 } else { 0.0 };
+            let (mut app, first) = source_sleep_fixture(1.0 / 60.0, 1, 0.01, 0.05, 1, Vec3::X * speed, Vec3::ZERO);
+            let mut settings = *app.world().get::<SourceBodySleep>(first).unwrap();
+            settings.counter_threshold = 7;
+            settings.linear_threshold_m_per_second = 0.05;
+            let second = app.world_mut().spawn((RigidBody::Dynamic, Transform::IDENTITY, Mass(1.0), NoAutoMass,
+                LinearVelocity(Vec3::X * speed), settings, avian3d::prelude::SleepThreshold { linear: -1.0, angular: -1.0 })).id();
+            app.world_mut().spawn(SphericalJoint::new(first, second));
+            for step in 1..=12 {
+                app.update();
+                let first_island = app.world().get::<BodyIslandNode>(first).unwrap().island_id();
+                assert_eq!(first_island, app.world().get::<BodyIslandNode>(second).unwrap().island_id());
+                assert_eq!(app.world().get::<Sleeping>(first).is_some(), !moving && step >= 8,
+                    "Source connected island counter and threshold: moving={moving} step={step}");
+                assert_eq!(app.world().get::<Sleeping>(first).is_some(), app.world().get::<Sleeping>(second).is_some());
+            }
+        }
+    }
+
+    #[test]
+    fn source_sleep_connected_metrics_use_solver_displacement_and_reset_counter() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, first) = source_sleep_fixture(0.1, 1, 0.01, 0.05, 4, Vec3::ZERO, Vec3::ZERO);
+        let second = app.world_mut().spawn((RigidBody::Dynamic, Transform::IDENTITY, Mass(1.0), NoAutoMass)).id();
+        app.world_mut().spawn(SphericalJoint::new(first, second));
+        app.update();
+        app.world_mut().entity_mut(first).insert(ComputedCenterOfMass(Vec3::ZERO));
+        let mut sleep = app.world_mut().get_mut::<SourceBodySleep>(first).unwrap();
+        sleep.counter = 3;
+        sleep.smooth_linear = Vec3::X * 0.02;
+        sleep.smooth_angular = Vec3::Y * 0.1;
+        let mut solver = app.world_mut().get_mut::<SolverBody>(first).unwrap();
+        solver.linear_velocity = Vec3::ZERO; solver.angular_velocity = Vec3::ZERO;
+        solver.delta_position = Vec3::X * 0.01;
+        solver.delta_rotation.0 = Quat::from_rotation_y(0.8);
+        app.world_mut().run_system_once(update_profile_sleep).unwrap();
+        let sleep = app.world().get::<SourceBodySleep>(first).unwrap();
+        assert!((sleep.smooth_linear.x - 0.044).abs() < 1e-6, "Source sleep smoothing uses projected position delta");
+        assert!((sleep.smooth_angular.y - (0.07 + 6.0 * 0.4_f32.sin())).abs() < 1e-5, "Source sleep smoothing uses shortest-arc quaternion derivative");
+        assert_eq!(sleep.counter, 0, "Source connected motion resets the common sleep counter");
+    }
+
+    #[test]
+    fn source_sleep_refresh_preserves_progress_and_wake_starts_a_new_counter() {
+        use avian3d::prelude::Sleeping;
+        let (mut app, body) = source_sleep_fixture(1.0 / 60.0, 1, 0.01, 0.05, 4, Vec3::ZERO, Vec3::ZERO);
+        for _ in 0..3 { app.update(); }
+        assert_eq!(app.world().get::<SourceBodySleep>(body).unwrap().counter, 3);
+        app.world_mut().query::<&mut RagdollPhysicsProfile>().single_mut(app.world_mut()).unwrap()
+            .bodies[0].sleep.counter_threshold = 5;
+        app.update();
+        assert_eq!(app.world().get::<SourceBodySleep>(body).unwrap().counter, 4,
+            "Source material refresh preserves existing sleep progress");
+        app.update();
+        assert!(app.world().get::<Sleeping>(body).is_none());
+        app.update();
+        assert!(app.world().get::<Sleeping>(body).is_some());
+        app.world_mut().entity_mut(body).remove::<Sleeping>();
+        for step in 1..=6 {
+            app.update();
+            assert_eq!(app.world().get::<Sleeping>(body).is_some(), step == 6,
+                "Source wake starts a fresh sleep counter: step={step}");
+        }
+    }
+
+    #[test]
+    fn source_sleep_isolated_motion_retains_the_existing_counter() {
+        use avian3d::prelude::Sleeping;
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, body) = source_sleep_fixture(0.1, 1, 0.01, 0.05, 4, Vec3::ZERO, Vec3::ZERO);
+        for _ in 0..2 { app.update(); }
+        assert_eq!(app.world().get::<SourceBodySleep>(body).unwrap().counter, 2);
+        app.world_mut().get_mut::<SolverBody>(body).unwrap().linear_velocity = Vec3::X * 0.03;
+        app.world_mut().run_system_once(update_profile_sleep).unwrap();
+        assert_eq!(app.world().get::<SourceBodySleep>(body).unwrap().counter, 2,
+            "Source isolated velocity rejection retains the existing counter");
+        app.world_mut().get_mut::<SolverBody>(body).unwrap().linear_velocity = Vec3::ZERO;
+        for step in 1..=3 {
+            app.world_mut().run_system_once(update_profile_sleep).unwrap();
+            assert_eq!(app.world().get::<Sleeping>(body).is_some(), step == 3,
+                "Source isolated counter resumes after fast motion: step={step}");
+        }
+    }
+
+    #[test]
+    fn source_sleep_removed_joint_splits_independent_bodies() {
+        use avian3d::prelude::Sleeping;
+        let (mut app, first) = source_sleep_fixture(1.0 / 60.0, 1, 0.01, 0.05, 127, Vec3::ZERO, Vec3::ZERO);
+        let mut settings = *app.world().get::<SourceBodySleep>(first).unwrap();
+        settings.counter_threshold = 4;
+        let second = app.world_mut().spawn((RigidBody::Dynamic, Transform::IDENTITY, Mass(1.0), NoAutoMass,
+            settings, avian3d::prelude::SleepThreshold { linear: -1.0, angular: -1.0 })).id();
+        let joint = app.world_mut().spawn(SphericalJoint::new(first, second)).id();
+        app.update();
+        assert_eq!(app.world().get::<BodyIslandNode>(first).unwrap().island_id(),
+            app.world().get::<BodyIslandNode>(second).unwrap().island_id());
+        app.world_mut().despawn(joint);
+        for _ in 0..10 { app.update(); }
+        assert_ne!(app.world().get::<BodyIslandNode>(first).unwrap().island_id(),
+            app.world().get::<BodyIslandNode>(second).unwrap().island_id(),
+            "Source removed joint separates independent sleep groups");
+        assert!(app.world().get::<Sleeping>(first).is_none(), "Source isolated counter 127 remains awake");
+        assert!(app.world().get::<Sleeping>(second).is_some(), "Source disconnected body uses its own sleep threshold");
+    }
+
+    #[test]
+    fn source_sleep_preserves_native_members_in_the_same_island() {
+        use avian3d::prelude::{LinearVelocity, Sleeping, SleepingDisabled};
+        for disabled in [false, true] {
+            let (mut app, first) = source_sleep_fixture(1.0 / 60.0, 1, 1.0, 1.0, 4, Vec3::ZERO, Vec3::ZERO);
+            let second = app.world_mut().spawn((RigidBody::Dynamic, Transform::IDENTITY, Mass(1.0), NoAutoMass,
+                LinearVelocity(Vec3::X * 0.2))).id();
+            if disabled { app.world_mut().entity_mut(second).insert(SleepingDisabled); }
+            app.world_mut().spawn(SphericalJoint::new(first, second));
+            for step in 1..=10 {
+                app.update();
+                assert!(app.world().get::<Sleeping>(first).is_none() && app.world().get::<Sleeping>(second).is_none(),
+                    "Source sleep must retain native member eligibility: disabled={disabled} step={step}");
+            }
+        }
+    }
+
+    #[test]
+    fn source_sleep_connected_metrics_use_body_origin_with_offset_mass_center() {
+        use avian3d::prelude::{ComputedCenterOfMass, Sleeping};
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, first) = source_sleep_fixture(0.1, 1, 0.01, 0.05, 4, Vec3::ZERO, Vec3::ZERO);
+        let settings = *app.world().get::<SourceBodySleep>(first).unwrap();
+        let second = app.world_mut().spawn((RigidBody::Dynamic, Transform::IDENTITY, Mass(1.0), NoAutoMass,
+            settings, avian3d::prelude::SleepThreshold { linear: -1.0, angular: -1.0 })).id();
+        app.world_mut().spawn(SphericalJoint::new(first, second));
+        app.update();
+        let profile = RagdollPhysicsProfile::from_json(include_str!("../../assets/ALS/Character/PA_Als.physics.json")).unwrap();
+        let center = profile.bodies.iter().find(|body| body.label == "hand_l").unwrap()
+            .mass_properties.unwrap().center_of_mass_m * 8.0;
+        assert!((center - Vec3::new(0.4, 0.0, -0.08)).length() < 1e-6);
+        app.world_mut().entity_mut(first).insert(ComputedCenterOfMass(center));
+        for body in [first, second] {
+            let mut sleep = app.world_mut().get_mut::<SourceBodySleep>(body).unwrap();
+            sleep.counter = 0; sleep.smooth_linear = Vec3::ZERO; sleep.smooth_angular = Vec3::ZERO;
+        }
+        for step in 1..=8 {
+            app.world_mut().get_mut::<Rotation>(first).unwrap().0 = Quat::from_rotation_y(step as f32 * 0.004);
+            let mut solver = app.world_mut().get_mut::<SolverBody>(first).unwrap();
+            solver.linear_velocity = Vec3::ZERO; solver.angular_velocity = Vec3::Y * 0.04;
+            solver.delta_position = Vec3::ZERO; solver.delta_rotation.0 = Quat::from_rotation_y(0.004);
+            app.world_mut().run_system_once(update_profile_sleep).unwrap();
+            let sleep = app.world().get::<SourceBodySleep>(first).unwrap();
+            if step >= 3 {
+                assert!(sleep.smooth_linear.length() > 0.01,
+                    "Source actor-origin displacement includes mass-center rotation: step={step} velocity={:?}", sleep.smooth_linear);
+            }
+            assert!(app.world().get::<Sleeping>(first).is_none(), "Source rotating offset body must remain awake");
+        }
+    }
+
     #[test]
     fn browser_review_zero_sleep_thresholds_disable_automatic_body_sleep() {
         use avian3d::prelude::{Gravity, Mass, NoAutoMass, PhysicsPlugins, Sleeping, SubstepCount};
@@ -2858,6 +3201,7 @@ mod tests {
             for body in document["bodies"].as_array_mut().unwrap() { body["target"]["inertia_conditioning_enabled"] = serde_json::json!(enabled); }
             let mut profile = RagdollPhysicsProfile::from_json(&document.to_string()).unwrap();
             profile.bodies.retain(|body| body.label == "pelvis");profile.colliders.clear();profile.joints.clear();
+            profile.bodies[0].sleeping_disabled = true;
             profile.bodies[0].mass_properties = Some(RagdollMassProperties { mass_kg: 1.0, unclamped_mass_kg: 1.0,
                 scale_exponent: 0.0, update_with_scale: false, center_of_mass_m: Vec3::ZERO,
                 inertia_tensor_kg_m2: Mat3::IDENTITY / 600.0 });

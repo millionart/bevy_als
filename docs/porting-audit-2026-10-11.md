@@ -119,6 +119,8 @@
 
 ### P2-11 — PA 的正数睡眠阈值与计数丢失
 
+修复完成（2026-10-12 07:38:42 +08:00）：public PhysicsAsset生成器从fresh PA/SKM与有效物理材质生成21组目标阈值/计数，原始导出保持；完整15root/39源/374图产物重转零diff。运行时单一身体组件消费源严格大于计数、孤立127饱和/计数保留、连接组全员条件与最大计数，并通过公开Avian接口睡眠/拆分；连接指标从质心delta换算为身体原点delta，再按源0.3平滑及四元数导数处理。48组阈值/计数/帧长/子步矩阵、五倍率、刷新/唤醒/断开/native成员和偏心旋转反例、12有效消融及字节恢复后63回归通过；旧惯量夹具显式禁睡以保留原断言，生产惯量未改。正式target_game构建及原0.03 m/s反例、五运动矩阵、345规格/完整闭包/声明式/510编辑器通过；原Playground startup诊断、Ragdoll11项、GetUp13项功能验收通过，graph/fault/temporal均空。首次startup混入Ragdoll/退出动作的失败原报告与更改诊断路径后的无动作通过均保留，不冒称其原因已由输入日志回溯证明；性能和截图延期。证据位于本地 `target/bf139/fix11/` 与 `target/animation_visual/bf139_p211/`。以下保留原审计反例。
+
 - Source：fresh native PA物理材质为线速度1 cm/s、角速度0.05、SleepCounterThreshold=4、body multiplier=1；UE `Chaos/Island/IslandManager.cpp:242–249` 读取全部字段，按速度及计数决定睡眠；孤立刚体另有阈值缩放，不会把0.03 m/s变为可睡眠速度。
 - Target：`tools/import/gen_ragdoll.py:64–75` 只生成 `sleeping_disabled`；`src/avian_ext/ragdoll_physics_profile.rs:1192` 只切换禁睡标记。正数配置落回Avian默认 `SleepThreshold{linear:0.15,angular:0.15}` 和TimeToSleep=0.5 s，原阈值/倍率/计数无消费者。
 - 反例：使用实际生产profile插件、原PA的pelvis配置，去除外力/阻尼与约束以隔离睡眠判定。0.2 m/s对照80帧后仍运动、位移0.26333317 m；0.03 m/s在位移0.015000002 m处睡眠，实际阈值0.15，源应保持运动，原生断言FAIL。

@@ -72,6 +72,11 @@ def target_material(entries, sleep_multiplier=1.0):
         "restitution_combine": values["RestitutionCombineMode"],
         "sleeping_disabled": float(values["SleepLinearVelocityThreshold"]) * sleep_multiplier <= 0.0
             and float(values["SleepAngularVelocityThreshold"]) * sleep_multiplier <= 0.0,
+        "sleep": {
+            "linear_threshold_m_per_second": float(values["SleepLinearVelocityThreshold"]) * sleep_multiplier * CM_TO_M,
+            "angular_threshold_radians_per_second": float(values["SleepAngularVelocityThreshold"]) * sleep_multiplier,
+            "counter_threshold": int(values["SleepCounterThreshold"]),
+        },
     }
 
 
@@ -456,18 +461,26 @@ def self_test():
             "Friction": "0.7", "StaticFriction": "0", "Restitution": "0.3",
             "FrictionCombineMode": "Average", "RestitutionCombineMode": "Average",
             "SleepLinearVelocityThreshold": "1.0", "SleepAngularVelocityThreshold": "0.05",
+            "SleepCounterThreshold": "4",
         }.items()
     ])
     assert material["static_friction"] == material["dynamic_friction"] == 0.7
     assert not material["sleeping_disabled"]
+    assert material["sleep"] == {"linear_threshold_m_per_second": 0.01,
+        "angular_threshold_radians_per_second": 0.05, "counter_threshold": 4}
     for linear, angular, multiplier, disabled in [(0.0, 0.0, 1.0, True), (1.0, 0.05, 0.0, True),
             (0.0, 0.05, 1.0, False), (1.0, 0.0, 1.0, False)]:
         entries = [{"name": key, "exported_text": str(value)} for key, value in {
             "Friction": 0.7, "StaticFriction": 0, "Restitution": 0.3,
             "FrictionCombineMode": "Average", "RestitutionCombineMode": "Average",
             "SleepLinearVelocityThreshold": linear, "SleepAngularVelocityThreshold": angular,
+            "SleepCounterThreshold": 7,
         }.items()]
         assert target_material(entries, multiplier)["sleeping_disabled"] == disabled
+        sleep = target_material(entries, multiplier)["sleep"]
+        assert sleep["linear_threshold_m_per_second"] == linear * multiplier * CM_TO_M
+        assert sleep["angular_threshold_radians_per_second"] == angular * multiplier
+        assert sleep["counter_threshold"] == 7
     assert expanded_text({"exported_text": "()", "fields": [{"name": "Enabled", "exported_text": "True"}]}) == "(Enabled=True)"
     assert collision_disabled_pairs({"collision_disabled_pairs": [{"body_index_1": 0, "body_index_2": 1, "disabled": False}]}) == [[0, 1]]
     assert parsed_profile([{"name": "ProfileInstance", "exported_text": "()", "fields": [
