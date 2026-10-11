@@ -22,8 +22,9 @@
 | Ragdoll、物理适配 | 已审计，新增3项P2 | 21body/22shape/20constraint/49禁碰pair，进入/跟随/退出、PA配置/驱动/碰撞/查询/重建/CCD/DOF/sleep/缩放 |
 | AnimationInstance、状态输入与Feet | 已审计，扩展P2-05/09 | fresh AIS与原始逐帧/相关性回调；Head/Spine/姿态曲线、Grounded/Standing/Crouching/Air/Feet/Turn；19个最小测试 |
 | 图/FSM/同步/曲线、资产转换与 Rig | 已审计，新增P2-13/14 | 15root/23AnimBP/236子图/374产物完整重转与source闭包；Node运行时、127动画、Rig/骨骼/坐标与当帧pose消费者 |
-| 通知、脚步/贴花、Overlay 物件 | 进行中 | 通知时间/权重/结束与最终姿态消费 |
-| Camera、Playground、材质、HUD/UI、PlayerStart | 待审计 | 本地源及资产配置到真实入口 |
+| 通知、脚步/贴花、Overlay 物件行为 | 已审计，扩展P2-05/08 | 137动画/蒙太奇、177通知、60标记重建一致；Notify队列、脚步与贴花参数/附着生命周期、Overlay绑定/清除/恢复；静态mesh/socket/material留资产批 |
+| Camera、CameraShake | 进行中 | 本地组件与设置到实际view/碰撞/时钟/Camera消费者 |
+| Playground、材质/Overlay静态数据、HUD/UI、PlayerStart | 待审计 | 本地源及资产配置到真实入口 |
 
 ## 已确认 P2 及以上
 
@@ -57,6 +58,7 @@
 - 反例二：真实移动插件中给静止角色挂平移+90°父实体，并保持其原世界姿态。更新后渲染 world yaw 约 0°，物理 Rotation 为 −90°。位置本次保持一致，因此不据此声称位置一定出错。
 - 影响：挂接/分组角色的朝向、方向动画、Lean 和物理旋转不同步。此前父空间 Gate 只覆盖 Roll/Ragdoll/Camera 等消费者，没有覆盖普通 locomotion/provider。
 - BF139.04追加：`head_layer.rs:72–118,166` 也读取局部Transform推导world yaw/pitch；完整角色在物理后固定local identity、父级yaw90时，实际Head/Spine共享输入 `locomotion_state.rotation_yaw=0`，源应90，第三个消费者反例FAIL。该父空间根因继续归并本项。
+- BF139.06追加：`stop_link.rs:398–421,869–903` 与 `transition_notify.rs:334–350` 的QuickStop调用链也传局部body。无输入、90°父级、目标yaw0时，源world actor合同选择右侧/2.375，实际左侧/1.75；生产选择函数断言FAIL、无父级对照PASS。
 
 ### P2-06 — 普通台阶跨越忽略组件 CanCharacterStepUp 许可
 
@@ -78,6 +80,7 @@
 - Target：`roll.rs:57`、`roll_drive.rs:1931` 又使用平方 `1e−6`。Mantle 则由 `motion.rs` 把原始输入先变成单位方向，再交 `mantle.rs:469` 判断。
 - 反例：实际角色输入 `(0.0002,0)` 已 `has_input=true`，源应向右 Roll；实际目标 yaw=0，源 −90°。输入 `(0.01,0)` 正对照正确。另以 `(0.00001,0)` 验证已 `has_input=false` 且无水平速度，实际 Mantle trace 为 `(0.76604444,0,−0.6427875)`，源应 `(0,0,−1)`，相差50°。
 - 影响：模拟量边界的动作方向和攀爬候选选择错误。普通四向/无输入测试绕开了源 safe-normal 边界和真实已消费状态。
+- BF139.06追加：source `PlayQuickStopAnimation:1590` 也读已消费bHasInput/InputYaw；目标 `stop_link.rs:407` 再以f32::EPSILON过滤原始输入。实际movement确认0.0002右输入has_input=true/input_yaw=−90；stored target yaw0时，当前函数错选左侧/1.75，源应右侧/2.375，0.01对照PASS。fresh AIS确认QuickStop播放率范围1.75–3，继续归并此根因。
 
 ### P2-09 — Roll/GetUp/Transition 的自然混出时序不同
 
@@ -160,4 +163,6 @@ BF139.04的fresh AIS_Als_Default导出41.86秒通过、原始与安装副本资�
 
 BF139.05使用39个本轮原生记录重转全部15个安装根（23AnimBP/236子图），耗时1720.352秒；359RON+15manifest对安装文件逐byte比较新增/删除/修改均0。当前完整source闭包53.931秒全部通过（98pose图、14FSM、104条件图、907节点、737pose连接）；规格读取使用与当前源码/资产逐byte一致的345份已有规格，审计同时核对各graph_source，未冒称新编译。510文件编辑器/运行时资产边界通过。scoped-cache旧专用合同误收类型规格产生schema失败，未当作资产缺陷；本批使用完整原生生成闭包与当前缓存算法取证。
 
-127动画glTF严格raw逐轨比较104通过、23提示差异；原阈值和报告保留。23项为12个源ForceRootLock=RefPose下的raw根旋转差异、3个FName大小写匹配问题、8个小量化误差（最高0.08835 mm/0.18716°），未达到P2。虚骨11/11在目标有动画通道，未把缺少运行中虚骨计算器误当缺失动画。当前22个有效最小测试13.61秒为3PASS/19预期语义FAIL，归并13项未修P2；证据存本地 `target/bf139/phase5/` 与 `target/bf139/graphs/`。无生成器、生产源或原始资产修改。
+127动画glTF严格raw逐轨比较104通过、23提示差异；原阈值和报告保留。23项为12个源ForceRootLock=RefPose下的raw根旋转差异、3个FName大小写匹配问题、8个小量化误差（最高0.08835 mm/0.18716°），未达到P2。A_Als_Idle的11个虚骨在目标均有动画通道，未把缺少运行中虚骨计算器误当缺失动画。当前22个有效最小测试13.61秒为3PASS/19预期语义FAIL，归并13项未修P2；证据存本地 `target/bf139/phase5/` 与 `target/bf139/graphs/`。无生成器、生产源或原始资产修改。
+
+BF139.06当次读取FES_Als_Default（47.423秒）与B_Als_Character（52.268秒），原始/安装副本字节一致。完整本地通知审计137动画/蒙太奇、177通知、60marker及9montage segments均有效，生成manifest与安装文件byte一致。源AttachOverlayObject三项SnapToTarget、Clear置空mesh/class、非Low攀爬和ragdoll开始清除/结束恢复与目标一致。两QuickStop生产选择函数反例0.09秒失败并归并P2-05/08；无新增独立P2，证据在 `target/bf139/phase6/`。静态mesh/socket/material数据与场景资产批合并核对，尚未计入完成。
