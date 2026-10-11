@@ -17,21 +17,14 @@
 
 | 范围 | 状态 | 本轮边界 |
 |---|---|---|
-| Character、CMC、输入与标签状态 | 已审计，6项P2 | 本地 C++、当前 ECS 调度、初始化/状态/输入/旋转/速度/蹲起/基座/碰撞/时钟的实际消费者；网络与纯 Editor 排除 |
+| Character、CMC、输入与标签状态 | 已审计，5项P2 | 本地原始 C++、当前 ECS 调度、初始化/状态/输入/旋转/速度/蹲起/基座/碰撞/时钟的实际消费者；网络与纯 Editor 排除；P2-01已撤销 |
 | Roll、Mantle、GetUp、root motion | 已审计，新增3项P2 | 启动/抢占/退出、蒙太奇设置、slot/曲线/notify输入、root、动作时钟与目标基座 |
-| Ragdoll、物理适配 | 进行中 | PA/约束/碰撞与查询 |
+| Ragdoll、物理适配 | 已审计，新增3项P2 | 21body/22shape/20constraint/49禁碰pair，进入/跟随/退出、PA配置/驱动/碰撞/查询/重建/CCD/DOF/sleep/缩放 |
 | AnimationInstance、图/FSM/同步/曲线、资产转换与 Rig | 待审计 | 源递归依赖到已安装图及实际求值消费者 |
 | 通知、脚步/贴花、Overlay 物件 | 待审计 | 通知时间/权重/结束与最终姿态消费 |
 | Camera、Playground、材质、HUD/UI、PlayerStart | 待审计 | 本地源及资产配置到真实入口 |
 
 ## 已确认 P2 及以上
-
-### P2-01 — Sprint 的事件消费仍是按住语义，源已是按下切换
-
-- Source：`ALSExtras/Private/AlsCharacterExample.cpp:110` 绑定 `ETriggerEvent::Started`，`:161` 的 `Input_OnSprint` 在 Running/Sprinting 间切换。fresh `IA_Als_Sprint` native export 的 Hold=0.1、OneShot=true、Released 仍在；触发器存在不等于 C++ 消费 Triggered/Released。
-- Target：`src/als_extras/core/input.rs:433` 消费 FIRE/CANCEL 并保存 bool；`src/als_extras/core/input_request.rs:66` 按 bool 上升/下降沿设置 Sprinting/Running。
-- 反例：Running → 按 Shift 12 个 20 ms 帧 → 松开 3 帧。实际目标为 Running，源应保留 Sprinting，下一次 Started 才切回。原生输入插件和当前生产库的断言失败；按住期间 Sprinting 的正对照通过。
-- 影响：冲刺按键操作、松手后的速度和动画选择与当前本地源不一致。现有测试把“释放清除 Sprint intent”当期望，只核验资产触发器，漏掉当前 C++ 事件绑定。
 
 ### P2-02 — DesiredRotationMode=Aiming 被降为 ViewDirection
 
@@ -91,9 +84,34 @@
 - 反例：100 ms帧、实际加载的 Roll（序列1.5 s、播放1.3、BlendOut0.3）到elapsed0.9时源weight=1，实际0.93627644。通过真实ragdoll退出启动 GetUp（序列1.5 s、RateScale1.2、BlendOut0.3），elapsed1.0时源weight=1，实际0.92592555。两个实际slot断言FAIL，进入窗口前weight1对照PASS。
 - 影响：动作尾段pose/curve/notify权重与源错位，后续混出还使用不同预算。原有测试验证曲线形状或中断fade，没有验证源 UpdateWeight/Advance/首次自然Stop的顺序。Mantle使用自定义TriggerTime=0的末点停止，不按本项默认自然窗口直接推断缺陷。
 
+### P2-10 — 初始非等比缩放退回未缩放的布娃娃物理配置
+
+- Source：UE `SkeletalMeshComponentPhysics.cpp:1000–1084` 从含组件世界缩放的 BoneTransform 初始化刚体；`ChaosInterfaceUtils.cpp:139,148,176` 按形状调用 `GetFinalScaled`，`BodySetup.cpp:2006` 的球半径乘绝对最小轴。初始化与 `UpdateRigidBodyScaling:3517` 对运行中非等比变更的拒绝必须区分，本项只证明初始创建。
+- Target：`src/avian_ext/ragdoll_physics_profile.rs:1055–1064` 的 `ragdoll_positive_uniform_scale` 对任何非等比输入返回1；实际profile的形状、质量、关节frame统一按该值配置。
+- 反例：完整加载角色以 `(2,2,2)` 初始缩放时applied=2、root球半径0.2 m、pelvis质量37.70501 kg；以 `(2,3,4)` 创建时applied=1、球半径0.1 m、pelvis质量7.9265018 kg。源同一球的绝对最小轴仍2，应为0.2 m；等比对照PASS，非等比FAIL。root球作为尺寸探针本身禁碰，受影响的动态pelvis同样退回未缩放质量/形状，不能把禁碰球单独冒充碰撞症状。
+- 影响：初始非等比角色的渲染姿态与物理体尺寸、质量及约束frame不一致。旧测试只覆盖正等比缩放及detach后等比变化，没有覆盖初始非等比创建。
+
+### P2-11 — PA 的正数睡眠阈值与计数丢失
+
+- Source：fresh native PA物理材质为线速度1 cm/s、角速度0.05、SleepCounterThreshold=4、body multiplier=1；UE `Chaos/Island/IslandManager.cpp:242–249` 读取全部字段，按速度及计数决定睡眠；孤立刚体另有阈值缩放，不会把0.03 m/s变为可睡眠速度。
+- Target：`tools/import/gen_ragdoll.py:64–75` 只生成 `sleeping_disabled`；`src/avian_ext/ragdoll_physics_profile.rs:1192` 只切换禁睡标记。正数配置落回Avian默认 `SleepThreshold{linear:0.15,angular:0.15}` 和TimeToSleep=0.5 s，原阈值/倍率/计数无消费者。
+- 反例：使用实际生产profile插件、原PA的pelvis配置，去除外力/阻尼与约束以隔离睡眠判定。0.2 m/s对照80帧后仍运动、位移0.26333317 m；0.03 m/s在位移0.015000002 m处睡眠，实际阈值0.15，源应保持运动，原生断言FAIL。
+- 影响：布娃娃仍在缓慢移动/旋转时提前冻结，静止后的睡眠延迟也不等价。BF135只验证零阈值禁睡，没有验证有效正阈值及计数；本轮不修改其既有已完成边界。
+
+### P2-12 — Ragdoll 退出使用上一帧地面结果
+
+- Source：`ALS/Private/AlsCharacter_Actions.cpp:1082–1187` 的StopRagdolling当场调用RagdollTraceGround，再决定Walking/GetUp或Falling/继承骨盆速度。
+- Target：`src/als/character/actions/ragdoll_link.rs:604–655` 从缓存 `AlsRagdollGroundFollow` 读取grounded和velocity；`:788–817` 再使用同一旧target，退出后不重新查询本帧支撑。
+- 反例：完整角色在平地进入ragdoll并稳定90帧，确认grounded=true；删除唯一支撑体后立即请求退出。实际最终LocomotionState=Air而Action=GettingUp，源当前查询应直接Air且无GetUp，实际消费者断言FAIL。
+- 影响：地面被移除/移走同帧退出时在空中播放起身并阻塞输入，且可能用过时位置/速度恢复。旧退出Gate只比较固定grounded布尔分支，没有验证查询到退出之间的场景生命周期变化。
+
 ## 未定级观察
 
 BF138 的固定 `0.046875` 秒 UphillJump 记录存在 pre-rig 腿平面异常，但旧报告缺少当帧完整图输入与混合源骨骼。它是待核实症状，不能据此认定源/目标差异或复开相邻图。
+
+## 撤销记录
+
+P2-01 Sprint 于2026-10-11 12:01 +08:00撤销。工程插件链接实际指向原始仓库的 Build 副本；原始 `ALSExtras/Private/AlsCharacterExample.cpp:75–76,127` 绑定 Triggered/Canceled 并按输入bool选择 Sprinting/Running，与目标一致。Build的Started/toggle属于本地调试修改，不能作为原始 `b754d6f0` 的移植合同。原错误断言与阶段报告保留作审计失误证据，不再计入已确认差异；编号不复用。146个原始C++/header完整比较，仅此cpp/header存在语义改动，AnimationInstance仅换行不同；已使用的6个uasset与原始资产字节一致，其他已登记差异的源文件不受影响。后续C++一律从原始插件根读取。
 
 ## 审计验证与限制
 
@@ -105,7 +123,7 @@ BF139.01 使用当前生产库链接独立 Rust 反例，保存于本地 `target
 
 | 文件 | SHA-256 |
 |---|---|
-| AlsCharacterExample.cpp | `bcfacb62ffc48eb77937c4c9a74ac68d49d8b5a9d687374530c0e72f406cb833` |
+| AlsCharacterExample.cpp（原始） | `ba558540dd414d57bd61bb37c57cf3db9d6a1b6a15088463616588845fc1afa4` |
 | AlsCharacter.cpp | `779192e94d0a1ac13ccf95cfa9db540cc4f6230a2dc3ab9113848f8d983ace84` |
 | AlsCharacterMovementComponent.cpp | `e37d349bc41a5de208cbdd1799c32741cf84aa5bddfe5580906c50f2a6360dda` |
 | UE Actor.h | `2ee1effb7ab4ac4cf65cf6caa90a27cea45361feefaae0cb673f7265e00bc5c9` |
@@ -114,3 +132,7 @@ BF139.01 使用当前生产库链接独立 Rust 反例，保存于本地 `target
 | AlsRootMotionSource_Mantling.cpp | `624964d860117f3794d249a2b8d25e5d0c610b7dd852751e052e60bb19b7d55e` |
 
 BF139.02 的实际角色反例在资产就绪后执行；根图异步加载期间的临时 OutputMissing 不作为本次动作缺陷。fresh native导出 Roll/GetUp Front/Mantle High 已完成，生成数据的播放率/混入/混出/Trigger字段已核对。累计14测试为12预期语义FAIL和2对照PASS；本地源码与原始报告存于 `target/bf139/phase2/`。源 `PhysCustom` 的 MoveUpdatedComponent 明确不扫掠，不能把攀爬中不扫掠定为移植缺陷。
+
+BF139.03 fresh原生PA导出37.93秒通过；使用当前转换函数在本地重建完整physics profile，与安装文件对象逐字段完全一致（21body/20constraint/49pair），故以上为转换字段遗漏或消费者差异，不是旧产物未更新。Ragdoll查询使用带shape mode过滤的公开wrapper，原父空间退出、初始9次限速、驱动当前pose与实际碰撞仲裁已有实现，不重复登记。非默认且转换器明确拒绝的angular projection/capped angular drive等不冒充当前PA缺陷。
+
+更正Sprint源期望后，当前完整最小反例集17测试10.05秒完成：3PASS/14预期语义FAIL，归并11项有效P2，均未修复；源码/日志/JSON保留于本地 `target/bf139/phase3/`，watchdog未超时。
