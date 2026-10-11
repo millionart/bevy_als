@@ -501,7 +501,6 @@ pub fn grounded_dynamics_motor_system(
         };
         let world_velocity = Vec3::new(velocity.x, 0.0, velocity.z);
         if *locomotion == LocomotionState::Air {
-            let initial_velocity = world_velocity;
             let inherited = if let Some(mut base) = current_base_state {
                 if let Some(previous) = base.entity {
                     let current = controller.basis_memory.standing_on_entity().unwrap_or(previous);
@@ -512,20 +511,10 @@ pub fn grounded_dynamics_motor_system(
                     inherited.with_y(0.0)
                 } else { Vec3::ZERO }
             } else { Vec3::ZERO };
-            let world_velocity = world_velocity + inherited;
-            let max_speed = max_allowed_speed(params, *stance, *rotation_mode,
-                max_allowed_gait.0, world_velocity, view_yaw.0);
-            let air = GroundedDynamics {
-                acceleration: crate::als::motion::air_acceleration_for_horizontal_speed(params, world_velocity.length())
-                    .min(params.acceleration.max_acceleration),
-                braking_deceleration: 0.0, ground_friction: 0.0,
-            };
-            let (next, _) = simulate_grounded_velocity_with_braking_friction(world_velocity,
-                controller.basis.desired_motion, max_speed, air, &params.cmc, 0.0, time.delta_secs());
             motor.lin.acceleration.x = 0.0;
             motor.lin.acceleration.z = 0.0;
-            motor.lin.boost.x = next.x - initial_velocity.x;
-            motor.lin.boost.z = next.z - initial_velocity.z;
+            motor.lin.boost.x = inherited.x;
+            motor.lin.boost.z = inherited.z;
             continue;
         }
         let contact_point = character_contact_point(params, *stance, position.0);
@@ -621,13 +610,17 @@ pub(crate) fn limit_falling_velocity(
             || mantle.is_some_and(|state| state.active) { continue; }
         let gravity = crate::als::motion::effective_tnua_gravity(gravity.0,
             scale.map_or(1.0, |scale| scale.0), tnua_gravity.map(|gravity| gravity.0));
-        let Some(direction) = gravity.try_normalize() else { continue; };
         let limit = volume.unwrap_or(&default_volume.0).terminal_velocity.abs();
-        let falling = velocity.linear_velocity.dot(direction);
-        if falling > limit {
-            velocity.linear_velocity += direction * (limit - falling);
-        }
+        velocity.linear_velocity = clamp_falling_velocity(velocity.linear_velocity, gravity, limit);
     }
+}
+
+pub(crate) fn clamp_falling_velocity(mut velocity: Vec3, gravity: Vec3, limit: f32) -> Vec3 {
+    if let Some(direction) = gravity.try_normalize() {
+        let falling = velocity.dot(direction);
+        if falling > limit.abs() { velocity += direction * (limit.abs() - falling); }
+    }
+    velocity
 }
 
 pub struct AlsGroundedDynamicsPlugin;
@@ -1804,77 +1797,49 @@ mod tests {
             AlsCmcAdapterRuntime::default())).id();
         world.run_system_once(grounded_dynamics_motor_system).unwrap();
         let actual = velocity + world.get::<TnuaMotor>(character).unwrap().lin.boost.with_y(0.0);
-        let expected = velocity + Vec3::NEG_Z * config.air_acceleration * delta;
+        let expected = velocity;
         assert!(actual.distance(expected) < 1e-5,
             "The CMC consumed an unrelated slipping boost: {actual:?} != {expected:?}");
     }
 
     #[test]
-    fn airborne_motor_preserves_momentum_while_applying_input_acceleration() {
+    fn airborne_motor_preserves_the_source_old_velocity_until_the_movement_transaction() {
         use bevy::ecs::system::RunSystemOnce;
         use bevy_tnua::{TnuaBasis, TnuaBasisContext, TnuaProximitySensor, TnuaRigidBodyTracker};
-        for speed in [0.0, 0.2, 0.25, 3.75, 5.0] {
-            for direction in [Vec3::Z, Vec3::X, Vec3::NEG_X, Vec3::ZERO] {
-                for amount in [1.0, 0.4, 0.01] {
-                    for delta in [1.0 / 120.0, 1.0 / 60.0, 0.02] {
-                        let mut world = World::new();
-                        let mut time = Time::<()>::default();
-                        time.advance_by(std::time::Duration::from_secs_f32(delta));
-                        world.insert_resource(time);
-                        let params_value = AlsMovementParams::default();
-                        let mut assets = Assets::<AlsMovementParams>::default();
-                        let handle = assets.add(params_value.clone());
-                        world.insert_resource(assets);
-                        let velocity = Vec3::X * speed + Vec3::NEG_Y;
-                        let input = direction * amount;
-                        let mut controller = TnuaController::<AlsControlScheme>::default();
-                        controller.basis.desired_motion = input;
-                        let max_speed = max_allowed_speed(&params_value, Stance::Standing,
-                            RotationMode::ViewDirection, Gait::Running, velocity.with_y(0.0), 0.0);
-                        let mut config = crate::als::motion::initial_als_control_scheme_config(&params_value).basis;
-                        config.speed = max_speed;
-                        config.air_acceleration = if input == Vec3::ZERO { 0.0 } else if speed < 0.25 { 6.0 } else { 3.0 };
-                        let mut motor = TnuaMotor::default();
-                        controller.basis.apply(&config, &mut controller.basis_memory,
-                            &bevy_tnua::builtins::TnuaBuiltinWalkSensors { ground: &TnuaProximitySensor::default(), headroom: None },
-                            TnuaBasisContext { frame_duration: delta,
-                                tracker: &TnuaRigidBodyTracker { velocity, gravity: Vec3::NEG_Y * 9.81, ..default() },
-                                up_direction: Dir3::Y }, &mut motor);
-                        let vertical = (motor.lin.boost.y, motor.lin.acceleration.y);
-                        let character = world.spawn((AlsCharacter, LocomotionState::Air, Stance::Standing,
-                            RotationMode::ViewDirection, AlsViewYaw::default(), AlsMaxAllowedGait(Gait::Running),
-                            AlsGroundedDynamics::default(), AlsGaitAmount::default(), Position(Vec3::Y * 5.0),
-                            LinearVelocity(velocity), AlsMovementParamsHandle(handle), controller, motor, AlsCmcAdapterRuntime::default())).id();
-                        let mut expected = velocity.with_y(0.0);
-                        for _ in 0..15 {
-                            world.get_mut::<LinearVelocity>(character).unwrap().0 = expected + Vec3::NEG_Y;
-                            let mut motor = TnuaMotor::default();
-                            {
-                                let controller = world.get_mut::<TnuaController<AlsControlScheme>>(character).unwrap().into_inner();
-                                controller.basis.apply(&config, &mut controller.basis_memory,
-                                    &bevy_tnua::builtins::TnuaBuiltinWalkSensors { ground: &TnuaProximitySensor::default(), headroom: None },
-                                    TnuaBasisContext { frame_duration: delta,
-                                        tracker: &TnuaRigidBodyTracker { velocity: expected + Vec3::NEG_Y,
-                                            gravity: Vec3::NEG_Y * 9.81, ..default() }, up_direction: Dir3::Y }, &mut motor);
-                            }
-                            *world.get_mut::<TnuaMotor>(character).unwrap() = motor;
-                            world.run_system_once(grounded_dynamics_motor_system).unwrap();
-                            let motor = world.get::<TnuaMotor>(character).unwrap();
-                            let actual = (expected + motor.lin.boost + motor.lin.acceleration * delta).with_y(0.0);
-                            if input != Vec3::ZERO {
-                                let target_speed = (max_speed * amount).max(0.25);
-                                let limit = if expected.length_squared() > target_speed * target_speed * 1.01 {
-                                    expected.length() } else { target_speed };
-                                let acceleration = if expected.length() < 0.25 { 6.0 } else { 3.0 };
-                                expected = (expected + input * acceleration * delta).clamp_length_max(limit);
-                            }
-                            assert!(actual.distance(expected) < 2e-6,
-                                "speed={speed} input={input:?} delta={delta}: {actual:?} != {expected:?}");
-                            assert_eq!((motor.lin.boost.y, motor.lin.acceleration.y), vertical);
-                            assert_eq!(world.get::<LinearVelocity>(character).unwrap().y, -1.0);
-                        }
-                    }
-                }
+        for speed in [0.0, 5.0] {
+            for input in [Vec3::X, Vec3::Z * 0.4, Vec3::ZERO] {
+                let mut world = World::new();
+                let delta = 0.2;
+                let mut time = Time::<()>::default();
+                time.advance_by(std::time::Duration::from_secs_f32(delta));
+                world.insert_resource(time);
+                let params_value = AlsMovementParams::default();
+                let mut assets = Assets::<AlsMovementParams>::default();
+                let handle = assets.add(params_value.clone());
+                world.insert_resource(assets);
+                let velocity = Vec3::X * speed + Vec3::NEG_Y;
+                let mut controller = TnuaController::<AlsControlScheme>::default();
+                controller.basis.desired_motion = input;
+                let config = crate::als::motion::initial_als_control_scheme_config(&params_value).basis;
+                let mut motor = TnuaMotor::default();
+                controller.basis.apply(&config, &mut controller.basis_memory,
+                    &bevy_tnua::builtins::TnuaBuiltinWalkSensors { ground: &TnuaProximitySensor::default(), headroom: None },
+                    TnuaBasisContext { frame_duration: delta,
+                        tracker: &TnuaRigidBodyTracker { velocity, gravity: Vec3::NEG_Y * 9.81, ..default() },
+                        up_direction: Dir3::Y }, &mut motor);
+                let vertical = (motor.lin.boost.y, motor.lin.acceleration.y);
+                let character = world.spawn((AlsCharacter, LocomotionState::Air, Stance::Standing,
+                    RotationMode::ViewDirection, AlsViewYaw::default(), AlsMaxAllowedGait(Gait::Running),
+                    AlsGroundedDynamics::default(), AlsGaitAmount::default(), Position(Vec3::Y * 5.0),
+                    LinearVelocity(velocity), AlsMovementParamsHandle(handle), controller, motor,
+                    AlsCmcAdapterRuntime::default())).id();
+                world.run_system_once(grounded_dynamics_motor_system).unwrap();
+                let motor = world.get::<TnuaMotor>(character).unwrap();
+                assert_eq!(motor.lin.boost.with_y(0.0), Vec3::ZERO,
+                    "Air control must not replace the source old velocity before movement");
+                assert_eq!(motor.lin.acceleration.with_y(0.0), Vec3::ZERO);
+                assert_eq!((motor.lin.boost.y, motor.lin.acceleration.y), vertical);
+                assert_eq!(world.get::<LinearVelocity>(character).unwrap().0, velocity);
             }
         }
     }

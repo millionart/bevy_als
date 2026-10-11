@@ -310,14 +310,16 @@ mod tests {
                             .init_resource::<PostMotorSample>().insert_resource(SubstepCount(substeps))
                             .insert_resource(avian3d::prelude::Gravity(Vec3::NEG_Y * gravity_strength))
                             .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0 / 60.0)))
-                            .add_systems(PostUpdate, (|mut sample: ResMut<PostMotorSample>,
-                                characters: Query<(&LinearVelocity, &Position, &AlsEffectiveGravity, Ref<Collider>, &bevy_tnua::TnuaController<AlsControlScheme>, &LocomotionState, Option<&crate::als::dynamics::AlsMovementBaseDynamicsState>)>| {
-                                for (velocity, position, gravity, collider, controller, mode, base) in &characters {
+                            .add_systems(Update, (|mut sample: ResMut<PostMotorSample>,
+                                characters: Query<(&LinearVelocity, &bevy_tnua::TnuaMotor, &Position, &AlsEffectiveGravity, Ref<Collider>, &bevy_tnua::TnuaController<AlsControlScheme>, &LocomotionState, Option<&crate::als::dynamics::AlsMovementBaseDynamicsState>)>| {
+                                for (velocity, motor, position, gravity, collider, controller, mode, base) in &characters {
                                     if controller.action_flow_status().just_starting() == Some(crate::als::control_scheme::AlsControlSchemeActionDiscriminant::Jump) {
-                                        sample.0 = Some((velocity.0, position.0, gravity.value, collider.is_changed(), *mode, base.and_then(|base| base.entity)));
+                                        sample.0 = Some((velocity.0 + motor.lin.boost, position.0, gravity.value, collider.is_changed(), *mode, base.and_then(|base| base.entity)));
                                     }
                                 }
-                            }).before(SourcePhysicsTimingSet::Clamp).before(PhysicsSystems::First));
+                            }).after(crate::als::dynamics::grounded_dynamics_motor_system)
+                                .before(crate::als::motion::cmc_movement_transaction_system)
+                                .before(bevy_tnua::TnuaPipelineSystems::Motors));
                         app.finish(); app.update();
                         let value = AlsMovementParams::default();
                         let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(value.clone());
@@ -351,7 +353,35 @@ mod tests {
                         }
                         let delta = delta_ms as f32 / 1000.0;
                         let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
-                        let expected = before + gravity * delta;
+                        let acceleration = crate::als::motion::air_acceleration_for_horizontal_speed(&value, before.with_y(0.0).length())
+                            .min(value.acceleration.max_acceleration);
+                        let input = Vec3::new(horizontal_input.x, 0.0, -horizontal_input.y);
+                        let max_speed = crate::als::dynamics::max_allowed_speed(&value,
+                            crate::als::state::Stance::Standing, crate::als::state::RotationMode::ViewDirection,
+                            crate::als::state::Gait::Running, before.with_y(0.0), 0.0);
+                        let target_speed = (max_speed * input.length()).max(value.cmc.min_analog_walk_speed);
+                        let mut horizontal = before.with_y(0.0);
+                        let mut horizontal_movement = Vec3::ZERO;
+                        let mut remaining = delta;
+                        let mut iteration = 0;
+                        while remaining >= crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS
+                            && iteration < value.cmc.max_simulation_iterations {
+                            iteration += 1;
+                            let step = if remaining > value.cmc.max_simulation_time_step
+                                && iteration < value.cmc.max_simulation_iterations {
+                                value.cmc.max_simulation_time_step.min(remaining * 0.5)
+                            } else { remaining };
+                            let old_horizontal = horizontal;
+                            if input != Vec3::ZERO {
+                                let limit = if horizontal.length_squared() > target_speed.powi(2) * 1.01 {
+                                    horizontal.length()
+                                } else { target_speed };
+                                horizontal = (horizontal + input * acceleration * step).clamp_length_max(limit);
+                            }
+                            horizontal_movement += (old_horizontal + horizontal) * (0.5 * step);
+                            remaining -= step;
+                        }
+                        let expected = horizontal + Vec3::Y * before.y + gravity * delta;
                         assert!(velocity.distance(expected) < 0.0001,
                             "delta={delta_ms} substeps={substeps} support={support_speed} changed={changed}: post_motor={before:?} actual={velocity:?} expected={expected:?}");
                         assert_eq!(mode, LocomotionState::Air);
@@ -359,7 +389,8 @@ mod tests {
                         let physics_delta = delta.min(SOURCE_MAX_PHYSICS_DELTA.as_secs_f32());
                         assert!((app.world().get::<LinearVelocity>(ordinary).unwrap().y - ordinary_velocity + gravity_strength * physics_delta).abs() < 0.0001);
                         assert!((app.world().get::<Position>(platform).unwrap().x - platform_start.x - takeoff_speed * physics_delta).abs() < 0.0001);
-                        assert!((app.world().get::<Position>(character).unwrap().x - position.x - before.x * delta).abs() < 0.0001);
+                        assert!(((app.world().get::<Position>(character).unwrap().0 - position).with_y(0.0)
+                            - horizontal_movement).length() < 0.0001);
                         assert_eq!(*app.world().get::<LocomotionState>(character).unwrap(), LocomotionState::Air);
                         }
                     }
@@ -561,6 +592,32 @@ mod tests {
     }
 
     #[test]
+    fn browser_feedback_air_horizontal_acceleration_keeps_source_displacement() {
+        use crate::als::input::AlsInputCommand;
+        for input in [Vec2::ZERO, Vec2::X] {
+            let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
+            assert!(app.is_plugin_added::<SourcePhysicsTimingPlugin>());
+            let start = Vec3::Y * 10.0;
+            app.world_mut().entity_mut(character).insert((Position(start), Transform::from_translation(start),
+                LinearVelocity(Vec3::new(1.0, -2.0, 0.0)), LocomotionState::Air,
+                crate::als::transition::AlsStateRequest { locomotion_state: Some(LocomotionState::Air), ..default() },
+                crate::als::dynamics::AlsMovementBaseDynamicsState::default(),
+                AlsInputCommand { move_dir: input, ..default() }));
+            app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(200)));
+            app.update();
+            let actual = app.world().get::<Position>(character).unwrap().0 - start;
+            let velocity = app.world().get::<LinearVelocity>(character).unwrap().0;
+            let acceleration = if input == Vec2::ZERO { 0.0 } else { 3.0 };
+            assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Air));
+            assert!((velocity.x - (1.0 + acceleration * 0.2)).abs() < 1e-4,
+                "Air fixture must retain the source final velocity: input={input:?} velocity={velocity:?}");
+            let expected = 0.2 + 0.5 * acceleration * 0.2 * 0.2;
+            assert!((actual.x - expected).abs() < 1e-4,
+                "Air horizontal acceleration was applied before the source old velocity: input={input:?} actual={actual:?} expected_x={expected}");
+        }
+    }
+
+    #[test]
     fn browser_feedback_air_wall_slide_keeps_full_gravity_and_remaining_movement() {
         for wall in [false, true] {
             let mut app = App::new();
@@ -598,6 +655,44 @@ mod tests {
             assert!((velocity.y - final_y).abs() < 1e-4 && (position.y - expected_y).abs() < 1e-4
                 && (velocity.x - if wall { 0.0 } else { 3.75 }).abs() < 1e-4,
                 "Air collision reused midpoint movement after impact: wall={wall} position={position:?} velocity={velocity:?} expected_y={expected_y} expected_velocity_y={final_y}");
+        }
+    }
+
+    #[test]
+    fn browser_feedback_air_source_steps_keep_caps_boost_analog_and_momentum() {
+        use crate::als::{input::AlsInputCommand, state::{Gait, Stance, RotationMode}};
+        let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+        let handle = app.world().get::<crate::als::character::AlsMovementParamsHandle>(actor).unwrap().0.clone();
+        let settings = app.world().resource::<Assets<crate::als::params::AlsMovementParams>>().get(&handle).unwrap().clone();
+        let limit = crate::als::dynamics::max_allowed_speed(&settings, Stance::Standing,
+            RotationMode::ViewDirection, Gait::Running, Vec3::X, 0.0);
+        assert!(limit > 1.6);
+        for (label, initial, input, delta, iterations, expected_velocity, expected_delta) in [
+            ("cap", limit - 0.05, Vec2::X, 0.2, 8, Vec3::X * limit, Vec3::X * (limit * 0.2 - 0.00125)),
+            ("cap_single_step", limit - 0.05, Vec2::X, 0.2, 1, Vec3::X * limit, Vec3::X * (limit * 0.2 - 0.005)),
+            ("overspeed", 5.0, Vec2::ZERO, 0.2, 8, Vec3::X * 5.0, Vec3::X),
+            ("boost", 0.0, Vec2::X, 0.1, 8, Vec3::X * 0.6, Vec3::X * 0.03),
+            ("analog", 0.5, Vec2::X * 0.4, 0.2, 8, Vec3::X * 0.74, Vec3::X * 0.124),
+            ("reverse", 1.0, Vec2::NEG_X, 0.2, 8, Vec3::X * 0.4, Vec3::X * 0.14),
+            ("side", 1.0, Vec2::Y, 0.2, 8, Vec3::new(1.0, 0.0, -0.6), Vec3::new(0.2, 0.0, -0.06)),
+            ("short_frame", 1.0, Vec2::X, 0.02, 8, Vec3::X * 1.06, Vec3::X * 0.0206),
+        ] {
+            let mut params = settings.clone();
+            params.cmc.max_simulation_iterations = iterations;
+            let replacement = app.world_mut().resource_mut::<Assets<crate::als::params::AlsMovementParams>>().add(params);
+            let start = Vec3::Y * 10.0;
+            app.world_mut().entity_mut(actor).insert((Position(start), Transform::from_translation(start),
+                LinearVelocity(Vec3::new(initial, -2.0, 0.0)), LocomotionState::Air,
+                crate::als::character::AlsMovementParamsHandle(replacement),
+                crate::als::transition::AlsStateRequest { locomotion_state: Some(LocomotionState::Air), ..default() },
+                crate::als::dynamics::AlsMovementBaseDynamicsState::default(),
+                AlsInputCommand { move_dir: input, ..default() }));
+            app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(delta)));
+            app.update();
+            let velocity = app.world().get::<LinearVelocity>(actor).unwrap().0.with_y(0.0);
+            let actual = (app.world().get::<Position>(actor).unwrap().0 - start).with_y(0.0);
+            assert!(velocity.distance(expected_velocity) < 1e-4 && actual.distance(expected_delta) < 1e-4,
+                "Source falling step budget differs: case={label} velocity={velocity:?} position={actual:?} expected_velocity={expected_velocity:?} expected_position={expected_delta:?}");
         }
     }
 

@@ -2,7 +2,7 @@
 
 本轮起始版本 `9105cdf`；对标本地 ALS-Refactored 与 UE 5.8 的当次 source。严重级与任务边界见 `CHECKLIST.md` BF134。仅登记有源事实、可达 target consumer 与可重复触发条件的 P2 及以上差异；旧结论不代替 fresh 审计。
 
-当前已确认并修复 **156 项 P2 及以上差异**：BF134 验收 122 项、BF135 补修 29 项、BF137.01–.04 新修 GetUp 时钟、Roll 时钟与父级空间、Mantle 时钟四项。BF138.01 新修 Air 碰撞剩余预算一项。BF135 另 4 项重复不计；这些是已证实边界的验收，不能宣称未知差异已经穷尽。完整逐项 source、触发条件、反例、修复、消融和 Gate 记录见 [CHECKLIST.md](../CHECKLIST.md)、[BF135 逐项台账](bf135/review.md) 与本页 BF137 表。本页下方早期逐项记录保留当时语义；当前覆盖状态以本节及最新验收记录为准。
+当前已确认并修复 **157 项 P2 及以上差异**：BF134 验收 122 项、BF135 补修 29 项、BF137.01–.04 新修 GetUp 时钟、Roll 时钟与父级空间、Mantle 时钟四项，BF138 新修 Air 碰撞剩余预算及水平加速位移两项。BF135 另 4 项重复不计；这些是已证实边界的验收，不能宣称未知差异已经穷尽。完整逐项 source、触发条件、反例、修复、消融和 Gate 记录见 [CHECKLIST.md](../CHECKLIST.md)、[BF135 逐项台账](bf135/review.md) 与本页 BF137/BF138 表。本页下方早期逐项记录保留当时语义；当前覆盖状态以本节及最新验收记录为准。
 
 初始 inventory：146 个源 C++/header（ALS 112、ALSCamera 12、ALSEditor 16、ALSExtras 6），181 个 target Rust，15 个 installed AnimBP root、359 个生成依赖文件和 15 份安装 manifest，文件缺失 0；完成时的 target scope 为 182 个文件，包含源归属迁移和一个通用查询数据文件。源 revision 为 ALS `b754d6f0f2bb03741d301f8fb88077ebfe561e17`、UE `396c9f059903aed5fec78ecd3d437a40c6415368`；完整相对路径和 SHA-256 在本地证据 `target/bf134/inventory.json` 与 `target/bf134/04/current_inventory.json`。B_Als_Character 原生 reader 39.050 秒成功；watchdog self-test 通过。Editor/AI/网络与刻意差异按执行清单排除。
 
@@ -52,9 +52,9 @@ BF136 当轮没有新增 source-proven P2，完成时已确认待修项为零；
 | 条目 | 触发与源差异 | 当前状态 |
 |---|---|---|
 | BF733-P2-02 / BF138.01 | Air中途撞竖墙，无水平加速度；源首次中点，碰后改末速度预算。旧目标将中点剩余位移回算速度，−2.229688而源−2.459375，位置也偏小 | 已修。两个falling消费者共用sweep/真实deflected velocity，三消融确切红、恢复2 focused/22相关，正常构建与原startup/uphill功能通过；`target/bf138/wall_acceptance.json` |
-| BF733-P2-01 | Air速度1m/s、加速3m/s²、0.2s，末速1.6正确但位移0.32m而源0.26m；motor boost早于旧速度记录 | 已在当前版本确认，独立待修 |
+| BF733-P2-01 / BF138.02 | Air速度1m/s、加速3m/s²、0.2s，末速1.6正确但位移0.32m而源0.26m；motor boost早于旧速度记录 | 已修。Air输入/重力/中点/sweep按源步长共用事务，motor只保留基座继承，输出在落地判定前发布并一次消费；无新增状态。原反例、8组解析边界、183相关、六必要消融、字节恢复12 focused及driver恢复8 focused通过；最终正常构建与七标准入口104项功能通过；`target/bf138/air_acceptance.json` |
 
-额外固定0.046875秒UphillJump的动作覆盖完成，但pre-rig左腿平面守卫失败。该报告保留为未定级姿态症状，未证明源相同或物理根因，未计固定模式视觉通过；常规入口全部原guard通过。性能延期与Capture0保持。
+额外固定0.046875秒UphillJump仍未通过视觉Gate：首次左腿平面失败、第二次case13粗帧越过起跳输入窗口后同帧着地而无进展，均保留原报告。driver仅增加实际速度×当前Delta的越界前输入；原生反例/唯一条件消融/字节恢复证明必要性，最终6项/18跳完成，但pre-rig右腿平面仍失败（dot−0.6501281、rate48.609055>30）。前后骨长与root通道有效，缺少当帧完整图输入/源骨骼，尚未形成source-target根因闭包；不计新增P2、不改图/阈值、不宣称固定视觉通过或旧症状同根。标准入口全部原guard通过，性能延期与Capture0保持。
 
 ## 早期逐项差异记录
 

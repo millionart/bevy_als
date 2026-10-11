@@ -72,6 +72,7 @@ impl Probe {
 }
 
 pub(super) fn drive(
+    time: Res<Time>,
     mut state: ResMut<ManualIntegrationState>,
     mut phase: ResMut<ManualRuntimePhaseEvidence>,
     stairs: Query<(&Collider, &GlobalTransform, &PlaygroundMeshColliderBuilt)>,
@@ -122,7 +123,9 @@ pub(super) fn drive(
         }
         Stage::Approach => {
             input.0.move_dir = Vec2::Y;
-            if (position.0 - probe.start.unwrap()).dot(probe.direction) >= probe.launch_distance() {
+            let progress = (position.0 - probe.start.unwrap()).dot(probe.direction);
+            let next_progress = progress + velocity.0.dot(probe.direction).max(0.0) * time.delta_secs();
+            if next_progress >= probe.launch_distance() {
                 input.0.jump_pressed = true;
                 probe.launch_y = Some(position.y);
                 probe.begin(Stage::Flight, now);
@@ -204,6 +207,33 @@ mod tests {
     use super::*;
 
     #[test]
+    fn coarse_step_jump_input_does_not_wait_until_after_the_launch_window() {
+        use bevy::ecs::system::RunSystemOnce;
+        for (progress, speed, expected) in [(0.79, 3.75, true), (0.6, 3.75, false), (0.79, 0.0, false)] {
+            let mut world = World::new();
+            let mut clock = Time::<()>::default();
+            clock.advance_by(std::time::Duration::from_secs_f32(0.046875));
+            world.insert_resource(clock);
+            let mut params = Assets::<AlsMovementParams>::default();
+            let handle = params.add(AlsMovementParams::default());
+            world.insert_resource(params);
+            let start = Vec3::new(0.0, 0.9, 1.0);
+            let position = start + Vec3::NEG_Z * progress;
+            let actor = world.spawn((AlsCharacter, AlsInputOverride::default(), Transform::from_translation(position), Position(position),
+                LinearVelocity(Vec3::NEG_Z * speed), AlsViewYaw(0.0), AlsViewPitch(0.0), Stance::Standing, LocomotionState::Grounded,
+                AlsDesiredGait(Gait::Running), AlsLastFreeRotationMode(RotationMode::ViewDirection), AlsMovementParamsHandle(handle),
+                TnuaController::<crate::als::control_scheme::AlsControlScheme>::default())).id();
+            world.insert_resource(ManualIntegrationState { character: Some(actor), phase: IntegrationPhase::UphillJump,
+                game_time_seconds: 0.5, uphill_probe: Probe { index: 13, start: Some(start), direction: Vec3::NEG_Z,
+                    stage: Stage::Approach, stage_started: 0.4, ..default() }, ..default() });
+            world.init_resource::<ManualRuntimePhaseEvidence>();
+            world.run_system_once(drive).unwrap();
+            assert_eq!(world.get::<AlsInputOverride>(actor).unwrap().0.jump_pressed, expected,
+                "Uphill input missed its declared launch window: progress={progress} speed={speed}");
+        }
+    }
+
+    #[test]
     fn uphill_probe_rejects_supported_air_and_waits_for_real_graph_recovery() {
         let air = LocomotionGraphSample { outer:Some(1), outer_transition:Some(false), outer_weights:[0.0,1.0,0.0,0.0,0.0], ..default() };
         let land = LocomotionGraphSample { outer:Some(4), outer_transition:Some(false), outer_weights:[0.0,0.0,0.0,0.0,1.0], ..default() };
@@ -233,6 +263,7 @@ mod tests {
     fn uphill_driver_uses_actual_jump_input_after_the_ready_and_distance_conditions() {
         use bevy::ecs::system::RunSystemOnce;
         let mut world = World::new();
+        world.insert_resource(Time::<()>::default());
         let mut params = Assets::<AlsMovementParams>::default();
         let handle = params.add(AlsMovementParams::default());
         world.insert_resource(params);

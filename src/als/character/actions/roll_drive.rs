@@ -430,6 +430,7 @@ pub(crate) mod tests {
             (9.999, false, false), (10.0, false, true), (10.001, false, true), (10.0, true, true),
         ] {
             let (mut app, character, _) = loaded_roll_character();
+            for _ in 0..2 { app.update(); }
             *app.world_mut().get_mut::<LocomotionState>(character).unwrap() = LocomotionState::Air;
             app.world_mut().get_mut::<AlsActualMotion>(character).unwrap().world_velocity = Vec3::NEG_Y * saved_downward_speed;
             if getting_up {
