@@ -605,7 +605,8 @@ fn refresh_animation_event_playbacks(
             (sampler.character == character).then_some(tail.map(|tail| (entity.to_bits(), tail.time, None, tail.weight(), true))) .flatten()
         }).collect::<Vec<_>>();
         if let Some(roll) = roll.filter(|state| state.active) {
-            let weight = crate::als::roll::roll_weight_at(roll.time).max(crate::als::roll::roll_weight_at(roll.previous_time));
+            let previous = AlsRollState { time: roll.previous_time, ..*roll };
+            let weight = roll.weight().max(previous.weight());
             roll_instances.push((current, roll.time, Some(roll.previous_time), weight, roll_blend_out.is_some()));
         }
         for (instance_id, elapsed, previous, weight, interrupted) in roll_instances {

@@ -268,12 +268,12 @@ impl AlsTransitionPlayback {
         if let Some(stop_elapsed) = &mut self.stop_elapsed {
             *stop_elapsed += delta_seconds.max(0.0);
         } else {
-            self.weight = transition_blend_amount(self.elapsed.min(playback_duration), self.blend_in);
-            if self.elapsed < playback_duration {
+            self.weight = transition_blend_amount(self.elapsed, self.blend_in);
+            if playback_duration - self.elapsed > 1e-4 {
                 return;
             }
             self.stop_with_duration(self.blend_out, false);
-            self.stop_elapsed = Some(self.elapsed - playback_duration);
+            return;
         }
         let stop_elapsed = self.stop_elapsed.unwrap();
         self.weight = self.stop_start_weight * (1.0 - transition_blend_amount(stop_elapsed, self.stop_duration));
@@ -1257,6 +1257,31 @@ mod tests {
         stack.begin(instant);
         stack.advance(0.0);
         assert_eq!(stack.latest().unwrap().weight, 1.0);
+    }
+
+    #[test]
+    fn transition_end_crossing_keeps_the_updated_weight_and_full_blend_budget() {
+        for rate in [0.5, 1.5, 3.0] {
+            let mut playback = AlsTransitionPlayback::standing_dynamic(0.0);
+            playback.play_rate = rate;
+            playback.elapsed = playback.duration / rate - 0.02;
+            playback.clip_time = playback.duration - 0.02 * rate;
+            playback.weight = 1.0;
+            playback.advance(0.1);
+            assert_eq!(playback.weight, 1.0);
+            assert_eq!(playback.stop_elapsed, Some(0.0));
+            assert!(!playback.interrupted);
+            playback.advance(playback.blend_out * 0.5);
+            assert!((playback.weight - 0.5).abs() < 1e-6);
+            playback.advance(playback.blend_out * 0.5);
+            assert!(!playback.active);
+        }
+        let mut short = AlsTransitionPlayback::new(AlsTransitionKind::StandingDynamic, 0.0, 0.2, 0.2, 1.5, 0.0, 0.03);
+        short.advance(0.1);
+        assert_eq!(short.weight, 0.5, "The source updates weight with the full delta before advancing to the end");
+        assert_eq!(short.stop_elapsed, Some(0.0));
+        short.advance(0.1);
+        assert_eq!(short.weight, 0.25);
     }
 
     #[test]

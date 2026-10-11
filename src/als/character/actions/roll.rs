@@ -25,7 +25,7 @@ pub struct AlsRollState {
     pub active: bool,
     pub time: f32,
     pub previous_time: f32,
-    pub cooldown: f32,
+    pub natural_blend_start: Option<f32>,
     pub direction_yaw: f32,
     pub last_direction: MoveDirection,
     pub stance_before_roll: Stance,
@@ -37,20 +37,12 @@ impl Default for AlsRollState {
             active: false,
             time: 0.0,
             previous_time: 0.0,
-            cooldown: 0.0,
+            natural_blend_start: None,
             direction_yaw: 0.0,
             last_direction: MoveDirection::Forward,
             stance_before_roll: Stance::Standing,
         }
     }
-}
-
-pub fn roll_weight_at(elapsed: f32) -> f32 {
-    let remaining = (ROLL_DURATION_SECS - elapsed).max(0.0);
-    let alpha = (elapsed / ROLL_WEIGHT_IN_SECS)
-        .clamp(0.0, 1.0)
-        .min((remaining / ROLL_WEIGHT_OUT_SECS).clamp(0.0, 1.0));
-    alpha * alpha * (3.0 - 2.0 * alpha)
 }
 
 pub fn select_roll_direction(input_yaw: Option<f32>, basis: &AlsViewYaw) -> (MoveDirection, f32) {
@@ -94,6 +86,14 @@ pub fn damper_exact_angle(
 }
 
 impl AlsRollState {
+    pub fn weight(&self) -> f32 {
+        let alpha = if let Some(start) = self.natural_blend_start {
+            let duration = ROLL_DURATION_SECS - start;
+            if duration > 0.0 { (ROLL_DURATION_SECS - self.time) / duration } else { 0.0 }
+        } else { self.time / ROLL_WEIGHT_IN_SECS }.clamp(0.0, 1.0);
+        alpha * alpha * (3.0 - 2.0 * alpha)
+    }
+
     pub fn root_motion_active(&self) -> bool {
         self.active && self.time < ROLL_DURATION_SECS - ROLL_WEIGHT_OUT_SECS
     }
@@ -114,6 +114,7 @@ impl AlsRollState {
         self.active = true;
         self.time = 0.0;
         self.previous_time = 0.0;
+        self.natural_blend_start = None;
         RollLifecycle {
             started: true,
             ended: false,
@@ -129,11 +130,13 @@ impl AlsRollState {
         dt: f32,
     ) -> RollLifecycle {
         let mut lifecycle = RollLifecycle::default();
-        self.cooldown = 0.0;
         self.previous_time = self.time;
         if self.active {
             let playing = self.root_motion_active();
             self.time += dt;
+            if self.natural_blend_start.is_none() && self.time >= ROLL_DURATION_SECS - ROLL_WEIGHT_OUT_SECS {
+                self.natural_blend_start = Some(self.time);
+            }
             if self.time >= ROLL_DURATION_SECS {
                 self.active = false;
                 self.time = ROLL_DURATION_SECS;
@@ -148,6 +151,7 @@ impl AlsRollState {
             self.active = true;
             self.time = 0.0;
             self.previous_time = 0.0;
+            self.natural_blend_start = None;
             lifecycle.started = true;
         }
         lifecycle
@@ -160,9 +164,12 @@ mod tests {
 
     #[test]
     fn roll_montage_weight_uses_source_hermite_cubic_blends() {
-        assert!((roll_weight_at(ROLL_WEIGHT_IN_SECS * 0.25) - 0.15625).abs() < 1e-6);
+        let mut state = AlsRollState { time: ROLL_WEIGHT_IN_SECS * 0.25, ..default() };
+        assert!((state.weight() - 0.15625).abs() < 1e-6);
+        state.natural_blend_start = Some(ROLL_DURATION_SECS - ROLL_WEIGHT_OUT_SECS);
+        state.time = ROLL_DURATION_SECS - ROLL_WEIGHT_OUT_SECS * 0.25;
         assert!(
-            (roll_weight_at(ROLL_DURATION_SECS - ROLL_WEIGHT_OUT_SECS * 0.25) - 0.15625).abs()
+            (state.weight() - 0.15625).abs()
                 < 1e-6
         );
     }
@@ -228,15 +235,42 @@ mod tests {
             ROLL_DURATION_SECS,
         );
         assert!(end.ended && !state.active);
-        assert_eq!(state.cooldown, 0.0);
+        assert!(state.update(&base_cmd(), (MoveDirection::Forward, 0.0),
+            &LocomotionState::Grounded, &Stance::Crouching, 0.0).started);
         assert!((ROLL_DURATION_SECS - 1.5 / 1.3).abs() < 1e-6);
     }
 
     #[test]
     fn montage_blend_windows_match_source_asset() {
-        assert!(roll_weight_at(0.0) <= 1e-6);
-        assert!((roll_weight_at(ROLL_WEIGHT_IN_SECS) - 1.0).abs() < 1e-6);
-        assert!(roll_weight_at(ROLL_DURATION_SECS) <= 1e-6);
+        let mut state = AlsRollState::default();
+        assert!(state.weight() <= 1e-6);
+        state.time = ROLL_WEIGHT_IN_SECS;
+        assert!((state.weight() - 1.0).abs() < 1e-6);
+        state.time = ROLL_DURATION_SECS;
+        state.natural_blend_start = Some(ROLL_DURATION_SECS);
+        assert!(state.weight() <= 1e-6);
+    }
+
+    #[test]
+    fn natural_roll_stop_preserves_weight_and_uses_the_remaining_budget() {
+        for crossing_delta in [0.03, 0.07, 0.17] {
+            let mut state = AlsRollState { active: true,
+                time: ROLL_DURATION_SECS - ROLL_WEIGHT_OUT_SECS - 0.02, ..default() };
+            let input = AlsInputCommand::default();
+            state.update(&input, (MoveDirection::Forward, 0.0), &LocomotionState::Grounded,
+                &Stance::Standing, crossing_delta);
+            assert_eq!(state.weight(), 1.0, "Natural Stop consumed weight in its trigger frame");
+            let remaining = ROLL_DURATION_SECS - state.time;
+            for (delta, weight) in [(remaining * 0.25, 0.84375), (remaining * 0.25, 0.5), (remaining * 0.5, 0.0)] {
+                state.update(&input, (MoveDirection::Forward, 0.0), &LocomotionState::Grounded,
+                    &Stance::Standing, delta);
+                assert!((state.weight() - weight).abs() < 1e-5, "Natural Roll lost the source remaining-time budget");
+            }
+            assert!(!state.active);
+            assert!(state.update(&base_cmd(), (MoveDirection::Forward, 0.0), &LocomotionState::Grounded,
+                &Stance::Standing, 0.0).started);
+            assert_eq!(state.weight(), 0.0);
+        }
     }
 
     #[test]

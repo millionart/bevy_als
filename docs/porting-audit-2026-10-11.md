@@ -100,6 +100,8 @@
 
 ### P2-09 — Roll/GetUp/Transition 的自然混出时序不同
 
+修复完成（2026-10-12 04:35:10 +08:00）：三类动作均按源先更新权重、再Advance并首次Stop，触发帧保留当前weight，后续使用实际剩余预算；Transition自定义TriggerTime=0采用配置预算且不消费当帧越界量。Roll用一个可空起点替换无用cooldown，GetUp/Transition复用已有停止状态；真实slot/曲线/通知读取同一weight。fresh GetUp原生action End marker为1.166567，生成器不再误用Duration=1.166667，仅两处目标设置改变；全部15root/39来源完整重转，374图产物零新增/删除/修改。六项消融均语义FAIL，精确字节恢复同target重编83项相关控制通过，正式库原3完整角色反例/五运动矩阵、345规格/15root合同、510编辑器与声明式边界通过。真实startup/Base/GetUp/TransitionNotify全部功能通过，运动场景53/13/3项覆盖齐全，graph/fault/temporal为空、primary_failure=null。P208遗漏的落地方向已独立补闭并提交；保留初次夹具oracle、脚本guard和超时复盘记录，没有阈值补偿或相邻Turn修改。证据位于本地 `target/bf139/fix09/` 与 `target/animation_visual/bf139_p209/`；完整性能和截图延期保持。以下保留原审计记录。
+
 - Source：UE `Animation/AnimInstance.cpp:573–578` 先调用 `Montage_UpdateWeight`，再调用 `Montage_Advance`。`Animation/AnimMontage.cpp:2626–2636` 在本次 Advance 首次进入窗口时才执行 Stop，默认负 TriggerTime 使用当前剩余播放时间；Stop 只 `Blend.Update(0)`，不会在该帧额外推进混出。
 - Target：`roll.rs:48` 与 `get_up.rs:112–130` 根据推进后的 elapsed、固定默认 BlendOut 直接计算权重，没有首次进入窗口时的剩余时间状态。
 - 反例：100 ms帧、实际加载的 Roll（序列1.5 s、播放1.3、BlendOut0.3）到elapsed0.9时源weight=1，实际0.93627644。通过真实ragdoll退出启动 GetUp（序列1.5 s、RateScale1.2、BlendOut0.3），elapsed1.0时源weight=1，实际0.92592555。两个实际slot断言FAIL，进入窗口前weight1对照PASS。

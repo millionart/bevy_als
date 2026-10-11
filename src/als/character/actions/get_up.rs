@@ -98,37 +98,31 @@ impl AlsGetUpState {
 
     pub(crate) fn stop(&mut self, duration: f32) {
         self.interrupted = true;
-        let configured_duration = self.stop.map(|(_, duration, _)| duration).or_else(|| {
-            let settings = get_up_settings(self.facing_up);
-            (self.elapsed
-                >= settings.sequence_length / settings.play_rate - settings.blend_out_seconds)
-                .then_some(settings.blend_out_seconds)
-        });
+        let configured_duration = self.stop.map(|(_, duration, _)| duration);
         if configured_duration.is_none_or(|previous| duration < previous) {
             self.stop = Some((duration.max(0.0), duration.max(0.0), self.weight));
         }
     }
 
     pub(crate) fn advance(&mut self, delta: f32, settings: &GetUpClipSettings) {
+        let previous_clip_time = self.clip_time;
+        if let Some((remaining, blend_duration, start_weight)) = self.stop.as_mut() {
+            *remaining = (*remaining - delta).max(0.0);
+            let alpha = if *blend_duration > 0.0 { 1.0 - *remaining / *blend_duration } else { 1.0 };
+            self.weight = *start_weight * (1.0 - transition_alpha(alpha, AlphaBlendMode::Cubic, &[]));
+        }
         self.elapsed += delta;
         self.clip_time = (self.elapsed * settings.play_rate).min(settings.sequence_length);
-        let duration = settings.sequence_length / settings.play_rate;
-        let (alpha, start_weight) = if let Some((remaining, blend_duration, start_weight)) = self.stop.as_mut() {
-            *remaining = (*remaining - delta).max(0.0);
-            (if *blend_duration > 0.0 { 1.0 - *remaining / *blend_duration } else { 1.0 }, *start_weight)
-        } else if settings.blend_out_seconds <= 0.0
-            && (settings.sequence_length - self.clip_time) / settings.play_rate <= 1e-4
-        {
-            let remaining = ((settings.sequence_length - self.clip_time) / settings.play_rate).max(0.0);
+        let stop_position = if previous_clip_time < settings.notify_end_clip_seconds
+            && settings.notify_end_clip_seconds <= self.clip_time
+            && (settings.sequence_length - settings.notify_end_clip_seconds) / settings.play_rate
+                <= settings.blend_out_seconds.max(1e-4)
+        { settings.notify_end_clip_seconds } else { self.clip_time };
+        let remaining = ((settings.sequence_length - stop_position) / settings.play_rate).max(0.0);
+        if self.stop.is_none() && remaining <= settings.blend_out_seconds.max(1e-4) {
             self.stop = Some((remaining, remaining, self.weight));
-            (if remaining > 0.0 { 0.0 } else { 1.0 }, self.weight)
-        } else {
-            let start = duration - settings.blend_out_seconds;
-            (if settings.blend_out_seconds > 0.0 {
-                ((self.elapsed - start) / settings.blend_out_seconds).clamp(0.0, 1.0)
-            } else { 0.0 }, 1.0)
-        };
-        self.weight = start_weight * (1.0 - transition_alpha(alpha, AlphaBlendMode::Cubic, &[]));
+            if remaining <= 0.0 { self.weight = 0.0; }
+        }
     }
 }
 
@@ -687,7 +681,8 @@ mod tests {
         for facing_up in [false, true] {
             let settings = get_up_settings(facing_up);
             let mut state = AlsGetUpState::new(facing_up);
-            state.advance(settings.notify_end_clip_seconds / settings.play_rate, get_up_settings(state.facing_up));
+            state.advance(settings.sequence_length / settings.play_rate - settings.blend_out_seconds + 0.001, settings);
+            state.advance(settings.notify_end_clip_seconds / settings.play_rate - state.elapsed, settings);
             assert!(state.weight > 0.0 && state.weight < 1.0);
             assert!(state.clip_time < settings.sequence_length);
             state.advance(settings.sequence_length / settings.play_rate - state.elapsed, get_up_settings(state.facing_up));
@@ -735,5 +730,32 @@ mod tests {
         state.stop(0.2);
         state.advance(0.1, get_up_settings(state.facing_up));
         assert_eq!(state.weight, 0.0);
+    }
+
+    #[test]
+    fn natural_get_up_uses_the_first_branching_or_frame_stop_budget() {
+        for (rate, before, crossing, budget) in [
+            (0.6, 2.1, 0.11, 0.29),
+            (1.2, 0.9, 0.1, (1.5 - 1.166567) / 1.2),
+            (2.4, 0.2, 0.3, (1.5 - 1.166567) / 2.4),
+        ] {
+            let settings = GetUpClipSettings {
+                source_montage: String::new(), source_sequence: String::new(), clip: String::new(),
+                curves: String::new(), sequence_length: 1.5, play_rate: rate,
+                blend_out_seconds: 0.3, notify_end_clip_seconds: 1.166567,
+            };
+            let mut state = AlsGetUpState::new(false);
+            state.advance(before, &settings);
+            assert!(state.stop.is_none());
+            state.advance(crossing, &settings);
+            assert_eq!(state.weight, 1.0, "Natural Stop consumed weight in its trigger frame");
+            assert!((state.stop.unwrap().1 - budget).abs() < 1e-6,
+                "Natural GetUp ignored the first source substep that starts the blend");
+            state.advance(budget * 0.5, &settings);
+            assert!((state.weight - 0.5).abs() < 1e-5);
+            assert!(!state.interrupted);
+            state.advance(budget * 0.5, &settings);
+            assert_eq!(state.weight, 0.0);
+        }
     }
 }

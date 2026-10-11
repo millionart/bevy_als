@@ -3,7 +3,7 @@ use crate::als::input::AlsInputCommand;
 use crate::als::motion::{AlsInputOverride, AlsViewYaw};
 use crate::als::roll::{
     AlsRollState, ROLL_MONTAGE_SEQUENCE_LENGTH_SECS, ROLL_PLAY_RATE, ROLL_ROTATION_HALF_LIFE_SECS,
-    damper_exact_angle, roll_weight_at, select_roll_direction,
+    damper_exact_angle, select_roll_direction,
 };
 use crate::als::state::{LocomotionState, Stance};
 use crate::extensions::AlsAnimCurves;
@@ -231,6 +231,28 @@ pub(crate) mod tests {
             }
         }
         assert!(failures.is_empty(), "Roll ignored actor time dilation: {failures:?}");
+    }
+
+    #[test]
+    fn starting_roll_inside_the_natural_window_records_its_first_stop() {
+        let mut world = World::new();
+        world.init_resource::<Messages<crate::als::transition::StateTransitionEvent>>();
+        let mut time = Time::<()>::default();
+        time.advance_by(std::time::Duration::from_secs_f32(0.1));
+        world.insert_resource(time);
+        let actor = world.spawn((crate::als::character::AlsCharacter, AlsRollState::default(),
+            LocomotionState::Grounded, Stance::Standing, AlsViewYaw::default(), Transform::IDENTITY,
+            AlsInputCommand { roll_pressed: true, ..default() },
+            crate::als_camera::AlsCameraCustomTimeDilation(10.0))).id();
+        world.run_system_once(advance_rolls).unwrap();
+        let roll = *world.get::<AlsRollState>(actor).unwrap();
+        assert_eq!(roll.natural_blend_start, Some(1.0));
+        assert_eq!(roll.weight(), 1.0);
+        world.entity_mut(actor).insert(AlsInputCommand::default());
+        let delta = (crate::als::roll::ROLL_DURATION_SECS - 1.0) * 0.05;
+        world.resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(delta));
+        world.run_system_once(advance_rolls).unwrap();
+        assert!((world.get::<AlsRollState>(actor).unwrap().weight() - 0.5).abs() < 1e-5);
     }
 
     #[test]
@@ -1358,7 +1380,7 @@ pub(crate) mod tests {
         let mut samples = Vec::new();
         for (sampler, player, tail) in app.world_mut().query::<(&AlsRollSlotSampler, &AnimationGraphPlayer, Option<&AlsRollTail>)>().iter(app.world()) {
             if sampler.character != character || sampler.target_player != player_entity { continue; }
-            let weight = tail.map_or_else(|| roll_weight_at(current.time), |tail| tail.weight());
+            let weight = tail.map_or_else(|| current.weight(), |tail| tail.weight());
             samples.push((player.get_default_output_pose().unwrap().clone(), weight));
         }
         assert_eq!(samples.len(), 2);
@@ -1427,7 +1449,7 @@ pub(crate) mod tests {
                             let current_pose = app.world().get::<AnimationGraphPlayer>(current).unwrap().get_default_output_pose().unwrap();
                             let old_pose = app.world().get::<AnimationGraphPlayer>(old).unwrap().get_default_output_pose().unwrap();
                             let mixed = app.world().get::<AnimationGraphPlayer>(target).unwrap().get_global_input_data("roll.pose").unwrap().as_pose().unwrap();
-                            let current_weight = roll_weight_at(app.world().get::<AlsRollState>(character).unwrap().time);
+                            let current_weight = app.world().get::<AlsRollState>(character).unwrap().weight();
                             let total = current_weight + tail.weight();
                             for (bone, index) in &current_pose.paths {
                                 let Some(old_index) = old_pose.paths.get(bone) else { continue; };
@@ -1639,7 +1661,7 @@ pub(crate) mod tests {
         world.run_system_once(roll_drive_system).unwrap();
         assert_eq!(*world.get::<LinearVelocity>(character).unwrap(), LinearVelocity(Vec3::X * 0.5));
         let roll = world.get::<AlsRollState>(character).unwrap();
-        assert!(roll.active && roll_weight_at(roll.time) > 0.0);
+        assert!(roll.active && roll.weight() > 0.0);
     }
 
     #[test]
@@ -1771,7 +1793,7 @@ impl AlsRollBlendOut {
     pub(crate) fn new(roll: &AlsRollState, duration: f32) -> Self {
         Self {
             elapsed: 0.0,
-            start_weight: roll_weight_at(roll.time),
+            start_weight: roll.weight(),
             duration,
         }
     }
@@ -1951,7 +1973,7 @@ fn bridge_roll_slot_samples(
             let (elapsed, weight) = if let Some(tail) = tail { (tail.time, tail.weight()) }
                 else if let Some(roll) = roll {
                     root_motion = RootMotionOutput { translation_delta: output.translation_delta, rotation_delta: output.rotation_delta };
-                    (roll.time, blend_outs.get(character).map_or_else(|_| roll_weight_at(roll.time), |blend| blend.weight()))
+                    (roll.time, blend_outs.get(character).map_or_else(|_| roll.weight(), |blend| blend.weight()))
                 } else { continue; };
             let Some(mut pose) = player.get_default_output_pose().cloned() else {
                 if !sampler.reported_unready {
@@ -2136,6 +2158,9 @@ fn advance_rolls(
                 commands.entity(character).remove::<AlsRollBlendOut>();
             }
             roll.time = dt;
+            if roll.time >= crate::als::roll::ROLL_DURATION_SECS - crate::als::roll::ROLL_WEIGHT_OUT_SECS {
+                roll.natural_blend_start = Some(roll.time);
+            }
         }
     }
 }
@@ -2207,7 +2232,7 @@ fn roll_drive_system(
         if let Some(mut rotation) = rotation {
             rotation.0 = world_rotation;
         }
-        let weight = roll_weight_at(roll.time);
+        let weight = roll.weight();
         let clip_time = (roll.time * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS);
         if !movement_resolved { vel.0 = world_translation / dt; }
         if let Ok((mode, body, custom_position)) = modes.get(character)

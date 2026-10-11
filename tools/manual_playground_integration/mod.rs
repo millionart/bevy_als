@@ -4155,7 +4155,7 @@ fn observe_visibility_case(
 fn roll_tail_reentry_ready(roll: Option<&AlsRollState>, locomotion: LocomotionState, requested: bool) -> bool {
     !requested && locomotion == LocomotionState::Grounded && roll.is_some_and(|roll|
         roll.active && roll.time >= crate::als::roll::ROLL_DURATION_SECS - crate::als::roll::ROLL_WEIGHT_OUT_SECS + 0.04
-        && crate::als::roll::roll_weight_at(roll.time) > 0.0)
+        && roll.weight() > 0.0)
 }
 
 fn drive_manual_integration(

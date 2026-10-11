@@ -127,7 +127,6 @@ fn apply_probe_state(
     };
     first_roll.active = true;
     first_roll.time = 0.25;
-    first_roll.cooldown = 0.0;
     first_roll.direction_yaw = 0.0;
     first_roll.stance_before_roll = Stance::Standing;
     second_mantle.begin(

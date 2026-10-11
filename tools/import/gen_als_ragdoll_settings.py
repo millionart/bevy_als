@@ -68,6 +68,9 @@ def montage_settings(asset, assets_root):
     notifies = values["Notifies"]
     if "AlsAnimNotifyState_SetLocomotionAction" not in notifies:
         raise ValueError("missing get-up locomotion action notify")
+    notify_ends = re.findall(r"TriggerTime=([-+0-9.]+),NotifyEventType=End", values["BranchingPointMarkers"])
+    if len(notify_ends) != 1:
+        raise ValueError("unsupported get-up branching end markers")
     return {
         "source_montage": asset["asset_path"],
         "source_sequence": sequence,
@@ -76,7 +79,7 @@ def montage_settings(asset, assets_root):
         "sequence_length": float(values["SequenceLength"]),
         "play_rate": float(values["RateScale"]),
         "blend_out_seconds": number_after(blend_out, "BlendTime"),
-        "notify_end_clip_seconds": number_after(notifies, "Duration"),
+        "notify_end_clip_seconds": float(notify_ends[0]),
     }
 
 
@@ -110,11 +113,13 @@ def main():
                 "BlendOut": "(BlendTime=0.300000,BlendOption=Cubic)",
                 "BlendOutTriggerTime": "-1.000000", "bEnableAutoBlendOut": "True",
                 "Notifies": "AlsAnimNotifyState_SetLocomotionAction,Duration=1.166667",
+                "BranchingPointMarkers": "((NotifyIndex=0,TriggerTime=-0.000100),(NotifyIndex=0,TriggerTime=1.166567,NotifyEventType=End))",
                 "SequenceLength": "1.500000", "RateScale": "1.200000",
             }.items()]}
         converted = montage_settings(montage, ROOT / "assets")
         assert converted["clip"] == "ALS/Animations/Actions/GetUp/A_Als_GetUp_Front.anim.ron"
         assert converted["curves"] == "ALS/Animations/Actions/GetUp/A_Als_GetUp_Front.gltf#AlsCurves"
+        assert converted["notify_end_clip_seconds"] == 1.166567
         print("ALS ragdoll settings self-test PASS")
         return
     report = {"success": False}

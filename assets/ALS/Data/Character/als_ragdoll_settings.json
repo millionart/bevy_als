@@ -16,7 +16,7 @@
     "sequence_length": 1.5,
     "play_rate": 1.2,
     "blend_out_seconds": 0.3,
-    "notify_end_clip_seconds": 1.166667
+    "notify_end_clip_seconds": 1.166567
   },
   "back": {
     "source_montage": "/ALS/ALS/Animations/Actions/GetUp/AM_Als_GetUp_Back.AM_Als_GetUp_Back",
@@ -26,6 +26,6 @@
     "sequence_length": 1.5,
     "play_rate": 1.2,
     "blend_out_seconds": 0.3,
-    "notify_end_clip_seconds": 1.166667
+    "notify_end_clip_seconds": 1.166567
   }
 }
