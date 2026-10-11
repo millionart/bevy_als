@@ -3512,6 +3512,7 @@ struct InterfaceProbe<'w, 's> {
 #[derive(SystemParam)]
 struct MotionProbe<'w, 's> {
     transforms: bevy::transform::helper::TransformHelper<'w, 's>,
+    physics: Query<'w, 's, (&'static Position, &'static Rotation), With<AlsCharacter>>,
     player_views: Query<'w, 's, &'static crate::als::view::AlsPlayerViewYaw>,
     controllers: Query<'w, 's, &'static bevy_tnua::TnuaController<crate::als::control_scheme::AlsControlScheme>>,
     rendered_views: Query<'w, 's, (&'static Camera, &'static Transform, &'static crate::als_camera::AlsCharacterCamera), (With<Camera3d>, With<crate::als_camera::AlsCameraViewSource>)>,
@@ -4199,6 +4200,7 @@ fn drive_manual_integration(
             Option<&mut AlsRotationAnimationState>,
             Option<&AlsCrouchingGraphTelemetry>,
             Option<&AlsRollState>,
+            Option<&AlsMantleState>,
         ),
         With<AlsCharacter>,
     >,
@@ -4206,7 +4208,7 @@ fn drive_manual_integration(
         (&mut Transform, Option<&mut Position>, &mut LinearVelocity),
         (With<ManualIntegrationPlatform>, Without<AlsCharacter>),
     >,
-    cameras: Query<&AlsCameraDebugInfo, With<AlsCameraRig>>,
+    (cameras, parents): (Query<&AlsCameraDebugInfo, With<AlsCameraRig>>, Query<&ChildOf>),
 ) {
     if !state.initialized || state.final_logged {
         return;
@@ -4262,6 +4264,7 @@ fn drive_manual_integration(
         rotation_animation,
         crouching_graph,
         roll_for_input,
+        mantle_for_input,
     )) = crouch_state.get_mut(character)
     else {
         return;
@@ -5936,6 +5939,8 @@ fn drive_manual_integration(
             }
         }
         IntegrationPhase::Mantle => {
+            let parent_transform = Transform::from_xyz(5.0, 2.0, -3.0)
+                .with_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_2)).with_scale(Vec3::splat(1.5));
             show_debug.visible = true;
             show_debug.mantling = true;
             if entering {
@@ -5959,8 +5964,21 @@ fn drive_manual_integration(
                 request.locomotion_state = Some(LocomotionState::Grounded);
                 request.stance = Some(Stance::Standing);
             }
+            if state.scenario == IntegrationScenario::Base {
+                if elapsed < 10.0 && mantle_for_input.is_some_and(|mantle| mantle.active && mantle.root_motion_ready) {
+                    if parents.get(character).is_err() {
+                        let parent = commands.spawn((Name::new("manual_mantle_parent"), parent_transform)).id();
+                        *transform = GlobalTransform::from(*transform).reparented_to(&GlobalTransform::from(parent_transform));
+                        commands.entity(character).insert(ChildOf(parent));
+                    }
+                } else if let Ok(parent) = parents.get(character) {
+                    *transform = parent_transform.mul_transform(*transform);
+                    commands.entity(character).remove::<ChildOf>();
+                    commands.entity(parent.parent()).despawn();
+                }
+            }
             let forward = Quat::from_rotation_y(fixture.facing_yaw) * Vec3::NEG_Z;
-            let progress = (transform.translation - fixture.mantle_start).dot(forward);
+            let progress = (position.0 - fixture.mantle_start).dot(forward);
             if player_view.is_some_and(|view| crate::als::motion::wrap_yaw_radians(view.0 - fixture.facing_yaw).abs() < 0.001) {
                 input.0.move_dir = Vec2::Y;
             }
@@ -9328,19 +9346,30 @@ fn observe_manual_integration(
     }
 
     if let Some(mantle) = mantle {
+        let actor_world = motion_probe.transforms.compute_global_transform(character).ok();
         if state.scenario == IntegrationScenario::Base && state.phase == IntegrationPhase::Mantle
             && mantle.active && mantle.root_motion_ready {
             let dilation = ragdoll_probe.get_ups.get(character).ok()
                 .and_then(|(_, _, dilation)| dilation).map_or(1.0, |value| value.0);
             gate_report.direction_trace.push(serde_json::json!({
                 "mantle_actor_clock": true, "game_time": state.game_time_seconds,
-                "elapsed": mantle.time, "dilation": dilation
+                "elapsed": mantle.time, "dilation": dilation,
+                "mantle_parent_world_valid": actor_world.is_some_and(|world|
+                    world.translation().distance(transform.translation) > 0.5
+                        && motion_probe.physics.get(character).is_ok_and(|(position, rotation)|
+                            world.translation().distance(position.0) < 1e-4
+                                && (world.rotation().abs_diff_eq(rotation.0, 1e-5)
+                                    || world.rotation().abs_diff_eq(-rotation.0, 1e-5)))),
+                "actor_world_position": actor_world.map(|world| world.translation()),
+                "actor_local_position": transform.translation
             }));
         }
-        observe_mantle(
-            state, &mut animation_window, mantle, mantle_montages, player,
-            &motion_probe.graphs, *locomotion, notify_action.copied(), transform.translation,
-        );
+        if let Some(world) = actor_world {
+            observe_mantle(
+                state, &mut animation_window, mantle, mantle_montages, player,
+                &motion_probe.graphs, *locomotion, notify_action.copied(), world.translation(),
+            );
+        }
     }
     if !state.coverage.ground_prediction_debug && interface.debug_stats.ground_prediction_hit_points_drawn > 0
         && let Some(trace) = state.avatar.and_then(|avatar| interface.ground_debug.get(avatar).ok())
@@ -10457,6 +10486,8 @@ fn observe_manual_integration(
                 ("mantle_complete", coverage.mantle_completed),
                 ("mantle_debug_geometry", coverage.mantle_debug),
                 ("mantle_actor_clock", actor_montage_clock_passed(&gate_report.direction_trace, "mantle_actor_clock")),
+                ("mantle_parent_world", gate_report.direction_trace.iter()
+                    .any(|row| row.get("mantle_parent_world_valid").and_then(serde_json::Value::as_bool) == Some(true))),
                 ("ground_prediction_debug_geometry", coverage.ground_prediction_debug),
                 ("movement_base", coverage.movement_base),
                 ("foot_probe", coverage.foot_probe),
@@ -13112,6 +13143,34 @@ mod tests {
             world.run_system_once(drive_manual_integration).unwrap();
             assert!(world.resource::<ManualIntegrationState>().camera_obstacles.iter().all(Option::is_none));
         }
+    }
+
+    #[test]
+    fn mantle_fixture_preserves_world_pose_and_cleans_its_parent() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut world, character, _) = manual_driver_fixture();
+        let mut mantle = AlsMantleState::default();
+        mantle.active = true;
+        mantle.root_motion_ready = true;
+        let before = Transform::from_xyz(1.0, 2.0, 3.0).with_rotation(Quat::from_rotation_y(0.2));
+        world.entity_mut(character).insert((mantle, before, Position(before.translation), Rotation(before.rotation)));
+        world.insert_resource(ManualIntegrationState { character: Some(character), initialized: true,
+            entered: false, scenario: IntegrationScenario::Base, phase: IntegrationPhase::Mantle, ..default() });
+        world.run_system_once(drive_manual_integration).unwrap();
+        let parent = world.get::<ChildOf>(character).unwrap().parent();
+        let current = world.run_system_once(move |helper: bevy::transform::helper::TransformHelper| {
+            helper.compute_global_transform(character).unwrap()
+        }).unwrap();
+        assert!(current.translation().distance(before.translation) < 1e-5);
+        assert!(current.rotation().abs_diff_eq(before.rotation, 1e-5));
+        assert!(current.translation().distance(world.get::<Transform>(character).unwrap().translation) > 0.5);
+        world.get_mut::<AlsMantleState>(character).unwrap().active = false;
+        world.run_system_once(drive_manual_integration).unwrap();
+        assert!(world.get::<ChildOf>(character).is_none());
+        assert!(world.get_entity(parent).is_err());
+        assert!(world.get::<Transform>(character).unwrap().translation.distance(before.translation) < 1e-5);
+        assert!(world.get::<Transform>(character).unwrap().rotation.abs_diff_eq(before.rotation, 1e-5));
+        assert_eq!(world.get::<Position>(character).unwrap().0, before.translation);
     }
 
     #[test]

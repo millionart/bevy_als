@@ -79,6 +79,8 @@
 
 ### P2-07 — Mantle 的 root 速度混用了 world 与 local 位置
 
+修复完成（2026-10-12 01:43:03 +08:00）：Mantle root速度使用当前actor世界位置，root与当前移动基座的世界目标经parent逆affine/逆quat写入local，物理Position/Rotation保持world。fresh原始RootMotionSource/Character_Actions/Walking移交及High/Low原生蒙太奇闭包、24组父级/owner/完成组合、移动基座和退出惯性、六个独立消融与精确字节同target恢复14控制通过。正常构建、5运动矩阵和原完整角色反例、345规格/15root闭包/声明式边界通过；真实startup与带活动父级Mantle的原Base功能通过，53项全覆盖、92帧world/物理一致，图/fault/temporal/primary_failure均无。速度断言使用实际消费的world位置复算，原阈值保留；没有新增生产状态或更改时钟/资产/root算法。证据位于本地 `target/bf139/fix07/` 与 `target/animation_visual/bf139_p207/`，性能延期保持。以下保留原审计记录。
+
 - Source：`ALS/Private/RootMotionSources/AlsRootMotionSource_Mantling.cpp::PrepareRootMotion` 用 `(TargetActorTransform.Location - Character.GetActorLocation()) / DeltaTime`。
 - Target：`src/als/root_motion_sources/mantle_drive.rs:727` 减去局部 `Transform.translation`；`:729` 与移动目标回写 `:795` 也直接将世界变换写入局部字段。
 - 反例：完整加载角色，保持相同世界起点与 High Mantle 目标，仅增加平移 `(5,0,0)` 的父实体。普通角色横向速度约 `−4.09e−8` m/s，有父级后为 `299.99997` m/s，断言 FAIL。动作、root clip 和当前源形状均相同。
