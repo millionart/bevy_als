@@ -18,8 +18,8 @@
 | 范围 | 状态 | 本轮边界 |
 |---|---|---|
 | Character、CMC、输入与标签状态 | 已审计，6项P2 | 本地 C++、当前 ECS 调度、初始化/状态/输入/旋转/速度/蹲起/基座/碰撞/时钟的实际消费者；网络与纯 Editor 排除 |
-| Roll、Mantle、GetUp、root motion | 进行中 | 动作生命周期、空间/时钟与目标基座 |
-| Ragdoll、物理适配 | 待审计 | PA/约束/碰撞与查询 |
+| Roll、Mantle、GetUp、root motion | 已审计，新增3项P2 | 启动/抢占/退出、蒙太奇设置、slot/曲线/notify输入、root、动作时钟与目标基座 |
+| Ragdoll、物理适配 | 进行中 | PA/约束/碰撞与查询 |
 | AnimationInstance、图/FSM/同步/曲线、资产转换与 Rig | 待审计 | 源递归依赖到已安装图及实际求值消费者 |
 | 通知、脚步/贴花、Overlay 物件 | 待审计 | 通知时间/权重/结束与最终姿态消费 |
 | Camera、Playground、材质、HUD/UI、PlayerStart | 待审计 | 本地源及资产配置到真实入口 |
@@ -70,6 +70,27 @@
 - 反例：20 cm 静态台阶，角色持续前进 60 个 1/60 s 帧，分别设置许可 true/false。两次均跨过台阶并到达 z=−3.4291668；源 false 应在台阶正面被阻挡。true 正对照通过，false 断言失败。
 - 影响：明确禁止角色跨越的碰撞体仍能通过普通走路登上。现有许可测试只触发 Mantle，未经过普通 StepUp。
 
+### P2-07 — Mantle 的 root 速度混用了 world 与 local 位置
+
+- Source：`ALS/Private/RootMotionSources/AlsRootMotionSource_Mantling.cpp::PrepareRootMotion` 用 `(TargetActorTransform.Location - Character.GetActorLocation()) / DeltaTime`。
+- Target：`src/als/root_motion_sources/mantle_drive.rs:727` 减去局部 `Transform.translation`；`:729` 与移动目标回写 `:795` 也直接将世界变换写入局部字段。
+- 反例：完整加载角色，保持相同世界起点与 High Mantle 目标，仅增加平移 `(5,0,0)` 的父实体。普通角色横向速度约 `−4.09e−8` m/s，有父级后为 `299.99997` m/s，断言 FAIL。动作、root clip 和当前源形状均相同。
+- 影响：挂接角色产生错误 root 速度，并影响后续运动/物理移交。已有 Mantle owner-clock 测试使用无父实体的 Transform，没有约束世界空间速度。
+
+### P2-08 — Roll/Mantle 重新处理原始输入，丢失源输入有效性
+
+- Source：`AlsCharacter_Actions.cpp:34` 和 `:176` 读取已由 Character 消费、归一化的 `LocomotionState.bHasInput/InputYawAngle`；有效性阈值为平方 `1e−8`。
+- Target：`roll.rs:57`、`roll_drive.rs:1931` 又使用平方 `1e−6`。Mantle 则由 `motion.rs` 把原始输入先变成单位方向，再交 `mantle.rs:469` 判断。
+- 反例：实际角色输入 `(0.0002,0)` 已 `has_input=true`，源应向右 Roll；实际目标 yaw=0，源 −90°。输入 `(0.01,0)` 正对照正确。另以 `(0.00001,0)` 验证已 `has_input=false` 且无水平速度，实际 Mantle trace 为 `(0.76604444,0,−0.6427875)`，源应 `(0,0,−1)`，相差50°。
+- 影响：模拟量边界的动作方向和攀爬候选选择错误。普通四向/无输入测试绕开了源 safe-normal 边界和真实已消费状态。
+
+### P2-09 — Roll/GetUp 的自然混出提前且未保留实际剩余预算
+
+- Source：UE `Animation/AnimInstance.cpp:573–578` 先调用 `Montage_UpdateWeight`，再调用 `Montage_Advance`。`Animation/AnimMontage.cpp:2626–2636` 在本次 Advance 首次进入窗口时才执行 Stop，默认负 TriggerTime 使用当前剩余播放时间；Stop 只 `Blend.Update(0)`，不会在该帧额外推进混出。
+- Target：`roll.rs:48` 与 `get_up.rs:112–130` 根据推进后的 elapsed、固定默认 BlendOut 直接计算权重，没有首次进入窗口时的剩余时间状态。
+- 反例：100 ms帧、实际加载的 Roll（序列1.5 s、播放1.3、BlendOut0.3）到elapsed0.9时源weight=1，实际0.93627644。通过真实ragdoll退出启动 GetUp（序列1.5 s、RateScale1.2、BlendOut0.3），elapsed1.0时源weight=1，实际0.92592555。两个实际slot断言FAIL，进入窗口前weight1对照PASS。
+- 影响：动作尾段pose/curve/notify权重与源错位，后续混出还使用不同预算。原有测试验证曲线形状或中断fade，没有验证源 UpdateWeight/Advance/首次自然Stop的顺序。Mantle使用自定义TriggerTime=0的末点停止，不按本项默认自然窗口直接推断缺陷。
+
 ## 未定级观察
 
 BF138 的固定 `0.046875` 秒 UphillJump 记录存在 pre-rig 腿平面异常，但旧报告缺少当帧完整图输入与混合源骨骼。它是待核实症状，不能据此认定源/目标差异或复开相邻图。
@@ -89,3 +110,7 @@ BF139.01 使用当前生产库链接独立 Rust 反例，保存于本地 `target
 | AlsCharacterMovementComponent.cpp | `e37d349bc41a5de208cbdd1799c32741cf84aa5bddfe5580906c50f2a6360dda` |
 | UE Actor.h | `2ee1effb7ab4ac4cf65cf6caa90a27cea45361feefaae0cb673f7265e00bc5c9` |
 | UE CharacterMovementComponent.cpp | `fcf827d7c5adaa73a4f272a716a53b03f66fc7352f3eacc1be4d51cc9b3e15a8` |
+| AlsCharacter_Actions.cpp | `3dbd91f26154fd99297a7c7bb293993d938a86b8937d7071760cabc8517aa317` |
+| AlsRootMotionSource_Mantling.cpp | `624964d860117f3794d249a2b8d25e5d0c610b7dd852751e052e60bb19b7d55e` |
+
+BF139.02 的实际角色反例在资产就绪后执行；根图异步加载期间的临时 OutputMissing 不作为本次动作缺陷。fresh native导出 Roll/GetUp Front/Mantle High 已完成，生成数据的播放率/混入/混出/Trigger字段已核对。累计14测试为12预期语义FAIL和2对照PASS；本地源码与原始报告存于 `target/bf139/phase2/`。源 `PhysCustom` 的 MoveUpdatedComponent 明确不扫掠，不能把攀爬中不扫掠定为移植缺陷。
