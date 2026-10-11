@@ -2635,6 +2635,39 @@ pub fn movement_sweep_travel(distance: f32, hit_distance: f32) -> f32 {
     (hit_distance - pullback).max(0.0)
 }
 
+pub(crate) fn falling_movement_sweep(
+    spatial: &SpatialQuery, capsule: &Collider, start: Vec3, rotation: Quat,
+    movement: Vec3, mut velocity: Vec3, step: f32, entity: Entity,
+    candidates: &Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
+) -> (Vec3, Vec3, bool) {
+    let filter = SpatialQueryFilter::from_excluded_entities([entity]);
+    let accepts = |candidate| character_blocks_collider(entity, candidate, candidates);
+    let mut remaining = movement;
+    let mut remaining_time = step;
+    let mut previous_normal = None;
+    let mut applied = Vec3::ZERO;
+    let mut contact = false;
+    for _ in 0..3 {
+        let Ok((direction, distance)) = Dir3::new_and_length(remaining) else { break };
+        let config = ShapeCastConfig { ignore_origin_penetration: true,
+            ..ShapeCastConfig::from_max_distance(distance) };
+        let Some(hit) = spatial.cast_shape_predicate(capsule, start + applied, rotation,
+            direction, &config, &filter, &accepts) else { applied += remaining; break };
+        let travel = movement_sweep_travel(distance, hit.distance);
+        applied += *direction * travel;
+        let Some(normal) = hit.normal1.try_normalize() else { break };
+        contact |= normal.y > 0.0 && remaining.dot(normal) < 0.0;
+        remaining_time *= 1.0 - travel / distance;
+        let budget = velocity * remaining_time;
+        let slide = crate::extensions::motion::falling_slide(budget, normal, previous_normal);
+        previous_normal = Some(normal);
+        if remaining_time > f32::EPSILON { velocity = slide / remaining_time; }
+        if slide.dot(budget) <= 0.0 { break; }
+        remaining = slide;
+    }
+    (applied, velocity, contact)
+}
+
 fn follow_movement_base_system(
     In(after_physics): In<bool>,
     time: Res<Time<avian3d::prelude::Physics>>,
@@ -3480,22 +3513,9 @@ fn grounded_step_up_system(
                         params.cmc.min_analog_walk_speed, 0.0, params.cmc.braking_substep_time, step);
                     final_velocity = horizontal + Vec3::Y * final_velocity.y + gravity.value * step;
                     let requested = (old_velocity + final_velocity) * (0.5 * step);
-                    let mut applied = Vec3::ZERO;
-                    let mut residual = requested;
-                    let filter = SpatialQueryFilter::from_excluded_entities([entity]);
-                    let mut previous_normal = None;
-                    for _ in 0..3 {
-                        let Ok((direction, distance)) = Dir3::new_and_length(residual) else { break };
-                        let hit = spatial_query.cast_shape_predicate(capsule, current_transform.translation + applied,
-                            transform.rotation, direction,
-                            &ShapeCastConfig { ignore_origin_penetration: true, ..ShapeCastConfig::from_max_distance(distance) },
-                            &filter, &|candidate| character_blocks_collider(entity, candidate, &candidates));
-                        let Some(hit) = hit else { applied += residual; break };
-                        let advance = *direction * movement_sweep_travel(distance, hit.distance);
-                        applied += advance;
-                        residual = crate::extensions::motion::falling_slide(residual - advance, hit.normal1, previous_normal);
-                        previous_normal = Some(hit.normal1);
-                    }
+                    let (applied, deflected_velocity, _) = falling_movement_sweep(&spatial_query, capsule,
+                        current_transform.translation, transform.rotation, requested, final_velocity, step, entity, &candidates);
+                    final_velocity = deflected_velocity;
                     current_transform.translation += applied;
                     remaining_time -= step;
                 }

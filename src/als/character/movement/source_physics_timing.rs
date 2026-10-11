@@ -196,11 +196,17 @@ fn integrate_character_position(
             continue;
         };
         let start = position.0 + body.delta_position;
+        if *locomotion == LocomotionState::Air {
+            let (applied, velocity, contact) = crate::als::motion::falling_movement_sweep(&spatial, collider,
+                start, Quat::IDENTITY, movement, body.linear_velocity, frame_step, entity, &candidates);
+            body.delta_position += applied;
+            body.linear_velocity = velocity;
+            runtime.airborne_sweep_contact |= contact;
+            continue;
+        }
         let filter = SpatialQueryFilter::from_excluded_entities([entity]);
         let accepts = |candidate| crate::als::motion::character_blocks_collider(entity, candidate, &candidates);
         let mut remaining = movement;
-        let mut remaining_time = frame_step;
-        let mut previous_normal = None;
         let mut applied = Vec3::ZERO;
         for _ in 0..3 {
             let Ok((direction, distance)) = Dir3::new_and_length(remaining) else { break; };
@@ -215,21 +221,9 @@ fn integrate_character_position(
             applied += *direction * travel;
             let Some(normal) = hit.normal1.try_normalize() else { break; };
             let mut slide = remaining - *direction * travel;
-            if *locomotion == LocomotionState::Air {
-                if normal.y > 0.0 && remaining.dot(normal) < 0.0 {
-                    runtime.airborne_sweep_contact = true;
-                }
-                slide = crate::extensions::motion::falling_slide(slide, normal, previous_normal);
-                previous_normal = Some(normal);
-                remaining_time *= 1.0 - travel / distance;
-                if remaining_time > f32::EPSILON {
-                    body.linear_velocity = slide / remaining_time;
-                }
-            } else {
-                slide -= normal * slide.dot(normal).min(0.0);
-                let inward_velocity = body.linear_velocity.dot(normal).min(0.0);
-                body.linear_velocity -= normal * inward_velocity;
-            }
+            slide -= normal * slide.dot(normal).min(0.0);
+            let inward_velocity = body.linear_velocity.dot(normal).min(0.0);
+            body.linear_velocity -= normal * inward_velocity;
             if slide.dot(remaining) <= 0.0 { break; }
             remaining = slide;
         }
@@ -567,6 +561,47 @@ mod tests {
     }
 
     #[test]
+    fn browser_feedback_air_wall_slide_keeps_full_gravity_and_remaining_movement() {
+        for wall in [false, true] {
+            let mut app = App::new();
+            let delta = 0.046875_f32;
+            app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+                avian3d::prelude::PhysicsPlugins::new(PostUpdate), SourcePhysicsTimingPlugin))
+                .init_asset::<Mesh>().add_message::<bevy::asset::AssetEvent<Mesh>>()
+                .insert_resource(avian3d::prelude::Gravity(Vec3::NEG_Y * 9.8))
+                .insert_resource(SubstepCount(1))
+                .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(delta)));
+            app.finish(); app.update();
+            let actor = app.world_mut().spawn((crate::als::character::AlsCharacter, LocomotionState::Air,
+                RigidBody::Dynamic, Collider::capsule(0.3, 1.2),
+                avian3d::prelude::SpeculativeMargin::MAX, avian3d::prelude::LockedAxes::ROTATION_LOCKED,
+                avian3d::prelude::Friction::ZERO, Position(Vec3::Y * 2.0),
+                LinearVelocity(Vec3::new(3.75, -2.0, 1.0)), Transform::from_xyz(0.0, 2.0, 0.0))).id();
+            if wall {
+                app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.02, 20.0, 20.0),
+                    Transform::from_xyz(0.46, 2.0, 0.0), avian3d::prelude::Friction::ZERO));
+            }
+            app.update();
+            let position = app.world().get::<Position>(actor).unwrap().0;
+            let velocity = app.world().get::<LinearVelocity>(actor).unwrap().0;
+            let final_y = -2.0 - 9.8 * delta;
+            let initial_movement = Vec3::new(3.75, (-2.0 + final_y) * 0.5, 1.0) * delta;
+            let distance = initial_movement.length();
+            let hit_fraction = if wall {
+                crate::als::motion::movement_sweep_travel(distance, distance * 0.15 / initial_movement.x) / distance
+            } else { 1.0 };
+            let expected_y = 2.0 + (-2.0 + final_y) * 0.5 * delta * hit_fraction
+                + final_y * delta * (1.0 - hit_fraction);
+            assert!((position.x - initial_movement.x * hit_fraction).abs() < 1e-4
+                && (position.z - delta).abs() < 1e-4,
+                "Air wall fixture lost its source hit or tangent: wall={wall} position={position:?}");
+            assert!((velocity.y - final_y).abs() < 1e-4 && (position.y - expected_y).abs() < 1e-4
+                && (velocity.x - if wall { 0.0 } else { 3.75 }).abs() < 1e-4,
+                "Air collision reused midpoint movement after impact: wall={wall} position={position:?} velocity={velocity:?} expected_y={expected_y} expected_velocity_y={final_y}");
+        }
+    }
+
+    #[test]
     fn air_sweep_handles_a_second_wall_and_origin_overlap() {
         let (free_position, _) = simulate_air_wall_motion(
             &[], 0.0, Vec3::new(3.75, 0.0, 3.75));
@@ -610,7 +645,7 @@ mod tests {
                     assert!(result.y <= 0.0 && position.y <= 2.0,
                         "falling slope created upward motion: {position:?} {result:?}");
                 } else {
-                    let source_deflected_y = free_velocity.y + 0.5 * 9.81 * (0.1 / 6.0);
+                    let source_deflected_y = free_velocity.y;
                     assert!(result.y > 0.0 && (result.y - source_deflected_y).abs() < 0.002
                         && position.y <= free_position.y + 0.002,
                         "slope changed legal jump ascent: {position:?} {result:?} free={free_position:?} {free_velocity:?}");
@@ -633,7 +668,7 @@ mod tests {
                     &[(normals[0], 0.29), (normals[1], 0.29)], 0.0, velocity);
                 assert!((position.y - free_position.y).abs() < 0.002,
                     "{degrees} degree corner lost falling motion: {position:?} free={free_position:?}");
-                let source_deflected_y = free_velocity.y + 0.5 * 9.81 * (0.1 / 6.0);
+                let source_deflected_y = free_velocity.y;
                 assert!((result.y - source_deflected_y).abs() < 0.002,
                     "corner changed falling velocity: {result:?} free={free_velocity:?}");
                 for normal in normals {

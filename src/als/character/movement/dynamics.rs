@@ -1168,6 +1168,11 @@ mod tests {
         assert_eq!(app.world().get::<LocomotionState>(character), Some(&LocomotionState::Air));
         assert!((velocity.y - gravity * source_remaining).abs() < 0.001,
             "Source shortened Walking step refunds time before Falling gravity: applied={applied_distance} desired={source_distance} remaining={source_remaining} velocity={velocity:?} source_y={}", gravity * source_remaining);
+        let params = app.world().resource::<Assets<AlsMovementParams>>().get(&handle).unwrap();
+        let maximum_air_acceleration = crate::als::motion::air_acceleration_for_horizontal_speed(params, 0.0)
+            .min(params.acceleration.max_acceleration);
+        assert!(velocity.z.abs() <= maximum_air_acceleration * source_remaining + 1e-4,
+            "The falling tail must consume the wall-deflected source velocity before remaining air control: {velocity:?}");
     }
 
     #[test]
