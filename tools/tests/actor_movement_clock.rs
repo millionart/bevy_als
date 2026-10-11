@@ -27,6 +27,34 @@ fn movement_actor(capped: bool) -> (App, Entity, AlsMovementParams) {
 }
 
 #[test]
+fn ordinary_parent_space_preserves_world_pose_after_ground_and_air_physics() {
+    for mode in [LocomotionState::Grounded, LocomotionState::Air] {
+        let (mut app, actor, _) = movement_actor(false);
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(20.0, 0.2, 30.0), Transform::from_xyz(0.0, -0.1, 0.0)));
+        for _ in 0..30 { app.update(); }
+        let mut world = *app.world().get::<Transform>(actor).unwrap();
+        if mode == LocomotionState::Air { world.translation.y = 10.0; }
+        let parent_transform = Transform::from_xyz(5.0, 2.0, -3.0)
+            .with_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_2)).with_scale(Vec3::splat(2.0));
+        let parent = app.world_mut().spawn(parent_transform).id();
+        app.world_mut().entity_mut(actor).insert((ChildOf(parent), Position(world.translation), Rotation(world.rotation),
+            GlobalTransform::from(world), GlobalTransform::from(world).reparented_to(&GlobalTransform::from(parent_transform)),
+            LinearVelocity::ZERO, mode, AlsStateRequest::default().with_locomotion_state(mode)));
+        for _ in 0..4 {
+            app.update();
+            let rendered = app.world().get::<GlobalTransform>(actor).unwrap();
+            let physical = app.world().get::<Rotation>(actor).unwrap().0;
+            let position = app.world().get::<Position>(actor).unwrap().0;
+            assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), mode);
+            assert!(rendered.translation().distance(position) < 1e-4, "Source attached actor world position differs: {mode:?}");
+            assert!(rendered.rotation().angle_between(physical).abs() < 1e-3
+                && physical.angle_between(world.rotation).abs() < 1e-3,
+                "Source attached actor world orientation differs after physics: {mode:?}");
+        }
+    }
+}
+
+#[test]
 fn ordinary_actor_clock_preserves_source_motion_and_independent_world_physics() {
     for capped in [false, true] {
         for mode in [LocomotionState::Grounded, LocomotionState::Air] {

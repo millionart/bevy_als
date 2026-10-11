@@ -58,6 +58,8 @@
 
 ### P2-05 — 普通角色/动画输入把局部旋转当世界旋转
 
+修复完成（2026-10-11 23:32 +08:00）：七个actor旋转consumer读取当帧world，普通移动保留world Pitch/Roll并在局部写回处乘父级旋转逆；provider及Air预测同时读取当前mesh world scale，补闭父级缩放的缓存缺口。8组消融/13个失败边界及45/27/4项恢复控制通过，最终正常生产库的父级Grounded/Air物理管线、原反例/对照、345规格/15root闭包通过。真实startup、带父级Head 7窗口、Grounded功能Gate均通过，图/故障/时序异常均0；Head守卫的affine四元数误报由独立反例修复，保留错输入与缺父级拒绝。fresh坐标基更正原Head夹具期望：target父级+90°对应source yaw−90°，旧局部0°仍为缺陷；原错误符号与失败报告保留。未修改图、转换器、原始资产或新增生产状态，性能与截图延期保持；证据位于本地 `target/bf139/fix05/` 和 `target/animation_visual/bf139_p205_guard/`。以下保留原审计反例。
+
 - Source：`ALS/Private/AlsCharacter.cpp:1680` 等旋转函数使用 `GetActorRotation`/`SetActorRotation`；`ALS/Private/AlsAnimationInstance.cpp:730` 从 actor world transform 读取旋转，`:826` 将世界速度反旋到角色局部空间。
 - Target：`src/als/character/movement/motion.rs:415` 从局部 `Transform.rotation` 得到当前 yaw，`:577–579` 又把这个旋转同时写给局部 Transform 和世界 `avian3d::Rotation`。`src/als/character/animation_instances/actual_motion.rs:90`、`ab_als_provider.rs:319` 和 `locomotion_layer.rs:209` 同样把局部旋转作为世界姿态输入。
 - 反例一：父实体 yaw=90°、角色 local identity、沿角色世界前方以 2 m/s 运动。局部速度应为 `(forward=2,right=0)`，实际 `(0,-2)`；无父实体、相同世界方向的对照通过。

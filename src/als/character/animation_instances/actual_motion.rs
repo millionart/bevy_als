@@ -67,11 +67,11 @@ fn snapshot_actual_motion_system(
     time: Res<Time>,
     virtual_time: Res<Time<Virtual>>,
     mut commands: Commands,
+    transforms: bevy::transform::helper::TransformHelper,
     mut characters: Query<
         (
             Entity,
             &LinearVelocity,
-            &Transform,
             &LocomotionState,
             Option<&AlsMovementBaseDynamicsState>,
             Option<&AlsMovementBase>,
@@ -84,10 +84,11 @@ fn snapshot_actual_motion_system(
     bodies: Query<&RigidBody>,
 ) {
     if virtual_time.is_paused() { return; }
-    for (entity, velocity, transform, locomotion, base, movement_base, controller, current) in &mut characters {
+    for (entity, velocity, locomotion, base, movement_base, controller, current) in &mut characters {
+        let Ok(transform) = transforms.compute_global_transform(entity) else { continue; };
         let mut next =
             AlsActualMotion::from_physics_velocity(
-                locomotion_velocity(velocity.0, *locomotion, base), transform.rotation);
+                locomotion_velocity(velocity.0, *locomotion, base), transform.rotation());
         next.movement_base_snapshot = movement_base
             .filter(|base| *locomotion == LocomotionState::Grounded && base.has_relative_rotation)
             .and_then(|base| base.entity.map(|entity| (entity, base.rotation)))
@@ -137,6 +138,25 @@ fn snapshot_actual_motion_system(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn actor_motion_reads_current_parent_world_rotation() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins).add_systems(PostUpdate, snapshot_actual_motion_system);
+        let parent = app.world_mut().spawn(Transform::IDENTITY).id();
+        let character = app.world_mut().spawn((AlsCharacter, Transform::IDENTITY, ChildOf(parent),
+            LocomotionState::Grounded, LinearVelocity::ZERO)).id();
+        for yaw in [90.0_f32, -45.0, 170.0] {
+            let rotation = Quat::from_rotation_y(yaw.to_radians());
+            *app.world_mut().get_mut::<Transform>(parent).unwrap() = Transform::from_xyz(5.0, 3.0, -2.0)
+                .with_rotation(rotation).with_scale(Vec3::new(2.0, 3.0, 0.5));
+            app.world_mut().get_mut::<LinearVelocity>(character).unwrap().0 = rotation * Vec3::NEG_Z * 2.0;
+            app.world_mut().run_schedule(PostUpdate);
+            let actual = app.world().get::<AlsActualMotion>(character).unwrap();
+            assert!((actual.local_velocity - Vec2::new(2.0, 0.0)).length() < 1e-5,
+                "Source actor forward changed under current parent yaw {yaw}: {:?}", actual.local_velocity);
+        }
+    }
 
     #[test]
     fn consumed_input_validity_uses_the_source_unitless_safe_normal_boundary() {

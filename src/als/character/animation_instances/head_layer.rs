@@ -161,9 +161,9 @@ fn head_layer_writer(
     source_inputs: Query<&crate::extensions::SourceAnimationInputs>,
     virtual_time: Res<Time<Virtual>>,
     real_time: Res<Time<Real>>,
+    transforms: bevy::transform::helper::TransformHelper,
     characters: Query<
         (
-            &Transform,
             Option<&AlsViewPitch>,
             &RotationMode,
             Option<&AlsRotationResponseState>,
@@ -177,7 +177,6 @@ fn head_layer_writer(
 ) {
     for (parent, instance) in &avatars {
         let Ok((
-            transform,
             pitch,
             rotation_mode,
             response,
@@ -187,6 +186,7 @@ fn head_layer_writer(
         else {
             continue;
         };
+        let Ok(transform) = transforms.compute_global_transform(parent.parent()) else { continue; };
         let Ok((mut player, context)) = players.get_mut(instance.player_entity()) else {
             continue;
         };
@@ -205,7 +205,7 @@ fn head_layer_writer(
         let action_active = source_inputs.get(instance.player_entity()).ok().and_then(|inputs| inputs.gameplay_tag_input("locomotion_action")).is_some_and(|tag| tag.is_valid());
         let input = head_frame_inputs(
             &player,
-            transform,
+            &transform.compute_transform(),
             response,
             pitch.map_or(0.0, |value| value.0),
             (scaled_delta, unscaled),
@@ -256,6 +256,25 @@ fn project_head_state(
 mod tests {
     use super::*;
     use crate::als::{input::AlsInputCommand, motion::AlsViewYaw};
+
+    #[test]
+    fn head_reads_current_actor_world_yaw_and_pitch() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let parent = app.world_mut().spawn(Transform::IDENTITY).id();
+        app.world_mut().entity_mut(actor).insert((ChildOf(parent), Transform::IDENTITY, AlsViewPitch(0.4)));
+        let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        for yaw in [90.0_f32, -45.0] {
+            let rotation = Quat::from_euler(EulerRot::YXZ, yaw.to_radians(), 0.2, -0.1);
+            *app.world_mut().get_mut::<Transform>(parent).unwrap() = Transform::from_xyz(4.0, 2.0, -1.0)
+                .with_rotation(rotation).with_scale(Vec3::new(2.0, 3.0, 0.5));
+            app.world_mut().run_system_once(head_layer_writer).unwrap();
+            let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+            let expected_yaw = -world_forward_to_yaw(rotation * Vec3::NEG_Z).to_degrees();
+            assert!((player_scalar(player, "locomotion_state.rotation_yaw", 999.0) - expected_yaw).abs() < 1e-4);
+            assert!((player_scalar(player, "view_state.pitch_angle", 999.0) - 0.2_f32.to_degrees()).abs() < 1e-4);
+        }
+    }
 
     #[test]
     fn generated_head_uses_source_rotating_base_and_body_yaw_velocity() {

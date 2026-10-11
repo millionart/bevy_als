@@ -150,11 +150,11 @@ fn locomotion_input_writer(
     mut commands: Commands,
     spatial: SpatialQuery,
     configs: Res<Assets<AlsControlSchemeConfig>>,
+    transforms: bevy::transform::helper::TransformHelper,
     characters: Query<
         (
             &TnuaController<AlsControlScheme>,
             &TnuaConfig<AlsControlScheme>,
-            &Transform,
             &avian3d::prelude::Position,
             &Collider,
             &AlsActualMotion,
@@ -162,17 +162,19 @@ fn locomotion_input_writer(
         With<AlsCharacter>,
     >,
     non_world_colliders: Query<Entity, With<AlsCharacter>>,
-    avatars: Query<(Entity, &ChildOf, &AnimatedSceneInstance, &GlobalTransform), With<AlsCharacterAvatar>>,
+    avatars: Query<(Entity, &ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
     mut players: Query<(&mut AnimationGraphPlayer, Option<&AlsRootAnimationContext>)>,
 ) {
     let filter = SpatialQueryFilter::from_excluded_entities(non_world_colliders.iter()).with_mask(IN_AIR_SETTINGS.prediction_trace_layer);
-    for (avatar, parent, instance, mesh) in &avatars {
-        let Ok((controller, config, transform, position, capsule, motion)) =
+    for (avatar, parent, instance) in &avatars {
+        let Ok(mesh) = transforms.compute_global_transform(avatar) else { continue; };
+        let Ok((controller, config, position, capsule, motion)) =
             characters.get(parent.parent())
         else {
             commands.entity(avatar).remove::<AlsGroundPredictionTrace>();
             continue;
         };
+        let Ok(transform) = transforms.compute_global_transform(parent.parent()) else { continue; };
         let Some(config) = configs.get(&config.0) else {
             commands.entity(avatar).remove::<AlsGroundPredictionTrace>();
             continue;
@@ -206,7 +208,7 @@ fn locomotion_input_writer(
         player.set_global_input_data("in_air_source.ground_prediction_amount", prediction);
         player.set_global_input_data(
             "in_air_source.lean_target",
-            in_air_lean_target(motion.world_velocity, transform.rotation),
+            in_air_lean_target(motion.world_velocity, transform.rotation()),
         );
         player.set_global_input_data(
             "in_air_source.lean_interpolation_half_life",
@@ -243,6 +245,33 @@ fn project_in_air_state(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn air_lean_reads_current_actor_world_rotation() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let parent = app.world_mut().spawn(Transform::IDENTITY).id();
+        let velocity = Vec3::new(1.0, IN_AIR_SETTINGS.prediction_min_velocity, -3.0);
+        app.world_mut().entity_mut(actor).insert((ChildOf(parent), Transform::IDENTITY,
+            AlsActualMotion { world_velocity: velocity, ..default() }));
+        let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        app.world_mut().entity_mut(player_entity).remove::<AlsRootAnimationContext>();
+        for yaw in [90.0_f32, -45.0] {
+            let rotation = Quat::from_rotation_y(yaw.to_radians());
+            *app.world_mut().get_mut::<Transform>(parent).unwrap() = Transform::from_xyz(4.0, 2.0, -1.0)
+                .with_rotation(rotation).with_scale(Vec3::new(2.0, 3.0, 0.5));
+            app.world_mut().run_system_once(locomotion_input_writer).unwrap();
+            let actual = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap()
+                .get_global_input_data("in_air_source.lean_target").unwrap().as_vec2().unwrap();
+            assert!(actual.abs_diff_eq(in_air_lean_target(velocity, rotation), 1e-5),
+                "Source Air lean world basis differs at {yaw}: {actual:?}");
+            let trace = app.world().get::<AlsGroundPredictionTrace>(avatar).expect("Source falling prediction must publish its trace");
+            let expected_distance = IN_AIR_SETTINGS.prediction_max_distance * 3.0
+                * app.world().get::<Transform>(avatar).unwrap().scale.y;
+            assert!((trace.end.distance(trace.start) - expected_distance).abs() < 1e-4,
+                "Source Air prediction must use current mesh world scale: {} != {expected_distance}", trace.end.distance(trace.start));
+        }
+    }
 
     #[test]
     fn falling_ground_prediction_starts_at_the_current_actor_position() {

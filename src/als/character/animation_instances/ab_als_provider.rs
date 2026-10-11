@@ -209,6 +209,7 @@ fn ab_als_input_writer(
     virtual_time: Res<Time<Virtual>>,
     params_assets: Res<Assets<AlsMovementParams>>,
     skeletons: Res<Assets<bevy_animation_graph::core::skeleton::Skeleton>>,
+    transforms: bevy::transform::helper::TransformHelper,
     characters: Query<
         (
             Entity,
@@ -219,7 +220,6 @@ fn ab_als_input_writer(
             &AlsViewYaw,
             Option<&AlsMovementBase>,
             Option<&AlsGroundedEntryMode>,
-            &Transform,
             Option<&AlsFirstPersonView>,
             Option<&crate::als_camera::AlsCameraCustomTimeDilation>,
             Option<&AlsFootLockState>,
@@ -227,7 +227,7 @@ fn ab_als_input_writer(
         ),
         With<AlsCharacter>,
     >,
-    avatars: Query<(&ChildOf, &AnimatedSceneInstance, &GlobalTransform), With<AlsCharacterAvatar>>,
+    avatars: Query<(Entity, &ChildOf, &AnimatedSceneInstance), With<AlsCharacterAvatar>>,
     mut players: Query<(&mut AnimationGraphPlayer, Option<&AlsRootAnimationContext>, Option<&crate::extensions::post_physics_animation::AnimationPoseUpdateGate>)>,
     owners: Query<&ColliderOf>,
     bodies: Query<&RigidBody>,
@@ -243,7 +243,6 @@ fn ab_als_input_writer(
         view_yaw,
         movement_base,
         grounded_entry_mode,
-        transform,
         first_person,
         custom_dilation,
         feet,
@@ -253,13 +252,15 @@ fn ab_als_input_writer(
         let Some(params) = params_assets.get(&params_handle.0) else {
             continue;
         };
+        let Ok(transform) = transforms.compute_global_transform(character) else { continue; };
         let attach_parent = parents.get(character).ok().map(ChildOf::parent);
         let cursor = attachment_state.entry(character).or_insert((attach_parent, 0));
         let attachment_epoch = update_attachment_epoch(cursor, attach_parent) as f32;
-        for (parent, instance, avatar_transform) in &avatars {
+        for (avatar, parent, instance) in &avatars {
             if parent.parent() != character {
                 continue;
             }
+            let Ok(avatar_transform) = transforms.compute_global_transform(avatar) else { continue; };
             let Ok((mut player, context, tick)) = players.get_mut(instance.player_entity()) else {
                 continue;
             };
@@ -316,7 +317,7 @@ fn ab_als_input_writer(
             );
             player.set_global_input_data(
                 "locomotion_state.rotation_quaternion_world_space",
-                transform.rotation,
+                transform.rotation(),
             );
             player.set_global_input_data(
                 "locomotion_state.acceleration_world_space",
@@ -454,6 +455,29 @@ fn ab_als_input_writer(
 mod tests {
     use super::*;
     use crate::als::{input::AlsInputCommand, motion::AlsInputOverride};
+
+    #[test]
+    fn provider_reads_current_actor_world_rotation() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        let parent = app.world_mut().spawn(Transform::IDENTITY).id();
+        app.world_mut().entity_mut(actor).insert((ChildOf(parent), Transform::IDENTITY));
+        let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        for yaw in [90.0_f32, -45.0] {
+            let rotation = Quat::from_rotation_y(yaw.to_radians());
+            *app.world_mut().get_mut::<Transform>(parent).unwrap() = Transform::from_xyz(4.0, 2.0, -1.0)
+                .with_rotation(rotation).with_scale(Vec3::new(2.0, 3.0, 0.5));
+            app.world_mut().run_system_once(ab_als_input_writer).unwrap();
+            let actual = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap()
+                .get_global_input_data("locomotion_state.rotation_quaternion_world_space").unwrap().as_quat().unwrap();
+            assert!(actual.angle_between(rotation).abs() < 1e-3, "Source provider world quaternion differs at {yaw}");
+            let expected_scale = 3.0 * app.world().get::<Transform>(avatar).unwrap().scale.y;
+            let actual_scale = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap()
+                .get_global_input_data("locomotion_state.scale_world_space").unwrap().as_f32().unwrap();
+            assert!((actual_scale - expected_scale).abs() < 1e-5,
+                "Source provider current mesh world scale differs: {actual_scale} != {expected_scale}");
+        }
+    }
 
     #[test]
     fn generated_grounded_lean_uses_the_source_animation_acceleration_clock() {

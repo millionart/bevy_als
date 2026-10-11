@@ -371,10 +371,11 @@ fn rotation_response_system(
     actions: Query<&crate::als::state::AlsNotifyLocomotionAction>,
     collision_owners: Query<&crate::als::character::AlsCollisionLayerOwnership>,
     stances: Query<&Stance>,
+    parents: Query<&ChildOf>,
+    mut space: ParamSet<(bevy::transform::helper::TransformHelper, Query<&mut Transform, With<AlsCharacter>>)>,
     mut q: Query<
         (
             Entity,
-            &mut Transform,
             Option<&mut Rotation>,
             &Gait,
             &LocomotionState,
@@ -394,7 +395,6 @@ fn rotation_response_system(
 ) {
     for (
         entity,
-        mut transform,
         rotation,
         gait,
         locomotion,
@@ -412,7 +412,8 @@ fn rotation_response_system(
     {
         let delta_seconds = time.delta_secs() * custom_dilation.map_or(1.0, |value| value.0);
         let pre_collision_velocity = base.as_deref_mut().and_then(|state| state.pre_collision_velocity.take());
-        let current_yaw = world_forward_to_yaw(transform.rotation * Vec3::NEG_Z);
+        let Ok(actor_world) = space.p0().compute_global_transform(entity) else { continue; };
+        let current_yaw = world_forward_to_yaw(actor_world.rotation() * Vec3::NEG_Z);
         let action_active = collision_owners.get(entity).is_ok_and(|owner| owner.mantle)
             || roll.is_some_and(|state| state.active)
             || actions.get(entity).is_ok_and(|action| *action != crate::als::state::AlsNotifyLocomotionAction::None);
@@ -573,8 +574,14 @@ fn rotation_response_system(
             constraint.active_limit_degrees = 180.0;
             constraint.applied_last_frame = false;
         }
-        let next_rotation = Quat::from_rotation_y(next_yaw);
-        transform.rotation = next_rotation;
+        let (_, pitch, world_roll) = actor_world.rotation().to_euler(EulerRot::YXZ);
+        let next_rotation = Quat::from_euler(EulerRot::YXZ, next_yaw, pitch, world_roll);
+        let parent_world = if let Ok(parent) = parents.get(entity) {
+            let Ok(world) = space.p0().compute_global_transform(parent.parent()) else { continue; };
+            Some(world)
+        } else { None };
+        space.p1().get_mut(entity).unwrap().rotation = parent_world
+            .map_or(next_rotation, |parent| parent.rotation().inverse() * next_rotation);
         if let Some(mut rotation) = rotation {
             rotation.0 = next_rotation;
         }
@@ -603,6 +610,54 @@ mod rotation_cap_tests {
     use bevy::asset::{AssetEvent, AssetPlugin};
     use bevy::transform::TransformPlugin;
     use bevy_tnua::TnuaControllerPlugin;
+
+    #[test]
+    fn ordinary_rotation_keeps_current_parent_world_and_physics_aligned() {
+        for locomotion in [LocomotionState::Grounded, LocomotionState::Air] {
+            for mode in [RotationMode::VelocityDirection, RotationMode::ViewDirection, RotationMode::Aiming] {
+                let mut app = App::new();
+                let mut time = Time::<()>::default();
+                time.advance_by(std::time::Duration::from_millis(20));
+                app.insert_resource(time).init_resource::<Assets<AlsMovementParams>>()
+                    .register_required_components::<AlsCharacter, crate::actual_motion::AlsActualMotion>()
+                    .add_systems(Update, rotation_response_system);
+                let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(AlsMovementParams::default());
+                let parent = app.world_mut().spawn(Transform::IDENTITY).id();
+                let actor = app.world_mut().spawn((AlsCharacter, Transform::IDENTITY, ChildOf(parent), Rotation::IDENTITY,
+                    Stance::Standing, Gait::Running, locomotion, mode, AlsViewYaw(0.2), AlsMovementParamsHandle(params.clone()),
+                    LinearVelocity(Vec3::NEG_Z * 2.0),
+                    crate::actual_motion::AlsActualMotion { has_input: true, ..default() })).id();
+                for yaw in [90.0_f32, -35.0] {
+                    let parent_transform = Transform::from_xyz(5.0, 2.0, -3.0)
+                        .with_rotation(Quat::from_euler(EulerRot::YXZ, yaw.to_radians(), 0.15, -0.1))
+                        .with_scale(Vec3::splat(2.0));
+                    *app.world_mut().get_mut::<Transform>(parent).unwrap() = parent_transform;
+                    let before = parent_transform.rotation * app.world().get::<Transform>(actor).unwrap().rotation;
+                    let (_, pitch, roll) = before.to_euler(EulerRot::YXZ);
+                    let reference = app.world_mut().spawn((AlsCharacter, Transform::from_rotation(before), Rotation(before),
+                        Stance::Standing, Gait::Running, locomotion, mode, AlsViewYaw(0.2), AlsMovementParamsHandle(params.clone()),
+                        LinearVelocity(Vec3::NEG_Z * 2.0),
+                        crate::actual_motion::AlsActualMotion { has_input: true, ..default() })).id();
+                    if let Some(response) = app.world().get::<AlsRotationResponseState>(actor).copied() {
+                        app.world_mut().entity_mut(reference).insert(response);
+                    }
+                    app.world_mut().run_schedule(Update);
+                    let local = app.world().get::<Transform>(actor).unwrap();
+                    let physical = app.world().get::<Rotation>(actor).unwrap().0;
+                    let expected = app.world().get::<Rotation>(reference).unwrap().0;
+                    assert!(physical.angle_between(expected).abs() < 1e-3,
+                        "Source world rotation changed with attachment: {locomotion:?}, {mode:?}, {yaw}");
+                    assert!((parent_transform.rotation * local.rotation).angle_between(physical).abs() < 1e-3,
+                        "Source actor world and physical rotation differ: {locomotion:?}, {mode:?}, {yaw}");
+                    let (_, actual_pitch, actual_roll) = physical.to_euler(EulerRot::YXZ);
+                    assert!((actual_pitch - pitch).abs() < 1e-5 && (actual_roll - roll).abs() < 1e-5,
+                        "Source world pitch and roll were discarded");
+                    assert_eq!(local.translation, Vec3::ZERO);
+                    assert_eq!(local.scale, Vec3::ONE);
+                }
+            }
+        }
+    }
     use bevy_tnua_avian3d::TnuaAvian3dPlugin;
 
     use super::*;

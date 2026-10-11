@@ -1137,6 +1137,16 @@ fn head_state_values(state: AlsHeadState) -> [f32; 4] {
     [state.pitch_angle, state.yaw_angle, state.yaw_velocity, state.yaw_amount]
 }
 
+fn head_actor_world_inputs_match(player: &AnimationGraphPlayer, local: &Transform, world: &GlobalTransform) -> bool {
+    let expected_yaw = -crate::als::orientation::world_forward_to_yaw(*world.forward()).to_degrees();
+    world.rotation().angle_between(local.rotation).abs() > 0.5
+        && graph_global_f32(player, "locomotion_state.rotation_yaw")
+            .is_some_and(|yaw| crate::als::head::unwind_degrees(yaw - expected_yaw).abs() < 1e-3)
+        && player.get_global_input_data("locomotion_state.rotation_quaternion_world_space")
+            .and_then(|value| value.as_quat().ok()).is_some_and(|rotation|
+                rotation.abs_diff_eq(world.rotation(), 1e-6) || rotation.abs_diff_eq(-world.rotation(), 1e-6))
+}
+
 fn head_graph_sample(player: &AnimationGraphPlayer, probe: &MotionProbe, previous: Option<&(u64, AlsHeadState, bool, f32)>) -> HeadGraphSample {
     use crate::als::head::{AlsHeadSettings, AlsHeadUpdateInput, update_head_state};
     let scalar = |key| graph_global_f32(player, key).unwrap_or(0.0);
@@ -3501,6 +3511,7 @@ struct InterfaceProbe<'w, 's> {
 
 #[derive(SystemParam)]
 struct MotionProbe<'w, 's> {
+    transforms: bevy::transform::helper::TransformHelper<'w, 's>,
     player_views: Query<'w, 's, &'static crate::als::view::AlsPlayerViewYaw>,
     controllers: Query<'w, 's, &'static bevy_tnua::TnuaController<crate::als::control_scheme::AlsControlScheme>>,
     rendered_views: Query<'w, 's, (&'static Camera, &'static Transform, &'static crate::als_camera::AlsCharacterCamera), (With<Camera3d>, With<crate::als_camera::AlsCameraViewSource>)>,
@@ -4971,6 +4982,11 @@ fn drive_manual_integration(
             if entering && index == 0 {
                 state.head_probe = HeadProbe { valid: true, ..default() };
                 reset_character(&mut transform, &mut position, rotation, &mut velocity, &mut view_yaw, &mut view_pitch, GROUNDED_START.with_y(fixture.locomotion_start.y), SPRINT_YAW);
+                let parent_transform = Transform::from_xyz(5.0, 2.0, -3.0)
+                    .with_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_2)).with_scale(Vec3::splat(1.5));
+                let parent = commands.spawn((Name::new("Head actor parent fixture"), parent_transform)).id();
+                *transform = GlobalTransform::from(*transform).reparented_to(&GlobalTransform::from(parent_transform));
+                commands.entity(character).insert(ChildOf(parent));
                 reinitialize_fixture_rotation_response(rotation_response, &mut aiming_yaw_constraint, rotation_animation);
                 rebase_temporal_fixture(&mut state, &mut phase_evidence, "head_start");
                 *overlay = OverlayState::Default;
@@ -7666,6 +7682,11 @@ fn observe_manual_integration(
         let elapsed = state.phase_elapsed();
         let probe = &mut state.head_probe;
         let mut sample = head_graph_sample(player, &motion_probe, probe.previous.as_ref());
+        if let Ok(world) = motion_probe.transforms.compute_global_transform(character) {
+            if !head_actor_world_inputs_match(player, transform, &world) {
+                sample.errors.push("Head parent fixture or actor world inputs differ".into());
+            }
+        } else { sample.errors.push("Head actor world transform is unavailable".into()); }
         sample.elapsed_seconds = elapsed;
         let actual_state = crate::head_layer::head_state_from_player(player);
         if head.is_none_or(|head| *head != actual_state) { sample.errors.push("Head Actor projection differs from evaluated instance".into()); }
@@ -11432,6 +11453,43 @@ mod tests {
         }
         assert!(!default_overlay_should_timeout(false, 11.99));
         assert!(default_overlay_should_timeout(false, 12.0));
+    }
+
+    #[test]
+    fn head_world_guard_rejects_local_or_missing_actor_inputs() {
+        let world = GlobalTransform::IDENTITY;
+        let local = Transform::from_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2));
+        let mut player = AnimationGraphPlayer::new(Handle::default());
+        assert!(!head_actor_world_inputs_match(&player, &local, &world));
+        player.set_global_input_data("locomotion_state.rotation_yaw", 0.0_f32);
+        player.set_global_input_data("locomotion_state.rotation_quaternion_world_space", Quat::IDENTITY);
+        assert!(head_actor_world_inputs_match(&player, &local, &world));
+        assert!(!head_actor_world_inputs_match(&player, &Transform::IDENTITY, &world));
+        player.set_global_input_data("locomotion_state.rotation_yaw", 90.0_f32);
+        assert!(!head_actor_world_inputs_match(&player, &local, &world));
+        player.set_global_input_data("locomotion_state.rotation_yaw", 0.0_f32);
+        player.set_global_input_data("locomotion_state.rotation_quaternion_world_space", local.rotation);
+        assert!(!head_actor_world_inputs_match(&player, &local, &world));
+    }
+
+    #[test]
+    fn head_world_guard_accepts_identical_affine_rotations() {
+        let parent = Transform::from_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_2))
+            .with_scale(Vec3::splat(1.5));
+        let mut player = AnimationGraphPlayer::new(Handle::default());
+        for step in 0..3600 {
+            let rotation = Quat::from_rotation_y((step as f32 * 0.1).to_radians());
+            let local = Transform::from_rotation(parent.rotation.inverse() * rotation).with_scale(Vec3::splat(1.0 / 1.5));
+            let world = parent * GlobalTransform::from(local);
+            let rotation = world.rotation();
+            player.set_global_input_data("locomotion_state.rotation_quaternion_world_space", rotation);
+            player.set_global_input_data("locomotion_state.rotation_yaw",
+                -crate::als::orientation::world_forward_to_yaw(*world.forward()).to_degrees());
+            assert!(head_actor_world_inputs_match(&player, &local, &world),
+                "World guard rejected identical affine rotation at {step}: {rotation:?}, norm={}", rotation.length_squared());
+            player.set_global_input_data("locomotion_state.rotation_quaternion_world_space", -rotation);
+            assert!(head_actor_world_inputs_match(&player, &local, &world), "Equivalent quaternion sign was rejected at {step}");
+        }
     }
 
     #[test]

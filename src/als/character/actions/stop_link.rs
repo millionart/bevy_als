@@ -868,9 +868,9 @@ pub fn stop_link_system(
 
 fn quick_stop_notify_system(
     mut notices: MessageReader<AlsQuickStopNotify>,
+    transforms: bevy::transform::helper::TransformHelper,
     characters: Query<
         (
-            &Transform,
             &RotationMode,
             &Stance,
             (&AlsViewYaw, Option<&crate::als::view::AlsPlayerViewYaw>),
@@ -883,11 +883,12 @@ fn quick_stop_notify_system(
     mut commands: Commands,
 ) {
     for notice in notices.read() {
-        let Ok((body, rotation_mode, stance, (view_yaw, player_view), command, override_command, rotation)) =
+        let Ok((rotation_mode, stance, (view_yaw, player_view), command, override_command, rotation)) =
             characters.get(notice.character)
         else {
             continue;
         };
+        let Ok(body) = transforms.compute_global_transform(notice.character) else { continue; };
         let input = override_command.map_or(command, |value| &value.0);
         let target_yaw = rotation
             .filter(|rotation| rotation.initialized)
@@ -896,7 +897,7 @@ fn quick_stop_notify_system(
                 |rotation| rotation.target_yaw,
             );
         let (index, play_rate) =
-            quick_stop_selection(*rotation_mode, input, player_view.map_or(view_yaw.0, |view| view.0), body, target_yaw);
+            quick_stop_selection(*rotation_mode, input, player_view.map_or(view_yaw.0, |view| view.0), &body.compute_transform(), target_yaw);
         let playback = if *stance == Stance::Crouching {
             AlsTransitionPlayback::crouching_quick_stop(index, play_rate)
         } else {
@@ -1351,6 +1352,26 @@ mod tests {
         assert_eq!(playback.blend_in, QUICK_STOP_BLEND_IN);
         assert_eq!(playback.blend_out, QUICK_STOP_BLEND_OUT);
         assert_eq!(playback.start_time, QUICK_STOP_START_TIME);
+    }
+
+    #[test]
+    fn quick_stop_notice_reads_current_actor_world_rotation() {
+        let mut app = App::new();
+        app.add_message::<AlsQuickStopNotify>().add_systems(Update, quick_stop_notify_system);
+        let parent = app.world_mut().spawn(Transform::IDENTITY).id();
+        let character = app.world_mut().spawn((crate::als::character::AlsCharacter,
+            Transform::IDENTITY, ChildOf(parent), RotationMode::VelocityDirection, Stance::Standing,
+            AlsViewYaw(0.0), AlsInputCommand::default(),
+            AlsRotationResponseState { initialized: true, target_yaw: 0.0, ..default() })).id();
+        for (yaw, index) in [(90.0_f32, 1.0), (-90.0, 0.0)] {
+            *app.world_mut().get_mut::<Transform>(parent).unwrap() = Transform::from_xyz(3.0, 1.0, 2.0)
+                .with_rotation(Quat::from_rotation_y(yaw.to_radians())).with_scale(Vec3::new(2.0, 3.0, 0.5));
+            app.world_mut().write_message(AlsQuickStopNotify { character });
+            app.world_mut().run_schedule(Update);
+            let playback = app.world().get::<AlsTransitionMontageStack>(character).unwrap().latest().unwrap();
+            assert_eq!(playback.index, index, "Source QuickStop world side differs under parent yaw {yaw}");
+            assert!((playback.play_rate - 2.375).abs() < 1e-5);
+        }
     }
 
     #[test]
