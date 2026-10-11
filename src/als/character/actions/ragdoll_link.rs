@@ -370,6 +370,10 @@ fn capture_ragdoll_player_world_transform(
 
 fn sync_ragdoll_body_modes(
     mut commands: Commands,
+    scene_handles: Query<&AnimatedSceneHandle>,
+    scene_assets: Option<Res<Assets<AnimatedScene>>>,
+    maps: Option<Res<Assets<RagdollBoneMap>>>,
+    bones: Query<&GlobalTransform>,
     characters: Query<(Entity, Option<&AlsNotifyLocomotionAction>, Option<&AlsCharacterAssembly>), With<crate::als::character::AlsCharacter>>,
     avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
     mut players: Query<(
@@ -380,6 +384,8 @@ fn sync_ragdoll_body_modes(
         Entity,
         &RigidBody,
         Option<&RagdollActiveMode>,
+        &mut Position,
+        &mut Rotation,
         &mut LinearVelocity,
         &mut AngularVelocity,
         &mut RelativeKinematicBody,
@@ -399,11 +405,16 @@ fn sync_ragdoll_body_modes(
         };
         let ragdolling = action == Some(&AlsNotifyLocomotionAction::Ragdolling);
         let mut handoff = false;
-        for body_entity in spawned.bodies.values() {
+        let mapping = assembly.and_then(|assembly| scene_handles.get(assembly.avatar).ok())
+            .and_then(|handle| scene_assets.as_ref()?.get(&handle.handle))
+            .and_then(|scene| maps.as_ref()?.get(scene.ragdoll_bone_map.as_ref()?));
+        for (id, body_entity) in &spawned.bodies {
             let Ok((
                 entity,
                 mode,
                 active_mode,
+                mut position,
+                mut rotation,
                 mut linear_velocity,
                 mut angular_velocity,
                 mut relative_body,
@@ -414,6 +425,13 @@ fn sync_ragdoll_body_modes(
             };
             if ragdolling {
                 if !activated {
+                    if let Some(mapping) = mapping.and_then(|mapping| mapping.bodies_from_bones.get(id))
+                        && let Some(bone) = player.bone_entity(mapping.bone.bone.id())
+                        && let Ok(global) = bones.get(bone) {
+                        let target = global.to_isometry() * mapping.bone.offset;
+                        position.0 = target.translation.into();
+                        rotation.0 = target.rotation;
+                    }
                     commands.entity(entity).insert(AlsRagdollPhysicsActive);
                     handoff = true;
                 }

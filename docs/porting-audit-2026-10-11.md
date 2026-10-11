@@ -49,6 +49,8 @@
 
 ### P2-04 — Falling 首个子步落地后丢失剩余 Walking 时间
 
+修复完成（2026-10-11 21:39 +08:00）：碰撞子步退款后以共用迭代预算进入Walking，复用既有地面算法并保留同帧模式转换事件。落地回调、自动Roll和Ragdoll优先级均按源执行；已有CMC结果阻止新蒙太奇重复消费本帧移动。首次Ragdoll激活只对齐当前骨骼world pose，None模式清零actor速度及未消费motor，保留骨骼物理速度，修复退出时13.24 m/s反向弹射。40组落地、24组角色时钟、同帧回调、真实默认资产与开关控制通过；14个有效消融边界和合并实验、14项相关/4项接管/7项恢复控制、正常生产库矩阵及345规格/15root闭包通过。真实startup、grounded、0.2秒hitch moving_base、最终Ragdoll功能验收通过，最终PA位置/旋转误差0，恢复与输入解除全部覆盖，图/故障/时序异常均0。原失败报告、构造默认与资产有效值的纠正、超时拆分记录保留；性能延期、截图关闭及旧固定帧腿平面观察保持。证据在本地 `target/bf139/fix04/` 及 `target/animation_visual/bf139_p204*`。以下保留原审计反例。
+
 - Source：UE `Runtime/Engine/Private/Components/CharacterMovementComponent.cpp:5050` 在合法落点将子步剩余时间加入 `remainingTime`；`:6373` 的 `ProcessLanded` 最终调用 `StartNewPhysics(remainingTime, Iterations)`，继续当前帧的地面运动。
 - Target：`src/als/character/movement/motion.rs:2697` 在发现可走地面后直接 `break`，返回接口不携带剩余时间，也没有切入 Walking。之后 `locomotion_state_sync_system` 只更新模式/速度。
 - 反例：胶囊中心高 1 m、下落速度 3 m/s、水平速度与前向输入对应 3.75 m/s、200 ms 帧、50 ms CMC 子步、平地。源在落地后继续行走，水平位移约 0.75 m；实际仅 0.10516852 m，帧末已 Grounded、水平速度仍 3.75 m/s。相同输入在高空无落地时为 0.75 m，正对照通过。下落速度低于源 Roll/Ragdoll 阈值，排除了落地动作切换。

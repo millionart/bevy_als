@@ -58,8 +58,89 @@ pub(crate) mod tests {
     use bevy::ecs::system::RunSystemOnce;
 
     #[test]
+    fn landing_event_starts_roll_even_when_the_frame_ends_airborne() {
+        use crate::als::transition::{Dimension, StateTransitionEvent, StateValue};
+        for landed in [false, true] {
+            for speed in [6.999, 7.0, 8.0] {
+                let mut world = World::new();
+                world.init_resource::<Messages<StateTransitionEvent>>();
+                let mut time = Time::<()>::default();
+                time.advance_by(std::time::Duration::from_secs_f32(0.02));
+                world.insert_resource(time);
+                let actor = world.spawn((crate::als::character::AlsCharacter, AlsRollState::default(),
+                    LocomotionState::Air, Stance::Standing, AlsViewYaw::default(), Transform::IDENTITY,
+                    LinearVelocity(Vec3::NEG_Z * 3.75), AlsAirState::default(), AlsInputCommand::default(),
+                    crate::als::air::AlsPreImpactVelocity { last_air_vertical_velocity: -speed })).id();
+                if landed {
+                    world.resource_mut::<Messages<StateTransitionEvent>>().write(StateTransitionEvent {
+                        entity: actor, dimension: Dimension::LocomotionState,
+                        from: StateValue::LocomotionState(LocomotionState::Air), to: StateValue::LocomotionState(LocomotionState::Grounded),
+                    });
+                }
+                world.run_system_once(advance_rolls).unwrap();
+                assert_eq!(world.get::<AlsRollState>(actor).unwrap().active, landed && speed >= 7.0,
+                    "Source automatic Roll follows the landing callback and retained impact speed");
+            }
+        }
+    }
+
+    #[test]
+    fn actual_landing_roll_starts_after_a_same_frame_platform_crossing() {
+        let (mut app, actor, _) = loaded_roll_character();
+        app.world_mut().spawn((avian3d::prelude::RigidBody::Static, avian3d::prelude::Collider::cuboid(4.0, 0.6, 0.1),
+            Transform::from_xyz(5.0, 0.3, 0.0)));
+        app.update();
+        let start = Vec3::new(5.0, 1.6, 0.0);
+        app.world_mut().entity_mut(actor).insert((avian3d::prelude::Position(start), Transform::from_translation(start),
+            GlobalTransform::from_translation(start), LinearVelocity(Vec3::new(0.0, -8.0, -3.75)), LocomotionState::Air,
+            crate::als::transition::AlsStateRequest::default(), AlsInputCommand { move_dir: Vec2::Y, ..default() },
+            crate::als_camera::AlsCameraCustomTimeDilation(0.0)));
+        for _ in 0..2 { app.update(); }
+        let handle = app.world().get::<crate::als::character::AlsMovementParamsHandle>(actor).unwrap().0.clone();
+        assert!(!app.world().resource::<Assets<crate::als::params::AlsMovementParams>>().get(&handle).unwrap().rolling.interrupt_when_in_air,
+            "The native default asset overrides the source constructor's interrupt switch");
+        app.world_mut().entity_mut(actor).insert(crate::als_camera::AlsCameraCustomTimeDilation(1.0));
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.2)));
+        app.update();
+        assert_eq!(app.world().get::<LocomotionState>(actor), Some(&LocomotionState::Air));
+        assert!(app.world().get::<AlsRollState>(actor).unwrap().active,
+            "Source landing Roll must survive the same-frame return to Air when interruption is disabled");
+        let delta = app.world().get::<avian3d::prelude::Position>(actor).unwrap().0 - start;
+        assert!((delta.z + 0.75).abs() < 0.001, "The newly started montage must not consume the already resolved movement frame: {delta:?}");
+    }
+
+    #[test]
+    fn automatic_scaled_landing_ragdoll_recovery_has_no_deferred_motor_impulse() {
+        use avian3d::prelude::Position;
+        use crate::als::transition::AlsStateRequest;
+        let (mut app, actor, _) = loaded_roll_character();
+        let start = Vec3::new(-15.0, 10.824, -15.0);
+        let transform = Transform::from_translation(start).with_scale(Vec3::splat(2.0));
+        app.world_mut().entity_mut(actor).insert((Position(start), transform, GlobalTransform::from(transform), LinearVelocity::ZERO));
+        for frame in 0..240 {
+            app.update();
+            if frame >= 120 && app.world().get::<crate::ragdoll_link::AlsRagdollGroundFollow>(actor).is_some_and(|follow| follow.grounded) { break; }
+        }
+        assert_eq!(app.world().get::<crate::als::state::AlsNotifyLocomotionAction>(actor), Some(&crate::als::state::AlsNotifyLocomotionAction::Ragdolling));
+        println!("before_exit mode={:?} velocity={:?} motor={:?}", app.world().get::<LocomotionState>(actor), app.world().get::<LinearVelocity>(actor), app.world().get::<bevy_tnua::TnuaMotor>(actor));
+        app.world_mut().get_mut::<AlsStateRequest>(actor).unwrap().ragdoll_exit=true;
+        let mut max_up=0.0_f32;
+        let mut recovered=false;
+        for frame in 0..180 {
+            app.update();
+            let velocity=app.world().get::<LinearVelocity>(actor).unwrap().0;
+            let mode=*app.world().get::<LocomotionState>(actor).unwrap();
+            max_up=max_up.max(velocity.y);
+            if frame%15==0 { println!("recovery frame={frame} mode={mode:?} velocity={velocity:?} position={:?} action={:?}", app.world().get::<Position>(actor), app.world().get::<crate::als::state::AlsNotifyLocomotionAction>(actor)); }
+            recovered |= mode==LocomotionState::Grounded && velocity.length()<0.5;
+        }
+        assert!(max_up<0.5,"Source Grounded ragdoll exit has zero velocity and no deferred CMC impulse: {max_up}");
+        assert!(recovered,"Source scaled ragdoll must complete grounded recovery");
+    }
+    #[test]
     fn fresh_audit_roll_and_tail_use_the_current_actor_clock() {
         let mut world = World::new();
+        world.init_resource::<Messages<crate::als::transition::StateTransitionEvent>>();
         let mut time = Time::<()>::default();
         time.advance_by(std::time::Duration::from_secs_f32(0.05));
         world.insert_resource(time);
@@ -282,6 +363,7 @@ pub(crate) mod tests {
         let mut failures = Vec::new();
         for (input, expected) in [(Vec2::Y, 0.4_f32), (Vec2::ZERO, 0.7)] {
             let mut world = World::new();
+        world.init_resource::<Messages<crate::als::transition::StateTransitionEvent>>();
             let mut time = Time::<()>::default();
             time.advance_by(std::time::Duration::from_secs_f32(1.0 / 60.0));
             world.insert_resource(time);
@@ -1310,6 +1392,7 @@ pub(crate) mod tests {
     fn an_old_tail_cannot_supply_root_motion_in_any_query_order() {
         for old_first in [true, false] {
         let mut world = World::new();
+        world.init_resource::<Messages<crate::als::transition::StateTransitionEvent>>();
         let mut time = Time::<()>::default();
         time.advance_by(std::time::Duration::from_secs_f32(0.05));
         world.insert_resource(time);
@@ -1338,6 +1421,7 @@ pub(crate) mod tests {
                         (LocomotionState::Grounded, AlsNotifyLocomotionAction::Mantling, false),
                         (LocomotionState::Grounded, AlsNotifyLocomotionAction::Ragdolling, false)] {
                         let mut world = World::new();
+        world.init_resource::<Messages<crate::als::transition::StateTransitionEvent>>();
                         let mut time = Time::<()>::default();
                         time.advance_by(std::time::Duration::from_secs_f32(delta));
                         world.insert_resource(time);
@@ -1457,6 +1541,7 @@ pub(crate) mod tests {
     #[test]
     fn roll_blend_out_releases_root_motion_while_the_pose_keeps_playing() {
         let mut world = World::new();
+        world.init_resource::<Messages<crate::als::transition::StateTransitionEvent>>();
         let mut time = Time::<()>::default();
         time.advance_by(std::time::Duration::from_secs_f32(0.05));
         world.insert_resource(time);
@@ -1485,6 +1570,7 @@ pub(crate) mod tests {
     #[test]
     fn mantling_notify_blocks_roll_until_the_action_is_released() {
         let mut world = World::new();
+        world.init_resource::<Messages<crate::als::transition::StateTransitionEvent>>();
         let mut time = Time::<()>::default();
         time.advance_by(std::time::Duration::from_secs_f32(0.05));
         world.insert_resource(time);
@@ -1508,6 +1594,7 @@ pub(crate) mod tests {
     #[test]
     fn get_up_input_block_prevents_an_automatic_landing_roll() {
         let mut world = World::new();
+        world.init_resource::<Messages<crate::als::transition::StateTransitionEvent>>();
         let mut time = Time::<()>::default();
         time.advance_by(std::time::Duration::from_secs_f32(0.05));
         world.insert_resource(time);
@@ -1544,6 +1631,7 @@ pub(crate) mod tests {
     #[test]
     fn ragdoll_stops_roll_motion_while_preserving_the_montage_fade() {
         let mut world = World::new();
+        world.init_resource::<Messages<crate::als::transition::StateTransitionEvent>>();
         let mut time = Time::<()>::default();
         time.advance_by(std::time::Duration::from_secs_f32(0.1));
         world.insert_resource(time);
@@ -1635,7 +1723,7 @@ pub struct AlsRollDriveSet;
 
 impl Plugin for AlsRollDrivePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, load_roll_slot_curve_asset)
+        app.add_message::<crate::als::transition::StateTransitionEvent>().add_systems(Startup, load_roll_slot_curve_asset)
             .add_observer(discard_roll_target)
             .add_systems(PostUpdate, ensure_roll_slot_samplers.after(ensure_roll_state).before(advance_rolls))
             .configure_sets(
@@ -1860,6 +1948,8 @@ fn advance_rolls(
     mut commands: Commands,
     transform_helper: bevy::transform::helper::TransformHelper,
     custom_dilations: Query<&crate::als_camera::AlsCameraCustomTimeDilation>,
+    mut mode_changes: MessageReader<crate::als::transition::StateTransitionEvent>,
+    pre_impacts: Query<&crate::als::air::AlsPreImpactVelocity>,
     blocked: Query<(), With<crate::als::motion::AlsMovementInputBlocked>>,
     actions: Query<&crate::animation_events::AlsNotifyLocomotionAction>,
     mut blend_outs: Query<&mut AlsRollBlendOut>,
@@ -1881,6 +1971,11 @@ fn advance_rolls(
         With<crate::als::character::AlsCharacter>,
     >,
 ) {
+    let landings = mode_changes.read().filter(|event|
+        event.dimension == crate::als::transition::Dimension::LocomotionState
+            && event.from == crate::als::transition::StateValue::LocomotionState(LocomotionState::Air)
+            && event.to == crate::als::transition::StateValue::LocomotionState(LocomotionState::Grounded))
+        .map(|event| event.entity).collect::<Vec<_>>();
     for (entity, mut tail, sampler) in &mut tails {
         let dt = time.delta_secs() * custom_dilations.get(sampler.character).map_or(1.0, |value| value.0);
         tail.time += dt;
@@ -1911,8 +2006,15 @@ fn advance_rolls(
         );
 
         let previous_roll = *roll;
-        let landing_ready = *loco == LocomotionState::Grounded && !blocked.contains(character) && !action_blocked
-            && air.is_some_and(|air| air.landing_time <= dt.max(0.05) && air.last_impact_vy >= crate::als::roll::ROLL_ON_LAND_SPEED_THRESHOLD);
+        let landed = landings.contains(&character);
+        let landing_speed = if landed {
+            pre_impacts.get(character).map_or_else(|_| air.map_or(0.0, |air| air.last_impact_vy),
+                |record| (-record.last_air_vertical_velocity).max(0.0))
+        } else { air.map_or(0.0, |air| air.last_impact_vy) };
+        let landing_ready = (landed || (*loco == LocomotionState::Grounded
+            && air.is_some_and(|air| air.landing_time <= dt.max(0.05))))
+            && !blocked.contains(character) && !action_blocked
+            && landing_speed >= crate::als::roll::ROLL_ON_LAND_SPEED_THRESHOLD;
         let empty_action = actions.get(character).ok().is_none_or(|action| *action == AlsNotifyLocomotionAction::None);
         if empty_action && *loco == LocomotionState::Grounded && effective.roll_pressed { roll.active = false; }
         let mut stopped_blend = None;
@@ -1936,7 +2038,7 @@ fn advance_rolls(
             && (empty_action || stopped_blend.is_some() || !previous_roll.root_motion_active())
             && landing_ready
         {
-            lifecycle = roll.start_from_landing(air.unwrap().last_impact_vy, vel.0, actor_yaw, *stance);
+            lifecycle = roll.start_from_landing(landing_speed, vel.0, actor_yaw, *stance);
         }
         if lifecycle.started {
             if previous_roll.active {
@@ -1963,16 +2065,23 @@ fn roll_drive_system(
     time: Res<Time>,
     mut commands: Commands,
     custom_dilations: Query<&crate::als_camera::AlsCameraCustomTimeDilation>,
+    mut mode_changes: MessageReader<crate::als::transition::StateTransitionEvent>,
     parents: Query<&ChildOf>,
     modes: Query<(&LocomotionState, &avian3d::prelude::RigidBody,
         Has<avian3d::prelude::CustomPositionIntegration>)>,
     blend_outs: Query<(), With<AlsRollBlendOut>>,
     mut space: ParamSet<(bevy::transform::helper::TransformHelper,
         Query<(Entity, &AlsRollState, Option<&AlsNotifyLocomotionAction>, &mut Transform, Option<&mut Rotation>,
-            &mut LinearVelocity, Option<&AlsNotifyRootMotionScale>, Option<&AlsRollSlotRuntime>), With<crate::als::character::AlsCharacter>>)> ,
+            &mut LinearVelocity, Option<&AlsNotifyRootMotionScale>, Option<&AlsRollSlotRuntime>,
+            Option<&crate::als::character::AlsCmcAdapterRuntime>), With<crate::als::character::AlsCharacter>>)> ,
     sampler_root_motion: Query<(&AlsRollSlotSampler, &RootMotionOutput), Without<AlsRollTail>>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
+    let landings = mode_changes.read().filter(|event|
+        event.dimension == crate::als::transition::Dimension::LocomotionState
+            && event.from == crate::als::transition::StateValue::LocomotionState(LocomotionState::Air)
+            && event.to == crate::als::transition::StateValue::LocomotionState(LocomotionState::Grounded))
+        .map(|event| event.entity).collect::<Vec<_>>();
     let dt = time.delta_secs();
     let characters: Vec<_> = space.p1().iter().map(|(entity, ..)| entity).collect();
     for character in characters {
@@ -1988,7 +2097,7 @@ fn roll_drive_system(
             mesh
         } else { actor_world };
         let mut query = space.p1();
-        let (_, roll, action, mut transform, rotation, mut vel, notify_root_scale, runtime) = query.get_mut(character).unwrap();
+        let (_, roll, action, mut transform, rotation, mut vel, notify_root_scale, runtime, cmc) = query.get_mut(character).unwrap();
         let custom = modes.get(character).is_ok_and(|(mode, ..)| *mode == LocomotionState::Custom);
         let delta_too_small = if custom { dt <= 0.0 } else { dt <= 1e-5 };
         if !roll.active || action == Some(&AlsNotifyLocomotionAction::Ragdolling) || delta_too_small || blend_outs.contains(character)
@@ -1996,8 +2105,11 @@ fn roll_drive_system(
             continue;
         }
 
-        let (mut local_translation, local_rotation) = sample.map_or((Vec3::ZERO, Quat::IDENTITY),
+        let movement_resolved = landings.contains(&character)
+            && cmc.is_some_and(|runtime| runtime.grounded_collision_velocity.is_some());
+        let (mut local_translation, mut local_rotation) = sample.map_or((Vec3::ZERO, Quat::IDENTITY),
             |(_, output)| (output.translation_delta, output.rotation_delta));
+        if movement_resolved { local_translation = Vec3::ZERO; local_rotation = Quat::IDENTITY; }
         local_translation *= runtime.map_or_else(|| notify_root_scale.map_or(1.0, |scale| scale.0), |runtime| runtime.root_motion_scale).max(0.0);
         let (world_translation, root_rotation) =
             root_motion_world_transform(actor_world, mesh_world, local_translation, local_rotation);
@@ -2018,7 +2130,7 @@ fn roll_drive_system(
         }
         let weight = roll_weight_at(roll.time);
         let clip_time = (roll.time * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS);
-        vel.0 = world_translation / dt;
+        if !movement_resolved { vel.0 = world_translation / dt; }
         if let Ok((mode, body, custom_position)) = modes.get(character)
             && *mode == LocomotionState::Custom {
             let mut world_position = actor_world.translation();

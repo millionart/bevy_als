@@ -373,8 +373,10 @@ pub fn predict_grounded_stop_distance_with_braking_friction(
 }
 
 pub(crate) fn landing_braking_friction_system(
+    mut transitions: MessageReader<crate::als::transition::StateTransitionEvent>,
     mut q: Query<
         (
+            Entity,
             &LocomotionState,
             &AlsActualMotion,
             &mut AlsLandingBrakingFriction,
@@ -383,13 +385,23 @@ pub(crate) fn landing_braking_friction_system(
         With<AlsCharacter>,
     >,
 ) {
-    for (locomotion, motion, mut braking, rotation) in &mut q {
+    let landings = transitions.read().filter(|event|
+        event.dimension == crate::als::transition::Dimension::LocomotionState
+            && event.from == crate::als::transition::StateValue::LocomotionState(LocomotionState::Air)
+            && event.to == crate::als::transition::StateValue::LocomotionState(LocomotionState::Grounded))
+        .map(|event| event.entity).collect::<Vec<_>>();
+    for (entity, locomotion, motion, mut braking, rotation) in &mut q {
+        let mode = if landings.contains(&entity) {
+            braking.previous_locomotion = LocomotionState::Air;
+            LocomotionState::Grounded
+        } else { *locomotion };
         let ordinary_landing = update_landing_braking_friction(
             &mut braking,
-            *locomotion,
+            mode,
             motion.has_input,
             motion.world_velocity.y <= -crate::als::roll::ROLL_ON_LAND_SPEED_THRESHOLD,
         );
+        braking.previous_locomotion = *locomotion;
         if ordinary_landing && let Some(mut rotation) = rotation {
             rotation.rotation_towards_last_input_direction_blocked = true;
         }
@@ -407,7 +419,7 @@ fn advance_landing_braking_timer_system(
     }
 }
 
-fn update_landing_braking_friction(
+pub(crate) fn update_landing_braking_friction(
     braking: &mut AlsLandingBrakingFriction,
     locomotion: LocomotionState,
     has_input: bool,
@@ -629,7 +641,7 @@ pub struct AlsGroundedDynamicsPlugin;
 
 impl Plugin for AlsGroundedDynamicsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
+        app.add_message::<crate::als::transition::StateTransitionEvent>().add_systems(
             Update,
             (
                 advance_landing_braking_timer_system
@@ -1331,6 +1343,7 @@ mod tests {
     fn landing_automatic_action_condition_preserves_the_existing_timer() {
         use bevy::ecs::system::RunSystemOnce;
         let mut world = World::new();
+        world.init_resource::<Messages<crate::als::transition::StateTransitionEvent>>();
         for saved_vertical_speed in [-6.999_f32, -7.0, -7.001] {
             let original = AlsLandingBrakingFriction {
                 factor: 0.5, remaining_seconds: 0.25,
@@ -1339,6 +1352,7 @@ mod tests {
             let character = world.spawn((AlsCharacter, LocomotionState::Grounded,
                 AlsActualMotion { has_input: false, world_velocity: Vec3::Y * saved_vertical_speed, ..default() },
                 original)).id();
+            world.init_resource::<Messages<crate::als::transition::StateTransitionEvent>>();
             world.run_system_once(landing_braking_friction_system).unwrap();
             let actual = world.get::<AlsLandingBrakingFriction>(character).unwrap();
             if saved_vertical_speed <= -7.0 {
@@ -1699,6 +1713,7 @@ mod tests {
             } else {
                 world.entity_mut(character).remove::<AlsInputOverride>();
             }
+            world.init_resource::<Messages<crate::als::transition::StateTransitionEvent>>();
             world.run_system_once(landing_braking_friction_system).unwrap();
             if retained_input && command == Vec2::ZERO && override_input.is_none() {
                 world.run_system_once(grounded_dynamics_motor_system).unwrap();

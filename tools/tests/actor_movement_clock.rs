@@ -6,28 +6,33 @@ use bevy_als::als::{character::{AlsCharacterBundle, AlsCharacterPlugin}, control
     state::LocomotionState, transition::{AlsStateRequest, AlsStateTransitionPlugin}};
 use bevy_als::als_camera::AlsCameraCustomTimeDilation;
 
+fn movement_actor(capped: bool) -> (App, Entity, AlsMovementParams) {
+    let mut app = App::new();
+    app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin, PhysicsPlugins::new(PostUpdate),
+        bevy_tnua_avian3d::TnuaAvian3dPlugin::new(Update),
+        bevy_tnua::TnuaControllerPlugin::<AlsControlScheme>::new(Update), AlsStateTransitionPlugin, AlsCharacterPlugin,
+        AlsMotionPlugin, bevy_als::actual_motion::AlsActualMotionPlugin))
+        .configure_sets(PostUpdate, bevy_als::actual_motion::AlsActualMotionSet.after(bevy_als::als::motion::AlsActualVelocitySet))
+        .init_resource::<Assets<Mesh>>().add_message::<bevy::asset::AssetEvent<Mesh>>()
+        .insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0 / 60.0)));
+    if capped { app.add_plugins(bevy_als::source_physics_timing::SourcePhysicsTimingPlugin); }
+    app.finish();
+    let settings = AlsMovementParams::default();
+    let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(settings.clone());
+    let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>().add(initial_als_control_scheme_config(&settings));
+    let mut bundle = AlsCharacterBundle::new(params, config);
+    bundle.transform = Transform::from_xyz(0.0, 0.924, 0.0);
+    let actor = app.world_mut().spawn(bundle).id();
+    (app, actor, settings)
+}
+
 #[test]
 fn ordinary_actor_clock_preserves_source_motion_and_independent_world_physics() {
     for capped in [false, true] {
         for mode in [LocomotionState::Grounded, LocomotionState::Air] {
             for (dilation, moving_base) in [0.0_f32, 0.5, 1.0, 2.0].into_iter().flat_map(|rate| [(rate, false), (rate, true)]) {
                 if moving_base && mode == LocomotionState::Air { continue; }
-                let mut app = App::new();
-                app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin, PhysicsPlugins::new(PostUpdate),
-                    bevy_tnua_avian3d::TnuaAvian3dPlugin::new(Update),
-                    bevy_tnua::TnuaControllerPlugin::<AlsControlScheme>::new(Update), AlsStateTransitionPlugin, AlsCharacterPlugin,
-                    AlsMotionPlugin, bevy_als::actual_motion::AlsActualMotionPlugin))
-                    .configure_sets(PostUpdate, bevy_als::actual_motion::AlsActualMotionSet.after(bevy_als::als::motion::AlsActualVelocitySet))
-                    .init_resource::<Assets<Mesh>>().add_message::<bevy::asset::AssetEvent<Mesh>>()
-                    .insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0 / 60.0)));
-                if capped { app.add_plugins(bevy_als::source_physics_timing::SourcePhysicsTimingPlugin); }
-                app.finish();
-                let settings = AlsMovementParams::default();
-                let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(settings.clone());
-                let config = app.world_mut().resource_mut::<Assets<AlsControlSchemeConfig>>().add(initial_als_control_scheme_config(&settings));
-                let mut bundle = AlsCharacterBundle::new(params, config);
-                bundle.transform = Transform::from_xyz(0.0, 0.924, 0.0);
-                let actor = app.world_mut().spawn(bundle).id();
+                let (mut app, actor, settings) = movement_actor(capped);
                 let floor = app.world_mut().spawn((if moving_base { RigidBody::Kinematic } else { RigidBody::Static },
                     Collider::cuboid(20.0, 0.2, 30.0), Transform::from_xyz(0.0, -0.1, 0.0))).id();
                 for _ in 0..30 { app.update(); }
@@ -103,4 +108,80 @@ fn ordinary_actor_clock_preserves_source_motion_and_independent_world_physics() 
             }
         }
     }
+}
+
+#[test]
+fn landing_consumes_source_walking_time_without_resetting_the_iteration_budget() {
+    use bevy_als::als::character::AlsMovementParamsHandle;
+    for capped in [false, true] {
+        for (dilation, step, iterations, input) in [0.0_f32, 0.5, 1.0, 2.0].into_iter()
+            .flat_map(|rate| [0.01_f32, 0.025, 0.05, 0.1].map(|step| (rate, step, 8, Vec2::Y)))
+            .chain([(1.0, 0.05, 1, Vec2::Y), (1.0, 0.05, 2, Vec2::Y),
+                (1.0, 0.05, 8, Vec2::ZERO), (1.0, 0.05, 8, Vec2::Y * 0.5)]) {
+            let (mut app, actor, settings) = movement_actor(capped);
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(20.0, 0.2, 30.0), Transform::from_xyz(0.0, -0.1, 0.0)));
+            for _ in 0..30 { app.update(); }
+            let handle = app.world().get::<AlsMovementParamsHandle>(actor).unwrap().0.clone();
+            {
+                let mut assets = app.world_mut().resource_mut::<Assets<AlsMovementParams>>();
+                let mut settings = assets.get_mut(&handle).unwrap();
+                settings.cmc.max_simulation_time_step = step;
+                settings.cmc.max_simulation_iterations = iterations;
+            }
+            let start = Vec3::Y;
+            app.world_mut().entity_mut(actor).insert((Position(start), Transform::from_translation(start), GlobalTransform::from_translation(start),
+                LinearVelocity(Vec3::new(0.0, -3.0, -3.75)), LocomotionState::Air,
+                AlsStateRequest::default(), AlsInputCommand { move_dir: input, ..default() }, AlsCameraCustomTimeDilation(0.0)));
+            app.update();
+            app.world_mut().entity_mut(actor).insert(AlsCameraCustomTimeDilation(dilation));
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(0.2)));
+            app.update();
+            let delta = app.world().get::<Position>(actor).unwrap().0 - start;
+            let velocity = app.world().get::<LinearVelocity>(actor).unwrap().0;
+            let mode = app.world().get::<LocomotionState>(actor).unwrap();
+            println!("landing capped={capped} dilation={dilation} step={step} iterations={iterations} input={input:?} delta={delta:?} velocity={velocity:?} mode={mode:?}");
+            if dilation == 0.0 {
+                assert!(delta.length() < 0.001);
+                assert_eq!(*mode, LocomotionState::Air);
+            } else {
+                assert_eq!(*mode, LocomotionState::Grounded);
+                let floor_distance = app.world().get::<Position>(actor).unwrap().y - settings.crouch.standing_capsule_half_height;
+                assert!((0.018..=0.025).contains(&floor_distance), "Source Walking mode must adjust floor height even without another iteration: {floor_distance}");
+                if iterations == 1 { assert!((-delta.z) < 0.2, "Landing reset the source frame iteration budget"); }
+                else if input == Vec2::Y { assert!((delta.z + 0.75 * dilation).abs() < 0.001, "Landing discarded remaining source walking time"); }
+                else {
+                    assert!((-delta.z) > 0.105 && (-delta.z) < 0.75);
+                    assert!((-velocity.z) < 3.74, "Remaining walking time must apply grounded input and braking");
+                    if input == Vec2::ZERO { assert!(velocity.z.abs() < 0.001, "Source no-input landing friction must stop this frame"); }
+                    else { assert!((velocity.z + 1.875).abs() < 0.001, "Source analog input must reach its grounded speed limit"); }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn same_frame_walk_fall_land_runs_the_source_landing_callback() {
+    use bevy_als::als::dynamics::AlsLandingBrakingFriction;
+    let (mut app, actor, _) = movement_actor(false);
+    app.world_mut().spawn((RigidBody::Static, Collider::cuboid(20.0, 0.2, 30.0), Transform::from_xyz(0.0, -0.1, 0.0)));
+    app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.6, 0.1), Transform::from_xyz(0.0, 0.3, 0.0)));
+    let position = Vec3::Y * 1.524;
+    app.world_mut().entity_mut(actor).insert((Position(position), Transform::from_translation(position), GlobalTransform::from_translation(position), LinearVelocity::ZERO));
+    for _ in 0..30 { app.update(); }
+    app.world_mut().entity_mut(actor).insert((LinearVelocity(Vec3::NEG_Z * 3.75), AlsInputCommand { move_dir: Vec2::Y, ..default() }, bevy_als::als_camera::AlsCameraCustomTimeDilation(0.0)));
+    app.update();
+    assert_eq!(*app.world().get::<LocomotionState>(actor).unwrap(), LocomotionState::Grounded);
+    assert_eq!(app.world().get::<AlsLandingBrakingFriction>(actor).unwrap().factor, 0.0);
+    app.world_mut().resource_mut::<Messages<bevy_als::als::transition::StateTransitionEvent>>().clear();
+    app.world_mut().entity_mut(actor).insert(bevy_als::als_camera::AlsCameraCustomTimeDilation(2.0));
+    app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(0.25)));
+    app.update();
+    let events = app.world_mut().resource_mut::<Messages<bevy_als::als::transition::StateTransitionEvent>>().drain().collect::<Vec<_>>();
+    let mode = *app.world().get::<LocomotionState>(actor).unwrap();
+    let braking = *app.world().get::<AlsLandingBrakingFriction>(actor).unwrap();
+    println!("same_frame mode={mode:?} braking={braking:?} events={events:?} position={:?}", app.world().get::<Position>(actor));
+    assert_eq!(mode, LocomotionState::Grounded);
+    assert_eq!(events.iter().filter(|event| event.entity == actor && event.dimension == bevy_als::als::transition::Dimension::LocomotionState).count(), 2);
+    assert_eq!(braking.factor, 0.5, "Source NotifyLocomotionModeChanged runs the landing callback between Falling and Walking");
 }
