@@ -232,8 +232,10 @@ pub(super) fn drive(
     let candidate = state.moving_base_probe.stage == Stage::WaitMantle && *mode == LocomotionState::Grounded
         && velocities.get(body).is_ok_and(|(_, velocity, _)| moving_mantle_candidate(path.kind, velocity.0))
         && detect_mantle(&spatial, character, MantleDetectionInput {
-            origin: position.0, actor_yaw: world_forward_to_yaw(*transform.forward()), velocity: velocity.0,
-            input_direction: Vec3::NEG_Z, locomotion: *mode, stance: *stance, overlay: OverlayState::Default,
+            origin: position.0, actor_yaw: world_forward_to_yaw(*transform.forward()),
+            velocity_yaw: crate::als::motion::locomotion_movement_flags(false, velocity.0.with_y(0.0).length()).0
+                .then_some(world_forward_to_yaw(velocity.0)),
+            input_yaw: Some(0.0), locomotion: *mode, stance: *stance, overlay: OverlayState::Default,
             capsule_half_height: half, capsule_radius: radius, capsule_scale: transform.scale.y,
         }, &velocities, &permissions, &owners).intent.is_some_and(|intent| intent.target_entity == collider);
     let local = global.affine().inverse().transform_point3(position.0);
@@ -446,7 +448,7 @@ mod tests {
             spatial: SpatialQuery, velocities: Query<(&RigidBody, &LinearVelocity, Option<&AlsComponentVelocity>), Without<AlsCharacter>>,
             permissions: Query<Option<&AlsMantleTargetPermission>, Without<AlsCharacter>>, owners: Query<&ColliderOf>) -> bool {
             detect_mantle(&spatial, character, MantleDetectionInput {
-                origin, actor_yaw:0.0, velocity:Vec3::ZERO, input_direction:Vec3::NEG_Z,
+                origin, actor_yaw:0.0, velocity_yaw:None, input_yaw:Some(0.0),
                 locomotion:LocomotionState::Grounded, stance:Stance::Standing, overlay:OverlayState::Default,
                 capsule_half_height:half, capsule_radius:radius, capsule_scale:1.0,
             }, &velocities, &permissions, &owners).intent.is_some_and(|intent| intent.target_entity == target)

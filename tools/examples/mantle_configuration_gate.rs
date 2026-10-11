@@ -73,8 +73,8 @@ fn input_for(x: f32, scale: f32) -> MantleDetectionInput {
     MantleDetectionInput {
         origin: Vec3::new(x, capsule_half_height + 0.05, 0.0),
         actor_yaw: 0.0,
-        velocity: Vec3::ZERO,
-        input_direction: Vec3::NEG_Z,
+        velocity_yaw: None,
+        input_yaw: Some(0.0),
         locomotion: LocomotionState::Grounded,
         stance: Stance::Standing,
         overlay: OverlayState::Default,

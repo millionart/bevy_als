@@ -3,6 +3,7 @@ use crate::als::dynamics::{
     predict_grounded_stop_distance_with_braking_friction,
 };
 use crate::als::input::AlsInputCommand;
+use crate::actual_motion::AlsActualMotion;
 use crate::als::motion::{
     AlsActualVelocity, AlsInputOverride, AlsRotationResponseState, AlsViewYaw, view_relative_move_direction,
 };
@@ -397,19 +398,13 @@ const ROOT_TRANSITION_SLOT_CURVE_NAMES: [&str; 12] = [
 
 pub fn quick_stop_selection(
     rotation_mode: RotationMode,
-    input: &AlsInputCommand,
-    view_yaw: f32,
+    input_yaw: Option<f32>,
     body: &Transform,
     target_yaw: f32,
 ) -> (f32, f32) {
     let forward = body.rotation * Vec3::NEG_Z;
     let body_yaw = world_forward_to_yaw(forward).to_degrees();
-    let input_yaw = if input.move_dir.length_squared() > f32::EPSILON {
-        let direction = view_relative_move_direction(input.move_dir, view_yaw);
-        world_forward_to_yaw(direction).to_degrees()
-    } else {
-        target_yaw.to_degrees()
-    };
+    let input_yaw = input_yaw.unwrap_or(target_yaw).to_degrees();
     let selection = select_quick_stop(
         rotation_mode,
         -body_yaw,
@@ -873,9 +868,7 @@ fn quick_stop_notify_system(
         (
             &RotationMode,
             &Stance,
-            (&AlsViewYaw, Option<&crate::als::view::AlsPlayerViewYaw>),
-            &AlsInputCommand,
-            Option<&AlsInputOverride>,
+            Option<&AlsActualMotion>,
             Option<&AlsRotationResponseState>,
         ),
         With<crate::als::character::AlsCharacter>,
@@ -883,13 +876,13 @@ fn quick_stop_notify_system(
     mut commands: Commands,
 ) {
     for notice in notices.read() {
-        let Ok((rotation_mode, stance, (view_yaw, player_view), command, override_command, rotation)) =
+        let Ok((rotation_mode, stance, motion, rotation)) =
             characters.get(notice.character)
         else {
             continue;
         };
         let Ok(body) = transforms.compute_global_transform(notice.character) else { continue; };
-        let input = override_command.map_or(command, |value| &value.0);
+        let input_yaw = motion.and_then(|motion| motion.has_input.then_some(motion.input_yaw_degrees.to_radians()));
         let target_yaw = rotation
             .filter(|rotation| rotation.initialized)
             .map_or_else(
@@ -897,7 +890,7 @@ fn quick_stop_notify_system(
                 |rotation| rotation.target_yaw,
             );
         let (index, play_rate) =
-            quick_stop_selection(*rotation_mode, input, player_view.map_or(view_yaw.0, |view| view.0), &body.compute_transform(), target_yaw);
+            quick_stop_selection(*rotation_mode, input_yaw, &body.compute_transform(), target_yaw);
         let playback = if *stance == Stance::Crouching {
             AlsTransitionPlayback::crouching_quick_stop(index, play_rate)
         } else {
@@ -1343,15 +1336,36 @@ mod tests {
     #[test]
     fn quick_stop_uses_the_source_settings_range() {
         let body = Transform::IDENTITY;
-        let input = AlsInputCommand::default();
         let (index, play_rate) =
-            quick_stop_selection(RotationMode::VelocityDirection, &input, 0.0, &body, 0.0);
+            quick_stop_selection(RotationMode::VelocityDirection, None, &body, 0.0);
         assert_eq!(index, 0.0);
         assert_eq!(play_rate, QUICK_STOP_MIN_PLAY_RATE);
         let playback = AlsTransitionPlayback::quick_stop(index, play_rate);
         assert_eq!(playback.blend_in, QUICK_STOP_BLEND_IN);
         assert_eq!(playback.blend_out, QUICK_STOP_BLEND_OUT);
         assert_eq!(playback.start_time, QUICK_STOP_START_TIME);
+    }
+
+    #[test]
+    fn quick_stop_notice_uses_consumed_input_without_a_second_threshold() {
+        let mut app = App::new();
+        app.add_message::<AlsQuickStopNotify>().add_systems(Update, quick_stop_notify_system);
+        let actor = app.world_mut().spawn((crate::als::character::AlsCharacter, Transform::IDENTITY,
+            RotationMode::VelocityDirection, Stance::Standing, AlsViewYaw(0.0), AlsInputCommand::default(),
+            AlsRotationResponseState { initialized: true, target_yaw: 0.0, ..default() })).id();
+        let mut failures = Vec::new();
+        for (raw, has_input) in [(0.01_f32, true), (0.0002, true), (0.0, true), (0.01, false)] {
+            app.world_mut().entity_mut(actor).insert((AlsInputCommand { move_dir: Vec2::X * raw, ..default() },
+                crate::actual_motion::AlsActualMotion { has_input, input_yaw_degrees: -90.0, ..default() }));
+            app.world_mut().write_message(AlsQuickStopNotify { character: actor });
+            app.world_mut().run_schedule(Update);
+            let playback = app.world().get::<AlsTransitionMontageStack>(actor).unwrap().latest().unwrap();
+            let expected = if has_input { (1.0, 2.375) } else { (0.0, 1.75) };
+            if (playback.index - expected.0).abs() > 1e-6 || (playback.play_rate - expected.1).abs() > 1e-6 {
+                failures.push((raw, has_input, playback.index, playback.play_rate, expected));
+            }
+        }
+        assert!(failures.is_empty(), "Source QuickStop consumes bHasInput and InputYaw: {failures:?}");
     }
 
     #[test]
@@ -1398,6 +1412,9 @@ mod tests {
                         move_dir: input,
                         ..default()
                     },
+                    AlsActualMotion { has_input: input != Vec2::ZERO,
+                        input_yaw_degrees: world_forward_to_yaw(view_relative_move_direction(input, 0.0)).to_degrees(),
+                        ..default() },
                     crate::als::motion::AlsRotationResponseState {
                         initialized: true,
                         target_yaw: target_yaw.to_radians(),

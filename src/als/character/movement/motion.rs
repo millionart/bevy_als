@@ -3001,7 +3001,7 @@ type DriveQueryItem<'a> = (
     (&'a AlsViewYaw, Option<&'a crate::als::view::AlsPlayerViewYaw>),
     &'a GlobalTransform,
     &'a LocomotionState,
-    &'a LinearVelocity,
+    Option<&'a crate::actual_motion::AlsActualMotion>,
     Option<&'a mut crate::als::mantle::AlsMantleState>,
     Option<&'a AlsInputOverride>,
     &'a AlsInputCommand,
@@ -3024,7 +3024,6 @@ pub(crate) fn locomotion_drive_system(
     target_bodies: Query<&RigidBody, Without<AlsCharacter>>,
     target_colliders: Query<&avian3d::prelude::ColliderOf>,
     mantle_controls: Query<Option<&AlsMantleControlSettings>, With<AlsCharacter>>,
-    movement_bases: Query<&crate::als::dynamics::AlsMovementBaseDynamicsState, With<AlsCharacter>>,
     mantle_start_time_settings: Query<Option<&AlsMantleStartTimeSettings>, With<AlsCharacter>>,
     params_assets: Res<Assets<AlsMovementParams>>,
     rolls: Query<&crate::als::roll::AlsRollState, With<AlsCharacter>>,
@@ -3038,7 +3037,7 @@ pub(crate) fn locomotion_drive_system(
         (view_yaw, player_view),
         gtf,
         loco,
-        velocity,
+        motion,
         mut mantle,
         override_cmd,
         cmd,
@@ -3125,8 +3124,9 @@ pub(crate) fn locomotion_drive_system(
                 MantleDetectionInput {
                     origin,
                     actor_yaw: yaw_from_direction(fwd),
-                    velocity: crate::als::dynamics::locomotion_velocity(velocity.0, *loco, movement_bases.get(entity).ok()),
-                    input_direction: world_dir,
+                    velocity_yaw: motion.filter(|motion| locomotion_movement_flags(motion.has_input, motion.horizontal_speed).0)
+                        .map(|motion| motion.velocity_yaw_degrees.to_radians()),
+                    input_yaw: motion.and_then(|motion| motion.has_input.then_some(motion.input_yaw_degrees.to_radians())),
                     locomotion: *loco,
                     stance: *stance,
                     overlay: *overlay,
@@ -5383,7 +5383,7 @@ mod tests {
             velocities: Query<(&RigidBody, &LinearVelocity, Option<&crate::als::dynamics::AlsComponentVelocity>), Without<AlsCharacter>>,
             permissions: Query<Option<&AlsMantleTargetPermission>, Without<AlsCharacter>>, colliders: Query<&ColliderOf>| {
             detect_mantle(&spatial, character, MantleDetectionInput { origin, actor_yaw: 0.0,
-                velocity: Vec3::ZERO, input_direction: Vec3::NEG_Z, locomotion: LocomotionState::Grounded,
+                velocity_yaw: None, input_yaw: Some(0.0), locomotion: LocomotionState::Grounded,
                 capsule_half_height: 0.9, capsule_radius: 0.3, capsule_scale: 1.0, ..default() },
                 &velocities, &permissions, &colliders)
         }).unwrap();
@@ -5686,6 +5686,29 @@ mod tests {
             app.world().get::<crate::als::gait::AlsMaxAllowedGait>(character),
             app.world().get::<crate::als::gait::AlsDesiredGait>(character),
             app.world().get::<TnuaMotor>(character));
+    }
+
+    #[test]
+    fn mantle_probe_uses_consumed_input_and_velocity_yaw() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, actor, _) = stair_motion_fixture(0.18, false, false, 0.0);
+        let mut failures = Vec::new();
+        for (has_input, input_yaw, speed, velocity_yaw, expected) in [
+            (false, -90.0_f32, 0.0, 70.0, 0.0), (true, -90.0, 0.0, 70.0, -50.0),
+            (false, -90.0, 1.0, 70.0, 50.0), (true, 100.0, 1.0, -10.0, 40.0),
+        ] {
+            app.world_mut().entity_mut(actor).insert((AlsMantleState::default(), AlsJumpPrev(false),
+                AlsStateRequest::default(), AlsInputOverride(AlsInputCommand { jump_pressed: true, move_dir: Vec2::X * 0.00001, ..default() }),
+                crate::als::view::AlsPlayerViewYaw(0.4), LinearVelocity::ZERO,
+                crate::actual_motion::AlsActualMotion { has_input, input_yaw_degrees: input_yaw,
+                    horizontal_speed: speed, velocity_yaw_degrees: velocity_yaw, ..default() }));
+            app.world_mut().run_system_once(locomotion_drive_system).unwrap();
+            let trace = app.world().get::<AlsCharacterDebug>(actor).unwrap().0.mantle_probe.unwrap();
+            let direction = (trace.forward_end.unwrap() - trace.forward_start.unwrap()).normalize();
+            let yaw = crate::als::orientation::world_forward_to_yaw(direction).to_degrees();
+            if (yaw - expected).abs() > 1e-4 { failures.push((has_input, input_yaw, speed, velocity_yaw, yaw, expected)); }
+        }
+        assert!(failures.is_empty(), "Source Mantle uses consumed input and velocity yaw: {failures:?}");
     }
 
     #[test]

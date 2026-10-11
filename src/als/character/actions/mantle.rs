@@ -254,8 +254,8 @@ pub struct MantleDetection {
 pub struct MantleDetectionInput {
     pub origin: Vec3,
     pub actor_yaw: f32,
-    pub velocity: Vec3,
-    pub input_direction: Vec3,
+    pub velocity_yaw: Option<f32>,
+    pub input_yaw: Option<f32>,
     pub locomotion: LocomotionState,
     pub stance: Stance,
     pub overlay: OverlayState,
@@ -269,8 +269,8 @@ impl Default for MantleDetectionInput {
         Self {
             origin: Vec3::ZERO,
             actor_yaw: 0.0,
-            velocity: Vec3::ZERO,
-            input_direction: Vec3::ZERO,
+            velocity_yaw: None,
+            input_yaw: None,
             locomotion: LocomotionState::Grounded,
             stance: Stance::Standing,
             overlay: OverlayState::Default,
@@ -467,21 +467,12 @@ pub fn mantle_blend_in_amount(kind: MantleKind, time: f32) -> f32 {
 }
 
 pub fn mantle_trace_direction(input: &MantleDetectionInput) -> Option<Vec3> {
-    let velocity = Vec3::new(input.velocity.x, 0.0, input.velocity.z);
-    let desired_yaw = if velocity.length() >= 0.01 {
-        let velocity_yaw = yaw_from_direction(velocity);
-        if input.input_direction.length_squared() > 1e-6 {
-            let input_yaw = yaw_from_direction(input.input_direction);
-            velocity_yaw
-                + wrap_angle(input_yaw - velocity_yaw)
-                    .clamp(-MANTLE_MAX_REACH_ANGLE, MANTLE_MAX_REACH_ANGLE)
-        } else {
-            velocity_yaw
-        }
-    } else if input.input_direction.length_squared() > 1e-6 {
-        yaw_from_direction(input.input_direction)
-    } else {
-        input.actor_yaw
+    let desired_yaw = match (input.velocity_yaw, input.input_yaw) {
+        (Some(velocity), Some(input)) => velocity + wrap_angle(input - velocity)
+            .clamp(-MANTLE_MAX_REACH_ANGLE, MANTLE_MAX_REACH_ANGLE),
+        (Some(velocity), None) => velocity,
+        (None, Some(input)) => input,
+        (None, None) => input.actor_yaw,
     };
     let delta = wrap_angle(desired_yaw - input.actor_yaw);
     if delta.abs() > MANTLE_TRACE_ANGLE_LIMIT {
@@ -1021,7 +1012,7 @@ mod tests {
             velocities: Query<(&RigidBody, &LinearVelocity, Option<&AlsComponentVelocity>), Without<crate::als::character::AlsCharacter>>,
             permissions: Query<Option<&AlsMantleTargetPermission>, Without<crate::als::character::AlsCharacter>>, colliders: Query<&ColliderOf>,
             actors: Query<&Transform, With<crate::als::character::AlsCharacter>>| {
-            detect_mantle(&spatial, actor, MantleDetectionInput { origin: actors.get(actor).unwrap().translation, input_direction: Vec3::NEG_Z,
+            detect_mantle(&spatial, actor, MantleDetectionInput { origin: actors.get(actor).unwrap().translation, input_yaw: Some(0.0),
                 locomotion, ..default() }, &velocities, &permissions, &colliders)
         }, (actor, locomotion)).unwrap()
     }
@@ -1261,14 +1252,14 @@ mod tests {
     fn forward_trace_direction_limits_input_to_source_angles() {
         let input = MantleDetectionInput {
             actor_yaw: 0.0,
-            input_direction: Vec3::X,
+            input_yaw: Some(-std::f32::consts::FRAC_PI_2),
             ..default()
         };
         let direction = mantle_trace_direction(&input).unwrap();
         assert!((yaw_from_direction(direction) + MANTLE_MAX_REACH_ANGLE).abs() < 1e-6);
         let behind = MantleDetectionInput {
             actor_yaw: 0.0,
-            input_direction: Vec3::Z,
+            input_yaw: Some(std::f32::consts::PI),
             ..default()
         };
         assert!(mantle_trace_direction(&behind).is_none());
@@ -1279,7 +1270,8 @@ mod tests {
             (0.01, -MANTLE_MAX_REACH_ANGLE),
         ] {
             let input = MantleDetectionInput {
-                velocity: Vec3::new(speed, 2.0, 0.0),
+                velocity_yaw: crate::als::motion::locomotion_movement_flags(false, speed).0
+                    .then_some(-std::f32::consts::FRAC_PI_2),
                 ..default()
             };
             let direction = mantle_trace_direction(&input).unwrap();

@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::als::input::AlsInputCommand;
-use crate::als::motion::{AlsViewYaw, view_relative_move_axes, view_relative_move_direction};
+use crate::als::motion::AlsViewYaw;
 use crate::als::orientation::{world_forward_to_yaw, yaw_to_world_forward};
 use crate::als::start_stop::{MoveDirection, classify};
 use crate::als::state::{LocomotionState, Stance};
@@ -53,15 +53,12 @@ pub fn roll_weight_at(elapsed: f32) -> f32 {
     alpha * alpha * (3.0 - 2.0 * alpha)
 }
 
-pub fn select_roll_direction(cmd: &AlsInputCommand, view_yaw: &AlsViewYaw) -> (MoveDirection, f32) {
-    let input = if cmd.move_dir.length_squared() > 1e-6 {
-        cmd.move_dir
-    } else {
-        Vec2::Y
-    };
-    let dir = classify(view_relative_move_axes(input, view_yaw.0), view_yaw.0);
-    let world = view_relative_move_direction(input, view_yaw.0);
-    (dir, world_forward_to_yaw(world))
+pub fn select_roll_direction(input_yaw: Option<f32>, basis: &AlsViewYaw) -> (MoveDirection, f32) {
+    let yaw = input_yaw.unwrap_or(basis.0);
+    let world = yaw_to_world_forward(yaw);
+    let direction = input_yaw.map_or(MoveDirection::Forward,
+        |_| classify(Vec2::new(world.x, -world.z), basis.0));
+    (direction, yaw)
 }
 
 pub fn roll_displacement_dir(yaw: f32) -> Vec3 {
@@ -131,7 +128,7 @@ impl AlsRollState {
     pub fn update(
         &mut self,
         cmd: &AlsInputCommand,
-        view_yaw: &AlsViewYaw,
+        direction: (MoveDirection, f32),
         loco: &LocomotionState,
         stance: &Stance,
         dt: f32,
@@ -150,9 +147,8 @@ impl AlsRollState {
             if playing { return lifecycle; }
         }
         if *loco == LocomotionState::Grounded && cmd.roll_pressed {
-            let (direction, yaw) = select_roll_direction(cmd, view_yaw);
-            self.last_direction = direction;
-            self.direction_yaw = yaw;
+            self.last_direction = direction.0;
+            self.direction_yaw = direction.1;
             self.stance_before_roll = *stance;
             self.active = true;
             self.time = 0.0;
@@ -184,11 +180,11 @@ mod tests {
     }
 
     #[test]
-    fn idle_request_rolls_toward_view_forward() {
+    fn idle_request_rolls_toward_actor_forward() {
         let mut state = AlsRollState::default();
         let lifecycle = state.update(
             &base_cmd(),
-            &AlsViewYaw(std::f32::consts::FRAC_PI_2),
+            select_roll_direction(None, &AlsViewYaw(std::f32::consts::FRAC_PI_2)),
             &LocomotionState::Grounded,
             &Stance::Standing,
             1.0 / 60.0,
@@ -208,7 +204,7 @@ mod tests {
         };
         state.update(
             &cmd,
-            &AlsViewYaw(0.0),
+            select_roll_direction(Some(-std::f32::consts::FRAC_PI_2), &AlsViewYaw(0.0)),
             &LocomotionState::Grounded,
             &Stance::Standing,
             1.0 / 60.0,
@@ -222,7 +218,7 @@ mod tests {
         let mut state = AlsRollState::default();
         state.update(
             &base_cmd(),
-            &AlsViewYaw(0.0),
+            select_roll_direction(None, &AlsViewYaw(0.0)),
             &LocomotionState::Grounded,
             &Stance::Crouching,
             1.0 / 60.0,
@@ -231,7 +227,7 @@ mod tests {
         assert_eq!(state.stance_before_roll, Stance::Crouching);
         let end = state.update(
             &AlsInputCommand::default(),
-            &AlsViewYaw(0.0),
+            select_roll_direction(None, &AlsViewYaw(0.0)),
             &LocomotionState::Grounded,
             &Stance::Crouching,
             ROLL_DURATION_SECS,

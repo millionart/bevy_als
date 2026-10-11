@@ -3,7 +3,7 @@ use crate::als::input::AlsInputCommand;
 use crate::als::motion::{AlsInputOverride, AlsViewYaw};
 use crate::als::roll::{
     AlsRollState, ROLL_MONTAGE_SEQUENCE_LENGTH_SECS, ROLL_PLAY_RATE, ROLL_ROTATION_HALF_LIFE_SECS,
-    damper_exact_angle, roll_weight_at,
+    damper_exact_angle, roll_weight_at, select_roll_direction,
 };
 use crate::als::state::{LocomotionState, Stance};
 use crate::extensions::AlsAnimCurves;
@@ -54,6 +54,48 @@ impl AlsRollTail {
 
 #[cfg(test)]
 pub(crate) mod tests {
+    #[test]
+    fn roll_small_input_keeps_consumed_direction_through_the_full_frame() {
+        for amount in [0.01_f32, 0.0002] {
+            let (mut app, actor, _) = loaded_roll_character();
+            app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(actor).unwrap().move_dir = Vec2::X * amount;
+            for _ in 0..3 { app.update(); }
+            let motion = *app.world().get::<crate::actual_motion::AlsActualMotion>(actor).unwrap();
+            assert!(motion.has_input, "The source input must have been consumed before rolling");
+            app.world_mut().get_mut::<crate::als::input::AlsInputCommand>(actor).unwrap().roll_pressed = true;
+            app.update();
+            let roll = app.world().get::<crate::als::roll::AlsRollState>(actor).unwrap();
+            assert!(roll.active);
+            assert!(crate::als::roll::wrap_angle(roll.direction_yaw - motion.input_yaw_degrees.to_radians()).abs() < 1e-4,
+                "Source consumed small-input yaw was lost during the real frame: amount={amount} yaw={} consumed={}", roll.direction_yaw, motion.input_yaw_degrees);
+        }
+    }
+
+    #[test]
+    fn roll_direction_uses_consumed_input_instead_of_raw_command_or_view() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, actor, _) = loaded_roll_character();
+        let mut failures = Vec::new();
+        for (raw, has_input, yaw) in [(0.01_f32, true, 0.9 - std::f32::consts::FRAC_PI_2),
+            (0.0002, true, 0.9 - std::f32::consts::FRAC_PI_2), (1.0, false, -1.3), (0.0, true, 0.7)] {
+            let command = crate::als::input::AlsInputCommand { roll_pressed: true, move_dir: Vec2::X * raw, ..default() };
+            app.world_mut().entity_mut(actor).insert((crate::als::roll::AlsRollState::default(),
+                crate::als::state::LocomotionState::Grounded, AlsNotifyLocomotionAction::None,
+                crate::als::motion::AlsViewYaw(0.3), crate::als::view::AlsPlayerViewYaw(0.9), command,
+                crate::als::motion::AlsInputOverride(command),
+                crate::actual_motion::AlsActualMotion { has_input, input_yaw_degrees: yaw.to_degrees(), ..default() }));
+            app.world_mut().entity_mut(actor).remove::<crate::als::motion::AlsMovementInputBlocked>();
+            app.world_mut().run_system_once(super::advance_rolls).unwrap();
+            let state = app.world().get::<crate::als::roll::AlsRollState>(actor).unwrap();
+            assert!(state.active, "The source roll request must be admitted");
+            let expected = if has_input { yaw } else { 0.0 };
+            if crate::als::roll::wrap_angle(state.direction_yaw - expected).abs() > 1e-5 {
+                failures.push((raw, has_input, yaw, state.direction_yaw, expected));
+            }
+        }
+        assert!(failures.is_empty(), "Source rolling consumes bHasInput and InputYawAngle: {failures:?}");
+    }
+
     use super::*;
     use bevy::ecs::system::RunSystemOnce;
 
@@ -1967,6 +2009,7 @@ fn advance_rolls(
             Option<&AlsAirState>,
             &AlsInputCommand,
             Option<&AlsInputOverride>,
+            Option<&crate::actual_motion::AlsActualMotion>,
         ),
         With<crate::als::character::AlsCharacter>,
     >,
@@ -1993,6 +2036,7 @@ fn advance_rolls(
         air,
         cmd,
         ovr,
+        motion,
     ) in &mut q
     {
         let Ok(actor_world) = transform_helper.compute_global_transform(character) else { continue; };
@@ -2030,10 +2074,11 @@ fn advance_rolls(
             roll.active = false;
         }
 
-        let direction_basis = AlsViewYaw(if effective.move_dir.length_squared() > 1e-6 {
+        let input_yaw = motion.and_then(|motion| motion.has_input.then_some(motion.input_yaw_degrees.to_radians()));
+        let direction_basis = AlsViewYaw(if input_yaw.is_some() {
             player_view.map_or(view.0, |view| view.0)
         } else { actor_yaw });
-        let mut lifecycle = roll.update(&effective, &direction_basis, loco, stance, dt);
+        let mut lifecycle = roll.update(&effective, select_roll_direction(input_yaw, &direction_basis), loco, stance, dt);
         if !lifecycle.started
             && (empty_action || stopped_blend.is_some() || !previous_roll.root_motion_active())
             && landing_ready

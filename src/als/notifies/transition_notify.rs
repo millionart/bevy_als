@@ -204,9 +204,8 @@ fn dispatch_transition_notifications(
     assemblies: Query<&AlsCharacterAssembly>,
     transforms: bevy::transform::helper::TransformHelper,
     quick_stop_inputs: Query<(
-        &crate::als::state::RotationMode, &crate::als::motion::AlsViewYaw,
-        Option<&crate::als::view::AlsPlayerViewYaw>, &crate::als::input::AlsInputCommand,
-        Option<&crate::als::motion::AlsInputOverride>, Option<&crate::als::motion::AlsRotationResponseState>,
+        &crate::als::state::RotationMode, Option<&crate::actual_motion::AlsActualMotion>,
+        Option<&crate::als::motion::AlsRotationResponseState>,
     )>,
     mut commands: Commands,
 ) {
@@ -336,17 +335,17 @@ fn dispatch_transition_notifications(
                             if let Ok(mut telemetry) = telemetry.get_mut(avatar.character) {
                                 telemetry.stop_quick_count += 1;
                             }
-                            if let Ok((rotation_mode, view_yaw, player_view, command, override_command, rotation)) =
+                            if let Ok((rotation_mode, motion, rotation)) =
                                 quick_stop_inputs.get(avatar.character)
                                 && let Ok(stance) = stances.get(avatar.character)
                                 && let Ok(body) = transforms.compute_global_transform(avatar.character)
                             {
-                                let input = override_command.map_or(command, |value| &value.0);
+                                let input_yaw = motion.and_then(|motion| motion.has_input.then_some(motion.input_yaw_degrees.to_radians()));
                                 let target_yaw = rotation.filter(|rotation| rotation.initialized).map_or_else(
                                     || crate::als::orientation::world_forward_to_yaw(*body.forward()),
                                     |rotation| rotation.target_yaw);
                                 let (index, play_rate) = crate::stop_link::quick_stop_selection(
-                                    *rotation_mode, input, player_view.map_or(view_yaw.0, |view| view.0), &body.compute_transform(), target_yaw);
+                                    *rotation_mode, input_yaw, &body.compute_transform(), target_yaw);
                                 game_thread_transition = Some(
                                     if *stance == crate::als::state::Stance::Crouching {
                                         AlsTransitionPlayback::crouching_quick_stop(index, play_rate)
@@ -627,7 +626,7 @@ mod tests {
     #[test]
     fn generated_quick_stop_consumes_the_notifying_frame_inputs() {
         use avian3d::prelude::{LinearVelocity, RigidBody};
-        fn run(change_input:bool, parented:bool)->(crate::stop_link::AlsTransitionPlayback,bevy_animation_graph::core::pose::Pose,String) {
+        fn run(change_input:bool, parented:bool, consumed_input:bool)->(crate::stop_link::AlsTransitionPlayback,bevy_animation_graph::core::pose::Pose,String) {
         let (mut app, character, _) = crate::roll_drive::tests::loaded_roll_character();
         app.world_mut().entity_mut(character).insert((RigidBody::Kinematic, bevy_tnua::TnuaToggle::Disabled,
             crate::als::state::RotationMode::ViewDirection));
@@ -639,13 +638,16 @@ mod tests {
             app.world_mut().entity_mut(character).insert((ChildOf(parent),
                 GlobalTransform::from(world).reparented_to(&GlobalTransform::from(parent_transform)),
                 crate::als::aim::AlsLastFreeRotationMode(crate::als::state::RotationMode::VelocityDirection)));
+        }
+        if parented || consumed_input {
+            app.world_mut().entity_mut(character).insert(crate::als::aim::AlsLastFreeRotationMode(crate::als::state::RotationMode::VelocityDirection));
             app.add_systems(PostUpdate, (move |mut actors: Query<(&mut Transform, &mut avian3d::prelude::Rotation,
                 &mut crate::als::motion::AlsRotationResponseState)>| {
                 let (mut transform, mut rotation, mut response) = actors.get_mut(character).unwrap();
-                transform.rotation = Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2);
+                transform.rotation = Quat::from_rotation_y(if parented { -std::f32::consts::FRAC_PI_2 } else { 0.0 });
                 rotation.0 = Quat::IDENTITY;
                 response.initialized = true;
-                response.target_yaw = -std::f32::consts::FRAC_PI_4;
+                response.target_yaw = if parented { -std::f32::consts::FRAC_PI_4 } else { 0.0 };
             }).after(crate::als::motion::AlsRotationResponseSet).before(crate::ab_als_provider::AbAlsProviderSet));
         }
         #[derive(Resource)]
@@ -659,8 +661,8 @@ mod tests {
             motion.velocity_yaw_degrees = input.1;
             motion.local_velocity = Vec2::new(motion.world_velocity.x, -motion.world_velocity.z);
             motion.signed_direction_radians = input.1.to_radians();
-            motion.has_input = input.0 > 0.0;
-            motion.input_yaw_degrees = input.1;
+            motion.has_input = consumed_input || input.0 > 0.0;
+            motion.input_yaw_degrees = if consumed_input { -90.0 } else { input.1 };
             *mode = crate::als::state::LocomotionState::Grounded;
         }).after(crate::actual_motion::AlsActualMotionSet).before(crate::gait_layer::AlsGaitLayerSet));
         for frame in 0..110 {
@@ -678,7 +680,7 @@ mod tests {
             app.update();
             if app.world().get::<TransitionNotifyTelemetry>(character).unwrap().stop_quick_count>0 {
                 assert_eq!(*app.world().get::<crate::als::state::RotationMode>(character).unwrap(),
-                    if parented { crate::als::state::RotationMode::VelocityDirection }
+                    if parented || consumed_input { crate::als::state::RotationMode::VelocityDirection }
                     else { crate::als::state::RotationMode::ViewDirection });
                 if change_input {
                     *app.world_mut().get_mut::<crate::als::state::RotationMode>(character).unwrap()=
@@ -699,8 +701,8 @@ mod tests {
         }
         panic!("Actual generated Standing FSM did not emit StopQuick: telemetry={:?}",app.world().get::<TransitionNotifyTelemetry>(character));
         }
-        let (source,expected,source_stack)=run(false,false);
-        let (actual,pose,actual_stack)=run(true,false);
+        let (source,expected,source_stack)=run(false,false,false);
+        let (actual,pose,actual_stack)=run(true,false,false);
         assert_eq!((source.index,source.play_rate),(0.0,1.75));
         let mut dot=1.0_f32;let mut distance=0.0_f32;
         for bone in expected.paths.keys() {
@@ -711,9 +713,12 @@ mod tests {
         assert!((actual.index,actual.play_rate)==(source.index,source.play_rate) && dot>1.0-1e-5 && distance<1e-5,
             "Native notifying-frame QuickStop changed with later inputs: actual_rate={}, source_rate={}, actual_clock={}, source_clock={}, rotation_degrees={}, translation_meters={distance}, source_stack={source_stack}, actual_stack={actual_stack}",
             actual.play_rate,source.play_rate,actual.clip_time,source.clip_time,(2.0*dot.clamp(-1.0,1.0).acos()).to_degrees());
-        let (parented,_,details)=run(false,true);
+        let (parented,_,details)=run(false,true,false);
         assert!(parented.index == 1.0 && (parented.play_rate - 2.0625).abs() < 1e-5,
             "Source generated QuickStop must use the 45-degree actor world difference: {details}");
+        let (consumed, _, details) = run(false, false, true);
+        assert!(consumed.index == 1.0 && (consumed.play_rate - 2.375).abs() < 1e-5,
+            "Source generated QuickStop must use consumed input when raw input is zero: {details}");
     }
 
     #[test]

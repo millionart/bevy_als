@@ -12451,7 +12451,8 @@ mod tests {
                 assert_eq!(command.move_dir != Vec2::ZERO, moving);
                 assert!(!command.aim_held);
                 if moving {
-                    let (side, rate) = crate::stop_link::quick_stop_selection(RotationMode::VelocityDirection, &command, 0.3, &Transform::from_rotation(Quat::from_rotation_y(0.3)), 0.3);
+                    let input_yaw = crate::als::orientation::world_forward_to_yaw(crate::als::motion::view_relative_move_direction(command.move_dir, 0.3));
+                    let (side, rate) = crate::stop_link::quick_stop_selection(RotationMode::VelocityDirection, Some(input_yaw), &Transform::from_rotation(Quat::from_rotation_y(0.3)), 0.3);
                     assert_eq!(side, STANDING_DYNAMIC_CASES[index].1);
                     assert!((rate - 2.375).abs() < 1e-5);
                 }
@@ -12468,7 +12469,8 @@ mod tests {
         assert!(standing_stop_completed(true, Some(&stop), Some(&finished), true));
         for index in [2, 3] {
             let command = standing_stop_command(index, RotationMode::VelocityDirection, true, true);
-            let (side, rate) = crate::stop_link::quick_stop_selection(RotationMode::VelocityDirection, &command, 0.3, &Transform::from_rotation(Quat::from_rotation_y(0.3)), 0.3);
+            let input_yaw = (command.move_dir != Vec2::ZERO).then(|| crate::als::orientation::world_forward_to_yaw(crate::als::motion::view_relative_move_direction(command.move_dir, 0.3)));
+            let (side, rate) = crate::stop_link::quick_stop_selection(RotationMode::VelocityDirection, input_yaw, &Transform::from_rotation(Quat::from_rotation_y(0.3)), 0.3);
             assert_eq!(side, CROUCHING_STOP_CASES[index].4);
             assert!((1.75..1.9).contains(&rate));
         }
