@@ -115,6 +115,8 @@
 - 反例：完整加载角色以 `(2,2,2)` 初始缩放时applied=2、root球半径0.2 m、pelvis质量37.70501 kg；以 `(2,3,4)` 创建时applied=1、球半径0.1 m、pelvis质量7.9265018 kg。源同一球的绝对最小轴仍2，应为0.2 m；等比对照PASS，非等比FAIL。root球作为尺寸探针本身禁碰，受影响的动态pelvis同样退回未缩放质量/形状，不能把禁碰球单独冒充碰撞症状。
 - 影响：初始非等比角色的渲染姿态与物理体尺寸、质量及约束frame不一致。旧测试只覆盖正等比缩放及detach后等比变化，没有覆盖初始非等比创建。
 
+- 修复闭环（2026-10-12 05:50 +08:00）：初始world scale保留三轴，球取最小轴、盒逐轴、胶囊按横向最大轴与轴向总高重建；中心和两侧joint frame按各轴缩放。质量/CoM/惯性从最终形状及现有mass exponent重算，nudge与inertia scale由公开离线生成器输出目标字段；仅完全等比时使用原标量公式。独立source oracle验证pelvis约122.2897 kg、双shape spine_03及旋转hand_l，禁碰root球仅作尺寸探针。五矩阵含(2,2.00005,2)、非零modifier、运行中拒绝与新root清理通过；九项消融均语义FAIL，精确字节恢复后55项回归PASS。正式库原完整角色反例/五矩阵、345规格/15root静态闭包和startup/Ragdoll/GetUp功能Gate通过；full15 AnimBP/39source/374产物重转零diff。原始UE资产与既有Ragdoll/bone map未改，profile仅新增42个目标metadata字段；性能与截图延期保持。
+
 ### P2-11 — PA 的正数睡眠阈值与计数丢失
 
 - Source：fresh native PA物理材质为线速度1 cm/s、角速度0.05、SleepCounterThreshold=4、body multiplier=1；UE `Chaos/Island/IslandManager.cpp:242–249` 读取全部字段，按速度及计数决定睡眠；孤立刚体另有阈值缩放，不会把0.03 m/s变为可睡眠速度。

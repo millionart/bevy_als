@@ -437,6 +437,8 @@ def self_test():
     assert_close(mass["center_of_mass_m"], [0.1, 0.3, 0.2])
     assert_close([mass["inertia_tensor_kg_m2"][i][i] for i in range(3)],
         [0.0866666667, 0.2666666667, 0.1133333333])
+    assert_close(mass["center_of_mass_nudge_m"], [0.1, 0.3, 0.2])
+    assert_close(mass["inertia_scale"], [2.0, 0.5, 1.0])
     forced = target_mass_properties([box], 2.0, [0.0, 0.0, 0.0], [1.0, 1.0, 1.0])
     assert_close([forced["inertia_tensor_kg_m2"][i][i] for i in range(3)],
         [0.0866666667, 0.0666666667, 0.0333333333])
@@ -609,6 +611,8 @@ def target_mass_properties(shapes, mass, nudge_m, inertia_scale):
         "mass_kg": mass,
         "center_of_mass_m": [center[axis] + nudge_m[axis] for axis in range(3)],
         "inertia_tensor_kg_m2": scaled,
+        "center_of_mass_nudge_m": list(nudge_m),
+        "inertia_scale": list(scale),
     }
 
 

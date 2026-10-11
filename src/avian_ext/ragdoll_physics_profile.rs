@@ -20,7 +20,7 @@ use bevy_animation_graph::core::animation_graph_player::AnimationGraphPlayer;
 use bevy_animation_graph::core::plugin::AnimationGraphSet;
 use bevy_animation_graph::core::ragdoll::bone_mapping::RagdollBoneMap;
 use bevy_animation_graph::core::ragdoll::definition::{
-    BodyLabel, BodyMode, ColliderLabel, JointLabel,
+    BodyLabel, BodyMode, ColliderLabel, ColliderShape, JointLabel,
 };
 use bevy_animation_graph::core::ragdoll::spawning::SpawnedRagdoll;
 use serde::Deserialize;
@@ -47,6 +47,8 @@ pub struct RagdollBodyPhysicsProfile {
     pub restitution: Restitution,
     pub sleeping_disabled: bool,
     pub mass_properties: Option<RagdollMassProperties>,
+    pub center_of_mass_nudge_m: Vec3,
+    pub inertia_scale: Vec3,
     pub locked_axes_bits: u8,
     pub inertia_conditioning_enabled: bool,
     pub ccd_enabled: bool,
@@ -90,6 +92,25 @@ pub struct RagdollColliderPhysicsProfile {
     pub source_layers: CollisionLayers,
     pub consider_for_bounds: bool,
     pub collision_mode: RagdollShapeCollisionMode,
+    pub shape: ColliderShape,
+    pub local_transform: Transform,
+}
+
+impl RagdollColliderPhysicsProfile {
+    fn scaled_collider(&self, scale: Vec3) -> Collider {
+        match &self.shape {
+            ColliderShape::Sphere(sphere) => Collider::sphere(sphere.radius * scale.min_element()),
+            ColliderShape::Cuboid(cuboid) => {
+                let size = cuboid.half_size * scale * 2.0;
+                Collider::cuboid(size.x, size.y, size.z)
+            }
+            ColliderShape::Capsule(capsule) => {
+                let half_height = ((capsule.half_length + capsule.radius) * scale.y).max(0.001);
+                let radius = (capsule.radius * scale.x.max(scale.z)).clamp(0.001, half_height);
+                Collider::capsule(radius, ((half_height - radius) * 2.0).max(0.001))
+            }
+        }
+    }
 }
 
 #[derive(Component, Clone, Copy, Debug, Eq, PartialEq)]
@@ -237,6 +258,8 @@ struct PhysicsAssetMassProperties {
     update_with_scale: bool,
     center_of_mass_m: [f32; 3],
     inertia_tensor_kg_m2: [[f32; 3]; 3],
+    center_of_mass_nudge_m: [f32; 3],
+    inertia_scale: [f32; 3],
 }
 
 #[derive(Deserialize)]
@@ -260,6 +283,11 @@ struct PhysicsAssetShape {
 struct PhysicsAssetShapeTarget {
     kind: String,
     collision_enabled: String,
+    translation_m: [f32; 3],
+    rotation_xyzw: [f32; 4],
+    radius_m: Option<f32>,
+    half_length_m: Option<f32>,
+    half_extents_m: Option<[f32; 3]>,
 }
 
 #[derive(Deserialize)]
@@ -380,6 +408,10 @@ impl RagdollPhysicsProfile {
                         center_of_mass_m: Vec3::from_array(value.center_of_mass_m),
                         inertia_tensor_kg_m2: Mat3::from_cols_array_2d(&value.inertia_tensor_kg_m2),
                     }),
+                    center_of_mass_nudge_m: body.target.mass_properties.as_ref()
+                        .map_or(Vec3::ZERO, |value| Vec3::from_array(value.center_of_mass_nudge_m)),
+                    inertia_scale: body.target.mass_properties.as_ref()
+                        .map_or(Vec3::ONE, |value| Vec3::from_array(value.inertia_scale)),
                     locked_axes_bits: body.target.locked_axes_bits,
                     inertia_conditioning_enabled: body.target.inertia_conditioning_enabled,
                     ccd_enabled: body.target.ccd_enabled,
@@ -403,6 +435,15 @@ impl RagdollPhysicsProfile {
                         source_layers: profile.source_layers,
                         consider_for_bounds: body.source_properties.consider_for_bounds == "True",
                         collision_mode: RagdollShapeCollisionMode::from_source(&shape.target.collision_enabled)?,
+                        shape: match shape.target.kind.as_str() {
+                            "sphere" => ColliderShape::Sphere(Sphere::new(shape.target.radius_m.ok_or("Missing sphere radius")?)),
+                            "box" => ColliderShape::Cuboid(Cuboid { half_size: Vec3::from_array(shape.target.half_extents_m.ok_or("Missing box half extents")?) }),
+                            "capsule" => ColliderShape::Capsule(Capsule3d { radius: shape.target.radius_m.ok_or("Missing capsule radius")?,
+                                half_length: shape.target.half_length_m.ok_or("Missing capsule half length")? }),
+                            value => return Err(format!("Unsupported ragdoll primitive: {value}")),
+                        },
+                        local_transform: Transform::from_translation(Vec3::from_array(shape.target.translation_m))
+                            .with_rotation(Quat::from_array(shape.target.rotation_xyzw)),
                     }))
             })
             .collect::<Result<Vec<_>, String>>()?;
@@ -488,7 +529,7 @@ impl RagdollCollisionMember {
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq)]
 pub struct RagdollPhysicsProfileApplied {
     pub spawned_root: Option<Entity>,
-    pub scale: f32,
+    pub scale: Vec3,
     pub body_count: u32,
     pub collider_count: u32,
     pub joint_count: u32,
@@ -1052,28 +1093,27 @@ fn find_joint_profile<'a>(
         .find(|candidate| candidate.label == label)
 }
 
-fn ragdoll_positive_uniform_scale(
+fn ragdoll_positive_scale(
     player_entity: Entity,
     transform_helper: &bevy::transform::helper::TransformHelper,
-) -> f32 {
+) -> Vec3 {
     transform_helper.compute_global_transform(player_entity).ok()
         .map(|transform| transform.to_scale_rotation_translation().0)
-        .filter(|scale| scale.is_finite() && scale.min_element() > 0.0
-            && scale.max_element() - scale.min_element() <= 1e-4)
-        .map_or(1.0, |scale| scale.x)
+        .filter(|scale| scale.is_finite() && scale.min_element() > 0.0)
+        .unwrap_or(Vec3::ONE)
 }
 
 fn profile_application_change(
     applied: Option<RagdollPhysicsProfileApplied>,
     spawned_root: Entity,
-    scale: f32,
-) -> Option<(f32, Option<Entity>)> {
-    let previous_scale = applied.map_or(1.0, |applied| {
-        if applied.scale.is_finite() && applied.scale > 0.0 { applied.scale } else { 1.0 }
+    scale: Vec3,
+) -> Option<(Vec3, Option<Entity>)> {
+    let previous_scale = applied.map_or(Vec3::ONE, |applied| {
+        if applied.scale.is_finite() && applied.scale.min_element() > 0.0 { applied.scale } else { Vec3::ONE }
     });
     let old_root = applied.and_then(|applied| applied.spawned_root)
         .filter(|root| *root != spawned_root);
-    if applied.is_some() && old_root.is_none() && (previous_scale - scale).abs() <= 1e-4 {
+    if applied.is_some() && old_root.is_none() && previous_scale.abs_diff_eq(scale, 1e-4) {
         return None;
     }
     Some((if old_root.is_some() { scale } else { scale / previous_scale }, old_root))
@@ -1099,12 +1139,15 @@ fn apply_ragdoll_physics_profiles(
         let Some(spawned) = player.get_spawned_ragdoll() else {
             continue;
         };
-        let scale = ragdoll_positive_uniform_scale(player_entity, &transform_helper);
+        let requested_scale = ragdoll_positive_scale(player_entity, &transform_helper);
+        let scale = applied.as_ref().filter(|applied| applied.spawned_root == Some(spawned.root)
+            && requested_scale.max_element() - requested_scale.min_element() > 1e-4)
+            .map_or(requested_scale, |applied| applied.scale);
         let (scale_factor, old_root) = match profile_application_change(
             applied.as_ref().map(|applied| **applied), spawned.root, scale,
         ) {
             Some(change) => change,
-            None if profile.is_changed() => (1.0, None),
+            None if profile.is_changed() => (Vec3::ONE, None),
             None => continue,
         };
         if let Some(old_root) = old_root { commands.entity(old_root).try_despawn(); }
@@ -1145,13 +1188,43 @@ fn apply_ragdoll_physics_profiles(
     }
 }
 
+fn scaled_ragdoll_mass_properties(
+    profile: &RagdollPhysicsProfile, body: &RagdollBodyPhysicsProfile, mass: RagdollMassProperties, scale: Vec3,
+) -> (f32, Vec3, Mat3) {
+    if scale.x == scale.y && scale.y == scale.z {
+        let size = scale.x;
+        let value = (mass.unclamped_mass_kg * size.powf(mass.scale_exponent)).max(0.001);
+        return (value, mass.center_of_mass_m * size, mass.inertia_tensor_kg_m2 * (size * size * value / mass.mass_kg));
+    }
+    let mut base_volume = 0.0;
+    let mut combined = avian3d::parry::mass_properties::MassProperties::default();
+    for shape in profile.colliders.iter().filter(|shape| shape.source_body_index == body.source_index) {
+        base_volume += shape.shape.avian_collider().shape().mass_properties(1.0).mass();
+        let scaled = shape.scaled_collider(scale);
+        let pose = avian3d::parry::math::Pose3::from_parts(shape.local_transform.translation * scale, shape.local_transform.rotation);
+        combined += scaled.shape().mass_properties(1.0).transform_by(&pose);
+    }
+    let volume = combined.mass();
+    let value = (mass.unclamped_mass_kg * (volume / base_volume).powf(mass.scale_exponent / 3.0)).max(0.001);
+    let mut inertia = combined.reconstruct_inertia_matrix() * (value / volume);
+    let diagonal = Vec3::new(inertia.x_axis.x, inertia.y_axis.y, inertia.z_axis.z);
+    let moments = (Vec3::splat(diagonal.element_sum() * 0.5) - diagonal) * body.inertia_scale * body.inertia_scale;
+    let basis = Mat3::from_diagonal(body.inertia_scale);
+    inertia = basis * inertia * basis;
+    let nudge = body.center_of_mass_nudge_m * scale;
+    inertia.x_axis.x = moments.y + moments.z + value * nudge.x * nudge.x;
+    inertia.y_axis.y = moments.x + moments.z + value * nudge.y * nudge.y;
+    inertia.z_axis.z = moments.x + moments.y + value * nudge.z * nudge.z;
+    (value, combined.local_com + nudge, inertia)
+}
+
 #[allow(clippy::too_many_arguments)]
 fn apply_profile_to_spawned_ragdoll(
     commands: &mut Commands,
     spawned: &SpawnedRagdoll,
     profile: &RagdollPhysicsProfile,
-    scale: f32,
-    scale_factor: f32,
+    scale: Vec3,
+    scale_factor: Vec3,
     recalculate_mass: bool,
     body_labels: &Query<&BodyLabel>,
     collider_labels: &Query<&ColliderLabel>,
@@ -1169,7 +1242,7 @@ fn apply_profile_to_spawned_ragdoll(
         ..default()
     };
     for body_entity in spawned.bodies.values() {
-        if scale_factor != 1.0 && let Ok(transform) = transforms.get(*body_entity) {
+        if scale_factor != Vec3::ONE && let Ok(transform) = transforms.get(*body_entity) {
             let mut scaled = *transform;
             scaled.translation *= scale_factor;
             commands.entity(*body_entity).insert(scaled);
@@ -1216,9 +1289,10 @@ fn apply_profile_to_spawned_ragdoll(
         } else {
             commands.entity(*body_entity).remove::<(avian3d::prelude::SweptCcd, SourceCcdSettings)>();
         }
-        let mass = body.mass_properties;
+        let mass = body.mass_properties.map(|mass| (mass,
+            scaled_ragdoll_mass_properties(profile, body, mass, scale)));
         commands.entity(*body_entity).queue(move |mut entity: EntityWorldMut| {
-            if let Some(mass) = mass {
+            if let Some((mass, (scaled_mass, center, inertia))) = mass {
                 if !entity.contains::<RagdollMassPropertiesBaseline>() {
                     let baseline = RagdollMassPropertiesBaseline {
                         mass: entity.get::<Mass>().copied(),
@@ -1231,10 +1305,8 @@ fn apply_profile_to_spawned_ragdoll(
                     entity.insert(baseline);
                 }
                 if recalculate_mass || mass.update_with_scale {
-                    let scaled_mass = (mass.unclamped_mass_kg * scale.powf(mass.scale_exponent)).max(0.001);
-                    let mass_ratio = scaled_mass / mass.mass_kg;
-                    entity.insert((Mass(scaled_mass), CenterOfMass(mass.center_of_mass_m * scale),
-                        AngularInertia::from_mat3_unchecked(mass.inertia_tensor_kg_m2 * scale * scale * mass_ratio),
+                    entity.insert((Mass(scaled_mass), CenterOfMass(center),
+                        AngularInertia::from_mat3_unchecked(inertia),
                         NoAutoMass, NoAutoCenterOfMass, NoAutoAngularInertia));
                 }
             } else if let Some(baseline) = entity.take::<RagdollMassPropertiesBaseline>() {
@@ -1254,21 +1326,24 @@ fn apply_profile_to_spawned_ragdoll(
         applied.body_count += 1;
     }
     for collider_entity in spawned.colliders.values() {
-        if scale_factor != 1.0 && let (Ok(transform), Ok(mut collider)) =
+        let collider = collider_labels.get(*collider_entity).ok()
+            .and_then(|label| find_collider_profile(profile, &label.0));
+        if scale_factor != Vec3::ONE && let (Ok(local), Ok(mut shape)) =
             (transforms.get(*collider_entity), colliders.get_mut(*collider_entity)) {
-            let mut scaled_transform = *transform;
-            scaled_transform.translation *= scale_factor;
-            scaled_transform.scale *= scale_factor;
-            let collider_scale = collider.scale() * scale_factor;
-            collider.set_scale(collider_scale, 16);
-            commands.entity(*collider_entity).insert(scaled_transform);
+            let mut transform = *local;
+            if let Some(collider) = collider {
+                *shape = collider.scaled_collider(scale);
+                transform = collider.local_transform;
+                transform.translation *= scale;
+            } else {
+                transform.translation *= scale_factor;
+                transform.scale *= scale_factor;
+                let next = shape.scale() * scale_factor;
+                shape.set_scale(next, 16);
+            }
+            commands.entity(*collider_entity).insert(transform);
         }
-        let Ok(label) = collider_labels.get(*collider_entity) else {
-            continue;
-        };
-        let Some(collider) = find_collider_profile(profile, &label.0) else {
-            continue;
-        };
+        let Some(collider) = collider else { continue; };
         commands.entity(*collider_entity).insert((
             ActiveCollisionHooks::FILTER_PAIRS,
             collider.collision_mode,
@@ -1318,10 +1393,8 @@ fn apply_profile_to_spawned_ragdoll(
         let mut joint = joint_profile.definition.clone();
         joint.parent = parent;
         joint.child = child;
-        if scale != 1.0 {
-            joint.parent_frame.translation *= scale;
-            joint.child_frame.translation *= scale;
-        }
+        joint.parent_frame.translation *= bevy::math::Vec3A::from(scale);
+        joint.child_frame.translation *= bevy::math::Vec3A::from(scale);
         commands
             .entity(*joint_entity)
             .remove::<(SphericalJoint, RevoluteJoint, JointDamping)>()
@@ -1561,7 +1634,7 @@ mod tests {
                 body_labels: Query<&BodyLabel>, collider_labels: Query<&ColliderLabel>, joint_labels: Query<&JointLabel>,
                 spherical: Query<&SphericalJoint>, revolute: Query<&RevoluteJoint>, source_joints: Query<&SourcePhysicsJoint>,
                 transforms: Query<&Transform>, mut colliders: Query<&mut Collider>| {
-                apply_profile_to_spawned_ragdoll(&mut commands, &spawned, &profile, 1.0, 1.0, true,
+                apply_profile_to_spawned_ragdoll(&mut commands, &spawned, &profile, Vec3::ONE, Vec3::ONE, true,
                     &body_labels, &collider_labels, &joint_labels, &spherical, &revolute,
                     &source_joints, &transforms, &mut colliders)
             }).unwrap();
@@ -1707,7 +1780,7 @@ mod tests {
         let mut world = World::new();
         let player = world.spawn((
             AnimationGraphPlayer::new(Handle::default()),
-            RagdollPhysicsProfileApplied { scale: 1.0, body_count: 21, ..default() },
+            RagdollPhysicsProfileApplied { scale: Vec3::ONE, body_count: 21, ..default() },
         )).id();
         let old_ragdoll = SpawnedRagdoll::new(world.spawn_empty().id());
         let new_ragdoll = SpawnedRagdoll::new(world.spawn_empty().id());
@@ -1715,10 +1788,10 @@ mod tests {
         world.entity_mut(player).insert(AnimationGraphPlayer::new(Handle::default()));
         let applied = world.get::<RagdollPhysicsProfileApplied>(player).unwrap();
         assert_ne!(old_ragdoll.root, new_ragdoll.root);
-        assert_eq!(profile_application_change(Some(*applied), new_ragdoll.root, 1.0),
-            Some((1.0, Some(old_ragdoll.root))));
-        assert_eq!(profile_application_change(Some(*applied), old_ragdoll.root, 1.0), None);
-        assert_eq!(profile_application_change(Some(*applied), old_ragdoll.root, 2.0), Some((2.0, None)));
+        assert_eq!(profile_application_change(Some(*applied), new_ragdoll.root, Vec3::ONE),
+            Some((Vec3::ONE, Some(old_ragdoll.root))));
+        assert_eq!(profile_application_change(Some(*applied), old_ragdoll.root, Vec3::ONE), None);
+        assert_eq!(profile_application_change(Some(*applied), old_ragdoll.root, Vec3::splat(2.0)), Some((Vec3::splat(2.0), None)));
     }
 
     #[test]
@@ -1743,15 +1816,15 @@ mod tests {
         app.world_mut().entity_mut(player).remove::<ChildOf>().insert(Transform::from_scale(Vec3::splat(2.0)));
         let scale = app.world_mut().run_system_once(move |
             transform_helper: bevy::transform::helper::TransformHelper| {
-            ragdoll_positive_uniform_scale(player, &transform_helper)
+            ragdoll_positive_scale(player, &transform_helper)
         }).unwrap();
-        assert_eq!(scale, 2.0);
+        assert_eq!(scale, Vec3::splat(2.0));
         app.world_mut().get_mut::<Transform>(actor).unwrap().scale = Vec3::new(2.0, 1.0, 2.0);
         let scale = app.world_mut().run_system_once(move |
             transform_helper: bevy::transform::helper::TransformHelper| {
-            ragdoll_positive_uniform_scale(player, &transform_helper)
+            ragdoll_positive_scale(player, &transform_helper)
         }).unwrap();
-        assert_eq!(scale, 2.0);
+        assert_eq!(scale, Vec3::splat(2.0));
     }
 
     #[test]
@@ -1791,7 +1864,7 @@ mod tests {
         let ReflectMut::Struct(fields) = graph_player.reflect_mut() else { panic!("player must be a struct") };
         *fields.field_mut("spawned_ragdoll").unwrap().try_downcast_mut::<Option<SpawnedRagdoll>>().unwrap() = Some(spawned);
         app.update();
-        assert_eq!(app.world().get::<RagdollPhysicsProfileApplied>(player).unwrap().scale, 1.5);
+        assert_eq!(app.world().get::<RagdollPhysicsProfileApplied>(player).unwrap().scale, Vec3::splat(1.5));
         let preserved = app.world_mut().run_system_once(move |helper: bevy::transform::helper::TransformHelper| {
             helper.compute_global_transform(player).unwrap().compute_transform()
         }).unwrap();
@@ -1801,7 +1874,7 @@ mod tests {
             app.world_mut().get_mut::<Transform>(player).unwrap().scale = Vec3::splat(player_scale);
             app.update();
             let world = app.world();
-            assert_eq!(world.get::<RagdollPhysicsProfileApplied>(player).unwrap().scale, player_scale);
+            assert_eq!(world.get::<RagdollPhysicsProfileApplied>(player).unwrap().scale, Vec3::splat(player_scale));
             let expected_mass = base_mass * player_scale.powf(2.25);
             assert!((world.get::<ComputedMass>(body).unwrap().value() - expected_mass).abs() < expected_mass * 1e-5);
             assert!(world.get::<Collider>(collider).unwrap().shape_scaled().compute_local_aabb().half_extents()
@@ -1859,7 +1932,7 @@ mod tests {
             joint_labels: Query<&JointLabel>, spherical: Query<&SphericalJoint>, revolute: Query<&RevoluteJoint>,
             source_joints: Query<&SourcePhysicsJoint>, transforms: Query<&Transform>, mut colliders: Query<&mut Collider>,
         ) -> RagdollPhysicsProfileApplied {
-            apply_profile_to_spawned_ragdoll(&mut commands, &spawned, &profile, 1.0, 1.0, true,
+            apply_profile_to_spawned_ragdoll(&mut commands, &spawned, &profile, Vec3::ONE, Vec3::ONE, true,
                 &body_labels, &collider_labels, &joint_labels, &spherical, &revolute, &source_joints, &transforms, &mut colliders)
         }
 
@@ -1890,7 +1963,7 @@ mod tests {
             let mut spawned = SpawnedRagdoll::new(root);
             spawned.bodies.extend(bodies);
             let applied = app.world_mut().run_system_once_with(apply, (profile, spawned)).unwrap();
-            assert_eq!((applied.spawned_root, applied.scale, applied.body_count), (Some(root), 1.0, 2));
+            assert_eq!((applied.spawned_root, applied.scale, applied.body_count), (Some(root), Vec3::ONE, 2));
             app.update();
             for (index, (_, entity)) in bodies.iter().enumerate() {
                 let expected_mass = mass.unwrap_or(if index == 0 { 2.0 } else { 9.0 });
@@ -2005,8 +2078,8 @@ mod tests {
                         &mut commands,
                         &spawned,
                         &profile,
-                        1.0,
-                        1.0,
+                        Vec3::ONE,
+                        Vec3::ONE,
                         true,
                         &body_labels,
                         &collider_labels,
@@ -2059,7 +2132,7 @@ mod tests {
             revolute: Query<&RevoluteJoint>, source_joints: Query<&SourcePhysicsJoint>,
             transforms: Query<&Transform>, mut colliders: Query<&mut Collider>| {
             apply_profile_to_spawned_ragdoll(&mut commands, &again, &driven_profile,
-                1.0, 1.0, true, &body_labels, &collider_labels, &joint_labels,
+                Vec3::ONE, Vec3::ONE, true, &body_labels, &collider_labels, &joint_labels,
                 &spherical, &revolute, &source_joints, &transforms, &mut colliders)
         }).unwrap();
         assert_eq!(reapplied.source_joint_count, 20);
@@ -2078,6 +2151,7 @@ mod tests {
             "mass_kg": 7.926393985748291,
             "unclamped_mass_kg": 7.926393985748291, "scale_exponent": 0.0, "update_with_scale": true,
             "center_of_mass_m": [0.1, 0.3, 0.2],
+            "center_of_mass_nudge_m": [0.0, 0.0, 0.0], "inertia_scale": [1.0, 1.0, 1.0],
             "inertia_tensor_kg_m2": [[0.1, 0.0, 0.0], [0.0, 0.2, 0.0], [0.0, 0.0, 0.3]],
         });
         body["target"]["max_angular_speed_radians_per_second"] = serde_json::json!(2.0);
@@ -2114,7 +2188,7 @@ mod tests {
             revolute: Query<&RevoluteJoint>, source_joints: Query<&SourcePhysicsJoint>,
             transforms: Query<&Transform>, mut colliders: Query<&mut Collider>| {
             apply_profile_to_spawned_ragdoll(&mut commands, &mass_again, &mass_profile,
-                1.0, 1.0, true, &body_labels, &collider_labels, &joint_labels,
+                Vec3::ONE, Vec3::ONE, true, &body_labels, &collider_labels, &joint_labels,
                 &spherical, &revolute, &source_joints, &transforms, &mut colliders)
         }).unwrap();
         assert!(world.get::<JointCollisionDisabled>(allowed_joint).is_none());
@@ -2150,7 +2224,7 @@ mod tests {
             revolute: Query<&RevoluteJoint>, source_joints: Query<&SourcePhysicsJoint>,
             transforms: Query<&Transform>, mut colliders: Query<&mut Collider>| {
             apply_profile_to_spawned_ragdoll(&mut commands, &mass_again_scaled, &mass_profile_scaled,
-                2.0, 2.0, true, &body_labels, &collider_labels, &joint_labels,
+                Vec3::splat(2.0), Vec3::splat(2.0), true, &body_labels, &collider_labels, &joint_labels,
                 &spherical, &revolute, &source_joints, &transforms, &mut colliders)
         }).unwrap();
         assert_eq!(world.get::<CenterOfMass>(pelvis_body).unwrap().0, Vec3::new(0.2, 0.6, 0.4));
@@ -3048,6 +3122,142 @@ mod tests {
     }
 
     #[test]
+    fn initial_nonuniform_scale_reaches_source_shapes_mass_and_joint_frames() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::reflect::{PartialReflect, ReflectMut};
+        use bevy_animation_graph::core::ragdoll::{definition::Ragdoll, spawning::spawn_ragdoll_avian};
+
+        for scale in [Vec3::ONE, Vec3::splat(2.0), Vec3::new(2.0, 3.0, 4.0), Vec3::new(4.0, 0.5, 2.0), Vec3::new(2.0, 2.00005, 2.0)] {
+            let profile = crate::pa_als::parse_pa_als_profile();
+            let ragdoll: Ragdoll = ron::from_str(include_str!("../../assets/ALS/Character/PA_Als.rag.ron")).unwrap();
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin, TransformPlugin,
+                avian3d::prelude::PhysicsPlugins::new(PostUpdate), crate::extensions::SourcePhysicsJointPlugin));
+            app.finish();app.cleanup();
+            let world = app.world_mut();
+            let parent = world.spawn((Transform::from_scale(scale).with_rotation(Quat::from_rotation_y(0.7)), GlobalTransform::IDENTITY)).id();
+            let player = world.spawn((AnimationGraphPlayer::new(Handle::default()), Transform::IDENTITY,
+                GlobalTransform::IDENTITY, ChildOf(parent), profile.clone())).id();
+            let spawned = world.run_system_once(move |mut commands: Commands| {
+                spawn_ragdoll_avian(player, &ragdoll, Isometry3d::IDENTITY, None, &mut commands)
+            }).unwrap();
+            for entity in spawned.colliders.values() {
+                world.get_mut::<Collider>(*entity).unwrap().set_scale(Vec3::ONE, 16);
+            }
+            let shapes = spawned.colliders.values().map(|entity| (*entity,
+                world.get::<ColliderLabel>(*entity).unwrap().0.clone(),
+                world.get::<Collider>(*entity).unwrap().clone(), *world.get::<Transform>(*entity).unwrap())).collect::<Vec<_>>();
+            let pelvis = *spawned.bodies.values().find(|entity| world.get::<BodyLabel>(**entity).unwrap().0 == "pelvis").unwrap();
+            let pelvis_offset = world.get::<Transform>(pelvis).unwrap().translation;
+            let joints = spawned.joints.values().map(|entity| (*entity, world.get::<JointLabel>(*entity).unwrap().0.clone())).collect::<Vec<_>>();
+            let mut replacement = AnimationGraphPlayer::new(Handle::default());
+            let ReflectMut::Struct(fields) = replacement.reflect_mut() else { panic!("Expected a reflected animation player") };
+            *fields.field_mut("spawned_ragdoll").unwrap().try_downcast_mut::<Option<SpawnedRagdoll>>().unwrap() = Some(spawned);
+            world.entity_mut(player).insert(replacement);
+            world.run_system_once(apply_ragdoll_physics_profiles).unwrap();
+            for (entity, label, original, local) in &shapes {
+                let current = world.get::<Collider>(*entity).unwrap().shape_scaled();
+                let source = original.shape();
+                if let Some(sphere) = source.as_ball() {
+                    let actual = current.as_ball().expect("A source sphere must remain spherical").radius;
+                    assert!((actual - sphere.radius * scale.min_element()).abs() < 1e-5, "Source sphere size: {label} scale={scale:?}");
+                } else if let Some(cuboid) = source.as_cuboid() {
+                    let actual = current.as_cuboid().expect("A source box must remain a box").half_extents;
+                    assert!(actual.abs_diff_eq(cuboid.half_extents * scale, 1e-5), "Source box dimensions: {label} scale={scale:?}");
+                } else if let Some(capsule) = source.as_capsule() {
+                    let half_height = ((capsule.segment.a.distance(capsule.segment.b) * 0.5 + capsule.radius) * scale.y).max(0.001);
+                    let radius = (capsule.radius * scale.x.max(scale.z)).clamp(0.001, half_height);
+                    let half_length = (half_height - radius).max(0.0005);
+                    let actual = current.as_capsule().expect("A source capsule must remain a capsule");
+                    assert!((actual.radius - radius).abs() < 1e-5, "Source capsule radius: {label} scale={scale:?}");
+                    assert!((actual.segment.a.distance(actual.segment.b) * 0.5 - half_length).abs() < 1e-5,
+                        "Source capsule length: {label} scale={scale:?}");
+                } else { panic!("Unexpected source primitive: {label}") }
+                let actual = world.get::<Transform>(*entity).unwrap();
+                assert!(actual.translation.abs_diff_eq(local.translation * scale, 1e-5), "Source shape center: {label}");
+                assert!(actual.rotation.abs_diff_eq(local.rotation, 1e-5), "Source shape orientation: {label}");
+            }
+            assert!(world.get::<Transform>(pelvis).unwrap().translation.abs_diff_eq(pelvis_offset * scale, 1e-5), "Source bone offset");
+            for (entity, label) in &joints {
+                let source = &profile.joints.iter().find(|joint| joint.label == *label).unwrap().definition;
+                let current = world.get::<SourcePhysicsJoint>(*entity).unwrap();
+                assert!(current.child_frame.translation.abs_diff_eq(source.child_frame.translation * bevy::math::Vec3A::from(scale), 1e-5), "Source child joint frame: {label}");
+                assert!(current.parent_frame.translation.abs_diff_eq(source.parent_frame.translation * bevy::math::Vec3A::from(scale), 1e-5), "Source parent joint frame: {label}");
+                assert_eq!(current.child_frame.rotation, source.child_frame.rotation);
+                assert_eq!(current.parent_frame.rotation, source.parent_frame.rotation);
+            }
+            let (_, _, original, _) = shapes.iter().find(|(_, label, _, _)| label == "pelvis_0_capsule").unwrap();
+            let original_volume = original.shape().mass_properties(1.0).mass();
+            let pelvis_shape = shapes.iter().find(|(_, label, _, _)| label == "pelvis_0_capsule").unwrap().0;
+            let current = world.get::<Collider>(pelvis_shape).unwrap().shape_scaled().mass_properties(1.0);
+            let source_mass = profile.bodies.iter().find(|body| body.label == "pelvis").unwrap().mass_properties.unwrap();
+            let expected = (source_mass.unclamped_mass_kg * (current.mass() / original_volume).powf(source_mass.scale_exponent / 3.0)).max(0.001);
+            assert!((world.get::<Mass>(pelvis).unwrap().0 - expected).abs() < expected * 1e-5, "Source scaled volume mass: scale={scale:?}");
+            if scale == Vec3::new(2.0, 3.0, 4.0) {
+                for (label, expected_mass, center, tensor) in [
+                    ("pelvis", 122.2897, Vec3::new(0.01, 0.0, -0.02),
+                        [13.499299, 0.0, 0.0, 0.0, 13.487247, 0.0, 0.0, 0.0, 13.499299]),
+                    ("spine_03", 175.62312, Vec3::new(0.021087594, 0.0, -0.08500984),
+                        [21.782988, 0.0, 0.8297611, 0.0, 22.21885, 0.0, 0.8297611, 0.0, 22.641094]),
+                    ("hand_l", 12.679918, Vec3::new(0.1, 0.0, -0.04),
+                        [0.19862649, 0.0005872733, 0.0043457096, 0.0005872733, 0.19109628, -0.00010355213,
+                            0.0043457096, -0.00010355213, 0.22250597]),
+                ] {
+                    let body = *world.get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap().bodies.values()
+                        .find(|entity| world.get::<BodyLabel>(**entity).unwrap().0 == label).unwrap();
+                    assert!((world.get::<Mass>(body).unwrap().0 - expected_mass).abs() < expected_mass * 1e-5,
+                        "Offline source mass oracle: {label}");
+                    assert!(world.get::<CenterOfMass>(body).unwrap().0.abs_diff_eq(center, 1e-5), "Offline source CoM oracle: {label}");
+                    let inertia = world.get::<AngularInertia>(body).unwrap();
+                    let basis = Mat3::from_quat(inertia.local_frame);
+                    let actual = basis * Mat3::from_diagonal(inertia.principal) * basis.transpose();
+                    assert!(actual.abs_diff_eq(Mat3::from_cols_array(&tensor), expected_mass * 1e-5), "Offline source inertia oracle: {label}: {actual:?}");
+                }
+                let mass = world.get::<Mass>(pelvis).unwrap().0;
+                {
+                    let mut profile = world.get_mut::<RagdollPhysicsProfile>(player).unwrap();
+                    let body = profile.bodies.iter_mut().find(|body| body.label == "pelvis").unwrap();
+                    body.center_of_mass_nudge_m = Vec3::new(0.1, -0.2, 0.3);
+                    body.inertia_scale = Vec3::new(2.0, 0.5, 1.0);
+                }
+                world.run_system_once(apply_ragdoll_physics_profiles).unwrap();
+                assert!(world.get::<CenterOfMass>(pelvis).unwrap().0.abs_diff_eq(Vec3::new(0.21, -0.6, 1.18), 1e-5),
+                    "Nonuniform source CoM modifier did not reach the body");
+                let original_diagonal = Vec3::new(13.499299, 13.487247, 13.499299);
+                let moments = (Vec3::splat(original_diagonal.element_sum() * 0.5) - original_diagonal) * Vec3::new(4.0, 0.25, 1.0);
+                let expected_diagonal = Vec3::new(moments.y + moments.z, moments.x + moments.z, moments.x + moments.y)
+                    + mass * Vec3::new(0.04, 0.36, 1.44);
+                let inertia = world.get::<AngularInertia>(pelvis).unwrap();
+                let basis = Mat3::from_quat(inertia.local_frame);
+                let actual = basis * Mat3::from_diagonal(inertia.principal) * basis.transpose();
+                assert!(actual.abs_diff_eq(Mat3::from_diagonal(expected_diagonal), expected_diagonal.max_element() * 1e-5),
+                    "Nonuniform source inertia modifiers did not reach the body");
+            }
+            let before = world.get::<Transform>(pelvis).unwrap().translation;
+            let before_mass = world.get::<Mass>(pelvis).unwrap().0;
+            world.get_mut::<Transform>(parent).unwrap().scale = Vec3::new(3.0, 5.0, 7.0);
+            world.run_system_once(apply_ragdoll_physics_profiles).unwrap();
+            assert_eq!(world.get::<Transform>(pelvis).unwrap().translation, before, "A runtime nonuniform change must not rescale existing source bodies");
+            assert_eq!(world.get::<Mass>(pelvis).unwrap().0, before_mass);
+            if scale == Vec3::new(2.0, 3.0, 4.0) {
+                let old_root = world.get::<RagdollPhysicsProfileApplied>(player).unwrap().spawned_root.unwrap();
+                let ragdoll: Ragdoll = ron::from_str(include_str!("../../assets/ALS/Character/PA_Als.rag.ron")).unwrap();
+                let fresh = world.run_system_once(move |mut commands: Commands| {
+                    spawn_ragdoll_avian(player, &ragdoll, Isometry3d::IDENTITY, None, &mut commands)
+                }).unwrap();
+                let root = *fresh.colliders.values().find(|entity| world.get::<ColliderLabel>(**entity).unwrap().0 == "root_0_sphere").unwrap();
+                let mut graph_player = world.get_mut::<AnimationGraphPlayer>(player).unwrap();
+                let ReflectMut::Struct(fields) = graph_player.reflect_mut() else { panic!("Expected a reflected animation player") };
+                *fields.field_mut("spawned_ragdoll").unwrap().try_downcast_mut::<Option<SpawnedRagdoll>>().unwrap() = Some(fresh);
+                world.run_system_once(apply_ragdoll_physics_profiles).unwrap();
+                assert!(world.get_entity(old_root).is_err(), "A rebuilt source body tree must replace the old root");
+                assert!((world.get::<Collider>(root).unwrap().shape_scaled().as_ball().unwrap().radius - 0.3).abs() < 1e-5,
+                    "A rebuilt source body tree must accept its new initial nonuniform scale");
+            }
+        }
+    }
+
+    #[test]
     fn positive_uniform_scale_reaches_ragdoll_shapes_offsets_and_joint_frames() {
         use avian3d::prelude::Collider;
         use bevy::ecs::system::RunSystemOnce;
@@ -3102,7 +3312,7 @@ mod tests {
             joint_labels: Query<&JointLabel>, spherical: Query<&SphericalJoint>,
             revolute: Query<&RevoluteJoint>, source_joints: Query<&SourcePhysicsJoint>,
             transforms: Query<&Transform>, mut colliders: Query<&mut Collider>| {
-            apply_profile_to_spawned_ragdoll(&mut commands, &first, &profile, 1.0, 1.0, true,
+            apply_profile_to_spawned_ragdoll(&mut commands, &first, &profile, Vec3::ONE, Vec3::ONE, true,
                 &body_labels, &collider_labels, &joint_labels, &spherical, &revolute,
                 &source_joints, &transforms, &mut colliders)
         }}).unwrap();
@@ -3117,7 +3327,7 @@ mod tests {
                 joint_labels: Query<&JointLabel>, spherical: Query<&SphericalJoint>,
                 revolute: Query<&RevoluteJoint>, source_joints: Query<&SourcePhysicsJoint>, transforms: Query<&Transform>,
                 mut colliders: Query<&mut Collider>| {
-                apply_profile_to_spawned_ragdoll(&mut commands, &current, &profile, scale, scale_factor, false,
+                apply_profile_to_spawned_ragdoll(&mut commands, &current, &profile, Vec3::splat(scale), Vec3::splat(scale_factor), false,
                     &body_labels, &collider_labels, &joint_labels, &spherical, &revolute,
                     &source_joints, &transforms, &mut colliders)
             }}).unwrap();
@@ -3164,7 +3374,7 @@ mod tests {
             .try_downcast_mut::<Option<SpawnedRagdoll>>().unwrap() = Some(fresh);
         world.entity_mut(player).insert((Transform::from_scale(Vec3::splat(2.0)), fresh_profile,
             RagdollPhysicsProfileApplied {
-                spawned_root: Some(old_root), scale: 2.0, body_count: 21,
+                spawned_root: Some(old_root), scale: Vec3::splat(2.0), body_count: 21,
                 max_joint_anchor_error_m: 42.0, ..default()
             }));
         world.entity_mut(player).insert(replacement);

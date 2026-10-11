@@ -282,6 +282,16 @@
             5.759267196481232e-10,
             -0.005
           ],
+          "center_of_mass_nudge_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "inertia_scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
           "inertia_tensor_kg_m2": [
             [
               0.0849180546322455,
@@ -597,6 +607,16 @@
             0.0,
             -0.01
           ],
+          "center_of_mass_nudge_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "inertia_scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
           "inertia_tensor_kg_m2": [
             [
               0.05792792971029397,
@@ -911,6 +931,16 @@
             0.0,
             0.0,
             0.0
+          ],
+          "center_of_mass_nudge_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "inertia_scale": [
+            1.0,
+            1.0,
+            1.0
           ],
           "inertia_tensor_kg_m2": [
             [
@@ -1403,6 +1433,16 @@
             0.0,
             -0.020425153875370056
           ],
+          "center_of_mass_nudge_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "inertia_scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
           "inertia_tensor_kg_m2": [
             [
               0.13700765338178755,
@@ -1717,6 +1757,16 @@
             0.03,
             0.0,
             0.0
+          ],
+          "center_of_mass_nudge_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "inertia_scale": [
+            1.0,
+            1.0,
+            1.0
           ],
           "inertia_tensor_kg_m2": [
             [
@@ -2033,6 +2083,16 @@
             0.0,
             0.03
           ],
+          "center_of_mass_nudge_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "inertia_scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
           "inertia_tensor_kg_m2": [
             [
               0.015283825355988816,
@@ -2347,6 +2407,16 @@
             -0.21000000000000002,
             0.0,
             0.0
+          ],
+          "center_of_mass_nudge_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "inertia_scale": [
+            1.0,
+            1.0,
+            1.0
           ],
           "inertia_tensor_kg_m2": [
             [
@@ -2663,6 +2733,16 @@
             0.0,
             0.0
           ],
+          "center_of_mass_nudge_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "inertia_scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
           "inertia_tensor_kg_m2": [
             [
               0.02365229488811349,
@@ -2977,6 +3057,16 @@
             -0.195,
             -0.005,
             0.0
+          ],
+          "center_of_mass_nudge_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "inertia_scale": [
+            1.0,
+            1.0,
+            1.0
           ],
           "inertia_tensor_kg_m2": [
             [
@@ -3293,6 +3383,16 @@
             0.005,
             0.0
           ],
+          "center_of_mass_nudge_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "inertia_scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
           "inertia_tensor_kg_m2": [
             [
               0.009281434343863318,
@@ -3607,6 +3707,16 @@
             0.08,
             -0.015,
             0.0
+          ],
+          "center_of_mass_nudge_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "inertia_scale": [
+            1.0,
+            1.0,
+            1.0
           ],
           "inertia_tensor_kg_m2": [
             [
@@ -3923,6 +4033,16 @@
             0.015,
             0.0
           ],
+          "center_of_mass_nudge_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "inertia_scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
           "inertia_tensor_kg_m2": [
             [
               0.005775141245351695,
@@ -4237,6 +4357,16 @@
             0.15,
             0.0,
             0.0
+          ],
+          "center_of_mass_nudge_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "inertia_scale": [
+            1.0,
+            1.0,
+            1.0
           ],
           "inertia_tensor_kg_m2": [
             [
@@ -4553,6 +4683,16 @@
             0.0,
             0.0
           ],
+          "center_of_mass_nudge_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "inertia_scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
           "inertia_tensor_kg_m2": [
             [
               0.004373898414432281,
@@ -4868,6 +5008,16 @@
             0.0,
             0.0
           ],
+          "center_of_mass_nudge_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "inertia_scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
           "inertia_tensor_kg_m2": [
             [
               0.001451626781371597,
@@ -5182,6 +5332,16 @@
             -0.115,
             0.0,
             0.0
+          ],
+          "center_of_mass_nudge_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "inertia_scale": [
+            1.0,
+            1.0,
+            1.0
           ],
           "inertia_tensor_kg_m2": [
             [
@@ -5511,6 +5671,16 @@
             0.0,
             -0.01
           ],
+          "center_of_mass_nudge_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "inertia_scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
           "inertia_tensor_kg_m2": [
             [
               0.0017271482933668616,
@@ -5839,6 +6009,16 @@
             0.0,
             0.01
           ],
+          "center_of_mass_nudge_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "inertia_scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
           "inertia_tensor_kg_m2": [
             [
               0.0017271482933668616,
@@ -6099,6 +6279,16 @@
             0.0,
             0.0,
             0.0
+          ],
+          "center_of_mass_nudge_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "inertia_scale": [
+            1.0,
+            1.0,
+            1.0
           ],
           "inertia_tensor_kg_m2": [
             [
@@ -6428,6 +6618,16 @@
             -0.005,
             0.075
           ],
+          "center_of_mass_nudge_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "inertia_scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
           "inertia_tensor_kg_m2": [
             [
               0.022004277979778494,
@@ -6755,6 +6955,16 @@
             0.07,
             0.005,
             -0.075
+          ],
+          "center_of_mass_nudge_m": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "inertia_scale": [
+            1.0,
+            1.0,
+            1.0
           ],
           "inertia_tensor_kg_m2": [
             [

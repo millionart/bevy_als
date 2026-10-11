@@ -53,7 +53,7 @@ use bevy_animation_graph::core::animation_graph::{AnimationGraph, NodeId, Source
 use bevy_animation_graph::core::animation_graph_player::{AnimationGraphPlayer, AnimationSource};
 use bevy_animation_graph::core::context::node_states::StateKey;
 use bevy_animation_graph::core::edge_data::DataValue;
-use bevy_animation_graph::core::ragdoll::definition::{BodyLabel, JointLabel};
+use bevy_animation_graph::core::ragdoll::definition::{BodyLabel, ColliderLabel, JointLabel};
 use bevy_animation_graph::core::ragdoll::spawning::SpawnedRagdoll;
 use bevy_animation_graph::core::{
     pose::Pose, skeleton::Skeleton, state_machine::high_level::StateMachine,
@@ -3559,7 +3559,7 @@ struct RagdollPaProbe<'w, 's> {
     replacements: Query<'w, 's, &'static ManualRagdollPlayerReplacement>,
     alive: Query<'w, 's, Entity>,
     labels: Query<'w, 's, &'static BodyLabel>,
-    colliders: Query<'w, 's, &'static Collider>,
+    colliders: Query<'w, 's, (&'static Collider, &'static ColliderLabel)>,
     joints: Query<'w, 's, (&'static SourcePhysicsJoint, &'static JointLabel)>,
     profiles: Query<
         'w,
@@ -9902,9 +9902,13 @@ fn observe_manual_integration(
                     + 2.0 * ALS_CHARACTER_CAPSULE_HALF_HEIGHT
                     + ALS_CHARACTER_FLOOR_CLEARANCE;
                 let (colliders_scaled, joint_scaled) = player.get_spawned_ragdoll().map_or((false, false), |spawned| {
-                    let colliders_scaled = spawned.colliders.values().all(|entity|
-                        ragdoll_probe.colliders.get(*entity).is_ok_and(|collider|
-                            collider.scale().abs_diff_eq(Vec3::splat(2.0), 1e-3)));
+                    let colliders_scaled = ragdoll_probe.profiles.get(instance.player_entity()).is_ok_and(|(_, profile)|
+                        spawned.colliders.values().all(|entity|
+                            ragdoll_probe.colliders.get(*entity).is_ok_and(|(collider, label)|
+                                profile.colliders.iter().find(|source| source.label == label.0).is_some_and(|source| {
+                                    let base = source.shape.avian_collider().shape().compute_local_aabb().half_extents();
+                                    collider.shape_scaled().compute_local_aabb().half_extents().abs_diff_eq(base * 2.0, 1e-5)
+                                }))));
                     let joint_scaled = ragdoll_probe.profiles.get(instance.player_entity()).ok()
                         .and_then(|(_, profile)| profile.joints.iter().find(|joint|
                             joint.definition.parent_frame.translation.length() > 0.01))
