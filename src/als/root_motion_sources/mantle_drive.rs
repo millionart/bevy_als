@@ -252,6 +252,7 @@ impl Plugin for AlsMantleDrivePlugin {
 
 fn prepare_mantle_montages(
     time: Res<Time>,
+    custom_dilations: Query<&crate::als_camera::AlsCameraCustomTimeDilation>,
     mut commands: Commands,
     mut transitions: MessageWriter<StateTransitionEvent>,
     assets: Res<MantleAssets>,
@@ -272,10 +273,10 @@ fn prepare_mantle_montages(
         With<AlsCharacter>,
     >,
 ) {
-    let delta = time.delta_secs();
     for (character, mut mantle, mut current, mut locomotion, roll, mut get_up, action) in
         &mut characters
     {
+        let delta = time.delta_secs() * custom_dilations.get(character).map_or(1.0, |value| value.0);
         if mantle.active
             && !mantle.root_motion_ready
             && (action == Some(&AlsNotifyLocomotionAction::Ragdolling)
@@ -287,7 +288,7 @@ fn prepare_mantle_montages(
         }
         let starting = mantle.active
             && !mantle.root_motion_ready
-            && delta > 1e-8
+            && time.delta_secs() > 1e-8
             && clips
                 .get(assets.clip(mantle.kind))
                 .is_some_and(|clip| skeletons.contains(&clip.skeleton));
@@ -402,6 +403,7 @@ fn handle_mantle_early_blend_out(
 fn publish_mantle_slot(
     mut source_inputs: Query<&mut crate::extensions::SourceAnimationInputs>,
     time: Res<Time>,
+    custom_dilations: Query<&crate::als_camera::AlsCameraCustomTimeDilation>,
     mut commands: Commands,
     assets: Res<MantleAssets>,
     clips: Res<Assets<GraphClip>>,
@@ -420,6 +422,7 @@ fn publish_mantle_slot(
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
     for (character, mut montages, get_up, roll, assembly) in &mut characters {
+        let delta = time.delta_secs() * custom_dilations.get(character).map_or(1.0, |value| value.0);
         let selected = assembly.and_then(|assembly| avatars.get(assembly.avatar).ok())
             .filter(|(avatar, _)| avatar.character == character)
             .map(|(_, instance)| instance.player_entity()).filter(|entity| players.contains(*entity));
@@ -468,7 +471,7 @@ fn publish_mantle_slot(
                 position: entry.clip_time,
                 previous_position: entry.previous_clip_time,
                 has_previous_position: true,
-                delta_seconds: time.delta_secs(),
+                delta_seconds: delta,
                 playback_delta_seconds: entry.clip_time - entry.previous_clip_time,
                 looping: false,
                 weight: 1.0,
@@ -628,6 +631,7 @@ fn mantle_pose_system(
 #[allow(clippy::type_complexity)]
 fn mantle_drive_system(
     time: Res<Time>,
+    custom_dilations: Query<&crate::als_camera::AlsCameraCustomTimeDilation>,
     mut commands: Commands,
     mut q: Query<
         (
@@ -665,6 +669,7 @@ fn mantle_drive_system(
         custom_velocity,
     ) in &mut q
     {
+        let actor_delta = dt * custom_dilations.get(entity).map_or(1.0, |value| value.0);
         if (!m.active && !m.root_motion_ready)
             || *locomotion != LocomotionState::Custom
             || dt <= 0.0
@@ -687,9 +692,9 @@ fn mantle_drive_system(
             AlsCollisionLayerOwner::Mantle,
             true,
         );
-        if dt <= 1e-8 {
+        if actor_delta <= 1e-8 && m.root_motion_ready {
             vel.0 = Vec3::ZERO;
-            m.time += dt;
+            m.time += actor_delta;
             continue;
         }
         let target_base = mantle_target_base(&m, &target_transforms);
@@ -714,13 +719,13 @@ fn mantle_drive_system(
             };
             m.prepare_root_motion(start_root, end_root);
         }
-        let current_time = (m.time + dt).min(m.action_end());
+        let current_time = (m.time + actor_delta).min(m.action_end());
         let Some(root) = sample_mantle_root(clip, skeleton, m.clip_time_at(current_time)) else {
             continue;
         };
         let target_actor_transform = m.target_actor_transform_at(current_time, root);
         *vel = LinearVelocity((target_actor_transform.translation - transform.translation) / dt);
-        if dt >= crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS {
+        if actor_delta >= crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS {
             transform.translation = target_actor_transform.translation;
             if let Some(mut position) = position {
                 position.0 = target_actor_transform.translation;
@@ -1599,6 +1604,135 @@ pub(crate) mod tests {
         let previous = montages.entries[0].clip_time;
         montages.entries[0].advance(0.1, None);
         assert!((montages.entries[0].clip_time - previous - 0.12).abs() < 1e-6);
+    }
+
+    #[test]
+    fn fresh_audit_mantle_montages_and_published_slots_use_owner_time() {
+        use bevy::world_serialization::{WorldAsset, WorldInstanceReady, WorldInstanceSpawner};
+        use bevy_animation_graph::core::animated_scene::AnimatedSceneHandle;
+        let mut app = mantle_clip_test_app();
+        let clip = app.world().resource::<MantleAssets>().clip(MantleKind::High).clone();
+        let skeleton = app.world().resource::<Assets<GraphClip>>().get(&clip).unwrap().skeleton.clone();
+        let mut failures = Vec::new();
+        for dilation in [0.0_f32, 0.5, 1.0, 2.0] {
+            let mut mantle = AlsMantleState::default();
+            mantle.begin(MantleKind::High, Vec3::ZERO, Vec3::Y, 1.5, 0.0, 0.0);
+            mantle.root_motion_ready = true;
+            mantle.time = 0.2;
+            let mut montages = AlsMantleMontages::default();
+            montages.begin(&mantle);
+            for entry in &mut montages.entries {
+                entry.elapsed = 0.2;
+                entry.clip_time = mantle.clip_time();
+                entry.previous_clip_time = entry.clip_time;
+                entry.weight = 1.0;
+            }
+            montages.begin(&mantle);
+            let entry = montages.entries.last_mut().unwrap();
+            entry.elapsed = 0.2;
+            entry.clip_time = mantle.clip_time();
+            entry.previous_clip_time = entry.clip_time;
+            entry.weight = 1.0;
+            let previous = mantle.clip_time();
+            let delta = 0.05 * dilation;
+            let expected_current = (mantle.clip_time_at(0.2 + delta) - delta).max(0.0)
+                + delta * mantle_montage_settings(MantleKind::High).play_rate;
+            let actor = app.world_mut().spawn((AlsCharacter, mantle, montages,
+                LocomotionState::Custom, crate::als_camera::AlsCameraCustomTimeDilation(dilation))).id();
+            let avatar = app.world_mut().spawn((AlsCharacterAvatar { character: actor },
+                AnimatedSceneHandle::default(), Transform::IDENTITY, ChildOf(actor))).id();
+            let player = app.world_mut().spawn((AnimationGraphPlayer::new(skeleton.clone()),
+                Transform::IDENTITY, ChildOf(avatar))).id();
+            app.world_mut().trigger(WorldInstanceReady { entity: avatar,
+                instance_id: WorldInstanceSpawner::default().spawn(Handle::<WorldAsset>::default()) });
+            app.world_mut().flush();
+            app.world_mut().entity_mut(actor).insert(crate::character_assembly::AlsCharacterAssembly { avatar, camera: None });
+            app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.05));
+            app.world_mut().run_system_once(prepare_mantle_montages).unwrap();
+            app.world_mut().run_system_once(publish_mantle_slot).unwrap();
+            let entries = &app.world().get::<AlsMantleMontages>(actor).unwrap().entries;
+            let context = app.world().get::<crate::extensions::SourceAnimationInputs>(player).unwrap()
+                .slot_input_context(POST_LOCOMOTION_POSE).unwrap();
+            let correct = (entries[0].elapsed - 0.2 - delta).abs() < 1e-6
+                && (entries[1].elapsed - 0.2 - delta).abs() < 1e-6
+                && (entries[0].clip_time - previous - delta * 1.2).abs() < 1e-6
+                && (entries[1].clip_time - expected_current).abs() < 1e-6
+                && context.asset_samples.iter().all(|sample| (sample.clock.delta_seconds - delta).abs() < 1e-6);
+            if !correct { failures.push((dilation, entries[0].elapsed, entries[1].clip_time,
+                context.asset_samples.iter().map(|sample| sample.clock.delta_seconds).collect::<Vec<_>>())); }
+            app.world_mut().despawn(actor);
+        }
+        assert!(failures.is_empty(), "Mantle montage and slot clocks ignored owner time: {failures:?}");
+    }
+
+    #[test]
+    fn fresh_audit_mantle_root_moves_and_finishes_on_owner_time() {
+        let mut app = mantle_clip_test_app();
+        let handle = app.world().resource::<MantleAssets>().clip(MantleKind::High).clone();
+        let mut failures = Vec::new();
+        for (dilation, near_end) in [0.0_f32, 0.5, 1.0, 2.0].into_iter()
+            .flat_map(|dilation| [false, true].map(move |near_end| (dilation, near_end))) {
+            let clip = app.world().resource::<Assets<GraphClip>>().get(&handle).unwrap();
+            let skeleton = app.world().resource::<Assets<Skeleton>>().get(&clip.skeleton).unwrap();
+            let mut mantle = AlsMantleState::default();
+            mantle.begin(MantleKind::High, Vec3::ZERO, Vec3::Y, 1.5, 0.0, 0.0);
+            mantle.prepare_root_motion(sample_mantle_root(clip, skeleton, mantle.start_offset).unwrap(),
+                sample_mantle_root(clip, skeleton, clip.duration).unwrap());
+            mantle.time = if near_end { mantle.action_end() - 0.075 } else { 0.2 };
+            let before = mantle.target_actor_transform_at(mantle.time,
+                sample_mantle_root(clip, skeleton, mantle.clip_time()).unwrap());
+            let expected_time = (mantle.time + 0.05 * dilation).min(mantle.action_end());
+            let expected = mantle.target_actor_transform_at(expected_time,
+                sample_mantle_root(clip, skeleton, mantle.clip_time_at(expected_time)).unwrap());
+            let expected_active = expected_time < mantle.action_end();
+            let actor = app.world_mut().spawn((AlsCharacter, mantle, LocomotionState::Custom,
+                LinearVelocity::ZERO, before, Position(before.translation), Rotation(before.rotation),
+                AlsCollisionLayerOwnership::default(), crate::als_camera::AlsCameraCustomTimeDilation(dilation))).id();
+            app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.05));
+            app.world_mut().run_system_once(mantle_drive_system).unwrap();
+            let current = app.world().get::<AlsMantleState>(actor).unwrap();
+            let actual = app.world().get::<Transform>(actor).unwrap();
+            let expected_velocity = (expected.translation - before.translation) / 0.05;
+            if (current.time - expected_time).abs() > 1e-6 || current.active != expected_active
+                || actual.translation.distance(expected.translation) > 1e-5
+                || app.world().get::<Position>(actor).unwrap().0.distance(expected.translation) > 1e-5
+                || app.world().get::<LinearVelocity>(actor).unwrap().0.distance(expected_velocity) > 1e-5 {
+                failures.push((dilation, near_end, current.time, expected_time, current.active, actual.translation, expected.translation));
+            }
+            app.world_mut().despawn(actor);
+        }
+        assert!(failures.is_empty(), "Mantle root time, final pose, or completion ignored owner time: {failures:?}");
+    }
+
+    #[test]
+    fn fresh_audit_mantle_zero_clock_entry_initializes_only_once_before_resume() {
+        let mut app = mantle_clip_test_app();
+        let mut mantle = AlsMantleState::default();
+        mantle.begin(MantleKind::High, Vec3::ZERO, Vec3::Y, 1.5, 0.0, 0.0);
+        let actor = app.world_mut().spawn((AlsCharacter, mantle, LocomotionState::Grounded,
+            LinearVelocity::ZERO, Transform::IDENTITY, GlobalTransform::IDENTITY,
+            Position(Vec3::ZERO), Rotation(Quat::IDENTITY), AlsCollisionLayerOwnership::default(),
+            crate::als_camera::AlsCameraCustomTimeDilation(0.0))).id();
+        let mut identities = Vec::new();
+        for _ in 0..3 {
+            app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.05));
+            app.world_mut().run_system_once(prepare_mantle_montages).unwrap();
+            app.world_mut().run_system_once(mantle_drive_system).unwrap();
+            let montage = &app.world().get::<AlsMantleMontages>(actor).unwrap().entries[0];
+            identities.push(montage.id);
+            assert_eq!(montage.elapsed, 0.0);
+            assert_eq!(app.world().get::<AlsMantleState>(actor).unwrap().time, 0.0);
+            assert_eq!(app.world().get::<Transform>(actor).unwrap().translation, Vec3::ZERO);
+        }
+        let prepared = app.world().get::<AlsMantleState>(actor).unwrap().root_motion_ready;
+        app.world_mut().entity_mut(actor).insert(crate::als_camera::AlsCameraCustomTimeDilation(0.5));
+        app.world_mut().run_system_once(prepare_mantle_montages).unwrap();
+        app.world_mut().run_system_once(mantle_drive_system).unwrap();
+        let current = app.world().get::<AlsMantleState>(actor).unwrap();
+        let montage = &app.world().get::<AlsMantleMontages>(actor).unwrap().entries[0];
+        assert!(prepared && identities == [1, 1, 1] && montage.id == 1 && (current.time - 0.025).abs() < 1e-6,
+            "Zero-clock Mantle entry restarted before resume: prepared={prepared} ids={identities:?} current_id={} root_time={}",
+            montage.id, current.time);
     }
 
     fn mantle_clip_test_app() -> App {

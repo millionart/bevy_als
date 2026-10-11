@@ -5904,6 +5904,9 @@ fn drive_manual_integration(
             show_debug.visible = true;
             show_debug.mantling = true;
             if entering {
+                if state.scenario == IntegrationScenario::Base {
+                    commands.entity(character).insert(crate::als_camera::AlsCameraCustomTimeDilation(0.5));
+                }
                 reset_character(
                     &mut transform,
                     &mut position,
@@ -5928,6 +5931,9 @@ fn drive_manual_integration(
             }
             input.0.jump_pressed = (5.85..7.1).contains(&progress) && elapsed < 7.0;
             if elapsed >= 10.0 {
+                if state.scenario == IntegrationScenario::Base {
+                    commands.entity(character).remove::<crate::als_camera::AlsCameraCustomTimeDilation>();
+                }
                 if state.scenario == IntegrationScenario::BowOverlay {
                     begin_phase(&mut state, IntegrationPhase::Ragdoll);
                 } else if state.scenario == IntegrationScenario::FootIk {
@@ -9278,6 +9284,15 @@ fn observe_manual_integration(
     }
 
     if let Some(mantle) = mantle {
+        if state.scenario == IntegrationScenario::Base && state.phase == IntegrationPhase::Mantle
+            && mantle.active && mantle.root_motion_ready {
+            let dilation = ragdoll_probe.get_ups.get(character).ok()
+                .and_then(|(_, _, dilation)| dilation).map_or(1.0, |value| value.0);
+            gate_report.direction_trace.push(serde_json::json!({
+                "mantle_actor_clock": true, "game_time": state.game_time_seconds,
+                "elapsed": mantle.time, "dilation": dilation
+            }));
+        }
         observe_mantle(
             state, &mut animation_window, mantle, mantle_montages, player,
             &motion_probe.graphs, *locomotion, notify_action.copied(), transform.translation,
@@ -10397,6 +10412,7 @@ fn observe_manual_integration(
                 ("mantle_start", coverage.mantle_started),
                 ("mantle_complete", coverage.mantle_completed),
                 ("mantle_debug_geometry", coverage.mantle_debug),
+                ("mantle_actor_clock", actor_montage_clock_passed(&gate_report.direction_trace, "mantle_actor_clock")),
                 ("ground_prediction_debug_geometry", coverage.ground_prediction_debug),
                 ("movement_base", coverage.movement_base),
                 ("foot_probe", coverage.foot_probe),
@@ -12823,6 +12839,31 @@ mod tests {
         assert!(!actor_montage_clock_passed(&rows(1.0, 0.5), "get_up_actor_clock"));
         assert!(!actor_montage_clock_passed(&rows(0.5, 1.0), "get_up_actor_clock"));
         assert!(!actor_montage_clock_passed(&[], "get_up_actor_clock"));
+    }
+
+    #[test]
+    fn fresh_audit_mantle_driver_limits_owner_clock_to_the_base_mantle_phase() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut world, character, _) = manual_driver_fixture();
+        {
+            let mut state = world.resource_mut::<ManualIntegrationState>();
+            state.scenario = IntegrationScenario::Base;
+            state.phase = IntegrationPhase::Mantle;
+            state.entered = true;
+            state.phase_started_seconds = 0.0;
+        }
+        world.run_system_once(drive_manual_integration).unwrap();
+        assert_eq!(world.get::<crate::als_camera::AlsCameraCustomTimeDilation>(character).unwrap().0, 0.5);
+        world.resource_mut::<ManualIntegrationState>().phase_started_seconds = -10.1;
+        world.run_system_once(drive_manual_integration).unwrap();
+        assert_eq!(world.resource::<ManualIntegrationState>().phase, IntegrationPhase::Platform);
+        assert!(world.get::<crate::als_camera::AlsCameraCustomTimeDilation>(character).is_none());
+        let rows = (0..8).map(|index| serde_json::json!({
+            "mantle_actor_clock": true, "game_time": index as f64 * 0.02,
+            "elapsed": index as f64 * 0.01, "dilation": 0.5
+        })).collect::<Vec<_>>();
+        assert!(actor_montage_clock_passed(&rows, "mantle_actor_clock"));
+        assert!(!actor_montage_clock_passed(&rows, "get_up_actor_clock"));
     }
 
     #[test]
