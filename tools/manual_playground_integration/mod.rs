@@ -1083,7 +1083,7 @@ const DEFAULT_OVERLAY_EVALUATORS: [&str; 5] = [
 const DEFAULT_OVERLAY_WINDOWS: [&str; 6] = ["default_idle", "default_walk", "default_crouch", "default_air", "default_prediction", "default_return"];
 
 const HEAD_GRAPH: &str = "ALS/Character/AnimationInstances/AB_Als_Head/AnimGraph.animgraph.ron";
-const HEAD_WINDOWS: [&str; 7] = ["head_down", "head_forward", "head_up", "head_velocity_input", "head_velocity_release", "head_first_person", "head_return"];
+const HEAD_WINDOWS: [&str; 7] = ["head_down", "head_forward", "head_up_desired_aiming", "head_velocity_input", "head_velocity_release", "head_first_person", "head_return"];
 const HEAD_BOUNDARIES: [(&str, &str, &str); 5] = [
     ("head_look", "BS_Als_Look\nBlendspace Evaluator", "pose"),
     ("head_refresh", "RefreshHead\r\nOn Update", "Pose"),
@@ -4966,6 +4966,10 @@ fn drive_manual_integration(
             request.overlay_state = Some(OverlayState::Default);
             let desired_mode = if matches!(index, 3 | 4) { RotationMode::VelocityDirection } else { RotationMode::ViewDirection };
             input.0.rotation_mode_pressed = entering && *rotation_mode != desired_mode;
+            if entering && index == 2 {
+                commands.entity(character).insert(crate::als::aim::AlsLastFreeRotationMode(RotationMode::Aiming));
+                input.0.rotation_mode_pressed = false;
+            }
             request.stance = Some(Stance::Standing);
             request.gait = Some(Gait::Walking);
             view_yaw.0 = SPRINT_YAW + (elapsed * 2.0).sin() * 55.0_f32.to_radians();
@@ -7660,7 +7664,9 @@ fn observe_manual_integration(
             && (sample.state[0] - sample.inputs[7]).abs() > 0.01 && sample.errors.is_empty();
         let index = probe.case_index;
         let branch_ready = match index {
-            0..=2 => (sample.state[0] - [-60.0, 0.0, 60.0][index]).abs() < 5.0 && !first_person,
+            0..=2 => (sample.state[0] - [-60.0, 0.0, 60.0][index]).abs() < 5.0 && !first_person
+                && (index != 2 || motion_probe.rotation_mode.get(character).ok() == Some(&RotationMode::Aiming)
+                    && motion_probe.inputs.get(character).ok().and_then(|(_, input)| input).is_some_and(|input| !input.0.aim_held)),
             3 => sample.modes[1] && sample.modes[2] && speed > 0.5,
             4 => sample.modes[1] && !sample.modes[2] && speed < 0.1,
             5 => first_person && probe.unscaled_pitch_seen,
@@ -11349,7 +11355,7 @@ mod tests {
                 AlsViewYaw::default(), AlsViewPitch::default(),
                 AlsMovementParamsHandle::default(), AlsAimingYawConstraint::default()),
         )).id();
-        for (index, expected) in [(3, RotationMode::VelocityDirection),
+        for (index, expected) in [(2, RotationMode::Aiming), (3, RotationMode::VelocityDirection),
             (4, RotationMode::VelocityDirection), (5, RotationMode::ViewDirection),
             (6, RotationMode::ViewDirection)] {
             let mut state = app.world_mut().resource_mut::<ManualIntegrationState>();

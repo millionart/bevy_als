@@ -52,13 +52,11 @@ pub fn aim_rotation_mode_system(
         last_free,
     ) in &mut q
     {
-        let want_aim = crate::als::motion::effective_input(cmd, ovr).aim_held;
-        let stored = last_free.as_deref().map(|lf| lf.0).unwrap_or(*current);
-        let free = if stored == RotationMode::Aiming {
-            default_free_mode()
-        } else {
-            stored
-        };
+        let free = last_free.as_deref().map(|lf| lf.0).unwrap_or_else(|| {
+            if *current == RotationMode::Aiming { RotationMode::ViewDirection } else { *current }
+        });
+        let want_aim = crate::als::motion::effective_input(cmd, ovr).aim_held
+            || free == RotationMode::Aiming;
         if last_free.is_none() && *current != RotationMode::Aiming {
             commands
                 .entity(entity)
@@ -111,10 +109,6 @@ pub fn aim_rotation_mode_system(
             });
         }
     }
-}
-
-const fn default_free_mode() -> RotationMode {
-    RotationMode::ViewDirection
 }
 
 pub struct AlsAimPlugin;
@@ -227,7 +221,7 @@ mod tests {
     }
 
     #[test]
-    fn last_free_mode_never_stores_aiming() {
+    fn aim_button_preserves_the_saved_rotation_intent() {
         let (mut app, e) = app_with_character(false, RotationMode::ViewDirection);
         app.world_mut()
             .get_mut::<AlsInputCommand>(e)
@@ -249,11 +243,48 @@ mod tests {
             .get::<AlsLastFreeRotationMode>(e)
             .copied()
             .unwrap_or(AlsLastFreeRotationMode(RotationMode::VelocityDirection));
-        assert_ne!(
+        assert_eq!(
             stored.0,
-            RotationMode::Aiming,
-            "stored free mode must never be Aiming"
+            RotationMode::ViewDirection,
+            "Aim button changes must preserve the saved rotation intent"
         );
+    }
+
+    #[test]
+    fn desired_aiming_intent_survives_button_release_and_source_mode_branches() {
+        let cases = [
+            (LocomotionState::Grounded, Stance::Standing, false, Gait::Running, RotationMode::Aiming),
+            (LocomotionState::Grounded, Stance::Crouching, false, Gait::Running, RotationMode::Aiming),
+            (LocomotionState::Air, Stance::Standing, false, Gait::Running, RotationMode::Aiming),
+            (LocomotionState::Air, Stance::Crouching, false, Gait::Running, RotationMode::Aiming),
+            (LocomotionState::Grounded, Stance::Standing, true, Gait::Running, RotationMode::Aiming),
+            (LocomotionState::Air, Stance::Standing, true, Gait::Running, RotationMode::Aiming),
+            (LocomotionState::Grounded, Stance::Standing, false, Gait::Sprinting, RotationMode::VelocityDirection),
+            (LocomotionState::Grounded, Stance::Standing, true, Gait::Sprinting, RotationMode::ViewDirection),
+        ];
+        for (locomotion, stance, first_person, gait, expected) in cases {
+            let (mut app, entity) = app_with_character(false, RotationMode::ViewDirection);
+            app.world_mut().entity_mut(entity).insert((locomotion, stance,
+                AlsLastFreeRotationMode(RotationMode::Aiming), AlsMaxAllowedGait(gait)));
+            if first_person {
+                app.world_mut().entity_mut(entity).insert(crate::als::input_request::AlsFirstPersonView);
+            }
+            for aim_held in [false, true, false] {
+                app.world_mut().get_mut::<AlsInputCommand>(entity).unwrap().aim_held = aim_held;
+                app.update();
+                assert_eq!(*app.world().get::<RotationMode>(entity).unwrap(), expected,
+                    "locomotion={locomotion:?} stance={stance:?} first_person={first_person} gait={gait:?} button={aim_held}");
+                assert_eq!(app.world().get::<AlsLastFreeRotationMode>(entity).unwrap().0, RotationMode::Aiming);
+            }
+        }
+    }
+
+    #[test]
+    fn actual_aiming_without_saved_intent_keeps_source_default_intent() {
+        let (mut app, entity) = app_with_character(false, RotationMode::Aiming);
+        assert_eq!(*app.world().get::<RotationMode>(entity).unwrap(), RotationMode::ViewDirection);
+        app.update();
+        assert_eq!(app.world().get::<AlsLastFreeRotationMode>(entity).unwrap().0, RotationMode::ViewDirection);
     }
 
     #[test]

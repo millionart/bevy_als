@@ -1,6 +1,6 @@
 # ALS 移植差异审计 — 2026-10-11
 
-审计目标：记录当前实现中经本地 ALS-Refactored / UE source 与实际 target 消费链确认的全部 P2 及以上差异。目标基线：`bb3dccf3066a217b750670918e30f248ef2c5b98`。8批审计于2026-10-11 15:00 +08:00完成，确认18项P2、未确认P0/P1；均已实时登记至CHECKLIST，尚未修复。P2-01已撤销，不计入18项。
+审计目标：记录当前实现中经本地 ALS-Refactored / UE source 与实际 target 消费链确认的全部 P2 及以上差异。目标基线：`bb3dccf3066a217b750670918e30f248ef2c5b98`。8批审计于2026-10-11 15:00 +08:00完成，确认18项P2、未确认P0/P1；均已实时登记至CHECKLIST。用户随后授权修复，当前状态以CHECKLIST及各条修复记录为准。P2-01已撤销，不计入18项。
 
 本报告的源路径相对于 ALS 插件的 `Source/` 或注明的 UE `Engine/Source/`；target 路径相对于本仓库。机器本地路径只使用 gitignored 环境配置，不进入记录。
 
@@ -29,6 +29,8 @@
 ## 已确认 P2 及以上
 
 ### P2-02 — DesiredRotationMode=Aiming 被降为 ViewDirection
+
+修复完成（2026-10-11 15:58 +08:00）：保留持久Aiming并与Aim按钮独立合并，删除错误排除和单用途默认helper，沿用既有组件；无组件时的既有初始化边界保留。fresh Character/CS/Head及原始C++、34项模式/input/gait/Head驱动回归、两个独立消融与同target恢复通过；当前345规格/15root完整闭包、510图编辑器和资产边界通过。真实startup→Head 7窗口功能验收通过，专门覆盖未按按钮的desired Aiming，图/姿态/故障为0；性能仍按既有延期边界保留。证据在本地 `target/bf139/fix02/` 与 `target/animation_visual/bf139_p202/`。以下保留原审计反例。
 
 - Source：`ALS/Private/AlsCharacter.cpp:675` 的 `RefreshRotationMode` 用 `bDesiredAiming || DesiredRotationMode == Aiming`；源公开的 `SetDesiredRotationMode` 允许直接选择 Aiming，无需持续按 Aim。
 - Target：`src/als/state/aim.rs:55` 只以 `aim_held` 计算意图，`:57` 把存储的 Aiming 改为默认自由模式。`AlsLastFreeRotationMode` 确实承担 desired rotation：`src/als_camera/mod.rs:427` 用它实现源相机的 desired-mode 分支，调试 HUD 也将其展示为 DesiredRotationMode。

@@ -37,9 +37,9 @@
 - ALSExtras（AI 控制器示例）不在范围内。
 - 音频（Metasound）、Niagara 特效仅保留挂钩点。ALSCamera 完整移植已纳入 BF116.01。
 
-## BF139 全范围移植差异审计（只记录）
+## BF139 全范围移植差异审计与修复
 
-用户当前目标：找出所有 P2 及以上的移植差异，确认后实时记录进本清单。审计基线为 `bb3dccf3066a217b750670918e30f248ef2c5b98`；本清单登记待修差异，[审计记录](docs/porting-audit-2026-10-11.md) 保存详细证据与覆盖边界。本轮授权 source/target 审阅、最小反例和文档记录，不修复生产实现、不重开历史完成项、不把 TODO 的待验收状态直接视为缺陷。
+用户当前目标：修复本轮已确认的18项P2。审计基线为 `bb3dccf3066a217b750670918e30f248ef2c5b98`；[审计记录](docs/porting-audit-2026-10-11.md) 保存原始证据与覆盖边界。2026-10-11 15:08 +08:00起，用户已授权按以下差异的模块/依赖顺序修复，逐项通过source/static、最小反例、消融及适用真实入口Gate后勾选、单独提交；已完成审计批次不代表修复完成，TODO中的其他待办仍不自动展开。
 
 **本轮审计完成（2026-10-11 15:00 +08:00）：8批覆盖闭环，确认18项P2，未确认P0/P1，均已登记且未修复。最终29个反例/对照为3PASS、26预期语义FAIL；这些失败用于证明待修差异，不代表修复验收通过。P2-01源身份误判已撤销。**
 
@@ -82,13 +82,18 @@
   - 实时记录（2026-10-11 14:49 +08:00）：实际Playground加载Arch并完成生产mesh physics bridge后，环境friction/restitution为0.5/0，与已正确移植的ragdoll材质按生产Average组合得到0.6/0.15，源应0.7/0.3；0.92秒反例FAIL，登记P2-19，有效累计18项。五个静态mesh的15个源凸包重建与安装数据byte一致，缺陷在环境材质消费者。
   - 最终source/static闭环：34项Overlay依赖、34项环境依赖和5项EngineSky依赖完成；13 Overlay模式/8物件、150物件材质参数、22文字、HUD/菜单、2移动/1旋转平台/4曲线key核对通过。20环境mesh的8Box/5Convex/7TriMesh源碰撞模式一致、15凸包全byte一致；严格Box检查仅S_Crate出现约0.0014 mm半尺寸向量取整差异，原阈值/失败保留、未冒称完全一致或定为P2。最终29测试17.69秒为3PASS/26已核对的语义FAIL，无夹具/加载/无进展失败；118个当次native唯一资产中110个插件资产原始/安装副本全部byte一致，生产源码/资产/转换工具/Cargo相对基线零变更。天空云纹理/滚动遗漏归并P2-18；余下只是以上18项待修实现，不继续自动展开。
 
-### BF139 已确认待修差异（只登记，未授权实现）
+### BF139 差异修复状态（1/18完成）
 
-以下条目修复均未开始；本轮审计时点及 Gate 属对应 BF139 批次，修复被选为当前任务后再按 fresh source 依赖拆分估时。详细反例与漏检原因见审计记录的同号条目。
+BF139-P2-02已完成，接下来处理BF139-P2-03，后续按编号及依赖推进。审计时点及Gate保留在对应BF139批次，下面逐项记录修复估时、证据和结果；详细原始反例与漏检原因见审计记录同号条目。
 
 源身份更正（2026-10-11 12:01 +08:00）：BF139-P2-01已撤销，当前前两批有效差异8项。工程插件链接指向含本地调试改动的Build副本，原始 `b754d6f0` 的Sprint仍按输入bool设置Sprinting/Running，目标一致；初期记录的6/9项分别更正为5/8项。146个原始C++/header完整比较仅CharacterExample cpp/header有语义差异、AnimationInstance仅换行；6个已使用uasset字节一致，其余记录不受影响。保留初期Gate结果以说明错误源期望的漏检；后续只从原始插件根读C++，P2-01编号不复用。
 
-- [ ] **BF139-P2-02 DesiredRotationMode=Aiming 无效**：源 `ALS/Private/AlsCharacter.cpp:675` 将 desired Aiming 与 Aim 按钮独立合并；目标 `src/als/state/aim.rs:55–60` 强制把存储 Aiming 改为 ViewDirection。Grounded/Standing、desired=Aiming、按钮未按下时实际反例 FAIL。验收覆盖 desired Aiming、普通自由模式、按键覆盖/释放、空中和第一人称，并修正旧测试中“stored mode never Aiming”的源合同。
+- [x] **BF139-P2-02 DesiredRotationMode=Aiming 无效**：源 `ALS/Private/AlsCharacter.cpp:675` 将 desired Aiming 与 Aim 按钮独立合并；原目标 `src/als/state/aim.rs:55–60` 强制把存储 Aiming 改为 ViewDirection，现已按源合并意图与按钮。验收覆盖 desired Aiming、普通自由模式、按键覆盖/释放、空中、第一人称、冲刺及无持久意图时的初始化，并修正旧“stored mode never Aiming”测试合同。
+  - 修复开始：2026-10-11 15:08 +08:00；预估结束：2026-10-11 15:53 +08:00。依据fresh Character.RefreshRotationMode的单函数分支、现有aim/input/gait消费者及既有Head真实入口，预计删除错误排除分支、补一组源状态矩阵和当前Head场景desired-Aiming反例；沿用现公开组件，不增加状态。source闭包限于该旋转意图及其gait/Head消费者、默认Character/CS资产；静态与最小测试通过后执行startup→Head公共Gate，截图关闭、性能按既有延期边界仅做功能验收。
+  - source/static闭环（2026-10-11 15:36 +08:00）：原始Character.RefreshRotationMode/CanSprint、fresh B_Als_Character/CS默认配置及Head完整11图（主pose图6源节点）已核对。最小矩阵原实现5PASS/1FAIL→候选7PASS；移除desired-Aiming合并与Head意图驱动分别稳定语义FAIL，源码字节恢复后33项定向回归PASS。删除单用途默认helper，沿用既有意图组件；现收紧缺少组件时的初始化边界并重编。声明式source/layout/editor/runtime-boundary检查通过，510图编辑器修复为0；manifest首次误放修复命令已改为独立修复再只读核对，不修改审计器。生成资产与节点ABI未改，下一步最终回归、同target真实入口预构建/当前spec及startup→Head公共功能Gate。
+  - 预构建诊断（2026-10-11 15:43 +08:00）：最终34项回归通过。正常profile构建首次因仅看日志被240秒无进展watchdog终止，但终止前1秒仍产生新rcgu目标文件；已读取报告并确认进程/target归属，保留失败，沿用固定上限并把当前crate目标文件/rmeta/产物目录纳入既有progress参数后重建。没有启动runtime或更改生产profile；真实Gate仍待构建/spec闭环。
+  - runtime前闭环（2026-10-11 15:55 +08:00）：最终源码正常profile/同target_game的manual_playground与spec程序构建495.288秒通过；345当前规格重新读取，15生成root完整source/static闭包61.301秒通过，原39来源资产SHA与审计身份一致且Head用本轮fresh记录替换校验副本。34项回归/两个消融/源合同/编辑器与边界均通过，生成资产零变更；现在按startup→Head运行公共功能Gate，Head上看窗口实际要求Aiming且aim_held=false。
+  - 修复实际结束：2026-10-11 15:58:33 +08:00；相对15:53预估偏差+5分33秒，在误差窗口内，结果为功能验收通过。真实startup/Head runner、游戏、validator均退出0，ready=true、graph_errors/faults/temporal_anomalies/primary_failure均0；Head 7窗口含head_up_desired_aiming全部通过。最小实现删除错误排除及单用途helper，复用原意图组件与Head窗口，无新状态/依赖/图产物。两次消融失败→恢复及初始化收口后34回归通过，最终正常profile重编证明无消融残留；性能预算失败和截图关闭按既有边界保留。正常优化构建实测8分14秒，后续同类估时须计入该成本及代码生成文件进展。
 - [ ] **BF139-P2-03 普通运动忽略角色 CustomTimeDilation**：UE `Actor.h:4877` 的组件 tick 使用 owner 倍率；目标 `dynamics.rs:441`/`motion.rs:3447` 的 Walking/Falling 事务使用全局 Delta。3.75 m/s、50 ms 帧、倍率0.5时源水平位移0.09375 m，目标0.1875 m，实际物理反例 FAIL。验收应覆盖 Grounded/Air、0/0.5/1/2 倍率、起跳/落地、基座和动作移交；已完成 Roll/Mantle/GetUp 不因名称相似而复开。
 - [ ] **BF139-P2-04 落地丢失当帧剩余行走时间**：UE CMC `PhysFalling:5050→ProcessLanded:6373→StartNewPhysics` 传递 remainingTime；目标 `motion.rs:2697` 发现地面后直接 break。200 ms帧/50 ms子步、3.75 m/s水平速度、从1 m以3 m/s下落时源约0.75 m，目标0.10516852 m且已Grounded；无落地对照0.75 m PASS。验收覆盖子步内落地后的Walking预算、速度/制动/输入及落地动作仲裁，不以“最终Grounded”代替位移证明。
 - [ ] **BF139-P2-05 普通 locomotion/provider 混用局部与世界旋转**：源 Character/AnimationInstance 使用 actor world transform；目标 `motion.rs:415,577–579`、`actual_motion.rs:90`、`ab_als_provider.rs:319`、`locomotion_layer.rs:209` 以局部旋转计算世界朝向/局部速度并写物理 Rotation。90°父级下前进2 m/s被识别为左移；真实移动管线中渲染world yaw约0°而物理yaw−90°，两个反例 FAIL，无父级对照 PASS。验收覆盖父实体当帧平移/旋转/缩放及普通 Grounded/Air 的最终朝向和动画输入，不复开已修动作/相机项。
