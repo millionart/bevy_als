@@ -90,6 +90,8 @@
 
 修复完成（2026-10-12 02:58 +08:00）：Roll/Mantle和两个QuickStop入口直接消费已有has_input及world yaw；Mantle速度分支也使用已消费的速度有效性/yaw，删除重复raw归一化和阈值。fresh原始Character/Actions/AnimationInstance、UE GetSafeNormal与CS/AIS闭包通过，原3反例及矛盾raw/消费快照、真实完整帧、生成FSM正例、阈值两侧/保留yaw、父空间/时钟/生命周期等49项控制通过。五个独立consumer消融均语义失败，源码精确恢复后同target重编49项重新通过；正式入口构建及受影响例程、原3反例/5运动矩阵、345规格/15root完整闭包、510编辑器与声明式边界通过。真实startup和原Base功能验收通过，53项覆盖齐全，graph/fault/temporal为空、primary_failure=null。没有新增生产状态、适配层或阈值，输入生产者未改；性能和截图延期保持。证据位于本地 `target/bf139/fix08/` 与 `target/animation_visual/bf139_p208/`。以下保留原审计记录。
 
+落地消费者有限复开并补闭（2026-10-12 03:58:05 +08:00）：P209扩大回归后发现落地Roll仍读取Walking后的当前速度；fresh Character.cpp:522–525证实源读取已消费的bHasVelocity/VelocityYawAngle，独立链接原P208正式库复现源−90°、目标0.14544414 rad，证明旧Gate漏掉该消费者。现落地入口复用已有速度快照和1 cm/s判定，移除live速度及重复向量阈值；缓存yaw/live速度矛盾、阈值两侧、原完整角色反例及补齐前置条件的三个旧夹具通过。两项消融均语义FAIL，精确字节恢复同target重编55项通过；正式库四原反例/五运动矩阵、345规格/完整15root闭包及声明式边界通过。真实startup/Base功能通过，Base53项覆盖齐全，graph/fault/temporal为空；没有修改生产状态、CMC预算、时钟或图。完整重转的374图产物零diff，未复开其他已完成模块。证据位于本地 `target/bf139/fix08_landing/` 与 `target/animation_visual/bf139_p208_landing/`，原Gate与脚本guard误判记录保留。
+
 - Source：`AlsCharacter_Actions.cpp:34` 和 `:176` 读取已由 Character 消费、归一化的 `LocomotionState.bHasInput/InputYawAngle`；有效性阈值为平方 `1e−8`。
 - Target：`roll.rs:57`、`roll_drive.rs:1931` 又使用平方 `1e−6`。Mantle 则由 `motion.rs` 把原始输入先变成单位方向，再交 `mantle.rs:469` 判断。
 - 反例：实际角色输入 `(0.0002,0)` 已 `has_input=true`，源应向右 Roll；实际目标 yaw=0，源 −90°。输入 `(0.01,0)` 正对照正确。另以 `(0.00001,0)` 验证已 `has_input=false` 且无水平速度，实际 Mantle trace 为 `(0.76604444,0,−0.6427875)`，源应 `(0,0,−1)`，相差50°。

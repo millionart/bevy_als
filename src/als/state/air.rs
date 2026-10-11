@@ -500,10 +500,10 @@ mod tests {
         let mut roll_30 = crate::als::roll::AlsRollState::default();
         let mut roll_120 = crate::als::roll::AlsRollState::default();
         let roll_30_started = roll_30
-            .start_from_landing(impacts[0], Vec3::NEG_Z, 0.0, Stance::Standing)
+            .start_from_landing(impacts[0], Some(0.0), 0.0, Stance::Standing)
             .started;
         let roll_120_started = roll_120
-            .start_from_landing(impacts[1], Vec3::NEG_Z, 0.0, Stance::Standing)
+            .start_from_landing(impacts[1], Some(0.0), 0.0, Stance::Standing)
             .started;
         let passed = (fixed_record + 7.2).abs() < 1e-6
             && (impacts[0] - 7.2).abs() < 1e-6

@@ -84,7 +84,7 @@
 
 ### BF139 差异修复状态（7/18完成）
 
-BF139-P2-02至BF139-P2-08已完成，后续从BF139-P2-09按编号及依赖推进。审计时点及Gate保留在对应BF139批次，下面逐项记录修复估时、证据和结果；详细原始反例与漏检原因见审计记录同号条目。
+BF139-P2-02至BF139-P2-08已完成，包括P2-09扩大回归后有限复开并补闭的落地Roll消费者；后续从P2-09按编号及依赖推进。审计时点及旧Gate保留在对应批次，下面逐项记录修复估时、证据和结果；详细原始反例与漏检原因见审计记录同号条目。
 
 源身份更正（2026-10-11 12:01 +08:00）：BF139-P2-01已撤销，当前前两批有效差异8项。工程插件链接指向含本地调试改动的Build副本，原始 `b754d6f0` 的Sprint仍按输入bool设置Sprinting/Running，目标一致；初期记录的6/9项分别更正为5/8项。146个原始C++/header完整比较仅CharacterExample cpp/header有语义差异、AnimationInstance仅换行；6个已使用uasset字节一致，其余记录不受影响。保留初期Gate结果以说明错误源期望的漏检；后续只从原始插件根读C++，P2-01编号不复用。
 
@@ -162,6 +162,12 @@ BF139-P2-02至BF139-P2-08已完成，后续从BF139-P2-09按编号及依赖推�
   - runtime前（2026-10-12 02:55 +08:00）：正常target_game/play同入口构建404.752秒通过，额外mantle_configuration_gate编译通过；正式库原3反例/控制、5项运动矩阵、fresh345规格/15root完整闭包与声明式边界全部通过，静态收口85.444秒。510文件编辑器检查零修复。当前source/方向/生命周期/消融边界已闭合，开始原Playground startup，再以原Base完整覆盖Roll/Mantle及活动父级；保留所有图/姿态/时序守卫，截图与性能延期边界不变。
   - startup后/Base前（2026-10-12 02:56 +08:00）：startup功能通过，ready=true、游戏/validator退出0，graph/fault/temporal为空、primary_failure=null。进入同一二进制的原Base场景，FrameDeltaSeconds=0.016666667；要求53项原覆盖全部通过，包括活动父级Mantle与动作结束后的输入恢复。
   - 修复实际结束：2026-10-12 02:58:00 +08:00；相对02:48预估偏差+10分钟，在20分钟误差内，功能Gate通过、无需拆分或重估。startup与Base均ready=true、游戏/validator退出0，graph/fault/temporal为空、primary_failure=null；Base53项全部覆盖。五个consumer消融均语义FAIL、精确字节恢复同target重编49项通过，正式库原3反例及5运动矩阵、345规格/15root闭包/声明式边界全部通过。保留原始raw阈值失败及夹具/API迁移记录；最终无新生产状态/适配层/阈值，输入生产者、父空间和时钟不变。完整性能验收与截图仍延期，没有把functional pass宣称为full pass。
+  - 有限复开（2026-10-12 03:31 +08:00）；本轮预估结束：2026-10-12 03:58 +08:00。fresh Character.cpp:522–525的落地Roll读取已消费bHasVelocity/VelocityYawAngle，而advance_rolls仍把Walking后的当前LinearVelocity传给start_from_landing。P209扩大回归发现旧完整角色反例；独立链接P208正常生产库重现同一FAIL（源−90°、实际0.14544414 rad），证明与P209自然混出修改无关。旧Gate只覆盖手动Roll/Mantle/QuickStop，明确未覆盖落地速度分支，是本次漏检。当前只复开该consumer，复用已有ActualMotion速度真值，补充矛盾live/consumed控制及消融；另三个旧夹具缺消费快照/消息资源，修正夹具声明，不据此复开P204/P205。P209修改已完整暂存并恢复HEAD，待本项自身Gate与独立提交通过后续行。
+  - 补闭source/static（2026-10-12 03:39 +08:00）：已有速度快照经现有1 cm/s判定选择可空yaw，移除落地入口的live LinearVelocity读取和重复向量阈值。缓存yaw/live速度矛盾及阈值两侧、原完整角色落地反例、手动输入/父空间/晚期旋转、暂停Tap夹具等16项通过（125.868秒）；三个旧夹具已补实际消费快照或消息资源。当前只剩缓存yaw/有效性两个独立消融、精确恢复、同入口正常构建/完整图合同与原Playground功能验收，未新增生产状态或改动移动预算。
+  - 补闭消融恢复（2026-10-12 03:45 +08:00）：缓存yaw移除114.868秒、速度有效性移除110.004秒，均101语义FAIL；外层首次只查stdout误判stderr断言，原结果保留，核对后只续未执行有效性消融。精确源码字节恢复，同target重编55项回归146.023秒通过，全部消费方向/原反例/父空间/时钟/通知控制闭合。刚完成的全部15root/39native来源重转与374新旧产物diff零新增/删除/修改（1481.070秒）作为当前完整图闭包来源；现在预构建同target_game启动器，随后刷新345规格/完整闭包并运行原Playground。
+  - 补闭runtime前（2026-10-12 03:55 +08:00）：正常target_game同入口412.066秒通过；正式库四个原始反例/控制及五运动矩阵、fresh345规格/15root完整闭包与声明式边界87.308秒通过，510编辑器零修复。当前补闭source/消费者/消融已闭合，开始原Playground startup，再运行Base完整Roll/Mantle/父级/输入恢复覆盖。落地精确方向由同正式库完整角色反例验证，真实入口检查同一Roll图/物理/生命周期集成；不新增场景或绕开任何功能守卫。
+  - 补闭startup后/Base前（2026-10-12 03:55 +08:00）：startup功能通过，ready=true、游戏/validator退出0，graph/fault/temporal为空、primary_failure=null。进入同一正式二进制的原Base，固定FrameDeltaSeconds=0.016666667，保留53项完整覆盖与图/姿态/生命周期守卫。
+  - 补闭实际结束：2026-10-12 03:58:05 +08:00；相对03:58预估偏差+5秒，功能Gate通过、无需进一步拆分或重估。startup/Base均ready=true、游戏/validator退出0，graph/fault/temporal为空、primary_failure=null，Base53项全部覆盖。55项精确恢复回归、两个有效消融、正常412.066秒/原四反例与五矩阵、345规格/15root闭包/声明式边界均通过；只替换该落地消费者的输入，没有新生产状态或修改CMC预算。原漏检Gate和脚本guard失败均保留；完整性能与截图延期保持，当前重新勾选并独立提交，随后恢复P209。
   - 13:23补充：Source `PlayQuickStopAnimation:1590` 同样使用已消费输入；`stop_link.rs:407` 又以平方f32::EPSILON过滤原始输入。实际movement已has_input=true/input_yaw=−90的0.0002右输入，QuickStop在stored target yaw0时错误选左侧1.75，源右侧2.375；0.01对照通过。源AIS当次原生确认QuickStop范围1.75–3，归并本项。
 - [ ] **BF139-P2-09 Roll/GetUp 自然混出时序及剩余预算不同**：UE `AnimInstance.cpp:573–578` 先UpdateWeight后Advance；`AnimMontage.cpp:2626–2636` 首次进入自然混出窗口才Stop，并用当前剩余播放时间作为混出时长。目标 `roll.rs:48` 与 `get_up.rs:112–130` 从连续elapsed直接计算默认长度的fade。100 ms帧下，Roll到0.9 s的首个Stop帧源weight仍1、实际0.93627644；GetUp到1.0 s源仍1、实际0.92592555，完整角色slot两个反例FAIL，进入窗口前weight1对照PASS。验收应覆盖窗口跨越、不同帧长/RateScale、自然与中断、slot pose/曲线/notify权重，并核对下一帧使用剩余预算。
   - 12:10补充：源Transition使用自定义TriggerTime=0，首次Stop也保留已UpdateWeight的当前weight；`stop_link.rs:252–279` 却直接将越过末点的时间用作fade elapsed。实际StandingDynamic duration1.533333、rate1.5，结束前20 ms推进100 ms后weight=0.64799964/stop_elapsed=0.08000004，源本帧应1/0；反例FAIL，归并同一蒙太奇生命周期根因。Turn的惯性混出走不同源合同，不据此推断缺陷。

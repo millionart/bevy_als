@@ -100,6 +100,34 @@ pub(crate) mod tests {
     use bevy::ecs::system::RunSystemOnce;
 
     #[test]
+    fn landing_roll_direction_uses_consumed_velocity_validity_and_yaw() {
+        for (speed, yaw, expected) in [(0.02_f32, 0.8_f32, 0.8_f32), (0.01, -0.9, -0.9),
+            (0.0099, -0.9, 0.7), (0.0, 1.1, 0.7)] {
+            let mut world = World::new();
+            world.init_resource::<Messages<crate::als::transition::StateTransitionEvent>>();
+            let mut time = Time::<()>::default();
+            time.advance_by(std::time::Duration::from_secs_f32(0.02));
+            world.insert_resource(time);
+            let actor = world.spawn((crate::als::character::AlsCharacter, AlsRollState::default(),
+                LocomotionState::Grounded, Stance::Standing, AlsViewYaw(0.3),
+                Transform::from_rotation(Quat::from_rotation_y(0.7)), LinearVelocity(Vec3::X * 4.0),
+                AlsInputCommand::default(), crate::als::air::AlsPreImpactVelocity { last_air_vertical_velocity: -8.0 },
+                crate::actual_motion::AlsActualMotion { horizontal_speed: speed,
+                    velocity_yaw_degrees: yaw.to_degrees(), ..default() })).id();
+            world.resource_mut::<Messages<crate::als::transition::StateTransitionEvent>>().write(
+                crate::als::transition::StateTransitionEvent { entity: actor,
+                    dimension: crate::als::transition::Dimension::LocomotionState,
+                    from: crate::als::transition::StateValue::LocomotionState(LocomotionState::Air),
+                    to: crate::als::transition::StateValue::LocomotionState(LocomotionState::Grounded) });
+            world.run_system_once(advance_rolls).unwrap();
+            let roll = world.get::<AlsRollState>(actor).unwrap();
+            assert!(roll.active);
+            assert!(crate::als::roll::wrap_angle(roll.direction_yaw - expected).abs() < 1e-5,
+                "Landing Roll used current Walking velocity instead of the source consumed yaw: {roll:?}");
+        }
+    }
+
+    #[test]
     fn landing_event_starts_roll_even_when_the_frame_ends_airborne() {
         use crate::als::transition::{Dimension, StateTransitionEvent, StateValue};
         for landed in [false, true] {
@@ -363,6 +391,7 @@ pub(crate) mod tests {
                 for (case_index, steps) in cases.iter().enumerate() {
                     let mut app = App::new();
                     app.add_plugins((MinimalPlugins, bevy::input::InputPlugin, EnhancedInputPlugin, AlsInputPlugin))
+                        .add_message::<crate::als::transition::StateTransitionEvent>()
                         .insert_resource(TimeUpdateStrategy::ManualDuration(std::time::Duration::from_millis(20)))
                         .add_systems(PostUpdate, advance_rolls);
                     app.finish();
@@ -412,6 +441,8 @@ pub(crate) mod tests {
             let character = world.spawn((crate::als::character::AlsCharacter, AlsRollState::default(),
                 LocomotionState::Grounded, Stance::Standing, AlsViewYaw(1.2), crate::als::view::AlsPlayerViewYaw(0.4),
                 Transform::from_rotation(Quat::from_rotation_y(0.7)), LinearVelocity::ZERO,
+                crate::actual_motion::AlsActualMotion { has_input: input != Vec2::ZERO,
+                    input_yaw_degrees: expected.to_degrees(), ..default() },
                 AlsInputCommand { roll_pressed: true, move_dir: input, ..default() })).id();
             world.run_system_once(advance_rolls).unwrap();
             let actual = world.get::<AlsRollState>(character).unwrap().direction_yaw;
@@ -832,6 +863,8 @@ pub(crate) mod tests {
     fn loaded_roll_late_rotation_refresh_matches_the_actual_actor_yaw() {
         let (mut app, character, _) = loaded_roll_character();
         app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().move_dir = Vec2::X;
+        for _ in 0..3 { app.update(); }
+        assert!(app.world().get::<crate::actual_motion::AlsActualMotion>(character).unwrap().has_input);
         app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().roll_pressed = true;
         app.world_mut().run_system_once(advance_rolls).unwrap();
         app.world_mut().get_mut::<AlsInputCommand>(character).unwrap().roll_pressed = false;
@@ -2005,7 +2038,6 @@ fn advance_rolls(
             &Stance,
             (&AlsViewYaw, Option<&crate::als::view::AlsPlayerViewYaw>),
             &Transform,
-            &LinearVelocity,
             Option<&AlsAirState>,
             &AlsInputCommand,
             Option<&AlsInputOverride>,
@@ -2032,7 +2064,6 @@ fn advance_rolls(
         stance,
         (view, player_view),
         _transform,
-        vel,
         air,
         cmd,
         ovr,
@@ -2083,7 +2114,10 @@ fn advance_rolls(
             && (empty_action || stopped_blend.is_some() || !previous_roll.root_motion_active())
             && landing_ready
         {
-            lifecycle = roll.start_from_landing(landing_speed, vel.0, actor_yaw, *stance);
+            let velocity_yaw = motion.and_then(|motion|
+                crate::als::motion::locomotion_movement_flags(motion.has_input, motion.horizontal_speed).0
+                    .then_some(motion.velocity_yaw_degrees.to_radians()));
+            lifecycle = roll.start_from_landing(landing_speed, velocity_yaw, actor_yaw, *stance);
         }
         if lifecycle.started {
             if previous_roll.active {

@@ -84,14 +84,6 @@
       "sha256": "4e6b524c067065c5597aff680584b267eb12e7625241da59342d544c6f33f24c"
     },
     {
-      "path": "target/bf139/fix08/source/AlsCharacter.cpp",
-      "sha256": "779192e94d0a1ac13ccf95cfa9db540cc4f6230a2dc3ab9113848f8d983ace84"
-    },
-    {
-      "path": "target/bf139/fix08/source/AlsCharacter_Actions.cpp",
-      "sha256": "3dbd91f26154fd99297a7c7bb293993d938a86b8937d7071760cabc8517aa317"
-    },
-    {
       "path": "target/bf139/fix08/source/contract.json",
       "sha256": "95373b0e58da41cc236c9882de28142c60b42ff1151e928f370fb9a385a36907"
     },
@@ -106,6 +98,18 @@
     {
       "path": "target/bf139/fix08/source/Vector.h",
       "sha256": "af7ba43ca35bab89a04f0fdd69e3d8b4a484e4435ca728b50d6e113e2015478e"
+    },
+    {
+      "path": "target/bf139/fix08_landing/source/AlsCharacter.cpp",
+      "sha256": "779192e94d0a1ac13ccf95cfa9db540cc4f6230a2dc3ab9113848f8d983ace84"
+    },
+    {
+      "path": "target/bf139/fix08_landing/source/AlsCharacter_Actions.cpp",
+      "sha256": "3dbd91f26154fd99297a7c7bb293993d938a86b8937d7071760cabc8517aa317"
+    },
+    {
+      "path": "target/bf139/fix08_landing/source/contract.json",
+      "sha256": "f3e0eed3233b9fe33d9d68ea4d348c61188210254ff44225111fdb45d4b39d87"
     }
   ],
   "verification_commands": [
@@ -151,7 +155,7 @@
   },
   "focused_tests": [
     {
-      "label": "consumed_input_boundary_roll_mantle_and_both_quick_stop_entries",
+      "label": "consumed_action_input_including_landing_velocity_direction",
       "argv": [
         "cargo",
         "test",
@@ -174,9 +178,14 @@
         "als::mantle::tests",
         "fresh_audit_roll",
         "fresh_audit_mantle",
+        "landing_roll_direction_uses_consumed_velocity_validity_and_yaw",
+        "loaded_medium_landing_roll_uses_the_source_saved_velocity_direction",
+        "loaded_roll_late_rotation_refresh_matches_the_actual_actor_yaw",
+        "roll_direction_uses_player_view_for_input_and_actor_yaw_without_input",
+        "roll_paused_tap_release_does_not_start_the_actual_roll_driver",
         "--test-threads=1"
       ],
-      "evidence": "target/bf139/fix08/restored_lib.watchdog.json"
+      "evidence": "target/bf139/fix08_landing/restored_lib.watchdog.json"
     }
   ]
 }

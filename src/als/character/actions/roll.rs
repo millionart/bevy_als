@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::als::input::AlsInputCommand;
 use crate::als::motion::AlsViewYaw;
-use crate::als::orientation::{world_forward_to_yaw, yaw_to_world_forward};
+use crate::als::orientation::yaw_to_world_forward;
 use crate::als::start_stop::{MoveDirection, classify};
 use crate::als::state::{LocomotionState, Stance};
 
@@ -101,19 +101,14 @@ impl AlsRollState {
     pub fn start_from_landing(
         &mut self,
         landing_speed: f32,
-        horizontal_velocity: Vec3,
+        velocity_yaw: Option<f32>,
         actor_yaw: f32,
         stance: Stance,
     ) -> RollLifecycle {
         if self.root_motion_active() || landing_speed < ROLL_ON_LAND_SPEED_THRESHOLD {
             return RollLifecycle::default();
         }
-        let horizontal = Vec3::new(horizontal_velocity.x, 0.0, horizontal_velocity.z);
-        self.direction_yaw = if horizontal.length_squared() > 1e-6 {
-            world_forward_to_yaw(horizontal)
-        } else {
-            actor_yaw
-        };
+        self.direction_yaw = velocity_yaw.unwrap_or(actor_yaw);
         self.last_direction = MoveDirection::Forward;
         self.stance_before_roll = stance;
         self.active = true;
@@ -280,7 +275,7 @@ mod tests {
     fn source_landing_roll_threshold_uses_preimpact_velocity() {
         for speed in [6.999, 7.0, 7.001] {
             let mut state = AlsRollState::default();
-            let started = state.start_from_landing(speed, Vec3::X, 0.0, Stance::Standing).started;
+            let started = state.start_from_landing(speed, Some(-std::f32::consts::FRAC_PI_2), 0.0, Stance::Standing).started;
             assert_eq!(started, speed >= 7.0);
             if started { assert!(roll_displacement_dir(state.direction_yaw).distance(Vec3::X) < 1e-6); }
         }
