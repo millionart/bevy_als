@@ -27,6 +27,47 @@ fn movement_actor(capped: bool) -> (App, Entity, AlsMovementParams) {
 }
 
 #[test]
+fn ordinary_steps_respect_source_component_permissions() {
+    for frame_seconds in [1.0_f32 / 60.0, 0.1] {
+        for (child, body_permission, collider_permission, expected) in [
+            (false, None, None, true), (false, Some(true), None, true),
+            (false, Some(false), None, false), (true, None, None, true),
+            (true, Some(true), None, true), (true, Some(false), None, false),
+            (true, Some(false), Some(true), true), (true, Some(true), Some(false), false),
+        ] {
+            let (mut app, actor, _) = movement_actor(false);
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(20.0, 0.2, 30.0), Transform::from_xyz(0.0, -0.1, 0.0)));
+            let body = app.world_mut().spawn((RigidBody::Static, Transform::from_xyz(0.0, 0.2, -1.0))).id();
+            if let Some(allows_step_up) = body_permission {
+                app.world_mut().entity_mut(body).insert(bevy_als::als::mantle::AlsMantleTargetPermission { allows_step_up });
+            }
+            let collider = if child {
+                app.world_mut().spawn((Collider::cuboid(4.0, 0.4, 1.0), Transform::default(), ChildOf(body))).id()
+            } else {
+                app.world_mut().entity_mut(body).insert(Collider::cuboid(4.0, 0.4, 1.0));
+                body
+            };
+            if let Some(allows_step_up) = collider_permission {
+                app.world_mut().entity_mut(collider).insert(bevy_als::als::mantle::AlsMantleTargetPermission { allows_step_up });
+            }
+            for _ in 0..30 { app.update(); }
+            assert_eq!(app.world().get::<ColliderOf>(collider).unwrap().body, body);
+            app.world_mut().get_mut::<AlsInputCommand>(actor).unwrap().move_dir = Vec2::Y;
+            app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(frame_seconds)));
+            let mut peak_height = 0.0_f32;
+            for _ in 0..(1.0 / frame_seconds).round() as usize {
+                app.update();
+                peak_height = peak_height.max(app.world().get::<Position>(actor).unwrap().y);
+            }
+            let position = app.world().get::<Position>(actor).unwrap().0;
+            println!("step_permission frame={frame_seconds} child={child} body={body_permission:?} collider={collider_permission:?} expected={expected} position={position:?} peak_height={peak_height}");
+            if expected { assert!(position.z < -1.5 && peak_height > 1.28, "Allowed low steps must remain traversable"); }
+            else { assert!(position.z > -0.3 && peak_height < 1.0, "Source CanStepUp rejects forbidden components"); }
+        }
+    }
+}
+
+#[test]
 fn ordinary_parent_space_preserves_world_pose_after_ground_and_air_physics() {
     for mode in [LocomotionState::Grounded, LocomotionState::Air] {
         let (mut app, actor, _) = movement_actor(false);

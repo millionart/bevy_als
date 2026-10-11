@@ -70,6 +70,8 @@
 
 ### P2-06 — 普通台阶跨越忽略组件 CanCharacterStepUp 许可
 
+修复完成（2026-10-12 00:32:54 +08:00）：普通StepUp在初始命中与更高落点读取已有许可，child显式设置优先、所属刚体兜底，并覆盖落地后的walking剩余预算。fresh完整CMC闭包纠正了原20cm最终位置oracle：源FindFloor/AdjustFloorHeight独立刷新地面，不能由最终登上直接证明StepUp未拒绝；原始报告保留，该断言撤回。修正40cm反例先红，16组许可/所有权/帧预算矩阵、独立正面/落点四组合、3个判定消融、精确字节同target恢复与Mantle/partial-step/运动时钟/落地回归通过；额外高度输出消融后信号不变，已删除。当前345规格/15root完整闭包及声明式边界通过；真实startup、三座原楼梯上/下六路线功能通过，图/fault/temporal/primary_failure均无。证据位于本地 `target/bf139/fix06/` 与 `target/animation_visual/bf139_p206/`，性能延期保持。以下保留原审计记录。
+
 - Source：UE `Runtime/Engine/Private/Components/CharacterMovementComponent.cpp:7525` 的 `CanStepUp` 检查组件 `CanCharacterStepUp` 与 actor `CanBeBaseForCharacter`；`StepUp` 必须通过该检查。ALS Mantle 也使用同一个原生组件许可。
 - Target：`src/als/character/movement/motion.rs:3380` 的低台阶事务只检查碰撞/高度/空间，没有读取已经由 `AlsMantleTargetPermission.allows_step_up` 表达的组件许可；该许可目前只被 `mantle.rs:569` 消费。
 - 反例：20 cm 静态台阶，角色持续前进 60 个 1/60 s 帧，分别设置许可 true/false。两次均跨过台阶并到达 z=−3.4291668；源 false 应在台阶正面被阻挡。true 正对照通过，false 断言失败。
