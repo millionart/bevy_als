@@ -440,6 +440,7 @@ fn reset_landing_braking_friction_system(
 
 pub fn grounded_dynamics_motor_system(
     time: Res<Time>,
+    custom_dilations: Query<&crate::als_camera::AlsCameraCustomTimeDilation>,
     mut commands: Commands,
     params_assets: Res<Assets<AlsMovementParams>>,
     mut q: Query<
@@ -485,6 +486,7 @@ pub fn grounded_dynamics_motor_system(
         current_base_state,
     ) in &mut q
     {
+        let delta_seconds = time.delta_secs() * custom_dilations.get(entity).map_or(1.0, |value| value.0);
         cmc_runtime.grounded_movement_delta = None;
         cmc_runtime.grounded_collision_velocity = None;
         let Ok((roll, mantle)) = actions.get(entity) else {
@@ -550,9 +552,9 @@ pub fn grounded_dynamics_motor_system(
             dynamics.0,
             &params.cmc,
             braking_friction_factor,
-            time.delta_secs(),
+            delta_seconds,
         );
-        cmc_runtime.simulation_delta_seconds = time.delta_secs();
+        cmc_runtime.simulation_delta_seconds = delta_seconds;
         cmc_runtime.simulation_substeps = simulation_substeps;
         cmc_runtime.grounded_movement_delta = Some(displacement + support_velocity * time.delta_secs());
         let analog_modifier = if dynamics.0.acceleration > MAX_ACCELERATION_MIN_FOR_ANALOG_MODIFIER { desired_motion.length().min(1.0) } else { 0.0 };

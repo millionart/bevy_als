@@ -4028,14 +4028,22 @@ fn animation_clock_results(rows: &[serde_json::Value]) -> Vec<(&'static str, boo
         rows.len() >= 2 && rows.last().unwrap()["state_elapsed"].as_f64() > rows.first().unwrap()["state_elapsed"].as_f64()
     };
     let one = rows.iter().filter(|row| row["elapsed"].as_f64().is_some_and(|time| time >= 2.4 && time < 3.6)).map(|row| &row["state_elapsed"]).collect::<std::collections::HashSet<_>>();
+    let movement = [0.0, 0.5, 1.0, 2.0].into_iter().all(|dilation| {
+        let samples = rows.iter().filter(|row| row["dilation"].as_f64() == Some(dilation)
+            && row["movement_clock_error"].as_f64().is_some()).collect::<Vec<_>>();
+        samples.len() >= 3 && samples.iter().all(|row| row["movement_clock_error"].as_f64().is_some_and(|error| error < 0.002))
+    });
     vec![("clock_paused_transition", frozen(2.4, 2.9)), ("clock_one_frame", one.len() == 2),
-        ("clock_repaused", frozen(3.3, 3.7)), ("clock_custom_dilation", advancing(3.85, 4.25)), ("clock_resumed", advancing(4.6, 5.8))]
+        ("clock_repaused", frozen(3.3, 3.7)), ("clock_custom_dilation", advancing(3.85, 4.25)),
+        ("clock_resumed", advancing(4.6, 5.8)), ("clock_actor_movement", movement)]
 }
 
 fn observe_animation_clock(
+    time: Res<Time>,
     state: Res<ManualIntegrationState>, mut report: ResMut<ManualIntegrationGateReport>,
     instances: Query<&AnimatedSceneInstance>, players: Query<&AnimationGraphPlayer>,
     assets: Res<AssetServer>, graphs: Res<Assets<AnimationGraph>>,
+    characters: Query<(&Position, &crate::als::motion::AlsActualVelocity, Option<&crate::als_camera::AlsCameraCustomTimeDilation>)>,
 ) {
     if state.scenario != IntegrationScenario::AnimationClock || state.phase != IntegrationPhase::Notify { return; }
     let Some(avatar) = state.avatar else { return; };
@@ -4050,8 +4058,15 @@ fn observe_animation_clock(
         let Some(fsm) = context.node_states.get_all_upcoming_states::<crate::extensions::InterruptibleFsmState>(node.id).ok().and_then(|mut states| states.find(|state| state.last_output_pose().is_some())) else { continue; };
         let elapsed = state.phase_elapsed(); let bucket = (elapsed * 10.0) as u32;
         let current = fsm.current_state_elapsed_time();
-        if report.direction_trace.last().is_some_and(|row| row["bucket"] == bucket && row["state_elapsed"].as_f64() == Some(current as f64)) { return; }
-        report.direction_trace.push(serde_json::json!({"bucket":bucket,"elapsed":elapsed,"state":format!("{:?}",fsm.state),"state_elapsed":current,"paused":player.is_paused()}));
+        let Some(character) = state.character else { return; };
+        let Ok((position, velocity, dilation)) = characters.get(character) else { return; };
+        let dilation = dilation.map_or(1.0, |value| value.0);
+        let movement_error = report.direction_trace.last().and_then(|row| row["position"].as_array()).map(|previous| {
+            let previous = Vec2::new(previous[0].as_f64().unwrap() as f32, previous[1].as_f64().unwrap() as f32);
+            (position.0.xz() - previous - velocity.world_velocity.xz() * time.delta_secs() * dilation).length()
+        });
+        report.direction_trace.push(serde_json::json!({"bucket":bucket,"elapsed":elapsed,"state":format!("{:?}",fsm.state),"state_elapsed":current,"paused":player.is_paused(),
+            "position":[position.x,position.z],"dilation":dilation,"movement_clock_error":movement_error}));
         info!("[MANUAL-INTEGRATION][ANIMATION-CLOCK] elapsed={elapsed:.3} state_elapsed={current:.6} paused={}", player.is_paused());
     }
 }
@@ -6433,6 +6448,8 @@ fn drive_manual_integration(
                         if one_frame { player.play_one_frame(); } else if paused { player.pause(); } else { player.resume(); }
                     });
                     if (3.8..4.3).contains(&elapsed) { commands.entity(character).insert(crate::als_camera::AlsCameraCustomTimeDilation(0.5)); }
+                    else if (4.3..4.6).contains(&elapsed) { commands.entity(character).insert(crate::als_camera::AlsCameraCustomTimeDilation(0.0)); }
+                    else if (4.6..5.0).contains(&elapsed) { commands.entity(character).insert(crate::als_camera::AlsCameraCustomTimeDilation(2.0)); }
                     else { commands.entity(character).remove::<crate::als_camera::AlsCameraCustomTimeDilation>(); }
                 }
                 if elapsed >= 6.0 { begin_phase(&mut state, IntegrationPhase::Finish); }
@@ -11037,12 +11054,20 @@ mod tests {
     #[test]
     fn animation_clock_gate_rejects_pause_drift_and_missing_one_frame() {
         let row = |elapsed, state_elapsed| serde_json::json!({"elapsed":elapsed,"state_elapsed":state_elapsed,"state":"T19"});
-        let rows = vec![row(2.4,0.1),row(2.8,0.1),row(3.02,0.12),row(3.4,0.12),row(3.6,0.12),row(3.9,0.15),row(4.1,0.25),row(4.8,0.5),row(5.5,1.2)];
+        let mut rows = vec![row(2.4,0.1),row(2.8,0.1),row(3.02,0.12),row(3.4,0.12),row(3.6,0.12),row(3.9,0.15),row(4.1,0.25),row(4.8,0.5),row(5.5,1.2)];
+        for dilation in [0.0, 0.5, 1.0, 2.0] { for _ in 0..3 {
+            rows.push(serde_json::json!({"elapsed":6.5,"dilation":dilation,"movement_clock_error":0.0}));
+        } }
         assert!(animation_clock_results(&rows).iter().all(|(_, passed)| *passed));
         let mut drift = rows.clone(); drift[1]["state_elapsed"] = serde_json::json!(0.2);
         assert!(animation_clock_results(&drift).iter().any(|(_, passed)| !passed));
         let mut missing = rows.clone(); for row in &mut missing { if row["elapsed"].as_f64().unwrap() < 3.8 { row["state_elapsed"] = serde_json::json!(0.1); } }
         assert!(animation_clock_results(&missing).iter().any(|(_, passed)| !passed));
+        let mut movement_drift = rows.clone();
+        movement_drift.last_mut().unwrap()["movement_clock_error"] = serde_json::json!(0.01);
+        assert!(animation_clock_results(&movement_drift).iter().any(|(_, passed)| !passed));
+        let no_pause = rows.into_iter().filter(|row| row["dilation"].as_f64() != Some(0.0)).collect::<Vec<_>>();
+        assert!(animation_clock_results(&no_pause).iter().any(|(_, passed)| !passed));
     }
 
     #[test]

@@ -982,6 +982,7 @@ mod rotation_cap_tests {
     fn actual_velocity_snapshot_retains_full_velocity_and_horizontal_speed() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
+            .init_resource::<Time<avian3d::prelude::Physics>>()
             .add_systems(FixedPostUpdate, snapshot_actual_velocity_system);
         let entity = app
             .world_mut()
@@ -2608,6 +2609,7 @@ fn accepted_jump_state_system(
 }
 
 fn snapshot_actual_velocity_system(
+    time: Res<Time<avian3d::prelude::Physics>>,
     mut characters: Query<(&mut LinearVelocity, &mut AlsActualVelocity, Option<&Position>, &mut AlsCmcAdapterRuntime,
         &LocomotionState, Option<&mut crate::als::dynamics::AlsMovementBaseDynamicsState>), With<AlsCharacter>>,
 ) {
@@ -2617,8 +2619,11 @@ fn snapshot_actual_velocity_system(
         } else if let Some(start) = runtime.grounded_move_start
             && let Some(position) = position
             && runtime.simulation_delta_seconds > 0.0 {
-            velocity.x = (position.x - start.x) / runtime.simulation_delta_seconds;
-            velocity.z = (position.z - start.z) / runtime.simulation_delta_seconds;
+            let support = base.as_deref().filter(|base| base.entity.is_some())
+                .map_or(Vec3::ZERO, |base| base.support_velocity.with_y(0.0));
+            let relative = (position.0 - start - support * time.delta_secs()) / runtime.simulation_delta_seconds;
+            velocity.x = relative.x + support.x;
+            velocity.z = relative.z + support.z;
         }
         if *locomotion != LocomotionState::Grounded
             && let Some(base) = base.as_deref_mut() {
@@ -3446,6 +3451,7 @@ fn grounded_movement_transaction(
 
 pub(crate) fn cmc_movement_transaction_system(
     time: Res<Time>,
+    custom_dilations: Query<&crate::als_camera::AlsCameraCustomTimeDilation>,
     mut commands: Commands,
     mut transitions: MessageWriter<StateTransitionEvent>,
     spatial_query: SpatialQuery,
@@ -3479,13 +3485,16 @@ pub(crate) fn cmc_movement_transaction_system(
     >,
 ) {
     for (entity, mut transform, position, capsule, velocity, mut motor, mut margin, mut runtime, gravity, mut loco, controller, handle, stance, (rotation_mode, view_yaw, max_allowed_gait, dynamics, braking, mut base)) in &mut q {
+        let root_motion_active = motion_roots.get(entity).is_ok_and(|(roll, mantle)|
+            roll.is_some_and(crate::als::roll::AlsRollState::root_motion_active)
+                || mantle.is_some_and(|state| state.active));
+        let delta_seconds = time.delta_secs() * if root_motion_active { 1.0 }
+            else { custom_dilations.get(entity).map_or(1.0, |value| value.0) };
         *margin = SpeculativeMargin::MAX;
         runtime.grounded_move_start = None;
         if *loco == LocomotionState::Air
             && let Ok((RigidBody::Dynamic, volume, false)) = physics_modes.get(entity)
-            && motion_roots.get(entity).is_ok_and(|(roll, mantle)|
-                !roll.is_some_and(crate::als::roll::AlsRollState::root_motion_active)
-                    && !mantle.is_some_and(|state| state.active))
+            && !root_motion_active
             && let Some(params) = params_assets.get(handle.id()) {
             let mut initial_transform = *transform;
             initial_transform.translation = position.0;
@@ -3496,8 +3505,8 @@ pub(crate) fn cmc_movement_transaction_system(
             let (moved, final_velocity, steps, contact) = falling_movement_transaction(&spatial_query, capsule,
                 initial_transform, initial, controller.basis.desired_motion, max_speed, params,
                 gravity.value + motor.lin.acceleration, volume.unwrap_or(&default_volume.0).terminal_velocity,
-                time.delta_secs(), 0, entity, &candidates);
-            runtime.simulation_delta_seconds = time.delta_secs();
+                delta_seconds, 0, entity, &candidates);
+            runtime.simulation_delta_seconds = delta_seconds;
             runtime.simulation_substeps = steps;
             runtime.grounded_movement_delta = None;
             runtime.grounded_collision_velocity = Some(final_velocity);
@@ -3518,9 +3527,19 @@ pub(crate) fn cmc_movement_transaction_system(
         };
         let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height } * transform.scale.y;
         let radius = params.crouch.standing_capsule_radius * transform.scale.x.min(transform.scale.z);
-        let next_velocity = velocity.0 + motor.lin.boost + motor.lin.acceleration * time.delta_secs();
+        if root_motion_active { runtime.simulation_delta_seconds = time.delta_secs(); }
+        let next_velocity = velocity.0 + motor.lin.boost + motor.lin.acceleration * delta_seconds;
         let delta = runtime.grounded_movement_delta
-            .unwrap_or(next_velocity * time.delta_secs()).with_y(0.0);
+            .unwrap_or(next_velocity * delta_seconds).with_y(0.0);
+        if delta_seconds < crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS {
+            runtime.grounded_collision_velocity = Some((velocity.0 + motor.lin.boost).with_y(0.0));
+            if delta.length_squared() <= f32::EPSILON {
+                motor.lin.boost = -velocity.0;
+                motor.lin.acceleration = -gravity.value;
+                *margin = SpeculativeMargin::ZERO;
+                continue;
+            }
+        }
         if runtime.simulation_substeps > 1 && runtime.grounded_movement_delta.is_some()
             && let (Some(base), Some(dynamics)) = (base.as_deref_mut(), dynamics) {
             let initial = position.0;
@@ -3534,7 +3553,7 @@ pub(crate) fn cmc_movement_transaction_system(
             let mut lost_floor = false;
             let (mut final_velocity, iterations, _, remaining_time) = crate::als::dynamics::simulate_grounded_motion_until_mode_change(
                 base.relative_velocity, controller.basis.desired_motion, max_speed, dynamics.0, &params.cmc,
-                factor, time.delta_secs(), |step_velocity, step_seconds| {
+                factor, delta_seconds, |step_velocity, step_seconds| {
                 last_input = step_velocity;
                 let center = current_transform.translation;
                 let requested = step_velocity * step_seconds;
@@ -3596,16 +3615,14 @@ pub(crate) fn cmc_movement_transaction_system(
         let center = position.0;
         let Some((advanced, remaining, next_y)) = grounded_movement_transaction(&spatial_query, capsule,
             center, transform.rotation, half, radius, delta, &params.cmc, *loco, entity, &candidates) else { continue };
-        if let Some(remaining) = remaining {
-            runtime.grounded_move_start = Some(center);
-            transform.translation = advanced;
-            commands.entity(entity).insert(Position(advanced));
-            let remaining_velocity = remaining / time.delta_secs();
-            motor.lin.boost.x = remaining_velocity.x - velocity.x;
-            motor.lin.boost.z = remaining_velocity.z - velocity.z;
-            motor.lin.acceleration.x = 0.0;
-            motor.lin.acceleration.z = 0.0;
-        }
+        runtime.grounded_move_start = Some(center);
+        transform.translation = advanced;
+        commands.entity(entity).insert(Position(advanced));
+        let remaining_velocity = remaining.unwrap_or(delta) / time.delta_secs();
+        motor.lin.boost.x = remaining_velocity.x - velocity.x;
+        motor.lin.boost.z = remaining_velocity.z - velocity.z;
+        motor.lin.acceleration.x = 0.0;
+        motor.lin.acceleration.z = 0.0;
         let Some(next_y) = next_y else { continue };
         if next_y > center.y {
             transform.translation.y = next_y;
@@ -3918,6 +3935,25 @@ pub(crate) fn locomotion_state_sync_system(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn root_motion_bridge_keeps_the_world_frame_after_an_ordinary_actor_clock() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+        for dilation in [0.0, 0.5, 1.0, 2.0] {
+            app.world_mut().entity_mut(actor).insert((
+                LinearVelocity(Vec3::new(0.0, 0.0, -2.0)), LocomotionState::Grounded,
+                crate::als_camera::AlsCameraCustomTimeDilation(dilation),
+                bevy_tnua::TnuaMotor::default(),
+                crate::als::roll::AlsRollState { active: true, time: 0.3, previous_time: 0.3, ..default() },
+                AlsCmcAdapterRuntime { simulation_delta_seconds: 0.025, ..default() }));
+            app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.05));
+            app.world_mut().run_system_once(cmc_movement_transaction_system).unwrap();
+            assert_eq!(app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap().simulation_delta_seconds, 0.05);
+            assert!(app.world().get::<bevy_tnua::TnuaMotor>(actor).unwrap().lin.boost.z.abs() < 0.001,
+                "Root motion already consumed the actor clock before the world physics bridge");
+        }
+    }
+
     #[test]
     fn falling_transaction_defers_to_the_active_animation_root_motion_owner() {
         use bevy::ecs::system::RunSystemOnce;

@@ -40,6 +40,8 @@
 
 ### P2-03 — 普通 CMC 运动没有消费角色 CustomTimeDilation
 
+修复完成（2026-10-11 17:35 +08:00）：Walking/Falling事务消费owner delta，物理桥与基座保留世界时钟；完成速度从角色位移恢复，并先扣实际物理帧的基座携带量。沿用既有倍率组件和运行数据，四次消融均触发对应失败，源码字节恢复后定向回归及同启动器生产库的24组合矩阵、跳跃/落地/倍率恢复检查通过。当前345规格/15root闭包及510图编辑器通过，真实startup/clock/grounded/moving_base功能Gate全部通过；clock实际覆盖0/.5/1/2倍率，Roll/Mantle移交通过，图/故障/时序异常均0。超时复盘和拆分结果见CHECKLIST，性能延期与截图关闭边界保留。证据位于本地 `target/bf139/fix03/` 和 `target/animation_visual/bf139_p203/`。以下保留原审计反例。
+
 - Source：UE `Runtime/Engine/Classes/GameFramework/Actor.h:4877` 的 `FActorComponentTickFunction::ExecuteTickHelper` 将组件 Tick Delta 乘 owner `CustomTimeDilation`；CMC 的 Walking/Falling 都消费该 Delta。
 - Target：`src/als/character/movement/dynamics.rs:441` 和 `src/als/character/movement/motion.rs:3447` 直接使用全局 `Time`；后者将 `time.delta_secs()` 传入 Falling 事务。`AlsCameraCustomTimeDilation` 已被角色旋转、动画和已修复动作使用，但普通移动未接入。
 - 反例：Air、水平速度 3.75 m/s、50 ms 帧、角色倍率 0.5。源水平位移应为 0.09375 m，实际为 0.1875 m；竖向速度也按完整 50 ms 的重力推进。当前真实 ECS/物理消费者断言失败，倍率 1 的无落地运动对照通过。

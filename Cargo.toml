@@ -299,6 +299,10 @@ name = "als_curves_data"
 path = "tools/tests/als_curves_data.rs"
 
 [[test]]
+name = "actor_movement_clock"
+path = "tools/tests/actor_movement_clock.rs"
+
+[[test]]
 name = "curve_import"
 path = "tools/tests/curve_import.rs"
 
