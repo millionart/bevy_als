@@ -1,6 +1,6 @@
 # ALS 移植差异审计 — 2026-10-11
 
-审计目标：记录当前实现中经本地 ALS-Refactored / UE source 与实际 target 消费链确认的全部 P2 及以上差异。目标基线：`bb3dccf3066a217b750670918e30f248ef2c5b98`。审计仍在进行。
+审计目标：记录当前实现中经本地 ALS-Refactored / UE source 与实际 target 消费链确认的全部 P2 及以上差异。目标基线：`bb3dccf3066a217b750670918e30f248ef2c5b98`。8批审计于2026-10-11 15:00 +08:00完成，确认18项P2、未确认P0/P1；均已实时登记至CHECKLIST，尚未修复。P2-01已撤销，不计入18项。
 
 本报告的源路径相对于 ALS 插件的 `Source/` 或注明的 UE `Engine/Source/`；target 路径相对于本仓库。机器本地路径只使用 gitignored 环境配置，不进入记录。
 
@@ -24,7 +24,7 @@
 | 图/FSM/同步/曲线、资产转换与 Rig | 已审计，新增P2-13/14 | 15root/23AnimBP/236子图/374产物完整重转与source闭包；Node运行时、127动画、Rig/骨骼/坐标与当帧pose消费者 |
 | 通知、脚步/贴花、Overlay 物件行为 | 已审计，扩展P2-05/08 | 137动画/蒙太奇、177通知、60标记重建一致；Notify队列、脚步与贴花参数/附着生命周期、Overlay绑定/清除/恢复；静态mesh/socket/material留资产批 |
 | Camera、CameraShake | 已审计，新增P2-15 | 本地组件/Shake/调度与10个原生数据来源，实际view/碰撞/时钟/Camera消费者 |
-| Playground、材质/Overlay静态数据、HUD/UI、PlayerStart | 进行中 | 本地源及资产配置到真实入口 |
+| Playground、材质/Overlay静态数据、HUD/UI、PlayerStart | 已审计，新增P2-16–19 | 34 Overlay/34环境/5 EngineSky依赖；20环境mesh碰撞模式/15凸包、150材质参数/4纹理、22文字、HUD/菜单、3运动物件、PlayerStart与实际装配消费者 |
 
 ## 已确认 P2 及以上
 
@@ -134,6 +134,36 @@
 - 反例：完整角色真实Camera组件，开启第一人称混合后暂停Time<Virtual>，推进3个真实帧。owner=1时elapsed delta=0、FirstPersonOverride保持0.07407408，对照PASS；owner=0时elapsed delta=0.049999997、混合升到0.7407408、view移动1.9981213 m，原生断言FAIL。
 - 影响：暂停界面/冻结角色的相机仍平移和切换视点。旧测试分别覆盖时间倍率和暂停，没有组合world pause与零owner倍率。修复应保留世界运行中IgnoreTimeDilation对零owner倍率的合法real-time行为；当前只记录。
 
+### P2-16 — PlayerStart named lookup 使用大小写敏感字符串
+
+- Source：UE `GameModeBase.cpp:1156–1160` 先构造FName，再与PlayerStartTag比较；FName身份忽略大小写。
+- Target：`src/als_extras/core/player_start_types.rs:111` 和 `game_mode.rs:232–233` 对Option<&str>做精确比较，named selection与同帧reservation均不保留该身份语义。
+- 反例：两个可用出生点DoorA和Other、random_ticket=1。请求DoorA正确选首个；请求doora却选Other，当前生产选择函数断言FAIL。
+- 影响：URL/脚本传入的标签仅大小写不同时会把玩家送到错误出生点。旧用例只验证精确拼写；GameplayTag的历史FName修复未覆盖独立PlayerStartTag字符串，不重复计入历史问题。
+
+### P2-17 — PlayerStart 的局部变换直接用于出生
+
+- Source：fresh B_Als_GameMode继承Engine.GameModeBase，无Find/Spawn覆盖；UE `GameModeBase.cpp:1214–1222` 取StartSpot.GetActorLocation/world yaw，再构造单位缩放的FTransform。
+- Target：`src/als_extras/core/player_start_types.rs:98–101,354–406` 从局部Transform拟合出生点，只丢pitch/roll却保留scale；`game_mode.rs:248` 将fit.transform直接交角色factory。
+- 反例：在完整加载角色/物理场景中安装实际PlayerStart与GameMode系统并请求admission。marker scale2生成的pawn scale=(2,2,2)；parent x20、marker local x−5时生成pawn x−5，源世界位置应15且缩放应1，实际出生反例FAIL。
+- 影响：关卡分组/缩放出生点会使玩家出生在错误地点或错误大小，且占用探测与最终pawn尺寸不一致。旧测试仅无父级unit scale。初次夹具在App::finish后add_plugins失败已纠正，不把配置错误当作语义失败。
+
+### P2-18 — 天空静态渐变替代了源构造和材质链
+
+- Source：fresh World确认SkySphere及其mesh可见，ColorsDeterminedBySunPosition=true、DirectionalLight pitch=−45。fresh EngineSky `BP_Sky_Sphere.UserConstructionScript→RefreshMaterial` 把pitch从0..−90映射为0..1，使用SunHeight采样Clamped Linear Color曲线，再设置MID；直接使用Actor颜色是另一分支。
+- fresh `C_Sky_Zenith_Color` 的RGB最后key位于0.470069，PostInfinity=Constant、颜色调整为默认值；time0.5的结果为(0.0228,0.048994,0.12)，与fresh世界MID相符。fresh `M_Sky_Panning_Clouds2` 的Zenith Color在75对象输出闭包内，存在真实材质消费者。
+- Target：`assets/ALSExtras/Levels/L_Als_Playground/playground_scene.ron:221` 保存Actor编辑默认值；`src/als_extras/levels/playground.rs:1939–1970` 直接用这些值生成天空顶点，未执行源颜色构造分支。
+- 反例：完整加载角色后调用实际 `playground_setup_system`，取得SkySphere真实Mesh顶点颜色。顶点Y=500处RGB=(0.034046054,0.10924697,0.29500008)，蓝通道为源有效参数的约2.46倍，0.91秒语义断言FAIL；并非截图观感或未使用字段差异。
+- 漏检：旧场景验证只确认编辑属性与配置匹配、光照强度/方向和对象存在，没有追踪Blueprint构造后的有效MID输入。修复Gate应覆盖太阳角度/自动颜色开关、曲线和最终材质消费者，不能从保存的MID缓存硬编码单个默认场景。
+- 同一静态替代的另一边界：fresh材质的Time×CloudSpeed连接Panner_4(SpeedX=0.001)→TextureSample_7→最终输出；当前CloudSpeed=2、CloudOpacity=1，fresh `T_Sky_Clouds_M` 2048×1024/RGBA逐像素导出确认R范围0..255。源云UV每秒变化0.002；实际setup生成的SkySphere为unlit StandardMaterial、base_color_texture=None，仅有依赖顶点高度的一次性渐变，云层及其滚动未移植。它与错误颜色同属此手写SkySphere替代源材质链，归并本项；修复不能止于颜色常量。
+
+### P2-19 — 环境碰撞体使用了 Avian 默认物理材质
+
+- Source：fresh World的`S_Arch_01.StaticMeshComponent0.PhysMaterialOverride=None`，fresh Arch BodySetup.PhysMaterial=None，源材质无覆盖。UE `Runtime/Engine/Private/PhysicsEngine/BodyInstance.cpp:3178–3244` 按body/component/setup/material优先级解析，最终回退`DefaultPhysicalMaterial`；当次原生PA记录确认该引擎资产Friction=0.7、Restitution=0.3、Combine=Average。
+- Target：`src/als_extras/levels/playground_collision.rs:169–170`、`playground.rs:90`、`manual_playground.rs:451–452` 给环境安装body/collider而不安装物理材质，也无源默认材质资源映射。Avian `physics_material.rs:152,320` 的默认为0.5/0，narrow phase `system_param.rs:610–627` 在形状和body未赋材质时消费该默认。
+- 反例：完整角色环境运行实际`playground_setup_system`和`PlaygroundCollisionPlugin`，等待源Arch mesh加载并生成真正Collider；实际摩擦0.5/弹性0，调用生产combine与ragdoll的0.7/0.3组合为0.6/0.15，源应0.7/0.3。0.92秒语义断言FAIL，没有把手工空白地板当作环境装配证据。
+- 影响与漏检：ragdoll接触场景时的滑动阻力和反弹系数错误。旧PA Gate只确认身体自身材质；静态场景Gate检查几何/查询响应，没有覆盖场景与PA交界。修复Gate需覆盖各环境碰撞类型、运动平台、landscape、材质覆盖优先级及真实接触结果。
+
 ## 未定级观察
 
 BF138 的固定 `0.046875` 秒 UphillJump 记录存在 pre-rig 腿平面异常，但旧报告缺少当帧完整图输入与混合源骨骼。它是待核实症状，不能据此认定源/目标差异或复开相邻图。
@@ -144,7 +174,7 @@ P2-01 Sprint 于2026-10-11 12:01 +08:00撤销。工程插件链接实际指向�
 
 ## 审计验证与限制
 
-本轮不修改生产代码、转换规则或原始资产；无需以全构建替代逐项 source 证据。只有与具体差异有关的最小验证会执行。没有新增设计、抽象或运行时分支，设计消融暂不适用。
+本轮未修改生产代码、转换规则或原始资产，以source审阅、静态合同及实际生产消费者的最小反例验证差异。没有新增生产设计、抽象或运行时分支，设计消融不适用；现有工具的缺Alpha、漏shader通道、错误碰撞模式等反例正常拒绝错误输入。本轮不是修复验收，未用这些测试替代未来修复所需的可见Playground Gate。
 
 BF139.01 使用当前生产库链接独立 Rust 反例，保存于本地 `target/bf139/phase1/`（probe源码、stdout/stderr、watchdog JSON）。9个测试为7个预期语义失败和2个通过对照；期望失败归并为6项差异，不能解读为移植验收通过。原生库未修改；最初缺少Windows native link-search和一个Position字段访问错误均已纠正，不计入语义证据。reader watchdog `-SelfTest` 的正常完成/无进展终止/子进程清理/报告用例全部通过。
 
@@ -175,3 +205,9 @@ BF139.05使用39个本轮原生记录重转全部15个安装根（23AnimBP/236�
 BF139.06当次读取FES_Als_Default（47.423秒）与B_Als_Character（52.268秒），原始/安装副本字节一致。完整本地通知审计137动画/蒙太奇、177通知、60marker及9montage segments均有效，生成manifest与安装文件byte一致。源AttachOverlayObject三项SnapToTarget、Clear置空mesh/class、非Low攀爬和ragdoll开始清除/结束恢复与目标一致。两QuickStop生产选择函数反例0.09秒失败并归并P2-05/08；无新增独立P2，证据在 `target/bf139/phase6/`。静态mesh/socket/material数据与场景资产批合并核对，尚未计入完成。
 
 BF139.07从10个本轮原生来源重建camera definition，生成及源自测通过，消费数据相同。仅 `graph` metadata有旧generated/前缀：实际Camera加载固定scene wrapper，字段只用于合同测试，因此未当作当前运行时P2，也未宣称整个文件byte一致。原生读取批次最初误读外层LASTEXITCODE，已用reader报告确认两个成功结果并只继续未读项。暂停×零owner倍率的完整角色反例1.74秒确认P2-15，普通owner暂停对照通过，证据在 `target/bf139/phase7_camera_pause/` 与 `camera_source/`；当前有效14项未修P2。
+
+BF139.08从14:00开始，预估14:55、实际15:00:06结束，偏差+5分06秒，在允许误差内。34项Overlay递归闭包778.113秒、34项环境闭包1333.879秒完成；追加5个EngineSky来源，确认P2-16–19四项。13模式/8物件的mesh骨架/socket/material定义与self-test通过，主角79骨骼一致；169静态部件mesh/transform、180物件Visibility、150物件材质参数、22文字、HUD/菜单、2移动/1旋转平台及4个运动曲线key一致。开始将旋转平台误传2×2网格的夹具错误已按fresh源引用改用3×3，不计作资产差异。
+
+20环境mesh的8Box/5Convex/7TriMesh模式与源一致，5mesh/15凸包重建逐byte一致。严格Box尺寸比较保留1e−4 cm原阈值及原失败：仅S_Crate的半尺寸向量因导出取整相差0.0001400643 cm（约0.0014 mm），不计为P2，未把完全一致作为结论。四张环境/Footprint纹理全部RGBA逐像素一致；Grid与Footprint的G/A单次采样、缺Alpha/漏shader Alpha负例通过。天空的错误颜色和云层缺失、环境接触默认材质是消费者差异，分别归P2-18/19。
+
+最终当前生产库29个最小反例/对照17.69秒完成：3PASS、26预期语义FAIL，归并18项有效P2；逐条检查失败位置，无资源加载、夹具前置或无进展超时失败，非零101为预期断言结果。证据保存在本地 `target/bf139/final_probe/`、`scene_source/`、`overlay_source/` 及相应合同JSON。全部118个本轮唯一native资产中的110个插件资产核对原始/安装副本逐byte一致；首次身份汇总漏计AnimBP格式已补齐，最终以118/110为准。生产源码、资产、工具、Cargo相对基线零变化，本轮只提交CHECKLIST及本报告。所有已确认差异已登记；历史UphillJump观察仍未被源事实定级，未擅自复开或宣称已解决。
