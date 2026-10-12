@@ -3703,8 +3703,7 @@ pub(crate) fn cmc_movement_transaction_system(
         let root_motion_active = motion_roots.get(entity).is_ok_and(|(roll, mantle, _)|
             roll.is_some_and(crate::als::roll::AlsRollState::root_motion_active)
                 || mantle.is_some_and(|state| state.active));
-        let delta_seconds = time.delta_secs() * if root_motion_active { 1.0 }
-            else { custom_dilations.get(entity).map_or(1.0, |value| value.0) };
+        let delta_seconds = time.delta_secs() * custom_dilations.get(entity).map_or(1.0, |value| value.0);
         *margin = SpeculativeMargin::MAX;
         runtime.grounded_move_start = None;
         if *loco == LocomotionState::Air
@@ -3979,7 +3978,11 @@ pub(crate) fn locomotion_state_sync_system(
     if time.is_paused() { return; }
     for (entity, transform, position, capsule, mut velocity, controller, mut current, request, ragdoll_air_exit, action, handle, stance, parent, mut runtime) in &mut q {
         let sweep_contact = std::mem::take(&mut runtime.airborne_sweep_contact);
-        if let Some(source_velocity) = runtime.grounded_collision_velocity.take() {
+        let has_animation_root_velocity = std::mem::take(&mut runtime.has_animation_root_velocity);
+        if let Some(mut source_velocity) = runtime.grounded_collision_velocity.take() {
+            if *current == LocomotionState::Air && has_animation_root_velocity {
+                source_velocity.y = velocity.y;
+            }
             velocity.0 = source_velocity;
         }
         if !matches!(*current, LocomotionState::Grounded | LocomotionState::Air) || ragdoll_air_exit
@@ -4197,7 +4200,25 @@ mod tests {
     }
 
     #[test]
-    fn root_motion_bridge_keeps_the_world_frame_after_an_ordinary_actor_clock() {
+    fn frozen_roll_collision_prepass_consumes_the_owner_clock() {
+        use bevy::ecs::system::RunSystemOnce;
+        let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(1.0, 0.4, 0.6), Transform::from_xyz(0.0, 0.2, -0.615)));
+        app.update();
+        let before = app.world().get::<Position>(actor).unwrap().0;
+        app.world_mut().entity_mut(actor).insert((LinearVelocity(Vec3::NEG_Z * 3.75),
+            crate::als_camera::AlsCameraCustomTimeDilation(0.0), bevy_tnua::TnuaMotor::default(),
+            crate::als::roll::AlsRollState { active: true, time: 0.3, previous_time: 0.3, ..default() },
+            AlsCmcAdapterRuntime::default()));
+        app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.1));
+        app.world_mut().run_system_once(cmc_movement_transaction_system).unwrap();
+        let actual = app.world().get::<Position>(actor).unwrap().0;
+        assert!(actual.abs_diff_eq(before, 1e-5),
+            "Source frozen Root collision prepass consumes no displacement: before={before:?} actual={actual:?}");
+    }
+
+    #[test]
+    fn root_motion_collision_prepass_bridges_source_velocity_to_the_world_frame() {
         use bevy::ecs::system::RunSystemOnce;
         let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
         for dilation in [0.0, 0.5, 1.0, 2.0] {
@@ -4210,8 +4231,8 @@ mod tests {
             app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.05));
             app.world_mut().run_system_once(cmc_movement_transaction_system).unwrap();
             assert_eq!(app.world().get::<AlsCmcAdapterRuntime>(actor).unwrap().simulation_delta_seconds, 0.05);
-            assert!(app.world().get::<bevy_tnua::TnuaMotor>(actor).unwrap().lin.boost.z.abs() < 0.001,
-                "Root motion already consumed the actor clock before the world physics bridge");
+            assert!((app.world().get::<bevy_tnua::TnuaMotor>(actor).unwrap().lin.boost.z - 2.0 * (1.0 - dilation)).abs() < 0.001,
+                "Source Root velocity must consume the owner clock before its world physics bridge");
         }
     }
 

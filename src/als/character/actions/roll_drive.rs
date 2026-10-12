@@ -234,6 +234,83 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn animation_root_velocity_restoration_preserves_falling_physics_axis() {
+        let (mut app, actor, _) = loaded_roll_character();
+        play_loaded_roll(&mut app, actor);
+        app.world_mut().entity_mut(actor).insert((avian3d::prelude::Position(Vec3::Y * 10.0),
+            Transform::from_xyz(0.0, 10.0, 0.0), LocomotionState::Air));
+        app.world_mut().run_system_once(roll_drive_system).unwrap();
+        let root = app.world().get::<crate::als::character::AlsCmcAdapterRuntime>(actor).unwrap().grounded_collision_velocity.unwrap();
+        app.world_mut().get_mut::<LinearVelocity>(actor).unwrap().0 = root.with_y(-2.1635);
+        app.world_mut().run_system_once(crate::als::motion::locomotion_state_sync_system).unwrap();
+        let actual = app.world().get::<LinearVelocity>(actor).unwrap().0;
+        assert!(actual.abs_diff_eq(root.with_y(-2.1635), 1e-5),
+            "Source ConstrainAnimRootMotionVelocity preserves falling physics: actual={actual:?}");
+        app.world_mut().get_mut::<crate::als::character::AlsCmcAdapterRuntime>(actor).unwrap().grounded_collision_velocity = Some(Vec3::new(3.0, -1.0, -4.0));
+        app.world_mut().get_mut::<LinearVelocity>(actor).unwrap().0 = Vec3::new(1.5, 0.0, -2.0);
+        app.world_mut().run_system_once(crate::als::motion::locomotion_state_sync_system).unwrap();
+        let actual = app.world().get::<LinearVelocity>(actor).unwrap().0;
+        assert!(actual.abs_diff_eq(Vec3::new(3.0, -1.0, -4.0), 1e-5),
+            "Source regular CMC velocity remains authoritative when Roll starts after movement: actual={actual:?}");
+    }
+
+    #[test]
+    fn loaded_roll_source_velocity_preserves_owner_clock_displacement_base_and_handoff() {
+        for (mode, base_speed) in [(LocomotionState::Grounded, 0.0_f32), (LocomotionState::Grounded, 0.75), (LocomotionState::Custom, 0.0)] {
+            for dilation in [0.5_f32, 1.0, 2.0] {
+                let (mut app, character, avatar) = loaded_roll_character();
+                let base = app.world_mut().query_filtered::<(Entity, &avian3d::prelude::Collider), Without<crate::als::character::AlsCharacter>>()
+                    .iter(app.world()).find(|(_, collider)| collider.shape_scaled().compute_local_aabb().half_extents().x > 40.0).unwrap().0;
+                if base_speed > 0.0 {
+                    app.world_mut().entity_mut(base).insert((avian3d::prelude::RigidBody::Kinematic, LinearVelocity(Vec3::X * base_speed)));
+                }
+                for _ in 0..40 { app.update(); }
+                play_loaded_roll(&mut app, character);
+                let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+                app.world_mut().entity_mut(character).insert((mode, crate::als_camera::AlsCameraCustomTimeDilation(dilation)));
+                for frame in 0..8 {
+                    let before = app.world().get::<avian3d::prelude::Position>(character).unwrap().0;
+                    let base_before = app.world().get::<avian3d::prelude::Position>(base).unwrap().0;
+                    app.update();
+                    let runtime = *app.world().get::<AlsRollSlotRuntime>(character).unwrap();
+                    assert!(runtime.pose_ready && app.world().get::<AlsRollState>(character).unwrap().root_motion_active());
+                    let (actor_world, mesh_world) = app.world_mut().run_system_once(move |helper: bevy::transform::helper::TransformHelper| {
+                        (helper.compute_global_transform(character).unwrap(), helper.compute_global_transform(player).unwrap())
+                    }).unwrap();
+                    let root = root_motion_world_transform(actor_world, mesh_world,
+                        runtime.root_motion_delta * runtime.root_motion_scale, runtime.root_motion_rotation).0;
+                    let delta = app.world().resource::<Time>().delta_secs();
+                    let expected = root / (delta * dilation);
+                    let actual = app.world().get::<crate::actual_motion::AlsActualMotion>(character).unwrap().world_velocity;
+                    assert!(actual.with_y(0.0).abs_diff_eq(expected.with_y(0.0), 0.005),
+                        "Source Roll velocity uses owner delta: base={base_speed} dilation={dilation} frame={frame} actual={actual:?} expected={expected:?}");
+                    let moved = app.world().get::<avian3d::prelude::Position>(character).unwrap().0 - before;
+                    let carried = app.world().get::<avian3d::prelude::Position>(base).unwrap().0 - base_before;
+                    assert!((moved - carried - root).with_y(0.0).length() < 0.005,
+                        "Source Roll root displacement retains based movement: base={base_speed} dilation={dilation} frame={frame} moved={moved:?} carried={carried:?} root={root:?}");
+                }
+                let before = app.world().get::<avian3d::prelude::Position>(character).unwrap().0;
+                let base_before = app.world().get::<avian3d::prelude::Position>(base).unwrap().0;
+                let previous = app.world().get::<crate::actual_motion::AlsActualMotion>(character).unwrap().world_velocity;
+                app.world_mut().get_mut::<crate::als_camera::AlsCameraCustomTimeDilation>(character).unwrap().0 = 0.0;
+                app.update();
+                let actual = app.world().get::<crate::actual_motion::AlsActualMotion>(character).unwrap().world_velocity;
+                let moved = app.world().get::<avian3d::prelude::Position>(character).unwrap().0 - before;
+                let carried = app.world().get::<avian3d::prelude::Position>(base).unwrap().0 - base_before;
+                assert!(actual.with_y(0.0).abs_diff_eq(previous.with_y(0.0), 0.005) && (moved - carried).with_y(0.0).length() < 0.005,
+                    "Source zero-delta Roll preserves current velocity and consumes no root displacement: actual={actual:?} previous={previous:?} moved={moved:?} carried={carried:?}");
+                app.world_mut().entity_mut(character).insert((AlsRollState::default(), AlsNotifyLocomotionAction::None, LocomotionState::Grounded,
+                    crate::als_camera::AlsCameraCustomTimeDilation(dilation)));
+                app.update();
+                let actual = app.world().get::<crate::actual_motion::AlsActualMotion>(character).unwrap().world_velocity;
+                let deceleration = app.world().get::<crate::als::dynamics::AlsGroundedDynamics>(character).unwrap().0.braking_deceleration;
+                assert!((actual - previous).with_y(0.0).length() <= deceleration * app.world().resource::<Time>().delta_secs() * dilation + 0.005,
+                    "Source ordinary movement inherits the undilated Roll velocity: dilation={dilation} actual={actual:?} previous={previous:?} deceleration={deceleration}");
+            }
+        }
+    }
+
+    #[test]
     fn starting_roll_inside_the_natural_window_records_its_first_stop() {
         let mut world = World::new();
         world.init_resource::<Messages<crate::als::transition::StateTransitionEvent>>();
@@ -533,7 +610,9 @@ pub(crate) mod tests {
         }).unwrap();
         let expected = mesh.affine().transform_vector3(raw_translation)
             * app.world().get::<AlsNotifyRootMotionScale>(character).unwrap().0 / app.world().resource::<Time>().delta_secs();
-        assert!(app.world().get::<LinearVelocity>(character).unwrap().abs_diff_eq(expected, 1e-4),
+        let support = app.world().get::<crate::als::dynamics::AlsMovementBaseDynamicsState>(character)
+            .filter(|base| base.entity.is_some()).map_or(Vec3::ZERO, |base| base.support_velocity);
+        assert!((app.world().get::<LinearVelocity>(character).unwrap().0 - support).abs_diff_eq(expected, 1e-4),
             "Root motion did not come from the current roll player: expected={expected:?}, actual={:?}", app.world().get::<LinearVelocity>(character));
         entity
     }
@@ -2177,7 +2256,8 @@ fn roll_drive_system(
     mut space: ParamSet<(bevy::transform::helper::TransformHelper,
         Query<(Entity, &AlsRollState, Option<&AlsNotifyLocomotionAction>, &mut Transform, Option<&mut Rotation>,
             &mut LinearVelocity, Option<&AlsNotifyRootMotionScale>, Option<&AlsRollSlotRuntime>,
-            Option<&crate::als::character::AlsCmcAdapterRuntime>), With<crate::als::character::AlsCharacter>>)> ,
+            Option<&mut crate::als::character::AlsCmcAdapterRuntime>,
+            Option<&crate::als::dynamics::AlsMovementBaseDynamicsState>), With<crate::als::character::AlsCharacter>>)> ,
     sampler_root_motion: Query<(&AlsRollSlotSampler, &RootMotionOutput), Without<AlsRollTail>>,
     mut players: Query<&mut AnimationGraphPlayer>,
 ) {
@@ -2201,7 +2281,7 @@ fn roll_drive_system(
             mesh
         } else { actor_world };
         let mut query = space.p1();
-        let (_, roll, action, mut transform, rotation, mut vel, notify_root_scale, runtime, cmc) = query.get_mut(character).unwrap();
+        let (_, roll, action, mut transform, rotation, mut vel, notify_root_scale, runtime, mut cmc, base) = query.get_mut(character).unwrap();
         let custom = modes.get(character).is_ok_and(|(mode, ..)| *mode == LocomotionState::Custom);
         let delta_too_small = if custom { dt <= 0.0 } else { dt <= 1e-5 };
         if !roll.active || action == Some(&AlsNotifyLocomotionAction::Ragdolling) || delta_too_small || blend_outs.contains(character)
@@ -2210,7 +2290,7 @@ fn roll_drive_system(
         }
 
         let movement_resolved = landings.contains(&character)
-            && cmc.is_some_and(|runtime| runtime.grounded_collision_velocity.is_some());
+            && cmc.as_deref().is_some_and(|runtime| runtime.grounded_collision_velocity.is_some());
         let (mut local_translation, mut local_rotation) = sample.map_or((Vec3::ZERO, Quat::IDENTITY),
             |(_, output)| (output.translation_delta, output.rotation_delta));
         if movement_resolved { local_translation = Vec3::ZERO; local_rotation = Quat::IDENTITY; }
@@ -2234,7 +2314,18 @@ fn roll_drive_system(
         }
         let weight = roll.weight();
         let clip_time = (roll.time * ROLL_PLAY_RATE).min(ROLL_MONTAGE_SEQUENCE_LENGTH_SECS);
-        if !movement_resolved { vel.0 = world_translation / dt; }
+        if !movement_resolved {
+            let support = base.filter(|base| base.entity.is_some()
+                && modes.get(character).is_ok_and(|(mode, ..)| *mode == LocomotionState::Grounded))
+                .map_or(Vec3::ZERO, |base| base.support_velocity);
+            if let Some(cmc) = cmc.as_deref_mut() {
+                cmc.grounded_collision_velocity = Some(if actor_delta > 0.0 { world_translation / actor_delta + support.with_y(0.0) }
+                    else { cmc.grounded_collision_velocity.unwrap_or(vel.0) });
+                cmc.has_animation_root_velocity = true;
+                cmc.grounded_move_start = None;
+            }
+            vel.0 = world_translation / dt + support;
+        }
         if let Ok((mode, body, custom_position)) = modes.get(character)
             && *mode == LocomotionState::Custom {
             let mut world_position = actor_world.translation();
