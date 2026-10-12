@@ -72,9 +72,14 @@
   - 运行前闭包（18:08）：同 target_game/play 优化级别3正式构建通过，源码字节与消融恢复一致；source 哈希、声明式合同及相关回归已闭合。开始公共 startup→standing_response，保留原 Playground 角色/相机/环境，CaptureCount=0、FunctionalOnly；未展开相邻图或其他旋转分支。
   - runtime 摘要（18:09）：startup 功能通过，graph/fault/temporal为空、primary_failure=null；正式优化构建中的静止旋转维护回归亦 PASS。继续原 standing_response 场景，性能预算保持延期。
   - 完成摘要（18:09）：standing_response 原场景6项覆盖通过，图求值/姿态/时序有效，graph/fault/temporal为空、primary_failure=null。两姿态×五档静止镜头变化、移动对照、11项恢复回归、分支消融、正式构建和声明式合同通过；截图0、性能延期。证据在 `target/bf141/fix03/` 与 `target/animation_visual/bf141_fix03/`，下一项 ActualGait。
-- [ ] BF141.04 / P2-04 ActualGait 使用源最大前后速度阈值。启动时登记开始/预估结束；依据已确认的独立 Character/CMC 合同及错误测试，预估窗口不超过 40 分钟。Gate：fresh MovementSettings/Character、方向速度与最大值矩阵、GaitAmount 保留对照、消融及真实运动功能。
+- [x] BF141.04 / P2-04 ActualGait 使用源最大前后速度阈值。开始：2026-10-12 18:11 +08:00；预估结束：2026-10-12 18:40 +08:00；实际结束：2026-10-12 18:29:54 +08:00；偏差 −10分06秒。依据独立 Character/CMC 合同、错误测试与 .03 增量编译实测；结果：公共 helper/运行消费者修复、Gate PASS，无需拆分。GaitAmount/限速保留方向插值，有限复开并重新验收旧 ActualGait oracle；夹具借用/文件恢复成本已计入实际记录。
+  - source/static 摘要（18:15）：fresh Character、MovementSettings、CMC 与原生 MS_Als_Normal 闭环；Character 使用 max(forward,backward)+10cm，CMC 的 GaitAmount/限速保留方向插值。两个维护反例先红：运行系统倒退1.2误判 Running；公共 helper 在后退上限高于前进时误判 Running。只扩展现有 helper 的最大值合同并接回运行消费者，下一步前后方向/上下限/开关矩阵、独立消融与真实 standing_direction 功能。
+  - 实现/消融摘要（18:22）：最大值开关/高低后退上限与7组方向速度矩阵通过；GaitAmount、方向限速及 sprint permission 对照保留。运行调用与最大值分支两项消融均语义 FAIL；第一次 Python 字节恢复遇到文件写入错误，经属性/读回诊断后改用原生 .NET 写回，SHA-256与备份一致，未回退mtime。同 target 重编后11项步态回归 PASS；测试夹具 AssetMut 借用作用域编译失败已修正且不计语义证据。有限复开归档 BF102.03 的 ActualGait oracle，保留其他历史证据；下一步正式构建、原生产库4个反例/对照、startup→standing_direction。
+  - 运行前闭包（18:28）：正式 target_game/play 优化级别3构建通过；源哈希、声明式合同、两个有效消融、字节恢复及11项步态回归已闭合。开始公共 startup→standing_direction，原 Playground 的方向/源状态覆盖保持，截图0、仅功能验收；未改原始资产或转换器。
+  - runtime 摘要（18:29）：正式库中的原四个步态反例/对照全部 PASS，startup 功能通过，graph/fault/temporal为空、primary_failure=null；开始 standing_direction，保留性能延期。
+  - 完成摘要（18:29）：原 standing_direction 五项覆盖含六个源状态全部通过，graph/fault/temporal为空、primary_failure=null；11项步态回归、7组方向/GaitAmount/限速矩阵、最大值开关/后退较高对照、两个有效消融、正式库4个反例、声明式合同及正式构建通过。BF102.03 的 ActualGait oracle 重新验收，其他历史边界保留；截图0、性能延期。证据在 `target/bf141/fix04/` 与 `target/animation_visual/bf141_fix04/`，下一项 Roll 根运动速度。
 - [ ] BF141.05a / P2-05 Roll 源速度与物理桥时钟。启动时登记开始/预估结束；依赖 .01–.04 Gate。依据 BF139 角色速度恢复桥、当前完整角色反例，预估窗口不超过 55 分钟。Gate：fresh UE CMC、根增量/位移/发布速度/退出惯性与倍率矩阵、消融、真实 Grounded/Roll 功能。
 - [ ] BF141.05b / P2-05 Mantle 源速度与移交。启动时登记开始/预估结束；依赖 .05a 的共用速度语义。依据 BF139 父空间/基座修复和现有反例，预估窗口不超过 55 分钟。Gate：fresh Mantling RMS、静止/活动基座与父空间/倍率/终止矩阵、消融、真实 Mantle 功能。
 - [ ] BF141.06 / P2-06 Ragdoll 恢复保留 actor Pitch/Roll。启动时登记开始/预估结束；依据已确认的源只改 Yaw 分支和 BF139 恢复夹具，预估窗口不超过 45 分钟。Gate：fresh Actions、倾斜/父空间/落地与空中恢复、消融、真实 Ragdoll/GetUp 功能。
 
-活动摘要：工作区基线 `517dbb8d`；审计的23个有效反例/对照保留，六项修复均已授权。.01–.03 已通过自身 Gate 并分别提交，下一项 .04 ActualGait；不修改依赖或转换规则。
+活动摘要：工作区基线 `517dbb8d`；审计的23个有效反例/对照保留，六项修复均已授权。.01–.04 已通过自身 Gate 并分别提交，下一项 .05a Roll 根运动速度；不修改依赖或转换规则。

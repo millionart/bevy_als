@@ -48,6 +48,8 @@
 
 ### P2-04 — Actual Gait 错用了方向限速阈值
 
+修复完成（2026-10-12 18:29:54 +08:00）：现有公共 helper 在启用方向速度时取前后最大 walk/run，运行系统调用该 helper；GaitAmount 和物理限速继续使用当前方向插值。旧错误 oracle 及后退上限较高反例先红后绿，7组方向速度矩阵、开关边界、两个语义消融和同 target 字节恢复后的11项步态回归通过；正式库原4个反例/对照通过。fresh Character/MovementSettings/CMC/MS_Als_Normal、声明式合同、正式构建、startup与standing_direction功能覆盖通过，graph/fault/temporal为空。开始18:11、预估18:40、实际18:29:54、偏差−10分06秒；归档BF102.03仅ActualGait oracle有限复开后重新验收，其他历史证据保留。证据在 `target/bf141/fix04/` 与 `target/animation_visual/bf141_fix04/`；截图0、性能延期。以下保留原审计反例。
+
 - Source：`AlsCharacter.cpp:978–997` 的 `CalculateActualGait` 使用 `GaitSettings.GetMaxWalkSpeed/GetMaxRunSpeed`；`AlsMovementSettings.h:85–97` 在开启方向速度后取前后速度的较大值。CMC 的方向限速/GaitAmount 与 Character 的 ActualGait 是不同合同。
 - Target：`src/als/state/gait.rs:321–329` 把当前方向插值得到的同一组阈值同时用于 GaitAmount 和 ActualGait。
 - 反例：启用前后不同速度，Walk 前/后=1.75/1.0 m/s，Run 前/后=3.75/2.0 m/s。后退速度 1.2 m/s 时实际 `Running`，源应 `Walking`；允许 Sprint、后退速度 2.5 m/s 时实际 `Sprinting`，源应 `Running`。同速度的前进对照均通过。

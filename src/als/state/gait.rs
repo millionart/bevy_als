@@ -146,7 +146,12 @@ pub fn calculate_max_allowed_gait(
 }
 
 pub fn calculate_actual_gait(speed: f32, allowed: Gait, settings: &StanceGaitSpeeds) -> Gait {
-    calculate_actual_gait_for_thresholds(speed, allowed, settings.gait_speed_thresholds(1.0))
+    let mut thresholds = settings.gait_speed_thresholds(1.0);
+    if settings.allow_direction_dependent_movement_speed {
+        thresholds.walk = thresholds.walk.max(settings.max_walk_backward_speed);
+        thresholds.run = thresholds.run.max(settings.max_run_backward_speed);
+    }
+    calculate_actual_gait_for_thresholds(speed, allowed, thresholds)
 }
 
 pub fn calculate_actual_gait_for_thresholds(
@@ -326,7 +331,7 @@ pub fn refresh_gait_system(
         );
         max_allowed.0 = allowed;
         gait_amount.0 = calculate_gait_amount_for_thresholds(speed, thresholds);
-        let actual = calculate_actual_gait_for_thresholds(speed, allowed, thresholds);
+        let actual = calculate_actual_gait(speed, allowed, params.gait_speeds(*stance, *rotation_mode));
         if *gait != actual {
             let previous = *gait;
             *gait = actual;
@@ -511,6 +516,17 @@ mod tests {
             calculate_actual_gait(3.86, Gait::Sprinting, &settings),
             Gait::Sprinting
         );
+        let mut directional = settings;
+        directional.max_walk_backward_speed = 4.0;
+        directional.max_run_backward_speed = 5.0;
+        for (enabled, speed, expected) in [
+            (false, 2.5, Gait::Running), (false, 4.2, Gait::Sprinting),
+            (true, 2.5, Gait::Walking), (true, 4.2, Gait::Running), (true, 5.2, Gait::Sprinting),
+        ] {
+            directional.allow_direction_dependent_movement_speed = enabled;
+            assert_eq!(calculate_actual_gait(speed, Gait::Sprinting, &directional), expected,
+                "Source ActualGait maxima differ: enabled={enabled} speed={speed}");
+        }
     }
 
     #[test]
@@ -562,7 +578,7 @@ mod tests {
     }
 
     #[test]
-    fn refresh_gait_uses_direction_dependent_thresholds() {
+    fn refresh_gait_uses_source_maxima_and_preserves_directional_amounts() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
             .insert_resource(Assets::<AlsMovementParams>::default())
@@ -588,7 +604,7 @@ mod tests {
                 RotationMode::ViewDirection,
                 AlsViewYaw::default(),
                 AlsInputCommand::default(),
-                AlsDesiredGait(Gait::Running),
+                AlsDesiredGait(Gait::Sprinting),
                 AlsMaxAllowedGait(Gait::Running),
                 AlsGaitAmount::default(),
                 Gait::Walking,
@@ -596,22 +612,37 @@ mod tests {
                     world_velocity: Vec3::Z * 1.2,
                     horizontal_speed: 1.2,
                 },
-                crate::actual_motion::AlsActualMotion::default(),
-                AlsMovementParamsHandle(handle),
+                crate::actual_motion::AlsActualMotion { has_input: true, ..default() },
+                AlsMovementParamsHandle(handle.clone()),
             ))
             .id();
 
-        app.update();
-
-        let entity = app.world().entity(entity);
-        let gait = entity.get::<Gait>().unwrap();
-        let amount = entity.get::<AlsGaitAmount>().unwrap();
-        println!(
-            "[BF101.5] backward_gait={gait:?} gait_amount={:.6}",
-            amount.0
-        );
-        assert_eq!(*gait, Gait::Running);
-        assert!((amount.0 - 1.2).abs() < 1e-6);
+        for (back_walk, back_run, velocity, expected_gait, expected_amount, walk_limit, run_limit) in [
+            (1.0, 2.0, Vec3::NEG_Z * 1.2, Gait::Walking, 0.6857143, 1.75, 3.75),
+            (1.0, 2.0, Vec3::Z * 1.2, Gait::Walking, 1.2, 1.0, 2.0),
+            (1.0, 2.0, Vec3::Z * 2.5, Gait::Running, 2.1111112, 1.0, 2.0),
+            (4.0, 5.0, Vec3::NEG_Z * 2.5, Gait::Walking, 1.375, 1.75, 3.75),
+            (4.0, 5.0, Vec3::Z * 2.5, Gait::Walking, 0.625, 4.0, 5.0),
+            (4.0, 5.0, Vec3::Z * 4.2, Gait::Running, 1.2, 4.0, 5.0),
+            (4.0, 5.0, Vec3::Z * 5.2, Gait::Sprinting, 2.1333334, 4.0, 5.0),
+        ] {
+            {
+                let mut assets = app.world_mut().resource_mut::<Assets<AlsMovementParams>>();
+                let speeds = &mut assets.get_mut(&handle).unwrap().speeds.standing;
+                speeds.max_walk_backward_speed = back_walk;
+                speeds.max_run_backward_speed = back_run;
+            }
+            app.world_mut().entity_mut(entity).insert(AlsActualVelocity { world_velocity: velocity, horizontal_speed: velocity.length() });
+            app.update();
+            assert_eq!(*app.world().get::<Gait>(entity).unwrap(), expected_gait,
+                "Source ActualGait uses the maximum directional speed: back_walk={back_walk} velocity={velocity:?}");
+            assert!((app.world().get::<AlsGaitAmount>(entity).unwrap().0 - expected_amount).abs() < 1e-6,
+                "Source GaitAmount retains directional interpolation: velocity={velocity:?}");
+            let assets = app.world().resource::<Assets<AlsMovementParams>>();
+            let limits = assets.get(&handle).unwrap().gait_speed_thresholds(Stance::Standing, RotationMode::ViewDirection, velocity, 0.0);
+            assert!((limits.walk - walk_limit).abs() < 1e-6 && (limits.run - run_limit).abs() < 1e-6,
+                "Source movement limits retain directional interpolation: velocity={velocity:?}");
+        }
     }
 
     #[test]
