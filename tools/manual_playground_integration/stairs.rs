@@ -368,7 +368,7 @@ mod tests {
         controller.basis.desired_motion = Vec3::NEG_Z;
         world.entity_mut(character).insert((AlsMovementBaseDynamicsState {
             world_velocity: Vec3::NEG_Z * 1.75, relative_velocity: Vec3::NEG_Z * 1.75, ..default() },
-            crate::als::dynamics::AlsGroundedDynamics::default(), controller));
+            crate::als::dynamics::AlsGroundedDynamics::default(), controller, Transform::from_xyz(0.0, 0.9, 0.0)));
         world.insert_resource(ManualIntegrationState { character: Some(character), phase: IntegrationPhase::Stairs,
             stairs_probe: Probe { route: Some(Route { bottom: Vec3::Y * 0.9, top: Vec3::new(0.0, 9.0, -17.215) }),
                 stage: Stage::Traverse, ..default() }, ..default() });
@@ -426,9 +426,11 @@ pub(super) fn drive(
     mut phase_evidence: ResMut<ManualRuntimePhaseEvidence>,
     stairs: Query<(Entity, &Collider, &GlobalTransform, &PlaygroundMeshColliderBuilt)>,
     mut actors: ParamSet<(SpatialQuery, Query<(&mut AlsInputOverride, &mut Transform, &mut Position, Option<&mut Rotation>, &mut LinearVelocity,
-        &mut AlsViewYaw, &mut AlsViewPitch, &Stance, &LocomotionState, &AlsDesiredGait, &AlsLastFreeRotationMode, &RotationMode, &Collider), With<AlsCharacter>>)>,
+        &mut AlsViewYaw, &mut AlsViewPitch, &Stance, &LocomotionState, &AlsDesiredGait, &AlsLastFreeRotationMode, &RotationMode, &Collider), With<AlsCharacter>>, bevy::transform::helper::TransformHelper)>,
     mut rotation_state: Query<(&AlsMovementParamsHandle, Option<&mut AlsRotationResponseState>, &mut AlsAimingYawConstraint, Option<&mut AlsRotationAnimationState>)>,
     params: Res<Assets<AlsMovementParams>>,
+    parents: Query<&ChildOf>,
+    mut commands: Commands,
 ) {
     let Some(character) = state.character else { return; };
     let now = state.game_time_seconds;
@@ -448,12 +450,29 @@ pub(super) fn drive(
             |candidate| supported_tread_center(&spatial, &capsule, character, stairs_entity, candidate, half_height)) else { return; };
         Some(route)
     } else { None };
+    let reset_space = if pending_route.is_some() {
+        let Ok(world) = actors.p2().compute_global_transform(character) else { return; };
+        let parent_world = if let Ok(parent) = parents.get(character) {
+            let Ok(parent_world) = actors.p2().compute_global_transform(parent.parent()) else { return; };
+            parent_world
+        } else {
+            let parent_transform = Transform::from_scale(Vec3::splat(2.0));
+            let parent = commands.spawn((Name::new("manual_world_capsule_parent"), parent_transform, GlobalTransform::from(parent_transform))).id();
+            commands.entity(character).insert(ChildOf(parent));
+            GlobalTransform::from(parent_transform)
+        };
+        Some((world.to_scale_rotation_translation().0, parent_world))
+    } else { None };
     let mut characters = actors.p1();
     let Ok((mut input, mut transform, mut position, rotation, mut velocity, mut yaw, mut pitch, stance, locomotion, gait, desired_mode, mode, _)) = characters.get_mut(character) else { return; };
     if let Some(route) = pending_route {
         let Ok((_, response, mut constraint, animation)) = rotation_state.get_mut(character) else { return; };
         reset_character(&mut transform, &mut position, rotation, &mut velocity, &mut yaw, &mut pitch,
             route.bottom + Vec3::Y * 0.05, world_forward_to_yaw((route.top - route.bottom).with_y(0.0)));
+        if let Some((scale, parent_world)) = reset_space {
+            *transform = GlobalTransform::from(Transform { translation: position.0, rotation: transform.rotation, scale })
+                .reparented_to(&parent_world);
+        }
         reinitialize_fixture_rotation_response(response, &mut constraint, animation);
         rebase_temporal_fixture(&mut state, &mut phase_evidence, "stairs");
         state.stairs_probe.route = Some(route);
@@ -492,6 +511,8 @@ pub struct Sample {
     input: Vec2,
     rotation_hotkey: bool,
     actual_gait: Gait,
+    capsule_world_scale: f32,
+    capsule_local_scale: f32,
     #[serde(flatten)]
     frame: Frame,
     expected_speed: f32,
@@ -528,12 +549,14 @@ pub(super) fn observe(
         &AlsLastFreeRotationMode, &RotationMode, &AlsViewYaw, &AlsInputOverride, &AlsActualMotion,
         &crate::als::character::AlsCmcAdapterRuntime, &AlsMovementParamsHandle, &AlsStandingGraphTelemetry,
         (&AlsMovementBaseDynamicsState, &crate::als::dynamics::AlsGroundedDynamics,
-            &bevy_tnua::TnuaController<crate::als::control_scheme::AlsControlScheme>, Option<&crate::als::dynamics::AlsLandingBrakingFriction>)), With<AlsCharacter>>,
+            &bevy_tnua::TnuaController<crate::als::control_scheme::AlsControlScheme>, Option<&crate::als::dynamics::AlsLandingBrakingFriction>, &Transform)), With<AlsCharacter>>,
     params: Res<Assets<AlsMovementParams>>,
+    transforms: bevy::transform::helper::TransformHelper,
 ) {
     if state.stairs_probe.index >= 6 { return; }
     let Some(character) = state.character else { return; };
-    let Ok((position, velocity, locomotion, stance, desired_gait, gait, desired_mode, mode, yaw, input, motion, cmc, handle, telemetry, (dynamics, grounded, controller, braking))) = characters.get(character) else { return; };
+    let Ok((position, velocity, locomotion, stance, desired_gait, gait, desired_mode, mode, yaw, input, motion, cmc, handle, telemetry, (dynamics, grounded, controller, braking, local))) = characters.get(character) else { return; };
+    let Ok(world) = transforms.compute_global_transform(character) else { return; };
     let Some(route) = state.stairs_probe.route else { return; };
     let Some(params) = params.get(handle.id()) else { return; };
     let index = state.stairs_probe.index;
@@ -552,6 +575,7 @@ pub(super) fn observe(
         simulation_delta_seconds: cmc.simulation_delta_seconds,
         distance_m: (position.0 - start).dot(direction), route_length_m: (end - start).with_y(0.0).length(),
         input: input.0.move_dir, rotation_hotkey: input.0.rotation_mode_pressed, actual_gait: *gait,
+        capsule_world_scale: world.to_scale_rotation_translation().0.y, capsule_local_scale: local.scale.y,
         frame: Frame { position: position.0, velocity: velocity.0, locomotion: *locomotion, stance: *stance,
             desired_gait: desired_gait.0, desired_mode: desired_mode.0, current_mode: *mode, view_yaw: yaw.0 },
         expected_speed: crate::als::motion::gait_max_speed(params, stance, &desired_gait.0),

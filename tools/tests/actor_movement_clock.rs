@@ -47,6 +47,11 @@ fn movement_actor(capped: bool) -> (App, Entity, AlsMovementParams) {
         .init_resource::<Assets<Mesh>>().add_message::<bevy::asset::AssetEvent<Mesh>>()
         .insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(1.0 / 60.0)));
     if capped { app.add_plugins(bevy_als::source_physics_timing::SourcePhysicsTimingPlugin); }
+    app.add_systems(PostUpdate, (
+        bevy::transform::systems::mark_dirty_trees,
+        bevy::transform::systems::propagate_parent_transforms,
+        bevy::transform::systems::sync_simple_transforms,
+    ).chain().after(bevy_als::als::motion::AlsRotationResponseSet));
     app.finish();
     let settings = AlsMovementParams::default();
     let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(settings.clone());
@@ -55,6 +60,88 @@ fn movement_actor(capped: bool) -> (App, Entity, AlsMovementParams) {
     bundle.transform = Transform::from_xyz(0.0, 0.924, 0.0);
     let actor = app.world_mut().spawn(bundle).id();
     (app, actor, settings)
+}
+
+fn scaled_movement_actor(scale: f32, hierarchy: usize) -> (App, Entity, AlsMovementParams) {
+    let (mut app, actor, settings) = movement_actor(false);
+    app.world_mut().spawn((RigidBody::Static, Collider::cuboid(20.0, 0.2, 30.0), Transform::from_xyz(0.0, -0.1, 0.0)));
+    let world = Transform::from_xyz(0.0, settings.crouch.standing_capsule_half_height * scale + 0.024, 0.0)
+        .with_scale(Vec3::splat(scale));
+    if hierarchy == 0 {
+        app.world_mut().entity_mut(actor).insert((world, Position(world.translation), GlobalTransform::from(world)));
+    } else {
+        let parent = if hierarchy == 1 {
+            app.world_mut().spawn(Transform::from_scale(Vec3::splat(scale))).id()
+        } else {
+            let outer = app.world_mut().spawn(Transform::from_scale(Vec3::splat(scale * 2.0))).id();
+            app.world_mut().spawn((ChildOf(outer), Transform::from_scale(Vec3::splat(0.5)))).id()
+        };
+        app.world_mut().entity_mut(actor).insert((ChildOf(parent), Position(world.translation), GlobalTransform::from(world),
+            Transform::from_translation(world.translation / scale)));
+    }
+    for _ in 0..10 { app.update(); }
+    (app, actor, settings)
+}
+
+#[test]
+fn capsule_floor_uses_world_scale_for_each_parent_decomposition() {
+    for scale in [0.5, 1.0, 2.0] {
+        for hierarchy in 0..3 {
+            let (app, actor, settings) = scaled_movement_actor(scale, hierarchy);
+            let extent = app.world().get::<Collider>(actor).unwrap().shape_scaled().compute_local_aabb().half_extents();
+            let position = app.world().get::<Position>(actor).unwrap().0;
+            let mode = *app.world().get::<LocomotionState>(actor).unwrap();
+            println!("world_capsule scale={scale} hierarchy={hierarchy} extent={extent:?} position={position:?} mode={mode:?}");
+            assert!((extent.y - settings.crouch.standing_capsule_half_height * scale).abs() < 1e-4);
+            assert_eq!(mode, LocomotionState::Grounded, "Source FindFloor uses the component world capsule dimensions");
+            assert!((position.y - extent.y - 0.0215).abs() < 0.005, "Source floor clearance uses the world capsule dimensions");
+        }
+    }
+}
+
+#[test]
+fn parent_scaled_capsule_uncrouch_uses_world_clearance() {
+    use bevy_als::als::state::Stance;
+    for hierarchy in 0..3 {
+        let (mut app, actor, _) = scaled_movement_actor(2.0, hierarchy);
+        app.add_systems(Update, (move |helper: bevy::transform::helper::TransformHelper, positions: Query<&Position>| {
+            let current = helper.compute_global_transform(actor).unwrap().translation();
+            let physical = positions.get(actor).unwrap().0;
+            assert!(current.distance(physical) < 1e-4,
+                "Source crouch pre-physics component position differs: current={current:?} physical={physical:?}");
+        }).after(bevy_tnua::TnuaPipelineSystems::Motors));
+        app.world_mut().get_mut::<AlsStateRequest>(actor).unwrap().stance = Some(Stance::Crouching);
+        for _ in 0..5 { app.update(); }
+        assert_eq!(*app.world().get::<Stance>(actor).unwrap(), Stance::Crouching);
+        let ceiling = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.2, 4.0), Transform::from_xyz(0.0, 2.6, 0.0))).id();
+        app.update();
+        app.world_mut().get_mut::<AlsStateRequest>(actor).unwrap().stance = Some(Stance::Standing);
+        app.update();
+        let stance = *app.world().get::<Stance>(actor).unwrap();
+        println!("world_uncrouch hierarchy={hierarchy} blocked_stance={stance:?} position={:?}", app.world().get::<Position>(actor));
+        assert_eq!(stance, Stance::Crouching, "Source UnCrouch must test the full world capsule under a low ceiling");
+        app.world_mut().despawn(ceiling);
+        for _ in 0..5 { app.update(); }
+        assert_eq!(*app.world().get::<Stance>(actor).unwrap(), Stance::Standing);
+    }
+}
+
+#[test]
+fn parent_scaled_capsule_steps_use_the_world_bottom_and_radius() {
+    for hierarchy in 0..3 {
+        let (mut app, actor, _) = scaled_movement_actor(2.0, hierarchy);
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 0.4, 1.0), Transform::from_xyz(0.0, 0.2, -2.0)));
+        for _ in 0..3 { app.update(); }
+        app.world_mut().entity_mut(actor).insert((LinearVelocity(Vec3::NEG_Z * 3.75), AlsInputCommand { move_dir: Vec2::Y, ..default() }));
+        let mut highest = 0.0_f32;
+        for _ in 0..60 {
+            app.update();
+            highest = highest.max(app.world().get::<Position>(actor).unwrap().y);
+        }
+        let position = app.world().get::<Position>(actor).unwrap().0;
+        println!("world_step hierarchy={hierarchy} highest={highest} position={position:?}");
+        assert!(highest > 2.2 && position.z < -3.0, "Source StepUp uses the world capsule bottom and radius");
+    }
 }
 
 #[test]
@@ -100,6 +187,7 @@ fn ordinary_steps_respect_source_component_permissions() {
 
 #[test]
 fn ordinary_parent_space_preserves_world_pose_after_ground_and_air_physics() {
+    use bevy::ecs::system::RunSystemOnce;
     for mode in [LocomotionState::Grounded, LocomotionState::Air] {
         let (mut app, actor, _) = movement_actor(false);
         app.world_mut().spawn((RigidBody::Static, Collider::cuboid(20.0, 0.2, 30.0), Transform::from_xyz(0.0, -0.1, 0.0)));
@@ -112,6 +200,13 @@ fn ordinary_parent_space_preserves_world_pose_after_ground_and_air_physics() {
         app.world_mut().entity_mut(actor).insert((ChildOf(parent), Position(world.translation), Rotation(world.rotation),
             GlobalTransform::from(world), GlobalTransform::from(world).reparented_to(&GlobalTransform::from(parent_transform)),
             LinearVelocity::ZERO, mode, AlsStateRequest::default().with_locomotion_state(mode)));
+        app.world_mut().get_mut::<AlsInputCommand>(actor).unwrap().move_dir = Vec2::Y;
+        app.add_systems(Update, (move |helper: bevy::transform::helper::TransformHelper, positions: Query<&Position>| {
+            let current = helper.compute_global_transform(actor).unwrap().translation();
+            let physical = positions.get(actor).unwrap().0;
+            assert!(current.distance(physical) < 1e-4,
+                "Source pre-physics component position differs: current={current:?} physical={physical:?}");
+        }).after(bevy_tnua::TnuaPipelineSystems::Motors));
         for _ in 0..4 {
             app.update();
             let rendered = app.world().get::<GlobalTransform>(actor).unwrap();
@@ -122,8 +217,36 @@ fn ordinary_parent_space_preserves_world_pose_after_ground_and_air_physics() {
             assert!(rendered.rotation().angle_between(physical).abs() < 1e-3
                 && physical.angle_between(world.rotation).abs() < 1e-3,
                 "Source attached actor world orientation differs after physics: {mode:?}");
+            let current_world = app.world_mut().run_system_once(move |helper: bevy::transform::helper::TransformHelper| {
+                helper.compute_global_transform(actor).unwrap()
+            }).unwrap();
+            assert!(current_world.translation().distance(position) < 1e-4,
+                "Source current component world position differs from physics: {mode:?} current={:?} physics={position:?}", current_world.translation());
         }
     }
+}
+
+#[test]
+fn movement_base_transport_preserves_the_current_parent_world_pose() {
+    let (mut app, actor, _) = movement_actor(false);
+    let base = app.world_mut().spawn((RigidBody::Kinematic, Collider::cuboid(20.0, 0.2, 30.0), Transform::from_xyz(0.0, -0.1, 0.0))).id();
+    for _ in 0..30 { app.update(); }
+    assert_eq!(app.world().get::<bevy_als::als::dynamics::AlsMovementBase>(actor).unwrap().entity, Some(base));
+    let world = *app.world().get::<Transform>(actor).unwrap();
+    let parent_transform = Transform::from_scale(Vec3::splat(2.0));
+    let parent = app.world_mut().spawn(parent_transform).id();
+    app.world_mut().entity_mut(actor).insert((ChildOf(parent),
+        GlobalTransform::from(world).reparented_to(&GlobalTransform::from(parent_transform))));
+    app.world_mut().get_mut::<Position>(base).unwrap().x += 0.5;
+    app.world_mut().get_mut::<Transform>(base).unwrap().translation.x += 0.5;
+    app.add_systems(Update, (move |helper: bevy::transform::helper::TransformHelper, positions: Query<&Position>| {
+        let current = helper.compute_global_transform(actor).unwrap().translation();
+        let physical = positions.get(actor).unwrap().0;
+        assert!(current.distance(physical) < 1e-4,
+            "Source based movement component position differs: current={current:?} physical={physical:?}");
+    }).after(bevy_tnua::TnuaPipelineSystems::Motors));
+    app.update();
+    assert!((app.world().get::<Position>(actor).unwrap().x - 0.5).abs() < 1e-4);
 }
 
 #[test]

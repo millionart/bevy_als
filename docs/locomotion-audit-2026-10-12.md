@@ -28,6 +28,8 @@
 
 ### P2-02 — 角色父级缩放未进入普通地面尺寸计算
 
+修复完成（2026-10-12 17:50:45 +08:00）：CMC/FindFloor/落地读取当帧世界尺寸，蹲起读取 world shape scale 和世界净空；普通 CMC、状态同步、蹲起及基座携带按 inverse-parent 写回局部 Transform，Physics Position 保留世界语义。父级.5悬空、2倍台阶/低顶棚反例、缓存Global未覆盖的current-transform边界先红后绿；维护夹具补齐真实入口的最终传播。7个消费者消融均语义FAIL，精确字节恢复后同target10项回归通过；正式库原反例、声明式合同、正式构建通过。真实startup和三座原楼梯上下六路线功能通过，2275帧确认父级2/局部.5、世界角色尺寸1，graph/fault/temporal为空。开始16:40、预估17:35、实际17:50:45、偏差+15分45秒；没有新增生产状态/适配层或修改图与原始资产。证据在 `target/bf141/fix02/` 与 `target/animation_visual/bf141_fix02/`；截图0、性能延期。以下保留原审计反例。
+
 - Source：`AlsCharacterMovementComponent.cpp:644` 调用 `GetScaledCapsuleSize`；UE `CapsuleComponent.h:202–211` 从 component world scale 计算半径和半高。
 - Target：`src/als/character/movement/motion.rs:3714–3715,3960–3964,4046–4047` 使用角色局部 `Transform.scale` 构造步阶/FindFloor/落地合同，而实际 Avian 胶囊包含父级缩放。
 - 反例：同一平地，世界胶囊半径 0.6 m、半高 1.8 m，分别由角色自身 scale=2 和父实体 scale=2 得到。两者真实碰撞尺寸一致；稳定运行 10 帧后，前者 `Grounded`，父级缩放者为 `Air`，物理中心分别 1.8227272 m 和 1.8215 m。

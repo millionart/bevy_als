@@ -68,6 +68,8 @@
 - BF139.04追加：`head_layer.rs:72–118,166` 也读取局部Transform推导world yaw/pitch；完整角色在物理后固定local identity、父级yaw90时，实际Head/Spine共享输入 `locomotion_state.rotation_yaw=0`，源应90，第三个消费者反例FAIL。该父空间根因继续归并本项。
 - BF139.06追加：`stop_link.rs:398–421,869–903` 与 `transition_notify.rs:334–350` 的QuickStop调用链也传局部body。无输入、90°父级、目标yaw0时，源world actor合同选择右侧/2.375，实际左侧/1.75；生产选择函数断言FAIL、无父级对照PASS。
 
+BF141.02 有限复开普通父空间 Gate（2026-10-12 17:50:45）：fresh SceneComponent 的 world→relative 合同和 current-transform 反例证明，旧 P2-05 的缓存 Global/Physics 一致没有覆盖 CMC 的局部位置写回。已补闭 CMC/状态同步/蹲起/基座携带的 inverse-parent 边界，并在原楼梯场景保持世界角色尺寸1、父级2/局部.5验证。原旋转修复和历史 Gate 保留；详见本轮运动系统复审 P2-02 修复记录。
+
 ### P2-06 — 普通台阶跨越忽略组件 CanCharacterStepUp 许可
 
 修复完成（2026-10-12 00:32:54 +08:00）：普通StepUp在初始命中与更高落点读取已有许可，child显式设置优先、所属刚体兜底，并覆盖落地后的walking剩余预算。fresh完整CMC闭包纠正了原20cm最终位置oracle：源FindFloor/AdjustFloorHeight独立刷新地面，不能由最终登上直接证明StepUp未拒绝；原始报告保留，该断言撤回。修正40cm反例先红，16组许可/所有权/帧预算矩阵、独立正面/落点四组合、3个判定消融、精确字节同target恢复与Mantle/partial-step/运动时钟/落地回归通过；额外高度输出消融后信号不变，已删除。当前345规格/15root完整闭包及声明式边界通过；真实startup、三座原楼梯上/下六路线功能通过，图/fault/temporal/primary_failure均无。证据位于本地 `target/bf139/fix06/` 与 `target/animation_visual/bf139_p206/`，性能延期保持。以下保留原审计记录。

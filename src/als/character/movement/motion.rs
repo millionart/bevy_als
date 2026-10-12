@@ -2832,6 +2832,7 @@ fn follow_movement_base_system(
     owners: Query<&avian3d::prelude::ColliderOf>,
     bodies: Query<&RigidBody>,
     children: Query<&Children>,
+    parents: Query<&ChildOf>,
 ) {
     for (entity, mode, mut base, mantle, dynamics, mut runtime, capsule, custom_position) in &mut characters {
         let target = if *mode == LocomotionState::Custom {
@@ -2862,10 +2863,12 @@ fn follow_movement_base_system(
                 let hit = space.p1().cast_shape_predicate(capsule, origin, Quat::IDENTITY, direction, &config, &filter,
                     &|candidate| character_blocks_collider(entity, candidate, &candidates));
                 let applied = *direction * hit.map_or(distance, |hit| movement_sweep_travel(distance, hit.distance));
+                let Ok(parent_world) = parents.get(entity).ok()
+                    .map(|parent| space.p0().compute_global_transform(parent.parent())).transpose() else { continue; };
                 let mut query = space.p2();
                 let (mut position, mut transform) = query.get_mut(entity).unwrap();
                 position.0 += applied;
-                transform.translation = position.0;
+                transform.translation = parent_world.map_or(position.0, |parent| parent.affine().inverse().transform_point3(position.0));
                 if let Some(start) = runtime.grounded_move_start.as_mut() { *start += applied; }
             }
         }
@@ -3250,6 +3253,7 @@ type ReshapeQueryItem<'a> = (
     Option<&'a AlsMantleState>,
     Option<&'a crate::als::state::AlsNotifyLocomotionAction>,
     &'a Transform,
+    Option<&'a ChildOf>,
     &'a AlsMovementParamsHandle,
     Has<CapsuleReshapeDeferred>,
     &'a mut AlsCrouchTransaction,
@@ -3260,6 +3264,7 @@ fn capsule_reshape_system(
     spatial_query: SpatialQuery,
     params_assets: Res<Assets<AlsMovementParams>>,
     mut transitions: MessageWriter<StateTransitionEvent>,
+    transforms: bevy::transform::helper::TransformHelper,
     mut q: Query<ReshapeQueryItem, With<AlsCharacter>>,
     candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,
 ) {
@@ -3272,6 +3277,7 @@ fn capsule_reshape_system(
         mantle,
         action,
         transform,
+        parent,
         handle,
         already_deferred,
         mut transaction,
@@ -3280,6 +3286,7 @@ fn capsule_reshape_system(
         let Some(params) = params_assets.get(handle.id()) else {
             continue;
         };
+        let Ok(world) = transforms.compute_global_transform(entity) else { continue; };
         let (half_height, radius) = capsule_dimensions(params, *stance);
         let action_active = action.map_or_else(
             || mantle.is_some_and(|mantle| mantle.active),
@@ -3290,7 +3297,7 @@ fn capsule_reshape_system(
             *stance,
             half_height,
             radius,
-            transform.translation,
+            world.translation(),
             *locomotion == LocomotionState::Air && !action_active,
         );
         let target = capsule_target_for_locomotion(
@@ -3303,6 +3310,7 @@ fn capsule_reshape_system(
         if target == *stance && !already_deferred {
             continue;
         }
+        let Ok(parent_world) = parent.map(|parent| transforms.compute_global_transform(parent.parent())).transpose() else { continue; };
         apply_capsule_for_stance(
             &mut commands,
             &spatial_query,
@@ -3313,9 +3321,9 @@ fn capsule_reshape_system(
             *locomotion,
             &mut stance,
             &mut transaction,
-            transform.translation,
-            transform.rotation,
             transform,
+            &world,
+            parent_world.as_ref(),
             already_deferred,
             &mut transitions,
         );
@@ -3332,13 +3340,16 @@ fn apply_capsule_for_stance(
     locomotion: LocomotionState,
     stance: &mut Stance,
     transaction: &mut AlsCrouchTransaction,
-    center: Vec3,
-    rotation: Quat,
     transform: &Transform,
+    world: &GlobalTransform,
+    parent_world: Option<&GlobalTransform>,
     already_deferred: bool,
     transitions: &mut MessageWriter<StateTransitionEvent>,
 ) {
-    let effective_scale = transform.scale.abs().min_element();
+    let center = world.translation();
+    let rotation = world.rotation();
+    let scale = world.to_scale_rotation_translation().0;
+    let effective_scale = scale.abs().min_element();
     let mut target_center = capsule_center_for_stance(params, center, *stance, target, effective_scale);
     match target {
         Stance::Crouching => {
@@ -3349,14 +3360,16 @@ fn apply_capsule_for_stance(
                 .insert(AlsCapsuleCrouched)
                 .insert(capsule_for(params, target));
             apply_actual_stance(entity, stance, target, transitions);
-            apply_capsule_center(commands, entity, transform, target_center);
+            apply_capsule_center(commands, entity, transform, parent_world, target_center);
             transaction.crouch_applied(half_height, radius, target_center);
         }
         Stance::Standing => {
             let filter = SpatialQueryFilter::from_excluded_entities([entity]);
             let (standing_half, radius) = capsule_dimensions(params, Stance::Standing);
-            let standing_capsule = als_character_capsule(standing_half * effective_scale + STAND_UP_SWEEP_INFLATION,
-                radius * effective_scale);
+            let (current_half, _) = capsule_dimensions(params, *stance);
+            let standing_capsule = als_character_capsule(current_half * scale.y
+                + (standing_half - current_half) * effective_scale + STAND_UP_SWEEP_INFLATION,
+                radius * scale.x.min(scale.z));
             target_center.y += STAND_UP_SWEEP_INFLATION;
             let mut blocked = spatial_query
                 .shape_intersections(&standing_capsule, target_center, rotation, &filter)
@@ -3364,7 +3377,7 @@ fn apply_capsule_for_stance(
             if blocked && locomotion == LocomotionState::Grounded {
                 let (half, radius) = capsule_dimensions(params, *stance);
                 if let Some((floor_center, _, _)) = find_ground_floor(spatial_query, center,
-                    half * effective_scale, radius * effective_scale, &params.cmc, locomotion, &filter, entity, candidates) {
+                    half * scale.y, radius * scale.x.min(scale.z), &params.cmc, locomotion, &filter, entity, candidates) {
                     let floor_distance = center.y - floor_center;
                     if floor_distance > STAND_UP_MIN_FLOOR_DISTANCE {
                         target_center.y -= floor_distance - STAND_UP_MIN_FLOOR_DISTANCE;
@@ -3391,7 +3404,7 @@ fn apply_capsule_for_stance(
                 .insert(capsule_for(params, Stance::Standing));
             apply_actual_stance(entity, stance, target, transitions);
             let (half_height, radius) = capsule_dimensions(params, Stance::Standing);
-            apply_capsule_center(commands, entity, transform, target_center);
+            apply_capsule_center(commands, entity, transform, parent_world, target_center);
             transaction.standing_applied(half_height, radius, target_center);
             if was_deferred {
                 info!("[MOTION] entity={entity:?} clearance regained: standing capsule restored");
@@ -3422,10 +3435,11 @@ fn apply_capsule_center(
     commands: &mut Commands,
     entity: Entity,
     transform: &Transform,
+    parent_world: Option<&GlobalTransform>,
     center: Vec3,
 ) {
     let mut next_transform = transform.clone();
-    next_transform.translation = center;
+    next_transform.translation = parent_world.map_or(center, |parent| parent.affine().inverse().transform_point3(center));
     commands
         .entity(entity)
         .insert((Position(center), next_transform));
@@ -3635,10 +3649,10 @@ pub(crate) fn cmc_movement_transaction_system(
     default_volume: Res<crate::als::dynamics::AlsDefaultPhysicsVolume>,
     physics_modes: Query<(&RigidBody, Option<&crate::als::dynamics::AlsPhysicsVolume>, Has<avian3d::prelude::CustomPositionIntegration>)>,
     motion_roots: Query<(Option<&crate::als::roll::AlsRollState>, Option<&AlsMantleState>, Option<&crate::als::state::AlsNotifyLocomotionAction>)>,
+    mut transforms: ParamSet<(bevy::transform::helper::TransformHelper, Query<&mut Transform, With<AlsCharacter>>)>,
     mut q: Query<
         (
             Entity,
-            &mut Transform,
             &Position,
             &Collider,
             &LinearVelocity,
@@ -3650,6 +3664,7 @@ pub(crate) fn cmc_movement_transaction_system(
             &TnuaController<AlsControlScheme>,
             &AlsMovementParamsHandle,
             &Stance,
+            Option<&ChildOf>,
             (&RotationMode, &AlsViewYaw, &AlsMaxAllowedGait,
                 Option<&crate::als::dynamics::AlsGroundedDynamics>,
                 Option<&crate::als::dynamics::AlsLandingBrakingFriction>,
@@ -3658,8 +3673,13 @@ pub(crate) fn cmc_movement_transaction_system(
         With<AlsCharacter>,
     >,
 ) {
-    for (entity, mut transform, position, capsule, velocity, mut motor, mut margin, mut runtime, gravity, mut loco, controller, handle, stance, (rotation_mode, view_yaw, max_allowed_gait, dynamics, braking, mut base)) in &mut q {
+    for (entity, position, capsule, velocity, mut motor, mut margin, mut runtime, gravity, mut loco, controller, handle, stance, parent, (rotation_mode, view_yaw, max_allowed_gait, dynamics, braking, mut base)) in &mut q {
         let Some(params) = params_assets.get(handle.id()) else { continue };
+        let Ok(world) = transforms.p0().compute_global_transform(entity) else { continue };
+        let scale = world.to_scale_rotation_translation().0;
+        let Ok(parent_world) = parent.map(|parent| transforms.p0().compute_global_transform(parent.parent())).transpose() else { continue };
+        let mut transform_query = transforms.p1();
+        let Ok(mut transform) = transform_query.get_mut(entity) else { continue };
         let mut landing_braking = braking.copied().unwrap_or_default();
         landing_braking.previous_locomotion = LocomotionState::Air;
         if let Ok(motion) = motion.get(entity) {
@@ -3703,7 +3723,9 @@ pub(crate) fn cmc_movement_transaction_system(
             runtime.grounded_movement_delta = None;
             runtime.grounded_collision_velocity = Some(if mode == LocomotionState::None { Vec3::ZERO } else { final_velocity });
             runtime.airborne_sweep_contact |= contact;
+            let world_position = moved.translation;
             *transform = moved;
+            transform.translation = parent_world.map_or(world_position, |parent| parent.affine().inverse().transform_point3(world_position));
             commands.entity(entity).insert(Position(moved.translation));
             motor.lin.boost = -velocity.0;
             motor.lin.acceleration = -gravity.value;
@@ -3715,8 +3737,8 @@ pub(crate) fn cmc_movement_transaction_system(
             || controller.action_flow_status().ongoing() == Some(AlsControlSchemeActionDiscriminant::Jump) {
             continue;
         }
-        let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height } * transform.scale.y;
-        let radius = params.crouch.standing_capsule_radius * transform.scale.x.min(transform.scale.z);
+        let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height } * scale.y;
+        let radius = params.crouch.standing_capsule_radius * scale.x.min(scale.z);
         if root_motion_active { runtime.simulation_delta_seconds = time.delta_secs(); }
         let next_velocity = velocity.0 + motor.lin.boost + motor.lin.acceleration * delta_seconds;
         let delta = runtime.grounded_movement_delta
@@ -3769,8 +3791,10 @@ pub(crate) fn cmc_movement_transaction_system(
                 else if lost_floor { final_velocity } else { final_velocity + support });
             runtime.grounded_move_start = None;
             base.pre_collision_velocity = Some(last_input);
+            let world_position = current_transform.translation;
             *transform = current_transform;
-            commands.entity(entity).insert(Position(transform.translation));
+            transform.translation = parent_world.map_or(world_position, |parent| parent.affine().inverse().transform_point3(world_position));
+            commands.entity(entity).insert(Position(world_position));
             motor.lin.boost.x = support.x - velocity.x;
             motor.lin.boost.z = support.z - velocity.z;
             motor.lin.acceleration.x = 0.0;
@@ -3785,18 +3809,15 @@ pub(crate) fn cmc_movement_transaction_system(
         let Some((advanced, remaining, next_y)) = grounded_movement_transaction(&spatial_query, capsule,
             center, transform.rotation, half, radius, delta, &params.cmc, *loco, entity, &candidates, &step_permissions) else { continue };
         runtime.grounded_move_start = Some(center);
-        transform.translation = advanced;
-        commands.entity(entity).insert(Position(advanced));
+        let world_position = next_y.filter(|height| *height > center.y).map_or(advanced, |height| advanced.with_y(height));
+        transform.translation = parent_world.map_or(world_position, |parent| parent.affine().inverse().transform_point3(world_position));
+        commands.entity(entity).insert(Position(world_position));
         let remaining_velocity = remaining.unwrap_or(delta) / time.delta_secs();
         motor.lin.boost.x = remaining_velocity.x - velocity.x;
         motor.lin.boost.z = remaining_velocity.z - velocity.z;
         motor.lin.acceleration.x = 0.0;
         motor.lin.acceleration.z = 0.0;
-        let Some(next_y) = next_y else { continue };
-        if next_y > center.y {
-            transform.translation.y = next_y;
-            commands.entity(entity).insert(Position(transform.translation));
-        }
+        if next_y.is_none() { continue; }
         motor.lin.boost.y = -velocity.y;
         motor.lin.acceleration.y = -gravity.value.y;
         *margin = SpeculativeMargin::ZERO;
@@ -3941,13 +3962,14 @@ pub(crate) fn locomotion_state_sync_system(
             Option<&crate::als::state::AlsNotifyLocomotionAction>,
             &AlsMovementParamsHandle,
             &Stance,
+            Option<&ChildOf>,
             &mut AlsCmcAdapterRuntime,
         ),
         With<AlsCharacter>,
     >,
 ) {
     if time.is_paused() { return; }
-    for (entity, transform, position, capsule, mut velocity, controller, mut current, request, ragdoll_air_exit, action, handle, stance, mut runtime) in &mut q {
+    for (entity, transform, position, capsule, mut velocity, controller, mut current, request, ragdoll_air_exit, action, handle, stance, parent, mut runtime) in &mut q {
         let sweep_contact = std::mem::take(&mut runtime.airborne_sweep_contact);
         if let Some(source_velocity) = runtime.grounded_collision_velocity.take() {
             velocity.0 = source_velocity;
@@ -3960,10 +3982,13 @@ pub(crate) fn locomotion_state_sync_system(
             continue;
         };
         let jumping = controller.action_flow_status().ongoing() == Some(AlsControlSchemeActionDiscriminant::Jump);
+        let Ok(world) = transforms.compute_global_transform(entity) else { continue };
+        let scale = world.to_scale_rotation_translation().0;
+        let Ok(parent_world) = parent.map(|parent| transforms.compute_global_transform(parent.parent())).transpose() else { continue };
         let floor_result = params_assets.get(handle.id()).and_then(|params| {
             let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height }
-                else { params.crouch.standing_capsule_half_height } * transform.scale.y;
-            let radius = params.crouch.standing_capsule_radius * transform.scale.x.min(transform.scale.z);
+                else { params.crouch.standing_capsule_half_height } * scale.y;
+            let radius = params.crouch.standing_capsule_radius * scale.x.min(scale.z);
             find_ground_floor_with_penetration(&spatial, position.0, half, radius, &params.cmc, *current,
                 &SpatialQueryFilter::from_excluded_entities([entity]), entity, &candidates)
         });
@@ -4025,7 +4050,9 @@ pub(crate) fn locomotion_state_sync_system(
                     }
                     next_transform.translation += *direction
                         * hit.map_or(distance, |hit| movement_sweep_travel(distance, hit.distance));
-                    commands.entity(entity).insert((Position(next_transform.translation), next_transform));
+                    let world_position = next_transform.translation;
+                    next_transform.translation = parent_world.map_or(world_position, |parent| parent.affine().inverse().transform_point3(world_position));
+                    commands.entity(entity).insert((Position(world_position), next_transform));
                     velocity.0.y = 0.0;
                     floor_supported = true;
                     floor_entity = Some(floor);
@@ -4047,8 +4074,8 @@ pub(crate) fn locomotion_state_sync_system(
         let landed_on_capsule = airborne && !landed_on_contact && !floor_supported
             && (capsule_contact || sweep_contact)
             && params_assets.get(handle.id()).is_some_and(|params| {
-                let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height } * transform.scale.y;
-                let radius = params.crouch.standing_capsule_radius * transform.scale.x.min(transform.scale.z);
+                let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height } * scale.y;
+                let radius = params.crouch.standing_capsule_radius * scale.x.min(scale.z);
                 validated_floor.is_some_and(|(center, impact, _)| (position.y - center).abs() <= MAX_FLOOR_DISTANCE
                         && impact < position.y - half + radius)
             });
