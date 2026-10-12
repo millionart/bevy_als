@@ -141,7 +141,14 @@ impl Plugin for AlsRagdollLinkPlugin {
             Update,
             (
                 ensure_ragdoll_link,
-                ragdoll_exit_route_system
+                (
+                    avian3d::collider_tree::update_moved_collider_aabbs::<Collider>
+                        .run_if(|characters: Query<(&crate::als::transition::AlsStateRequest, &AlsNotifyLocomotionAction)>| {
+                            characters.iter().any(|(request, action)| request.ragdoll_exit && *action == AlsNotifyLocomotionAction::Ragdolling)
+                        }),
+                    ragdoll_exit_route_system,
+                )
+                    .chain()
                     .after(crate::als::input_request::input_state_request_system)
                     .before(crate::als::transition::state_transition_system),
                 capture_ragdoll_player_world_transform
@@ -622,19 +629,30 @@ fn ragdoll_capsule_dimensions(
 pub fn ragdoll_exit_route_system(
     mut commands: Commands,
     mut transitions: MessageWriter<StateTransitionEvent>,
+    spatial: SpatialQuery,
+    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>)>,
+    transform_helper: TransformHelper,
+    params_assets: Res<Assets<AlsMovementParams>>,
+    avatars: Query<(&AlsCharacterAvatar, &AnimatedSceneInstance)>,
+    players: Query<&AnimationGraphPlayer>,
     mut characters: Query<
         (
             Entity,
             Option<&mut AlsNotifyLocomotionAction>,
             &mut LocomotionState,
             &mut crate::als::transition::AlsStateRequest,
-            Option<&AlsRagdollGroundFollow>,
+            Option<&mut AlsRagdollGroundFollow>,
             Option<&mut LinearVelocity>,
+            &Position,
+            &Stance,
+            &AlsMovementParamsHandle,
+            &AlsCollisionLayerOwnership,
+            Option<&AlsCharacterAssembly>,
         ),
         With<AlsCharacter>,
     >,
 ) {
-    for (entity, action, mut locomotion, mut request, follow, velocity) in &mut characters {
+    for (entity, action, mut locomotion, mut request, follow, velocity, position, stance, params_handle, ownership, assembly) in &mut characters {
         if !request.ragdoll_exit {
             continue;
         }
@@ -642,9 +660,29 @@ pub fn ragdoll_exit_route_system(
             request.ragdoll_exit = false;
             continue;
         }
-        let Some(follow) = follow else {
+        let Some(mut follow) = follow else {
             continue;
         };
+        let Ok(world) = transform_helper.compute_global_transform(entity) else { continue; };
+        let (world_scale, _, _) = world.to_scale_rotation_translation();
+        let (half_height, radius) = ragdoll_capsule_dimensions(*stance, params_handle, &params_assets, world_scale);
+        let location = if follow.pelvis == Vec3::ZERO { position.0 } else { follow.pelvis };
+        let mut excluded = vec![entity];
+        if let Some(player_entity) = animated_player_for_character(entity, assembly, &avatars)
+            && let Ok(player) = players.get(player_entity)
+            && let Some(spawned) = player.get_spawned_ragdoll()
+        {
+            excluded.extend(spawned.bodies.values().copied());
+            excluded.extend(spawned.colliders.values().copied());
+        }
+        let start = location + Vec3::Y * (2.0 * radius);
+        let hit = ragdoll_ground_hit(&spatial, &candidates, start, half_height + radius,
+            radius, excluded, ownership.original_layers());
+        follow.grounded = hit.is_some();
+        follow.target = hit.map_or(location, |hit| {
+            let center = start - Vec3::Y * hit.distance;
+            Vec3::new(location.x, center.y + half_height - radius + ALS_CHARACTER_FLOOR_CLEARANCE, location.z)
+        });
         let (state, exit_velocity) = ragdoll_exit_route(follow.grounded, follow.velocity);
         *action.unwrap() = AlsNotifyLocomotionAction::None;
         request.locomotion_state = None;
@@ -1195,6 +1233,130 @@ fn ragdoll_link_system(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn source_ragdoll_exit_loaded_support_lifecycle() {
+        for change in ["unchanged", "remove", "move_away", "move_in", "add", "self_query"] {
+            let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+            app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_start = true;
+            for _ in 0..90 { app.update(); }
+            assert!(app.world().get::<AlsRagdollGroundFollow>(actor).unwrap().grounded);
+            let supports: Vec<_> = app.world_mut().query::<(Entity, &RigidBody)>().iter(app.world())
+                .filter_map(|(entity, body)| (*body == RigidBody::Static).then_some(entity)).collect();
+            assert_eq!(supports.len(), 1);
+            let support = supports[0];
+            let original = *app.world().get::<Transform>(support).unwrap();
+            let away = original.with_translation(original.translation + Vec3::X * 1000.0);
+            if matches!(change, "move_in" | "add") {
+                app.world_mut().entity_mut(support).insert((away, Position(away.translation)));
+                app.update();
+                assert!(!app.world().get::<AlsRagdollGroundFollow>(actor).unwrap().grounded);
+            }
+            match change {
+                "remove" | "self_query" => { app.world_mut().despawn(support); }
+                "move_away" => { app.world_mut().entity_mut(support).insert((away, Position(away.translation))); }
+                "move_in" => { app.world_mut().entity_mut(support).insert((original, Position(original.translation))); }
+                "add" => {
+                    let collider = app.world().get::<Collider>(support).unwrap().clone();
+                    let layers = *app.world().get::<CollisionLayers>(support).unwrap();
+                    app.world_mut().spawn((RigidBody::Static, collider, original, layers));
+                }
+                _ => {}
+            }
+            if change == "self_query" {
+                let player = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+                let colliders = app.world().get::<AnimationGraphPlayer>(player).unwrap().get_spawned_ragdoll().unwrap()
+                    .colliders.values().copied().collect::<Vec<_>>();
+                assert_eq!(colliders.len(), 22);
+                for collider in colliders {
+                    app.world_mut().entity_mut(collider).insert((CollisionLayers::ALL,
+                        crate::extensions::RagdollShapeCollisionMode::QueryAndPhysics));
+                }
+            }
+            app.world_mut().get_mut::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_exit = true;
+            app.update();
+            let grounded = matches!(change, "unchanged" | "move_in" | "add");
+            let expected_action = if grounded { AlsNotifyLocomotionAction::GettingUp } else { AlsNotifyLocomotionAction::None };
+            assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor), Some(&expected_action),
+                "Source loaded exit must branch on current support: {change}");
+            assert_eq!(app.world().get::<crate::get_up::AlsGetUpState>(actor).is_some(), grounded);
+            assert_eq!(app.world().get::<crate::als::motion::AlsMovementInputBlocked>(actor).is_some(), grounded);
+            assert!(app.world().get::<AlsRagdollCharacterPhysics>(actor).is_none());
+            assert!(!app.world().get::<crate::als::transition::AlsStateRequest>(actor).unwrap().ragdoll_exit);
+            println!("Source loaded exit support={change} grounded={grounded} action={expected_action:?}");
+        }
+    }
+
+    #[test]
+    fn source_ragdoll_exit_traces_current_support_and_preserves_saved_motion() {
+        use bevy::ecs::system::RunSystemOnce;
+        for change in ["unchanged", "remove", "move_away", "move_in", "add", "raise", "sensor", "ignore"] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate)))
+                .init_resource::<Assets<AlsMovementParams>>()
+                .init_resource::<Assets<Mesh>>()
+                .add_message::<bevy::asset::AssetEvent<Mesh>>()
+                .add_message::<StateTransitionEvent>();
+            app.finish();
+            app.cleanup();
+            let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(AlsMovementParams::default());
+            let pelvis = Vec3::new(4.0, 0.2, 6.0);
+            let saved_velocity = Vec3::new(2.5, -4.0, -1.5);
+            let initial_grounded = matches!(change, "unchanged" | "remove" | "move_away" | "raise");
+            let initial_position = Vec3::new(if initial_grounded { 4.0 } else { 40.0 }, -0.5, 6.0);
+            let support = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 1.0, 4.0),
+                Transform::from_translation(initial_position))).id();
+            app.update();
+            let actor = app.world_mut().spawn((AlsCharacter, Stance::Standing,
+                AlsMovementParamsHandle(params), AlsCollisionLayerOwnership::default(),
+                LocomotionState::Grounded, AlsNotifyLocomotionAction::Ragdolling,
+                crate::als::transition::AlsStateRequest { ragdoll_exit: true, ..default() },
+                Transform::from_xyz(4.0, 7.5, 6.0), Position(Vec3::new(4.0, 7.5, 6.0)),
+                LinearVelocity(Vec3::ZERO), RigidBody::Kinematic,
+                AlsRagdollCharacterPhysics { rigid_body: RigidBody::Dynamic, tnua_toggle: Some(TnuaToggle::Enabled) },
+                AlsRagdollGroundFollow { pelvis, target: Vec3::new(4.0, 9.0, 6.0), velocity: saved_velocity, grounded: initial_grounded })).id();
+            match change {
+                "remove" => { app.world_mut().despawn(support); }
+                "move_away" | "move_in" | "raise" => {
+                    let position = Vec3::new(if change == "move_away" { 40.0 } else { 4.0 },
+                        if change == "raise" { -0.4 } else { -0.5 }, 6.0);
+                    app.world_mut().entity_mut(support).insert((Position(position), Transform::from_translation(position)));
+                }
+                "add" | "sensor" | "ignore" => {
+                    let mut entity = app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 1.0, 4.0),
+                        Transform::from_xyz(4.0, -0.5, 6.0)));
+                    if change == "sensor" { entity.insert(Sensor); }
+                    if change == "ignore" { entity.insert(CollisionLayers::NONE); }
+                }
+                _ => {}
+            }
+            app.world_mut().run_system_once(avian3d::collider_tree::update_moved_collider_aabbs::<Collider>).unwrap();
+            app.world_mut().run_system_once(ragdoll_exit_route_system).unwrap();
+            let grounded = matches!(change, "unchanged" | "move_in" | "add" | "raise");
+            let expected_state = if grounded { LocomotionState::Grounded } else { LocomotionState::Air };
+            assert_eq!(app.world().get::<LocomotionState>(actor), Some(&expected_state),
+                "Source exit sweep must use current support geometry: {change}");
+            assert_eq!(app.world().get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::None));
+            assert_eq!(app.world().get::<LinearVelocity>(actor).unwrap().0, if grounded { Vec3::ZERO } else { saved_velocity },
+                "Source exit must retain the last recorded ragdoll velocity: {change}");
+            assert_eq!(app.world().get::<AlsRagdollAirExit>(actor).is_some(), !grounded);
+            let follow = *app.world().get::<AlsRagdollGroundFollow>(actor).unwrap();
+            assert_eq!(follow.pelvis, pelvis);
+            assert_eq!(follow.velocity, saved_velocity);
+            let expected_y = if grounded {
+                let settings = AlsMovementParams::default();
+                settings.crouch.standing_capsule_half_height + ALS_CHARACTER_FLOOR_CLEARANCE + if change == "raise" { 0.1 } else { 0.0 }
+            } else { pelvis.y };
+            assert!((follow.target - Vec3::new(pelvis.x, expected_y, pelvis.z)).length() < 1e-5,
+                "Source exit must recompute the current capsule target: {change}, actual={:?}", follow.target);
+            app.world_mut().run_system_once(ragdoll_character_physics_system).unwrap();
+            assert!(app.world().get::<Position>(actor).unwrap().0.abs_diff_eq(follow.target, 1e-5));
+            assert!(app.world().get::<Transform>(actor).unwrap().translation.abs_diff_eq(follow.target, 1e-5));
+            assert_eq!(app.world().get::<TnuaToggle>(actor), Some(&TnuaToggle::Enabled));
+            assert!(app.world().get::<AlsRagdollGroundFollow>(actor).is_none());
+            println!("Source live exit support={change} grounded={grounded} target={:?}", follow.target);
+        }
+    }
+
     #[test]
     fn browser_review_parent_ragdoll_follow_and_exit_write_world_positions() {
         use bevy::ecs::system::RunSystemOnce;
@@ -2920,11 +3082,19 @@ mod tests {
             LocomotionState::Custom,
         ] {
             let mut app = App::new();
-            app.add_plugins((MinimalPlugins, AlsStateTransitionPlugin))
+            app.add_plugins((MinimalPlugins, TransformPlugin, avian3d::prelude::PhysicsPlugins::new(PostUpdate), AlsStateTransitionPlugin))
+                .init_resource::<Assets<AlsMovementParams>>()
+                .init_resource::<Assets<Mesh>>()
+                .add_message::<bevy::asset::AssetEvent<Mesh>>()
                 .add_systems(
                     Update,
                     ragdoll_exit_route_system.before(crate::als::transition::state_transition_system),
                 );
+            app.finish();
+            app.cleanup();
+            let params = app.world_mut().resource_mut::<Assets<AlsMovementParams>>().add(AlsMovementParams::default());
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(4.0, 1.0, 4.0), Transform::from_xyz(0.0, -0.5, 0.0)));
+            app.update();
             let air_velocity = Vec3::new(2.5, -4.0, -1.5);
             let airborne = app
                 .world_mut()
@@ -2938,6 +3108,8 @@ mod tests {
                     OverlayState::Default,
                     AlsStateRequest::default().with_locomotion_state(LocomotionState::Grounded),
                     LinearVelocity(Vec3::ZERO),
+                    Transform::from_xyz(0.0, 4.0, 0.0), Position(Vec3::Y * 4.0),
+                    AlsMovementParamsHandle(params.clone()), AlsCollisionLayerOwnership::default(),
                     AlsRagdollGroundFollow {
                         pelvis: Vec3::ZERO,
                         target: Vec3::new(0.0, 4.0, 0.0),
@@ -2958,8 +3130,10 @@ mod tests {
                     OverlayState::Default,
                     AlsStateRequest::default().with_locomotion_state(LocomotionState::Grounded),
                     LinearVelocity(Vec3::ONE),
+                    Transform::from_xyz(0.0, 1.0, 0.0), Position(Vec3::Y),
+                    AlsMovementParamsHandle(params.clone()), AlsCollisionLayerOwnership::default(),
                     AlsRagdollGroundFollow {
-                        pelvis: Vec3::ZERO,
+                        pelvis: Vec3::Y * 0.2,
                         target: Vec3::Y,
                         velocity: air_velocity,
                         grounded: true,

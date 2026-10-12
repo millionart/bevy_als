@@ -128,6 +128,8 @@
 
 ### P2-12 — Ragdoll 退出使用上一帧地面结果
 
+修复完成（2026-10-12 08:28:25 +08:00）：退出请求在状态转换前调用公开Avian移动包围盒刷新，再按源当前sphere sweep重算grounded/target；保留源最后记录的位置/速度与零目标fallback、原碰撞响应和自身排除，退出路由与actor realign消费同一结果。完整角色支撑删除/移走/移入/新增与自身可查询边界、8种位置/速度/过滤矩阵、3个既有路由状态通过；去掉重查、AABB刷新、自身排除分别稳定复现原错误起身、移入漏判和自身支撑误判。移除新helper后结果相同，最终无新抽象/组件/状态；源码精确恢复、同target重编37回归、正式库原完整角色反例/五运动矩阵、345规格/15root静态闭包/声明式/510编辑器通过，fresh15root/39源/374产物零diff。原Playground startup、Ragdoll11项、GetUp13项功能验收通过，graph/fault/temporal均空，性能和截图延期。证据位于本地 `target/bf139/fix12/` 与 `target/animation_visual/bf139_p212/`。以下保留原审计反例。
+
 - Source：`ALS/Private/AlsCharacter_Actions.cpp:1082–1187` 的StopRagdolling当场调用RagdollTraceGround，再决定Walking/GetUp或Falling/继承骨盆速度。
 - Target：`src/als/character/actions/ragdoll_link.rs:604–655` 从缓存 `AlsRagdollGroundFollow` 读取grounded和velocity；`:788–817` 再使用同一旧target，退出后不重新查询本帧支撑。
 - 反例：完整角色在平地进入ragdoll并稳定90帧，确认grounded=true；删除唯一支撑体后立即请求退出。实际最终LocomotionState=Air而Action=GettingUp，源当前查询应直接Air且无GetUp，实际消费者断言FAIL。
