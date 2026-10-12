@@ -15,7 +15,12 @@ pub struct PlaygroundCollisionPlugin;
 
 impl Plugin for PlaygroundCollisionPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<PlaygroundMeshColliderCache>()
+        let [dynamic_friction, static_friction, restitution]: [f32;3] = serde_json::from_str(
+            include_str!("../../../assets/ALSExtras/Levels/L_Als_Playground/default_physical_material.runtime.json"),
+        ).expect("The imported source default physical material must parse");
+        app.insert_resource(DefaultFriction(Friction::new(dynamic_friction).with_static_coefficient(static_friction)))
+            .insert_resource(DefaultRestitution(Restitution::new(restitution)))
+            .init_resource::<PlaygroundMeshColliderCache>()
             .init_resource::<PlaygroundMovingCurve>()
             .add_systems(
                 Update,
@@ -381,6 +386,47 @@ fn select_stair_surface_probes(vertices: &[Vec3], triangles: &[[u32; 3]]) -> Vec
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn environment_default_material_reaches_real_shape_contacts() {
+        for kind in 0..5 {
+            for overridden in [false, true] {
+                let mut app = App::new();
+                app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin,
+                    PhysicsPlugins::new(PostUpdate), PlaygroundCollisionPlugin))
+                    .init_resource::<Assets<Mesh>>().add_message::<AssetEvent<Mesh>>()
+                    .insert_resource(Gravity(Vec3::ZERO))
+                    .insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(std::time::Duration::from_secs_f32(1.0/60.0)));
+                app.finish();
+                app.update();
+                let shape = match kind {
+                    1 => Collider::convex_hull([-4.0,4.0].into_iter().flat_map(|x| [-0.5,0.5].into_iter().flat_map(move |y| [-4.0,4.0].into_iter().map(move |z| Vec3::new(x,y,z)))).collect()).unwrap(),
+                    2 | 4 => Collider::trimesh(vec![Vec3::new(-4.0,0.5,-4.0),Vec3::new(4.0,0.5,-4.0),Vec3::new(4.0,0.5,4.0),Vec3::new(-4.0,0.5,4.0)],vec![[0,2,1],[0,3,2]]),
+                    _ => Collider::cuboid(8.0,1.0,8.0),
+                };
+                let ground = app.world_mut().spawn((if kind==3 {RigidBody::Kinematic} else {RigidBody::Static},
+                    shape, Transform::from_xyz(0.0,-0.5,0.0))).id();
+                if kind==4 {app.world_mut().entity_mut(ground).insert(crate::extensions::PlaygroundLandscape);}
+                if overridden {app.world_mut().entity_mut(ground).insert((Friction::new(0.2),Restitution::new(0.6)));}
+                let body=app.world_mut().spawn((RigidBody::Dynamic,Collider::sphere(0.25),Transform::from_xyz(0.0,0.2,0.0),
+                    LinearVelocity(Vec3::new(3.0,-4.0,0.0)),Friction::new(0.7),Restitution::new(0.3))).id();
+                let mut material=None;
+                for _ in 0..4 {
+                    app.update();
+                    material=app.world_mut().run_system_once(move |collisions:Collisions| {
+                        collisions.get(ground,body).and_then(|pair| pair.manifolds.first().map(|m|(m.friction,m.restitution,pair.total_normal_impulse_magnitude())))
+                    }).unwrap();
+                    if material.is_some() {break;}
+                }
+                let (friction,restitution,impulse)=material.expect("The material fixture did not create a real contact manifold");
+                let expected=if overridden {(0.45,0.45)} else {(0.7,0.3)};
+                println!("Environment contact kind={kind} override={overridden}: friction={friction} restitution={restitution}");
+                assert!((friction-expected.0).abs()<1e-6 && (restitution-expected.1).abs()<1e-6,
+                    "Source default and explicit environment materials must reach the contact solver");
+                assert_eq!(app.world().resource::<DefaultFriction>().0.static_coefficient,0.7);
+                assert!(impulse>0.0,"The contact solver did not apply an impulse");
+            }
+        }
+    }
     use crate::als::{character::{AlsCharacterBundle, AlsCharacterPlugin}, control_scheme::{AlsControlScheme, AlsControlSchemeConfig},
         gait::AlsDesiredGait, input::AlsInputCommand, motion::{AlsMotionPlugin, initial_als_control_scheme_config},
         params::AlsMovementParams, state::{Gait, LocomotionState}, transition::AlsStateTransitionPlugin};

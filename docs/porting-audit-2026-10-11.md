@@ -197,6 +197,8 @@
 
 ### P2-19 — 环境碰撞体使用了 Avian 默认物理材质
 
+修复验收（2026-10-12 14:46:14 +08:00）：fresh World/20环境mesh/材质与Landscape闭包的500覆盖字段为None，Engine默认.7/Static0/.3及Chaos有效静态max合同确认；离线目标(.7,.7,.3)，现公开DefaultFriction/DefaultRestitution统一回退。五类10组实际接触/覆盖与求解冲量、两资源消融/字节恢复、39相关及180扩大回归通过；四个既有动画纯夹具已按P2-09有限复开并单独提交，未改运动算法。正式库实际Arch组合为.7/.3，六入口构建、源/最终数据身份及原Playground startup/Ragdoll11项功能通过，graph/fault/temporal为空；截图关闭、性能延期，FullPass仍False。开始13:45、预估14:40、实际14:46:14、偏差375秒。本轮18项确认差异均已修复。
+
 - Source：fresh World的`S_Arch_01.StaticMeshComponent0.PhysMaterialOverride=None`，fresh Arch BodySetup.PhysMaterial=None，源材质无覆盖。UE `Runtime/Engine/Private/PhysicsEngine/BodyInstance.cpp:3178–3244` 按body/component/setup/material优先级解析，最终回退`DefaultPhysicalMaterial`；当次原生PA记录确认该引擎资产Friction=0.7、Restitution=0.3、Combine=Average。
 - Target：`src/als_extras/levels/playground_collision.rs:169–170`、`playground.rs:90`、`manual_playground.rs:451–452` 给环境安装body/collider而不安装物理材质，也无源默认材质资源映射。Avian `physics_material.rs:152,320` 的默认为0.5/0，narrow phase `system_param.rs:610–627` 在形状和body未赋材质时消费该默认。
 - 反例：完整角色环境运行实际`playground_setup_system`和`PlaygroundCollisionPlugin`，等待源Arch mesh加载并生成真正Collider；实际摩擦0.5/弹性0，调用生产combine与ragdoll的0.7/0.3组合为0.6/0.15，源应0.7/0.3。0.92秒语义断言FAIL，没有把手工空白地板当作环境装配证据。
