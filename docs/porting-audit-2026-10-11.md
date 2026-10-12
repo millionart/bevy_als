@@ -171,6 +171,8 @@
 - 反例：两个可用出生点DoorA和Other、random_ticket=1。请求DoorA正确选首个；请求doora却选Other，当前生产选择函数断言FAIL。
 - 影响：URL/脚本传入的标签仅大小写不同时会把玩家送到错误出生点。旧用例只验证精确拼写；GameplayTag的历史FName修复未覆盖独立PlayerStartTag字符串，不重复计入历史问题。
 
+修复验收（2026-10-12 11:40:45 +08:00）：fresh Engine.GameModeBase/FName及实际GameMode继承确认名称身份；局部PlayerStart比较函数统一named与reserved三处，保留None/有效空基名数字别名、数字边界、空请求与未知名回退。26名称边界/4种实际reserved组合通过，五消融失败、两份源码字节恢复后19项回归通过。正式target_game原反例及原Playground startup功能通过；坐标/fit/动画图未改，截图/性能延期。开始11:04、预估11:44、偏差−3分15秒；旧反例保留。
+
 ### P2-17 — PlayerStart 的局部变换直接用于出生
 
 - Source：fresh B_Als_GameMode继承Engine.GameModeBase，无Find/Spawn覆盖；UE `GameModeBase.cpp:1214–1222` 取StartSpot.GetActorLocation/world yaw，再构造单位缩放的FTransform。

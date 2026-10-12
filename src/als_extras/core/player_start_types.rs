@@ -101,6 +101,15 @@ pub fn yaw_only_transform(mut transform: Transform) -> Transform {
     transform
 }
 
+pub(crate) fn player_start_tag_matches(tag: Option<&str>, incoming: &str) -> bool {
+    let is_none = |value: &str| value.is_empty() || value.eq_ignore_ascii_case("None")
+        || value.strip_prefix('_').is_some_and(|digits| digits.parse::<u32>().ok()
+            .filter(|number| *number < i32::MAX as u32)
+            .is_some_and(|number| number.to_string() == digits));
+    let tag = tag.unwrap_or_default();
+    tag.eq_ignore_ascii_case(incoming) || (is_none(tag) && is_none(incoming))
+}
+
 pub fn choose_player_start(
     candidates: &[AlsPlayerStartCandidate],
     incoming_tag: Option<&str>,
@@ -109,7 +118,7 @@ pub fn choose_player_start(
     if let Some(tag) = incoming_tag.filter(|tag| !tag.is_empty()) {
         if let Some(candidate) = candidates
             .iter()
-            .find(|candidate| candidate.tag.as_deref() == Some(tag))
+            .find(|candidate| player_start_tag_matches(candidate.tag.as_deref(), tag))
         {
             return Some(AlsPlayerStartSelection {
                 entity: candidate.entity,
@@ -571,6 +580,46 @@ mod tests {
         let (yaw, pitch, roll) = output.rotation.to_euler(EulerRot::YXZ);
         assert!((yaw - 0.7).abs() < 1e-6);
         assert!(pitch.abs() < 1e-6 && roll.abs() < 1e-6);
+    }
+
+    #[test]
+    fn named_player_start_preserves_source_fname_identity() {
+        for (tag, request, named) in [
+            (Some("DoorA"), Some("doora"), true),
+            (Some("Door_0"), Some("door_0"), true),
+            (Some("Door_0"), Some("door"), false),
+            (Some("Door_01"), Some("door_1"), false),
+            (Some("Door_2147483647"), Some("door_2147483647"), true),
+            (Some("None_0"), Some("none_0"), true),
+            (Some("None_0"), Some("None"), false),
+            (None, Some("None"), true),
+            (None, Some("nOnE"), true),
+            (Some(""), Some("None"), true),
+            (Some("_17"), Some("none"), true),
+            (None, Some("_0"), true),
+            (None, Some("_17"), true),
+            (None, Some("_2147483646"), true),
+            (None, Some("_00"), false),
+            (None, Some("_01"), false),
+            (None, Some("_2147483647"), false),
+            (None, Some("_4294967296"), false),
+            (None, Some("_-1"), false),
+            (None, Some("_+1"), false),
+            (None, Some("_"), false),
+            (None, Some("None_0"), false),
+            (None, Some(" None"), false),
+            (None, Some("Missing"), false),
+            (None, Some(""), false),
+            (None, None, false),
+        ] {
+            let candidates = [candidate(1, tag, AlsPlayerStartOccupancy::Unoccupied),
+                candidate(2, Some("Other"), AlsPlayerStartOccupancy::Unoccupied)];
+            let selection = choose_player_start(&candidates, request, 1).unwrap();
+            let expected = &candidates[usize::from(!named)];
+            assert_eq!(selection.entity, expected.entity,
+                "Named PlayerStart FName identity: tag={tag:?} request={request:?}");
+            assert_eq!(selection.tag, expected.tag);
+        }
     }
 
     #[test]

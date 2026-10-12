@@ -4,7 +4,7 @@ use crate::als::params::AlsMovementParams;
 use crate::als::player_start::{
     AlsPlayerStart, AlsPlayerStartCandidate, AlsPlayerStartReady, AlsPlayerStartSelection,
     AlsPlayerStartSettings, AlsPlayerStartOccupancy, PLAYER_START_TELEPORT_SKIN,
-    choose_player_start, teleport_xy_adjustments,
+    choose_player_start, player_start_tag_matches, teleport_xy_adjustments,
 };
 use avian3d::prelude::SpatialQueryFilter;
 use crate::extensions::RagdollSpatialQuery as SpatialQuery;
@@ -225,8 +225,8 @@ fn admit_pending_players(
             .collect();
         let tag = admission.incoming_start_tag.as_deref().filter(|tag| !tag.is_empty());
         let tagged_reserved = tag.is_some_and(|tag| {
-            candidates.iter().any(|candidate| candidate.tag.as_deref() == Some(tag))
-                && !available.iter().any(|candidate| candidate.tag.as_deref() == Some(tag))
+            candidates.iter().any(|candidate| player_start_tag_matches(candidate.tag.as_deref(), tag))
+                && !available.iter().any(|candidate| player_start_tag_matches(candidate.tag.as_deref(), tag))
         });
         let selection = (!tagged_reserved)
             .then(|| choose_player_start(&available, tag, random.next_ticket()))
@@ -729,6 +729,48 @@ mod tests {
         assert_ne!(replacement, character, "Source missing existing Pawn must use the original new Pawn branch");
         assert!(app.world().get::<crate::als::character::AlsCharacter>(replacement).is_some());
         assert!(app.world().get::<AlsPlayerAdmissionPending>(request).is_none());
+    }
+
+    #[test]
+    fn reserved_named_player_start_uses_the_same_source_fname_identity() {
+        for request_tag in [Some("Portal"), Some("pOrTaL"), None, Some("Missing")] {
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin,
+                bevy::transform::TransformPlugin, PhysicsPlugins::new(FixedPostUpdate), AlsGameModePlugin))
+                .init_asset::<StandardMaterial>()
+                .init_asset::<AlsMovementParams>()
+                .init_asset::<AlsControlSchemeConfig>()
+                .init_asset::<AnimatedScene>()
+                .init_asset::<crate::als_camera::AlsCameraDefinition>();
+            app.finish();
+            app.cleanup();
+            let starts = [(Vec3::ZERO, "Portal"), (Vec3::X * 3.0, "Other")].map(|(offset, tag)| {
+                app.world_mut().spawn((AlsPlayerStart { tag: Some(tag.into()), ..default() }, AlsPlayerStartReady {
+                    transform: Transform::from_translation(offset + Vec3::Y * 0.919), ground_y: 0.0,
+                    adjustment: 0.0, teleport_adjustment: Vec3::ZERO, occupancy: AlsPlayerStartOccupancy::Unoccupied,
+                })).id()
+            });
+            for offset in teleport_xy_adjustments(Vec2::X * (0.6 + PLAYER_START_TELEPORT_SKIN)) {
+                app.world_mut().spawn((RigidBody::Static, Collider::cuboid(0.1, 1.8, 0.1),
+                    Transform::from_xyz(offset.x, 0.919, offset.y)));
+            }
+            app.update();
+            app.world_mut().run_schedule(FixedPostUpdate);
+            app.update();
+            let first = app.world_mut().spawn((AlsPlayerAdmission { spawn_input: false, spawn_camera: false,
+                incoming_start_tag: Some("Portal".into()), ..AlsPlayerAdmission::new() }, AlsPlayerAdmissionPending)).id();
+            let second = app.world_mut().spawn((AlsPlayerAdmission { spawn_input: false, spawn_camera: false,
+                incoming_start_tag: request_tag.map(str::to_owned), ..AlsPlayerAdmission::new() }, AlsPlayerAdmissionPending)).id();
+            app.update();
+            assert_eq!(app.world().get::<AlsPlayerAdmissionComplete>(first).unwrap().selection.entity, starts[0]);
+            if matches!(request_tag, Some("Portal" | "pOrTaL")) {
+                assert!(app.world().get::<AlsPlayerAdmissionFailed>(second).is_some()
+                    && app.world().get::<AlsPlayerAdmissionComplete>(second).is_none(),
+                    "Reserved PlayerStart FName identity: request={request_tag:?}");
+            } else {
+                assert_eq!(app.world().get::<AlsPlayerAdmissionComplete>(second).unwrap().selection.entity, starts[1]);
+            }
+        }
     }
 
     #[test]
