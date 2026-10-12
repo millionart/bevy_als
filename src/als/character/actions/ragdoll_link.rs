@@ -983,6 +983,9 @@ pub(crate) fn restore_ragdoll_player_parent(
         };
         let (rotation, facing_up) = ragdoll_recovery_rotation(pelvis_world.rotation());
         let Ok(actor_world) = transform_helper.compute_global_transform(avatar.character) else { continue; };
+        let yaw = rotation.to_euler(EulerRot::YXZ).0;
+        let (_, pitch, roll) = actor_world.rotation().to_euler(EulerRot::YXZ);
+        let rotation = Quat::from_euler(EulerRot::YXZ, yaw, pitch, roll);
         let restored_actor_world = Transform {
             rotation,
             ..actor_world.compute_transform()
@@ -1394,6 +1397,24 @@ mod tests {
     }
 
     #[test]
+    fn loaded_ragdoll_exit_preserves_current_actor_pitch_and_roll() {
+        for (pitch, roll) in [(0.0_f32, 0.0_f32), (0.2, -0.1), (-0.15, 0.25)] {
+            let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+            app.world_mut().entity_mut(actor).insert(AlsNotifyLocomotionAction::Ragdolling);
+            for _ in 0..90 { app.update(); }
+            let rotation = Quat::from_euler(EulerRot::YXZ, 0.3, pitch, roll);
+            app.world_mut().get_mut::<Transform>(actor).unwrap().rotation = rotation;
+            app.world_mut().get_mut::<Rotation>(actor).unwrap().0 = rotation;
+            app.world_mut().get_mut::<AlsStateRequest>(actor).unwrap().ragdoll_exit = true;
+            app.update();
+            let (_, actual_pitch, actual_roll) = app.world().get::<Rotation>(actor).unwrap().0.to_euler(EulerRot::YXZ);
+            assert_ne!(app.world().get::<AlsNotifyLocomotionAction>(actor), Some(&AlsNotifyLocomotionAction::Ragdolling));
+            assert!((actual_pitch - pitch).abs() < 1e-4 && (actual_roll - roll).abs() < 1e-4,
+                "Source StopRagdolling replaces only current actor yaw: pitch={pitch} roll={roll} actual_pitch={actual_pitch} actual_roll={actual_roll}");
+        }
+    }
+
+    #[test]
     fn browser_review_parent_ragdoll_recovery_keeps_actor_and_pelvis_world_space() {
         use bevy::ecs::system::RunSystemOnce;
         let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
@@ -1401,7 +1422,7 @@ mod tests {
             helper.compute_global_transform(actor).unwrap()
         }).unwrap();
         let parent_transform = Transform::from_xyz(10.0, 2.0, -3.0)
-            .with_rotation(Quat::from_rotation_y(0.7)).with_scale(Vec3::splat(1.5));
+            .with_rotation(Quat::from_euler(EulerRot::YXZ, 0.7, 0.15, -0.2)).with_scale(Vec3::splat(1.5));
         let parent = app.world_mut().spawn(parent_transform).id();
         app.world_mut().entity_mut(actor).insert((ChildOf(parent),
             actor_world.reparented_to(&GlobalTransform::from(parent_transform)),
@@ -1420,13 +1441,17 @@ mod tests {
         let pelvis_world = *app.world().get::<GlobalTransform>(pelvis).unwrap();
         let bone_parent = app.world().get::<ChildOf>(pelvis).unwrap().parent();
         let parent_in_player = app.world().get::<GlobalTransform>(bone_parent).unwrap().reparented_to(&old_player_world);
-        let moved_parent = parent_transform.with_translation(Vec3::new(12.0, 2.5, -2.0));
+        let moved_parent = parent_transform.with_translation(Vec3::new(12.0, 2.5, -2.0))
+            .with_rotation(Quat::from_euler(EulerRot::YXZ, 1.1, -0.15, 0.3));
         *app.world_mut().get_mut::<Transform>(parent).unwrap() = moved_parent;
         let target = actor_world.translation() + Vec3::new(1.0, 0.2, -0.5);
         app.world_mut().get_mut::<Transform>(actor).unwrap().translation =
             GlobalTransform::from(moved_parent).affine().inverse().transform_point3(target);
+        app.world_mut().get_mut::<Transform>(actor).unwrap().rotation = moved_parent.rotation.inverse()
+            * Quat::from_euler(EulerRot::YXZ, 0.3, 0.2, -0.1);
         app.world_mut().entity_mut(actor).insert((Position(target), AlsNotifyLocomotionAction::None, LocomotionState::Grounded));
-        let expected_rotation = ragdoll_recovery_rotation(pelvis_world.rotation()).0;
+        let expected_yaw = ragdoll_recovery_rotation(pelvis_world.rotation()).0.to_euler(EulerRot::YXZ).0;
+        let expected_rotation = Quat::from_euler(EulerRot::YXZ, expected_yaw, 0.2, -0.1);
         app.world_mut().run_system_once(restore_ragdoll_player_parent).unwrap();
         let actor_after = app.world_mut().run_system_once(move |helper: TransformHelper| {
             helper.compute_global_transform(actor).unwrap()
@@ -1445,6 +1470,8 @@ mod tests {
         let local = pose.get_bone(bone).unwrap().to_transform();
         let restored_pelvis = player_world * parent_in_player * local;
         assert!(restored_pelvis.translation().distance(pelvis_world.translation()) < 1e-4);
+        assert!(restored_pelvis.rotation().dot(pelvis_world.rotation()).abs() > 1.0 - 1e-5,
+            "Source recovery snapshot must preserve the last simulated pelvis world rotation");
     }
 
     use super::*;

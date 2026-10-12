@@ -4,6 +4,8 @@
 
 复审于 2026-10-12 15:48:46 +08:00 完成，确认 **6 项 P2**，未确认新的 P0/P1。审计阶段 23 个有效最小测试中，12 个通过对照、11 个语义失败对应这 6 项；核心动画源闭包和 Rig 产物审计通过。用户随后授权修复，当前修复状态以各项记录及 CHECKLIST 为准，原始反例保留。
 
+BF141修复于2026-10-12 21:25:31 +08:00完成，**6项全部修复并分项提交**。最终优化生产库原审计23/23、共享运动集成11项及各项focused/消融恢复通过；全部适用真实Playground功能Gate通过，graph/fault/temporal为空、primary_failure=null。截图保持关闭，性能验收继续延期，原审计与以下漏检记录保留。
+
 只记录经本次本地 source、当前实际消费者和最小反例确认的行为差异；既有修复、刻意差异、无消费者字段和仅有症状的观察不重复算缺陷。独立测试/取证产物保留在 gitignored `target/bf140/`；审计不修改生产实现。
 
 ## 覆盖与结论
@@ -67,6 +69,8 @@
 - 漏检：旧动作时钟 Gate 检查播放时间和位移；BF139-P2-07 的速度 oracle 明确以世界 0.05 秒相除，复制了此处错误语义。此次只登记新证据，不改写或撤销旧报告。
 
 ### P2-06 — Ragdoll 恢复清除了 actor 的 Pitch / Roll
+
+修复完成（2026-10-12 21:25:31 +08:00）：恢复消费者保留当帧actor world Pitch/Roll，只替换pelvis导出的Yaw；沿用已有parent逆写回与snapshot公式，新增三行Quat重组，无新状态/分支/抽象。fresh Actions/UE Actor/PA、完整角色三组倾角与当帧倾斜父级/actor反例、pelvis世界位置/旋转快照及地空恢复通过；移除Pitch、Roll和当帧world读取均语义FAIL，精确字节恢复同target重编26项Ragdoll回归PASS。最终优化生产库原审计23/23、共享运动11项、声明式合同和正式构建通过，公共startup→Ragdoll11覆盖→GetUp13覆盖全部功能PASS，graph/fault/temporal为空、primary_failure=null。BF135.09B仅恢复rotation oracle有限迁移，其他历史证据保留；截图0、性能延期。证据在 `target/bf141/fix06/` 与 `target/animation_visual/bf141_fix06/`。以下保留原审计反例。
 
 - Source：`AlsCharacter_Actions.cpp:1101–1104` 从 `GetActorRotation()` 创建 NewActorRotation，只替换 Yaw 后调用 SetActorLocationAndRotation。
 - Target：`src/als/character/actions/ragdoll_link.rs:934–938,986–989` 构造纯 yaw 四元数并替换整个 actor rotation。
