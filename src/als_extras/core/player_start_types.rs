@@ -98,6 +98,7 @@ pub fn player_start_grounded_height(ground_y: f32, capsule_half_height: f32) -> 
 pub fn yaw_only_transform(mut transform: Transform) -> Transform {
     let (yaw, _, _) = transform.rotation.to_euler(EulerRot::YXZ);
     transform.rotation = Quat::from_rotation_y(yaw);
+    transform.scale = Vec3::ONE;
     transform
 }
 
@@ -366,6 +367,8 @@ fn prepare_player_starts(
     spatial: SpatialQuery,
     colliders: Query<(&Collider, &GlobalTransform)>,
     characters: Query<Entity, With<crate::als::character::AlsCharacter>>,
+    transforms: Query<&Transform>,
+    parents: Query<&ChildOf>,
     mut starts: Query<
         (
             Entity,
@@ -381,6 +384,11 @@ fn prepare_player_starts(
     let occupancy_filter = SpatialQueryFilter::default()
         .with_mask(crate::als::character::AlsCollisionLayer::Default);
     for (entity, player_start, start, probe, ready) in &mut starts {
+        let mut start = *start;
+        for parent in transforms.iter_many(parents.iter_ancestors(entity)) {
+            start.translation = parent.transform_point(start.translation);
+            start.rotation = parent.rotation * start.rotation;
+        }
         let ground_y = if player_start.snap_to_ground {
             let probe_origin = start.translation + Vec3::Y * settings.probe_height;
             let Some(hit) = spatial.cast_ray(
@@ -399,7 +407,7 @@ fn prepare_player_starts(
         };
         let Some(fit) = fit_player_start(
             &spatial,
-            *start,
+            start,
             ground_y,
             settings.capsule_half_height,
             settings.capsule_radius,
@@ -575,11 +583,13 @@ mod tests {
 
     #[test]
     fn yaw_only_spawn_transform_discards_pitch_and_roll() {
-        let input = Transform::from_rotation(Quat::from_euler(EulerRot::YXZ, 0.7, 0.4, -0.2));
+        let input = Transform::from_rotation(Quat::from_euler(EulerRot::YXZ, 0.7, 0.4, -0.2))
+            .with_scale(Vec3::new(4.0, 2.0, 0.25));
         let output = yaw_only_transform(input);
         let (yaw, pitch, roll) = output.rotation.to_euler(EulerRot::YXZ);
         assert!((yaw - 0.7).abs() < 1e-6);
         assert!(pitch.abs() < 1e-6 && roll.abs() < 1e-6);
+        assert_eq!(output.scale, Vec3::ONE);
     }
 
     #[test]

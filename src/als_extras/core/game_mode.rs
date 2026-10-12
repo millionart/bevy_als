@@ -279,6 +279,104 @@ mod tests {
     use bevy_animation_graph::core::animated_scene::AnimatedScene;
 
     #[test]
+    fn admission_uses_current_world_start_transform_and_unit_pawn_scale() {
+        use bevy::ecs::system::RunSystemOnce;
+        for case in ["root", "translation", "rotation", "uniform", "nonuniform", "nested", "changed_parent"] {
+            for blocked in [false, true] {
+                let mut app = App::new();
+                app.add_plugins((MinimalPlugins, AssetPlugin::default(), bevy::mesh::MeshPlugin,
+                    bevy::transform::TransformPlugin, PhysicsPlugins::new(FixedPostUpdate),
+                    crate::als::player_start::AlsPlayerStartPlugin, AlsGameModePlugin))
+                    .init_asset::<StandardMaterial>().init_asset::<AlsMovementParams>()
+                    .init_asset::<AlsControlSchemeConfig>().init_asset::<AnimatedScene>()
+                    .init_asset::<crate::als_camera::AlsCameraDefinition>();
+                app.world_mut().resource_mut::<AlsPlayerStartSettings>().required_stable_frames = 1;
+                app.finish(); app.cleanup(); app.update();
+                let local = Transform::from_xyz(-3.0, 2.0, 1.0)
+                    .with_rotation(Quat::from_euler(EulerRot::YXZ, 0.7, 0.4, -0.2))
+                    .with_scale(Vec3::new(4.0, 2.0, 0.25));
+                let start = app.world_mut().spawn((AlsPlayerStart::default(), local)).id();
+                let mut world_location = local.translation;
+                let mut world_rotation = local.rotation;
+                if case != "root" {
+                    let mut parent_transform = Transform::from_xyz(20.0, 1.0, -8.0);
+                    if case != "translation" {
+                        parent_transform.rotation = Quat::from_euler(EulerRot::YXZ, -1.1, 0.2, 0.1);
+                    }
+                    if case == "uniform" { parent_transform.scale = Vec3::splat(2.0); }
+                    if matches!(case, "nonuniform" | "nested" | "changed_parent") {
+                        parent_transform.scale = Vec3::new(2.0, 0.75, 3.0);
+                    }
+                    let parent = app.world_mut().spawn(parent_transform).id();
+                    app.world_mut().entity_mut(start).insert(ChildOf(parent));
+                    if case == "changed_parent" {
+                        app.update();
+                        parent_transform.translation += Vec3::new(7.0, 0.5, 4.0);
+                        parent_transform.rotation = Quat::from_euler(EulerRot::YXZ, 0.4, -0.1, 0.3);
+                        *app.world_mut().get_mut::<Transform>(parent).unwrap() = parent_transform;
+                    }
+                    world_location = parent_transform.transform_point(local.translation);
+                    world_rotation = parent_transform.rotation * local.rotation;
+                    if case == "nested" {
+                        let ancestor = Transform::from_xyz(-7.0, 3.0, 11.0)
+                            .with_rotation(Quat::from_euler(EulerRot::YXZ, 0.5, -0.1, 0.2))
+                            .with_scale(Vec3::splat(1.5));
+                        let ancestor_entity = app.world_mut().spawn(ancestor).id();
+                        app.world_mut().entity_mut(parent).insert(ChildOf(ancestor_entity));
+                        world_location = ancestor.transform_point(world_location);
+                        world_rotation = ancestor.rotation * world_rotation;
+                    }
+                }
+                if blocked {
+                    for (axis, size) in [(Vec3::X, Vec3::new(2.0, 20.0, 20.0)), (Vec3::Z, Vec3::new(20.0, 20.0, 2.0))] {
+                        for sign in [-1.0, 1.0] {
+                            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(size.x, size.y, size.z),
+                                Transform::from_translation(world_location + axis * sign * 1.2)));
+                        }
+                    }
+                    app.world_mut().run_schedule(PostUpdate);
+                    app.world_mut().run_schedule(FixedPostUpdate);
+                }
+                let request = app.world_mut().spawn((AlsPlayerAdmission { spawn_input: false, spawn_camera: false,
+                    ..AlsPlayerAdmission::new() }, AlsPlayerAdmissionPending)).id();
+                app.update();
+                if app.world().get::<AlsPlayerAdmissionFailed>(request).is_some() {
+                    assert!(blocked, "World PlayerStart occupancy: case={case} location={world_location:?}");
+                    assert!(app.world().get::<AlsPlayerAdmissionComplete>(request).is_none());
+                    continue;
+                }
+                let admitted = app.world().get::<AlsPlayerAdmissionComplete>(request).unwrap();
+                let pawn = app.world().get::<Transform>(admitted.character).unwrap();
+                assert_eq!(admitted.selection.fit.occupancy, if blocked { AlsPlayerStartOccupancy::OccupiedAdjusted }
+                    else { AlsPlayerStartOccupancy::Unoccupied }, "World PlayerStart occupancy: case={case} blocked={blocked}");
+                let adjustment = admitted.selection.fit.teleport_adjustment;
+                if blocked { assert!(adjustment.length_squared() > 0.0); }
+                let expected_yaw = world_rotation.to_euler(EulerRot::YXZ).0;
+                for (consumer, actual) in [("ready", app.world().get::<crate::als::player_start::AlsPlayerStartReady>(start).unwrap().transform),
+                    ("selection", admitted.selection.fit.transform), ("pawn", *pawn)] {
+                    assert!(actual.translation.abs_diff_eq(world_location + adjustment, 1e-4),
+                        "World PlayerStart position: case={case} consumer={consumer} actual={:?} expected={world_location:?} adjustment={adjustment:?}", actual.translation);
+                    assert!(actual.rotation.abs_diff_eq(Quat::from_rotation_y(expected_yaw), 1e-5),
+                        "World PlayerStart yaw: case={case} consumer={consumer} actual={:?} expected={expected_yaw}", actual.rotation);
+                    assert_eq!(actual.scale, Vec3::ONE, "World PlayerStart unit scale: case={case} consumer={consumer}");
+                }
+                if blocked {
+                    let pose = *pawn;
+                    let pawn_entity = admitted.character;
+                    let settings = *app.world().resource::<AlsPlayerStartSettings>();
+                    let hits = app.world_mut().run_system_once(move |spatial: SpatialQuery| {
+                        let shape = crate::als::character::als_character_capsule(settings.capsule_half_height, settings.capsule_radius);
+                        let filter = SpatialQueryFilter::from_excluded_entities([pawn_entity])
+                            .with_mask(crate::als::character::AlsCollisionLayer::Default);
+                        spatial.shape_intersections(&shape, pose.translation, pose.rotation, &filter)
+                    }).unwrap();
+                    assert!(hits.is_empty(), "World PlayerStart adjusted pawn is clear: case={case} pawn={pawn_entity:?} pose={pose:?} hits={hits:?}");
+                }
+            }
+        }
+    }
+
+    #[test]
     fn mature_scene_admission_waits_for_player_start_stabilization() {
         for stable in [2, 1, 3] {
             for case in ["new", "changed_fit", "prewarmed", "barrier_later", "no_barrier", "unfit", "fit_becomes_unfit", "no_barrier_unfit", "barrier_later_unfit"] {

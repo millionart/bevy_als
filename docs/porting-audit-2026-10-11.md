@@ -180,6 +180,8 @@
 - 反例：在完整加载角色/物理场景中安装实际PlayerStart与GameMode系统并请求admission。marker scale2生成的pawn scale=(2,2,2)；parent x20、marker local x−5时生成pawn x−5，源世界位置应15且缩放应1，实际出生反例FAIL。
 - 影响：关卡分组/缩放出生点会使玩家出生在错误地点或错误大小，且占用探测与最终pawn尺寸不一致。旧测试仅无父级unit scale。初次夹具在App::finish后add_plugins失败已纠正，不把配置错误当作语义失败。
 
+修复验收（2026-10-12 12:20:01 +08:00）：fresh GameMode/Actor/SceneComponent与默认FTransform缩放合同确认；生产当前父级链计算世界位置和四元数，再取yaw与unit scale。14组实际admission覆盖父级旋转、等比/非等比缩放、嵌套、同帧变更、占用与最终pawn；合法调整后实际capsule查询为空。三个消融语义失败，两份源码字节恢复后20项回归通过；正式库原反例和原Playground startup功能通过。开始11:44、预估12:39、偏差−18分59秒；旧反例保留，动画图/资产未改，截图/性能延期。
+
 ### P2-18 — 天空静态渐变替代了源构造和材质链
 
 - Source：fresh World确认SkySphere及其mesh可见，ColorsDeterminedBySunPosition=true、DirectionalLight pitch=−45。fresh EngineSky `BP_Sky_Sphere.UserConstructionScript→RefreshMaterial` 把pitch从0..−90映射为0..1，使用SunHeight采样Clamped Linear Color曲线，再设置MID；直接使用Actor颜色是另一分支。
