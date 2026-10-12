@@ -840,7 +840,7 @@ fn verdict_system(
         && stats.camera_exposure_error < 1e-4
         && stats.camera_contrast_error < 1e-4
         && stats.camera_aces_count == 1;
-    let ok_sky = stats.sky_count >= 2;
+    let ok_sky = stats.sky_count >= 1;
     let ok_materials = stats.main_material_count >= 10
         && stats.tiles_material_count >= 100
         && stats.translucent_material_count == 1

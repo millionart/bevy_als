@@ -27,6 +27,7 @@
 #include "Modules/ModuleManager.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
+#include "StaticMeshResources.h"
 #include "Interface_CollisionDataProviderCore.h"
 #include "Engine/Texture2D.h"
 #include "Exporters/Exporter.h"
@@ -1392,6 +1393,47 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
         Collision->SetArrayField(TEXT("vertices_source"), Vertices);
         Collision->SetArrayField(TEXT("triangle_indices"), Triangles);
         Root->SetObjectField(TEXT("static_mesh_collision"), Collision);
+        if (Mesh->HasValidRenderData() && Mesh->GetRenderData()->LODResources.Num() > 0)
+        {
+            const FStaticMeshLODResources& LOD = Mesh->GetRenderData()->LODResources[0];
+            TSharedRef<FJsonObject> Geometry = MakeShared<FJsonObject>();
+            TArray<TSharedPtr<FJsonValue>> Positions;
+            TArray<TSharedPtr<FJsonValue>> Normals;
+            TArray<TSharedPtr<FJsonValue>> UVChannels;
+            for (uint32 Vertex = 0; Vertex < LOD.VertexBuffers.PositionVertexBuffer.GetNumVertices(); ++Vertex)
+            {
+                Positions.Add(MakeShared<FJsonValueObject>(CaptureVector(FVector(LOD.VertexBuffers.PositionVertexBuffer.VertexPosition(Vertex)))));
+                Normals.Add(MakeShared<FJsonValueObject>(CaptureVector(FVector(LOD.VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(Vertex)))));
+            }
+            for (uint32 Channel = 0; Channel < LOD.VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords(); ++Channel)
+            {
+                TArray<TSharedPtr<FJsonValue>> UVs;
+                for (uint32 Vertex = 0; Vertex < LOD.VertexBuffers.StaticMeshVertexBuffer.GetNumVertices(); ++Vertex)
+                {
+                    const FVector2f UV = LOD.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(Vertex, Channel);
+                    TArray<TSharedPtr<FJsonValue>> Values;
+                    Values.Add(MakeShared<FJsonValueNumber>(UV.X));
+                    Values.Add(MakeShared<FJsonValueNumber>(UV.Y));
+                    UVs.Add(MakeShared<FJsonValueArray>(Values));
+                }
+                UVChannels.Add(MakeShared<FJsonValueArray>(UVs));
+            }
+            TArray<TSharedPtr<FJsonValue>> RenderTriangles;
+            const FIndexArrayView Indices = LOD.IndexBuffer.GetArrayView();
+            for (int32 Index = 0; Index + 2 < Indices.Num(); Index += 3)
+            {
+                TArray<TSharedPtr<FJsonValue>> Values;
+                for (int32 Corner = 0; Corner < 3; ++Corner) { Values.Add(MakeShared<FJsonValueNumber>(Indices[Index + Corner])); }
+                RenderTriangles.Add(MakeShared<FJsonValueArray>(Values));
+            }
+            Geometry->SetArrayField(TEXT("vertices_source"), Positions);
+            Geometry->SetArrayField(TEXT("normals_source"), Normals);
+            Geometry->SetArrayField(TEXT("uv_channels"), UVChannels);
+            Geometry->SetArrayField(TEXT("triangle_indices"), RenderTriangles);
+            Geometry->SetObjectField(TEXT("bounds_origin_source"), CaptureVector(Mesh->GetBounds().Origin));
+            Geometry->SetNumberField(TEXT("bounds_radius_source"), Mesh->GetBounds().SphereRadius);
+            Root->SetObjectField(TEXT("static_mesh_geometry"), Geometry);
+        }
     }
     if (UTexture2D* Texture = Cast<UTexture2D>(Asset))
     {
@@ -1407,7 +1449,8 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
             UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Unsupported source texture channel count: %d."), SourceChannels);
             return 7;
         }
-        const FString ImagePath = FPaths::ChangeExtension(OutputPath, SourceChannels == 4 ? TEXT("tga") : TEXT("png"));
+        const bool bUsesPng = SourceChannels == 3 || SourceImage.Format == ERawImageFormat::RGBA16;
+        const FString ImagePath = FPaths::ChangeExtension(OutputPath, bUsesPng ? TEXT("png") : TEXT("tga"));
         bool bExported = false;
         if (SourceChannels == 4 && SourceImage.Format == ERawImageFormat::BGRA8
             && SourceImage.NumSlices == 1 && SourceImage.SizeX <= MAX_uint16 && SourceImage.SizeY <= MAX_uint16)
@@ -1429,21 +1472,22 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
             }
             bExported = FFileHelper::SaveArrayToFile(EncodedSource, *ImagePath);
         }
-        else if (SourceChannels == 3)
+        else if (bUsesPng)
         {
-            bExported = UExporter::ExportToFile(Texture, nullptr, *ImagePath, false, false, false) == 1;
+            bExported = FImageUtils::SaveImageByExtension(*ImagePath, SourceImage);
         }
         if (!bExported)
         {
-            UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Unable to export source texture."));
+            UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Unable to export source texture: format=%s channels=%d."), ERawImageFormat::GetName(SourceImage.Format), SourceChannels);
             return 7;
         }
         FImage ExportedImage;
         TArray<uint8> EncodedImage;
         if (!FImageUtils::LoadImage(*ImagePath, ExportedImage)
             || !FFileHelper::LoadFileToArray(EncodedImage, *ImagePath) || EncodedImage.Num() < 26
-            || (SourceChannels == 4 && (EncodedImage[16] != 32 || (EncodedImage[17] & 15) != 8))
-            || (SourceChannels == 3 && EncodedImage[25] != 2)
+            || (!bUsesPng && (EncodedImage[16] != 32 || (EncodedImage[17] & 15) != 8))
+            || (bUsesPng && EncodedImage[25] != (SourceChannels == 4 ? 6 : 2))
+            || (SourceImage.Format == ERawImageFormat::RGBA16 && EncodedImage[24] != 16)
             || SourceImage.SizeX != ExportedImage.SizeX || SourceImage.SizeY != ExportedImage.SizeY
             || SourceImage.NumSlices != ExportedImage.NumSlices || SourceImage.Format != ExportedImage.Format
             || SourceImage.RawData != ExportedImage.RawData)

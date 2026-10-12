@@ -19,6 +19,7 @@ use crate::als::player_start::{AlsPlayerStart, AlsPlayerStartPlugin};
 use avian3d::prelude::{Collider, CollisionLayers, LayerMask, RigidBody};
 
 use crate::extensions::playground_materials::PlaygroundMaterialsPlugin;
+use crate::extensions::playground_sky::{PlaygroundSkyMaterial, PlaygroundSkyPlugin, spawn_playground_sky};
 use crate::extensions::playground_materials::{
     PlaygroundMaterialLibrary, PlaygroundTilesExtension, PlaygroundTilesMaterial,
     PlaygroundTilesSettings,
@@ -35,7 +36,7 @@ pub struct PlaygroundPlugin {
 impl Plugin for PlaygroundPlugin {
     fn build(&self, app: &mut App) {
         let manifest = self.manifest.clone();
-        app.add_plugins((PlaygroundMaterialsPlugin, AlsPlayerStartPlugin))
+        app.add_plugins((PlaygroundMaterialsPlugin, PlaygroundSkyPlugin, AlsPlayerStartPlugin))
             .init_resource::<PlaygroundMovingCurve>()
             .add_systems(
                 Startup,
@@ -308,14 +309,14 @@ pub struct PlaygroundKinematic {
 }
 
 #[derive(Deserialize)]
-struct MovingTransformDefinition {
+pub(crate) struct MovingTransformDefinition {
     translation: [f32; 3],
     rotation: [f32; 4],
     scale: [f32; 3],
 }
 
 impl MovingTransformDefinition {
-    fn transform(&self) -> Transform {
+    pub(crate) fn transform(&self) -> Transform {
         Transform::from_translation(Vec3::from_array(self.translation))
             .with_rotation(Quat::from_array(self.rotation))
             .with_scale(Vec3::from_array(self.scale))
@@ -754,6 +755,8 @@ pub fn playground_setup_system(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut tiles_materials: ResMut<Assets<PlaygroundTilesMaterial>>,
+    mut sky_materials: ResMut<Assets<PlaygroundSkyMaterial>>,
+    mut images: ResMut<Assets<Image>>,
     material_library: Res<PlaygroundMaterialLibrary>,
 ) {
     let Some(manifest_path) = manifest_path else {
@@ -1060,10 +1063,11 @@ pub fn playground_setup_system(
             });
         }
         spawn_sun_light(&mut commands, lighting, manifest.sun_rotator.as_ref());
-        spawn_sky(
+        spawn_playground_sky(
             &mut commands,
             &mut meshes,
-            &mut materials,
+            &mut images,
+            &mut sky_materials,
             lighting,
             manifest.sun_rotator.as_ref(),
         );
@@ -1936,78 +1940,7 @@ fn spawn_sun_light(
     });
 }
 
-fn spawn_sky(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    lighting: &SceneLighting,
-    sun_rotator: Option<&PlaygroundRotator>,
-) {
-    let zenith = lighting
-        .sky_zenith
-        .unwrap_or([0.034046, 0.109247, 0.295, 1.0]);
-    let horizon = lighting
-        .sky_horizon
-        .unwrap_or([1.979559, 2.586644, 3.0, 1.0]);
-    let falloff = lighting.sky_horizon_falloff.unwrap_or(3.0).max(0.1);
-    let mut sky_mesh = Sphere::new(500.0).mesh().uv(64, 32);
-    let colors = sky_mesh
-        .attribute(Mesh::ATTRIBUTE_POSITION)
-        .and_then(|attribute| attribute.as_float3())
-        .map(|positions| {
-            positions
-                .iter()
-                .map(|position| {
-                    let vertical = (position[1] / 500.0).clamp(-1.0, 1.0);
-                    let blend = ((vertical + 1.0) * 0.5).powf(falloff.recip());
-                    [
-                        horizon[0] + (zenith[0] - horizon[0]) * blend,
-                        horizon[1] + (zenith[1] - horizon[1]) * blend,
-                        horizon[2] + (zenith[2] - horizon[2]) * blend,
-                        1.0,
-                    ]
-                })
-                .collect::<Vec<[f32; 4]>>()
-        })
-        .unwrap_or_default();
-    sky_mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
-    let sky_material = materials.add(StandardMaterial {
-        base_color: Color::WHITE,
-        unlit: true,
-        cull_mode: None,
-        fog_enabled: false,
-        ..default()
-    });
-    commands.spawn((
-        Name::new("SkySphere"),
-        Mesh3d(meshes.add(sky_mesh)),
-        MeshMaterial3d(sky_material),
-        NotShadowCaster,
-        PlaygroundSky,
-    ));
-    let sun_ray = resolved_sun_ray(lighting, sun_rotator);
-    let sun_brightness = lighting.sky_sun_brightness.unwrap_or(75.0);
-    let sun_material = materials.add(StandardMaterial {
-        base_color: Color::srgb(1.0, 0.85, 0.45),
-        emissive: LinearRgba::rgb(sun_brightness, sun_brightness * 0.78, sun_brightness * 0.3),
-        emissive_exposure_weight: 0.0,
-        unlit: true,
-        cull_mode: None,
-        fog_enabled: false,
-        ..default()
-    });
-    commands.spawn((
-        Name::new("SunDisc"),
-        Mesh3d(meshes.add(Sphere::new(5.0).mesh().uv(24, 12))),
-        MeshMaterial3d(sun_material),
-        Transform::from_translation(-sun_ray * 450.0),
-        NotShadowCaster,
-        PlaygroundSky,
-    ));
-    commands.insert_resource(ClearColor(Color::linear_rgba(
-        horizon[0], horizon[1], horizon[2], horizon[3],
-    )));
-}
+
 
 #[cfg(test)]
 mod tests {
@@ -2222,6 +2155,8 @@ mod tests {
             .init_resource::<Assets<Mesh>>()
             .init_resource::<Assets<StandardMaterial>>()
             .init_resource::<Assets<PlaygroundTilesMaterial>>()
+            .init_resource::<Assets<PlaygroundSkyMaterial>>()
+            .init_resource::<Assets<Image>>()
             .init_resource::<PlaygroundMaterialLibrary>()
             .insert_resource(PlaygroundManifestPath(PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("assets/ALSExtras/Levels/L_Als_Playground/playground_scene.ron")));

@@ -98,6 +98,8 @@ pub mod penetration_recovery;
 pub mod playground;
 #[path = "als_extras/environment/playground_materials.rs"]
 pub mod playground_materials;
+#[path = "als_extras/environment/playground_sky.rs"]
+pub mod playground_sky;
 #[path = "bevy_ext/projected_decal.rs"]
 pub mod projected_decal;
 #[path = "animation_graph_ext/pose_timestamp.rs"]

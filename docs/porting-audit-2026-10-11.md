@@ -191,6 +191,8 @@
 - 漏检：旧场景验证只确认编辑属性与配置匹配、光照强度/方向和对象存在，没有追踪Blueprint构造后的有效MID输入。修复Gate应覆盖太阳角度/自动颜色开关、曲线和最终材质消费者，不能从保存的MID缓存硬编码单个默认场景。
 - 同一静态替代的另一边界：fresh材质的Time×CloudSpeed连接Panner_4(SpeedX=0.001)→TextureSample_7→最终输出；当前CloudSpeed=2、CloudOpacity=1，fresh `T_Sky_Clouds_M` 2048×1024/RGBA逐像素导出确认R范围0..255。源云UV每秒变化0.002；实际setup生成的SkySphere为unlit StandardMaterial、base_color_texture=None，仅有依赖顶点高度的一次性渐变，云层及其滚动未移植。它与错误颜色同属此手写SkySphere替代源材质链，归并本项；修复不能止于颜色常量。
 
+修复验收（2026-10-12 13:41:12 +08:00）：fresh EngineSky/World闭包经离线导入后，实际单一材质执行源构造颜色/太阳高度/falloff与两云滚动/星空/太阳输出；源网格2208顶点、两UV、朝内面与三纹理均到真实消费者。33项定向回归、日/夜40个实际GPU输出、五CPU和四shader消融恢复通过，原正式库setup反例转PASS；多余Alpha状态/索引翻面、旧静态渐变和假太阳球删除。RGBA16源无法无损表示为32位TGA，用户已授权16位RGBA PNG；原生解码后精度/通道/全部像素一致，8位RGBA仍TGA，原导出不改。17源记录/最终源码及生成数据一致，正式target_game构建和原Playground startup功能通过；截图/性能延期，FullPass仍False。18a开始12:26、预估13:01、实际12:51:11、偏差−588秒；18b开始12:51、预估13:46、实际13:41:12、偏差-287秒。
+
 ### P2-19 — 环境碰撞体使用了 Avian 默认物理材质
 
 - Source：fresh World的`S_Arch_01.StaticMeshComponent0.PhysMaterialOverride=None`，fresh Arch BodySetup.PhysMaterial=None，源材质无覆盖。UE `Runtime/Engine/Private/PhysicsEngine/BodyInstance.cpp:3178–3244` 按body/component/setup/material优先级解析，最终回退`DefaultPhysicalMaterial`；当次原生PA记录确认该引擎资产Friction=0.7、Restitution=0.3、Combine=Average。

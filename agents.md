@@ -28,7 +28,7 @@
 1. **source-first**：对标修改前必须从本地 ALS-Refactored 工程重新提取当次事实；本地路径可用时不得用网页版本替代。事实和 Gate 结论写入当前条目或提交说明，禁止凭记忆实现。
 2. **只复刻已证实差异**：观察、截图和性能样本只用于定位。先逐项比较 source/target 的算法、输入、值、生命周期和坐标空间；source 未证实差异或 source 自身相同则不做优化、补偿、平滑或阈值放宽。
 3. **原始导出不可变**：UE 导出的原始资产是 source record，不追加、重写或手工修补。单位、坐标基和算法标量的 target 数据必须由可复跑离线工具生成到独立 target 资产/配置；运行时只消费 target 数据。迁移已完成条目的原始资产边界必须先显式复开该条目。
-   纹理按Texture.Source实际通道数选择容器（4通道TGA、3通道PNG），导出后重新解码并逐像素核对，禁止按名称、扩展名或Alpha内容推断通道数。材质移植须用`tools/import/audit_material_texture_channels.py`核对源图所需通道→实际文件通道→shader采样；源需要A而目标缺A必须失败并追查导出工具，不能补造Alpha。打包纹理直接采样，保留丢Alpha与漏shader通道的最小反例。
+   纹理按Texture.Source实际通道数与精度选择容器（4通道8位TGA、3通道PNG；用户已允许RGBA16源使用无损16位RGBA PNG），导出后重新解码并逐像素核对，禁止按名称、扩展名或Alpha内容推断通道数，不得将16位源静默量化为8位。材质移植须用`tools/import/audit_material_texture_channels.py`核对源图所需通道→实际文件通道→shader采样；源需要A而目标缺A必须失败并追查导出工具，不能补造Alpha。打包纹理直接采样，保留丢Alpha与漏shader通道的最小反例。
 4. **Transform 与单位**：位置、旋转、scale、轴、手性、parent space、骨骼/IK/root motion/trace 等均先推导完整坐标基和单位语义，再转换；不能只抄 XYZ 或套通用 Rotator。转换工具使用中性 source/runtime 命名，并以基向量、旋转和字段复算验证。
 5. **生命周期**：明确一次性初始化、条件重建、事件和逐帧阶段。逐帧 pose/IK 写回从当帧动画输入开始，禁止回读上一帧 post-rig Transform 形成累积；重建须有触发、清理和执行次数证据。
 6. **物理时钟**：按 source 与 target 的实际执行语义映射 Delta clamp、fixed accumulator、substep 和异步路径；不得凭配置名或 `1/30` 把物理限制改成全局固定帧率。

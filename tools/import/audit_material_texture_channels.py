@@ -9,7 +9,7 @@ from import_camera_component import record
 from ue_animation_asset_resolver import source_object_path
 
 
-def required_channels(material):
+def required_channels(material, sample_nodes=None):
     objects = {obj['object_path']: obj for obj in material['asset_objects']}
     editor = next(obj for obj in objects.values() if obj['class_path'].endswith('.MaterialEditorOnlyData'))
     result = {}
@@ -34,6 +34,8 @@ def required_channels(material):
                 if record(fields, 'Mask')['exported_text'] not in ('0', 'False'):
                     channels = ''.join(channel for channel in 'RGBA' if record(fields, 'Mask' + channel)['exported_text'] not in ('0', 'False'))
                 result.setdefault(texture, set()).update(channels)
+                if sample_nodes is not None:
+                    sample_nodes.setdefault(texture,set()).add(node['object_path'])
             visit(node)
 
     visit(editor)
@@ -41,7 +43,8 @@ def required_channels(material):
 
 
 def audit(material, texture, image, original, shader, binding):
-    required = required_channels(material).get(texture['asset_path'])
+    sample_nodes = {}
+    required = required_channels(material,sample_nodes).get(texture['asset_path'])
     if not required:
         raise ValueError('Source material does not consume this texture')
     actual = set(image.getbands())
@@ -50,19 +53,20 @@ def audit(material, texture, image, original, shader, binding):
         raise ValueError('Exported texture is missing source channels: ' + ''.join(sorted(missing)) + '; check the source exporter')
     if len(image.getbands()) != texture['source_channels']:
         raise ValueError('Exported channel count differs from Texture.Source')
-    expected_format = {4: 'TGA', 3: 'PNG'}[texture['source_channels']]
+    expected_format = 'PNG' if texture['source_pixel_format'] == 'RGBA16' else {4: 'TGA', 3: 'PNG'}[texture['source_channels']]
     if image.format != expected_format:
         raise ValueError('Texture container does not match its source channel count')
     if not texture.get('source_image_pixel_exact') or image.size != original.size or image.tobytes() != original.tobytes():
         raise ValueError('Runtime texture pixels differ from the verified source export')
     samples = re.findall(r'\blet\s+(\w+)\s*=\s*textureSample(?:Grad|Level|Bias)?\s*\(\s*' + re.escape(binding) + r'\b', shader)
-    if len(samples) != 1:
-        raise ValueError('Packed source texture must be sampled exactly once')
-    swizzles = ''.join(re.findall(r'\b' + samples[0] + r'\.([rgbaxyzw]{1,4})\b', shader))
+    expected_samples = len(sample_nodes[texture['asset_path']])
+    if len(samples) != expected_samples:
+        raise ValueError('Shader texture sample count differs from the source material')
+    swizzles = ''.join(''.join(re.findall(r'\b' + sample + r'\.([rgbaxyzw]{1,4})\b', shader)) for sample in samples)
     consumed = set(swizzles.translate(str.maketrans('rgbaxyzw', 'RGBARGBA')))
     if required - consumed:
         raise ValueError('Shader omits source texture channels: ' + ''.join(sorted(required - consumed)))
-    return {'texture': texture['asset_path'], 'required_channels': ''.join(sorted(required)), 'image_channels': ''.join(image.getbands()), 'shader_channels': ''.join(sorted(consumed)), 'samples': 1, 'source_pixel_exact': True}
+    return {'texture': texture['asset_path'], 'required_channels': ''.join(sorted(required)), 'image_channels': ''.join(image.getbands()), 'shader_channels': ''.join(sorted(consumed)), 'samples': len(samples), 'source_pixel_exact': True}
 
 
 def self_test(material, texture, image, shader, binding):
@@ -96,11 +100,17 @@ def main():
     texture = json.loads(args.texture_source.read_text(encoding='utf-8-sig'))
     image = Image.open(args.image)
     original = Image.open(args.texture_source.parent / texture['source_image'])
+    if texture['source_pixel_format']=='RGBA16':
+        for path in [args.image,args.texture_source.parent/texture['source_image']]:
+            if path.read_bytes()[24:26]!=bytes([16,6]):
+                raise ValueError('RGBA16 texture lost its bit depth or alpha')
+        if args.image.read_bytes()!=(args.texture_source.parent/texture['source_image']).read_bytes():
+            raise ValueError('RGBA16 texture differs from its verified source export')
     shader = args.shader.read_text(encoding='utf-8')
     result = audit(material, texture, image, original, shader, args.binding)
     if args.self_test:
         self_test(material, texture, image, shader, args.binding)
-        result['alpha_loss_and_shader_ablation'] = 'PASS'
+        result['alpha_loss_and_shader_ablation'] = 'PASS' if 'A' in required_channels(material)[texture['asset_path']] else 'NOT_APPLICABLE'
     print(json.dumps(result))
 
 
