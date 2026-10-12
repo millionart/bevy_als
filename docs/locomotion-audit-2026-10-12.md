@@ -2,6 +2,8 @@
 
 目标基线：`5952afcd`。本轮限定 ALS 角色运动、动作、布娃娃与其动画消费者；场景/材质/UI/相机/示例物件不在范围内。截图关闭，性能验收暂停。原始 ALS 插件基线：`b754d6f0f2bb03741d301f8fb88077ebfe561e17`。
 
+复审于 2026-10-12 15:48:46 +08:00 完成，确认 **6 项尚未修复的 P2**，未确认新的 P0/P1。23 个有效最小测试中，12 个通过对照、11 个语义失败对应这 6 项；核心动画源闭包和 Rig 产物审计通过。本轮只提交审计文档，生产源码、资产与转换器相对目标基线无变化。
+
 只记录经本次本地 source、当前实际消费者和最小反例确认的行为差异；既有修复、刻意差异、无消费者字段和仅有症状的观察不重复算缺陷。独立测试/取证产物保留在 gitignored `target/bf140/`；审计不修改生产实现。
 
 ## 覆盖与结论
@@ -10,7 +12,7 @@
 |---|---|---|
 | Character / CMC / 状态 | 已审计，4 项 P2 | 原始 Character、CMC、UE Character/CMC/Capsule/Actor 与当前运动/状态/时钟消费链；fresh B_Als_Character、CS_Als_Default、MS_Als_Normal |
 | 动作 / Root Motion / Ragdoll | 已审计，新增 2 项 P2 | 原始 Actions/Mantling RMS、UE RootMotionSource/CMC 与 Roll/Mantle/GetUp/PA 消费者；fresh PA、Roll/High Mantle/Front+Back GetUp |
-| 运动动画 / 图 / Rig 消费边界 | 待审计 | 尚无本轮结论 |
+| 运动动画 / 图 / Rig 消费边界 | 已审计，未新增已确认 P2 | 9 个核心 AnimBP / 155 个源子图 / 256 个产物、fresh AIS 与 CR_Als；运动输入、Lean、Jump/Air、步幅/播放率、Turn/Rotate/Transition、Foot Lock 与 Rig 当帧消费 |
 
 ## 已确认差异
 
@@ -48,16 +50,16 @@
 
 ### P2-05 — Roll / Mantle 把物理桥速度直接发布为源运动速度
 
-- Source：UE `CharacterMovementComponent.cpp:2156–2161,2941,2968` 以 owner CMC `DeltaSeconds` 计算动画根运动速度；`RootMotionSource.cpp:1608` 把同一 owner delta 传给 RMS。`AlsRootMotionSource_Mantling.cpp:125–128` 同样以该 delta 除世界位置差。`AlsCharacter.cpp::RefreshLocomotion` 消费 CMC Velocity。
-- Target：`src/als/character/actions/roll_drive.rs:2240–2242` 和 `src/als/root_motion_sources/mantle_drive.rs:733` 以世界 dt 得到物理桥速度；`motion.rs:2682–2689` / `actual_motion.rs:89–91` 将其直接发布为实际运动速度，没有恢复 source 的 owner-clock 语义。
+- Source：UE `CharacterMovementComponent.cpp:2156–2161,2941,2968` 以 owner CMC `DeltaSeconds` 计算动画根运动速度；`RootMotionSource.cpp:1608` 把同一 owner delta 传给 RMS。`AlsRootMotionSource_Mantling.cpp:122–124` 同样以该 delta 除世界位置差。`AlsCharacter.cpp::RefreshLocomotion` 消费 CMC Velocity。
+- Target：`src/als/character/actions/roll_drive.rs:2237` 和 `src/als/root_motion_sources/mantle_drive.rs:735` 以世界 dt 得到物理桥速度；`motion.rs:2682–2689` / `actual_motion.rs:89–91` 将其直接发布为实际运动速度，没有恢复 source 的 owner-clock 语义。
 - 完整角色反例：Roll 在倍率 0.5 时，实际发布前向速度 1.335909 m/s，源同一根轨道增量对应 2.671818 m/s；倍率 2 时为 12.119965 对 6.059982 m/s。Mantle 两种倍率也分别为源速度的 0.5 倍和 2 倍；倍率 1 对照通过。Mantle oracle 读取驱动实际消费的 actor world 起点再除 owner delta，排除了旧父空间问题。
 - 影响：动作位移可以正确，但 `AlsActualMotion`、动画输入、后续惯性移交及读取角色速度的逻辑收到错误速度。世界时钟物理桥本身有作用，不能简单把它的除数改成 owner delta 而破坏位移；应在修复时核对物理桥与源速度的消费边界。
 - 漏检：旧动作时钟 Gate 检查播放时间和位移；BF139-P2-07 的速度 oracle 明确以世界 0.05 秒相除，复制了此处错误语义。此次只登记新证据，不改写或撤销旧报告。
 
 ### P2-06 — Ragdoll 恢复清除了 actor 的 Pitch / Roll
 
-- Source：`AlsCharacter_Actions.cpp:1102–1106` 从 `GetActorRotation()` 创建 NewActorRotation，只替换 Yaw 后调用 SetActorLocationAndRotation。
-- Target：`src/als/character/actions/ragdoll_link.rs:934–938,978–982` 构造纯 yaw 四元数并替换整个 actor rotation。
+- Source：`AlsCharacter_Actions.cpp:1101–1104` 从 `GetActorRotation()` 创建 NewActorRotation，只替换 Yaw 后调用 SetActorLocationAndRotation。
+- Target：`src/als/character/actions/ragdoll_link.rs:934–938,986–989` 构造纯 yaw 四元数并替换整个 actor rotation。
 - 完整角色反例：布娃娃已稳定，退出前 actor pitch=0.2 rad、roll=−0.1 rad；请求退出并实际进入 GettingUp 后，目标两者均为 0，源应保留。零倾斜对照通过。
 - 影响：带倾斜的 actor / 挂接姿态在恢复时突然被扶正，胶囊和 mesh 恢复坐标也随之改变。默认直立角色不触发。
 - 漏检：原父空间恢复测试只改变父级 yaw/位置/缩放，并直接把 `ragdoll_recovery_rotation` 的纯 yaw 结果作为期望，未覆盖源“只修改 Yaw”的边界。
@@ -75,3 +77,11 @@ BF140.01（15:00–15:12:25 +08:00）：当次 native reader 读取 B_Als_Charac
 BF140.02（15:14–15:26:28 +08:00）：fresh PA / Roll / High Mantle / GetUp Front+Back 与原始资产逐字节一致；原始 Actions、Mantling RMS 与 UE RootMotionSource 已保存当次快照。复用转换函数重建 PA 的 21 body / 20 constraint / 49 disabled pair，与安装 profile 完全一致；重建完整 Ragdoll/GetUp 设置也一致，PA 转换 self-test 通过。首次使用 Build 实目录查询项目 angular-velocity 配置被工具拒绝，已改用实际 uproject 的插件挂载路径，不计作缺陷。
 
 累计 23 个最小反例/对照在 9.66 秒完成：12 PASS、11 预期语义 FAIL，归并 6 项 P2。新增 8 个实际加载角色测试覆盖两种 Root Motion 的 0.5/1/2 倍率与 Ragdoll 退出倾斜，资产就绪和动作前置条件均通过。证据在 `target/bf140/phase2/` 与 `action_facts.json`。Mantle 的 no-sweep Custom 移动、目标销毁/动作优先级、GetUp 输入解除、Ragdoll ground query/当前父空间与初始限速仍与已核 source 合同相符，未重复登记已修 BF139 问题。
+
+BF140.03（15:28–15:48:46 +08:00）：当次重读 AB_Als 及其 8 个 linked AnimBP、CR_Als、AIS_Als_Default，共 11 个 native 资产；全部与原始插件资产逐字节一致。沿 AB_Als 的实际默认角色引用闭包，源合同审计覆盖 155 个子图、57 个 pose graph、9 个 FSM、77 个 condition graph、491 个源节点和 393 条 pose 连线。247 份当前运行时节点规格重新读取，256 个已安装 RON/FSM 与最后完整编译产物一致；source closure、该范围 editor validation、runtime asset boundary 及 closure self-test 全部通过。此处没有修改转换规则，未运行全库重转，也未将周边 Overlay 物件或 Camera 加入审计。
+
+CR_Als 使用本次 native 记录重新编译合同和 target program，165 条指令、79 根骨骼、43 条曲线及完整 program 与安装文件完全一致；当次 AIS 确认站立/蹲姿共享 Walk stride 曲线、Turn 延迟区间 0→0.75、Lean/Rotate/FootLock 阈值与现有消费者相符。已保留 AnimationInstance 与两种动作 Notify 的当次 C++ 快照。证据为 `target/bf140/graph_closure.json`、`animation_facts.json`、`graph_source_flat/` 和相应 watchdog JSON。
+
+排除候选：Air 时 provider 保留非零 max-braking 数据，但完整角色起跳的 14 帧没有观察到实际 Grounded refresh 消费；原观察及失败的“必须有消费者”夹具保存在 `target/bf140/observations/`，不计为语义失败或第 7 项缺陷。已从有效反例集移除，最终 23 项重新编译执行为 12 PASS / 11 预期 FAIL，9.89 秒完成，无加载、超时或夹具前置失败。旧固定步长 UphillJump 腿平面观察仍缺少本轮可确认的 source-target 根因，不据此复开已完成图。
+
+最终边界：共 19 个 fresh native 资产、15 个 C++/header 快照；生产库 SHA-256 始终不变。六项均有独立触发条件和对照，尚未实施修复；本轮未进行截图、性能验收或完整 Playground 功能总验收。
