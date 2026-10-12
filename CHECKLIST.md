@@ -49,3 +49,22 @@
   - source/static 摘要：247 份当前规格、完整默认角色 source closure、256 editor 资产、运行时资产边界与审计工具负例全部通过；CR_Als 重建完全一致。Air max-braking 候选没有实际消费证据，已排除；有效反例最终 23 项为 12 PASS / 11 预期语义 FAIL，六项 P2 均未修复。下一步为审计交付；不自动开始修复、截图或性能验收。
 
 完成摘要：目标基线 `5952afcd`，原始 ALS 插件 `b754d6f0`；三个只读批次完成，确认六项 P2，未确认新 P0/P1。19 个 fresh native 与 15 个 C++/header 快照取证完成；C++ 固定读取原始插件根，资产均核对原始/Build 一致。BF139 已修问题只作去重，未修改生产代码、资产或转换器，无新增生产设计需要消融；截图关闭、性能验收继续暂停。
+
+## BF141 运动系统复审差异修复
+
+用户已于 2026-10-12 授权修复 BF140 报告的六项差异。按下列顺序逐项完成自己的 Gate 和提交；截图关闭，性能验收继续暂停，公共运行使用 `-CaptureCount 0 -FunctionalOnly`。旧 Gate 只对报告已证明的具体消费者有限复开，保留历史失败和通过记录。
+
+- [x] BF141.01 / P2-01 跳跃按住使用 owner delta。开始：2026-10-12 16:00 +08:00；预估结束：2026-10-12 16:55 +08:00；实际结束：2026-10-12 16:37:17 +08:00；偏差 −17分43秒。依据：已有最小失败、BF139 角色时钟修复和 BF134 非零按住合同；范围仅 ALS Jump 输入、计时及原始入口。结果：修复及本项 Gate PASS，无需拆分；旧 Gate 的非零按住×角色倍率漏检已补入维护回归。
+  - source/static 摘要（16:03）：当次原生 B_Als_Character 与原始 Character/UE Character/CMC/Actor tick 闭环；CMC 的 ClearJumpInput 消费 owner delta，Tnua action input 可逐帧更新。维护回归已稳定 FAIL：倍率 .5、第12帧仅经过角色 .1 秒时，速度4.0365而源应4.11825。下一步直接传递帧 delta 给现有 Jump input，并验证中途倍率变化，保留普通物理时钟。
+  - 实现/消融摘要（16:20）：仅给现有 Jump input 增加当帧 delta 标量，首次启动与活动期间均写入 owner delta，由原 hold_elapsed 单独累计；没有额外时钟资源或修正计时的系统。恢复世界计时、去掉逐帧刷新两项消融均为语义 FAIL；精确字节恢复后同 target 的 6 项相关回归 PASS。消融首版夹具在 ctx 移交后读取字段导致编译失败，已纠正并排除该结果。下一步同启动器正式构建、声明式审计与 startup/base 功能 Gate。
+  - 运行前闭包（16:30）：声明式 manifest、source 哈希、图位置、editor 与资产边界通过；同 `target_game`、play 优化级别3的 manual_playground/spec/test 正式构建通过，私有 Cargo 增量缓存用于后续编译，运行入口继承同一设置。两个消融对应失败与恢复字节已核对；开始 startup，再进入原 Base 动作流程，均关闭截图并只验收功能。
+  - runtime 摘要（16:32）：startup 功能通过，graph/fault/temporal 为空、primary_failure=null，图根姿态有效；原三个生产库跳跃反例/对照全部 PASS。完整性能结果仍为 false，eval 预算仅延期、不修改阈值。接着执行原 Base 动作功能 Gate。
+  - 完成摘要（16:37）：Base 原场景功能 PASS，53 项覆盖齐全，graph/fault/temporal 为空、primary_failure=null；截图为0，帧/动画求值预算保持延期。6项定向恢复回归、两个有效消融、原3个生产库反例/对照、声明式合同和正式构建均通过；源哈希及字节恢复记录在 `target/bf141/fix01/`，功能证据在 `target/animation_visual/bf141_fix01/`。下一项为世界胶囊尺寸。
+- [ ] BF141.02 / P2-02 普通 CMC 读取世界胶囊尺寸。启动时登记开始/预估结束；依据 BF139 父空间修复和本轮等世界尺寸反例，预估窗口不超过 55 分钟。Gate：fresh Capsule/CMC、父级分解/蹲起/落地/步阶定向回归、消融及真实 Playground 功能。
+- [ ] BF141.03 / P2-03 静止 VelocityDirection 固定旋转 half-life。启动时登记开始/预估结束；依据现成算法反例和 BF139 旋转入口，预估窗口不超过 35 分钟。Gate：fresh Character、静止/移动与镜头转速对照、消融及真实转向功能。
+- [ ] BF141.04 / P2-04 ActualGait 使用源最大前后速度阈值。启动时登记开始/预估结束；依据已确认的独立 Character/CMC 合同及错误测试，预估窗口不超过 40 分钟。Gate：fresh MovementSettings/Character、方向速度与最大值矩阵、GaitAmount 保留对照、消融及真实运动功能。
+- [ ] BF141.05a / P2-05 Roll 源速度与物理桥时钟。启动时登记开始/预估结束；依赖 .01–.04 Gate。依据 BF139 角色速度恢复桥、当前完整角色反例，预估窗口不超过 55 分钟。Gate：fresh UE CMC、根增量/位移/发布速度/退出惯性与倍率矩阵、消融、真实 Grounded/Roll 功能。
+- [ ] BF141.05b / P2-05 Mantle 源速度与移交。启动时登记开始/预估结束；依赖 .05a 的共用速度语义。依据 BF139 父空间/基座修复和现有反例，预估窗口不超过 55 分钟。Gate：fresh Mantling RMS、静止/活动基座与父空间/倍率/终止矩阵、消融、真实 Mantle 功能。
+- [ ] BF141.06 / P2-06 Ragdoll 恢复保留 actor Pitch/Roll。启动时登记开始/预估结束；依据已确认的源只改 Yaw 分支和 BF139 恢复夹具，预估窗口不超过 45 分钟。Gate：fresh Actions、倾斜/父空间/落地与空中恢复、消融、真实 Ragdoll/GetUp 功能。
+
+活动摘要：工作区基线 `517dbb8d` 干净；审计的 23 个有效反例/对照保留，六项修复均已授权。先补 .01 最小维护回归并确认红色结果，再修改动作自身的 owner-clock 输入；不添加通用时钟层，不修改依赖或转换规则。

@@ -2,7 +2,7 @@
 
 目标基线：`5952afcd`。本轮限定 ALS 角色运动、动作、布娃娃与其动画消费者；场景/材质/UI/相机/示例物件不在范围内。截图关闭，性能验收暂停。原始 ALS 插件基线：`b754d6f0f2bb03741d301f8fb88077ebfe561e17`。
 
-复审于 2026-10-12 15:48:46 +08:00 完成，确认 **6 项尚未修复的 P2**，未确认新的 P0/P1。23 个有效最小测试中，12 个通过对照、11 个语义失败对应这 6 项；核心动画源闭包和 Rig 产物审计通过。本轮只提交审计文档，生产源码、资产与转换器相对目标基线无变化。
+复审于 2026-10-12 15:48:46 +08:00 完成，确认 **6 项 P2**，未确认新的 P0/P1。审计阶段 23 个有效最小测试中，12 个通过对照、11 个语义失败对应这 6 项；核心动画源闭包和 Rig 产物审计通过。用户随后授权修复，当前修复状态以各项记录及 CHECKLIST 为准，原始反例保留。
 
 只记录经本次本地 source、当前实际消费者和最小反例确认的行为差异；既有修复、刻意差异、无消费者字段和仅有症状的观察不重复算缺陷。独立测试/取证产物保留在 gitignored `target/bf140/`；审计不修改生产实现。
 
@@ -17,6 +17,8 @@
 ## 已确认差异
 
 ### P2-01 — 配置的跳跃按住时长没有使用角色时钟
+
+修复完成（2026-10-12 16:37:17 +08:00）：直接把当帧 owner delta 传给现有 Jump input，由原 hold_elapsed 累积，并在活动期间刷新以支持途中变速。fresh Character/UE CMC/Actor/B_Als_Character、维护回归先红后绿、0/.5/1/2及途中暂停/变速矩阵通过；两个有效消融分别重现世界计时和时钟输入陈旧，精确字节恢复后同 target 6项回归通过。正式生产库原3个反例/对照、声明式合同及 target_game 构建通过；真实 startup/Base功能通过，Base53项覆盖齐全，graph/fault/temporal为空。截图0、性能仍延期，未新增通用时钟层或修正计时系统。开始16:00、预估16:55、实际16:37:17、偏差−17分43秒；证据在 `target/bf141/fix01/` 与 `target/animation_visual/bf141_fix01/`。以下保留原审计反例。
 
 - Source：UE `Runtime/Engine/Private/Character.cpp:1609–1625` 的 `ClearJumpInput` 以 CMC 传入的 `DeltaSeconds` 累积 `JumpKeyHoldTime`；`CharacterMovementComponent.cpp:3027` 与 `Actor.h` 的组件 tick helper 共同确认该时间包含 owner `CustomTimeDilation`。`DoJump` 在按住窗口内持续保证最小起跳速度。
 - Target：`src/als/character/movement/control_scheme.rs:71–94` 的 `hold_elapsed` 直接累积 Tnua `ctx.frame_duration`；Tnua controller 使用全局 `Time`。普通 Falling 已用角色倍率推进，按住窗口仍使用世界时间。

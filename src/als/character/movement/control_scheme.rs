@@ -30,6 +30,7 @@ pub struct AlsBuiltinJump {
     pub builtin: TnuaBuiltinJump,
     pub max_hold_time: f32,
     pub jump_z_velocity: f32,
+    pub delta_seconds: f32,
 }
 
 #[derive(Default)]
@@ -69,7 +70,6 @@ impl TnuaAction<TnuaBuiltinWalk> for AlsBuiltinJump {
             memory.hold_elapsed = f32::INFINITY;
         }
         let holding = memory.hold_elapsed < self.max_hold_time;
-        let delta = ctx.frame_duration as f32;
         let up = ctx.up_direction.as_vec3();
         let velocity = ctx.tracker.velocity.dot(up);
         let directive = self.builtin.apply(
@@ -91,7 +91,7 @@ impl TnuaAction<TnuaBuiltinWalk> for AlsBuiltinJump {
                 * (velocity.max(self.jump_z_velocity) - velocity - motor.lin.boost.dot(up))
                     .max(0.0);
         }
-        memory.hold_elapsed += delta;
+        memory.hold_elapsed += self.delta_seconds;
         directive
     }
 

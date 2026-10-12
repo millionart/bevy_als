@@ -6,6 +6,37 @@ use bevy_als::als::{character::{AlsCharacterBundle, AlsCharacterPlugin}, control
     state::LocomotionState, transition::{AlsStateRequest, AlsStateTransitionPlugin}};
 use bevy_als::als_camera::AlsCameraCustomTimeDilation;
 
+#[test]
+fn jump_hold_observes_owner_clock_including_midair_changes() {
+    for rates in [
+        vec![0.0; 24], vec![0.5; 24], vec![1.0; 24], vec![2.0; 24],
+        [vec![0.5; 8], vec![2.0; 16]].concat(),
+        [vec![2.0; 4], vec![0.0; 8], vec![0.5; 12]].concat(),
+    ] {
+        let (mut app, actor, _) = movement_actor(false);
+        app.world_mut().spawn((RigidBody::Static, Collider::cuboid(20.0, 0.2, 30.0), Transform::from_xyz(0.0, -0.1, 0.0)));
+        for _ in 0..30 { app.update(); }
+        let handle = app.world().get::<bevy_als::als::character::AlsMovementParamsHandle>(actor).unwrap().0.clone();
+        app.world_mut().resource_mut::<Assets<AlsMovementParams>>().get_mut(&handle).unwrap().jump.max_hold_time = 0.2;
+        let mut elapsed = 0.0_f32;
+        let mut expected = 0.0_f32;
+        for (frame, dilation) in rates.into_iter().enumerate() {
+            app.world_mut().entity_mut(actor).insert(AlsCameraCustomTimeDilation(dilation));
+            let mut input = app.world_mut().get_mut::<AlsInputCommand>(actor).unwrap();
+            input.jump_pressed = frame == 0;
+            input.jump_held = true;
+            let delta = (1.0 / 60.0) * dilation;
+            if frame == 0 || elapsed < 0.2 { expected = expected.max(4.2); }
+            expected -= 9.81 * delta;
+            app.update();
+            let actual = app.world().get::<LinearVelocity>(actor).unwrap().y;
+            assert!((actual - expected).abs() < 0.025,
+                "Source Jump hold differs: frame={frame} dilation={dilation} elapsed={elapsed} actual={actual} expected={expected}");
+            elapsed += delta;
+        }
+    }
+}
+
 fn movement_actor(capped: bool) -> (App, Entity, AlsMovementParams) {
     let mut app = App::new();
     app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin, PhysicsPlugins::new(PostUpdate),

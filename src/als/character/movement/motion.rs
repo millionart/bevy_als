@@ -3016,6 +3016,7 @@ type DriveQueryItem<'a> = (
 #[allow(clippy::type_complexity)]
 pub(crate) fn locomotion_drive_system(
     time: Res<Time<Virtual>>,
+    custom_dilations: Query<&crate::als_camera::AlsCameraCustomTimeDilation>,
     mut commands: Commands,
     spatial: SpatialQuery,
     velocities: Query<(&RigidBody, &LinearVelocity, Option<&crate::als::dynamics::AlsComponentVelocity>), Without<AlsCharacter>>,
@@ -3052,10 +3053,12 @@ pub(crate) fn locomotion_drive_system(
         let roll = rolls.get(entity).ok();
         controller.initiate_action_feeding();
         let ragdolling = actions.get(entity).ok() == Some(&crate::als::state::AlsNotifyLocomotionAction::Ragdolling);
-        if (*loco != LocomotionState::Air || ragdolling)
-            && let Some(crate::als::control_scheme::AlsControlSchemeActionState::Jump(jump)) = controller.current_action.as_mut()
-        {
-            jump.memory.hold_elapsed = f32::INFINITY;
+        let delta_seconds = time.delta_secs() * custom_dilations.get(entity).map_or(1.0, |value| value.0);
+        if let Some(crate::als::control_scheme::AlsControlSchemeActionState::Jump(jump)) = controller.current_action.as_mut() {
+            jump.input.delta_seconds = delta_seconds;
+            if *loco != LocomotionState::Air || ragdolling {
+                jump.memory.hold_elapsed = f32::INFINITY;
+            }
         }
         let input_blocked = blocked.contains(entity);
         let effective =
@@ -3207,6 +3210,7 @@ pub(crate) fn locomotion_drive_system(
                             builtin: TnuaBuiltinJump { allow_in_air: true, ..default() },
                             max_hold_time: params.jump.max_hold_time,
                             jump_z_velocity: params.jump.jump_z_velocity,
+                            delta_seconds,
                         }));
                     }
                 }
