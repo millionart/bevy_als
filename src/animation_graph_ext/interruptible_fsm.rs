@@ -3132,15 +3132,72 @@ mod tests {
             graph
         }
 
-        fn query_wrapped(In((root, fsm_node)): In<(Handle<AnimationGraph>, NodeId)>, resources: SystemResources) -> Vec<(f32, Option<f32>, Option<f32>)> {
+        fn wrap_slot(mut graph: AnimationGraph, weight_key: &str, additive: bool, always: bool) -> AnimationGraph {
+            use bevy_animation_graph::core::context::spec_context::NodeOutputPin;
+            let source = graph.remove_edge_by_target(&TargetPin::OutputData("Pose".into())).unwrap();
+            graph.remove_edge_by_target(&TargetPin::OutputData("State".into()));
+            graph.io_spec.remove_output(&NodeOutputPin::Data("State".into()));
+            let slot = AnimationNode::new("source slot", crate::extensions::SourceSlotNode {
+                weight_key: weight_key.into(), always_update_source_pose: always,
+                mesh_space_additive_key: if additive { "slot_is_additive".into() } else { String::new() }, ..default()
+            });
+            graph.add_node(slot.clone());
+            graph.add_edge(source, TargetPin::NodeData(slot.id, "Source".into()));
+            graph.add_output_data_edge(slot.id, "Pose", "Pose");
+            graph
+        }
+
+        fn wrap_cached_slot(mut graph: AnimationGraph) -> AnimationGraph {
+            use crate::extensions::{SourceCachedPoseSaveNode, SourceCachedPoseUseNode, SourceSlotNode, SourceTwoWayBlendNode};
+            use bevy_animation_graph::core::context::spec_context::NodeOutputPin;
+            let source = graph.remove_edge_by_target(&TargetPin::OutputData("Pose".into())).unwrap();
+            graph.remove_edge_by_target(&TargetPin::OutputData("State".into()));
+            graph.io_spec.remove_output(&NodeOutputPin::Data("State".into()));
+            let save = AnimationNode::new("slot machine cache", SourceCachedPoseSaveNode::default());
+            let uses = ["base cache", "slot cache"].map(|name| AnimationNode::new(name, SourceCachedPoseUseNode {
+                cache_node: save.name.clone(),
+            }));
+            let slot = AnimationNode::new("cached source slot", SourceSlotNode { weight_key: "partial_slot_weight".into(), ..default() });
+            let blend = AnimationNode::new("cached slot blend", SourceTwoWayBlendNode {
+                alpha_key: "cached_blend_alpha".into(), expose_alpha_pin: false, pin_default: 0.8, ..default()
+            });
+            for node in [&save, &uses[0], &uses[1], &slot, &blend] { graph.add_node(node.clone()); }
+            graph.add_edge(source, TargetPin::NodeData(save.id, "Pose".into()));
+            graph.add_node_parameter_edge(uses[0].id, "Pose", blend.id, "A");
+            graph.add_node_parameter_edge(uses[1].id, "Pose", slot.id, "Source");
+            graph.add_node_parameter_edge(slot.id, "Pose", blend.id, "B");
+            graph.add_output_data_edge(blend.id, "Pose", "Pose");
+            graph
+        }
+
+        fn query_wrapped(In((root, fsm_node, warm)): In<(Handle<AnimationGraph>, NodeId, bool)>, resources: SystemResources) -> Vec<(f32, Option<f32>, Option<f32>)> {
             let graph = resources.animation_graph_assets.get(&root).unwrap();
             let mut gizmos = DeferredGizmos::default();
             let entities = HashMap::new();
-            let inputs = HashMap::from([("pose".to_owned(), DataValue::Pose(Pose::default())),
+            let pose = Pose::default();
+            let inputs = HashMap::from([("pose".to_owned(), DataValue::Pose(pose.clone())),
+                ("slot_pose".to_owned(), DataValue::Pose(pose)),
+                ("partial_slot_weight".to_owned(), DataValue::F32(0.75)),
+                ("full_slot_weight".to_owned(), DataValue::F32(1.0)),
+                ("edge_slot_weight".to_owned(), DataValue::F32(0.99999)),
+                ("layer_slot_weight".to_owned(), DataValue::F32(1.0)),
+                ("slot_is_additive".to_owned(), DataValue::F32(1.0)),
+                ("cached_blend_alpha".to_owned(), DataValue::F32(0.8)),
                 ("delta".to_owned(), DataValue::F32(0.02))]);
             let env = TestIoEnv::default();
             [0.4_f32, 1.0].into_iter().map(|weight| {
                 let mut arena = GraphContextArena::new(root.id());
+                if warm {
+                    let mut warm_inputs = inputs.clone();
+                    warm_inputs.insert("slot_transition_ready".into(), false.into());
+                    with_machine_weight(weight, || graph.query_with_context(
+                        QueryOutputTime::Forced(TimeUpdate::Delta(0.02)),
+                        GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources,
+                            &env, Entity::PLACEHOLDER, &entities, &mut gizmos, &warm_inputs),
+                    )).unwrap();
+                }
+                let mut inputs = inputs.clone();
+                inputs.insert("slot_transition_ready".into(), true.into());
                 let output = with_machine_weight(weight, || graph.query_with_context(
                     QueryOutputTime::Forced(TimeUpdate::Delta(0.02)),
                     GraphContext::new(arena.get_toplevel_id(), graph, &mut arena, &resources,
@@ -3258,12 +3315,35 @@ mod tests {
         let half_graph = wrap_curves(root.clone(), 0.5);
         let half = graphs.add(half_graph.clone());
         let nested = graphs.add(wrap_curves(half_graph, 0.5));
-        let unit = graphs.add(wrap_curves(root, 1.0));
+        let unit = graphs.add(wrap_curves(root.clone(), 1.0));
+        let mut ready_graph = AnimationGraph::new();
+        let ready = AnimationNode::new("Slot transition ready", crate::extensions::GlobalBoolInputNode { key: "slot_transition_ready".into() });
+        ready_graph.add_node(ready.clone());
+        ready_graph.add_output_data("Ready".into(), DataSpec::Bool);
+        ready_graph.add_output_data_edge(ready.id, "slot_transition_ready", "Ready");
+        let gate = SourceTransitionConditionGate { condition: graphs.add(ready_graph), output: "Ready".into(), context_state: states[0] };
+        let mut slot_machine = fsm.try_inner_downcast_ref::<InterruptibleFsmNode>().unwrap().clone();
+        for condition in &mut slot_machine.source_transition_conditions { condition.gates.push(gate.clone()); }
+        let mut slot_machine = AnimationNode::new("slot weighted machine", slot_machine);
+        slot_machine.id = fsm.id;
+        root.add_node(slot_machine);
+        let partial_slot = wrap_slot(root.clone(), "partial_slot_weight", false, false);
+        let slot_cases = [
+            ("partial", wrap_curves(partial_slot.clone(), 1.0), Some(0.25)),
+            ("nested", wrap_curves(wrap_curves(partial_slot, 0.5), 0.5), Some(0.0625)),
+            ("additive", wrap_curves(wrap_slot(root.clone(), "partial_slot_weight", true, false), 1.0), Some(1.0)),
+            ("full_skip", wrap_curves(wrap_slot(root.clone(), "full_slot_weight", false, false), 1.0), None),
+            ("always", wrap_curves(wrap_slot(root.clone(), "full_slot_weight", false, true), 1.0), Some(0.00002)),
+            ("edge", wrap_curves(wrap_slot(root.clone(), "edge_slot_weight", false, false), 1.0), Some(0.00002)),
+            ("cached", wrap_curves(wrap_cached_slot(root), 1.0), Some(0.2)),
+        ].map(|(label, graph, factor)| (label, graphs.add(graph), factor));
         let mut world = World::new();
         world.insert_resource(graphs);
         world.insert_resource(machines);
         world.insert_resource(Assets::<GraphClip>::default());
-        world.insert_resource(Assets::<Skeleton>::default());
+        let mut skeletons = Assets::<Skeleton>::default();
+        skeletons.insert(Handle::<Skeleton>::default().id(), Skeleton::default()).unwrap();
+        world.insert_resource(skeletons);
         assert_eq!(world.run_system_cached_with(query, (direct, fsm_id)).unwrap(), vec![(1.0, 0.4), (1.0, 1.0)]);
         for (graph, expected) in [
             (zero, vec![(0.4, None, None), (1.0, None, None)]),
@@ -3271,8 +3351,29 @@ mod tests {
             (nested, vec![(0.4, Some(1.0), Some(0.1)), (1.0, Some(1.0), Some(0.25))]),
             (unit, vec![(0.4, Some(1.0), Some(0.4)), (1.0, Some(1.0), Some(1.0))]),
         ] {
-            assert_eq!(world.run_system_cached_with(query_wrapped, (graph, fsm_id)).unwrap(), expected);
+            assert_eq!(world.run_system_cached_with(query_wrapped, (graph, fsm_id, false)).unwrap(), expected);
         }
+        let mut slot_failures = Vec::new();
+        for (label, graph, factor) in slot_cases {
+            println!("Source Slot fixture begin: {label}");
+            let rows = world.run_system_cached_with(query_wrapped, (graph, fsm_id, true)).unwrap();
+            for ((timestamp, selected, recorded), parent) in rows.into_iter().zip([0.4_f32, 1.0]) {
+                assert_eq!(timestamp, parent);
+                let expected = factor.map(|factor| parent * factor);
+                if recorded.is_some() != expected.is_some() {
+                    slot_failures.push(format!("Source Slot source relevancy: {label}, actual={recorded:?}, expected={expected:?}"));
+                }
+                if let Some(expected) = expected {
+                    if !recorded.is_some_and(|recorded| (recorded - expected).abs() < 1e-6) {
+                        slot_failures.push(format!("Source Slot fractional machine weight: {label}, actual={recorded:?}, expected={expected}"));
+                    }
+                    if selected != Some(if expected < 1.0 { 1.0 } else { 2.0 }) {
+                        slot_failures.push(format!("Source Slot actual MachineWeight transition: {label}, actual={selected:?}, expected_weight={expected}"));
+                    }
+                } else if selected.is_some() { slot_failures.push(format!("Source Slot skipped source still selected a state: {label}")); }
+            }
+        }
+        assert!(slot_failures.is_empty(), "{}", slot_failures.join("\n"));
     }
 
     fn fixture_pose(x: f32) -> Pose {

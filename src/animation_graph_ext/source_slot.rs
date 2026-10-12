@@ -64,8 +64,8 @@ impl Default for SourceSlotNode {
     }
 }
 
-impl NodeLike for SourceSlotNode {
-    fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+impl SourceSlotNode {
+    pub(crate) fn update_weights(&self, ctx: &NodeContext) -> Result<(f32, f32, bool, f32), GraphError> {
         let slot_weight = slot_blend_weight(
             ctx.graph_context
                 .global_input_data
@@ -90,6 +90,19 @@ impl NodeLike for SourceSlotNode {
                 .transpose()?
                 .is_some_and(|value| value.is_finite() && value > 0.5)
         };
+        let source_weight = if mesh_space_additive || !ctx.graph_context.global_input_data.contains_key(&self.pose_key) {
+            1.0
+        } else { 1.0 - slot_weight * layer_weight };
+        let source_weight = if !self.always_update_source_pose && source_weight <= 1e-5 {
+            0.0
+        } else { source_weight.max(2e-5) };
+        Ok((slot_weight, layer_weight, mesh_space_additive, source_weight))
+    }
+}
+
+impl NodeLike for SourceSlotNode {
+    fn update(&self, mut ctx: NodeContext) -> Result<(), GraphError> {
+        let (slot_weight, layer_weight, mesh_space_additive, source_weight) = self.update_weights(&ctx)?;
         let overlay = if slot_weight > 0.0 && layer_weight > 0.0 {
             ctx.graph_context
                 .global_input_data
@@ -100,9 +113,7 @@ impl NodeLike for SourceSlotNode {
         } else {
             None
         };
-        if !self.always_update_source_pose
-            && !mesh_space_additive
-            && slot_weight * layer_weight >= 1.0 - 1e-5
+        if source_weight == 0.0
             && let Some(pose) = overlay.as_ref()
         {
             let mut context = slot_context(
@@ -120,7 +131,8 @@ impl NodeLike for SourceSlotNode {
             *ctx.state_mut_or_else(AnimationContextState::default)? = context;
             return Ok(());
         }
-        let base = ctx.data_back("Source")?.into_pose()?;
+        let base = crate::extensions::interruptible_fsm::with_machine_weight(source_weight,
+            || ctx.data_back("Source"))?.into_pose()?;
         let base_context = pose_input_context_state(&ctx, "Source");
         let context = slot_context(
             base_context,

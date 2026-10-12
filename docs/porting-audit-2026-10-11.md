@@ -137,6 +137,8 @@
 
 ### P2-13 — Slot 的 SourceWeight 没有进入底层状态机更新上下文
 
+修复完成（2026-10-12 09:40:07 +08:00）：SourceSlot统一计算更新权重，普通Slot传递剩余非加法权重，加法保留1；SourceWeight严格大于1e-5才相关，always-update按源最小2e-5更新。直接Source求值复用既有machine-weight scope，现有缓存分支收集器也读取同一权重，保留SaveCachedPose最高请求语义及Getter完成缓冲，不改变Pose/Curve混合。14组parent/Slot模式/边界/嵌套/共享缓存与真实条件选态、五种语义消融、字节恢复同target95回归、正式库两个原反例/五运动矩阵、345规格/15root静态闭包/声明式/510编辑器通过，fresh15root/39源/374产物零diff。原Playground startup、grounded（含Roll）16项、GetUp13项功能通过，graph/fault/temporal均空，性能和截图延期。夹具按当前核心query自动推进帧的事实纠正重复推进，先建立完成权重再验证条件，未修改原Getter。证据位于本地 `target/bf139/fix13/` 与 `target/animation_visual/bf139_p213/`。以下保留原审计反例。
+
 - Source：UE `AnimGraphRuntime/Private/AnimNodes/AnimNode_Slot.cpp:86–92` 用SourceWeight创建FractionalWeight更新源pose；`Engine/Private/Animation/AnimNode_StateMachine.cpp:382` 记录Context.GetFinalBlendWeight，`AnimInstanceProxy.cpp:2487` 的MachineWeight getter读该记录。
 - Target：`src/animation_graph_ext/source_slot.rs:130` 直接读取Source，未使用已有fractional machine weight scope；最终pose/context曲线乘权重不能补回更新阶段记录。
 - 反例：实际生产SourceSlotNode与单状态InterruptibleFsmNode组成最小图，连续3帧。slot weight=0时machine=1对照PASS；slot weight=0.75、layer weight=1时machine仍1，源应0.25，原生断言FAIL。
