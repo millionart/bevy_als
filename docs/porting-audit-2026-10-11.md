@@ -162,6 +162,8 @@
 - 反例：完整角色真实Camera组件，开启第一人称混合后暂停Time<Virtual>，推进3个真实帧。owner=1时elapsed delta=0、FirstPersonOverride保持0.07407408，对照PASS；owner=0时elapsed delta=0.049999997、混合升到0.7407408、view移动1.9981213 m，原生断言FAIL。
 - 影响：暂停界面/冻结角色的相机仍平移和切换视点。旧测试分别覆盖时间倍率和暂停，没有组合world pause与零owner倍率。修复应保留世界运行中IgnoreTimeDilation对零owner倍率的合法real-time行为；当前只记录。
 
+修复验收（2026-10-12 11:03:15 +08:00）：fresh Character Camera CDO与engine scheduler确认暂停不tick；动画与rig各用一条Bevy原生not(paused)条件，保持原缓存view/有效性，并保留运行时owner0忽略倍率的real-time回退。六组合暂停/恢复、真实pose/curve/lag/view矩阵通过，两条件消融失败、两份源码字节恢复后38项camera回归通过。当前Camera8源subgraph/345规格/15root完整静态闭包与公共startup/Camera11项通过，截图/性能延期。开始10:31、预估11:16、偏差−12分45秒；旧反例保留。
+
 ### P2-16 — PlayerStart named lookup 使用大小写敏感字符串
 
 - Source：UE `GameModeBase.cpp:1156–1160` 先构造FName，再与PlayerStartTag比较；FName身份忽略大小写。

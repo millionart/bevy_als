@@ -71,6 +71,7 @@ impl Plugin for AlsSourceCameraPlugin {
         .add_systems(
             PostUpdate,
             update_camera_animation
+                .run_if(bevy::ecs::schedule::common_conditions::not(bevy::time::common_conditions::paused))
                 .in_set(AlsCameraAnimationSet)
                 .after(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Evaluate)
                 .before(AnimationGraphSet::PostPhysics),
@@ -591,6 +592,77 @@ pub(crate) mod tests {
         app.update();
         let debug = app.world().get::<crate::als_camera::AlsCameraDebugInfo>(component).unwrap();
         assert!(debug.trace_blocking_hit, "Other actor colliders must still block the camera");
+    }
+
+    #[test]
+    fn source_camera_pause_preserves_animation_lag_and_view_until_resume() {
+        use crate::als_camera::{AlsCameraCurve, AlsCameraRuntime, AlsCameraViewInfo};
+        for ignore in [true, false] {
+            for owner_dilation in [0.0_f32, 0.5, 1.0] {
+                let (mut app, character, component, _) = loaded_camera_scene();
+                let handle = app.world().get::<AlsCameraDefinitionHandle>(character).unwrap().0.clone();
+                app.world_mut().resource_mut::<Assets<AlsCameraDefinition>>().get_mut(&handle).unwrap()
+                    .settings.ignore_time_dilation = ignore;
+                app.world_mut().entity_mut(character).insert(crate::als_camera::AlsCameraCustomTimeDilation(owner_dilation));
+                app.update();
+                let entity = app.world().get::<AnimatedSceneInstance>(component).unwrap().player_entity();
+                let before_running = app.world().get::<AnimationGraphPlayer>(entity).unwrap().elapsed();
+                let running_frame = app.world().get::<AnimationGraphPlayer>(entity).unwrap().get_context_arena().unwrap().frame_index();
+                app.world_mut().entity_mut(character).insert(crate::als::input_request::AlsFirstPersonView);
+                app.update();
+                let delta = if ignore { app.world().resource::<Time<Real>>().delta_secs() }
+                    else { app.world().resource::<Time<Virtual>>().delta_secs() * owner_dilation };
+                let player = app.world().get::<AnimationGraphPlayer>(entity).unwrap();
+                assert!((player.elapsed() - before_running - delta).abs() < 1e-6,
+                    "Running source camera clock: ignore={ignore} owner={owner_dilation}");
+                assert_eq!(player.get_context_arena().unwrap().frame_index(), running_frame + 1);
+                let elapsed = player.elapsed();
+                let frame = player.get_context_arena().unwrap().frame_index();
+                let pose = player.get_default_output_pose().unwrap().bones.iter().map(|bone| bone.to_transform()).collect::<Vec<_>>();
+                let curves = app.world().get::<AlsCameraCurveValues>(component).unwrap().values;
+                let view = *app.world().get::<AlsCameraViewInfo>(component).unwrap();
+                let runtime = *app.world().get::<AlsCameraRuntime>(component).unwrap();
+                let previous_dilation = app.world().get::<AlsSourceCameraComponent>(component).unwrap().previous_global_time_dilation;
+                assert!(view.valid);
+                app.world_mut().resource_mut::<Time<Virtual>>().pause();
+                app.world_mut().get_mut::<crate::als::motion::AlsViewYaw>(character).unwrap().0 += 0.8;
+                {
+                    let mut sockets = app.world_mut().get_mut::<crate::als_camera::AlsCameraSocketLocations>(character).unwrap();
+                    sockets.root += Vec3::X * 0.3;
+                    sockets.head += Vec3::X * 0.3;
+                    sockets.first_person += Vec3::X * 0.3;
+                }
+                for _ in 0..3 {
+                    app.update();
+                    let player = app.world().get::<AnimationGraphPlayer>(entity).unwrap();
+                    assert_eq!(player.get_context_arena().unwrap().frame_index(), frame,
+                        "Paused source camera graph tick: ignore={ignore} owner={owner_dilation}");
+                    assert_eq!(player.elapsed(), elapsed);
+                    assert_eq!(player.get_default_output_pose().unwrap().bones.iter().map(|bone| bone.to_transform()).collect::<Vec<_>>(), pose);
+                    assert_eq!(app.world().get::<AlsCameraCurveValues>(component).unwrap().values, curves);
+                    let current = app.world().get::<AlsCameraViewInfo>(component).unwrap();
+                    assert!(current.valid && current.location == view.location && current.rotation == view.rotation
+                        && current.field_of_view_deg == view.field_of_view_deg,
+                        "Paused source camera view tick: ignore={ignore} owner={owner_dilation} before={view:?} after={current:?}");
+                    let current = app.world().get::<AlsCameraRuntime>(component).unwrap();
+                    assert_eq!((current.previous_pivot_target, current.pivot_lag_location, current.camera_rotation, current.trace_distance_ratio),
+                        (runtime.previous_pivot_target, runtime.pivot_lag_location, runtime.camera_rotation, runtime.trace_distance_ratio));
+                    assert_eq!(app.world().get::<AlsSourceCameraComponent>(component).unwrap().previous_global_time_dilation, previous_dilation);
+                }
+                app.world_mut().resource_mut::<Time<Virtual>>().unpause();
+                app.update();
+                let player = app.world().get::<AnimationGraphPlayer>(entity).unwrap();
+                assert_eq!(player.get_context_arena().unwrap().frame_index(), frame + 1);
+                assert!((player.elapsed() - elapsed - delta).abs() < 1e-6,
+                    "Resumed source camera clock: ignore={ignore} owner={owner_dilation}");
+                assert!(app.world().get::<AlsCameraViewInfo>(component).unwrap().valid);
+                if delta > 0.0 {
+                    assert!(app.world().get::<AlsCameraViewInfo>(component).unwrap().location.distance(view.location) > 1e-5);
+                    assert!(app.world().get::<AlsCameraCurveValues>(component).unwrap().get(AlsCameraCurve::FirstPersonOverride)
+                        >= curves[AlsCameraCurve::FirstPersonOverride.index()]);
+                }
+            }
+        }
     }
 
     #[test]

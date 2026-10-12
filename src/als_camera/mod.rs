@@ -402,7 +402,7 @@ impl Plugin for AlsCameraPlugin {
                     resolve_camera_socket_locations.after(TransformSystems::Propagate),
                     camera_movement_base_bridge_system.after(TransformSystems::Propagate),
                     ApplyDeferred,
-                    camera_rig_system,
+                    camera_rig_system.run_if(bevy::ecs::schedule::common_conditions::not(bevy::time::common_conditions::paused)),
                     apply_camera_view,
                     shake::apply_camera_shakes,
                 )

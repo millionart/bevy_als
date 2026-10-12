@@ -1,0 +1,152 @@
+{
+  "format": "als_animgraph_authoring_gate_v1",
+  "id": "source_camera_pause_scheduler",
+  "graphs": [
+    {
+      "path": "assets/ALSCamera/AB_Als_Camera.runtime.animgraph.ron",
+      "expected_nodes": [
+        {
+          "id": "b1160102-0000-4000-8000-000000000001",
+          "name": "AB_Als_Camera",
+          "position": [
+            -240.0,
+            0.0
+          ]
+        }
+      ],
+      "expected_edges": [
+        {
+          "target": "OutputData(\"pose\")",
+          "source": "NodeData(\"b1160102-0000-4000-8000-000000000001\", \"pose\")"
+        }
+      ],
+      "expected_io": {
+        "input_data": {},
+        "input_times": [],
+        "output_time": false,
+        "output_data": {
+          "pose": "Pose"
+        }
+      },
+      "root_output_exceptions": []
+    }
+  ],
+  "source_evidence": [
+    {
+      "path": "target/bf139/fix15/source/AB_Als_Camera.json",
+      "sha256": "987ceca0f947008a5778ba235703ce7af3958e3e8600a82b71a438fd2e86f5c7"
+    },
+    {
+      "path": "target/bf139/fix15/source/AlsCameraAnimationInstance.cpp",
+      "sha256": "1eca38f8a66665c22c7969c68b78a47625730589afbfa92b07f7a08f43c8ef46"
+    },
+    {
+      "path": "target/bf139/fix15/source/AlsCameraComponent.cpp",
+      "sha256": "55cebe93625b590ad74704511ae959822e1eb9a849d4b39297a57be965754614"
+    },
+    {
+      "path": "target/bf139/fix15/source/AlsCameraComponent.h",
+      "sha256": "9e57a63829ca5b3b944a656364f86cd49327e8298a2fd8560536ce61ce75dd31"
+    },
+    {
+      "path": "target/bf139/fix15/source/B_Als_Character.json",
+      "sha256": "7b3cb1fd67d37db8bb6c6ea9bd918bd2f0139cbe89b18090b51e14e68688591f"
+    },
+    {
+      "path": "target/bf139/fix15/source/contract.json",
+      "sha256": "309d857ae71f1b25faeadcedea3899c64251f3679c03096ea8179864ef633c1e"
+    },
+    {
+      "path": "target/bf139/fix15/source/CS_Als_Default.json",
+      "sha256": "e19070b926fc147c3e6795569393a6ef1aa73c5e04f5aedeef590e8f8d298011"
+    },
+    {
+      "path": "target/bf139/fix15/source/SkeletalMeshComponent.cpp",
+      "sha256": "06179d38ebff3138b6412fe14b14331c0a9e8c1623b760801ba6276602223378"
+    },
+    {
+      "path": "target/bf139/fix15/source/TickTaskManager.cpp",
+      "sha256": "3edd71a42f995ccf0c51cb01d5e6593f413d8a157795e3edfc85b1d7acfa104b"
+    },
+    {
+      "path": "target/bf139/fix15/source/time_conditions.rs",
+      "sha256": "b853c690249284bbc1adb134b6a481603eda240e7dadd6ccdd486d31828902cf"
+    }
+  ],
+  "verification_commands": [
+    {
+      "label": "camera_positions",
+      "scope": "layout",
+      "argv": [
+        "python",
+        "tools/verify_animgraph_node_positions.py",
+        "--root",
+        "assets/ALSCamera/AB_Als_Camera"
+      ]
+    },
+    {
+      "label": "camera_editor",
+      "scope": "editor",
+      "argv": [
+        "python",
+        "tools/validate_animgraph_editor_assets.py",
+        "--root",
+        "assets/ALSCamera/AB_Als_Camera"
+      ]
+    },
+    {
+      "label": "runtime_asset_boundary",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/validate_runtime_graph_asset_boundary.py",
+        "--assets-root",
+        "assets",
+        "--check"
+      ]
+    },
+    {
+      "label": "fresh_camera_source_closure",
+      "scope": "source",
+      "argv": [
+        "python",
+        "tools/animgraph_authoring/audit_source_closure.py",
+        "--source-directory",
+        "target/bf139/graph_source_flat",
+        "--materialized-directory",
+        "target/bf139/fix13/graphs/outputs/14",
+        "--spec",
+        "target/bf139/fix15/current_spec.json",
+        "--assets-root",
+        "assets"
+      ]
+    }
+  ],
+  "runtime_gate": {
+    "contract_gate": "animgraph_assets",
+    "manual_case": "camera"
+  },
+  "focused_tests": [
+    {
+      "label": "camera_pause_owner_dilation_cached_view_and_existing_camera_regressions",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--jobs",
+        "2",
+        "--profile",
+        "play",
+        "--config",
+        "profile.play.package.bevy_als.opt-level=0",
+        "--lib",
+        "--",
+        "camera_component::tests",
+        "als_camera::",
+        "--test-threads=1"
+      ],
+      "evidence": "target/bf139/fix15/restored_lib.watchdog.json"
+    }
+  ]
+}
