@@ -11163,7 +11163,9 @@ mod tests {
     #[test]
     fn notify_reentry_driver_waits_for_a_stopped_tail_and_requests_once() {
         for elapsed in [0.4, 0.83, 0.9, 0.95, crate::als::roll::ROLL_DURATION_SECS] {
-            let roll = AlsRollState { active: true, time: elapsed, ..default() };
+            let blend_start = crate::als::roll::ROLL_DURATION_SECS - crate::als::roll::ROLL_WEIGHT_OUT_SECS;
+            let roll = AlsRollState { active: true, time: elapsed,
+                natural_blend_start: (elapsed >= blend_start).then_some(blend_start), ..default() };
             assert_eq!(roll_tail_reentry_ready(Some(&roll), LocomotionState::Grounded, false), elapsed >= 0.9 && elapsed < crate::als::roll::ROLL_DURATION_SECS);
             assert!(!roll_tail_reentry_ready(Some(&roll), LocomotionState::Grounded, true));
             assert!(!roll_tail_reentry_ready(Some(&roll), LocomotionState::Air, false));
@@ -12300,6 +12302,8 @@ mod tests {
         playing.advance(0.4);
         let mut finished = playing;
         finished.advance(2.0);
+        assert!(finished.active && finished.stop_elapsed.is_some());
+        finished.advance(finished.blend_out + 0.01);
         assert!(standing_stop_completed(true, Some(&playing), Some(&finished), true));
         assert!(!standing_stop_completed(false, Some(&playing), Some(&finished), true));
         assert!(!standing_stop_completed(true, None, Some(&finished), true));
@@ -12398,6 +12402,8 @@ mod tests {
         playing.advance(0.6);
         let mut finished = playing;
         finished.advance(2.0);
+        assert!(finished.active && finished.stop_elapsed.is_some());
+        finished.advance(finished.blend_out + 0.01);
         assert!(standing_stop_completed(true, Some(&playing), Some(&finished), true));
         assert!(!standing_stop_completed(true, Some(&playing), Some(&playing), true));
         assert!(!standing_stop_completed(false, Some(&playing), Some(&finished), true));
@@ -12469,6 +12475,8 @@ mod tests {
         stop.advance(0.6);
         let mut finished = stop;
         finished.advance(3.0);
+        assert!(finished.active && finished.stop_elapsed.is_some());
+        finished.advance(finished.blend_out + 0.01);
         assert!(!standing_stop_completed(true, Some(&stop), Some(&finished), false));
         assert!(standing_stop_completed(true, Some(&stop), Some(&finished), true));
         for index in [2, 3] {

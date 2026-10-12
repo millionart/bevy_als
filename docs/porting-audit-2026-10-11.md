@@ -108,6 +108,8 @@
 - 影响：动作尾段pose/curve/notify权重与源错位，后续混出还使用不同预算。原有测试验证曲线形状或中断fade，没有验证源 UpdateWeight/Advance/首次自然Stop的顺序。Mantle使用自定义TriggerTime=0的末点停止，不按本项默认自然窗口直接推断缺陷。
 - BF139.04追加：source `AlsAnimationInstance.cpp:1780` 的Transition使用TriggerTime=0，`AnimMontage.cpp:2626–2636` 仍在Advance首次触及末点才Stop，当前weight保持1。目标 `stop_link.rs:252–279` 当帧直接用elapsed越界量计算混出；实际StandingDynamic的duration1.533333/rate1.5，在末点前20 ms推进100 ms后weight=0.64799964、stop_elapsed=0.08000004，源该帧应1/0，实际角色消费者FAIL。Turn明确使用惯性混出，不把不同源合同算作此项缺陷。
 
+夹具维护（2026-10-12 14:32:04 +08:00）：扩大回归揭示4个未同步到本项源时序的纯夹具；物理材质修复前正式库重现全部4失败，fresh Roll及UE UpdateWeight→Advance证明其手工状态不完整。仅补自然混出开始/首次Stop后下一帧，保持运动算法、driver判定和图/资产不变；180项回归通过，旧真实入口结果保持。
+
 ### P2-10 — 初始非等比缩放退回未缩放的布娃娃物理配置
 
 - Source：UE `SkeletalMeshComponentPhysics.cpp:1000–1084` 从含组件世界缩放的 BoneTransform 初始化刚体；`ChaosInterfaceUtils.cpp:139,148,176` 按形状调用 `GetFinalScaled`，`BodySetup.cpp:2006` 的球半径乘绝对最小轴。初始化与 `UpdateRigidBodyScaling:3517` 对运行中非等比变更的拒绝必须区分，本项只证明初始创建。
