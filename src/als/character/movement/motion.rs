@@ -319,7 +319,7 @@ fn moving_rotation_half_life(
         (RotationMode::ViewDirection, false) => stationary_view_profile.sample(gait_amount),
         _ => 0.0,
     }};
-    if rotation_mode == RotationMode::Aiming {
+    if rotation_mode == RotationMode::Aiming || (rotation_mode == RotationMode::VelocityDirection && !moving) {
         return base;
     }
     let responsiveness =
@@ -1217,6 +1217,14 @@ mod rotation_cap_tests {
         );
         assert!((normal - 0.15).abs() < 1e-6);
         assert!((responsive - 0.05).abs() < 1e-6);
+        for stance in [Stance::Standing, Stance::Crouching] {
+            for (moving, expected) in [(false, 0.1), (true, if stance == Stance::Standing { 0.05 / 3.0 } else { 0.05 })] {
+                let actual = moving_rotation_half_life(&params, 2.0, RotationMode::VelocityDirection,
+                    moving, params.rotation.reference_view_yaw_speed, stance);
+                assert!((actual - expected).abs() < 1e-6,
+                    "Source VelocityDirection half-life differs: stance={stance:?} moving={moving} actual={actual}");
+            }
+        }
     }
 
     #[test]

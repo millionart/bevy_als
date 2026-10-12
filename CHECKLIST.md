@@ -66,10 +66,15 @@
   - 实现/消融摘要（17:40）：world getter 与 inverse-parent 写回覆盖 CMC、状态同步、蹲起和基座携带；9组地面、3组台阶、3组低顶棚及整帧/物理前 current-transform 合同通过。7个消费者消融均语义 FAIL，精确字节恢复后同 target 10项回归 PASS。运动夹具补上与真实入口一致的最终 Transform 传播，排除新增移动输入后读取旧缓存造成的夹具假失败。真实 stairs 夹具以父级2/局部.5保持原角色世界大小1，新增实际 local/world scale 观测；下一步正式构建与 startup/stairs 功能 Gate。
   - 运行前闭包（17:48）：fresh 世界尺寸/相对写回 source、7个有效消融和字节恢复、10项回归、声明式合同、source 哈希及正式 target_game 构建全部通过；原资产与转换规则未改。开始 startup→stairs，三座原楼梯的六条路线保留世界角色尺寸1，实际父级分解由数值报告核对；截图0、仅功能验收。
   - 完成摘要（17:50）：原生产库反例转 PASS，startup/stairs 功能通过，三楼梯上下六路线及9项入口覆盖齐全；2275个实际样本 world scale=1、local scale=.5，原角色世界尺寸/相机/环境保持。graph/fault/temporal为空、primary_failure=null；原阈值和性能延期保留。证据在 `target/bf141/fix02/` 与 `target/animation_visual/bf141_fix02/`，下一项只处理静止 VelocityDirection 的半衰期分支。
-- [ ] BF141.03 / P2-03 静止 VelocityDirection 固定旋转 half-life。启动时登记开始/预估结束；依据现成算法反例和 BF139 旋转入口，预估窗口不超过 35 分钟。Gate：fresh Character、静止/移动与镜头转速对照、消融及真实转向功能。
+- [x] BF141.03 / P2-03 静止 VelocityDirection 固定旋转 half-life。开始：2026-10-12 18:00 +08:00；预估结束：2026-10-12 18:35 +08:00；实际结束：2026-10-12 18:09:44 +08:00；偏差 −25分16秒。依据现成算法反例、BF139 旋转入口与前两项构建实测；结果：仅 stationary VelocityDirection 提前返回、Gate PASS，无需拆分。增量缓存与单分支修复缩短了正式构建，同类小分支估时可降低。
+  - source/static 摘要（18:00）：fresh Character 静止 VelocityDirection 明确固定 .1 秒；只有 moving 计算函数应用 ViewState.YawSpeed 倍率。维护回归先红：镜头变化 .01 弧度，首帧 yaw=.117828，而源 .109366。修改现有提前返回条件，保留移动/ViewDirection 倍率；下一步静止两姿态×正负镜头速度、移动对照、消融与公共 standing_response 功能 Gate。
+  - 实现/消融摘要（18:05）：两姿态×五档镜头变化的维护反例恢复通过，移除提前返回条件后稳定语义 FAIL；精确字节恢复、同 target 重编后 11项运动回归 PASS。已有移动响应测试扩展 VelocityDirection 两姿态及 moving/stationary 对照并 PASS，确认 moving/ViewDirection 仍有源镜头倍率。fresh MS_Als_Normal 与 Character、声明式 manifest/位置/editor/资产边界通过；下一步正式构建与公共 startup→standing_response。
+  - 运行前闭包（18:08）：同 target_game/play 优化级别3正式构建通过，源码字节与消融恢复一致；source 哈希、声明式合同及相关回归已闭合。开始公共 startup→standing_response，保留原 Playground 角色/相机/环境，CaptureCount=0、FunctionalOnly；未展开相邻图或其他旋转分支。
+  - runtime 摘要（18:09）：startup 功能通过，graph/fault/temporal为空、primary_failure=null；正式优化构建中的静止旋转维护回归亦 PASS。继续原 standing_response 场景，性能预算保持延期。
+  - 完成摘要（18:09）：standing_response 原场景6项覆盖通过，图求值/姿态/时序有效，graph/fault/temporal为空、primary_failure=null。两姿态×五档静止镜头变化、移动对照、11项恢复回归、分支消融、正式构建和声明式合同通过；截图0、性能延期。证据在 `target/bf141/fix03/` 与 `target/animation_visual/bf141_fix03/`，下一项 ActualGait。
 - [ ] BF141.04 / P2-04 ActualGait 使用源最大前后速度阈值。启动时登记开始/预估结束；依据已确认的独立 Character/CMC 合同及错误测试，预估窗口不超过 40 分钟。Gate：fresh MovementSettings/Character、方向速度与最大值矩阵、GaitAmount 保留对照、消融及真实运动功能。
 - [ ] BF141.05a / P2-05 Roll 源速度与物理桥时钟。启动时登记开始/预估结束；依赖 .01–.04 Gate。依据 BF139 角色速度恢复桥、当前完整角色反例，预估窗口不超过 55 分钟。Gate：fresh UE CMC、根增量/位移/发布速度/退出惯性与倍率矩阵、消融、真实 Grounded/Roll 功能。
 - [ ] BF141.05b / P2-05 Mantle 源速度与移交。启动时登记开始/预估结束；依赖 .05a 的共用速度语义。依据 BF139 父空间/基座修复和现有反例，预估窗口不超过 55 分钟。Gate：fresh Mantling RMS、静止/活动基座与父空间/倍率/终止矩阵、消融、真实 Mantle 功能。
 - [ ] BF141.06 / P2-06 Ragdoll 恢复保留 actor Pitch/Roll。启动时登记开始/预估结束；依据已确认的源只改 Yaw 分支和 BF139 恢复夹具，预估窗口不超过 45 分钟。Gate：fresh Actions、倾斜/父空间/落地与空中恢复、消融、真实 Ragdoll/GetUp 功能。
 
-活动摘要：工作区基线 `517dbb8d` 干净；审计的 23 个有效反例/对照保留，六项修复均已授权。先补 .01 最小维护回归并确认红色结果，再修改动作自身的 owner-clock 输入；不添加通用时钟层，不修改依赖或转换规则。
+活动摘要：工作区基线 `517dbb8d`；审计的23个有效反例/对照保留，六项修复均已授权。.01–.03 已通过自身 Gate 并分别提交，下一项 .04 ActualGait；不修改依赖或转换规则。

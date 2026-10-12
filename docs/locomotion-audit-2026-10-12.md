@@ -38,6 +38,8 @@
 
 ### P2-03 — 静止 VelocityDirection 旋转错误地随镜头转速加快
 
+修复完成（2026-10-12 18:09:44 +08:00）：静止 VelocityDirection 的现有 half-life 直接返回，保留移动与 ViewDirection 的镜头转速倍率。两姿态×五档正负镜头变化的维护反例先红后绿，移除分支再次语义 FAIL；精确字节恢复、同 target 重编后11项运动回归及移动对照通过，正式优化构建中的反例亦通过。fresh Character/MS_Als_Normal、声明式合同、startup与standing_response原场景6项功能覆盖通过，graph/fault/temporal为空。开始18:00、预估18:35、实际18:09:44、偏差−25分16秒；只增加提前返回条件，没有新增生产状态/系统或修改图与资产。证据在 `target/bf141/fix03/` 与 `target/animation_visual/bf141_fix03/`；截图0、性能延期。以下保留原审计反例。
+
 - Source：`AlsCharacter.cpp:1546–1576` 的静止 VelocityDirection 分支固定使用 0.1 秒 half-life；镜头转速倍率属于 `CalculateGroundedMovingRotationInterpolationHalfLife`，该分支不调用它。
 - Target：`src/als/character/movement/motion.rs:314–327` 取出静止的 0.1 后，仍统一乘以镜头转速倍率。
 - 反例：Grounded、速度 0、无输入，保留目标 yaw=1 rad，60 Hz。镜头不变时实际/源均约 0.109366 rad；镜头在本帧转动 1 rad 时，实际 actor yaw=0.292778 rad，源仍应为 0.109366 rad。

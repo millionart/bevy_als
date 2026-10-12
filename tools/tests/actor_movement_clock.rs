@@ -37,6 +37,30 @@ fn jump_hold_observes_owner_clock_including_midair_changes() {
     }
 }
 
+#[test]
+fn stationary_velocity_rotation_retains_source_half_life_at_each_camera_speed() {
+    use bevy_als::als::{motion::{AlsRotationResponseState, AlsViewYaw}, state::{RotationMode, Stance}};
+    for stance in [Stance::Standing, Stance::Crouching] {
+        for view_delta in [0.0_f32, 0.01, -0.01, 1.0, -1.0] {
+            let (mut app, actor, _) = movement_actor(false);
+            app.world_mut().spawn((RigidBody::Static, Collider::cuboid(20.0, 0.2, 30.0), Transform::from_xyz(0.0, -0.1, 0.0)));
+            for _ in 0..10 { app.update(); }
+            let target = 1.0_f32;
+            app.world_mut().entity_mut(actor).insert((stance, RotationMode::VelocityDirection, AlsViewYaw(view_delta),
+                AlsRotationResponseState { initialized: true, target_yaw: target, smooth_target_yaw: target,
+                    previous_view_yaw: 0.0, previous_rotation_mode: Some(RotationMode::VelocityDirection),
+                    rotation_towards_last_input_direction_blocked: true, ..default() }));
+            app.update();
+            let yaw = bevy_als::als::orientation::world_forward_to_yaw(app.world().get::<Rotation>(actor).unwrap().0 * Vec3::NEG_Z);
+            let expected = target * (1.0 - bevy_als::als::animation::inv_exp_approx(std::f32::consts::LN_2 / (0.1 + 1e-8) / 60.0));
+            let actual = app.world().get::<bevy_als::actual_motion::AlsActualMotion>(actor).unwrap();
+            assert!(!actual.has_input && actual.horizontal_speed < 0.01);
+            assert!((yaw - expected).abs() < 1e-4,
+                "Source stationary VelocityDirection keeps its half-life: stance={stance:?} view_delta={view_delta} yaw={yaw} expected={expected}");
+        }
+    }
+}
+
 fn movement_actor(capped: bool) -> (App, Entity, AlsMovementParams) {
     let mut app = App::new();
     app.add_plugins((MinimalPlugins, AssetPlugin::default(), TransformPlugin, PhysicsPlugins::new(PostUpdate),
