@@ -58,7 +58,7 @@
 
 ### P2-05 — Roll / Mantle 把物理桥速度直接发布为源运动速度
 
-修复进度（2026-10-12 20:12）：Roll静态闭环完成，公共功能Gate与Mantle尚未完成。Root/source速度通过既有CMC通道恢复，物理桥保持世界时长；碰撞预处理消费owner时间，基座携带与禁止位移重算分别闭合。新增9组完整角色/归零倍率/移交、冻结碰撞与producer对照；源HasAnimRootMotion是当帧数据，故保留一个写入者布尔位，删除高层Roll推断及无效重复清理。8个消费者消融、producer删除/合并消融均语义FAIL，字节恢复后的52 Roll/102运动控制和声明式合同通过。首轮超时与第二轮拆分记录见 `CHECKLIST.md` BF141.05a；此处不将静态通过称功能验收。证据在 `target/bf141/fix05a/`。以下保留原审计反例。
+修复进度（2026-10-12 20:23）：Roll功能Gate通过，Mantle仍待.05b。Root/source速度通过既有CMC通道恢复，物理桥保持世界时长；碰撞前置、基座携带、禁止位移重算及当帧producer所有权闭合，额外清理经消融删除。9组完整角色/归零倍率/移交矩阵、冻结碰撞、producer正反例、10项有效消融、精确恢复后的52 Roll/102运动控制、声明式合同、正式构建及原生产库3个速度反例通过。公共startup→grounded的16项覆盖、姿态/时序全部功能PASS，graph/fault/temporal为空、primary_failure=null；截图0、性能延期。首轮超时与第二轮拆分见 `CHECKLIST.md` BF141.05a；证据在 `target/bf141/fix05a/` 与 `target/animation_visual/bf141_fix05a/`。以下保留原审计反例。
 
 - Source：UE `CharacterMovementComponent.cpp:2156–2161,2941,2968` 以 owner CMC `DeltaSeconds` 计算动画根运动速度；`RootMotionSource.cpp:1608` 把同一 owner delta 传给 RMS。`AlsRootMotionSource_Mantling.cpp:122–124` 同样以该 delta 除世界位置差。`AlsCharacter.cpp::RefreshLocomotion` 消费 CMC Velocity。
 - Target：`src/als/character/actions/roll_drive.rs:2237` 和 `src/als/root_motion_sources/mantle_drive.rs:735` 以世界 dt 得到物理桥速度；`motion.rs:2682–2689` / `actual_motion.rs:89–91` 将其直接发布为实际运动速度，没有恢复 source 的 owner-clock 语义。
