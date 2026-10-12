@@ -9,7 +9,7 @@
 | 范围 | 状态 | 证据边界 |
 |---|---|---|
 | Character / CMC / 状态 | 已审计，4 项 P2 | 原始 Character、CMC、UE Character/CMC/Capsule/Actor 与当前运动/状态/时钟消费链；fresh B_Als_Character、CS_Als_Default、MS_Als_Normal |
-| 动作 / Root Motion / Ragdoll | 待审计 | 尚无本轮结论 |
+| 动作 / Root Motion / Ragdoll | 已审计，新增 2 项 P2 | 原始 Actions/Mantling RMS、UE RootMotionSource/CMC 与 Roll/Mantle/GetUp/PA 消费者；fresh PA、Roll/High Mantle/Front+Back GetUp |
 | 运动动画 / 图 / Rig 消费边界 | 待审计 | 尚无本轮结论 |
 
 ## 已确认差异
@@ -46,6 +46,22 @@
 - 影响：提前发布实际步态；`ab_als_provider.rs:93,398` 消费 Gait 选择方向和 Sprint 动画输入，因此不只是调试标签不同。默认 MS_Als_Normal 关闭方向速度，此问题在源与目标均公开支持的方向速度配置触发。
 - 漏检：`refresh_gait_uses_direction_dependent_thresholds` 测试直接固化了错误期望。速度限制/连续 GaitAmount 的正确性不能证明 ActualGait 使用了正确边界。
 
+### P2-05 — Roll / Mantle 把物理桥速度直接发布为源运动速度
+
+- Source：UE `CharacterMovementComponent.cpp:2156–2161,2941,2968` 以 owner CMC `DeltaSeconds` 计算动画根运动速度；`RootMotionSource.cpp:1608` 把同一 owner delta 传给 RMS。`AlsRootMotionSource_Mantling.cpp:125–128` 同样以该 delta 除世界位置差。`AlsCharacter.cpp::RefreshLocomotion` 消费 CMC Velocity。
+- Target：`src/als/character/actions/roll_drive.rs:2240–2242` 和 `src/als/root_motion_sources/mantle_drive.rs:733` 以世界 dt 得到物理桥速度；`motion.rs:2682–2689` / `actual_motion.rs:89–91` 将其直接发布为实际运动速度，没有恢复 source 的 owner-clock 语义。
+- 完整角色反例：Roll 在倍率 0.5 时，实际发布前向速度 1.335909 m/s，源同一根轨道增量对应 2.671818 m/s；倍率 2 时为 12.119965 对 6.059982 m/s。Mantle 两种倍率也分别为源速度的 0.5 倍和 2 倍；倍率 1 对照通过。Mantle oracle 读取驱动实际消费的 actor world 起点再除 owner delta，排除了旧父空间问题。
+- 影响：动作位移可以正确，但 `AlsActualMotion`、动画输入、后续惯性移交及读取角色速度的逻辑收到错误速度。世界时钟物理桥本身有作用，不能简单把它的除数改成 owner delta 而破坏位移；应在修复时核对物理桥与源速度的消费边界。
+- 漏检：旧动作时钟 Gate 检查播放时间和位移；BF139-P2-07 的速度 oracle 明确以世界 0.05 秒相除，复制了此处错误语义。此次只登记新证据，不改写或撤销旧报告。
+
+### P2-06 — Ragdoll 恢复清除了 actor 的 Pitch / Roll
+
+- Source：`AlsCharacter_Actions.cpp:1102–1106` 从 `GetActorRotation()` 创建 NewActorRotation，只替换 Yaw 后调用 SetActorLocationAndRotation。
+- Target：`src/als/character/actions/ragdoll_link.rs:934–938,978–982` 构造纯 yaw 四元数并替换整个 actor rotation。
+- 完整角色反例：布娃娃已稳定，退出前 actor pitch=0.2 rad、roll=−0.1 rad；请求退出并实际进入 GettingUp 后，目标两者均为 0，源应保留。零倾斜对照通过。
+- 影响：带倾斜的 actor / 挂接姿态在恢复时突然被扶正，胶囊和 mesh 恢复坐标也随之改变。默认直立角色不触发。
+- 漏检：原父空间恢复测试只改变父级 yaw/位置/缩放，并直接把 `ragdoll_recovery_rotation` 的纯 yaw 结果作为期望，未覆盖源“只修改 Yaw”的边界。
+
 ## 验证与排除
 
 BF140.01（15:00–15:12:25 +08:00）：当次 native reader 读取 B_Als_Character、CS_Als_Default、MS_Als_Normal，均与原始插件资产逐字节一致；保留 9 个 C++/header 源快照与 SHA-256。`target_game/play` 当前生产库 SHA-256 为 `5472f9f72358de503f6e823ad5712d270ccff3bb4d9e6fc698676d3dc7c7a4ea`。
@@ -55,3 +71,7 @@ BF140.01（15:00–15:12:25 +08:00）：当次 native reader 读取 B_Als_Charac
 本轮明确排除：普通 gait permission 已读取归一化消费输入；动画加速度在 provider 中补偿 owner delta；静止/上升/下降基座起跳的 signed vertical velocity 继承均通过真实运动系统对照；source 的 InAirRotationMode 原始值 3 落入 default 保持分支，与 target 一致。没有把原生枚举显示为 INVALID 单独列为缺陷。
 
 未新增生产抽象、状态、分支或转换规则，设计消融不适用。此次是只读差异审计，未运行 Playground 修复验收，不将独立反例替代未来修复所需的真实入口 Gate。
+
+BF140.02（15:14–15:26:28 +08:00）：fresh PA / Roll / High Mantle / GetUp Front+Back 与原始资产逐字节一致；原始 Actions、Mantling RMS 与 UE RootMotionSource 已保存当次快照。复用转换函数重建 PA 的 21 body / 20 constraint / 49 disabled pair，与安装 profile 完全一致；重建完整 Ragdoll/GetUp 设置也一致，PA 转换 self-test 通过。首次使用 Build 实目录查询项目 angular-velocity 配置被工具拒绝，已改用实际 uproject 的插件挂载路径，不计作缺陷。
+
+累计 23 个最小反例/对照在 9.66 秒完成：12 PASS、11 预期语义 FAIL，归并 6 项 P2。新增 8 个实际加载角色测试覆盖两种 Root Motion 的 0.5/1/2 倍率与 Ragdoll 退出倾斜，资产就绪和动作前置条件均通过。证据在 `target/bf140/phase2/` 与 `action_facts.json`。Mantle 的 no-sweep Custom 移动、目标销毁/动作优先级、GetUp 输入解除、Ragdoll ground query/当前父空间与初始限速仍与已核 source 合同相符，未重复登记已修 BF139 问题。
