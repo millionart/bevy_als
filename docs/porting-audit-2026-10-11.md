@@ -153,6 +153,8 @@
 - 反例：完整角色进入ragdoll12帧后给实际body共同5 m/s速度，owner CustomTimeDilation=0。确认player的animation.delta_seconds=0；活跃 `A_Als_Flail` 的clock.delta_seconds=0.016666668，position从0.01987938到0.028212715，按0.5播放率仍推进0.008333秒，原生断言FAIL。
 - 影响：冻结/减速角色的flail pose与关节驱动目标继续按世界帧更新，和角色的其他动画时钟不同。旧时钟测试覆盖FSM、同步玩家和动作montage，没有覆盖root下无同步的序列；Rifle的初始候选未满足活跃player前置条件，未当作缺陷证据。后续修复应找全同一消费者，不只特判Flail。
 
+修复验收（2026-10-12 10:29:57 +08:00）：root查询改用现有animation.delta_seconds，普通播放器保留全局时间。root/linked八组受控矩阵与实际Ragdoll六倍率、pose/通知/暂停验证通过；三个必要分支消融失败、精确字节恢复同target 35项回归通过。三相关资产fresh source、39源身份/374完整产物、345规格/15root静态闭包及声明式通过。公共startup/Ragdoll/GetUp功能通过，截图/性能延期。旧反例保留；开始09:47、预估10:37、偏差−7分02秒。
+
 ### P2-15 — 世界暂停时零owner倍率相机仍更新
 
 - Source：UE `Components/SkeletalMeshComponent.cpp:440` 明确 `PrimaryComponentTick.bTickEvenWhenPaused=false`；ALS Camera构造只修改start/tick group，未改变该标志。`TickTaskManager.cpp:1626` 暂停期间只调度允许暂停tick的组件，所以IgnoreTimeDilation的real-delta回退不应在全局暂停时被调用。

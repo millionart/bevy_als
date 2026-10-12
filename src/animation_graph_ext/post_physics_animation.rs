@@ -191,11 +191,15 @@ pub fn evaluate_players<F: QueryFilter>(
         player.set_global_input_data("animation.evaluate_pose", initialize || gate.as_ref().is_none_or(|gate| gate.refresh_bones));
         if initialize {
             let delta = player.get_global_input_data("animation.delta_seconds").cloned();
-            player.set_global_input_data("animation.delta_seconds", 0.0_f32);
+            if delta.is_some() { player.set_global_input_data("animation.delta_seconds", 0.0_f32); }
             inputs.evaluate(entity, || run_animation_player(entity, player.reborrow(), &Time::default(), &resources));
             if let Some(delta) = delta { player.set_global_input_data("animation.delta_seconds", delta); }
         } else {
-            inputs.evaluate(entity, || run_animation_player(entity, player.reborrow(), &time, &resources));
+            let delta = player.get_global_input_data("animation.delta_seconds")
+                .and_then(|value| value.as_f32().ok()).map_or(time.delta_secs(), |value| value);
+            let mut animation_time = Time::default();
+            animation_time.advance_by(std::time::Duration::from_secs_f32(delta.max(0.0)));
+            inputs.evaluate(entity, || run_animation_player(entity, player.reborrow(), &animation_time, &resources));
         }
         if playing && player.get_error().is_none() && player.get_default_output_pose().is_some()
             && let Some(gate) = gate.as_mut() { gate.pending_update = false; }
@@ -235,6 +239,145 @@ fn extract_late_root_motion(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn root_and_linked_sequences_consume_the_player_clock() {
+        use bevy::animation::animated_field;
+        use bevy::ecs::system::RunSystemOnce;
+        bevy::tasks::ComputeTaskPool::get_or_init(bevy::tasks::TaskPool::new);
+        use bevy_animation_graph::core::{animation_clip::{EntityPath, GraphClip},
+            animation_graph::AnimationGraph, animation_node::AnimationNode,
+            context::node_states::StateKey, edge_data::{DataSpec, events::EventQueue},
+            state_machine::high_level::StateMachine};
+        use crate::extensions::{EventClock, EventLifecycle, EventPhase, LayeredGraphNode,
+            PlaybackDirection, StateIntervalBoundary, TimedEvent, TimedEventKind,
+            SourceSequencePlayerNode, animation_context::node_context_state};
+        for linked in [false, true] {
+            for configured in [false, true] {
+                for gated in [false, true] {
+                    let mut world = World::new();
+                    world.init_resource::<Assets<AnimationGraph>>();
+                    world.init_resource::<Assets<GraphClip>>();
+                    world.init_resource::<Assets<Skeleton>>();
+                    world.init_resource::<Assets<StateMachine>>();
+                    let mut time = Time::<()>::default();
+                    time.advance_by(std::time::Duration::from_millis(100));
+                    world.insert_resource(time);
+                    let path = EntityPath::from_slashed_string("root".into());
+                    let bone = path.id();
+                    let mut skeleton = Skeleton::default();
+                    skeleton.set_root(bone);
+                    skeleton.add_bone(path, Transform::IDENTITY, Transform::IDENTITY);
+                    let skeleton = world.resource_mut::<Assets<Skeleton>>().add(skeleton);
+                    let mut animation = bevy::animation::AnimationClip::default();
+                    animation.add_curve_to_target(bone.animation_target_id(), AnimatableCurve::new(
+                        animated_field!(Transform::translation),
+                        UnevenSampleAutoCurve::new([(0.0, Vec3::ZERO), (2.0, Vec3::X * 4.0)]).unwrap()));
+                    let clip = world.resource_mut::<Assets<GraphClip>>().add(
+                        GraphClip::from_bevy_clip(animation, skeleton.clone(), default(), None));
+                    let sequence = AnimationNode::new("unsynchronized sequence", SourceSequencePlayerNode {
+                        clip, play_rate: 0.5, expose_play_rate_pin: false, ..default()
+                    });
+                    let mut graph = AnimationGraph::new();
+                    graph.add_output_data("pose".into(), DataSpec::Pose);
+                    graph.add_output_data_edge(sequence.id, "Pose", "pose");
+                    graph.add_node(sequence.clone());
+                    let mut graph = world.resource_mut::<Assets<AnimationGraph>>().add(graph);
+                    if linked {
+                        let layer = AnimationNode::new("linked layer", LayeredGraphNode {
+                            capture_context: true, internalize_time: true, ..LayeredGraphNode::new(graph)
+                        });
+                        let mut root = AnimationGraph::new();
+                        root.add_output_data("pose".into(), DataSpec::Pose);
+                        root.add_output_data_edge(layer.id, "pose", "pose");
+                        root.add_node(layer);
+                        graph = world.resource_mut::<Assets<AnimationGraph>>().add(root);
+                    }
+                    let mut player = AnimationGraphPlayer::new(skeleton).with_graph(graph);
+                    if configured { player.set_global_input_data("animation.delta_seconds", 0.04_f32); }
+                    let entity = world.spawn((player, crate::extensions::SourceAnimationInputs::default(),
+                        Name::new("root"), Transform::IDENTITY, GlobalTransform::IDENTITY)).id();
+                    world.spawn(ChildOf(entity));
+                    if gated { world.entity_mut(entity).insert(AnimationPoseUpdateGate {
+                        update_graph: true, refresh_bones: true, pending_update: true }); }
+                    world.run_system_once(evaluate_players::<()>).unwrap();
+                    let mut position = if gated { 0.0 } else if configured { 0.02 } else { 0.05 };
+                    let event = TimedEvent { id: "clock crossing".into(), kind: TimedEventKind::Point,
+                        start_time: 0.06, end_time: 0.06, weight_threshold: 0.0, track: None,
+                        state_boundary: StateIntervalBoundary::StartExclusiveEndInclusive,
+                        trigger_on_follower: false, trigger_on_dedicated_server: false };
+                    let mut lifecycle = EventLifecycle::default();
+                    for multiplier in [0.0_f32, 0.5, 1.0, 2.0, 0.0, 1.0] {
+                        if configured { world.get_mut::<AnimationGraphPlayer>(entity).unwrap()
+                            .set_global_input_data("animation.delta_seconds", 0.1 * multiplier); }
+                        let previous = position;
+                        let delta = if configured { 0.1 * multiplier } else { 0.1 };
+                        position += delta * 0.5;
+                        world.run_system_once(evaluate_players::<()>).unwrap();
+                        let player = world.get::<AnimationGraphPlayer>(entity).unwrap();
+                        assert!(player.get_error().is_none(), "{:?}", player.get_error());
+                        let arena = player.get_context_arena().unwrap();
+                        let context = arena.iter_context_ids().find_map(|id| node_context_state(
+                            &arena.get_context(id).unwrap().node_states, StateKey::Default, sequence.id)).unwrap();
+                        let state = context.relevant_asset.as_ref().unwrap();
+                        assert!((state.position - position).abs() < 1e-6 && (state.delta_seconds - delta).abs() < 1e-6,
+                            "Root sequence owner clock: linked={linked} configured={configured} gated={gated} multiplier={multiplier} position={} expected={position} delta={} expected_delta={delta}", state.position, state.delta_seconds);
+                        let pose = player.get_default_output_pose().unwrap();
+                        assert!(pose.get_bone(bone).unwrap().translation.unwrap().abs_diff_eq(Vec3::X * (2.0 * position), 1e-6));
+                        let clock = state;
+                        let signals = lifecycle.update(std::slice::from_ref(&event), &EventQueue::default(),
+                            Some(EventClock { previous_time: clock.previous_position, current_time: clock.position,
+                                duration: clock.duration, direction: PlaybackDirection::Forward, wrapped: false }), 1.0);
+                        assert_eq!(signals.iter().filter(|signal| signal.phase == EventPhase::Point).count(),
+                            usize::from(previous < 0.06 && position >= 0.06));
+                    }
+                    world.get_mut::<AnimationGraphPlayer>(entity).unwrap().pause();
+                    world.run_system_once(evaluate_players::<()>).unwrap();
+                    assert!((world.get::<AnimationGraphPlayer>(entity).unwrap().get_default_output_pose().unwrap().timestamp - position).abs() < 1e-6);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn loaded_ragdoll_flail_consumes_each_owner_clock_delta() {
+        use bevy_animation_graph::core::{animation_graph::AnimationGraph, context::node_states::StateKey};
+        use crate::extensions::{SourceSequencePlayerNode, animation_context::node_context_state};
+        let (mut app, actor, avatar) = crate::roll_drive::tests::loaded_roll_character();
+        app.world_mut().entity_mut(actor).insert(crate::als::state::AlsNotifyLocomotionAction::Ragdolling);
+        for _ in 0..12 { app.update(); }
+        let player_entity = app.world().get::<AnimatedSceneInstance>(avatar).unwrap().player_entity();
+        let bodies = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap()
+            .get_spawned_ragdoll().unwrap().bodies.values().copied().collect::<Vec<_>>();
+        for multiplier in [0.0_f32, 0.5, 1.0, 2.0, 0.0, 1.0] {
+            for body in &bodies { app.world_mut().entity_mut(*body).insert((
+                avian3d::prelude::LinearVelocity(Vec3::X * 5.0), avian3d::prelude::GravityScale(0.0))); }
+            app.world_mut().entity_mut(actor).insert(crate::als_camera::AlsCameraCustomTimeDilation(multiplier));
+            app.update();
+            let player = app.world().get::<AnimationGraphPlayer>(player_entity).unwrap();
+            assert!(player.get_error().is_none(), "{:?}", player.get_error());
+            let delta = player.get_global_input_data("animation.delta_seconds").unwrap().as_f32().unwrap();
+            assert!((delta - app.world().resource::<Time>().delta_secs() * multiplier).abs() < 1e-7);
+            let arena = player.get_context_arena().unwrap();
+            let graphs = app.world().resource::<Assets<AnimationGraph>>();
+            let mut checked = 0;
+            for id in arena.iter_context_ids() {
+                let context = arena.get_context(id).unwrap();
+                let graph = graphs.get(context.get_graph_id()).unwrap();
+                for node in graph.nodes.values() {
+                    let Some(sequence) = node.try_inner_downcast_ref::<SourceSequencePlayerNode>() else { continue; };
+                    if sequence.synchronization.is_some() || !context.node_caches.is_updated(node.id, StateKey::Default) { continue; }
+                    let Some(state) = node_context_state(&context.node_states, StateKey::Default, node.id) else { continue; };
+                    let clock = state.relevant_asset.as_ref().unwrap();
+                    assert!((clock.delta_seconds - delta).abs() < 1e-7,
+                        "Loaded Flail owner clock: multiplier={multiplier} actual={} expected={delta}", clock.delta_seconds);
+                    checked += 1;
+                }
+            }
+            assert!(checked > 0, "Ragdoll must evaluate its unsynchronized Flail sequence");
+            assert!(player.get_default_output_pose().unwrap().bones.len() > 0);
+        }
+    }
 
     #[test]
     fn weighted_ragdoll_readback_keeps_shortest_rotation_and_zero_weight_input() {
