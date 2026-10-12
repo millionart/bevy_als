@@ -645,6 +645,7 @@ fn mantle_drive_system(
             Option<&mut Position>,
             Has<CustomPositionIntegration>,
             Has<CustomVelocityIntegration>,
+            Option<&mut crate::als::character::AlsCmcAdapterRuntime>,
         ),
         (With<AlsCharacter>, With<Transform>),
     >,
@@ -670,6 +671,7 @@ fn mantle_drive_system(
         position,
         custom_position,
         custom_velocity,
+        mut cmc,
     ) in &mut q
     {
         let actor_delta = dt * custom_dilations.get(entity).map_or(1.0, |value| value.0);
@@ -678,6 +680,10 @@ fn mantle_drive_system(
             || dt <= 0.0
         {
             continue;
+        }
+        if let Some(cmc) = cmc.as_deref_mut() {
+            vel.0 = cmc.grounded_collision_velocity.take().unwrap_or(vel.0);
+
         }
         commands.entity(entity).insert((
             AlsMantlePhysicsFrame {
@@ -696,7 +702,6 @@ fn mantle_drive_system(
             true,
         );
         if actor_delta <= 1e-8 && m.root_motion_ready {
-            vel.0 = Vec3::ZERO;
             m.time += actor_delta;
             continue;
         }
@@ -732,7 +737,10 @@ fn mantle_drive_system(
             .map(|parent| transforms.p0().compute_global_transform(parent.parent())).transpose() else { continue; };
         let mut query = transforms.p1();
         let mut transform = query.get_mut(entity).unwrap();
-        *vel = LinearVelocity((target_actor_transform.translation - actor_world.translation()) / dt);
+        let translation = target_actor_transform.translation - actor_world.translation();
+        if actor_delta > 1e-8 {
+            *vel = LinearVelocity(translation / actor_delta);
+        }
         if actor_delta >= crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS {
             transform.translation = parent_world.map_or(target_actor_transform.translation,
                 |parent| parent.affine().inverse().transform_point3(target_actor_transform.translation));
@@ -1681,6 +1689,93 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn loaded_mantle_zero_clock_entry_preserves_pending_source_velocity() {
+        let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+        let origin = app.world().get::<Position>(actor).unwrap().0;
+        let source_velocity = Vec3::new(0.7, 0.0, -0.4);
+        let mut mantle = AlsMantleState::default();
+        mantle.begin(MantleKind::High, origin, origin + Vec3::new(0.0, 1.5, -0.8), 1.5, 0.0, 0.0);
+        app.world_mut().entity_mut(actor).insert((mantle, LinearVelocity(source_velocity),
+            crate::als_camera::AlsCameraCustomTimeDilation(0.0)));
+        for _ in 0..3 {
+            app.update();
+            let actual = app.world().get::<crate::actual_motion::AlsActualMotion>(actor).unwrap().world_velocity;
+            assert!(actual.abs_diff_eq(source_velocity, 0.005),
+                "Source zero-delta RMS entry retains pending CMC velocity instead of the physical bridge: actual={actual:?}");
+            assert!(app.world().get::<Position>(actor).unwrap().0.abs_diff_eq(origin, 1e-5));
+            assert_eq!(app.world().get::<AlsMantleState>(actor).unwrap().time, 0.0);
+        }
+    }
+
+    #[test]
+    fn loaded_mantle_publishes_owner_velocity_through_physics_and_freeze() {
+        use crate::actual_motion::AlsActualMotion;
+        for (parented, moving_base) in [(false, false), (true, false), (true, true)] {
+            for dilation in [0.5_f32, 1.0, 2.0] {
+                let (mut app, actor, _) = crate::roll_drive::tests::loaded_roll_character();
+                let origin = app.world().get::<Position>(actor).unwrap().0;
+                if parented {
+                    let parent_transform = Transform::from_xyz(5.0, 2.0, -3.0)
+                        .with_rotation(Quat::from_euler(EulerRot::YXZ, 1.1, 0.15, -0.1)).with_scale(Vec3::splat(2.0));
+                    let parent = app.world_mut().spawn((parent_transform, GlobalTransform::from(parent_transform))).id();
+                    let local = GlobalTransform::from(*app.world().get::<Transform>(actor).unwrap())
+                        .reparented_to(&GlobalTransform::from(parent_transform));
+                    app.world_mut().entity_mut(actor).insert((local, ChildOf(parent)));
+                }
+                let target = origin + Vec3::new(0.0, 1.5, -0.8);
+                let mut mantle = AlsMantleState::default();
+                if moving_base {
+                    let base = app.world_mut().spawn((avian3d::prelude::RigidBody::Kinematic,
+                        Transform::from_translation(target), GlobalTransform::from_translation(target),
+                        LinearVelocity(Vec3::X * 0.75))).id();
+                    mantle.begin_with_target_base(MantleKind::High, origin, target, 1.5, 0.0, 0.0,
+                        AlsMantleTargetBase { entity: base, translation: target, rotation: Quat::IDENTITY,
+                            scale: Vec3::ONE, relative_location: true });
+                } else {
+                    mantle.begin(MantleKind::High, origin, target, 1.5, 0.0, 0.0);
+                }
+                app.world_mut().entity_mut(actor).insert((mantle, crate::als_camera::AlsCameraCustomTimeDilation(dilation)));
+                let trace = std::sync::Arc::new(std::sync::Mutex::new([Vec3::ZERO; 3]));
+                let before = trace.clone();
+                app.add_systems(PostUpdate, (move |helper: bevy::transform::helper::TransformHelper| {
+                    before.lock().unwrap()[0] = helper.compute_global_transform(actor).unwrap().translation();
+                }).before(AlsMantleDriveSet));
+                let after = trace.clone();
+                app.add_systems(PostUpdate, (move |actors: Query<(&Position, &LinearVelocity)>| {
+                    let (position, velocity) = actors.get(actor).unwrap();
+                    let mut values = after.lock().unwrap();
+                    values[1] = position.0;
+                    values[2] = velocity.0;
+                }).after(AlsMantleDriveSet).before(crate::source_physics_timing::SourcePhysicsTimingSet::Clamp));
+                let mut samples = 0;
+                for frame in 0..12 {
+                    app.update();
+                    let state = app.world().get::<AlsMantleState>(actor).unwrap();
+                    if !state.active || !state.root_motion_ready { continue; }
+                    let values = *trace.lock().unwrap();
+                    let world_delta = app.world().resource::<Time<Virtual>>().delta_secs();
+                    let expected = (values[1] - values[0]) / (world_delta * dilation);
+                    assert!(values[2].abs_diff_eq(expected, 0.005), "Source RMS publishes owner velocity before Custom physics");
+                    let actual = app.world().get::<AlsActualMotion>(actor).unwrap().world_velocity;
+                    assert!(actual.abs_diff_eq(expected, 0.005),
+                        "Source RMS velocity divides the consumed world delta by owner time: parented={parented} base={moving_base} dilation={dilation} frame={frame} actual={actual:?} expected={expected:?}");
+                    samples += 1;
+                }
+                assert!(samples >= 6, "Loaded Mantle did not produce enough source velocity samples");
+                let velocity = app.world().get::<AlsActualMotion>(actor).unwrap().world_velocity;
+                let clip_time = app.world().get::<AlsMantleState>(actor).unwrap().time;
+                app.world_mut().entity_mut(actor).insert(crate::als_camera::AlsCameraCustomTimeDilation(0.0));
+                app.update();
+                assert_eq!(app.world().get::<AlsMantleState>(actor).unwrap().time, clip_time);
+                assert!(app.world().get::<AlsActualMotion>(actor).unwrap().world_velocity.abs_diff_eq(velocity, 0.005),
+                    "Source zero-delta RMS clears its override and retains current velocity");
+                let values = *trace.lock().unwrap();
+                assert!(values[1].abs_diff_eq(values[0], 1e-5), "Frozen Mantle must not integrate its retained source velocity");
+            }
+        }
+    }
+
+    #[test]
     fn mantle_root_and_physics_keep_current_actor_parent_space() {
         let mut app = mantle_clip_test_app();
         let handle = app.world().resource::<MantleAssets>().clip(MantleKind::High).clone();
@@ -1703,10 +1798,13 @@ pub(crate) mod tests {
                 let expected = mantle.target_actor_transform_at(next_time,
                     sample_mantle_root(clip, skeleton, mantle.clip_time_at(next_time)).unwrap());
                 let local = GlobalTransform::from(before).reparented_to(&GlobalTransform::from(parent_transform));
+                let source_initial_velocity = Vec3::new(0.7, 0.2, -0.4);
                 let actor = app.world_mut().spawn((AlsCharacter, mantle, LocomotionState::Custom,
-                    LinearVelocity::ZERO, local, ChildOf(parent), GlobalTransform::IDENTITY,
+                    LinearVelocity(source_initial_velocity), local, ChildOf(parent), GlobalTransform::IDENTITY,
                     Position(before.translation), Rotation(before.rotation), AlsCollisionLayerOwnership::default(),
-                    crate::als_camera::AlsCameraCustomTimeDilation(dilation))).id();
+                    crate::als_camera::AlsCameraCustomTimeDilation(dilation),
+                    crate::als::character::AlsCmcAdapterRuntime { grounded_move_start: Some(before.translation),
+                        grounded_collision_velocity: Some(source_initial_velocity), ..default() })).id();
                 let before_world = app.world_mut().run_system_once(move |helper: bevy::transform::helper::TransformHelper| {
                     helper.compute_global_transform(actor).unwrap()
                 }).unwrap();
@@ -1725,11 +1823,11 @@ pub(crate) mod tests {
                 assert!(app.world().get::<Transform>(actor).unwrap().scale.abs_diff_eq(local.scale, 1e-6));
                 assert!(app.world().get::<Position>(actor).unwrap().0.distance(expected.translation) < 1e-5);
                 assert!(app.world().get::<Rotation>(actor).unwrap().0.abs_diff_eq(expected.rotation, 1e-5));
-                let expected_velocity = if dilation == 0.0 { Vec3::ZERO }
-                    else { (expected.translation - before_world.translation()) / 0.05 };
+                let expected_velocity = if dilation == 0.0 { source_initial_velocity }
+                    else { (expected.translation - before_world.translation()) / (0.05 * dilation) };
                 let actual_velocity = app.world().get::<LinearVelocity>(actor).unwrap().0;
                 assert!(actual_velocity.distance(expected_velocity) < 1e-5,
-                    "Source root velocity must subtract the consumed actor world location: parent={parent_transform:?} dilation={dilation} near_end={near_end} actual={actual_velocity:?} expected={expected_velocity:?}");
+                    "Source RMS must use the consumed actor world location and owner clock: parent={parent_transform:?} dilation={dilation} near_end={near_end} actual={actual_velocity:?} expected={expected_velocity:?}");
                 if !current.active {
                     app.world_mut().entity_mut(actor).insert(AlsNotifyLocomotionAction::None);
                     app.world_mut().run_system_once(mantle_pose_system).unwrap();
@@ -1817,7 +1915,8 @@ pub(crate) mod tests {
             app.world_mut().run_system_once(mantle_drive_system).unwrap();
             let current = app.world().get::<AlsMantleState>(actor).unwrap();
             let actual = app.world().get::<Transform>(actor).unwrap();
-            let expected_velocity = (expected.translation - before.translation) / 0.05;
+            let expected_velocity = if dilation == 0.0 { Vec3::ZERO }
+                else { (expected.translation - before.translation) / (0.05 * dilation) };
             if (current.time - expected_time).abs() > 1e-6 || current.active != expected_active
                 || actual.translation.distance(expected.translation) > 1e-5
                 || app.world().get::<Position>(actor).unwrap().0.distance(expected.translation) > 1e-5
@@ -1834,10 +1933,11 @@ pub(crate) mod tests {
         let mut app = mantle_clip_test_app();
         let mut mantle = AlsMantleState::default();
         mantle.begin(MantleKind::High, Vec3::ZERO, Vec3::Y, 1.5, 0.0, 0.0);
+        let source_velocity = Vec3::new(0.7, 0.2, -0.4);
         let actor = app.world_mut().spawn((AlsCharacter, mantle, LocomotionState::Grounded,
-            LinearVelocity::ZERO, Transform::IDENTITY, GlobalTransform::IDENTITY,
+            LinearVelocity(source_velocity), Transform::IDENTITY, GlobalTransform::IDENTITY,
             Position(Vec3::ZERO), Rotation(Quat::IDENTITY), AlsCollisionLayerOwnership::default(),
-            crate::als_camera::AlsCameraCustomTimeDilation(0.0))).id();
+            crate::als_camera::AlsCameraCustomTimeDilation(0.0), crate::als::character::AlsCmcAdapterRuntime::default())).id();
         let mut identities = Vec::new();
         for _ in 0..3 {
             app.world_mut().resource_mut::<Time>().advance_by(std::time::Duration::from_secs_f32(0.05));
@@ -1848,6 +1948,8 @@ pub(crate) mod tests {
             assert_eq!(montage.elapsed, 0.0);
             assert_eq!(app.world().get::<AlsMantleState>(actor).unwrap().time, 0.0);
             assert_eq!(app.world().get::<Transform>(actor).unwrap().translation, Vec3::ZERO);
+            assert!(app.world().get::<LinearVelocity>(actor).unwrap().0.abs_diff_eq(source_velocity, 1e-6),
+                "Source zero-delta RMS entry must retain current velocity before its first root preparation");
         }
         let prepared = app.world().get::<AlsMantleState>(actor).unwrap().root_motion_ready;
         app.world_mut().entity_mut(actor).insert(crate::als_camera::AlsCameraCustomTimeDilation(0.5));

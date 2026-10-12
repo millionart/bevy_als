@@ -81,6 +81,8 @@ BF141.02 有限复开普通父空间 Gate（2026-10-12 17:50:45）：fresh Scene
 
 ### P2-07 — Mantle 的 root 速度混用了 world 与 local 位置
 
+有限复开后重新验收（2026-10-12 20:59，BF141.05b）：fresh RMS明确除owner delta，旧24组速度oracle除world delta，遗漏物理后源速度发布。锁定Avian的Custom积分跳过普通物理，Mantle因此直接发布owner速度；桥/恢复/额外清理经消融无必要，已删除。18项回归、9组完整角色及24组父级/倍率/完成、首次与中途零delta、4项有效消融和精确恢复、原生产库3个速度反例、声明式合同及正式构建通过。公共startup→Base53覆盖和挂接后92条world/physics记录全部功能PASS，graph/fault/temporal/primary均无；截图0、性能延期。只迁移该速度与移交合同，原world起点、父空间/基座写回、资产及以下历史证据保留。
+
 修复完成（2026-10-12 01:43:03 +08:00）：Mantle root速度使用当前actor世界位置，root与当前移动基座的世界目标经parent逆affine/逆quat写入local，物理Position/Rotation保持world。fresh原始RootMotionSource/Character_Actions/Walking移交及High/Low原生蒙太奇闭包、24组父级/owner/完成组合、移动基座和退出惯性、六个独立消融与精确字节同target恢复14控制通过。正常构建、5运动矩阵和原完整角色反例、345规格/15root闭包/声明式边界通过；真实startup与带活动父级Mantle的原Base功能通过，53项全覆盖、92帧world/物理一致，图/fault/temporal/primary_failure均无。速度断言使用实际消费的world位置复算，原阈值保留；没有新增生产状态或更改时钟/资产/root算法。证据位于本地 `target/bf139/fix07/` 与 `target/animation_visual/bf139_p207/`，性能延期保持。以下保留原审计记录。
 
 - Source：`ALS/Private/RootMotionSources/AlsRootMotionSource_Mantling.cpp::PrepareRootMotion` 用 `(TargetActorTransform.Location - Character.GetActorLocation()) / DeltaTime`。
