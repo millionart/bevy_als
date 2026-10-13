@@ -52,7 +52,7 @@
 |---|---|---|
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；U01未闭合，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
-| Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.17完成Roll及Mantle探测/许可/设置选择/生命周期的首轮审计，确认D43–D57；精确查询数值未闭合，Mantle RMS根轨道/warp/平台空间推进待对应批次 |
+| Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.18完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道和warp变换的首轮审计，确认D43–D58；精确查询数值未闭合，Mantle动态基座与逐阶段物理消费待对应批次 |
 | Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | 待逐项审计；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | 待重新取证及核对；历史155子图合同只作起点，不能自证算法等价 |
@@ -177,6 +177,13 @@
   - 03:35 source/focused闭环：自然low/high×owner0.5/1/2的通知退出6组、mode lock/两种Ragdoll交接5组、目标销毁×owner0/1×world pause及恢复6组PASS。主动Ragdoll打断的源mode仍为Walking：旧锁先拦None，再由StopMantling解锁切Walking；初版夹具误期望None，已按fresh源码纠正，不计缺陷。另确认D57新Aiming的EarlyBlendOut晚一帧；12组条件控制仅两种高度的新Aiming失败，预先提供Aiming状态、input/crouch/air/idle全部通过。通知end按fresh AnimTypes GetEndTriggerTime补入trigger offset，manifest数据一致；未修改转换器或资产。
   - 03:37 本项归纳：最终6个focused为3PASS/3语义FAIL，共35组30PASS/5FAIL，归并D55–D57；`17/final/`保留完整结果，`capture_mantle_lifecycle_inputs.py`及`check_phase17.py`/record_gate watchdog PASS。18份native资产、原始/Build一致，116份基线source、6份补充UE源码、160份target及同一launcher库hash未变；`17/inputs.json`记录6Montage/3Sequence与准确通知end，`17/summary.json`区分记录通过与等价失败。
   - 本批累计51项P2、5项P3及U01。普通角色/仅恢复query layers、owner0、预先提供Aiming状态分别消除确认失败；无生产设计新增，不用源自身的Ragdoll锁行为制造新缺陷。尚未验收完整RMS root/warp/平台空间数值；无公共Playground Gate，截图0、性能暂停，继续下一独立闭包。
+
+- [x] BF144.18 Mantle根轨道与warp变换数学：沿fresh AlsMontageUtility、StartMantlingImplementation和RMS PrepareRootMotion提取3个实际Sequence的root事实，核对slot/segment时间、mesh→actor坐标与厘米单位、起止root消除、blend/warp插值、rotation twist及静态目标/缩放/父空间下的绝对角色目标。动态基座的逐阶段跟随、owner/world时钟与速度/物理消费另列依赖批次。Gate：native root采样及源变换推导、生产函数与完整角色的最小数值反例/控制、剩余边界登记。开始：2026-10-14 03:40 +08:00；预估结束：2026-10-14 04:35 +08:00；实际结束：2026-10-14 04:04:06 +08:00；偏差：−30分54秒；结果：审计记录Gate PASS，新增1项P2，未修复。估时依据：本地root utility约65行、RMS核心约100行及起止设置约65行，target state/drive约250行、3个Sequence；BF144.15根轨道/时钟消费实耗41分11秒、.17生命周期46分28秒，本项将动态基座和物理时钟移入下一独立验收闭包。
+  - 03:40 活动摘要：BF144.17已提交，累计51项P2、5项P3及U01。3个原生Sequence与6Montage引用已按当次读取确认；下一步只补root轨道/采样及坐标变换oracle，先核对source实际提取API，不按现有target算法自证。当前本批无新增确认差异，生产未改、截图0、性能暂停。
+  - 03:49 source/static闭环：6个Montage均为PostLocomotion单slot、单segment，源构造默认segment起点0、play rate1、loop1，3条原生root均为identity旋转/单位scale；blend与warp设置已重新核对。fresh `ExtractRootTrackTransform_Lockless`证明RMS实际按压缩数据有效性选择采样，现有reader强制raw不能单独充当最终数值oracle；仅给既有只读SequencePoseProbe增加`root_track_only`选项，直接调用同一源API，正在重编取证。生产Rust/资产不变；候选仅为初始actor scale/完整rotation信息丢失，尚未确认，动态基座不在本项展开。
+  - 04:02 source/focused闭环：原生root API共352采样与对应轨道插值匹配，High montage rate1.2、Low各variant rate1.0；初版High oracle误用1.0已纠正，不计缺陷。独立源VQS/AlphaBlend/FastLerp/twist对照与7种实际动作轨迹PASS；确认D58初始actor Transform信息丢失。12组完整角色仅非单位scale/非零倾斜的5组失败，夹具补回丢失信息后恢复；目标/actor父空间和静态基座4组通过。
+  - 04:04 本项归纳：最终5个focused为3PASS/2语义FAIL，317组312PASS/5FAIL，归并D58；其中294组验证blend/相对基坐标数学，7种动作168帧与4种父空间72帧比较实际world位置/rotation。`18/final/`、`18/summary.json`及record_gate watchdog PASS；18份native资产、116份基线source、10份补充UE文件、160份生产Rust和同一launcher库hash核验通过。
+  - reader改动限于既有probe的一个只读选项，同目录重编PASS；消融移除请求选项会回到旧raw API/79骨架输出，被root-track取证类型检查拒绝，恢复选项后3采样PASS。旧raw路径兼容检查PASS且本次两种路径root值相同，不伪称已有数值差；保留选项只为提供源实际API证据，无新转换规则、生产状态或运行时分支。本批累计52项P2、5项P3及U01；无公共Playground Gate，截图0、性能暂停。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -518,6 +525,12 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - Target：`src/als/root_motion_sources/mantle_drive.rs:352–401`只约束在动画Dispatch之后，没有依赖当前帧aim refresh；`state/aim.rs:117–123`却在物理后的gait刷新之后更新RotationMode。本次真实入口执行中，提前淡出先读到旧ViewDirection，下一帧才停止。
   - 反例：完整low/high Mantle自然退出后，在原生early notify有效区按aim；该帧结束已为Aiming，但发布的Montage sample仍interrupted=false。再过0.1s，low/high实际权重0.856927/0.887876，source应0.801749/0.843750。`bf144_mantle_lifecycle_early_blend_conditions_and_duration_controls`12组10PASS/2FAIL；夹具在该帧开始前提供Aiming状态的两组恢复正确权重，其他input/crouch/air/idle共8组通过，证据`target/bf144/17/final/`。
   - 漏检：旧early条件测试直接传入已经更新的枚举/Tag，未跨真实aim producer与Montage consumer阶段核对同帧变化。这里限定为一个帧的淡出延迟，记P3；不据此推测其他图/通知均有相同问题，生产未改。
+
+- [ ] BF144-D58 / P2 — Mantle初始化丢失actor scale及完整rotation，起始root消除结果错误。
+  - Source：fresh `AlsCharacter_Actions.cpp:521–527`把初始root inverse与完整`GetActorTransform()`相乘；UE `Transform.cpp:98–113`及VQS乘法保留actor scale和完整quat对初始位移的影响。RMS随后只保存start location/rotation，并在`AlsRootMotionSource_Mantling.cpp:97–118`混合后取twist；不能提前丢掉初始pitch/roll或scale。
+  - Target：`movement/motion.rs:3191–3205,3232–3243`仅传origin与yaw；`actions/mantle.rs:810–813`以单位scale、纯yaw重建初始Transform，`855–867`再据此消除root。数据在进入root driver前已经丢失。
+  - 反例：完整角色手动Mantle到0.6m按比例缩放的ledge，actor scale0.75/1.5首帧位置相对独立source公式偏离约11.4/22.1cm；单位scale对照通过。同一0.6m台阶，初始pitch或roll为0.2rad及组合倾斜偏离约8.7–12.5cm，组合yaw另差约1.15°。入口前实际global rotation已取样确认仍保留倾斜。两个focused共12组7PASS/5语义FAIL，夹具只补回初始scale偏移或完整quat的5组恢复源结果；证据`target/bf144/18/initial_controls/`。
+  - 漏检：旧root复合与scaled-base测试使用单位scale、纯yaw的初始actor；基座缩放、root旋转覆盖不能代替actor自身Transform。7种动作的正常actor轨迹168采样全部匹配，排除通用轨道/mesh basis错误。本项合并同一初始Transform传递边界下的两种缺失，未重复计数，未修复生产实现。
 
 ### 未闭合边界（不计为无差异）
 

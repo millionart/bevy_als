@@ -941,6 +941,8 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
         UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Sequence pose probe times are invalid."));
         return nullptr;
     }
+    bool bRootTrackOnly = false;
+    Request->TryGetBoolField(TEXT("root_track_only"), bRootTrackOnly);
     const FReferenceSkeleton& Skeleton = Sequence->GetSkeleton()->GetReferenceSkeleton();
     TArray<TSharedPtr<FJsonValue>> Frames;
     for (const TSharedPtr<FJsonValue>& Value : *Times)
@@ -954,10 +956,17 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
         TSharedRef<FJsonObject> Frame = MakeShared<FJsonObject>();
         Frame->SetNumberField(TEXT("time"), Time);
         TArray<TSharedPtr<FJsonValue>> Bones;
-        for (int32 Index = 0; Index < Skeleton.GetNum(); ++Index)
+        for (int32 Index = 0; Index < (bRootTrackOnly ? 1 : Skeleton.GetNum()); ++Index)
         {
             FTransform Transform = Skeleton.GetRefBonePose()[Index];
-            Sequence->GetBoneTransform(Transform, FSkeletonPoseBoneIndex(Index), FAnimExtractContext(Time), true);
+            if (bRootTrackOnly)
+            {
+                Transform = Sequence->ExtractRootTrackTransform(FAnimExtractContext(Time), nullptr);
+            }
+            else
+            {
+                Sequence->GetBoneTransform(Transform, FSkeletonPoseBoneIndex(Index), FAnimExtractContext(Time), true);
+            }
             if (Transform.ContainsNaN())
             {
                 UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Sequence pose probe produced a non-finite transform."));
@@ -973,7 +982,7 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
         Frames.Add(MakeShared<FJsonValueObject>(Frame));
     }
     TSharedRef<FJsonObject> Probe = MakeShared<FJsonObject>();
-    Probe->SetStringField(TEXT("sampling_mode"), TEXT("raw_local_tracks"));
+    Probe->SetStringField(TEXT("sampling_mode"), bRootTrackOnly ? TEXT("root_track") : TEXT("raw_local_tracks"));
     Probe->SetNumberField(TEXT("duration"), Sequence->GetPlayLength());
     Probe->SetArrayField(TEXT("frames"), Frames);
     return Probe;
