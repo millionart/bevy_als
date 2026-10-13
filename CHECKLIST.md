@@ -42,13 +42,13 @@
 用户于2026-10-13明确要求处理天空接入后的阴沉观感。范围为原Playground天空材质输出、SkyLight环境补光、曝光与太阳Bloom显示链；截图0、性能验收暂停。先按当次本地源事实定位差异，再使用现有引擎功能，不凭观感提高太阳或添加补偿。
 
 - [x] BF142.01 源照明/曝光与实际渲染入口静态闭环。开始：2026-10-13 08:49 +08:00；预估结束：2026-10-13 09:14 +08:00；实际结束：2026-10-13 09:13:06 +08:00；偏差−54秒，source/static Gate PASS，无需重估。依据本轮原生World读取80.603秒、原天空材质约75节点已有审计器、当前Bevy原生AutoExposure/EnvironmentMap与BF139-P2-18同类数据闭包记录，先以25分钟完成源参数/时钟/单位、HDR/材质/相机消费者、最小失败及后续可独立验收拆分。Gate：fresh World/Camera与UE实际默认、locked Bevy执行语义、必要的读工具补齐、自测及明确剩余边界；本叶不将静态通过称视觉修复。
-- [x] BF142.02 曝光/显示与环境补光修复。依赖.01 Gate，启动时按证实闭包拆为各自不超过60分钟的独立子项并登记时点。Gate：源驱动独立target数据、最小失败→修复、消融/字节恢复、同target_game正式构建、原Playground数值渲染与公共功能Gate；旧固定显示近似仅在源/症状/消费者共同证明的边界有限复开。
-  - [x] BF142.02a HDR与源参数曝光链。开始：2026-10-13 09:16 +08:00；预估结束：2026-10-13 10:06 +08:00；实际结束：2026-10-13 10:21 +08:00；偏差+15分钟，当前叶Gate PASS，未超过20分钟容差。依据.01已证参数/单位、原生AutoExposure公开组件与既有约7分钟正式构建记录，50分钟内完成独立target数据、固定曝光/contrast旧近似迁移、天空与普通材质共享HDR、focused先红/消融/恢复与原startup功能Gate。原生Bevy与UE的Histogram统计/适应和Filmic实现差异明确保留引擎边界，不声称逐像素复刻；不加入图专用补偿。
-  - [x] BF142.02b 源Bloom与太阳辉光。依赖.02a Gate。开始：2026-10-13 10:24 +08:00；预估结束：2026-10-13 11:04 +08:00；实际结束：2026-10-13 10:46:09 +0800；偏差约−18分钟，叶Gate PASS。依据fresh默认BM_SOG/强度0.675/threshold−1、六级灰色tint与已验证HDR链，使用原生Additive Bloom，离线映射源积分能量，保留两引擎blur kernel边界；40分钟闭合focused最小失败/消融/恢复、实际Bloom render pass与原manual功能Gate。
-  - [x] BF142.02c 源天空捕获与环境照明。依赖.02a Gate（与Bloom叶独立），按源128捕获、已验证天空材质/2208顶点/3968三角与原生GeneratedEnvironmentMapLight闭包，在启动时拆为数据与运行两叶并各自登记不超过60分钟窗口。Gate：独立离线HDR捕获、下半球/方向/材质/生命周期反例和自测、原生IBL、消融与同target恢复、原Playground数值渲染/公共功能验收。保持原始纹理/导出不可变，不实现另一套Lumen。
+- [ ] BF142.02 曝光/显示与环境补光修复。依赖.01 Gate，启动时按证实闭包拆为各自不超过60分钟的独立子项并登记时点。Gate：源驱动独立target数据、最小失败→修复、消融/字节恢复、同target_game正式构建、原Playground数值渲染与公共功能Gate；旧固定显示近似仅在源/症状/消费者共同证明的边界有限复开。
+  - [ ] BF142.02a HDR与源参数曝光链。开始：2026-10-13 09:16 +08:00；预估结束：2026-10-13 10:06 +08:00；实际结束：2026-10-13 10:21 +08:00；偏差+15分钟，当前叶Gate PASS，未超过20分钟容差。依据.01已证参数/单位、原生AutoExposure公开组件与既有约7分钟正式构建记录，50分钟内完成独立target数据、固定曝光/contrast旧近似迁移、天空与普通材质共享HDR、focused先红/消融/恢复与原startup功能Gate。原生Bevy与UE的Histogram统计/适应和Filmic实现差异明确保留引擎边界，不声称逐像素复刻；不加入图专用补偿。
+  - [ ] BF142.02b 源Bloom与太阳辉光。依赖.02a Gate。开始：2026-10-13 10:24 +08:00；预估结束：2026-10-13 11:04 +08:00；实际结束：2026-10-13 10:46:09 +0800；偏差约−18分钟，叶Gate PASS。依据fresh默认BM_SOG/强度0.675/threshold−1、六级灰色tint与已验证HDR链，使用原生Additive Bloom，离线映射源积分能量，保留两引擎blur kernel边界；40分钟闭合focused最小失败/消融/恢复、实际Bloom render pass与原manual功能Gate。
+  - [ ] BF142.02c 源天空捕获与环境照明。依赖.02a Gate（与Bloom叶独立），按源128捕获、已验证天空材质/2208顶点/3968三角与原生GeneratedEnvironmentMapLight闭包，在启动时拆为数据与运行两叶并各自登记不超过60分钟窗口。Gate：独立离线HDR捕获、下半球/方向/材质/生命周期反例和自测、原生IBL、消融与同target恢复、原Playground数值渲染/公共功能验收。保持原始纹理/导出不可变，不实现另一套Lumen。
 
     - [x] BF142.02c1 源天空捕获数据。开始：2026-10-13 10:36 +08:00；预估结束：2026-10-13 11:11 +08:00；实际结束：2026-10-13 10:53:21 +0800；偏差约−18分钟，数据Gate PASS。依据八个剩余源资产已有原生读取约5–8分钟、当次World/Material已读取且与旧记录字节相同、现有75节点求值器，35分钟闭合fresh递归数据、源坐标/网格重心UV与下半球、独立128 HDR cube、focused消融和可复跑check；本叶不称已完成运行接入。
-    - [x] BF142.02c2 原生环境照明消费者与运行Gate。依赖.02c1 Gate。开始：2026-10-13 10:53:25 +0800；预估结束：2026-10-13 11:38:25 +0800；实际结束：2026-10-13 11:43:35 +0800；偏差约+5分钟，功能/数值GPU Gate PASS，未超过20分钟容差。依据已通过的cube数据、原生GeneratedEnvironmentMapLight入口、相机已有一次性marker及约6分钟正式构建记录，45分钟完成数据消费、常量Ambient迁移、原生GPU过滤与功能验收；源cube替换常量Ambient近似，原生IBL与实际GPU过滤/功能Gate、消融与同target恢复。
+    - [ ] BF142.02c2 原生环境照明消费者与运行Gate。依赖.02c1 Gate。开始：2026-10-13 10:53:25 +0800；预估结束：2026-10-13 11:38:25 +0800；实际结束：2026-10-13 11:43:35 +0800；偏差约+5分钟，功能/数值GPU Gate PASS，未超过20分钟容差。依据已通过的cube数据、原生GeneratedEnvironmentMapLight入口、相机已有一次性marker及约6分钟正式构建记录，45分钟完成数据消费、常量Ambient迁移、原生GPU过滤与功能验收；源cube替换常量Ambient近似，原生IBL与实际GPU过滤/功能Gate、消融与同target恢复。
 
 活动摘要（08:49）：工作区基线`93ac4a47`且干净。刚读取的World与原插件/安装副本字节一致：太阳3lux、SkyLight强度2/Stationary/CapturedScene/非实时/下半球黑，PostProcessVolume只覆盖MotionBlur；当前固定EV1002/contrast1.05来自旧显示近似，天光用常量Ambient2。下一步核对源相机后处理覆盖、曝光算法和天空进入HDR的真实路径；原始导出保持不可变。
 
@@ -104,3 +104,18 @@ source/static摘要（09:13）：fresh Camera Blueprint读取34.221秒证实Post
 .02c2最终startup后/locomotion前（11:42）：startup15.218秒完整照明与原功能Gate PASS；实际filtered diffuse/specular读回最大值0.512207/110.6875、全部finite/alpha1且非零，camera环境就绪1/Ambient0/Bloom/自动曝光均通过。曝光680样本、invalid0/physical1、稳态EV−0.257，原fault/graph/temporal与primary_failure正常；源太阳HDR峰完整保留，截图0/性能延期。继续原locomotion验证运动/镜头下同一HDR与环境照明消费者；无任何动画图、转换器或姿态算法修改，不展开已完成运动模块。
 
 .02c2 runtime后/整体完成（11:43）：最终原startup15.218秒与locomotion28.279秒均完整照明/功能PASS；移动场景real_entry_paths通过，GPU曝光1530样本/invalid0/physical1，diffuse/specular有效输出峰0.512207/110.6875、camera环境就绪1/Ambient0/Bloom均通过，原graph/fault/temporal和primary_failure正常。四诊断与28场景测试、有效消融/精确字节恢复、源导入/资产边界及同target_game正式入口构建闭合；最终生产/诊断源码与恢复证据SHA一致，binary/资产哈希保留于私有final_artifact_hashes。已删除固定EV2/contrast1.05/常量Ambient2近似，使用源驱动HDR/Histogram/Bloom与一次捕获cube→原生IBL，太阳3lux及既有天空材质/纹理/动画图不变。截图0、性能验收暂停，FullPass仍False；保留原生Histogram/blur/tonemapper与UE Lumen能力边界，不声称逐像素视觉等价。补充scene_gate的旧运动oracle整体FAIL继续按.02a记录隔离，本次不改运动实现或放宽断言。各叶均已按自身Gate独立通过，BF142当前请求完成。
+
+## BF143 角色/阴影斑驳与源显示差异
+
+用户2026-10-13补充角色纯色表面斑驳/条纹、阴影地面同类现象，天空仍暗沉、太阳光晕偏小；本轮统一排查共用照明/显示链。保留截图0、性能验收暂停，不以改角色颜色/粗糙度或人工亮度补偿掩盖问题。
+
+- [x] BF143.01 当次source/static与最小反例。开始：2026-10-13 13:42 +08:00；预估结束：2026-10-13 14:12 +08:00；实际结束：2026-10-13 14:12:54 +0800；偏差约0分钟，source/static Gate PASS。依据上一轮8资产31–38秒原生读取、已有源材质/捕获工具、locked原生IBL/Bloom/Histogram代码，30分钟重读World与角色材质闭包，逐项核对采样/单位/空间/曝光/显示算法，保留共享照明和光晕宽度失败反例，证明根因后有限复开BF142对应叶。Gate：fresh源事实、source-target静态合同、最小反例与不超过60分钟的后续独立拆分。
+
+活动摘要（13:44）：基线cc0a69fe且干净，用户截图已读取。当前角色StandardMaterial纯色、roughness1、无显式texture；地面阴影同类症状将根因候选收至共享照明/后处理。Native diffuse逐texel随机半球采样，现有Bloom仅匹配DC总能量、低频boost0，旧Gate只验finite/非零/alpha1与通道执行，未覆盖方向辐射连续性、光晕空间轮廓或源显示曲线。先重新提取源材质/World与实际引擎算法，再确定有限复开边界；暂不改已验网格/动画/相机。
+
+BF143.01 source/static闭合与有限复开（14:12）：fresh MI_Als_Character49.794秒、M_Als_Main32.385秒、World40.431秒；角色父材质只有Color向量表达式，DefaultLit/Opaque、roughness1/specular0.5/默认切线法线，目标无texture合同正确。将角色现象与阴影地面共同定位到共享环境响应，不复开角色网格/动画/材质颜色。复算locked native1024半球采样精确复现旧GPU diffuse峰0.512207；三阶SH外残差RMS0.025205，而源SH表示half量化残差0.00003908，旧finite/alpha/nonzero Gate漏掉方向连续性。UE Filmic中灰0.18→0.18，Native ACES Fitted0.18→0.105591，显示曲线直接压暗；Bloom旧DC0.08944875正确但最宽级权重2.065e−9，而源Gaussian6为0.0068625，漏检空间能量。反例和source快照索引在私有appearance_counterexamples/source_contract。仅复开BF142.02a显示曲线消费者、.02b光晕空间响应、.02c2环境过滤及其父条目；已验捕获输入/曝光单位/太阳3lux等保留，不因同名资产回改。
+
+- [ ] BF143.02 源平滑天光与实际消费者。依赖.01。
+  - [ ] BF143.02a 独立源IBL离线数据。开始：2026-10-13 14:12:54 +0800；预估结束：2026-10-13 14:47:54 +0800。依据源32输入/9系数SH、已有128 captured cube与同类离线工具23秒、specular8级确定性过滤，35分钟闭合源SH/归一化/坐标/half数据、静态prefilter、连续性/常量/太阳反例与消融/check；本叶不称运行已修复。
+  - [ ] BF143.02b 原生EnvironmentMapLight消费与角色/阴影响应Gate。依赖.02a，启动时登记不超过45分钟窗口；删除逐帧随机生成路径，保持源强度/静态捕获，focused先红/消融/恢复、正式同target构建与原manual角色/地面共同照明合同。
+- [ ] BF143.03 源显示曲线与光晕空间响应。依赖.01，先证明native公开LUT/blur参数能覆盖源合同，不能满足才增加最小必要实现；数据与运行分叶、分别在开始时登记不超过60分钟窗口。Gate包含源中灰/天空蓝色实际响应及完整光晕径向轮廓，不能再次只用总能量/通道执行验收。
