@@ -166,10 +166,10 @@ def main():
         args.output.write_text(text, encoding='utf-8')
     if args.scene:
         original = args.scene.read_text(encoding='utf-8')
-        updated = re.sub(r',\s*camera_(?:exposure_ev100|contrast):\s*(?:Some\([^)]*\)|None)', '', original)
+        updated = re.sub(r',\s*(?:camera_exposure_ev100|camera_contrast|ambient_brightness):\s*(?:Some\([^)]*\)|None)', '', original)
         if args.check:
             if updated != original:
-                raise ValueError('Retired fixed exposure fields remain in the scene')
+                raise ValueError('Retired constant lighting fields remain in the scene')
         else:
             args.scene.write_text(updated, encoding='utf-8')
     print(json.dumps({'success': True, 'self_test': args.self_test, 'check': args.check}), flush=True)

@@ -130,7 +130,6 @@ pub struct SceneLighting {
     pub sun_direction: Option<[f32; 3]>,
     pub sun_intensity: Option<f32>,
     pub sun_color: Option<[f32; 4]>,
-    pub ambient_brightness: Option<f32>,
     pub sky_zenith: Option<[f32; 4]>,
     pub sky_horizon: Option<[f32; 4]>,
     pub sky_sun_brightness: Option<f32>,
@@ -425,6 +424,13 @@ pub fn moving_object_position(
 struct PlaygroundLighting {
     exposure: PlaygroundCameraExposure,
     bloom: PlaygroundBloom,
+    sky_light: PlaygroundSkyLight,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct PlaygroundSkyLight {
+    intensity: f32,
+    capture_resolution: u32,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -1187,6 +1193,7 @@ fn playground_camera_exposure_system(
     mut commands: Commands,
     lighting: Option<Res<PlaygroundLighting>>,
     mut curves: ResMut<Assets<AutoExposureCompensationCurve>>,
+    mut images: ResMut<Assets<Image>>,
     cameras: Query<Entity, (With<Camera3d>, Without<PlaygroundSceneExposure>)>,
 ) {
     let Some(lighting) = lighting else { return; };
@@ -1198,7 +1205,28 @@ fn playground_camera_exposure_system(
                 Vec2::new(minimum, exposure.compensation_ev),
                 Vec2::new(maximum, exposure.compensation_ev),
             ])).expect("Source exposure compensation must be continuous"));
+        let mut environment = Image::new(
+            bevy::render::render_resource::Extent3d {
+                width: lighting.sky_light.capture_resolution,
+                height: lighting.sky_light.capture_resolution,
+                depth_or_array_layers: 6,
+            },
+            bevy::render::render_resource::TextureDimension::D2,
+            include_bytes!("../../../assets/ALSExtras/Environment/Sky/playground_sky_capture.rgba16f").to_vec(),
+            bevy::render::render_resource::TextureFormat::Rgba16Float,
+            bevy::asset::RenderAssetUsages::all(),
+        );
+        environment.texture_view_descriptor = Some(bevy::render::render_resource::TextureViewDescriptor {
+            dimension: Some(bevy::render::render_resource::TextureViewDimension::Cube),
+            ..default()
+        });
+        let environment_map = images.add(environment);
         commands.entity(entity).insert((
+            bevy::light::GeneratedEnvironmentMapLight {
+                environment_map,
+                intensity: lighting.sky_light.intensity,
+                ..default()
+            },
             Exposure {
                 ev100: exposure.unit_exposure_ev100,
             },
@@ -1976,9 +2004,8 @@ fn spawn_sun_light(
         .build(),
         Transform::default().with_rotation(rotation),
     ));
-    let ambient = lighting.ambient_brightness.unwrap_or(2.0);
     commands.insert_resource(GlobalAmbientLight {
-        brightness: ambient,
+        brightness: 0.0,
         ..default()
     });
 }
@@ -2039,6 +2066,7 @@ mod tests {
         use bevy::post_process::auto_exposure::AutoExposure;
         let mut app = App::new();
         app.init_resource::<Assets<AutoExposureCompensationCurve>>()
+            .init_resource::<Assets<Image>>()
             .insert_resource(imported_lighting());
         let camera = app.world_mut().spawn(Camera3d::default()).id();
         app.world_mut().run_system_once(playground_camera_exposure_system).unwrap();
@@ -2058,6 +2086,17 @@ mod tests {
         assert!((app.world().get::<Exposure>(camera).unwrap().exposure() - 1.0).abs() < 1e-6,
             "Source histogram receives scene luminance without the old fixed exposure scale");
         assert!(app.world().get::<ColorGrading>(camera).unwrap().all_sections().all(|section| section.contrast == 1.0));
+        let environment = app.world().get::<bevy::light::GeneratedEnvironmentMapLight>(camera).expect("Source sky capture illumination is missing");
+        assert_eq!(environment.intensity, 2.0);
+        assert_eq!(environment.rotation, Quat::IDENTITY);
+        let image = app.world().resource::<Assets<Image>>().get(&environment.environment_map).unwrap();
+        assert_eq!(image.texture_descriptor.format, bevy::render::render_resource::TextureFormat::Rgba16Float);
+        assert_eq!(image.texture_descriptor.size, bevy::render::render_resource::Extent3d { width: 128, height: 128, depth_or_array_layers: 6 });
+        assert_eq!(image.texture_view_descriptor.as_ref().unwrap().dimension, Some(bevy::render::render_resource::TextureViewDimension::Cube));
+        let bytes = image.data.as_ref().unwrap();
+        assert_eq!(bytes.len(), 128 * 128 * 6 * 8);
+        assert!(bytes[3 * 128 * 128 * 8..4 * 128 * 128 * 8].chunks_exact(8).all(|pixel| pixel[..6] == [0; 6]));
+        let image_count = app.world().resource::<Assets<Image>>().len();
         let bloom = app.world().get::<Bloom>(camera).expect("Source bloom scattering is missing");
         assert!(matches!(bloom.composite_mode, BloomCompositeMode::Additive));
         assert_eq!(bloom.prefilter.threshold, 0.0);
@@ -2065,6 +2104,8 @@ mod tests {
         assert_eq!(bloom.low_frequency_boost, 0.0);
         let gain: f32 = (1..=(bloom.max_mip_dimension.ilog2() - 1)).map(|level| bloom.intensity.powi(level as i32)).sum();
         assert!((gain - 0.08944875).abs() < 1e-6, "Source integrated scattering energy was dropped: {gain}");
+        app.world_mut().run_system_once(playground_camera_exposure_system).unwrap();
+        assert_eq!(app.world().resource::<Assets<Image>>().len(), image_count, "Source non-realtime capture must not rebuild every frame");
     }
 
     #[test]
@@ -2080,6 +2121,7 @@ mod tests {
         }).unwrap();
         let mut query=app.world_mut().query::<&DirectionalLight>();
         let light=query.single(app.world()).unwrap();
+        assert_eq!(app.world().resource::<GlobalAmbientLight>().brightness, 0.0, "Source captured sky replaces the legacy constant ambient light");
         assert!((light.illuminance-source["intensity_lux"].as_f64().unwrap() as f32).abs()<1e-6,
             "Actual Playground light differs from current source lux: {}",light.illuminance);
     }
