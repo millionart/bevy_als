@@ -52,7 +52,7 @@
 |---|---|---|
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；U01未闭合，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
-| Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.15完成Roll输入/生命周期及选定根轨道、空间、时钟、转向、碰撞/落地消费首轮审计，确认D43–D52；精确碰撞数值仍未闭合，Mantle及角色蓝图SelectMantlingSettings待对应批次 |
+| Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.16完成Roll输入/生命周期及选定根轨道、空间、时钟、转向、碰撞/落地消费，以及Mantle探测/许可/设置选择首轮审计，确认D43–D54；精确查询数值未闭合，Mantle RMS推进/交接待对应批次 |
 | Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | 待逐项审计；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | 待重新取证及核对；历史155子图合同只作起点，不能自证算法等价 |
@@ -164,6 +164,12 @@
   - 02:05 source/static摘要：owner低于源1µs运动门槛的8组7PASS/1FAIL确认D51/P3；Grounded首个微小root仍移动约0.834µm，Custom门槛正确。近地/远地×有无Roll×16.667/100ms的8组落地mode对照通过；其中Roll实际落地后的高度及残余运动尚需独立验证，不能以mode通过代替。累计46项P2、4项P3，当前生产文件和原始资产均未改。
   - 02:07 source/static摘要：fresh ProcessLanded→SetPostLandedPhysics→OnMovementModeChanged先调整floor、再StartNewPhysics消耗剩余时间；target完整帧Root路径却给falling sweep传landing_cmc=None，仅末尾改mode。6组2PASS/4FAIL确认D52：50/100ms落地后离地仅约0.02–0.14mm，普通落地为21.499mm，夹具关闭solver仍未补上高度。横向偏移只保留作定位数据，尚未用native查询确认其具体数值来源，不另记第二缺陷。当前12tests为3PASS/9预期语义FAIL，169组145PASS/24FAIL，累计47项P2、4项P3；本批进入身份/记录核对。
   - 02:09 记录Gate：`target/bf144/check_phase15.py`与`15/record_gate.watchdog.json` PASS；160份target源码、116份基线source和实际launcher库身份保持，新增UE root/mesh/montage/math及Tnua/Avian积分源码快照核对一致。native主AB与Roll根样本均已读取且原始/Build一致；`15/summary.json`登记12tests、169组与D45–D52，语义失败未伪称通过。夹具消融仅作用于fresh App状态/solver，未修改生产源码；早期旋转oracle常数与编译夹具错误已按当前源修正，最终证据不引用错误结果。未运行公开Playground Gate，截图0、性能暂停；下一批只接Mantle探测/许可/选择和设置，root source推进另列依赖项。
+
+- [x] BF144.16 Mantle探测、许可与设置选择：沿fresh StartMantling/AutoStartMantling、CS Mantling trace配置与角色蓝图SelectMantlingSettings，核对方向/输入角限制、胶囊及sphere尺寸/单位、forward/downward/两次overlap、目标速度/step权限、地空与高低判定、Overlay分支及实际选择资产。只读相关动作入口；Mantle RMS推进、平台跟随与结束交接另列依赖批次。Gate：源trace数据与公式、native选择图/资产、实际完整角色和精确query夹具的正反例、漏检与排除记录。开始：2026-10-14 02:11 +08:00；预估结束：2026-10-14 03:06 +08:00；实际结束：2026-10-14 02:48:37 +08:00；偏差：−17分23秒；结果：审计记录Gate PASS，新增2项P2，生产实现未改。估时依据：本地StartMantling trace约250行、target detect_mantle约200行及设置选择图；BF144.05几何批次实耗45分53秒、.15动作根运动41分11秒，考虑递归设置/蒙太奇读取后保持独立验收窗口。
+  - 02:11 活动摘要：BF144.15已提交，累计47项P2、4项P3及U01。fresh CPP确认Mantle按速度/输入双重限制方向，再依次forward capsule、downward sphere、target capsule overlap、start capsule overlap；原生CS及角色选择图已有当次reader记录，先提取所需字段和递归设置资产。本批尚无新确认差异，生产未改，截图0、性能暂停。
+  - 02:42 source/focused闭环：fresh角色选择图与7份Mantle设置reader PASS；完整角色及同一query确认D53子碰撞体速度身份遗漏、D54箱体边角法线导致目标/朝向偏移。3个focused为1PASS/2语义FAIL，共310组306PASS/4FAIL；方向限制300组含半转边界全部PASS。证据`target/bf144/16/initial/`。首个成功native读取因临时外层脚本误判空LASTEXITCODE而中止，已改读机器报告后续读其余6份，成功记录未重复执行；不计为源或产品失败。继续核对6份Montage、设置标量与探测几何控制，RMS内部仍留下一批。
+  - 02:48 本项归纳：6个focused为4PASS/2语义FAIL，共420组416PASS/4FAIL，失败只归并D53/D54。fresh 7设置→6Montage引用、13条角色选择路由及起播/warp标量均一致；ground/air×standing/crouching×uniform scale0.5/1/2的12组query形状与目标高度、手动/自动×allow/step的8组完整入口控制通过。证据`target/bf144/16/final/`、`16/inputs.json`、`16/summary.json`；`check_phase16.py`及record_gate watchdog PASS，15份native/原始Build一致，116份source、7份补充UE源码、160份target与实际库hash未变。
+  - 本批累计49项P2、4项P3及U01。移除父子速度分歧或边角接触分别消除失败；未新增生产设计，探测数值的完全等价仍未闭合，不能用以上有限控制宣称100%。本次没有公共Playground Gate，截图0、性能暂停。下一批沿已选Mantle启动/停止入口核对RMS安装、碰撞与movement mode的生命周期；RMS根轨道/平台空间数学单独验收。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -475,6 +481,18 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - Target：`src/als/character/movement/source_physics_timing.rs:199–205`对Root Air完整帧调用falling_movement_sweep却传landing_cmc=None，使`movement/motion.rs:2731–2742`的landing remaining分支不可达；余步继续用Air slide，`4098–4114`仅在物理完成后发布Grounded，未执行该帧Walking入口的高度调整。
   - 反例：完整已播放Roll的Air角色、初始vy0，在4m静态平台上方5/20mm，50/100ms内实际落地。源应调整到1.9–2.4cm带内，target已Grounded但离地仅0.040/0.021mm；无Roll两组为21.499mm。`bf144_roll_root_landing_enters_walking_before_remaining_move`6组2PASS/4FAIL；夹具只关闭角色solver约束、仍保留floor sweep的两组也仅0.046/0.138mm，证据`target/bf144/15/landing_walking/`。
   - 漏检：旧Roll落地检查mode/velocity，没有比较切Walking的当帧floor合同；模式对照8组全通过也掩盖了这里的缺口。消融证明缺失高度不是单靠接触摩擦产生，D45以初始vy0排除；附带横向轨迹偏移尚不单独归因或登记。生产实现未改。
+
+- [ ] BF144-D53 / P2 — Mantle的速度许可读取父刚体，丢失命中组件身份。
+  - Source：fresh ALS `AlsCharacter_Actions.cpp:235–242`直接读取ForwardTraceHit的TargetPrimitive.GetComponentVelocity；UE `PrimitiveComponentPhysics.cpp:1333–1344`对非simulated组件返回该组件自己的ComponentVelocity，`SceneComponent.cpp:3022–3024`没有转取父刚体。`MovementComponent.cpp:382–388`也将velocity写给实际UpdatedComponent。
+  - Target：`src/als/character/actions/mantle.rs:560,570–573`先把命中实体转成ColliderOf.body，再只在body上读取AlsComponentVelocity。显式提供在子碰撞组件上的速度被忽略，父body的组件速度被错误继承。
+  - 反例：完整角色面对同一0.8m ledge，父Kinematic component速度0、命中child component速度0.2m/s时，source应拒绝，target probe Success且实际开始Mantle；父0.2、child0时反向误拒绝。`bf144_mantle_hit_component_velocity_keeps_component_identity`6组4PASS/2FAIL，独立组件及父子速度相同的4个对照PASS；证据`target/bf144/16/initial/`。
+  - 漏检：旧compound-body测试把AlsComponentVelocity统一插在body，并将body值作为oracle；没有为命中child提供不同的合法组件速度。本项只确认已提供组件速度时的消费者身份，不假定所有移动平台都有非零ComponentVelocity；独立于D33基座继承消费者，仅登记。
+
+- [ ] BF144-D54 / P2 — Mantle在箱体边角用接触法线偏转目标与朝向。
+  - Source：fresh `CollisionConversions.cpp:115–137`对capsule/sphere sweep构建ImpactNormal；Chaos `Box.h:196–198`→`ChaosCore/AABB.h:249–283`从接触涉及的面选择最反向trace的几何面，正向扫箱体角应取前墙面。ALS `AlsCharacter_Actions.cpp:256–270,402`用该ImpactNormal生成TargetDirection、目标XY偏移和目标朝向。
+  - Target：`src/als/character/actions/mantle.rs:557,582–588`直接把Avian normal1的水平接触法线当ImpactNormal；实际MantleIntent及已开始状态消费这个倾斜方向。
+  - 反例：2.4m宽、0.8m高箱体前，actor x=±1.3m以−Z正向探测；命中侧边x=±1.2m。source目标x应保持命中x、yaw0，target目标横移约5.2cm、yaw约±20°；完整角色实际开始Mantle且保存同方向偏差。`bf144_mantle_corner_uses_geometric_wall_normal`4组2PASS/2FAIL，x=0/1.1m面内对照PASS；证据`target/bf144/16/initial/`。
+  - 漏检：旧trace几何测试主要取面内命中，未覆盖侧向越过边缘但capsule仍能接触前墙的组合。与D10共享contact/impact语义差别，但属于独立的Mantle方向消费者；不将同一反例重复计入D10，不补射线或改查询库，仅登记。
 
 ### 未闭合边界（不计为无差异）
 
