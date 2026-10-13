@@ -47,6 +47,22 @@ def compile_lighting(world, camera, eye_source, view_source, project_settings):
     if not grey:
         raise ValueError('Source metering gray is missing')
     gray = float(grey[1])
+    if cvar(view_source, 'r.DefaultFeature.Bloom') != 1 or settings.get('BloomMethod', 'BM_SOG') != 'BM_SOG':
+        raise ValueError('Source Gaussian bloom is required')
+    if float(settings['BloomThreshold']) != -1.0:
+        raise ValueError('Source bloom threshold requires exposure-space mapping')
+    tints = [parse_struct(settings[f'Bloom{level}Tint']) for level in range(1, 7)]
+    if any(len({float(tint[channel]) for channel in 'RGB'}) != 1 for tint in tints):
+        raise ValueError('Colored source bloom requires per-channel scattering')
+    gain = float(settings['BloomIntensity']) * float(settings['BloomGaussianIntensity']) * sum(float(tint['R']) for tint in tints) / 6
+    native_mips = int(math.log2(512)) - 1
+    lower, upper = 0.0, 1.0
+    for _ in range(64):
+        intensity = (lower + upper) * 0.5
+        if sum(intensity ** level for level in range(1, native_mips + 1)) < gain:
+            lower = intensity
+        else:
+            upper = intensity
     sky = skies[0]
     if object_property(sky, 'AttachParent') != 'None' or object_property(sky, 'SourceType') != 'SLS_CapturedScene':
         raise ValueError('Source sky capture space or mode requires mapping')
@@ -64,6 +80,12 @@ def compile_lighting(world, camera, eye_source, view_source, project_settings):
             'compensation_ev': float(settings['AutoExposureBias']) + math.log2(gray),
             'unit_exposure_ev100': -math.log2(1.2),
             'contrast': float(contrast['X']),
+        },
+        'bloom': {
+            'intensity': (lower + upper) * 0.5,
+            'integrated_scatter_gain': gain,
+            'threshold': 0.0,
+            'max_mip_dimension': 512,
         },
         'sky_light': {
             'intensity': float(object_property(sky, 'Intensity')),
@@ -91,6 +113,9 @@ def self_test(world, camera, eye_source, view_source, project_settings):
         pass
     else:
         raise AssertionError('Active source camera override was ignored')
+    bloom = result['bloom']
+    assert abs(sum(bloom['intensity'] ** level for level in range(1, 9)) - bloom['integrated_scatter_gain']) < 1e-12
+    assert bloom['threshold'] == 0.0 and bloom['integrated_scatter_gain'] > 0
     assert result['sky_light']['capture_origin'] == [0.0, 0.0, -0.0]
 
 
@@ -113,6 +138,11 @@ def main():
     header = (args.engine / 'Source/Runtime/Engine/Classes/Engine/Scene.h').read_text(encoding='utf-8-sig')
     if 'AutoExposureBiasCurve = nullptr;' not in header or 'AutoExposureMeterMask = nullptr;' not in header:
         raise ValueError('Source omitted reference defaults require re-extraction')
+    scene = (args.engine / 'Source/Runtime/Engine/Private/Scene.cpp').read_text(encoding='utf-8-sig')
+    bloom = (args.engine / 'Source/Runtime/Renderer/Private/PostProcess/PostProcessBloomSetup.cpp').read_text(encoding='utf-8-sig')
+    console = (args.engine / 'Source/Runtime/Core/Private/HAL/ConsoleManager.cpp').read_text(encoding='utf-8-sig')
+    if 'BloomMethod = BM_SOG;' not in scene or cvar(console, 'r.BloomQuality') != 5 or 'const float TintScale = (1.0f / BloomQualityCountMax) * BloomIntensity;' not in bloom:
+        raise ValueError('Source bloom defaults or normalization require mapping')
     if args.self_test:
         self_test(world, camera, eye, view, project)
     text = json.dumps(compile_lighting(world, camera, eye, view, project), indent=2) + '\n'

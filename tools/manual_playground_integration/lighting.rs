@@ -75,12 +75,16 @@ fn copy_view_buffer(view: ViewQuery<(&ViewUniformOffset, &AutoExposure)>, unifor
         &destination.buffer, 0, ViewUniform::min_size().get());
 }
 
-fn save_lighting_evidence(mut exits: MessageReader<AppExit>, samples: Res<LightingSamples>) {
+fn save_lighting_evidence(mut exits: MessageReader<AppExit>, samples: Res<LightingSamples>, diagnostics: Option<Res<bevy::diagnostic::DiagnosticsStore>>) {
     if exits.read().next().is_none() { return; }
     let passed = exposure_passed(samples.samples, samples.minimum_ev, samples.maximum_ev, samples.physical_exposure, samples.invalid_samples);
+    let rendered_passes: Vec<_> = diagnostics.iter().flat_map(|store| store.iter())
+        .filter(|diagnostic| diagnostic.path().as_str().ends_with("/elapsed_gpu")
+            && diagnostic.value().is_some_and(|value| value.is_finite() && value > 0.0))
+        .map(|diagnostic| diagnostic.path().as_str()).collect();
     let report = serde_json::json!({"format":"playground_lighting_evidence_v1", "pass":passed,
         "samples":samples.samples,"minimum_ev":samples.minimum_ev,"maximum_ev":samples.maximum_ev,
-        "last_ev":samples.last_ev,"physical_exposure":samples.physical_exposure,"invalid_samples":samples.invalid_samples,"images":[]});
+        "rendered_passes":rendered_passes,"last_ev":samples.last_ev,"physical_exposure":samples.physical_exposure,"invalid_samples":samples.invalid_samples,"images":[]});
     std::fs::write(&samples.path, serde_json::to_vec_pretty(&report).unwrap()).expect("Lighting evidence must be saved");
     info!("[LIGHTING][GPU-EXPOSURE] samples={} min={} max={} last={} physical={} pass={passed}",
         samples.samples, samples.minimum_ev, samples.maximum_ev, samples.last_ev, samples.physical_exposure);

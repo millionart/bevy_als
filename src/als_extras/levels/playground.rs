@@ -6,6 +6,7 @@ use bevy::camera::Exposure;
 use bevy::color::LinearRgba;
 use bevy::core_pipeline::tonemapping::Tonemapping;
 use bevy::post_process::auto_exposure::{AutoExposure, AutoExposureCompensationCurve, AutoExposurePlugin};
+use bevy::post_process::bloom::{Bloom, BloomCompositeMode, BloomPrefilter};
 use bevy::light::{CascadeShadowConfigBuilder, NotShadowCaster};
 use bevy::prelude::*;
 use bevy::render::view::{ColorGrading, ColorGradingSection};
@@ -421,6 +422,19 @@ pub fn moving_object_position(
 }
 
 #[derive(Resource, Debug, Clone, Deserialize)]
+struct PlaygroundLighting {
+    exposure: PlaygroundCameraExposure,
+    bloom: PlaygroundBloom,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct PlaygroundBloom {
+    intensity: f32,
+    threshold: f32,
+    max_mip_dimension: u32,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 struct PlaygroundCameraExposure {
     histogram_log_luminance_range: [f32; 2],
     filter: [f32; 2],
@@ -432,10 +446,10 @@ struct PlaygroundCameraExposure {
     contrast: f32,
 }
 
-fn imported_camera_exposure() -> PlaygroundCameraExposure {
-    let definition: serde_json::Value = serde_json::from_str(include_str!(
-        "../../../assets/ALSExtras/Levels/L_Als_Playground/playground_lighting.runtime.json")).expect("Source lighting data must parse");
-    serde_json::from_value(definition["exposure"].clone()).expect("Source exposure data must parse")
+fn imported_lighting() -> PlaygroundLighting {
+    serde_json::from_str(include_str!(
+        "../../../assets/ALSExtras/Levels/L_Als_Playground/playground_lighting.runtime.json"))
+        .expect("Source lighting data must parse")
 }
 
 #[derive(Component, Debug)]
@@ -1067,7 +1081,7 @@ pub fn playground_setup_system(
     }
 
     if let Some(lighting) = &manifest.lighting {
-        commands.insert_resource(imported_camera_exposure());
+        commands.insert_resource(imported_lighting());
         spawn_sun_light(&mut commands, lighting, manifest.sun_rotator.as_ref());
         spawn_playground_sky(
             &mut commands,
@@ -1171,13 +1185,12 @@ pub struct PlaygroundSky;
 
 fn playground_camera_exposure_system(
     mut commands: Commands,
-    exposure: Option<Res<PlaygroundCameraExposure>>,
+    lighting: Option<Res<PlaygroundLighting>>,
     mut curves: ResMut<Assets<AutoExposureCompensationCurve>>,
     cameras: Query<Entity, (With<Camera3d>, Without<PlaygroundSceneExposure>)>,
 ) {
-    let Some(exposure) = exposure else {
-        return;
-    };
+    let Some(lighting) = lighting else { return; };
+    let exposure = &lighting.exposure;
     for entity in &cameras {
         let [minimum, maximum] = exposure.histogram_log_luminance_range;
         let compensation_curve = curves.add(AutoExposureCompensationCurve::from_curve(
@@ -1206,6 +1219,14 @@ fn playground_camera_exposure_system(
                 },
             ),
             Tonemapping::AcesFitted,
+            Bloom {
+                intensity: lighting.bloom.intensity,
+                prefilter: BloomPrefilter { threshold: lighting.bloom.threshold, threshold_softness: 0.0 },
+                composite_mode: BloomCompositeMode::Additive,
+                low_frequency_boost: 0.0,
+                max_mip_dimension: lighting.bloom.max_mip_dimension,
+                ..default()
+            },
             PlaygroundSceneExposure,
         ));
     }
@@ -2018,7 +2039,7 @@ mod tests {
         use bevy::post_process::auto_exposure::AutoExposure;
         let mut app = App::new();
         app.init_resource::<Assets<AutoExposureCompensationCurve>>()
-            .insert_resource(imported_camera_exposure());
+            .insert_resource(imported_lighting());
         let camera = app.world_mut().spawn(Camera3d::default()).id();
         app.world_mut().run_system_once(playground_camera_exposure_system).unwrap();
         assert!(app.world().get::<bevy::camera::Hdr>(camera).is_some(), "Source sky and lit geometry require one HDR display chain");
@@ -2037,6 +2058,13 @@ mod tests {
         assert!((app.world().get::<Exposure>(camera).unwrap().exposure() - 1.0).abs() < 1e-6,
             "Source histogram receives scene luminance without the old fixed exposure scale");
         assert!(app.world().get::<ColorGrading>(camera).unwrap().all_sections().all(|section| section.contrast == 1.0));
+        let bloom = app.world().get::<Bloom>(camera).expect("Source bloom scattering is missing");
+        assert!(matches!(bloom.composite_mode, BloomCompositeMode::Additive));
+        assert_eq!(bloom.prefilter.threshold, 0.0);
+        assert_eq!(bloom.prefilter.threshold_softness, 0.0);
+        assert_eq!(bloom.low_frequency_boost, 0.0);
+        let gain: f32 = (1..=(bloom.max_mip_dimension.ilog2() - 1)).map(|level| bloom.intensity.powi(level as i32)).sum();
+        assert!((gain - 0.08944875).abs() < 1e-6, "Source integrated scattering energy was dropped: {gain}");
     }
 
     #[test]

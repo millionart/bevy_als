@@ -44,7 +44,11 @@
 - [x] BF142.01 源照明/曝光与实际渲染入口静态闭环。开始：2026-10-13 08:49 +08:00；预估结束：2026-10-13 09:14 +08:00；实际结束：2026-10-13 09:13:06 +08:00；偏差−54秒，source/static Gate PASS，无需重估。依据本轮原生World读取80.603秒、原天空材质约75节点已有审计器、当前Bevy原生AutoExposure/EnvironmentMap与BF139-P2-18同类数据闭包记录，先以25分钟完成源参数/时钟/单位、HDR/材质/相机消费者、最小失败及后续可独立验收拆分。Gate：fresh World/Camera与UE实际默认、locked Bevy执行语义、必要的读工具补齐、自测及明确剩余边界；本叶不将静态通过称视觉修复。
 - [ ] BF142.02 曝光/显示与环境补光修复。依赖.01 Gate，启动时按证实闭包拆为各自不超过60分钟的独立子项并登记时点。Gate：源驱动独立target数据、最小失败→修复、消融/字节恢复、同target_game正式构建、原Playground数值渲染与公共功能Gate；旧固定显示近似仅在源/症状/消费者共同证明的边界有限复开。
   - [x] BF142.02a HDR与源参数曝光链。开始：2026-10-13 09:16 +08:00；预估结束：2026-10-13 10:06 +08:00；实际结束：2026-10-13 10:21 +08:00；偏差+15分钟，当前叶Gate PASS，未超过20分钟容差。依据.01已证参数/单位、原生AutoExposure公开组件与既有约7分钟正式构建记录，50分钟内完成独立target数据、固定曝光/contrast旧近似迁移、天空与普通材质共享HDR、focused先红/消融/恢复与原startup功能Gate。原生Bevy与UE的Histogram统计/适应和Filmic实现差异明确保留引擎边界，不声称逐像素复刻；不加入图专用补偿。
-  - [ ] BF142.02b 源天空捕获与环境照明。依赖.02a Gate，启动时登记开始/预估结束，按源128捕获、已验证天空材质/2208顶点/3968三角与原生GeneratedEnvironmentMapLight闭包登记不超过50分钟窗口；若剩余实现超过60分钟先按数据/运行消费者拆分。Gate：独立离线HDR捕获、下半球/方向/材质/生命周期反例和自测、原生IBL、消融与同target恢复、原Playground数值渲染/公共功能验收。保持原始纹理/导出不可变，不实现另一套Lumen。
+  - [x] BF142.02b 源Bloom与太阳辉光。依赖.02a Gate。开始：2026-10-13 10:24 +08:00；预估结束：2026-10-13 11:04 +08:00；实际结束：2026-10-13 10:46:09 +0800；偏差约−18分钟，叶Gate PASS。依据fresh默认BM_SOG/强度0.675/threshold−1、六级灰色tint与已验证HDR链，使用原生Additive Bloom，离线映射源积分能量，保留两引擎blur kernel边界；40分钟闭合focused最小失败/消融/恢复、实际Bloom render pass与原manual功能Gate。
+  - [ ] BF142.02c 源天空捕获与环境照明。依赖.02a Gate（与Bloom叶独立），按源128捕获、已验证天空材质/2208顶点/3968三角与原生GeneratedEnvironmentMapLight闭包，在启动时拆为数据与运行两叶并各自登记不超过60分钟窗口。Gate：独立离线HDR捕获、下半球/方向/材质/生命周期反例和自测、原生IBL、消融与同target恢复、原Playground数值渲染/公共功能验收。保持原始纹理/导出不可变，不实现另一套Lumen。
+
+    - [ ] BF142.02c1 源天空捕获数据。开始：2026-10-13 10:36 +08:00；预估结束：2026-10-13 11:11 +08:00。依据八个剩余源资产已有原生读取约5–8分钟、当次World/Material已读取且与旧记录字节相同、现有75节点求值器，35分钟闭合fresh递归数据、源坐标/网格重心UV与下半球、独立128 HDR cube、focused消融和可复跑check；本叶不称已完成运行接入。
+    - [ ] BF142.02c2 原生环境照明消费者与运行Gate。依赖.02c1 Gate，启动时登记不超过50分钟窗口；源cube替换常量Ambient近似，原生IBL与实际GPU过滤/功能Gate、消融与同target恢复。
 
 活动摘要（08:49）：工作区基线`93ac4a47`且干净。刚读取的World与原插件/安装副本字节一致：太阳3lux、SkyLight强度2/Stationary/CapturedScene/非实时/下半球黑，PostProcessVolume只覆盖MotionBlur；当前固定EV1002/contrast1.05来自旧显示近似，天光用常量Ambient2。下一步核对源相机后处理覆盖、曝光算法和天空进入HDR的真实路径；原始导出保持不可变。
 
@@ -66,3 +70,17 @@ source/static摘要（09:13）：fresh Camera Blueprint读取34.221秒证实Post
 
 
 .02a runtime后（10:21）：真实入口startup15.328秒，原功能Gate PASS（ready、退出码、graph/fault/temporal与primary_failure全部正常）；主相机GPU有效曝光676样本、非有限0、physical=1，EV范围−1.094..0.143，数值Gate PASS，截图0/性能延期。补充scene_gate显示计数/EV/contrast/ACES合同均通过，整体FAIL来自原运动oracle仍要求129旧曲线键及旧端点（当前源产物4键、profiles1/3），未扩展到无关运动修复；不把整体FAIL写为PASS。有限显示迁移已由focused先红/四消融/恢复28测试与真实manual标量共同闭合。用户10:16反馈太阳辉光不足，fresh UE默认Bloom已启用而目标无Bloom，纳入后续独立叶；本项完成不代表整体观感已修复。
+
+.02b source摘要（10:24）：fresh World只覆盖MotionBlur，Scene.cpp默认BM_SOG、BloomIntensity0.675/Gaussian1/threshold−1，SceneView默认Bloom启用，目标无Bloom组件；太阳缺少屏幕散射链已有source-target根因。先补此独立显示缺口，再执行源天空捕获；新顺序不展开相邻LensFlare/LocalExposure。UE六级归一化Gaussian tint能量与原生Additive mip级联分别复算后离线映射，不直接抄强度到EnergyConserving模式，不改太阳/天空材质。
+
+.02b source/static摘要（10:32）：源Bloom总归一化散射gain=0.08944875；原生512 mip链为8级，低频boost置0并离线解加法级联强度0.0821045966，threshold禁用与源−1一致。相机合同已稳定先红（Source bloom scattering is missing）；首次完整优化测试因只有stderr进展触发229秒watchdog，读取报告后改为已有同target focused opt0和编译目录进展，59.155秒语义FAIL。未将超时当缺组件证据。共享照明Resource直接消费源嵌套exposure/bloom数据，不增加自制render pass；实际Bloom验收复用已启用的原生GPU诊断span。尝试声明AutoExposure先于Bloom受原生private system限制，删除该配置路径，不引入按私有名称查系统或fork；两引擎histogram/Bloom调度、空间blur核与tonemapper继续作为已说明的原生渲染边界。
+
+.02b静态闭合/runtime前（10:35）：相机Bloom最小先红/修复PASS，EnergyConserving与直接照抄0.675两项独立消融均语义FAIL（后者总scatter错误增至1.9874）；源码SHA-256精确恢复，同target28项场景回归及两项诊断自测PASS。导入self-test/check一致；生产只新增原生Bloom组件和源参数数据，复用既有GPU诊断span判定实际执行，不添加采图或自制光晕shader。开始同target_game/play正式构建，再执行原startup，必须同时满足功能、GPU曝光与native Bloom span；截图0、性能仍延期。
+
+.02c1开始（10:36）：环境捕获与Bloom不存在算法依赖，均依赖已通过的HDR/曝光叶，源数据工作在正式构建期间独立进行。fresh World与Material已与旧记录完整SHA一致；其余BP/三色曲线/两UV网格/三纹理经同一原生reader重新读取，不因旧记录同名跳过。只派生独立捕获数据，不修改正在编译的Rust或已验证天空材质/纹理。
+
+.02b runtime前（10:44）：正式target_game/play构建376.518秒PASS，恢复后的相机合同/28场景与2诊断测试、两项有效消融及离线数据check已通过。开始原manual startup，同时验源曝光读回、原功能报告与原生GPU Bloom span，尚不提前核销辉光叶。
+
+.02c1 source闭合（10:44）：八个新增fresh依赖全部原生读取成功（31–38秒/资产），当次Material/World记录与前轮完整字节相同；UE捕获以SkyDistanceThreshold作为near plane，PostProcessing关闭，下半球按源上轴z<0替换黑色。采用公共source/runtime XZY坐标基与真实三角形重心插值两UV，保持原天空shader不变。求值器增加batch轴后20个既有标量输出完全一致；下一步实际128×6 half-float捕获、batch反例/消融和fresh导入check。
+
+.02b runtime后（10:46）：原manual startup15.730秒功能PASS、GPU曝光699样本/invalid0/physical1；原生render/bloom/elapsed_gpu与tonemapping/auto_exposure均记录有效执行，截图0，性能验收延期、FullPassFalse。源驱动Bloom显示叶完成；先红/两消融/源码精确恢复/28场景与2诊断/正式同target构建/实际GPU链闭合，未将native blur核称UE逐像素等价。天空环境光叶仍未完成，继续推进。
