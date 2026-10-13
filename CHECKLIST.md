@@ -53,7 +53,7 @@
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；U01未闭合，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.19完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道、warp变换、动态基座和RMS物理消费的首轮审计，确认D43–D60、D62–D64，D61撤销；精确查询数值及公共Playground验收尚未闭合 |
-| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.21完成许可、启动/退出、输入/锁定、GetUp交接及PA body/shape/质量/有效碰撞首轮审计，确认D65–D74；关节/驱动/积分、pelvis跟随/出口pose和完整GetUp动画待独立批次；不开展无源链路的通用物理审查 |
+| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.22完成许可、启动/退出、输入/锁定、GetUp交接、PA body/shape/质量/有效碰撞及关节frame/限位/drive输入首轮审计，确认D65–D75；关节求解/body积分、pelvis跟随/出口pose和完整GetUp动画待独立批次；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | 待重新取证及核对；历史155子图合同只作起点，不能自证算法等价 |
 | 剩余源函数与跨阶段边界 | 以上 source-target 链路的覆盖缺口 | 前述审计后再独立收口；未解释项保留，截图与性能继续暂停 |
@@ -208,6 +208,11 @@
 
   - 06:18 本项归纳：7个focused为2PASS/5语义FAIL，419组387PASS/32FAIL归并D70–D74；126组native initial与84组native live值已独立保存。初始小pelvis从实际截断shape重算恢复native惯量，native principal/frame控制恢复5个body样本，未放宽容差。两份physical material依赖只用于质量/摩擦解析；未扩展材质图。
   - 证据21/final/、21/native_mass_summary.json及21/summary.json；capture/native_mass/record_gate watchdog PASS，116份基线source、13份补充UE source、24份native、160份生产Rust及同一launcher库身份核验。reader增量在相同package target重建且源码字节一致；缺质量刷新版本的1kg结果被拒绝，当前原生质量恢复正确，普通PA导出逐字段不变。移除未使用的公式Rust输出后7项focused结论不变；未修改转换规则/target资产或移植算法。累计59项P2、13项P3，D08/D61撤销、U01仍未闭合；截图0、性能暂停。下一批先核对PA关节与ALS驱动直接闭包，body积分/零scale恢复、pelvis跟随与GetUp继续独立分批。
+
+- [x] BF144.22 PA关节配置、坐标框架与ALS角驱动输入：沿fresh PA_Als、UE InitConstraint/UpdateRBJointMotors/SetAllMotorsAngularDriveParams及ALS RefreshRagdolling，核对20个关节的骨骼绑定、局部frame、线性/角限位、drive启用/目标/单位与速度缩放，并检查完整角色的实际joint组件及每帧输入。约束数值求解、body阻尼/睡眠/CCD积分、启动速度与pelvis跟随/出口pose继续按独立依赖批次验收。Gate：native源身份与配置合同、实际组件/消费者最小反例及对照、漏检和未闭合边界。开始：2026-10-14 06:23 +08:00；预估结束：2026-10-14 07:08 +08:00；实际结束：2026-10-14 07:08:58 +08:00；偏差：+58秒；结果：审计记录Gate PASS，新增1项P2，未修复。估时依据：PA已提取20个constraint，fresh ALS驱动段约15行，UE约束初始化和动画motor闭包约400行，target profile与角驱动约350行；BF144.18变换闭包实耗24分06秒、.21含原生reader扩展35分34秒，本项将数值求解拆出后独立估时。
+  - 06:23 活动摘要：BF144.21记录Gate已提交；累计59项P2、13项P3，D08/D61撤销、U01未闭合。fresh ALS以pelvis速度除10m/s再clamp缩放25000源角刚度，阻尼与force limit均设0；仍需核对UE设置覆盖、动画目标与实际solver输入。截图0、性能暂停，未修复移植实现。
+  - 07:08 source/focused闭环：fresh PA reader与原始/Build身份PASS；20 joints在unit/0.75/正nonuniform下60组骨骼绑定、双frame、限位与有效开关全部PASS。19活动joint按当前pre-physics Pose局部旋转和native ref frame独立复算，两种尺度×4帧共152组PASS；这只验证motor目标计算，不提前宣称源flail动画输入等价。首次四元数比较把q与−q误判为2π，已统一最短旋转并保留原记录，未登记缺陷。8组速度输入中6PASS/2FAIL确认D75：目标先限速再计算刚度，源顺序相反；下一步收口live joint scale与记录身份。
+  - 本项归纳：活动Ragdoll的mesh在world pause下改变relative scale，0.75/1.5/0.01的双anchor按源更新，正nonuniform保持原frame，80组全部PASS。最终4项focused为3PASS/1预期语义FAIL，300组298PASS/2FAIL；移除超限速度或移出启动限速期，D75反例消失。116份基线source、7份补充UE source、fresh PA原始/Build及160份生产Rust和同一launcher库身份核验PASS，证据`22/final/`、`22/summary.json`；没有生产设计消融对象，未改转换规则或target资产。累计60项P2、13项P3，D08/D61撤销、U01未闭合；截图0、性能暂停。关节求解/积分、启动速度和pelvis/GetUp继续独立闭包。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -635,6 +640,12 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Source：fresh `SkeletalMeshComponentPhysics.cpp:1946–1949,3533–3544`在OnUpdateTransform调用UpdateRigidBodyScaling；relative scale跨到零时立即SetAllBodiesSimulatePhysics(false)，独立于world tick。p.UpdateRigidBodyScaling默认开启，当前项目/源配置没有覆盖。
   - Target：`ragdoll_positive_scale:1199–1206`把零scale回退为ONE，`sync_ragdoll_body_modes:445–451`仍依Ragdolling保持20个Dynamic body，没有源的零scale停用生命周期。
   - 反例：活动Ragdoll在world pause后将已detach的player/mesh scale设为0，下一完整App帧仍有20个Dynamic，源应为0；scale=1对照保留20个。`bf144_pa_zero_mesh_scale_stops_source_body_simulation`2组1PASS/1FAIL。只登记停用分支，恢复非零的source重建路径未在本反例中宣称已验收。
+
+- [ ] BF144-D75 / P2 — Ragdoll角驱动在启动限速之后采样pelvis速度，过早降低关节刚度。
+  - Source：fresh `AlsCharacter_Actions.cpp:883–885,946–958`先保存pelvis当前linear velocity，以其完整长度/1000cm/s截到[0,1]后乘25000设motor刚度，再递减启动期计数并调用`ConstraintRagdollSpeed`。`PhysInterface_Chaos.cpp:485–489`再应用本机native角drive stiffness scale=1.5，阻尼/最大torque均为0；加速度drive不做厘米平方转换。
+  - Target：`ragdoll_link.rs:207–214`把`limit_initial_ragdoll_speed`排在`ragdoll_joint_drive_adapter_system`前；后者`578–584`回读已被截短的pelvis速度，再由`ragdoll_angular_drive.rs:82–88`写入19个活动joint的57个motor通道。
+  - 反例：实际加载角色由静止启动Ragdoll，下一帧限速仍为2m/s；输入(3,4,0)m/s时目标基础刚度5000，源应12500，实际各motor为7500而源应18750；输入竖直−12m/s时目标仍5000，源应25000。零速、1m/s及限速期结束后同四种输入均PASS，8组6PASS/2FAIL。只证明真实关节刚度输入差异，不把未运行的完整布娃娃轨迹纳入证据。
+  - 漏检：`joint_drive_uses_source_constraint_drive_values`只对纯speed→stiffness函数传0/5/10，未把启动限速和实际ECS消费者组合。反例/对照见`bf144_pa_joint_drive_reads_velocity_before_initial_speed_limit`与`target/bf144/22/`；未修改移植实现或转换器。
 
 ### 未闭合边界（不计为无差异）
 
