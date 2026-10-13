@@ -51,7 +51,7 @@
 | 顺序 / 源责任 | 本轮 target 核对入口 | 覆盖状态与旧 Gate 边界 |
 |---|---|---|
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
-| CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.12完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承及物理交互首轮审计，确认D05–D07、D09–D40；重力D08已撤销；U01及源可达的剩余ledge/恢复/mode边界待后续独立批次 |
+| CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；U01未闭合，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | 待逐项审计；角色蓝图 SelectMantlingSettings 属此闭包 |
 | Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | 待逐项审计；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
@@ -141,6 +141,12 @@
   - 00:36 source/static闭环：native PhysicsInteraction=True、Mass100、StandingScale1；本机UE静止body推挤默认为500×30力分支，非旧Impulse，source/project配置无覆盖。完整角色14组5PASS/9FAIL确认D37下压力及D38blocking impact施力遗漏，普通Avian接触未补足这两条路径；Static/Kinematic、零gravity等对照通过。下一步只核对同闭包的overlap touch/repulsion，生产源码/资产未改。
   - 00:42 闭环：完整角色5个focused测试1PASS/4个源合同语义FAIL，共29组13PASS/16FAIL；D39首次Touch以COM半径外排除repulsion，D40静止角色排除Touch，实际ContactGraph证明Overlap存在。3组显式提供同量级force的控制全部按质量/physics delta得到正确速度，排除物理积分通道失效；证据`target/bf144/12/final/`。native记录、116份source与补充Primitive/BodyInstance/Chaos源码身份、160份生产Rust及同一target_game库hash全部通过`check_phase12.py`，`12/record_gate.watchdog.json` PASS；测试非零101被记录为等价失败，未冒充runtime通过。
   - 本批累计37项P2、2项P3及U01。仅新增gitignored外部probe与审计记录，未新增生产抽象/状态/分支，设计消融无生产对象；物理力对照属于隔离归因。未运行真实Playground Gate，截图0、性能暂停；下一批核对源可达的ledge/恢复/模式边界，再转Roll/Mantle，未展开外围或未授权修复。
+
+- [x] BF144.13 CMC剩余可达边缘行走与恢复合同：沿fresh ALS PhysWalking/PhysFalling调用及native CanWalkOffLedges/移动模式/约束设置，核对standing/crouching边缘许可、侧向ledge备选、失去floor和penetration恢复的未覆盖源分支；同时清点ALS实际调用的mode/外力入口，将动作所有权闭包交回Roll/Mantle/Ragdoll，未调用的通用UE接口不冒充ALS必需功能。Gate：本次native与源可达性表、必要完整角色反例/对照、未闭合边界登记。开始：2026-10-14 00:43 +08:00；预估结束：2026-10-14 01:33 +08:00；实际结束：2026-10-14 00:55:16 +08:00；偏差：−37分44秒；结果：审计记录Gate PASS，新增2项P2，生产实现未改。估时依据：剩余ALS walking循环及UE ledge/revert/checkfall/penetration约400行；BF144.04/.05几何批次实耗47分40秒/45分53秒，.12物理分支复用夹具实耗17分；本项只覆盖已选剩余入口，动作内部独立验收。
+  - 00:43 活动摘要：BF144.12已提交，累计37项P2、2项P3与U01。先核对native边缘许可及源实际调用，尚未确认本批新差异；保留原始source/target身份，截图关闭、性能暂停，生产实现未改。
+  - 00:53 source/static闭环：native CanWalkOffLedges与Crouching许可均True、ImprovedPenetration=True、AlwaysCheckFloor=True、ConstrainToPlane=False，排除把UE基类的蹲伏禁出边缘默认值当作ALS行为。完整角色12组7PASS/5FAIL确认D41无walkable floor时丢弃penetration命中，以及D42静止丢失floor时提前一帧积分重力；动作SetMovementMode/Locked仅位于Mantle和Ragdoll，其内部按后续批次，当前不修改。
+  - 00:55 闭环：3个focused测试1PASS/2个源合同语义FAIL，共16组11PASS/5FAIL；standing/crouching×移动/静止的4组边缘许可对照PASS，离地当帧蹲伏保持也符合源仅清WantsCrouch、下一BeforeMovement才真正UnCrouch的阶段。`target/bf144/13/final/`、`check_phase13.py`与`13/record_gate.watchdog.json`确认native、116份源快照及MovementComponent补充、160份生产Rust、同target_game库hash未变，原始Playground/Build包相同。
+  - 可达边界：fresh已加载Playground原始导出1013个object无PhysicsVolume/Water对象或bWaterVolume，native虽CanSwim=True但没有当前水体入口；Swimming/Flying、AI NavWalking和未被ALS调用的通用Launch/CMC外力API不计入本批通过覆盖。source ShouldCatchAir恒False，未据猜测增加飞出坡面算法；5处动作mode切换与锁归Mantle/Ragdoll。累计39项P2、2项P3、U01；无生产设计消融对象、无真实Playground验收，截图0、性能暂停，继续Roll闭包。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -380,6 +386,18 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - Target：普通角色没有该overlap body consumer；Avian Sensor pair只保留重叠，既不径向施力也不执行源停速分支。
   - 反例：静止完整角色，1kg球体与胶囊Overlap、重力关闭，源Touch因角色水平速度0而无冲量。球体中心距0.2/0.34m且静止时源首帧vx应+0.041667m/s、target0；距0.31m初速+1时源清0、target+1；距0.32m初速−0.1时源变−0.058333、target−0.1。`bf144_force_overlap_repulsion_keeps_source_radial_and_stop_branches`7组3PASS/4FAIL，向外离开、半径外和Kinematic对照通过；证据`target/bf144/12/overlap/`。
   - 漏检：阻挡接触和Sensor筛选测试都没有验证CMC对已知overlap列表的持续交互；近距离条件还包含源的厘米平方比较，不能以“2.5cm范围”粗略替换。body/bone选择在当前普通刚体成立，Ragdoll多body归其后续批次；仅登记。
+
+- [ ] BF144-D41 / P2 — 地面查询不可站立时丢弃初始穿透命中，提前切到Air。
+  - Source：fresh ALS `ComputeFloorDist:797–800`在无可接受floor时只清bWalkableFloor，保留HitResult的start penetration；`PhysWalking:529–559`对该命中执行ResolvePenetration并ForceNextFloorCheck，当前迭代有start penetration时不进入CheckFall。UE `GetPenetrationAdjustment/ResolvePenetration:3621–3646`与MovementComponent的MTD路径不要求walkable floor。
+  - Target：`src/als/character/movement/motion.rs:3932`对`!valid`返回None，`4003–4007,4016–4067`只在validated floor存在时使用penetration数据；没有可站立floor时跳过该恢复，随后把None解释为Air。
+  - 反例：完整角色Grounded、静止，中心y=100m，墙面x=0.1m，脚下无近地面；retry胶囊实际产生distance0、深度0.198499m、normal≈−X。源应本迭代脱离穿透并保持Grounded，target仅由solver侧推至x=−0.066073m，仍重叠却转Air、vy=−0.1635。`bf144_recovery_invalid_floor_keeps_source_penetration_result`4组3PASS/1FAIL；有walkable地面、无墙和完全无floor对照分别按源保持/落空，证据`target/bf144/13/penetration/`。
+  - 漏检：旧恢复测试提供可站立的line floor，只覆盖目标保留penetration的分支。D16是inside ray错误接受exit面，D21是Air SafeMove入口；本项限定Grounded无walkable floor时的数据丢失，不以修复相邻入口代替。
+
+- [ ] BF144-D42 / P2 — 静止角色失去支撑时提前积分空中重力。
+  - Source：fresh ALS `PhysWalking:430–438`在本步MoveDelta≈0时将remainingTime置0，再FindFloor；UE `CheckFall/StartFalling:5401–5456`对零DesiredDist同样保留remainingTime0，切Falling但`StartNewPhysics`不执行空中积分。没有动态基座继承时，当前帧vy及高度保持，下一帧才积分gravity。
+  - Target：`src/als/character/movement/motion.rs:3507,3635–3645`对零水平位移提前跳过FindFloor，常规Tnua/Avian仍先执行重力，`4070–4108`物理后才发布Air；缺少源的零剩余时间约束。
+  - 反例：完整角色静止在高处静态平台，下一帧删除该平台。站立/蹲伏×16.667/50ms下源首帧vy应0且高度不变，target分别vy=−0.1635/−0.4905m/s、下降约1.59/14.31mm；各模式都正确切Air，差异在积分阶段。`bf144_recovery_stationary_floor_loss_defers_falling_integration`8组4PASS/4FAIL，保留平台的4组对照均Grounded、vy0；证据`target/bf144/13/stationary_loss/`。
+  - 漏检：旧基座销毁与floor失效测试只断言切Air和没有水平瞬移；移动走离的remaining-time测试有非零MoveDelta，没有触发该早退。反例使用静态基座，排除D34竖直支持速度继承；仅登记，不改重力值。
 
 ### 未闭合边界（不计为无差异）
 
