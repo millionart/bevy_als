@@ -37,3 +37,14 @@
 - ALSExtras（AI 控制器示例）不在范围内。
 - 音频（Metasound）、Niagara 特效仅保留挂钩点。ALSCamera 完整移植已纳入 BF116.01。
 
+## BF142 天空接入后的场景亮度与曝光
+
+用户于2026-10-13明确要求处理天空接入后的阴沉观感。范围为原Playground天空材质输出、SkyLight环境补光与曝光显示链；截图0、性能验收暂停。先按当次本地源事实定位差异，再使用现有引擎功能，不凭观感提高太阳或添加补偿。
+
+- [x] BF142.01 源照明/曝光与实际渲染入口静态闭环。开始：2026-10-13 08:49 +08:00；预估结束：2026-10-13 09:14 +08:00；实际结束：2026-10-13 09:13:06 +08:00；偏差−54秒，source/static Gate PASS，无需重估。依据本轮原生World读取80.603秒、原天空材质约75节点已有审计器、当前Bevy原生AutoExposure/EnvironmentMap与BF139-P2-18同类数据闭包记录，先以25分钟完成源参数/时钟/单位、HDR/材质/相机消费者、最小失败及后续可独立验收拆分。Gate：fresh World/Camera与UE实际默认、locked Bevy执行语义、必要的读工具补齐、自测及明确剩余边界；本叶不将静态通过称视觉修复。
+- [ ] BF142.02 曝光/显示与环境补光修复。依赖.01 Gate，启动时按证实闭包拆为各自不超过60分钟的独立子项并登记时点。Gate：源驱动独立target数据、最小失败→修复、消融/字节恢复、同target_game正式构建、原Playground数值渲染与公共功能Gate；旧固定显示近似仅在源/症状/消费者共同证明的边界有限复开。
+
+活动摘要（08:49）：工作区基线`93ac4a47`且干净。刚读取的World与原插件/安装副本字节一致：太阳3lux、SkyLight强度2/Stationary/CapturedScene/非实时/下半球黑，PostProcessVolume只覆盖MotionBlur；当前固定EV1002/contrast1.05来自旧显示近似，天光用常量Ambient2。下一步核对源相机后处理覆盖、曝光算法和天空进入HDR的真实路径；原始导出保持不可变。
+
+source/static摘要（09:13）：fresh Camera Blueprint读取34.221秒证实PostProcessWeight=0，Sky Material读取69.379秒证实Surface/Opaque/Unlit；UE默认Histogram、10%–90%、速度3/1、range −10..20、18%中灰与bias1已闭合。四档均匀亮度反例证明固定EV2不能维持源中灰0.36；lens/native基准换算单元复算通过，原始记录/源码快照及哈希在`target/bf142/source_contract.json`。实际入口没有Hdr/AutoExposure，天空绕过普通材质曝光/非HDR tone mapping，SkyLight未接入。后续分别闭合曝光/HDR显示与一次性128天空捕获→原生环境照明；沿用源材质/网格算法，UE Lumen和两引擎tonemapper/filter实现差异保留能力边界，不把任意亮度补偿当源算法。当前仅source/static完成，尚未宣称观感修复。
+
