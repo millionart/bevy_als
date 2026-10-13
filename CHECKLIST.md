@@ -51,7 +51,7 @@
 | 顺序 / 源责任 | 本轮 target 核对入口 | 覆盖状态与旧 Gate 边界 |
 |---|---|---|
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
-| CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.08完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调与蹲起首轮审计，确认D05–D07、D09–D27；重力D08已撤销；Jump/apex、基座、U01及未证实的罕见恢复边界待后续独立批次 |
+| CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.09完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起和Jump/apex首轮审计，确认D05–D07、D09–D28；重力D08已撤销；移动基座、U01及未证实的罕见恢复边界待后续独立批次 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | 待逐项审计；角色蓝图 SelectMantlingSettings 属此闭包 |
 | Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | 待逐项审计；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
@@ -115,6 +115,12 @@
   - 22:52 source/focused 闭环：fresh Crouch以实际世界quat扫掠下移缩短后的胶囊，UnCrouch则以gravity orientation做站起净空，target分别直接传送下移和误用actor quat，确认D24/D25。12组完整角色夹具8PASS/4FAIL，两个失败边界均可通过去掉倾斜或障碍消除。native站立半高90cm/半径30cm/蹲姿半高56cm与target一致；CDO的maintains-base为False，但ALS每次movement-mode change明确设True，不能把未初始化CDO当运行时合同。继续核对常规净空拒绝/重试、倍率和父空间对照，不修改生产实现。
   - 23:00 source/focused 闭环：普通headroom拒绝/恢复、0/.5/1/2 owner倍率、4种尺度×直接/父级center及mesh偏移共16组PASS，低顶板站起后swept floor adjustment也PASS。fresh源UPROPERTY/Setter允许配置蹲姿半高，Crouch明确clamp到radius且变大时先做净空拒绝；target的形体虽自行夹到radius，中心/mesh/cache仍用未夹值，且增高无拒绝，确认D26/D27。两者只在非默认尺寸触发，默认56cm对照通过；最终7项测试3PASS/4预期语义FAIL，37组31PASS/6FAIL归并本批4项差异。
   - 23:01 本项归纳：已核对Crouch/UnCrouch尺寸、gravity/actor query空间、最小轴center/mesh偏移、低顶板floor回退、desired/actual与Before/AfterMovement阶段和重复拒绝；源CanEverCrouch读取NavAgentProps=True，另一个MovementState=False不是该许可输入。D24最终改用4m平面，反例保持，避免把U01的100m查询数值带入新结论。native资产及116份原source、3份额外UE闭包、160份生产Rust/当前库身份PASS，证据`target/bf144/08/final/`、`08/summary.json`。去掉倾斜/阻挡或恢复默认尺寸均消除相应失败；无生产设计新增可消融，无公共runtime Gate、截图0、性能暂停。Roll/Mantle/GetUp的物理姿态override内部生命周期留各自动作/notify批次；下一批进入Jump/apex。
+
+- [x] BF144.09 Jump接受、保持/松开、顶点与通知：沿fresh ALS Jump/OnJumped、UE CanJump/CheckJumpInput/ClearJumpInput/DoJump和PhysFalling apex分支，核对standing/action/mode许可、初始竖直速度、hold时钟、按键边沿、松开/重按、顶点子步与当前实际consumer。Mantle/Ragdoll跳键优先级只核对直接入口，内部动作与移动基座离地速度留后续批次。Gate：native跳跃参数/源阶段合同、独立公式与完整角色反例/对照、漏检及排除登记。开始：2026-10-13 23:03 +08:00；预估结束：2026-10-13 23:48 +08:00；实际结束：2026-10-13 23:21:26 +08:00；偏差：−26分34秒；结果：审计记录Gate PASS，新增1项P2，生产实现未改。估时依据：fresh Character跳跃约200行、CMC DoJump/apex约150行与target自定义Jump适配/运动约250行；BF144.08实耗19分24秒，BF141跳跃倍率修复及既有完整帧反例可复用，但apex与输入组合需独立推导。
+  - 23:03 活动摘要：BF144.08已提交，累计25项P2、1项P3及U01。已定位源Jump的两代DoJump入口与apex substep默认开关，下一步先核对本机实际CVar/CDO，再建立取值和执行时点对照；截图关闭、性能暂停、生产实现未改。
+  - 23:13 source/focused 闭环：fresh native确认JumpZ=4.2m/s、hold=0、count=1、gravity-while-jumping和DontFallBelowJumpZ=True、apex最多2次；本地源默认UseLegacyDoJump/ForceJumpPeakSubstep=1，项目/引擎配置无覆盖。已有竖直速度−2/0/2/4.2/8m/s起跳5组均保留源max合同。完整角色跨顶点帧遗漏先上后下的分段sweep，1.5mm头顶间隙在50/100ms帧被漏检，确认D28；无顶板3组及16.7ms直接上升撞顶对照PASS。首版误将只代表向上法线支持的airborne_sweep_contact当通用hit计数，已用source pullback+顶点分段位置公式替换，错误断言不计缺陷；继续hold/松开/通知边界。
+  - 23:19 source/focused 闭环：0/.5/1/2 owner倍率×默认0/配置0.25秒hold×首帧松开/持续保持共16组、撞顶后hold继续/停止4组全PASS；已启用实际mesh求值的Standing/Crouching/pending-crouch/Air/Custom/held-only六组接受与动画frame-input对照PASS。fresh IA_Als_Jump reader PASS，资产明确是Pressed+Released、threshold0.5、pause不触发，与目标binding一致，排除持续按住自动连跳猜测。源码OnJumped→AnimationInstance.Jump→game-thread latch链已追到实际`source_frame_input.in_air_state.b_jumped`，本批不展开其后完整Air图求值合同。
+  - 23:21 本项归纳：默认单次跳跃许可、蹲姿跳键先站起、初速度max、源hold/松开/owner时钟、ceil接触后继续hold与accepted→animation请求已闭合；最终5项focused为4PASS/1预期语义FAIL，37组35PASS/2FAIL仅归并D28。两份native资产、12个角色跳跃属性及Pressed/Released子对象、116份原source和3份新增闭包、160份生产Rust/库hash检查PASS；证据`target/bf144/09/final/`、`09/summary.json`。去掉顶板或避免跨越顶点时失败消失；无生产设计新增，无公共runtime Gate，截图0、性能暂停。移动基座按“跟随transform/阻挡”和“支持速度/离地继承”拆成独立后续批次；AI path-following与网络仍排除，动作内部及完整Air图按原顺序继续。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -275,6 +281,12 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - Target：`src/als/character/movement/motion.rs:3361–3370`对所有Crouching目标直接提交Collider、Stance和Position，净空查询只存在于Standing分支。
   - 反例：完整角色初始center y=100m/H=0.9m，顶板底面100.98m，初始无重叠；将crouched H设为1.1m后请求蹲下。source目标center100.2m、H1.1查询被顶板阻挡，应保持Standing/旧形体；target提交Crouching/新形体并被后置solver大幅推下。`bf144_crouch_growing_capsule_checks_source_clearance_before_commit`共4组3PASS/1FAIL，普通56cm两组和1.1m无顶板对照通过；证据`target/bf144/08/final/`。
   - 漏检：已有headroom测试都围绕UnCrouch，Crouch夹具默认只缩小胶囊；没有覆盖源明确写出的增高分支。默认配置不触发，未修改生产代码或强行调整尺寸。
+
+- [ ] BF144-D28 / P2 — 缺少顶点子步，跨过顶点的整步位移可能漏掉头顶接触。
+  - Source：fresh UE `CharacterMovementComponent.cpp:248–253,4970–5006`默认ForceJumpPeakSubstep=1，跨越竖直速度零点时先把timeTick缩到TimeToApex、归零竖直速度，并退回剩余时间；随后5031的SafeMove先扫过真实上升段。fresh CDO允许每轮2次apex切分，项目/引擎配置没有覆盖默认开关。
+  - Target：`src/als/character/movement/motion.rs:2765–2782`直接以整子步前后速度的平均值构造一条位移，未在apex拆分。无碰撞时中点积分仍精确，不能据自由抛物线一致排除碰撞路径差异。
+  - 反例：完整角色空中向上0.2m/s，顶部与平顶板仅1.5mm间隙，统一使用Bevy重力9.81。源先上升至约2.039mm顶点，必撞顶；target在50ms帧只向下2.263mm，100ms同样跳过首次上升接触。独立源pullback/分段公式的末位置应99.99619/99.96941m，实际99.99773/99.97095m；`bf144_jump_apex_split_keeps_source_ceiling_contact`共6组4PASS/2FAIL，证据`target/bf144/09/apex/`。
+  - 漏检：旧跳跃轨迹/帧长测试验证无障碍曲线，普通顶板碰撞测试未组合零速点位于子步内部；无顶板3组和16.7ms未越顶点撞顶的对照都通过。当前反例影响为毫米级接触路径差，不宣称默认跳跃高度存在大误差；bNotifyApex在CDO为False，未把未使用的callback另列缺陷。
 
 ### 未闭合边界（不计为无差异）
 
