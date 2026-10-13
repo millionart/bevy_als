@@ -71,6 +71,7 @@ fn filtered_environment_maximum(bytes: &[u8], template: &Image) -> Option<f32> {
     let size = template.texture_descriptor.size;
     let required = size.width as usize * size.height as usize * size.depth_or_array_layers as usize * 8;
     if bytes.len() < required { return None; }
+    if template.data.as_ref().is_some_and(|expected| expected.len() >= required && expected[..required] != bytes[..required]) { return None; }
     let mut image = template.clone();
     image.data = Some(bytes[..required].to_vec());
     let mut maximum = 0.0_f32;
@@ -119,7 +120,7 @@ fn copy_view_buffer(view: ViewQuery<(&ViewUniformOffset, &AutoExposure)>, unifor
 }
 
 fn save_lighting_evidence(mut exits: MessageReader<AppExit>, samples: Res<LightingSamples>, diagnostics: Option<Res<bevy::diagnostic::DiagnosticsStore>>,
-    environments: Query<(&bevy::light::GeneratedEnvironmentMapLight, Option<&bevy::light::EnvironmentMapLight>), With<Camera3d>>,
+    environments: Query<(&bevy::light::EnvironmentMapLight, Has<bevy::light::GeneratedEnvironmentMapLight>), With<Camera3d>>,
     ambient: Option<Res<GlobalAmbientLight>>) {
     if exits.read().next().is_none() { return; }
     let exposure_passed = exposure_passed(samples.samples, samples.minimum_ev, samples.maximum_ev, samples.physical_exposure, samples.invalid_samples);
@@ -127,8 +128,8 @@ fn save_lighting_evidence(mut exits: MessageReader<AppExit>, samples: Res<Lighti
         .filter(|diagnostic| diagnostic.path().as_str().ends_with("/elapsed_gpu")
             && diagnostic.value().is_some_and(|value| value.is_finite() && value > 0.0))
         .map(|diagnostic| diagnostic.path().as_str()).collect();
-    let environment_ready_count = environments.iter().filter(|(source, filtered)|
-        filtered.is_some_and(|filtered| filtered.intensity == source.intensity && filtered.rotation == source.rotation)).count();
+    let environment_ready_count = environments.iter().filter(|(environment, generated)|
+        !generated && environment.intensity == 2.0 && environment.rotation == Quat::IDENTITY).count();
     let bloom_rendered = rendered_passes.iter().any(|path| path.ends_with("/bloom/elapsed_gpu"));
     let environment_rendered = samples.environment_maximums.iter().all(Option::is_some);
     let ambient_brightness = ambient.map(|ambient| ambient.brightness);

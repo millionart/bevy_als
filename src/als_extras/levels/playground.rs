@@ -430,7 +430,6 @@ struct PlaygroundLighting {
 #[derive(Debug, Clone, Deserialize)]
 struct PlaygroundSkyLight {
     intensity: f32,
-    capture_resolution: u32,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -1189,6 +1188,17 @@ pub struct PlaygroundLandscape;
 #[derive(Component)]
 pub struct PlaygroundSky;
 
+fn environment_image(width: u32, mip_count: u32, bytes: &[u8]) -> Image {
+    use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat, TextureViewDescriptor, TextureViewDimension, TextureDataOrder};
+    let mut image = Image::new_uninit(Extent3d { width, height: width, depth_or_array_layers: 6 },
+        TextureDimension::D2, TextureFormat::Rgba16Float, bevy::asset::RenderAssetUsages::all());
+    image.texture_descriptor.mip_level_count = mip_count;
+    image.texture_view_descriptor = Some(TextureViewDescriptor { dimension: Some(TextureViewDimension::Cube), ..default() });
+    image.data_order = TextureDataOrder::MipMajor;
+    image.data = Some(bytes.to_vec());
+    image
+}
+
 fn playground_camera_exposure_system(
     mut commands: Commands,
     lighting: Option<Res<PlaygroundLighting>>,
@@ -1205,25 +1215,17 @@ fn playground_camera_exposure_system(
                 Vec2::new(minimum, exposure.compensation_ev),
                 Vec2::new(maximum, exposure.compensation_ev),
             ])).expect("Source exposure compensation must be continuous"));
-        let mut environment = Image::new(
-            bevy::render::render_resource::Extent3d {
-                width: lighting.sky_light.capture_resolution,
-                height: lighting.sky_light.capture_resolution,
-                depth_or_array_layers: 6,
-            },
-            bevy::render::render_resource::TextureDimension::D2,
-            include_bytes!("../../../assets/ALSExtras/Environment/Sky/playground_sky_capture.rgba16f").to_vec(),
-            bevy::render::render_resource::TextureFormat::Rgba16Float,
-            bevy::asset::RenderAssetUsages::all(),
-        );
-        environment.texture_view_descriptor = Some(bevy::render::render_resource::TextureViewDescriptor {
-            dimension: Some(bevy::render::render_resource::TextureViewDimension::Cube),
-            ..default()
-        });
-        let environment_map = images.add(environment);
+        let definition: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../assets/ALSExtras/Environment/Sky/playground_environment.runtime.json")).expect("Source environment metadata must parse");
+        let diffuse = environment_image(definition["diffuse_resolution"].as_u64().unwrap() as u32, 1,
+            include_bytes!("../../../assets/ALSExtras/Environment/Sky/playground_sky_irradiance.rgba16f"));
+        let radiance = environment_image(definition["radiance_resolution"].as_u64().unwrap() as u32,
+            definition["radiance_mip_count"].as_u64().unwrap() as u32,
+            include_bytes!("../../../assets/ALSExtras/Environment/Sky/playground_sky_radiance.rgba16f"));
         commands.entity(entity).insert((
-            bevy::light::GeneratedEnvironmentMapLight {
-                environment_map,
+            bevy::light::EnvironmentMapLight {
+                diffuse_map: images.add(diffuse),
+                specular_map: images.add(radiance),
                 intensity: lighting.sky_light.intensity,
                 ..default()
             },
@@ -2086,16 +2088,22 @@ mod tests {
         assert!((app.world().get::<Exposure>(camera).unwrap().exposure() - 1.0).abs() < 1e-6,
             "Source histogram receives scene luminance without the old fixed exposure scale");
         assert!(app.world().get::<ColorGrading>(camera).unwrap().all_sections().all(|section| section.contrast == 1.0));
-        let environment = app.world().get::<bevy::light::GeneratedEnvironmentMapLight>(camera).expect("Source sky capture illumination is missing");
+        let environment = app.world().get::<bevy::light::EnvironmentMapLight>(camera).expect("Source SH environment must be loaded directly without random generation");
+        assert!(app.world().get::<bevy::light::GeneratedEnvironmentMapLight>(camera).is_none(), "Random native filtering would replace the source SH response");
         assert_eq!(environment.intensity, 2.0);
         assert_eq!(environment.rotation, Quat::IDENTITY);
-        let image = app.world().resource::<Assets<Image>>().get(&environment.environment_map).unwrap();
-        assert_eq!(image.texture_descriptor.format, bevy::render::render_resource::TextureFormat::Rgba16Float);
-        assert_eq!(image.texture_descriptor.size, bevy::render::render_resource::Extent3d { width: 128, height: 128, depth_or_array_layers: 6 });
-        assert_eq!(image.texture_view_descriptor.as_ref().unwrap().dimension, Some(bevy::render::render_resource::TextureViewDimension::Cube));
-        let bytes = image.data.as_ref().unwrap();
-        assert_eq!(bytes.len(), 128 * 128 * 6 * 8);
-        assert!(bytes[3 * 128 * 128 * 8..4 * 128 * 128 * 8].chunks_exact(8).all(|pixel| pixel[..6] == [0; 6]));
+        let images = app.world().resource::<Assets<Image>>();
+        let diffuse = images.get(&environment.diffuse_map).unwrap();
+        let specular = images.get(&environment.specular_map).unwrap();
+        assert_eq!(diffuse.texture_descriptor.size.width, 32);
+        assert_eq!(diffuse.texture_descriptor.size.depth_or_array_layers, 6);
+        assert_eq!(diffuse.texture_descriptor.format, bevy::render::render_resource::TextureFormat::Rgba16Float);
+        assert_eq!(diffuse.texture_view_descriptor.as_ref().unwrap().dimension, Some(bevy::render::render_resource::TextureViewDimension::Cube));
+        assert_eq!(diffuse.data.as_deref().unwrap(), include_bytes!("../../../assets/ALSExtras/Environment/Sky/playground_sky_irradiance.rgba16f"));
+        assert_eq!(specular.texture_descriptor.size.width, 128);
+        assert_eq!(specular.texture_descriptor.mip_level_count, 6);
+        assert_eq!(specular.data_order, bevy::render::render_resource::TextureDataOrder::MipMajor);
+        assert_eq!(specular.data.as_deref().unwrap(), include_bytes!("../../../assets/ALSExtras/Environment/Sky/playground_sky_radiance.rgba16f"));
         let image_count = app.world().resource::<Assets<Image>>().len();
         let bloom = app.world().get::<Bloom>(camera).expect("Source bloom scattering is missing");
         assert!(matches!(bloom.composite_mode, BloomCompositeMode::Additive));
