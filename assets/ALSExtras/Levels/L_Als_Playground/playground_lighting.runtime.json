@@ -29,7 +29,7 @@
     "capture_origin": [
       0.0,
       0.0,
-      -0.0
+      0.0
     ],
     "sky_distance_threshold": 1500.0,
     "lower_hemisphere_black": true,

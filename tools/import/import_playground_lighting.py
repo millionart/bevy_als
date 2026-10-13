@@ -9,6 +9,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'animgraph_authoring'))
 from ue_animation_asset_resolver import object_property
 from ue_exported_text import parse_struct
+from coordinate_basis import source_point_to_runtime
 
 
 def cvar(text, name):
@@ -66,6 +67,12 @@ def compile_lighting(world, camera, eye_source, view_source, project_settings):
     sky = skies[0]
     if object_property(sky, 'AttachParent') != 'None' or object_property(sky, 'SourceType') != 'SLS_CapturedScene':
         raise ValueError('Source sky capture space or mode requires mapping')
+    lower_color = parse_struct(object_property(sky, 'LowerHemisphereColor'))
+    light_color = parse_struct(object_property(sky, 'LightColor'))
+    if [float(lower_color[channel]) for channel in 'RGBA'] != [0, 0, 0, 1] or any(int(light_color[channel]) != 255 for channel in 'RGBA'):
+        raise ValueError('Source sky light colors require capture tint mapping')
+    if float(object_property(sky, 'IndirectLightingIntensity')) != 1.0:
+        raise ValueError('Separate source indirect intensity requires mapping')
     location = parse_struct(object_property(sky, 'RelativeLocation'))
     return {
         'format': 'playground_lighting_v1',
@@ -90,7 +97,7 @@ def compile_lighting(world, camera, eye_source, view_source, project_settings):
         'sky_light': {
             'intensity': float(object_property(sky, 'Intensity')),
             'capture_resolution': int(object_property(sky, 'CubemapResolution')),
-            'capture_origin': [float(location['Y']) * 0.01, float(location['Z']) * 0.01, -float(location['X']) * 0.01],
+            'capture_origin': source_point_to_runtime([float(location[axis]) for axis in 'XYZ']),
             'sky_distance_threshold': float(object_property(sky, 'SkyDistanceThreshold')) * 0.01,
             'lower_hemisphere_black': object_property(sky, 'bLowerHemisphereIsBlack') == 'True',
             'real_time_capture': object_property(sky, 'bRealTimeCapture') == 'True',
@@ -117,6 +124,12 @@ def self_test(world, camera, eye_source, view_source, project_settings):
     assert abs(sum(bloom['intensity'] ** level for level in range(1, 9)) - bloom['integrated_scatter_gain']) < 1e-12
     assert bloom['threshold'] == 0.0 and bloom['integrated_scatter_gain'] > 0
     assert result['sky_light']['capture_origin'] == [0.0, 0.0, -0.0]
+    sky = next(obj for obj in world['asset_objects'] if obj['class_path'] == '/Script/Engine.SkyLightComponent')
+    changed_sky = deepcopy(sky)
+    next(prop for prop in changed_sky['properties'] if prop['name'] == 'RelativeLocation')['exported_text'] = '(X=100.000000,Y=200.000000,Z=300.000000)'
+    changed_world = dict(world, asset_objects=[changed_sky if obj is sky else obj for obj in world['asset_objects']])
+    assert compile_lighting(changed_world, *args[1:])['sky_light']['capture_origin'] == [1.0, 3.0, 2.0]
+
 
 
 def main():

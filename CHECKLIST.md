@@ -47,7 +47,7 @@
   - [x] BF142.02b 源Bloom与太阳辉光。依赖.02a Gate。开始：2026-10-13 10:24 +08:00；预估结束：2026-10-13 11:04 +08:00；实际结束：2026-10-13 10:46:09 +0800；偏差约−18分钟，叶Gate PASS。依据fresh默认BM_SOG/强度0.675/threshold−1、六级灰色tint与已验证HDR链，使用原生Additive Bloom，离线映射源积分能量，保留两引擎blur kernel边界；40分钟闭合focused最小失败/消融/恢复、实际Bloom render pass与原manual功能Gate。
   - [ ] BF142.02c 源天空捕获与环境照明。依赖.02a Gate（与Bloom叶独立），按源128捕获、已验证天空材质/2208顶点/3968三角与原生GeneratedEnvironmentMapLight闭包，在启动时拆为数据与运行两叶并各自登记不超过60分钟窗口。Gate：独立离线HDR捕获、下半球/方向/材质/生命周期反例和自测、原生IBL、消融与同target恢复、原Playground数值渲染/公共功能验收。保持原始纹理/导出不可变，不实现另一套Lumen。
 
-    - [ ] BF142.02c1 源天空捕获数据。开始：2026-10-13 10:36 +08:00；预估结束：2026-10-13 11:11 +08:00。依据八个剩余源资产已有原生读取约5–8分钟、当次World/Material已读取且与旧记录字节相同、现有75节点求值器，35分钟闭合fresh递归数据、源坐标/网格重心UV与下半球、独立128 HDR cube、focused消融和可复跑check；本叶不称已完成运行接入。
+    - [x] BF142.02c1 源天空捕获数据。开始：2026-10-13 10:36 +08:00；预估结束：2026-10-13 11:11 +08:00；实际结束：2026-10-13 10:53:21 +0800；偏差约−18分钟，数据Gate PASS。依据八个剩余源资产已有原生读取约5–8分钟、当次World/Material已读取且与旧记录字节相同、现有75节点求值器，35分钟闭合fresh递归数据、源坐标/网格重心UV与下半球、独立128 HDR cube、focused消融和可复跑check；本叶不称已完成运行接入。
     - [ ] BF142.02c2 原生环境照明消费者与运行Gate。依赖.02c1 Gate，启动时登记不超过50分钟窗口；源cube替换常量Ambient近似，原生IBL与实际GPU过滤/功能Gate、消融与同target恢复。
 
 活动摘要（08:49）：工作区基线`93ac4a47`且干净。刚读取的World与原插件/安装副本字节一致：太阳3lux、SkyLight强度2/Stationary/CapturedScene/非实时/下半球黑，PostProcessVolume只覆盖MotionBlur；当前固定EV1002/contrast1.05来自旧显示近似，天光用常量Ambient2。下一步核对源相机后处理覆盖、曝光算法和天空进入HDR的真实路径；原始导出保持不可变。
@@ -84,3 +84,7 @@ source/static摘要（09:13）：fresh Camera Blueprint读取34.221秒证实Post
 .02c1 source闭合（10:44）：八个新增fresh依赖全部原生读取成功（31–38秒/资产），当次Material/World记录与前轮完整字节相同；UE捕获以SkyDistanceThreshold作为near plane，PostProcessing关闭，下半球按源上轴z<0替换黑色。采用公共source/runtime XZY坐标基与真实三角形重心插值两UV，保持原天空shader不变。求值器增加batch轴后20个既有标量输出完全一致；下一步实际128×6 half-float捕获、batch反例/消融和fresh导入check。
 
 .02b runtime后（10:46）：原manual startup15.730秒功能PASS、GPU曝光699样本/invalid0/physical1；原生render/bloom/elapsed_gpu与tonemapping/auto_exposure均记录有效执行，截图0，性能验收延期、FullPassFalse。源驱动Bloom显示叶完成；先红/两消融/源码精确恢复/28场景与2诊断/正式同target构建/实际GPU链闭合，未将native blur核称UE逐像素等价。天空环境光叶仍未完成，继续推进。
+
+.02c1 static/消融摘要（10:51）：fresh导入check/self-test证实原2208顶点/两UV/三纹理目标数据未变；20个标量输出原样保留，新增batch与scalar逐项一致。全128捕获23.345秒完成，786432字节、HDR峰110.6875、负Y面全黑，实际可渲染场景界限61.828米小于1500米near plane；源LowerHemisphereColor黑/alpha1、LightColor白、IndirectIntensity1已闭合。移除batch支持与下半球处理均语义FAIL，源码字节恢复后23.459秒完整重算check PASS。新捕获原点基向量fixture先红发现尚未消费的零原点字段隐藏了轴映射错误，改为公共XZY/厘米→米转换并保留非零三轴fixture；实际原点0不影响已验曝光/Bloom。4×4 fixture不覆盖窄太阳，改为只验证正辐射，下太阳HDR由完整128捕获实际峰值验；不放宽实际源数据Gate。补充cube角点方向与源天光颜色合同后最后check，再完成数据叶。
+
+.02c1完成（10:53）：最终源参数self-test/check与完整cube重算23.530秒PASS，源HDR/半球/基向量/两UV/近裁剪数据闭合，两个消融源码字节恢复后已通过；20个既有标量输出与fresh原天空数据保持一致。capture_time=0明确为场景初始化时的一次性离线快照，原生运行只消费独立target cube，不读原始记录或逐帧重捕天空。数据叶完成，运行环境照明尚未接入，不把本叶当观感修复。

@@ -80,8 +80,9 @@ class SourceMaterial:
         image=self.pixels(path)
         h,w=image.shape[:2]
         p=np.asarray(uv)*[w,h]-.5
-        x,y=np.floor(p).astype(int)
-        a,b=p-[x,y]
+        x,y=np.moveaxis(np.floor(p).astype(int),-1,0)
+        a,b=np.moveaxis(p-np.floor(p),-1,0)
+        a,b=np.asarray(a)[...,None],np.asarray(b)[...,None]
         return (image[y%h,x%w]*(1-a)+image[y%h,(x+1)%w]*a)*(1-b)+(image[(y+1)%h,x%w]*(1-a)+image[(y+1)%h,(x+1)%w]*a)*b
 
     def evaluate(self,context,parameters):
@@ -97,11 +98,10 @@ class SourceMaterial:
                 result=node(source_object_path(data['Expression']))
                 if kind!='TextureSample' and self.objects[source_object_path(data['Expression'])]['class_path'].endswith('TextureSample'):
                     index=int(data.get('OutputIndex',0))
-                    result=result[:3] if index==0 else result if index==5 else result[index-1]
+                    result=result[...,:3] if index==0 else result if index==5 else result[...,index-1:index]
                 if data.get('Mask','0') not in ['False','0'] and np.ndim(result)>0:
-                    mask=[i for i,c in enumerate('RGBA') if data.get('Mask'+c,'0') not in ['False','0'] and i<len(result)]
-                    result=result[mask]
-                    if len(result)==1:result=result[0]
+                    mask=[i for i,c in enumerate('RGBA') if data.get('Mask'+c,'0') not in ['False','0'] and i<result.shape[-1]]
+                    result=result[...,mask]
                 return result
             if kind=='ScalarParameter':return np.asarray(parameters.get(props['ParameterName'],number('DefaultValue')))
             if kind=='VectorParameter':return np.asarray(parameters.get(props['ParameterName'],[float(parse_struct(props['DefaultValue'])[c]) for c in 'RGB']))
@@ -126,11 +126,11 @@ class SourceMaterial:
                 return np.where(value<=2.980233e-8,0,np.maximum(value,0)**arg('Exponent',number('ConstExponent',2)))
             if kind=='Clamp':return np.clip(arg('Input'),arg('Min',number('MinDefault')),arg('Max',number('MaxDefault',1)))
             if kind=='OneMinus':return 1-arg('Input')
-            if kind=='DotProduct':return np.dot(arg('A'),arg('B'))
+            if kind=='DotProduct':return np.sum(arg('A')*arg('B'),axis=-1,keepdims=True)
             if kind=='Normalize':
-                value=arg('VectorInput');return value/np.linalg.norm(value)
-            if kind=='ComponentMask':return arg('Input')[[i for i,c in enumerate('RGBA') if props.get(c,'False')=='True']].squeeze()
-            if kind=='SphereMask':return np.clip((1-np.linalg.norm(arg('A')-arg('B'))/max(.00001,arg('Radius',number('AttenuationRadius'))))/max(.00001,1-arg('Hardness',number('HardnessPercent')*.01)),0,1)
+                value=arg('VectorInput');return value/np.linalg.norm(value,axis=-1,keepdims=True)
+            if kind=='ComponentMask':return arg('Input')[...,[i for i,c in enumerate('RGBA') if props.get(c,'False')=='True']]
+            if kind=='SphereMask':return np.clip((1-np.linalg.norm(arg('A')-arg('B'),axis=-1,keepdims=True)/max(.00001,arg('Radius',number('AttenuationRadius'))))/max(.00001,1-arg('Hardness',number('HardnessPercent')*.01)),0,1)
             raise ValueError('Unsupported source sky expression: '+kind)
         return node(self.output)
 
