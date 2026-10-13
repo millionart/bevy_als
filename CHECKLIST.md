@@ -51,7 +51,7 @@
 | 顺序 / 源责任 | 本轮 target 核对入口 | 覆盖状态与旧 Gate 边界 |
 |---|---|---|
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
-| CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.06完成速度/时钟、默认floor/胶囊查询、walking与Air接触首轮审计，确认D05–D07、D09–D22；重力D08已撤销；落地回调/剩余时间、蹲跳、基座和未证实的罕见恢复边界待后续独立批次 |
+| CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.07完成速度/时钟、默认floor/胶囊查询、walking/Air接触及落地回调首轮审计，确认D05–D07、D09–D23；重力D08已撤销；蹲跳、基座、U01及未证实的罕见恢复边界待后续独立批次 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | 待逐项审计；角色蓝图 SelectMantlingSettings 属此闭包 |
 | Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | 待逐项审计；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
@@ -102,6 +102,13 @@
   - 22:02 source/focused 闭环：fresh SafeMoveUpdatedComponent默认不忽略初始blocking overlap，先MTD恢复再重试原位移；target空中只有cast/slide，后置solver未完成同帧脱离，确认D21。0.2m侧壁初始穿透的完整/最小夹具各2FAIL，墙外向内/向外4PASS；源膨胀胶囊在MTD+pullback目标处无阻挡，CDO允许5m最大恢复，排除恢复路径受阻。`06/air_inputs.json`同时确认Walking默认、air设置和impact physics参数，D20移动body用普通AddForce路径不立即改变接触速度；截图/性能未启动。
   - 22:05 source/focused 闭环：普通平地从0.5–10cm间隙落下，10组接触/无接触资格对照全部PASS，排除“仅靠近floor便提前着地”的猜测。fresh PhysFalling尾部另有厘米单位的微小水平速度清零，target缺失，完整角色0/0.1/0.2/0.4/1mm/s的5组中2FAIL，登记低优先级D22/P3；这是极小残余漂移，不与重力政策混淆。剩余核对静态墙/顶面/连续墙对照，然后收口本批；root-motion override和跳跃apex仍按动作/跳跃责任留后续项。
   - 22:11 本项归纳：已核对普通air输入/积分后的接触顺序、无输入及输入限制、static/simulated impact、初始穿透、slide/两墙/ditch、普通flat landing及源微小速度清零；墙、顶面、锐/钝角双墙8组对照PASS。最终8项测试2PASS/6预期语义FAIL，61组45PASS/16FAIL归并D17–D22；去掉输入、旋转父级、第二坡面、body运动或初始重叠时对应失败消失。116份原source、2份额外UE依赖、18个native运动属性与原始/Build资产、160份生产Rust及库hash核对PASS。证据`target/bf144/06/final/`、`06/summary.json`；只验收审计记录，无生产设计修改、无公共runtime Gate、截图0、性能暂停。罕见同面重撞nudge/virtual-ditch尚无独立触发证据，native继承CanSwim=True的适用边界留最终源缺口批次，均不计为已等价；落地剩余时间/回调、跳跃apex、root motion与基座沿既定责任批次继续。
+
+- [x] BF144.07 落地剩余时间、回调与状态提交顺序：沿fresh ProcessLanded/SetPostLandedPhysics/OnMovementModeChanged及ALS NotifyLocomotionModeChanged，核对普通/滚翻/布娃娃落地仲裁、剩余Walking预算、保留输入/速度、制动timer和旋转阻塞。蹲起物理、Jump/apex、基座继承与Roll/Ragdoll内部动作实现各留对应批次；这里只追落地直接调用边界。Gate：source阶段/值/时钟合同、完整角色反例与对照、漏检/排除记录。开始：2026-10-13 22:14 +08:00；预估结束：2026-10-13 22:59 +08:00；实际结束：2026-10-13 22:39:41 +08:00；偏差：−19分19秒；结果：审计记录Gate PASS，新增1项P2，保留1项未闭合查询边界U01。估时依据：fresh CMC落地与模式切换约180行、ALS回调约65行、target falling transaction/landing friction/动作入口约300行；BF140.01同类只读复审实耗12分25秒、本次BF144.06完整几何审计实耗28分55秒，增加回调与timer跨阶段组合后独立估时。
+  - 22:14 活动摘要：BF144.06已提交，累计20项P2和1项P3未修复差异；重力D08仍为刻意差异。本批已定位fresh落地回调在剩余StartNewPhysics前执行的顺序，下一步核对target同帧快照、实际状态与计时消费者；生产代码未改，截图/性能继续暂停。
+  - 22:22 source/focused 闭环：fresh MovementComponent默认先于owner Tick，ALS落地回调读取上一轮Character已保存的LocomotionState.Velocity；target CMC仲裁也读该快照，但真正启动Roll却读本帧pre-impact recorder，确认D23。完整角色4组中快照/当前速度一致的2组PASS，3→8m/s与8→3m/s的2组都选错滚翻；fresh PerformMovement支持当前帧外力/launch在Character刷新前改变CMC速度，反例不是要求两份速度永远相同。证据`target/bf144/07/retained_velocity/`；继续落地剩余Walking与timer合同。
+  - 22:34 验证修正与边界：源制动曲线在gait 1→2并非常数，首版remaining-time oracle误用了起步值，已按fresh Normal曲线修正；错误版本保留在`07/remaining_initial/`，不计缺陷。修正后4m平地的6组全部PASS，100m平地仍6FAIL，直接shape cast已比解析接触提前约0.6–0.9cm；这不是已证实的剩余时间算法缺陷。仅沿已有movement sweep→WorldCollision/GeometryQueries与target Avian/Parry查询依赖核对容差，不展开场景或补偿。角色倍率0/.5/1/2的落地timer在世界0.5秒严格大于边界到期均PASS。
+  - 22:38 source/static 闭环：fresh B_Als_Character确认bTickBeforeOwner=True，CS_Als_Default确认700/1000cm/s落地阈值、自动Roll/Ragdoll开启、空中中断Roll关闭；目标默认设置相符。UE TimerManager以world delta累积，在物理后严格InternalTime>ExpireTime才执行，创建帧pending保留完整0.5秒，当前消费者与4组倍率控制一致。修正后的remaining公式使用gait映射、源curve线性段、pullback、CMC及braking两层子步；主合同夹具保留4m平地6组通过，不把100m箱体的查询数值差异消掉或改容差，另列U01待source查询实证收口。
+  - 22:39 本项归纳：已核对源movement→Character→mesh及timer阶段，落地普通/Roll/Ragdoll直接仲裁、残余Walking预算、输入与速度快照、旋转阻塞和pending timer；角色蓝图未增加OnLanded/OnLocomotionModeChanged覆盖。最终3项focused为2PASS/1预期语义FAIL，14组12PASS/2FAIL仅归并D23；U01的另一组12项几何诊断独立保留，不计为合同通过。8个fresh native属性及原始/Build身份、116份原source、6份额外UE闭包与160份生产Rust/库身份PASS；证据`target/bf144/07/final/`、`07/summary.json`。未改生产设计，无公共runtime Gate，截图0、性能暂停；下一项只展开蹲起物理与生命周期，Jump/apex和基座继续分批。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -232,3 +239,13 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - Target：`src/als/character/movement/motion.rs:2827–2829`直接保留deflected velocity并扣除时间，未移植该阶段。
   - 反例：完整加载角色无输入、空中水平初速0.0001/0.0002m/s，source子步末尾应清零，target分别原样保留；0、0.0004、0.001m/s对照PASS。`bf144_air_tiny_horizontal_velocity_uses_source_final_zeroing`共5组3PASS/2FAIL，证据`target/bf144/06/tiny_velocity/`。
   - 漏检：旧速度回归以较大运动量或全零为输入，未覆盖这个源厘米平方阈值。实际影响为亚毫米每秒残余漂移，优先级P3；只登记，不扩大其他近零阈值调整。
+
+- [ ] BF144-D23 / P2 — 落地滚翻启动读取本帧物理速度，偏离源保留的Character速度快照。
+  - Source：fresh `MovementComponent.cpp:35,186–188`让CMC先于owner Tick；ALS `NotifyLocomotionModeChanged:518–527`用LocomotionState.Velocity判断滚翻，该值直到后续`RefreshLocomotion:1376`才刷新。UE `PerformMovement:2871–2885`的外力/launch可在当前CMC运动前改变实际velocity，而不回写这个角色快照。
+  - Target：`src/als/character/movement/motion.rs:3697–3701`的落地仲裁读AlsActualMotion快照；`state/air.rs:337–344`另记录本帧LinearVelocity，`character/actions/roll_drive.rs:2185–2193`却用后者决定是否真正启动Roll，两个消费者不一致。
+  - 反例：完整角色从0.94m中心高落地，保留下降速度3m/s而当前速度被更新为8m/s时，source应普通落地，target启动Roll；保留8m/s而当前3m/s时，source应Roll，target没有启动。两份速度相同的3/3、8/8对照PASS。`bf144_landing_roll_uses_retained_character_velocity`共4组2PASS/2FAIL，证据`target/bf144/07/retained_velocity/`。
+  - 漏检：旧实际落地测试及阈值测试通常让pre-impact和Character快照保持一致，或只验证ragdoll分支；未组合当前帧速度更新与保留快照分离。仅登记，不修改recording或动作实现。
+
+### 未闭合边界（不计为无差异）
+
+- [ ] BF144-U01 — 大型平地箱体的胶囊sweep接触时间数值差异：100×1×100m箱体、胶囊H=0.9/R=0.3m、起点y=0.94m，初速(3,−3,0)m/s；20ms首步的target raw hit distance=0.047215m，解析几何为0.055680m，命中时两witness仍分离约0.00608m；50ms首步分离约0.00937m，影响落地剩余积分。4m宽同平面6组source剩余时间合同PASS，100m宽6组偏离；证据`target/bf144/07/remaining_corrected/`。已沿source PrimitiveComponent→WorldCollision→GeometryQueries→GJKRaycast2核对调用，以及target Avian0.7/Parry0.27的directional_distance；两边终止规则不同，但尚未执行同输入的源查询，不能将解析差与target差直接判为已证实的源移植缺陷。后续只补该数值边界的source实证，不借此优化查询、改阈值或修改已完成项。
