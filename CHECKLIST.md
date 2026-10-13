@@ -51,7 +51,7 @@
 | 顺序 / 源责任 | 本轮 target 核对入口 | 覆盖状态与旧 Gate 边界 |
 |---|---|---|
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
-| CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03完成速度/时钟审计，确认D05–D07；重力D08已撤销；地面查询、步阶、蹲跳与基座待后续独立批次 |
+| CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03/.04完成速度/时钟及默认floor/胶囊查询审计，确认D05–D07、D09–D12；重力D08已撤销；步阶/接触、外部组件权限、蹲跳与基座待后续独立批次 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | 待逐项审计；角色蓝图 SelectMantlingSettings 属此闭包 |
 | Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | 待逐项审计；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
@@ -75,9 +75,15 @@
   - 19:49 source/focused 闭环：fresh PhysicsSettings CDO确认默认重力−980cm/s²、terminal4000cm/s、同步无substep且独立物理cap约1/30；WorldSettings无gravity override，实际target重力却−9.81m/s²，默认0.1秒落体velocity−0.981而source−0.98，源重力显式对照PASS，登记较小差异D08/P3。world0.1秒×owner0/.5/1/2的velocity/位移/CMC delta对照全PASS。当前CMC focused7项2PASS/5语义FAIL归并D05–D08；完整结果见`target/bf144/03/final/`，没有把失败报告当验收通过。
   - 19:52 本项归纳：已核对grounded profile/连续曲线、输入缩放时点、CalcVelocity制动/转向摩擦/overspeed恢复/再加速、独立braking半尾子步、CMC末步预算、AirControl/boost/MinAnalog、无接触自由落体/terminal与World/owner/physics三层时钟。AI requested movement/RVO不在本项目范围；着地剩余时间与几何接触留后续碰撞批次。fresh4个新增native report与两条CV/原关卡包身份检查PASS，PhysicsSettings采用实际CDO，160份生产源码及已验证库hash未变；`03/summary.json`仅验收审计记录完整性，不宣称运动等价。无生产修改、无设计消融对象、截图0、性能继续暂停。
 
-- [ ] BF144.04 CMC 地面查询、边缘与胶囊尺寸：沿fresh ALS ComputeFloorDist、UE FindFloor/ComputePerchResult/Capsule尺寸及target实际floor consumers核对sweep/line/retry、walkable/edge/perch、单位/世界缩放/父空间；Walking StepUp/Slide、蹲跳/基座分别留下一独立批次。Gate：source查询合同、实际几何最小反例与阴阳对照、漏检/排除记录。开始：2026-10-13 19:53 +08:00；预估结束：2026-10-13 20:48 +08:00。估时依据：ALS floor约170行、UE floor/perch/shape缩放递归闭包与target query约200行，加已有BF141父级尺度和BF134 floor/perch边界记录；几何组合比BF144.03多，单独限制为地面查询闭包。
+- [x] BF144.04 CMC 地面查询、边缘与胶囊尺寸：沿fresh ALS ComputeFloorDist、UE FindFloor/ComputePerchResult/Capsule尺寸及target实际floor consumers核对sweep/line/retry、walkable/edge/perch、单位/世界缩放/父空间；Walking StepUp/Slide、蹲跳/基座分别留下一独立批次。Gate：source查询合同、实际几何最小反例与阴阳对照、漏检/排除记录。开始：2026-10-13 19:53 +08:00；预估结束：2026-10-13 20:48 +08:00；实际结束：2026-10-13 20:40:40 +08:00；偏差：−7分20秒；结果：审计记录Gate PASS，新增4项P2未修复差异。估时依据：ALS floor约170行、UE floor/perch/shape缩放递归闭包与target query约200行，加已有BF141父级尺度和BF134 floor/perch边界记录；几何组合比BF144.03多，单独限制为地面查询闭包。
   - 19:53 活动摘要：上一批速度/时钟审计已提交；当前累计7项P2，重力D08已按后续用户决定撤销。下一步重新定位源Capsule尺寸、sweep/line和perch分支，再沿真实floor调用链检查边界，不展开图/周边或性能。
   - 20:00 用户范围修订：默认重力统一使用Bevy值，D08从缺陷及有效失败反例移除，登记到附录A。原取证和当时分类记录保留，当前有效问题仅D01–D07；运动公式与时钟审计采用同一Bevy重力输入继续。本项地面查询审计不受该决定影响。
+  - 20:15 source/focused 闭环：fresh CapsuleComponent确认正世界尺度的半高取竖轴、半径取水平两轴最小值，排除“应统一取三轴最小值”的猜测；B_Als_Character关闭flat-base查询。fresh AdjustFloorHeight的line guard与target数据丢失闭合，普通物理帧在floor consumer前采样仍为侧墙穿透，随后错误下移，确认D09。完整角色及最小运动夹具8组共6个对照PASS、2个语义FAIL。初始仅观察帧前位置的记录不足以区分物理阶段，未作最终证据；已保留实际消费者前采样。证据`target/bf144/04/line_final/`。下一步完成perch/边缘/正非均匀尺度合同，不展开步阶或图。
+  - 20:22 source 闭包补充：IsWalkable读取ImpactNormal而非接触Normal；因此仅沿fresh UE CollisionConversions→Chaos Convex补查sweep面法线生成。正非均匀尺度继续区分CapsuleComponent查询尺寸与BodySetup/BodyInstance实际形体，不能把两套源语义混成一个缩放公式。凸体陡边查询已有候选反例，尚待完整角色消费者确认；未扩展场景资产或通用物理实现。
+  - 20:24 source/focused 闭环：fresh Sweep hit转换无条件为正距离命中提取opposing face，Convex返回该面法线；完整角色在60°凸体陡边被target错误保留为Grounded，30°对照正确，确认D10。中心射线无命中、非穿透且impact在perch半径内，排除了line fallback与边缘支撑半径的歧义；最小查询4组为2PASS/2FAIL，完整角色2组为1PASS/1FAIL。证据`target/bf144/04/normal_query/`、`normal_loaded/`。
+  - 20:31 source/focused 闭环：fresh Capsule→BodySetup/ChaosInterfaceUtils创建与BodyInstance缩放→PrimitiveComponent/WorldCollision实际movement sweep链确认物理胶囊保持圆截面并取水平大轴，区别于floor helper取小轴。target非均匀缩放生成椭圆近似凸体；完整角色沿未放大的水平轴撞墙比源允许位置多进入约0.30m，直接/父级缩放均复现，确认D11。6组实际角色中4个uniform对照PASS、2个nonuniform语义FAIL；证据`target/bf144/04/scale/`。本项累计新增3项P2，仍未改生产代码或运行公共Playground Gate。
+  - 20:37 source/focused 闭环：14组perch半径/落差/地空/extra-height与16组平面坡度/查询尺寸对照全部PASS；fresh默认always-check=true、flat-base=false与0.15m perch阈值一致。沿floor consumer的owner时钟边界追加fresh PerformMovement→StartNewPhysics，确认D12：owner=0仍执行贴地高度修正，4组完整角色中仅未贴地的冻结输入FAIL。外部碰撞组件的CanStepUp/WalkableSlopeOverride及walking/landing的后续消费留下一碰撞批次，当前未把这些输入或未测几何计作等价。
+  - 20:40 本项归纳：已核对默认floor sweep/retry/line、半径/坡度/有效perch/地空距离、源尺寸与实际形体差异、height adjustment及owner=0前置；6项focused测试为1PASS/5预期语义FAIL，内部54组中46PASS/8FAIL归并D09–D12。原116份source身份、11份新增UE依赖快照、B_Als_Character原始/Build资产与10个floor属性核对PASS；160份生产Rust及已编译库hash未变。`target/bf144/04/summary.json`只确认审计记录完整，不能作为运动等价或公共Playground验收。未修改生产设计，消融不适用；截图0、性能暂停。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -124,3 +130,27 @@
   - 漏检：旧位移/子步矩阵把加速度曲线换成常数；其他oracle直接调用target的fresh dynamics helper，未跨越source输入缩放与PhysWalking刷新这两个阶段。仅记录，未添加缓存或修改实现。
 
 BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重力加速度统一使用Bevy的值；不把源9.80与当前Bevy/Avian默认9.81的区别视为缺陷，不据此修改运行时。原取证保留在`target/bf144/03/gravity/`，仅作本次决策依据；D08从有效缺陷和失败反例集合移除。
+
+- [ ] BF144-D09 / P2 — 地面射线回退丢失源贴地高度保护。
+  - Source：fresh ALS `ComputeFloorDist:781–796` 保留sweep FloorDist/穿透数据并另存LineDist；UE `AdjustFloorHeight:6305–6319` 在line fallback、FloorDist<MIN且LineDist≥MIN时立即返回，避免错误沿墙调整高度，后续PhysWalking仍独立做侧向脱离穿透。
+  - Target：`src/als/character/movement/motion.rs:3905–3910` 只保留line距离；`4011–4074` 与`adjust_walking_floor_height:3608`按这个单一距离调整高度，无法执行源guard。
+  - 反例：完整加载角色和最小运动插件从中心高1m、侧墙面距中心0.1m进入普通物理帧；floor consumer前中心高0.9950988m，retry sweep仍穿透、FloorDist=−0.3m，中心射线LineDist≈0.0951m。source应保留这一阶段高度，target侧向脱离后降到0.9215m，多下移约7.36cm。`bf144_floor_line_fallback_preserves_adjust_height_guard`在8组中有2个语义FAIL；无侧墙以及0.9215m贴地位置的6个对照PASS。证据`target/bf144/04/line_final/`。
+  - 漏检：旧`actual_walkable_line_floor_keeps_source_side_penetration_recovery`仅验证X方向脱离，初始Y已在源贴地带内，因此没有触发错误高度调整。当前反例读取真实consumer前的query，排除了将Avian较早阶段位移误归本guard的可能；仅登记，不改生产实现。
+
+- [ ] BF144-D10 / P2 — 陡边的接触法线被误当成源几何面法线，建立错误地面支撑。
+  - Source：fresh UE `IsWalkable:6987–7032`检查ImpactNormal；`CollisionConversions:499–540,445`、`PhysicsInterfaceUtilsCore:32–37`对正距离sweep取最反向几何面，`Chaos Convex.h:552–564`返回该面法线，不能直接使用胶囊接触Normal。凸体60°上表面的竖直法线分量0.5小于源WalkableFloorZ≈0.71，相邻侧面为竖直面，同样不可行走。
+  - Target：`src/als/character/movement/motion.rs:3854–3862`仅在原始接触normal1已不可行走时尝试短射线重建；若凸体边缘的接触normal1较竖直，就直接交给`3880`判断walkable。实际floor consumer随后据此保持Grounded并调整高度。
+  - 反例：60°凸体斜面以竖直侧面收边，边缘距角色中心0.1m、顶高0.08m。实际加载角色从中心高1.02m检查地面，consumer前sweep非穿透、距离0.1161m、接触normal1.y=0.9449，中心射线无命中，impact在默认0.15m有效perch半径内；source应无可行走floor并进入Air，target保持Grounded并拉到0.98437m。`bf144_floor_steep_edge_does_not_create_ground_support`语义FAIL，30°同形体对照PASS；独立query的0.1/0.14m边缘同样仅60°两组失败。证据`target/bf144/04/normal_loaded/`、`normal_query/`。
+  - 漏检：已有坡度测试检查面内命中，边缘测试检查水平平台或原始normal已过陡的情况；没有覆盖“接触normal可行走、实际几何面不可行走”的边缘组合。仅登记，不新增补偿射线或修改通用碰撞库。
+
+- [ ] BF144-D11 / P2 — 非均匀水平缩放改变了角色物理胶囊的源圆截面。
+  - Source：fresh `CapsuleComponent.cpp:192–214`生成单一Sphyl；`BodySetup.cpp:2144–2181`、`ChaosInterfaceUtils.cpp:174–190`创建圆胶囊，半径取水平绝对尺度最大值并受半高约束；`BodyInstance.cpp:2132–2140,2377–2421`动态缩放保持同一规则。`PrimitiveComponent.cpp:3354`→`WorldCollision.cpp:545–560`的真实移动使用该物理形体，不是floor查询中取水平小轴的尺寸helper。
+  - Target：`src/als/character/character.rs:197–199`直接建立Avian Capsule，自动非均匀缩放走当前依赖的`Capsule::scaled`凸体近似；`character/movement/motion.rs:3527`真实移动sweep直接消费这个形体，没有移植源圆截面的尺度规则。
+  - 反例：完整角色世界scale=(2,1,1)，source物理半高0.9m、水平圆半径0.6m；target形体半extent=(0.6,0.9,0.285317)m。面对距中心1m的−Z墙，源形体sweep距离0.4m，target初始sweep为0.714679m，实际前进后停在z=−0.700251m，越过源允许位置约0.30m。直接缩放与父级缩放均失败；scale=1/2的4个uniform对照通过。`bf144_floor_capsule_scale_keeps_source_circular_horizontal_shape`语义FAIL，证据`target/bf144/04/scale/`。
+  - 漏检：旧world-scale测试主要比较uniform与相同world-scale的父级路径，两边一致不能证明source形体一致；AABB高度和floor helper也不能验证实际碰撞圆截面。当前默认unit scale不受此分支影响。仅登记，不复开或改写已完成的uniform parent-space修复。
+
+- [ ] BF144-D12 / P2 — 角色时间倍率为零时仍执行步行贴地高度调整。
+  - Source：fresh UE `PerformMovement:2788–2808`在角色被外部移动后仅标记下一次检查floor；`3034`调用`StartNewPhysics`，后者`3531–3536`在owner delta<MIN_TICK_TIME时直接返回，ALS `PhysWalking:345–348`也有同一前置返回。因此当前Grounded角色在owner=0时不执行AdjustFloorHeight。
+  - Target：`src/als/character/movement/motion.rs:3978`的floor同步只检查世界暂停，`4011–4074`继续按世界帧运行；CMC已正确发布simulation_delta_seconds=0也不能阻止此阶段移动角色。
+  - 反例：完整加载的Grounded角色在静态平地被外部置于中心高1m、owner倍率0；物理后、floor consumer前仍为1m且CMC delta=0，consumer后却变成0.9215m。source该阶段应保持1m；`bf144_floor_frozen_owner_does_not_run_walking_height_adjustment`语义FAIL。owner=1及初始已贴地的3个对照PASS，证据`target/bf144/04/frozen/`。
+  - 漏检：既有零倍率测试在稳定贴地高度或空中检查速度/位移，不包含Grounded且需要高度修正的输入；只保护CMC积分没有覆盖后置floor consumer。仅登记，不把世界暂停与owner倍率0混同，不修改源码。
