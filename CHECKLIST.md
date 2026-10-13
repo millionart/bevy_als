@@ -51,7 +51,7 @@
 | 顺序 / 源责任 | 本轮 target 核对入口 | 覆盖状态与旧 Gate 边界 |
 |---|---|---|
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
-| CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.05完成速度/时钟、默认floor/胶囊查询及walking碰撞审计，确认D05–D07、D09–D16；重力D08已撤销；Air接触/着地、蹲跳与基座待后续独立批次 |
+| CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.06完成速度/时钟、默认floor/胶囊查询、walking与Air接触首轮审计，确认D05–D07、D09–D22；重力D08已撤销；落地回调/剩余时间、蹲跳、基座和未证实的罕见恢复边界待后续独立批次 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | 待逐项审计；角色蓝图 SelectMantlingSettings 属此闭包 |
 | Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | 待逐项审计；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
@@ -92,6 +92,16 @@
   - 21:20 source/focused 闭环：fresh基类SlideAlongSurface对每次剩余位移再sweep，target跨步被拒时却把投影直接交给多子步位置累加，确认D15。No权限及普通Yes权限但命中胶囊顶部两条拒绝路径都在0.1s/2子步撞双墙时失败，包含完整角色；24组中20PASS/4FAIL，单墙/单子步/可成功进入跨步路径的对照通过。初始“单墙全帧保持恒定切向速度”的oracle忽略了源子步碰撞后重新加速，已改为源几何不穿透合同；该错误oracle不计缺陷。另已由fresh ALS构造及CDO确认站立/蹲姿均允许离开边缘，未把UE基类默认蹲姿限制误记为差异。
   - 21:27 source/focused 闭环：穿透路径出现的实际结果不是预想的“floor丢失后立即切Air”，而是false-solid中心射线把实体底部出口当成walkable floor。沿fresh Chaos AABB→Raycasts确认源inside hit时间为0，ALS明确拒绝Time≤0的line fallback，确认D16；完整角色3组中穿透实体1FAIL、正常贴地/移除实体2PASS。仅记录已证实的floor有效性和消费分支差异，不宣称未测出的源最终脱离位置。
   - 21:35 本项归纳：已核对当前启用的ramp移动、StepUp抬升/前进/下扫/高度与权限拒绝、slide两墙、失去floor与穿透分支；组件坡度Default为恒等规则。0.18m/0.36m正常台阶、0.6m过高台阶和0.36m No权限对照PASS；原0.18m No权限预期“任何上升都被禁止”不成立，因为source FindFloor/AdjustFloorHeight不检查CanStepUp，不能充当阴性oracle，原输出保留。5项focused最终1PASS/4预期语义FAIL，46组中38PASS/8FAIL归并D13–D16；角色权限夹具从90帧缩至30帧后信号不变。fresh关卡292行运动相关属性及原始/Build身份、4份新增UE闭包快照、116份原source与160份生产Rust身份均PASS，库hash仍未变。证据`target/bf144/05/final/`、`05/summary.json`；无生产设计修改、无公共runtime Gate、截图0、性能暂停。下一批Air碰撞/着地，蹲跳/基座及动作消费者继续分项。
+
+- [x] BF144.06 CMC 空中碰撞、偏转与落点资格：沿fresh UE PhysFalling/GetFallingLateralAcceleration/LimitAirControl/ComputeSlideVector/TwoWallAdjust/IsValidLandingSpot/ShouldCheckForValidLandingSpot，核对target airborne sweep、碰撞后速度、连续接触、胶囊下半球/边缘及实际世界坐标。无接触重力/时钟沿用BF144.03合同；ProcessLanded剩余时间与Character落地回调另列下一批，蹲跳/移动基座继续后置。Gate：source分支闭包、实际碰撞反例及对照、漏检/排除记录。开始：2026-10-13 21:43 +08:00；预估结束：2026-10-13 22:38 +08:00；实际结束：2026-10-13 22:11:55 +08:00；偏差：−26分05秒；结果：审计记录Gate PASS，新增5项P2与1项P3未修复差异。估时依据：fresh UE空中主循环及接触/落点闭包约650行，target falling sweep/transaction及资格consumer约300行；BF144.04/.05几何审计分别实耗47分40秒/52分53秒，本项把落地通知和剩余时间拆出后单独估时。
+  - 21:43 活动摘要：BF144.05已提交，累计15项有效P2（D08仍为刻意重力差异）；当前只展开空中接触链。下一步核对源air-control在接触后的限制、slide/两墙及landing spot条件，并检查实际sweep使用的世界Transform；截图关闭、性能暂停、无生产改动。
+  - 21:49 source/focused 闭环：fresh PhysFalling→LimitAirControl在陡坡接触后先去掉朝坡内的水平输入，target直接投影完整速度，确认D17。60°光滑坡面上的完整角色与最小运动夹具共8组，朝坡输入2FAIL，无输入/沿坡/离坡6PASS；目标下落速度−0.82923m/s而源应−0.87263m/s，碰撞阶段缓存和最终velocity一致。证据`target/bf144/06/air_control/`；继续核对实际世界姿态与连续接触/落点资格，不改生产实现。
+  - 21:51 source/focused 闭环：fresh PhysFalling明确用UpdatedComponent的世界quat执行sweep；target仅把局部Transform的位置换成世界Position，保留局部rotation，确认D18。8组相同世界形体的直接/父级姿态对照中，2个60°父级反例FAIL，6个对照PASS；碰撞前缓存中心z=0.31142m，源形体界限0.81962m，后置solver仍未完全推出。证据`target/bf144/06/world_rotation/`；这是世界空间传参遗漏，与D11非均匀形体缩放独立。
+  - 21:56 source/focused 闭环：fresh PhysFalling的两次接触/TwoWallAdjust之后还有ditch资格分支，target固定3次投影没有移植；两片60°陡坡夹角的实际双命中满足源两法线向上、互相dot<0且沿交线竖直位移为0，source当帧ProcessLanded而target停在Air，确认D19。完整/最小夹具各1FAIL，单坡2PASS；已沿SetPostLandedPhysics→OnMovementModeChanged确认零剩余时间不会立即重开PhysWalking，未把后续帧稳定性计作已验证。证据`target/bf144/06/ditch/`。
+  - 21:59 source/focused 闭环：fresh UE默认`p.UseTargetVelocityOnImpact=1`及PhysFalling→MovementBaseUtility证明simulated body接触必须保留其法向速度；target只从slide位移重算velocity，确认D20。完整/最小角色撞到±1m/s移动动态壁的4组FAIL，静态、静止动态、同速运动学壁6组PASS；实际查询命中和consumer前body velocity均已捕获。证据`target/bf144/06/moving_body/`；移动基座的携带/离地继承仍留后续批次，本项仅为空中直接impact。
+  - 22:02 source/focused 闭环：fresh SafeMoveUpdatedComponent默认不忽略初始blocking overlap，先MTD恢复再重试原位移；target空中只有cast/slide，后置solver未完成同帧脱离，确认D21。0.2m侧壁初始穿透的完整/最小夹具各2FAIL，墙外向内/向外4PASS；源膨胀胶囊在MTD+pullback目标处无阻挡，CDO允许5m最大恢复，排除恢复路径受阻。`06/air_inputs.json`同时确认Walking默认、air设置和impact physics参数，D20移动body用普通AddForce路径不立即改变接触速度；截图/性能未启动。
+  - 22:05 source/focused 闭环：普通平地从0.5–10cm间隙落下，10组接触/无接触资格对照全部PASS，排除“仅靠近floor便提前着地”的猜测。fresh PhysFalling尾部另有厘米单位的微小水平速度清零，target缺失，完整角色0/0.1/0.2/0.4/1mm/s的5组中2FAIL，登记低优先级D22/P3；这是极小残余漂移，不与重力政策混淆。剩余核对静态墙/顶面/连续墙对照，然后收口本批；root-motion override和跳跃apex仍按动作/跳跃责任留后续项。
+  - 22:11 本项归纳：已核对普通air输入/积分后的接触顺序、无输入及输入限制、static/simulated impact、初始穿透、slide/两墙/ditch、普通flat landing及源微小速度清零；墙、顶面、锐/钝角双墙8组对照PASS。最终8项测试2PASS/6预期语义FAIL，61组45PASS/16FAIL归并D17–D22；去掉输入、旋转父级、第二坡面、body运动或初始重叠时对应失败消失。116份原source、2份额外UE依赖、18个native运动属性与原始/Build资产、160份生产Rust及库hash核对PASS。证据`target/bf144/06/final/`、`06/summary.json`；只验收审计记录，无生产设计修改、无公共runtime Gate、截图0、性能暂停。罕见同面重撞nudge/virtual-ditch尚无独立触发证据，native继承CanSwim=True的适用边界留最终源缺口批次，均不计为已等价；落地剩余时间/回调、跳跃apex、root motion与基座沿既定责任批次继续。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -186,3 +196,39 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - Target：`src/als/character/movement/motion.rs:3899–3909`使用`solid=false`的ray cast，内部起点会得到正距离出口，当前返回normal又朝上，因此通过floor过滤并进入height adjustment/base支持路径。
   - 反例：完整角色被外部置入厚1m的平地内部；consumer前中心y=−0.20159m，retry sweep仍穿透。相同目标几何上的solid=true对照返回距离0，符合fresh源公式；生产non-solid ray距离0.79841m、normal.y=1，返回impact_y=−1m的假floor。`bf144_walk_inside_floor_ray_does_not_accept_the_exit_surface`语义FAIL；正常贴地与移除实体的两个对照PASS。证据`target/bf144/05/inside_ray/`。
   - 漏检：旧line-floor测试的角色中心均在实体外，只覆盖胶囊侧部穿透；未比较源零时间命中与target non-solid出口语义。本反例证明错误floor有效性，未把双方第一帧仍为Grounded或未经UE执行的最终恢复位置当作另一缺陷。仅登记，不修改射线或恢复逻辑。
+
+- [ ] BF144-D17 / P2 — 空中撞陡坡后未限制朝坡内的输入，错误抵消部分下落速度。
+  - Source：fresh UE `PhysFalling:5081–5122`先从OldVelocity重算VelocityNoAirControl，再由`LimitAirControl:5257–5286`去掉朝向向上斜面的水平法线输入，最后ComputeSlideVector；源`HandleSlopeBoosting:3749`仅限制向上偏转，不能替代这一步。
+  - Target：`src/als/character/movement/motion.rs:2770–2778,2742–2746`把输入加速后的完整velocity直接交给`tnua_ext/motion.rs:3`做slide，没有源no-air-control与碰撞后输入限制阶段。
+  - 反例：实际完整角色以−1m/s下落、1/60s帧，在60°光滑坡面发生普通非穿透接触。朝坡输入时源应得velocity约(−0.50381,−0.87263,0)m/s，目标实际为(−0.47885,−0.82923,0)m/s，少下落约0.0434m/s；CMC碰撞阶段缓存与最终velocity一致。`bf144_air_contact_limits_input_before_slope_deflection`共8组，完整/最小角色各1FAIL；无输入、沿坡、离坡的6个对照PASS。证据`target/bf144/06/air_control/`。
+  - 漏检：旧falling_slide单元测试只核对给定delta的几何投影/向上限位，steep_contact测试只核对保持Air；没有比较接触后的输入限制与速度。仅登记，不改空中算法或坡度阈值。
+
+- [ ] BF144-D18 / P2 — 空中胶囊sweep把局部旋转当成世界旋转。
+  - Source：fresh UE `PhysFalling:4909–4910,5044`以UpdatedComponent的GetComponentQuat构造PawnRotation，并交给SafeMoveUpdatedComponent；实际移动查询使用component世界形体。
+  - Target：`src/als/character/movement/motion.rs:3712–3722`复制local Transform，只把translation替换成世界Position；`falling_movement_transaction:2777–2778`把仍为local的rotation交给world spatial query。外层虽已计算world transform，却只使用其scale。
+  - 反例：世界pitch=60°、uniform胶囊半高0.9m/半径0.3m，朝平墙空中运动。源世界形体前向半径0.81962m，相同目标shape的world-quat查询也验证此值。直接world rotation时中心停在z=0.83009m；挂在60°父级、local rotation=identity时，碰撞阶段走到z=0.31142m，完整角色后置solver一次结果仍只有z=0.53624m。`bf144_air_sweep_uses_world_capsule_rotation`共8组6PASS/2FAIL，证据`target/bf144/06/world_rotation/`。
+  - 漏检：旧父空间碰撞回归主要覆盖平移/yaw或uniform尺度；圆截面胶囊对yaw不敏感，因此没有揭示局部quat误用。此反例保持相同世界形体且无非均匀缩放，区别于D11；仅登记，不修改父子变换代码。
+
+- [ ] BF144-D19 / P2 — 漏掉空中两陡坡夹缝的ditch着地分支。
+  - Source：fresh UE `PhysFalling:5198–5224`在两个向上、相互法线dot<0的坡面之间，经TwoWallAdjust后竖直delta近零时设置bDitch；随后的sweep不改变这个资格，直接以remainingTime=0调用ProcessLanded。`6373–6440,1445–1456`切到Walking并通知角色，0剩余时间不再运行PhysWalking。
+  - Target：`src/als/character/movement/motion.rs:2719–2749`只迭代slide且仅接受普通walkable floor；两个不可行走坡面将velocity投影到近零，但没有ditch状态转换。
+  - 反例：以−2m/s下落、50ms帧，完整角色位于两片60°光滑坡组成的V形槽上方；独立sweep确认先后命中两个坡面，normal约(±0.866,0.5,0)，沿交线竖直delta为0，满足源bDitch。target当帧velocity约0但仍Air，源应Grounded。`bf144_air_two_steep_slopes_apply_source_ditch_landing`共4组2PASS/2FAIL，证据`target/bf144/06/ditch/`。
+  - 漏检：旧两墙测试只断言几何投影/限位结果，单陡坡测试只要求保持Air；没有对两坡夹缝的源特殊着地资格核对实际状态。仅记录已验证的当帧差异，不宣称源后续帧如何稳定或修正。
+
+- [ ] BF144-D20 / P2 — 空中撞击移动物理刚体时丢失其法向速度。
+  - Source：fresh UE `CharacterMovementComponent.cpp:290–293`默认UseTargetVelocityOnImpact=1；`PhysFalling:5127–5133`对simulated base计算`Velocity−ImpactNormal·dot(Velocity−ContactVelocity,ImpactNormal)`。fresh `Character.cpp:819–822,891–959`确认ContactVelocity包含物理线速度和接触点角速度贡献；本地源/项目配置未覆盖此CVar。
+  - Target：`src/als/character/movement/motion.rs:2742–2746`统一从投影slide/remaining_time写回velocity，没有读取hit实体的动态body速度；`3982–3986`最终又用这个缓存覆写velocity，后置物理响应没有补回该合同。
+  - 反例：完整角色以5m/s水平空中撞击竖直动态壁，壁速度分别+1/−1m/s。实际首次命中非穿透且normal≈−X，consumer前壁速度保持输入；源应保留角色法向速度+1/−1m/s，target最终均约0。`bf144_air_impact_velocity_uses_simulated_body_motion`共10组6PASS/4FAIL，静态/静止动态/运动学壁对照通过，证据`target/bf144/06/moving_body/`。
+  - 漏检：旧Air碰撞夹具以静态几何为主，移动平台回归核对的是站立/落地后的支持速度，未覆盖空中首次impact的simulated-body分支。本项不扩展平台携带或场景物件行为，未改生产实现。
+
+- [ ] BF144-D21 / P2 — 空中移动缺少源SafeMove的初始穿透恢复与重试。
+  - Source：fresh `MovementComponent.cpp:547–584`默认MoveIgnoreFirstBlockingOverlap=0，SafeMove收到初始穿透时先GetPenetrationAdjustment/ResolvePenetration再重试原位移；`608–658`加入0.125cm pullback并以膨胀形体检查恢复位置。fresh CDO的MaxDepenetrationWithGeometry=500cm足以处理本例。
+  - Target：`src/als/character/movement/motion.rs:2721–2749`空中仅cast并投影slide，未执行MTD恢复；现有`4031–4060`的类似恢复只在Grounded floor consumer中运行。后置Avian解穿透不能补齐source先恢复再移动的顺序。
+  - 反例：角色空中被外部置为侧壁穿透0.2m，向内/向外速度各1m/s。源MTD恢复后的膨胀胶囊查询无阻挡，正常移动后中心必须x≤−0.2m；target CMC阶段仍x=0/−0.01667m，完整角色最终仅到−0.06607/−0.08044m，仍穿透约0.12–0.13m。`bf144_air_safe_move_resolves_initial_penetration_before_motion`共8组4PASS/4FAIL，墙外两方向对照通过；证据`target/bf144/06/penetration/`。
+  - 漏检：旧空中碰撞回归从无重叠位置开始，穿透回归只核对Grounded floor路径；没有在Air首个SafeMove前放置可完全恢复的初始重叠。仅登记，不调整物理解穿透强度或增加补偿。
+
+- [ ] BF144-D22 / P3 — 空中子步尾部未清零源阈值内的极小水平残余速度。
+  - Source：fresh UE `PhysFalling:5249–5253`在每个非着地子步末尾检查水平速度平方≤`UE_KINDA_SMALL_NUMBER*10`，满足时只保留重力方向速度；按cm/s转m/s后阈值约0.00031623m/s。
+  - Target：`src/als/character/movement/motion.rs:2827–2829`直接保留deflected velocity并扣除时间，未移植该阶段。
+  - 反例：完整加载角色无输入、空中水平初速0.0001/0.0002m/s，source子步末尾应清零，target分别原样保留；0、0.0004、0.001m/s对照PASS。`bf144_air_tiny_horizontal_velocity_uses_source_final_zeroing`共5组3PASS/2FAIL，证据`target/bf144/06/tiny_velocity/`。
+  - 漏检：旧速度回归以较大运动量或全零为输入，未覆盖这个源厘米平方阈值。实际影响为亚毫米每秒残余漂移，优先级P3；只登记，不扩大其他近零阈值调整。
