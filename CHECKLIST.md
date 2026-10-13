@@ -52,7 +52,7 @@
 |---|---|---|
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；U01未闭合，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
-| Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14完成Roll输入/生命周期首轮审计，确认D43–D44；根位移/旋转、Mantle及角色蓝图SelectMantlingSettings仍待对应批次 |
+| Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.15完成Roll输入/生命周期及选定根轨道、空间、时钟、转向、碰撞/落地消费首轮审计，确认D43–D52；精确碰撞数值仍未闭合，Mantle及角色蓝图SelectMantlingSettings待对应批次 |
 | Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | 待逐项审计；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | 待重新取证及核对；历史155子图合同只作起点，不能自证算法等价 |
@@ -154,6 +154,16 @@
   - 01:21 source/static闭环：新增D44输入接受读取运动后mode，6组4PASS/2FAIL，分别为空中输入当帧落地被补接收，以及100ms地面走离帧原本有效Roll被拒绝；50ms走离对照通过，未将症状扩展到所有帧。3组owner自然结束、4组重入和4组Ragdoll直接Montage_Stop(0.2s)对照全部PASS，包含owner0冻结fade；Ragdoll只核对停止当前montage及替换action，未开展内部PA/动作审计。
   - 01:24 闭环：6个focused测试4PASS/2个源合同语义FAIL，共35组30PASS/5FAIL；另12组实际键盘/手柄Tap在world倍率0.25/2、保持40/160/400ms时与fresh源的未缩放0.3s阈值一致，释放触发后下一帧清除。自然结束覆盖owner0.5/1/2共250帧，Ragdoll直接停止覆盖4个owner的51个fade样本；`target/bf144/14/final/`。B角色没有SelectRollMontage override，CS→AM_Als_Roll→A_Als_Roll/PostLocomotion实际选择一致；未扩展CameraShake/Footstep效果。
   - `check_phase14.py`与`14/record_gate.watchdog.json` PASS：4份native记录/原始和Build资产一致，116份源、补充UE Montage/AnimInstance/AnimTypes与EnhancedInput调用、160份生产Rust及同target_game库hash均保持。初次记录脚本漏了Build/Content目录层已修正并保留失败报告，不影响反例。累计41项P2、2项P3与U01；无生产抽象/状态/分支新增，未跑真实Playground Gate，截图0、性能暂停。下一批只接Roll根运动的提取/位移/旋转/碰撞与模式语义。
+
+- [x] BF144.15 Roll根运动、旋转与物理消费：沿fresh A_Als_Roll根轨道/Scale通知、UE montage root extraction/ConvertLocalRootMotionToWorld/CMC ApplyRootMotion及ALS RefreshRollingPhysics，核对完整角色每帧root增量、权重/比例、actor/mesh/parent空间、Grounded/Air/Custom处理、碰撞与own/world时间。生命周期D43/D44只作为已证实边界，不混入本批新差异；Mantle/Ragdoll仍独立。Gate：源root样本/公式与坐标推导、实际消费者几何/阶段反例及对照、记录闭环。开始：2026-10-14 01:28 +08:00；预估结束：2026-10-14 02:23 +08:00；实际结束：2026-10-14 02:09:11 +08:00；偏差：−13分49秒；结果：审计记录Gate PASS，新增6项P2、2项P3，生产实现未改。估时依据：Roll自身旋转约30行、UE根提取/CMC消费闭包约400行及target roll drive/root motion link，另需原始根轨道样本；BF144.14同动作生命周期实耗24分54秒、.05几何批次实耗45分53秒，按运动几何与空间闭包独立估时。
+  - 01:28 活动摘要：BF144.14已提交，累计41项P2、2项P3与U01。AM/A/IA Roll的fresh原生记录可用，先确认现有uasset工具的根样本入口与完整消费顺序；本批尚无新确认差异，生产实现未改，截图0、性能暂停。
+  - 01:39 source/static摘要：fresh原生A_Als_Roll有46个30Hz根样本，平移仅源Y、旋转恒identity、scale恒1；已沿ExtractRootMotionFromRange→montage累积→TickCharacterPose缩放→ConvertLocalRootMotionToWorld→CMC约束核对，并用实际角色采样验证。完整Air反例12组8PASS/4FAIL确认D45；Grounded样本与位移62帧中出现50ms首帧漏位移，仍在核对物理消费，未计为已确认。原生SequencePoseProbe已成功，继续空间/碰撞和阶段边界；累计42项P2、2项P3，生产未改。
+  - 01:42 source/static摘要：原生SequencePoseProbe十个时点确认源根轨道与目标采样一致。对首帧位移按16.667/33.333/34/40/50/51/60/100ms细分，8组5PASS/3FAIL确认D46：33.333–50ms间仍消费Roll开始前的零walking budget，51ms以上因多子步清掉该budget而恢复。累计43项P2、2项P3，下一步核对root空间、动作通知结束后的旋转和碰撞路径，不改生产实现。
+  - 01:50 source/static摘要：fresh AB_Als主实例RootMotionFromMontagesOnly、CMC两项默认转向关闭且AllowPhysicsRotationDuringAnimRootMotion开启，排除源有第二次转向。Custom的parent/yaw/tilt/world scale×owner16组通过；实际Grounded转向9组6PASS/3FAIL确认D47，动作结束门槛4组1PASS/3FAIL确认D48。当前6tests为1PASS/5预期语义FAIL，111组97PASS/14FAIL，源根采样全部匹配；累计45项P2、2项P3。继续碰撞/落地和根运动尾段的最小闭包，未运行公开Playground Gate。
+  - 01:58 source/static摘要：Grounded/Air/Custom×16.667/50/100ms×Block/Overlap的18组阻挡语义对照通过，只证明模式和阻挡关系，不把数毫米的命中数值等同源查询。空中零初速度的12组位置合同9PASS/3FAIL确认D49/P3，源midpoint与目标短帧积分不同；自然blend tail的6组4PASS/2FAIL确认D50/P2，源root结束后应恢复的正常Aiming rotation仍被active动画尾段阻挡。累计46项P2、3项P3；继续核对owner最小tick与落地消费后收束本批。
+  - 02:05 source/static摘要：owner低于源1µs运动门槛的8组7PASS/1FAIL确认D51/P3；Grounded首个微小root仍移动约0.834µm，Custom门槛正确。近地/远地×有无Roll×16.667/100ms的8组落地mode对照通过；其中Roll实际落地后的高度及残余运动尚需独立验证，不能以mode通过代替。累计46项P2、4项P3，当前生产文件和原始资产均未改。
+  - 02:07 source/static摘要：fresh ProcessLanded→SetPostLandedPhysics→OnMovementModeChanged先调整floor、再StartNewPhysics消耗剩余时间；target完整帧Root路径却给falling sweep传landing_cmc=None，仅末尾改mode。6组2PASS/4FAIL确认D52：50/100ms落地后离地仅约0.02–0.14mm，普通落地为21.499mm，夹具关闭solver仍未补上高度。横向偏移只保留作定位数据，尚未用native查询确认其具体数值来源，不另记第二缺陷。当前12tests为3PASS/9预期语义FAIL，169组145PASS/24FAIL，累计47项P2、4项P3；本批进入身份/记录核对。
+  - 02:09 记录Gate：`target/bf144/check_phase15.py`与`15/record_gate.watchdog.json` PASS；160份target源码、116份基线source和实际launcher库身份保持，新增UE root/mesh/montage/math及Tnua/Avian积分源码快照核对一致。native主AB与Roll根样本均已读取且原始/Build一致；`15/summary.json`登记12tests、169组与D45–D52，语义失败未伪称通过。夹具消融仅作用于fresh App状态/solver，未修改生产源码；早期旋转oracle常数与编译夹具错误已按当前源修正，最终证据不引用错误结果。未运行公开Playground Gate，截图0、性能暂停；下一批只接Mantle探测/许可/选择和设置，root source推进另列依赖项。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -417,6 +427,54 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - Target：`src/als/character/actions/roll_drive.rs:2122–2216`在PostUpdate读取locomotion再调用`roll.rs:144–154`，晚于Update内可能改变mode的falling/walking transaction。输入命令被留到运动之后重新判断。
   - 反例：完整角色以vy=−2m/s处于离地约2cm的Air时按Roll，50ms内普通落地，源输入应拒绝且低落地速度不自动Roll，target切Grounded后启动Roll。反向边界：在1m平台x=0.55、Grounded、水平3.75m/s时按Roll，100ms多子步先走离平台，源已接受且应保留Roll，target在Air拒绝；同几何50ms单子步对照仍接受。
   - `bf144_roll_lifecycle_acceptance_uses_input_time_locomotion`6组4PASS/2FAIL，普通Grounded启动、持续Air拒绝、无Roll输入的低速落地与50ms走离均通过；证据`target/bf144/14/lifecycle_core/`。旧入口测试分别在稳定地面/空中按键，未把输入与当帧碰撞模式变化组合；本项只登记许可阶段，不把同帧根位移差异归入此项。
+
+- [ ] BF144-D45 / P2 — 空中Roll根运动写速时清掉原有竖直速度。
+  - Source：fresh UE `PerformMovement:2962–2972`和`ApplyRootMotionToVelocity:4514–4521`均调用`ConstrainAnimRootMotionVelocity:2170–2186`；Falling必须保留当前重力轴速度，随后继续PhysFalling重力积分。fresh CS允许Roll进入Air后继续，A_Als_Roll根轨道的竖直增量恒0，也不代表可以把角色竖直速度置0。
+  - Target：`src/als/character/actions/roll_drive.rs:2327–2332`直接以world root translation/world delta覆盖整个LinearVelocity，没有Falling轴约束；`movement/motion.rs:3981–3986`虽在末尾保留physics y，但此时先前速度已经被drive清除。
+  - 反例：完整角色先接受Roll，再进入Air、原有vy为−2/0/+2m/s；16.667ms源应为−2.1635/−0.1635/+1.8365，target均−0.1635；100ms源为−2.981/−0.981/+1.019，target均−0.981。`bf144_roll_root_falling_keeps_prior_vertical_velocity`12组8PASS/4FAIL，六组无Roll与两组原vy0对照通过；证据`target/bf144/15/initial/`。
+  - 漏检：旧`animation_root_velocity_restoration_preserves_falling_physics_axis`只单独执行drive后手工写入正确vy，再测末尾sync，因此掩盖了drive提前覆盖的问题。此项核对整帧实际consumer，独立于D34基座速度继承、D43启动蹲伏；仅登记，未改生产代码。
+
+- [ ] BF144-D46 / P2 — 物理封顶与CMC单步窗口内，Roll首帧沿用普通运动预算而丢失根位移。
+  - Source：fresh UE `PerformMovement:2962–2972`先把本帧动画root换成速度；ALS `PhysWalking:406–418`在HasAnimRootMotion时跳过普通CalcVelocity，并由ApplyRootMotionToVelocity覆盖速度，再MoveAlongFloor。因此已接受Roll的首个运动帧必须消费当前root增量。
+  - Target：`src/als/character/movement/dynamics.rs:557–569`在输入尚未启动Roll时保存普通grounded_movement_delta；`roll_drive.rs:2327–2332`换成root速度时未清这个预算。`movement/source_physics_timing.rs:179–181`对超过33.333ms的完整帧补偿优先消费旧delta，覆盖新的root速度；CMC超过50ms时另一路多子步清delta，因此又恢复。
+  - 反例：完整已蹲伏角色静止按Roll，frame delta34/40/50ms时原生根位移应16.366/22.077/31.595mm，实际水平位移均0；同帧已正确采样root且写入相应非零速度，物理前runtime仍Some(Vec3::ZERO)。`bf144_roll_root_first_frame_replaces_ordinary_movement_budget`8组5PASS/3FAIL，16.667/33.333及51/60/100ms对照通过；证据`target/bf144/15/first_frame/`。
+  - 漏检：旧大帧Roll回归先播放到动作中段，再测试时钟，绕开了Roll开始前普通CMC已经写预算的首帧。夹具提前完成Crouch，排除D43；本项是物理消费优先级，不是原始轨道或播放权重问题，仅登记。
+
+- [ ] BF144-D47 / P2 — Roll叠加Tnua角速度，重复应用转向。
+  - Source：fresh native CMC bOrientRotationToMovement=False、bUseControllerDesiredRotation=False，UE `PhysicsRotation:6632–6636`提前返回；ALS `AlsCharacterMovementComponent.cpp:313–321`仍广播其手动rotation，由`AlsCharacter_Actions.cpp:116–140`执行一次half-life0.1的yaw阻尼。原生A_Als_Roll根旋转全identity，不存在另一次动画root旋转。
+  - Target：`src/als/character/movement/motion.rs:3081–3088`把Roll目标方向继续喂给Tnua Walk，产生最多500°/s的angular boost；`roll_drive.rs:2304–2320`又直接写入正确的阻尼rotation，之后物理积分仍应用上述angular velocity。
+  - 反例：完整已启动的Grounded Roll，当前yaw0.7rad、目标0，owner1的源单次阻尼应到0.6234437；物理前target也是0.6234436，物理后却到0.4779995，多转约8.333°。`bf144_roll_root_physical_turn_is_applied_only_once`9组6PASS/3FAIL，owner0.5/1/2均多转同一世界帧角度；同方向零角误差对照通过，仅在夹具物理前清AngularVelocity的三组也恢复源结果，证据`target/bf144/15/root_core/`。
+  - 漏检：旧旋转单测直接执行roll drive验证Transform，未继续物理积分；整帧root运动测试主要令actor已朝向目标。消融只改变每个fresh App的一次数据，生产源码与二进制未改，后续owner分组重新使用原始完整路径复现；仅登记。
+
+- [ ] BF144-D48 / P2 — Rolling动作通知结束后，root drive仍执行Roll转向。
+  - Source：fresh `AlsCharacter_Actions.cpp:118–122`要求LocomotionAction=Rolling才执行RefreshRollingPhysics；action在montage有效时间0.933433s结束，而root montage此时仍active。`AlsCharacter.cpp:1516–1525`在HasAnyRootMotion时只刷新目标角并返回，因此该区间应保持actor朝向，不继续Roll阻尼。
+  - Target：`src/als/character/actions/roll_drive.rs:2286–2288,2304–2313`仅按roll.active、非Ragdoll和根提取尾段门槛判定，未要求Rolling action；clip约0.933433–1.11s期间，通知已经结束仍然阻尼到旧Roll方向。
+  - 反例：完整角色自然播放到0.75/0.816667s后，实际action=None、root motion仍active；当前yaw0.7、原Roll目标0，源应保持0.7，target在物理前已改为0.6234436。`bf144_roll_root_rotation_stops_with_action_notify`4组1PASS/3FAIL，也覆盖0.716667s下一帧跨过notify结束的边界；0.3s仍Rolling的对照正确。证据`target/bf144/15/root_core/`；这里在物理前取样，明确排除D47叠加角速度。
+  - 漏检：旧自然结束测试核对action/stance/weight/clock，没有检查动画仍提根但action已结束时的rotation gate。初始组合观察同时包含D47，已按消费阶段拆开；未修改生产实现。
+
+- [ ] BF144-D49 / P3 — 空中Roll在短帧下使用末速度积分，偏离源midpoint位置。
+  - Source：fresh UE `PhysFalling:4910,4962,5018–5019`保存OldVelocityWithRootMotion，施加gravity后以新旧速度平均乘timeTick求位移；animation root motion也不例外。竖直初速度0且未碰撞时，下落距离为0.5×gravity×dt²。
+  - Target：`src/als/character/movement/motion.rs:3703–3711`把活动Roll排除在普通falling transaction外；`movement/source_physics_timing.rs:132–147`只有world delta超过33.333ms才启用完整帧midpoint。短帧落入Avian `integrator/mod.rs:503–521`的末速度积分，当前6子步仍保留数值差。
+  - 反例：完整Air Roll、vy初值0，16.667/25/33.333ms下源下降约1.3625/3.0656/5.45mm，实际多下降约0.223/0.511/0.908mm；速度都正确。`bf144_roll_root_falling_position_keeps_source_midpoint`12组9PASS/3FAIL；六组无Roll及34/50/100ms三组Roll对照均匹配源midpoint，证据`target/bf144/15/midpoint/`。
+  - 漏检：旧Roll空中回归只核对velocity.y或大帧位移，没有核对短帧的竖直位置公式。本反例从vy0开始，排除D45清除已有速度；源重力输入按用户采用Bevy值9.81，差异只在积分方法。当前影响为亚毫米量级，记录P3，不添加补偿。
+
+- [ ] BF144-D50 / P2 — Roll已结束root motion的blend tail仍阻止正常朝向更新。
+  - Source：fresh UE `AnimMontage.cpp:1558–1597`在自然Stop时启动blend并通知AnimInstance，`AnimInstance.cpp:3722–3725`立即清RootMotionMontageInstance；主AB_Als的MontagesOnly模式下`SkeletalMeshComponent.cpp:4762–4782`因此不再IsPlayingRootMotion。ALS `RefreshGroundedRotation:1516–1525`在action=None且无root时恢复常规rotation，Aiming路径`1698–1706`使用1000°/s目标角限速和0.1s半衰期。
+  - Target：`src/als/character/movement/motion.rs:416–440`把roll.active一直当作action_active，直到整段1.153846s播放结束才解除；自然root约0.853846s停止之后约0.3s的blend仍阻止普通朝向输入。
+  - 反例：完整角色自然Roll到0.9/1.05s，action=None、root_motion_active=False；输入移动并瞄准view yaw1.2rad，源下帧应从0转到0.0318133rad，target仍0。`bf144_roll_root_blend_tail_restores_normal_rotation`6组4PASS/2FAIL；1.2s自然结束对照及夹具仅清已结束root的roll.active后三组均到0.03181338，证据`target/bf144/15/blend_tail/`。
+  - 漏检：旧blend tail回归检查重新启动、权重和动作tag，没有验证正常Character rotation恢复的时点。D48是root尚活动但action结束时继续Roll专用转向；本项是root已停止后普通rotation仍被阻挡，两个独立消费者。消融仅改夹具数据，生产实现未改。
+
+- [ ] BF144-D51 / P3 — Grounded Roll未按owner最小运动时间阻止根位移。
+  - Source：fresh UE `CharacterMovementComponent.cpp:97,3531–3536`定义MIN_TICK_TIME=1e−6s，StartNewPhysics对owner delta低于该值直接返回；`TickCharacterPose:12027–12033`也不在该CMC阶段提取新root。静态基座和零外力下，这种tick不应移动胶囊。
+  - Target：`src/als/character/actions/roll_drive.rs:2270,2285–2288`对普通Grounded/Air只检查world dt>1e−5，没有检查actor_delta；随后仍按动画微小增量写物理速度。Custom在`2338–2340`另有正确的actor最小时间门槛。
+  - 反例：完整已启动Grounded Roll、world dt16.667ms、owner=1e−5，actor delta0.166667µs；源水平位移0，实际前移约0.834µm。`bf144_roll_root_owner_subminimum_does_not_move_capsule`8组7PASS/1FAIL；owner0冻结、owner1e−4/1正常移动及Custom四组对照符合源，证据`target/bf144/15/owner_minimum/`。只核对XZ，已有D12/D31的离地高度问题未重复记入。
+  - 漏检：旧最小tick回归压低world时间或只覆盖Custom，没有用正常world时间×微小owner倍率穿过Roll的两种不同门槛。影响量级极小但条件与源不同，记P3，未改阈值或引入补偿。
+
+- [ ] BF144-D52 / P2 — Roll落地没有进入源Walking交接，漏掉当帧floor高度调整。
+  - Source：fresh UE `ProcessLanded:6373–6409`先SetPostLandedPhysics再StartNewPhysics(remainingTime)；`6412–6441`切Walking后，`OnMovementModeChanged:1441–1452`立即FindFloor、AdjustFloorHeight及SetBaseFromFloor。该交接在animation root motion期间同样执行，源允许离地带为1.9–2.4cm。
+  - Target：`src/als/character/movement/source_physics_timing.rs:199–205`对Root Air完整帧调用falling_movement_sweep却传landing_cmc=None，使`movement/motion.rs:2731–2742`的landing remaining分支不可达；余步继续用Air slide，`4098–4114`仅在物理完成后发布Grounded，未执行该帧Walking入口的高度调整。
+  - 反例：完整已播放Roll的Air角色、初始vy0，在4m静态平台上方5/20mm，50/100ms内实际落地。源应调整到1.9–2.4cm带内，target已Grounded但离地仅0.040/0.021mm；无Roll两组为21.499mm。`bf144_roll_root_landing_enters_walking_before_remaining_move`6组2PASS/4FAIL；夹具只关闭角色solver约束、仍保留floor sweep的两组也仅0.046/0.138mm，证据`target/bf144/15/landing_walking/`。
+  - 漏检：旧Roll落地检查mode/velocity，没有比较切Walking的当帧floor合同；模式对照8组全通过也掩盖了这里的缺口。消融证明缺失高度不是单靠接触摩擦产生，D45以初始vy0排除；附带横向轨迹偏移尚不单独归因或登记。生产实现未改。
 
 ### 未闭合边界（不计为无差异）
 
