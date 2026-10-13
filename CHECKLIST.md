@@ -52,7 +52,7 @@
 |---|---|---|
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；U01未闭合，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
-| Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.18完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道和warp变换的首轮审计，确认D43–D58；精确查询数值未闭合，Mantle动态基座与逐阶段物理消费待对应批次 |
+| Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.19完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道、warp变换、动态基座和RMS物理消费的首轮审计，确认D43–D60、D62–D64，D61撤销；精确查询数值及公共Playground验收尚未闭合 |
 | Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | 待逐项审计；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | 待重新取证及核对；历史155子图合同只作起点，不能自证算法等价 |
@@ -184,6 +184,14 @@
   - 04:02 source/focused闭环：原生root API共352采样与对应轨道插值匹配，High montage rate1.2、Low各variant rate1.0；初版High oracle误用1.0已纠正，不计缺陷。独立源VQS/AlphaBlend/FastLerp/twist对照与7种实际动作轨迹PASS；确认D58初始actor Transform信息丢失。12组完整角色仅非单位scale/非零倾斜的5组失败，夹具补回丢失信息后恢复；目标/actor父空间和静态基座4组通过。
   - 04:04 本项归纳：最终5个focused为3PASS/2语义FAIL，317组312PASS/5FAIL，归并D58；其中294组验证blend/相对基坐标数学，7种动作168帧与4种父空间72帧比较实际world位置/rotation。`18/final/`、`18/summary.json`及record_gate watchdog PASS；18份native资产、116份基线source、10份补充UE文件、160份生产Rust和同一launcher库hash核验通过。
   - reader改动限于既有probe的一个只读选项，同目录重编PASS；消融移除请求选项会回到旧raw API/79骨架输出，被root-track取证类型检查拒绝，恢复选项后3采样PASS。旧raw路径兼容检查PASS且本次两种路径root值相同，不伪称已有数值差；保留选项只为提供源实际API证据，无新转换规则、生产状态或运行时分支。本批累计52项P2、5项P3及U01；无公共Playground Gate，截图0、性能暂停。
+
+- [x] BF144.19 Mantle动态基座、RMS时钟与物理消费：沿fresh UE MaybeUpdateBasedMovement/UpdateBasedMovement、RootMotionSourceGroup准备/结束与ALS PhysCustom，核对移动/旋转/缩放基座的采样阶段、owner/world/最小delta、RMS速度和位置提交、暂停/恢复及退出后的残留速度。源基座运动仅作为角色输入，不扩展平台或通用物理设计；Ragdoll内部仍待其独立批次。Gate：逐阶段source合同、独立root oracle与完整角色数值反例/控制、记录闭环。开始：2026-10-14 04:06 +08:00；预估结束：2026-10-14 04:59 +08:00；实际结束：2026-10-14 04:37:53 +08:00；偏差：−21分07秒；结果：审计记录Gate PASS，新增2项P2、3项P3，D61误判已撤销，生产未修复。估时依据：UE基座和RMS有效调用闭包约350行、target mantle drive/基座回写及physics timing约250行；BF144.11基座速度实耗25分09秒、.15根运动消费41分11秒、.18变换24分06秒，本项增加物理基座与owner零时钟的跨阶段组合，根轨道复用刚完成的源API证据。
+  - 04:06 活动摘要：BF144.18已提交，累计52项P2、5项P3及U01；source CMC在RMS准备前调用MaybeUpdateBasedMovement，target在物理前计算RMS、物理后另做基座绝对回写，需比较两阶段实际actor和velocity。当前只有候选，没有本批新确认差异；生产实现未改，截图0、性能暂停。
+  - 04:13 source/focused闭环：fresh CMC基座携带在RMS之前、物理基座再于PostPhysics携带，native bIgnoreBaseRotation=True且SaveBaseLocation写absolute rotation；物理后携带用脚底、忽略scale。确认D59基座位移混入RMS/实际动画速度，D60物理后重做完整warp导致朝向及位置变化；两个focused共15组6PASS/9语义FAIL。无移动基座、静止/纯平移的post阶段对照通过；只在夹具提前完成source携带即恢复D59。继续当前RMS时钟/暂停/退出边界，未展开其他动画consumer。
+  - 04:30 source/focused闭环：普通owner/world组合10组、世界暂停/恢复2组、跨通知/整个RMS duration的6组PASS。D60新增静态基座下绕过1µs位置门槛的反例；无支撑中断提前InAir确认D62，实际graph tag已取样。D61原“Clear置零速度”oracle经fresh底层结构复核撤销，修正后3组保留速度PASS；沿同一旧transform getter继续核对旋转，源在owner0/极小delta仍再应用旧rotation delta，目标保持绝对角，新增D63。当前9个focused为4PASS/5语义FAIL；没有因源行为反直觉而优化或修复它。
+  - 04:32 剩余边界：source RMS每次Prepare都经`UseRelativeLocation→IsPhysicsOwnerMovable`读当前Mobility，target刷新函数保留开始时relative_location；只补这个已有source分支的目标存活期间模式变化对照，不展开平台实现。其余时钟、根速度和退出分支已形成记录，尚未做公共Playground验收。
+  - 04:38 本项归纳：9项core focused为4PASS/5语义FAIL，新增mobility focused为0PASS/1语义FAIL，合计55组39PASS/16FAIL，归并D59/D60/D62/D63/D64；D61排除后的速度对照3组PASS。证据`19/core_final/`、`19/mobility/`、`19/final/`与`19/summary.json`；`check_phase19.py`/record_gate watchdog PASS。116份基线source、11份补充UE source、18份native资产及160份生产Rust/同一launcher库hash不变。
+  - 消融仅在fresh App中提前携带actor、或保持基座变换/初始朝向/正常delta，分别区分各项失败；未添加生产设计或修改阈值。基座字段、实际graph速度及模式tag已沿直接consumer核对，本批累计54项P2、8项P3，D08/D61撤销、U01仍未闭合。RMS duration的source epsilon只作到期标志推过边界，当前原生root尾段已恒定，6组末帧/退出控制未见新增位置或模式差异；未扩展到网络/相机/平台实现。截图0、性能暂停，继续Ragdoll/GetUp。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -531,6 +539,36 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - Target：`movement/motion.rs:3191–3205,3232–3243`仅传origin与yaw；`actions/mantle.rs:810–813`以单位scale、纯yaw重建初始Transform，`855–867`再据此消除root。数据在进入root driver前已经丢失。
   - 反例：完整角色手动Mantle到0.6m按比例缩放的ledge，actor scale0.75/1.5首帧位置相对独立source公式偏离约11.4/22.1cm；单位scale对照通过。同一0.6m台阶，初始pitch或roll为0.2rad及组合倾斜偏离约8.7–12.5cm，组合yaw另差约1.15°。入口前实际global rotation已取样确认仍保留倾斜。两个focused共12组7PASS/5语义FAIL，夹具只补回初始scale偏移或完整quat的5组恢复源结果；证据`target/bf144/18/initial_controls/`。
   - 漏检：旧root复合与scaled-base测试使用单位scale、纯yaw的初始actor；基座缩放、root旋转覆盖不能代替actor自身Transform。7种动作的正常actor轨迹168采样全部匹配，排除通用轨道/mesh basis错误。本项合并同一初始Transform传递边界下的两种缺失，未重复计数，未修复生产实现。
+
+- [ ] BF144-D59 / P2 — Mantle缺少RMS前的基座携带，将平台位移计入角色自身速度。
+  - Source：fresh UE `CharacterMovementComponent.cpp:2840,2941,2992`先MaybeUpdateBasedMovement，再准备并消费RMS；`AlsRootMotionSource_Mantling.cpp:122–124`用目标位置减已携带后的actor位置再除owner delta。`AlsCharacter.cpp:1376–1383`把该CMC自身速度交给LocomotionState。
+  - Target：`movement/motion.rs:2846–2885`在Custom只保存基座快照，实际位移仅在Grounded分支执行；`root_motion_sources/mantle_drive.rs:740–742`因此从未携带的位置计算速度，`snapshot_actual_velocity_system`在Custom直接发布它，进入`AlsActualMotion`。
+  - 反例：实际活动Mantle中，kinematic基座在该运动帧前横移2cm，owner0.5/1/2时RMS和发布动画速度分别多出2.4/1.2/0.6m/s；最终位置仍正确。`bf144_mantle_physics_velocity_excludes_pre_movement_base_carry`5组2PASS/3FAIL；静止基座及夹具先携带actor的对照通过。证据`target/bf144/19/initial/`。
+  - 漏检：旧移动Mantle速度测试以target自身RMS之前的actor位置计算预期，未先复算源CMC基座携带；这个预期把同一错误带入oracle。仅登记实际速度消费差异，不把位置正确误当速度等价。
+
+- [ ] BF144-D60 / P2 — Mantle物理后重算warp，偏离源基座脚底携带及绝对朝向。
+  - Source：fresh UE `PostPhysicsTickComponent:1827–1836`对simulated base调用UpdateBasedMovement；`2574–2632`以胶囊脚底锚点应用基座location/quat变化，不使用scale。native bIgnoreBaseRotation=True，`SaveBaseLocation:3221–3224`保存absolute rotation，因此这次post携带不再改变actor朝向；源RMS已在物理前完成。
+  - Target：`root_motion_sources/mantle_drive.rs:790–821`物理后刷新完整base transform并重新计算同一时刻的整个warp，直接覆盖actor位置与rotation；同时把scale变化也带入，并在owner delta=0时仍执行。
+  - 反例：完整Mantle的simulated base在物理阶段后变化，owner0/1各测静止、平移、yaw、pitch和scale，共10组4PASS/6FAIL。基座yaw0.2rad时target额外旋转actor0.2rad；pitch0.15rad时位置偏离源脚底携带约5.62/4.45cm；scale变化时偏离约6.95/6.87cm。静止和纯平移均通过。`bf144_mantle_physics_post_base_uses_feet_carry_without_second_warp`，证据`target/bf144/19/initial/`。
+  - 漏检：旧平台测试把基座变化直接代入target warp作为预期，没有区分物理前RMS与物理后UE基座携带。测试以受控物理后base transform作为共同输入，未推测UE/Avian平台刚体本身是否相同；只登记角色消费者，生产未改。
+  - 同一无条件post写回还绕过了`mantle_drive:744`的最小时间门槛：静态目标、owner delta=0.5µs时，物理前位置正确不动，物理后却推进约3.4µm；源`StartNewPhysics:3533`在1µs以下不积分位置。4组中0、1、2µs对照通过，0.5µs失败；归入D60同一根因，不另增缺陷。
+
+BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FRootMotionMovementParams::Clear()`清空transform；fresh `AnimationAsset.h:781–785,812`证明它只清bHasRootMotion/BlendWeight，getter仍返回旧transform，`RootMotionSource.cpp:1689–1691,1719–1724`不检查该标志而继续读取旧速度。目标在静态小delta场景保留旧速度与源相同，原失败属于oracle错误；证据保留于`target/bf144/19/clock/`，从有效缺陷和失败集合移除。
+
+- [ ] BF144-D62 / P3 — Mantle在无地面支撑处中断时，同帧过早发布InAir。
+  - Source：fresh `RefreshMantling:653–657`在owner Tick检测action结束，`StopMantling:707–708`解锁并切Walking，发生在该帧CMC之后；UE `OnMovementModeChanged:1442–1452`去掉重力轴速度并查floor/base，但没有在该回调中改为Falling。正常物理下落检查在下一CMC帧执行，当前动画帧应读Grounded。
+  - Target：`mantle_drive.rs:603–614`在物理前先结束Mantle并置Grounded；同帧物理后的`movement/motion.rs:4073–4098`再次按无支撑改为Air，`ab_als_root`立即把它发布为`Als.LocomotionMode.InAir`。
+  - 反例：完整low Mantle到clip约0.41936s、脚底未受地面/台阶支撑时清动作，源当前帧应Grounded，target及实际SourceAnimationInputs已经InAir；该帧水平退出速度仍与源公式一致。`bf144_mantle_physics_interruption_keeps_source_exit_velocity_and_mode`3组2PASS/1FAIL，起始地面段与已登上台阶段的中断对照通过。证据`target/bf144/19/`；限定一个帧的模式提前，不推测尚未验证的后续轨迹影响。
+
+- [ ] BF144-D63 / P3 — Mantle的owner零/极小时钟未保留源重复应用旧rotation delta的行为。
+  - Source：fresh `AnimationAsset.h:781–785,812`证明Clear保留旧transform；`RootMotionSource.cpp:1744–1749`仍返回其中的旧rotation delta，不检查bHasRootMotion或delta。UE `PerformMovement:3090–3097`在位置物理之后把它乘到当前actor quaternion，也没有owner delta门槛；component Tick与ShouldSkipUpdate不会仅因delta0而跳过。这里是源自身的时钟行为，不能以“暂停应该不转”替换其事实。
+  - Target：`mantle_drive.rs:704–706`在owner delta≤1e−8直接跳过，随后`update_mantle_movement_base`重写固定RMS时刻的绝对rotation，所以不会累乘上一帧的delta。
+  - 反例：完整角色以0.35rad朝向进入Mantle，运行到time约0.21667s，上一帧源rotation delta约−0.01751rad；下一帧owner delta0/5e−9/1e−8时源应再应用这一delta，target保持原角，差约1°。独立native-root/source-warp oracle的`bf144_mantle_physics_tiny_delta_reuses_source_rotation_delta`8组5PASS/3FAIL；无转向的4组和普通16.667ms推进对照通过。与已撤销D61的速度猜测分开记录，未改生产实现。
+
+- [ ] BF144-D64 / P3 — Mantle冻结开始时的相对空间选择，未跟随目标当前可移动性。
+  - Source：fresh RMS `PrepareRootMotion:83–92`每次调用`UseRelativeLocation`；`Character.h:218–220`转发到`Character.cpp:814–816`，`PrimitiveComponentPhysics.cpp:1644–1647`读取当前Mobility是否Movable。源的start/target虽在开始时已存储，运行中仍使用当前选择，因此Mobility切换确实可能造成源空间突变。
+  - Target：`mantle_target_base:825–837`及物理后刷新用`base.relative_location`保留旧选择，从不重读当前对应的Static/Kinematic状态。
+  - 反例：完整活动Mantle、目标位置(0,0.4,−1.4)m保持不动，Static→Kinematic或反向切换后，源公式分别按新primitive/world空间解释已存warp，target仍按旧空间，位置差约1.456m。`bf144_mantle_physics_live_mobility_controls_relative_space`4组2PASS/2FAIL，同状态两组通过；证据`target/bf144/19/mobility/`。这是外部改变目标可移动性的少见合同边界，记P3；不把源空间突变擅自改写成平滑行为。
 
 ### 未闭合边界（不计为无差异）
 
