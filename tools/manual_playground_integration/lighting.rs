@@ -81,7 +81,11 @@ fn bloom_probe_error(bytes: &[u8], template: &Image, expected: &[(u32, u32, f32)
     for &(x, y, expected) in expected {
         let pixel = image.get_color_at(x, y).ok()?.to_linear().to_f32_array();
         if pixel.iter().any(|value| !value.is_finite()) || pixel[3] != 1.0 { return None; }
-        for value in &pixel[..3] { error = error.max((value - expected).abs() / (4e-6 + expected.abs() * 0.005)); }
+        for value in &pixel[..3] {
+            let difference = (value - expected).abs() / (4e-6 + expected.abs() * 0.005);
+            if difference > 1.0 { warn!("Bloom response differs at ({x}, {y}): expected {expected}, actual {value}, normalized_error {difference}"); }
+            error = error.max(difference);
+        }
     }
     Some(error)
 }

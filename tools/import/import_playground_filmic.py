@@ -175,13 +175,16 @@ def source_bloom_profile(bloom):
         y = (np.arange(out_height) + .5) * height / out_height - .5 + offset[1]
         x0, y0 = np.floor(x).astype(int), np.floor(y).astype(int)
         fx, fy = x - x0, y - y0
+        fx, fy = np.round(fx * 256) / 256, np.round(fy * 256) / 256
         left, right = np.clip(x0, 0, extent - 1), np.clip(x0 + 1, 0, extent - 1)
         top, bottom = np.clip(y0, 0, height - 1), np.clip(y0 + 1, 0, height - 1)
         a = image[top[:, None], left] * (1 - fx) + image[top[:, None], right] * fx
         b = image[bottom[:, None], left] * (1 - fx) + image[bottom[:, None], right] * fx
         return a * (1 - fy[:, None]) + b * fy[:, None]
     def half(image):
-        return image.astype('<f2').astype(float)
+        rounded = image.astype('<f2')
+        return np.where(rounded.astype(float) > image,
+                        np.nextafter(rounded, np.float16(0)).astype(float), rounded.astype(float))
     source = np.zeros((width, width))
     source[252:260, 252:260] = 110
     image = source
@@ -202,7 +205,8 @@ def source_bloom_profile(bloom):
         additive = half(vertical)
     result = half(source + sample(additive, source.shape))
     coordinates = [(x, 256) for x in range(0, width, 8)] + [(256, y) for y in range(0, width, 8)] + [(x, x) for x in range(0, width, 8)]
-    return dict(width=width, impulse_rectangle=[252, 252, 260, 260], impulse_value=110,
+    return dict(width=width, sampling_precision='subtexel_8bit_float16_round_to_zero',
+                impulse_rectangle=[252, 252, 260, 260], impulse_value=110,
                 samples=[[x, y, float(result[y, x])] for x, y in coordinates])
 
 
