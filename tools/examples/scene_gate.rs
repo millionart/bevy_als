@@ -115,7 +115,7 @@ struct SceneStats {
     camera_auto_exposure_count: u32,
     camera_exposure_error: f32,
     camera_contrast_error: f32,
-    camera_aces_count: u32,
+    camera_source_tone_count: u32,
     sky_count: u32,
     main_material_count: u32,
     tiles_material_count: u32,
@@ -443,9 +443,9 @@ fn stats_collector(
                 .fold(0.0, f32::max)
         })
         .fold(f32::INFINITY, f32::min);
-    stats.camera_aces_count = cameras
+    stats.camera_source_tone_count = cameras
         .iter()
-        .filter(|(_, _, tonemapping, _, _)| matches!(**tonemapping, Tonemapping::AcesFitted))
+        .filter(|(_, _, tonemapping, _, _)| matches!(**tonemapping, Tonemapping::TonyMcMapface))
         .count() as u32;
     stats.sky_count = skies.iter().count() as u32;
     stats.main_material_count = material_roles
@@ -844,7 +844,7 @@ fn verdict_system(
         && stats.camera_hdr_count == 1 && stats.camera_auto_exposure_count == 1
         && stats.camera_exposure_error < 1e-4
         && stats.camera_contrast_error < 1e-4
-        && stats.camera_aces_count == 1;
+        && stats.camera_source_tone_count == 1;
     let ok_sky = stats.sky_count >= 1;
     let ok_materials = stats.main_material_count >= 10
         && stats.tiles_material_count >= 100
@@ -881,7 +881,7 @@ fn verdict_system(
     );
 
     info!(
-        "[SCENEGATE][VERDICT] static={}(>=140) text={}(>=22) native_text={} glyph_text={}/{} world_mesh_text={} masked_world_mesh_text={} text_envelope={}/{} envelope_error={:.6} text_fill={}/{} fill_error={:.6} per_project={}/1 shared_frame={}/1 frame_error={:.6} source_error={:.6} inline_anchor_error={:.6} inline_frame_error={:.6} leading_breaks={}/4 leading_spaces={}/79 glyph_color={}/{} color_error={:.6} center={} left_top={} text_front={}/{} front_error={:.6} landscape={} identity={} tiles={}/4 tile_tiling_error={:.6} tile_color_error={:.6} tile_mips={}/{} sun={}/shadow={} lux_error={:.6} ray_error={:.6} contact_depth_bias={:.6}(<= {:.6}) depth_bias_error={:.6} normal_bias_error={:.6} contact_shadow={} camera_display={}/1 ev_error={:.6} contrast_error={:.6} aces={} sky={} materials=main={} tiles={} translucent={} translucent_no_shadow={} extended={} tile_pbr={} translucent_pbr={} tiling=unit:{}/142 half:{}/8 other:{}/1 movers={}(>=3) movers_active={} spin_yaw_abs={:.1}deg curve_loaded={} curve_keys={}/129 profiles={}/{} kin_error={:.6} mover_tiles={}/3 tiling_error={:.6} color_error={:.6} cube_orientation={}/{} cube_axis_error={:.6} rock_scale={}/1 rock_scale_error={:.6} brush={} -> {}",
+        "[SCENEGATE][VERDICT] static={}(>=140) text={}(>=22) native_text={} glyph_text={}/{} world_mesh_text={} masked_world_mesh_text={} text_envelope={}/{} envelope_error={:.6} text_fill={}/{} fill_error={:.6} per_project={}/1 shared_frame={}/1 frame_error={:.6} source_error={:.6} inline_anchor_error={:.6} inline_frame_error={:.6} leading_breaks={}/4 leading_spaces={}/79 glyph_color={}/{} color_error={:.6} center={} left_top={} text_front={}/{} front_error={:.6} landscape={} identity={} tiles={}/4 tile_tiling_error={:.6} tile_color_error={:.6} tile_mips={}/{} sun={}/shadow={} lux_error={:.6} ray_error={:.6} contact_depth_bias={:.6}(<= {:.6}) depth_bias_error={:.6} normal_bias_error={:.6} contact_shadow={} camera_display={}/1 ev_error={:.6} contrast_error={:.6} source_tone={} sky={} materials=main={} tiles={} translucent={} translucent_no_shadow={} extended={} tile_pbr={} translucent_pbr={} tiling=unit:{}/142 half:{}/8 other:{}/1 movers={}(>=3) movers_active={} spin_yaw_abs={:.1}deg curve_loaded={} curve_keys={}/129 profiles={}/{} kin_error={:.6} mover_tiles={}/3 tiling_error={:.6} color_error={:.6} cube_orientation={}/{} cube_axis_error={:.6} rock_scale={}/1 rock_scale_error={:.6} brush={} -> {}",
         stats.static_count,
         stats.text_count,
         stats.native_text_count,
@@ -930,7 +930,7 @@ fn verdict_system(
         stats.camera_exposure_count,
         stats.camera_exposure_error,
         stats.camera_contrast_error,
-        stats.camera_aces_count,
+        stats.camera_source_tone_count,
         stats.sky_count,
         stats.main_material_count,
         stats.tiles_material_count,

@@ -6,7 +6,7 @@
 src/
   animation_graph_ext/         bevy_animation_graph 求值、节点、同步、曲线及加载扩展
   avian_ext/                   物理关节、驱动、PhysicsAsset 和查询辅助
-  bevy_ext/                    材质、贴花、文本和时间辅助
+  bevy_ext/                    材质、贴花、文本、后处理和时间辅助
   control_rig/                 UE RigVM、层级、数学与 IK 语义
   tnua_ext/                    控制器辅助与项目物理时钟适配
   als/

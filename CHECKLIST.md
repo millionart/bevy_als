@@ -136,5 +136,9 @@ BF143.01 source/static闭合与有限复开（14:12）：fresh MI_Als_Character4
 
 .03a完成（15:26）：按fresh源码提取Bradford/ACES矩阵、源Filmic toe/shoulder/glow/red modifier、blue correction/gamut扩展，生成native48³ LUT；黑值有限、0.18源中灰与实际lookup、天空蓝/角色蓝/太阳HDR样本通过。Blue correction与RGB轴两项消融语义FAIL，源码字节恢复、完整check PASS；生成641/1600两分辨率12个源Gaussian核fixture、源六级tint/size及filter参数。Native固定Karis不满足source线性HDR合同，已证明公开参数不足；选择小型Gaussian渲染扩展，色调仍复用native LUT后端。此叶只完成数据和能力判定，显示运行未验收。
 
-  - [ ] BF143.03b 源Gaussian与Filmic消费者静态闭环。依赖.03a。开始：2026-10-13 15:26:49 +0800；预估结束：2026-10-13 16:21:49 +0800。依据源高质量四采样downsample、32 tap合并Gaussian/fast横向半宽、native RenderContext/TextureCache/48³ LUT公开接口，55分钟完成最小渲染扩展、相机接线、源核/线性/空间响应与原生LUT合同、消融/恢复及编译；本叶只核静态，不冒称真实效果完成。
-  - [ ] BF143.03c 最终真实显示与共同回归。依赖.03b，启动时登记不超过45分钟窗口；同target正式构建、原manual HDR/源SH/Filmic/Bloom共同数值与功能Gate，截图0/性能延期。
+  - [x] BF143.03b 源Gaussian与Filmic消费者静态闭环。依赖.03a。开始：2026-10-13 15:26:49 +0800；预估结束：2026-10-13 16:21:49 +0800；实际结束：2026-10-13 16:11 +08:00；偏差约−11分钟，静态Gate PASS。依据源高质量四采样downsample、32 tap合并Gaussian/fast横向半宽、native RenderContext/TextureCache/48³ LUT公开接口，55分钟完成最小渲染扩展、相机接线、源核/线性/空间响应与原生LUT合同、消融/恢复及编译；本叶只核静态，不冒称真实效果完成。
+  - [ ] BF143.03c 最终真实显示与共同回归。依赖.03b，开始：2026-10-13 16:11 +08:00；预估结束：2026-10-13 16:51 +08:00。依据本轮正式构建约6分钟、原startup/locomotion各15/29秒及新GPU数值链，40分钟完成同target正式构建、原manual HDR/源SH/Filmic/Bloom共同数值与功能Gate及必要的实际渲染修正，截图0/性能延期。
+
+.03b静态进展（16:05）：相机已接源48³ Filmic LUT与六级Gaussian，28场景中的相机先红/修复、12源核fixture及五项既有诊断通过；退休只匹配DC的native Bloom强度拟合与数据字段。新增512²源HDR 1/110和8×8高亮脉冲的横/纵/对角192点轮廓fixture，实际manual相机同一Gaussian链作三组一次性GPU数值探针，覆盖快模糊半宽、全部六级与宽光晕；不采集画面、不另建替代场景。LUT读回逐字节校验并去除原生256字节行padding；新探针的pending/丢光晕/HDR压缩拒绝与一次性生命周期、消融/字节恢复和最终编译仍待完成，尚未运行真实Gate。
+
+.03b完成/正式构建前（16:11）：28场景、7诊断及12源核合同全部PASS；移除Gaussian指数权重与一次性探针marker分别使核偏移/权重不匹配、Image数6→12，均语义FAIL，源码字节恢复后同target重编并重跑全部适用focused测试PASS。源显示/照明self-test与完整check一致；删除原生Bloom拟合字段与算法，生产只保留源Gaussian扩展和native LUT消费，不加依赖/fork。GPU探针复用相机同一渲染函数，待输出就绪后一次性读回并清理；0.5%相对加4e−6绝对误差界只覆盖half多pass及硬件线性采样精度，不能通过丢失光晕/非线性HDR的最小反例。剩余正式入口构建、实际WGSL/GPU输出与原manual功能Gate进入.03c；本叶未宣称观感验收完成。

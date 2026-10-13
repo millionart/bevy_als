@@ -6,7 +6,8 @@ use bevy::camera::Exposure;
 use bevy::color::LinearRgba;
 use bevy::core_pipeline::tonemapping::Tonemapping;
 use bevy::post_process::auto_exposure::{AutoExposure, AutoExposureCompensationCurve, AutoExposurePlugin};
-use bevy::post_process::bloom::{Bloom, BloomCompositeMode, BloomPrefilter};
+use crate::extensions::source_gaussian_bloom::{SourceGaussianBloom, SourceGaussianBloomPlugin};
+use bevy::core_pipeline::tonemapping::TonemappingLuts;
 use bevy::light::{CascadeShadowConfigBuilder, NotShadowCaster};
 use bevy::prelude::*;
 use bevy::render::view::{ColorGrading, ColorGradingSection};
@@ -38,7 +39,7 @@ pub struct PlaygroundPlugin {
 impl Plugin for PlaygroundPlugin {
     fn build(&self, app: &mut App) {
         let manifest = self.manifest.clone();
-        app.add_plugins((PlaygroundMaterialsPlugin, PlaygroundSkyPlugin, AlsPlayerStartPlugin, AutoExposurePlugin))
+        app.add_plugins((PlaygroundMaterialsPlugin, PlaygroundSkyPlugin, AlsPlayerStartPlugin, AutoExposurePlugin, SourceGaussianBloomPlugin))
             .init_resource::<PlaygroundMovingCurve>()
             .add_systems(
                 Startup,
@@ -423,20 +424,12 @@ pub fn moving_object_position(
 #[derive(Resource, Debug, Clone, Deserialize)]
 struct PlaygroundLighting {
     exposure: PlaygroundCameraExposure,
-    bloom: PlaygroundBloom,
     sky_light: PlaygroundSkyLight,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 struct PlaygroundSkyLight {
     intensity: f32,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct PlaygroundBloom {
-    intensity: f32,
-    threshold: f32,
-    max_mip_dimension: u32,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -1204,11 +1197,22 @@ fn playground_camera_exposure_system(
     lighting: Option<Res<PlaygroundLighting>>,
     mut curves: ResMut<Assets<AutoExposureCompensationCurve>>,
     mut images: ResMut<Assets<Image>>,
+    mut tone_luts: ResMut<TonemappingLuts>,
     cameras: Query<Entity, (With<Camera3d>, Without<PlaygroundSceneExposure>)>,
 ) {
     let Some(lighting) = lighting else { return; };
     let exposure = &lighting.exposure;
     for entity in &cameras {
+        let display: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../assets/ALSExtras/Environment/Sky/playground_display.runtime.json")).expect("Source display data must parse");
+        let bloom: SourceGaussianBloom = serde_json::from_value(display["bloom"].clone()).expect("Source Gaussian settings must parse");
+        let dimension = display["lut_dimension"].as_u64().unwrap() as u32;
+        let mut lut = Image::new(bevy::render::render_resource::Extent3d { width: dimension, height: dimension, depth_or_array_layers: dimension },
+            bevy::render::render_resource::TextureDimension::D3,
+            include_bytes!("../../../assets/ALSExtras/Environment/Sky/playground_filmic.rgba16f").to_vec(),
+            bevy::render::render_resource::TextureFormat::Rgba16Float, bevy::asset::RenderAssetUsages::all());
+        lut.sampler = bevy::image::ImageSampler::linear();
+        tone_luts.tony_mc_mapface = images.add(lut);
         let [minimum, maximum] = exposure.histogram_log_luminance_range;
         let compensation_curve = curves.add(AutoExposureCompensationCurve::from_curve(
             bevy::math::cubic_splines::LinearSpline::new([
@@ -1248,15 +1252,8 @@ fn playground_camera_exposure_system(
                     ..default()
                 },
             ),
-            Tonemapping::AcesFitted,
-            Bloom {
-                intensity: lighting.bloom.intensity,
-                prefilter: BloomPrefilter { threshold: lighting.bloom.threshold, threshold_softness: 0.0 },
-                composite_mode: BloomCompositeMode::Additive,
-                low_frequency_boost: 0.0,
-                max_mip_dimension: lighting.bloom.max_mip_dimension,
-                ..default()
-            },
+            Tonemapping::TonyMcMapface,
+            bloom,
             PlaygroundSceneExposure,
         ));
     }
@@ -2069,6 +2066,7 @@ mod tests {
         let mut app = App::new();
         app.init_resource::<Assets<AutoExposureCompensationCurve>>()
             .init_resource::<Assets<Image>>()
+            .insert_resource(TonemappingLuts { blender_filmic: default(), agx: default(), tony_mc_mapface: default() })
             .insert_resource(imported_lighting());
         let camera = app.world_mut().spawn(Camera3d::default()).id();
         app.world_mut().run_system_once(playground_camera_exposure_system).unwrap();
@@ -2088,6 +2086,7 @@ mod tests {
         assert!((app.world().get::<Exposure>(camera).unwrap().exposure() - 1.0).abs() < 1e-6,
             "Source histogram receives scene luminance without the old fixed exposure scale");
         assert!(app.world().get::<ColorGrading>(camera).unwrap().all_sections().all(|section| section.contrast == 1.0));
+        assert!(matches!(app.world().get::<Tonemapping>(camera), Some(Tonemapping::TonyMcMapface)), "Source Filmic must use the imported LUT response");
         let environment = app.world().get::<bevy::light::EnvironmentMapLight>(camera).expect("Source SH environment must be loaded directly without random generation");
         assert!(app.world().get::<bevy::light::GeneratedEnvironmentMapLight>(camera).is_none(), "Random native filtering would replace the source SH response");
         assert_eq!(environment.intensity, 2.0);
@@ -2105,13 +2104,15 @@ mod tests {
         assert_eq!(specular.data_order, bevy::render::render_resource::TextureDataOrder::MipMajor);
         assert_eq!(specular.data.as_deref().unwrap(), include_bytes!("../../../assets/ALSExtras/Environment/Sky/playground_sky_radiance.rgba16f"));
         let image_count = app.world().resource::<Assets<Image>>().len();
-        let bloom = app.world().get::<Bloom>(camera).expect("Source bloom scattering is missing");
-        assert!(matches!(bloom.composite_mode, BloomCompositeMode::Additive));
-        assert_eq!(bloom.prefilter.threshold, 0.0);
-        assert_eq!(bloom.prefilter.threshold_softness, 0.0);
-        assert_eq!(bloom.low_frequency_boost, 0.0);
-        let gain: f32 = (1..=(bloom.max_mip_dimension.ilog2() - 1)).map(|level| bloom.intensity.powi(level as i32)).sum();
-        assert!((gain - 0.08944875).abs() < 1e-6, "Source integrated scattering energy was dropped: {gain}");
+        assert!(app.world().get::<bevy::post_process::bloom::Bloom>(camera).is_none(), "Native HDR compression must not replace source linear Gaussian bloom");
+        let bloom = app.world().get::<SourceGaussianBloom>(camera).expect("Source Gaussian bloom is missing");
+        let gain: f32 = bloom.tints.iter().map(|color| color.x * bloom.intensity / 6.0).sum();
+        assert!((gain - 0.08944875).abs() < 1e-6);
+        let luts = app.world().resource::<TonemappingLuts>();
+        let lut = images.get(&luts.tony_mc_mapface).unwrap();
+        assert_eq!(lut.texture_descriptor.dimension, bevy::render::render_resource::TextureDimension::D3);
+        assert_eq!(lut.texture_descriptor.size.width, 48);
+        assert_eq!(lut.data.as_deref().unwrap(), include_bytes!("../../../assets/ALSExtras/Environment/Sky/playground_filmic.rgba16f"));
         app.world_mut().run_system_once(playground_camera_exposure_system).unwrap();
         assert_eq!(app.world().resource::<Assets<Image>>().len(), image_count, "Source non-realtime capture must not rebuild every frame");
     }

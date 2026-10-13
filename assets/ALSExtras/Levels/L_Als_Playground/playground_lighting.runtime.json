@@ -17,12 +17,6 @@
     "unit_exposure_ev100": -0.2630344058337938,
     "contrast": 1.0
   },
-  "bloom": {
-    "intensity": 0.08210459663160263,
-    "integrated_scatter_gain": 0.08944875000000001,
-    "threshold": 0.0,
-    "max_mip_dimension": 512
-  },
   "sky_light": {
     "intensity": 2.0,
     "capture_resolution": 128,

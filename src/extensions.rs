@@ -501,3 +501,6 @@ impl Plugin for AlsExtPlugin {
         ));
     }
 }
+
+#[path = "bevy_ext/source_gaussian_bloom.rs"]
+pub mod source_gaussian_bloom;

@@ -45,6 +45,10 @@ def load_source(world, engine):
         return float(match[1])
     if scalar('WhiteTemp') != 6500 or scalar('WhiteTint') != 0:
         raise ValueError('Source white balance requires mapping')
+    view = (engine / 'Source/Runtime/Engine/Private/SceneView.cpp').read_text(encoding='utf-8-sig')
+    console = (engine / 'Source/Runtime/Core/Private/HAL/ConsoleManager.cpp').read_text(encoding='utf-8-sig')
+    if 'BloomMethod = BM_SOG;' not in texts[3] or cvar(view, 'r.DefaultFeature.Bloom') != 1 or cvar(console, 'r.BloomQuality') != 5 or float(settings['BloomThreshold']) != -1:
+        raise ValueError('Source Gaussian bloom mode requires mapping')
     matrices = {name: array_constant(texts[0], name, (3, 3)) for name in
                 ['sRGB_2_XYZ_MAT', 'XYZ_2_sRGB_MAT', 'XYZ_2_AP0_MAT', 'AP0_2_XYZ_MAT',
                  'XYZ_2_AP1_MAT', 'AP1_2_XYZ_MAT', 'AP0_2_AP1_MAT', 'D65_2_D60_CAT', 'D60_2_D65_CAT']}
@@ -162,6 +166,46 @@ def source_bloom_kernel(width, stage, bloom):
                 tint=[channel * bloom['intensity'] / 6 for channel in bloom['tints'][stage]])
 
 
+def source_bloom_profile(bloom):
+    width = 512
+    def sample(image, output_size, offset=(0, 0)):
+        height, extent = image.shape
+        out_height, out_width = output_size
+        x = (np.arange(out_width) + .5) * extent / out_width - .5 + offset[0]
+        y = (np.arange(out_height) + .5) * height / out_height - .5 + offset[1]
+        x0, y0 = np.floor(x).astype(int), np.floor(y).astype(int)
+        fx, fy = x - x0, y - y0
+        left, right = np.clip(x0, 0, extent - 1), np.clip(x0 + 1, 0, extent - 1)
+        top, bottom = np.clip(y0, 0, height - 1), np.clip(y0 + 1, 0, height - 1)
+        a = image[top[:, None], left] * (1 - fx) + image[top[:, None], right] * fx
+        b = image[bottom[:, None], left] * (1 - fx) + image[bottom[:, None], right] * fx
+        return a * (1 - fy[:, None]) + b * fy[:, None]
+    def half(image):
+        return image.astype('<f2').astype(float)
+    source = np.zeros((width, width))
+    source[252:260, 252:260] = 110
+    image = source
+    levels = []
+    for _ in range(6):
+        size = tuple((dimension + 1) // 2 for dimension in image.shape)
+        image = half(sum(sample(image, size, offset) for offset in [(-1, -1), (1, -1), (-1, 1), (1, 1)]) * .25)
+        levels.append(image)
+    additive = None
+    for stage in reversed(range(6)):
+        kernel = source_bloom_kernel(width, stage, bloom)
+        image = levels[stage]
+        horizontal_size = (image.shape[0], kernel['horizontal_width'])
+        horizontal = half(sum(sample(image, horizontal_size, (offset, 0)) * weight for offset, weight in kernel['taps']))
+        vertical = sum(sample(horizontal, image.shape, (0, offset)) * weight for offset, weight in kernel['taps']) * kernel['tint'][0]
+        if additive is not None:
+            vertical += sample(additive, image.shape)
+        additive = half(vertical)
+    result = half(source + sample(additive, source.shape))
+    coordinates = [(x, 256) for x in range(0, width, 8)] + [(256, y) for y in range(0, width, 8)] + [(x, x) for x in range(0, width, 8)]
+    return dict(width=width, impulse_rectangle=[252, 252, 260, 260], impulse_value=110,
+                samples=[[x, y, float(result[y, x])] for x, y in coordinates])
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--world', type=Path, required=True)
@@ -218,6 +262,7 @@ def main():
             path.write_bytes(payload)
     if args.fixtures:
         fixtures = dict(kernels=[source_bloom_kernel(width, stage, bloom) for width in [641, 1600] for stage in range(6)],
+                        spatial=source_bloom_profile(bloom),
                         uniform_inputs=[1, 110], uniform_output_gain=sum(tint[0] for tint in bloom['tints']) * bloom['intensity'] / 6)
         fixture_text = json.dumps(fixtures, indent=2) + '\n'
         if args.check:
