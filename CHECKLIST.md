@@ -122,7 +122,7 @@ BF143.01 source/static闭合与有限复开（14:12）：fresh MI_Als_Character4
 
 .02a source/static与消融完成（14:32）：UE32输入逐pass half SH投影、9系数/4π面积归一化、源CPP packed Lambert归一化、source XZY坐标均复算；确定性32/64 Hammersley GGX含mip重要性采样，按native线性roughness→源log mip语义离线映射。源roughness1只使用原capture8级中的前6级，native输出6级避免把未使用的粗尾层误当roughness1；原捕获blob未改。常量辐射、法线基、Hammersley与独立方向lobe自测通过；实际diffuse与源模型最大差0.0001221≤half误差0.0002441，峰0.319336，specular峰88.3125。移除SH传递归一化、roughness映射、首层half舍入三个消融均语义FAIL，字节恢复后完整check PASS。数据叶完成，尚未接到运行，不将此结果当斑驳已修复。
 
-  - [ ] BF143.03a 源Filmic LUT与光晕空间数据。开始：2026-10-13 14:40:02 +0800；预估结束：2026-10-13 15:30:02 +0800。依赖.01，与.02b运行消费者独立；依据原生48³ LUT公开接口、已证源Filmic/blue correction/gamut扩展与六Gaussian层，50分钟完成源码驱动离线色彩响应、native blur完整空间响应拟合能力判定及反例/消融。source合同不能覆盖时先登记最小必要运行实现分叶，不以人工曝光/亮度补偿代替。
+  - [x] BF143.03a 源Filmic LUT与光晕空间数据。开始：2026-10-13 14:40:02 +0800；预估结束：2026-10-13 15:30:02 +0800；实际结束：2026-10-13 15:26:49 +0800；偏差约−7分钟，数据/能力Gate PASS。依赖.01，与.02b运行消费者独立；依据原生48³ LUT公开接口、已证源Filmic/blue correction/gamut扩展与六Gaussian层，50分钟完成源码驱动离线色彩响应、native blur完整空间响应拟合能力判定及反例/消融。source合同不能覆盖时先登记最小必要运行实现分叶，不以人工曝光/亮度补偿代替。
 
 .02b静态闭合/runtime前（15:02）：实际相机缺少直接EnvironmentMapLight的最小反例已先红；消费源SH diffuse32与6级radiance、保留强度2/世界轴，删除GeneratedEnvironmentMapLight。MipMajor→LayerMajor消融语义FAIL，源码字节恢复同target28场景与4诊断测试PASS；GPU读回新增对实际上传payload逐字节核对，防止随机结果凭finite/非零再次通过。开始同target_game/play正式入口构建，尚未核销运行叶。
 
@@ -133,3 +133,8 @@ BF143.01 source/static闭合与有限复开（14:12）：fresh MI_Als_Character4
 .03a source能力判定（15:15）：原生48³公开LUT接口可消费源Filmic数据；中灰直接源0.180001、native LUT0.179492，天空/角色/高亮样本最大误差0.00326，黑值极限与省略的WhiteTint/FilmBlackClip按fresh Scene.cpp默认闭合。Native Bloom FIRST_DOWNSAMPLE固定Karis压缩均匀HDR输入（1→0.9293、110→16.123），源DownsampleHigh为线性四次双线性平均；任意固定native强度/低频参数不能同时满足两档输入线性合同。故放弃native参数拟合，后续最小源Gaussian扩展只负责六级线性downsample/源核/叠加，继续复用native HDR/曝光/LUT显示。
 
 .02b runtime后/完成（15:17）：原startup15.733秒与locomotion28.963秒GPU/功能PASS，实际direct EnvironmentMapLight1、无随机生成器、GPU diffuse/radiance每字节匹配源离线数据，峰0.319336/88.3125，曝光1370样本invalid0/physical1，原graph/fault/temporal与primary_failure正常。源SH/法线方向连续性合同、颜色/粗糙度不变、28场景/4诊断、有效消融/字节恢复及同target正式构建闭合；BF142.02c/c2有限复开完成。角色和阴影共用的噪声来源已替换；天空显示曲线和光晕仍为当前.03，不提前宣称整体完成。截图0，性能验收延期。
+
+.03a完成（15:26）：按fresh源码提取Bradford/ACES矩阵、源Filmic toe/shoulder/glow/red modifier、blue correction/gamut扩展，生成native48³ LUT；黑值有限、0.18源中灰与实际lookup、天空蓝/角色蓝/太阳HDR样本通过。Blue correction与RGB轴两项消融语义FAIL，源码字节恢复、完整check PASS；生成641/1600两分辨率12个源Gaussian核fixture、源六级tint/size及filter参数。Native固定Karis不满足source线性HDR合同，已证明公开参数不足；选择小型Gaussian渲染扩展，色调仍复用native LUT后端。此叶只完成数据和能力判定，显示运行未验收。
+
+  - [ ] BF143.03b 源Gaussian与Filmic消费者静态闭环。依赖.03a。开始：2026-10-13 15:26:49 +0800；预估结束：2026-10-13 16:21:49 +0800。依据源高质量四采样downsample、32 tap合并Gaussian/fast横向半宽、native RenderContext/TextureCache/48³ LUT公开接口，55分钟完成最小渲染扩展、相机接线、源核/线性/空间响应与原生LUT合同、消融/恢复及编译；本叶只核静态，不冒称真实效果完成。
+  - [ ] BF143.03c 最终真实显示与共同回归。依赖.03b，启动时登记不超过45分钟窗口；同target正式构建、原manual HDR/源SH/Filmic/Bloom共同数值与功能Gate，截图0/性能延期。
