@@ -52,7 +52,7 @@
 |---|---|---|
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；U01未闭合，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
-| Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | 待逐项审计；角色蓝图 SelectMantlingSettings 属此闭包 |
+| Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14完成Roll输入/生命周期首轮审计，确认D43–D44；根位移/旋转、Mantle及角色蓝图SelectMantlingSettings仍待对应批次 |
 | Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | 待逐项审计；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | 待重新取证及核对；历史155子图合同只作起点，不能自证算法等价 |
@@ -147,6 +147,13 @@
   - 00:53 source/static闭环：native CanWalkOffLedges与Crouching许可均True、ImprovedPenetration=True、AlwaysCheckFloor=True、ConstrainToPlane=False，排除把UE基类的蹲伏禁出边缘默认值当作ALS行为。完整角色12组7PASS/5FAIL确认D41无walkable floor时丢弃penetration命中，以及D42静止丢失floor时提前一帧积分重力；动作SetMovementMode/Locked仅位于Mantle和Ragdoll，其内部按后续批次，当前不修改。
   - 00:55 闭环：3个focused测试1PASS/2个源合同语义FAIL，共16组11PASS/5FAIL；standing/crouching×移动/静止的4组边缘许可对照PASS，离地当帧蹲伏保持也符合源仅清WantsCrouch、下一BeforeMovement才真正UnCrouch的阶段。`target/bf144/13/final/`、`check_phase13.py`与`13/record_gate.watchdog.json`确认native、116份源快照及MovementComponent补充、160份生产Rust、同target_game库hash未变，原始Playground/Build包相同。
   - 可达边界：fresh已加载Playground原始导出1013个object无PhysicsVolume/Water对象或bWaterVolume，native虽CanSwim=True但没有当前水体入口；Swimming/Flying、AI NavWalking和未被ALS调用的通用Launch/CMC外力API不计入本批通过覆盖。source ShouldCatchAir恒False，未据猜测增加飞出坡面算法；5处动作mode切换与锁归Mantle/Ragdoll。累计39项P2、2项P3、U01；无生产设计消融对象、无真实Playground验收，截图0、性能暂停，继续Roll闭包。
+
+- [x] BF144.14 Roll触发、选择与动作生命周期：沿fresh StartRollingGrounded/IsRollingAllowedToStart/StartRollingImplementation、实际Input与CS配置、AM_Als_Roll段落/通知和UE montage play/stop，核对接收与拒绝、重入/尾段重启、动作tag/蹲伏/恢复、正常结束与中断、owner时钟。根位移碰撞、旋转和montage root提取另列下一批，Mantle/Ragdoll内部仍留其责任项。Gate：fresh native montage/notify/input事实与源阶段、完整角色状态/时间最小反例及对照，漏检和排除登记。开始：2026-10-14 01:00 +08:00；预估结束：2026-10-14 01:50 +08:00；实际结束：2026-10-14 01:24:54 +08:00；偏差：−25分06秒；结果：审计记录Gate PASS，新增2项P2，生产实现未改。估时依据：ALS Roll入口约115行、NotifyLocomotionAction/stance调用及UE montage lifecycle闭包，target roll state约160行与drive实际生命周期约200行；BF140.03动作时钟同类复审窗口20分钟，BF144.09完整Jump批次实耗18分26秒，另计native montage/notify递归读取；根运动空间/碰撞拆出以独立验收。
+  - 01:00 活动摘要：BF144.13已提交，累计39项P2、2项P3及U01。CS原生指向AM_Als_Roll，先重新读取该montage及通知/输入来源，再验证Start/Stop阶段；本批尚无新确认差异。截图关闭、性能暂停、生产实现未改。
+  - 01:07 source/static闭环：fresh AM_Als_Roll/A_Als_Roll/IA_Als_Roll三个reader PASS，原始/Build逐字节相同；montage长度1.5s、输入PlayRate1.3、action通知起始offset0.0001s及authored end0.933333s（UE GetEndTriggerTime复算有效end0.933433s）、CS CrouchOnStart=True。完整角色启动6组3PASS/3FAIL确认D43：常规启动胶囊蹲伏晚一帧，owner0时active roll始终没有立即设置Rolling tag。下一步核对接收/重入与正常结束/中断，根位移碰撞和旋转仍留下一批。
+  - 01:21 source/static闭环：新增D44输入接受读取运动后mode，6组4PASS/2FAIL，分别为空中输入当帧落地被补接收，以及100ms地面走离帧原本有效Roll被拒绝；50ms走离对照通过，未将症状扩展到所有帧。3组owner自然结束、4组重入和4组Ragdoll直接Montage_Stop(0.2s)对照全部PASS，包含owner0冻结fade；Ragdoll只核对停止当前montage及替换action，未开展内部PA/动作审计。
+  - 01:24 闭环：6个focused测试4PASS/2个源合同语义FAIL，共35组30PASS/5FAIL；另12组实际键盘/手柄Tap在world倍率0.25/2、保持40/160/400ms时与fresh源的未缩放0.3s阈值一致，释放触发后下一帧清除。自然结束覆盖owner0.5/1/2共250帧，Ragdoll直接停止覆盖4个owner的51个fade样本；`target/bf144/14/final/`。B角色没有SelectRollMontage override，CS→AM_Als_Roll→A_Als_Roll/PostLocomotion实际选择一致；未扩展CameraShake/Footstep效果。
+  - `check_phase14.py`与`14/record_gate.watchdog.json` PASS：4份native记录/原始和Build资产一致，116份源、补充UE Montage/AnimInstance/AnimTypes与EnhancedInput调用、160份生产Rust及同target_game库hash均保持。初次记录脚本漏了Build/Content目录层已修正并保留失败报告，不影响反例。累计41项P2、2项P3与U01；无生产抽象/状态/分支新增，未跑真实Playground Gate，截图0、性能暂停。下一批只接Roll根运动的提取/位移/旋转/碰撞与模式语义。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -398,6 +405,18 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - Target：`src/als/character/movement/motion.rs:3507,3635–3645`对零水平位移提前跳过FindFloor，常规Tnua/Avian仍先执行重力，`4070–4108`物理后才发布Air；缺少源的零剩余时间约束。
   - 反例：完整角色静止在高处静态平台，下一帧删除该平台。站立/蹲伏×16.667/50ms下源首帧vy应0且高度不变，target分别vy=−0.1635/−0.4905m/s、下降约1.59/14.31mm；各模式都正确切Air，差异在积分阶段。`bf144_recovery_stationary_floor_loss_defers_falling_integration`8组4PASS/4FAIL，保留平台的4组对照均Grounded、vy0；证据`target/bf144/13/stationary_loss/`。
   - 漏检：旧基座销毁与floor失效测试只断言切Air和没有水平瞬移；移动走离的remaining-time测试有非零MoveDelta，没有触发该早退。反例使用静态基座，排除D34竖直支持速度继承；仅登记，不改重力值。
+
+- [ ] BF144-D43 / P2 — Roll启动未立即提交动作和蹲伏，依赖随后动画通知。
+  - Source：fresh `AlsCharacter_Actions.cpp:90–100`在Montage_Play成功后立即SetLocomotionAction(Rolling)，`AlsCharacter.cpp:1080–1099,801–827`随即ApplyDesiredStance请求Crouch；同帧CMC BeforeMovement消费请求。AM_Als_Roll的action notify从0.0001s开始，不替代这个显式启动步骤；owner时间倍率0也不取消输入调用或SetLocomotionAction。
+  - Target：`src/als/character/actions/roll_drive.rs:2122–2244`只启动roll state，`src/als/notifies/animation_events.rs:1003–1013,1048–1060`通过随后notify设置action/physical stance override。该PostUpdate阶段晚于Update里的`movement/motion.rs:2559–2562,3270`胶囊reshape；clip时间不前进时notify甚至尚未开始。
+  - 反例：完整站立角色按Roll，owner1首帧roll.active=True、action=Rolling，但实际stance仍Standing、胶囊H0.9，第二帧才变Crouching/H0.56；源首个运动帧已应蹲伏。owner0从Standing或Crouching启动，target虽active但action连续两帧仍None，源应立即Rolling。`bf144_roll_lifecycle_start_commits_action_and_crouch_before_movement`6组3PASS/3FAIL，已有蹲伏的owner1及两组无Roll输入对照通过；证据`target/bf144/14/start/`。
+  - 漏检：旧Roll蹲伏和root-motion回归观察已运行多帧的动作，notify首区间测试只验证事件本身，没有比较源显式StartRolling提交先于CMC的关系。本项限定启动动作/胶囊时序，根运动位移与碰撞另行审计；未改生产实现。
+
+- [ ] BF144-D44 / P2 — Roll输入使用运动后的mode判定，改变同帧地空切换的接收结果。
+  - Source：fresh `AlsCharacterExample.cpp:197–202`输入回调立即`StartRollingGrounded(1.3)`；`AlsCharacter_Actions.cpp:34–42`当场检查Grounded，然后接受或返回，没有等待本帧movement结束。CS bInterruptRollingWhenInAir=False，所以在Grounded已接受的Roll不会仅因随后进入Air而取消。
+  - Target：`src/als/character/actions/roll_drive.rs:2122–2216`在PostUpdate读取locomotion再调用`roll.rs:144–154`，晚于Update内可能改变mode的falling/walking transaction。输入命令被留到运动之后重新判断。
+  - 反例：完整角色以vy=−2m/s处于离地约2cm的Air时按Roll，50ms内普通落地，源输入应拒绝且低落地速度不自动Roll，target切Grounded后启动Roll。反向边界：在1m平台x=0.55、Grounded、水平3.75m/s时按Roll，100ms多子步先走离平台，源已接受且应保留Roll，target在Air拒绝；同几何50ms单子步对照仍接受。
+  - `bf144_roll_lifecycle_acceptance_uses_input_time_locomotion`6组4PASS/2FAIL，普通Grounded启动、持续Air拒绝、无Roll输入的低速落地与50ms走离均通过；证据`target/bf144/14/lifecycle_core/`。旧入口测试分别在稳定地面/空中按键，未把输入与当帧碰撞模式变化组合；本项只登记许可阶段，不把同帧根位移差异归入此项。
 
 ### 未闭合边界（不计为无差异）
 
