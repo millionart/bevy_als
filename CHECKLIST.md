@@ -52,7 +52,7 @@
 |---|---|---|
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；U01未闭合，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
-| Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.16完成Roll输入/生命周期及选定根轨道、空间、时钟、转向、碰撞/落地消费，以及Mantle探测/许可/设置选择首轮审计，确认D43–D54；精确查询数值未闭合，Mantle RMS推进/交接待对应批次 |
+| Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.17完成Roll及Mantle探测/许可/设置选择/生命周期的首轮审计，确认D43–D57；精确查询数值未闭合，Mantle RMS根轨道/warp/平台空间推进待对应批次 |
 | Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | 待逐项审计；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | 待重新取证及核对；历史155子图合同只作起点，不能自证算法等价 |
@@ -170,6 +170,13 @@
   - 02:42 source/focused闭环：fresh角色选择图与7份Mantle设置reader PASS；完整角色及同一query确认D53子碰撞体速度身份遗漏、D54箱体边角法线导致目标/朝向偏移。3个focused为1PASS/2语义FAIL，共310组306PASS/4FAIL；方向限制300组含半转边界全部PASS。证据`target/bf144/16/initial/`。首个成功native读取因临时外层脚本误判空LASTEXITCODE而中止，已改读机器报告后续读其余6份，成功记录未重复执行；不计为源或产品失败。继续核对6份Montage、设置标量与探测几何控制，RMS内部仍留下一批。
   - 02:48 本项归纳：6个focused为4PASS/2语义FAIL，共420组416PASS/4FAIL，失败只归并D53/D54。fresh 7设置→6Montage引用、13条角色选择路由及起播/warp标量均一致；ground/air×standing/crouching×uniform scale0.5/1/2的12组query形状与目标高度、手动/自动×allow/step的8组完整入口控制通过。证据`target/bf144/16/final/`、`16/inputs.json`、`16/summary.json`；`check_phase16.py`及record_gate watchdog PASS，15份native/原始Build一致，116份source、7份补充UE源码、160份target与实际库hash未变。
   - 本批累计49项P2、4项P3及U01。移除父子速度分歧或边角接触分别消除失败；未新增生产设计，探测数值的完全等价仍未闭合，不能用以上有限控制宣称100%。本次没有公共Playground Gate，截图0、性能暂停。下一批沿已选Mantle启动/停止入口核对RMS安装、碰撞与movement mode的生命周期；RMS根轨道/平台空间数学单独验收。
+
+- [x] BF144.17 Mantle启动、结束与运动模式交接：沿fresh StartMantlingImplementation/RefreshMantling/StopMantling和角色OnMantlingStarted/Ended，核对RMS安装/移除、action与montage生命周期、Custom锁/基座/碰撞与输入许可、自然结束/外部中断/目标销毁的Walking或Ragdoll直接交接。只审计动作边界；RMS根轨道、warp数学与平台空间推进单独列后续依赖批次，Ragdoll内部不提前展开。Gate：native通知/角色回调与CPP阶段合同、完整角色时间线及必要反例/对照、漏检/排除记录。开始：2026-10-14 02:51 +08:00；预估结束：2026-10-14 03:41 +08:00；实际结束：2026-10-14 03:37:28 +08:00；偏差：−3分32秒；结果：审计记录Gate PASS，新增2项P2、1项P3，生产实现未改。估时依据：已定位ALS启动/结束约210行、RMS同步入口及target prepare/pose/release约360行；BF144.14动作生命周期实耗31分左右、.15根消费41分11秒、.16探测37分37秒，分离完整root/warp数值后保持独立验收窗口。
+  - 02:51 活动摘要：BF144.16记录Gate已提交，累计49项P2、4项P3及U01。fresh CPP在启动时先Custom+mode lock+base再装RMS并播放Montage；Refresh按action、mode和目标寿命决定Stop，Stop解锁后切Walking。下一步提取角色回调与6份已读取Montage通知，只沿实际动作消费者核对；本批尚无新差异，生产未改、截图0、性能暂停。
+  - 03:20 source/focused闭环：fresh native bTickBeforeOwner=True与UE tick依赖证明CMC→Actor→Mesh；3个实际Mantle Sequence均关闭动画root motion，6个Montage的通知及角色回调已提取，OnMantlingStarted/Ended只处理Overlay道具，不展开其实现。确认D55物理阶段胶囊不可查询、D56自动Mantle提前推进首帧RMS；2个focused共6组3PASS/3语义FAIL，证据`target/bf144/17/initial/`。先前“结束前多走一帧”的候选因源Tick顺序尚不能成立，不登记；继续核对自然通知退出、锁定请求和目标销毁。临时夹具曾对immutable CollisionLayers请求可变Query导致编译失败，已改为Commands替换组件，生产代码未改。
+  - 03:35 source/focused闭环：自然low/high×owner0.5/1/2的通知退出6组、mode lock/两种Ragdoll交接5组、目标销毁×owner0/1×world pause及恢复6组PASS。主动Ragdoll打断的源mode仍为Walking：旧锁先拦None，再由StopMantling解锁切Walking；初版夹具误期望None，已按fresh源码纠正，不计缺陷。另确认D57新Aiming的EarlyBlendOut晚一帧；12组条件控制仅两种高度的新Aiming失败，预先提供Aiming状态、input/crouch/air/idle全部通过。通知end按fresh AnimTypes GetEndTriggerTime补入trigger offset，manifest数据一致；未修改转换器或资产。
+  - 03:37 本项归纳：最终6个focused为3PASS/3语义FAIL，共35组30PASS/5FAIL，归并D55–D57；`17/final/`保留完整结果，`capture_mantle_lifecycle_inputs.py`及`check_phase17.py`/record_gate watchdog PASS。18份native资产、原始/Build一致，116份基线source、6份补充UE源码、160份target及同一launcher库hash未变；`17/inputs.json`记录6Montage/3Sequence与准确通知end，`17/summary.json`区分记录通过与等价失败。
+  - 本批累计51项P2、5项P3及U01。普通角色/仅恢复query layers、owner0、预先提供Aiming状态分别消除确认失败；无生产设计新增，不用源自身的Ragdoll锁行为制造新缺陷。尚未验收完整RMS root/warp/平台空间数值；无公共Playground Gate，截图0、性能暂停，继续下一独立闭包。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -493,6 +500,24 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - Target：`src/als/character/actions/mantle.rs:557,582–588`直接把Avian normal1的水平接触法线当ImpactNormal；实际MantleIntent及已开始状态消费这个倾斜方向。
   - 反例：2.4m宽、0.8m高箱体前，actor x=±1.3m以−Z正向探测；命中侧边x=±1.2m。source目标x应保持命中x、yaw0，target目标横移约5.2cm、yaw约±20°；完整角色实际开始Mantle且保存同方向偏差。`bf144_mantle_corner_uses_geometric_wall_normal`4组2PASS/2FAIL，x=0/1.1m面内对照PASS；证据`target/bf144/16/initial/`。
   - 漏检：旧trace几何测试主要取面内命中，未覆盖侧向越过边缘但capsule仍能接触前墙的组合。与D10共享contact/impact语义差别，但属于独立的Mantle方向消费者；不将同一反例重复计入D10，不补射线或改查询库，仅登记。
+
+- [ ] BF144-D55 / P2 — Mantle期间关闭了胶囊对其他查询的碰撞。
+  - Source：fresh B_Als_Character CollisionCylinder为QueryAndPhysics/Pawn，Mantle启动、RMS PhysCustom及结束路径均保留该碰撞状态；`AlsCharacterMovementComponent.cpp:624–626`的MoveUpdatedComponent(...,false)仅跳过自身移动sweep。native角色回调只清理/恢复Overlay道具，没有关闭胶囊碰撞；动作文件中的NoCollision只属于后续Ragdoll路径。
+  - Target：`src/als/root_motion_sources/mantle_drive.rs:684–698`在每帧物理前将Mantle collision owner设为true，`character/character.rs:101–105`使CollisionLayers=NONE；物理完成后才在`mantle_drive.rs:761–787`恢复，其他运动/物理查询因此看不到胶囊。
+  - 反例：完整实际攀爬角色，在Physics StepSimulation之后、Writeback之前，从角色中心侧面使用Default mask仅查询该角色；源应命中保留的Pawn胶囊，target无命中且layers全0。`bf144_mantle_lifecycle_keeps_capsule_query_collision_during_physics`3组2PASS/1FAIL；普通角色及夹具只恢复该阶段CollisionLayers的两组均命中，证据`target/bf144/17/initial/`。
+  - 漏检：旧Mantle测试验证自己可穿过障碍、帧后layers恢复及多个动作owner并存，没有检查物理阶段其他消费者的query。无sweep不能等价为关闭全部query/physics；本项不推测尚未测试的碰撞冲量数值，仅登记。
+
+- [ ] BF144-D56 / P2 — 自动Mantle在安装RMS的同帧提前推进根运动。
+  - Source：fresh CMC native bTickBeforeOwner=True；`MovementComponent.cpp:186–188`建立CMC先于角色的依赖，`AlsCharacter.cpp:292`在角色Tick才AutoStartMantling。`RootMotionSource.cpp:184,1809–1829`新RMS时间为0并加入PendingAdd，下一次CMC Prepare才推进；安装当帧不应推进RMS时间或产生其位移。
+  - Target：`src/als/character/movement/motion.rs:3114–3116,3229–3245`在Update提前检测并启动自动Mantle，`root_motion_sources/mantle_drive.rs:730–757`在同帧PostUpdate已按owner delta推进并写回位置；手动与自动入口共用同一开始阶段。
+  - 反例：完整Air角色中心(0,1.1,0)，面对0.8m ledge，无跳键而自动开始Mantle；world16.667ms、owner1/2时source新RMS时间0，target分别已到0.016667/0.033333s，并向前移动3.92/10.56cm。`bf144_mantle_lifecycle_auto_start_waits_for_next_movement_tick`3组1PASS/2FAIL；owner0保留时间与位置的对照PASS，证据`target/bf144/17/initial/`。
+  - 漏检：旧自动Mantle Gate只检查成功开始、持续推进和暂停，未用source真实Tick依赖区分安装帧与首次CMC消费帧。已确认的3个Sequence均bEnableRootMotion=False，不存在动画root tick替代RMS首次推进的解释；仅登记。
+
+- [ ] BF144-D57 / P3 — Mantle尾段对当帧新Aiming的提前淡出晚一帧。
+  - Source：fresh `AlsCharacter.cpp:289–293`先RefreshRotationMode，Mesh受`124`的owner tick依赖约束；原生Mantle EarlyBlendOut的bCheckRotationMode=True、RotationModeEquals=Aiming。`AlsAnimNotifyState_EarlyBlendOut.cpp:44–66`在Mesh branching tick读取当前模式，匹配后立即停止实例，使用原生Low/High的0.35/0.4s HermiteCubic淡出。
+  - Target：`src/als/root_motion_sources/mantle_drive.rs:352–401`只约束在动画Dispatch之后，没有依赖当前帧aim refresh；`state/aim.rs:117–123`却在物理后的gait刷新之后更新RotationMode。本次真实入口执行中，提前淡出先读到旧ViewDirection，下一帧才停止。
+  - 反例：完整low/high Mantle自然退出后，在原生early notify有效区按aim；该帧结束已为Aiming，但发布的Montage sample仍interrupted=false。再过0.1s，low/high实际权重0.856927/0.887876，source应0.801749/0.843750。`bf144_mantle_lifecycle_early_blend_conditions_and_duration_controls`12组10PASS/2FAIL；夹具在该帧开始前提供Aiming状态的两组恢复正确权重，其他input/crouch/air/idle共8组通过，证据`target/bf144/17/final/`。
+  - 漏检：旧early条件测试直接传入已经更新的枚举/Tag，未跨真实aim producer与Montage consumer阶段核对同帧变化。这里限定为一个帧的淡出延迟，记P3；不据此推测其他图/通知均有相同问题，生产未改。
 
 ### 未闭合边界（不计为无差异）
 
