@@ -51,7 +51,7 @@
 | 顺序 / 源责任 | 本轮 target 核对入口 | 覆盖状态与旧 Gate 边界 |
 |---|---|---|
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
-| CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.07完成速度/时钟、默认floor/胶囊查询、walking/Air接触及落地回调首轮审计，确认D05–D07、D09–D23；重力D08已撤销；蹲跳、基座、U01及未证实的罕见恢复边界待后续独立批次 |
+| CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.08完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调与蹲起首轮审计，确认D05–D07、D09–D27；重力D08已撤销；Jump/apex、基座、U01及未证实的罕见恢复边界待后续独立批次 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | 待逐项审计；角色蓝图 SelectMantlingSettings 属此闭包 |
 | Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | 待逐项审计；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
@@ -109,6 +109,12 @@
   - 22:34 验证修正与边界：源制动曲线在gait 1→2并非常数，首版remaining-time oracle误用了起步值，已按fresh Normal曲线修正；错误版本保留在`07/remaining_initial/`，不计缺陷。修正后4m平地的6组全部PASS，100m平地仍6FAIL，直接shape cast已比解析接触提前约0.6–0.9cm；这不是已证实的剩余时间算法缺陷。仅沿已有movement sweep→WorldCollision/GeometryQueries与target Avian/Parry查询依赖核对容差，不展开场景或补偿。角色倍率0/.5/1/2的落地timer在世界0.5秒严格大于边界到期均PASS。
   - 22:38 source/static 闭环：fresh B_Als_Character确认bTickBeforeOwner=True，CS_Als_Default确认700/1000cm/s落地阈值、自动Roll/Ragdoll开启、空中中断Roll关闭；目标默认设置相符。UE TimerManager以world delta累积，在物理后严格InternalTime>ExpireTime才执行，创建帧pending保留完整0.5秒，当前消费者与4组倍率控制一致。修正后的remaining公式使用gait映射、源curve线性段、pullback、CMC及braking两层子步；主合同夹具保留4m平地6组通过，不把100m箱体的查询数值差异消掉或改容差，另列U01待source查询实证收口。
   - 22:39 本项归纳：已核对源movement→Character→mesh及timer阶段，落地普通/Roll/Ragdoll直接仲裁、残余Walking预算、输入与速度快照、旋转阻塞和pending timer；角色蓝图未增加OnLanded/OnLocomotionModeChanged覆盖。最终3项focused为2PASS/1预期语义FAIL，14组12PASS/2FAIL仅归并D23；U01的另一组12项几何诊断独立保留，不计为合同通过。8个fresh native属性及原始/Build身份、116份原source、6份额外UE闭包与160份生产Rust/库身份PASS；证据`target/bf144/07/final/`、`07/summary.json`。未改生产设计，无公共runtime Gate，截图0、性能暂停；下一项只展开蹲起物理与生命周期，Jump/apex和基座继续分批。
+
+- [x] BF144.08 蹲起胶囊、净空和生命周期：沿fresh Character ApplyDesiredStance/OnStartCrouch/OnEndCrouch与UE CMC Crouch/UnCrouch/UpdateCharacterStateBeforeMovement/AfterMovement，核对standing/crouched尺寸、源缩放语义、保持脚底、净空拒绝/重试、desired/actual时点和地空/动作直接条件。Jump/apex、移动基座与Roll/GetUp内部实现另列后续批次。Gate：native尺寸/配置与source分支合同、实际角色几何和生命周期反例/对照、遗漏及排除记录。开始：2026-10-13 22:42 +08:00；预估结束：2026-10-13 23:32 +08:00；实际结束：2026-10-13 23:01:24 +08:00；偏差：−30分36秒；结果：审计记录Gate PASS，新增4项P2，生产实现未改。估时依据：fresh UE crouch闭包约300行、ALS stance与通知约110行、target reshape/transaction约220行；BF141.02尺寸修复实耗70分45秒含构建/公共Gate，本次只读复审，结合BF144.04几何审计47分40秒与.07回调审计25分41秒独立估时。
+  - 22:42 活动摘要：BF144.07已提交，累计21项P2、1项P3，另有U01待源查询实证。本批先核对默认CDO尺寸和源Crouch/UnCrouch实际单位/缩放，再建立头顶阻挡、脚底保持与地空条件对照；截图关闭、性能暂停、无生产修改。
+  - 22:52 source/focused 闭环：fresh Crouch以实际世界quat扫掠下移缩短后的胶囊，UnCrouch则以gravity orientation做站起净空，target分别直接传送下移和误用actor quat，确认D24/D25。12组完整角色夹具8PASS/4FAIL，两个失败边界均可通过去掉倾斜或障碍消除。native站立半高90cm/半径30cm/蹲姿半高56cm与target一致；CDO的maintains-base为False，但ALS每次movement-mode change明确设True，不能把未初始化CDO当运行时合同。继续核对常规净空拒绝/重试、倍率和父空间对照，不修改生产实现。
+  - 23:00 source/focused 闭环：普通headroom拒绝/恢复、0/.5/1/2 owner倍率、4种尺度×直接/父级center及mesh偏移共16组PASS，低顶板站起后swept floor adjustment也PASS。fresh源UPROPERTY/Setter允许配置蹲姿半高，Crouch明确clamp到radius且变大时先做净空拒绝；target的形体虽自行夹到radius，中心/mesh/cache仍用未夹值，且增高无拒绝，确认D26/D27。两者只在非默认尺寸触发，默认56cm对照通过；最终7项测试3PASS/4预期语义FAIL，37组31PASS/6FAIL归并本批4项差异。
+  - 23:01 本项归纳：已核对Crouch/UnCrouch尺寸、gravity/actor query空间、最小轴center/mesh偏移、低顶板floor回退、desired/actual与Before/AfterMovement阶段和重复拒绝；源CanEverCrouch读取NavAgentProps=True，另一个MovementState=False不是该许可输入。D24最终改用4m平面，反例保持，避免把U01的100m查询数值带入新结论。native资产及116份原source、3份额外UE闭包、160份生产Rust/当前库身份PASS，证据`target/bf144/08/final/`、`08/summary.json`。去掉倾斜/阻挡或恢复默认尺寸均消除相应失败；无生产设计新增可消融，无公共runtime Gate、截图0、性能暂停。Roll/Mantle/GetUp的物理姿态override内部生命周期留各自动作/notify批次；下一批进入Jump/apex。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -245,6 +251,30 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - Target：`src/als/character/movement/motion.rs:3697–3701`的落地仲裁读AlsActualMotion快照；`state/air.rs:337–344`另记录本帧LinearVelocity，`character/actions/roll_drive.rs:2185–2193`却用后者决定是否真正启动Roll，两个消费者不一致。
   - 反例：完整角色从0.94m中心高落地，保留下降速度3m/s而当前速度被更新为8m/s时，source应普通落地，target启动Roll；保留8m/s而当前3m/s时，source应Roll，target没有启动。两份速度相同的3/3、8/8对照PASS。`bf144_landing_roll_uses_retained_character_velocity`共4组2PASS/2FAIL，证据`target/bf144/07/retained_velocity/`。
   - 漏检：旧实际落地测试及阈值测试通常让pre-impact和Character快照保持一致，或只验证ragdoll分支；未组合当前帧速度更新与保留快照分离。仅登记，不修改recording或动作实现。
+
+- [ ] BF144-D24 / P2 — 蹲下保持脚底的下移漏掉源碰撞扫掠。
+  - Source：fresh UE `CharacterMovementComponent.cpp:3292–3327`先缩短胶囊，然后以实际世界quat调用`MoveComponent(...,bSweep=true)`沿重力下移；ALS `AlsCharacterMovementComponent.cpp:233–237`在地空模式切换后始终保持base-location策略。倾斜胶囊的缩短并不能保证完整向下位移仍无阻挡。
+  - Target：`src/als/character/movement/motion.rs:3361–3370,3440–3455`直接写入缩短形体与目标Position/Transform，没有对这次重定位做sweep；后置物理解穿透及floor调整无法保留先扫掠后运动的源阶段合同。
+  - 反例：完整角色站姿倾斜60°/90°，实际胶囊底部距地2.15cm，请求蹲下。源缩短形体的向下sweep在0.34m请求量之前命中地面；target在物理前中心却到y=0.28150/−0.01850m，低于蹲姿实际形体不穿地所需0.43/0.30m。`bf144_crouch_base_shift_keeps_source_swept_move`共6组4PASS/2FAIL，无倾斜和无地面4组对照通过；证据`target/bf144/08/tilted_initial/`。
+  - 漏检：旧父空间/尺度蹲起测试核对世界位置与脚底偏移，但角色仍直立，缩短+下移扫过的体积包含在原形体中，不能触发阻挡。只记录倾斜角色边界，不宣称默认直立蹲下必然穿地；没有扩大为通用物理修复。
+
+- [ ] BF144-D25 / P2 — 倾斜角色站起净空误用actor姿态。
+  - Source：fresh UE `CharacterMovementComponent.cpp:3377–3396,3440–3457`按scaled尺寸构造站起query shape，并用`GetWorldToGravityTransform()`做OverlapBlockingTest；默认竖直重力时查询胶囊直立，与actor倾斜独立。站起后的实际组件移动仍保留actor quat，这两个空间不能混用。
+  - Target：`src/als/character/movement/motion.rs:3356,3382–3394`所有站起shape-intersection都传`world.rotation()`，把actor姿态套入源gravity-space净空查询。
+  - 反例：完整角色空中、蹲姿、pitch60°；距离中心z=0.65m的侧墙让target拒绝站起而source直立query无阻挡；相对蹲姿中心y=1.1m的顶板让target允许站起而source直立query应阻挡。同一目标几何上的source姿态查询确认阴阳边界，`bf144_crouch_stand_clearance_uses_source_gravity_orientation`共6组4PASS/2FAIL，直立3组与倾斜无障碍对照通过；证据`target/bf144/08/tilted_initial/`。
+  - 漏检：旧站起阻挡/父空间测试只使用直立或yaw旋转，因此gravity orientation与actor quat相同。只登记未修复差异，未改站起容差或缩放公式。
+
+- [ ] BF144-D26 / P2 — 可配置蹲姿半高低于半径时，只夹形体而未夹中心和mesh偏移。
+  - Source：fresh UE `CharacterMovementComponent.h`的CrouchedHalfHeight为EditAnywhere/BlueprintSetter且仅ClampMin=0；`CharacterMovementComponent.cpp:3247–3254,3294–3299,3335–3341`在实际Crouch先取max(0,radius,requested)，再用这个值更新center和OnStartCrouch。`Character.cpp:514–527`把实际半高差用于mesh相对偏移。
+  - Target：`src/als/character/character.rs:197–199`生成形体时将圆柱长夹到0，但`movement/motion.rs:3425–3439`、`character_assembly.rs:66–68`和transaction仍直接用未夹到radius的配置；物理形体和位置/mesh/floor尺寸状态不一致。
+  - 反例：默认R=0.3m、standing H=0.9m，把公开crouched H配置成0.2m。完整角色蹲下的实际shape H=0.3m正确，但center从100到99.3m（source99.4），mesh相对y=−0.22m（source−0.32），缓存H=0.2m（source0.3）。`bf144_crouch_configured_height_keeps_source_radius_clamp`共5组4PASS/1FAIL，0.3/0.56/0.9/1.1m对照通过；证据`target/bf144/08/final/`。
+  - 漏检：现有参数测试只核对默认56cm大于30cm半径，缩放测试也维持此关系；没有测试源公开配置边界的形体与实际consumer一致性。默认配置不触发，本项只登记，不扩大配置规范化设计。
+
+- [ ] BF144-D27 / P2 — 配置为更高蹲姿时缺少源净空拒绝。
+  - Source：fresh UE `CharacterMovementComponent.cpp:3301–3319`明确处理crouch H>当前H的分支，在目标center做blocking overlap；遇阻恢复旧capsule尺寸并返回，不提交bIsCrouched/OnStartCrouch。该配置由源公开CrouchedHalfHeight Setter支持。
+  - Target：`src/als/character/movement/motion.rs:3361–3370`对所有Crouching目标直接提交Collider、Stance和Position，净空查询只存在于Standing分支。
+  - 反例：完整角色初始center y=100m/H=0.9m，顶板底面100.98m，初始无重叠；将crouched H设为1.1m后请求蹲下。source目标center100.2m、H1.1查询被顶板阻挡，应保持Standing/旧形体；target提交Crouching/新形体并被后置solver大幅推下。`bf144_crouch_growing_capsule_checks_source_clearance_before_commit`共4组3PASS/1FAIL，普通56cm两组和1.1m无顶板对照通过；证据`target/bf144/08/final/`。
+  - 漏检：已有headroom测试都围绕UnCrouch，Crouch夹具默认只缩小胶囊；没有覆盖源明确写出的增高分支。默认配置不触发，未修改生产代码或强行调整尺寸。
 
 ### 未闭合边界（不计为无差异）
 
