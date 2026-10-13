@@ -3,6 +3,7 @@ use std::time::{Duration, Instant};
 use avian3d::prelude::*;
 use bevy::camera::Exposure;
 use bevy::core_pipeline::tonemapping::Tonemapping;
+use bevy::post_process::auto_exposure::AutoExposure;
 use bevy::image::Image;
 use bevy::light::{CascadeShadowConfig, NotShadowCaster};
 use bevy::prelude::*;
@@ -24,8 +25,7 @@ use bevy_als::extensions::{
     moving_object_position,
 };
 
-const PLAYGROUND_CAMERA_EV100: f32 = 2.0;
-const PLAYGROUND_CAMERA_CONTRAST: f32 = 1.05;
+const PLAYGROUND_CAMERA_CONTRAST: f32 = 1.0;
 const PLAYGROUND_CONTACT_DEPTH_BIAS_MAX: f32 = PLAYGROUND_SHADOW_DEPTH_BIAS + 1e-6;
 const LANDSCAPE_TILES_TILING: f32 = 0.08;
 const LANDSCAPE_TILES_COLOR: Vec4 = Vec4::new(0.25, 0.5, 0.125, 1.0);
@@ -111,6 +111,8 @@ struct SceneStats {
     sun_shadow_normal_bias_error: f32,
     sun_contact_shadows_enabled: bool,
     camera_exposure_count: u32,
+    camera_hdr_count: u32,
+    camera_auto_exposure_count: u32,
     camera_exposure_error: f32,
     camera_contrast_error: f32,
     camera_aces_count: u32,
@@ -235,7 +237,7 @@ fn stats_collector(
     >,
     landscapes: Query<&Transform, With<PlaygroundLandscape>>,
     sun_lights: Query<(&DirectionalLight, &CascadeShadowConfig, &Transform)>,
-    cameras: Query<(&Exposure, &ColorGrading, &Tonemapping), With<Camera3d>>,
+    cameras: Query<(&Exposure, &ColorGrading, &Tonemapping, Option<&AutoExposure>, Has<bevy::camera::Hdr>), With<Camera3d>>,
     skies: Query<(), With<PlaygroundSky>>,
     material_roles: Query<(&PlaygroundMaterialApplied, Has<NotShadowCaster>), With<Mesh3d>>,
     extended_materials: Query<(), With<MeshMaterial3d<PlaygroundTilesMaterial>>>,
@@ -426,13 +428,15 @@ fn stats_collector(
         .iter()
         .any(|(light, _, _)| light.contact_shadows_enabled);
     stats.camera_exposure_count = cameras.iter().count() as u32;
+    stats.camera_hdr_count = cameras.iter().filter(|(_, _, _, _, hdr)| *hdr).count() as u32;
+    stats.camera_auto_exposure_count = cameras.iter().filter(|(_, _, _, exposure, _)| exposure.is_some()).count() as u32;
     stats.camera_exposure_error = cameras
         .iter()
-        .map(|(exposure, _, _)| (exposure.ev100 - PLAYGROUND_CAMERA_EV100).abs())
+        .map(|(exposure, _, _, _, _)| (exposure.exposure() - 1.0).abs())
         .fold(f32::INFINITY, f32::min);
     stats.camera_contrast_error = cameras
         .iter()
-        .map(|(_, grading, _)| {
+        .map(|(_, grading, _, _, _)| {
             grading
                 .all_sections()
                 .map(|section| (section.contrast - PLAYGROUND_CAMERA_CONTRAST).abs())
@@ -441,7 +445,7 @@ fn stats_collector(
         .fold(f32::INFINITY, f32::min);
     stats.camera_aces_count = cameras
         .iter()
-        .filter(|(_, _, tonemapping)| matches!(**tonemapping, Tonemapping::AcesFitted))
+        .filter(|(_, _, tonemapping, _, _)| matches!(**tonemapping, Tonemapping::AcesFitted))
         .count() as u32;
     stats.sky_count = skies.iter().count() as u32;
     stats.main_material_count = material_roles
@@ -837,6 +841,7 @@ fn verdict_system(
         && stats.sun_shadow_normal_bias_error < 1e-6
         && !stats.sun_contact_shadows_enabled;
     let ok_camera_exposure = stats.camera_exposure_count == 1
+        && stats.camera_hdr_count == 1 && stats.camera_auto_exposure_count == 1
         && stats.camera_exposure_error < 1e-4
         && stats.camera_contrast_error < 1e-4
         && stats.camera_aces_count == 1;

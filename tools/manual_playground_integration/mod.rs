@@ -12,6 +12,8 @@ mod hud_layout;
 mod reroute;
 mod ragdoll_debug;
 mod machine_weight;
+mod lighting;
+pub use lighting::LightingProbePlugin;
 
 use crate::als_camera::{AlsCameraDebugInfo, AlsCameraRig, AlsCameraSet, AlsCameraShakeRequest, AlsCameraSocketBinding, AlsCameraSocketLocations};
 use crate::als::character::{

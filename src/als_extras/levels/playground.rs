@@ -5,6 +5,7 @@ use bevy::asset::AssetId;
 use bevy::camera::Exposure;
 use bevy::color::LinearRgba;
 use bevy::core_pipeline::tonemapping::Tonemapping;
+use bevy::post_process::auto_exposure::{AutoExposure, AutoExposureCompensationCurve, AutoExposurePlugin};
 use bevy::light::{CascadeShadowConfigBuilder, NotShadowCaster};
 use bevy::prelude::*;
 use bevy::render::view::{ColorGrading, ColorGradingSection};
@@ -36,7 +37,7 @@ pub struct PlaygroundPlugin {
 impl Plugin for PlaygroundPlugin {
     fn build(&self, app: &mut App) {
         let manifest = self.manifest.clone();
-        app.add_plugins((PlaygroundMaterialsPlugin, PlaygroundSkyPlugin, AlsPlayerStartPlugin))
+        app.add_plugins((PlaygroundMaterialsPlugin, PlaygroundSkyPlugin, AlsPlayerStartPlugin, AutoExposurePlugin))
             .init_resource::<PlaygroundMovingCurve>()
             .add_systems(
                 Startup,
@@ -133,8 +134,6 @@ pub struct SceneLighting {
     pub sky_horizon: Option<[f32; 4]>,
     pub sky_sun_brightness: Option<f32>,
     pub sky_horizon_falloff: Option<f32>,
-    pub camera_exposure_ev100: Option<f32>,
-    pub camera_contrast: Option<f32>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -421,10 +420,22 @@ pub fn moving_object_position(
     start.lerp(end, curve.sample(curve_time))
 }
 
-#[derive(Resource, Debug, Clone, Copy)]
+#[derive(Resource, Debug, Clone, Deserialize)]
 struct PlaygroundCameraExposure {
-    ev100: f32,
+    histogram_log_luminance_range: [f32; 2],
+    filter: [f32; 2],
+    speed_brighten: f32,
+    speed_darken: f32,
+    exponential_transition_distance: f32,
+    compensation_ev: f32,
+    unit_exposure_ev100: f32,
     contrast: f32,
+}
+
+fn imported_camera_exposure() -> PlaygroundCameraExposure {
+    let definition: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../assets/ALSExtras/Levels/L_Als_Playground/playground_lighting.runtime.json")).expect("Source lighting data must parse");
+    serde_json::from_value(definition["exposure"].clone()).expect("Source exposure data must parse")
 }
 
 #[derive(Component, Debug)]
@@ -1056,12 +1067,7 @@ pub fn playground_setup_system(
     }
 
     if let Some(lighting) = &manifest.lighting {
-        if let Some(ev100) = lighting.camera_exposure_ev100 {
-            commands.insert_resource(PlaygroundCameraExposure {
-                ev100,
-                contrast: lighting.camera_contrast.unwrap_or(1.0),
-            });
-        }
+        commands.insert_resource(imported_camera_exposure());
         spawn_sun_light(&mut commands, lighting, manifest.sun_rotator.as_ref());
         spawn_playground_sky(
             &mut commands,
@@ -1166,15 +1172,31 @@ pub struct PlaygroundSky;
 fn playground_camera_exposure_system(
     mut commands: Commands,
     exposure: Option<Res<PlaygroundCameraExposure>>,
+    mut curves: ResMut<Assets<AutoExposureCompensationCurve>>,
     cameras: Query<Entity, (With<Camera3d>, Without<PlaygroundSceneExposure>)>,
 ) {
     let Some(exposure) = exposure else {
         return;
     };
     for entity in &cameras {
+        let [minimum, maximum] = exposure.histogram_log_luminance_range;
+        let compensation_curve = curves.add(AutoExposureCompensationCurve::from_curve(
+            bevy::math::cubic_splines::LinearSpline::new([
+                Vec2::new(minimum, exposure.compensation_ev),
+                Vec2::new(maximum, exposure.compensation_ev),
+            ])).expect("Source exposure compensation must be continuous"));
         commands.entity(entity).insert((
             Exposure {
-                ev100: exposure.ev100,
+                ev100: exposure.unit_exposure_ev100,
+            },
+            AutoExposure {
+                range: minimum..=maximum,
+                filter: exposure.filter[0]..=exposure.filter[1],
+                speed_brighten: exposure.speed_brighten,
+                speed_darken: exposure.speed_darken,
+                exponential_transition_distance: exposure.exponential_transition_distance,
+                compensation_curve,
+                ..default()
             },
             ColorGrading::with_identical_sections(
                 default(),
@@ -1988,6 +2010,33 @@ mod tests {
                 assert_eq!(visibility.is_some(),index==3,"Actual Playground box ignores its source Visibility response: index={index}");
             }
         }).unwrap();
+    }
+
+    #[test]
+    fn playground_camera_preserves_source_hdr_exposure_contract() {
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::post_process::auto_exposure::AutoExposure;
+        let mut app = App::new();
+        app.init_resource::<Assets<AutoExposureCompensationCurve>>()
+            .insert_resource(imported_camera_exposure());
+        let camera = app.world_mut().spawn(Camera3d::default()).id();
+        app.world_mut().run_system_once(playground_camera_exposure_system).unwrap();
+        assert!(app.world().get::<bevy::camera::Hdr>(camera).is_some(), "Source sky and lit geometry require one HDR display chain");
+        let exposure = app.world().get::<AutoExposure>(camera).expect("Source camera requires histogram exposure");
+        assert_eq!(exposure.range, -10.0..=20.0);
+        assert_eq!(exposure.filter, 0.1..=0.9);
+        assert_eq!(exposure.speed_brighten, 3.0);
+        assert_eq!(exposure.speed_darken, 1.0);
+        let curves = app.world().resource::<Assets<AutoExposureCompensationCurve>>();
+        let curve = curves.get(&exposure.compensation_curve).expect("Source compensation must reach its native asset");
+        let bevy::reflect::ReflectRef::Struct(fields) = curve.reflect_ref() else { panic!("Native compensation must be reflected") };
+        for name in ["min_compensation", "max_compensation"] {
+            let value = *fields.field(name).unwrap().try_downcast_ref::<f32>().unwrap();
+            assert!((value - (1.0 + 0.18_f32.log2())).abs() < 1e-6, "Source gray and bias were dropped: {name}={value}");
+        }
+        assert!((app.world().get::<Exposure>(camera).unwrap().exposure() - 1.0).abs() < 1e-6,
+            "Source histogram receives scene luminance without the old fixed exposure scale");
+        assert!(app.world().get::<ColorGrading>(camera).unwrap().all_sections().all(|section| section.contrast == 1.0));
     }
 
     #[test]

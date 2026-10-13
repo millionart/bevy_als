@@ -39,12 +39,30 @@
 
 ## BF142 天空接入后的场景亮度与曝光
 
-用户于2026-10-13明确要求处理天空接入后的阴沉观感。范围为原Playground天空材质输出、SkyLight环境补光与曝光显示链；截图0、性能验收暂停。先按当次本地源事实定位差异，再使用现有引擎功能，不凭观感提高太阳或添加补偿。
+用户于2026-10-13明确要求处理天空接入后的阴沉观感。范围为原Playground天空材质输出、SkyLight环境补光、曝光与太阳Bloom显示链；截图0、性能验收暂停。先按当次本地源事实定位差异，再使用现有引擎功能，不凭观感提高太阳或添加补偿。
 
 - [x] BF142.01 源照明/曝光与实际渲染入口静态闭环。开始：2026-10-13 08:49 +08:00；预估结束：2026-10-13 09:14 +08:00；实际结束：2026-10-13 09:13:06 +08:00；偏差−54秒，source/static Gate PASS，无需重估。依据本轮原生World读取80.603秒、原天空材质约75节点已有审计器、当前Bevy原生AutoExposure/EnvironmentMap与BF139-P2-18同类数据闭包记录，先以25分钟完成源参数/时钟/单位、HDR/材质/相机消费者、最小失败及后续可独立验收拆分。Gate：fresh World/Camera与UE实际默认、locked Bevy执行语义、必要的读工具补齐、自测及明确剩余边界；本叶不将静态通过称视觉修复。
 - [ ] BF142.02 曝光/显示与环境补光修复。依赖.01 Gate，启动时按证实闭包拆为各自不超过60分钟的独立子项并登记时点。Gate：源驱动独立target数据、最小失败→修复、消融/字节恢复、同target_game正式构建、原Playground数值渲染与公共功能Gate；旧固定显示近似仅在源/症状/消费者共同证明的边界有限复开。
+  - [x] BF142.02a HDR与源参数曝光链。开始：2026-10-13 09:16 +08:00；预估结束：2026-10-13 10:06 +08:00；实际结束：2026-10-13 10:21 +08:00；偏差+15分钟，当前叶Gate PASS，未超过20分钟容差。依据.01已证参数/单位、原生AutoExposure公开组件与既有约7分钟正式构建记录，50分钟内完成独立target数据、固定曝光/contrast旧近似迁移、天空与普通材质共享HDR、focused先红/消融/恢复与原startup功能Gate。原生Bevy与UE的Histogram统计/适应和Filmic实现差异明确保留引擎边界，不声称逐像素复刻；不加入图专用补偿。
+  - [ ] BF142.02b 源天空捕获与环境照明。依赖.02a Gate，启动时登记开始/预估结束，按源128捕获、已验证天空材质/2208顶点/3968三角与原生GeneratedEnvironmentMapLight闭包登记不超过50分钟窗口；若剩余实现超过60分钟先按数据/运行消费者拆分。Gate：独立离线HDR捕获、下半球/方向/材质/生命周期反例和自测、原生IBL、消融与同target恢复、原Playground数值渲染/公共功能验收。保持原始纹理/导出不可变，不实现另一套Lumen。
 
 活动摘要（08:49）：工作区基线`93ac4a47`且干净。刚读取的World与原插件/安装副本字节一致：太阳3lux、SkyLight强度2/Stationary/CapturedScene/非实时/下半球黑，PostProcessVolume只覆盖MotionBlur；当前固定EV1002/contrast1.05来自旧显示近似，天光用常量Ambient2。下一步核对源相机后处理覆盖、曝光算法和天空进入HDR的真实路径；原始导出保持不可变。
 
 source/static摘要（09:13）：fresh Camera Blueprint读取34.221秒证实PostProcessWeight=0，Sky Material读取69.379秒证实Surface/Opaque/Unlit；UE默认Histogram、10%–90%、速度3/1、range −10..20、18%中灰与bias1已闭合。四档均匀亮度反例证明固定EV2不能维持源中灰0.36；lens/native基准换算单元复算通过，原始记录/源码快照及哈希在`target/bf142/source_contract.json`。实际入口没有Hdr/AutoExposure，天空绕过普通材质曝光/非HDR tone mapping，SkyLight未接入。后续分别闭合曝光/HDR显示与一次性128天空捕获→原生环境照明；沿用源材质/网格算法，UE Lumen和两引擎tonemapper/filter实现差异保留能力边界，不把任意亮度补偿当源算法。当前仅source/static完成，尚未宣称观感修复。
 
+.02a source/static摘要（09:36）：实际相机ECS合同先红（无HDR），独立target曝光导入与自测通过；源省略的bias curve/metering mask已据Scene.h明确nullptr默认处理，未补写原始记录。现有Resource改为消费离线range/filter/speed/bias/基准数据，原生AutoExposure要求HDR，contrast恢复1；两个focused相机/数值读回检测器自测通过。无需改动已验证天空材质算法，通过HDR后处理与unit曝光1共享显示链即可。GPU诊断只读ViewUniform标量，不读图像；初始化按locked Bevy RenderStartup生命周期，随后验证实际GPU曝光与消融/字节恢复。UE uniform luminance/统计与原生Bevy Rec709/统计、Filmic差异明确保留原生渲染边界，不把本项称完整UE渲染器移植；有限迁移BF-Scene-P6仅显示oracle。
+
+.02a消融/恢复摘要（09:44）：移除AutoExposure、恢复固定EV2、丢弃源中灰/bias、恢复contrast1.05四项独立消融均语义FAIL；源码SHA-256与备份一致，自然mtime恢复，同target重编28项场景回归PASS，导入--check/self-test及资产边界PASS。诊断器的真实注册最小fixture还稳定复现PostUpdate退出晚于Update保存导致证据漏写；迁移到Last并保留退出帧自测后再正式构建。GPU资源初始化延后RenderStartup，未新增运行时曝光算法或改变原始资产/天空着色数据；下一步最终诊断自测、正常构建与公共startup数值GPU读回。
+
+.02a静态闭合（09:47）：相机HDR/源参数/实际补偿asset合同、四个有效消融与精确恢复28项场景回归、诊断器缺失/固定/非有限值拒绝与真实注册退出保存两项自测、源数据导入self-test/check及运行时资产边界全部PASS。生产相机只复用原生AutoExposure，不增加HDR冗余组件、曝光时间层或自制算法；已验证天空shader/纹理/网格字节未改。开始同target_game/play优化构建manual_playground与更新显示oracle的scene_gate；剩余边界仅真实GPU曝光数值/公共功能Gate，天光消费者留待.02b。
+
+.02a读回边界补闭（09:59）：首轮正式构建413.895秒PASS；回读locked Bevy发现ViewUniforms还包含阴影视图，不能默认首槽即主相机。诊断改为原生Core3d tonemapping后按实际ViewUniformOffset复制该相机数据到独立读回buffer，删除整缓冲别名路径；两项诊断自测通过。编译曾被同target的manual启动短暂占锁，确认归属后等待释放，未终止其他进程。最终工具源码清理未用import后同target正式重编，再开始一次公共startup；生产曝光算法/天空数据未再修改。
+
+.02a runtime前（10:07）：最终同target_game/play正式构建419.375秒PASS；28项场景、两项诊断自测、四个消融/字节恢复、源数据self-test/check与资产边界闭合。开始原startup数值GPU曝光读回，复制主相机偏移，保留原地形/环境/角色/相机和所有功能守卫；截图0、性能延期。预估10:06后仍在20分钟容差内，公共Gate尚未通过，不提前核销。
+
+.02a实际入口补闭（10:10）：首次调用被公共runner的相对输出目录约束拒绝，读入口检查后修正私有参数，无游戏启动；随后startup15.558秒功能PASS但照明证据缺失，未验收。源码定位到无driver startup不安装ManualPlaygroundIntegrationPlugin，故诊断也未安装；将同一诊断移到真实manual入口的无条件插件组，内部仍仅在显式证据路径时启用，删除driver内重复注册。生产曝光数据/算法未改，按最终入口重编后再验数值；这是工具入口漏检，不把原功能PASS替代照明Gate。
+
+.02a第二次startup前（10:15）：最终真实入口同target_game/play重编319.070秒PASS，工具只复制实际主相机偏移，诊断无条件注册/显式路径启用和Last保存已核对。开始公共startup，必须同时通过GPU曝光标量和原功能报告；此前缺失证据的功能PASS不作照明验收。相对预估仍在20分钟容差内，不改源曝光参数或太阳强度。
+
+
+.02a runtime后（10:21）：真实入口startup15.328秒，原功能Gate PASS（ready、退出码、graph/fault/temporal与primary_failure全部正常）；主相机GPU有效曝光676样本、非有限0、physical=1，EV范围−1.094..0.143，数值Gate PASS，截图0/性能延期。补充scene_gate显示计数/EV/contrast/ACES合同均通过，整体FAIL来自原运动oracle仍要求129旧曲线键及旧端点（当前源产物4键、profiles1/3），未扩展到无关运动修复；不把整体FAIL写为PASS。有限显示迁移已由focused先红/四消融/恢复28测试与真实manual标量共同闭合。用户10:16反馈太阳辉光不足，fresh UE默认Bloom已启用而目标无Bloom，纳入后续独立叶；本项完成不代表整体观感已修复。

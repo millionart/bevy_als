@@ -44,7 +44,7 @@ use bevy_als::{
     anim_probe::AnimProbePlugin,
     animation_visual_validation::AnimationVisualValidationPlugin,
     manual_playground_integration::{
-        ManualIntegrationGateReport, ManualPlaygroundIntegrationPlugin, ManualPlaygroundStartupReady,
+        LightingProbePlugin, ManualIntegrationGateReport, ManualPlaygroundIntegrationPlugin, ManualPlaygroundStartupReady,
     },
 };
 
@@ -74,6 +74,7 @@ fn main() {
         AlsDebugDisplayPlugin,
         AlsShowDebugHudPlugin,
         AnimationVisualValidationPlugin,
+        LightingProbePlugin(std::env::var_os("ALS_LIGHTING_EVIDENCE_PATH").map(Into::into)),
     ));
     if std::env::var_os("ALS_MANUAL_INTEGRATION_GATE").is_some() {
         app.add_plugins((AnimProbePlugin, ManualPlaygroundIntegrationPlugin));
