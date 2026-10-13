@@ -51,7 +51,7 @@
 | 顺序 / 源责任 | 本轮 target 核对入口 | 覆盖状态与旧 Gate 边界 |
 |---|---|---|
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
-| CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.11完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex及基座transform/速度继承首轮审计，确认D05–D07、D09–D36；重力D08已撤销；CMC物理交互、U01及未证实的罕见恢复边界待后续独立批次 |
+| CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.12完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承及物理交互首轮审计，确认D05–D07、D09–D40；重力D08已撤销；U01及源可达的剩余ledge/恢复/mode边界待后续独立批次 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | 待逐项审计；角色蓝图 SelectMantlingSettings 属此闭包 |
 | Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | 待逐项审计；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
@@ -135,6 +135,12 @@
   - 2026-10-14 00:12 source/focused 闭环：fresh线/角速度选择、Falling模式切换与native全轴继承旗标确认D32–D34；隔离角速度竖直分量后，scale×parent×轴12组10PASS/2FAIL，component/physical选择6组4PASS/2FAIL，平台竖直±2/0m/s跳离3组1PASS/2FAIL。另沿SetBase→BaseChange→Pawn根部CanStepUp许可确认D35：明确No的角色胶囊仍被站住，等形普通prop和显式Yes角色对照通过。当前24组17PASS/7FAIL，完整结果`target/bf144/11/jump_and_permissions/`；正在追加走离平台与跳跃检查/基座跟随的先后组合，未展开NPC AI或生产修复。
   - 00:16 source/focused 闭环：100ms帧先用50ms走出平台、再用剩余50ms下落，±2m/s平台竖直速度同样被丢掉，2FAIL/静止1PASS，D34扩展为两条离地入口。fresh ControlledCharacterMove先CheckJumpInput→Falling/clear-base，之后PerformMovement才MaybeUpdateBasedMovement；target先follow后接受Jump，确认D36。平台当帧外部平移0.2m并起跳时target多携带0.2m，owner1/0各1FAIL，不跳和平台不动2PASS。继续水平恒速/改速与自驱合成对照，然后收口本批。
   - 00:21 本项归纳：水平支持恒速、2↔−2m/s改速、与1/3.75m/s自驱合成、下一Air帧不重复继承6组全PASS；骨骼专用velocity/transform路径已定位，实际PA body/bone所有权留Ragdoll批次，不以普通box夹具代替。最终7项focused为1PASS/6预期语义FAIL，37组26PASS/11FAIL归并D32–D36；native全轴继承、JumpOff=0、角色ECB_No，以及116份原source/5份新增UE闭包/160份生产Rust和当前库身份PASS，证据`target/bf144/11/final/`、`11/summary.json`。移除scale、组件/physics分歧、竖直支持量、Pawn-No或同帧base位姿改变均消除各自失败，无生产设计新增，无公共runtime Gate、截图0、性能暂停。下一批仅沿已启用的CMC物理交互核对push/touch/standing-force/repulsion，不扩展物件表现或场景编辑。
+
+- [x] BF144.12 CMC物理交互力与触发阶段：沿fresh CapsuleTouched/HandleImpact/ApplyImpactPhysicsForces/ApplyDownwardForce/ApplyRepulsionForce及native物理交互设置，核对普通角色胶囊对simulated body的touch、push、站立下压力和重叠排斥，区分查询命中、实际接触、质量/单位与owner/physics阶段。只审计运动消费者，不修改平台/物件/场景表现；Ragdoll内部物理和剩余特殊movement mode另按原闭包继续。Gate：native开关/标量与源力学合同、完整角色最小力/速度反例和对照、漏检/排除登记。开始：2026-10-14 00:25 +08:00；预估结束：2026-10-14 01:15 +08:00；实际结束：2026-10-14 00:42:00 +08:00；偏差：−33分；结果：审计记录Gate PASS，新增4项P2，生产实现未改。估时依据：本机UE四个交互入口及底层AddForce/Impulse闭包约350行，target普通胶囊/CMC/Avian消费者；归档BF124.A01-S2b3物理接触批次实耗10分32秒，BF144.10/.11含几何与阶段反例实耗29分10秒/25分09秒，加入当前UE力/冲量CVar分支后独立估时。
+  - 00:25 活动摘要：BF144.11已提交，累计33项P2、2项P3与U01。fresh CMC Tick在普通运动后调用downward/repulsion，先核对本机native交互开关、Mass/force参数与当前UE的force-versus-impulse选择，再观察目标实际受力；当前未确认本批新差异。截图关闭、性能暂停，生产实现未改。
+  - 00:36 source/static闭环：native PhysicsInteraction=True、Mass100、StandingScale1；本机UE静止body推挤默认为500×30力分支，非旧Impulse，source/project配置无覆盖。完整角色14组5PASS/9FAIL确认D37下压力及D38blocking impact施力遗漏，普通Avian接触未补足这两条路径；Static/Kinematic、零gravity等对照通过。下一步只核对同闭包的overlap touch/repulsion，生产源码/资产未改。
+  - 00:42 闭环：完整角色5个focused测试1PASS/4个源合同语义FAIL，共29组13PASS/16FAIL；D39首次Touch以COM半径外排除repulsion，D40静止角色排除Touch，实际ContactGraph证明Overlap存在。3组显式提供同量级force的控制全部按质量/physics delta得到正确速度，排除物理积分通道失效；证据`target/bf144/12/final/`。native记录、116份source与补充Primitive/BodyInstance/Chaos源码身份、160份生产Rust及同一target_game库hash全部通过`check_phase12.py`，`12/record_gate.watchdog.json` PASS；测试非零101被记录为等价失败，未冒充runtime通过。
+  - 本批累计37项P2、2项P3及U01。仅新增gitignored外部probe与审计记录，未新增生产抽象/状态/分支，设计消融无生产对象；物理力对照属于隔离归因。未运行真实Playground Gate，截图0、性能暂停；下一批核对源可达的ledge/恢复/模式边界，再转Roll/Mantle，未展开外围或未授权修复。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -350,6 +356,30 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - Target：`src/als/character/movement/motion.rs:2554–2559`把follow放在Tnua Sensors之前，accepted_jump_state则在Logic之后；角色仍Grounded时先被携带，再清base起跳。
   - 反例：完整角色稳定站在运动学平台；同帧把平台以保持速度为0的外部位姿更新平移x=0.2m，并按跳键。源角色不应再跟随这次旧base位移，x仍0；target先移到x=0.2再起跳。owner1和0均失败，平台不动起跳及平台移动但不跳两组通过。`bf144_inherit_jump_clears_base_before_same_frame_transform_follow`共4组2PASS/2FAIL，证据`target/bf144/11/final/`。
   - 漏检：旧“component transport precedes character movement”回归只核对普通Walking；跳离测试改变velocity却没有同时改变尚未处理的base Transform。此项限定已经接受的Jump时序，与D30世界暂停门槛和D34速度轴遗漏独立；未重排生产调度。
+
+- [ ] BF144-D37 / P2 — 站在动态基座上时未提交源下压力。
+  - Source：fresh native CMC bEnablePhysicsInteraction=True、Mass=100、StandingDownwardForceScale=1；UE `TickComponent:1801–1805`在普通运动后调用`ApplyDownwardForce:11784–11795`，有效blocking floor且base simulated时在ImpactPoint提交Gravity×Mass×Scale。owner倍率0仍执行该tick；力的积分使用world physics时钟。
+  - Target：`src/als/character/character.rs:363–429`的动态胶囊及`src/als/character/movement/motion.rs`的floor/base consumer未提交对应下压力，默认Tnua悬浮间隙使接触求解也没有产生等价反作用。
+  - 反例：完整角色稳定站在GravityScale0、质量100/1000kg的动态平台，胶囊离地0.023667m，控制首帧平台速度为0。按用户采用的Bevy重力9.81，16.667ms后源平台vy应−0.1635/−0.01635m/s，target均0；owner0仍应−0.1635，target0。`bf144_force_standing_downward_uses_character_mass`6组3PASS/3FAIL，Static、Kinematic和角色gravity0对照通过；证据`target/bf144/12/impact_downward/`。
+  - 漏检：旧基座回归主要核对角色跟随与继承，没有断言被站立的动态body受力；角色velocity.y=0和正确floor距离均不能证明下压力已移植。仅登记，不更改物件质量、场景或重力政策。
+
+- [ ] BF144-D38 / P2 — blocking sweep命中动态物体后缺少源推挤力。
+  - Source：fresh UE `HandleImpact:7783–7811`进入`ApplyImpactPhysicsForces:7814–7930`；native InitialPushForce500、PushForce750000、PushScaledToMass=False、UsingZOffset=False。本机CVar `p.ApplyCharacterCollisionForceAsImpulse=False`，静止阈值1cm/s内用500×30 kg·cm/s²，移动body用750000 kg·cm/s²，均AddForceAtLocation，不能按旧版本把500当一次冲量。
+  - Target：`src/als/character/movement/motion.rs`空中/地面sweep和slide只调整角色位移/速度，未把命中的simulated body与源力参数提交给物理；实际air blocking命中后目标body保持原速度。
+  - 反例：完整角色以5m/s撞向距胶囊前缘7cm的动态竖面，质量100kg，16.667ms首次命中。静止物体源应增加0.025m/s，target增加0；初速+0.1/−0.1m/s时源应到+1.35/+1.15，target仍+0.1/−0.1。`bf144_force_blocking_impact_keeps_source_force_branch`8组2PASS/6FAIL，同时覆盖质量200、初速0.005和20ms帧；Static/Kinematic不施力对照通过，证据`target/bf144/12/impact_downward/`。
+  - 漏检：旧动态墙测试只检查角色slide及被撞物体的输入速度，未核对HandleImpact向body输出的force。D20是角色保留动态接触速度的独立消费者；补齐其中一条不能作为另一条证据。本批仅登记，不修改生产实现。
+
+- [ ] BF144-D39 / P2 — simulated overlap物体首次触碰时缺少CapsuleTouched冲量。
+  - Source：fresh native胶囊GenerateOverlapEvents=True，CMC PhysicsInteraction=True、TouchForceFactor1、TouchScaledToMass=True、Min−1/Max250；UE `SetUpdatedComponent:1037–1042`绑定BeginOverlap，`CapsuleTouched:11674–11717`以角色水平速度×body mass后夹到MaxTouchForce，按几何与运动方向混合得到方向并AddImpulse。`PrimitiveComponent.cpp:224–230,4100–4140`要求双方生成事件且pair response=Overlap。
+  - Target：完整角色没有对应overlap事件施力消费者；动态Sensor提供了实际重叠但仅作为query pair，没有转成源Touch impulse。
+  - 反例：完整角色以3.75m/s横移，与相侧0.45m处的半径0.2m模拟物体开始重叠；fixture明确使用Overlap语义，COM始终在0.36m排斥半径外，分离D40。质量100/10/0.001kg时源冲量产生速度0.025/0.25/3.75m/s，target均0。`bf144_force_overlap_touch_keeps_source_impulse`5组2PASS/3FAIL；静止角色和Kinematic物体对照通过，ContactGraph确认实际重叠且无接触约束；证据`target/bf144/12/overlap/`。
+  - 漏检：旧碰撞筛选只证明Sensor不阻挡角色，未核对源允许的simulated Overlap仍应收到交互冲量。本项限定双方开启overlap事件的模拟物体，不宣称普通Block物件都触发CapsuleTouched；仅登记，不改场景profile。
+
+- [ ] BF144-D40 / P2 — 持续overlap物体缺少源排斥和近距离停速。
+  - Source：fresh UE `ApplyRepulsionForce:11798–11892`在普通tick遍历movable simulated overlap body；native RepulsionForce2.5、Mass100，半径=scaled capsule radius×1.2。body线段到胶囊表面有hit、未penetrate且水平DistanceNow²<2.5（源厘米数值）时清速度；否则靠近/静止或penetrate且COM在半径内时施加250 kg·cm/s²径向力。`ChaosEngineInterface.cpp:976–1028`确认按COM距离筛选及Constant力，非直接速度或加速度。
+  - Target：普通角色没有该overlap body consumer；Avian Sensor pair只保留重叠，既不径向施力也不执行源停速分支。
+  - 反例：静止完整角色，1kg球体与胶囊Overlap、重力关闭，源Touch因角色水平速度0而无冲量。球体中心距0.2/0.34m且静止时源首帧vx应+0.041667m/s、target0；距0.31m初速+1时源清0、target+1；距0.32m初速−0.1时源变−0.058333、target−0.1。`bf144_force_overlap_repulsion_keeps_source_radial_and_stop_branches`7组3PASS/4FAIL，向外离开、半径外和Kinematic对照通过；证据`target/bf144/12/overlap/`。
+  - 漏检：阻挡接触和Sensor筛选测试都没有验证CMC对已知overlap列表的持续交互；近距离条件还包含源的厘米平方比较，不能以“2.5cm范围”粗略替换。body/bone选择在当前普通刚体成立，Ragdoll多body归其后续批次；仅登记。
 
 ### 未闭合边界（不计为无差异）
 
