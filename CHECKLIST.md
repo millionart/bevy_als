@@ -53,7 +53,7 @@
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；U01未闭合，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.19完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道、warp变换、动态基座和RMS物理消费的首轮审计，确认D43–D60、D62–D64，D61撤销；精确查询数值及公共Playground验收尚未闭合 |
-| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | 待逐项审计；不开展无源链路的通用物理审查 |
+| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20完成许可、启动/退出、输入/锁定和GetUp交接生命周期首轮审计，确认D65–D69；PA配置/驱动、pelvis跟随/出口pose和完整GetUp动画待独立批次；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | 待重新取证及核对；历史155子图合同只作起点，不能自证算法等价 |
 | 剩余源函数与跨阶段边界 | 以上 source-target 链路的覆盖缺口 | 前述审计后再独立收口；未解释项保留，截图与性能继续暂停 |
@@ -192,6 +192,13 @@
   - 04:32 剩余边界：source RMS每次Prepare都经`UseRelativeLocation→IsPhysicsOwnerMovable`读当前Mobility，target刷新函数保留开始时relative_location；只补这个已有source分支的目标存活期间模式变化对照，不展开平台实现。其余时钟、根速度和退出分支已形成记录，尚未做公共Playground验收。
   - 04:38 本项归纳：9项core focused为4PASS/5语义FAIL，新增mobility focused为0PASS/1语义FAIL，合计55组39PASS/16FAIL，归并D59/D60/D62/D63/D64；D61排除后的速度对照3组PASS。证据`19/core_final/`、`19/mobility/`、`19/final/`与`19/summary.json`；`check_phase19.py`/record_gate watchdog PASS。116份基线source、11份补充UE source、18份native资产及160份生产Rust/同一launcher库hash不变。
   - 消融仅在fresh App中提前携带actor、或保持基座变换/初始朝向/正常delta，分别区分各项失败；未添加生产设计或修改阈值。基座字段、实际graph速度及模式tag已沿直接consumer核对，本批累计54项P2、8项P3，D08/D61撤销、U01仍未闭合。RMS duration的source epsilon只作到期标志推过边界，当前原生root尾段已恒定，6组末帧/退出控制未见新增位置或模式差异；未扩展到网络/相机/平台实现。截图0、性能暂停，继续Ragdoll/GetUp。
+
+- [x] BF144.20 Ragdoll启动、退出与GetUp交接生命周期：沿fresh Start/StopRagdollingImplementation、许可及本地输入/蓝图回调，核对所需physics body、action/movement lock、capsule/mesh物理与查询启停、montage中断、Grounded/InAir退出和GetUp输入阻塞的实际提交顺序。只提取本项需要的SKM/PA身份与body存在性；刚体配置/驱动数值、pelvis跟随/出口变换与snapshot以及GetUp完整动画分别留后续独立闭包。Gate：fresh配置及源阶段合同、完整角色最小反例/对照、实际消费者与记录闭环。开始：2026-10-14 04:42 +08:00；预估结束：2026-10-14 05:32 +08:00；实际结束：2026-10-14 05:34:26 +08:00；偏差：+2分26秒；结果：审计记录Gate PASS，新增4项P2、1项P3，未修复。估时依据：ALS启动/退出/许可约280行、target state transition/ragdoll link/GetUp入口约400行，需SKM/PA与2份GetUp Montage原生依赖；BF144.17动作生命周期实耗46分28秒、.19阶段消费31分53秒，本项按独立生命周期边界估时，物理和姿态数值不在此项合并。
+  - 04:42 活动摘要：BF144.19已提交，累计54项P2、8项P3，D08/D61撤销、U01未闭合。fresh源码要求pelvis/spine_03 body存在才启动；先停Montage、detach mesh并启用物理，再锁movement与发布Ragdolling。Stop先snapshot/恢复查询和attach，再按ground trace路由Walking/Falling，成功播放GetUp后才封输入并发布GettingUp。下一步取所需原生资产及实际target入口，不凭历史PA或Ragdoll Gate宣称等价。
+  - 05:01 source/focused闭环：fresh SKM_Als实际引用PA_Als，21个body中root为Kinematic且禁碰撞，其余为Default；两份GetUp Montage与CS引用已取出。22份native原始/Build身份及reader报告通过。确认D65必需刚体缺失仍启动、D66动画实例缺失仍退出；6组3PASS/3语义FAIL，保留`20/initial/`。当次Jump/Ragdoll/direct出口3组同帧GettingUp且输入阻塞；后续须核对调度约束，单次通过不证明顺序合同。继续正常启动/锁定/重复请求和None→GettingUp交接时ApplyDesiredStance这一直接依赖，不复开普通Crouch条目。
+  - 05:21 source/focused闭环：未约束顺序的后续完整App复现Jump晚帧与恢复站姿失败；用公开schedule API仅固定当前允许的两种顺序，Jump 6组5PASS/1FAIL确认D67。姿态交接16组11PASS/5FAIL，分离D68瞬时None未锁存desired stance与D69自身rig阻挡站立；实际同一净空查询仅命中本角色pelvis/spine/thigh，先清rig layers后为空。正常/roll/GetUp/Mantle进入、3类mode锁和重复启动共8组PASS，物理body identity保持、20个Dynamic/1个Kinematic及capsule停用符合native。剩余只补ground/air出口和GetUp播放失败控制；PA参数与姿态数值仍留后续项。
+  - 05:34 本项归纳：6个core focused为2PASS/4语义FAIL，追加GetUp interruption focused PASS，合计42组33PASS/9FAIL，归并D65–D69；normal/air×GetUp clip可用性4组的模式、输入锁、capsule/rig停启和父子关系恢复通过。GetUp再入Ragdoll的owner0/1两组按源0.2s Cubic停止，0.05s权重1/0.84375、恢复后实例按期结束，Ragdoll期间保留原输入锁；源Stop不会立即终止branching notify，已读底层确认。
+  - 证据`20/core_final/`、`20/stop_final/`、`20/final/`及`20/summary.json`；`capture_ragdoll_lifecycle_inputs.py`与`check_phase20.py`/record_gate watchdog PASS，116份基线source、5份补充UE source、22份native与160份生产Rust及同一launcher库hash核验。调度消融仅固定原本允许的顺序，反向顺序消除对应失败；缺非必需body和完整动画实例是许可对照，无生产设计/转换器修改。本批累计58项P2、9项P3，D08/D61撤销、U01未闭合；截图0、性能暂停，PA数值及snapshot/GetUp完整动画继续后续闭包。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -569,6 +576,31 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Source：fresh RMS `PrepareRootMotion:83–92`每次调用`UseRelativeLocation`；`Character.h:218–220`转发到`Character.cpp:814–816`，`PrimitiveComponentPhysics.cpp:1644–1647`读取当前Mobility是否Movable。源的start/target虽在开始时已存储，运行中仍使用当前选择，因此Mobility切换确实可能造成源空间突变。
   - Target：`mantle_target_base:825–837`及物理后刷新用`base.relative_location`保留旧选择，从不重读当前对应的Static/Kinematic状态。
   - 反例：完整活动Mantle、目标位置(0,0.4,−1.4)m保持不动，Static→Kinematic或反向切换后，源公式分别按新primitive/world空间解释已存warp，target仍按旧空间，位置差约1.456m。`bf144_mantle_physics_live_mobility_controls_relative_space`4组2PASS/2FAIL，同状态两组通过；证据`target/bf144/19/mobility/`。这是外部改变目标可移动性的少见合同边界，记P3；不把源空间突变擅自改写成平滑行为。
+
+- [ ] BF144-D65 / P2 — Ragdoll启动遗漏pelvis与spine_03刚体许可检查。
+  - Source：fresh `AlsCharacter_Actions.cpp:717–723,759–764`要求两处`GetBodyInstance`都非空，否则在修改montage、mesh/capsule物理、movement mode和action之前拒绝启动；fresh PA_Als确认实际命名与默认实例存在。
+  - Target：`state/transition.rs:359–370`只检查当前action不是Ragdolling，直接提交Ragdolling/None；`ragdoll_link.rs:787–830`随后关闭capsule collision并禁用Tnua，rig同步遇到缺失body只是continue，没有回退许可。
+  - 反例：完整角色的physics body实例中分别移除pelvis或spine_03，再请求Ragdoll；源应拒绝，target却进入Ragdolling/None、capsule变Kinematic且layers=NONE。`bf144_ragdoll_lifecycle_requires_pelvis_and_spine_body_instances`4组2PASS/2FAIL，完整rig与只缺非必需foot_l的许可对照通过，实际图没有求值错误。旧入口测试默认完整PA实例，未覆盖源显式前置条件；生产未改。
+
+- [ ] BF144-D66 / P2 — Ragdoll退出在动画实例不可用时提前恢复角色物理和模式。
+  - Source：fresh `StopRagdollingImplementation:1071–1074`要求AnimationInstance有效且component-space pose非空，失败则保持Ragdoll；只有通过后才snapshot并恢复capsule/mesh、mode/action，最后尝试GetUp。
+  - Target：`ragdoll_exit_route_system:671–704`仅在枚举自身碰撞体时可选读取player；player缺失仍清action、改Grounded/Air和velocity。之后restore parent/start_get_up虽然会因player缺失退出，但前面的物理/action提交已发生。
+  - 反例：完整Ragdoll落地后令AnimationGraphPlayer不可用，再请求退出；source应保持Ragdolling，target已为None/Grounded、恢复capsule碰撞，却没有GetUp。`bf144_ragdoll_lifecycle_exit_requires_live_animation_instance`2组1PASS/1FAIL，正常player退出并成功GettingUp的对照通过。旧恢复测试始终保留可用动画实例；此项只登记退出前置条件，不把后续pose数值列为已审计。
+
+- [ ] BF144-D67 / P3 — Jump恢复Ragdoll的请求与退出消费者未定序，可能晚一帧。
+  - Source：fresh `AlsCharacterExample.cpp:156–163,189–194`的Jump与Ragdoll输入都同步调用StopRagdolling；有效落地恢复在该次调用内完成GettingUp和输入阻塞。
+  - Target：Jump由`movement/motion.rs:3185–3187`写ragdoll_exit，而`ragdoll_exit_route_system`只排在input_state_request之后；两者都在state_transition之前，却没有彼此的依赖。Ragdoll键在更早的input_state_request写请求，因此没有同一缺口。
+  - 反例：未调整调度的完整App曾同帧通过、后续又复现Jump仍Ragdolling/未阻塞且request pending，下一帧才GettingUp。固定当前合法的两种顺序后，direct/Ragdoll/Jump×顺序共6组5PASS/1FAIL，只有退出消费者先于Jump producer时延迟。`bf144_ragdoll_lifecycle_jump_and_ragdoll_input_exit_in_current_frame`，证据`20/jump_order/`；记录可复现的单帧调度差异，不靠增加等待帧让Gate通过。
+
+- [ ] BF144-D68 / P2 — Ragdoll→GetUp未保留中间None动作触发的desired stance提交。
+  - Source：fresh `StopRagdolling:1143–1163`先切地空mode，再把action置空，最后播放GetUp并置GettingUp。`NotifyLocomotionActionChanged:1091–1098`在置空时立即ApplyDesiredStance；`801–824`调用Crouch/UnCrouch设置CMC的bWantsToCrouch，随后GettingUp不会取消这个请求，当前CMC按`UpdateCharacterStateBeforeMovement:3500–3521`提交物理姿态。
+  - Target：`get_up.rs:177–181`直接写GettingUp；`capsule_reshape_system:3299–3317`仅轮询当前action，GettingUp生效后不再消费Ragdoll期间积累的desired stance，未保留None阶段的源副作用。
+  - 反例：实际Ragdoll退出前，Standing期望Crouching或反向，允许的GetUp先于capsule reshape顺序均保留旧姿态/半高0.9或0.56m；先让reshape看到None则正确应用。16组交接矩阵中此根因对应4处FAIL，包含rig碰撞已先清除的控制，排除D69干扰；相同期望姿态8组通过。`bf144_ragdoll_lifecycle_exit_applies_pending_desired_stance`，证据`20/stance_order/`；旧单动作姿态测试遗漏同帧None→GettingUp。
+
+- [ ] BF144-D69 / P2 — Ragdoll退出的站立净空查询把自身rig当作障碍。
+  - Source：fresh UE `UnCrouch:3391–3393`以CharacterOwner构造CapsuleParams，忽略整个本角色；Ragdoll的mesh仍属于该actor。ALS退出也先恢复mesh/capsule查询，再交给CMC执行待处理站立。
+  - Target：`apply_capsule_for_stance:3375–3384`只排除actor实体，`character_blocks_collider:3840–3842`只识别同一capsule body；独立rig body没有被当作角色自身排除。`ragdoll_link_system`的rig layer停用与reshape未定序，旧rig仍可参与这次净空查询。
+  - 反例：Crouching Ragdoll期望Standing，GettingUp尚未阻止reshape时，净空查询命中的阻挡全部是本角色thigh_l/r、pelvis、spine_01/02/03，导致仍为Crouching；只把rig layer停用排在查询前，阻挡为空并正确Standing。与D68同一16组矩阵中这是一处独立FAIL，反向缩小胶囊不受影响；证据包含实际阻挡归属。未修改普通Crouch实现或物理profile。
 
 ### 未闭合边界（不计为无差异）
 
