@@ -51,7 +51,7 @@
 | 顺序 / 源责任 | 本轮 target 核对入口 | 覆盖状态与旧 Gate 边界 |
 |---|---|---|
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
-| CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03/.04完成速度/时钟及默认floor/胶囊查询审计，确认D05–D07、D09–D12；重力D08已撤销；步阶/接触、外部组件权限、蹲跳与基座待后续独立批次 |
+| CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.05完成速度/时钟、默认floor/胶囊查询及walking碰撞审计，确认D05–D07、D09–D16；重力D08已撤销；Air接触/着地、蹲跳与基座待后续独立批次 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | 待逐项审计；角色蓝图 SelectMantlingSettings 属此闭包 |
 | Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | 待逐项审计；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
@@ -84,6 +84,14 @@
   - 20:31 source/focused 闭环：fresh Capsule→BodySetup/ChaosInterfaceUtils创建与BodyInstance缩放→PrimitiveComponent/WorldCollision实际movement sweep链确认物理胶囊保持圆截面并取水平大轴，区别于floor helper取小轴。target非均匀缩放生成椭圆近似凸体；完整角色沿未放大的水平轴撞墙比源允许位置多进入约0.30m，直接/父级缩放均复现，确认D11。6组实际角色中4个uniform对照PASS、2个nonuniform语义FAIL；证据`target/bf144/04/scale/`。本项累计新增3项P2，仍未改生产代码或运行公共Playground Gate。
   - 20:37 source/focused 闭环：14组perch半径/落差/地空/extra-height与16组平面坡度/查询尺寸对照全部PASS；fresh默认always-check=true、flat-base=false与0.15m perch阈值一致。沿floor consumer的owner时钟边界追加fresh PerformMovement→StartNewPhysics，确认D12：owner=0仍执行贴地高度修正，4组完整角色中仅未贴地的冻结输入FAIL。外部碰撞组件的CanStepUp/WalkableSlopeOverride及walking/landing的后续消费留下一碰撞批次，当前未把这些输入或未测几何计作等价。
   - 20:40 本项归纳：已核对默认floor sweep/retry/line、半径/坡度/有效perch/地空距离、源尺寸与实际形体差异、height adjustment及owner=0前置；6项focused测试为1PASS/5预期语义FAIL，内部54组中46PASS/8FAIL归并D09–D12。原116份source身份、11份新增UE依赖快照、B_Als_Character原始/Build资产与10个floor属性核对PASS；160份生产Rust及已编译库hash未变。`target/bf144/04/summary.json`只确认审计记录完整，不能作为运动等价或公共Playground验收。未修改生产设计，消融不适用；截图0、性能暂停。
+
+- [x] BF144.05 CMC 步行碰撞、坡面与跨步：沿fresh ALS PhysWalking及UE MoveAlongFloor/ComputeGroundMovementDelta/StepUp/SlideAlongSurface/TwoWallAdjust，核对当前target前进、抬升、前向剩余位移、下扫、拒绝/回退和穿透恢复；只为这些算法读取实际源碰撞组件的CanStepUp/WalkableSlopeOverride输入。Air接触/着地、蹲跳和移动基座另列后续批次。Gate：source分支与实际消费者映射、独立几何反例/对照、差异及漏检记录。开始：2026-10-13 20:43 +08:00；预估结束：2026-10-13 21:38 +08:00；实际结束：2026-10-13 21:35:53 +08:00；偏差：−2分7秒；结果：审计记录Gate PASS，新增4项P2未修复差异。估时依据：已取fresh PhysWalking约300行，UE跨步/坡面/滑动递归闭包约600行，target grounded transaction约150行；BF144.04几何查询审计实耗47分40秒，本项将Air/蹲跳/基座拆出后独立估时。
+  - 20:43 活动摘要：BF144.04已提交，当前累计11项P2，重力继续采用Bevy值。下一步核对源步行碰撞分支与target顺序；源组件属性只作为碰撞输入取证，不审计场景表现。截图关闭、性能暂停，生产实现保持未改。
+  - 20:55 source/focused 闭环：fresh ComputeGroundMovementDelta/MoveAlongFloor先沿可行走坡面移动，再处理真正阻挡；target直接水平探测。20°坡/宽松顶面不能证明候选，在40°且平行顶面余隙1.2cm时，实际切向shape sweep无阻挡但90帧行进少0.9603m，完整角色与最小夹具一致，确认D13；12组中10PASS/2FAIL。fresh Playground native reader PASS且原始/Build关卡包一致，仅汇总碰撞输入：285个BodyInstance的WalkableSlope均Default，7个CMC保持水平速度；7个角色Capsule为ECB_No，普通场景碰撞组件为ECB_Yes。后者沿B_Als_Character→Character构造→CanStepUp继续核对角色间碰撞，未扩展AI或场景表现。
+  - 21:04 source/focused 闭环：fresh Character构造和B_Als_Character都给Capsule设置ECB_No；target角色缺少对应权限组件且walking默认允许，确认D14。50ms帧的实际角色跨过uniform缩至0.2的被动角色；同几何普通prop可跨过，显式源No权限则停止，两个对照PASS。初始60Hz夹具连允许prop也未跨上，前置失败保留但不计有效反例。下一步沿fresh MovementComponent::SlideAlongSurface→TwoWallAdjust核对slide剩余位移是否真正sweep。
+  - 21:20 source/focused 闭环：fresh基类SlideAlongSurface对每次剩余位移再sweep，target跨步被拒时却把投影直接交给多子步位置累加，确认D15。No权限及普通Yes权限但命中胶囊顶部两条拒绝路径都在0.1s/2子步撞双墙时失败，包含完整角色；24组中20PASS/4FAIL，单墙/单子步/可成功进入跨步路径的对照通过。初始“单墙全帧保持恒定切向速度”的oracle忽略了源子步碰撞后重新加速，已改为源几何不穿透合同；该错误oracle不计缺陷。另已由fresh ALS构造及CDO确认站立/蹲姿均允许离开边缘，未把UE基类默认蹲姿限制误记为差异。
+  - 21:27 source/focused 闭环：穿透路径出现的实际结果不是预想的“floor丢失后立即切Air”，而是false-solid中心射线把实体底部出口当成walkable floor。沿fresh Chaos AABB→Raycasts确认源inside hit时间为0，ALS明确拒绝Time≤0的line fallback，确认D16；完整角色3组中穿透实体1FAIL、正常贴地/移除实体2PASS。仅记录已证实的floor有效性和消费分支差异，不宣称未测出的源最终脱离位置。
+  - 21:35 本项归纳：已核对当前启用的ramp移动、StepUp抬升/前进/下扫/高度与权限拒绝、slide两墙、失去floor与穿透分支；组件坡度Default为恒等规则。0.18m/0.36m正常台阶、0.6m过高台阶和0.36m No权限对照PASS；原0.18m No权限预期“任何上升都被禁止”不成立，因为source FindFloor/AdjustFloorHeight不检查CanStepUp，不能充当阴性oracle，原输出保留。5项focused最终1PASS/4预期语义FAIL，46组中38PASS/8FAIL归并D13–D16；角色权限夹具从90帧缩至30帧后信号不变。fresh关卡292行运动相关属性及原始/Build身份、4份新增UE闭包快照、116份原source与160份生产Rust身份均PASS，库hash仍未变。证据`target/bf144/05/final/`、`05/summary.json`；无生产设计修改、无公共runtime Gate、截图0、性能暂停。下一批Air碰撞/着地，蹲跳/基座及动作消费者继续分项。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -154,3 +162,27 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - Target：`src/als/character/movement/motion.rs:3978`的floor同步只检查世界暂停，`4011–4074`继续按世界帧运行；CMC已正确发布simulation_delta_seconds=0也不能阻止此阶段移动角色。
   - 反例：完整加载的Grounded角色在静态平地被外部置于中心高1m、owner倍率0；物理后、floor consumer前仍为1m且CMC delta=0，consumer后却变成0.9215m。source该阶段应保持1m；`bf144_floor_frozen_owner_does_not_run_walking_height_adjustment`语义FAIL。owner=1及初始已贴地的3个对照PASS，证据`target/bf144/04/frozen/`。
   - 漏检：既有零倍率测试在稳定贴地高度或空中检查速度/位移，不包含Grounded且需要高度修正的输入；只保护CMC积分没有覆盖后置floor consumer。仅登记，不把世界暂停与owner倍率0混同，不修改源码。
+
+- [ ] BF144-D13 / P2 — 坡面步行先作水平碰撞与跨步，丢失源切向移动顺序。
+  - Source：fresh UE `ComputeGroundMovementDelta:5489–5512`由当前floor的ImpactNormal生成沿坡位移，native CMC的bMaintainHorizontalGroundVelocity=True，保持所请求的水平距离；`MoveAlongFloor:5560–5589`先sweep该切向位移，真正被阻挡后才尝试第二坡面或StepUp。
+  - Target：`src/als/character/movement/motion.rs:3513–3552`直接对水平delta作sweep，碰到坡面就先向上抬升；低顶限制该抬升后，剩余位移再被slide投影缩短，实际可通过的坡道因此减速。
+  - 反例：40°平面与平行顶面构成保持1.2cm头部余隙的通道，胶囊沿source切向0.25m试扫无阻挡；默认ViewDirection/Running起步，90帧source应水平前进5.304167m，target仅4.343863m。完整加载角色与最小运动插件均FAIL；20°坡以及无顶/10cm余隙的10个对照PASS。`bf144_walk_ramp_under_parallel_ceiling_keeps_source_tangent_motion`及证据`target/bf144/05/ramp_loaded/`。
+  - 漏检：旧坡面与低顶分别验证，未组合陡但可行走的坡面和有正余隙的平行顶面；水平末位移相等的20°对照不能覆盖触发前向坡面阻挡后的路径。仅登记，不添加坡道补偿或改物理参数。
+
+- [ ] BF144-D14 / P2 — 角色胶囊未携带源默认的禁止跨步权限。
+  - Source：fresh UE `Character.cpp:81`及B_Als_Character的CollisionCylinder均为CanCharacterStepUpOn=ECB_No；`PrimitiveComponent.cpp:5287–5298`返回false，经CMC `CanStepUp:7525–7542`拒绝跨步。Playground实际7个角色实例也保留相同属性。
+  - Target：`src/als/character/character.rs:361–425`的角色bundle没有移植该属性；`character/movement/motion.rs:3516–3518`在collider及body都无`AlsMantleTargetPermission`时默认true。
+  - 反例：完整加载角色以50ms帧向uniform缩放0.2的被动角色前进；首次胶囊命中非穿透且normal.y≈0.0025，不属于可行走坡面。默认target把对方当可跨步prop，中心最高升至1.31152m并越过；source禁止跨步应停下。同几何普通prop允许跨过（PASS），仅给被动角色补入现有显式No权限的受控对照最高0.92562m并停在z≈−0.635m（PASS）。`bf144_walk_character_capsule_keeps_source_no_step_permission`语义FAIL，证据`target/bf144/05/permission/`。
+  - 漏检：旧permission测试手动插入true/false，验证了consumer分支，却没有从fresh角色CDO核对生产角色默认组件；相同大小的站立胶囊又通常因步高限制掩盖这个缺口。仅登记，不修改角色构造或扩展AI行为。
+
+- [ ] BF144-D15 / P2 — 跨步被拒后的沿墙剩余位移未sweep，多子步可直接进入第二面墙。
+  - Source：fresh UE CMC `SlideAlongSurface:3649–3686`约束接触normal后调用基类；`MovementComponent.cpp:725–774`对slide执行SafeMoveUpdatedComponent，命中第二面再TwoWallAdjust并sweep，不能直接叠加未检查的投影。StepUp因No权限或上半球命中被拒后也必须走该路径。
+  - Target：`src/als/character/movement/motion.rs:3535–3543`在拒绝跨步时直接返回剩余slide；`walking_movement_transaction:3636`把它加入Transform，下一子步已从墙内开始，后置物理解穿透不能恢复源顺序。
+  - 反例：角色半径0.3m，初始(x,z)=(0.12,−0.155)m，两面墙使合法中心界限为x≤0.13、z≥−0.18m。0.1s帧分2子步后，物理前已到(0.17914,−0.28758)m；最小夹具最终z=−0.24835m，完整角色一次记录z=−0.20452m，均仍穿入第二墙。默认Yes权限但首墙只命中胶囊上半球的受控几何也复现，无须No权限。`bf144_walk_wall_slide_sweeps_the_remaining_substep`共24组20PASS/4FAIL，证据`target/bf144/05/wall_full/`。
+  - 漏检：旧slide测试关注跨步内部已经sweep的剩余路径，或在单物理帧内让Avian处理第二墙；没有组合跨步早退、多CMC子步和第二阻挡面。记录的墙界限来自胶囊几何，未把“子步后的切向速度恒定”当作source oracle。仅登记，不补循环或改solver参数。
+
+- [ ] BF144-D16 / P2 — 地面射线从实体内部出发时，误把出口底面当成可行走地面。
+  - Source：fresh `ChaosCore/AABB.cpp:114–116`调用`Raycasts.cpp:12–86,175`，起点在box内部时LatestStartTime保持0；ALS `ComputeFloorDist:763–769`只接受Time>0的line hit，保留原sweep穿透供PhysWalking后续恢复，不把实体出口设成walkable floor。
+  - Target：`src/als/character/movement/motion.rs:3899–3909`使用`solid=false`的ray cast，内部起点会得到正距离出口，当前返回normal又朝上，因此通过floor过滤并进入height adjustment/base支持路径。
+  - 反例：完整角色被外部置入厚1m的平地内部；consumer前中心y=−0.20159m，retry sweep仍穿透。相同目标几何上的solid=true对照返回距离0，符合fresh源公式；生产non-solid ray距离0.79841m、normal.y=1，返回impact_y=−1m的假floor。`bf144_walk_inside_floor_ray_does_not_accept_the_exit_surface`语义FAIL；正常贴地与移除实体的两个对照PASS。证据`target/bf144/05/inside_ray/`。
+  - 漏检：旧line-floor测试的角色中心均在实体外，只覆盖胶囊侧部穿透；未比较源零时间命中与target non-solid出口语义。本反例证明错误floor有效性，未把双方第一帧仍为Grounded或未经UE执行的最终恢复位置当作另一缺陷。仅登记，不修改射线或恢复逻辑。
