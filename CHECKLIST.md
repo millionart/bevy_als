@@ -50,7 +50,7 @@
 | 顺序 / 源责任 | 本轮 target 核对入口 | 覆盖状态与旧 Gate 边界 |
 |---|---|---|
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
-| CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | 待逐项审计；按函数和有效分支核对，不能以既有场景通过代替 |
+| CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03完成速度/时钟审计，确认D05–D08；地面查询、步阶、蹲跳与基座待后续独立批次 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | 待逐项审计；角色蓝图 SelectMantlingSettings 属此闭包 |
 | Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | 待逐项审计；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
@@ -65,6 +65,14 @@
   - 19:10 source/focused 闭环：消费采样顺序已闭合，实际 ViewDirection Turn→VelocityDirection 输入切换在 producer 后捕获47.6275度/秒曲线；source 单步应到0.0380855rad，target实际0.0365703rad，确认 BF144-D03。独立固定90度/秒的最小消费者同样失败；AB_Als_Standing 源记录有效，没有改图/曲线/转换器。下一步完成 Character 剩余分支对照和本项归纳，再进入 CMC。
   - 19:16 source/focused 闭环：独立degree-space瞄准公式共5040组，36处差异全部集中在 zero owner delta 的精确半转边界；实际运动系统倍率1/.001对照到+110°，倍率0却到−110°，fresh UE Actor Tick 证明0倍率仍调用Character Tick，确认 BF144-D04。fresh 两条 RotationInterpolationSpeed 曲线已读取，Normal/Responsive 锚点与当前目标常量一致。D01另由真实 ragdoll 输入触发，错误Aiming已读回动画玩家 `SourceAnimationInputs`，不只存在于状态镜像。
   - 19:19 本项归纳：已核对PreRegister/BeginPlay初始化、RefreshInput归一化/保留角度、Gait许可与actual阈值、RefreshRotationMode各地空/其他分支、Grounded moving/stationary与FirstPerson/Aiming、源InAirRotationMode=3保持分支、target/smooth target及限位生命周期；角色蓝图ParentClass实际指向的 `AlsCharacterExample` 仅追运动输入分支，不展开相机/UI。状态请求的desired gait/stance与actual分离符合源结构；物理蹲起、跳跃、落地动作分别留CMC/动作批次。6个fresh native来源与Build原资产一致，两种旋转曲线的线性插值由fresh UE RichCurve构造默认确认。当前库SHA-256为`f45addc2…ce719ee`，160个生产源码hash未变；32项focused最终24PASS/8预期语义FAIL，失败归并D01–D04，旧23项全部PASS。证据 `target/bf144/02/final/`、`02/summary.json`；无实现修改、无新生产设计可消融、未做截图或性能验收。
+
+- [x] BF144.03 CMC 速度、加减速和时钟：沿fresh CMC CalcVelocity/RefreshGroundedMovementSettings及其实际UE基类算法，核对运动配置选择、输入模拟量、加速/转向摩擦/制动、地空切换与owner/world时钟；接触/地面查询/步阶另列下批。Gate：逐源合同与target消费者闭环、最小公式/实际运动反例及对照、确认/排除登记。开始：2026-10-13 19:20 +08:00；预估结束：2026-10-13 20:10 +08:00；实际结束：2026-10-13 19:52:12 +08:00；偏差：−17分48秒；结果：审计记录Gate PASS，新增3项P2与1项P3，未修复。估时依据：ALS CMC约1040行、UE CalcVelocity/ApplyVelocityBraking/NewFallVelocity实际闭包与现有dynamics/source_physics_timing消费者；BF140基础运动批次及本次BF144.02实耗24分钟，增加曲线取证和积分边界后独立估时。
+  - 19:20 活动摘要：本次B_Als_Character明确引用MS_Als_Normal，其VelocityDirection/Standing的加减速曲线引用Normal；target `grounded_dynamics_profile` 按VelocityDirection选择Responsive。先核对曲线实值、选择调用链和生产运动反例；此时仍是候选，尚未确认新缺陷。截图与性能保持暂停。
+  - 19:23 source/focused 闭环：fresh两条CV曲线证明Normal起步为20/15/5（m/s²、m/s²、摩擦），Responsive为25/20/10；当前grounded motor真实消费错误profile，6种stance×rotation组合仅Standing/VelocityDirection失败，确认D05。源码排除“每子步应重新采样”的猜测：ALS PhysWalking在while之前调用RefreshGroundedMovementSettings一次。下一步核对UE CalcVelocity/Braking公式和实际owner/world时钟，WorldSettings仅作为角色delta输入依赖取证，不扩展场景表现。
+  - 19:30 source/focused 闭环：fresh原生读取限定为Playground的WorldSettings对象，确认世界delta上下限0.0005/0.4与倍率1；UE WorldSettings→Actor→CMC链和当前入口DefaultPlugins时钟对比确认D06，实际角色0.3/0.5秒长帧只积分0.25秒。排除air analog候选：本地UE5.8 GetMinAnalogSpeed明确包含Falling；原夹具“Falling返回0”的oracle错误已纠正并保留为排除记录，不能计缺陷。截图、场景表现与性能测试均未展开。
+  - 19:36 source/focused 闭环：D05再经完整默认角色按冲刺输入确认，切到VelocityDirection后的速度0.75而非source0.666667m/s。fresh UE ControlledCharacterMove→ScaleInputAcceleration→ALS PhysWalking顺序证明输入Acceleration先于本轮curve refresh，target却用新值，独立于D05的FirstPerson/ViewDirection反例前12帧PASS、第13帧FAIL，确认D07。新CMC focused共5项，air analog对照PASS，4个语义失败归并D05–D07；未重新运行或改写旧审计结论。
+  - 19:49 source/focused 闭环：fresh PhysicsSettings CDO确认默认重力−980cm/s²、terminal4000cm/s、同步无substep且独立物理cap约1/30；WorldSettings无gravity override，实际target重力却−9.81m/s²，默认0.1秒落体velocity−0.981而source−0.98，源重力显式对照PASS，登记较小差异D08/P3。world0.1秒×owner0/.5/1/2的velocity/位移/CMC delta对照全PASS。当前CMC focused7项2PASS/5语义FAIL归并D05–D08；完整结果见`target/bf144/03/final/`，没有把失败报告当验收通过。
+  - 19:52 本项归纳：已核对grounded profile/连续曲线、输入缩放时点、CalcVelocity制动/转向摩擦/overspeed恢复/再加速、独立braking半尾子步、CMC末步预算、AirControl/boost/MinAnalog、无接触自由落体/terminal与World/owner/physics三层时钟。AI requested movement/RVO不在本项目范围；着地剩余时间与几何接触留后续碰撞批次。fresh4个新增native report与两条CV/原关卡包身份检查PASS，PhysicsSettings采用实际CDO，160份生产源码及已验证库hash未变；`03/summary.json`仅验收审计记录完整性，不宣称运动等价。无生产修改、无设计消融对象、截图0、性能继续暂停。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -91,3 +99,27 @@
   - Target：`src/als/character/movement/motion.rs:244–246,261–267` 用通用 damper_yaw 代替该段标量算法；0 delta仍执行末尾 `wrap_yaw_radians`，将 +π 变成−π，随后primary限位反向。
   - 反例：静止瞄准、已应用70°限位、view与body相差180°。实际运动插件在 owner倍率1/.001时到+110°（对照PASS），倍率0时到−110°（source仍应+110°）；`bf144_frozen_owner_aiming_half_turn_keeps_source_side` 语义FAIL。独立source-degree公式5040组中36处同类边界FAIL，其余5004组无差异。证据：`target/bf144/02/frozen/`。
   - 漏检：旧瞄准测试覆盖reset/primary/secondary和普通帧长，暂停回归在稳定角度暂停；没有覆盖0 owner delta×半转×已收紧限位。仅登记，不改公式或放宽阈值。
+
+- [ ] BF144-D05 / P2 — Standing/VelocityDirection 错选 Responsive 加减速曲线。
+  - Source：fresh B_Als_Character→MS_Als_Normal，三种站姿rotation的 `AccelerationAndDecelerationAndGroundFrictionCurve` 均引用Normal，蹲姿才引用Responsive；VelocityDirection仅 `RotationInterpolationSpeedCurve` 引用Responsive。fresh两条CV资产确认起步Normal=20/15/5、Responsive=25/20/10（前两项已从cm换算m）。
+  - Target：`src/als/settings/params.rs:78–99` 把VelocityDirection当作加减速Responsive条件；`character/movement/dynamics.rs:543–565` 的实际motor以及stop预测、落地剩余积分共享这个选择。
+  - 反例：真实运动插件的站姿VelocityDirection首帧无障碍前进速度0.4166667m/s，source Normal应0.3333333m/s；实际加速/制动/摩擦为25/20/10而非20/15/5。三rotation×两stance的另外5组都通过。`bf144_cmc_grounded_dynamics_uses_source_stance_mapping` 语义FAIL，证据 `target/bf144/03/profile/`。
+  - 漏检：`defaults_match_als_source_values` 和 `grounded_dynamics_samples_match_the_live_source_contract` 把错误VelocityDirection→Responsive映射写进oracle；验证了曲线数值而没有核对MS_Als_Normal中加减速与旋转曲线的独立引用。仅登记，不改源码或旧测试。
+
+- [ ] BF144-D06 / P2 — 角色世界时钟未移植源帧长上下限。
+  - Source：fresh Playground `WorldSettings` 对象的MinUndilatedFrameTime=0.0005、MaxUndilatedFrameTime=0.4，三种TimeDilation均1；UE `WorldSettings.cpp:334–342` 对世界delta施加该范围，经LevelTick/Actor进入Character/CMC。独立物理上限1/30不替代角色世界delta。
+  - Target：`src/als_extras/levels/manual_playground.rs:56–73` 使用DefaultPlugins且无世界delta配置；当前依赖 `bevy_time::Virtual` 默认上限0.25秒，未实现源最小帧长。`character/movement/motion.rs:3708` 再把该值用于普通CMC，所以后续完整帧适配无法恢复已被全局截去的时间。
+  - 反例：实际加载角色在空中以1m/s水平速度运动，raw帧0.2秒得到delta/位移0.2（PASS）；raw0.3秒得到0.25而source应0.3；raw0.5秒得到0.25而source应0.4。`bf144_cmc_hitch_uses_source_world_delta_bounds` 同时读取Time<Virtual>、CMC simulation delta及实际Position，语义FAIL；机器记录 `target/bf144/03/world_clock/`。
+  - 漏检：旧完整帧和hitch验收测试主要使用0.1/0.12/0.2秒，启动器还按target现有max_delta限制注入值，未覆盖250毫秒上方和source WorldSettings的单独合同。只记录世界时钟对运动的影响，不开展性能验收或场景修复。
+
+- [ ] BF144-D07 / P2 — 输入Acceleration使用了本轮刚刷新的曲线，而非源调用顺序中的缓存值。
+  - Source：fresh UE `CharacterMovementComponent.cpp:6442–6457,8134–8137` 在ControlledCharacterMove先用GetMaxAcceleration缩放输入并缓存Acceleration；ALS `GetMaxAcceleration:292–299` 读取之前的MaxAccelerationWalking；随后ALS `PhysWalking:333–335` 才RefreshGroundedMovementSettings。UE CalcVelocity直接使用缓存Acceleration，不用新的MaxAccel重算普通玩家输入。
+  - Target：`src/als/character/movement/dynamics.rs:543–564` 先覆写dynamics，再把fresh dynamics交给积分；`grounded_velocity_step_with_braking_friction:175–176` 立即以fresh acceleration缩放输入，丢失源阶段边界。
+  - 反例：第一人称、ViewDirection、默认Normal曲线持续冲刺，排除D05的错误profile。前12帧速度一致；第13帧起始4.000003m/s，缓存加速度20、本轮曲线16.972263m/s²。source应到4.333337m/s，target到4.282876m/s。`bf144_cmc_input_acceleration_is_scaled_before_curve_refresh` 前置和12帧对照通过后语义FAIL，证据 `target/bf144/03/acceleration_order/`。
+  - 漏检：旧位移/子步矩阵把加速度曲线换成常数；其他oracle直接调用target的fresh dynamics helper，未跨越source输入缩放与PhysWalking刷新这两个阶段。仅记录，未添加缓存或修改实现。
+
+- [ ] BF144-D08 / P3 — 默认重力继承了Avian的9.81，未采用源9.80m/s²。
+  - Source：fresh `/Script/Engine.Default__PhysicsSettings` 的DefaultGravityZ=−980cm/s²；fresh Playground WorldSettings的bWorldGravitySet/bGlobalGravitySet均False，`WorldSettings.cpp:290–299` 读取该默认值。源CharacterMovement GravityScale=1。
+  - Target：实际`Gravity`及`AlsEffectiveGravity`为−9.81m/s²。`manual_playground.rs:146–153` 仅在显式测试环境变量下覆盖重力，默认入口没有消费source gravity配置；运动系统沿用默认PhysicsPlugins资源。
+  - 反例：完整加载角色0.1秒无输入自由落体，target竖直速度−0.981m/s，source应−0.98m/s；同一入口显式给予−9.8重力后对照PASS。`bf144_cmc_default_gravity_matches_source_world` 默认语义FAIL，差异约0.102%，不计为浮点舍入噪声。证据 `target/bf144/03/gravity/`。
+  - 漏检：若干轨迹oracle直接写9.81或与当前Gravity资源比较，只验证积分自洽；其他夹具显式注入9.8，绕过了默认资源选择。仅登记，未修改世界或物理设置。
