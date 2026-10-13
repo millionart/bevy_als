@@ -752,6 +752,64 @@ TSharedRef<FJsonObject> CapturePhysicsMaterialProbe()
     return Value;
 }
 
+TSharedPtr<FJsonObject> CapturePhysicsBodyProbe(UObject* Asset, const FString& RequestPath)
+{
+    UPhysicsAsset* PhysicsAsset = Cast<UPhysicsAsset>(Asset);
+    FString Text;
+    TSharedPtr<FJsonObject> Request;
+    if (PhysicsAsset == nullptr || !FFileHelper::LoadFileToString(Text, *RequestPath)
+        || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Request) || !Request.IsValid())
+    {
+        UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Physics body probe requires a physics asset and a JSON request."));
+        return nullptr;
+    }
+    const TArray<TSharedPtr<FJsonValue>>* Scales = nullptr;
+    if (!Request->TryGetArrayField(TEXT("scales"), Scales)) { return nullptr; }
+    bool RescaleFromUnit = false;
+    Request->TryGetBoolField(TEXT("rescale_from_unit"), RescaleFromUnit);
+    TArray<TSharedPtr<FJsonValue>> Samples;
+    for (const TSharedPtr<FJsonValue>& ScaleValue : *Scales)
+    {
+        const TArray<TSharedPtr<FJsonValue>>* Axes = nullptr;
+        if (!ScaleValue->TryGetArray(Axes) || Axes->Num() != 3) { return nullptr; }
+        const FVector Scale((*Axes)[0]->AsNumber(), (*Axes)[1]->AsNumber(), (*Axes)[2]->AsNumber());
+        if (Scale.ContainsNaN() || Scale.GetMin() <= 0.0) { return nullptr; }
+        TSharedRef<FJsonObject> Sample = MakeShared<FJsonObject>();
+        Sample->SetObjectField(TEXT("scale"), CaptureVector(Scale));
+        TArray<TSharedPtr<FJsonValue>> Bodies;
+        for (USkeletalBodySetup* Setup : PhysicsAsset->SkeletalBodySetups)
+        {
+            FBodyInstance Body;
+            Body.CopyBodyInstancePropertiesFrom(&Setup->DefaultInstance);
+            Body.bSimulatePhysics = false;
+            Body.InitBody(Setup, FTransform(FQuat::Identity, FVector::ZeroVector,
+                RescaleFromUnit ? FVector::OneVector : Scale), nullptr, nullptr, FInitBodySpawnParams(false, true));
+            if (!Body.IsValidBodyInstance())
+            {
+                UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Physics body probe failed to initialize %s."), *Setup->BoneName.ToString());
+                return nullptr;
+            }
+            if (RescaleFromUnit) { Body.UpdateBodyScale(Scale, true); }
+            Body.UpdateMassProperties();
+            TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+            Value->SetStringField(TEXT("bone_name"), Setup->BoneName.ToString());
+            Value->SetNumberField(TEXT("mass_kg"), Body.GetBodyMass());
+            Value->SetObjectField(TEXT("mass_space_local"), CaptureTransform(Body.GetMassSpaceLocal()));
+            Value->SetObjectField(TEXT("principal_inertia_kg_cm2"), CaptureVector(Body.GetBodyInertiaTensor()));
+            Value->SetObjectField(TEXT("body_scale"), CaptureVector(Body.Scale3D));
+            Body.TermBody();
+            Bodies.Add(MakeShared<FJsonValueObject>(Value));
+        }
+        Sample->SetArrayField(TEXT("bodies"), Bodies);
+        Samples.Add(MakeShared<FJsonValueObject>(Sample));
+        UE_LOG(LogAlsGraphSourceReader, Display, TEXT("Physics body probe captured %d bodies at %s."), Bodies.Num(), *Scale.ToString());
+    }
+    TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+    Result->SetBoolField(TEXT("rescale_from_unit"), RescaleFromUnit);
+    Result->SetArrayField(TEXT("samples"), Samples);
+    return Result;
+}
+
 TSharedRef<FJsonObject> CaptureRigHierarchy(const URigHierarchy* Hierarchy)
 {
     TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
@@ -1684,6 +1742,13 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
     if (FParse::Param(*Params, TEXT("PhysicsMaterialProbe")))
     {
         Root->SetObjectField(TEXT("physics_material_probe"), CapturePhysicsMaterialProbe());
+    }
+    FString PhysicsBodyProbePath;
+    if (FParse::Value(*Params, TEXT("PhysicsBodyProbe="), PhysicsBodyProbePath))
+    {
+        const TSharedPtr<FJsonObject> Probe = CapturePhysicsBodyProbe(Asset, PhysicsBodyProbePath);
+        if (!Probe.IsValid()) { return 7; }
+        Root->SetObjectField(TEXT("physics_body_probe"), Probe.ToSharedRef());
     }
 
     FString Json;

@@ -53,7 +53,7 @@
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；U01未闭合，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.19完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道、warp变换、动态基座和RMS物理消费的首轮审计，确认D43–D60、D62–D64，D61撤销；精确查询数值及公共Playground验收尚未闭合 |
-| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20完成许可、启动/退出、输入/锁定和GetUp交接生命周期首轮审计，确认D65–D69；PA配置/驱动、pelvis跟随/出口pose和完整GetUp动画待独立批次；不开展无源链路的通用物理审查 |
+| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.21完成许可、启动/退出、输入/锁定、GetUp交接及PA body/shape/质量/有效碰撞首轮审计，确认D65–D74；关节/驱动/积分、pelvis跟随/出口pose和完整GetUp动画待独立批次；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | 待重新取证及核对；历史155子图合同只作起点，不能自证算法等价 |
 | 剩余源函数与跨阶段边界 | 以上 source-target 链路的覆盖缺口 | 前述审计后再独立收口；未解释项保留，截图与性能继续暂停 |
@@ -199,6 +199,15 @@
   - 05:21 source/focused闭环：未约束顺序的后续完整App复现Jump晚帧与恢复站姿失败；用公开schedule API仅固定当前允许的两种顺序，Jump 6组5PASS/1FAIL确认D67。姿态交接16组11PASS/5FAIL，分离D68瞬时None未锁存desired stance与D69自身rig阻挡站立；实际同一净空查询仅命中本角色pelvis/spine/thigh，先清rig layers后为空。正常/roll/GetUp/Mantle进入、3类mode锁和重复启动共8组PASS，物理body identity保持、20个Dynamic/1个Kinematic及capsule停用符合native。剩余只补ground/air出口和GetUp播放失败控制；PA参数与姿态数值仍留后续项。
   - 05:34 本项归纳：6个core focused为2PASS/4语义FAIL，追加GetUp interruption focused PASS，合计42组33PASS/9FAIL，归并D65–D69；normal/air×GetUp clip可用性4组的模式、输入锁、capsule/rig停启和父子关系恢复通过。GetUp再入Ragdoll的owner0/1两组按源0.2s Cubic停止，0.05s权重1/0.84375、恢复后实例按期结束，Ragdoll期间保留原输入锁；源Stop不会立即终止branching notify，已读底层确认。
   - 证据`20/core_final/`、`20/stop_final/`、`20/final/`及`20/summary.json`；`capture_ragdoll_lifecycle_inputs.py`与`check_phase20.py`/record_gate watchdog PASS，116份基线source、5份补充UE source、22份native与160份生产Rust及同一launcher库hash核验。调度消融仅固定原本允许的顺序，反向顺序消除对应失败；缺非必需body和完整动画实例是许可对照，无生产设计/转换器修改。本批累计58项P2、9项P3，D08/D61撤销、U01未闭合；截图0、性能暂停，PA数值及snapshot/GetUp完整动画继续后续闭包。
+
+- [x] BF144.21 PA刚体配置、形状/质量与有效碰撞：沿fresh PA_Als/SKM/B_Als_Character及UE InitArticulated/BodyInstance的实际消费，核对21个body、22个shape、质量/惯量与材质数据、component/body/shape碰撞合成及49个排除对；以真实加载角色验证target应用。关节约束/驱动、阻尼/睡眠/CCD的数值积分和Ragdoll启动速度/跟随各留下一独立批次，本项不扩展通用物理或场景内容。Gate：native原始身份、source单位/覆盖合同、完整角色参数/碰撞最小反例与对照、漏检及未闭合边界。开始：2026-10-14 05:43 +08:00；预估结束：2026-10-14 06:33 +08:00；实际结束：2026-10-14 06:18:34 +08:00；偏差：−14分26秒；结果：审计记录Gate PASS，新增1项P2、4项P3，移植实现未修复。估时依据：已提取PA的21 body/22 shape/20 joint/49 collision pair，当前只覆盖body与shape；source BodyInstance/InitArticulated及target profile应用约450行，BF144.18变换闭包实耗24分06秒、.20完整角色生命周期52分26秒，按独立数据/碰撞边界估时；登记时点按实际工具时钟校正，估时窗口不变。
+  - 05:43 活动摘要：BF144.20已提交，累计58项P2、9项P3，D08/D61撤销、U01未闭合。fresh PA各body默认QueryAndPhysics/PhysicsBody，但B_Als mesh组件保留CharacterMesh response override；必须先推导UE实际合成再评价target层位。质量/形状先核对原生数据到当前profile和实际body，不能把转换器自检当作独立源证明。截图0、性能暂停，未修复生产实现。
+  - 05:49 source/focused闭环：fresh BodyInstance确认PA Block与mesh response取交集，Ragdoll只改变ObjectType/CollisionEnabled而未清Pawn Ignore；完整双角色focused 2组1PASS/1语义FAIL确认D70。有效physical material沿GetMaterial(0)递归到MI_Als_Character→M_Als_Main，两者PhysMaterial=None，最终为DefaultPhysicalMaterial；仅读取物理材质引用，不展开材质表现。继续形状、质量/惯量和49个排除对，关节/积分仍留后续。
+  - 05:59 source边界补证：22个source形状/21个body字段及230个跨body shape pair通过，105组质量矩阵初检发现小尺寸差异与默认head的f32分解偏差；尚未按缺陷计数。UE初始GetFinalScaled与运行时UpdateBodyScale的capsule下限不同，新增reader可选PhysicsBodyProbe直接调用原生InitBody/UpdateBodyScale/UpdateMassProperties及质量getters，限定PA数据取证、不改移植实现/转换规则。首轮无scene初始化保留了默认1kg，已据InitDynamicProperties路径排除该无效结果，补显式原生质量刷新后重新取样；不拿公式或utility CalculateMass替代真实body值。
+  - 06:14 source/focused闭环：原生126组initial/84组live质量取样完成，常规尺寸105组独立公式与native一致，小尺寸4个body的源分解数值偏差按native原值保留；普通asset导出与此前PA逐字段相同。完整target矩阵126组102PASS/24FAIL，定位D71惯量分解、D72初始小尺寸质量重算；native frame控制10组5PASS/5FAIL，5个控制全部恢复。live pelvis几何4组3PASS/1FAIL定位D73，零mesh scale 2组1PASS/1FAIL定位D74；source OnUpdateTransform调用/默认CVar及无项目覆盖已核对。继续收尾证据与reader消融，不进入关节或驱动积分。
+
+  - 06:18 本项归纳：7个focused为2PASS/5语义FAIL，419组387PASS/32FAIL归并D70–D74；126组native initial与84组native live值已独立保存。初始小pelvis从实际截断shape重算恢复native惯量，native principal/frame控制恢复5个body样本，未放宽容差。两份physical material依赖只用于质量/摩擦解析；未扩展材质图。
+  - 证据21/final/、21/native_mass_summary.json及21/summary.json；capture/native_mass/record_gate watchdog PASS，116份基线source、13份补充UE source、24份native、160份生产Rust及同一launcher库身份核验。reader增量在相同package target重建且源码字节一致；缺质量刷新版本的1kg结果被拒绝，当前原生质量恢复正确，普通PA导出逐字段不变。移除未使用的公式Rust输出后7项focused结论不变；未修改转换规则/target资产或移植算法。累计59项P2、13项P3，D08/D61撤销、U01仍未闭合；截图0、性能暂停。下一批先核对PA关节与ALS驱动直接闭包，body积分/零scale恢复、pelvis跟随与GetUp继续独立分批。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -601,6 +610,31 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Source：fresh UE `UnCrouch:3391–3393`以CharacterOwner构造CapsuleParams，忽略整个本角色；Ragdoll的mesh仍属于该actor。ALS退出也先恢复mesh/capsule查询，再交给CMC执行待处理站立。
   - Target：`apply_capsule_for_stance:3375–3384`只排除actor实体，`character_blocks_collider:3840–3842`只识别同一capsule body；独立rig body没有被当作角色自身排除。`ragdoll_link_system`的rig layer停用与reshape未定序，旧rig仍可参与这次净空查询。
   - 反例：Crouching Ragdoll期望Standing，GettingUp尚未阻止reshape时，净空查询命中的阻挡全部是本角色thigh_l/r、pelvis、spine_01/02/03，导致仍为Crouching；只把rig layer停用排在查询前，阻挡为空并正确Standing。与D68同一16组矩阵中这是一处独立FAIL，反向缩小胶囊不受影响；证据包含实际阻挡归属。未修改普通Crouch实现或物理profile。
+
+- [ ] BF144-D70 / P2 — 活动Ragdoll没有保留mesh对Pawn的Ignore响应。
+  - Source：fresh B_Als_Character CharacterMesh的Pawn/Visibility/Vehicle为Ignore；`BodyInstance.cpp:4789–4819`把PA body响应与当前mesh响应取Min，`StartRagdollingImplementation`仅将mesh object改为PhysicsBody、启用QueryAndPhysics，Pawn仍Ignore。普通Pawn胶囊对该mesh的移动/净空查询以及物理接触都应忽略。
+  - Target：`ragdoll_physics_profile.rs:373–376`把所有Enabled body转为Default↔Default，`ragdoll_link.rs:1214–1220`在活动时恢复这些层；`character_blocks_collider:3833–3844`接受另一个角色的rig，collision hook也没有Pawn响应过滤。
+  - 反例：同一完整App生成两个普通角色，第一角色进入Ragdoll后，用第二角色实际胶囊和生产查询predicate在pelvis位置查询，17个实际shape命中被接受；21个非root shape均通过当前层与collision hook。非Ragdoll对照为0，地板在两组均阻挡。`bf144_pa_character_query_preserves_mesh_pawn_ignore`2组1PASS/1FAIL，证据`target/bf144/21/initial/`。此项是角色之间的channel响应，独立于D69忽略整个自身actor；未把尚未运行的双方接触轨迹称作已验证。
+
+- [ ] BF144-D71 / P3 — Ragdoll惯量矩阵分解丢失缩小rig的非对角耦合项。
+  - Source：fresh `BodyUtils::ComputeMassProperties`与Chaos `MassProperties.cpp:17–98`在kg·cm²中按相对off-diagonal/trace门槛分解；新增原生body probe读取实际principal/frame，不用闭式理想矩阵替代源数值。scale=0.2时spine_03/head/hand_l/r仍保留耦合。
+  - Target：`ragdoll_physics_profile.rs:1424–1427`把kg·m²矩阵交给`AngularInertia::from_mat3_unchecked`；当前glam_matrix_extras 0.3.0 `symmetric_eigen3.rs:96`以绝对off-diagonal平方和<1e-10认定对角矩阵。这些缩小后的有效项被清零，随后该AngularInertia进入真实rig物理参数。
+  - 反例：完整rig scale=0.2的head源Ixz=4.0892246e-6，target为0；以Ix x列量级的局部X角冲量复算，源角速度响应含z=−0.22336152，target z=0。10组native frame对照5PASS/5FAIL，只将实际body的principal/frame改用native转换后全部恢复。默认head另有同一分解入口的约1.43e-6矩阵误差，记录为数值偏差，不冒称已比较整段布娃娃轨迹。既有PA测试只测少数主轴或较大尺寸，未覆盖SI量级触发的绝对门槛。
+
+- [ ] BF144-D72 / P3 — 初始极小uniform rig的质量属性绕过最终形状尺寸下限。
+  - Source：fresh `FKSphylElem::GetFinalScaled`对半高/半径及圆柱长度施加源下限，再由实际Chaos形状计算质量、质心与惯量；原生InitBody+UpdateMassProperties验证scale=0.01的pelvis Ixx=1.2151629e-9kg·m²。
+  - Target：`scaled_ragdoll_mass_properties:1297–1301`对uniform scale直接缩放未截断的原始质心/惯量，虽然`scaled_collider:123–126`已经将实际capsule圆柱长度截到1mm。目标pelvis Ixx=1.0713182e-9，约低11.8%；spine_03因各shape体积占比改变还保留了错误质心。
+  - 反例：全新scale=0.01角色的21 body中18组不符，包含D71的分解影响；pelvis是无旋转单shape，独立证明本项，质量1g与实际shape下限均正确。从实际clamped Collider重新计算的Ixx与native相等，误差5.55e-17。source六种scale共126组102PASS/24FAIL，常规尺寸与无下限触发的root/foot提供对照。未将source自身在4个极小body上的数值分解偏差“修正”为理想公式。
+
+- [ ] BF144-D73 / P3 — 已创建rig的小尺寸缩放错误复用初始化capsule轴长下限。
+  - Source：fresh `BodyInstance::UpdateBodyScale:2402–2422`的live分支将capsule半轴下限设为FCollisionShape::MinCapsuleAxisHalfHeight，即1e-4cm；与初始化GetFinalScaled的圆柱长度0.1cm下限不同。原生live probe确认pelvis在scale=0.01时按半轴0.35mm计算惯量。
+  - Target：`scaled_collider:123–126`在创建与更新两条路径都将圆柱全长截到1mm；live pelvis实际半轴0.5mm，比源0.35mm多0.15mm。该case的目标质量/惯量反而与native live相符，证明是形状更新边界，独立于D72的初始化质量属性。
+  - 反例：完整角色的player/mesh从unit scale改为1/0.75/1.5/0.01，4组3PASS/1FAIL；源与target半径均1.4mm，最后一组只有实际几何轴长不等。`bf144_pa_live_scale_matches_source_body_geometry_and_mass`保留native质量控制与当前Collider取样，没有改尺寸阈值。
+
+- [ ] BF144-D74 / P3 — mesh缩放到零后Ragdoll仍保持刚体模拟。
+  - Source：fresh `SkeletalMeshComponentPhysics.cpp:1946–1949,3533–3544`在OnUpdateTransform调用UpdateRigidBodyScaling；relative scale跨到零时立即SetAllBodiesSimulatePhysics(false)，独立于world tick。p.UpdateRigidBodyScaling默认开启，当前项目/源配置没有覆盖。
+  - Target：`ragdoll_positive_scale:1199–1206`把零scale回退为ONE，`sync_ragdoll_body_modes:445–451`仍依Ragdolling保持20个Dynamic body，没有源的零scale停用生命周期。
+  - 反例：活动Ragdoll在world pause后将已detach的player/mesh scale设为0，下一完整App帧仍有20个Dynamic，源应为0；scale=1对照保留20个。`bf144_pa_zero_mesh_scale_stops_source_body_simulation`2组1PASS/1FAIL。只登记停用分支，恢复非零的source重建路径未在本反例中宣称已验收。
 
 ### 未闭合边界（不计为无差异）
 
