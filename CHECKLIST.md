@@ -53,7 +53,7 @@
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；U01未闭合，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.19完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道、warp变换、动态基座和RMS物理消费的首轮审计，确认D43–D60、D62–D64，D61撤销；精确查询数值及公共Playground验收尚未闭合 |
-| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.22完成许可、启动/退出、输入/锁定、GetUp交接、PA body/shape/质量/有效碰撞及关节frame/限位/drive输入首轮审计，确认D65–D75；关节求解/body积分、pelvis跟随/出口pose和完整GetUp动画待独立批次；不开展无源链路的通用物理审查 |
+| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.23完成许可、启动/退出、输入/锁定、GetUp交接、PA body/shape/质量/有效碰撞、关节frame/drive输入及选定角求解分支首轮审计，确认D65–D79；point/conditioning/projection/velocity阶段与body积分、pelvis跟随/出口pose和完整GetUp动画待独立批次；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | 待重新取证及核对；历史155子图合同只作起点，不能自证算法等价 |
 | 剩余源函数与跨阶段边界 | 以上 source-target 链路的覆盖缺口 | 前述审计后再独立收口；未解释项保留，截图与性能继续暂停 |
@@ -213,6 +213,11 @@
   - 06:23 活动摘要：BF144.21记录Gate已提交；累计59项P2、13项P3，D08/D61撤销、U01未闭合。fresh ALS以pelvis速度除10m/s再clamp缩放25000源角刚度，阻尼与force limit均设0；仍需核对UE设置覆盖、动画目标与实际solver输入。截图0、性能暂停，未修复移植实现。
   - 07:08 source/focused闭环：fresh PA reader与原始/Build身份PASS；20 joints在unit/0.75/正nonuniform下60组骨骼绑定、双frame、限位与有效开关全部PASS。19活动joint按当前pre-physics Pose局部旋转和native ref frame独立复算，两种尺度×4帧共152组PASS；这只验证motor目标计算，不提前宣称源flail动画输入等价。首次四元数比较把q与−q误判为2π，已统一最短旋转并保留原记录，未登记缺陷。8组速度输入中6PASS/2FAIL确认D75：目标先限速再计算刚度，源顺序相反；下一步收口live joint scale与记录身份。
   - 本项归纳：活动Ragdoll的mesh在world pause下改变relative scale，0.75/1.5/0.01的双anchor按源更新，正nonuniform保持原frame，80组全部PASS。最终4项focused为3PASS/1预期语义FAIL，300组298PASS/2FAIL；移除超限速度或移出启动限速期，D75反例消失。116份基线source、7份补充UE source、fresh PA原始/Build及160份生产Rust和同一launcher库身份核验PASS，证据`22/final/`、`22/summary.json`；没有生产设计消融对象，未改转换规则或target资产。累计60项P2、13项P3，D08/D61撤销、U01未闭合；截图0、性能暂停。关节求解/积分、启动速度和pelvis/GetUp继续独立闭包。
+
+- [x] BF144.23 PA角约束与角drive数值求解：沿fresh PA当前启用的cached/linear Chaos joint solver及target SourcePhysicsJoint实际调用，核对twist/swing/locked组合、soft limit、角drive误差轴与单位、dt/tolerance和多次位置迭代中的角增量/累计量。locked point、质量/惯量conditioning、projection/velocity阶段及body积分继续拆出；本项只追角求解所需直接输入，不能以静态配置PASS代替行为等价。Gate：source算法与默认分支证据、实际生产solver的独立最小数值反例/对照、真实角色输入链和未闭合阶段登记。开始：2026-10-14 07:12 +08:00；预估结束：2026-10-14 08:07 +08:00；实际结束：2026-10-14 07:33:06 +08:00；偏差：−33分54秒；结果：审计记录Gate PASS，新增2项P2、2项P3，未修复。估时依据：fresh source选中FPBDJointCachedSolver，Init/角限位/角drive及utilities闭包约1200行，target角求解约300行；BF144.18变换24分06秒、.21含native探针35分34秒、.22跨阶段45分58秒，point/conditioning/projection单独后置以保持本批独立。
+  - 07:12 活动摘要：BF144.22记录Gate已提交，累计60项P2、13项P3。native PA19个活动joint采用linear/cached solver；fresh Init把角容差乘min(1,3600×dt²)，target当前直接使用配置容差，尚需按实际soft/locked/drive分支验证。截图0、性能暂停，无移植修复。
+  - 07:31 source/focused闭环：完整角色的实际physics schedule在受控双body、保留native角限位/6次迭代且隔离point/contact后，复现硬twist锁、dt容差、多轴soft SIMD顺序和近180°混合限位guard四类差异，登记D76–D79；9组3PASS/6FAIL，源参考按fresh C++独立复算，未宣称执行了native Chaos仿真。直接生产solver另有54组36PASS/18FAIL；去掉多轴、去掉惯量耦合、恢复60Hz或跨回退化阈值内，对应失败消失。先前关闭mass conditioning的夹具已删去该覆盖，当前保持native启用且输入惯量比低于其生效阈值，信号不变。下一步补齐19个native drive分支的限位内对照并核对记录；soft阻尼的非零初始角速度/积分衔接留下一物理阶段批次。
+  - 本项归纳：19个活动joint的零目标与三轴小目标×1/6次迭代共76组全部PASS；总计7项focused为1PASS/6预期语义FAIL，139组115PASS/24FAIL。fresh源确认SIMD CVar实际传入linear container，源Rotation积分和quat Jacobian按本机实现复算；116份基线source、11份补充UE source、PA原始/Build和160份生产Rust及launcher库身份核验PASS。证据`23/final/`、`23/summary.json`；仅新增审计夹具，未改生产算法/转换器/资产。累计62项P2、15项P3，D08/D61撤销、U01未闭合；截图0、性能暂停。非零角速度soft阻尼衔接、完整point/conditioning/projection/velocity与island迭代预算继续后续批次，没有将受控角分支验证推广为全rig等价。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -646,6 +651,30 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`ragdoll_link.rs:207–214`把`limit_initial_ragdoll_speed`排在`ragdoll_joint_drive_adapter_system`前；后者`578–584`回读已被截短的pelvis速度，再由`ragdoll_angular_drive.rs:82–88`写入19个活动joint的57个motor通道。
   - 反例：实际加载角色由静止启动Ragdoll，下一帧限速仍为2m/s；输入(3,4,0)m/s时目标基础刚度5000，源应12500，实际各motor为7500而源应18750；输入竖直−12m/s时目标仍5000，源应25000。零速、1m/s及限速期结束后同四种输入均PASS，8组6PASS/2FAIL。只证明真实关节刚度输入差异，不把未运行的完整布娃娃轨迹纳入证据。
   - 漏检：`joint_drive_uses_source_constraint_drive_values`只对纯speed→stiffness函数传0/5/10，未把启动限速和实际ECS消费者组合。反例/对照见`bf144_pa_joint_drive_reads_velocity_before_initial_speed_limit`与`target/bf144/22/`；未修改移植实现或转换器。
+
+- [ ] BF144-D76 / P2 — Ragdoll硬twist锁使用非线性角校正，偏离源cached四元数约束。
+  - Source：fresh `PBDJointCachedSolverGaussSeidel.cpp:1459–1483,1566–1597`按初始frame的四元数Jacobian和相对quat分量锁轴，锁定路径没有角容差；`PBDJointConstraintUtilities.cpp:346–371`给出Jacobian，最终由`ChaosCore/Private/Rotation.cpp:158–168`将累计DQ以一阶quat增量归一化。该源算法的有限角误差也须保留。
+  - Target：`source_physics_joint.rs:365–373`对Locked Twist仍取完整twist angle和child X轴；`203–217,575–589`只有Limited走cached增量，Locked每轮重新算当前角并用指数旋转；`531–533`还给硬锁加了0.001rad死区。
+  - 反例：native clavicle_l锁Twist、其余轴无误差；两Dynamic等惯量body相差1rad，源两body各修正约0.533293rad，target各0.5rad，完整角色实际物理帧每body差0.033293rad。0.0005rad时源仍校正，target完全跳过。静态parent且普通角度、零误差是对照；1/6次迭代共20组10PASS/10FAIL，完整角色两组都FAIL。夹具只隔离point/contact和相邻joint，不改生产角算法，不把有限角源特性改为理想完全锁定。
+  - 漏检：旧cached drive测试不触发硬Twist；一般角测试只核对方向/减小误差，没有独立源Jacobian和有限迭代终值。证据`bf144_pa_angle_locked_twist_matches_source_cached_quaternion_constraint`及`23/`。
+
+- [ ] BF144-D77 / P3 — Ragdoll角drive与soft limit容差没有按实际dt缩放。
+  - Source：fresh cached solver `Init:190–192`用`min(1,3600×dt²)`缩放AngleTolerance；该值同时控制`InitSwingTwistDrives:2612–2614`和soft limit的scalar/SIMD判断。native配置为0.001rad，120Hz实际阈值应为0.00025rad。
+  - Target：`source_physics_joint.rs:296–300`直接以固定配置决定drive是否启用，`232,531–533`也把同一固定容差用于soft修正；没有dt缩放。
+  - 反例：两Dynamic等惯量body、native spine_01、motor目标误差0.0005rad，120Hz源每body应动约0.000180636rad，target保持不动；soft twist超限0.0005rad时源每body应动0.000222639rad，target仍保持。完整角色60Hz两对照PASS、120Hz两反例FAIL；直接drive/soft共21组17PASS/4FAIL，240Hz同样失败。该项影响微小角修正，不冒充大幅姿态异常。
+  - 漏检：旧solver用固定60Hz及远大于容差的角度；没有改变dt同时保持误差落在新旧阈值之间的反例。证据`bf144_pa_angle_motor_tolerance_uses_actual_time_step`、`bf144_pa_angle_soft_tolerance_uses_actual_time_step`及完整角色对照。
+
+- [ ] BF144-D78 / P2 — 全Limited软角约束逐轴立即写回，偏离源SIMD同时计算。
+  - Source：fresh `PBDRigidsEvolutionGBF.cpp:1388`把当前UseSimd=True传给linear solver；native spine等三轴Limited且soft时，cached solver `1115–1130,1600–1678`用同一个迭代起点计算三轴DeltaLambda，再合计各body的DQ。不是普通逐轴Gauss-Seidel写回。
+  - Target：`source_physics_joint.rs:199–238`按X/Y/Z循环；每个轴的`apply_angular_correction`立即更新body delta_rotation，后轴看到前轴的新校正，非对角惯量耦合时改变了输入。
+  - 反例：native spine_01限位和soft参数，正定耦合惯量、三轴初始旋转(0.9,0.7,0.5)rad；独立源同时计算与target在1/6次迭代后均差0.072376rad，完整角色相同输入差0.0723763rad。8组6PASS/2FAIL，去掉多轴或去掉耦合即PASS；完整角色单轴对照PASS。mass conditioning保持启用，所选等质量/惯量比使源conditioning不修改输入；这里只验证受控角求解，不宣称全rig自然摔倒轨迹。
+  - 漏检：旧cached参考按target同样的逐轴顺序复算，且实际PA drive测试每次只激活一个角轴；未覆盖源SIMD soft与惯量耦合的组合。
+
+- [ ] BF144-D79 / P3 — 混合Locked/Limited角约束遗漏源接近180°的退化保护。
+  - Source：fresh cached solver `1157–1168,1183–1188`在两frame的Twist轴dot<−0.998时跳过不可分解的Limited twist及单Limited swing，仍处理Locked轴。native neck_01为Twist/Swing1 Limited、Swing2 Locked，纯Swing1接近π时Locked误差为0，源这一轮不修正。
+  - Target：`source_physics_joint.rs:365–406,2267–2294`只在quat twist长度几乎为零时放弃，没有源dot阈值；接近π但不等于π时继续施加大幅soft修正。
+  - 反例：源阈值两侧、2.8rad、π−0.03与π共5组3PASS/2FAIL；完整角色neck在π−0.03时target每body额外修正1.125131rad，源应0。精确π反而因目标自身零长度guard而PASS。罕见极端角度边界，不按普通neck姿态缺陷描述。
+  - 漏检：只验证普通角度或精确180°会错过这一窄区间；证据`bf144_pa_angle_mixed_limits_preserve_source_degenerate_swing_guard`及完整角色物理消费者。
 
 ### 未闭合边界（不计为无差异）
 
