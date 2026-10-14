@@ -20,6 +20,8 @@
 
 `run_ue_source_reader.ps1 -PhysicsContactProbe <request.json>` 的 capsule/trimesh sample 可选 `triangle_indices`，使用 cooked mesh 索引调用原生 `ConstructCapsuleTriangleOneShotManifold2`，输出合并前的 `triangle_contacts`。其中两个 `shape_point_*_cm` 都在胶囊形状空间，`world_point_*_cm` 与 `world_normal` 已转换到世界空间；组上的 `triangle_index` 是请求的 cooked face，未归并点的 `face_index` 保留原生−1。该选项不改变正常 `points` 或 `aggregate_contacts`；用 `python tools/tests/test_physics_triangle_contact_probe.py <output.json>` 核对输出。
 
+接触 sample 在已有 `next` 时可选 `history`：`friction_ratios` 与首帧 manifold 点一一对应，`anchor_offset_0_cm` / `anchor_offset_1_cm` 是两侧形状空间的旧锚点偏移。读取器调用原生 `SetSolverResults` 和下一帧 `Activate`，输出 `saved_points` 与 `next_history`；这是受控保存/匹配探针，不运行 Chaos 动力仿真。使用 `tools/tests/fixtures/physics_contact_history.request.json` 和 `python tools/tests/test_physics_contact_history.py <output.json>` 核对8点保存边界、比例插值、匹配标志与世界锚点差。
+
 2026-09-26 删除了 UE MCP client 及其完整调用链（输入审计、旧相机导出、拓扑/截图和五个 shell 探测脚本），当前取证统一使用原生 reader。相机曲线的目标转换使用 `import/import_curve_float.py`、`import/import_debug_curves.py` 和 `import/camera_curve_conversion.py`。
 
 同批删除六个早期 Interchange API 试验脚本、没有消费者的 `probe_scene2.py`，以及反复改写旧 Playground parity 文件的 `patch_parity_ron.py`、`test_lighting_only.py`。实际导出器、原始资产、生成图、归档证据和本地配置保留。

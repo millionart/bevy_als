@@ -1000,6 +1000,18 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
             UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Physics contact probe has an invalid next transform."));
             return nullptr;
         }
+        const bool HasHistory = Input->HasField(TEXT("history"));
+        const TSharedPtr<FJsonObject>* History = nullptr;
+        const TArray<TSharedPtr<FJsonValue>>* FrictionRatios = nullptr;
+        FVector AnchorOffset0, AnchorOffset1;
+        if (HasHistory && (!HasNext || !Input->TryGetObjectField(TEXT("history"), History)
+            || !(*History)->TryGetArrayField(TEXT("friction_ratios"), FrictionRatios)
+            || !ReadVector(*History, TEXT("anchor_offset_0_cm"), AnchorOffset0)
+            || !ReadVector(*History, TEXT("anchor_offset_1_cm"), AnchorOffset1)))
+        {
+            UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Physics contact probe has an invalid history input."));
+            return nullptr;
+        }
         USkeletalBodySetup* Setup = nullptr;
         for (USkeletalBodySetup* Candidate : PhysicsAsset->SkeletalBodySetups)
         {
@@ -1164,7 +1176,7 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
         bool Swap = false;
         const Chaos::EContactShapesType PairType = Chaos::Collisions::CalculateShapePairType(Particle0, Implicit, Particle1, Other, Swap);
         if (Swap || PairType == Chaos::EContactShapesType::Unknown) { return nullptr; }
-        Chaos::Private::FCollisionContextAllocator Allocator(nullptr, 1, 0);
+        Chaos::Private::FCollisionContextAllocator Allocator(&Solver->GetEvolution()->GetCollisionConstraints(), 1, 0);
         auto Constraint = Allocator.CreateConstraint(Particle0, Implicit, Particle0->ShapeInstances()[0].Get(), nullptr,
             Chaos::FRigidTransform3::Identity, Particle1, Other, Particle1->ShapeInstances()[0].Get(), nullptr,
             Chaos::FRigidTransform3::Identity, CullDistance, true, PairType);
@@ -1247,6 +1259,31 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
         }
         if (HasNext)
         {
+            if (HasHistory)
+            {
+                if (FrictionRatios->Num() != Constraint->NumManifoldPoints()) { return nullptr; }
+                Constraint->ResetSolverResults();
+                for (int32 Index = 0; Index < FrictionRatios->Num(); ++Index)
+                {
+                    double Ratio = 0;
+                    if (!(*FrictionRatios)[Index]->TryGetNumber(Ratio) || !FMath::IsFinite(Ratio) || Ratio < 0 || Ratio > 1) { return nullptr; }
+                    Chaos::FManifoldPoint& Point = Constraint->GetManifoldPoint(Index);
+                    Point.ShapeAnchorPoints[0] += Chaos::FVec3f(AnchorOffset0);
+                    Point.ShapeAnchorPoints[1] += Chaos::FVec3f(AnchorOffset1);
+                    Constraint->SetSolverResults(Index, Chaos::FVec3f(0), Chaos::FVec3f(0), Ratio, DeltaSeconds);
+                }
+                TArray<TSharedPtr<FJsonValue>> SavedPoints;
+                for (int32 Index = 0; Index < Constraint->NumSavedManifoldPoints(); ++Index)
+                {
+                    const Chaos::FSavedManifoldPoint& Point = Constraint->GetSavedManifoldPoint(Index);
+                    TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+                    Value->SetObjectField(TEXT("shape_point_0_cm"), CaptureVector(FVector(Point.ShapeContactPoints[0])));
+                    Value->SetObjectField(TEXT("shape_point_1_cm"), CaptureVector(FVector(Point.ShapeContactPoints[1])));
+                    Value->SetNumberField(TEXT("initial_phi_cm"), Point.InitialPhi);
+                    SavedPoints.Add(MakeShared<FJsonValueObject>(Value));
+                }
+                Sample->SetArrayField(TEXT("saved_points"), SavedPoints);
+            }
             Constraint->SetLastShapeWorldTransforms(ShapeWorld, BoxWorld);
             if (Constraint->GetManifoldPoints().IsEmpty()) { Constraint->ResetManifold(); }
             const FTransform NextShapeWorld = ShapeLocal * FTransform(NextBodyRotation, NextBodyTranslation);
@@ -1262,6 +1299,24 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
             Sample->SetBoolField(TEXT("restore_allowed"), RestoreAllowed);
             Sample->SetBoolField(TEXT("restored"), Restored);
             Sample->SetArrayField(TEXT("next_points"), CapturePoints(*Constraint, NextShapeWorld, NextBoxWorld));
+            if (HasHistory)
+            {
+                Constraint->Activate();
+                TArray<TSharedPtr<FJsonValue>> NextHistory;
+                for (const Chaos::FManifoldPoint& Point : Constraint->GetManifoldPoints())
+                {
+                    if (Point.Flags.bDisabled) { continue; }
+                    TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+                    Value->SetBoolField(TEXT("has_static_friction_anchor"), Point.Flags.bHasStaticFrictionAnchor);
+                    Value->SetBoolField(TEXT("initial_contact"), Point.Flags.bInitialContact);
+                    Value->SetObjectField(TEXT("shape_anchor_0_cm"), CaptureVector(FVector(Point.ShapeAnchorPoints[0])));
+                    Value->SetObjectField(TEXT("shape_anchor_1_cm"), CaptureVector(FVector(Point.ShapeAnchorPoints[1])));
+                    Value->SetObjectField(TEXT("world_anchor_delta_cm"), CaptureVector(NextShapeWorld.TransformPositionNoScale(FVector(Point.ShapeAnchorPoints[0])) - NextBoxWorld.TransformPositionNoScale(FVector(Point.ShapeAnchorPoints[1]))));
+                    Value->SetNumberField(TEXT("initial_phi_cm"), Point.InitialPhi);
+                    NextHistory.Add(MakeShared<FJsonValueObject>(Value));
+                }
+                Sample->SetArrayField(TEXT("next_history"), NextHistory);
+            }
             Constraint->ResetActiveManifoldContacts();
             Chaos::Collisions::UpdateConstraint(*Constraint, NextShapeWorld, NextBoxWorld, DeltaSeconds);
             Sample->SetArrayField(TEXT("fresh_points"), CapturePoints(*Constraint, NextShapeWorld, NextBoxWorld));
