@@ -248,6 +248,12 @@
   - 10:10 source/focused闭环：原生21个body/shape未改的自然落地4组2PASS/2FAIL进一步确认D91，复制材质到子shape恢复；全体body实际均未安装CCD组件。硬接触法向恢复24组16PASS/8FAIL确认D93，去掉初始重叠或改用完整法向修正的控制通过；native材质soft=None、stiffness=1、初始穿透恢复无限制，测试深度均低于10m/s pushout上限。本批保持法向/回弹范围，摩擦、预测接触和复杂形体接触另立后续闭包。
   - 本项归纳：最终4项focused均为预期语义FAIL，52组35PASS/17FAIL，41.14秒正常完成。116份基线source、14份补充UE源码、6份实际Avian依赖、fresh PA/PhysicsSettings、21份target CCD/材质字段、原始/Build和160份生产Rust/launcher库身份核验PASS；证据`28/final/`、`28/summary.json`。reader只在既有枚举增添5个前缀，新旧PA payload仅增加37个CVar，无转换规则/资产/运动实现改动；输入控制完成各差异消融。累计70项P2、21项P3，D08/D61撤销、U01未闭合；截图0、性能暂停，未运行公共Playground Gate。实耗29分06秒与上一批29分40秒接近，后续单个接触子闭包据此估时。
 
+- [x] BF144.29 Ragdoll切向摩擦求解：沿fresh native材质与Chaos位置/速度摩擦的实际阶段、Coulomb限制和角惯量，核对Avian切向消费及首接触/保留接触锚点。仅沿Ragdoll实际普通接触闭包，预测接触/cull与复杂多接触保留后续批次。Gate：源单位与迭代阶段、独立参考、完整角色消费者及控制/反例、身份和剩余边界。开始：2026-10-14 10:20 +08:00；预估结束：2026-10-14 11:10 +08:00；实际结束：2026-10-14 10:46:48 +08:00；偏差：−23分12秒；结果：本批审计记录Gate PASS，新增2项P3，未修复；非零历史锚点位移/滑移与预测接触继续下一批。估时依据：fresh索引定位位置friction cone/velocity摩擦与manifold锚点约500行、Avian切向约250行；BF144.28包含两次native读取与4项focused实耗29分06秒，本批需要隔离已知法向差异及切向/角向耦合，独立估时。
+  - 10:20 活动摘要：BF144.28已提交，累计70项P2、21项P3。源当前材质dynamic=0.7、static=max(0,0.7)=0.7；源同时有位置与速度摩擦阶段，不能根据旧注释假定quadratic只有位置摩擦。先核对实际迭代设置和源码公式，以共同法向输入隔离D93；尚未确认本批差异。
+  - 10:37 source/focused闭环：源one-shot sphere/box manifold开启且非incremental，位置摩擦4轮×0.5、速度摩擦末1轮已闭合。公共角色common-contact夹具中，法向去柔性并固定其线性间距后24组18PASS/6FAIL确认D94切向位置差异；source零力臂闭式参考8组全PASS。单独恢复目标法向旋转采样后18组10PASS/8FAIL确认D95；换用源quat积分仍失败，仅线性法向控制恢复，避免归入D84。下一步补保留接触分支；初版把Avian内部anchor-offset误读为直接separation的oracle已修正并排除，调度前置失败不计语义缺陷。
+  - 10:43 source/focused闭环：保留同一个实际ContactId，先以静止接触清零重叠、次帧仅更新V/W；60/30Hz×摩擦0/0.7×切速0/0.1/1的12组8PASS/4FAIL，继续归入D94。源quadratic本地点未改变，符合保存锚点的精确匹配条件；该分支WorldFrictionDelta与本帧V×dt相同。非零历史滑移锚点、锚点滑移/丢弃和预测/复杂manifold仍为下一独立闭包，未将本批稳定锚点控制扩充为这些边界的通过证据。
+  - 本项归纳：最终4项focused为1PASS/3预期语义FAIL，62组44PASS/18FAIL，41.62秒正常完成。116份基线source、14份补充UE源码、9份实际Avian依赖、fresh PA/PhysicsSettings、全部21份target摩擦字段、原始/Build与160份生产Rust/launcher库身份核验PASS。reader在既有枚举增加6个前缀，新旧PA payload仅新增7个CVar；未改转换器、资产或运动实现。对照独立去掉摩擦、切速、法向非线性及替换quat积分，消除了对应失败；证据`29/final/`、`29/summary.json`。累计70项P2、23项P3，D08/D61撤销、U01未闭合，截图0、性能暂停，无公共Playground Gate。实耗26分48秒；本批补齐稳定保留接触，历史锚点跨帧状态需独立建模，按上述未闭合边界自动继续。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
@@ -792,6 +798,19 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：Avian `solver/plugin.rs:292–299,326–351`默认contact damping ratio=10/frequency factor=1.5，`contact/normal_part.rs:132–149`把所有普通穿透接触按softness缩放后推动。PA soft=None未关闭这条柔性规则，最终速度relax到零也不恢复残余位置误差。
   - 反例：完整角色head保留native mass/inertia，以中心单点和零速度/重力隔离其它差异；60/30Hz×1/默认6子步×0/1mm/1cm重叠×原参数/完整法向修正，共24组16PASS/8FAIL。1cm重叠时单步只恢复约1.890mm、默认六子步约3.561mm，源应全部恢复；均未触及源pushout上限。将bias设为1/substep、mass scale=1、impulse scale=0后恢复，零重叠控制通过。证据`bf144_pa_contact_hard_surface_resolves_source_normal_separation`、`target/bf144/28/`。
   - 漏检：旧接触测试检查有限值、碰撞阻挡或inertia conditioning相对变化，没有以同一法向误差核对native硬材质的绝对恢复量。这里只证明单点法向规则不同，不宣称已对齐复杂多接触Ragdoll轨迹；仅登记。
+
+- [ ] BF144-D94 / P3 — Ragdoll切向摩擦缺少源独立的位置修正阶段，改变首接触滑移距离。
+  - Source：fresh `PBDCollisionContainerSolver.cpp:318–336,851–860,900–904`和实际world/CVar证明8个位置迭代中的末4轮执行friction、2个速度迭代中的末1轮执行friction；位置stiffness=0.5、速度stiffness=1。`PBDCollisionSolver.h:472–590,668–744`分别累加位置/速度冲量并共享Coulomb限制；`ConstraintGroupSolver.cpp:468–484`在两阶段之间把DP/DQ写入速度。
+  - Target：Avian `contact/mod.rs:289–350`在每子步速度constraint中求摩擦，再由修正后的速度积分位置；`contact/tangent_part.rs:187–241`没有独立位置摩擦累计量和源末4轮的位置收敛过程。
+  - 反例：完整角色head、相同有效惯量/接触点/系数0.7，消除D93柔性法向及D95旋转法向影响；60/30Hz×native/单位惯量×系数0/0.7×切速0/0.1/1，共24组18PASS/6FAIL。native惯量、切速1m/s时，60Hz目标滑移7.84165mm、源8.39321mm；30Hz为15.68330mm、16.78642mm。最终切向速度和角速度一致，位移仍不同；移除摩擦、零切速及单位惯量触及Coulomb上限的控制通过。源零力臂独立闭式参考8组PASS。证据`bf144_pa_friction_preserves_source_position_and_velocity_stages`、`target/bf144/29/`。
+  - 漏检：旧PA摩擦测试以组件系数或最终速度为判据，没有同时核对源位置摩擦阶段和实际滑移；这里只登记毫米级单接触差异，不以完整Ragdoll轨迹比较作结论。
+  - 保留接触补证：source `PBDCollisionConstraint.h:804–812`保存静摩擦锚点，cpp:1129–1149,1250–1292匹配quadratic本地点；先静止接触、再只改速度的稳定锚点分支12组8PASS/4FAIL，ContactId保持且无graph error，30Hz切速1时位移差1.09792mm。该结果仍属同一D94位置阶段根因，不重复编号。
+
+- [ ] BF144-D95 / P3 — 摩擦旋转后重算法向间距，使目标重新产生向内速度。
+  - Source：fresh sphere/box采用one-shot manifold，源`PBDCollisionSolver.h:868–945`用cached力臂的线性DP/DQ计算位置误差，随后velocity solve沿该法线解算；中心接触的r×normal=0，切向摩擦旋转不应制造新的法向间距。
+  - Target：Avian `contact/mod.rs:287–293`在Relax时用delta_rotation旋转r再计算separation；`normal_part.rs:129–131`对新出现的正间距进入预测接触分支，允许法向速度变成−separation/dt。
+  - 反例：完整角色head原生惯量、法向恢复已统一、切速0/0.1/1m/s；60/30Hz×目标quat/源Euler quat/仅法向使用线性控制共18组10PASS/8FAIL。切速1时默认目标重新产生−0.0185323/−0.0370038m/s法向速度，源应0；换源quat仍为−0.0185108/−0.0368518，故不是D84的自由积分差异。只在Relax期间令法向使用原固定力臂、随后恢复原quat，全部恢复；零切速控制通过。证据`bf144_pa_friction_rotation_preserves_source_cached_normal_separation`、`target/bf144/29/`。
+  - 漏检：旧接触验证未在切向摩擦导致旋转后复核法向速度，最终非穿透位置不能证明速度阶段一致。只登记，不更改接触缓存或生产求解器。
 
 ### 未闭合边界（不计为无差异）
 
