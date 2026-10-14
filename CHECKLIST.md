@@ -53,7 +53,7 @@
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；U01未闭合，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.19完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道、warp变换、动态基座和RMS物理消费的首轮审计，确认D43–D60、D62–D64，D61撤销；精确查询数值及公共Playground验收尚未闭合 |
-| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.36完成许可、启动/退出、输入/锁定、GetUp交接、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样/child预测bounds、多点回弹迭代、原生点序/支持点消费、质量加权接触位置、contact/joint耦合及primitive缓存首轮审计，确认D65–D104；动作初速、pelvis跟随/出口pose、完整GetUp动画及实际convex/trimesh接触生成仍待审；不开展无源链路的通用物理审查 |
+| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.37完成许可、启动/退出、输入/锁定、GetUp交接、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样/child预测bounds、多点回弹迭代、原生点序/支持点消费、质量加权接触位置、contact/joint耦合、primitive缓存及初速生成/交接/限速预算首轮审计，确认D65–D108；pelvis跟随/入口及出口pose、零scale恢复、完整GetUp动画及实际convex/trimesh接触生成仍待审；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | 待重新取证及核对；历史155子图合同只作起点，不能自证算法等价 |
 | 剩余源函数与跨阶段边界 | 以上 source-target 链路的覆盖缺口 | 前述审计后再独立收口；未解释项保留，截图与性能继续暂停 |
@@ -294,6 +294,12 @@
   - 14:29 source/native/consumer闭环：28组native两帧结果确认箱体小幅移动可复用、超过容差重建，球/胶囊禁止geometry复用；fresh PA新增SimpleAssignContact=True外与上一批全payload一致。保持实际ContactId、关闭摩擦并统一点序/回弹预算的32组两帧消费者28PASS/4FAIL，确认D104；仅换入native复用点后恢复。首版反复写collision组件导致ID重建，修正初始化时点后通过；平放四点的活跃点前置不成立，改用已有源证据的45度两点支撑，未改语义容差。
   - 14:34 source/static闭环：native SimpleAssignContact=True走首个exact/最近near匹配，允许复用同一saved点；这一路输出的ShapeAnchorPoints仍归D96缺失，不因多候选另计。primitive/box one-shot将点数压到最多4，8点以上且friction ratio=0的保存省略分支在本批不触发；复杂mesh聚合不据此宣称已审计。原生depenetration=-1经`SetDepenetrationVelocity`变为1e10cm/s并写入粒子，当前正常接触的InitialPhi归零，没有新增有限恢复历史差异。
   - 本项归纳：116份基线source、9份补充UE、4份Avian、28组两帧native、原始/Build、reader包源码与160份生产Rust/launcher库身份核验PASS。reader增加可选next transform和三个阶段的点输出；旧7组自测输出逐值保持，新8组自测PASS，非法next quat按7退出。受控地把next世界坐标替换成旧坐标后新增自测按预期FAIL，原数据PASS，未改源文件或恢复mtime。最终1项focused为预期语义FAIL，32组28PASS/4FAIL，27.03秒完成。证据`36/final/`、`36/summary.json`。无转换器/目标资产/生产Rust变更；累计72项P2、30项P3，截图0、性能暂停。实耗31分11秒；下一批回到动作生命周期，已有Playground convex/trimesh的接触生成边界保留到物理剩余项，不扩展场景表现。
+
+- [x] BF144.37 Ragdoll启动运动交接与初期速度限制：依赖BF144.36记录Gate；沿fresh SetSimulatePhysics/ResetAllBodiesSimulatePhysics与pelvis速度读取，核对动画驱动刚体转动态时的线/角速度、初始speed limit来源及8帧预算，再核对同闭包的驱动强度测速时点。BF144.20已完成的许可、movement lock和输入交接不复开；pelvis地面跟随/出口snapshot及GetUp动画另项。Gate：实际UE和target阶段/时钟、完整角色最小反例与静止/匀速/预算边界控制、source字段与生产身份。开始：2026-10-14 14:42 +08:00；预估结束：2026-10-14 15:32 +08:00；实际结束：2026-10-14 15:15:11 +08:00；偏差：−16分49秒；结果：审计记录Gate PASS，新增2项P2、2项P3，未修复。估时依据：fresh ALS入口/Refresh/限速约210行，UE mesh/body simulate接口与target模式/animated-body同步约450行；BF144.20真实交接审计实耗52分26秒，本项复用加载夹具与PA身份，只扩运动交接和限速输入，必要的更深kinematic求值闭包单独拆分。
+  - 14:42 活动摘要：source从pelvis physics actor读取初始速度，并非直接把CMC速度赋给全部body；target也保留进入动态前的body速度。下一步追清两侧kinematic速度产生与simulate切换时点，不能仅凭缺少显式复制认定初速丢失。远端pull force属于本轮排除的网络路径，本地pelvis跟随保持后续边界。
+  - 15:00 source/focused阶段：21个body的初始限速、entry speed下限及角速度保留控制通过；刷新前后驱动力160组144PASS/16FAIL全部归并已登记D75，不新增编号或复开实现。fresh UE的kinematic更新使用clamped physics delta与quat差分，target使用全帧delta与轴角；两帧动画→动态夹具尚有handoff前置失败，当前不将它登记为新差异。另已定位Controller→movement→actor的输入帧时序，将核对8帧预算是否包含启动当帧。
+  - 15:10 source/focused闭环：前置失败已追到启动帧仍消费旧Kinematic图输出，8组6PASS/2FAIL及提前Dynamic控制确认D105；在夹具中先排除此项后，两帧速度生成24组15PASS/9FAIL分别确认D106的quat差分和D107的physics delta，单独替换两项可区分根因。Controller输入启动44个逐帧样本42PASS/2FAIL，确认D108仅多限速第9帧。source的立即限速与启动当帧Refresh必须分开计数；没有因为总调用数同为9而判等。下一步仅核对身份/记录Gate，不修改生产实现。
+  - 本项归纳：116份基线source、17份补充UE、2份实际animation graph依赖、fresh PA/PhysicsSettings、原始/Build及160份生产Rust/launcher库身份核验PASS。kinematic transform回读开关不屏蔽V/W回读（SingleParticlePhysicsProxy.cpp:502–525），上述源速度确实到达game-thread与动态切换。最终4项focused为预期语义FAIL，236组207PASS/29FAIL，其中16组属于既有D75；38.62秒完成，证据`37/final/`、`37/summary.json`。模式提前、零旋转、物理分母及高入口限速的控制分别去掉对应信号，无新生产抽象/转换规则/资产修改。累计74项P2、32项P3；截图0、性能暂停。实耗33分11秒，初版handoff前置失败促成完整producer链路检查；下一项沿pelvis跟随与pose交接继续。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -906,6 +912,27 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：Avian `collision/collider/parry/contact_query.rs:174–189`每次创建空manifold/workspace并清除旧点；`narrow_phase/system_param.rs:789–799`只能复制旧impulse。旧ContactId仍存在也不能保留源接触几何。
   - 反例：实际PA foot_l箱体45度姿态对10cm宽箱体支撑，连续两帧沿支撑边缘平移±2mm；native API确认复用并移动旧接触点，fresh几何点仍在静态支撑边缘。完整角色保留ContactId、native mass、共同isotropic惯量与零摩擦，统一已有点序/2轮回弹并给共同阶段V/W=0、normal_speed=−2；源角速度x≈0.338012rad/s，目标+2mm为0.352183、−2mm为0.325092。60/30Hz×窄/宽面×0/±2/6mm×原几何/源复用点共32组28PASS/4FAIL，仅替换native复用点即恢复。证据`bf144_pa_contact_phase36_restored_box_geometry_reaches_response`及`target/bf144/36/`。
   - 漏检：旧历史测试只验证friction anchor或warm-start，不对比同一ContactId下的几何点；本例摩擦0，因而不属于D96。零移动、10m宽面和6mm超出复用容差的控制通过；原始资产及生产实现未改，未声称native动态仿真已执行。
+
+- [ ] BF144-D105 / P2 — 启动帧先按旧Kinematic图配置重算速度，覆盖应保留的刚体初速。
+  - Source：fresh `AlsCharacter_Actions.cpp:792–807`在Start中立即SetSimulatePhysics/ResetAllBodies，再读取pelvis速度；`ChaosEngineInterface.cpp:494–542`转Dynamic保留V/W，`SingleParticlePhysicsProxy.h:1246–1269`亦只在离开Dynamic时清速度。`PhysAnim.cpp:653–655,697–701`普通骨骼更新仅向仍为kinematic的body写新动画目标。
+  - Target：角色在`character_runtime.rs:104–128`标为PostPhysicsAnimation，`post_physics_animation.rs:54–59`到physics后才求新图；依赖的`physics_systems_avian.rs:134–169,34–58`却在PrePhysics使用旧ragdoll_config设Kinematic并重算V/W，`ragdoll_link.rs:207–214`之后的handoff才强制Dynamic。已写入的Ragdolling动作不能阻止这一次旧配置消费。
+  - 反例：完整角色通过Ragdoll输入进入，pelvis既有V=(1,0,0)m/s、W=0；在实际kinematic目标producer处给下一目标0.5m/s位移和0.15rad旋转。60Hz进入handoff时V被改为0.5、Wy=9rad/s，30Hz为0.5、4.5，源均应保留1、0。60/30Hz×匹配/改变下一目标×原顺序/提前Dynamic共8组6PASS/2FAIL，仅提前模式切换即恢复。证据`bf144_ragdoll_phase37_entry_preserves_previous_body_velocity`、`37/final/`；这是受控动画目标的真实入口consumer，不宣称自然布娃娃轨迹已对齐。
+  - 漏检：旧启动测试核对最终Dynamic数量，速度测试在PrePhysics图运行后重新注入V/W，掩盖更早的覆盖。D75是随后驱动力测速顺序，不能解释本项。未改图、调度或依赖源码。
+
+- [ ] BF144-D106 / P3 — 动画刚体角速度用轴角计算，偏离源四元数差分。
+  - Source：fresh `PBDRigidsEvolutionGBF.cpp:1201–1243`对kinematic目标调用CalculateAngularVelocity；`ChaosCore/Private/Rotation.cpp:107–126`先保持最短弧，再取`2*((q1-q0)/dt*conjugate(q0)).xyz`。同轴有限角应为`2*sin(angle/2)/dt`。
+  - Target：`ragdoll_link.rs:529–536`的动画body同步及依赖`physics_systems_avian.rs:88–95`使用normalized差值quat的scaled-axis/dt。该差异发生在生成W时，独立于D84的动态旋转积分及D85的soft阻尼。
+  - 反例：完整角色pelvis从共同旧pose到旋转0.6rad的新动画bone pose，经过实际sync与下一帧Dynamic handoff；夹具提前Dynamic排除D105。60Hz目标Wy=36rad/s、源35.46243；30Hz为18与17.731215。零旋转通过，仅改为源quat差分后恢复；长帧中的独立时钟差异归D107。联合24组15PASS/9FAIL，证据`bf144_ragdoll_phase37_animated_velocity_reaches_dynamic_handoff`、`37/final/`。
+
+- [ ] BF144-D107 / P2 — 动画刚体速度用全帧时间，未保留源physics delta clamp。
+  - Source：fresh `PhysAnim.cpp:697–701`把骨骼pose写为kinematic target；`ChaosScene.cpp:331–357`在当前同步、无substepping配置下使用min(frame delta, MaxPhysicsDeltaTime)，原生上限为1/30秒；`PBDRigidsEvolutionGBF.cpp:1225–1243`用该物理步长生成V/W。
+  - Target：`ragdoll_link.rs:526–537`和依赖的kinematic速度producer均直接使用全帧`Time.delta_secs()`。物理积分本身的clamp不会回头修正已生成的速度。
+  - 反例：共同pelvis位移1cm、帧长0.1s、零旋转时，源Vx=0.3m/s，实际sync及隔离D105后的handoff均为0.1；只改速度分母为物理delta后恢复。60/30Hz对照通过；0.6rad的长帧组同时需要D106公式与本项分母，两项单独替换各自仍保留另一失败。沿用同一24组证据，不另计样本。源/目标重力约定没有改变，也未把全局帧率改成固定30Hz。
+
+- [ ] BF144-D108 / P3 — 本地输入启动Ragdoll后，初期限速多保持一帧。
+  - Source：fresh `PlayerController.cpp:2326,5494`在controller tick处理输入，`Controller.cpp:494–515`与`MovementComponent.cpp:184–188`保证controller→movement→actor顺序。Ragdoll输入立即Start，`AlsCharacter_Actions.cpp:820–823`先设8次刷新预算并立即限速；同帧`AlsCharacter.cpp:294`调用Refresh，cpp:955–959消耗第一次。故启动帧与其后7帧受限，第9个显示帧不再限速。
+  - Target：`AlsRagdollInitialSpeedLimit::new:78–79`把预算设为8+1，实际PostUpdate每帧只调用一次；将立即调用和当帧Refresh合并后仍保留9次，导致第9个显示帧继续clamp。
+  - 反例：完整角色经Ragdoll输入启动，首帧V=1m/s，随后每帧在实际限速consumer前给V=3；entry speed=0时第9帧目标仍为2、源应为3。60/30Hz×entry speed=0/5×11帧共44组42PASS/2FAIL，仅低入口速度的第9帧失败；前8帧、之后帧以及较高入口speed limit控制均通过。证据`bf144_ragdoll_phase37_input_frame_consumes_first_refresh_budget`、`37/final/`。旧Gate只检查总调用预算和限速数值，没有把本地输入与actor当帧Refresh组合。
 
 ### 未闭合边界（不计为无差异）
 
