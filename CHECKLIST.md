@@ -53,7 +53,7 @@
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；U01未闭合，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.19完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道、warp变换、动态基座和RMS物理消费的首轮审计，确认D43–D60、D62–D64，D61撤销；精确查询数值及公共Playground验收尚未闭合 |
-| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.28完成许可、启动/退出、输入/锁定、GetUp交接、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭及法向接触/回弹首轮审计，确认D65–D93；摩擦/预测接触/复杂manifold、动作初速、pelvis跟随/出口pose和完整GetUp动画待独立批次；不开展无源链路的通用物理审查 |
+| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.30完成许可、启动/退出、输入/锁定、GetUp交接、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦阶段及历史锚点首轮审计，确认D65–D96；预测接触/复杂manifold、动作初速、pelvis跟随/出口pose和完整GetUp动画待独立批次；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | 待重新取证及核对；历史155子图合同只作起点，不能自证算法等价 |
 | 剩余源函数与跨阶段边界 | 以上 source-target 链路的覆盖缺口 | 前述审计后再独立收口；未解释项保留，截图与性能继续暂停 |
@@ -253,6 +253,11 @@
   - 10:37 source/focused闭环：源one-shot sphere/box manifold开启且非incremental，位置摩擦4轮×0.5、速度摩擦末1轮已闭合。公共角色common-contact夹具中，法向去柔性并固定其线性间距后24组18PASS/6FAIL确认D94切向位置差异；source零力臂闭式参考8组全PASS。单独恢复目标法向旋转采样后18组10PASS/8FAIL确认D95；换用源quat积分仍失败，仅线性法向控制恢复，避免归入D84。下一步补保留接触分支；初版把Avian内部anchor-offset误读为直接separation的oracle已修正并排除，调度前置失败不计语义缺陷。
   - 10:43 source/focused闭环：保留同一个实际ContactId，先以静止接触清零重叠、次帧仅更新V/W；60/30Hz×摩擦0/0.7×切速0/0.1/1的12组8PASS/4FAIL，继续归入D94。源quadratic本地点未改变，符合保存锚点的精确匹配条件；该分支WorldFrictionDelta与本帧V×dt相同。非零历史滑移锚点、锚点滑移/丢弃和预测/复杂manifold仍为下一独立闭包，未将本批稳定锚点控制扩充为这些边界的通过证据。
   - 本项归纳：最终4项focused为1PASS/3预期语义FAIL，62组44PASS/18FAIL，41.62秒正常完成。116份基线source、14份补充UE源码、9份实际Avian依赖、fresh PA/PhysicsSettings、全部21份target摩擦字段、原始/Build与160份生产Rust/launcher库身份核验PASS。reader在既有枚举增加6个前缀，新旧PA payload仅新增7个CVar；未改转换器、资产或运动实现。对照独立去掉摩擦、切速、法向非线性及替换quat积分，消除了对应失败；证据`29/final/`、`29/summary.json`。累计70项P2、23项P3，D08/D61撤销、U01未闭合，截图0、性能暂停，无公共Playground Gate。实耗26分48秒；本批补齐稳定保留接触，历史锚点跨帧状态需独立建模，按上述未闭合边界自动继续。
+
+- [x] BF144.30 Ragdoll历史摩擦锚点恢复与丢弃：沿fresh保存锚点、static-friction ratio、quadratic匹配距离及下一帧消费者，核对目标接触缓存是否保留同一输入信息；区分D94单帧位置阶段与跨帧状态缺失。预测接触/cull及复杂多点仍随后独立推进。Gate：有效历史状态与单位、保留/滑移/无摩擦/超距控制、完整角色实际接触缓存消费和剩余边界。开始：2026-10-14 10:54 +08:00；预估结束：2026-10-14 11:34 +08:00；实际结束：2026-10-14 11:01:38 +08:00；偏差：−32分22秒；结果：单点历史缓存审计记录Gate PASS，新增1项P3，未修复；多候选匹配/多点裁剪保留后续复杂接触批次。估时依据：fresh缓存保存/匹配直接闭包约220行、Avian匹配约50行及BF144.29已验证的独立位置摩擦参考；上一批实耗26分48秒，本批只增加跨帧缓存输入与四类控制。
+  - 10:54 活动摘要：BF144.29已提交，累计70项P2、23项P3。源保留旧ShapeAnchorPoints，超出静摩擦锥时按ratio插值、近零ratio改用当前点；target match_contacts只复制warm-start冲量。仅有字段差别不计缺陷，下一步用源匹配容差内的历史偏移追到实际角色接触求解，保留零偏移与超距对照。
+  - 10:59 source/focused闭环：在完整角色head的同一实际ContactId上注入受控历史锚点，当前切向V/W为零，目标下一帧重建几何点时丢弃该偏移。60/30Hz共16组8PASS/8FAIL确认D96；±1mm与5mm历史偏移分别缺少约0.494mm和2.470mm的源位置恢复，ratio=0.5时应恢复一半。零偏移、ratio=0改用当前点、零摩擦及20mm超距不匹配全部PASS。当前输入为受控缓存反例，不宣称复现完整自然Ragdoll轨迹；稳定接触和共同法向参数已核验。
+  - 本项归纳：1项focused为预期语义FAIL，16组8PASS/8FAIL，13.17秒正常完成。116份基线source、4份补充UE源码、4份实际Avian依赖、fresh PA与上一批全部原生payload一致、原始/Build及160份生产Rust/launcher库身份核验PASS；复用的BF144.29参考源码与已通过版本逐字节相同。证据`30/final/`、`30/summary.json`。无reader/转换器/资产/运行时变更；零历史偏移、清除旧偏移、移除摩擦和不匹配控制完成输入消融。累计70项P2、24项P3，D08/D61撤销、U01未闭合，截图0、性能暂停。复用现有数值参考使实耗降到7分38秒，此类已有夹具的缓存输入审计后续应缩短预估；下一批转入接触预测与采样时点。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -811,6 +816,12 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：Avian `contact/mod.rs:287–293`在Relax时用delta_rotation旋转r再计算separation；`normal_part.rs:129–131`对新出现的正间距进入预测接触分支，允许法向速度变成−separation/dt。
   - 反例：完整角色head原生惯量、法向恢复已统一、切速0/0.1/1m/s；60/30Hz×目标quat/源Euler quat/仅法向使用线性控制共18组10PASS/8FAIL。切速1时默认目标重新产生−0.0185323/−0.0370038m/s法向速度，源应0；换源quat仍为−0.0185108/−0.0368518，故不是D84的自由积分差异。只在Relax期间令法向使用原固定力臂、随后恢复原quat，全部恢复；零切速控制通过。证据`bf144_pa_friction_rotation_preserves_source_cached_normal_separation`、`target/bf144/29/`。
   - 漏检：旧接触验证未在切向摩擦导致旋转后复核法向速度，最终非穿透位置不能证明速度阶段一致。只登记，不更改接触缓存或生产求解器。
+
+- [ ] BF144-D96 / P3 — Ragdoll接触缓存丢失源静摩擦锚点历史。
+  - Source：fresh `PBDCollisionConstraint.h:804–838`在static ratio≈1时保留旧ShapeAnchorPoints、0<ratio<1时插值旧锚点与当前点、ratio≈0时单接触改用当前点；cpp:1129–1185,1250–1292按quadratic本地接触点匹配后恢复锚点。native恢复开关True，exact=2mm、near=10mm。`PBDCollisionContainerSolver.cpp:142–158`随后从两侧保存锚点的世界差计算切向误差，即使当前切向速度为零也会恢复。
+  - Target：Avian `contact_types/mod.rs:426–470`匹配旧接触时只复制warm-start normal/tangent冲量；`narrow_phase/system_param.rs:788–799`每帧生成当前几何点，`contact/mod.rs:184–200`没有历史切向位移输入。
+  - 反例：完整角色head先建立静止接触，保持ContactId，向已有缓存注入±1mm/5mm的合法近距离历史偏移；下一帧只给法向入射速度，当前切向V/W=0，统一hard法向且将旧warm-start冲量归零以隔离历史信息。目标重新生成零X锚点、X位移始终0；独立源位置参考应恢复约0.494/2.470mm。ratio=0.5时源恢复约0.247mm；60/30Hz共16组8PASS/8FAIL，零偏移、ratio=0、零摩擦和20mm超距控制通过。证据`bf144_pa_friction_history_restores_saved_tangent_anchor`、`target/bf144/30/`。
+  - 区分D94：本例当前切向速度与当前几何切向误差均为零，单独补当前帧的位置摩擦公式仍得不到旧锚点偏移；需要保留源跨帧输入。位置oracle复用已验证源公式，将历史切向误差等价代入位置阶段并扣除合成自由位移，未使用其速度输出，也未执行native Chaos仿真。旧测试只核对warm-start或稳定零偏移接触，因此漏掉该边界。
 
 ### 未闭合边界（不计为无差异）
 
