@@ -236,6 +236,12 @@
   - 09:04 source/focused闭环：fresh PhysLevel→ChaosScene→PhysicsSolverBase→PBDRigidsSolver证明当前同步、无substepping时每帧只执行一次受MaxPhysicsDeltaTime约束的积分；目标实际六子步。完整角色spine_01保留PA mass，隔离joint/contact并移除阻尼，12组9PASS/3FAIL确认D86：30Hz首帧自由落体少下落4.541mm，恢复单步全部通过。双方统一单步后，native阻尼24组17PASS/7FAIL确认D87；移除阻尼12组全部通过，源/target均使用Bevy重力。原生默认阻尼+六子步的6组3PASS/3FAIL同时复现；没有执行native Chaos仿真或公共Playground Gate。
   - 本项归纳：3项focused均为预期语义FAIL，42组29PASS/13FAIL；扩充阻尼矩阵后只重跑该项，其他两个测试及共享夹具字节保持一致。116份基线source、11份补充UE源码、4份实际Avian依赖、两份fresh native、原始/Build及160份生产Rust和launcher库身份核验PASS。reader只增加两个CVar枚举，新旧PA payload除此完全一致；第一次读取在成功构建后因输出目录尚未存在而结束，补齐目录后读取成功，未计作语义失败。证据`26/initial/`、`26/damping/`、`26/summary.json`。未改转换器、资产或运动实现，无新增运行时抽象；单步与移除阻尼控制完成对应消融。累计68项P2、17项P3，D08/D61撤销、U01未闭合。估时回顾：复用已就绪的完整角色/solver夹具，使本次线性闭包实耗8分钟，后续类似单公式审计应减少预留；sleep/contact仍需独立估算。
 
+- [x] BF144.27 Ragdoll睡眠判定、岛计数与唤醒：沿fresh Chaos IslandManager的实际非partial分支、native材质阈值和平滑速度，核对target SourceBodySleep的字段、采样、计数和真实body休眠/恢复；只展开其直接依赖。碰撞solver/CCD、动作初速及pelvis/snapshot/GetUp另立后续批次。Gate：原生开关/阈值、source阶段公式、完整角色控制与反例或无差异证据。开始：2026-10-14 09:09 +08:00；预估结束：2026-10-14 09:44 +08:00；实际结束：2026-10-14 09:38:40 +08:00；偏差：−5分20秒；结果：审计记录Gate PASS，新增3项P3，未修复。估时依据：fresh索引定位阈值/孤立/连接岛与wake约500行，target约110行及既有focused夹具；BF144.26复用完整角色线性夹具实耗8分钟，sleep增加跨帧及拓扑控制，单独给出本批估时。
+  - 09:09 活动摘要：BF144.26已提交，累计68项P2、17项P3。目标显式实现source sleep计数和平滑采样；源partial sleep默认关闭，但仍需本次原生CVar核实。下一步先读取实际阈值与UpdateSleep顺序，随后使用源位移/角度作为共同输入隔离已知积分差异。截图0、性能暂停，未展开碰撞求解。
+  - 09:20 source/focused闭环：fresh native证明sleep启用、partial关闭、平滑0.3、孤立倍率均1，21个PA body实际材质阈值为0.01m/s、0.05rad/s、counter=4。完整角色hand_l的孤立/连接岛×60/30Hz，共24组16PASS/8FAIL确认D88；第4帧显式设置0.005m/s后，目标第5帧休眠，源孤立/连接分支应第8/9帧。去掉sleep采样覆盖后四组自然积分反例仍失败；无速度写入、持续超阈值的控制通过。下一步核对同一外部输入闭包中的force对平滑状态预置及连接变化，未扩展接触solver。
+  - 09:36 source/focused闭环：实际单帧1m/s²推力经native质量和Avian force阶段进入两body，4组3PASS/1FAIL确认D89，60Hz连接岛因遗漏源force平滑预置而第5帧休眠；30Hz和孤立控制通过。fresh CreateIsland/ProcessWakes另证明新岛计数从0开始，target按每body旧计数最小值继续；静止3帧后第4帧连接的两组均提前第5帧睡眠，source应第8帧，确认D90；反向断开两组正确保留计数。共享夹具已完成无采样覆盖的自然积分版本，接下来只收口本批focused回归和记录身份。
+  - 本项归纳：最终3项focused均为预期语义FAIL，32组21PASS/11FAIL，26.25秒正常完成；force参考连续推进满12帧。116份基线source、7份补充UE源码、6份实际Avian依赖、fresh PA及21份native/target sleep字段、原始/Build和160份生产Rust/launcher库身份核验PASS。reader在既有枚举增加sleep与平滑前缀，新旧payload仅新增24个CVar；未改转换器、资产或运动实现。去掉metric覆盖、去掉速度/force更新，以及反转连接变更方向的控制均已记录，没有新增运行时抽象。证据`27/final/`、`27/summary.json`。累计68项P2、20项P3，D08/D61撤销、U01未闭合，截图0、性能暂停；下一闭包为native CCD开关与实际碰撞接触求解，再继续动作初速、pelvis、snapshot/GetUp与动画。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
@@ -743,6 +749,24 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`ragdoll_physics_profile.rs:1361`把源系数直接交给Avian LinearDamping；Avian `integrator/mod.rs:248–249,362–368`先对旧速度乘1/(1+damping×dt)，随后加本步加速度增量，既改变系数公式也漏掉本步重力/外力的阻尼。
   - 反例：完整角色spine_01保留native mass，双方统一单步以隔离D86；60/30Hz×原生/零阻尼×静止、5/60m/s恒速、静止/移动重力及50N外力共24组17PASS/7FAIL。零阻尼12组全部PASS；native阻尼时两种步长的重力/外力6组FAIL，30Hz重力末速度应−0.326891m/s、实际−0.327m/s，差0.000108987m/s；30Hz无加速度60m/s另显现纯公式差。原生六子步+阻尼的6组3PASS/3FAIL证明真实默认消费者也受影响。证据`bf144_pa_linear_damping_uses_source_formula_and_update_order`、`bf144_pa_linear_native_default_free_fall_consumes_both_differences`。
   - 漏检：旧profile测试只核对阻尼字段，动力学夹具常显式把LinearDamping设为0，没有验证其执行阶段。本项是小量数值差异，未据此声称大幅视觉异常；仅登记。
+
+- [ ] BF144-D88 / P3 — Ragdoll显式低速唤醒保留了旧睡眠计数。
+  - Source：fresh `ChaosEngineInterface.cpp:626–640`写入外部速度，`SingleParticlePhysicsProxy.cpp:127–132`把该更新送到`PBDRigidsEvolutionGBF.cpp:2031–2057`；只要非零速度就调用WakeParticle，即使刚体已经清醒。`PBDRigidsEvolution.cpp:1258–1272`和`IslandManager.cpp:860–902`重置计数，连接岛还禁止当前步睡眠；后续按native counter=4重新累计。
+  - Target：`ragdoll_physics_profile.rs:757–838`的SourceBodySleep只有状态/采样/阈值累计，没有消费外部速度写入或显式wake来清掉已有计数。Avian `islands/sleeping.rs:569–619`对速度变更的唤醒查询只处理已Sleeping的body，也不维护该独立source计数。
+  - 反例：实际角色启动Ragdoll，选hand_l两端body，native sleep阈值/质量保持原值，隔离其他joint/contact，统一单步；先静止3帧，第4帧把两body的LinearVelocity显式写为0.005m/s。60/30Hz与孤立/连接岛四组全部在第5帧休眠，source应分别到第8/9帧。共同sleep输入的受控版本与移除该覆盖后的真实body积分版本均复现；全部24组16PASS/8FAIL，静止和线/角超阈值控制通过。证据`bf144_pa_sleep_isolated_and_connected_counters_and_explicit_velocity_wake`与`target/bf144/27/`。
+  - 漏检：旧wake测试先让body已经Sleeping再移除Sleeping，恰好命中此前休眠时清零的计数；没有覆盖“仍清醒且已有累计进度”的外部低速写入。本项只声明该边界提前3/4个物理帧休眠，不声称普通大冲量也会触发；仅登记。
+
+- [ ] BF144-D89 / P3 — Ragdoll外力遗漏源睡眠平滑速度的预置。
+  - Source：fresh `SingleParticlePhysicsProxy.cpp:163–168`将外部Dynamics更新交给`PBDRigidsEvolutionGBF.cpp:1885–1890`；其`ResetVSmoothFromForces`在同名header `281–301`先以固定1/30秒预测V+Acceleration/30+Impulse，再用0.3混合进VSmooth。连接岛随后还会按实际位移再平滑一次，避免刚受力的body立即重新休眠。
+  - Target：`ragdoll_physics_profile.rs:785–796`仅在求解结束后用当前位移更新smooth_linear，没有消费外部力/冲量的预置；Avian的force变更唤醒只维护自身睡眠状态，不能补齐该source平滑变量。
+  - 反例：完整角色hand_l两body保留native mass、COM与sleep阈值，先静止3帧，第4帧按各自质量施加一次产生1m/s²的等向推力，第5帧撤去；不覆盖solver位移或速度。60Hz连接岛在第5帧休眠；source第4帧VSmooth≈0.011999m/s，超过0.01阈值，按独立公式连续检查12帧都不应休眠。第4帧实际速度约0.016667m/s已核验。30Hz连接岛及两种dt的孤立body控制通过，共4组3PASS/1FAIL；移除推力的静止控制按第5帧休眠。证据`bf144_pa_sleep_external_force_seeds_source_smoothed_velocity`。
+  - 漏检：旧sleep夹具固定body速度或直接给solver位移，没有通过真实外力预处理阶段；本项与D88的显式速度写入计数重置不同，缺失的是force输入对平滑状态的更新。只声明这类轻推力边界，未声称普通大力同样失败；仅登记。
+
+- [ ] BF144-D90 / P3 — 新物理岛错误继承孤立body的睡眠计数。
+  - Source：fresh `IslandManager.cpp:1855–1903`在两个无岛节点新建连接时调用CreateIsland；`IslandManager.h:399`初始化SleepCounter=0，`IslandManager.cpp:2418–2444`将新岛从初始sleeping切为awake时再次清零。反方向销毁无约束岛时，`1731–1739`明确把岛计数复制给孤立body；这两种拓扑转换不对称。
+  - Target：`ragdoll_physics_profile.rs:803–805,835–837`把每body计数的最小值当作当前岛计数，再统一回写，没有辨别新岛创建。两个已有3帧静止进度的孤立body连成新岛后，仍从3继续计数。
+  - 反例：完整角色hand_l两body，native质量/COM/阈值保持，关闭其他关节和接触，静止3帧后第4帧启用实际hand_l关节；不覆盖solver采样。60/30Hz两组都在第5帧休眠，source新岛应第8帧；每步实际joint_count已核验。反向在第4帧断开原有连接的两组都正确在第5帧休眠，共4组2PASS/2FAIL。证据`bf144_pa_sleep_new_island_resets_counter_while_split_preserves_it`、`target/bf144/27/topology/`。
+  - 漏检：旧测试覆盖断开后的独立睡眠，没有覆盖孤立状态已有进度再新建连接；只登记已复现的岛创建边界，不把所有合并/拆分情况一概判错。
 
 ### 未闭合边界（不计为无差异）
 
