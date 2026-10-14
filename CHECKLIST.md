@@ -53,7 +53,7 @@
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；U01未闭合，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.19完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道、warp变换、动态基座和RMS物理消费的首轮审计，确认D43–D60、D62–D64，D61撤销；精确查询数值及公共Playground验收尚未闭合 |
-| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.34完成许可、启动/退出、输入/锁定、GetUp交接、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样/child预测bounds、多点回弹迭代、原生点序/支持点消费及质量加权接触位置首轮审计，确认D65–D102；contact/joint耦合、剩余接触缓存分支、动作初速、pelvis跟随/出口pose和完整GetUp动画仍待审；不开展无源链路的通用物理审查 |
+| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.35完成许可、启动/退出、输入/锁定、GetUp交接、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样/child预测bounds、多点回弹迭代、原生点序/支持点消费、质量加权接触位置及contact/joint耦合首轮审计，确认D65–D103；剩余接触缓存分支、动作初速、pelvis跟随/出口pose和完整GetUp动画仍待审；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | 待重新取证及核对；历史155子图合同只作起点，不能自证算法等价 |
 | 剩余源函数与跨阶段边界 | 以上 source-target 链路的覆盖缺口 | 前述审计后再独立收口；未解释项保留，截图与性能继续暂停 |
@@ -283,6 +283,11 @@
   - 13:42 source/focused闭环：54组native姿态的source位置求解中，移除78个零净pushout点后DP/DQ全部保持；较大倾角capsule侧点和box远侧面不能仅因raw点集不同登记。另沿gather的质量加权接触位置确认D102：完整角色实际contact constraint的独立速度阶段，24组20PASS/4FAIL，仅替换接触位置恢复；初版0.1m球的零重叠受f32正间距影响，改为精确可表示的0.125m后零重叠控制通过，未放宽容差。下一步将剩余native活跃点送入实际回弹consumer，区分点生成与启用条件。
   - 13:46 source/consumer闭环：head倾角1/10/30度与foot 45度×60/30Hz的当前native形体响应8组全PASS（先匹配既知点序/迭代）。注入完整源点集的8组有2处head 10度失败，原因是替换后目标仍给源已归零的侧点启用回弹；只保留源活跃点的8组全PASS。该失败只发生在受控替换输入，未另记生产缺陷，也未反推当前几何错误。native BaseFrictionImpulse全部为0、全局override=−1，零pushout点没有额外摩擦下限；历史锚点信息缺失沿已确认D96保留，不重复编号。
   - 本项归纳：116份基线source、5份补充UE、4份Avian、54组native数据/21份材质、原始/Build、reader包源码及160份生产Rust/launcher库身份核验PASS。最终分组证据共3项focused、102组96PASS/6FAIL：4处实际consumer差异归D102，2处源全点集替换失败单独保留；8组原几何响应与78个零pushout点消融均通过。证据`34/weighted/`、`34/support_final/`、`34/summary.json`。删除继承的sphere/native-inertia分支后信号保持；无新增生产层、转换器或资产改动。累计71项P2、29项P3；contact/joint耦合与剩余缓存分支仍待审，截图0、性能暂停。实耗13分02秒；复用已验证native几何明显缩短了后续消费审计。
+
+- [x] BF144.35 Ragdoll碰撞与关节耦合：依赖BF144.34记录Gate；沿fresh世界constraint container优先级、位置/速度阶段及当前SourcePhysicsJoint接线，核对碰撞回弹后关节约束与迭代交换，保持原生body/joint入口。Gate：实际世界排序与时钟、独立最小两body接触参考、完整角色消费者及去掉contact/joint的控制；已有D81/D93/D99不重复计数。开始：2026-10-14 13:50 +08:00；预估结束：2026-10-14 14:35 +08:00；实际结束：2026-10-14 14:01:44 +08:00；偏差：−33分16秒；结果：审计记录Gate PASS，新增1项P2，未修复。估时依据：fresh索引已定位constraint group循环、joint container与target调度，约500行调用闭包；BF144.24已完成点约束速度参考、BF144.34消费者实耗13分02秒，本项复用后只增加contact/joint联合路径。manifold多候选/保存分支另项，避免一次扩展超过一小时。
+  - 13:50 活动摘要：源collision/joint优先级默认均0，实际顺序仍需由container注册和稳定排序证明；尚未按默认字段或调度名称登记差异。先核对fresh调用链，再构造两body中心接触，排除几何点序和角运动影响。
+  - 13:58 source/focused闭环：fresh container注册、稳定排序及串行/并行prerequisite共同证明每轮collision→joint；目标joint velocity在Substep内，而Restitution在其后。32组速度消费者28PASS/4FAIL、6组位置消费者4PASS/2FAIL，确认D103；仅增加两侧各自迭代预算仍不能替代交替。移除contact/joint、零回弹控制通过，显式交替同一collision消费者和中心点约束后速度恢复。下一步核对native开关/身份并收口本项，不扩展其他物理类型。
+  - 本项归纳：116份基线source、9份补充UE、5份Avian、fresh PA完整payload与BF144.32一致，原始/Build及160份生产Rust/launcher库身份核验PASS。native collision/joint priority均0、joint min/max stiffness均1且shock关闭；最终2项focused为预期语义FAIL，38组32PASS/6FAIL，30.90秒正常完成。证据`35/final/`、`35/summary.json`。用中心frame/单点消去角运动，只保留一处交替控制；移除contact或joint均失去失败信号，未新增生产抽象或修改调度。累计72项P2、29项P3；剩余缓存分支和动作/动画链路继续，截图0、性能暂停。实耗11分44秒；联合消费者可复用既有独立参考，后续估时按实际闭包缩小。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -883,6 +888,12 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：Avian `collision/collider/parry/contact_query.rs:243–251`始终取两侧surface point的中点；`dynamics/solver/contact/mod.rs:312–351`和`tangent_part.rs:207–240`把该中点力臂用于摩擦。穿透深度非零时，沿normal的位移不影响normal力矩，却会改变tangent力矩。
   - 反例：完整角色head保留实际质量/惯量，受控中心球对静态box；从实际准备好的contact constraint拷贝进入公开速度solve，固定相同V=(1,−1,0)、W=0与normal累计量，隔离D94/D95的位置阶段。半径0.125m、1cm重叠、friction=0.7时，目标切向速度0.50834465m/s、角速度z=−4.2362094rad/s，source为0.52872527与−4.2298017。60/30Hz×零/1mm/1cm重叠×零/0.7摩擦×原点/源加权点共24组20PASS/4FAIL；只在constraint准备前平移两侧anchor到源加权位置后恢复。证据`bf144_pa_contact_phase34_friction_uses_mass_weighted_contact_position`、`target/bf144/34/weighted/`。
   - 漏检：旧测试把目标接触点直接作为共同oracle输入，未比较两引擎gather的质量语义；这里是实际consumer的受控单阶段证明，不声称完整自然Ragdoll轨迹已对齐。零重叠与零摩擦均通过；生产代码未改。
+
+- [ ] BF144-D103 / P2 — 碰撞与关节分阶段求解，遗漏源每轮交替约束。
+  - Source：fresh `PBDRigidsEvolutionGBF.cpp:1411–1415`先注册collision再注册joint；`PBDRigidsEvolution.h:359–365`按添加次序分配container id，`ConstraintGroupSolver.cpp:55–70`对相同native priority=0稳定排序。位置和速度各自每轮执行collision→joint（cpp:421–435、501–516；并行路径通过prerequisite保持相同次序）。当前世界为8个位置、2个速度迭代。
+  - Target：Avian `solver/schedule.rs:34–40,61–66`在Substep后单独执行Restitution；`source_physics_joint.rs:2160–2181`把关节位置与速度放在Substep，回弹后无joint velocity约束，位置阶段也没有逐轮交替contact和joint。各自增加D81/D99对应预算不能补齐这一关系。
+  - 反例：完整角色的pelvis/spine_01保持实际质量与启用的linear lock，中心frame/单球接触隔离转矩，关节预算8/2且关闭projection，使用hard contact排除D93。共同回弹阶段V/W=0、输入normal_speed=−2、restitution=0.3时，目标父body速度0、子body0.6m/s；源两轮交替均应0.41612768m/s。60/30Hz×1/6子步及移除contact/joint、零回弹、显式交替控制共32组28PASS/4FAIL；交替同一实际collision消费者和中心点速度投影后恢复。证据`bf144_pa_contact_phase35_restitution_interleaves_source_joint_velocity`、`target/bf144/35/velocity/`。
+  - 位置补证：同一受控两body、零初速/重力/回弹、单子步且不覆盖solver位置；目标两COM的y=9.997679m，源8轮位置参考为10.000947m，少恢复约3.268mm。60/30Hz及移除contact/joint共6组4PASS/2FAIL。证据`bf144_pa_contact_phase35_position_iterations_alternate_contact_and_joint`；旧Gate把joint和contact分开验证，未覆盖共同约束岛的交替。仅登记，未修改生产调度或声称执行native Chaos动态仿真。
 
 ### 未闭合边界（不计为无差异）
 
