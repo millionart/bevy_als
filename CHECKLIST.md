@@ -231,6 +231,11 @@
   - 08:41 source/focused闭环：统一预测quat后，spine_01 SIMD与neck_01 scalar soft两路在60/30Hz、正负W和零W共24组8PASS/16FAIL，确认D85；移除阻尼的4个控制全部PASS。预测姿态、有效惯量和native K/D的消费已经核验，未把自由积分D84混入阻尼根因。本批只剩记录身份/最终Gate；目标默认6个物理子步与source未启用substepping的整体调度，以及线性body动力学/sleep/CCD留下一独立批次。
   - 本项归纳：最终4项focused均为预期语义FAIL，105组56PASS/49FAIL，归并新增D84/D85及已有D76；所有执行均正常完成，非watchdog失败。116份基线source、10份补充UE源码、3份实际Avian依赖、fresh PA与当前PhysicsSettings、原始/Build及160份生产Rust和launcher库身份核验PASS。reader在既有枚举增加两个精确前缀，新旧native payload仅多两个全局角运动CVar；无转换器/资产/运动实现修改。夹具中的阻尼消融去掉对应差异，所有生产数据/二进制保持原样。证据`25/final/`、`25/summary.json`。累计67项P2、16项P3，D08/D61撤销、U01未闭合；截图0、性能暂停，未执行公共Playground Gate。下一闭包为整体物理调度和线性body动力学，随后继续sleep/CCD、启动速度、pelvis/snapshot/GetUp。
 
+- [x] BF144.26 Ragdoll物理子步与线性body积分：沿fresh Chaos scene/solver的同步步长、动态body线性速度/阻尼/位置更新，与实际角色的Avian调度逐项对照；重力统一采用Bevy值，只验证算法与执行阶段。sleep/CCD、动作初速、pelvis/snapshot/GetUp继续后续批次。Gate：实际源设置与调用路径、独立数值参考、完整角色反例/消融控制及剩余边界。开始：2026-10-14 08:58 +08:00；预估结束：2026-10-14 09:48 +08:00；实际结束：2026-10-14 09:06:00 +08:00；偏差：−42分00秒；结果：审计记录Gate PASS，新增1项P2、1项P3，未修复。估时依据：fresh Integrate约110行、scene/solver步长分支与Avian预处理/子步直接闭包约400行；BF144.24实耗27分27秒、.25实耗33分04秒，本批另含原生CVar补读和多步长控制，按独立线性闭包估时。
+  - 08:58 活动摘要：BF144.25已提交，累计67项P2、16项P3。源Integrate先加加速度再乘线性阻尼，target先乘隐式阻尼再加速度增量；target默认六子步尚需与源实际同步调度和位移消费者闭合。未确认本批新差异，截图0、性能暂停，生产实现未改。
+  - 09:04 source/focused闭环：fresh PhysLevel→ChaosScene→PhysicsSolverBase→PBDRigidsSolver证明当前同步、无substepping时每帧只执行一次受MaxPhysicsDeltaTime约束的积分；目标实际六子步。完整角色spine_01保留PA mass，隔离joint/contact并移除阻尼，12组9PASS/3FAIL确认D86：30Hz首帧自由落体少下落4.541mm，恢复单步全部通过。双方统一单步后，native阻尼24组17PASS/7FAIL确认D87；移除阻尼12组全部通过，源/target均使用Bevy重力。原生默认阻尼+六子步的6组3PASS/3FAIL同时复现；没有执行native Chaos仿真或公共Playground Gate。
+  - 本项归纳：3项focused均为预期语义FAIL，42组29PASS/13FAIL；扩充阻尼矩阵后只重跑该项，其他两个测试及共享夹具字节保持一致。116份基线source、11份补充UE源码、4份实际Avian依赖、两份fresh native、原始/Build及160份生产Rust和launcher库身份核验PASS。reader只增加两个CVar枚举，新旧PA payload除此完全一致；第一次读取在成功构建后因输出目录尚未存在而结束，补齐目录后读取成功，未计作语义失败。证据`26/initial/`、`26/damping/`、`26/summary.json`。未改转换器、资产或运动实现，无新增运行时抽象；单步与移除阻尼控制完成对应消融。累计68项P2、17项P3，D08/D61撤销、U01未闭合。估时回顾：复用已就绪的完整角色/solver夹具，使本次线性闭包实耗8分钟，后续类似单公式审计应减少预留；sleep/contact仍需独立估算。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
@@ -726,6 +731,18 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：完整角色spine_01保留native 15°twist限位和K=5,000,000/D=5000，在积分后、约束前通过公开SolverBody输入统一设置为源预测quat，确认PreSolveDeltaRotation一致，以隔离D84。预测twist固定0.6rad、unit有效惯量，60/30Hz×W=0/6/−30/30/60rad/s的10组2PASS/8FAIL；W=60、30Hz时单body角修正差0.008454rad，60Hz差0.002960rad。零W通过；同输入的raw-W公式吻合目标，排除了fixture未隔离。证据`bf144_pa_angular_soft_damping_reads_source_predicted_quaternion_delta`、`target/bf144/25/soft_initial/`。
   - 补充控制：同一夹具按native限位设置相同0.3382rad超限量，加入neck_01的非SIMD scalar分支及D=0消融；两条路径24组8PASS/16FAIL，其中零W与4个移除阻尼控制全部PASS。记录`25/soft_final/`及最终Gate。
   - 漏检：之前soft fixture的初始角速度为0，此时两公式相同；仅核对D系数无法检查其消费语义。属于随W×dt增大的数值阻尼差异，不把它重复记为自由旋转积分缺陷；仅登记。
+
+- [ ] BF144-D86 / P2 — Ragdoll沿用默认六子步，改变源单步物理的位移与求解时钟。
+  - Source：fresh `PhysLevel.cpp:194–212`读取实际PhysicsSettings并传给`ChaosScene.cpp:331–359`；native bSubstepping=False、bTickPhysicsAsync=False，设置MaxSubSteps=1、dt=min(world dt,1/30)。`PhysScene_Chaos.cpp:543–549`把AsyncDt设为−1，`PhysicsSolverBase.cpp:581–619`不走固定/子步分支；`PBDRigidsSolver.cpp:563–591`只调用一次AdvanceOneTimeStep。动态body `PBDRigidsEvolutionGBF.cpp:915–977`先得到本步速度，再用V×dt更新位置。
+  - Target：`playable_character.rs:30`使用默认PhysicsPlugins，`source_physics_timing.rs:112–119`只clamp整帧delta；Avian `solver/schedule.rs:187–209`默认SubstepCount(6)并执行六次完整SubstepSchedule。Ragdoll body没有源单步积分适配，同一帧的重力被分成六个速度增量与六次位移。
+  - 反例：完整加载角色进入Ragdoll并度过初始限速，spine_01保留native mass/COM，隔离joint/contact、W=0、双方阻尼=0，初速X=1m/s，统一Bevy重力。60/30Hz与100ms帧×default六步/单步×有无重力12组9PASS/3FAIL；无重力恒速全部PASS，单步全部PASS。六步60Hz位移差1.134872mm，30Hz及100ms物理cap位移差4.541397mm，末速度仍相同；实际Time<Physics>和每次SubstepSchedule delta均已记录核对。证据`bf144_pa_linear_substeps_preserve_source_single_step_displacement`、`target/bf144/26/initial/`。
+  - 漏检：旧physics timing测试验证了整帧cap与末速度，sleep测试只要求不同子步数保持同一整帧计数，没有比较source单步位移；不能由“都采用约33.33ms上限”推导调度等价。关节在不同dt下求解的整体自然轨迹尚未实测，本项不据此扩大数字结论；仅登记。
+
+- [ ] BF144-D87 / P3 — Ragdoll线性阻尼公式及施加顺序与源不同。
+  - Source：fresh `PBDRigidsEvolutionGBF.cpp:915–931`先加Acceleration×dt和LinearImpulseVelocity，再乘max(0,1−LinearDamping×dt)。21个native PA body的LinearDamping=0.01；`PerParticleEtherDrag.cpp:9–10`的全局覆盖本次读取为−1，未改写该公式。
+  - Target：`ragdoll_physics_profile.rs:1361`把源系数直接交给Avian LinearDamping；Avian `integrator/mod.rs:248–249,362–368`先对旧速度乘1/(1+damping×dt)，随后加本步加速度增量，既改变系数公式也漏掉本步重力/外力的阻尼。
+  - 反例：完整角色spine_01保留native mass，双方统一单步以隔离D86；60/30Hz×原生/零阻尼×静止、5/60m/s恒速、静止/移动重力及50N外力共24组17PASS/7FAIL。零阻尼12组全部PASS；native阻尼时两种步长的重力/外力6组FAIL，30Hz重力末速度应−0.326891m/s、实际−0.327m/s，差0.000108987m/s；30Hz无加速度60m/s另显现纯公式差。原生六子步+阻尼的6组3PASS/3FAIL证明真实默认消费者也受影响。证据`bf144_pa_linear_damping_uses_source_formula_and_update_order`、`bf144_pa_linear_native_default_free_fall_consumes_both_differences`。
+  - 漏检：旧profile测试只核对阻尼字段，动力学夹具常显式把LinearDamping设为0，没有验证其执行阶段。本项是小量数值差异，未据此声称大幅视觉异常；仅登记。
 
 ### 未闭合边界（不计为无差异）
 

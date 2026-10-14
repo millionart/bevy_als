@@ -652,7 +652,7 @@ TSharedRef<FJsonObject> CapturePhysicsAsset(const UPhysicsAsset* Asset)
             ConsoleVariables->SetStringField(Name, Variable->GetString());
         }
     });
-    for (const TCHAR* Prefix : {TEXT("p.Chaos.JointConstraint."), TEXT("p.Chaos.Solver.Joint."), TEXT("p.Chaos.Joint."), TEXT("p.Chaos.CCD."), TEXT("p.Chaos.Solver.InertiaConditioning."), TEXT("p.Chaos.InertiaConditioning."), TEXT("p.Chaos.ExcludeFreeJointForInertiaConditioning"), TEXT("p.Chaos.Solver.Iterations."), TEXT("p.Chaos.Solver.ComputeIterationSettings."), TEXT("p.AngularEtherDragOverride"), TEXT("p.HackMaxAngularVelocity")})
+    for (const TCHAR* Prefix : {TEXT("p.Chaos.JointConstraint."), TEXT("p.Chaos.Solver.Joint."), TEXT("p.Chaos.Joint."), TEXT("p.Chaos.CCD."), TEXT("p.Chaos.Solver.InertiaConditioning."), TEXT("p.Chaos.InertiaConditioning."), TEXT("p.Chaos.ExcludeFreeJointForInertiaConditioning"), TEXT("p.Chaos.Solver.Iterations."), TEXT("p.Chaos.Solver.ComputeIterationSettings."), TEXT("p.AngularEtherDragOverride"), TEXT("p.HackMaxAngularVelocity"), TEXT("p.LinearEtherDragOverride"), TEXT("p.HackMaxVelocity2")})
     {
         IConsoleManager::Get().ForEachConsoleObjectThatStartsWith(Visitor, Prefix);
     }
