@@ -53,7 +53,7 @@
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；U01未闭合，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.19完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道、warp变换、动态基座和RMS物理消费的首轮审计，确认D43–D60、D62–D64，D61撤销；精确查询数值及公共Playground验收尚未闭合 |
-| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.31完成许可、启动/退出、输入/锁定、GetUp交接、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样及child预测bounds首轮审计，确认D65–D98；复杂manifold、动作初速、pelvis跟随/出口pose和完整GetUp动画待独立批次；不开展无源链路的通用物理审查 |
+| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.32完成许可、启动/退出、输入/锁定、GetUp交接、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样/child预测bounds及多点回弹迭代首轮审计，确认D65–D99；其他manifold生成/裁剪、contact/joint耦合、动作初速、pelvis跟随/出口pose和完整GetUp动画待独立批次；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | 待重新取证及核对；历史155子图合同只作起点，不能自证算法等价 |
 | 剩余源函数与跨阶段边界 | 以上 source-target 链路的覆盖缺口 | 前述审计后再独立收口；未解释项保留，截图与性能继续暂停 |
@@ -264,6 +264,11 @@
   - 11:17 source/focused闭环：完整角色中心接触16组12PASS/4FAIL确认D97，30Hz回弹目标少0.0981m/s；零重力、仅替换积分后normal_speed均恢复，原生六子步与单步一致。fresh PA reader PASS；下一步仅核对原生head形状在全程保持间距时的预测响应，尚未确认预测缺陷。
   - 11:35 source/focused闭环：沿actual child collider→frame-end AABB→下一帧broad-phase闭合D98。子shape同步排在预测包围盒之后，包围盒只覆盖刚结束的位移；当前帧末50mm重叠仍无接触，原速度保留。16组12PASS/4FAIL，单步和原生六子步相同；把同一shape pose同步提前到AABB前，四处失败均恢复。临时保留旧包围盒未改善，改用当前pose后恢复，已删除多余缓存注入；初版首帧搬动及错误“Last时child仍滞后”断言保留为诊断、不计语义证据。原生head的近/远间距和完全穿越非CCD控制继续核验。
   - 本项归纳：最终5项focused为3PASS/2预期语义FAIL，68组60PASS/8FAIL，51.22秒正常完成；原生head的150mm与5mm净距、有限source bounds之外的非CCD穿越控制36组全PASS，未另记预测误撞。116份基线source、10份补充UE源码、10份实际Avian依赖、fresh PA/PhysicsSettings与上一批payload一致、原始/Build及160份生产Rust/launcher库身份核验PASS。证据`31/final/`、`31/summary.json`。无reader/转换器/资产/运行时变更；消融将手工bounds缓存和平移收敛为fixture里的同一pose同步时点。累计71项P2、25项P3，D08/D61撤销、U01未闭合；截图0、性能暂停。实耗26分03秒；下一批按source多点接触的实际normal/restitution消费继续，动作初速与GetUp边界保持待审。
+
+- [x] BF144.32 Ragdoll多点接触速度响应：沿fresh native shape、Capsule/Box manifold与普通collision solver的多点循环，核对回弹迭代、normal冲量边界及实际body角速度；几何生成和求解输入分开取证，避免把D93/D97/D98重复编号。Gate：原生实际开关、同一组点/法向/惯量的独立参考与完整角色消费、单点/零回弹/匹配迭代控制、剩余几何边界。开始：2026-10-14 11:43 +08:00；预估结束：2026-10-14 12:23 +08:00；实际结束：2026-10-14 12:03:19 +08:00；偏差：−19分41秒；结果：审计记录Gate PASS，新增1项P3，未修复。估时依据：fresh索引定位CapsuleConvex one-shot与collision velocity/restitution约450行；复用BF144.31角色接触夹具（实耗26分03秒），新增实际两点输入与独立速度参考。
+  - 11:43 活动摘要：BF144.31已提交，累计71项P2、25项P3。fresh源码及原生CVar均显示AveragePointEnabled=False，已排除“源必先按平均点回弹”的候选；当前target restitution默认1次，source世界velocity为2次。先确认实际native多点几何及迭代消费者，再判断是否与既有D81同根，不因配置字段不同直接登记。
+  - 11:56 source/focused闭环：实际native head接触的两个端点受力，中点total_impulse=0、回弹会跳过；未把无效点数差记缺陷。相同点/法向/有效惯量和零阶段输入V/W下，16组isotropic控制14PASS/2FAIL、4组native惯量2PASS/2FAIL确认D99；仅匹配collision回弹迭代为2即可恢复。该资源独立于D81的joint RBAN字段，修正joint预算不会改变它。前置点数/单位法向断言已依据实际消费修正，共用实际normal后对照通过，未放宽比较误差或声称执行native Chaos仿真。
+  - 本项归纳：最终4项focused为2PASS/2预期语义FAIL，36组32PASS/4FAIL，23.62秒正常完成。Source两点两轮递推的独立闭式结果4组PASS；单点正/负normal冲量、下限不足/足够的12组PASS，给定P/dt时目标下限与源一致。116份基线source、6份补充UE源码、4份Avian与1份Parry源码、fresh PA（与上一批全payload一致）、原始/Build及160份生产Rust/launcher库身份核验PASS。证据`32/final/`、`32/summary.json`。无reader/转换器/资产/生产变更；去掉第二点、去掉回弹、只匹配迭代与恢复native惯量分别完成控制。累计71项P2、26项P3，D08/D61撤销、U01未闭合，截图0、性能暂停。实耗20分19秒；其他姿态的点生成/裁剪/排序和contact/joint耦合仍未闭合，继续独立取证。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -840,6 +845,12 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：Avian `collider_tree/update.rs:67–71,753–778`在Finalize之后、Last之前，用child Position/Rotation构造velocity-swept AABB；`src/als/character/character.rs:230–245`却到Last才同步这些child pose。Avian原生child同步也只在下一帧First执行。因此恒速运动时bounds覆盖上一段位移，narrow-phase发生在本帧位置积分前又无法补救。
   - 反例：完整角色head保留native质量/惯量，受控中心sphere半径0.1m对静止box，无gravity/friction/restitution/其他关节。连续运动到x=−0.4后，下一帧自由终点−0.15，源应在box左面停到−0.2且V=0；target未生成接触，仍为−0.15及7.5m/s（30Hz）或15m/s（60Hz）。16组12PASS/4FAIL，原生六子步及单步均失败。采到的AABB.max.x仍为−0.295，而提前同一pose同步后为−0.045，接触生成且位置/速度恢复；未到达障碍的控制通过。证据`bf144_pa_contact_phase31_detection_samples_the_integrated_shape_position`、`target/bf144/31/`。
   - 漏检：旧接触测试从已经重叠的几何开始、只检查帧末child pose，或使用body与shape同entity；没有串联child更新→预测bounds→下一帧检测。消融去掉历史AABB缓存和手工平移，仅保留fixture中的提前pose同步仍得到相同恢复，生产实现未改。该缺陷与D93已生成接触后的柔性恢复独立。
+
+- [ ] BF144-D99 / P3 — 多点碰撞回弹仍使用默认单次迭代，遗漏源世界velocity预算。
+  - Source：fresh `PBDCollisionContainerSolver.cpp:900–904`每次世界velocity迭代都处理collision manifold；`PBDCollisionSolver.h:1158–1245`在native AveragePointEnabled=False时逐点处理，两次迭代来自当前世界PhysicsSettings。`CollisionResolution.cpp:652–665→CollisionOneShotManifolds.cpp:1133–1200`的水平capsule/box分支生成两个端点。
+  - Target：Avian `dynamics/solver/plugin.rs:288–299,629–670,710–718`使用独立SolverConfig.restitution_iterations，默认1且项目未接入世界collision预算；此字段与D81中SourcePhysicsJoint的RBAN数据没有调用关系。
+  - 反例：完整角色native head capsule、mass/inertia/conditioning与两个实际受力端点；在回弹阶段提供共同零V/W、已激活normal冲量、restitution=0.3和同一normal/有效惯量。目标vY=0.6575385m/s，源两次参考0.6316152；目标角速度(x,z)=(-0.733396,-1.047396)，源=(-0.402972,-0.575503)。60/30Hz均失败，仅把回弹迭代改2恢复；另有相同isotropic惯量矩阵控制及单点/零回弹对照，共20组16PASS/4FAIL。证据`bf144_pa_contact_phase32_multi_point_velocity_uses_source_budget`、`bf144_pa_contact_phase32_native_inertia_uses_source_multi_point_budget`、`target/bf144/32/`。
+  - 漏检：旧回弹验收只含单点，重复迭代天然不改变结果；旧joint预算测试未覆盖独立collision solver。这里比较同一组阶段输入的有限次求解，不将target生成的微小法向分量或完整自然落地轨迹视为源已等价；生产实现未改。
 
 ### 未闭合边界（不计为无差异）
 
