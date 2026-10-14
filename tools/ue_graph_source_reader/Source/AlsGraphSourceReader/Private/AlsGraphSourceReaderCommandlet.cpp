@@ -43,6 +43,7 @@
 #include "Chaos/Box.h"
 #include "Chaos/Capsule.h"
 #include "Chaos/Convex.h"
+#include "Chaos/TriangleMeshImplicitObject.h"
 #include "Chaos/ImplicitObjectScaled.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/GeometryQueries.h"
@@ -670,7 +671,7 @@ TSharedRef<FJsonObject> CapturePhysicsAsset(const UPhysicsAsset* Asset)
             ConsoleVariables->SetStringField(Name, Variable->GetString());
         }
     });
-    for (const TCHAR* Prefix : {TEXT("p.Chaos.JointConstraint."), TEXT("p.Chaos.Solver.Joint."), TEXT("p.Chaos.Joint."), TEXT("p.Chaos.CCD."), TEXT("p.Chaos.Solver.InertiaConditioning."), TEXT("p.Chaos.InertiaConditioning."), TEXT("p.Chaos.ExcludeFreeJointForInertiaConditioning"), TEXT("p.Chaos.Solver.Iterations."), TEXT("p.Chaos.Solver.ComputeIterationSettings."), TEXT("p.AngularEtherDragOverride"), TEXT("p.HackMaxAngularVelocity"), TEXT("p.LinearEtherDragOverride"), TEXT("p.HackMaxVelocity2"), TEXT("p.Chaos.Solver.Sleep."), TEXT("p.Chaos.SmoothedPositionLerpRate"), TEXT("p.Chaos.Solver.Collision."), TEXT("p.CollisionRestitution"), TEXT("p.Chaos.PBDCollisionSolver."), TEXT("p.Chaos.Solver.bChaosForceMACD"), TEXT("p.Chaos.Collision.Stiffness"), TEXT("p.CollisionFriction"), TEXT("p.CollisionAngularFriction"), TEXT("p.CollisionBaseFrictionImpulse"), TEXT("p.Chaos.Solver.Use1DFriction"), TEXT("p.Chaos.Collision.Manifold.Friction"), TEXT("p.Chaos.Collision.Manifold.EnableFrictionRestore"), TEXT("p.Chaos.Collision.SimpleAssignContact")})
+    for (const TCHAR* Prefix : {TEXT("p.Chaos.JointConstraint."), TEXT("p.Chaos.Solver.Joint."), TEXT("p.Chaos.Joint."), TEXT("p.Chaos.CCD."), TEXT("p.Chaos.Solver.InertiaConditioning."), TEXT("p.Chaos.InertiaConditioning."), TEXT("p.Chaos.ExcludeFreeJointForInertiaConditioning"), TEXT("p.Chaos.Solver.Iterations."), TEXT("p.Chaos.Solver.ComputeIterationSettings."), TEXT("p.AngularEtherDragOverride"), TEXT("p.HackMaxAngularVelocity"), TEXT("p.LinearEtherDragOverride"), TEXT("p.HackMaxVelocity2"), TEXT("p.Chaos.Solver.Sleep."), TEXT("p.Chaos.SmoothedPositionLerpRate"), TEXT("p.Chaos.Solver.Collision."), TEXT("p.CollisionRestitution"), TEXT("p.Chaos.PBDCollisionSolver."), TEXT("p.Chaos.Solver.bChaosForceMACD"), TEXT("p.Chaos.Collision.Stiffness"), TEXT("p.CollisionFriction"), TEXT("p.CollisionAngularFriction"), TEXT("p.CollisionBaseFrictionImpulse"), TEXT("p.Chaos.Solver.Use1DFriction"), TEXT("p.Chaos.Collision.Manifold.Friction"), TEXT("p.Chaos.Collision.Manifold.EnableFrictionRestore"), TEXT("p.Chaos.Collision.SimpleAssignContact"), TEXT("p.Chaos.Collision.UseCapsuleTriMesh2"), TEXT("p.Chaos.Collision.ConvexTriMesh"), TEXT("p.Chaos.Collision.EnableMeshManifoldOptimizedLoop"), TEXT("p.Chaos.Collision.MeshContact"), TEXT("p.Chaos.MeshContactGenerator.")})
     {
         IConsoleManager::Get().ForEachConsoleObjectThatStartsWith(Visitor, Prefix);
     }
@@ -1125,6 +1126,31 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
                 OtherGeometryValue->SetArrayField(TEXT("convex_core_vertices_cm"), Vertices);
                 OtherGeometryValue->SetArrayField(TEXT("convex_core_planes"), Planes);
             }
+            else
+            {
+                Chaos::FVec3 CoreScale;
+                Chaos::FReal WrapperMargin;
+                const Chaos::FTriangleMeshImplicitObject* Core = Chaos::UnwrapImplicit<Chaos::FTriangleMeshImplicitObject>(*Other, CoreScale, WrapperMargin);
+                if (Core == nullptr) { return nullptr; }
+                OtherGeometryValue->SetObjectField(TEXT("trimesh_core_scale"), CaptureVector(FVector(CoreScale)));
+                TArray<TSharedPtr<FJsonValue>> Vertices;
+                for (uint32 Index = 0; Index < Core->Particles().Size(); ++Index)
+                {
+                    Vertices.Add(MakeShared<FJsonValueObject>(CaptureVector(FVector(Core->Particles().GetX(Index)))));
+                }
+                TArray<TSharedPtr<FJsonValue>> Triangles;
+                for (int32 Index = 0; Index < Core->Elements().GetNumTriangles(); ++Index)
+                {
+                    Chaos::FTriangle Triangle;
+                    int32 Vertex0, Vertex1, Vertex2;
+                    Core->GetTransformedTriangle(Index, Chaos::FRigidTransform3::Identity, Triangle, Vertex0, Vertex1, Vertex2);
+                    TArray<TSharedPtr<FJsonValue>> Indices;
+                    for (int32 Vertex : {Vertex0, Vertex1, Vertex2}) { Indices.Add(MakeShared<FJsonValueNumber>(Vertex)); }
+                    Triangles.Add(MakeShared<FJsonValueArray>(Indices));
+                }
+                OtherGeometryValue->SetArrayField(TEXT("trimesh_core_vertices_cm"), Vertices);
+                OtherGeometryValue->SetArrayField(TEXT("trimesh_core_triangles"), Triangles);
+            }
         }
         FChaosSolversModule* Module = FChaosSolversModule::GetModule();
         Chaos::FPBDRigidsSolver* Solver = Module->CreateSolver(nullptr, -1.0, Chaos::EThreadingMode::SingleThread);
@@ -1156,6 +1182,7 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
                 TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
                 Value->SetNumberField(TEXT("phi_cm"), Contact.Phi);
                 Value->SetNumberField(TEXT("contact_type"), static_cast<int32>(Contact.ContactType));
+                Value->SetNumberField(TEXT("face_index"), Contact.FaceIndex);
                 Value->SetObjectField(TEXT("shape_point_0_cm"), CaptureVector(FVector(Contact.ShapeContactPoints[0])));
                 Value->SetObjectField(TEXT("shape_point_1_cm"), CaptureVector(FVector(Contact.ShapeContactPoints[1])));
                 Value->SetObjectField(TEXT("world_point_0_cm"), CaptureVector(ShapeTransform.TransformPositionNoScale(FVector(Contact.ShapeContactPoints[0]))));
