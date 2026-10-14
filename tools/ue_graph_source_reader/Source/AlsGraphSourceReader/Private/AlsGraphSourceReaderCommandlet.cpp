@@ -38,6 +38,14 @@
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "Chaos/MassConditioning.h"
+#include "Chaos/Box.h"
+#include "Chaos/Capsule.h"
+#include "Chaos/Sphere.h"
+#include "Chaos/ChaosEngineInterface.h"
+#include "PBDRigidsSolver.h"
+#include "ChaosSolversModule.h"
+#include "Chaos/CollisionResolution.h"
+#include "Chaos/Collision/CollisionConstraintAllocator.h"
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
 #include "PhysicsEngine/SkeletalBodySetup.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
@@ -49,6 +57,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Parse.h"
+#include "Misc/ScopeExit.h"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
 #include "UObject/UObjectGlobals.h"
@@ -806,6 +815,162 @@ TSharedPtr<FJsonObject> CapturePhysicsBodyProbe(UObject* Asset, const FString& R
     }
     TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
     Result->SetBoolField(TEXT("rescale_from_unit"), RescaleFromUnit);
+    Result->SetArrayField(TEXT("samples"), Samples);
+    return Result;
+}
+
+TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString& RequestPath)
+{
+    UPhysicsAsset* PhysicsAsset = Cast<UPhysicsAsset>(Asset);
+    FString Text;
+    TSharedPtr<FJsonObject> Request;
+    const TArray<TSharedPtr<FJsonValue>>* Inputs = nullptr;
+    if (PhysicsAsset == nullptr || !FFileHelper::LoadFileToString(Text, *RequestPath)
+        || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Request) || !Request.IsValid()
+        || !Request->TryGetArrayField(TEXT("samples"), Inputs) || Inputs->IsEmpty() || Inputs->Num() > 128)
+    {
+        UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Physics contact probe requires a physics asset and 1 to 128 samples."));
+        return nullptr;
+    }
+    const auto ReadVector = [](const TSharedPtr<FJsonObject>& Object, const TCHAR* Key, FVector& Value)
+    {
+        const TArray<TSharedPtr<FJsonValue>>* Axes = nullptr;
+        if (!Object->TryGetArrayField(Key, Axes) || Axes->Num() != 3) { return false; }
+        for (int32 Axis = 0; Axis < 3; ++Axis)
+        {
+            double Number = 0;
+            if (!(*Axes)[Axis]->TryGetNumber(Number) || !FMath::IsFinite(Number)) { return false; }
+            Value[Axis] = Number;
+        }
+        return true;
+    };
+    const auto ReadRotation = [](const TSharedPtr<FJsonObject>& Object, const TCHAR* Key, FQuat& Value)
+    {
+        const TArray<TSharedPtr<FJsonValue>>* Axes = nullptr;
+        if (!Object->TryGetArrayField(Key, Axes) || Axes->Num() != 4) { return false; }
+        double Values[4];
+        for (int32 Axis = 0; Axis < 4; ++Axis)
+        {
+            if (!(*Axes)[Axis]->TryGetNumber(Values[Axis]) || !FMath::IsFinite(Values[Axis])) { return false; }
+        }
+        Value = FQuat(Values[0], Values[1], Values[2], Values[3]);
+        return Value.IsNormalized();
+    };
+    TArray<TSharedPtr<FJsonValue>> Samples;
+    for (const TSharedPtr<FJsonValue>& InputValue : *Inputs)
+    {
+        const TSharedPtr<FJsonObject>* InputPtr = nullptr;
+        if (!InputValue->TryGetObject(InputPtr)) { return nullptr; }
+        const TSharedPtr<FJsonObject>& Input = *InputPtr;
+        FString BoneName;
+        int32 ShapeIndex = 0;
+        double CullDistance = 0;
+        double DeltaSeconds = 0;
+        FVector BodyTranslation, BoxTranslation, BoxHalfExtents;
+        FQuat BodyRotation, BoxRotation;
+        if (!Input->TryGetStringField(TEXT("bone_name"), BoneName)
+            || !Input->TryGetNumberField(TEXT("shape_index"), ShapeIndex) || ShapeIndex < 0
+            || !Input->TryGetNumberField(TEXT("cull_distance_cm"), CullDistance) || !FMath::IsFinite(CullDistance) || CullDistance < 0
+            || !Input->TryGetNumberField(TEXT("delta_seconds"), DeltaSeconds) || !FMath::IsFinite(DeltaSeconds) || DeltaSeconds <= 0
+            || !ReadVector(Input, TEXT("body_translation_cm"), BodyTranslation)
+            || !ReadVector(Input, TEXT("box_translation_cm"), BoxTranslation)
+            || !ReadVector(Input, TEXT("box_half_extents_cm"), BoxHalfExtents) || BoxHalfExtents.GetMin() <= 0
+            || !ReadRotation(Input, TEXT("body_rotation_xyzw"), BodyRotation)
+            || !ReadRotation(Input, TEXT("box_rotation_xyzw"), BoxRotation))
+        {
+            UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Physics contact probe has an invalid sample."));
+            return nullptr;
+        }
+        USkeletalBodySetup* Setup = nullptr;
+        for (USkeletalBodySetup* Candidate : PhysicsAsset->SkeletalBodySetups)
+        {
+            if (Candidate->BoneName.ToString() == BoneName) { Setup = Candidate; break; }
+        }
+        if (Setup == nullptr) { return nullptr; }
+        FBodyInstance Body;
+        Body.CopyBodyInstancePropertiesFrom(&Setup->DefaultInstance);
+        Body.bSimulatePhysics = false;
+        Body.InitBody(Setup, FTransform::Identity, nullptr, nullptr, FInitBodySpawnParams(false, true));
+        if (!Body.IsValidBodyInstance()) { return nullptr; }
+        TArray<FPhysicsShapeHandle> Shapes;
+        FPhysicsInterface::GetAllShapes_AssumedLocked(Body.GetPhysicsActorHandle(), Shapes);
+        if (!Shapes.IsValidIndex(ShapeIndex)) { Body.TermBody(); return nullptr; }
+        const FPhysicsShapeHandle& Shape = Shapes[ShapeIndex];
+        const FPhysicsGeometryCollection Geometry = FPhysicsInterface::GetGeometryCollection(Shape);
+        const FTransform ShapeLocal = FPhysicsInterface::GetLocalTransform(Shape);
+        Chaos::FImplicitObjectPtr Implicit;
+        TSharedRef<FJsonObject> GeometryValue = MakeShared<FJsonObject>();
+        if (Geometry.GetType() == ECollisionShapeType::Capsule)
+        {
+            const Chaos::FCapsule& Capsule = Geometry.GetCapsuleGeometry();
+            Implicit = const_cast<Chaos::FCapsule*>(&Capsule);
+            GeometryValue->SetStringField(TEXT("kind"), TEXT("capsule"));
+            GeometryValue->SetObjectField(TEXT("endpoint_0_cm"), CaptureVector(FVector(Capsule.GetX1f())));
+            GeometryValue->SetObjectField(TEXT("endpoint_1_cm"), CaptureVector(FVector(Capsule.GetX2f())));
+            GeometryValue->SetNumberField(TEXT("radius_cm"), Capsule.GetRadiusf());
+        }
+        else if (Geometry.GetType() == ECollisionShapeType::Sphere)
+        {
+            const Chaos::FSphere& Sphere = Geometry.GetSphereGeometry();
+            Implicit = const_cast<Chaos::FSphere*>(&Sphere);
+            GeometryValue->SetStringField(TEXT("kind"), TEXT("sphere"));
+            GeometryValue->SetObjectField(TEXT("center_cm"), CaptureVector(FVector(Sphere.GetCenterf())));
+            GeometryValue->SetNumberField(TEXT("radius_cm"), Sphere.GetRadiusf());
+        }
+        else if (Geometry.GetType() == ECollisionShapeType::Box)
+        {
+            const Chaos::FImplicitBox3& Box = Geometry.GetBoxGeometry();
+            Implicit = const_cast<Chaos::FImplicitBox3*>(&Box);
+            GeometryValue->SetStringField(TEXT("kind"), TEXT("box"));
+            GeometryValue->SetObjectField(TEXT("minimum_cm"), CaptureVector(FVector(Box.Min())));
+            GeometryValue->SetObjectField(TEXT("maximum_cm"), CaptureVector(FVector(Box.Max())));
+        }
+        else { Body.TermBody(); return nullptr; }
+        GeometryValue->SetObjectField(TEXT("shape_to_body"), CaptureTransform(ShapeLocal));
+        Body.TermBody();
+        FPhysicsShapeAdapter BoxAdapter(FQuat::Identity, FCollisionShape::MakeBox(BoxHalfExtents));
+        const Chaos::FImplicitObjectPtr Other = const_cast<Chaos::FImplicitObject*>(&BoxAdapter.GetGeometry());
+        FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+        Chaos::FPBDRigidsSolver* Solver = Module->CreateSolver(nullptr, -1.0, Chaos::EThreadingMode::SingleThread);
+        ON_SCOPE_EXIT { Module->DestroySolver(Solver); };
+        Chaos::FPBDRigidsSOAs& Particles = Solver->GetParticles();
+        Chaos::FPBDRigidParticleHandle* Particle0 = Particles.CreateDynamicParticles(1)[0];
+        Chaos::FGeometryParticleHandle* Particle1 = Particles.CreateStaticParticles(1)[0];
+        Particle0->SetGeometry(Implicit);
+        Particle1->SetGeometry(Other);
+        bool Swap = false;
+        const Chaos::EContactShapesType PairType = Chaos::Collisions::CalculateShapePairType(Particle0, Implicit, Particle1, Other, Swap);
+        if (Swap || PairType == Chaos::EContactShapesType::Unknown) { return nullptr; }
+        Chaos::Private::FCollisionContextAllocator Allocator(nullptr, 1, 0);
+        auto Constraint = Allocator.CreateConstraint(Particle0, Implicit, Particle0->ShapeInstances()[0].Get(), nullptr,
+            Chaos::FRigidTransform3::Identity, Particle1, Other, Particle1->ShapeInstances()[0].Get(), nullptr,
+            Chaos::FRigidTransform3::Identity, CullDistance, true, PairType);
+        if (!Constraint.IsValid()) { return nullptr; }
+        const FTransform ShapeWorld = ShapeLocal * FTransform(BodyRotation, BodyTranslation);
+        const FTransform BoxWorld(BoxRotation, BoxTranslation);
+        Constraint->SetShapeWorldTransforms(ShapeWorld, BoxWorld);
+        Chaos::Collisions::UpdateConstraint(*Constraint, ShapeWorld, BoxWorld, DeltaSeconds);
+        TArray<TSharedPtr<FJsonValue>> Points;
+        for (const Chaos::FManifoldPoint& Point : Constraint->GetManifoldPoints())
+        {
+            const auto& Contact = Point.ContactPoint;
+            TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+            Value->SetNumberField(TEXT("phi_cm"), Contact.Phi);
+            Value->SetObjectField(TEXT("shape_point_0_cm"), CaptureVector(FVector(Contact.ShapeContactPoints[0])));
+            Value->SetObjectField(TEXT("shape_point_1_cm"), CaptureVector(FVector(Contact.ShapeContactPoints[1])));
+            Value->SetObjectField(TEXT("world_point_0_cm"), CaptureVector(ShapeWorld.TransformPositionNoScale(FVector(Contact.ShapeContactPoints[0]))));
+            Value->SetObjectField(TEXT("world_point_1_cm"), CaptureVector(BoxWorld.TransformPositionNoScale(FVector(Contact.ShapeContactPoints[1]))));
+            Value->SetObjectField(TEXT("world_normal"), CaptureVector(BoxWorld.TransformVectorNoScale(FVector(Contact.ShapeContactNormal))));
+            Points.Add(MakeShared<FJsonValueObject>(Value));
+        }
+        TSharedRef<FJsonObject> Sample = MakeShared<FJsonObject>();
+        Sample->SetObjectField(TEXT("input"), Input.ToSharedRef());
+        Sample->SetObjectField(TEXT("geometry"), GeometryValue);
+        Sample->SetArrayField(TEXT("points"), Points);
+        Samples.Add(MakeShared<FJsonValueObject>(Sample));
+        UE_LOG(LogAlsGraphSourceReader, Display, TEXT("Physics contact probe captured sample %d/%d with %d points."), Samples.Num(), Inputs->Num(), Points.Num());
+    }
+    TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
     Result->SetArrayField(TEXT("samples"), Samples);
     return Result;
 }
@@ -1749,6 +1914,13 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
         const TSharedPtr<FJsonObject> Probe = CapturePhysicsBodyProbe(Asset, PhysicsBodyProbePath);
         if (!Probe.IsValid()) { return 7; }
         Root->SetObjectField(TEXT("physics_body_probe"), Probe.ToSharedRef());
+    }
+    FString PhysicsContactProbePath;
+    if (FParse::Value(*Params, TEXT("PhysicsContactProbe="), PhysicsContactProbePath))
+    {
+        const TSharedPtr<FJsonObject> Probe = CapturePhysicsContactProbe(Asset, PhysicsContactProbePath);
+        if (!Probe.IsValid()) { return 7; }
+        Root->SetObjectField(TEXT("physics_contact_probe"), Probe.ToSharedRef());
     }
 
     FString Json;

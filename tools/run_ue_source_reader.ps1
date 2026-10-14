@@ -4,6 +4,7 @@ param(
     [string]$BlendSpaceProbe,
     [string]$SequencePoseProbe,
     [string]$PhysicsBodyProbe,
+    [string]$PhysicsContactProbe,
     [switch]$CachedPoseLifecycleProbe,
     [switch]$CachedPoseSchedule,
     [switch]$AlphaBlendProbe,
@@ -279,6 +280,10 @@ if ($SequencePoseProbe) {
 if ($PhysicsBodyProbe) {
     $probePath = (Resolve-Path -LiteralPath $PhysicsBodyProbe -ErrorAction Stop).Path
     $arguments += "-PhysicsBodyProbe=$probePath"
+}
+if ($PhysicsContactProbe) {
+    $probePath = (Resolve-Path -LiteralPath $PhysicsContactProbe -ErrorAction Stop).Path
+    $arguments += "-PhysicsContactProbe=$probePath"
 }
 if ($CachedPoseSchedule) {
     $arguments += "-CachedPoseSchedule"
