@@ -17,6 +17,7 @@
 #include "Animation/AnimNotifyQueue.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/AnimMontage.h"
 #include "Animation/BlendSpace.h"
 #include "Animation/Skeleton.h"
 #include "Engine/Blueprint.h"
@@ -1335,6 +1336,72 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
     return Probe;
 }
 
+TSharedPtr<FJsonObject> CaptureMontageClockProbe(UObject* Asset, const FString& RequestPath)
+{
+    UAnimMontage* Montage = Cast<UAnimMontage>(Asset);
+    FString Text;
+    TSharedPtr<FJsonObject> Request;
+    const TArray<TSharedPtr<FJsonValue>>* Samples = nullptr;
+    if (Montage == nullptr || !FFileHelper::LoadFileToString(Text, *RequestPath) ||
+        !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Request) ||
+        !Request->TryGetArrayField(TEXT("samples"), Samples) || Samples->IsEmpty())
+    {
+        UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Montage clock probe asset or request is invalid."));
+        return nullptr;
+    }
+    TArray<TSharedPtr<FJsonValue>> Results;
+    for (const TSharedPtr<FJsonValue>& Value : *Samples)
+    {
+        const TSharedPtr<FJsonObject>* Sample = nullptr;
+        const TArray<TSharedPtr<FJsonValue>>* Steps = nullptr;
+        FString Name;
+        if (!Value->TryGetObject(Sample) || !(*Sample)->TryGetStringField(TEXT("name"), Name) ||
+            !(*Sample)->TryGetArrayField(TEXT("steps"), Steps) || Steps->IsEmpty())
+        {
+            UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Montage clock probe sample is invalid."));
+            return nullptr;
+        }
+        FAnimMontageInstance Instance;
+        Instance.Initialize(Montage);
+        Instance.Play();
+        TArray<TSharedPtr<FJsonValue>> Frames;
+        for (const TSharedPtr<FJsonValue>& StepValue : *Steps)
+        {
+            const TSharedPtr<FJsonObject>* Step = nullptr;
+            double Delta;
+            if (!StepValue->TryGetObject(Step) || !(*Step)->TryGetNumberField(TEXT("delta_seconds"), Delta) ||
+                !FMath::IsFinite(Delta) || Delta < 0.0)
+            {
+                UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Montage clock probe delta is invalid."));
+                return nullptr;
+            }
+            double StopDuration;
+            if ((*Step)->TryGetNumberField(TEXT("stop_seconds"), StopDuration))
+            {
+                if (!FMath::IsFinite(StopDuration) || StopDuration < 0.0) { return nullptr; }
+                if (Instance.IsValid()) { Instance.Stop(FAlphaBlend(Montage->BlendOut, StopDuration)); }
+            }
+            Instance.UpdateWeight(Delta);
+            Instance.Advance(Delta, nullptr, false);
+            TSharedRef<FJsonObject> Frame = MakeShared<FJsonObject>();
+            Frame->SetNumberField(TEXT("delta_seconds"), static_cast<float>(Delta));
+            Frame->SetNumberField(TEXT("position"), Instance.GetPosition());
+            Frame->SetNumberField(TEXT("weight"), Instance.GetWeight());
+            Frame->SetBoolField(TEXT("valid"), Instance.IsValid());
+            Frame->SetBoolField(TEXT("playing"), Instance.IsPlaying());
+            Frame->SetBoolField(TEXT("stopped"), Instance.IsStopped());
+            Frames.Add(MakeShared<FJsonValueObject>(Frame));
+        }
+        TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+        Result->SetStringField(TEXT("name"), Name);
+        Result->SetArrayField(TEXT("frames"), Frames);
+        Results.Add(MakeShared<FJsonValueObject>(Result));
+    }
+    TSharedRef<FJsonObject> Probe = MakeShared<FJsonObject>();
+    Probe->SetArrayField(TEXT("samples"), Results);
+    return Probe;
+}
+
 TSharedPtr<FJsonObject> CaptureNotifyClockProbe(UObject* Asset)
 {
     UAnimSequenceBase* Sequence = Cast<UAnimSequenceBase>(Asset);
@@ -1994,6 +2061,13 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
         const TSharedPtr<FJsonObject> Probe = CaptureSequencePoseProbe(Asset, SequencePoseProbePath);
         if (!Probe.IsValid()) { return 7; }
         Root->SetObjectField(TEXT("sequence_pose_probe"), Probe.ToSharedRef());
+    }
+    FString MontageClockProbePath;
+    if (FParse::Value(*Params, TEXT("MontageClockProbe="), MontageClockProbePath))
+    {
+        const TSharedPtr<FJsonObject> Probe = CaptureMontageClockProbe(Asset, MontageClockProbePath);
+        if (!Probe.IsValid()) { return 7; }
+        Root->SetObjectField(TEXT("montage_clock_probe"), Probe.ToSharedRef());
     }
     if (FParse::Param(*Params, TEXT("CachedPoseSchedule")))
     {

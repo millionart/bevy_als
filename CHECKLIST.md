@@ -53,7 +53,7 @@
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；U01未闭合，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.19完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道、warp变换、动态基座和RMS物理消费的首轮审计，确认D43–D60、D62–D64，D61撤销；精确查询数值及公共Playground验收尚未闭合 |
-| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.40完成许可、启动/退出、输入/锁定、GetUp交接、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样/child预测bounds、多点回弹迭代、原生点序/支持点消费、质量加权接触位置、contact/joint耦合、primitive缓存、初速生成/交接/限速预算、pelvis跟随/探地/恢复朝向、进入挂接/退出快照、mesh恢复及零scale重建首轮审计，确认D65–D117；完整GetUp动画及实际convex/trimesh接触生成仍待审；不开展无源链路的通用物理审查 |
+| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.41完成许可、启动/退出、输入/锁定、GetUp交接/时钟/通知/清理、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样/child预测bounds、多点回弹迭代、原生点序/支持点消费、质量加权接触位置、contact/joint耦合、primitive缓存、初速生成/交接/限速预算、pelvis跟随/探地/恢复朝向、进入挂接/退出快照、mesh恢复及零scale重建首轮审计，确认D65–D121；GetUp姿态/根运动及实际convex/trimesh接触生成仍待审；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | 待重新取证及核对；历史155子图合同只作起点，不能自证算法等价 |
 | 剩余源函数与跨阶段边界 | 以上 source-target 链路的覆盖缺口 | 前述审计后再独立收口；未解释项保留，截图与性能继续暂停 |
@@ -319,6 +319,12 @@
   - 16:59 source/focused闭环：SetSimulatePhysics保留component级bSimulatePhysics=True，SetAllBodiesSimulatePhysics(False)不改它；fresh BodyInstance初始化因此恢复20个Dynamic+1个Kinematic，目标相符。Source重建销毁旧body/constraint并从actor速度和零角速度初始化；24组恢复矩阵18PASS/6FAIL，含先强制Kinematic并清零以隔离D74的三组独立反例：零期间写入的V/W被目标保留。该写入经source公开BodyInstance setter对Kinematic合法；不把D74产生的旧动量重复计数。继续阈值及native质量/关节控制后登记收口。
   - 17:06 坐标/阈值闭环：near-zero合同在0/5e−5/1e−4三组失败、2e−4/1对照通过；登记D116，独立于D74。fresh 63组body mass及20个constraint记录验证恢复质量/锚点一致；pose检查按source GetBoneTransform重建，18组10PASS/8FAIL，平移mesh到(3,0.0015,−2)后缩到0.75产生约0.901m额外位移，mesh origin归零即消失，登记D117。该source nonzero→nonzero分支也重设body到当前bone transform，故本项仅沿实际缩放调用扩到这个直接控制，不复审已完成求解器。累计80项P2、35项P3，移除暂停下不必要的12帧预热后做最终记录核验。
   - 本项归纳：116份基线source、7份补充UE、fresh 63组body初始化、原始/Build及160份生产Rust/launcher库身份核验PASS；PA完整payload保持，20个constraint与BF144.22逐值一致。最终3项focused为预期语义FAIL，47组30PASS/17FAIL；378组mass及360组关节锚点控制全部通过，body rotation与有限pose检查通过。证据`40/final/`、`40/summary.json`。删除12帧预热后失败边界不变；零写入、非零中间scale和世界原点的控制分别去掉对应信号。无新生产层/转换规则/工具接口，累计80项P2、35项P3，截图0、性能暂停。实耗16分35秒；复用原生body接口及已有坐标合同，使零点恢复闭包早于估时完成，下一批进入完整GetUp montage。
+
+- [x] BF144.41 GetUp montage时钟、通知与结束清理：依赖BF144.40记录Gate；沿fresh Front/Back montage及sequence、Montage_Play/Advance/Stop、ALS locomotion-action与输入解锁notify，核对配置选择、首帧/持续播放时钟、blend-out权重、通知边界、正常结束与中断清理。D66–D69的恢复许可/请求顺序/stance交接不重复计数；最终pose组合、snapshot交叉混合与root motion另项。Gate：fresh原生四个动画资产和当前设置、source时钟/事件合同、完整角色两朝向与倍率/帧步长/中断对照、source身份。开始：2026-10-14 17:12 +08:00；预估结束：2026-10-14 17:57 +08:00；实际结束：2026-10-14 17:50:28 +08:00；偏差：−6分32秒；结果：审计记录Gate PASS，新增2项P2、2项P3。估时依据：target get_up的约350行及事件消费者、UE Montage直接时钟/停止闭包约600行；BF144.14 Roll生命周期实耗约27分钟、BF144.37跨阶段实耗33分11秒，本项复用既有clock/notify取证入口并加入两套montage原生读取，pose另拆以控制本项范围。
+  - 17:12 活动摘要：fresh ALS Stop先成功Montage_Play再阻塞输入并设置GettingUp，Front/Back由当前facing选择；target有独立elapsed/clip_time/weight和stop状态，需要逐项对照真实montage通知时点。接下来读取实际montage/sequence，而不从生成JSON反推源配置。累计115项确认差异，截图0、性能暂停。
+  - 17:24 source/focused闭环：四个动画和正确CS路径已原生读取，确认两侧montage为1.5秒/1.2倍速、零blend-in、0.3秒Cubic自动混出，动作notify终点1.166567秒。24组时钟矩阵的解锁时点一致；50ms步长出现混出提前一帧候选，另有近零权重的结束边界需核对原生FAlphaBlend。源FMontageSubStepper逐步累加clip position，target用elapsed×rate重算；只读公式不足以确认浮点临界点，下一步给既有读取器增加通用montage时钟探针，直接执行本地引擎UpdateWeight/Advance后再判定。未登记新差异，pose/root-motion仍留下一项。
+  - 17:46 source/focused闭环：原生时钟确认D118的50ms混出提前及半速近零权重结束尾差；49.9/50.1ms和动态倍率对照通过。62.5ms独立复现D119：Roll已启动但GetUp读旧状态/旧槽权重；夹具补顺序仅修正停止时点，不能把Graph后才写入的Roll pose提前，保留这个阶段边界。晚期Ragdoll中断还暴露source section末端偏移与target完整长度夹取的D120。通知原生精确终点1.1665666103与清单1.166567之间的夹具失败，仅在内存把manifest恢复原生精度即通过，登记D121；常规40组解锁均通过。动作替换保护和播放器/assembly失效清理通过。接下来合并本批最终证据、复核工具消融和源码身份，无生产修改。
+  - 本项归纳：116份基线source、7份UE直接闭包、6个原生资产与raw/Build身份、160份生产Rust及launcher库身份核验PASS。新增通用MontageClockProbe直接调用本机UpdateWeight/Advance；两montage各32组及4组补充轨迹、停止消融/恢复、watchdog与专用self-test通过，未执行原生owner通知回调，通知结论由fresh源码条件和实际target消费者证明。最终6项focused为1PASS/5预期语义FAIL，72组54PASS/18FAIL归并D118–D121；证据`41/final/`、`41/summary.json`。移除公式模拟器后改用原生结果，补顺序与精确manifest只存在于对照夹具；停止请求移除使self-test失败，恢复同一reader二进制后重新读取通过。无生产/转换规则改动，累计82项P2、37项P3；截图0、性能暂停，无公共runtime Gate。实耗38分28秒，原生微边界取证占用额外时间但在估时内；姿态与根运动按原拆分继续。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -998,6 +1004,26 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Source：fresh `UpdateRigidBodyScaling:3569–3573`在普通非零缩放后把body重新置于GetBoneTransform；从零恢复则经`InstantiatePhysicsAsset:919–928,1071–1084`从同一当前骨骼世界变换创建。`SkinnedMeshComponent.cpp:2401–2411,2467–2475`以component-space骨骼乘当前mesh世界变换，保留mesh origin。
   - Target：`apply_profile_to_spawned_ragdoll:1347–1351`直接令已有body的Transform.translation乘scale_factor，该量已经包含世界位移；随后的实际Position因此围绕世界原点缩放。
   - 反例：完整角色的detached mesh origin=(3,0.0015,−2)，从1缩到0.75时，pelvis相对source额外移动(−0.75,−0.000375,+0.5)m，误差约0.901388m；放大到1.5时误差约1.802776m。unit/0.75/1.5×经过零/直接更新×默认/平移/零origin共18组10PASS/8FAIL；unit和零origin均通过，所有质量/关节锚点及rotation控制通过。证据`bf144_ragdoll_phase40_recovery_mass_frames_and_pose_controls`、`40/final/`。旧缩放Gate只核对Collider尺寸、质量和关节局部frame，未核对实际body Position与mesh origin。
+
+- [ ] BF144-D118 / P2 — GetUp重算播放位置及混合alpha，改变原生混出临界帧。
+  - Source：fresh `AnimInstance.cpp:562–578`先UpdateWeight再Advance；`AnimMontage.cpp:2234–2256,2328–2333,2626–2637`逐步累加clip位置，并按当前section剩余时间开始混出；`AlphaBlend.cpp:192–228`累加AlphaLerp和剩余时间。两套原生montage均为1.5秒、RateScale=1.2、0.3秒Cubic，通知会把Advance切到精确分支点。
+  - Target：`get_up.rs:107–126`用elapsed×rate反算clip位置、用剩余时间比例反算alpha，临界浮点结果与原生积累状态不同。50ms帧的target在clip约1.1400002就开始混出，原生该帧尚未跨入窗口；不能把数学上等价的表达式视为生命周期等价。
+  - 反例：实际两朝向×5帧步长×4倍率共40组36PASS/4FAIL。50ms、单位倍率在elapsed约1秒时target权重0.92592585、source为1；1.1秒时约0.5对0.7046613，target第24帧清理、source第25帧。16.7ms×半速另在source清理帧残留1.19e−7权重，晚一帧清理。49.9/50.1ms、其他倍率及动态倍率通过；暂停只保留已有边界，不引入独立时钟差异。原生FAnimMontageInstance逐帧实证见`41/clock_front_all.native.json`、`clock_back_all.native.json`；target见`bf144_get_up_phase41_clock_weight_notify_and_end`。旧Gate验证最终结束/近似权重，没有相同delta序列的原生生命周期判据。
+
+- [ ] BF144-D119 / P2 — GetUp停止与共槽混合读取上一帧Roll状态和权重。
+  - Source：fresh `AlsCharacter_Actions.cpp:90–100`成功Montage_Play后立即置Rolling；`AnimInstance.cpp:2767–2772`同步停止同组旧montage，随后同一次UpdateMontage更新所有权重再求槽姿态。Roll原生BlendIn为0.1秒，已有GetUp混出保留原Cubic曲线并缩短时长。
+  - Target：`get_up.rs:255–258,301–322,352–354`在PrePhysics前检查roll.active并读取roll.pose/weight，却没有排在`advance_rolls`之后；`roll_drive.rs:1912–1916,2094–2111`到PrePhysics后的bridge才写当前roll槽数据。旧GetUp与新Roll因而使用不同帧的数据。
+  - 反例：62.5ms帧、已解锁的起身在第16帧接受Roll，当帧GetUp权重0.8709766而原生0.31640625，第17帧旧GetUp仍残留0.27558246而source已结束；实际Roll权重1但组合槽仅0.9591762。两朝向均失败；夹具只补GetUp晚于roll准备的顺序后，停止时点和旧权重全部恢复原生值，但第16帧组合槽仍只含GetUp的0.31640625，证明晚于Graph的bridge仍是独立阶段边界，未把该控制称作完整修复。证据`bf144_get_up_phase41_roll_order_controls`；50ms中断矩阵也复现。旧测试只覆盖Ragdoll替换和最终标记清理，没有同时核对新旧montage当帧权重。
+
+- [ ] BF144-D120 / P3 — GetUp混出跨过section末端时采样完整长度，遗漏原生末端偏移。
+  - Source：fresh `AnimMontage.cpp:2721,2744–2748`在无下一section时停止播放，并将位置保留为section结束−UE_KINDA_SMALL_NUMBER/2；本机原生结果为1.4999500513秒，混出未完成期间持续保留。
+  - Target：`get_up.rs:115–116`持续以elapsed×rate并min(sequence_length)，因此尾段采样1.5秒。
+  - 反例：50ms帧在第24帧用Ragdoll缩短/重启GetUp混出后，两朝向第25–27帧都采样1.5而source为1.49995；动作Ragdoll和输入标记保持正确。早期中断及未越过末端的控制通过，证据`bf144_get_up_phase41_interrupted_cleanup`。差值约50微秒，只登记低优先级姿态/曲线采样尾差，不扩大为可见表现结论。
+
+- [ ] BF144-D121 / P3 — GetUp动作通知终点在生成记录中舍入，极窄边界内延迟输入解锁。
+  - Source：fresh原生GetEndTriggerTime为1.1665666103363037，`AnimMontage.cpp:2988–3012`在End branching marker执行NotifyEnd，ALS仅在当前仍GettingUp时置空并解锁。
+  - Target：`docs/bf103-notify-source-audit.json:266–267`保存1.166667的end/duration，`generate_als_notify_manifest.py:104,125`将该值及offset传入manifest，实际f32终点为1.1665669679641724；`animation_events.rs:679–693`直接使用此终点。
+  - 反例：前15帧62.5ms，再前进约34.638941ms，源/目标clip都到1.1665667，原生通知已结束，目标仍GettingUp且输入阻塞。两朝向都复现；边界前/后控制通过，在夹具内仅把manifest终点恢复原生精度也通过。证据`41/notify_exact.native.json`、`notify_edges.native.json`与`bf144_get_up_phase41_notify_end_precision_controls`。常规帧步长无此差异；未改原始记录、manifest或转换规则，未据此复开其他已完成通知资产。
 
 ### 未闭合边界（不计为无差异）
 

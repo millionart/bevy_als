@@ -3,6 +3,7 @@ param(
     [string]$Output,
     [string]$BlendSpaceProbe,
     [string]$SequencePoseProbe,
+    [string]$MontageClockProbe,
     [string]$PhysicsBodyProbe,
     [string]$PhysicsContactProbe,
     [string]$GeometryQueryProbe,
@@ -277,6 +278,10 @@ if ($BlendSpaceProbe) {
 if ($SequencePoseProbe) {
     $probePath = (Resolve-Path -LiteralPath $SequencePoseProbe -ErrorAction Stop).Path
     $arguments += "-SequencePoseProbe=$probePath"
+}
+if ($MontageClockProbe) {
+    $probePath = (Resolve-Path -LiteralPath $MontageClockProbe -ErrorAction Stop).Path
+    $arguments += "-MontageClockProbe=$probePath"
 }
 if ($PhysicsBodyProbe) {
     $probePath = (Resolve-Path -LiteralPath $PhysicsBodyProbe -ErrorAction Stop).Path
