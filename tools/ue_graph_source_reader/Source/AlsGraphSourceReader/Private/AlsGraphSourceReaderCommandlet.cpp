@@ -664,6 +664,7 @@ TSharedRef<FJsonObject> CapturePhysicsAsset(const UPhysicsAsset* Asset)
 {
     TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
     Value->SetNumberField(TEXT("project_default_dof_mode"), static_cast<int32>(UPhysicsSettings::Get()->DefaultDegreesOfFreedom.GetValue()));
+    Value->SetNumberField(TEXT("project_initial_overlap_depenetration_velocity_cm_s"), UPhysicsSettings::Get()->SolverOptions.CollisionInitialOverlapDepenetrationVelocity);
     TSharedRef<FJsonObject> ConsoleVariables = MakeShared<FJsonObject>();
     const FConsoleObjectVisitor Visitor = FConsoleObjectVisitor::CreateLambda([&ConsoleVariables](const TCHAR* Name, IConsoleObject* Object)
     {
@@ -672,7 +673,7 @@ TSharedRef<FJsonObject> CapturePhysicsAsset(const UPhysicsAsset* Asset)
             ConsoleVariables->SetStringField(Name, Variable->GetString());
         }
     });
-    for (const TCHAR* Prefix : {TEXT("p.Chaos.JointConstraint."), TEXT("p.Chaos.Solver.Joint."), TEXT("p.Chaos.Joint."), TEXT("p.Chaos.CCD."), TEXT("p.Chaos.Solver.InertiaConditioning."), TEXT("p.Chaos.InertiaConditioning."), TEXT("p.Chaos.ExcludeFreeJointForInertiaConditioning"), TEXT("p.Chaos.Solver.Iterations."), TEXT("p.Chaos.Solver.ComputeIterationSettings."), TEXT("p.AngularEtherDragOverride"), TEXT("p.HackMaxAngularVelocity"), TEXT("p.LinearEtherDragOverride"), TEXT("p.HackMaxVelocity2"), TEXT("p.Chaos.Solver.Sleep."), TEXT("p.Chaos.SmoothedPositionLerpRate"), TEXT("p.Chaos.Solver.Collision."), TEXT("p.CollisionRestitution"), TEXT("p.Chaos.PBDCollisionSolver."), TEXT("p.Chaos.Solver.bChaosForceMACD"), TEXT("p.Chaos.Collision.Stiffness"), TEXT("p.CollisionFriction"), TEXT("p.CollisionAngularFriction"), TEXT("p.CollisionBaseFrictionImpulse"), TEXT("p.Chaos.Solver.Use1DFriction"), TEXT("p.Chaos.Collision.Manifold.Friction"), TEXT("p.Chaos.Collision.Manifold.EnableFrictionRestore"), TEXT("p.Chaos.Collision.SimpleAssignContact"), TEXT("p.Chaos.Collision.UseCapsuleTriMesh2"), TEXT("p.Chaos.Collision.ConvexTriMesh"), TEXT("p.Chaos.Collision.EnableMeshManifoldOptimizedLoop"), TEXT("p.Chaos.Collision.MeshContact"), TEXT("p.Chaos.MeshContactGenerator."), TEXT("p.Chaos.Collision.UseGJK2"), TEXT("p.Chaos.Collision.GJKEpsilon"), TEXT("p.Chaos.Collision.EPAEpsilon")})
+    for (const TCHAR* Prefix : {TEXT("p.Chaos.JointConstraint."), TEXT("p.Chaos.Solver.Joint."), TEXT("p.Chaos.Joint."), TEXT("p.Chaos.CCD."), TEXT("p.Chaos.Solver.InertiaConditioning."), TEXT("p.Chaos.InertiaConditioning."), TEXT("p.Chaos.ExcludeFreeJointForInertiaConditioning"), TEXT("p.Chaos.Solver.Iterations."), TEXT("p.Chaos.Solver.ComputeIterationSettings."), TEXT("p.AngularEtherDragOverride"), TEXT("p.HackMaxAngularVelocity"), TEXT("p.LinearEtherDragOverride"), TEXT("p.HackMaxVelocity2"), TEXT("p.Chaos.Solver.Sleep."), TEXT("p.Chaos.SmoothedPositionLerpRate"), TEXT("p.Chaos.Solver.Collision."), TEXT("p.CollisionRestitution"), TEXT("p.Chaos.PBDCollisionSolver."), TEXT("p.Chaos.Solver.bChaosForceMACD"), TEXT("p.Chaos.Collision.Stiffness"), TEXT("p.CollisionFriction"), TEXT("p.CollisionAngularFriction"), TEXT("p.CollisionBaseFrictionImpulse"), TEXT("p.Chaos.Solver.Use1DFriction"), TEXT("p.Chaos.Collision.Manifold.Friction"), TEXT("p.Chaos.Collision.Manifold.EnableFrictionRestore"), TEXT("p.Chaos.Collision.Manifold.EnableGjkWarmStart"), TEXT("p.Chaos.Collision.SimpleAssignContact"), TEXT("p.Chaos.Collision.UseCapsuleTriMesh2"), TEXT("p.Chaos.Collision.ConvexTriMesh"), TEXT("p.Chaos.Collision.EnableMeshManifoldOptimizedLoop"), TEXT("p.Chaos.Collision.MeshContact"), TEXT("p.Chaos.MeshContactGenerator."), TEXT("p.Chaos.Collision.UseGJK2"), TEXT("p.Chaos.Collision.GJKEpsilon"), TEXT("p.Chaos.Collision.EPAEpsilon")})
     {
         IConsoleManager::Get().ForEachConsoleObjectThatStartsWith(Visitor, Prefix);
     }
@@ -1216,18 +1217,22 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
         Sample->SetArrayField(TEXT("points"), Points);
         Sample->SetNumberField(TEXT("collision_margin_0_cm"), Constraint->GetCollisionMargin0());
         Sample->SetNumberField(TEXT("collision_margin_1_cm"), Constraint->GetCollisionMargin1());
-        TArray<TSharedPtr<FJsonValue>> SimplexVertices;
-        const Chaos::FGJKSimplexData& Simplex = Constraint->GetGJKWarmStartData();
-        for (int32 Index = 0; Index < Simplex.NumVerts; ++Index)
+        const auto CaptureSimplex = [](Chaos::FPBDCollisionConstraint& ContactConstraint, const FTransform& ShapeTransform, const FTransform& BoxTransform)
         {
-            TSharedRef<FJsonObject> Vertex = MakeShared<FJsonObject>();
-            Vertex->SetNumberField(TEXT("weight"), Simplex.Barycentric[Index]);
-            Vertex->SetObjectField(TEXT("shape_point_0_cm"), CaptureVector(FVector(Simplex.As[Index])));
-            Vertex->SetObjectField(TEXT("shape_point_1_cm"), CaptureVector(FVector(Simplex.Bs[Index])));
-            Vertex->SetObjectField(TEXT("world_delta_cm"), CaptureVector(ShapeWorld.TransformPositionNoScale(FVector(Simplex.As[Index])) - BoxWorld.TransformPositionNoScale(FVector(Simplex.Bs[Index]))));
-            SimplexVertices.Add(MakeShared<FJsonValueObject>(Vertex));
-        }
-        Sample->SetArrayField(TEXT("gjk_simplex"), SimplexVertices);
+            TArray<TSharedPtr<FJsonValue>> Vertices;
+            const Chaos::FGJKSimplexData& Simplex = ContactConstraint.GetGJKWarmStartData();
+            for (int32 Index = 0; Index < Simplex.NumVerts; ++Index)
+            {
+                TSharedRef<FJsonObject> Vertex = MakeShared<FJsonObject>();
+                Vertex->SetNumberField(TEXT("weight"), Simplex.Barycentric[Index]);
+                Vertex->SetObjectField(TEXT("shape_point_0_cm"), CaptureVector(FVector(Simplex.As[Index])));
+                Vertex->SetObjectField(TEXT("shape_point_1_cm"), CaptureVector(FVector(Simplex.Bs[Index])));
+                Vertex->SetObjectField(TEXT("world_delta_cm"), CaptureVector(ShapeTransform.TransformPositionNoScale(FVector(Simplex.As[Index])) - BoxTransform.TransformPositionNoScale(FVector(Simplex.Bs[Index]))));
+                Vertices.Add(MakeShared<FJsonValueObject>(Vertex));
+            }
+            return Vertices;
+        };
+        Sample->SetArrayField(TEXT("gjk_simplex"), CaptureSimplex(*Constraint, ShapeWorld, BoxWorld));
         if (Input->HasField(TEXT("triangle_indices")))
         {
             const TArray<TSharedPtr<FJsonValue>>* Indices = nullptr;
@@ -1299,6 +1304,7 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
             Sample->SetBoolField(TEXT("restore_allowed"), RestoreAllowed);
             Sample->SetBoolField(TEXT("restored"), Restored);
             Sample->SetArrayField(TEXT("next_points"), CapturePoints(*Constraint, NextShapeWorld, NextBoxWorld));
+            Sample->SetArrayField(TEXT("next_gjk_simplex"), CaptureSimplex(*Constraint, NextShapeWorld, NextBoxWorld));
             if (HasHistory)
             {
                 Constraint->Activate();

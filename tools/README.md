@@ -22,6 +22,8 @@
 
 接触 sample 在已有 `next` 时可选 `history`：`friction_ratios` 与首帧 manifold 点一一对应，`anchor_offset_0_cm` / `anchor_offset_1_cm` 是两侧形状空间的旧锚点偏移。读取器调用原生 `SetSolverResults` 和下一帧 `Activate`，输出 `saved_points` 与 `next_history`；这是受控保存/匹配探针，不运行 Chaos 动力仿真。使用 `tools/tests/fixtures/physics_contact_history.request.json` 和 `python tools/tests/test_physics_contact_history.py <output.json>` 核对8点保存边界、比例插值、匹配标志与世界锚点差。
 
+`gjk_simplex` / `next_gjk_simplex` 分别保留两帧的GJK支持点和重心权重。冷重建使用另一个sample在相同当前姿态运行已有 `aggregate_mesh`，以独立的新约束作对照；`fresh_points` 仍是同一约束的重复重建，不代表冷查询。粒子的旋转按源 `PBDRigidParticles::SetQ` 保存为float32，旋转请求应采用同一精度。`physics_contact_gjk_history.request.json` 与 `test_physics_contact_gjk_history.py` 覆盖分离核心、EPA及无缓存路径；`project_initial_overlap_depenetration_velocity_cm_s` 来自项目的世界solver配置，不是PA中的RBAN配置。
+
 2026-09-26 删除了 UE MCP client 及其完整调用链（输入审计、旧相机导出、拓扑/截图和五个 shell 探测脚本），当前取证统一使用原生 reader。相机曲线的目标转换使用 `import/import_curve_float.py`、`import/import_debug_curves.py` 和 `import/camera_curve_conversion.py`。
 
 同批删除六个早期 Interchange API 试验脚本、没有消费者的 `probe_scene2.py`，以及反复改写旧 Playground parity 文件的 `patch_parity_ron.py`、`test_lighting_only.py`。实际导出器、原始资产、生成图、归档证据和本地配置保留。
