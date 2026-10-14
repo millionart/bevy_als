@@ -372,6 +372,7 @@
   - 21:59 source/native闭环：42处PA平滑边属性均False；fresh MidPhase按有效shape pair建立约束，EndDetect后跨mesh/edge/subsurface裁剪仅对启用该标志的dynamic执行。读取工具沿资产完整root geometry及原shape碰撞过滤进入BasicBroadPhase→原生MidPhase→EndDetect，32组通过；26姿态的最终集合与.48全部对应pair逐点相同，24组含多个hull，4个单hull与2个分离控制通过。未用pair求和代替本次原生证据。下一步核对生产compound实际集合和多约束首次位置消费；新增读取入口的回归、自测及消融尚待完成，未登记新差异。
   - 22:08 target/consumer闭环：Parry完整compound与单叶compound控制32组全部通过，参与接触的hull集合与native一致；直接拆成裸凸包曾有10组胶囊点数不等，fresh dispatcher显示compound额外往返相对变换，保留同一包装后全部恢复，未据此登记聚合缺陷。真实角色多约束首次位置消费60组42PASS/18FAIL，30组native几何控制全PASS；其中桶类4组和Arch01顶部head归既有D126/D129，其余13组涉及新增的相邻hull侧面/内部接触，不能直接套用此前只对齐顶部的几何结论，保留U02分类。7组读取fixture含平移/旋转、scale、单/多hull及分离；原生96组旧payload逐字相同。下一步完成本项自测/消融和身份Gate，剩余侧面几何独立拆分，trimesh及历史mesh仍待后续。
   - 22:10 完成摘要：最终2项focused为1PASS/1预期FAIL，32组集合PASS、60组消费42PASS/18FAIL；移除无用回弹设置后60行结果逐字相同。读取self-test PASS，仅保留选中hull、重复约束、移除world变换的三种数据消融均被拒绝，原始结果复验通过；旋转控制暴露的约2微厘米浮点差已与直接/native世界点分别核对，不作为几何缺陷。首版原生指针类型和Rust lifetime编译错误保留后修正，未改变生产。116份source、15份额外UE/7份依赖、14份资产、160份Rust、reader源码/package/DLL与实际启动器库身份Gate PASS；证据`49/summary.json`、`49/final/`、`49/record_gate.watchdog.json`。实耗28分14秒，未超时；累计127项确认差异不变。只新增通用原生聚合读取与固定自测，没有转换器修改；公共runtime未启动，截图0、性能暂停。
+  - 有限复核完成：开始2026-10-14 22:31 +08:00；预估结束22:47；实际记录Gate结束22:45:52；偏差−1分08秒，PASS。聚合集合及原生pair证据不变；按BF144.50的native动态表面force point和切平面点序匹配重做60组，仍为42PASS/18FAIL、30组原生控制全PASS。旧中点消费数值由`50/aggregate_final/`替代，六个胶囊侧面原因由D130闭合，剩余箱体按U02继续分类；生产和读取工具未改。
 
 ### 已确认差异（仅登记，未实施修复）
 
