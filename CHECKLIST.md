@@ -53,7 +53,7 @@
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；U01未闭合，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.19完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道、warp变换、动态基座和RMS物理消费的首轮审计，确认D43–D60、D62–D64，D61撤销；精确查询数值及公共Playground验收尚未闭合 |
-| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.37完成许可、启动/退出、输入/锁定、GetUp交接、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样/child预测bounds、多点回弹迭代、原生点序/支持点消费、质量加权接触位置、contact/joint耦合、primitive缓存及初速生成/交接/限速预算首轮审计，确认D65–D108；pelvis跟随/入口及出口pose、零scale恢复、完整GetUp动画及实际convex/trimesh接触生成仍待审；不开展无源链路的通用物理审查 |
+| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.38完成许可、启动/退出、输入/锁定、GetUp交接、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样/child预测bounds、多点回弹迭代、原生点序/支持点消费、质量加权接触位置、contact/joint耦合、primitive缓存、初速生成/交接/限速预算及pelvis跟随/探地/恢复朝向首轮审计，确认D65–D112；入口及出口pose、零scale恢复、完整GetUp动画及实际convex/trimesh接触生成仍待审；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | 待重新取证及核对；历史155子图合同只作起点，不能自证算法等价 |
 | 剩余源函数与跨阶段边界 | 以上 source-target 链路的覆盖缺口 | 前述审计后再独立收口；未解释项保留，截图与性能继续暂停 |
@@ -300,6 +300,12 @@
   - 15:00 source/focused阶段：21个body的初始限速、entry speed下限及角速度保留控制通过；刷新前后驱动力160组144PASS/16FAIL全部归并已登记D75，不新增编号或复开实现。fresh UE的kinematic更新使用clamped physics delta与quat差分，target使用全帧delta与轴角；两帧动画→动态夹具尚有handoff前置失败，当前不将它登记为新差异。另已定位Controller→movement→actor的输入帧时序，将核对8帧预算是否包含启动当帧。
   - 15:10 source/focused闭环：前置失败已追到启动帧仍消费旧Kinematic图输出，8组6PASS/2FAIL及提前Dynamic控制确认D105；在夹具中先排除此项后，两帧速度生成24组15PASS/9FAIL分别确认D106的quat差分和D107的physics delta，单独替换两项可区分根因。Controller输入启动44个逐帧样本42PASS/2FAIL，确认D108仅多限速第9帧。source的立即限速与启动当帧Refresh必须分开计数；没有因为总调用数同为9而判等。下一步仅核对身份/记录Gate，不修改生产实现。
   - 本项归纳：116份基线source、17份补充UE、2份实际animation graph依赖、fresh PA/PhysicsSettings、原始/Build及160份生产Rust/launcher库身份核验PASS。kinematic transform回读开关不屏蔽V/W回读（SingleParticlePhysicsProxy.cpp:502–525），上述源速度确实到达game-thread与动态切换。最终4项focused为预期语义FAIL，236组207PASS/29FAIL，其中16组属于既有D75；38.62秒完成，证据`37/final/`、`37/summary.json`。模式提前、零旋转、物理分母及高入口限速的控制分别去掉对应信号，无新生产抽象/转换规则/资产修改。累计74项P2、32项P3；截图0、性能暂停。实耗33分11秒，初版handoff前置失败促成完整producer链路检查；下一项沿pelvis跟随与pose交接继续。
+
+- [x] BF144.38 Ragdoll pelvis跟随、地面探测与恢复朝向：依赖BF144.37记录Gate；沿fresh RefreshRagdolling/RagdollTraceGround/StopRagdolling核对pelvis采样阶段、actor定位、sphere sweep尺寸/响应/零点回退，以及pelvis Rotator对朝上/朝下与恢复yaw的选择。入口/出口pose snapshot、mesh恢复、零scale恢复及完整GetUp动画另项；不复开已登记的许可/模式锁/形状响应差异。Gate：实际native tick/shape设置与坐标换算、完整角色的地面/空中/斜面/缩放/角度边界消费者、最小对照和source身份。开始：2026-10-14 15:18 +08:00；预估结束：2026-10-14 16:03 +08:00；实际结束：2026-10-14 16:10:03 +08:00；偏差：+7分03秒；结果：审计记录Gate PASS，新增2项P2、2项P3，未修复。估时依据：fresh ALS跟随/探测/退出朝向约150行，target follow/trace/rotation约230行；BF144.20场景/路线实耗52分26秒、BF144.37跨阶段实耗33分11秒，本项复用完整角色和碰撞过滤证据，snapshot另拆以控制闭包。
+  - 15:18 活动摘要：sphere起终点与MIN_FLOOR_DIST初步逐项一致，尚未将数值或阶段猜测计为缺陷；先读取角色native TickGroup，再验证源actor tick与目标physics后pelvis采样。保留源码坐标基，避免把UE Roll判定直接替成任意Euler分解。
+  - 15:48 source/focused阶段：fresh角色CDO确认PrePhysics及暂停不Tick；8组匀速采样6PASS/2FAIL、4组暂停3PASS/1FAIL确认跟随时钟两处遗漏。ground trace的42组中6个30度斜面较解析值高约0.16mm；实际退出99组中3组在roll零点/近pole选择相反起身方向，均先保留候选。读取器新增公开FQuat::Rotator与Sphere SweepQuery原生取样，首轮模块构建及flat=70cm/identity smoke通过，正在用同输入裁定。几何fixture的原点样本曾被physics后的亚纳米漂移改成非零，已将query前输入固定，隔离已证实的采样阶段差异；不放宽容差。
+  - 16:04 native/focused闭环：99个原生Rotator逐项确认3个相反facing，36个原生sphere sweep确认6个30度斜面的提前TOI，登记D109–D112。原生Single Sweep的MTD旗标、初始重叠返回start以及半高/半径缩放已由实际caller核对；没有用解析平面代替源数值。新增10组工具自测及旧8组接触恢复自测PASS，旧contact payload逐值保持；零半径按7退出，去掉flat sweep测距的数据消融按预期FAIL。下一步只收口记录与提交，Capsule U01仍须自身源实证。
+  - 本项归纳：116份基线source、12份补充UE、3份查询依赖、fresh角色/135组native几何、原始/Build及160份生产Rust/launcher库身份核验PASS。角色与基线仅7个生成GraphGuid及pin identity变化，按一一映射核对完整拓扑与其他payload相同；CDO Tick值直接一致。最终同一probe二进制的4项focused为预期语义FAIL，153组141PASS/12FAIL，证据`38/{clock_final,geometry_final,recovery_final}/`、`38/summary.json`。读取器仅加GeometryQueryProbe公开API取样，旧接触恢复8组与原数据逐值相同；数据消融未改原始导出或源码mtime。无生产实现/转换规则/目标资产修改，累计76项P2、34项P3，截图0、性能暂停。实耗52分03秒；原生数值取样及生成ID身份核对使本轮比估时多7分03秒，下一批复用接口，继续pose snapshot/mesh恢复与GetUp。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -933,6 +939,26 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Source：fresh `PlayerController.cpp:2326,5494`在controller tick处理输入，`Controller.cpp:494–515`与`MovementComponent.cpp:184–188`保证controller→movement→actor顺序。Ragdoll输入立即Start，`AlsCharacter_Actions.cpp:820–823`先设8次刷新预算并立即限速；同帧`AlsCharacter.cpp:294`调用Refresh，cpp:955–959消耗第一次。故启动帧与其后7帧受限，第9个显示帧不再限速。
   - Target：`AlsRagdollInitialSpeedLimit::new:78–79`把预算设为8+1，实际PostUpdate每帧只调用一次；将立即调用和当帧Refresh合并后仍保留9次，导致第9个显示帧继续clamp。
   - 反例：完整角色经Ragdoll输入启动，首帧V=1m/s，随后每帧在实际限速consumer前给V=3；entry speed=0时第9帧目标仍为2、源应为3。60/30Hz×entry speed=0/5×11帧共44组42PASS/2FAIL，仅低入口速度的第9帧失败；前8帧、之后帧以及较高入口speed limit控制均通过。证据`bf144_ragdoll_phase37_input_frame_consumes_first_refresh_budget`、`37/final/`。旧Gate只检查总调用预算和限速数值，没有把本地输入与actor当帧Refresh组合。
+
+- [ ] BF144-D109 / P2 — Ragdoll actor跟随采样晚于源阶段，提前使用本帧physics结果。
+  - Source：fresh B_Als_Character的PrimaryActorTick/EndTickGroup均TG_PrePhysics；`AlsCharacter.cpp:294`在该Tick调用RefreshRagdolling，`AlsCharacter_Actions.cpp:880–901`读取上次完成的pelvis位置并立即SetActorLocation。相应mesh tick依赖actor，不能将actor跟随改成physics后采样。
+  - Target：`ragdoll_link.rs:219–224,1115–1151`在PhysicsSystems::Last之后读取当前pelvis，随后apply跟随写actor位置。目标因此少了一次源规定的采样延迟。
+  - 反例：完整Ragdoll在空中、零重力/阻尼并排除joint/contact，pelvis从(0,10,0)以1m/s水平运动。60/30Hz首帧目标actor.x为0.0166667/0.0333333m，源应仍为0；只把实际follow consumer的输入恢复为physics前位置即通过，静止控制亦通过。8组6PASS/2FAIL，证据`bf144_ragdoll_phase38_follow_samples_pelvis_before_physics`、`38/clock_final/`。这是actor运动时点差异，未扩展相机表现。
+
+- [ ] BF144-D110 / P3 — 世界暂停时Ragdoll仍随外部pelvis位置移动。
+  - Source：fresh角色bTickEvenWhenPaused=False，UE暂停Tick路径不调用其RefreshRagdolling；mesh已detach，外部移动pelvis不会自行移动capsule actor。
+  - Target：`ragdoll_ground_follow`与`apply_ragdoll_ground_follow`没有世界暂停门槛，Time.delta=0时仍刷新并写actor位置。把它移到physics前仍不能补齐这个执行条件。
+  - 反例：活动Ragdoll和actor均置于(0,10,0)，world pause后外部把pelvis横移0.1m；目标actor也移动0.1m，源应保持原位。暂停/正常×移动/不移动共4组3PASS/1FAIL；实际delta=0已断言。证据`bf144_ragdoll_phase38_follow_respects_world_pause`、`38/clock_final/`。D30覆盖移动基座，本项是独立Ragdoll跟随consumer；既有驱动力暂停检查未覆盖它。
+
+- [ ] BF144-D111 / P2 — 恢复朝向的低精度分解在边界选反起身方向与yaw。
+  - Source：`AlsCharacter_Actions.cpp:1080–1104`使用FQuat4d::Rotator的Roll，经UnwindDegrees后<=0选朝上，yaw相应减180度。fresh `UnrealMath.cpp:690–722`的double singularity门槛为0.4999995，pole分支强制Roll=0。
+  - Target：`ragdoll_recovery_rotation:922–938`以f32骨骼基向量重新计算roll和pole条件；`restore_ragdoll_player_parent:984–1046`据此写actor yaw及GetUp选择。近零roll的舍入与接近竖直时的分支可能不同于源，旧测试只有±0.7roll及精确pole。
+  - 反例：同一世界姿态换回源坐标后，native原生输出分别为Roll=+0.000416479°、pole Pitch=−90°/Roll=0、Roll=+1.2259694e−7°；完整退出流程的facing在三组均相反，actor yaw相差约π，实际AlsGetUpState也选择相反方向。99组96PASS/3FAIL，原生99个Rotator逐项验证参考。证据`bf144_ragdoll_phase38_recovery_rotation_uses_source_rotator`、`38/recovery_final/`、`38/queries.native.json`。保持源的零点判据，未添加容差或平滑。
+
+- [ ] BF144-D112 / P3 — 球体sweep的接触时间数值偏差使Ragdoll地面定位提前。
+  - Source：fresh `SceneQuery.cpp:378–380`的Single Sweep开启MTD，经`SQVisitor.h:336`调用公开SweepQuery；读取器使用相同shape adapter、transform与MTD输入直接取原生结果。`CollisionConversions.cpp:369–376`将time换回sphere center，ALS再加H−R+MIN_FLOOR_DIST。
+  - Target：RagdollSpatialQuery只增加过滤，数值由Avian/Parry提供；`shape_cast_support_map_support_map.rs:21–28`走directional_distance，`gjk.rs:674–722`可在距离容差或不再收紧界限时返回当前TOI。该核与当前源查询结果不等，未把具体某个提前退出分支冒称为已动态插桩确认。
+  - 反例：半径0.3m球从y=1m向下扫10×1×10m的30度box斜面；原生distance=0.653589859m，源站姿actor.y约0.9654101m，实际目标为0.9655699m，提前约0.16mm。Standing/Crouching×unit/0.75/非均匀scale×平面/30°/60°/空中/零点回退/初始重叠/空碰撞共42组36PASS/6FAIL，仅30度六组失败；36个有几何的原生查询逐项复核，去掉斜面条件即失去信号。证据`bf144_ragdoll_phase38_ground_trace_geometry_controls`、`38/geometry_final/`及`38/queries.native.json`。只确认本批sphere/box，U01的capsule数值边界不据此直接归因或关闭。
 
 ### 未闭合边界（不计为无差异）
 

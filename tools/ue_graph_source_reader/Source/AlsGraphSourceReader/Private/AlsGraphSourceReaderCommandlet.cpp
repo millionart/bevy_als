@@ -41,6 +41,7 @@
 #include "Chaos/Box.h"
 #include "Chaos/Capsule.h"
 #include "Chaos/Sphere.h"
+#include "Chaos/GeometryQueries.h"
 #include "Chaos/ChaosEngineInterface.h"
 #include "PBDRigidsSolver.h"
 #include "ChaosSolversModule.h"
@@ -815,6 +816,89 @@ TSharedPtr<FJsonObject> CapturePhysicsBodyProbe(UObject* Asset, const FString& R
     }
     TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
     Result->SetBoolField(TEXT("rescale_from_unit"), RescaleFromUnit);
+    Result->SetArrayField(TEXT("samples"), Samples);
+    return Result;
+}
+
+TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
+{
+    FString Text;
+    TSharedPtr<FJsonObject> Request;
+    if (!FFileHelper::LoadFileToString(Text, *RequestPath)
+        || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Request) || !Request.IsValid()) { return nullptr; }
+    const TArray<TSharedPtr<FJsonValue>>* Inputs = nullptr;
+    if (!Request->TryGetArrayField(TEXT("samples"), Inputs) || Inputs->IsEmpty()) { return nullptr; }
+    const auto ReadArray = [](const TSharedPtr<FJsonObject>& Object, const TCHAR* Key, TArray<double>& Values, int32 Count)
+    {
+        const TArray<TSharedPtr<FJsonValue>>* Array = nullptr;
+        if (!Object->TryGetArrayField(Key, Array) || Array->Num() != Count) { return false; }
+        Values.SetNumUninitialized(Count);
+        for (int32 Index = 0; Index < Count; ++Index)
+        {
+            if (!(*Array)[Index]->TryGetNumber(Values[Index]) || !FMath::IsFinite(Values[Index])) { return false; }
+        }
+        return true;
+    };
+    TArray<TSharedPtr<FJsonValue>> Samples;
+    for (const TSharedPtr<FJsonValue>& InputValue : *Inputs)
+    {
+        const TSharedPtr<FJsonObject>* Input = nullptr;
+        TArray<double> RotationValues;
+        if (!InputValue->TryGetObject(Input) || !ReadArray(*Input, TEXT("rotation_xyzw"), RotationValues, 4)) { return nullptr; }
+        const FQuat Rotation(RotationValues[0], RotationValues[1], RotationValues[2], RotationValues[3]);
+        if (!Rotation.IsNormalized())
+        {
+            UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Geometry query probe has an invalid rotation."));
+            return nullptr;
+        }
+        TSharedRef<FJsonObject> Sample = MakeShared<FJsonObject>();
+        Sample->SetObjectField(TEXT("input"), Input->ToSharedRef());
+        Sample->SetObjectField(TEXT("rotator_degrees"), CaptureRotator(Rotation.Rotator()));
+        if ((*Input)->HasField(TEXT("sphere_sweep")))
+        {
+            const TSharedPtr<FJsonObject>* Sweep = nullptr;
+            TArray<double> BoxTranslationValues, BoxHalfExtentsValues, StartValues, DirectionValues;
+            double Radius = 0;
+            double Length = 0;
+            if (!(*Input)->TryGetObjectField(TEXT("sphere_sweep"), Sweep)
+                || !ReadArray(*Sweep, TEXT("box_translation_cm"), BoxTranslationValues, 3)
+                || !ReadArray(*Sweep, TEXT("box_half_extents_cm"), BoxHalfExtentsValues, 3)
+                || !ReadArray(*Sweep, TEXT("start_cm"), StartValues, 3)
+                || !ReadArray(*Sweep, TEXT("direction"), DirectionValues, 3)
+                || !(*Sweep)->TryGetNumberField(TEXT("radius_cm"), Radius) || !FMath::IsFinite(Radius) || Radius <= 0
+                || !(*Sweep)->TryGetNumberField(TEXT("length_cm"), Length) || !FMath::IsFinite(Length) || Length <= 0)
+            {
+                UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Geometry query probe has an invalid sphere sweep."));
+                return nullptr;
+            }
+            const FVector BoxTranslation(BoxTranslationValues[0], BoxTranslationValues[1], BoxTranslationValues[2]);
+            const FVector BoxHalfExtents(BoxHalfExtentsValues[0], BoxHalfExtentsValues[1], BoxHalfExtentsValues[2]);
+            const FVector Start(StartValues[0], StartValues[1], StartValues[2]);
+            const FVector Direction(DirectionValues[0], DirectionValues[1], DirectionValues[2]);
+            if (BoxHalfExtents.GetMin() <= 0 || !Direction.IsNormalized()) { return nullptr; }
+            FPhysicsShapeAdapter BoxAdapter(FQuat::Identity, FCollisionShape::MakeBox(BoxHalfExtents));
+            FPhysicsShapeAdapter SphereAdapter(FQuat::Identity, FCollisionShape::MakeSphere(Radius));
+            Chaos::FReal Time = Length;
+            Chaos::FVec3 Position = Chaos::FVec3::ZeroVector;
+            Chaos::FVec3 Normal = Chaos::FVec3::ZeroVector;
+            Chaos::FVec3 FaceNormal = Chaos::FVec3::ZeroVector;
+            int32 FaceIndex = INDEX_NONE;
+            const bool Hit = Chaos::SweepQuery(BoxAdapter.GetGeometry(), FTransform(Rotation, BoxTranslation),
+                SphereAdapter.GetGeometry(), FTransform(Start), Direction, Length, Time, Position, Normal,
+                FaceIndex, FaceNormal, 0.0, true);
+            TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+            Result->SetBoolField(TEXT("hit"), Hit);
+            if (Hit)
+            {
+                Result->SetNumberField(TEXT("distance_cm"), Time);
+                Result->SetObjectField(TEXT("position_cm"), CaptureVector(FVector(Position)));
+                Result->SetObjectField(TEXT("normal"), CaptureVector(FVector(Normal)));
+            }
+            Sample->SetObjectField(TEXT("sphere_sweep"), Result);
+        }
+        Samples.Add(MakeShared<FJsonValueObject>(Sample));
+    }
+    TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
     Result->SetArrayField(TEXT("samples"), Samples);
     return Result;
 }
@@ -1961,6 +2045,13 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
         const TSharedPtr<FJsonObject> Probe = CapturePhysicsContactProbe(Asset, PhysicsContactProbePath);
         if (!Probe.IsValid()) { return 7; }
         Root->SetObjectField(TEXT("physics_contact_probe"), Probe.ToSharedRef());
+    }
+    FString GeometryQueryProbePath;
+    if (FParse::Value(*Params, TEXT("GeometryQueryProbe="), GeometryQueryProbePath))
+    {
+        const TSharedPtr<FJsonObject> Probe = CaptureGeometryQueryProbe(GeometryQueryProbePath);
+        if (!Probe.IsValid()) { return 7; }
+        Root->SetObjectField(TEXT("geometry_query_probe"), Probe.ToSharedRef());
     }
 
     FString Json;
