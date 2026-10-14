@@ -52,6 +52,8 @@
 #include "Chaos/CollisionResolution.h"
 #include "Chaos/Collision/CollisionConstraintAllocator.h"
 #include "Chaos/Collision/CollisionFilter.h"
+#include "Chaos/Collision/BasicCollisionDetector.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
 #include "PhysicsEngine/SkeletalBodySetup.h"
@@ -962,6 +964,9 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
         double CullDistance = 0;
         double DeltaSeconds = 0;
         const bool HasMesh = Input->HasField(TEXT("mesh_asset_path"));
+        bool AggregateMesh = false;
+        Input->TryGetBoolField(TEXT("aggregate_mesh"), AggregateMesh);
+        if (AggregateMesh && !HasMesh) { return nullptr; }
         const TCHAR* OtherTranslationKey = HasMesh ? TEXT("mesh_translation_cm") : TEXT("box_translation_cm");
         const TCHAR* OtherRotationKey = HasMesh ? TEXT("mesh_rotation_xyzw") : TEXT("box_rotation_xyzw");
         FVector BodyTranslation, OtherTranslation, BoxHalfExtents(1.0), MeshScale(1.0);
@@ -1008,6 +1013,7 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
         FPhysicsInterface::GetAllShapes_AssumedLocked(Body.GetPhysicsActorHandle(), Shapes);
         if (!Shapes.IsValidIndex(ShapeIndex)) { Body.TermBody(); return nullptr; }
         const FPhysicsShapeHandle& Shape = Shapes[ShapeIndex];
+        const Chaos::FCollisionData BodyCollisionData = Shape.Shape->GetCollisionData();
         const FPhysicsGeometryCollection Geometry = FPhysicsInterface::GetGeometryCollection(Shape);
         const FTransform ShapeLocal = FPhysicsInterface::GetLocalTransform(Shape);
         Chaos::FImplicitObjectPtr Implicit;
@@ -1042,6 +1048,8 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
         Body.TermBody();
         FPhysicsShapeAdapter BoxAdapter(FQuat::Identity, FCollisionShape::MakeBox(BoxHalfExtents));
         Chaos::FImplicitObjectPtr Other = const_cast<Chaos::FImplicitObject*>(&BoxAdapter.GetGeometry());
+        Chaos::FImplicitObjectPtr MeshRoot;
+        TArray<Chaos::FCollisionData> MeshCollisionData;
         FTransform OtherLocal = FTransform::Identity;
         TSharedPtr<FJsonObject> OtherGeometryValue;
         if (HasMesh)
@@ -1061,6 +1069,11 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
             ON_SCOPE_EXIT { MeshBody.TermBody(); };
             TArray<FPhysicsShapeHandle> MeshShapes;
             FPhysicsInterface::GetAllShapes_AssumedLocked(MeshBody.GetPhysicsActorHandle(), MeshShapes);
+            if (AggregateMesh)
+            {
+                MeshRoot = const_cast<Chaos::FImplicitObject*>(MeshBody.GetPhysicsActorHandle()->GetGameThreadAPI().GetGeometry());
+                for (const FPhysicsShapeHandle& Entry : MeshShapes) { MeshCollisionData.Add(Entry.Shape->GetCollisionData()); }
+            }
             if (!MeshShapes.IsValidIndex(MeshShapeIndex)) { return nullptr; }
             const FPhysicsShapeHandle& MeshShape = MeshShapes[MeshShapeIndex];
             const FPhysicsGeometryCollection MeshGeometry = FPhysicsInterface::GetGeometryCollection(MeshShape);
@@ -1133,10 +1146,10 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
         const FTransform BoxWorld = OtherLocal * FTransform(OtherRotation, OtherTranslation);
         Constraint->SetShapeWorldTransforms(ShapeWorld, BoxWorld);
         Chaos::Collisions::UpdateConstraint(*Constraint, ShapeWorld, BoxWorld, DeltaSeconds);
-        const auto CapturePoints = [&Constraint](const FTransform& ShapeTransform, const FTransform& BoxTransform)
+        const auto CapturePoints = [](const Chaos::FPBDCollisionConstraint& ContactConstraint, const FTransform& ShapeTransform, const FTransform& BoxTransform)
         {
             TArray<TSharedPtr<FJsonValue>> Points;
-            for (const Chaos::FManifoldPoint& Point : Constraint->GetManifoldPoints())
+            for (const Chaos::FManifoldPoint& Point : ContactConstraint.GetManifoldPoints())
             {
                 if (Point.Flags.bDisabled) { continue; }
                 const auto& Contact = Point.ContactPoint;
@@ -1151,7 +1164,7 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
             }
             return Points;
         };
-        const TArray<TSharedPtr<FJsonValue>> Points = CapturePoints(ShapeWorld, BoxWorld);
+        const TArray<TSharedPtr<FJsonValue>> Points = CapturePoints(*Constraint, ShapeWorld, BoxWorld);
         TSharedRef<FJsonObject> Sample = MakeShared<FJsonObject>();
         Sample->SetObjectField(TEXT("input"), Input.ToSharedRef());
         Sample->SetObjectField(TEXT("geometry"), GeometryValue);
@@ -1173,10 +1186,51 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
             }
             Sample->SetBoolField(TEXT("restore_allowed"), RestoreAllowed);
             Sample->SetBoolField(TEXT("restored"), Restored);
-            Sample->SetArrayField(TEXT("next_points"), CapturePoints(NextShapeWorld, NextBoxWorld));
+            Sample->SetArrayField(TEXT("next_points"), CapturePoints(*Constraint, NextShapeWorld, NextBoxWorld));
             Constraint->ResetActiveManifoldContacts();
             Chaos::Collisions::UpdateConstraint(*Constraint, NextShapeWorld, NextBoxWorld, DeltaSeconds);
-            Sample->SetArrayField(TEXT("fresh_points"), CapturePoints(NextShapeWorld, NextBoxWorld));
+            Sample->SetArrayField(TEXT("fresh_points"), CapturePoints(*Constraint, NextShapeWorld, NextBoxWorld));
+        }
+        if (AggregateMesh)
+        {
+            Chaos::FPBDRigidParticleHandle* Dynamic = Particles.CreateDynamicParticles(1)[0];
+            Chaos::FGeometryParticleHandle* Static = Particles.CreateStaticParticles(1)[0];
+            Dynamic->SetGeometry(Implicit);
+            Static->SetGeometry(MeshRoot);
+            Dynamic->ShapeInstances()[0]->SetCollisionData(BodyCollisionData);
+            if (Static->ShapeInstances().Num() != MeshCollisionData.Num()) { return nullptr; }
+            for (int32 Index = 0; Index < MeshCollisionData.Num(); ++Index) { Static->ShapeInstances()[Index]->SetCollisionData(MeshCollisionData[Index]); }
+            const FTransform MeshWorld(OtherRotation, OtherTranslation);
+            Dynamic->SetX(ShapeWorld.GetLocation());
+            Dynamic->SetR(ShapeWorld.GetRotation());
+            Dynamic->SetP(ShapeWorld.GetLocation());
+            Dynamic->SetQ(ShapeWorld.GetRotation());
+            Dynamic->SetCollisionConstraintFlags(Setup->DefaultInstance.bSmoothEdgeCollisions ? static_cast<uint32>(Chaos::ECollisionConstraintFlags::CCF_SmoothEdgeCollisions) : 0);
+            Static->SetX(MeshWorld.GetLocation());
+            Static->SetR(MeshWorld.GetRotation());
+            Dynamic->UpdateWorldSpaceState(ShapeWorld, Chaos::FVec3(CullDistance));
+            Static->UpdateWorldSpaceState(MeshWorld, Chaos::FVec3(CullDistance));
+            auto& Container = Solver->GetEvolution()->GetCollisionConstraints();
+            Container.SetCullDistance(CullDistance);
+            const TArray<Chaos::FGeometryParticleHandle*> DynamicParticles{Dynamic};
+            const TArray<Chaos::FGeometryParticleHandle*> StaticParticles{Static};
+            Chaos::FBasicBroadPhase BroadPhase(nullptr, &DynamicParticles, &StaticParticles);
+            Chaos::FBasicCollisionDetector Detector(BroadPhase, Container);
+            Detector.DetectCollisions(DeltaSeconds, nullptr);
+            TArray<TSharedPtr<FJsonValue>> Contacts;
+            for (const Chaos::FPBDCollisionConstraint* Contact : Container.GetConstraints())
+            {
+                if (Contact->GetParticle0() != Dynamic || Contact->GetParticle1() != Static) { return nullptr; }
+                TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+                const int32 Index = Static->ShapeInstances().IndexOfByPredicate([Contact](const auto& Entry) { return Entry.Get() == Contact->GetShape1(); });
+                Value->SetNumberField(TEXT("mesh_shape_index"), Index);
+                Value->SetBoolField(TEXT("disabled"), Contact->GetDisabled());
+                Value->SetArrayField(TEXT("points"), CapturePoints(*Contact, Contact->GetShapeWorldTransform0(), Contact->GetShapeWorldTransform1()));
+                Contacts.Add(MakeShared<FJsonValueObject>(Value));
+            }
+            Sample->SetArrayField(TEXT("aggregate_contacts"), Contacts);
+            Sample->SetNumberField(TEXT("aggregate_shape_count"), Static->ShapeInstances().Num());
+            Sample->SetBoolField(TEXT("smooth_edge_collisions"), Setup->DefaultInstance.bSmoothEdgeCollisions);
         }
         Samples.Add(MakeShared<FJsonValueObject>(Sample));
         UE_LOG(LogAlsGraphSourceReader, Display, TEXT("Physics contact probe captured sample %d/%d with %d points."), Samples.Num(), Inputs->Num(), Points.Num());
