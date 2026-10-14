@@ -53,7 +53,7 @@
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；U01未闭合，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.19完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道、warp变换、动态基座和RMS物理消费的首轮审计，确认D43–D60、D62–D64，D61撤销；精确查询数值及公共Playground验收尚未闭合 |
-| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.24完成许可、启动/退出、输入/锁定、GetUp交接、PA body/shape/质量/有效碰撞、关节frame/drive输入、选定角/point求解、conditioning、projection与速度阶段首轮审计，确认D65–D83；非零角速度阻尼/积分及混合轴hard补充、body动力学、pelvis跟随/出口pose和完整GetUp动画待独立批次；不开展无源链路的通用物理审查 |
+| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.25完成许可、启动/退出、输入/锁定、GetUp交接、PA body/shape/质量/有效碰撞、关节frame/drive输入、角/point求解、conditioning、projection/速度阶段、角积分与非零W阻尼首轮审计，确认D65–D85；整体子步、线性body动力学/sleep/CCD、pelvis跟随/出口pose和完整GetUp动画待独立批次；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | 待重新取证及核对；历史155子图合同只作起点，不能自证算法等价 |
 | 剩余源函数与跨阶段边界 | 以上 source-target 链路的覆盖缺口 | 前述审计后再独立收口；未解释项保留，截图与性能继续暂停 |
@@ -224,6 +224,12 @@
   - 07:46 source/focused闭环：源point按三轴cached Jacobian同时计算，目标位置与projection共用沿总误差方向的Avian球形约束，完整角色受控spine_01的8组4PASS/4FAIL，确认D80；直接solver12组10PASS/2FAIL。质量/惯量conditioning的16组全部PASS，覆盖static parent、0.01/0.2/1质量、惯量比100与旋转坐标基。新增读取源实际迭代CVar，仅扩展现有reader枚举前缀；PA的6/1字段由源码标注为RBAN设置，是否错误用到角色world ragdoll仍待实际CVar和消费者核对。
   - 07:57 source/focused闭环：fresh PhysicsSettings与solver CVar确认world默认8/2/1、无迭代覆盖；Mesh/PA body的bOverrideIterationCounts=False，不能直接把显示的body计数当有效覆盖。19个实际活动joint全部错用RBAN的6/1/1，D81由完整角色速度阶段的1次失败/2次通过另行证明。把两边都控制为2次后，同样的预测connector旋转0.5/1rad仍有1.845/3.768rad/s角速度差，确认D82的旧力臂/轴；取消帧内旋转即PASS。projection单轴的角速度回写控制通过，没有把“quat表示不同”单独登记为速度缺陷。
   - 本项归纳：unit/0.75/0.5角色、锁骨/手腕、0/0.0011/0.01rad的硬角速度激活18组15PASS/3FAIL，确认D83，已用源quat Jacobian和惯量单位复算lambda。最终6项focused为1PASS/5预期语义FAIL，79组47PASS/32FAIL；零力臂、零预测旋转、匹配预算、恢复unit或较大角误差分别去掉对应失败。116份基线source、19份补充UE源码、7份实际Avian依赖、2份fresh native、原始/Build及160份生产Rust和同一launcher库身份核验PASS。reader只在既有枚举增加2个前缀，新旧原生payload除了4个迭代CVar完全相同；未改转换规则或生成资产，没有新增运行时抽象。证据`24/final/`、`24/summary.json`。累计66项P2、15项P3，D08/D61撤销、U01未闭合；截图0、性能暂停，未执行公共Playground Gate。非零角速度soft阻尼/积分、完整mixed-axis hard及body动力学继续独立批次。
+
+- [x] BF144.25 Ragdoll角速度积分与角约束衔接：沿fresh UE动态body的W更新、最大角速度与quat积分、cached soft阻尼的初始/预测旋转差，并补选定mixed-axis hard角分支；核对真实角色的预测旋转、soft输入和角修正。body线性动力学、sleep/CCD、动作初速及pelvis/出口pose另立依赖批次。Gate：实际源路径/单位/时钟、独立数值参考与完整角色消费者、反例/控制及剩余边界。开始：2026-10-14 08:10 +08:00；预估结束：2026-10-14 09:00 +08:00；实际结束：2026-10-14 08:43:04 +08:00；偏差：−16分56秒；结果：审计记录Gate PASS，新增1项P2、1项P3，未修复。估时依据：fresh UE Integrate主体约110行、Rotation约60行、cached soft/locked直接闭包约350行，target积分/角求解约200行；BF144.23角分支实耗21分06秒、.24跨阶段含reader实耗27分27秒；本批仅展开角运动，避免合并全部body动力学。
+  - 08:10 活动摘要：BF144.24已提交，累计66项P2、15项P3。fresh UE动态body实际调用normalized一阶quat积分；Avian当前使用from_scaled_axis。soft阻尼源又从初始/预测quat差计算ConnectorWDts，target使用raw W×dt；先分别隔离预测积分与阻尼输入，避免把同一结果重复归因。截图0、性能暂停，无移植修复。
+  - 08:19 source/focused闭环：fresh PA 21个body均AngularDamping=0、gyro=False；角阻尼全局覆盖−1、HackMaxAngular=1000rad/s，实际body/项目上限62.83185rad/s。保留目标默认6 substeps的完整角色自由角积分15组6PASS/9FAIL，确认D84；30Hz与100ms帧均正确采用约33.33ms物理上限，但旋转积分公式不同。全部15个native Locked轴的60组40PASS/20FAIL、混合lowerarm锁6组2PASS/4FAIL补充已有D76，不新增根因。下一步在双方预测姿态已经相同的条件下检查soft阻尼。
+  - 08:41 source/focused闭环：统一预测quat后，spine_01 SIMD与neck_01 scalar soft两路在60/30Hz、正负W和零W共24组8PASS/16FAIL，确认D85；移除阻尼的4个控制全部PASS。预测姿态、有效惯量和native K/D的消费已经核验，未把自由积分D84混入阻尼根因。本批只剩记录身份/最终Gate；目标默认6个物理子步与source未启用substepping的整体调度，以及线性body动力学/sleep/CCD留下一独立批次。
+  - 本项归纳：最终4项focused均为预期语义FAIL，105组56PASS/49FAIL，归并新增D84/D85及已有D76；所有执行均正常完成，非watchdog失败。116份基线source、10份补充UE源码、3份实际Avian依赖、fresh PA与当前PhysicsSettings、原始/Build及160份生产Rust和launcher库身份核验PASS。reader在既有枚举增加两个精确前缀，新旧native payload仅多两个全局角运动CVar；无转换器/资产/运动实现修改。夹具中的阻尼消融去掉对应差异，所有生产数据/二进制保持原样。证据`25/final/`、`25/summary.json`。累计67项P2、16项P3，D08/D61撤销、U01未闭合；截图0、性能暂停，未执行公共Playground Gate。下一闭包为整体物理调度和线性body动力学，随后继续sleep/CCD、启动速度、pelvis/snapshot/GetUp。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -658,11 +664,13 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：实际加载角色由静止启动Ragdoll，下一帧限速仍为2m/s；输入(3,4,0)m/s时目标基础刚度5000，源应12500，实际各motor为7500而源应18750；输入竖直−12m/s时目标仍5000，源应25000。零速、1m/s及限速期结束后同四种输入均PASS，8组6PASS/2FAIL。只证明真实关节刚度输入差异，不把未运行的完整布娃娃轨迹纳入证据。
   - 漏检：`joint_drive_uses_source_constraint_drive_values`只对纯speed→stiffness函数传0/5/10，未把启动限速和实际ECS消费者组合。反例/对照见`bf144_pa_joint_drive_reads_velocity_before_initial_speed_limit`与`target/bf144/22/`；未修改移植实现或转换器。
 
-- [ ] BF144-D76 / P2 — Ragdoll硬twist锁使用非线性角校正，偏离源cached四元数约束。
+- [ ] BF144-D76 / P2 — Ragdoll硬角锁使用非线性角校正，偏离源cached四元数约束。
   - Source：fresh `PBDJointCachedSolverGaussSeidel.cpp:1459–1483,1566–1597`按初始frame的四元数Jacobian和相对quat分量锁轴，锁定路径没有角容差；`PBDJointConstraintUtilities.cpp:346–371`给出Jacobian，最终由`ChaosCore/Private/Rotation.cpp:158–168`将累计DQ以一阶quat增量归一化。该源算法的有限角误差也须保留。
   - Target：`source_physics_joint.rs:365–373`对Locked Twist仍取完整twist angle和child X轴；`203–217,575–589`只有Limited走cached增量，Locked每轮重新算当前角并用指数旋转；`531–533`还给硬锁加了0.001rad死区。
   - 反例：native clavicle_l锁Twist、其余轴无误差；两Dynamic等惯量body相差1rad，源两body各修正约0.533293rad，target各0.5rad，完整角色实际物理帧每body差0.033293rad。0.0005rad时源仍校正，target完全跳过。静态parent且普通角度、零误差是对照；1/6次迭代共20组10PASS/10FAIL，完整角色两组都FAIL。夹具只隔离point/contact和相邻joint，不改生产角算法，不把有限角源特性改为理想完全锁定。
   - 漏检：旧cached drive测试不触发硬Twist；一般角测试只核对方向/减小误差，没有独立源Jacobian和有限迭代终值。证据`bf144_pa_angle_locked_twist_matches_source_cached_quaternion_constraint`及`23/`。
+
+  - BF144.25补充：fresh同一GetLockedRotationAxes/InitLockedRotationConstraint也用于swing锁与混合硬锁。全部15个native Locked轴×parent dynamic/static×0/0.5rad共60组40PASS/20FAIL，source固定quat Jacobian与target当前角度求解的差异覆盖twist及swing。lowerarm的两组mixed旋转×dynamic/static加identity控制共6组2PASS/4FAIL，最大角校正差0.104148rad；仍是D76的同一硬锁非cached根因，不重复编号。证据`bf144_pa_angular_native_locked_axes_use_source_cached_jacobian`与`bf144_pa_angular_mixed_hard_locks_use_source_linearized_corrections`，源参考独立复算，无native Chaos仿真声明。
 
 - [ ] BF144-D77 / P3 — Ragdoll角drive与soft limit容差没有按实际dt缩放。
   - Source：fresh cached solver `Init:190–192`用`min(1,3600×dt²)`缩放AngleTolerance；该值同时控制`InitSwingTwistDrives:2612–2614`和soft limit的scalar/SIMD判断。native配置为0.001rad，120Hz实际阈值应为0.00025rad。
@@ -705,6 +713,19 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`source_physics_joint.rs:775–777`对所有角限位统一用lambda<=1e−6跳过。即使位置阶段已经成功校正Locked twist，缩放后的较小惯量仍使其lambda落入该区间，速度阶段不再消除锁定轴转速。
   - 反例：完整角色保留正常PA质量、形状与body/joint conditioning；scale=1/0.75/0.5，clavicle_l/hand_l，初始twist=0/0.0011/0.01rad，隔离point/contact和drive。位置阶段有校正后，速度阶段给双方同一参考输入(parent w=0、child w=X)，源应消除相对twist；0.75手腕、0.5锁骨/手腕的0.0011rad共3FAIL，仍保留1rad/s相对转速，18组其余15PASS。三个实际target lambda分别8.7300e−7、8.1427e−7、2.3375e−7；它们对应的源lambda远高于1e−8。恢复unit scale或增大到0.01rad时激活正确；0角度本来就不应激活。证据`bf144_pa_point_hard_angular_velocity_uses_source_impulse_activation`及`target/bf144/24/hard_scaled/`。
   - 漏检：旧硬角速度测试只用0.5rad和unit inertia，位置lambda远离阈值；没有覆盖较小角误差与合法角色缩放。本项只判定锁定轴速度约束的激活，不宣称次轴向量的所有数值都已等价；仅登记。
+
+- [ ] BF144-D84 / P2 — Ragdoll自由角积分使用指数旋转，偏离源一阶quat积分。
+  - Source：fresh `PBDRigidsEvolutionGBF.cpp:870–978`实际动态body路径先更新/阻尼/clamp W，再调用`Rotation.cpp:158–173`，公式为normalize(Q + 0.5×dt×PureQuat(W)×Q)。当前native未启用物理substepping，gyro=False、角阻尼0；最大角速度使用项目3600度/秒，native全局Hack上限1000rad/s不影响该值。
+  - Target：Ragdoll body使用Avian `integrator/mod.rs:503–532`的from_scaled_axis(W×dt)，每步精确指数旋转；项目未给这些动态body替换为源积分。默认6个子步的恒定角速度乘积仍是整帧指数旋转，不能与源一次normalized一阶积分互换。
+  - 反例：实际加载角色并启动Ragdoll，spine_01保留native惯量/角阻尼/最大速度，隔离关节和碰撞，初始姿态含三轴旋转，W方向为normalize(0.2,0.8,−0.3)。dt=1/60、1/30及100ms帧×速度0/0.1/30/60/80rad/s共15组6PASS/9FAIL；所有速度clamp和物理dt检查通过。60rad/s、实际dt≈1/30时单步姿态差0.429204rad；80rad/s正确clamp后仍差0.477497rad。0/0.1rad/s控制通过，100ms只模拟约33.33ms，未混淆world/physics时钟。证据`bf144_pa_angular_free_body_uses_source_quaternion_integration`、`target/bf144/25/free/`。
+  - 漏检：旧PA Gate核对参数、限位或缓慢静止姿态，没有把实际自由旋转积分与当前UE函数逐步比较。仅登记，不为看起来更稳定或更精确而替代source语义。
+
+- [ ] BF144-D85 / P3 — Soft角阻尼直接使用W×dt，遗漏源预测quat差分。
+  - Source：fresh cached solver `17–35`使用初始/预测connector quat，通过`Rotation.cpp:87–104`的2×((Q−R)×inverse(R)).xyz计算ConnectorWDts；soft标量路径`1547–1558`及SIMD路径`1634–1654`在该差分上加入本轮累计DQ，再形成阻尼项。对normalized一阶积分，这个差分是W×dt/sqrt(1+|W×dt/2|²)。
+  - Target：`source_physics_joint.rs:551–565`虽正确减去已捕获的预测旋转以求约束校正，却把初始角运动直接写为(child.angular_velocity−parent.angular_velocity)×dt，改变了soft damping输入。
+  - 反例：完整角色spine_01保留native 15°twist限位和K=5,000,000/D=5000，在积分后、约束前通过公开SolverBody输入统一设置为源预测quat，确认PreSolveDeltaRotation一致，以隔离D84。预测twist固定0.6rad、unit有效惯量，60/30Hz×W=0/6/−30/30/60rad/s的10组2PASS/8FAIL；W=60、30Hz时单body角修正差0.008454rad，60Hz差0.002960rad。零W通过；同输入的raw-W公式吻合目标，排除了fixture未隔离。证据`bf144_pa_angular_soft_damping_reads_source_predicted_quaternion_delta`、`target/bf144/25/soft_initial/`。
+  - 补充控制：同一夹具按native限位设置相同0.3382rad超限量，加入neck_01的非SIMD scalar分支及D=0消融；两条路径24组8PASS/16FAIL，其中零W与4个移除阻尼控制全部PASS。记录`25/soft_final/`及最终Gate。
+  - 漏检：之前soft fixture的初始角速度为0，此时两公式相同；仅核对D系数无法检查其消费语义。属于随W×dt增大的数值阻尼差异，不把它重复记为自由旋转积分缺陷；仅登记。
 
 ### 未闭合边界（不计为无差异）
 
