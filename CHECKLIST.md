@@ -53,7 +53,7 @@
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；BF144.43将U01原生核验归并为D125，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.19完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道、warp变换、动态基座和RMS物理消费的首轮审计，确认D43–D60、D62–D64，D61撤销；精确查询数值及公共Playground验收尚未闭合 |
-| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.42及.44–.58完成许可、启动/退出、输入/锁定、GetUp交接/时钟/通知/清理/姿态/曲线/根运动、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样/child预测bounds、多点回弹迭代、原生点序/支持点消费、质量加权接触位置、contact/joint耦合、primitive缓存、初速生成/交接/限速预算、pelvis跟随/探地/恢复朝向、进入挂接/退出快照、mesh恢复及零scale重建首轮审计，确认D65–D124、D126–D141；实际convex/trimesh输入与98组原生manifold已取证，几何差异的动力消费分类保留U02；不开展无源链路的通用物理审查 |
+| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.42及.44–.59完成许可、启动/退出、输入/锁定、GetUp交接/时钟/通知/清理/姿态/曲线/根运动、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样/child预测bounds、多点回弹迭代、原生点序/支持点消费、质量加权接触位置、contact/joint耦合、primitive缓存、初速生成/交接/限速预算、pelvis跟随/探地/恢复朝向、进入挂接/退出快照、mesh恢复及零scale重建首轮审计，确认D65–D124、D126–D142；实际convex/trimesh输入与98组原生manifold已取证，几何差异的动力消费分类保留U02；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | 待重新取证及核对；历史155子图合同只作起点，不能自证算法等价 |
 | 剩余源函数与跨阶段边界 | 以上 source-target 链路的覆盖缺口 | 前述审计后再独立收口；未解释项保留，截图与性能继续暂停 |
@@ -428,6 +428,16 @@
   - 02:36 活动摘要：fresh默认GaussSeidel及原生SolverType=−1确认当前标量逐点路径；源每点合并normal/tangent后才进入下一点，target每manifold先全部normal再全部tangent。D137已有单点前后采样反例，本项仅补实际多点分组边界；接触图自然顺序不预设等于生成顺序。下一步固定实际约束与已分类几何，按原顺序/源顺序分别运行，避免把分组元数据本身记作运动差异。
   - 02:45 source/focused闭环：18姿态分别在摩擦0/0.7下比较源点序与实际constraint graph点序，两矩阵均36组25PASS/11预期FAIL，所有源序恢复通过；位置投影、逐点push、几何和自由V/W完全固定，11个自然序失败归D100。八姿态的活动点均属于一个实际manifold，先整组normal后整组tangent，即使各点保留自身pre-normal速度，仍有五姿态在60/30Hz失败；48组38PASS/10FAIL归D137。Fountain foot另有零push的边约束，初版把“所有点”误当“活动点”而触发前置断言；已按既有D139资格核对，未删除几何或放宽数值门槛。每个normal块与原多点ContactConstraint::solve的V/W逐位一致，分组影响来自切向施加时机。下一步最终同二进制复验、精简与记录Gate；历史消费者未展开。
   - 02:48 完成摘要：最终同一二进制三矩阵共120组88PASS/32预期FAIL，所有源序逐点恢复与零摩擦分组控制通过；36条共同基线与.57逐字一致，normal36条与初版逐字一致。自然序/源序、组内整块/逐点控制分别移除对应差异，保留的visit与pre-normal输入用于隔离这两个因素；前置断言修正前已输出的19条结果也逐字保留。116份source、48份当前/继承闭包、14份原始/Build资产、160份Rust、reader源码/package/DLL及启动器库身份PASS；证据`58/summary.json`、`58/final/`和`58/record_gate.watchdog.json`。实耗15分37秒，累计139项不变。覆盖回查发现.46–.51的convex/compound主要是首次位置和部分回弹，.54–.58的完整速度摩擦矩阵只覆盖trimesh；此前U02“仅余分组与历史”的摘要不能扩展到convex速度摩擦，需补独立批次，原已完成记录不复开。生产/工具/转换器未改，截图0、性能暂停。
+
+- [x] BF144.59 convex/compound的速度摩擦消费补齐：依赖BF144.58记录Gate，沿.49原生聚合32个姿态中的30个非空集合及.48–.51已分类几何，重新核对共同位置投影/速度输入，比较实际原点、动态shape表面点与完整native几何；先固定点序和已证实的速度阶段语义，避免把D100/D137再次混入。只有新失败的实际consumer边界才展开对应已取证叶子，不复开已完成的集合或几何算法；跨帧缓存另项。Gate：fresh source与原生聚合集合、原点/表面/native共同输入矩阵、既有原因归并或最小新反例、消融与身份记录。开始：2026-10-15 02:50 +08:00；预估结束：2026-10-15 03:30 +08:00；实际结束：2026-10-15 03:28:11 +08:00；偏差：−1分49秒；结果：审计记录Gate PASS，新增D142/P2，两个微小输入字段的算法原因单独拆分，未修复。估时依据：.49含原生聚合扩展和60组首次位置实耗28分14秒、.56三角网格速度分类36分26秒；当前读取工具与速度公式已具备，但输入从18增至30个多hull姿态，按40分钟独立验收。
+  - 02:51 活动摘要：.58已提交，累计139项。旧.49完整compound与单叶包装的集合合同、.50正确force point复核均保持有效；本项补查此前未覆盖的法向速度和切向摩擦。首先重读现有聚合输入与source位置上限，验证native共同输入正控制，再运行原始几何；尚无本项新增差异。
+  - 02:55 原生闭环：当前reader重读同一32组聚合输入，30组非空；全部旧sample字段逐字数值相同，当前PA对象也与.57完全一致。新增的contact_type/face_index与margin字段只补证，不替代旧集合。最深phi为−14.94644cm；下一步结合fresh gather核对60Hz位置上限，再建立逐点native速度正控制。证据`59/aggregate.native.json`、`59/native_check.json`与对应watchdog，读取67秒内正常完成；没有修改reader或原始资产。
+  - 02:59 source/static闭环：fresh `PBDCollisionContainerSolver.cpp:230–237,280–301,848–866`证明10m/s上限在gather按dt乘一次、迭代内上限为0；本批native最深点未触及60Hz的16.667cm。32组force-point输入从fresh报告重新生成，与.50修正后的当前数据逐字符相同；48份source/依赖身份已重读。夹具移除全部trimesh专属控制，完整native对照逐点保存N/r/phi；先跑30组共同输入法向正控制，再进入摩擦及原始/表面矩阵，生产未改。
+  - 03:04 consumer矩阵：180组105PASS/75预期FAIL，native两种摩擦共60组全部PASS；原始/表面法向各15FAIL，摩擦由29FAIL降为16FAIL，13组仅恢复动态表面力臂即通过，归并既有D102候选消费。最深target phi同样未触及源上限；本轮未放宽容差。下一步只在对应旧证据的hull恢复支持点/参考面数据，保持其目标法向、原GJK与其他hull，并用删除GJK控制核对新增的Bench foot摩擦信号；尚未登记新缺陷。初始二进制、夹具及6矩阵已冻结于`59/initial/`。
+  - 03:13 source/控制复盘：首轮统一删GJK误删了源保留的端帽点，修正为fresh `CollisionOneShotManifolds.cpp:1133–1196,1200–1273`的原生Cylinder/EndCap分支，并在原始候选层删除后再裁点，避免保留已丢点的集合。两处剩余叶子已重新读取，与聚合points完全相同；Arch01 hull 2的三角参考面投影逐点误差<0.14nm，表明D128的投影差也可能出现在共面三角面。两个姿态的0/10m平移控制均未恢复，尚不能把小余差判为夹具平移；继续分离R裁剪/深度及head的N/r/phi。工具修正和未通过样本全部保留，未新增缺陷。
+  - 03:21 source/最小反例：fresh Parry `polygonal_feature3d.rs:55–61,333–369`把两顶点Segment按两个闭合边遍历，原生同一线段仅维护两个裁剪端点。Arch02 head的同一feature交点被正反各生成一次，独立于额外GJK；只去掉完全相同的feature/点/深度记录，60/30Hz×摩擦0/0.7的4组全部恢复，保留重复的4组全部失败。共同DP/DQ完全相同，第二重复点约8.18e−10的位置冲量却使其按源>0规则进入速度求解；未放宽资格阈值。确认D142/P2，累计140项（96项P2、44项P3）。完整恢复矩阵及剩余微小字段边界继续核对，未修复生产。
+  - 03:28 完成与拆分：最终11项focused共257组173PASS/84预期FAIL，60组native共同输入和60组字段恢复对照全PASS；初始180行结果逐字不变，重复点8组和Bench字段4组也与精简前一致。删除无用Cylinder表、平移参数、宽泛GJK矩阵及无效N/phi分支后，同target重编，保留的五个字段消融响应与旧二进制逐行一致。34个fresh native输入、116份source/48份补充源码、14份资产、160份Rust、reader源码/package/DLL与启动器库身份Gate PASS，证据`59/summary.json`、`59/final/`及`59/record_gate.watchdog.json`。实耗38分11秒，未超时；生产、reader及转换器未改，截图0、性能暂停。
+  - 未闭合边界：Arch01 hull 4 head仅恢复圆柱支撑点r即可通过，N/phi单改无效；源3D裁线独立复算接近native至13nm，但实际target端点相差约6.7µm，精度与裁剪算法的原因还未分开。Bench hull 2 foot去掉触发裁点的GJK并恢复有效支撑后，仍需把实际N=(-9.8717e−5,1,0)恢复为源+Y；其余字段不改即通过两种摩擦，但GJK法向根因尚未闭合。两处已定位字段并具备真实消费者，单独追source数值/特征路径；完整恢复通过不冒称原因全部解释。Convex自然点序/分组和历史仍待后续，动画输入/核心图/公共Playground Gate尚未完成。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -1033,6 +1043,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检：旧测试把目标接触点直接作为共同oracle输入，未比较两引擎gather的质量语义；这里是实际consumer的受控单阶段证明，不声称完整自然Ragdoll轨迹已对齐。零重叠与零摩擦均通过；生产代码未改。
 
   - BF144.56补证：Fountain foot及Rock head/foot两种缩放的五个trimesh摩擦样本，仅把实际Parry表面点按源动态质量归属传给prepared约束即恢复；原始点/法向/深度集合和逐点资格保持不变，零摩擦对照通过。其余几何原因另列，不把完整native几何替换当作本项单因素证据；见`56/initial_normal/`、`56/initial_friction/`。
+  - BF144.59补证：30个完整convex/compound姿态中，13处摩擦失败仅恢复动态表面力臂后通过；对应法向对照均通过，点数和接触几何输入保留。六矩阵180组在精简重编后逐行不变，其他16处表面摩擦失败另行分类；见`59/final/{raw_friction,surface_friction}/`。
 
 - [ ] BF144-D103 / P2 — 碰撞与关节分阶段求解，遗漏源每轮交替约束。
   - Source：fresh `PBDRigidsEvolutionGBF.cpp:1411–1415`先注册collision再注册joint；`PBDRigidsEvolution.h:359–365`按添加次序分配container id，`ConstraintGroupSolver.cpp:55–70`对相同native priority=0稳定排序。位置和速度各自每轮执行collision→joint（cpp:421–435、501–516；并行路径通过prerequisite保持相同次序）。当前世界为8个位置、2个速度迭代。
@@ -1170,11 +1181,12 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：完整角色实际foot、同一native四点、源两轮回弹与相同阶段V/W=0，prepare逆惯量对角约(31.3792,31.3792,146.4362)，四处cached质量均约0.669501；60Hz单子步在回弹时按新矩阵重算已变成0.667765/0.671513。源角速度约(−0.1122104,0,0.0958985)，实际为(−0.1104980,0.0020097,0.0942158)rad/s；默认六子步也不一致。头/足×60/30Hz×1/6子步×原生/各向同性×恢复/保留共32组28PASS/4FAIL，失败均为保留实际foot惯量；只在夹具回弹前恢复prepare惯量即全部通过，实际未恢复输出另与新旧矩阵混用公式一致。证据`bf144_inertia_phase47_restitution_uses_prepared_tensor`、`47/initial/`、`47/final/`。
   - 漏检/消融：此前各向同性矩阵不会随姿态变动，head也未触发该轴向差异；.46按post矩阵同时重算质量与角响应的oracle不适用于本边界，已改用实际prepare快照并核对cached质量，不将旧oracle误差计入缺陷。接触点、点序、预算与其他已知差异固定；移除夹具无用几何分支后同target重编，原16组结果逐字相同。仅登记，生产及依赖未改。
 
-- [ ] BF144-D128 / P3 — 非共面凸包面使用不同的接触投影规则，遗漏源支持深度和旋转修正。
+- [ ] BF144-D128 / P3 — 凸包接触未保留源参考面投影，改变支持深度和旋转修正。
   - Source：fresh `CollisionOneShotManifolds.cpp:870–905,973–1071`以保存的面平面、0.002参考面偏置及三维裁剪生成接触，并将所有裁剪点投影到选定参考面。原生Arch_01的hull 0/1顶面各有4顶点，源自身也保留约1.8mm的非共面残差；不能将非共面本身判作缺陷。原生平面投影公式与全部相应接触深度误差小于1e−10m。
   - Target：`PolygonalFeature::contacts_face_face`对面内点用前三顶点构造平面，对边交点直接插值原始边；未保留源的统一参考面投影。两处实际边插值逐点预测目标深度至约2.2e−8m，最大源差分别0.535916/0.534020mm；只使用原生参考面的对照缩小到约0.61µm，共面hull 3控制通过。两侧均为4点的hull 0排除D126截断因素。
   - 反例：完整角色创建的实际foot constraint，经真实窄相位过滤后拷贝进入公开位置solve；共同零V/W、硬接触、同一惯量、源点序，比较源首次位置迭代与该消费者的V×dt/W×dt。hull 0目标向上修正约1.000285mm、角修正近0；按BF144.50校正的源force point，应为1.129120mm和x约−0.00257236rad。hull 1同样失败，仅在prepare前替换native接触数据均恢复。其余相邻raw样本一并核对，23组native几何控制全部通过。证据`48/topology.native.json`、`48/topology_analysis.json`、`bf144_convex_phase48_remaining_position_consumers`。
   - 漏检/范围：旧顶点云相同与primitive-box Gate未检查cooked面平面及边插值的实际消费；初次仅检查前三点平面不足以解释另一侧拱面，补齐边交点分支后两侧均闭合。这里证明首次位置消费者的独立差异，未声称全帧源动力仿真或多hull聚合已通过；生产未改。
+  - BF144.59补充：Arch01 hull 2的参考面只有三个顶点，native phi仍为`dot(P−O,R)×dot(R,N)`，逐点误差<0.14nm；target沿N投影，不能把本项根因限定为非共面。与D132一起隔离后，保持实际N及其他hull，仅按同一Parry裁剪API使用R并恢复源深度，完整compound摩擦由wX=0.899109恢复至0.902285，source为0.902309；仅深度控制仍FAIL。见`59/remaining_analysis.json`、`59/final/fields/`，同根扩展。
 
 - [ ] BF144-D129 / P2 — 已有支持点后仍追加GJK点，改变接触集合与位置求解。
   - Source：fresh `ConstructCapsuleConvexOneShotManifold`沿完整面裁剪胶囊轴线，原生Arch_01 hull 3与head平面接触为两个端点；`PBDCollisionSolver.h`按该manifold逐点投影。
@@ -1203,6 +1215,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：Parry `polygonal_feature3d.rs:207–242`将两侧支持面投影到以分离轴N为法向的二维平面，再求顶点包含和边交点；N不等于R时，裁剪边界和支持点位置随之改变。该差异与D128的深度计算分别可控。
   - 反例：实际Arch01脚部对hull 4，恢复源深度并去掉额外GJK后，x角修正仍为0.180056rad，源为0.189291rad。固定实际支持多边形、N、源深度公式和首次位置消费者，在相同公开PolygonalFeature::contacts中仅替换裁剪轴；五姿态的N控制全FAIL、R控制全PASS，最大角残差约2.1e−6rad。其他两Arch01、Arch02及Bench也复现，证据`bf144_box_phase51_clip_controls`与`51/clip_initial/`。
   - 漏检/消融：此前水平面使N与R平行，或仅比较点数/法向，未约束切平面内位置。保留N的单变量消融重新出现全部五处失败；不用新裁剪器、不放宽容差、未改生产代码或依赖。
+  - BF144.59补充：Arch01 hull 2脚部原先首次位置测试未显著暴露约48.3µm的裁剪点偏差；在同时触及hull 3的有限次速度摩擦中，恢复后者的已知输入仍FAIL。只恢复hull 2参考深度仍FAIL，使用同一实际三角支持面、GJK法向N和公开裁剪函数，把裁剪轴改为R后PASS。该控制保留其他hull，未把整组native替换当作本项证据；见`59/final/fields/`。
 
 - [ ] BF144-D133 / P2 — 三角网格共享边接触未归属到一个三角面，重复点改变响应。
   - Source：fresh `MeshContactGenerator.cpp:103–158`对cooked共享边建立EdgeContactDataMap；已有face contact时保留先前三角面的接触，跳过后续邻面上的同边接触。Stairs02实际face252/270共享顶点75/76；native踏面保留边上两点，立面仅保留上部两点。
@@ -1266,10 +1279,16 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：完整角色实际foot的prepared约束，使用共同8次源位置投影及两次速度预算、既有摩擦/资格控制。60Hz无摩擦actual vY=0.00261470、wZ=−0.0437744，source为0.00257435、−0.0443716；保留全部16个实际点及深度，只把triangle150法向恢复为box面后通过原2e−5/2e−4门槛。删共享边两点无效；30Hz对照本已通过。与D134裁剪因素组成16组10PASS/6预期FAIL，联合恢复全部通过。
   - 漏检/范围：旧单次位置响应未放大这条微小法向差异；此前全SAT轴复算没有执行源有效候选筛选。fresh完整native、两面独立裁剪和原点消费者闭环，证据`57/sat_analysis.json`、`57/clipping_analysis.json`、`57/restored.native.json`及`57/final/`；只登记当前实际姿态，不泛化为所有box或修补生产依赖。
 
+- [ ] BF144-D142 / P2 — 胶囊轴线被当作闭合双边特征，重复交点进入速度求解。
+  - Source：fresh `CollisionOneShotManifolds.cpp:465–517,1154–1196`将胶囊轴线作为单一线段裁剪，只保留两个端点；当前原生Arch02 head对hull 0为一个负phi交点和一个正phi端点。
+  - Target：Parry `polygonal_feature3d.rs:55–61`把Segment设为两个顶点且两个edge id均为0；`333–369`随后按闭合多边形正反各遍历一次，生成两处坐标、深度及feature id都相同的内部交点。加上GJK后共四点，Avian不裁减。删除GJK仍留下该独立重复，不能归为D129。
+  - 反例：完整角色实际head与生产Arch02 compound，固定源阶段、顺序、其他已证实支持几何和原始N/r/phi；只删除完全相同的非GJK记录，60/30Hz×摩擦0/0.7共8组4PASS/4FAIL，四个删除控制全部恢复。60Hz无摩擦actual vY=0.047037、wZ=4.052744，source为−0.061554、4.722065；摩擦同样失败。两侧DP/DQ逐位一致，但重复点残留约8.18e−10位置冲量，按源严格>0资格触发后续速度步，不能靠放宽阈值消掉。
+  - 漏检/消融：旧首次位置响应及点数合同未检查后续资格，重复点的位置作用被有限精度抵消；保留重复即稳定复现，去重保持其他点及全部字段不变。证据`59/diagnostic/`、`59/final/duplicate_controls/`及`bf144_convex_phase59_duplicate_controls`；只登记，不修改依赖或生产实现。
+
 ### 核验边界记录（不计为无差异）
 
 - [x] BF144-U01 — 大型平地箱体的胶囊sweep数值边界已于BF144.43完成同输入原生核验，归并为D125。原先仅有解析对照的`07/remaining_corrected/`已补上`43/queries.native.json`与实际落地消费复验；该关闭表示差异已解释并登记，未修复，也不表示无差异。
 
-- [ ] BF144-U02 — 实际convex/trimesh的manifold几何差异尚待动力消费者分类。BF144.45的98组实际PA capsule/box与生产Playground Collider对照中，接触/分离状态全部一致；几何合同54PASS/44FAIL，其中15组只差重复点数量。Barrel平面接触的head由源2点变为目标1点、foot由源4点变为1点；三角网格另有额外点、不同法向及支持点位置，原生单约束最多14点。证据`45/contacts.native.json`、`45/clearance.native.json`、`45/final/`；fresh Parry凸多面体支持面仅取前4个顶点，pfm-pfm另加GJK点，已定位候选机制，尚未把raw集合差异直接计成运动缺陷。下一步分别沿convex支持面和trimesh特征/聚合进入实际normal、friction及历史消费者；已有D100/D101/D102覆盖的原因须归并，不重复编号。 BF144.46/48将桶类八边形截断归D126、非共面参考投影归D128、head额外GJK消费归D129，46组剩余逐shape首次位置合同及删除控制完成。BF144.49经真实原生聚合入口及32组生产compound控制关闭多hull集合/裁点生命周期；60组消费中30组native几何控制全PASS，原18处失败的5处归D126/D129，BF144.50按正确的源force point复核后分类不变，并将6个胶囊斜面根因闭合为D130、两处顶部foot归D128；BF144.51将剩余六box分为D131棱边分支、D132裁剪方向及既有D128参考深度/D129额外GJK裁点影响，48组分离控制闭合；BF144.52补齐32组完整trimesh与18组首次位置消费，九处失败中八处归D129/D133/D134/D135；BF144.53以逐面原生端帽/边侧规则及28组最小消费控制，将Cart head闭合为D136；BF144.54在10个全负phi姿态的共同几何/位置冲量输入下分离速度摩擦，确认D137/D138；BF144.55以源位置投影和18姿态共同几何控制闭合零pushout资格及混合phi，新增D139并补充D95；BF144.56将五个表面受力点余差归D102、重合GJK归D129、同法向共享边摩擦归D133，并确认单面剔除D140；本批17姿态恢复通过，只余Cart foot face989的PlaneVertex/edge选择与裁剪，以及分组和历史继续保留U02。 BF144.57以有效棱边资格和参考面裁剪将Cart foot余差归D141及D134，18姿态两种摩擦的36组恢复全通过；该姿态共享边删点不改变响应，不另计差异。U02仅余实际接触分组与历史消费者。 BF144.58将trimesh自然点序与组内N/T阶段分别归D100/D137，120组的全部恢复通过。覆盖回查补正：上述收口仅涵盖trimesh，convex/compound的完整速度摩擦矩阵尚未执行，仍与跨帧历史共同保留U02。
+- [ ] BF144-U02 — 实际convex/trimesh的manifold几何差异尚待动力消费者分类。BF144.45的98组实际PA capsule/box与生产Playground Collider对照中，接触/分离状态全部一致；几何合同54PASS/44FAIL，其中15组只差重复点数量。Barrel平面接触的head由源2点变为目标1点、foot由源4点变为1点；三角网格另有额外点、不同法向及支持点位置，原生单约束最多14点。证据`45/contacts.native.json`、`45/clearance.native.json`、`45/final/`；fresh Parry凸多面体支持面仅取前4个顶点，pfm-pfm另加GJK点，已定位候选机制，尚未把raw集合差异直接计成运动缺陷。下一步分别沿convex支持面和trimesh特征/聚合进入实际normal、friction及历史消费者；已有D100/D101/D102覆盖的原因须归并，不重复编号。 BF144.46/48将桶类八边形截断归D126、非共面参考投影归D128、head额外GJK消费归D129，46组剩余逐shape首次位置合同及删除控制完成。BF144.49经真实原生聚合入口及32组生产compound控制关闭多hull集合/裁点生命周期；60组消费中30组native几何控制全PASS，原18处失败的5处归D126/D129，BF144.50按正确的源force point复核后分类不变，并将6个胶囊斜面根因闭合为D130、两处顶部foot归D128；BF144.51将剩余六box分为D131棱边分支、D132裁剪方向及既有D128参考深度/D129额外GJK裁点影响，48组分离控制闭合；BF144.52补齐32组完整trimesh与18组首次位置消费，九处失败中八处归D129/D133/D134/D135；BF144.53以逐面原生端帽/边侧规则及28组最小消费控制，将Cart head闭合为D136；BF144.54在10个全负phi姿态的共同几何/位置冲量输入下分离速度摩擦，确认D137/D138；BF144.55以源位置投影和18姿态共同几何控制闭合零pushout资格及混合phi，新增D139并补充D95；BF144.56将五个表面受力点余差归D102、重合GJK归D129、同法向共享边摩擦归D133，并确认单面剔除D140；本批17姿态恢复通过，只余Cart foot face989的PlaneVertex/edge选择与裁剪，以及分组和历史继续保留U02。 BF144.57以有效棱边资格和参考面裁剪将Cart foot余差归D141及D134，18姿态两种摩擦的36组恢复全通过；该姿态共享边删点不改变响应，不另计差异。U02仅余实际接触分组与历史消费者。 BF144.58将trimesh自然点序与组内N/T阶段分别归D100/D137，120组的全部恢复通过。覆盖回查补正：上述收口仅涵盖trimesh，convex/compound的完整速度摩擦矩阵尚未执行，仍与跨帧历史共同保留U02。 BF144.59完成30个完整compound的180组速度摩擦矩阵及最终257组控制，新增D142线段交点重复，13组归D102，并补充D128/D132的共面投影消费；60组字段恢复全部通过。两处字段根因（Arch01 hull 4圆柱端点、Bench hull 2的GJK法向）以及convex自然序/分组、跨帧历史仍保留，不能计作无差异。
 
 - [x] BF144-U03 — 已于BF144.47补齐prepare/post矩阵、源生命周期及实际回弹对照，归并D127。`46/inertia_snapshot/`的旧post oracle保留为诊断记录，结论使用`47/final/`的prepare快照与32组控制；关闭表示差异已解释并登记，未修复。D126的常值惯量及实际head控制不受该边界影响。
