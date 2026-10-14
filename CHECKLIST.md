@@ -53,7 +53,7 @@
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；U01未闭合，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.19完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道、warp变换、动态基座和RMS物理消费的首轮审计，确认D43–D60、D62–D64，D61撤销；精确查询数值及公共Playground验收尚未闭合 |
-| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.25完成许可、启动/退出、输入/锁定、GetUp交接、PA body/shape/质量/有效碰撞、关节frame/drive输入、角/point求解、conditioning、projection/速度阶段、角积分与非零W阻尼首轮审计，确认D65–D85；整体子步、线性body动力学/sleep/CCD、pelvis跟随/出口pose和完整GetUp动画待独立批次；不开展无源链路的通用物理审查 |
+| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.28完成许可、启动/退出、输入/锁定、GetUp交接、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭及法向接触/回弹首轮审计，确认D65–D93；摩擦/预测接触/复杂manifold、动作初速、pelvis跟随/出口pose和完整GetUp动画待独立批次；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | 待重新取证及核对；历史155子图合同只作起点，不能自证算法等价 |
 | 剩余源函数与跨阶段边界 | 以上 source-target 链路的覆盖缺口 | 前述审计后再独立收口；未解释项保留，截图与性能继续暂停 |
@@ -241,6 +241,12 @@
   - 09:20 source/focused闭环：fresh native证明sleep启用、partial关闭、平滑0.3、孤立倍率均1，21个PA body实际材质阈值为0.01m/s、0.05rad/s、counter=4。完整角色hand_l的孤立/连接岛×60/30Hz，共24组16PASS/8FAIL确认D88；第4帧显式设置0.005m/s后，目标第5帧休眠，源孤立/连接分支应第8/9帧。去掉sleep采样覆盖后四组自然积分反例仍失败；无速度写入、持续超阈值的控制通过。下一步核对同一外部输入闭包中的force对平滑状态预置及连接变化，未扩展接触solver。
   - 09:36 source/focused闭环：实际单帧1m/s²推力经native质量和Avian force阶段进入两body，4组3PASS/1FAIL确认D89，60Hz连接岛因遗漏源force平滑预置而第5帧休眠；30Hz和孤立控制通过。fresh CreateIsland/ProcessWakes另证明新岛计数从0开始，target按每body旧计数最小值继续；静止3帧后第4帧连接的两组均提前第5帧睡眠，source应第8帧，确认D90；反向断开两组正确保留计数。共享夹具已完成无采样覆盖的自然积分版本，接下来只收口本批focused回归和记录身份。
   - 本项归纳：最终3项focused均为预期语义FAIL，32组21PASS/11FAIL，26.25秒正常完成；force参考连续推进满12帧。116份基线source、7份补充UE源码、6份实际Avian依赖、fresh PA及21份native/target sleep字段、原始/Build和160份生产Rust/launcher库身份核验PASS。reader在既有枚举增加sleep与平滑前缀，新旧payload仅新增24个CVar；未改转换器、资产或运动实现。去掉metric覆盖、去掉速度/force更新，以及反转连接变更方向的控制均已记录，没有新增运行时抽象。证据`27/final/`、`27/summary.json`。累计68项P2、20项P3，D08/D61撤销、U01未闭合，截图0、性能暂停；下一闭包为native CCD开关与实际碰撞接触求解，再继续动作初速、pelvis、snapshot/GetUp与动画。
+
+- [x] BF144.28 Ragdoll原生CCD开关与法向接触/回弹：沿fresh PA body开关、实际Chaos碰撞solver选择和restitution阈值/冲量，核对完整角色的接触消费者；先隔离已知子步/积分差异。摩擦及复杂接触形体另立后续批次，动作初速、pelvis/snapshot/GetUp仍保持后续范围。Gate：原生设置、实际source路径、独立公式与完整角色反例/控制、身份与未闭合边界。开始：2026-10-14 09:44 +08:00；预估结束：2026-10-14 10:34 +08:00；实际结束：2026-10-14 10:13:06 +08:00；偏差：−20分54秒；结果：审计记录Gate PASS，新增2项P2、1项P3，未修复。估时依据：fresh索引定位Chaos collision容器/solver直接闭包与Avian contact solver，法向和restitution分支预计约600行；BF144.27跨阶段审计实耗29分40秒，本批另含原生读取与接触夹具，限制在法向响应。
+  - 09:44 活动摘要：BF144.27已提交，累计68项P2、20项P3。当前PA消费者通过native CCD标志决定安装独立CCD系统，普通接触仍交给Avian；尚未确认本批差异。先确认实际原生开关及全局回弹配置，再沿真实solver调用闭合。截图0、性能暂停，生产实现未改。
+  - 10:04 source/focused闭环：fresh PA全部21个body的CCD/MACD关闭、材质restitution=0.3、soft=None；源普通Gauss–Seidel、全局回弹覆盖关闭。完整角色的中心单接触24组17PASS/7FAIL，确认D91材质未传到子shape、D92回弹阈值未按物理delta换算；各自只替换输入的控制恢复，单步与原生6子步材质结果相同。早期零SpeculativeMargin夹具会清零接触测速，已排除且保留诊断。下一步核对法向位置恢复及原生shape材质消费者，尚不声称完整接触等价。
+  - 10:10 source/focused闭环：原生21个body/shape未改的自然落地4组2PASS/2FAIL进一步确认D91，复制材质到子shape恢复；全体body实际均未安装CCD组件。硬接触法向恢复24组16PASS/8FAIL确认D93，去掉初始重叠或改用完整法向修正的控制通过；native材质soft=None、stiffness=1、初始穿透恢复无限制，测试深度均低于10m/s pushout上限。本批保持法向/回弹范围，摩擦、预测接触和复杂形体接触另立后续闭包。
+  - 本项归纳：最终4项focused均为预期语义FAIL，52组35PASS/17FAIL，41.14秒正常完成。116份基线source、14份补充UE源码、6份实际Avian依赖、fresh PA/PhysicsSettings、21份target CCD/材质字段、原始/Build和160份生产Rust/launcher库身份核验PASS；证据`28/final/`、`28/summary.json`。reader只在既有枚举增添5个前缀，新旧PA payload仅增加37个CVar，无转换规则/资产/运动实现改动；输入控制完成各差异消融。累计70项P2、21项P3，D08/D61撤销、U01未闭合；截图0、性能暂停，未运行公共Playground Gate。实耗29分06秒与上一批29分40秒接近，后续单个接触子闭包据此估时。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -767,6 +773,25 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`ragdoll_physics_profile.rs:803–805,835–837`把每body计数的最小值当作当前岛计数，再统一回写，没有辨别新岛创建。两个已有3帧静止进度的孤立body连成新岛后，仍从3继续计数。
   - 反例：完整角色hand_l两body，native质量/COM/阈值保持，关闭其他关节和接触，静止3帧后第4帧启用实际hand_l关节；不覆盖solver采样。60/30Hz两组都在第5帧休眠，source新岛应第8帧；每步实际joint_count已核验。反向在第4帧断开原有连接的两组都正确在第5帧休眠，共4组2PASS/2FAIL。证据`bf144_pa_sleep_new_island_resets_counter_while_split_preserves_it`、`target/bf144/27/topology/`。
   - 漏检：旧测试覆盖断开后的独立睡眠，没有覆盖孤立状态已有进度再新建连接；只登记已复现的岛创建边界，不把所有合并/拆分情况一概判错。
+
+- [ ] BF144-D91 / P2 — Ragdoll的原生回弹系数未到达子碰撞体接触。
+  - Source：fresh PA全部21个body使用DefaultPhysicalMaterial，Restitution=0.3、Average且无override；UE `BodyInstance.cpp:4580–4613`给每个simple shape设置该材质，`PBDCollisionConstraints.cpp:469–470`组合双方系数。
+  - Target：`ragdoll_physics_profile.rs:1365–1366`只在body设置Friction/Restitution；实际Avian 0.7 `collision/narrow_phase/system_param.rs:619–628`只取collider的Restitution，未像friction一样回退到body。真实PA子shape没有该组件，使用默认0。
+  - 反例：完整角色head保留native质量、惯量与材质，以中心球/平面接触隔离几何和转动，两边源系数均0.3、入射1.5m/s。60/30Hz×1/默认6子步，实际组合0.15且回弹0.225m/s，源应0.3与0.45m/s；仅把已有body系数放到该shape后4组全部恢复，共8组4PASS/4FAIL。证据`bf144_pa_contact_native_body_restitution_reaches_child_shape`、`target/bf144/28/`。
+  - 漏检：旧PA测试只断言body组件值，自定义CCD也会回退body材质，未核对实际普通接触manifold中的组合值。只登记，未修改依赖或生产材质适配。
+  - 原生形体补证：不改21个body的形体/质量/关节/自然运动，在实际floor仅提供同一0.3材质；60/30Hz分别出现2/3个原生接触，全部组合成0.15。仅在PA子shape添加body现有0.3后全部变回0.3，共4组2PASS/2FAIL。`bf144_pa_contact_native_geometry_material_and_ccd_consumers`同时核对全部21个body的原生CCD关闭消费和无graph error。
+
+- [ ] BF144-D92 / P3 — Ragdoll普通接触的低速回弹阈值与源物理时钟不符。
+  - Source：fresh `PBDRigidsEvolutionGBF.h:70`与cpp:1365给实际世界碰撞容器传入1000cm/s²默认阈值；全局`p.CollisionRestitutionThreshold=-1`。`PBDCollisionContainerSolver.cpp:88–89,160–166`以该加速度乘物理dt作为速度门槛，即60Hz约0.166667m/s、30Hz约0.333333m/s。项目BounceThresholdVelocity=200字段没有进入这条Chaos世界调用。
+  - Target：实际Avian `SolverConfig`默认固定1m/s，`solver/plugin.rs:639–640`仅乘length unit；角色插件没有覆盖该资源。
+  - 反例：完整角色head中心接触，先统一双方shape系数0.3以隔离D91；60/30Hz×入射0.05/0.25/0.5/1.5m/s×原阈值/源阈值共16组13PASS/3FAIL。60Hz的0.25/0.5及30Hz的0.5被目标压到零速度，源应分别0.075/0.15/0.15m/s；仅替换阈值后三组恢复，低于双方阈值和高于双方阈值的控制通过。证据`bf144_pa_contact_restitution_uses_source_acceleration_threshold`、`target/bf144/28/`。
+  - 漏检：旧回弹验证集中于自定义CCD或较大速度，未覆盖原生普通接触阈值及其dt语义。属于低速回弹差异，未将截图或整段跌倒观感当作证据。
+
+- [ ] BF144-D93 / P2 — Ragdoll硬材质接触被目标的柔性接触参数延迟恢复。
+  - Source：fresh native PA材质SoftCollisionMode=None、body非one-way且无穿透速度override，world初始穿透恢复−1映射无限制，pushout上限10m/s。`PBDCollisionConstraint.cpp:518–524`实际stiffness=1；`PBDCollisionSolver.h:454–466,593–644,1114–1138`按当前法向误差乘有效质量作位置修正，中心单点无转矩时一轮可清零误差。
+  - Target：Avian `solver/plugin.rs:292–299,326–351`默认contact damping ratio=10/frequency factor=1.5，`contact/normal_part.rs:132–149`把所有普通穿透接触按softness缩放后推动。PA soft=None未关闭这条柔性规则，最终速度relax到零也不恢复残余位置误差。
+  - 反例：完整角色head保留native mass/inertia，以中心单点和零速度/重力隔离其它差异；60/30Hz×1/默认6子步×0/1mm/1cm重叠×原参数/完整法向修正，共24组16PASS/8FAIL。1cm重叠时单步只恢复约1.890mm、默认六子步约3.561mm，源应全部恢复；均未触及源pushout上限。将bias设为1/substep、mass scale=1、impulse scale=0后恢复，零重叠控制通过。证据`bf144_pa_contact_hard_surface_resolves_source_normal_separation`、`target/bf144/28/`。
+  - 漏检：旧接触测试检查有限值、碰撞阻挡或inertia conditioning相对变化，没有以同一法向误差核对native硬材质的绝对恢复量。这里只证明单点法向规则不同，不宣称已对齐复杂多接触Ragdoll轨迹；仅登记。
 
 ### 未闭合边界（不计为无差异）
 
