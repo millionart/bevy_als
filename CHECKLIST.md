@@ -53,7 +53,7 @@
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；U01未闭合，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.19完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道、warp变换、动态基座和RMS物理消费的首轮审计，确认D43–D60、D62–D64，D61撤销；精确查询数值及公共Playground验收尚未闭合 |
-| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.41完成许可、启动/退出、输入/锁定、GetUp交接/时钟/通知/清理、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样/child预测bounds、多点回弹迭代、原生点序/支持点消费、质量加权接触位置、contact/joint耦合、primitive缓存、初速生成/交接/限速预算、pelvis跟随/探地/恢复朝向、进入挂接/退出快照、mesh恢复及零scale重建首轮审计，确认D65–D121；GetUp姿态/根运动及实际convex/trimesh接触生成仍待审；不开展无源链路的通用物理审查 |
+| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.42完成许可、启动/退出、输入/锁定、GetUp交接/时钟/通知/清理/姿态/曲线/根运动、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样/child预测bounds、多点回弹迭代、原生点序/支持点消费、质量加权接触位置、contact/joint耦合、primitive缓存、初速生成/交接/限速预算、pelvis跟随/探地/恢复朝向、进入挂接/退出快照、mesh恢复及零scale重建首轮审计，确认D65–D124；实际convex/trimesh接触生成仍待审；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | 待重新取证及核对；历史155子图合同只作起点，不能自证算法等价 |
 | 剩余源函数与跨阶段边界 | 以上 source-target 链路的覆盖缺口 | 前述审计后再独立收口；未解释项保留，截图与性能继续暂停 |
@@ -325,6 +325,13 @@
   - 17:24 source/focused闭环：四个动画和正确CS路径已原生读取，确认两侧montage为1.5秒/1.2倍速、零blend-in、0.3秒Cubic自动混出，动作notify终点1.166567秒。24组时钟矩阵的解锁时点一致；50ms步长出现混出提前一帧候选，另有近零权重的结束边界需核对原生FAlphaBlend。源FMontageSubStepper逐步累加clip position，target用elapsed×rate重算；只读公式不足以确认浮点临界点，下一步给既有读取器增加通用montage时钟探针，直接执行本地引擎UpdateWeight/Advance后再判定。未登记新差异，pose/root-motion仍留下一项。
   - 17:46 source/focused闭环：原生时钟确认D118的50ms混出提前及半速近零权重结束尾差；49.9/50.1ms和动态倍率对照通过。62.5ms独立复现D119：Roll已启动但GetUp读旧状态/旧槽权重；夹具补顺序仅修正停止时点，不能把Graph后才写入的Roll pose提前，保留这个阶段边界。晚期Ragdoll中断还暴露source section末端偏移与target完整长度夹取的D120。通知原生精确终点1.1665666103与清单1.166567之间的夹具失败，仅在内存把manifest恢复原生精度即通过，登记D121；常规40组解锁均通过。动作替换保护和播放器/assembly失效清理通过。接下来合并本批最终证据、复核工具消融和源码身份，无生产修改。
   - 本项归纳：116份基线source、7份UE直接闭包、6个原生资产与raw/Build身份、160份生产Rust及launcher库身份核验PASS。新增通用MontageClockProbe直接调用本机UpdateWeight/Advance；两montage各32组及4组补充轨迹、停止消融/恢复、watchdog与专用self-test通过，未执行原生owner通知回调，通知结论由fresh源码条件和实际target消费者证明。最终6项focused为1PASS/5预期语义FAIL，72组54PASS/18FAIL归并D118–D121；证据`41/final/`、`41/summary.json`。移除公式模拟器后改用原生结果，补顺序与精确manifest只存在于对照夹具；停止请求移除使self-test失败，恢复同一reader二进制后重新读取通过。无生产/转换规则改动，累计82项P2、37项P3；截图0、性能暂停，无公共runtime Gate。实耗38分28秒，原生微边界取证占用额外时间但在估时内；姿态与根运动按原拆分继续。
+
+- [x] BF144.42 GetUp姿态采样、快照交叉混合与根运动边界：依赖BF144.41记录Gate；沿fresh AB_Als的PostLocomotion→Ragdolling直接路径、AB_Als_Ragdolling的Snapshot/GameplayTag Blend、两套GetUp sequence与UE SlotEvaluate/PoseSnapshot，核对采样骨骼/曲线、最终快照进入/退出混合、非加性槽权重与root-motion许可/实际输出。D113–D115快照生产、D118–D121时钟/通知/接替顺序只作已知边界，不重复登记；Head/Overlay/Control Rig的内部算法仍留动画图责任批次。Gate：fresh原生根图/子图及动画姿态、源坐标和混合公式、实际角色槽/图消费者与必要对照、身份核验。开始：2026-10-14 17:54 +08:00；预估结束：2026-10-14 18:39 +08:00；实际结束：2026-10-14 18:36:39 +08:00；偏差：−2分21秒；结果：记录Gate PASS，确认D122–D124，语义仍不等价。估时依据：两个图的直接Slot/LinkedInput/Snapshot/GameplayTag节点、target采样及slot/context消费者约700行；两套fresh sequence均非加性且bEnableRootMotion=False，先以实际标志限制root闭包；BF144.39快照生产实耗31分39秒、.41原生时钟闭包38分28秒，本项复用原生骨骼采样与完整角色入口。
+  - 17:54 活动摘要：BF144.41已提交，累计119项确认差异。目标Ragdolling图以0.4秒回到输入姿态，另一个零时长分支在快照与Flail之间切换；下一步重新读取原生根图/子图，验证默认值与连接后才进入求值对照。两套GetUp的root-motion关闭是fresh原生事实，不展开未授权的通用root-motion优化。截图0、性能暂停。
+  - 18:13 source/focused闭环：fresh根图/子图确认Snapshot→0.4秒退出混合及PostLocomotion非加性槽；两sequence的RootMotion/ForceRootLock均False。原生16帧×68原始骨骼与实际GetUp槽姿态通过既有3e−5导入容差，root_motion为空；11条montage曲线遗漏已在两朝向实际槽上下文复现，登记D122。快照测试初次未开启骨骼刷新，定位为无渲染夹具的visibility条件；只在夹具启用AlwaysTickPoseAndRefreshBones后六组混合通过，绕开快照的对照明显失败，不登记时序缺陷。下一步只补共槽多姿态旋转混合与曲线消费对照，生产和转换规则未改。
+  - 18:33补充闭环：同输入权重下，实际GetUp→SourceSlot的中间归一化导致三方旋转差异，四组失败/十组双姿态控制通过；去掉该归一化后误差恢复约1.2e−7，登记D123。补全通用SequencePoseProbe的GetAnimationPose模式后，当前Sequencer模型的帧间虚拟骨骼差异由实际target及重算对照确认，登记D124；这补上了raw track不含的消费者语义。读取器编译、完整模式self-test、raw请求消融与恢复均已通过预期结果；接下来只做本批完整证据冻结、身份/Gate核验与提交。
+  - 本项归纳：116份基线source、10份UE直接闭包、7个源资产raw/Build身份及160份生产Rust/launcher库核验PASS。最终四项focused为1PASS/3预期语义FAIL，56组46PASS/10FAIL；含68骨骼raw与79骨骼完整姿态、16组原生sequence曲线及实际RootMotionOutput、Snapshot六组、真实SourceSlot和producer数据对照。新增通用完整姿态读取分支，编译、front/back/restored self-test及冲突模式拒绝通过；关闭完整采样后self-test按缺曲线失败，恢复同一二进制请求后原生帧数据一致。资产载入临时生成的四类MovieScene Signature经fresh NewGuid源码确认后剔除，其余完整payload/原始文件身份核对通过。夹具仅用内存曲线补全、去掉中间归一化、虚拟骨骼重算和Snapshot旁路作消融；未改生产/转换规则。累计84项P2、38项P3；截图0、性能暂停，无公共runtime Gate。证据`42/final/`与`42/summary.json`。实耗42分39秒；原始track遗漏当前Sequencer虚拟骨骼处理，补原生完整消费者后闭合，仍在估时内。
+
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -1024,6 +1031,24 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Source：fresh原生GetEndTriggerTime为1.1665666103363037，`AnimMontage.cpp:2988–3012`在End branching marker执行NotifyEnd，ALS仅在当前仍GettingUp时置空并解锁。
   - Target：`docs/bf103-notify-source-audit.json:266–267`保存1.166667的end/duration，`generate_als_notify_manifest.py:104,125`将该值及offset传入manifest，实际f32终点为1.1665669679641724；`animation_events.rs:679–693`直接使用此终点。
   - 反例：前15帧62.5ms，再前进约34.638941ms，源/目标clip都到1.1665667，原生通知已结束，目标仍GettingUp且输入阻塞。两朝向都复现；边界前/后控制通过，在夹具内仅把manifest终点恢复原生精度也通过。证据`41/notify_exact.native.json`、`notify_edges.native.json`与`bf144_get_up_phase41_notify_end_precision_controls`。常规帧步长无此差异；未改原始记录、manifest或转换规则，未据此复开其他已完成通知资产。
+
+
+- [ ] BF144-D122 / P2 — GetUp槽遗漏montage自身的11条曲线。
+  - Source：fresh两套GetUp montage的原生RawCurveData包含FootLeft/RightIk、FootLeft/RightLock、LayerArmLeft/Right、LayerHead/Legs/Pelvis/Spine、ViewBlock；sequence另有PoseCrouching和PoseGrounded。`AnimInstanceProxy.cpp:1968–1978`先采样AnimTrack，再EvaluateCurveData并Combine montage曲线。
+  - Target：`get_up.rs:130–146,270–280`仅加载、采样sequence的GraphClip和AlsCurves；目标glTF的ALS_float_curves只含上述两条sequence曲线，没有montage曲线数据或组合步骤。
+  - 反例：实际角色两朝向在clip=0时，post_locomotion.pose的上下文仅含PoseCrouching=1与PoseGrounded≈0；源还应有ViewBlock=1、六条Layer曲线=−1及四条Foot曲线=0。两组均遗漏全部11条，实际SourceSlot输出的六条Layer及ViewBlock数值也不符；夹具内补齐曲线后两组producer/consumer控制通过，sequence控制通过，证据`bf144_get_up_phase42_montage_curves`。旧Gate核对播放/通知/输入恢复及动作pose，没有将montage和sequence曲线同时纳入合同；仅记录，未改生产数据或代码。
+
+
+- [ ] BF144-D123 / P2 — GetUp/Roll组合槽过早归一化，改变与基础姿态的三方旋转混合。
+  - Source：fresh `AnimInstanceProxy.cpp:2007–2070`把所有非加性montage及剩余基础姿态一起送入BlendPosesTogetherIndirect；`AnimationRuntime.cpp:458–478`逐项加权累加后只归一化一次。
+  - Target：`get_up.rs:308–311`先经blend_slot_pose归一化GetUp/Roll，再由实际AB_Als的SourceSlotNode与基础姿态混合；中间归一化改变了两montage合向量的长度，三个输入均非零时不再等价。
+  - 反例：完整角色两朝向，在50ms帧、GetUp接受Roll后的第23帧，已消费的GetUp/Roll/base权重约0.129629/0.5/0.370371；目标相对相同输入、相同权重的源一次累加结果，最大四元数距离约0.01280（约1.47度）。62.5ms另一组约0.00220；四组三方混合均失败，十组单montage/基础姿态控制通过。实际producer/consumer分别与原实现计算完全一致；只在夹具去掉中间归一化即恢复到约1.2e−7。证据`bf144_get_up_phase42_three_pose_slot_blend`。此判据固定已消费的时间和权重，独立于D118/D119，不重复计入旧时序差异；生产未改。
+
+
+- [ ] BF144-D124 / P3 — GetUp虚拟骨骼插值偏离当前源Sequencer模型的逐次生成。
+  - Source：fresh两sequence的DataModelInterface实际为AnimationSequencerDataModel；本机未烘焙GetAnimationPose走该活动模型，`AnimSequencerDataModel.cpp:775–799,1466–1494`在采样当前骨骼后，以Target组件变换相对Source组件变换生成11根虚拟骨骼。保留的旧AnimDataModel不能替代当前接口作为oracle。
+  - Target：两GetUp glTF把虚拟骨骼保存为30Hz、46个关键帧的独立轨道；`source_sequence_player.rs:90–110`对它们与普通骨骼一样插值，未按当帧Source/Target重新求相对变换。关键帧前后构造相对变换与帧间插值不交换。
+  - 反例：两朝向在0.375/0.75秒的实际GetUp槽，原生完整79骨骼姿态对比均失败，最大位置差0.62–1.21mm、四元数距离约0.000679，集中在手部和足部虚拟骨骼；其余12个时点通过，16组68根原始骨骼读取及所有sequence曲线/根运动输出控制通过。在夹具用相同普通骨骼和fresh虚拟骨骼映射重算后，全部16组恢复既有3e−5容差，最大位置残差约6.3e−6m。证据`42/native_front_full_pose.json`、`native_back_full_pose.json`与`bf144_get_up_phase42_native_bones_and_root_output`；仅确认本机当前未烘焙采样路径，不冒称已覆盖cooked压缩路径。旧导入Gate只比较普通骨骼和关键帧，原始track读取也不会执行活动模型的虚拟骨骼生成。
 
 ### 未闭合边界（不计为无差异）
 
