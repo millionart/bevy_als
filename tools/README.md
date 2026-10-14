@@ -18,6 +18,8 @@
 
 `import/probe_anim_graph_nodes.py`、`probe_property_access.py`、`probe_gltf_curves.py` 接受显式资产参数，仍可检查原生属性或导出曲线。没有其他脚本调用一个 CLI，不等于它已经无用。
 
+`run_ue_source_reader.ps1 -PhysicsContactProbe <request.json>` 的 capsule/trimesh sample 可选 `triangle_indices`，使用 cooked mesh 索引调用原生 `ConstructCapsuleTriangleOneShotManifold2`，输出合并前的 `triangle_contacts`。其中两个 `shape_point_*_cm` 都在胶囊形状空间，`world_point_*_cm` 与 `world_normal` 已转换到世界空间；组上的 `triangle_index` 是请求的 cooked face，未归并点的 `face_index` 保留原生−1。该选项不改变正常 `points` 或 `aggregate_contacts`；用 `python tools/tests/test_physics_triangle_contact_probe.py <output.json>` 核对输出。
+
 2026-09-26 删除了 UE MCP client 及其完整调用链（输入审计、旧相机导出、拓扑/截图和五个 shell 探测脚本），当前取证统一使用原生 reader。相机曲线的目标转换使用 `import/import_curve_float.py`、`import/import_debug_curves.py` 和 `import/camera_curve_conversion.py`。
 
 同批删除六个早期 Interchange API 试验脚本、没有消费者的 `probe_scene2.py`，以及反复改写旧 Playground parity 文件的 `patch_parity_ron.py`、`test_lighting_only.py`。实际导出器、原始资产、生成图、归档证据和本地配置保留。

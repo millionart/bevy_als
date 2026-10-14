@@ -53,6 +53,7 @@
 #include "Chaos/CollisionResolution.h"
 #include "Chaos/Collision/CollisionConstraintAllocator.h"
 #include "Chaos/Collision/CollisionFilter.h"
+#include "Chaos/Collision/CapsuleTriangleContactPoint.h"
 #include "Chaos/Collision/BasicCollisionDetector.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "PhysicsEngine/BodySetup.h"
@@ -1172,23 +1173,26 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
         const FTransform BoxWorld = OtherLocal * FTransform(OtherRotation, OtherTranslation);
         Constraint->SetShapeWorldTransforms(ShapeWorld, BoxWorld);
         Chaos::Collisions::UpdateConstraint(*Constraint, ShapeWorld, BoxWorld, DeltaSeconds);
-        const auto CapturePoints = [](const Chaos::FPBDCollisionConstraint& ContactConstraint, const FTransform& ShapeTransform, const FTransform& BoxTransform)
+        const auto CapturePoint = [](const auto& Contact, const FTransform& ShapeTransform, const FTransform& BoxTransform)
+        {
+            TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+            Value->SetNumberField(TEXT("phi_cm"), Contact.Phi);
+            Value->SetNumberField(TEXT("contact_type"), static_cast<int32>(Contact.ContactType));
+            Value->SetNumberField(TEXT("face_index"), Contact.FaceIndex);
+            Value->SetObjectField(TEXT("shape_point_0_cm"), CaptureVector(FVector(Contact.ShapeContactPoints[0])));
+            Value->SetObjectField(TEXT("shape_point_1_cm"), CaptureVector(FVector(Contact.ShapeContactPoints[1])));
+            Value->SetObjectField(TEXT("world_point_0_cm"), CaptureVector(ShapeTransform.TransformPositionNoScale(FVector(Contact.ShapeContactPoints[0]))));
+            Value->SetObjectField(TEXT("world_point_1_cm"), CaptureVector(BoxTransform.TransformPositionNoScale(FVector(Contact.ShapeContactPoints[1]))));
+            Value->SetObjectField(TEXT("world_normal"), CaptureVector(BoxTransform.TransformVectorNoScale(FVector(Contact.ShapeContactNormal))));
+            return MakeShared<FJsonValueObject>(Value);
+        };
+        const auto CapturePoints = [&CapturePoint](const Chaos::FPBDCollisionConstraint& ContactConstraint, const FTransform& ShapeTransform, const FTransform& BoxTransform)
         {
             TArray<TSharedPtr<FJsonValue>> Points;
             for (const Chaos::FManifoldPoint& Point : ContactConstraint.GetManifoldPoints())
             {
                 if (Point.Flags.bDisabled) { continue; }
-                const auto& Contact = Point.ContactPoint;
-                TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
-                Value->SetNumberField(TEXT("phi_cm"), Contact.Phi);
-                Value->SetNumberField(TEXT("contact_type"), static_cast<int32>(Contact.ContactType));
-                Value->SetNumberField(TEXT("face_index"), Contact.FaceIndex);
-                Value->SetObjectField(TEXT("shape_point_0_cm"), CaptureVector(FVector(Contact.ShapeContactPoints[0])));
-                Value->SetObjectField(TEXT("shape_point_1_cm"), CaptureVector(FVector(Contact.ShapeContactPoints[1])));
-                Value->SetObjectField(TEXT("world_point_0_cm"), CaptureVector(ShapeTransform.TransformPositionNoScale(FVector(Contact.ShapeContactPoints[0]))));
-                Value->SetObjectField(TEXT("world_point_1_cm"), CaptureVector(BoxTransform.TransformPositionNoScale(FVector(Contact.ShapeContactPoints[1]))));
-                Value->SetObjectField(TEXT("world_normal"), CaptureVector(BoxTransform.TransformVectorNoScale(FVector(Contact.ShapeContactNormal))));
-                Points.Add(MakeShared<FJsonValueObject>(Value));
+                Points.Add(CapturePoint(Point.ContactPoint, ShapeTransform, BoxTransform));
             }
             return Points;
         };
@@ -1200,6 +1204,35 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
         Sample->SetArrayField(TEXT("points"), Points);
         Sample->SetNumberField(TEXT("collision_margin_0_cm"), Constraint->GetCollisionMargin0());
         Sample->SetNumberField(TEXT("collision_margin_1_cm"), Constraint->GetCollisionMargin1());
+        if (Input->HasField(TEXT("triangle_indices")))
+        {
+            const TArray<TSharedPtr<FJsonValue>>* Indices = nullptr;
+            const Chaos::FImplicitCapsule3* Capsule = Implicit->GetObject<Chaos::FImplicitCapsule3>();
+            Chaos::FVec3 CoreScale;
+            Chaos::FReal WrapperMargin;
+            const Chaos::FTriangleMeshImplicitObject* Core = Chaos::UnwrapImplicit<Chaos::FTriangleMeshImplicitObject>(*Other, CoreScale, WrapperMargin);
+            if (Capsule == nullptr || Core == nullptr || !Input->TryGetArrayField(TEXT("triangle_indices"), Indices)) { return nullptr; }
+            Chaos::FRigidTransform3 MeshToCapsule = Chaos::FRigidTransform3(BoxWorld).GetRelativeTransformNoScale(ShapeWorld);
+            MeshToCapsule.SetScale3D(CoreScale);
+            TArray<TSharedPtr<FJsonValue>> TriangleContacts;
+            for (const TSharedPtr<FJsonValue>& IndexValue : *Indices)
+            {
+                int32 Index = -1;
+                if (!IndexValue->TryGetNumber(Index) || Index < 0 || Index >= Core->Elements().GetNumTriangles()) { return nullptr; }
+                Chaos::FTriangle Triangle;
+                int32 Vertex0, Vertex1, Vertex2;
+                Core->GetTransformedTriangle(Index, MeshToCapsule, Triangle, Vertex0, Vertex1, Vertex2);
+                Chaos::FContactPointManifold Contacts;
+                Chaos::ConstructCapsuleTriangleOneShotManifold2(*Capsule, Triangle, CullDistance, Contacts);
+                TArray<TSharedPtr<FJsonValue>> TrianglePoints;
+                for (const Chaos::FContactPoint& Contact : Contacts) { TrianglePoints.Add(CapturePoint(Contact, ShapeWorld, ShapeWorld)); }
+                TSharedRef<FJsonObject> TriangleValue = MakeShared<FJsonObject>();
+                TriangleValue->SetNumberField(TEXT("triangle_index"), Index);
+                TriangleValue->SetArrayField(TEXT("points"), TrianglePoints);
+                TriangleContacts.Add(MakeShared<FJsonValueObject>(TriangleValue));
+            }
+            Sample->SetArrayField(TEXT("triangle_contacts"), TriangleContacts);
+        }
         if (HasNext)
         {
             Constraint->SetLastShapeWorldTransforms(ShapeWorld, BoxWorld);
