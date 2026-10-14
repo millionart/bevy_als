@@ -365,6 +365,7 @@
   - 21:09 活动摘要：.47已提交，累计125项有效差异，U03归并D127。此前将部分接触送入全点回弹公式的假设不成立，本项先核对源位置净pushout与速度激活/下限，再使用实际过滤后的constraint；不沿用raw点数直接判断动力差异。
   - 21:36 source/consumer闭环与拆分：原生读取补充15个cooked convex的未缩放顶点、面平面/索引和包装scale；96组旧payload除新增字段外逐项相同，截断面或丢scale的派生数据均被self-test拒绝。源拱门本身也含非共面四边形；fresh UE优先选择Convex2参考面并统一投影，target把面内投影与原始边插值混用，后者逐点预测实际深度至约2.2e−8m，源参考面公式匹配native至1e−10m。两处约0.535mm深度差进入实际首次位置求解，确认D128/P3；平面控制通过。另确认head三点中额外GJK点使修正量变化，仅删该点的60/30Hz控制恢复，登记D129/P3；破桶两组归D126。46组剩余逐shape位置消费为41PASS/5FAIL，4组GJK控制为2PASS/2FAIL；所有23组native几何替换通过，其他raw差异未在此首轮位置消费者形成超容差偏差。114组新增同姿态跨hull原生输入覆盖26姿态，其中24姿态同时有多个hull；逐pair读取还不能证明源聚合/裁点结果，将该独立生命周期拆为下一项，当前完成范围收敛为逐shape几何与首次位置消费，未缩减整个审计目标。下一步完成本项身份Gate及reader固定fixture，然后继续聚合。
   - 21:39 完成摘要：3项focused为1PASS/2预期FAIL，50组位置消费及GJK控制43PASS/7FAIL；去掉夹具无用惯量开关和回弹设置后，原46组结果逐字相同。96组完整native回归、114组聚合输入、16组固定reader fixture通过；截面/丢scale消融失败、原始数据复验通过。首次读取未拆缩放包装的断言、夹具Rotation类型及记录脚本误指已移除HostProject目录均留存失败证据，按实际API/类型/打包路径修正后通过。116份source、7份额外UE/5份依赖、14份资产、160份Rust、reader源码/package/DLL及实际启动器库身份核验PASS。证据`48/summary.json`、`48/final/`、`48/record_gate_final.watchdog.json`；新增reader通用cooked凸包拓扑读取及self-test/fixture，没有转换器或生产修改，不触发AnimBP重转换。总实耗30分58秒，未超时；累计127项有效差异（86项P2、41项P3）。U02的多hull聚合、trimesh与历史mesh继续保留；公共runtime未启动，截图0、性能暂停。
+  - 有限复核完成：开始2026-10-14 22:31 +08:00；预估结束22:47；实际记录Gate结束22:45:52；偏差−1分08秒，PASS。BF144.50证明源静态接触应使用动态shape表面点作为force point；旧中点参考仅在其差向量平行normal时成立。改为原生world_point_0并在接触切平面匹配源点序后，46组仍为41PASS/5FAIL、23组原生控制全PASS，D126/D128/D129分类不变；D128数值已更新。只复核消费参考，拓扑、原生点、读取工具和其余已闭合证据不变。证据`50/reopen_final/`、`50/summary.json`；旧中点消费数值由本次结果替代。
 
 - [x] BF144.49 多hull接触集合与源聚合生命周期：依赖BF144.48记录Gate，沿已记录114组同姿态pair输入与24个多hull姿态，核对源midphase→manifold聚合/内部边裁剪→有效constraint以及目标compound→ContactGraph的实际集合和消费。复用原生cooked几何及PA输入，必要时只扩展读取工具的统一聚合入口；不把逐shape输出相加冒充最终集合。Gate：fresh源聚合/过滤链、单hull与多hull原生对照、实际目标集合/最小消费控制、reader与夹具自测/消融、归并或确认及身份核验。开始：2026-10-14 21:42 +08:00；预估结束：2026-10-14 22:27 +08:00；实际结束：2026-10-14 22:10:14 +08:00；偏差：−16分46秒；结果：审计记录Gate PASS，聚合集合闭合，新增侧面几何样本拆分到下一项，确认差异数不变。估时依据：.48实耗30分58秒完成cooked拓扑读取及50组消费；当前15个源凸包与114组逐pair输入已具备，剩余为一个聚合生命周期入口及26姿态的集合合同，按45分钟独立验收。trimesh特征/聚合和历史mesh缓存继续留后续独立闭包。
   - 21:42 活动摘要：.48已提交，累计127项有效差异；原生拓扑与source/target逐shape几何已可复用。26姿态中24个同时触及多个源hull，尚未确认源是否跨这些pair裁掉内部边/重复支持。本项先定位实际聚合阶段与读取入口，再构造完整compound对照；生产实现不改，截图0、性能暂停。
@@ -968,7 +969,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
 - [ ] BF144-D102 / P3 — 接触力臂固定取中点，未保留源质量加权位置。
   - Source：fresh `PBDCollisionContainerSolver.cpp:95–103`以两侧inverse mass加权世界接触点，再减各自COM得到solver力臂；动态body对静态环境时直接使用动态shape表面点。`PBDCollisionSolver.h:668–731`由该力臂计算摩擦有效质量和角速度响应。
-  - Target：Avian `collision/collider/parry/contact_query.rs:243–251`始终取两侧surface point的中点；`dynamics/solver/contact/mod.rs:312–351`和`tangent_part.rs:207–240`把该中点力臂用于摩擦。穿透深度非零时，沿normal的位移不影响normal力矩，却会改变tangent力矩。
+  - Target：Avian `collision/collider/parry/contact_query.rs:243–251`始终取两侧surface point的中点；`dynamics/solver/contact/mod.rs:312–351`和`tangent_part.rs:207–240`把该中点力臂用于摩擦。两侧点差平行normal时，中点位移不影响normal力矩，但会改变tangent力矩；参考面投影方向与normal不平行时，法向也必须使用源质量加权force point（BF144.50已补充此边界）。
   - 反例：完整角色head保留实际质量/惯量，受控中心球对静态box；从实际准备好的contact constraint拷贝进入公开速度solve，固定相同V=(1,−1,0)、W=0与normal累计量，隔离D94/D95的位置阶段。半径0.125m、1cm重叠、friction=0.7时，目标切向速度0.50834465m/s、角速度z=−4.2362094rad/s，source为0.52872527与−4.2298017。60/30Hz×零/1mm/1cm重叠×零/0.7摩擦×原点/源加权点共24组20PASS/4FAIL；只在constraint准备前平移两侧anchor到源加权位置后恢复。证据`bf144_pa_contact_phase34_friction_uses_mass_weighted_contact_position`、`target/bf144/34/weighted/`。
   - 漏检：旧测试把目标接触点直接作为共同oracle输入，未比较两引擎gather的质量语义；这里是实际consumer的受控单阶段证明，不声称完整自然Ragdoll轨迹已对齐。零重叠与零摩擦均通过；生产代码未改。
 
@@ -1111,7 +1112,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 - [ ] BF144-D128 / P3 — 非共面凸包面使用不同的接触投影规则，遗漏源支持深度和旋转修正。
   - Source：fresh `CollisionOneShotManifolds.cpp:870–905,973–1071`以保存的面平面、0.002参考面偏置及三维裁剪生成接触，并将所有裁剪点投影到选定参考面。原生Arch_01的hull 0/1顶面各有4顶点，源自身也保留约1.8mm的非共面残差；不能将非共面本身判作缺陷。原生平面投影公式与全部相应接触深度误差小于1e−10m。
   - Target：`PolygonalFeature::contacts_face_face`对面内点用前三顶点构造平面，对边交点直接插值原始边；未保留源的统一参考面投影。两处实际边插值逐点预测目标深度至约2.2e−8m，最大源差分别0.535916/0.534020mm；只使用原生参考面的对照缩小到约0.61µm，共面hull 3控制通过。两侧均为4点的hull 0排除D126截断因素。
-  - 反例：完整角色创建的实际foot constraint，经真实窄相位过滤后拷贝进入公开位置solve；共同零V/W、硬接触、同一惯量、源点序，比较源首次位置迭代与该消费者的V×dt/W×dt。hull 0目标向上修正约1.000285mm、角修正近0；源应为1.129133mm和x约−0.00257232rad。hull 1同样失败，仅在prepare前替换native接触数据均恢复。其余相邻raw样本一并核对，23组native几何控制全部通过。证据`48/topology.native.json`、`48/topology_analysis.json`、`bf144_convex_phase48_remaining_position_consumers`。
+  - 反例：完整角色创建的实际foot constraint，经真实窄相位过滤后拷贝进入公开位置solve；共同零V/W、硬接触、同一惯量、源点序，比较源首次位置迭代与该消费者的V×dt/W×dt。hull 0目标向上修正约1.000285mm、角修正近0；按BF144.50校正的源force point，应为1.129120mm和x约−0.00257236rad。hull 1同样失败，仅在prepare前替换native接触数据均恢复。其余相邻raw样本一并核对，23组native几何控制全部通过。证据`48/topology.native.json`、`48/topology_analysis.json`、`bf144_convex_phase48_remaining_position_consumers`。
   - 漏检/范围：旧顶点云相同与primitive-box Gate未检查cooked面平面及边插值的实际消费；初次仅检查前三点平面不足以解释另一侧拱面，补齐边交点分支后两侧均闭合。这里证明首次位置消费者的独立差异，未声称全帧源动力仿真或多hull聚合已通过；生产未改。
 
 - [ ] BF144-D129 / P3 — 已有胶囊支持点后仍追加GJK点，多余点参与位置求解。
