@@ -42,6 +42,8 @@
 #include "Chaos/MassConditioning.h"
 #include "Chaos/Box.h"
 #include "Chaos/Capsule.h"
+#include "Chaos/Convex.h"
+#include "Chaos/ImplicitObjectScaled.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/GeometryQueries.h"
 #include "Chaos/ChaosEngineInterface.h"
@@ -1079,6 +1081,37 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
             OtherGeometryValue->SetObjectField(TEXT("bounds_min_cm"), CaptureVector(FVector(Other->BoundingBox().Min())));
             OtherGeometryValue->SetObjectField(TEXT("bounds_max_cm"), CaptureVector(FVector(Other->BoundingBox().Max())));
             OtherGeometryValue->SetObjectField(TEXT("shape_to_body"), CaptureTransform(OtherLocal));
+            if (IsConvex)
+            {
+                Chaos::FVec3 CoreScale;
+                Chaos::FReal WrapperMargin;
+                const Chaos::FConvex* Core = Chaos::UnwrapImplicit<Chaos::FConvex>(*Other, CoreScale, WrapperMargin);
+                if (Core == nullptr) { return nullptr; }
+                const Chaos::FConvex& Convex = *Core;
+                OtherGeometryValue->SetObjectField(TEXT("convex_core_scale"), CaptureVector(FVector(CoreScale)));
+                TArray<TSharedPtr<FJsonValue>> Vertices;
+                for (int32 VertexIndex = 0; VertexIndex < Convex.NumVertices(); ++VertexIndex)
+                {
+                    Vertices.Add(MakeShared<FJsonValueObject>(CaptureVector(FVector(Convex.GetVertex(VertexIndex)))));
+                }
+                TArray<TSharedPtr<FJsonValue>> Planes;
+                for (int32 PlaneIndex = 0; PlaneIndex < Convex.NumPlanes(); ++PlaneIndex)
+                {
+                    TSharedPtr<FJsonObject> Plane = MakeShared<FJsonObject>();
+                    const auto SourcePlane = Convex.GetPlane(PlaneIndex);
+                    Plane->SetObjectField(TEXT("normal"), CaptureVector(FVector(SourcePlane.Normal())));
+                    Plane->SetObjectField(TEXT("origin_cm"), CaptureVector(FVector(SourcePlane.X())));
+                    TArray<TSharedPtr<FJsonValue>> Indices;
+                    for (int32 Index = 0; Index < Convex.NumPlaneVertices(PlaneIndex); ++Index)
+                    {
+                        Indices.Add(MakeShared<FJsonValueNumber>(Convex.GetPlaneVertex(PlaneIndex, Index)));
+                    }
+                    Plane->SetArrayField(TEXT("vertex_indices"), Indices);
+                    Planes.Add(MakeShared<FJsonValueObject>(Plane));
+                }
+                OtherGeometryValue->SetArrayField(TEXT("convex_core_vertices_cm"), Vertices);
+                OtherGeometryValue->SetArrayField(TEXT("convex_core_planes"), Planes);
+            }
         }
         FChaosSolversModule* Module = FChaosSolversModule::GetModule();
         Chaos::FPBDRigidsSolver* Solver = Module->CreateSolver(nullptr, -1.0, Chaos::EThreadingMode::SingleThread);

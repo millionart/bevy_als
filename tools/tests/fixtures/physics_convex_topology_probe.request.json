@@ -1,0 +1,596 @@
+{
+  "samples": [
+    {
+      "label": "SM_Als_Arch_01_shape_0_head_scale_1_gap_-0.1",
+      "bone_name": "head",
+      "shape_index": 0,
+      "body_translation_cm": [
+        -70.341919,
+        -2.506819,
+        101.97644700000001
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Arch_01",
+      "mesh_shape_index": 0,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "placement_gap_cm": -0.1
+    },
+    {
+      "label": "SM_Als_Arch_01_shape_1_head_scale_1_gap_-0.1",
+      "bone_name": "head",
+      "shape_index": 0,
+      "body_translation_cm": [
+        60.342163,
+        -2.506819,
+        101.97644700000001
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Arch_01",
+      "mesh_shape_index": 1,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "placement_gap_cm": -0.1
+    },
+    {
+      "label": "SM_Als_Arch_01_shape_2_head_scale_1_gap_-0.1",
+      "bone_name": "head",
+      "shape_index": 0,
+      "body_translation_cm": [
+        -43.397999,
+        45.365307,
+        176.258963
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Arch_01",
+      "mesh_shape_index": 2,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "placement_gap_cm": -0.1
+    },
+    {
+      "label": "SM_Als_Arch_01_shape_3_head_scale_1_gap_-0.1",
+      "bone_name": "head",
+      "shape_index": 0,
+      "body_translation_cm": [
+        -5.001327500000002,
+        20.971956000000002,
+        216.9
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Arch_01",
+      "mesh_shape_index": 3,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "placement_gap_cm": -0.1
+    },
+    {
+      "label": "SM_Als_Arch_01_shape_4_head_scale_1_gap_-0.1",
+      "bone_name": "head",
+      "shape_index": 0,
+      "body_translation_cm": [
+        122.169884,
+        -2.102216,
+        174.120764
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Arch_01",
+      "mesh_shape_index": 4,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "placement_gap_cm": -0.1
+    },
+    {
+      "label": "SM_Als_Arch_02_shape_0_head_scale_1_gap_-0.1",
+      "bone_name": "head",
+      "shape_index": 0,
+      "body_translation_cm": [
+        78.876572,
+        -4.520163,
+        156.25849
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Arch_02",
+      "mesh_shape_index": 0,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "placement_gap_cm": -0.1
+    },
+    {
+      "label": "SM_Als_Arch_02_shape_1_head_scale_1_gap_-0.1",
+      "bone_name": "head",
+      "shape_index": 0,
+      "body_translation_cm": [
+        171.169708,
+        -4.481589,
+        181.95230700000002
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Arch_02",
+      "mesh_shape_index": 1,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "placement_gap_cm": -0.1
+    },
+    {
+      "label": "SM_Als_Arch_02_shape_2_head_scale_1_gap_-0.1",
+      "bone_name": "head",
+      "shape_index": 0,
+      "body_translation_cm": [
+        168.653809,
+        -1.650077,
+        182.285208
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Arch_02",
+      "mesh_shape_index": 2,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "placement_gap_cm": -0.1
+    },
+    {
+      "label": "SM_Als_Arch_02_shape_3_head_scale_1_gap_-0.1",
+      "bone_name": "head",
+      "shape_index": 0,
+      "body_translation_cm": [
+        262.605621,
+        -4.516849,
+        154.169394
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Arch_02",
+      "mesh_shape_index": 3,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "placement_gap_cm": -0.1
+    },
+    {
+      "label": "SM_Als_Barrel_shape_0_head_scale_1_gap_-0.1",
+      "bone_name": "head",
+      "shape_index": 0,
+      "body_translation_cm": [
+        -5.127216499999999,
+        -3.2279038749999995,
+        104.999998
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Barrel",
+      "mesh_shape_index": 0,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "placement_gap_cm": -0.1
+    },
+    {
+      "label": "SM_Als_Barrel_shape_0_head_scale_1.5_gap_-0.1",
+      "bone_name": "head",
+      "shape_index": 0,
+      "body_translation_cm": [
+        -5.190824750000001,
+        -3.3418558124999995,
+        153.049997
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Barrel",
+      "mesh_shape_index": 0,
+      "mesh_scale": [
+        1.5,
+        1.5,
+        1.5
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "placement_gap_cm": -0.1
+    },
+    {
+      "label": "SM_Als_Barrel_Broken_shape_0_head_scale_1_gap_-0.1",
+      "bone_name": "head",
+      "shape_index": 0,
+      "body_translation_cm": [
+        -9.762122,
+        -9.3853665,
+        108.33438000000001
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Barrel_Broken",
+      "mesh_shape_index": 0,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "placement_gap_cm": -0.1
+    },
+    {
+      "label": "SM_Als_Bench_shape_0_head_scale_1_gap_-0.1",
+      "bone_name": "head",
+      "shape_index": 0,
+      "body_translation_cm": [
+        -77.319008,
+        -24.671167,
+        107.50677300000001
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Bench",
+      "mesh_shape_index": 0,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "placement_gap_cm": -0.1
+    },
+    {
+      "label": "SM_Als_Bench_shape_1_head_scale_1_gap_-0.1",
+      "bone_name": "head",
+      "shape_index": 0,
+      "body_translation_cm": [
+        67.23922,
+        -24.68153,
+        107.520514
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Bench",
+      "mesh_shape_index": 1,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "placement_gap_cm": -0.1
+    },
+    {
+      "label": "SM_Als_Bench_shape_2_head_scale_1_gap_-0.1",
+      "bone_name": "head",
+      "shape_index": 0,
+      "body_translation_cm": [
+        70.253502,
+        25.166794,
+        48.420798
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Bench",
+      "mesh_shape_index": 2,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "placement_gap_cm": -0.1
+    },
+    {
+      "label": "SM_Als_Bench_shape_3_head_scale_1_gap_-0.1",
+      "bone_name": "head",
+      "shape_index": 0,
+      "body_translation_cm": [
+        68.313904,
+        -27.249454,
+        105.22753
+      ],
+      "body_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "mesh_asset_path": "/ALS/ALSExtras/Environment/Meshes/SM_Als_Bench",
+      "mesh_shape_index": 3,
+      "mesh_scale": [
+        1,
+        1,
+        1
+      ],
+      "mesh_translation_cm": [
+        0,
+        0,
+        0
+      ],
+      "mesh_rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "cull_distance_cm": 3,
+      "delta_seconds": 0.016666666666666666,
+      "placement_gap_cm": -0.1
+    }
+  ]
+}
