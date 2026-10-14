@@ -49,6 +49,8 @@
 #include "ChaosSolversModule.h"
 #include "Chaos/CollisionResolution.h"
 #include "Chaos/Collision/CollisionConstraintAllocator.h"
+#include "Chaos/Collision/CollisionFilter.h"
+#include "PhysicsEngine/BodySetup.h"
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
 #include "PhysicsEngine/SkeletalBodySetup.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
@@ -957,30 +959,34 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
         int32 ShapeIndex = 0;
         double CullDistance = 0;
         double DeltaSeconds = 0;
-        FVector BodyTranslation, BoxTranslation, BoxHalfExtents;
-        FQuat BodyRotation, BoxRotation;
+        const bool HasMesh = Input->HasField(TEXT("mesh_asset_path"));
+        const TCHAR* OtherTranslationKey = HasMesh ? TEXT("mesh_translation_cm") : TEXT("box_translation_cm");
+        const TCHAR* OtherRotationKey = HasMesh ? TEXT("mesh_rotation_xyzw") : TEXT("box_rotation_xyzw");
+        FVector BodyTranslation, OtherTranslation, BoxHalfExtents(1.0), MeshScale(1.0);
+        FQuat BodyRotation, OtherRotation;
         if (!Input->TryGetStringField(TEXT("bone_name"), BoneName)
             || !Input->TryGetNumberField(TEXT("shape_index"), ShapeIndex) || ShapeIndex < 0
             || !Input->TryGetNumberField(TEXT("cull_distance_cm"), CullDistance) || !FMath::IsFinite(CullDistance) || CullDistance < 0
             || !Input->TryGetNumberField(TEXT("delta_seconds"), DeltaSeconds) || !FMath::IsFinite(DeltaSeconds) || DeltaSeconds <= 0
             || !ReadVector(Input, TEXT("body_translation_cm"), BodyTranslation)
-            || !ReadVector(Input, TEXT("box_translation_cm"), BoxTranslation)
-            || !ReadVector(Input, TEXT("box_half_extents_cm"), BoxHalfExtents) || BoxHalfExtents.GetMin() <= 0
+            || !ReadVector(Input, OtherTranslationKey, OtherTranslation)
+            || (!HasMesh && (!ReadVector(Input, TEXT("box_half_extents_cm"), BoxHalfExtents) || BoxHalfExtents.GetMin() <= 0))
+            || (HasMesh && (!ReadVector(Input, TEXT("mesh_scale"), MeshScale) || MeshScale.GetAbsMin() <= 0))
             || !ReadRotation(Input, TEXT("body_rotation_xyzw"), BodyRotation)
-            || !ReadRotation(Input, TEXT("box_rotation_xyzw"), BoxRotation))
+            || !ReadRotation(Input, OtherRotationKey, OtherRotation))
         {
             UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Physics contact probe has an invalid sample."));
             return nullptr;
         }
-        FVector NextBodyTranslation, NextBoxTranslation;
-        FQuat NextBodyRotation, NextBoxRotation;
+        FVector NextBodyTranslation, NextOtherTranslation;
+        FQuat NextBodyRotation, NextOtherRotation;
         const bool HasNext = Input->HasField(TEXT("next"));
         const TSharedPtr<FJsonObject>* Next = nullptr;
         if (HasNext && (!Input->TryGetObjectField(TEXT("next"), Next)
             || !ReadVector(*Next, TEXT("body_translation_cm"), NextBodyTranslation)
-            || !ReadVector(*Next, TEXT("box_translation_cm"), NextBoxTranslation)
+            || !ReadVector(*Next, OtherTranslationKey, NextOtherTranslation)
             || !ReadRotation(*Next, TEXT("body_rotation_xyzw"), NextBodyRotation)
-            || !ReadRotation(*Next, TEXT("box_rotation_xyzw"), NextBoxRotation)))
+            || !ReadRotation(*Next, OtherRotationKey, NextOtherRotation)))
         {
             UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Physics contact probe has an invalid next transform."));
             return nullptr;
@@ -1033,7 +1039,47 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
         GeometryValue->SetObjectField(TEXT("shape_to_body"), CaptureTransform(ShapeLocal));
         Body.TermBody();
         FPhysicsShapeAdapter BoxAdapter(FQuat::Identity, FCollisionShape::MakeBox(BoxHalfExtents));
-        const Chaos::FImplicitObjectPtr Other = const_cast<Chaos::FImplicitObject*>(&BoxAdapter.GetGeometry());
+        Chaos::FImplicitObjectPtr Other = const_cast<Chaos::FImplicitObject*>(&BoxAdapter.GetGeometry());
+        FTransform OtherLocal = FTransform::Identity;
+        TSharedPtr<FJsonObject> OtherGeometryValue;
+        if (HasMesh)
+        {
+            FString MeshPath;
+            int32 MeshShapeIndex = 0;
+            if (!Input->TryGetStringField(TEXT("mesh_asset_path"), MeshPath)
+                || !Input->TryGetNumberField(TEXT("mesh_shape_index"), MeshShapeIndex) || MeshShapeIndex < 0) { return nullptr; }
+            UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, *MeshPath);
+            UBodySetup* MeshSetup = Mesh ? Mesh->GetBodySetup() : nullptr;
+            if (MeshSetup == nullptr) { return nullptr; }
+            FBodyInstance MeshBody;
+            MeshBody.CopyBodyInstancePropertiesFrom(&MeshSetup->DefaultInstance);
+            MeshBody.bSimulatePhysics = false;
+            MeshBody.InitBody(MeshSetup, FTransform(FQuat::Identity, FVector::ZeroVector, MeshScale), nullptr, nullptr, FInitBodySpawnParams(false, true));
+            if (!MeshBody.IsValidBodyInstance()) { return nullptr; }
+            ON_SCOPE_EXIT { MeshBody.TermBody(); };
+            TArray<FPhysicsShapeHandle> MeshShapes;
+            FPhysicsInterface::GetAllShapes_AssumedLocked(MeshBody.GetPhysicsActorHandle(), MeshShapes);
+            if (!MeshShapes.IsValidIndex(MeshShapeIndex)) { return nullptr; }
+            const FPhysicsShapeHandle& MeshShape = MeshShapes[MeshShapeIndex];
+            const FPhysicsGeometryCollection MeshGeometry = FPhysicsInterface::GetGeometryCollection(MeshShape);
+            Other = const_cast<Chaos::FImplicitObject*>(MeshShape.Shape->GetLeafGeometry());
+            OtherLocal = MeshShape.Shape->GetLeafRelativeTransform();
+            const bool IsConvex = MeshGeometry.GetType() == ECollisionShapeType::Convex;
+            const bool IsTriangleMesh = MeshGeometry.GetType() == ECollisionShapeType::Trimesh;
+            if ((!IsConvex && !IsTriangleMesh) || !Chaos::DoCollide(IsConvex ? Chaos::ImplicitObjectType::Convex : Chaos::ImplicitObjectType::TriangleMesh, MeshShape.Shape)) { return nullptr; }
+            OtherGeometryValue = MakeShared<FJsonObject>();
+            OtherGeometryValue->SetStringField(TEXT("asset_path"), Mesh->GetPathName());
+            OtherGeometryValue->SetStringField(TEXT("kind"), IsConvex ? TEXT("convex") : TEXT("trimesh"));
+            OtherGeometryValue->SetNumberField(TEXT("shape_count"), MeshShapes.Num());
+            OtherGeometryValue->SetNumberField(TEXT("shape_index"), MeshShapeIndex);
+            OtherGeometryValue->SetNumberField(TEXT("margin_cm"), Other->GetMarginf());
+            OtherGeometryValue->SetNumberField(TEXT("collision_trace_type"), static_cast<int32>(MeshShape.Shape->GetCollisionTraceType()));
+            OtherGeometryValue->SetBoolField(TEXT("simulation_enabled"), FPhysicsInterface::IsSimulationShape(MeshShape));
+            OtherGeometryValue->SetBoolField(TEXT("query_enabled"), FPhysicsInterface::IsQueryShape(MeshShape));
+            OtherGeometryValue->SetObjectField(TEXT("bounds_min_cm"), CaptureVector(FVector(Other->BoundingBox().Min())));
+            OtherGeometryValue->SetObjectField(TEXT("bounds_max_cm"), CaptureVector(FVector(Other->BoundingBox().Max())));
+            OtherGeometryValue->SetObjectField(TEXT("shape_to_body"), CaptureTransform(OtherLocal));
+        }
         FChaosSolversModule* Module = FChaosSolversModule::GetModule();
         Chaos::FPBDRigidsSolver* Solver = Module->CreateSolver(nullptr, -1.0, Chaos::EThreadingMode::SingleThread);
         ON_SCOPE_EXIT { Module->DestroySolver(Solver); };
@@ -1051,7 +1097,7 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
             Chaos::FRigidTransform3::Identity, CullDistance, true, PairType);
         if (!Constraint.IsValid()) { return nullptr; }
         const FTransform ShapeWorld = ShapeLocal * FTransform(BodyRotation, BodyTranslation);
-        const FTransform BoxWorld(BoxRotation, BoxTranslation);
+        const FTransform BoxWorld = OtherLocal * FTransform(OtherRotation, OtherTranslation);
         Constraint->SetShapeWorldTransforms(ShapeWorld, BoxWorld);
         Chaos::Collisions::UpdateConstraint(*Constraint, ShapeWorld, BoxWorld, DeltaSeconds);
         const auto CapturePoints = [&Constraint](const FTransform& ShapeTransform, const FTransform& BoxTransform)
@@ -1076,13 +1122,14 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
         TSharedRef<FJsonObject> Sample = MakeShared<FJsonObject>();
         Sample->SetObjectField(TEXT("input"), Input.ToSharedRef());
         Sample->SetObjectField(TEXT("geometry"), GeometryValue);
+        if (OtherGeometryValue.IsValid()) { Sample->SetObjectField(TEXT("other_geometry"), OtherGeometryValue.ToSharedRef()); }
         Sample->SetArrayField(TEXT("points"), Points);
         if (HasNext)
         {
             Constraint->SetLastShapeWorldTransforms(ShapeWorld, BoxWorld);
             if (Constraint->GetManifoldPoints().IsEmpty()) { Constraint->ResetManifold(); }
             const FTransform NextShapeWorld = ShapeLocal * FTransform(NextBodyRotation, NextBodyTranslation);
-            const FTransform NextBoxWorld(NextBoxRotation, NextBoxTranslation);
+            const FTransform NextBoxWorld = OtherLocal * FTransform(NextOtherRotation, NextOtherTranslation);
             Constraint->SetShapeWorldTransforms(NextShapeWorld, NextBoxWorld);
             const bool RestoreAllowed = Constraint->GetCanRestoreManifold();
             const bool Restored = RestoreAllowed && Constraint->TryRestoreManifold();
