@@ -54,7 +54,7 @@
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；BF144.43将U01原生核验归并为D125，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.19完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道、warp变换、动态基座和RMS物理消费的首轮审计，确认D43–D60、D62–D64，D61撤销；精确查询数值及公共Playground验收尚未闭合 |
 | Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.42及.44–.64完成许可、启动/退出、输入/锁定、GetUp交接/时钟/通知/清理/姿态/曲线/根运动、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样/child预测bounds、多点回弹迭代、原生点序/支持点消费、质量加权接触位置、contact/joint耦合、primitive缓存、初速生成/交接/限速预算、pelvis跟随/探地/恢复朝向、进入挂接/退出快照、mesh恢复及零scale重建首轮审计，确认D65–D124、D126–D145；实际convex/trimesh的几何、速度摩擦及跨帧消费已由.45–.64完成当前输入闭包分类，U02关闭；不开展无源链路的通用物理审查 |
-| AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | BF144.65完成可见性更新/历史时钟与Head直接消费，确认D146/D147；首次pose、实例替换及其他输入算法/通知仍待审计；实际动画选择包含角色Overlay标签，排除道具表现 |
+| AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | BF144.65–.66完成可见性更新/历史时钟、初始化/实例替换与Head/Jump直接消费，确认D146–D149；其他输入算法、Feet/Turn/Transition和通知仍待审计；实际动画选择包含角色Overlay标签，排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | 待重新取证及核对；历史155子图合同只作起点，不能自证算法等价 |
 | 剩余源函数与跨阶段边界 | 以上 source-target 链路的覆盖缺口 | 前述审计后再独立收口；未解释项保留，截图与性能继续暂停 |
 
@@ -478,6 +478,12 @@
   - 06:29 闭包与拆分：逐帧确认无transition/turn/action后，隐藏中1→0.25倍率变更的6组5PASS/1FAIL确认D147；此前16组计数恢复确认D146。删除montage资格条件会使纯空闲控制误报，最小消融FAIL；按源码字节恢复并在同target重编后PASS。首次pose另受`InitAnim:1200–1216`的全局bTickAnimationOnSkeletalMeshInit、bUseRefPoseOnInitAnim及deferred root初始化控制，需要额外原生配置与首次pose/实例替换矩阵；该独立初始化闭包拆到下一项，当前项收口为已验证的可见性更新与时钟，保持原总体审计目标。NativeInitialize中的骨轴计算归后续Feet，完整155图合同和公共Playground仍未宣称通过。
 
   - 06:32 完成摘要：最终23组18PASS/5预期FAIL（可见性16组、倍率6组、纯空闲caller边界1组）；22组主体的数值/判定与加上逐帧无montage资格核验后的初版一致。丢掉montage资格的消融被拒绝，字节恢复、同target重编后最小边界PASS。源四资产、Root32/Head6节点中的必要生命周期连线、6份ALS/7份UE/14份目标闭包与116份基线source、160份生产Rust、原始/Build资产及启动器库/reader身份PASS，证据`65/summary.json`、`65/final/`。首版空闲oracle保留为已撤销诊断，不计缺陷。未改生产、转换器、reader或目标图；截图0、性能暂停，公共Playground与完整155图Gate仍后置。实耗45分15秒；累计145项（96P2/49P3），下一项继续已拆分的初始化配置、首次pose及实例替换。
+
+- [x] BF144.66 AnimationInstance初始化与替换：依赖BF144.65记录Gate，核对实际AnimationSettings与角色mesh的InitAnim分支、NativeInitialize/主linked实例所有权、首次pose和替换后的状态生命周期；骨轴计算归Feet，其他输入算法与通知后置。Gate：fresh配置/原生角色与初始化caller、target首帧/替换最小反例及对照、必要消融与身份记录。开始：2026-10-15 06:37 +08:00；预估结束：2026-10-15 07:22 +08:00；实际结束：2026-10-15 06:54:30 +08:00；偏差：−27分30秒；结果：审计记录Gate PASS，新增D148/D149两项P3，未修复。估时依据：.65已完成可见性/时钟闭包，剩余初始化约350行UE caller与ALS/target所有权；复用完整角色夹具与通用CDO读取，参照.65实际45分15秒安排本项独立验收。
+  - 06:38 活动摘要：.65的2处差异已提交；本项只展开已拆分的初始化链。先经通用原生Class/CDO读取AnimationSettings，再核对注册时的零delta求值及第一次普通tick；尚未认定首帧语义有差异。
+  - 06:49 source/反例摘要：fresh AnimationSettings确认bTickAnimationOnSkeletalMeshInit=True，实际body mesh的ref-pose覆盖=False；初始化走零delta求值。原生Uninitialize明确ResetAnimationCurves，目标的曲线投影组件却跨播放器替换保留。实际Rifle瞄准曲线0.994912令新实例首帧Head alpha变成0.005088而非1；覆写/移除重插两种路径共12组10PASS/2FAIL，删除旧投影或仅清PoseAiming均恢复，确认D148/P3。首次生成角色另见pending在零delta后立即清除的候选，正在沿Actor注册→首个普通tick→Jump实际FSM核验，尚未计数。无生产修改。
+  - 06:52 首次更新闭环：fresh Actor在全部component注册结束后才设HasRegisteredAllComponents；mesh OnRegister中的零delta动画PostUpdate仍保留pending，之后InitializeComponent的InitAnim(false)不重复初始化已有实例。目标首个零delta求值立即清pending；新角色下一帧实际Jump输入被接受且进入Jump，源应抑制bJumped并进入Fall。只保留pending一帧即恢复Fall，延后一帧再跳的对照仍进入Jump；3组2PASS/1FAIL，确认D149/P3。原生Locomotion条件与实际FSM状态/权重均已读取；完成消融及最终身份核验后提交。
+  - 06:54 完成摘要：最终15组12PASS/3预期FAIL；移除夹具未消费的返回值及重复deadline后，同target重编，全部数值、姿态及FSM判定与精简前逐行一致。保留有界循环和现有wall/no-progress watchdog，单字段恢复控制均通过。5份原生读取、5份ALS/7份UE/18份目标闭包、116份基线source/160份生产Rust及全部累积原始/Build资产、reader和启动器库身份PASS，证据`66/summary.json`、`66/final/`。实例主/linked所有权、首帧零delta、独立输入清理已覆盖；完整图算法与Feet等未据此验收。实耗17分30秒，复用CDO通用读取及既有角色夹具避免了工具扩展；累计147项（96P2/51P3）。生产、转换器、reader未改，截图0、性能暂停；继续View/Head/Spine输入算法。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -1361,6 +1367,18 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Source：fresh `UAlsAnimationInstance::NativeUpdateAnimation:111–116`用上一次NativeUpdate保存的global dilation计算DeltaTimeWithoutTimeDilation；隐藏且无montage时，UE的ShouldTickPose不调用NativeUpdate，历史值保持。`RefreshHead:637–648`在第一人称平滑中消费此dt。
   - Target：`head_layer.rs:194–204`每次PostUpdate都调用unscaled_delta_seconds并写回历史倍率，即使AnimationPoseUpdateGate已经停止图更新。
   - 反例：无montage隐藏期间把全局倍率从1变为0.25，恢复帧scaled dt=0.004166667秒。源保留旧倍率1，未缩放dt仍为0.004166667；目标却使用隐藏期间写入的0.25，得到0.016666668。实际Head pitch为30.767°、源应为11.286°；只恢复历史倍率即通过。6组5PASS/1FAIL，持续可见与第三人称控制通过；和D146的montage重激活条件分离，见`65/checked_initial/`。
+
+- [ ] BF144-D148 / P3 — 替换动画实例后保留旧曲线投影，改变新实例的首帧姿态。
+  - Source：fresh `AnimInstance.cpp:363–369,446–455`在Initialize前执行Uninitialize；`AnimInstanceProxy.cpp:455–466`清空全部AnimationCurves。`AlsAnimationInstance.cpp:400–405`以新实例的空曲线计算HeadBlendAmount=1；原生Head Additive节点绑定GetParent.ViewState.HeadBlendAmount。
+  - Target：`source_gameplay_tag_input.rs:89–95`在Discard清理输入，`animation_visibility.rs:25–27`清理gate，但`animation_context_projection.rs:44–98`仅在求值后覆盖AlsRootAnimationContext；`head_layer.rs:61–69,206–218`在新实例首次求值前消费旧曲线。
+  - 反例：实际Rifle瞄准后，PoseAiming=0.994912；覆写播放器或移除后重插时，新实例frame=1、elapsed=0，Head alpha仍为0.005088而源应为1。两路径×普通/瞄准旧姿态×保留/全部清空/仅清PoseAiming的12组10PASS/2FAIL，两个恢复控制均通过。仅清该字段使最终head四元数从约(0.025741,0.113965,−0.004760,0.993140)变为(0.026208,0.219716,−0.001992,0.975210)，其余旧曲线保持不变。
+  - 漏检：既有Discard测试只覆盖标签、slot、linked graph与rig query输入，没有覆盖独立的根曲线投影。实例ID已变化、旧标签和gate已清理，排除旧实例继续运行。证据`66/initial/`、`66/field_initial/`与`bf144_animation_phase66_replacement_curve_ownership`；仅登记，未修复。
+
+- [ ] BF144-D149 / P3 — 启动零delta求值后提前清除pending，改变首个普通更新的动画选择。
+  - Source：fresh `Actor.cpp:6262,6297`先逐个RegisterComponent，再标记全部注册完成；`SkeletalMeshComponent.cpp:1036,1215–1216`在mesh注册过程中执行初始化零delta求值。ALS `NativePostUpdateAnimation:227`因此保留pending；之后`InitializeComponent:1455`以force=False调用InitAnim，不重新初始化已有主实例。首个普通tick仍按pending执行`RefreshInAirOnGameThread:1103–1104`，抑制并清除Jump请求，随后才清pending。
+  - Target：`post_physics_animation.rs:188–205`用零delta完成首个pose后立即令gate.pending_update=False；`ab_als_provider.rs:310–313`在第二次图更新发布False，`locomotion_layer.rs:90–101,190`因而接受同帧Jump请求。
+  - 反例：通过公开spawn入口生成新角色，确认首个图frame=1、elapsed=0、已在地面；下一帧实际Tnua Jump启动，两侧共同竖直速度4.0365m/s，目标FSM进入Jump（权重1），源应Fall。仅在夹具保留pending到这次更新，FSM即进入Fall（权重1）；延后一帧才按Jump的控制仍进入Jump。3组2PASS/1FAIL，证据`66/startup_initial/`及`bf144_animation_phase66_startup_pending`。
+  - 漏检：旧启动检查验证零delta和非空pose，却未区分注册过程初始化与第一个普通更新的pending寿命。fresh原生T19条件确为InAir且bJumped，Jump/Fall状态身份取自原生节点；不是只核对请求或标签。仅登记，未修复。
 
 ### 核验边界记录（不计为无差异）
 
