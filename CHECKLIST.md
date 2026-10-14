@@ -53,7 +53,7 @@
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；U01未闭合，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.19完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道、warp变换、动态基座和RMS物理消费的首轮审计，确认D43–D60、D62–D64，D61撤销；精确查询数值及公共Playground验收尚未闭合 |
-| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.38完成许可、启动/退出、输入/锁定、GetUp交接、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样/child预测bounds、多点回弹迭代、原生点序/支持点消费、质量加权接触位置、contact/joint耦合、primitive缓存、初速生成/交接/限速预算及pelvis跟随/探地/恢复朝向首轮审计，确认D65–D112；入口及出口pose、零scale恢复、完整GetUp动画及实际convex/trimesh接触生成仍待审；不开展无源链路的通用物理审查 |
+| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.39完成许可、启动/退出、输入/锁定、GetUp交接、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样/child预测bounds、多点回弹迭代、原生点序/支持点消费、质量加权接触位置、contact/joint耦合、primitive缓存、初速生成/交接/限速预算、pelvis跟随/探地/恢复朝向、进入挂接/退出快照及mesh恢复首轮审计，确认D65–D115；零scale恢复、完整GetUp动画及实际convex/trimesh接触生成仍待审；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | 待重新取证及核对；历史155子图合同只作起点，不能自证算法等价 |
 | 剩余源函数与跨阶段边界 | 以上 source-target 链路的覆盖缺口 | 前述审计后再独立收口；未解释项保留，截图与性能继续暂停 |
@@ -306,6 +306,13 @@
   - 15:48 source/focused阶段：fresh角色CDO确认PrePhysics及暂停不Tick；8组匀速采样6PASS/2FAIL、4组暂停3PASS/1FAIL确认跟随时钟两处遗漏。ground trace的42组中6个30度斜面较解析值高约0.16mm；实际退出99组中3组在roll零点/近pole选择相反起身方向，均先保留候选。读取器新增公开FQuat::Rotator与Sphere SweepQuery原生取样，首轮模块构建及flat=70cm/identity smoke通过，正在用同输入裁定。几何fixture的原点样本曾被physics后的亚纳米漂移改成非零，已将query前输入固定，隔离已证实的采样阶段差异；不放宽容差。
   - 16:04 native/focused闭环：99个原生Rotator逐项确认3个相反facing，36个原生sphere sweep确认6个30度斜面的提前TOI，登记D109–D112。原生Single Sweep的MTD旗标、初始重叠返回start以及半高/半径缩放已由实际caller核对；没有用解析平面代替源数值。新增10组工具自测及旧8组接触恢复自测PASS，旧contact payload逐值保持；零半径按7退出，去掉flat sweep测距的数据消融按预期FAIL。下一步只收口记录与提交，Capsule U01仍须自身源实证。
   - 本项归纳：116份基线source、12份补充UE、3份查询依赖、fresh角色/135组native几何、原始/Build及160份生产Rust/launcher库身份核验PASS。角色与基线仅7个生成GraphGuid及pin identity变化，按一一映射核对完整拓扑与其他payload相同；CDO Tick值直接一致。最终同一probe二进制的4项focused为预期语义FAIL，153组141PASS/12FAIL，证据`38/{clock_final,geometry_final,recovery_final}/`、`38/summary.json`。读取器仅加GeometryQueryProbe公开API取样，旧接触恢复8组与原数据逐值相同；数据消融未改原始导出或源码mtime。无生产实现/转换规则/目标资产修改，累计76项P2、34项P3，截图0、性能暂停。实耗52分03秒；原生数值取样及生成ID身份核对使本轮比估时多7分03秒，下一批复用接口，继续pose snapshot/mesh恢复与GetUp。
+
+- [x] BF144.39 Ragdoll姿态快照与mesh挂接恢复：依赖BF144.38记录Gate；沿fresh Start/Stop、SnapshotFinalRagdollPose及UE SnapshotPose，核对进入时KeepWorld、退出snapshot的骨骼覆盖/局部变换、mesh默认offset/rotation/world scale与pelvis世界姿态保持。恢复朝向数值D111与跟随D109不重复计数；零scale重建及GetUp montage生命周期另项。Gate：fresh原始骨架与offset事实、完整角色实际snapshot/恢复transform消费者、unit/缩放/父空间对照和source身份。开始：2026-10-14 16:18 +08:00；预估结束：2026-10-14 17:03 +08:00；实际结束：2026-10-14 16:49:39 +08:00；偏差：−13分21秒；结果：审计记录Gate PASS，新增3项P2，未修复。估时依据：source SnapshotPose约50行、ALS Stop约100行与Character offset缓存，target capture/restore约180行；BF144.37跨阶段实耗33分11秒、BF144.38含native接口实耗52分03秒，本项复用原生骨架/transform读取与既有角色，不增加未证实的动画算法闭包。
+  - 16:18 活动摘要：source snapshot先于关闭physics及移动actor，根骨始终写入，未评估骨骼回退reference pose；退出mesh位置显式使用TransformPositionNoScale，并保持此前world scale再KeepWorld挂回。target恢复保存的local transform，需先核对实际层级和骨架root，不能因函数名或省略root循环就直接判差异。
+  - 16:37 source/focused闭环：fresh SKM_Als为68根原始骨骼+11根虚骨，79根均有目标实体；被省略的是GltfNode0和空路径占位，真实root保留，排除漏根骨候选。完整角色24组entry KeepWorld及78根非pelvis源骨骼与mesh容器局部值检查通过；退出offset与世界scale分别确认D113/D114，非均匀缩放的pelvis姿态仍在核对父空间，暂不计入。最初采样hook早于state transition导致前置失败，已调整到实际capture前，未修改生产调度或容差。累计78项P2、34项P3，继续完成本项局部姿态与身份Gate。
+  - 16:39 父空间归因：snapshot实际包含real root，按mesh×root×pelvis重建后24组世界姿态全部通过，排除先前漏乘root的夹具候选。该检查直接暴露非均匀角色的root local scale被回读成actor scale的倒数；fresh PhysAnim.cpp:200–206,339–345始终保留动画骨骼scale，而target normalize_scaled_readback_pose:142–145跳过非均匀scale。本项仅沿这个已到达snapshot的producer追加Flail根轨道与实际readback核对，不据此展开其他图或通用物理链路。
+  - 16:42 producer闭环：fresh Flail根轨道三个原生采样均identity；实际Ragdoll读回前root scale=1，非均匀(1.4,0.8,0.6)读回后变为(0.7142857,1.25,1.6666666)，登记D115。8组7PASS/1FAIL，unit/0.75/1.5 uniform及关闭readback的控制全部通过；source保持输入骨骼scale的分支不受kinematic/dynamic权重影响。累计79项P2、34项P3，下一步只完成骨骼名称合同、源资产/库身份及最终记录Gate。
+  - 本项归纳：116份基线source、6份补充UE、3份animation graph依赖、fresh mesh/Flail/Ragdoll图及原始/Build、160份生产Rust/launcher库身份核验PASS；图原生引用确认Flail与FinalRagdollPose。最终3项focused为1PASS/2预期语义FAIL，33组12PASS/21FAIL；其中mesh位置16处、world scale12处失败，pelvis世界保持24组均通过。证据`39/final/`、`39/summary.json`。最终readback矩阵固定native根scale=1，另保留未固定输入的8组原始反例；中间一次输入前置失败未纳入等价结论。移除多余Arc/Mutex临时状态后信号保持，未新增生产层/转换规则/读取器接口。累计79项P2、34项P3，截图0、性能暂停；零scale恢复及GetUp继续。实耗31分39秒，复用已有读取器与完整角色缩短了骨架和挂接审计。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -959,6 +966,22 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Source：fresh `SceneQuery.cpp:378–380`的Single Sweep开启MTD，经`SQVisitor.h:336`调用公开SweepQuery；读取器使用相同shape adapter、transform与MTD输入直接取原生结果。`CollisionConversions.cpp:369–376`将time换回sphere center，ALS再加H−R+MIN_FLOOR_DIST。
   - Target：RagdollSpatialQuery只增加过滤，数值由Avian/Parry提供；`shape_cast_support_map_support_map.rs:21–28`走directional_distance，`gjk.rs:674–722`可在距离容差或不再收紧界限时返回当前TOI。该核与当前源查询结果不等，未把具体某个提前退出分支冒称为已动态插桩确认。
   - 反例：半径0.3m球从y=1m向下扫10×1×10m的30度box斜面；原生distance=0.653589859m，源站姿actor.y约0.9654101m，实际目标为0.9655699m，提前约0.16mm。Standing/Crouching×unit/0.75/非均匀scale×平面/30°/60°/空中/零点回退/初始重叠/空碰撞共42组36PASS/6FAIL，仅30度六组失败；36个有几何的原生查询逐项复核，去掉斜面条件即失去信号。证据`bf144_ragdoll_phase38_ground_trace_geometry_controls`、`38/geometry_final/`及`38/queries.native.json`。只确认本批sphere/box，U01的capsule数值边界不据此直接归因或关闭。
+
+- [ ] BF144-D113 / P2 — 布娃娃退出时mesh默认偏移错误地乘以actor缩放。
+  - Source：fresh `AlsCharacter_Actions.cpp:1110–1113`使用ActorTransform.TransformPositionNoScale(BaseTranslationOffset)定位mesh，再KeepWorld挂回capsule；`Character.cpp:192–195,504–527`维护默认/蹲姿offset。native角色mesh默认Z=−92cm、yaw=−90°、scale=1。
+  - Target：`ragdoll_link.rs:992–996,1037–1041`重组actor、父级和进入时保存的local transform，位置offset随actor scale相乘；单位scale下相同掩盖了差异。
+  - 反例：完整角色scale=0.75时，站姿恢复mesh比source高0.23m、蹲姿高0.145m；直接actor和带旋转/均匀缩放父级均复现。scale=1四组对照通过，非均匀scale.y=0.8也产生0.184/0.116m偏差。证据`bf144_ragdoll_phase39_mesh_snapshot_transforms`、`target/bf144/39/final/`；旧parent recovery测试保持actor最终世界scale=1，只检查pelvis保持，没有核对源mesh偏移。
+
+- [ ] BF144-D114 / P2 — 布娃娃期间改变actor缩放会在退出时错误改变mesh世界缩放。
+  - Source：fresh Start在`AlsCharacter_Actions.cpp:784`按KeepWorld脱离；Stop调用的`SceneComponent.cpp:2065–2099`只写位置和旋转，不改scale，随后KeepWorld挂接继续保留脱离mesh的世界scale。
+  - Target：`restore_ragdoll_player_parent:992–996,1037–1041`使用当前actor scale与旧local scale重建mesh，缺少源的世界scale保留语义。
+  - 反例：进入时actor/mesh scale均1，活动Ragdoll期间只把actor scale改为1.25，退出mesh scale变为1.25，source应保持1；站/蹲、直接/父级四组均复现。原始0.75及非均匀scale也复现，共12个改变scale样本失败，12个不改变scale的控制通过。证据同D113；该判据独立于位置offset及pelvis跟随，旧退出测试未覆盖脱离期间改变actor scale。
+
+- [ ] BF144-D115 / P2 — 非均匀mesh缩放在物理姿态回读中被根骨倒数scale抵消，并进入最终快照。
+  - Source：fresh `PhysAnim.cpp:200–206,339–345,355–363`将component scale用于物理位置换算，却保留输入动画的骨骼scale；kinematic root在当前bUpdateMeshWhenKinematic=False时保留动画值。native SKM_Als根骨与Flail的0/0.1/0.5秒根轨道均scale=1。
+  - Target：依赖`read_pose_avian.rs:43–66`从无scale的刚体Isometry回写局部Transform；`post_physics_animation.rs:142–145`只补偿uniform mesh，非均匀scale直接跳过。真实root被写入mesh scale倒数，`restore_ragdoll_player_parent`又将该错误值复制进final pose。
+  - 反例：完整角色mesh scale=(1.4,0.8,0.6)，实际readback前root scale=(1,1,1)，之后为(0.7142857,1.25,1.6666666)，抵消mesh缩放。unit/0.75/1.5/非均匀×开启/关闭readback共8组7PASS/1FAIL；同一非均匀角色关闭readback即保持1，独立于D113/D114的退出变换。证据`bf144_ragdoll_phase39_nonuniform_readback_preserves_source_root_scale`、`39/readback_initial/`与`39/final/`；退出快照矩阵中8个非均匀样本也保留该root值。
+  - 漏检：既有`scaled_readback_preserves_physics_world_transforms_across_animated_gaps`只枚举uniform 2/0.5/1，覆盖分支之外的非均匀scale未进入合同。仅登记，不改变回读插件或归一化实现。
 
 ### 未闭合边界（不计为无差异）
 
