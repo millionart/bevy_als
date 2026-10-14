@@ -53,7 +53,7 @@
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；U01未闭合，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.19完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道、warp变换、动态基座和RMS物理消费的首轮审计，确认D43–D60、D62–D64，D61撤销；精确查询数值及公共Playground验收尚未闭合 |
-| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.39完成许可、启动/退出、输入/锁定、GetUp交接、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样/child预测bounds、多点回弹迭代、原生点序/支持点消费、质量加权接触位置、contact/joint耦合、primitive缓存、初速生成/交接/限速预算、pelvis跟随/探地/恢复朝向、进入挂接/退出快照及mesh恢复首轮审计，确认D65–D115；零scale恢复、完整GetUp动画及实际convex/trimesh接触生成仍待审；不开展无源链路的通用物理审查 |
+| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.40完成许可、启动/退出、输入/锁定、GetUp交接、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样/child预测bounds、多点回弹迭代、原生点序/支持点消费、质量加权接触位置、contact/joint耦合、primitive缓存、初速生成/交接/限速预算、pelvis跟随/探地/恢复朝向、进入挂接/退出快照、mesh恢复及零scale重建首轮审计，确认D65–D117；完整GetUp动画及实际convex/trimesh接触生成仍待审；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | 待重新取证及核对；历史155子图合同只作起点，不能自证算法等价 |
 | 剩余源函数与跨阶段边界 | 以上 source-target 链路的覆盖缺口 | 前述审计后再独立收口；未解释项保留，截图与性能继续暂停 |
@@ -313,6 +313,12 @@
   - 16:39 父空间归因：snapshot实际包含real root，按mesh×root×pelvis重建后24组世界姿态全部通过，排除先前漏乘root的夹具候选。该检查直接暴露非均匀角色的root local scale被回读成actor scale的倒数；fresh PhysAnim.cpp:200–206,339–345始终保留动画骨骼scale，而target normalize_scaled_readback_pose:142–145跳过非均匀scale。本项仅沿这个已到达snapshot的producer追加Flail根轨道与实际readback核对，不据此展开其他图或通用物理链路。
   - 16:42 producer闭环：fresh Flail根轨道三个原生采样均identity；实际Ragdoll读回前root scale=1，非均匀(1.4,0.8,0.6)读回后变为(0.7142857,1.25,1.6666666)，登记D115。8组7PASS/1FAIL，unit/0.75/1.5 uniform及关闭readback的控制全部通过；source保持输入骨骼scale的分支不受kinematic/dynamic权重影响。累计79项P2、34项P3，下一步只完成骨骼名称合同、源资产/库身份及最终记录Gate。
   - 本项归纳：116份基线source、6份补充UE、3份animation graph依赖、fresh mesh/Flail/Ragdoll图及原始/Build、160份生产Rust/launcher库身份核验PASS；图原生引用确认Flail与FinalRagdollPose。最终3项focused为1PASS/2预期语义FAIL，33组12PASS/21FAIL；其中mesh位置16处、world scale12处失败，pelvis世界保持24组均通过。证据`39/final/`、`39/summary.json`。最终readback矩阵固定native根scale=1，另保留未固定输入的8组原始反例；中间一次输入前置失败未纳入等价结论。移除多余Arc/Mutex临时状态后信号保持，未新增生产层/转换规则/读取器接口。累计79项P2、34项P3，截图0、性能暂停；零scale恢复及GetUp继续。实耗31分39秒，复用已有读取器与完整角色缩短了骨架和挂接审计。
+
+- [x] BF144.40 Ragdoll零缩放后的物理重建与恢复：依赖BF144.39记录Gate；沿fresh UpdateRigidBodyScaling的coming-from-zero→RecreatePhysicsState→body/constraint初始化，核对恢复时pose、速度、模拟默认值、质量/关节及一次性重建生命周期。进入零scale不停模拟已登记D74，不重复计数；完整GetUp动画另项。Gate：source重建/阈值/默认值合同、完整角色零→非零与非零→非零控制、去掉已知D74影响后的独立反例与source身份。开始：2026-10-14 16:52 +08:00；预估结束：2026-10-14 17:22 +08:00；实际结束：2026-10-14 17:08:35 +08:00；偏差：−13分25秒；结果：审计记录Gate PASS，新增1项P2、1项P3，未修复。估时依据：fresh scaling分支约90行，UE create/destroy/InitBody直接闭包及target rig同步预计约350行；BF144.21初次形状与质量审计包含native工具建设，本项复用其PA记录及BF144.39完整角色，后者实耗31分39秒，缩小到零点恢复生命周期。
+  - 16:52 活动摘要：source仅uniform relative scale进入此分支；从近零恢复显式重建整个physics state，再记录新scale，非零→非零只更新已有body/关节。下一步核对ALS所用SetSimulatePhysics与SetAllBodiesSimulatePhysics的默认值差别，再决定实际消费者判据，不能照搬源注释推断所有恢复body都回到Kinematic。累计113项确认差异，截图0、性能暂停。
+  - 16:59 source/focused闭环：SetSimulatePhysics保留component级bSimulatePhysics=True，SetAllBodiesSimulatePhysics(False)不改它；fresh BodyInstance初始化因此恢复20个Dynamic+1个Kinematic，目标相符。Source重建销毁旧body/constraint并从actor速度和零角速度初始化；24组恢复矩阵18PASS/6FAIL，含先强制Kinematic并清零以隔离D74的三组独立反例：零期间写入的V/W被目标保留。该写入经source公开BodyInstance setter对Kinematic合法；不把D74产生的旧动量重复计数。继续阈值及native质量/关节控制后登记收口。
+  - 17:06 坐标/阈值闭环：near-zero合同在0/5e−5/1e−4三组失败、2e−4/1对照通过；登记D116，独立于D74。fresh 63组body mass及20个constraint记录验证恢复质量/锚点一致；pose检查按source GetBoneTransform重建，18组10PASS/8FAIL，平移mesh到(3,0.0015,−2)后缩到0.75产生约0.901m额外位移，mesh origin归零即消失，登记D117。该source nonzero→nonzero分支也重设body到当前bone transform，故本项仅沿实际缩放调用扩到这个直接控制，不复审已完成求解器。累计80项P2、35项P3，移除暂停下不必要的12帧预热后做最终记录核验。
+  - 本项归纳：116份基线source、7份补充UE、fresh 63组body初始化、原始/Build及160份生产Rust/launcher库身份核验PASS；PA完整payload保持，20个constraint与BF144.22逐值一致。最终3项focused为预期语义FAIL，47组30PASS/17FAIL；378组mass及360组关节锚点控制全部通过，body rotation与有限pose检查通过。证据`40/final/`、`40/summary.json`。删除12帧预热后失败边界不变；零写入、非零中间scale和世界原点的控制分别去掉对应信号。无新生产层/转换规则/工具接口，累计80项P2、35项P3，截图0、性能暂停。实耗16分35秒；复用原生body接口及已有坐标合同，使零点恢复闭包早于估时完成，下一批进入完整GetUp montage。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -982,6 +988,16 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：依赖`read_pose_avian.rs:43–66`从无scale的刚体Isometry回写局部Transform；`post_physics_animation.rs:142–145`只补偿uniform mesh，非均匀scale直接跳过。真实root被写入mesh scale倒数，`restore_ragdoll_player_parent`又将该错误值复制进final pose。
   - 反例：完整角色mesh scale=(1.4,0.8,0.6)，实际readback前root scale=(1,1,1)，之后为(0.7142857,1.25,1.6666666)，抵消mesh缩放。unit/0.75/1.5/非均匀×开启/关闭readback共8组7PASS/1FAIL；同一非均匀角色关闭readback即保持1，独立于D113/D114的退出变换。证据`bf144_ragdoll_phase39_nonuniform_readback_preserves_source_root_scale`、`39/readback_initial/`与`39/final/`；退出快照矩阵中8个非均匀样本也保留该root值。
   - 漏检：既有`scaled_readback_preserves_physics_world_transforms_across_animated_gaps`只枚举uniform 2/0.5/1，覆盖分支之外的非均匀scale未进入合同。仅登记，不改变回读插件或归一化实现。
+
+- [ ] BF144-D116 / P3 — mesh从近零缩放恢复时未重建物理状态，保留旧刚体速度。
+  - Source：fresh `SkeletalMeshComponentPhysics.cpp:3533–3550`以uniform relative scale的IsNearlyZero（每轴<=1e−4）识别恢复并RecreatePhysicsState；`ActorComponent.cpp:2594–2604`销毁/重建，`TermArticulated:1195–1242`删除body和constraint，`InitDynamicProperties_AssumesLocked:4690–4708`取actor速度，`ParticleHandle.h:99–103`初始化角速度0。ALS此前SetSimulatePhysics(True)的component级旗标保留，恢复为20个Dynamic+1个Kinematic。
+  - Target：`ragdoll_physics_profile.rs:1199–1268`把零scale回退到ONE，只调整已有rig；恢复没有对应重建/速度初始化，`sync_ragdoll_body_modes`仅恢复原有body mode。
+  - 反例：world pause，mesh经零点恢复1/0.75/1.5，零期间把pelvis速度设为(0.3,0.2,−0.1)m/s、角速度(0.2,−0.4,0.3)rad/s；actor速度0，source恢复后两者应0，目标完整保留。24组18PASS/6FAIL，先补上D74的Kinematic停用/清零后再写入仍失败；source setter允许Kinematic刚体写入，该对照不依赖“零点没停模拟”。0/5e−5/1e−4的恢复失败，2e−4与未过零控制通过。证据`bf144_ragdoll_phase40_zero_recovery_recreates_velocity_state`、`bf144_ragdoll_phase40_near_zero_threshold_controls`及`40/final/`。
+
+- [ ] BF144-D117 / P2 — 活动rig缩放以世界原点缩放刚体位置，偏离mesh原点和当前骨骼姿态。
+  - Source：fresh `UpdateRigidBodyScaling:3569–3573`在普通非零缩放后把body重新置于GetBoneTransform；从零恢复则经`InstantiatePhysicsAsset:919–928,1071–1084`从同一当前骨骼世界变换创建。`SkinnedMeshComponent.cpp:2401–2411,2467–2475`以component-space骨骼乘当前mesh世界变换，保留mesh origin。
+  - Target：`apply_profile_to_spawned_ragdoll:1347–1351`直接令已有body的Transform.translation乘scale_factor，该量已经包含世界位移；随后的实际Position因此围绕世界原点缩放。
+  - 反例：完整角色的detached mesh origin=(3,0.0015,−2)，从1缩到0.75时，pelvis相对source额外移动(−0.75,−0.000375,+0.5)m，误差约0.901388m；放大到1.5时误差约1.802776m。unit/0.75/1.5×经过零/直接更新×默认/平移/零origin共18组10PASS/8FAIL；unit和零origin均通过，所有质量/关节锚点及rotation控制通过。证据`bf144_ragdoll_phase40_recovery_mass_frames_and_pose_controls`、`40/final/`。旧缩放Gate只核对Collider尺寸、质量和关节局部frame，未核对实际body Position与mesh origin。
 
 ### 未闭合边界（不计为无差异）
 
