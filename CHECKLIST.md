@@ -53,7 +53,7 @@
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；U01未闭合，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.19完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道、warp变换、动态基座和RMS物理消费的首轮审计，确认D43–D60、D62–D64，D61撤销；精确查询数值及公共Playground验收尚未闭合 |
-| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.33完成许可、启动/退出、输入/锁定、GetUp交接、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样/child预测bounds、多点回弹迭代及原生点序/近水平接触规则首轮审计，确认D65–D101；其他支持点消费归BF144.34，contact/joint耦合、动作初速、pelvis跟随/出口pose和完整GetUp动画仍待审；不开展无源链路的通用物理审查 |
+| Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.34完成许可、启动/退出、输入/锁定、GetUp交接、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样/child预测bounds、多点回弹迭代、原生点序/支持点消费及质量加权接触位置首轮审计，确认D65–D102；contact/joint耦合、剩余接触缓存分支、动作初速、pelvis跟随/出口pose和完整GetUp动画仍待审；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | 待重新取证及核对；历史155子图合同只作起点，不能自证算法等价 |
 | 剩余源函数与跨阶段边界 | 以上 source-target 链路的覆盖缺口 | 前述审计后再独立收口；未解释项保留，截图与性能继续暂停 |
@@ -278,7 +278,11 @@
   - 13:23 超时复盘：第一轮开始12:08、预估结束12:58、实际结束13:23:38，偏差+25分38秒，记录Gate尚未收口。已回读本项、native factory/shape→UpdateConstraint→source gather→实际回弹消费者闭包及最终watchdog；当前3项focused均正常完成，66组38PASS/28差异，其中54组raw数据比较不能等同54组运动验收。漂移来自公开头文件可用但旧模板未导出、solver工厂所有权与新夹具消费输入的核验，未出现外部权限阻塞。纠正：停止扩展当前样本，保留已完成的D100/D101与工具验证；当前项只收口身份/记录，其他原生支持点影响拆到BF144.34。按上一轮估时窗口1.5倍建立分段：本项续轮开始2026-10-14 13:24 +08:00、预估结束2026-10-14 13:54 +08:00；下一段开始2026-10-14 13:54 +08:00、预估结束2026-10-14 14:39 +08:00，由下一项按实际开工更新。
   - 本项归纳：116份基线source、13份补充UE源码、4份Avian与1份Parry、22个native primitive/54组接触/7组版本化自测及无效quat拒绝、原始/Build、160份生产Rust与launcher库身份核验PASS。reader新增generic PhysicsContactProbe，除probe字段外各完整PA payload与上一批一致；构建包源码与工作区逐字节一致。最终3项focused为预期语义FAIL，66组38PASS/28FAIL，9.81秒完成；其中实际consumer共12组6PASS/6FAIL对应D100/D101，其余为raw对比。移除继承的单点/stage分支后反例和对照不变；直接粒子存储及旧形状模板路径因不可链接被淘汰，保留native工厂。证据`33/final/`、`33/summary.json`；无转换器/目标资产/生产Rust改动，未触发AnimBP重生成。累计71项P2、28项P3；D08/D61撤销、U01及BF144.34边界未闭合，截图0、性能暂停。总实耗79分48秒表明此类首次native接口工作应先独立验证模块可链接性，再估计矩阵与consumer。
 
-- [ ] BF144.34 原生接触支持点与后续消费剩余边界：依赖BF144.33记录Gate；只沿已取得的capsule倾角支持点、box面选择及微小normal数值差核对实际normal/friction/跨帧消费，已确认D100/D101不重复编号。Gate：复用native数据身份、区分零冲量点与活跃点、最小实际消费者与受控替换/排除、未覆盖边界明确保留。开始：2026-10-14 13:54 +08:00；预估结束：2026-10-14 14:39 +08:00（依赖通过后的实际开始时间另记）。估时依据：BF144.33剩余54组原生矩阵中的支持点/数值边界，源gather和现有完整角色夹具已经可用；来自本次超时复盘后拆分，不重新构建native工具或重复已验证反例。
+- [x] BF144.34 原生接触支持点与后续消费剩余边界：依赖BF144.33记录Gate；只沿已取得的capsule倾角支持点、box面选择及微小normal数值差核对实际normal/friction/跨帧消费，已确认D100/D101不重复编号。Gate：复用native数据身份、区分零冲量点与活跃点、最小实际消费者与受控替换/排除、未覆盖边界明确保留。开始：2026-10-14 13:35 +08:00；预估结束：2026-10-14 14:20 +08:00；实际结束：2026-10-14 13:48:02 +08:00；偏差：−31分58秒；结果：审计记录Gate PASS，新增1项P3，未修复。估时依据：BF144.33剩余54组原生矩阵中的支持点/数值边界，源gather和现有完整角色夹具已经可用；来自本次超时复盘后拆分，依赖已通过，按实际开工提前，不重新构建native工具或重复已验证反例。
+  - 13:35 活动摘要：BF144.33已提交，累计99项确认差异。剩余raw矩阵只表示点集不同；本项先核对source position求解后的净pushout及velocity启用条件，再判断支持点能否改变实际角色响应。截图0、性能暂停。
+  - 13:42 source/focused闭环：54组native姿态的source位置求解中，移除78个零净pushout点后DP/DQ全部保持；较大倾角capsule侧点和box远侧面不能仅因raw点集不同登记。另沿gather的质量加权接触位置确认D102：完整角色实际contact constraint的独立速度阶段，24组20PASS/4FAIL，仅替换接触位置恢复；初版0.1m球的零重叠受f32正间距影响，改为精确可表示的0.125m后零重叠控制通过，未放宽容差。下一步将剩余native活跃点送入实际回弹consumer，区分点生成与启用条件。
+  - 13:46 source/consumer闭环：head倾角1/10/30度与foot 45度×60/30Hz的当前native形体响应8组全PASS（先匹配既知点序/迭代）。注入完整源点集的8组有2处head 10度失败，原因是替换后目标仍给源已归零的侧点启用回弹；只保留源活跃点的8组全PASS。该失败只发生在受控替换输入，未另记生产缺陷，也未反推当前几何错误。native BaseFrictionImpulse全部为0、全局override=−1，零pushout点没有额外摩擦下限；历史锚点信息缺失沿已确认D96保留，不重复编号。
+  - 本项归纳：116份基线source、5份补充UE、4份Avian、54组native数据/21份材质、原始/Build、reader包源码及160份生产Rust/launcher库身份核验PASS。最终分组证据共3项focused、102组96PASS/6FAIL：4处实际consumer差异归D102，2处源全点集替换失败单独保留；8组原几何响应与78个零pushout点消融均通过。证据`34/weighted/`、`34/support_final/`、`34/summary.json`。删除继承的sphere/native-inertia分支后信号保持；无新增生产层、转换器或资产改动。累计71项P2、29项P3；contact/joint耦合与剩余缓存分支仍待审，截图0、性能暂停。实耗13分02秒；复用已验证native几何明显缩短了后续消费审计。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -873,6 +877,12 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：Parry `contact_manifolds_cuboid_capsule.rs:65–181`按SAT选择box/segment特征，再沿选中法向加radius；当前同输入法向近似竖直，并在实际求解中留下第三个受力点。
   - 反例：完整角色head采用该native姿态、共同isotropic惯量和native mass；先匹配源端点顺序、2轮迭代以排除D100/D99，阶段输入V/W为零。源回弹应产生水平速度(x,z)=(0.00361210,−0.00252931)m/s，目标约为(−0.00000238,−0.00000243)。60/30Hz共4组2PASS/2FAIL；在constraint准备前仅替换为native点/法向/深度，实际速度与独立源参考恢复。证据`bf144_pa_contact_phase33_native_near_horizontal_geometry_reaches_response`和`target/bf144/33/`。
   - 漏检：旧用竖直normal的单点测试或直接把目标manifold当作共同source输入，没有执行native接触生成；本项只确认近水平分支的运动影响，其余倾角/形体的原生数据差异继续逐项追消费者。
+
+- [ ] BF144-D102 / P3 — 接触力臂固定取中点，未保留源质量加权位置。
+  - Source：fresh `PBDCollisionContainerSolver.cpp:95–103`以两侧inverse mass加权世界接触点，再减各自COM得到solver力臂；动态body对静态环境时直接使用动态shape表面点。`PBDCollisionSolver.h:668–731`由该力臂计算摩擦有效质量和角速度响应。
+  - Target：Avian `collision/collider/parry/contact_query.rs:243–251`始终取两侧surface point的中点；`dynamics/solver/contact/mod.rs:312–351`和`tangent_part.rs:207–240`把该中点力臂用于摩擦。穿透深度非零时，沿normal的位移不影响normal力矩，却会改变tangent力矩。
+  - 反例：完整角色head保留实际质量/惯量，受控中心球对静态box；从实际准备好的contact constraint拷贝进入公开速度solve，固定相同V=(1,−1,0)、W=0与normal累计量，隔离D94/D95的位置阶段。半径0.125m、1cm重叠、friction=0.7时，目标切向速度0.50834465m/s、角速度z=−4.2362094rad/s，source为0.52872527与−4.2298017。60/30Hz×零/1mm/1cm重叠×零/0.7摩擦×原点/源加权点共24组20PASS/4FAIL；只在constraint准备前平移两侧anchor到源加权位置后恢复。证据`bf144_pa_contact_phase34_friction_uses_mass_weighted_contact_position`、`target/bf144/34/weighted/`。
+  - 漏检：旧测试把目标接触点直接作为共同oracle输入，未比较两引擎gather的质量语义；这里是实际consumer的受控单阶段证明，不声称完整自然Ragdoll轨迹已对齐。零重叠与零摩擦均通过；生产代码未改。
 
 ### 未闭合边界（不计为无差异）
 
