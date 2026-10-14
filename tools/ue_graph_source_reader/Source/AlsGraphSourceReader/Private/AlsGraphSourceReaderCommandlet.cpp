@@ -1155,6 +1155,7 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
                 const auto& Contact = Point.ContactPoint;
                 TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
                 Value->SetNumberField(TEXT("phi_cm"), Contact.Phi);
+                Value->SetNumberField(TEXT("contact_type"), static_cast<int32>(Contact.ContactType));
                 Value->SetObjectField(TEXT("shape_point_0_cm"), CaptureVector(FVector(Contact.ShapeContactPoints[0])));
                 Value->SetObjectField(TEXT("shape_point_1_cm"), CaptureVector(FVector(Contact.ShapeContactPoints[1])));
                 Value->SetObjectField(TEXT("world_point_0_cm"), CaptureVector(ShapeTransform.TransformPositionNoScale(FVector(Contact.ShapeContactPoints[0]))));
@@ -1170,6 +1171,8 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
         Sample->SetObjectField(TEXT("geometry"), GeometryValue);
         if (OtherGeometryValue.IsValid()) { Sample->SetObjectField(TEXT("other_geometry"), OtherGeometryValue.ToSharedRef()); }
         Sample->SetArrayField(TEXT("points"), Points);
+        Sample->SetNumberField(TEXT("collision_margin_0_cm"), Constraint->GetCollisionMargin0());
+        Sample->SetNumberField(TEXT("collision_margin_1_cm"), Constraint->GetCollisionMargin1());
         if (HasNext)
         {
             Constraint->SetLastShapeWorldTransforms(ShapeWorld, BoxWorld);
@@ -1225,6 +1228,8 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
                 const int32 Index = Static->ShapeInstances().IndexOfByPredicate([Contact](const auto& Entry) { return Entry.Get() == Contact->GetShape1(); });
                 Value->SetNumberField(TEXT("mesh_shape_index"), Index);
                 Value->SetBoolField(TEXT("disabled"), Contact->GetDisabled());
+                Value->SetNumberField(TEXT("collision_margin_0_cm"), Contact->GetCollisionMargin0());
+                Value->SetNumberField(TEXT("collision_margin_1_cm"), Contact->GetCollisionMargin1());
                 Value->SetArrayField(TEXT("points"), CapturePoints(*Contact, Contact->GetShapeWorldTransform0(), Contact->GetShapeWorldTransform1()));
                 Contacts.Add(MakeShared<FJsonValueObject>(Value));
             }
