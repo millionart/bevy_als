@@ -51,7 +51,7 @@
 | 顺序 / 源责任 | 本轮 target 核对入口 | 覆盖状态与旧 Gate 边界 |
 |---|---|---|
 | Character 输入、Gait、RotationMode、Grounded/InAir rotation | `state/{aim,gait,transition}`、`character/movement/motion`、`actual_motion` | BF144.02完成首轮source/focused审计，确认D01–D04；关联蹲跳/落地回调和动作生命周期留对应责任批次 |
-| CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；U01未闭合，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
+| CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；BF144.43将U01原生核验归并为D125，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.19完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道、warp变换、动态基座和RMS物理消费的首轮审计，确认D43–D60、D62–D64，D61撤销；精确查询数值及公共Playground验收尚未闭合 |
 | Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.42完成许可、启动/退出、输入/锁定、GetUp交接/时钟/通知/清理/姿态/曲线/根运动、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样/child预测bounds、多点回弹迭代、原生点序/支持点消费、质量加权接触位置、contact/joint耦合、primitive缓存、初速生成/交接/限速预算、pelvis跟随/探地/恢复朝向、进入挂接/退出快照、mesh恢复及零scale重建首轮审计，确认D65–D124；实际convex/trimesh接触生成仍待审；不开展无源链路的通用物理审查 |
 | AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
@@ -331,6 +331,13 @@
   - 18:13 source/focused闭环：fresh根图/子图确认Snapshot→0.4秒退出混合及PostLocomotion非加性槽；两sequence的RootMotion/ForceRootLock均False。原生16帧×68原始骨骼与实际GetUp槽姿态通过既有3e−5导入容差，root_motion为空；11条montage曲线遗漏已在两朝向实际槽上下文复现，登记D122。快照测试初次未开启骨骼刷新，定位为无渲染夹具的visibility条件；只在夹具启用AlwaysTickPoseAndRefreshBones后六组混合通过，绕开快照的对照明显失败，不登记时序缺陷。下一步只补共槽多姿态旋转混合与曲线消费对照，生产和转换规则未改。
   - 18:33补充闭环：同输入权重下，实际GetUp→SourceSlot的中间归一化导致三方旋转差异，四组失败/十组双姿态控制通过；去掉该归一化后误差恢复约1.2e−7，登记D123。补全通用SequencePoseProbe的GetAnimationPose模式后，当前Sequencer模型的帧间虚拟骨骼差异由实际target及重算对照确认，登记D124；这补上了raw track不含的消费者语义。读取器编译、完整模式self-test、raw请求消融与恢复均已通过预期结果；接下来只做本批完整证据冻结、身份/Gate核验与提交。
   - 本项归纳：116份基线source、10份UE直接闭包、7个源资产raw/Build身份及160份生产Rust/launcher库核验PASS。最终四项focused为1PASS/3预期语义FAIL，56组46PASS/10FAIL；含68骨骼raw与79骨骼完整姿态、16组原生sequence曲线及实际RootMotionOutput、Snapshot六组、真实SourceSlot和producer数据对照。新增通用完整姿态读取分支，编译、front/back/restored self-test及冲突模式拒绝通过；关闭完整采样后self-test按缺曲线失败，恢复同一二进制请求后原生帧数据一致。资产载入临时生成的四类MovieScene Signature经fresh NewGuid源码确认后剔除，其余完整payload/原始文件身份核对通过。夹具仅用内存曲线补全、去掉中间归一化、虚拟骨骼重算和Snapshot旁路作消融；未改生产/转换规则。累计84项P2、38项P3；截图0、性能暂停，无公共runtime Gate。证据`42/final/`与`42/summary.json`。实耗42分39秒；原始track遗漏当前Sequencer虚拟骨骼处理，补原生完整消费者后闭合，仍在估时内。
+
+
+
+- [x] BF144.43 U01胶囊sweep数值边界的原生核验：依赖BF144.42记录Gate；回到BF144.07的100m/4m平地箱体、H=0.9/R=0.3m胶囊和落地剩余积分反例，仅补同输入本机Chaos查询及target实际hit/consumer对照。源闭包限于PrimitiveComponent/WorldCollision→GeometryQueries/GJKRaycast与capsule shape adapter；根据结果把U01转为确认差异或排除，不能继续用解析平面当作UE结果。实际convex/trimesh PA接触仍留下一独立项，不借本项复开其他碰撞条目。Gate：fresh源shape/查询旗标、原生同输入输出、4m控制与100m反例、实际target消费、工具self-test/消融及身份核验。开始：2026-10-14 18:38 +08:00；预估结束：2026-10-14 19:13 +08:00；实际结束：2026-10-14 18:55:30 +08:00；偏差：−17分30秒；结果：记录Gate PASS，U01归并为D125，未修复。估时依据：BF144.38已有约80行GeometryQueryProbe和sphere/box原生数据流程；U01已保留12组完整target反例与source调用链，补capsule输入映射、读取器构建和单一消费者约35分钟，参照.38球查询闭包及.42工具扩充的实际耗时。
+  - 18:38 活动摘要：BF144.42已提交，累计122项确认差异；U01仍为唯一未解释数值边界。下一步先核对既有原生GeometryQueryProbe是否覆盖capsule及当前CMC的inflation/MTD输入，再生成同输入查询，生产代码不改，截图0、性能暂停。
+  - 18:51 source/focused闭环：从真实target Collider和当前重力积分导出四组原生输入；GeometryQueryProbe沿原调用增加capsule形状数据，构建及七样本self-test通过。4m/100m原生结果相同，target三个raw样本不符；将原生距离直接替换BF144.07解析oracle后，12组落地消费六组100m失败、六组4m通过，登记D125。U01将在本项最终记录Gate后关闭；下一步只核对既有sphere工具回归、胶囊高度消融/恢复、完整源码与证据身份，不改生产查询核。
+  - 本项归纳：116份基线source、9份UE直接闭包、3份Avian/Parry源码、原始SKM/Build及160份生产Rust/launcher库身份PASS。七组原生胶囊输入、135组既有查询完整输出回归、十组工具self-test与高度退化/恢复通过预期结果；扩展只增加形状数据选择，调用和MTD/厚度保持同一源路径。最终两项focused均按确认语义差异FAIL，16组7PASS/9FAIL，具体为raw四组1PASS/3FAIL、落地消费十二组6PASS/6FAIL。证据`43/final/`、`43/summary.json`。U01完成原生取证后关闭并保留D125；累计85项P2、38项P3，未解释数值项清零不代表剩余模块已审完。生产、转换规则和原始资产均未改；截图0、性能暂停，无公共runtime Gate。实耗17分30秒，复用既有查询入口与消费者夹具使本项早于估时；初次把135组完整回归当作十组self-test输入造成夹具计数失败，改用既有专用请求后通过，不修改测试合同。
 
 
 ### 已确认差异（仅登记，未实施修复）
@@ -1050,6 +1057,13 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：两GetUp glTF把虚拟骨骼保存为30Hz、46个关键帧的独立轨道；`source_sequence_player.rs:90–110`对它们与普通骨骼一样插值，未按当帧Source/Target重新求相对变换。关键帧前后构造相对变换与帧间插值不交换。
   - 反例：两朝向在0.375/0.75秒的实际GetUp槽，原生完整79骨骼姿态对比均失败，最大位置差0.62–1.21mm、四元数距离约0.000679，集中在手部和足部虚拟骨骼；其余12个时点通过，16组68根原始骨骼读取及所有sequence曲线/根运动输出控制通过。在夹具用相同普通骨骼和fresh虚拟骨骼映射重算后，全部16组恢复既有3e−5容差，最大位置残差约6.3e−6m。证据`42/native_front_full_pose.json`、`native_back_full_pose.json`与`bf144_get_up_phase42_native_bones_and_root_output`；仅确认本机当前未烘焙采样路径，不冒称已覆盖cooked压缩路径。旧导入Gate只比较普通骨骼和关键帧，原始track读取也不会执行活动模型的虚拟骨骼生成。
 
-### 未闭合边界（不计为无差异）
 
-- [ ] BF144-U01 — 大型平地箱体的胶囊sweep接触时间数值差异：100×1×100m箱体、胶囊H=0.9/R=0.3m、起点y=0.94m，初速(3,−3,0)m/s；20ms首步的target raw hit distance=0.047215m，解析几何为0.055680m，命中时两witness仍分离约0.00608m；50ms首步分离约0.00937m，影响落地剩余积分。4m宽同平面6组source剩余时间合同PASS，100m宽6组偏离；证据`target/bf144/07/remaining_corrected/`。已沿source PrimitiveComponent→WorldCollision→GeometryQueries→GJKRaycast2核对调用，以及target Avian0.7/Parry0.27的directional_distance；两边终止规则不同，但尚未执行同输入的源查询，不能将解析差与target差直接判为已证实的源移植缺陷。后续只补该数值边界的source实证，不借此优化查询、改阈值或修改已完成项。
+- [ ] BF144-D125 / P2 — 大型平地箱体上的胶囊sweep提前命中，改变落地剩余时间与制动。
+  - Source：fresh `CapsuleComponent.cpp:240–244`与`ChaosEngineInterface.cpp:122–147`确认半高包含端球、segment沿Z且半长H−R；`WorldCollision.cpp:545–563`、`SceneQuery.cpp:365–382`、`SQVisitor.h:336`及`GeometryQueries.h:320–325`进入MTD开启、Thickness=0的原生SweepQuery/GJKRaycast2。本机同输入4m/100m箱体均返回20ms方向distance=0.055680113m、50ms方向=0.054472971m；源不是先前的解析平面假设。
+  - Target：Avian/Parry的support-map shape cast进入directional_distance→minkowski_ray_cast，后者在距离阈值或不再收紧上界等条件下返回当前TOI；`motion.rs:2701–2733`直接把该距离经源式pullback转为applied及remaining_time，再进入落地walking积分。当前证据定位到实际查询核差异，未把某个提前退出分支冒称为已动态插桩确认。
+  - 反例：完整角色相同H=0.9/R=0.3m、start.y=0.94m、初速(3,−3,0)m/s；100m箱体返回0.047215056/0.041710450m，分别提前8.465/12.763mm，命中witness仍分离6.082/9.372mm。4m的50ms方向接近原生，20ms方向另有0.069mm低量级差异。替换旧解析oracle为原生距离后，3帧长×有无保留输入×两箱体的12组实际落地消费者仍为6PASS/6FAIL，失败仅100m；20ms无输入时速度低0.105535m/s，100ms无输入位移少约10.03mm。证据`43/queries.native.json`、`bf144_capsule_phase43_native_queries`与`bf144_capsule_phase43_landing_remaining_with_native_time`。
+  - 漏检/归并：BF144.07曾因缺少源查询实证保留U01；本批沿同一反例补齐原生结果，不重开已完成的落地回调/摩擦条目，不新增平滑、容差或查询补偿。100m条件去掉后六组消费控制通过；胶囊半高退化成半径使原生高度self-test失败，恢复后复验。
+
+### 数值边界核验记录（不计为无差异）
+
+- [x] BF144-U01 — 大型平地箱体的胶囊sweep数值边界已于BF144.43完成同输入原生核验，归并为D125。原先仅有解析对照的`07/remaining_corrected/`已补上`43/queries.native.json`与实际落地消费复验；该关闭表示差异已解释并登记，未修复，也不表示无差异。
