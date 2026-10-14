@@ -54,7 +54,7 @@
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；BF144.43将U01原生核验归并为D125，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.19完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道、warp变换、动态基座和RMS物理消费的首轮审计，确认D43–D60、D62–D64，D61撤销；精确查询数值及公共Playground验收尚未闭合 |
 | Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.42及.44–.64完成许可、启动/退出、输入/锁定、GetUp交接/时钟/通知/清理/姿态/曲线/根运动、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样/child预测bounds、多点回弹迭代、原生点序/支持点消费、质量加权接触位置、contact/joint耦合、primitive缓存、初速生成/交接/限速预算、pelvis跟随/探地/恢复朝向、进入挂接/退出快照、mesh恢复及零scale重建首轮审计，确认D65–D124、D126–D145；实际convex/trimesh的几何、速度摩擦及跨帧消费已由.45–.64完成当前输入闭包分类，U02关闭；不开展无源链路的通用物理审查 |
-| AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | 待逐项审计；实际动画选择包含角色 Overlay 标签，但排除道具表现 |
+| AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | BF144.65完成可见性更新/历史时钟与Head直接消费，确认D146/D147；首次pose、实例替换及其他输入算法/通知仍待审计；实际动画选择包含角色Overlay标签，排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | 待重新取证及核对；历史155子图合同只作起点，不能自证算法等价 |
 | 剩余源函数与跨阶段边界 | 以上 source-target 链路的覆盖缺口 | 前述审计后再独立收口；未解释项保留，截图与性能继续暂停 |
 
@@ -471,6 +471,13 @@
   - 05:23 source/native摘要：当前GjkWarmStart=True，project initial-overlap velocity=−1，21个PA body均未override；`ChaosScene.cpp:89–95`应用project SolverOptions，`PBDRigidsSolver.cpp:3668–3678`再把解析后的1e10cm/s写入body。27个box/convex的6mm重建与3个无缓存对照，暖/冷point字段全部逐值相同，未发现新的运动差异。fresh `GJK.h:644–695`还有核心重叠后的EPA分支，浅接触矩阵不能覆盖；增加1cm向下位移及5度yaw/组合控制，保留同批已有形体，并用下一帧simplex证明实际分支，分别读取45个完整当前compound以核对新增/消失的leaf。
 
   - 05:40 完成摘要：27组浅接触及81组穿透/旋转重建与独立冷约束逐值相同，3组无缓存对照通过；60个完整compound无新增/消失leaf，58组四顶点simplex由源TetrahedronSimplexFindOrigin直接证明进入EPA。旋转先按源SetQ量化为float32，消除直接查询与完整物理路径的世界变换精度差；未放宽比较容差。删除重复冷查询接口后全部共有字段保持，4组新夹具、10组旧接口及4种元数据消融通过。初始穿透的21个body均继承世界默认，7722个本批源公式控制归零，有限速度反控制3152处保留非零值；没有用探针初始化的零值冒充动态仿真结果。116份source、75份补充源码、14份资产、160份生产Rust及reader/package/DLL/启动器库身份PASS，证据`64/summary.json`。实耗24分59秒；无新运动输入差异，未重复启动运动runtime，累计仍143项。生产与转换器未改，截图0、性能暂停；U02关闭，下一批进入运动动画输入与生命周期。
+
+- [x] BF144.65 AnimationInstance可见性更新与时钟：依赖BF144.64记录Gate；核对NativeUpdate/ThreadSafeUpdate/PostUpdate在可见性跳帧中的实际caller、pending与历史时间输入，并沿直接Head消费者验证。主/linked实例的静态角色已核对；原计划的NativeInitialize、首次pose及实例替换独立拆至下一项，骨轴计算归Feet；View/Locomotion、Feet/Turn/Transition、通知及核心155图仍各自后置。Gate：fresh根/Head AnimBP与角色/动画设置、实际UE更新/跳帧caller和target阶段、完整角色的有/无montage恢复与倍率控制、最小反例/消融和身份记录。开始：2026-10-15 05:47 +08:00；预估结束：2026-10-15 06:32 +08:00；实际结束：2026-10-15 06:32:15 +08:00；偏差：+15秒；结果：审计记录Gate PASS，新增D146/D147两项P3，未修复；初始化闭包独立拆分并继续。估时依据：原计划源ALS生命周期约250行、UE更新及target约600行，参照.02/.37完整角色审计；实际外层资格、CallFunction和初始化配置闭包增加，拆分保留未验收部分。
+  - 05:47 活动摘要：fresh NativeUpdate使用上一轮global dilation求未缩放dt，PostUpdate在组件注册完成后清pending；target在provider/head writer发布输入，再由post-physics evaluator控制是否求值。源默认OnlyTickMontagesWhenNotRendered，源码存在标记pending及失去可见性后的特殊更新路径；先确认哪些字段仍会被更新和实际head回调时点，不把镜像值不同直接计为缺陷。当前只覆盖根实例生命周期入口与必要Head输入链，源子图总数及fresh静态合同待本项原生读取后登记。
+  - 06:12 source/consumer摘要：fresh根/Head/B_Als_Character/AIS四份读取PASS，当前只核对2个authored AnimGraph的生命周期入口与Head的2个CallFunction节点；Head明确使用OnBecomeRelevant/OnUpdate，linked实例共享main montage数据。UE外层ShouldTickPose要求隐藏时存在montage，纯空闲不进入ResetUpdateCounter；首版空闲oracle据此撤销，不计缺陷。加入实际transition montage（隐藏时clip推进到0.2s且pose_ready）后，60/30Hz×两视角的16组12PASS/4FAIL；恢复可见时Head pitch分别停在4.921/30.767度，源初始化应为45度，只补InitializeHead标志即恢复。纯空闲隐藏和持续可见对照全部通过。具体Head平滑算法与其他图未据此宣称完整等价，继续无montage跳帧的时间历史及初始化/更新边界。
+  - 06:29 闭包与拆分：逐帧确认无transition/turn/action后，隐藏中1→0.25倍率变更的6组5PASS/1FAIL确认D147；此前16组计数恢复确认D146。删除montage资格条件会使纯空闲控制误报，最小消融FAIL；按源码字节恢复并在同target重编后PASS。首次pose另受`InitAnim:1200–1216`的全局bTickAnimationOnSkeletalMeshInit、bUseRefPoseOnInitAnim及deferred root初始化控制，需要额外原生配置与首次pose/实例替换矩阵；该独立初始化闭包拆到下一项，当前项收口为已验证的可见性更新与时钟，保持原总体审计目标。NativeInitialize中的骨轴计算归后续Feet，完整155图合同和公共Playground仍未宣称通过。
+
+  - 06:32 完成摘要：最终23组18PASS/5预期FAIL（可见性16组、倍率6组、纯空闲caller边界1组）；22组主体的数值/判定与加上逐帧无montage资格核验后的初版一致。丢掉montage资格的消融被拒绝，字节恢复、同target重编后最小边界PASS。源四资产、Root32/Head6节点中的必要生命周期连线、6份ALS/7份UE/14份目标闭包与116份基线source、160份生产Rust、原始/Build资产及启动器库/reader身份PASS，证据`65/summary.json`、`65/final/`。首版空闲oracle保留为已撤销诊断，不计缺陷。未改生产、转换器、reader或目标图；截图0、性能暂停，公共Playground与完整155图Gate仍后置。实耗45分15秒；累计145项（96P2/49P3），下一项继续已拆分的初始化配置、首次pose及实例替换。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -1343,6 +1350,17 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：Avian `contact_types/mod.rs:426–470`复制旧warm-start冲量；`contact/normal_part.rs:104–109`把它作为新约束累计量，`contact/mod.rs:223–262`在求解前施加到速度。有限轮数下，多点求解不会总是消除初值影响。
   - 反例：真实角色Cart head/foot与Stairs02 foot保留ContactId，采用同一当帧实际几何、点序、共同位置结果和两轮法向速度预算。60/30Hz、零/0.03Ns/清零控制共24组18PASS/6FAIL；上一帧实际产生的缓存再验证16组10PASS/6FAIL，所有清零恢复及单点Barrel控制通过。Cart head 60Hz实际缓存下wZ为1.077489，源零初值为−0.325842；只清零旧缓存即回到−0.325842。完整目标物理帧的输出也随该单一缓存控制改变。
   - 边界与漏检：共同阶段诊断仅对有源位置冲量的点应用实际warm_start/solve，以隔离D139；原生几何差异、点序和迭代差异不作为本项原因，未宣称完整Chaos动态仿真。旧首次接触测试均从零缓存开始，D96又刻意清零冲量以隔离锚点，因此未覆盖本项。证据`63/warm_initial/`、`63/generated_initial/`，生产实现未改。
+
+- [ ] BF144-D146 / P3 — 隐藏期间更新montage后，恢复图更新没有重新触发OnBecomeRelevant。
+  - Source：fresh `SkeletalMeshComponent.cpp:1883–1918`在隐藏时仅因活动montage等条件允许TickPose；`AnimInstance.cpp:709–724`的montage-only路径重置proxy更新计数。`AnimNode_LinkedAnimGraph.cpp:96`同步子实例计数，`AnimNode_CallFunction.cpp:29–40`据计数不连续触发OnBecomeRelevant。原生AB_Als_Head将InitializeHead放在该调用点，父实例随后直接把pitch/yaw设为当前目标。
+  - Target：`post_physics_animation.rs:188–190`跳过求值时保留原arena计数；`source_instance.rs:212–217`下次只看到连续的一次递增，因此SourcePropertyWriteNode不再执行初始化。
+  - 反例：完整角色隐藏超过1秒后，播放实际transition montage并确认隐藏期间clip推进到0.2秒、pose_ready、根图计数未推进；恢复可见时目标pitch第三人称4.921°、第一人称30.767°，源应为45°。60/30Hz共16组12PASS/4FAIL，只补回InitializeHead标志的控制全部PASS；持续可见及无montage的纯空闲隐藏控制也通过。实际Head回调写入当前帧，并进入生成的BS_Als_Look输入链，最终head姿态已采样。
+  - 漏检：旧可见性测试核对gate/pending及帧计数，没有区分ShouldTickPose外层资格和实际CallFunction计数。首版把纯空闲隐藏也判为重置的oracle已撤销；结论只使用带实际montage资格的`65/checked_initial/`，未修改生产实现。
+
+- [ ] BF144-D147 / P3 — 图停止更新时仍推进动画实例的历史全局时间倍率。
+  - Source：fresh `UAlsAnimationInstance::NativeUpdateAnimation:111–116`用上一次NativeUpdate保存的global dilation计算DeltaTimeWithoutTimeDilation；隐藏且无montage时，UE的ShouldTickPose不调用NativeUpdate，历史值保持。`RefreshHead:637–648`在第一人称平滑中消费此dt。
+  - Target：`head_layer.rs:194–204`每次PostUpdate都调用unscaled_delta_seconds并写回历史倍率，即使AnimationPoseUpdateGate已经停止图更新。
+  - 反例：无montage隐藏期间把全局倍率从1变为0.25，恢复帧scaled dt=0.004166667秒。源保留旧倍率1，未缩放dt仍为0.004166667；目标却使用隐藏期间写入的0.25，得到0.016666668。实际Head pitch为30.767°、源应为11.286°；只恢复历史倍率即通过。6组5PASS/1FAIL，持续可见与第三人称控制通过；和D146的montage重激活条件分离，见`65/checked_initial/`。
 
 ### 核验边界记录（不计为无差异）
 
