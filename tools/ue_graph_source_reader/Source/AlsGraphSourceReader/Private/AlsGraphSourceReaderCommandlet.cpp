@@ -661,7 +661,7 @@ TSharedRef<FJsonObject> CapturePhysicsAsset(const UPhysicsAsset* Asset)
             ConsoleVariables->SetStringField(Name, Variable->GetString());
         }
     });
-    for (const TCHAR* Prefix : {TEXT("p.Chaos.JointConstraint."), TEXT("p.Chaos.Solver.Joint."), TEXT("p.Chaos.Joint."), TEXT("p.Chaos.CCD."), TEXT("p.Chaos.Solver.InertiaConditioning."), TEXT("p.Chaos.InertiaConditioning."), TEXT("p.Chaos.ExcludeFreeJointForInertiaConditioning"), TEXT("p.Chaos.Solver.Iterations."), TEXT("p.Chaos.Solver.ComputeIterationSettings."), TEXT("p.AngularEtherDragOverride"), TEXT("p.HackMaxAngularVelocity"), TEXT("p.LinearEtherDragOverride"), TEXT("p.HackMaxVelocity2"), TEXT("p.Chaos.Solver.Sleep."), TEXT("p.Chaos.SmoothedPositionLerpRate"), TEXT("p.Chaos.Solver.Collision."), TEXT("p.CollisionRestitution"), TEXT("p.Chaos.PBDCollisionSolver."), TEXT("p.Chaos.Solver.bChaosForceMACD"), TEXT("p.Chaos.Collision.Stiffness"), TEXT("p.CollisionFriction"), TEXT("p.CollisionAngularFriction"), TEXT("p.CollisionBaseFrictionImpulse"), TEXT("p.Chaos.Solver.Use1DFriction"), TEXT("p.Chaos.Collision.Manifold.Friction"), TEXT("p.Chaos.Collision.Manifold.EnableFrictionRestore")})
+    for (const TCHAR* Prefix : {TEXT("p.Chaos.JointConstraint."), TEXT("p.Chaos.Solver.Joint."), TEXT("p.Chaos.Joint."), TEXT("p.Chaos.CCD."), TEXT("p.Chaos.Solver.InertiaConditioning."), TEXT("p.Chaos.InertiaConditioning."), TEXT("p.Chaos.ExcludeFreeJointForInertiaConditioning"), TEXT("p.Chaos.Solver.Iterations."), TEXT("p.Chaos.Solver.ComputeIterationSettings."), TEXT("p.AngularEtherDragOverride"), TEXT("p.HackMaxAngularVelocity"), TEXT("p.LinearEtherDragOverride"), TEXT("p.HackMaxVelocity2"), TEXT("p.Chaos.Solver.Sleep."), TEXT("p.Chaos.SmoothedPositionLerpRate"), TEXT("p.Chaos.Solver.Collision."), TEXT("p.CollisionRestitution"), TEXT("p.Chaos.PBDCollisionSolver."), TEXT("p.Chaos.Solver.bChaosForceMACD"), TEXT("p.Chaos.Collision.Stiffness"), TEXT("p.CollisionFriction"), TEXT("p.CollisionAngularFriction"), TEXT("p.CollisionBaseFrictionImpulse"), TEXT("p.Chaos.Solver.Use1DFriction"), TEXT("p.Chaos.Collision.Manifold.Friction"), TEXT("p.Chaos.Collision.Manifold.EnableFrictionRestore"), TEXT("p.Chaos.Collision.SimpleAssignContact")})
     {
         IConsoleManager::Get().ForEachConsoleObjectThatStartsWith(Visitor, Prefix);
     }
@@ -881,6 +881,19 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
             UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Physics contact probe has an invalid sample."));
             return nullptr;
         }
+        FVector NextBodyTranslation, NextBoxTranslation;
+        FQuat NextBodyRotation, NextBoxRotation;
+        const bool HasNext = Input->HasField(TEXT("next"));
+        const TSharedPtr<FJsonObject>* Next = nullptr;
+        if (HasNext && (!Input->TryGetObjectField(TEXT("next"), Next)
+            || !ReadVector(*Next, TEXT("body_translation_cm"), NextBodyTranslation)
+            || !ReadVector(*Next, TEXT("box_translation_cm"), NextBoxTranslation)
+            || !ReadRotation(*Next, TEXT("body_rotation_xyzw"), NextBodyRotation)
+            || !ReadRotation(*Next, TEXT("box_rotation_xyzw"), NextBoxRotation)))
+        {
+            UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Physics contact probe has an invalid next transform."));
+            return nullptr;
+        }
         USkeletalBodySetup* Setup = nullptr;
         for (USkeletalBodySetup* Candidate : PhysicsAsset->SkeletalBodySetups)
         {
@@ -950,23 +963,50 @@ TSharedPtr<FJsonObject> CapturePhysicsContactProbe(UObject* Asset, const FString
         const FTransform BoxWorld(BoxRotation, BoxTranslation);
         Constraint->SetShapeWorldTransforms(ShapeWorld, BoxWorld);
         Chaos::Collisions::UpdateConstraint(*Constraint, ShapeWorld, BoxWorld, DeltaSeconds);
-        TArray<TSharedPtr<FJsonValue>> Points;
-        for (const Chaos::FManifoldPoint& Point : Constraint->GetManifoldPoints())
+        const auto CapturePoints = [&Constraint](const FTransform& ShapeTransform, const FTransform& BoxTransform)
         {
-            const auto& Contact = Point.ContactPoint;
-            TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
-            Value->SetNumberField(TEXT("phi_cm"), Contact.Phi);
-            Value->SetObjectField(TEXT("shape_point_0_cm"), CaptureVector(FVector(Contact.ShapeContactPoints[0])));
-            Value->SetObjectField(TEXT("shape_point_1_cm"), CaptureVector(FVector(Contact.ShapeContactPoints[1])));
-            Value->SetObjectField(TEXT("world_point_0_cm"), CaptureVector(ShapeWorld.TransformPositionNoScale(FVector(Contact.ShapeContactPoints[0]))));
-            Value->SetObjectField(TEXT("world_point_1_cm"), CaptureVector(BoxWorld.TransformPositionNoScale(FVector(Contact.ShapeContactPoints[1]))));
-            Value->SetObjectField(TEXT("world_normal"), CaptureVector(BoxWorld.TransformVectorNoScale(FVector(Contact.ShapeContactNormal))));
-            Points.Add(MakeShared<FJsonValueObject>(Value));
-        }
+            TArray<TSharedPtr<FJsonValue>> Points;
+            for (const Chaos::FManifoldPoint& Point : Constraint->GetManifoldPoints())
+            {
+                if (Point.Flags.bDisabled) { continue; }
+                const auto& Contact = Point.ContactPoint;
+                TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+                Value->SetNumberField(TEXT("phi_cm"), Contact.Phi);
+                Value->SetObjectField(TEXT("shape_point_0_cm"), CaptureVector(FVector(Contact.ShapeContactPoints[0])));
+                Value->SetObjectField(TEXT("shape_point_1_cm"), CaptureVector(FVector(Contact.ShapeContactPoints[1])));
+                Value->SetObjectField(TEXT("world_point_0_cm"), CaptureVector(ShapeTransform.TransformPositionNoScale(FVector(Contact.ShapeContactPoints[0]))));
+                Value->SetObjectField(TEXT("world_point_1_cm"), CaptureVector(BoxTransform.TransformPositionNoScale(FVector(Contact.ShapeContactPoints[1]))));
+                Value->SetObjectField(TEXT("world_normal"), CaptureVector(BoxTransform.TransformVectorNoScale(FVector(Contact.ShapeContactNormal))));
+                Points.Add(MakeShared<FJsonValueObject>(Value));
+            }
+            return Points;
+        };
+        const TArray<TSharedPtr<FJsonValue>> Points = CapturePoints(ShapeWorld, BoxWorld);
         TSharedRef<FJsonObject> Sample = MakeShared<FJsonObject>();
         Sample->SetObjectField(TEXT("input"), Input.ToSharedRef());
         Sample->SetObjectField(TEXT("geometry"), GeometryValue);
         Sample->SetArrayField(TEXT("points"), Points);
+        if (HasNext)
+        {
+            Constraint->SetLastShapeWorldTransforms(ShapeWorld, BoxWorld);
+            if (Constraint->GetManifoldPoints().IsEmpty()) { Constraint->ResetManifold(); }
+            const FTransform NextShapeWorld = ShapeLocal * FTransform(NextBodyRotation, NextBodyTranslation);
+            const FTransform NextBoxWorld(NextBoxRotation, NextBoxTranslation);
+            Constraint->SetShapeWorldTransforms(NextShapeWorld, NextBoxWorld);
+            const bool RestoreAllowed = Constraint->GetCanRestoreManifold();
+            const bool Restored = RestoreAllowed && Constraint->TryRestoreManifold();
+            if (!Restored)
+            {
+                Constraint->ResetActiveManifoldContacts();
+                Chaos::Collisions::UpdateConstraint(*Constraint, NextShapeWorld, NextBoxWorld, DeltaSeconds);
+            }
+            Sample->SetBoolField(TEXT("restore_allowed"), RestoreAllowed);
+            Sample->SetBoolField(TEXT("restored"), Restored);
+            Sample->SetArrayField(TEXT("next_points"), CapturePoints(NextShapeWorld, NextBoxWorld));
+            Constraint->ResetActiveManifoldContacts();
+            Chaos::Collisions::UpdateConstraint(*Constraint, NextShapeWorld, NextBoxWorld, DeltaSeconds);
+            Sample->SetArrayField(TEXT("fresh_points"), CapturePoints(NextShapeWorld, NextBoxWorld));
+        }
         Samples.Add(MakeShared<FJsonValueObject>(Sample));
         UE_LOG(LogAlsGraphSourceReader, Display, TEXT("Physics contact probe captured sample %d/%d with %d points."), Samples.Num(), Inputs->Num(), Points.Num());
     }
