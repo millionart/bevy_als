@@ -946,6 +946,37 @@ TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
         TSharedRef<FJsonObject> Sample = MakeShared<FJsonObject>();
         Sample->SetObjectField(TEXT("input"), Input->ToSharedRef());
         Sample->SetObjectField(TEXT("rotator_degrees"), CaptureRotator(Rotation.Rotator()));
+        if ((*Input)->HasField(TEXT("additive_accumulation")))
+        {
+            const TSharedPtr<FJsonObject>* Accumulation = nullptr;
+            const TArray<TSharedPtr<FJsonValue>>* Layers = nullptr;
+            TArray<double> Translation, Scale;
+            if (!(*Input)->TryGetObjectField(TEXT("additive_accumulation"), Accumulation)
+                || !ReadArray(*Accumulation, TEXT("translation_cm"), Translation, 3)
+                || !ReadArray(*Accumulation, TEXT("scale"), Scale, 3)
+                || !(*Accumulation)->TryGetArrayField(TEXT("layers"), Layers)) { return nullptr; }
+            FMemMark Mark(FMemStack::Get());
+            FCompactPose BasePose, AdditivePose;
+            FBlendedCurve BaseCurve, AdditiveCurve;
+            BasePose.InitBones(1);
+            AdditivePose.InitBones(1);
+            const FCompactPoseBoneIndex Bone(0);
+            BasePose[Bone] = FTransform(Rotation, FVector(Translation[0], Translation[1], Translation[2]), FVector(Scale[0], Scale[1], Scale[2]));
+            for (const TSharedPtr<FJsonValue>& LayerValue : *Layers)
+            {
+                const TSharedPtr<FJsonObject>* Layer = nullptr;
+                TArray<double> Quaternion, Offset, ScaleDelta;
+                double Weight;
+                if (!LayerValue->TryGetObject(Layer) || !ReadArray(*Layer, TEXT("rotation_xyzw"), Quaternion, 4)
+                    || !ReadArray(*Layer, TEXT("translation_cm"), Offset, 3) || !ReadArray(*Layer, TEXT("scale_delta"), ScaleDelta, 3)
+                    || !(*Layer)->TryGetNumberField(TEXT("weight"), Weight) || !FMath::IsFinite(static_cast<float>(Weight))) { return nullptr; }
+                const FQuat AdditiveRotation(Quaternion[0], Quaternion[1], Quaternion[2], Quaternion[3]);
+                if (!AdditiveRotation.IsNormalized()) { return nullptr; }
+                AdditivePose[Bone] = FTransform(AdditiveRotation, FVector(Offset[0], Offset[1], Offset[2]), FVector(ScaleDelta[0], ScaleDelta[1], ScaleDelta[2]));
+                FAnimationRuntime::AccumulateAdditivePose(BasePose, AdditivePose, BaseCurve, AdditiveCurve, static_cast<float>(Weight), AAT_LocalSpaceBase);
+            }
+            Sample->SetObjectField(TEXT("additive_accumulation"), CaptureTransform(BasePose[Bone]));
+        }
         if ((*Input)->HasField(TEXT("rotation_factors")))
         {
             const TArray<TSharedPtr<FJsonValue>>* Factors = nullptr;
