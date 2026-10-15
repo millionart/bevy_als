@@ -54,8 +54,8 @@
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；BF144.43将U01原生核验归并为D125，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.19完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道、warp变换、动态基座和RMS物理消费的首轮审计，确认D43–D60、D62–D64，D61撤销；精确查询数值及公共Playground验收尚未闭合 |
 | Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.42及.44–.64完成许可、启动/退出、输入/锁定、GetUp交接/时钟/通知/清理/姿态/曲线/根运动、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样/child预测bounds、多点回弹迭代、原生点序/支持点消费、质量加权接触位置、contact/joint耦合、primitive缓存、初速生成/交接/限速预算、pelvis跟随/探地/恢复朝向、进入挂接/退出快照、mesh恢复及零scale重建首轮审计，确认D65–D124、D126–D145；实际convex/trimesh的几何、速度摩擦及跨帧消费已由.45–.64完成当前输入闭包分类，U02关闭；不开展无源链路的通用物理审查 |
-| AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | BF144.65–.69完成可见性更新/历史时钟、初始化/实例替换、View/Head/Spine、Layering/Pose与Locomotion通用输入、Grounded/Standing/Crouching运动算法，确认D146–D151；InAir算法、几何查询、Feet/Turn/Transition和通知仍待审计；实际动画选择包含角色Overlay标签，排除道具表现 |
-| 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | 待重新取证及核对；历史155子图合同只作起点，不能自证算法等价 |
+| AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | BF144.65–.70完成可见性更新/历史时钟、初始化/实例替换、View/Head/Spine、Layering/Pose与Locomotion通用输入、Grounded/Standing/Crouching/InAir运动算法及地面预测查询，确认D146–D152；Feet/Turn/Transition和通知仍待审计；实际动画选择包含角色Overlay标签，排除道具表现 |
+| 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | BF144.70沿InAir直接消费者确认Default Overlay缓存次序D153；完整闭包及其他缓存副作用消费者仍待重新取证核对，历史155子图合同只作起点，不能自证算法等价 |
 | 剩余源函数与跨阶段边界 | 以上 source-target 链路的覆盖缺口 | 前述审计后再独立收口；未解释项保留，截图与性能继续暂停 |
 
 - [x] BF144.02 Character 输入、状态与旋转语义：以 fresh Character/CMC、角色/运动配置核对初始化、输入、步态、旋转模式与地空旋转的有效分支；沿实际消费者确认候选，并用独立最小反例与对照记录遗漏。Gate：逐源分支覆盖记录、生产库身份与 focused 结果、确认/排除候选登记。开始：2026-10-13 18:55 +08:00；预估结束：2026-10-13 19:40 +08:00；实际结束：2026-10-13 19:19:06 +08:00；偏差：−20分54秒；结果：审计记录Gate PASS，确认4项未修复差异，不能视为移植等价。估时依据：Character 约1960行与既有 motion/state 消费者、BF140 的15项基础运动反例和 BF141.03/.04 focused 回归；将 CMC 积分/碰撞另列后续项以控制本项规模。
@@ -501,6 +501,13 @@
   - 08:30 source/consumer摘要：9份原生读取完成；5曲线33键、厘米/米与Yaw反向转换、实际半衰期和动画速度均一致，源Crouching确实复用Walk曲线。60组数学边界、7组实际Grounded更新、26组站立/蹲姿速度与缩放/方向/播放上限、38帧Sprint计时共131组PASS；实际Blendspace、TwoWayBlend与Sequence消费值也一致。原消费者探针只识别GlobalF32而漏读蹲姿节点的前置失败已排除，未计缺陷。Sprint在约0.5秒关掉加速混合，pending与零delta对照通过。当前无新增差异，继续删除多余夹具等待并做最终身份Gate；通知和完整图/Rig仍后置。
   - 08:32 完成摘要：每种姿态的等待从18次更新减为1次，同target重编后131组全部PASS且逐行数值保持一致，四类运动消费者与Sprint消费者仍实际求值。9份原生读取、8份ALS/4份UE/17份目标闭包及116份基线source、160份生产Rust、累积原始/Build资产、reader/启动器库身份PASS，证据`69/summary.json`、`69/final/`。实耗13分22秒；没有新反例需要扩展动作场景，复用角色与公开节点状态显著缩短本批。累计仍149项（96P2/53P3），生产、转换器与reader未改，截图0、性能暂停。下一项InAir输入算法及地面预测查询。
 
+- [x] BF144.70 InAir输入与地面预测：依赖BF144.69记录Gate，核对RefreshInAirOnGameThread/RefreshInAir、跳跃速率锁存、空中Lean曲线与阻尼，并沿GroundPrediction的实际location/胶囊/缩放/坡度和碰撞响应输入闭合到当前查询与图消费者。已登记输入与CMC几何根因只作归并，不展开无源链路的通用碰撞；Feet与通知后置。Gate：fresh配置/曲线/相关AnimBP及查询source、数值边界和实际消费者反例或对照、最小消融及身份记录。开始：2026-10-15 08:34 +08:00；预估结束：2026-10-15 09:19 +08:00；实际结束：2026-10-15 09:14:45 +08:00；偏差：−4分15秒；结果：审计记录Gate PASS，新增D152/P2与D153/P3，补充D10/D125，未修复。估时依据：源约150行InAir算法，target约250行writer/query及胶囊和查询helper；.69纯数值闭环实耗13分22秒，本项增加查询响应与geometry消费者，按45分钟独立验收。
+  - 08:34 活动摘要：.69已提交，无新增差异。源地面预测用Visibility及WorldStatic/WorldDynamic/Destructible响应，并接受初始穿透的可行走命中；本批先核对这些有效条件和原生曲线，再构造实际查询对照。截图0、性能暂停。
+  - 08:41 source/反例摘要：5份原生配置/曲线/图与原生胶囊sweep完成。横向scale=(2,1,1)、窄平台边缘距中心0.4m时，源查询半径仍0.3m且原生未命中，目标复用横向0.6m的物理形体，实际Fall预测权重为0.345407；只替换查询形体为源组件尺寸即恢复0，8组7PASS/1FAIL，确认D152/P2。原生源物理半径0.6m也命中，证明只修D11的物理形状不足以恢复本查询。平地斜向扫描另见小幅预测差，正在与既有D125分离，未重复编号。累计150项；下一步完成数值/坡面/初始穿透与consumer闭环。
+  - 09:03 consumer时点摘要：InAir公式与10组原样/恢复对照已闭合，四处查询偏差恢复后全部对齐实际Fall混合输入；初始穿透与大型平面误差归D125，坡面资格归D10。宽泛探针同时读到了Default Overlay中的同名输入，其值早于RefreshInAir；本项仅沿该已证实读者补取Root/Default Overlay和UE缓存Pose更新顺序，核定是否为源同样的上一帧消费，其他Overlay与完整图仍后置。
+  - 09:10 顺序闭环：fresh Layering原生缓存队列中Locomotion先于Overlay；两个输入各只连入自己的SaveCachedPose，UE在Root更新后依该队列调用PostGraphUpdate。目标按需求遍历即时求值，Default Overlay先读旧GroundPrediction，再由Locomotion刷新。当预测开关变化时，实际Default Overlay输入落后一帧；仅提前发布同一个当前字段便恢复，8组6PASS/2FAIL，确认D153/P3。此组方向与原生扫描已匹配，排除了D125；当前累计151项。此前将不同读者统一比作帧末值的断言已拆为实际Fall与Default Overlay两个独立consumer合同；继续精简后提交。
+  - 09:14 完成摘要：最终44组34PASS/10预期FAIL，所有分离恢复控制通过；原生4个形状/4个平面/6个初始穿透查询均有效。删除2个重复unit恢复样本、额外contact/关闭几何探针和逐节点诊断输出，同target重编后保留的全部语义记录逐字一致。12份原生报告、7份ALS/10份UE/18份目标/5份依赖闭包与116份基线source、160份生产Rust、累积原始/Build资产、reader/启动器库身份PASS，证据`70/summary.json`、`70/final/`。实耗40分45秒，新增缓存顺序链占用取证与隔离时间；累计151项（97P2/54P3）。未改生产、转换器、reader或依赖，截图0、性能暂停；继续Feet，完整核心图、动作精确查询与公共Playground仍待闭合。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
@@ -558,6 +565,7 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - Target：`src/als/character/movement/motion.rs:3854–3862`仅在原始接触normal1已不可行走时尝试短射线重建；若凸体边缘的接触normal1较竖直，就直接交给`3880`判断walkable。实际floor consumer随后据此保持Grounded并调整高度。
   - 反例：60°凸体斜面以竖直侧面收边，边缘距角色中心0.1m、顶高0.08m。实际加载角色从中心高1.02m检查地面，consumer前sweep非穿透、距离0.1161m、接触normal1.y=0.9449，中心射线无命中，impact在默认0.15m有效perch半径内；source应无可行走floor并进入Air，target保持Grounded并拉到0.98437m。`bf144_floor_steep_edge_does_not_create_ground_support`语义FAIL，30°同形体对照PASS；独立query的0.1/0.14m边缘同样仅60°两组失败。证据`target/bf144/04/normal_loaded/`、`normal_query/`。
   - 漏检：已有坡度测试检查面内命中，边缘测试检查水平平台或原始normal已过陡的情况；没有覆盖“接触normal可行走、实际几何面不可行走”的边缘组合。仅登记，不新增补偿射线或修改通用碰撞库。
+  - BF144.70补充地面预测消费者：fresh `RefreshGroundPrediction:1191`同样检查ImpactNormal；当前`locomotion_layer.rs:142`直接用normal1。30°/60°同一凸体边缘，接触normal.y均0.942273，源60°全部候选面均不可行走，目标仍给Fall预测权重0.377691；只恢复源资格便为0，活动Fall混合节点同步归零。四组3PASS/1FAIL，30°控制通过；`70/full_initial/`与`bf144_animation_phase70_prediction_face_normal`，归并同一面法线遗漏。
 
 - [ ] BF144-D11 / P2 — 非均匀水平缩放改变了角色物理胶囊的源圆截面。
   - Source：fresh `CapsuleComponent.cpp:192–214`生成单一Sphyl；`BodySetup.cpp:2144–2181`、`ChaosInterfaceUtils.cpp:174–190`创建圆胶囊，半径取水平绝对尺度最大值并受半高约束；`BodyInstance.cpp:2132–2140,2377–2421`动态缩放保持同一规则。`PrimitiveComponent.cpp:3354`→`WorldCollision.cpp:545–560`的真实移动使用该物理形体，不是floor查询中取水平小轴的尺寸helper。
@@ -1231,11 +1239,13 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：两朝向在0.375/0.75秒的实际GetUp槽，原生完整79骨骼姿态对比均失败，最大位置差0.62–1.21mm、四元数距离约0.000679，集中在手部和足部虚拟骨骼；其余12个时点通过，16组68根原始骨骼读取及所有sequence曲线/根运动输出控制通过。在夹具用相同普通骨骼和fresh虚拟骨骼映射重算后，全部16组恢复既有3e−5容差，最大位置残差约6.3e−6m。证据`42/native_front_full_pose.json`、`native_back_full_pose.json`与`bf144_get_up_phase42_native_bones_and_root_output`；仅确认本机当前未烘焙采样路径，不冒称已覆盖cooked压缩路径。旧导入Gate只比较普通骨骼和关键帧，原始track读取也不会执行活动模型的虚拟骨骼生成。
 
 
-- [ ] BF144-D125 / P2 — 大型平地箱体上的胶囊sweep提前命中，改变落地剩余时间与制动。
+- [ ] BF144-D125 / P2 — 大型平地箱体的胶囊sweep数值偏差，改变落地与地面预测。
   - Source：fresh `CapsuleComponent.cpp:240–244`与`ChaosEngineInterface.cpp:122–147`确认半高包含端球、segment沿Z且半长H−R；`WorldCollision.cpp:545–563`、`SceneQuery.cpp:365–382`、`SQVisitor.h:336`及`GeometryQueries.h:320–325`进入MTD开启、Thickness=0的原生SweepQuery/GJKRaycast2。本机同输入4m/100m箱体均返回20ms方向distance=0.055680113m、50ms方向=0.054472971m；源不是先前的解析平面假设。
   - Target：Avian/Parry的support-map shape cast进入directional_distance→minkowski_ray_cast，后者在距离阈值或不再收紧上界等条件下返回当前TOI；`motion.rs:2701–2733`直接把该距离经源式pullback转为applied及remaining_time，再进入落地walking积分。当前证据定位到实际查询核差异，未把某个提前退出分支冒称为已动态插桩确认。
   - 反例：完整角色相同H=0.9/R=0.3m、start.y=0.94m、初速(3,−3,0)m/s；100m箱体返回0.047215056/0.041710450m，分别提前8.465/12.763mm，命中witness仍分离6.082/9.372mm。4m的50ms方向接近原生，20ms方向另有0.069mm低量级差异。替换旧解析oracle为原生距离后，3帧长×有无保留输入×两箱体的12组实际落地消费者仍为6PASS/6FAIL，失败仅100m；20ms无输入时速度低0.105535m/s，100ms无输入位移少约10.03mm。证据`43/queries.native.json`、`bf144_capsule_phase43_native_queries`与`bf144_capsule_phase43_landing_remaining_with_native_time`。
   - 漏检/归并：BF144.07曾因缺少源查询实证保留U01；本批沿同一反例补齐原生结果，不重开已完成的落地回调/摩擦条目，不新增平滑、容差或查询补偿。100m条件去掉后六组消费控制通过；胶囊半高退化成半径使原生高度self-test失败，恢复后复验。
+  - BF144.70补充查询边界：4个原生地面预测输入与解析平面距离一致；目标3个斜向扫描分别提前0.487/4.130/0.895mm，另一个方向对照通过。100m箱体起点穿透1/10cm时，源MTD分别为−1/−10cm，转换为Hit.Time=0；target直接support-map扫掠与实际SpatialQuery都返回None，4m控制均命中。关闭compute-impact-geometry仍无命中，排除碰撞树和后续接触重算；归于已登记查询核边界，未声称两种现象触发同一内部退出分支。证据`70/plane.native.json`、`70/penetration.native.json`、`70/penetration_isolation/`；实际预测输入恢复验证继续保留在本批记录。
+  - 预测消费复验：20组原样/恢复中16PASS/4FAIL；三处斜向查询及初始穿透分别使Fall输入偏差，其中穿透样本target=0、source=1。只恢复源查询推导的当前预测字段，四处全部通过实际Fall混合输入合同；其余16组源公式、锁存、时间/缩放/屏蔽对照通过，见`70/final/`。Default Overlay的独立时序差由D153单列，不以恢复Fall声称整个姿态已等价。
 
 - [ ] BF144-D126 / P2 — 凸包支持面提前截为四顶点，丢失有效支持点并改变布娃娃碰撞旋转。
   - Source：fresh `CollisionOneShotManifolds.cpp:422–506,979–1054,1078–1183`沿完整凸多边形的各条边裁剪box面或capsule轴线；box使用最多32点的中间buffer，裁剪结束后才将接触减到4点。实际Barrel原生head得到2点、foot得到4点。
@@ -1407,6 +1417,18 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`tnua_ext/motion.rs:41–45`先向角色forward/right投影，再取二维长度；`actual_motion.rs:40–44`把此长度作为horizontal_speed，provider再发布speed和移动标志。倾斜时会丢失分量，纯yaw时的舍入也可能跨越严格阈值。
   - 反例：完整角色先等到实际Standing Idle，在相同世界velocity=(0,0,−1.6)m/s、无输入下控制actor俯仰60度，目标发布0.8m/s并保持Idle；源应1.6m/s并开始Idle→Move。仅恢复horizontal_speed即进入原生对应转换，当前actor旋转与速度均已核实。直立/倾斜×原样/恢复四组3PASS/1FAIL；另11组输入边界中0.5及1.5m/s各出现一处误判，同根归并。
   - 漏检：旧旋转测试只用yaw且仅比较速度误差容差，未检查严格布尔阈值或倾斜输入；初版诊断误把Gameplay Grounded当作Standing Idle，已补实际状态等待并排除该前置失败。证据`68/checked_initial/`、`68/final/`及`bf144_animation_phase68_speed_uses_world_plane`、`bf144_animation_phase68_motion_inputs`；未改生产或放宽阈值。
+
+- [ ] BF144-D152 / P2 — 地面预测复用物理形体，遗漏源胶囊组件的查询尺寸。
+  - Source：fresh `AlsAnimationInstance.cpp:785–789,1166–1188`从CapsuleComponent读取scaled radius/half-height，再用Identity旋转构建独立查询胶囊；`CapsuleComponent.h:201–211`半径取水平两轴较小值、半高取竖直尺度。这不同于D11所述物理形体的水平大轴规则。
+  - Target：`locomotion_layer.rs:159–163,196–202`直接把角色Collider传给地面预测；Avian查询读取其shape_scaled。横向scale=(2,1,1)时，查询半extent为(0.6,0.9,0.285317)，源应为半径0.3m、半高0.9m的圆胶囊。
+  - 反例：完整角色实际Fall、中心高3m、vy=−10m/s，平台边缘距中心0.4m。原生源胶囊不命中，目标命中并发布GroundPredictionAmount=0.345407，活动Fall混合节点读到该值；仅把当次查询形体替换成源尺寸即恢复0。unit/nonuniform×平台居中/边缘×原样/恢复共8组7PASS/1FAIL，全部恢复与unit控制通过。
+  - 漏检：旧查询测试覆盖uniform缩放和当前位置，并以同一物理Collider复算期望，未独立读取组件getter。额外原生半径0.6m控制仍命中该平台，证明单独修复D11的物理圆截面不能修复此输入边界。证据`70/queries.native.json`、`70/geometry_initial/`与`bf144_animation_phase70_prediction_capsule_input`；仅登记，未改生产。
+
+- [ ] BF144-D153 / P3 — 缓存Pose求值顺序丢失源队列，Default Overlay的预测输入滞后一帧。
+  - Source：fresh AB_Als_Layering原生cached-pose队列共11项，Locomotion位于Overlay之前；两个输入分别只进入自己的SaveCachedPose。`AnimNode_SaveCachedPose.cpp:111–125,178–201`先登记请求，再在PostGraphUpdate更新源；`AnimInstanceProxy.cpp:150–158`按原生队列执行，因此Locomotion内RefreshInAir先刷新父状态，Default Overlay的TwoWayBlend再读取当前GroundPredictionAmount。
+  - Target：`source_cached_pose.rs:86–105`按收集顺序立即resolve请求，未消费源编译队列。完整角色中Fall节点已读到当帧预测，而Default Overlay节点`adf49347-4a01-b4bd-6434-518242a029cb`仍读上一帧的父字段。
+  - 反例：固定源已核验的世界速度(−6,−40,−6)、mesh scale=2和原生平面查询结果，仅切换GroundPredictionBlock。解除屏蔽时source=0.8923675、Overlay actual=0；重新屏蔽时source=0、actual=0.8923675。仅在求值前发布同一个当前父字段，两次切换均恢复；连续不变的两帧本已通过，共8组6PASS/2FAIL，Fall当前值全程正确。
+  - 漏检：旧字段与图绑定检查只核对帧末父状态，恒定输入又掩盖跨图的旧值；把全部同名读者与帧末值直接比较也不能定位执行顺序。证据`70/layering_schedule.native.json`、`70/overlay_initial/`及`bf144_animation_phase70_cached_overlay_order`。本项只确认当前Default Overlay预测链，其他缓存副作用消费者留核心图审计；未修改转换器或运行时。
 
 ### 核验边界记录（不计为无差异）
 
