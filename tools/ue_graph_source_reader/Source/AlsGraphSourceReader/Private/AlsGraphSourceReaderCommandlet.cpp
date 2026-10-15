@@ -831,6 +831,86 @@ TSharedPtr<FJsonObject> CapturePhysicsBodyProbe(UObject* Asset, const FString& R
     return Result;
 }
 
+TSharedPtr<FJsonObject> CaptureMeshRayVisits(const Chaos::FTriangleMeshImplicitObject& Mesh,
+    const Chaos::FVec3& Start, const Chaos::FVec3& Direction, Chaos::FReal Length)
+{
+    struct FVisitor
+    {
+        const Chaos::FTriangleMeshImplicitObject& Mesh;
+        Chaos::FVec3 Start, Direction;
+        TArray<TSharedPtr<FJsonValue>> Visits;
+        Chaos::FReal Time = TNumericLimits<Chaos::FReal>::Max();
+        Chaos::FVec3 Normal = Chaos::FVec3::ZeroVector;
+        int32 Face = INDEX_NONE;
+
+        bool VisitRaycast(int32 FaceIndex, float& CurrentLength)
+        {
+            Chaos::FTriangle Triangle;
+            int32 A, B, C;
+            Mesh.GetTransformedTriangle(FaceIndex, Chaos::FRigidTransform3::Identity, Triangle, A, B, C);
+            const Chaos::FVec3 FaceNormal = Chaos::FVec3::CrossProduct(Triangle[1] - Triangle[0], Triangle[2] - Triangle[0]);
+            const bool bCulled = Mesh.GetCullsBackFaceRaycast() && Chaos::FVec3::DotProduct(Direction, FaceNormal) > 0;
+            Chaos::FReal HitTime;
+            Chaos::FVec3 HitNormal;
+            Chaos::TVec2<Chaos::FReal> Bary;
+            const bool bHit = !bCulled && Chaos::RayTriangleIntersectionAndBary(Start, Direction,
+                static_cast<Chaos::FReal>(CurrentLength), Triangle[0], Triangle[1], Triangle[2], HitTime, Bary, HitNormal);
+            TSharedRef<FJsonObject> Visit = MakeShared<FJsonObject>();
+            Visit->SetNumberField(TEXT("internal_face"), FaceIndex);
+            Visit->SetNumberField(TEXT("external_face"), Mesh.GetExternalFaceIndexFromInternal(FaceIndex));
+            Visit->SetNumberField(TEXT("length_before_cm"), CurrentLength);
+            Visit->SetBoolField(TEXT("culled"), bCulled);
+            Visit->SetBoolField(TEXT("hit"), bHit);
+            TArray<TSharedPtr<FJsonValue>> Vertices;
+            for (int32 Index = 0; Index < 3; ++Index) { Vertices.Add(MakeShared<FJsonValueObject>(CaptureVector(FVector(Triangle[Index])))); }
+            Visit->SetArrayField(TEXT("vertices_cm"), Vertices);
+            if (bHit)
+            {
+                Time = HitTime;
+                Normal = HitNormal;
+                Face = FaceIndex;
+                CurrentLength = static_cast<float>(HitTime);
+                Visit->SetNumberField(TEXT("distance_cm"), HitTime);
+                Visit->SetObjectField(TEXT("normal"), CaptureVector(FVector(HitNormal)));
+                TArray<TSharedPtr<FJsonValue>> BaryValues;
+                BaryValues.Add(MakeShared<FJsonValueNumber>(Bary.X));
+                BaryValues.Add(MakeShared<FJsonValueNumber>(Bary.Y));
+                Visit->SetArrayField(TEXT("barycentric_uv"), BaryValues);
+            }
+            Visit->SetNumberField(TEXT("length_after_cm"), CurrentLength);
+            Visits.Add(MakeShared<FJsonValueObject>(Visit));
+            return true;
+        }
+    };
+    FVisitor Visitor{Mesh, Start, Direction};
+    Mesh.GetBVH().Raycast(Start, Direction, Length, Visitor);
+    Chaos::FReal Time;
+    Chaos::FVec3 Position, Normal;
+    int32 Face;
+    const bool bHit = Mesh.Raycast(Start, Direction, Length, 0, Time, Position, Normal, Face);
+    if (bHit != (Visitor.Time <= Length)
+        || (bHit && (Time != Visitor.Time || Face != Visitor.Face || Normal != Visitor.Normal)))
+    {
+        UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Mesh ray visit capture differs from the native core query."));
+        return nullptr;
+    }
+    TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+    Result->SetObjectField(TEXT("start_cm"), CaptureVector(FVector(Start)));
+    Result->SetObjectField(TEXT("direction"), CaptureVector(FVector(Direction)));
+    Result->SetNumberField(TEXT("length_cm"), Length);
+    Result->SetBoolField(TEXT("agrees_with_core"), true);
+    Result->SetBoolField(TEXT("hit"), bHit);
+    Result->SetNumberField(TEXT("selected_internal_face"), Visitor.Face);
+    if (bHit)
+    {
+        Result->SetNumberField(TEXT("distance_cm"), Time);
+        Result->SetObjectField(TEXT("position_cm"), CaptureVector(FVector(Position)));
+        Result->SetObjectField(TEXT("normal"), CaptureVector(FVector(Normal)));
+    }
+    Result->SetArrayField(TEXT("visits"), Visitor.Visits);
+    return Result;
+}
+
 TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
 {
     FString Text;
@@ -871,6 +951,7 @@ TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
             FString MeshPath;
             TArray<double> TranslationValues, ScaleValues, StartValues, EndValues;
             bool bTraceComplex = false;
+            bool bCaptureVisits = false;
             if (!(*Input)->TryGetObjectField(TEXT("mesh_raycast"), Ray)
                 || !(*Ray)->TryGetStringField(TEXT("asset_path"), MeshPath)
                 || !ReadArray(*Ray, TEXT("translation_cm"), TranslationValues, 3)
@@ -878,6 +959,7 @@ TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
                 || !ReadArray(*Ray, TEXT("start_cm"), StartValues, 3)
                 || !ReadArray(*Ray, TEXT("end_cm"), EndValues, 3)
                 || !(*Ray)->TryGetBoolField(TEXT("trace_complex"), bTraceComplex)) { return nullptr; }
+            if ((*Ray)->HasField(TEXT("capture_ray_visits")) && !(*Ray)->TryGetBoolField(TEXT("capture_ray_visits"), bCaptureVisits)) { return nullptr; }
             const FVector Scale(ScaleValues[0], ScaleValues[1], ScaleValues[2]);
             if (Scale.X == 0 || Scale.Y == 0 || Scale.Z == 0) { return nullptr; }
             UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, *MeshPath);
@@ -911,6 +993,32 @@ TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
                     if (Core == nullptr) { return nullptr; }
                     ShapeValue->SetBoolField(TEXT("culls_back_face"), Core->GetCullsBackFaceRaycast());
                     ShapeValue->SetObjectField(TEXT("core_scale"), CaptureVector(FVector(CoreScale)));
+                    if (bCaptureVisits)
+                    {
+                        const auto& Actor = Body.GetPhysicsActorHandle()->GetGameThreadAPI();
+                        const FTransform LeafWorld = FTransform(Shape.Shape->GetLeafRelativeTransform()) * FTransform(Actor.R(), Actor.X());
+                        const FVector Delta = FVector(EndValues[0], EndValues[1], EndValues[2]) - FVector(StartValues[0], StartValues[1], StartValues[2]);
+                        const float Distance = static_cast<float>(Delta.Size());
+                        if (Distance <= UE_KINDA_SMALL_NUMBER) { return nullptr; }
+                        Chaos::FVec3 CoreStart = LeafWorld.InverseTransformPositionNoScale(FVector(StartValues[0], StartValues[1], StartValues[2]));
+                        Chaos::FVec3 CoreDirection = LeafWorld.InverseTransformVectorNoScale(Delta) / Distance;
+                        Chaos::FReal CoreLength = Distance;
+                        Chaos::FReal LengthScale = 1;
+                        if (Chaos::IsScaled(Shape.Shape->GetLeafGeometry()->GetType()))
+                        {
+                            const Chaos::FVec3f InverseScale = static_cast<const Chaos::FImplicitObjectScaled&>(*Shape.Shape->GetLeafGeometry()).GetInvScale();
+                            ShapeValue->SetObjectField(TEXT("core_inverse_scale"), CaptureVector(FVector(InverseScale)));
+                            CoreStart = InverseScale * CoreStart;
+                            CoreDirection = InverseScale * CoreDirection;
+                            LengthScale = CoreDirection.Size();
+                            CoreDirection *= Chaos::FReal(1) / LengthScale;
+                            CoreLength *= LengthScale;
+                        }
+                        const TSharedPtr<FJsonObject> Visits = CaptureMeshRayVisits(*Core, CoreStart, CoreDirection, CoreLength);
+                        if (!Visits.IsValid()) { return nullptr; }
+                        Visits->SetNumberField(TEXT("length_scale"), LengthScale);
+                        ShapeValue->SetObjectField(TEXT("ray_visits"), Visits);
+                    }
                 }
                 ShapeValues.Add(MakeShared<FJsonValueObject>(ShapeValue));
             }

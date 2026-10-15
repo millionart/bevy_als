@@ -530,6 +530,13 @@
   - 11:30 范围拆分：fresh Arch01/Arch02/Fountain原生顶点和面索引复算确认，8组余差均位于共享边/顶点邻域；UE的double三角形计算、float当前长度与遍历覆盖，和Parry的float严格最小值选择属于独立闭包。该余差及mesh端点/零距离细节接续独立查询边界项，不用D161解释或放宽法线阈值。本项收口复杂形状选择和背面剔除；下一步复算实际Rig四条射线、做夹具精简和身份Gate，再继续余差。
   - 11:33 完成摘要：2项focused均记录语义FAIL，978组803PASS/175FAIL；其中165个query和2个完整Rig失败归D161，8组法线余差继续保留。精简每个世界的重复bridge更新、两个恢复样本和位置缓存后，972组输出逐字相同，六个保留Rig判定相同、两个恢复通过。8份有效native、12组mesh/8组旧query自测、4条实际Rig射线复算、4种metadata消融和Rig程序身份PASS；1份ALS/10份UE/30份目标/5份依赖闭包、116份基线source、160份生产Rust、累积资产及reader源码/包/二进制、启动器库身份PASS。证据`73/summary.json`、`73/final/`；实耗21分20秒，无超时。只扩展通用读取和自测，没有生产或转换规则修改；截图0、性能暂停。接续网格边界后再进入偏移/IK。
 
+- [x] BF144.74 复杂网格共享边/顶点及射线端界：依赖BF144.73记录Gate，追踪8组法线余差的实际原生候选、三角形数值、距离收紧和遍历选面；核对未缩放/缩放mesh的终点、零距离和近边界行为，并将有差异的结果送入实际Rig输入消费者。背面规则使用已证实控制，原生接触动力学保持关闭。Gate：fresh源核/网格与同输入native取证、逐因素最小反例或排除、实际Rig消费、消融和身份记录。开始：2026-10-15 11:36 +08:00；预估结束：2026-10-15 12:21 +08:00；实际结束：2026-10-15 12:40:45 +08:00；偏差：+19分45秒；结果：审计记录Gate PASS，新增D162/P3并补充D159，余差完成本批消费者分类。估时依据：.73读取/矩阵/消费者实耗21分20秒；本项剩余8组集中在源约350行BVH和约60行triangle核，已定位公开GetBVH取证入口，另需独立数值与消费者控制，按45分钟验收。
+  - 11:36 活动摘要：.73已提交，累计159项。8组source法线均匹配fresh原生面，三个Arch01位于共享边、两个Arch02位于边邻域、三个Fountain位于顶点邻域；部分样本存在多个有效候选，不能直接将全部余差归咎于相同距离的先后次序。先读取实际native候选和长度变化，再区分精度、容差和选面影响。
+  - 12:02 source/consumer闭环：新增原生逐面记录与Core.Raycast逐值核对，8条源射线47次访问全部有效；缩放倒数必须读取实际FVec3f缓存，早先重算double倒数的探针不匹配已保留失败并纠正。Fountain完整Rig9组6PASS/3FAIL，三个顶点样本的法线进入实际足旋转输入，1cm内点控制全PASS；仅恢复当次trace的源输出均通过，确认D162/P3。已消除夹具在远处带缩放构造时的矩阵舍入输入干扰，未放宽阈值、未计为生产缺陷。累计160项（100P2/60P3），五个Arch余差与mesh端界继续核对。
+  - 12:35 闭包与消融：83个逐面输入全部匹配独立源公式，17处Parry候选差异由容差、float计算与距离资格解释；两个Arch02选面在源厘米/Core输入控制中恢复，完整默认长度Rig另确认一处棱边法线差异，归D162。原五条长射线按实际50/80cm绑定映射到Rig空间后，坡度均低于45度门槛，source/target共10组均回退0/Up，不把raw差异直接计为额外运动缺陷；倒置Arch01的默认长度与内点控制通过。12组mesh端界中两处未缩放端点失败补充D159，缩放严格端界与零距离控制通过。去掉恢复选择字段及两个重复恢复样本后，同target重编139组101PASS/38语义/诊断FAIL，完整Rig16组12PASS/4FAIL，四个恢复全通过。读取器按实际float左操作数保留缩放结果，38条完整命中/位置/法线交叉核验、20条旧查询回归及5种字段消融通过；早先只比面编号漏掉的类型问题已由旧数据反例封住。继续身份记录后进入偏移/IK。
+
+  - 12:40 完成摘要：5项focused为1PASS/4语义或诊断FAIL，139组101PASS/38FAIL；全部83个独立源三角形复算、38条完整wrapped查询及20条旧查询回归通过，5种metadata消融与旧提升精度反例均被拒绝。3份ALS/12份UE/34份目标/5份依赖闭包、116份基线source、160份生产Rust、累积资产、reader源码/包/二进制和启动器库身份PASS；证据74/summary.json、74/final/。实耗64分45秒，在允许容差内；额外耗时来自原生缩放缓存和左操作数结果精度校准，以及拱门实际消费者与walkability排除对照，已将这些漏检边界落实为读取器强校验。没有生产或转换规则修改，截图0、性能暂停；接续Foot Offset的弹簧、旋转与IK。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
@@ -1488,6 +1495,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：实际查询使用Rig scale=1.25、默认向上0.5/向下0.8m，底面恰在世界−1m；Parry返回distance=1.625m，查询wrapper返回None。完整角色中实际ApplyFootOffsetLocation读到0而source为−0.766336m；夹具仅将原生合同偏移量写入现有变量Copy，实际消费者恢复。稍近底面控制通过。
   - 漏检：旧query测试只覆盖区间内部与完全未命中，没有比较primitive已命中却被wrapper丢掉的端点。证据`72/ray.native.json`、`72/query_initial/`、`72/full_initial/`；本项仅验证trace与偏移输入，完整弹簧/IK姿态另行验收。
 
+  - BF144.74补充：实际Stairs复杂网格的未缩放终点同样失败，Parry BVH自身已用严格best_cost排除命中，不能只改外层query比较。默认FootTrace输入进入该mesh时source偏移−0.766336m、target为0。源缩放包装另有严格NewTime<Length，相关缩放端点本身应拒绝；12组端界不能用统一放宽距离处理。证据`74/endpoint.typed.native.json`、`bf144_animation_phase74_mesh_endpoint_and_initial_hit`。
+
 - [ ] BF144-D160 / P2 — Rig初始重叠射线未转换零法线，被误判为不可行走。
   - Source：fresh `SQVisitor.h:34–38`对零距离ray撤掉位置/法线标志；`CollisionConversions.cpp:403–432`使用起点和反向射线的安全归一化法线，FootOffsetTrace继续按bBlockingHit消费。原生box内部射线Time=0、raw normal=0，经过源转换应为向上法线。
   - Target：`control_rig_query.rs:53`直接转发Parry的零法线；`control_rig_units.rs:113–118`得到slope_cos=0并清空偏移，漏掉源命中转换。
@@ -1499,6 +1508,13 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`playground_collision.rs:229–252`建立普通Parry trimesh；`control_rig_apply.rs:437–442`正确选用复杂几何及缩放，但`control_rig_query.rs:42–50`调用默认双面cast_ray，未传入源剔除规则。此处是ray独立算法，不归并接触生成D140。
   - 反例：完整角色实际CR_Als，桶底置于−0.3m、脚底射线起于+0.5m且位于桶内。原生无命中，目标命中底部背面并将−0.261963m送入ApplyFootOffsetLocation；scale=1.5时同根偏移−0.542933m。只在夹具按当前ray方向剔背面，两个实际消费者均恢复0；正面和非均匀缩放控制通过，8组6PASS/2FAIL。
   - 漏检：旧复杂几何测试以同一个Parry trimesh作为期望，只证明没有误选简单几何，未独立读取源单面属性或源ray核。972条实际mesh查询有165组由culling单因素恢复，另8组法线余差仍单独核验；证据`73/matrix.native.json`、`73/matrix_initial/`、`73/full.native.json`及`bf144_animation_phase73_mesh_rays_reach_foot_offset`。只登记，生产与原始资产未改。
+
+- [ ] BF144-D162 / P3 — 复杂网格射线在共享边/顶点邻域选择不同面，法线差异进入足部旋转与偏移输入。
+  - Source：fresh `Triangle.h:375–423`使用double计算及1e−8重心容差；`TriangleMeshImplicitObject.cpp:181–188`接受当前float长度内的候选并覆盖结果。实际Fountain顶点依次接受外部面281、285、286，281/286含很小的负重心分量，最后286虽比285远约3.17e−10cm，仍在float长度内。native逐面记录与原查询逐值相同。
+  - Target：Parry `ray_triangle.rs:85–159`使用float与严格非负重心条件，`bvh_traverse.rs:362–440`按严格更短距离保留候选；生产查询返回另一面法线。背面剔除单独恢复不能消除该边界，不能用点位置接近代替法线合同。
+  - 反例：完整角色实际CR_Als，FootTrace精确源/目标同输入，Fountain顶点的单位/1.5/非均匀缩放三组全部把不同法线送入ApplyFootOffsetRotation。非均匀组source normal=(−0.166315,0.972883,−0.160743)，actual=(−0.105964,0.940714,−0.322224)，脚底偏移由source 0.203753m变为0.208486m。三组偏离顶点1cm的控制通过；仅恢复当次trace两个输出，三个实际消费者均通过。
+  - 棱边补充：两个Arch02诊断射线仅改用同一Parry核的源厘米/Core坐标即选回native面56/231，确认米制float变换输入会改变近边资格；默认50/80cm完整Rig在其中一处实际选面50而源为231，法线进入足旋转输入，源输出恢复及1cm内点控制通过。完整Rig最终16组12PASS/4FAIL，四个失败均恢复；旋转/弹簧算法及最终姿态验收另项继续。
+  - 漏检/范围：旧测试核对命中位置或大平面的法线，未覆盖共享边附近的候选接受与距离收紧。证据`74/visits.typed.native.json`、`74/expanded_full.native.json`及`74/final/`。原五条长射线映射实际Rig距离后会被坡度门槛拒绝，不把这些raw法线差异重复计作运动缺陷；早期远处缩放夹具的11µm位置干扰已用逐顶点完全相同的输入排除，未作生产缺陷或阈值调整。
 
 ### 核验边界记录（不计为无差异）
 

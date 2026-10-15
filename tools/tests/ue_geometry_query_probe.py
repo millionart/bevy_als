@@ -1,6 +1,7 @@
 import argparse
 import json
 import math
+import struct
 from pathlib import Path
 
 
@@ -90,14 +91,82 @@ def validate_mesh(path):
     print(json.dumps({'native_mesh_raycast_self_test': 'PASS', 'samples': len(samples)}), flush=True)
 
 
+def validate_mesh_visits(path):
+    samples = json.loads(path.read_text(encoding='utf-8-sig'))['geometry_query_probe']['samples']
+    f32 = lambda value: struct.unpack('<f', struct.pack('<f', value))[0]
+    count = 0
+    for sample in samples:
+        name = sample['input']['name']
+        assert sample['input']['mesh_raycast']['capture_ray_visits'], name
+        shape = next(s for s in sample['mesh_raycast']['shapes'] if s['complex'])
+        assert 'ray_visits' in shape, f'Missing native mesh ray visits: {name}'
+        ray = shape['ray_visits']
+        assert ray['agrees_with_core'] and ray['length_cm'] > 0, name
+        length = f32(ray['length_cm'])
+        selected = None
+        seen = set()
+        for visit in ray['visits']:
+            assert visit['internal_face'] not in seen and visit['length_before_cm'] == length, name
+            seen.add(visit['internal_face'])
+            assert len(visit['vertices_cm']) == 3, name
+            if visit['hit']:
+                assert not visit['culled'] and 0 <= visit['distance_cm'] <= length, name
+                u, v = visit['barycentric_uv']
+                assert u >= -1e-8 and v >= -1e-8 and u + v <= 1 + 1e-8, name
+                assert abs(sum(x * x for x in visit['normal'].values()) - 1) < 1e-6, name
+                length = f32(visit['distance_cm'])
+                selected = visit
+            assert visit['length_after_cm'] == length, name
+            count += 1
+        hit = selected is not None and selected['distance_cm'] <= ray['length_cm']
+        assert ray['hit'] == hit and ray['selected_internal_face'] == (selected['internal_face'] if selected else -1), name
+        query = sample['input']['mesh_raycast']
+        delta = [b - a for a, b in zip(query['start_cm'], query['end_cm'])]
+        length = f32(math.sqrt(sum(x * x for x in delta)))
+        scaled = 'core_inverse_scale' in shape
+        distance = ray['distance_cm'] * (1 / ray['length_scale']) if hit else 0
+        wrapped_hit = hit and (not scaled or distance == 0 or distance < length)
+        if hit:
+            assert all(abs(ray['position_cm'][k] - ray['start_cm'][k] - ray['direction'][k] * ray['distance_cm']) < 1e-6 for k in 'xyz'), name
+        assert sample['mesh_raycast']['hit'] == wrapped_hit, f'Native wrapped hit differs: {name}'
+        if sample['mesh_raycast']['hit']:
+            assert hit and selected['external_face'] == sample['mesh_raycast']['face_index'], name
+            assert abs(sample['mesh_raycast']['distance_cm'] - f32(distance)) < 1e-5, name
+            if distance == 0:
+                point = query['start_cm']
+                size = math.sqrt(sum(x * x for x in delta))
+                normal = [-x / size for x in delta]
+            else:
+                point = [ray['position_cm'][k] for k in 'xyz']
+                normal = [ray['normal'][k] for k in 'xyz']
+                if scaled:
+                    point = [f32(shape['core_scale'][k] * f32(x)) for k, x in zip('xyz', point)]
+                    normal = [f32(shape['core_inverse_scale'][k] * f32(x)) for k, x in zip('xyz', normal)]
+                q = sample['input']['rotation_xyzw']
+                def rotate(v):
+                    cross = lambda a, b: [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
+                    t = [2 * x for x in cross(q[:3], v)]
+                    return [a + q[3] * b + c for a, b, c in zip(v, t, cross(q[:3], t))]
+                point = [a + b for a, b in zip(rotate(point), query['translation_cm'])]
+                normal = rotate(normal)
+                size = math.sqrt(sum(x * x for x in normal))
+                normal = [x / size for x in normal]
+            result = sample['mesh_raycast']
+            assert all(abs(result['position_cm'][k] - x) < 2e-5 for k, x in zip('xyz', point)), f'Native wrapped position differs: {name}'
+            assert all(abs(result['normal'][k] - x) < 1e-6 for k, x in zip('xyz', normal)), f'Native wrapped normal differs: {name}'
+    assert samples and count > 0
+    print(json.dumps({'native_mesh_ray_visits_self_test': 'PASS', 'samples': len(samples), 'visits': count}), flush=True)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--write-request', type=Path)
     parser.add_argument('--report', type=Path)
     parser.add_argument('--write-mesh-request', type=Path)
     parser.add_argument('--mesh-report', type=Path)
+    parser.add_argument('--mesh-visits-report', type=Path)
     args = parser.parse_args()
-    if not any([args.write_request, args.report, args.write_mesh_request, args.mesh_report]):
+    if not any([args.write_request, args.report, args.write_mesh_request, args.mesh_report, args.mesh_visits_report]):
         parser.error('Provide a request output or native report')
     if args.write_request:
         args.write_request.write_text(json.dumps(request(), indent=2), encoding='utf-8')
@@ -109,3 +178,5 @@ if __name__ == '__main__':
         print('Wrote native mesh ray request', flush=True)
     if args.mesh_report:
         validate_mesh(args.mesh_report)
+    if args.mesh_visits_report:
+        validate_mesh_visits(args.mesh_visits_report)
