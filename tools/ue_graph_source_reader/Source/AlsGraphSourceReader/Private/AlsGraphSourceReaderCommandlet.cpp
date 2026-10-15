@@ -1926,12 +1926,30 @@ TSharedPtr<FJsonObject> CaptureMontageClockProbe(UObject* Asset, const FString& 
     FString Text;
     TSharedPtr<FJsonObject> Request;
     const TArray<TSharedPtr<FJsonValue>>* Samples = nullptr;
-    if (Montage == nullptr || !FFileHelper::LoadFileToString(Text, *RequestPath) ||
+    if (!FFileHelper::LoadFileToString(Text, *RequestPath) ||
         !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Request) ||
         !Request->TryGetArrayField(TEXT("samples"), Samples) || Samples->IsEmpty())
     {
         UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Montage clock probe asset or request is invalid."));
         return nullptr;
+    }
+    if (Montage == nullptr)
+    {
+        UAnimSequenceBase* Sequence = Cast<UAnimSequenceBase>(Asset);
+        const TSharedPtr<FJsonObject>* Dynamic = nullptr;
+        FString Slot;
+        double BlendIn, BlendOut, Trigger;
+        if (Sequence == nullptr || !Request->TryGetObjectField(TEXT("dynamic_montage"), Dynamic) ||
+            !(*Dynamic)->TryGetStringField(TEXT("slot"), Slot) || Slot.IsEmpty() ||
+            !(*Dynamic)->TryGetNumberField(TEXT("blend_in_seconds"), BlendIn) || !FMath::IsFinite(static_cast<float>(BlendIn)) || BlendIn < 0.0 ||
+            !(*Dynamic)->TryGetNumberField(TEXT("blend_out_seconds"), BlendOut) || !FMath::IsFinite(static_cast<float>(BlendOut)) || BlendOut < 0.0 ||
+            !(*Dynamic)->TryGetNumberField(TEXT("blend_out_trigger_seconds"), Trigger) || !FMath::IsFinite(static_cast<float>(Trigger)))
+        {
+            UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Dynamic montage clock configuration is invalid."));
+            return nullptr;
+        }
+        Montage = UAnimMontage::CreateSlotAnimationAsDynamicMontage(Sequence, FName(*Slot), BlendIn, BlendOut, 1.0f, 1, Trigger);
+        if (Montage == nullptr) { return nullptr; }
     }
     TArray<TSharedPtr<FJsonValue>> Results;
     for (const TSharedPtr<FJsonValue>& Value : *Samples)
@@ -1947,7 +1965,12 @@ TSharedPtr<FJsonObject> CaptureMontageClockProbe(UObject* Asset, const FString& 
         }
         FAnimMontageInstance Instance;
         Instance.Initialize(Montage);
-        Instance.Play();
+        double PlayRate = 1.0, StartTime = 0.0;
+        if (((*Sample)->HasField(TEXT("play_rate")) && !(*Sample)->TryGetNumberField(TEXT("play_rate"), PlayRate)) ||
+            ((*Sample)->HasField(TEXT("start_time")) && !(*Sample)->TryGetNumberField(TEXT("start_time"), StartTime)) ||
+            !FMath::IsFinite(static_cast<float>(PlayRate)) || !FMath::IsFinite(static_cast<float>(StartTime))) { return nullptr; }
+        Instance.Play(PlayRate);
+        Instance.SetPosition(FMath::Clamp(static_cast<float>(StartTime), 0.0f, Montage->GetPlayLength()));
         TArray<TSharedPtr<FJsonValue>> Frames;
         for (const TSharedPtr<FJsonValue>& StepValue : *Steps)
         {
@@ -1983,6 +2006,7 @@ TSharedPtr<FJsonObject> CaptureMontageClockProbe(UObject* Asset, const FString& 
     }
     TSharedRef<FJsonObject> Probe = MakeShared<FJsonObject>();
     Probe->SetArrayField(TEXT("samples"), Results);
+    Probe->SetNumberField(TEXT("montage_length"), Montage->GetPlayLength());
     return Probe;
 }
 

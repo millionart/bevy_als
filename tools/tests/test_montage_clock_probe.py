@@ -7,6 +7,20 @@ from pathlib import Path
 def check(path):
     data=json.loads(Path(path).read_text(encoding='utf-8-sig'))
     samples={sample['name']:sample['frames'] for sample in data['montage_clock_probe']['samples']}
+    if 'forward' in samples:
+        length=data['montage_clock_probe']['montage_length']
+        assert math.isfinite(length) and length>0.5
+        assert samples['forward'][0]['position']==0 and samples['reverse'][0]['position']==length
+        assert samples['clamped_start'][0]['position']==0 and samples['clamped_end'][0]['position']==length
+        for index in range(1,5):
+            assert abs(samples['forward'][index]['position']-index*.15)<1e-6
+            assert abs(samples['reverse'][index]['position']-(length-index*.15))<1e-6
+        assert all(frame['position']==.25 and frame['valid'] for frame in samples['zero_rate'])
+        for frames in samples.values():
+            assert all(math.isfinite(frame['position']) and 0<=frame['position']<=length for frame in frames)
+            assert all(0<=frame['weight']<=1 and (frame['valid'] or not frame['playing']) for frame in frames)
+        print('Dynamic montage clock probe self-test: PASS',flush=True)
+        return
     zero=samples['zero']
     assert len(zero)==10 and all(frame['position']==0 and frame['weight']==1 and frame['valid'] for frame in zero)
     for frames in samples.values():

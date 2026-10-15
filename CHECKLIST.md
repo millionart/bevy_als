@@ -576,6 +576,12 @@
   - 16:58 source/static与consumer闭环：fresh配置/root/Standing/Crouching原生读取通过，直接Idle回调2/2已覆盖；8cm阈值、两帧延迟、许可/相关权重、同帧去重、站蹲四资源和队列参数一致。560组普通资格与两组24帧生命周期通过；681组数值边界出现68处判定/选脚差异。完整角色84组受控输入中6处错误进入实际播放请求，只替换距离资格/排序后42组恢复全通过，确认D166/P3，累计164项（100P2/64P3）。首版夹具误读强制输入后的旧delay缓存已修正，未记作生产问题；下一步去掉无效夹具字段、消融和身份Gate。蒙太奇时间/混合、停止/通知顺序仍后置。
   - 17:03 完成摘要：3项focused为1PASS/2预期FAIL，共1373组1299PASS/74FAIL；68个数值边界与6个实际角色失败均由D166解释。去掉两个无用原点字段并显式按源坐标顺序求和后，同target重编的156行语义结果全部一致。8份ALS/5份UE/14份target、116基线source、160生产Rust、累积资产、reader及.80实际入口库身份PASS；证据`81/summary.json`、`81/final/`。实耗19分41秒，源设置路径查找及静态资源名解析的夹具错误已改正并通过；生产、转换器、原始资产均未改，没有重启公共runtime。后续为动态蒙太奇的时间/混合/停止及通知调用，D166自然可达性仍未证明；截图0、性能暂停。
 
+- [x] BF144.82 Dynamic Montage播放时钟与自然结束：依赖.81记录Gate，沿PlayQueuedTransitionAnimation→PlaySlotAnimationAsDynamicMontage核对四个动态过渡资源的时长/RateScale、起播位置/速率、逐帧时钟、片段边界及自动blend-out触发，闭合到实际角色Transition槽的采样时间。只核对当前运动过渡；AlphaBlend权重、组内中断、停止请求及通知顺序另项验收，不复开已完成Roll/Mantle或扩展道具蒙太奇。Gate：fresh四资源与UE调用闭包、独立时钟/边界及实际采样消费者、必要消融和身份记录。开始：2026-10-15 17:06 +08:00；预估结束：2026-10-15 17:56 +08:00；实际结束：2026-10-15 17:47:15 +08:00；偏差：−8分45秒；结果：记录Gate PASS，新增D167/P3并扩展D118/D120，未修复。估时依据：.81选择与队列实耗19分41秒；fresh索引定位UE动态构造约80行、实例Play约60行及Advance中的片段推进/自然停止分支，预计需要四资源提取和首末帧对照，按50分钟拆分，混合权重与中断另行验收。
+  - 17:06 活动摘要：.81已提交`6ad869db`，累计164项（100P2/64P3）；生产、转换规则未改。当前只沿已证明的动态队列→播放→采样边核对时间语义，距离选择使用已确定的共同输入隔离D166；截图0、性能暂停。
+  - 17:31 source/static摘要：四个Sequence原生时长均1.5333333015秒、RateScale=1且root motion关闭；现有时钟探针增加通用瞬态动态Montage构造和可选起播参数，10068帧与独立源推进公式逐值相同，旧GetUp的1094帧回归不变。确认Transition也遗漏已登记D120的section末端偏移，正在四资源实际槽采样恢复；另将六位小数时长和elapsed反算两个临界分支分离，24个新增原生边界帧已通过公式复核，实际触发消费者仍在验证。仅沿共同源Montage规则补充现有开放差异，未复开GetUp完成项；混合权重/停止请求仍后置。
+  - 17:36 consumer摘要：四资源与半速/倍速的实际Transition槽确认D120尾段时间差，七组原生位置恢复全部通过（含零速控制）；半速的末端前累计误差另由D118的反算时钟解释。六位小数时长在实际站立播放状态提前混出，单独恢复时长即通过，登记D167/P3；蹲姿时长本已正确，仍在另一临界输入晚一帧，归并D118。普通124条轨迹的停止帧全部一致，不将受控边界泛化成常见故障。累计165项（100P2/65P3），继续读取器参数消融、源槽消费与身份收尾。
+  - 17:47 完成摘要：4项focused均按已确认差异失败；190条普通/边界/恢复轨迹为100PASS/90FAIL，包含124条单元时钟和26条实际角色轨迹；10092帧原生参考与独立公式逐值一致。实际根Transition槽节点确已消费采样；时长恢复将控制反例约0.05975的后续权重偏差归零。读取器6组验证、旧1094帧不变、4个参数消融、5个恢复控制、3个报告缺失/篡改反例与float溢出输入拒绝通过。删去参考公式无用循环上限及一条重复边界后，同target重编结果不变。4份ALS/8份UE/8份target、116基线source、160生产Rust、累积资产、reader源码/package/DLL与入口库身份PASS；证据`82/summary.json`、`82/final/`。实耗41分15秒，仅扩展取证工具及自测，没有生产/转换器修改或公共runtime重启。AlphaBlend完整权重、显式停止/组替换和通知仍依赖后续闭包。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
@@ -1268,20 +1274,22 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`apply_profile_to_spawned_ragdoll:1347–1351`直接令已有body的Transform.translation乘scale_factor，该量已经包含世界位移；随后的实际Position因此围绕世界原点缩放。
   - 反例：完整角色的detached mesh origin=(3,0.0015,−2)，从1缩到0.75时，pelvis相对source额外移动(−0.75,−0.000375,+0.5)m，误差约0.901388m；放大到1.5时误差约1.802776m。unit/0.75/1.5×经过零/直接更新×默认/平移/零origin共18组10PASS/8FAIL；unit和零origin均通过，所有质量/关节锚点及rotation控制通过。证据`bf144_ragdoll_phase40_recovery_mass_frames_and_pose_controls`、`40/final/`。旧缩放Gate只核对Collider尺寸、质量和关节局部frame，未核对实际body Position与mesh origin。
 
-- [ ] BF144-D118 / P2 — GetUp重算播放位置及混合alpha，改变原生混出临界帧。
+- [ ] BF144-D118 / P2 — GetUp与动态过渡反算播放时钟，改变原生混出临界帧。
   - Source：fresh `AnimInstance.cpp:562–578`先UpdateWeight再Advance；`AnimMontage.cpp:2234–2256,2328–2333,2626–2637`逐步累加clip位置，并按当前section剩余时间开始混出；`AlphaBlend.cpp:192–228`累加AlphaLerp和剩余时间。两套原生montage均为1.5秒、RateScale=1.2、0.3秒Cubic，通知会把Advance切到精确分支点。
   - Target：`get_up.rs:107–126`用elapsed×rate反算clip位置、用剩余时间比例反算alpha，临界浮点结果与原生积累状态不同。50ms帧的target在clip约1.1400002就开始混出，原生该帧尚未跨入窗口；不能把数学上等价的表达式视为生命周期等价。
   - 反例：实际两朝向×5帧步长×4倍率共40组36PASS/4FAIL。50ms、单位倍率在elapsed约1秒时target权重0.92592585、source为1；1.1秒时约0.5对0.7046613，target第24帧清理、source第25帧。16.7ms×半速另在source清理帧残留1.19e−7权重，晚一帧清理。49.9/50.1ms、其他倍率及动态倍率通过；暂停只保留已有边界，不引入独立时钟差异。原生FAnimMontageInstance逐帧实证见`41/clock_front_all.native.json`、`clock_back_all.native.json`；target见`bf144_get_up_phase41_clock_weight_notify_and_end`。旧Gate验证最终结束/近似权重，没有相同delta序列的原生生命周期判据。
+  - BF144.82动态过渡补充：fresh同一Montage规则的原生10068帧与独立推进公式逐值一致；`stop_link.rs:260–272`再次用elapsed反算位置及`duration/rate−elapsed`判定剩余时间。先1秒、再0.0221221838秒时，源position=1.5331833363并已进入1e−4秒混出窗口，蹲姿目标尚未开始混出；实际角色播放状态也复现。该输入的蹲姿时长与源完全相同，排除D167。站立短时长会偶然抵消这一个时钟边界，不能把只改时长视为完整修复。半速普通采样末端前最多约2.15µs偏差，原生位置替换后实际槽时间恢复；本扩展未验证全部AlphaBlend或停止请求，未重开GetUp完成项。
 
 - [ ] BF144-D119 / P2 — GetUp停止与共槽混合读取上一帧Roll状态和权重。
   - Source：fresh `AlsCharacter_Actions.cpp:90–100`成功Montage_Play后立即置Rolling；`AnimInstance.cpp:2767–2772`同步停止同组旧montage，随后同一次UpdateMontage更新所有权重再求槽姿态。Roll原生BlendIn为0.1秒，已有GetUp混出保留原Cubic曲线并缩短时长。
   - Target：`get_up.rs:255–258,301–322,352–354`在PrePhysics前检查roll.active并读取roll.pose/weight，却没有排在`advance_rolls`之后；`roll_drive.rs:1912–1916,2094–2111`到PrePhysics后的bridge才写当前roll槽数据。旧GetUp与新Roll因而使用不同帧的数据。
   - 反例：62.5ms帧、已解锁的起身在第16帧接受Roll，当帧GetUp权重0.8709766而原生0.31640625，第17帧旧GetUp仍残留0.27558246而source已结束；实际Roll权重1但组合槽仅0.9591762。两朝向均失败；夹具只补GetUp晚于roll准备的顺序后，停止时点和旧权重全部恢复原生值，但第16帧组合槽仍只含GetUp的0.31640625，证明晚于Graph的bridge仍是独立阶段边界，未把该控制称作完整修复。证据`bf144_get_up_phase41_roll_order_controls`；50ms中断矩阵也复现。旧测试只覆盖Ragdoll替换和最终标记清理，没有同时核对新旧montage当帧权重。
 
-- [ ] BF144-D120 / P3 — GetUp混出跨过section末端时采样完整长度，遗漏原生末端偏移。
+- [ ] BF144-D120 / P3 — GetUp与动态过渡在section末端采样完整长度，遗漏原生末端偏移。
   - Source：fresh `AnimMontage.cpp:2721,2744–2748`在无下一section时停止播放，并将位置保留为section结束−UE_KINDA_SMALL_NUMBER/2；本机原生结果为1.4999500513秒，混出未完成期间持续保留。
   - Target：`get_up.rs:115–116`持续以elapsed×rate并min(sequence_length)，因此尾段采样1.5秒。
   - 反例：50ms帧在第24帧用Ragdoll缩短/重启GetUp混出后，两朝向第25–27帧都采样1.5而source为1.49995；动作Ragdoll和输入标记保持正确。早期中断及未越过末端的控制通过，证据`bf144_get_up_phase41_interrupted_cleanup`。差值约50微秒，只登记低优先级姿态/曲线采样尾差，不扩大为可见表现结论。
+  - BF144.82动态过渡补充：四个当前Sequence的原生动态Montage停在1.5332833529秒；`stop_link.rs:260`夹到duration，`standing_source.rs:65`又夹到六位小数配置时长，实际Transition槽尾段采样1.5333329439。站立/蹲姿左右脚及半速/倍速六组全部复现，60Hz单位倍率保持12个尾帧；只恢复原生位置的六组和零速控制全部通过。归并同一遗漏的section末端规则，没有新增重复编号；证据`82/*.native.json`和`bf144_animation_phase82_actual_sampling_clock`。
 
 - [ ] BF144-D121 / P3 — GetUp动作通知终点在生成记录中舍入，极窄边界内延迟输入解锁。
   - Source：fresh原生GetEndTriggerTime为1.1665666103363037，`AnimMontage.cpp:2988–3012`在End branching marker执行NotifyEnd，ALS仅在当前仍GettingUp时置空并解锁。
@@ -1578,6 +1586,12 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`ab_als_provider.rs:375–378`把米制`Vec3::distance_squared`作为F32发布，`source_native_refresh.rs:361–378`比较float米制阈值并选择左右。距离平方的低位被舍入后，不等距离可变成相等；单位换算与float平方也使8cm附近的资格不同。
   - 反例：共同有效输入左距平方100.00000298023227cm²、右距平方100.00000299023226cm²，源选择右，目标两值均变为0.010000001m²而选择左。另一个30°方向输入源距平方63.99999962647951cm²未超过64，目标却触发。两种站姿实际Idle图和队列消费者均复现，84组控制/恢复中6处原始失败；只恢复距离资格和排序的标量输入后42组恢复全部通过，四资源、blend 0.2、rate 1.5、start 0字段一致。
   - 漏检/边界：旧测试使用明显超限、整数比例或严格相同距离，没有在源double与target float之间比较微小差值。本项控制了消费时的锁定点，尚未证明默认动作自然触发；已登记D158的pending输入历史未复开。证据`81/static.json`、`bf144_animation_phase81_distance_boundaries`和`bf144_animation_phase81_actual_queue_consumer`；仅登记，没有补偿距离、放宽阈值或修改生产代码。
+
+- [ ] BF144-D167 / P3 — 动态过渡的目标时长丢失float精度，使临界帧提前混出。
+  - Source：四个动态过渡Sequence经fresh `GetPlayLength()`和原生动态Montage构造均为1.5333333015441895秒；`AnimMontage.cpp:2626–2637`用实际剩余时间与1e−4秒窗口判断自动混出，当前源BlendOutTriggerTime为0。
+  - Target：`als_standing_montages.ron`保存1.533333，解析为float的1.5333329439163208；`stop_link.rs:214–223`用此值初始化站立动态过渡，缩短约0.36µs。蹲姿播放状态使用1.5333333常量，故该处未缩短，但所有四个槽采样仍读取截断后的配置时长。
+  - 反例：先推进1秒，再推进0.0221220143秒，源位置1.5331829786尚未到混出窗口，站立目标已开始混出。左右站立单元及实际角色均复现；随后10/50ms两帧的最大权重偏差约0.05975，仅将本次播放时长恢复原生float后，触发帧与权重偏差均恢复。蹲姿同输入和窗口之后控制通过。另一时钟反算分支已归D118，不把数值抵消误认为源等价。
+  - 漏检/边界：旧时钟测试直接引用相同六位小数时长，普通帧长也不会落进这个窄区间。本项为受控有效动画时钟输入，未宣称默认动作自然触发；证据`82/boundary.native.json`、`bf144_animation_phase82_trigger_boundaries`和`bf144_animation_phase82_actual_trigger_boundaries`。仅记录，未改原始导出、目标配置或转换器。
 
 ### 核验边界记录（不计为无差异）
 
