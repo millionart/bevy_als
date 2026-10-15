@@ -7,6 +7,19 @@ from pathlib import Path
 def check(path):
     data=json.loads(Path(path).read_text(encoding='utf-8-sig'))
     samples={sample['name']:sample['frames'] for sample in data['montage_clock_probe']['samples']}
+    if 'active_slot_stop' in samples:
+        assert len(samples)==22
+        assert samples['active_slot_stop'][1]['weight']==0 and not samples['active_slot_stop'][1]['valid']
+        assert samples['inertial_group_override'][1]['weight']==1 and samples['inertial_group_override'][1]['valid']
+        assert samples['inertial_group_override'][2]['weight']==.84375
+        baseline=samples['standard_None_False']
+        for mode in ['standard','inertial']:
+            for duration in [0,.1,.2,.3]:
+                assert samples[f'{mode}_{duration}_True']==baseline
+            assert samples[f'{mode}_0.2_False']==baseline and samples[f'{mode}_0.3_False']==baseline
+            assert samples[f'{mode}_0.1_False'][8]['weight']==.078125
+        print('Montage stop mode and eligibility self-test: PASS',flush=True)
+        return
     if 'forward' in samples:
         length=data['montage_clock_probe']['montage_length']
         assert math.isfinite(length) and length>0.5

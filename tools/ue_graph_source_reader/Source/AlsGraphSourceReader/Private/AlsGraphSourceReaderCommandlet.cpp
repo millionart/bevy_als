@@ -1981,6 +1981,9 @@ TSharedPtr<FJsonObject> CaptureMontageClockProbe(UObject* Asset, const FString& 
         }
         Montage = UAnimMontage::CreateSlotAnimationAsDynamicMontage(Sequence, FName(*Slot), BlendIn, BlendOut, 1.0f, 1, Trigger);
         if (Montage == nullptr) { return nullptr; }
+        bool bInertialBlendOut = false;
+        if ((*Dynamic)->HasField(TEXT("inertial_blend_out")) && !(*Dynamic)->TryGetBoolField(TEXT("inertial_blend_out"), bInertialBlendOut)) { return nullptr; }
+        if (bInertialBlendOut) { Montage->BlendModeOut = EMontageBlendMode::Inertialization; }
     }
     TArray<TSharedPtr<FJsonValue>> Results;
     for (const TSharedPtr<FJsonValue>& Value : *Samples)
@@ -2017,7 +2020,17 @@ TSharedPtr<FJsonObject> CaptureMontageClockProbe(UObject* Asset, const FString& 
             if ((*Step)->TryGetNumberField(TEXT("stop_seconds"), StopDuration))
             {
                 if (!FMath::IsFinite(StopDuration) || StopDuration < 0.0) { return nullptr; }
-                if (Instance.IsValid()) { Instance.Stop(FAlphaBlend(Montage->BlendOut, StopDuration)); }
+                bool bActiveOnly = false;
+                bool bInertial = Montage->BlendModeOut == EMontageBlendMode::Inertialization;
+                if (((*Step)->HasField(TEXT("active_only_stop")) && !(*Step)->TryGetBoolField(TEXT("active_only_stop"), bActiveOnly))
+                    || ((*Step)->HasField(TEXT("inertial_stop")) && !(*Step)->TryGetBoolField(TEXT("inertial_stop"), bInertial))) { return nullptr; }
+                if (Instance.IsValid() && (!bActiveOnly || Instance.IsActive()))
+                {
+                    FMontageBlendSettings Settings(FAlphaBlend(Montage->BlendOut, StopDuration));
+                    Settings.BlendMode = bInertial ? EMontageBlendMode::Inertialization : EMontageBlendMode::Standard;
+                    Settings.BlendProfile = Montage->BlendProfileOut;
+                    Instance.Stop(Settings);
+                }
             }
             Instance.UpdateWeight(Delta);
             Instance.Advance(Delta, nullptr, false);
