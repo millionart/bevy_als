@@ -54,7 +54,7 @@
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；BF144.43将U01原生核验归并为D125，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.19完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道、warp变换、动态基座和RMS物理消费的首轮审计，确认D43–D60、D62–D64，D61撤销；精确查询数值及公共Playground验收尚未闭合 |
 | Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.42及.44–.64完成许可、启动/退出、输入/锁定、GetUp交接/时钟/通知/清理/姿态/曲线/根运动、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样/child预测bounds、多点回弹迭代、原生点序/支持点消费、质量加权接触位置、contact/joint耦合、primitive缓存、初速生成/交接/限速预算、pelvis跟随/探地/恢复朝向、进入挂接/退出快照、mesh恢复及零scale重建首轮审计，确认D65–D124、D126–D145；实际convex/trimesh的几何、速度摩擦及跨帧消费已由.45–.64完成当前输入闭包分类，U02关闭；不开展无源链路的通用物理审查 |
-| AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | BF144.65–.70完成可见性更新/历史时钟、初始化/实例替换、View/Head/Spine、Layering/Pose与Locomotion通用输入、Grounded/Standing/Crouching/InAir运动算法及地面预测查询，确认D146–D152；Feet/Turn/Transition和通知仍待审计；实际动画选择包含角色Overlay标签，排除道具表现 |
+| AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | BF144.65–.71完成可见性更新/历史时钟、初始化/实例替换、View/Head/Spine、Layering/Pose与Locomotion通用输入、Grounded/Standing/Crouching/InAir运动算法、地面预测查询及Feet输入/Foot Lock，确认D146–D152、D154–D158；Feet的Rig地面偏移/IK、Turn/Transition和通知仍待审计；实际动画选择包含角色Overlay标签，排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | BF144.70沿InAir直接消费者确认Default Overlay缓存次序D153；完整闭包及其他缓存副作用消费者仍待重新取证核对，历史155子图合同只作起点，不能自证算法等价 |
 | 剩余源函数与跨阶段边界 | 以上 source-target 链路的覆盖缺口 | 前述审计后再独立收口；未解释项保留，截图与性能继续暂停 |
 
@@ -507,6 +507,14 @@
   - 09:03 consumer时点摘要：InAir公式与10组原样/恢复对照已闭合，四处查询偏差恢复后全部对齐实际Fall混合输入；初始穿透与大型平面误差归D125，坡面资格归D10。宽泛探针同时读到了Default Overlay中的同名输入，其值早于RefreshInAir；本项仅沿该已证实读者补取Root/Default Overlay和UE缓存Pose更新顺序，核定是否为源同样的上一帧消费，其他Overlay与完整图仍后置。
   - 09:10 顺序闭环：fresh Layering原生缓存队列中Locomotion先于Overlay；两个输入各只连入自己的SaveCachedPose，UE在Root更新后依该队列调用PostGraphUpdate。目标按需求遍历即时求值，Default Overlay先读旧GroundPrediction，再由Locomotion刷新。当预测开关变化时，实际Default Overlay输入落后一帧；仅提前发布同一个当前字段便恢复，8组6PASS/2FAIL，确认D153/P3。此组方向与原生扫描已匹配，排除了D125；当前累计151项。此前将不同读者统一比作帧末值的断言已拆为实际Fall与Default Overlay两个独立consumer合同；继续精简后提交。
   - 09:14 完成摘要：最终44组34PASS/10预期FAIL，所有分离恢复控制通过；原生4个形状/4个平面/6个初始穿透查询均有效。删除2个重复unit恢复样本、额外contact/关闭几何探针和逐节点诊断输出，同target重编后保留的全部语义记录逐字一致。12份原生报告、7份ALS/10份UE/18份目标/5份依赖闭包与116份基线source、160份生产Rust、累积原始/Build资产、reader/启动器库身份PASS，证据`70/summary.json`、`70/final/`。实耗40分45秒，新增缓存顺序链占用取证与隔离时间；累计151项（97P2/54P3）。未改生产、转换器、reader或依赖，截图0、性能暂停；继续Feet，完整核心图、动作精确查询与公共Playground仍待闭合。
+
+- [x] BF144.71 Feet输入与Foot Lock：依赖BF144.70记录Gate，核对NativeInitialize的腿轴、RefreshFeet输入有效性/曲线/骨骼目标，以及锁定权重、瞬移、基座切换和旋转约束的实际消费者。Rig地面偏移/IK求解另行验收，Dynamic Transition仅核对本批输出接口，动作选择后置；已确认时钟/缓存问题只作隔离。Gate：fresh配置/骨架/根图与C++合同、数值边界及完整角色消费者反例或对照、最小消融和身份记录。开始：2026-10-15 09:21 +08:00；预估结束：2026-10-15 10:11 +08:00；实际结束：2026-10-15 09:58:33 +08:00；偏差：−12分27秒；结果：审计记录Gate PASS，新增D154–D158五项，未修复。估时依据：源Feet与初始化约390行，target状态/helper与实际输入约600行；.70查询和缓存闭包实耗40分45秒，本项复用完整角色与Rig遥测，按50分钟独立验收。
+  - 09:21 活动摘要：源先读取上次完成的mesh骨骼，再依有效性执行Feet和锁定；target入口及实际Rig输入已定位。先核对骨轴/组件空间和输入生命周期，再验证权重与重定位边界；截图0、性能暂停。
+  - 09:27 source/consumer闭环：4份原生配置/骨架/mesh/根图有效。恢复前权重0.8、当前曲线0.5时，源保留并淡出到0.5，目标先清零，下一帧目标移动8cm后实际Rig输入偏移4cm；仅恢复该权重便通过，12组10PASS/2FAIL，确认D154/P3。mesh scale=(1.4,0.8,0.6)、yaw=0.7时，源Inverse QST先除scale再逆旋转，目标矩阵逆变换次序相反，实际Rig输入相差17.07cm；8组7PASS/1FAIL且单字段恢复通过，确认D155/P2。下一步完成本批权重、约束、瞬移/基座与曲线边界；地面偏移和IK求解继续后置。
+  - 09:34 边界摘要：16组权重及18组基座历史通过；D154已追加真实隐藏/首帧pending/再有效的完整角色路径并保持相同分类。fresh Feet有效性早退还保留FootPlanted/FeetCrossing，而provider直接读新曲线；仅沿已定位的Jump脚选择条件补取Locomotion原生图并验证该读者。初始瞬移窗口候选的恢复对照暴露了夹具前一帧/当前组件位置混用，修正其输入历史后再判断，不登记未闭合结果。
+  - 09:46 剩余接口摘要：初始瞬移窗口已由原生CDO、实际游戏时钟及时间0事件恢复闭合，确认D156/P3。Jump的pending首帧不会进入脚选择，改用源明确支持的identity pelvis无效条件验证曲线保留；探针已对齐实际global输入回退。另由`RefreshFeetOnGameThread→RefreshDynamicTransitions`证明pending帧仍采集当前足目标，而target整段跳过；仅追加Standing Idle直接消费者来核对锁定距离，完整Transition算法仍后置。基座切换夹具先隔离CMC携带触发的瞬移，再验Foot消费者。
+  - 09:55 输入接口闭环：identity pelvis下实际Jump左右分支各选错一次，单字段恢复及有效Feet控制通过，确认D157/P3。按.68已有前置等待真实落地动画结束、读到Standing Idle回调后，pending帧移动20cm的source锁定距离平方0.04，target发布0并漏掉过渡；仅恢复距离便实际排队StandingLeft，6组5PASS/1FAIL，确认D158/P3。此前10/40帧固定预热未到Idle，只计前置失败。当前累计156项（98P2/58P3）；进入本批精简和最终身份Gate，未扩展完整过渡算法。
+  - 09:58 完成摘要：最终10项focused为5PASS/5预期语义FAIL，98组91PASS/7FAIL，全部恢复控制通过。删除三个完整角色夹具中的180°约束覆盖，恢复默认90°/40°；删除Jump多帧等待循环，同target重编后全部判定保持一致。6份原生报告、10份ALS/10份UE/23份目标闭包与116份基线source、160份生产Rust、累积原始/Build资产、reader/启动器库身份PASS，证据`71/summary.json`、`71/final/`。实耗37分33秒，主要增量来自两个有效性接口的真实消费者前置；本项覆盖Feet目标/曲线/锁定/瞬移/基座/约束，完整Transition算法、Rig地面偏移/IK及核心图继续。仅提交审计记录，未改生产、转换器、reader或依赖；截图0、性能暂停。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -1429,6 +1437,36 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`source_cached_pose.rs:86–105`按收集顺序立即resolve请求，未消费源编译队列。完整角色中Fall节点已读到当帧预测，而Default Overlay节点`adf49347-4a01-b4bd-6434-518242a029cb`仍读上一帧的父字段。
   - 反例：固定源已核验的世界速度(−6,−40,−6)、mesh scale=2和原生平面查询结果，仅切换GroundPredictionBlock。解除屏蔽时source=0.8923675、Overlay actual=0；重新屏蔽时source=0、actual=0.8923675。仅在求值前发布同一个当前父字段，两次切换均恢复；连续不变的两帧本已通过，共8组6PASS/2FAIL，Fall当前值全程正确。
   - 漏检：旧字段与图绑定检查只核对帧末父状态，恒定输入又掩盖跨图的旧值；把全部同名读者与帧末值直接比较也不能定位执行顺序。证据`70/layering_schedule.native.json`、`70/overlay_initial/`及`bf144_animation_phase70_cached_overlay_order`。本项只确认当前Default Overlay预测链，其他缓存副作用消费者留核心图审计；未修改转换器或运行时。
+
+- [ ] BF144-D154 / P3 — Feet恢复有效时清空锁定权重，丢失源保留的淡出。
+  - Source：fresh `AlsAnimationInstance.cpp:1251–1275,1364–1392`只改变有效性并将已有锁定位置重新基于当前目标；`1398–1523`保留原LockAmount，当前曲线更低时继续淡出。`GetControlRigInput:252`消费最终组件空间位置。
+  - Target：`foot_ik_apply.rs:640–642`在became_valid时无条件调用`reset_foot_lock_to_target`，该函数同时将LockAmount归零；后续部分权重不允许重新淡入，因而整个剩余锁定丢失。
+  - 反例：完整角色恢复前LockAmount=0.8、当前曲线0.5，实际权重变0而source应为0.5；下一帧足目标沿X移动8cm，实际Rig的RigInput位置比源多移动4cm。只在恢复帧补回源权重，下一帧消费恢复。原权重0与当前曲线1的控制通过，12组10PASS/2FAIL。
+  - 漏检：旧`reset_foot_lock_to_target`测试直接期待恢复时权重0；已有pending测试只核对有效性与Rig开关，没有检查恢复后的历史权重和位置。证据`71/initial/`、`bf144_animation_phase71_revalid_lock_weight`；仅登记，未改实现。
+
+- [ ] BF144-D155 / P2 — Feet使用矩阵逆变换，非均匀缩放加旋转时改变源组件空间输入。
+  - Source：fresh `RefreshFeet:1308–1313`先建立`ComponentTransform.Inverse()`，`RefreshFootLock:1430`等再调用该逆Transform的TransformPosition；UE `TransformVectorized.h:1423–1452,1675–1693`对应`inverseRotation × ((point−translation) / scale)`。源算法自身的QST顺序必须保留。
+  - Target：`foot_ik_apply.rs:678–681`经`ik_space.rs:37–46`使用仿射矩阵逆变换，先逆旋转再除scale；非均匀scale与旋转不能交换。
+  - 反例：完整角色mesh scale=(1.4,0.8,0.6)、actor yaw=0.7，Foot Lock关闭以隔离其他算法，实际Rig输入为(0.196194,0.134653,0.073582)，source为(0.284042,0.134653,−0.072761)，相差0.170685m。仅恢复该输入字段即通过；unit、uniform1.5与零yaw控制均通过，共8组7PASS/1FAIL。
+  - 漏检：旧空间测试验证数学往返或uniform scale，没有以源Inverse QST顺序复算实际Feet读者。证据`71/initial/`、`bf144_animation_phase71_component_inverse`；本项只登记Feet直接消费者，不修改通用空间helper或其他调用者。
+
+- [ ] BF144-D156 / P3 — 初始瞬移时间用None代替源零值，丢失世界启动时的Foot Lock重定位窗口。
+  - Source：fresh AB_Als CDO与`AlsAnimationInstance.h:58`均为TeleportedTime=0；`ProcessFootLockTeleport:1340–1347`在Feet已有有效历史、IK×Lock相关且World.TimeSince(0)≤0.2时重建世界锁定位置。UE `World.h:4714–4716`以游戏时钟直接相减，没有“尚未瞬移”例外。
+  - Target：`FootLockLifecycleState:30–34`默认teleported_at=None，`foot_ik_apply.rs:613–620`只在Some时启用窗口，直到收到事件才存在源对应时间。
+  - 反例：完整角色保留有效锁定，受控世界时钟0.1s、当帧移动10cm且未超过自动瞬移阈值，source应跟随组件重定位，实际Rig输入多出10cm偏移、rebase次数0。通过公开事件在游戏时间0建立源时间后，同输入恢复；0.3s/1s及恢复控制全部通过，共6组5PASS/1FAIL。
+  - 漏检：旧时钟测试先显式发送事件，再验证超时与暂停，未覆盖默认时间0的有效分支。证据`bf144_animation_phase71_initial_teleport_window`及本批最终记录；初始夹具混用当前组件与上帧组件的恢复失败已排除，最终判据用真实上帧组件历史。仅登记，未改生产。
+
+- [ ] BF144-D157 / P3 — Feet无效时provider覆盖源应保留的曲线历史，改变起跳脚选择。
+  - Source：fresh `RefreshFeet:1299–1305`在bValid=false时立即返回，保留FootPlantedAmount/FeetCrossingAmount；原生Locomotion的Jump Entry Conduit以FootPlantedAmount≤0进入Left Foot，>0进入Right Foot。
+  - Target：`ab_als_provider.rs:139–149,424`直接按最新RootAnimationContext生成这两个字段，绕过`AlsFootLockState`已正确保留的历史；实际SourceScalarExpression的global回退读到该新值。
+  - 反例：完整角色在source明确判为无效的identity pelvis条件下起跳，FeetState原值−0.8、最新曲线+0.8时，实际Jump选择Right Foot而源应Left Foot；反号同样选错。仅发布保留字段即恢复两种选择，有效Feet四个控制通过，共8组6PASS/2FAIL，均在第一帧实际Jump FSM记录权重。
+  - 漏检：旧曲线provider测试只验证钳制值，未加入Feet有效性和实际Entry选择；原pending首帧不执行Jump脚选择的尝试属于前置不满足，未计缺陷。证据`71/guard_checked/`、`bf144_animation_phase71_invalid_feet_jump_consumer`；仅登记，未改图或provider。
+
+- [ ] BF144-D158 / P3 — pending帧跳过足目标采集，动态过渡消费旧锁定距离。
+  - Source：fresh `RefreshFeetOnGameThread:1251–1294`在pending时只使Feet无效，随后仍读取当前两个足目标；`RefreshFeet`跳过锁定计算，已有世界锁定点保留。`RefreshDynamicTransitions:1694–1736`不要求Feet有效，继续以当前TargetWorld与旧LockWorld的距离判定；原生Standing Idle的On Update调用该方法。
+  - Target：`foot_ik_apply.rs:559–567`在pending时直接continue，足目标保持旧帧；`ab_als_provider.rs:375–378`据此生成锁定距离，`source_native_refresh.rs:361–389`实际消费并排队过渡。
+  - 反例：完整角色实际Idle，左脚LockAmount=1、右脚0，pending帧组件移动20cm且未超过瞬移阈值；source距离平方0.04m²超过0.0064m²，target发布0、当帧不排队。只恢复该距离字段，真实回调写入StandingLeft序列；零位移与非pending控制通过，共6组5PASS/1FAIL。
+  - 漏检：旧pending测试只检查Rig关闭，未核对GameThread继续采集的目标及直接动态过渡消费者。证据`71/pending_checked/`、`bf144_animation_phase71_pending_target_distance`；回调执行及当帧队列write-frame均已断言，未把旧队列值计作触发。仅登记，未改生产。
 
 ### 核验边界记录（不计为无差异）
 
