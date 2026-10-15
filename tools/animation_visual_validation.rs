@@ -689,6 +689,7 @@ struct FootLockTeleportSample {
 struct FootIkSample {
     left: FootIkSideSample,
     right: FootIkSideSample,
+    rig_inputs: Option<serde_json::Value>,
     source_curves_available: bool,
     pose_moving: f32,
     foot_left_ik_curve: f32,
@@ -2866,6 +2867,7 @@ fn foot_ik_sample(
     FootIkSample {
         left: foot_ik_side_sample(&spaces.left, &apply.left),
         right: foot_ik_side_sample(&spaces.right, &apply.right),
+        rig_inputs: None,
         source_curves_available: pose_moving.is_some()
             && foot_left_ik_curve.is_some()
             && foot_right_ik_curve.is_some()
@@ -2892,6 +2894,21 @@ fn foot_ik_sample(
             remaining_seconds: safe(teleport.remaining_seconds),
         },
     }
+}
+
+fn rig_inputs_sample(
+    definition: &crate::extensions::control_rig_program::RigDefinition,
+    state: &crate::extensions::root_graph_boundaries::ControlRigNodeState,
+) -> serde_json::Value {
+    use crate::extensions::control_rig_program::RigInstruction;
+    let calls: Vec<_> = state.calls.iter().filter_map(|call| {
+        let RigInstruction::Call { function, .. } = definition.program.instructions.get(call.instruction)? else { return None; };
+        if !matches!(function.as_str(), "FAlsRigUnit_ApplyFootOffsetLocation::Execute" | "FRigUnit_TwoBoneIKSimplePerItem::Execute"
+            | "FAlsRigUnit_ApplyFootOffsetRotation::Execute" | "FRigUnit_SetRotation::Execute") { return None; }
+        Some(serde_json::json!({"instruction": call.instruction, "function": function,
+            "arguments": call.arguments, "bones_before": call.bones_before}))
+    }).collect();
+    serde_json::json!({"elapsed_seconds": state.elapsed_seconds, "initialization_count": state.initialization_count, "calls": calls})
 }
 
 fn pose_moving_lineage(
@@ -3602,7 +3619,7 @@ fn collect_animation_visual_evidence(
             )
         },
     );
-    let foot_ik_sample = foot_ik_data.map(|(spaces, apply, input, teleport, _, _, _)| {
+    let mut foot_ik_sample = foot_ik_data.map(|(spaces, apply, input, teleport, _, _, _)| {
         foot_ik_sample(
             spaces,
             apply,
@@ -3617,6 +3634,13 @@ fn collect_animation_visual_evidence(
             source_feet_crossing_amount,
         )
     });
+    if let Some(sample) = foot_ik_sample.as_mut()
+        && let Some((_, node, state)) = crate::extensions::root_graph_boundaries::current_control_rig(player, &graphs)
+        && let Some(definition) = node.try_inner_downcast_ref::<crate::extensions::root_graph_boundaries::ControlRigBoundaryNode>()
+            .and_then(|node| node.definition.as_ref())
+    {
+        sample.rig_inputs = Some(rig_inputs_sample(definition, state));
+    }
     if let Some(error) = graph_error.as_ref() {
         let bones = collect_bones(instance.player_entity(), &children, &named_transforms);
         record_graph_evaluation_failure(
@@ -4402,6 +4426,27 @@ mod tests {
         assert_eq!(sample["previous_solve_input"], serde_json::to_value(previous).unwrap());
         let skipped = AlsFootIkSpaceSide { solve_input: None, ..space };
         assert!(serde_json::to_value(foot_ik_side_sample(&skipped, &default())).unwrap()["solve_input"].is_null());
+    }
+
+    #[test]
+    fn rig_inputs_sample_preserves_double_precision_and_call_inputs() {
+        use crate::extensions::{control_rig_hierarchy::RigTransform, control_rig_math::RigValue,
+            control_rig_program::{RigDefinition, RigInstruction}, root_graph_boundaries::{ControlRigNodeState, RigCallSample}};
+        let mut definition: RigDefinition = serde_json::from_str(include_str!("../assets/ALS/Character/CR_Als.program.json")).unwrap();
+        definition.program.instructions = ["FRigUnit_TwoBoneIKSimplePerItem::Execute", "FRigUnit_GetTransform::Execute"]
+            .map(|function| RigInstruction::Call { function: function.into(), arguments: Vec::new(), outputs: Vec::new() }).to_vec();
+        let value = 1.0_f64 + 1e-10;
+        let transform = RigTransform { translation: bevy::math::DVec3::splat(value), ..default() };
+        let mut state = ControlRigNodeState::default();
+        state.initialization_count = 2;
+        state.calls = (0..2).map(|instruction| RigCallSample { instruction, arguments: vec![RigValue::F64(value)],
+            bones_before: vec![(3, transform)] }).collect();
+        let sample = rig_inputs_sample(&definition, &state);
+        assert_eq!(sample["initialization_count"], 2);
+        assert_eq!(sample["calls"].as_array().unwrap().len(), 1);
+        assert_eq!(sample["calls"][0]["arguments"][0]["F64"].as_f64(), Some(value));
+        assert_eq!(sample["calls"][0]["bones_before"][0][1]["translation"][0].as_f64(), Some(value));
+        assert_ne!(Some(value), Some(value as f32 as f64));
     }
 
     #[test]
