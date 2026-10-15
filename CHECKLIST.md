@@ -54,7 +54,7 @@
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；BF144.43将U01原生核验归并为D125，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.19完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道、warp变换、动态基座和RMS物理消费的首轮审计，确认D43–D60、D62–D64，D61撤销；精确查询数值及公共Playground验收尚未闭合 |
 | Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.42及.44–.64完成许可、启动/退出、输入/锁定、GetUp交接/时钟/通知/清理/姿态/曲线/根运动、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样/child预测bounds、多点回弹迭代、原生点序/支持点消费、质量加权接触位置、contact/joint耦合、primitive缓存、初速生成/交接/限速预算、pelvis跟随/探地/恢复朝向、进入挂接/退出快照、mesh恢复及零scale重建首轮审计，确认D65–D124、D126–D145；实际convex/trimesh的几何、速度摩擦及跨帧消费已由.45–.64完成当前输入闭包分类，U02关闭；不开展无源链路的通用物理审查 |
-| AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | BF144.65–.71完成可见性更新/历史时钟、初始化/实例替换、View/Head/Spine、Layering/Pose与Locomotion通用输入、Grounded/Standing/Crouching/InAir运动算法、地面预测查询及Feet输入/Foot Lock，确认D146–D152、D154–D158；.81–.92完成动态过渡资格/选择/队列、播放时钟、单/多实例混合、组停止、惯性请求、队列仲裁/落地参数、当前显式过渡/QuickStop以及Turn资格/选择/速率、时钟/自然停止和非加性混合、Roll运动点通知采样/资格/模式消费，新增D166–D179并扩展D118/D120/D121/D123。.93完成排队RootScale状态/中断/重入与实际根运动倍率消费，新增D180–D182；native branching状态通知、槽相关性与跨阶段派发、完整惯性求解器和外部参数边界仍待审计；实际动画选择包含角色Overlay标签，排除道具表现 |
+| AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | BF144.65–.71完成可见性更新/历史时钟、初始化/实例替换、View/Head/Spine、Layering/Pose与Locomotion通用输入、Grounded/Standing/Crouching/InAir运动算法、地面预测查询及Feet输入/Foot Lock，确认D146–D152、D154–D158；.81–.92完成动态过渡资格/选择/队列、播放时钟、单/多实例混合、组停止、惯性请求、队列仲裁/落地参数、当前显式过渡/QuickStop以及Turn资格/选择/速率、时钟/自然停止和非加性混合、Roll运动点通知采样/资格/模式消费，新增D166–D179并扩展D118/D120/D121/D123。.93完成排队RootScale状态/中断/重入与实际根运动倍率消费，新增D180–D182；.94完成九个动作montage的native branching动作状态、标记/零步长、中断/跨实例保护及动作消费，新增D183/D184并扩展D121；EarlyBlendOut条件及停止请求、槽相关性与跨阶段派发、完整惯性求解器和外部参数边界仍待审计；实际动画选择包含角色Overlay标签，排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | BF144.70沿InAir直接消费者确认Default Overlay缓存次序D153；.72–.79完成Foot Trace算法/primitive与mesh查询、骨盆和脚位置偏移/弹簧、足旋转/平滑/约束与加权写回、pole投影/状态/平滑，以及TwoBoneIK位置/旋转/部分权重写回，确认D159–D165；.80公共默认动作矩阵未自然触发D163–D165，未采样动作/历史和有效手臂IK仍未证明。完整图闭包及其他缓存副作用仍待重新取证核对，历史155子图合同只作起点，不能自证算法等价 |
 | 剩余源函数与跨阶段边界 | 以上 source-target 链路的覆盖缺口 | 前述审计后再独立收口；未解释项保留，截图与性能继续暂停 |
 
@@ -641,6 +641,11 @@
   - 02:36 活动摘要：.92已提交`80557ff5`，累计177项（105P2/72P3），工作区干净。fresh源将SetLocomotionAction/EarlyBlendOut标为native branching，SetRootMotionScale使用排队的NotifyBegin/NotifyEnd；本批只审后者。源排队状态依赖本帧区间重叠，End在该状态不再排入队列时调用；target从采样队列与独立lifecycle恢复状态。先核对共同区间和尺度恢复条件，未登记新差异；截图0、性能暂停。
   - 02:47 source/consumer闭环：两份原生Roll资产确认有效RootScale区间为0.0001→1.5001000166，manifest与源f32相同；566个局部资格/生命周期对照通过。但实际GraphClip仍是0→1.5，四个边界帧违反有效区间；沿其唯一编译入口与当前轨道补查，未修改规则。实际中断后状态未End，三个owner倍率的自然Roll/Ragdoll共同队列比较有42个失败帧，最终删除时才恢复倍率；同一通知跨实例接替还额外End/Begin。下一步分别恢复轨道、队列清理及源通知身份并验证实际根运动消费；尚未把Ragdoll期间的非零采样量当作实际位移。
   - 02:57 完成摘要：5项focused为2PASS/3预期语义FAIL，1290组比较1225PASS/65FAIL，分别归D180/P3、D181/P3、D182/P2；360个实际恢复组全部通过。真实允许的Roll重入确认倍率2被重复Begin改为1.3并进入根运动驱动，默认1.3仅多回调、位移保持一致；四个实际player移除/替换与倍率保留控制在下一派发点均正确清理。删去未参与当前范围的原生循环标志/分支及冗余轨道复写分支后，同target重编的全部比较输出逐字一致。3份ALS/12份UE/8份target、两资产、一依赖及116基线source、160生产Rust、累积资产、读取器源码/package/DLL与入口库身份PASS；证据`93/summary.json`、`93/final/`。实耗21分56秒，低于预估；复用已有原生采样和目标入口避免新增工具分支。累计180项（106P2/74P3），未改生产、转换器或原始资产；native branching及跨阶段派发继续保留，截图0、性能暂停。
+
+- [x] BF144.94 即时动作状态通知与跨实例动作保护：依赖.93记录Gate，沿九个当前Roll/GetUp/Mantle montage的SetLocomotionAction核对native branching起止、跨越/零步长、权重与LOD绕过、中断/终止、实例身份及外部动作保护，闭合到实际动作组件和当前消费。EarlyBlendOut的条件Tick/停止请求、槽相关性与整体派发阶段另项验收；既有D121精度和动作时钟差异以共同输入隔离。Gate：fresh原生montage及ALS/UE branching合同、局部轨迹与实际动作消费者、恢复/消融及身份记录。开始：2026-10-16 03:01:41 +08:00；预估结束：2026-10-16 03:46:41 +08:00；实际结束：2026-10-16 03:25:43 +08:00；偏差：−20分58秒；结果：记录Gate PASS，新增D183/D184并扩展D121，语义仍不等价。估时依据：manifest索引有九个动作montage、同一native类三种动作标签，UE UpdateActiveStateBranchingPoints/EventHandler及Terminate约180行、target生命周期/派发约220行；.92点通知20分51秒、.93排队状态21分56秒，额外保留九资产fresh提取和跨实例保护验证窗口，以45分钟独立验收。
+  - 03:15 source摘要：九资产fresh原生提取全部通过；SetLocomotionAction由native构造器启用branching，即使资产tick字段为Queued也不走排队状态生命周期。源中断后跳过HandleEvents/Tick但在Terminate结束活跃状态；正常推进先按起止marker拆步，执行区间校正后再发marker，最终仅Tick仍活跃状态。target直接按最终时间计算状态并在Roll旧实例清理时抑制同名新实例的动作结束；正在实际角色中逐项验证。GetUp/Mantle八个end仍有已知六位舍入，Roll端点精确；标记算法比较先统一精确端点隔离D121。4份ALS/6份UE/7份target已冻结；不扩展EarlyBlendOut条件或槽派发阶段。
+  - 03:25 完成摘要：5项focused为1PASS/4预期语义FAIL，3176组比较2786PASS/390FAIL；345个局部与28个实际帧归D183，1个跨实例帧归D184，16个精度帧归D121，新增均P3。1125个局部和308个实际恢复全部通过；6组正常/中断自然Roll共310帧一致。删除未使用的Input端点状态和Asset复制派生后，同target重编的全部比较输出逐字一致；精度夹具进一步使用零步长位置校正隔离marker算法，输出保持相同。4份ALS/6份UE/7份target、9资产及116基线source、160生产Rust、累积资产、读取器源码/package/DLL和入口库身份PASS；`94/summary.json`、`94/final/`。实耗24分02秒，低于预估；初始High精度夹具误要求两相邻f32之间仍有可表示值，已纠正且不计产品失败。累计182项（106P2/76P3）；未改生产、转换器或原始资产，未重复公共Playground Gate，截图0、性能暂停。下一项只接EarlyBlendOut条件Tick和停止消费者。
+  - 03:01 活动摘要：.93已提交`53d637db`，累计180项（106P2/74P3），工作区干净。fresh ALS通知Begin设置Character动作，End只在当前动作仍相等时清空；其native branching语义必须逐条核对，不能沿用上一项排队状态的中断清理结论。九资产索引只用于确定入口，原生有效时刻重新读取；截图0、性能暂停。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -1356,6 +1361,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`docs/bf103-notify-source-audit.json:266–267`保存1.166667的end/duration，`generate_als_notify_manifest.py:104,125`将该值及offset传入manifest，实际f32终点为1.1665669679641724；`animation_events.rs:679–693`直接使用此终点。
   - 反例：前15帧62.5ms，再前进约34.638941ms，源/目标clip都到1.1665667，原生通知已结束，目标仍GettingUp且输入阻塞。两朝向都复现；边界前/后控制通过，在夹具内仅把manifest终点恢复原生精度也通过。证据`41/notify_exact.native.json`、`notify_edges.native.json`与`bf144_get_up_phase41_notify_end_precision_controls`。常规帧步长无此差异；未改原始记录、manifest或转换规则，未据此复开其他已完成通知资产。
   - BF144.92 Roll点通知补充：fresh A_Als_Roll 的SetGroundedEntryMode索引3/GUID `DC67D23A-40C84F64-0545E484-C7B4E6E6`原生时间0.9333333373069763，六位小数记录进入manifest后为f32的0.9333329796791077，提前约0.358µs。共同区间/资格的实际派发100组中12FAIL，差异进入模式组件、provider和真实T2条件；只恢复时间的100组全过。实际Roll输入启动、满权重PostLocomotion槽和真实播放记录的五组边界中两组提前写入FromRoll，五个恢复全部通过；当前已等于舍入时刻时也会漏掉本应稍后触发的事件。60/20Hz、owner0.5/1/2六组自然播放共327帧均只派发一次且时点符合共同源时钟。归并同一记录精度根因；没有新增编号或可见姿态偏差结论。证据`92/native.json`、`92/analysis.json`、`92/final/`，生产与原始记录未改。
+  - BF144.94 即时状态补充：fresh九个动作montage中，Roll起止与manifest的f32完全相同；GetUp两项及Mantle六项的end分别被延后约0.358/0.238/0.358µs。先激活状态，再将共同位置设到原生end的下一f32并以零步长更新，排除marker跨越算法影响：八项都晚清动作并迟发End，48组中16FAIL；只恢复各自原生端点的24组全过，动作组件与实际图的locomotion_action同时恢复。High的下一f32恰等于目标end，依然是有效区间校正反例；不假设该间隔内还有另一可表示时刻。证据`94/native.json`及`bf144_animation_phase94_precision`，归并D121。
 
 
 - [ ] BF144-D122 / P2 — GetUp槽遗漏montage自身的11条曲线。
@@ -1749,6 +1755,18 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`animation_events.rs:239–241,950–955`以(source_asset, instance_id)分别保存生命周期。新Roll实例重新Begin；旧尾部还会另发End。superseded_roll只避免部分清理写入，不能阻止新Begin覆盖倍率。
   - 反例：真实Roll到action结束且旧实例仍active时再次按Roll；默认1.3的六帧中两帧多发Begin/End但位移一致。先通过现有倍率组件设置2再重入时，目标改回1.3，随后五帧实际根运动驱动少移动约0.72–2.40cm；源此时应保留2。仅在夹具按源入队规则保留同一通知身份，12个真实重入恢复帧全部通过；四个普通接替失败帧也恢复。
   - 漏检/边界：旧多实例通知测试核对的是本就独立的branching动作；旧Roll重入倍率测试只核对默认1.3，未把排队状态的NoMergeOnConcurrentPlay与外部倍率改写组合。真实驱动的位移与缓存倍率逐帧吻合，误差来自重复Begin，源/目标都在通知前缓存当帧倍率，因此第一重入帧的位移保持一致。证据`93/native.json`、`93/analysis.json`及`bf144_animation_phase93_reentry_root_consumer`；倍率2为外部改写控制，未宣称默认1.3出现位移差异。
+
+- [ ] BF144-D183 / P3 — 即时动作状态只按帧末区间求值，遗漏branching marker回调。
+  - Source：fresh `AnimMontage.cpp:741–777,2281–2289`在(previous,current]中寻找首个标记并拆步；`2877–3005`先按start<position≤end校正活动状态，再执行Begin/End marker，最后仅Tick仍活跃状态。区间校正规则不能替代标记回调；零步长没有跨标记，但仍执行区间校正。
+  - Target：`event_lifecycle.rs:171–194,263–275`直接用最终current_time求native状态，仅当同帧跨越start和end才补Begin/End。因此精确到达起点时不Begin，精确到达终点时不End；GetUp/Mantle从默认0开始、单帧越过结束点时，负起点不在跨越区间，又漏掉源会执行的Begin/End。
+  - 反例：九个当前montage先统一原生精确端点以隔离D121。2250组局部比较有345FAIL；424个实际派发帧有28FAIL，其中10帧动作组件和实际图的locomotion_action不符。只在夹具把本帧标记语义映射回现有生命周期输入后，1125个局部及212个实际恢复全部通过；权重0、LOD过滤、chance0、普通零步长、中断直到终止及外部动作保护控制通过。
+  - 漏检/边界：旧动作端点测试使用边界前后较大间隔，未覆盖exact marker；普通状态单测只验证区间规则，不能验证Montage拆步事件。六个真实Roll正常/中断控制共310帧全部通过，本项不宣称普通帧率自然触发。参考由fresh UE执行顺序和原生资产有效时间构成，未把读取工具的GetAnimNotifies采样称为UE角色回调执行。证据`94/static.json`、`94/analysis.json`与`bf144_animation_phase94_actual_lifecycle`；仅登记。
+
+- [ ] BF144-D184 / P3 — Roll旧branching实例终止时额外保护同名新动作。
+  - Source：fresh `AnimMontage.cpp:1760–1778`在Terminate结束每个仍活跃的branching状态；ALS `SetLocomotionAction.cpp:37–48`只比较当前动作tag，没有新实例保护。旧实例中断后状态仍活跃；新实例已Begin后，旧实例稍后Terminate会清除仍为Rolling的动作，新实例的Tick不会再写Rolling。Stop从ActiveMontagesMap移除旧实例，ALS的Rolling且Montage_IsPlaying为false分支允许再次启动。
+  - Target：`animation_events.rs:895–907`仅对Roll资产检测superseded_roll，并跳过旧实例End的动作清除；其他动作采用源的tag保护。这一分支令同样的旧中断→新Begin→旧终止轨迹保留Rolling，源应为空。
+  - 反例：九资产×有无外部Ragdolling覆盖×原始/恢复的144个实际帧中，只有原始Roll且无外部覆盖的旧终止帧失败；动作组件和当前图输入都错误保留Rolling。夹具让同一旧状态经过正常End路径后72个恢复帧全部通过，外部不同动作保留控制也通过。
+  - 漏检/边界：旧`stopped_roll_tail_accepts_a_new_loaded_montage`把“旧结束不清新Roll”直接写成期望；BF144.14四个重入控制只覆盖正常动作结束前后的接收与第一重入帧，未覆盖旧中断状态的稍后Terminate。此处是源允许的停止后重入合同与实际派发器控制，未宣称默认输入自然触发，也不与排队RootScale合并身份的D182混算。证据`94/static.json`、`bf144_animation_phase94_instance_termination`；未改生产保护分支。
 
 ### 核验边界记录（不计为无差异）
 
