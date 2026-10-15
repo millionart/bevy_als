@@ -183,6 +183,35 @@ def validate_rotation(path):
     print(json.dumps({'native_rotation_self_test': 'PASS', 'samples': len(samples)}), flush=True)
 
 
+def ik_request():
+    samples = []
+    for name, end, pole, lengths, stretch in [
+            ('bent', [60, 0, 0], [0, 100, 0], [50, 50], False),
+            ('unreachable', [150, 0, 0], [0, 100, 0], [50, 50], False),
+            ('coincident', [0, 0, 0], [0, 100, 0], [50, 50], False),
+            ('collinear', [60, 0, 0], [100, 0, 0], [50, 50], False),
+            ('stretched', [150, 0, 0], [0, 100, 0], [50, 50], True),
+            ('reversed', [10, 0, 0], [0, 100, 0], [25, 50], False)]:
+        samples.append({'name': name, 'rotation_xyzw': [0, 0, 0, 1], 'two_bone_ik': {
+            'root_cm': [0, 0, 0], 'effector_cm': end, 'pole_cm': pole,
+            'lengths_cm': lengths, 'stretch': stretch, 'stretch_ratios': [0.75, 1.25]}})
+    return {'samples': samples}
+
+
+def validate_ik(path):
+    samples = json.loads(path.read_text(encoding='utf-8-sig'))['geometry_query_probe']['samples']
+    assert [s['input'] for s in samples] == ik_request()['samples']
+    expected = [([30, 40, 0], [60, 0, 0]), ([50, 0, 0], [100, 0, 0]),
+                ([0.00005, 50, 0], [0, 0, 0]), ([30, 40, 0], [60, 0, 0]),
+                ([62.5, 0, 0], [125, 0, 0]), ([-25, 0, 0], [10, 0, 0])]
+    for sample, points in zip(samples, expected):
+        result = sample['two_bone_ik']
+        for key, values in zip(['joint_cm', 'effector_cm'], points):
+            assert all(abs(result[key][axis] - value) < 1e-7 for axis, value in zip('xyz', values)), sample['input']['name']
+        assert [result['length_a_cm'], result['length_b_cm']] == sample['input']['two_bone_ik']['lengths_cm']
+    print(json.dumps({'native_two_bone_ik_self_test': 'PASS', 'samples': len(samples)}), flush=True)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--write-request', type=Path)
@@ -192,8 +221,10 @@ if __name__ == '__main__':
     parser.add_argument('--mesh-visits-report', type=Path)
     parser.add_argument('--write-rotation-request', type=Path)
     parser.add_argument('--rotation-report', type=Path)
+    parser.add_argument('--write-ik-request', type=Path)
+    parser.add_argument('--ik-report', type=Path)
     args = parser.parse_args()
-    if not any([args.write_request, args.report, args.write_mesh_request, args.mesh_report, args.mesh_visits_report, args.write_rotation_request, args.rotation_report]):
+    if not any([args.write_request, args.report, args.write_mesh_request, args.mesh_report, args.mesh_visits_report, args.write_rotation_request, args.rotation_report, args.write_ik_request, args.ik_report]):
         parser.error('Provide a request output or native report')
     if args.write_request:
         args.write_request.write_text(json.dumps(request(), indent=2), encoding='utf-8')
@@ -212,3 +243,8 @@ if __name__ == '__main__':
         print('Wrote native rotation request', flush=True)
     if args.rotation_report:
         validate_rotation(args.rotation_report)
+    if args.write_ik_request:
+        args.write_ik_request.write_text(json.dumps(ik_request(), indent=2), encoding='utf-8')
+        print('Wrote native two bone IK request', flush=True)
+    if args.ik_report:
+        validate_ik(args.ik_report)

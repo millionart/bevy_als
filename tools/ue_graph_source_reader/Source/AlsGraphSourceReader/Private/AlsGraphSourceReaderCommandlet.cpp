@@ -8,6 +8,7 @@
 #include "AnimStateNodeBase.h"
 #include "AnimStateTransitionNode.h"
 #include "AnimationRuntime.h"
+#include "Math/ControlRigMathLibrary.h"
 #include "AlphaBlend.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimInstance.h"
@@ -970,6 +971,34 @@ TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
                 || !ReadArray(*Vectors, TEXT("from"), From, 3) || !ReadArray(*Vectors, TEXT("to"), To, 3)) { return nullptr; }
             Sample->SetObjectField(TEXT("rotation_between_vectors"), CaptureQuaternion(FQuat::FindBetweenVectors(
                 FVector(From[0], From[1], From[2]), FVector(To[0], To[1], To[2]))));
+        }
+        if ((*Input)->HasField(TEXT("two_bone_ik")))
+        {
+            const TSharedPtr<FJsonObject>* Ik = nullptr;
+            TArray<double> Root, End, Pole, Lengths, Stretch;
+            bool bEnableStretch = false;
+            if (!(*Input)->TryGetObjectField(TEXT("two_bone_ik"), Ik)
+                || !ReadArray(*Ik, TEXT("root_cm"), Root, 3)
+                || !ReadArray(*Ik, TEXT("effector_cm"), End, 3) || !ReadArray(*Ik, TEXT("pole_cm"), Pole, 3)
+                || !ReadArray(*Ik, TEXT("lengths_cm"), Lengths, 2) || !ReadArray(*Ik, TEXT("stretch_ratios"), Stretch, 2)
+                || !(*Ik)->TryGetBoolField(TEXT("stretch"), bEnableStretch)) { return nullptr; }
+            const float LengthA = Lengths[0];
+            const float LengthB = Lengths[1];
+            const float StretchStart = Stretch[0];
+            const float StretchMaximum = Stretch[1];
+            if (!FMath::IsFinite(LengthA) || !FMath::IsFinite(LengthB) || !FMath::IsFinite(StretchStart)
+                || !FMath::IsFinite(StretchMaximum) || LengthA < 0 || LengthB < 0) { return nullptr; }
+            FTransform BoneA(FVector(Root[0], Root[1], Root[2]));
+            FTransform BoneB;
+            FTransform Effector(FVector(End[0], End[1], End[2]));
+            FControlRigMathLibrary::SolveBasicTwoBoneIK(BoneA, BoneB, Effector, FVector(Pole[0], Pole[1], Pole[2]),
+                FVector::ForwardVector, FVector::RightVector, 0, LengthA, LengthB, bEnableStretch, StretchStart, StretchMaximum);
+            TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+            Result->SetObjectField(TEXT("joint_cm"), CaptureVector(BoneB.GetLocation()));
+            Result->SetObjectField(TEXT("effector_cm"), CaptureVector(Effector.GetLocation()));
+            Result->SetNumberField(TEXT("length_a_cm"), LengthA);
+            Result->SetNumberField(TEXT("length_b_cm"), LengthB);
+            Sample->SetObjectField(TEXT("two_bone_ik"), Result);
         }
         if ((*Input)->HasField(TEXT("mesh_raycast")))
         {
