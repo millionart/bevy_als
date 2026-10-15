@@ -54,7 +54,7 @@
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；BF144.43将U01原生核验归并为D125，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.19完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道、warp变换、动态基座和RMS物理消费的首轮审计，确认D43–D60、D62–D64，D61撤销；精确查询数值及公共Playground验收尚未闭合 |
 | Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.42及.44–.64完成许可、启动/退出、输入/锁定、GetUp交接/时钟/通知/清理/姿态/曲线/根运动、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样/child预测bounds、多点回弹迭代、原生点序/支持点消费、质量加权接触位置、contact/joint耦合、primitive缓存、初速生成/交接/限速预算、pelvis跟随/探地/恢复朝向、进入挂接/退出快照、mesh恢复及零scale重建首轮审计，确认D65–D124、D126–D145；实际convex/trimesh的几何、速度摩擦及跨帧消费已由.45–.64完成当前输入闭包分类，U02关闭；不开展无源链路的通用物理审查 |
-| AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | BF144.65–.71完成可见性更新/历史时钟、初始化/实例替换、View/Head/Spine、Layering/Pose与Locomotion通用输入、Grounded/Standing/Crouching/InAir运动算法、地面预测查询及Feet输入/Foot Lock，确认D146–D152、D154–D158；.81–.82完成动态过渡资格/选择/队列和播放时钟，新增D166/D167并扩展D118/D120。完整混合/停止、Turn和通知仍待审计；实际动画选择包含角色Overlay标签，排除道具表现 |
+| AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | BF144.65–.71完成可见性更新/历史时钟、初始化/实例替换、View/Head/Spine、Layering/Pose与Locomotion通用输入、Grounded/Standing/Crouching/InAir运动算法、地面预测查询及Feet输入/Foot Lock，确认D146–D152、D154–D158；.81–.87完成动态过渡资格/选择/队列、播放时钟、单/多实例混合、组停止、惯性请求及队列仲裁/落地参数，新增D166–D173并扩展D118/D120。Turn其余选择、显式过渡/QuickStop和通知时序仍待审计；实际动画选择包含角色Overlay标签，排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | BF144.70沿InAir直接消费者确认Default Overlay缓存次序D153；.72–.79完成Foot Trace算法/primitive与mesh查询、骨盆和脚位置偏移/弹簧、足旋转/平滑/约束与加权写回、pole投影/状态/平滑，以及TwoBoneIK位置/旋转/部分权重写回，确认D159–D165；.80公共默认动作矩阵未自然触发D163–D165，未采样动作/历史和有效手臂IK仍未证明。完整图闭包及其他缓存副作用仍待重新取证核对，历史155子图合同只作起点，不能自证算法等价 |
 | 剩余源函数与跨阶段边界 | 以上 source-target 链路的覆盖缺口 | 前述审计后再独立收口；未解释项保留，截图与性能继续暂停 |
 
@@ -602,6 +602,11 @@
   - 20:57 活动摘要：.85已提交`1098326c`，累计169项（101P2/68P3）。legacy epoch增加只证明请求产生，不证明生成图已消费；本项同时核对原生图位置和实际姿态。生产未改，截图0、性能暂停。
   - 21:15 source/consumer闭环：4个fresh原生资产确认两种Turn Slot只在Idle，接收惯性化的父节点位于整个站蹲状态机之后。源只由当帧更新的Slot转发Grounded组请求并逐帧清空；目标绑定为父节点直接消费全局epoch。56帧Idle显式/自然停止及请求移除控制通过；移动时Slot未更新、FSM无请求，受控停止仍改变姿态，站蹲各连续3帧失败，仅屏蔽epoch后14帧恢复，确认D172/P2。首次移动夹具只切状态而未推进动画，信号无效；改用实际移动输入后复现。随后删除冗余移动字段覆盖及无用suppression状态，同target重编的84帧判定不变；正在完成身份/记录Gate，不声明默认动作自然可达。
   - 21:16 完成摘要：2项focused为1PASS/1预期FAIL，84帧78PASS/6FAIL归D172；56帧正常停止/移除控制和14帧非活动Slot恢复全通过，88次当前RotationYawSpeed过滤断言通过。3份ALS/6份UE/14份target、116基线source、160生产Rust、累积资产、读取器源码/package/DLL及入口库身份PASS；证据`86/summary.json`、`86/final/`。实耗19分30秒；本轮只改审计记录，无生产、转换器、读取器或资产变更。累计170项（102P2/68P3）；默认动作可达性、完整惯性求解器数值、队列/通知阶段和Turn其余选择路径继续保留，截图0、性能暂停。
+
+- [x] BF144.87 Transition/Turn队列仲裁与停止参数：依赖.86记录Gate，核对当前原生通知/回调的队列写入、同帧停止与播放优先级、被停止阻挡后的队列保留、多个请求覆盖及停止时长到实际栈的消费。以线程安全队列及当前实际game-thread调用分支为边界，通知采样/跨帧派发时序和Turn选择算法另项验收。Gate：fresh通知参数与源队列合同、最小事件序列和actual dispatcher/栈/槽消费者、恢复/负控制、消融及身份记录。开始：2026-10-15 21:19 +08:00；预估结束：2026-10-15 22:09 +08:00；实际结束：2026-10-15 21:46:36 +08:00；偏差：−22分24秒；结果：记录Gate PASS，新增D173/P2，未修复。估时依据：fresh ALS NativePostUpdate和三种队列flush约110行、target dispatcher相应分支约180行，.81队列选择实耗19分41秒、.85组停止65分38秒；本项复用已验证停止核并限定仲裁/参数，按50分钟独立验收。
+  - 21:19 活动摘要：.86已提交`69f017ba`，累计170项（102P2/68P3）。源Stop默认参数为−1，表示沿用旧Montage混出时长，不能把缺少显式0.2字段直接认定为差异。先提取当前通知实参和实际调用顺序；生产未改，截图0、性能暂停。
+  - 21:40 source/consumer闭环：60帧实际dispatcher队列控制通过，涵盖重复停止、覆盖待播放请求、解除阻挡后消费一次及Transition→Turn顺序；当前两种stance停止包装的原生参数均为−1。沿LandToGrounded直接调用边补取Locomotion原生图后，确认该事件为0.1/0.2混入混出、1.4倍速、起点0，目标却复用Roll的0.2/0.2、1.5倍速、起点0.2且固定站姿。24帧单事件对照为12原样FAIL/12源参数恢复PASS，实际采样和旧动画混出均受影响；同帧多事件的首个猜测被该参数错误混淆，不另登记“调用合并”缺陷。首次自然启动夹具未保证可见图经历落地，现改为稳定角色后实际跳跃，继续核对自然触发与最终Gate。
+  - 21:46 完成摘要：3项focused为1PASS/2预期FAIL，85组比较72PASS/13FAIL；60帧队列控制、12帧参数/stance恢复及20次根Slot实际采样核对通过，实际角色跳跃落地另行复现D173参数错误。删除两条含混的多时长原生轨迹后，保留的20帧与原记录逐值相同，同target重编的85项判定不变。5份ALS/3份UE/14份target、7资产及116基线source、160生产Rust、累积资产、读取器和入口库身份PASS；证据`87/summary.json`、`87/final/`。实耗27分36秒，累计171项（103P2/68P3）；仅改审计记录，没有生产、转换器、读取器或资产修改。通知采样/派发时序、Turn其余选择、显式过渡/QuickStop和完整惯性求解器继续保留，截图0、性能暂停。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -1644,6 +1649,12 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`ue_animgraph_converter.py:1357–1390`按状态机内部存在Slot就把epoch绑定到父惯性化节点；`turn_layer.rs:490–501`向两种stance持续发布全局epoch，`inertialization_passthrough.rs:507–512`直接消费其增加，未保留Slot当帧更新资格。
   - 反例：完整角色由实际输入进入移动，核实Turn Slot未更新且FSM无惯性化请求；使用已由真实回调创建的Turn实例作为共同受控输入，再显式停止。原样站立/蹲姿各有3帧错误混合，首帧骨骼局部位置最大偏移约6.48/9.12cm、旋转约25.47°/18.98°；只清除该epoch绑定的14帧控制全部恢复当前输入姿态。正常Idle显式/自然停止及移除请求的56帧对照通过，当前RotationYawSpeed过滤断言也通过。
   - 漏检/边界：旧测试只检查生成图绑定键及Idle停止，未覆盖状态机仍更新而内部Slot不更新的情况。证据`86/standing.native.json`、`86/crouching.native.json`、`86/analysis.json`及`bf144_animation_phase86_irrelevant_slot`；请求存在与停止时点受控，不宣称默认动作自然触发，亦未以请求链验证代替完整惯性求解器等价。仅登记，生产、转换器和资产未改。
+
+- [ ] BF144-D173 / P2 — LandToGrounded误用其他过渡的参数，并固定选择站立动画。
+  - Source：fresh AB_Als_Locomotion的`AnimNotify_LandToGrounded`直接调用`PlayTransitionRightAnimation`，原生节点`183f8499-4c3b-6ddd-3000-fe957622821c`参数为混入0.1秒、混出0.2秒、速率1.4、起点0、StandingIdleOnly=false。`AlsAnimationInstance.cpp:1650–1661`按当前Stance选择站立或蹲姿Right Sequence。
+  - Target：`transition_notify.rs:352–357`调用固定`standing_transition_right()`；`stop_link.rs:151–161`给出混入0.2秒、混出0.2秒、速率1.5、起点0.2，且不读取当前stance。这既改变新动画的采样与混入，也以错误0.2秒延长同组旧动画的混出。
+  - 反例：实际角色跳跃、经历Air并落地后，无通知注入的真实回调得到上述错误参数。另在站蹲各6帧的受控单事件消费中，首个采样帧source应为0.07秒/权重0.5，actual为0.275秒/0.15625；旧动画应为0.5，actual为0.84375。蹲姿还采样了Standing Right。仅把事件改接原生参数和当前stance选择，12帧恢复全部通过，根Transition Slot实际消费的20个样本也核对通过。
+  - 漏检/边界：旧通知测试核对事件计数与现有构造器，未逐个读取当前蓝图调用实参。85组比较72PASS/13FAIL包含上述12个受控失败和1个实际跳跃落地失败；60帧队列保留/覆盖/停止阻挡控制通过。证据`87/locomotion.native.json`、`87/native_check.json`、`87/analysis.json`及`bf144_animation_phase87_natural_landing`。最初多事件“最后调用覆盖”猜测被参数错误混淆，不另计缺陷；只登记，未修生产。
 
 ### 核验边界记录（不计为无差异）
 
