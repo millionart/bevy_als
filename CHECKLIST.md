@@ -54,7 +54,7 @@
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；BF144.43将U01原生核验归并为D125，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.19完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道、warp变换、动态基座和RMS物理消费的首轮审计，确认D43–D60、D62–D64，D61撤销；精确查询数值及公共Playground验收尚未闭合 |
 | Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.42及.44–.64完成许可、启动/退出、输入/锁定、GetUp交接/时钟/通知/清理/姿态/曲线/根运动、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样/child预测bounds、多点回弹迭代、原生点序/支持点消费、质量加权接触位置、contact/joint耦合、primitive缓存、初速生成/交接/限速预算、pelvis跟随/探地/恢复朝向、进入挂接/退出快照、mesh恢复及零scale重建首轮审计，确认D65–D124、D126–D145；实际convex/trimesh的几何、速度摩擦及跨帧消费已由.45–.64完成当前输入闭包分类，U02关闭；不开展无源链路的通用物理审查 |
-| AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | BF144.65–.67完成可见性更新/历史时钟、初始化/实例替换、View/Head/Spine输入和算法，确认D146–D149；Layering/Pose/Locomotion、Feet/Turn/Transition和通知仍待审计；实际动画选择包含角色Overlay标签，排除道具表现 |
+| AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | BF144.65–.68完成可见性更新/历史时钟、初始化/实例替换、View/Head/Spine、Layering/Pose与Locomotion通用输入，确认D146–D151；Grounded/Standing/Crouching/InAir算法、几何查询、Feet/Turn/Transition和通知仍待审计；实际动画选择包含角色Overlay标签，排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | 待重新取证及核对；历史155子图合同只作起点，不能自证算法等价 |
 | 剩余源函数与跨阶段边界 | 以上 source-target 链路的覆盖缺口 | 前述审计后再独立收口；未解释项保留，截图与性能继续暂停 |
 
@@ -489,6 +489,12 @@
   - 06:57 活动摘要：.66已提交，累计147项。当前只沿View/Head/Spine的直接输入链展开；wrap边界先比较两侧公式，源同样存在的行为不登记为遗漏。截图0、性能暂停。
   - 07:15 source/consumer摘要：fresh三组ALS算法、SpringMath/InvExpApprox及Head配置、主/linked初值、Head Alpha与GetControlRigInput绑定均已核对；当前bIgnoreBaseRotation=True，源SaveBaseLocation和目标snapshot筛选均关闭相对基座旋转，未把禁用路径猜测列为缺陷。±180°处YawSpeed大值两侧同源公式，排除候选。19个阈值、24个scaled/unscaled/zero时钟、8个实际Spine输入发布、6个完整角色view/倾斜/owner-zero/Roll锁存，共57组PASS；头部角度与独立公式最大差仍在原1e−4度合同内，未放宽阈值。Rig局部基为(x,z,y)，yaw取反已核对到实际发布值；完整Rig运算后置。当前未发现新增差异，继续精简夹具后做身份Gate。
   - 07:16 完成摘要：删除夹具无用Option分支并把五次等待更新精简为一次，同target重编后57组全部PASS，所有记录值与精简前逐行相同。4份原生读取、9份ALS/5份UE/16份目标闭包及116份基线source、160份生产Rust、累积原始/Build资产、reader/启动器库身份PASS，证据`67/summary.json`、`67/final/`。没有新增或复开缺陷，累计仍147项；实耗19分17秒。直接公式与已核验输入链能完成本批，无需扩展原生读取器或生产算法。截图0、性能暂停，完整155图与公共Playground仍后置；下一项核对Layering/Pose与Locomotion通用输入。
+
+- [x] BF144.68 Layering/Pose与Locomotion通用输入：依赖BF144.67记录Gate，核对RefreshLayering/RefreshPose和RefreshLocomotionOnGameThread的曲线默认值、权重、actor/mesh变换、速度/加速度/输入方向及pending语义，并追到当前生成图的直接读者。Grounded/Standing/Crouching/InAir算法、Feet查询和动作/通知分批后置；只因直接源链路扩展必要消费者。Gate：fresh主/linked图、配置和C++合同、关键边界及完整角色消费者、最小消融和身份记录。开始：2026-10-15 07:18 +08:00；预估结束：2026-10-15 07:58 +08:00；实际结束：2026-10-15 08:12:10 +08:00；偏差：+14分10秒；结果：审计记录Gate PASS，新增D150/D151两项P3，未修复。估时依据：本批约230行源算法，target共享provider/curve投影已在.65–.67完成生命周期和部分输入核对；参照.67实耗19分17秒，保留actor动作输入与真实图消费的核验空间。
+  - 07:18 活动摘要：.67已提交，57组全部PASS且无新增差异。当前继续曲线状态与通用运动输入，先核对source逐字段用途，再进入最小反例；已有147项未修复问题不重复编号，截图0、性能暂停。
+  - 07:41 source/consumer摘要：源GetMaxBrakingDeceleration在Custom/Falling/None选择不同于Walking的值，provider却始终发布GroundedDynamics。fresh Locomotion T19/T20均为Inertialization；实际Jump后Grounded写帧停留、权重0，因此未把空中字段差直接计数。沿直接consumer扩到High Mantle的0.2秒Hermite混入、Grounded Refresh与Standing Lean绑定；Custom第2帧dot(V,A)<0、slot权重0.074074且Grounded仍更新，目标lean=0.053087、源=0.023253，仅恢复braking=0即通过，确认D150/P3。实际Lean输入缓存等于当帧值，BS输出骨骼角差0.013047rad；正点积控制姿态逐值相同。独立运行的最终整姿态存在基础步态相位差，未用它冒充隔离证据。继续Layering/Pose字段及普通运动输入核验。
+  - 08:04 闭包摘要：Layering/Pose六组各30字段通过；普通运动11组中9PASS/2FAIL，0.5和1.5m/s严格边界的局部投影误差使moving标志提前成立。沿同一speed输入追到Standing Idle→Move：受控actor俯仰60度、相同世界水平速度1.6，目标speed=0.8并留在Idle，恢复单个speed字段即进入源规定的Move转换；四组3PASS/1FAIL，当前actor quaternion与场景前置均已断言，确认D151/P3。旧夹具只等待Gameplay Grounded，尚未到实际Standing Idle的失败已作为前置错误排除；完整条件绑定已读原生对象。几何位置/胶囊尺寸的具体查询消费者仍按计划归InAir/Feet，完整移动算法另行核对。当前累计149项，继续消融与最终Gate。
+  - 08:12 完成摘要：最终27组23PASS/4预期FAIL，另180次曲线字段断言通过；制动、曲线、运动与speed矩阵记录和精简前相同。移除重复的晚期旋转覆盖后，当前actor quaternion前置与恢复控制仍PASS，故删除该覆盖；50帧Mantle探索与重复Air样本精简为必要边界，原始诊断保留。9份原生读取、9份ALS/5份UE/20份目标闭包、116份基线source/160份生产Rust及已追踪原始/Build资产、reader与启动器库身份PASS，证据`68/summary.json`、`68/final/`。实际54分10秒；两条新consumer链和场景前置补证使本项比预计多14分10秒，后续同类输入审计需计入这类成本。累计149项（96P2/53P3）；未改生产、reader或转换器，截图0、性能暂停。继续Grounded/Standing/Crouching运动算法。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -1384,6 +1390,18 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`post_physics_animation.rs:188–205`用零delta完成首个pose后立即令gate.pending_update=False；`ab_als_provider.rs:310–313`在第二次图更新发布False，`locomotion_layer.rs:90–101,190`因而接受同帧Jump请求。
   - 反例：通过公开spawn入口生成新角色，确认首个图frame=1、elapsed=0、已在地面；下一帧实际Tnua Jump启动，两侧共同竖直速度4.0365m/s，目标FSM进入Jump（权重1），源应Fall。仅在夹具保留pending到这次更新，FSM即进入Fall（权重1）；延后一帧才按Jump的控制仍进入Jump。3组2PASS/1FAIL，证据`66/startup_initial/`及`bf144_animation_phase66_startup_pending`。
   - 漏检：旧启动检查验证零delta和非空pose，却未区分注册过程初始化与第一个普通更新的pending寿命。fresh原生T19条件确为InAir且bJumped，Jump/Fall状态身份取自原生节点；不是只核对请求或标签。仅登记，未修复。
+
+- [ ] BF144-D150 / P3 — 动画输入在Custom模式仍使用Walking制动参数，改变Mantle混入时的地面姿态。
+  - Source：fresh `CharacterMovementComponent.cpp:4351–4368`对MOVE_Custom返回最大制动0；`AlsCharacter_Actions.cpp:496–497`在Mantle播放前切到并锁定Custom。`AlsAnimationInstance.cpp:708–710,829–847,903–918`读取该模式值，dot(Acceleration,Velocity)<0时以其计算lean，最大值为0时目标lean为0。
+  - Target：`ab_als_provider.rs:330–342`无论运动模式均发布GroundedDynamics；实际Custom时仍为12.5m/s²。`source_native_refresh.rs:185–203`把它传给Grounded lean，Standing的BS_Als_Lean读取当前结果。
+  - 反例：完整角色进入实际High Mantle，第2帧dot(V,A)=−48.811157、PostLocomotion权重0.074074，Grounded回调仍写入当帧。目标lean forward=0.053087，源同输入应0.023253；只将该字段改为0，值即对齐。两帧×恢复/原样共4组3PASS/1FAIL；正点积帧数值和Lean姿态完全相同，负点积帧实际Blendspace输入及输出变化，最大骨骼角差0.013047rad。
+  - 漏检：旧测试只使用Grounded模式，并用provider自己发布的最大值计算期望；没有经过Custom的源getter和仍有权重的地面consumer。fresh原生High Montage混入0.2秒、slot不强制更新source，但本帧source权重非零；Air的惯性切换不复用这个证据。证据`68/checked_initial/`、`68/final/`及`bf144_animation_phase68_custom_braking_uses_source_mode`；最终原生等价姿态尚未验收，未修复生产。
+
+- [ ] BF144-D151 / P3 — 把局部投影长度当作世界水平速度，改变移动标志与Standing状态选择。
+  - Source：fresh `AlsCharacter.cpp:1375–1389`从GetVelocity的世界XY分量计算Speed，再以1cm/s判断HasVelocity；`1435–1436`与动画`712–716`按实际50/150cm/s阈值计算moving/moving smooth。该speed不依赖actor旋转；当前原生Standing Idle→Move直接绑定bMovingSmooth。
+  - Target：`tnua_ext/motion.rs:41–45`先向角色forward/right投影，再取二维长度；`actual_motion.rs:40–44`把此长度作为horizontal_speed，provider再发布speed和移动标志。倾斜时会丢失分量，纯yaw时的舍入也可能跨越严格阈值。
+  - 反例：完整角色先等到实际Standing Idle，在相同世界velocity=(0,0,−1.6)m/s、无输入下控制actor俯仰60度，目标发布0.8m/s并保持Idle；源应1.6m/s并开始Idle→Move。仅恢复horizontal_speed即进入原生对应转换，当前actor旋转与速度均已核实。直立/倾斜×原样/恢复四组3PASS/1FAIL；另11组输入边界中0.5及1.5m/s各出现一处误判，同根归并。
+  - 漏检：旧旋转测试只用yaw且仅比较速度误差容差，未检查严格布尔阈值或倾斜输入；初版诊断误把Gameplay Grounded当作Standing Idle，已补实际状态等待并排除该前置失败。证据`68/checked_initial/`、`68/final/`及`bf144_animation_phase68_speed_uses_world_plane`、`bf144_animation_phase68_motion_inputs`；未改生产或放宽阈值。
 
 ### 核验边界记录（不计为无差异）
 
