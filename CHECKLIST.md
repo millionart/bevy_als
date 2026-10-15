@@ -516,6 +516,13 @@
   - 09:55 输入接口闭环：identity pelvis下实际Jump左右分支各选错一次，单字段恢复及有效Feet控制通过，确认D157/P3。按.68已有前置等待真实落地动画结束、读到Standing Idle回调后，pending帧移动20cm的source锁定距离平方0.04，target发布0并漏掉过渡；仅恢复距离便实际排队StandingLeft，6组5PASS/1FAIL，确认D158/P3。此前10/40帧固定预热未到Idle，只计前置失败。当前累计156项（98P2/58P3）；进入本批精简和最终身份Gate，未扩展完整过渡算法。
   - 09:58 完成摘要：最终10项focused为5PASS/5预期语义FAIL，98组91PASS/7FAIL，全部恢复控制通过。删除三个完整角色夹具中的180°约束覆盖，恢复默认90°/40°；删除Jump多帧等待循环，同target重编后全部判定保持一致。6份原生报告、10份ALS/10份UE/23份目标闭包与116份基线source、160份生产Rust、累积原始/Build资产、reader/启动器库身份PASS，证据`71/summary.json`、`71/final/`。实耗37分33秒，主要增量来自两个有效性接口的真实消费者前置；本项覆盖Feet目标/曲线/锁定/瞬移/基座/约束，完整Transition算法、Rig地面偏移/IK及核心图继续。仅提交审计记录，未改生产、转换器、reader或依赖；截图0、性能暂停。
 
+- [x] BF144.72 Foot Offset Trace算法、盒体查询与输入：依赖BF144.71记录Gate，核对CR_Als中实际FootHeight/trace开关/距离/通道输入、源LineTraceSingleByChannel的复杂查询开关与过滤接口、盒体端点/初始命中、世界/VM变换和坡面校正，并沿当帧Rig输出进入偏移消费者。复杂mesh射线核、偏移弹簧、旋转约束、TwoBoneIK和其他Rig程序另行验收；既有Foot Lock与几何根因只作隔离或归并。Gate：fresh Rig/骨架/根图与查询source、同输入原生盒体查询、实际Rig反例或对照、工具缺口的最小自测/消融与身份记录。开始：2026-10-15 10:03 +08:00；预估结束：2026-10-15 10:43 +08:00；实际结束：2026-10-15 11:04:42 +08:00；偏差：+21分42秒；结果：审计记录Gate PASS，新增D159/P3、D160/P2；复杂mesh射线核独立接续。估时依据：源trace单元约60行及UE查询/坐标闭包，target单元与查询约150行，另有Rig实际输入绑定；.70查询闭包实耗40分45秒，本项按40分钟独立验收，必要时补通用原生ray读取。
+  - 10:03 活动摘要：.71已提交，累计156项。fresh C++明确trace使用Visibility复杂查询、忽略owner，起止高度相对Rig根而非脚高度；命中normal经InverseTransformVector且不归一化。target同名单元已定位，先核对CR实际绑定与UE查询边界，未把缩放下的源行为当成可优化项。
+  - 10:18 source/static闭环：3份原生Rig/mesh/根图已读取，完整Rig程序重编比较与已安装JSON一致；当前实际有两个FootOffsetTrace调用。fresh SQVisitor→RayAabb接受射线终点，零距离命中由FillHitHelper撤掉位置/法线标志，再由CollisionConversions使用起点和反向射线法线；target分别有严格小于端点和保留零法线的候选。现有原生GeometryQueryProbe只支持sweep，5个ray请求虽然reader结束成功却没有ray结果，不能当成源证据；本项只补通用box ray读取及一个边界自测，不改转换规则或生产实现。
+  - 10:48 consumer闭环：新增原生ray边界及legacy sphere/capsule自测8组通过，旧报告明确因缺少ray结果失败。查询10组8PASS/2FAIL、空间/坡面数学10组全部通过；完整角色8组6PASS/2FAIL，端点丢失使偏移消费者从source−0.766336m变0，初始重叠零法线使source+0.5m变0，仅恢复当次偏移字段均通过，分别确认D159/P3、D160/P2。Full Rig探针的变量double/单元float读取已校正，并将组件根置于精确原点以排除端点夹具舍入；当前实际四条射线另作同输入原生复算。累计158项（99P2/59P3），继续最小精简和身份记录。
+  - 11:01 范围拆分：四条实际Rig射线的原生复算全部匹配消费者oracle；删除重复恢复样本和未使用float变量兼容分支后同target重编，当前26组22PASS/4预期FAIL，恢复控制通过。复杂几何的开关/选择接口已定位，但trimesh有独立背面、三角形命中与法线算法，盒体样本不能验收该核；这部分独立接续下一项，保留原审计目标。当前项只收口trace算法和已核实的盒体查询闭包，完整偏移/IK仍后置。
+  - 11:04 完成摘要：3项focused为1PASS/2预期语义FAIL，26组判定与精简前一致，全部恢复通过；5份有效原生报告、8组reader自测和4条实际射线复算有效，旧reader缺字段反例保留。5份ALS/15份UE/9份目标/2份依赖闭包、116份基线source、160份生产Rust及累积资产身份PASS，读取器源码/包/新二进制一致，启动器库未变；证据`72/summary.json`、`72/final/`。实耗61分42秒；首个记录Gate在11:02:23通过，随后删除自测请求的JSON往返复制，生成请求逐字节不变，11:04:42最终复核通过；该收尾跨过原容差上沿1分42秒，期间没有新runtime。额外时间来自原生ray读取扩展及Rig变量/单元标量类型、实际消费者前置校正；复杂mesh核拆为后续独立Gate。只新增读取能力和自测、登记差异，生产实现与转换规则未改；截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
@@ -1467,6 +1474,18 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`foot_ik_apply.rs:559–567`在pending时直接continue，足目标保持旧帧；`ab_als_provider.rs:375–378`据此生成锁定距离，`source_native_refresh.rs:361–389`实际消费并排队过渡。
   - 反例：完整角色实际Idle，左脚LockAmount=1、右脚0，pending帧组件移动20cm且未超过瞬移阈值；source距离平方0.04m²超过0.0064m²，target发布0、当帧不排队。只恢复该距离字段，真实回调写入StandingLeft序列；零位移与非pending控制通过，共6组5PASS/1FAIL。
   - 漏检：旧pending测试只检查Rig关闭，未核对GameThread继续采集的目标及直接动态过渡消费者。证据`71/pending_checked/`、`bf144_animation_phase71_pending_target_distance`；回调执行及当帧队列write-frame均已断言，未把旧队列值计作触发。仅登记，未改生产。
+
+- [ ] BF144-D159 / P3 — Rig射线查询丢弃恰好位于距离上限的有效命中。
+  - Source：fresh `Raycasts.cpp:75–79`只在LatestStartTime>RayLength时拒绝，SQVisitor直接接收该有效ray命中；原生box ray在长度100cm、命中距离100cm时返回true，前后0.01cm控制分别命中/不命中。
+  - Target：`control_rig_query.rs:50–53`在Collider.cast_ray已经返回命中后，再要求length<distance；等于当前最大长度且尚无命中时也被丢弃。
+  - 反例：实际查询使用Rig scale=1.25、默认向上0.5/向下0.8m，底面恰在世界−1m；Parry返回distance=1.625m，查询wrapper返回None。完整角色中实际ApplyFootOffsetLocation读到0而source为−0.766336m；夹具仅将原生合同偏移量写入现有变量Copy，实际消费者恢复。稍近底面控制通过。
+  - 漏检：旧query测试只覆盖区间内部与完全未命中，没有比较primitive已命中却被wrapper丢掉的端点。证据`72/ray.native.json`、`72/query_initial/`、`72/full_initial/`；本项仅验证trace与偏移输入，完整弹簧/IK姿态另行验收。
+
+- [ ] BF144-D160 / P2 — Rig初始重叠射线未转换零法线，被误判为不可行走。
+  - Source：fresh `SQVisitor.h:34–38`对零距离ray撤掉位置/法线标志；`CollisionConversions.cpp:403–432`使用起点和反向射线的安全归一化法线，FootOffsetTrace继续按bBlockingHit消费。原生box内部射线Time=0、raw normal=0，经过源转换应为向上法线。
+  - Target：`control_rig_query.rs:53`直接转发Parry的零法线；`control_rig_units.rs:113–118`得到slope_cos=0并清空偏移，漏掉源命中转换。
+  - 反例：完整角色的脚侧查询盒覆盖trace起点0.5m，query确实返回起点与零法线，实际偏移消费者为0而source应为+0.5m。仅恢复偏移变量即通过；把同一盒顶面降到起点表面的源等价控制也通过。查询单元与完整角色均复现，未用放宽坡度阈值掩盖结果。
+  - 漏检：旧Rig trace单元测试传入预制非零法线，query集成测试从形体外开始，未串起inside-ray→命中转换→walkability。证据同D159；未修改生产query或Rig实现。
 
 ### 核验边界记录（不计为无差异）
 

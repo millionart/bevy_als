@@ -865,8 +865,9 @@ TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
         TSharedRef<FJsonObject> Sample = MakeShared<FJsonObject>();
         Sample->SetObjectField(TEXT("input"), Input->ToSharedRef());
         Sample->SetObjectField(TEXT("rotator_degrees"), CaptureRotator(Rotation.Rotator()));
+        const bool bRay = (*Input)->HasField(TEXT("box_raycast"));
         const bool bCapsule = (*Input)->HasField(TEXT("capsule_sweep"));
-        const TCHAR* SweepKey = bCapsule ? TEXT("capsule_sweep") : TEXT("sphere_sweep");
+        const TCHAR* SweepKey = bRay ? TEXT("box_raycast") : bCapsule ? TEXT("capsule_sweep") : TEXT("sphere_sweep");
         if ((*Input)->HasField(SweepKey))
         {
             const TSharedPtr<FJsonObject>* Sweep = nullptr;
@@ -879,7 +880,7 @@ TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
                 || !ReadArray(*Sweep, TEXT("box_half_extents_cm"), BoxHalfExtentsValues, 3)
                 || !ReadArray(*Sweep, TEXT("start_cm"), StartValues, 3)
                 || !ReadArray(*Sweep, TEXT("direction"), DirectionValues, 3)
-                || !(*Sweep)->TryGetNumberField(TEXT("radius_cm"), Radius) || !FMath::IsFinite(Radius) || Radius <= 0
+                || (!bRay && (!(*Sweep)->TryGetNumberField(TEXT("radius_cm"), Radius) || !FMath::IsFinite(Radius) || Radius <= 0))
                 || (bCapsule && (!(*Sweep)->TryGetNumberField(TEXT("half_height_cm"), HalfHeight) || !FMath::IsFinite(HalfHeight) || HalfHeight <= 0))
                 || !(*Sweep)->TryGetNumberField(TEXT("length_cm"), Length) || !FMath::IsFinite(Length) || Length <= 0)
             {
@@ -892,16 +893,31 @@ TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
             const FVector Direction(DirectionValues[0], DirectionValues[1], DirectionValues[2]);
             if (BoxHalfExtents.GetMin() <= 0 || !Direction.IsNormalized()) { return nullptr; }
             FPhysicsShapeAdapter BoxAdapter(FQuat::Identity, FCollisionShape::MakeBox(BoxHalfExtents));
-            FPhysicsShapeAdapter QueryAdapter(FQuat::Identity, bCapsule
-                ? FCollisionShape::MakeCapsule(Radius, HalfHeight) : FCollisionShape::MakeSphere(Radius));
             Chaos::FReal Time = Length;
             Chaos::FVec3 Position = Chaos::FVec3::ZeroVector;
             Chaos::FVec3 Normal = Chaos::FVec3::ZeroVector;
             Chaos::FVec3 FaceNormal = Chaos::FVec3::ZeroVector;
             int32 FaceIndex = INDEX_NONE;
-            const bool Hit = Chaos::SweepQuery(BoxAdapter.GetGeometry(), FTransform(Rotation, BoxTranslation),
-                QueryAdapter.GetGeometry(), QueryAdapter.GetGeomPose(Start), Direction, Length, Time, Position, Normal,
-                FaceIndex, FaceNormal, 0.0, true);
+            const FTransform BoxTransform(Rotation, BoxTranslation);
+            bool Hit = false;
+            if (bRay)
+            {
+                Hit = BoxAdapter.GetGeometry().Raycast(BoxTransform.InverseTransformPositionNoScale(Start),
+                    BoxTransform.InverseTransformVectorNoScale(Direction), Length, 0.0, Time, Position, Normal, FaceIndex);
+                if (Hit)
+                {
+                    Position = BoxTransform.TransformPositionNoScale(Position);
+                    Normal = BoxTransform.TransformVectorNoScale(Normal);
+                }
+            }
+            else
+            {
+                FPhysicsShapeAdapter QueryAdapter(FQuat::Identity, bCapsule
+                    ? FCollisionShape::MakeCapsule(Radius, HalfHeight) : FCollisionShape::MakeSphere(Radius));
+                Hit = Chaos::SweepQuery(BoxAdapter.GetGeometry(), BoxTransform,
+                    QueryAdapter.GetGeometry(), QueryAdapter.GetGeomPose(Start), Direction, Length, Time, Position, Normal,
+                    FaceIndex, FaceNormal, 0.0, true);
+            }
             TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
             Result->SetBoolField(TEXT("hit"), Hit);
             if (Hit)
