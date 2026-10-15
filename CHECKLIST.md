@@ -54,8 +54,8 @@
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；BF144.43将U01原生核验归并为D125，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.19完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道、warp变换、动态基座和RMS物理消费的首轮审计，确认D43–D60、D62–D64，D61撤销；精确查询数值及公共Playground验收尚未闭合 |
 | Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.42及.44–.64完成许可、启动/退出、输入/锁定、GetUp交接/时钟/通知/清理/姿态/曲线/根运动、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样/child预测bounds、多点回弹迭代、原生点序/支持点消费、质量加权接触位置、contact/joint耦合、primitive缓存、初速生成/交接/限速预算、pelvis跟随/探地/恢复朝向、进入挂接/退出快照、mesh恢复及零scale重建首轮审计，确认D65–D124、D126–D145；实际convex/trimesh的几何、速度摩擦及跨帧消费已由.45–.64完成当前输入闭包分类，U02关闭；不开展无源链路的通用物理审查 |
-| AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | BF144.65–.71完成可见性更新/历史时钟、初始化/实例替换、View/Head/Spine、Layering/Pose与Locomotion通用输入、Grounded/Standing/Crouching/InAir运动算法、地面预测查询及Feet输入/Foot Lock，确认D146–D152、D154–D158；Feet的Rig地面偏移/IK、Turn/Transition和通知仍待审计；实际动画选择包含角色Overlay标签，排除道具表现 |
-| 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | BF144.70沿InAir直接消费者确认Default Overlay缓存次序D153；.72–.75完成Foot Trace算法/primitive与mesh查询、骨盆和脚位置偏移/弹簧首轮闭包，确认D159–D162，足旋转/IK及其他Rig消费者待审计；完整图闭包及其他缓存副作用仍待重新取证核对，历史155子图合同只作起点，不能自证算法等价 |
+| AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | BF144.65–.71完成可见性更新/历史时钟、初始化/实例替换、View/Head/Spine、Layering/Pose与Locomotion通用输入、Grounded/Standing/Crouching/InAir运动算法、地面预测查询及Feet输入/Foot Lock，确认D146–D152、D154–D158；Feet的Rig剩余IK、Turn/Transition和通知仍待审计；实际动画选择包含角色Overlay标签，排除道具表现 |
+| 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | BF144.70沿InAir直接消费者确认Default Overlay缓存次序D153；.72–.76完成Foot Trace算法/primitive与mesh查询、骨盆和脚位置偏移/弹簧、足旋转/平滑/约束与加权写回首轮闭包，确认D159–D163，IK及其他Rig消费者待审计；完整图闭包及其他缓存副作用仍待重新取证核对，历史155子图合同只作起点，不能自证算法等价 |
 | 剩余源函数与跨阶段边界 | 以上 source-target 链路的覆盖缺口 | 前述审计后再独立收口；未解释项保留，截图与性能继续暂停 |
 
 - [x] BF144.02 Character 输入、状态与旋转语义：以 fresh Character/CMC、角色/运动配置核对初始化、输入、步态、旋转模式与地空旋转的有效分支；沿实际消费者确认候选，并用独立最小反例与对照记录遗漏。Gate：逐源分支覆盖记录、生产库身份与 focused 结果、确认/排除候选登记。开始：2026-10-13 18:55 +08:00；预估结束：2026-10-13 19:40 +08:00；实际结束：2026-10-13 19:19:06 +08:00；偏差：−20分54秒；结果：审计记录Gate PASS，确认4项未修复差异，不能视为移植等价。估时依据：Character 约1960行与既有 motion/state 消费者、BF140 的15项基础运动反例和 BF141.03/.04 focused 回归；将 CMC 积分/碰撞另列后续项以控制本项规模。
@@ -541,6 +541,13 @@
   - 12:49 活动摘要：.74已提交，累计160项未修复差异。位置单元初读与ALS的上下限和初始化顺序一致；继续fresh原生Rig取证、弹簧核与实际骨盆/两脚消费者核对，不将旧位置单元测试当成完整状态闭包。截图0、性能暂停。
   - 12:59 source/focused闭环：fresh Rig/mesh/root三份原生记录PASS，165指令完整重编与已安装程序一致；骨盆先对两脚minimum限于−30/40cm，在2Hz临界阻尼弹簧前后各乘输入权重，脚部采用12Hz/2倍阻尼并保留两阶段初始化，PoseMoving把最小骨盆距离从20插值到50cm。独立厘米公式下240帧、466次脚位置计算和150次腿长裁剪通过；7帧输入无效时保留源图既有偏移，恢复后状态继续。32帧实际角色/碰撞查询消费者、零owner delta、骨盆写回和两侧IK目标接线通过；最大当前位置差低于0.1µm。尚未新增缺陷，继续消融及身份Gate；足旋转与IK求解算法未算入本项。
   - 13:04 完成摘要：正常272组全PASS，最大位置差0.068µm；去掉脚弹簧持久状态后223组失败，去掉腿长限制后110组失败，去掉骨盆第二次权重在0.25权重消费者被拒绝。按源码字节恢复并同target重编，272组再通过，240组程序输出逐字相同。fresh原生腿长82.7687225cm和FootHeight、6份ALS/8份UE/13份目标闭包、116份基线source、160份生产Rust、累积资产、reader与启动器库身份均PASS；证据`75/summary.json`、`75/final/`。实耗15分46秒，复用现有原生和角色夹具使耗时低于预估；没有生产/转换规则修改，累计160项仍未修复。截图0、性能暂停，继续足旋转/IK。
+
+- [x] BF144.76 Foot Offset旋转、平滑与角度约束：依赖BF144.75记录Gate，核对ApplyFootOffsetRotation的初始足/小腿空间、法线连续帧平滑、BetweenVectors、旋转组合、Euler轴/符号与源约束区间，并沿完整Rig核对两脚IK之后的旋转写回。使用共同trace法线隔离D161/D162；TwoBoneIK求解及其他Rig单元另行验收。Gate：fresh Rig/mesh与ALS/UE旋转闭包、独立源公式和边界/连续帧/实际角色消费者、必要消融及身份记录。开始：2026-10-15 13:07 +08:00；预估结束：2026-10-15 13:52 +08:00；实际结束：2026-10-15 13:46:40 +08:00；偏差：−5分20秒；结果：审计记录Gate PASS，新增D163/P3。估时依据：.75复用原生与完整角色夹具实耗15分46秒；本项源单元约百行，另含double quaternion/Euler与近奇异边界的约200行数学闭包，预计需要额外坐标和组合顺序反例，按45分钟独立验收。
+  - 13:07 活动摘要：.75已提交，累计160项。现有查询证据只证明法线进入足旋转输入，尚未验证该单元的转换、平滑和约束；本项重新读取实际源默认值与数学实现，不按旧姿态截图或上一项位置通过推定旋转一致。截图0、性能暂停。
+  - 13:10 source闭包更新：fresh Rig指令证明顺序为位置偏移→TwoBoneIK→足旋转约束→SetRotation；因此本项以实际post-IK小腿/足旋转作为输入，验收到两脚加权写回，IK求解本身仍留下一项。Swing2由PoseMoving从[−15,5]插值到[0,0]，Swing1为[−20,40]、Twist为[0,0]；继续独立源坐标公式与边界矩阵。
+  - 13:27 source/consumer摘要：三份原生资产与165指令身份通过；5720次常规/奇异邻域/半转单元步骤、288组实际程序加权写回与32帧真实角色消费者通过。900个精确四元数的原生Rotator与独立源公式全匹配，其中36个正负号样本在目标Euler的Roll ±180表示上不同；八个真实参考骨架的受控反向姿态又在组合舍入边界出现大角度限位差异，尚不直接归为同一根因。读取器仅补通用四元数连乘与BetweenVectors取证，继续核实安装引擎的实际乘法、参考旋转和当帧消费者；未新增缺陷编号，未展开IK求解。
+  - 13:41 consumer闭环：原生参考旋转、当前/目标组合及完整角色实际float输入的六阶段采样，均确认同一源角度分支；真实参考骨架八个半转单元反例失败，±0.0001°的16个邻域控制通过。完整角色只控制IK之后的calf/foot输入，保留实际坡面查询、FootTarget输入和加权写回，左右脚最终分别偏离177.4759°/130.7921°；仅恢复源旋转输出，两侧都通过。确认D163/P3，累计161项（100P2/61P3）；这是受控post-IK边界证据，不宣称默认动作自然触发。独立复核排除了轴/旋转顺序、Inverse、奇异阈值和平滑公式的一般性错误；继续精简读取器与夹具、回归和身份记录。
+  - 13:46 完成摘要：6项focused为3PASS/3语义或诊断FAIL；6968个核对样本6922PASS/46FAIL（900原生Euler中的36个表示差异、8个半转单元、2个受控完整角色），普通5720步骤/288程序帧/32角色帧全PASS。删除任意链长上限、复用注入权重常量后，同target重编保留数值逐字一致；6个新增原生自测前后相同，3种缺字段消融被拒绝，20个旧查询回归通过。3份ALS/9份UE/16份目标闭包、116份基线source、160份生产Rust、累积资产、reader源码/包/二进制及启动器库身份PASS；证据`76/summary.json`、`76/final/`。实耗39分40秒；已计入原生数学取证与受控消费者的额外成本，无超时。没有生产或转换规则修改，截图0、性能暂停；接续TwoBoneIK/pole及半转自然可达性。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -1520,6 +1527,12 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：完整角色实际CR_Als，FootTrace精确源/目标同输入，Fountain顶点的单位/1.5/非均匀缩放三组全部把不同法线送入ApplyFootOffsetRotation。非均匀组source normal=(−0.166315,0.972883,−0.160743)，actual=(−0.105964,0.940714,−0.322224)，脚底偏移由source 0.203753m变为0.208486m。三组偏离顶点1cm的控制通过；仅恢复当次trace两个输出，三个实际消费者均通过。
   - 棱边补充：两个Arch02诊断射线仅改用同一Parry核的源厘米/Core坐标即选回native面56/231，确认米制float变换输入会改变近边资格；默认50/80cm完整Rig在其中一处实际选面50而源为231，法线进入足旋转输入，源输出恢复及1cm内点控制通过。完整Rig最终16组12PASS/4FAIL，四个失败均恢复；旋转/弹簧算法及最终姿态验收另项继续。
   - 漏检/范围：旧测试核对命中位置或大平面的法线，未覆盖共享边附近的候选接受与距离收紧。证据`74/visits.typed.native.json`、`74/expanded_full.native.json`及`74/final/`。原五条长射线映射实际Rig距离后会被坡度门槛拒绝，不把这些raw法线差异重复计作运动缺陷；早期远处缩放夹具的11µm位置干扰已用逐顶点完全相同的输入排除，未作生产缺陷或阈值调整。
+
+- [ ] BF144-D163 / P3 — 足旋转在Euler半转边界未保持源计算分支，角度表示差异进入限位与最终脚骨。
+  - Source：fresh `AlsRigUnit_ApplyFootOffsetRotation.cpp:49–97` 将当前/目标转到小腿空间，降为float Euler后用包含当前动画角度的区间约束；`UnrealMath.cpp:691–718` 的double Rotator保留±180°分支。900个精确输入的原生转换和实际参考骨架连乘均已核验；source不是把两个半转表示统一规范后再约束。
+  - Target：`control_rig_math.rs:33–52` 的等价代数在有符号零处可选相反Roll端点；`control_rig_units.rs:268–278` 的目标坐标四元数组合又可因double舍入跨过Roll/Yaw半转分支。`constrained_angle:38–51` 随后使用不同的当前端点扩展区间，使微小表示/舍入差异成为大角度输出差异。两条数值路径不能简化成单改一个Euler符号即可全部修复。
+  - 反例：采用真实ALS初始calf/foot参考旋转，受控post-IK半转姿态的源当前Euler为约(0,180,180)；左脚目标Roll177.4759°在源区间保留，目标区间却裁为0。完整角色使用实际30°坡面查询及float FootTarget输入，最终左/右脚分别偏离177.4759°/130.7921°；仅以原生合同结果替换本次旋转输出，两个实际SetRotation消费者恢复。八个单元反例失败，16个±0.0001°邻域控制及5720次一般单元步骤通过。
+  - 边界与漏检：反例控制了IK后的有效旋转输入，不是默认动作自然触发证据；TwoBoneIK本身与自然动作可达性继续对应后续源闭包。旧足旋转测试使用相同target Euler/Quaternion helper构造期望，覆盖的是普通角度、参考缓存和法线状态，没有原生半转分支或组合后的数值边界。证据`76/math.native.json`、`76/products1.native.json`至`products6.native.json`、`bf144_animation_phase76_half_turn_reference_candidates`、`bf144_animation_phase76_full_half_turn_weighted_consumers`。未修改生产实现或转换规则。
 
 ### 核验边界记录（不计为无差异）
 

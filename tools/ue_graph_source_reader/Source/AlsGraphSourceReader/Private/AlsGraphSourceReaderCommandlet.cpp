@@ -945,6 +945,32 @@ TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
         TSharedRef<FJsonObject> Sample = MakeShared<FJsonObject>();
         Sample->SetObjectField(TEXT("input"), Input->ToSharedRef());
         Sample->SetObjectField(TEXT("rotator_degrees"), CaptureRotator(Rotation.Rotator()));
+        if ((*Input)->HasField(TEXT("rotation_factors")))
+        {
+            const TArray<TSharedPtr<FJsonValue>>* Factors = nullptr;
+            if (!(*Input)->TryGetArrayField(TEXT("rotation_factors"), Factors)) { return nullptr; }
+            FQuat Product = Rotation;
+            for (const TSharedPtr<FJsonValue>& FactorValue : *Factors)
+            {
+                const TSharedPtr<FJsonObject>* Factor = nullptr;
+                TArray<double> Values;
+                if (!FactorValue->TryGetObject(Factor) || !ReadArray(*Factor, TEXT("rotation_xyzw"), Values, 4)) { return nullptr; }
+                const FQuat FactorRotation(Values[0], Values[1], Values[2], Values[3]);
+                if (!FactorRotation.IsNormalized()) { return nullptr; }
+                Product = Product * FactorRotation;
+            }
+            Sample->SetObjectField(TEXT("rotation_product"), CaptureQuaternion(Product));
+            Sample->SetObjectField(TEXT("rotation_product_degrees"), CaptureRotator(Product.Rotator()));
+        }
+        if ((*Input)->HasField(TEXT("rotation_between_vectors")))
+        {
+            const TSharedPtr<FJsonObject>* Vectors = nullptr;
+            TArray<double> From, To;
+            if (!(*Input)->TryGetObjectField(TEXT("rotation_between_vectors"), Vectors)
+                || !ReadArray(*Vectors, TEXT("from"), From, 3) || !ReadArray(*Vectors, TEXT("to"), To, 3)) { return nullptr; }
+            Sample->SetObjectField(TEXT("rotation_between_vectors"), CaptureQuaternion(FQuat::FindBetweenVectors(
+                FVector(From[0], From[1], From[2]), FVector(To[0], To[1], To[2]))));
+        }
         if ((*Input)->HasField(TEXT("mesh_raycast")))
         {
             const TSharedPtr<FJsonObject>* Ray = nullptr;

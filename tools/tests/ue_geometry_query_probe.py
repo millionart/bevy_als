@@ -158,6 +158,31 @@ def validate_mesh_visits(path):
     print(json.dumps({'native_mesh_ray_visits_self_test': 'PASS', 'samples': len(samples), 'visits': count}), flush=True)
 
 
+def rotation_request():
+    half = math.sqrt(0.5)
+    rotations = [[0, 0, 0, 1], [half, 0, 0, half], [0, half, 0, half]]
+    samples = [{'name': 'product_xy', 'rotation_xyzw': rotations[1], 'rotation_factors': [{'rotation_xyzw': rotations[2]}]},
+               {'name': 'product_yx', 'rotation_xyzw': rotations[2], 'rotation_factors': [{'rotation_xyzw': rotations[1]}]},
+               {'name': 'product_inverse', 'rotation_xyzw': rotations[1], 'rotation_factors': [{'rotation_xyzw': [-half, 0, 0, half]}]}]
+    for name, normal in [('slope', [0.5, 0, math.sqrt(3) / 2]), ('opposite', [0, 0, -1]), ('zero', [0, 0, 0])]:
+        samples.append({'name': name, 'rotation_xyzw': rotations[0], 'rotation_between_vectors': {'from': [0, 0, 1], 'to': normal}})
+    return {'samples': samples}
+
+
+def validate_rotation(path):
+    samples = json.loads(path.read_text(encoding='utf-8-sig'))['geometry_query_probe']['samples']
+    assert [s['input'] for s in samples] == rotation_request()['samples']
+    expected = [[0.5, 0.5, 0.5, 0.5], [0.5, 0.5, -0.5, 0.5], [0, 0, 0, 1],
+                [0, math.sin(math.pi / 12), 0, math.cos(math.pi / 12)], [0, -1, 0, 0], [0, 0, 0, 1]]
+    for index, (sample, value) in enumerate(zip(samples, expected)):
+        key = 'rotation_product' if index < 3 else 'rotation_between_vectors'
+        assert key in sample, f'Missing native rotation result: {sample["input"]["name"]}'
+        assert all(abs(sample[key][axis] - v) < 1e-12 for axis, v in zip('xyzw', value)), sample['input']['name']
+        if index < 3:
+            assert all(math.isfinite(sample['rotation_product_degrees'][axis]) for axis in ['pitch', 'yaw', 'roll'])
+    print(json.dumps({'native_rotation_self_test': 'PASS', 'samples': len(samples)}), flush=True)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--write-request', type=Path)
@@ -165,8 +190,10 @@ if __name__ == '__main__':
     parser.add_argument('--write-mesh-request', type=Path)
     parser.add_argument('--mesh-report', type=Path)
     parser.add_argument('--mesh-visits-report', type=Path)
+    parser.add_argument('--write-rotation-request', type=Path)
+    parser.add_argument('--rotation-report', type=Path)
     args = parser.parse_args()
-    if not any([args.write_request, args.report, args.write_mesh_request, args.mesh_report, args.mesh_visits_report]):
+    if not any([args.write_request, args.report, args.write_mesh_request, args.mesh_report, args.mesh_visits_report, args.write_rotation_request, args.rotation_report]):
         parser.error('Provide a request output or native report')
     if args.write_request:
         args.write_request.write_text(json.dumps(request(), indent=2), encoding='utf-8')
@@ -180,3 +207,8 @@ if __name__ == '__main__':
         validate_mesh(args.mesh_report)
     if args.mesh_visits_report:
         validate_mesh_visits(args.mesh_visits_report)
+    if args.write_rotation_request:
+        args.write_rotation_request.write_text(json.dumps(rotation_request(), indent=2), encoding='utf-8')
+        print('Wrote native rotation request', flush=True)
+    if args.rotation_report:
+        validate_rotation(args.rotation_report)
