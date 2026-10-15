@@ -523,6 +523,13 @@
   - 11:01 范围拆分：四条实际Rig射线的原生复算全部匹配消费者oracle；删除重复恢复样本和未使用float变量兼容分支后同target重编，当前26组22PASS/4预期FAIL，恢复控制通过。复杂几何的开关/选择接口已定位，但trimesh有独立背面、三角形命中与法线算法，盒体样本不能验收该核；这部分独立接续下一项，保留原审计目标。当前项只收口trace算法和已核实的盒体查询闭包，完整偏移/IK仍后置。
   - 11:04 完成摘要：3项focused为1PASS/2预期语义FAIL，26组判定与精简前一致，全部恢复通过；5份有效原生报告、8组reader自测和4条实际射线复算有效，旧reader缺字段反例保留。5份ALS/15份UE/9份目标/2份依赖闭包、116份基线source、160份生产Rust及累积资产身份PASS，读取器源码/包/新二进制一致，启动器库未变；证据`72/summary.json`、`72/final/`。实耗61分42秒；首个记录Gate在11:02:23通过，随后删除自测请求的JSON往返复制，生成请求逐字节不变，11:04:42最终复核通过；该收尾跨过原容差上沿1分42秒，期间没有新runtime。额外时间来自原生ray读取扩展及Rig变量/单元标量类型、实际消费者前置校正；复杂mesh核拆为后续独立Gate。只新增读取能力和自测、登记差异，生产实现与转换规则未改；截图0、性能暂停。
 
+- [x] BF144.73 Foot Trace复杂几何选择与背面查询：依赖BF144.72记录Gate，核对实际复杂几何选择、BodySetup单/双面配置、Chaos与Parry射线的背面规则及变换，并沿当前Rig偏移消费者验证。发现的共享边/顶点法线余差和mesh端点/零距离细节独立接续；不复开通用接触动力学，偏移弹簧/旋转/IK后置。Gate：fresh相关mesh/Rig与查询source、同输入原生网格射线、实际Rig消费者和必要消融、身份记录。开始：2026-10-15 11:12 +08:00；预估结束：2026-10-15 12:02 +08:00；实际结束：2026-10-15 11:33:20 +08:00；偏差：−28分40秒；结果：审计记录Gate PASS，新增D161/P2，8组法线余差接续下一项。估时依据：.72盒体与Rig闭环实耗61分42秒，主要额外成本为首次原生ray能力和消费者类型校正；本项复用该入口及Rig夹具，范围约150行mesh射线与生产复杂几何选择，按50分钟独立验收。
+  - 11:12 活动摘要：.72已提交，累计158项（99P2/59P3）。当前publish_control_rig_inputs选用ComplexCollider并同步物理Collider缩放；源mesh visitor有背面剔除开关，实际BodySetup与cooked值尚需原生核对。先建立查询源闭包及三角形同输入控制，未将旧接触几何Gate当作ray Gate。
+  - 11:21 source/static闭环：fresh 12种生产复杂网格共972条native射线，实际BodySetup均非双面，复杂形状均启用culls_back_face；源BodyInstance按复杂标志筛选后调用同一Chaos mesh ray并转换命中，target默认Parry ray不剔背面。原生入口增加通用mesh ray读取，旧reader的12个请求均缺结果作为阴性证据；当前只完成读取和静态候选，正以生产bridge网格和同输入culling控制核验，尚未计为新增缺陷。
+  - 11:26 consumer闭环：972组查询173FAIL，仅恢复源culling后165组恢复，8组相同命中位置但棱边/顶点法线不同，继续独立核对。完整角色Barrel复杂网格8组6PASS/2FAIL：射线从桶内向下时，源无命中，target偏移−0.261963m/−0.542933m；仅移除当前ray背面三角形后实际偏移消费者恢复0。正面、非均匀缩放及简单/复杂选择控制通过，确认D161/P2；累计159项（100P2/59P3），未修复生产。剩余8组不计为无差异。
+  - 11:30 范围拆分：fresh Arch01/Arch02/Fountain原生顶点和面索引复算确认，8组余差均位于共享边/顶点邻域；UE的double三角形计算、float当前长度与遍历覆盖，和Parry的float严格最小值选择属于独立闭包。该余差及mesh端点/零距离细节接续独立查询边界项，不用D161解释或放宽法线阈值。本项收口复杂形状选择和背面剔除；下一步复算实际Rig四条射线、做夹具精简和身份Gate，再继续余差。
+  - 11:33 完成摘要：2项focused均记录语义FAIL，978组803PASS/175FAIL；其中165个query和2个完整Rig失败归D161，8组法线余差继续保留。精简每个世界的重复bridge更新、两个恢复样本和位置缓存后，972组输出逐字相同，六个保留Rig判定相同、两个恢复通过。8份有效native、12组mesh/8组旧query自测、4条实际Rig射线复算、4种metadata消融和Rig程序身份PASS；1份ALS/10份UE/30份目标/5份依赖闭包、116份基线source、160份生产Rust、累积资产及reader源码/包/二进制、启动器库身份PASS。证据`73/summary.json`、`73/final/`；实耗21分20秒，无超时。只扩展通用读取和自测，没有生产或转换规则修改；截图0、性能暂停。接续网格边界后再进入偏移/IK。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
@@ -1486,6 +1493,12 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`control_rig_query.rs:53`直接转发Parry的零法线；`control_rig_units.rs:113–118`得到slope_cos=0并清空偏移，漏掉源命中转换。
   - 反例：完整角色的脚侧查询盒覆盖trace起点0.5m，query确实返回起点与零法线，实际偏移消费者为0而source应为+0.5m。仅恢复偏移变量即通过；把同一盒顶面降到起点表面的源等价控制也通过。查询单元与完整角色均复现，未用放宽坡度阈值掩盖结果。
   - 漏检：旧Rig trace单元测试传入预制非零法线，query集成测试从形体外开始，未串起inside-ray→命中转换→walkability。证据同D159；未修改生产query或Rig实现。
+
+- [ ] BF144-D161 / P2 — Foot Trace复杂网格射线遗漏实际单面剔除，背面命中进入脚底偏移。
+  - Source：fresh `ChaosInterfaceUtils.cpp:325`从BodySetup双面字段设置culls_back_face，12种实际Playground复杂mesh均为False/True；`TriangleMeshImplicitObject.cpp:169–181`以Dir·TriangleNormal>0拒绝背面。源FootOffsetTrace的Visibility复杂查询直接消费该结果。
+  - Target：`playground_collision.rs:229–252`建立普通Parry trimesh；`control_rig_apply.rs:437–442`正确选用复杂几何及缩放，但`control_rig_query.rs:42–50`调用默认双面cast_ray，未传入源剔除规则。此处是ray独立算法，不归并接触生成D140。
+  - 反例：完整角色实际CR_Als，桶底置于−0.3m、脚底射线起于+0.5m且位于桶内。原生无命中，目标命中底部背面并将−0.261963m送入ApplyFootOffsetLocation；scale=1.5时同根偏移−0.542933m。只在夹具按当前ray方向剔背面，两个实际消费者均恢复0；正面和非均匀缩放控制通过，8组6PASS/2FAIL。
+  - 漏检：旧复杂几何测试以同一个Parry trimesh作为期望，只证明没有误选简单几何，未独立读取源单面属性或源ray核。972条实际mesh查询有165组由culling单因素恢复，另8组法线余差仍单独核验；证据`73/matrix.native.json`、`73/matrix_initial/`、`73/full.native.json`及`bf144_animation_phase73_mesh_rays_reach_foot_offset`。只登记，生产与原始资产未改。
 
 ### 核验边界记录（不计为无差异）
 

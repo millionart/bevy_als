@@ -865,6 +865,74 @@ TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
         TSharedRef<FJsonObject> Sample = MakeShared<FJsonObject>();
         Sample->SetObjectField(TEXT("input"), Input->ToSharedRef());
         Sample->SetObjectField(TEXT("rotator_degrees"), CaptureRotator(Rotation.Rotator()));
+        if ((*Input)->HasField(TEXT("mesh_raycast")))
+        {
+            const TSharedPtr<FJsonObject>* Ray = nullptr;
+            FString MeshPath;
+            TArray<double> TranslationValues, ScaleValues, StartValues, EndValues;
+            bool bTraceComplex = false;
+            if (!(*Input)->TryGetObjectField(TEXT("mesh_raycast"), Ray)
+                || !(*Ray)->TryGetStringField(TEXT("asset_path"), MeshPath)
+                || !ReadArray(*Ray, TEXT("translation_cm"), TranslationValues, 3)
+                || !ReadArray(*Ray, TEXT("scale"), ScaleValues, 3)
+                || !ReadArray(*Ray, TEXT("start_cm"), StartValues, 3)
+                || !ReadArray(*Ray, TEXT("end_cm"), EndValues, 3)
+                || !(*Ray)->TryGetBoolField(TEXT("trace_complex"), bTraceComplex)) { return nullptr; }
+            const FVector Scale(ScaleValues[0], ScaleValues[1], ScaleValues[2]);
+            if (Scale.X == 0 || Scale.Y == 0 || Scale.Z == 0) { return nullptr; }
+            UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, *MeshPath);
+            UBodySetup* Setup = Mesh ? Mesh->GetBodySetup() : nullptr;
+            if (Setup == nullptr) { return nullptr; }
+            FBodyInstance Body;
+            Body.CopyBodyInstancePropertiesFrom(&Setup->DefaultInstance);
+            Body.bSimulatePhysics = false;
+            Body.InitBody(Setup, FTransform(Rotation, FVector(TranslationValues[0], TranslationValues[1], TranslationValues[2]), Scale),
+                nullptr, nullptr, FInitBodySpawnParams(false, true));
+            if (!Body.IsValidBodyInstance()) { return nullptr; }
+            ON_SCOPE_EXIT { Body.TermBody(); };
+            TArray<FPhysicsShapeHandle> Shapes;
+            FPhysicsInterface::GetAllShapes_AssumedLocked(Body.GetPhysicsActorHandle(), Shapes);
+            TArray<TSharedPtr<FJsonValue>> ShapeValues;
+            for (const FPhysicsShapeHandle& Shape : Shapes)
+            {
+                TSharedRef<FJsonObject> ShapeValue = MakeShared<FJsonObject>();
+                const Chaos::Filter::FShapeFilterData& Filter = Shape.Shape->GetShapeFilterData();
+                ShapeValue->SetBoolField(TEXT("complex"), Filter.HasFlag(Chaos::EFilterFlags::ComplexCollision));
+                ShapeValue->SetBoolField(TEXT("simple"), Filter.HasFlag(Chaos::EFilterFlags::SimpleCollision));
+                ShapeValue->SetBoolField(TEXT("query_enabled"), FPhysicsInterface::IsQueryShape(Shape));
+                const bool bTriangleMesh = FPhysicsInterface::GetGeometryCollection(Shape).GetType() == ECollisionShapeType::Trimesh;
+                ShapeValue->SetBoolField(TEXT("triangle_mesh"), bTriangleMesh);
+                if (bTriangleMesh)
+                {
+                    Chaos::FVec3 CoreScale;
+                    Chaos::FReal Margin;
+                    const Chaos::FTriangleMeshImplicitObject* Core = Chaos::UnwrapImplicit<Chaos::FTriangleMeshImplicitObject>(
+                        *Shape.Shape->GetLeafGeometry(), CoreScale, Margin);
+                    if (Core == nullptr) { return nullptr; }
+                    ShapeValue->SetBoolField(TEXT("culls_back_face"), Core->GetCullsBackFaceRaycast());
+                    ShapeValue->SetObjectField(TEXT("core_scale"), CaptureVector(FVector(CoreScale)));
+                }
+                ShapeValues.Add(MakeShared<FJsonValueObject>(ShapeValue));
+            }
+            FHitResult Hit;
+            const bool bHit = Body.LineTrace(Hit, FVector(StartValues[0], StartValues[1], StartValues[2]),
+                FVector(EndValues[0], EndValues[1], EndValues[2]), bTraceComplex, false);
+            TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+            Result->SetArrayField(TEXT("shapes"), ShapeValues);
+            Result->SetBoolField(TEXT("double_sided_geometry"), Setup->bDoubleSidedGeometry);
+            Result->SetNumberField(TEXT("collision_trace_flag"), static_cast<int32>(Setup->GetCollisionTraceFlag()));
+            Result->SetBoolField(TEXT("hit"), bHit);
+            if (bHit)
+            {
+                Result->SetNumberField(TEXT("distance_cm"), Hit.Distance);
+                Result->SetObjectField(TEXT("position_cm"), CaptureVector(Hit.ImpactPoint));
+                Result->SetObjectField(TEXT("normal"), CaptureVector(Hit.ImpactNormal));
+                Result->SetNumberField(TEXT("face_index"), Hit.FaceIndex);
+            }
+            Sample->SetObjectField(TEXT("mesh_raycast"), Result);
+            Samples.Add(MakeShared<FJsonValueObject>(Sample));
+            continue;
+        }
         const bool bRay = (*Input)->HasField(TEXT("box_raycast"));
         const bool bCapsule = (*Input)->HasField(TEXT("capsule_sweep"));
         const TCHAR* SweepKey = bRay ? TEXT("box_raycast") : bCapsule ? TEXT("capsule_sweep") : TEXT("sphere_sweep");

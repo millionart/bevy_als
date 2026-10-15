@@ -54,15 +54,58 @@ def validate(path):
     print(json.dumps({'native_geometry_query_self_test': 'PASS', 'samples': len(seen)}), flush=True)
 
 
+def mesh_request():
+    samples = []
+    for mesh in ['SM_Als_Cart', 'SM_Als_Barrel']:
+        for start, end in [([0, 0, 200], [0, 0, -200]), ([0, 0, -50], [0, 0, 200]), ([0, 0, 50], [0, 0, -50])]:
+            for complex in [True, False]:
+                samples.append({'name': f'{mesh}_{len(samples)}', 'rotation_xyzw': [0, 0, 0, 1], 'mesh_raycast': {
+                    'asset_path': '/ALS/ALSExtras/Environment/Meshes/' + mesh, 'translation_cm': [0, 0, 0],
+                    'scale': [1, 1, 1], 'start_cm': start, 'end_cm': end, 'trace_complex': complex}})
+    return {'samples': samples}
+
+
+def validate_mesh(path):
+    document = json.loads(path.read_text(encoding='utf-8-sig'))
+    samples = document['geometry_query_probe']['samples']
+    expected = [55.6957026654, 55.6957026654, 41.1642999472, 41.1642999472, 44.7454986572, 44.7454986572,
+                92.2190959759, 96.0999984741, 3.8036731510, -0.1000000313, None, 50]
+    assert [s['input'] for s in samples] == mesh_request()['samples']
+    for sample, height in zip(samples, expected):
+        name = sample['input']['name']
+        assert 'mesh_raycast' in sample, f'Missing native mesh ray result: {name}'
+        result = sample['mesh_raycast']
+        assert not result['double_sided_geometry'] and result['hit'] == (height is not None), name
+        assert result['collision_trace_flag'] == (3 if name.startswith('SM_Als_Cart') else 1), name
+        complex = [s for s in result['shapes'] if s['complex']]
+        assert len(complex) == 1 and complex[0]['triangle_mesh'] and complex[0]['culls_back_face'], name
+        assert all(s['query_enabled'] for s in result['shapes']), name
+        assert complex[0]['core_scale'] == dict.fromkeys('xyz', 1), name
+        assert complex[0]['simple'] == name.startswith('SM_Als_Cart'), name
+        if height is not None:
+            point = result['position_cm']
+            assert abs(point['x']) < 1e-6 and abs(point['y']) < 1e-6 and abs(point['z'] - height) < 1e-5, name
+            assert abs(result['distance_cm'] - abs(sample['input']['mesh_raycast']['start_cm'][2] - height)) < 2e-5, name
+            assert abs(sum(v * v for v in result['normal'].values()) - 1) < 1e-6, name
+    print(json.dumps({'native_mesh_raycast_self_test': 'PASS', 'samples': len(samples)}), flush=True)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--write-request', type=Path)
     parser.add_argument('--report', type=Path)
+    parser.add_argument('--write-mesh-request', type=Path)
+    parser.add_argument('--mesh-report', type=Path)
     args = parser.parse_args()
-    if not args.write_request and not args.report:
-        parser.error('Provide --write-request or --report')
+    if not any([args.write_request, args.report, args.write_mesh_request, args.mesh_report]):
+        parser.error('Provide a request output or native report')
     if args.write_request:
         args.write_request.write_text(json.dumps(request(), indent=2), encoding='utf-8')
         print('Wrote native geometry query request', flush=True)
     if args.report:
         validate(args.report)
+    if args.write_mesh_request:
+        args.write_mesh_request.write_text(json.dumps(mesh_request(), indent=2), encoding='utf-8')
+        print('Wrote native mesh ray request', flush=True)
+    if args.mesh_report:
+        validate_mesh(args.mesh_report)
