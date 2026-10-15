@@ -54,7 +54,7 @@
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；BF144.43将U01原生核验归并为D125，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.19完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道、warp变换、动态基座和RMS物理消费的首轮审计，确认D43–D60、D62–D64，D61撤销；精确查询数值及公共Playground验收尚未闭合 |
 | Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.42及.44–.64完成许可、启动/退出、输入/锁定、GetUp交接/时钟/通知/清理/姿态/曲线/根运动、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样/child预测bounds、多点回弹迭代、原生点序/支持点消费、质量加权接触位置、contact/joint耦合、primitive缓存、初速生成/交接/限速预算、pelvis跟随/探地/恢复朝向、进入挂接/退出快照、mesh恢复及零scale重建首轮审计，确认D65–D124、D126–D145；实际convex/trimesh的几何、速度摩擦及跨帧消费已由.45–.64完成当前输入闭包分类，U02关闭；不开展无源链路的通用物理审查 |
-| AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | BF144.65–.71完成可见性更新/历史时钟、初始化/实例替换、View/Head/Spine、Layering/Pose与Locomotion通用输入、Grounded/Standing/Crouching/InAir运动算法、地面预测查询及Feet输入/Foot Lock，确认D146–D152、D154–D158；.81–.89完成动态过渡资格/选择/队列、播放时钟、单/多实例混合、组停止、惯性请求、队列仲裁/落地参数、当前显式过渡/QuickStop及Turn资格/选择/速率，新增D166–D174并扩展D118/D120。Turn自身时钟/完整混合、通知时序和外部参数边界仍待审计；实际动画选择包含角色Overlay标签，排除道具表现 |
+| AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | BF144.65–.71完成可见性更新/历史时钟、初始化/实例替换、View/Head/Spine、Layering/Pose与Locomotion通用输入、Grounded/Standing/Crouching/InAir运动算法、地面预测查询及Feet输入/Foot Lock，确认D146–D152、D154–D158；.81–.91完成动态过渡资格/选择/队列、播放时钟、单/多实例混合、组停止、惯性请求、队列仲裁/落地参数、当前显式过渡/QuickStop以及Turn资格/选择/速率、时钟/自然停止和非加性混合，新增D166–D179并扩展D118/D120/D123。通知时序、完整惯性求解器和外部参数边界仍待审计；实际动画选择包含角色Overlay标签，排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | BF144.70沿InAir直接消费者确认Default Overlay缓存次序D153；.72–.79完成Foot Trace算法/primitive与mesh查询、骨盆和脚位置偏移/弹簧、足旋转/平滑/约束与加权写回、pole投影/状态/平滑，以及TwoBoneIK位置/旋转/部分权重写回，确认D159–D165；.80公共默认动作矩阵未自然触发D163–D165，未采样动作/历史和有效手臂IK仍未证明。完整图闭包及其他缓存副作用仍待重新取证核对，历史155子图合同只作起点，不能自证算法等价 |
 | 剩余源函数与跨阶段边界 | 以上 source-target 链路的覆盖缺口 | 前述审计后再独立收口；未解释项保留，截图与性能继续暂停 |
 
@@ -625,6 +625,12 @@
   - 00:26 活动摘要：.89已提交`8e506ae5`，累计172项（103P2/69P3），工作区干净。当前Turn使用累加时钟，与D118所指的反算时钟不同，不能直接归并；先读取原生停止帧，再判断是否有实际姿态影响。截图0、性能暂停，生产未改。
   - 01:08 source/consumer闭环：8资源56条原生轨迹11520帧的位置/权重/有效性/停止状态与独立float公式逐值一致；目标56条中26条不符，分为首次零delta删除实例及六个2秒资源遗漏末端停止窗口。真实角色中，零倍率首帧后恢复时间仍丢失Turn，64帧保留实例控制全部恢复，姿态/RotationYawSpeed也实际受影响，确认D175/P2。采用真实1/60世界步长、owner倍率1后，六资源均晚一帧发惯性请求；826组停止前姿态历史一致，恢复源停止帧消除约1mm/0.025°的后续差异，另两资源控制通过，确认D176/P3。删去无用Rust时长字段后全部判定不变；两项数值问题只登记，未修生产。Crouch180的元数据精度仍属D167同一格式化边界，本次未产生独立新增反例。
   - 01:10 完成摘要：3项focused按已确认差异失败；496组轨迹/帧/姿态比较346PASS/150FAIL，失败归并D175/D176，64帧首帧保留恢复及128帧末端恢复全部通过。11520原生帧精确复算，实际owner/世界delta与原生输入逐值核验；自然结束在真实1/60步长的复验与原结果完全相同。2份ALS/6份UE/7份target、9资产及116基线source、160生产Rust、累积资产、读取器与入口库身份PASS；证据`90/summary.json`、`90/final/`。实耗44分47秒，累计174项（104P2/70P3）；仅改审计记录，未改生产、转换器或读取器。多实例Turn非加性混合、通知时序、完整惯性求解器和核心图继续保留，截图0、性能暂停。
+
+- [x] BF144.91 Turn Slot非加性姿态与曲线混合：依赖.90记录Gate，沿当前Turn Slot核对基础姿态剩余权重、单/多实例合成、相关性/总权重归一化及非加性旋转/位置/scale/曲线运算，闭合到实际站蹲槽输出。使用共同已采样姿态与权重隔离已登记时钟/停止问题；不扩展其他Slot或通知派发。Gate：fresh Slot/AnimationRuntime与target合成合同、必要原生混合取证、常规和边界实际消费者、消融及身份记录。开始：2026-10-16 01:16 +08:00；预估结束：2026-10-16 02:06 +08:00；实际结束：2026-10-16 02:04:27 +08:00；偏差：−1分33秒；结果：记录Gate PASS，新增D177/P2、D178/P3、D179/P3，未修复。估时依据：fresh SlotEvaluatePose非加性分支约100行、BlendPosesTogether及target预混/Slot约150行；.84加性混合62分钟、.90时钟44分47秒，本项复用采样和消费者入口，仅新增非加性合成，以50分钟独立验收。
+  - 01:16 活动摘要：.90已提交`e8a898f6`，累计174项（104P2/70P3），工作区干净。源把非加性Montage和基础姿态交给统一混合；目标先合成Turn列表再进入Slot。先核对实际插值运算和输入权重，不由“两阶段”本身推断不等价。截图0、性能暂停，生产未改。
+  - 01:36 source修正检查点：fresh AnimInstance.cpp:4648–4669证明MontageEvaluationData在Slot之前按weight>1e−5过滤，.84关于保留无关小权重参与总和的解释不成立。症状为.91双小权重源公式会输出微量姿态，而真实上游根本不提交这两个实例；同一闭包也覆盖.84。已有限复开.84，暂停.91新的消费者测试，先修正取证夹具并复核旧判定；不修生产、不扩大到其他图。复核开始：2026-10-16 01:36 +08:00；预估结束：2026-10-16 01:51 +08:00，依据旧236组可直接重跑与单一上游资格修正。.84于01:40:44完成并以`beb60a3b`单独提交后继续本项。
+  - 01:54 source/consumer闭环：11资产及2个实际站蹲Slot重新读取；64个UE原生BlendPosesTogetherIndirect样本与独立公式最大差2.22e−16。当前目标预混明确使用slerp，权重0.3/0.7的20组实际槽中14组旋转不符，仅改nlerp全部恢复，新增D177/P2；近满权重0.999995的16组误升为全权重，源姿态/曲线权重恢复全部通过，新增D178/P3。原始权重均相关的三实例在归一化后又触发独立曲线门槛：小权重置于中项20组均失败、置于首项20组全过，新增D179/P3，不能由D168上游过滤修复。仅改nlerp仍在含基础姿态的40组中留下28个失败，归并已有D123；原始小权重及微超额总权重分别补充D168/D169，不重复计数。累计177项（105P2/72P3），生产未改。
+  - 02:04 完成摘要：3项focused为1PASS/2预期语义FAIL；1032组比较767PASS/265FAIL，含400原始槽、400完整源恢复、80部分nlerp控制、88局部混合及64原生对照。400个完整恢复及152个常规原始控制全过。沿本次原生Slot直连ModifyCurve再核对112个输出，D178/D179均传到实际RotationYawSpeed缩放结果，56个源恢复全过；倍率使用共同正输入1.2，选择/倍率推导仍由.89验收，不冒称本项覆盖自然触发。初版夹具强取满权重时不存在的基础缓存、手工栈未提供播放倍率均已按源生命周期纠正，不计产品缺陷。删去无用import和280个无诊断作用的部分控制后，同target重编的保留判定、全部原始/完整恢复结果不变。3份ALS/12份UE/9份target、2份依赖、11资产及116基线source、160生产Rust、累积资产和入口库身份PASS；读取器源码按字节恢复并在同target重建，旧50个原生加性样本逐值一致。证据`91/summary.json`、`91/final/`；实耗48分27秒（含.84有限复核4分44秒），仅提交审计记录，生产/转换器/读取器源码未改。剩余通知时序、外部参数边界、完整惯性求解器与核心图继续保留，截图0、性能暂停。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -1347,10 +1353,11 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：实际角色两朝向在clip=0时，post_locomotion.pose的上下文仅含PoseCrouching=1与PoseGrounded≈0；源还应有ViewBlock=1、六条Layer曲线=−1及四条Foot曲线=0。两组均遗漏全部11条，实际SourceSlot输出的六条Layer及ViewBlock数值也不符；夹具内补齐曲线后两组producer/consumer控制通过，sequence控制通过，证据`bf144_get_up_phase42_montage_curves`。旧Gate核对播放/通知/输入恢复及动作pose，没有将montage和sequence曲线同时纳入合同；仅记录，未改生产数据或代码。
 
 
-- [ ] BF144-D123 / P2 — GetUp/Roll组合槽过早归一化，改变与基础姿态的三方旋转混合。
+- [ ] BF144-D123 / P2 — GetUp/Roll及Turn组合槽过早归一化，改变与基础姿态的多方旋转混合。
   - Source：fresh `AnimInstanceProxy.cpp:2007–2070`把所有非加性montage及剩余基础姿态一起送入BlendPosesTogetherIndirect；`AnimationRuntime.cpp:458–478`逐项加权累加后只归一化一次。
   - Target：`get_up.rs:308–311`先经blend_slot_pose归一化GetUp/Roll，再由实际AB_Als的SourceSlotNode与基础姿态混合；中间归一化改变了两montage合向量的长度，三个输入均非零时不再等价。
   - 反例：完整角色两朝向，在50ms帧、GetUp接受Roll后的第23帧，已消费的GetUp/Roll/base权重约0.129629/0.5/0.370371；目标相对相同输入、相同权重的源一次累加结果，最大四元数距离约0.01280（约1.47度）。62.5ms另一组约0.00220；四组三方混合均失败，十组单montage/基础姿态控制通过。实际producer/consumer分别与原实现计算完全一致；只在夹具去掉中间归一化即恢复到约1.2e−7。证据`bf144_get_up_phase42_three_pose_slot_blend`。此判据固定已消费的时间和权重，独立于D118/D119，不重复计入旧时序差异；生产未改。
+  - BF144.91 Turn补充：`turn_layer.rs:461–487`预混后再进入SourceSlot也存在同一中间归一化边界。先只把Turn的slerp改为nlerp以隔离D177，双/三实例加基础姿态的40组仍有28FAIL，最大四元数距离0.001550676；使用源一次累加后全部恢复。总权重1、两层各0.5及相同姿态控制通过；普通三层曲线的浮点重组残差也保留在原始报告中，不另计缺陷。证据`91/analysis.json`的nlerp控制及实际站蹲槽输出；未改生产。
 
 
 - [ ] BF144-D124 / P3 — GetUp虚拟骨骼插值偏离当前源Sequencer模型的逐次生成。
@@ -1637,18 +1644,20 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：先推进1秒，再推进0.0221220143秒，源位置1.5331829786尚未到混出窗口，站立目标已开始混出。左右站立单元及实际角色均复现；随后10/50ms两帧的最大权重偏差约0.05975，仅将本次播放时长恢复原生float后，触发帧与权重偏差均恢复。蹲姿同输入和窗口之后控制通过。另一时钟反算分支已归D118，不把数值抵消误认为源等价。
   - 漏检/边界：旧时钟测试直接引用相同六位小数时长，普通帧长也不会落进这个窄区间。本项为受控有效动画时钟输入，未宣称默认动作自然触发；证据`82/boundary.native.json`、`bf144_animation_phase82_trigger_boundaries`和`bf144_animation_phase82_actual_trigger_boundaries`。仅记录，未改原始导出、目标配置或转换器。
 
-- [ ] BF144-D168 / P3 — Transition槽遗漏源实例求值资格，小权重仍改变运动曲线。
+- [ ] BF144-D168 / P3 — Transition/Turn槽遗漏源实例求值资格，小权重仍改变运动曲线。
   - Source：fresh `AnimInstance.cpp:4648–4669`先仅向MontageEvaluationData提交weight>1e−5的实例，`AnimInstanceProxy.cpp:2105–2148`再合计这些实例的槽权重；`SlotEvaluatePose:1897–1904`在总权重≤1e−5时直接保留基础Pose/Curve。四个当前动态过渡的源`AllowTransitions`初值均为−1，普通相关权重才按加性规则进入基础曲线。
   - Target：`stop_link.rs:625–649`从>1e−6的单实例开始预混Pose与曲线，`711–718`随后向生成槽发布weight/layer_weight=1；`source_slot.rs:112–149`因此继续消费预混曲线，源总槽相关性判断已无法从该输入恢复。
   - 反例：真实角色的Standing/Crouching均保持稳定Idle，以共同有效基础曲线0.999992及单实例权重3e−6测试，源槽输出仍0.999992，目标为0.99998903；实际下一帧`transitions_state.b_transitions_allowed`由应为true变false。权重1e−5也复现；基础曲线1的控制只出现曲线偏差。64组中8FAIL，32组仅恢复源门槛的对照全部PASS；零权重、0.5e−6、1.1e−5及普通权重控制通过。
   - 漏检/边界：旧测试只比较普通混合量，未覆盖总权重不相关分支。此处控制了槽输入曲线和权重，尚未声明默认动作自然触发许可翻转；原生0.2ms淡入确可产生约3e−6有效权重。BF144.91复核补齐上游资格：先剔除不相关实例，再按剩余实例计算总权重及归一化；旧“必须保留小权重参与总和”的判断作废。证据`83/*.native.json`、`bf144_animation_phase83_actual_slot_weight_threshold`；仅登记，未修改生产混合或阈值。
   - BF144.84多实例补充：fresh `AnimationRuntime.cpp:1285,1332`与`AnimCurveTypes.h:821`还对各层Pose/Curve执行>1e−5的相关性判断。BF144.91重新核对上游后确认，双9e−6层均不进入源MontageEvaluationData，源槽总权重为0；目标两层都进入预混。四资源实际配对的8个输入中，曲线最大差约1.8e−5、位置约2.47µm、四元数距离约2.90e−6；未额外修改基础曲线，下一帧的过渡许可也全部由应为true变false，仅恢复源合成通过。原176组实际槽及60组局部比较在补齐上游资格后判定均不变。
+  - BF144.91 Turn补充：`turn_layer.rs:473,593–609`仅按f32::EPSILON过滤Pose，而曲线上下文仍使用全部已采样实例。实际站蹲槽的单9e−6、单1e−5及双9e−6共52组均失败，最大曲线差0.0020031242；全部源过滤恢复通过，1.000001e−5和零权重控制通过。此处是原始实例不具备求值资格，与D179归一化后的曲线累加门槛不同。
 
-- [ ] BF144-D169 / P3 — Transition槽在总权重略高于1时提前归一化，丢失源容差区间。
+- [ ] BF144-D169 / P3 — Transition/Turn槽在总权重略高于1时提前归一化，丢失源容差区间。
   - Source：fresh `AnimInstanceProxy.cpp:2016–2031`只在`InTotalNodeWeight > 1 + ZERO_ANIMWEIGHT_THRESH`时归一化各Montage，当前阈值为1e−5。`GetSlotWeight`把节点显示权重夹到1，不会改写保存的总权重或各层权重。
   - Target：`stop_link.rs:640–648`使用`total.max(1.0)`作为分母，任意正超额都会缩小姿态和曲线；不是源的带容差条件。
   - 反例：两层权重0.6/0.400005，源保留原权重，目标先除以约1.000005。实际Standing/Crouching四资源配对与0.25/0.4秒采样的8个输入，槽曲线最大差约5.04e−6；只恢复源合成全部通过。0.6/0.40002及0.9/0.8等确应归一化的控制通过。
   - 漏检/边界：旧组合测试使用总值≤1或明显超额，没有覆盖(1,1+1e−5]。本项为共同有效权重输入的边界证据，不宣称默认动态过渡自然产生该精确总值；证据`84/extended.native.json`与`bf144_animation_phase84_actual_multi_slot`，未改生产算法。
+  - BF144.91 Turn补充：预混先除总权重，随后`turn_layer.rs:487`将发布权重夹到1，同样提前消去微小超额。0.6/0.400005在站蹲、左右/90/180及相同姿态配对的20组全部失败，最大曲线差0.0005493164、scale向量差8.672015e−6；仅把旋转改为nlerp仍全部失败，源统一加权恢复全部通过。0.6/0.40002的权重、位置、scale及曲线控制通过，旋转差由D177单独覆盖。
 
 - [ ] BF144-D170 / P3 — 加性旋转在源近全权重区间仍插值，未保留full-weight分支。
   - Source：fresh `AnimationRuntime.cpp:1288–1312`在权重≥1−1e−5时走AccumulateWithAdditiveScale；Quaternion整体乘权后归一化，因此旋转方向等于完整加性旋转，平移/缩放仍按权重。实际C++/ISPC实现与50个公开原生累积样本已核对。
@@ -1691,6 +1700,26 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`turn_layer.rs:239–243`只在累计位置达到duration时结束。当前累加位置在常规步长下可略低于终点，源已进入停止窗口，目标仍保留全权重直到下一帧；这不是D118所指的反算时钟，未直接归并。
   - 反例：六个2秒资源在原生60/30/120Hz轨迹中各晚一帧；实际角色使用1/60秒世界步长、owner倍率1，第100帧source已停止而target仍有Slot样本和全权重。只恢复源停止时点，惯性请求及姿态轨迹恢复；826组停止前姿态历史一致，停止后最大局部位置差约0.987mm、旋转约0.0251°。两个Crouch180资源在当前60Hz矩阵中本已通过，作为控制保留。
   - 漏检/边界：旧自然结束测试只确认最终清理/epoch增加，未与原生停止帧和实际惯性姿态对齐。证据`90/native_analysis.json`、`90/analysis.json`及`bf144_animation_phase90_natural_stop_consumers`；只确认停止时机，未以此宣称完整惯性求解器或通知事件等价。仅登记，未加阈值补丁。
+
+- [ ] BF144-D177 / P2 — Turn预混使用球面插值，偏离源加权四元数累加。
+  - Source：fresh `AnimInstanceProxy.cpp:2056–2085`把所有非加性Montage和相关的基础姿态按顺序交给`BlendPosesTogetherIndirect`；`AnimationRuntime.cpp:458–484`先逐项加权累加、按最短符号对齐，最后仅归一化一次。64个公开UE原生混合样本已与独立公式核对。
+  - Target：`turn_layer.rs:461–487`逐层调用LinearInterpolator；依赖的`pose.rs:156–159`实际使用Quat::slerp。总权重恰好为1、没有基础姿态参与时，两个不等权重的Turn也已不等价，不能只修D123的中间归一化。
+  - 反例：实际Standing/Crouching八资源在0.25/0.4秒采样，左右90/180及相同姿态控制共20组；权重0.3/0.7时14组失败，最大局部旋转差约0.34113°，位置、scale和曲线均在合同内。仅在夹具将预混改为nlerp后20组全部通过；0.5/0.5、全单层和相同姿态控制通过。原producer与实际发布Pose逐值核验，使用共同采样时间/权重隔离D175/D176。
+  - 漏检/边界：旧`turn_layer.rs:1020–1021`测试把同一个LinearInterpolator当作source oracle，不能发现插值算法不一致。证据`91/settings.native.json`、`91/analysis.json`与`bf144_animation_phase91_actual_slots`；为实际当前角色/图的受控重叠输入，不宣称默认输入自然产生全部配对。仅登记，未改生产或依赖。
+
+- [ ] BF144-D178 / P3 — Turn基础姿态不再相关时，目标把未满权重的Montage升为全权重。
+  - Source：fresh `SlotEvaluatePose:2058–2085`在剩余基础权重≤1e−5时不加入基础姿态，但保留Montage实际权重；`AnimationRuntime.cpp:469–480`仅在输入多于一个时归一化旋转，单层位置、scale和曲线仍按实际权重输出。
+  - Target：`source_slot.rs:116–132`在source_weight=0时直接返回归一化的overlay，并用1.0生成槽曲线上下文；丢掉了尚未等于1的Turn权重。
+  - 反例：八个当前Turn资源×0.25/0.4秒，权重0.999995的16组实际站蹲槽全部失败，最大局部位置差5.202275µm、scale向量差8.672015e−6、曲线差0.00088500977。单层四元数长度也不同，但这里不将长度差误报为角度差。源权重恢复16组全过，0.99998、0.99999和1.0的48组对照通过。
+  - 漏检/边界：旧SourceSlot测试使用0.6/1.0，未覆盖“不求值基础姿态但Montage尚未满权重”的区间；与D170加性旋转full-weight分支不同。证据`91/analysis.json`的nearfull_isolation及实际Slot输出；仅登记，不改变生产门槛或声称可见姿态故障。
+  - 后续消费：在共同正倍率1.2下，16个失败继续进入实际ModifyCurve的RotationYawSpeed，最大差0.0010681152；16个源恢复全部通过。倍率作为同输入控制，不以此替代.89的实际选择/倍率推导。
+
+- [ ] BF144-D179 / P3 — Turn曲线预混遗漏归一化后后续层的相关性判断。
+  - Source：fresh `AnimationRuntime.cpp:230–239`对首层Curve执行Override，对后续层执行Accumulate；`AnimCurveTypes.h:817–829,919–933`只有后续累加要求weight>1e−5。先通过实例资格的层仍可能在总权重归一化后降至该门槛以下，首层与后续层不能统一过滤。
+  - Target：`turn_layer.rs:601–609`把每层按归一化权重交给`source_pose_nodes.rs:967–989`，所有曲线都直接value×weight累加；没有保留源首项/后续项的区别。
+  - 反例：原始权重1/1.1e−5/1的三个当前Turn均通过源实例资格，中项归一化后约5.5e−6；实际站蹲槽20组曲线全部失败，最大差0.0009765625，位置/旋转/scale均通过。把小权重改放首项，20组原始目标全部通过；源曲线运算恢复两组共40个控制全部通过。D168的上游原始权重剔除无法修复此反例。
+  - 漏检/边界：旧曲线混合只核对单层、普通权重或原始权重已不相关的实例，未将实例资格与归一化后的曲线资格分开。证据`91/rows.json`中两个三实例权重顺序及64组原生混合对照；受控有效槽输入，未宣称默认Turn调用自然形成该超额权重。仅登记，未修生产。
+  - 后续消费：共同正倍率1.2下，中项小权重的20个失败继续进入实际ModifyCurve输出，RotationYawSpeed最大差0.0011749268；首项20控制及两组40个源恢复全部通过。
 
 ### 核验边界记录（不计为无差异）
 
