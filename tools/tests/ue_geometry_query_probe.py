@@ -195,6 +195,12 @@ def ik_request():
         samples.append({'name': name, 'rotation_xyzw': [0, 0, 0, 1], 'two_bone_ik': {
             'root_cm': [0, 0, 0], 'effector_cm': end, 'pole_cm': pole,
             'lengths_cm': lengths, 'stretch': stretch, 'stretch_ratios': [0.75, 1.25]}})
+    for weight in [0.0, 0.5, 1.0]:
+        samples.append({'name': f'oriented_{weight}', 'rotation_xyzw': [math.sqrt(0.5), 0, 0, math.sqrt(0.5)],
+                        'two_bone_ik': {'root_cm': [0, 0, 0], 'effector_cm': [60, 0, 0], 'pole_cm': [0, 100, 0],
+                                        'lengths_cm': [50, 50], 'stretch': False, 'stretch_ratios': [0.75, 1.25],
+                                        'orientation': {'primary_axis': [1, 0, 0], 'secondary_axis': [0, 1, 0],
+                                                        'secondary_weight': weight}}})
     return {'samples': samples}
 
 
@@ -203,12 +209,22 @@ def validate_ik(path):
     assert [s['input'] for s in samples] == ik_request()['samples']
     expected = [([30, 40, 0], [60, 0, 0]), ([50, 0, 0], [100, 0, 0]),
                 ([0.00005, 50, 0], [0, 0, 0]), ([30, 40, 0], [60, 0, 0]),
-                ([62.5, 0, 0], [125, 0, 0]), ([-25, 0, 0], [10, 0, 0])]
+                ([62.5, 0, 0], [125, 0, 0]), ([-25, 0, 0], [10, 0, 0])] + [([30, 40, 0], [60, 0, 0])] * 3
     for sample, points in zip(samples, expected):
         result = sample['two_bone_ik']
         for key, values in zip(['joint_cm', 'effector_cm'], points):
             assert all(abs(result[key][axis] - value) < 1e-7 for axis, value in zip('xyz', values)), sample['input']['name']
         assert [result['length_a_cm'], result['length_b_cm']] == sample['input']['two_bone_ik']['lengths_cm']
+        for key in ['root_rotation', 'joint_rotation']:
+            assert all(math.isfinite(result[key][axis]) for axis in 'xyzw')
+            assert abs(sum(result[key][axis] ** 2 for axis in 'xyzw') - 1) < 1e-12
+        if 'orientation' in sample['input']['two_bone_ik']:
+            weight = sample['input']['two_bone_ik']['orientation']['secondary_weight']
+            twist = math.pi * (1 - weight) / 4
+            for key, sign in [('root_rotation', 1), ('joint_rotation', -1)]:
+                expected_q = [math.sqrt(0.8) * math.sin(twist), sign * math.sqrt(0.2) * math.sin(twist),
+                              sign * math.sqrt(0.2) * math.cos(twist), math.sqrt(0.8) * math.cos(twist)]
+                assert all(abs(result[key][axis] - value) < 1e-7 for axis, value in zip('xyzw', expected_q)), sample['input']['name']
     print(json.dumps({'native_two_bone_ik_self_test': 'PASS', 'samples': len(samples)}), flush=True)
 
 

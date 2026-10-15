@@ -991,11 +991,32 @@ TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
             FTransform BoneA(FVector(Root[0], Root[1], Root[2]));
             FTransform BoneB;
             FTransform Effector(FVector(End[0], End[1], End[2]));
+            BoneA.SetRotation(Rotation);
+            BoneB.SetRotation(Rotation);
+            FVector PrimaryAxis = FVector::ForwardVector;
+            FVector SecondaryAxis = FVector::RightVector;
+            float SecondaryWeight = 0;
+            if ((*Ik)->HasField(TEXT("orientation")))
+            {
+                const TSharedPtr<FJsonObject>* Orientation = nullptr;
+                TArray<double> Primary, Secondary;
+                double Weight = 0;
+                if (!(*Ik)->TryGetObjectField(TEXT("orientation"), Orientation)
+                    || !ReadArray(*Orientation, TEXT("primary_axis"), Primary, 3)
+                    || !ReadArray(*Orientation, TEXT("secondary_axis"), Secondary, 3)
+                    || !(*Orientation)->TryGetNumberField(TEXT("secondary_weight"), Weight)) { return nullptr; }
+                SecondaryWeight = Weight;
+                if (!FMath::IsFinite(SecondaryWeight)) { return nullptr; }
+                PrimaryAxis = FVector(Primary[0], Primary[1], Primary[2]);
+                SecondaryAxis = FVector(Secondary[0], Secondary[1], Secondary[2]);
+            }
             FControlRigMathLibrary::SolveBasicTwoBoneIK(BoneA, BoneB, Effector, FVector(Pole[0], Pole[1], Pole[2]),
-                FVector::ForwardVector, FVector::RightVector, 0, LengthA, LengthB, bEnableStretch, StretchStart, StretchMaximum);
+                PrimaryAxis, SecondaryAxis, SecondaryWeight, LengthA, LengthB, bEnableStretch, StretchStart, StretchMaximum);
             TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
             Result->SetObjectField(TEXT("joint_cm"), CaptureVector(BoneB.GetLocation()));
             Result->SetObjectField(TEXT("effector_cm"), CaptureVector(Effector.GetLocation()));
+            Result->SetObjectField(TEXT("root_rotation"), CaptureQuaternion(BoneA.GetRotation()));
+            Result->SetObjectField(TEXT("joint_rotation"), CaptureQuaternion(BoneB.GetRotation()));
             Result->SetNumberField(TEXT("length_a_cm"), LengthA);
             Result->SetNumberField(TEXT("length_b_cm"), LengthB);
             Sample->SetObjectField(TEXT("two_bone_ik"), Result);
