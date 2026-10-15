@@ -608,6 +608,11 @@
   - 21:40 source/consumer闭环：60帧实际dispatcher队列控制通过，涵盖重复停止、覆盖待播放请求、解除阻挡后消费一次及Transition→Turn顺序；当前两种stance停止包装的原生参数均为−1。沿LandToGrounded直接调用边补取Locomotion原生图后，确认该事件为0.1/0.2混入混出、1.4倍速、起点0，目标却复用Roll的0.2/0.2、1.5倍速、起点0.2且固定站姿。24帧单事件对照为12原样FAIL/12源参数恢复PASS，实际采样和旧动画混出均受影响；同帧多事件的首个猜测被该参数错误混淆，不另登记“调用合并”缺陷。首次自然启动夹具未保证可见图经历落地，现改为稳定角色后实际跳跃，继续核对自然触发与最终Gate。
   - 21:46 完成摘要：3项focused为1PASS/2预期FAIL，85组比较72PASS/13FAIL；60帧队列控制、12帧参数/stance恢复及20次根Slot实际采样核对通过，实际角色跳跃落地另行复现D173参数错误。删除两条含混的多时长原生轨迹后，保留的20帧与原记录逐值相同，同target重编的85项判定不变。5份ALS/3份UE/14份target、7资产及116基线source、160生产Rust、累积资产、读取器和入口库身份PASS；证据`87/summary.json`、`87/final/`。实耗27分36秒，累计171项（103P2/68P3）；仅改审计记录，没有生产、转换器、读取器或资产修改。通知采样/派发时序、Turn其余选择、显式过渡/QuickStop和完整惯性求解器继续保留，截图0、性能暂停。
 
+- [x] BF144.88 显式Transition与Quick Stop选择/参数：依赖.87记录Gate，核对PlayTransition左右/stance/StandingIdleOnly资格、当前状态函数的实参，以及Quick Stop的输入/目标yaw来源、角度规整、左右选择和速率插值，闭合到实际dispatcher、Sequence和槽采样。既有Land参数D173隔离，通知采样/派发时序与Turn资格另项验收；不展开道具Overlay表现。Gate：fresh源函数/角度工具/设置/直接通知调用、独立边界和实际消费者、恢复控制、消融及身份记录。开始：2026-10-15 22:10 +08:00；预估结束：2026-10-15 22:55 +08:00；实际结束：2026-10-15 22:47:46 +08:00；偏差：−7分14秒；结果：记录Gate PASS，新增D174/P3，未修复。估时依据：fresh QuickStop及显式Transition选择约85行，target选择和构造/通知映射约150行；.81选择闭包19分41秒、.87队列参数27分36秒，本项复用消费者入口，预留角度边界取证后按45分钟独立验收。
+  - 22:10 活动摘要：.87已提交`d86587fb`，累计171项（103P2/68P3），工作区干净。只沿当前运动停止/过渡调用读取源实参和yaw语义，不把旧构造器自测当作参数已等价。截图0、性能暂停，生产未改。
+  - 22:45 source/consumer闭环：fresh设置、4个直接状态函数和6个Sequence确认当前参数/资源类型；45个共同纯yaw旋转由UE直接输出double Rotator。405组直接规则通过，但3726组有效角度输入链有70次左右分叉；真实dispatcher/root Slot的64组中12次选错Side，28个只恢复源index/rate的控制全通过，邻域和非VelocityDirection控制通过，确认D174/P3。显式过渡左右/stance/StandingIdleOnly与当前命名调用21组通过。已删除1944组超出当前源yaw范围的额外输入，保留判定及64组消费者逐值不变；显式夹具缺少空播放栈的前置错误已修正，未计为产品差异。当前数值边界均为受控输入，不声明默认动作自然可达。
+  - 22:47 完成摘要：4项focused为2PASS/2预期FAIL，4216组4134PASS/82FAIL（70输入链、12实际选择）归D174；45个原生旋转及21个当前显式调用控制通过。5份ALS/3份UE/11份target、10资产及116基线source、160生产Rust、累积资产、读取器和入口库身份PASS；证据`88/summary.json`、`88/final/`。实耗37分46秒，累计172项（103P2/69P3）；仅更新审计记录。Turn资格/选择、通知时序、任意外部过渡参数及已知共享时钟/末端边界、完整惯性求解器仍保留；截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
@@ -1655,6 +1660,12 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`transition_notify.rs:352–357`调用固定`standing_transition_right()`；`stop_link.rs:151–161`给出混入0.2秒、混出0.2秒、速率1.5、起点0.2，且不读取当前stance。这既改变新动画的采样与混入，也以错误0.2秒延长同组旧动画的混出。
   - 反例：实际角色跳跃、经历Air并落地后，无通知注入的真实回调得到上述错误参数。另在站蹲各6帧的受控单事件消费中，首个采样帧source应为0.07秒/权重0.5，actual为0.275秒/0.15625；旧动画应为0.5，actual为0.84375。蹲姿还采样了Standing Right。仅把事件改接原生参数和当前stance选择，12帧恢复全部通过，根Transition Slot实际消费的20个样本也核对通过。
   - 漏检/边界：旧通知测试核对事件计数与现有构造器，未逐个读取当前蓝图调用实参。85组比较72PASS/13FAIL包含上述12个受控失败和1个实际跳跃落地失败；60帧队列保留/覆盖/停止阻挡控制通过。证据`87/locomotion.native.json`、`87/native_check.json`、`87/analysis.json`及`bf144_animation_phase87_natural_landing`。最初多事件“最后调用覆盖”猜测被参数错误混淆，不另计缺陷；只登记，未修生产。
+
+- [ ] BF144-D174 / P3 — Quick Stop的yaw重新计算在0°/175°边界改变左右动画选择。
+  - Source：fresh `AlsAnimationInstance.cpp:1590–1609`先以float输入/目标yaw减去double `RotationWorldSpace.Yaw`，将差降为float后Unwind，再以`>175°`逆时针重映射和`<=0°`选择左侧。RotationWorldSpace来自ActorTransform的double Rotator；45个共同旋转的UE原生输出已核验，直接选择规则405组通过。
+  - Target：`stop_link.rs:399–414`从float Quaternion的forward重新取yaw，并把输入/目标经弧度往返再转回float角度；`transitions.rs:135–145`在这些舍入后的值上做相减/分支。源和目标阈值本身相同，差异发生在阈值前的表示和运算路径。
+  - 反例：源body yaw=−175°、所选yaw=0°时，源剩余角为175°，应选Right、速率约2.9652777；目标舍入后跨过175°，改选Left、速率约3.0347221。相同body与所选yaw=−175°时，源应选Left，目标却选Right。实际站蹲×输入/目标两条来源的12组均在根Slot消费错误Sequence；仅恢复源index/rate的28组全部通过，正负邻域及非VelocityDirection控制通过。
+  - 漏检/边界：旧选择测试直接输入角度，只覆盖整角度普通分支，没有经过真实Quaternion→heading、弧度往返及double→float差分链。当前有效输入矩阵70次分叉均为左右选择变化；证据`88/yaw.native.json`、`88/analysis.json`及`bf144_animation_phase88_quick_stop_consumers`。只确认受控数值边界和实际消费，未证明默认动作自然触发；未改阈值、加补偿或修生产。
 
 ### 核验边界记录（不计为无差异）
 
