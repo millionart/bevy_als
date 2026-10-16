@@ -51,6 +51,8 @@ python -m venv .venv
 
 将 `tools/env.example.json` 复制为 `tools/env.local.json`，填写本机 `ue_project` 和 `ue_cmd`。Mac 的命令位于 `Engine/Binaries/Mac/UnrealEditor-Cmd`，Windows 为 `Engine/Binaries/Win64/UnrealEditor-Cmd.exe`。`docs/env.md` 只记录环境，不参与工具配置；这两个本地文件均不提交，换机器时分别配置。`.venv` 与编译产物也不能跨系统复用。
 
+源 ALS 工程也需要为当前平台构建 `ALSRefactoredEditor`；复制来的 `Binaries/Win64` 不能供 Mac 加载。本机保留的旧 `BlueprintNodeExporter` 只在 Windows 安装，其 `.uproject` 条目使用 `"PlatformAllowList": ["Win64"]`，工程 `TargetPlatforms` 同时列出 `Windows` 和 `Mac`。原生 reader 自己的插件由工具自动构建。
+
 ```powershell
 pwsh -NoProfile -File ./run_manual.ps1
 pwsh -NoProfile -File ./als_graph_editor.ps1
