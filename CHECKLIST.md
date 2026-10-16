@@ -80,7 +80,7 @@
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；BF144.43将U01原生核验归并为D125，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.19完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道、warp变换、动态基座和RMS物理消费的首轮审计，确认D43–D60、D62–D64，D61撤销；精确查询数值及公共Playground验收尚未闭合 |
 | Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.42及.44–.64完成许可、启动/退出、输入/锁定、GetUp交接/时钟/通知/清理/姿态/曲线/根运动、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样/child预测bounds、多点回弹迭代、原生点序/支持点消费、质量加权接触位置、contact/joint耦合、primitive缓存、初速生成/交接/限速预算、pelvis跟随/探地/恢复朝向、进入挂接/退出快照、mesh恢复及零scale重建首轮审计，确认D65–D124、D126–D145；实际convex/trimesh的几何、速度摩擦及跨帧消费已由.45–.64完成当前输入闭包分类，U02关闭；不开展无源链路的通用物理审查 |
-| AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | BF144.65–.71完成可见性更新/历史时钟、初始化/实例替换、View/Head/Spine、Layering/Pose与Locomotion通用输入、Grounded/Standing/Crouching/InAir运动算法、地面预测查询及Feet输入/Foot Lock，确认D146–D152、D154–D158；.81–.92完成动态过渡资格/选择/队列、播放时钟、单/多实例混合、组停止、惯性请求、队列仲裁/落地参数、当前显式过渡/QuickStop以及Turn资格/选择/速率、时钟/自然停止和非加性混合、Roll运动点通知采样/资格/模式消费，新增D166–D179并扩展D118/D120/D121/D123。.93完成排队RootScale状态/中断/重入与实际根运动倍率消费，新增D180–D182；.94完成九个动作montage的native branching动作状态、标记/零步长、中断/跨实例保护及动作消费，新增D183/D184并扩展D121；.95完成六个Mantle的EarlyBlendOut条件/实例/停止权重与输入消费，新增D185；.96完成槽相关性历史与运动通知资格，新增D186；.97完成不可见角色通知派发/保留、重复组件更新和零步长，新增D187并扩展D186；.98完成Roll移动前快照与通知消费阶段，新增D188；.99完成GetUp结束帧的输入/快照/旋转消费，新增D189；.100完成六Mantle的RMS/通知/解锁阶段，新增差异0、D57保留；.101完成单次惯性求解并登记D190–D192；重入/deficit/profile、稀疏历史、生命周期及外部参数边界仍待审计；实际动画选择包含角色Overlay标签，排除道具表现 |
+| AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | BF144.65–.71完成可见性更新/历史时钟、初始化/实例替换、View/Head/Spine、Layering/Pose与Locomotion通用输入、Grounded/Standing/Crouching/InAir运动算法、地面预测查询及Feet输入/Foot Lock，确认D146–D152、D154–D158；.81–.92完成动态过渡资格/选择/队列、播放时钟、单/多实例混合、组停止、惯性请求、队列仲裁/落地参数、当前显式过渡/QuickStop以及Turn资格/选择/速率、时钟/自然停止和非加性混合、Roll运动点通知采样/资格/模式消费，新增D166–D179并扩展D118/D120/D121/D123。.93完成排队RootScale状态/中断/重入与实际根运动倍率消费，新增D180–D182；.94完成九个动作montage的native branching动作状态、标记/零步长、中断/跨实例保护及动作消费，新增D183/D184并扩展D121；.95完成六个Mantle的EarlyBlendOut条件/实例/停止权重与输入消费，新增D185；.96完成槽相关性历史与运动通知资格，新增D186；.97完成不可见角色通知派发/保留、重复组件更新和零步长，新增D187并扩展D186；.98完成Roll移动前快照与通知消费阶段，新增D188；.99完成GetUp结束帧的输入/快照/旋转消费，新增D189；.100完成六Mantle的RMS/通知/解锁阶段，新增差异0、D57保留；.101完成单次惯性求解并登记D190–D192；.102完成当前无profile请求的重入/deficit与时长边界，新增D193–D195并补充D191；profile、稀疏历史、曲线键、跳帧/teleport与外部参数边界仍待审计；实际动画选择包含角色Overlay标签，排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | BF144.70沿InAir直接消费者确认Default Overlay缓存次序D153；.72–.79完成Foot Trace算法/primitive与mesh查询、骨盆和脚位置偏移/弹簧、足旋转/平滑/约束与加权写回、pole投影/状态/平滑，以及TwoBoneIK位置/旋转/部分权重写回，确认D159–D165；.80公共默认动作矩阵未自然触发D163–D165，未采样动作/历史和有效手臂IK仍未证明。完整图闭包及其他缓存副作用仍待重新取证核对，历史155子图合同只作起点，不能自证算法等价 |
 | 剩余源函数与跨阶段边界 | 以上 source-target 链路的覆盖缺口 | 前述审计后再独立收口；未解释项保留，截图与性能继续暂停 |
 
@@ -692,7 +692,7 @@
   - 05:13 source/focused摘要：9份ALS/7份UE/22份target与9个原生资产已取证。原生CDO确认Movement在Owner前、Mesh依赖Character、RootMotionFromMontagesOnly且URO关闭；活动Roll的NativeUpdate在CMC移动前复制Character缓存，线程安全图更新不重采这些字段。64组快照/速率比较16FAIL，32个恢复控制全过；实际蹲行节点和非零Locomotion混合姿态已受影响，登记D188/P3。105帧RootScale缓存/动作/点通知/图内重置顺序全部PASS。初版阶段夹具漏算Grounded图的OnBecomeRelevant重置，已fresh追加三处回调并拆开图前/图后观察，属于夹具假失败；未计产品问题。合并冗余恢复标记后64组字段输出逐字一致；姿态启动相位略有波动，只保留30Hz明确大于0.01rad的消费证据。下一步记录Gate与提交，截图0、性能暂停。
   - 05:14 完成摘要：64组快照字段/速率与105帧通知阶段共169组153PASS/16FAIL，失败均归D188；32个恢复控制、27个自然淡出后当前快照控制和两次点通知/动作Begin/End均通过。2项focused为1PASS/1预期语义FAIL；60Hz两侧实际求值的蹲行节点速率为1.499798/1.285530，30Hz主姿态见证最大角差0.033074rad，保留输入恢复的因果范围。9份ALS/7份UE/22份target、9资产及116基线source、160生产Rust、累积资产和入口库身份PASS，reader源码/DLL未变。证据`98/summary.json`、`98/final/`；实耗27分58秒，低于预估，累计186项（106P2/80P3）。仅记录，未改生产/转换器/原始资产，未运行公共Playground Gate，截图0、性能暂停；下一项检查Mantle/GetUp专属阶段caller。
 
-- [x] BF144.99 GetUp动作结束、动画采样与运动解锁阶段：依赖.98记录Gate，先按原生Front/Back序列与Montage确定根运动资格和CMC是否提前TickPose，再核对动作通知End、输入blocked清理、真实移动输入/加速及动画快照的当帧和下一帧消费。既有D118时钟/D119共槽次序/D120末端/D121精度/.94动作生命周期只作隔离，不无故复开；Mantle的EarlyBlendOut阶段单独后置。Gate：fresh ALS/UE资格与输入caller、四个原生资产、真实Ragdoll→GetUp入口及结束边界对照、必要恢复/消融和身份记录。开始：2026-10-16 05:19 +08:00；预估结束：2026-10-16 05:54 +08:00；实际结束：2026-10-16 05:37:30 +08:00；偏差：−16分30秒；结果：记录Gate PASS，新增D189/P3，未修复。估时依据：源GetUp启动/输入解锁约70行、CMC/Mesh资格和输入约150行、target Update/PostUpdate约180行；.94/.97/.98分别约24/19/28分钟，复用.41真实起身夹具并隔离既有时钟误差，以35分钟独立验收。
+- [x] BF144.99 GetUp动作结束、动画采样与运动解锁阶段：依赖.98记录Gate，先按原生Front/Back序列与Montage确定根运动资格和CMC是否提前TickPose，再核对动作通知End、输入blocked清理、真实移动输入/加速及动画快照的当帧和下一帧消费。既有D118时钟/D119共槽次序/D120末端/D121精度/.94动作生命周期只作隔离，不无故复开；Mantle的EarlyBlendOut阶段单独后置。Gate：fresh ALS/UE资格与输入caller、四个原生资产、真实Ragdoll→GetUp入口及结束边界对照、必要恢复/消融和身份记录。开始：2026-10-16 05:19 +08:00；预估结束：2026-10-16 05:54 +08:00；实际结束：2026-10-16 05:37:30 +08:00；偏差：−16分30秒；结果：记录Gate PASS，新增D189/P3，未修复。估时依据：源GetUp启动/输入解锁约70行、CMC/Mesh资格和输入约150行、target Update/PostUpdate约180行；.94/.97/.98分别约24/19/28分钟，复用.41真实起身夹具并隔离既有时钟误差，以35分钟独立验收。实际结束：2026-10-16 18:39:02 +08:00；偏差+6分2秒；结果：记录Gate PASS，新增D193–D195三项P3并补充D191，未修生产。
   - 05:19 活动摘要：.98已提交`10bd1d34`，累计186项（106P2/80P3），生产工作树干净。fresh source的IsPlayingRootMotion明确检查Montage实例和IsRootMotionDisabled；target普通运动事务位于Update，而GetUp推进/通知解锁位于PostUpdate，因此不能仅凭解锁先于Avian积分认定早一帧。先读四个GetUp原生资产，再按真正的输入消费阶段取样；尚未确认本批差异，截图0、性能暂停。
 
   - 05:29 source摘要：7份ALS/10份UE/11份target和Front/Back四个原生资产已闭合GetUp根运动资格；两Sequence均bEnableRootMotion=False，Montage的HasRootMotion沿实际segment为False，不能沿用Roll的CMC提前TickPose路径。源ConsumeInputVector先应用blocked，Character缓存当前加速度，Mesh随后结束动作；目标Update输入链预计正确保持结束帧为零。fresh同一Character的RefreshGroundedRotation也受动作门控，而target旋转在PostUpdate通知解除后执行，追加该已证实caller作为候选，须以真实起身结束帧及阶段恢复证明。入口/CDO沿用.98并核对fresh字节身份；已知时钟/精度隔离。取证首次调用因外层PowerShell数组传递启动空Python，60秒watchdog退出；改为直接脚本后通过，另一次reader返回码误判已改读结构化success。截图0、性能暂停。
@@ -725,6 +725,15 @@
   - 17:45 原生闭环：当前主AB的CDO惯性化节点复制后经公开Update/Evaluate运行640组，全部与独立参考逐值一致；目标532组通过、108组不符，分为D190的104组门槛、D191的2组单位及D192的2组混合精度余差，均P3。针对性输入/单位恢复使106组对齐，另2组保留数值差而不放宽门槛。原生探针首次启动分别因缺SharedContext和未绑定NodeData断言；已依据源接口改为共享消息上下文和复制实际CDO节点，两次失败由固定watchdog终止并保存，未计为产品缺陷。累计190项（106P2/84P3）；正反self-test、消融恢复与最终记录尚在收口，生产Rust未改。
 
   - 17:56 完成摘要：1960组同单位标量控制通过；640组生产节点/原生节点对照532PASS、108FAIL，全部归D190–D192，106组针对性恢复通过、两组微小精度差保留。按项目coordinate_basis转换位置、旋转与scale后再次跑640组原生对照，结论与数值相同；未用直接抄XYZ作最终坐标证据。新只读reader探针的四个规范样本、移除请求反例、空请求拒绝及恢复全过，原CachedPoseSchedule兼容输出通过。初版探针的API/上下文问题与watchdog退出均保留，最终实现复制实际CDO节点、使用共享消息上下文，无引擎或转换器修改。9份UE实现逐字节匹配指定Git，114份ALS/184份Rust、13个原始资产和生产库身份保持；reader源/package/实际Mac库核对通过。两次AB导出的72处余差仅为加载期生成函数的GraphGuid/pin ID，原AnimGraph及uasset字节未变，不扩展为图转换问题。`target/bf144/101/summary.json`、`basis.native.json`为最终证据；累计190项（106P2/84P3）。本项仅单次请求、完整单骨骼通道和普通空间；重入/deficit/profile、稀疏历史与生命周期继续待审，公共Playground及完整UE角色世界未运行，截图0、性能暂停。
+
+- [x] BF144.102 惯性化重入、欠时偿还与请求时长：依赖.101记录Gate，沿当前主AB节点的RequestQueue→Evaluate核对单次/连续打断、同帧多个请求取最短、累计elapsed/deficit、零/临界时长和自然结束后的重新请求，追到骨骼与曲线输出。已登记D190–D192以正常单位/门槛输入隔离，D172请求路由不复开；blend profile仅在当次实际引用链证明需要时另立闭包，稀疏通道、跳帧/teleport与空间重表达后置。Gate：fresh源分支、原生节点多帧轨迹与同输入生产节点、必要控制/消融、身份和记录核对。开始：2026-10-16 17:58 +08:00；预估结束：2026-10-16 18:33 +08:00。估时依据：UE请求/deficit/结束约130行、target重入与推进约120行，复用.101的已验证原生多步probe与同target生产库；.101含工具建设实耗45分31秒，本项无需新增读取器能力，以35分钟独立验收。
+  - 17:58 活动摘要：.101已提交`7816d0de`，累计190项（106P2/84P3），生产工作树干净。已重新读取源Active→AppliedDeficit→Pending与目标begin/update直接分支；目前只是执行顺序候选，未新增差异。后续从普通单次正控制进入连续请求，截图0、性能暂停。
+
+  - 18:08 source/工具边界：fresh UE对同帧请求先AddUnique再取最短，现有probe每步只接一个duration，不能用多次零delta的Evaluate冒充同帧队列。新增同帧数组fixture已在旧probe稳定失败，下一步仅给现有探针补request_durations及三个实际惯性化CVar值，不改生产算法；首次估时中“无需新增读取器能力”的假设已被此具体缺口修正，当前仍在原窗口内。
+
+  - 18:33 source/consumer闭环：142条轨迹4330帧，4093PASS/237FAIL；原生确认Enable=1、IgnoreVelocity=0、IgnoreDeficit=0。192帧为零/极短请求留下deficit，夹具通过反射只清除非活动节点的该字段后恢复；17帧为100–119ns附近有效时长被机器epsilon截断；12帧为近单位四元数差分的额外归一化。新增D193–D195均P3。其余16帧平移尾端数值差在同一函数改用源厘米数值、再换回米后对齐，补充D191而不重复编号。观测状态的夹具重编后，原136条输出逐字相同；原始差异和恢复轨迹均保留。累计193项（106P2/87P3）；记录/工具回归与身份核对待完成，生产Rust未改。
+
+  - 18:39 完成摘要：142条4330帧全部差异已分类，192帧deficit恢复、16帧源单位恢复及3个近单位旋转因果控制通过，极短时长的上下边界正控制保留；未放宽判定。反射观测前后136条原轨迹全部输出逐字相同，原生产库与同target的观测/恢复程序身份已保存。原生同帧队列新增规范fixture先FAIL后PASS，重复/倒序请求均取最短，非法数组拒绝；.101四个规范样本输出逐字不变。6份当次UE实现匹配Git，114份ALS/184份Rust、13个uasset及生产库保持，reader源/package/Mac库一致。证据`target/bf144/102/summary.json`、`native.checked.json`、`final.json`和record watchdog。首次探针编译因局部变量遮蔽失败，改名后通过；反射夹具修正了Struct命名空间，失败产物不作Gate证据。累计193项（106P2/87P3）。profiles、稀疏骨骼/通道、曲线键历史、跳帧/teleport与空间重表达继续待审；公共Playground及完整UE角色世界未运行，截图0、性能暂停。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -1889,6 +1898,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Source：`AnimNode_Inertialization.cpp:165–172`在负速度小于−1e−4源单位时缩短衰减时间以避免穿过零点；`ApplyTo:1049–1052`传入的平移距离/速度均为厘米。旋转、scale和曲线的同一标量函数使用各自无单位/角度数据，不能给所有通道套同一个目标速度数值。
   - Target：`inertialization.rs:15,39–41`保留1e−4，`inertialization_passthrough.rs:287–296`却直接传米单位的平移差值及速度。相同单位的1960组多项式计算全部通过，差别在调用处的单位语义。
   - 反例：历史偏移2.002µm→1.001µm、历史delta=1/60、目标0、请求0.2秒。经过0.05秒，原生仍为+0.010250µm，目标为−0.316723µm，跨过零点；距离高于D190源门槛、时间也正常，已隔离该项。两个失败采样仅把平移输入按源厘米求值后再换回米即可恢复。
+  - BF144.102补充：相同调用单位还改变五次多项式的f32系数舍入；1米偏移、0.2秒请求的末段最大差约0.684µm，16个连续帧不符。用源厘米数值调用同一生产函数再换回米后全部恢复；这部分数值差不另增编号。
   - 漏检/边界：旧单调测试取1.0量级，未覆盖实际平移单位下的限时分支。当前误差为亚微米级，未证明默认运动的可见症状。证据`101/analysis.json`、`native_analysis.json`与`recovery.json`；只登记，未修复。
 
 - [ ] BF144-D192 / P3 — 惯性平移差值的混合精度投影未保留源数值结果。
@@ -1896,6 +1906,25 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：同一`vector_difference`全程使用f32 Vec3，相同输入得到完全相等的距离和投影、速度为0。此项不涉及D190的门槛分支，也不涉及D191的限时分支。
   - 反例：两份平移均为0.0010000000474974513米，历史delta=100.1µs、目标0、请求0.2秒。0.05秒时原生为0.000896456912160米，目标为0.000896484416444米，差约2.75e−8米；另一1/60秒采样差约1.19e−8米。两组独立参考与原生结果一致；关闭源速度求值的100µs及普通帧长控制已保留。
   - 漏检/边界：旧测试没有相同姿态、临界历史时间与源混合精度的组合；这是已证实的微小数值差，不声称肉眼可见或稳定影响默认动作。证据`101/native_analysis.json`索引173/174；只登记，未修复。
+
+
+- [ ] BF144-D193 / P3 — 即时惯性请求停止后遗留欠时，污染后续重入。
+  - Source：`AnimNode_Inertialization.cpp:568–587`在Pending/Active状态先推进elapsed；达到请求duration即清零deficit，再停用节点。零时长以及小于本帧delta的请求同样执行此路径。
+  - Target：`inertialization_passthrough.rs:359–387,557–575`先将节点设为inactive，随后跳过唯一清理deficit的active分支，旧欠时留下；下一次普通请求重启后又携带该值，后续重入被额外缩短。
+  - 反例：60Hz请求序列0.4→0.4→0→0.2→0.2，零时长后target仍保留0.366667秒欠时；最后一个0.2秒请求被缩为0.016667秒，平移直接到0，原生仍为0.005061853米，曲线也从应有0.005061907跳为0。30/60Hz、平移/scale/旋转/曲线及零/极短/同帧包含零的请求共24条轨迹、192个失败帧；只在受控夹具清除inactive节点deficit后均恢复，其他状态不改。
+  - 漏检/边界：旧重入测试持续保持active，未串联一次即时停止、一次重新开始和再次打断。对照使用实际生产节点和原生主AB节点；未声称默认场景自然出现此请求组合。证据`102/final.json`、`native.checked.json`及`recovery-final.json`；只登记，未修复。
+
+- [ ] BF144-D194 / P3 — 惯性节点用机器epsilon拒绝仍有效的极短请求。
+  - Source：`AnimNode_Inertialization.cpp:478–588`接受非负时长，按elapsed与duration比较状态；标量衰减只在`t >= duration − 1e−7`时归零。零delta下，duration略大于1e−7时仍应保留初始差值。
+  - Target：`inertialization_passthrough.rs:387,553`要求duration/max_duration大于`f32::EPSILON`（约1.1920929e−7），因此1.05e−7、1.1e−7和该机器epsilon边界被提前判为inactive，未进入原有正确的标量函数。
+  - 反例：已积累两帧历史后，以1.1e−7秒请求从1米/曲线1切到0，delta=0；原生保持1，目标立即为0，连续五个零delta帧均不同。40条时长/步长边界轨迹中17帧失败；1e−7及以下、1.2e−7及以上和普通步长控制通过。位移量与历史delta均远离D190，未由其触发。
+  - 漏检/边界：旧测试只覆盖常规请求时长。此项是极小有效时长与零/10ns步长的API边界，未证明默认游戏配置自然触发。证据`102/native.checked.json`、`final-analysis.json`；只登记，未修复。
+
+- [ ] BF144-D195 / P3 — 惯性旋转差分额外归一化，丢掉源保留的近单位旋转量。
+  - Source：`AnimNode_Inertialization.cpp:905–924`直接对PrevRotation×TargetInverse求轴角；`Quat.h::ToAxisAndAngle/GetRotationAxis`保留W带来的微小角度，零向量使用源X轴。目标坐标下该回退轴为−X。
+  - Target：`inertialization_passthrough.rs:184–195`先把当前/上一份差分四元数normalize，再求轴角和twist；近单位标量四元数被变成精确identity，源角度消失。
+  - 反例：两份历史四元数为(0,0,0,0.9999999403953552)，通过原生IsNormalized检查；目标为identity、duration=0.2、delta=1/60。原生留下约0.000687rad绕目标−X的旋转，target为0。三个直接输入反例均不符；给历史补上与源回退轴对应的单位四元数向量后，两侧输出与原生基准对齐。连续请求又在9帧观察到此差别，源NormalizeRotations留下的微小范数误差在下一次差分中产生角度。
+  - 漏检/边界：旧短弧/twist测试没有近单位、向量部分为零及多次请求的组合；不把反直觉的源结果优化掉。直接反例排除了D192的double历史无法由f32表示问题；幅度很小，未声称有默认动作可见症状。证据`102/native.checked.json`的near_unit_rotation及对应正控制；只登记，未修复。
 
 ### 核验边界记录（不计为无差异）
 

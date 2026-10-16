@@ -2056,6 +2056,17 @@ TSharedPtr<FJsonObject> CaptureInertializationProbe(UObject* Asset, const FStrin
                     !FMath::IsFinite(static_cast<float>(Duration)) || Duration < 0.0) { return nullptr; }
                 Node.RequestInertialization(static_cast<float>(Duration), nullptr);
             }
+            if ((*Step)->HasField(TEXT("request_durations")))
+            {
+                const TArray<TSharedPtr<FJsonValue>>* Durations = nullptr;
+                if (!(*Step)->TryGetArrayField(TEXT("request_durations"), Durations)) { return nullptr; }
+                for (const TSharedPtr<FJsonValue>& DurationValue : *Durations)
+                {
+                    double Duration;
+                    if (!DurationValue->TryGetNumber(Duration) || !FMath::IsFinite(static_cast<float>(Duration)) || Duration < 0.0) { return nullptr; }
+                    Node.RequestInertialization(static_cast<float>(Duration), nullptr);
+                }
+            }
             Proxy.AdvanceFrame();
             FAnimationUpdateSharedContext SharedContext;
             Node.Update_AnyThread(FAnimationUpdateContext(&Proxy, static_cast<float>(Delta), &SharedContext));
@@ -2077,6 +2088,9 @@ TSharedPtr<FJsonObject> CaptureInertializationProbe(UObject* Asset, const FStrin
     }
     TSharedRef<FJsonObject> Probe = MakeShared<FJsonObject>();
     Probe->SetArrayField(TEXT("samples"), Results);
+    Probe->SetNumberField(TEXT("enabled"), IConsoleManager::Get().FindConsoleVariable(TEXT("a.AnimNode.Inertialization.Enable"))->GetInt());
+    Probe->SetNumberField(TEXT("ignore_velocity"), IConsoleManager::Get().FindConsoleVariable(TEXT("a.AnimNode.Inertialization.IgnoreVelocity"))->GetInt());
+    Probe->SetNumberField(TEXT("ignore_deficit"), IConsoleManager::Get().FindConsoleVariable(TEXT("a.AnimNode.Inertialization.IgnoreDeficit"))->GetInt());
     return Probe;
 }
 

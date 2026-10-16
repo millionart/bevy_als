@@ -27,7 +27,7 @@
 
 `gjk_simplex` / `next_gjk_simplex` 分别保留两帧的GJK支持点和重心权重。冷重建使用另一个sample在相同当前姿态运行已有 `aggregate_mesh`，以独立的新约束作对照；`fresh_points` 仍是同一约束的重复重建，不代表冷查询。粒子的旋转按源 `PBDRigidParticles::SetQ` 保存为float32，旋转请求应采用同一精度。`physics_contact_gjk_history.request.json` 与 `test_physics_contact_gjk_history.py` 覆盖分离核心、EPA及无缓存路径；`project_initial_overlap_depenetration_velocity_cm_s` 来自项目的世界solver配置，不是PA中的RBAN配置。
 
-`run_ue_source_reader.ps1 -InertializationProbe <request.json>` 接受含唯一原生Inertialization节点的AnimBP，复制其CDO节点并通过公开Update/Evaluate入口运行受控单骨骼历史。每个sample提供`name`及`steps`；每步包含`delta_seconds`、源厘米单位的`translation_cm`、xyzw四元数`rotation`和`scale`，可选`curves`与`request_duration`。输出逐帧Transform与曲线；它不运行完整角色世界，不改源资产。用`tools/tests/fixtures/inertialization.request.json`及`python tools/tests/test_inertialization_probe.py <output.json>`核对正常衰减、短历史时间、微小缩放与无请求边界。
+`run_ue_source_reader.ps1 -InertializationProbe <request.json>` 接受含唯一原生Inertialization节点的AnimBP，复制其CDO节点并通过公开Update/Evaluate入口运行受控单骨骼历史。每个sample提供`name`及`steps`；每步包含`delta_seconds`、源厘米单位的`translation_cm`、xyzw四元数`rotation`和`scale`，可选`curves`、单个`request_duration`或同帧数组`request_durations`。所有请求在该步唯一一次Update/Evaluate前排入队列。输出逐帧Transform、曲线及实际Enable/IgnoreVelocity/IgnoreDeficit；它不运行完整角色世界，不改源资产。用`tools/tests/fixtures/inertialization.request.json`及`python tools/tests/test_inertialization_probe.py <output.json>`核对正常衰减、短历史时间、微小缩放、无请求与同帧最短时长边界。
 
 2026-09-26 删除了 UE MCP client 及其完整调用链（输入审计、旧相机导出、拓扑/截图和五个 shell 探测脚本），当前取证统一使用原生 reader。相机曲线的目标转换使用 `import/import_curve_float.py`、`import/import_debug_curves.py` 和 `import/camera_curve_conversion.py`。
 
