@@ -152,7 +152,7 @@ function Invoke-WatchdogSelfTest {
         $sourceFile = Join-Path $sourceRoot "Source/Reader.cpp"
         $sourcePlugin = Join-Path $sourceRoot "AlsGraphSourceReader.uplugin"
         $builtPlugin = Join-Path $builtRoot "AlsGraphSourceReader.uplugin"
-        $builtDll = Join-Path $builtRoot $(if ($IsWindows) { "Binaries/Win64/UnrealEditor-AlsGraphSourceReader.dll" } else { "Binaries/Mac/UnrealEditor-AlsGraphSourceReader.dylib" })
+        $builtDll = Join-Path $builtRoot $(if ($IsWindows) { "Binaries/Win64/UnrealEditor-AlsGraphSourceReader.dll" } else { "Binaries/Mac/libUnrealEditor-AlsGraphSourceReader.dylib" })
         New-Item -ItemType Directory -Path (Join-Path $sourceRoot "Source"), (Split-Path $builtDll) -Force | Out-Null
         Set-Content -LiteralPath $sourceFile -Value "source"
         Set-Content -LiteralPath $sourcePlugin -Value "descriptor"
@@ -211,7 +211,7 @@ function Invoke-WatchdogSelfTest {
 function Test-ReaderBuildRequired {
     param([string]$SourceRoot, [string]$BuiltPlugin)
 
-    $library = if ($IsWindows) { "Binaries/Win64/UnrealEditor-AlsGraphSourceReader.dll" } else { "Binaries/Mac/UnrealEditor-AlsGraphSourceReader.dylib" }
+    $library = if ($IsWindows) { "Binaries/Win64/UnrealEditor-AlsGraphSourceReader.dll" } else { "Binaries/Mac/libUnrealEditor-AlsGraphSourceReader.dylib" }
     $dll = Join-Path (Split-Path -Parent $BuiltPlugin) $library
     if (-not (Test-Path -LiteralPath $BuiltPlugin) -or -not (Test-Path -LiteralPath $dll)) { return $true }
     $binaryTime = (Get-Item -LiteralPath $dll).LastWriteTimeUtc

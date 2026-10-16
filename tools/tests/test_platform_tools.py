@@ -149,7 +149,7 @@ class PlatformToolsTest(unittest.TestCase):
         plugin.touch()
         for windows, folder, extension in [(True, "Win64", "dll"), (False, "Mac", "dylib")]:
             with self.subTest(platform=folder):
-                library = package / "Binaries" / folder / ("UnrealEditor-AlsGraphSourceReader." + extension)
+                library = package / "Binaries" / folder / (("" if windows else "lib") + "UnrealEditor-AlsGraphSourceReader." + extension)
                 library.parent.mkdir(parents=True)
                 library.touch()
                 os.utime(library, (time.time() + 5, time.time() + 5))
