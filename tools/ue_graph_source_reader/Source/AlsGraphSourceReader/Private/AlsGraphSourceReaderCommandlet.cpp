@@ -1968,13 +1968,19 @@ TSharedPtr<FJsonObject> CaptureInertializationProbe(UObject* Asset, const FStrin
         UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Inertialization probe asset or request is invalid."));
         return nullptr;
     }
+    FString RequestedNodeProperty;
+    if (Request->HasField(TEXT("node_property")) &&
+        (!Request->TryGetStringField(TEXT("node_property"), RequestedNodeProperty) || RequestedNodeProperty.IsEmpty())) { return nullptr; }
+    FString NodeProperty;
     const FAnimNode_Inertialization* Template = nullptr;
     for (const FStructProperty* Property : Interface->GetAnimNodeProperties())
     {
-        if (Property->Struct == FAnimNode_Inertialization::StaticStruct())
+        if (Property->Struct == FAnimNode_Inertialization::StaticStruct() &&
+            (RequestedNodeProperty.IsEmpty() || RequestedNodeProperty == Property->GetName()))
         {
             if (Template != nullptr) { return nullptr; }
             Template = Property->ContainerPtrToValuePtr<FAnimNode_Inertialization>(Blueprint->GeneratedClass->GetDefaultObject());
+            NodeProperty = Property->GetName();
         }
     }
     if (Template == nullptr) { return nullptr; }
@@ -2088,6 +2094,7 @@ TSharedPtr<FJsonObject> CaptureInertializationProbe(UObject* Asset, const FStrin
     }
     TSharedRef<FJsonObject> Probe = MakeShared<FJsonObject>();
     Probe->SetArrayField(TEXT("samples"), Results);
+    Probe->SetStringField(TEXT("node_property"), NodeProperty);
     Probe->SetNumberField(TEXT("enabled"), IConsoleManager::Get().FindConsoleVariable(TEXT("a.AnimNode.Inertialization.Enable"))->GetInt());
     Probe->SetNumberField(TEXT("ignore_velocity"), IConsoleManager::Get().FindConsoleVariable(TEXT("a.AnimNode.Inertialization.IgnoreVelocity"))->GetInt());
     Probe->SetNumberField(TEXT("ignore_deficit"), IConsoleManager::Get().FindConsoleVariable(TEXT("a.AnimNode.Inertialization.IgnoreDeficit"))->GetInt());
