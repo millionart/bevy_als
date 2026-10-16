@@ -13,6 +13,8 @@ for sample, result in zip(request['samples'], data):
     alpha = frame['alpha']
     factor = sample['deltas'][0] / sample['duration']
     assert frame['complete'] == (factor >= 1.0)
+    assert abs(frame['blend_alpha'] - min(factor, 1.0)) < 1e-7
+    assert abs(frame['blend_value'] - alpha) < 1e-7
     assert abs(alpha - factor * factor * (3 - 2 * factor)) < 1e-7
     assert len(frame['bones']) == 19
     scale = {'QuickFeetBlend': 5.0, 'MoveDirectionChange': 2.0}[sample['profile']]

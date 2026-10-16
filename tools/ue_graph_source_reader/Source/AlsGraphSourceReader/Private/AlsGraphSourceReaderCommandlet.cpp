@@ -2054,6 +2054,8 @@ TSharedPtr<FJsonObject> CaptureBlendProfileProbe(UObject* Asset, const FString& 
             Frame->SetNumberField(TEXT("elapsed"), Elapsed);
             Frame->SetNumberField(TEXT("factor"), Factor);
             Frame->SetNumberField(TEXT("alpha"), Alpha);
+            Frame->SetNumberField(TEXT("blend_alpha"), Blend.GetAlpha());
+            Frame->SetNumberField(TEXT("blend_value"), Blend.GetBlendedValue());
             Frame->SetBoolField(TEXT("complete"), Blend.IsComplete());
             Frame->SetNumberField(TEXT("curve"), Curve.Get(TEXT("ProbeCurve")));
             Frame->SetObjectField(TEXT("bones"), Bones);
