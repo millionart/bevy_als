@@ -1955,6 +1955,64 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
     return Probe;
 }
 
+TSharedPtr<FJsonObject> CaptureSequenceClockProbe(UObject* Asset, const FString& RequestPath)
+{
+    FMemMark Mark(FMemStack::Get());
+    UAnimSequenceBase* Sequence = Cast<UAnimSequenceBase>(Asset);
+    FString Text;
+    TSharedPtr<FJsonObject> Request;
+    const TArray<TSharedPtr<FJsonValue>>* Samples = nullptr;
+    if (Sequence == nullptr || Sequence->GetPlayLength() <= 0.0f || !FFileHelper::LoadFileToString(Text, *RequestPath) ||
+        !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Request) ||
+        !Request->TryGetArrayField(TEXT("samples"), Samples) || Samples->IsEmpty() || Samples->Num() > 512) { return nullptr; }
+    const TArray<FName> NoMarkers;
+    TArray<TSharedPtr<FJsonValue>> Rows;
+    for (const TSharedPtr<FJsonValue>& SampleValue : *Samples)
+    {
+        const TSharedPtr<FJsonObject>* Sample = nullptr;
+        const TArray<TSharedPtr<FJsonValue>>* Deltas = nullptr;
+        FString Name;
+        double Start, Rate;
+        if (!SampleValue->TryGetObject(Sample) || !(*Sample)->TryGetStringField(TEXT("name"), Name) ||
+            !(*Sample)->TryGetNumberField(TEXT("start"), Start) || !FMath::IsFinite(static_cast<float>(Start)) || Start < 0.0 || Start > Sequence->GetPlayLength() ||
+            !(*Sample)->TryGetNumberField(TEXT("rate"), Rate) || !FMath::IsFinite(static_cast<float>(Rate)) ||
+            !(*Sample)->TryGetArrayField(TEXT("deltas"), Deltas) || Deltas->IsEmpty() || Deltas->Num() > 512) { return nullptr; }
+        float Time = static_cast<float>(Start);
+        FDeltaTimeRecord DeltaRecord;
+        FMarkerTickRecord MarkerRecord;
+        TArray<TSharedPtr<FJsonValue>> Frames;
+        for (const TSharedPtr<FJsonValue>& DeltaValue : *Deltas)
+        {
+            double Delta;
+            if (!DeltaValue->TryGetNumber(Delta) || Delta < 0.0 || !FMath::IsFinite(static_cast<float>(Delta)) ||
+                !FMath::IsFinite(static_cast<float>(Delta) * static_cast<float>(Rate) * Sequence->RateScale)) { return nullptr; }
+            FAnimTickRecord Tick(Sequence, false, static_cast<float>(Rate), false, 1.0f, Time, MarkerRecord);
+            Tick.DeltaTimeRecord = &DeltaRecord;
+            Tick.bCanUseMarkerSync = false;
+            FAnimNotifyQueue Queue;
+            FAnimAssetTickContext Context(static_cast<float>(Delta), ERootMotionMode::NoRootMotionExtraction, true, NoMarkers);
+            Sequence->TickAssetPlayer(Tick, Queue, Context);
+            TSharedRef<FJsonObject> Frame = MakeShared<FJsonObject>();
+            Frame->SetNumberField(TEXT("position"), Time);
+            Frame->SetNumberField(TEXT("previous"), DeltaRecord.GetPrevious());
+            Frame->SetBoolField(TEXT("has_previous"), DeltaRecord.IsPreviousValid());
+            Frame->SetNumberField(TEXT("playback_delta"), DeltaRecord.Delta);
+            Frame->SetNumberField(TEXT("ratio"), Context.GetAnimationPositionRatio());
+            Frames.Add(MakeShared<FJsonValueObject>(Frame));
+        }
+        TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>();
+        Row->SetStringField(TEXT("name"), Name);
+        Row->SetArrayField(TEXT("frames"), Frames);
+        Rows.Add(MakeShared<FJsonValueObject>(Row));
+        UE_LOG(LogAlsGraphSourceReader, Display, TEXT("Sequence clock sample %d/%d captured."), Rows.Num(), Samples->Num());
+    }
+    TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+    Result->SetNumberField(TEXT("duration"), Sequence->GetPlayLength());
+    Result->SetNumberField(TEXT("rate_scale"), Sequence->RateScale);
+    Result->SetArrayField(TEXT("samples"), Rows);
+    return Result;
+}
+
 TSharedPtr<FJsonObject> CaptureBlendProfileProbe(UObject* Asset, const FString& RequestPath)
 {
     FMemMark Mark(FMemStack::Get());
@@ -3088,6 +3146,13 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
         const TSharedPtr<FJsonObject> Probe = CaptureMontageClockProbe(Asset, MontageClockProbePath);
         if (!Probe.IsValid()) { return 7; }
         Root->SetObjectField(TEXT("montage_clock_probe"), Probe.ToSharedRef());
+    }
+    FString SequenceClockProbePath;
+    if (FParse::Value(*Params, TEXT("SequenceClockProbe="), SequenceClockProbePath))
+    {
+        const TSharedPtr<FJsonObject> Probe = CaptureSequenceClockProbe(Asset, SequenceClockProbePath);
+        if (!Probe.IsValid()) { return 7; }
+        Root->SetObjectField(TEXT("sequence_clock_probe"), Probe.ToSharedRef());
     }
     FString BlendProfileProbePath;
     if (FParse::Value(*Params, TEXT("BlendProfileProbe="), BlendProfileProbePath))

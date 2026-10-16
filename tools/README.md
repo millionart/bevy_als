@@ -33,6 +33,8 @@
 
 `run_ue_source_reader.ps1 -StateMachinePlayers` 接受AnimBP，输出编译后的FSM、状态及有序PlayerNodeIndices/LayerNodeIndices，并将节点索引映射到CDO属性和原图GUID。读取器校验GUID往返；Sequence Player额外输出资产长度/RateScale和公开getter取得的有效速率、起点、loop/ignore配置，原始反射字段仍在已有CDO记录中。该入口不执行动画图或模拟播放器时钟。用`python tools/tests/test_state_machine_players.py <output.json>`检查编译索引、原图身份、节点类型和有效配置结构。
 
+`run_ue_source_reader.ps1 -SequenceClockProbe <request.json>` 接受Sequence，以真实资产的TickAssetPlayer记录无marker、非循环单leader时钟。sample提供`name`、初始TimeAccumulator `start`、`rate`和`deltas`；输出实际资产长度/RateScale以及逐帧position、previous、delta、有效历史标志和归一化比例。它不执行完整AnimBP或分组竞争。使用`tools/tests/fixtures/sequence_clock.request.json`及`python tools/tests/test_sequence_clock_probe.py <output.json>`核对零步长、正向、反向和末端夹紧。
+
 2026-09-26 删除了 UE MCP client 及其完整调用链（输入审计、旧相机导出、拓扑/截图和五个 shell 探测脚本），当前取证统一使用原生 reader。相机曲线的目标转换使用 `import/import_curve_float.py`、`import/import_debug_curves.py` 和 `import/camera_curve_conversion.py`。
 
 同批删除六个早期 Interchange API 试验脚本、没有消费者的 `probe_scene2.py`，以及反复改写旧 Playground parity 文件的 `patch_parity_ron.py`、`test_lighting_only.py`。实际导出器、原始资产、生成图、归档证据和本地配置保留。
