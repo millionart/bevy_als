@@ -26,9 +26,10 @@
     - 13:38 runtime结果：入口成功启动arm64程序，但自动退出先于grounded spawn verdict，退出12；runner继续审计原始报告并正确判定`visual report is not ready`，没有把未就绪计作通过。先检查报告与startup计时/就绪链，尚未归因为运动算法或扩大相邻图范围；不立即重复启动。
     - 13:49静态修复及runtime前摘要：原计时器从启动即计10秒，而既有spawn检测需要20个稳定传感帧及60个可见帧；失败报告只有3个pose样本、无graph error/fault，frame约2秒但CPU约8毫秒，故只修验证入口过早退出。已有visual progress资源开启时等待spawn/render/evidence全部有结果；明确失败仍立即失败，未开启验证的旧计时退出行为不变，外层无进展上限300秒保持。7种pending/pass/fail反例先FAIL，改后11项入口测试PASS；删除guard再FAIL，源码字节恢复、同target复验及真实程序重编PASS。下一次公共startup写独立目录，保留首轮失败证据；原运动算法、帧数与数值标准不改。
     - runtime完成摘要：Apple M6/Metal真实Playground运行14.4秒并正常退出；报告ready=true、306个frame样本、85个pose样本、18个必需骨骼齐全，fault/graph error均0；SSAO/TAA执行证据、decal receiver与公共validator通过，截图0。原始报告仍保留frame P95性能失败，只有FunctionalOnly通过，不声明性能或全量运动等价。证据`target/animation_visual/startup-mac/`；Windows验证范围为共用脚本、平台参数和fixture，未做真机运行。
-- [ ] BF145.03 获取指定UE源码基线：用户追加指定EpicGames/UnrealEngine的`396c9f059903aed5fec78ecd3d437a40c6415368`，独立检出并核对HEAD/源码文件，将本地环境文档的源码与安装版引擎分开。Gate：指定commit身份、关键实现文件、Git工作区状态与隐私检查。开始：2026-10-16 12:14 +08:00；预估结束：2026-10-16 12:44 +08:00。估时依据：只获取指定commit，不下载引擎编译依赖；Git下载受固定无进展上限约束，先验证账号访问；与.02编译无依赖，可独立进行。
+- [x] BF145.03 获取指定UE源码基线：用户追加指定EpicGames/UnrealEngine的`396c9f059903aed5fec78ecd3d437a40c6415368`，独立检出并核对HEAD/源码文件，将本地环境文档的源码与安装版引擎分开。Gate：指定commit身份、关键实现文件、Git工作区状态与隐私检查。开始：2026-10-16 12:14 +08:00；首轮预估结束：2026-10-16 12:44 +08:00；续轮预估13:32、实际结束13:52:22，续轮偏差+20分22秒；结果：PASS。估时依据：只获取指定commit，不下载引擎编译依赖；Git下载受固定无进展上限约束，先验证账号访问；与.02编译无依赖，可独立进行。
   - 下载边界：GitHub API已确认指定commit与tree `5b20ea5b0e15d3d2097cc4cb3f6ce180c0b6038b`。整包Git在13%/约14MiB时因HTTP/2传输中断；只读归档探测同样约20KiB/s。改为同一commit的过滤获取，再按Git对象分批并行准备引擎/插件源码、Shader与构建配置目录；不运行引擎Setup，不将安装版缺失cpp视为源码已齐。
   - 12:47中断复盘：commit/目录对象已完整取得；源码计划204663个文件、182468个唯一blob，首批35个分组完成记录中34个成功、1个被中断终止，尚未checkout，不能声称源码就绪。重新检查实际Git对象后只补缺失项。首轮开始12:14、预估12:44、复盘12:47，偏差+3分钟；本轮开始12:47、预估13:32（上一轮窗口×1.5），依据为每批500对象约50–70秒、12路并发及已有对象，不重做失败整包下载。
+  - 完成/估时复盘：204663个源码相关文件已检出，HEAD与tree均匹配指定基线，工作区干净；Character、CMC、SkeletalMeshComponent、PluginManager四个实现文件的实际字节哈希逐项等于Git blob。尾部延误来自单个约37MB的Commit.gitdeps.xml：按对象数量均分没有覆盖大小差异，拆为小对象和独立大对象后，进展同时观察真实pack写入，避免把大对象无控制台输出误判为停滞。13:50:15完成checkout，13:52:22完成身份检查和本地env更新；源码与安装版运行引擎已分开。未运行Setup或编译UE引擎，稀疏范围为引擎/插件源码、Shader、Build与Config；证据`tools/tmp/mac_win/engine-identity.json`。后续同类估时应以缺失字节/最大对象与实测吞吐为依据，不只数对象。
 
 ## 背景与基础事实（已核实，持续有效）
 
