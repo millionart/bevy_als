@@ -1,0 +1,8 @@
+{
+  "samples": [
+    {"name":"full_half_decay","steps":[{"translation_cm":[100,0,0],"rotation":[0,0.7071067811865475,0,0.7071067811865476],"scale":[1,1,1],"curves":{"Curve":1},"delta_seconds":0.016666666666666666},{"translation_cm":[100,0,0],"rotation":[0,0.7071067811865475,0,0.7071067811865476],"scale":[1,1,1],"curves":{"Curve":1},"delta_seconds":0.016666666666666666},{"translation_cm":[0,0,0],"rotation":[0,0.0,0,1.0],"scale":[1,1,1],"curves":{"Curve":0},"delta_seconds":0.1,"request_duration":0.2}]},
+    {"name":"small_scale","steps":[{"translation_cm":[0,0,0],"rotation":[0,0.0,0,1.0],"scale":[1.00005,1,1],"curves":{},"delta_seconds":0.016666666666666666},{"translation_cm":[0,0,0],"rotation":[0,0.0,0,1.0],"scale":[1.00005,1,1],"curves":{},"delta_seconds":0.016666666666666666},{"translation_cm":[0,0,0],"rotation":[0,0.0,0,1.0],"scale":[1,1,1],"curves":{},"delta_seconds":0.1,"request_duration":0.2}]},
+    {"name":"short_history","steps":[{"translation_cm":[200,0,0],"rotation":[0,0.0,0,1.0],"scale":[1,1,1],"curves":{},"delta_seconds":5e-05},{"translation_cm":[100,0,0],"rotation":[0,0.0,0,1.0],"scale":[1,1,1],"curves":{},"delta_seconds":5e-05},{"translation_cm":[0,0,0],"rotation":[0,0.0,0,1.0],"scale":[1,1,1],"curves":{},"delta_seconds":0.1,"request_duration":0.2}]},
+    {"name":"no_request","steps":[{"translation_cm":[100,0,0],"rotation":[0,0.0,0,1.0],"scale":[1,1,1],"curves":{},"delta_seconds":0.016666666666666666},{"translation_cm":[100,0,0],"rotation":[0,0.0,0,1.0],"scale":[1,1,1],"curves":{},"delta_seconds":0.016666666666666666},{"translation_cm":[0,0,0],"rotation":[0,0.0,0,1.0],"scale":[1,1,1],"curves":{},"delta_seconds":0.1}]}
+  ]
+}

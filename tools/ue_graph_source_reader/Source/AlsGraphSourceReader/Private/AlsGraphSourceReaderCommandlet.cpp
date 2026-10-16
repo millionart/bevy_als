@@ -15,6 +15,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimClassInterface.h"
 #include "Animation/AnimNode_SaveCachedPose.h"
+#include "Animation/AnimNode_Inertialization.h"
 #include "Animation/AnimNotifyQueue.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "Animation/AnimSequence.h"
@@ -1951,6 +1952,134 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
     return Probe;
 }
 
+TSharedPtr<FJsonObject> CaptureInertializationProbe(UObject* Asset, const FString& RequestPath)
+{
+    UBlueprint* Blueprint = Cast<UBlueprint>(Asset);
+    const IAnimClassInterface* Interface = Blueprint != nullptr && Blueprint->GeneratedClass != nullptr
+        ? IAnimClassInterface::GetFromClass(Blueprint->GeneratedClass) : nullptr;
+    FString Text;
+    TSharedPtr<FJsonObject> Request;
+    const TArray<TSharedPtr<FJsonValue>>* Samples = nullptr;
+    if (Interface == nullptr || Interface->GetTargetSkeleton() == nullptr ||
+        !FFileHelper::LoadFileToString(Text, *RequestPath) ||
+        !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Request) ||
+        !Request->TryGetArrayField(TEXT("samples"), Samples) || Samples->IsEmpty() || Samples->Num() > 2048)
+    {
+        UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Inertialization probe asset or request is invalid."));
+        return nullptr;
+    }
+    const FAnimNode_Inertialization* Template = nullptr;
+    for (const FStructProperty* Property : Interface->GetAnimNodeProperties())
+    {
+        if (Property->Struct == FAnimNode_Inertialization::StaticStruct())
+        {
+            if (Template != nullptr) { return nullptr; }
+            Template = Property->ContainerPtrToValuePtr<FAnimNode_Inertialization>(Blueprint->GeneratedClass->GetDefaultObject());
+        }
+    }
+    if (Template == nullptr) { return nullptr; }
+    const auto ReadNumbers = [](const TSharedPtr<FJsonObject>& Object, const TCHAR* Key, double* Values, int32 Count)
+    {
+        const TArray<TSharedPtr<FJsonValue>>* Array = nullptr;
+        if (!Object->TryGetArrayField(Key, Array) || Array->Num() != Count) { return false; }
+        for (int32 Index = 0; Index < Count; ++Index)
+        {
+            if (!(*Array)[Index]->TryGetNumber(Values[Index]) || !FMath::IsFinite(Values[Index])) { return false; }
+        }
+        return true;
+    };
+    struct FProbeProxy : FAnimInstanceProxy
+    {
+        using FAnimInstanceProxy::FAnimInstanceProxy;
+        using FAnimInstanceProxy::Initialize;
+        void AdvanceFrame() { UpdateCounter.Increment(); }
+    };
+    struct FProbeNode : FAnimNode_Base
+    {
+        FTransform Transform;
+        TMap<FName, float> Curves;
+        virtual void Evaluate_AnyThread(FPoseContext& Output) override
+        {
+            Output.Pose.ResetToRefPose();
+            Output.Pose[FCompactPoseBoneIndex(0)] = Transform;
+            Output.Curve.Empty();
+            for (const auto& Curve : Curves) { Output.Curve.Set(Curve.Key, Curve.Value); }
+        }
+    };
+    TArray<TSharedPtr<FJsonValue>> Results;
+    for (const TSharedPtr<FJsonValue>& Value : *Samples)
+    {
+        const TSharedPtr<FJsonObject>* Sample = nullptr;
+        const TArray<TSharedPtr<FJsonValue>>* Steps = nullptr;
+        FString Name;
+        if (!Value->TryGetObject(Sample) || !(*Sample)->TryGetStringField(TEXT("name"), Name) ||
+            !(*Sample)->TryGetArrayField(TEXT("steps"), Steps) || Steps->IsEmpty() || Steps->Num() > 256) { return nullptr; }
+        USkeletalMeshComponent* Mesh = NewObject<USkeletalMeshComponent>();
+        Mesh->SetTeleportDistanceThreshold(0.0f);
+        UAnimInstance* Instance = NewObject<UAnimInstance>(Mesh);
+        FProbeProxy Proxy(Instance);
+        Proxy.Initialize(Instance);
+        Proxy.GetRequiredBones().InitializeTo(TArray<FBoneIndexType>{0}, UE::Anim::FCurveFilterSettings(), *Interface->GetTargetSkeleton());
+        FProbeNode Child;
+        FAnimNode_Inertialization Node(*Template);
+        Node.Source.SetLinkNode(&Child);
+        Node.Initialize_AnyThread(FAnimationInitializeContext(&Proxy));
+        Node.CacheBones_AnyThread(FAnimationCacheBonesContext(&Proxy));
+        TArray<TSharedPtr<FJsonValue>> Frames;
+        for (const TSharedPtr<FJsonValue>& StepValue : *Steps)
+        {
+            const TSharedPtr<FJsonObject>* Step = nullptr;
+            double Delta, Translation[3], Rotation[4], Scale[3];
+            if (!StepValue->TryGetObject(Step) || !(*Step)->TryGetNumberField(TEXT("delta_seconds"), Delta) ||
+                !FMath::IsFinite(static_cast<float>(Delta)) || Delta < 0.0 ||
+                !ReadNumbers(*Step, TEXT("translation_cm"), Translation, 3) ||
+                !ReadNumbers(*Step, TEXT("rotation"), Rotation, 4) || !ReadNumbers(*Step, TEXT("scale"), Scale, 3)) { return nullptr; }
+            const FQuat Quaternion(Rotation[0], Rotation[1], Rotation[2], Rotation[3]);
+            if (!Quaternion.IsNormalized()) { return nullptr; }
+            Child.Transform = FTransform(Quaternion, FVector(Translation[0], Translation[1], Translation[2]), FVector(Scale[0], Scale[1], Scale[2]));
+            Child.Curves.Reset();
+            const TSharedPtr<FJsonObject>* Curves = nullptr;
+            if ((*Step)->HasField(TEXT("curves")))
+            {
+                if (!(*Step)->TryGetObjectField(TEXT("curves"), Curves)) { return nullptr; }
+                for (const auto& Curve : (*Curves)->Values)
+                {
+                    double Amount;
+                    if (!Curve.Value->TryGetNumber(Amount) || !FMath::IsFinite(static_cast<float>(Amount))) { return nullptr; }
+                    Child.Curves.Add(FName(*Curve.Key), static_cast<float>(Amount));
+                }
+            }
+            if ((*Step)->HasField(TEXT("request_duration")))
+            {
+                double Duration;
+                if (!(*Step)->TryGetNumberField(TEXT("request_duration"), Duration) ||
+                    !FMath::IsFinite(static_cast<float>(Duration)) || Duration < 0.0) { return nullptr; }
+                Node.RequestInertialization(static_cast<float>(Duration), nullptr);
+            }
+            Proxy.AdvanceFrame();
+            FAnimationUpdateSharedContext SharedContext;
+            Node.Update_AnyThread(FAnimationUpdateContext(&Proxy, static_cast<float>(Delta), &SharedContext));
+            FMemMark Mark(FMemStack::Get());
+            FPoseContext Pose(&Proxy);
+            Node.Evaluate_AnyThread(Pose);
+            TSharedRef<FJsonObject> Frame = MakeShared<FJsonObject>();
+            Frame->SetObjectField(TEXT("transform"), CaptureTransform(Pose.Pose[FCompactPoseBoneIndex(0)]));
+            TSharedRef<FJsonObject> CurveValues = MakeShared<FJsonObject>();
+            Pose.Curve.ForEachElement([&CurveValues](const UE::Anim::FCurveElement& Curve) { CurveValues->SetNumberField(Curve.Name.ToString(), Curve.Value); });
+            Frame->SetObjectField(TEXT("curves"), CurveValues);
+            Frames.Add(MakeShared<FJsonValueObject>(Frame));
+        }
+        TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+        Result->SetStringField(TEXT("name"), Name);
+        Result->SetArrayField(TEXT("frames"), Frames);
+        Results.Add(MakeShared<FJsonValueObject>(Result));
+        if (Results.Num() % 100 == 0) { UE_LOG(LogAlsGraphSourceReader, Display, TEXT("Inertialization samples completed: %d"), Results.Num()); }
+    }
+    TSharedRef<FJsonObject> Probe = MakeShared<FJsonObject>();
+    Probe->SetArrayField(TEXT("samples"), Results);
+    return Probe;
+}
+
 TSharedPtr<FJsonObject> CaptureMontageClockProbe(UObject* Asset, const FString& RequestPath)
 {
     UAnimMontage* Montage = Cast<UAnimMontage>(Asset);
@@ -2720,6 +2849,13 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
         const TSharedPtr<FJsonObject> Probe = CaptureMontageClockProbe(Asset, MontageClockProbePath);
         if (!Probe.IsValid()) { return 7; }
         Root->SetObjectField(TEXT("montage_clock_probe"), Probe.ToSharedRef());
+    }
+    FString InertializationProbePath;
+    if (FParse::Value(*Params, TEXT("InertializationProbe="), InertializationProbePath))
+    {
+        const TSharedPtr<FJsonObject> Probe = CaptureInertializationProbe(Asset, InertializationProbePath);
+        if (!Probe.IsValid()) { return 7; }
+        Root->SetObjectField(TEXT("inertialization_probe"), Probe.ToSharedRef());
     }
     if (FParse::Param(*Params, TEXT("CachedPoseSchedule")))
     {
