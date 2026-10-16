@@ -14,8 +14,10 @@
 #include "Animation/AnimInstance.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimClassInterface.h"
+#include "Animation/AnimBlueprintGeneratedClass.h"
 #include "Animation/AnimNode_SaveCachedPose.h"
 #include "Animation/AnimNode_Inertialization.h"
+#include "Animation/AnimNode_SequencePlayer.h"
 #include "Animation/AnimNotifyQueue.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "Animation/AnimSequence.h"
@@ -2531,6 +2533,102 @@ TSharedRef<FJsonObject> CaptureAlphaBlendProbe()
     return Result;
 }
 
+TSharedPtr<FJsonObject> CaptureStateMachinePlayers(UObject* Asset)
+{
+    UBlueprint* Blueprint = Cast<UBlueprint>(Asset);
+    UAnimBlueprintGeneratedClass* Class = Blueprint != nullptr ? Cast<UAnimBlueprintGeneratedClass>(Blueprint->GeneratedClass) : nullptr;
+    const IAnimClassInterface* Interface = Class != nullptr ? IAnimClassInterface::GetFromClass(Class) : nullptr;
+    if (Interface == nullptr) { return nullptr; }
+    const TArray<FStructProperty*>& Properties = Interface->GetAnimNodeProperties();
+    const auto CaptureNode = [&](int32 Index) -> TSharedPtr<FJsonObject>
+    {
+        if (!Properties.IsValidIndex(Index)) { return nullptr; }
+        const int32 PropertyIndex = Properties.Num() - 1 - Index;
+        const UEdGraphNode* Visual = Class->GetVisualNodeFromNodePropertyIndex(PropertyIndex);
+        const int32* RoundTrip = Visual != nullptr ? Class->GetNodePropertyIndexFromGuid(Visual->NodeGuid) : nullptr;
+        if (RoundTrip == nullptr || *RoundTrip != Index)
+        {
+            UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Compiled state player node %d has no property or original node."), Index);
+            return nullptr;
+        }
+        const FStructProperty* Property = Properties[PropertyIndex];
+        TSharedRef<FJsonObject> Node = MakeShared<FJsonObject>();
+        Node->SetNumberField(TEXT("node_index"), Index);
+        Node->SetStringField(TEXT("property"), Property->GetName());
+        Node->SetStringField(TEXT("struct"), Property->Struct->GetPathName());
+        Node->SetStringField(TEXT("guid"), GuidText(Visual->NodeGuid));
+        Node->SetStringField(TEXT("source_path"), Visual->GetPathName());
+        Node->SetStringField(TEXT("source_graph"), Visual->GetGraph()->GetPathName());
+        if (Property->Struct == FAnimNode_SequencePlayer::StaticStruct())
+        {
+            const FAnimNode_SequencePlayer* Player = Property->ContainerPtrToValuePtr<FAnimNode_SequencePlayer>(Class->GetDefaultObject());
+            TSharedRef<FJsonObject> Effective = MakeShared<FJsonObject>();
+            Effective->SetNumberField(TEXT("play_rate"), Player->GetPlayRate());
+            Effective->SetNumberField(TEXT("basis"), Player->GetPlayRateBasis());
+            Effective->SetNumberField(TEXT("start"), Player->GetStartPosition());
+            Effective->SetBoolField(TEXT("loop"), Player->IsLooping());
+            Effective->SetBoolField(TEXT("ignore"), Player->GetIgnoreForRelevancyTest());
+            Node->SetObjectField(TEXT("effective"), Effective);
+        }
+        if (const FObjectPropertyBase* SequenceProperty = FindFProperty<FObjectPropertyBase>(Property->Struct, TEXT("Sequence")))
+        {
+            if (const UAnimSequenceBase* Sequence = Cast<UAnimSequenceBase>(SequenceProperty->GetObjectPropertyValue_InContainer(Property->ContainerPtrToValuePtr<void>(Class->GetDefaultObject()))))
+            {
+                Node->SetStringField(TEXT("asset_path"), Sequence->GetPathName());
+                Node->SetNumberField(TEXT("asset_duration"), Sequence->GetPlayLength());
+                Node->SetNumberField(TEXT("asset_rate_scale"), Sequence->RateScale);
+            }
+        }
+        return Node;
+    };
+    TArray<TSharedPtr<FJsonValue>> Machines;
+    const TArray<FBakedAnimationStateMachine>& Descriptions = Interface->GetBakedStateMachines();
+    for (int32 MachineIndex = 0; MachineIndex < Descriptions.Num(); ++MachineIndex)
+    {
+        const FBakedAnimationStateMachine& Description = Descriptions[MachineIndex];
+        TArray<TSharedPtr<FJsonValue>> States;
+        for (int32 StateIndex = 0; StateIndex < Description.States.Num(); ++StateIndex)
+        {
+            const FBakedAnimationState& Info = Description.States[StateIndex];
+            TSharedRef<FJsonObject> State = MakeShared<FJsonObject>();
+            State->SetNumberField(TEXT("index"), StateIndex);
+            State->SetStringField(TEXT("name"), Info.StateName.ToString());
+            State->SetBoolField(TEXT("conduit"), Info.bIsAConduit);
+            if (Info.StateRootNodeIndex != INDEX_NONE)
+            {
+                const TSharedPtr<FJsonObject> Root = CaptureNode(Info.StateRootNodeIndex);
+                if (!Root.IsValid()) { return nullptr; }
+                State->SetObjectField(TEXT("root"), Root.ToSharedRef());
+            }
+            TArray<TSharedPtr<FJsonValue>> Players, Layers;
+            for (int32 Index : Info.PlayerNodeIndices)
+            {
+                const TSharedPtr<FJsonObject> Node = CaptureNode(Index);
+                if (!Node.IsValid()) { return nullptr; }
+                Players.Add(MakeShared<FJsonValueObject>(Node));
+            }
+            for (int32 Index : Info.LayerNodeIndices)
+            {
+                const TSharedPtr<FJsonObject> Node = CaptureNode(Index);
+                if (!Node.IsValid()) { return nullptr; }
+                Layers.Add(MakeShared<FJsonValueObject>(Node));
+            }
+            State->SetArrayField(TEXT("players"), Players);
+            State->SetArrayField(TEXT("layers"), Layers);
+            States.Add(MakeShared<FJsonValueObject>(State));
+        }
+        TSharedRef<FJsonObject> Machine = MakeShared<FJsonObject>();
+        Machine->SetNumberField(TEXT("index"), MachineIndex);
+        Machine->SetStringField(TEXT("name"), Description.MachineName.ToString());
+        Machine->SetArrayField(TEXT("states"), States);
+        Machines.Add(MakeShared<FJsonValueObject>(Machine));
+        UE_LOG(LogAlsGraphSourceReader, Display, TEXT("Compiled state machine %d/%d captured."), MachineIndex + 1, Descriptions.Num());
+    }
+    TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+    Result->SetArrayField(TEXT("machines"), Machines);
+    return Result;
+}
+
 TSharedPtr<FJsonObject> CaptureCachedPoseSchedule(UBlueprint* Blueprint)
 {
     UClass* Class = Blueprint != nullptr ? Blueprint->GeneratedClass : nullptr;
@@ -3010,6 +3108,12 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
         const TSharedPtr<FJsonObject> Schedule = CaptureCachedPoseSchedule(Blueprint);
         if (!Schedule.IsValid()) { return 7; }
         Root->SetObjectField(TEXT("cached_pose_schedule"), Schedule.ToSharedRef());
+    }
+    if (FParse::Param(*Params, TEXT("StateMachinePlayers")))
+    {
+        const TSharedPtr<FJsonObject> Players = CaptureStateMachinePlayers(Asset);
+        if (!Players.IsValid()) { return 7; }
+        Root->SetObjectField(TEXT("state_machine_players"), Players.ToSharedRef());
     }
     if (FParse::Param(*Params, TEXT("CachedPoseLifecycleProbe")))
     {

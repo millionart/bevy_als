@@ -31,6 +31,8 @@
 
 `run_ue_source_reader.ps1 -BlendProfileProbe <request.json>` 接受USkeleton，读取其实际WeightFactor Profile。每个sample提供`name`、`profile`、非Custom的`mode`、正数`duration`、`deltas`、`curve_a`/`curve_b`以及`from`/`to`变换（`translation_cm`、xyzw `rotation`、`scale`）。通过公开FAlphaBlend、UBlendProfile、FBlendSampleData及FTransform/Curve调用，输出每帧全局alpha、FAlphaBlend累积值`blend_alpha`/`blend_value`、完成标志、缺省及各Profile条目的双权重和混合变换。它是标准转场计算路径的受控探针，未运行完整StateMachine；`complete=true`的计算结果不能当作仍被活动转场消费的姿态。使用`tools/tests/fixtures/blend_profile.request.json`与`python tools/tests/test_blend_profile_probe.py <output.json>`核对两个当前Profile的首帧、中间值和终点计算。
 
+`run_ue_source_reader.ps1 -StateMachinePlayers` 接受AnimBP，输出编译后的FSM、状态及有序PlayerNodeIndices/LayerNodeIndices，并将节点索引映射到CDO属性和原图GUID。读取器校验GUID往返；Sequence Player额外输出资产长度/RateScale和公开getter取得的有效速率、起点、loop/ignore配置，原始反射字段仍在已有CDO记录中。该入口不执行动画图或模拟播放器时钟。用`python tools/tests/test_state_machine_players.py <output.json>`检查编译索引、原图身份、节点类型和有效配置结构。
+
 2026-09-26 删除了 UE MCP client 及其完整调用链（输入审计、旧相机导出、拓扑/截图和五个 shell 探测脚本），当前取证统一使用原生 reader。相机曲线的目标转换使用 `import/import_curve_float.py`、`import/import_debug_curves.py` 和 `import/camera_curve_conversion.py`。
 
 同批删除六个早期 Interchange API 试验脚本、没有消费者的 `probe_scene2.py`，以及反复改写旧 Playground parity 文件的 `patch_parity_ron.py`、`test_lighting_only.py`。实际导出器、原始资产、生成图、归档证据和本地配置保留。

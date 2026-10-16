@@ -11,6 +11,7 @@ param(
     [string]$GeometryQueryProbe,
     [switch]$CachedPoseLifecycleProbe,
     [switch]$CachedPoseSchedule,
+    [switch]$StateMachinePlayers,
     [switch]$AlphaBlendProbe,
     [switch]$NotifyClockProbe,
     [switch]$NotifyChanceProbe,
@@ -321,6 +322,7 @@ if ($GeometryQueryProbe) {
     $probePath = (Resolve-Path -LiteralPath $GeometryQueryProbe -ErrorAction Stop).Path
     $arguments += "-GeometryQueryProbe=$probePath"
 }
+if ($StateMachinePlayers) { $arguments += "-StateMachinePlayers" }
 if ($CachedPoseSchedule) {
     $arguments += "-CachedPoseSchedule"
 }
