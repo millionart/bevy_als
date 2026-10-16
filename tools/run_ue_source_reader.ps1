@@ -23,20 +23,6 @@ param(
     [switch]$FunctionsOnly
 )
 
-function ConvertTo-ProcessArgument {
-    param([string]$Value)
-
-    if ($Value.Length -eq 0) {
-        return '""'
-    }
-    if ($Value -notmatch '[\s"]') {
-        return $Value
-    }
-    $escaped = [regex]::Replace($Value, '(\\*)"', '$1$1\"')
-    $escaped = [regex]::Replace($escaped, '(\\+)$', '$1$1')
-    return '"' + $escaped + '"'
-}
-
 function Write-ReaderReport {
     param(
         [string]$Path,
@@ -62,16 +48,28 @@ function Invoke-ProcessWithWatchdog {
         [int]$NoProgressSeconds
     )
 
-    Set-Content -LiteralPath $StdoutPath -Value ""
-    Set-Content -LiteralPath $StderrPath -Value ""
     $startedAt = Get-Date
     $lastProgressAt = $startedAt
     $lastProgressSource = "process_started"
-    $argumentText = ($ArgumentList | ForEach-Object { ConvertTo-ProcessArgument $_ }) -join " "
+    $streams = @()
+    $cancellation = [Threading.CancellationTokenSource]::new()
     try {
-        $process = Start-Process -FilePath $FilePath -ArgumentList $argumentText -PassThru -NoNewWindow -RedirectStandardOutput $StdoutPath -RedirectStandardError $StderrPath
+        foreach ($path in @($StdoutPath, $StderrPath)) {
+            $streams += [IO.FileStream]::new([IO.Path]::GetFullPath($path), [IO.FileMode]::Create, [IO.FileAccess]::Write, [IO.FileShare]::ReadWrite, 1, $true)
+        }
+        $startInfo = [Diagnostics.ProcessStartInfo]::new($FilePath)
+        $startInfo.UseShellExecute = $false
+        $startInfo.CreateNoWindow = $true
+        $startInfo.RedirectStandardOutput = $true
+        $startInfo.RedirectStandardError = $true
+        foreach ($argument in $ArgumentList) { $startInfo.ArgumentList.Add([string]$argument) }
+        $process = [Diagnostics.Process]::Start($startInfo)
+        $stdoutCopy = $process.StandardOutput.BaseStream.CopyToAsync($streams[0], $cancellation.Token)
+        $stderrCopy = $process.StandardError.BaseStream.CopyToAsync($streams[1], $cancellation.Token)
     }
     catch {
+        foreach ($stream in $streams) { $stream.Dispose() }
+        $cancellation.Dispose()
         $report = [ordered]@{
             format = "ue_source_reader_watchdog_v1"
             success = $false
@@ -86,7 +84,7 @@ function Invoke-ProcessWithWatchdog {
         throw
     }
     $exitReason = "completed"
-    while (-not $process.HasExited) {
+    while (-not ($process.HasExited -and $stdoutCopy.IsCompleted -and $stderrCopy.IsCompleted)) {
         Start-Sleep -Milliseconds 250
         $now = Get-Date
         foreach ($path in $ProgressPaths) {
@@ -100,30 +98,35 @@ function Invoke-ProcessWithWatchdog {
         }
         if (($now - $startedAt).TotalSeconds -ge $TimeoutSeconds) {
             $exitReason = "wall_timeout"
-            $process.Kill($true)
+            if (-not $process.HasExited) { $process.Kill($true) }
             break
         }
         if (($now - $lastProgressAt).TotalSeconds -ge $NoProgressSeconds) {
             $exitReason = "no_progress_timeout"
-            $process.Kill($true)
+            if (-not $process.HasExited) { $process.Kill($true) }
             break
         }
         $process.Refresh()
     }
-    if ($exitReason -eq "completed") {
-        $null = $process.WaitForExit(5000)
-        $process.Refresh()
+    if ($exitReason -ne "completed") { $cancellation.Cancel() }
+    try {
+        if (-not [Threading.Tasks.Task]::WaitAll([Threading.Tasks.Task[]]@($stdoutCopy, $stderrCopy), 5000)) {
+            $exitReason = "output_drain_timeout"
+        }
+    } catch {
+        if ($exitReason -eq "completed") { $exitReason = "output_error" }
+    } finally {
+        foreach ($stream in $streams) { $stream.Dispose() }
+        $cancellation.Dispose()
     }
-    elseif (-not $process.HasExited) {
-        $null = $process.WaitForExit(5000)
-        $process.Refresh()
-    }
+    $process.Refresh()
     $finishedAt = Get-Date
     $hasExited = $process.HasExited
     $exitCode = $null
     if ($hasExited) {
         $exitCode = [int]$process.ExitCode
     }
+    $process.Dispose()
     $report = [ordered]@{
         format = "ue_source_reader_watchdog_v1"
         success = ($exitReason -eq "completed" -and $exitCode -eq 0)
@@ -276,6 +279,7 @@ $arguments = @(
     "-Asset=$Asset",
     "-Output=$outputPath",
     "-unattended",
+    "-CrashForUAT",
     "-nop4",
     "-nosplash",
     "-stdout",

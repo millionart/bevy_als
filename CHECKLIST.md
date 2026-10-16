@@ -7,12 +7,15 @@
 
 ## BF145 — Mac / Windows 共用开发入口
 
-- [x] BF145.01 启动、UE reader、导出和 worktree 工具兼容 Mac/Windows：保留 Windows 入口，统一 PowerShell 7 实现及本地配置，修复平台路径、进程启动/终止和缓存复制；补齐 Python 环境说明。Gate：平台命令/空格路径/退出码/缓存隔离 focused fixture、watchdog self-test、最小反例与消融通过。开始：2026-10-16 11:16 +08:00；预估结束：2026-10-16 11:56 +08:00；首轮结束：2026-10-16 11:40 +08:00；首轮偏差：−16分钟；结果：工具Gate通过，原生产物复开已闭合。估时依据：已读取6个 PowerShell、3个 batch 和1个 shell入口，约600行；复用现有 watchdog 与参数，未修改运动实现、转换规则或原始资产。
+- [x] BF145.01 启动、UE reader、导出和 worktree 工具兼容 Mac/Windows：保留 Windows 入口，统一 PowerShell 7 实现及本地配置，修复平台路径、进程启动/终止和缓存复制；补齐 Python 环境说明。Gate：平台命令/空格路径/退出码/缓存隔离 focused fixture、watchdog self-test、最小反例与消融通过。开始：2026-10-16 11:16 +08:00；预估结束：2026-10-16 11:56 +08:00；首轮结束：2026-10-16 11:40 +08:00；首轮偏差：−16分钟；最终结束：2026-10-16 12:14 +08:00；最终偏差：+18分钟；结果：工具及两次原生边界复开均闭合。估时依据：已读取6个 PowerShell、3个 batch 和1个 shell入口，约600行；复用现有 watchdog 与参数，未修改运动实现、转换规则或原始资产。
   - 初始摘要：Mac Rust/Xcode与UE 5.8.3原生程序存在，fork提交与锁文件一致；实际JSON配置仍是旧平台路径，runner依赖cmd.exe，reader依赖Win64/DLL/taskkill，worktree依赖robocopy；系统Python缺Pillow且版本低于现有strict zip调用要求。仅处理该环境闭包，BF144审计保留原状。
   - 11:40 source/static闭环：11项平台fixture与6项watchdog检查通过，Python视觉报告/图编辑器/资产解析器self-test通过；PowerShell与shell解析、diff检查通过。Win64构建参数和DLL选择已在夹具覆盖，真实Windows执行尚未进行。删除单调用库路径包装、重复shell导出和冗余平台窗口分支；移除平台库选择、子进程树清理、缓存排除均稳定失败，按源码字节恢复后11项及watchdog复验全过。证据仅保留`tools/tmp/mac_win/`。本机用户目录PowerShell 7.6.6和工作区Python 3.12环境就绪，下一步原生入口。
   - 11:47有限复开：Mac原生BuildPlugin成功（49.6秒），fresh `UnrealEditor.modules` 声明的库是 `libUnrealEditor-AlsGraphSourceReader.dylib`，旧夹具自行假定无lib前缀，导致真实完成后仍误判需重建。只修该文件名合同，先以实际产物名称更新最小反例，再恢复原生读取；.02暂停依赖工作直到本项恢复。开始：2026-10-16 11:47 +08:00；预估结束：2026-10-16 11:57 +08:00；依据为两处文件名与现有11项fixture、已生成的双架构库，不重建插件。
   - 11:50复开闭合：基于实际modules记录的Mac库名反例先FAIL，修正两处名称后Mac/Win异平台缓存拒绝与watchdog均PASS；直接检查已编译双架构reader为current，不再误触重建。实际结束：2026-10-16 11:50 +08:00；偏差：−7分钟；结果：PASS；.02恢复。初次Cargo metadata在Git下载90秒无输出后由watchdog终止，转为从同提交本地fork补充Cargo缓存，不改锁文件。ALS源工程仅有Win64模块，Mac首次读取还需原生准备。
+  - 12:14退出/日志闭合：延迟子进程输出稳定复现PowerShell Start-Process的已关闭writer异常，增加WaitForExitAsync仍FAIL；改用.NET原生ArgumentList与文件流异步复制，删除手写参数转义。延迟EOF与不关闭输出两项反例、其余11项平台fixture、原watchdog全部PASS；取消输出中断后边界FAIL，按字节恢复后PASS。沿本机UAT CommandletUtils加入其实际使用的CrashForUAT参数。该复开开始11:57、预估结束12:12、实际结束12:14，偏差+2分钟；不扩大到动画/资产修复。
 - [ ] BF145.02 本机依赖与真实入口验证：依赖.01，核验锁定依赖、Mac UE reader最小提取和manual Playground入口；修复本轮直接触发的兼容性问题，记录Windows真实执行边界。Gate：同一target_game的构建/启动或明确外部阻塞证据，reader报告及Git路径隐私检查。开始：2026-10-16 11:41 +08:00；预估结束：2026-10-16 12:26 +08:00。估时依据：仅一个reader插件构建/资产提取和一个Playground启动；当前没有Mac Cargo缓存，远端依赖需先验证，没有同机首编记录，因此独立记录实际下载/构建边界，不沿用Windows链接耗时。不复开运动审计。
+  - 11:57原生边界：reader库已成功编译并通过current检查；源uproject仍启用本机缺失的旧BlueprintNodeExporter，Mac启动以原生缺失插件报告退出，源ALS模块也只有Win64产物。该次失败还暴露PowerShell异步日志在进程退出时未排空的边界，保留最小延迟输出fixture后修共享watchdog；仅复开.01的退出/日志边界，不修改取证语义。两个fork同提交已填充Cargo缓存，继续获取其余锁定依赖。另已确认当前安装版UE目录缺Character/CMC/SkeletalMeshComponent实现cpp，后续运动source-first审计需完整同版源码，不能将已有头文件视为完整源码。
+- [ ] BF145.03 获取指定UE源码基线：用户追加指定EpicGames/UnrealEngine的`396c9f059903aed5fec78ecd3d437a40c6415368`，独立检出并核对HEAD/源码文件，将本地环境文档的源码与安装版引擎分开。Gate：指定commit身份、关键实现文件、Git工作区状态与隐私检查。开始：2026-10-16 12:14 +08:00；预估结束：2026-10-16 12:44 +08:00。估时依据：只获取指定commit，不下载引擎编译依赖；Git下载受固定无进展上限约束，先验证账号访问；与.02编译无依赖，可独立进行。
 
 ## 背景与基础事实（已核实，持续有效）
 

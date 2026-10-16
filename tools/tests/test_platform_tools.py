@@ -2,7 +2,9 @@ import json
 import os
 from pathlib import Path
 import shutil
+import signal
 import subprocess
+import sys
 import tempfile
 import time
 import unittest
@@ -112,6 +114,48 @@ class PlatformToolsTest(unittest.TestCase):
         result = self.run_script("& ./tools/python.ps1")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(Path(result.stdout.strip()), python)
+
+    def test_watchdog_waits_for_redirected_output_after_parent_exit(self):
+        child = self.root / "delayed output.py"
+        child.write_text(
+            'import subprocess, sys\nsubprocess.Popen([sys.executable, "-c", '
+            '"import time; time.sleep(1); print(\\\"tail\\\", flush=True)"])\nsys.exit(23)\n',
+            encoding="utf-8",
+        )
+        result = self.run_script(
+            '. ./tools/run_ue_source_reader.ps1 -FunctionsOnly; '
+            '$result=Invoke-ProcessWithWatchdog -FilePath ' + quoted(sys.executable) +
+            ' -ArgumentList @(' + quoted(child) + ') -ReportPath report.json -StdoutPath stdout.log -StderrPath stderr.log '
+            '-ProgressPaths @("stdout.log", "stderr.log") -TimeoutSeconds 5 -NoProgressSeconds 3; '
+            'if ($result.process_exit_code -ne 23 -or (Get-Content -Raw stdout.log).Trim() -ne "tail") { throw "redirected output was not drained" }'
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_watchdog_bounds_inherited_output_after_parent_exit(self):
+        child = self.root / "held output.py"
+        pid_file = self.root / "child.pid"
+        child.write_text(
+            'import subprocess, sys\nfrom pathlib import Path\n'
+            'child=subprocess.Popen([sys.executable,"-c","import time; time.sleep(15)"])\n'
+            'Path(sys.argv[1]).write_text(str(child.pid))\nsys.exit(23)\n',
+            encoding="utf-8",
+        )
+        try:
+            result = self.run_script(
+                '. ./tools/run_ue_source_reader.ps1 -FunctionsOnly; '
+                '$result=Invoke-ProcessWithWatchdog -FilePath ' + quoted(sys.executable) +
+                ' -ArgumentList @(' + quoted(child) + ',' + quoted(pid_file) + ') '
+                '-ReportPath report.json -StdoutPath stdout.log -StderrPath stderr.log '
+                '-ProgressPaths @("stdout.log","stderr.log") -TimeoutSeconds 5 -NoProgressSeconds 1; '
+                'if ($result.exit_reason -ne "no_progress_timeout" -or $result.success) { throw "inherited output was not bounded" }'
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+        finally:
+            if pid_file.exists():
+                try:
+                    os.kill(int(pid_file.read_text()), signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
 
     def test_integration_stops_at_first_failed_case(self):
         (self.root / "run_manual.ps1").write_text(
