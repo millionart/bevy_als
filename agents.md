@@ -36,7 +36,7 @@
 ## 验收与真实入口
 
 1. **静态闭环优先**：source fact → source/target 静态合同 → focused test/self-test → 编译与声明式 Gate → 一次真实 Playground runtime Gate。真实运行是静态闭环后的兜底，不是逐笔探索工具。
-2. **真实场景**：运行时功能必须接入 `run_manual.bat` 的可见 `manual_playground`；自动场景保持原 Playground 地形、环境、角色和相机，不能用场外、空白或隔离世界替代。
+2. **真实场景**：运行时功能必须接入 `run_manual.ps1`（Windows 包装为 `run_manual.bat`）的可见 `manual_playground`；自动场景保持原 Playground 地形、环境、角色和相机，不能用场外、空白或隔离世界替代。
 3. **动画图与角色姿态**：修改图、状态机、曲线、IK、Control Rig、root motion 或资产选择时，必须使用 animation-graph-equivalence skill 的公共视觉 Gate。图求值错误必须在首帧生成可读报告并退出：报告至少包含原始错误、pin/node、候选图路径、root-pose/A-pose 分类、场景标签和截图尝试；runner 即使进程非零退出也必须审计该报告。没有 `primary_failure` 的 graph-error 报告视为无效。
 4. **经验固化**：修复后优先把漏检边界落实为 source-first 断言、真实入口场景、工具 self-test 或适用 skill；跨任务纪律写本文件，领域流程写 skill。经验是经证实的默认，不是死规则；source、工具或运行时事实变化时用新证据调整。
 5. **自动化进展 watchdog**：任何自动运行的场景、测试或外部工具流程都必须定义可记录的进展信号与固定无进展上限；同一进展位置超过上限时，自动结束而非无限等待，并将最后进展、等待时长、当前条件和退出原因写入机器可读结果。watchdog 本身必须有 focused self-test。
@@ -45,7 +45,7 @@
 
 1. **隐私**：提交内容不得含本地绝对路径、账户或引擎位置；用 gitignored 配置、环境变量或参数注入。提交前检查暂存 diff 的路径泄露。
 2. **代码纪律**：可执行源码、字符串、日志、断言和资产语义字段只用英文且不写注释；Markdown 可使用中文。
-3. **构建**：大型 cargo 命令必须限流（本机通常 `--jobs 2`）；每个 worktree 使用自己的 target，并用 `pwsh tools/new-worktree.ps1 -Name <name>` 创建。运行/性能 Gate 的预构建必须使用启动器实际使用的同一 `CARGO_TARGET_DIR`（`run_manual.bat` 为 `target_game`）；默认 target 的构建不能充当该入口的二进制证据。排查锁前先确认进程和 target 归属，不能误杀其他 worktree 或 rust-analyzer。
+3. **构建**：大型 cargo 命令必须限流（本机通常 `--jobs 2`）；每个 worktree 使用自己的 target，并用 `pwsh tools/new-worktree.ps1 -Name <name>` 创建。运行/性能 Gate 的预构建必须使用启动器实际使用的同一 `CARGO_TARGET_DIR`（`run_manual.ps1` 与 Windows 包装 `run_manual.bat` 均为 `target_game`）；默认 target 的构建不能充当该入口的二进制证据。排查锁前先确认进程和 target 归属，不能误杀其他 worktree 或 rust-analyzer。
 4. **UE/uasset**：禁止使用 UE MCP。通过本地 UE 源码实现、维护并使用仓库的 uasset 读取工具，直接提取资产、图、属性与递归依赖；优先复用已有原生读取能力，缺失字段先对照 UE 源码补齐工具，再重新读取，不能用猜测或手工补写代替源事实。
 5. **工具调用**：UE 源资产统一经仓库 uasset 读取工具调用。复杂长命令改为短命令加脚本；超时或错误时先读取报告、改变诊断路径，不盲目重复同一调用。
 

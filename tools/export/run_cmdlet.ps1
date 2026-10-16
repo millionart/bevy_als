@@ -23,10 +23,13 @@ $env:BEVY_ALS_ROOT = (Get-Location).Path
 $allArgs = @($PROJ) + $(if ($Map) { , $Map } else { @() }) +
     @('-run=pythonscript', "-script=$full", '-stdout', '-ForceLogFlush', "-abslog=$log") +
     $UeArgs
-& $UE @allArgs
-$ec = $LASTEXITCODE
+. (Join-Path $PSScriptRoot "../run_ue_source_reader.ps1") -FunctionsOnly
+$result = Invoke-ProcessWithWatchdog -FilePath $UE -ArgumentList $allArgs -ReportPath ($log + ".report.json") -StdoutPath ($log + ".stdout.log") -StderrPath ($log + ".stderr.log") -ProgressPaths @($log, ($log + ".stdout.log"), ($log + ".stderr.log")) -TimeoutSeconds 3600 -NoProgressSeconds 300
+$ec = if ($result.exit_reason -eq "completed") { $result.process_exit_code } else { 124 }
 
 Write-Host "== exit=$ec log=$log =="
-Select-String -Path $log -Pattern 'M0EXPORT|PYEXPORT|Error:|Fatal|LogPython' |
-    Select-Object -Last 60 | ForEach-Object Line
+if (Test-Path -LiteralPath $log) {
+    Select-String -LiteralPath $log -Pattern 'M0EXPORT|PYEXPORT|Error:|Fatal|LogPython' |
+        Select-Object -Last 60 | ForEach-Object Line
+}
 exit $ec

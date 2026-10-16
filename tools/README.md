@@ -2,6 +2,8 @@
 
 | 目录或入口 | 保留用途 |
 |---|---|
+| 根目录 `run_manual.ps1`、`als_graph_editor.ps1`、`run_manual_integration_gate.ps1` | Mac/Windows 共用入口；同名 `.bat` 保留 Windows 双击启动 |
+| `python.ps1`、`requirements.txt` | 优先选择本工作区 `.venv`，依赖与准备步骤见根 README；本机 UE 路径由 `env.local.json` 提供 |
 | `run_ue_source_reader.ps1`、`build_ue_source_reader.ps1`、`ue_graph_source_reader/` | 从本地 UE/uasset 提取图、属性与递归依赖；reader 带进展 watchdog 和 `-SelfTest` |
 | `animgraph_authoring/` | AnimBP/Control Rig 转换、完整产物比较、源闭包审计及夹具；其中合同与地图仍被图审计 TODO 引用 |
 | `import/` | 源事实转为独立 runtime 资产、单位/坐标换算、材质通道和图合同审计 |
@@ -11,6 +13,7 @@
 | `validate_*`、`verify_*`、`*animgraph*`、`normalize_*` | 当前节点、上下文、布局、资产边界和编辑器审计 |
 | `open_ue_asset_editor.ps1`、`ue_open_asset.py` | 本地 UE 资产编辑器辅助入口，不使用 MCP |
 | `new-worktree.ps1` | 工作区及构建缓存准备 |
+| `tests/test_platform_tools.py` | 平台启动参数、退出码、路径、原生 reader 库选择与缓存复制回归 |
 | `examples/` | 可独立运行的 Rust 检查、图编辑器和规格导出；使用 `cargo run --example <name>` |
 | `tests/` | Rust 集成测试；由 `cargo test --tests` 自动执行 |
 | `manual_playground_integration/`、`animation_visual_validation.rs`、`anim_probe.rs` | manual Playground 的移植验收驱动、报告和诊断；保留 crate 内的遥测访问，运行时按 Gate 条件启用 |

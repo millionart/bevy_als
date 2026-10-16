@@ -35,7 +35,7 @@ src/
 
 ## 关卡入口与自动场景
 
-`als_extras/levels/manual_playground.rs` 是 `manual_playground` example 的程序入口：组装原地形、角色、相机、环境和 UI，供 `run_manual.bat` 启动。
+`als_extras/levels/manual_playground.rs` 是 `manual_playground` example 的程序入口：组装原地形、角色、相机、环境和 UI，供 `run_manual.ps1`（Windows 包装为 `run_manual.bat`）启动。
 
 `tools/manual_playground_integration/mod.rs` 提供移植过程中的自动驱动 `ManualPlaygroundIntegrationPlugin`。只有设置 `ALS_MANUAL_INTEGRATION_GATE` 才注册它；它驱动移动、蹲起、动作、镜头、UI 等场景，检查状态/姿态并发布覆盖率、失败与进展报告。公共 runner 的动态场景仍依赖它；它不是另一个 Playground。
 

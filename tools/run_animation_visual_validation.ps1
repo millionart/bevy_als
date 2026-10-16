@@ -14,20 +14,22 @@ param(
     [switch]$FunctionalOnly
 )
 
+$ErrorActionPreference = "Stop"
 if ($CaptureCount -lt 0 -or $CaptureIntervalSeconds -le 0 -or $MaxFrameP95Ms -le 0 -or $MaxFrameMs -le 0 -or $MaxEvalP95Ms -le 0 -or $MaxPhysicsStepsPerRender -lt 1 -or -not [double]::IsFinite($FrameDeltaSeconds) -or $FrameDeltaSeconds -lt 0 -or $FrameDeltaSeconds -gt 0.25 -or ($Case -eq "startup" -and $FrameDeltaSeconds -gt 0) -or -not [double]::IsFinite($FrameHitchSeconds) -or $FrameHitchSeconds -lt 0 -or $FrameHitchSeconds -gt 0.25 -or ($FrameHitchSeconds -gt 0 -and ($FrameDeltaSeconds -le 0 -or $FrameHitchSeconds -le $FrameDeltaSeconds -or $Case -ne "moving_base"))) {
     throw "Invalid visual validation arguments."
 }
 
 $workspaceRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$evidenceRoot = [IO.Path]::GetFullPath((Join-Path $workspaceRoot "target\animation_visual"))
+$evidenceRoot = [IO.Path]::GetFullPath((Join-Path $workspaceRoot "target/animation_visual"))
 $candidate = if ($OutputDirectory) {
     [IO.Path]::GetFullPath((Join-Path $workspaceRoot $OutputDirectory))
 } else {
     [IO.Path]::GetFullPath((Join-Path $evidenceRoot $Case))
 }
-$rootPrefix = $evidenceRoot.TrimEnd('\') + '\'
-if (-not $candidate.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase)) {
-    throw "OutputDirectory must stay under target\\animation_visual."
+$rootPrefix = $evidenceRoot + [IO.Path]::DirectorySeparatorChar
+$comparison = if ($IsWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
+if (-not $candidate.StartsWith($rootPrefix, $comparison)) {
+    throw "OutputDirectory must stay under target/animation_visual."
 }
 if (Test-Path -LiteralPath $candidate) {
     Remove-Item -LiteralPath $candidate -Recurse -Force
@@ -46,7 +48,8 @@ $variables = @(
     "ALS_ANIMATION_VISUAL_MAX_FRAME_MS",
     "ALS_ANIMATION_VISUAL_MAX_EVAL_P95_MS",
     "ALS_ANIMATION_VISUAL_MAX_PHYSICS_STEPS_PER_RENDER",
-    "ALS_BOOT_AUTO_QUIT_SECS"
+    "ALS_BOOT_AUTO_QUIT_SECS",
+    "RUST_LOG"
 )
 $previous = @{}
 foreach ($name in $variables) {
@@ -55,6 +58,7 @@ foreach ($name in $variables) {
 }
 
 try {
+    $env:RUST_LOG = (@($env:RUST_LOG, "bevy_als::manual_playground_integration=info") | Where-Object { $_ }) -join ","
     if ($Case -eq "startup") {
         Remove-Item Env:ALS_MANUAL_INTEGRATION_GATE -ErrorAction SilentlyContinue
         $minimumStartupSeconds = 5.0 + $CaptureCount * $CaptureIntervalSeconds
@@ -82,8 +86,11 @@ try {
     $env:ALS_ANIMATION_VISUAL_MAX_PHYSICS_STEPS_PER_RENDER = $MaxPhysicsStepsPerRender.ToString([Globalization.CultureInfo]::InvariantCulture)
     Push-Location $workspaceRoot
     try {
-        & cmd.exe /d /c "run_manual.bat"
-        $manualExitCode = $LASTEXITCODE
+        . (Join-Path $PSScriptRoot "run_ue_source_reader.ps1") -FunctionsOnly
+        $stdout = Join-Path $candidate "process.stdout.log"
+        $stderr = Join-Path $candidate "process.stderr.log"
+        $process = Invoke-ProcessWithWatchdog -FilePath (Get-Command pwsh).Source -ArgumentList @("-NoProfile", "-File", (Join-Path $workspaceRoot "run_manual.ps1")) -ReportPath (Join-Path $candidate "process.report.json") -StdoutPath $stdout -StderrPath $stderr -ProgressPaths @($stdout, $stderr, (Join-Path $candidate "report.json")) -TimeoutSeconds 3600 -NoProgressSeconds 300
+        $manualExitCode = if ($process.exit_reason -eq "completed") { $process.process_exit_code } else { 124 }
         $reportPath = Join-Path $candidate "report.json"
         $runnerPath = Join-Path $candidate "runner.json"
         $runner = [ordered]@{
@@ -108,7 +115,8 @@ try {
         if ($FrameHitchSeconds -gt 0) {
             $validationArguments += @('--expected-frame-hitch-seconds', $FrameHitchSeconds.ToString([Globalization.CultureInfo]::InvariantCulture), '--baseline-frame-delta-seconds', $FrameDeltaSeconds.ToString([Globalization.CultureInfo]::InvariantCulture))
         }
-        python @validationArguments
+        $python = & (Join-Path $PSScriptRoot "python.ps1")
+        & $python @validationArguments
         $validationExitCode = $LASTEXITCODE
         $runner.validation_exit_code = $validationExitCode
         $effectsPath = Join-Path $candidate "render_effects.json"
@@ -121,7 +129,7 @@ try {
             $decal = Get-Content -Raw -LiteralPath $decalPath | ConvertFrom-Json
             $runner.decal_renderer_passed = $decal.receiver_ready -eq $true -and @($decal.errors).Count -eq 0 -and ($Case -ne 'footprint' -or $decal.decal_ready -eq $true)
             if ($Case -eq 'footprint') {
-                python tools/validate_decal_evidence.py --report $decalPath
+                & $python tools/validate_decal_evidence.py --report $decalPath
                 $runner.decal_renderer_passed = $runner.decal_renderer_passed -and $LASTEXITCODE -eq 0
             }
         }

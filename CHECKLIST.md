@@ -5,6 +5,13 @@
 > 基座模块提交前缀沿用 `M<编号>`；缺陷修复清单用 `BF<编号>`。
 > 已归档清单：[archivedchecklist.md](docs/archive/archivedchecklist.md)
 
+## BF145 — Mac / Windows 共用开发入口
+
+- [x] BF145.01 启动、UE reader、导出和 worktree 工具兼容 Mac/Windows：保留 Windows 入口，统一 PowerShell 7 实现及本地配置，修复平台路径、进程启动/终止和缓存复制；补齐 Python 环境说明。Gate：平台命令/空格路径/退出码/缓存隔离 focused fixture、watchdog self-test、最小反例与消融通过。开始：2026-10-16 11:16 +08:00；预估结束：2026-10-16 11:56 +08:00；实际结束：2026-10-16 11:40 +08:00；偏差：−16分钟；结果：工具 Gate PASS。估时依据：已读取6个 PowerShell、3个 batch 和1个 shell入口，约600行；复用现有 watchdog 与参数，未修改运动实现、转换规则或原始资产。
+  - 初始摘要：Mac Rust/Xcode与UE 5.8.3原生程序存在，fork提交与锁文件一致；实际JSON配置仍是旧平台路径，runner依赖cmd.exe，reader依赖Win64/DLL/taskkill，worktree依赖robocopy；系统Python缺Pillow且版本低于现有strict zip调用要求。仅处理该环境闭包，BF144审计保留原状。
+  - 11:40 source/static闭环：11项平台fixture与6项watchdog检查通过，Python视觉报告/图编辑器/资产解析器self-test通过；PowerShell与shell解析、diff检查通过。Win64构建参数和DLL选择已在夹具覆盖，真实Windows执行尚未进行。删除单调用库路径包装、重复shell导出和冗余平台窗口分支；移除平台库选择、子进程树清理、缓存排除均稳定失败，按源码字节恢复后11项及watchdog复验全过。证据仅保留`tools/tmp/mac_win/`。本机用户目录PowerShell 7.6.6和工作区Python 3.12环境就绪，下一步原生入口。
+- [ ] BF145.02 本机依赖与真实入口验证：依赖.01，核验锁定依赖、Mac UE reader最小提取和manual Playground入口；修复本轮直接触发的兼容性问题，记录Windows真实执行边界。Gate：同一target_game的构建/启动或明确外部阻塞证据，reader报告及Git路径隐私检查。开始：2026-10-16 11:41 +08:00；预估结束：2026-10-16 12:26 +08:00。估时依据：仅一个reader插件构建/资产提取和一个Playground启动；当前没有Mac Cargo缓存，远端依赖需先验证，没有同机首编记录，因此独立记录实际下载/构建边界，不沿用Windows链接耗时。不复开运动审计。
+
 ## 背景与基础事实（已核实，持续有效）
 
 - 本机 bevy 源码：`0.19.1`（release-0.19.1）。`bevy_animation_graph` 0.11.0 与 `bevy-tnua` 均基于 Bevy 0.19，兼容。

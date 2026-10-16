@@ -14,7 +14,7 @@ param(
     [switch]$NotifyChanceProbe,
     [switch]$NotifyDispatchProbe,
     [switch]$PhysicsMaterialProbe,
-    [string]$Plugin = (Join-Path $PSScriptRoot "..\target\ue_graph_source_reader_package\AlsGraphSourceReader.uplugin"),
+    [string]$Plugin = (Join-Path $PSScriptRoot "../target/ue_graph_source_reader_package/AlsGraphSourceReader.uplugin"),
     [ValidateRange(1, 3600)]
     [int]$TimeoutSeconds = 300,
     [ValidateRange(1, 3600)]
@@ -23,7 +23,7 @@ param(
     [switch]$FunctionsOnly
 )
 
-function ConvertTo-WindowsArgument {
+function ConvertTo-ProcessArgument {
     param([string]$Value)
 
     if ($Value.Length -eq 0) {
@@ -32,7 +32,7 @@ function ConvertTo-WindowsArgument {
     if ($Value -notmatch '[\s"]') {
         return $Value
     }
-    $escaped = [regex]::Replace($Value, '(\\*)"', '$1$1\\"')
+    $escaped = [regex]::Replace($Value, '(\\*)"', '$1$1\"')
     $escaped = [regex]::Replace($escaped, '(\\+)$', '$1$1')
     return '"' + $escaped + '"'
 }
@@ -67,9 +67,9 @@ function Invoke-ProcessWithWatchdog {
     $startedAt = Get-Date
     $lastProgressAt = $startedAt
     $lastProgressSource = "process_started"
-    $argumentText = ($ArgumentList | ForEach-Object { ConvertTo-WindowsArgument $_ }) -join " "
+    $argumentText = ($ArgumentList | ForEach-Object { ConvertTo-ProcessArgument $_ }) -join " "
     try {
-        $process = Start-Process -FilePath $FilePath -ArgumentList $argumentText -PassThru -WindowStyle Hidden -RedirectStandardOutput $StdoutPath -RedirectStandardError $stderrPath
+        $process = Start-Process -FilePath $FilePath -ArgumentList $argumentText -PassThru -NoNewWindow -RedirectStandardOutput $StdoutPath -RedirectStandardError $StderrPath
     }
     catch {
         $report = [ordered]@{
@@ -100,12 +100,12 @@ function Invoke-ProcessWithWatchdog {
         }
         if (($now - $startedAt).TotalSeconds -ge $TimeoutSeconds) {
             $exitReason = "wall_timeout"
-            & taskkill.exe /PID $process.Id /T /F 2>$null | Out-Null
+            $process.Kill($true)
             break
         }
         if (($now - $lastProgressAt).TotalSeconds -ge $NoProgressSeconds) {
             $exitReason = "no_progress_timeout"
-            & taskkill.exe /PID $process.Id /T /F 2>$null | Out-Null
+            $process.Kill($true)
             break
         }
         $process.Refresh()
@@ -133,6 +133,9 @@ function Invoke-ProcessWithWatchdog {
         last_progress_source = $lastProgressSource
         finished_at_utc = $finishedAt.ToUniversalTime().ToString("o")
         elapsed_seconds = [math]::Round(($finishedAt - $startedAt).TotalSeconds, 3)
+        no_progress_seconds = [math]::Round(($finishedAt - $lastProgressAt).TotalSeconds, 3)
+        no_progress_limit_seconds = $NoProgressSeconds
+        timeout_seconds = $TimeoutSeconds
         process_exit_code = $exitCode
     }
     Write-ReaderReport -Path $ReportPath -Value $report
@@ -146,11 +149,11 @@ function Invoke-WatchdogSelfTest {
     try {
         $sourceRoot = Join-Path $temporaryRoot "source"
         $builtRoot = Join-Path $temporaryRoot "built"
-        New-Item -ItemType Directory -Path (Join-Path $sourceRoot "Source"), (Join-Path $builtRoot "Binaries/Win64") | Out-Null
         $sourceFile = Join-Path $sourceRoot "Source/Reader.cpp"
         $sourcePlugin = Join-Path $sourceRoot "AlsGraphSourceReader.uplugin"
         $builtPlugin = Join-Path $builtRoot "AlsGraphSourceReader.uplugin"
-        $builtDll = Join-Path $builtRoot "Binaries/Win64/UnrealEditor-AlsGraphSourceReader.dll"
+        $builtDll = Join-Path $builtRoot $(if ($IsWindows) { "Binaries/Win64/UnrealEditor-AlsGraphSourceReader.dll" } else { "Binaries/Mac/UnrealEditor-AlsGraphSourceReader.dylib" })
+        New-Item -ItemType Directory -Path (Join-Path $sourceRoot "Source"), (Split-Path $builtDll) -Force | Out-Null
         Set-Content -LiteralPath $sourceFile -Value "source"
         Set-Content -LiteralPath $sourcePlugin -Value "descriptor"
         if (-not (Test-ReaderBuildRequired $sourceRoot $builtPlugin)) { throw "missing reader build was accepted" }
@@ -161,7 +164,7 @@ function Invoke-WatchdogSelfTest {
         (Get-Item -LiteralPath $sourceFile).LastWriteTimeUtc = [DateTime]::UtcNow.AddSeconds(20)
         if (-not (Test-ReaderBuildRequired $sourceRoot $builtPlugin)) { throw "stale reader build was accepted" }
         $shell = (Get-Command pwsh -ErrorAction Stop).Source
-        $stalledCommand = '$child = Start-Process -FilePath (Get-Command pwsh).Source -ArgumentList @("-NoProfile", "-Command", "Start-Sleep -Seconds 10") -WindowStyle Hidden -PassThru; $child.Id; Start-Sleep -Seconds 10'
+        $stalledCommand = '$child = Start-Process -FilePath (Get-Command pwsh).Source -ArgumentList @("-NoProfile", "-Command", "Start-Sleep -Seconds 10") -NoNewWindow -PassThru; $child.Id; Start-Sleep -Seconds 10'
         $stalledScript = Join-Path $temporaryRoot "stalled.ps1"
         [IO.File]::WriteAllText($stalledScript, $stalledCommand, [Text.UTF8Encoding]::new($false))
         $stalled = Invoke-ProcessWithWatchdog -FilePath $shell -ArgumentList @("-NoProfile", "-File", $stalledScript) -ReportPath (Join-Path $temporaryRoot "stalled.report.json") -StdoutPath (Join-Path $temporaryRoot "stalled.stdout.log") -StderrPath (Join-Path $temporaryRoot "stalled.stderr.log") -ProgressPaths @((Join-Path $temporaryRoot "stalled.stdout.log"), (Join-Path $temporaryRoot "stalled.stderr.log")) -TimeoutSeconds 4 -NoProgressSeconds 1
@@ -178,12 +181,20 @@ function Invoke-WatchdogSelfTest {
         if ($completed.exit_reason -ne "completed" -or -not $completed.success) {
             throw ("watchdog rejected a completed process: " + ($completed | ConvertTo-Json -Compress))
         }
+        $argumentScript = Join-Path $temporaryRoot "arguments with spaces.ps1"
+        Set-Content -LiteralPath $argumentScript -Value 'ConvertTo-Json -InputObject @($args) -Compress'
+        $expected = @("", "path with spaces", 'quote"value', 'trailing slash\')
+        $argumentOutput = Join-Path $temporaryRoot "arguments.stdout.log"
+        $roundtrip = Invoke-ProcessWithWatchdog -FilePath $shell -ArgumentList (@("-NoProfile", "-File", $argumentScript) + $expected) -ReportPath (Join-Path $temporaryRoot "arguments.report.json") -StdoutPath $argumentOutput -StderrPath (Join-Path $temporaryRoot "arguments.stderr.log") -ProgressPaths @($argumentOutput) -TimeoutSeconds 4 -NoProgressSeconds 2
+        $actual = Get-Content -Raw -LiteralPath $argumentOutput | ConvertFrom-Json
+        if (-not $roundtrip.success -or (ConvertTo-Json -InputObject @($actual) -Compress) -cne (ConvertTo-Json -InputObject $expected -Compress)) { throw "process arguments changed" }
         [ordered]@{
             stalled_process_terminated = "PASS"
             stalled_child_process_terminated = "PASS"
             completed_process_preserved = "PASS"
             machine_readable_report_written = "PASS"
             missing_stale_and_current_reader_build = "PASS"
+            empty_quoted_and_spaced_arguments = "PASS"
         } | ConvertTo-Json -Compress
     }
     finally {
@@ -200,7 +211,8 @@ function Invoke-WatchdogSelfTest {
 function Test-ReaderBuildRequired {
     param([string]$SourceRoot, [string]$BuiltPlugin)
 
-    $dll = Join-Path (Split-Path -Parent $BuiltPlugin) "Binaries/Win64/UnrealEditor-AlsGraphSourceReader.dll"
+    $library = if ($IsWindows) { "Binaries/Win64/UnrealEditor-AlsGraphSourceReader.dll" } else { "Binaries/Mac/UnrealEditor-AlsGraphSourceReader.dylib" }
+    $dll = Join-Path (Split-Path -Parent $BuiltPlugin) $library
     if (-not (Test-Path -LiteralPath $BuiltPlugin) -or -not (Test-Path -LiteralPath $dll)) { return $true }
     $binaryTime = (Get-Item -LiteralPath $dll).LastWriteTimeUtc
     $sources = @(Get-ChildItem -LiteralPath (Join-Path $SourceRoot "Source") -File -Recurse)

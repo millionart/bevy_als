@@ -18,11 +18,11 @@
 
 ### 依赖指向（M0.2）
 
-本仓库以 **git 依赖**指向公开 fork（配置在根 `Cargo.toml` 的 `[workspace.dependencies]`）：
+本仓库以 **git 依赖**指向公开 fork（配置在根 `Cargo.toml` 的 `[dependencies]`）：
 
 | crate（版本） | fork git 地址 |
 |---|---|
-| bevy_animation_graph 0.11.0 | `https://github.com/millionart/bevy_animation_graph`（master） |
+| bevy_animation_graph 0.11.0 | `https://github.com/millionart/bevy_animation_graph`（codex/bevy-als-support） |
 | bevy-tnua 0.32.0 | `https://github.com/millionart/bevy-tnua`（main） |
 | bevy-tnua-avian3d 0.12.1 | `https://github.com/millionart/bevy-tnua`（main） |
 
@@ -35,12 +35,31 @@
 
 ## 快速上手
 
+Mac 与 Windows 共用 PowerShell 7、Rust 和 Python 3.10+。Mac 还需要 Xcode；UE 原生读取器使用对应平台的 UE 5.8.3 安装。PowerShell 安装见 [官方说明](https://learn.microsoft.com/powershell/scripting/install/installing-powershell)。
+
+首次准备 Python 环境（Mac 将第一条的 `python` 换成 `python3`）：
+
+```sh
+python -m venv .venv
+```
+
+在 PowerShell 中安装工具依赖；脚本会优先使用当前工作区的 `.venv`：
+
 ```powershell
-.\run_manual.bat
+& (./tools/python.ps1) -m pip install -r tools/requirements.txt
+```
+
+将 `tools/env.example.json` 复制为 `tools/env.local.json`，填写本机 `ue_project` 和 `ue_cmd`。Mac 的命令位于 `Engine/Binaries/Mac/UnrealEditor-Cmd`，Windows 为 `Engine/Binaries/Win64/UnrealEditor-Cmd.exe`。`docs/env.md` 只记录环境，不参与工具配置；这两个本地文件均不提交，换机器时分别配置。`.venv` 与编译产物也不能跨系统复用。
+
+```powershell
+pwsh -NoProfile -File ./run_manual.ps1
+pwsh -NoProfile -File ./als_graph_editor.ps1
 pwsh tools/run_animation_visual_validation.ps1 -Case startup -CaptureCount 0 -FunctionalOnly
 pwsh tools/run_animation_visual_validation.ps1 -Case grounded -CaptureCount 0 -FunctionalOnly
 ```
 
+- Windows 仍可双击原有 `.bat`；它们调用同名 `.ps1`，两边都使用工作区内的 `target_game` 与默认2个构建任务。
+- 工具回归：`pwsh tools/run_ue_source_reader.ps1 -SelfTest`，以及 `& (./tools/python.ps1) -B tools/tests/test_platform_tools.py -v`。
 - `manual_playground` 是交互运行与自动场景共用入口；公共 runner 的 `-Case` 选择相机、布娃娃、IK、运动等场景。`-FunctionalOnly` 验证功能，报告保留性能预算结果。
 - 单元回归按改动选择 `cargo test --jobs 2 --lib <filter>`，例如 `als::motion::` 或 `extensions::control_rig_math::`；全量回归使用 `cargo test --jobs 2`。
 - [examples 说明](tools/examples/README.md) 区分当前入口、静态合同和专项诊断；[tools 说明](tools/README.md) 列出保留的导入、转换与验收工具。
@@ -50,7 +69,7 @@ pwsh tools/run_animation_visual_validation.ps1 -Case grounded -CaptureCount 0 -F
 
 在 `assets/ALS/Data/als_gameplay_tags.json` 登记新标签（例如 `Als.OverlayMode.CustomRifle`），并在 `assets/ALS/Character/overlay_actor.runtime.json` 添加同名映射。可复制现有条目，再选择生成图、混合时间和物件配置；源导入器会补齐映射所需的 Tag 注册，并保留已有自定义标签。
 
-重新启动 `run_manual.bat` 后，Q 菜单会从 Tag 管理器枚举标签；无需新增 Rust 枚举变体。代码入口使用 `OverlayState::new` 和 `AlsStateRequest.overlay_state`，库由 `OverlayLibraryHandle` 选择。图和物件共同消费加载后的库，更新同一标签的配置也会刷新物件及图绑定。
+重新启动 `run_manual.ps1` 后，Q 菜单会从 Tag 管理器枚举标签；无需新增 Rust 枚举变体。代码入口使用 `OverlayState::new` 和 `AlsStateRequest.overlay_state`，库由 `OverlayLibraryHandle` 选择。图和物件共同消费加载后的库，更新同一标签的配置也会刷新物件及图绑定。
 
 自定义 LocomotionMode 使用 `LocomotionState::new("Als.LocomotionMode.Climbing")`，通过 `AlsStateRequest.locomotion_state` 传入；RON 数据使用 `Named("Als.LocomotionMode.Climbing")`。原有 `LocomotionState::Custom` 保留物理控制含义并映射为空 Tag。命名入口保留身份，不自动实现对应的物理动作或动画分支。
 

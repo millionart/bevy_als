@@ -3,6 +3,7 @@
 /target_game
 **/*.rs.bk
 __pycache__/
+.venv/
 
 # Bevy / assets 大文件白名单外的一律不放：占位资产只存 glTF 与 RON
 assets/**/*.fbx

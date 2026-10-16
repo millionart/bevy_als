@@ -23,4 +23,6 @@ if (-not (Test-Path -LiteralPath $scriptPath)) {
 
 $ueScriptPath = (Resolve-Path -LiteralPath $scriptPath).Path.Replace('\', '/')
 $argument = '-ExecutePythonScript="' + $ueScriptPath + ' ' + $Asset + '"'
-Start-Process -FilePath $config.ue_cmd -ArgumentList @($config.ue_project, $argument)
+. (Join-Path $PSScriptRoot "run_ue_source_reader.ps1") -FunctionsOnly
+$arguments = (@($config.ue_project, $argument) | ForEach-Object { ConvertTo-ProcessArgument $_ }) -join " "
+Start-Process -FilePath $config.ue_cmd -ArgumentList $arguments

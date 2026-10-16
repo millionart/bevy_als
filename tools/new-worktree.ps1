@@ -5,56 +5,52 @@ param(
 
 $ErrorActionPreference = "Stop"
 $root = (git rev-parse --show-toplevel).Trim()
+if ($LASTEXITCODE -ne 0) { throw "git root lookup failed" }
 $dest = Join-Path (Split-Path $root) $Name
 
 if (Test-Path $dest) { throw "destination exists: $dest" }
-if ($Branch) {
-    $exists = git branch --list $Branch
-    if ($exists) {
-        git worktree add $dest $Branch
-    } else {
-        git worktree add -b $Branch $dest
-    }
+if (-not $Branch) { $Branch = "codex/$Name" }
+$exists = git branch --list $Branch
+if ($exists) {
+    git worktree add $dest $Branch
 } else {
-    git worktree add $dest
+    git worktree add -b $Branch $dest
 }
 if ($LASTEXITCODE -ne 0) { throw "git worktree add failed" }
 
-Write-Host "[1/4] syncing tracked-file mtimes from $root"
-$files = git -C $root ls-files
-$synced = 0
-foreach ($f in $files) {
-    $src = Join-Path $root $f
-    $dst = Join-Path $dest $f
-    if ((Test-Path -LiteralPath $src) -and (Test-Path -LiteralPath $dst)) {
-        $st = Get-Item -LiteralPath $src
-        (Get-Item -LiteralPath $dst).LastWriteTimeUtc = $st.LastWriteTimeUtc
-        $synced++
-    }
-}
-Write-Host "      synced $synced files"
-
-Write-Host "[2/4] copying build cache (deps/build/fingerprints, excluding incremental)"
-robocopy (Join-Path $root "target") (Join-Path $dest "target") /E /MT:16 `
-    /XD incremental target_game tmp `
-    /NFL /NDL /NJH /NJS /NP /DCOPY:DAT /COPY:DAT | Out-Null
-if ($LASTEXITCODE -ge 8) { throw "robocopy failed with $LASTEXITCODE" }
-Write-Host "      robocopy done (code $LASTEXITCODE)"
-
-$gameCacheRoot = Join-Path $root "target_game"
-$gameCache = Join-Path $gameCacheRoot "play"
-if (Test-Path -LiteralPath $gameCache) {
-    Write-Host "[3/4] copying manual playground cache (excluding incremental)"
-    $destGameCache = Join-Path (Join-Path $dest "target_game") "play"
-    robocopy $gameCache $destGameCache /E /MT:16 `
-        /XF *.pdb `
-        /XD incremental tmp `
-        /NFL /NDL /NJH /NJS /NP /DCOPY:DAT /COPY:DAT | Out-Null
-    if ($LASTEXITCODE -ge 8) { throw "robocopy failed with $LASTEXITCODE" }
-    Write-Host "      robocopy done (code $LASTEXITCODE)"
-} else {
-    Write-Host "[3/4] manual playground cache not found; skipped"
-}
-
-Write-Host "[4/4] done. Worktree at $dest"
-Write-Host "Build inside it uses its own isolated target (no lock contention)."
+. (Join-Path $PSScriptRoot "run_ue_source_reader.ps1") -FunctionsOnly
+$python = & (Join-Path $PSScriptRoot "python.ps1")
+$copy = @'
+from pathlib import Path
+import os, shutil, subprocess, sys
+source, destination = map(Path, sys.argv[1:])
+for raw in subprocess.check_output(["git", "-C", str(source), "ls-files", "-z"]).split(b"\0"):
+    if not raw:
+        continue
+    name = os.fsdecode(raw)
+    original, copied = source / name, destination / name
+    if original.is_file() and copied.is_file():
+        stat = original.stat()
+        os.utime(copied, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+        print(name, flush=True)
+def copy_file(original, copied):
+    result = shutil.copy2(original, copied)
+    print(original, flush=True)
+    return result
+for folder in ["target", "target_game/play"]:
+    if (source / folder).is_dir():
+        excluded = ["incremental", "target_game", "tmp"]
+        if folder == "target_game/play":
+            excluded.append("*.pdb")
+        shutil.copytree(source / folder, destination / folder, dirs_exist_ok=True,
+                        ignore=shutil.ignore_patterns(*excluded), copy_function=copy_file)
+config = source / "tools/env.local.json"
+if config.is_file():
+    (destination / "tools").mkdir(exist_ok=True)
+    shutil.copy2(config, destination / "tools/env.local.json")
+'@
+$logs = Join-Path $PSScriptRoot ("tmp/worktrees/" + $Name)
+New-Item -ItemType Directory -Force -Path $logs | Out-Null
+$result = Invoke-ProcessWithWatchdog -FilePath $python -ArgumentList @("-c", $copy, $root, $dest) -ReportPath (Join-Path $logs "copy.report.json") -StdoutPath (Join-Path $logs "copy.stdout.log") -StderrPath (Join-Path $logs "copy.stderr.log") -ProgressPaths @((Join-Path $logs "copy.stdout.log"), (Join-Path $logs "copy.stderr.log")) -TimeoutSeconds 3600 -NoProgressSeconds 120
+if (-not $result.success) { throw "worktree cache copy failed: $($result.exit_reason); see $logs" }
+Write-Output "Worktree ready at $dest with its own target and target_game."
