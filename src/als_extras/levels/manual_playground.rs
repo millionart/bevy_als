@@ -281,12 +281,19 @@ fn auto_quit(
     timer: Option<Res<AutoQuit>>,
     ground_probe: Res<GroundedSpawnProbe>,
     render_probe: Res<RenderEffectsProbe>,
+    visual_progress: Option<Res<bevy_als::animation_visual_validation::AnimationVisualValidationProgress>>,
     mut exit: MessageWriter<AppExit>,
 ) {
     let Some(t) = timer else {
         return;
     };
     if Instant::now() >= t.0 {
+        if visual_progress.is_some_and(|progress| {
+            ground_probe.passed != Some(false) && render_probe.passed != Some(false)
+                && (!progress.evidence_ready || ground_probe.passed.is_none() || render_probe.passed.is_none())
+        }) {
+            return;
+        }
         match ground_probe.passed {
             Some(true) if render_probe.passed == Some(true) => {
                 info!("[MANUAL] auto quit reached after grounded spawn and render effects PASS");
@@ -925,6 +932,34 @@ fn character_material_probe(
 mod tests {
     use super::*;
     use bevy::ecs::system::RunSystemOnce;
+
+    #[test]
+    fn auto_quit_waits_for_complete_startup_evidence() {
+        for (ground, render, evidence, expected) in [
+            (None, None, Some(false), None),
+            (Some(true), None, Some(false), None),
+            (Some(true), Some(true), Some(false), None),
+            (Some(true), Some(true), Some(true), Some(0)),
+            (Some(false), None, Some(false), Some(12)),
+            (Some(true), Some(false), Some(false), Some(12)),
+            (None, None, None, Some(12)),
+        ] {
+            let mut world = World::new();
+            world.init_resource::<Messages<AppExit>>();
+            world.insert_resource(AutoQuit(Instant::now() - Duration::from_secs(30)));
+            world.insert_resource(GroundedSpawnProbe { passed: ground, ..default() });
+            world.insert_resource(RenderEffectsProbe { passed: render, ..default() });
+            if let Some(evidence_ready) = evidence {
+                world.insert_resource(bevy_als::animation_visual_validation::AnimationVisualValidationProgress { evidence_ready });
+            }
+            world.run_system_once(auto_quit).unwrap();
+            let actual = world.resource_mut::<Messages<AppExit>>().drain().next().map(|exit| match exit {
+                AppExit::Success => 0,
+                AppExit::Error(code) => code.get(),
+            });
+            assert_eq!(actual, expected, "ground={ground:?} render={render:?} evidence={evidence:?}");
+        }
+    }
 
     #[test]
     fn failed_grounded_spawn_exits_without_a_screenshot_plan() {
