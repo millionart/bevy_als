@@ -80,7 +80,7 @@
 | CMC 时钟、速度、地面/空中、碰撞、蹲跳、基座 | `character/movement/{motion,dynamics,control_scheme,source_physics_timing}`、`tnua_ext` | BF144.03–.13完成速度/时钟、默认floor/胶囊查询、walking/Air接触、落地回调、蹲起、Jump/apex、基座transform/速度继承、物理交互及选定剩余ledge/恢复首轮审计，确认D05–D07、D09–D42；重力D08已撤销；BF144.43将U01原生核验归并为D125，动作mode锁/Root Motion归下一闭包，未宣称通用UE模式全面等价 |
 | Roll、Mantle、RMS、动作切换 | `character/actions/{roll,roll_drive,mantle}`、`root_motion_sources` | BF144.14–.19完成Roll及Mantle探测/许可/设置选择/生命周期/root轨道、warp变换、动态基座和RMS物理消费的首轮审计，确认D43–D60、D62–D64，D61撤销；精确查询数值及公共Playground验收尚未闭合 |
 | Ragdoll、GetUp、PA 运动消费者 | `character/{pa_als,actions/ragdoll_link,actions/get_up}`、`avian_ext` 的实际调用 | BF144.20–.42及.44–.64完成许可、启动/退出、输入/锁定、GetUp交接/时钟/通知/清理/姿态/曲线/根运动、PA body/shape/质量/有效碰撞、关节frame/drive/求解、conditioning/projection、body积分/时钟/sleep、原生CCD关闭、法向接触/回弹、单点摩擦/历史锚点、接触采样/child预测bounds、多点回弹迭代、原生点序/支持点消费、质量加权接触位置、contact/joint耦合、primitive缓存、初速生成/交接/限速预算、pelvis跟随/探地/恢复朝向、进入挂接/退出快照、mesh恢复及零scale重建首轮审计，确认D65–D124、D126–D145；实际convex/trimesh的几何、速度摩擦及跨帧消费已由.45–.64完成当前输入闭包分类，U02关闭；不开展无源链路的通用物理审查 |
-| AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | BF144.65–.71完成可见性更新/历史时钟、初始化/实例替换、View/Head/Spine、Layering/Pose与Locomotion通用输入、Grounded/Standing/Crouching/InAir运动算法、地面预测查询及Feet输入/Foot Lock，确认D146–D152、D154–D158；.81–.92完成动态过渡资格/选择/队列、播放时钟、单/多实例混合、组停止、惯性请求、队列仲裁/落地参数、当前显式过渡/QuickStop以及Turn资格/选择/速率、时钟/自然停止和非加性混合、Roll运动点通知采样/资格/模式消费，新增D166–D179并扩展D118/D120/D121/D123。.93完成排队RootScale状态/中断/重入与实际根运动倍率消费，新增D180–D182；.94完成九个动作montage的native branching动作状态、标记/零步长、中断/跨实例保护及动作消费，新增D183/D184并扩展D121；.95完成六个Mantle的EarlyBlendOut条件/实例/停止权重与输入消费，新增D185；.96完成槽相关性历史与运动通知资格，新增D186；.97完成不可见角色通知派发/保留、重复组件更新和零步长，新增D187并扩展D186；.98完成Roll移动前快照与通知消费阶段，新增D188；.99完成GetUp结束帧的输入/快照/旋转消费，新增D189；.100完成六Mantle的RMS/通知/解锁阶段，新增差异0、D57保留；.101完成单次惯性求解并登记D190–D192；.102完成当前无profile请求的重入/deficit与时长边界，新增D193–D195并补充D191；.103完成首历史曲线值及直接消费，新增D196，零键存在性已由.104按当前消费闭包关闭U04；.105完成当前7个惯性节点配置及3处曲线过滤，源50处标准转场profile的数据/骨骼映射已由.106确认，实际权重/姿态另审；稀疏骨骼/通道、跳帧/teleport与外部参数边界仍待审计；实际动画选择包含角色Overlay标签，排除道具表现 |
+| AnimationInstance 输入、生命周期、Feet/Turn/Transition、通知 | `character/animation_instances`、`state`、`notifies` | BF144.65–.71完成可见性更新/历史时钟、初始化/实例替换、View/Head/Spine、Layering/Pose与Locomotion通用输入、Grounded/Standing/Crouching/InAir运动算法、地面预测查询及Feet输入/Foot Lock，确认D146–D152、D154–D158；.81–.92完成动态过渡资格/选择/队列、播放时钟、单/多实例混合、组停止、惯性请求、队列仲裁/落地参数、当前显式过渡/QuickStop以及Turn资格/选择/速率、时钟/自然停止和非加性混合、Roll运动点通知采样/资格/模式消费，新增D166–D179并扩展D118/D120/D121/D123。.93完成排队RootScale状态/中断/重入与实际根运动倍率消费，新增D180–D182；.94完成九个动作montage的native branching动作状态、标记/零步长、中断/跨实例保护及动作消费，新增D183/D184并扩展D121；.95完成六个Mantle的EarlyBlendOut条件/实例/停止权重与输入消费，新增D185；.96完成槽相关性历史与运动通知资格，新增D186；.97完成不可见角色通知派发/保留、重复组件更新和零步长，新增D187并扩展D186；.98完成Roll移动前快照与通知消费阶段，新增D188；.99完成GetUp结束帧的输入/快照/旋转消费，新增D189；.100完成六Mantle的RMS/通知/解锁阶段，新增差异0、D57保留；.101完成单次惯性求解并登记D190–D192；.102完成当前无profile请求的重入/deficit与时长边界，新增D193–D195并补充D191；.103完成首历史曲线值及直接消费，新增D196，零键存在性已由.104按当前消费闭包关闭U04；.105完成当前7个惯性节点配置及3处曲线过滤，源50处标准转场profile的数据/骨骼映射及普通活动帧权重/姿态由.106/.107闭合，新增D197并扩展D177/D179；完整FSM时钟/中断、稀疏骨骼/通道、跳帧/teleport与外部参数边界仍待审计；实际动画选择包含角色Overlay标签，排除道具表现 |
 | 核心 AnimBP/FSM、曲线、同步、Root Motion、Rig | 已生成核心图、实际节点与 `control_rig` | BF144.70沿InAir直接消费者确认Default Overlay缓存次序D153；.72–.79完成Foot Trace算法/primitive与mesh查询、骨盆和脚位置偏移/弹簧、足旋转/平滑/约束与加权写回、pole投影/状态/平滑，以及TwoBoneIK位置/旋转/部分权重写回，确认D159–D165；.80公共默认动作矩阵未自然触发D163–D165，未采样动作/历史和有效手臂IK仍未证明。完整图闭包及其他缓存副作用仍待重新取证核对，历史155子图合同只作起点，不能自证算法等价 |
 | 剩余源函数与跨阶段边界 | 以上 source-target 链路的覆盖缺口 | 前述审计后再独立收口；未解释项保留，截图与性能继续暂停 |
 
@@ -762,6 +762,14 @@
   - 20:37 source/static闭环：两个profile均WeightFactor，各18个唯一条目，分别全为2和5；source运行时只按精确entry索引查找，递归写子骨骼发生在编辑器SetBoneBlendScale，未列出的骨骼用全局alpha/默认scale1。50个源GUID均找到唯一目标FSM转场及已加载ProfiledBlendNode，profile值、混合模式和名义时长全部一致，共900显式值与3050默认值通过。运行时Skeleton含79个源命名骨骼、GltfNode0结构根、SKM_Als网格条目及匿名索引根；79骨骼名称唯一，除外层结构根外父链相同，18个profile名称无遗漏。初版夹具错误假设iter_paths只含79骨骼而失败，按加载器事实分类后通过，未计为产品差异。删除完整角色插件改为资源/节点加载后，同target重编输出逐字一致；删除虚拟骨条目、改mode/scale或漏一个转场的四个负控制均被拒绝。逐帧权重和姿态消费仍留下一项，截图0、性能暂停。
 
   - 20:39 完成摘要：两个当次profile、79根源骨骼及50份已加载目标转场数据闭合，3950个覆盖/缺省值全部通过；50个转场分成六种实际profile/alpha曲线/名义时长组合。确认StateMachine持有UBlendProfile并调用其GetEntryBlendScale路径，不误用接口默认方法；未列骨骼以全局alpha混合，无运行时祖先继承。四项反例全部拒绝，移除夹具角色行为插件后同target加载结果逐字相同。4份UE算法入口匹配Git，114份ALS/184份Rust、既有资产和生产库保持，SK_Als原生与目标骨架身份保存；reader未改。证据`target/bf144/106/summary.json`、`mappings.json`、`bone_mapping.json`及record watchdog。累计仍194项（106P2/88P3）；本项不代表标准混合权重、重入或姿态已等价，下一批按六种实际组合继续。公共Playground未运行，截图0、性能暂停。
+
+- [x] BF144.107 标准Profile单次转场权重与姿态消费：依赖.106记录Gate，按六种实际profile/alpha曲线/名义时长组合核对FAnimationActiveTransitionEntry的普通Update、UBlendProfile::UpdateBoneWeights、NormalizeDataWeight及标准转场的骨骼/曲线混合，覆盖首帧、内部、尾帧、default骨骼及18个覆盖骨骼。比较实际生产ProfiledBlendNode与原生公共计算路径，并隔离既有同源混合差异；中断/已有目标权重与时长调整另项后置。Gate：fresh调用闭包、两profile原生权重/变换、同输入生产节点与最小恢复/消融、实际源→目标转场消费者和身份记录。开始：2026-10-16 20:40 +08:00；预估结束：2026-10-16 21:25 +08:00；实际结束：2026-10-16 21:25:49 +08:00；偏差：+0分49秒；结果：记录Gate PASS，新增D197/P3，扩展D177/D179，未修生产。估时依据：.106已确认50处数据及六组合，源权重/标准混合约250行、target ProfiledBlendNode约100行；需要一个小型原生公共API探针，沿用已有读取器与同target库，按45分钟独立验收正常单次转场，不混入重入路径。
+  - 20:40 活动摘要：.106已提交`ebdc2f74`，累计仍194项（106P2/88P3）。当前两profile均WeightFactor，source StateMachine实际调用UBlendProfile按entry更新双向权重再归一化；下一步建立同输入数值/姿态对照，不将数据相等视作运行等价。截图0、性能暂停。
+  - 20:54 source/static闭环：fresh StateMachine Update/StandardBlend、BlendProfile、AnimationAsset归一化、AlphaBlend和AnimCurveTypes已追到当前50个ProfiledBlendNode。源使用双权重、最短符号四元数累加后归一化、首项Override/后项Accumulate；目标逐骨骼linear_blend_mut与共享blend_animation_contexts分别待数值核验。新增只读BlendProfileProbe按实际SK_Als对象执行公开权重/变换/曲线API；首轮缺FMemMark触发容器断言并由watchdog在60秒无进展后结束，补齐后108样本原生读取PASS，不把工具故障计为移植差异。下一步比较实际节点及恢复控制，完整FSM时钟/中断仍留后项。
+
+  - 20:57 consumer闭环：50个已加载生产ProfiledBlendNode完成900组输入，3824个活动帧逐根核对302096次。150个已完成帧仅保留公共计算器证据，因源bActive=false不再消费标准混合而排除，未把其超时Alpha回落误报。近单位权重两侧100组骨骼合成失败，恢复独立双权重全部通过，新增D197/P3；7042处旋转失败归入共享slerp的D177，107个小Alpha曲线失败归入共享context合成的D179。仅换nlerp仍留下100个双权重边界，进一步恢复双权重后全过。累计195项（106P2/89P3）；正在完成读取器反向权重消融/字节恢复和身份封存，无生产修改。
+
+  - 21:25 完成摘要：108组476帧原生计算与50个生产节点的900组消费闭合；302096次骨骼核验发现D197的100组微小双权重偏差，独立恢复全部通过。三份AnimBP重读的50个源转场对象逐值保持，两Profile数据保持；反向权重消融被自测检出，源码按字节恢复并在同target重编，原始/恢复/最终108组结果完全一致。无效Profile、四元数和float时长下溢请求均拒绝；完成标志控制通过。9份UE源码匹配Git，114份ALS/184份Rust、原始资产、50份目标图/对应FSM及生产库身份PASS；证据`target/bf144/107/summary.json`、`identity.json`与record watchdog。实耗45分49秒，只新增只读取证入口、自测和审计记录，累计195项（106P2/89P3）。单次活动帧之外的完整FSM时钟/中断、稀疏通道仍待审；公共Playground未运行，截图0、性能暂停。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -1834,11 +1842,13 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：六个2秒资源在原生60/30/120Hz轨迹中各晚一帧；实际角色使用1/60秒世界步长、owner倍率1，第100帧source已停止而target仍有Slot样本和全权重。只恢复源停止时点，惯性请求及姿态轨迹恢复；826组停止前姿态历史一致，停止后最大局部位置差约0.987mm、旋转约0.0251°。两个Crouch180资源在当前60Hz矩阵中本已通过，作为控制保留。
   - 漏检/边界：旧自然结束测试只确认最终清理/epoch增加，未与原生停止帧和实际惯性姿态对齐。证据`90/native_analysis.json`、`90/analysis.json`及`bf144_animation_phase90_natural_stop_consumers`；只确认停止时机，未以此宣称完整惯性求解器或通知事件等价。仅登记，未加阈值补丁。
 
-- [ ] BF144-D177 / P2 — Turn预混使用球面插值，偏离源加权四元数累加。
+- [ ] BF144-D177 / P2 — Turn预混及标准Profile转场使用球面插值，偏离源加权四元数累加。
   - Source：fresh `AnimInstanceProxy.cpp:2056–2085`把所有非加性Montage和相关的基础姿态按顺序交给`BlendPosesTogetherIndirect`；`AnimationRuntime.cpp:458–484`先逐项加权累加、按最短符号对齐，最后仅归一化一次。64个公开UE原生混合样本已与独立公式核对。
   - Target：`turn_layer.rs:461–487`逐层调用LinearInterpolator；依赖的`pose.rs:156–159`实际使用Quat::slerp。总权重恰好为1、没有基础姿态参与时，两个不等权重的Turn也已不等价，不能只修D123的中间归一化。
   - 反例：实际Standing/Crouching八资源在0.25/0.4秒采样，左右90/180及相同姿态控制共20组；权重0.3/0.7时14组失败，最大局部旋转差约0.34113°，位置、scale和曲线均在合同内。仅在夹具将预混改为nlerp后20组全部通过；0.5/0.5、全单层和相同姿态控制通过。原producer与实际发布Pose逐值核验，使用共同采样时间/权重隔离D175/D176。
   - 漏检/边界：旧`turn_layer.rs:1020–1021`测试把同一个LinearInterpolator当作source oracle，不能发现插值算法不一致。证据`91/settings.native.json`、`91/analysis.json`与`bf144_animation_phase91_actual_slots`；为实际当前角色/图的受控重叠输入，不宣称默认输入自然产生全部配对。仅登记，未改生产或依赖。
+
+  - BF144.107标准Profile补充：源`AnimNode_StateMachine.cpp:1064–1111,1024`同样按两权重累加后归一化；50个当前ProfiledBlendNode经`profile_blend.rs:149`调用同一BonePose::linear_blend_mut。3824个活动帧的7648组缺省/覆盖姿态中7042组旋转失败，控制输入最大四元数距离0.0121873；仅换nlerp后，除D197的100个双权重边界外全部通过。固定共同factor与完整79骨骼输入，隔离FSM时钟/稀疏通道，不声明这些受控姿态配对在默认场景自然发生。证据`107/analysis.json`及50份实际加载节点。
 
 - [ ] BF144-D178 / P3 — Turn基础姿态不再相关时，目标把未满权重的Montage升为全权重。
   - Source：fresh `SlotEvaluatePose:2058–2085`在剩余基础权重≤1e−5时不加入基础姿态，但保留Montage实际权重；`AnimationRuntime.cpp:469–480`仅在输入多于一个时归一化旋转，单层位置、scale和曲线仍按实际权重输出。
@@ -1853,6 +1863,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：原始权重1/1.1e−5/1的三个当前Turn均通过源实例资格，中项归一化后约5.5e−6；实际站蹲槽20组曲线全部失败，最大差0.0009765625，位置/旋转/scale均通过。把小权重改放首项，20组原始目标全部通过；源曲线运算恢复两组共40个控制全部通过。D168的上游原始权重剔除无法修复此反例。
   - 漏检/边界：旧曲线混合只核对单层、普通权重或原始权重已不相关的实例，未将实例资格与归一化后的曲线资格分开。证据`91/rows.json`中两个三实例权重顺序及64组原生混合对照；受控有效槽输入，未宣称默认Turn调用自然形成该超额权重。仅登记，未修生产。
   - 后续消费：共同正倍率1.2下，中项小权重的20个失败继续进入实际ModifyCurve输出，RotationYawSpeed最大差0.0011749268；首项20控制及两组40个源恢复全部通过。
+
+  - BF144.107标准Profile补充：source StandardBlend对上一状态Override、下一状态Accumulate，目标`profile_blend.rs:191–194`调用同一blend_animation_contexts。当前50个节点的小Alpha控制共107活动帧失败，ProbeCurve共同−1/90输入最大差0.0008981824；只恢复源后项相关性门槛，全部3824个活动帧曲线通过。累计仍归本项，不与D168的槽资格混淆；曲线值为受控输入，不宣称默认图自然出现该精确边界。
 
 - [ ] BF144-D180 / P3 — Roll排队状态使用的GraphClip轨道遗漏有效触发偏移。
   - Source：fresh `AnimTypes.cpp:81–98`按GetTime+TriggerTimeOffset及有效起点+Duration+EndOffset计算；A_Als_Roll的RootMotionScale原生有效区间为0.0000999999975→1.5001000166，TranslationScale=1.3。`AnimSequenceBase.cpp:478–505`按本帧区间重叠采集，越过结束点的这一帧仍会排入状态。
@@ -1961,6 +1973,12 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：首帧PoseGrounded=1，下一帧请求0.2秒惯性化到0.5、delta=1/60。原生为0.53887993，目标为0.99745607；后续最大差约0.482。149条2561帧的原生/生产对照中12条轨迹124帧不符，全部位于单历史分支；只在该边界把evaluated_curves复制到缺少的previous_curves，124帧全部恢复。无历史、两份历史以及源关闭导数的100µs历史时间控制通过。
   - Consumer：当前主AB惯性输出进入Layering的Overlay Input；fresh源的Accumulate→Override曲线路径保留该差值。实际生产合成节点和AbAlsProvider验证：共同Locomotion值0.25时，发布的pose_state.grounded_amount分别约0.78887993/1.24745607，恢复值与原生一致。当前空Curves槽与这两个选定曲线的路径已闭合，未声明全Root骨骼姿态或默认场景自然触发。
   - 漏检/边界：旧测试覆盖无历史或两份历史，没有单历史曲线回退；也不能只凭骨骼Pose的clone证明曲线有同样处理。证据`103/native.json`、`analysis.json`、`layering-analysis.json`、`consumer-layering.json`；只登记，未修复。
+
+- [ ] BF144-D197 / P3 — 标准Profile混合用目标权重的补数代替源权重，丢失近单位总和容差。
+  - Source：fresh `BlendProfile.cpp:456–485`分别计算正向/反向骨骼权重；`AnimationAsset.cpp:783–850`仅在权重和偏离1超过1e−5时归一化。`AnimNode_StateMachine.cpp:1101–1105`把保留的两份权重分别用于位置、缩放及最短符号旋转累加。
+  - Target：`profile_blend.rs:81–93,140–149`只返回目标权重，再交给BonePose::linear_blend_mut以1−目标权重隐式重建源权重；源允许的微小欠额/超额因此被消去。此处并非D169的槽总权重提前除法，修复槽合成不会改变该独立路径。
+  - 反例：两个实际Profile、六组合、50份已加载转场节点，权重和约1±5e−6的100组覆盖骨骼全部失败；同输入源权重与目标补数最大差5.1111e−6，局部位置分量最大差9.6962e−7m、scale最大差6.6042e−6。先只恢复nlerp仍有100组失败；再恢复源双权重后全部通过，最大位置误差2.08e−8m、scale1.51e−7、四元数距离1.19e−7。总和恰为1、偏离超过容差和61根缺省骨骼控制通过。
+  - 漏检/边界：旧profile测试以source位置0、scale缺省验证单一目标权重，没有核对两份非零输入在归一化容差内的合成。当前是微小数值差异，不扩大为可见角色故障；900组3824活动帧、302096次骨骼核验及恢复见`target/bf144/107/analysis.json`。终止帧、完整FSM、中断和稀疏通道不在此项结论内；仅登记，未改生产。
 
 ### 核验边界记录（不计为无差异）
 

@@ -22,6 +22,7 @@
 #include "Animation/AnimationPoseData.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/BlendSpace.h"
+#include "Animation/BlendProfile.h"
 #include "Animation/Skeleton.h"
 #include "Engine/Blueprint.h"
 #include "Engine/Engine.h"
@@ -1952,6 +1953,123 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
     return Probe;
 }
 
+TSharedPtr<FJsonObject> CaptureBlendProfileProbe(UObject* Asset, const FString& RequestPath)
+{
+    FMemMark Mark(FMemStack::Get());
+    USkeleton* Skeleton = Cast<USkeleton>(Asset);
+    FString Text;
+    TSharedPtr<FJsonObject> Request;
+    const TArray<TSharedPtr<FJsonValue>>* Samples = nullptr;
+    if (Skeleton == nullptr || !FFileHelper::LoadFileToString(Text, *RequestPath) ||
+        !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Request) ||
+        !Request->TryGetArrayField(TEXT("samples"), Samples) || Samples->IsEmpty() || Samples->Num() > 512) { return nullptr; }
+    const auto ReadTransform = [](const TSharedPtr<FJsonObject>& Object, const TCHAR* Key, FTransform& Transform)
+    {
+        const TSharedPtr<FJsonObject>* Fields = nullptr;
+        if (!Object->TryGetObjectField(Key, Fields)) { return false; }
+        double Components[10];
+        int32 Offset = 0;
+        for (const TCHAR* Field : {TEXT("translation_cm"), TEXT("rotation"), TEXT("scale")})
+        {
+            const TArray<TSharedPtr<FJsonValue>>* Values = nullptr;
+            const int32 Count = Offset == 3 ? 4 : 3;
+            if (!(*Fields)->TryGetArrayField(Field, Values) || Values->Num() != Count) { return false; }
+            for (const TSharedPtr<FJsonValue>& Value : *Values)
+            {
+                if (!Value->TryGetNumber(Components[Offset]) || !FMath::IsFinite(Components[Offset])) { return false; }
+                ++Offset;
+            }
+        }
+        const FQuat Rotation(Components[3], Components[4], Components[5], Components[6]);
+        if (!Rotation.IsNormalized()) { return false; }
+        Transform = FTransform(Rotation, FVector(Components[0], Components[1], Components[2]), FVector(Components[7], Components[8], Components[9]));
+        return true;
+    };
+    TArray<TSharedPtr<FJsonValue>> Results;
+    for (const TSharedPtr<FJsonValue>& Value : *Samples)
+    {
+        const TSharedPtr<FJsonObject>* Sample = nullptr;
+        const TArray<TSharedPtr<FJsonValue>>* Deltas = nullptr;
+        FString Name, ProfileName, ModeName;
+        double Duration, CurveA, CurveB;
+        FTransform From, To;
+        if (!Value->TryGetObject(Sample) || !(*Sample)->TryGetStringField(TEXT("name"), Name) ||
+            !(*Sample)->TryGetStringField(TEXT("profile"), ProfileName) || !(*Sample)->TryGetStringField(TEXT("mode"), ModeName) ||
+            !(*Sample)->TryGetNumberField(TEXT("duration"), Duration) || !FMath::IsFinite(static_cast<float>(Duration)) || static_cast<float>(Duration) <= 0.0f ||
+            !(*Sample)->TryGetNumberField(TEXT("curve_a"), CurveA) || !FMath::IsFinite(static_cast<float>(CurveA)) ||
+            !(*Sample)->TryGetNumberField(TEXT("curve_b"), CurveB) || !FMath::IsFinite(static_cast<float>(CurveB)) ||
+            !(*Sample)->TryGetArrayField(TEXT("deltas"), Deltas) || Deltas->IsEmpty() || Deltas->Num() > 256 ||
+            !ReadTransform(*Sample, TEXT("from"), From) || !ReadTransform(*Sample, TEXT("to"), To)) { return nullptr; }
+        UBlendProfile* Profile = Skeleton->GetBlendProfile(FName(*ProfileName));
+        const int64 ModeValue = StaticEnum<EAlphaBlendOption>()->GetValueByNameString(ModeName);
+        if (Profile == nullptr || Profile->Mode != EBlendProfileMode::WeightFactor || ModeValue == INDEX_NONE ||
+            ModeValue == static_cast<int64>(EAlphaBlendOption::Custom)) { return nullptr; }
+        const EAlphaBlendOption Mode = static_cast<EAlphaBlendOption>(ModeValue);
+        FAlphaBlend Blend;
+        Blend.SetBlendTime(static_cast<float>(Duration));
+        Blend.SetBlendOption(Mode);
+        Blend.SetValueRange(0.0f, 1.0f);
+        TArray<FBlendSampleData> Weights;
+        Weights.SetNum(2);
+        for (FBlendSampleData& Weight : Weights) { Weight.PerBoneBlendData.SetNumZeroed(Profile->GetNumBlendEntries()); }
+        FBlendedCurve PreviousCurve, NextCurve;
+        PreviousCurve.Set(TEXT("ProbeCurve"), static_cast<float>(CurveA));
+        NextCurve.Set(TEXT("ProbeCurve"), static_cast<float>(CurveB));
+        float Elapsed = 0.0f;
+        TArray<TSharedPtr<FJsonValue>> Frames;
+        for (const TSharedPtr<FJsonValue>& DeltaValue : *Deltas)
+        {
+            double Delta;
+            if (!DeltaValue->TryGetNumber(Delta) || !FMath::IsFinite(static_cast<float>(Delta)) || Delta < 0.0) { return nullptr; }
+            Elapsed += static_cast<float>(Delta);
+            if (!FMath::IsFinite(Elapsed)) { return nullptr; }
+            Blend.Update(static_cast<float>(Delta));
+            const float Factor = Elapsed / static_cast<float>(Duration);
+            if (!FMath::IsFinite(Factor)) { return nullptr; }
+            const float Alpha = FAlphaBlend::AlphaToBlendOption(Factor, Mode, nullptr);
+            for (int32 Index = 0; Index < 2; ++Index)
+            {
+                Weights[Index].TotalWeight = Index == 0 ? Alpha : 1.0f - Alpha;
+                Profile->UpdateBoneWeights(Weights[Index], Blend, 0.0f, Weights[Index].TotalWeight, Index != 0);
+            }
+            FBlendSampleData::NormalizeDataWeight(Weights);
+            TSharedRef<FJsonObject> Bones = MakeShared<FJsonObject>();
+            for (int32 Index = -1; Index < Profile->GetNumBlendEntries(); ++Index)
+            {
+                const float First = Index < 0 ? 1.0f - Alpha : Weights[1].PerBoneBlendData[Index];
+                const float Second = Index < 0 ? Alpha : Weights[0].PerBoneBlendData[Index];
+                FTransform Output = From * ScalarRegister(First);
+                Output.AccumulateWithShortestRotation(To, ScalarRegister(Second));
+                Output.NormalizeRotation();
+                TSharedRef<FJsonObject> Bone = MakeShared<FJsonObject>();
+                Bone->SetNumberField(TEXT("source_weight"), First);
+                Bone->SetNumberField(TEXT("target_weight"), Second);
+                Bone->SetObjectField(TEXT("transform"), CaptureTransform(Output));
+                Bones->SetObjectField(Index < 0 ? TEXT("default") : Profile->ProfileEntries[Index].BoneReference.BoneName.ToString(), Bone);
+            }
+            FBlendedCurve Curve;
+            Curve.Override(PreviousCurve, 1.0 - Alpha);
+            Curve.Accumulate(NextCurve, Alpha);
+            TSharedRef<FJsonObject> Frame = MakeShared<FJsonObject>();
+            Frame->SetNumberField(TEXT("elapsed"), Elapsed);
+            Frame->SetNumberField(TEXT("factor"), Factor);
+            Frame->SetNumberField(TEXT("alpha"), Alpha);
+            Frame->SetBoolField(TEXT("complete"), Blend.IsComplete());
+            Frame->SetNumberField(TEXT("curve"), Curve.Get(TEXT("ProbeCurve")));
+            Frame->SetObjectField(TEXT("bones"), Bones);
+            Frames.Add(MakeShared<FJsonValueObject>(Frame));
+        }
+        TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>();
+        Row->SetStringField(TEXT("name"), Name);
+        Row->SetArrayField(TEXT("frames"), Frames);
+        Results.Add(MakeShared<FJsonValueObject>(Row));
+        UE_LOG(LogAlsGraphSourceReader, Display, TEXT("Blend profile probe sample %d/%d captured."), Results.Num(), Samples->Num());
+    }
+    TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+    Result->SetArrayField(TEXT("samples"), Results);
+    return Result;
+}
+
 TSharedPtr<FJsonObject> CaptureInertializationProbe(UObject* Asset, const FString& RequestPath)
 {
     UBlueprint* Blueprint = Cast<UBlueprint>(Asset);
@@ -2870,6 +2988,13 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
         const TSharedPtr<FJsonObject> Probe = CaptureMontageClockProbe(Asset, MontageClockProbePath);
         if (!Probe.IsValid()) { return 7; }
         Root->SetObjectField(TEXT("montage_clock_probe"), Probe.ToSharedRef());
+    }
+    FString BlendProfileProbePath;
+    if (FParse::Value(*Params, TEXT("BlendProfileProbe="), BlendProfileProbePath))
+    {
+        const TSharedPtr<FJsonObject> Probe = CaptureBlendProfileProbe(Asset, BlendProfileProbePath);
+        if (!Probe.IsValid()) { return 7; }
+        Root->SetObjectField(TEXT("blend_profile_probe"), Probe.ToSharedRef());
     }
     FString InertializationProbePath;
     if (FParse::Value(*Params, TEXT("InertializationProbe="), InertializationProbePath))
