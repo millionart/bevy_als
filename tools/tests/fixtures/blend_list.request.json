@@ -1,0 +1,150 @@
+{
+  "mode": "Cubic",
+  "blend_times": [
+    0.3,
+    0.2
+  ],
+  "samples": [
+    {
+      "name": "first-and-reverse",
+      "steps": [
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 1,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666
+        },
+        {
+          "active": 0,
+          "delta_seconds": 0.016666666666666666
+        }
+      ]
+    }
+  ]
+}

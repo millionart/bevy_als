@@ -20,6 +20,7 @@
 #include "Animation/AnimNode_SaveCachedPose.h"
 #include "Animation/AnimNode_Inertialization.h"
 #include "Animation/AnimNode_SequencePlayer.h"
+#include "AnimNodes/AnimNode_BlendListBase.h"
 #include "Animation/AnimNotifyQueue.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "Animation/AnimSequence.h"
@@ -2299,6 +2300,103 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
     return Result;
 }
 
+TSharedPtr<FJsonObject> CaptureBlendListProbe(const FString& RequestPath)
+{
+    FString Text, ModeName;
+    TSharedPtr<FJsonObject> Request;
+    const TArray<TSharedPtr<FJsonValue>>* Times = nullptr;
+    const TArray<TSharedPtr<FJsonValue>>* Samples = nullptr;
+    if (!FFileHelper::LoadFileToString(Text, *RequestPath) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Request) ||
+        !Request->TryGetStringField(TEXT("mode"), ModeName) || !Request->TryGetArrayField(TEXT("blend_times"), Times) ||
+        Times->IsEmpty() || Times->Num() > 8 || !Request->TryGetArrayField(TEXT("samples"), Samples) || Samples->IsEmpty() || Samples->Num() > 512) { return nullptr; }
+    const int64 Mode = StaticEnum<EAlphaBlendOption>()->GetValueByNameString(ModeName);
+    if (Mode == INDEX_NONE) { return nullptr; }
+    struct FProbeLeaf : FAnimNode_Base
+    {
+        int32 Initializations = 0;
+        TArray<float> Weights;
+        virtual void Initialize_AnyThread(const FAnimationInitializeContext&) override { ++Initializations; }
+        virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override { Weights.Add(Context.GetFinalBlendWeight()); }
+    };
+    struct FProbeBlend : FAnimNode_BlendListBase
+    {
+        int32 Active = 0;
+        virtual int32 GetActiveChildIndex() override { return Active; }
+        void Link(TArray<FProbeLeaf>& Leaves)
+        {
+            BlendPose.SetNum(Leaves.Num());
+            for (int32 Index = 0; Index < Leaves.Num(); ++Index) { BlendPose[Index].SetLinkNode(&Leaves[Index]); }
+        }
+        float Weight(int32 Index) const { return PerBlendData[Index].Weight; }
+        float Duration() const { return PerBlendData[Active].Blend.GetBlendTime(); }
+    };
+    TArray<TSharedPtr<FJsonValue>> Rows;
+    for (const TSharedPtr<FJsonValue>& SampleValue : *Samples)
+    {
+        const TSharedPtr<FJsonObject>* Sample = nullptr;
+        const TArray<TSharedPtr<FJsonValue>>* Steps = nullptr;
+        FString Name;
+        if (!SampleValue->TryGetObject(Sample) || !(*Sample)->TryGetStringField(TEXT("name"), Name) ||
+            !(*Sample)->TryGetArrayField(TEXT("steps"), Steps) || Steps->IsEmpty() || Steps->Num() > 512) { return nullptr; }
+        USkeletalMeshComponent* Mesh = NewObject<USkeletalMeshComponent>(GetTransientPackage());
+        UAnimInstance* Instance = NewObject<UAnimInstance>(Mesh);
+        FAnimInstanceProxy Proxy(Instance);
+        FProbeBlend Blend;
+        TArray<FProbeLeaf> Leaves;
+        Leaves.SetNum(Times->Num());
+        Blend.Link(Leaves);
+        FArrayProperty* TimeProperty = FindFProperty<FArrayProperty>(FAnimNode_BlendListBase::StaticStruct(), TEXT("BlendTime"));
+        FScriptArrayHelper TimeValues(TimeProperty, TimeProperty->ContainerPtrToValuePtr<void>(&Blend));
+        TimeValues.Resize(Times->Num());
+        const FFloatProperty* TimeValue = CastFieldChecked<FFloatProperty>(TimeProperty->Inner);
+        for (int32 Index = 0; Index < Times->Num(); ++Index)
+        {
+            double Time;
+            if (!(*Times)[Index]->TryGetNumber(Time) || !FMath::IsFinite(static_cast<float>(Time)) || Time < 0.0 || Time > 60.0) { return nullptr; }
+            TimeValue->SetPropertyValue(TimeValues.GetRawPtr(Index), static_cast<float>(Time));
+        }
+        FEnumProperty* ModeProperty = FindFProperty<FEnumProperty>(FAnimNode_BlendListBase::StaticStruct(), TEXT("BlendType"));
+        ModeProperty->GetUnderlyingProperty()->SetIntPropertyValue(ModeProperty->ContainerPtrToValuePtr<void>(&Blend), Mode);
+        Blend.Initialize_AnyThread(FAnimationInitializeContext(&Proxy));
+        TArray<TSharedPtr<FJsonValue>> Frames;
+        for (const TSharedPtr<FJsonValue>& StepValue : *Steps)
+        {
+            const TSharedPtr<FJsonObject>* Step = nullptr;
+            double Active, Delta;
+            if (!StepValue->TryGetObject(Step) || !(*Step)->TryGetNumberField(TEXT("active"), Active) || !FMath::IsFinite(Active) ||
+                Active < 0.0 || Active >= Times->Num() || Active != FMath::FloorToDouble(Active) ||
+                !(*Step)->TryGetNumberField(TEXT("delta_seconds"), Delta) || !FMath::IsFinite(static_cast<float>(Delta)) || Delta < 0.0 || Delta > 1.0) { return nullptr; }
+            for (FProbeLeaf& Leaf : Leaves) { Leaf.Weights.Reset(); }
+            Blend.Active = static_cast<int32>(Active);
+            Blend.Update_AnyThread(FAnimationUpdateContext(&Proxy, static_cast<float>(Delta)));
+            TSharedRef<FJsonObject> Frame = MakeShared<FJsonObject>();
+            Frame->SetNumberField(TEXT("active"), Blend.Active);
+            Frame->SetNumberField(TEXT("duration"), Blend.Duration());
+            TArray<TSharedPtr<FJsonValue>> Weights, Updates, Initializations;
+            for (int32 Index = 0; Index < Leaves.Num(); ++Index)
+            {
+                Weights.Add(MakeShared<FJsonValueNumber>(Blend.Weight(Index)));
+                Initializations.Add(MakeShared<FJsonValueNumber>(Leaves[Index].Initializations));
+                TArray<TSharedPtr<FJsonValue>> Calls;
+                for (const float Weight : Leaves[Index].Weights) { Calls.Add(MakeShared<FJsonValueNumber>(Weight)); }
+                Updates.Add(MakeShared<FJsonValueArray>(Calls));
+            }
+            Frame->SetArrayField(TEXT("weights"), Weights);
+            Frame->SetArrayField(TEXT("updates"), Updates);
+            Frame->SetArrayField(TEXT("initializations"), Initializations);
+            Frames.Add(MakeShared<FJsonValueObject>(Frame));
+        }
+        TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>();
+        Row->SetStringField(TEXT("name"), Name);
+        Row->SetArrayField(TEXT("frames"), Frames);
+        Rows.Add(MakeShared<FJsonValueObject>(Row));
+        UE_LOG(LogAlsGraphSourceReader, Display, TEXT("Blend list sample %d/%d captured."), Rows.Num(), Samples->Num());
+    }
+    TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+    Result->SetArrayField(TEXT("samples"), Rows);
+    return Result;
+}
+
 TSharedPtr<FJsonObject> CaptureBlendProfileProbe(UObject* Asset, const FString& RequestPath)
 {
     FMemMark Mark(FMemStack::Get());
@@ -3496,6 +3594,13 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
         Root->SetObjectField(TEXT("sequence_clock_probe"), Probe.ToSharedRef());
     }
     FString BlendProfileProbePath;
+    FString BlendListProbePath;
+    if (FParse::Value(*Params, TEXT("BlendListProbe="), BlendListProbePath))
+    {
+        const TSharedPtr<FJsonObject> Probe = CaptureBlendListProbe(BlendListProbePath);
+        if (!Probe.IsValid()) { return 7; }
+        Root->SetObjectField(TEXT("blend_list_probe"), Probe.ToSharedRef());
+    }
     FString SyncGroupClockProbePath;
     if (FParse::Value(*Params, TEXT("SyncGroupClockProbe="), SyncGroupClockProbePath))
     {

@@ -22,6 +22,7 @@ public class AlsGraphSourceReader : ModuleRules
             "BlueprintGraph",
             "Kismet",
             "AnimGraph",
+            "AnimGraphRuntime",
             "ControlRig",
             "RigVM",
             "RigVMDeveloper",
