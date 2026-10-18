@@ -39,6 +39,8 @@
 
 `run_ue_source_reader.ps1 -SyncGroupClockProbe <request.json>` 通过UE公开FAnimSync执行单个无marker同步组，成员固定为非循环CanBeLeader。请求的`players`提供asset/start/rate，`-Asset`须对应首项；每个sample提供name和steps，每步含delta_seconds及等长weights数组。权重为null表示该帧未更新，0表示实际提交零权重tick；两者保留不同的时钟/组历史。输出原生排序、leader、长度比例及每个播放器的位置/previous/delta。入口不执行完整AnimBP、姿态或世界。使用`sync_group_clock.request.json`和`test_sync_group_clock_probe.py`核对空组、同分排序、成员加入/退出、零权重、零步长及夹紧；沿正常动画更新路径调用TickAssetPlayerInstances，该函数自行切换缓冲。
 
+同步组step可选`reset`索引数组，按Sequence Player初始化语义把对应时间恢复为start并清marker记录；`inertial: true`为该步tick设置实际惯性请求标志。入口仍由原生组决定是否按前leader分数重同步，不手工改组相位。自测覆盖无请求重置、满足分数条件的惯性重同步，以及新leader更强时保留本地起点；不提供这两个字段时旧输出保持。
+
 2026-09-26 删除了 UE MCP client 及其完整调用链（输入审计、旧相机导出、拓扑/截图和五个 shell 探测脚本），当前取证统一使用原生 reader。相机曲线的目标转换使用 `import/import_curve_float.py`、`import/import_debug_curves.py` 和 `import/camera_curve_conversion.py`。
 
 同批删除六个早期 Interchange API 试验脚本、没有消费者的 `probe_scene2.py`，以及反复改写旧 Playground parity 文件的 `patch_parity_ron.py`、`test_lighting_only.py`。实际导出器、原始资产、生成图、归档证据和本地配置保留。

@@ -2126,6 +2126,20 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
             if (!StepValue->TryGetObject(Step) || !(*Step)->TryGetNumberField(TEXT("delta_seconds"), Delta) ||
                 !FMath::IsFinite(static_cast<float>(Delta)) || Delta < 0.0 ||
                 !(*Step)->TryGetArrayField(TEXT("weights"), Weights) || Weights->Num() != Sequences.Num()) { return nullptr; }
+            bool Inertial = false;
+            if ((*Step)->HasField(TEXT("inertial")) && !(*Step)->TryGetBoolField(TEXT("inertial"), Inertial)) { return nullptr; }
+            if ((*Step)->HasField(TEXT("reset")))
+            {
+                const TArray<TSharedPtr<FJsonValue>>* Reset = nullptr;
+                if (!(*Step)->TryGetArrayField(TEXT("reset"), Reset) || Reset->Num() > Sequences.Num()) { return nullptr; }
+                for (const TSharedPtr<FJsonValue>& IndexValue : *Reset)
+                {
+                    double Index;
+                    if (!IndexValue->TryGetNumber(Index) || !FMath::IsFinite(Index) || Index < 0.0 || Index >= Sequences.Num() || Index != FMath::FloorToDouble(Index)) { return nullptr; }
+                    Times[static_cast<int32>(Index)] = Starts[static_cast<int32>(Index)];
+                    Markers[static_cast<int32>(Index)].Reset();
+                }
+            }
             Sync.Reset();
             for (int32 Index = 0; Index < Sequences.Num(); ++Index)
             {
@@ -2135,6 +2149,7 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
                     !FMath::IsFinite(static_cast<float>(Delta) * Rates[Index] * Sequences[Index]->RateScale)) { return nullptr; }
                 FAnimTickRecord Tick(Sequences[Index], false, Rates[Index], false, static_cast<float>(Weight), Times[Index], Markers[Index]);
                 Tick.DeltaTimeRecord = &Deltas[Index];
+                Tick.bRequestedInertialization = Inertial;
                 Sync.AddTickRecord(Tick, UE::Anim::FAnimSyncParams(GroupName, EAnimGroupRole::CanBeLeader, EAnimSyncMethod::SyncGroup));
             }
             Sync.TickAssetPlayerInstances(Proxy, static_cast<float>(Delta));

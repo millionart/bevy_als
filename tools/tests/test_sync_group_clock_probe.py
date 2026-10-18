@@ -17,7 +17,12 @@ for sample, row in zip(request['samples'], probe['samples']):
     prior = [0.0] * 4
     movement = [0.0] * 4
     valid = [False] * 4
+    last_leader = None
+    last_weights = None
+    last_ratio = 0.0
     for step, frame in zip(sample['steps'], row['frames']):
+        for index in step.get('reset', []):
+            times[index] = f32(request['players'][index]['start'])
         weights = step['weights']
         order = [i for i, w in enumerate(weights) if w is not None]
         for end in range(len(order)-1, 0, -1):
@@ -31,6 +36,8 @@ for sample, row in zip(request['samples'], probe['samples']):
         if order:
             leader = order[0]
             length = probe['players'][leader]['duration']
+            if step.get('inertial', False) and last_leader is not None and f32(last_weights[last_leader]) >= f32(weights[leader]):
+                times[leader] = f32(last_ratio * length)
             prior[leader] = times[leader]
             movement[leader] = f32(f32(request['players'][leader]['rate'] * probe['players'][leader]['rate_scale']) * f32(step['delta_seconds']))
             times[leader] = min(max(f32(times[leader] + movement[leader]), 0.0), length) if movement[leader] else times[leader]
@@ -46,6 +53,9 @@ for sample, row in zip(request['samples'], probe['samples']):
                 valid[follower] = True
         for index, player in enumerate(frame['players']):
             assert player == {'position': times[index], 'previous': prior[index], 'playback_delta': movement[index], 'has_previous': valid[index], 'ticked': weights[index] is not None}
+        last_leader = order[0] if order else None
+        last_weights = weights
+        last_ratio = frame['ratio']
         count += 1
-assert count == 15
+assert count == 24
 print(f'Native group ordering, joining, release, zero-weight and clock controls PASS: {count} frames')
