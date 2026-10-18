@@ -45,6 +45,8 @@
 
 同步组step可选`reset`索引数组，按Sequence Player初始化语义把对应时间恢复为start并清marker记录；`inertial: true`为该步tick设置实际惯性请求标志。入口仍由原生组决定是否按前leader分数重同步，不手工改组相位。自测覆盖无请求重置、满足分数条件的惯性重同步，以及新leader更强时保留本地起点；不提供这两个字段时旧输出保持。
 
+通用属性记录对有限浮点额外给出`numeric_value`，直接读取原生FNumericProperty数值；原有`exported_text`及其他字段保持。文本往往只有六位小数，不能据此猜测源值是分数或将其替换为更“精确”的常量。`test_numeric_property_capture.py`验证Standing CDO中的原生float表示；非有限值仍由原文本记录，不写非法JSON数值。
+
 2026-09-26 删除了 UE MCP client 及其完整调用链（输入审计、旧相机导出、拓扑/截图和五个 shell 探测脚本），当前取证统一使用原生 reader。相机曲线的目标转换使用 `import/import_curve_float.py`、`import/import_debug_curves.py` 和 `import/camera_curve_conversion.py`。
 
 同批删除六个早期 Interchange API 试验脚本、没有消费者的 `probe_scene2.py`，以及反复改写旧 Playground parity 文件的 `patch_parity_ron.py`、`test_lighting_only.py`。实际导出器、原始资产、生成图、归档证据和本地配置保留。

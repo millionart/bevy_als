@@ -156,6 +156,11 @@ TArray<TSharedPtr<FJsonValue>> CaptureProperties(const UStruct* Struct, const vo
             Entry->SetStringField(TEXT("cpp_type"), Property->GetCPPType());
             Entry->SetStringField(TEXT("flags"), FString::Printf(TEXT("0x%llX"), Property->GetPropertyFlags()));
             Entry->SetStringField(TEXT("exported_text"), ExportedText);
+            if (const FNumericProperty* Numeric = CastField<FNumericProperty>(Property); Numeric != nullptr && Numeric->IsFloatingPoint())
+            {
+                const double Number = Numeric->GetFloatingPointPropertyValue(Value);
+                if (FMath::IsFinite(Number)) { Entry->SetNumberField(TEXT("numeric_value"), Number); }
+            }
             if (const FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
             {
                 if (const FNumericProperty* Underlying = EnumProperty->GetUnderlyingProperty())
