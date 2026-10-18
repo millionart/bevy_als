@@ -2188,6 +2188,22 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
                 !(*Step)->TryGetArrayField(TEXT("weights"), Weights) || Weights->Num() != Assets.Num()) { return nullptr; }
             bool Inertial = false;
             if ((*Step)->HasField(TEXT("inertial")) && !(*Step)->TryGetBoolField(TEXT("inertial"), Inertial)) { return nullptr; }
+            TArray<FVector> Positions = BlendPositions;
+            if ((*Step)->HasField(TEXT("blend_positions")))
+            {
+                const TArray<TSharedPtr<FJsonValue>>* Values = nullptr;
+                if (!(*Step)->TryGetArrayField(TEXT("blend_positions"), Values) || Values->Num() != Assets.Num()) { return nullptr; }
+                for (int32 Index = 0; Index < Assets.Num(); ++Index)
+                {
+                    if ((*Values)[Index]->Type == EJson::Null) { continue; }
+                    const TArray<TSharedPtr<FJsonValue>>* Position = nullptr;
+                    double X, Y;
+                    if (Cast<UBlendSpace>(Assets[Index]) == nullptr || !(*Values)[Index]->TryGetArray(Position) || Position->Num() != 2 ||
+                        !(*Position)[0]->TryGetNumber(X) || !(*Position)[1]->TryGetNumber(Y) ||
+                        !FMath::IsFinite(static_cast<float>(X)) || !FMath::IsFinite(static_cast<float>(Y))) { return nullptr; }
+                    Positions[Index] = FVector(X, Y, 0.0);
+                }
+            }
             if ((*Step)->HasField(TEXT("reset")))
             {
                 const TArray<TSharedPtr<FJsonValue>>* Reset = nullptr;
@@ -2211,7 +2227,7 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
                 FAnimTickRecord Tick;
                 if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(Assets[Index]))
                 {
-                    Tick = FAnimTickRecord(BlendSpace, BlendPositions[Index], BlendSamples[Index], Filters[Index], Loops[Index], Rates[Index],
+                    Tick = FAnimTickRecord(BlendSpace, Positions[Index], BlendSamples[Index], Filters[Index], Loops[Index], Rates[Index],
                         false, false, static_cast<float>(Weight), Times[Index], Markers[Index]);
                     Tick.BlendSpace.TriangulationIndex = TriangulationIndices[Index];
                 }

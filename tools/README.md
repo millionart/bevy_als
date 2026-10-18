@@ -45,6 +45,8 @@
 
 组成员也可使用BlendSpace：该player必须提供固定的`blend_position: [x, y]`，`start`为0–1的归一化累计值。每个BlendSpace使用独立过滤器和样本缓存，沿原生TickRecord及FAnimSync推进；输出`time_unit: "normalized"`，其position/previous为归一化时间，playback_delta仍是实际DeltaTimeRecord的秒数。每帧另给出filtered_position和内部samples的权重、previous_time/time（秒）、sample_index、animation及play_rate。Sequence原输出保持；`reset`目前只接受Sequence索引，不把BlendSpace重建混同为重置累计值。`sync_blendspace_group.request.json`和`test_sync_blendspace_group_probe.py`覆盖单成员、不同轴输入的leader/follower、循环、样本时钟及单位。
 
+同步组step可选`blend_positions`，数组长度须等于players；BlendSpace项为当步`[x,y]`，null或省略整个字段均使用player的固定blend_position，不沿用上一帧覆盖值。Sequence项只接受null。过滤器和样本历史仍由每个播放器独立保存；输出结构保持。`sync_blendspace_dynamic.request.json`与`test_sync_blendspace_dynamic_probe.py`核对独立动态输入、过滤过渡、回退默认输入及同步时钟。
+
 同步组step可选`reset`索引数组，按Sequence Player初始化语义把对应时间恢复为start并清marker记录；`inertial: true`为该步tick设置实际惯性请求标志。入口仍由原生组决定是否按前leader分数重同步，不手工改组相位。自测覆盖无请求重置、满足分数条件的惯性重同步，以及新leader更强时保留本地起点；不提供这两个字段时旧输出保持。
 
 通用属性记录对有限浮点额外给出`numeric_value`，直接读取原生FNumericProperty数值；原有`exported_text`及其他字段保持。文本往往只有六位小数，不能据此猜测源值是分数或将其替换为更“精确”的常量。`test_numeric_property_capture.py`验证Standing CDO中的原生float表示；非有限值仍由原文本记录，不写非法JSON数值。
