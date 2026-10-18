@@ -2751,6 +2751,34 @@ TSharedPtr<FJsonObject> CaptureInertializationProbe(UObject* Asset, const FStrin
         }
         return true;
     };
+
+    const FReferenceSkeleton& ReferenceSkeleton = Interface->GetTargetSkeleton()->GetReferenceSkeleton();
+    const bool bFullPose = Request->HasField(TEXT("bone_names"));
+    TArray<FBoneIndexType> RequiredBoneIndices;
+    TArray<FString> BoneNames;
+    if (bFullPose)
+    {
+        const TArray<TSharedPtr<FJsonValue>>* Names = nullptr;
+        if (!Request->TryGetArrayField(TEXT("bone_names"), Names) || Names->Num() != ReferenceSkeleton.GetNum()) { return nullptr; }
+        for (int32 Index = 0; Index < Names->Num(); ++Index)
+        {
+            FString Name;
+            if (!(*Names)[Index]->TryGetString(Name) || Name != ReferenceSkeleton.GetBoneName(Index).ToString()) { return nullptr; }
+            BoneNames.Add(Name);
+            RequiredBoneIndices.Add(Index);
+        }
+    }
+    else { RequiredBoneIndices.Add(0); }
+    const auto ReadTransform = [&ReadNumbers](const TSharedPtr<FJsonObject>& Object, FTransform& Transform)
+    {
+        double Translation[3], Rotation[4], Scale[3];
+        if (!ReadNumbers(Object, TEXT("translation_cm"), Translation, 3) ||
+            !ReadNumbers(Object, TEXT("rotation"), Rotation, 4) || !ReadNumbers(Object, TEXT("scale"), Scale, 3)) { return false; }
+        const FQuat Quaternion(Rotation[0], Rotation[1], Rotation[2], Rotation[3]);
+        if (!Quaternion.IsNormalized()) { return false; }
+        Transform = FTransform(Quaternion, FVector(Translation[0], Translation[1], Translation[2]), FVector(Scale[0], Scale[1], Scale[2]));
+        return true;
+    };
     struct FProbeProxy : FAnimInstanceProxy
     {
         using FAnimInstanceProxy::FAnimInstanceProxy;
@@ -2759,12 +2787,13 @@ TSharedPtr<FJsonObject> CaptureInertializationProbe(UObject* Asset, const FStrin
     };
     struct FProbeNode : FAnimNode_Base
     {
-        FTransform Transform;
+        TArray<FTransform> Transforms;
+        TArray<FCompactPoseBoneIndex> BoneIndices;
         TMap<FName, float> Curves;
         virtual void Evaluate_AnyThread(FPoseContext& Output) override
         {
             Output.Pose.ResetToRefPose();
-            Output.Pose[FCompactPoseBoneIndex(0)] = Transform;
+            for (int32 Index = 0; Index < Transforms.Num(); ++Index) { Output.Pose[BoneIndices[Index]] = Transforms[Index]; }
             Output.Curve.Empty();
             for (const auto& Curve : Curves) { Output.Curve.Set(Curve.Key, Curve.Value); }
         }
@@ -2782,8 +2811,15 @@ TSharedPtr<FJsonObject> CaptureInertializationProbe(UObject* Asset, const FStrin
         UAnimInstance* Instance = NewObject<UAnimInstance>(Mesh);
         FProbeProxy Proxy(Instance);
         Proxy.Initialize(Instance);
-        Proxy.GetRequiredBones().InitializeTo(TArray<FBoneIndexType>{0}, UE::Anim::FCurveFilterSettings(), *Interface->GetTargetSkeleton());
+        Proxy.GetRequiredBones().InitializeTo(RequiredBoneIndices, UE::Anim::FCurveFilterSettings(), *Interface->GetTargetSkeleton());
         FProbeNode Child;
+        Child.Transforms.SetNum(RequiredBoneIndices.Num());
+        for (const FBoneIndexType Index : RequiredBoneIndices)
+        {
+            const FCompactPoseBoneIndex Compact = Proxy.GetRequiredBones().GetCompactPoseIndexFromSkeletonPoseIndex(FSkeletonPoseBoneIndex(Index));
+            if (Compact.GetInt() == INDEX_NONE) { return nullptr; }
+            Child.BoneIndices.Add(Compact);
+        }
         FAnimNode_Inertialization Node(*Template);
         Node.Source.SetLinkNode(&Child);
         Node.Initialize_AnyThread(FAnimationInitializeContext(&Proxy));
@@ -2792,14 +2828,21 @@ TSharedPtr<FJsonObject> CaptureInertializationProbe(UObject* Asset, const FStrin
         for (const TSharedPtr<FJsonValue>& StepValue : *Steps)
         {
             const TSharedPtr<FJsonObject>* Step = nullptr;
-            double Delta, Translation[3], Rotation[4], Scale[3];
+            double Delta;
             if (!StepValue->TryGetObject(Step) || !(*Step)->TryGetNumberField(TEXT("delta_seconds"), Delta) ||
-                !FMath::IsFinite(static_cast<float>(Delta)) || Delta < 0.0 ||
-                !ReadNumbers(*Step, TEXT("translation_cm"), Translation, 3) ||
-                !ReadNumbers(*Step, TEXT("rotation"), Rotation, 4) || !ReadNumbers(*Step, TEXT("scale"), Scale, 3)) { return nullptr; }
-            const FQuat Quaternion(Rotation[0], Rotation[1], Rotation[2], Rotation[3]);
-            if (!Quaternion.IsNormalized()) { return nullptr; }
-            Child.Transform = FTransform(Quaternion, FVector(Translation[0], Translation[1], Translation[2]), FVector(Scale[0], Scale[1], Scale[2]));
+                !FMath::IsFinite(static_cast<float>(Delta)) || Delta < 0.0) { return nullptr; }
+            if (bFullPose)
+            {
+                const TArray<TSharedPtr<FJsonValue>>* Transforms = nullptr;
+                if ((*Step)->HasField(TEXT("translation_cm")) || !(*Step)->TryGetArrayField(TEXT("bone_transforms"), Transforms) ||
+                    Transforms->Num() != Child.Transforms.Num()) { return nullptr; }
+                for (int32 Index = 0; Index < Transforms->Num(); ++Index)
+                {
+                    const TSharedPtr<FJsonObject>* Transform = nullptr;
+                    if (!(*Transforms)[Index]->TryGetObject(Transform) || !ReadTransform(*Transform, Child.Transforms[Index])) { return nullptr; }
+                }
+            }
+            else if ((*Step)->HasField(TEXT("bone_transforms")) || !ReadTransform(*Step, Child.Transforms[0])) { return nullptr; }
             Child.Curves.Reset();
             const TSharedPtr<FJsonObject>* Curves = nullptr;
             if ((*Step)->HasField(TEXT("curves")))
@@ -2838,6 +2881,16 @@ TSharedPtr<FJsonObject> CaptureInertializationProbe(UObject* Asset, const FStrin
             Node.Evaluate_AnyThread(Pose);
             TSharedRef<FJsonObject> Frame = MakeShared<FJsonObject>();
             Frame->SetObjectField(TEXT("transform"), CaptureTransform(Pose.Pose[FCompactPoseBoneIndex(0)]));
+            if (bFullPose)
+            {
+                TArray<TSharedPtr<FJsonValue>> Transforms;
+                for (const FCompactPoseBoneIndex Index : Child.BoneIndices)
+                {
+                    if (Pose.Pose[Index].ContainsNaN()) { return nullptr; }
+                    Transforms.Add(MakeShared<FJsonValueObject>(CaptureTransform(Pose.Pose[Index])));
+                }
+                Frame->SetArrayField(TEXT("bone_transforms"), Transforms);
+            }
             TSharedRef<FJsonObject> CurveValues = MakeShared<FJsonObject>();
             Pose.Curve.ForEachElement([&CurveValues](const UE::Anim::FCurveElement& Curve) { CurveValues->SetNumberField(Curve.Name.ToString(), Curve.Value); });
             Frame->SetObjectField(TEXT("curves"), CurveValues);
@@ -2852,6 +2905,17 @@ TSharedPtr<FJsonObject> CaptureInertializationProbe(UObject* Asset, const FStrin
     TSharedRef<FJsonObject> Probe = MakeShared<FJsonObject>();
     Probe->SetArrayField(TEXT("samples"), Results);
     Probe->SetStringField(TEXT("node_property"), NodeProperty);
+    if (bFullPose)
+    {
+        TArray<TSharedPtr<FJsonValue>> Names, Parents;
+        for (int32 Index = 0; Index < BoneNames.Num(); ++Index)
+        {
+            Names.Add(MakeShared<FJsonValueString>(BoneNames[Index]));
+            Parents.Add(MakeShared<FJsonValueNumber>(ReferenceSkeleton.GetParentIndex(Index)));
+        }
+        Probe->SetArrayField(TEXT("bone_names"), Names);
+        Probe->SetArrayField(TEXT("parent_indices"), Parents);
+    }
     Probe->SetNumberField(TEXT("enabled"), IConsoleManager::Get().FindConsoleVariable(TEXT("a.AnimNode.Inertialization.Enable"))->GetInt());
     Probe->SetNumberField(TEXT("ignore_velocity"), IConsoleManager::Get().FindConsoleVariable(TEXT("a.AnimNode.Inertialization.IgnoreVelocity"))->GetInt());
     Probe->SetNumberField(TEXT("ignore_deficit"), IConsoleManager::Get().FindConsoleVariable(TEXT("a.AnimNode.Inertialization.IgnoreDeficit"))->GetInt());
