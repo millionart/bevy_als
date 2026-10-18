@@ -35,6 +35,8 @@
 
 `run_ue_source_reader.ps1 -StateMachinePlayers` 接受AnimBP，输出编译后的FSM入口、状态reset标志、有序退出规则和PlayerNodeIndices/LayerNodeIndices。退出规则包含编译起止状态、逻辑、时长、blend/profile及重入/自动规则配置；节点索引映射到CDO属性和原图GUID。别名可能把同一原节点编译成多个实例：读取器校验索引与GUID反查均指向同一原节点，并记录`shared_origin_node_index`；不能要求GUID与编译索引一一对应，也不能把共享规则图所属节点当作所有引用转场的身份。Sequence Player额外输出资产长度/RateScale和公开getter取得的有效速率、起点、loop/ignore配置，原始反射字段仍在已有CDO记录中。该入口不执行动画图或模拟播放器时钟。用`python tools/tests/test_state_machine_players.py <output.json>`检查入口/边界索引、原图与共享实例身份、节点类型和有效配置结构。
 
+`StateMachinePlayers`另输出`asset_players`，按编译属性完整枚举FAnimNode_AssetPlayerBase派生节点，覆盖FSM列表之外的共享/直接播放器；每个节点的`synchronization`由原生getter读取组名、方法、角色、重入覆盖标志、当前资产及marker名称。SequenceEvaluator的覆盖标志继承基类false，不要求存在对应反射字段。`test_compiled_sync_players.py`交叉核对完整CDO播放器集合与配置；清单是静态配置证据，不能代替运行时同步验收。原machines及已有字段保持。
+
 `run_ue_source_reader.ps1 -SequenceClockProbe <request.json>` 接受Sequence，以真实资产的TickAssetPlayer记录不使用marker同步的单leader时钟。sample提供`name`、初始TimeAccumulator `start`、`rate`和`deltas`，可选`looping`（默认false）；输出实际资产长度/RateScale以及逐帧position、previous、delta、有效历史标志和归一化比例。它不执行完整AnimBP或分组竞争。使用`tools/tests/fixtures/sequence_clock.request.json`及`python tools/tests/test_sequence_clock_probe.py <output.json>`核对零步长、正向、反向和末端夹紧。 循环控制使用`sequence_loop.request.json`与`test_sequence_loop_probe.py`，保留恰好到达末端时的位置及随后循环行为。
 
 该请求可选`follower_asset`：以相同初始时间和速率创建第二个播放器，两播放器使用同一`looping`设置，调用原生TickContext的`ConvertToFollower`和该资产的`TickAssetPlayer`，输出独立位置、previous和实际delta。另记录两资产的marker数量，以及两个同分FAnimTickRecord经原生Sort后的输入索引顺序；这项排序观测不运行完整同步组或模拟加入/退出。使用`sequence_clock_follower.request.json`和`test_sequence_clock_follower_probe.py`核对无marker follower的归一化取时、零步长/夹紧及同权重排序；未提供该字段时原单leader输出保持。

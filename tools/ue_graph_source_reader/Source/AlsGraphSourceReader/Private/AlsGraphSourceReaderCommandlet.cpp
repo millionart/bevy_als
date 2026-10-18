@@ -3044,6 +3044,25 @@ TSharedPtr<FJsonObject> CaptureStateMachinePlayers(UObject* Asset)
         Node->SetStringField(TEXT("guid"), GuidText(Visual->NodeGuid));
         Node->SetStringField(TEXT("source_path"), Visual->GetPathName());
         Node->SetStringField(TEXT("source_graph"), Visual->GetGraph()->GetPathName());
+        if (Property->Struct->IsChildOf(FAnimNode_AssetPlayerBase::StaticStruct()))
+        {
+            const FAnimNode_AssetPlayerBase* Player = Property->ContainerPtrToValuePtr<FAnimNode_AssetPlayerBase>(Class->GetDefaultObject());
+            UAnimationAsset* Animation = Player->GetAnimAsset();
+            TSharedRef<FJsonObject> Sync = MakeShared<FJsonObject>();
+            Sync->SetStringField(TEXT("group"), Player->GetGroupName().ToString());
+            Sync->SetStringField(TEXT("role"), StaticEnum<EAnimGroupRole::Type>()->GetNameStringByValue(Player->GetGroupRole()));
+            Sync->SetStringField(TEXT("method"), StaticEnum<EAnimSyncMethod>()->GetNameStringByValue(static_cast<int64>(Player->GetGroupMethod())));
+            Sync->SetBoolField(TEXT("override_position"), Player->GetOverridePositionWhenJoiningSyncGroupAsLeader());
+            Sync->SetBoolField(TEXT("asset_is_null"), Animation == nullptr);
+            Sync->SetStringField(TEXT("asset_path"), ObjectPath(Animation));
+            TArray<TSharedPtr<FJsonValue>> Markers;
+            if (const TArray<FName>* Names = Animation != nullptr ? Animation->GetUniqueMarkerNames() : nullptr)
+            {
+                for (const FName Name : *Names) { Markers.Add(MakeShared<FJsonValueString>(Name.ToString())); }
+            }
+            Sync->SetArrayField(TEXT("marker_names"), Markers);
+            Node->SetObjectField(TEXT("synchronization"), Sync);
+        }
         if (Property->Struct == FAnimNode_SequencePlayer::StaticStruct())
         {
             const FAnimNode_SequencePlayer* Player = Property->ContainerPtrToValuePtr<FAnimNode_SequencePlayer>(Class->GetDefaultObject());
@@ -3139,6 +3158,15 @@ TSharedPtr<FJsonObject> CaptureStateMachinePlayers(UObject* Asset)
     }
     TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
     Result->SetArrayField(TEXT("machines"), Machines);
+    TArray<TSharedPtr<FJsonValue>> AssetPlayers;
+    for (int32 Index = 0; Index < Properties.Num(); ++Index)
+    {
+        if (!Properties[Properties.Num() - 1 - Index]->Struct->IsChildOf(FAnimNode_AssetPlayerBase::StaticStruct())) { continue; }
+        const TSharedPtr<FJsonObject> Node = CaptureNode(Index);
+        if (!Node.IsValid()) { return nullptr; }
+        AssetPlayers.Add(MakeShared<FJsonValueObject>(Node));
+    }
+    Result->SetArrayField(TEXT("asset_players"), AssetPlayers);
     return Result;
 }
 
