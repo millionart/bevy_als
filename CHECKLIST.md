@@ -873,6 +873,11 @@
   - 19:58 输入边界复核：上述FrameDelay=200只用于放大更新计数信号；fresh源只在排队动态过渡时赋值2，不能将470帧计数差宣称为当前默认播放延迟。已保留探针结果并将正式控制改为源允许的2，另外核对Turn/Dynamic各自的本帧更新标志。范围仍是原父子状态和回调，不扩展未证明的动态播放消费者。
   - 20:08 完成摘要：正式FrameDelay=2的30路径2700帧中，主状态/权重/通知、骨架、内层Stop的4个终态及重入局部时钟/通知全部匹配，FrameDelay值也一致；只保留Crouching的10帧Turn/Dynamic更新标志错误。只恢复Dynamic原节点时仍有10帧Turn标志错误，恢复两个原节点后全部通过，未重跑Slot或改动父子pose/状态。两份原生metadata与3份直接UE实现验证通过，114份ALS/184份Rust及生产库身份保持；证据`target/bf144/124/summary.json`、`current-valid-analysis.json`、`restored-valid-analysis.json`、`identity.json`及watchdog。实际结束：2026-10-18 20:08:53 +08:00；相对19:50预估偏差：+18分53秒；结果：记录Gate PASS，归并D204，新增0，累计205项（111P2/94P3）。夹具输入、输出pin及计数探针边界修正消耗了预留；后续先列清原图所需全局输入并用合法状态值建控制，不再把大计数探针当作原始运行输入。主动Turn/Transition播放、Rotate重入、marker时钟及默认世界覆盖仍待审；公共Playground未运行，截图0、性能暂停。
 
+- [x] BF144.125 Rotate播放器的混合进入、循环和重入时钟：依赖.110/.114/.124记录Gate，沿站蹲左右4个1秒Rotate播放器核对DoNotSync、loop、播放速率、进入/左右切换/Idle返回时的本地时钟与自动退出。保留原主FSM、Idle和Rotate状态图，冻结未参与的运动缓存；先分离普通混合目标的时间输入，再核对循环后的规则消费。Gate：fresh源配置与SequencePlayer/AdvanceTime/FSM合同、原生循环TickAssetPlayer、实际4播放器和原条件路径、必要恢复/消融及身份。开始：2026-10-18 20:15 +08:00；预估结束：2026-10-18 21:00 +08:00。估时依据：4播放器均length=1、loop=True、DoNotSync，共用1.15–3速率区间；复用.124父FSM和.114自动规则映射，原生时钟入口只需补循环参数，以45分钟核验当前播放闭包，不扩展marker组。
+  - 20:15 活动摘要：.124已提交`03cf5782`，累计205项（111P2/94P3）。本地源确认Rotate是循环播放器，自动退出通过前一帧跨末端记录判断；不能按非循环片段建参考。当前ProfiledBlend把目标时间设为源pose的Absolute时间，而Rotate无同步分支会消费context_time_update，先以实际进入路径验证这一时钟链。截图0、性能暂停。
+  - 20:45 source/static与运行闭环：fresh两AnimBP确认4个播放器的PlayRate和bLoopAnimation都有动态绑定；Loop实际跟随对应bRotatingLeft/Right，不能用CDO的True代替逐帧输入。修正参考输入后，32路径2864帧的状态、权重、自动退出和活跃重入时钟匹配，仅Crouching两条退出路径在旧状态已为零权重时漏掉最后一次时钟更新，符合D204；先前普通混合目标时间冻结的推测被8条实际进入路径192个更新否定。循环原生自测通过，旧实现同请求被测试拒绝；旧非循环控制已取得，继续恢复尾时钟与封存。首个播放器更新的previous-valid字段仍需按当前消费者单独界定，不泛化为完整历史等价。
+  - 20:54 完成摘要：两条零权重尾时钟恢复后，32路径2864帧的状态/权重及所有被源更新的播放器时钟全部通过；后续失活重入会重置这两个播放器，本项不据此宣称下游运动差异。首更新previous-valid在源/目标不同，但当前4节点均start=0、rate>0，首帧remaining≤0或时间差×播放delta≥0，当前自动规则判据相同；其他起点和记录消费者仍不外推。删除复用夹具中未使用的回调修复节点及嵌套Stop采集，同target_game库重编后核心输出逐值保持。6帧循环、4组旧非循环控制及两AnimBP metadata自测通过，5份直接UE实现匹配Git，114份ALS/184份Rust、源资产与生产库身份保持；证据`target/bf144/125/summary.json`、`histories-analysis.json`、`recovered-analysis.json`、`identity.json`及watchdog。实际结束：2026-10-18 20:54:55 +08:00；相对21:00预估偏差：−5分05秒；结果：记录Gate PASS，归并D204，新增0，累计205项（111P2/94P3）。后续应先核对动态绑定再使用编译默认值建模。marker组、主动Turn播放与默认世界覆盖仍待审；公共Playground未运行，截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
@@ -2128,6 +2133,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.122扩展：同一提前完成分支也作用于新普通转场。原站蹲方向FSM的148路径12014帧中，8路径各3帧漏掉旧栈中新方向状态的OnBecomeRelevant，HipsDirection保留错误值；其中4路径使用连续60Hz预热，排除单个大步长依赖。其余状态、权重和时钟对齐，仅通过原状态图补源要求的回调后全部恢复。fresh绑定将该字段直接送入Standing的两份Plant Foot图，实际选择器与停止序列的4个采样对比均改变、4个恢复控制逐骨骼一致；共享Movement Details输入受控，未宣称默认世界完整停步或完整UE姿态等价。旧`call_counter_wrap_preserves_the_native_plant_foot_pose`核对孤立计数器间隔，未覆盖FSM提前清栈导致整个调用节点未更新。该扩展归并原D204，不重复计数。
   - BF144.123扩展：两向站蹲普通重入各有1帧多余ResetGroundedEntryMode请求。旧状态漏掉尾更新后，其回调计数器出现额外间隔；下次进入被误判为重新相关。曲线值与具体别名前态均恢复后仍保留这2帧，补齐源状态更新历史后消失；目标图后派发重置与点通知的顺序本身未发现新差异。
   - BF144.124扩展：Crouching的Stop→Idle尚活动时完成Idle→Move，10帧同时漏掉Idle的RefreshTurnInPlace/RefreshDynamicTransitions更新标志。原30路径2700帧的状态、权重、通知和嵌套Stop初始化均通过；恢复两个原更新节点后标志也全部通过。正式FrameDelay=2控制没有延迟值差异；200计数探针的470帧差仅用于定位执行次数，不计为默认动态播放延迟或新增缺陷。
+  - BF144.125扩展：Crouching左右Rotate在退出到Move时各漏掉1个零权重尾tick，速率1.15下少推进约0.019167秒；通过原状态图补齐该更新后，32路径2864帧的时钟及状态全部对齐。播放器DoNotSync，后续失活重入重新初始化，因此这里仅记录尾tick合同，不额外宣称同步历史或下游运动影响。
   - 边界：使用完整原FSM、实际落地节点/同步出口与受控Air/Grounded姿态；短Air窗口及所给落地速度只作为共同动画输入，未证明默认角色物理输入自然触发。源组按fresh更新顺序生成请求并调用真实FAnimSync，不将原生组视作完整UE世界。证据`target/bf144/119/analysis.json`、`group.native.json`；旧中断测试主要验证最终姿态/状态，未验证新项结束前旧项仍执行Update。仅登记，未修生产。
 
 - [ ] BF144-D205 / P2 — 已请求长度重同步时，同身份播放器的本地起点覆盖源组相位。

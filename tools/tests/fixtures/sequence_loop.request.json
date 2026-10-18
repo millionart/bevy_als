@@ -1,0 +1,26 @@
+{
+  "samples": [
+    {
+      "name": "loop-forward",
+      "start": 0.9,
+      "rate": 1.0,
+      "looping": true,
+      "deltas": [
+        0.2,
+        0.2,
+        0.0
+      ]
+    },
+    {
+      "name": "loop-exact-end",
+      "start": 0.75,
+      "rate": 1.0,
+      "looping": true,
+      "deltas": [
+        0.25,
+        0.0,
+        0.125
+      ]
+    }
+  ]
+}

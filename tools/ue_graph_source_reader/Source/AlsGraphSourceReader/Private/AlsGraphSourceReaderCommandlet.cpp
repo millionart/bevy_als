@@ -1988,6 +1988,8 @@ TSharedPtr<FJsonObject> CaptureSequenceClockProbe(UObject* Asset, const FString&
             !(*Sample)->TryGetNumberField(TEXT("rate"), Rate) || !FMath::IsFinite(static_cast<float>(Rate)) ||
             !(*Sample)->TryGetArrayField(TEXT("deltas"), Deltas) || Deltas->IsEmpty() || Deltas->Num() > 512) { return nullptr; }
         if (Follower != nullptr && Start > Follower->GetPlayLength()) { return nullptr; }
+        bool Looping = false;
+        if ((*Sample)->HasField(TEXT("looping")) && !(*Sample)->TryGetBoolField(TEXT("looping"), Looping)) { return nullptr; }
         float Time = static_cast<float>(Start);
         float FollowerTime = Time;
         FDeltaTimeRecord DeltaRecord;
@@ -2000,7 +2002,7 @@ TSharedPtr<FJsonObject> CaptureSequenceClockProbe(UObject* Asset, const FString&
             double Delta;
             if (!DeltaValue->TryGetNumber(Delta) || Delta < 0.0 || !FMath::IsFinite(static_cast<float>(Delta)) ||
                 !FMath::IsFinite(static_cast<float>(Delta) * static_cast<float>(Rate) * Sequence->RateScale)) { return nullptr; }
-            FAnimTickRecord Tick(Sequence, false, static_cast<float>(Rate), false, 1.0f, Time, MarkerRecord);
+            FAnimTickRecord Tick(Sequence, Looping, static_cast<float>(Rate), false, 1.0f, Time, MarkerRecord);
             Tick.DeltaTimeRecord = &DeltaRecord;
             Tick.bCanUseMarkerSync = false;
             FAnimNotifyQueue Queue;
@@ -2014,7 +2016,7 @@ TSharedPtr<FJsonObject> CaptureSequenceClockProbe(UObject* Asset, const FString&
             Frame->SetNumberField(TEXT("ratio"), Context.GetAnimationPositionRatio());
             if (Follower != nullptr)
             {
-                FAnimTickRecord FollowerTick(Follower, false, static_cast<float>(Rate), false, 1.0f, FollowerTime, FollowerMarkerRecord);
+                FAnimTickRecord FollowerTick(Follower, Looping, static_cast<float>(Rate), false, 1.0f, FollowerTime, FollowerMarkerRecord);
                 FollowerTick.DeltaTimeRecord = &FollowerDeltaRecord;
                 FollowerTick.bCanUseMarkerSync = false;
                 Context.ConvertToFollower();
@@ -2030,6 +2032,7 @@ TSharedPtr<FJsonObject> CaptureSequenceClockProbe(UObject* Asset, const FString&
         }
         TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>();
         Row->SetStringField(TEXT("name"), Name);
+        if ((*Sample)->HasField(TEXT("looping"))) { Row->SetBoolField(TEXT("looping"), Looping); }
         Row->SetArrayField(TEXT("frames"), Frames);
         Rows.Add(MakeShared<FJsonValueObject>(Row));
         UE_LOG(LogAlsGraphSourceReader, Display, TEXT("Sequence clock sample %d/%d captured."), Rows.Num(), Samples->Num());
