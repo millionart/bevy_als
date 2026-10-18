@@ -1,0 +1,9 @@
+{
+  "follower_asset": "/ALS/ALS/Animations/Air/Land/A_Als_Land_Heavy.A_Als_Land_Heavy",
+  "samples": [
+    {"name":"zero","start":0.25,"rate":1.0,"deltas":[0.0,0.0]},
+    {"name":"forward","start":0.25,"rate":1.5,"deltas":[0.1,0.2]},
+    {"name":"clamp","start":0.0,"rate":1.0,"deltas":[10.0,0.0]},
+    {"name":"reverse","start":0.25,"rate":-1.0,"deltas":[0.1,1.0]}
+  ]
+}

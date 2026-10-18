@@ -1965,6 +1965,14 @@ TSharedPtr<FJsonObject> CaptureSequenceClockProbe(UObject* Asset, const FString&
     if (Sequence == nullptr || Sequence->GetPlayLength() <= 0.0f || !FFileHelper::LoadFileToString(Text, *RequestPath) ||
         !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Request) ||
         !Request->TryGetArrayField(TEXT("samples"), Samples) || Samples->IsEmpty() || Samples->Num() > 512) { return nullptr; }
+    UAnimSequenceBase* Follower = nullptr;
+    if (Request->HasField(TEXT("follower_asset")))
+    {
+        FString FollowerPath;
+        if (!Request->TryGetStringField(TEXT("follower_asset"), FollowerPath)) { return nullptr; }
+        Follower = LoadObject<UAnimSequenceBase>(nullptr, *FollowerPath);
+        if (Follower == nullptr || Follower->GetPlayLength() <= 0.0f) { return nullptr; }
+    }
     const TArray<FName> NoMarkers;
     TArray<TSharedPtr<FJsonValue>> Rows;
     for (const TSharedPtr<FJsonValue>& SampleValue : *Samples)
@@ -1977,9 +1985,13 @@ TSharedPtr<FJsonObject> CaptureSequenceClockProbe(UObject* Asset, const FString&
             !(*Sample)->TryGetNumberField(TEXT("start"), Start) || !FMath::IsFinite(static_cast<float>(Start)) || Start < 0.0 || Start > Sequence->GetPlayLength() ||
             !(*Sample)->TryGetNumberField(TEXT("rate"), Rate) || !FMath::IsFinite(static_cast<float>(Rate)) ||
             !(*Sample)->TryGetArrayField(TEXT("deltas"), Deltas) || Deltas->IsEmpty() || Deltas->Num() > 512) { return nullptr; }
+        if (Follower != nullptr && Start > Follower->GetPlayLength()) { return nullptr; }
         float Time = static_cast<float>(Start);
+        float FollowerTime = Time;
         FDeltaTimeRecord DeltaRecord;
         FMarkerTickRecord MarkerRecord;
+        FDeltaTimeRecord FollowerDeltaRecord;
+        FMarkerTickRecord FollowerMarkerRecord;
         TArray<TSharedPtr<FJsonValue>> Frames;
         for (const TSharedPtr<FJsonValue>& DeltaValue : *Deltas)
         {
@@ -1990,7 +2002,7 @@ TSharedPtr<FJsonObject> CaptureSequenceClockProbe(UObject* Asset, const FString&
             Tick.DeltaTimeRecord = &DeltaRecord;
             Tick.bCanUseMarkerSync = false;
             FAnimNotifyQueue Queue;
-            FAnimAssetTickContext Context(static_cast<float>(Delta), ERootMotionMode::NoRootMotionExtraction, true, NoMarkers);
+            FAnimAssetTickContext Context(static_cast<float>(Delta), ERootMotionMode::NoRootMotionExtraction, Follower == nullptr, NoMarkers);
             Sequence->TickAssetPlayer(Tick, Queue, Context);
             TSharedRef<FJsonObject> Frame = MakeShared<FJsonObject>();
             Frame->SetNumberField(TEXT("position"), Time);
@@ -1998,6 +2010,20 @@ TSharedPtr<FJsonObject> CaptureSequenceClockProbe(UObject* Asset, const FString&
             Frame->SetBoolField(TEXT("has_previous"), DeltaRecord.IsPreviousValid());
             Frame->SetNumberField(TEXT("playback_delta"), DeltaRecord.Delta);
             Frame->SetNumberField(TEXT("ratio"), Context.GetAnimationPositionRatio());
+            if (Follower != nullptr)
+            {
+                FAnimTickRecord FollowerTick(Follower, false, static_cast<float>(Rate), false, 1.0f, FollowerTime, FollowerMarkerRecord);
+                FollowerTick.DeltaTimeRecord = &FollowerDeltaRecord;
+                FollowerTick.bCanUseMarkerSync = false;
+                Context.ConvertToFollower();
+                Follower->TickAssetPlayer(FollowerTick, Queue, Context);
+                TSharedRef<FJsonObject> FollowerFrame = MakeShared<FJsonObject>();
+                FollowerFrame->SetNumberField(TEXT("position"), FollowerTime);
+                FollowerFrame->SetNumberField(TEXT("previous"), FollowerDeltaRecord.GetPrevious());
+                FollowerFrame->SetBoolField(TEXT("has_previous"), FollowerDeltaRecord.IsPreviousValid());
+                FollowerFrame->SetNumberField(TEXT("playback_delta"), FollowerDeltaRecord.Delta);
+                Frame->SetObjectField(TEXT("follower"), FollowerFrame);
+            }
             Frames.Add(MakeShared<FJsonValueObject>(Frame));
         }
         TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>();
@@ -2010,6 +2036,30 @@ TSharedPtr<FJsonObject> CaptureSequenceClockProbe(UObject* Asset, const FString&
     Result->SetNumberField(TEXT("duration"), Sequence->GetPlayLength());
     Result->SetNumberField(TEXT("rate_scale"), Sequence->RateScale);
     Result->SetArrayField(TEXT("samples"), Rows);
+    if (Follower != nullptr)
+    {
+        TSharedRef<FJsonObject> FollowerResult = MakeShared<FJsonObject>();
+        FollowerResult->SetStringField(TEXT("asset_path"), Follower->GetPathName());
+        FollowerResult->SetNumberField(TEXT("duration"), Follower->GetPlayLength());
+        float Times[2] = {0.0f, 0.0f};
+        FMarkerTickRecord Markers[2];
+        TArray<FAnimTickRecord> Candidates;
+        Candidates.Add(FAnimTickRecord(Sequence, false, 1.0f, false, 1.0f, Times[0], Markers[0]));
+        Candidates.Add(FAnimTickRecord(Follower, false, 1.0f, false, 1.0f, Times[1], Markers[1]));
+        for (FAnimTickRecord& Player : Candidates) { Player.LeaderScore = 1.0f; }
+        Candidates.Sort();
+        TArray<TSharedPtr<FJsonValue>> Order;
+        for (const FAnimTickRecord& Player : Candidates)
+        {
+            Order.Add(MakeShared<FJsonValueNumber>(Player.MarkerTickRecord == &Markers[0] ? 0 : 1));
+        }
+        FollowerResult->SetArrayField(TEXT("equal_weight_order"), Order);
+        const TArray<FName>* LeaderMarkers = Sequence->GetUniqueMarkerNames();
+        const TArray<FName>* FollowerMarkers = Follower->GetUniqueMarkerNames();
+        FollowerResult->SetNumberField(TEXT("leader_marker_count"), LeaderMarkers == nullptr ? 0 : LeaderMarkers->Num());
+        FollowerResult->SetNumberField(TEXT("follower_marker_count"), FollowerMarkers == nullptr ? 0 : FollowerMarkers->Num());
+        Result->SetObjectField(TEXT("follower"), FollowerResult);
+    }
     return Result;
 }
 
