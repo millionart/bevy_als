@@ -10,6 +10,7 @@
 #include "AnimationRuntime.h"
 #include "Math/ControlRigMathLibrary.h"
 #include "AlphaBlend.h"
+#include "Curves/CurveFloat.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimSync.h"
@@ -2242,12 +2243,20 @@ TSharedPtr<FJsonObject> CaptureBlendProfileProbe(UObject* Asset, const FString& 
             !ReadTransform(*Sample, TEXT("from"), From) || !ReadTransform(*Sample, TEXT("to"), To)) { return nullptr; }
         UBlendProfile* Profile = Skeleton->GetBlendProfile(FName(*ProfileName));
         const int64 ModeValue = StaticEnum<EAlphaBlendOption>()->GetValueByNameString(ModeName);
-        if (Profile == nullptr || Profile->Mode != EBlendProfileMode::WeightFactor || ModeValue == INDEX_NONE ||
-            ModeValue == static_cast<int64>(EAlphaBlendOption::Custom)) { return nullptr; }
+        if (Profile == nullptr || Profile->Mode != EBlendProfileMode::WeightFactor || ModeValue == INDEX_NONE) { return nullptr; }
         const EAlphaBlendOption Mode = static_cast<EAlphaBlendOption>(ModeValue);
+        UCurveFloat* CustomCurve = nullptr;
+        if (Mode == EAlphaBlendOption::Custom)
+        {
+            FString CurvePath;
+            if (!(*Sample)->TryGetStringField(TEXT("custom_curve"), CurvePath)) { return nullptr; }
+            CustomCurve = LoadObject<UCurveFloat>(nullptr, *CurvePath);
+            if (CustomCurve == nullptr) { return nullptr; }
+        }
         FAlphaBlend Blend;
         Blend.SetBlendTime(static_cast<float>(Duration));
         Blend.SetBlendOption(Mode);
+        Blend.SetCustomCurve(CustomCurve);
         Blend.SetValueRange(0.0f, 1.0f);
         TArray<FBlendSampleData> Weights;
         Weights.SetNum(2);
@@ -2266,7 +2275,7 @@ TSharedPtr<FJsonObject> CaptureBlendProfileProbe(UObject* Asset, const FString& 
             Blend.Update(static_cast<float>(Delta));
             const float Factor = Elapsed / static_cast<float>(Duration);
             if (!FMath::IsFinite(Factor)) { return nullptr; }
-            const float Alpha = FAlphaBlend::AlphaToBlendOption(Factor, Mode, nullptr);
+            const float Alpha = FAlphaBlend::AlphaToBlendOption(Factor, Mode, CustomCurve);
             for (int32 Index = 0; Index < 2; ++Index)
             {
                 Weights[Index].TotalWeight = Index == 0 ? Alpha : 1.0f - Alpha;
@@ -2303,6 +2312,21 @@ TSharedPtr<FJsonObject> CaptureBlendProfileProbe(UObject* Asset, const FString& 
         }
         TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>();
         Row->SetStringField(TEXT("name"), Name);
+        if (CustomCurve != nullptr)
+        {
+            Row->SetStringField(TEXT("custom_curve"), CustomCurve->GetPathName());
+            TArray<TSharedPtr<FJsonValue>> Keys;
+            for (const FRichCurveKey& Key : CustomCurve->FloatCurve.GetConstRefOfKeys())
+            {
+                TSharedRef<FJsonObject> Entry = MakeShared<FJsonObject>();
+                Entry->SetNumberField(TEXT("time"), Key.Time);
+                Entry->SetNumberField(TEXT("value"), Key.Value);
+                Entry->SetNumberField(TEXT("arrive_tangent"), Key.ArriveTangent);
+                Entry->SetNumberField(TEXT("leave_tangent"), Key.LeaveTangent);
+                Keys.Add(MakeShared<FJsonValueObject>(Entry));
+            }
+            Row->SetArrayField(TEXT("custom_curve_keys"), Keys);
+        }
         Row->SetArrayField(TEXT("frames"), Frames);
         Results.Add(MakeShared<FJsonValueObject>(Row));
         UE_LOG(LogAlsGraphSourceReader, Display, TEXT("Blend profile probe sample %d/%d captured."), Results.Num(), Samples->Num());

@@ -859,6 +859,13 @@
   - 17:46 恢复闭环：仅在受控夹具按源顺序更新原状态图、沿现有公开缓存入口预热后，144路径11550帧全部通过，权重/时钟和原位置输出保持。两份实际Plant Foot叶图保留原选择器与停止序列，仅Movement Details输入受控；两组已观测髋方向分别产生4次错误选择，恢复输入的4控制逐骨骼一致。确认归并D204普通完成分支，不新增差异；继续将4条反例的1秒预热替换为连续60Hz并封存身份，不扩展同步时钟或整个Stop入口。
   - 17:56 完成摘要：连续60Hz预热的4路径464帧仍有12帧同类错误；全批148路径12014帧共24个髋方向失败，恢复后全部通过。消融把补更新范围缩到源要求的OnBecomeRelevant回调后信号不变，已删除其他状态的多余更新；最终最小夹具重编后两种模式逐值复现，原合同明确FAIL 24帧、恢复合同PASS。75去重原生时钟轨迹覆盖新增预热，1194帧最大误差约5.96e−8；两份Plant叶图的4差异/4恢复控制闭合选择消费，未将受控输入下最大局部位置约0.197m、旋转约97.44°宣称为默认世界停步幅度。5份直接UE定义/实现匹配Git，114份ALS/184份Rust、原资产与生产库身份保持；证据`target/bf144/122/summary.json`、`analysis.json`、`stop_selectors.json`、`identity.json`及watchdog。实际结束：2026-10-18 17:56:14 +08:00；相对18:05预估偏差：−8分46秒；结果：记录Gate PASS，扩展D204，新增0，累计203项（110P2/93P3）。48编译边覆盖不等于所有输入历史或78拓扑循环的穷举证明；主状态/stance普通重入、外层marker播放器时钟及默认世界覆盖仍待审。公共Playground未运行，截图0、性能暂停。
 
+- [x] BF144.123 Grounded站蹲普通重入的Custom曲线与入口重置：依赖.120/.122记录Gate，沿当前Standing/Crouching两条0.5秒Custom普通边，重新读取CF_Als_StanceChange，核对实际曲线、已有目标权重缩时、完整FSM原条件/alias和ResetGroundedEntryMode回调。两份站姿缓存作为受控pose边界；嵌套Standing/Crouching主FSM与marker播放器分别后置，不混称已验收。Gate：fresh原生Grounded/曲线合同、公开FAlphaBlend自定义曲线轨迹、实际FSM早/中/完成后返回及回调消费、必要恢复/消融与身份。开始：2026-10-18 18:02 +08:00；预估结束：2026-10-18 18:47 +08:00。估时依据：2个自定义转场共享1份3键曲线，沿.120现有6编译状态/20退出规则与两个缓存回调；.121共享缓存循环实耗约12分钟，增加原生Custom采样与Reset请求链，按45分钟验收该独立闭包。
+  - 18:02 活动摘要：.122已提交`01222d26`，工作树干净，累计203项（110P2/93P3）。fresh本地AlphaBlend实现确认Custom按曲线时间范围采样，与目标相同，不能凭函数名判错；当前原生profile取证入口拒绝Custom，需要最小扩展后实测。源Standing/Crouching状态均从共享缓存取pose，并在重新相关时调用ResetGroundedEntryMode；target通过reset_requested字段传递，先核对直接读写链，不预判延迟差异。截图0、性能暂停。
+  - 18:18 source/static闭环：新原生Curve/Grounded记录、自定义采样自测与旧6组Profile回归通过。当前精确中键切线为2.7303075790405273，目标为2.7303080558776855，存在D121同类六位小数记录边界；同时源Bezier逐层Lerp，目标使用展开多项式，必须分离两项影响。151点采样中，两份实际Custom节点各有84个标量差（最大约1.79e−7），共享原生累计alpha输入时各有33个完成标志差；这还不是完整目标时钟的33帧故障。下一步用精确键值及源计算顺序分层恢复，再进入原FSM确认实际结束帧。Reset请求位于图求值后、排队GroundedEntryMode点通知之前，现有直接T2入口读取发生在回调之前，尚无依据将内部延后直接登记为缺陷。
+  - 18:34 当前消费者边界：12路径1332帧保留完整Grounded FSM/原条件/回调，站蹲缓存使用共同完整pose。两向各3种普通入口的6条密集末端路径，在0.499839991秒提前结束一个约5µs步长；仅恢复精确键值仍失败，回放当前求值点的原生值后结束帧对齐。源Bezier顺序和控制点运算恢复后，两份节点全部302点逐值匹配原生，确认新P3候选，待消融封存。另有54帧丢失前态权重/姿态和2帧Reset回调不符；此前计入的内部栈数量差属于alias实现表示，不作缺陷。54帧在旧混合被移除后回退到synthetic alias的LocalRefPose，源编译PreviousState为具体Standing/Crouching；沿本项已声明的alias闭包增加具体前态数据恢复，独立于曲线舍入。2帧回调先按既有D204核对，不预增编号。
+  - 18:46 分层恢复闭环：当前62个失败帧中，原生曲线值回放只消除6个提前完成帧；仅将两条别名边的前态按原生编译合同恢复为具体Standing/Crouching，只消除54个权重/pose帧。二者合用仅余2个多余Reset请求，补回源状态更新历史后1332帧全部通过，权重、时钟与pose逐值一致。LocalRefPose占位实际输出空pose，混合器因此直接拷贝目标骨骼，并非已经证实角色显示A-pose。确认D206/P3、D207/P2，2个Reset帧归并D204，累计205项（111P2/94P3）。取证器去掉FAlphaBlend的CustomCurve绑定时自测失败，已按源码字节恢复并同包重编；继续封存最终身份与审计记录。
+  - 18:57 完成摘要：最终1332帧重编复验保持原始62FAIL/组合恢复0FAIL；54个别名失败帧还丢失正确skeleton句柄，恢复后全部有效。精确键值恢复与源算法恢复分开保存；前者改变215个受控根位置值（最大约5.96e−8），归入D121记录精度合同，未消除D206完成错误。旧6组Profile、自定义曲线/精确float输出、Grounded编译metadata及原生工具消融恢复通过；5份直接UE实现匹配Git，114份ALS/184份Rust、实际资产与生产库身份保持。证据`target/bf144/123/summary.json`、`analysis.json`、`sampled-restores-final.json`、`identity.json`及watchdog。实际结束：2026-10-18 18:57:43 +08:00；相对18:47预估偏差：+10分43秒；结果：记录Gate PASS，新增D206/P3、D207/P2，补充D121/D204，累计205项（111P2/94P3）。额外别名前态根因使工作超过首估，仍在容差内；后续同类应把别名恢复与曲线数值拆作独立验证闭包估时。其他alias成员、嵌套主FSM、marker时钟与默认世界覆盖仍待审；公共Playground未运行，截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
@@ -1568,12 +1575,13 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：50ms帧在第24帧用Ragdoll缩短/重启GetUp混出后，两朝向第25–27帧都采样1.5而source为1.49995；动作Ragdoll和输入标记保持正确。早期中断及未越过末端的控制通过，证据`bf144_get_up_phase41_interrupted_cleanup`。差值约50微秒，只登记低优先级姿态/曲线采样尾差，不扩大为可见表现结论。
   - BF144.82动态过渡补充：四个当前Sequence的原生动态Montage停在1.5332833529秒；`stop_link.rs:260`夹到duration，`standing_source.rs:65`又夹到六位小数配置时长，实际Transition槽尾段采样1.5333329439。站立/蹲姿左右脚及半速/倍速六组全部复现，60Hz单位倍率保持12个尾帧；只恢复原生位置的六组和零速控制全部通过。归并同一遗漏的section末端规则，没有新增重复编号；证据`82/*.native.json`和`bf144_animation_phase82_actual_sampling_clock`。
 
-- [ ] BF144-D121 / P3 — 动作通知时间在生成记录中舍入，极窄边界内提前或延迟实际消费。
+- [ ] BF144-D121 / P3 — 源浮点记录舍入，改变通知边界及曲线输入。
   - Source：fresh原生GetEndTriggerTime为1.1665666103363037，`AnimMontage.cpp:2988–3012`在End branching marker执行NotifyEnd，ALS仅在当前仍GettingUp时置空并解锁。
   - Target：`docs/bf103-notify-source-audit.json:266–267`保存1.166667的end/duration，`generate_als_notify_manifest.py:104,125`将该值及offset传入manifest，实际f32终点为1.1665669679641724；`animation_events.rs:679–693`直接使用此终点。
   - 反例：前15帧62.5ms，再前进约34.638941ms，源/目标clip都到1.1665667，原生通知已结束，目标仍GettingUp且输入阻塞。两朝向都复现；边界前/后控制通过，在夹具内仅把manifest终点恢复原生精度也通过。证据`41/notify_exact.native.json`、`notify_edges.native.json`与`bf144_get_up_phase41_notify_end_precision_controls`。常规帧步长无此差异；未改原始记录、manifest或转换规则，未据此复开其他已完成通知资产。
   - BF144.92 Roll点通知补充：fresh A_Als_Roll 的SetGroundedEntryMode索引3/GUID `DC67D23A-40C84F64-0545E484-C7B4E6E6`原生时间0.9333333373069763，六位小数记录进入manifest后为f32的0.9333329796791077，提前约0.358µs。共同区间/资格的实际派发100组中12FAIL，差异进入模式组件、provider和真实T2条件；只恢复时间的100组全过。实际Roll输入启动、满权重PostLocomotion槽和真实播放记录的五组边界中两组提前写入FromRoll，五个恢复全部通过；当前已等于舍入时刻时也会漏掉本应稍后触发的事件。60/20Hz、owner0.5/1/2六组自然播放共327帧均只派发一次且时点符合共同源时钟。归并同一记录精度根因；没有新增编号或可见姿态偏差结论。证据`92/native.json`、`92/analysis.json`、`92/final/`，生产与原始记录未改。
   - BF144.94 即时状态补充：fresh九个动作montage中，Roll起止与manifest的f32完全相同；GetUp两项及Mantle六项的end分别被延后约0.358/0.238/0.358µs。先激活状态，再将共同位置设到原生end的下一f32并以零步长更新，排除marker跨越算法影响：八项都晚清动作并迟发End，48组中16FAIL；只恢复各自原生端点的24组全过，动作组件与实际图的locomotion_action同时恢复。High的下一f32恰等于目标end，依然是有效区间校正反例；不假设该间隔内还有另一可表示时刻。证据`94/native.json`及`bf144_animation_phase94_precision`，归并D121。
+  - BF144.123 曲线输入补充：CF_Als_StanceChange原生中键切线2.7303075790405273经FloatCurve六位小数文本变成2.730308，目标两节点加载为2.7303080558776855。只恢复原生键值时，两节点各36个采样值改变；完整FSM中215个受控根位置值改变，最大约5.96e−8。归并源数值记录精度不足合同，不声称通知与曲线共用同一个导出器；算法求值顺序造成的完成差异仍由独立D206解释。未宣称可见故障，也未将其他曲线计作已验证。
 
 
 - [ ] BF144-D122 / P2 — GetUp槽遗漏montage自身的11条曲线。
@@ -2111,6 +2119,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`interruptible_fsm.rs:1599–1613`在evaluate_active_state前处理新项完成，`activate_transition`将interrupted_sources替换为空，旧普通项未获得最后一次更新。当前Land的RefreshRotate回调及Land组记录同时丢失。
   - 反例/消费：沿原Land→Land Movement早/中/完成阶段进入Air并返回的36路径348帧，24条未完成普通转场没有执行尾回调；4条返回Land的实际播放器从0.025秒起播，而原生组应从0.175/0.2秒起播。恢复当帧旧项更新及其组历史后，2条不同leader身份路径的返回时钟恢复，另外2条由独立D205解释。两层恢复共改变4条实际返回姿态，最大局部位置约0.360m、旋转约52.90°；12条旧转场已完成控制逐值保持。
   - BF144.122扩展：同一提前完成分支也作用于新普通转场。原站蹲方向FSM的148路径12014帧中，8路径各3帧漏掉旧栈中新方向状态的OnBecomeRelevant，HipsDirection保留错误值；其中4路径使用连续60Hz预热，排除单个大步长依赖。其余状态、权重和时钟对齐，仅通过原状态图补源要求的回调后全部恢复。fresh绑定将该字段直接送入Standing的两份Plant Foot图，实际选择器与停止序列的4个采样对比均改变、4个恢复控制逐骨骼一致；共享Movement Details输入受控，未宣称默认世界完整停步或完整UE姿态等价。旧`call_counter_wrap_preserves_the_native_plant_foot_pose`核对孤立计数器间隔，未覆盖FSM提前清栈导致整个调用节点未更新。该扩展归并原D204，不重复计数。
+  - BF144.123扩展：两向站蹲普通重入各有1帧多余ResetGroundedEntryMode请求。旧状态漏掉尾更新后，其回调计数器出现额外间隔；下次进入被误判为重新相关。曲线值与具体别名前态均恢复后仍保留这2帧，补齐源状态更新历史后消失；目标图后派发重置与点通知的顺序本身未发现新差异。
   - 边界：使用完整原FSM、实际落地节点/同步出口与受控Air/Grounded姿态；短Air窗口及所给落地速度只作为共同动画输入，未证明默认角色物理输入自然触发。源组按fresh更新顺序生成请求并调用真实FAnimSync，不将原生组视作完整UE世界。证据`target/bf144/119/analysis.json`、`group.native.json`；旧中断测试主要验证最终姿态/状态，未验证新项结束前旧项仍执行Update。仅登记，未修生产。
 
 - [ ] BF144-D205 / P2 — 已请求长度重同步时，同身份播放器的本地起点覆盖源组相位。
@@ -2118,6 +2127,19 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`sync_group_phase.rs:444–460`虽已取得prior_phase，却在同身份/资产/长度且markers集合相同时走continuing分支，优先使用sample_time_hint。节点重置后的hint=0覆盖了必须采用的历史相位。
   - 反例/恢复：在D204源组历史恢复后，2条同一Land Light节点重新初始化的路径仍从0.025秒起播，source为0.175/0.2秒；在满足源重同步条件时排除本地hint后，所有返回播放器position/previous逐值匹配原生组，真实节点采样姿态恢复到共同源时钟。不同身份、较强新leader、无旧历史的控制保持。旧长度重同步单测使用不同old/new clip，漏掉同身份重新初始化。
   - 边界：与D204有遮蔽关系，以上通过只恢复已证实的前置组历史分离根因；不把单独改D205称作能修复当前所有4条路径。证据`target/bf144/119/analysis.json`及reset/inertial原生自测；未修生产，其他角色/marker同步不在本项结论内。
+
+- [ ] BF144-D206 / P3 — Custom曲线的浮点求值顺序使活动混合提前完成。
+  - Source：fresh `CurveEvaluation.cpp:205–229`按`Tangent * Diff * (1/3)`构造控制点，`CurveEvaluation.h:26–35`逐层Lerp求Bezier值；`AlphaBlend.cpp:314–323`以混合值等于末端值判断完成。CF_Als_StanceChange的3键及原生float切线由读取器直接取值。
+  - Target：`animation_graph_ext/rich_curve.rs:54–61,211–214`使用展开多项式及除以3的控制点计算；`interruptible_fsm::accumulated_transition_finished`消费该结果。Custom时间范围映射本身一致；六位小数切线差属于D121同类数据边界，单独恢复精确键值不能消除这里的完成差异。
+  - 反例：当前Grounded两条0.5秒Custom边、两方向×Moving/RotateLeft/RotateRight共6条密集末端路径，在0.499839991秒移除活动混合，源下一约5µs步才完成。两节点302个共同采样中，恢复源运算顺序后逐值匹配原生；完整原FSM回放当帧原生求值结果后6个结束帧全部恢复。普通60Hz返回控制未出现该完成差异，不扩大为默认帧率可见故障。
+  - 漏检/边界：旧标准Profile时钟验收未包含Custom与曲线末端的相等判定；只看近似数值误差会漏掉生命周期变化。证据`target/bf144/123/sampled-restores.json`、`analysis.json`及原生曲线记录；求值回放仅是受控因果验证，未改生产曲线或实现。
+
+- [ ] BF144-D207 / P2 — 别名转场在旧混合结束后丢失具体前态，剩余混合直接采用目标姿态。
+  - Source：fresh原生Grounded编译退出规则将Standing/Crouching作为具体PreviousState；`AnimNode_StateMachine::TransitionToState`保存当前实际状态，旧混合被移除后剩余混合仍从该具体前态取pose和权重。
+  - Target：当前两条边的source仍为synthetic alias。`interruptible_fsm::evaluate_active_state`裁掉完成的旧栈后，`state_weight_values`与`InterruptibleFsmIo::source_state`回退到别名ID/图；该图的LocalRefPose实际返回空pose，`ProfiledBlendNode::blend_pose`对缺失源骨骼直接复制目标骨骼。
+  - 反例/恢复：两方向的60Hz普通返回路径共54帧丢失前态权重，最大丢失约0.99524；当目标状态权重仅约0.00476时，实际已经输出整份目标pose。仅在受控FSM数据中把这两条边及条件的source恢复为原生具体前态，54个权重/pose错误全部消失；曲线完成差异及D204的Reset历史差异仍独立保留。
+  - 数据有效性：这54帧的输出还带有空pose留下的缺省skeleton句柄；最终恢复控制的全部1332帧均保留正确骨架。未把这一数据风险等同于已运行默认角色并观察到A-pose。
+  - 漏检/边界：旧alias验证覆盖条件选择、首次进入及缓存复用，未覆盖旧混合完成而新混合尚活跃时的前态回退。测试使用原状态/条件/转场和完整受控站蹲pose；未宣称默认世界角色已显示A-pose，也未证明其他alias成员或相邻FSM已等价。证据`target/bf144/123/resolved.json`、`analysis.json`；未实施通用alias修复或重写生成资产。
 
 ### 核验边界记录（不计为无差异）
 
