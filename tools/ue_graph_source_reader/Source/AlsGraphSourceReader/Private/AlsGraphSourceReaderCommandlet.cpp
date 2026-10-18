@@ -2081,6 +2081,7 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
         !Request->TryGetArrayField(TEXT("samples"), Samples) || Samples->IsEmpty() || Samples->Num() > 512) { return nullptr; }
     TArray<UAnimSequenceBase*> Sequences;
     TArray<float> Starts, Rates;
+    TArray<bool> Loops;
     TArray<TSharedPtr<FJsonValue>> PlayerInfo;
     for (const TSharedPtr<FJsonValue>& Value : *Players)
     {
@@ -2093,15 +2094,28 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
         UAnimSequenceBase* Sequence = LoadObject<UAnimSequenceBase>(nullptr, *Path);
         if (Sequence == nullptr || Sequence->GetPlayLength() <= 0.0f || Start > Sequence->GetPlayLength() ||
             !FMath::IsFinite(Sequence->RateScale)) { return nullptr; }
-        const TArray<FName>* Markers = Sequence->GetUniqueMarkerNames();
-        if (Markers != nullptr && !Markers->IsEmpty()) { return nullptr; }
+        bool Looped = false;
+        if ((*Player)->HasField(TEXT("looping")) && !(*Player)->TryGetBoolField(TEXT("looping"), Looped)) { return nullptr; }
         Sequences.Add(Sequence);
         Starts.Add(static_cast<float>(Start));
         Rates.Add(static_cast<float>(Rate));
+        Loops.Add(Looped);
         TSharedRef<FJsonObject> Info = MakeShared<FJsonObject>();
         Info->SetStringField(TEXT("asset_path"), Sequence->GetPathName());
         Info->SetNumberField(TEXT("duration"), Sequence->GetPlayLength());
         Info->SetNumberField(TEXT("rate_scale"), Sequence->RateScale);
+        if (const UAnimSequence* Animation = Cast<UAnimSequence>(Sequence); Animation != nullptr && !Animation->AuthoredSyncMarkers.IsEmpty())
+        {
+            TArray<TSharedPtr<FJsonValue>> MarkerValues;
+            for (const FAnimSyncMarker& Marker : Animation->AuthoredSyncMarkers)
+            {
+                TSharedRef<FJsonObject> MarkerValue = MakeShared<FJsonObject>();
+                MarkerValue->SetStringField(TEXT("name"), Marker.MarkerName.ToString());
+                MarkerValue->SetNumberField(TEXT("time"), Marker.Time);
+                MarkerValues.Add(MakeShared<FJsonValueObject>(MarkerValue));
+            }
+            Info->SetArrayField(TEXT("markers"), MarkerValues);
+        }
         PlayerInfo.Add(MakeShared<FJsonValueObject>(Info));
     }
     if (Sequences[0] != Asset) { return nullptr; }
@@ -2119,7 +2133,9 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
         TArray<FMarkerTickRecord> Markers;
         Deltas.SetNum(Sequences.Num());
         Markers.SetNum(Sequences.Num());
-        FAnimInstanceProxy Proxy;
+        USkeletalMeshComponent* Mesh = NewObject<USkeletalMeshComponent>(GetTransientPackage());
+        UAnimInstance* Instance = NewObject<UAnimInstance>(Mesh);
+        FAnimInstanceProxy Proxy(Instance);
         UE::Anim::FAnimSync Sync;
         TArray<TSharedPtr<FJsonValue>> Frames;
         for (const TSharedPtr<FJsonValue>& StepValue : *Steps)
@@ -2151,7 +2167,7 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
                 double Weight;
                 if (!(*Weights)[Index]->TryGetNumber(Weight) || !FMath::IsFinite(static_cast<float>(Weight)) || Weight < 0.0 || Weight > 1.0 ||
                     !FMath::IsFinite(static_cast<float>(Delta) * Rates[Index] * Sequences[Index]->RateScale)) { return nullptr; }
-                FAnimTickRecord Tick(Sequences[Index], false, Rates[Index], false, static_cast<float>(Weight), Times[Index], Markers[Index]);
+                FAnimTickRecord Tick(Sequences[Index], Loops[Index], Rates[Index], false, static_cast<float>(Weight), Times[Index], Markers[Index]);
                 Tick.DeltaTimeRecord = &Deltas[Index];
                 Tick.bRequestedInertialization = Inertial;
                 Sync.AddTickRecord(Tick, UE::Anim::FAnimSyncParams(GroupName, EAnimGroupRole::CanBeLeader, EAnimSyncMethod::SyncGroup));
@@ -2167,6 +2183,19 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
                 if (Group->ActivePlayers.IsValidIndex(Group->GroupLeaderIndex))
                 {
                     Frame->SetNumberField(TEXT("leader"), Group->ActivePlayers[Group->GroupLeaderIndex].TimeAccumulator - Times.GetData());
+                }
+                if (!Group->ValidMarkers.IsEmpty())
+                {
+                    for (const bool Start : {true, false})
+                    {
+                        const FMarkerSyncAnimPosition& Position = Start ? Group->MarkerTickContext.GetMarkerSyncStartPosition() : Group->MarkerTickContext.GetMarkerSyncEndPosition();
+                        TSharedRef<FJsonObject> MarkerPosition = MakeShared<FJsonObject>();
+                        MarkerPosition->SetStringField(TEXT("previous"), Position.PreviousMarkerName.ToString());
+                        MarkerPosition->SetStringField(TEXT("next"), Position.NextMarkerName.ToString());
+                        MarkerPosition->SetNumberField(TEXT("alpha"), Position.PositionBetweenMarkers);
+                        MarkerPosition->SetBoolField(TEXT("valid"), Position.IsValid());
+                        Frame->SetObjectField(Start ? TEXT("marker_start") : TEXT("marker_end"), MarkerPosition);
+                    }
                 }
             }
             Frame->SetArrayField(TEXT("order"), Order);

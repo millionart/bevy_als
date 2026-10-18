@@ -878,6 +878,11 @@
   - 20:45 source/static与运行闭环：fresh两AnimBP确认4个播放器的PlayRate和bLoopAnimation都有动态绑定；Loop实际跟随对应bRotatingLeft/Right，不能用CDO的True代替逐帧输入。修正参考输入后，32路径2864帧的状态、权重、自动退出和活跃重入时钟匹配，仅Crouching两条退出路径在旧状态已为零权重时漏掉最后一次时钟更新，符合D204；先前普通混合目标时间冻结的推测被8条实际进入路径192个更新否定。循环原生自测通过，旧实现同请求被测试拒绝；旧非循环控制已取得，继续恢复尾时钟与封存。首个播放器更新的previous-valid字段仍需按当前消费者单独界定，不泛化为完整历史等价。
   - 20:54 完成摘要：两条零权重尾时钟恢复后，32路径2864帧的状态/权重及所有被源更新的播放器时钟全部通过；后续失活重入会重置这两个播放器，本项不据此宣称下游运动差异。首更新previous-valid在源/目标不同，但当前4节点均start=0、rate>0，首帧remaining≤0或时间差×播放delta≥0，当前自动规则判据相同；其他起点和记录消费者仍不外推。删除复用夹具中未使用的回调修复节点及嵌套Stop采集，同target_game库重编后核心输出逐值保持。6帧循环、4组旧非循环控制及两AnimBP metadata自测通过，5份直接UE实现匹配Git，114份ALS/184份Rust、源资产与生产库身份保持；证据`target/bf144/125/summary.json`、`histories-analysis.json`、`recovered-analysis.json`、`identity.json`及watchdog。实际结束：2026-10-18 20:54:55 +08:00；相对21:00预估偏差：−5分05秒；结果：记录Gate PASS，归并D204，新增0，累计205项（111P2/94P3）。后续应先核对动态绑定再使用编译默认值建模。marker组、主动Turn播放与默认世界覆盖仍待审；公共Playground未运行，截图0、性能暂停。
 
+- [x] BF144.126 Crouching Movement标记组的源数据与固定成员时钟：依赖.125记录Gate，先沿当前6个Crouch Walk Sequence建立Movement组的精确marker/长度/绑定合同，核对固定成员及明确权重变化下的leader、marker区间和实际播放器时间。Standing BlendSpace内部样本、跨stance分组及成员重建另项验收，不用无marker的既有结论覆盖本项。Gate：fresh六资产与Crouching图、公开FAnimSync标记组轨迹、实际6节点/同步出口的相同输入、必要恢复/消融及身份。开始：2026-10-18 21:14 +08:00；预估结束：2026-10-18 21:59 +08:00。估时依据：当前6节点均SyncGroup/CanBeLeader并绑定同组；现有FAnimSync入口支持权重和重置，只需开放实际marker与loop数据，按45分钟核验Sequence侧单组，再拆出BlendSpace和跨组历史。
+  - 21:14 活动摘要：.125已提交`51b8d5c3`，累计205项（111P2/94P3）。Standing使用6个运动BlendSpace及Sprint节点，Crouching使用6个运动Sequence，target均映射sync_groups.movement.phase。先处理Crouching的直接Sequence闭包，并从原生API取得精确marker时间；原始反射文本不能作为精度充分的默认。截图0、性能暂停。
+  - 21:52 source/static闭环：fresh六个原生Sequence的长度均为1.1333333253860474，实际GraphClip均短约0.119µs；marker文本舍入还令Left Backward的Right边界从原生0.466666698变成目标约0.466666996。7条固定成员/明确leader切换路径共672帧中，leader全部一致，仅一帧marker区间标签不同，位置最大差约0.745µs。只恢复精确marker数据后区间错误归零，再恢复clip长度后六播放器position/previous及组marker结果逐值一致，分别补充D121/D199；不新增根因编号。follower发布的playback_delta幅值仍不同，但当前自动规则只消费符号，当前follower时钟消费者自行重建实际位移，本项不据此登记运动缺陷。工具首次跨marker因无AnimInstance的trace上下文崩溃，watchdog已终止；补真实owner后完整原生轨迹通过，这属于探针前提错误。下一步完成旧无marker回归、最小自测/消融和身份核验；截图0、性能暂停。
+  - 21:58 完成摘要：fresh六节点动态PlayRate绑定、六个glTF/bin实际末值及原生组数据已闭合；三组各672帧分层恢复通过，精确数据组的position/previous与1344个组起止marker值全部逐值一致。删除探针冗余bCanUseMarkerSync设置后同包重编，672帧原生结果完全不变；12帧跨marker自测、篡改位置负控制及24帧旧无marker回归通过。5份直接UE实现匹配Git，114份ALS/184份Rust、累积资产与生产库身份保持；证据`target/bf144/126/summary.json`、`bindings.json`、`timelines.json`、`identity.json`及watchdog。最终脚本初版误调用需要额外metadata的FSM测试，已改为直接检查本批六节点/绑定，不把缺少探针字段当成图缺陷。实际结束：2026-10-18 21:58:34 +08:00；偏差：−26秒；结果：记录Gate PASS，补充D121/D199，新增0，累计205项（111P2/94P3）。原生trace owner及回归耗时接近估时；成员失活/重入、BlendSpace内部和跨stance历史继续独立验收。公共Playground未运行，截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
@@ -1587,13 +1592,14 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：50ms帧在第24帧用Ragdoll缩短/重启GetUp混出后，两朝向第25–27帧都采样1.5而source为1.49995；动作Ragdoll和输入标记保持正确。早期中断及未越过末端的控制通过，证据`bf144_get_up_phase41_interrupted_cleanup`。差值约50微秒，只登记低优先级姿态/曲线采样尾差，不扩大为可见表现结论。
   - BF144.82动态过渡补充：四个当前Sequence的原生动态Montage停在1.5332833529秒；`stop_link.rs:260`夹到duration，`standing_source.rs:65`又夹到六位小数配置时长，实际Transition槽尾段采样1.5333329439。站立/蹲姿左右脚及半速/倍速六组全部复现，60Hz单位倍率保持12个尾帧；只恢复原生位置的六组和零速控制全部通过。归并同一遗漏的section末端规则，没有新增重复编号；证据`82/*.native.json`和`bf144_animation_phase82_actual_sampling_clock`。
 
-- [ ] BF144-D121 / P3 — 源浮点记录舍入，改变通知边界及曲线输入。
+- [ ] BF144-D121 / P3 — 源浮点记录舍入，改变通知、同步标记边界及曲线输入。
   - Source：fresh原生GetEndTriggerTime为1.1665666103363037，`AnimMontage.cpp:2988–3012`在End branching marker执行NotifyEnd，ALS仅在当前仍GettingUp时置空并解锁。
   - Target：`docs/bf103-notify-source-audit.json:266–267`保存1.166667的end/duration，`generate_als_notify_manifest.py:104,125`将该值及offset传入manifest，实际f32终点为1.1665669679641724；`animation_events.rs:679–693`直接使用此终点。
   - 反例：前15帧62.5ms，再前进约34.638941ms，源/目标clip都到1.1665667，原生通知已结束，目标仍GettingUp且输入阻塞。两朝向都复现；边界前/后控制通过，在夹具内仅把manifest终点恢复原生精度也通过。证据`41/notify_exact.native.json`、`notify_edges.native.json`与`bf144_get_up_phase41_notify_end_precision_controls`。常规帧步长无此差异；未改原始记录、manifest或转换规则，未据此复开其他已完成通知资产。
   - BF144.92 Roll点通知补充：fresh A_Als_Roll 的SetGroundedEntryMode索引3/GUID `DC67D23A-40C84F64-0545E484-C7B4E6E6`原生时间0.9333333373069763，六位小数记录进入manifest后为f32的0.9333329796791077，提前约0.358µs。共同区间/资格的实际派发100组中12FAIL，差异进入模式组件、provider和真实T2条件；只恢复时间的100组全过。实际Roll输入启动、满权重PostLocomotion槽和真实播放记录的五组边界中两组提前写入FromRoll，五个恢复全部通过；当前已等于舍入时刻时也会漏掉本应稍后触发的事件。60/20Hz、owner0.5/1/2六组自然播放共327帧均只派发一次且时点符合共同源时钟。归并同一记录精度根因；没有新增编号或可见姿态偏差结论。证据`92/native.json`、`92/analysis.json`、`92/final/`，生产与原始记录未改。
   - BF144.94 即时状态补充：fresh九个动作montage中，Roll起止与manifest的f32完全相同；GetUp两项及Mantle六项的end分别被延后约0.358/0.238/0.358µs。先激活状态，再将共同位置设到原生end的下一f32并以零步长更新，排除marker跨越算法影响：八项都晚清动作并迟发End，48组中16FAIL；只恢复各自原生端点的24组全过，动作组件与实际图的locomotion_action同时恢复。High的下一f32恰等于目标end，依然是有效区间校正反例；不假设该间隔内还有另一可表示时刻。证据`94/native.json`及`bf144_animation_phase94_precision`，归并D121。
   - BF144.123 曲线输入补充：CF_Als_StanceChange原生中键切线2.7303075790405273经FloatCurve六位小数文本变成2.730308，目标两节点加载为2.7303080558776855。只恢复原生键值时，两节点各36个采样值改变；完整FSM中215个受控根位置值改变，最大约5.96e−8。归并源数值记录精度不足合同，不声称通知与曲线共用同一个导出器；算法求值顺序造成的完成差异仍由独立D206解释。未宣称可见故障，也未将其他曲线计作已验证。
+  - BF144.126 同步标记补充：fresh六个Crouch Walk的AuthoredSyncMarkers与target各自marker/公共phase marker存在舍入差。固定Left Backward为leader的60Hz第28帧，原生已进入Right→Left区间，目标仍在Left→Right末端；7路径672帧只有此一处区间标签差，位置最大偏差约0.745µs。仅在内存恢复原生marker及其公共相位数据，区间差消失；再恢复D199的clip长度，六播放器position/previous及组start/end标记逐值一致。归并记录精度合同，不宣称可见脚滑或默认世界运动故障；证据`target/bf144/126/current-pins-analysis.json`、`markers-only-analysis.json`、`exact-analysis.json`。
 
 
 - [ ] BF144-D122 / P2 — GetUp槽遗漏montage自身的11条曲线。
@@ -2094,11 +2100,12 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：当前Land Movement→Grounded自动规则（名义0.3秒、trigger=−1）在共同缓存的remaining为epsilon或半epsilon时，调整后的正时长分别为约1.19209e−7秒、5.96046e−8秒。delta=0的两组各两帧中，原生FAlphaBlend仍未完成、姿态Alpha=0，但目标状态权重均为0/1；实际GetInstanceStateWeight次帧的4个读数同样颠倒。2epsilon、正delta、普通残余时长及其余11规则控制通过。
   - 恢复/边界：只把发布状态权重恢复为源单次转场公式，2040次实际getter核验全部通过，原来的姿态、时长、惯性请求和转场判定保持。共同缓存使用合法正时长及对应末端位置，只证明缓存合同之后的控制反例，不宣称默认场景自然到达该极窄边界；播放器与相关性producer另审。340组1020帧、44个公开原生时钟样本和消费者证据见`target/bf144/109/analysis.json`、`consumer_summary.json`。旧普通时钟测试覆盖名义时长，未覆盖自动规则减出来的极短正时长；仅登记，未修改生产。
 
-- [ ] BF144-D199 / P3 — Jump导出时间轴略短，使自动末端规则提前成立。
+- [ ] BF144-D199 / P3 — 导出时间轴略短，改变播放器时钟及Jump自动末端规则。
   - Source：fresh `AnimSequenceBase.cpp:501–593`的无marker leader用GetPlayLength执行AdvanceTime并发布TimeAccumulator；`AnimNode_StateMachine.cpp:820–854`以实际资产长度减累计时间判断自动规则。四个Jump资产原生长度均为1.6666666269302368秒。
   - Target：Walk/Run × Left/Right四个glTF唯一input accessor末值均为1.6666665077209473秒，已加载GraphClip沿用该值；SourceSequencePlayerNode发布较短duration，Jump Left/Right自动规则把同一末端邻域位置认作已结束。不是sync phase duration造成：单独恢复该字段，结果逐值不变。
   - 反例：原生与实际播放器共同输入的末端邻域有44帧source remaining仍大于0、target为0；两条实际FSM规则的1152组对照中，44组目标提前进入Jump目标状态并发出0.2秒惯性请求。仅在受控资产副本恢复源长度，全部提前触发消失；30/60/120Hz常规轨迹的末端判断及其他邻域控制通过。
   - 边界：差值约1.19209e−7秒，为时间轴精度问题，不扩大为可见姿态故障；末端定位控制不宣称默认游戏输入自然命中该精确位置。证据`target/bf144/111/analysis.json`、`consumer_summary.json`、`timelines.json`。原始glTF/bin、生产播放器及转换器未修改；归一化往返的非末端残差和其他同步路径另审。
+  - BF144.126 Crouch补充：六个Walk原生长度均为1.1333333253860474，当前GraphClip均为1.1333332061767578，同样短一个float步长。先恢复精确marker数据后，7路径672帧仍有最大约0.238µs的位置/previous残差；再只恢复六个clip长度，全部位置/previous与原生FAnimSync逐值相同。确认长度差进入当前标记同步时钟；没有据此推导Crouch提前转场，未改资产或导入器。
 
 - [ ] BF144-D200 / P2 — 外部姿态缓存污染状态相关性候选，自动转场跟随错误时钟。
   - Source：fresh编译后的Land Movement PlayerNodeIndices只有Light/Heavy Additive两项、LayerNodeIndices为空；`AnimNode_StateMachine.cpp:688–738`仅在该列表及列出的layer中按缓存权重选取。Grounded缓存提供基础姿态，其内部播放器不属于本状态候选。
