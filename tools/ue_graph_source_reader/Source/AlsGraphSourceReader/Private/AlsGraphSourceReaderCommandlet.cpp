@@ -2784,14 +2784,18 @@ TSharedPtr<FJsonObject> CaptureStateMachinePlayers(UObject* Asset)
         const int32 PropertyIndex = Properties.Num() - 1 - Index;
         const UEdGraphNode* Visual = Class->GetVisualNodeFromNodePropertyIndex(PropertyIndex);
         const int32* RoundTrip = Visual != nullptr ? Class->GetNodePropertyIndexFromGuid(Visual->NodeGuid) : nullptr;
-        if (RoundTrip == nullptr || *RoundTrip != Index)
+        const UEdGraphNode* RoundTripVisual = RoundTrip != nullptr && Properties.IsValidIndex(*RoundTrip)
+            ? Class->GetVisualNodeFromNodePropertyIndex(Properties.Num() - 1 - *RoundTrip) : nullptr;
+        if (Visual == nullptr || RoundTripVisual != Visual)
         {
-            UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Compiled state player node %d has no property or original node."), Index);
+            UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Compiled node identity mismatch: node=%d property=%s visual=%s round_trip=%d."),
+                Index, *Properties[PropertyIndex]->GetName(), *GetPathNameSafe(Visual), RoundTrip == nullptr ? INDEX_NONE : *RoundTrip);
             return nullptr;
         }
         const FStructProperty* Property = Properties[PropertyIndex];
         TSharedRef<FJsonObject> Node = MakeShared<FJsonObject>();
         Node->SetNumberField(TEXT("node_index"), Index);
+        if (*RoundTrip != Index) { Node->SetNumberField(TEXT("shared_origin_node_index"), *RoundTrip); }
         Node->SetStringField(TEXT("property"), Property->GetName());
         Node->SetStringField(TEXT("struct"), Property->Struct->GetPathName());
         Node->SetStringField(TEXT("guid"), GuidText(Visual->NodeGuid));
@@ -2832,6 +2836,33 @@ TSharedPtr<FJsonObject> CaptureStateMachinePlayers(UObject* Asset)
             State->SetNumberField(TEXT("index"), StateIndex);
             State->SetStringField(TEXT("name"), Info.StateName.ToString());
             State->SetBoolField(TEXT("conduit"), Info.bIsAConduit);
+            State->SetBoolField(TEXT("always_reset"), Info.bAlwaysResetOnEntry);
+            TArray<TSharedPtr<FJsonValue>> Exits;
+            for (const FBakedStateExitTransition& Exit : Info.Transitions)
+            {
+                if (!Description.Transitions.IsValidIndex(Exit.TransitionIndex)) { return nullptr; }
+                const FAnimationTransitionBetweenStates& Transition = Description.Transitions[Exit.TransitionIndex];
+                const TSharedPtr<FJsonObject> Rule = CaptureNode(Exit.CanTakeDelegateIndex);
+                if (!Rule.IsValid()) { return nullptr; }
+                TSharedRef<FJsonObject> Edge = MakeShared<FJsonObject>();
+                Edge->SetNumberField(TEXT("index"), Exit.TransitionIndex);
+                Edge->SetNumberField(TEXT("source"), Transition.PreviousState);
+                Edge->SetNumberField(TEXT("target"), Transition.NextState);
+                Edge->SetNumberField(TEXT("logic"), static_cast<int32>(Transition.LogicType.GetValue()));
+                Edge->SetNumberField(TEXT("blend_mode"), static_cast<int32>(Transition.BlendMode));
+                Edge->SetNumberField(TEXT("duration"), Transition.CrossfadeDuration);
+                Edge->SetNumberField(TEXT("min_reentry_time"), Transition.MinTimeBeforeReentry);
+                Edge->SetBoolField(TEXT("inertial_on_self"), Transition.bAllowInertializationForSelfTransitions);
+                Edge->SetStringField(TEXT("profile"), GetPathNameSafe(Transition.BlendProfile));
+                Edge->SetBoolField(TEXT("automatic"), Exit.bAutomaticRemainingTimeRule);
+                Edge->SetBoolField(TEXT("only_active"), Exit.bOnlyEvaluateWhenActive);
+                Edge->SetBoolField(TEXT("desired_result"), Exit.bDesiredTransitionReturnValue);
+                Edge->SetNumberField(TEXT("trigger"), Exit.AutomaticRuleTriggerTime);
+                Edge->SetStringField(TEXT("required_sync_group"), Exit.SyncGroupNameToRequireValidMarkersRule.ToString());
+                Edge->SetObjectField(TEXT("rule"), Rule.ToSharedRef());
+                Exits.Add(MakeShared<FJsonValueObject>(Edge));
+            }
+            State->SetArrayField(TEXT("exits"), Exits);
             if (Info.StateRootNodeIndex != INDEX_NONE)
             {
                 const TSharedPtr<FJsonObject> Root = CaptureNode(Info.StateRootNodeIndex);
@@ -2858,6 +2889,7 @@ TSharedPtr<FJsonObject> CaptureStateMachinePlayers(UObject* Asset)
         TSharedRef<FJsonObject> Machine = MakeShared<FJsonObject>();
         Machine->SetNumberField(TEXT("index"), MachineIndex);
         Machine->SetStringField(TEXT("name"), Description.MachineName.ToString());
+        Machine->SetNumberField(TEXT("initial_state"), Description.InitialState);
         Machine->SetArrayField(TEXT("states"), States);
         Machines.Add(MakeShared<FJsonValueObject>(Machine));
         UE_LOG(LogAlsGraphSourceReader, Display, TEXT("Compiled state machine %d/%d captured."), MachineIndex + 1, Descriptions.Num());

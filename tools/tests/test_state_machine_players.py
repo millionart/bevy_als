@@ -15,13 +15,30 @@ indices = {
 assert indices == {machine['index'] for machine in metadata}
 assert len(indices) == len(metadata)
 players = 0
+compiled_nodes = {}
 for machine in metadata:
     assert [state['index'] for state in machine['states']] == list(range(len(machine['states'])))
+    assert machine['initial_state'] in range(len(machine['states']))
     for state in machine['states']:
+        assert isinstance(state['always_reset'], bool)
+        for edge in state['exits']:
+            assert edge['source'] == state['index']
+            assert edge['target'] in range(len(machine['states']))
+            assert edge['logic'] in [0, 1, 2]
+            assert math.isfinite(edge['duration']) and edge['duration'] >= 0
+            assert math.isfinite(edge['min_reentry_time'])
+            assert isinstance(edge['inertial_on_self'], bool)
+            assert isinstance(edge['automatic'], bool) and isinstance(edge['only_active'], bool)
+            assert isinstance(edge['desired_result'], bool)
+            assert math.isfinite(edge['trigger'])
+            assert edge['rule']['struct'].endswith('.AnimNode_TransitionResult')
         nodes = state['players'] + state['layers']
+        nodes += [edge['rule'] for edge in state['exits']]
         if 'root' in state:
             nodes = [state['root']] + nodes
         for node in nodes:
+            previous = compiled_nodes.setdefault(node['node_index'], node)
+            assert previous == node
             original = objects[node['source_path']]
             source = {p['name']: p for p in original['properties']}
             assert str(uuid.UUID(source['NodeGuid']['exported_text'])) == node['guid']
@@ -39,5 +56,10 @@ for machine in metadata:
                     assert math.isfinite(node['asset_duration']) and node['asset_duration'] >= 0
                     assert math.isfinite(node['asset_rate_scale'])
         players += len(state['players'])
+for node in compiled_nodes.values():
+    if 'shared_origin_node_index' in node:
+        peer = compiled_nodes[node['shared_origin_node_index']]
+        assert node['node_index'] != peer['node_index']
+        assert all(node[key] == peer[key] for key in ['guid', 'source_path', 'source_graph', 'struct'])
 assert players > 0
 print(f'Compiled state machine metadata PASS: {len(metadata)} machines, {players} player references')
