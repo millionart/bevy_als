@@ -1,0 +1,9 @@
+{
+  "players": [{"asset": "/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Forward.BS_Als_WalkRun_Forward", "start": 0.2, "rate": 1, "looping": true, "blend_position": [1, 0]}, {"asset": "/ALS/ALS/Animations/Grounded/WalkRun/BS_Als_WalkRun_Left_Forward.BS_Als_WalkRun_Left_Forward", "start": 0.2, "rate": 1, "looping": true, "blend_position": [1, 0]}],
+  "samples": [
+    {"name": "cold_zero", "steps": [{"delta_seconds": 0, "weights": [0.7, 0.3]}, {"delta_seconds": 0.016666666666666666, "weights": [0.7, 0.3]}, {"delta_seconds": 0.016666666666666666, "weights": [0.7, 0.3]}]},
+    {"name": "warm_zero", "steps": [{"delta_seconds": 0.016666666666666666, "weights": [0.7, 0.3]}, {"delta_seconds": 0.016666666666666666, "weights": [0.7, 0.3]}, {"delta_seconds": 0.016666666666666666, "weights": [0.7, 0.3]}, {"delta_seconds": 0, "weights": [0.7, 0.3]}, {"delta_seconds": 0, "weights": [0.7, 0.3]}, {"delta_seconds": 0.016666666666666666, "weights": [0.7, 0.3]}, {"delta_seconds": 0.016666666666666666, "weights": [0.7, 0.3]}]},
+    {"name": "cold_tiny", "steps": [{"delta_seconds": 1e-08, "weights": [0.7, 0.3]}]},
+    {"name": "warm_tiny", "steps": [{"delta_seconds": 0.016666666666666666, "weights": [0.7, 0.3]}, {"delta_seconds": 0.016666666666666666, "weights": [0.7, 0.3]}, {"delta_seconds": 0.016666666666666666, "weights": [0.7, 0.3]}, {"delta_seconds": 1e-08, "weights": [0.7, 0.3]}, {"delta_seconds": 1e-08, "weights": [0.7, 0.3]}, {"delta_seconds": 0.016666666666666666, "weights": [0.7, 0.3]}]}
+  ]
+}
