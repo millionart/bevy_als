@@ -41,6 +41,8 @@
 
 有marker的Sequence另输出原生精确marker名称/时刻，以及组的`marker_start`和`marker_end`（previous/next/alpha/valid）。Proxy持有实际AnimInstance及SkeletalMeshComponent owner，使跨marker时的原生trace路径可执行。使用`sync_marker_group.request.json`和`test_sync_marker_group_probe.py`核对六个循环Crouch Walk播放器的跨marker区间及follower位置；两套自测共同覆盖有/无marker入口。
 
+组成员也可使用BlendSpace：该player必须提供固定的`blend_position: [x, y]`，`start`为0–1的归一化累计值。每个BlendSpace使用独立过滤器和样本缓存，沿原生TickRecord及FAnimSync推进；输出`time_unit: "normalized"`，其position/previous为归一化时间，playback_delta仍是实际DeltaTimeRecord的秒数。每帧另给出filtered_position和内部samples的权重、previous_time/time（秒）、sample_index、animation及play_rate。Sequence原输出保持；`reset`目前只接受Sequence索引，不把BlendSpace重建混同为重置累计值。`sync_blendspace_group.request.json`和`test_sync_blendspace_group_probe.py`覆盖单成员、不同轴输入的leader/follower、循环、样本时钟及单位。
+
 同步组step可选`reset`索引数组，按Sequence Player初始化语义把对应时间恢复为start并清marker记录；`inertial: true`为该步tick设置实际惯性请求标志。入口仍由原生组决定是否按前leader分数重同步，不手工改组相位。自测覆盖无请求重置、满足分数条件的惯性重同步，以及新leader更强时保留本地起点；不提供这两个字段时旧输出保持。
 
 2026-09-26 删除了 UE MCP client 及其完整调用链（输入审计、旧相机导出、拓扑/截图和五个 shell 探测脚本），当前取证统一使用原生 reader。相机曲线的目标转换使用 `import/import_curve_float.py`、`import/import_debug_curves.py` 和 `import/camera_curve_conversion.py`。

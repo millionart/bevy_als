@@ -2079,8 +2079,9 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
         !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Request) ||
         !Request->TryGetArrayField(TEXT("players"), Players) || Players->IsEmpty() || Players->Num() > 16 ||
         !Request->TryGetArrayField(TEXT("samples"), Samples) || Samples->IsEmpty() || Samples->Num() > 512) { return nullptr; }
-    TArray<UAnimSequenceBase*> Sequences;
-    TArray<float> Starts, Rates;
+    TArray<UAnimationAsset*> Assets;
+    TArray<float> Starts, Rates, AssetRates;
+    TArray<FVector> BlendPositions;
     TArray<bool> Loops;
     TArray<TSharedPtr<FJsonValue>> PlayerInfo;
     for (const TSharedPtr<FJsonValue>& Value : *Players)
@@ -2091,19 +2092,42 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
         if (!Value->TryGetObject(Player) || !(*Player)->TryGetStringField(TEXT("asset"), Path) ||
             !(*Player)->TryGetNumberField(TEXT("start"), Start) || !FMath::IsFinite(static_cast<float>(Start)) || Start < 0.0 ||
             !(*Player)->TryGetNumberField(TEXT("rate"), Rate) || !FMath::IsFinite(static_cast<float>(Rate))) { return nullptr; }
-        UAnimSequenceBase* Sequence = LoadObject<UAnimSequenceBase>(nullptr, *Path);
-        if (Sequence == nullptr || Sequence->GetPlayLength() <= 0.0f || Start > Sequence->GetPlayLength() ||
-            !FMath::IsFinite(Sequence->RateScale)) { return nullptr; }
+        UAnimationAsset* AnimationAsset = LoadObject<UAnimationAsset>(nullptr, *Path);
+        UAnimSequenceBase* Sequence = Cast<UAnimSequenceBase>(AnimationAsset);
+        UBlendSpace* BlendSpace = Cast<UBlendSpace>(AnimationAsset);
+        if (Sequence == nullptr && BlendSpace == nullptr) { return nullptr; }
+        if (Sequence != nullptr && (Sequence->GetPlayLength() <= 0.0f || Start > Sequence->GetPlayLength() ||
+            !FMath::IsFinite(Sequence->RateScale))) { return nullptr; }
+        FVector BlendPosition = FVector::ZeroVector;
+        if (BlendSpace != nullptr)
+        {
+            const TArray<TSharedPtr<FJsonValue>>* Position = nullptr;
+            double X, Y;
+            if (Start > 1.0 || !(*Player)->TryGetArrayField(TEXT("blend_position"), Position) || Position->Num() != 2 ||
+                !(*Position)[0]->TryGetNumber(X) || !(*Position)[1]->TryGetNumber(Y) ||
+                !FMath::IsFinite(static_cast<float>(X)) || !FMath::IsFinite(static_cast<float>(Y))) { return nullptr; }
+            BlendPosition = FVector(X, Y, 0.0);
+        }
         bool Looped = false;
         if ((*Player)->HasField(TEXT("looping")) && !(*Player)->TryGetBoolField(TEXT("looping"), Looped)) { return nullptr; }
-        Sequences.Add(Sequence);
+        Assets.Add(AnimationAsset);
         Starts.Add(static_cast<float>(Start));
         Rates.Add(static_cast<float>(Rate));
+        AssetRates.Add(Sequence == nullptr ? 1.0f : Sequence->RateScale);
+        BlendPositions.Add(BlendPosition);
         Loops.Add(Looped);
         TSharedRef<FJsonObject> Info = MakeShared<FJsonObject>();
-        Info->SetStringField(TEXT("asset_path"), Sequence->GetPathName());
-        Info->SetNumberField(TEXT("duration"), Sequence->GetPlayLength());
-        Info->SetNumberField(TEXT("rate_scale"), Sequence->RateScale);
+        Info->SetStringField(TEXT("asset_path"), AnimationAsset->GetPathName());
+        if (Sequence != nullptr)
+        {
+            Info->SetNumberField(TEXT("duration"), Sequence->GetPlayLength());
+            Info->SetNumberField(TEXT("rate_scale"), Sequence->RateScale);
+        }
+        else
+        {
+            Info->SetStringField(TEXT("time_unit"), TEXT("normalized"));
+            Info->SetObjectField(TEXT("blend_position"), CaptureVector(BlendPosition));
+        }
         if (const UAnimSequence* Animation = Cast<UAnimSequence>(Sequence); Animation != nullptr && !Animation->AuthoredSyncMarkers.IsEmpty())
         {
             TArray<TSharedPtr<FJsonValue>> MarkerValues;
@@ -2118,7 +2142,7 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
         }
         PlayerInfo.Add(MakeShared<FJsonValueObject>(Info));
     }
-    if (Sequences[0] != Asset) { return nullptr; }
+    if (Assets[0] != Asset) { return nullptr; }
     const FName GroupName(TEXT("Probe"));
     TArray<TSharedPtr<FJsonValue>> Rows;
     for (const TSharedPtr<FJsonValue>& Value : *Samples)
@@ -2131,8 +2155,18 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
         TArray<float> Times = Starts;
         TArray<FDeltaTimeRecord> Deltas;
         TArray<FMarkerTickRecord> Markers;
-        Deltas.SetNum(Sequences.Num());
-        Markers.SetNum(Sequences.Num());
+        TArray<FBlendFilter> Filters;
+        TArray<TArray<FBlendSampleData>> BlendSamples;
+        TArray<int32> TriangulationIndices;
+        Deltas.SetNum(Assets.Num());
+        Markers.SetNum(Assets.Num());
+        Filters.SetNum(Assets.Num());
+        BlendSamples.SetNum(Assets.Num());
+        TriangulationIndices.Init(INDEX_NONE, Assets.Num());
+        for (int32 Index = 0; Index < Assets.Num(); ++Index)
+        {
+            if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(Assets[Index])) { BlendSpace->InitializeFilter(&Filters[Index]); }
+        }
         USkeletalMeshComponent* Mesh = NewObject<USkeletalMeshComponent>(GetTransientPackage());
         UAnimInstance* Instance = NewObject<UAnimInstance>(Mesh);
         FAnimInstanceProxy Proxy(Instance);
@@ -2145,29 +2179,41 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
             double Delta;
             if (!StepValue->TryGetObject(Step) || !(*Step)->TryGetNumberField(TEXT("delta_seconds"), Delta) ||
                 !FMath::IsFinite(static_cast<float>(Delta)) || Delta < 0.0 ||
-                !(*Step)->TryGetArrayField(TEXT("weights"), Weights) || Weights->Num() != Sequences.Num()) { return nullptr; }
+                !(*Step)->TryGetArrayField(TEXT("weights"), Weights) || Weights->Num() != Assets.Num()) { return nullptr; }
             bool Inertial = false;
             if ((*Step)->HasField(TEXT("inertial")) && !(*Step)->TryGetBoolField(TEXT("inertial"), Inertial)) { return nullptr; }
             if ((*Step)->HasField(TEXT("reset")))
             {
                 const TArray<TSharedPtr<FJsonValue>>* Reset = nullptr;
-                if (!(*Step)->TryGetArrayField(TEXT("reset"), Reset) || Reset->Num() > Sequences.Num()) { return nullptr; }
+                if (!(*Step)->TryGetArrayField(TEXT("reset"), Reset) || Reset->Num() > Assets.Num()) { return nullptr; }
                 for (const TSharedPtr<FJsonValue>& IndexValue : *Reset)
                 {
                     double Index;
-                    if (!IndexValue->TryGetNumber(Index) || !FMath::IsFinite(Index) || Index < 0.0 || Index >= Sequences.Num() || Index != FMath::FloorToDouble(Index)) { return nullptr; }
+                    if (!IndexValue->TryGetNumber(Index) || !FMath::IsFinite(Index) || Index < 0.0 || Index >= Assets.Num() || Index != FMath::FloorToDouble(Index) ||
+                        Cast<UBlendSpace>(Assets[static_cast<int32>(Index)]) != nullptr) { return nullptr; }
                     Times[static_cast<int32>(Index)] = Starts[static_cast<int32>(Index)];
                     Markers[static_cast<int32>(Index)].Reset();
                 }
             }
             Sync.Reset();
-            for (int32 Index = 0; Index < Sequences.Num(); ++Index)
+            for (int32 Index = 0; Index < Assets.Num(); ++Index)
             {
                 if ((*Weights)[Index]->Type == EJson::Null) { continue; }
                 double Weight;
                 if (!(*Weights)[Index]->TryGetNumber(Weight) || !FMath::IsFinite(static_cast<float>(Weight)) || Weight < 0.0 || Weight > 1.0 ||
-                    !FMath::IsFinite(static_cast<float>(Delta) * Rates[Index] * Sequences[Index]->RateScale)) { return nullptr; }
-                FAnimTickRecord Tick(Sequences[Index], Loops[Index], Rates[Index], false, static_cast<float>(Weight), Times[Index], Markers[Index]);
+                    !FMath::IsFinite(static_cast<float>(Delta) * Rates[Index] * AssetRates[Index])) { return nullptr; }
+                FAnimTickRecord Tick;
+                if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(Assets[Index]))
+                {
+                    Tick = FAnimTickRecord(BlendSpace, BlendPositions[Index], BlendSamples[Index], Filters[Index], Loops[Index], Rates[Index],
+                        false, false, static_cast<float>(Weight), Times[Index], Markers[Index]);
+                    Tick.BlendSpace.TriangulationIndex = TriangulationIndices[Index];
+                }
+                else
+                {
+                    Tick = FAnimTickRecord(CastChecked<UAnimSequenceBase>(Assets[Index]), Loops[Index], Rates[Index], false,
+                        static_cast<float>(Weight), Times[Index], Markers[Index]);
+                }
                 Tick.DeltaTimeRecord = &Deltas[Index];
                 Tick.bRequestedInertialization = Inertial;
                 Sync.AddTickRecord(Tick, UE::Anim::FAnimSyncParams(GroupName, EAnimGroupRole::CanBeLeader, EAnimSyncMethod::SyncGroup));
@@ -2179,7 +2225,12 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
             Frame->SetField(TEXT("leader"), MakeShared<FJsonValueNull>());
             if (Group != nullptr)
             {
-                for (const FAnimTickRecord& Tick : Group->ActivePlayers) { Order.Add(MakeShared<FJsonValueNumber>(Tick.TimeAccumulator - Times.GetData())); }
+                for (const FAnimTickRecord& Tick : Group->ActivePlayers)
+                {
+                    const int32 Index = static_cast<int32>(Tick.TimeAccumulator - Times.GetData());
+                    Order.Add(MakeShared<FJsonValueNumber>(Index));
+                    if (Cast<UBlendSpace>(Assets[Index]) != nullptr) { TriangulationIndices[Index] = Tick.BlendSpace.TriangulationIndex; }
+                }
                 if (Group->ActivePlayers.IsValidIndex(Group->GroupLeaderIndex))
                 {
                     Frame->SetNumberField(TEXT("leader"), Group->ActivePlayers[Group->GroupLeaderIndex].TimeAccumulator - Times.GetData());
@@ -2201,7 +2252,7 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
             Frame->SetArrayField(TEXT("order"), Order);
             Frame->SetNumberField(TEXT("ratio"), Group == nullptr ? 0.0f : Group->AnimLengthRatio);
             Frame->SetNumberField(TEXT("previous_ratio"), Group == nullptr ? 0.0f : Group->PreviousAnimLengthRatio);
-            for (int32 Index = 0; Index < Sequences.Num(); ++Index)
+            for (int32 Index = 0; Index < Assets.Num(); ++Index)
             {
                 TSharedRef<FJsonObject> Clock = MakeShared<FJsonObject>();
                 Clock->SetNumberField(TEXT("position"), Times[Index]);
@@ -2209,6 +2260,23 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
                 Clock->SetNumberField(TEXT("playback_delta"), Deltas[Index].Delta);
                 Clock->SetBoolField(TEXT("has_previous"), Deltas[Index].IsPreviousValid());
                 Clock->SetBoolField(TEXT("ticked"), (*Weights)[Index]->Type != EJson::Null);
+                if (Cast<UBlendSpace>(Assets[Index]) != nullptr)
+                {
+                    Clock->SetObjectField(TEXT("filtered_position"), CaptureVector(Filters[Index].GetFilterLastOutput()));
+                    TArray<TSharedPtr<FJsonValue>> SampleValues;
+                    for (const FBlendSampleData& BlendSample : BlendSamples[Index])
+                    {
+                        TSharedRef<FJsonObject> SampleValue = MakeShared<FJsonObject>();
+                        SampleValue->SetNumberField(TEXT("sample_index"), BlendSample.SampleDataIndex);
+                        SampleValue->SetStringField(TEXT("animation"), ObjectPath(BlendSample.Animation));
+                        SampleValue->SetNumberField(TEXT("weight"), BlendSample.GetClampedWeight());
+                        SampleValue->SetNumberField(TEXT("previous_time"), BlendSample.PreviousTime);
+                        SampleValue->SetNumberField(TEXT("time"), BlendSample.Time);
+                        SampleValue->SetNumberField(TEXT("play_rate"), BlendSample.SamplePlayRate);
+                        SampleValues.Add(MakeShared<FJsonValueObject>(SampleValue));
+                    }
+                    Clock->SetArrayField(TEXT("samples"), SampleValues);
+                }
                 Clocks.Add(MakeShared<FJsonValueObject>(Clock));
             }
             Frame->SetArrayField(TEXT("players"), Clocks);
