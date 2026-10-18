@@ -2354,6 +2354,18 @@ TSharedPtr<FJsonObject> CaptureBlendListProbe(UObject* Asset, const FString& Req
             Child < 0 || Child >= Times->Num() || Child != FMath::FloorToDouble(Child) || Child == TwoWayChild) { return nullptr; }
         CachedChild = static_cast<int32>(Child);
     }
+    const FAnimNode_TwoWayBlend* OuterTemplate = nullptr;
+    if (Request->HasField(TEXT("outer_two_way")))
+    {
+        FString PropertyName;
+        UBlueprint* Blueprint = Cast<UBlueprint>(Asset);
+        UClass* Class = Blueprint != nullptr ? Blueprint->GeneratedClass : nullptr;
+        if (CachedChild == INDEX_NONE || Class == nullptr || !Request->TryGetStringField(TEXT("outer_two_way"), PropertyName)) { return nullptr; }
+        const FStructProperty* Property = FindFProperty<FStructProperty>(Class, *PropertyName);
+        if (Property == nullptr || Property->Struct != FAnimNode_TwoWayBlend::StaticStruct()) { return nullptr; }
+        OuterTemplate = Property->ContainerPtrToValuePtr<FAnimNode_TwoWayBlend>(Class->GetDefaultObject());
+        if (OuterTemplate->AlphaInputType != EAnimAlphaInputType::Float) { return nullptr; }
+    }
     struct FProbeLeaf : FAnimNode_Base
     {
         int32 Initializations = 0;
@@ -2388,6 +2400,20 @@ TSharedPtr<FJsonObject> CaptureBlendListProbe(UObject* Asset, const FString& Req
         float Weight(int32 Index) const { return PerBlendData[Index].Weight; }
         float Duration() const { return PerBlendData[Active].Blend.GetBlendTime(); }
     };
+    struct FProbeCache : FAnimNode_SaveCachedPose
+    {
+        TArray<float> Requests;
+        virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override
+        {
+            Requests.Add(Context.GetFinalBlendWeight());
+            FAnimNode_SaveCachedPose::Update_AnyThread(Context);
+        }
+    };
+    struct FProbeProxy : FAnimInstanceProxy
+    {
+        explicit FProbeProxy(UAnimInstance* Instance) : FAnimInstanceProxy(Instance) {}
+        void InitializeGraph() { InitializationCounter.Increment(); }
+    };
     TArray<TSharedPtr<FJsonValue>> Rows;
     for (const TSharedPtr<FJsonValue>& SampleValue : *Samples)
     {
@@ -2398,11 +2424,13 @@ TSharedPtr<FJsonObject> CaptureBlendListProbe(UObject* Asset, const FString& Req
             !(*Sample)->TryGetArrayField(TEXT("steps"), Steps) || Steps->IsEmpty() || Steps->Num() > 512) { return nullptr; }
         USkeletalMeshComponent* Mesh = NewObject<USkeletalMeshComponent>(GetTransientPackage());
         UAnimInstance* Instance = NewObject<UAnimInstance>(Mesh);
-        FAnimInstanceProxy Proxy(Instance);
+        FProbeProxy Proxy(Instance);
+        Proxy.InitializeGraph();
         FProbeBlend Blend;
         FProbeTwoWay TwoWay;
+        FProbeTwoWay Outer;
         FProbeLeaf Nested[2];
-        FAnimNode_SaveCachedPose Cache;
+        FProbeCache Cache;
         FProbeLeaf CachedLeaf;
         TArray<int32> Order;
         TArray<FProbeLeaf> Leaves;
@@ -2438,7 +2466,14 @@ TSharedPtr<FJsonObject> CaptureBlendListProbe(UObject* Asset, const FString& Req
         }
         FEnumProperty* ModeProperty = FindFProperty<FEnumProperty>(FAnimNode_BlendListBase::StaticStruct(), TEXT("BlendType"));
         ModeProperty->GetUnderlyingProperty()->SetIntPropertyValue(ModeProperty->ContainerPtrToValuePtr<void>(&Blend), Mode);
-        Blend.Initialize_AnyThread(FAnimationInitializeContext(&Proxy));
+        if (OuterTemplate)
+        {
+            Outer.Configure(*OuterTemplate);
+            Outer.A.SetLinkNode(&Blend);
+            Outer.B.SetLinkNode(&Cache);
+            Outer.Initialize_AnyThread(FAnimationInitializeContext(&Proxy));
+        }
+        else { Blend.Initialize_AnyThread(FAnimationInitializeContext(&Proxy)); }
         TArray<TSharedPtr<FJsonValue>> Frames;
         for (const TSharedPtr<FJsonValue>& StepValue : *Steps)
         {
@@ -2449,6 +2484,7 @@ TSharedPtr<FJsonObject> CaptureBlendListProbe(UObject* Asset, const FString& Req
                 !(*Step)->TryGetNumberField(TEXT("delta_seconds"), Delta) || !FMath::IsFinite(static_cast<float>(Delta)) || Delta < 0.0 || Delta > 1.0) { return nullptr; }
             for (FProbeLeaf& Leaf : Leaves) { Leaf.Weights.Reset(); }
             CachedLeaf.Weights.Reset();
+            Cache.Requests.Reset();
             Order.Reset();
             if (TwoWayTemplate)
             {
@@ -2458,7 +2494,14 @@ TSharedPtr<FJsonObject> CaptureBlendListProbe(UObject* Asset, const FString& Req
                 for (FProbeLeaf& Leaf : Nested) { Leaf.Weights.Reset(); }
             }
             Blend.Active = static_cast<int32>(Active);
-            Blend.Update_AnyThread(FAnimationUpdateContext(&Proxy, static_cast<float>(Delta)));
+            if (OuterTemplate)
+            {
+                double Alpha;
+                if (!(*Step)->TryGetNumberField(TEXT("outer_alpha"), Alpha) || !FMath::IsFinite(static_cast<float>(Alpha))) { return nullptr; }
+                Outer.Alpha = static_cast<float>(Alpha);
+                Outer.Update_AnyThread(FAnimationUpdateContext(&Proxy, static_cast<float>(Delta)));
+            }
+            else { Blend.Update_AnyThread(FAnimationUpdateContext(&Proxy, static_cast<float>(Delta))); }
             if (CachedChild != INDEX_NONE) { Cache.PostGraphUpdate(); }
             TSharedRef<FJsonObject> Frame = MakeShared<FJsonObject>();
             Frame->SetNumberField(TEXT("active"), Blend.Active);
@@ -2475,6 +2518,13 @@ TSharedPtr<FJsonObject> CaptureBlendListProbe(UObject* Asset, const FString& Req
             Frame->SetArrayField(TEXT("weights"), Weights);
             Frame->SetArrayField(TEXT("updates"), Updates);
             Frame->SetArrayField(TEXT("initializations"), Initializations);
+            if (OuterTemplate)
+            {
+                Frame->SetNumberField(TEXT("outer_alpha"), Outer.Value());
+                TArray<TSharedPtr<FJsonValue>> Requests;
+                for (const float Weight : Cache.Requests) { Requests.Add(MakeShared<FJsonValueNumber>(Weight)); }
+                Frame->SetArrayField(TEXT("cached_requests"), Requests);
+            }
             if (TwoWayTemplate || CachedChild != INDEX_NONE)
             {
                 TArray<TSharedPtr<FJsonValue>> Values;
