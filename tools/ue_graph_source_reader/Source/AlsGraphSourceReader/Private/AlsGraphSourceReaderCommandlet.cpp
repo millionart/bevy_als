@@ -21,6 +21,7 @@
 #include "Animation/AnimNode_Inertialization.h"
 #include "Animation/AnimNode_SequencePlayer.h"
 #include "AnimNodes/AnimNode_BlendListBase.h"
+#include "AnimNodes/AnimNode_TwoWayBlend.h"
 #include "Animation/AnimNotifyQueue.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "Animation/AnimSequence.h"
@@ -2316,7 +2317,7 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
     return Result;
 }
 
-TSharedPtr<FJsonObject> CaptureBlendListProbe(const FString& RequestPath)
+TSharedPtr<FJsonObject> CaptureBlendListProbe(UObject* Asset, const FString& RequestPath)
 {
     FString Text, ModeName;
     TSharedPtr<FJsonObject> Request;
@@ -2327,12 +2328,53 @@ TSharedPtr<FJsonObject> CaptureBlendListProbe(const FString& RequestPath)
         Times->IsEmpty() || Times->Num() > 8 || !Request->TryGetArrayField(TEXT("samples"), Samples) || Samples->IsEmpty() || Samples->Num() > 512) { return nullptr; }
     const int64 Mode = StaticEnum<EAlphaBlendOption>()->GetValueByNameString(ModeName);
     if (Mode == INDEX_NONE) { return nullptr; }
+    const FAnimNode_TwoWayBlend* TwoWayTemplate = nullptr;
+    int32 TwoWayChild = INDEX_NONE;
+    if (Request->HasField(TEXT("two_way")))
+    {
+        const TSharedPtr<FJsonObject>* Fields = nullptr;
+        FString PropertyName;
+        double Child;
+        UBlueprint* Blueprint = Cast<UBlueprint>(Asset);
+        UClass* Class = Blueprint != nullptr ? Blueprint->GeneratedClass : nullptr;
+        if (Class == nullptr || !Request->TryGetObjectField(TEXT("two_way"), Fields) ||
+            !(*Fields)->TryGetStringField(TEXT("property"), PropertyName) || !(*Fields)->TryGetNumberField(TEXT("child"), Child) ||
+            !FMath::IsFinite(Child) || Child < 0 || Child >= Times->Num() || Child != FMath::FloorToDouble(Child)) { return nullptr; }
+        const FStructProperty* Property = FindFProperty<FStructProperty>(Class, *PropertyName);
+        if (Property == nullptr || Property->Struct != FAnimNode_TwoWayBlend::StaticStruct()) { return nullptr; }
+        TwoWayTemplate = Property->ContainerPtrToValuePtr<FAnimNode_TwoWayBlend>(Class->GetDefaultObject());
+        if (TwoWayTemplate->AlphaInputType != EAnimAlphaInputType::Float) { return nullptr; }
+        TwoWayChild = static_cast<int32>(Child);
+    }
+    int32 CachedChild = INDEX_NONE;
+    if (Request->HasField(TEXT("cached_child")))
+    {
+        double Child;
+        if (!Request->TryGetNumberField(TEXT("cached_child"), Child) || !FMath::IsFinite(Child) ||
+            Child < 0 || Child >= Times->Num() || Child != FMath::FloorToDouble(Child) || Child == TwoWayChild) { return nullptr; }
+        CachedChild = static_cast<int32>(Child);
+    }
     struct FProbeLeaf : FAnimNode_Base
     {
         int32 Initializations = 0;
         TArray<float> Weights;
-        virtual void Initialize_AnyThread(const FAnimationInitializeContext&) override { ++Initializations; }
-        virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override { Weights.Add(Context.GetFinalBlendWeight()); }
+        FAnimNode_Base* Forward = nullptr;
+        TArray<int32>* Order = nullptr;
+        int32 Index = INDEX_NONE;
+        virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override { ++Initializations; if (Forward) { Forward->Initialize_AnyThread(Context); } }
+        virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override { Weights.Add(Context.GetFinalBlendWeight()); if (Order) { Order->Add(Index); } if (Forward) { Forward->Update_AnyThread(Context); } }
+    };
+    struct FProbeTwoWay : FAnimNode_TwoWayBlend
+    {
+        void Configure(const FAnimNode_TwoWayBlend& Template)
+        {
+            AlphaInputType = Template.AlphaInputType;
+            AlphaScaleBias = Template.AlphaScaleBias;
+            AlphaScaleBiasClamp = Template.AlphaScaleBiasClamp;
+            bResetChildOnActivation = FindFProperty<FBoolProperty>(StaticStruct(), TEXT("bResetChildOnActivation"))->GetPropertyValue_InContainer(&Template);
+            bAlwaysUpdateChildren = FindFProperty<FBoolProperty>(StaticStruct(), TEXT("bAlwaysUpdateChildren"))->GetPropertyValue_InContainer(&Template);
+        }
+        float Value() const { return InternalBlendAlpha; }
     };
     struct FProbeBlend : FAnimNode_BlendListBase
     {
@@ -2358,8 +2400,31 @@ TSharedPtr<FJsonObject> CaptureBlendListProbe(const FString& RequestPath)
         UAnimInstance* Instance = NewObject<UAnimInstance>(Mesh);
         FAnimInstanceProxy Proxy(Instance);
         FProbeBlend Blend;
+        FProbeTwoWay TwoWay;
+        FProbeLeaf Nested[2];
+        FAnimNode_SaveCachedPose Cache;
+        FProbeLeaf CachedLeaf;
+        TArray<int32> Order;
         TArray<FProbeLeaf> Leaves;
         Leaves.SetNum(Times->Num());
+        for (int32 Index = 0; Index < Leaves.Num(); ++Index) { Leaves[Index].Order = &Order; Leaves[Index].Index = Index; }
+        if (TwoWayTemplate)
+        {
+            TwoWay.Configure(*TwoWayTemplate);
+            TwoWay.A.SetLinkNode(&Nested[0]);
+            TwoWay.B.SetLinkNode(&Nested[1]);
+            Leaves[TwoWayChild].Forward = &TwoWay;
+            Leaves[TwoWayChild].Order = nullptr;
+            for (int32 Index = 0; Index < 2; ++Index) { Nested[Index].Order = &Order; Nested[Index].Index = Times->Num() + Index; }
+        }
+        if (CachedChild != INDEX_NONE)
+        {
+            CachedLeaf.Order = &Order;
+            CachedLeaf.Index = CachedChild;
+            Cache.Pose.SetLinkNode(&CachedLeaf);
+            Leaves[CachedChild].Forward = &Cache;
+            Leaves[CachedChild].Order = nullptr;
+        }
         Blend.Link(Leaves);
         FArrayProperty* TimeProperty = FindFProperty<FArrayProperty>(FAnimNode_BlendListBase::StaticStruct(), TEXT("BlendTime"));
         FScriptArrayHelper TimeValues(TimeProperty, TimeProperty->ContainerPtrToValuePtr<void>(&Blend));
@@ -2383,8 +2448,18 @@ TSharedPtr<FJsonObject> CaptureBlendListProbe(const FString& RequestPath)
                 Active < 0.0 || Active >= Times->Num() || Active != FMath::FloorToDouble(Active) ||
                 !(*Step)->TryGetNumberField(TEXT("delta_seconds"), Delta) || !FMath::IsFinite(static_cast<float>(Delta)) || Delta < 0.0 || Delta > 1.0) { return nullptr; }
             for (FProbeLeaf& Leaf : Leaves) { Leaf.Weights.Reset(); }
+            CachedLeaf.Weights.Reset();
+            Order.Reset();
+            if (TwoWayTemplate)
+            {
+                double Alpha;
+                if (!(*Step)->TryGetNumberField(TEXT("two_way_alpha"), Alpha) || !FMath::IsFinite(static_cast<float>(Alpha))) { return nullptr; }
+                TwoWay.Alpha = static_cast<float>(Alpha);
+                for (FProbeLeaf& Leaf : Nested) { Leaf.Weights.Reset(); }
+            }
             Blend.Active = static_cast<int32>(Active);
             Blend.Update_AnyThread(FAnimationUpdateContext(&Proxy, static_cast<float>(Delta)));
+            if (CachedChild != INDEX_NONE) { Cache.PostGraphUpdate(); }
             TSharedRef<FJsonObject> Frame = MakeShared<FJsonObject>();
             Frame->SetNumberField(TEXT("active"), Blend.Active);
             Frame->SetNumberField(TEXT("duration"), Blend.Duration());
@@ -2400,6 +2475,35 @@ TSharedPtr<FJsonObject> CaptureBlendListProbe(const FString& RequestPath)
             Frame->SetArrayField(TEXT("weights"), Weights);
             Frame->SetArrayField(TEXT("updates"), Updates);
             Frame->SetArrayField(TEXT("initializations"), Initializations);
+            if (TwoWayTemplate || CachedChild != INDEX_NONE)
+            {
+                TArray<TSharedPtr<FJsonValue>> Values;
+                for (const int32 Index : Order) { Values.Add(MakeShared<FJsonValueNumber>(Index)); }
+                Frame->SetArrayField(TEXT("update_order"), Values);
+            }
+            if (CachedChild != INDEX_NONE)
+            {
+                TArray<TSharedPtr<FJsonValue>> Calls;
+                for (const float Weight : CachedLeaf.Weights) { Calls.Add(MakeShared<FJsonValueNumber>(Weight)); }
+                Frame->SetArrayField(TEXT("cached_updates"), Calls);
+                Frame->SetNumberField(TEXT("cached_initializations"), CachedLeaf.Initializations);
+            }
+            if (TwoWayTemplate)
+            {
+                TSharedRef<FJsonObject> Child = MakeShared<FJsonObject>();
+                Child->SetNumberField(TEXT("alpha"), TwoWay.Value());
+                TArray<TSharedPtr<FJsonValue>> ChildUpdates, ChildInitializations;
+                for (const FProbeLeaf& Leaf : Nested)
+                {
+                    TArray<TSharedPtr<FJsonValue>> Calls;
+                    for (const float Weight : Leaf.Weights) { Calls.Add(MakeShared<FJsonValueNumber>(Weight)); }
+                    ChildUpdates.Add(MakeShared<FJsonValueArray>(Calls));
+                    ChildInitializations.Add(MakeShared<FJsonValueNumber>(Leaf.Initializations));
+                }
+                Child->SetArrayField(TEXT("updates"), ChildUpdates);
+                Child->SetArrayField(TEXT("initializations"), ChildInitializations);
+                Frame->SetObjectField(TEXT("two_way"), Child);
+            }
             Frames.Add(MakeShared<FJsonValueObject>(Frame));
         }
         TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>();
@@ -3641,7 +3745,7 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
     FString BlendListProbePath;
     if (FParse::Value(*Params, TEXT("BlendListProbe="), BlendListProbePath))
     {
-        const TSharedPtr<FJsonObject> Probe = CaptureBlendListProbe(BlendListProbePath);
+        const TSharedPtr<FJsonObject> Probe = CaptureBlendListProbe(Asset, BlendListProbePath);
         if (!Probe.IsValid()) { return 7; }
         Root->SetObjectField(TEXT("blend_list_probe"), Probe.ToSharedRef());
     }
