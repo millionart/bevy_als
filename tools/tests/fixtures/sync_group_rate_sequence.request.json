@@ -1,0 +1,12 @@
+{
+  "players": [
+    {"asset":"/ALS/ALS/Animations/Grounded/Acceleration/A_Als_Acceleration_Forward.A_Als_Acceleration_Forward","start":0.2,"rate":0.5,"looping":false}
+  ],
+  "samples": [{"name":"dynamic-rate-sequence","steps":[
+    {"delta_seconds":0.1,"weights":[1.0],"rates":[1.0]},
+    {"delta_seconds":0.1,"weights":[1.0],"rates":[2.0]},
+    {"delta_seconds":0.1,"weights":[1.0],"rates":[0.0]},
+    {"delta_seconds":0.1,"weights":[1.0],"rates":[-1.0]},
+    {"delta_seconds":0.1,"weights":[1.0]}
+  ]}]
+}

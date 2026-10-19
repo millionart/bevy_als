@@ -2189,6 +2189,18 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
                 !(*Step)->TryGetArrayField(TEXT("weights"), Weights) || Weights->Num() != Assets.Num()) { return nullptr; }
             bool Inertial = false;
             if ((*Step)->HasField(TEXT("inertial")) && !(*Step)->TryGetBoolField(TEXT("inertial"), Inertial)) { return nullptr; }
+            TArray<float> StepRates = Rates;
+            if ((*Step)->HasField(TEXT("rates")))
+            {
+                const TArray<TSharedPtr<FJsonValue>>* Values = nullptr;
+                if (!(*Step)->TryGetArrayField(TEXT("rates"), Values) || Values->Num() != Assets.Num()) { return nullptr; }
+                for (int32 Index = 0; Index < Assets.Num(); ++Index)
+                {
+                    double Rate;
+                    if (!(*Values)[Index]->TryGetNumber(Rate) || !FMath::IsFinite(static_cast<float>(Rate))) { return nullptr; }
+                    StepRates[Index] = static_cast<float>(Rate);
+                }
+            }
             TArray<FVector> Positions = BlendPositions;
             if ((*Step)->HasField(TEXT("blend_positions")))
             {
@@ -2224,17 +2236,17 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
                 if ((*Weights)[Index]->Type == EJson::Null) { continue; }
                 double Weight;
                 if (!(*Weights)[Index]->TryGetNumber(Weight) || !FMath::IsFinite(static_cast<float>(Weight)) || Weight < 0.0 || Weight > 1.0 ||
-                    !FMath::IsFinite(static_cast<float>(Delta) * Rates[Index] * AssetRates[Index])) { return nullptr; }
+                    !FMath::IsFinite(static_cast<float>(Delta) * StepRates[Index] * AssetRates[Index])) { return nullptr; }
                 FAnimTickRecord Tick;
                 if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(Assets[Index]))
                 {
-                    Tick = FAnimTickRecord(BlendSpace, Positions[Index], BlendSamples[Index], Filters[Index], Loops[Index], Rates[Index],
+                    Tick = FAnimTickRecord(BlendSpace, Positions[Index], BlendSamples[Index], Filters[Index], Loops[Index], StepRates[Index],
                         false, false, static_cast<float>(Weight), Times[Index], Markers[Index]);
                     Tick.BlendSpace.TriangulationIndex = TriangulationIndices[Index];
                 }
                 else
                 {
-                    Tick = FAnimTickRecord(CastChecked<UAnimSequenceBase>(Assets[Index]), Loops[Index], Rates[Index], false,
+                    Tick = FAnimTickRecord(CastChecked<UAnimSequenceBase>(Assets[Index]), Loops[Index], StepRates[Index], false,
                         static_cast<float>(Weight), Times[Index], Markers[Index]);
                 }
                 Tick.DeltaTimeRecord = &Deltas[Index];
