@@ -2494,6 +2494,11 @@ TSharedPtr<FJsonObject> CaptureBlendListProbe(UObject* Asset, const FString& Req
             if (!StepValue->TryGetObject(Step) || !(*Step)->TryGetNumberField(TEXT("active"), Active) || !FMath::IsFinite(Active) ||
                 Active < 0.0 || Active >= Times->Num() || Active != FMath::FloorToDouble(Active) ||
                 !(*Step)->TryGetNumberField(TEXT("delta_seconds"), Delta) || !FMath::IsFinite(static_cast<float>(Delta)) || Delta < 0.0 || Delta > 1.0) { return nullptr; }
+            double ParentWeight = 1.0;
+            if ((*Step)->HasField(TEXT("parent_weight")) &&
+                (!(*Step)->TryGetNumberField(TEXT("parent_weight"), ParentWeight) || !FMath::IsFinite(static_cast<float>(ParentWeight)) ||
+                    ParentWeight < 0.0 || ParentWeight > 1.0)) { return nullptr; }
+            const FAnimationUpdateContext UpdateContext = FAnimationUpdateContext(&Proxy, static_cast<float>(Delta)).FractionalWeight(static_cast<float>(ParentWeight));
             for (FProbeLeaf& Leaf : Leaves) { Leaf.Weights.Reset(); }
             CachedLeaf.Weights.Reset();
             Cache.Requests.Reset();
@@ -2511,9 +2516,9 @@ TSharedPtr<FJsonObject> CaptureBlendListProbe(UObject* Asset, const FString& Req
                 double Alpha;
                 if (!(*Step)->TryGetNumberField(TEXT("outer_alpha"), Alpha) || !FMath::IsFinite(static_cast<float>(Alpha))) { return nullptr; }
                 Outer.Alpha = static_cast<float>(Alpha);
-                Outer.Update_AnyThread(FAnimationUpdateContext(&Proxy, static_cast<float>(Delta)));
+                Outer.Update_AnyThread(UpdateContext);
             }
-            else { Blend.Update_AnyThread(FAnimationUpdateContext(&Proxy, static_cast<float>(Delta))); }
+            else { Blend.Update_AnyThread(UpdateContext); }
             if (CachedChild != INDEX_NONE) { Cache.PostGraphUpdate(); }
             TSharedRef<FJsonObject> Frame = MakeShared<FJsonObject>();
             Frame->SetNumberField(TEXT("active"), Blend.Active);

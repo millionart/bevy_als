@@ -1,0 +1,13 @@
+{
+  "mode":"Cubic",
+  "blend_times":[0.3,0.2],
+  "two_way":{"child":1,"property":"AnimGraphNode_TwoWayBlend_1"},
+  "cached_child":0,
+  "outer_two_way":"AnimGraphNode_TwoWayBlend",
+  "samples":[
+    {"name":"partial-parent","steps":[{"active":0,"delta_seconds":0.016666666666666666,"two_way_alpha":0,"outer_alpha":0.8613940477371216,"parent_weight":0.06858710944652557}]},
+    {"name":"near-full-block","steps":[{"active":0,"delta_seconds":0.016666666666666666,"two_way_alpha":0,"outer_alpha":0.9997929334640503,"parent_weight":0.8573389053344727}]},
+    {"name":"zero-parent","steps":[{"active":0,"delta_seconds":0.016666666666666666,"two_way_alpha":0,"outer_alpha":0.5,"parent_weight":0}]},
+    {"name":"default-parent","steps":[{"active":0,"delta_seconds":0.016666666666666666,"two_way_alpha":0,"outer_alpha":0.25}]}
+  ]
+}
