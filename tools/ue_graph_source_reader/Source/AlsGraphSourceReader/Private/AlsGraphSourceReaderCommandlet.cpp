@@ -20,6 +20,10 @@
 #include "Animation/AnimNode_SaveCachedPose.h"
 #include "Animation/AnimNode_Inertialization.h"
 #include "Animation/AnimNode_SequencePlayer.h"
+#include "Animation/AnimNode_StateMachine.h"
+#include "Animation/AnimNode_StateResult.h"
+#include "Animation/AnimNode_TransitionResult.h"
+#include "Engine/World.h"
 #include "AnimNodes/AnimNode_BlendListBase.h"
 #include "AnimNodes/AnimNode_TwoWayBlend.h"
 #include "Animation/AnimNotifyQueue.h"
@@ -3249,6 +3253,146 @@ TSharedRef<FJsonObject> CaptureAlphaBlendProbe()
     return Result;
 }
 
+TSharedPtr<FJsonObject> CaptureStateMachineEntryProbe(UObject* Asset, const FString& RequestPath)
+{
+    UBlueprint* Blueprint = Cast<UBlueprint>(Asset);
+    UClass* Class = Blueprint != nullptr ? Blueprint->GeneratedClass : nullptr;
+    const IAnimClassInterface* Interface = Class != nullptr ? IAnimClassInterface::GetFromClass(Class) : nullptr;
+    FString Text;
+    TSharedPtr<FJsonObject> Request;
+    const TArray<TSharedPtr<FJsonValue>>* Samples = nullptr;
+    double MachineValue;
+    if (Interface == nullptr || !FFileHelper::LoadFileToString(Text, *RequestPath) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Request) ||
+        !Request->TryGetNumberField(TEXT("machine_index"), MachineValue) || !FMath::IsFinite(MachineValue) || MachineValue != FMath::FloorToDouble(MachineValue) ||
+        MachineValue < 0 || MachineValue >= Interface->GetBakedStateMachines().Num() || !Request->TryGetArrayField(TEXT("samples"), Samples) || Samples->IsEmpty() || Samples->Num() > 32) { return nullptr; }
+    const int32 MachineIndex = static_cast<int32>(MachineValue);
+    const FBakedAnimationStateMachine& Description = Interface->GetBakedStateMachines()[MachineIndex];
+    const TArray<FStructProperty*>& Properties = Interface->GetAnimNodeProperties();
+    const FAnimNode_StateMachine* Template = nullptr;
+    for (const FStructProperty* Property : Interface->GetStateMachineNodeProperties())
+    {
+        const FAnimNode_StateMachine* Node = Property->ContainerPtrToValuePtr<FAnimNode_StateMachine>(Class->GetDefaultObject());
+        if (Node->StateMachineIndexInClass == MachineIndex) { Template = Node; }
+    }
+    if (Template == nullptr) { return nullptr; }
+    TSet<int32> Required;
+    for (const FBakedAnimationState& State : Description.States)
+    {
+        if (State.EntryRuleNodeIndex != INDEX_NONE) { Required.Add(State.EntryRuleNodeIndex); }
+        for (const FBakedStateExitTransition& Exit : State.Transitions) { if (Exit.CanTakeDelegateIndex != INDEX_NONE) { Required.Add(Exit.CanTakeDelegateIndex); } }
+    }
+    struct FProbeLeaf : FAnimNode_StateResult
+    {
+        TArray<float> Weights;
+        virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override {}
+        virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override {}
+        virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override { Weights.Add(Context.GetFinalBlendWeight()); }
+    };
+    struct FProbeMachine : FAnimNode_StateMachine
+    {
+        void Link(TArray<FProbeLeaf>& Leaves) { for (int32 Index = 0; Index < Leaves.Num(); ++Index) { StatePoseLinks[Index].SetLinkNode(&Leaves[Index]); StatePoseLinks[Index].LinkID = INDEX_NONE; } }
+        int32 ActiveCount() const { return ActiveTransitionArray.Num(); }
+        float Weight(int32 Index) const { return GetStateWeight(Index); }
+    };
+    struct FProbeProxy : FAnimInstanceProxy
+    {
+        explicit FProbeProxy(UAnimInstance* Instance) : FAnimInstanceProxy(Instance) {}
+        void BeginGraph(UAnimInstance* Instance) { Initialize(Instance); InitializationCounter.Increment(); }
+        void BeginUpdate() { UpdateCounter.Increment(); }
+    };
+    TArray<TSharedPtr<FJsonValue>> Rows;
+    for (const TSharedPtr<FJsonValue>& SampleValue : *Samples)
+    {
+        const TSharedPtr<FJsonObject>* Sample = nullptr;
+        const TArray<TSharedPtr<FJsonValue>>* Steps = nullptr;
+        FString Name;
+        double Limit = Template->MaxTransitionsPerFrame;
+        if (!SampleValue->TryGetObject(Sample) || !(*Sample)->TryGetStringField(TEXT("name"), Name) || !(*Sample)->TryGetArrayField(TEXT("steps"), Steps) || Steps->IsEmpty() || Steps->Num() > 512 ||
+            ((*Sample)->HasField(TEXT("max_transitions")) && !(*Sample)->TryGetNumberField(TEXT("max_transitions"), Limit)) || !FMath::IsFinite(Limit) || Limit != FMath::FloorToDouble(Limit) || Limit < 1 || Limit > 64) { return nullptr; }
+        UWorld* World = NewObject<UWorld>(GetTransientPackage());
+        USkeletalMeshComponent* Mesh = NewObject<USkeletalMeshComponent>(World);
+        UAnimInstance* Instance = NewObject<UAnimInstance>(Mesh, Class);
+        FProbeProxy Proxy(Instance);
+        Proxy.BeginGraph(Instance);
+        TMap<int32, bool> Conditions;
+        for (int32 Index : Required)
+        {
+            const int32 PropertyIndex = Properties.Num() - 1 - Index;
+            if (!Properties.IsValidIndex(PropertyIndex) || Properties[PropertyIndex]->Struct != FAnimNode_TransitionResult::StaticStruct()) { return nullptr; }
+            FAnimNode_TransitionResult* Node = Properties[PropertyIndex]->ContainerPtrToValuePtr<FAnimNode_TransitionResult>(Instance);
+            Node->NativeTransitionDelegate.BindLambda([&Conditions, Index]() { return Conditions.FindChecked(Index); });
+        }
+        FProbeMachine Machine;
+        Machine.StateMachineIndexInClass = MachineIndex;
+        Machine.MaxTransitionsPerFrame = static_cast<int32>(Limit);
+        Machine.bSkipFirstUpdateTransition = Template->bSkipFirstUpdateTransition;
+        Machine.bReinitializeOnBecomingRelevant = Template->bReinitializeOnBecomingRelevant;
+        Machine.bAllowConduitEntryStates = Template->bAllowConduitEntryStates;
+        Machine.bCreateNotifyMetaData = false;
+        Machine.CacheMachineDescription(const_cast<IAnimClassInterface*>(Interface));
+        Machine.Initialize_AnyThread(FAnimationInitializeContext(&Proxy));
+        TArray<FProbeLeaf> Leaves;
+        Leaves.SetNum(Description.States.Num());
+        Machine.Link(Leaves);
+        TArray<TSharedPtr<FJsonValue>> Frames;
+        for (const TSharedPtr<FJsonValue>& StepValue : *Steps)
+        {
+            const TSharedPtr<FJsonObject>* Step = nullptr;
+            const TArray<TSharedPtr<FJsonValue>>* StateEntries = nullptr;
+            const TArray<TSharedPtr<FJsonValue>>* Transitions = nullptr;
+            double Delta;
+            if (!StepValue->TryGetObject(Step) || !(*Step)->TryGetNumberField(TEXT("delta_seconds"), Delta) || !FMath::IsFinite(static_cast<float>(Delta)) || Delta < 0 || Delta > 1 ||
+                !(*Step)->TryGetArrayField(TEXT("state_entries"), StateEntries) || StateEntries->Num() != Description.States.Num() ||
+                !(*Step)->TryGetArrayField(TEXT("transition_rules"), Transitions) || Transitions->Num() != Description.Transitions.Num()) { return nullptr; }
+            Conditions.Reset();
+            for (int32 Index = 0; Index < Description.States.Num(); ++Index)
+            {
+                const FBakedAnimationState& State = Description.States[Index];
+                bool Entry;
+                if ((*StateEntries)[Index]->Type != EJson::Boolean || !(*StateEntries)[Index]->TryGetBool(Entry)) { return nullptr; }
+                if (State.EntryRuleNodeIndex != INDEX_NONE) { Conditions.Add(State.EntryRuleNodeIndex, Entry); }
+                for (const FBakedStateExitTransition& Exit : State.Transitions)
+                {
+                    bool Result;
+                    if (Exit.CanTakeDelegateIndex == INDEX_NONE) { continue; }
+                    if (!Transitions->IsValidIndex(Exit.TransitionIndex) || (*Transitions)[Exit.TransitionIndex]->Type != EJson::Boolean || !(*Transitions)[Exit.TransitionIndex]->TryGetBool(Result) ||
+                        (Conditions.Contains(Exit.CanTakeDelegateIndex) && Conditions[Exit.CanTakeDelegateIndex] != Result)) { return nullptr; }
+                    Conditions.Add(Exit.CanTakeDelegateIndex, Result);
+                }
+            }
+            for (FProbeLeaf& Leaf : Leaves) { Leaf.Weights.Reset(); }
+            Proxy.BeginUpdate();
+            Machine.Update_AnyThread(FAnimationUpdateContext(&Proxy, static_cast<float>(Delta)));
+            TSharedRef<FJsonObject> Frame = MakeShared<FJsonObject>();
+            Frame->SetNumberField(TEXT("state"), Machine.GetCurrentState());
+            Frame->SetStringField(TEXT("name"), Machine.GetCurrentStateName().ToString());
+            Frame->SetNumberField(TEXT("elapsed"), Machine.GetCurrentStateElapsedTime());
+            Frame->SetNumberField(TEXT("active_transitions"), Machine.ActiveCount());
+            TArray<TSharedPtr<FJsonValue>> Weights, Updates;
+            for (int32 Index = 0; Index < Leaves.Num(); ++Index)
+            {
+                Weights.Add(MakeShared<FJsonValueNumber>(Machine.Weight(Index)));
+                TArray<TSharedPtr<FJsonValue>> Calls;
+                for (float Weight : Leaves[Index].Weights) { Calls.Add(MakeShared<FJsonValueNumber>(Weight)); }
+                Updates.Add(MakeShared<FJsonValueArray>(Calls));
+            }
+            Frame->SetArrayField(TEXT("weights"), Weights);
+            Frame->SetArrayField(TEXT("updates"), Updates);
+            Frames.Add(MakeShared<FJsonValueObject>(Frame));
+        }
+        TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>();
+        Row->SetStringField(TEXT("name"), Name);
+        Row->SetNumberField(TEXT("max_transitions"), Limit);
+        Row->SetArrayField(TEXT("frames"), Frames);
+        Rows.Add(MakeShared<FJsonValueObject>(Row));
+        UE_LOG(LogAlsGraphSourceReader, Display, TEXT("State machine entry sample %d/%d captured."), Rows.Num(), Samples->Num());
+    }
+    TSharedRef<FJsonObject> Probe = MakeShared<FJsonObject>();
+    Probe->SetNumberField(TEXT("machine_index"), MachineIndex);
+    Probe->SetArrayField(TEXT("samples"), Rows);
+    return Probe;
+}
+
 TSharedPtr<FJsonObject> CaptureStateMachinePlayers(UObject* Asset)
 {
     UBlueprint* Blueprint = Cast<UBlueprint>(Asset);
@@ -3905,6 +4049,13 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
         const TSharedPtr<FJsonObject> Schedule = CaptureCachedPoseSchedule(Blueprint);
         if (!Schedule.IsValid()) { return 7; }
         Root->SetObjectField(TEXT("cached_pose_schedule"), Schedule.ToSharedRef());
+    }
+    FString StateMachineEntryProbePath;
+    if (FParse::Value(*Params, TEXT("StateMachineEntryProbe="), StateMachineEntryProbePath))
+    {
+        const TSharedPtr<FJsonObject> Probe = CaptureStateMachineEntryProbe(Asset, StateMachineEntryProbePath);
+        if (!Probe.IsValid()) { return 7; }
+        Root->SetObjectField(TEXT("state_machine_entry_probe"), Probe.ToSharedRef());
     }
     if (FParse::Param(*Params, TEXT("StateMachinePlayers")))
     {

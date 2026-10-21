@@ -9,6 +9,7 @@ param(
     [string]$InertializationProbe,
     [string]$BlendProfileProbe,
     [string]$BlendListProbe,
+    [string]$StateMachineEntryProbe,
     [string]$PhysicsBodyProbe,
     [string]$PhysicsContactProbe,
     [string]$GeometryQueryProbe,
@@ -320,6 +321,10 @@ if ($BlendProfileProbe) {
 if ($BlendListProbe) {
     $probePath = (Resolve-Path -LiteralPath $BlendListProbe -ErrorAction Stop).Path
     $arguments += "-BlendListProbe=$probePath"
+}
+if ($StateMachineEntryProbe) {
+    $probePath = (Resolve-Path -LiteralPath $StateMachineEntryProbe -ErrorAction Stop).Path
+    $arguments += "-StateMachineEntryProbe=$probePath"
 }
 if ($InertializationProbe) {
     $probePath = (Resolve-Path -LiteralPath $InertializationProbe -ErrorAction Stop).Path
