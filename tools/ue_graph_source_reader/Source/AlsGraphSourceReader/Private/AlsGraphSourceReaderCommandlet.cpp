@@ -3649,6 +3649,7 @@ TSharedRef<FJsonObject> CaptureCachedPoseLifecycleProbe()
         int32 Initializations = 0;
         int32 Updates = 0;
         float Position = 0.0f;
+        TArray<float> Weights;
         virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override
         {
             ++Initializations;
@@ -3658,6 +3659,7 @@ TSharedRef<FJsonObject> CaptureCachedPoseLifecycleProbe()
         {
             ++Updates;
             Position += Context.GetDeltaTime();
+            Weights.Add(Context.GetFinalBlendWeight());
         }
     } Child;
     struct FProbeCache : FAnimNode_SaveCachedPose
@@ -3700,6 +3702,31 @@ TSharedRef<FJsonObject> CaptureCachedPoseLifecycleProbe()
     TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
     Result->SetStringField(TEXT("format"), TEXT("ue_cached_pose_lifecycle_probe_v1"));
     Result->SetArrayField(TEXT("frames"), Frames);
+    TArray<TSharedPtr<FJsonValue>> WeightCases;
+    const TArray<TArray<float>> Requests = { {0.9999999403953552f, 1.0f}, {1.0f, 0.9999999403953552f}, {0.2f, 0.8f}, {0.0f}, {} };
+    for (const TArray<float>& Weights : Requests)
+    {
+        Proxy.AdvanceFrame();
+        FProbeNode Leaf;
+        FProbeCache Saved;
+        Saved.Pose.SetLinkNode(&Leaf);
+        Saved.Initialize_AnyThread(FAnimationInitializeContext(&Proxy));
+        FAnimationUpdateSharedContext SharedContext;
+        const FAnimationUpdateContext Context(&Proxy, 0.1f, &SharedContext);
+        TArray<TSharedPtr<FJsonValue>> Inputs, Outputs;
+        for (float Weight : Weights)
+        {
+            Inputs.Add(MakeShared<FJsonValueNumber>(Weight));
+            Saved.Update_AnyThread(Context.FractionalWeight(Weight));
+        }
+        Saved.PostGraphUpdate();
+        for (float Weight : Leaf.Weights) { Outputs.Add(MakeShared<FJsonValueNumber>(Weight)); }
+        TSharedRef<FJsonObject> Entry = MakeShared<FJsonObject>();
+        Entry->SetArrayField(TEXT("requests"), Inputs);
+        Entry->SetArrayField(TEXT("child_update_weights"), Outputs);
+        WeightCases.Add(MakeShared<FJsonValueObject>(Entry));
+    }
+    Result->SetArrayField(TEXT("weight_cases"), WeightCases);
     return Result;
 }
 

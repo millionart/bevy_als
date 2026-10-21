@@ -1156,6 +1156,13 @@
 
   - 23:51 完成摘要：真实角色逐帧按fresh编译本地2播放器、原序及严格最高权重筛选Land Movement相关性，8路径2048帧outer FSM状态/权重/elapsed与原生自行选择/自动规则/crossfade完全一致。1920帧Grounded单一context、无更新空档/额外重置，其状态/权重/elapsed匹配独立源模型；源1个Saved Grounded被状态Grounded直接Use及Land Movement两处Use共享，最高请求按原生FractionalWeight传到实际Grounded机器逐值相等。1 ULP表面差来自实际外层入权重0.99999994而probe默认1，使用同一入权重后归零；此更上层输入来源未计为通过。移除候选控制精确重现原1920帧观察及4条D200路径；源码字节恢复/同target重编后全部角色观察复现，fresh编译候选/缓存schedule身份与第二次native2048帧一致。114份ALS/184份Rust、累积source资产/reader及固定生产库身份保持；证据`target/bf144/164/summary.json`、`outer-native-analysis.json`、`cache-check.json`、`grounded-check.json`、`no-candidates-check.json`、`restore-check.json`。没有cache失活重入间隔，本地Land时钟与上层入权重仍为共同输入；完整角色独立时钟生产、上层权重来源及14成员Movement新同步/最终pose消费者留后续，不能视为全系统等价。截图0、性能暂停，生产/转换器/原始资产未改。
 
+- [x] BF144.165 Locomotion外层入权重的来源：依赖.164记录Gate，沿当前真实角色Root→Layering/缓存→Locomotion的实际调用链，fresh读取对应源节点与必要UE语义，追踪.164的0.99999994入权重及其余帧数据，明确哪些是合法source输入、哪些由目标上下文合并/算序产生；只展开此直接父链，其他身体/IK算法不在本项。Gate：fresh父链拓扑/权重与原生合同、实际输入生产/消费者、最小消融及身份；未解释输入保持打开，不以容差抹平。开始：2026-10-21 23:51:45 +08:00；预估结束：2026-10-22 00:36:45 +08:00。估时依据：.153完整权重链约43分钟、.164候选与直接缓存约20分钟；本项只核对共享外层入权重，按45分钟估时，之后才合并完整Land/Movement新时钟消费者。截图0，性能暂停，生产不改。实际结束：2026-10-22 00:33:51 +08:00；实耗42分6秒，偏差−2分53秒；结果：记录Gate PASS，新增D223/P3，累计221（115P2/106P3）。
+  - 23:51 活动摘要：.164已提交`2438d283`，累计220项（115P2/105P3）。外层机器内部与直接Grounded请求已通过相同输入合同，但1 ULP外层入权重尚未独立分类；先追此真实父链来源，Land/Movement独立整链、其他动作/可见性和完整pose不计已完成。
+
+  - 00:20 新差异摘要：fresh Layering/Root与实际调用栈闭合到左臂→Locomotion Additive缓存的首次较低请求；同帧腿分支在TwoWay单支规则和常量mesh additive下请求完整1，源PostGraphUpdate应取跨所有调用的最高权重。原生5组缓存请求（低→高/高→低/常规/零/空）确认顺序不影响最高值且只更新一次；当前角色60Hz handoff第37帧Locomotion却记0.99999994、Grounded0.72795283794。受控先求较高路径后为1/0.72795289755，确认D223/P3，累计221（115P2/106P3）。只调整验证路径，不改生产；仍需全8路径范围、消融/恢复和最终身份Gate，截图0、性能暂停。
+
+  - 00:33 完成摘要：fresh Root/Layering/Head三资产与5份UE直接闭包证明同帧最高Locomotion请求为1；实际8路径1920帧仅60Hz handoff第37帧因先到左臂添加请求而以0.99999994更新，后续腿完整请求未提升，确认为D223/P3。原生5组缓存请求低→高/高→低均最高值一次更新，零/空边界通过；限制只提交首请求会失败，源码字节恢复/同package重编后5组与原9帧生命周期全部重现。诊断先高路径把该帧Locomotion/Grounded恢复为1/0.72795289755，但在其他帧仍会先到低请求，故明确不能作为通用修复；该控制未改变本批播放器记录。移除顺序控制恢复全部240帧原入权重与最小反例，按字节恢复/同target重编后控制观察重现。stack/caller节点已消融删除，全1920帧原角色观察保持；114份ALS/184份Rust和固定生产库身份不变，reader新增缓存请求self-test。证据`target/bf144/165/summary.json`、`matrix-check.json`、`observer-check.json`、`native-restore-check.json`、`order-restore-check.json`。本项只审计正确最高请求输入，尚未控制完整全局缓存调度，也未验收正确输入下Land/Movement整链与最终pose；不宣称可见故障。截图0、性能暂停，生产/转换器/原始资产未改。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
@@ -2657,3 +2664,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`animation_graph_ext/interruptible_fsm.rs`的source_entry_state先选普通入口，再把remaining_transitions重设为完整max_transitions_per_frame；入口消耗没有计入。
   - 反例：真实角色加载前史中Grounded未被更新，上一帧PoseStanding=1，首个移动输入为Crouching；target首帧即Crouching全权重。相同源条件的原生limit=1首帧仍Standing、下一帧才开始0.5秒CF；limit=2则复现target同帧Crouching。反向入口和同姿态控制共8组24帧核对，根因独立于D206曲线舍入和D207别名源姿态。
   - 恢复/消费：只在实际角色的首个Grounded更新扣掉入口边的一次额度，两个cold Crouch路径各240帧脚姿态改变（最大约59.55°/50.81°），六条同入口控制路径全保持；本批外层/参数为共同输入，不作完整UE角色视觉证明。移除该控制后45帧状态/权重再次失败，按源码字节恢复、同target重编后1920帧与独立源模型匹配，角色输出重现。证据`target/bf144/159/budget-consumption.json`、`no-budget-check.json`、`final-check.json`与`summary.json`；生产未修，默认世界仍待审。
+
+- [ ] BF144-D223 / P3 — 姿态缓存过早按局部首个请求更新，遗漏其他使用者的更高上下文权重。
+  - Source：fresh `AnimNode_SaveCachedPose.cpp:178–204`在PostGraphUpdate收齐当前实例请求后按严格最高FinalBlendWeight更新一次；Layering的Locomotion由多个身体部位的缓存路径共用。UE TwoWay接近满权重且A不相关时B获得完整Context，腿部mesh additive常量1因而有权重1的Locomotion请求；原生新5组缓存请求确认低→高与高→低都更新为1，零请求和空请求边界分别为一次0/零次更新。
+  - Target：`source_cached_pose.rs:111–132`只为当前局部输入收集请求便立即`update_cached_requests→resolve_cached_pose`，其他身体路径稍后到达时节点已经缓存，不能把执行上下文提升到全局最高请求。现有局部预热的max本身不能代替原生实例级延后调度。
+  - 实际反例：正确候选控制下真实角色60Hz handoff第37帧，左臂添加分支先以0.99999994触发Locomotion，后到完整权重请求未提升；Grounded缓存最终为0.72795283794，源应0.72795289755。受控使较高路径先执行（只作诊断，不作为生产修复）即得到Locomotion1和源Grounded值。当前仅证明一个1 ULP上下文差，不宣称可见姿态故障或其他帧的全局上限。
+  - 边界/漏检：旧缓存测试覆盖同一局部组合的预热/生命周期，未覆盖多个身体缓存跨分支先低后高请求；D218是同步记录提交序，D220是中断状态累计贡献，本项是实际节点更新上下文被首个局部请求固定。证据`target/bf144/165/callers.json`、`max-control.json`、`cache-weights.native.json`；BF144.165已完成8路径1920帧当前范围、原生5请求及两类按字节消融/恢复Gate，只有该帧入权重失败；排序控制不是通用修复，播放器记录在此控制下保持。生产未改。
