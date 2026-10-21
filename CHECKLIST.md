@@ -1149,6 +1149,13 @@
 
   - 23:29 完成摘要：原8路径2048帧与2条Heavy控制512帧共2560帧，当前356次更新的clock/previous/phase/weight/leader精确校准。源侧恢复20个普通完成帧0权重尾tick后为376次更新；保留源声明提交序，独立选择排序与秒域AdvanceTime共同恢复全部原生时钟/previous，残差0，无原生clock注入。常规当前114差异帧/3 leader差，Heavy当前32差异帧/32 leader差均归D201/D202；Heavy的6个零tail恢复通过排序改变64条既有播放器观察、4个leader标志，时钟最大变化约8.33ms，归D204组合消费。删除秒域推进重现103常规/14 Heavy失败帧；删除−12.5m/s输入控制则两Heavy播放器均不进入。按源码字节恢复两夹具并同target重编后，Heavy真实角色组观察与376次原生更新重现。两条Heavy使用已admit角色的缓存垂直速度控制，fresh UE范围−1250cm/s→Land alpha1/Movement alpha0.5逐值确认；高spawn尝试达到45秒上限而未进入Grounded，已排除。114份ALS/184份Rust、4个fresh Land资产、累积source/reader/固定生产库身份通过；证据`target/bf144/163/summary.json`、`calibration-check.json`、`heavy-calibration-check.json`、`tail-events.json`、`heavy-tail-check.json`、`restore-check.json`。外层状态/alpha和角色参数仍共用，完整FSM决策/父Grounded缓存更新重置/Movement新历史及最终pose继续后续Gate；不宣称自然高落地、完整默认世界或全系统等价。截图0、性能暂停，生产/转换器/原始资产未改。
 
+- [x] BF144.164 实际候选纠正后的外层FSM与Grounded缓存调用：依赖.163记录Gate，在既有真实角色内只控制Land Movement相关性候选为fresh编译本地播放器，先验证D200直接消费者；用原生FSM独立核对重新生成历史的状态/权重/elapsed/调用集，并沿源Grounded缓存直接请求链核对更新权重与重置。现有D201/D202/零tail/姿态门控各自保持明确边界，不以共同输入消除当作原生生产已通过；完整14成员新同步历史留其依赖Gate。Gate：fresh本地候选与缓存调用source、真实消费者控制/校准、原生FSM及最小消融/同target恢复、源权重/生命周期证据与身份；有新根因即时登记。开始：2026-10-21 23:30:49 +08:00；预估结束：2026-10-22 00:20:49 +08:00。估时依据：.162原生规则消费约30分钟、.163十路径Land生产约31分钟；本项增加真实候选上下文控制及父缓存请求/重置，按50分钟先闭合原生FSM与直接缓存控制，不扩展动作/可见性。截图0，性能暂停，生产不改。实际结束：2026-10-21 23:51:06 +08:00；实耗20分17秒，偏差−29分42秒；结果：记录Gate PASS，新增差异0（累计220：115P2/105P3），扩展D200。
+  - 23:30 活动摘要：.163已提交`87175124`，累计220项（115P2/105P3）。四Land播放器在10路径2560帧/376次source更新下独立复现native clock；外层正确候选改变后的真实历史与Grounded缓存仍未关闭。先补D200消费者和源缓存直接边，不假定原角色原时钟等于独立source生产。
+
+  - 23:42 source/static摘要：实际角色仅过滤Land Movement候选到fresh原编译2播放器后，新的8路径2048帧外层state/weights/elapsed与原生FSM全等；handoff/sprint不再跟随外部Movement循环时钟提前退出。fresh源缓存为一个Grounded Save、Grounded状态1处Use和Land Movement两处Use，PostGraphUpdate取最高请求；1920帧Grounded状态/权重/elapsed独立模型精确匹配，单一context且无额外初始化。父缓存初算有1 ULP差，来自当帧外层machine入权重0.99999994而独立native默认1，现按同一父输入应用原生FractionalWeight再校准；此更上层入权重与Land组clock暂共用，不作其source生产已通过。累计220，截图0、性能暂停，生产未改。
+
+  - 23:51 完成摘要：真实角色逐帧按fresh编译本地2播放器、原序及严格最高权重筛选Land Movement相关性，8路径2048帧outer FSM状态/权重/elapsed与原生自行选择/自动规则/crossfade完全一致。1920帧Grounded单一context、无更新空档/额外重置，其状态/权重/elapsed匹配独立源模型；源1个Saved Grounded被状态Grounded直接Use及Land Movement两处Use共享，最高请求按原生FractionalWeight传到实际Grounded机器逐值相等。1 ULP表面差来自实际外层入权重0.99999994而probe默认1，使用同一入权重后归零；此更上层输入来源未计为通过。移除候选控制精确重现原1920帧观察及4条D200路径；源码字节恢复/同target重编后全部角色观察复现，fresh编译候选/缓存schedule身份与第二次native2048帧一致。114份ALS/184份Rust、累积source资产/reader及固定生产库身份保持；证据`target/bf144/164/summary.json`、`outer-native-analysis.json`、`cache-check.json`、`grounded-check.json`、`no-candidates-check.json`、`restore-check.json`。没有cache失活重入间隔，本地Land时钟与上层入权重仍为共同输入；完整角色独立时钟生产、上层权重来源及14成员Movement新同步/最终pose消费者留后续，不能视为全系统等价。截图0、性能暂停，生产/转换器/原始资产未改。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
@@ -2401,6 +2408,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.151真实通知后的完整轨迹补充：从角色首次Details更新重建20条3600帧，当前142帧状态、316条成员记录及后续计时不符；在原Standing状态图内仅恢复本地候选后，状态/权重/时钟/scope/Pivot全部匹配，两个活跃原生组7200组帧逐值通过。此前14次已处于First/Second Pivot的通知消费已全部核对；恢复改变481帧最终左脚旋转，最大约3.35°。仅16帧UnweightedGaitRunningAmount反馈随结果变化，固定Running下其Walking退出条件不启用，交换反馈不会改变源期望；其余关键输入/通知保持。只删除候选过滤重现571帧失败，同target恢复后输出逐值保持。证据`target/bf144/151/consumer-check.json`、`feedback-check.json`、`native-check.json`及`summary.json`；这是实际目标角色在已知根因控制前后的消费证据，不是完整UE世界姿态比较。
 
   - BF144.162完整角色补充：source编译Locomotion Land Movement候选只含两个非循环Land Additive；在handoff/sprint四条真实历史中，目标Root相关性却返回0.8秒循环Movement。原生用同一前帧本地缓存独立判定：30Hz目标第14帧退出而源第16帧，60Hz目标27而源32；其余四路径1024帧状态/权重/elapsed精确一致。首个分叉时目标remaining约0.08984/0.11204秒，本地源候选约0.36667/0.43750秒，故误越0.3门槛；878帧计数含后续elapsed偏移，不代表同数量pose故障。证据`target/bf144/162/classification.json`、`native-clock-analysis.json`；本地缓存clock生产仍共同输入，下一Gate独立验证，生产未改。
+
+  - BF144.164实际闭环补充：在原角色中每帧只恢复source编译本地候选后，重新生成的8条2048帧outer状态/权重/elapsed全部匹配原生FSM；Grounded缓存1920次最高请求与状态历史也匹配（上层入权重共用）。物理去掉控制精确重现原1920帧观察和4条D200路径，按源码字节恢复/同target重编后重现全部正确候选观察。此处本地Land clock生产仍共用，未把该输入等价当作已关闭；证据`target/bf144/164/summary.json`、`no-candidates-check.json`、`restore-check.json`。
 
 - [ ] BF144-D201 / P3 — 无marker同步时钟反复归一化，Land自动末端转场提前。
   - Source：fresh `AnimSequenceBase.cpp:515–544`直接以累计秒数执行AdvanceTime，随后发布ratio供follower；leader自身不经过ratio往返。两个Land资产原生长度均为1.1666666269302368秒，与已加载target clip长度相同；当前自动规则trigger=0、名义淡入0.8秒。
