@@ -52,6 +52,8 @@ def check_sequence_oracle(document, oracle):
     for (row, index), reference in zip(selected, frames):
         player_index = 0 if row['name'] == 'one_hot_blendspace' else 1
         player = row['frames'][index]['players'][player_index]
+        mode = player['samples'][0].get('pose_evaluation_mode') if player_index == 0 else player.get('pose_evaluation_mode')
+        assert mode == reference.get('pose_evaluation_mode'), (row['name'], mode, reference.get('pose_evaluation_mode'))
         time = player['samples'][0]['time'] if player_index == 0 else player['position']
         assert time == reference['time']
         pose = player['pose']

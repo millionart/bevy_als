@@ -1865,6 +1865,14 @@ TSharedPtr<FJsonObject> CaptureBlendSpaceProbe(UObject* Asset, const FString& Re
     return Result;
 }
 
+struct FSequencePoseAccess : UAnimSequence
+{
+    static bool UsesRawData(const UAnimSequence& Sequence, const FBoneContainer& Bones, const FAnimExtractContext& Context)
+    {
+        return (Sequence.*&FSequencePoseAccess::ShouldUseRawDataForPoseExtraction)(Bones, Context);
+    }
+};
+
 TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& RequestPath)
 {
     UAnimSequence* Sequence = Cast<UAnimSequence>(Asset);
@@ -1887,6 +1895,10 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
     Request->TryGetBoolField(TEXT("root_track_only"), bRootTrackOnly);
     bool bAnimationPose = false;
     Request->TryGetBoolField(TEXT("animation_pose"), bAnimationPose);
+    bool bPrepareCompressed = false;
+    if (Request->HasField(TEXT("prepare_compressed")) &&
+        (Request->TryGetField(TEXT("prepare_compressed"))->Type != EJson::Boolean || !Request->TryGetBoolField(TEXT("prepare_compressed"), bPrepareCompressed))) { return nullptr; }
+    if (bPrepareCompressed) { Sequence->CacheDerivedDataForCurrentPlatform(); }
     if (bRootTrackOnly && bAnimationPose)
     {
         UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Sequence pose sampling modes are mutually exclusive."));
@@ -1923,7 +1935,10 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
             Pose.SetBoneContainer(&RequiredBones);
             Curve.InitFrom(RequiredBones);
             FAnimationPoseData PoseData(Pose, Curve, Attributes);
-            Sequence->GetAnimationPose(PoseData, FAnimExtractContext(Time, false));
+            const FAnimExtractContext ExtractionContext(Time, false);
+            Frame->SetBoolField(TEXT("compressed_data_valid"), Sequence->IsCompressedDataValid());
+            Frame->SetStringField(TEXT("pose_evaluation_mode"), FSequencePoseAccess::UsesRawData(*Sequence, RequiredBones, ExtractionContext) ? TEXT("raw_model") : TEXT("compressed"));
+            Sequence->GetAnimationPose(PoseData, ExtractionContext);
             TSharedRef<FJsonObject> Curves = MakeShared<FJsonObject>();
             Curve.ForEachElement([&Curves](const UE::Anim::FCurveElement& Element)
             {
@@ -2093,6 +2108,10 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
     bool bCapturePose = false;
     if (Request->HasField(TEXT("capture_pose")) &&
         (Request->TryGetField(TEXT("capture_pose"))->Type != EJson::Boolean || !Request->TryGetBoolField(TEXT("capture_pose"), bCapturePose))) { return nullptr; }
+    bool bPrepareCompressed = false;
+    if (Request->HasField(TEXT("prepare_compressed")) &&
+        (Request->TryGetField(TEXT("prepare_compressed"))->Type != EJson::Boolean || !Request->TryGetBoolField(TEXT("prepare_compressed"), bPrepareCompressed))) { return nullptr; }
+    if (bPrepareCompressed && !bCapturePose) { return nullptr; }
     TArray<FBoneContainer> RequiredBones;
     if (bCapturePose) { RequiredBones.SetNum(Players->Num()); }
     TArray<UAnimationAsset*> Assets;
@@ -2159,6 +2178,17 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
         }
         if (bCapturePose)
         {
+            if (bPrepareCompressed)
+            {
+                if (UAnimSequence* Animation = Cast<UAnimSequence>(AnimationAsset)) { Animation->CacheDerivedDataForCurrentPlatform(); }
+                if (BlendSpace != nullptr)
+                {
+                    for (const FBlendSample& Sample : BlendSpace->GetBlendSamples())
+                    {
+                        if (Sample.Animation != nullptr) { Sample.Animation->CacheDerivedDataForCurrentPlatform(); }
+                    }
+                }
+            }
             USkeleton* Skeleton = AnimationAsset->GetSkeleton();
             if (Skeleton == nullptr || Skeleton->GetReferenceSkeleton().GetNum() == 0) { return nullptr; }
             TArray<FBoneIndexType> BoneIndices;
@@ -2328,6 +2358,11 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
                         SampleValue->SetNumberField(TEXT("previous_time"), BlendSample.PreviousTime);
                         SampleValue->SetNumberField(TEXT("time"), BlendSample.Time);
                         SampleValue->SetNumberField(TEXT("play_rate"), BlendSample.SamplePlayRate);
+                        if (bCapturePose && BlendSample.Animation != nullptr)
+                        {
+                            const FAnimExtractContext Context(BlendSample.Time, false, BlendSample.DeltaTimeRecord, Loops[Index]);
+                            SampleValue->SetStringField(TEXT("pose_evaluation_mode"), FSequencePoseAccess::UsesRawData(*BlendSample.Animation, RequiredBones[Index], Context) ? TEXT("raw_model") : TEXT("compressed"));
+                        }
                         SampleValues.Add(MakeShared<FJsonValueObject>(SampleValue));
                     }
                     Clock->SetArrayField(TEXT("samples"), SampleValues);
@@ -2351,6 +2386,7 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
                         }
                         else
                         {
+                            Clock->SetStringField(TEXT("pose_evaluation_mode"), FSequencePoseAccess::UsesRawData(*CastChecked<UAnimSequence>(Assets[Index]), RequiredBones[Index], ExtractionContext) ? TEXT("raw_model") : TEXT("compressed"));
                             CastChecked<UAnimSequenceBase>(Assets[Index])->GetAnimationPose(PoseData, ExtractionContext);
                         }
                         TSharedRef<FJsonObject> PoseObject = MakeShared<FJsonObject>();
