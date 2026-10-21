@@ -1147,7 +1147,9 @@
 
   - 23:10 source/static摘要：八条2048帧（含128预热）当前Land组242次更新已按原四Sequence节点回放，position/previous/phase/weight/leader精确校准。原生组有114差异帧/3个leader差；只恢复源选择排序剩99帧微差，最大约0.358µs，按fresh AdvanceTime直接在秒域推进后全部逐值相等，无原生clock注入。普通外层完成帧另确认14次应有零权重Land尾更新，归已知D204；当前正验证256次source更新及补入两条高落点Heavy实际路径，未把未更新的Heavy分支当作已验收。外层状态选择仍共同输入，完整FSM/父缓存联动留后续；累计220项，截图0，性能暂停。
 
-  - 23:29 完成摘要：原8路径2048帧与2条Heavy控制512帧共2560帧，当前356次更新的clock/previous/phase/weight/leader精确校准。源侧恢复20个普通完成帧0权重尾tick后为376次更新；保留源声明提交序，独立选择排序与秒域AdvanceTime共同恢复全部原生时钟/previous，残差0，无原生clock注入。常规当前114差异帧/3 leader差，Heavy当前32差异帧/32 leader差均归D201/D202；Heavy的6个零tail恢复通过排序改变64条既有播放器观察、4个leader标志，时钟最大变化约8.33ms，归D204组合消费。删除秒域推进重现103常规/14 Heavy失败帧；删除−12.5m/s输入控制则两Heavy播放器均不进入。按源码字节恢复两夹具并同target重编后，Heavy真实角色组观察与376次原生更新重现。两条Heavy使用已admit角色的缓存垂直速度控制，fresh UE范围−1250cm/s→Land alpha1/Movement alpha0.5逐值确认；高spawn尝试达到45秒上限而未进入Grounded，已排除。114份ALS/184份Rust、4个fresh Land资产、累积source/reader/固定生产库身份通过；证据`target/bf144/163/summary.json`、`calibration-check.json`、`heavy-calibration-check.json`、`tail-events.json`、`heavy-tail-check.json`、`restore-check.json`。外层状态/alpha和角色参数仍共用，完整FSM决策/父Grounded缓存更新重置/Movement新历史及最终pose继续后续Gate；不宣称自然高落地、完整默认世界或全系统等价。截图0、性能暂停，生产/转换器/原始资产未改。
+  - 23:29 完成摘要（2026-10-22 BF144.166有限复核后更正）：10路径2560帧、四原播放器共356次实际更新，clock/previous/phase/weight/leader精确校准；同一更新集合经源排序与独立秒域AdvanceTime后匹配原生，残差0，无native clock注入。常规114差异帧/3 leader差、Heavy32差异帧/32 leader差归D201/D202。原先额外20个普通完成帧0更新以及其64条变化/8.33ms影响是错误的更新集合推导，现全部撤回source证据归属，不作为D204扩展；普通结束不应继续更新旧状态。Heavy输入删除/恢复、原生组数值校准、114份ALS/184份Rust及固定生产库身份仍有效；证据以`target/bf144/166/bf163-correction.json`、`ordinary-check.json`和`.163`的`complete-analysis.json`、`heavy-complete-analysis.json`为准，旧source-tail产物只保留为失败审计记录。状态选择与角色参数仍共用，完整FSM/父缓存/Movement联动及最终pose另验，截图0，性能暂停，生产未改。
+
+  - 2026-10-22 00:50:47 有限复核结束：复核开始2026-10-22 00:46:58 +08:00（漏检复盘），验收上限沿用活动.166的01:25:10；原生2路径40帧普通完成self-test通过，伪造完成帧0调用的复制产物被self-test拒绝。356次有效更新与既有D201/D202重新确认，20个反事实更新来源撤回；.163记录Gate恢复PASS，D204原有中断栈证据不复开。
 
 - [x] BF144.164 实际候选纠正后的外层FSM与Grounded缓存调用：依赖.163记录Gate，在既有真实角色内只控制Land Movement相关性候选为fresh编译本地播放器，先验证D200直接消费者；用原生FSM独立核对重新生成历史的状态/权重/elapsed/调用集，并沿源Grounded缓存直接请求链核对更新权重与重置。现有D201/D202/零tail/姿态门控各自保持明确边界，不以共同输入消除当作原生生产已通过；完整14成员新同步历史留其依赖Gate。Gate：fresh本地候选与缓存调用source、真实消费者控制/校准、原生FSM及最小消融/同target恢复、源权重/生命周期证据与身份；有新根因即时登记。开始：2026-10-21 23:30:49 +08:00；预估结束：2026-10-22 00:20:49 +08:00。估时依据：.162原生规则消费约30分钟、.163十路径Land生产约31分钟；本项增加真实候选上下文控制及父缓存请求/重置，按50分钟先闭合原生FSM与直接缓存控制，不扩展动作/可见性。截图0，性能暂停，生产不改。实际结束：2026-10-21 23:51:06 +08:00；实耗20分17秒，偏差−29分42秒；结果：记录Gate PASS，新增差异0（累计220：115P2/105P3），扩展D200。
   - 23:30 活动摘要：.163已提交`87175124`，累计220项（115P2/105P3）。四Land播放器在10路径2560帧/376次source更新下独立复现native clock；外层正确候选改变后的真实历史与Grounded缓存仍未关闭。先补D200消费者和源缓存直接边，不假定原角色原时钟等于独立source生产。
@@ -1162,6 +1164,11 @@
   - 00:20 新差异摘要：fresh Layering/Root与实际调用栈闭合到左臂→Locomotion Additive缓存的首次较低请求；同帧腿分支在TwoWay单支规则和常量mesh additive下请求完整1，源PostGraphUpdate应取跨所有调用的最高权重。原生5组缓存请求（低→高/高→低/常规/零/空）确认顺序不影响最高值且只更新一次；当前角色60Hz handoff第37帧Locomotion却记0.99999994、Grounded0.72795283794。受控先求较高路径后为1/0.72795289755，确认D223/P3，累计221（115P2/106P3）。只调整验证路径，不改生产；仍需全8路径范围、消融/恢复和最终身份Gate，截图0、性能暂停。
 
   - 00:33 完成摘要：fresh Root/Layering/Head三资产与5份UE直接闭包证明同帧最高Locomotion请求为1；实际8路径1920帧仅60Hz handoff第37帧因先到左臂添加请求而以0.99999994更新，后续腿完整请求未提升，确认为D223/P3。原生5组缓存请求低→高/高→低均最高值一次更新，零/空边界通过；限制只提交首请求会失败，源码字节恢复/同package重编后5组与原9帧生命周期全部重现。诊断先高路径把该帧Locomotion/Grounded恢复为1/0.72795289755，但在其他帧仍会先到低请求，故明确不能作为通用修复；该控制未改变本批播放器记录。移除顺序控制恢复全部240帧原入权重与最小反例，按字节恢复/同target重编后控制观察重现。stack/caller节点已消融删除，全1920帧原角色观察保持；114份ALS/184份Rust和固定生产库身份不变，reader新增缓存请求self-test。证据`target/bf144/165/summary.json`、`matrix-check.json`、`observer-check.json`、`native-restore-check.json`、`order-restore-check.json`。本项只审计正确最高请求输入，尚未控制完整全局缓存调度，也未验收正确输入下Land/Movement整链与最终pose；不宣称可见故障。截图0、性能暂停，生产/转换器/原始资产未改。
+
+- [ ] BF144.166 正确缓存入权重下的实际Land时钟联动：依赖.165记录Gate，在已证明当前最高请求为1的8路径内建立最小受控缓存更新上下文，保持D200本地候选控制；把D201秒域推进和D202源排序接入实际角色Land组消费者，重新捕获后核对原生FSM/缓存/4播放器的联动。先证明控制输入及原始观察校准，再追零tail边界；正确14成员Movement的新同步历史与最终pose另作依赖Gate，不展开动作/可见性。Gate：fresh源缓存与同步合同、真实角色闭环、独立native group/FSM、最小消融/字节恢复及身份；不能用.165的简单base-first遍历充当修复或最高请求实现。开始：2026-10-22 00:35:10 +08:00；预估结束：2026-10-22 01:25:10 +08:00。估时依据：.163独立4播放器生产约31分钟，.164实际候选/缓存约20分钟，.165入权重溯源约42分钟；本项复用原生接口但增加实际时钟/候选反馈，按50分钟先闭合Land联动，剩余Movement独立验收。
+  - 00:35 活动摘要：.165已提交`0c1a5817`，累计221项（115P2/106P3），新增D223已实时登记且原生最高请求self-test固化。最高请求来源已分类，当前还不能宣称全系统或完整source时钟等价；本项接续实际正确输入下的Land闭环。截图0、性能暂停，生产/转换器/原始资产保持未改。
+
+  - 2026-10-22 00:46 .163有限复开/漏检复盘：.166真实Land联动285次更新与native group逐值一致，native FSM的Land/Land Movement实际更新集合也与角色相等，普通完成帧没有原先推导的0尾调用。.163把“前帧有转场、当帧完成”直接推导为旧状态0更新，再运输到FAnimSync；native group接受输入只证明消费，不证明FSM输入生成，因此旧376次source更新/20个D204普通tail及64条受影响观察的source归属尚未成立。只复开.163该更新集合/归属范围，不改已校准356次实际更新和D201/D202根因；.164/.165的独立native FSM/缓存证据保持。当前先用最小原生普通完成fixture复核，再撤销不成立的普通tail扩展；D204既有中断栈证据不凭此推翻。累计221暂不增减，截图0、性能暂停。
 
 ### 已确认差异（仅登记，未实施修复）
 
@@ -2424,7 +2431,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：保留实际Land TwoWay、两个播放器与主图同步出口，5种固定权重/170轨迹共21305帧有95次末端资格提前。120Hz常规播放第140帧target已达1.1666666269302368，source仍为1.1666659116744995，剩余约7.15e−7秒；原Land自动规则在此提前一帧进入0.8秒转场。其余控制包含30/60/240Hz、变步长、零步长和末端邻域，单步最大0.125秒。
   - 恢复/边界：5050组实际规则消费确认95组提前、无延后；只恢复源候选顺序仍有95组失败，恢复原生累计时钟后1010组全部通过，另加候选顺序恢复则发布时钟字段逐值相同。phase duration恢复不改变本批输出。证据`target/bf144/115/analysis.json`、`consumer_summary.json`及两份native时钟；同步组成员/权重固定，未声明变权重、加入/退出、其他同组状态或公共Playground可见故障。旧单leader与一般近似数值测试未核对长期累计后的精确末端资格；仅登记，未修生产。
 
-  - BF144.163实际Land组补充：356次当前更新中，恢复源排序后常规仍99帧时钟/previous微差，最大约0.358µs；直接以源float秒域AdvanceTime替代phase往返后原生逐值相同，无native clock注入。source口径含20零tail的376次更新全部通过；物理去掉该控制会重现103常规及14 Heavy失败帧，精确源码恢复/同target重编后重现通过。证据`target/bf144/163/sort-analysis.json`、`no-time-analysis.json`、`heavy-no-time-analysis.json`、`restore-check.json`。
+  - BF144.163实际Land组补充（BF144.166更正）：356次实际更新中，恢复源排序后常规仍99帧时钟/previous微差，最大约0.358µs；直接按源float秒域AdvanceTime推进后，实际更新集合全部匹配原生，无native clock注入。原额外20个普通0更新及使用该错误集合的103/14失败帧不再作为source验收证据；有效证据为`target/bf144/163/complete-analysis.json`、`heavy-complete-analysis.json`与`target/bf144/166/bf163-correction.json`。
 
 - [ ] BF144-D202 / P2 — 同步组使用稳定同分排序，改变不同速率播放器的leader、播放时钟和自动退出时点。
   - Source：fresh `AnimationAsset.cpp:121–124`按FAnimTickRecord的LeaderScore调用原生Sort；`IntroSort.h:60–82`的小集合选择排序不保留同分输入顺序。当前4个Land组播放器均CanBeLeader，普通Land速率1，Light/Heavy Additive分别1.75/1.5；同分排序会改变实际推进速率及新加入leader的初始时间。
@@ -2480,7 +2487,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - BF144.160尾更新运输补充：8个source帧在原角色内补回0权重Crouch更新后，实际stance更新从2597恢复2605，状态/权重/elapsed与source模型一致；当前cache/linked消费者传出29次额外本地播放器更新，完整请求共7784次、37次零权重，并被native组接收。移除控制重现8次遗漏，源码字节恢复/同target重编后全部角色观察重现；潜在历史会改变后续输入，完整clock/样本尚未在本项验收。证据`target/bf144/160/updates-check.json`、`transport-check.json`、`native-transport-check.json`。
 
-  - BF144.163 Land播放器补充：普通外层完成帧再遗漏20个应更新的0权重Land成员（常规14/Heavy6）。按源声明序纳入后，Heavy的尾成员即使权重0也会改变≤8成员选择排序的交换，改变64条既有播放器观察/4个leader标志，最大当前时间差约8.33ms；其余常规既有播放器观察保持。所有376次source更新经原生组验证，删除秒域控制后的微差独立归D201，不把source排序或零tail省略。证据`target/bf144/163/tail-events.json`、`heavy-tail-events.json`、`tail-check.json`、`heavy-tail-check.json`、`source-restored-analysis.json`；未宣称20个不同步成员都造成可见pose故障。
+  - BF144.163普通完成帧扩展已于BF144.166撤回：20个0权重旧状态tick由“转场消失”推导，未检查原生Transition.bActive。40帧native完成测试与实际285更新证明普通完成帧不再调用旧状态；64条变化/4 leader标志/8.33ms只是人工多加成员的反事实结果，不是源移植差异。D204原有中断栈零更新证据保持；证据`target/bf144/166/ordinary-check.json`、`bf163-correction.json`。
 
 - [ ] BF144-D205 / P2 — 已请求长度重同步时，同身份播放器的本地起点覆盖源组相位。
   - Source：fresh `AnimSync.cpp:195–217`在惯性请求且前leader分数不低于新leader时设置长度重同步；`AnimSequenceBase.cpp:505–509`先将CurrentTime设为group ratio×长度，再推进。此规则不因player身份、资产和长度保持不变而改用本地初始化起点。
