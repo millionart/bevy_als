@@ -1188,6 +1188,15 @@
 
   - 02:10 完成摘要：实际Root在正确缓存/Land历史上的10路径2400帧，10277次Movement更新、37次零权重及6次初始化事件，与新native组的成员/权重/leader、marker、sequence/BS时钟、相位、内部样本时间及样本更新集合逐值一致。初次反馈的37帧旧父权重已按新真实历史重建；3386帧原生方向FSM、1578次原生Forward父级及重新捕获后的方向/Forward/group请求、source权重逐字节不变，未沿用漂移旧输入。全部新控制物理移除/重编后1920帧原角色观察重现；单独移除独立ring过滤器有159条过滤值反例，但该240帧primary clock改变0，不声称其产生可见时钟故障；源码三文件按字节恢复、同target串行重编后全部2400帧角色观察复现。仅排除跨进程generation绝对编号，其余状态/通知/输入/时钟/姿态样本均核对。114份ALS/184份Rust、476身份键及固定库保持，fresh三资产CDO/编译表/cache schedule匹配；失败尝试和排除原因保留在summary，不复用旧native输出。证据`target/bf144/168/summary.json`、`actual-analysis.json`、`source-weight-check.json`、`direction-native-check.json`、`source-controls-check.json`、`ablation-check.json`、`filter-ablation-check.json`、`restore-check.json`。此为显式已证source Movement权重下的实际Root消费闭环；Movement Details资格/自动转场历史仍是共同输入，既有D200未修复；最终完整pose、额外动作/可见性及默认世界仍待验收，不能宣称100%等价。截图0、性能暂停，生产/转换器/原始资产未改。
 
+- [x] BF144.169 新Movement反馈历史的Details候选与自动转场：依赖.168记录Gate，沿其尚共同输入的Movement Details FSM，fresh核对原编译6状态/候选与UE相关性/automatic语义；捕获实际角色16个本地加速播放器的规则前缓存时间/权重，native FSM自行选候选并执行自动规则，按已证D200本地过滤控制核对真实状态/权重/更新集合。先关闭候选/规则输入消费，Start/Pivot播放器独立时钟生产与最终pose仍留后续，不用手工transition bool覆盖原生automatic。Gate：fresh编译/候选合同、实际规则前输入、新native FSM与真实消费者、最小消融/恢复及身份；无法解释项实时登记，不因既有D200直接视为通过。开始：2026-10-22 02:12:30 +08:00；预估结束：2026-10-22 02:57:30 +08:00。估时依据：.147完整Start实际链路、.164自动候选约20分钟、.168实际Root联动17分36秒；本项复用native cached-player接口但扩展Details全部候选/本批新反馈，按45分钟关闭直接资格消费者。截图0，性能暂停，生产不改。实际结束：2026-10-22 02:33:28 +08:00；实耗20分58秒，偏差−24分2秒；结果：记录Gate PASS，新增0，累计221（115P2/106P3）。
+  - 02:12 活动摘要：.168已提交`c1966d64`，累计221项（115P2/106P3）。14成员实际Root时钟/marker及新父权重反馈通过，Details资格历史仍未独立证明；本项只展开该已声明直接边界，其他动作/可见性、完整pose及默认世界不计已覆盖。
+
+  - 02:13 source事实摘要：fresh Standing编译/CDO/cache schedule与.168身份一致；Details共6状态、4个automatic出口，四个加速状态各4个本地播放器，Walk/Run本地候选为空且全部Layer候选为空。UE相关性只按编译本地列表与layer、严格大于当前最高权重选择；automatic使用缓存time/weight，NativeTransitionDelegate优先于automatic，故本项必须继续使用未绑定automatic代理的原生输入接口。当前只完成源事实读取，实际规则前16播放器捕获和新native/真实消费者仍待执行；证据`target/bf144/169/details-compiled.json`，截图0、性能暂停。
+
+  - 02:28 source/static摘要：fresh六状态GUID逐个回算匹配，7条非automatic规则由fresh源表达式求值，4条automatic保持原生代理未绑定。透明观察器保留1920帧原角色行为，并捕获规则前缓存/Standing上一缓冲machine getter/Pivot/gait；8路径1326次实际Details更新与原生比较复现D200，恢复四状态本地候选后1326帧及7956次状态更新集合检查全部相等。真实控制改变289帧活动state、295帧state weights、477帧elapsed与515帧左脚样本，不新增根因；Heavy两路径1738总帧原生对照进行中。当前新运行只触发Run/Run Start及4个正缓存播放器，其余12候选仅fresh配置通过，不计为本批新runtime覆盖；完整源Start/Pivot clock生产和14组新父权重反馈仍待后续。尚待最小消融/字节恢复/身份，不宣称全系统等价，截图0、性能暂停，累计221。
+
+  - 02:33 完成摘要：fresh六状态/16候选GUID与7条非automatic规则逐项核对；4条automatic代理保持未绑定，由native自行读取原始本地缓存。10路径2400运动帧中的1738次Details更新，state/weights/elapsed及10428次状态根更新集合检查在本地候选控制后全部等于原生。8条常规路径中控制改变289帧活动state、295帧weights、477帧elapsed和515帧左脚rotation数值，归并已知D200；物理移除四处候选控制后全部1920帧原行为和诊断重现，恢复四文件源码字节、同target串行重编后2400帧控制行为/诊断全部重现。透明观察器先校准原1920帧，Standing machine getter取规则前上一缓冲，未用规则后的值倒推输入；只排除进程全局generation绝对编号。114份ALS/184份Rust、476身份键及固定库保持。证据`target/bf144/169/summary.json`、`native-analysis.json`、`observer-calibration.json`、`consumer-effects.json`、`ablation-check.json`、`restore-check.json`。当前活动endpoint为Run/Run Start，Walk根亦有更新；实际正缓存只覆盖4个Run Start播放器，From Walk/Pivot其余12项只计配置，未新验收。Start/Pivot clock生产仍共用，且既有显式Movement权重需要按改变的Details父历史重新闭合；完整native pose/默认世界仍待审。截图0、性能暂停，生产/转换器/原始资产未改。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
@@ -2442,6 +2451,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.162完整角色补充：source编译Locomotion Land Movement候选只含两个非循环Land Additive；在handoff/sprint四条真实历史中，目标Root相关性却返回0.8秒循环Movement。原生用同一前帧本地缓存独立判定：30Hz目标第14帧退出而源第16帧，60Hz目标27而源32；其余四路径1024帧状态/权重/elapsed精确一致。首个分叉时目标remaining约0.08984/0.11204秒，本地源候选约0.36667/0.43750秒，故误越0.3门槛；878帧计数含后续elapsed偏移，不代表同数量pose故障。证据`target/bf144/162/classification.json`、`native-clock-analysis.json`；本地缓存clock生产仍共同输入，下一Gate独立验证，生产未改。
 
   - BF144.164实际闭环补充：在原角色中每帧只恢复source编译本地候选后，重新生成的8条2048帧outer状态/权重/elapsed全部匹配原生FSM；Grounded缓存1920次最高请求与状态历史也匹配（上层入权重共用）。物理去掉控制精确重现原1920帧观察和4条D200路径，按源码字节恢复/同target重编后重现全部正确候选观察。此处本地Land clock生产仍共用，未把该输入等价当作已关闭；证据`target/bf144/164/summary.json`、`no-candidates-check.json`、`restore-check.json`。
+
+  - BF144.169新Movement反馈下的Details补充：fresh原编译6状态的四个加速候选列表各4项，规则前缓存独立送入native FSM，automatic不绑定覆盖代理。10路径1738次Details更新/10428次状态根集合检查在本地候选控制后精确匹配；8常规路径中改变289帧活动state及515帧左脚rotation数值。去掉四处控制后1920帧原行为与诊断重现，恢复源码/同target重编后2400帧控制结果重现。当前只新触发Run Start四播放器，不能将From Walk/Pivot的配置核对当新runtime通过；独立本地clock生产及改变后的14成员权重反馈另验。证据`target/bf144/169/summary.json`，未修生产。
 
 - [ ] BF144-D201 / P3 — 无marker同步时钟反复归一化，Land自动末端转场提前。
   - Source：fresh `AnimSequenceBase.cpp:515–544`直接以累计秒数执行AdvanceTime，随后发布ratio供follower；leader自身不经过ratio往返。两个Land资产原生长度均为1.1666666269302368秒，与已加载target clip长度相同；当前自动规则trigger=0、名义淡入0.8秒。
