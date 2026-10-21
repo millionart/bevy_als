@@ -1135,6 +1135,13 @@
 
   - 22:25 完成摘要：当前原角色7318条Root记录精确校准；source口径7784次更新含37零权重与6个reset，14成员1920帧的leader/marker/sequence与BS时钟/previous/样本全部逐值一致。3590个BS过滤输出独立FIR复算通过，176帧超过8成员的原生排序亦复现；移除分区排序在6帧违反源提交序。排序恢复前有6帧leader差，恢复后仅35帧65个previous归D213；物理移除该控制稳定重现，按源码字节恢复及同target重编后全部输出重现。整组返回恢复控制删除信号不变，已剔除。114份ALS/184份Rust、累积60份UE源码及固定生产库/reader身份通过；证据`target/bf144/161/summary.json`、`calibration-check.json`、`source-controls-check.json`、`previous-check.json`。完整角色pose、外层Locomotion、其他动作/可见性和默认世界仍未关闭；截图0，性能暂停。
 
+- [x] BF144.162 外层Locomotion规则与原生相关性消费：依赖.161记录Gate，沿已证明的Root Locomotion→Grounded缓存/linked链，fresh读取编译状态/规则/初始化与实际角色参数，核对本批八条1920帧的外层状态、转场权重和对子Grounded的更新/重置；以现有原生编译FSM probe独立核对，必要时只增加能区分现有差异的受控输入，不展开相邻动作图。Gate：fresh source规则和配置、当前消费者、原生状态/权重/调用集、最小消融/同target恢复及身份；若发现新root即实时登记。开始：2026-10-21 22:26:38 +08:00；预估结束：2026-10-21 23:11:38 +08:00。估时依据：.159 Grounded规则/入口与probe约53分钟，.161组时钟闭合19分24秒；本项复用编译FSM probe，先限定既有八条历史的外层控制，按45分钟估时。截图0，性能暂停，生产不改。实际结束：2026-10-21 22:56:50 +08:00；实耗30分12秒，偏差−14分48秒；结果：记录Gate PASS，新增差异0（累计220：115P2/105P3），扩展D200。拆分结果：本项验收显式规则及原生候选/自动规则/crossfade消费；Land组输入历史的独立生产与Grounded缓存更新/重置闭环拆至后续独立Gate，不计为本项已通过。
+  - 22:26 活动摘要：.161已提交`13bf03e9`，累计220项（115P2/105P3）。完整14成员同步数值已无未解释残差，但外层Locomotion仍是共同输入，不能计为已审计；先补其实际控制和source合同，其他动作/可见性/最终pose仍保留边界。
+
+  - 22:37 source/static摘要：fresh Locomotion编译机器为6状态/16边，显式规则只读8个已捕获父参数；两条自动规则必须额外消费前帧相关性/剩余时钟与CrossfadeTimeAdjustment。现有entry probe的native delegate会跳过UE自动规则，不能把自动布尔重放当成独立Gate；正添加可选原编译非循环SequencePlayer缓存输入，使原生自行选候选、判剩余时间并缩短crossfade。它只消费权重/时钟，不提供这些历史的生成证明；该Land组历史若不能在本项闭合，按独立验收拆分继续，完整审计目标不变。角色观察器首次误用Result输出名已被有界失败捕获，修正后再校准；未记录生产差异。
+
+  - 22:56 完成摘要：6状态/16边和8个父参数fresh提取；原角色1920帧观察精确重现，128帧预热的首个Root真实query为Absolute(0)，其余Delta，修正首个native输入后排除120帧elapsed夹具差。原生实际执行编译候选、自动规则和CrossfadeTimeAdjustment：4路径1024帧状态/权重/elapsed全等，另4路径的878帧不同均由D200退出与后续elapsed传播分类；handoff/sprint在30Hz目标14帧退出、native16帧，60Hz为27/32。源仅认本状态两个非循环Land Additive，目标却选0.8秒循环Movement候选；前帧目标remaining约0.08984/0.11204秒，原本地候选约0.36667/0.43750秒，跨过0.3门槛的事实闭合。新增asset_players请求仅运输非循环原编译Sequence缓存值，原生自己计算；12帧自动规则、24帧旧entry与9个非法请求通过。初版inertial路径缺SharedContext触发源断言，补用原生共享上下文后通过；消融缓存weight运输稳定失去两条应退出路径，按源码字节恢复/同package重编后2060帧全部重现。114份ALS/184份Rust、累积62份UE及生产库身份保持；证据`target/bf144/162/summary.json`、`classification.json`、`capture-check.json`、`invalid-check.json`、`restore-check.json`。本地Land组clock/weight目前为共同输入，父Grounded缓存/完整Movement新历史、通知及最终pose仍未验收；截图0，性能暂停，生产/转换器/原始资产未改。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
@@ -2385,6 +2392,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.149实际Pivot消费补充：两个独立Pivot组的原交替/自动规则、ResetPivot和Movement缓存接入后，140条12591帧中候选恢复改变3833帧实际状态、10帧规则前及10帧规则后Pivot值；实际左脚3879帧改变，最大约19.18°。ResetPivot的源CallFunction计数器和写入时点本身一致，标记差由错误自动出口改变后续消费路径造成；不新增回调缺陷。保留源排序、删除候选控制仍6032帧失败，恢复后完整输出重现。源优先级的三类竞争各10条及20个零delta进入均通过。证据`target/bf144/149/consumer-check.json`、`priority-check.json`、`no-local-analysis.json`；激活通知producer和完整Movement组仍独立待审。
 
   - BF144.151真实通知后的完整轨迹补充：从角色首次Details更新重建20条3600帧，当前142帧状态、316条成员记录及后续计时不符；在原Standing状态图内仅恢复本地候选后，状态/权重/时钟/scope/Pivot全部匹配，两个活跃原生组7200组帧逐值通过。此前14次已处于First/Second Pivot的通知消费已全部核对；恢复改变481帧最终左脚旋转，最大约3.35°。仅16帧UnweightedGaitRunningAmount反馈随结果变化，固定Running下其Walking退出条件不启用，交换反馈不会改变源期望；其余关键输入/通知保持。只删除候选过滤重现571帧失败，同target恢复后输出逐值保持。证据`target/bf144/151/consumer-check.json`、`feedback-check.json`、`native-check.json`及`summary.json`；这是实际目标角色在已知根因控制前后的消费证据，不是完整UE世界姿态比较。
+
+  - BF144.162完整角色补充：source编译Locomotion Land Movement候选只含两个非循环Land Additive；在handoff/sprint四条真实历史中，目标Root相关性却返回0.8秒循环Movement。原生用同一前帧本地缓存独立判定：30Hz目标第14帧退出而源第16帧，60Hz目标27而源32；其余四路径1024帧状态/权重/elapsed精确一致。首个分叉时目标remaining约0.08984/0.11204秒，本地源候选约0.36667/0.43750秒，故误越0.3门槛；878帧计数含后续elapsed偏移，不代表同数量pose故障。证据`target/bf144/162/classification.json`、`native-clock-analysis.json`；本地缓存clock生产仍共同输入，下一Gate独立验证，生产未改。
 
 - [ ] BF144-D201 / P3 — 无marker同步时钟反复归一化，Land自动末端转场提前。
   - Source：fresh `AnimSequenceBase.cpp:515–544`直接以累计秒数执行AdvanceTime，随后发布ratio供follower；leader自身不经过ratio往返。两个Land资产原生长度均为1.1666666269302368秒，与已加载target clip长度相同；当前自动规则trigger=0、名义淡入0.8秒。

@@ -3334,6 +3334,9 @@ TSharedPtr<FJsonObject> CaptureStateMachineEntryProbe(UObject* Asset, const FStr
         TArray<FProbeLeaf> Leaves;
         Leaves.SetNum(Description.States.Num());
         Machine.Link(Leaves);
+        const TSharedPtr<FJsonObject>* FirstStep = nullptr;
+        if (!(*Steps)[0]->TryGetObject(FirstStep)) { return nullptr; }
+        const bool NativeAutomatic = (*FirstStep)->HasField(TEXT("asset_players"));
         TArray<TSharedPtr<FJsonValue>> Frames;
         for (const TSharedPtr<FJsonValue>& StepValue : *Steps)
         {
@@ -3341,7 +3344,7 @@ TSharedPtr<FJsonObject> CaptureStateMachineEntryProbe(UObject* Asset, const FStr
             const TArray<TSharedPtr<FJsonValue>>* StateEntries = nullptr;
             const TArray<TSharedPtr<FJsonValue>>* Transitions = nullptr;
             double Delta;
-            if (!StepValue->TryGetObject(Step) || !(*Step)->TryGetNumberField(TEXT("delta_seconds"), Delta) || !FMath::IsFinite(static_cast<float>(Delta)) || Delta < 0 || Delta > 1 ||
+            if (!StepValue->TryGetObject(Step) || (*Step)->HasField(TEXT("asset_players")) != NativeAutomatic || !(*Step)->TryGetNumberField(TEXT("delta_seconds"), Delta) || !FMath::IsFinite(static_cast<float>(Delta)) || Delta < 0 || Delta > 1 ||
                 !(*Step)->TryGetArrayField(TEXT("state_entries"), StateEntries) || StateEntries->Num() != Description.States.Num() ||
                 !(*Step)->TryGetArrayField(TEXT("transition_rules"), Transitions) || Transitions->Num() != Description.Transitions.Num()) { return nullptr; }
             Conditions.Reset();
@@ -3360,9 +3363,51 @@ TSharedPtr<FJsonObject> CaptureStateMachineEntryProbe(UObject* Asset, const FStr
                     Conditions.Add(Exit.CanTakeDelegateIndex, Result);
                 }
             }
+            if ((*Step)->HasField(TEXT("asset_players")))
+            {
+                const TArray<TSharedPtr<FJsonValue>>* Players = nullptr;
+                if (!(*Step)->TryGetArrayField(TEXT("asset_players"), Players) || Players->Num() > Properties.Num()) { return nullptr; }
+                for (const FStructProperty* Property : Properties)
+                {
+                    if (Property->Struct->IsChildOf(FAnimNode_AssetPlayerBase::StaticStruct()))
+                    {
+                        Property->ContainerPtrToValuePtr<FAnimNode_AssetPlayerBase>(Instance)->ClearCachedBlendWeight();
+                    }
+                }
+                TSet<int32> Seen;
+                const FFloatProperty* WeightProperty = FindFProperty<FFloatProperty>(FAnimNode_AssetPlayerBase::StaticStruct(), TEXT("BlendWeight"));
+                if (WeightProperty == nullptr) { return nullptr; }
+                for (const TSharedPtr<FJsonValue>& PlayerValue : *Players)
+                {
+                    const TSharedPtr<FJsonObject>* Player = nullptr;
+                    double Index, Weight, Time;
+                    if (!PlayerValue->TryGetObject(Player) || !(*Player)->TryGetNumberField(TEXT("node_index"), Index) || !FMath::IsFinite(Index) || Index != FMath::FloorToDouble(Index) ||
+                        Index < 0 || Index >= Properties.Num() || !(*Player)->TryGetNumberField(TEXT("weight"), Weight) || !FMath::IsFinite(static_cast<float>(Weight)) || Weight < 0 || Weight > 1 ||
+                        !(*Player)->TryGetNumberField(TEXT("position"), Time) || !FMath::IsFinite(static_cast<float>(Time)) || Time < 0) { return nullptr; }
+                    const int32 NodeIndex = static_cast<int32>(Index);
+                    const FStructProperty* Property = Properties[Properties.Num() - 1 - NodeIndex];
+                    if (Seen.Contains(NodeIndex) || !Property->Struct->IsChildOf(FAnimNode_SequencePlayer::StaticStruct())) { return nullptr; }
+                    Seen.Add(NodeIndex);
+                    FAnimNode_SequencePlayer* Node = Property->ContainerPtrToValuePtr<FAnimNode_SequencePlayer>(Instance);
+                    if (Node->IsLooping() || Node->GetAnimAsset() == nullptr || Time > Node->GetAnimAsset()->GetPlayLength()) { return nullptr; }
+                    WeightProperty->SetPropertyValue_InContainer(Node, static_cast<float>(Weight));
+                    Node->SetAccumulatedTime(static_cast<float>(Time));
+                }
+                for (const FBakedAnimationState& State : Description.States)
+                {
+                    for (const FBakedStateExitTransition& Exit : State.Transitions)
+                    {
+                        if (Exit.bAutomaticRemainingTimeRule && Exit.CanTakeDelegateIndex != INDEX_NONE)
+                        {
+                            Properties[Properties.Num() - 1 - Exit.CanTakeDelegateIndex]->ContainerPtrToValuePtr<FAnimNode_TransitionResult>(Instance)->NativeTransitionDelegate.Unbind();
+                        }
+                    }
+                }
+            }
             for (FProbeLeaf& Leaf : Leaves) { Leaf.Weights.Reset(); }
             Proxy.BeginUpdate();
-            Machine.Update_AnyThread(FAnimationUpdateContext(&Proxy, static_cast<float>(Delta)));
+            FAnimationUpdateSharedContext SharedContext;
+            Machine.Update_AnyThread(FAnimationUpdateContext(&Proxy, static_cast<float>(Delta), &SharedContext));
             TSharedRef<FJsonObject> Frame = MakeShared<FJsonObject>();
             Frame->SetNumberField(TEXT("state"), Machine.GetCurrentState());
             Frame->SetStringField(TEXT("name"), Machine.GetCurrentStateName().ToString());
