@@ -29,6 +29,8 @@
 #include "Animation/AnimNotifyQueue.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/AnimData/IAnimationDataModel.h"
+#include "Sequencer/MovieSceneControlRigParameterSection.h"
 #include "Animation/AnimationPoseData.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/BlendSpace.h"
@@ -1873,6 +1875,89 @@ struct FSequencePoseAccess : UAnimSequence
     }
 };
 
+TSharedRef<FJsonObject> CaptureMovieSceneFloatChannel(const FMovieSceneFloatChannel& Channel)
+{
+    TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+    const FFrameRate Rate = Channel.GetTickResolution();
+    Result->SetNumberField(TEXT("tick_numerator"), Rate.Numerator);
+    Result->SetNumberField(TEXT("tick_denominator"), Rate.Denominator);
+    Result->SetNumberField(TEXT("pre_infinity"), Channel.PreInfinityExtrap.GetValue());
+    Result->SetNumberField(TEXT("post_infinity"), Channel.PostInfinityExtrap.GetValue());
+    const TOptional<float> Default = Channel.GetDefault();
+    Result->SetField(TEXT("default"), Default.IsSet() ? StaticCastSharedRef<FJsonValue>(MakeShared<FJsonValueNumber>(Default.GetValue())) : StaticCastSharedRef<FJsonValue>(MakeShared<FJsonValueNull>()));
+    const TArrayView<const FFrameNumber> Times = Channel.GetTimes();
+    const TArrayView<const FMovieSceneFloatValue> Values = Channel.GetValues();
+    TArray<TSharedPtr<FJsonValue>> Keys;
+    for (int32 Index = 0; Index < Values.Num(); ++Index)
+    {
+        const FMovieSceneFloatValue& Value = Values[Index];
+        TSharedRef<FJsonObject> Key = MakeShared<FJsonObject>();
+        Key->SetNumberField(TEXT("frame"), Times[Index].Value);
+        Key->SetNumberField(TEXT("value"), Value.Value);
+        Key->SetNumberField(TEXT("interp_mode"), Value.InterpMode.GetValue());
+        Key->SetNumberField(TEXT("tangent_mode"), Value.TangentMode.GetValue());
+        Key->SetNumberField(TEXT("arrive_tangent"), Value.Tangent.ArriveTangent);
+        Key->SetNumberField(TEXT("leave_tangent"), Value.Tangent.LeaveTangent);
+        Key->SetNumberField(TEXT("weight_mode"), Value.Tangent.TangentWeightMode.GetValue());
+        Key->SetNumberField(TEXT("arrive_weight"), Value.Tangent.ArriveTangentWeight);
+        Key->SetNumberField(TEXT("leave_weight"), Value.Tangent.LeaveTangentWeight);
+        Keys.Add(MakeShared<FJsonValueObject>(Key));
+    }
+    Result->SetArrayField(TEXT("keys"), Keys);
+    return Result;
+}
+
+TSharedPtr<FJsonObject> CaptureSequenceSourceChannels(const UAnimSequence& Sequence)
+{
+    UObject* Model = Sequence.GetDataModelInterface().GetObject();
+    if (Model == nullptr) { return nullptr; }
+    TArray<UObject*> Objects;
+    GetObjectsWithOuter(Model, Objects, EGetObjectsFlags::IncludeNestedObjects);
+    Objects.Sort([](const UObject& Left, const UObject& Right) { return Left.GetPathName() < Right.GetPathName(); });
+    TArray<TSharedPtr<FJsonValue>> Sections;
+    for (UObject* Object : Objects)
+    {
+        const UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(Object);
+        if (Section == nullptr) { continue; }
+        TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+        Value->SetStringField(TEXT("path"), ObjectPath(Section));
+        Value->SetBoolField(TEXT("active"), Section->IsActive());
+        TArray<TSharedPtr<FJsonValue>> Scalars;
+        for (const FScalarParameterNameAndCurve& Parameter : Section->GetScalarParameterNamesAndCurves())
+        {
+            TSharedRef<FJsonObject> Scalar = MakeShared<FJsonObject>();
+            Scalar->SetStringField(TEXT("name"), Parameter.ParameterName.ToString());
+            Scalar->SetObjectField(TEXT("channel"), CaptureMovieSceneFloatChannel(Parameter.ParameterCurve));
+            Scalars.Add(MakeShared<FJsonValueObject>(Scalar));
+        }
+        Value->SetArrayField(TEXT("scalars"), Scalars);
+        TArray<TSharedPtr<FJsonValue>> Transforms;
+        for (const FTransformParameterNameAndCurves& Parameter : Section->GetTransformParameterNamesAndCurves())
+        {
+            TSharedRef<FJsonObject> Transform = MakeShared<FJsonObject>();
+            Transform->SetStringField(TEXT("name"), Parameter.ParameterName.ToString());
+            TArray<TSharedPtr<FJsonValue>> Translation, Rotation, Scale;
+            for (int32 Axis = 0; Axis < 3; ++Axis)
+            {
+                Translation.Add(MakeShared<FJsonValueObject>(CaptureMovieSceneFloatChannel(Parameter.Translation[Axis])));
+                Rotation.Add(MakeShared<FJsonValueObject>(CaptureMovieSceneFloatChannel(Parameter.Rotation[Axis])));
+                Scale.Add(MakeShared<FJsonValueObject>(CaptureMovieSceneFloatChannel(Parameter.Scale[Axis])));
+            }
+            Transform->SetArrayField(TEXT("translation"), Translation);
+            Transform->SetArrayField(TEXT("rotation"), Rotation);
+            Transform->SetArrayField(TEXT("scale"), Scale);
+            Transforms.Add(MakeShared<FJsonValueObject>(Transform));
+        }
+        Value->SetArrayField(TEXT("transforms"), Transforms);
+        Sections.Add(MakeShared<FJsonValueObject>(Value));
+    }
+    if (Sections.IsEmpty()) { return nullptr; }
+    TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+    Result->SetStringField(TEXT("model"), ObjectPath(Model));
+    Result->SetArrayField(TEXT("sections"), Sections);
+    return Result;
+}
+
 TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& RequestPath)
 {
     UAnimSequence* Sequence = Cast<UAnimSequence>(Asset);
@@ -1890,6 +1975,19 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
     {
         UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Sequence pose probe times are invalid."));
         return nullptr;
+    }
+    bool bCaptureSourceChannels = false;
+    if (Request->HasField(TEXT("capture_source_channels")) &&
+        (Request->TryGetField(TEXT("capture_source_channels"))->Type != EJson::Boolean || !Request->TryGetBoolField(TEXT("capture_source_channels"), bCaptureSourceChannels))) { return nullptr; }
+    TSharedPtr<FJsonObject> SourceChannels;
+    if (bCaptureSourceChannels)
+    {
+        SourceChannels = CaptureSequenceSourceChannels(*Sequence);
+        if (!SourceChannels.IsValid())
+        {
+            UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Source channel capture requires an active MovieScene parameter section."));
+            return nullptr;
+        }
     }
     bool bRootTrackOnly = false;
     Request->TryGetBoolField(TEXT("root_track_only"), bRootTrackOnly);
@@ -1980,6 +2078,7 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
     Probe->SetStringField(TEXT("sampling_mode"), bAnimationPose ? TEXT("animation_pose") : bRootTrackOnly ? TEXT("root_track") : TEXT("raw_local_tracks"));
     Probe->SetNumberField(TEXT("duration"), Sequence->GetPlayLength());
     Probe->SetArrayField(TEXT("frames"), Frames);
+    if (bCaptureSourceChannels) { Probe->SetObjectField(TEXT("source_channels"), SourceChannels.ToSharedRef()); }
     return Probe;
 }
 

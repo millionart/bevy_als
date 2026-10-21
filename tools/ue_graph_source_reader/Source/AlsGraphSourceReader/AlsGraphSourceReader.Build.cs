@@ -24,6 +24,8 @@ public class AlsGraphSourceReader : ModuleRules
             "AnimGraph",
             "AnimGraphRuntime",
             "ControlRig",
+            "MovieScene",
+            "MovieSceneTracks",
             "RigVM",
             "RigVMDeveloper",
             "Json",
