@@ -1128,6 +1128,13 @@
   - 22:04 完成摘要：8个缺失source Crouch尾更新全部在真实角色内恢复0上下文，stance更新2605次、Grounded状态/权重/elapsed及两个方向模型全过。控制不启用时完整重现.159的1920帧角色观察；端点直接消费当帧原Standing缓存，避免保留旧边产生的额外归一化，rate/轴/局部时钟等运输数据保持。14成员的新历史共7784次更新、37次零权重、6个Sequence reset事件；fresh编译缓存/linked声明序与native Forward父混合给出权重/顺序/重置，原生FAnimSync逐项接收，全部active/rate/raw轴验证通过。物理移除尾控制重现8次漏更新（2597次实际stance更新），按source字节恢复、同target重编后2605次更新和完整角色输出逐值重现。23份直接UE实现匹配Git，114份ALS/184份Rust、累积资产/读取器及原生产库身份保持。证据`target/bf144/160/summary.json`、`identity.json`、`updates-check.json`、`native-transport-check.json`、`transport-check.json`、`group.request.json`与watchdog。实际结束：2026-10-21 22:04:06 +08:00；偏差：−2分46秒；结果：运输记录Gate PASS，新增0，累计220项（115P2/105P3），扩展D204。实耗47分14秒；公共linked直读无法提供原0权重scope，受控结束顺序及端点校准是本批主要额外成本，50分钟预估覆盖本项。完整native组clock/marker/内部样本仍待下一项，外层Locomotion/角色参数仍共同输入，不宣称全系统/完整UE角色/默认世界等价。仅更新取证记录，生产/转换器/原始资产未改；截图0、性能暂停。
 
 
+- [x] BF144.161 原生Grounded/尾更新恢复后的完整跨类型Movement时钟与样本：依赖.160记录Gate，使用其八条1920帧/14成员source更新运输、7784次更新和6个reset事件，逐项核对真实角色与原生FAnimSync的leader、marker、sequence/BS时钟、previous及内部样本；按精确元数据、过滤、提交/同分排序和历史重建等既有root差异独立控制，保留所有未解释项。Gate：fresh递归播放器数据、当前角色消费者校准、独立原生组及分层控制、最小消融/同target恢复和身份；更外层Locomotion/角色参数仍共同输入，完整默认世界和未取证动作/可见性不计通过。开始：2026-10-21 22:06:33 +08:00；预估结束：2026-10-21 23:01:33 +08:00。估时依据：.157三成员完整消费17分1秒，.154六BS完整时钟约二十余分钟，.160已闭合双姿态更新运输；本项增加14成员跨类型及零权重历史，按55分钟验收完整组消费，不增加生产修复。实际结束：2026-10-21 22:25:57 +08:00；实耗19分24秒，偏差−35分36秒；结果：记录Gate PASS，新增差异0（累计220：115P2/105P3），没有生产修复。
+  - 22:06 活动摘要：.160已提交`af87bf16`，累计220项（115P2/105P3），上一轮为真实输入/运输Gate进展。当前待证的是该完整source更新历史的同步数值消费，不能以原生接收请求成功替代clock/marker/样本对照。截图0、性能暂停，生产未改。
+
+  - 22:22 source/static摘要：重新读取18条BS样本元数据，与本轮14成员原生组配置闭合；最小原节点回放按真实Root成员/权重/顺序和6个reset校准，1920帧7318条Root记录的leader、clock、previous、filter、marker和内部样本精确相等。source更新口径7784次（含37次零权重）施加既有控制后，1920帧全字段差异0；当前仍需独立filter/大于8成员排序复算、分层消融与按字节恢复，故尚未勾选；没有新增差异，外层Locomotion仍共用。
+
+  - 22:25 完成摘要：当前原角色7318条Root记录精确校准；source口径7784次更新含37零权重与6个reset，14成员1920帧的leader/marker/sequence与BS时钟/previous/样本全部逐值一致。3590个BS过滤输出独立FIR复算通过，176帧超过8成员的原生排序亦复现；移除分区排序在6帧违反源提交序。排序恢复前有6帧leader差，恢复后仅35帧65个previous归D213；物理移除该控制稳定重现，按源码字节恢复及同target重编后全部输出重现。整组返回恢复控制删除信号不变，已剔除。114份ALS/184份Rust、累积60份UE源码及固定生产库/reader身份通过；证据`target/bf144/161/summary.json`、`calibration-check.json`、`source-controls-check.json`、`previous-check.json`。完整角色pose、外层Locomotion、其他动作/可见性和默认世界仍未关闭；截图0，性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
@@ -2402,6 +2409,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - BF144.157实际Sprint消费补充：源权重/提交序、精确数据和独立过滤已恢复时，稳定排序仍使960帧中的11帧leader不同并传播为756帧残差；恢复原生同分排序后当前时间/marker全过，剩8处previous独立归D213。当前原角色有6次leader差，部分错误会互相抵消；证据`target/bf144/157/filter-analysis.json`、`sort-analysis.json`。
 
+  - BF144.161完整站蹲组补充：八条1920帧包含176帧9–12成员，原生IntroSort的分区/≤8选择分支按实际权重和声明序独立逐帧复现；统一套小组选择排序会在6帧违反原生排序合同。当前稳定排序有6帧leader差，恢复原生排序后时钟/marker全部一致，65个previous归D213。证据`target/bf144/161/source-controls-check.json`、`sort-ablation.json`、`sort-analysis.json`；没有新增编号或生产修复。
+
 - [ ] BF144-D203 / P3 — 状态局部候选未计入零状态权重，使自动退出提前一帧。
   - Source：fresh `AnimNode_AssetPlayerBase.cpp:27–33`缓存Context.GetFinalBlendWeight；FractionalWeight按父权重相乘，`AnimNode_StateMachine.cpp:688–709`以严格>0选择候选。进入时清空旧缓存权重，转场条件在该帧状态更新前检查；因此零delta进入Land Movement后的下一帧没有合格播放器，即使零权重成员已从Land同步到较晚的动画时间。
   - Target：`source_sequence_player.rs:497–506`先发布局部weight=1，再经状态内部组合；`interruptible_fsm.rs:911–921,942–952`直接把状态图relevant_asset交给自动规则，缺少前次实际状态权重。父状态权重0时，Land Movement仍发布局部1或0.5的候选，原T2会把其已同步的剩余时间用于退出。
@@ -2513,6 +2522,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.154真实Movement补充：精确数据和独立过滤恢复后，20条3600帧仅剩12帧16处重入follower previous，最大约0.447781秒；全部精确等于该播放器上次活跃position/duration乘当前sample duration，其他字段逐值保持。移除恢复重现相同失败，按源码字节恢复并同target重编后最终输出重现；该历史值差不当作当前pose跳变。证据`target/bf144/154/previous-check.json`、`no-previous-analysis.json`、`final-analysis.json`。
 
   - BF144.157实际Sprint组合补充：数据/过滤/排序恢复后，仅8个BS follower previous不同，最大约0.394048秒，均精确等于上次活跃position/duration乘当前duration；其他字段与该原Movement子图脚姿态保持。物理移除恢复、同target重编稳定失败8处；源码按字节恢复及重编后960帧输出重现。证据`target/bf144/157/history-check.json`、`no-previous-analysis.json`、`final-analysis.json`。
+
+  - BF144.161完整站蹲组补充：六BS/八Sequence组成的14成员组，在恢复源权重/顺序、精确数据和独立过滤后，35帧仅余65个BS follower previous；全等于该播放器上次position/duration乘当前duration，其他字段保持。按源码字节移除恢复并同target重编可重复该失败；精确字节恢复及重编后1920帧7784次更新全部逐值匹配原生。证据`target/bf144/161/previous-check.json`、`no-previous-check.json`、`restore-check.json`。
 
 ### 核验边界记录（不计为无差异）
   - BF144.136 follower记录重建补充：near-zero候选无有效end时记录leader移到最后一项；下一普通帧恢复正常leader，`AnimSync::Finalize`使follower记录失效。`BlendSpace.cpp:784–787`按已存归一化时间乘当前样本长度重建；目标此前保留秒数。18帧33个previous差最大约59.6ns，全部精确等于`(旧position/旧duration)*当前duration`；仅补这一步后4032帧所有previous也逐值一致，当前采样位置和姿态保持。证据`target/bf144/136/roundtrip-check.json`、`before-roundtrip-all-analysis.json`、`all-analysis.json`。
