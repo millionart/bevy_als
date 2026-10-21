@@ -31,6 +31,7 @@
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimData/IAnimationDataModel.h"
 #include "Sequencer/MovieSceneControlRigParameterSection.h"
+#include "MovieScene.h"
 #include "Animation/AnimationPoseData.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/BlendSpace.h"
@@ -76,6 +77,7 @@
 #include "PhysicsEngine/SkeletalBodySetup.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "Rigs/RigHierarchy.h"
+#include "Rigs/FKControlRig.h"
 #include "ControlRig.h"
 #include "RigVMCore/RigVM.h"
 #include "RigVMModel/Nodes/RigVMUnitNode.h"
@@ -1958,6 +1960,95 @@ TSharedPtr<FJsonObject> CaptureSequenceSourceChannels(const UAnimSequence& Seque
     return Result;
 }
 
+TSharedPtr<FJsonObject> CaptureSequenceRigStages(const UAnimSequence& Sequence, double Time, const FBoneContainer& RequiredBones)
+{
+    UObject* Model = Sequence.GetDataModelInterface().GetObject();
+    if (Model == nullptr) { return nullptr; }
+    TArray<UObject*> Objects;
+    GetObjectsWithOuter(Model, Objects, EGetObjectsFlags::IncludeNestedObjects);
+    TSharedPtr<FJsonObject> Result;
+    for (UObject* Object : Objects)
+    {
+        const UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(Object);
+        if (Section == nullptr || !Section->IsActive()) { continue; }
+        UControlRig* Rig = Section->GetControlRig();
+        URigHierarchy* Hierarchy = Rig != nullptr ? Rig->GetHierarchy() : nullptr;
+        if (Hierarchy == nullptr || Result.IsValid()) { return nullptr; }
+        Result = MakeShared<FJsonObject>();
+        Result->SetStringField(TEXT("section"), ObjectPath(Section));
+        const UFKControlRig* FK = Cast<UFKControlRig>(Rig);
+        if (FK != nullptr) { Result->SetNumberField(TEXT("apply_mode"), static_cast<int32>(FK->GetApplyMode())); }
+        const IAnimationDataModel* DataModel = Sequence.GetDataModelInterface().GetInterface();
+        const UMovieScene* Scene = Section->GetTypedOuter<UMovieScene>();
+        if (DataModel == nullptr || Scene == nullptr) { return nullptr; }
+        const FFrameTime SampleTime = FFrameRate::TransformTime(DataModel->GetFrameRate().AsFrameTime(Time), DataModel->GetFrameRate(), Scene->GetTickResolution());
+        const float Alpha = SampleTime.GetSubFrame();
+        const auto ChannelValue = [DataModel](const FMovieSceneFloatChannel& Channel, FFrameNumber Frame, bool bPreferDefault, float Fallback)
+        {
+            if (bPreferDefault && Channel.GetDefault().IsSet()) { return Channel.GetDefault().GetValue(); }
+            if (!bPreferDefault && Channel.GetValues().Num() == DataModel->GetNumberOfKeys()) { return Channel.GetValues()[Frame.Value].Value; }
+            float Value = Fallback;
+            Channel.Evaluate(Frame, Value);
+            return Value;
+        };
+        TMap<FName, FTransform> ChannelControls;
+        for (const FTransformParameterNameAndCurves& Parameter : Section->GetTransformParameterNamesAndCurves())
+        {
+            const auto EvaluateEuler = [&](FFrameNumber Frame, bool bPreferDefault)
+            {
+                return FEulerTransform(FRotator(ChannelValue(Parameter.Rotation[1], Frame, bPreferDefault, 0.f), ChannelValue(Parameter.Rotation[2], Frame, bPreferDefault, 0.f), ChannelValue(Parameter.Rotation[0], Frame, bPreferDefault, 0.f)),
+                    FVector(ChannelValue(Parameter.Translation[0], Frame, bPreferDefault, 0.f), ChannelValue(Parameter.Translation[1], Frame, bPreferDefault, 0.f), ChannelValue(Parameter.Translation[2], Frame, bPreferDefault, 0.f)),
+                    FVector(ChannelValue(Parameter.Scale[0], Frame, bPreferDefault, 1.f), ChannelValue(Parameter.Scale[1], Frame, bPreferDefault, 1.f), ChannelValue(Parameter.Scale[2], Frame, bPreferDefault, 1.f)));
+            };
+            FEulerTransform Euler;
+            if (FMath::IsNearlyZero(Alpha)) { Euler = EvaluateEuler(SampleTime.FrameNumber, false); }
+            else
+            {
+                const FTransform From = EvaluateEuler(SampleTime.FloorToFrame(), true).ToFTransform();
+                const FTransform To = EvaluateEuler(SampleTime.CeilToFrame(), true).ToFTransform();
+                FTransform Blended;
+                Blended.Blend(From, To, Alpha);
+                Euler = FEulerTransform(Blended);
+            }
+            ChannelControls.Add(Parameter.ParameterName, FRigControlValue::Make<FRigControlValue::FEulerTransform_Float>(FRigControlValue::FEulerTransform_Float(Euler)).GetAsTransform(ERigControlType::EulerTransform, ERigControlAxis::X));
+        }
+        TArray<TSharedPtr<FJsonValue>> Bones;
+        Hierarchy->ForEach<FRigBoneElement>([&](const FRigBoneElement* Bone)
+        {
+            const FRigElementKey Key = Bone->GetKey();
+            TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+            Value->SetStringField(TEXT("name"), Key.Name.ToString());
+            Value->SetStringField(TEXT("parent"), Hierarchy->GetFirstParent(Key).Name.ToString());
+            Value->SetObjectField(TEXT("bone_local"), CaptureTransform(Hierarchy->GetLocalTransform(Key)));
+            Value->SetObjectField(TEXT("bone_initial_local"), CaptureTransform(Hierarchy->GetInitialLocalTransform(Key)));
+            const FRigElementKey ControlKey(UFKControlRig::GetControlName(Key.Name, Key.Type), ERigElementType::Control);
+            if (const FTransform* Replayed = ChannelControls.Find(ControlKey.Name))
+            {
+                Value->SetObjectField(TEXT("native_channel_control"), CaptureTransform(*Replayed));
+                const FReferenceSkeleton& Reference = Sequence.GetSkeleton()->GetReferenceSkeleton();
+                const int32 SkeletonIndex = Reference.FindBoneIndex(Key.Name);
+                const FCompactPoseBoneIndex CompactIndex = RequiredBones.GetCompactPoseIndexFromSkeletonPoseIndex(FSkeletonPoseBoneIndex(SkeletonIndex));
+                FTransform ReplayedBone = Hierarchy->GetLocalTransform(Key);
+                ReplayedBone.NormalizeRotation();
+                Value->SetObjectField(TEXT("normalized_bone"), CaptureTransform(ReplayedBone));
+                Value->SetNumberField(TEXT("retarget_mode"), Sequence.GetSkeleton()->GetBoneTranslationRetargetingMode(SkeletonIndex));
+                FAnimationRuntime::RetargetBoneTransform(Sequence.GetSkeleton(), Sequence.GetRetargetTransformsSourceName(), Sequence.GetRetargetTransforms(), ReplayedBone, SkeletonIndex, CompactIndex, RequiredBones, false);
+                Value->SetObjectField(TEXT("retargeted_bone"), CaptureTransform(ReplayedBone));
+            }
+            FRigControlElement* Control = Hierarchy->Find<FRigControlElement>(ControlKey);
+            if (Control != nullptr)
+            {
+                Value->SetObjectField(TEXT("control_local"), CaptureTransform(Hierarchy->GetLocalTransform(ControlKey)));
+                Value->SetObjectField(TEXT("control_offset_local"), CaptureTransform(Hierarchy->GetControlOffsetTransform(Control, ERigTransformType::InitialLocal)));
+            }
+            Bones.Add(MakeShared<FJsonValueObject>(Value));
+            return true;
+        });
+        Result->SetArrayField(TEXT("bones"), Bones);
+    }
+    return Result;
+}
+
 TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& RequestPath)
 {
     UAnimSequence* Sequence = Cast<UAnimSequence>(Asset);
@@ -1993,6 +2084,10 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
     Request->TryGetBoolField(TEXT("root_track_only"), bRootTrackOnly);
     bool bAnimationPose = false;
     Request->TryGetBoolField(TEXT("animation_pose"), bAnimationPose);
+    bool bCaptureSourceStages = false;
+    if (Request->HasField(TEXT("capture_source_stages")) &&
+        (Request->TryGetField(TEXT("capture_source_stages"))->Type != EJson::Boolean || !Request->TryGetBoolField(TEXT("capture_source_stages"), bCaptureSourceStages))) { return nullptr; }
+    if (bCaptureSourceStages && !bAnimationPose) { return nullptr; }
     bool bPrepareCompressed = false;
     if (Request->HasField(TEXT("prepare_compressed")) &&
         (Request->TryGetField(TEXT("prepare_compressed"))->Type != EJson::Boolean || !Request->TryGetBoolField(TEXT("prepare_compressed"), bPrepareCompressed))) { return nullptr; }
@@ -2036,7 +2131,30 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
             const FAnimExtractContext ExtractionContext(Time, false);
             Frame->SetBoolField(TEXT("compressed_data_valid"), Sequence->IsCompressedDataValid());
             Frame->SetStringField(TEXT("pose_evaluation_mode"), FSequencePoseAccess::UsesRawData(*Sequence, RequiredBones, ExtractionContext) ? TEXT("raw_model") : TEXT("compressed"));
+            if (bCaptureSourceStages && !FSequencePoseAccess::UsesRawData(*Sequence, RequiredBones, ExtractionContext)) { return nullptr; }
             Sequence->GetAnimationPose(PoseData, ExtractionContext);
+            if (bCaptureSourceStages)
+            {
+                const TSharedPtr<FJsonObject> Stages = CaptureSequenceRigStages(*Sequence, Time, RequiredBones);
+                if (!Stages.IsValid()) { return nullptr; }
+                FCSPose<FCompactPose> ComponentPose;
+                ComponentPose.InitPose(Pose);
+                TArray<TSharedPtr<FJsonValue>> VirtualReplay;
+                for (const FVirtualBoneCompactPoseData& Virtual : RequiredBones.GetVirtualBoneCompactPoseData())
+                {
+                    TSharedRef<FJsonObject> ReplayItem = MakeShared<FJsonObject>();
+                    const FSkeletonPoseBoneIndex SkeletonIndex = RequiredBones.GetSkeletonPoseIndexFromCompactPoseIndex(Virtual.VBIndex);
+                    ReplayItem->SetStringField(TEXT("name"), Skeleton.GetBoneName(SkeletonIndex.GetInt()).ToString());
+                    const FTransform Source = ComponentPose.GetComponentSpaceTransform(Virtual.SourceIndex);
+                    const FTransform Target = ComponentPose.GetComponentSpaceTransform(Virtual.TargetIndex);
+                    ReplayItem->SetObjectField(TEXT("source_component"), CaptureTransform(Source));
+                    ReplayItem->SetObjectField(TEXT("target_component"), CaptureTransform(Target));
+                    ReplayItem->SetObjectField(TEXT("relative"), CaptureTransform(Target.GetRelativeTransform(Source)));
+                    VirtualReplay.Add(MakeShared<FJsonValueObject>(ReplayItem));
+                }
+                Stages->SetArrayField(TEXT("post_pose_virtual_replay"), VirtualReplay);
+                Frame->SetObjectField(TEXT("source_stages"), Stages.ToSharedRef());
+            }
             TSharedRef<FJsonObject> Curves = MakeShared<FJsonObject>();
             Curve.ForEachElement([&Curves](const UE::Anim::FCurveElement& Element)
             {
