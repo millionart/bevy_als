@@ -2090,6 +2090,11 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
         !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Request) ||
         !Request->TryGetArrayField(TEXT("players"), Players) || Players->IsEmpty() || Players->Num() > 16 ||
         !Request->TryGetArrayField(TEXT("samples"), Samples) || Samples->IsEmpty() || Samples->Num() > 512) { return nullptr; }
+    bool bCapturePose = false;
+    if (Request->HasField(TEXT("capture_pose")) &&
+        (Request->TryGetField(TEXT("capture_pose"))->Type != EJson::Boolean || !Request->TryGetBoolField(TEXT("capture_pose"), bCapturePose))) { return nullptr; }
+    TArray<FBoneContainer> RequiredBones;
+    if (bCapturePose) { RequiredBones.SetNum(Players->Num()); }
     TArray<UAnimationAsset*> Assets;
     TArray<float> Starts, Rates, AssetRates;
     TArray<FVector> BlendPositions;
@@ -2107,6 +2112,7 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
         UAnimSequenceBase* Sequence = Cast<UAnimSequenceBase>(AnimationAsset);
         UBlendSpace* BlendSpace = Cast<UBlendSpace>(AnimationAsset);
         if (Sequence == nullptr && BlendSpace == nullptr) { return nullptr; }
+        if (bCapturePose && Cast<UAnimSequence>(AnimationAsset) == nullptr && BlendSpace == nullptr) { return nullptr; }
         if (Sequence != nullptr && (Sequence->GetPlayLength() <= 0.0f || Start > Sequence->GetPlayLength() ||
             !FMath::IsFinite(Sequence->RateScale))) { return nullptr; }
         FVector BlendPosition = FVector::ZeroVector;
@@ -2150,6 +2156,16 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
                 MarkerValues.Add(MakeShared<FJsonValueObject>(MarkerValue));
             }
             Info->SetArrayField(TEXT("markers"), MarkerValues);
+        }
+        if (bCapturePose)
+        {
+            USkeleton* Skeleton = AnimationAsset->GetSkeleton();
+            if (Skeleton == nullptr || Skeleton->GetReferenceSkeleton().GetNum() == 0) { return nullptr; }
+            TArray<FBoneIndexType> BoneIndices;
+            for (int32 Index = 0; Index < Skeleton->GetReferenceSkeleton().GetNum(); ++Index) { BoneIndices.Add(Index); }
+            RequiredBones[Assets.Num() - 1].InitializeTo(BoneIndices, UE::Anim::FCurveFilterSettings(), *Skeleton);
+            Info->SetStringField(TEXT("pose_skeleton"), ObjectPath(Skeleton));
+            Info->SetNumberField(TEXT("pose_bone_count"), BoneIndices.Num());
         }
         PlayerInfo.Add(MakeShared<FJsonValueObject>(Info));
     }
@@ -2315,6 +2331,55 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
                         SampleValues.Add(MakeShared<FJsonValueObject>(SampleValue));
                     }
                     Clock->SetArrayField(TEXT("samples"), SampleValues);
+                }
+                if (bCapturePose)
+                {
+                    Clock->SetField(TEXT("pose"), MakeShared<FJsonValueNull>());
+                    if ((*Weights)[Index]->Type != EJson::Null)
+                    {
+                        FMemMark PoseMark(FMemStack::Get());
+                        FCompactPose Pose;
+                        FBlendedCurve Curve;
+                        UE::Anim::FStackAttributeContainer Attributes;
+                        Pose.SetBoneContainer(&RequiredBones[Index]);
+                        Curve.InitFrom(RequiredBones[Index]);
+                        FAnimationPoseData PoseData(Pose, Curve, Attributes);
+                        const FAnimExtractContext ExtractionContext(Times[Index], false, Deltas[Index], Loops[Index]);
+                        if (const UBlendSpace* BlendSpace = Cast<UBlendSpace>(Assets[Index]))
+                        {
+                            BlendSpace->GetAnimationPose(BlendSamples[Index], ExtractionContext, PoseData);
+                        }
+                        else
+                        {
+                            CastChecked<UAnimSequenceBase>(Assets[Index])->GetAnimationPose(PoseData, ExtractionContext);
+                        }
+                        TSharedRef<FJsonObject> PoseObject = MakeShared<FJsonObject>();
+                        TSharedRef<FJsonObject> Curves = MakeShared<FJsonObject>();
+                        bool bFiniteCurves = true;
+                        Curve.ForEachElement([&Curves, &bFiniteCurves](const UE::Anim::FCurveElement& Element)
+                        {
+                            bFiniteCurves &= FMath::IsFinite(Element.Value);
+                            Curves->SetNumberField(Element.Name.ToString(), Element.Value);
+                        });
+                        if (!bFiniteCurves) { return nullptr; }
+                        PoseObject->SetObjectField(TEXT("curves"), Curves);
+                        TArray<TSharedPtr<FJsonValue>> Bones;
+                        const FReferenceSkeleton& Skeleton = Assets[Index]->GetSkeleton()->GetReferenceSkeleton();
+                        for (int32 BoneIndex = 0; BoneIndex < Skeleton.GetNum(); ++BoneIndex)
+                        {
+                            const FCompactPoseBoneIndex Compact = RequiredBones[Index].GetCompactPoseIndexFromSkeletonPoseIndex(FSkeletonPoseBoneIndex(BoneIndex));
+                            if (Compact.GetInt() == INDEX_NONE) { return nullptr; }
+                            const FTransform Transform = Pose[Compact];
+                            if (Transform.ContainsNaN()) { return nullptr; }
+                            TSharedRef<FJsonObject> Bone = MakeShared<FJsonObject>();
+                            Bone->SetStringField(TEXT("name"), Skeleton.GetBoneName(BoneIndex).ToString());
+                            Bone->SetNumberField(TEXT("parent_index"), Skeleton.GetParentIndex(BoneIndex));
+                            Bone->SetObjectField(TEXT("local_transform"), CaptureTransform(Transform));
+                            Bones.Add(MakeShared<FJsonValueObject>(Bone));
+                        }
+                        PoseObject->SetArrayField(TEXT("bones"), Bones);
+                        Clock->SetObjectField(TEXT("pose"), PoseObject);
+                    }
                 }
                 Clocks.Add(MakeShared<FJsonValueObject>(Clock));
             }
