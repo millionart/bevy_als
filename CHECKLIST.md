@@ -1953,6 +1953,15 @@
 
   - 03:17 完成摘要：fresh主AB与Head6节点/5边、3绑定/2回调和Look三sample身份闭合；同owner actual240份Root→caller→linked input骨骼/presence/曲线/时点全等，旧240/warm及全部case metadata精确。77原packet/6083骨骼原样进入Head，0target回填；五边界反例、owner断言物理移除失败/源码字节恢复同解释器输出字节保持。观察移除/字节恢复同target两次重编与完整双比较通过，后者105.104秒在120/30限内完成，无新运行时视觉Gate。1651身份键/114 ALS/184 Rust/reader/原资产/转换器/生产库保持，Gate `target/bf144/240/summary.json` PASS_ORIGINAL_LAYERING_TO_HEAD_INPUT_BOUNDARY。实际结束：2026-10-23 03:17:00 +08:00；实耗7分45秒，较预估提前27分15秒。新增0，累计239（115P2/124P3）；Head原叶采样/内部Apply尚未过，完整feedback/custom attributes/Curves活动montage/Rig与180恢复继续开。截图0、性能暂停。
 
+- [x] BF144.241 Head Look原始采样与加性输入：依赖.240 fresh Head/Look闭包和原77入口，沿BS_Als_Look三个source样本读取本次资产/压缩/加性配置，以actual pitch0/yaw0.5的真实sample时间/权重和两回调pose passthrough构成原Head Additive77。未访问Down/Up只清点其source身份及必要配置，不以当前Forward覆盖整轴；共同Head动态参数保持的限制继续显式保留。Gate：fresh源叶/normalized时间与sample选择合同、当前公共采样/已有完整actor记录、原77加性输入0target回填、最小采样边界/消融恢复同target、身份。先不做Head Apply/Rig或原反馈。开始：2026-10-23 03:17:30 +08:00；预估结束：2026-10-23 03:52:30 +08:00。估时依据：.228叶/clock约9分钟、.229原混合约20分钟，当前3身份/1actual sample及两copy回调，35分钟确认源压缩/加性语义后采样；如读取能力不足先补工具而非手填。仅审计，生产/转换器/原资产不改，截图0、性能暂停。
+  - 03:17 活动摘要：.240提交8eace164，239（115P2/124P3）；actual Head参数0/0.5/1、仅Forward更新已证，原Layering→Head输入77可用。下一必要输入为Look sample/两回调，不复开已完成.67通用Head算法，不将共同参数等价当完整反馈证据。
+
+  - 03:24 source/观察纠正摘要：fresh三Look叶均1秒/mesh加性/StandPose frame0参考，原native BS在pitch0/normalized0.5仅Forward权重1、time0.5、compressed。source BlendPosesTogether单输入copy后BS末normalize一次，独立既有NEON模型79骨骼逐值精确；不能把inner与最终pose的79个旋转差误记新差异。新观察先前3次Clip类型路径/private字段编译失败保留排除，删除不必要的reference资产运行时访问；首actor public单pose重放误沿用leaf时间0.5，而生产Normalized节点明确输出graph_time（实际0.36666…），失败报告排除，重放按该时间协议单独核通道，不改生产。回调全pose/time copy合同保留；当前修正编译后才重取同一actor，239、截图0、性能暂停。
+
+  - 03:27 原Head Additive闭环摘要：修正观察后完整240/warm及全部case metadata精确，public单pose通道重放240次、两回调完整copy480次通过，teleport无asset notify sample。原生Forward 0/.5/1秒compressed各79骨骼，.5与BS child逐值精确；single copy+源末一次normalize与whole native79骨骼精确，略去该步骤改变79骨骼，错0/1秒各改变67骨骼。按固定Head参数生成77原Additive/6083骨骼、0target回填；原Scale全0，当前4851个缺省Scale单独记录（零加性表示），共享通道余差T/Q/S5313/5775/1232保留组合来源，不新增归因。物理去source normalize合同稳定失败/字节恢复同解释器原输出字节保持，观察移除/恢复同target运行通过，完整三历史单遍比较与身份待过；239、截图0、性能暂停。
+
+  - 03:29 完成摘要：fresh三Look叶mesh加性/参考配置与实际Forward半秒compressed取样闭合，native child与direct半秒全79骨骼精确，whole BS由single copy+末一次source normalize逐值恢复。原77加性输入/6083骨骼0target回填，错0/1秒各改变67骨骼、删source normalize改变79骨骼，物理消融稳定失败/源码字节恢复同解释器原数据字节保持。240次current公共混合通道重放、480 callback完整copy、完整240/warm/所有metadata保持；观察去除/恢复源码同target重编及三历史单遍60.174秒全等。3次Clip访问编译错误及首timestamp控制失败留存排除，修正仅观察器；1673身份键/114 ALS/184 Rust/reader/原资产/转换器/生产库保持。Gate `target/bf144/241/summary.json` PASS_ORIGINAL_HEAD_LOOK_ADDITIVE_INPUT_PREFIX。实际结束：2026-10-23 03:28:59 +08:00；实耗11分29秒，较预估提前23分31秒。新增0，累计239（115P2/124P3）；Head Apply/Root、原feedback/custom attributes、Down/Up历史、Rig和180恢复仍开，下一仅Head Apply/Root。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D241 / P3 — Mesh加性在还原局部空间前单位化组件旋转，改变源运算阶段。
