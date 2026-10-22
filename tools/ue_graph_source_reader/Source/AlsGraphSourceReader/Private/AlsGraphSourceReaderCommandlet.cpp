@@ -15,6 +15,7 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimSync.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/BoxComponent.h"
 #include "Animation/AnimClassInterface.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
 #include "Animation/AnimNode_SaveCachedPose.h"
@@ -3748,6 +3749,200 @@ TSharedPtr<FJsonObject> CaptureRigPoseTransferProbe(UObject* Asset, const FStrin
     return Result;
 }
 
+TSharedPtr<FJsonObject> CaptureRigNodeHistoryProbe(UObject* Asset, const FString& RequestPath)
+{
+    FMemMark Mark(FMemStack::Get());
+    UBlueprint* Blueprint = Cast<UBlueprint>(Asset);
+    UAnimBlueprintGeneratedClass* Class = Blueprint != nullptr ? Cast<UAnimBlueprintGeneratedClass>(Blueprint->GeneratedClass) : nullptr;
+    const IAnimClassInterface* Interface = Class != nullptr ? IAnimClassInterface::GetFromClass(Class) : nullptr;
+    FString Text, GuidTextValue, MeshPath;
+    FGuid Guid;
+    TSharedPtr<FJsonObject> Request;
+    const TArray<TSharedPtr<FJsonValue>>* Names = nullptr;
+    const TArray<TSharedPtr<FJsonValue>>* Cases = nullptr;
+    if (Interface == nullptr || !FFileHelper::LoadFileToString(Text, *RequestPath) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Request) ||
+        !Request->TryGetStringField(TEXT("node_guid"), GuidTextValue) || !FGuid::Parse(GuidTextValue, Guid) || !Guid.IsValid() ||
+        !Request->TryGetStringField(TEXT("mesh_asset"), MeshPath) || !Request->TryGetArrayField(TEXT("bone_names"), Names) ||
+        !Request->TryGetArrayField(TEXT("cases"), Cases) || Cases->IsEmpty() || Cases->Num() > 32) { return nullptr; }
+    USkeletalMesh* MeshAsset = LoadObject<USkeletalMesh>(nullptr, *MeshPath);
+    if (MeshAsset == nullptr || MeshAsset->GetSkeleton() != Interface->GetTargetSkeleton()) { return nullptr; }
+    const FReferenceSkeleton& Reference = MeshAsset->GetRefSkeleton();
+    if (Names->Num() != Reference.GetNum()) { return nullptr; }
+    TArray<FBoneIndexType> Bones;
+    for (int32 Index = 0; Index < Names->Num(); ++Index)
+    {
+        FString Name;
+        if (!(*Names)[Index]->TryGetString(Name) || Name != Reference.GetBoneName(Index).ToString()) { return nullptr; }
+        Bones.Add(Index);
+    }
+    const int32* NodeIndex = Class->GetNodePropertyIndexFromGuid(Guid);
+    const TArray<FStructProperty*>& Properties = Interface->GetAnimNodeProperties();
+    const int32 PropertyIndex = NodeIndex != nullptr ? Properties.Num() - 1 - *NodeIndex : INDEX_NONE;
+    if (!Properties.IsValidIndex(PropertyIndex) || Properties[PropertyIndex]->Struct != FAnimNode_ControlRig::StaticStruct()) { return nullptr; }
+    const UEdGraphNode* Visual = Class->GetVisualNodeFromNodePropertyIndex(PropertyIndex);
+    if (Visual == nullptr || Visual->NodeGuid != Guid) { return nullptr; }
+    struct FNodeAccess : FAnimNode_ControlRig
+    {
+        static void SetSource(FAnimNode_ControlRig& Node, FAnimNode_Base* Leaf) { (Node.*&FNodeAccess::Source).SetLinkNode(Leaf); }
+        static bool AdapterReady(const FAnimNode_ControlRig& Node) { return (Node.*&FNodeAccess::ControlRigHierarchyMappings).CheckPoseAdapter(); }
+        static bool AdapterEnabled(const FAnimNode_ControlRig& Node) { return (Node.*&FNodeAccess::ControlRigHierarchyMappings).IsPoseAdapterEnabled(); }
+    };
+    struct FProbeProxy : FAnimInstanceProxy { using FAnimInstanceProxy::FAnimInstanceProxy; using FAnimInstanceProxy::Initialize; };
+    const auto ReadVector = [](const TSharedPtr<FJsonObject>& Object, const TCHAR* Key, FVector& Vector)
+    {
+        const TArray<TSharedPtr<FJsonValue>>* Array = nullptr;
+        double Values[3];
+        if (!Object->TryGetArrayField(Key, Array) || Array->Num() != 3) { return false; }
+        for (int32 Index = 0; Index < 3; ++Index) { if (!(*Array)[Index]->TryGetNumber(Values[Index]) || !FMath::IsFinite(Values[Index])) { return false; } }
+        Vector = FVector(Values[0], Values[1], Values[2]);
+        return true;
+    };
+    TArray<TSharedPtr<FJsonValue>> CaseRows;
+    for (const TSharedPtr<FJsonValue>& CaseValue : *Cases)
+    {
+        const TSharedPtr<FJsonObject>* Case = nullptr;
+        const TArray<TSharedPtr<FJsonValue>>* Frames = nullptr;
+        FString CaseName;
+        FVector HalfExtents, BoxLocation;
+        if (!CaseValue->TryGetObject(Case) || !(*Case)->TryGetStringField(TEXT("name"), CaseName) || CaseName.IsEmpty() ||
+            !(*Case)->TryGetArrayField(TEXT("frames"), Frames) || Frames->IsEmpty() || Frames->Num() > 600 ||
+            !ReadVector(*Case, TEXT("box_half_extents_cm"), HalfExtents) || HalfExtents.GetMin() <= 0.0 ||
+            !ReadVector(*Case, TEXT("box_location_cm"), BoxLocation)) { return nullptr; }
+        UWorld::InitializationValues Settings;
+        Settings.AllowAudioPlayback(false).RequiresHitProxies(false).CreatePhysicsScene(true).ShouldSimulatePhysics(false).CreateNavigation(false).CreateAISystem(false).CreateFXSystem(false).SetTransactional(false);
+        UWorld* World = UWorld::CreateWorld(EWorldType::Game, false, NAME_None, nullptr, true, ERHIFeatureLevel::Num, &Settings);
+        if (World == nullptr) { return nullptr; }
+        ON_SCOPE_EXIT { World->DestroyWorld(false); };
+        AActor* Floor = World->SpawnActor<AActor>();
+        AActor* Owner = World->SpawnActor<AActor>();
+        if (Floor == nullptr || Owner == nullptr) { return nullptr; }
+        UBoxComponent* Box = NewObject<UBoxComponent>(Floor);
+        Floor->SetRootComponent(Box);
+        Floor->AddInstanceComponent(Box);
+        Box->SetBoxExtent(HalfExtents);
+        Box->SetWorldLocation(BoxLocation);
+        Box->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+        Box->SetCollisionResponseToAllChannels(ECR_Block);
+        Box->GetBodySetup()->CollisionTraceFlag = CTF_UseSimpleAsComplex;
+        Box->RegisterComponent();
+        USkeletalMeshComponent* Mesh = NewObject<USkeletalMeshComponent>(Owner);
+        Owner->SetRootComponent(Mesh);
+        Owner->AddInstanceComponent(Mesh);
+        Mesh->SetSkeletalMeshAsset(MeshAsset);
+        Mesh->RegisterComponent();
+        UAnimInstance* Instance = NewObject<UAnimInstance>(Mesh, Class);
+        FProbeProxy Proxy(Instance);
+        Proxy.Initialize(Instance);
+        Proxy.GetRequiredBones().InitializeTo(Bones, UE::Anim::FCurveFilterSettings(), *MeshAsset);
+        Instance->GetRequiredBones().InitializeTo(Bones, UE::Anim::FCurveFilterSettings(), *MeshAsset);
+        FAnimNode_ControlRig& Node = *Properties[PropertyIndex]->ContainerPtrToValuePtr<FAnimNode_ControlRig>(Instance);
+        FSourcePoseProbeLeaf Leaf;
+        FNodeAccess::SetSource(Node, &Leaf);
+        Node.OnInitializeAnimInstance(&Proxy, Instance);
+        UControlRig* Rig = Node.GetControlRig();
+        if (Rig == nullptr) { return nullptr; }
+        TArray<TSharedPtr<FJsonValue>> Executions;
+        int32 Constructed = 0, Forward = 0;
+        Rig->OnExecuted_AnyThread().AddLambda([&Executions](URigVMHost* Host, const FName& Event)
+        {
+            const FRigVMExtendedExecuteContext& Context = Host->GetRigVMExtendedExecuteContext();
+            TSharedRef<FJsonObject> Execution = MakeShared<FJsonObject>();
+            Execution->SetStringField(TEXT("entry"), Event.ToString());
+            Execution->SetBoolField(TEXT("succeeded"), Context.CurrentExecuteResult == ERigVMExecuteResult::Succeeded);
+            TArray<TSharedPtr<FJsonValue>> Visited;
+#if WITH_EDITOR
+            if (const FRigVMInstructionVisitInfo* Info = Context.GetRigVMInstructionVisitInfo()) { for (int32 Instruction : Info->GetInstructionVisitOrder()) { Visited.Add(MakeShared<FJsonValueNumber>(Instruction)); } }
+#endif
+            Execution->SetArrayField(TEXT("instructions"), Visited);
+            Executions.Add(MakeShared<FJsonValueObject>(Execution));
+        });
+        Rig->OnPostConstruction_AnyThread().AddLambda([&Constructed](UControlRig*, const FName&) { ++Constructed; });
+        Rig->OnPostForwardsSolve_AnyThread().AddLambda([&Forward](UControlRig*, const FName&) { ++Forward; });
+        ON_SCOPE_EXIT
+        {
+            Rig->OnExecuted_AnyThread().Clear();
+            Rig->OnPostConstruction_AnyThread().Clear();
+            Rig->OnPostForwardsSolve_AnyThread().Clear();
+        };
+        Node.Initialize_AnyThread(FAnimationInitializeContext(&Proxy));
+        Node.CacheBones_AnyThread(FAnimationCacheBonesContext(&Proxy));
+        if (!FNodeAccess::AdapterReady(Node) || !FNodeAccess::AdapterEnabled(Node)) { return nullptr; }
+        TArray<TSharedPtr<FJsonValue>> Rows;
+        for (const TSharedPtr<FJsonValue>& FrameValue : *Frames)
+        {
+            const TSharedPtr<FJsonObject>* Frame = nullptr;
+            const TSharedPtr<FJsonObject>* Variables = nullptr;
+            double Delta;
+            FString Name;
+            FVector Start, End;
+            if (!FrameValue->TryGetObject(Frame) || !(*Frame)->TryGetStringField(TEXT("name"), Name) || Name.IsEmpty() ||
+                !(*Frame)->TryGetNumberField(TEXT("delta_seconds"), Delta) || !FMath::IsFinite(static_cast<float>(Delta)) || Delta < 0.0 || Delta > 0.25 ||
+                !(*Frame)->TryGetObjectField(TEXT("variables"), Variables) || !(*Frame)->HasField(TEXT("pose")) ||
+                !ReadVector(*Frame, TEXT("reference_ray_start_cm"), Start) || !ReadVector(*Frame, TEXT("reference_ray_end_cm"), End)) { return nullptr; }
+            Leaf.Transforms.Reset();
+            Leaf.Curves.Reset();
+            if (!ReadSourcePoseProbeLeaf(Reference, (*Frame)->TryGetField(TEXT("pose")), Leaf)) { return nullptr; }
+            Node.Update_AnyThread(FAnimationUpdateContext(&Proxy, static_cast<float>(Delta)));
+            for (const auto& Variable : (*Variables)->Values)
+            {
+                FString Value;
+                if (!Variable.Value->TryGetString(Value) || !Rig->SetVariableFromString(FName(*Variable.Key), Value)) { return nullptr; }
+            }
+            TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>();
+            Row->SetStringField(TEXT("name"), Name);
+            Row->SetNumberField(TEXT("rig_id"), Node.GetControlRig()->GetUniqueID());
+            Row->SetNumberField(TEXT("delta_seconds_after_update"), Rig->GetDeltaTime());
+            Row->SetNumberField(TEXT("leaf_update_weight"), Leaf.UpdateWeight);
+            FPoseContext Before(&Proxy), After(&Proxy);
+            Leaf.Evaluate_AnyThread(Before);
+            Row->SetObjectField(TEXT("before"), CaptureCompactPose(Before.Pose, Before.Curve));
+            Node.Evaluate_AnyThread(After);
+            Row->SetObjectField(TEXT("after"), CaptureCompactPose(After.Pose, After.Curve));
+            Row->SetNumberField(TEXT("attribute_count"), After.CustomAttributes.Num());
+            Row->SetNumberField(TEXT("forward_events"), Forward);
+            Row->SetNumberField(TEXT("construction_events"), Constructed);
+            FHitResult Hit;
+            const bool bHit = World->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, FCollisionQueryParams(NAME_None, true, Owner));
+            TSharedRef<FJsonObject> Query = MakeShared<FJsonObject>();
+            Query->SetBoolField(TEXT("blocking_hit"), bHit && Hit.bBlockingHit);
+            Query->SetObjectField(TEXT("impact_point_cm"), CaptureVector(Hit.ImpactPoint));
+            Query->SetObjectField(TEXT("impact_normal"), CaptureVector(Hit.ImpactNormal));
+            Row->SetObjectField(TEXT("reference_query_after_forward"), Query);
+            TSharedRef<FJsonObject> VariablesAfter = MakeShared<FJsonObject>();
+            for (const FRigVMExternalVariable& Variable : Rig->GetExternalVariables())
+            {
+                TSharedRef<FJsonObject> VariableRow = MakeShared<FJsonObject>();
+                VariableRow->SetStringField(TEXT("value"), Rig->GetVariableAsString(Variable.GetName()));
+                if (const FStructProperty* Struct = CastField<FStructProperty>(Variable.GetProperty())) { VariableRow->SetArrayField(TEXT("fields"), CaptureProperties(Struct->Struct, Variable.GetMemory(), Rig)); }
+                else if (const FNumericProperty* Numeric = CastField<FNumericProperty>(Variable.GetProperty()); Numeric != nullptr && Numeric->IsFloatingPoint()) { VariableRow->SetNumberField(TEXT("numeric_value"), Numeric->GetFloatingPointPropertyValue(Variable.GetMemory())); }
+                VariablesAfter->SetObjectField(Variable.GetName().ToString(), VariableRow);
+            }
+            Row->SetObjectField(TEXT("externals_after"), VariablesAfter);
+            const FRigVMMemoryStorageStruct* Work = Rig->GetVM()->GetWorkMemory(Rig->GetRigVMExtendedExecuteContext());
+            if (Work == nullptr) { return nullptr; }
+            Row->SetObjectField(TEXT("work_after"), CaptureRigMemory(*Work, Rig));
+            Row->SetArrayField(TEXT("executions"), Executions);
+            Executions.Reset();
+            Rows.Add(MakeShared<FJsonValueObject>(Row));
+            UE_LOG(LogAlsGraphSourceReader, Display, TEXT("Rig node history %s frame %d/%d captured."), *CaseName, Rows.Num(), Frames->Num());
+        }
+        TSharedRef<FJsonObject> CaseRow = MakeShared<FJsonObject>();
+        CaseRow->SetStringField(TEXT("name"), CaseName);
+        CaseRow->SetBoolField(TEXT("game_world"), Rig->GetWorld() == World && World->IsGameWorld());
+        CaseRow->SetBoolField(TEXT("bound_component"), Rig->GetObjectBinding().IsValid() && Rig->GetObjectBinding()->GetBoundObject() == Mesh);
+        CaseRow->SetBoolField(TEXT("adapter_enabled"), FNodeAccess::AdapterEnabled(Node));
+        CaseRow->SetBoolField(TEXT("adapter_ready"), FNodeAccess::AdapterReady(Node));
+        CaseRow->SetObjectField(TEXT("mesh_to_world"), CaptureTransform(Mesh->GetComponentTransform()));
+        CaseRow->SetStringField(TEXT("external_controls_stage"), TEXT("after_update_before_evaluate"));
+        CaseRow->SetArrayField(TEXT("frames"), Rows);
+        CaseRows.Add(MakeShared<FJsonValueObject>(CaseRow));
+    }
+    TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+    Result->SetStringField(TEXT("node_property"), Properties[PropertyIndex]->GetName());
+    Result->SetArrayField(TEXT("cases"), CaseRows);
+    return Result;
+}
+
 TSharedPtr<FJsonObject> CaptureRigLifecycleProbe(UObject* Asset, const FString& RequestPath)
 {
     struct FConstructionProbe : FAnimNode_ControlRigBase
@@ -5509,6 +5704,13 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
         const TSharedPtr<FJsonObject> Probe = CaptureAnimationAttributeProbe(AnimationAttributeProbePath);
         if (!Probe.IsValid()) { return 7; }
         Root->SetObjectField(TEXT("animation_attribute_probe"), Probe.ToSharedRef());
+    }
+    FString RigNodeHistoryProbePath;
+    if (FParse::Value(*Params, TEXT("RigNodeHistoryProbe="), RigNodeHistoryProbePath))
+    {
+        const TSharedPtr<FJsonObject> Probe = CaptureRigNodeHistoryProbe(Asset, RigNodeHistoryProbePath);
+        if (!Probe.IsValid()) { return 7; }
+        Root->SetObjectField(TEXT("rig_node_history_probe"), Probe.ToSharedRef());
     }
     FString RigPoseTransferProbePath;
     if (FParse::Value(*Params, TEXT("RigPoseTransferProbe="), RigPoseTransferProbePath))
