@@ -1790,6 +1790,15 @@
 
   - 21:24 完成摘要：fresh重新读取Locomotion原蓝图确认slot→Grounded Input→Save Grounded及3声明use；当前77仅Grounded use实际更新，slot/linked/save/use全部pose/curve/time与owner-key精确。77原slot/6083骨骼curves按真实context运输0target补值，missing-owner控制稳定拒绝并字节恢复运输精确。主FSM仅身份库存：5初始Land→Grounded转场+72 Grounded，无missing实际root，5个原Land输入必须下一项补齐，未宣称FSM数值通过。观察物理移除/源码字节恢复/同target重编完整240/全部新增字段精确，1322身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持。Gate `target/bf144/218/summary.json` PASS_ORIGINAL_LOCOMOTION_LINKED_GROUNDED_CACHE_TRANSPORT。实际结束：2026-10-22 21:24:47 +08:00；实耗7分45秒，较预估提前22分15秒。新增0，累计236（115P2/121P3）；下一项5原Land输入与主FSM，后惯性/外层槽、180恢复与完整Root仍未通过。截图0、性能暂停。
 
+- [x] BF144.219 原Locomotion前5帧Land状态输入与source clock/data：依赖.218原Grounded cache77和5过渡端点身份，只沿Land b0e001c7的Light/Heavy两叶→9da73476 TwoWay→201df718 curves→RefreshRotateInPlace→StateResult，核fresh源选项、实际更新/alpha/采样clock与前置warm历史。先证明当前实际所用原叶与clock资格，再读prepared原pose/curve并构造5原Land StateResult，未触发叶只登记当前声明，不代入。Gate：source合同与真实producer身份、时钟和原data0target回填、实际sampler/curve/结果控制、必要最小观察消融/恢复及身份；Locomotion FSM混合与后惯性仍另续。开始：2026-10-22 21:25:57 +08:00；预估结束：2026-10-22 22:10:57 +08:00。估时依据：1个Land graph/5目标帧，.166/.173有Land公开时钟/pose工具、.218实际端点齐备，45分钟核warm/selected-leaf/source clock而不沿用旧同名case假设；必要闭包扩大则按依赖拆项。仅审计，生产/转换器/原始资产不改，截图0、性能暂停。
+  - 21:25 活动摘要：.218已提交，原77 Grounded输入可用，主T4(e2c227a6)前5帧需要Land原输入；fresh原Land含2序列、TwoWay、6条curve、回调和StateResult。先读实际选择与原clock，不从最终混合姿态倒算叶值。累计236（115P2/121P3）。
+
+  - 21:35 source/runtime闭环：warm历史实际为11份（graph frame编号从1计），仅末份首次Land；初版把graph frame11当12份而assert失败，已按真实数组/更新成员纠正，未改变历史。原Sequence Tick从0起6个1/30步与warm1+prefix5的position/previous/delta全精确，当前仅Light更新、Heavy不更新，source vertical映射alpha0。5个prepared原Light pose/395骨骼已读取，源TwoWay仅A直通、6曲线pin各1、回调/StateResult保持；当前生产sampler按真实clip/time重放5份精确，Light/TwoWay/后curve/root与主FSM Land端点逐项校准。5原Land StateResult/30曲线写入交付0target回填，814投影通道差/10曲线值差保留原数据D224边界。观察物理移除/字节恢复/同target重编收尾中，FSM最终blend未通过。236、截图0、性能暂停。
+
+  - 21:39 身份Gate验证路径纠正：完整观察移除/恢复比较已通过；身份扫描使用整文件read_bytes且全程无进度输出，触发30秒无进展watchdog并退出137，报告保留，不作哈希不一致或Gate通过。改用标准流式file_digest、先对小文件与原哈希算法校准，再每32键记录进展，120/30上限不变后重跑同1322身份集合，未缩减扫描。生产未改，236、截图0、性能暂停。
+
+  - 21:40 完成摘要：warm实际11份末帧首次Light更新，source从0起6步与warm1+prefix5全部clock字段精确；source AlphaInputType Float/always-update false/reset-child false且当前alpha0，Heavy未更新，TwoWay仅A直通。当前实际sampler5、Light/TwoWay、6后curve各1/其余保持、callback/StateResult与主FSM Land端点全部逐项校准；5原prepared Land/395骨骼及30曲线写入交付0target回填，814当前投影通道/10曲线值余差保留数据边界。观察物理移除/源码字节恢复/同target重编完整240及新增全部字段精确。身份首次整文件/无进度扫描触发30秒watchdog，失败不计Gate；标准流式哈希与每32键进度后同120/30上限扫描全部1334键通过，114 ALS/184 Rust/reader/原始资产/转换器/生产库保持。Gate `target/bf144/219/summary.json` PASS_ORIGINAL_FIVE_LAND_STATE_INPUTS。实际结束：2026-10-22 21:40:27 +08:00；实耗14分30秒，较预估提前30分30秒。新增0，累计236（115P2/121P3）；下一项Locomotion主FSM原5过渡+72直通数值，后惯性/外层、180恢复及完整Root仍未通过。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
