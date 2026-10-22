@@ -1445,6 +1445,51 @@
 
   - 15:45 完成摘要：新增通用raw_absolute_pose严格模式经原公开GetBonePose(forceRaw)，复用现有protected访问器/pose与RigStages自测，无图专用逻辑；六资产24绝对pose、1632 control/264 virtual replay通过，五sample20份delta/1580骨骼按共同完整raw参考frame0独立double复算f64精确。same-value生产差分的1224位置/1335旋转及四时间投影碰撞单列，原五clip各自raw绝对差峰值≤1.1920929e−7，共同参考的大差异由仅换参考数据控制独立确认D235/P3；没有猜测其历史导出来源。6非法native7及explicit false旧输出精确，raw绝对改回additive API使79骨骼失败，自动收缩使至少12行scale失败；源码/构建字节及同package arm64/同数学dylib恢复后原pose+stages/1580骨骼精确。默认universal的120秒无进展终止保留，未改共享入口或放宽上限；本机Gate按官方支持参数用arm64完成，不声明x64/Windows已执行。744身份键/114 ALS/184 Rust/生产库/原始资产不变，Gate `target/bf144/191/summary.json` PASS。实际结束：2026-10-22 15:45:56 +08:00；实耗19分56秒，较预估提前35分04秒。新增D235，累计233（115P2/118P3）；本项关闭该六资产/四时点的raw参考/差分边界，原source Base→Root和其他未审图仍打开，下一项按依赖继续。截图0、性能暂停。
 
+- [x] BF144.192 Movement规则六输入的源生产与实际发布：依赖.185/.186同输入规则/FSM历史、.191采样参考Gate，补齐明确后置的四MovementDirection布尔、HipsDirectionLock和FeetCrossing原始生产及帧阶段；fresh ALS RefreshGroundedMovement/RefreshMovementDirection/RefreshFeet与CalculateMovementDirection为source闭包，target仅追实际provider/发布器/曲线反馈与这16规则的消费者。先从.185真实规则全局读值、同10路径现有输入/曲线历史校准实际发布，再以相同速度yaw/View/rotation mode/gait/反馈曲线按源算法推导，不把实际target值回灌source oracle。已完成更下游Lean不猜测复开；原source Base→Root重建必须先用经验证的这些源规则条件。Gate：源生产表达式/生命周期合同、实际生产值→规则读取精确校准、独立源重算及声明边界控制、未知差异登记和身份；不修生产。开始：2026-10-22 15:48:00 +08:00；预估结束：2026-10-22 16:38:00 +08:00。估时依据：.18516规则输入消费与.186两机状态历史已有完整记录，.190缓存消费11分35秒；本项仅6字段/3直接source函数，计入owner/前帧曲线与yaw边界50分钟，不先扩展Layering/Root/Rig。截图0、性能暂停。
+  - 15:48 活动摘要：.185source规则只读4方向bool、HipsDirectionLock、FeetCrossing及已闭合recorded-state-weight；fresh ALS grounded producer先读HipsDirectionLock clamp[-1,1]，再以VelocityYawWorld−ViewYaw的float/unwind求direction，VelocityDirection或Sprinting强制Forward，其他用70°/5°源函数。target provider从已发布context曲线读取hips并发布bool，FeetCrossing另从Feet发布，需要核对同帧阶段和原始yaw输入。当前233（115P2/118P3），下一步只收集该六输入的实际生产来源和源生命周期，再复算。
+
+  - 15:51 输入取证路径：完整.190 regular JSON达1.14GB，单次一帧检查44秒无输出后只终止已确认的该Python进程并记录machine report；改用原.174已校准225MB历史，标准库按顶层case增量解码，每4MB/每case为进展，固定120/30 watchdog通过，提取2400行小型六输入/yaw/gait/prior-curve记录，不增加解析依赖。source grounded movement回调在两个stance为OnUpdate，target对应节点为带source_function标签的SourcePosePassthrough；尚不能仅凭名字判缺陷，当前provider确有数值发布。需要把正常grounded源公式/规则读取先校准，再单独检验回调未相关及Feet无效的保留边界；未凭此静态疑点新增编号。当前233，截图0、性能暂停。
+
+  - 15:54 帧域校准复盘：.185扁平rule events中的frame由node事件覆盖为GraphContext.frame_index，普通路径可超过240；不能按其≥240当作额外控制或截掉。已回读原观察器base()确认来源，当前2400行输入另保留snapshot.graph_frame，用(case,graph_frame)映射真实规则读取，外层actor frame仍独立保存。该修正仅诊断关联，不改生产，也不复开.185已过的同输入布尔算法；重新校准后才裁决六字段的生产差异。当前233，截图0、性能暂停。
+
+  - 15:55 正常历史与边界摘要：2400实际帧的4方向bool按源70°/5°、注入velocity yaw/View0及Sprint特例重算全过；hips/crossing与前帧投影曲线clamp全过，13072次实际规则global读值按(case,graph_frame)均精确。该批hips恒0，不能证明非零生命周期。新增加载真实角色的16步provider矩阵显示Feet.valid=false/pending时仍直接发布当前FeetCrossing；fresh RefreshFeet在无效时提前return保留旧值，现仅是已隔离生产候选。正在把真实Standing T16规则图接到同一实际provider值与源保留值，采用hips=-1、有效→无效→恢复的共同输入确定是否改变消费；未提前登记缺陷或把受控invalid当自然故障。当前233，截图0、性能暂停。
+
+  - 15:55 实际consumer边界：真实加载角色的12步有效→无效→恢复矩阵中，非pending帧会被真实feet系统重新置valid，已按实测排除，不能冒称8个invalid反例。仅两份pending/实际Feet.valid=false边界中，source应保留上次crossing .8/0，provider仍发布当前曲线0/.8；原Standing T16真实规则图在hips=-1时分别由应False/True变True/False。正常有效与恢复10份控制一致。当前正在仅恢复该公开字段的同规则对照，未宣称默认角色自然出现该pending曲线历史或完成完整FSM转移；源保留合同来自RefreshFeet明确early return，当前233、待恢复控制后裁决编号。截图0、性能暂停。
+
+  - 15:56 新差异D236/P3确认：12步真实角色+原Standing T16图控制，10份实际valid/恢复控制一致；2份pending且实际Feet.valid=false时，源RefreshFeet early return应保留crossing .8/0，provider无条件发布新曲线0/.8，使规则真值False→True/True→False。仅恢复feet_state.feet_crossing_amount公开字段后两反例和全部控制恢复，无生产修改；受控validity/曲线资格明确，未声明自然默认世界触发或整个FSM已转移。证据`target/bf144/192/consumer-check.json`。当前234（115P2/119P3），本项仍继续yaw临界与grounded回调失活生产边界，不因发现该项提前关闭；截图0、性能暂停。
+
+  - 15:58 yaw候选：真实provider的207组方向声明控制（含18组Sprint/VelocityDirection强制Forward）中有4组75°/115°临界分类不同，发生在View±120°；source原degree输入与“同一runtime f32 radians先升double再换degree”的两种独立对照均在这4组分叉，18个强制Forward保持。当前target使用view f32.to_degrees后相减，source float velocity yaw−double ViewYaw后再cast float；已取本地源字段类型与UE RadiansToDegrees overload，正在记录真实target中间角及最小同输入源控制。未把Python默认换算当原生oracle，未提前新增编号，也不归D174 QuickStop消费者；当前234（115P2/119P3），截图0、性能暂停。
+
+  - 15:59 yaw中间值：4候选的真实provider/view f32.to_degrees输出为±120.00000762939453°，进而在−45/−5/5/45°velocity输入产生±75.00000762939453/±115.00000762939453°，越过源闭区间。对同一runtime radians升double换算再差分castfloat的source控制得到精确±75/±115。已按fresh UE RadiansToDegrees(double)与UnwindDegrees实现只在既有GeometryQueryProbe扩展通用yaw_difference输入，不耦合ALS图或新增模块依赖；99个同输入源数值控制正在同package本机arm64构建，仍用600/120 watchdog。待native和单字段分类恢复控制后裁决候选，当前已确认仍234（115P2/119P3），截图0、性能暂停。
+
+  - 16:02 yaw原生校准：同一f32 radians作为共同输入升为double后使用真实FMath::RadiansToDegrees(double)/UnwindDegrees，99控制与独立源模型全等；4个临界native Angle精确为±75/±115，而实际provider为±75.00000762939453/±115.00000762939453，分类分叉保持。其余95点及18强制Forward控制按当前矩阵保持。当前正在用4个原Standing方向直接条件图消费actual/source分类，独立于Feet恢复规则；原生新输入字段的错误类型/float溢出验证也在固定watchdog内执行。尚未新增yaw编号，已确认总数234；grounded回调未相关保留边界仍未过，不以正常历史代替。截图0、性能暂停。
+
+  - 16:02 D237/P3确认：99 native源角度全等；207真实provider控制4组在±75/±115临界误分类，四个原Standing T7/T19/T3/T2直接规则共828次求值中8个bool消费不同。只恢复source分类后全部规则对齐，18 Sprint/VelocityDirection强制Forward及其余203组方向控制保持。该根因是本Movement producer先做f32 radians→degree再差分，source float velocity−double ViewYaw后castfloat；不同于D174 QuickStop的body quaternion/index/rate消费者，不因名称/yaw相同合并。原始同输入radians也复现，未仅依赖未投影degree假设。新增D237，累计235（115P2/120P3）；原生probe严格输入/消融恢复、grounded回调失活仍继续，不勾选192，截图0、性能暂停。
+
+  - 16:03 probe信任边界修正：坏类型用例发现UE JSON TryGetNumberField会接受数字字符串，新增yaw_difference初版未严格拒绝；已加HasTypedField<Number>明确验证两个字段，原生同输入数值与D237证据保持，诊断类型错误不登记为ALS差异。确认此前UE进程终态后同package arm64重编，保持600/120上限；待string/overflow拒绝、原99点恢复及消融后才算工具Gate通过。当前235（115P2/120P3），192仍活动、截图0、性能暂停。
+
+  - 16:04 新probe数值边界：除严格JSON Number外，增加派生degree/float difference有限性及“±360无法产生可表示进展”拒绝，避免对不受信任巨大数值进入源UnwindDegrees无进展循环；不引入角度容差或修改生产算法。新增view overflow/no-progress focused坏输入已备，源99点原合同仍需新构建后复验。上次strict Number构建已终态成功，当前在相同package arm64重编，后续无native工具依赖提前启动。192开始15:48/预估16:38仍在有效窗口，grounded失活保留、reader消融与最终身份尚未过；总数235，截图0、性能暂停。
+
+  - 16:07 工具验证进展：严格Number+派生有限性/可表示进展版本已同package arm64构建通过；numeric string与velocity overflow两用例原生退出7、报告符合，view overflow/no-progress串行验证仍活动（有真实UE进程与固定300/150 watchdog），不因非零wrapper跳过报告。source99点及D237真实consumer证据已保留，新增guard后原99点复验/物理消融恢复和grounded未相关保留仍待完成。本轮不是阻塞或完成检查点，192继续，当前235（115P2/120P3）、截图0、性能暂停。
+
+  - 16:09 工具Gate进展：4类yaw坏输入（string、velocity overflow、view overflow、有限但±360无法推进）均原生7；完整99点在新增严格校验后与原geometry_query_probe逐项精确。最终reader源码已按字节备份，当前只把double换算改为float换算的物理早投影变体同package arm64构建中，待99点反例与源码/二进制恢复后才能完成该工具Gate；未修改ALS生产代码。原source回调失活资格仍是192独立未过边界，当前235（115P2/120P3），截图0、性能暂停。
+
+  - 16:12 生命周期观察校准未过：67步真实角色Grounded→Air→Custom→Grounded运行完成，但只读观察未找到两个RefreshGroundedMovement GUID，连Grounded对照也为空；因此这些空集合不能充当“源回调未相关”的证明，未新增缺陷或据此计源保留。已补只读graph_frame、context节点数/匹配名及原始graph_error定位观察覆盖，待确认真实当前图求值/节点归属再重跑。yaw早投影消融已改变99中的6角度，最终源码按字节恢复并同package重编中；当前235，截图0、性能暂停。
+
+  - 16:14 yaw工具恢复Gate通过：早投影变体99点中6角度改变，最终源码按字节恢复并在同package arm64重编；完整geometry_query_probe 99点与消融前逐项精确，4坏输入拒绝保持，证据yaw-restore-check.json。当前唯一未闭合生产边界为grounded回调资格/失活保留；67帧初步观察虽然graph_frame持续推进且无graph error，但没创建两个stance回调上下文，不能假设标签即source更新集合，正核对真实当前图路径。D236/D237已确认记录，总数235，未勾选192、截图0、性能暂停。
+
+  - 16:15 生命周期路径已定位：初始67帧的22个真实context包含Locomotion/Fall/AirLean但没有Standing/Crouching图，graph_frame推进且无error；因此两个GUID空集是当前根链没有进入该source闭包，不能当Grounded回调失活源证据。本轮先记录实际LocomotionState与SourceAnimationInputs tag，核对注入阶段是否被真实物理/根writer覆盖；需要时仅复用已验证.190入口控制，不修相邻生产模块或把未到达节点当功能缺失。当前yaw恢复Gate已过99点，已确认235；192的估时16:38尚有效，截图0、性能暂停。
+
+  - 16:17 验证路径重构：实际组件/tag证明Grounded标签已发布但最小角色Root仍只求Fall链，属已知前置入口/消费差异范围，不能把该未到达当新callback漏洞。停止给该最小加载器增加观察层，改直接复用.190已验证的完整原Grounded入口、时钟/缓存控制与其原source条件，新增仅mode字段和只读RefreshGroundedMovement节点更新记录；先同原240帧校准，再加Grounded/Air/Custom/返回的声明历史。无生产修改、无开启截图/性能、未缩小192剩余资格目标，当前235。
+
+  - 16:18 回调资格已闭合：复用.190源入口后，同原240帧完整历史逐项精确（479回调记录/268更新），没有新增节点扰动；声明模式路径中Grounded150帧确实更新至少一个回调，Air65/Custom25帧两个均不更新，返回Grounded立即更新。失活期间provider方向仍随实际yaw发布，源字段按OnUpdate应保持；当前未以此直接登记，因为失活时当前规则也可能未消费。下一步在相同完整路径只保持source方向字段，比较原完整下游历史及返回帧，区分纯无消费写入与实际差异；hips恒0的边界另用非零曲线控制。当前235，截图0、性能暂停。
+
+  - 16:21 失活保持消融：90失活帧中只保持5个公开方向/hips字段，180字段变化之外的完整pose/curve/状态/clock/通知及返回历史均精确，没有新consumer差异，暂不登记C192-Lifecycle。复核发现保存旧值应按规则的source_player_property→global优先级，不能仅取provider global；已把控制的保存端改为与真实reader一致并重编，待最终相同输入复验后撤掉无必要保持分支。该校准不把当前静态标签覆盖当缺陷，也不放宽完整历史比较。当前235，截图0、性能暂停。
+
+  - 16:23 生命周期裁决/消融：按source property→global真实优先级保存后，90失活帧保持方向/hips造成185字段变化，其余完整pose、curve、状态、clock、通知和返回Grounded历史精确；没有实际consumer信号，C192-Lifecycle不登记新缺陷。150帧实际callback更新与90失活资格均有记录，非零hips反馈也纳入该控制；保持只影响当前未消费字段，不能推广到未审历史。已删除多余env保持分支，只留同source边界输入和只读callback记录，按源码字节保存/同target重编并重跑原样确认。reader已按字节/同package恢复99点，新增可重复通用yaw self-test99及旧64 GeometryProbe回归精确。当前235（115P2/120P3），准备192最终身份/摘要，不宣称原完整source Base→Root等价；截图0、性能暂停。
+
+  - 16:24 完成摘要：六Movement规则输入2400帧按源公式与前帧曲线重算全过，13072实际global读取按graph_frame精确；12步真实provider/原T16消费确认D236的2个pending invalid反例，单字段恢复全过；207组provider/828原方向规则、99 native角控制确认D237的4个producer/8个bool反例，source分类恢复全过。grounded资格用.190完整源入口先校准原240帧精确，再确认150活跃/90失活；按实际property优先级保持未相关字段改变185值但其余完整pose/curve/状态/clock/通知和重入历史不变，C192-Lifecycle不登记、无用保持分支删除并同target重编后原240帧输出精确。reader通用yaw字段严格Number/派生有限性/Unwind可推进四坏输入拒绝，99点新校验/物理早投影6信号/源码字节及同package恢复全过，旧64几何回归精确，可重复self-test落盘；764身份键及114 ALS/184 Rust/生产库/原始资产不变。Gate `target/bf144/192/summary.json` PASS。实际结束：2026-10-22 16:24:54 +08:00；实耗36分54秒，较预估提前13分06秒。新增D236/D237，累计235（115P2/120P3）；只完成这六输入当前历史/声明边界，raw角色View全生产及原source Base→Root和其他图仍未通过，按依赖继续。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
@@ -3064,3 +3109,15 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：两个stance的五条ReferenceLocalDifference链都使用普通A_Als_Lean_Pose.anim.ron→GltfNamed数据；该绝对参考的calf_twist_01_l旋转与fresh完整raw不等，spine_03平移也差约5.05817e−5m。`apply_additive_reference_deltas.py`/converter只传参考资产与frame，没有为源强制raw参考生成独立数据合同。当前目标参考同时不精确匹配legacy/raw/compressed，未推断具体历史导出算法或改原始glTF。
   - 最小反例：实际30Hz crouch-directions第0帧、Standing Lean中心样本、calf_twist_01_l。source raw加性旋转投影为(0,0,2.879912020664621e−20,1)，实际target为(0.0013499634806066751,5.133449576533167e−6,2.0492820112849586e−5,−0.9999991059303284)，按q/−q对齐最大分量差0.0013499634806066751。只在隔离数据控制中替换共同参考为fresh完整raw，全部五sample clip、原sample绝对pose、时间、frame0及生产差分函数均精确保持，该骨输出变为identity、余差仅2.879912020664621e−20；spine_03的额外平移同时归零。没有修改运行时或生产资产。
   - 漏检/独立性：旧reference-difference测试使用手写pose，图Gate只证明引用名字/frame正确；.188刚分离mode，未有完整raw绝对参考。D224的普通platform压缩合同不能把additive base一并当作普通compressed clip，D232的同输入数值控制也不能解释这份数据差；本项是共同参考输入本身错误，保留独立最小反例。证据`target/bf144/191/source-difference-check.json`、`reference-witness-check.json`、`target-check.json`与六native absolute/stage输出；只登记，不声明可见故障或整个source Base→Root等价。
+
+- [ ] BF144-D236 / P3 — Feet无效时仍刷新FeetCrossing，丢失源保留值并改变Movement规则。
+  - Source：fresh `AlsAnimationInstance.cpp:1251–1268`在pending update将FeetState.bValid清为false；`1297–1305`的RefreshFeet先检查bValid，无效直接return，因此FeetCrossingAmount保留上次有效值。原Standing Movement T16规则同时检查HipsDirectionLockAmount≤−.5与FeetCrossingAmount≤0，已从fresh图及真实条件图核对。
+  - Target：`ab_als_provider.rs:138–149,422–426`的source_pose_curve_inputs无条件把当前投影FeetCrossing clamp[0,1]并发布，不读取实际AlsFootLockState.valid/pending。图规则读取该公开字段，不能从后续foot IK是否运行补回源保留语义。
+  - 最小反例：真实加载角色先在valid帧发布crossing=.8，下一受控pending帧实际Feet.valid=false、当前反馈曲线为0、hips=−1。source应保留0.800000011920929并使原T16=False，实际provider发布0、原规则求值True；反向0→.8也使应True变False。12步有效→无效→恢复矩阵中仅这2份实际invalid/pending反例失败，其余10控制一致；只恢复该字段为源保留值，全部规则结果恢复。非pending时被真实脚部系统重建为valid的请求不计作反例。
+  - 漏检/边界：正常2400帧及13072次规则global读取全部通过，旧测试只验clamp、Feet锁定/重建或手动规则输入，未把bValid保留状态接到真实规则消费者。本项为有效的受控pending/反馈历史，不宣称默认场景自然触发、整个FSM转移或可见姿态故障。证据`target/bf144/192/consumer-check.json`、`corrected.json`、`input-check.json`，仅登记，生产/原始资产未改。
+
+- [ ] BF144-D237 / P3 — MovementDirection先在f32换算View yaw，在75°/115°边界误分类。
+  - Source：fresh `AlsLocomotionAnimationState.h:23`的VelocityYawAngleWorldSpace为float，`AlsViewAnimationState.h:11`的RotationWorldSpace为double FRotator；`AlsAnimationInstance.cpp:377–383,939–963`先执行float velocity yaw−double ViewYaw，再cast float/UnwindDegrees，源CalculateMovementDirection按70°/5°的闭区间分类。99个相同runtime f32 radians lift到source double的真实UE RadiansToDegrees(double)/Unwind控制与模型全等。
+  - Target：`ab_als_provider.rs:122–123,272–275`调用`direction_layer.rs:37–42`，先对AlsViewYaw(f32 radians)做f32.to_degrees，再与f32 velocity yaw相减。实际radians=±2.094395160675049时得到View±120.00000762939453°，原生同radians double路径在差分后castfloat为精确±75/±115，目标则越界约7.6293945e−6°；源/目标分类阈值本身相同。
+  - 最小反例：真实加载角色ViewDirection/Running，velocity runtime yaw=45°、view radians=2.094395160675049。原生source角75°应Forward，实际provider角75.00000762939453°发布Right；velocity5°时源115°应Right，目标115.00000762939453°变Backward，负对称亦复现。207组中4个producer失败；原Standing T7/T19/T3/T2规则共828个bool消费有8个不同，只恢复source分类后全对齐，18 Sprint/VelocityDirection强制Forward及其余203组方向控制保持。
+  - 漏检/边界：2400帧正常矩阵使用View0，没有经过非零view换算临界；旧分类单元直接给degree，未覆盖实际provider的radians→f32 degree→差分。此处为独立Movement producer/规则合同，不是D174的QuickStop body/index/rate链；不宣称默认世界自然触发、整个FSM更新集合或可见姿态故障。证据`target/bf144/192/yaw-native-check.json`、`direction-consumer-check.json`及`yaw-detailed.json`。仅登记，生产未改。

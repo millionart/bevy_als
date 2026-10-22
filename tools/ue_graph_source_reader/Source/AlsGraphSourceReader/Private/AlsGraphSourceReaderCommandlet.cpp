@@ -1002,6 +1002,25 @@ TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
             }
             Sample->SetObjectField(TEXT("additive_accumulation"), CaptureTransform(BasePose[Bone]));
         }
+        if ((*Input)->HasField(TEXT("yaw_difference")))
+        {
+            const TSharedPtr<FJsonObject>* Difference = nullptr;
+            double VelocityYawDegrees, ViewYawRadians;
+            if (!(*Input)->TryGetObjectField(TEXT("yaw_difference"), Difference)
+                || !(*Difference)->HasTypedField<EJson::Number>(TEXT("velocity_yaw_degrees"))
+                || !(*Difference)->HasTypedField<EJson::Number>(TEXT("view_yaw_radians"))
+                || !(*Difference)->TryGetNumberField(TEXT("velocity_yaw_degrees"), VelocityYawDegrees)
+                || !(*Difference)->TryGetNumberField(TEXT("view_yaw_radians"), ViewYawRadians)
+                || !FMath::IsFinite(static_cast<float>(VelocityYawDegrees)) || !FMath::IsFinite(ViewYawRadians)) { return nullptr; }
+            const double ViewYawDegrees = FMath::RadiansToDegrees(ViewYawRadians);
+            const float DifferenceAngle = static_cast<float>(static_cast<float>(VelocityYawDegrees) - ViewYawDegrees);
+            if (!FMath::IsFinite(ViewYawDegrees) || !FMath::IsFinite(DifferenceAngle)
+                || (DifferenceAngle > 180.0f && DifferenceAngle - 360.0f == DifferenceAngle)
+                || (DifferenceAngle < -180.0f && DifferenceAngle + 360.0f == DifferenceAngle)) { return nullptr; }
+            const float Angle = FMath::UnwindDegrees(DifferenceAngle);
+            Sample->SetNumberField(TEXT("view_yaw_degrees"), ViewYawDegrees);
+            Sample->SetNumberField(TEXT("yaw_difference"), Angle);
+        }
         if ((*Input)->HasField(TEXT("rotation_factors")))
         {
             const TArray<TSharedPtr<FJsonValue>>* Factors = nullptr;

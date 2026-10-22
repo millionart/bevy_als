@@ -1,12 +1,30 @@
 import json
 import math
 import sys
+import struct
 from pathlib import Path
 
 
 def check(path):
     data=json.loads(Path(path).read_text(encoding='utf-8-sig'))
-    samples={sample['input']['name']:sample for sample in data['geometry_query_probe']['samples']}
+    rows = data['geometry_query_probe']['samples']
+    yaw_rows = [row for row in rows if 'yaw_difference' in row['input']]
+    if yaw_rows:
+        for row in yaw_rows:
+            values = row['input']['yaw_difference']
+            velocity = struct.unpack('f', struct.pack('f', values['velocity_yaw_degrees']))[0]
+            degrees = values['view_yaw_radians'] * (180.0 / math.pi)
+            angle = struct.unpack('f', struct.pack('f', velocity - degrees))[0]
+            while angle > 180.0:
+                angle -= 360.0
+            while angle < -180.0:
+                angle += 360.0
+            assert row['view_yaw_degrees'] == degrees
+            assert row['yaw_difference'] == angle
+        print(f'Native yaw difference self-test: PASS ({len(yaw_rows)} samples)', flush=True)
+        if len(yaw_rows) == len(rows):
+            return
+    samples={sample['input']['name']:sample for sample in rows if 'name' in sample['input']}
     assert len(samples)==10
     for name,expected in [('identity',(0,0,0)),('yaw90',(0,90,0))]:
         actual=samples[name]['rotator_degrees']
