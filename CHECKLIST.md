@@ -1870,6 +1870,13 @@
 
   - 23:58 完成摘要：fresh正确主AB caller→c110惯性→Layering Overlay Input/Save与Default层12 pose节点闭合；错路径native3报告保留排除。actual warm11+prefix77均Default，共88次source/output及input/cache全精确；初frame1有target0.2请求但无历史，后续0请求/active，未宣称source初请求时长或切类路径已过。4个metadata负控制拒绝，观察物理去除/字节恢复/同target重编，240与warm完整旧字段及新增字段精确。1439身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持；Gate `target/bf144/227/summary.json` PASS_DEFAULT_OVERLAY_ACTIVITY_AND_REQUIRED_SOURCE_CLOSURE。实际结束：2026-10-22 23:58:07 +08:00；实耗5分32秒，较预估提前29分28秒。新增0，累计238（115P2/123P3）；下一项Default_Poses帧0/1/2与Idle实际同步时钟原数据，再组合Default层；原Overlay数值、source反馈/完整Layering与Root仍开。截图0、性能暂停。
 
+- [x] BF144.228 Default Overlay原叶与实际Secondary Motion时钟：依赖.227已证Default活动12节点，先fresh读取Default_Poses压缩第0/1/2帧和Idle真实配置/原动画数据，观察该层实际Evaluator帧、Idle相位/速率/同步成员与前史，验证时间及输入资格后交付原叶；本项不合并父混合和完整Overlay。Gate：source序列/单位/加性及clock合同、完整240/warm旧观察保持、原叶0target pose回填与时间控制、观察消融/字节恢复/同target、身份。开始：2026-10-22 23:58:41 +08:00；预估结束：2026-10-23 00:38:41 +08:00。估时依据：.219 Land原叶及时钟约8分钟、.222复合原叶与前史49分钟；当前只有2独立资产/固定帧与单同步组，40分钟先验收叶与时钟，复杂同步若发现新必要成员再明示拆分。仅审计，生产/转换器/原始资产不改，截图0、性能暂停。
+  - 23:58 活动摘要：.227已提交，238（115P2/123P3）；Default_Poses五个Evaluator实际帧与Idle必须原生核实，不将前帧PoseState当原反馈已过。先采叶/clock，父层3TwoWay/MultiWay/0.75 additive为后继，周边overlay不展开。
+  - 00:00 取证时间纠正：fresh Default_Poses为30fps/4keys/非加性/79骨骼/12曲线；初请求按double的1/30、2/30读帧，回读UE GetExplicitTime返回float后，明确原Evaluator实际应0.03333333507180214/0.06666667014360428。初double-time记录另存排除，按原float语义重读，不从近似时间结果宣称原叶等价。当前新观察同时记录Idle局部时钟及真正根图同步提交，以识别既有诊断路径的提交边界；截图0、性能暂停。
+  - 00:04 source/clock闭环摘要：5个Evaluator在warm11+prefix77共112更新均命中源float第0/1/2帧，Idle88次真正提交根同步组且唯一leader、最终权重0.75；fresh原Idle为局部加性/Stand第0帧参考/长2.666666746/RateScale1/无marker，初零步长保留。原生0.75权重与1.0控制88步时钟和全部pose相同；现有D201重复相位往返使index6起82步秒数不等，首0.2→0.199999988，不新增编号。原生3固定帧+88 Idle交付200条原叶/15800骨骼、曲线与当前全等，0target回填；时钟差保持不冒称通过，当前public tick/直接秒域反事实正在核对。完整240/warm旧观察及去除/恢复同target精确，父层/原反馈未过，238、截图0、性能暂停。
+
+  - 00:06 完成摘要：原30fps Default_Poses三固定帧按source float时刻重读、初double-time记录排除；Idle原局部加性/Stand帧0参考/精确长度/RateScale/无marker确认。actual5 Evaluator112更新、Idle88更新与根提交0.75唯一leader、初0delta均校准；native0.75/1控制全部时钟/姿态相同。D201扩展：82步时钟差，public当前tick88步精确；仅去phase往返直接秒域88步native精确，物理删除该source控制稳定index6失败，字节恢复/同target重编再通过。交付200条原叶15800骨骼、curves与当前全等、0target回填；父层未产出。观察物理去除/恢复同target完整240/warm及新增字段精确，1459身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持。Gate `target/bf144/228/summary.json` PASS_DEFAULT_OVERLAY_SOURCE_LEAVES_AND_D201_CLOCK_EXTENSION。实际结束：2026-10-23 00:06:38 +08:00；实耗7分57秒，较预估提前32分3秒。新增0，累计238（115P2/123P3），补充既有D201；下一项同参数Default父混合，原反馈/Layering及完整Root仍未过。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
@@ -3144,6 +3151,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 恢复/边界：5050组实际规则消费确认95组提前、无延后；只恢复源候选顺序仍有95组失败，恢复原生累计时钟后1010组全部通过，另加候选顺序恢复则发布时钟字段逐值相同。phase duration恢复不改变本批输出。证据`target/bf144/115/analysis.json`、`consumer_summary.json`及两份native时钟；同步组成员/权重固定，未声明变权重、加入/退出、其他同组状态或公共Playground可见故障。旧单leader与一般近似数值测试未核对长期累计后的精确末端资格；仅登记，未修生产。
 
   - BF144.163实际Land组补充（BF144.166更正）：356次实际更新中，恢复源排序后常规仍99帧时钟/previous微差，最大约0.358µs；直接按源float秒域AdvanceTime推进后，实际更新集合全部匹配原生，无native clock注入。原额外20个普通0更新及使用该错误集合的103/14失败帧不再作为source验收证据；有效证据为`target/bf144/163/complete-analysis.json`、`heavy-complete-analysis.json`与`target/bf144/166/bf163-correction.json`。
+
+  - BF144.228 Default Overlay Idle补充：actual加载11+前缀77共88次为根同步组唯一成员、权重0.75、长度2.6666667461395264/rate1/无marker，首零步长保留；原生0.75与1权重控制时钟和全部pose相同。index6起82步秒数不等，首source0.20000000298023224、target0.19999998807907104；public SourceSyncPlayerTick逐步精确重放当前88步，仅去秒数↔phase往返、按fresh AdvanceTime直接累计则88步精确匹配native。原生88份Idle姿态按源时钟保留，未将时钟差算作新差异或宣称可见故障；证据`target/bf144/228/clock-check.json`、`clock-restored.jsonl`与`original-overlay-leaf-inputs.json`。生产未修。
 
 - [ ] BF144-D202 / P2 — 同步组使用稳定同分排序，改变不同速率播放器的leader、播放时钟和自动退出时点。
   - Source：fresh `AnimationAsset.cpp:121–124`按FAnimTickRecord的LeaderScore调用原生Sort；`IntroSort.h:60–82`的小集合选择排序不保留同分输入顺序。当前4个Land组播放器均CanBeLeader，普通Land速率1，Light/Heavy Additive分别1.75/1.5；同分排序会改变实际推进速率及新加入leader的初始时间。
