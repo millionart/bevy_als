@@ -1612,6 +1612,13 @@
 
   - 18:20 完成摘要：fresh五核心原图身份、pose/cache/state/linked闭包已清点；108后继/123边、26侧依赖递归264节点，372源节点有368 target唯一位置/4已证折叠Knot，0非Knot缺口。160绑定/29唯一路径与14主链callback原prototype明确，9FSM/165 BoundGraph/632节点无缺失；cache/state桥消融分别断Root可达，字节恢复完整闭包精确。1053身份键/114 ALS/184 Rust/reader/原始资产/生产库保持，Gate `target/bf144/200/summary.json` PASS；Layering/Head/Ragdolling/Default Overlay四真实linked内部及完整Root数值/反馈仍未验收，本项不计数值等价。后续按`remaining-plan.md`分为≤60分钟独立Gate，下一项只接Movement缓存及立即反馈边界。实际结束：2026-10-22 18:20:22 +08:00；实耗8分22秒，较预估提前31分37秒。新增0，累计235（115P2/120P3）；截图0、性能暂停。
 
+- [x] BF144.201 原Apply后PoseMoving/Movement缓存与立即反馈边界：依赖.199原Apply和.200真实后继清点，只沿两stance Apply→ModifyCurve(PoseMoving)→原回调pose passthrough→Movement Save/Use，按实际owner/key/context接原曲线/骨骼；fresh核对源曲线绑定/回调执行阶段与GetCurveValue来源，明确共享输入反馈尚未原重建的边界。Gate：3386原Apply后的实际保存/消费身份与源数组0缺口、曲线f32规则、旧完整历史校准或现有原观察复用、最小数据断供/消融与恢复、身份；主stance FSM/Stop/Details数值继续依赖后置。开始：2026-10-22 18:21:00 +08:00；预估结束：2026-10-22 18:56:00 +08:00。估时依据：.200已证2个ModifyCurve/立即回调/2 Movement Save，.195缓存观察和.199原Apply可复用，按35分钟核真实归属/曲线/反馈来源，不混入Stop分层或主FSM重建。只审计，生产/转换器/原始资产不改，截图0、性能暂停。
+  - 18:21 活动摘要：.200 Gate已过并提交；本项只展开source明确的直接Movement保存链，fresh两stance原图/绑定及callback prototype已有本轮读取身份。下一步核.195 cache_routes是否含两个Movement Save/Use及其真实owner/key；缺身份只读补观察，不从target值补原source。当前235（115P2/120P3），完整反馈未验收。
+
+  - 18:23 source/立即链摘要：.195已有3386个Movement Save及实际Use的owner/key/context，直接target Apply→ModifyCurve→回调→Save的骨骼/timestamp全精确。fresh源Node成员CurveValues为0，但暴露CurveValues_0 pin默认明确1、binding空，按已生成pin语义写PoseMoving=1，不误用成员默认新增缺陷。原Apply后全alpha Blend曲线经f32运算后保存，源码回调Evaluate只透传；Parent.GetCurveValue来自proxy AttributeCurve表，SkeletalMeshComponent:4899–4908在原Root求值/插值后安装，不能拿当前Movement替代反馈。当前未用config字段/Use局部读已删除，最小断供/曲线写入消融及字节恢复完成，最终结果/身份待核。235不变，截图0、性能暂停。
+
+  - 18:23 完成摘要：原Apply经两PoseMoving pin默认1/full-alpha f32曲线修改及回调pose透传，3386 Movement Save/267494骨骼与3593跨context Use按真实owner/key接通，0原数据缺口/0target回填；已有完整观察直接target链骨骼/曲线/timestamp精确复用。移除原Apply拒绝268保存/278消费，删除曲线写入改变268份曲线集合，最终源码字节恢复最小原数组精确；未用config/局部读已删。Parent proxy Root AttributeCurve是Update回调的真实曲线来源，完整原反馈仍依赖后置，不以Movement当前曲线替代。1088身份键/114 ALS/184 Rust/reader/原始资产/生产库保持，Gate `target/bf144/201/summary.json` PASS。实际结束：2026-10-22 18:23:36 +08:00；实耗2分36秒，较预估提前32分23秒。新增0，累计235（115P2/120P3）；下一段沿source已证Crouch主Move/Stop的直接pose侧输入继续，Standing/主Root反馈未通过。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
