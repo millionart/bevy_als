@@ -2009,6 +2009,15 @@
 
   - 05:56 完成摘要：原生编译Rig实例/owner/game-world入口建立，Construction真实15指令与PostConstruction通知区分，后续0/1/3 forward初始化仅1次；game75步、editor8步，非零SpineYaw只在game改变骨骼，零输入6组保持。公共target同协议Call PC序列与步数全同，未发现新阶段差。物理删native forward后全部回调/骨骼效果消失且Gate失败，源码字节恢复/同arm64 package重编完整native输出恢复；schema6非法输出自测、3非法native请求code7及旧10数学样本全字段回归通过。独立task UBT日志补实进展，文件型progress正/移除负控制通过，120秒上限不变；旧并行watchdog子进程启动自测失败排除，未改watchdog算法。1789身份键/114 ALS/184 Rust/原资产/转换器/生产库保持，仅reader CPP/runner/包源码与dylib/新自测改变。Gate `target/bf144/246/summary.json` PASS_NATIVE_RIG_LIFECYCLE_PREREQUISITE_WITH_EXPLICIT_ADAPTER_GAP。实际结束：2026-10-23 05:56:51 +08:00；实耗25分51秒，较预估提前19分9秒。新增0，累计240（115P2/125P3）；本项没有skeletal asset/PoseAdapter/原77输入/属性/外部查询，不作整体Rig验收，下一必须保留默认优化分支并建立真实映射/输入转移。截图0、性能暂停。
 
+- [x] BF144.247 编译主Rig节点的默认PoseAdapter与原输入转移：依赖.246生命周期入口，fresh主AB节点/真实SkeletalMesh/Skeleton与映射API，保留默认优化CVar，使用实际编译节点配置和native proxy/required bones接原pose leaf；先核0/20/76原Rig输入的局部pose/曲线有效性往返，必要时扩大到77，不手工复制target骨骼或关闭PoseAdapter取巧。Gate：source模板/骨与虚拟骨映射/flags合同，原生adapter就绪与真实input/output行为、当前target转移合同/差异见证、错映射/曲线键控制、自测/消融恢复同package及身份。Rig整体执行/外部查询/attributes/反馈继续留后续真实依赖。开始：2026-10-23 06:01:00 +08:00；预估结束：2026-10-23 06:41:00 +08:00。估时依据：.246原生生命周期25分51秒、.242算子8分58秒；当前新mapping/proxy接口与原3样本/虚拟骨资格新增一层，按40分钟，不把未建的实际adapter当已过。仅审计，生产/转换器/原资产不改，截图0、性能暂停。
+  - 06:01 活动摘要：前轮8c75d0c4已建立真实native生命周期，属于progress；当前树干净且无相关进程，累计240（115P2/125P3）。当前输出明确没有FCompactPose/PoseAdapter，需本项补齐后才可开始原77整体Rig求值；原数据来自.243原Rig输入，0target回填，属性/查询/反馈/Down-Up/180仍开。
+
+  - 06:07 adapter阶段摘要：真实compiled主节点＋SKM_Als/Skeleton/两个native required-bone container已建立默认PoseAdapter enabled/ready，79骨（含11个实际VB名）未截断/补造。原0/20/76三样本237骨局部输入→hierarchy→输出逐值/曲线全等；扩大原77＋4曲线键控制共81样本6399骨、曲线包仍全等，0target回填且未跑forward。补记curve hierarchy有效性/实际flags/virtual数量以防“往返但未传入”的假通过；首protected Source访问、curve局部名shadow两次构建错误已读报告改为派生公开方法/局部改名，失败证据排除。metadata重编后才计输入有效性，后续自测/错映射/消融恢复与身份待过。240、截图0、性能暂停。
+
+  - 06:11 原输入合同摘要：81样本6399骨输入/接收/往返全等，source flags均真pose/curves、局部空间、不reset，required container实际11VB；hierarchy全部2057个set曲线值/键与source定义交集一致，missing/zero/nonzero/unmapped控制保持正确。当前target实际240帧79骨通道齐全，public set_input_pose提升后18960局部值精确保留；没有把该结果泛化到稀疏通道。物理删native UpdateInput后6399骨与2057曲线状态失配，Gate稳定失败；target输入调用移除FAIL101，源码字节恢复同target重编240结果通过。native精确恢复/重编中，错映射/大小写控制/回归/身份待过，累计240、新增0。未跑Rig forward，属性/查询/完整反馈仍开；截图0、性能暂停。
+
+  - 06:15 完成摘要：真实compiled主ControlRig模板＋SKM_Als/required bones的默认PoseAdapter ready/enabled，79骨含11VB；原77＋4键控制81样本6399骨输入→hierarchy→输出逐值全等，2057个set曲线值/键与定义交集一致，case-insensitive FName控制保持，0target回填。当前target240帧18960齐全局部通道提升后public set_input_pose精确保留，未泛化稀疏/其他骨架。物理去native输入使6399骨/2057曲线失配并FAIL，源码字节恢复同arm64 package重编81样本全恢复；target输入移除FAIL101、源码字节恢复同target重编240结果精确恢复。6非法输出自测/4非法native输入code7、旧6生命周期样本全字段回归通过，protected Source/shadow两构建失败保留排除。1810身份键/114 ALS/184 Rust/原资产/转换器/生产库保持，仅reader CPP/runner/包源码与dylib/新自测改变。Gate `target/bf144/247/summary.json` PASS_COMPILED_RIG_DEFAULT_POSE_ADAPTER_ORIGINAL_INPUT_TRANSFER。实际结束：2026-10-23 06:15:53 +08:00；实耗14分53秒，较预估提前25分7秒。新增0，累计240（115P2/125P3）；本项逐样本未跑forward，下一先source属性输入闭包，再同实例跨帧原77及真实owner/query求值，完整反馈/Down-Up/180/Root仍开。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D242 / P3 — Rig初始全局变换常量未保持当次原生CDO数据，边界下改变足旋转和自动骨长。
