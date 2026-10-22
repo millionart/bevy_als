@@ -2246,6 +2246,7 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
             Bone->SetObjectField(TEXT("local_transform"), CaptureTransform(Transform));
             if (bCompressedTracks)
             {
+                Bone->SetObjectField(TEXT("reference_pose"), CaptureTransform(Skeleton.GetRefBonePose()[Index]));
                 FTransform Replayed = Index == 0 ? Transform : CodecPose[Index];
                 Bone->SetObjectField(TEXT("codec_pose"), CaptureTransform(Replayed));
                 Bone->SetNumberField(TEXT("retarget_mode"), Sequence->GetSkeleton()->GetBoneTranslationRetargetingMode(Index));

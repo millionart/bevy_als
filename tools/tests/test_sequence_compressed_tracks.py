@@ -18,6 +18,7 @@ def check(document, full_pose=None):
     if expected is not None:
         assert len(expected) == len(probe['frames'])
     exact = 0
+    references = {bone['name']: bone['reference_pose'] for bone in probe['frames'][0]['bones'] if 'reference_pose' in bone}
     for index, frame in enumerate(probe['frames']):
         assert all(math.isfinite(value) for value in frame['codec_curves'].values())
         names = [bone['name'] for bone in frame['bones']]
@@ -30,7 +31,11 @@ def check(document, full_pose=None):
             wanted = {bone['name']: bone for bone in expected[index]['bones']}
             assert set(wanted) == set(names)
         for bone in frame['bones']:
-            for field in ['local_transform', 'codec_pose', 'retargeted_pose']:
+            fields = ['local_transform', 'codec_pose', 'retargeted_pose']
+            if references:
+                assert bone['reference_pose'] == references[bone['name']]
+                fields.append('reference_pose')
+            for field in fields:
                 transform = bone[field]
                 assert set(transform) == {'translation', 'rotation', 'scale'}
                 for channel, values in transform.items():
