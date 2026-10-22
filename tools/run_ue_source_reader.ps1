@@ -9,6 +9,7 @@ param(
     [string]$InertializationProbe,
     [string]$LayeredBoneBlendProbe,
     [string]$MeshAdditiveProbe,
+    [string]$RigLifecycleProbe,
     [string]$SlotProbe,
     [string]$BlendProfileProbe,
     [string]$BlendListProbe,
@@ -300,6 +301,10 @@ $arguments = @(
 if ($BlendSpaceProbe) {
     $probePath = (Resolve-Path -LiteralPath $BlendSpaceProbe -ErrorAction Stop).Path
     $arguments += "-BlendSpaceProbe=$probePath"
+}
+if ($RigLifecycleProbe) {
+    $probePath = (Resolve-Path -LiteralPath $RigLifecycleProbe -ErrorAction Stop).Path
+    $arguments += "-RigLifecycleProbe=$probePath"
 }
 if ($SequenceClockProbe) {
     $probePath = (Resolve-Path -LiteralPath $SequenceClockProbe -ErrorAction Stop).Path
