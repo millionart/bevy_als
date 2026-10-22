@@ -1824,6 +1824,19 @@
 
   - 22:59 完成摘要：warm11输入/完整旧观察与已原生校准.166逐项相等，源0.6 Fall/0.1 Land惯性请求合同确认；source首0步初始化、Fall/Fast同cycle/rate/无marker及末2时点0.26666668/0.3精确。原Fall/Fast/Land与center AirLean数据配合源TwoWay补数/Lerp、加性/曲线构成2原Fall历史+首Land，共237骨骼，0target pose回填；8TwoWay+4additive public f64逐值精确。D239新增：native厘米/米映射alpha不同，correct A=Fast/B=Fall后当前79生产重放精确，单改native alpha改变34骨；错置A/B的早期控制排除。去source补数12原生控制失败，字节恢复再全精确；去consumer source alpha丢34骨反例，字节恢复/同target重编再次复现。reader去range计算后数值失配，字节恢复/同package重编4值精确，2非法输入7拒绝、3schema反例、旧yaw/pose精确。warm观察物理移除/恢复同target完整240/warm11全部字段精确；1374身份键/114 ALS/184 Rust/原始资产/转换器/生产库保持，仅必要reader15行与包dylib改变，新自测随提交。Gate `target/bf144/222/summary.json` PASS_ORIGINAL_WARM_HISTORY_PRODUCTION_AND_SOURCE_REQUESTS。实际结束：2026-10-22 22:59:09 +08:00；实耗49分9秒，较预估提前51秒。新增D239/P3，累计237（115P2/122P3）；下一项原活动惯性/root求值，外层/layering、180恢复及完整Root仍未通过。截图0、性能暂停。
 
+- [x] BF144.223 原Locomotion活动惯性数值与Root：依赖.222原warm3/请求资格和.220原77 FSM，用真实source da8d3812 compiled惯性模板/完整79骨架跑2历史+首Land请求+77输入，按源elapsed/duration/曲线过滤/原数据核活动结果并运输InitializeLean/root。当前target第一2帧输入/输出不同只作观测，不能充原历史；其余75当前透传也不作source请求轨迹替代。Gate：public源80步数值/请求/过滤和输入身份、原Root77无target回填、当前target同输入/既有差异边界、最小请求/历史反例与源码字节恢复/同package或target身份；外层slot/layering与180后缀另续。开始：2026-10-22 23:00:18 +08:00；预估结束：2026-10-22 23:45:18 +08:00。估时依据：.146公共惯性原生/生产核已在79骨骼多历史验证，.221/.222补当前缺口共约66分钟；本项原3+77数据与template齐备，45分钟核实际活动两帧及终止/后缀、原数据与必要native恢复，不展开其他惯性图。仅审计，生产/转换器/原始资产不改，截图0、性能暂停。
+  - 23:00 活动摘要：.222已提交，累计237（115P2/122P3）。原必需历史和请求已齐，下一步public源模板80步，不能省略warm请求或用target pose作为其previous/previous_previous。
+
+  - 23:01 请求schema纠正：准备80步时误用nested request字段，fresh回读公共reader明确只接request_duration/request_durations，首个调用保留但不得作为活动证据。未改运行中的输入或reader，另建active.request.json并逐项白名单校验、仅index2/0.1请求；待首调用结束后按正确独立文件运行。source原输入不变，237、截图0、性能暂停。
+
+  - 23:06 source活动结果与结束边界：正确request_duration的public源80步/6320骨骼运行通过，原数据仅warm首Land+prefix0有修正，prefix1起直接保持输入；错误nested request首捕获不作活动证据。独立相同target输入80步也确认prefix1 native pose/curve严格copy，排除原pose数据导致这一个结束分支差。当前target prefix1 elapsed0.10000000894≥duration0.10000000149已inactive，却输出27旋转变化并把缺失PoseInAir补成0。fresh UE Inertialization.cpp:569–585先累加/Deactivate再Apply；target inertialization_passthrough.rs:557–565先Apply/补curve再Deactivate。已有最小native/实际边界证据，下一步做最小源顺序控制与归并/登记，尚不把候选当已确认新编号，原Root transport/恢复Gate未过。237、生产未修、截图0、性能暂停。
+
+  - 23:11 D240/P3确认：同target输入80步的native在prefix1 elapsed≥max时严格copy输入pose/curve；当前实际27旋转变化并补PoseInAir=0。source-order合同先对当前输出检查稳定FAIL，再仅在这个结束帧以source同帧输入替代Apply结果，全部pose/curve presence精确、其它76观察帧保持；这是data-only反事实，未伪称runtime修复。fresh source先Deactivate后Apply而target相反，根因已闭合，新增D240，累计238（115P2/123P3）。原Root77运输、请求/历史负控制与最终身份仍待Gate，截图0、性能暂停。
+
+  - 23:16 数值/合同闭环：正确schema的source80步/6320骨骼与RotationYawSpeed值/存在性80份保留，原数据只warm Land+prefix0变化；request移除80全copy、history移除78全copy，表明请求/历史必要。原77 Locomotion Root/6083骨骼按callback无pose修改运输，0target回填；source-order当前结束合同FAIL/数据反事实PASS且其它76帧保持。D240末帧27旋转/缺失PoseInAir=0独立闭合；组合target仍46curve值差/1名字差与骨骼余差，不新增归因。漏检边界已固化领域skill为warm历史/到期前状态顺序、逐通道和曲线键集检查，未改生产；身份收尾。238（115P2/123P3），截图0、性能暂停。
+
+  - 23:19 完成摘要：正确request_duration schema的compiled源惯性80步/6320骨骼通过，原warm Land+prefix0施加修正，RotationYawSpeed值/存在性80份保持；request删除80全copy、history删除78全copy，过滤/回调/Root原77份6083骨骼运输0target pose/curve回填。初nested request错误文件排除。D240同target输入native结束帧copy严格成立，当前实际27旋转及缺失PoseInAir=0由先Apply后Deactivate造成；最小当前合同FAIL、仅结束顺序的数据反事实PASS且其它76帧保持，未称runtime修复。组合target原数值46curve值差/1名字差与骨骼余差继续保留非等价；warm/request与终止pose/键集漏检已写入领域skill。1387身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持，仅领域文档与清单变更。Gate `target/bf144/223/summary.json` PASS_ORIGINAL_ACTIVE_LOCOMOTION_INERTIAL_AND_ROOT。实际结束：2026-10-22 23:19:49 +08:00；实耗19分31秒，较预估提前25分29秒。新增D240/P3，累计238（115P2/123P3）；下一项主AB PostLocomotion槽/Layering输入，外层头/默认overlay/Rig、180恢复与完整主Root仍未过。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
@@ -3479,3 +3492,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：Fall RON把同范围变为[0,−10]、输入继续用runtime米制float；`source_pose_nodes.rs:170–178`先以该值除米制范围，首次实际alpha为0.03269999474287033。真实物理量相同，单位换算和float除法舍入不交换；这发生在alpha生成，独立于D232的pose double→runtime空间、D234求值补数和D233曲线Lerp。
   - 最小反例：实际Stop历史warm graph frame1，A=Fall_Fast、B=Fall，两个实际子pose/目标运算保持；生产blend_source_poses逐骨重放79骨骼精确，只换native alpha改变34骨骼。例如VB foot_r runtime y由0.24996262788772583变0.24996264278888702；zero及source-unit恢复标量控制通过。首次错置A/B的控制重放失败，已按真实边纠正，未计作证据。
   - 漏检/边界：旧父映射验证多在runtime单位或远离阈值处对公式，未核源cm float与runtime meter输入的舍入次序。当前完整warm34次映射模型前5次有小量差，所需末2帧已会合；仅登记当前实际alpha/pose后果，不称一般可见故障、分支资格翻转或全部暖历史差均由该项造成。证据`target/bf144/222/range-check.json`、`range.native.json`、`range-consumer-correct-inputs.json`；生产、转换器及原始资产未改。
+
+- [ ] BF144-D240 / P3 — 惯性化到期帧先求值再停用，继续单位化姿态并补零曲线。
+  - Source：fresh `AnimNode_Inertialization.cpp:569–585`先累加elapsed，达到MaxDuration立即Deactivate，后续才按状态决定是否施加惯性；公共原节点在相同target输入80步控制的prefix1严格复制输入的79骨骼与curve集合。
+  - Target：`inertialization_passthrough.rs:557–565`先apply_source_inertialization/累加曲线，然后检查到期并把active清零。即使残余函数已为0，apply末尾仍normalize_quat，历史curve键也会被entry.or_default插入。
+  - 实际反例：warm Land0.1秒请求后的prefix1，elapsed0.10000000894069672≥max0.10000000149011612，当前节点末态虽inactive，输出仍改变27份rotation，并把原输入缺失的PoseInAir加入为0；native同输入在这一步骨骼和curve存在性全等于输入。独立原source数据80步也只在warm首Land/prefix0修正，不延续到prefix1。
+  - 控制/漏检：最小source terminal-copy合同对当前实际记录稳定FAIL；仅将该结束帧的Apply结果按源顺序换回同帧输入，pose/curve presence恢复，其他76观察帧原样保持。此为数据反事实控制，未称生产或实际runtime修复。旧惯性测试侧重中段数值/最终停止，容差和零值查找漏了到期帧的末尾单位化与缺失curve键。与D193欠时残留、D190/D191门槛及D195旋转差分不同；未宣称可见故障。证据`target/bf144/223/terminal-check.json`、`same-input.native.json`、`terminal-current-contract.report.json`和`terminal-source-order-control.json`，只登记。
