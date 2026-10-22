@@ -1408,6 +1408,15 @@
 
   - 14:30 完成摘要：六声明资产四时点的源codec/public API和独立SDK1896骨骼全等；五additive流constant、无曲线、当前3978实际输入均0，原target生产采样及参考差分与314262缓存骨骼精确。独立压缩delta数据控制在五声明零点395骨骼全等，已补充D224当前数据合同范围；raw参考独立对照保留，不将其残差猜分给D226/D227/D230。reader仅放开additive、正确默认及真实bool，无新抽象；identity与retarget的312/12骨骼消融失败边界明确，源码字节及同package重编恢复316骨骼精确。普通序列旧全部字段/数值保持，只按既有.181新增字段验证。694身份键及114 ALS/184 Rust/生产库/原始资产不变，Gate `target/bf144/188/summary.json` PASS。实际结束：2026-10-22 14:30:26 +08:00；实耗23分56秒，较预估提前31分04秒；六短constant流使原定复杂帧间重建无须新增实现。新增差异0，累计232（115P2/117P3），本项仅当前采样数据/模式闭包；全2D权重和合成、最终ApplyAdditive及off-key参考算子仍未过，下一项按依赖继续。截图0、性能暂停。
 
+- [x] BF144.189 Lean二维权重与BlendSpace合成：依赖.187输入/拓扑及.188五加性样本数据Gate，以实际3386 Evaluator输入和独立全二维声明位置核对source三角形查找、样本顺序/权重及最终加性BS pose；先复用.180 BlendSpace public probe和double模型，再用不改图的原缓存观察校准target输出，分离D224数据、D231归一化及D232精度影响。当前X=0/Y≥0自然历史不能代替侧/后方向；共同参考之外不展开相邻资产，最终ApplyAdditive另项依赖本Gate。Gate：全部实际位置/历史和声明顶点/边界/内外点的source权重、原target权重/pose精确校准、源public API分层复算、最小消融恢复及身份，未知余差必须登记或明确留边界。开始：2026-10-22 14:31:00 +08:00；预估结束：2026-10-22 15:26:00 +08:00。估时依据：.180的6 BS合成已有公共工具，.187输入41分28秒、.188六constant流23分56秒；本项一个完整2D BS/3386实际输入，计入边/越界权重与缓存观察按55分钟，最终消费及raw/off-key参考算子依赖后置。仅审计，截图0、性能暂停。
+  - 14:31 活动摘要：.188已单独提交；五Lean compressed stream均constant且曲线空，当前source phase0。fresh同一BS的4三角形/五位置已知，target原reference-difference有数据差异归D224，但不能用修正子pose后仍有的BS合成余差掩盖。下一步读取公共BlendSpaceProbe请求合同与现有.180模型，在本项source权重先闭合后消费actual pose。当前232（115P2/117P3），截图0、性能暂停。
+
+  - 15:07 source/权重闭环：fresh公共BS probe读取20条owner历史3386输入及211声明位置，3597份pose/284163骨骼、4361子样本（含12份三输入）由既有double模型全部f64精确，当前time0/curves空。目标五点四三角形的production节点经标记曲线暴露权重，3386实际+211声明在同历史GraphContextArena下全部精确；每点新arena会产生4份近边假差，已物理移除重置，保留原历史后恢复为0，不登记移植差异。只读新增BS output/triangle观察在10路径2400帧的旧完整历史精确，3386缓存输出已保存。下一步实际原子pose+源权重重放目标合成并分离D224数据、D231额外normalize与D232空间精度；尚未评审final ApplyAdditive。当前232，截图0、性能暂停。
+
+  - 15:10 合成裁决：原3386缓存/267494骨骼由source相同权重+原target child的生产Pose scalar_mult/linear_add/normalize逐项精确；同source child的实际/声明位置合成分别有5252/1275位置与19375/4373旋转不等，scale全等，峰值1.4901161e−8m/1.1920929e−7。源double模型全等，单独省去末尾normalize改变56026 f64/9 f32骨骼，归D231/D232已有数值管线，不重复编号。每点重置arena的消融再次复现4份假差，已按源码字节恢复并在同target重编，待完整restored结果与identity后才勾选。当前BS output到最终ApplyAdditive仍未闭合，当前232，截图0、性能暂停。
+
+  - 15:11 完成摘要：20 owner实际历史3386输入与211连续声明二维位置的五样本权重全部精确；3597 source BS/284163骨骼/4361 child由既有源double模型f64精确，曲线空/采样0，12份三样本另有控制。只读观察保留10路径2400帧旧完整历史，3386实际缓存/267494骨骼由原child及精确source权重生产Pose重放全等。D224原数据与D231/D232同child合成分别保留证据，不新增编号、不强行分摊余差；删一次source normalize的56026 f64/9 f32信号明确。每点重置triangle的4个假差消融已恢复源码字节/同target重编，全部输出与最终历史控制精确；710身份键/114 ALS/184 Rust/reader/生产库/原始资产保持。Gate `target/bf144/189/summary.json` PASS。实际结束：2026-10-22 15:11:10 +08:00；实耗40分10秒，较预估提前14分50秒。新增差异0，累计232（115P2/117P3）；最终ApplyAdditive、raw/off-key参考差分及其他未审scope仍打开，按依赖继续。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
@@ -2989,6 +2998,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 全量/漏检：源两阶段模型与4849份pose/383071骨骼f64全等；仅物理省掉一次Normalize，342015份骨骼f64改变，其中154份改变f32，curve与2400组原clock/最终输出保持。旧clock/sample Gate未执行这个末尾合成，源数学被当作幂等的假设没有输入数值证明。证据`target/bf144/180/stage-witness-check.json`、`normalization-effect-check.json`、`target-blend-check.json`与`full-blend-check.json`；只登记，未修生产，未声明可见故障或其他BlendSpace路径已覆盖。
   - BF144.182直接父层扩展：fresh MultiWay Evaluate同样在BlendPosesTogether后追加NormalizeRotations；12个方向节点均使用此公共路径，不另开编号。实际3809次多输入父pose的相同精度控制中，省掉末尾一次归一化改变267009骨骼f64，其中324改变f32。原生1/2/3/4输入28个骨骼与源double模型全等；物理删除MultiWay末尾调用改变15个独立double控制，另外12个TwoWay/gait控制保持，源码字节恢复及同package重编后原native文档精确。两条未自然激活的站姿方向只有声明参数和公共算子控制，不按自然覆盖通过。证据`target/bf144/182/normalization-factor-check.json`、`weighted-double-check.json`、`native-ablation-check.json`。
 
+  - BF144.189 Lean加性BS扩展：同一BS的3386实际输入和211连续二维声明控制（含12份三样本）权重全部精确；源3597输出/284163骨骼由既有double模型全部精确。仅省去一次源normalize改变56026份f64骨骼，其中9份改变f32；源child数据保持，归既有D231。真实target缓存和原完整历史已精确校准，最终ApplyAdditive尚未消费。证据`target/bf144/189/source-check.json`、`weights-check.json`、`aggregation-check.json`；每次新arena造成4份近边假差，经同历史恢复全消失，不记为移植差异。
+
 - [ ] BF144-D232 / P3 — 多姿态骨骼在源数值空间求值前即降为runtime f32，改变混合结果。
   - Source：fresh `MathFwd.h:53`的FTransform为TTransform<double>；`AnimationRuntime.h:51–61`以源厘米/原坐标的FTransform做Overwrite和Accumulate，`TransformVectorized.h:1060–1071`的translation/scale使用double VectorMultiplyAdd，rotation也在同一double管线累积/归一化。源子pose的reference scale和AnimationRelative rotation还可含非f32值。
   - Target：子pose进入Bevy Pose时已按runtime米制坐标存为f32 Vec3/Quat；`pose.rs:187–218`随后执行f32 scalar_mult、linear_add及normalize_quat。即使补齐D231的次数，源单位/中间精度与投影时点仍未恢复。这是多个pose的数值合成合同，独立于D224平台数据、D225单Sequence时间插值和D228键格点。
@@ -2996,6 +3007,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 全量/边界：实际节点与直接runtime f32 Pose控制精确，源f64模型与4849份pose/383071骨骼精确；同一源单位/双normalize的f32模型仍留103762 translation/303516 rotation/17366 scale差，最大1.788139e−7。独立控制还区分了提前舍入reference/retarget输入和单位转换位置；不把多个数值环节的份额强行相加，也不另拆每个FMA/坐标分量。证据`target/bf144/180/precision-model-check.json`、`target-blend-check.json`与`full-blend-check.json`。旧门槛/时钟测试未核对同数据末尾数值管线；只登记，生产未修，不宣称视觉或其他混合节点同样受影响。
   - BF144.182直接父层扩展：同一FTransform<double>与runtime f32管线亦用于MultiWay、TwoWay和gait，实际9771父记录/771909骨骼已与生产blend_source_poses精确校准，28个真实输入公共API在原double空间精确匹配模型。父层最终数值余差沿此共享管线及D231/D216/D234分离，不把所有余差单归一个分量或新增同因编号；证据`target/bf144/182/parent-math-check.json`、`calibration-check.json`与`weighted-double-check.json`。
   - BF144.184 FSM同输入补充：1172个有转场输出/92588骨骼经原空间double顺序累加及末尾归一化后，target有37174个位置、11507个scale不等；实际1312级生产运算校准精确。此处源权重D197和数值空间/舍入阶段同时参与，不把这些统计全归于D232或强行相加；完整参数/源算子链与原生最小阶段控制说明边界，证据`target/bf144/184/chain-check.json`及`calibration-check.json`。
+
+  - BF144.189 Lean同数据合成补充：原始target3386份BS缓存/267494骨骼由源精确权重和原target child经生产Pose运算逐项重放精确。改以同一source child作输入后，actual有5252位置/19375旋转、声明控制有1275位置/4373旋转不等，scale全等，峰值位置1.4901161e−8m/旋转1.1920929e−7；其中D231的额外归一化贡献已单独控制，不将计数强行相加或全部归一个阶段。原空间double模型与完整native精确，当前未出现新未知源算子余差；见`target/bf144/189/actual-replay.json`、`aggregation-check.json`。
 
 - [ ] BF144-D233 / P3 — TwoWay及gait双姿态消费者的曲线用加权求和替代源三参数Lerp。
   - Source：fresh `AnimNode_TwoWayBlend.cpp:139`调用BlendTwoPosesTogetherInPlace；`AnimationRuntime.cpp:535–545`回算WeightOfPoseTwo后对curve使用FBlendedCurve::Lerp，`AnimCurveTypes.h:692–716`进入FMath::Lerp，`UnrealMathUtility.h:1123–1125`执行A+Alpha×(B−A)。两端相同有限float值时差值为0，输出保持原值。单边相关时直接传递，不是此反例。
