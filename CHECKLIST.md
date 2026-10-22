@@ -1846,6 +1846,17 @@
 
   - 23:27 完成摘要：fresh原PostLocomotion/Locomotion配置及5b8f6ccb→ccaab6a2→47121ad2 Locomotion Input源边确认；实际77 slot/layer权重0、overlay/context/montage samples无、GetUp无实例/Roll inactive0，77 source/output及真实子Root/caller identity全等。源无活动copy运输原77/6083骨骼curves至Layering入口0target回填，4个活动producer/权重负控制拒绝。观察物理移除/源码字节恢复/同target重编完整240/全部新字段精确，1397身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持，Gate `target/bf144/224/summary.json` PASS_ORIGINAL_POST_LOCOMOTION_SLOT_INACTIVE_PREFIX。实际结束：2026-10-22 23:27:36 +08:00；实耗6分14秒，较预估提前28分46秒。新增0，累计238（115P2/123P3）；下一项Layering内部Locomotion缓存/其他原输入资格，180恢复和完整主Root仍未过。截图0、性能暂停。
 
+- [x] BF144.225 Layering Locomotion linked输入/cache运输与原其他输入需求：依赖.224原PostLocomotion77，仅从47121ad2 Layering的Locomotion Input源闭包取证，fresh提取Layering顶图/该Input→Save/Use及真正pose消费者；记录真实owner/key、updated链和原Overlay Input等缺口。原77 Locomotion数据先按实际身份运输，其他原pose未具备不得代入target或输出完整Layering数值；如source要求辅助输入需在本摘要命名后再沿依赖逐项补齐。Gate：source拓扑与数据归属、actual输入/缓存/使用身份及完整历史校准、原数组0target回填、缺输入/owner控制、观察最小消融恢复/同target与身份。开始：2026-10-22 23:28:29 +08:00；预估结束：2026-10-23 00:03:29 +08:00。估时依据：.209/.218同类运输约3–8分钟，Layering有多个输入和分层consumer，35分钟确定当前完整依赖界面，不合并尚无原Overlay的多层数值或Rig。仅审计，生产/转换器/原始资产不改，截图0、性能暂停。
+  - 23:28 活动摘要：.224已提交，原77 PostLocomotion已备，累计238（115P2/123P3）。下一步fresh Layering入口图、真正cache/input和actual消费者，再决定原Overlay等下一必要闭包，不按同名展开旁链。
+
+  - 23:33 source依赖纠正：fresh Layering顶图150节点、Locomotion Input→Save明确，9个声明Locomotion use。初将动态additive Base当Overlay的断言失败，读取两个Base use的NameOfCache/SaveCachedPoseNode后明确均为Base Poses；此前假设排除，不展开Overlay代替。当前必要界面为原Locomotion输入已备、原Overlay独立输入及内部Base Poses均未备；先核当前Locomotion owner/key/实际use，再按真实Base/Overlay链分项补齐，Layering最终数值不先算。238、截图0、性能暂停。
+
+  - 23:35 runtime后运输闭环：完整240旧历史仅剥离layering_link_records后精确；77份外层slot→Layering linkedInput→Save Locomotion pose/curve/time全等，真正child owner/key校准，9声明use中仅3个当前更新，共231引用且值保持。原77/6083骨骼curves按当前owner/key运输0target回填；Base Poses与Overlay原数据仍缺，不创建完整Layering数值。此前误认Base=Overlay已由source断言拒绝并更正，真正内部Base Poses由61f34e31保存、来自20f01df6 MultiWay源边，下一依赖据此选择。观察物理去除/字节恢复/同target及缺owner控制收尾，238、截图0、性能暂停。
+
+  - 23:39 验证路径纠正：三份大JSON同时持有的恢复比较已输出数值相等结果，但退出清理静默超过30秒，watchdog no_progress_timeout，故该次不作Gate。保留报告并改为两份逐对比较、每份显式释放后记录进度，120/30上限与所有字段合同不变；同已运行二进制/捕获重验，不重启actor或缩减历史。238、生产未改、截图0、性能暂停。
+
+  - 23:44 完成摘要：fresh源顶图150节点确认Locomotion Input→Save、9声明use及独立Overlay/Base Poses边界；actual77输入/缓存与3当前use共231引用身份/pose/curve/time全保持。原77份6083骨骼按真实owner/key运输，0target数值回填；删除owner稳定失败、恢复通过。观察物理去除/字节恢复/同target重编后，240帧完整旧字段精确；大JSON清理超时已保留且排除，逐对比较在相同120/30上限正常退出通过。1408身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持，Gate `target/bf144/225/summary.json` PASS_LAYERING_LOCOMOTION_INPUT_TRANSPORT_AND_DEPENDENCY_RECORD。实际结束：2026-10-22 23:44:16 +08:00；实耗15分47秒，较预估提前19分13秒。无新增差异，累计238（115P2/123P3）；完整Layering尚缺内部Base Poses（20f01df6 MultiWay）及原Overlay，下一项先沿该已证明依赖，未宣称完整Root等价。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
