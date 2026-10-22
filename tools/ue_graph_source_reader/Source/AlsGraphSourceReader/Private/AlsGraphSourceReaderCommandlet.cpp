@@ -975,6 +975,24 @@ TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
         TSharedRef<FJsonObject> Sample = MakeShared<FJsonObject>();
         Sample->SetObjectField(TEXT("input"), Input->ToSharedRef());
         Sample->SetObjectField(TEXT("rotator_degrees"), CaptureRotator(Rotation.Rotator()));
+        if ((*Input)->HasField(TEXT("euler_degrees")))
+        {
+            TArray<double> Euler;
+            if (!ReadArray(*Input, TEXT("euler_degrees"), Euler, 3)) { return nullptr; }
+            Sample->SetObjectField(TEXT("rotation_from_euler"), CaptureQuaternion(FRotator(Euler[0], Euler[1], Euler[2]).Quaternion()));
+        }
+        if ((*Input)->HasField(TEXT("scaled_distance")))
+        {
+            const TSharedPtr<FJsonObject>* Distance = nullptr;
+            TArray<double> A, B, Scale;
+            if (!(*Input)->TryGetObjectField(TEXT("scaled_distance"), Distance)
+                || !ReadArray(*Distance, TEXT("a"), A, 3) || !ReadArray(*Distance, TEXT("b"), B, 3)
+                || !ReadArray(*Distance, TEXT("scale"), Scale, 3)) { return nullptr; }
+            const double Value = ((FVector(A[0], A[1], A[2]) - FVector(B[0], B[1], B[2])) * FVector(Scale[0], Scale[1], Scale[2])).Size();
+            if (!FMath::IsFinite(Value) || !FMath::IsFinite(static_cast<float>(Value))) { return nullptr; }
+            Sample->SetNumberField(TEXT("scaled_distance"), Value);
+            Sample->SetNumberField(TEXT("scaled_distance_float"), static_cast<float>(Value));
+        }
         if ((*Input)->HasField(TEXT("float_range_map")))
         {
             const TSharedPtr<FJsonObject>* Mapping = nullptr;
@@ -1056,6 +1074,7 @@ TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
             }
             Sample->SetObjectField(TEXT("rotation_product"), CaptureQuaternion(Product));
             Sample->SetObjectField(TEXT("rotation_product_degrees"), CaptureRotator(Product.Rotator()));
+            Sample->SetObjectField(TEXT("normalized_rotation_product"), CaptureQuaternion(Product.GetNormalized()));
         }
         if ((*Input)->HasField(TEXT("rotation_between_vectors")))
         {
