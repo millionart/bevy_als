@@ -1583,6 +1583,15 @@
 
   - 18:03 完成摘要：fresh原Crouch Base属性/A-B身份及4点79骨骼native叶保持；实际source_context接原frame0叶与.196原FSM，全10重建1648 Base/130192骨骼、0source缺口/0target pose回填，当前两侧相关范围严格断言，不加未用单边分支。24公开native原中间组合f64精确；清空原FSM拒绝最小223输出，恢复最终脚本字节后原数组精确。当前组合比较曲线名字0丢失，数值差只按已知叶/父/FSM数值阶段传播保留，不另编号。976身份键/114 ALS/184 Rust/reader/原始资产/生产库保持，Gate `target/bf144/197/summary.json` PASS。实际结束：2026-10-22 18:03:19 +08:00；实耗6分19秒，较预估提前28分40秒。新增0，累计235（115P2/120P3）；Standing Base已由.196直接给出，下一依赖只接原Lean与ApplyAdditive，完整Root反馈仍后置。截图0、性能暂停。
 
+- [x] BF144.198 原source Lean BlendSpace实际数据链：依赖.188/.189原Lean样本/权重合同及.191完整raw共同参考，将3386次实际Lean的原样本数据/权重保持double聚合，fresh核对B_Als_Lean与五sample的采样模式、时间、曲线和参考，拒绝target样本pose回填。Gate：实际case/frame/owner唯一身份、3386原Lean输出/267494骨骼、原native逐值校准、source断供最小消融与恢复及身份；ApplyAdditive连接.196/.197 Base独立下一项，完整Root反馈后置。开始：2026-10-22 18:04:00 +08:00；预估结束：2026-10-22 18:39:00 +08:00。估时依据：.189现成3386原native Lean记录/五sample与实际映射、.191原参考链已过，复用同double聚合模型，仅补原数据实际链和身份/消融约35分钟；ApplyAdditive另项避免超60分钟。只审计，生产/转换器/原始资产不改，截图0、性能暂停。
+  - 18:04 活动摘要：原Standing/Crouch Base已通过；本项只先完成原Lean实际样本聚合，不把目标sample cache或目标glTF参考当source。下一步fresh B_Als_Lean原声明与已有native实际时点/压缩模式清点，按case/frame/owner映射；当前235（115P2/120P3），ApplyAdditive/Root反馈继续后置。
+
+  - 18:05 实际覆盖纠正：3386个原Lean聚合/267494骨骼已逐值对上原native完整pose，但末尾“实际出现五sample”断言失败；真实历史只有中心sample0共3386次和Forward sample1共592次，其余三方向仅.189的211声明控制覆盖，不能伪称自然触发。改为严格实际{0,1}身份并保留五声明资产边界，删除未用errors collector后重跑；fresh20组原首帧/native BS声明已取得，下一步逐值校准、样本断供/恢复和身份。235不变，截图0、性能暂停。
+
+  - 18:05 原Lean source/static闭环：3978原sample读取均compressed/time0/空曲线，原double聚合3386输出/267494骨骼与native完整BlendSpace逐值精确（2794单sample/592双sample）；fresh20个case-owner首帧及全部BS原属性精确。3386实际case/frame/owner无重复且与当前Apply输入位置/骨骼名/空曲线匹配，未拿target骨骼补source；清空原sample即断言失败，字节恢复后全部原输出hash精确。原prepared加性sample已含.191核实的原raw参考语义，不再次减参考；target参考错误仍D235。最终身份待核，235不变，截图0、性能暂停。
+
+  - 18:06 完成摘要：3978原compressed加性sample/time0/空曲线经double原权重聚合，3386原Lean/267494骨骼与native完整输出f64精确；20 fresh case-owner首帧及原BS属性精确，3386唯一身份与当前Apply输入位置/名/空曲线匹配。当前只自然触发中心/Forward两个sample（2794单/592双），其余三个方向仍是211声明控制，不算自然触发。原sample断供即失败，最终脚本字节/全部原输出恢复精确，未用collector已删；watchdog非零进程仍exit_reason=completed，检查按success=false/process_exit_code=1及原AssertionError判定，不要求不存在的reason枚举。984身份键/114 ALS/184 Rust/reader/原始资产/生产库保持，Gate `target/bf144/198/summary.json` PASS。实际结束：2026-10-22 18:06:20 +08:00；实耗2分20秒，较预估提前32分39秒。新增0，累计235（115P2/120P3）；下一项接原Base与Lean到ApplyAdditive，完整Root/未自然触发方向后置。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
