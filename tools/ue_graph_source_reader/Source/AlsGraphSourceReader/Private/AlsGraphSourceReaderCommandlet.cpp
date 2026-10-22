@@ -26,6 +26,7 @@
 #include "Engine/World.h"
 #include "AnimNodes/AnimNode_BlendListBase.h"
 #include "AnimNodes/AnimNode_TwoWayBlend.h"
+#include "AnimNodes/AnimNode_LayeredBoneBlend.h"
 #include "Animation/AnimNotifyQueue.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "Animation/AnimSequence.h"
@@ -3259,6 +3260,176 @@ TSharedPtr<FJsonObject> CaptureBlendProfileProbe(UObject* Asset, const FString& 
     return Result;
 }
 
+TSharedPtr<FJsonObject> CaptureLayeredBoneBlendProbe(UObject* Asset, const FString& RequestPath)
+{
+    FMemMark Mark(FMemStack::Get());
+    UBlueprint* Blueprint = Cast<UBlueprint>(Asset);
+    UAnimBlueprintGeneratedClass* Class = Blueprint != nullptr ? Cast<UAnimBlueprintGeneratedClass>(Blueprint->GeneratedClass) : nullptr;
+    const IAnimClassInterface* Interface = Class != nullptr ? IAnimClassInterface::GetFromClass(Class) : nullptr;
+    FString Text, NodeGuidText;
+    TSharedPtr<FJsonObject> Request;
+    const TArray<TSharedPtr<FJsonValue>>* Names = nullptr;
+    const TArray<TSharedPtr<FJsonValue>>* Samples = nullptr;
+    FGuid NodeGuid;
+    if (Interface == nullptr || Interface->GetTargetSkeleton() == nullptr || !FFileHelper::LoadFileToString(Text, *RequestPath) ||
+        !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Request) ||
+        !Request->TryGetStringField(TEXT("node_guid"), NodeGuidText) || !FGuid::Parse(NodeGuidText, NodeGuid) || !NodeGuid.IsValid() ||
+        !Request->TryGetArrayField(TEXT("bone_names"), Names) || !Request->TryGetArrayField(TEXT("samples"), Samples) ||
+        Samples->IsEmpty() || Samples->Num() > 256) { return nullptr; }
+    const int32* NodeIndex = Class->GetNodePropertyIndexFromGuid(NodeGuid);
+    const TArray<FStructProperty*>& Properties = Interface->GetAnimNodeProperties();
+    const int32 PropertyIndex = NodeIndex != nullptr ? Properties.Num() - 1 - *NodeIndex : INDEX_NONE;
+    if (!Properties.IsValidIndex(PropertyIndex) || Properties[PropertyIndex]->Struct != FAnimNode_LayeredBoneBlend::StaticStruct()) { return nullptr; }
+    const UEdGraphNode* Visual = Class->GetVisualNodeFromNodePropertyIndex(PropertyIndex);
+    if (Visual == nullptr || Visual->NodeGuid != NodeGuid) { return nullptr; }
+    const FAnimNode_LayeredBoneBlend* Template = Properties[PropertyIndex]->ContainerPtrToValuePtr<FAnimNode_LayeredBoneBlend>(Class->GetDefaultObject());
+    USkeleton* Skeleton = Interface->GetTargetSkeleton();
+    const FReferenceSkeleton& Reference = Skeleton->GetReferenceSkeleton();
+    if (Names->Num() != Reference.GetNum()) { return nullptr; }
+    TArray<FBoneIndexType> BoneIndices;
+    for (int32 Index = 0; Index < Names->Num(); ++Index)
+    {
+        FString Name;
+        if (!(*Names)[Index]->TryGetString(Name) || Name != Reference.GetBoneName(Index).ToString()) { return nullptr; }
+        BoneIndices.Add(Index);
+    }
+    struct FProbeProxy : FAnimInstanceProxy
+    {
+        using FAnimInstanceProxy::FAnimInstanceProxy;
+        using FAnimInstanceProxy::Initialize;
+    };
+    struct FProbeLeaf : FAnimNode_Base
+    {
+        TArray<FTransform> Transforms;
+        TMap<FName, float> Curves;
+        float UpdateWeight = 0.f;
+        float RootMotionWeight = 0.f;
+        virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override
+        {
+            UpdateWeight = Context.GetFinalBlendWeight();
+            RootMotionWeight = Context.GetRootMotionWeightModifier();
+        }
+        virtual void Evaluate_AnyThread(FPoseContext& Output) override
+        {
+            Output.Pose.ResetToRefPose();
+            for (int32 Index = 0; Index < Transforms.Num(); ++Index) { Output.Pose[FCompactPoseBoneIndex(Index)] = Transforms[Index]; }
+            Output.Curve.Empty();
+            for (const auto& Curve : Curves) { Output.Curve.Set(Curve.Key, Curve.Value); }
+        }
+    };
+    struct FProbeLayered : FAnimNode_LayeredBoneBlend
+    {
+        const TArray<FPerBoneBlendWeight>& Weights() const { return CurrentBoneBlendWeights; }
+        TSharedRef<FJsonObject> CurveSources() const
+        {
+            TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+            CurvePoseSourceIndices.ForEachElement([&Result](const UE::Anim::FCurveElementIndexed& Curve) { Result->SetNumberField(Curve.Name.ToString(), Curve.Index); });
+            return Result;
+        }
+    };
+    const auto ReadLeaf = [&Reference](const TSharedPtr<FJsonValue>& Value, FProbeLeaf& Leaf)
+    {
+        const TSharedPtr<FJsonObject>* Object = nullptr;
+        const TSharedPtr<FJsonObject>* Curves = nullptr;
+        const TArray<TSharedPtr<FJsonValue>>* Transforms = nullptr;
+        if (!Value->TryGetObject(Object) || !(*Object)->TryGetArrayField(TEXT("bone_transforms"), Transforms) ||
+            Transforms->Num() != Reference.GetNum() || !(*Object)->TryGetObjectField(TEXT("curves"), Curves)) { return false; }
+        for (const TSharedPtr<FJsonValue>& TransformValue : *Transforms)
+        {
+            const TSharedPtr<FJsonObject>* Transform = nullptr;
+            if (!TransformValue->TryGetObject(Transform)) { return false; }
+            double Components[10];
+            int32 Offset = 0;
+            for (const TCHAR* Field : {TEXT("translation_cm"), TEXT("rotation"), TEXT("scale")})
+            {
+                const TArray<TSharedPtr<FJsonValue>>* Values = nullptr;
+                const int32 Count = Offset == 3 ? 4 : 3;
+                if (!(*Transform)->TryGetArrayField(Field, Values) || Values->Num() != Count) { return false; }
+                for (const TSharedPtr<FJsonValue>& Component : *Values)
+                {
+                    if (Component->Type != EJson::Number || !Component->TryGetNumber(Components[Offset]) || !FMath::IsFinite(Components[Offset])) { return false; }
+                    ++Offset;
+                }
+            }
+            const FQuat Rotation(Components[3], Components[4], Components[5], Components[6]);
+            if (!Rotation.IsNormalized()) { return false; }
+            Leaf.Transforms.Add(FTransform(Rotation, FVector(Components[0], Components[1], Components[2]), FVector(Components[7], Components[8], Components[9])));
+        }
+        for (const auto& Curve : (*Curves)->Values)
+        {
+            double Amount;
+            if (Curve.Value->Type != EJson::Number || !Curve.Value->TryGetNumber(Amount) || !FMath::IsFinite(static_cast<float>(Amount))) { return false; }
+            Leaf.Curves.Add(FName(*Curve.Key), static_cast<float>(Amount));
+        }
+        return true;
+    };
+    TArray<TSharedPtr<FJsonValue>> Results;
+    for (const TSharedPtr<FJsonValue>& Value : *Samples)
+    {
+        const TSharedPtr<FJsonObject>* Sample = nullptr;
+        const TArray<TSharedPtr<FJsonValue>>* Layers = nullptr;
+        FString Name;
+        double Delta;
+        if (!Value->TryGetObject(Sample) || !(*Sample)->TryGetStringField(TEXT("name"), Name) ||
+            !(*Sample)->HasTypedField<EJson::Number>(TEXT("delta_seconds")) || !(*Sample)->TryGetNumberField(TEXT("delta_seconds"), Delta) ||
+            !FMath::IsFinite(static_cast<float>(Delta)) || Delta < 0.0 ||
+            !(*Sample)->TryGetArrayField(TEXT("layers"), Layers) || Layers->Num() != Template->BlendPoses.Num() || !(*Sample)->HasField(TEXT("base"))) { return nullptr; }
+        TArray<FProbeLeaf> Leaves;
+        Leaves.SetNum(Layers->Num() + 1);
+        if (!ReadLeaf((*Sample)->TryGetField(TEXT("base")), Leaves[0])) { return nullptr; }
+        for (int32 Index = 0; Index < Layers->Num(); ++Index) { if (!ReadLeaf((*Layers)[Index], Leaves[Index + 1])) { return nullptr; } }
+        USkeletalMeshComponent* Mesh = NewObject<USkeletalMeshComponent>();
+        UAnimInstance* Instance = NewObject<UAnimInstance>(Mesh, Class);
+        FProbeProxy Proxy(Instance);
+        Proxy.Initialize(Instance);
+        if (!Proxy.IsSkeletonValid() || Proxy.GetSkeleton() != Skeleton) { return nullptr; }
+        Proxy.GetRequiredBones().InitializeTo(BoneIndices, UE::Anim::FCurveFilterSettings(), *Skeleton);
+        FProbeLayered Node;
+        static_cast<FAnimNode_LayeredBoneBlend&>(Node) = *Template;
+        Node.InvalidatePerBoneBlendWeights();
+        Node.BasePose.SetLinkNode(&Leaves[0]);
+        for (int32 Index = 0; Index < Layers->Num(); ++Index) { Node.BlendPoses[Index].SetLinkNode(&Leaves[Index + 1]); }
+        Node.Initialize_AnyThread(FAnimationInitializeContext(&Proxy));
+        Node.CacheBones_AnyThread(FAnimationCacheBonesContext(&Proxy));
+        FAnimationUpdateSharedContext SharedContext;
+        Node.Update_AnyThread(FAnimationUpdateContext(&Proxy, static_cast<float>(Delta), &SharedContext));
+        FPoseContext Pose(&Proxy);
+        Node.Evaluate_AnyThread(Pose);
+        TArray<TSharedPtr<FJsonValue>> Transforms, Weights, UpdateWeights, RootMotionWeights;
+        for (int32 Index = 0; Index < BoneIndices.Num(); ++Index)
+        {
+            if (Pose.Pose[FCompactPoseBoneIndex(Index)].ContainsNaN() || !Pose.Pose[FCompactPoseBoneIndex(Index)].GetRotation().IsNormalized()) { return nullptr; }
+            Transforms.Add(MakeShared<FJsonValueObject>(CaptureTransform(Pose.Pose[FCompactPoseBoneIndex(Index)])));
+            TSharedRef<FJsonObject> Weight = MakeShared<FJsonObject>();
+            Weight->SetNumberField(TEXT("source"), Node.Weights()[Index].SourceIndex);
+            Weight->SetNumberField(TEXT("weight"), Node.Weights()[Index].BlendWeight);
+            Weights.Add(MakeShared<FJsonValueObject>(Weight));
+        }
+        for (const FProbeLeaf& Leaf : Leaves)
+        {
+            UpdateWeights.Add(MakeShared<FJsonValueNumber>(Leaf.UpdateWeight));
+            RootMotionWeights.Add(MakeShared<FJsonValueNumber>(Leaf.RootMotionWeight));
+        }
+        TSharedRef<FJsonObject> Curves = MakeShared<FJsonObject>();
+        Pose.Curve.ForEachElement([&Curves](const UE::Anim::FCurveElement& Curve) { Curves->SetNumberField(Curve.Name.ToString(), Curve.Value); });
+        TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>();
+        Row->SetStringField(TEXT("name"), Name);
+        Row->SetArrayField(TEXT("bone_transforms"), Transforms);
+        Row->SetArrayField(TEXT("bone_weights"), Weights);
+        Row->SetArrayField(TEXT("update_weights"), UpdateWeights);
+        Row->SetArrayField(TEXT("root_motion_weight_modifiers"), RootMotionWeights);
+        Row->SetObjectField(TEXT("curve_sources"), Node.CurveSources());
+        Row->SetObjectField(TEXT("curves"), Curves);
+        Results.Add(MakeShared<FJsonValueObject>(Row));
+        UE_LOG(LogAlsGraphSourceReader, Display, TEXT("Layered bone blend sample %d/%d captured."), Results.Num(), Samples->Num());
+    }
+    TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+    Result->SetStringField(TEXT("node_guid"), GuidText(NodeGuid));
+    Result->SetStringField(TEXT("node_property"), Properties[PropertyIndex]->GetName());
+    Result->SetArrayField(TEXT("samples"), Results);
+    return Result;
+}
+
 TSharedPtr<FJsonObject> CaptureInertializationProbe(UObject* Asset, const FString& RequestPath)
 {
     UBlueprint* Blueprint = Cast<UBlueprint>(Asset);
@@ -4675,6 +4846,13 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
         const TSharedPtr<FJsonObject> Probe = CaptureBlendProfileProbe(Asset, BlendProfileProbePath);
         if (!Probe.IsValid()) { return 7; }
         Root->SetObjectField(TEXT("blend_profile_probe"), Probe.ToSharedRef());
+    }
+    FString LayeredBoneBlendProbePath;
+    if (FParse::Value(*Params, TEXT("LayeredBoneBlendProbe="), LayeredBoneBlendProbePath))
+    {
+        const TSharedPtr<FJsonObject> Probe = CaptureLayeredBoneBlendProbe(Asset, LayeredBoneBlendProbePath);
+        if (!Probe.IsValid()) { return 7; }
+        Root->SetObjectField(TEXT("layered_bone_blend_probe"), Probe.ToSharedRef());
     }
     FString InertializationProbePath;
     if (FParse::Value(*Params, TEXT("InertializationProbe="), InertializationProbePath))
