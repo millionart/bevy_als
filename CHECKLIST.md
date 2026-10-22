@@ -1592,6 +1592,15 @@
 
   - 18:06 完成摘要：3978原compressed加性sample/time0/空曲线经double原权重聚合，3386原Lean/267494骨骼与native完整输出f64精确；20 fresh case-owner首帧及原BS属性精确，3386唯一身份与当前Apply输入位置/名/空曲线匹配。当前只自然触发中心/Forward两个sample（2794单/592双），其余三个方向仍是211声明控制，不算自然触发。原sample断供即失败，最终脚本字节/全部原输出恢复精确，未用collector已删；watchdog非零进程仍exit_reason=completed，检查按success=false/process_exit_code=1及原AssertionError判定，不要求不存在的reason枚举。984身份键/114 ALS/184 Rust/reader/原始资产/生产库保持，Gate `target/bf144/198/summary.json` PASS。实际结束：2026-10-22 18:06:20 +08:00；实耗2分20秒，较预估提前32分39秒。新增0，累计235（115P2/120P3）；下一项接原Base与Lean到ApplyAdditive，完整Root/未自然触发方向后置。截图0、性能暂停。
 
+- [x] BF144.199 原source Base/Lean到ApplyAdditive实际消费：依赖.196原Standing FSM、.197原Crouch Base与.198原Lean，按当前实际lean_record.context/base_source_node/pin接两份原double输入，使用已审effective alpha执行源加性API及节点末尾归一化，完成3386实际Apply输出。Gate：fresh源Apply配置/执行语义、实际身份0歧义/0source缺口/0target pose回填、原中间数组native控制、当前target组合比较、最小断供/归一化消融恢复及身份；完整Root反馈及未自然方向后置。开始：2026-10-22 18:07:00 +08:00；预估结束：2026-10-22 18:42:00 +08:00。估时依据：.190源加性double库/64native控制已过，现仅两份原数组与现有context身份接线、3386consumer及新native组合；.197运输6分钟/.198约2分钟，预留35分钟给数据映射/原native及最小消融，不展开Root。只审计，生产/转换器/原始资产不改，截图0、性能暂停。
+  - 18:07 活动摘要：.198已提交，原Lean3386/原Base1738+1648就绪；.195完整lean_records保留context与base_source_node/pin，足以通过真实节点身份取同context原FSM/后置Base，不用pose值猜输入。下一步静态唯一性断言、fresh原Apply属性/末尾normalize语义和原数组全量组合。当前235（115P2/120P3），Root反馈未验收。
+
+  - 18:09 source/static摘要：fresh两stance原图读取成功，本地ApplyAdditive.cpp:71–94在ActualAlpha相关时Base/Additive Evaluate→AccumulateAdditivePose(LocalSpace)→额外一次Output.NormalizeRotations；原库.190保留该阶段，当前只喂原Base/Lean数组，不lift目标pose。已有7条实际路径0源缺口/0target回填，剩余同scope正在计算；24个新原组合API控制已准备并启动，之后仅最小断供/末尾normalize消融与身份。235不变，截图0、性能暂停。
+
+  - 18:10 原组合/native与消融通过：全10原Apply3386/267494骨骼计算完成，实际context/base node/pin全命中；fresh两Apply原属性精确，24新原Base/Lean组合（各stance12）公开加性API及源节点末尾normalize均f64精确。分别清空原Base/原Lean表都拒绝首例全部268输出，target记录仍在也0回填；最终源码字节恢复后原数组精确。删除末尾normalize改变13011个f64/24个f32骨骼，最小Crouching第21帧thigh_twist_01_l，沿已有D231保留，不另编号。全target组合比较/身份仍待收口，235不变，截图0、性能暂停。
+
+  - 18:11 完成摘要：原Standing FSM1738/原Crouch Base1648与原Lean按真实context/base node/pin接线，全10原Apply3386/267494骨骼、0source缺口/0target pose回填；fresh两Apply配置精确，24新原组合公开加性API及节点末尾normalize f64精确。原Base/Lean分别断供均拒绝268最小输出，最终脚本按字节恢复后原数组精确；删除末尾normalize的24 f32变化补已有D231。当前target组合比较曲线名字0丢失，其余值是已知上游/算子共同传播，不拆成新根因。1034身份键/114 ALS/184 Rust/reader/原始资产/生产库保持，Gate `target/bf144/199/summary.json` PASS。实际结束：2026-10-22 18:11:44 +08:00；实耗4分44秒，较预估提前30分15秒。新增0，累计235（115P2/120P3）；原数据仅闭合至当前两stance Apply，完整Root反馈/下游消费者、未触发方向/slot仍未通过，继续后续闭包。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
@@ -3181,6 +3190,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.189 Lean加性BS扩展：同一BS的3386实际输入和211连续二维声明控制（含12份三样本）权重全部精确；源3597输出/284163骨骼由既有double模型全部精确。仅省去一次源normalize改变56026份f64骨骼，其中9份改变f32；源child数据保持，归既有D231。真实target缓存和原完整历史已精确校准，最终ApplyAdditive尚未消费。证据`target/bf144/189/source-check.json`、`weights-check.json`、`aggregation-check.json`；每次新arena造成4份近边假差，经同历史恢复全消失，不记为移植差异。
 
   - BF144.190 ApplyAdditive扩展：fresh AnimationRuntime.cpp:1280已在AccumulateAdditivePose末尾NormalizeRotations，原AnimNode_ApplyAdditive.cpp:89又执行一次；target mesh_space_additive helper仅在组合后normalize一次。相同3386×79实际Base/delta/alpha的double控制中，单独移除节点外层normalize改变238051个f64骨骼、565个f32；物理删外层循环后64控制中57失败，源码字节恢复/同dylib重编64精确。该丢失同源的额外节点阶段归本项，不另编号；原Base曲线保持/Additive曲线空及有效alpha另证，见`target/bf144/190/operator-check.json`、`restoration-check.json`。
+  - BF144.199原数据补充：原native叶→double Base/Lean→Apply3386输出已接通；首例268输出只去源节点末尾normalize，13011个f64/24个f32骨骼改变，curves保持。Crouching第21帧thigh_twist_01_l的runtime z由−6.73841786920093e−5变为−6.738418596796691e−5；原Base/Lean各断供均拒绝268输出，字节恢复精确，24新原组合的公开加性API及末尾normalize控制f64精确。该补充保留原数据条件，不将全组合source-target残差归本项，也未证明完整Root反馈。证据`target/bf144/199/ablation-check.json`、`native-check.json`。
 
 - [ ] BF144-D232 / P3 — 多姿态骨骼在源数值空间求值前即降为runtime f32，改变混合结果。
   - Source：fresh `MathFwd.h:53`的FTransform为TTransform<double>；`AnimationRuntime.h:51–61`以源厘米/原坐标的FTransform做Overwrite和Accumulate，`TransformVectorized.h:1060–1071`的translation/scale使用double VectorMultiplyAdd，rotation也在同一double管线累积/归一化。源子pose的reference scale和AnimationRelative rotation还可含非f32值。
