@@ -14,6 +14,12 @@ def check(document, full_pose=None):
     assert compression['sampling_rate_numerator'] > 0
     assert compression['sampling_rate_denominator'] > 0
     assert compression['bone_codec'] and compression['curve_codec']
+    if 'indexed_curve_names' in compression:
+        indexed = compression['indexed_curve_names']
+        curve_names = [item['name'] for item in indexed]
+        assert len(curve_names) == len(set(curve_names))
+        assert sorted(item['sorted_index'] for item in indexed) == list(range(len(indexed)))
+        assert set(curve_names) == set(probe['frames'][0]['codec_curves'])
     expected = None if full_pose is None else full_pose['sequence_pose_probe']['frames']
     if expected is not None:
         assert len(expected) == len(probe['frames'])
@@ -21,6 +27,8 @@ def check(document, full_pose=None):
     references = {bone['name']: bone['reference_pose'] for bone in probe['frames'][0]['bones'] if 'reference_pose' in bone}
     for index, frame in enumerate(probe['frames']):
         assert all(math.isfinite(value) for value in frame['codec_curves'].values())
+        if 'indexed_curve_names' in compression:
+            assert set(curve_names) == set(frame['codec_curves'])
         names = [bone['name'] for bone in frame['bones']]
         assert len(names) == len(set(names))
         assert all(0 <= bone < len(names) for bone in mapping)

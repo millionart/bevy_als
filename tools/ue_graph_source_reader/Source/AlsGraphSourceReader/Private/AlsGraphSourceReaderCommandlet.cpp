@@ -2112,6 +2112,15 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
         Compression->SetStringField(TEXT("curve_codec"), ObjectPath(Data.CurveCompressionCodec.Get()));
         Compression->SetNumberField(TEXT("key_count"), Data.CompressedDataStructure->CompressedNumberOfKeys);
         Compression->SetNumberField(TEXT("curve_bytes"), Data.CompressedCurveByteStream.Num());
+        TArray<TSharedPtr<FJsonValue>> CurveNames;
+        for (const FAnimCompressedCurveIndexedName& Name : Data.IndexedCurveNames)
+        {
+            TSharedRef<FJsonObject> Item = MakeShared<FJsonObject>();
+            Item->SetStringField(TEXT("name"), Name.CurveName.ToString());
+            Item->SetNumberField(TEXT("sorted_index"), Name.CurveIndex);
+            CurveNames.Add(MakeShared<FJsonValueObject>(Item));
+        }
+        Compression->SetArrayField(TEXT("indexed_curve_names"), CurveNames);
         Compression->SetStringField(TEXT("bone_stream_base64"), FBase64::Encode(Data.CompressedByteStream));
         Compression->SetStringField(TEXT("curve_stream_base64"), FBase64::Encode(Data.CompressedCurveByteStream));
         Compression->SetNumberField(TEXT("sampling_rate_numerator"), Sequence->GetSamplingFrameRate().Numerator);
