@@ -1743,6 +1743,19 @@
 
   - 20:22 完成摘要：77真实惯性inactive/request0/pending0/epoch0及source/output精确，77原主pose经源public无请求惯性6083骨骼/curve f64全等，PoseGrounded/FootLeftIk/FootRightIk=1及回调/root pose保持明确，77原Grounded Root交付0target补值；活动history仍未覆盖。恢复比较首败因仅注入TailEndpoint随机UUID，已沿真实Source边输出稳定原FSM身份，旧两捕获逐对除该注入ID外完整精确；大JSON深拷贝30秒无进展失败按报告改为逐对/进展信号，未放宽上限。稳定观察再物理去除/字节恢复/同target重编，完整旧240/新增全部字段精确。1253身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持，Gate `target/bf144/213/summary.json` PASS_CURRENT_ORIGINAL_GROUNDED_POST_FSM_PATH。实际结束：2026-10-22 20:22:49 +08:00；实耗7分49秒，较预估提前22分10秒。新增0，累计236（115P2/121P3）；下一段主AB Transition槽及Stop回调消费，Locomotion/180恢复和完整Root仍未验收。截图0、性能暂停。
 
+- [x] BF144.214 主AB Transition槽的前缀真实活动与原输入合同：依赖.213原77 Grounded Root及.200源后继，只沿99688c67 Slot(Transition/Grounded)与Stop/动态过渡回调路由核源slot配置、当前实际montage/实例/权重/时钟及Grounded linked输入；无活动需状态与source public槽合同证明，有活动先补原蒙太奇/序列及source时钟，再独立算原槽输出。Gate：源角色/slot配置与真实输入身份、活动/无活动不是凭输出相等猜测、原数据可用性与明确缺口、只读观察全历史校准/最小消融恢复和身份；Locomotion/其余槽/Rig/180后缀与完整Root后置。开始：2026-10-22 20:23:00 +08:00；预估结束：2026-10-22 21:03:00 +08:00。估时依据：单Transition slot，源slot/动态montage时钟/consumer旧审计可复用，当前77帧/Stop单入口；40分钟先确定活动与原所需输入，不默认Stop callback未运行或展开全部montage。仅审计，生产/转换器/原始资产不改，截图0、性能暂停。
+  - 20:23 活动摘要：.213已提交，77原Grounded Root有数据；下一步从原Transition slot和实际SourceSlot state/root montage实例读活动，明确Stop回调是否在当前历史产生消费，再选最小原slot数值Gate。当前236（115P2/121P3），完整Root仍未闭合。
+
+  - 20:25 runtime前静态摘要：源Crouch PlayStopTransitionAnimation图明确GetParent→PlayTransitionRightAnimation，blend in/out各0.2、rate1.5、start0.2、bFromStandingIdleOnly=false；父源函数按CrouchingRightSequence入队，worker请求延至game thread播放，不能默认slot无活动。Source Slot(Transition/Group Grounded)输入正是Grounded linked caller；target对应transition.pose/weight/layer_weight/additive输入。只读观察读取实际slot input/output、overlay存在、三权重、actor montage stack时钟和slot sampler runtime，实例用稳定顺序不记进程随机ID；源合同及编译已过，现同240历史采集，仅77前缀做原数据资格。236、截图0、性能暂停。
+
+  - 20:32 runtime后活动与输入闭环：77实际slot输入逐帧与同帧Grounded Root精确，source边878efe04身份固定；0–60无overlay、slot/runtime权重0，source/output精确61；61–76为16个CrouchingStop真实实例，overlay就绪、mesh additive与两输入权重均1，实例从0.2起按1.5率采样。fresh AIS配置CrouchingRightSequence为A_Als_Crouch_Transition_Right，native原序列时长2.33333325386、mesh-space additive、参考A_Als_Stand_Pose/frame0，无root lock；原montage权重/时钟尚待public推进确认，未将target时点推称source。活动输入不允许passthrough，原序列数据与合成将按依赖拆为下一可独立Gate，当前.214先完成实际活动/源输入合同与观察消融。236、截图0、性能暂停。
+
+  - 20:34 source时钟闭环：真实public FAnimMontageInstance同16步已取得，长度/播放资格一致，11位置+4权重低位差归既有D118，未登记重复项；原时钟与目标分开保存，下一步按16个source position读取prepared原mesh additive姿态及生成阶段。观察器去除运行仍在有进展，后续按字节恢复/同target重编校准。原活动slot数值、完整Root仍未通过。236、截图0、性能暂停。
+
+  - 20:35 消融验证路径纠正：去除observer二进制已编译，但首次capture误漏专用movement/stop-case/consumer参数而启动默认场景集合；确认当前进程归本target后主动结束，仅保留失败报告，不作Gate。改按.213同原历史的确切参数重跑；不改实现、不扩测范围、不放宽watchdog。原16时钟/source采样继续独立，236、截图0、性能暂停。
+
+  - 20:37 完成摘要：77真实Grounded→Transition输入身份逐帧精确，61无叠加透传、16真实CrouchingStop叠加；fresh源设置/序列与public动态montage16步完备，11position/4weight差归D118。按源position补16原prepared mesh additive/1264骨骼及4条原曲线，0target回填，raw-only阶段/压缩组合被7拒绝后按合同拆开成功，未改reader。观察物理移除首次漏专用参数的默认集合已主动结束且不计Gate，正确原历史移除/源码字节恢复/同target重编后完整240/新增全部观察精确。1269身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持。Gate `target/bf144/214/summary.json` PASS_TRANSITION_SLOT_ACTIVITY_AND_ORIGINAL_INPUT_CONTRACT。实际结束：2026-10-22 20:37:24 +08:00；实耗14分24秒，较预估提前25分36秒。新增0，累计236（115P2/121P3）；活动slot最终数值拆下一项，Locomotion/180恢复与完整Root仍未通过。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
@@ -2440,6 +2453,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`get_up.rs:107–126`用elapsed×rate反算clip位置、用剩余时间比例反算alpha，临界浮点结果与原生积累状态不同。50ms帧的target在clip约1.1400002就开始混出，原生该帧尚未跨入窗口；不能把数学上等价的表达式视为生命周期等价。
   - 反例：实际两朝向×5帧步长×4倍率共40组36PASS/4FAIL。50ms、单位倍率在elapsed约1秒时target权重0.92592585、source为1；1.1秒时约0.5对0.7046613，target第24帧清理、source第25帧。16.7ms×半速另在source清理帧残留1.19e−7权重，晚一帧清理。49.9/50.1ms、其他倍率及动态倍率通过；暂停只保留已有边界，不引入独立时钟差异。原生FAnimMontageInstance逐帧实证见`41/clock_front_all.native.json`、`clock_back_all.native.json`；target见`bf144_get_up_phase41_clock_weight_notify_and_end`。旧Gate验证最终结束/近似权重，没有相同delta序列的原生生命周期判据。
   - BF144.82动态过渡补充：fresh同一Montage规则的原生10068帧与独立推进公式逐值一致；`stop_link.rs:260–272`再次用elapsed反算位置及`duration/rate−elapsed`判定剩余时间。先1秒、再0.0221221838秒时，源position=1.5331833363并已进入1e−4秒混出窗口，蹲姿目标尚未开始混出；实际角色播放状态也复现。该输入的蹲姿时长与源完全相同，排除D167。站立短时长会偶然抵消这一个时钟边界，不能把只改时长视为完整修复。半速普通采样末端前最多约2.15µs偏差，原生位置替换后实际槽时间恢复；本扩展未验证全部AlphaBlend或停止请求，未重开GetUp完成项。
+
+  - BF144.214 Stop前缀补充：fresh原CrouchingRight动态montage同0.2秒混入/起点、rate1.5、16个1/30秒步长，当前61–76实际实例有11个position与4个weight低位差，源position逐帧累加、AlphaBlend累加AlphaLerp；target仍由elapsed反算。首个位置差在65帧，source0.45000004768、target0.44999998808；62帧权重source0.25925925374、target0.25925928354。原长度精确一致，排除D121/D167；归入相同D118，不另编号，不宣称本前缀触及混出/动作结束。原source时钟单列保留供原姿态采样，未以target时钟回填。证据`214/clock.native.json`、`clock-check.json`。
 
 - [ ] BF144-D119 / P2 — GetUp停止与共槽混合读取上一帧Roll状态和权重。
   - Source：fresh `AlsCharacter_Actions.cpp:90–100`成功Montage_Play后立即置Rolling；`AnimInstance.cpp:2767–2772`同步停止同组旧montage，随后同一次UpdateMontage更新所有权重再求槽姿态。Roll原生BlendIn为0.1秒，已有GetUp混出保留原Cubic曲线并缩短时长。
