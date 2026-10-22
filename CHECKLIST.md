@@ -1863,6 +1863,13 @@
 
   - 23:52 完成摘要：Base Poses四节点/两精确属性绑定、前帧曲线权重边界已闭合；原Stand/Crouch compressed第0帧各79骨骼/空曲线与16组当前权重给出77份同输入参数原结果，共6083骨骼，0target pose/curve回填。112公开source f64控制逐通道精确，77生产重放精确；原投影组合余差T/Q/S为5043/3062/1153，保持D231/D232分量界限，不新增因果编号。受控去末归一化改变5975 double/317 float骨骼；观察物理移除/字节恢复/同target重编完整240及新增字段精确。1428身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持，Gate `target/bf144/226/summary.json` PASS_BASE_POSES_SOURCE_LEAVES_AND_SAME_INPUT_OPERATOR_ONLY。实际结束：2026-10-22 23:52:03 +08:00；实耗7分33秒，较预估提前37分27秒。新增0，累计238（115P2/123P3）；本项完成源叶与同输入算子，原反馈权重未过、完整Layering不宣称通过。下一项原Overlay caller/惯性/输入cache，后续才组合及补原反馈。截图0、性能暂停。
 
+- [x] BF144.227 原Overlay输入的源闭包与真实活动资格：依赖.225独立Overlay入口及.226明确原反馈边界，沿主AB默认Overlay linked caller(012331fb)→c110a89c惯性→Layering Overlay Input/Save；fresh原主AB及当前实际linked类，枚举活动源图依赖、权重/历史与scope，原叶或历史不足先形成可验收依赖清单，不回填target姿态。Gate：fresh源caller/惯性/child边、真实活动与完整旧历史保持、必要最小负控制与观察消融恢复/同target、身份；若源递归规模不能本窗独立验收则按依赖拆分。开始：2026-10-22 23:52:35 +08:00；预估结束：2026-10-23 00:27:35 +08:00。估时依据：.224/.225单外层和多输入资格6–16分钟，当前含linked类及惯性历史，35分钟先闭合活动资格，不提前合并完整Overlay数值。仅审计，生产/转换器/原始资产不改，截图0、性能暂停。
+  - 23:52 活动摘要：.226已提交，累计238（115P2/123P3），原Base Poses仅同权重数值，不宣称source反馈已过；现按已证Overlay源链定位真正活动类与必须的原资产/历史。外层完整Layering/Head/Rig和180恢复仍开。
+  - 23:53 取证入口纠正：首次主AB读取误用了AnimationInstances/AB_Als路径，native报告completed/exit3且明确Unable to load asset，未计source事实；回读.224原记录asset_path后改为Character/AB_Als，失败报告保留。当前源默认类AB_Als_Default的Overlay层具有站蹲MultiWay/地空TwoWay/动态预测及0.75 additive，须先确认actual类与活动更新，再分配原叶/历史，不凭名字走其他overlay。
+  - 23:56 活动闭环摘要：fresh主AB与Default Overlay层12 pose节点确认；actual加载11+前缀77共88次均为Default wrapper，初graph frame1有target 0.2请求而无历史，之后无请求/active，88次惯性source/output及Layering input/save全等。源惯性明确有请求且CurrPoseSnapshot非空才启动，不将初次请求丢写为“从未请求”，也不宣称source请求时长已校准。完整240及warm旧观察精确，4个活动/class/后续请求/cache-key反例被拒。下一必要原闭包为Default_Poses第0/1/2帧、Secondary Motion Idle的实际时钟与同步、3TwoWay/MultiWay及0.75 additive；现只完成活动资格，尚未产出原Overlay数值。观察去除/恢复同target及身份收尾，238、截图0、性能暂停。
+
+  - 23:58 完成摘要：fresh正确主AB caller→c110惯性→Layering Overlay Input/Save与Default层12 pose节点闭合；错路径native3报告保留排除。actual warm11+prefix77均Default，共88次source/output及input/cache全精确；初frame1有target0.2请求但无历史，后续0请求/active，未宣称source初请求时长或切类路径已过。4个metadata负控制拒绝，观察物理去除/字节恢复/同target重编，240与warm完整旧字段及新增字段精确。1439身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持；Gate `target/bf144/227/summary.json` PASS_DEFAULT_OVERLAY_ACTIVITY_AND_REQUIRED_SOURCE_CLOSURE。实际结束：2026-10-22 23:58:07 +08:00；实耗5分32秒，较预估提前29分28秒。新增0，累计238（115P2/123P3）；下一项Default_Poses帧0/1/2与Idle实际同步时钟原数据，再组合Default层；原Overlay数值、source反馈/完整Layering与Root仍开。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
