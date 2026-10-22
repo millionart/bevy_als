@@ -1884,6 +1884,12 @@
 
   - 00:17 完成摘要：fresh源拓扑/Knot透明边、116次独立source alpha及初零权重ReferencePose闭合；原200叶/原Idle clock配合source补数/Lerp、MultiWay及0.75加性构成88 Root/6952骨骼，0target pose/curve回填，PoseState/预测量仍为共同输入。33公开父混合+15加性f64控制及outer归一化全精确；去末归一化Multi5968/additive4812 double、float872/3变化归D231。可选通道parser复用.190、移除旧helper/同target重编后281生产重放零失败；组合Root余差T/Q/S为6173/6311/1408，curves值/键集0差，不作新根因。互斥flag native7及旧parser101失败排除，观察去除/字节恢复同target完整240/warm及新增字段精确。1478身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持，Gate `target/bf144/229/summary.json` PASS_ORIGINAL_DEFAULT_OVERLAY_ROOT_WITH_COMMON_FEEDBACK_INPUTS。实际结束：2026-10-23 00:17:14 +08:00；实耗9分51秒，较预估提前35分9秒。新增0，累计238（115P2/123P3）；下一项原Overlay经caller/惯性到Layering缓存，原最终反馈与完整Root未过。截图0、性能暂停。
 
+- [x] BF144.230 原Default Overlay Root→Layering Overlay缓存运输：依赖.229原88 Root与.227已证活动资格，沿原Layer Overlay函数→主AB012331fb caller→c110惯性→Layering Overlay Input/Save运输。fresh复核源边与inactive/no-history合同，复用.229已完整校准的240/warm观察及同target恢复二进制，不新增actor运行；先验证实际层Root与caller值、scope/owner/key及源数组资格，再交付原缓存。Gate：fresh源链接、完整原数组0target回填、身份/活动/owner负控制与工具字节恢复、生产/既有观察身份保持。开始：2026-10-23 00:18:39 +08:00；预估结束：2026-10-23 00:30:39 +08:00。估时依据：.224/.218单链运输约6–8分钟，.225含新observer约16分钟；当前既有观察已含两端88帧，12分钟做源复核与必要路由检查，不重复新runtime。仅审计，生产/转换器/原始资产不改，截图0、性能暂停。
+  - 00:18 活动摘要：.229已提交，238（115P2/123P3）；原Default88 Root就绪但PoseState/预测量仍共同输入。当前只闭合已证链的Overlay缓存运输；Layering内部组合、原反馈、Head/Rig及180恢复后继，未宣称全系统等价。
+  - 00:21 source/static闭环摘要：fresh主AB/Layering边和LinkedAnimLayer继承→LinkedAnimGraph→Proxy_WithRoot→Root直接求值确认无额外pose归一化。复用已逐轮校准的观察，88层Root/caller/inertial及输入/cache值全等，77前缀owner与独立Base Poses记录一致；原88/6952骨骼及curves原数组保持，0target回填。缺owner和误用另一个真实linked child context均稳定拒绝，工具字节恢复再运输通过；不新增actor运行，.229同target恢复证据沿用且身份核对中。238，完整Layering和原最终反馈仍开，截图0、性能暂停。
+
+  - 00:21 完成摘要：fresh source caller/惯性/Layering Overlay输入与Save拓扑、Linked层/Graph/Proxy/Root求值无额外pose变换确认；已校准观察88端点完全相等，77前缀owner与独立Base Poses上下文相等。原88份6952骨骼curves运输0target回填；缺owner/真实但错误linked child context均拒绝，源码字节恢复再次通过；本项0次新actor运行，.229物理观察消融/同target恢复证据及全部旧历史复用。1487身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持，Gate `target/bf144/230/summary.json` PASS_ORIGINAL_OVERLAY_CALLER_INERTIAL_AND_LAYERING_CACHE_TRANSPORT。实际结束：2026-10-23 00:21:24 +08:00；实耗2分45秒，较预估提前9分15秒。新增0，累计238（115P2/123P3）；下一项Layering已证local/mesh dynamic additive及真正section依赖，原最终反馈与完整Root未过。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
