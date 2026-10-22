@@ -2164,17 +2164,18 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
         if (bCompressedTracks)
         {
             const FAnimExtractContext Context(Time, false);
-            if (Sequence->IsValidAdditive() || FSequencePoseAccess::UsesRawData(*Sequence, RequiredBones, Context)) { return nullptr; }
+            if (FSequencePoseAccess::UsesRawData(*Sequence, RequiredBones, Context)) { return nullptr; }
             const auto Scoped = Sequence->GetCompressedData(Context);
             const FCompressedAnimSequence& Data = Scoped.Get();
             CodecPose = Skeleton.GetRefBonePose();
+            if (Sequence->IsValidAdditive()) { for (FTransform& Transform : CodecPose) { Transform = FTransform(FQuat::Identity, FVector::ZeroVector, FVector::ZeroVector); } }
             BoneTrackArray Pairs;
             for (int32 TrackIndex = 0; TrackIndex < Data.CompressedTrackToSkeletonMapTable.Num(); ++TrackIndex)
             {
                 Pairs.Add(BoneTrackPair(Data.CompressedTrackToSkeletonMapTable[TrackIndex].BoneTreeIndex, TrackIndex));
             }
             FAnimSequenceDecompressionContext DecompContext(Sequence->GetSamplingFrameRate(), Sequence->GetSamplingFrameRate().AsFrameTime(Sequence->GetPlayLength()).RoundToFrame().Value,
-                Sequence->Interpolation, Sequence->GetRetargetTransformsSourceName(), *Data.CompressedDataStructure, Sequence->GetSkeleton()->GetRefLocalPoses(), Data.CompressedTrackToSkeletonMapTable, Sequence->GetSkeleton(), false, Sequence->AdditiveAnimType);
+                Sequence->Interpolation, Sequence->GetRetargetTransformsSourceName(), *Data.CompressedDataStructure, Sequence->GetSkeleton()->GetRefLocalPoses(), Data.CompressedTrackToSkeletonMapTable, Sequence->GetSkeleton(), Sequence->IsValidAdditive(), Sequence->AdditiveAnimType);
             DecompContext.Seek(Time);
             TArrayView<FTransform> Atoms(CodecPose);
             Data.BoneCompressionCodec->DecompressPose(DecompContext, Pairs, Pairs, Pairs, Atoms);
@@ -2260,7 +2261,7 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
                 Bone->SetObjectField(TEXT("codec_pose"), CaptureTransform(Replayed));
                 Bone->SetNumberField(TEXT("retarget_mode"), Sequence->GetSkeleton()->GetBoneTranslationRetargetingMode(Index));
                 FAnimationRuntime::RetargetBoneTransform(Sequence->GetSkeleton(), Sequence->GetRetargetTransformsSourceName(), Sequence->GetRetargetTransforms(), Replayed, Index,
-                    RequiredBones.GetCompactPoseIndexFromSkeletonPoseIndex(FSkeletonPoseBoneIndex(Index)), RequiredBones, false);
+                    RequiredBones.GetCompactPoseIndexFromSkeletonPoseIndex(FSkeletonPoseBoneIndex(Index)), RequiredBones, Sequence->IsValidAdditive());
                 Bone->SetObjectField(TEXT("retargeted_pose"), CaptureTransform(Replayed));
             }
             Bones.Add(MakeShared<FJsonValueObject>(Bone));
