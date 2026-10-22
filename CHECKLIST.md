@@ -1730,6 +1730,19 @@
 
   - 20:14 完成摘要：15原Standing/76原Crouch按77真实Grounded栈组合77输出/6083骨骼，14自定义stage明确用前级Standing累计覆盖alias，0alias pose/0target回填。fresh原CF精确3键/14 alpha与当前target轨迹精确，28原中间scalar/default-bone公开raw/final f64全等；当前特殊切换/Roll未访问不算覆盖。原/target组合curve名字0缺/12值差保留原数据/既有算子，不宣称等价；原Standing缺失或alias消费控制拒绝，源码字节恢复77数组精确。1240身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持，Gate `target/bf144/212/summary.json` PASS_ORIGINAL_GROUNDED_NUMERICAL_PREFIX。实际结束：2026-10-22 20:14:26 +08:00；实耗3分26秒，较预估提前41分33秒。新增0，累计236（115P2/121P3）；下一段核Grounded后惯性/curve/callback，主AB Transition槽/Locomotion及180恢复与完整Root仍未验收。截图0、性能暂停。
 
+- [x] BF144.213 原Grounded后惯性/curve/callback Root77帧路径：依赖.212原77 FSM输出及.200源后继，fresh核f877e20e惯性配置、后curve7b9a4f8b与Initialize/RefreshGrounded回调时序，先只读记录真实请求/epoch/活动/历史和source→inertial→curve→Root；无请求路径用真实public源API运行原77pose，活动历史则独立source closure/拆分。Gate：真实状态与源配置、原pose/curve数据供给0target回填、请求分类/曲线写入/完整历史校准、最小消融恢复及身份；主AB Transition slot/Locomotion及180后缀/完整Root后置。开始：2026-10-22 20:15:00 +08:00；预估结束：2026-10-22 20:45:00 +08:00。估时依据：单惯性/curve/两个callback，.208同类无请求路径约4分，预留30分钟确认不同请求源/filtered/default语义和必要native，避免因邻近节点直接假定透传。仅审计，生产/转换器/原始资产不改，截图0、性能暂停。
+  - 20:15 活动摘要：.212已提交，原77 Grounded主输出就绪；下一步只沿源后继原节点配置与真实request/state逐项核，当前236（115P2/121P3），外层slot/Root仍未闭合。
+
+  - 20:16 runtime前静态摘要：源Grounded惯性无filtered curve/default profile、reset-on-relevant与skipped请求转发开启；后写PoseGrounded/FootLeftIk/FootRightIk各1，InitializeGrounded在BecomeRelevant、RefreshGrounded在Update。compiled惯性模板与编辑源字段一致，target同参数与空epoch keys对应。只读观察复用已校准反射state/source/output/curve/root逻辑，仅scope节点数据替换，源检查和同target编译通过，现同240历史采集，原数据只77前缀，不默认无活动。236、截图0、性能暂停。
+
+  - 20:17 runtime后无请求链闭环：完整旧240历史仅删新增post_grounded_records后精确；前缀77节点active0/request0/pending0/epoch非零0，77前pose/76前两pose，source/output骨骼与curve77份均精确。77原Grounded主pose送真实源惯性模板不发请求，6083骨骼/curve f64逐值精确；三条后置curve1及回调/root pose保持由实际缓存验证，77原Grounded Root/6083骨骼交付0target回填。active/epoch/pending三guard反例拒绝，当前只条件式无请求路径，不宣称活动/重入历史等价；观察物理去除/字节恢复/同target重编收尾中。236、截图0、性能暂停。
+
+  - 20:19 恢复Gate失败定位：旧历史保持，但新增字段source_node记录了既有TailEndpoint随机UUID，两次启动分别不同，首个精确diff仅此身份字段；尚未当成运动变化或放宽比较。已读fixture的实际Source边与tail行为，新观察保留真实端点pose/curve，仅把该已注入observer UUID沿其Source边解析为原Grounded FSM语义节点；重编成功并重采，所有其余字段仍严格全量比较。接下来以稳定身份重新做观察物理移除/恢复/同targetGate后才收尾，原public无请求数值证据不变。236、截图0、性能暂停。
+
+  - 20:22 诊断身份修正Gate：旧observed/首次restored与稳定身份捕获逐对完整字段比较均精确，仅唯一TailEndpoint注入ID沿实边规范化，pose/curve/clock变化0；三份大JSON一次深拷贝比较曾触发30秒无进展watchdog，报告保留，改为逐对加载并记录进展、原上限不变后通过。稳定observer又经物理移除/源码字节恢复/同target重编与重采完成，当前全量精确恢复/身份最后收口；不把随机ID或验证工具timeout记生产差异。236、截图0、性能暂停。
+
+  - 20:22 完成摘要：77真实惯性inactive/request0/pending0/epoch0及source/output精确，77原主pose经源public无请求惯性6083骨骼/curve f64全等，PoseGrounded/FootLeftIk/FootRightIk=1及回调/root pose保持明确，77原Grounded Root交付0target补值；活动history仍未覆盖。恢复比较首败因仅注入TailEndpoint随机UUID，已沿真实Source边输出稳定原FSM身份，旧两捕获逐对除该注入ID外完整精确；大JSON深拷贝30秒无进展失败按报告改为逐对/进展信号，未放宽上限。稳定观察再物理去除/字节恢复/同target重编，完整旧240/新增全部字段精确。1253身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持，Gate `target/bf144/213/summary.json` PASS_CURRENT_ORIGINAL_GROUNDED_POST_FSM_PATH。实际结束：2026-10-22 20:22:49 +08:00；实耗7分49秒，较预估提前22分10秒。新增0，累计236（115P2/121P3）；下一段主AB Transition槽及Stop回调消费，Locomotion/180恢复和完整Root仍未验收。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
