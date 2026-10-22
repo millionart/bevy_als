@@ -1799,6 +1799,13 @@
 
   - 21:40 完成摘要：warm实际11份末帧首次Light更新，source从0起6步与warm1+prefix5全部clock字段精确；source AlphaInputType Float/always-update false/reset-child false且当前alpha0，Heavy未更新，TwoWay仅A直通。当前实际sampler5、Light/TwoWay、6后curve各1/其余保持、callback/StateResult与主FSM Land端点全部逐项校准；5原prepared Land/395骨骼及30曲线写入交付0target回填，814当前投影通道/10曲线值余差保留数据边界。观察物理移除/源码字节恢复/同target重编完整240及新增全部字段精确。身份首次整文件/无进度扫描触发30秒watchdog，失败不计Gate；标准流式哈希与每32键进度后同120/30上限扫描全部1334键通过，114 ALS/184 Rust/reader/原始资产/转换器/生产库保持。Gate `target/bf144/219/summary.json` PASS_ORIGINAL_FIVE_LAND_STATE_INPUTS。实际结束：2026-10-22 21:40:27 +08:00；实耗14分30秒，较预估提前30分30秒。新增0，累计236（115P2/121P3）；下一项Locomotion主FSM原5过渡+72直通数值，后惯性/外层、180恢复及完整Root仍未通过。截图0、性能暂停。
 
+- [x] BF144.220 原Locomotion主FSM 77帧数值：依赖.219原Land5、.218原Grounded77与实际stack，fresh核e2c227a6(T4)的0.2秒Hermite/no-profile原合同及原alpha，按源独立1−alpha/alpha、raw累积与唯一末尾normalize重算5过渡，其余72直接Grounded；源/相同target输入均用public raw/final标量pose控制校准，实际端点字段已确认无缺失通道。Gate：源权重/原输入身份、原77数值与curve、公开源控制/当前target对照、最小反例/消融恢复及身份；后置da8d3812惯性/callback及外层另续。开始：2026-10-22 21:42:34 +08:00；预估结束：2026-10-22 22:22:34 +08:00。估时依据：.207/.212同类16/14转场数值各约3–7分钟，本项5转场/72直通且无profile，40分钟预留规则/原alpha与10–20标量原生控制，不复用不独立的1−(1−alpha)权重算法。仅审计，生产/转换器/原始资产不改，截图0、性能暂停。
+  - 21:42 活动摘要：.219已提交，原两端数据齐备，累计236（115P2/121P3）。实际stack前5只T4/其后72 Grounded且两端T/Q/S均完整；下一步只算主FSM并核源公开权重，不提前宣称惯性或完整Root已过。
+
+  - 21:49 原数值闭环：T4原0.2/HermiteCubic/StandardBlend/profile-wrapper无资产确认；5原alpha与独立source=1−alpha、target=alpha来自public default标量，probe必要profile参数的骨权重未用于T4。原Land5+Grounded77构成5过渡/72直通，共77原FSM/6083骨骼；20组原/同target输入spine+foot的raw及final公开原生f64逐值精确。当前77curve按相同输入也全精确，原/target仍46curve值差/0名字缺及组合pose余差，未新增归因。物理去唯一FSM末尾normalize使20控制全部失败，字节恢复/同原math库再20全精确、77数据恢复，身份收尾；后da8d3812请求/历史与InitializeLean仍未过。236、截图0、性能暂停。
+
+  - 21:51 完成摘要：原T4合同0.2/Hermite/no-profile与5原alpha/default标量权重精确，原Land5+Grounded77重算77 FSM/6083骨骼（5过渡/72直通），独立1−alpha/alpha及唯一末尾normalize，无target回填或直通额外normalize。20原/同target输入spine+foot raw/final public控制f64全部精确；同target输入77curve精确，原/target有46curve值差/0名字缺与组合pose余差，未新增归因或宣称整pose等价。物理去FSM末尾normalize即20控制全失败，字节恢复/同原math库20全精确且原77输出恢复。1345身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持，Gate `target/bf144/220/summary.json` PASS_ORIGINAL_LOCOMOTION_FSM_NUMERICAL_PREFIX。实际结束：2026-10-22 21:51:23 +08:00；实耗8分49秒，较预估提前31分11秒。新增0，累计236（115P2/121P3）；下一项da8d3812惯性请求/历史与InitializeLean，外层/layering、180恢复和完整Root仍未过。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
