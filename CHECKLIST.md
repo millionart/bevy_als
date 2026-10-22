@@ -1490,6 +1490,27 @@
 
   - 16:24 完成摘要：六Movement规则输入2400帧按源公式与前帧曲线重算全过，13072实际global读取按graph_frame精确；12步真实provider/原T16消费确认D236的2个pending invalid反例，单字段恢复全过；207组provider/828原方向规则、99 native角控制确认D237的4个producer/8个bool反例，source分类恢复全过。grounded资格用.190完整源入口先校准原240帧精确，再确认150活跃/90失活；按实际property优先级保持未相关字段改变185值但其余完整pose/curve/状态/clock/通知和重入历史不变，C192-Lifecycle不登记、无用保持分支删除并同target重编后原240帧输出精确。reader通用yaw字段严格Number/派生有限性/Unwind可推进四坏输入拒绝，99点新校验/物理早投影6信号/源码字节及同package恢复全过，旧64几何回归精确，可重复self-test落盘；764身份键及114 ALS/184 Rust/生产库/原始资产不变。Gate `target/bf144/192/summary.json` PASS。实际结束：2026-10-22 16:24:54 +08:00；实耗36分54秒，较预估提前13分06秒。新增D236/D237，累计235（115P2/120P3）；只完成这六输入当前历史/声明边界，raw角色View全生产及原source Base→Root和其他图仍未通过，按依赖继续。截图0、性能暂停。
 
+- [x] BF144.193 Lean Base原始源姿态闭包及逐层运输：依赖.174–.192各层同输入数据/算子/规则Gate，开始把源Sequence/BS→Movement方向父层→StateResult/FSM→Lean Base连接为原始source数值链，禁止继续把target pose lift后当“完整source”。先从两个真实ApplyAdditive的Base原边追fresh递归输入及当前2400帧消费，明确Movement/Idle/Details/Stop等实际来源，已覆盖的源输出用其真实source记录/精确时钟运输；缺少资产或上下文归属先列出并按依赖拆项，不以值相等推断source身份。Gate：fresh Base递归拓扑合同、实际context/节点/缓存来源映射、已有源输出与运输索引一一对应/原target全历史校准、未覆盖资产及数据阶段实时登记，数值闭包不足不得宣称完整Base或Root等价。开始：2026-10-22 16:26:00 +08:00；预估结束：2026-10-22 17:16:00 +08:00。估时依据：.18413xx FSM阶段已有source模型、.1903386 Base输入现成，.192六生产闭包36分54秒；本项按两个直接Base入口的递归来源与运输索引50分钟，完整未采样Idle/Details资产若缺则按已证实闭包继续拆，目标不缩小。仅审计、生产/转换器/原始资产不改，截图0、性能暂停。
+  - 16:26 活动摘要：现有.182/.184模型逐层使用target子pose lift作同输入算子控制，不能直接作为原source完整结果；.186条件状态轨迹与.192当前规则原始输入已校准，.188–.191 Lean源delta合同已闭合。下一步仅沿fresh两个ApplyAdditive Base边收集递归源/target拓扑和实际Base节点/context，不先假定所有Base都来自Movement或把未采样状态当默认姿态。当前235（115P2/120P3），截图0、性能暂停。
+
+  - 16:27 Base源递归事实：Standing ApplyAdditive Base经两Knot直接到Movement FSM 4c6fa15f；Crouching Base经两Knot到TwoWay 364a7469，A为A_Als_Crouch_Walk_Pose的SequenceEvaluator 1dca773b，B才是Movement FSM401d9604。该TwoWay声明/同输入算子已在.182，但Pose evaluator资产不在.175八纯Sequence或.180/.181十八子Sequence数据闭包；不能把全部1648 Crouch Base当Movement FSM输出。当前先补该source叶声明及实际来源运输，不因同Pose名称推断旧Gate已覆盖。Standing/Crouch Base的源合同另存193/source-base-contract.json；当前235，截图0、性能暂停。
+
+  - 16:29 新直接Base叶源事实：fresh A_Als_Crouch_Walk_Pose为非加性/无进一步参考，公开时长1.1333333253860474；源Evaluator ExplicitFrame=0/ExplicitTime0、Teleport=true、Reinit ExplicitTime、Loop=true，不能用该非零时长推断它逐帧播放。prepare后的公开pose0实际compressed/79骨骼已读取，该资产不在旧8+18数据闭包，数值数据仍待闭合；当前先证明它在实际Crouch Base的更新/时点及context归属。新增只读base source node/pin及Evaluator缓存观察已编译，同10路径2400帧运行中，必须完整旧历史精确后才消费映射。当前235，截图0、性能暂停。
+
+  - 16:31 工具wall上限复盘：首次193完整新旧history校准有连续读取进展，但8MB块反复JSONDecoder解析同一大case，完成5case后触发120.25秒wall_timeout（无进展仅2.033秒），未当作功能故障或抬高上限。改为64MB块减少重复解析、只保存本项Base/来源必要字段，保留同120/30 watchdog；新增parent输入source_context只读字段已编译，重跑相同10路径后做最终完整历史比较。当前尚未消费未通过观察的Base映射、不登记数据差异，当前235、截图0、性能暂停。
+
+  - 16:33 运输身份补齐：旧parent_pose_records虽已按owned child唯一已更新上下文读取pose，但仅序列化source node/output而未保存owner context，parent自身context也缺失；值相等不足以在同GUID重入/中断情况下运输source输出。已一次补齐parent context与每输入source_context两个纯只读字段，合并到最终采集，不改图/边/运行状态；Base record仍保留原context和直接source node/pin。最终完整旧历史比较只移除这些新增观察字段，不能丢原submission/state/pose等字段；解析保持原120/30上限，当前235。截图0、性能暂停。
+
+  - 16:36 观察/直接运输Gate已过：64MB块+必要记录后同120/30 watchdog用78秒完成10路径2400帧全部旧完整历史精确；3386 Base按context+node/pin归属一一匹配，Standing1738直达原Movement FSM，Crouch1648直达TwoWay；Crouch每份A均实际消费新Pose evaluator/B均实际消费Movement，A的130192骨骼timestamp0有独立缓存来源。没有stale/missing运输输入，未靠姿态相等决定身份，pose相等仅在身份解析后作校准。已有各层source模型仍是target子pose同输入控制，当前不能把这份索引当原source完整数值。下一步按该新叶和已有状态/子pose来源分开列出必须补齐的source数据依赖，再逐层运输重算；当前235，截图0、性能暂停。
+
+  - 16:37 身份消融结论：当前相同(case,frame,node)无多owner冲突，不能据此夸大为自然重入同GUID歧义；但已更新父输入中有409份实际来自owned child，19982份来自同context。删除source_context并默认父context会把这409份归错上下文，故保留最小显式身份字段；不添加值匹配或图特例。当前已保存Base/parent/state输出的紧凑记录，下一步把原14 leaf身份及6方向输出沿这些真实边递归连接，缺少Pose evaluator原数据单独作为后续依赖，不宣称source数值已重建。235不变，截图0、性能暂停。
+
+  - 16:38 递归缓存源事实：Base递归进入两机6状态后沿PoseLink可达12个ModifyCurve/回调和48个UseCachedPose。初始辅助脚本读不存在的UseCachedPose.CacheName，已报告缺口而未凭名字补链；fresh节点实际有NameOfCache与SaveCachedPoseNode显式对象路径，改按原对象引用连接保存节点，删除猜测名字匹配。该source链允许继续追到原14播放器/混合父层；对已有Gate仅复用声明事实，不按同名资产擅自复开。当前直接Base运输与全历史已过，完整递归source数据依赖尚在核对，235不变、截图0、性能暂停。
+
+  - 16:39 完整声明闭包与后续依赖：按SaveCachedPoseNode显式对象引用重跑后两owner递归136节点/0缺链，包括原14 Movement player、12方向StateResult/ModifyCurve/回调、16混合、13 Save/50 Use及新Crouch Pose evaluator，均映射已通过阶段；先前.182早期parent-closure只有15条，已改取其最终closure-contract16条，不误报同节点漏覆盖。当前实际3386 Base、20391父输入context运输边和源声明已定位；唯一未采样数值叶为A_Als_Crouch_Walk_Pose/frame0。后续必须先补该叶codec/默认/retarget及生产采样，再把source leaf和parent/FSM模型真正串接（含缓存owner运输）；这些尚未由本项证明，不宣称原Base或Root等价，也不把此索引当数值闭包。当前235，截图0、性能暂停。
+
+  - 16:43 完成摘要：fresh两个Lean Base递归136源节点/0缺链与原14player、16blend、12方向/两FSM等已通过阶段一一映射，所有cache依显式Save对象引用而非名字猜测；Standing1738 Base精确指向Movement FSM、Crouch1648指向TwoWay，其A/B均实际更新，A新Pose evaluator1648×79=130192骨骼时点0明确。10路径2400帧完整旧历史精确，父输出/输入owner context均记录；409 owned-child证明默认父context不成立，无值相等身份推断。首次8MB解析120秒wall失败保留，64MB/必要记录在原120/30上限内78秒完成；无源/生产/reader改动，784身份键及114 ALS/184 Rust/生产库/原始资产保持。Gate `target/bf144/193/summary.json` PASS。实际结束：2026-10-22 16:43:27 +08:00；实耗17分27秒，较预估提前32分33秒。新增差异0，累计235（115P2/120P3）；本项仅关闭来源/运输，明确未覆盖的新Crouch Pose数值叶下一项立即继续，原source叶经缓存/parent/FSM进入完整Base及Root/feedback仍后置，不宣称数值等价。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
