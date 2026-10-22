@@ -29,6 +29,10 @@
 #include "Animation/AnimNotifyQueue.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/AnimBoneCompressionCodec.h"
+#include "Animation/AnimCurveCompressionCodec.h"
+#include "Animation/AnimSequenceDecompressionContext.h"
+#include "Misc/Base64.h"
 #include "Animation/AnimData/IAnimationDataModel.h"
 #include "Sequencer/MovieSceneControlRigParameterSection.h"
 #include "MovieScene.h"
@@ -2084,6 +2088,10 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
     Request->TryGetBoolField(TEXT("root_track_only"), bRootTrackOnly);
     bool bAnimationPose = false;
     Request->TryGetBoolField(TEXT("animation_pose"), bAnimationPose);
+    bool bCompressedTracks = false;
+    if (Request->HasField(TEXT("compressed_tracks")) &&
+        (Request->TryGetField(TEXT("compressed_tracks"))->Type != EJson::Boolean || !Request->TryGetBoolField(TEXT("compressed_tracks"), bCompressedTracks))) { return nullptr; }
+    if (bCompressedTracks && (bAnimationPose || bRootTrackOnly)) { return nullptr; }
     bool bCaptureSourceStages = false;
     if (Request->HasField(TEXT("capture_source_stages")) &&
         (Request->TryGetField(TEXT("capture_source_stages"))->Type != EJson::Boolean || !Request->TryGetBoolField(TEXT("capture_source_stages"), bCaptureSourceStages))) { return nullptr; }
@@ -2091,7 +2099,27 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
     bool bPrepareCompressed = false;
     if (Request->HasField(TEXT("prepare_compressed")) &&
         (Request->TryGetField(TEXT("prepare_compressed"))->Type != EJson::Boolean || !Request->TryGetBoolField(TEXT("prepare_compressed"), bPrepareCompressed))) { return nullptr; }
+    if (bCompressedTracks && !bPrepareCompressed) { return nullptr; }
     if (bPrepareCompressed) { Sequence->CacheDerivedDataForCurrentPlatform(); }
+    TSharedPtr<FJsonObject> Compression;
+    if (bCompressedTracks)
+    {
+        const auto Scoped = Sequence->GetCompressedData(FAnimExtractContext(0.0, false));
+        const FCompressedAnimSequence& Data = Scoped.Get();
+        if (!Data.IsValid(Sequence) || Data.CompressedDataStructure == nullptr || Data.BoneCompressionCodec == nullptr || Data.CurveCompressionCodec == nullptr) { return nullptr; }
+        Compression = MakeShared<FJsonObject>();
+        Compression->SetStringField(TEXT("bone_codec"), ObjectPath(Data.BoneCompressionCodec.Get()));
+        Compression->SetStringField(TEXT("curve_codec"), ObjectPath(Data.CurveCompressionCodec.Get()));
+        Compression->SetNumberField(TEXT("key_count"), Data.CompressedDataStructure->CompressedNumberOfKeys);
+        Compression->SetNumberField(TEXT("curve_bytes"), Data.CompressedCurveByteStream.Num());
+        Compression->SetStringField(TEXT("bone_stream_base64"), FBase64::Encode(Data.CompressedByteStream));
+        Compression->SetStringField(TEXT("curve_stream_base64"), FBase64::Encode(Data.CompressedCurveByteStream));
+        Compression->SetNumberField(TEXT("sampling_rate_numerator"), Sequence->GetSamplingFrameRate().Numerator);
+        Compression->SetNumberField(TEXT("sampling_rate_denominator"), Sequence->GetSamplingFrameRate().Denominator);
+        TArray<TSharedPtr<FJsonValue>> Mapping;
+        for (const FTrackToSkeletonMap& Track : Data.CompressedTrackToSkeletonMapTable) { Mapping.Add(MakeShared<FJsonValueNumber>(Track.BoneTreeIndex)); }
+        Compression->SetArrayField(TEXT("track_to_skeleton"), Mapping);
+    }
     if (bRootTrackOnly && bAnimationPose)
     {
         UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Sequence pose sampling modes are mutually exclusive."));
@@ -2100,7 +2128,7 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
     const FReferenceSkeleton& Skeleton = Sequence->GetSkeleton()->GetReferenceSkeleton();
     TArray<FBoneIndexType> BoneIndices;
     FBoneContainer RequiredBones;
-    if (bAnimationPose)
+    if (bAnimationPose || bCompressedTracks)
     {
         for (int32 Index = 0; Index < Skeleton.GetNum(); ++Index)
         {
@@ -2123,6 +2151,34 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
         FCompactPose Pose;
         FBlendedCurve Curve;
         UE::Anim::FStackAttributeContainer Attributes;
+        TArray<FTransform> CodecPose;
+        if (bCompressedTracks)
+        {
+            const FAnimExtractContext Context(Time, false);
+            if (Sequence->IsValidAdditive() || FSequencePoseAccess::UsesRawData(*Sequence, RequiredBones, Context)) { return nullptr; }
+            const auto Scoped = Sequence->GetCompressedData(Context);
+            const FCompressedAnimSequence& Data = Scoped.Get();
+            CodecPose = Skeleton.GetRefBonePose();
+            BoneTrackArray Pairs;
+            for (int32 TrackIndex = 0; TrackIndex < Data.CompressedTrackToSkeletonMapTable.Num(); ++TrackIndex)
+            {
+                Pairs.Add(BoneTrackPair(Data.CompressedTrackToSkeletonMapTable[TrackIndex].BoneTreeIndex, TrackIndex));
+            }
+            FAnimSequenceDecompressionContext DecompContext(Sequence->GetSamplingFrameRate(), Sequence->GetSamplingFrameRate().AsFrameTime(Sequence->GetPlayLength()).RoundToFrame().Value,
+                Sequence->Interpolation, Sequence->GetRetargetTransformsSourceName(), *Data.CompressedDataStructure, Sequence->GetSkeleton()->GetRefLocalPoses(), Data.CompressedTrackToSkeletonMapTable, Sequence->GetSkeleton(), false, Sequence->AdditiveAnimType);
+            DecompContext.Seek(Time);
+            TArrayView<FTransform> Atoms(CodecPose);
+            Data.BoneCompressionCodec->DecompressPose(DecompContext, Pairs, Pairs, Pairs, Atoms);
+            if (!Data.IsCurveDataValid(Sequence)) { return nullptr; }
+            Curve.InitFrom(RequiredBones);
+            Data.CurveCompressionCodec->DecompressCurves(Data, Curve, Time);
+            TSharedRef<FJsonObject> CodecCurves = MakeShared<FJsonObject>();
+            Curve.ForEachElement([&CodecCurves](const UE::Anim::FCurveElement& Element)
+            {
+                CodecCurves->SetNumberField(Element.Name.ToString(), Element.Value);
+            });
+            Frame->SetObjectField(TEXT("codec_curves"), CodecCurves);
+        }
         if (bAnimationPose)
         {
             Pose.SetBoneContainer(&RequiredBones);
@@ -2176,7 +2232,8 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
             }
             else
             {
-                Sequence->GetBoneTransform(Transform, FSkeletonPoseBoneIndex(Index), FAnimExtractContext(Time), true);
+                const FAnimExtractContext TrackContext(Time, false);
+                Sequence->GetBoneTransform(Transform, FSkeletonPoseBoneIndex(Index), TrackContext, !bCompressedTracks);
             }
             if (Transform.ContainsNaN())
             {
@@ -2187,13 +2244,23 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
             Bone->SetStringField(TEXT("name"), Skeleton.GetBoneName(Index).ToString());
             Bone->SetNumberField(TEXT("parent_index"), Skeleton.GetParentIndex(Index));
             Bone->SetObjectField(TEXT("local_transform"), CaptureTransform(Transform));
+            if (bCompressedTracks)
+            {
+                FTransform Replayed = Index == 0 ? Transform : CodecPose[Index];
+                Bone->SetObjectField(TEXT("codec_pose"), CaptureTransform(Replayed));
+                Bone->SetNumberField(TEXT("retarget_mode"), Sequence->GetSkeleton()->GetBoneTranslationRetargetingMode(Index));
+                FAnimationRuntime::RetargetBoneTransform(Sequence->GetSkeleton(), Sequence->GetRetargetTransformsSourceName(), Sequence->GetRetargetTransforms(), Replayed, Index,
+                    RequiredBones.GetCompactPoseIndexFromSkeletonPoseIndex(FSkeletonPoseBoneIndex(Index)), RequiredBones, false);
+                Bone->SetObjectField(TEXT("retargeted_pose"), CaptureTransform(Replayed));
+            }
             Bones.Add(MakeShared<FJsonValueObject>(Bone));
         }
         Frame->SetArrayField(TEXT("bones"), Bones);
         Frames.Add(MakeShared<FJsonValueObject>(Frame));
     }
     TSharedRef<FJsonObject> Probe = MakeShared<FJsonObject>();
-    Probe->SetStringField(TEXT("sampling_mode"), bAnimationPose ? TEXT("animation_pose") : bRootTrackOnly ? TEXT("root_track") : TEXT("raw_local_tracks"));
+    Probe->SetStringField(TEXT("sampling_mode"), bAnimationPose ? TEXT("animation_pose") : bRootTrackOnly ? TEXT("root_track") : bCompressedTracks ? TEXT("compressed_local_tracks") : TEXT("raw_local_tracks"));
+    if (bCompressedTracks) { Probe->SetObjectField(TEXT("compression"), Compression.ToSharedRef()); }
     Probe->SetNumberField(TEXT("duration"), Sequence->GetPlayLength());
     Probe->SetArrayField(TEXT("frames"), Frames);
     if (bCaptureSourceChannels) { Probe->SetObjectField(TEXT("source_channels"), SourceChannels.ToSharedRef()); }
