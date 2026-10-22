@@ -1694,6 +1694,15 @@
 
   - 19:50 完成摘要：前缀76真实惯性节点active/graph request/pending/epoch均0，76前pose/75前两pose，与source骨骼/曲线76均精确；以原76主pose/curve运行源public惯性无请求历史，6004骨骼f64全精确。后置PoseCrouching1/full-alpha及Rotate回调/root bone/curve写入合同由实际缓存验证，76原Crouch Root数组交付0target回填；active/epoch/pending三反例拒绝，未因仅输出相等猜透传。观察器物理移除保持旧240历史但无状态证据，源码字节恢复/同target重编全部状态/pose观察精确。1189身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持，Gate `target/bf144/208/summary.json` PASS_CURRENT_NO_REQUEST_POST_CROUCH_PATH。实际结束：2026-10-22 19:50:29 +08:00；实耗4分29秒，较预估提前35分30秒。新增0，累计236（115P2/121P3）；本项只条件式通过当前无请求路径，原请求生产/active/reentry/skipped历史、callback槽、Grounded链接和180恢复/完整Root仍未验收，下一段按真实链接继续。截图0、性能暂停。
 
+- [x] BF144.209 原Crouch Root至Grounded具名输入/缓存的真实归属：依赖.208原76 Crouch Root、.200真实root→linked及具名输入拓扑，只沿主AB的Crouch linked caller→Grounded Crouching Input→Save/Use核compiled/source接口与运行时owner/context，按实际缓存原样运输原数组；Standing sibling只列现有数据边界，不用target补原输入。Gate：source/target调用链和pin单位/生命周期、76原输入实际消费身份0歧义/0回填、原curve/bone保持、只读观察全历史校准/最小消融恢复及身份；Grounded FSM混合、Standing原最终输出、外层slots/惯性及180后缀/Root反馈另依赖。开始：2026-10-22 19:51:00 +08:00；预估结束：2026-10-22 20:26:00 +08:00。估时依据：.200已核4条core linked桥、当前只1个Crouch数据分支/1具名Input和Save，.195缓存owner工具与.208记录可复用；35分钟完成实际linked参数/缓存身份，不混入整个Grounded原数值。仅审计，生产/转换器/原始资产不改，截图0、性能暂停。
+  - 19:51 活动摘要：.208已提交，原Crouch Root76数组可供；下一步fresh核root Caller/SourceLinkedInputPose/缓存层边界及实际parent hierarchy，不能凭同图名或相同pose定位linked instance。当前236（115P2/121P3），完整Root仍未闭合。
+
+  - 19:53 runtime前静态摘要：源root caller把Crouch linked输出接Grounded的Crouching Input，Grounded LinkedInputPose→Crouching Save是明确同pose/无单位空间变换；target同data pin与具名input/Result→Pose alias对应。只读观察按Crouch child真实parent.node=caller、共同parent下唯一Grounded child定位sibling，scope owner沿最近LayeredGraph边界核每个Use，不能仅按cache_key或值相等匹配。源接口自测/观察器同target编译通过，现沿.208同240历史采集；原数据资格仍77前缀，236、截图0、性能暂停。
+
+  - 19:53 runtime后链接闭环：完整240旧历史仅删新增linked_crouch_records后精确；前缀76 Crouch child→共同parent caller→唯一Grounded sibling→具名Input→Save全值一致，76 scoped Use按最近LayeredGraph owner及cache_key证明且与Save一致，0同值猜身份。原76数组/6004骨骼已按实际路由交付Grounded Crouching缓存；实际观测6021骨骼值额外包含17次identity场景根，不充当原79域数据。错owner/缺原输入的最小控制待核，观察物理移除/字节恢复同target重编进行中；本项不声称Standing sibling或Grounded FSM数值已通过。236、截图0、性能暂停。
+
+  - 19:54 完成摘要：按真实Crouch child parent/caller及同parent唯一Grounded sibling，76 Root→caller→Crouching Input→Save/Use的骨骼/曲线/timestamp精确；scoped owner沿最近LayeredGraph边界与cache_key共同证明，不以同值选身份。原76数组/6004骨骼已交付Grounded缓存，76实际Use_refs明确，0target补值；错owner/缺原输入两控制拒绝。观察物理移除保持完整旧240历史但失身份，字节恢复/同target重编全部观察精确。1200身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持，Gate `target/bf144/209/summary.json` PASS_ORIGINAL_CROUCH_GROUNDED_LINKED_CACHE。实际结束：2026-10-22 19:54:54 +08:00；实耗3分54秒，较预估提前31分5秒。新增0，累计236（115P2/121P3）；Standing原最终输出/真实Grounded混合、外层slots/惯性、180恢复资格和Root反馈仍未验收，下一项先核Grounded真实消费集与缺失原输入，不猜分支。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
