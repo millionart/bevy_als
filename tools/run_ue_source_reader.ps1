@@ -8,6 +8,7 @@ param(
     [string]$MontageClockProbe,
     [string]$InertializationProbe,
     [string]$LayeredBoneBlendProbe,
+    [string]$SlotProbe,
     [string]$BlendProfileProbe,
     [string]$BlendListProbe,
     [string]$StateMachineEntryProbe,
@@ -326,6 +327,10 @@ if ($BlendListProbe) {
 if ($StateMachineEntryProbe) {
     $probePath = (Resolve-Path -LiteralPath $StateMachineEntryProbe -ErrorAction Stop).Path
     $arguments += "-StateMachineEntryProbe=$probePath"
+}
+if ($SlotProbe) {
+    $probePath = (Resolve-Path -LiteralPath $SlotProbe -ErrorAction Stop).Path
+    $arguments += "-SlotProbe=$probePath"
 }
 if ($LayeredBoneBlendProbe) {
     $probePath = (Resolve-Path -LiteralPath $LayeredBoneBlendProbe -ErrorAction Stop).Path

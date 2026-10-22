@@ -27,6 +27,8 @@
 #include "AnimNodes/AnimNode_BlendListBase.h"
 #include "AnimNodes/AnimNode_TwoWayBlend.h"
 #include "AnimNodes/AnimNode_LayeredBoneBlend.h"
+#include "AnimNodes/AnimNode_Slot.h"
+#include "Animation/AnimMontageEvaluationState.h"
 #include "Animation/AnimNotifyQueue.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "Animation/AnimSequence.h"
@@ -3430,6 +3432,174 @@ TSharedPtr<FJsonObject> CaptureLayeredBoneBlendProbe(UObject* Asset, const FStri
     return Result;
 }
 
+TSharedPtr<FJsonObject> CaptureSlotProbe(UObject* Asset, const FString& RequestPath)
+{
+    FMemMark Mark(FMemStack::Get());
+    UBlueprint* Blueprint = Cast<UBlueprint>(Asset);
+    UAnimBlueprintGeneratedClass* Class = Blueprint != nullptr ? Cast<UAnimBlueprintGeneratedClass>(Blueprint->GeneratedClass) : nullptr;
+    const IAnimClassInterface* Interface = Class != nullptr ? IAnimClassInterface::GetFromClass(Class) : nullptr;
+    FString Text, NodeGuidText, SequencePath;
+    TSharedPtr<FJsonObject> Request;
+    const TSharedPtr<FJsonObject>* Dynamic = nullptr;
+    const TArray<TSharedPtr<FJsonValue>>* Names = nullptr;
+    const TArray<TSharedPtr<FJsonValue>>* Steps = nullptr;
+    FGuid NodeGuid;
+    if (Interface == nullptr || Interface->GetTargetSkeleton() == nullptr || !FFileHelper::LoadFileToString(Text, *RequestPath) ||
+        !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Request) ||
+        !Request->TryGetStringField(TEXT("node_guid"), NodeGuidText) || !FGuid::Parse(NodeGuidText, NodeGuid) || !NodeGuid.IsValid() ||
+        !Request->TryGetArrayField(TEXT("bone_names"), Names) || !Request->TryGetArrayField(TEXT("steps"), Steps) ||
+        Steps->IsEmpty() || Steps->Num() > 512 || !Request->TryGetObjectField(TEXT("dynamic_montage"), Dynamic) ||
+        !(*Dynamic)->TryGetStringField(TEXT("sequence"), SequencePath)) { return nullptr; }
+    const int32* NodeIndex = Class->GetNodePropertyIndexFromGuid(NodeGuid);
+    const TArray<FStructProperty*>& Properties = Interface->GetAnimNodeProperties();
+    const int32 PropertyIndex = NodeIndex != nullptr ? Properties.Num() - 1 - *NodeIndex : INDEX_NONE;
+    if (!Properties.IsValidIndex(PropertyIndex) || Properties[PropertyIndex]->Struct != FAnimNode_Slot::StaticStruct()) { return nullptr; }
+    const UEdGraphNode* Visual = Class->GetVisualNodeFromNodePropertyIndex(PropertyIndex);
+    if (Visual == nullptr || Visual->NodeGuid != NodeGuid) { return nullptr; }
+    const FAnimNode_Slot* Template = Properties[PropertyIndex]->ContainerPtrToValuePtr<FAnimNode_Slot>(Class->GetDefaultObject());
+    USkeleton* Skeleton = Interface->GetTargetSkeleton();
+    UAnimSequence* Sequence = LoadObject<UAnimSequence>(nullptr, *SequencePath);
+    if (Sequence == nullptr || Sequence->GetSkeleton() != Skeleton) { return nullptr; }
+    const FReferenceSkeleton& Reference = Skeleton->GetReferenceSkeleton();
+    if (Names->Num() != Reference.GetNum()) { return nullptr; }
+    TArray<FBoneIndexType> BoneIndices;
+    for (int32 Index = 0; Index < Names->Num(); ++Index)
+    {
+        FString Name;
+        if (!(*Names)[Index]->TryGetString(Name) || Name != Reference.GetBoneName(Index).ToString()) { return nullptr; }
+        BoneIndices.Add(Index);
+    }
+    const auto ReadNumber = [](const TSharedPtr<FJsonObject>& Object, const TCHAR* Key, double& Value)
+    {
+        return Object->HasTypedField<EJson::Number>(Key) && Object->TryGetNumberField(Key, Value) && FMath::IsFinite(static_cast<float>(Value));
+    };
+    double BlendIn, BlendOut, Trigger, Rate, Start, PlayFrame;
+    if (!ReadNumber(*Dynamic, TEXT("blend_in_seconds"), BlendIn) || BlendIn < 0.0 ||
+        !ReadNumber(*Dynamic, TEXT("blend_out_seconds"), BlendOut) || BlendOut < 0.0 ||
+        !ReadNumber(*Dynamic, TEXT("blend_out_trigger_seconds"), Trigger) ||
+        !ReadNumber(*Dynamic, TEXT("play_rate"), Rate) || !ReadNumber(*Dynamic, TEXT("start_time"), Start) ||
+        Start < 0.0 || Start > Sequence->GetPlayLength() || !ReadNumber(*Dynamic, TEXT("play_frame"), PlayFrame) ||
+        PlayFrame < 0.0 || PlayFrame >= Steps->Num() || FMath::FloorToDouble(PlayFrame) != PlayFrame) { return nullptr; }
+    Sequence->CacheDerivedDataForCurrentPlatform();
+    UAnimMontage* Montage = UAnimMontage::CreateSlotAnimationAsDynamicMontage(Sequence, Template->SlotName, BlendIn, BlendOut, 1.f, 1, Trigger);
+    if (Montage == nullptr) { return nullptr; }
+    struct FProbeProxy : FAnimInstanceProxy
+    {
+        using FAnimInstanceProxy::FAnimInstanceProxy;
+        using FAnimInstanceProxy::Initialize;
+        using FAnimInstanceProxy::GetMontageEvaluationData;
+    };
+    struct FProbeLeaf : FAnimNode_Base
+    {
+        TArray<FTransform> Transforms;
+        TMap<FName, float> Curves;
+        float UpdateWeight = 0.f;
+        virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override { UpdateWeight = Context.GetFinalBlendWeight(); }
+        virtual void Evaluate_AnyThread(FPoseContext& Output) override
+        {
+            Output.Pose.ResetToRefPose();
+            for (int32 Index = 0; Index < Transforms.Num(); ++Index) { Output.Pose[FCompactPoseBoneIndex(Index)] = Transforms[Index]; }
+            Output.Curve.Empty();
+            for (const auto& Curve : Curves) { Output.Curve.Set(Curve.Key, Curve.Value); }
+        }
+    };
+    struct FProbeSlot : FAnimNode_Slot
+    {
+        const FSlotNodeWeightInfo& Weights() const { return WeightData; }
+    };
+    USkeletalMeshComponent* Mesh = NewObject<USkeletalMeshComponent>();
+    UAnimInstance* AnimInstance = NewObject<UAnimInstance>(Mesh, Class);
+    FProbeProxy Proxy(AnimInstance);
+    Proxy.Initialize(AnimInstance);
+    if (!Proxy.IsSkeletonValid() || Proxy.GetSkeleton() != Skeleton) { return nullptr; }
+    Proxy.GetRequiredBones().InitializeTo(BoneIndices, UE::Anim::FCurveFilterSettings(), *Skeleton);
+    FProbeLeaf Leaf;
+    FProbeSlot Node;
+    static_cast<FAnimNode_Slot&>(Node) = *Template;
+    Node.Source.SetLinkNode(&Leaf);
+    Node.Initialize_AnyThread(FAnimationInitializeContext(&Proxy));
+    Node.CacheBones_AnyThread(FAnimationCacheBonesContext(&Proxy));
+    FAnimMontageInstance Playback;
+    TArray<TSharedPtr<FJsonValue>> Results;
+    for (int32 Frame = 0; Frame < Steps->Num(); ++Frame)
+    {
+        const TSharedPtr<FJsonObject>* Step = nullptr;
+        const TSharedPtr<FJsonObject>* Curves = nullptr;
+        const TArray<TSharedPtr<FJsonValue>>* Transforms = nullptr;
+        double Delta;
+        if (!(*Steps)[Frame]->TryGetObject(Step) || !ReadNumber(*Step, TEXT("delta_seconds"), Delta) || Delta < 0.0 ||
+            !(*Step)->TryGetArrayField(TEXT("bone_transforms"), Transforms) || Transforms->Num() != Reference.GetNum() ||
+            !(*Step)->TryGetObjectField(TEXT("curves"), Curves)) { return nullptr; }
+        Leaf.Transforms.Reset();
+        Leaf.Curves.Reset();
+        for (const TSharedPtr<FJsonValue>& TransformValue : *Transforms)
+        {
+            const TSharedPtr<FJsonObject>* Transform = nullptr;
+            if (!TransformValue->TryGetObject(Transform)) { return nullptr; }
+            double Components[10];
+            int32 Offset = 0;
+            for (const TCHAR* Field : {TEXT("translation_cm"), TEXT("rotation"), TEXT("scale")})
+            {
+                const TArray<TSharedPtr<FJsonValue>>* Values = nullptr;
+                const int32 Count = Offset == 3 ? 4 : 3;
+                if (!(*Transform)->TryGetArrayField(Field, Values) || Values->Num() != Count) { return nullptr; }
+                for (const TSharedPtr<FJsonValue>& Component : *Values)
+                {
+                    if (Component->Type != EJson::Number || !Component->TryGetNumber(Components[Offset]) || !FMath::IsFinite(Components[Offset])) { return nullptr; }
+                    ++Offset;
+                }
+            }
+            const FQuat Rotation(Components[3], Components[4], Components[5], Components[6]);
+            if (!Rotation.IsNormalized()) { return nullptr; }
+            Leaf.Transforms.Add(FTransform(Rotation, FVector(Components[0], Components[1], Components[2]), FVector(Components[7], Components[8], Components[9])));
+        }
+        for (const auto& Curve : (*Curves)->Values)
+        {
+            double Amount;
+            if (Curve.Value->Type != EJson::Number || !Curve.Value->TryGetNumber(Amount) || !FMath::IsFinite(static_cast<float>(Amount))) { return nullptr; }
+            Leaf.Curves.Add(FName(*Curve.Key), static_cast<float>(Amount));
+        }
+        if (Frame == static_cast<int32>(PlayFrame))
+        {
+            Playback.Initialize(Montage);
+            Playback.Play(Rate);
+            Playback.SetPosition(Start);
+        }
+        Proxy.GetMontageEvaluationData().Reset();
+        if (Frame >= PlayFrame && Playback.IsValid())
+        {
+            Playback.UpdateWeight(Delta);
+            Playback.Advance(Delta, nullptr, false);
+            if (Playback.IsValid() && Playback.GetWeight() > ZERO_ANIMWEIGHT_THRESH)
+            {
+                Proxy.GetMontageEvaluationData().Emplace(Montage, Playback.GetPosition(), Playback.DeltaTimeRecord, Playback.IsPlaying(), Playback.IsActive(), Playback.GetBlend(), Playback.GetActiveBlendProfile(), Playback.GetBlendStartAlpha());
+            }
+        }
+        FAnimationUpdateSharedContext Shared;
+        Leaf.UpdateWeight = 0.f;
+        Node.Update_AnyThread(FAnimationUpdateContext(&Proxy, static_cast<float>(Delta), &Shared));
+        FPoseContext Pose(&Proxy);
+        Node.Evaluate_AnyThread(Pose);
+        TSharedPtr<FJsonObject> Row = CaptureCompactPose(Pose.Pose, Pose.Curve);
+        if (!Row.IsValid()) { return nullptr; }
+        Row->SetNumberField(TEXT("frame"), Frame);
+        Row->SetNumberField(TEXT("source_update_weight"), Leaf.UpdateWeight);
+        Row->SetNumberField(TEXT("slot_weight"), Node.Weights().SlotNodeWeight);
+        Row->SetNumberField(TEXT("source_weight"), Node.Weights().SourceWeight);
+        Row->SetNumberField(TEXT("total_weight"), Node.Weights().TotalNodeWeight);
+        Row->SetNumberField(TEXT("montage_weight"), Playback.GetWeight());
+        Row->SetNumberField(TEXT("montage_position"), Frame >= PlayFrame ? Playback.GetPosition() : 0.f);
+        Results.Add(MakeShared<FJsonValueObject>(Row.ToSharedRef()));
+        UE_LOG(LogAlsGraphSourceReader, Display, TEXT("Slot probe frame %d/%d captured."), Frame + 1, Steps->Num());
+    }
+    TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+    Result->SetStringField(TEXT("node_guid"), GuidText(NodeGuid));
+    Result->SetStringField(TEXT("node_property"), Properties[PropertyIndex]->GetName());
+    Result->SetStringField(TEXT("slot_name"), Template->SlotName.ToString());
+    Result->SetArrayField(TEXT("frames"), Results);
+    return Result;
+}
+
 TSharedPtr<FJsonObject> CaptureInertializationProbe(UObject* Asset, const FString& RequestPath)
 {
     UBlueprint* Blueprint = Cast<UBlueprint>(Asset);
@@ -4846,6 +5016,13 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
         const TSharedPtr<FJsonObject> Probe = CaptureBlendProfileProbe(Asset, BlendProfileProbePath);
         if (!Probe.IsValid()) { return 7; }
         Root->SetObjectField(TEXT("blend_profile_probe"), Probe.ToSharedRef());
+    }
+    FString SlotProbePath;
+    if (FParse::Value(*Params, TEXT("SlotProbe="), SlotProbePath))
+    {
+        const TSharedPtr<FJsonObject> Probe = CaptureSlotProbe(Asset, SlotProbePath);
+        if (!Probe.IsValid()) { return 7; }
+        Root->SetObjectField(TEXT("slot_probe"), Probe.ToSharedRef());
     }
     FString LayeredBoneBlendProbePath;
     if (FParse::Value(*Params, TEXT("LayeredBoneBlendProbe="), LayeredBoneBlendProbePath))

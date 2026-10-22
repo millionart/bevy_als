@@ -1756,6 +1756,17 @@
 
   - 20:37 完成摘要：77真实Grounded→Transition输入身份逐帧精确，61无叠加透传、16真实CrouchingStop叠加；fresh源设置/序列与public动态montage16步完备，11position/4weight差归D118。按源position补16原prepared mesh additive/1264骨骼及4条原曲线，0target回填，raw-only阶段/压缩组合被7拒绝后按合同拆开成功，未改reader。观察物理移除首次漏专用参数的默认集合已主动结束且不计Gate，正确原历史移除/源码字节恢复/同target重编后完整240/新增全部观察精确。1269身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持。Gate `target/bf144/214/summary.json` PASS_TRANSITION_SLOT_ACTIVITY_AND_ORIGINAL_INPUT_CONTRACT。实际结束：2026-10-22 20:37:24 +08:00；实耗14分24秒，较预估提前25分36秒。新增0，累计236（115P2/121P3）；活动slot最终数值拆下一项，Locomotion/180恢复与完整Root仍未通过。截图0、性能暂停。
 
+- [x] BF144.215 原Transition slot完整77帧数值consumer：依赖.214原Grounded77输入、原Stop16时钟及压缩pose，fresh以99688c67真实compiled Slot模板/公开montage evaluation data运行相同队列生效边界，取得61无活动与16活动原槽输出；独立double mesh-additive按源完整parent链/局部T/S、曲线与末尾单位化复算，先核public源真实槽再分离当前target算子/原数据差。Gate：public源slot/原时钟/原数据身份、独立数值校准、实际target重放/已知根因控制、native非法输入与新增读取能力最小自测/消融恢复/同包重编，生产不改。Locomotion/180后缀与完整Root后置。开始：2026-10-22 20:38:21 +08:00；预估结束：2026-10-22 21:28:21 +08:00。估时依据：1个Slot模板+77原Base/16原Montage，复用.205 reader骨架/叶输入和.190 double加性；proxy提供evaluation data访问API，无需私有字段，预留50分钟包含必要reader编译/native与源模型校准，不展开其他montage。仅审计，截图0、性能暂停。
+  - 20:38 活动摘要：.214已提交，原77 Base与16压缩mesh additive/source时钟齐备，累计236（115P2/121P3）。下一步使用实际compiled Slot本体走source Update/Evaluate，以只读probe子类暴露受保护API，填入由真实FAnimMontageInstance生成的evaluation状态，不以自己重写slot算法作为唯一oracle。
+
+  - 20:42 source/tool编译边界：Slot模板/蒙太奇时钟接口复用已有reader；首编译明确GetMontageEvaluationData为protected而非public，未碰引擎/私有字段，仅在既有probe proxy子类用using暴露该受保护API。失败报告保留，访问级别表述已纠正；独立double模型按source先L2M、累积但不提前normalize、M2L后统一normalize，等待真实Slot数值校准。生产未改，236、截图0、性能暂停。
+
+  - 20:46 runtime前/后数值闭环：实际compiled Slot模板经clone/原79骨架/source leaf及真实montage evaluation状态推进77帧，61无活动透传、16活动原时钟/slot total weight精确；原Base及prepared原sequence得到6083骨骼与全部曲线，独立double L2M→加性→M2L→末尾normalize逐值f64零差，0target回填。当前77缓存pose/6100骨骼由生产helper同输入重放精确（含17身份scene额外骨骼）；组合原/target仍有姿态残差、36曲线值差但名字0缺，不把组合残差新增归因。独立模型物理去M2L稳定16帧失败，源码字节恢复/同dylib重编77再次全精确；reader非法输入/物理去Montage consumer及旧工具回归收尾中。236、截图0、性能暂停。
+
+  - 20:49 消融与恢复闭环：reader物理去除向proxy发布真实Montage evaluation状态，原77 clock字段保持、61无活动输出精确，仅61–76原16活动姿态/曲线改变，证明实际槽正在消费该状态；按源码字节恢复并同包重编后，77份原Slot全部骨骼/曲线/权重/时钟字段再次精确。三种非法native输入全为completed/7拒绝，读者schema四反例通过；当前只剩旧Layered/Sequence/Clock回归与身份收尾，未新增生产差异。236、截图0、性能暂停。
+
+  - 20:55 完成摘要：真实compiled Slot模板77帧（61透传/16活动）、原montage时钟/weight/source update资格明确，原77输出/6083骨骼和曲线由独立double模型逐值f64精确，0target补值；当前77/6100缓存骨骼经生产helper重放精确，36组合曲线值差/0名字缺保留待producer分解，不当新根因。模型物理去M2L稳定16帧失败，字节恢复/同dylib重编精确；reader去Montage发布仅16活动输出改变且clock保持，字节恢复/同包重编77全部字段精确。3非法native输入7拒绝、schema4反例及旧Layered34/Sequence16/Clock16全精确。1285身份键/114 ALS/184 Rust/原始资产/转换器/生产库保持，仅必要reader CPP/runner及本包dylib改变，新工具自测随提交落盘。Gate `target/bf144/215/summary.json` PASS_ORIGINAL_TRANSITION_SLOT_NUMERICAL_PREFIX。实际结束：2026-10-22 20:55:40 +08:00；实耗17分19秒，较预估提前32分41秒。新增0，累计236（115P2/121P3）；Transition producer曲线/压缩数据控制、Locomotion/180恢复及完整Root仍未通过。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
