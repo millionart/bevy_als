@@ -1776,6 +1776,13 @@
 
   - 21:06 完成摘要：实际16 producer的clip/reference、raw→difference→compose及未加权/加权curve由原生产helper逐项重放精确，完整240剥离新增观察精确；131无权重旧pose明确不消费，首次无资格guard的100帧后缺context失败为必要边界。77曲线当前值重放及完整源输入独立恢复均精确；36残差含原Base12、压缩数据控制16、时点8、权重8（重叠），仅扩D118/D224。16同目标时点源compressed/raw absolute与原Stand参考读取完备，1200 delta旋转不等及1008个scale不写单列，未把原始参考数据或全部pose原因判等价，拆下一项继续。观察物理移除/源码字节恢复/同target重编完整240/全部新增观察精确，1296身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持。Gate `target/bf144/216/summary.json` PASS_ACTUAL_TRANSITION_PRODUCER_AND_CURVE_FACTORS。实际结束：2026-10-22 21:06:27 +08:00；实耗9分50秒，较预估提前35分10秒。新增0，累计236（115P2/121P3）；下一项精确pose数据/参考型位分解，Locomotion/180恢复和完整Root仍未通过。截图0、性能暂停。
 
+- [x] BF144.217 同一Transition前缀的参考/压缩pose精确数据合同：依赖.216实际16 producer与原数据，仅核A_Als_Crouch_Transition_Right和A_Als_Stand_Pose/frame0的raw/当前平台compressed模式、typed default/constant/animated数据及make_mesh_space_difference输入，不展开其他Sequence。先比源强制raw参考与target实际reference，再以现有codec/SDK和相同生产算子进行数据/型位控制，区分原参考、原绝对pose、压缩加性delta和单位/数学阶段；已确认差异只归并有反例的同根因，剩余明确登记。Gate：fresh source模式/原字段、相同输入数据与实际consumer控制、最小反例/恢复与身份；后续Locomotion及完整Root仍后置。开始：2026-10-22 21:07:14 +08:00；预估结束：2026-10-22 21:57:14 +08:00。估时依据：2资产/16当前时点，.179/.181已具codec/型位工具，.216原绝对/参考已读取；50分钟预留fresh prepared Stand/两codec、模式差分及生产控制，不预设都是压缩或Euler原因。仅审计，生产/转换器/原始资产不改，截图0、性能暂停。
+  - 21:07 活动摘要：.216已提交，累计236（115P2/121P3）。reference资源名称一致仍有参考rotation约1.7e-4差，prepared delta约1.2e-3差；不能以名字一致判数据相同。先fresh读取Stand prepared/frame0及两codec，确认target实际参考数据模式和源Additive强制raw合同。
+
+  - 21:15 source/数值闭环：Stand原77 tracks/149 default+82 constant、1样本；Transition原79 tracks/144 default+4 constant+89 animated、70样本/30Hz/wrap。原ACL bytes/hash与SDK独立解码17pose/1343骨骼逐值精确，public retarget/full prepared/curve也全等；raw Stand68 channel+11 virtual controls精确且与.216原参考数据全等。target参考对raw有62T/44Q/16S差，对prepared有44T/30Q差，不能推断历史导出mode。16 actual producer差分/预混重放精确，source raw绝对+参考仍不等compressed delta，直接原压缩delta数据投影全精确，D224数据合同扩展；不把名字相同或raw补齐当源compressed恢复。移除additive零默认使仅Transition1264骨骼失败，字节恢复/同SDK再1343全等；3冗余mixed数据variant删后同target重编，48份保留actual/raw/compressed输出精确，身份收尾。236、截图0、性能暂停。
+
+  - 21:16 完成摘要：两原asset的SDK/default/constant/animated合同、原codec/retarget/full prepared共17pose/1343骨骼与curve全部精确；Stand raw68通道/11虚拟阶段保持原参考79pose。目标参考既非raw也非prepared精确，未推断导出mode；16实际difference/compose重放精确，原压缩delta数据投影控制零差，raw绝对/参考不能代替原压缩合同，D224扩展且新增0。additive默认物理移除仅Transition1264骨骼失败，源码字节恢复/同SDK1343再精确；3冗余mixed variant已删除，同target重编48保留actual/raw/compressed输出全部精确。1310身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持，Gate `target/bf144/217/summary.json` PASS_ORIGINAL_TRANSITION_REFERENCE_AND_COMPRESSED_DATA_CONTRACT。实际结束：2026-10-22 21:16:04 +08:00；实耗8分50秒，较预估提前41分10秒。累计236（115P2/121P3）；已有原77槽可供Locomotion，180恢复、外层/layering与完整Root仍未通过。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
@@ -3314,6 +3321,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.206主Crouch Idle新增叶：原A_Als_Crouch_Pose固定frame0/非additive，无root锁/空曲线；79骨骼的prepared公开pose、codec与独立ACL SDK f64精确，143 default/88 constant轨位。真实Idle63–76的14份/1106骨骼缓存与原生产sampler精确，原glTF每份69骨骼差、共966，峰值位置5.0922496e−6m/旋转6.6022864e−6/scale4.7683716e−7；仅以原压缩常量数据替换受控Clip，同生产sampler已与原native投影全等。此处为新的实际资产/消费闭包，沿本项数据合同，不另编号；完整主FSM/Root仍未验收。证据`target/bf144/206/idle-source-check.json`、`idle-consumer-check.json`。
 
   - BF144.216 Transition曲线消费者补充：实际单CrouchingRight producer16帧的raw curve表→按当前时点采样→实例权重预混→SourceSlot累加已逐值重放。固定target0.30000001192秒与当前权重时，raw FootLeft/RightLock为−9.536743306e−8，prepared源为−1.192092896e−7，当前槽两曲线仍1而仅换压缩curve后为0.9999999404；16个已消费curve值发生此类差异。相同时点的16源/目标数据见`216/curve-check.json`，与D118另8时点/8权重控制分开；原Base12值及全部源输入恢复控制最终77曲线精确，不将组合36值错误当作36独立缺陷。仅扩本数据路径范围，pose原型位/参考与压缩贡献仍后置，不声称这批锁定曲线低位差已造成可见动作故障。
+
+  - BF144.217 Transition数据补充：fresh原Stand的constant/default流与原Transition加性流均由ACL SDK及原生codec/full pose精确交叉核对。Transition scale默认必须0，移除该初始化1264骨骼全部失败而Stand控制保持；恢复后1343骨骼全等。当前同16时点target delta有1200旋转值差/256 scale值差及1008个scale不写，保持原差分/compose算子直接改用源prepared delta即数据投影全精确；仅改回源raw绝对/参考仍不等prepared合同。target参考原数据既非raw也非prepared精确，历史导出来源不作推测、未登记新的mode算法缺陷。证据`217/codec-check.json`、`full-stage-check.json`、`reference-check.json`、`controls-check.json`；当前新增0。
 
 - [ ] BF144-D225 / P3 — Sequence骨骼旋转的时间插值使用slerp，偏离源nlerp。
   - Source：fresh `AnimSequencerDataModel.cpp:546–565`用相邻帧的FTransform::Blend；`TransformVectorized.h:427–460`按最短弧VectorLerpQuat后归一化。当前ACL `animated_track_cache.transform.h:1736–1745`的压缩帧间插值也使用quat_lerp，不是slerp。
