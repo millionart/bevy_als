@@ -1511,6 +1511,13 @@
 
   - 16:43 完成摘要：fresh两个Lean Base递归136源节点/0缺链与原14player、16blend、12方向/两FSM等已通过阶段一一映射，所有cache依显式Save对象引用而非名字猜测；Standing1738 Base精确指向Movement FSM、Crouch1648指向TwoWay，其A/B均实际更新，A新Pose evaluator1648×79=130192骨骼时点0明确。10路径2400帧完整旧历史精确，父输出/输入owner context均记录；409 owned-child证明默认父context不成立，无值相等身份推断。首次8MB解析120秒wall失败保留，64MB/必要记录在原120/30上限内78秒完成；无源/生产/reader改动，784身份键及114 ALS/184 Rust/生产库/原始资产保持。Gate `target/bf144/193/summary.json` PASS。实际结束：2026-10-22 16:43:27 +08:00；实耗17分27秒，较预估提前32分33秒。新增差异0，累计235（115P2/120P3）；本项仅关闭来源/运输，明确未覆盖的新Crouch Pose数值叶下一项立即继续，原source叶经缓存/parent/FSM进入完整Base及Root/feedback仍后置，不宣称数值等价。截图0、性能暂停。
 
+- [x] BF144.194 Crouch Base固定Pose evaluator数值叶：依赖.193递归/实际运输Gate，只补新确认的A_Als_Crouch_Walk_Pose/frame0直接Base A输入。fresh非加性/时长1.1333333253860474、源ExplicitFrame0/Teleport/Reinit以及实际1648次timestamp0已证；复用.178/.179/.181的原compressed track/ACL解码/默认姿态/retarget及生产sample_pose路径，分离数据D224与数值D225/D228/D230，不凭Pose命名假定静态或用glTF当source数据。Gate：原完整compressed API→codec/retarget→独立SDK数值闭环、1648实际缓存采样精确校准、声明时点最小控制、同数据源算子控制及必要消融/身份；通过后才能用于原Base复合。开始：2026-10-22 16:44:00 +08:00；预估结束：2026-10-22 17:19:00 +08:00。估时依据：.188六短资产23分56秒、.191 raw参考19分56秒，本项一个非加性资产复用成熟工具，35分钟包括零点实际/独立声明时点和retarget/默认边界。仅审计、生产/转换器/原始资产不改，截图0、性能暂停。
+  - 16:44 活动摘要：193已单独提交；该Evaluator在Crouch Base TwoWay A的1648份实际输入均更新，79骨骼/时点0，普通source pose0已明确compressed。下一步读取批量codec/参考/retarget和流，按同一原时间校准生产Clip，再决定是否存在新数据根因；当前235（115P2/120P3），完整Base串接仍依赖本Gate。
+
+  - 16:49 当前叶数值闭环：4源pose/316骨骼独立SDK与codec精确，公共retarget输出全等；全流34 wrap bone样本/35 clamp curve样本，只有149 default/82 constant通道，无animated。原生产sample_pose与1648实际Evaluator/130192骨骼及PoseGait1曲线逐项精确；原glTF对source有260骨骼不等（旋转峰1.9893050e−6），压缩键替换后尚16份中点旋转ULP，按源constant型位直接输出则0。最终retarget仅12个f64 foot变化，当前全部投影f32不变，不扩大D230的可见/ULP结论。按消融要求删除复制采样器中本资产未使用的source帧格点/nlerp/animated分支，保留明确default/constant断言和最小source常量路径；重编后须全部旧控制输出保持，再物理去掉source型位路径复现最小反例。当前235，截图0、性能暂停。
+
+  - 16:54 完成摘要：唯一新增直接Base叶A_Als_Crouch_Walk_Pose的4点316骨骼公共compressed→codec/retarget→独立SDK全等，流34 wrap bone/35 clamp curve，149 default/82 constant/0 animated；原sample_pose与1648实际零点/130192骨骼/PoseGait1曲线精确。原数据零点64骨骼不等（105472实际样本）、四点260归D224；同源数据/型位最小常量路径全部codec及final f32精确，12份retarget f64变化不改变当前f32。只换压缩键的16个中点ULP经物理删constant路径稳定复现，删掉未使用的source帧域/nlerp/animated抽象后所有输出保持；源码字节及同target重编恢复精确。795身份键/114 ALS/184 Rust/reader/原始资产/生产库保持，Gate `target/bf144/194/summary.json` PASS。实际结束：2026-10-22 16:54:32 +08:00；实耗10分32秒，较预估提前24分28秒，constant流使原估计的复杂时间重建无需新增实现。新增差异0，累计235（115P2/120P3），只扩D224数据范围；新叶已可用于原source复合，但缓存owner运输→parent/FSM→完整Base及Root/反馈仍未过，下一项继续。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
@@ -3040,6 +3047,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.181 child数据补充：18声明资产中9个在十路径激活，9635个真实输入的761165骨骼在原压缩键/源算子及原API尾阶段下精确；实际ClipNode校准通过，另外18×5时点的声明控制单列。提前归一化端点仍有56855骨骼差（峰值7.152557e−7）；曲线原生产数据/采样4183值不等、峰值FootPlanted0.0008553341，恢复实际流/当前索引/源float算子后17795值精确。cached IndexedCurveNames可能不同于当前Raw/Legacy数组顺序，不能以旧顺序解释原压缩流；只补充数据合同，不另记缺陷。见`target/bf144/181/summary.json`、`curve-check.json`及mapping合同。
 
   - BF144.188 Lean加性数据补充：五LocalSpaceBase样本及共同非加性A_Als_Lean_Pose参考，六资产×4独立时点/1896骨骼的独立ACL SDK→原生批量codec→实际compressed公共API全部精确；五加性流均constant，T0/Qidentity/S0默认及跳过AnimationRelative合同已验证，普通旧reader数值保持。原target的sample_pose+reference-difference与3978真实活跃样本/314262骨骼完全校准，但相对source压缩delta的translation/rotation/scale分别有230464/227078/55692个不等，最大0.0000506192446m/0.00271680206/4.7683716e−7。独立SDK delta数据通过相同生产采样函数在五资产当前零时点395骨骼全部精确；当前活跃输入确为0，声明侧向/后向仅独立控制。该差异延续已有数据路径，不新增编号；不能把glTF绝对值直接当加性缺失，也不把raw参考残差全部归为量化、Euler或D230。证据`target/bf144/188/codec-check.json`、`target-check.json`、`codec-target-check.json`、`sample-comparison.json`；全2D合成、最终ApplyAdditive与off-key参考差分算子另闭合，生产未修。
+
+  - BF144.194新增直接Base叶补充：A_Als_Crouch_Walk_Pose/frame0由蹲姿Base A实际消费1648次/130192骨骼，原生产sampler与实际缓存精确。prepared公开API、批量codec/retarget与独立ACL SDK的4点316骨骼精确；原glTF在实际零点每pose有64骨骼不等、合计105472，四声明点共260，峰值translation8.9406967e−8m/rotation1.9893050e−6/scale4.7683716e−7。保留source default/constant型位并用原压缩数据经同生产采样路径后，codec及最终f32全部0余差；仅压缩键替换的16个中点ULP来自把constant轨展开成时间键后的不必要归一化，沿用本项.179型位/数据阶段记录，不另编号。源PoseGait1曲线与target精确；12份foot retarget只改f64、不改当前f32，未扩大D230实际信号。证据`target/bf144/194/source-check.json`、`target-check.json`，仍不声明完整Base/Root已重建，生产未修。
 
 - [ ] BF144-D225 / P3 — Sequence骨骼旋转的时间插值使用slerp，偏离源nlerp。
   - Source：fresh `AnimSequencerDataModel.cpp:546–565`用相邻帧的FTransform::Blend；`TransformVectorized.h:427–460`按最短弧VectorLerpQuat后归一化。当前ACL `animated_track_cache.transform.h:1736–1745`的压缩帧间插值也使用quat_lerp，不是slerp。
