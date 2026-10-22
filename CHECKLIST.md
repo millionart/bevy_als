@@ -1806,6 +1806,15 @@
 
   - 21:51 完成摘要：原T4合同0.2/Hermite/no-profile与5原alpha/default标量权重精确，原Land5+Grounded77重算77 FSM/6083骨骼（5过渡/72直通），独立1−alpha/alpha及唯一末尾normalize，无target回填或直通额外normalize。20原/同target输入spine+foot raw/final public控制f64全部精确；同target输入77curve精确，原/target有46curve值差/0名字缺与组合pose余差，未新增归因或宣称整pose等价。物理去FSM末尾normalize即20控制全失败，字节恢复/同原math库20全精确且原77输出恢复。1345身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持，Gate `target/bf144/220/summary.json` PASS_ORIGINAL_LOCOMOTION_FSM_NUMERICAL_PREFIX。实际结束：2026-10-22 21:51:23 +08:00；实耗8分49秒，较预估提前31分11秒。新增0，累计236（115P2/121P3）；下一项da8d3812惯性请求/历史与InitializeLean，外层/layering、180恢复和完整Root仍未过。截图0、性能暂停。
 
+- [x] BF144.221 Locomotion后惯性/InitializeLean活动与原warm需求记录：依赖.220原77 FSM值及.218 fresh原蓝图，只沿da8d3812惯性→c7f5549b InitializeLean BecomeRelevant→a20c1f65 Root，先读实际graph/pending/epoch/request/history及filtered RotationYawSpeed、reset/skipped规则。无请求仅以真实public source惯性运行原77数据校准，活动则补warm/原历史后拆独立数值，不能凭单帧相等当透传。Gate：source合同/当帧输入身份、真实活动分类与原数据0target回填、回调pose与必要生命周期证据、最小观察消融/恢复/同target与身份；主AB后槽/layering及180后缀/完整Root后置。开始：2026-10-22 21:52:25 +08:00；预估结束：2026-10-22 22:27:25 +08:00。估时依据：.208/.213无请求路径约4–8分钟，.219展示1个warm Land可能产请求，35分钟先精确分类与条件闭环；如需要原warm Fall pose另拆不回填。仅审计，生产/转换器/原始资产不改，截图0、性能暂停。
+  - 21:52 活动摘要：.220已提交，原77主FSM数据就绪；累计236（115P2/121P3）。先读真实惯性state/graph请求及曲线过滤，不默认warm Land未留下活动；InitializeLean是BecomeRelevant回调，需保留该生命周期与pose保持边界。
+
+  - 21:55 runtime活动边界：完整240剥离新增观察精确；77后惯性节点中frame0 active，duration/max_duration0.1、elapsed0.06666667，graph/pending/epoch本帧均0但两份历史pose均存在。frame0–1 source/output骨骼与curve不等，只有75份保持；callback/Root77均保持惯性输出。不能用当前无新请求或frame1已inactive推全段透传，必须回读warm请求/原历史。当前.221先补真实warm取证与活动缺口，再拆原warm/Fall输入及真实source活动数值Gate，禁止target旧pose充原历史。236、截图0、性能暂停。
+
+  - 22:02 warm历史闭环与拆分：补11份真实warm后，末份graph frame11出现0.1秒graph请求并active/elapsed0.0333333，延续到prefix0；首warm0.6请求因只有1历史pose未激活。88次InitializeLean调用帧号1–88连续，后87次无间隔重入，source OnBecomeRelevant与零赋值合同明确但不凭末态计首次执行；warm11/prefix77的callback/Root均保持惯性输出。原warm graph9/10历史pose及graph11首Land/source请求资格尚未重建，当前target旧pose禁止作为原数据。将原warm与活动数值拆依赖下一项，当前.221关闭source/真实活动/历史需求记录Gate，不提供原Root77或把75目标透传当source实际历史通过。观察物理移除/字节恢复/同target校准及身份收尾，236、截图0、性能暂停。
+
+  - 22:09 完成/拆分摘要：source惯性filter/reset/skipped与InitializeLean零赋值/BecomeRelevant合同明确；11真实warm末帧的0.1秒请求延续到prefix0，首warm0.6请求未激活，prefix0–1输出仍变化，不能把本帧无请求/最终inactive判整段透传。88连续callback调用及warm11/prefix77的callback/Root pose保持均校准，不推首次执行次数；原warm图9/10历史pose与图11 Land/request资格仍缺，禁止target旧pose回填。当前仅活动/原历史需求记录Gate，原Root77未交付；下一项补原warm及source活动数值。观察物理去除/源码字节恢复/同target重编完整240旧历史及warm11/prefix240全部新增证据精确，1354身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持。Gate `target/bf144/221/summary.json` PASS_LOCOMOTION_POST_FSM_ACTIVITY_AND_WARM_REQUIREMENTS。实际结束：2026-10-22 22:09:04 +08:00；实耗16分39秒，较预估提前18分21秒；拆分结果：活动原惯性数值与warm源输入转依赖下一项，完整目标未缩减。新增0，累计236（115P2/121P3），截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
