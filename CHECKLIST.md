@@ -1685,6 +1685,15 @@
 
   - 19:45 完成摘要：原92 state输入按实际root/context组合60直接/16单标准转场，76原主输出/6004骨骼0缺口/0target回填。16 native HermiteCubic alpha与当前暴露curve精确，T0标量/T1 QuickFeetBlend独立权重分明，32新原pose控制raw/profile及最终normalize f64精确；原与同输入curve均0差，骨骼差按数据/既有算子组合保留，不宣称等价。清空原state输入拒绝输出、无目标补值，脚本字节恢复全部76原数组精确。1177身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持，Gate `target/bf144/207/summary.json` PASS_ORIGINAL_MAIN_CROUCH_FSM_NUMERICAL_PREFIX。实际结束：2026-10-22 19:45:18 +08:00；实耗4分18秒，较预估提前35分41秒。新增0，累计236（115P2/121P3）；下一依赖只沿主FSM后惯性及PoseCrouching曲线继续，callback槽/180恢复资格/完整Root和未访问状态仍未验收。截图0、性能暂停。
 
+- [x] BF144.208 主Crouch后惯性/曲线的真实历史合同：依赖.207原主76输出、.206上下文和.200源后继，只沿775987a1惯性→8b7db095 PoseCrouching修改→09e57d08 Rotate回调→Crouch Root核原配置、请求/重置/历史条件与实际输入输出。先证明是否当前前缀有真实请求/活动惯性，禁止默认透传或仅凭输出相等猜状态；有活动历史时按原public Inertialization API和完整原历史独立求值，若前置不足则先验收真实合同/缺口并拆后续。Gate：源/target配置、真实request/state/pose时钟与清理边界、原可供数据和原后继曲线、只读观察校准/最小消融恢复及身份；全Root/callback槽与180后缀继续后置。开始：2026-10-22 19:46:00 +08:00；预估结束：2026-10-22 20:26:00 +08:00。估时依据：单惯性+单curve+回调后继、现成source public惯性probe与.206观察器可复用；40分钟先确定这76帧的真实请求/历史，避免无依据重建整世界。仅审计，生产/转换器/原始资产不改，截图0、性能暂停。
+  - 19:46 活动摘要：.207已提交，原主输出76可用；先fresh看源惯性节点enabled/default profile/teleport及实际请求路由，再用只读缓存/状态记录区分无请求透传和活动历史。当前236（115P2/121P3），不默认当前惯性已关闭或已等价。
+
+  - 19:47 runtime前静态摘要：源惯性过滤RotationYawSpeed、become-relevant重置与skipped-cache请求转发均开启；后置PoseCrouching pin1/full-alpha、Rotate回调OnUpdate。当前target惯性状态具备active/duration/elapsed/deficit、请求epoch/队列及前两pose历史，可按反射只读观察；已核source Update清队列/清历史与Evaluate timer语义，不凭节点名当透传。新观察器编译通过，现仅在.206同停止历史记录真实请求/状态及main→inertial→curve→Root值，Source数据资格仍限77前缀，236、截图0、性能暂停。
+
+  - 19:49 runtime后无请求路径闭环：完整240旧历史仅删新post_crouch_records后精确；前缀76节点active0/graph request0/pending0/epoch非零0，76有前pose/75有前两pose，输出骨骼与curve76份均等source。把76原主pose与原curve送真实源public惯性节点、保留原filtered/reset配置且不发请求，6004骨骼及curve f64逐值精确；据此仅条件式接原无请求路径，不宣称原活动惯性/请求路由等价。后置PoseCrouching1/full-alpha及回调/root pose保持已用实际缓存核对，76原Crouch Root/6004骨骼0target回填。观察物理移除/字节恢复/同target重编正在执行，当前236、截图0、性能暂停。
+
+  - 19:50 完成摘要：前缀76真实惯性节点active/graph request/pending/epoch均0，76前pose/75前两pose，与source骨骼/曲线76均精确；以原76主pose/curve运行源public惯性无请求历史，6004骨骼f64全精确。后置PoseCrouching1/full-alpha及Rotate回调/root bone/curve写入合同由实际缓存验证，76原Crouch Root数组交付0target回填；active/epoch/pending三反例拒绝，未因仅输出相等猜透传。观察器物理移除保持旧240历史但无状态证据，源码字节恢复/同target重编全部状态/pose观察精确。1189身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持，Gate `target/bf144/208/summary.json` PASS_CURRENT_NO_REQUEST_POST_CROUCH_PATH。实际结束：2026-10-22 19:50:29 +08:00；实耗4分29秒，较预估提前35分30秒。新增0，累计236（115P2/121P3）；本项只条件式通过当前无请求路径，原请求生产/active/reentry/skipped历史、callback槽、Grounded链接和180恢复/完整Root仍未验收，下一段按真实链接继续。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
