@@ -1619,6 +1619,15 @@
 
   - 18:23 完成摘要：原Apply经两PoseMoving pin默认1/full-alpha f32曲线修改及回调pose透传，3386 Movement Save/267494骨骼与3593跨context Use按真实owner/key接通，0原数据缺口/0target回填；已有完整观察直接target链骨骼/曲线/timestamp精确复用。移除原Apply拒绝268保存/278消费，删除曲线写入改变268份曲线集合，最终源码字节恢复最小原数组精确；未用config/局部读已删。Parent proxy Root AttributeCurve是Update回调的真实曲线来源，完整原反馈仍依赖后置，不以Movement当前曲线替代。1088身份键/114 ALS/184 Rust/reader/原始资产/生产库保持，Gate `target/bf144/201/summary.json` PASS。实际结束：2026-10-22 18:23:36 +08:00；实耗2分36秒，较预估提前32分23秒。新增0，累计235（115P2/120P3）；下一段沿source已证Crouch主Move/Stop的直接pose侧输入继续，Standing/主Root反馈未通过。截图0、性能暂停。
 
+- [x] BF144.202 Crouch主Stop的直接pose侧输入与分层合同：依赖.200真实Stop依赖及.201原Movement缓存，只沿源65c98345 LayeredBoneBlend的两SequenceEvaluator侧输入fresh核对资产、time/binding、profile/branch及坐标空间，并记录当前实际输入/相关性与生成target合同；取得必要原native叶数组，禁止从target pose还原。Gate：源asset/节点/骨骼映射、真实消费身份和采样时点、原叶公开native/必要codec控制、最小消融/恢复与身份；完整Stop数值/主FSM/惯性历史另独立依赖项。开始：2026-10-22 18:24:00 +08:00；预估结束：2026-10-22 19:04:00 +08:00。估时依据：.200明确2 evaluator+1 Layered父，.194同类单固定叶约20分钟，复用当前原读取/样本/观察工具按40分钟核两叶/实际合同，不混入完整Stop重建。只审计，生产/转换器/原始资产不改，截图0、性能暂停。
+  - 18:24 活动摘要：.201 Gate已过并提交，当前原Movement Save/Use数组可消费；本项只打开source明确的Stop两直接叶与Layered父合同，先看真实采样/权重/骨骼空间，再决定是否需只读观察。当前235（115P2/120P3），主Stop/FSM完整数值及Root反馈仍未验收。
+
+  - 18:26 source范围纠正：原两SequenceEvaluator实际同指A_Als_Crouch_Walk_Pose、ExplicitFrame pin0/无绑定、loop+teleport，直接复用.194/.197已核原native frame0叶，不新增重复采样工具。Layered父两层各1，左右thigh/ik_foot/VB foot分支depth0、mesh-space旋转、root-motion按root骨重；生成target对应相同。当前10路径的Stop Movement Use未出现，不能把本项记作真实Stop消费通过；独立统计全量资格后记录当前0实际采样时点，后续另开source-qualified真实Stop入口，完整Stop/主FSM仍后置。仅在内存改变源pin0→1的合同自测应失败，不改原source record。235不变，截图0、性能暂停。
+
+  - 18:27 拆分记录：当前2400帧/3593 Movement Use中Stop base Use确为0，实际Stop叶时点无样本；本项实际消费者Gate未覆盖，源合同/资格清点可独立通过，真实Stop入口与实际叶消费拆为下一依赖项，不放宽为“0差异”。源frame0公共API/codec数据复用.194/.197原身份，79骨骼声明mask为Base63/左8/右8，pin时点改1的内存反例拒绝；不因两份同资产再采一套同源数据。最终身份正在核对，235不变、截图0、性能暂停。
+
+  - 18:27 完成/拆分摘要：本项仅源合同与资格清点Gate通过（`target/bf144/202/summary.json`：PASS_SOURCE_CONTRACT_AND_QUALIFICATION_ONLY），真实消费者Gate明确NOT_COVERED。两原evaluator同资产/frame0/无绑定，复用已过原native79骨骼叶；两1权重/0深度/mesh-space父合同及当前target匹配，声明Base63/左8/右8，内存pin0→1被拒绝。全10的2400帧/3593 Movement Use中Stop Use0，不能据此声明真实Stop采样或全分层等价；实际入口/叶消费拆到下一项继续。1093身份键/114 ALS/184 Rust/reader/原始资产/生产库保持。实际结束：2026-10-22 18:27:43 +08:00；实耗3分43秒，较原预估提前36分16秒；拆分因实际资格为0，不是将缺口当完成。新增0，累计235（115P2/120P3）；截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
