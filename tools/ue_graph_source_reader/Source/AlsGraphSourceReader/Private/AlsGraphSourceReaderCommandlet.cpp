@@ -5029,6 +5029,12 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
             return 7;
         }
         Root->SetObjectField(TEXT("rig_vm"), CaptureRigVM(*VM, Rig));
+        if (Rig->GetHierarchy() == nullptr)
+        {
+            UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Compiled Rig hierarchy is unavailable."));
+            return 7;
+        }
+        Root->SetObjectField(TEXT("rig_cdo_hierarchy"), CaptureRigHierarchy(Rig->GetHierarchy()));
     }
 
     TArray<TSharedPtr<FJsonValue>> GraphValues;
