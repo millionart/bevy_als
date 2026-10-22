@@ -1703,6 +1703,15 @@
 
   - 19:54 完成摘要：按真实Crouch child parent/caller及同parent唯一Grounded sibling，76 Root→caller→Crouching Input→Save/Use的骨骼/曲线/timestamp精确；scoped owner沿最近LayeredGraph边界与cache_key共同证明，不以同值选身份。原76数组/6004骨骼已交付Grounded缓存，76实际Use_refs明确，0target补值；错owner/缺原输入两控制拒绝。观察物理移除保持完整旧240历史但失身份，字节恢复/同target重编全部观察精确。1200身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持，Gate `target/bf144/209/summary.json` PASS_ORIGINAL_CROUCH_GROUNDED_LINKED_CACHE。实际结束：2026-10-22 19:54:54 +08:00；实耗3分54秒，较预估提前31分5秒。新增0，累计236（115P2/121P3）；Standing原最终输出/真实Grounded混合、外层slots/惯性、180恢复资格和Root反馈仍未验收，下一项先核Grounded真实消费集与缺失原输入，不猜分支。截图0、性能暂停。
 
+- [x] BF144.210 Grounded前缀真实stack/输入闭包与原数据缺口：依赖.209原Crouch具名缓存及.200源Grounded FSM，fresh核当前77帧原Grounded状态/转场/curves/回调和实际root/context/slot/cache输入，列出每个实际消费者已有原数组与缺失Standing/姿态切换/Roll等输入；只补必要只读观察，不从同名或相等pose推身份。Gate：source合同与实际消费集、0身份缺口或明确拒绝边界、原输入可用性矩阵、观察全历史校准/最小消融恢复及身份；本项仅真实合同/缺口，完整Grounded原数值在原输入齐备后独立验收。开始：2026-10-22 19:55:00 +08:00；预估结束：2026-10-22 20:30:00 +08:00。估时依据：单Grounded主FSM、现有.203/206 stack观察与.209缓存路径可复用；35分钟源状态/真实输入清点，先证明实际用到哪些分支，不展开未触发Roll或完整Standing。仅审计，生产/转换器/原始资产不改，截图0、性能暂停。
+  - 19:55 活动摘要：.209已提交，Crouch cache76原数组可用；当前Grounded旧snapshot有状态/权重但缺直接root/端点数据，下一步从fresh源状态闭包及真实arena层级补集，明确原数据缺口后再组合。当前236（115P2/121P3），完整Root仍未闭合。
+
+  - 19:56 runtime前静态摘要：源Grounded机器index0含Entry Conduit（无pose root）、Standing/Crouching/两种姿态切换/Roll，另有两alias不属真实pose state；当前77前缀正权重只Standing/Crouching，切换专用pose/Roll未访问。复用.206经过校准的typed Pose-output/真实hierarchy/timing观察逻辑，仅替换scope机器ID，去掉无关Idle leaf采集，编译与源schema检查通过；现同240停止历史读取完整stack/root/端点以验证实际alias/中断输入，缺身份显式报告，不凭weight或相等值补source。236、截图0、性能暂停。
+
+  - 19:58 runtime后消费集闭环：完整旧240历史仅删grounded_records后精确；前缀77机器，63单级/14两级栈、91条目全slot0，119 root引用0缺context。其中105更新pose，14为未更新alias占位：真实FromFsmSource明确优先使用先前栈source_pose，故其来源是Standing累积输出，不是LocalRefPose。实际15 Standing root（0–14）尚无原最终数据，76 Crouch root已按.209真实Grounded owner/key/Use节点一一接原数据；专用姿态切换/Roll未访问。已明确完整Grounded原数值NOT_READY，不用target Standing或alias补缺；最小缺原/占位拒绝与观察移除恢复/身份继续，236、截图0、性能暂停。
+
+  - 20:00 完成/缺口摘要：77 Grounded实际输出/91栈条目slot0，63单级/14两级，119 root引用0缺context；105真实更新pose与14未用alias占位明确分离，FromFsmSource优先前一栈累积pose的source/target语义已证。76原Crouch root按Grounded owner/key和真实Use可用，15 Standing root的0–14原最终pose缺失；两种专用姿态切换与Roll未访问。目标Standing/alias补值控制拒绝，数值Gate明确NOT_READY_MISSING_ORIGINAL_STANDING_FRAMES_0_TO_14，不把身份通过当混合等价。观察移除/字节恢复/同target重编完整240旧/新数据精确，1210身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持。Gate `target/bf144/210/summary.json` PASS_GROUNDED_INPUT_IDENTITY_AND_GAP_INVENTORY。实际结束：2026-10-22 20:00:40 +08:00；实耗5分40秒，较预估提前29分19秒。新增0，累计236（115P2/121P3）；下一项只补0–14所需Standing原分支再返Grounded，完整Root/槽/180后缀仍未通过。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
