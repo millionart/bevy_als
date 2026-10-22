@@ -1551,6 +1551,27 @@
 
   - 17:33 完成摘要：全10路径2400帧旧完整历史精确，16570 Save/20156 Use按真实linked owner/key及当前骨骼/曲线/timestamp校准（18639跨context/1592324骨骼）；源14身份/33600声明槽、10277更新、4849 BS phase/9635原子秒与5428纯Sequence秒全等，最初105时钟差已证为单位假差撤回。原native叶double数组沿缓存/15前FSM父层重建8123输出/641717骨骼，10277叶/14825缓存读取、0缺口，36份gait/multi/two公开API新中间数组f64精确；1648后置Crouch Base明确等原FSM值。清空源叶表即拒绝全部469最小输出，target记录存在也0回填；字节恢复最终脚本后原数值精确。目标defaults空逻辑从source oracle删除后10case精确数值/数组不变，随机对象键序不计算法；观察器多余默认合并也删除、同target重编最小完整240帧精确。总JSON比较wall上限失败后按完整case独立120/30Gate通过，不放宽验证。850身份键/114 ALS/184 Rust/reader/原始资产/生产库保持，Gate `target/bf144/195/summary.json` PASS。实际结束：2026-10-22 17:33:36 +08:00；实耗37分36秒，较预估提前17分24秒。新增差异0，累计235（115P2/120P3）；这是共同已审参数下原source姿态复合，原StateResult/FSM、后置Base及Root/反馈仍未通过，下一项继续。截图0、性能暂停。
 
+- [x] BF144.196 原source StateResult与Movement FSM全栈复合：依赖.195原native叶/缓存/15前父8123份double输出及.183–.186声明/共同条件Gate，将原source父数组接到12方向ModifyCurve/回调/StateResult，再按实际state/transition/slot上下文与源profile权重递归重算两FSM，禁止从target A/B值逆推或逐阶段投影。先核对原状态root与pose pin、Curve绑定及堆栈endpoint context；需要的缺失身份只读观察补齐，旧完整历史须精确。Gate：同当前10路径scope的原source方向输出及3386机输出数据链、直接/中断栈source累计与单次FSM末尾normalize、曲线f32源规则、原生组合最小控制/消融和身份；共同条件之外的完整source反馈/后置Crouch Base/Root仍依赖后置，原数据缺口必须报告。开始：2026-10-22 17:35:00 +08:00；预估结束：2026-10-22 18:30:00 +08:00。估时依据：.184同输入全栈与.195原source运输37分36秒已有模型/native profile136权重，新增原Source替换与slot身份/曲线运输按55分钟，后置Base/Lean及Root不混入本项。仅审计、生产/转换器/原始资产不改，截图0、性能暂停。
+  - 17:35 活动摘要：原source前父8123份已就绪；.193方向记录无context但源contract明确每StateResult的multi节点，原多阶段stack保留state/transition/slot/context。source state_graph_context从machine owner/node+state及context_slot创建端点，不能仅用当前Transition context猜state输入；下一步从现有身份记录尝试唯一映射，缺则只读补arena hierarchy，并按原值全历史校准。当前235（115P2/120P3），原Base/Root反馈尚未闭合。
+
+  - 17:36 原StateResult数据已接通：8123原source前父中4684个方向MultiWay输出保持double，按已审full-alpha ModifyCurve的f32 RotationYawOffset绑定和hips/StateResult passthrough重建4684 StateResult/370036骨骼，0target骨骼回填、绑定事件0重复。下一步按原machine state root/transition endpoint和slot身份接到原FSM栈；metadata转换引用是source_index/target_index，初次辅助脚本把其当直接stateId键已明确失败并改按source state名→目标StateId合同映射，不计生产差异。当前235，截图0、性能暂停。
+
+  - 17:38 端点身份预检：首例413个state/transition端点按源root→multi身份都只有一个当前候选，但这仍不足以证明slot归属，未用唯一值或pose数值猜输入。已复用原.184只读stack观察，新增每条transition的source/target实际arena hierarchy context，按machine owner/node+state和原context_slot两层Key读取；不修改节点/状态/图，最终全历史校准仅移除新增endpoints字段。StateResult4684原数组已保存，下一步以该明确端点身份喂原profile权重/栈复合，原FSM最后才NormalizeRotations。235不变，截图0、性能暂停。
+
+  - 17:39 fresh FSM数学确认：本地AnimNode_StateMachine.cpp:987–1040在有transition array时逐级覆盖/累加，原profile两权重分别读取，整个FSM结束一次NormalizeRotations；无transition直接StatePoseLink.Evaluate，不补额外normalize。curve每级Override前一结果(1−Alpha)/Accumulate后一Alpha，alpha relevant过滤仍依原FBlendedCurve。原source StateResult将按实际endpoint/slot直接喂该栈，不能沿用target逐级归一化输出或先投影f32。当前endpoint只读观察首例运行中、235不变，截图0、性能暂停。
+
+  - 17:42 首例原source FSM已算通：新增实际hierarchy endpoint/slot观察的原240帧完整历史精确，302栈条目/222显式端点；4684原StateResult对应下，首例268机输出/21172骨骼由原数组重建，191直接/77过渡输出、111过渡级，0source缺口/0target pose回填。权重来自原.184 native profile表，所有阶段累加保持double/未提前normalize，只整个有过渡FSM末尾一次normalize；直接状态不补normalize。全10端点观察正在完成，下一步按每case相同120/30严格校准和数值扩展。当前235，截图0、性能暂停。
+
+  - 17:48 全10原FSM数据链通过：2400帧新增端点观察仅移除endpoints后旧完整历史精确；4838端点引用按真实owner/state/slot context全部命中原StateResult，不以pose相似或候选唯一猜身份。由原double数组重建3386机输出/267494骨骼，其中2214直接、1172过渡、1312过渡级、118多级中断；0source缺口/0target pose回填。下一步对新原数组执行公开native组合控制、数据断供与normalize时序消融，再核身份；共同标量/条件之外的完整source反馈、后置Base仍未闭合。235不变，截图0、性能暂停。
+
+  - 17:49 source/native与消融通过：24份新原数组控制（12首级/12未归一化中间级）与公开BlendProfileProbe的raw/final transform均f64精确，既有IsNormalized输入阈值未改。清空原StateResult即拒绝首例全部268输出，target记录存在仍0回填；恢复脚本字节后268原输出精确。提前逐级normalize改变4980个f64/1167个f32骨骼，归已有D123，不重复编号；全3386当前target比较差异是已知叶数据/父算子/状态混合共同传播，尚不作新根因。已删除StateResult工具未用collector与宽松重复绑定分支，严格唯一绑定重跑；新增slot观察正做物理去分支/同target恢复Gate。235不变、截图0、性能暂停。
+
+  - 17:51 观察器消融编排纠正：slot去分支版rustc实际75秒成功，机器报告process_exit_code=0；外层脚本读取了旧LASTEXITCODE而误报构建失败，尚未运行，不能当失败反例。源码已由finally按字节恢复，先运行刚构建的去slot二进制取得原端点对照，再同target重编恢复版；后续只读结构化watchdog结果，不据旧shell状态判Gate。原source StateResult删减后4684/370036及0重复绑定复验通过，生产/reader不变，235、截图0、性能暂停。
+
+  - 17:53 slot设计消融删减：去掉新增endpoint非零slot分支后首例完整端点没有变化；全10原观察1312个transition entry的slot实际全为0，不能声称本轮覆盖非零槽。删除该无实际失败边界的新分支，改为当前scope明确slot=0断言；原已存在stack自身slot语义不改。最终最小观察器同target重编后重跑当前路径，原历史/端点精确才收尾；当前endpoint身份来自真实hierarchy，非零端点留后续真实触发再扩。235不变，截图0、性能暂停。
+
+  - 17:56 完成摘要：4684 StateResult/370036骨骼及3386 FSM/267494骨骼由原native叶与double父值重建；4838真实端点引用全命中，2214直接/1172过渡输出、1312阶段/118多级输出，0缺口/0target pose回填。24新native raw/final控制f64精确，源断供拒绝268最小输出、字节恢复后原值精确；提前逐级normalize的1167个f32变化归已有D123。无实际信号的新增非零endpoint-slot分支已删除，当前1312过渡slot全0并严格断言；最终源码同target重编，全10路径2400帧含新端点完整历史精确，925身份键/114 ALS/184 Rust/reader/原始资产/生产库保持。Gate `target/bf144/196/summary.json` PASS，新增0，累计235（115P2/120P3）。实际结束：2026-10-22 17:56:36 +08:00；实耗21分36秒，较预估提前33分23秒。共同条件外完整source反馈、后置Base/Lean和未触发非零端点槽仍未验收，下一依赖继续；截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
@@ -2292,6 +2313,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：完整角色两朝向，在50ms帧、GetUp接受Roll后的第23帧，已消费的GetUp/Roll/base权重约0.129629/0.5/0.370371；目标相对相同输入、相同权重的源一次累加结果，最大四元数距离约0.01280（约1.47度）。62.5ms另一组约0.00220；四组三方混合均失败，十组单montage/基础姿态控制通过。实际producer/consumer分别与原实现计算完全一致；只在夹具去掉中间归一化即恢复到约1.2e−7。证据`bf144_get_up_phase42_three_pose_slot_blend`。此判据固定已消费的时间和权重，独立于D118/D119，不重复计入旧时序差异；生产未改。
   - BF144.91 Turn补充：`turn_layer.rs:461–487`预混后再进入SourceSlot也存在同一中间归一化边界。先只把Turn的slerp改为nlerp以隔离D177，双/三实例加基础姿态的40组仍有28FAIL，最大四元数距离0.001550676；使用源一次累加后全部恢复。总权重1、两层各0.5及相同姿态控制通过；普通三层曲线的浮点重组残差也保留在原始报告中，不另计缺陷。证据`91/analysis.json`的nlerp控制及实际站蹲槽输出；未改生产。
   - BF144.184 Movement中断栈扩展：fresh `AnimNode_StateMachine.cpp:997–1024,1044–1115`逐转场累加未归一化的中间pose，最后才统一Normalize；当前ProfiledBlendNode逐层调用BonePose::linear_blend_mut，slerp之外也保留了中间单位四元数边界。按实际context/state/context_slot追踪118次多层输出，同输入/同double/源权重条件下，改为每层归一化仍有3511骨骼旋转不等，不能靠只替换D177的slerp关闭。原生算子确认30Hz crouch-directions第95帧spine_01：首层原始quat平方范数0.990306104944816，末层runtime x应−0.01033440325409174；先归一化首层则−0.01046083401888609，其他输入/权重/精度保持。新增raw_transform只读字段与原始阶段全double精确，native两种末层控制均精确匹配源模型；输入合法性阈值未放宽。此处扩展同一过早归一化根因，不另编号；较大误差60Hz第106帧pelvis仍是模型全量边界，不冒充已直接运行完整UE角色。证据`target/bf144/184/chain-check.json`、`witness-check.json`与`profile-fields-check.json`。
+  - BF144.196原始数据补充：原native叶→double父→4684 StateResult→3386 FSM的数据链不再lift目标pose；首例268输出按原值只改变逐级normalize时点，4980个f64/1167个f32骨骼不等，curve全保持。30Hz crouch-directions第61帧VB foot_r的runtime w由0.14093975722789764变为0.14093977212905884；新12首级/12合法raw中间级的公开native raw/final transform f64精确。完整Root反馈仍未覆盖，组合source-target误差不全归本项；证据`target/bf144/196/ablation-check.json`、`native-check.json`。
 
 - [ ] BF144-D124 / P3 — GetUp虚拟骨骼插值偏离当前源Sequencer模型的逐次生成。
   - Source：fresh两sequence的DataModelInterface实际为AnimationSequencerDataModel；本机未烘焙GetAnimationPose走该活动模型，`AnimSequencerDataModel.cpp:775–799,1466–1494`在采样当前骨骼后，以Target组件变换相对Source组件变换生成11根虚拟骨骼。保留的旧AnimDataModel不能替代当前接口作为oracle。
