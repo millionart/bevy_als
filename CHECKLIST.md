@@ -1962,6 +1962,15 @@
 
   - 03:29 完成摘要：fresh三Look叶mesh加性/参考配置与实际Forward半秒compressed取样闭合，native child与direct半秒全79骨骼精确，whole BS由single copy+末一次source normalize逐值恢复。原77加性输入/6083骨骼0target回填，错0/1秒各改变67骨骼、删source normalize改变79骨骼，物理消融稳定失败/源码字节恢复同解释器原数据字节保持。240次current公共混合通道重放、480 callback完整copy、完整240/warm/所有metadata保持；观察去除/恢复源码同target重编及三历史单遍60.174秒全等。3次Clip访问编译错误及首timestamp控制失败留存排除，修正仅观察器；1673身份键/114 ALS/184 Rust/reader/原资产/转换器/生产库保持。Gate `target/bf144/241/summary.json` PASS_ORIGINAL_HEAD_LOOK_ADDITIVE_INPUT_PREFIX。实际结束：2026-10-23 03:28:59 +08:00；实耗11分29秒，较预估提前23分31秒。新增0，累计239（115P2/124P3）；Head Apply/Root、原feedback/custom attributes、Down/Up历史、Rig和180恢复仍开，下一仅Head Apply/Root。截图0、性能暂停。
 
+- [x] BF144.242 原Head Mesh Additive与Root：依赖.240原Layering→Head Base77和.241原Look Additive77，fresh native Head compiled Apply d17e核当前alpha/RootSpace与直接Root，再用原Base/Delta执行同一source MeshAdditiveProbe模板；当前actual240调用公共生产helper验证，既有D170/D231/D232/D241只作已知边界，不按raw余差重编号。Gate：fresh节点/原native77与独立source f64/curve合同，current公共240/完整历史复用身份，原Root77/0target回填、绕过与最小消融源码字节恢复同target、身份。不借此完成原feedback/attributes、Rig或180恢复。开始：2026-10-23 03:29:30 +08:00；预估结束：2026-10-23 03:54:30 +08:00。估时依据：.238已有算子单族12分45秒、.241完整新观察11分29秒，当前复用已维护reader/源math和完整actor，不需再新增观察；按25分钟核77 native/240 public与恢复，避免沿用.234工具扩展40分钟成本。仅审计，生产/转换器/原资产不改，截图0、性能暂停。
+  - 03:29 活动摘要：.241提交c8dd64cb，239（115P2/124P3）；原Base/Delta77及actual完整240已备，下一只有Head Apply→Root。当前source alpha绑定HeadBlendAmount、actual1；fresh source模板确认后求值，原参数/反馈限制保持。
+
+  - 03:34 source/夹具纠正摘要：fresh compiled Head原77样本/6083骨骼与独立既有f64 Mesh模型逐值精确，Root直接连Apply，HeadBlendAmount绑定/alpha1/RootSpace false及原curve键值通过。Source绕过Apply改变6065骨骼，原Root与current余差T/Q/S5580/5776/1268、curve26包保留组合来源。current独立public重放增加完整presence检查后暴露复用夹具误把空EntityPath设root，额外物化GltfNode0（81对实际80）；生产Base/Root的GltfNode0均缺席，runtime manifest唯一parent-none为GltfNode0，fresh skeleton loader明确用真实scene root命名建root。失败报告排除，夹具改用manifest唯一根，源码未动生产/旧完成项；重新编译后才算public Gate。239、截图0、性能暂停。
+
+  - 03:37 原Head Root/恢复摘要：修正actual manifest根后240份public helper/19200骨骼通道、presence、时点全精确，current Base→Root curve包保持；略去Apply改变17520 current骨骼。原77 Root/6083骨骼由source Base/Delta构成，与fresh compiled Head逐值f64/曲线全等，0target回填，原Apply绕过改变6065骨骼。物理去source local两次normalize后frame0 native合同失败，源码字节恢复/同解释器原Root字节保持；独立物理去public helper和改回synthetic root分别frame0通道失败及81/80 presence失败，Rust字节恢复/同target重编后240结果恢复。只扩当前夹具的根语义，不复开无症状的旧完成项；身份收尾，239，截图0、性能暂停。
+
+  - 03:38 完成摘要：fresh compiled Head Apply→Root原77组/6083骨骼及curve键值与既有独立f64全节点模型全等，原Base/Delta0target回填。current240组/19200骨骼公共生产helper对T/Q/S、presence、timestamp精确，Base→Root曲线保留；复用.240/.241完整历史与观察恢复，不新增actor/公共视觉Gate。Source两末normalize移除稳定native失败，源码字节恢复/同解释器原Root字节保持；public调用移除及错误root两物理控制分别稳定FAIL101，Rust字节恢复/同target重编后240结果精确恢复。根重建先前误用空EntityPath的失败留存排除，按真实loader与manifest唯一根校正夹具，不改生产/历史完成项。1691身份键/114 ALS/184 Rust/reader/原资产/转换器/生产库保持。Gate `target/bf144/242/summary.json` PASS_ORIGINAL_HEAD_MESH_ADDITIVE_AND_ROOT_PREFIX。实际结束：2026-10-23 03:38:28 +08:00；实耗8分58秒，较预估提前16分2秒。新增0，累计239（115P2/124P3）；下一沿Head Root→Control Rig真实入口和必要依赖，原feedback/custom attributes、Down/Up、Rig、180恢复/完整Root仍未过。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D241 / P3 — Mesh加性在还原局部空间前单位化组件旋转，改变源运算阶段。
