@@ -974,6 +974,21 @@ TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
         TSharedRef<FJsonObject> Sample = MakeShared<FJsonObject>();
         Sample->SetObjectField(TEXT("input"), Input->ToSharedRef());
         Sample->SetObjectField(TEXT("rotator_degrees"), CaptureRotator(Rotation.Rotator()));
+        if ((*Input)->HasField(TEXT("float_range_map")))
+        {
+            const TSharedPtr<FJsonObject>* Mapping = nullptr;
+            TArray<double> InRange, OutRange;
+            double InValue;
+            if (!(*Input)->TryGetObjectField(TEXT("float_range_map"), Mapping) ||
+                !(*Mapping)->HasTypedField<EJson::Number>(TEXT("input")) || !(*Mapping)->TryGetNumberField(TEXT("input"), InValue) ||
+                !ReadArray(*Mapping, TEXT("input_range"), InRange, 2) || !ReadArray(*Mapping, TEXT("output_range"), OutRange, 2) ||
+                !FMath::IsFinite(static_cast<float>(InValue)) || !FMath::IsFinite(static_cast<float>(InRange[0])) ||
+                !FMath::IsFinite(static_cast<float>(InRange[1])) || !FMath::IsFinite(static_cast<float>(OutRange[0])) ||
+                !FMath::IsFinite(static_cast<float>(OutRange[1]))) { return nullptr; }
+            const float Mapped = FMath::GetMappedRangeValueUnclamped(FVector2f(InRange[0], InRange[1]), FVector2f(OutRange[0], OutRange[1]), static_cast<float>(InValue));
+            if (!FMath::IsFinite(Mapped)) { return nullptr; }
+            Sample->SetNumberField(TEXT("float_range_mapped"), Mapped);
+        }
         if ((*Input)->HasField(TEXT("additive_accumulation")))
         {
             const TSharedPtr<FJsonObject>* Accumulation = nullptr;
