@@ -1837,6 +1837,15 @@
 
   - 23:19 完成摘要：正确request_duration schema的compiled源惯性80步/6320骨骼通过，原warm Land+prefix0施加修正，RotationYawSpeed值/存在性80份保持；request删除80全copy、history删除78全copy，过滤/回调/Root原77份6083骨骼运输0target pose/curve回填。初nested request错误文件排除。D240同target输入native结束帧copy严格成立，当前实际27旋转及缺失PoseInAir=0由先Apply后Deactivate造成；最小当前合同FAIL、仅结束顺序的数据反事实PASS且其它76帧保持，未称runtime修复。组合target原数值46curve值差/1名字差与骨骼余差继续保留非等价；warm/request与终止pose/键集漏检已写入领域skill。1387身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持，仅领域文档与清单变更。Gate `target/bf144/223/summary.json` PASS_ORIGINAL_ACTIVE_LOCOMOTION_INERTIAL_AND_ROOT。实际结束：2026-10-22 23:19:49 +08:00；实耗19分31秒，较预估提前25分29秒。新增D240/P3，累计238（115P2/123P3）；下一项主AB PostLocomotion槽/Layering输入，外层头/默认overlay/Rig、180恢复与完整主Root仍未过。截图0、性能暂停。
 
+- [x] BF144.224 原Locomotion Root→PostLocomotion槽→Layering入口资格：依赖.223原77 Root及主AB源边，仅沿5b8f6ccb linked caller→ccaab6a2 Slot(PostLocomotion/Locomotion)→47121ad2 Layering Locomotion Input。先fresh提取原主AB配置与真实slot权重/overlay/context及GetUp/Roll消费者状态，按实际活动决定原slot数值或有证无活动copy；核原Root的真实输入身份，不按输出相等推活动。Gate：source边/配置、实际完整历史校准、原77数据资格与最小失效控制/观察移除恢复/同target及身份；Layering内部与其他入口独立后继，不展开无source边周边内容。开始：2026-10-22 23:21:22 +08:00；预估结束：2026-10-22 23:56:22 +08:00。估时依据：.214活动slot资格14分24秒、.218 linked运输7分45秒；当前1外层槽且原Root已备，35分钟核不同montage group/producer及输入，不默认动作不活跃。仅审计，生产/转换器/原始资产不改，截图0、性能暂停。
+  - 23:21 活动摘要：.223已提交，累计238（115P2/123P3）。原77 Locomotion Root齐备，主AB明确输出连PostLocomotion再入Layering；下一步只核该槽与输入，是否无活动由实际权重/context及producer证明。
+
+  - 23:22 runtime前摘要：fresh root.native源Slot PostLocomotion/Group Locomotion，Source=5b8f6ccb、下游47121ad2 Locomotion Input；UE无相关montage权重直接Source.Evaluate，target缺失权重按0，不能只凭pose相等判无活动。观察只读actual source-child/linked identity、slot权重/overlay/context与GetUp/Roll producer，编译/source检查PASS；现跑同原Stop history240，原数据只取已闭合77前缀。238，截图0、性能暂停。
+
+  - 23:25 runtime后闭环：完整240旧历史仅剥离post_slot_records后精确；前缀77 slot/layer权重0、pose/context/montage samples均无，GetUp无component，Roll active/weight均0，Source/Slot output77完全精确。真正Locomotion子context/root与外层caller identity也逐帧相等；按源无活动copy运输原77/6083骨骼curves到Layering输入0target回填，4份权重/context/GetUp/Roll活动负控制拒绝，输出相等不能绕过资格。当前只证该77无活动，不宣称其他montage组合；观察器物理移除/字节恢复/同target与身份收尾。238、截图0、性能暂停。
+
+  - 23:27 完成摘要：fresh原PostLocomotion/Locomotion配置及5b8f6ccb→ccaab6a2→47121ad2 Locomotion Input源边确认；实际77 slot/layer权重0、overlay/context/montage samples无、GetUp无实例/Roll inactive0，77 source/output及真实子Root/caller identity全等。源无活动copy运输原77/6083骨骼curves至Layering入口0target回填，4个活动producer/权重负控制拒绝。观察物理移除/源码字节恢复/同target重编完整240/全部新字段精确，1397身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持，Gate `target/bf144/224/summary.json` PASS_ORIGINAL_POST_LOCOMOTION_SLOT_INACTIVE_PREFIX。实际结束：2026-10-22 23:27:36 +08:00；实耗6分14秒，较预估提前28分46秒。新增0，累计238（115P2/123P3）；下一项Layering内部Locomotion缓存/其他原输入资格，180恢复和完整主Root仍未过。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
