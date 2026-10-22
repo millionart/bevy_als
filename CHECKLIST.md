@@ -1628,6 +1628,19 @@
 
   - 18:27 完成/拆分摘要：本项仅源合同与资格清点Gate通过（`target/bf144/202/summary.json`：PASS_SOURCE_CONTRACT_AND_QUALIFICATION_ONLY），真实消费者Gate明确NOT_COVERED。两原evaluator同资产/frame0/无绑定，复用已过原native79骨骼叶；两1权重/0深度/mesh-space父合同及当前target匹配，声明Base63/左8/右8，内存pin0→1被拒绝。全10的2400帧/3593 Movement Use中Stop Use0，不能据此声明真实Stop采样或全分层等价；实际入口/叶消费拆到下一项继续。1093身份键/114 ALS/184 Rust/reader/原始资产/生产库保持。实际结束：2026-10-22 18:27:43 +08:00；实耗3分43秒，较原预估提前36分16秒；拆分因实际资格为0，不是将缺口当完成。新增0，累计235（115P2/120P3）；截图0、性能暂停。
 
+- [x] BF144.203 source-qualified Crouch Stop实际入口与两固定叶消费：承接.202真实消费者NOT_COVERED，先fresh提取Crouching主Move→Stop规则/相关输入与默认转场，再复用实际角色夹具从移动到停止进入原S0_Stop，不强制换空图或单独重写选择算法。只读记录真实Layered父/两个Evaluator更新、context/实际time和原Movement输入，按源frame0公共数据及生产sampler校准实际叶。Gate：Stop真实更新资格/源规则前置、两叶当前79骨骼/曲线/time消费、观察前后既有历史不变、最小消融/同target恢复和身份；完整Layered数值/主FSM/惯性历史另项继续，运行前须静态合同与focused控制先过。开始：2026-10-22 18:28:00 +08:00；预估结束：2026-10-22 19:13:00 +08:00。估时依据：.202已确2同fixed frame0叶/单Layered父，当前10 Movement路径资格0；预计source规则/受控停止输入、最小只读观察同target编译及一次实际角色诊断45分钟，原叶数据不重复读取或转换。仅审计，生产/转换器/原始资产不改，截图0、性能暂停。
+  - 18:28 活动摘要：.202源合同/资格清点已提交，缺口真实Stop消费转入本项；先读取原Move→Stop规则/target条件，检查当前fixture是否长期保留moving输入，再以真实角色输入建立最小Stop历史。不得以零资格算通过，当前235（115P2/120P3）。
+
+  - 18:30 runtime前静态摘要：fresh原Move→Stop T0为`!bMovingSmooth && MoveWeight>=1`、duration0.1；原10路径speed最低1.2且has_input持续，故Stop资格0有明确输入原因。新受控240帧维持原角色/图/context，60–179帧仅速度降0、180帧恢复，Crouch主规则和选择算法不改；原0输入按本地ALS bMovingSmooth公式为false。只读观察真实主FSM state/Move/Stop权重及Stop Layered三输入/两Evaluator缓存时点，静态rule/输入合同与编译先过，再各运行旧历史校准与新增Stop资格；公共Playground功能证据仍只复用.172，诊断不冒充公共runtime。当前235，截图0、性能暂停。
+
+  - 18:31 runtime前Gate通过：Move→Stop原6节点条件与target5节点/输出直连校准；源TransitionResult是已折叠的输出锚，未因缺GUID记新缺陷。原case最后210帧起站姿保留，新Stop窗口60–179在蹲姿内；静态脚本初次误要求240帧全部蹲姿，已按实际窗口纠正后通过。只读观察器编译成功，旧完整240帧仅删新增stop_records后精确，223主FSM观察/0Stop更新与旧资格一致；现启动新停止输入，生产/reader不改，235、截图0、性能暂停。
+
+  - 18:32 runtime后资格/叶Gate：新原角色第59帧MoveWeight=1且moving_smooth=true，第60帧速度0/false进入真实Stop；原Layered父60–76共17更新，两原Evaluator34次/2686骨骼实际time0/PoseGait1，与已核生产sampler第0帧逐值精确，17份Base经真实Stop Use/context/owner/key与Movement Save精确。原native同资产frame0叶可直接供下一数值Gate；本项不把target glTF值当source，也不宣称完整分层/主FSM/惯性已等价。下一步物理移除只读观察、旧完整停止历史校准，字节恢复并同target重编后原Stop反例恢复；顺手删除继承的未用import，生产不变。235、截图0、性能暂停。
+
+  - 18:34 原叶数据消费补充：34份真实Stop固定叶与原native frame0投影比较有2176骨骼不等，即每份64，完全对应.194同资产已登记D224的数据边界；本次只新增真实Stop消费证据，不另编号，也不拿原native叶替换生产。观察器去除版停止路径采集成功，恢复源码的同target编译正在完成；恢复后完整停止历史精确才收尾。当前235，截图0、性能暂停。
+
+  - 18:35 完成摘要：source Move→Stop前置/0.1秒合同先过，再运行原角色停止输入；真实Stop60–76共17 Layered更新、34叶/2686骨骼time0/PoseGait1，与生产sampler精确，17 Base缓存路径精确。原native数据2176骨骼差补D224，不另编号。原完整240帧仅删新观察后精确；物理移除观察后整条停止历史仍精确但无资格证据，字节恢复源码/删继承未用import、同target重编恢复全部34叶观察与完整历史精确。1106身份键/114 ALS/184 Rust/reader/原始资产/生产库保持，Gate `target/bf144/203/summary.json` PASS_ACTUAL_STOP_ENTRY_AND_LEAF_CONSUMPTION。实际结束：2026-10-22 18:35:24 +08:00；实耗7分24秒，较预估提前37分35秒。新增0，累计235（115P2/120P3）；这只补.202实际资格/叶消费，新停止历史的原Movement数据、完整Layered/主FSM/惯性及Root反馈仍待后续，未重复公共Playground Gate。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
@@ -3160,6 +3173,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.188 Lean加性数据补充：五LocalSpaceBase样本及共同非加性A_Als_Lean_Pose参考，六资产×4独立时点/1896骨骼的独立ACL SDK→原生批量codec→实际compressed公共API全部精确；五加性流均constant，T0/Qidentity/S0默认及跳过AnimationRelative合同已验证，普通旧reader数值保持。原target的sample_pose+reference-difference与3978真实活跃样本/314262骨骼完全校准，但相对source压缩delta的translation/rotation/scale分别有230464/227078/55692个不等，最大0.0000506192446m/0.00271680206/4.7683716e−7。独立SDK delta数据通过相同生产采样函数在五资产当前零时点395骨骼全部精确；当前活跃输入确为0，声明侧向/后向仅独立控制。该差异延续已有数据路径，不新增编号；不能把glTF绝对值直接当加性缺失，也不把raw参考残差全部归为量化、Euler或D230。证据`target/bf144/188/codec-check.json`、`target-check.json`、`codec-target-check.json`、`sample-comparison.json`；全2D合成、最终ApplyAdditive与off-key参考差分算子另闭合，生产未修。
 
   - BF144.194新增直接Base叶补充：A_Als_Crouch_Walk_Pose/frame0由蹲姿Base A实际消费1648次/130192骨骼，原生产sampler与实际缓存精确。prepared公开API、批量codec/retarget与独立ACL SDK的4点316骨骼精确；原glTF在实际零点每pose有64骨骼不等、合计105472，四声明点共260，峰值translation8.9406967e−8m/rotation1.9893050e−6/scale4.7683716e−7。保留source default/constant型位并用原压缩数据经同生产采样路径后，codec及最终f32全部0余差；仅压缩键替换的16个中点ULP来自把constant轨展开成时间键后的不必要归一化，沿用本项.179型位/数据阶段记录，不另编号。源PoseGait1曲线与target精确；12份foot retarget只改f64、不改当前f32，未扩大D230实际信号。证据`target/bf144/194/source-check.json`、`target-check.json`，仍不声明完整Base/Root已重建，生产未修。
+  - BF144.203真实Stop消费补充：source-qualified零速入口第60–76帧真实Layered父更新17次，两个同资产Evaluator固定frame0共34份/2686骨骼与生产sampler精确；对原native同frame0投影为2176骨骼不等（每份64），沿本项同数据边界，不另编号。17份Base的实际Movement owner/key/context校准精确；此处只证明原叶数据差进入Stop消费者，完整分层结果/主FSM/惯性仍后置。证据`target/bf144/203/stop-check.json`、`ablation-check.json`。
 
 - [ ] BF144-D225 / P3 — Sequence骨骼旋转的时间插值使用slerp，偏离源nlerp。
   - Source：fresh `AnimSequencerDataModel.cpp:546–565`用相邻帧的FTransform::Blend；`TransformVectorized.h:427–460`按最短弧VectorLerpQuat后归一化。当前ACL `animated_track_cache.transform.h:1736–1745`的压缩帧间插值也使用quat_lerp，不是slerp。
