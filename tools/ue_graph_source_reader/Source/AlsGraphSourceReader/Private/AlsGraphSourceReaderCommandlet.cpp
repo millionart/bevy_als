@@ -1875,6 +1875,7 @@ TSharedPtr<FJsonObject> CaptureBlendSpaceProbe(UObject* Asset, const FString& Re
 
 struct FSequencePoseAccess : UAnimSequence
 {
+    static bool CanUseRawData(const UAnimSequence& Sequence) { return (Sequence.*&FSequencePoseAccess::CanEvaluateRawAnimationData)(); }
     static bool UsesRawData(const UAnimSequence& Sequence, const FBoneContainer& Bones, const FAnimExtractContext& Context)
     {
         return (Sequence.*&FSequencePoseAccess::ShouldUseRawDataForPoseExtraction)(Bones, Context);
@@ -2088,6 +2089,10 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
     Request->TryGetBoolField(TEXT("root_track_only"), bRootTrackOnly);
     bool bAnimationPose = false;
     Request->TryGetBoolField(TEXT("animation_pose"), bAnimationPose);
+    bool bRawAbsolutePose = false;
+    if (Request->HasField(TEXT("raw_absolute_pose")) &&
+        (Request->TryGetField(TEXT("raw_absolute_pose"))->Type != EJson::Boolean || !Request->TryGetBoolField(TEXT("raw_absolute_pose"), bRawAbsolutePose))) { return nullptr; }
+    if (bRawAbsolutePose && (!bAnimationPose || !FSequencePoseAccess::CanUseRawData(*Sequence))) { return nullptr; }
     bool bCompressedTracks = false;
     if (Request->HasField(TEXT("compressed_tracks")) &&
         (Request->TryGetField(TEXT("compressed_tracks"))->Type != EJson::Boolean || !Request->TryGetBoolField(TEXT("compressed_tracks"), bCompressedTracks))) { return nullptr; }
@@ -2100,6 +2105,7 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
     if (Request->HasField(TEXT("prepare_compressed")) &&
         (Request->TryGetField(TEXT("prepare_compressed"))->Type != EJson::Boolean || !Request->TryGetBoolField(TEXT("prepare_compressed"), bPrepareCompressed))) { return nullptr; }
     if (bCompressedTracks && !bPrepareCompressed) { return nullptr; }
+    if (bRawAbsolutePose && bPrepareCompressed) { return nullptr; }
     if (bPrepareCompressed) { Sequence->CacheDerivedDataForCurrentPlatform(); }
     TSharedPtr<FJsonObject> Compression;
     if (bCompressedTracks)
@@ -2196,9 +2202,10 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
             FAnimationPoseData PoseData(Pose, Curve, Attributes);
             const FAnimExtractContext ExtractionContext(Time, false);
             Frame->SetBoolField(TEXT("compressed_data_valid"), Sequence->IsCompressedDataValid());
-            Frame->SetStringField(TEXT("pose_evaluation_mode"), FSequencePoseAccess::UsesRawData(*Sequence, RequiredBones, ExtractionContext) ? TEXT("raw_model") : TEXT("compressed"));
-            if (bCaptureSourceStages && !FSequencePoseAccess::UsesRawData(*Sequence, RequiredBones, ExtractionContext)) { return nullptr; }
-            Sequence->GetAnimationPose(PoseData, ExtractionContext);
+            Frame->SetStringField(TEXT("pose_evaluation_mode"), bRawAbsolutePose || FSequencePoseAccess::UsesRawData(*Sequence, RequiredBones, ExtractionContext) ? TEXT("raw_model") : TEXT("compressed"));
+            if (bCaptureSourceStages && !bRawAbsolutePose && !FSequencePoseAccess::UsesRawData(*Sequence, RequiredBones, ExtractionContext)) { return nullptr; }
+            if (bRawAbsolutePose) { Sequence->GetBonePose(PoseData, ExtractionContext, true); }
+            else { Sequence->GetAnimationPose(PoseData, ExtractionContext); }
             if (bCaptureSourceStages)
             {
                 const TSharedPtr<FJsonObject> Stages = CaptureSequenceRigStages(*Sequence, Time, RequiredBones);
@@ -2270,7 +2277,7 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
         Frames.Add(MakeShared<FJsonValueObject>(Frame));
     }
     TSharedRef<FJsonObject> Probe = MakeShared<FJsonObject>();
-    Probe->SetStringField(TEXT("sampling_mode"), bAnimationPose ? TEXT("animation_pose") : bRootTrackOnly ? TEXT("root_track") : bCompressedTracks ? TEXT("compressed_local_tracks") : TEXT("raw_local_tracks"));
+    Probe->SetStringField(TEXT("sampling_mode"), bRawAbsolutePose ? TEXT("raw_absolute_pose") : bAnimationPose ? TEXT("animation_pose") : bRootTrackOnly ? TEXT("root_track") : bCompressedTracks ? TEXT("compressed_local_tracks") : TEXT("raw_local_tracks"));
     if (bCompressedTracks) { Probe->SetObjectField(TEXT("compression"), Compression.ToSharedRef()); }
     Probe->SetNumberField(TEXT("duration"), Sequence->GetPlayLength());
     Probe->SetArrayField(TEXT("frames"), Frames);

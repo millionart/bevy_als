@@ -1428,6 +1428,23 @@
 
   - 15:24 完成摘要：Standing/Crouching两个真实ApplyAdditive的LOD=-1/Float/scale及clamp/interp合同复核；10路径2400帧旧完整历史精确，3386有效alpha及Base/Additive/Applied缓存有来源，267494骨骼生产helper重放精确，曲线和timestamp符合。64实际同输入原生加性API与独立double/NEON f64精确；238051 f64/565 f32额外节点normalize、160近全权重pose的2174 f32分支信号分别留证，精确alpha1的90项预normalize数值效应单列。物理删full分支39/64失败，删外层normalize57/64失败，源码字节及同dylib重编后两组64全部精确。727身份键/114 ALS/184 Rust/reader/原始资产/生产库不变，Gate `target/bf144/190/summary.json` PASS；本轮只登记扩展D170/D231/D232，不修生产。实际结束：2026-10-22 15:24:35 +08:00；实耗11分35秒，较预估提前43分25秒，现有一骨公开API及缓存读取使本轮不需扩展reader。新增差异0，累计232（115P2/117P3）。只证同输入consumer/operator，原source Base→Root和raw/off-key参考差分仍打开，按依赖继续。截图0、性能暂停。
 
+- [x] BF144.191 Lean raw绝对姿态及参考差分：依赖.188/.190采样/消费合同，关闭保留的raw/off-key reference边界；同六资产读取强制raw完整绝对pose与公共加性delta，复算五样本减共同参考frame0，再与target原绝对clip/参考差分分离数据和算子。已有SequencePoseProbe仅GetAnimationPose对additive返回delta、raw单轨又跳过完整Rig/retarget，不能混作绝对pose；如需扩展仅用同一reader公开GetBonePose(forceRaw)入口，声明模式与互斥校验并复用现有stage工具。Gate：source绝对→差分→原公共delta数值闭环、实际/独立时点target原采样校准、同数据差分控制、最小测试及消融字节恢复/身份，未知数据残差明确登记，不扩大相邻图或修生产。开始：2026-10-22 15:26:00 +08:00；预估结束：2026-10-22 16:21:00 +08:00。估时依据：.188六短constant流23分56秒、.190现有公开API消费11分35秒；本项六资产四时点并预计新增一个公开模式、校验及原生消融，按55分钟，source Base→Root完整重建仍依赖后置。仅审计，截图0、性能暂停。
+  - 15:26 活动摘要：fresh UAnimSequence::GetAnimationPose的raw/additive走GetBonePose_Additive，内部先GetBonePose绝对，再GetAdditiveBasePose强制raw共同参考(frame0)，最后ConvertPoseToAdditive。current glTF参考和fresh raw不等，不能在数据未校准时直接裁决差分算子；现有RigStages可读普通骨，virtual replay却使用已加性Pose，不能当绝对虚拟骨证据。下一步取公开强制raw绝对pose，以同样五sample/ref读法闭环后复用生产make_local_difference。当前232，截图0、性能暂停。
+
+  - 15:30 取证路径复盘：新raw绝对模式初次编译因CanEvaluateRawAnimationData是protected失败；已复用既有FSequencePoseAccess访问器，不改UE/另建适配层，第二次同package构建及中心4时点读取通过。普通单轨或RigStages不能充当加性完整绝对pose，现公共GetBonePose(forceRaw)确实返回绝对值；其余五资产串行capture中。现有uasset legacy AnimDataModel与五Lean glTF大体对齐，共同参考却不完全一致；该参考更接近prepared compressed但仍有virtual残差，尚不足以认定旧模型选错或新增导出bug。保留候选不编号，先完成六资产绝对→source delta重算与同输入target差分，禁止把当前数据假设写成事实。当前232，截图0、性能暂停。
+
+  - 15:31 source数值初闭环：中心/前/后/左四资产零点的完整强制raw绝对pose减fresh共同raw参考，按原ConvertTransformToAdditive的double运算已f64精确重现原公共加性delta。模型首次scale有21个约1e−22余差，原因是独立clang默认把“乘再减1”收缩成FMA，而UE该处是两个明确vector操作；只禁止自动收缩、仍保留源显式std::fma后余差为0，未登记生产缺陷或放宽门槛。六资产其余时点/参考仍读取中；glTF参考同时不精确符合legacy/raw/compressed，尚不能推断单一导出来源错误。下一步同源数据的生产参考差分控制与六资产全时点重算。当前232，截图0、性能暂停。
+
+  - 15:35 新差异确认：六资产24份强制raw绝对pose及20份source delta/1580骨骼经同raw参考frame0的独立double差分全部f64精确；same-data生产差分的1224位置/1335旋转f32差与时间碰撞另保留，不归compression。额外只替换共同参考数据的控制保持全部五sample/raw输出、时点与生产差分不变，实际30:crouch-directions第0帧Standing中心样本calf_twist_01_l的误差由0.0013499634806066751降为2.879912020664621e−20（目标该骨旋转恢复identity）；原实际缓存与该反例精确，确认D235/P3“共同加性参考数据不符合源强制raw完整pose”。此处即使用raw源oracle也失败，不能仅归D224普通platform/raw数据模式或D232舍入，亦未猜测具体历史导出工具。累计233（115P2/118P3）；请求互斥/错误类型及reader物理消融恢复尚在完成，截图0、性能暂停。
+
+  - 15:38 source/static全量摘要：六资产×4 raw绝对pose通过既有RigStages自测（每资产272 control与44 virtual replay精确），完整绝对→raw参考差分→原API共1580骨骼f64精确。原五sample绝对clip相对完整raw峰值仅1.1920929e−7，参考单独达到spine_03 5.0574541e−5m/calf_twist_01_l 0.0013500853，独立定位D235数据输入；只换参考已保留原五clip/raw输出精确。same-source数值输入的生产差分仍有1224位置/1335旋转不等、scale0，峰值8.1061444e−8m/1.1920929e−7，属于源空间/投影与运算阶段，未当作参考数据错误。6类非法模式native均7，explicit false与旧raw输出精确；外层PowerShell统一非零1，按机器报告识别native7，不误判或重复请求。当前reader公开absolute分支物理消融正按固定watchdog构建，未动生产。累计233（115P2/118P3），截图0、性能暂停。
+
+  - 15:40 构建无进展复盘：reader消融的默认Mac universal同时编译arm64/x64，在clang阶段120.177秒无日志信号触发既有watchdog，原报告process137/elapsed133.818保留；未延长上限或把失败当成功。核对本地BuildPluginCommand.Automation.cs明确支持Architecture_Mac参数后，当前诊断改用同一package、相同源码/两job和同600/120上限的本机arm64构建，避免为本机native Gate附加x64编译；不改共享构建入口或宣称Windows/x64功能通过。先确认原进程树终态才启动，恢复也用同package/同架构重编并验证原见证。D235仍已确认，233（115P2/118P3）；本项reader恢复Gate未过前不勾选、不展开依赖项。截图0、性能暂停。
+
+  - 15:43 消融/恢复摘要：同package本机arm64构建与native读取已通过；将新raw绝对分支物理替换回GetAnimationPose后，79骨骼全部改变，pelvis Z从92.6292495727539cm变0，证明单轨/公共additive不能替代该入口。现已按reader最终源码字节恢复，并在同package/同arm64、原600/120上限下重编；待原始零点pose及完整stages精确复现才通过。独立数学模型去掉禁止自动收缩选项时稳定复现至少12个失败行，源码/构建参数字节及同dylib恢复后1580骨骼再次f64精确；零参考scale的源安全倒数边界自检通过。D235最小参考-only反例、同数据数值差、6非法/false回归均留证，累计233（115P2/118P3），截图0、性能暂停。
+
+  - 15:45 完成摘要：新增通用raw_absolute_pose严格模式经原公开GetBonePose(forceRaw)，复用现有protected访问器/pose与RigStages自测，无图专用逻辑；六资产24绝对pose、1632 control/264 virtual replay通过，五sample20份delta/1580骨骼按共同完整raw参考frame0独立double复算f64精确。same-value生产差分的1224位置/1335旋转及四时间投影碰撞单列，原五clip各自raw绝对差峰值≤1.1920929e−7，共同参考的大差异由仅换参考数据控制独立确认D235/P3；没有猜测其历史导出来源。6非法native7及explicit false旧输出精确，raw绝对改回additive API使79骨骼失败，自动收缩使至少12行scale失败；源码/构建字节及同package arm64/同数学dylib恢复后原pose+stages/1580骨骼精确。默认universal的120秒无进展终止保留，未改共享入口或放宽上限；本机Gate按官方支持参数用arm64完成，不声明x64/Windows已执行。744身份键/114 ALS/184 Rust/生产库/原始资产不变，Gate `target/bf144/191/summary.json` PASS。实际结束：2026-10-22 15:45:56 +08:00；实耗19分56秒，较预估提前35分04秒。新增D235，累计233（115P2/118P3）；本项关闭该六资产/四时点的raw参考/差分边界，原source Base→Root和其他未审图仍打开，下一项按依赖继续。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
@@ -3027,6 +3044,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - BF144.190 ApplyAdditive同输入扩展：3386份267494骨骼的runtime输入lift回source坐标/厘米并用原double加性API及节点末尾阶段求值后，translation/rotation/scale不等12082/191970/229，峰值1.1920929e−7m/1.7881393e−7/1.1920929e−7。与实际生产helper的逐项重放精确，64原生控制f64精确；D170分支及D231末尾次数已分别消融，不将组合统计全归本项或直接视作可见故障。证据`target/bf144/190/operator-check.json`、`native-check.json`、`actual-replay.json`；原source Base→Root仍非本控制覆盖。
 
+  - BF144.191 reference-difference同数据补充：六资产强制raw完整绝对pose/共同frame0参考通过既有RigStages与独立源double差分，五sample×4时点/1580骨骼f64精确。将相同绝对数值先投影为runtime f32后交生产sample_pose+make_local_difference，1224位置/1335旋转不等、scale全等，峰值8.1061444e−8m/1.1920929e−7；原glTF数据及参考错误另由D224/D235保留。这里两pose的减/乘/归一化仍属于同一早投影数值空间边界，不以普通混合的次数补偿替代。证据`target/bf144/191/source-difference-check.json`、`target-check.json`，四个不同source时点投影到同一f32时间已独立保留，不混作本算子缺陷。
+
 - [ ] BF144-D233 / P3 — TwoWay及gait双姿态消费者的曲线用加权求和替代源三参数Lerp。
   - Source：fresh `AnimNode_TwoWayBlend.cpp:139`调用BlendTwoPosesTogetherInPlace；`AnimationRuntime.cpp:535–545`回算WeightOfPoseTwo后对curve使用FBlendedCurve::Lerp，`AnimCurveTypes.h:692–716`进入FMath::Lerp，`UnrealMathUtility.h:1123–1125`执行A+Alpha×(B−A)。两端相同有限float值时差值为0，输出保持原值。单边相关时直接传递，不是此反例。
   - Target：`source_pose_nodes.rs:430–448,972–985`将两个子context按1−alpha/alpha送入blend_animation_contexts，逐项value×weight后相加；与源曲线求值顺序不同。这不是D224曲线数据或D228时间格点，也独立于骨骼D231/D232。
@@ -3039,3 +3058,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`source_pose_nodes.rs:426–429`两边相关时直接构造(base,1−alpha)/(overlay,alpha)调用blend_source_poses，没有求值第二权重的回算。该项不同于D216的GameplayTags特定快路径，也不同于D233曲线Lerp求值次序，更新资格/alpha映射本身可保持正确。
   - 最小反例：30Hz stance-sprint第59帧原Sprint Acceleration节点、alpha0.4052223861217499。source求值第二权重0.40522241592407227；同输入VB foot_r的runtime y/z为0.3320797085762024/0.20573998987674713，实际target与不回算控制为0.33207967877388/0.20573997497558594。原生API、同精度单改权重控制及实际节点三者关联；ik_foot_l与pelvis另有匹配不回算控制的分量。
   - 全量/边界：当前1875次双边相关TwoWay中95次回算改变alpha，隔离相同精度/数值空间后3516个骨骼改变，gait相同控制715骨归D216。31个实际alpha的原生标量回算均确认；其中替代不等curve端点的21例只作独立控制，不宣称自然曲线后果。证据`target/bf144/182/complement-witness-check.json`、`complement-native-check.json`、`parent-math-check.json`及`roundtrip-api-check.json`；仅登记，未修生产，未声明可见故障或完整角色反馈已通过。
+
+- [ ] BF144-D235 / P3 — Lean共同加性参考数据不符合源强制raw完整姿态合同。
+  - Source：fresh `AnimSequence.cpp:1895–1925,1935–1972`的GetBonePose_Additive先求当前完整绝对pose，再按ABPT_AnimFrame调用共同A_Als_Lean_Pose/frame0的GetBonePose，编辑器可raw时明确force raw；参考不是其普通播放的prepared compressed结果。六资产24份完整raw绝对输出，经相同参考frame0的double ConvertTransformToAdditive控制重现五资产20份公共raw delta/1580骨骼全部f64精确，排除参考frame、坐标或source oracle猜测。
+  - Target：两个stance的五条ReferenceLocalDifference链都使用普通A_Als_Lean_Pose.anim.ron→GltfNamed数据；该绝对参考的calf_twist_01_l旋转与fresh完整raw不等，spine_03平移也差约5.05817e−5m。`apply_additive_reference_deltas.py`/converter只传参考资产与frame，没有为源强制raw参考生成独立数据合同。当前目标参考同时不精确匹配legacy/raw/compressed，未推断具体历史导出算法或改原始glTF。
+  - 最小反例：实际30Hz crouch-directions第0帧、Standing Lean中心样本、calf_twist_01_l。source raw加性旋转投影为(0,0,2.879912020664621e−20,1)，实际target为(0.0013499634806066751,5.133449576533167e−6,2.0492820112849586e−5,−0.9999991059303284)，按q/−q对齐最大分量差0.0013499634806066751。只在隔离数据控制中替换共同参考为fresh完整raw，全部五sample clip、原sample绝对pose、时间、frame0及生产差分函数均精确保持，该骨输出变为identity、余差仅2.879912020664621e−20；spine_03的额外平移同时归零。没有修改运行时或生产资产。
+  - 漏检/独立性：旧reference-difference测试使用手写pose，图Gate只证明引用名字/frame正确；.188刚分离mode，未有完整raw绝对参考。D224的普通platform压缩合同不能把additive base一并当作普通compressed clip，D232的同输入数值控制也不能解释这份数据差；本项是共同参考输入本身错误，保留独立最小反例。证据`target/bf144/191/source-difference-check.json`、`reference-witness-check.json`、`target-check.json`与六native absolute/stage输出；只登记，不声明可见故障或整个source Base→Root等价。
