@@ -1712,6 +1712,17 @@
 
   - 20:00 完成/缺口摘要：77 Grounded实际输出/91栈条目slot0，63单级/14两级，119 root引用0缺context；105真实更新pose与14未用alias占位明确分离，FromFsmSource优先前一栈累积pose的source/target语义已证。76原Crouch root按Grounded owner/key和真实Use可用，15 Standing root的0–14原最终pose缺失；两种专用姿态切换与Roll未访问。目标Standing/alias补值控制拒绝，数值Gate明确NOT_READY_MISSING_ORIGINAL_STANDING_FRAMES_0_TO_14，不把身份通过当混合等价。观察移除/字节恢复/同target重编完整240旧/新数据精确，1210身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持。Gate `target/bf144/210/summary.json` PASS_GROUNDED_INPUT_IDENTITY_AND_GAP_INVENTORY。实际结束：2026-10-22 20:00:40 +08:00；实耗5分40秒，较预估提前29分19秒。新增0，累计236（115P2/121P3）；下一项只补0–14所需Standing原分支再返Grounded，完整Root/槽/180后缀仍未通过。截图0、性能暂停。
 
+- [x] BF144.211 Grounded所需Standing0–14原最终分支：依赖.210精确缺口与.204原Standing Movement输入，fresh核0–14实际Standing主/Details/额外加性/惯性/曲线/回调路线，先识别真实状态和直接leaf/slot资格，仅补被实际消费的原侧输入并组合所需15原最终pose。已有已过source/算子合同复用，未触发Stop/Pivot/Rotate不展开；若真实依赖新增资产/活动历史超单Gate，先按完整依赖拆分并保持Grounded NOT_READY。Gate：真实root/context/clock输入身份、原数据/公开native控制、当前consumer和最小消融恢复、15所需输出0target补值及身份；完整Standing全状态、180后缀和Root反馈另保留。开始：2026-10-22 20:01:00 +08:00；预估结束：2026-10-22 20:46:00 +08:00。估时依据：.200 Standing闭包52后继已清点，但当前只15帧、原Move输入与source math已具备，.206新Idle/identity约22分钟；预留45分钟查实际Details/请求和必要侧输入，不凭大图总规模全展开。仅审计，生产/转换器/原始资产不改，截图0、性能暂停。
+  - 20:01 活动摘要：.210已提交，缺口只有Standing0–14原最终pose；下一步先从实际snapshot/源主状态定位当前路径，原Standing Movement15输入可复用但不能直接当Standing Root。当前236（115P2/121P3），Grounded原数值仍NOT_READY。
+
+  - 20:04 runtime前静态摘要：当前0–14主Standing保持Move，Details前5帧Walk→Run的0.2秒HermiteCubic标准转场（无profile），后10帧Run；源Walk/Run均直接Use Movement，主Move直接Use Movement Details，故不需旁开Pivot/Stop/Rotate/RunStart资产。Details后与主后各一惯性节点，后PoseStanding1与Rotate回调仍需真实请求/状态证明；复用typed root/timing观察并按现有DetailsAudit包装公开inner读取，不新写状态算法。源路径检查/编译均过，准备同240历史采集并只剥新增Standing字段校准，原数据范围只0–14。236、截图0、性能暂停。
+
+  - 20:07 runtime后必要分支闭环：完整旧240历史仅删standing_records后精确；0–14两机器各15输出/根引用15与25、两惯性共30记录active/request/epoch/pending均0，输入/输出bones与curve30均精确。Walk/Run的原输入通过各自实际Use/context→Movement owner/key同指同一原数组；原5转场按native alpha做独立权重累加/末尾normalize，后10直接Run，再无请求惯性/主Move/第二无请求惯性/PoseStanding1，已得15原Standing Root/1185骨骼0target补值。原FootPlanted数据差保留，不错误要求原curve与target值相等；5原pose控制native已执行，两真实源惯性无请求history及数据/观察消融恢复进行中。236、截图0、性能暂停。
+
+  - 20:10 原生验证接口纠正/最终数值闭环：首次5pose控制的gait/TwoWay helper首帧额外取补数，alpha0.074074082与1−(1−alpha)=0.074074089不同，沿已有D234，不能当FSM独立权重oracle；已改按真实elapsed/duration factor调用公开default source/target权重的raw/final控制，5原pose f64全精确。两个原惯性模板各15帧/总2370骨骼和curve无请求history f64全等；原输入清空即拒绝输出，字节恢复15原数组精确。观察物理移除/恢复/同target重编的旧240及新增字段全精确，active/epoch/pending三反例拒绝。最终身份待核，Grounded数值仍须下一独立Gate；236、截图0、性能暂停。
+
+  - 20:10 完成摘要：只沿真实Standing Move及Walk/Run同Movement缓存，5原Details标准转场+10直接Run、两无请求惯性/主Move/PoseStanding1，交付0–14的15原Standing Root/1185骨骼，0target回填。5正确独立权重native pose f64精确，两public源惯性模板30帧/2370骨骼及curve f64全等；首次gait helper补数假失败已按D234接口差异纠正，不改原算法。原压缩FootPlanted及姿态组合差单独保留，不声称source-target等价；active/epoch/pending控制拒绝，原Movement断供拒绝、字节恢复15数组精确。观察物理移除/字节恢复/同target重编完整旧240/新记录全精确。1228身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持，Gate `target/bf144/211/summary.json` PASS_ORIGINAL_STANDING_REQUIRED_FRAMES_0_TO_14。实际结束：2026-10-22 20:10:34 +08:00；实耗9分34秒，较预估提前35分25秒。新增0，累计236（115P2/121P3）；.210缺原15 Standing输入已由本项补齐，下一独立项回Grounded真实栈数值，fullRoot/slots/active惯性/180恢复仍未验收。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
