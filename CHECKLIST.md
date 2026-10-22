@@ -1783,6 +1783,13 @@
 
   - 21:16 完成摘要：两原asset的SDK/default/constant/animated合同、原codec/retarget/full prepared共17pose/1343骨骼与curve全部精确；Stand raw68通道/11虚拟阶段保持原参考79pose。目标参考既非raw也非prepared精确，未推断导出mode；16实际difference/compose重放精确，原压缩delta数据投影控制零差，raw绝对/参考不能代替原压缩合同，D224扩展且新增0。additive默认物理移除仅Transition1264骨骼失败，源码字节恢复/同SDK1343再精确；3冗余mixed variant已删除，同target重编48保留actual/raw/compressed输出全部精确。1310身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持，Gate `target/bf144/217/summary.json` PASS_ORIGINAL_TRANSITION_REFERENCE_AND_COMPRESSED_DATA_CONTRACT。实际结束：2026-10-22 21:16:04 +08:00；实耗8分50秒，较预估提前41分10秒。累计236（115P2/121P3）；已有原77槽可供Locomotion，180恢复、外层/layering与完整Root仍未通过。截图0、性能暂停。
 
+- [x] BF144.218 原Transition→Locomotion linked Grounded输入与cache运输：依赖.215原77 slot输出和.217数据合同，只沿主AB 5b8f6ccb caller Grounded Input→Locomotion 7f9a031b LinkedInput→5bc4c720 Save Grounded及真实scoped uses，核source字段/target边/当帧context-owner及pose/curve/time；不按数值相似推身份。补原77输入按真实owner/key运输，另读Locomotion主FSM当前stack端点身份以确定下一数值缺口，不提前算无原输入状态。Gate：fresh源边、实际cache链全量校准、原数组0target回填、missing-owner反例、最小观察移除/恢复/同target与身份；Locomotion主FSM数值/后置惯性和外层槽另续。开始：2026-10-22 21:17:02 +08:00；预估结束：2026-10-22 21:47:02 +08:00。估时依据：.209同类单linked/cache运输约3分钟，30分钟核不同cache实例边界与Locomotion主FSM真实资格，不展开其他状态/通知。仅审计，生产/转换器/原始资产不改，截图0、性能暂停。
+  - 21:17 活动摘要：.217已提交，原Transition slot77份数据可用，累计236（115P2/121P3）。fresh Locomotion入口Grounded Input明确连7f9a031b→5bc4c720缓存，主FSM12f708ed；下一步只沿实际context-owner取证，不假定外层Grounded状态无混合。
+
+  - 21:22 runtime后linked运输闭环：完整240剥离新增观察后旧历史精确；前缀77份slot→LinkedInput→Save缓存pose/curve/time精确，77个实际Grounded use均由同Locomotion owner与ue-cache:036b4b1e匹配。77原slot/6083骨骼与curves按真实owner/key运输，0target补值；去owner原运输稳定拒绝，字节恢复后77再次精确。主Locomotion栈77份均单entry，但前5为e2c227a6 Land→Grounded过渡、后72为Grounded，5个Land root均已实际更新且无missing，不能把全部FSM直接透传原Grounded。观察物理去除/恢复重编与fresh重新提取Locomotion源蓝图收尾；下一依赖先补这5个原Land输入再算FSM。236、截图0、性能暂停。
+
+  - 21:24 完成摘要：fresh重新读取Locomotion原蓝图确认slot→Grounded Input→Save Grounded及3声明use；当前77仅Grounded use实际更新，slot/linked/save/use全部pose/curve/time与owner-key精确。77原slot/6083骨骼curves按真实context运输0target补值，missing-owner控制稳定拒绝并字节恢复运输精确。主FSM仅身份库存：5初始Land→Grounded转场+72 Grounded，无missing实际root，5个原Land输入必须下一项补齐，未宣称FSM数值通过。观察物理移除/源码字节恢复/同target重编完整240/全部新增字段精确，1322身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持。Gate `target/bf144/218/summary.json` PASS_ORIGINAL_LOCOMOTION_LINKED_GROUNDED_CACHE_TRANSPORT。实际结束：2026-10-22 21:24:47 +08:00；实耗7分45秒，较预估提前22分15秒。新增0，累计236（115P2/121P3）；下一项5原Land输入与主FSM，后惯性/外层槽、180恢复与完整Root仍未通过。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
