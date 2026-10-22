@@ -3792,9 +3792,31 @@ TSharedPtr<FJsonObject> CaptureStateMachineEntryProbe(UObject* Asset, const FStr
     };
     struct FProbeMachine : FAnimNode_StateMachine
     {
-        void Link(TArray<FProbeLeaf>& Leaves) { for (int32 Index = 0; Index < Leaves.Num(); ++Index) { StatePoseLinks[Index].SetLinkNode(&Leaves[Index]); StatePoseLinks[Index].LinkID = INDEX_NONE; } }
+        TArray<FProbeLeaf>* ProbeLeaves = nullptr;
+        virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override
+        {
+            FAnimNode_StateMachine::Initialize_AnyThread(Context);
+            if (ProbeLeaves != nullptr) { Link(*ProbeLeaves); }
+        }
+        void Link(TArray<FProbeLeaf>& Leaves) { ProbeLeaves = &Leaves; for (int32 Index = 0; Index < Leaves.Num(); ++Index) { StatePoseLinks[Index].SetLinkNode(&Leaves[Index]); StatePoseLinks[Index].LinkID = INDEX_NONE; } }
         int32 ActiveCount() const { return ActiveTransitionArray.Num(); }
         float Weight(int32 Index) const { return GetStateWeight(Index); }
+        TArray<TSharedPtr<FJsonValue>> CaptureActiveEntries() const
+        {
+            TArray<TSharedPtr<FJsonValue>> Entries;
+            for (const FAnimationActiveTransitionEntry& Transition : ActiveTransitionArray)
+            {
+                TSharedRef<FJsonObject> Entry = MakeShared<FJsonObject>();
+                Entry->SetNumberField(TEXT("source"), Transition.PreviousState);
+                Entry->SetNumberField(TEXT("target"), Transition.NextState);
+                Entry->SetNumberField(TEXT("alpha"), Transition.Alpha);
+                TArray<TSharedPtr<FJsonValue>> Indices;
+                for (int32 Index : Transition.SourceTransitionIndices) { Indices.Add(MakeShared<FJsonValueNumber>(Index)); }
+                Entry->SetArrayField(TEXT("indices"), Indices);
+                Entries.Add(MakeShared<FJsonValueObject>(Entry));
+            }
+            return Entries;
+        }
     };
     struct FProbeProxy : FAnimInstanceProxy
     {
@@ -3846,7 +3868,9 @@ TSharedPtr<FJsonObject> CaptureStateMachineEntryProbe(UObject* Asset, const FStr
             const TArray<TSharedPtr<FJsonValue>>* StateEntries = nullptr;
             const TArray<TSharedPtr<FJsonValue>>* Transitions = nullptr;
             double Delta;
+            bool UpdateMachine = true;
             if (!StepValue->TryGetObject(Step) || (*Step)->HasField(TEXT("asset_players")) != NativeAutomatic || !(*Step)->TryGetNumberField(TEXT("delta_seconds"), Delta) || !FMath::IsFinite(static_cast<float>(Delta)) || Delta < 0 || Delta > 1 ||
+                ((*Step)->HasField(TEXT("update_machine")) && (!(*Step)->HasTypedField<EJson::Boolean>(TEXT("update_machine")) || !(*Step)->TryGetBoolField(TEXT("update_machine"), UpdateMachine))) ||
                 !(*Step)->TryGetArrayField(TEXT("state_entries"), StateEntries) || StateEntries->Num() != Description.States.Num() ||
                 !(*Step)->TryGetArrayField(TEXT("transition_rules"), Transitions) || Transitions->Num() != Description.Transitions.Num()) { return nullptr; }
             Conditions.Reset();
@@ -3909,12 +3933,14 @@ TSharedPtr<FJsonObject> CaptureStateMachineEntryProbe(UObject* Asset, const FStr
             for (FProbeLeaf& Leaf : Leaves) { Leaf.Weights.Reset(); }
             Proxy.BeginUpdate();
             FAnimationUpdateSharedContext SharedContext;
-            Machine.Update_AnyThread(FAnimationUpdateContext(&Proxy, static_cast<float>(Delta), &SharedContext));
+            if (UpdateMachine) { Machine.Update_AnyThread(FAnimationUpdateContext(&Proxy, static_cast<float>(Delta), &SharedContext)); }
             TSharedRef<FJsonObject> Frame = MakeShared<FJsonObject>();
+            Frame->SetBoolField(TEXT("updated"), UpdateMachine);
             Frame->SetNumberField(TEXT("state"), Machine.GetCurrentState());
             Frame->SetStringField(TEXT("name"), Machine.GetCurrentStateName().ToString());
             Frame->SetNumberField(TEXT("elapsed"), Machine.GetCurrentStateElapsedTime());
             Frame->SetNumberField(TEXT("active_transitions"), Machine.ActiveCount());
+            Frame->SetArrayField(TEXT("active_entries"), Machine.CaptureActiveEntries());
             TArray<TSharedPtr<FJsonValue>> Weights, Updates;
             for (int32 Index = 0; Index < Leaves.Num(); ++Index)
             {

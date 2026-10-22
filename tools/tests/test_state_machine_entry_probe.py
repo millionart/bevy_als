@@ -19,6 +19,8 @@ for sample in probe["samples"]:
     assert frames[0]["weights"] == [0, int(not initial), int(initial), 0, 0, 0]
     assert frames[0]["active_transitions"] == 0
     for frame in frames:
+        assert frame['updated'] is True
+        assert len(frame['active_entries']) == frame['active_transitions']
         assert frame["updates"][0] == []
         assert all(len(updates) <= 1 for updates in frame["updates"])
     assert frames[1]["state"] == (2 if desired else 1)

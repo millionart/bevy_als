@@ -47,6 +47,8 @@ BlendList请求可选`two_way: {child, property}`，从当前AnimBP CDO复制指
 
 每条编译退出的`transition_guid`/`transition_path`由FStateMachineDebugData按实际TransitionIndex反查原转场节点；`rule`继续记录规则节点。共享规则可被多个转场复用，不能用rule GUID推断转场身份。
 
+`run_ue_source_reader.ps1 -StateMachineEntryProbe <request.json>`以原生FSM执行给定条件矩阵并用受控叶记录更新，不执行完整AnimBP pose。请求包含`machine_index`、`samples[].name/steps`；每步提供`delta_seconds`、完整`state_entries`和按编译TransitionIndex排列的`transition_rules`，共享delegate的输入必须一致。可选`update_machine`严格为bool、默认true；false仍推进proxy更新counter，跳过机器与叶更新，不能用delta0代替。原生重新相关初始化会清空pose links，探针会重新链接受控叶。输出`updated`、状态/elapsed/权重/叶调用及`active_entries`，后者记录source/target、alpha和原生`SourceTransitionIndices`；该indices用于活动栈身份，不以规则GUID或姿态值推断走过的边。
+
 `StateMachinePlayers`另输出`asset_players`，按编译属性完整枚举FAnimNode_AssetPlayerBase派生节点，覆盖FSM列表之外的共享/直接播放器；每个节点的`synchronization`由原生getter读取组名、方法、角色、重入覆盖标志、当前资产及marker名称。SequenceEvaluator的覆盖标志继承基类false，不要求存在对应反射字段。`test_compiled_sync_players.py`交叉核对完整CDO播放器集合与配置；清单是静态配置证据，不能代替运行时同步验收。原machines及已有字段保持。
 
 `run_ue_source_reader.ps1 -SequenceClockProbe <request.json>` 接受Sequence，以真实资产的TickAssetPlayer记录不使用marker同步的单leader时钟。sample提供`name`、初始TimeAccumulator `start`、`rate`和`deltas`，可选`looping`（默认false）；输出实际资产长度/RateScale以及逐帧position、previous、delta、有效历史标志和归一化比例。它不执行完整AnimBP或分组竞争。使用`tools/tests/fixtures/sequence_clock.request.json`及`python tools/tests/test_sequence_clock_probe.py <output.json>`核对零步长、正向、反向和末端夹紧。 循环控制使用`sequence_loop.request.json`与`test_sequence_loop_probe.py`，保留恰好到达末端时的位置及随后循环行为。
