@@ -1663,6 +1663,19 @@
 
   - 19:17 完成摘要：真实源Layered模板34组/2686骨骼、mask63/8/8、曲线/root modifiers与独立double全精确，已交付17原Stop分层/1343骨骼供下一StateResult。实际1343旋转f32重放精确；D238全权重copy控制改变102骨骼/恢复34原生分量，1071 Base保持，单独去一次normalize仍改变51。源double物理加两次组件normalize即34样本全部失败，字节恢复/同dylib重编f64再全精确；f32物理copy有170原始quat差（含符号等价），按字节恢复/同binary重编原实现0失败。reader冗余UpdateCounter及初始化包装删除后，同包重编34输出精确；4非法native输入7拒绝、3输出自测PASS，旧profile/pose全等。1145身份键/114 ALS/184 Rust/原始资产/转换器/生产库保持，仅必要reader CPP/runner及本包dylib改变；新增工具自测已落版本化文件。Gate `target/bf144/205/summary.json` PASS_ORIGINAL_STOP_LAYERED_NUMERICAL_CONSUMER。实际结束：2026-10-22 19:17:44 +08:00；实耗31分44秒，较预估提前23分15秒。新增D238/P3，累计236（115P2/121P3），生产未修；Stop后曲线/StateResult、主FSM/惯性、180恢复资格及完整Root反馈仍未验收，继续下一依赖。截图0、性能暂停。
 
+- [x] BF144.206 原Crouch主状态机77帧前缀的直接输入与栈身份：依赖.204原Movement及.205原Stop Layered17数组，fresh沿Stop后ModifyCurve/StateResult、Move Use及Idle原直接输入和主FSM转场/惯性合同，先补前缀真实主FSM stack/state-root/transition-slot身份与必要Idle采样信息，禁止把Move/Stop权重列表当完整栈或用目标姿态填原输入。Gate：原state/result/curve绑定、实际输入/slot/clock资格与未触发Rotate边界、原缺失叶数据/现有公开源API、只读观察完整历史校准/消融恢复及身份；主FSM全数值/惯性整合可按依赖独立后置，不混入180恢复移动后缀或Root。开始：2026-10-22 19:18:00 +08:00；预估结束：2026-10-22 20:03:00 +08:00。估时依据：.200主Crouch5状态已清点，当前77前缀实际只Idle/Move/Stop，.203读观察入口已有；预留45分钟给source时点/缺失Idle与主stack身份/同target编译和校准。仅审计，生产/转换器/原始资产不改，截图0、性能暂停。
+  - 19:18 活动摘要：.205已提交并确认D238，累计236（115P2/121P3）；原Stop Layered17数组可用。先fresh核主Crouch Idle/Move/Stop源结果与转场blend logic、Stop后曲线，辨明需要的原Idle时点及真实stack身份；现有.203只有主状态/Move/Stop权重，不够证明完整源混合栈。Root反馈、180后缀继续保留未覆盖。
+
+  - 19:30 runtime前静态摘要：fresh源主Crouching机器index1/5状态，前缀实际目标Idle/Move/Stop；Idle为A_Als_Crouch_Pose/frame0、非additive/无root锁，79骨骼prepared公开pose、codec及独立ACL SDK f64精确/空曲线。Stop后写FootLeftLock/FootRightLock=1，Idle写双锁/AllowTransitions=1并Scale RotationYawSpeed0，不能凭状态名猜改PoseMoving。Stop StateResult真正StateEntryFunction绑定PlayStopTransitionAnimation，Node内OnStateEntry是编译stub；下游Transition槽副作用须保留，当前不计完整Root。主stack/context端点/Idle slot只读观察首次编译因LowLevelStateId不支持Serialize失败，已复用现有state_id编码器公开可读权限后编译成功，不新增重复编码逻辑。现按.203同停止历史采集并仅剥新字段校准全240；source数据资格仍限77前缀。236、截图0、性能暂停。
+
+  - 19:35 runtime观察器合同纠正：首次新观察运行至Stop60前失败在工具root-output查找；真实图check_graph正常，无生产graph-error。原因是状态图Pose输出为Result，而无profile的T0标准转场图声明为小写pose，不能套同一个固定pin名；已按引擎现有evaluate_active_state同样读取GraphSpec中唯一Pose输出，并移除只识别profile/inertial graph的旧trace假设，直接记录真实elapsed/duration及上下文身份。源码重编成功，准备同输入重跑；该工具错误不记移植差异。236、截图0、性能暂停。
+
+  - 19:38 runtime后身份/Idle闭环：重跑完整240历史只剥新main_crouch_records后精确；前缀76机器/76单级栈、108实际root/端点均有当帧更新pose，0缺context；Idle实际63–76共14次/1106骨骼time0/空曲线，生产sampler逐值精确、slot输入/输出骨骼与曲线14份全等。原Idle77 track为143 default/88 constant，SDK/codec/最终native全精确；仅换原压缩数据经常量曲线的同生产sampler后与原投影全等，原glTF每份69骨骼差/共966，留D224数据边界，不新编号。223全历史slot均0，无实际信号的非零slot分支已删并同target重编，全部旧/新字段精确。已按source NamedValueArray的ValidArg1确认Scale0仍新增RotationYawSpeed=0键，与Idle root实际曲线一致；17原Stop双锁StateResult已导出。最后观察器恢复/身份Gate继续，236、截图0、性能暂停。
+
+  - 19:39 原输入身份闭环：按真实state root/context和Movement owner/key已接17 Stop、14 Idle、61 Move共92份原输入，所有根实际曲线与原数组全等，0从target骨骼回填；缺一root-context的最小内存反例拒绝。只读观察物理移除/字节恢复及同target两次重编采集均完成，恢复后的完整新/旧字段待最终比较；sampler删去source路径未用插值构造后已重编，14缓存/原压缩数据控制再精确。本项只交付输入与栈身份，不将76主FSM最终混合/惯性当作已通过。236、截图0、性能暂停。
+
+  - 19:40 完成摘要：fresh主Crouch状态/回调/curve合同明确，原Idle79骨骼prepared/codec/ACL SDK全精确，14实际缓存/1106骨骼与生产sampler精确；常量压缩数据替换控制恢复native投影，966差补D224。240旧历史仅删新观察后精确，76主输出/108更新root端点0缺失，223槽全0；17 Stop/14 Idle/61 Move共92原输入按root/context/owner-key接通，当前root曲线全等，0target骨骼回填。去未用slot分支及sampler重复构造后同target重编精确；观察器物理移除不改旧历史但失身份证据，字节恢复/同binary重编所有观察精确，缺root最小反例拒绝。1165身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持，Gate `target/bf144/206/summary.json` PASS_ORIGINAL_MAIN_CROUCH_INPUTS_AND_STACK_IDENTITIES。实际结束：2026-10-22 19:40:28 +08:00；实耗22分28秒，较预估提前22分31秒。新增0，累计236（115P2/121P3）；主FSM最终混合/惯性、原Turn/Transition槽副作用、180恢复资格和完整Root反馈仍未通过，下一项只沿这76主输出原数值继续。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
@@ -3196,6 +3209,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - BF144.194新增直接Base叶补充：A_Als_Crouch_Walk_Pose/frame0由蹲姿Base A实际消费1648次/130192骨骼，原生产sampler与实际缓存精确。prepared公开API、批量codec/retarget与独立ACL SDK的4点316骨骼精确；原glTF在实际零点每pose有64骨骼不等、合计105472，四声明点共260，峰值translation8.9406967e−8m/rotation1.9893050e−6/scale4.7683716e−7。保留source default/constant型位并用原压缩数据经同生产采样路径后，codec及最终f32全部0余差；仅压缩键替换的16个中点ULP来自把constant轨展开成时间键后的不必要归一化，沿用本项.179型位/数据阶段记录，不另编号。源PoseGait1曲线与target精确；12份foot retarget只改f64、不改当前f32，未扩大D230实际信号。证据`target/bf144/194/source-check.json`、`target-check.json`，仍不声明完整Base/Root已重建，生产未修。
   - BF144.203真实Stop消费补充：source-qualified零速入口第60–76帧真实Layered父更新17次，两个同资产Evaluator固定frame0共34份/2686骨骼与生产sampler精确；对原native同frame0投影为2176骨骼不等（每份64），沿本项同数据边界，不另编号。17份Base的实际Movement owner/key/context校准精确；此处只证明原叶数据差进入Stop消费者，完整分层结果/主FSM/惯性仍后置。证据`target/bf144/203/stop-check.json`、`ablation-check.json`。
+  - BF144.206主Crouch Idle新增叶：原A_Als_Crouch_Pose固定frame0/非additive，无root锁/空曲线；79骨骼的prepared公开pose、codec与独立ACL SDK f64精确，143 default/88 constant轨位。真实Idle63–76的14份/1106骨骼缓存与原生产sampler精确，原glTF每份69骨骼差、共966，峰值位置5.0922496e−6m/旋转6.6022864e−6/scale4.7683716e−7；仅以原压缩常量数据替换受控Clip，同生产sampler已与原native投影全等。此处为新的实际资产/消费闭包，沿本项数据合同，不另编号；完整主FSM/Root仍未验收。证据`target/bf144/206/idle-source-check.json`、`idle-consumer-check.json`。
 
 - [ ] BF144-D225 / P3 — Sequence骨骼旋转的时间插值使用slerp，偏离源nlerp。
   - Source：fresh `AnimSequencerDataModel.cpp:546–565`用相邻帧的FTransform::Blend；`TransformVectorized.h:427–460`按最短弧VectorLerpQuat后归一化。当前ACL `animated_track_cache.transform.h:1736–1745`的压缩帧间插值也使用quat_lerp，不是slerp。
