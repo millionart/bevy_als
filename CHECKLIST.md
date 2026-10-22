@@ -1676,6 +1676,15 @@
 
   - 19:40 完成摘要：fresh主Crouch状态/回调/curve合同明确，原Idle79骨骼prepared/codec/ACL SDK全精确，14实际缓存/1106骨骼与生产sampler精确；常量压缩数据替换控制恢复native投影，966差补D224。240旧历史仅删新观察后精确，76主输出/108更新root端点0缺失，223槽全0；17 Stop/14 Idle/61 Move共92原输入按root/context/owner-key接通，当前root曲线全等，0target骨骼回填。去未用slot分支及sampler重复构造后同target重编精确；观察器物理移除不改旧历史但失身份证据，字节恢复/同binary重编所有观察精确，缺root最小反例拒绝。1165身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持，Gate `target/bf144/206/summary.json` PASS_ORIGINAL_MAIN_CROUCH_INPUTS_AND_STACK_IDENTITIES。实际结束：2026-10-22 19:40:28 +08:00；实耗22分28秒，较预估提前22分31秒。新增0，累计236（115P2/121P3）；主FSM最终混合/惯性、原Turn/Transition槽副作用、180恢复资格和完整Root反馈仍未通过，下一项只沿这76主输出原数值继续。截图0、性能暂停。
 
+- [x] BF144.207 原Crouch主FSM76份前缀数值：依赖.206的92原输入与76真实stack/elapsed/duration、.205原Stop分层及.204时钟资格，fresh核无profile Move→Stop与QuickFeetBlend Stop→Idle的StandardBlend/HermiteCubic实际两权重、curve Override/Accumulate、单次FSM末尾normalize，按真实root/context组合76原主输出；先复用现有FAlphaBlend和double blend工具，不从target结果逆推alpha。Gate：原scalar/native控制与实际时间/slot身份、76×79原姿态/曲线0缺口、同target输入算子及源数据组合分离、最小消融/恢复和身份；惯性输出/整个Root/180后缀另依赖，不将本项当全主链完成。开始：2026-10-22 19:41:00 +08:00；预估结束：2026-10-22 20:21:00 +08:00。估时依据：.206前缀只有59直接Move/1直接Stop及16标准转场，无中断栈；原3类pose已就绪，.196/.205混合/末尾normalize模型和native入口可复用，40分钟核HermiteCubic/QuickFeetBlend/曲线及原数组，惯性独立。仅审计，生产/转换器/原始资产不改，截图0、性能暂停。
+  - 19:41 活动摘要：.206已提交，76主记录/92原输入可用；下一步核T0无profile/T1 QuickFeetBlend与原curve消费及HermiteCubic因子时序，补必要源公开alpha控制后组合原主pose。不得以stateWeight倒算alpha，当前236（115P2/121P3），完整Root仍未通过。
+
+  - 19:43 source/static摘要：fresh BlendProfileWrapper明确Move→Stop无profile，而Stop→Idle为QuickFeetBlend，不能凭StandardBlend一并按无profile算；16个原elapsed/duration因子已送公开native，2无profile/14 profile的HermiteCubic alpha与独立暴露curve逐项精确，未从pose/权重逆推。原pose运输首次同输入校准遇到Stop结果中额外SKM_Als场景根；已核实没有缺原骨骼，只允许原79域之外的GltfNode0/SKM_Als且必须identity，绝不补原缺骨。当前据原QuickFeetBlend独立两权重、曲线源规则及FSM末尾单次normalize组合，236、截图0、性能暂停。
+
+  - 19:44 原主FSM数据闭环：原92输入按真实root/context接为60直接状态与16标准转场，共76输出/6004骨骼；32新原中间输入（profile/无profile、默认/spine与thigh）公开native最终pose f64全精确，profile raw阶段另逐值核对。76原曲线及16同target输入曲线全部值/名字精确，原姿态与同输入算子差异分开保留，未把既有D177/D197/D232等重记。清空原state输入即拒绝输出且不生成main-source文件，脚本字节恢复后76原数组精确；当前只有单级栈，不新增中断分支或直接状态normalize。下一步最小原阶段控制/最终身份，惯性及Root仍后置。236、截图0、性能暂停。
+
+  - 19:45 完成摘要：原92 state输入按实际root/context组合60直接/16单标准转场，76原主输出/6004骨骼0缺口/0target回填。16 native HermiteCubic alpha与当前暴露curve精确，T0标量/T1 QuickFeetBlend独立权重分明，32新原pose控制raw/profile及最终normalize f64精确；原与同输入curve均0差，骨骼差按数据/既有算子组合保留，不宣称等价。清空原state输入拒绝输出、无目标补值，脚本字节恢复全部76原数组精确。1177身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持，Gate `target/bf144/207/summary.json` PASS_ORIGINAL_MAIN_CROUCH_FSM_NUMERICAL_PREFIX。实际结束：2026-10-22 19:45:18 +08:00；实耗4分18秒，较预估提前35分41秒。新增0，累计236（115P2/121P3）；下一依赖只沿主FSM后惯性及PoseCrouching曲线继续，callback槽/180恢复资格/完整Root和未访问状态仍未验收。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
