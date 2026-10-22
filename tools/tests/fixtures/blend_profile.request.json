@@ -45,6 +45,51 @@
       },
       "deltas": [
         0.0
+      ],
+      "pose_mode": "two",
+      "weighted_inputs": [
+        {
+          "weight": 0.25,
+          "transform": {
+            "translation_cm": [
+              2,
+              4,
+              6
+            ],
+            "rotation": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          }
+        },
+        {
+          "weight": 0.75,
+          "transform": {
+            "translation_cm": [
+              6,
+              8,
+              10
+            ],
+            "rotation": [
+              0,
+              0,
+              0,
+              1
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ]
+          }
+        }
       ]
     },
     {

@@ -1,5 +1,6 @@
 import json
 import math
+import struct
 import sys
 from pathlib import Path
 
@@ -36,4 +37,17 @@ for sample, result in zip(request['samples'], data):
         length = math.sqrt(sum(v * v for v in expected_rotation))
         assert max(abs(bone['transform']['rotation'][axis] - expected_rotation[i] / length) for i, axis in enumerate('xyzw')) < 1e-7
     assert abs(frame['curve'] - (sample['curve_a'] * (1 - alpha) + sample['curve_b'] * alpha)) < 1e-6
+    f32 = lambda value: struct.unpack('f', struct.pack('f', value))[0]
+    effective_alpha = f32(1 - f32(1 - alpha))
+    assert frame['two_way_effective_alpha'] == effective_alpha
+    expected = f32(f32(sample['curve_a']) + f32(effective_alpha * f32(f32(sample['curve_b']) - f32(sample['curve_a']))))
+    assert frame['two_way_curve'] == expected
+    if 'weighted_inputs' in sample:
+        inputs = sample['weighted_inputs']
+        assert sample['pose_mode'] == 'two' and len(inputs) == 2
+        weights = [f32(inputs[0]['weight']), f32(1 - f32(inputs[0]['weight']))]
+        for channel, field in [('translation', 'translation_cm'), ('scale', 'scale')]:
+            expected = [sum(item['transform'][field][axis] * weight for item, weight in zip(inputs, weights)) for axis in range(3)]
+            assert list(frame['weighted_pose'][channel].values()) == expected
+        assert [f32(value) for value in frame['weighted_pose']['rotation'].values()] == [0, 0, 0, 1]
 print('Native blend profile weights, default bones, transforms, and curves PASS')

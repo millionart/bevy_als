@@ -3135,6 +3135,10 @@ TSharedPtr<FJsonObject> CaptureBlendProfileProbe(UObject* Asset, const FString& 
             FBlendedCurve Curve;
             Curve.Override(PreviousCurve, 1.0 - Alpha);
             Curve.Accumulate(NextCurve, Alpha);
+            FBlendedCurve TwoWayCurve;
+            const float WeightOfPoseOne = 1.f - Alpha;
+            const float WeightOfPoseTwo = 1.f - WeightOfPoseOne;
+            TwoWayCurve.Lerp(PreviousCurve, NextCurve, WeightOfPoseTwo);
             TSharedRef<FJsonObject> Frame = MakeShared<FJsonObject>();
             Frame->SetNumberField(TEXT("elapsed"), Elapsed);
             Frame->SetNumberField(TEXT("factor"), Factor);
@@ -3143,6 +3147,60 @@ TSharedPtr<FJsonObject> CaptureBlendProfileProbe(UObject* Asset, const FString& 
             Frame->SetNumberField(TEXT("blend_value"), Blend.GetBlendedValue());
             Frame->SetBoolField(TEXT("complete"), Blend.IsComplete());
             Frame->SetNumberField(TEXT("curve"), Curve.Get(TEXT("ProbeCurve")));
+            Frame->SetNumberField(TEXT("two_way_curve"), TwoWayCurve.Get(TEXT("ProbeCurve")));
+            Frame->SetNumberField(TEXT("two_way_effective_alpha"), WeightOfPoseTwo);
+            if ((*Sample)->HasField(TEXT("weighted_inputs")))
+            {
+                const TArray<TSharedPtr<FJsonValue>>* Inputs = nullptr;
+                FString PoseMode;
+                if (!(*Sample)->TryGetArrayField(TEXT("weighted_inputs"), Inputs) || Inputs->IsEmpty() || Inputs->Num() > 8 ||
+                    !(*Sample)->TryGetStringField(TEXT("pose_mode"), PoseMode) ||
+                    (PoseMode != TEXT("multi") && PoseMode != TEXT("two") && PoseMode != TEXT("gait"))) { return nullptr; }
+                TArray<FBoneIndexType> RequiredIndices = {0};
+                FBoneContainer Required;
+                Required.InitializeTo(RequiredIndices, UE::Anim::FCurveFilterSettings(), *Skeleton);
+                TArray<FCompactPose> InputPoses;
+                TArray<float> InputWeights;
+                for (const TSharedPtr<FJsonValue>& InputValue : *Inputs)
+                {
+                    const TSharedPtr<FJsonObject>* Input = nullptr;
+                    double Weight;
+                    FTransform Transform;
+                    if (!InputValue->TryGetObject(Input) || !(*Input)->HasTypedField<EJson::Number>(TEXT("weight")) || !(*Input)->TryGetNumberField(TEXT("weight"), Weight) ||
+                        !FMath::IsFinite(static_cast<float>(Weight)) || static_cast<float>(Weight) <= 0.f || Weight > 1.0 || !ReadTransform(*Input, TEXT("transform"), Transform)) { return nullptr; }
+                    FCompactPose& InputPose = InputPoses.AddDefaulted_GetRef();
+                    InputPose.SetBoneContainer(&Required);
+                    InputPose.ResetToRefPose();
+                    InputPose[FCompactPoseBoneIndex(0)] = Transform;
+                    InputWeights.Add(static_cast<float>(Weight));
+                }
+                FCompactPose OutputPose;
+                FBlendedCurve OutputCurve;
+                UE::Anim::FStackAttributeContainer OutputAttributes;
+                OutputPose.SetBoneContainer(&Required);
+                OutputCurve.InitFrom(Required);
+                FAnimationPoseData OutputData(OutputPose, OutputCurve, OutputAttributes);
+                if (PoseMode == TEXT("two") && InputPoses.Num() != 2) { return nullptr; }
+                if (InputPoses.Num() == 2 && (PoseMode == TEXT("two") ||
+                    (PoseMode == TEXT("gait") && FMath::IsNearlyEqual(InputWeights[0] + InputWeights[1], 1.f))))
+                {
+                    FBlendedCurve EmptyA, EmptyB;
+                    EmptyA.InitFrom(Required); EmptyB.InitFrom(Required);
+                    UE::Anim::FStackAttributeContainer AttributesA, AttributesB;
+                    FAnimationPoseData A(InputPoses[0], EmptyA, AttributesA), B(InputPoses[1], EmptyB, AttributesB);
+                    FAnimationRuntime::BlendTwoPosesTogether(A, B, InputWeights[0], OutputData);
+                }
+                else if (PoseMode == TEXT("gait") && InputPoses.Num() == 1 && FAnimWeight::IsFullWeight(InputWeights[0]))
+                {
+                    OutputPose.CopyBonesFrom(InputPoses[0]);
+                }
+                else
+                {
+                    FAnimationRuntime::BlendPosesTogether(InputPoses, {}, {}, InputWeights, OutputData);
+                    if (PoseMode == TEXT("multi")) { OutputPose.NormalizeRotations(); }
+                }
+                Frame->SetObjectField(TEXT("weighted_pose"), CaptureTransform(OutputPose[FCompactPoseBoneIndex(0)]));
+            }
             Frame->SetObjectField(TEXT("bones"), Bones);
             Frames.Add(MakeShared<FJsonValueObject>(Frame));
         }
