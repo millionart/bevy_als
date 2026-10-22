@@ -1572,6 +1572,17 @@
 
   - 17:56 完成摘要：4684 StateResult/370036骨骼及3386 FSM/267494骨骼由原native叶与double父值重建；4838真实端点引用全命中，2214直接/1172过渡输出、1312阶段/118多级输出，0缺口/0target pose回填。24新native raw/final控制f64精确，源断供拒绝268最小输出、字节恢复后原值精确；提前逐级normalize的1167个f32变化归已有D123。无实际信号的新增非零endpoint-slot分支已删除，当前1312过渡slot全0并严格断言；最终源码同target重编，全10路径2400帧含新端点完整历史精确，925身份键/114 ALS/184 Rust/reader/原始资产/生产库保持。Gate `target/bf144/196/summary.json` PASS，新增0，累计235（115P2/120P3）。实际结束：2026-10-22 17:56:36 +08:00；实耗21分36秒，较预估提前33分23秒。共同条件外完整source反馈、后置Base/Lean和未触发非零端点槽仍未验收，下一依赖继续；截图0、性能暂停。
 
+- [x] BF144.197 原source后置Crouch Base混合：依赖.194直接A_Als_Crouch_Walk_Pose原生叶、.195实际父输入身份及.196原Crouch FSM，沿364a7469的A/B实际source_context将两份原数组接到source TwoWay，核对实际alpha/资格、曲线Lerp及Normalize时点，完成1648实际Base输出；Standing Base直接引用.196值，不重复展开。Gate：fresh原节点/输入/叶身份、原数据链0缺口/0target pose回填、原native组合控制、最小消融/恢复和身份，完整Lean/Root反馈后置。开始：2026-10-22 17:57:00 +08:00；预估结束：2026-10-22 18:32:00 +08:00。估时依据：仅1个后置TwoWay及已验证原79骨骼叶/1648实际消费者，复用.195父数值工具与.196端点/输出；.194叶审计约20分钟、.196原FSM约22分钟，本项35分钟独立验收，不混入Lean/Root。仅审计，生产/转换器/原始资产不改，截图0、性能暂停。
+  - 17:57 活动摘要：.196 Gate已过并提交，原FSM3386数组可用；后置A/B当前共同参数在.195完整父记录中，下一步fresh读取源Crouch Base节点/原叶，再按父input.source_context接原FSM与原frame0叶。当前235（115P2/120P3），完整Lean/Root仍未验收。
+
+  - 17:59 原Base链已接通：fresh Crouching图与4点native叶读取成功，源TwoWay Evaluate只在两边相关时用(1−InternalBlendAlpha)进入InPlace Blend，否则直接pose；当前1648实际消费全部两边相关，按实际B source_context接原Crouch FSM、A取原native frame0，保持double及源effective B=1−(1−alpha)、曲线Lerp。全10原输出1648/130192骨骼、0source缺口/0target pose回填；24份新原中间数组公开native控制与当前target组合比较正在核对，完整Root反馈不在本scope。235不变，截图0、性能暂停。
+
+  - 18:00 source/data消融摘要：fresh原Base属性/A-B GUID及4点79骨骼native叶与.193/.194精确；首例移除原FSM表即拒绝全部223输出，target pose仍在但0回填，源码字节恢复后原数组精确。收紧A leaf必须同父context的身份断言，当前全10按相同scope重跑；比较脚本初次误读source row不存在的owner报告字段，已固定本项crouching常量后重跑，未把工具KeyError计生产缺陷。native24组合已执行成功，待逐值检查/最终身份；当前235，截图0、性能暂停。
+
+  - 18:01 native组合闭环：24份新原Leaf/FSM中间组合与公开UE TwoWay weighted_pose均f64精确；全10当前target组合比较完成，曲线名字0丢失。此处不重复D224/D123/D177/D232/D233/D234等已知数据和运算阶段，只证明原Base运输；当前所有alpha在两侧相关区间，工具断言该已观察范围，不增加未触发passthrough分支。最后同scope身份断言重跑/数据消融恢复与身份Gate待完成，235不变，截图0、性能暂停。
+
+  - 18:03 完成摘要：fresh原Crouch Base属性/A-B身份及4点79骨骼native叶保持；实际source_context接原frame0叶与.196原FSM，全10重建1648 Base/130192骨骼、0source缺口/0target pose回填，当前两侧相关范围严格断言，不加未用单边分支。24公开native原中间组合f64精确；清空原FSM拒绝最小223输出，恢复最终脚本字节后原数组精确。当前组合比较曲线名字0丢失，数值差只按已知叶/父/FSM数值阶段传播保留，不另编号。976身份键/114 ALS/184 Rust/reader/原始资产/生产库保持，Gate `target/bf144/197/summary.json` PASS。实际结束：2026-10-22 18:03:19 +08:00；实耗6分19秒，较预估提前28分40秒。新增0，累计235（115P2/120P3）；Standing Base已由.196直接给出，下一依赖只接原Lean与ApplyAdditive，完整Root反馈仍后置。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
