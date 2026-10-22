@@ -11,6 +11,7 @@ param(
     [string]$MeshAdditiveProbe,
     [string]$RigLifecycleProbe,
     [string]$RigPoseTransferProbe,
+    [string]$AnimationAttributeProbe,
     [string]$SlotProbe,
     [string]$BlendProfileProbe,
     [string]$BlendListProbe,
@@ -310,6 +311,10 @@ if ($RigLifecycleProbe) {
 if ($RigPoseTransferProbe) {
     $probePath = (Resolve-Path -LiteralPath $RigPoseTransferProbe -ErrorAction Stop).Path
     $arguments += "-RigPoseTransferProbe=$probePath"
+}
+if ($AnimationAttributeProbe) {
+    $probePath = (Resolve-Path -LiteralPath $AnimationAttributeProbe -ErrorAction Stop).Path
+    $arguments += "-AnimationAttributeProbe=$probePath"
 }
 if ($SequenceClockProbe) {
     $probePath = (Resolve-Path -LiteralPath $SequenceClockProbe -ErrorAction Stop).Path

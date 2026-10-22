@@ -2018,6 +2018,15 @@
 
   - 06:15 完成摘要：真实compiled主ControlRig模板＋SKM_Als/required bones的默认PoseAdapter ready/enabled，79骨含11VB；原77＋4键控制81样本6399骨输入→hierarchy→输出逐值全等，2057个set曲线值/键与定义交集一致，case-insensitive FName控制保持，0target回填。当前target240帧18960齐全局部通道提升后public set_input_pose精确保留，未泛化稀疏/其他骨架。物理去native输入使6399骨/2057曲线失配并FAIL，源码字节恢复同arm64 package重编81样本全恢复；target输入移除FAIL101、源码字节恢复同target重编240结果精确恢复。6非法输出自测/4非法native输入code7、旧6生命周期样本全字段回归通过，protected Source/shadow两构建失败保留排除。1810身份键/114 ALS/184 Rust/原资产/转换器/生产库保持，仅reader CPP/runner/包源码与dylib/新自测改变。Gate `target/bf144/247/summary.json` PASS_COMPILED_RIG_DEFAULT_POSE_ADAPTER_ORIGINAL_INPUT_TRANSFER。实际结束：2026-10-23 06:15:53 +08:00；实耗14分53秒，较预估提前25分7秒。新增0，累计240（115P2/125P3）；本项逐样本未跑forward，下一先source属性输入闭包，再同实例跨帧原77及真实owner/query求值，完整反馈/Down-Up/180/Root仍开。截图0、性能暂停。
 
+- [x] BF144.248 原Rig输入的动画属性source闭包：依赖.247原77骨/曲线转移，沿已重建原数据链递归清点所有实际source叶与可能生成/变换属性的节点，fresh本地读取属性配置及native pose属性状态，证明空流或保留实际属性数据；不得由3个样本字段空、target无属性或骨曲线通过推断全闭包为空。Gate：可核查完整叶/节点闭包、当次source与native属性证据、缺失/非空反例、自测/必要读取扩展的物理消融同package恢复与身份；仅限定原77控制历史，不声称全ALS全部历史属性皆空。开始：2026-10-23 06:17:00 +08:00；预估结束：2026-10-23 07:02:00 +08:00。估时依据：.247真实adapter14分53秒、.246新原生入口25分51秒，当前递归叶清点及新属性读取可能涉及多个采样入口，按45分钟先闭完整叶域/属性资格，必要时按source规模独立拆分，不缩小原77闭包。仅审计，生产/转换器/原资产不改，截图0、性能暂停。
+  - 06:17 活动摘要：前轮5f3bb6ea完成默认adapter原77输入往返，属于progress；树干净、无相关进程，累计240（115P2/125P3）。当前source-pose leaf仅有骨/curve，必须本项证明实际属性输入后才能完整Rig求值；Rig query/feedback、Down-Up/180仍开。
+
+  - 06:31 静态摘要：fresh 8 compiled AnimBP共574节点、84引用、77递归资产（68 Sequence），旧49图引用全覆盖；68的model/baked属性全空，204实际采样容器也空。唯一启用root motion为Roll，原77已建叶表需显式排除后才可资格；commandlet provider状态不外推真实游戏。37当次source文件225处证据覆盖属性生成/传播；移除无用array/map/set引用遍历后同package重编，574/84/77及所有样本逐项全等，保留struct/object最小读取。一次依赖未终止便启动reader触发UAT重复实例，拒绝且排除；后等待build终止再读取成功。原77公共参数固定边界/完整feedback仍开，下一递归引用去除反例、恢复及旧能力回归。截图0、性能暂停。
+
+  - 06:34 消融摘要：原77既有叶表19个去重根，经同次native依赖闭包为37资产/31序列，全部model/baked表0且HasRootMotion=False，故不依赖commandlet缺provider来证明空流；原31表空覆盖整个时间域，204 compressed样本只是交叉校验。新派生77输入明确attributes空且原骨/curve保持，完整feedback仍不外推。物理去递归依赖登记后仅51资产，闭包校验稳定FAIL；现已按源码字节恢复、同package重编中，恢复结果和旧能力回归尚未完成。截图0、性能暂停。
+
+  - 06:42 完成摘要：8个fresh compiled AnimBP共574节点/84引用；所有图的动画节点含命名层清点51个唯一直接资产，与compiled CDO精确一致。单按AnimGraph路径会漏Idle和Default Poses两叶，边界已固化到animation-graph-equivalence skill。递归77资产/68序列model和baked属性全0，204 compressed容器全空；唯一root-motion Roll不在原77已建19根→37资产/31序列闭包中，31序列均HasRootMotion=False。结合37当次source文件的属性传播合同，仅资格共同参数固定的原77输入属性为空；新派生77包明确attributes空，所有原骨和curve保持。无用array/map/set遍历移除后574/84/77及样本精确不变并删除；去递归登记仅51资产且闭包FAIL，源码字节恢复、同package重编后完整输出精确恢复。7非法输出及非空属性保留自测、3非法native请求code7、旧81 Rig输入转移样本全字段回归通过。1844身份键/114 ALS/184 Rust/原资产/转换器/生产库保持，仅reader/runner/包源码与dylib、新自测及领域skill说明改变。Gate `target/bf144/248/summary.json` PASS_ORIGINAL_RIG_INPUT_EMPTY_ATTRIBUTE_SOURCE_CLOSURE。实际结束：2026-10-23 06:42:45 +08:00；实耗25分45秒，较预估提前19分15秒。本轮新增0，累计240（115P2/125P3）；下一同实例跨帧原77 Rig真实owner/query/Forward；完整feedback、Head Down-Up、180和完整Root仍开。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D242 / P3 — Rig初始全局变换常量未保持当次原生CDO数据，边界下改变足旋转和自动骨长。

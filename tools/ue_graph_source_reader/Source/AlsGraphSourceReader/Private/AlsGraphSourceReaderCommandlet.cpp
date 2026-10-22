@@ -33,6 +33,7 @@
 #include "Animation/AnimNotifyQueue.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/AnimRootMotionProvider.h"
 #include "Animation/AnimBoneCompressionCodec.h"
 #include "Animation/AnimCurveCompressionCodec.h"
 #include "Animation/AnimSequenceDecompressionContext.h"
@@ -2113,6 +2114,158 @@ TSharedPtr<FJsonObject> CaptureSequenceRigStages(const UAnimSequence& Sequence, 
         });
         Result->SetArrayField(TEXT("bones"), Bones);
     }
+    return Result;
+}
+
+void CollectAnimationReferences(const FProperty* Property, const void* Data, const FString& Path, TArray<TSharedPtr<FJsonValue>>& References, TArray<UAnimationAsset*>& Assets)
+{
+    if (const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Property))
+    {
+        if (UAnimationAsset* Animation = Cast<UAnimationAsset>(ObjectProperty->GetObjectPropertyValue(Data)))
+        {
+            TSharedRef<FJsonObject> Reference = MakeShared<FJsonObject>();
+            Reference->SetStringField(TEXT("property"), Path);
+            Reference->SetStringField(TEXT("asset"), Animation->GetPathName());
+            References.Add(MakeShared<FJsonValueObject>(Reference));
+            Assets.AddUnique(Animation);
+        }
+    }
+    else if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+    {
+        for (TFieldIterator<FProperty> Field(StructProperty->Struct, EFieldIterationFlags::IncludeSuper); Field; ++Field)
+        {
+            for (int32 Index = 0; Index < Field->ArrayDim; ++Index)
+            {
+                CollectAnimationReferences(*Field, Field->ContainerPtrToValuePtr<void>(Data, Index), Path + TEXT(".") + Field->GetName() + FString::Printf(TEXT("[%d]"), Index), References, Assets);
+            }
+        }
+    }
+
+}
+
+TSharedPtr<FJsonObject> CaptureAnimationAttributeProbe(const FString& RequestPath)
+{
+    FString Text;
+    TSharedPtr<FJsonObject> Request;
+    const TArray<TSharedPtr<FJsonValue>>* BlueprintPaths = nullptr;
+    if (!FFileHelper::LoadFileToString(Text, *RequestPath) || !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Request) ||
+        !Request->TryGetArrayField(TEXT("animation_blueprints"), BlueprintPaths) || BlueprintPaths->IsEmpty() || BlueprintPaths->Num() > 64) { return nullptr; }
+    TArray<UAnimationAsset*> Assets;
+    TArray<TSharedPtr<FJsonValue>> Blueprints;
+    TSet<FString> Seen;
+    for (const TSharedPtr<FJsonValue>& Value : *BlueprintPaths)
+    {
+        FString Path;
+        if (!Value->TryGetString(Path) || Path.IsEmpty() || Seen.Contains(Path)) { return nullptr; }
+        Seen.Add(Path);
+        UBlueprint* Blueprint = LoadObject<UBlueprint>(nullptr, *Path);
+        const IAnimClassInterface* Interface = Blueprint == nullptr ? nullptr : IAnimClassInterface::GetFromClass(Blueprint->GeneratedClass);
+        if (Interface == nullptr) { return nullptr; }
+        TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>();
+        Row->SetStringField(TEXT("asset"), Path);
+        TArray<TSharedPtr<FJsonValue>> Nodes;
+        for (const FStructProperty* Property : Interface->GetAnimNodeProperties())
+        {
+            TSharedRef<FJsonObject> Node = MakeShared<FJsonObject>();
+            Node->SetStringField(TEXT("property"), Property->GetName());
+            Node->SetStringField(TEXT("type"), Property->Struct->GetPathName());
+            TArray<TSharedPtr<FJsonValue>> References;
+            CollectAnimationReferences(Property, Property->ContainerPtrToValuePtr<void>(Blueprint->GeneratedClass->GetDefaultObject()), Property->GetName(), References, Assets);
+            Node->SetArrayField(TEXT("references"), References);
+            Nodes.Add(MakeShared<FJsonValueObject>(Node));
+        }
+        Row->SetArrayField(TEXT("nodes"), Nodes);
+        Blueprints.Add(MakeShared<FJsonValueObject>(Row));
+    }
+    TArray<TSharedPtr<FJsonValue>> AssetRows;
+    for (int32 Index = 0; Index < Assets.Num(); ++Index)
+    {
+        if (Assets.Num() > 4096) { return nullptr; }
+        UAnimationAsset* Animation = Assets[Index];
+        UE_LOG(LogAlsGraphSourceReader, Display, TEXT("Animation attribute closure asset %d: %s"), Index, *Animation->GetPathName());
+        TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>();
+        Row->SetStringField(TEXT("asset"), Animation->GetPathName());
+        Row->SetStringField(TEXT("type"), Animation->GetClass()->GetPathName());
+        TArray<UAnimationAsset*> Dependencies;
+        Animation->GetAllAnimationSequencesReferred(Dependencies, false);
+        TArray<TSharedPtr<FJsonValue>> DependencyPaths;
+        for (UAnimationAsset* Dependency : Dependencies)
+        {
+            if (Dependency == nullptr) { return nullptr; }
+            DependencyPaths.Add(MakeShared<FJsonValueString>(Dependency->GetPathName()));
+            Assets.AddUnique(Dependency);
+        }
+        Row->SetArrayField(TEXT("dependencies"), DependencyPaths);
+        if (UAnimSequence* Sequence = Cast<UAnimSequence>(Animation))
+        {
+            const IAnimationDataModel* Model = Sequence->GetDataModel();
+            const FMapProperty* Baked = FindFProperty<FMapProperty>(Sequence->GetClass(), TEXT("AttributeCurves"));
+            if (Model == nullptr || Baked == nullptr || Sequence->GetSkeleton() == nullptr) { return nullptr; }
+            Row->SetNumberField(TEXT("model_attributes"), Model->GetNumberOfAttributes());
+            Row->SetNumberField(TEXT("baked_attributes"), FScriptMapHelper(Baked, Baked->ContainerPtrToValuePtr<void>(Sequence)).Num());
+            Row->SetBoolField(TEXT("has_root_motion"), Sequence->HasRootMotion());
+            TArray<TSharedPtr<FJsonValue>> Identifiers;
+            for (const FAnimatedBoneAttribute& Attribute : Model->GetAttributes())
+            {
+                TSharedRef<FJsonObject> Identifier = MakeShared<FJsonObject>();
+                Identifier->SetStringField(TEXT("name"), Attribute.Identifier.GetName().ToString());
+                Identifier->SetStringField(TEXT("bone"), Attribute.Identifier.GetBoneName().ToString());
+                Identifier->SetStringField(TEXT("type"), Attribute.Identifier.GetScriptStructPath().ToString());
+                Identifiers.Add(MakeShared<FJsonValueObject>(Identifier));
+            }
+            Row->SetArrayField(TEXT("model_identifiers"), Identifiers);
+            Sequence->CacheDerivedDataForCurrentPlatform();
+            FBoneContainer Bones;
+            TArray<FBoneIndexType> BoneIndices;
+            for (int32 Bone = 0; Bone < Sequence->GetSkeleton()->GetReferenceSkeleton().GetNum(); ++Bone) { BoneIndices.Add(Bone); }
+            Bones.InitializeTo(BoneIndices, UE::Anim::FCurveFilterSettings(), *Sequence->GetSkeleton());
+            TArray<TSharedPtr<FJsonValue>> Samples;
+            for (double Fraction : {0.0, 0.5, 1.0})
+            {
+                FMemMark Mark(FMemStack::Get());
+                FCompactPose Pose;
+                Pose.SetBoneContainer(&Bones);
+                FBlendedCurve Curve;
+                Curve.InitFrom(Bones);
+                UE::Anim::FStackAttributeContainer Attributes;
+                FAnimationPoseData PoseData(Pose, Curve, Attributes);
+                const FAnimExtractContext Context(Fraction * Sequence->GetPlayLength(), false);
+                TSharedRef<FJsonObject> Sample = MakeShared<FJsonObject>();
+                Sample->SetNumberField(TEXT("time"), Context.CurrentTime);
+                Sample->SetBoolField(TEXT("raw_data"), FSequencePoseAccess::UsesRawData(*Sequence, Bones, Context));
+                Sequence->GetAnimationPose(PoseData, Context);
+                Sample->SetNumberField(TEXT("attribute_count"), Attributes.Num());
+                TArray<TSharedPtr<FJsonValue>> Values;
+                const auto& Types = Attributes.GetUniqueTypes();
+                for (int32 TypeIndex = 0; TypeIndex < Types.Num(); ++TypeIndex)
+                {
+                    const UScriptStruct* Type = Types[TypeIndex].Get();
+                    if (Type == nullptr) { return nullptr; }
+                    const auto& Keys = Attributes.GetKeys(TypeIndex);
+                    const auto& AttributeValues = Attributes.GetValues(TypeIndex);
+                    for (int32 KeyIndex = 0; KeyIndex < Keys.Num(); ++KeyIndex)
+                    {
+                        TSharedRef<FJsonObject> Item = MakeShared<FJsonObject>();
+                        Item->SetStringField(TEXT("name"), Keys[KeyIndex].GetName().ToString());
+                        Item->SetStringField(TEXT("type"), Type->GetPathName());
+                        Item->SetNumberField(TEXT("bone_index"), Keys[KeyIndex].GetIndex());
+                        FString Exported;
+                        Type->ExportText(Exported, AttributeValues[KeyIndex].GetPtr<void>(), nullptr, nullptr, PPF_None, nullptr);
+                        Item->SetStringField(TEXT("value"), Exported);
+                        Values.Add(MakeShared<FJsonValueObject>(Item));
+                    }
+                }
+                Sample->SetArrayField(TEXT("attributes"), Values);
+                Samples.Add(MakeShared<FJsonValueObject>(Sample));
+            }
+            Row->SetArrayField(TEXT("samples"), Samples);
+        }
+        AssetRows.Add(MakeShared<FJsonValueObject>(Row));
+    }
+    TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+    Result->SetBoolField(TEXT("root_motion_provider_available"), UE::Anim::IAnimRootMotionProvider::IsAvailable());
+    Result->SetArrayField(TEXT("blueprints"), Blueprints);
+    Result->SetArrayField(TEXT("assets"), AssetRows);
     return Result;
 }
 
@@ -5349,6 +5502,13 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
         const TSharedPtr<FJsonObject> Probe = CaptureRigLifecycleProbe(Asset, RigLifecycleProbePath);
         if (!Probe.IsValid()) { return 7; }
         Root->SetObjectField(TEXT("rig_lifecycle_probe"), Probe.ToSharedRef());
+    }
+    FString AnimationAttributeProbePath;
+    if (FParse::Value(*Params, TEXT("AnimationAttributeProbe="), AnimationAttributeProbePath))
+    {
+        const TSharedPtr<FJsonObject> Probe = CaptureAnimationAttributeProbe(AnimationAttributeProbePath);
+        if (!Probe.IsValid()) { return 7; }
+        Root->SetObjectField(TEXT("animation_attribute_probe"), Probe.ToSharedRef());
     }
     FString RigPoseTransferProbePath;
     if (FParse::Value(*Params, TEXT("RigPoseTransferProbe="), RigPoseTransferProbePath))
