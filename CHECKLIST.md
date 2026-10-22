@@ -1723,6 +1723,13 @@
 
   - 20:10 完成摘要：只沿真实Standing Move及Walk/Run同Movement缓存，5原Details标准转场+10直接Run、两无请求惯性/主Move/PoseStanding1，交付0–14的15原Standing Root/1185骨骼，0target回填。5正确独立权重native pose f64精确，两public源惯性模板30帧/2370骨骼及curve f64全等；首次gait helper补数假失败已按D234接口差异纠正，不改原算法。原压缩FootPlanted及姿态组合差单独保留，不声称source-target等价；active/epoch/pending控制拒绝，原Movement断供拒绝、字节恢复15数组精确。观察物理移除/字节恢复/同target重编完整旧240/新记录全精确。1228身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持，Gate `target/bf144/211/summary.json` PASS_ORIGINAL_STANDING_REQUIRED_FRAMES_0_TO_14。实际结束：2026-10-22 20:10:34 +08:00；实耗9分34秒，较预估提前35分25秒。新增0，累计236（115P2/121P3）；.210缺原15 Standing输入已由本项补齐，下一独立项回Grounded真实栈数值，fullRoot/slots/active惯性/180恢复仍未验收。截图0、性能暂停。
 
+- [x] BF144.212 原Grounded77输出的真实栈数值：依赖.210实际91栈/alias覆盖语义、.211原Standing15与.209原Crouch76，fresh核当前14段自定义站蹲转场原Curve/时序/profile与真实source-pose累计，使用原Standing先级输出及Crouch目标数组求77原Grounded输出，不消费synthetic alias LocalRefPose。Gate：原自定义curve/native因子与权重、77×79原数组/curves0缺口、同target输入与原组合差分离、原stale输入/alias补值拒绝及最小消融恢复/身份；专用切换/Roll未访问，不作覆盖，后置惯性/slots/Root另依赖。开始：2026-10-22 20:11:00 +08:00；预估结束：2026-10-22 20:56:00 +08:00。估时依据：.210/.211原输入已齐，14单转场+前一Standing源共77输出，现成native CustomCurve/FAlphaBlend及double栈模型可复用；45分钟含原curve再提取、source/target时序区分与消融，不混入后置Root。仅审计，生产/转换器/原始资产不改，截图0、性能暂停。
+  - 20:11 活动摘要：.211已提交，前15原Standing与76原Crouch都有来源；下一步只沿当前T19 custom标准转场读取fresh源curve/实际elapsed，记录先级Standing raw复合语义，不能用目标已混pose替代或把alias占位喂原算法。当前236（115P2/121P3），fullRoot仍未闭合。
+
+  - 20:13 原Grounded数值/消融闭环：原curve公开Getter重新取到3精确键，14实际因子alpha与target当前轨迹全等（当前路径未触发旧D121键舍入差，不复开）。15原Standing及76原Crouch按91实际栈条目组合77输出/6083骨骼，其中14 stage使用前级Standing源覆盖alias，alias pose消费0/target补值0；28新原中间scalar/default-bone公开raw/final均f64精确。原/target组合curve名字0缺、12 curve数值差保留原叶数据链，不称等价或新根因。移除原Standing或尝试要求未更新alias当source，两类控制均拒绝且不生成数组；脚本字节恢复77原数组精确。最终身份待核，后置Grounded惯性/slot/Root仍后续，236、截图0、性能暂停。
+
+  - 20:14 完成摘要：15原Standing/76原Crouch按77真实Grounded栈组合77输出/6083骨骼，14自定义stage明确用前级Standing累计覆盖alias，0alias pose/0target回填。fresh原CF精确3键/14 alpha与当前target轨迹精确，28原中间scalar/default-bone公开raw/final f64全等；当前特殊切换/Roll未访问不算覆盖。原/target组合curve名字0缺/12值差保留原数据/既有算子，不宣称等价；原Standing缺失或alias消费控制拒绝，源码字节恢复77数组精确。1240身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持，Gate `target/bf144/212/summary.json` PASS_ORIGINAL_GROUNDED_NUMERICAL_PREFIX。实际结束：2026-10-22 20:14:26 +08:00；实耗3分26秒，较预估提前41分33秒。新增0，累计236（115P2/121P3）；下一段核Grounded后惯性/curve/callback，主AB Transition槽/Locomotion及180恢复与完整Root仍未验收。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
