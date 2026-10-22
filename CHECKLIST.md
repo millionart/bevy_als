@@ -1903,6 +1903,12 @@
 
   - 00:46 完成摘要：fresh六use/Apply/Base TwoWay及slot绑定界面确认，Base A为Overlay、B为六身体slot；77帧六路全更新/Apply alpha1，308 mesh+154 local共462次use与Save保持。原154缓存按owner/key/frame/mode/consumer索引运输0target回填/0重复pose；wrong-owner/key均拒绝，工具字节及全部引用索引恢复相等。观察物理去除/字节恢复/同target重编完整240/warm及新增字段精确；1517身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持。Gate `target/bf144/232/summary.json` PASS_DYNAMIC_CACHE_USE_TRANSPORT_AND_SECTION_BASE_DEPENDENCIES。实际结束：2026-10-23 00:46:26 +08:00；实耗7分54秒，较预估提前14分6秒。新增0，累计238（115P2/123P3）；下一项六Base的真实TwoWay alpha及slot活动，再交付原Base。不得从当前Apply alpha1推Base slot权重，section/完整Layering、原反馈与attributes仍未过；截图0、性能暂停。
 
+- [x] BF144.233 六section Base TwoWay/slot资格与原Base：依赖.232六Base源界面及.230原Overlay77，fresh核Overlay→身体slot/TwoWay源边与各SlotBlendAmount映射，观察真实TwoWay raw/effective alpha、A/B更新和各slot生产者/权重；按实际活动确定source direct branch或必要原slot混合，不能仅凭输出相等推分支。Gate：source参数/生命周期、actual完整240/warm保持、原Base数组0target回填及分支负控制、观察移除/字节恢复同target、身份；不提前组合Apply/最终Layering。开始：2026-10-23 00:46:50 +08:00；预估结束：2026-10-23 01:04:50 +08:00。估时依据：.224单slot资格6分14秒、.232六消费者7分54秒；当前六TwoWay与六slot、原Overlay已备，18分钟核真实分支与原Base，不默认slot无贡献。仅审计，生产/转换器/原始资产不改，截图0、性能暂停。
+  - 00:46 活动摘要：.232已提交165f01b0，238（115P2/123P3）。Apply alpha1已确认但不代表slot alpha；本项只沿六Base的Overlay/对应slot源闭包核资格。source最终反馈及custom attributes边界继续保留。
+  - 00:51 source/actual与消融摘要：fresh六TwoWay为Float、无range/clamp/interp、scale1/bias0、不重置/不强制更新非相关子项；A与B slot自身Source均Overlay。actual77×6 raw/effective alpha全0、A更新462/output=A、slot更新0且无pose/context/montage输入，source直接A不做归一化。A逐值等于既有真实Overlay入口，原77 Overlay以462引用交付0target回填/0重复pose；初加slot producer guards经受控移除后462引用字节不变，已删去对未求值B无关的限制，只保留alpha、B生命周期及A缓存身份失败边界，合成producer字段变化时alpha0仍通过。4分支反例拒绝；观察去除/恢复同target完整240/warm及新字段比较收尾。活动slot混合未验收、原反馈/attributes仍开，238、截图0、性能暂停。
+
+  - 00:53 完成摘要：fresh六Base Float/无映射插值/scale1bias0/无额外子更新与Overlay/slot连接确认；actual462次raw/effective alpha0、A更新/output=A、slot更新0且当前无输入，走source直接A、不额外单位化。A与既有真实Overlay值精确，原77缓存供462 Base引用0target回填/0新pose复制；移除未求值B的冗余producer guards后引用字节不变，4必要分支反例拒绝，合成无关producer变化仍通过。观察物理移除/源码字节恢复/同target重编完整240/warm及新字段精确。1529身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持，Gate `target/bf144/233/summary.json` PASS_SIX_ORIGINAL_SECTION_BASE_DIRECT_OVERLAY_BRANCHES。实际结束：2026-10-23 00:53:14 +08:00；实耗6分24秒，较预估提前11分36秒。新增0，累计238（115P2/123P3）；下一项六Apply用已备原Base/差分的原数值，再完整Layering；活动slot路径、source最终反馈/custom attributes及完整Root仍未过。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
