@@ -1857,6 +1857,12 @@
 
   - 23:44 完成摘要：fresh源顶图150节点确认Locomotion Input→Save、9声明use及独立Overlay/Base Poses边界；actual77输入/缓存与3当前use共231引用身份/pose/curve/time全保持。原77份6083骨骼按真实owner/key运输，0target数值回填；删除owner稳定失败、恢复通过。观察物理去除/字节恢复/同target重编后，240帧完整旧字段精确；大JSON清理超时已保留且排除，逐对比较在相同120/30上限正常退出通过。1408身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持，Gate `target/bf144/225/summary.json` PASS_LAYERING_LOCOMOTION_INPUT_TRANSPORT_AND_DEPENDENCY_RECORD。实际结束：2026-10-22 23:44:16 +08:00；实耗15分47秒，较预估提前19分13秒。无新增差异，累计238（115P2/123P3）；完整Layering尚缺内部Base Poses（20f01df6 MultiWay）及原Overlay，下一项先沿该已证明依赖，未宣称完整Root等价。截图0、性能暂停。
 
+- [x] BF144.226 Layering内部Base Poses原数据与实际MultiWay合同：依赖.225已证Save Base Poses(61f34e31)←20f01df6 MultiWay，从fresh源图递归定位真正叶、权重绑定和更新语义，核当前77原资格前缀的实际输入/权重/时间，再按原数据求该cache；若闭包含尚缺独立模块，先记录并拆分，不以target pose填入。Gate：源闭包/算法和单位合同、实际完整旧历史精确、原数值与public源控制、必要最小消融/恢复/同target、身份。开始：2026-10-22 23:44:30 +08:00；预估结束：2026-10-23 00:29:30 +08:00。估时依据：.216原slot及curve链约20分钟、.222原叶/混合49分钟；当前已知单个MultiWay/save边但递归叶未枚举，45分钟先闭合这个独立cache，不合并Overlay或最终Layering。仅审计，生产/转换器/原始资产不改，截图0、性能暂停。
+  - 23:44 活动摘要：.225已提交，238（115P2/123P3）。原Locomotion已到达Layering三个actual use，现沿source已指明的Base Poses前驱取证；不会用Overlay替代动态additive的Base，不声称最终主Root等价。
+  - 23:50 source/static与运行后摘要：fresh Base Poses四节点闭包为Stand/Crouch第0帧Evaluator→MultiWay→Save，权重绑定GetParent.PoseState；源RefreshPose来自前帧最终曲线，原反馈权重尚未合格，故输出明确限定同输入参数。actual完整240旧字段精确，原资格前缀77含16组权重、Stand/Crouch更新16/75次、cache值保持；两源压缩叶79骨骼/空曲线已读，同权重原数组6083骨骼0target pose回填，112公开源运算控制待核。受控移除最后归一化改变5975个source double骨骼、317个投影float骨骼，属既有D231而不新编号；观察移除/字节恢复同target重编进行中。累计238，原反馈/Overlay/完整Layering仍开，截图0、性能暂停。
+
+  - 23:52 完成摘要：Base Poses四节点/两精确属性绑定、前帧曲线权重边界已闭合；原Stand/Crouch compressed第0帧各79骨骼/空曲线与16组当前权重给出77份同输入参数原结果，共6083骨骼，0target pose/curve回填。112公开source f64控制逐通道精确，77生产重放精确；原投影组合余差T/Q/S为5043/3062/1153，保持D231/D232分量界限，不新增因果编号。受控去末归一化改变5975 double/317 float骨骼；观察物理移除/字节恢复/同target重编完整240及新增字段精确。1428身份键/114 ALS/184 Rust/reader/原始资产/转换器/生产库保持，Gate `target/bf144/226/summary.json` PASS_BASE_POSES_SOURCE_LEAVES_AND_SAME_INPUT_OPERATOR_ONLY。实际结束：2026-10-22 23:52:03 +08:00；实耗7分33秒，较预估提前37分27秒。新增0，累计238（115P2/123P3）；本项完成源叶与同输入算子，原反馈权重未过、完整Layering不宣称通过。下一项原Overlay caller/惯性/输入cache，后续才组合及补原反馈。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
