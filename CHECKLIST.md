@@ -1971,6 +1971,13 @@
 
   - 03:38 完成摘要：fresh compiled Head Apply→Root原77组/6083骨骼及curve键值与既有独立f64全节点模型全等，原Base/Delta0target回填。current240组/19200骨骼公共生产helper对T/Q/S、presence、timestamp精确，Base→Root曲线保留；复用.240/.241完整历史与观察恢复，不新增actor/公共视觉Gate。Source两末normalize移除稳定native失败，源码字节恢复/同解释器原Root字节保持；public调用移除及错误root两物理控制分别稳定FAIL101，Rust字节恢复/同target重编后240结果精确恢复。根重建先前误用空EntityPath的失败留存排除，按真实loader与manifest唯一根校正夹具，不改生产/历史完成项。1691身份键/114 ALS/184 Rust/reader/原资产/转换器/生产库保持。Gate `target/bf144/242/summary.json` PASS_ORIGINAL_HEAD_MESH_ADDITIVE_AND_ROOT_PREFIX。实际结束：2026-10-23 03:38:28 +08:00；实耗8分58秒，较预估提前16分2秒。新增0，累计239（115P2/124P3）；下一沿Head Root→Control Rig真实入口和必要依赖，原feedback/custom attributes、Down/Up、Rig、180恢复/完整Root仍未过。截图0、性能暂停。
 
+- [x] BF144.243 原Head→Control Rig输入传递与必要Rig依赖：依赖.242原Head Root77，fresh主AB ControlRig551及所指Rig资产，仅沿Head caller→Rig Source核同owner完整数据/时间和原77输入transport；清点真实Rig程序入口、外部绑定/查询/状态，作为下一内部验收的依赖边界。Gate：fresh源连线/类/属性与必要依赖清单，actual完整240/warm/所有metadata保持、原77输入0target回填、错owner/输入反例及观察消融源码字节恢复同target、身份。Rig内部求值与最终Root不由入口通过替代。开始：2026-10-23 03:39:30 +08:00；预估结束：2026-10-23 04:04:30 +08:00。估时依据：.240入口/依赖7分45秒、.241新增观察和恢复11分29秒、.242算子8分58秒；Rig依赖规模尚待fresh读取，按25分钟仅闭入口与清点，内部按真实闭包拆分。仅审计，生产/转换器/原资产不改，截图0、性能暂停。
+  - 03:39 活动摘要：.242提交996ae9ef，239（115P2/124P3）；Head原Root已备，target真实主图边为e4f33 Head Pose→551 ControlRig Source，Rig后连Ragdolling。本项只开入口和必要Rig依赖，不提前展开Ragdolling内部；原feedback/custom attributes、Down/Up和180仍开。
+
+  - 03:46 source/actual闭环摘要：fresh主AB Head→Rig Source及CR_Als源VM完整，165指令/33函数/12externals/11字段路径/9branches，Construction150与Forwards Solve0、79骨/122元素。复用现有contract/target编译器读取本次source，actual入口/指令165/寄存器405/79骨/12externals名与fresh模型一致，仅清点，不称完整live定义或Rig内部数值已过。实际240份Head owner3→Rig owner1全packet/time一致，旧240/warm/所有metadata精确；game_world true、每帧153步、初始化仅1次、Rig输出240包均有变化。原77 Head packet/6083骨骼transport到Rig Source且0target回填，六错owner/caller/node/input/time反例通过；source主绑定GetControlRigInput、target11字段绑定均存在。观察恢复/transport物理消融及身份收尾，239，截图0、性能暂停。
+
+  - 03:49 完成摘要：fresh主AB边、Rig转移bool/局部空间与GetControlRigInput绑定及CR_Als完整VM依赖清点通过，165指令/33函数/12externals/11字段路径/9branches、2入口/79骨/122元素；既有编译器读取本次source，actual入口、165指令/405寄存器/79骨和12外部名一致。actual240份Head child→caller Rig Source全packet/time保持，完整旧240/warm/所有metadata保持；game_world true/153步/初始化1次只证运行，不替代原Rig求值。77原packet/6083骨骼0target回填、六边界反例、source-owner断言物理移除失败/字节恢复同解释器原输出字节保持；观察移除/字节恢复同target重编、三历史单遍35.731秒全等。1712身份键/114 ALS/184 Rust/reader/原资产/转换器/生产库保持，Gate `target/bf144/243/summary.json` PASS_ORIGINAL_HEAD_TO_CONTROL_RIG_INPUT_BOUNDARY。实际结束：2026-10-23 03:48:57 +08:00；实耗9分27秒，较预估提前15分33秒。新增0，累计239（115P2/124P3）；下一live Rig定义全量数据及GetControlRigInput字段生命周期，再原Rig外部状态/查询/内部求值，原feedback/attributes、Down/Up、180和完整Root仍开。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D241 / P3 — Mesh加性在还原局部空间前单位化组件旋转，改变源运算阶段。
