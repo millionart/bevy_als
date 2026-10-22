@@ -3125,10 +3125,12 @@ TSharedPtr<FJsonObject> CaptureBlendProfileProbe(UObject* Asset, const FString& 
                 const float Second = Index < 0 ? Alpha : Weights[0].PerBoneBlendData[Index];
                 FTransform Output = From * ScalarRegister(First);
                 Output.AccumulateWithShortestRotation(To, ScalarRegister(Second));
+                const FTransform RawOutput = Output;
                 Output.NormalizeRotation();
                 TSharedRef<FJsonObject> Bone = MakeShared<FJsonObject>();
                 Bone->SetNumberField(TEXT("source_weight"), First);
                 Bone->SetNumberField(TEXT("target_weight"), Second);
+                Bone->SetObjectField(TEXT("raw_transform"), CaptureTransform(RawOutput));
                 Bone->SetObjectField(TEXT("transform"), CaptureTransform(Output));
                 Bones->SetObjectField(Index < 0 ? TEXT("default") : Profile->ProfileEntries[Index].BoneReference.BoneName.ToString(), Bone);
             }
@@ -4014,6 +4016,14 @@ TSharedPtr<FJsonObject> CaptureStateMachinePlayers(UObject* Asset)
     for (int32 MachineIndex = 0; MachineIndex < Descriptions.Num(); ++MachineIndex)
     {
         const FBakedAnimationStateMachine& Description = Descriptions[MachineIndex];
+        const FStateMachineDebugData* MachineDebug = nullptr;
+        for (const auto& Entry : Class->GetAnimBlueprintDebugData().StateMachineDebugData)
+        {
+            if (Entry.Value.MachineIndex != MachineIndex) { continue; }
+            if (MachineDebug != nullptr) { return nullptr; }
+            MachineDebug = &Entry.Value;
+        }
+        if (MachineDebug == nullptr) { return nullptr; }
         TArray<TSharedPtr<FJsonValue>> States;
         for (int32 StateIndex = 0; StateIndex < Description.States.Num(); ++StateIndex)
         {
@@ -4030,8 +4040,12 @@ TSharedPtr<FJsonObject> CaptureStateMachinePlayers(UObject* Asset)
                 const FAnimationTransitionBetweenStates& Transition = Description.Transitions[Exit.TransitionIndex];
                 const TSharedPtr<FJsonObject> Rule = CaptureNode(Exit.CanTakeDelegateIndex);
                 if (!Rule.IsValid()) { return nullptr; }
+                const UEdGraphNode* TransitionNode = MachineDebug->FindNodeFromTransitionIndex(Exit.TransitionIndex);
+                if (TransitionNode == nullptr) { return nullptr; }
                 TSharedRef<FJsonObject> Edge = MakeShared<FJsonObject>();
                 Edge->SetNumberField(TEXT("index"), Exit.TransitionIndex);
+                Edge->SetStringField(TEXT("transition_guid"), GuidText(TransitionNode->NodeGuid));
+                Edge->SetStringField(TEXT("transition_path"), TransitionNode->GetPathName());
                 Edge->SetNumberField(TEXT("source"), Transition.PreviousState);
                 Edge->SetNumberField(TEXT("target"), Transition.NextState);
                 Edge->SetNumberField(TEXT("logic"), static_cast<int32>(Transition.LogicType.GetValue()));

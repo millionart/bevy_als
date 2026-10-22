@@ -22,6 +22,10 @@ for machine in metadata:
     for state in machine['states']:
         assert isinstance(state['always_reset'], bool)
         for edge in state['exits']:
+            transition = objects[edge['transition_path']]
+            assert transition['class_path'] == '/Script/AnimGraph.AnimStateTransitionNode'
+            transition_guid = next(p['exported_text'] for p in transition['properties'] if p['name'] == 'NodeGuid')
+            assert str(uuid.UUID(transition_guid)) == edge['transition_guid']
             assert edge['source'] == state['index']
             assert edge['target'] in range(len(machine['states']))
             assert edge['logic'] in [0, 1, 2]

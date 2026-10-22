@@ -34,6 +34,10 @@ for sample, result in zip(request['samples'], data):
                 expected = sample['from'][source_key][i] * first + sample['to'][source_key][i] * second
                 assert abs(bone['transform'][channel][axis] - expected) < 3e-6
         expected_rotation = [a * first + b * second for a, b in zip(sample['from']['rotation'], sample['to']['rotation'])]
+        raw = bone['raw_transform']
+        assert raw['translation'] == bone['transform']['translation'] and raw['scale'] == bone['transform']['scale']
+        raw_rotation = [a * bone['source_weight'] + b * bone['target_weight'] for a, b in zip(sample['from']['rotation'], sample['to']['rotation'])]
+        assert max(abs(raw['rotation'][axis] - raw_rotation[i]) for i, axis in enumerate('xyzw')) < 1e-14
         length = math.sqrt(sum(v * v for v in expected_rotation))
         assert max(abs(bone['transform']['rotation'][axis] - expected_rotation[i] / length) for i, axis in enumerate('xyzw')) < 1e-7
     assert abs(frame['curve'] - (sample['curve_a'] * (1 - alpha) + sample['curve_b'] * alpha)) < 1e-6

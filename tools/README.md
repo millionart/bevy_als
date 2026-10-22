@@ -41,7 +41,11 @@ BlendList请求可选`two_way: {child, property}`，从当前AnimBP CDO复制指
 
 同一BlendProfile探针同时输出`two_way_effective_alpha=1−(1−alpha)`与原生FBlendedCurve::Lerp的`two_way_curve`，旧`curve`仍保留加权和结果。可选`weighted_inputs`包含1–8个`{weight, transform}`，weight必须是JSON数字且转成float后有限、正数并不超过1，transform使用相同源厘米/xyzw格式；同时提供`pose_mode: multi|two|gait`。探针用公开FAnimationRuntime API输出单骨骼`weighted_pose`：multi追加原节点末尾归一化，two要求两个输入并由API回算第二权重，gait复现无Profile的单姿态直通/双姿态分支。这是相同输入的算子控制，不负责运行原AnimBP、决定相关性或生成输入权重。
 
+各Profile骨骼的`raw_transform`记录Overwrite/Accumulate之后、NormalizeRotation之前的原生FTransform，`transform`保持原归一化输出。该字段可核对多层FSM中的非单位中间四元数；输入仍须通过原IsNormalized合法性检查，不按检查容差自动归一化。
+
 `run_ue_source_reader.ps1 -StateMachinePlayers` 接受AnimBP，输出编译后的FSM入口、状态reset标志、有序退出规则和PlayerNodeIndices/LayerNodeIndices。退出规则包含编译起止状态、逻辑、时长、blend/profile及重入/自动规则配置；节点索引映射到CDO属性和原图GUID。别名可能把同一原节点编译成多个实例：读取器校验索引与GUID反查均指向同一原节点，并记录`shared_origin_node_index`；不能要求GUID与编译索引一一对应，也不能把共享规则图所属节点当作所有引用转场的身份。Sequence Player额外输出资产长度/RateScale和公开getter取得的有效速率、起点、loop/ignore配置，原始反射字段仍在已有CDO记录中。该入口不执行动画图或模拟播放器时钟。用`python tools/tests/test_state_machine_players.py <output.json>`检查入口/边界索引、原图与共享实例身份、节点类型和有效配置结构。
+
+每条编译退出的`transition_guid`/`transition_path`由FStateMachineDebugData按实际TransitionIndex反查原转场节点；`rule`继续记录规则节点。共享规则可被多个转场复用，不能用rule GUID推断转场身份。
 
 `StateMachinePlayers`另输出`asset_players`，按编译属性完整枚举FAnimNode_AssetPlayerBase派生节点，覆盖FSM列表之外的共享/直接播放器；每个节点的`synchronization`由原生getter读取组名、方法、角色、重入覆盖标志、当前资产及marker名称。SequenceEvaluator的覆盖标志继承基类false，不要求存在对应反射字段。`test_compiled_sync_players.py`交叉核对完整CDO播放器集合与配置；清单是静态配置证据，不能代替运行时同步验收。原machines及已有字段保持。
 
