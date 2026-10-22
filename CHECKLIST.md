@@ -1944,6 +1944,15 @@
 
   - 03:08 完成摘要：原finger0/四curve阶段至Root共77 pose/6083骨骼、308曲线包，0target回填；current全部stage键值/骨骼/时点合同及完整240/warm历史逐字段通过。三非copy曲线步骤各绕过改变全部77包，物理消融稳定失败、源码字节恢复/同解释器原数据字节恢复；观察移除/字节恢复并在同target重编、完整历史保持。新增标准库逐frame读取只为625/666MB历史，6种块大小/6非法结构自测通过；旧全量解析与64KB重复解析的watchdog失败保留排除，4MB实际比较13.669秒完成、120/30上限不变。1634身份键/114 ALS/184 Rust/reader/原资产/转换器/生产库保持。Gate `target/bf144/239/summary.json` PASS_ORIGINAL_LAYERING_ROOT_POSE_AND_CURVE_PREFIX。实际结束：2026-10-23 03:08:08 +08:00；实耗27分53秒，较预估提前7分7秒。新增0，累计239（115P2/124P3）；完整反馈/custom attributes、活动Curves montage、Head/Rig及180恢复仍开，下一项仅沿真实Layering→Head输入与source Head依赖。截图0、性能暂停。
 
+- [x] BF144.240 原Layering→Head输入传递与Head必要闭包：依赖.239原Layering77骨骼/曲线，fresh读取主AB和AB_Als_Head，逐边核Layering caller→Head View Input、linked上下文与Head真正Root前驱/侧依赖；用actual同owner输入/输出证明无附加运算，再传递原77结果并列出下一必要source输入/状态/资产。Gate：fresh连线/类/绑定清单，actual完整240/warm逐字段保持、原输入0target回填、错owner/边界反例和观察消融字节恢复同target、身份。只验入口与依赖，不将Head内部或原反馈循环算过。开始：2026-10-23 03:09:15 +08:00；预估结束：2026-10-23 03:44:15 +08:00。估时依据：.230 caller/cache边界约6分钟、.236根闭包约13分钟，当前新增Head实际观察/恢复及fresh依赖清单按35分钟，内部混合/叶资产另按真实闭包拆分。仅审计，生产/转换器/原始资产不改，截图0、性能暂停。
+  - 03:09 活动摘要：.239提交af10b2ca，239（115P2/124P3）；原Layering Root已备，下一已证主AB边为e4f33e44 Head的View Input。先fresh确认实际边和Head必要闭包，未见source不展开旁链；完整反馈/custom attributes与180恢复继续开放。
+
+  - 03:13 source/actual闭环摘要：fresh主AB边明确Layering47121→Head e4f33的View Input，Head6节点/5边全部Root可达，仅3个动态绑定（HeadBlendAmount/PitchAngle/YawAmount）、InitializeHead相关性回调/RefreshHead逐update和BS_Als_Look三源sample。actual240帧同parent下Layering owner4→caller1→Head owner3，Root/outer/input骨骼、通道presence、曲线键值和timestamp全部相等；完整旧240/warm与所有case字段精确。当前本例Head参数全程pitch0/yaw0.5/alpha1，只更新Forward sample，不由此泛化Down/Up或其他输入；原77入口传递、反例/观察恢复与身份待收尾，239，截图0、性能暂停。
+
+  - 03:15 原入口/反例摘要：77原Layering source packet/6083骨骼原样transport为Head input，0target骨骼/曲线回填。wrong Layering owner、Head owner、caller、input与变更timestamp五反例全部拒绝；物理去source-owner断言稳定丢见证失败，字节恢复/同解释器原输出字节保持。观察移除/恢复同target均已运行成功，完整历史两轮streaming比较仍在进展中；1634前轮身份基线尚待本轮核验，不能先勾选。239，截图0、性能暂停。
+
+  - 03:17 完成摘要：fresh主AB与Head6节点/5边、3绑定/2回调和Look三sample身份闭合；同owner actual240份Root→caller→linked input骨骼/presence/曲线/时点全等，旧240/warm及全部case metadata精确。77原packet/6083骨骼原样进入Head，0target回填；五边界反例、owner断言物理移除失败/源码字节恢复同解释器输出字节保持。观察移除/字节恢复同target两次重编与完整双比较通过，后者105.104秒在120/30限内完成，无新运行时视觉Gate。1651身份键/114 ALS/184 Rust/reader/原资产/转换器/生产库保持，Gate `target/bf144/240/summary.json` PASS_ORIGINAL_LAYERING_TO_HEAD_INPUT_BOUNDARY。实际结束：2026-10-23 03:17:00 +08:00；实耗7分45秒，较预估提前27分15秒。新增0，累计239（115P2/124P3）；Head原叶采样/内部Apply尚未过，完整feedback/custom attributes/Curves活动montage/Rig与180恢复继续开。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D241 / P3 — Mesh加性在还原局部空间前单位化组件旋转，改变源运算阶段。
