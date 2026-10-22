@@ -1518,6 +1518,39 @@
 
   - 16:54 完成摘要：唯一新增直接Base叶A_Als_Crouch_Walk_Pose的4点316骨骼公共compressed→codec/retarget→独立SDK全等，流34 wrap bone/35 clamp curve，149 default/82 constant/0 animated；原sample_pose与1648实际零点/130192骨骼/PoseGait1曲线精确。原数据零点64骨骼不等（105472实际样本）、四点260归D224；同源数据/型位最小常量路径全部codec及final f32精确，12份retarget f64变化不改变当前f32。只换压缩键的16个中点ULP经物理删constant路径稳定复现，删掉未使用的source帧域/nlerp/animated抽象后所有输出保持；源码字节及同target重编恢复精确。795身份键/114 ALS/184 Rust/reader/原始资产/生产库保持，Gate `target/bf144/194/summary.json` PASS。实际结束：2026-10-22 16:54:32 +08:00；实耗10分32秒，较预估提前24分28秒，constant流使原估计的复杂时间重建无需新增实现。新增差异0，累计235（115P2/120P3），只扩D224数据范围；新叶已可用于原source复合，但缓存owner运输→parent/FSM→完整Base及Root/反馈仍未过，下一项继续。截图0、性能暂停。
 
+- [x] BF144.195 原Movement source叶到缓存/直接父层的数值运输：依赖.193完整Base136节点/owner索引及.194最后数值叶，从原native14播放器/BS子pose记录和source sampler流开始，把原source值沿Save/Use缓存及直接16混合父节点运输，禁止用target child pose lift补缺。先核对原组记录与当前实际时钟/权重/更新资格的共同输入边界；若某原source记录未求值或属不同输入，明确缺口并经已有codec在所需源时点采样，不能按同值/同名匹配。Gate：当前10路径scope内source播放器身份/时点/资格合同、缓存linked owner/context实际解析和原target运输校准、原数据source父层数值复算与阶段误差分类，未原始重建的StateResult/FSM/Base/Root仍单列依赖，不冒称完整等价。开始：2026-10-22 16:56:00 +08:00；预估结束：2026-10-22 17:51:00 +08:00。估时依据：.193来源/运输17分27秒、.194数值叶10分32秒，16父层与13缓存/409 owned-child需要连续来源和原source数组代换，按55分钟，后续FSM全栈复合在依赖项继续。仅审计、生产/转换器/原始资产不改，截图0、性能暂停。
+  - 16:56 活动摘要：.194已提交；当前15直接叶数值各有source合同，.182模型此前lift target子pose，尚非原source父输出。target scoped_cache_context按linked-instance边界、显式cache_key/保存节点解析，私有helper不能在帧后调用以免更新状态；本项只读owner/已求值cache记录，且核对源SaveCachedPoseNode引用。原native组Pose使用其真实source clock/资格，不能默认与target记录时点一样，下一步先列共同输入和缺少运输字段，再收一次必要观察。当前235（115P2/120P3），截图0、性能暂停。
+
+  - 16:59 数值运输约束：现有.182 parent_model把target child lift成source空间并在每个输出立即投影f32；新原source复合不可直接递归调用它，否则中间精度又回到target表示。复用已原生校准的parent_math.dylib只执行源double累加/规定normalize，原bone数组在缓存/父层之间保留double，曲线维持源FBlendedCurve的f32规则，最后比较处才投影。当前只读cache观察按真实LayeredGraph实例边界/key解析，不调用resolver/更新；先在进程内比较Save/Use原值后只保存Save姿态与Use身份，避免重复大数组，新观察最终编译中。当前235，截图0、性能暂停。
+
+  - 17:02 原source数组运输准备：原.180每case文件同时保留14播放器及BS原子pose/完整source时钟，采用声明asset identity唯一映射到原14 GUID，避免按数组序号猜顺序；读取源ticked/未tick资格独立记录，后续与target实际叶/缓存资格逐项核对，未求值不得用target或上一份pose补空。source父层继续在double空间保存中间数组，只有最终比较时投影。缓存只读观察已在输出前按owner/key解析并精确比Save/Use骨骼、timestamp及case-insensitive曲线/default，Use只存身份标记减少重复数据；首个已有完整case正在验证，当前235，截图0、性能暂停。
+
+  - 17:05 数值拓扑拆分事实：16个已审混合中，15个在Movement FSM之前，Crouch Base TwoWay 364a7469的B依赖FSM最终原source输出，必须在StateResult/FSM原数组重建之后才能复合。当前原source递归运输先计算前15父层；该后置父节点若尚无source FSM值明确报依赖，不用target lift补齐，也不声称16个原source父层已完成。新Pose evaluator源0已由.194可供后置A输入；这属于按已证实依赖调整数值顺序，整体Base/Root目标保留。原14native角色第一个case有648份实际ticked原pose/51192骨骼，2712声明槽未tick资格单列；source与target时钟/更新资格比较正在按GUID校准。当前235，截图0、性能暂停。
+
+  - 17:08 首例source重算纠正：源pose身份/时钟资格已对齐，648实际tick与target资格相同但105个时钟数值不同，依原source时钟运输不替换为target。初次原source父数组递归缺口包含诊断精简记录未存alphas及后置Base TwoWay的FSM依赖，均不是新引擎差异；改从同一已完整校准的195原case父记录读取原有alpha标量，剔出明确后置364a7469作为下一FSM依赖，不填target pose。缓存save输出既有Pose/pose两种原pin，已按真实pin合同处理。当前原source前15父层正重新复算，235不变、截图0、性能暂停。
+
+  - 17:13 工具与新source数值校准：首例469份原source前父输出的18个公开UE原数组组合控制f64全等，骨骼不经过target lift或中间f32。全10路径cache观察运行已在300/90内完成，但完整新旧JSON总量使单一120/30比较完成6case后wall_timeout（无进展仅0.966秒）；不延长上限，改按当前固定serde顶层case边界拆份，每份重新解析并验证root name/240帧，再各自120/30严格比较和保存routes，避免跨case大DOM/数组累计。拆分器限定当前canonical产物并断言8/2完整case，无源数据重写。当前235，截图0、性能暂停。
+
+  - 17:15 分case校准已取得首份9.46秒通过，继续余下9份同120/30独立Gate；新source父层运输脚本已参数化到对应case/native原时钟文件，所有输入bone数组仅来自native pose，alpha/分支使用已审共同输入packet，明确不代表完整Root feedback原始生产已经闭合。原source第1case前父469份/648叶/952缓存读取无缺口，后置Base223份只记依赖。原18个double中间组合已公开API逐值精确，待全10source父层重算及覆盖更多gait/multi输入；当前235，截图0、性能暂停。
+
+  - 17:17 原source oracle边界复核：target缓存Use有context_defaults能力，但UE原UseCachedPose只复制原源值，不能把target默认曲线逻辑带入source重算。首例实际defaults全空；已从source数组resolver删除该target默认注入分支，完整10路径另独立统计有无默认字段，随后按最终源码重算验证。target Save/Use校准仍按target真实默认规则，不与source oracle混用。当前全source父层10case首轮均0缺口，后置FSM父层仍明确依赖，当前235；截图0、性能暂停。
+
+  - 17:20 全10原source前父已重建：8123输出/641717骨骼，10277原native叶读取/14825缓存读取，无source缺口；1648后置Crouch Base依FSM明确保留。与当前target的584053位置/576657旋转/157986 scale及5369曲线值不等是原数据+source clocks+已知父算子组合，曲线presence0差，不全归某单因或新增编号。所有20156 Use/16570 Save（18639跨context）共1592324骨骼先按显式owner/key匹配后精确校准，2400帧旧完整历史全过。目标cache defaults在全部case均空，已从source oracle删掉该target默认分支并按最终脚本重算比原数值digest，保留源曲线原状态；全种类source父数组公开API控制准备中。当前235，截图0、性能暂停。
+
+  - 17:22 原source数值见证与设计消融：全量选取gait/multi/two各12、共36份原source中间数组的公开UE组合输出f64全等；空target defaults分支从source oracle删除后10case原source输出digest保持。目标只读观察器也按当前全部defaults空的证据去掉多余默认合并路径、改明确空约束和精确曲线复制，已同target重编并回跑最小完整case校准。另物理清空原source叶表，原target父pose仍留在记录中，要求source重算完全拒绝而非回填，当前消融运行中；终态后将源码字节恢复、重算最小case并核对原数值digest。当前235，截图0、性能暂停。
+
+  - 17:23 数据消融确认/检查顺序纠正：清空原source叶表后全部469前置父输出拒绝、0生成、469 source_leaf缺口，虽原target pose可读也无回填；原脚本已按字节恢复并重算最小case。之前digest检查与该写同regular-0产物的消融被误并行，检查读到消融输出而失败，不能视为数学算法改变；已按共享产物依赖改为等待最小case恢复终态，再串行核对全部10数值digest。保留原失败报告不抹除，当前235、截图0、性能暂停。
+
+  - 17:25 序列化校准纠正：最小source数据恢复后469输出结构逐值完全相同，但regular0/3文件hash不同；source two-way曲线使用set键并集，Python随机hash改变JSON对象键序，非数值/数组顺序变化。source输出改稳定sort_keys序列化，检查保留精确递归数值/数组顺序，不再用对象键序作算法变化证据；为完整消融，独立目录运行仅加回已证实空defaults分支的参考模型，逐case和最终pruned模型精确比较，不覆盖源最终数据。reader/生产/原始资产未改，当前235，截图0、性能暂停。
+
+  - 17:26 当前source复合误差边界：8123份原source前父输出真实使用源组时钟/压缩pose，target缓存路径/当前共同参数已完整校准；现有差异是此前已证实source clock、D224数据、D231/D232及D233/D234等父算子共同传播，不把组合计数当新根因。全类别36个原double中间值公开UE f64控制精确、零缺口；尚未原始重建的StateResult/FSM和1648后置Base混合将在下一依赖继续，完整Root feedback更后置。设计删减后的缓存观察最小240帧与所有原新字段完整输出精确，当前235、截图0、性能暂停。
+
+  - 17:28 时钟单位复盘：首例“105时钟不同”来自辅助脚本直接比较native BS normalized position与target relevant-asset seconds，不能作为真实时钟分歧。已回读.171闭合比较代码，恢复source BS phase→target position/duration及逐sample time/clip_time秒制比较，纯Sequence仍比seconds；数值source父重建始终直接用原native pose，未使用该错误差值，故原数组不受此诊断错误影响。当前不将105计入已知clock缺陷，待同单位检查结果后说明；源/target资格648/2712对应保持。235不变、截图0、性能暂停。
+
+  - 17:30 同单位全量时钟合同通过：33600声明槽/10277更新（4849 BS、9635原子采样秒值、5428纯Sequence）与target资格/phase/采样时点全等，0时钟差；先前首例105为混单位假差已撤回，不归已有sync缺陷。故当前8123原source前父与target的组合差异只按原叶数据和已知混合数值阶段传播说明，不再声称当前时钟不同。source原数组始终取native pose不受该辅助诊断错误影响；全36新中间组合公开API f64精确，所有不必要defaults分支消融与数值逐值恢复已过，当前最后最小最终脚本复验/身份待收尾。235不变，截图0、性能暂停。
+
+  - 17:33 完成摘要：全10路径2400帧旧完整历史精确，16570 Save/20156 Use按真实linked owner/key及当前骨骼/曲线/timestamp校准（18639跨context/1592324骨骼）；源14身份/33600声明槽、10277更新、4849 BS phase/9635原子秒与5428纯Sequence秒全等，最初105时钟差已证为单位假差撤回。原native叶double数组沿缓存/15前FSM父层重建8123输出/641717骨骼，10277叶/14825缓存读取、0缺口，36份gait/multi/two公开API新中间数组f64精确；1648后置Crouch Base明确等原FSM值。清空源叶表即拒绝全部469最小输出，target记录存在也0回填；字节恢复最终脚本后原数值精确。目标defaults空逻辑从source oracle删除后10case精确数值/数组不变，随机对象键序不计算法；观察器多余默认合并也删除、同target重编最小完整240帧精确。总JSON比较wall上限失败后按完整case独立120/30Gate通过，不放宽验证。850身份键/114 ALS/184 Rust/reader/原始资产/生产库保持，Gate `target/bf144/195/summary.json` PASS。实际结束：2026-10-22 17:33:36 +08:00；实耗37分36秒，较预估提前17分24秒。新增差异0，累计235（115P2/120P3）；这是共同已审参数下原source姿态复合，原StateResult/FSM、后置Base及Root/反馈仍未通过，下一项继续。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
