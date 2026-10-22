@@ -1601,6 +1601,17 @@
 
   - 18:11 完成摘要：原Standing FSM1738/原Crouch Base1648与原Lean按真实context/base node/pin接线，全10原Apply3386/267494骨骼、0source缺口/0target pose回填；fresh两Apply配置精确，24新原组合公开加性API及节点末尾normalize f64精确。原Base/Lean分别断供均拒绝268最小输出，最终脚本按字节恢复后原数组精确；删除末尾normalize的24 f32变化补已有D231。当前target组合比较曲线名字0丢失，其余值是已知上游/算子共同传播，不拆成新根因。1034身份键/114 ALS/184 Rust/reader/原始资产/生产库保持，Gate `target/bf144/199/summary.json` PASS。实际结束：2026-10-22 18:11:44 +08:00；实耗4分44秒，较预估提前30分15秒。新增0，累计235（115P2/120P3）；原数据仅闭合至当前两stance Apply，完整Root反馈/下游消费者、未触发方向/slot仍未通过，继续后续闭包。截图0、性能暂停。
 
+- [x] BF144.200 原stance Apply输出至Root的源依赖与反馈清点：依赖.199原两stance Apply数据链，fresh读取已进入核心运动闭包的stance/Grounded/Locomotion/主AB，沿Apply→各图真实Result/linked caller→Root逐节点列出pose/曲线/状态/反馈依赖，并映射当前target消费者；只展开源连线证明的闭包，不修改已完成项或实现补偿。Gate：源/target节点身份、递归依赖无丢边、已覆盖与缺失原数据/数值/历史分支明确分离、后续按依赖拆成≤60分钟可独立验收项、静态自测/身份与记录提交。本项只作清点，不能当完整Root数值/反馈通过。开始：2026-10-22 18:12:00 +08:00；预估结束：2026-10-22 18:52:00 +08:00。估时依据：.193原136节点闭包约22分钟，当前新增stance后继与3个核心caller，已有source资产读取/生成映射工具可复用，按40分钟清点和拆分，不混入新runtime或完整Root重建。仅审计，生产/转换器/原始资产不改，截图0、性能暂停。
+  - 18:12 活动摘要：.199 Gate已过并提交，原Base/Lean/Apply链已可消费；下一步从fresh source真实Apply后继和Result反向依赖交叉检查，先分清单纯运输、源标量反馈、stance/locomotion FSM、层化/惯性/Rig等实际consumer边界，再登记依赖项。当前235（115P2/120P3），未宣称完整Root等价。
+
+  - 18:16 首层真实后继清点：fresh stance图按原pose pin、Save→Use显式对象引用、StateResult→所属machine合成后，Standing Apply至本图Root有52节点/61边、11侧依赖，Crouching有16/16及7侧依赖；Standing包含Details与Start/Pivot附加加性链和三FSM，Crouching包含Stop分层及一FSM，均非直通。回调原prototype明确RefreshStanding/CrouchingMovement、RefreshGroundedMovement、RefreshRotateInPlace及Initialize/ResetPivot；不从空Function=()猜无调用。首次工具误扫ExecuteUbergraph编译副本造成所属machine缺键，已严格限定:AnimGraph原作者scope后闭合，不记生产差异。fresh Grounded含两LinkedInputPose与主FSM/惯性/ModifyCurve，Locomotion/Root正递进读取，当前235、截图0、性能暂停。
+
+  - 18:18 五核心源连线已接通：fresh source根→linked result与具名linked input连接后，当前Apply双入口可达Root的后继108节点/123边、26侧依赖；侧输入按原pose/cache/state/linked引用递归另有264节点。Layering、Head、Ragdolling和Default Overlay为真实引用到的四外部linked边界，本项仅列其身份，不声称内部已闭合。372源节点在当前target有368个唯一GUID位置，其余4个均为已有Base路线Knot折叠，正沿真实前驱核对；还需原反馈属性、cache/state桥自测/消融和后续依赖拆分，不能把拓扑可达当数值等价。235不变，截图0、性能暂停。
+
+  - 18:20 静态Gate闭环：372源节点→368唯一target位置，4个Knot沿单一真实前驱收敛到原Standing FSM或Crouch TwoWay，0非Knot缺口；372语义节点共160绑定/29唯一路径，保存原Binding子对象、非pose输入、回调prototype及节点属性，9FSM的165状态/条件BoundGraph/632节点均存在。物理移除cache桥或StateResult桥，Root可达断言分别失败；字节恢复后完整原闭包hash精确。后续按实际依赖拆为Movement缓存→Crouch Stop→Standing Details/主FSM→Grounded/Locomotion→四linked边界/slots/Rig反馈，计划证据`target/bf144/200/remaining-plan.md`，每段执行前独立清单/估时，不把登记计划当通过。身份待核，235不变，截图0、性能暂停。
+
+  - 18:20 完成摘要：fresh五核心原图身份、pose/cache/state/linked闭包已清点；108后继/123边、26侧依赖递归264节点，372源节点有368 target唯一位置/4已证折叠Knot，0非Knot缺口。160绑定/29唯一路径与14主链callback原prototype明确，9FSM/165 BoundGraph/632节点无缺失；cache/state桥消融分别断Root可达，字节恢复完整闭包精确。1053身份键/114 ALS/184 Rust/reader/原始资产/生产库保持，Gate `target/bf144/200/summary.json` PASS；Layering/Head/Ragdolling/Default Overlay四真实linked内部及完整Root数值/反馈仍未验收，本项不计数值等价。后续按`remaining-plan.md`分为≤60分钟独立Gate，下一项只接Movement缓存及立即反馈边界。实际结束：2026-10-22 18:20:22 +08:00；实耗8分22秒，较预估提前31分37秒。新增0，累计235（115P2/120P3）；截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
