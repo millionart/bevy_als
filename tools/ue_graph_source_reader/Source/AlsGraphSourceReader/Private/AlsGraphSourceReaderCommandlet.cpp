@@ -27,6 +27,7 @@
 #include "Animation/AnimNode_TransitionResult.h"
 #include "Engine/World.h"
 #include "AnimNodes/AnimNode_BlendListBase.h"
+#include "AnimNodes/AnimNode_BlendSpacePlayer.h"
 #include "AnimNodes/AnimNode_TwoWayBlend.h"
 #include "AnimNodes/AnimNode_LayeredBoneBlend.h"
 #include "AnimNodes/AnimNode_Slot.h"
@@ -3809,6 +3810,10 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
     {
         static const FAnimInstanceProxy& Proxy(UAnimInstance* Instance) { return *GetProxyOnGameThreadStatic<FAnimInstanceProxy>(Instance); }
     };
+    struct FBlendSpaceAccess : FAnimNode_BlendSpacePlayerBase
+    {
+        static const TArray<FBlendSampleData>& Samples(const FAnimNode_BlendSpacePlayerBase& Node) { return Node.*&FBlendSpaceAccess::BlendSampleDataCache; }
+    };
     const auto CaptureGetter = [](UAnimInstance* Instance) -> TSharedPtr<FJsonObject>
     {
         UFunction* Function = Instance->FindFunction(TEXT("GetControlRigInput"));
@@ -3851,11 +3856,55 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
                 const FAnimInstanceProxy& ChildProxy = FInstanceAccess::Proxy(Child);
                 ChildRow->SetStringField(TEXT("class"), Child->GetClass()->GetPathName());
                 ChildRow->SetBoolField(TEXT("main"), Child == Main);
-                TArray<TSharedPtr<FJsonValue>> Machines;
+                TArray<TSharedPtr<FJsonValue>> Machines, Players;
                 if (const IAnimClassInterface* ChildInterface = IAnimClassInterface::GetFromClass(Child->GetClass()))
                 {
                     for (const FStructProperty* Property : ChildInterface->GetAnimNodeProperties())
                     {
+                        if (Property->Struct->IsChildOf(FAnimNode_AssetPlayerBase::StaticStruct()))
+                        {
+                            const FAnimNode_AssetPlayerBase* Player = Property->ContainerPtrToValuePtr<FAnimNode_AssetPlayerBase>(Child);
+                            UAnimationAsset* Animation = Player->GetAnimAsset();
+                            TSharedRef<FJsonObject> PlayerRow = MakeShared<FJsonObject>();
+                            PlayerRow->SetStringField(TEXT("property"), Property->GetName());
+                            PlayerRow->SetStringField(TEXT("node_type"), Property->Struct->GetPathName());
+                            PlayerRow->SetStringField(TEXT("asset"), ObjectPath(Animation));
+                            PlayerRow->SetNumberField(TEXT("current_asset_time"), Player->GetCurrentAssetTime());
+                            PlayerRow->SetNumberField(TEXT("cached_blend_weight"), Player->GetCachedBlendWeight());
+                            const FBoneContainer& Bones = ChildProxy.GetRequiredBones();
+                            PlayerRow->SetBoolField(TEXT("required_bones_valid"), Bones.IsValid());
+                            if (const UAnimBlueprintGeneratedClass* AnimationClass = Cast<UAnimBlueprintGeneratedClass>(Child->GetClass()))
+                            {
+                                const int32 PropertyIndex = ChildInterface->GetAnimNodeProperties().IndexOfByKey(Property);
+                                if (const UEdGraphNode* Visual = AnimationClass->GetVisualNodeFromNodePropertyIndex(PropertyIndex)) { PlayerRow->SetStringField(TEXT("node_guid"), GuidText(Visual->NodeGuid)); }
+                            }
+                            if (UAnimSequence* Sequence = Cast<UAnimSequence>(Animation); Sequence != nullptr && Bones.IsValid())
+                            {
+                                const FAnimExtractContext Context(Player->GetCurrentAssetTime(), false);
+                                PlayerRow->SetStringField(TEXT("pose_mode_at_observation"), FSequencePoseAccess::UsesRawData(*Sequence, Bones, Context) ? TEXT("raw") : TEXT("compressed"));
+                            }
+                            if (Property->Struct->IsChildOf(FAnimNode_BlendSpacePlayerBase::StaticStruct()))
+                            {
+                                const FAnimNode_BlendSpacePlayerBase* Blend = Property->ContainerPtrToValuePtr<FAnimNode_BlendSpacePlayerBase>(Child);
+                                TArray<TSharedPtr<FJsonValue>> Samples;
+                                for (const FBlendSampleData& Sample : FBlendSpaceAccess::Samples(*Blend))
+                                {
+                                    TSharedRef<FJsonObject> SampleRow = MakeShared<FJsonObject>();
+                                    SampleRow->SetNumberField(TEXT("index"), Sample.SampleDataIndex);
+                                    const UBlendSpace* BlendSpace = Blend->GetBlendSpace();
+                                    UAnimSequence* Sequence = BlendSpace != nullptr && BlendSpace->GetBlendSamples().IsValidIndex(Sample.SampleDataIndex) ? BlendSpace->GetBlendSamples()[Sample.SampleDataIndex].Animation.Get() : nullptr;
+                                    const float Time = Sequence != nullptr ? FMath::Clamp<float>(Sample.Time, 0.f, Sequence->GetPlayLength()) : Sample.Time;
+                                    SampleRow->SetStringField(TEXT("asset"), ObjectPath(Sequence));
+                                    SampleRow->SetNumberField(TEXT("time"), Time);
+                                    SampleRow->SetNumberField(TEXT("cached_time"), Sample.Time);
+                                    SampleRow->SetNumberField(TEXT("weight"), Sample.GetClampedWeight());
+                                    if (Sequence != nullptr && Bones.IsValid()) { SampleRow->SetStringField(TEXT("pose_mode_at_observation"), FSequencePoseAccess::UsesRawData(*Sequence, Bones, FAnimExtractContext(Time, false)) ? TEXT("raw") : TEXT("compressed")); }
+                                    Samples.Add(MakeShared<FJsonValueObject>(SampleRow));
+                                }
+                                PlayerRow->SetArrayField(TEXT("blend_samples"), Samples);
+                            }
+                            Players.Add(MakeShared<FJsonValueObject>(PlayerRow));
+                        }
                         if (Property->Struct != FAnimNode_StateMachine::StaticStruct()) { continue; }
                         const FAnimNode_StateMachine* Machine = Property->ContainerPtrToValuePtr<FAnimNode_StateMachine>(Child);
                         TSharedRef<FJsonObject> MachineRow = MakeShared<FJsonObject>();
@@ -3867,6 +3916,7 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
                     }
                 }
                 ChildRow->SetArrayField(TEXT("machines"), Machines);
+                ChildRow->SetArrayField(TEXT("asset_players"), Players);
                 ChildRow->SetNumberField(TEXT("update_counter"), ChildProxy.GetUpdateCounter().Get());
                 ChildRow->SetNumberField(TEXT("evaluation_counter"), ChildProxy.GetEvaluationCounter().Get());
                 Linked.Add(MakeShared<FJsonValueObject>(ChildRow));

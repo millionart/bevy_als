@@ -31,6 +31,8 @@
 
 惯性请求可增加`bone_names`，必须完整匹配当前源骨架的名称及顺序；此时每步以同长度`bone_transforms`数组提供全部局部变换，替代根骨骼字段，通道格式仍为厘米平移、xyzw旋转和无单位scale。工具逐项映射到compact pose索引，并输出`bone_names`、`parent_indices`及每帧`bone_transforms`；旧根骨骼`transform`仍保留。缺骨、错名、混用输入格式均拒绝，不补造通道。`inertialization_full_pose.request.json`和`test_inertialization_full_pose_probe.py`验证79骨骼映射与根/子骨骼平移、旋转和缩放。
 
+`CharacterAnimationProbe`的实例记录包含`asset_players`：实际资产、节点GUID、当前时点、缓存Update权重及可查询序列的`pose_mode_at_observation`。BlendSpace另记录实际样本缓存的声明索引、源资产、夹取时点/权重及观察时mode。缓存权重不证明该pose已执行，观察时mode不证明此前求值时mode；使用`test_character_asset_player_probe.py`核对观察结构与非法值。
+
 `run_ue_source_reader.ps1 -BlendListProbe <request.json>` 运行原生FAnimNode_BlendListBase的Initialize/Update；请求提供`mode`、`blend_times`及命名`samples`，每步使用`active`子索引和`delta_seconds`。输出每帧权重、按现有权重缩短的时长、实际子Update权重及初始化次数。入口使用默认子更新策略，无BlendProfile，不执行完整AnimBP；默认不求值pose，`-Asset`用于读取器的常规资产记录。`blend_list.request.json`与`test_blend_list_probe.py`核对Cubic首帧、反转时长、子相关性与初始化。
 
 sample可选`poses`数组，每个child一份`bone_transforms`（source厘米translation、source quaternion和scale，按当前AnimBP目标Skeleton完整骨序）及`curves`。此时`-Asset`必须为AnimBP，工具另执行CacheBones/Evaluate，逐帧输出`input_poses`和`pose`；该模式不与`two_way`、`cached_child`或`outer_two_way`组合。`test_blend_list_pose_probe.py`要求单个权重1输入的完整姿态和曲线直接传递，拒绝缺失或被修改的输出。
