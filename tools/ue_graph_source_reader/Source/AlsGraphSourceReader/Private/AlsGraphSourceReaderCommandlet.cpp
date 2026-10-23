@@ -289,6 +289,11 @@ TSharedRef<FJsonObject> CaptureRigMemory(const FRigVMMemoryStorageStruct& Memory
                     FString Text;
                     ArrayProperty->Inner->ExportTextItem_Direct(Text, Array.GetRawPtr(ElementIndex), nullptr, Parent, PPF_None);
                     Element->SetStringField(TEXT("exported_text"), Text);
+                    if (const FNumericProperty* Numeric = CastField<FNumericProperty>(ArrayProperty->Inner); Numeric != nullptr && Numeric->IsFloatingPoint())
+                    {
+                        const double Number = Numeric->GetFloatingPointPropertyValue(Array.GetRawPtr(ElementIndex));
+                        if (FMath::IsFinite(Number)) { Element->SetNumberField(TEXT("numeric_value"), Number); }
+                    }
                     if (const FStructProperty* InnerStruct = CastField<FStructProperty>(ArrayProperty->Inner))
                     {
                         Element->SetArrayField(TEXT("fields"), CaptureProperties(InnerStruct->Struct, Array.GetRawPtr(ElementIndex), Parent, true));
