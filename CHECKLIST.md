@@ -2494,6 +2494,12 @@
   - 07:37 传播Gate：严格物理/body transform/模式/FSM各40全同；RigInput属于下游反馈而非物理不变量，初次断言将其误纳入失败后已改为独立传播计数。D151有34时钟/36 pose帧、T/R/S通道行1225/2369/17变；D256有10时钟/35 pose帧、325/702/4通道行变，均为数值传播不宣称可见/源pose恢复。现fresh重取AIS_Als_Default只核直接stride/playrate设置引用，随后控制移除/字节恢复同target及身份；不扩其它图。
   - 完成/Gate：`target/bf144/313/summary.json`通过；3×40 actual scalar/原生oracle、source直接Standing设置/CPP与实际stride/playrate→clock/pose/RigInput传播已锁，物理/body/FSM全同。D151与D256扩consumer不增编号，控制移除/源码字节恢复同target重编、旧40baseline扣395只读字段后全同及5134身份（旧5093全不变）通过。生产/reader/转换器/原资产不改，254（115P2/139P3），截图0、性能暂停。开始07:34:41；预估结束08:04:41；实际结束07:40:51；实际用时370秒；偏差-1430秒；结果通过，精确角consumer、完整Root及旧恢复后缀原pose链后续继续。
 
+- [x] BF144.314 U07共同Forward域的精确heading消费者：依赖.311同primitive输入/Forward域及.313 Speed传播，fresh沿source Head/view/input/body角与target相同consumer，核前4帧Head yaw微差、统一原点后的InputYaw余差是否进入实际YawAmount、BlendSpace样本和Head输出。Gate：实际mode来源/消费条件、源目标相对角/标量与采样参数事实、最小消费者与必要控制/字节恢复同target/身份；只对已触发分支收结论，未触发VelocityDirection/半转等保留边界，不将raw角差直接当新bug，不吞完整Root。开始：2026-10-24 07:41:15 +0800；预估结束：2026-10-24 08:06:15 +0800。估时依据：.311 Head/raw角与40样本在位，.304 Head最终算子约12分钟；当前先核实际consumer/样本输入按25分钟，不重复已有数值核或采样数据。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 07:41 活动摘要：9f337aa7完成Speed实际消费者，5134身份、254（115P2/139P3）、树干净。当前Head yaw raw前4微差但YawAmount40均.5，InputYaw本模式分支未直接消费；下一按fresh条件/当前样本核是否真正传播，所有其它Root/旧恢复后缀原pose依赖继续开。
+  - 07:42 source/static：fresh Head.cpp原生RefreshHead末以YawAngle/360+.5写YawAmount，target同公式；现AB_Als_Head RON只以YawAmount驱phase、PitchAngle驱x，不直接用raw yaw；正以repo reader重取source Head图核绑定。当前source40实际Head player均Forward单样本/weight1/time=.5；target原context只继承base资产，不冒称Head样本权重，改复用.302现成head_nodes被动观察，核实际BS输出与Forward leaf/时点。当前不扩VelocityDirection/半转或其它图。
+  - 07:46 采样/恢复闭环：fresh source Head图绑定仅NormalizedTime=HeadState.YawAmount、X=HeadState.PitchAngle；40实际native player Forward weight1/time=.5，target仅Forward leaf更新且实际BS输出逐骨TQS等于Forward additive difference。raw yaw前4微差的float映射全为.5，正/负下一phase边界控制有信号；两端Head additive各自40恒定，不把原始clip绝对pose与additive混比，也不把BS pose全局timestamp当sample时点。observer移除/源字节恢复同target完整历史及旧40全部字段（仅加载clock原点ns归一）通过，254（115P2/139P3），身份进行中；仅关闭当前采样链，不外推VelocityDirection/半转或完整Head base/apply/Root。
+  - 完成/Gate：`target/bf144/314/summary.json`通过；fresh源绑定/40实际source player与target单Forward采样/输出已核，raw微角被float phase吸收；当前采样链关闭，无新增编号，254（115P2/139P3）。观察移除/源字节恢复同binary重编及旧40兼容、phase边界反例和5167身份（旧5134全不变）通过；两端additive各自恒定不代表互相同值，未覆盖VelocityDirection/半转或完整Head base/apply/Root。生产/reader/转换器/原资产不改，截图0、性能暂停。开始07:41:15；预估结束08:06:15；实际结束07:47:18；实际用时364秒；偏差-1136秒；结果通过，完整Root及旧恢复后缀原pose后续依赖继续。
+
 ### 已确认差异（仅登记，未实施修复）
 
 
@@ -4067,6 +4073,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.311当前边界：已锁world数据/actor逻辑/mesh局部基，并用公开spawn建立source/target40步同primitive输入与Forward语义；Head yaw_amount40同，D151增加31个普通yaw实际Speed消费者。九个同向量厘米float标量候选、精确微角消费及完整Root仍开，未声称所有动画输入同值。累计253（115P2/138P3），截图0、性能暂停。
   - BF144.312当前边界：九个Speed标量候选已由120原生长度控制确认为D256的厘米float量化阶段，D151局部投影因素独立。当前254（115P2/139P3）；普通Speed的实际graph consumer敏感性、精确角度输入/完整Root及旧恢复后缀原pose链仍开，截图0、性能暂停。
   - BF144.313当前边界：普通Speed已从实际producer贯通Standing参数、asset时钟、pose与Rig反馈；D151/D256的有限控制保持所有物理与FSM值，数值传播已记录，未宣称source Root恢复。当前254（115P2/139P3）；精确heading consumer、完整source-target Root及旧恢复后缀原pose链继续开，截图0、性能暂停。
+  - BF144.314当前边界：Forward40窗口的raw heading微差未进入实际Head phase/单Forward采样，source/target当前采样参数及各自恒定additive输出已核；不外推未触发模式/半转，不声称两端additive数据或Head base/apply等价。当前254（115P2/139P3），完整Root和旧恢复后缀原pose链继续开，截图0、性能暂停。
 
 - [x] BF144-U06 — Rig初始全局数据已于.245归D242/P3。最初.244发现71骨365个double差、默认240仅FootHeight double变化；.245保持全部原生算法，仅换初始数据即在受控半转产生约180°的float足旋转/实际Setter写回差，并在同source厘米算法的5个骨长舍入边界经同原生IK核产生13/15个float关节点差，分别隔离D163算法与D165单位舍入。数据移除/源码字节恢复及同target重编恢复通过，native数学读出移除/同package恢复亦通过；默认动作自然可达性未证，不因关闭U06声明无差异或修复。证据`target/bf144/245/summary.json`、`native-check.json`、`writeback.jsonl`、`restoration-check.json`；原.244记录保留。
   - BF144.136 follower记录重建补充：near-zero候选无有效end时记录leader移到最后一项；下一普通帧恢复正常leader，`AnimSync::Finalize`使follower记录失效。`BlendSpace.cpp:784–787`按已存归一化时间乘当前样本长度重建；目标此前保留秒数。18帧33个previous差最大约59.6ns，全部精确等于`(旧position/旧duration)*当前duration`；仅补这一步后4032帧所有previous也逐值一致，当前采样位置和姿态保持。证据`target/bf144/136/roundtrip-check.json`、`before-roundtrip-all-analysis.json`、`all-analysis.json`。
