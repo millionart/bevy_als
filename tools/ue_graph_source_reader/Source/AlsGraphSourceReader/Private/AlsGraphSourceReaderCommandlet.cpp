@@ -98,6 +98,8 @@
 #include "GameFramework/Actor.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/GameModeBase.h"
+#include "GameFramework/PlayerController.h"
 #include "GameFramework/WorldSettings.h"
 #include "AssetCompilingManager.h"
 #include "Misc/App.h"
@@ -4085,6 +4087,9 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
         if (!CaseValue->TryGetObject(Case) || !(*Case)->TryGetStringField(TEXT("name"), Name) || Name.IsEmpty() ||
             !(*Case)->TryGetBoolField(TEXT("dynamic_base"), bDynamicBase) || !(*Case)->TryGetNumberField(TEXT("spawn_height_cm"), Height) || !FMath::IsFinite(Height) || Height <= 0 ||
             !(*Case)->TryGetArrayField(TEXT("frames"), Frames) || Frames->IsEmpty() || Frames->Num() > 240) { return nullptr; }
+        bool bLocalController = false;
+        if ((*Case)->HasField(TEXT("local_controller")) &&
+            (!(*Case)->TryGetBoolField(TEXT("local_controller"), bLocalController) || (*Case)->TryGetField(TEXT("local_controller"))->Type != EJson::Boolean)) { return nullptr; }
         UWorld::InitializationValues Settings;
         Settings.AllowAudioPlayback(false).RequiresHitProxies(false).CreatePhysicsScene(true).ShouldSimulatePhysics(true).CreateNavigation(false).CreateAISystem(false).CreateFXSystem(false).SetTransactional(false);
         UWorld* World = UWorld::CreateWorld(EWorldType::Game, false, NAME_None, nullptr, true, ERHIFeatureLevel::Num, &Settings);
@@ -4196,7 +4201,30 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
         }
         ACharacter* Character = World->SpawnActor<ACharacter>(Class, FVector(0, 0, Height), FRotator::ZeroRotator, Spawn);
         if (Character == nullptr) { return nullptr; }
+        AGameModeBase* ControllerGameMode = nullptr;
+        APlayerController* Controller = nullptr;
+        if (bLocalController)
+        {
+            ControllerGameMode = World->SpawnActor<AGameModeBase>();
+            if (ControllerGameMode == nullptr) { return nullptr; }
+            Controller = ControllerGameMode->SpawnPlayerController(ROLE_SimulatedProxy, FString());
+            if (Controller == nullptr) { return nullptr; }
+        }
         World->InitializeActorsForPlay(FURL());
+        if (bLocalController)
+        {
+            if (!Controller->IsActorInitialized() || Controller->PlayerCameraManager == nullptr)
+            {
+                UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Source controller actors are not initialized."));
+                return nullptr;
+            }
+            Controller->Possess(Character);
+            if (Controller->GetPawn() != Character || Character->GetController() != Controller || !Controller->IsLocalController())
+            {
+                UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Source controller setup failed: possessed=%d local=%d."), Controller->GetPawn() == Character, Controller->IsLocalController());
+                return nullptr;
+            }
+        }
         World->BeginPlay();
         World->GetWorldSettings()->NotifyBeginPlay();
         USkeletalMeshComponent* Mesh = Character->GetMesh();
@@ -4249,6 +4277,59 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
             Value->SetNumberField(TEXT("floor_distance_cm"), Movement->CurrentFloor.FloorDist);
             return Value;
         };
+        const auto ApplyDesiredTag = [&](const TCHAR* FunctionName, const FString& Tag)
+        {
+            UFunction* Function = Character->FindFunction(FName(FunctionName));
+            if (Function == nullptr || Function->NumParms != 1) { return false; }
+            const FStructProperty* Parameter = nullptr;
+            for (TFieldIterator<FProperty> Property(Function); Property; ++Property)
+            {
+                if (Property->HasAnyPropertyFlags(CPF_Parm) && !Property->HasAnyPropertyFlags(CPF_ReturnParm))
+                {
+                    Parameter = CastField<FStructProperty>(*Property);
+                }
+            }
+            if (Parameter == nullptr || Parameter->Struct->GetFName() != TEXT("GameplayTag")) { return false; }
+            FStructOnScope Parameters(Function);
+            const FString Text = FString::Printf(TEXT("(TagName=\"%s\")"), *Tag);
+            if (Parameter->ImportText_Direct(*Text, Parameter->ContainerPtrToValuePtr<void>(Parameters.GetStructMemory()), Character, PPF_None) == nullptr) { return false; }
+            Character->ProcessEvent(Function, Parameters.GetStructMemory());
+            return true;
+        };
+        const auto CaptureController = [&]()
+        {
+            TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+            Value->SetBoolField(TEXT("requested"), bLocalController);
+            Value->SetStringField(TEXT("controller_class"), Controller != nullptr ? ObjectPath(Controller->GetClass()) : FString());
+            Value->SetBoolField(TEXT("possesses_source_character"), Controller != nullptr && Controller->GetPawn() == Character && Character->GetController() == Controller);
+            Value->SetBoolField(TEXT("is_local_controller"), Controller != nullptr && Controller->IsLocalController());
+            Value->SetBoolField(TEXT("character_is_locally_controlled"), Character->IsLocallyControlled());
+            Value->SetBoolField(TEXT("has_authority"), Character->HasAuthority());
+            Value->SetStringField(TEXT("game_mode_class"), ControllerGameMode != nullptr ? ObjectPath(ControllerGameMode->GetClass()) : FString());
+            for (const TCHAR* Name : {TEXT("DesiredStance"), TEXT("DesiredGait")})
+            {
+                const FProperty* Property = Character->GetClass()->FindPropertyByName(FName(Name));
+                if (Property == nullptr) { continue; }
+                FString Text;
+                Property->ExportTextItem_Direct(Text, Property->ContainerPtrToValuePtr<void>(Character), nullptr, Character, PPF_None);
+                Value->SetStringField(Name, Text);
+            }
+            for (const TCHAR* Name : {TEXT("ViewState"), TEXT("HeadState")})
+            {
+                const FStructProperty* Property = FindFProperty<FStructProperty>(Instance->GetClass(), FName(Name));
+                if (Property != nullptr) { Value->SetArrayField(Name, CaptureProperties(Property->Struct, Property->ContainerPtrToValuePtr<void>(Instance), Instance)); }
+            }
+            if (Controller != nullptr)
+            {
+                const FRotator Rotation = Controller->GetControlRotation();
+                TSharedRef<FJsonObject> Control = MakeShared<FJsonObject>();
+                Control->SetNumberField(TEXT("pitch"), Rotation.Pitch);
+                Control->SetNumberField(TEXT("yaw"), Rotation.Yaw);
+                Control->SetNumberField(TEXT("roll"), Rotation.Roll);
+                Value->SetObjectField(TEXT("control_rotation_degrees"), Control);
+            }
+            return Value;
+        };
         const auto CapturePoseBoundaries = [&]()
         {
             TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
@@ -4292,6 +4373,7 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
         Initialization->SetObjectField(TEXT("actor_transform"), CaptureTransform(Character->GetActorTransform()));
         Initialization->SetObjectField(TEXT("actor_velocity_cm_s"), CaptureVector(Character->GetVelocity()));
         Initialization->SetObjectField(TEXT("movement_component"), CaptureMovement());
+        if (bLocalController) { Initialization->SetObjectField(TEXT("controller_input"), CaptureController()); }
         Initialization->SetArrayField(TEXT("source_state"), CaptureState(Instance));
         Initialization->SetArrayField(TEXT("instances"), CaptureInstances(Mesh, Instance));
         const TSharedPtr<FJsonObject> InitialGetter = CaptureGetter(Instance);
@@ -4343,6 +4425,27 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
             bool bRendered;
             if (!FrameValue->TryGetObject(Frame) || !(*Frame)->TryGetNumberField(TEXT("delta_seconds"), Delta) || !FMath::IsFinite(static_cast<float>(Delta)) ||
                 Delta <= 0 || Delta > 0.25 || !(*Frame)->TryGetBoolField(TEXT("rendered"), bRendered)) { return nullptr; }
+            if ((*Frame)->HasField(TEXT("control_rotation_degrees")))
+            {
+                const TSharedPtr<FJsonObject>* Rotation = nullptr;
+                double Pitch, Yaw, Roll;
+                if (Controller == nullptr || !(*Frame)->TryGetObjectField(TEXT("control_rotation_degrees"), Rotation) ||
+                    !(*Rotation)->TryGetNumberField(TEXT("pitch"), Pitch) || !(*Rotation)->TryGetNumberField(TEXT("yaw"), Yaw) || !(*Rotation)->TryGetNumberField(TEXT("roll"), Roll) ||
+                    !FMath::IsFinite(Pitch) || !FMath::IsFinite(Yaw) || !FMath::IsFinite(Roll)) { return nullptr; }
+                Controller->SetControlRotation(FRotator(Pitch, Yaw, Roll));
+            }
+            for (const auto& Desired : {TPair<const TCHAR*, const TCHAR*>(TEXT("desired_stance"), TEXT("SetDesiredStance")), TPair<const TCHAR*, const TCHAR*>(TEXT("desired_gait"), TEXT("SetDesiredGait"))})
+            {
+                if (!(*Frame)->HasField(Desired.Key)) { continue; }
+                FString Tag;
+                if (Controller == nullptr || !(*Frame)->TryGetStringField(Desired.Key, Tag)) { return nullptr; }
+                const bool bValid = FCString::Strcmp(Desired.Key, TEXT("desired_stance")) == 0
+                    ? (Tag == TEXT("Als.Stance.Standing") || Tag == TEXT("Als.Stance.Crouching"))
+                    : (Tag == TEXT("Als.Gait.Walking") || Tag == TEXT("Als.Gait.Running") || Tag == TEXT("Als.Gait.Sprinting"));
+                if (!bValid || !ApplyDesiredTag(Desired.Value, Tag)) { return nullptr; }
+            }
+            TSharedPtr<FJsonObject> ControllerBefore;
+            if (bLocalController) { ControllerBefore = CaptureController(); }
             const bool bPoseTickedBeforeWorld = Mesh->PoseTickedThisFrame();
             const TSharedRef<FJsonObject> MovementBefore = CaptureMovement();
             const TSharedPtr<FJsonObject> GetterBefore = CaptureGetter(Instance);
@@ -4373,6 +4476,7 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
             Row->SetObjectField(TEXT("mesh_to_world"), CaptureTransform(Mesh->GetComponentTransform()));
             Row->SetObjectField(TEXT("movement_before_tick"), MovementBefore);
             Row->SetObjectField(TEXT("movement_after_tick"), CaptureMovement());
+            if (bLocalController) { Row->SetObjectField(TEXT("controller_before_tick"), ControllerBefore.ToSharedRef()); Row->SetObjectField(TEXT("controller_input"), CaptureController()); }
             Row->SetObjectField(TEXT("getter_before_tick"), GetterBefore.ToSharedRef());
             const TSharedPtr<FJsonObject> GetterAfter = CaptureGetter(Instance);
             if (!GetterAfter.IsValid()) { return nullptr; }

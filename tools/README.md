@@ -35,6 +35,8 @@
 
 `CharacterAnimationProbe`同时读取初始化`movement_component`和每步`movement_before_tick` / `movement_after_tick`：实际CharacterMovement模式、角色LocomotionMode、注册/tick启用状态、当前及末次更新位置/速度和floor状态。它不修改移动组件；`test_character_movement_probe.py`检查前后连续性、字段类型/有限值与actor速度一致。注册或tick启用不代表该次tick已执行，AnimInstance的LocomotionMode也不能替代角色或移动组件状态。`initial_engine_frame`位于请求顶层；时钟控制必须核对每个case输出的同名实际回显。
 
+角色case可选`local_controller: true`：读取器通过标准GameMode公共SpawnPlayerController建立本地controller，先完成actor初始化再Possess原角色，记录实际local/owner/authority。该case每步可设置`control_rotation_degrees: {pitch, yaw, roll}`、`desired_stance`（Als.Stance.Standing/Crouching）与`desired_gait`（Als.Gait.Walking/Running/Sprinting）；角度必须为有限数值，标签经原公开setter调用，随后正常world tick。`controller_before_tick`和`controller_input`保留实际控制、desired标签及View/Head只读状态；actual stance仍从原角色/AnimInstance读取。未请求controller时不创建这些对象或观察包；缺controller的控制请求、错误类型和未知标签拒绝。此能力不提供强制velocity，不等于旧受控运动样本；用`test_character_controller_probe.py`验证实际控制器与回显。
+
 角色请求可选`force_raw_data`布尔值：在world创建前，以带tag的`ECVF_SetByTemp`覆盖原生`a.ForceEvalRawData`，函数退出时`Unset`还原旧值/flags，输出`raw_data_control`记录施加阶段与恢复结果。true只在源raw模型有效时强制raw；false关闭强制，不保证compressed；省略时不写CVar。`test_character_raw_mode_control.py`核对控制与恢复，不能用`SetWithCurrentPriority`隐式替换Constructor优先级。
 
 `SequencePoseProbe`可用`animation_pose: true`与`raw_additive_pose: true`读取有效加性sequence的原生raw delta；工具设置实际RequiredBones raw标志后调用GetAnimationPose，并输出`required_bones_raw`。可同时准备compressed数据以排除偶然raw回退，但不得混用`raw_absolute_pose`或绝对FK `capture_source_stages`。`test_raw_additive_pose_probe.py`检查模式、真实标志与完整骨序；绝对pose不能代替该delta。
