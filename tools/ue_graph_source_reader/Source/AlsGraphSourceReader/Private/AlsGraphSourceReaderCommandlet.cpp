@@ -2366,15 +2366,29 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
         return nullptr;
     }
     const FReferenceSkeleton& Skeleton = Sequence->GetSkeleton()->GetReferenceSkeleton();
+    USkeletalMesh* PoseMesh = nullptr;
+    if (Request->HasField(TEXT("mesh_asset")))
+    {
+        FString MeshPath;
+        if (!bAnimationPose || !Request->TryGetStringField(TEXT("mesh_asset"), MeshPath) || MeshPath.IsEmpty()) { return nullptr; }
+        PoseMesh = LoadObject<USkeletalMesh>(nullptr, *MeshPath);
+        if (PoseMesh == nullptr || PoseMesh->GetSkeleton() != Sequence->GetSkeleton()) { return nullptr; }
+        for (int32 Index = 0; Index < Skeleton.GetNum(); ++Index)
+        {
+            if (PoseMesh->GetRefSkeleton().FindBoneIndex(Skeleton.GetBoneName(Index)) == INDEX_NONE) { return nullptr; }
+        }
+    }
+    const FReferenceSkeleton& RequiredSkeleton = PoseMesh != nullptr ? PoseMesh->GetRefSkeleton() : Skeleton;
     TArray<FBoneIndexType> BoneIndices;
     FBoneContainer RequiredBones;
     if (bAnimationPose || bCompressedTracks)
     {
-        for (int32 Index = 0; Index < Skeleton.GetNum(); ++Index)
+        for (int32 Index = 0; Index < RequiredSkeleton.GetNum(); ++Index)
         {
             BoneIndices.Add(Index);
         }
-        RequiredBones.InitializeTo(BoneIndices, UE::Anim::FCurveFilterSettings(), *Sequence->GetSkeleton());
+        UObject& RequiredAsset = PoseMesh != nullptr ? static_cast<UObject&>(*PoseMesh) : static_cast<UObject&>(*Sequence->GetSkeleton());
+        RequiredBones.InitializeTo(BoneIndices, UE::Anim::FCurveFilterSettings(), RequiredAsset);
         if (bRawAdditivePose) { RequiredBones.SetUseRAWData(true); }
     }
     TArray<TSharedPtr<FJsonValue>> Frames;
@@ -2505,6 +2519,7 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
     TSharedRef<FJsonObject> Probe = MakeShared<FJsonObject>();
     Probe->SetStringField(TEXT("sampling_mode"), bRawAdditivePose ? TEXT("raw_additive_pose") : bRawAbsolutePose ? TEXT("raw_absolute_pose") : bAnimationPose ? TEXT("animation_pose") : bRootTrackOnly ? TEXT("root_track") : bCompressedTracks ? TEXT("compressed_local_tracks") : TEXT("raw_local_tracks"));
     if (bRawAdditivePose) { Probe->SetBoolField(TEXT("required_bones_raw"), RequiredBones.ShouldUseRawData()); }
+    if (PoseMesh != nullptr) { Probe->SetStringField(TEXT("required_bones_mesh"), ObjectPath(RequiredBones.GetSkeletalMeshAsset())); }
     if (bCompressedTracks) { Probe->SetObjectField(TEXT("compression"), Compression.ToSharedRef()); }
     Probe->SetNumberField(TEXT("duration"), Sequence->GetPlayLength());
     Probe->SetArrayField(TEXT("frames"), Frames);
