@@ -3831,6 +3831,10 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
             }
         return Linked;
     };
+    double InitialEngineFrame = 0;
+    if (Request->HasField(TEXT("initial_engine_frame")) &&
+        (!Request->TryGetNumberField(TEXT("initial_engine_frame"), InitialEngineFrame) || !FMath::IsFinite(InitialEngineFrame) ||
+         InitialEngineFrame < 0 || InitialEngineFrame > 4294967295.0 || InitialEngineFrame != FMath::FloorToDouble(InitialEngineFrame))) { return nullptr; }
     FAssetCompilingManager::Get().FinishAllCompilation();
     TArray<TSharedPtr<FJsonValue>> Results;
     for (const TSharedPtr<FJsonValue>& CaseValue : *Cases)
@@ -3852,6 +3856,7 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
         World->GetWorldSettings()->bGlobalGravitySet = true;
         World->GetWorldSettings()->bWorldGravitySet = false;
         const uint64 SavedFrameCounter = GFrameCounter;
+        GFrameCounter = static_cast<uint64>(InitialEngineFrame);
         ON_SCOPE_EXIT
         {
             World->EndPlay(EEndPlayReason::Quit);
@@ -3946,6 +3951,26 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
         TSharedRef<FJsonObject> InitialCurves = MakeShared<FJsonObject>();
         for (FName Curve : InitialCurveNames) { InitialCurves->SetNumberField(Curve.ToString(), Instance->GetCurveValue(Curve)); }
         Initialization->SetObjectField(TEXT("curves"), InitialCurves);
+        TArray<TSharedPtr<FJsonValue>> InitialRigPose;
+        URigHierarchy* InitialHierarchy = Rig->GetHierarchy();
+        if (InitialHierarchy == nullptr) { return nullptr; }
+        for (const FRigElementKey& Key : InitialHierarchy->GetBoneKeys())
+        {
+            TSharedRef<FJsonObject> Bone = MakeShared<FJsonObject>();
+            Bone->SetStringField(TEXT("name"), Key.Name.ToString());
+            Bone->SetObjectField(TEXT("local"), CaptureTransform(InitialHierarchy->GetLocalTransform(Key)));
+            InitialRigPose.Add(MakeShared<FJsonValueObject>(Bone));
+        }
+        Initialization->SetArrayField(TEXT("rig_local_pose"), InitialRigPose);
+        TSharedRef<FJsonObject> InitialRigVariables = MakeShared<FJsonObject>();
+        for (const FRigVMExternalVariable& Variable : Rig->GetExternalVariables())
+        {
+            TSharedRef<FJsonObject> Item = MakeShared<FJsonObject>();
+            Item->SetStringField(TEXT("value"), Rig->GetVariableAsString(Variable.GetName()));
+            if (const FStructProperty* Struct = CastField<FStructProperty>(Variable.GetProperty())) { Item->SetArrayField(TEXT("fields"), CaptureProperties(Struct->Struct, Variable.GetMemory(), Rig)); }
+            InitialRigVariables->SetObjectField(Variable.GetName().ToString(), Item);
+        }
+        Initialization->SetObjectField(TEXT("rig_variables"), InitialRigVariables);
         TArray<TSharedPtr<FJsonValue>> Rows;
         for (const TSharedPtr<FJsonValue>& FrameValue : *Frames)
         {
@@ -4025,6 +4050,7 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
         }
         TSharedRef<FJsonObject> CaseRow = MakeShared<FJsonObject>();
         CaseRow->SetStringField(TEXT("name"), Name);
+        CaseRow->SetNumberField(TEXT("initial_engine_frame"), InitialEngineFrame);
         CaseRow->SetBoolField(TEXT("floor_dynamic"), Box->GetMobility() == EComponentMobility::Movable);
         CaseRow->SetStringField(TEXT("character_class"), Character->GetClass()->GetPathName());
         CaseRow->SetStringField(TEXT("animation_class"), Instance->GetClass()->GetPathName());
