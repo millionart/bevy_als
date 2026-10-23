@@ -31,7 +31,9 @@
 
 惯性请求可增加`bone_names`，必须完整匹配当前源骨架的名称及顺序；此时每步以同长度`bone_transforms`数组提供全部局部变换，替代根骨骼字段，通道格式仍为厘米平移、xyzw旋转和无单位scale。工具逐项映射到compact pose索引，并输出`bone_names`、`parent_indices`及每帧`bone_transforms`；旧根骨骼`transform`仍保留。缺骨、错名、混用输入格式均拒绝，不补造通道。`inertialization_full_pose.request.json`和`test_inertialization_full_pose_probe.py`验证79骨骼映射与根/子骨骼平移、旋转和缩放。
 
-`run_ue_source_reader.ps1 -BlendListProbe <request.json>` 运行原生FAnimNode_BlendListBase的Initialize/Update；请求提供`mode`、`blend_times`及命名`samples`，每步使用`active`子索引和`delta_seconds`。输出每帧权重、按现有权重缩短的时长、实际子Update权重及初始化次数。入口使用默认子更新策略，无BlendProfile，不执行姿态或完整AnimBP；`-Asset`仍用于读取器的常规资产记录。`blend_list.request.json`与`test_blend_list_probe.py`核对Cubic首帧、反转时长、子相关性与初始化。
+`run_ue_source_reader.ps1 -BlendListProbe <request.json>` 运行原生FAnimNode_BlendListBase的Initialize/Update；请求提供`mode`、`blend_times`及命名`samples`，每步使用`active`子索引和`delta_seconds`。输出每帧权重、按现有权重缩短的时长、实际子Update权重及初始化次数。入口使用默认子更新策略，无BlendProfile，不执行完整AnimBP；默认不求值pose，`-Asset`用于读取器的常规资产记录。`blend_list.request.json`与`test_blend_list_probe.py`核对Cubic首帧、反转时长、子相关性与初始化。
+
+sample可选`poses`数组，每个child一份`bone_transforms`（source厘米translation、source quaternion和scale，按当前AnimBP目标Skeleton完整骨序）及`curves`。此时`-Asset`必须为AnimBP，工具另执行CacheBones/Evaluate，逐帧输出`input_poses`和`pose`；该模式不与`two_way`、`cached_child`或`outer_two_way`组合。`test_blend_list_pose_probe.py`要求单个权重1输入的完整姿态和曲线直接传递，拒绝缺失或被修改的输出。
 
 BlendList请求可选`two_way: {child, property}`，从当前AnimBP CDO复制指定Float TwoWay的配置，接入相应子项；每步提供`two_way_alpha`。可选`cached_child`把另一个子项接入原生SaveCachedPose，在PostGraphUpdate更新。输出额外记录TwoWay alpha、子初始化次数/更新权重，以及终端`update_order`（外层子索引，TwoWay两叶使用外层子数及其后一个索引）；未指定时原输出保持。`blend_list_two_way.request.json`与`test_blend_list_two_way_probe.py`覆盖gait离开/返回、父状态保留、子重新初始化和缓存延后顺序，不执行完整AnimBP或姿态。
 

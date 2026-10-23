@@ -3003,8 +3003,66 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
     return Result;
 }
 
+struct FSourcePoseProbeLeaf : FAnimNode_Base
+{
+    TArray<FTransform> Transforms;
+    TMap<FName, float> Curves;
+    float UpdateWeight = 0.f;
+    float RootMotionWeight = 0.f;
+    virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override
+    {
+        UpdateWeight = Context.GetFinalBlendWeight();
+        RootMotionWeight = Context.GetRootMotionWeightModifier();
+    }
+    virtual void Evaluate_AnyThread(FPoseContext& Output) override
+    {
+        Output.Pose.ResetToRefPose();
+        for (int32 Index = 0; Index < Transforms.Num(); ++Index) { Output.Pose[FCompactPoseBoneIndex(Index)] = Transforms[Index]; }
+        Output.Curve.Empty();
+        for (const auto& Curve : Curves) { Output.Curve.Set(Curve.Key, Curve.Value); }
+    }
+};
+
+bool ReadSourcePoseProbeLeaf(const FReferenceSkeleton& Reference, const TSharedPtr<FJsonValue>& Value, FSourcePoseProbeLeaf& Leaf)
+{
+    const TSharedPtr<FJsonObject>* Object = nullptr;
+    const TSharedPtr<FJsonObject>* Curves = nullptr;
+    const TArray<TSharedPtr<FJsonValue>>* Transforms = nullptr;
+    if (!Value->TryGetObject(Object) || !(*Object)->TryGetArrayField(TEXT("bone_transforms"), Transforms) ||
+        Transforms->Num() != Reference.GetNum() || !(*Object)->TryGetObjectField(TEXT("curves"), Curves)) { return false; }
+    for (const TSharedPtr<FJsonValue>& TransformValue : *Transforms)
+    {
+        const TSharedPtr<FJsonObject>* Transform = nullptr;
+        if (!TransformValue->TryGetObject(Transform)) { return false; }
+        double Components[10];
+        int32 Offset = 0;
+        for (const TCHAR* Field : {TEXT("translation_cm"), TEXT("rotation"), TEXT("scale")})
+        {
+            const TArray<TSharedPtr<FJsonValue>>* Values = nullptr;
+            const int32 Count = Offset == 3 ? 4 : 3;
+            if (!(*Transform)->TryGetArrayField(Field, Values) || Values->Num() != Count) { return false; }
+            for (const TSharedPtr<FJsonValue>& Component : *Values)
+            {
+                if (Component->Type != EJson::Number || !Component->TryGetNumber(Components[Offset]) || !FMath::IsFinite(Components[Offset])) { return false; }
+                ++Offset;
+            }
+        }
+        const FQuat Rotation(Components[3], Components[4], Components[5], Components[6]);
+        if (!Rotation.IsNormalized()) { return false; }
+        Leaf.Transforms.Add(FTransform(Rotation, FVector(Components[0], Components[1], Components[2]), FVector(Components[7], Components[8], Components[9])));
+    }
+    for (const auto& Curve : (*Curves)->Values)
+    {
+        double Amount;
+        if (Curve.Value->Type != EJson::Number || !Curve.Value->TryGetNumber(Amount) || !FMath::IsFinite(static_cast<float>(Amount))) { return false; }
+        Leaf.Curves.Add(FName(*Curve.Key), static_cast<float>(Amount));
+    }
+    return true;
+}
+
 TSharedPtr<FJsonObject> CaptureBlendListProbe(UObject* Asset, const FString& RequestPath)
 {
+    FMemMark Mark(FMemStack::Get());
     FString Text, ModeName;
     TSharedPtr<FJsonObject> Request;
     const TArray<TSharedPtr<FJsonValue>>* Times = nullptr;
@@ -3054,11 +3112,13 @@ TSharedPtr<FJsonObject> CaptureBlendListProbe(UObject* Asset, const FString& Req
     }
     struct FProbeLeaf : FAnimNode_Base
     {
+        FSourcePoseProbeLeaf Pose;
         int32 Initializations = 0;
         TArray<float> Weights;
         FAnimNode_Base* Forward = nullptr;
         TArray<int32>* Order = nullptr;
         int32 Index = INDEX_NONE;
+        virtual void Evaluate_AnyThread(FPoseContext& Output) override { Pose.Evaluate_AnyThread(Output); }
         virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override { ++Initializations; if (Forward) { Forward->Initialize_AnyThread(Context); } }
         virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override { Weights.Add(Context.GetFinalBlendWeight()); if (Order) { Order->Add(Index); } if (Forward) { Forward->Update_AnyThread(Context); } }
     };
@@ -3097,6 +3157,7 @@ TSharedPtr<FJsonObject> CaptureBlendListProbe(UObject* Asset, const FString& Req
     };
     struct FProbeProxy : FAnimInstanceProxy
     {
+        using FAnimInstanceProxy::Initialize;
         explicit FProbeProxy(UAnimInstance* Instance) : FAnimInstanceProxy(Instance) {}
         void InitializeGraph() { InitializationCounter.Increment(); }
     };
@@ -3109,8 +3170,23 @@ TSharedPtr<FJsonObject> CaptureBlendListProbe(UObject* Asset, const FString& Req
         if (!SampleValue->TryGetObject(Sample) || !(*Sample)->TryGetStringField(TEXT("name"), Name) ||
             !(*Sample)->TryGetArrayField(TEXT("steps"), Steps) || Steps->IsEmpty() || Steps->Num() > 512) { return nullptr; }
         USkeletalMeshComponent* Mesh = NewObject<USkeletalMeshComponent>(GetTransientPackage());
-        UAnimInstance* Instance = NewObject<UAnimInstance>(Mesh);
+        const bool bCapturePose = (*Sample)->HasField(TEXT("poses"));
+        const TArray<TSharedPtr<FJsonValue>>* Poses = nullptr;
+        UBlueprint* Blueprint = Cast<UBlueprint>(Asset);
+        UAnimBlueprintGeneratedClass* Class = Blueprint != nullptr ? Cast<UAnimBlueprintGeneratedClass>(Blueprint->GeneratedClass) : nullptr;
+        const IAnimClassInterface* Interface = Class != nullptr ? IAnimClassInterface::GetFromClass(Class) : nullptr;
+        USkeleton* Skeleton = Interface != nullptr ? Interface->GetTargetSkeleton() : nullptr;
+        if (bCapturePose && (Skeleton == nullptr || TwoWayTemplate != nullptr || OuterTemplate != nullptr || CachedChild != INDEX_NONE ||
+            !(*Sample)->TryGetArrayField(TEXT("poses"), Poses) || Poses->Num() != Times->Num())) { return nullptr; }
+        UAnimInstance* Instance = bCapturePose ? NewObject<UAnimInstance>(Mesh, Class) : NewObject<UAnimInstance>(Mesh);
         FProbeProxy Proxy(Instance);
+        if (bCapturePose)
+        {
+            Proxy.Initialize(Instance);
+            TArray<FBoneIndexType> BoneIndices;
+            for (int32 Index = 0; Index < Skeleton->GetReferenceSkeleton().GetNum(); ++Index) { BoneIndices.Add(Index); }
+            Proxy.GetRequiredBones().InitializeTo(BoneIndices, UE::Anim::FCurveFilterSettings(), *Skeleton);
+        }
         Proxy.InitializeGraph();
         FProbeBlend Blend;
         FProbeTwoWay TwoWay;
@@ -3121,6 +3197,10 @@ TSharedPtr<FJsonObject> CaptureBlendListProbe(UObject* Asset, const FString& Req
         TArray<int32> Order;
         TArray<FProbeLeaf> Leaves;
         Leaves.SetNum(Times->Num());
+        if (bCapturePose)
+        {
+            for (int32 Index = 0; Index < Leaves.Num(); ++Index) { if (!ReadSourcePoseProbeLeaf(Skeleton->GetReferenceSkeleton(), (*Poses)[Index], Leaves[Index].Pose)) { return nullptr; } }
+        }
         for (int32 Index = 0; Index < Leaves.Num(); ++Index) { Leaves[Index].Order = &Order; Leaves[Index].Index = Index; }
         if (TwoWayTemplate)
         {
@@ -3160,6 +3240,7 @@ TSharedPtr<FJsonObject> CaptureBlendListProbe(UObject* Asset, const FString& Req
             Outer.Initialize_AnyThread(FAnimationInitializeContext(&Proxy));
         }
         else { Blend.Initialize_AnyThread(FAnimationInitializeContext(&Proxy)); }
+        if (bCapturePose) { Blend.CacheBones_AnyThread(FAnimationCacheBonesContext(&Proxy)); }
         TArray<TSharedPtr<FJsonValue>> Frames;
         for (const TSharedPtr<FJsonValue>& StepValue : *Steps)
         {
@@ -3209,6 +3290,24 @@ TSharedPtr<FJsonObject> CaptureBlendListProbe(UObject* Asset, const FString& Req
             Frame->SetArrayField(TEXT("weights"), Weights);
             Frame->SetArrayField(TEXT("updates"), Updates);
             Frame->SetArrayField(TEXT("initializations"), Initializations);
+            if (bCapturePose)
+            {
+                TArray<TSharedPtr<FJsonValue>> Inputs;
+                for (FProbeLeaf& Leaf : Leaves)
+                {
+                    FPoseContext Input(&Proxy);
+                    Leaf.Evaluate_AnyThread(Input);
+                    const TSharedPtr<FJsonObject> Captured = CaptureCompactPose(Input.Pose, Input.Curve);
+                    if (!Captured.IsValid()) { return nullptr; }
+                    Inputs.Add(MakeShared<FJsonValueObject>(Captured));
+                }
+                FPoseContext Output(&Proxy);
+                Blend.Evaluate_AnyThread(Output);
+                const TSharedPtr<FJsonObject> Captured = CaptureCompactPose(Output.Pose, Output.Curve);
+                if (!Captured.IsValid()) { return nullptr; }
+                Frame->SetArrayField(TEXT("input_poses"), Inputs);
+                Frame->SetObjectField(TEXT("pose"), Captured);
+            }
             if (OuterTemplate)
             {
                 Frame->SetNumberField(TEXT("outer_alpha"), Outer.Value());
@@ -3458,63 +3557,6 @@ TSharedPtr<FJsonObject> CaptureBlendProfileProbe(UObject* Asset, const FString& 
     TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
     Result->SetArrayField(TEXT("samples"), Results);
     return Result;
-}
-
-struct FSourcePoseProbeLeaf : FAnimNode_Base
-{
-    TArray<FTransform> Transforms;
-    TMap<FName, float> Curves;
-    float UpdateWeight = 0.f;
-    float RootMotionWeight = 0.f;
-    virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override
-    {
-        UpdateWeight = Context.GetFinalBlendWeight();
-        RootMotionWeight = Context.GetRootMotionWeightModifier();
-    }
-    virtual void Evaluate_AnyThread(FPoseContext& Output) override
-    {
-        Output.Pose.ResetToRefPose();
-        for (int32 Index = 0; Index < Transforms.Num(); ++Index) { Output.Pose[FCompactPoseBoneIndex(Index)] = Transforms[Index]; }
-        Output.Curve.Empty();
-        for (const auto& Curve : Curves) { Output.Curve.Set(Curve.Key, Curve.Value); }
-    }
-};
-
-bool ReadSourcePoseProbeLeaf(const FReferenceSkeleton& Reference, const TSharedPtr<FJsonValue>& Value, FSourcePoseProbeLeaf& Leaf)
-{
-    const TSharedPtr<FJsonObject>* Object = nullptr;
-    const TSharedPtr<FJsonObject>* Curves = nullptr;
-    const TArray<TSharedPtr<FJsonValue>>* Transforms = nullptr;
-    if (!Value->TryGetObject(Object) || !(*Object)->TryGetArrayField(TEXT("bone_transforms"), Transforms) ||
-        Transforms->Num() != Reference.GetNum() || !(*Object)->TryGetObjectField(TEXT("curves"), Curves)) { return false; }
-    for (const TSharedPtr<FJsonValue>& TransformValue : *Transforms)
-    {
-        const TSharedPtr<FJsonObject>* Transform = nullptr;
-        if (!TransformValue->TryGetObject(Transform)) { return false; }
-        double Components[10];
-        int32 Offset = 0;
-        for (const TCHAR* Field : {TEXT("translation_cm"), TEXT("rotation"), TEXT("scale")})
-        {
-            const TArray<TSharedPtr<FJsonValue>>* Values = nullptr;
-            const int32 Count = Offset == 3 ? 4 : 3;
-            if (!(*Transform)->TryGetArrayField(Field, Values) || Values->Num() != Count) { return false; }
-            for (const TSharedPtr<FJsonValue>& Component : *Values)
-            {
-                if (Component->Type != EJson::Number || !Component->TryGetNumber(Components[Offset]) || !FMath::IsFinite(Components[Offset])) { return false; }
-                ++Offset;
-            }
-        }
-        const FQuat Rotation(Components[3], Components[4], Components[5], Components[6]);
-        if (!Rotation.IsNormalized()) { return false; }
-        Leaf.Transforms.Add(FTransform(Rotation, FVector(Components[0], Components[1], Components[2]), FVector(Components[7], Components[8], Components[9])));
-    }
-    for (const auto& Curve : (*Curves)->Values)
-    {
-        double Amount;
-        if (Curve.Value->Type != EJson::Number || !Curve.Value->TryGetNumber(Amount) || !FMath::IsFinite(static_cast<float>(Amount))) { return false; }
-        Leaf.Curves.Add(FName(*Curve.Key), static_cast<float>(Amount));
-    }
-    return true;
 }
 
 TSharedPtr<FJsonObject> CaptureLayeredBoneBlendProbe(UObject* Asset, const FString& RequestPath)
