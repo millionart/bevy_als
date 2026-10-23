@@ -90,3 +90,5 @@ BlendList请求可选`two_way: {child, property}`，从当前AnimBP CDO复制指
 2026-09-26 删除了 UE MCP client 及其完整调用链（输入审计、旧相机导出、拓扑/截图和五个 shell 探测脚本），当前取证统一使用原生 reader。相机曲线的目标转换使用 `import/import_curve_float.py`、`import/import_debug_curves.py` 和 `import/camera_curve_conversion.py`。
 
 同批删除六个早期 Interchange API 试验脚本、没有消费者的 `probe_scene2.py`，以及反复改写旧 Playground parity 文件的 `patch_parity_ron.py`、`test_lighting_only.py`。实际导出器、原始资产、生成图、归档证据和本地配置保留。
+
+`RigNodeHistoryProbe` 的 frame 可选 `mesh_to_world` 使用 `translation_cm[3]`、`rotation[4]`、`scale[3]`；提供时在同一 mesh 的本帧 Node.Update/Evaluate 前通过公开 SetComponentToWorld 设置缓存，保留原 quaternion 数值，不经过普通 SetWorldTransform 的 Rotator 往返，省略时保持当前变换（旧请求始终为identity）。提供字段的帧导出实际 `mesh_to_world`，执行事件另导出 `rig_to_world`，必须同时核对组件与真正的执行上下文，不能只检查请求值或pose。`tools/tests/test_rig_node_world_transform.py` 保留缺字段、未更新组件与未更新上下文的反例；无字段请求的旧输出合同保持。

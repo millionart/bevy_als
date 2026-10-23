@@ -4458,7 +4458,7 @@ TSharedPtr<FJsonObject> CaptureRigNodeHistoryProbe(UObject* Asset, const FString
         const TArray<TSharedPtr<FJsonValue>>* Array = nullptr;
         double Values[3];
         if (!Object->TryGetArrayField(Key, Array) || Array->Num() != 3) { return false; }
-        for (int32 Index = 0; Index < 3; ++Index) { if (!(*Array)[Index]->TryGetNumber(Values[Index]) || !FMath::IsFinite(Values[Index])) { return false; } }
+        for (int32 Index = 0; Index < 3; ++Index) { if ((*Array)[Index]->Type != EJson::Number || !(*Array)[Index]->TryGetNumber(Values[Index]) || !FMath::IsFinite(Values[Index])) { return false; } }
         Vector = FVector(Values[0], Values[1], Values[2]);
         return true;
     };
@@ -4508,12 +4508,14 @@ TSharedPtr<FJsonObject> CaptureRigNodeHistoryProbe(UObject* Asset, const FString
         if (Rig == nullptr) { return nullptr; }
         TArray<TSharedPtr<FJsonValue>> Executions;
         int32 Constructed = 0, Forward = 0;
-        Rig->OnExecuted_AnyThread().AddLambda([&Executions](URigVMHost* Host, const FName& Event)
+        bool bCaptureWorld = false;
+        Rig->OnExecuted_AnyThread().AddLambda([&Executions, &bCaptureWorld](URigVMHost* Host, const FName& Event)
         {
             const FRigVMExtendedExecuteContext& Context = Host->GetRigVMExtendedExecuteContext();
             TSharedRef<FJsonObject> Execution = MakeShared<FJsonObject>();
             Execution->SetStringField(TEXT("entry"), Event.ToString());
             Execution->SetBoolField(TEXT("succeeded"), Context.CurrentExecuteResult == ERigVMExecuteResult::Succeeded);
+            if (bCaptureWorld) { Execution->SetObjectField(TEXT("rig_to_world"), CaptureTransform(Context.GetPublicData<>().GetToWorldSpaceTransform())); }
             TArray<TSharedPtr<FJsonValue>> Visited;
 #if WITH_EDITOR
             if (const FRigVMInstructionVisitInfo* Info = Context.GetRigVMInstructionVisitInfo()) { for (int32 Instruction : Info->GetInstructionVisitOrder()) { Visited.Add(MakeShared<FJsonValueNumber>(Instruction)); } }
@@ -4544,6 +4546,24 @@ TSharedPtr<FJsonObject> CaptureRigNodeHistoryProbe(UObject* Asset, const FString
                 !(*Frame)->TryGetNumberField(TEXT("delta_seconds"), Delta) || !FMath::IsFinite(static_cast<float>(Delta)) || Delta < 0.0 || Delta > 0.25 ||
                 !(*Frame)->TryGetObjectField(TEXT("variables"), Variables) || !(*Frame)->HasField(TEXT("pose")) ||
                 !ReadVector(*Frame, TEXT("reference_ray_start_cm"), Start) || !ReadVector(*Frame, TEXT("reference_ray_end_cm"), End)) { return nullptr; }
+            bCaptureWorld = (*Frame)->HasField(TEXT("mesh_to_world"));
+            if (bCaptureWorld)
+            {
+                const TSharedPtr<FJsonObject>* Transform = nullptr;
+                const TArray<TSharedPtr<FJsonValue>>* RotationValues = nullptr;
+                FVector Translation, Scale;
+                if (!(*Frame)->TryGetObjectField(TEXT("mesh_to_world"), Transform) || !ReadVector(*Transform, TEXT("translation_cm"), Translation) || !ReadVector(*Transform, TEXT("scale"), Scale) ||
+                    !(*Transform)->TryGetArrayField(TEXT("rotation"), RotationValues) || RotationValues->Num() != 4) { return nullptr; }
+                double Components[4];
+                for (int32 Index = 0; Index < 4; ++Index)
+                {
+                    if ((*RotationValues)[Index]->Type != EJson::Number || !(*RotationValues)[Index]->TryGetNumber(Components[Index]) || !FMath::IsFinite(Components[Index])) { return nullptr; }
+                }
+                const FQuat Rotation(Components[0], Components[1], Components[2], Components[3]);
+                if (!Rotation.IsNormalized()) { return nullptr; }
+                const FTransform MeshToWorld(Rotation, Translation, Scale);
+                Mesh->SetComponentToWorld(MeshToWorld);
+            }
             Leaf.Transforms.Reset();
             Leaf.Curves.Reset();
             if (!ReadSourcePoseProbeLeaf(Reference, (*Frame)->TryGetField(TEXT("pose")), Leaf)) { return nullptr; }
@@ -4558,6 +4578,7 @@ TSharedPtr<FJsonObject> CaptureRigNodeHistoryProbe(UObject* Asset, const FString
             Row->SetNumberField(TEXT("rig_id"), Node.GetControlRig()->GetUniqueID());
             Row->SetNumberField(TEXT("delta_seconds_after_update"), Rig->GetDeltaTime());
             Row->SetNumberField(TEXT("leaf_update_weight"), Leaf.UpdateWeight);
+            if (bCaptureWorld) { Row->SetObjectField(TEXT("mesh_to_world"), CaptureTransform(Mesh->GetComponentTransform())); }
             FPoseContext Before(&Proxy), After(&Proxy);
             Leaf.Evaluate_AnyThread(Before);
             Row->SetObjectField(TEXT("before"), CaptureCompactPose(Before.Pose, Before.Curve));
