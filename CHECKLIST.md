@@ -2487,6 +2487,13 @@
   - 07:33 恢复/Gate前：120原生长度/40实际source Scalar、40同米float、40同cm double先换米控制均精确；去中间cm float阶段丢9信号，源脚本字节恢复后同脚本重跑全恢复，不声称重编未改的native binary。120请求与metadata可重建且字节全同，D151因素仍独立，254（115P2/139P3），身份进行中；九例实际pose/FSM影响、精确角度/完整Root未关闭，截图0、性能暂停。
   - 完成/Gate：`target/bf144/312/summary.json`通过；复用现native工具120长度、source实际Speed40、共同m float40/cm double换米40及source cm float量化9差异原生已核。中间float阶段移除/脚本源字节恢复重跑、请求metadata字节重建及5093身份（旧5070全不变）通过；没有native重编或reader变化。新增D256/P3，254（115P2/139P3），生产/转换器/原资产不改，截图0、性能暂停。开始07:29:54；预估结束07:59:54；实际结束07:34:12；实际用时259秒；偏差-1541秒；结果通过，consumer敏感性/精确角及全Root后续闭包继续。
 
+- [x] BF144.313 U07普通Speed的真实graph消费者传播：依赖.311 Forward共同域/D151与.312已证D256，fresh沿source Standing/stride/playrate真实Speed字段及target ActualMotion→StandingLayer→provider→更新图的phase/consumer闭包，先锁实际消费字段和生命周期，再用最小单producer因素（world长度、source cm float量化）观察实际参数/时钟/pose传播，核物理输入不变。Gate：source直接consumer和asset/CPP事实、当前actual provider/graph参数重放、有限受控因素及物理不变性、必要消融字节恢复同target/身份；未证相邻链不得展开，不把同源float输入模型当整Root已等价，不修生产。开始：2026-10-24 07:34:41 +0800；预估结束：2026-10-24 08:04:41 +0800。估时依据：.311实际输入/Speed闭包约13分钟、.312原生scalar约5分钟；现只沿当前40 Standing消费链核producer阶段/实际传播按30分钟，完整Root留后续依赖。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 07:34 活动摘要：5167bf18完成D256原生共同向量scalar，5093身份、254（115P2/139P3）、树干净。当前只有输入差异事实，尚未声称nine帧均影响FSM/pose；先核实际source直接consumer及target可观察阶段，避免给整图补值或改玩法状态。
+  - 07:35 source/static：fresh RefreshStandingMovement:985–1041直接用Speed/scale采walk/run stride曲线，再按离散gait与未加权pose gait计算playrate。target ActualMotionSet→GaitLayerSet→StandingLayerSet→provider→Evaluate顺序明确；现有writer读取horizontal_speed并发布stride/playrate绑定。独立fixture仅在ActualMotion之后/Gait之前控制该scalar（原样/world平面/source厘米float规范），保留world_velocity与acceleration；先编译，再核40步参数/时钟及完整物理不变性，不预设pose必变。
+  - 07:37 三cohort实际结果：原样/world-length/source-cm-float各40无图错误；同物理输入下位置/速度/模式/stance/gait与FSM历史全同。D151因素使31 Speed、10 stride、28 playrate帧改变；独立D256因素在world-length基础上使9 Speed、3 stride、7 playrate帧改变，并有实际asset时钟/pose传播，正在逐骨通道计数及严格不变性验证。首次fixture编译只因Rust小数字面量缺整数部失败，修成0.01后才启动runtime；生产未改，不新增编号或声称全Root恢复。
+  - 07:37 传播Gate：严格物理/body transform/模式/FSM各40全同；RigInput属于下游反馈而非物理不变量，初次断言将其误纳入失败后已改为独立传播计数。D151有34时钟/36 pose帧、T/R/S通道行1225/2369/17变；D256有10时钟/35 pose帧、325/702/4通道行变，均为数值传播不宣称可见/源pose恢复。现fresh重取AIS_Als_Default只核直接stride/playrate设置引用，随后控制移除/字节恢复同target及身份；不扩其它图。
+  - 完成/Gate：`target/bf144/313/summary.json`通过；3×40 actual scalar/原生oracle、source直接Standing设置/CPP与实际stride/playrate→clock/pose/RigInput传播已锁，物理/body/FSM全同。D151与D256扩consumer不增编号，控制移除/源码字节恢复同target重编、旧40baseline扣395只读字段后全同及5134身份（旧5093全不变）通过。生产/reader/转换器/原资产不改，254（115P2/139P3），截图0、性能暂停。开始07:34:41；预估结束08:04:41；实际结束07:40:51；实际用时370秒；偏差-1430秒；结果通过，精确角consumer、完整Root及旧恢复后缀原pose链后续继续。
+
 ### 已确认差异（仅登记，未实施修复）
 
 
@@ -2496,6 +2503,7 @@
   - Target：`tnua_ext/motion.rs:37–45`与`actual_motion.rs:27–44`产生米制F32 horizontal_speed，`ab_als_provider.rs:421`将其直接发布为动画Speed。隔离D151、固定完全相同的世界速度向量后，米制原生float长度40项全等于公开target世界长度；共同厘米原生double先换米再float也40项同，但源先量化厘米float再投影米制float时有9项不同。
   - 最小反例/因素：共同runtime世界向量约(1.3333333731,0,5.8281856e−8)m/s，源厘米float为133.33334350585938，runtime投影1.3333334922790527；直接米制float为1.3333333730697632。只去掉中间厘米float阶段便回到target值，保留该阶段即恢复原生Speed合同。源/目标向量、单位物理量及原生长度算子均锁同；D151局部投影造成的额外31项偏差单独保留。
   - 边界/漏检：当前确认标量生产与provider输入合同，不声称九项均改变某个FSM或可见pose，也未将其与不同物理速度的原历史混配。此前测试多使用0/整数厘米速度或直接以target scalar为期望，没有同向量、同原生长度的厘米float与米float分步对照。证据`target/bf144/312/native-check.json`、`length.native.json`和`target/bf144/311/speed.json`；仅登记，生产未修。
+  - BF144.313 实际graph消费者补充：先隔离D151，在同一world长度cohort上仅替换为已原生核验的cm-float Speed，9个scalar差异进入3 stride、7 playrate、10 asset-clock和35 pose帧；14帧RigInput也随下游pose/curve改变。物理/body transform/模式/FSM各40全同，T/R/S通道行差325/702/4，最大原始通道分量差为约1.19e−7/4.17e−7/1.19e−7。三producer每帧值均对原生scalar oracle；控制移除/源码字节恢复同target重编全历史精确。仅扩大本项影响证据，未新增根因、可见故障结论或source-target完整Root恢复。证据`target/bf144/313/consumer-check.json`、`controls-check.json`与恢复报告。
 
 - [ ] BF144-D255 / P3 — 地面制动向量乘法提前按F32舍入，改变共同输入的制动速度。
   - Source：fresh `CharacterMovementComponent.cpp:4377–4432`以FVector double执行RevAccel×float dt后加回Velocity；`Vector.h:2058–2073`给出实际GetSafeNormal。原生有效标准CharacterMovement的受控制动核15样本已核，12原实际输入的纯制动向量与独立模型逐值相同；此核不tick世界、不执行位置回算，也无动画root motion。
@@ -3535,6 +3543,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 反例：完整角色先等到实际Standing Idle，在相同世界velocity=(0,0,−1.6)m/s、无输入下控制actor俯仰60度，目标发布0.8m/s并保持Idle；源应1.6m/s并开始Idle→Move。仅恢复horizontal_speed即进入原生对应转换，当前actor旋转与速度均已核实。直立/倾斜×原样/恢复四组3PASS/1FAIL；另11组输入边界中0.5及1.5m/s各出现一处误判，同根归并。
   - 漏检：旧旋转测试只用yaw且仅比较速度误差容差，未检查严格布尔阈值或倾斜输入；初版诊断误把Gameplay Grounded当作Standing Idle，已补实际状态等待并排除该前置失败。证据`68/checked_initial/`、`68/final/`及`bf144_animation_phase68_speed_uses_world_plane`、`bf144_animation_phase68_motion_inputs`；未改生产或放宽阈值。
   - BF144.311 普通Forward yaw的实际provider补充：完整world/actor逻辑/mesh基推导与fresh CDO相符后，公开spawn的40自然Forward输入中，冻结公共helper逐值重放全部actual horizontal_speed与provider speed；31帧即使纯yaw也因局部forward/right投影的F32舍入而偏离同帧世界水平长度。首输入actual/provider0.6666665673、同世界向量长度0.6666666269；只移除world-length因素丢31信号，字节恢复同target重编全复现。这里没有新阈值/可见故障结论；世界物理D253/D254、共同制动D255和额外9个厘米float标量候选保持独立。证据`target/bf144/311/speed-check.json`、`speed.json`与恢复报告；生产未修，未重开原已完Gate。
+  - BF144.313 实际graph传播补充：在真实Forward 40步中仅将horizontal_speed改成同帧world长度，全部物理位置/速度/body basis/模式与FSM逐值保持；31 scalar差异继续进入10 stride、28 playrate、34 asset-clock及36 pose帧，T/R/S通道行变化1225/2369/17。移除诊断producer控制回到原baseline，源码字节恢复同binary重编完整cohort一致；这些是已知因素的实际传播，未宣称肉眼可见或source pose已恢复。证据`target/bf144/313/consumer-check.json`、`controls-check.json`、`restore-check.json`。
 
 - [ ] BF144-D152 / P2 — 地面预测复用物理形体，遗漏源胶囊组件的查询尺寸。
   - Source：fresh `AlsAnimationInstance.cpp:785–789,1166–1188`从CapsuleComponent读取scaled radius/half-height，再用Identity旋转构建独立查询胶囊；`CapsuleComponent.h:201–211`半径取水平两轴较小值、半高取竖直尺度。这不同于D11所述物理形体的水平大轴规则。
@@ -4057,6 +4066,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.310当前边界：共同制动乘法候选已用原生CMC核确认为D255，纯核与自然world历史保持区分；source15/target冻结核及因素消融/最终包旧40兼容均过。累计253（115P2/138P3），动画Speed标量/方向共同域、完整Root及旧恢复后缀原pose链继续开。
   - BF144.311当前边界：已锁world数据/actor逻辑/mesh局部基，并用公开spawn建立source/target40步同primitive输入与Forward语义；Head yaw_amount40同，D151增加31个普通yaw实际Speed消费者。九个同向量厘米float标量候选、精确微角消费及完整Root仍开，未声称所有动画输入同值。累计253（115P2/138P3），截图0、性能暂停。
   - BF144.312当前边界：九个Speed标量候选已由120原生长度控制确认为D256的厘米float量化阶段，D151局部投影因素独立。当前254（115P2/139P3）；普通Speed的实际graph consumer敏感性、精确角度输入/完整Root及旧恢复后缀原pose链仍开，截图0、性能暂停。
+  - BF144.313当前边界：普通Speed已从实际producer贯通Standing参数、asset时钟、pose与Rig反馈；D151/D256的有限控制保持所有物理与FSM值，数值传播已记录，未宣称source Root恢复。当前254（115P2/139P3）；精确heading consumer、完整source-target Root及旧恢复后缀原pose链继续开，截图0、性能暂停。
 
 - [x] BF144-U06 — Rig初始全局数据已于.245归D242/P3。最初.244发现71骨365个double差、默认240仅FootHeight double变化；.245保持全部原生算法，仅换初始数据即在受控半转产生约180°的float足旋转/实际Setter写回差，并在同source厘米算法的5个骨长舍入边界经同原生IK核产生13/15个float关节点差，分别隔离D163算法与D165单位舍入。数据移除/源码字节恢复及同target重编恢复通过，native数学读出移除/同package恢复亦通过；默认动作自然可达性未证，不因关闭U06声明无差异或修复。证据`target/bf144/245/summary.json`、`native-check.json`、`writeback.jsonl`、`restoration-check.json`；原.244记录保留。
   - BF144.136 follower记录重建补充：near-zero候选无有效end时记录leader移到最后一项；下一普通帧恢复正常leader，`AnimSync::Finalize`使follower记录失效。`BlendSpace.cpp:784–787`按已存归一化时间乘当前样本长度重建；目标此前保留秒数。18帧33个previous差最大约59.6ns，全部精确等于`(旧position/旧duration)*当前duration`；仅补这一步后4032帧所有previous也逐值一致，当前采样位置和姿态保持。证据`target/bf144/136/roundtrip-check.json`、`before-roundtrip-all-analysis.json`、`all-analysis.json`。
