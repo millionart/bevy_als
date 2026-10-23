@@ -39,6 +39,8 @@
 
 `SequencePoseProbe`的`mesh_asset`仅用于`animation_pose`，选择与sequence共用Skeleton且包含完整骨骼的实际SkeletalMesh来初始化RequiredBones；不传时保持原Skeleton容器。输出`required_bones_mesh`读取实际骨容器，不能用请求字段充当执行证明。raw Sequencer会按reference-skeleton对象身份决定是否保留mesh参考变换，因此Skeleton容器的采样不能直接替代真实角色的mesh采样；`test_sequence_mesh_container.py`核对实际容器、时点与完整骨序。
 
+`CharacterAnimationProbe`的`capture_pose_boundaries: true`在实际Rig对象构造完成时从所属mesh定位主实例，透明读取Rig输入与主Root结果的原求值，不追加查询。初始化和每个world步的`pose_boundaries`保留完整pose/curve、attribute数量、实际骨容器与求值时点；原生遍历计数从INDEX_NONE开始，首值0对应第一次求值，不能当作未执行。`test_character_pose_boundaries.py`验证完整观察和首query，默认字段关闭时保持原出口；Rig内部Hierarchy和初始mesh参考缓冲不能代替这些节点的真实输出。
+
 `run_ue_source_reader.ps1 -BlendListProbe <request.json>` 运行原生FAnimNode_BlendListBase的Initialize/Update；请求提供`mode`、`blend_times`及命名`samples`，每步使用`active`子索引和`delta_seconds`。输出每帧权重、按现有权重缩短的时长、实际子Update权重及初始化次数。入口使用默认子更新策略，无BlendProfile，不执行完整AnimBP；默认不求值pose，`-Asset`用于读取器的常规资产记录。`blend_list.request.json`与`test_blend_list_probe.py`核对Cubic首帧、反转时长、子相关性与初始化。
 
 sample可选`poses`数组，每个child一份`bone_transforms`（source厘米translation、source quaternion和scale，按当前AnimBP目标Skeleton完整骨序）及`curves`。此时`-Asset`必须为AnimBP，工具另执行CacheBones/Evaluate，逐帧输出`input_poses`和`pose`；该模式不与`two_way`、`cached_child`或`outer_two_way`组合。`test_blend_list_pose_probe.py`要求单个权重1输入的完整姿态和曲线直接传递，拒绝缺失或被修改的输出。

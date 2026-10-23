@@ -22,6 +22,7 @@
 #include "Animation/AnimNode_Inertialization.h"
 #include "Animation/AnimNode_ApplyMeshSpaceAdditive.h"
 #include "Animation/AnimNode_SequencePlayer.h"
+#include "Animation/AnimNode_Root.h"
 #include "Animation/AnimNode_StateMachine.h"
 #include "Animation/AnimNode_StateResult.h"
 #include "Animation/AnimNode_TransitionResult.h"
@@ -3827,9 +3828,43 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
     const TArray<TSharedPtr<FJsonValue>>* Cases = nullptr;
     if (Class == nullptr || !Class->IsChildOf(ACharacter::StaticClass()) || !FFileHelper::LoadFileToString(Text, *RequestPath) ||
         !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Request) || !Request->TryGetNumberField(TEXT("gravity_cm_s2"), Gravity) || !FMath::IsFinite(static_cast<float>(Gravity)) || Gravity >= 0 || !Request->TryGetArrayField(TEXT("cases"), Cases) || Cases->IsEmpty() || Cases->Num() > 8) { return nullptr; }
+    bool bCapturePoseBoundaries = false;
+    if (Request->HasField(TEXT("capture_pose_boundaries")) &&
+        (Request->TryGetField(TEXT("capture_pose_boundaries"))->Type != EJson::Boolean || !Request->TryGetBoolField(TEXT("capture_pose_boundaries"), bCapturePoseBoundaries))) { return nullptr; }
+    struct FObservedPose : FAnimNode_Base
+    {
+        FPoseLink Source;
+        TSharedPtr<FJsonObject> Latest;
+        int32 Updates = 0;
+        int32 Evaluations = 0;
+        float Delta = 0;
+        virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override { Source.Initialize(Context); }
+        virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override { Source.CacheBones(Context); }
+        virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override { ++Updates; Delta = Context.GetDeltaTime(); Source.Update(Context); }
+        virtual void Evaluate_AnyThread(FPoseContext& Output) override
+        {
+            Source.Evaluate(Output);
+            ++Evaluations;
+            const TSharedPtr<FJsonObject> Pose = CaptureCompactPose(Output.Pose, Output.Curve);
+            Latest.Reset();
+            if (!Pose.IsValid()) { return; }
+            Latest = MakeShared<FJsonObject>();
+            Latest->SetObjectField(TEXT("pose"), Pose.ToSharedRef());
+            Latest->SetNumberField(TEXT("updates"), Updates);
+            Latest->SetNumberField(TEXT("evaluations"), Evaluations);
+            Latest->SetNumberField(TEXT("engine_frame"), GFrameCounter);
+            Latest->SetNumberField(TEXT("delta_seconds"), Delta);
+            Latest->SetNumberField(TEXT("attribute_count"), Output.CustomAttributes.Num());
+            Latest->SetStringField(TEXT("required_bones_asset"), ObjectPath(Output.Pose.GetBoneContainer().GetAsset()));
+        }
+    };
+    struct FObservedRigAccess : FAnimNode_ControlRig
+    {
+        static FPoseLink& SourceLink(FAnimNode_ControlRig& Node) { return Node.*&FObservedRigAccess::Source; }
+    };
     struct FInstanceAccess : UAnimInstance
     {
-        static const FAnimInstanceProxy& Proxy(UAnimInstance* Instance) { return *GetProxyOnGameThreadStatic<FAnimInstanceProxy>(Instance); }
+        static FAnimInstanceProxy& Proxy(UAnimInstance* Instance) { return *GetProxyOnGameThreadStatic<FAnimInstanceProxy>(Instance); }
     };
     struct FBlendSpaceAccess : FAnimNode_BlendSpacePlayerBase
     {
@@ -4020,6 +4055,55 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
         Box->RegisterComponent();
         FActorSpawnParameters Spawn;
         Spawn.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+        FObservedPose HeadObservation, RootObservation;
+        FAnimNode_ControlRig* ObservedRigNode = nullptr;
+        FAnimNode_Root* ObservedRootNode = nullptr;
+        TWeakObjectPtr<UAnimInstance> ObservedInstance;
+        TWeakObjectPtr<UControlRig> ObservedRig;
+        bool bInvalidObservationOwner = false;
+        FDelegateHandle ConstructedHandle;
+        ON_SCOPE_EXIT
+        {
+            if (ConstructedHandle.IsValid()) { FCoreUObjectDelegates::OnObjectConstructed.Remove(ConstructedHandle); }
+            if (ObservedInstance.IsValid())
+            {
+                if (ObservedRigNode != nullptr) { FObservedRigAccess::SourceLink(*ObservedRigNode) = HeadObservation.Source; }
+                if (ObservedRootNode != nullptr) { ObservedRootNode->Result = RootObservation.Source; }
+            }
+        };
+        if (bCapturePoseBoundaries)
+        {
+            ConstructedHandle = FCoreUObjectDelegates::OnObjectConstructed.AddLambda([&](UObject* Object)
+            {
+                if (!IsInGameThread()) { return; }
+                UControlRig* NewRig = Cast<UControlRig>(Object);
+                USkeletalMeshComponent* Component = NewRig != nullptr ? NewRig->GetTypedOuter<USkeletalMeshComponent>() : nullptr;
+                UAnimInstance* Owner = Component != nullptr ? Component->GetAnimInstance() : nullptr;
+                if (Owner == nullptr || Owner->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) || Owner->GetWorld() != World) { return; }
+                if (ObservedRigNode != nullptr) { bInvalidObservationOwner = true; return; }
+                const IAnimClassInterface* OwnerInterface = IAnimClassInterface::GetFromClass(Owner->GetClass());
+                if (OwnerInterface == nullptr || OwnerInterface->GetAnimBlueprintFunctions().IsEmpty()) { bInvalidObservationOwner = true; return; }
+                FStructProperty* RootProperty = CastField<FStructProperty>(OwnerInterface->GetAnimBlueprintFunctions()[0].OutputPoseNodeProperty);
+                if (RootProperty == nullptr || RootProperty->Struct != FAnimNode_Root::StaticStruct()) { bInvalidObservationOwner = true; return; }
+                FAnimNode_ControlRig* Input = nullptr;
+                for (const FStructProperty* Property : OwnerInterface->GetAnimNodeProperties())
+                {
+                    if (Property->Struct != FAnimNode_ControlRig::StaticStruct()) { continue; }
+                    if (Input != nullptr) { bInvalidObservationOwner = true; return; }
+                    Input = Property->ContainerPtrToValuePtr<FAnimNode_ControlRig>(Owner);
+                }
+                FAnimNode_Root* Root = RootProperty->ContainerPtrToValuePtr<FAnimNode_Root>(Owner);
+                if (Input == nullptr || FInstanceAccess::Proxy(Owner).GetRootNode() != Root) { bInvalidObservationOwner = true; return; }
+                HeadObservation.Source = FObservedRigAccess::SourceLink(*Input);
+                RootObservation.Source = Root->Result;
+                FObservedRigAccess::SourceLink(*Input).SetLinkNode(&HeadObservation);
+                Root->Result.SetLinkNode(&RootObservation);
+                ObservedInstance = Owner;
+                ObservedRig = NewRig;
+                ObservedRigNode = Input;
+                ObservedRootNode = Root;
+            });
+        }
         ACharacter* Character = World->SpawnActor<ACharacter>(Class, FVector(0, 0, Height), FRotator::ZeroRotator, Spawn);
         if (Character == nullptr) { return nullptr; }
         World->InitializeActorsForPlay(FURL());
@@ -4045,6 +4129,20 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
         }
         if (RigNode == nullptr || RigNode->GetControlRig() == nullptr) { return nullptr; }
         UControlRig* Rig = RigNode->GetControlRig();
+        if (bCapturePoseBoundaries && (bInvalidObservationOwner || ObservedInstance.Get() != Instance || ObservedRig.Get() != Rig ||
+            ObservedRigNode != RigNode || !HeadObservation.Latest.IsValid() || !RootObservation.Latest.IsValid()))
+        {
+            UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Initial source pose boundaries are unavailable: invalid_owner=%d observed_instance=%s instance=%s rig_source_evaluations=%d root_evaluations=%d."), bInvalidObservationOwner, *ObjectPath(ObservedInstance.Get()), *ObjectPath(Instance), HeadObservation.Evaluations, RootObservation.Evaluations);
+            return nullptr;
+        }
+        const auto CapturePoseBoundaries = [&]()
+        {
+            TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+            Value->SetStringField(TEXT("stage"), TEXT("actual_rig_source_and_main_root_result"));
+            Value->SetObjectField(TEXT("rig_source"), HeadObservation.Latest.ToSharedRef());
+            Value->SetObjectField(TEXT("root_result"), RootObservation.Latest.ToSharedRef());
+            return Value;
+        };
         int32 Forward = 0;
         TArray<TSharedPtr<FJsonValue>> Executions;
         const FDelegateHandle ForwardHandle = Rig->OnPostForwardsSolve_AnyThread().AddLambda([&Forward](UControlRig*, const FName&) { ++Forward; });
@@ -4113,6 +4211,7 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
             InitialRigVariables->SetObjectField(Variable.GetName().ToString(), Item);
         }
         Initialization->SetObjectField(TEXT("rig_variables"), InitialRigVariables);
+        if (bCapturePoseBoundaries) { Initialization->SetObjectField(TEXT("pose_boundaries"), CapturePoseBoundaries()); }
         TArray<TSharedPtr<FJsonValue>> Rows;
         for (const TSharedPtr<FJsonValue>& FrameValue : *Frames)
         {
@@ -4186,6 +4285,11 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
             Row->SetObjectField(TEXT("curves"), Curves);
             Row->SetArrayField(TEXT("linked_instances"), CaptureInstances(Mesh, Instance));
             Row->SetArrayField(TEXT("rig_executions"), Executions);
+            if (bCapturePoseBoundaries)
+            {
+                if (!HeadObservation.Latest.IsValid() || !RootObservation.Latest.IsValid()) { return nullptr; }
+                Row->SetObjectField(TEXT("pose_boundaries"), CapturePoseBoundaries());
+            }
             Executions.Reset();
             Rows.Add(MakeShared<FJsonValueObject>(Row));
             UE_LOG(LogAlsGraphSourceReader, Display, TEXT("Source character animation %s frame %d/%d captured."), *Name, Rows.Num(), Frames->Num());
