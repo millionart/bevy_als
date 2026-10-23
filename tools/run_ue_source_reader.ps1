@@ -12,6 +12,7 @@ param(
     [string]$RigLifecycleProbe,
     [string]$RigPoseTransferProbe,
     [string]$RigNodeHistoryProbe,
+    [string]$CharacterAnimationProbe,
     [string]$AnimationAttributeProbe,
     [string]$SlotProbe,
     [string]$BlendProfileProbe,
@@ -312,6 +313,10 @@ if ($RigLifecycleProbe) {
 if ($RigPoseTransferProbe) {
     $probePath = (Resolve-Path -LiteralPath $RigPoseTransferProbe -ErrorAction Stop).Path
     $arguments += "-RigPoseTransferProbe=$probePath"
+}
+if ($CharacterAnimationProbe) {
+    $probePath = (Resolve-Path -LiteralPath $CharacterAnimationProbe -ErrorAction Stop).Path
+    $arguments += "-CharacterAnimationProbe=$probePath"
 }
 if ($RigNodeHistoryProbe) {
     $probePath = (Resolve-Path -LiteralPath $RigNodeHistoryProbe -ErrorAction Stop).Path

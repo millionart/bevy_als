@@ -93,6 +93,10 @@
 #include "AnimNode_ControlRigBase.h"
 #include "AnimNode_ControlRig.h"
 #include "GameFramework/Actor.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/WorldSettings.h"
+#include "AssetCompilingManager.h"
+#include "Misc/App.h"
 #include "RigVMCore/RigVM.h"
 #include "RigVMCore/RigVMProfilingInfo.h"
 #include "RigVMModel/Nodes/RigVMUnitNode.h"
@@ -3749,6 +3753,261 @@ TSharedPtr<FJsonObject> CaptureRigPoseTransferProbe(UObject* Asset, const FStrin
     return Result;
 }
 
+TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FString& RequestPath)
+{
+    UBlueprint* Blueprint = Cast<UBlueprint>(Asset);
+    UClass* Class = Blueprint != nullptr ? Blueprint->GeneratedClass.Get() : Cast<UClass>(Asset);
+    FString Text;
+    double Gravity;
+    TSharedPtr<FJsonObject> Request;
+    const TArray<TSharedPtr<FJsonValue>>* Cases = nullptr;
+    if (Class == nullptr || !Class->IsChildOf(ACharacter::StaticClass()) || !FFileHelper::LoadFileToString(Text, *RequestPath) ||
+        !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Request) || !Request->TryGetNumberField(TEXT("gravity_cm_s2"), Gravity) || !FMath::IsFinite(static_cast<float>(Gravity)) || Gravity >= 0 || !Request->TryGetArrayField(TEXT("cases"), Cases) || Cases->IsEmpty() || Cases->Num() > 8) { return nullptr; }
+    struct FInstanceAccess : UAnimInstance
+    {
+        static const FAnimInstanceProxy& Proxy(UAnimInstance* Instance) { return *GetProxyOnGameThreadStatic<FAnimInstanceProxy>(Instance); }
+    };
+    const auto CaptureGetter = [](UAnimInstance* Instance) -> TSharedPtr<FJsonObject>
+    {
+        UFunction* Function = Instance->FindFunction(TEXT("GetControlRigInput"));
+        if (Function == nullptr) { return nullptr; }
+        const FStructProperty* Return = CastField<FStructProperty>(Function->GetReturnProperty());
+        if (Return == nullptr) { return nullptr; }
+        FStructOnScope Parameters(Function);
+        Instance->ProcessEvent(Function, Parameters.GetStructMemory());
+        TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+        Result->SetArrayField(TEXT("fields"), CaptureProperties(Return->Struct, Return->ContainerPtrToValuePtr<void>(Parameters.GetStructMemory()), Instance));
+        return Result;
+    };
+    const auto CaptureState = [](UAnimInstance* Instance)
+    {
+        TArray<TSharedPtr<FJsonValue>> Fields;
+        for (const TCHAR* Name : {TEXT("Settings"), TEXT("Character"), TEXT("PoseState"), TEXT("FeetState"), TEXT("SpineState"), TEXT("GroundedState"), TEXT("LocomotionState"), TEXT("MovementBase"), TEXT("InAirState"), TEXT("LayeringState"), TEXT("bPendingUpdate"), TEXT("DeltaTimeWithoutTimeDilation")})
+        {
+            const FProperty* Property = Instance->GetClass()->FindPropertyByName(FName(Name));
+            if (Property == nullptr) { continue; }
+            const void* Memory = Property->ContainerPtrToValuePtr<void>(Instance);
+            TSharedRef<FJsonObject> Field = MakeShared<FJsonObject>();
+            Field->SetStringField(TEXT("name"), Name);
+            FString Exported;
+            Property->ExportTextItem_Direct(Exported, Memory, nullptr, Instance, PPF_None);
+            Field->SetStringField(TEXT("value"), Exported);
+            if (const FStructProperty* Struct = CastField<FStructProperty>(Property)) { Field->SetArrayField(TEXT("fields"), CaptureProperties(Struct->Struct, Memory, Instance)); }
+            if (const FNumericProperty* Numeric = CastField<FNumericProperty>(Property); Numeric != nullptr && Numeric->IsFloatingPoint()) { Field->SetNumberField(TEXT("numeric_value"), Numeric->GetFloatingPointPropertyValue(Memory)); }
+            Fields.Add(MakeShared<FJsonValueObject>(Field));
+        }
+        return Fields;
+    };
+    FAssetCompilingManager::Get().FinishAllCompilation();
+    TArray<TSharedPtr<FJsonValue>> Results;
+    for (const TSharedPtr<FJsonValue>& CaseValue : *Cases)
+    {
+        const TSharedPtr<FJsonObject>* Case = nullptr;
+        const TArray<TSharedPtr<FJsonValue>>* Frames = nullptr;
+        FString Name;
+        double Height;
+        bool bDynamicBase;
+        if (!CaseValue->TryGetObject(Case) || !(*Case)->TryGetStringField(TEXT("name"), Name) || Name.IsEmpty() ||
+            !(*Case)->TryGetBoolField(TEXT("dynamic_base"), bDynamicBase) || !(*Case)->TryGetNumberField(TEXT("spawn_height_cm"), Height) || !FMath::IsFinite(Height) || Height <= 0 ||
+            !(*Case)->TryGetArrayField(TEXT("frames"), Frames) || Frames->IsEmpty() || Frames->Num() > 240) { return nullptr; }
+        UWorld::InitializationValues Settings;
+        Settings.AllowAudioPlayback(false).RequiresHitProxies(false).CreatePhysicsScene(true).ShouldSimulatePhysics(true).CreateNavigation(false).CreateAISystem(false).CreateFXSystem(false).SetTransactional(false);
+        UWorld* World = UWorld::CreateWorld(EWorldType::Game, false, NAME_None, nullptr, true, ERHIFeatureLevel::Num, &Settings);
+        if (World == nullptr || GEngine == nullptr) { return nullptr; }
+        GEngine->CreateNewWorldContext(EWorldType::Game).SetCurrentWorld(World);
+        World->GetWorldSettings()->GlobalGravityZ = static_cast<float>(Gravity);
+        World->GetWorldSettings()->bGlobalGravitySet = true;
+        World->GetWorldSettings()->bWorldGravitySet = false;
+        const uint64 SavedFrameCounter = GFrameCounter;
+        ON_SCOPE_EXIT
+        {
+            World->EndPlay(EEndPlayReason::Quit);
+            GFrameCounter = SavedFrameCounter;
+            GEngine->DestroyWorldContext(World);
+            World->DestroyWorld(false);
+        };
+        AActor* Floor = World->SpawnActor<AActor>();
+        if (Floor == nullptr) { return nullptr; }
+        UBoxComponent* Box = NewObject<UBoxComponent>(Floor);
+        Floor->SetRootComponent(Box);
+        Floor->AddInstanceComponent(Box);
+        Box->SetMobility(bDynamicBase ? EComponentMobility::Movable : EComponentMobility::Static);
+        Box->SetBoxExtent(FVector(1500, 1500, 50));
+        Box->SetWorldLocation(FVector(0, 0, -50));
+        Box->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+        Box->SetCollisionResponseToAllChannels(ECR_Block);
+        Box->GetBodySetup()->CollisionTraceFlag = CTF_UseSimpleAsComplex;
+        Box->RegisterComponent();
+        FActorSpawnParameters Spawn;
+        Spawn.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+        ACharacter* Character = World->SpawnActor<ACharacter>(Class, FVector(0, 0, Height), FRotator::ZeroRotator, Spawn);
+        if (Character == nullptr) { return nullptr; }
+        World->InitializeActorsForPlay(FURL());
+        World->BeginPlay();
+        World->GetWorldSettings()->NotifyBeginPlay();
+        USkeletalMeshComponent* Mesh = Character->GetMesh();
+        UAnimInstance* Instance = Mesh != nullptr ? Mesh->GetAnimInstance() : nullptr;
+        if (Instance == nullptr || Mesh->GetSkeletalMeshAsset() == nullptr) { return nullptr; }
+        const FObjectPropertyBase* OwnerProperty = FindFProperty<FObjectPropertyBase>(Instance->GetClass(), TEXT("Character"));
+        const FObjectPropertyBase* SettingsProperty = FindFProperty<FObjectPropertyBase>(Instance->GetClass(), TEXT("Settings"));
+        if (OwnerProperty == nullptr || SettingsProperty == nullptr || OwnerProperty->GetObjectPropertyValue_InContainer(Instance) != Character ||
+            !IsValid(SettingsProperty->GetObjectPropertyValue_InContainer(Instance))) { return nullptr; }
+        const IAnimClassInterface* Interface = IAnimClassInterface::GetFromClass(Instance->GetClass());
+        if (Interface == nullptr) { return nullptr; }
+        FAnimNode_ControlRig* RigNode = nullptr;
+        for (const FStructProperty* Property : Interface->GetAnimNodeProperties())
+        {
+            if (Property->Struct == FAnimNode_ControlRig::StaticStruct())
+            {
+                if (RigNode != nullptr) { return nullptr; }
+                RigNode = Property->ContainerPtrToValuePtr<FAnimNode_ControlRig>(Instance);
+            }
+        }
+        if (RigNode == nullptr || RigNode->GetControlRig() == nullptr) { return nullptr; }
+        UControlRig* Rig = RigNode->GetControlRig();
+        int32 Forward = 0;
+        TArray<TSharedPtr<FJsonValue>> Executions;
+        const FDelegateHandle ForwardHandle = Rig->OnPostForwardsSolve_AnyThread().AddLambda([&Forward](UControlRig*, const FName&) { ++Forward; });
+        const FDelegateHandle ExecutionHandle = Rig->OnExecuted_AnyThread().AddLambda([&Executions](URigVMHost* Host, const FName& Event)
+        {
+            const FRigVMExtendedExecuteContext& Context = Host->GetRigVMExtendedExecuteContext();
+            TSharedRef<FJsonObject> Execution = MakeShared<FJsonObject>();
+            Execution->SetStringField(TEXT("entry"), Event.ToString());
+            Execution->SetBoolField(TEXT("succeeded"), Context.CurrentExecuteResult == ERigVMExecuteResult::Succeeded);
+            Executions.Add(MakeShared<FJsonValueObject>(Execution));
+        });
+        ON_SCOPE_EXIT
+        {
+            Rig->OnPostForwardsSolve_AnyThread().Remove(ForwardHandle);
+            Rig->OnExecuted_AnyThread().Remove(ExecutionHandle);
+        };
+        const FAnimInstanceProxy& Proxy = FInstanceAccess::Proxy(Instance);
+        const int32 InitialUpdate = Proxy.GetUpdateCounter().Get();
+        const int32 InitialEvaluation = Proxy.GetEvaluationCounter().Get();
+        TArray<TSharedPtr<FJsonValue>> Rows;
+        for (const TSharedPtr<FJsonValue>& FrameValue : *Frames)
+        {
+            const TSharedPtr<FJsonObject>* Frame = nullptr;
+            double Delta;
+            bool bRendered;
+            if (!FrameValue->TryGetObject(Frame) || !(*Frame)->TryGetNumberField(TEXT("delta_seconds"), Delta) || !FMath::IsFinite(static_cast<float>(Delta)) ||
+                Delta <= 0 || Delta > 0.25 || !(*Frame)->TryGetBoolField(TEXT("rendered"), bRendered)) { return nullptr; }
+            const TSharedPtr<FJsonObject> GetterBefore = CaptureGetter(Instance);
+            if (!GetterBefore.IsValid()) { return nullptr; }
+            const double SavedDelta = FApp::GetDeltaTime();
+            FApp::SetDeltaTime(Delta);
+            ON_SCOPE_EXIT { FApp::SetDeltaTime(SavedDelta); };
+            Mesh->SetLastRenderTime(bRendered ? World->GetTimeSeconds() : -1000.0f);
+            ++GFrameCounter;
+            World->Tick(LEVELTICK_All, static_cast<float>(Delta));
+            Mesh->HandleExistingParallelEvaluationTask(true, true);
+            if (Mesh->GetAnimInstance() != Instance || RigNode->GetControlRig() != Rig) { return nullptr; }
+            TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>();
+            Row->SetNumberField(TEXT("frame"), Rows.Num());
+            Row->SetNumberField(TEXT("world_seconds"), World->GetTimeSeconds());
+            Row->SetNumberField(TEXT("world_delta_seconds"), World->GetDeltaSeconds());
+            Row->SetNumberField(TEXT("gravity_cm_s2"), World->GetGravityZ());
+            Row->SetBoolField(TEXT("recently_rendered"), Mesh->bRecentlyRendered);
+            Row->SetBoolField(TEXT("based_on_floor"), Character->GetMovementBase() == Box);
+            Row->SetBoolField(TEXT("base_relative_location"), Character->GetBasedMovement().HasRelativeLocation());
+            Row->SetBoolField(TEXT("actor_begun_play"), Character->HasActorBegunPlay());
+            Row->SetNumberField(TEXT("update_counter"), Proxy.GetUpdateCounter().Get());
+            Row->SetNumberField(TEXT("evaluation_counter"), Proxy.GetEvaluationCounter().Get());
+            Row->SetNumberField(TEXT("rig_forward_events"), Forward);
+            Row->SetObjectField(TEXT("actor_transform"), CaptureTransform(Character->GetActorTransform()));
+            Row->SetObjectField(TEXT("actor_velocity_cm_s"), CaptureVector(Character->GetVelocity()));
+            Row->SetObjectField(TEXT("mesh_to_world"), CaptureTransform(Mesh->GetComponentTransform()));
+            Row->SetObjectField(TEXT("getter_before_tick"), GetterBefore.ToSharedRef());
+            const TSharedPtr<FJsonObject> GetterAfter = CaptureGetter(Instance);
+            if (!GetterAfter.IsValid()) { return nullptr; }
+            Row->SetObjectField(TEXT("getter_after_tick"), GetterAfter.ToSharedRef());
+            Row->SetArrayField(TEXT("source_state_after_tick"), CaptureState(Instance));
+            TSharedRef<FJsonObject> Variables = MakeShared<FJsonObject>();
+            for (const FRigVMExternalVariable& Variable : Rig->GetExternalVariables())
+            {
+                TSharedRef<FJsonObject> Item = MakeShared<FJsonObject>();
+                Item->SetStringField(TEXT("value"), Rig->GetVariableAsString(Variable.GetName()));
+                if (const FStructProperty* Struct = CastField<FStructProperty>(Variable.GetProperty())) { Item->SetArrayField(TEXT("fields"), CaptureProperties(Struct->Struct, Variable.GetMemory(), Rig)); }
+                if (const FNumericProperty* Numeric = CastField<FNumericProperty>(Variable.GetProperty()); Numeric != nullptr && Numeric->IsFloatingPoint()) { Item->SetNumberField(TEXT("numeric_value"), Numeric->GetFloatingPointPropertyValue(Variable.GetMemory())); }
+                Variables->SetObjectField(Variable.GetName().ToString(), Item);
+            }
+            Row->SetObjectField(TEXT("rig_variables_after_tick"), Variables);
+            const TArray<FTransform> Transforms = Mesh->GetBoneSpaceTransforms();
+            const FReferenceSkeleton& Reference = Mesh->GetSkeletalMeshAsset()->GetRefSkeleton();
+            if (Transforms.Num() != Reference.GetNum()) { return nullptr; }
+            TArray<TSharedPtr<FJsonValue>> Pose;
+            int32 DifferentReferenceBones = 0;
+            for (int32 Index = 0; Index < Transforms.Num(); ++Index)
+            {
+                if (Transforms[Index].ContainsNaN()) { return nullptr; }
+                TSharedRef<FJsonObject> Bone = MakeShared<FJsonObject>();
+                Bone->SetStringField(TEXT("name"), Reference.GetBoneName(Index).ToString());
+                Bone->SetObjectField(TEXT("local"), CaptureTransform(Transforms[Index]));
+                Pose.Add(MakeShared<FJsonValueObject>(Bone));
+                if (!Transforms[Index].Equals(Reference.GetRefBonePose()[Index], 0.0)) { ++DifferentReferenceBones; }
+            }
+            Row->SetArrayField(TEXT("mesh_local_pose"), Pose);
+            Row->SetNumberField(TEXT("different_reference_bones"), DifferentReferenceBones);
+            TArray<FName> CurveNames;
+            Instance->GetActiveCurveNames(EAnimCurveType::AttributeCurve, CurveNames);
+            TSharedRef<FJsonObject> Curves = MakeShared<FJsonObject>();
+            for (FName Curve : CurveNames) { Curves->SetNumberField(Curve.ToString(), Instance->GetCurveValue(Curve)); }
+            Row->SetObjectField(TEXT("curves"), Curves);
+            TArray<TSharedPtr<FJsonValue>> Linked;
+            TArray<UAnimInstance*> Instances = static_cast<const USkeletalMeshComponent*>(Mesh)->GetLinkedAnimInstances();
+            Instances.Insert(Instance, 0);
+            for (UAnimInstance* Child : Instances)
+            {
+                TSharedRef<FJsonObject> ChildRow = MakeShared<FJsonObject>();
+                const FAnimInstanceProxy& ChildProxy = FInstanceAccess::Proxy(Child);
+                ChildRow->SetStringField(TEXT("class"), Child->GetClass()->GetPathName());
+                ChildRow->SetBoolField(TEXT("main"), Child == Instance);
+                TArray<TSharedPtr<FJsonValue>> Machines;
+                if (const IAnimClassInterface* ChildInterface = IAnimClassInterface::GetFromClass(Child->GetClass()))
+                {
+                    for (const FStructProperty* Property : ChildInterface->GetAnimNodeProperties())
+                    {
+                        if (Property->Struct != FAnimNode_StateMachine::StaticStruct()) { continue; }
+                        const FAnimNode_StateMachine* Machine = Property->ContainerPtrToValuePtr<FAnimNode_StateMachine>(Child);
+                        TSharedRef<FJsonObject> MachineRow = MakeShared<FJsonObject>();
+                        MachineRow->SetStringField(TEXT("property"), Property->GetName());
+                        MachineRow->SetStringField(TEXT("state"), Machine->GetCurrentStateName().ToString());
+                        MachineRow->SetNumberField(TEXT("state_index"), Machine->GetCurrentState());
+                        MachineRow->SetNumberField(TEXT("elapsed"), Machine->GetCurrentStateElapsedTime());
+                        Machines.Add(MakeShared<FJsonValueObject>(MachineRow));
+                    }
+                }
+                ChildRow->SetArrayField(TEXT("machines"), Machines);
+                ChildRow->SetNumberField(TEXT("update_counter"), ChildProxy.GetUpdateCounter().Get());
+                ChildRow->SetNumberField(TEXT("evaluation_counter"), ChildProxy.GetEvaluationCounter().Get());
+                Linked.Add(MakeShared<FJsonValueObject>(ChildRow));
+            }
+            Row->SetArrayField(TEXT("linked_instances"), Linked);
+            Row->SetArrayField(TEXT("rig_executions"), Executions);
+            Executions.Reset();
+            Rows.Add(MakeShared<FJsonValueObject>(Row));
+            UE_LOG(LogAlsGraphSourceReader, Display, TEXT("Source character animation %s frame %d/%d captured."), *Name, Rows.Num(), Frames->Num());
+        }
+        TSharedRef<FJsonObject> CaseRow = MakeShared<FJsonObject>();
+        CaseRow->SetStringField(TEXT("name"), Name);
+        CaseRow->SetBoolField(TEXT("floor_dynamic"), Box->GetMobility() == EComponentMobility::Movable);
+        CaseRow->SetStringField(TEXT("character_class"), Character->GetClass()->GetPathName());
+        CaseRow->SetStringField(TEXT("animation_class"), Instance->GetClass()->GetPathName());
+        CaseRow->SetStringField(TEXT("settings"), SettingsProperty->GetObjectPropertyValue_InContainer(Instance)->GetPathName());
+        CaseRow->SetBoolField(TEXT("source_character_bound"), OwnerProperty->GetObjectPropertyValue_InContainer(Instance) == Character);
+        bool bTickAfterCharacter = false;
+        for (const FTickPrerequisite& Prerequisite : Mesh->PrimaryComponentTick.GetPrerequisites()) { bTickAfterCharacter |= Prerequisite.PrerequisiteObject.Get() == Character; }
+        CaseRow->SetBoolField(TEXT("mesh_tick_after_character"), bTickAfterCharacter);
+        CaseRow->SetNumberField(TEXT("initial_update_counter"), InitialUpdate);
+        CaseRow->SetNumberField(TEXT("initial_evaluation_counter"), InitialEvaluation);
+        CaseRow->SetArrayField(TEXT("frames"), Rows);
+        Results.Add(MakeShared<FJsonValueObject>(CaseRow));
+    }
+    TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
+    Result->SetArrayField(TEXT("cases"), Results);
+    return Result;
+}
+
 TSharedPtr<FJsonObject> CaptureRigNodeHistoryProbe(UObject* Asset, const FString& RequestPath)
 {
     FMemMark Mark(FMemStack::Get());
@@ -5704,6 +5963,13 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
         const TSharedPtr<FJsonObject> Probe = CaptureAnimationAttributeProbe(AnimationAttributeProbePath);
         if (!Probe.IsValid()) { return 7; }
         Root->SetObjectField(TEXT("animation_attribute_probe"), Probe.ToSharedRef());
+    }
+    FString CharacterAnimationProbePath;
+    if (FParse::Value(*Params, TEXT("CharacterAnimationProbe="), CharacterAnimationProbePath))
+    {
+        const TSharedPtr<FJsonObject> Probe = CaptureCharacterAnimationProbe(Asset, CharacterAnimationProbePath);
+        if (!Probe.IsValid()) { return 7; }
+        Root->SetObjectField(TEXT("character_animation_probe"), Probe.ToSharedRef());
     }
     FString RigNodeHistoryProbePath;
     if (FParse::Value(*Params, TEXT("RigNodeHistoryProbe="), RigNodeHistoryProbePath))
