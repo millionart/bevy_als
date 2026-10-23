@@ -2460,9 +2460,26 @@
   - 06:59 消融/依赖拆分：去掉source前速替换即失去16首Stop恢复；核源码按字节恢复、同target重编后12完整输出全等，输入提取可复跑且字节全等。源12帧制动+位置回算模型与实际原生全部精确；共同15m/s²下末位乘法候选保留，现reader无公开ApplyVelocityBraking/CalcVelocity probe，不将模型候选计入缺陷。当前项按首Stop传播及准确能力边界收Gate，下一独立计时补原生CMC核能力再验证候选；累计252（115P2/137P3），身份核查中。
   - 完成/Gate：`target/bf144/309/summary.json`通过；source12实际制动/位置回算与冻结target12实际计划值重放、首Stop前速因素消融/字节恢复同target重编、输入字节重建及4913身份（旧4871全不变）通过。首Stop不增编号，累计252（115P2/137P3）；共同制动末位候选缺原生同输入控制，保留下一独立前置，不宣称无差异。生产/reader/转换器/原资产未改，截图0、性能暂停。开始06:55:04；预估结束07:15:04；实际结束07:00:33；实际用时329秒；偏差-871秒；结果通过，拆分原生CMC核能力及后续候选/全Root闭包。
 
+- [x] BF144.310 U01原生CMC制动实现同输入核前置：依赖.309已校准的12实际制动帧与共同15m/s²末位候选，fresh核UE ApplyVelocityBraking原实现访问/有效CharacterMovement生命周期及ALS是否覆写；复用repo native reader最小新增受控制动probe，记录实际参数、before/after原生FVector速度与有效性，不注入AnimInstance或把纯核替自然world。Gate：严格request/非法反例、同输入源原生输出与既有模型/冻结target核、源记录0target回填、必要guard/执行消融与字节恢复同包重编、旧Character history兼容/身份。若出现候选新根因按实值登记，未证实则保留边界，不改生产。开始：2026-10-24 07:01:03 +0800；预估结束：2026-10-24 07:36:03 +0800。估时依据：.306 reader最小输入/快照/消融约13分钟；本项新增纯CMC核入口与生命周期需原生校准，按35分钟，不扩整个CMC或其它物理。仅审计，允许必要reader能力，生产/转换器/原资产不改，截图0、性能暂停。
+  - 07:01 活动摘要：9147a21a完成Stop前态/实际核闭环，4913身份、252（115P2/137P3）、树干净。当前reader没有ApplyVelocityBraking或CalcVelocity原生同输入probe，先核公开API/最小有效实例，再补工具；不复用target数学当source输出。
+  - 07:01 访问/生命周期事实：UE头文件2090的ApplyVelocityBraking为protected（不是公开成员），ALS未覆写；HasValidData只需有效CharacterOwner及UpdatedComponent。改按现reader已有的派生成员指针访问器方式调用真实base对象原方法，避免非法派生对象cast。用标准原生ACharacter及已注册Movement建立纯核输入；该probe不tick world、不注入动画或冒作自然历史，继续核实际HasValidData/无root motion及before/after。
+  - 07:03 工具实现/静态：新增最小CharacterBrakingProbe，临时原生ACharacter的注册有效Movement，通过成员指针调用UE原protected方法；有限double速度及5个有限float参数逐项回显，delta窗口±0.25秒以界定有限工作，负摩擦/制动等交源方法自身处理。原生12实际参数、共同15m/s²候选、零delta/反向15样本请求已备，schema5无效包反例通过；watchdog编译进行中。无world tick、动画输入或target结果回填，旧自然history将单独复核。
+  - 07:05 原生确认D255/P3：新核15样本已执行，实际标准Engine.Character/CharacterMovementComponent注册有效、无root motion、world未tick；12实际制动输入的纯核与源GetSafeNormal+double向量模型全等。旧标量模型在actual22差7.1e−15，fresh Vector.h:2058–2073的InvSqrt归一化复算后逐值恢复，未用容差掩盖。共同前速98.56696724891663cm/s、1500cm/s²与dt0.0333333351的原生投影0.485669642687，target冻结核0.485669672489，零delta/负方向控制过；新增D255，253（115P2/138P3）。旧40历史正在重取，随后非法请求及执行/guard消融和同包恢复。
+  - 07:07 兼容/校验：旧40自然角色history全部字段精确，首个原生非法scalar-string已code7拒绝，后续4请求继续。schema补请求vector bool/类型边界后7反例过。最终probe将以Movement.HasAnimRootMotion读取源制动函数实际使用的guard（标准原生组件当前为false），替代更宽的Character.IsPlayingRootMotion观察；执行/严格Number校验两个独立消融脚本已备，待当前原生请求结束再构建，不并行改包。
+  - 07:10 因素/非法闭环：5原生非法请求（scalar/vector string、delta越界、缺轴、float溢出）全部code7拒绝。冻结公共target核实际normalize输出精确X，float乘积为0.5；保持同米制前速/15/dt，仅延迟乘法舍入即等原生投影，去延迟则丢恢复，源码字节恢复同factor target重编输出全等。原生调用移除包已构建成功/执行中，随后去严格Number guard再恢复同包；不改生产，253（115P2/138P3）。
+  - 07:12 原生工具消融：去执行调用15样本速度全部保持before；去严格Number guard后scalar-string原生成功，说明类型检查必要。最终reader源码已按字节恢复并在同包重编。fresh HasValidData:1060–1084在NaN诊断配置可能清零Velocity，故最终输出先检查Velocity.ContainsNaN再调用getter，防止观察掩盖结果；另备有限float乘积溢出拒绝请求。自动链已进入恢复构建，未运行旧包该溢出红测，不把它当已观测旧反例或产品缺陷。
+  - 07:15 恢复/Gate前：原生call/严格Number guard两项消融均有实际信号，最终源字节恢复同包重编15样本全部字段精确；恢复后scalar-string及有限乘积非有限结果均code7拒绝。最终包旧40自然角色history全部字段精确，7 schema反例、5原生非法请求及乘法因素消融/同factor binary恢复已过。当前253（115P2/138P3），身份核查进行中；生产/转换器/原始资产不改，截图0、性能暂停。
+  - 完成/Gate：`target/bf144/310/summary.json`通过；原生15制动核/12实际参数校准、共同输入D255及乘法因素消融、call/Number guard消融/源字节恢复同包重编、最终旧40history兼容、7 schema/5原生非法请求/非有限结果拒绝均通过。5003身份中旧4908不变，5项reader源/包/runner/doc迁移及新schema显式封存；114 ALS、184生产Rust与冻结库不变。新增D255/P3，253（115P2/138P3），截图0、性能暂停。开始07:01:03；预估结束07:36:03；实际结束07:16:28；实际用时925秒；偏差-1175秒；结果通过，动画共同域/完整Root及旧恢复段原pose父链另依赖继续。
+
 ### 已确认差异（仅登记，未实施修复）
 
 
+
+- [ ] BF144-D255 / P3 — 地面制动向量乘法提前按F32舍入，改变共同输入的制动速度。
+  - Source：fresh `CharacterMovementComponent.cpp:4377–4432`以FVector double执行RevAccel×float dt后加回Velocity；`Vector.h:2058–2073`给出实际GetSafeNormal。原生有效标准CharacterMovement的受控制动核15样本已核，12原实际输入的纯制动向量与独立模型逐值相同；此核不tick世界、不执行位置回算，也无动画root motion。
+  - Target：`dynamics.rs:186–198`以Vec3 F32先舍入制动向量×dt，再加回F32速度。共同物理输入前速0.9856696724891663m/s、制动15m/s²、delta0.03333333507180214、friction factor0时，目标乘积15×dt先变0.5，公开冻结核结果0.48566967248916626；源原生结果48.56696464121342cm/s，投影0.48566964268684387m/s。
+  - 同输入/控制：源前速直接设为共同米制F32值×100的double厘米，制动1500为精确float，方向均X正；归一化在本共同输入下两侧均1，排除位置/前态、单位数据及方向归一化差异。保持已给定的米制输入不变，仅延迟乘法舍入的double向量模型恢复原生投影。零delta保持速度，负方向输出对称，原生均已执行。
+  - 边界与漏检：自然Stop16余差已证明是前速传播，不计本项；自然22原double前速与本共同输入不同，不能把旧配对输出当本例的原生同输入控制。本项只确认普通制动核中的微小数值差异，未宣称可见故障、位置反馈恢复或整段运动等价。旧测试使用target核自身或容差期望，没有隔离共同向量输入的乘法舍入。证据`target/bf144/310/native-check.json`、`braking.native.json`、`braking.request.json`和`target/bf144/309/common.json`；仅登记，生产未修。
 
 - [ ] BF144-D254 / P3 — 从F32世界位置差分回算地面速度，使普通位移后速度受原点量化影响。
   - Source：fresh `CharacterMovementComponent.cpp:5868–5875`使用FVector实际位置差/步长回算；标准输入的原生40帧位置和速度按double厘米独立复算全部精确。停止后第28帧以零初速恢复world+X，原生速度投影为0.6666666865348816m/s。
@@ -4014,6 +4031,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.307当前边界：未改target图的40帧公共输入已与source同世界+X/空输入对应，实际首分叉确认为D253六次F32位移累计，单步控制仅恢复首物理位置/速度投影。动画朝向约定及Speed厘米标量的共同消费域、后续F32位置反馈与完整Root继续开；累计251（115P2/136P3），截图0、性能暂停。
   - BF144.308当前边界：已分离D254的F32世界位置差分反馈，与D253六次累计不同；原点0/1.6621m同输入实际角色及自然28恢复consumer均有证据，source40差分完整精确。16首Stop计划值、动画标量/方向共同域与完整Root仍开；累计252（115P2/137P3），截图0、性能暂停。
   - BF144.309当前边界：Stop16计划余差已排除新增算法因，源12帧位置/制动与target实际核重放精确；共同15m/s²下的末位乘法模型候选未获原生同输入控制，不计缺陷，原生CMC核能力单列下一前置。累计252（115P2/137P3），其余动画共同域/完整Root仍开。
+  - BF144.310当前边界：共同制动乘法候选已用原生CMC核确认为D255，纯核与自然world历史保持区分；source15/target冻结核及因素消融/最终包旧40兼容均过。累计253（115P2/138P3），动画Speed标量/方向共同域、完整Root及旧恢复后缀原pose链继续开。
 
 - [x] BF144-U06 — Rig初始全局数据已于.245归D242/P3。最初.244发现71骨365个double差、默认240仅FootHeight double变化；.245保持全部原生算法，仅换初始数据即在受控半转产生约180°的float足旋转/实际Setter写回差，并在同source厘米算法的5个骨长舍入边界经同原生IK核产生13/15个float关节点差，分别隔离D163算法与D165单位舍入。数据移除/源码字节恢复及同target重编恢复通过，native数学读出移除/同package恢复亦通过；默认动作自然可达性未证，不因关闭U06声明无差异或修复。证据`target/bf144/245/summary.json`、`native-check.json`、`writeback.jsonl`、`restoration-check.json`；原.244记录保留。
   - BF144.136 follower记录重建补充：near-zero候选无有效end时记录leader移到最后一项；下一普通帧恢复正常leader，`AnimSync::Finalize`使follower记录失效。`BlendSpace.cpp:784–787`按已存归一化时间乘当前样本长度重建；目标此前保留秒数。18帧33个previous差最大约59.6ns，全部精确等于`(旧position/旧duration)*当前duration`；仅补这一步后4032帧所有previous也逐值一致，当前采样位置和姿态保持。证据`target/bf144/136/roundtrip-check.json`、`before-roundtrip-all-analysis.json`、`all-analysis.json`。

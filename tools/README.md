@@ -39,6 +39,8 @@
 
 同一controller case每步可选`movement_input_world: {x, y, z}`，三个分量必须为有限JSON数值；读取器在world tick前调用原角色`AddMovementInput`，省略时不施加输入。方向为源世界空间的无单位输入，CMC自行约束、归一和生成加速度，不是速度请求。移动快照增加`pending_input_world`、`last_input_world`、`acceleration_cm_s2`与`max_acceleration_cm_s2`；pending允许在两次tick间由请求改变，其余快照保持连续。`test_character_movement_probe.py --input <result> --request <request>`核对请求、实际pending消费与last输入；加速度和实际速度另按原阶段核对，不用desired值代替。
 
+`CharacterBrakingProbe`在临时原生ACharacter的有效Movement上调用UE原`ApplyVelocityBraking`，仅作受控数值核，不tick世界。请求`samples`每项包含`name`、double厘米速度`velocity_cm_s: {x,y,z}`及float参数`delta_seconds`、`friction`、`braking_deceleration_cm_s2`、`friction_factor`、`braking_substep_seconds`；全部必须为有限JSON数值，delta绝对值不超过0.25秒，其余负值由源方法自身处理。回显实际输入、前后速度、有效性和无root motion；`test_character_braking_probe.py`检查schema。纯核输出不代替自然角色运动或位置回算历史。
+
 角色请求可选`force_raw_data`布尔值：在world创建前，以带tag的`ECVF_SetByTemp`覆盖原生`a.ForceEvalRawData`，函数退出时`Unset`还原旧值/flags，输出`raw_data_control`记录施加阶段与恢复结果。true只在源raw模型有效时强制raw；false关闭强制，不保证compressed；省略时不写CVar。`test_character_raw_mode_control.py`核对控制与恢复，不能用`SetWithCurrentPriority`隐式替换Constructor优先级。
 
 `SequencePoseProbe`可用`animation_pose: true`与`raw_additive_pose: true`读取有效加性sequence的原生raw delta；工具设置实际RequiredBones raw标志后调用GetAnimationPose，并输出`required_bones_raw`。可同时准备compressed数据以排除偶然raw回退，但不得混用`raw_absolute_pose`或绝对FK `capture_source_stages`。`test_raw_additive_pose_probe.py`检查模式、真实标志与完整骨序；绝对pose不能代替该delta。

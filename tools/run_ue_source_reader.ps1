@@ -13,6 +13,7 @@ param(
     [string]$RigPoseTransferProbe,
     [string]$RigNodeHistoryProbe,
     [string]$CharacterAnimationProbe,
+    [string]$CharacterBrakingProbe,
     [string]$AnimationAttributeProbe,
     [string]$SlotProbe,
     [string]$BlendProfileProbe,
@@ -302,6 +303,10 @@ $arguments = @(
     "-ForceLogFlush",
     "-abslog=$logPath"
 )
+if ($CharacterBrakingProbe) {
+    $probePath = (Resolve-Path -LiteralPath $CharacterBrakingProbe -ErrorAction Stop).Path
+    $arguments += "-CharacterBrakingProbe=$probePath"
+}
 if ($BlendSpaceProbe) {
     $probePath = (Resolve-Path -LiteralPath $BlendSpaceProbe -ErrorAction Stop).Path
     $arguments += "-BlendSpaceProbe=$probePath"

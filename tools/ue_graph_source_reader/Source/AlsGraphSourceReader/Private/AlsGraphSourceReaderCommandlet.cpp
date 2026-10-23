@@ -3827,6 +3827,75 @@ TSharedPtr<FJsonObject> CaptureRigPoseTransferProbe(UObject* Asset, const FStrin
     return Result;
 }
 
+TSharedPtr<FJsonObject> CaptureCharacterBrakingProbe(const FString& RequestPath)
+{
+    FString Text;
+    TSharedPtr<FJsonObject> Request;
+    const TArray<TSharedPtr<FJsonValue>>* Samples = nullptr;
+    if (!FFileHelper::LoadFileToString(Text, *RequestPath) ||
+        !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Request) ||
+        !Request->TryGetArrayField(TEXT("samples"), Samples) || Samples->IsEmpty() || Samples->Num() > 256) { return nullptr; }
+    struct FBrakingAccess : UCharacterMovementComponent
+    {
+        static void Apply(UCharacterMovementComponent& Movement, float Delta, float Friction, float Deceleration)
+        {
+            (Movement.*&FBrakingAccess::ApplyVelocityBraking)(Delta, Friction, Deceleration);
+        }
+    };
+    UWorld::InitializationValues Settings;
+    Settings.AllowAudioPlayback(false).RequiresHitProxies(false).CreatePhysicsScene(true).ShouldSimulatePhysics(false).CreateNavigation(false).CreateAISystem(false).CreateFXSystem(false).SetTransactional(false);
+    UWorld* World = UWorld::CreateWorld(EWorldType::Game, false, NAME_None, nullptr, true, ERHIFeatureLevel::Num, &Settings);
+    if (World == nullptr) { return nullptr; }
+    ON_SCOPE_EXIT { World->DestroyWorld(false); };
+    ACharacter* Character = World->SpawnActor<ACharacter>();
+    UCharacterMovementComponent* Movement = Character != nullptr ? Character->GetCharacterMovement() : nullptr;
+    if (Movement == nullptr || !Movement->HasValidData() || !Movement->IsRegistered() || Movement->HasAnimRootMotion()) { return nullptr; }
+    TArray<TSharedPtr<FJsonValue>> Rows;
+    for (const TSharedPtr<FJsonValue>& SampleValue : *Samples)
+    {
+        const TSharedPtr<FJsonObject>* Sample = nullptr;
+        const TSharedPtr<FJsonObject>* Velocity = nullptr;
+        FString Name;
+        double X, Y, Z;
+        if (!SampleValue->TryGetObject(Sample) || !(*Sample)->TryGetStringField(TEXT("name"), Name) || Name.IsEmpty() ||
+            !(*Sample)->TryGetObjectField(TEXT("velocity_cm_s"), Velocity) ||
+            !(*Velocity)->HasTypedField<EJson::Number>(TEXT("x")) || !(*Velocity)->HasTypedField<EJson::Number>(TEXT("y")) || !(*Velocity)->HasTypedField<EJson::Number>(TEXT("z")) ||
+            !(*Velocity)->TryGetNumberField(TEXT("x"), X) || !(*Velocity)->TryGetNumberField(TEXT("y"), Y) || !(*Velocity)->TryGetNumberField(TEXT("z"), Z) ||
+            !FMath::IsFinite(X) || !FMath::IsFinite(Y) || !FMath::IsFinite(Z)) { return nullptr; }
+        TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>();
+        Row->SetStringField(TEXT("name"), Name);
+        TArray<float> Inputs;
+        for (const TCHAR* Key : {TEXT("delta_seconds"), TEXT("friction"), TEXT("braking_deceleration_cm_s2"), TEXT("friction_factor"), TEXT("braking_substep_seconds")})
+        {
+            double Value;
+            if (!(*Sample)->HasTypedField<EJson::Number>(Key) || !(*Sample)->TryGetNumberField(Key, Value) || !FMath::IsFinite(static_cast<float>(Value))) { return nullptr; }
+            Inputs.Add(static_cast<float>(Value));
+            Row->SetNumberField(Key, Inputs.Last());
+        }
+        if (FMath::Abs(Inputs[0]) > 0.25f) { return nullptr; }
+        Movement->Velocity = FVector(X, Y, Z);
+        Movement->BrakingFrictionFactor = Inputs[3];
+        Movement->BrakingSubStepTime = Inputs[4];
+        Row->SetObjectField(TEXT("before_velocity_cm_s"), CaptureVector(Movement->Velocity));
+        Row->SetBoolField(TEXT("has_valid_data_before"), Movement->HasValidData());
+        FBrakingAccess::Apply(*Movement, Inputs[0], Inputs[1], Inputs[2]);
+        if (Movement->Velocity.ContainsNaN() || !Movement->HasValidData()) { return nullptr; }
+        Row->SetBoolField(TEXT("has_valid_data_after"), Movement->HasValidData());
+        Row->SetObjectField(TEXT("after_velocity_cm_s"), CaptureVector(Movement->Velocity));
+        Rows.Add(MakeShared<FJsonValueObject>(Row));
+        UE_LOG(LogAlsGraphSourceReader, Display, TEXT("Source character braking sample %d/%d captured."), Rows.Num(), Samples->Num());
+    }
+    TSharedRef<FJsonObject> Probe = MakeShared<FJsonObject>();
+    Probe->SetStringField(TEXT("format"), TEXT("ue_character_braking_probe_v1"));
+    Probe->SetStringField(TEXT("character_class"), ObjectPath(Character->GetClass()));
+    Probe->SetStringField(TEXT("movement_class"), ObjectPath(Movement->GetClass()));
+    Probe->SetBoolField(TEXT("movement_registered"), Movement->IsRegistered());
+    Probe->SetBoolField(TEXT("has_animation_root_motion"), Movement->HasAnimRootMotion());
+    Probe->SetBoolField(TEXT("world_ticked"), false);
+    Probe->SetArrayField(TEXT("samples"), Rows);
+    return Probe;
+}
+
 TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FString& RequestPath)
 {
     UBlueprint* Blueprint = Cast<UBlueprint>(Asset);
@@ -6544,6 +6613,13 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
         Root->SetObjectField(TEXT("animation_attribute_probe"), Probe.ToSharedRef());
     }
     FString CharacterAnimationProbePath;
+    FString CharacterBrakingProbePath;
+    if (FParse::Value(*Params, TEXT("CharacterBrakingProbe="), CharacterBrakingProbePath))
+    {
+        const TSharedPtr<FJsonObject> Probe = CaptureCharacterBrakingProbe(CharacterBrakingProbePath);
+        if (!Probe.IsValid()) { return 7; }
+        Root->SetObjectField(TEXT("character_braking_probe"), Probe.ToSharedRef());
+    }
     if (FParse::Value(*Params, TEXT("CharacterAnimationProbe="), CharacterAnimationProbePath))
     {
         const TSharedPtr<FJsonObject> Probe = CaptureCharacterAnimationProbe(Asset, CharacterAnimationProbePath);
