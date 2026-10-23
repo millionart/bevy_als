@@ -2408,6 +2408,13 @@
 
   - 05:57 完成摘要：Gate `target/bf144/303/summary.json` PASS_THREE_COMPRESSED_HEAD_ADDITIVE_DATA_REFERENCE_AND_SOURCE_NUMERIC_FACTORS；三真实mesh/0.5秒compressed additive与Stand0参考已fresh提取，原BS manual per-bone override空/mesh-space输入语义与源码分支闭合，28帧2212骨源TQS由cm/double/FMA/NEON完整重建全精确。Target actual叶/Look公共算子2212骨精确；源压缩delta数据替换与撤回分别T50/R1499/S0和原T1956/R2100/S448，源数据路径与runtime数值边界分开，扩D224/D232。仅删source BS外normalize，双sample1824 double/1 f32骨反例扩D231；单sample差只作源阶段控制。Fresh raw Stand0只换reference，三sample52实际调用各73骨delta变化、scale16→0但T/R仍开，扩D235不称完整delta修复。Reference替换物理删除后52调用全回到original，source/数据/参考代码按字节恢复并同各自target重编，完整28步/控制输出及2212源骨恢复；全部旧character字段保持，无生产修复。4515身份键保持前4417全等，114 ALS/184生产Rust/冻结库、reader/package/转换器/原资产不改。实际结束：2026-10-24 05:57:52 +08:00；实耗19分14秒，较预估提前15分46秒；已有原生采样/数学核可复用，主要成本为三数据mode、模型双精度校准与参考单因素，source路径无新未知算子。后续同类2–3实际输入合成/引用控制约25分钟估计。新增0、累计250（115P2/135P3）；本项只闭Head additive生成/Look合成的分类边界，最终Apply实际Base→rig-source/Root、180和原77运动仍开。截图0、性能暂停。
 
+- [x] BF144.304 U07非零Head Apply与实际Base→rig-source：依赖.302真实Down-Up/输入和.303三sample数据/Look数值分类，fresh核Head ApplyMeshSpaceAdditive当前Base/delta/alpha与输出到实际rig-source的直接链；使用已采原生HeadBase/Additive与target同节点cache，先校准源双精度合成和target公共helper，再控制已证D241/D231/D232等，不用整体Root差倒推。Gate：实际owner/pin/space/alpha消费合同、source Head输出/rig-source及target HeadRoot公共重放/同数据单因素、必要消融/字节恢复同target/身份；头部Base上游/其他Root残差仅沿已证链登记，不扩180或旧77motion。开始：2026-10-24 05:58:11 +08:00；预估结束：2026-10-24 06:23:11 +08:00。估时依据：.190同类mesh加性已有独立源/target核，.303实际三sample约19分钟且非零source28帧与cache已具，本项只接一次最终Apply和真实后继，按25分钟。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 05:58 活动摘要：ae9496ae完成Head additive因素，4515身份、250（115P2/135P3）、树干净。输入/state/选择与source Look双精度已闭，目标仍含已有数据/数值差，完整HeadRoot/rig-source未验；本项只进入已证Apply真实Base/delta/alpha，优先复用旧数学核与当前source事实。
+
+  - 06:07 source/static与实际消费者闭环：fresh源ApplyMeshSpaceAdditive当前bRootSpace=false/alpha1，Base/delta真实28组、Base curves保持/空additive curves；按source local→mesh（无早normalize）→full additive→mesh→local→API/node两次末normalize，独立重建实际rig-source2212骨TQS全部double精确。Target同Base/delta/alpha经公共apply_mesh_space_additive复现实际Apply/HeadRoot2212骨，全部旧28步字段保持；实际parent Head caller输出与内Root全等，主图ControlRig输入直接接该caller，非请求或名字镜像。持同源输入只加早mesh normalize为2198 double/20 f32旋转差、只去node末normalize为1559/4、full delta仍normalize为1736/9，分别扩既有D241/D231/D170，不加总/不新增。源代码字节恢复同target重编后源2212骨恢复精确；新增Apply观察正在物理删除/恢复验证，后续仅身份收口。Head Base上游与Rig/180/原77整体仍分开，不称全Root等价，250，截图0、性能暂停。
+
+  - 06:09 完成摘要：Gate `target/bf144/304/summary.json` PASS_ACTUAL_NONZERO_HEAD_APPLY_BASE_TO_RIG_SOURCE_AND_KNOWN_NUMERIC_FACTORS；源真实Base/delta/alpha=1/mesh分支至rig-source28帧2212骨TQS独立cm/double模型全部精确，曲线保持同源；target同输入公共helper、Apply、HeadRoot2212骨全等，内Root→outer Head→主ControlRig输入直接边28帧真实缓存与骨通道全等，全部旧字段保持。只加早mesh normalize为2198 double/20 f32旋转行差，去node外normalize为1559/4，full delta仍normalize为1736/9，分别扩D241/D231/D170，不加总或将其当全部current residual；近零分量精确差不宣称可见故障。源代码字节恢复同target重编后2212骨源模型精确，观察物理删除保持全部旧Root/actor/Head节点/context，源码字节恢复同target重编后28帧控制/运输完整恢复。4572身份键保持前4515全等，114 ALS/184生产Rust/冻结库、reader/package/转换器/原资产不改。实际结束：2026-10-24 06:09:56 +08:00；实耗11分45秒，较预估提前13分15秒；旧源/target算子已具且实际28输入完整，主要成本为三单因素和运输/观察恢复，避免重跑无关原生场景。相同已有实际输入的最终算子审计后续按20分钟估计。新增0、累计250（115P2/135P3）；本项只审非零Head Apply与其直接rig-source消费，当前两端上游数据/数值差未修，180恢复、原77motion及完整Root/原反馈仍开。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 
@@ -2497,6 +2504,8 @@
   - 最小反例：实际controlled crouch-directions frame0/alpha1，ball_l current quaternion为[-0.0003303289122413844,0.7163187265396118,-0.00021529194782488048,-0.6977731585502625]；仅去组件product normalize后为[-0.00033032873761840165,0.7163187265396118,-0.00021532164828386158,-0.6977731585502625]。当前公共helper和f32逐阶段公式均精确重放，source-order合同FAIL101；77帧此单因素改变4952骨骼，其余当前阶段保持，未修生产或称可见故障。
   - 原生/边界：新source compiled mesh节点对3组原输入与3组actual lift输入共474骨骼f64精确。仅给源模型注入组件normalize，在same-input 237骨骼改变234个double/9个float投影，local末尾两次及输入数据保持；原Base/Delta数组0target回填。证据`target/bf144/234/component.jsonl`、`component-source-contract.report.json`、`mesh-check.json`与`same-input-check.json`；整个Layering/最终反馈及活动body-slot路径仍未通过。
   - BF144.268初始Head消费者：Base/Additive/alpha真实链已校准，生产helper与完整原240/11预热保持；相同实际输入仅去组件product normalize即改变58骨。ball_l的runtime q由[-0.0000799894260126166,0.7186337113380432,0.000029563900170614943,-0.695388913154602]变为[-0.00008001920650713146,0.7186336517333984,0.00002956389289465733,-0.6953888535499573]。原始source Head与同target输入两组native各790分量精确等于既有double核，给该核独立补组件normalize后分别79/77骨改变，float投影14/6分量改变；alpha0第三组完整保Base，14curve保持。组件控制物理去除丢全部58变化，源码字节恢复/同target重编后完整结果精确恢复；数据与观察另行消融，未把输入差或其余数值阶段一并归因。证据 `target/bf144/268/math-check.json`、`component-initial.json`、`controls-check.json`、`restoration-check.json`、`summary.json`。只扩展已证消费者，未修生产，完整原反馈仍未通过。
+
+  - BF144.304实际Head Base→rig-source扩展：28组原生Base/delta/alpha=1按source local→mesh→full additive（无早normalize）→local→API/node末normalize重建2212骨TQS全double精确。只在mesh组件旋转相乘后提前normalize、其余字段/输入/末尾阶段不变，2198 double旋转行变化、20行改变f32；该消费者仍为已有提前组件归一化阶段，不另编号，含近零分量的精确变化不宣称视觉故障。目标同Base/delta经公共helper精确匹配Apply/HeadRoot，内Root到outer Head及ControlRig输入直接边已核，恢复以.304摘要为准；证据 `target/bf144/304/factors-check.json`、`transport-check.json`。
 
 - [ ] BF144-D01 / P2 — 动作期间的旋转模式丢失保留的冲刺优先级。
   - Source：fresh `AlsCharacter.cpp:675–758` 的 `bSprinting` 只读 CMC MaxAllowedGait；`942–958` 非 Grounded 时不刷新该值，Custom/None 按“Grounded and other locomotion modes”分支继续保留冲刺优先级。fresh CS_Als_Default 确认 SprintHasPriorityOverAiming/RotateToVelocityWhenSprinting 均为 True。
@@ -3567,6 +3576,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - BF144.190 Lean实际消费扩展：3386份ApplyAdditive原Base/Additive/有效alpha/结果/267494骨骼经生产helper逐项重放精确；同输入source full/partial控制在160份自然近全权重pose改变2174个f32骨骼，2237份精确alpha1另有90个数值差只由预归一化次序产生，不称方向缩小。64个实际Base/delta/alpha原生AccumulateAdditivePose与独立double/NEON模型f64精确，物理删full分支稳定失败并字节恢复/同dylib重编通过；该补充只审consumer算子，不宣称原source Base或final Root已重建。证据`target/bf144/190/native-check.json`、`operator-check.json`、`actual-replay.json`及恢复报告。
 
+  - BF144.304真实Head full=1扩展：源mesh加性快路直接使用实际近单位delta再乘Base，partial路径的预先delta归一化不发生；在固定28组真实Base/delta/alpha=1的源double模型中只补入该weighted-delta normalize，1736 double旋转行改变、9行改变f32，T/S保持。旧weight1单位quat控制通过不能外推近单位原生delta；源Head Apply→rig-source2212骨精确基线与其他stage单因素分开，归本full快路而不新增编号或称可见故障。源码字节恢复/同target重编以.304摘要为准；证据 `target/bf144/304/factors-check.json`、`source-apply.json`。
+
 - [ ] BF144-D171 / P2 — Transition再次替换同组Turn时重启旧淡出，延长旧姿态的消费。
   - Source：fresh `AnimInstance.cpp:3671–3695`对同组实例调用Stop；`AnimMontage.cpp:1632–1642`在已混出状态仅接受更短时长，相等或更长请求不重置进度。Skeleton原生组映射确认Transition、TurnInPlaceStanding和TurnInPlaceCrouching均为Grounded；当前替换混入时长为0.2秒。
   - Target：`turn_layer.rs:264–270`的`stop_for_group_replacement`无条件把当前权重作为新起点、elapsed归零；`stop_link.rs:324–332`每次播放Transition都会调用它，因此同样的0.2秒请求也延长旧Turn。
@@ -4130,6 +4141,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.199原数据补充：原native叶→double Base/Lean→Apply3386输出已接通；首例268输出只去源节点末尾normalize，13011个f64/24个f32骨骼改变，curves保持。Crouching第21帧thigh_twist_01_l的runtime z由−6.73841786920093e−5变为−6.738418596796691e−5；原Base/Lean各断供均拒绝268输出，字节恢复精确，24新原组合的公开加性API及末尾normalize控制f64精确。该补充保留原数据条件，不将全组合source-target残差归本项，也未证明完整Root反馈。证据`target/bf144/199/ablation-check.json`、`native-check.json`。
 
   - BF144.303 Head双样本扩展：source当前BS无per-bone smoothing，三mesh-additive源sample/实际weight构成28帧2212骨全部double精确。仅删BS外层Normalize，双样本1824 double骨改变，其中frame8 upperarm_twist_01_r有1个f32变化；同一源数据和其他算子保持。单样本省去它造成的32个f32变化只作source阶段控制，target单样本已有一次，不当缺失反例。源码字节恢复同target重编后2212骨全部恢复，沿本项追加Head非零consumer，不新增编号；证据 `target/bf144/303/norm-factor-check.json`、`source-restoration-check.json`。
+
+  - BF144.304非零Head最终Apply：源实际HeadBase/additive/alpha=1到rig-source28帧2212骨double精确，只物理移除node外层一次末normalize，1559 double旋转行变化、4行改变f32（含非零head旋转），其他输入与T/S保持；source外normalize仍属于本项同一阶段合同，target公共helper原缓存全2212骨精确。单因素不与D241/full-delta因素加总，恢复以.304摘要为准，未称完整source-target Head/Root已等价；证据 `target/bf144/304/factors-check.json`。
 
 - [ ] BF144-D232 / P3 — 多姿态骨骼在源数值空间求值前即降为runtime f32，改变混合结果。
   - Source：fresh `MathFwd.h:53`的FTransform为TTransform<double>；`AnimationRuntime.h:51–61`以源厘米/原坐标的FTransform做Overwrite和Accumulate，`TransformVectorized.h:1060–1071`的translation/scale使用double VectorMultiplyAdd，rotation也在同一double管线累积/归一化。源子pose的reference scale和AnimationRelative rotation还可含非f32值。
