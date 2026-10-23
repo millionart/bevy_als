@@ -97,6 +97,7 @@
 #include "AnimNode_ControlRig.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/WorldSettings.h"
 #include "AssetCompilingManager.h"
 #include "Misc/App.h"
@@ -4225,6 +4226,29 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
             UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Initial source pose boundaries are unavailable: invalid_owner=%d observed_instance=%s instance=%s rig_source_evaluations=%d root_evaluations=%d."), bInvalidObservationOwner, *ObjectPath(ObservedInstance.Get()), *ObjectPath(Instance), HeadObservation.Evaluations, RootObservation.Evaluations);
             return nullptr;
         }
+        const UCharacterMovementComponent* Movement = Character->GetCharacterMovement();
+        const FProperty* LocomotionProperty = Character->GetClass()->FindPropertyByName(TEXT("LocomotionMode"));
+        if (Movement == nullptr || LocomotionProperty == nullptr) { return nullptr; }
+        const auto CaptureMovement = [&]()
+        {
+            TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+            Value->SetNumberField(TEXT("movement_mode"), Movement->MovementMode.GetValue());
+            Value->SetStringField(TEXT("movement_mode_name"), UEnum::GetValueAsString(Movement->MovementMode.GetValue()));
+            Value->SetNumberField(TEXT("custom_movement_mode"), Movement->CustomMovementMode);
+            FString Locomotion;
+            LocomotionProperty->ExportTextItem_Direct(Locomotion, LocomotionProperty->ContainerPtrToValuePtr<void>(Character), nullptr, Character, PPF_None);
+            Value->SetStringField(TEXT("character_locomotion_mode"), Locomotion);
+            Value->SetBoolField(TEXT("registered"), Movement->IsRegistered());
+            Value->SetBoolField(TEXT("begun_play"), Movement->HasBegunPlay());
+            Value->SetBoolField(TEXT("tick_registered"), Movement->PrimaryComponentTick.IsTickFunctionRegistered());
+            Value->SetBoolField(TEXT("tick_enabled"), Movement->IsComponentTickEnabled());
+            Value->SetObjectField(TEXT("velocity_cm_s"), CaptureVector(Movement->Velocity));
+            Value->SetObjectField(TEXT("last_update_location_cm"), CaptureVector(Movement->GetLastUpdateLocation()));
+            Value->SetObjectField(TEXT("last_update_velocity_cm_s"), CaptureVector(Movement->GetLastUpdateVelocity()));
+            Value->SetBoolField(TEXT("walkable_floor"), Movement->CurrentFloor.IsWalkableFloor());
+            Value->SetNumberField(TEXT("floor_distance_cm"), Movement->CurrentFloor.FloorDist);
+            return Value;
+        };
         const auto CapturePoseBoundaries = [&]()
         {
             TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
@@ -4267,6 +4291,7 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
         Initialization->SetNumberField(TEXT("evaluation_counter"), InitialEvaluation);
         Initialization->SetObjectField(TEXT("actor_transform"), CaptureTransform(Character->GetActorTransform()));
         Initialization->SetObjectField(TEXT("actor_velocity_cm_s"), CaptureVector(Character->GetVelocity()));
+        Initialization->SetObjectField(TEXT("movement_component"), CaptureMovement());
         Initialization->SetArrayField(TEXT("source_state"), CaptureState(Instance));
         Initialization->SetArrayField(TEXT("instances"), CaptureInstances(Mesh, Instance));
         const TSharedPtr<FJsonObject> InitialGetter = CaptureGetter(Instance);
@@ -4319,6 +4344,7 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
             if (!FrameValue->TryGetObject(Frame) || !(*Frame)->TryGetNumberField(TEXT("delta_seconds"), Delta) || !FMath::IsFinite(static_cast<float>(Delta)) ||
                 Delta <= 0 || Delta > 0.25 || !(*Frame)->TryGetBoolField(TEXT("rendered"), bRendered)) { return nullptr; }
             const bool bPoseTickedBeforeWorld = Mesh->PoseTickedThisFrame();
+            const TSharedRef<FJsonObject> MovementBefore = CaptureMovement();
             const TSharedPtr<FJsonObject> GetterBefore = CaptureGetter(Instance);
             if (!GetterBefore.IsValid()) { return nullptr; }
             const double SavedDelta = FApp::GetDeltaTime();
@@ -4345,6 +4371,8 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
             Row->SetObjectField(TEXT("actor_transform"), CaptureTransform(Character->GetActorTransform()));
             Row->SetObjectField(TEXT("actor_velocity_cm_s"), CaptureVector(Character->GetVelocity()));
             Row->SetObjectField(TEXT("mesh_to_world"), CaptureTransform(Mesh->GetComponentTransform()));
+            Row->SetObjectField(TEXT("movement_before_tick"), MovementBefore);
+            Row->SetObjectField(TEXT("movement_after_tick"), CaptureMovement());
             Row->SetObjectField(TEXT("getter_before_tick"), GetterBefore.ToSharedRef());
             const TSharedPtr<FJsonObject> GetterAfter = CaptureGetter(Instance);
             if (!GetterAfter.IsValid()) { return nullptr; }

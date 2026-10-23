@@ -33,6 +33,8 @@
 
 `CharacterAnimationProbe`的实例记录包含`asset_players`：实际资产、节点GUID、当前时点、缓存Update权重及可查询序列的`pose_mode_at_observation`。BlendSpace另记录实际样本缓存的声明索引、源资产、夹取时点/权重及观察时mode。缓存权重不证明该pose已执行，观察时mode不证明此前求值时mode；使用`test_character_asset_player_probe.py`核对观察结构与非法值。
 
+`CharacterAnimationProbe`同时读取初始化`movement_component`和每步`movement_before_tick` / `movement_after_tick`：实际CharacterMovement模式、角色LocomotionMode、注册/tick启用状态、当前及末次更新位置/速度和floor状态。它不修改移动组件；`test_character_movement_probe.py`检查前后连续性、字段类型/有限值与actor速度一致。注册或tick启用不代表该次tick已执行，AnimInstance的LocomotionMode也不能替代角色或移动组件状态。`initial_engine_frame`位于请求顶层；时钟控制必须核对每个case输出的同名实际回显。
+
 角色请求可选`force_raw_data`布尔值：在world创建前，以带tag的`ECVF_SetByTemp`覆盖原生`a.ForceEvalRawData`，函数退出时`Unset`还原旧值/flags，输出`raw_data_control`记录施加阶段与恢复结果。true只在源raw模型有效时强制raw；false关闭强制，不保证compressed；省略时不写CVar。`test_character_raw_mode_control.py`核对控制与恢复，不能用`SetWithCurrentPriority`隐式替换Constructor优先级。
 
 `SequencePoseProbe`可用`animation_pose: true`与`raw_additive_pose: true`读取有效加性sequence的原生raw delta；工具设置实际RequiredBones raw标志后调用GetAnimationPose，并输出`required_bones_raw`。可同时准备compressed数据以排除偶然raw回退，但不得混用`raw_absolute_pose`或绝对FK `capture_source_stages`。`test_raw_additive_pose_probe.py`检查模式、真实标志与完整骨序；绝对pose不能代替该delta。
