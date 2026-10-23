@@ -2437,9 +2437,23 @@
   - 06:40 恢复闭环：同包源码字节恢复并watchdog重编后，原40角色历史全部字段精确；只去观察324字段以外全等、只去driver后水平motion全0，两种消融均有明确边界。旧28历史、12 schema反例和4原生非法请求已过，生产代码/转换器/原始资产未改；身份核查进行中，累计250，下一待target自然公共输入对应与完整Root。
   - 完成/Gate：`target/bf144/306/summary.json`通过；真实source40输入/停走历史、40动画消费者、81移动快照，旧28兼容、12 schema/4原生非法反例、driver与观察消融/源字节恢复同包重编均通过。4784身份中旧4714保持，仅5项reader源/包/schema/doc迁移；114 ALS与184生产Rust及冻结库不变，250（115P2/135P3），截图0、性能暂停。开始06:27:58；预估结束07:02:58；实际结束06:40:33；实际用时756秒；偏差-1344秒；结果通过，target自然共同消费域与完整Root另依赖继续。
 
+- [x] BF144.307 U01/U07自然移动公共输入共同消费域：依赖.306真实source40步移动/停止/恢复与.295未改target默认图入口，fresh对照ALSExtras输入方向/角色世界基、target AlsInputCommand→view_relative_move_direction→实际movement消费及两侧physics/animation时钟；建立未改target图/不强制motion的连续40步公共输入历史，按实际同输入cohort查首差异并归并已有根因或登记最小新边界。Gate：源/目标方向与单位/时钟合同、实际输入/速度/加速度与动画消费回显、首次分叉的最小可重复证明、必要观察/因素消融字节恢复同target及身份；不以修正动画图夹具替生产，不吞完整Root或所有运动域。开始：2026-10-24 06:40:54 +0800；预估结束：2026-10-24 07:15:54 +0800。估时依据：.295默认target入口约11分钟、.306自然source驱动约13分钟；本项复用公开spawn/冻结rlib，增加世界方向基与输入实际consumer按35分钟。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 06:40 活动摘要：18c55cd5完成source标准移动入口，4784身份、250（115P2/135P3）、树干净；source40实际移动状态已锁定，当前只推进target自然共同域，不复用旧kinematic/强制speed控制。
+  - 06:41 source/static：source标准API接收world+X，coordinate_basis无单位方向映射仍为runtime+X；target view_relative_move_direction在move_dir=(1,0)、yaw0精确生成+X，Tnua desired_motion还乘实际move_len。两侧默认body/view前向约定不同，因此本项先锁共同物理输入，不把source Forward与target Right动画语义或整图姿态直接混配。复用未改图公开spawn的最小fixture仅改输入schedule和只读观察；静态约束/编译先行，下一actual40步核实际desired_motion及首速度分叉。
+  - 06:44 首分叉定位：40步默认target无图错误，实际world+X/空输入与source一致。公开阶段观察锁首次4帧计划velocity0.6666666865、位移0.02222222462；物理后位移0.02222222276，回算velocity0.6666666269，source投影0.6666666865。独立F32六次加法精确复现该末位移；首次source/target虚拟dt相同，未把观察误差归D165。下一只改独立夹具SubstepCount6→1作受控反例；生产未改，当前未加编号。阶段观察初次编译只因公开模块路径误写失败，已改根source_physics_timing路径重编通过，未运行失败产物。
+  - 06:47 确认D253/P3：同世界+X、同初速0、相同frame dt的默认六步首移动位置/速度红测失败；只把独立夹具SubstepCount改1后，两项与fresh source F32投影精确。source实际CDO MaxSimulationTimeStep0.050000000745/Iterations8及GetSimulationTimeStep证明该帧CMC单步，UE Walking直接timeTick*Velocity并按实际位移回算。当前目标先有正确计划位移，项目SourcePhysicsTiming的Grounded路径又按6份float位置累加，数学模型精确复现首差。仅确认第4帧首次分叉，后续世界F32位置反馈与动画Speed厘米float换米仍有独立余差，不宣称1步恢复全40。累计251（115P2/136P3）；默认六步源码字节恢复/同target重编进行中，生产未改。
+  - 06:49 恢复/Gate前：40帧共同world输入与source首次double厘米模型、目标六次F32累计模型、单步恢复均通过；观察移除/默认六步恢复源码字节并同target重编，完整历史仅按整数ns归一加载全局时钟起点后逐值一致，首反例恢复。当前251（115P2/136P3），身份核查进行中；后续F32世界位置回算与动画标量/方向共同域仍开，未宣称完整Root。
+  - 完成/Gate：`target/bf144/307/summary.json`通过；共同world输入40帧/源单步厘米double与目标六次F32数值、首移动帧单因素恢复、观察移除/源码字节恢复同target重编及4838身份（旧4784全不变）通过。新增D253/P3，251（115P2/136P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始06:40:54；预估结束07:15:54；实际结束06:49:46；实际用时532秒；偏差-1568秒；结果通过，后续位置反馈/动画共同域/完整Root保持分项依赖。
+
 ### 已确认差异（仅登记，未实施修复）
 
 
+
+- [ ] BF144-D253 / P3 — 地面CMC计划位移再经六次float累计，改变首移动帧的位置与回算速度。
+  - Source：fresh真实角色40步标准AddMovementInput历史中，第4帧由静止输入world+X，实际delta为0.03333333507180214，CDO MaxSimulationTimeStep为0.05000000074505806、Iterations8；`CharacterMovementComponent.cpp:5690,5716–5738,5870–5875,8162–8186`在本帧只走一个CMC步，用FVector厘米位移移动后按该步时长回算速度。原生位置2.222222454018069cm、速度66.66667014360428cm/s，换米后F32分别为0.02222222462296486、0.6666666865348816。
+  - Target：`dynamics.rs:562–571`已产出正确F32计划位移0.02222222462296486；`source_physics_timing.rs:172–185`在该默认30Hz控制路径以frame_step=frame_delta/6累计Grounded位置，`motion.rs:2681–2690`再从F32实际位置回算速度。实际得到位置0.02222222276031971、速度0.6666666269302368；六次F32乘加模型逐值复现，首速度差随后进入AlsActualMotion和动画provider。
+  - 最小反例与控制：未改图、标准动态角色、原floor、4步空输入后首步world+X；默认6步红测稳定失败，只在独立夹具将SubstepCount改1，两项都恢复原生投影。控制保留实际输入、初速与CMC计划值；这不是修改引擎或生产，也不是性能验收。后续帧仍有米制F32位置反馈和动画Speed标量换算余差，一步控制不恢复整段40帧；当前差异微小，未宣称可见故障。
+  - 漏检：此前自然默认入口是空输入/下落，普通地面测试主要验证运动容差与同target helper，没有把公开输入首移动帧的原生double厘米位置、CMC计划值、六次实际累计和回算速度贯通。证据`target/bf144/307/first-red.json`、`first-control.json`、`stages.json`、`one-substep.json`；仅登记，原生产未修。
 
 - [ ] BF144-D252 / P3 — 出生时未按支撑选择实际运动mode，首个无支撑物理步仍走Grounded积分。
   - Source：fresh非零engine frame17的原生角色在92.15cm有地面出生时为MOVE_Walking/有效floor，在150cm无支撑出生时已为MOVE_Falling/无floor，均发生在首world tick前。`Character.cpp:141–170`在无Controller且允许物理时调用SetDefaultMovementMode；`CharacterMovementComponent.cpp:1319–1338,1443–1454`先进入Walking并FindFloor/AdjustFloorHeight/SetBase，base无效则恢复竖速并切Falling。原生CDO Controller=None、bRunPhysicsWithNoController=True/DefaultLandModeWalking已核，不以AnimInstance的初始Grounded种子代替真实角色mode。
@@ -3976,6 +3990,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - BF144.305当前边界：恢复移动的240帧成员/源权重及反馈固定点已闭合；独立D209单因素下leader/marker/filter/播放器与样本时钟全等，默认D209仍未修。原77/旧240控制证据保留；新后缀的原生pose父链、自然角色运动共同输入与完整Root反馈继续开。累计250（115P2/135P3），截图0、性能暂停。
   - BF144.306当前能力：source已有标准AddMovementInput的40步自然移动/停止/恢复历史及实际动画输入回显，观察被动性/旧域兼容/字节恢复通过。尚未拿它替代原77/240共同域或声称target自然运动/完整Root等价；下一按公共输入映射和实际消费阶段对照。
+  - BF144.307当前边界：未改target图的40帧公共输入已与source同世界+X/空输入对应，实际首分叉确认为D253六次F32位移累计，单步控制仅恢复首物理位置/速度投影。动画朝向约定及Speed厘米标量的共同消费域、后续F32位置反馈与完整Root继续开；累计251（115P2/136P3），截图0、性能暂停。
 
 - [x] BF144-U06 — Rig初始全局数据已于.245归D242/P3。最初.244发现71骨365个double差、默认240仅FootHeight double变化；.245保持全部原生算法，仅换初始数据即在受控半转产生约180°的float足旋转/实际Setter写回差，并在同source厘米算法的5个骨长舍入边界经同原生IK核产生13/15个float关节点差，分别隔离D163算法与D165单位舍入。数据移除/源码字节恢复及同target重编恢复通过，native数学读出移除/同package恢复亦通过；默认动作自然可达性未证，不因关闭U06声明无差异或修复。证据`target/bf144/245/summary.json`、`native-check.json`、`writeback.jsonl`、`restoration-check.json`；原.244记录保留。
   - BF144.136 follower记录重建补充：near-zero候选无有效end时记录leader移到最后一项；下一普通帧恢复正常leader，`AnimSync::Finalize`使follower记录失效。`BlendSpace.cpp:784–787`按已存归一化时间乘当前样本长度重建；目标此前保留秒数。18帧33个previous差最大约59.6ns，全部精确等于`(旧position/旧duration)*当前duration`；仅补这一步后4032帧所有previous也逐值一致，当前采样位置和姿态保持。证据`target/bf144/136/roundtrip-check.json`、`before-roundtrip-all-analysis.json`、`all-analysis.json`。
