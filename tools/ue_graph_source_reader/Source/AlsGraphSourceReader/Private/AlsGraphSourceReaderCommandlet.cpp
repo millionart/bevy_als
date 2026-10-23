@@ -23,6 +23,7 @@
 #include "Animation/AnimNode_ApplyMeshSpaceAdditive.h"
 #include "Animation/AnimNode_SequencePlayer.h"
 #include "Animation/AnimNode_Root.h"
+#include "Animation/AnimNode_LinkedAnimGraph.h"
 #include "Animation/AnimNode_StateMachine.h"
 #include "Animation/AnimNode_StateResult.h"
 #include "Animation/AnimNode_TransitionResult.h"
@@ -3870,6 +3871,37 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
     {
         static const TArray<FBlendSampleData>& Samples(const FAnimNode_BlendSpacePlayerBase& Node) { return Node.*&FBlendSpaceAccess::BlendSampleDataCache; }
     };
+    UClass* HeadClass = nullptr;
+    FStructProperty* HeadProperty = nullptr;
+    if (bCapturePoseBoundaries)
+    {
+        const ACharacter* DefaultCharacter = Cast<ACharacter>(Class->GetDefaultObject());
+        USkeletalMeshComponent* DefaultMesh = DefaultCharacter != nullptr ? DefaultCharacter->GetMesh() : nullptr;
+        UClass* MainClass = DefaultMesh != nullptr ? DefaultMesh->GetAnimClass() : nullptr;
+        const IAnimClassInterface* MainInterface = MainClass != nullptr ? IAnimClassInterface::GetFromClass(MainClass) : nullptr;
+        if (MainInterface == nullptr) { return nullptr; }
+        const TArray<FStructProperty*>& MainProperties = MainInterface->GetAnimNodeProperties();
+        FAnimNode_ControlRig* DefaultRig = nullptr;
+        for (const FStructProperty* Property : MainProperties)
+        {
+            if (Property->Struct != FAnimNode_ControlRig::StaticStruct()) { continue; }
+            if (DefaultRig != nullptr) { return nullptr; }
+            DefaultRig = Property->ContainerPtrToValuePtr<FAnimNode_ControlRig>(MainClass->GetDefaultObject());
+        }
+        const int32 SourceIndex = DefaultRig != nullptr ? FObservedRigAccess::SourceLink(*DefaultRig).LinkID : INDEX_NONE;
+        if (!MainProperties.IsValidIndex(SourceIndex) || !MainProperties[SourceIndex]->Struct->IsChildOf(FAnimNode_LinkedAnimGraph::StaticStruct())) { return nullptr; }
+        const FAnimNode_LinkedAnimGraph* Caller = MainProperties[SourceIndex]->ContainerPtrToValuePtr<FAnimNode_LinkedAnimGraph>(MainClass->GetDefaultObject());
+        HeadClass = Caller->InstanceClass.Get();
+        const IAnimClassInterface* HeadInterface = HeadClass != nullptr ? IAnimClassInterface::GetFromClass(HeadClass) : nullptr;
+        if (HeadInterface == nullptr || HeadInterface->GetAnimBlueprintFunctions().IsEmpty()) { return nullptr; }
+        const FStructProperty* RootProperty = CastField<FStructProperty>(HeadInterface->GetAnimBlueprintFunctions()[0].OutputPoseNodeProperty);
+        if (RootProperty == nullptr || RootProperty->Struct != FAnimNode_Root::StaticStruct()) { return nullptr; }
+        const FAnimNode_Root* Root = RootProperty->ContainerPtrToValuePtr<FAnimNode_Root>(HeadClass->GetDefaultObject());
+        const TArray<FStructProperty*>& HeadProperties = HeadInterface->GetAnimNodeProperties();
+        if (!HeadProperties.IsValidIndex(Root->Result.LinkID)) { return nullptr; }
+        HeadProperty = HeadProperties[Root->Result.LinkID];
+        if (HeadProperty->Struct != FAnimNode_ApplyMeshSpaceAdditive::StaticStruct()) { return nullptr; }
+    }
     const auto CaptureGetter = [](UAnimInstance* Instance) -> TSharedPtr<FJsonObject>
     {
         UFunction* Function = Instance->FindFunction(TEXT("GetControlRigInput"));
@@ -4055,10 +4087,12 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
         Box->RegisterComponent();
         FActorSpawnParameters Spawn;
         Spawn.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-        FObservedPose HeadObservation, RootObservation;
+        FObservedPose HeadObservation, RootObservation, HeadBaseObservation, HeadAdditiveObservation;
         FAnimNode_ControlRig* ObservedRigNode = nullptr;
         FAnimNode_Root* ObservedRootNode = nullptr;
+        FAnimNode_ApplyMeshSpaceAdditive* ObservedHeadNode = nullptr;
         TWeakObjectPtr<UAnimInstance> ObservedInstance;
+        TWeakObjectPtr<UAnimInstance> ObservedHeadInstance;
         TWeakObjectPtr<UControlRig> ObservedRig;
         bool bInvalidObservationOwner = false;
         FDelegateHandle ConstructedHandle;
@@ -4070,12 +4104,27 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
                 if (ObservedRigNode != nullptr) { FObservedRigAccess::SourceLink(*ObservedRigNode) = HeadObservation.Source; }
                 if (ObservedRootNode != nullptr) { ObservedRootNode->Result = RootObservation.Source; }
             }
+            if (ObservedHeadInstance.IsValid() && ObservedHeadNode != nullptr)
+            {
+                ObservedHeadNode->Base = HeadBaseObservation.Source;
+                ObservedHeadNode->Additive = HeadAdditiveObservation.Source;
+            }
         };
         if (bCapturePoseBoundaries)
         {
             ConstructedHandle = FCoreUObjectDelegates::OnObjectConstructed.AddLambda([&](UObject* Object)
             {
                 if (!IsInGameThread()) { return; }
+                if (UAnimInstance* Linked = Cast<UAnimInstance>(Object); Linked != nullptr && Linked->GetClass() == HeadClass && Linked->GetWorld() == World && !Linked->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+                {
+                    if (ObservedHeadNode != nullptr) { bInvalidObservationOwner = true; return; }
+                    ObservedHeadNode = HeadProperty->ContainerPtrToValuePtr<FAnimNode_ApplyMeshSpaceAdditive>(Linked);
+                    HeadBaseObservation.Source = ObservedHeadNode->Base;
+                    HeadAdditiveObservation.Source = ObservedHeadNode->Additive;
+                    ObservedHeadNode->Base.SetLinkNode(&HeadBaseObservation);
+                    ObservedHeadNode->Additive.SetLinkNode(&HeadAdditiveObservation);
+                    ObservedHeadInstance = Linked;
+                }
                 UControlRig* NewRig = Cast<UControlRig>(Object);
                 USkeletalMeshComponent* Component = NewRig != nullptr ? NewRig->GetTypedOuter<USkeletalMeshComponent>() : nullptr;
                 UAnimInstance* Owner = Component != nullptr ? Component->GetAnimInstance() : nullptr;
@@ -4130,7 +4179,8 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
         if (RigNode == nullptr || RigNode->GetControlRig() == nullptr) { return nullptr; }
         UControlRig* Rig = RigNode->GetControlRig();
         if (bCapturePoseBoundaries && (bInvalidObservationOwner || ObservedInstance.Get() != Instance || ObservedRig.Get() != Rig ||
-            ObservedRigNode != RigNode || !HeadObservation.Latest.IsValid() || !RootObservation.Latest.IsValid()))
+            ObservedRigNode != RigNode || !HeadObservation.Latest.IsValid() || !RootObservation.Latest.IsValid() ||
+            !ObservedHeadInstance.IsValid() || !HeadBaseObservation.Latest.IsValid() || !HeadAdditiveObservation.Latest.IsValid()))
         {
             UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Initial source pose boundaries are unavailable: invalid_owner=%d observed_instance=%s instance=%s rig_source_evaluations=%d root_evaluations=%d."), bInvalidObservationOwner, *ObjectPath(ObservedInstance.Get()), *ObjectPath(Instance), HeadObservation.Evaluations, RootObservation.Evaluations);
             return nullptr;
@@ -4141,6 +4191,12 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
             Value->SetStringField(TEXT("stage"), TEXT("actual_rig_source_and_main_root_result"));
             Value->SetObjectField(TEXT("rig_source"), HeadObservation.Latest.ToSharedRef());
             Value->SetObjectField(TEXT("root_result"), RootObservation.Latest.ToSharedRef());
+            Value->SetObjectField(TEXT("head_base"), HeadBaseObservation.Latest.ToSharedRef());
+            Value->SetObjectField(TEXT("head_additive"), HeadAdditiveObservation.Latest.ToSharedRef());
+            Value->SetNumberField(TEXT("head_alpha"), ObservedHeadNode->ActualAlpha);
+            Value->SetBoolField(TEXT("head_root_space_additive"), ObservedHeadNode->bRootSpaceAdditive);
+            Value->SetStringField(TEXT("head_instance_class"), ObjectPath(ObservedHeadInstance->GetClass()));
+            Value->SetStringField(TEXT("head_property"), HeadProperty->GetName());
             return Value;
         };
         int32 Forward = 0;
@@ -4287,7 +4343,7 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
             Row->SetArrayField(TEXT("rig_executions"), Executions);
             if (bCapturePoseBoundaries)
             {
-                if (!HeadObservation.Latest.IsValid() || !RootObservation.Latest.IsValid()) { return nullptr; }
+                if (!HeadObservation.Latest.IsValid() || !RootObservation.Latest.IsValid() || !HeadBaseObservation.Latest.IsValid() || !HeadAdditiveObservation.Latest.IsValid()) { return nullptr; }
                 Row->SetObjectField(TEXT("pose_boundaries"), CapturePoseBoundaries());
             }
             Executions.Reset();
