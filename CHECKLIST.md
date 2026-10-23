@@ -2041,6 +2041,17 @@
 
   - 08:13 完成摘要：fresh B_Als_Character真实owner/设置/AB_Als完整world tick入口建立，不替换图、不注入Rig变量；3组54帧覆盖主/linked共9实例、9FSM、79骨与实际getter/消费值，rendered每帧update/eval/Forward递增、非reference，unrendered图计数恒定且pending保持True。19当次source文件/222处证据包含actor→mesh依赖、源Native生命周期、世界时钟和UE测试teardown。初次GC崩溃/150秒watchdog报告排除；按源补EndPlay/计数恢复/上下文销毁后正常code0。盒体默认Movable导致relative base/Land Movement，显式Static恢复Land；动态基座对照同源OR条件，域修正不记缺陷。去World.Tick使54帧世界时间/Rig全停且FAIL；源码字节恢复、同arm64 package重编后全部probe字段逐值全等，无额外归一化。8非法输出自测/2非法native输入code7、旧42帧Rig入口回归通过；1888身份键/114 ALS/184 Rust/生产库/原资产/转换器不变。11条target warm均真实图更新，Fall×10→Land与static source模式/计数相同，但source初始化0之后正world步elapsed=delta，target首query Absolute(0)/elapsed0；6–9步帧末getter的PelvisOffsetAmount亦不等于实际Rig消费值。U07保持未核，不能将完整入口通过代替原11帧pose/内部state或完整原历史等价。Gate `target/bf144/250/summary.json` PASS_FULL_NATIVE_SOURCE_CHARACTER_ANIMATION_ENTRY_WITH_U07。实际结束：2026-10-23 08:13:15 +08:00；实耗51分59秒，较预估提前3分1秒；额外成本为首轮接口编译修正、真实开始运行世界的退出GC与碰撞域匹配。新增0，累计240（115P2/125P3）；下一真实初始化快照/target首query阶段及完整warm→77反馈，Down-Up/180/完整Root继续开。截图0、性能暂停。
 
+  - .251限定复开：U07症状、fresh LaunchEngineLoop/AutomationCommon的tick后帧计数及ShouldTickPose同帧门控，证明原工具tick前递增会将初始化与首world强制分帧。旧Gate只核计数递增而漏了同帧初始化抑制；完整源入口/54帧数据保留为跨帧控制，不再当作同帧冷启动参考。仅修正工具时钟与验证同帧门控，生产/资产未动；本轮复验完成后关闭此限定边界。
+
+- [x] BF144.251 U07初始化快照与首query阶段：依赖.250完整源入口，fresh读取mesh注册→零delta初始化→全部component完成→首普通tick的实际顺序；从完整源角色记录world tick前的真实状态/FSM/pose/曲线和getter，补齐目标warm的预图输入与首query观察，逐项对齐初始化与普通帧，不把源正delta改成0来追目标elapsed。Gate：初始化及首普通更新的源/目标阶段合同、实际快照/查询时间/输入、最小差异归因或明确未过数据边界、观察消融/源码字节恢复同target或package、自测/旧入口回归/身份。已登记D149只作已知根因候选，不因相邻或同名初始化逻辑复开；U07保持未通过直到证据闭合。开始：2026-10-23 08:14:57 +08:00；预估结束：2026-10-23 08:59:57 +08:00。估时依据：.250完整源入口约52分钟，当前复用世界/角色与getter，只补初始化/预图阶段观察和对齐，按45分钟；若转为新根因闭环，按实际source边界拆分但保留完整原历史目标。仅审计，生产/转换器/原资产不改，截图0、性能暂停。
+  - 08:14 活动摘要：d680382f完成source入口，属于progress；树干净、无相关native/build进程，累计240（115P2/125P3）。source InitAnim在bTickAnimationNow时明确TickAnimation(0)/RefreshBoneTransforms，完整角色初始化计数为0，首world tick为1；target warm首query Absolute(0)。现先读真实初始状态，不把这种阶段差直接归D149或认作同一输入。目标.244 rig_audit直到warm后才安装，缺warm预图记录已明确。
+
+  - 08:29 source/观察闭环：源真实初始化快照为world0、update/eval0、Grounded/elapsed0、pending=True、79骨和26曲线；其getter与首tick前值相同。移除新增initialization和mode/stance字段后，旧54帧所有字段精确保持。目标warm预图观察确认首query前frame0/pending=True，但角色已下落到1.4936416m、velocity=-0.32699996m/s，首query仅Absolute(0)/Fall elapsed0，结束即pending=False。源码Evaluate为initialize零步长与normal delta的互斥分支，源InitAnim0在注册时完成、之后world tick仍正常消费delta。正确movement+consumer命令的240帧/所有旧metadata与warm全等，观察无影响；首次误用stop导致的比较失败保留排除。现只做公共求值入口的同帧额外normal delta反事实，保持原pending行为以隔离D149；未确认前不登记新差异、不把U07当等价。截图0、性能暂停，累计240。
+
+  - 08:34 D243确认摘要：首零求值后只补一次公共normal更新，原10条Fall elapsed全部逐值对齐native正world历史，第11条Land保持；原/控制pending均False，D149未恢复。按源码互斥初始化分支与目标预图实际正物理步定位首个普通delta丢失，确认D243/P3，累计241（115P2/126P3）。此反事实仅改夹具、未改生产；接着核实际pose影响和工具/夹具恢复，U07初始化姿态与完整反馈仍不计等价。截图0、性能暂停。
+
+  - 08:59 完成摘要：真实源初始化快照确认world0/Grounded/elapsed0/pending=True、79骨/26曲线；新增观察不改变原54帧。目标warm预图记录补齐，正确movement+consumer命令240帧/全部旧metadata和11条warm精确保持；首误用stop失败排除，后恢复跨进程generation仅作保相等关系一一映射。曾以额外normal更新恢复10条elapsed且改变240帧/16817骨样本而登记D243，但fresh LaunchEngineLoop/AutomationCommon与ShouldTickPose同帧门控证明参考驱动tick前计数不当；改为tick后递增并记录PoseTickedThisFrame后，首world不更新图、其后9条Fall elapsed与target全等，D243正式撤销，误判控制保留排除，不记无差异。当前U07剩首步源Grounded/targetFall与落地处源Fall/targetLand的初始化输入和actor/mesh消费顺序；D149仍独立未修复。源snapshot导出物理移除使54帧仍完成但schema失败，源码字节恢复/同package重编、正确计数两次54帧全部probe字段逐值精确。5初始化schema/8完整角色schema非法输出自测通过，旧42帧Rig入口回归通过，1906身份键/114 ALS/184 Rust/原资产/转换器/生产库不变。限定复开的.250时钟边界已按正确source顺序复验关闭，其旧数据仅作跨帧控制。Gate `target/bf144/251/summary.json` PASS_INITIALIZATION_PHASE_AUDIT_WITH_D243_WITHDRAWN_U07_OPEN。实际结束：2026-10-23 08:59:14 +08:00；实耗44分17秒，较预估提前0分43秒；主要漂移是纠正参考驱动并撤销错误分类，未改生产或扩大容差。有效新增0，累计240（115P2/125P3）；U07完整原预热、77反馈、Down-Up/180/完整Root继续开。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D242 / P3 — Rig初始全局变换常量未保持当次原生CDO数据，边界下改变足旋转和自动骨长。
@@ -3469,7 +3480,10 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
 ### 核验边界记录（不计为无差异）
 
-- [ ] BF144-U07 — 原11帧预热与完整源角色的初始化/普通tick阶段尚未对齐。fresh真实B_Als_Character/AB_Als在相同static盒体、Bevy重力和可见输入下，11个world step的主图计数1–11及Fall×10→Land与target warm一致；但source组件初始化计数已到0，其首个正world步Fall elapsed为delta，target首warm为Absolute(0)/elapsed0，前10条elapsed不同。完整getter在6–9步的PelvisOffsetAmount还与本帧实际RigInput不同，必须保持消费阶段。54帧完整native入口已建立，不能据此资格原11帧pose/内部Rig state；下一核真实初始化快照和target首次query阶段，保持全目标，不归并旧差异或声明无差异。证据 `target/bf144/250/source-check.json` 与完整native报告；初次GC失败输出明确排除，移动盒体导致Land Movement已由显式Static/Movable控制排除为域差异。
+- BF144-D243已撤销，累计240（115P2/125P3）。原候选“首普通delta丢失”由参考驱动的帧计数相位造成：fresh LaunchEngineLoop/AutomationCommon都在world tick之后递增，原工具在之前递增，跨过ShouldTickPose同帧门控。正确驱动首world步复用初始化Grounded姿态、不更新图；其后9条Fall elapsed与target逐值一致。额外normal求值会推进时间并改变240帧姿态，但不能据此确认产品缺陷；原候选/反事实证据保留在 `target/bf144/251/d243-provisional-record.md` 和对应报告，不计有效反例。U07仍保留首world的Grounded/Fall与落地帧阶段边界，见 `correct-counter-warm.json`。
+
+
+- [ ] BF144-U07 — 原预热的初始化输入与actor/mesh消费阶段尚未对齐。.251已确认源初始化为world0/Grounded/elapsed0/pending=True，首个同引擎帧world步复用该姿态；target却在物理下落后才首次Absolute(0)，选择Fall并清pending。正确tick后帧计数使后续9条Fall elapsed与target精确一致，旧tick前计数导致的D243候选已撤销。仍未通过：首步Grounded/Fall及落地处源Fall/targetLand的输入/调度相位、初始化pose/curve种子和完整内部Rig state。真实getter帧末PelvisOffsetAmount不能反填本帧消费值；D149只覆盖已证pending寿命，不代替完整归因。source/target新观察已被动验证，继续真实初始化→warm→77反馈，不把本入口通过或可逆额外求值当成完整等价。证据 `target/bf144/251/correct-phase-check.json`、`correct-counter-warm.json`、`target-warm-observed.json`；截图0、性能暂停。
 
 
 - [x] BF144-U06 — Rig初始全局数据已于.245归D242/P3。最初.244发现71骨365个double差、默认240仅FootHeight double变化；.245保持全部原生算法，仅换初始数据即在受控半转产生约180°的float足旋转/实际Setter写回差，并在同source厘米算法的5个骨长舍入边界经同原生IK核产生13/15个float关节点差，分别隔离D163算法与D165单位舍入。数据移除/源码字节恢复及同target重编恢复通过，native数学读出移除/同package恢复亦通过；默认动作自然可达性未证，不因关闭U06声明无差异或修复。证据`target/bf144/245/summary.json`、`native-check.json`、`writeback.jsonl`、`restoration-check.json`；原.244记录保留。

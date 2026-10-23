@@ -3782,7 +3782,7 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
     const auto CaptureState = [](UAnimInstance* Instance)
     {
         TArray<TSharedPtr<FJsonValue>> Fields;
-        for (const TCHAR* Name : {TEXT("Settings"), TEXT("Character"), TEXT("PoseState"), TEXT("FeetState"), TEXT("SpineState"), TEXT("GroundedState"), TEXT("LocomotionState"), TEXT("MovementBase"), TEXT("InAirState"), TEXT("LayeringState"), TEXT("bPendingUpdate"), TEXT("DeltaTimeWithoutTimeDilation")})
+        for (const TCHAR* Name : {TEXT("Settings"), TEXT("Character"), TEXT("PoseState"), TEXT("FeetState"), TEXT("SpineState"), TEXT("GroundedState"), TEXT("LocomotionState"), TEXT("LocomotionMode"), TEXT("Stance"), TEXT("MovementBase"), TEXT("InAirState"), TEXT("LayeringState"), TEXT("bPendingUpdate"), TEXT("DeltaTimeWithoutTimeDilation")})
         {
             const FProperty* Property = Instance->GetClass()->FindPropertyByName(FName(Name));
             if (Property == nullptr) { continue; }
@@ -3797,6 +3797,39 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
             Fields.Add(MakeShared<FJsonValueObject>(Field));
         }
         return Fields;
+    };
+    const auto CaptureInstances = [](USkeletalMeshComponent* Mesh, UAnimInstance* Main)
+    {
+            TArray<TSharedPtr<FJsonValue>> Linked;
+            TArray<UAnimInstance*> Mains = static_cast<const USkeletalMeshComponent*>(Mesh)->GetLinkedAnimInstances();
+            Mains.Insert(Main, 0);
+            for (UAnimInstance* Child : Mains)
+            {
+                TSharedRef<FJsonObject> ChildRow = MakeShared<FJsonObject>();
+                const FAnimInstanceProxy& ChildProxy = FInstanceAccess::Proxy(Child);
+                ChildRow->SetStringField(TEXT("class"), Child->GetClass()->GetPathName());
+                ChildRow->SetBoolField(TEXT("main"), Child == Main);
+                TArray<TSharedPtr<FJsonValue>> Machines;
+                if (const IAnimClassInterface* ChildInterface = IAnimClassInterface::GetFromClass(Child->GetClass()))
+                {
+                    for (const FStructProperty* Property : ChildInterface->GetAnimNodeProperties())
+                    {
+                        if (Property->Struct != FAnimNode_StateMachine::StaticStruct()) { continue; }
+                        const FAnimNode_StateMachine* Machine = Property->ContainerPtrToValuePtr<FAnimNode_StateMachine>(Child);
+                        TSharedRef<FJsonObject> MachineRow = MakeShared<FJsonObject>();
+                        MachineRow->SetStringField(TEXT("property"), Property->GetName());
+                        MachineRow->SetStringField(TEXT("state"), Machine->GetCurrentStateName().ToString());
+                        MachineRow->SetNumberField(TEXT("state_index"), Machine->GetCurrentState());
+                        MachineRow->SetNumberField(TEXT("elapsed"), Machine->GetCurrentStateElapsedTime());
+                        Machines.Add(MakeShared<FJsonValueObject>(MachineRow));
+                    }
+                }
+                ChildRow->SetArrayField(TEXT("machines"), Machines);
+                ChildRow->SetNumberField(TEXT("update_counter"), ChildProxy.GetUpdateCounter().Get());
+                ChildRow->SetNumberField(TEXT("evaluation_counter"), ChildProxy.GetEvaluationCounter().Get());
+                Linked.Add(MakeShared<FJsonValueObject>(ChildRow));
+            }
+        return Linked;
     };
     FAssetCompilingManager::Get().FinishAllCompilation();
     TArray<TSharedPtr<FJsonValue>> Results;
@@ -3884,6 +3917,35 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
         const FAnimInstanceProxy& Proxy = FInstanceAccess::Proxy(Instance);
         const int32 InitialUpdate = Proxy.GetUpdateCounter().Get();
         const int32 InitialEvaluation = Proxy.GetEvaluationCounter().Get();
+        TSharedRef<FJsonObject> Initialization = MakeShared<FJsonObject>();
+        Initialization->SetStringField(TEXT("stage"), TEXT("after_begin_play_before_world_tick"));
+        Initialization->SetNumberField(TEXT("world_seconds"), World->GetTimeSeconds());
+        Initialization->SetNumberField(TEXT("update_counter"), InitialUpdate);
+        Initialization->SetNumberField(TEXT("evaluation_counter"), InitialEvaluation);
+        Initialization->SetObjectField(TEXT("actor_transform"), CaptureTransform(Character->GetActorTransform()));
+        Initialization->SetObjectField(TEXT("actor_velocity_cm_s"), CaptureVector(Character->GetVelocity()));
+        Initialization->SetArrayField(TEXT("source_state"), CaptureState(Instance));
+        Initialization->SetArrayField(TEXT("instances"), CaptureInstances(Mesh, Instance));
+        const TSharedPtr<FJsonObject> InitialGetter = CaptureGetter(Instance);
+        if (!InitialGetter.IsValid()) { return nullptr; }
+        Initialization->SetObjectField(TEXT("getter"), InitialGetter.ToSharedRef());
+        TArray<TSharedPtr<FJsonValue>> InitialPose;
+        const TArray<FTransform> InitialTransforms = Mesh->GetBoneSpaceTransforms();
+        const FReferenceSkeleton& InitialReference = Mesh->GetSkeletalMeshAsset()->GetRefSkeleton();
+        if (InitialTransforms.Num() != InitialReference.GetNum()) { return nullptr; }
+        for (int32 Index = 0; Index < InitialTransforms.Num(); ++Index)
+        {
+            TSharedRef<FJsonObject> Bone = MakeShared<FJsonObject>();
+            Bone->SetStringField(TEXT("name"), InitialReference.GetBoneName(Index).ToString());
+            Bone->SetObjectField(TEXT("local"), CaptureTransform(InitialTransforms[Index]));
+            InitialPose.Add(MakeShared<FJsonValueObject>(Bone));
+        }
+        Initialization->SetArrayField(TEXT("mesh_local_pose"), InitialPose);
+        TArray<FName> InitialCurveNames;
+        Instance->GetActiveCurveNames(EAnimCurveType::AttributeCurve, InitialCurveNames);
+        TSharedRef<FJsonObject> InitialCurves = MakeShared<FJsonObject>();
+        for (FName Curve : InitialCurveNames) { InitialCurves->SetNumberField(Curve.ToString(), Instance->GetCurveValue(Curve)); }
+        Initialization->SetObjectField(TEXT("curves"), InitialCurves);
         TArray<TSharedPtr<FJsonValue>> Rows;
         for (const TSharedPtr<FJsonValue>& FrameValue : *Frames)
         {
@@ -3892,18 +3954,20 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
             bool bRendered;
             if (!FrameValue->TryGetObject(Frame) || !(*Frame)->TryGetNumberField(TEXT("delta_seconds"), Delta) || !FMath::IsFinite(static_cast<float>(Delta)) ||
                 Delta <= 0 || Delta > 0.25 || !(*Frame)->TryGetBoolField(TEXT("rendered"), bRendered)) { return nullptr; }
+            const bool bPoseTickedBeforeWorld = Mesh->PoseTickedThisFrame();
             const TSharedPtr<FJsonObject> GetterBefore = CaptureGetter(Instance);
             if (!GetterBefore.IsValid()) { return nullptr; }
             const double SavedDelta = FApp::GetDeltaTime();
             FApp::SetDeltaTime(Delta);
             ON_SCOPE_EXIT { FApp::SetDeltaTime(SavedDelta); };
             Mesh->SetLastRenderTime(bRendered ? World->GetTimeSeconds() : -1000.0f);
-            ++GFrameCounter;
             World->Tick(LEVELTICK_All, static_cast<float>(Delta));
+            ++GFrameCounter;
             Mesh->HandleExistingParallelEvaluationTask(true, true);
             if (Mesh->GetAnimInstance() != Instance || RigNode->GetControlRig() != Rig) { return nullptr; }
             TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>();
             Row->SetNumberField(TEXT("frame"), Rows.Num());
+            Row->SetBoolField(TEXT("pose_ticked_before_world"), bPoseTickedBeforeWorld);
             Row->SetNumberField(TEXT("world_seconds"), World->GetTimeSeconds());
             Row->SetNumberField(TEXT("world_delta_seconds"), World->GetDeltaSeconds());
             Row->SetNumberField(TEXT("gravity_cm_s2"), World->GetGravityZ());
@@ -3953,36 +4017,7 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
             TSharedRef<FJsonObject> Curves = MakeShared<FJsonObject>();
             for (FName Curve : CurveNames) { Curves->SetNumberField(Curve.ToString(), Instance->GetCurveValue(Curve)); }
             Row->SetObjectField(TEXT("curves"), Curves);
-            TArray<TSharedPtr<FJsonValue>> Linked;
-            TArray<UAnimInstance*> Instances = static_cast<const USkeletalMeshComponent*>(Mesh)->GetLinkedAnimInstances();
-            Instances.Insert(Instance, 0);
-            for (UAnimInstance* Child : Instances)
-            {
-                TSharedRef<FJsonObject> ChildRow = MakeShared<FJsonObject>();
-                const FAnimInstanceProxy& ChildProxy = FInstanceAccess::Proxy(Child);
-                ChildRow->SetStringField(TEXT("class"), Child->GetClass()->GetPathName());
-                ChildRow->SetBoolField(TEXT("main"), Child == Instance);
-                TArray<TSharedPtr<FJsonValue>> Machines;
-                if (const IAnimClassInterface* ChildInterface = IAnimClassInterface::GetFromClass(Child->GetClass()))
-                {
-                    for (const FStructProperty* Property : ChildInterface->GetAnimNodeProperties())
-                    {
-                        if (Property->Struct != FAnimNode_StateMachine::StaticStruct()) { continue; }
-                        const FAnimNode_StateMachine* Machine = Property->ContainerPtrToValuePtr<FAnimNode_StateMachine>(Child);
-                        TSharedRef<FJsonObject> MachineRow = MakeShared<FJsonObject>();
-                        MachineRow->SetStringField(TEXT("property"), Property->GetName());
-                        MachineRow->SetStringField(TEXT("state"), Machine->GetCurrentStateName().ToString());
-                        MachineRow->SetNumberField(TEXT("state_index"), Machine->GetCurrentState());
-                        MachineRow->SetNumberField(TEXT("elapsed"), Machine->GetCurrentStateElapsedTime());
-                        Machines.Add(MakeShared<FJsonValueObject>(MachineRow));
-                    }
-                }
-                ChildRow->SetArrayField(TEXT("machines"), Machines);
-                ChildRow->SetNumberField(TEXT("update_counter"), ChildProxy.GetUpdateCounter().Get());
-                ChildRow->SetNumberField(TEXT("evaluation_counter"), ChildProxy.GetEvaluationCounter().Get());
-                Linked.Add(MakeShared<FJsonValueObject>(ChildRow));
-            }
-            Row->SetArrayField(TEXT("linked_instances"), Linked);
+            Row->SetArrayField(TEXT("linked_instances"), CaptureInstances(Mesh, Instance));
             Row->SetArrayField(TEXT("rig_executions"), Executions);
             Executions.Reset();
             Rows.Add(MakeShared<FJsonValueObject>(Row));
@@ -3998,6 +4033,7 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
         bool bTickAfterCharacter = false;
         for (const FTickPrerequisite& Prerequisite : Mesh->PrimaryComponentTick.GetPrerequisites()) { bTickAfterCharacter |= Prerequisite.PrerequisiteObject.Get() == Character; }
         CaseRow->SetBoolField(TEXT("mesh_tick_after_character"), bTickAfterCharacter);
+        CaseRow->SetObjectField(TEXT("initialization"), Initialization);
         CaseRow->SetNumberField(TEXT("initial_update_counter"), InitialUpdate);
         CaseRow->SetNumberField(TEXT("initial_evaluation_counter"), InitialEvaluation);
         CaseRow->SetArrayField(TEXT("frames"), Rows);

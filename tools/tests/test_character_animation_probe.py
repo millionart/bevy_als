@@ -27,15 +27,19 @@ def validate(document, request):
             assert frame['gravity_cm_s2'] == request['gravity_cm_s2']
             assert frame['world_seconds'] > previous_time
             previous_time = frame['world_seconds']
-            assert frame['actor_begun_play'] and frame['recently_rendered'] == expected['rendered']
-            if expected['rendered']:
+            assert frame['actor_begun_play']
+            if not frame.get('pose_ticked_before_world', False):
+                assert frame['recently_rendered'] == expected['rendered']
+            if expected['rendered'] and not frame.get('pose_ticked_before_world', False):
                 update += 1
                 evaluation += 1
                 forward += 1
                 assert frame['different_reference_bones'] > 0 and frame['curves']
                 assert frame['rig_executions'] and all(event['succeeded'] for event in frame['rig_executions'])
-            else:
+            elif not expected['rendered']:
                 assert frame['different_reference_bones'] == 0 and not frame['rig_executions']
+            else:
+                assert not frame['rig_executions']
             assert frame['update_counter'] == update
             assert frame['evaluation_counter'] == evaluation
             assert frame['rig_forward_events'] == forward
@@ -58,6 +62,10 @@ def self_test():
     request = {'gravity_cm_s2': -981, 'cases': [{'name': 'visible', 'dynamic_base': False, 'frames': [{'delta_seconds': .125, 'rendered': True}]}]}
     fixture = {'character_animation_probe': {'cases': [case]}}
     assert validate(fixture, request)['frames'] == 1
+    skipped = copy.deepcopy(fixture)
+    first = skipped['character_animation_probe']['cases'][0]['frames'][0]
+    first.update(pose_ticked_before_world=True, update_counter=0, evaluation_counter=0, rig_forward_events=0, rig_executions=[])
+    assert validate(skipped, request)['frames'] == 1
     rejected = 0
     for index in range(8):
         sample = copy.deepcopy(fixture)
