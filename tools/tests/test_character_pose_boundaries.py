@@ -63,19 +63,45 @@ def validate_head_inputs(document):
     return {**result, 'actual_head_inputs_and_parameters': True}
 
 
-def self_test(head_inputs=False):
+def validate_base_provider(document):
+    result = validate_head_inputs(document)
+    for case in document['character_animation_probe']['cases']:
+        for entry in [case['initialization']] + case['frames']:
+            boundaries = entry['pose_boundaries']
+            source = boundaries['rig_source']
+            value = boundaries['base_provider_input']
+            assert value['evaluations'] == source['evaluations'] and value['engine_frame'] == source['engine_frame']
+            assert value['required_bones_asset'] == source['required_bones_asset'] and value['attribute_count'] >= 0
+            assert [b['name'] for b in value['pose']['bones']] == [b['name'] for b in source['pose']['bones']]
+            assert all(math.isfinite(v) for b in value['pose']['bones'] for f in b['local_transform'].values() for v in f.values())
+            instances = entry.get('instances', entry.get('linked_instances', []))
+            matching = [v for v in instances if v['class'] == boundaries['base_provider_class']]
+            assert len(matching) == 1 and matching[0]['layered_blends']
+            for blend in matching[0]['layered_blends']:
+                assert blend['property'] and isinstance(blend['has_relevant_poses'], bool) and isinstance(blend['mesh_space_rotation'], bool)
+                assert blend['weights'] and all(math.isfinite(v) and 0 <= v <= 1 for v in blend['weights'])
+    return {**result, 'actual_base_provider_input_and_weights': True}
+
+
+def self_test(head_inputs=False, base_provider=False):
     transform = {'translation': dict.fromkeys('xyz', 0), 'rotation': dict(zip('xyzw', [0,0,0,1])), 'scale': dict.fromkeys('xyz', 1)}
     pose = {'bones': [{'name': 'root', 'local_transform': transform}], 'curves': {}}
     capture = {'evaluations': 1, 'updates': 1, 'delta_seconds': 0, 'engine_frame': 1, 'attribute_count': 0, 'required_bones_asset': '/Fixture/Mesh.Mesh', 'pose': pose}
     boundaries = {'stage': 'actual_rig_source_and_main_root_result', 'rig_source': capture, 'root_result': copy.deepcopy(capture)}
     if head_inputs:
         boundaries.update(head_base=copy.deepcopy(capture), head_additive=copy.deepcopy(capture), head_alpha=1, head_root_space_additive=False, head_instance_class='/Fixture/Instance.Instance_C', head_property='ApplyMesh')
+    if base_provider:
+        boundaries.update(base_provider_input=copy.deepcopy(capture), base_provider_class='/Fixture/Provider.Provider_C')
     initial = {'evaluation_counter': 0, 'mesh_local_pose': [{'name': 'root'}], 'pose_boundaries': boundaries}
     fixture = {'character_animation_probe': {'cases': [{'initial_engine_frame': 1, 'initialization': initial, 'frames': [{'evaluation_counter': 0, 'pose_boundaries': copy.deepcopy(boundaries)}]}]}}
-    check = validate_head_inputs if head_inputs else validate
+    if base_provider:
+        instances = [{'class': boundaries['base_provider_class'], 'layered_blends': [{'property': 'Layer', 'has_relevant_poses': True, 'mesh_space_rotation': True, 'weights': [1]}]}]
+        initial['instances'] = copy.deepcopy(instances)
+        fixture['character_animation_probe']['cases'][0]['frames'][0]['linked_instances'] = copy.deepcopy(instances)
+    check = validate_base_provider if base_provider else validate_head_inputs if head_inputs else validate
     assert check(fixture)['actual_main_root_evaluations'] == 1
     rejected = 0
-    count = 8 if head_inputs else 5
+    count = 11 if base_provider else 8 if head_inputs else 5
     for index in range(count):
         data = copy.deepcopy(fixture)
         value = data['character_animation_probe']['cases'][0]['initialization']['pose_boundaries']
@@ -93,14 +119,20 @@ def self_test(head_inputs=False):
             value.pop('head_base')
         elif index == 6:
             value['head_alpha'] = math.nan
-        else:
+        elif index == 7:
             value['head_additive']['pose']['bones'] = []
+        elif index == 8:
+            value.pop('base_provider_input')
+        elif index == 9:
+            data['character_animation_probe']['cases'][0]['initialization']['instances'][0]['layered_blends'][0]['weights'] = [math.nan]
+        else:
+            value['base_provider_class'] = '/Fixture/Other.Other_C'
         try:
             check(data)
         except (AssertionError, KeyError):
             rejected += 1
     assert rejected == count
-    return {'self_test': 'PASS', 'invalid_head_input_boundaries_rejected' if head_inputs else 'invalid_pose_boundaries_rejected': rejected}
+    return {'self_test': 'PASS', 'invalid_base_provider_boundaries_rejected' if base_provider else 'invalid_head_input_boundaries_rejected' if head_inputs else 'invalid_pose_boundaries_rejected': rejected}
 
 
 if __name__ == '__main__':
@@ -109,5 +141,6 @@ if __name__ == '__main__':
     group.add_argument('--input', type=Path)
     group.add_argument('--self-test', action='store_true')
     parser.add_argument('--head-inputs', action='store_true')
+    parser.add_argument('--base-provider', action='store_true')
     args = parser.parse_args()
-    print(json.dumps(self_test(args.head_inputs) if args.self_test else (validate_head_inputs if args.head_inputs else validate)(json.loads(args.input.read_text()))))
+    print(json.dumps(self_test(args.head_inputs or args.base_provider, args.base_provider) if args.self_test else (validate_base_provider if args.base_provider else validate_head_inputs if args.head_inputs else validate)(json.loads(args.input.read_text()))))

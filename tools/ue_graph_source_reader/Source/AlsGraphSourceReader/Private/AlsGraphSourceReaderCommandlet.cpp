@@ -3873,11 +3873,14 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
     };
     UClass* HeadClass = nullptr;
     FStructProperty* HeadProperty = nullptr;
+    UClass* BaseProviderClass = nullptr;
+    FStructProperty* BaseProviderProperty = nullptr;
+    UClass* MainClass = nullptr;
     if (bCapturePoseBoundaries)
     {
         const ACharacter* DefaultCharacter = Cast<ACharacter>(Class->GetDefaultObject());
         USkeletalMeshComponent* DefaultMesh = DefaultCharacter != nullptr ? DefaultCharacter->GetMesh() : nullptr;
-        UClass* MainClass = DefaultMesh != nullptr ? DefaultMesh->GetAnimClass() : nullptr;
+        MainClass = DefaultMesh != nullptr ? DefaultMesh->GetAnimClass() : nullptr;
         const IAnimClassInterface* MainInterface = MainClass != nullptr ? IAnimClassInterface::GetFromClass(MainClass) : nullptr;
         if (MainInterface == nullptr) { return nullptr; }
         const TArray<FStructProperty*>& MainProperties = MainInterface->GetAnimNodeProperties();
@@ -3891,6 +3894,13 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
         const int32 SourceIndex = DefaultRig != nullptr ? FObservedRigAccess::SourceLink(*DefaultRig).LinkID : INDEX_NONE;
         if (!MainProperties.IsValidIndex(SourceIndex) || !MainProperties[SourceIndex]->Struct->IsChildOf(FAnimNode_LinkedAnimGraph::StaticStruct())) { return nullptr; }
         const FAnimNode_LinkedAnimGraph* Caller = MainProperties[SourceIndex]->ContainerPtrToValuePtr<FAnimNode_LinkedAnimGraph>(MainClass->GetDefaultObject());
+        if (Caller->InputPoses.Num() != 1 || !MainProperties.IsValidIndex(Caller->InputPoses[0].LinkID)) { return nullptr; }
+        BaseProviderProperty = MainProperties[Caller->InputPoses[0].LinkID];
+        if (!BaseProviderProperty->Struct->IsChildOf(FAnimNode_LinkedAnimGraph::StaticStruct())) { return nullptr; }
+        const FAnimNode_LinkedAnimGraph* BaseProvider = BaseProviderProperty->ContainerPtrToValuePtr<FAnimNode_LinkedAnimGraph>(MainClass->GetDefaultObject());
+        if (BaseProvider->InputPoses.Num() < 1) { return nullptr; }
+        BaseProviderClass = BaseProvider->InstanceClass.Get();
+        if (BaseProviderClass == nullptr) { return nullptr; }
         HeadClass = Caller->InstanceClass.Get();
         const IAnimClassInterface* HeadInterface = HeadClass != nullptr ? IAnimClassInterface::GetFromClass(HeadClass) : nullptr;
         if (HeadInterface == nullptr || HeadInterface->GetAnimBlueprintFunctions().IsEmpty()) { return nullptr; }
@@ -3933,7 +3943,7 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
         }
         return Fields;
     };
-    const auto CaptureInstances = [](USkeletalMeshComponent* Mesh, UAnimInstance* Main)
+    const auto CaptureInstances = [BaseProviderClass](USkeletalMeshComponent* Mesh, UAnimInstance* Main)
     {
             TArray<TSharedPtr<FJsonValue>> Linked;
             TArray<UAnimInstance*> Mains = static_cast<const USkeletalMeshComponent*>(Mesh)->GetLinkedAnimInstances();
@@ -3944,11 +3954,23 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
                 const FAnimInstanceProxy& ChildProxy = FInstanceAccess::Proxy(Child);
                 ChildRow->SetStringField(TEXT("class"), Child->GetClass()->GetPathName());
                 ChildRow->SetBoolField(TEXT("main"), Child == Main);
-                TArray<TSharedPtr<FJsonValue>> Machines, Players;
+                TArray<TSharedPtr<FJsonValue>> Machines, Players, LayeredBlends;
                 if (const IAnimClassInterface* ChildInterface = IAnimClassInterface::GetFromClass(Child->GetClass()))
                 {
                     for (const FStructProperty* Property : ChildInterface->GetAnimNodeProperties())
                     {
+                        if (Child->GetClass() == BaseProviderClass && Property->Struct == FAnimNode_LayeredBoneBlend::StaticStruct())
+                        {
+                            const FAnimNode_LayeredBoneBlend* Blend = Property->ContainerPtrToValuePtr<FAnimNode_LayeredBoneBlend>(Child);
+                            TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+                            Value->SetStringField(TEXT("property"), Property->GetName());
+                            Value->SetBoolField(TEXT("has_relevant_poses"), Blend->bHasRelevantPoses);
+                            Value->SetBoolField(TEXT("mesh_space_rotation"), Blend->bMeshSpaceRotationBlend);
+                            TArray<TSharedPtr<FJsonValue>> Weights;
+                            for (float Weight : Blend->BlendWeights) { Weights.Add(MakeShared<FJsonValueNumber>(Weight)); }
+                            Value->SetArrayField(TEXT("weights"), Weights);
+                            LayeredBlends.Add(MakeShared<FJsonValueObject>(Value));
+                        }
                         if (Property->Struct->IsChildOf(FAnimNode_AssetPlayerBase::StaticStruct()))
                         {
                             const FAnimNode_AssetPlayerBase* Player = Property->ContainerPtrToValuePtr<FAnimNode_AssetPlayerBase>(Child);
@@ -4005,6 +4027,7 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
                 }
                 ChildRow->SetArrayField(TEXT("machines"), Machines);
                 ChildRow->SetArrayField(TEXT("asset_players"), Players);
+                if (Child->GetClass() == BaseProviderClass) { ChildRow->SetArrayField(TEXT("layered_blends"), LayeredBlends); }
                 ChildRow->SetNumberField(TEXT("update_counter"), ChildProxy.GetUpdateCounter().Get());
                 ChildRow->SetNumberField(TEXT("evaluation_counter"), ChildProxy.GetEvaluationCounter().Get());
                 Linked.Add(MakeShared<FJsonValueObject>(ChildRow));
@@ -4087,12 +4110,14 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
         Box->RegisterComponent();
         FActorSpawnParameters Spawn;
         Spawn.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-        FObservedPose HeadObservation, RootObservation, HeadBaseObservation, HeadAdditiveObservation;
+        FObservedPose HeadObservation, RootObservation, HeadBaseObservation, HeadAdditiveObservation, BaseProviderInputObservation;
         FAnimNode_ControlRig* ObservedRigNode = nullptr;
         FAnimNode_Root* ObservedRootNode = nullptr;
         FAnimNode_ApplyMeshSpaceAdditive* ObservedHeadNode = nullptr;
+        FAnimNode_LinkedAnimGraph* ObservedBaseProvider = nullptr;
         TWeakObjectPtr<UAnimInstance> ObservedInstance;
         TWeakObjectPtr<UAnimInstance> ObservedHeadInstance;
+        TWeakObjectPtr<UAnimInstance> ObservedBaseProviderOwner;
         TWeakObjectPtr<UControlRig> ObservedRig;
         bool bInvalidObservationOwner = false;
         FDelegateHandle ConstructedHandle;
@@ -4104,6 +4129,7 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
                 if (ObservedRigNode != nullptr) { FObservedRigAccess::SourceLink(*ObservedRigNode) = HeadObservation.Source; }
                 if (ObservedRootNode != nullptr) { ObservedRootNode->Result = RootObservation.Source; }
             }
+            if (ObservedBaseProviderOwner.IsValid() && ObservedBaseProvider != nullptr) { ObservedBaseProvider->InputPoses[0] = BaseProviderInputObservation.Source; }
             if (ObservedHeadInstance.IsValid() && ObservedHeadNode != nullptr)
             {
                 ObservedHeadNode->Base = HeadBaseObservation.Source;
@@ -4115,6 +4141,15 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
             ConstructedHandle = FCoreUObjectDelegates::OnObjectConstructed.AddLambda([&](UObject* Object)
             {
                 if (!IsInGameThread()) { return; }
+                if (UAnimInstance* Main = Cast<UAnimInstance>(Object); Main != nullptr && Main->GetClass() == MainClass && Main->GetWorld() == World && !Main->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+                {
+                    if (ObservedBaseProvider != nullptr) { bInvalidObservationOwner = true; return; }
+                    ObservedBaseProvider = BaseProviderProperty->ContainerPtrToValuePtr<FAnimNode_LinkedAnimGraph>(Main);
+                    if (ObservedBaseProvider->InputPoses.IsEmpty()) { bInvalidObservationOwner = true; ObservedBaseProvider = nullptr; return; }
+                    BaseProviderInputObservation.Source = ObservedBaseProvider->InputPoses[0];
+                    ObservedBaseProvider->InputPoses[0].SetLinkNode(&BaseProviderInputObservation);
+                    ObservedBaseProviderOwner = Main;
+                }
                 if (UAnimInstance* Linked = Cast<UAnimInstance>(Object); Linked != nullptr && Linked->GetClass() == HeadClass && Linked->GetWorld() == World && !Linked->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
                 {
                     if (ObservedHeadNode != nullptr) { bInvalidObservationOwner = true; return; }
@@ -4180,7 +4215,7 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
         UControlRig* Rig = RigNode->GetControlRig();
         if (bCapturePoseBoundaries && (bInvalidObservationOwner || ObservedInstance.Get() != Instance || ObservedRig.Get() != Rig ||
             ObservedRigNode != RigNode || !HeadObservation.Latest.IsValid() || !RootObservation.Latest.IsValid() ||
-            !ObservedHeadInstance.IsValid() || !HeadBaseObservation.Latest.IsValid() || !HeadAdditiveObservation.Latest.IsValid()))
+            !ObservedHeadInstance.IsValid() || !HeadBaseObservation.Latest.IsValid() || !HeadAdditiveObservation.Latest.IsValid() || !BaseProviderInputObservation.Latest.IsValid()))
         {
             UE_LOG(LogAlsGraphSourceReader, Error, TEXT("Initial source pose boundaries are unavailable: invalid_owner=%d observed_instance=%s instance=%s rig_source_evaluations=%d root_evaluations=%d."), bInvalidObservationOwner, *ObjectPath(ObservedInstance.Get()), *ObjectPath(Instance), HeadObservation.Evaluations, RootObservation.Evaluations);
             return nullptr;
@@ -4197,6 +4232,8 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
             Value->SetBoolField(TEXT("head_root_space_additive"), ObservedHeadNode->bRootSpaceAdditive);
             Value->SetStringField(TEXT("head_instance_class"), ObjectPath(ObservedHeadInstance->GetClass()));
             Value->SetStringField(TEXT("head_property"), HeadProperty->GetName());
+            Value->SetObjectField(TEXT("base_provider_input"), BaseProviderInputObservation.Latest.ToSharedRef());
+            Value->SetStringField(TEXT("base_provider_class"), ObjectPath(BaseProviderClass));
             return Value;
         };
         int32 Forward = 0;

@@ -43,6 +43,8 @@
 
 同一观察还按编译Rig输入LinkID→linked class→该类Root前驱解析Head，读取真实`head_base`/`head_additive`、实际alpha和空间模式；实例类与属性名也来自实际对象，不按图名或GUID选择算法。需要资格Head两端输入时使用`test_character_pose_boundaries.py --head-inputs`；已有仅输入/Root记录仍可用默认检查，未实际求值的输入不能用独立采样补齐。
 
+`base_provider_input`继续沿Head caller输入读取Layering的原Locomotion入口，`base_provider_class`对应实例的`layered_blends`记录实际总权重/相关性。动态输入链接会复制父link，观察必须在主实例构造完成、DynamicLink之前接入；Rig创建时再改父link可能已晚。使用`test_character_pose_boundaries.py --base-provider`验证该域；身体曲线为零不能证明LayeredBoneBlend整图直通，应检查节点的实际总权重和源执行分支。
+
 `run_ue_source_reader.ps1 -BlendListProbe <request.json>` 运行原生FAnimNode_BlendListBase的Initialize/Update；请求提供`mode`、`blend_times`及命名`samples`，每步使用`active`子索引和`delta_seconds`。输出每帧权重、按现有权重缩短的时长、实际子Update权重及初始化次数。入口使用默认子更新策略，无BlendProfile，不执行完整AnimBP；默认不求值pose，`-Asset`用于读取器的常规资产记录。`blend_list.request.json`与`test_blend_list_probe.py`核对Cubic首帧、反转时长、子相关性与初始化。
 
 sample可选`poses`数组，每个child一份`bone_transforms`（source厘米translation、source quaternion和scale，按当前AnimBP目标Skeleton完整骨序）及`curves`。此时`-Asset`必须为AnimBP，工具另执行CacheBones/Evaluate，逐帧输出`input_poses`和`pose`；该模式不与`two_way`、`cached_child`或`outer_two_way`组合。`test_blend_list_pose_probe.py`要求单个权重1输入的完整姿态和曲线直接传递，拒绝缺失或被修改的输出。
