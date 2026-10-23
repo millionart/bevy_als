@@ -3927,6 +3927,35 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
     if (Request->HasField(TEXT("initial_engine_frame")) &&
         (!Request->TryGetNumberField(TEXT("initial_engine_frame"), InitialEngineFrame) || !FMath::IsFinite(InitialEngineFrame) ||
          InitialEngineFrame < 0 || InitialEngineFrame > 4294967295.0 || InitialEngineFrame != FMath::FloorToDouble(InitialEngineFrame))) { return nullptr; }
+    const bool bOverrideRaw = Request->HasField(TEXT("force_raw_data"));
+    bool bForceRaw = false;
+    if (bOverrideRaw && (Request->TryGetField(TEXT("force_raw_data"))->Type != EJson::Boolean || !Request->TryGetBoolField(TEXT("force_raw_data"), bForceRaw))) { return nullptr; }
+    IConsoleVariable* ForceRaw = bOverrideRaw ? IConsoleManager::Get().FindConsoleVariable(TEXT("a.ForceEvalRawData")) : nullptr;
+    if (bOverrideRaw && ForceRaw == nullptr) { return nullptr; }
+    const int32 PreviousRaw = bOverrideRaw ? ForceRaw->GetInt() : 0;
+    const uint32 PreviousRawFlags = bOverrideRaw ? ForceRaw->GetFlags() : 0;
+    const FName RawOverrideTag = bOverrideRaw ? FName(TEXT("AlsGraphSourceReaderRawProbe")) : NAME_None;
+    TSharedPtr<FJsonObject> RawControl;
+    ON_SCOPE_EXIT
+    {
+        if (bOverrideRaw)
+        {
+            ForceRaw->Unset(ECVF_SetByTemp, RawOverrideTag);
+            RawControl->SetNumberField(TEXT("restored_value"), ForceRaw->GetInt());
+            RawControl->SetNumberField(TEXT("restored_flags"), ForceRaw->GetFlags());
+        }
+    };
+    if (bOverrideRaw)
+    {
+        RawControl = MakeShared<FJsonObject>();
+        RawControl->SetBoolField(TEXT("requested"), bForceRaw);
+        RawControl->SetStringField(TEXT("stage"), TEXT("before_world_creation"));
+        RawControl->SetNumberField(TEXT("previous_value"), PreviousRaw);
+        RawControl->SetNumberField(TEXT("previous_flags"), PreviousRawFlags);
+        ForceRaw->Set(static_cast<int32>(bForceRaw), ECVF_SetByTemp, RawOverrideTag);
+        RawControl->SetNumberField(TEXT("applied_value"), ForceRaw->GetInt());
+        if (ForceRaw->GetInt() != static_cast<int32>(bForceRaw)) { return nullptr; }
+    }
     FAssetCompilingManager::Get().FinishAllCompilation();
     TArray<TSharedPtr<FJsonValue>> Results;
     for (const TSharedPtr<FJsonValue>& CaseValue : *Cases)
@@ -4159,6 +4188,11 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
     }
     TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
     Result->SetArrayField(TEXT("cases"), Results);
+    if (bOverrideRaw)
+    {
+        RawControl->SetNumberField(TEXT("value_after_worlds"), ForceRaw->GetInt());
+        Result->SetObjectField(TEXT("raw_data_control"), RawControl);
+    }
     return Result;
 }
 
