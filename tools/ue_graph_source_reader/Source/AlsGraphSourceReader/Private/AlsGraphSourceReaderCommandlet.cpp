@@ -4271,6 +4271,10 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
             Value->SetBoolField(TEXT("tick_registered"), Movement->PrimaryComponentTick.IsTickFunctionRegistered());
             Value->SetBoolField(TEXT("tick_enabled"), Movement->IsComponentTickEnabled());
             Value->SetObjectField(TEXT("velocity_cm_s"), CaptureVector(Movement->Velocity));
+            Value->SetObjectField(TEXT("pending_input_world"), CaptureVector(Character->GetPendingMovementInputVector()));
+            Value->SetObjectField(TEXT("last_input_world"), CaptureVector(Character->GetLastMovementInputVector()));
+            Value->SetObjectField(TEXT("acceleration_cm_s2"), CaptureVector(Movement->GetCurrentAcceleration()));
+            Value->SetNumberField(TEXT("max_acceleration_cm_s2"), Movement->GetMaxAcceleration());
             Value->SetObjectField(TEXT("last_update_location_cm"), CaptureVector(Movement->GetLastUpdateLocation()));
             Value->SetObjectField(TEXT("last_update_velocity_cm_s"), CaptureVector(Movement->GetLastUpdateVelocity()));
             Value->SetBoolField(TEXT("walkable_floor"), Movement->CurrentFloor.IsWalkableFloor());
@@ -4444,6 +4448,16 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
                     ? (Tag == TEXT("Als.Stance.Standing") || Tag == TEXT("Als.Stance.Crouching"))
                     : (Tag == TEXT("Als.Gait.Walking") || Tag == TEXT("Als.Gait.Running") || Tag == TEXT("Als.Gait.Sprinting"));
                 if (!bValid || !ApplyDesiredTag(Desired.Value, Tag)) { return nullptr; }
+            }
+            if ((*Frame)->HasField(TEXT("movement_input_world")))
+            {
+                const TSharedPtr<FJsonObject>* Input = nullptr;
+                double X, Y, Z;
+                if (Controller == nullptr || !(*Frame)->TryGetObjectField(TEXT("movement_input_world"), Input) ||
+                    !(*Input)->HasTypedField<EJson::Number>(TEXT("x")) || !(*Input)->HasTypedField<EJson::Number>(TEXT("y")) || !(*Input)->HasTypedField<EJson::Number>(TEXT("z")) ||
+                    !(*Input)->TryGetNumberField(TEXT("x"), X) || !(*Input)->TryGetNumberField(TEXT("y"), Y) || !(*Input)->TryGetNumberField(TEXT("z"), Z) ||
+                    !FMath::IsFinite(X) || !FMath::IsFinite(Y) || !FMath::IsFinite(Z)) { return nullptr; }
+                Character->AddMovementInput(FVector(X, Y, Z));
             }
             TSharedPtr<FJsonObject> ControllerBefore;
             if (bLocalController) { ControllerBefore = CaptureController(); }

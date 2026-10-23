@@ -33,9 +33,11 @@
 
 `CharacterAnimationProbe`的实例记录包含`asset_players`：实际资产、节点GUID、当前时点、缓存Update权重及可查询序列的`pose_mode_at_observation`。BlendSpace另记录实际样本缓存的声明索引、源资产、夹取时点/权重及观察时mode。缓存权重不证明该pose已执行，观察时mode不证明此前求值时mode；使用`test_character_asset_player_probe.py`核对观察结构与非法值。
 
-`CharacterAnimationProbe`同时读取初始化`movement_component`和每步`movement_before_tick` / `movement_after_tick`：实际CharacterMovement模式、角色LocomotionMode、注册/tick启用状态、当前及末次更新位置/速度和floor状态。它不修改移动组件；`test_character_movement_probe.py`检查前后连续性、字段类型/有限值与actor速度一致。注册或tick启用不代表该次tick已执行，AnimInstance的LocomotionMode也不能替代角色或移动组件状态。`initial_engine_frame`位于请求顶层；时钟控制必须核对每个case输出的同名实际回显。
+`CharacterAnimationProbe`同时读取初始化`movement_component`和每步`movement_before_tick` / `movement_after_tick`：实际CharacterMovement模式、角色LocomotionMode、注册/tick启用状态、当前及末次更新位置/速度和floor状态。上述观察只读移动组件；`test_character_movement_probe.py`检查前后连续性、字段类型/有限值与actor速度一致。注册或tick启用不代表该次tick已执行，AnimInstance的LocomotionMode也不能替代角色或移动组件状态。`initial_engine_frame`位于请求顶层；时钟控制必须核对每个case输出的同名实际回显。
 
 角色case可选`local_controller: true`：读取器通过标准GameMode公共SpawnPlayerController建立本地controller，先完成actor初始化再Possess原角色，记录实际local/owner/authority。该case每步可设置`control_rotation_degrees: {pitch, yaw, roll}`、`desired_stance`（Als.Stance.Standing/Crouching）与`desired_gait`（Als.Gait.Walking/Running/Sprinting）；角度必须为有限数值，标签经原公开setter调用，随后正常world tick。`controller_before_tick`和`controller_input`保留实际控制、desired标签及View/Head只读状态；actual stance仍从原角色/AnimInstance读取。未请求controller时不创建这些对象或观察包；缺controller的控制请求、错误类型和未知标签拒绝。此能力不提供强制velocity，不等于旧受控运动样本；用`test_character_controller_probe.py`验证实际控制器与回显。
+
+同一controller case每步可选`movement_input_world: {x, y, z}`，三个分量必须为有限JSON数值；读取器在world tick前调用原角色`AddMovementInput`，省略时不施加输入。方向为源世界空间的无单位输入，CMC自行约束、归一和生成加速度，不是速度请求。移动快照增加`pending_input_world`、`last_input_world`、`acceleration_cm_s2`与`max_acceleration_cm_s2`；pending允许在两次tick间由请求改变，其余快照保持连续。`test_character_movement_probe.py --input <result> --request <request>`核对请求、实际pending消费与last输入；加速度和实际速度另按原阶段核对，不用desired值代替。
 
 角色请求可选`force_raw_data`布尔值：在world创建前，以带tag的`ECVF_SetByTemp`覆盖原生`a.ForceEvalRawData`，函数退出时`Unset`还原旧值/flags，输出`raw_data_control`记录施加阶段与恢复结果。true只在源raw模型有效时强制raw；false关闭强制，不保证compressed；省略时不写CVar。`test_character_raw_mode_control.py`核对控制与恢复，不能用`SetWithCurrentPriority`隐式替换Constructor优先级。
 
