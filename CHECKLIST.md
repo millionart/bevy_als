@@ -2471,6 +2471,15 @@
   - 07:15 恢复/Gate前：原生call/严格Number guard两项消融均有实际信号，最终源字节恢复同包重编15样本全部字段精确；恢复后scalar-string及有限乘积非有限结果均code7拒绝。最终包旧40自然角色history全部字段精确，7 schema反例、5原生非法请求及乘法因素消融/同factor binary恢复已过。当前253（115P2/138P3），身份核查进行中；生产/转换器/原始资产不改，截图0、性能暂停。
   - 完成/Gate：`target/bf144/310/summary.json`通过；原生15制动核/12实际参数校准、共同输入D255及乘法因素消融、call/Number guard消融/源字节恢复同包重编、最终旧40history兼容、7 schema/5原生非法请求/非有限结果拒绝均通过。5003身份中旧4908不变，5项reader源/包/runner/doc迁移及新schema显式封存；114 ALS、184生产Rust与冻结库不变。新增D255/P3，253（115P2/138P3），截图0、性能暂停。开始07:01:03；预估结束07:36:03；实际结束07:16:28；实际用时925秒；偏差-1175秒；结果通过，动画共同域/完整Root及旧恢复段原pose父链另依赖继续。
 
+- [x] BF144.311 U07自然运动的动画朝向/速度共同消费合同：依赖.306 source40自然历史、.307/.308世界输入对应和.310制动核边界，fresh沿source Character/AnimInstance的heading、RotationQuaternion、Velocity/InputYaw/Speed与target actor/view、source binding数值基及provider生命周期，先锁逻辑前向和数据坐标基的区别，再建立真正Forward语义与相同scalar消费的最小共同cohort或精确首余界。Gate：源/目标完整轴/角/单位与实际回显、已证物理差异前置隔离或明确边界、公共target观察/共同输入控制与首不同consumer、必要消融/字节恢复同target及身份；不猜加90°补丁、不改生产图或把world+X物理对应当动画Forward等价。开始：2026-10-24 07:16:58 +0800；预估结束：2026-10-24 07:46:58 +0800。估时依据：.307世界共同域约9分钟、.302 Head共同scalar约14分钟；本项先闭朝向基与Speed标量/当前消费phase，按30分钟，完整Root后续按依赖继续。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 07:16 活动摘要：51e5d061完成原生制动D255，5003身份、253（115P2/138P3）、树干净；当前40world+X输入角色默认逻辑朝向不同，动画consumer未建立共同域。先读既有actor/source旋转基与字段来源，不人为旋转角色或强制状态。
+  - 07:18 source/static：source逻辑局部前/右/上为X/Y/Z，target为−Z/+X/+Y；世界数据基仍[x,z,y]。两种反射基相消后，source actor identity对应target world yaw−90°；source mesh局部yaw−90°对应target局部180°，与现AVATAR_FORWARD_YAW=PI及−0.92m平移一致，完整world mesh组合亦相同。由三基向量/矩阵推导而非猜补角；正在用本地reader重取B_Als_Character CDO核mesh原值，再用公共spawn初始化/drive核实际Forward共同域。当前default actor0的world+X输入确属Right语义，旧40物理证据仍独立。
+  - 07:20 基合同Gate：fresh本地CDO重取确认mesh位移(0,0,−92)cm、yaw−90°；三基向量/actor identity world−90°/mesh local180°及完整mesh世界组合矩阵全过。独立fixture仅用公开spawn按已推导body初始旋转与Forward输入运行；首次文本替换多一括号导致编译失败，已按调用结构修正，同target重编后才运行。实际角度字段将按共同heading原点偏移/相对角解释，不能将raw绝对yaw差90°直接当差异。
+  - 07:21 实际Forward域：按推导spawn与Forward command的40步无图错误，actor前向+X、view yaw−90°、方向分类全部Forward；驱动实际world方向含约4.37e−8的Z分量，故不宣称与原source精确+X物理输入相同。body/input等source-heading字段共同带+90°原点偏移，Head用相对量；前4空输入头角约7.63e−6°、移动后0，保留F32角度边界。实际Speed比同帧世界速度长度额外偏低，fresh tnua_ext/motion.rs:37–45及provider链吻合已证D151局部投影根因，下一用公开helper重放40消费值，不新增相邻根因。
+  - 07:26 共同输入/已证根因：source按target实际world方向重新驱动40帧，pending/last逐值对应、Forward四标志40全同、Head yaw_amount=.5全同；头yaw前4帧仍有F32微角，input绝对yaw统一原点后仍有F32余量，未声称矩阵数值/所有角相等。当前ViewDirection默认及无mode请求已核，未新增实际mode观察。公开helper精确重放target40个实际motion/provider speed，31帧local-projection与world-length不同，扩D151；共同向量按源厘米float规范化仍有9余例，仅候选不加编号。去body基控制即丢world共同域，恢复同target全历史；Speed因素去掉31信号消失、字节恢复重编全等。另删2个始终null且无consumer的观察键，同target重编后仅核其余字段不变。
+  - 07:28 恢复/Gate前：完整body/mesh基合同、fresh CDO、source/target实际world输入40/Forward40/Head yaw_amount40、D151公开helper40与source世界Speed公式40均过。两项因素物理移除/源字节恢复同target重编全历史精确（仅全局加载时钟原点按ns归一），158个无效null观察字段已删除且其余字段全同，源请求/target核输入重建字节相同。当前253（115P2/138P3），身份进行中；九个标量候选、微角精确消费与全Root保持未闭。
+  - 完成/Gate：`target/bf144/311/summary.json`通过；完整三基/mesh组合与fresh CDO、实际共同primitive输入/Forward/Head yaw_amount各40、公开Speed helper/provider40及source Speed公式40精确，D151扩31实际consumer。九个标量和微角余界保留，未新编号。基/Speed因素移除/源码字节恢复同binary、158无效观察字段精简、输入字节重建及5070身份（旧5003全不变）通过；生产/reader/转换器/原资产不改，253（115P2/138P3），截图0、性能暂停。开始07:16:58；预估结束07:46:58；实际结束07:29:27；实际用时749秒；偏差-1051秒；结果通过，scalar/角度精确消费和全Root后续闭包保持独立。
+
 ### 已确认差异（仅登记，未实施修复）
 
 
@@ -3512,6 +3521,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - Target：`tnua_ext/motion.rs:41–45`先向角色forward/right投影，再取二维长度；`actual_motion.rs:40–44`把此长度作为horizontal_speed，provider再发布speed和移动标志。倾斜时会丢失分量，纯yaw时的舍入也可能跨越严格阈值。
   - 反例：完整角色先等到实际Standing Idle，在相同世界velocity=(0,0,−1.6)m/s、无输入下控制actor俯仰60度，目标发布0.8m/s并保持Idle；源应1.6m/s并开始Idle→Move。仅恢复horizontal_speed即进入原生对应转换，当前actor旋转与速度均已核实。直立/倾斜×原样/恢复四组3PASS/1FAIL；另11组输入边界中0.5及1.5m/s各出现一处误判，同根归并。
   - 漏检：旧旋转测试只用yaw且仅比较速度误差容差，未检查严格布尔阈值或倾斜输入；初版诊断误把Gameplay Grounded当作Standing Idle，已补实际状态等待并排除该前置失败。证据`68/checked_initial/`、`68/final/`及`bf144_animation_phase68_speed_uses_world_plane`、`bf144_animation_phase68_motion_inputs`；未改生产或放宽阈值。
+  - BF144.311 普通Forward yaw的实际provider补充：完整world/actor逻辑/mesh基推导与fresh CDO相符后，公开spawn的40自然Forward输入中，冻结公共helper逐值重放全部actual horizontal_speed与provider speed；31帧即使纯yaw也因局部forward/right投影的F32舍入而偏离同帧世界水平长度。首输入actual/provider0.6666665673、同世界向量长度0.6666666269；只移除world-length因素丢31信号，字节恢复同target重编全复现。这里没有新阈值/可见故障结论；世界物理D253/D254、共同制动D255和额外9个厘米float标量候选保持独立。证据`target/bf144/311/speed-check.json`、`speed.json`与恢复报告；生产未修，未重开原已完Gate。
 
 - [ ] BF144-D152 / P2 — 地面预测复用物理形体，遗漏源胶囊组件的查询尺寸。
   - Source：fresh `AlsAnimationInstance.cpp:785–789,1166–1188`从CapsuleComponent读取scaled radius/half-height，再用Identity旋转构建独立查询胶囊；`CapsuleComponent.h:201–211`半径取水平两轴较小值、半高取竖直尺度。这不同于D11所述物理形体的水平大轴规则。
@@ -4032,6 +4042,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.308当前边界：已分离D254的F32世界位置差分反馈，与D253六次累计不同；原点0/1.6621m同输入实际角色及自然28恢复consumer均有证据，source40差分完整精确。16首Stop计划值、动画标量/方向共同域与完整Root仍开；累计252（115P2/137P3），截图0、性能暂停。
   - BF144.309当前边界：Stop16计划余差已排除新增算法因，源12帧位置/制动与target实际核重放精确；共同15m/s²下的末位乘法模型候选未获原生同输入控制，不计缺陷，原生CMC核能力单列下一前置。累计252（115P2/137P3），其余动画共同域/完整Root仍开。
   - BF144.310当前边界：共同制动乘法候选已用原生CMC核确认为D255，纯核与自然world历史保持区分；source15/target冻结核及因素消融/最终包旧40兼容均过。累计253（115P2/138P3），动画Speed标量/方向共同域、完整Root及旧恢复后缀原pose链继续开。
+  - BF144.311当前边界：已锁world数据/actor逻辑/mesh局部基，并用公开spawn建立source/target40步同primitive输入与Forward语义；Head yaw_amount40同，D151增加31个普通yaw实际Speed消费者。九个同向量厘米float标量候选、精确微角消费及完整Root仍开，未声称所有动画输入同值。累计253（115P2/138P3），截图0、性能暂停。
 
 - [x] BF144-U06 — Rig初始全局数据已于.245归D242/P3。最初.244发现71骨365个double差、默认240仅FootHeight double变化；.245保持全部原生算法，仅换初始数据即在受控半转产生约180°的float足旋转/实际Setter写回差，并在同source厘米算法的5个骨长舍入边界经同原生IK核产生13/15个float关节点差，分别隔离D163算法与D165单位舍入。数据移除/源码字节恢复及同target重编恢复通过，native数学读出移除/同package恢复亦通过；默认动作自然可达性未证，不因关闭U06声明无差异或修复。证据`target/bf144/245/summary.json`、`native-check.json`、`writeback.jsonl`、`restoration-check.json`；原.244记录保留。
   - BF144.136 follower记录重建补充：near-zero候选无有效end时记录leader移到最后一项；下一普通帧恢复正常leader，`AnimSync::Finalize`使follower记录失效。`BlendSpace.cpp:784–787`按已存归一化时间乘当前样本长度重建；目标此前保留秒数。18帧33个previous差最大约59.6ns，全部精确等于`(旧position/旧duration)*当前duration`；仅补这一步后4032帧所有previous也逐值一致，当前采样位置和姿态保持。证据`target/bf144/136/roundtrip-check.json`、`before-roundtrip-all-analysis.json`、`all-analysis.json`。
