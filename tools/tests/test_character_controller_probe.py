@@ -12,6 +12,11 @@ def validate(document, request):
         assert len(case['frames']) == len(wanted['frames']) > 0
         requested = wanted.get('local_controller', False)
         assert type(requested) is bool
+        for frame in wanted['frames']:
+            if 'control_rotation_degrees' in frame:
+                rotation = frame['control_rotation_degrees']
+                assert requested and set(rotation) == {'pitch', 'yaw', 'roll'}
+                assert all(type(v) in [float, int] and math.isfinite(v) for v in rotation.values())
         assert case['initial_engine_frame'] == request.get('initial_engine_frame', 0)
         for row in [case['initialization']] + case['frames']:
             if not requested:
@@ -58,7 +63,13 @@ def self_test():
         validate(truncated, request)
     except AssertionError:
         rejected += 1
-    assert rejected == 4
+    wrong_request = copy.deepcopy(request)
+    wrong_request['cases'][0]['frames'][0]['control_rotation_degrees'] = {'pitch': '30', 'yaw': 0, 'roll': 0}
+    try:
+        validate(fixture, wrong_request)
+    except AssertionError:
+        rejected += 1
+    assert rejected == 5
     return {'self_test': 'PASS', 'invalid_controller_states_rejected': rejected}
 
 

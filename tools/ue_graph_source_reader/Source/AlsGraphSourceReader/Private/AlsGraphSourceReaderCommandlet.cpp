@@ -4430,6 +4430,7 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
                 const TSharedPtr<FJsonObject>* Rotation = nullptr;
                 double Pitch, Yaw, Roll;
                 if (Controller == nullptr || !(*Frame)->TryGetObjectField(TEXT("control_rotation_degrees"), Rotation) ||
+                    !(*Rotation)->HasTypedField<EJson::Number>(TEXT("pitch")) || !(*Rotation)->HasTypedField<EJson::Number>(TEXT("yaw")) || !(*Rotation)->HasTypedField<EJson::Number>(TEXT("roll")) ||
                     !(*Rotation)->TryGetNumberField(TEXT("pitch"), Pitch) || !(*Rotation)->TryGetNumberField(TEXT("yaw"), Yaw) || !(*Rotation)->TryGetNumberField(TEXT("roll"), Roll) ||
                     !FMath::IsFinite(Pitch) || !FMath::IsFinite(Yaw) || !FMath::IsFinite(Roll)) { return nullptr; }
                 Controller->SetControlRotation(FRotator(Pitch, Yaw, Roll));
