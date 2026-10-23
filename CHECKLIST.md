@@ -2330,6 +2330,13 @@
 
   - 04:07 完成摘要：Gate `target/bf144/295/summary.json` PASS_UNMODIFIED_TARGET_CONTINUOUS_WORLD_FEEDBACK_AND_FIRST_SOURCE_BOUNDARY；原默认图88步无图错误、6952命名mesh骨记录、初始化一次，176个前曲线Pose、87个前GroundPrediction pelvis与968实际RigInput字段精确。Fresh source自然88步全部字段复现；按实际物理推进建立87个同Standing/无水平输入/模式cohort，但物理位置/精度与动画初始化输入不全同，不对完整pose作等价结论。首动画边界归已有D244；首物理步target较source低约0.908mm、落地后source固定而target有18个高度，下一单独查首步/子步及D31消费者，未凭观察加编号。观察器源码物理删除后after全保持，字节恢复/同target重编88步恢复；不同资产加载elapsed仅映射出生前offset，全部行为字段保持。Watchdog自测通过；3997身份键保持前3953全等，114 ALS/184生产Rust/库、reader/package/转换器/原资产未改。实际结束：2026-10-24 04:07:29 +08:00；实耗11分16秒，较预估提前28分44秒；默认图无错且现有公开观察API足够，后续同类纯入口/反馈约20分钟估计，物理归因单独估时。新增0，累计248（115P2/133P3）；完整原77、Down-Up/180/Root仍开。截图0、性能暂停。
 
+- [x] BF144.296 U01/U07自然出生首物理步与落地输入闭包：依赖.295未改图自然world事实，仅比较source角色注册/首次walking→falling、CMC重力/位置积分与target公开spawn的Update/Tnua/Avian路径，定位首位移约0.908mm及后续落地高度的第一个不同算法/输入；固定Bevy重力接受决定，不复开D08，不把Rig结果回填source。Gate：fresh source/target首步生命周期与积分合同、最小同输入消费者/已知D42或D31归属或精确新差异、只读观察消融/字节恢复与身份；不能精确归因的余项保持未闭，不扩大到周边。开始：2026-10-24 04:07:51 +08:00；预估结束：2026-10-24 04:37:51 +08:00。估时依据：.295纯入口/反馈11分钟、既有D31/D42均已有source合同与focused夹具，本轮补首步调度/积分观测和同输入约30分钟。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 04:07 活动摘要：3ecafb1c完成.295、248（115P2/133P3），出生/落地物理输入尚非精确同域。先核源首world为何保持位置、target CMC首Update能否读取GlobalTransform与Tnua/Avian积分归属；不会因临近D42/D31而直接归并或修复。
+
+  - 04:13 source/static闭环：原默认88步motion与.295逐值一致；最小typed只读观察按Update、Clamp、六子步及物理后采集。首步全程Grounded/零horizontal事务早退，Clamp实际启用CustomPositionIntegration（不能归为普通Avian默认积分），source_physics_timing按Grounded分支的末速度积分，6份velocity/position精确复算，下落6.358333mm；仅初始mode=Air控制按CMC midpoint落5.450010mm，说明额外0.908mm来自真实模式/积分路径不同，尚未证明source出生移动组件与首tick同域。CDO的MOVE_None/默认Walking及无controller允许已重读，但现有source包未捕获实例MovementMode/tick，保留明确前置能力缺口，不直接归D42。仅spring_strength=0的自然控制保持前11步位置，落地后77步全部固定；原77步solver上升速度被floor消费清零，沿既有D31扩消费者。早期exclusive观察的调度歧义报告保留，已删多余起点阶段、按XPBD实际阶段排序并改typed只读，无生产调度修改。下一完成物理消融/同target恢复、身份并登记source首tick读取前置。新增0、248，截图0、性能暂停。
+
+  - 04:15 完成摘要：Gate `target/bf144/296/summary.json` PASS_NATURAL_TARGET_FIRST_PHYSICS_AND_D31_LANDING_CONSUMER_WITH_SOURCE_BIRTH_BOUNDARY_OPEN；首目标Grounded六子步12个速度/位移y逐值复算，实际由项目CustomPositionIntegration末速度分支消费，初始Air控制为midpoint、约0.908mm位置因素被隔离。源10个正常Falling步位置/速度独立double midpoint全精确，源首world无移动的实际组件mode/tick仍未采到，不能用CDO MOVE_None/默认Walking猜测或直接扩D42；此能力是后续明确前置。只关spring_strength保持前11步位置、后78个Grounded位置固定，原77步抬升/物理竖速→floor零速度沿D31扩实际消费者。因子/观察器源码物理移除后默认88步after保持、两负合同被拒；字节恢复同target重编3组264帧所有actor/solver/阶段数据恢复。4057身份键保持前3997全等，114 ALS/184生产Rust/库、reader/package/转换器/原资产未改。实际结束：2026-10-24 04:15:47 +08:00；实耗7分56秒，较预估提前22分4秒；已有完整入口/冻结库让控制很快完成，观察器三次调度歧义只作夹具失败，删除冗余点/typed只读并按XPBD阶段修正，未改生产调度。相同已具入口的单因素物理追踪后续按20分钟估计。新增0、累计248（115P2/133P3）；下一源移动组件初始化/tick真实捕获，完整77、Down-Up/180/Root仍开。截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
 
@@ -2588,6 +2595,9 @@ BF144-D08 已撤销（2026-10-13用户决定）：作为Bevy移植项目，重�
   - Target：`src/als/character/movement/motion.rs:151–168`把Tnua float height固定成standing H+0.019+0.005m；当前依赖Tnua Walk的默认spring strength=400，`walk.rs:410–419,624–642`持续施加offset×strength，gravity compensation同时保留。后置floor consumer虽然实现了源距离带，却没有去掉前置motor已产生的带内位移。
   - 反例：完整默认角色静止在4m平面，离地2.0/2.15/2.35cm，实际floor sweep确认仍在源允许带内；30帧后分别抬升3.464/2.165/0.433mm，末velocity.y都被回写为0。`bf144_base_height_residual_is_checked_without_platform_motion`共9组6PASS/3FAIL；owner0三组及夹具只将spring strength改0的三组均保持位置，证据`target/bf144/10/final/`。该反例不需要移动基座，也不依赖U01的大箱体查询误差。
   - 漏检：旧floor夹具多验证一次查询、Grounded状态、horizontal velocity或允许整个离地距离带；没有在带内对静止Position持续不变做断言，velocity.y=0也会掩盖抬升。影响目前为毫米级，因此P3；额外抬升由源条件、实际consumer和数据消融共同定位，未据观察加入补偿或修改已完成项。
+
+
+  - BF144.296自然落地消费者：未改图/空输入角色88步沿.295公开入口精确复现；第10步落到y=0.921500027m，随后77步物理solver有正竖速，但floor后公开velocity.y都0，位置仍被抬升（第11步先升0.656247mm）。仅在fixture将原配置spring_strength400改0，前11步位置完全保持，78个Grounded末位置全部固定；源同地面自然77步也固定在92.1499954cm。Fresh源码核Tnua spring offset×strength+gravity compensation与源AdjustFloorHeight距离带分支，受控去因子证实同一D31自然消费者，不新增编号、不把全部动画pose差归本项。观察/因子分支源码物理移除使负合同失败，字节恢复同target重编后3组264帧全字段恢复，以.296完成摘要为准；证据 `target/bf144/296/physics-check.json`、`source-check.json`、`removed-check.json`、`restoration-check.json`。
 
 - [ ] BF144-D32 / P2 — 角速度继承按未缩放胶囊半高取脚底。
   - Source：fresh UE `GetImpartedMovementBaseVelocity:1204–1209`以当前组件位置减GetScaledCapsuleHalfHeight沿重力求脚底，`Character.cpp:930–965`以该点相对基座transform的向量与实际body angular velocity求叉积；native bImpartBaseAngularVelocity和三个轴均True。
