@@ -20,9 +20,11 @@ def check(document):
             assert all(math.isfinite(value) for field in transform.values() for value in field.values())
             norm = sum(value * value for value in transform['rotation'].values())
             assert abs(norm - 1.0) < 1e-5, (frame['time'], bone['name'], norm)
-    assert probe['sampling_mode'] in ['animation_pose', 'raw_absolute_pose']
-    if probe['sampling_mode'] == 'raw_absolute_pose':
+    assert probe['sampling_mode'] in ['animation_pose', 'raw_absolute_pose', 'raw_additive_pose']
+    if probe['sampling_mode'] in ['raw_absolute_pose', 'raw_additive_pose']:
         assert all(frame['pose_evaluation_mode'] == 'raw_model' for frame in frames)
+    if probe['sampling_mode'] == 'raw_additive_pose':
+        assert probe['required_bones_raw'] is True
     return {'frames': len(frames), 'bones': len(expected_names), 'curve_counts': [len(frame['curves']) for frame in frames]}
 
 

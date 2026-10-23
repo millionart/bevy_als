@@ -2314,6 +2314,10 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
     if (Request->HasField(TEXT("raw_absolute_pose")) &&
         (Request->TryGetField(TEXT("raw_absolute_pose"))->Type != EJson::Boolean || !Request->TryGetBoolField(TEXT("raw_absolute_pose"), bRawAbsolutePose))) { return nullptr; }
     if (bRawAbsolutePose && (!bAnimationPose || !FSequencePoseAccess::CanUseRawData(*Sequence))) { return nullptr; }
+    bool bRawAdditivePose = false;
+    if (Request->HasField(TEXT("raw_additive_pose")) &&
+        (Request->TryGetField(TEXT("raw_additive_pose"))->Type != EJson::Boolean || !Request->TryGetBoolField(TEXT("raw_additive_pose"), bRawAdditivePose))) { return nullptr; }
+    if (bRawAdditivePose && (!bAnimationPose || bRawAbsolutePose || !Sequence->IsValidAdditive() || !FSequencePoseAccess::CanUseRawData(*Sequence))) { return nullptr; }
     bool bCompressedTracks = false;
     if (Request->HasField(TEXT("compressed_tracks")) &&
         (Request->TryGetField(TEXT("compressed_tracks"))->Type != EJson::Boolean || !Request->TryGetBoolField(TEXT("compressed_tracks"), bCompressedTracks))) { return nullptr; }
@@ -2321,7 +2325,7 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
     bool bCaptureSourceStages = false;
     if (Request->HasField(TEXT("capture_source_stages")) &&
         (Request->TryGetField(TEXT("capture_source_stages"))->Type != EJson::Boolean || !Request->TryGetBoolField(TEXT("capture_source_stages"), bCaptureSourceStages))) { return nullptr; }
-    if (bCaptureSourceStages && !bAnimationPose) { return nullptr; }
+    if (bCaptureSourceStages && (!bAnimationPose || bRawAdditivePose)) { return nullptr; }
     bool bPrepareCompressed = false;
     if (Request->HasField(TEXT("prepare_compressed")) &&
         (Request->TryGetField(TEXT("prepare_compressed"))->Type != EJson::Boolean || !Request->TryGetBoolField(TEXT("prepare_compressed"), bPrepareCompressed))) { return nullptr; }
@@ -2371,6 +2375,7 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
             BoneIndices.Add(Index);
         }
         RequiredBones.InitializeTo(BoneIndices, UE::Anim::FCurveFilterSettings(), *Sequence->GetSkeleton());
+        if (bRawAdditivePose) { RequiredBones.SetUseRAWData(true); }
     }
     TArray<TSharedPtr<FJsonValue>> Frames;
     for (const TSharedPtr<FJsonValue>& Value : *Times)
@@ -2498,7 +2503,8 @@ TSharedPtr<FJsonObject> CaptureSequencePoseProbe(UObject* Asset, const FString& 
         Frames.Add(MakeShared<FJsonValueObject>(Frame));
     }
     TSharedRef<FJsonObject> Probe = MakeShared<FJsonObject>();
-    Probe->SetStringField(TEXT("sampling_mode"), bRawAbsolutePose ? TEXT("raw_absolute_pose") : bAnimationPose ? TEXT("animation_pose") : bRootTrackOnly ? TEXT("root_track") : bCompressedTracks ? TEXT("compressed_local_tracks") : TEXT("raw_local_tracks"));
+    Probe->SetStringField(TEXT("sampling_mode"), bRawAdditivePose ? TEXT("raw_additive_pose") : bRawAbsolutePose ? TEXT("raw_absolute_pose") : bAnimationPose ? TEXT("animation_pose") : bRootTrackOnly ? TEXT("root_track") : bCompressedTracks ? TEXT("compressed_local_tracks") : TEXT("raw_local_tracks"));
+    if (bRawAdditivePose) { Probe->SetBoolField(TEXT("required_bones_raw"), RequiredBones.ShouldUseRawData()); }
     if (bCompressedTracks) { Probe->SetObjectField(TEXT("compression"), Compression.ToSharedRef()); }
     Probe->SetNumberField(TEXT("duration"), Sequence->GetPlayLength());
     Probe->SetArrayField(TEXT("frames"), Frames);
