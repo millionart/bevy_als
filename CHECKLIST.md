@@ -3105,6 +3105,13 @@
 
   - 完成/Gate：`target/bf144/386/summary.json`通过；最小reader只读main MontageEvaluationData，旧缺合同先失败/schema六负控制；冗余派生时间字段消融后88删除值外全部raw与旧轨迹精确，实际采样按fresh GetAnimationData范围/速率合同离线复算。真实Stop_Left65–108/Stop_Right165–208共88记录与Slot总权重240包全精确，含12条playing/active false仍正权重；profile None、单track/segment/loop1，RateScale1/Stand0 mesh additive/无rootMotion，各39唯一时点正确SKM prepared compressed叶6162骨可复用。观察整体移除/源码字节恢复同arm64包重编与原自然240新旧全部精确；最小/移除/恢复build39.426/79.879/135.537秒，原生31.064/32.005/53.386秒，初版含冗余派生步骤100.834秒build仅作消融前证据。8619身份，旧8565仅reader3键迁移、8562不变，source114/生产184/rlib/转换器/资产冻结，256（115P2/141P3），未新增D。两侧自然88帧/sequence同，位置72/weight16余差仅inventory，Delta字段语义先分离；下一同输入public时钟/源累加与末端保持单因素，再独立Grounded Base→完整Slot、自然Overlay/Root/Feet/属性。截图0、性能暂停。开始16:07:54；预估结束16:42:54；实际结束16:25:55；实际用时1081秒；偏差-1019秒；结果自然montage实际输入/叶来源与消融恢复Gate通过。
 
+- [x] BF144.387 U07自然Stop88同输入时钟/淡化/末端因素：依赖.386原Stop_Left/Right实际montage88/正确压缩叶输入，fresh核ALS原Stop请求初值/主帧Delta、UE Montage位置累加/AlphaBlend更新/末端保持与target public AlsTransitionPlayback::stop实际调用。复用现有自然target.375 cache与公开重放，不新增观察器；两段同初值/参数/帧Delta对比source完整原montage状态，分离D118累加与AlphaLerp、D257末端保持及目标配置clamp，明确DeltaTimeRecord和相邻clip差语义。Gate：当前public全部88实际时钟字段重放精确、源同输入position/BlendInfo状态独立复算与native全精确、单因素/必要消融源码字节同target重编恢复/身份；只扩既证消费者，不预判新D或完整Slot/Base姿态修复，原自然Grounded Base/Overlay/Root/Feet/属性仍开。开始：2026-10-24 16:26:49 +0800；预估结束：2026-10-24 17:01:49 +0800。估时依据：.333完整60时钟/端点分离约13分钟，.386现两Stop参数/88实际输入与自然target缓存齐，35分钟覆盖公开重放、原alpha核/末端单因素与恢复/身份；不运行完整构建或Playground。仅审计，截图0、性能暂停。
+  - 16:26 活动摘要：ca744235/8619身份已提交，256（115P2/141P3）；自然两段88帧/sequence同但position72、weight16、previous70有差，Delta不同语义暂不判错误。先同public构造与真实参数闭合，再分源累加/末端和fade状态，不直接相减计新因。
+  - 16:30 source/static闭环：真实Stop构造参数start.4/rate1.5/in/out.2/length2.33333325386与源同。公开advance重放88，并保原standing_source配置clamp2.33333301544后，实际cache position/previous/weight/playback_delta共352字段精确；首工具误将raw clip_time等同采样cache，按fresh sampler边分离修正，未误记产品。源actual enum2是HermiteCubic/SmoothStep，非CubicInterp；按AlphaLerp/remaining更新、IsComplete比较BlendedValue与Desired、正向section末端偏移及not-playing保留previous/Delta，88×11=968源状态全native精确。原位置72差，increment-only余12/end-only余60/两者合并0；weight16/previous70已定位原历史边界，Delta88仅先解释语义。下一两位置因子/alpha历史消融与同target恢复、身份后只扩D118/D257消费者，不称完整Slot/Base。截图0、性能暂停。
+  - 16:31 消融/恢复闭环：Rust控制删除EndOffset剩12位置差、删除increment剩60，所有其他raw/current字段不变；源码字节恢复同target重编后88输出字节同。源alpha历史换成remaining反算首65即alpha0.16666662693≠native0.16666667163被拒，脚本字节恢复全部968源字段/352目标采样字段再通过；HermiteCubic端点BlendedValue已达1时alpha仍0.99999994/remaining7.45e−9，按IsComplete保留该真实状态。只扩D118自然Stop累加/alpha历史与D257双侧末端消费者，不新编号，不把配置clamp或Delta语义并入新因。最后身份后转独立Grounded Base→完整Slot；截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/387/summary.json`通过；真实Stop双侧88同参数/Delta，public advance按原standing_source配置clamp后352实际cache position/previous/weight/delta字段精确；源增量位置、section EndOffset、not-playing保留previous/Delta及HermiteCubic AlphaLerp/remaining/IsComplete 11字段×88=968全native精确。原position72/weight16/previous70差，increment-only余12、end-only余60、二者合并88位置同；源alpha历史恢复16权重差，不把clamp或Delta字段不同语义归新因。去两个位置因素分别保持反例，alpha历史去掉首65失败；源码字节恢复同target重编88输出字节同。D118/D257自然双侧消费者已补，未新D、未修生产；8654身份旧8619全不变，source114/生产184/rlib/reader/转换器/资产冻结，256（115P2/141P3）。下一自然Grounded实际状态/叶/规则输入的独立Base闭包→完整Transition Slot，再自然Overlay/Layering/Root/Feet/属性。截图0、性能暂停。开始16:26:49；预估结束17:01:49；实际结束16:33:06；实际用时377秒；偏差-1723秒；结果自然Stop同输入时钟/alpha/末端因子Gate通过。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
@@ -3124,6 +3131,8 @@
   - 最小反例/隔离：两端同起点2.2999989986419678、同delta0.03333333507180214、rate1.5与完整length2.3333332538604736，只推进一步，public目标位置仍完整末端，native为length减5e−5；只加源EndOffset后raw位置及保留原配置clamp的采样时点都精确恢复。零delta与普通首步控制保持。此独立于D118多步elapsed反算，也固定了D121/既有配置截断而不把它并入新因；首控制误用通用构造的短配置，改按actual CrouchingStop公开构造并严格断言相同length后验证。
   - 实际consumer：在相同prepared compressed/SKM源数据上，仅切换source末位与actual采样时点，14平移/73旋转骨行的F32值改变，scale与curve相同；固定数据隔离D224。尚未声称完整槽最终Root或默认世界可见幅度已恢复。
   - 漏检/Gate：旧.214仅核前16活动步，未到自然section终点；目标`stop_link.rs:1119–1125`测试把精确duration当终点oracle。当前原样最小测试明确失败，独立native单步/pose双时点与仅EndOffset恢复见`target/bf144/333/focus-check.json`、`check_original_end.report.json`，本项仅登记、生产未修；完整60步、单步控制/消融/同binary恢复及6007身份已封存，见`target/bf144/333/summary.json`。
+
+  - BF144.387原自然Stop双侧扩展：两段相同44步公开Stop构造，源末端2.33328318596与current raw完整duration/实际配置clamp时点保分层；去EndOffset控制丢12个尾部源时点，去increment丢60个前序，二者合并88位置全精确。该实际双侧native时钟输入证明此边，不新增产品D；当前完整Slot骨骼/自然Base仍后继，.333受控14T/73R姿态幅度不直接推广到本自然两叶。源码字节恢复同target重编88输出同，见`target/bf144/387/restore-check.json`。
 
 - [ ] BF144-D256 / P3 — 普通Speed标量直接按米制float量化，未保留源厘米float的舍入阶段。
   - Source：fresh `AlsCharacter.cpp:1375–1386`先对世界FVector double厘米速度求Size2D，再UE_REAL_TO_FLOAT存Speed；`AlsAnimationInstance.cpp:699–700`直接复制该float厘米标量。原生现成scaled_distance以第三轴0执行相同平方和/平方根，同时返回double与float，120样本中的40个实际source速度精确恢复原记录Speed。
@@ -3942,6 +3951,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.214 Stop前缀补充：fresh原CrouchingRight动态montage同0.2秒混入/起点、rate1.5、16个1/30秒步长，当前61–76实际实例有11个position与4个weight低位差，源position逐帧累加、AlphaBlend累加AlphaLerp；target仍由elapsed反算。首个位置差在65帧，source0.45000004768、target0.44999998808；62帧权重source0.25925925374、target0.25925928354。原长度精确一致，排除D121/D167；归入相同D118，不另编号，不宣称本前缀触及混出/动作结束。原source时钟单列保留供原姿态采样，未以target时钟回填。证据`214/clock.native.json`、`clock-check.json`。
 
   - BF144.333完整停止过渡补充：当前CrouchingStop60步/48活动，source与target均103混出/109失效，保留这一生命周期通过边界；末前42步的36处位置差只恢复递增位置即归零，首16/新尾各4权重差沿source AlphaLerp/remaining-time与target反算fraction分离。末端持有18步的额外位置差另为D257，不能把54位置差全归本项；叠加两独立位置规则才恢复完整60时点。原48源采样clock独立保存，完整pose/slot尚后置。证据`target/bf144/333/clock-check.json`、`source-clock.json`与`summary.json`。
+
+  - BF144.387自然Stop双侧消费者：原生Stop_Left65–108与Stop_Right165–208、同start0.4/rate1.5/blend0.2/length/Delta共88步，public advance加保原配置clamp后352实际cache字段精确；源增量位置/previous/DeltaTimeRecord和HermiteCubic AlphaLerp/remaining/IsComplete的968状态全native精确。原位置72差、weight16差、previous70差；仅增量余12末端、仅末端余60前序，二者合并位置全88精确；权重按完整源alpha历史恢复。去alpha历史首帧拒绝，去两位置因素各有独立反例，源码字节/同target重编输出恢复。本项数值时钟消费者扩展，不称完整Slot姿态或自然Root已对齐；DeltaTimeRecord在停止后保留值与target相邻采样差不同阶段，未另立原因。证据`target/bf144/387/clock-check.json`、`restore-check.json`。
 
 - [ ] BF144-D119 / P2 — GetUp停止与共槽混合读取上一帧Roll状态和权重。
   - Source：fresh `AlsCharacter_Actions.cpp:90–100`成功Montage_Play后立即置Rolling；`AnimInstance.cpp:2767–2772`同步停止同组旧montage，随后同一次UpdateMontage更新所有权重再求槽姿态。Roll原生BlendIn为0.1秒，已有GetUp混出保留原Cubic曲线并缩短时长。
@@ -5052,3 +5063,5 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.385当前边界：source自然Slot实际2651/2169实例、6类schema负控制/原240被动观察与消融恢复、8565身份通过，256（115P2/141P3）。7 Layering/PostLocomotion零条件已证，主Transition88非零须实际montage输入/姿态后继；自然Overlay inertial/Base/Root/Feet/属性仍开，截图0、性能暂停。
 
   - BF144.386当前边界：真实Stop_Left/Right88montage/12 inactive正权重、78唯一compressed叶6162骨/派生步骤移除与整体观测消融恢复/8619身份通过，256（115P2/141P3）。自然当前同88时间段位置72/weight16余差保后继同输入因子；完整Grounded→Slot/Layering Base/Root/Feet/属性仍开，截图0、性能暂停。
+
+  - BF144.387当前边界：自然Stop88 public352/源968字段、两位置因子/alpha历史消融恢复/8654身份通过，D118/D257扩自然双侧consumer，256（115P2/141P3）。下一自然Grounded实际状态/叶/规则输入与独立Base→完整Slot，Overlay/Root/Feet/属性仍开；截图0、性能暂停。
