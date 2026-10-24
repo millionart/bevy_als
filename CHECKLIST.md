@@ -3220,6 +3220,16 @@
 
   - 完成/Gate：`target/bf144/400/summary.json`通过。三实际状态12节点source闭包：Walk/Run直接Movement cache；RunStartFromWalk=Movement+方向MultiWay局部ApplyAdditive/Alpha1、绑定为空。纯Forward方向沿已证父输入归一1，.394自产48次起步时点共22唯一，native44.024秒原compressed/SKM79骨产1738唯一骨行、映射3792实际骨行；无曲线、所有delta scale0，AAT_LocalSpaceBase/Lean Pose原参考frame0明确，原叶与参考资产身份保持。106 Details更新全有.399自产Movement pose，未用角色最终Base；缺Movement20/Acceleration22/Start更新22的三消融合同均拒绝、原数据恢复通过。9190身份旧9168全不变、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib保持，256（115P2/141P3），无新D。此为source原生叶数据与完整pose输入表，不声称独立codec、Details Apply/普通blend/inertial或完整角色等价；下一实际局部ApplyAdditive和普通state pose，再惯性及Grounded Base/Slot/Layering/Root/Feet/属性。截图0、性能暂停。开始18:56:00；预估结束19:26:00；实际结束19:00:27；实耗267秒；偏差-1533秒；结果三状态pose输入闭包Gate通过；同类单叶输入表后续可按约5分钟校准，涉及数值核另估。
 
+
+- [x] BF144.401 U07自然Details局部ApplyAdditive与普通state pose生产：依赖.400三状态完整pose输入表/原起步叶和.399自产Movement姿态，.394自产state权重/ordered transitions；只复算方向MultiWay one-child归一、RunStartFromWalk局部ApplyAdditive Alpha1和普通state pose混合，Walk/Run直接透传Movement。复用既有原Additive/Blend whole-pose native探针与精确数学核；先fresh核源Quat乘序/scale delta/Normalize及普通state有序混合，不把惯性请求当已应用pose。Gate：106更新全部输入/48实际Apply及ordinary transition mix、同输入whole-native逐值校准、必要算序/归一或scale消融恢复/identity；若当前探针缺局部whole-pose需先明确能力及最小前置，不猜参数。开始：2026-10-24 19:01:00 +0800；预估结束：2026-10-24 19:21:00 +0800。估时依据：.399精确BS含原生/消融280秒、.400单叶/输入267秒，既有.182/.217/.348有混合/Apply核；本项含局部Quat组合及state普通混合，20分钟含原生单位校准/消融/身份，Details惯性独立后继，不推广其它状态。仅审计不改生产/转换器/资产/reader，截图0、性能暂停。
+  - 19:01 活动摘要：.400已提交e96806cd/9190身份，256（115P2/141P3）。先核现有whole-pose probe与局部Apply数学接口，再自产48起步state输出/普通转场；两个0.1秒inertial请求以及完整角色Base/Root/Feet/属性仍开，不提前宣称惯性pose一致。
+
+
+  - 19:06 source/static与数值闭环：.400原输入按源MultiWay单子归一、full-weight Local Apply inner+node outer生成48起步state pose，并以.394自产ordered stack生成106 Details惯性前pose。fresh源普通FSM内部不Normalize，只在栈后最终1次；原GeometryQuery全部3792骨的AccumulateAdditive inner和其node outer、原BlendProfile default分支632普通转场骨TQS全部double精确，8帧FootPlanted+PoseGait共16值原曲线精确。去方向MultiWay归一首22/root inner失败，去FSM最终归一首44/root失败；源码/106姿态及所有原native请求字节恢复后全部对照再过。native local26.707秒、blend31.011/25.947、curve25.966成功，9190旧身份全核中。并未把0.1秒inertial请求当pose已消费，完整Details/Standing惯性与Base/Root/Feet/属性保开，256（115P2/141P3），截图0、性能暂停。
+
+
+  - 完成/Gate：`target/bf144/401/summary.json`通过。自产.399/.400输入/.394状态栈经方向MultiWay单叶归一、Local Apply Alpha1及普通state混合，形成48起步state与106 Details惯性前pose；源普通FSM内部累加不归一、栈后最终1次，直接state保持原pose。原GeometryQuery全部3792加性骨inner及node outer、原BlendProfile default无profile同分支632转场骨TQS全部double精确；8帧FootPlanted/PoseGait共16曲线值也原生精确。原native local26.707秒、blend31.011/25.947秒、curve25.966秒；去方向归一首22/root失败、去FSM最终归一首44/root失败，source/106pose/原请求全部字节恢复后重算全过。9241身份旧9190全保持、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib不变，256（115P2/141P3），无新D；该源单位校准不是target或角色完整pose验收，也未把inertial请求当已应用。下一Details实际0.1秒请求/pose历史和非相关空窗，再Standing-Grounded Base/Slot/Layering/Root/Feet/属性；截图0、性能暂停。开始19:01:00；预估结束19:21:00；实际结束19:07:35；实耗395秒；偏差-805秒；结果Details局部Apply/普通state pose生产Gate通过，原生全部骨直接控制比旧局部抽样更完整且无需工具扩展。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
@@ -5199,3 +5209,5 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.399当前边界：106姿态191 compressed子叶/8374+8374骨及212曲线、自主时钟保持/3788消融恢复/9168身份通过，256（115P2/141P3）。下一Details原Walk/RunStartFromWalk/Run pose输入与惯性，再完整Grounded Base/Root/Feet/属性；截图0、性能暂停。
 
   - BF144.400当前边界：三root12节点/106Movement输入与48起步22原compressed时点1738骨行、三缺输入消融/9190身份通过，256（115P2/141P3）。下一Details局部ApplyAdditive/普通pose再惯性/完整Base/Root/Feet/属性，截图0、性能暂停。
+
+  - BF144.401当前边界：106 Details惯性前pose/3792加性+632普通转场骨/16曲线、两消融字节恢复和9241身份通过，256（115P2/141P3）。下一Details原0.1惯性/相关性历史，再Standing-Grounded Base/完整Root/Feet/属性，截图0、性能暂停。
