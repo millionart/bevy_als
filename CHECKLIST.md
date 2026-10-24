@@ -2618,6 +2618,13 @@
 
   - 完成/Gate：`target/bf144/330/summary.json`通过；212直接帧/16748骨及curve与actual state输入全等，28混合/2212骨和curve公共生产重放精确；112同actual输入原生+4实际峰值raw/final f64精确。只替nlerp使共同输入旋转峰0.00937911868→1.1920929e-7，确认D177当前Grounded消费者；common T/S1049/120行（峰5.96e-8m/1.19e-7）归已有D232数值空间边界，余1861旋转非零不作全恢复或单因统计。直接上游T/R/S14648/11321/3489，28帧组合2032/2070/444；34curve分直接12/混合22，共同consumer为0，换原数据后的混合curve亦0，故曲线差从输入携带。删nlerp控制仅1950控制骨行改变、现行生产重放保持；源码字节恢复同target重编全表精确。5876身份（旧5820不变）通过；无新编号，补D177/D232而不复开完成图，上游数据/数值与外层Root/自然反馈及旧域迁移仍开。当前254（115P2/139P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始09:28:30；预估结束09:48:30；实际结束09:37:00；实际用时510秒；偏差-690秒；结果直接边界分解Gate通过，完整等价仍未证明。
 
+- [x] BF144.331 U07完整240 Grounded后/Transition槽到Locomotion真实边界：依赖.329当前240原Grounded供给与.330直接算子分解，只沿已证Root链补当前后惯性、Transition slot/producer活动、Locomotion具名输入/cache与主stack/后惯性及必要warm观察。fresh源核对应节点/slot/请求配置，完整240旧字段校准后列原输入可用性及确切侧输入/活动历史缺口。Gate：实际owner/context/请求/蒙太奇与source配置、无活动不是从pose相等猜测、完整旧历史无扰动、0target原值回填、必要观察消融源码字节恢复同target重编/身份；原数值分层随后，不拿旧77替新后缀或source自然历史。开始：2026-10-24 09:38:15 +0800；预估结束：2026-10-24 09:58:15 +0800。估时依据：.328两观察与268输入清点约6分40，.213–.224已具该直接链观察/模板；当前需要完整240/暖态与活动槽重验，按20分钟先闭实际资格及缺口，不扩Layering内部或周边。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 09:39 活动摘要：ec7438da后树干净，5876身份、254（115P2/139P3）；上一轮完成Grounded直接边界分解与证据提交，属进展。本轮沿既有源边到Locomotion Root，保留上游姿态残差，不把数据供给PASS当生产等价；原77相关完成项不按相邻关系复开。
+
+  - 09:44 source/static闭环：完整240及11暖态旧字段精确，后Grounded240全部无请求/active、pose/curve透传；Transition/具名linked/cache240实际owner保持，槽192无活动透传、48活动帧61–108，producer原clip/reference/曲线与自身公开算子逐值重放，旧source前缀仅16，新增尾32待原生源数值。Locomotion主5 Land→Grounded+235直接，后惯性当前active1但pose/curve差2帧；暖态请求0.6/0.1已观察，不能拿target暖pose充source。fresh Locomotion/设置与当前源Root/Grounded/Crouch图核slot GroupGrounded、stop请求.2/.2/rate1.5/start.2及两个后惯性配置。全部新观察及暖字段移除保持旧240，源字节恢复同target重编全观察精确。初编译缺旧observer所用serde/ron extern，复用原.221已有frozen rlib参数后通过，未新增依赖。身份核查中，源240后Grounded/48槽/5落地/暖惯性明确后置，截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/331/summary.json`通过；完整240及暖态旧字段全等，后Grounded240无请求/active且pose/curve透传；Transition192无活动copy、48活动61–108（旧原数值16，新尾32），单CrouchingStop producer原clip/reference/曲线自身重放精确。linked Grounded输入/cache240与actual owner全核，Locomotion5普通Land→Grounded/235直接、后惯性active1但pose/curve差2帧；11暖态含0.6/0.1请求，未拿target暖pose回填源。fresh source链、slot/setting/request及后惯性配置通过；所有新增观察/暖字段消融保持旧240，源码字节恢复同target重编全观察精确。5922身份（旧5876不变，含恢复binary SHA）通过。原240后Grounded、48原槽时钟/mesh加性、5 Land及暖态/后惯性是明确未闭前置，不复用旧77冒全量。无新根因编号，254（115P2/139P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始09:38:15；预估结束09:58:15；实际结束09:45:27；实际用时432秒；偏差-768秒；结果真实资格/缺口Gate通过，原Root数值仍开。
+
 ### 已确认差异（仅登记，未实施修复）
 
 
@@ -4210,6 +4217,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.328当前边界：完整240 Grounded实际stack及45 Standing linked资格已闭，268原state输入全备、28 alias明确不可消费；下一源Custom两次交接/完整Grounded数值，再外层Locomotion/Root与自然反馈，旧域迁移另保留。当前254（115P2/139P3），截图0、性能暂停。
   - BF144.329当前边界：完整240 Grounded原数值/18960骨已供给，28 Custom/168curve/112骨原生及消融恢复过；actual组合差仍有T/R/S16680/13391/3933、curve值34，未单因归尽。继续当前残差分解、Locomotion/Root与自然反馈/旧域迁移，不能以源模型PASS作生产等价。当前254（115P2/139P3），截图0、性能暂停。
   - BF144.330当前边界：当前Grounded直接212帧无额外姿态/curve改变；混合28帧公共重放全精确，共同输入已确认D177 slerp与D232数值空间影响，34curve差均由输入携带。仍保留Standing/Crouch上游原数据/数值余差、外层Root/自然反馈与旧域迁移，不宣称全量等价。当前254（115P2/139P3），截图0、性能暂停。
+  - BF144.331当前边界：完整下游240真实观察已核：后Grounded无请求、Transition48活动（新增原数值未验尾32）、Locomotion5 Land转场/235直接与暖态0.6/0.1请求；源240后Grounded→48槽→落地/暖惯性→完整Root依次补，不冒用旧77。当前254（115P2/139P3），截图0、性能暂停。
 
 - [x] BF144-U06 — Rig初始全局数据已于.245归D242/P3。最初.244发现71骨365个double差、默认240仅FootHeight double变化；.245保持全部原生算法，仅换初始数据即在受控半转产生约180°的float足旋转/实际Setter写回差，并在同source厘米算法的5个骨长舍入边界经同原生IK核产生13/15个float关节点差，分别隔离D163算法与D165单位舍入。数据移除/源码字节恢复及同target重编恢复通过，native数学读出移除/同package恢复亦通过；默认动作自然可达性未证，不因关闭U06声明无差异或修复。证据`target/bf144/245/summary.json`、`native-check.json`、`writeback.jsonl`、`restoration-check.json`；原.244记录保留。
   - BF144.136 follower记录重建补充：near-zero候选无有效end时记录leader移到最后一项；下一普通帧恢复正常leader，`AnimSync::Finalize`使follower记录失效。`BlendSpace.cpp:784–787`按已存归一化时间乘当前样本长度重建；目标此前保留秒数。18帧33个previous差最大约59.6ns，全部精确等于`(旧position/旧duration)*当前duration`；仅补这一步后4032帧所有previous也逐值一致，当前采样位置和姿态保持。证据`target/bf144/136/roundtrip-check.json`、`before-roundtrip-all-analysis.json`、`all-analysis.json`。
