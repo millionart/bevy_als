@@ -2737,6 +2737,17 @@
 
   - 完成/Gate：`target/bf144/346/summary.json`通过；fresh双MakeDynamic源边/算法已核，当前240输入key/owner4/save/旧240+warm全同，480公开目标差分输出逐值重放。原正确mesh Base240与原Locomotion240供给480/37920骨及curve，0target pose回填；144 native控制（72 mesh父链+72差分quat）全部f64同，平移/scale复用既证差分合同。移除mesh父链改变18459骨行、local240保持，源码字节恢复同dylib重编480原表/request/expected byte同、144控制再过；观察去除/源码字节恢复同target重编完整历史恢复。6711身份（旧6650不变/恢复fixture与dylib SHA）通过。实际余差继承上游与数值因素尚未归尽，原反馈权重和custom attributes/完整Layering后继；无新编号，255（115P2/140P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始11:08:55；预估结束11:28:55；实际结束11:15:33；实际用时398秒；偏差-802秒；结果共同参数原双动态缓存Gate通过。
 
+- [x] BF144.347 U07当前240六section Base与槽活动原交接：依赖.345完整原Overlay Input与.346两动态缓存，沿fresh已证六Apply直接Base链核完整240六TwoWay/Overlay use/六body slot输入alpha、真实槽活动与缓存owner，以实际source分支和原Overlay引用供给1440 Base；若出现非零分支先记录精确source闭包再扩本项，不挪用旧77零分支结论。Gate：fresh六source Base/绑定/槽边与全部当前240访问/权重、旧240+warm无扰动、所有source引用owner/原骨curve不回填、必要guard/观察消融源码字节恢复同target重编/identity；Apply/section输出/最终Layering与完整自然反馈后继。开始：2026-10-24 11:15:53 +0800；预估结束：2026-10-24 11:35:53 +0800。估时依据：旧.232/.233输入/六Base约12分钟、.343全入口约7分钟；当前源/工具已有但需新163尾资格，按20分钟含原引用/负控制/观察恢复，仅本闭包。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 11:15 活动摘要：02bd7abc已闭完整240两原动态缓存，6711身份、255（115P2/140P3）；接六Base/槽实际合同，不预判全240仍为旧77零权重。
+
+  - 11:17 source/static闭环：fresh六Base/槽/Overlay use源边、float直通alpha且无map/interp/reset已核。完整240/1440次Base更新alpha全0、A更新/output1440全同；六槽更新/pose输入/context/montage均0、无活动，旧240+warm字段精确。1440原Base只引用原Overlay240（全251表index11起），owner4逐项匹配且无pose/curve复制；四字段+owner负控制拒绝，未求值槽producer数据去guard控制保持直通。当前仅原六Base输入闭合，Apply/section/final后继；观察消融/恢复同target重编中，255（115P2/140P3），截图0、性能暂停。
+
+  - 11:18 guard消融：只去owner4断言后wrong-owner最小控制失败，源码字节恢复同transport入口重跑1440原引用byte同，五负控制全拒绝；未评估slot输入的非零producer控制仍不影响Base直通。观察恢复binary已同target重编，完整运行恢复中；active slot混合未在当前路径被触发，不把它泛化为已过，255（115P2/140P3），截图0、性能暂停。
+
+  - 11:19 Gate后摘要：观察去除旧240+warm全同、源码字节恢复同target重编完整观察恢复，原1440 Base引用与owner/五负控制均过；本当前域六槽active0、alpha0直通，不声称非零槽的其他历史已资格。下一identity/提交后六Apply/section输出，完整Layering和原Root自然反馈仍开，255（115P2/140P3），截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/347/summary.json`通过；fresh六Base/Overlay use/body slot/绑定合同已核，全240/1440次alpha0、A/output全同，六槽update/pose/context/montage0。1440原Base引用原Overlay240（全251表索引11起）且owner4/无原pose或curve回填。五字段负控制（含owner）均拒绝，移除ownerguard使最小wrong-owner控制失败，源码字节恢复同入口1440refs byte同；未求值槽producer数据去guard控制保持源直通。观察去除旧240+warm全同、源码字节恢复同target重编完整观察恢复。6754身份（旧6711不变/恢复binary SHA）通过。此只关闭当前零alpha路径，未泛化非零slot混合；六Apply/section/最终Layering、原Root反馈/custom attributes/Head/Rig后继。无新编号，255（115P2/140P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始11:15:53；预估结束11:35:53；实际结束11:19:49；实际用时236秒；偏差-964秒；结果当前六原Base交接Gate通过。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D257 / P3 — Transition正向终止采样遗漏源section末端缓冲。
@@ -4354,6 +4365,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.344当前边界：原251 Idle时钟/正确mesh原叶与三固定帧已供给，D201245错时仍未修，6560身份、255（115P2/140P3）。下一全251 Overlay参数/组合，再Layering/Root原反馈；截图0、性能暂停。
   - BF144.345当前边界：全251原Default Overlay共同参数组合/交接已闭，177 native/799 target重放与消融恢复、6650身份通过，255（115P2/140P3）。下一完整240 Layering动态/section/最终组合，原Root自然反馈仍开；截图0、性能暂停。
   - BF144.346当前边界：当前240原双动态缓存480/37920骨、144 native与480 target重放/消融恢复、6711身份通过，255（115P2/140P3）。下一六section Base/Apply/TwoWay/cache与最终Layering，再Root原反馈/custom attributes/Head/Rig；截图0、性能暂停。
+  - BF144.347当前边界：当前240六Base原引用1440、slot/alpha0与guard/观察消融恢复、6754身份通过，255（115P2/140P3）。下一六Apply/section输出，后最终Layering/原Root反馈/custom attributes/Head/Rig；截图0、性能暂停。
 
 - [x] BF144-U06 — Rig初始全局数据已于.245归D242/P3。最初.244发现71骨365个double差、默认240仅FootHeight double变化；.245保持全部原生算法，仅换初始数据即在受控半转产生约180°的float足旋转/实际Setter写回差，并在同source厘米算法的5个骨长舍入边界经同原生IK核产生13/15个float关节点差，分别隔离D163算法与D165单位舍入。数据移除/源码字节恢复及同target重编恢复通过，native数学读出移除/同package恢复亦通过；默认动作自然可达性未证，不因关闭U06声明无差异或修复。证据`target/bf144/245/summary.json`、`native-check.json`、`writeback.jsonl`、`restoration-check.json`；原.244记录保留。
   - BF144.136 follower记录重建补充：near-zero候选无有效end时记录leader移到最后一项；下一普通帧恢复正常leader，`AnimSync::Finalize`使follower记录失效。`BlendSpace.cpp:784–787`按已存归一化时间乘当前样本长度重建；目标此前保留秒数。18帧33个previous差最大约59.6ns，全部精确等于`(旧position/旧duration)*当前duration`；仅补这一步后4032帧所有previous也逐值一致，当前采样位置和姿态保持。证据`target/bf144/136/roundtrip-check.json`、`before-roundtrip-all-analysis.json`、`all-analysis.json`。
