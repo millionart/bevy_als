@@ -3221,7 +3221,7 @@
   - 完成/Gate：`target/bf144/400/summary.json`通过。三实际状态12节点source闭包：Walk/Run直接Movement cache；RunStartFromWalk=Movement+方向MultiWay局部ApplyAdditive/Alpha1、绑定为空。纯Forward方向沿已证父输入归一1，.394自产48次起步时点共22唯一，native44.024秒原compressed/SKM79骨产1738唯一骨行、映射3792实际骨行；无曲线、所有delta scale0，AAT_LocalSpaceBase/Lean Pose原参考frame0明确，原叶与参考资产身份保持。106 Details更新全有.399自产Movement pose，未用角色最终Base；缺Movement20/Acceleration22/Start更新22的三消融合同均拒绝、原数据恢复通过。9190身份旧9168全不变、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib保持，256（115P2/141P3），无新D。此为source原生叶数据与完整pose输入表，不声称独立codec、Details Apply/普通blend/inertial或完整角色等价；下一实际局部ApplyAdditive和普通state pose，再惯性及Grounded Base/Slot/Layering/Root/Feet/属性。截图0、性能暂停。开始18:56:00；预估结束19:26:00；实际结束19:00:27；实耗267秒；偏差-1533秒；结果三状态pose输入闭包Gate通过；同类单叶输入表后续可按约5分钟校准，涉及数值核另估。
 
 
-- [ ] BF144.401 U07自然Details局部ApplyAdditive与普通state pose生产：依赖.400三状态完整pose输入表/原起步叶和.399自产Movement姿态，.394自产state权重/ordered transitions；只复算方向MultiWay one-child归一、RunStartFromWalk局部ApplyAdditive Alpha1和普通state pose混合，Walk/Run直接透传Movement。复用既有原Additive/Blend whole-pose native探针与精确数学核；先fresh核源Quat乘序/scale delta/Normalize及普通state有序混合，不把惯性请求当已应用pose。Gate：106更新全部输入/48实际Apply及ordinary transition mix、同输入whole-native逐值校准、必要算序/归一或scale消融恢复/identity；若当前探针缺局部whole-pose需先明确能力及最小前置，不猜参数。开始：2026-10-24 19:01:00 +0800；预估结束：2026-10-24 19:21:00 +0800。估时依据：.399精确BS含原生/消融280秒、.400单叶/输入267秒，既有.182/.217/.348有混合/Apply核；本项含局部Quat组合及state普通混合，20分钟含原生单位校准/消融/身份，Details惯性独立后继，不推广其它状态。仅审计不改生产/转换器/资产/reader，截图0、性能暂停。
+- [x] BF144.401 U07自然Details局部ApplyAdditive与普通state pose生产：依赖.400三状态完整pose输入表/原起步叶和.399自产Movement姿态，.394自产state权重/ordered transitions；只复算方向MultiWay one-child归一、RunStartFromWalk局部ApplyAdditive Alpha1和普通state pose混合，Walk/Run直接透传Movement。复用既有原Additive/Blend whole-pose native探针与精确数学核；先fresh核源Quat乘序/scale delta/Normalize及普通state有序混合，不把惯性请求当已应用pose。Gate：106更新全部输入/48实际Apply及ordinary transition mix、同输入whole-native逐值校准、必要算序/归一或scale消融恢复/identity；若当前探针缺局部whole-pose需先明确能力及最小前置，不猜参数。开始：2026-10-24 19:01:00 +0800；预估结束：2026-10-24 19:21:00 +0800。估时依据：.399精确BS含原生/消融280秒、.400单叶/输入267秒，既有.182/.217/.348有混合/Apply核；本项含局部Quat组合及state普通混合，20分钟含原生单位校准/消融/身份，Details惯性独立后继，不推广其它状态。仅审计不改生产/转换器/资产/reader，截图0、性能暂停。
   - 19:01 活动摘要：.400已提交e96806cd/9190身份，256（115P2/141P3）。先核现有whole-pose probe与局部Apply数学接口，再自产48起步state输出/普通转场；两个0.1秒inertial请求以及完整角色Base/Root/Feet/属性仍开，不提前宣称惯性pose一致。
 
 
@@ -3350,6 +3350,8 @@
 
 
   - 20:36 迁移.400 Gate：`target/bf144/411c/400-check.json`通过，106 Details输入全部引用.411b完整Movement缓存，五consumer覆盖/8374 Lean Apply原生Gate已提交；48起步原叶/时点保持，旧BS叶捷径移除。只重新关闭.400输入完整性，原source/native记录不改，其余复开条目仍待自身新输入Gate；完整整体Layering仍未通过。身份沿.411b已封9660不变，最终迁移另全封存；截图0、性能暂停。
+
+  - 20:39 迁移.401 Gate：新完整Movement Base生成106 Details惯性前pose、48起步state；新原生local26.710秒/blend30.962与25.949秒，3792加性inner+outer骨及632普通转场骨全double精确（target/bf144/411-migrated/401/native-check.json）。本次重新关闭该输入域，原同输入算法结论和旧报告保留，其余复开项仍待新输入Gate；沿411c窗口20:32:20–20:57:20，实际本阶段20:37:03–20:39:09通过，无新D、截图0、性能暂停。
 
 ### 已确认差异（仅登记，未实施修复）
 
