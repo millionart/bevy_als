@@ -2654,6 +2654,13 @@
 
   - 完成/Gate：`target/bf144/335/summary.json`通过；actual compiled Transition/GroupGrounded完整240（192无活动/48活动）按原Base240/delta48和独立60 clock求值，全部18960骨f64 TQS及curve与独立原mesh核精确。全48加性容器同值、Base显式79骨及parent同源，未增reader容器分支；输出context取actual槽记录。缺原overlay拒绝，源码字节恢复同入口完整240表字节同；6068身份（旧6040不变）通过。actual inactive/active组合差T13433/3461、R11143/3581、S3129/804、curve值34/43仍保留未归尽，不能以源供给PASS作目标等价；具名Locomotion原cache/Land/暖态/Root后继仍开。无新编号，255（115P2/140P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始10:11:30；预估结束10:31:30；实际结束10:14:45；实际用时195秒；偏差-1005秒；结果原槽数值供给Gate通过，下一具名缓存。
 
+- [x] BF144.336 U07当前240具名Grounded→Locomotion原缓存供给：依赖.335原槽240和.331完整具名输入/actual scoped使用者，沿fresh Root slot→Locomotion Grounded Input→save/当前state result消费者逐一运输原值；记录当前Land边与直接Grounded态的实际使用路线，不提前推断Land原数据。Gate：源命名/pose边和编译state root、actual owner/context/cache key及逐帧scoped use一致、240原数组与240真实use0target补值、必要错误owner/断供字节恢复/identity；五Land/主FSM/暖态惯性及外Root另验。开始：2026-10-24 10:15:00 +0800；预估结束：2026-10-24 10:25:00 +0800。估时依据：.327223具名cache约4分钟、.335全槽约3分15，当前链及观察已备无新reader/二进制，按10分钟核两类state消费者与原数组运输，不扩五Land采样。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 10:15 活动摘要：3a3e55cb完成原槽240/18960骨，6068身份、255（115P2/140P3）；现source Root/Locomotion图与actual linked240已在.331重读，先校准每个cache读取与主state root，source数值只取.335原数组。
+
+  - 10:16 source/static闭环：240原槽→actual具名Grounded Input/save/scoped use→当前Grounded StateResult已逐一匹配，实际slot/input/cache/state pose/curve全等；原数值只取.335 source数组，240/18960骨与240 use/owner/context/key无缺口、无单位/空间变换。source图两条边/编译root直读缓存已核，未访问Land Movement等其余use不扩展。错误owner与缺原source均拒绝，源码字节恢复同入口三个240表字节相同；身份核查中，五Land/主FSM/暖惯性与Root后置，255（115P2/140P3），截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/336/summary.json`通过；240原槽数组/18960骨沿actual具名Grounded Input/cache owner/context/key及240 scoped use接到Grounded StateResult，slot/input/cache/state pose/curve逐值一致、原数值不变、0target补值。source直连与编译root匹配，无额外单位/空间变换，未访问use未展开。错误owner/缺原槽源均拒绝，源码字节恢复同入口三个240表字节相同；6092身份（旧6068不变）通过。五Land/完整FSM、暖态后惯性/主Root与自然反馈、上游/旧域迁移继续开。无新编号，255（115P2/140P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始10:15:00；预估结束10:25:00；实际结束10:16:58；实际用时118秒；偏差-482秒；结果具名原cache供给Gate通过，下一Land侧输入。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D257 / P3 — Transition正向终止采样遗漏源section末端缓冲。
@@ -4258,6 +4265,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.333当前边界：完整60源Transition时钟/48活动资格已闭，新D257末section缓冲与实际采样影响已证，D118尾时钟/权重补充；下一48正确mesh prepared加性与完整槽数值，再Locomotion落地/暖态/Root、上游和旧域迁移。当前255（115P2/140P3），截图0、性能暂停。
   - BF144.334当前边界：完整48原prepared加性/3792骨已在真实mesh域供给，Skeleton域同值且旧16保持，独立时间控制T493/R2910与14curve差已记录；下一240槽数值与具名Locomotion输入，再落地/暖惯性/Root与自然反馈，255（115P2/140P3），截图0、性能暂停。
   - BF144.335当前边界：240完整原Transition槽/18960骨已与native全部double/curve精确，48活动与192copy供给闭合；actual组合差未归尽。下一Locomotion具名原cache、五Land/完整FSM/暖态惯性与Root反馈，255（115P2/140P3），截图0、性能暂停。
+  - BF144.336当前边界：240原槽→Locomotion具名Grounded缓存/状态输入及实际scoped use全供给；下一五Land与完整FSM，再暖态后惯性/Root自然反馈，255（115P2/140P3），截图0、性能暂停。
 
 - [x] BF144-U06 — Rig初始全局数据已于.245归D242/P3。最初.244发现71骨365个double差、默认240仅FootHeight double变化；.245保持全部原生算法，仅换初始数据即在受控半转产生约180°的float足旋转/实际Setter写回差，并在同source厘米算法的5个骨长舍入边界经同原生IK核产生13/15个float关节点差，分别隔离D163算法与D165单位舍入。数据移除/源码字节恢复及同target重编恢复通过，native数学读出移除/同package恢复亦通过；默认动作自然可达性未证，不因关闭U06声明无差异或修复。证据`target/bf144/245/summary.json`、`native-check.json`、`writeback.jsonl`、`restoration-check.json`；原.244记录保留。
   - BF144.136 follower记录重建补充：near-zero候选无有效end时记录leader移到最后一项；下一普通帧恢复正常leader，`AnimSync::Finalize`使follower记录失效。`BlendSpace.cpp:784–787`按已存归一化时间乘当前样本长度重建；目标此前保留秒数。18帧33个previous差最大约59.6ns，全部精确等于`(旧position/旧duration)*当前duration`；仅补这一步后4032帧所有previous也逐值一致，当前采样位置和姿态保持。证据`target/bf144/136/roundtrip-check.json`、`before-roundtrip-all-analysis.json`、`all-analysis.json`。
