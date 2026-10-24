@@ -2748,6 +2748,17 @@
 
   - 完成/Gate：`target/bf144/347/summary.json`通过；fresh六Base/Overlay use/body slot/绑定合同已核，全240/1440次alpha0、A/output全同，六槽update/pose/context/montage0。1440原Base引用原Overlay240（全251表索引11起）且owner4/无原pose或curve回填。五字段负控制（含owner）均拒绝，移除ownerguard使最小wrong-owner控制失败，源码字节恢复同入口1440refs byte同；未求值槽producer数据去guard控制保持源直通。观察去除旧240+warm全同、源码字节恢复同target重编完整观察恢复。6754身份（旧6711不变/恢复binary SHA）通过。此只关闭当前零alpha路径，未泛化非零slot混合；六Apply/section/最终Layering、原Root反馈/custom attributes/Head/Rig后继。无新编号，255（115P2/140P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始11:15:53；预估结束11:35:53；实际结束11:19:49；实际用时236秒；偏差-964秒；结果当前六原Base交接Gate通过。
 
+- [x] BF144.348 U07当前240六section Apply原数值：依赖.346正确原动态双缓存与.347原六Base1440引用，fresh核六Apply源边/alpha绑定及local/mesh执行，观察完整240真实输入/alpha/owner/输出并生成1440原Apply（同mode等值可保留480唯一原数组与1440引用）。Gate：fresh source/static与全部1440访问/实际公开算法重放、原正确mesh输入和完整原骨curve、原生mesh/local数值、0target pose/curve回填、必要执行/观察消融源码字节恢复同target重编/identity；本批不合并section TwoWay/cache/最终Layering，原反馈/custom attributes边界保留。开始：2026-10-24 11:20:17 +0800；预估结束：2026-10-24 11:50:17 +0800。估时依据：旧.234六Apply/reader能力约25分钟（含首次repair）、.346两源缓存约7分钟；现原生whole mesh已有、正确原240供给，按30分钟全240新尾/各alpha资格与原数值/消融，不扩后继。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 11:20 活动摘要：上轮343–347完成并单独提交，当前68ab43e3/6754身份、255（115P2/140P3）。进展已由实际source/原生/消融与提交证实；本轮接六Apply，完整Root原反馈未闭。
+
+  - 11:24 source/static闭环：fresh六Apply/动态use源边、alpha绑定/constant、LOD−1/root-space false及源mesh/local完整算序已核。完整240/1440实际alpha1、mesh960/local480公开重放全同，同mode每帧输入/输出同，旧240+warm无扰动。原Base/动态值/owner4逐项同前供应链，生成480唯一原数组/37920骨+1440引用（113760骨求值），0target pose/curve补值。原生全240 whole mesh/30 local含末归一化控制与残差统计进行中，观察关闭运行已过、恢复同target重编中；原反馈/custom attributes仍开，255（115P2/140P3），截图0、性能暂停。
+
+  - 11:25 native Gate摘要：原生whole mesh节点全240/18960骨TQS及curve逐值精确；actual1440公开重放已过。当前组合余差meshT68752/R71744/S15756、localT34376/R35094/S7878，curve共享差522/键集6继承上游，尚未归尽而不新增D因。末mesh归一化消融、30 local及整历史观察恢复中，原反馈/custom attributes未资格，255（115P2/140P3），截图0、性能暂停。
+
+  - 11:25 Gate后摘要：30 local原生内累加TQS及外normalize全部精确；去mesh末次normalize使13059/18960骨行f64失败（首0/pelvis），源码字节恢复同模型入口原数组/1440refs/native输入与expected byte同，全240 whole mesh原生恢复。观察去除旧240+warm精确，源码字节恢复同target重编完整观察恢复；1440原Apply共同参数闭环通过，下一identity/提交后section TwoWay/save。未新增因、原完整反馈/custom attributes仍开，255（115P2/140P3），截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/348/summary.json`通过；fresh六Apply/源use/alpha合同及local/mesh算序闭合，当前240/1440次alpha1、960mesh/480local公开重放全同。正确原Base/双动态供给480唯一原Apply/37920骨及1440引用（113760骨求值），owner/输入逐项精确且0target pose/curve回填。whole mesh全240/18960骨TQS/curve native double全同，30 local内累加与外normalize控制同；去mesh末次normalize使13059骨行失败，源码字节恢复同入口原数组/refs/native输入expected byte同、全240 native恢复。观察消融/源码字节恢复同target重编完整旧历史与新观察恢复。6830身份（旧6754不变/恢复fixture与数学dylib SHA）通过。实际余差及原反馈/custom attributes未归尽，不宣称完整Root等价；六section TwoWay/save/最终Layering后继。无新编号，255（115P2/140P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始11:20:17；预估结束11:50:17；实际结束11:26:36；实际用时379秒；偏差-1421秒；结果当前六原Apply数值Gate通过。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D257 / P3 — Transition正向终止采样遗漏源section末端缓冲。
@@ -4366,6 +4377,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.345当前边界：全251原Default Overlay共同参数组合/交接已闭，177 native/799 target重放与消融恢复、6650身份通过，255（115P2/140P3）。下一完整240 Layering动态/section/最终组合，原Root自然反馈仍开；截图0、性能暂停。
   - BF144.346当前边界：当前240原双动态缓存480/37920骨、144 native与480 target重放/消融恢复、6711身份通过，255（115P2/140P3）。下一六section Base/Apply/TwoWay/cache与最终Layering，再Root原反馈/custom attributes/Head/Rig；截图0、性能暂停。
   - BF144.347当前边界：当前240六Base原引用1440、slot/alpha0与guard/观察消融恢复、6754身份通过，255（115P2/140P3）。下一六Apply/section输出，后最终Layering/原Root反馈/custom attributes/Head/Rig；截图0、性能暂停。
+  - BF144.348当前边界：完整240六原Apply/1440引用、240 native whole mesh+30local/1440 target重放及消融恢复、6830身份通过，255（115P2/140P3）。下一六section TwoWay/save，再最终Layering/Root原反馈/custom attributes/Head/Rig；截图0、性能暂停。
 
 - [x] BF144-U06 — Rig初始全局数据已于.245归D242/P3。最初.244发现71骨365个double差、默认240仅FootHeight double变化；.245保持全部原生算法，仅换初始数据即在受控半转产生约180°的float足旋转/实际Setter写回差，并在同source厘米算法的5个骨长舍入边界经同原生IK核产生13/15个float关节点差，分别隔离D163算法与D165单位舍入。数据移除/源码字节恢复及同target重编恢复通过，native数学读出移除/同package恢复亦通过；默认动作自然可达性未证，不因关闭U06声明无差异或修复。证据`target/bf144/245/summary.json`、`native-check.json`、`writeback.jsonl`、`restoration-check.json`；原.244记录保留。
   - BF144.136 follower记录重建补充：near-zero候选无有效end时记录leader移到最后一项；下一普通帧恢复正常leader，`AnimSync::Finalize`使follower记录失效。`BlendSpace.cpp:784–787`按已存归一化时间乘当前样本长度重建；目标此前保留秒数。18帧33个previous差最大约59.6ns，全部精确等于`(旧position/旧duration)*当前duration`；仅补这一步后4032帧所有previous也逐值一致，当前采样位置和姿态保持。证据`target/bf144/136/roundtrip-check.json`、`before-roundtrip-all-analysis.json`、`all-analysis.json`。
