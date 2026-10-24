@@ -2611,6 +2611,13 @@
 
   - 完成/Gate：`target/bf144/329/summary.json`通过；当前240 Grounded原输出/18960骨（212直接、28普通Custom）由268原输入供给，原source 28alpha与actual trace精确，168实际curve及112 raw/final骨控制全部native double精确。前一栈原source覆盖28次、alias消费0，末归一化1；误取alias拒绝，去归一化使1/spine_01最小反例失败，源码字节恢复240完整数组相同/112控制全恢复。5820身份（旧5779不变）通过。实际组合差T/R/S16680/13391/3933骨行、curve值34（presence0）仍在，首4/thigh_l旋转峰与旧77相同；本项只闭源数值供给，未将组合差归尽或宣称生产等价。下一需当前残差因果分解、外层Locomotion/Root、自然反馈与旧域迁移。无新根因编号，254（115P2/139P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始09:23:00；预估结束09:38:00；实际结束09:27:51；实际用时291秒；偏差-609秒；结果源供给Gate通过，完整对标仍开。
 
+- [x] BF144.330 U07当前Grounded组合残差的直接边界分解：依赖.329完整240原输出/组合差与.328实际state root/stack，把212直接帧和28混合帧分开；共同使用actual两端输入、alpha及F32时间，核目标混合与source原生算子的差异，再回到原始两端输入以判断残差最早来源，不以源模型PASS代生产等价。Gate：fresh源/目标直接算法与调用顺序、当前全部actual输入/输出身份、共同输入最小重放与必要原生控制、已知根因或精确未归因边界、必要消融字节恢复/身份；不凭组合峰值复开已完成相邻图。开始：2026-10-24 09:28:30 +0800；预估结束：2026-10-24 09:48:30 +0800。估时依据：.329完整源供给约5分钟，.207已有共同输入转场重放与.212原Grounded前缀控制；当前需28混合/212直接分层，按20分钟查直接边界，不扩外层Root。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 09:28 活动摘要：e47bbef3后树干净，5820身份、254（115P2/139P3）；上一轮五次证据提交属进展。当前原/目标组合T/R/S差16680/13391/3933、曲线34，先用actual state根共同输入分开consumer与上游，不自动新增编号或宣称既有因子已解释全部。
+
+  - 09:36 source/static闭环：212直接帧/16748骨及curve与实际state输入全等，组合差在此均为上游携带；28混合/2212骨和curve的公共生产函数重放精确。相同actual输入lift可逆且112原生+4实际峰值raw/final f64全精确；只换nlerp使共同输入最大旋转分量差0.00937911868降至1.1920929e-7，补D177当前consumer。common T/S仍1049/120行差（峰5.96e-8m/1.19e-7），补D232同数值空间边界；余旋转1861行非零未称全恢复或单因归尽。34曲线差分直接12/混合22，common consumer为0，替原输入的混合curve亦全恢复。nlerp控制移除仅1950骨控制变、当前重放不变；源字节恢复同binary重编全表恢复。身份核查中，无新编号、上游原数据/数值及外层Root仍开，截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/330/summary.json`通过；212直接帧/16748骨及curve与actual state输入全等，28混合/2212骨和curve公共生产重放精确；112同actual输入原生+4实际峰值raw/final f64精确。只替nlerp使共同输入旋转峰0.00937911868→1.1920929e-7，确认D177当前Grounded消费者；common T/S1049/120行（峰5.96e-8m/1.19e-7）归已有D232数值空间边界，余1861旋转非零不作全恢复或单因统计。直接上游T/R/S14648/11321/3489，28帧组合2032/2070/444；34curve分直接12/混合22，共同consumer为0，换原数据后的混合curve亦0，故曲线差从输入携带。删nlerp控制仅1950控制骨行改变、现行生产重放保持；源码字节恢复同target重编全表精确。5876身份（旧5820不变）通过；无新编号，补D177/D232而不复开完成图，上游数据/数值与外层Root/自然反馈及旧域迁移仍开。当前254（115P2/139P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始09:28:30；预估结束09:48:30；实际结束09:37:00；实际用时510秒；偏差-690秒；结果直接边界分解Gate通过，完整等价仍未证明。
+
 ### 已确认差异（仅登记，未实施修复）
 
 
@@ -3846,6 +3853,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.107标准Profile补充：源`AnimNode_StateMachine.cpp:1064–1111,1024`同样按两权重累加后归一化；50个当前ProfiledBlendNode经`profile_blend.rs:149`调用同一BonePose::linear_blend_mut。3824个活动帧的7648组缺省/覆盖姿态中7042组旋转失败，控制输入最大四元数距离0.0121873；仅换nlerp后，除D197的100个双权重边界外全部通过。固定共同factor与完整79骨骼输入，隔离FSM时钟/稀疏通道，不声明这些受控姿态配对在默认场景自然发生。证据`107/analysis.json`及50份实际加载节点。
   - BF144.184实际Movement消费者补充：1312次实际ProfiledBlend输出/103648骨骼与生产BonePose::linear_blend_mut逐值精确，136组实际factor/mode的alpha与原生FAlphaBlend精确；source同输入全栈与current target有66877骨骼旋转不等，这是D177/D123/双权重/精度的组合统计，不归作slerp单因份额。118次多层的单改归一化控制与原生最小反例另沿D123保留；证据`target/bf144/184/calibration-check.json`、`chain-check.json`和`witness-check.json`。
 
+  - BF144.330 Grounded当前消费者扩展：完整240历史的28真实混合帧/2212骨，actual两端输入与alpha经公共BonePose/curve helper重放精确。相同输入只把slerp换nlerp，共同源最大旋转分量差由4/thigh_l的0.00937911868降到1.1920929e-7；仍1861旋转骨行非零，未称全部数值恢复。112独立native同输入控制及4个实际峰值均raw/final double精确，源数据投影与算子分别保留；删控制只改变1950控制骨行，源码字节恢复同binary重编全变体精确。原当前受控运动/姿态域，不扩大为默认世界可见幅度或完整Root反馈。证据`target/bf144/330/summary.json`、`analysis.json`、`native-check.json`、`focus-check.json`及消融/恢复。
+
 - [ ] BF144-D178 / P3 — Turn基础姿态不再相关时，目标把未满权重的Montage升为全权重。
   - Source：fresh `SlotEvaluatePose:2058–2085`在剩余基础权重≤1e−5时不加入基础姿态，但保留Montage实际权重；`AnimationRuntime.cpp:469–480`仅在输入多于一个时归一化旋转，单层位置、scale和曲线仍按实际权重输出。
   - Target：`source_slot.rs:116–132`在source_weight=0时直接返回归一化的overlay，并用1.0生成槽曲线上下文；丢掉了尚未等于1的Turn权重。
@@ -4200,6 +4209,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.327当前边界：当前223 Crouch最终根/17617骨经原生后惯性及具名linked/cache供给闭合，0target补值；下一完整Grounded的实际多stack及Standing linked身份，再外层Locomotion/Root/自然反馈，旧域迁移仍单独保留。当前254（115P2/139P3），截图0、性能暂停。
   - BF144.328当前边界：完整240 Grounded实际stack及45 Standing linked资格已闭，268原state输入全备、28 alias明确不可消费；下一源Custom两次交接/完整Grounded数值，再外层Locomotion/Root与自然反馈，旧域迁移另保留。当前254（115P2/139P3），截图0、性能暂停。
   - BF144.329当前边界：完整240 Grounded原数值/18960骨已供给，28 Custom/168curve/112骨原生及消融恢复过；actual组合差仍有T/R/S16680/13391/3933、curve值34，未单因归尽。继续当前残差分解、Locomotion/Root与自然反馈/旧域迁移，不能以源模型PASS作生产等价。当前254（115P2/139P3），截图0、性能暂停。
+  - BF144.330当前边界：当前Grounded直接212帧无额外姿态/curve改变；混合28帧公共重放全精确，共同输入已确认D177 slerp与D232数值空间影响，34curve差均由输入携带。仍保留Standing/Crouch上游原数据/数值余差、外层Root/自然反馈与旧域迁移，不宣称全量等价。当前254（115P2/139P3），截图0、性能暂停。
 
 - [x] BF144-U06 — Rig初始全局数据已于.245归D242/P3。最初.244发现71骨365个double差、默认240仅FootHeight double变化；.245保持全部原生算法，仅换初始数据即在受控半转产生约180°的float足旋转/实际Setter写回差，并在同source厘米算法的5个骨长舍入边界经同原生IK核产生13/15个float关节点差，分别隔离D163算法与D165单位舍入。数据移除/源码字节恢复及同target重编恢复通过，native数学读出移除/同package恢复亦通过；默认动作自然可达性未证，不因关闭U06声明无差异或修复。证据`target/bf144/245/summary.json`、`native-check.json`、`writeback.jsonl`、`restoration-check.json`；原.244记录保留。
   - BF144.136 follower记录重建补充：near-zero候选无有效end时记录leader移到最后一项；下一普通帧恢复正常leader，`AnimSync::Finalize`使follower记录失效。`BlendSpace.cpp:784–787`按已存归一化时间乘当前样本长度重建；目标此前保留秒数。18帧33个previous差最大约59.6ns，全部精确等于`(旧position/旧duration)*当前duration`；仅补这一步后4032帧所有previous也逐值一致，当前采样位置和姿态保持。证据`target/bf144/136/roundtrip-check.json`、`before-roundtrip-all-analysis.json`、`all-analysis.json`。
@@ -4411,6 +4421,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.261初始化消费者扩展：Idle0/Forward0.5的fresh绝对/Stand参考与原生raw additive，经同源double local/mesh模型158骨精确；同一公共算子重放真实cache后，只固定两端raw数据仍有位置52/60骨、旋转66/69骨差。把同一runtime输入可逆lift回源数值空间，位置差归零，旋转仍56/69骨不同；输入投影与算子因素分别核查，属于本项早期数值空间边界，不新编号或据此宣称完整Root归因。两种必要工具步骤的消融与字节恢复、同target/dylib重编均通过。证据 `target/bf144/261/same-data-check.json`、`ablation-check.json`、`restoration-check.json`。
 
   - BF144.303 Head同数据补充：当前三source compressed additive叶先按完整基/单位投影为runtime f32，再交当前公共Pose合成，与源cm/double合成投影仍T50/R1499/S0行不等；原实际target2212骨公共重放精确。R计数包含D231/源归一化算序等共同数值阶段，未全归本项或与其他因素相加；source原数据+原数学核2212骨double全精确，提前投影因素与数据/参考分别保留。证据 `target/bf144/303/runtime-source-leaves.json`、`data-factor-check.json`、`restoration-check.json`。
+
+  - BF144.330 Grounded共同输入扩展：actual runtime输入可逆lift到source厘米/double后按原独立权重、累加和末归一化，28帧/2212骨中当前T1049/S120行不等，峰5.9604645e-8m/1.1920929e-7；当前公共float helper逐骨精确，112 native同输入及4实际峰值原double raw/final全精确。nlerp控制保留相同T/S差，分离了D177；1861个余旋转行还含投影/归一化及算序共同因素，不将全部余差或各控制差值相加归本项。当前212直接Grounded帧无额外变化，原数据带来的上游差继续另查。证据`target/bf144/330/direct-check.json`、`analysis.json`、`native-check.json`与`focus-check.json`。
 
 - [ ] BF144-D233 / P3 — TwoWay及gait双姿态消费者的曲线用加权求和替代源三参数Lerp。
   - Source：fresh `AnimNode_TwoWayBlend.cpp:139`调用BlendTwoPosesTogetherInPlace；`AnimationRuntime.cpp:535–545`回算WeightOfPoseTwo后对curve使用FBlendedCurve::Lerp，`AnimCurveTypes.h:692–716`进入FMath::Lerp，`UnrealMathUtility.h:1123–1125`执行A+Alpha×(B−A)。两端相同有限float值时差值为0，输出保持原值。单边相关时直接传递，不是此反例。
