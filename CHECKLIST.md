@@ -3520,6 +3520,21 @@
   - .421完成/Gate：`target/bf144/421/summary.json`通过。6实际相同current offset/lock原生double product及已封relative原生值确认F32投影差5/6；同runtime坐标/算序只提F64全部投影精确native。source/target世界字段精度事实和限位末raw/Final另归一阶段已核。仅修relative当前1缓存差/无Final声明；仅修末乘5Lock/2Final/2RigInput；仅去extra Normalize1Lock/Final/RigInput。三受控因素移除各回actual current，源码字节恢复同target重编240完整产物byte同，unused helper去除不改current。新增D261/P3、D262/P3与source-target consumer/漏检记录，累计260（115P2/145P3）；10606身份旧10545保持、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib不变，未修产品。当前足限位剩余因子闭合并未恢复完整source-target Root，target FootTarget采样pose/Root上游、外部父输入与非零完整Root/custom attributes仍开。开始22:37:37；预估结束23:07:37；实际结束22:49:35；实耗718秒；偏差-1082秒；结果当前world quaternion精度/归一两独立cause Gate通过。截图0、性能暂停。
 
 
+- [ ] BF144.422 U07自然FootTarget采样→上一Root骨姿态/世界传播的跨侧因子：依赖.421足锁同输入算法因子、.420a真实目标matrix/target骨变换、.418源prior socket与.417全source Root，fresh沿目标AnimationGraph pose写骨/TransformHelper/armature父级/目标骨选择，对两侧真实FootTarget世界值重算本侧source链与target链，再锁首个不同的local bone/ancestor pose或component/world输入。仅按当前依赖递归至实际root/clip数据与写入阶段，不把480世界目标差异统一归物理或既有D。Gate：240目标采样正确实际prior Root/骨选项/时钟/完整TQS传递合同、源/目标同输入分离首输入/数据/空间或propagation因素及实际consumer、必要新观察最小前置/消融恢复/identity；全部原Root数值差仍需逐原因，不因本单元通过宣称100%。开始：2026-10-24 22:50:04 +0800；预估结束：2026-10-24 23:25:04 +0800。估时依据：.418源采样341秒、.420a目标只读观测276秒，现两侧全Root与actual target骨世界记录齐，35分钟用于目标pose→骨传播/真实prior对应与首因子，必要数据缺口source事实拆前置而不猜。仅审计不改生产/reader/转换器/原资产，截图0、性能暂停。
+  - 22:49 活动摘要：.421提交0b2b3ede/10606身份，260（115P2/145P3）。足锁同输入数学差异已登记D259–D262未修，当前remaining不是把世界目标数值直接对比当算法差，而是采样实际Root/父级/骨空间来源；外部父状态、非零完整Root和attributes继续保留全系统目标。截图0、性能暂停。
+
+
+  - 23:05 .422首传播/输入组闭环：目标239普通帧双侧478实际FootTarget matrix从本侧prior Root local pose+实际avatar/actor祖先分段全精确。最初根向下/合并armature重建有329个Y尾差，fresh只读Bevy TransformHelper确认自叶向祖先累乘，保留avatar−.92与actor translation分段后全消失，属于审计重建顺序而非产品D。旧311 basis合同复用：源actor identity canonical runtime yaw−90，当前target actor identity/mesh world180与源converted mesh90不同，原world target不可作为共同facing输入直接比，不新增方向D。共同源数学四组合中source/source478实际socket精确、仅换local pose478差、仅换world478差，首local差仅1.3006e−5cm而world因子25.192cm；完整local/upstream因素仍未归因。首marker T差已在target RigSource，上游SourceHead不改marker T，Rig/Ragdoll后也不改此marker；需实际target HeadBase/Layering Locomotion Input两个cache边界才能定位首leaf/math。fresh主图47121→Head.ViewInput、PostLocomotion ccaab6a2→47121.LocomotionInput证明必要，登记.422a最小两pose只读能力，不采整图、不猜归已证数据D。260（115P2/145P3）；截图0、性能暂停。
+
+- [x] BF144.422a U07目标自然HeadBase/Layering Locomotion Input两pose被动观察：依赖422已证marker差位于RigSource上游且420a缺这两点，只在现有detailed root boundary中读取Main context中47121ad2 Layering与ccaab6a2 PostLocomotion两个实际pose缓存及对应curve/身份；默认自然240输入和生产系统不变，不增加逐节点日志。Gate：两边界240骨/曲线可用且真实GUID/更新frame已核、420a全部旧240字段/矩阵/行为扣新增观察后精确、同binary关闭及源码移除/字节恢复同target重编全产物恢复、缺pose/错身份schema反例/identity。仅数值夹具，source-parent provenance和真正Root上游数据/算法原因回父422判，不将观察算功能等价。开始：2026-10-24 23:05:28 +0800；预估结束：2026-10-24 23:25:28 +0800。估时依据：420a完整target观察276秒，现只两缓存并用旧捕获/被动方法，20分钟含实际240/无扰动与移除恢复；父422计时保留。仅审计不改生产/reader/转换器/原资产，截图0、性能暂停。
+
+
+  - 23:08 .422a数值观察Gate：只在420a现detailed函数读真实Main context两个source-proven GUID缓存，不改graph/system/input；HeadBase与LayeringLocomotionInput各240 pose/curve/updated标志齐，原420a全部字段含before-foot矩阵/行为在归一loading-origin后精确。观察同binary关闭和源码置空cache读取均正常240但schema拒绝；源码字节恢复同target重编全部新旧数据精确恢复，三错身份/缺pose/stale反例拒绝。10606旧身份核中，260（115P2/145P3），父422等待本必要前置后直接定位首上游marker数据cause，不把能力增加作总体等价。截图0、性能暂停。
+
+
+  - .422a完成/Gate：`target/bf144/422a/summary.json`通过。两个actual Main GUID HeadBase/LayeringLocomotionInput各240 pose/curve/current-update证据齐，420a全部旧行为/矩阵精确；同binary关闭/源码置空观察保留全部旧数据而schema拒绝，源码字节恢复同target重编全部新旧字段精确恢复，3非法pose/身份/更新反例拒绝。10636身份旧10606保持、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib均未改，260（115P2/145P3），无新D。仅数值观察，不称功能整体等价或visible Playground；父422继续首marker上游producer。开始23:05:28；预估结束23:25:28；实际结束23:09:39；实耗251秒；偏差-949秒；结果必要两上游pose观察Gate通过。截图0、性能暂停。
+
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D262 / P3 — Foot Lock世界四元数中间乘法提前降为F32，改变限位缓存与实际Rig输入。
