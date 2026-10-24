@@ -3602,6 +3602,23 @@ TSharedPtr<FJsonObject> CaptureBlendProfileProbe(UObject* Asset, const FString& 
             }
             Row->SetArrayField(TEXT("custom_curve_keys"), Keys);
         }
+        if ((*Sample)->HasField(TEXT("custom_curve_times")))
+        {
+            const TArray<TSharedPtr<FJsonValue>>* Times = nullptr;
+            if (CustomCurve == nullptr || !(*Sample)->TryGetArrayField(TEXT("custom_curve_times"), Times) || Times->IsEmpty() || Times->Num() > 600) { return nullptr; }
+            TArray<TSharedPtr<FJsonValue>> Values;
+            for (const TSharedPtr<FJsonValue>& TimeValue : *Times)
+            {
+                double Time;
+                if (!TimeValue->TryGetNumber(Time) || !FMath::IsFinite(static_cast<float>(Time))) { return nullptr; }
+                const float NativeTime = static_cast<float>(Time);
+                TSharedRef<FJsonObject> CurveSample = MakeShared<FJsonObject>();
+                CurveSample->SetNumberField(TEXT("time"), NativeTime);
+                CurveSample->SetNumberField(TEXT("value"), CustomCurve->GetFloatValue(NativeTime));
+                Values.Add(MakeShared<FJsonValueObject>(CurveSample));
+            }
+            Row->SetArrayField(TEXT("custom_curve_time_samples"), Values);
+        }
         Row->SetArrayField(TEXT("frames"), Frames);
         Results.Add(MakeShared<FJsonValueObject>(Row));
         UE_LOG(LogAlsGraphSourceReader, Display, TEXT("Blend profile probe sample %d/%d captured."), Results.Num(), Samples->Num());
