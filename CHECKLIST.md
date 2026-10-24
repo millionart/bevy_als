@@ -3472,6 +3472,21 @@
   - .419完成/Gate：`target/bf144/419/summary.json`通过。独立prior socket/Root曲线与源默认状态生成完整480侧5760字段、1200顶层字段及1200 actual RigInput Feet字段，对原生全逐值精确；source minimax SinCos/Atan2及float角度系数按fresh本地实现保留，11/16次thigh/foot约束均实触发。四消融history/thigh/foot/systemAtan分别156/18/18/18帧失败，源码字节恢复同target重编240完整产物byte同，删unused helper/变量。自主五Feet字段替入完整RigInput后原Rig240重放45.344秒，全部18960TQS/curves/外部/生命周期精确实际源及独立全Root模型。AIS FootLock allow/90/40与fresh原CS teleport50cm已核，当前静态基底/no-relative/Grounded/yaw-only/scale1及位移域明示。10401身份旧10333保持、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib未改，256（115P2/141P3）、无新D。完整当前source Feet producer闭合；moving smooth/mode/mesh-world/6其它RigInput/部分图状态仍显式父输入，target跨侧余差/非零view/attributes未闭。开始21:57:07；预估结束22:37:07；实际结束22:06:06；实耗539秒；偏差-1861秒；结果自然完整Feet→真实Rig消费Gate通过。截图0、性能暂停。
 
 
+- [ ] BF144.420 U07自然source/target Feet实际反馈因子与完整Root余差入口：依赖.419完整独立source Feet/实际Rig反馈、.374–.375新自然两侧实际记录及.417完整source Root，fresh核目标foot sampling/lock/constraints/provider消费入口，比较两侧真实目标/状态/实际RigInput的输入、坐标/F32阶段、curve历史和生命周期；逐侧用自身实际输入重放公开核，再以共同输入分离首次违反源合同的边界。旧已证D只按fresh同cause/consumer归并；未归因余差保持未闭，不因整体Root数值多就重复新增编号。Gate：当前自然240两侧Feet完整可观察合同/精确输入域、同输入最小消费者与对照、首不同字段source-target因果或明确必需观测缺口、必要observer/因素消融与字节恢复同target重编/identity。source完整Root已证数据复用，不再重跑旧原Rig充进展；完整target Root因子、非零view及attributes范围保持后继。开始：2026-10-24 22:06:36 +0800；预估结束：2026-10-24 22:41:36 +0800。估时依据：.419源完整Feet539秒、.375自然consumer约六分钟，本项目标actual观察/公开核与首因子，同有冻结rlib与被动工具可复用，35分钟覆盖source/target域资格和必要最小新观察，不能把仅源重建精确当跨侧无差异。仅审计不改生产/转换器/原资产，截图0、性能暂停。
+  - 22:06 活动摘要：.419提交ad3ff726/10401身份，256（115P2/141P3）。上一goal轮完整source采样和Feet state/真实Rig反馈已闭，属progress；当前无活跃旧进程，先核target既有自然record是否包含完整FootLock状态与采样phase，缺哪项才补哪项。截图0、性能暂停。
+
+
+  - 22:08 .420首因子/能力缺口：旧375自然before-evaluate具valid/lock amount/target/final但未记录LockWorld/Local/Base缓存、FootLockInput和UpdateInputs前phase。独立source/target各自输入标量重放956侧步精确，moving smooth/grounded/became-valid/Delta相同；22侧lock amount差首65来自source prior FootLeftLock=.25925928、target=1，单换完整source prior lock曲线历史即478侧全部恢复，不立新锁量算法D。双侧world target/quat全部不同含物理/动画/单位数据因素，不能据此猜cache cause。完整同输入state replay必须补目标全缓存/实际FootLockInput/mesh与pre-update阶段，登记.420a最小被动观察；旧375轨迹/原字段须全保持，生产库与实际驱动不改。256（115P2/141P3）；截图0、性能暂停。
+
+- [x] BF144.420a U07目标自然Feet全状态/UpdateInputs前后被动观察前置：因.420缺actual Lock缓存与pre-foot输入，复用375 fixture/default公开自然240驱动，只扩actor_details.Feet全部现有公开字段和FootLockInput/mesh world/脚目标骨变换，另记录FootIkApplySet.UpdateInputs紧前phase；不改系统排序、组件、图或采样。Gate：新完整字段与source/target声明归属、原375全部旧字段/轨迹扣新字段并归一loading-origin后精确；同binary观察关闭/新阶段删除及源码字节恢复同target重编全结果恢复、fresh缺字段反例/identity。该fixture为数值工具，不称visible Playground功能验收，截图0、性能暂停。开始：2026-10-24 22:08:15 +0800；预估结束：2026-10-24 22:33:15 +0800。估时依据：旧375 actor/before阶段已有public snapshot，当前只补公开值与一个现有schedule阶段，25分钟含旧240兼容/被动性/消融恢复；父.420原计时保留。仅审计不改生产/reader/转换器/原资产。
+
+
+  - 22:10 .420a静态/实际观察闭环：仅复制旧375数值fixture扩Feet六缓存/基底字段、FootLockInput/公开teleport telemetry/mesh+pelvis+所选脚目标变换，在Standing/Crouching后、现有UpdateInputs前加只读TransformHelper观察；无生产/系统排序/输入写入。实际240 pre-foot和240 before-evaluate齐（首帧有默认0输入，并非预设239），旧375全部原字段经loading-origin归一精确；同binary关闭新阶段与源码移除注册均正常240，待全新字段恢复/三schema负控制核验。冻结rlib不变，新source fixture按同target重编恢复，screenshots0/性能暂停，不称真实visible Playground验收。父.420锁量22侧差仅prior curve因子已闭，完整target缓存同输入数学后继，256（115P2/141P3）。
+
+
+  - .420a完成/Gate：`target/bf144/420a/summary.json`通过。目标公开Feet完整cache/基底、actual FootLockInput/telemetry与mesh/pelvis/所选target变换的240 before-foot包和240 before-evaluate包齐；未绕私有生命周期。旧375原有240行为字段/轨迹经loading-origin归一逐值精确；同binary关闭phase与源码移除注册不改变旧/新非phase字段，源码字节恢复同target重编后所有240新phase字段也精确恢复。三类missing/wrong-phase schema反例拒绝；截图0、性能暂停，仅数值夹具不称visible Playground验收。10431身份旧10401保持、114 ALS/184 Rust/生产库/reader/转换器/原资产不变，256（115P2/141P3）、无新D。开始22:08:15；预估结束22:33:15；实际结束22:12:51；实耗276秒；偏差-1224秒；结果必要目标完整观察能力Gate通过；父.420直接继续自身actual输入公开核/首次cause闭环。
+
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
