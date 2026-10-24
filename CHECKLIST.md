@@ -3200,6 +3200,16 @@
 
   - 完成/Gate：`target/bf144/398/summary.json`通过。沿原两缓存/TagBlend/TwoWay/方向MultiWay证自然父域只提交Forward，其余7成员0cached作旁证；原start0.2/loop/SyncGroup默认CanBeLeader保持。原native group仅消费自主X/Y/rate与106更新/incoming（134不提交），不输入角色clock/marker phase/sample weight，240帧533 actual sample资产/顺序/权重/time及当前asset time、组leader/order全精确。精确四叶marker身份复用.154，cycle/pose时间不同明确保留。常量rate1/起点0首20错、第二段fresh首120错、cached当更新首0错；原请求字节保持/恢复26.011秒后240全部clock/marker/sample字段与原43.553秒重放完全同，controls26.039秒/zero-start25.789秒成功。9138身份旧9097全保持、114 ALS/184生产Rust/reader/原资产/转换器/冻结rlib不变，256（115P2/141P3），无新D。此项关闭source时钟在独立输入下的生产，不宣称target clock等价或完整自然父PoseGait反馈；下一用自主时点生成原compressed叶/Forward pose，再Details/Standing惯性与Grounded Base/Slot/Layering/Root/Feet/属性。截图0、性能暂停。开始18:45:00；预估结束19:20:00；实际结束18:50:33；实耗333秒；偏差-1767秒；结果原Movement同步时钟独立输入生产Gate通过。
 
+
+- [x] BF144.399 U07自主时点原compressed Forward叶与混合pose：依赖.398自然同步时钟自主输入/实际533时点与.397样本权重；复用已有原native group capture_pose/prepare_compressed/capture_sample_poses/mesh_asset，在相同自主请求下读取实际SKM_Als 79骨的各叶compressed姿态与原Forward BS混合输出，核clock旧合同不变。沿原BS本地混合/归一化与已有精确数学核独立复算全骨；当前source pose作为后继Details/Standing惯性/完整Base的合法producer，不填target或native角色Base。Gate：compiled/sourcepose样本身份/时点/模式、106实际pose/子pose及79骨混合native精确、旧clock保持/归一消融恢复/identity；如只覆盖source单元须明确，跨侧数据/运算差不凭整体误差新增。开始：2026-10-24 18:51:00 +0800；预估结束：2026-10-24 19:21:00 +0800。估时依据：.380原Look BS/精确核及.381 Apply已封存，.398原clock333秒；本项原Forward最多4子叶/106次更新、复用原压缩pose/数学，按30分钟含原生生成/独立混合/消融和身份。仅审计不改生产/转换器/资产/reader，截图0、性能暂停。
+  - 18:51 活动摘要：.398提交514b164a/9138身份，256（115P2/141P3）；source组自主输入已逐值匹配240实际clock/533样本时点，先用现有pose选项同请求读取79骨与子叶，保留所有clock输入并核旧字段；不预开惯性、其它方向或最终Root。
+
+
+  - 18:54 source/static闭环：既有group原pose选项同自主请求生成106原Forward pose与191 compressed子叶（四叶均覆盖），SKM_Als79骨；仅移除新增required_bones_mesh/player身份/pose字段后旧240全部clock/markers/样本精确。无per-bone smoothing/mirror、四叶AAT_None证据齐；复用精确double/FMA+NEON核独立算8374外层TQS/8374 inner与212曲线全native精确，非活动pose保持null，不冒充该帧执行。去多子叶第二normalize使3788外层骨行失败、inner/curve保持；恢复源码字节与106输出字节后重跑全精确。消融包装首次因复制旧检查文件名错误中断，finally源码已恢复；保留真实失败pose-check、修复制路径后独立恢复运行通过，未将失败产物当恢复。native49.469秒成功，9138身份全核中。此为同输入source BS单元合法producer，尚未与完整角色Base/target姿态闭合，custom attributes未由此关闭；256（115P2/141P3），截图0、性能暂停。
+
+
+  - 完成/Gate：`target/bf144/399/summary.json`通过。原native group在相同自主输入上捕获106实际Forward姿态/191 compressed子叶（4资产）/79骨；剥离新增mesh身份/pose观察后，旧240clock/markers/样本字段全部精确，截图0。fresh source非additive/无mirror/无per-bone smoothing，本地混合核按原float权重、double/FMA和NEON归一独立复算8374外层骨TQS、8374 inner及212曲线全native精确，未输入角色Base或target pose。去多叶第二归一使3788外层骨行失败而inner/curve保持；原脚本字节与106pose产物字节恢复、重跑全过。包装复制旧检查文件名失败已保留/修正，finally恢复后最终结果重新通过，不用失败产物；native49.469秒成功。9168身份旧9138全不变、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib保持，256（115P2/141P3），未新D。仅关闭自主时点的source Forward BS单元，未关闭Details/Standing惯性、完整Base/Slot/Layering/Root/Feet/attributes和target跨侧数据/运算差；下一沿实际Walk/RunStartFromWalk/Run原节点及.394自产时钟生成Details输入，再惯性。性能暂停。开始18:51:00；预估结束19:21:00；实际结束18:55:40；实耗280秒；偏差-1520秒；结果原compressed叶与独立Forward混合Gate通过。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
@@ -5175,3 +5185,5 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.397当前边界：240帧533自产Forward样本/源非legacy有效时长、四消融恢复与9097身份通过，256（115P2/141P3）。下一原Movement同步leader/marker clock及自主叶时点，再惯性pose/Grounded Base/完整Root/Feet/属性；截图0、性能暂停。
 
   - BF144.398当前边界：240帧533原同步时点由自主轴/rate/更新生产、四反例/全字段恢复与9138身份通过，256（115P2/141P3）。下一自主时点compressed叶/Forward pose再惯性/完整Grounded Base/Root/Feet/属性，截图0、性能暂停。
+
+  - BF144.399当前边界：106姿态191 compressed子叶/8374+8374骨及212曲线、自主时钟保持/3788消融恢复/9168身份通过，256（115P2/141P3）。下一Details原Walk/RunStartFromWalk/Run pose输入与惯性，再完整Grounded Base/Root/Feet/属性；截图0、性能暂停。
