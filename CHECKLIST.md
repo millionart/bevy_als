@@ -2871,6 +2871,25 @@
 
   - 完成/Gate：`target/bf144/358/summary.json`通过；fresh CDO=asset层级、source全部definition与live按值/符号零比较，仅365 initial_global差且每path/value与既证D242签名同，其余全部段精确，live=stored，无未知新差/U06复开。完整240 InputSet后/Evaluate前组件/发布→post消费2640字段0错，RigInput register394无writer、帧前后+1；source当前标量/flag投影和foot F32提升0错。definition非global寄存器/符号零、输入发布Bool/帧次序四负控制均拒绝，快照字节恢复完整重跑过。观察安装/字段/definition去除旧240/warm/metadata同，源码字节恢复同target重编全部观察/definition恢复。7311身份（旧7264不变/恢复binary SHA）通过。首次依赖输出并发FileNotFound已顺序重跑通过，无生产改动；当前生命周期不代原自然反馈或whole Rig。后外部state/query、原Rig连续历史和主Root/custom attributes/Down-Up余差。255（115P2/140P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始12:14:24；预估结束12:34:24；实际结束12:21:09；实际用时405秒；偏差-795秒；结果完整definition/2640输入生命周期Gate通过。
 
+- [x] BF144.359 U07当前240 Rig query/state/clock实际ABI：依赖.358只读2640字段/完整definition与.357原Rig Input，InputSet后/Evaluate前复制query上下文和实际delta/world/capture，再于求值后记录全部外部/working registers/trace与calls。先quiet观察完整240无扰动，再仅打开诊断capture对照全部旧字段/状态/输入/输出，仅允许明确诊断字段变化；不插图节点、不改变warm/seed。Gate：fresh source/target时钟/query/clear与调度合同、当前240帧次序/外部/查询owner/world/filter/末状态可重复、quiet/capture和必要观察移除源码字节恢复同target重编、manifest负控制/identity；此仅当前240 ABI，warm11原pose和原Rig连续求解仍后继，不拿旧88同名cohort或target feedback代原feedback。开始：2026-10-24 12:21:38 +0800；预估结束：2026-10-24 12:46:38 +0800。估时依据：旧.269 warm88/query ABI约23分钟（含首工具缺口）、.358观察约7分钟；已有query/capture公开点，按25分钟含新只读observer/240新尾/capture控制与恢复，不扩原node history求解。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 12:21 活动摘要：3300adcd完成definition与2640输入生命周期，7311身份、255（115P2/140P3）；上轮两项实际证据/提交属于进展。本项补当前240外部query/时钟/寄存器，原warm11+完整feedback仍未闭。
+
+  - 12:24 source/static进展：target Rig delta直接source_input读取、query来自同一SourceAnimationInputs/to_world，发布在InputSet后可读、Evaluate后清None已当次核；ALS FootOffsetTrace为world-space Visibility complex/忽略owner源链已读。新observer只在当前240安装，不插图node、不seed/改warm，before复制query/delta/world标记，after只读全部external/working寄存器。quiet完整240运行通过、旧history流式被动比较中，capture对照待其Gate；原Rig历史仍后继。255（115P2/140P3），截图0、性能暂停。
+
+  - 12:24 quiet Gate：新query前态只读系统/record新增后，完整旧240帧与warm/metadata（含live definition和旧Rig输入记录）双向generation映射逐值精确，0新增图节点/0warm/seed改动。当前240查询前态/末寄存器记录已落盘；只在quiet Gate通过后同binary开启rig-query-capture，待比较仅capture/trace/call诊断差，未把该开关当原状态输入。后原warm11连续求解另补，255（115P2/140P3），截图0、性能暂停。
+
+  - 12:25 当前ABI进展：quiet全240 delta均0.03333333507180214、query上下文240、222 working寄存器/全部12外部已记录，唯一当前filter后几何为position(0,−.5,0)/half(15,.5,15)/identity旋转箱体，world从实际query/state取同。capture同binary完整240运行过，比较只允许capture/trace/call诊断差，源pose/外部/working/query/delta及其余旧metadata全部要求精确；当前不含warm11/原反馈资格。观察移除构建中，255（115P2/140P3），截图0、性能暂停。
+
+  - 12:26 capture/manifest闭环：同binary quiet→capture全部非诊断字段/旧warm/metadata/pose/external/222 working寄存器/query/delta精确，只有capture标记与trace/call记录不同。当前240/480 trace/10080 call、121个to-world/唯一受控geometry，RigInput11/12external/全部working索引/帧次序/query owner/clear已核；missing frame/order/query owner/external/register五负控制拒绝。无图节点/seed/warm改动，当前源pose接口为.357原Rig Input240；warm11原pose/原source feedback未供给，不冒可连续原Rig验收。观察移除运行已过、恢复同target重编中，255（115P2/140P3），截图0、性能暂停。
+
+  - 12:27 Gate前后摘要：capture仅诊断变化与完整manifest五负控制均过；新观察系统/记录移除后完整240运行过，源码字节恢复同target重编quiet完整240恢复运行过，现两轮每case/frame/warm流式比较中。当前ABI含全部222 working/12external、480trace/10080call/121to-world，可供后继显式条件求解；未供warm11原pose/源反馈，不预先执行连续original native或把旧88同名作为前态。255（115P2/140P3），截图0、性能暂停。
+
+  - 12:30 watchdog复盘：原双轮合并比较持续有进展但120秒wall timeout（no-progress仅0.323秒），已完整比较恢复240及无observer至185帧，机器报告退出137/最后位置保留。此非场景卡住，未重启任何角色run；将两轮拆为各自完整240固定120秒/30秒无进展的独立Gate，最终汇合同时要求两报告成功，保持全部字段/metadata和源码恢复核验范围，不盲目重复原双轮命令。当前条目仍在原估时内，后续结果据新完整Gate，不借未完成部分作证。255（115P2/140P3），截图0、性能暂停。
+
+  - 12:31 Gate后摘要：拆分后restored与removed两完整240比较各自固定watchdog均过（25.013/23.746秒），全旧fields/warm/metadata与新增quiet记录精确；源码字节恢复同target重编证据有效。原合并120秒timeout只作诊断，未丢任何后55帧验收；汇合Gate要求两个完整成功报告。quiet无扰动/capture仅诊断差/manifest五负控制与240全ABI已闭，下一identity/提交后warm11原pose/外部历史资格和原Rig连续求解。255（115P2/140P3），截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/359/summary.json`通过；当次source/target delta/query/world/clear合同与新before/after只读点核验，quiet全旧240/warm/metadata精确，0图node/seed/warm修改。同binary capture只变明确诊断标记/trace/call，其余全部pose/外部/222 working寄存器/query/delta和旧历史精确；ABI全240/480trace/10080call/121to-world/唯一受控geometry与5负控制过。移除observer运行/源码字节恢复同target重编后两个完整240历史分别固定watchdog通过；原双轮合并120秒wall timeout报告保留，按真实进展拆独立Gate，未缩验收/未重启场景。7357身份（旧7311不变/恢复binary SHA）通过。原pose接口为.357输入，但warm11原pose/外部历史未供给，未声称原native连续Rig或自然feedback资格；后继补该闭包。无新编号，255（115P2/140P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始12:21:38；预估结束12:46:38；实际结束12:32:51；实际用时673秒；偏差-827秒；结果完整当前240 Rig ABI Gate通过，双比较工具超时已拆分验收通过。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D257 / P3 — Transition正向终止采样遗漏源section末端缓冲。
@@ -4500,6 +4519,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.356当前边界：原Head Root240/18960骨、whole native/当前240 public重放及三边界消融恢复、7217身份通过，255（115P2/140P3）。下一Head Root下游实际main/Ragdolling/Rig入口，后自然反馈/custom attributes/Down-Up和余差；截图0、性能暂停。
   - BF144.357当前边界：原Rig Input240/18960骨、当前直接边/VM计数/绑定和消融恢复、7264身份通过，255（115P2/140P3）。下一完整loaded definition/GetControlRigInput生命周期，再外部查询/原Rig/自然反馈/custom attributes及余差；截图0、性能暂停。
   - BF144.358当前边界：当前完整live definition仅既证D242365签名差、2640输入生命周期与四负控制/观察消融恢复、7311身份通过，255（115P2/140P3）。下一Rig state/query/clock连续输入历史，再原Rig/自然Root反馈/custom attributes/Down-Up和余差；截图0、性能暂停。
+  - BF144.359当前边界：当前240 Rig ABI/480trace/10080call/222working/121world，quiet/capture诊断控制与源码恢复/7357身份通过，255（115P2/140P3）。下一warm11原pose/外部历史资格，后原Rig连续求解/自然Root反馈/custom attributes/Down-Up和余差；截图0、性能暂停。
 
 - [x] BF144-U06 — Rig初始全局数据已于.245归D242/P3。最初.244发现71骨365个double差、默认240仅FootHeight double变化；.245保持全部原生算法，仅换初始数据即在受控半转产生约180°的float足旋转/实际Setter写回差，并在同source厘米算法的5个骨长舍入边界经同原生IK核产生13/15个float关节点差，分别隔离D163算法与D165单位舍入。数据移除/源码字节恢复及同target重编恢复通过，native数学读出移除/同package恢复亦通过；默认动作自然可达性未证，不因关闭U06声明无差异或修复。证据`target/bf144/245/summary.json`、`native-check.json`、`writeback.jsonl`、`restoration-check.json`；原.244记录保留。
   - BF144.136 follower记录重建补充：near-zero候选无有效end时记录leader移到最后一项；下一普通帧恢复正常leader，`AnimSync::Finalize`使follower记录失效。`BlendSpace.cpp:784–787`按已存归一化时间乘当前样本长度重建；目标此前保留秒数。18帧33个previous差最大约59.6ns，全部精确等于`(旧position/旧duration)*当前duration`；仅补这一步后4032帧所有previous也逐值一致，当前采样位置和姿态保持。证据`target/bf144/136/roundtrip-check.json`、`before-roundtrip-all-analysis.json`、`all-analysis.json`。
