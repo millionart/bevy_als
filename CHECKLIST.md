@@ -3300,6 +3300,16 @@
 
   - 完成/Gate：`target/bf144/408/summary.json`通过。source完整请求域：主三状态standard、Grounded240稳定Standing/weight1无栈；Details两请求处两cache均1实际context无skip，不向外转发；蓝图无直接请求，槽group共享map经classic Transition动态montage的Standard构造/入出路径证明无请求，零view Turn队列不触发。两个原惯性节点240自主输入共37920骨/全部曲线native精确透传，错误转发只改变22/23/122/123，恢复整240字段精确；native26.486/25.979秒。Standing/Grounded原root链、Linked Standing Input/Standing缓存/源曲线四pin1闭合，主Grounded唯一直接消费者Transition Slot.Source；四键去除各失败，形成240源Grounded Base。9479身份旧9451全不变、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib保持，256（115P2/141P3），无新D。该source Base仍显式消费原父参数，不等于完整反馈或实际角色/target最终pose；下一完整Transition Slot→Locomotion/Layering→Head/Rig/Root及Feet/attributes/独立反馈，截图0、性能暂停。开始19:47:22；预估结束20:12:22；实际结束19:53:45；实耗383秒；偏差-1117秒；结果Standing/Grounded最终惯性请求域与完整source Base包装Gate通过。
 
+
+- [x] BF144.409 U07自然Transition Slot完整source pose：依赖.408完整240 Grounded Base、.386原88蒙太奇输入/两Stop叶数据与.387已校时钟/权重域；沿真实主Transition Slot源码的Base、additive类型/权重/累加/曲线/归一化次序生成240原Slot输出，非零88帧不能只做alpha或叶数据闭环。优先复用现有SlotProbe与精确数学核，源montage实际时点/输入本项仍为已校原输入，完整回调→montage自主producer/最终反馈边界明确；不回填角色Slot或target pose。Gate：fresh source Slot算序与数据域、完整88非零/152透传及79骨/曲线对whole-native、必要归一/权重/curve消融恢复/identity；之后接实际Locomotion/Layering→Root。开始：2026-10-24 19:54:18 +0800；预估结束：2026-10-24 20:19:18 +0800。估时依据：.387动态montage输入377秒/.408 Base383秒，旧完整Slot/加性核已存在但88帧可能有mode/normalize差，25分钟含原生全pose校准与消融身份；缺工具能力按source先拆前置，不凭类型名选择mesh/local。仅审计不改生产/reader/转换器/原资产，截图0、性能暂停。
+  - 19:54 活动摘要：.408已提交88a6f4dd/9479身份、当前工作区干净，256（115P2/141P3）。首核两Stop真实additive类型和Slot原混合规则，消费自主Base及已校源montage输入；完整Slot尚未验收，截图0、性能暂停。
+
+
+  - 19:57 source/static与完整Slot数值闭环：两原Stop均mesh-space additive/无profile，每实际帧1蒙太奇、total≤1、Base source1；原Slot仅AccumulateAdditivePose内归一，无ApplyMesh节点额外outer。自主240 Grounded Base+已校原montage时点/权重、正确SKM compressed两叶生成240 Slot；现有SlotProbe左右各120帧native26.438/25.948秒，全部18960骨/曲线/actual position/weight/slot字段逐值精确，88非零/152透传均齐，无需reader扩展。额外归一6558骨失败、误用local6417失败，clock/curve保持；原脚本及240产物字节恢复后全部精确。9479旧身份核中，256（115P2/141P3）；本source完整Slot仍用显式actor montage参数/时钟（.387同输入核已校），回调→montage自主生产/完整父反馈、Locomotion/Layering/Root/Feet/attributes及target最终对照未闭。截图0、性能暂停。
+
+
+  - 完成/Gate：`target/bf144/409/summary.json`通过。原单蒙太奇mesh-space additive/total≤1/Base1/无profile合同明确，Slot累加仅inner归一、无ApplyMesh outer。自主240 Grounded Base与原88已校actor montage输入/正确SKM叶经精确mesh核产完整Slot；现有原SlotProbe分左右120帧（26.438/25.948秒），18960骨TQS、全部曲线、position/weight/slot输入全精确，88非零/152透传均通过。加outer normalize6558骨失败，错用local6417骨失败而clock/curve保持；原脚本与240pose字节恢复后全过，无reader/新数学核扩展。9516身份旧9479全保持、114 ALS/184生产Rust/转换器/reader/原资产/冻结rlib不变，256（115P2/141P3），无新D。此source完整Slot消费显式原montage参数/时钟，尚未关闭回调自主producer/完整父反馈或角色target最终pose；下一真实Slot输出→Locomotion/Layering→Head/Rig/Root，Feet/attributes继续开。截图0、性能暂停。开始19:54:18；预估结束20:19:18；实际结束19:58:30；实耗252秒；偏差-1248秒；结果完整自然Transition Slot source pose Gate通过。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
@@ -5295,3 +5305,5 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.407当前边界：18 Stop/240 Main普通pose、2370骨168曲线全native/两消融恢复/稳定编号修复/9451身份通过，256（115P2/141P3）。下一Standing惯性请求资格/Grounded Base，再完整Slot/Root/Feet/属性；截图0、性能暂停。
 
   - BF144.408当前边界：完整240 source Grounded Base、两原惯性37920骨/曲线透传与错误转发反例/四曲线包装/9479身份通过，256（115P2/141P3）。下一主Transition Slot完整pose→Locomotion/Layering/Root，独立反馈/Feet/属性及target最终比较仍开；截图0、性能暂停。
+
+  - BF144.409当前边界：完整240 Slot/18960骨曲线clock全native、88mesh加性152透传、两消融字节恢复/9516身份通过，256（115P2/141P3）。下一真实Locomotion/Layering/Root及独立反馈/Feet/属性，完整target角色pose未闭；截图0、性能暂停。
