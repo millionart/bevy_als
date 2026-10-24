@@ -3456,6 +3456,22 @@
   - .418完成/Gate：`target/bf144/418/summary.json`通过。完整source Feet六函数/所有字段/target归属与1200实际RigInput消费字段齐；自主prior mesh/socket重建480足world T/Q、240pelvis F32 quat和240有效性状态对原生全精确，239普通帧严格prior，首帧显式初始化等价pose域保留，不冒充未知startup buffer。当前mesh-world依旧source外部输入。当前pose替prior导致480差、去组件归一与过早valid失败，源码字节恢复同target重编240输出byte同；未改生产、reader、转换器、原资产或冻结rlib。10333身份旧10282全不变，114 ALS/184 Rust保持，256（115P2/141P3）、无新D。source-porting1.15升级仅补读并服从项目既有审计纪律。入口/首独立采样单元闭合，完整Feet锁定/捕获释放/基底teleport/约束与最终混合/RigInput反馈、target完整余差仍开，下一按此实际依赖继续。截图0、性能暂停。开始21:50:46；预估结束22:20:46；实际结束21:56:27；实耗341秒；偏差-1459秒；结果完整Feet输入manifest与独立采样入口Gate通过，不称完整Feet等价。
 
 
+- [x] BF144.419 U07自然脚锁量/捕获释放/约束至完整Feet反馈：依赖.418独立prior socket/有效性入口与.417完整Root，fresh核RefreshFootLock/ProcessFootLockTeleport/BaseChange/ConstrainFootLock的当前实际域输入，以独立采样目标、prior曲线/pose、Delta与显式locomotion/base/mesh状态从源默认初态演化所有Feet字段；native状态仅oracle，不能重置为每帧快照。先关闭完整锁定/释放及当前base/teleport域，再按必要依赖验证F32约束、world FastLerp/Normalize/组件逆与四Final字段，最终RigInput重放。Gate：当前480侧状态历史/所有可观察Feet字段及actual消费精确、必要源原生数学控制或精确核复用、history/阈值/约束消融与源码字节恢复同target重编/identity。若单元闭包需分拆，先写真实依赖而不省略整体；target full Root/非零域和attributes仍后继。开始：2026-10-24 21:57:07 +0800；预估结束：2026-10-24 22:37:07 +0800。估时依据：.418采样341秒；本项引入连续lock状态及F32/local-world/约束两条链，40分钟含最小受控边界、当前480侧逐值与全部Final，复杂坐标若缺精确核先拆必要前置。仅审计不改生产/reader/转换器/原资产，截图0、性能暂停。
+  - 21:56 活动摘要：.418提交970e5f76/10333身份，256（115P2/141P3）。当前源FootTarget与PelvisRotation已独立重建；下一锁定历史和约束，不把native LockState或after getter当模型输入。当前floor base无relative location的source域已证明，但不预设所有约束inactive。截图0、性能暂停。
+
+
+  - 22:00 .419首连续状态闭环/模型校准边界：以独立socket/pelvis与prior Root曲线、显式moving smooth/mode/mesh/base从源默认初态演化480侧全部字段。初次JSON Number int/float表示比较产生假差，改数值typed equality后仅61锁缓存字段有差，FinalLocation/FinalRotation/LockAmount已全240双侧精确；首frame65 source约束出现位置/旋转尾差。fresh UE FMath::SinCos(float)为minimax且角度换算为float乘常数，原审计初版误用系统sin/cos/to_degrees，直接移译后位置缓存全部精确，余36rotation缓存差；fresh GenericPlatformMath.cpp:33–76显示GetTwistAngle的float Atan2也是minimax而非系统atan2f，正在原样替换。均为新自然状态审计核能力校准，不修改生产或放宽Gate，不将当前最终值相同当完整state等价。当前source设置FootLock allow/90°/40°已核原AIS资产；目标合并GT/worker的实际影响留完整对照，未新增D。256（115P2/141P3）；截图0、性能暂停。
+
+
+  - 22:03 .419完整Feet/实际Rig消费者闭环：源SinCos minimax/角度float乘常数与Atan2 minimax按fresh本地实现移译后，480侧连续所有5760字段及1200顶层字段全原生精确，ThighAxis按reference局部float归一独立生成；11次thigh/16次foot约束实际触发，未把inactive当证明。原始Feet状态仅oracle，独立prior socket/Root曲线+源默认状态生成Lock/Final全部缓存；actual RigInput valid/四Final共1200项精确。去history156帧、thigh约束18帧、foot约束18帧、换系统atan18帧各失败；四次源码字节恢复同target重编240完整状态byte同，删unused helper/变量。把五个Feet字段的来源替为独立模型，原Rig完整240重放正常45.344秒，正核18960TQS/curves/全部外部与生命周期；其余六RigInput字段/mesh-world/locomotion及部分图状态仍显式source输入。生产/reader/转换器/原资产未改，未将审计核校准误报产品D。当前256（115P2/141P3），截图0、性能暂停。下一封存身份，再跨侧source Feet/target相同输入与全Root实际余差因子，不在当前猜改目标。
+
+
+  - 22:04 .419真实消费者/域与消融收口：独立五Feet字段替入完整RigInput，原Rig240重放45.344秒通过，18960TQS/全部curve/外部状态与原源及独立全Root模型精确，生命周期未变；6其它RigInput仍显式父值。源CS_Als_Default原生重取确认TeleportDistanceThreshold50cm，当前连续mesh位移<该阈值、baseChanged仅pending首帧/relative false、Grounded/yaw-only/scale1域已断言，未将未覆盖dynamic base/新teleport闭合。四消融history/thigh/foot/systemAtan分别156/18/18/18帧改变并拒绝，恢复源码字节同target重编240状态byte同。整侧5760+顶层1200+实际输入1200数值精确，初始thigh轴/所有Lock缓存与Final均为自主生成。当前10333身份核中，256（115P2/141P3），无新D；完整Feet source producer闭合后直接进入目标实际完整反馈因子对照，截图0、性能暂停。
+
+
+  - .419完成/Gate：`target/bf144/419/summary.json`通过。独立prior socket/Root曲线与源默认状态生成完整480侧5760字段、1200顶层字段及1200 actual RigInput Feet字段，对原生全逐值精确；source minimax SinCos/Atan2及float角度系数按fresh本地实现保留，11/16次thigh/foot约束均实触发。四消融history/thigh/foot/systemAtan分别156/18/18/18帧失败，源码字节恢复同target重编240完整产物byte同，删unused helper/变量。自主五Feet字段替入完整RigInput后原Rig240重放45.344秒，全部18960TQS/curves/外部/生命周期精确实际源及独立全Root模型。AIS FootLock allow/90/40与fresh原CS teleport50cm已核，当前静态基底/no-relative/Grounded/yaw-only/scale1及位移域明示。10401身份旧10333保持、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib未改，256（115P2/141P3）、无新D。完整当前source Feet producer闭合；moving smooth/mode/mesh-world/6其它RigInput/部分图状态仍显式父输入，target跨侧余差/非零view/attributes未闭。开始21:57:07；预估结束22:37:07；实际结束22:06:06；实耗539秒；偏差-1861秒；结果自然完整Feet→真实Rig消费Gate通过。截图0、性能暂停。
+
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
