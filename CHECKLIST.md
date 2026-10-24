@@ -2689,6 +2689,13 @@
 
   - 完成/Gate：`target/bf144/340/summary.json`通过；243原步/19197骨（暖3+主240）按显式首Land .1请求与无请求同输入控制求值，source仅steps2/3（首Land/当前0）各79骨/8curve改变，当前1到期先copy及后239全部透传精确，过滤RotationYawSpeed值/存在性243保持。fresh源配置/InitializeLean→Root链通过，240原最终Locomotion/18960骨全native供给且actual callback/root交接240精确，0target补值。当前1目标到期仍改骨/补PoseInAir0为既有D240；组合残差初2 T146/R149/S32/curve6+presence1、后238 T16750/R14578/S3901/curve81未归尽。删请求字段拒绝/原生无请求控制失活动段，源码字节恢复243请求字节同；6339身份（旧6303不变）通过。完整主AB后槽/Layering/Head/Rig、自然反馈/上游/旧域迁移仍开，无新编号，255（115P2/140P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始10:35:49；预估结束10:50:49；实际结束10:38:57；实际用时188秒；偏差-712秒；结果原Locomotion最终供给Gate通过，完整对标继续。
 
+- [x] BF144.341 U07当前240 PostLocomotion槽到Layering入口资格/原供给：依赖.340原最终Locomotion240，沿fresh主AB 5b8f6ccb→ccaab6a2 PostLocomotion/Locomotion槽→47121ad2 Layering Locomotion Input及其save/use，复用只读活动/producer/owner观察，完整240旧字段校准后按真实活动决定copy或缺失原montage前置。Gate：源slot/具名边/真实linked类与缓存归属、实际权重/姿态/蒙太奇/context及GetUp/Roll活动状态、无活动不凭pose相等猜测、原240值0target补值与明确Layering其他输入依赖、必要消融源码字节恢复同target重编/identity；不把入口当Layering/Head/Rig/自然反馈已闭。开始：2026-10-24 10:39:41 +0800；预估结束：2026-10-24 10:59:41 +0800。估时依据：.331完整链观察约7分钟、旧.224/.225同边资格约6–16分钟；本原240 Root已具，按20分钟核槽活动/linked/cache当前实际域，不扩Layering内部原数值。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 10:39 活动摘要：c1d32c5e后树干净，6339身份、255（115P2/140P3）；上一轮原暖资格/243惯性两项提交属进展。当前Root原输入240就绪，继续按source明确边进入后槽/Layering；旧77无活动结论不外推新后缀。
+
+  - 10:44 source/static闭环：完整240旧/warm字段精确；PostLocomotion无有效montage（权重/layer/pose/context/sample全无、GetUp无组件/Roll无活动），slot source/output240精确，源标准Slot inactive分支直求Source且hook为空已核。原Root240/18960骨保值送入Layering Locomotion Input/cache、720 actual use/owner/context/key全匹配；三个use对接两MakeDynamicAdditive与CurvesBlend、源声明9个但当前只3个，明确后需Base Poses/Overlay Input，不填target。缺原source/错owner拒绝，源码字节恢复三个240/720表相同；观察消融/源字节恢复同target重编完整240精确。静态报告名共用问题已拆独立文件重跑并删除旧覆盖结果。identity中，未算Layering/Head/Rig或自然反馈，255（115P2/140P3），截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/341/summary.json`通过；当前PostLocomotion240无有效montage（权重/layer/pose/context/sample0、GetUp无组件/Roll无活动），源标准Slot inactive直求Source/空hook及fresh具名边通过，actual源/槽/linked/cache/720 use均精确。240原Root/18960骨原值保留接入Layering Locomotion缓存，actual owner/context/key/3实际use映射到两MakeDynamicAdditive和一CurvesBlend，源声明9 use仅本3覆盖；原Base Poses/Overlay输入明确缺口、0target补值。缺source/错owner拒绝，源码字节恢复三个240/720表相同；两观察消融/源码字节恢复同target重编完整240/warm精确，6395身份（旧6339不变）通过。静态报告同名覆盖已拆分重跑，旧临时结果删除；未改生产/reader/转换器/原资产。完整Layering/Head/Rig自然反馈与上游/旧域迁移继续开，无新编号，255（115P2/140P3），截图0、性能暂停。开始10:39:41；预估结束10:59:41；实际结束10:45:32；实际用时351秒；偏差-849秒；结果入口资格/原供给Gate通过，下一两个原输入。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D257 / P3 — Transition正向终止采样遗漏源section末端缓冲。
@@ -4298,6 +4305,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.338当前边界：完整原Locomotion主240/18960骨、5alpha/64curve/395骨原生及消融恢复闭合；actual组合差未归尽，下一原暖态/请求与240后惯性Root，再完整自然反馈/上游与旧域迁移，255（115P2/140P3），截图0、性能暂停。
   - BF144.339当前边界：当前原暖2 Fall+首Land共237骨/0.1请求已在正确mesh与actual owner/source_context交付，12 native/消融恢复过；下一243步原Locomotion惯性与Root，再外层主Root/自然反馈和上游/旧域迁移，255（115P2/140P3），截图0、性能暂停。
   - BF144.340当前边界：原暖3+主240的243步惯性/240最终Locomotion Root已通过原生请求对照与过滤/终止，现第1到期差保留D240；下一完整主AB后槽/Layering/Head/Rig及自然反馈与上游/旧域迁移，不宣称生产等价，255（115P2/140P3），截图0、性能暂停。
+  - BF144.341当前边界：当前240 PostLocomotion无活动copy与Layering Locomotion缓存/720实际读取原供给闭合；源150顶图声明9 use本3实际覆盖，后需Base Poses/Overlay原输入，再Layering/Head/Rig及自然反馈，255（115P2/140P3），截图0、性能暂停。
 
 - [x] BF144-U06 — Rig初始全局数据已于.245归D242/P3。最初.244发现71骨365个double差、默认240仅FootHeight double变化；.245保持全部原生算法，仅换初始数据即在受控半转产生约180°的float足旋转/实际Setter写回差，并在同source厘米算法的5个骨长舍入边界经同原生IK核产生13/15个float关节点差，分别隔离D163算法与D165单位舍入。数据移除/源码字节恢复及同target重编恢复通过，native数学读出移除/同package恢复亦通过；默认动作自然可达性未证，不因关闭U06声明无差异或修复。证据`target/bf144/245/summary.json`、`native-check.json`、`writeback.jsonl`、`restoration-check.json`；原.244记录保留。
   - BF144.136 follower记录重建补充：near-zero候选无有效end时记录leader移到最后一项；下一普通帧恢复正常leader，`AnimSync::Finalize`使follower记录失效。`BlendSpace.cpp:784–787`按已存归一化时间乘当前样本长度重建；目标此前保留秒数。18帧33个previous差最大约59.6ns，全部精确等于`(旧position/旧duration)*当前duration`；仅补这一步后4032帧所有previous也逐值一致，当前采样位置和姿态保持。证据`target/bf144/136/roundtrip-check.json`、`before-roundtrip-all-analysis.json`、`all-analysis.json`。
