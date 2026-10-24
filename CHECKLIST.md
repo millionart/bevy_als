@@ -3027,6 +3027,13 @@
 
   - 完成/Gate：`target/bf144/376/summary.json`通过；reader仅CaptureState白名单增加主实例既有ViewState/HeadState两名，241初始化/普通包按本地头文件两组各6字段完整；旧480缺组最小检查失败，focused schema4非法遗漏拒绝。新增观察原自然240所有旧字段/pose/curve/getter/实例精确；名单移除源码→arm64同包重编运行，旧240全部同且新schema失败；最终源码字节恢复→arm64同包重编运行，added/restored全部新旧记录同（仅TempWorld别名正规化），workspace/包源码字节同。首双架构PCH外层无进展超时144秒已记录，后换已有arm64+内部日志进展范式成功；HostProject被打包清理的增量尝试在复制阶段失败并finally恢复，未作二进制证据，最终无增量方案。8068身份通过，旧8031仅reader源/包源/dylib三迁移，余8028不变；生产184Rust/ALS114/rlib/转换器/原资产不变，无新产品D，255（115P2/140P3）。新观察支持后续自然Head/View/Feet及Down-Up180，不等于算法已对齐。截图0、性能暂停。开始14:36:00；预估结束15:06:00；实际结束14:48:04；实际用时724秒；偏差-1075秒；结果源View/Head只读能力/三轮原生消融恢复Gate通过。
 
+- [x] BF144.377 U07自然240完整View/Head源状态与当前算法：依赖.376新增两组既有状态只读能力及.375实际消费阶段，fresh核RefreshView/InitializeHead/RefreshHead与linked Head回调source闭包，使用真实自然240 before/after状态、controller/locomotion/previousRoot与当前公开head核逐侧重算；首记录注册/同engine guard分开。Gate：本轨迹所有可观察View/Head字段的生产者/输入/状态生命周期推导、source/current公共核同实际输入重放与实际Head图消费，首余界有原生共同输入/最小控制后归并或登记；必要相位/输入消融字节恢复同target/身份。现直线controller0域不覆盖Down-Up180，随后单独公共view轨迹；Feet和Root属性仍保持原未闭范围。开始：2026-10-24 14:49:00 +0800；预估结束：2026-10-24 15:19:00 +0800。估时依据：.302非零head输入28帧重放约14分钟、.375自然反馈消费约6分钟；新240所有View/Head字段已捕，按30分钟核源自然回调/输入与当前数学/实际consumer，不重复旧受控样本或猜测修生产。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 14:49 活动摘要：f8ba3e89/8068身份已提交，reader已最终恢复且工作区干净；上一轮三批自然域取证为有效进展，255（115P2/140P3）。用新源View/Head状态继续算法闭包，直线0view域与后继Down-Up180明确区分。
+
+  - 14:51 source/static闭环：新增源状态实际表明自然240 controller/body rotation全部0，View六字段/1440按Rotation差、priorRoot ViewBlock/PoseAiming及PitchAmount公式精确，Head六字段各帧恒pitch/yaw/velocity0、yawAmount0.5、两标记false。公开head核用各自真实零域输入对source/target480状态全部精确；target240实际Head/View1440字段与更新过Head contexts同，首evaluate前Head组件缺失而非已初始化，after已初始化，边界已显式核。将view pitch误改1度在source frame0立刻反例，字节恢复同target重编480输出字节同。此轨迹无非零pitch/yaw，context未记录View叶样本，不据此声称Look/Down-Up路径已覆盖；本项关闭自然零view域，下一直接公共非零controller Down-Up180轨迹。无新D，255（115P2/140P3），截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/377/summary.json`通过；新source自然240 View/Head全部常零视角域，View1440字段由controller/body rotation0、priorRoot ViewBlock/PoseAiming和PitchAmount独立派生；static base relative rotation false，source/target各240 Head六状态由公开update_head_state真实零域输入全精确（480 rows），target1440实际Head/View字段与240已更新Head contexts同。target首evaluate前Head组件不存在、after已初始化，未当成前态true；SourceInstance switching标记实际读取未硬写false。误输入pitch1°在source frame0失败，源码字节恢复同target重编480输出字节同。8098身份（旧8068不变）通过，无新D，255（115P2/140P3）。仅关闭自然0view域，context无View叶sample记录且没有非零pitch/yaw，不称Look/Down-Up/180或完整source原Head pose已等价；下一直接public controller非零轨迹与实际输入/consumer，Feet与Root属性未闭。截图0、性能暂停。开始14:49:00；预估结束15:19:00；实际结束14:52:46；实际用时226秒；偏差-1573秒；结果自然零view状态/公开核Gate通过，非零域保持后继。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D257 / P3 — Transition正向终止采样遗漏源section末端缓冲。
@@ -4946,3 +4953,4 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.374当前边界：新真实自然source/默认target240完整原Root历史、1195/478 priorcurve反馈、重复/被动观察和currentcurve负控制/7983身份通过，255（115P2/140P3）。下一自然Layering/Feet/Head/Rig消费阶段与完整反馈/Root attributes/Down-Up/180；截图0、性能暂停。
   - BF144.375当前边界：自然source priorLayer/Pose/Getter/实际before消费和target2640 Rig字段/关键输入、观察消融/8031身份通过，255（115P2/140P3）。source缺ViewState/HeadState只读捕获，完整Head/View/Feet深算法拆后继；Down-Up/180和Root属性仍开，截图0、性能暂停。
   - BF144.376当前边界：源View/Head两组241包完整、自然240旧行为/移除/恢复同包精确及schema4反例，8068身份（仅3reader迁移）通过，255（115P2/140P3）。下一用新状态做自然Head/View/Feet算法与Down-Up180/Root属性闭包；截图0、性能暂停。
+  - BF144.377当前边界：自然0view源1440字段/两侧480 Head公开核与真实初始化/输入反例恢复、8098身份通过，255（115P2/140P3）。下一直接public Down-Up180非零控制器历史，不用零域代替；Feet/Root属性仍开，截图0、性能暂停。
