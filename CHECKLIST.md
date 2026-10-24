@@ -2953,6 +2953,13 @@
 
   - 完成/Gate：`target/bf144/366/summary.json`通过；490实际有效腿/326新尾与980同输入native单元、980组初始骨长double/厘米float独立复算全精确；source490 joint/end共980位置、actual secondary1的980 quat与primary-only980 quat全部native double精确，490全triangle，same-cm适配与frozen public solver980全TQS同。前164与旧.286所有source/native/current值同。新ordinal101/91实际secondary1左thigh Z分量1ULP反例已按vector rotate/normalizer各自单因复现补D247/D248；不新增D或称最终local已解释。移除源normalizer失977完整quat cases且最小F32反例重现，字节恢复同target重编后490输出字节恢复。7608身份（旧7570不变），255（115P2/140P3），后完整500 weighted/local与足rotation、源上游state/自然feedback继续。截图0、性能暂停。开始13:23:20；预估结束13:58:20；实际结束13:28:00；实际用时280秒；偏差-1819秒；结果完整490源IK位置/旋转与新尾consumer Gate通过。
 
+- [x] BF144.367 U07全251两腿权重与hierarchy local写回：依赖.366490源IK解与.365实际500调用/2首帧skip，fresh核partial保留joint/tip局部位置→三骨Slerp→重建全局→层级local转换，对500调用（10zero/12partial/478full）独立算1000 thigh/calf最终local TQS并与完整nativeRig比；当前公开unit同真实前态重放核1000 actual输出，首帧4保持单独核。Gate：全部源local native double精确/零支保持/current输出真实投影与差表、新尾四骨差异完整登记；同输入算子反例/必要消融字节恢复同target重编/identity。foot最终setter另依赖，不以source effector/pole观察值称独立上游trace/spring或natural反馈。开始：2026-10-24 13:28:30 +0800；预估结束：2026-10-24 13:53:30 +0800。估时依据：旧.287完整weighted174约21分钟；当前.366全490新解和.365完整ABI齐，复用通用weighted数学按25分钟含完整新尾1000 local/native/current比较和最小消融恢复。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 13:28 活动摘要：b6ad0c1b/7608身份已提交，255（115P2/140P3）；source IK解490精确，当前新尾912仍未闭。先四骨1000 local/write，后足rotation、上游state和自然Root反馈。
+
+  - 13:30 source/static閉环：全500腿10zero/12partial/478full的1000 source thigh/calf local TQS与完整nativeRig double精确（新尾652）；当前公开前置三写者与实际腿unit重放1000 actual F32输出精确，前174 source控制和current结果与旧.287全同。四骨当前852差（新尾586），其余新尾326为feet；source模型用.366新490解与原当前消费effector/pole，未冒独立上游。Slerp三控制仍仅原12partial产生double分歧，新增full域未扩partial假设；字节恢复/消融正在收口，足rotation和自然反馈继续开。255（115P2/140P3），截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/367/summary.json`通过；500腿10zero/12partial/478full完整1000 source thigh/calf local TQS native double精确，含新尾652；首帧两腿skip的4local输入保持。当前公开前置三写者+IK实际参数重放1000 final F32精确，前174所有source控制/current值与旧.287精确。当前四骨852差（R849/T490、任一通道），新尾586，余新尾326 feet另后继。移除source Slerp丢20 local行/20旋转8位置，模型最小合同失败，字节恢复同target重编后全500输出字节恢复。7637身份（旧7608不变），无新D，255（115P2/140P3）；本项源effector/pole仍是消费观察，未关闭上游state/自然feedback，完整足rotation/setter后继。截图0、性能暂停。开始13:28:30；预估结束13:53:30；实际结束13:31:54；实际用时204秒；偏差-1295秒；结果完整500两腿weighted/local Gate通过。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D257 / P3 — Transition正向终止采样遗漏源section末端缓冲。
@@ -4862,3 +4869,4 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.364当前边界：完整251 pelvis/foot-root502 source与current重放、pelvis30含新尾10 writer消费控制/消融恢复、7540身份通过，255（115P2/140P3）。下一六腿新尾912与上游独立trace/spring，后原自然Root feedback/attributes/Down-Up；截图0、性能暂停。
   - BF144.365当前边界：全251源FK/native calf500含新尾326、current2400调用/1440global及normalizer消融恢复、7570身份通过，255（115P2/140P3）。下一490有效腿IK位置/旋转，再partial/write/footRotation、上游状态与原自然feedback；截图0、性能暂停。
   - BF144.366当前边界：490有效腿/326新尾源IK位置980/实际与primary-only1960 quat、980独立骨长/消融恢复和7608身份通过，255（115P2/140P3）；D247/D248补实际secondary1新尾F32消费者。下一完整weighted/local及footRotation，再上游state/原自然Root反馈；截图0、性能暂停。
+  - BF144.367当前边界：500腿1000 local/native与current重放、Slerp消融恢复/7637身份通过，255（115P2/140P3）；新尾四骨586已闭模型，feet326后继。下一完整足rotation/Setter，再上游state和原自然Root反馈；截图0、性能暂停。
