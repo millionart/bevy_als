@@ -2528,6 +2528,12 @@
   - 08:27 恢复/Gate前：新240 metadata/context可字节重建，实际5父/165 leaf/216 cache与fresh源save/schedule全核；Gait45次均(1,0)单copy，无未测试混合算法外推。错误旧77历史与错误context反例拒绝；源脚本字节恢复同入口后255父/216路由全表精确，39原生算子全f64一致。5322旧身份核查中，仍defer120后FSM Base与完整source状态反馈，不新增编号，254（115P2/139P3）、截图0、性能暂停。
   - 完成/Gate：`target/bf144/317/summary.json`通过；当前240的3360更新资格、165正确mesh leaf/context、216 scoped cache与fresh源graph/schedule、255前父0缺口/0target回填已闭，39原生算子全f64精确，Gait45单copy；120后FSM Base仍defer。错误历史/context断供及源脚本字节恢复完整表、5369身份（旧5322全不变）通过。共同参数/选择仍为声明条件，不声称完整source状态历史；无新编号，254（115P2/139P3），生产/reader/转换器/原资产不改，截图0、性能暂停。开始08:18:20；预估结束08:48:20；实际结束08:28:47；实际用时628秒；偏差-1172秒；结果通过，后FSM/Standing Details/主state/inertial/完整Root继续按依赖。
 
+- [x] BF144.318 U07当前240 StateResult/方向FSM及Base/Lean供给：依赖.317前父255和.316正确mesh直接辅助输入，fresh核当前direction StateResult/curve修改、FSM实际stack与source root映射，随后只将已具备source值运输到真实后Base/Lean/Movement cache消费者，完整覆盖180恢复与210交接。Gate：全240 updated/owner/context路线、源map/static合同及实际输入、0source缺口/0target回填或精确最小未闭依赖、代表原生算子/必要消融字节恢复与身份；不将方向FSM当Standing Details或主stance/inertial已闭，不混旧77权重。开始：2026-10-24 08:29:20 +0800；预估结束：2026-10-24 08:59:20 +0800。估时依据：.204有限旧77重验约20分钟含原生辅助重取，当前240前父和辅助mesh均已就绪；先核多stack与source consumer缺口，按30分钟，超出后消费者另拆。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 08:29 活动摘要：fefa2e52完成前父供给，5369身份、254（115P2/139P3）、树干净；当前有165原leaf、255前父、120后Base记录，先统计真实方向FSM/Lean consumer，再接原source数组，不预设full240可直接套旧77脚本。
+  - 08:29 source/static域：当前240实际方向FSM Standing45/Crouching120均stack1且全为直接state；Lean Standing45/Crouch120全部position(0,0)、phase0，Stop consumer仍17。故当前可只做source StateResult curve写回、直接direction-copy、120 Crouch Base及165中心Lean/Movement，不引入未触发转场算法；输入取.317完整255和.316正确mesh辅助pose，source/owner/context映射将按fresh图与实际snapshot核。后Standing Details和主stance/inertial不在本直接FSM记录中，继续后置。
+  - 08:34 恢复/Gate前：当前240的StateResult165/直接direction FSM165/Base120/Movement165（13035骨）及Stop Base17已由原mesh数据供给，18 TwoWay+27 Apply原生全double精确；旧17正确mesh Stop数组完全同值但历史身份保持分离。错误source父断供与错误辅助Skeleton域均拒绝，源脚本字节恢复完整输出精确。当前scope未证Standing Details/主stance/inertial完整source历史，5369身份核查中，无新编号，254（115P2/139P3）、截图0、性能暂停。
+  - 完成/Gate：`target/bf144/318/summary.json`通过；当前240实际source StateResult165/直接方向FSM165/Base120/Movement165（13035骨）/Stop Base17数据供给已闭，fresh roots/两条ModifyCurve绑定与45原生算子全f64精确。错误父/辅助引用域反例、源脚本字节恢复完整表及5415身份（旧5369全不变）通过；旧17正确mesh Stop数组同值，历史仍分开。共同参数与直接state为条件，不把本项当Standing Details/主state/inertial或完整source反馈；无新增编号，254（115P2/139P3），生产/reader/转换器/原资产不改，截图0、性能暂停。开始08:29:20；预估结束08:59:20；实际结束08:35:45；实际用时385秒；偏差-1415秒；结果通过，后消费者按源依赖继续。
+
 ### 已确认差异（仅登记，未实施修复）
 
 
@@ -4105,6 +4111,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.315当前边界：正确SKM RequiredBones已补进原native group工具，完整240源leaf和独立旧77 mesh数据已锁，clock/曲线合同保持；Skeleton旧数据只保留原条件域。fresh容器差异使.204按leaf数据域有限复开，先复验其原父运输，不能据已完成标记保留错误引用域或猜测复开其它图。当前254（115P2/139P3），完整Root及后缀父链继续开，截图0、性能暂停。
   - BF144.204有限重新验收：.315正确mesh旧77数据已通过原父运输与24受影响骨原生算子，见`target/bf144/316/summary.json`；旧Skeleton条件产物保留，新mesh表单独用于后续。当前254（115P2/139P3），完整240恢复后缀的原父运输、按fresh数据差异决定的下游迁移和完整Root仍开，不能把旧77重新通过当全240闭合。
   - BF144.317当前边界：完整当前240的前FSM原父255/缓存216供给已由正确mesh source leaf和39原生算子闭合，源context/graph/schedule合同保持；120后FSM Base与StateResult/FSM后consumer未计算，完整source状态/Root仍开。当前254（115P2/139P3），截图0、性能暂停。
+  - BF144.318当前边界：当前240的source方向StateResult/FSM→120 Base→165 Lean/Movement缓存及17 Stop Base已接通，45原生算子/共享参数条件与错误输入拒绝保持；Standing Details/主stance/inertial完整历史及接入主Root仍开。当前254（115P2/139P3），截图0、性能暂停。
 
 - [x] BF144-U06 — Rig初始全局数据已于.245归D242/P3。最初.244发现71骨365个double差、默认240仅FootHeight double变化；.245保持全部原生算法，仅换初始数据即在受控半转产生约180°的float足旋转/实际Setter写回差，并在同source厘米算法的5个骨长舍入边界经同原生IK核产生13/15个float关节点差，分别隔离D163算法与D165单位舍入。数据移除/源码字节恢复及同target重编恢复通过，native数学读出移除/同package恢复亦通过；默认动作自然可达性未证，不因关闭U06声明无差异或修复。证据`target/bf144/245/summary.json`、`native-check.json`、`writeback.jsonl`、`restoration-check.json`；原.244记录保留。
   - BF144.136 follower记录重建补充：near-zero候选无有效end时记录leader移到最后一项；下一普通帧恢复正常leader，`AnimSync::Finalize`使follower记录失效。`BlendSpace.cpp:784–787`按已存归一化时间乘当前样本长度重建；目标此前保留秒数。18帧33个previous差最大约59.6ns，全部精确等于`(旧position/旧duration)*当前duration`；仅补这一步后4032帧所有previous也逐值一致，当前采样位置和姿态保持。证据`target/bf144/136/roundtrip-check.json`、`before-roundtrip-all-analysis.json`、`all-analysis.json`。
