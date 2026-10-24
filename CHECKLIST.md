@@ -3413,6 +3413,19 @@
   - .414完成/Gate：`target/bf144/414/summary.json`通过。165指令/12外部变量和未闭求解单元归属完整，当前自然240 RigInput/自主Head/独立pelvis writer及raw源Rig骨架初态输入链已核；全部18960 pre-leg global TQS独立生成，native可直接观测的240pelvis完整getter/478calf位置/240footroot完整local以及240spine identity/480hands零weight全精确。其它global的直接native内存观察不可得，保留由后继完整腿求解/写回验证该模型输出的边界，不宣称全部Rig等价。脚根构造选择必须从bUseFootIkBones/源literal推导，未构造的None不是消费值；源mesh/Rig骨顺序以名字映射。去scale86帧、去writer239帧各独立失败且另一分支不变，源码字节恢复同target重编240结果byte同，原可观察Gate再过。10108身份旧10068保持、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib不变，256（115P2/141P3），无新D。父含.414a前置的总计时未重置；开始21:12:14；预估结束21:42:14；实际结束21:26:24；实耗850秒；偏差-950秒；结果自然Rig输入/FK可观察/零分支Gate通过，完整Rig与自然Feet/反馈/target余差仍开。截图0、性能暂停。
 
 
+- [x] BF144.415 U07自然478腿调用的独立foot effector与pole连续状态：依赖.414自然FK/输入域和.414a独立trace/pelvis，fresh核source ApplyFootOffsetLocation与CalculatePoleVector/DamperExactVector的完整字段/状态/初态/源VM producer，复用.369/.371精确核迁自然239×左右两腿；effector位置从自主FK/RigInput/curve/trace/pelvis派生，pole从自主三骨global几何/源half-life/Delta连续产生，native输入输出仅oracle，不回填spring或pole缓存。Gate：478次foot与pole全部公开输出/可观察状态和消费到IK的值精确，fresh private默认/连续演化与保留边界，必要history/几何消融字节恢复同target重编/identity。后完整IK长度/旋转/partial/write/footrotation与Root合成继续独立验；Feet父反馈仍显式source输入，不将此算全系统等价。开始：2026-10-24 21:26:55 +0800；预估结束：2026-10-24 22:01:55 +0800。估时依据：.414a新478trace/240spring迁移282秒，.369/.371旧pole/foot有现成精确生成核，本项478实际腿中间量与状态、多坐标输入，35分钟含自然域生成/逐值及必要消融；不重跑旧251数据替新域。仅审计不改生产/reader/转换器/原资产，截图0、性能暂停。
+  - 21:26 活动摘要：.414提交160cbd77/10108身份，256（115P2/141P3）。完整模型pre-leg全球TQS已生成，native可观察FK精确；本项实际消费其三骨几何和独立trace/pelvis以推进尚未直接观测的global值闭包，其他consumer未证处继续开。截图0、性能暂停。
+
+
+  - 21:29 .415新域/验证失败边界：source初始ChainLength按原parent递归顺序、double距离每段写float，独立得82.76873016357422cm，与240原外部/478调用精确；脚部/pole的输入均从.414 FK与.414a trace/pelvis、源literal及显式RigInput产生。旧.371受控500调用明确限制no length clamp；当前自然域首1-83触发source GetClampedToMaxSize，按native offset仅做域资格发现64次，旧审计模型guard如预期失败而非误报产品差异。fresh Vector.h:1904–1921及GenericPlatformMath.h:561证实double平方和/InvSqrt、float LegLength×MaxStretch先写float，再转double缩放；新自然模型仅补此源分支，不复开旧no-clamp域已完成项。478 pole几何/连续damper已精确原生；新foot完整重算和消融后继，未登记新D或修改生产。截图0、性能暂停。
+
+
+  - 21:33 .415 source/static与IK真实输入闭环：自然239×两腿的478 foot完整公开/反射spring状态、effector位置及478 pole projection/direction/target/current全独立生成并精确原VM；source初始链长度82.76873016357422cm全240外部和478单元输入精确。64次自然length clamp按fresh float半径乘法→double平方和/InvSqrt源合同补齐审计模型后逐值精确；旧.371无clamp域不复开、生产未改。源FK三骨位置经pole全部几何消费，独立foot location/pole current到真实IK Effector.Translation/PoleVector共956连接逐值精确。移除clamp使64location失败而state保持；移除foot history有476state/474location失败；移除pole history首ordinal2失败。三次源码字节恢复同target重编、478输出byte同，全stage再验通过。其余FK rotations/IK部分/最终footrotation与全Root、Feet父反馈仍开；身份10108核中。256（115P2/141P3），截图0、性能暂停。
+
+
+  - .415完成/Gate：`target/bf144/415/summary.json`通过。478足部完整反射spring状态/位置和478 pole几何/连续damper均独立生成且逐值精确native，初始腿链source float逐段累加82.76873016357422cm对240外部与478入参全精确；956 effector/pole真实IK消费连接精确。自然域发现64次length clamp，旧受控域guard正确失败，fresh源Vector/InvSqrt/float半径合同补齐仅审计模型分支，源输出全部精确；未登记产品新D。移除clamp64位置、foot history476状态/474位置、pole history首2各失败；三次源码字节恢复同target重编478结果byte同，source阶段再验通过。10164身份旧10108保持、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib均未改，256（115P2/141P3）。尚需IK初始分段长度/全旋转及加权写回/末端footrotation/Root合成，Feet父反馈和target余差未闭，未宣称全系统无差异。截图0、性能暂停。开始21:26:55；预估结束22:01:55；实际结束21:33:28；实耗393秒；偏差-1707秒；结果自然足部/pole独立producer与IK消费输入Gate通过。
+
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
