@@ -2555,6 +2555,13 @@
 
   - 完成/Gate：`target/bf144/321/summary.json`通过；当前55 source状态根/45 Details3555骨，26单leaf Multi/Apply和10普通转场已接通，0target姿态回填。10alpha、24 Multi/24 Apply/40转场骨样本全f64精确，40实际转场curve全native精确；26加性curve为空，55根保留base curve。移除单leaf归一化使24所选样本变并被native拒绝，源字节恢复同入口后55/45完整数组字节相同且原生全过；5508身份（旧5460不变）通过。共同state/元数据仍条件化，主Standing两惯性/完整source自然状态及Root开。无新编号，254（115P2/139P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始08:46:44；预估结束09:16:44；实际结束08:50:31；实际用时227秒；偏差-1573秒；结果通过，后主惯性按直接依赖继续。
 
+- [x] BF144.322 U07当前240 Standing主状态/双惯性真实历史：依赖.321 Details45原输出，复用.305同D209受控fixture及.211只读观察器，只新增主Standing/Details stack、实际root/context和两个惯性状态/请求观察；完整240旧字段逐值校准后判定需要哪些真实原历史，0–14旧无请求结论不外推210恢复。Gate：fresh source两惯性配置/主state路线、当前240新增观察无行为扰动、实际活动/请求/缺失source输入矩阵、观察消融源码字节恢复同target重编及身份；活动源惯性计算超本独立Gate则精确拆分继续，不回填target。开始：2026-10-24 08:50:45 +0800；预估结束：2026-10-24 09:20:45 +0800。估时依据：.211旧只读观察/无请求约20分钟，现可原用同观察器和完整240基线；新增重入活动需明确，按30分钟先闭实际历史，不假定无请求。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 08:50 活动摘要：95848679完成当前Details原数值供给，5508身份、254（115P2/139P3）。以.305保存的D209-control-fixture源码为输入仅加现有standing_observer，旧metadata/权重控制保留；此为受控诊断非自然物理或公共Playground验收。
+
+  - 08:54 source/static闭环：新增观察后完整240所有旧字段按generation双射全等；45主state均Move/slot0，Details45/65 root引用0缺口，双惯性90均pose/curve透传、active0。唯210 Details节点收到0.1秒graph请求，after状态只存一份历史，不能归为无请求；fresh源两节点ResetOnBecomingRelevant=True、主节点过滤RotationYawSpeed及当前Move→Movement Details cache连线全核。移除观察后240旧字段精确，源字节恢复同二进制重编后全部观察精确；原生双惯性90源输出与210重入请求仍为下一独立前置。身份核查中，截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/322/summary.json`通过；fresh source双惯性/主Move→Movement Details合同与完整240观察闭合，所有旧字段精确；45主Move、45 Details/65根引用、90惯性观察0缺口。实际active0/请求1（210、0.1秒、after缺第二历史），90pose/curve均透传；未外推旧无请求结论。移除观察后240旧字段保持，源码字节恢复同target重编全部观察精确；5546身份（旧5508不变，含恢复binary SHA）通过。初次编译因.203 observe state_id私有失败，改复用既有.211版本（仅public可见性差异）后过，未改旧fixture/生产。下一验证source重入reset/请求与90原惯性结果，再主Move/曲线/回调根；无新编号，254（115P2/139P3），截图0、性能暂停。开始08:50:45；预估结束09:20:45；实际结束08:54:16；实际用时211秒；偏差-1589秒；结果通过，原数值主Root继续开。
+
 ### 已确认差异（仅登记，未实施修复）
 
 
@@ -4136,6 +4143,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.319当前边界：完整240的45次Standing Details/55状态根输入路线已核，新增Run Start26只消费Forward，正确source Movement全可用；26 Start原生加性、10转场alpha与两惯性实际历史仍缺，先补源输入不回填target。当前254（115P2/139P3），截图0、性能暂停。
   - BF144.320当前边界：当前Run Start四成员全240原生时钟和26正确mesh加性原叶/2054骨已闭，独立26 native pose全等；Multi/Apply与10Details转场、主Standing两惯性及完整Root仍开。当前254（115P2/139P3），截图0、性能暂停。
   - BF144.321当前边界：当前26 Start Multi/Apply和10转场已连到45 Details源输出/3555骨，88骨算子控制+40curve全原生精确，消融/恢复过；主Standing两惯性、stance/linked最终消费及完整Root仍开。当前254（115P2/139P3），截图0、性能暂停。
+  - BF144.322当前边界：当前240的主Move45与双惯性90实际观察已校准，210一次0.1秒请求且不active已识别，source重入reset/90原生结果仍需独立验证；不把target透传等同source。当前254（115P2/139P3），截图0、性能暂停。
 
 - [x] BF144-U06 — Rig初始全局数据已于.245归D242/P3。最初.244发现71骨365个double差、默认240仅FootHeight double变化；.245保持全部原生算法，仅换初始数据即在受控半转产生约180°的float足旋转/实际Setter写回差，并在同source厘米算法的5个骨长舍入边界经同原生IK核产生13/15个float关节点差，分别隔离D163算法与D165单位舍入。数据移除/源码字节恢复及同target重编恢复通过，native数学读出移除/同package恢复亦通过；默认动作自然可达性未证，不因关闭U06声明无差异或修复。证据`target/bf144/245/summary.json`、`native-check.json`、`writeback.jsonl`、`restoration-check.json`；原.244记录保留。
   - BF144.136 follower记录重建补充：near-zero候选无有效end时记录leader移到最后一项；下一普通帧恢复正常leader，`AnimSync::Finalize`使follower记录失效。`BlendSpace.cpp:784–787`按已存归一化时间乘当前样本长度重建；目标此前保留秒数。18帧33个previous差最大约59.6ns，全部精确等于`(旧position/旧duration)*当前duration`；仅补这一步后4032帧所有previous也逐值一致，当前采样位置和姿态保持。证据`target/bf144/136/roundtrip-check.json`、`before-roundtrip-all-analysis.json`、`all-analysis.json`。
