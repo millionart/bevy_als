@@ -2539,6 +2539,15 @@
 
   - 完成/Gate：`target/bf144/319/summary.json`通过；fresh源编译/图与当前240的45次Details、55状态根/Movement cache owner/context逐一匹配（Walk5、Run24、RunStart26），10普通0.2秒HermiteCubic转场已核配置。实际新增仅Forward Start26、其中1次inertial标记；四源player速率1.25/起点0.15/非loop及Multi归一化绑定保持，未访问Pivot/FromWalk不展开。缺Movement、错owner、缺source state三个反例拒绝，恢复全清点精确；5429身份（旧5415不变）通过。明确保留Start原生时钟/正确mesh加性26、10alpha及主Standing两惯性实际历史为下一前置；本项不是source状态或Root数值闭合，无新编号，254（115P2/139P3），生产/reader/转换器/原资产不改。截图0、性能暂停。开始08:38:59；预估结束09:08:59；实际结束08:42:49；实际用时230秒；偏差-1570秒；结果通过，下一源Start输入后再主消费者。
 
+- [x] BF144.320 U07当前240 Run Start原始叶/时钟供给：依赖.319实际26更新与fresh四源player合同，保留完整240步四成员及reset/inertial/失活历史，在共同声明更新权重下用现有原生同步探针核位置/previous/leader，再在真实SKM RequiredBones采原Forward加性pose和全部curve。Gate：当前参数/更新槽/源资产身份、原生时钟与实际target逐值或精确归因、26原叶0target回填、独立相同时点pose控制及必要断供/字节恢复/身份；source FSM自然选择及后Apply/Details/inertial另验。开始：2026-10-24 08:43:04 +0800；预估结束：2026-10-24 09:13:04 +0800。估时依据：.315含容器修正约19分钟，现mesh probe及四播放器合同已具备，26次无marker加性叶按30分钟含独立oracle及完整240时钟比较。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 08:43 活动摘要：c6ebf285完成55输入合同，5429身份、254（115P2/139P3）；缺口只当前Run Start26原叶与10alpha，先取26原叶/240四成员时钟。实际首Start在210有inertial标记，后230到终点、231–235普通尾更新，完整保留前209失活步不偷换为26连续片段。
+
+  - 08:45 source/static闭环：完整240×4槽只有210–235的26次Forward更新，源group与actual target position/previous/leader全精确；实际SKM容器26份加性/2054骨及curve由原生取得，独立SequencePose26个相同时点全f64 TQS/curve精确。缺mesh/错clock/断pose三反例拒绝；移除首原叶使同入口失败，源脚本字节恢复后完整26数组字节相同。尚未计算Multi单leaf归一化/Apply、10Details alpha或两惯性历史，source自然FSM仍开；身份核查中，截图0、性能暂停。
+
+  - 08:46 身份边界复盘：本批identity拒绝旧.319的finalize.report一项；原因是.319首次在identity尚未完成时误启finalize并失败，该失败report被封入后又由成功finalize正常覆盖。其余旧key保持。只迁移这一个机器报告为已完成成功记录，不改原native/算法/summary；本批及后续seal排除自身finalize.report，先等identity完成再finalize，避免继续重现。无产品差异、无新增runtime启动或阈值放宽。
+
+  - 完成/Gate：`target/bf144/320/summary.json`通过；完整240×4成员960槽保留失活/210重入/231–235尾更新，26实际Forward位置/previous/leader原生全精确；正确SKM原生加性26/2054骨和curve已供给，独立SequencePose26个相同时点全部f64 TQS/curve精确。三合同反例及实际断首leaf/源脚本字节恢复同入口完整数组字节相同；5460身份（旧5428不变，仅.319已解释finalize机器报告1项迁移）通过。共同更新权重域保留，未宣称source自然FSM；后Multi/Apply/Details及主惯性仍开。无新编号，254（115P2/139P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始08:43:04；预估结束09:13:04；实际结束08:46:27；实际用时203秒；偏差-1597秒；结果通过，后原父数值消费者独立续审。
+
 ### 已确认差异（仅登记，未实施修复）
 
 
@@ -4118,6 +4127,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.317当前边界：完整当前240的前FSM原父255/缓存216供给已由正确mesh source leaf和39原生算子闭合，源context/graph/schedule合同保持；120后FSM Base与StateResult/FSM后consumer未计算，完整source状态/Root仍开。当前254（115P2/139P3），截图0、性能暂停。
   - BF144.318当前边界：当前240的source方向StateResult/FSM→120 Base→165 Lean/Movement缓存及17 Stop Base已接通，45原生算子/共享参数条件与错误输入拒绝保持；Standing Details/主stance/inertial完整历史及接入主Root仍开。当前254（115P2/139P3），截图0、性能暂停。
   - BF144.319当前边界：完整240的45次Standing Details/55状态根输入路线已核，新增Run Start26只消费Forward，正确source Movement全可用；26 Start原生加性、10转场alpha与两惯性实际历史仍缺，先补源输入不回填target。当前254（115P2/139P3），截图0、性能暂停。
+  - BF144.320当前边界：当前Run Start四成员全240原生时钟和26正确mesh加性原叶/2054骨已闭，独立26 native pose全等；Multi/Apply与10Details转场、主Standing两惯性及完整Root仍开。当前254（115P2/139P3），截图0、性能暂停。
 
 - [x] BF144-U06 — Rig初始全局数据已于.245归D242/P3。最初.244发现71骨365个double差、默认240仅FootHeight double变化；.245保持全部原生算法，仅换初始数据即在受控半转产生约180°的float足旋转/实际Setter写回差，并在同source厘米算法的5个骨长舍入边界经同原生IK核产生13/15个float关节点差，分别隔离D163算法与D165单位舍入。数据移除/源码字节恢复及同target重编恢复通过，native数学读出移除/同package恢复亦通过；默认动作自然可达性未证，不因关闭U06声明无差异或修复。证据`target/bf144/245/summary.json`、`native-check.json`、`writeback.jsonl`、`restoration-check.json`；原.244记录保留。
   - BF144.136 follower记录重建补充：near-zero候选无有效end时记录leader移到最后一项；下一普通帧恢复正常leader，`AnimSync::Finalize`使follower记录失效。`BlendSpace.cpp:784–787`按已存归一化时间乘当前样本长度重建；目标此前保留秒数。18帧33个previous差最大约59.6ns，全部精确等于`(旧position/旧duration)*当前duration`；仅补这一步后4032帧所有previous也逐值一致，当前采样位置和姿态保持。证据`target/bf144/136/roundtrip-check.json`、`before-roundtrip-all-analysis.json`、`all-analysis.json`。
