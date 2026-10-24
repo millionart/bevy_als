@@ -3190,6 +3190,16 @@
 
   - 完成/Gate：`target/bf144/397/summary.json`通过。自产Standing X/Y、真实delta和Movement更新资格经原两轴Cubic环形滤波、原两三角/排序/normalize生成240帧533样本资产/顺序/权重，native逐值精确，无native权重/时点供数。原Move Forward→Move Forward Base两缓存与SaveCachedPose初始化计数解释同资产相关性重入保留历史；首版错误reset模型120失败已排除。源Walk两叶精确length1.1333333253860474、Run两叶0.800000011920929、rate全1/single-frame全false，240有效时长按源非legacy速度倒数公式生成，此为source合同、未假称独立时钟测量。去filter首21失败、inactive全更新首0、reentry重置首120、改时间顺序累加首63；源码字节与240结果恢复，删无用import/遍历信号不变。9097身份旧9062全不变、114 ALS/184生产Rust/reader/原资产/转换器/冻结rlib保持，256（115P2/141P3），无新D；环形算序属已登记D211边界，不重复编号。后继原Movement组leader/marker clock→自主叶时点→惯性pose/Standing-Grounded Base/完整Root/Feet/属性，截图0、性能暂停。开始18:39:00；预估结束19:09:00；实际结束18:44:40；实耗340秒；偏差-1460秒；结果自然Forward动态样本/有效时长source合同Gate通过。
 
+
+- [x] BF144.398 U07自然Forward Movement组leader/marker clock独立输入生产：依赖.397独立样本/时长与.396自产X/Y/rate、.395自产更新资格/incoming；只沿原Movement8成员资格、原Forward起始position/loop/sync flags、原样本markers和UE group生命周期，以已有原native group公开probe重放自主输入并对角色240真实BS clock/sample time逐值核验，不输入角色native clock/marker phase或sample weights。先证其它7成员此域未提交，不把cached正权重当执行，不把group重入当原叶初始化；实际marker/follower影响若有则按fresh source追。Gate：原成员/初态/markers闭包、自主106更新与134保留/组空窗、全部原sample时点native角色精确和clock单元合同、必要起点/相关性保留/marker消融恢复及identity；完整pose另项，不冒充父PoseGait闭环。开始：2026-10-24 18:45:00 +0800；预估结束：2026-10-24 19:20:00 +0800。估时依据：.394自然本地clock371秒/.397样本340秒、既有.154/.157/173支持动态组clock与原pose；本项复用既有probe、35分钟含成员资格/source marker、原生重放/失配分类和消融身份；若需超出单组则拆下游不预开。仅审计不改生产/转换器/资产，截图0、性能暂停。
+  - 18:45 活动摘要：.397已提交7a7adf15/9097身份，累计256（115P2/141P3）。已有独立106更新533样本与动态rate，下一只从原图/编译目录证实际Movement单组提交和起点，原生probe消费自主输入，角色实际clock仅oracle；source完整叶pose/惯性/Grounded Base/Root/Feet/属性后继。
+
+
+  - 18:49 source/static与原生clock闭环：原Gait非Sprinting/SprintBlock0/纯Forward父域结合原TagBlend/TwoWay/MultiWay只提交Forward，其余7成员240 cached weight0作旁证；原节点start0.2、loop/CanBeLeader/SyncGroup未覆写。既有native group仅消费.396/.397自主X/Y/rate、.395自主更新/incoming，角色actual clock/markers/样本权重只oracle；240帧533实际sample资产/顺序/权重/time、106更新/134保留和组leader/order全部精确。四反例常量rate1首20/220帧、start0首20/220、第二段fresh首120/120、cached当update首0/240失败；原请求字节保持，恢复native26.011秒后全部240clock/marker/sample字段精确重复。源组43.553秒/controls26.039/zero-start25.789均成功，身份9097旧键全核中。此为原source算法在独立输入下生产时钟，不等于target clock全等；原父PoseGait/完整自然pose反馈仍开，256（115P2/141P3），截图0、性能暂停。
+
+
+  - 完成/Gate：`target/bf144/398/summary.json`通过。沿原两缓存/TagBlend/TwoWay/方向MultiWay证自然父域只提交Forward，其余7成员0cached作旁证；原start0.2/loop/SyncGroup默认CanBeLeader保持。原native group仅消费自主X/Y/rate与106更新/incoming（134不提交），不输入角色clock/marker phase/sample weight，240帧533 actual sample资产/顺序/权重/time及当前asset time、组leader/order全精确。精确四叶marker身份复用.154，cycle/pose时间不同明确保留。常量rate1/起点0首20错、第二段fresh首120错、cached当更新首0错；原请求字节保持/恢复26.011秒后240全部clock/marker/sample字段与原43.553秒重放完全同，controls26.039秒/zero-start25.789秒成功。9138身份旧9097全保持、114 ALS/184生产Rust/reader/原资产/转换器/冻结rlib不变，256（115P2/141P3），无新D。此项关闭source时钟在独立输入下的生产，不宣称target clock等价或完整自然父PoseGait反馈；下一用自主时点生成原compressed叶/Forward pose，再Details/Standing惯性与Grounded Base/Slot/Layering/Root/Feet/属性。截图0、性能暂停。开始18:45:00；预估结束19:20:00；实际结束18:50:33；实耗333秒；偏差-1767秒；结果原Movement同步时钟独立输入生产Gate通过。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
@@ -5163,3 +5173,5 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.396当前边界：两curve26精确点/720自产Standing标量与106刷新134保留、两因素消融/配置删除及9062身份通过，256（115P2/141P3）。下一Forward BS动态样本/时长和Movement marker clock，再惯性pose/Grounded Base/完整Root/Feet/属性；截图0、性能暂停。
 
   - BF144.397当前边界：240帧533自产Forward样本/源非legacy有效时长、四消融恢复与9097身份通过，256（115P2/141P3）。下一原Movement同步leader/marker clock及自主叶时点，再惯性pose/Grounded Base/完整Root/Feet/属性；截图0、性能暂停。
+
+  - BF144.398当前边界：240帧533原同步时点由自主轴/rate/更新生产、四反例/全字段恢复与9138身份通过，256（115P2/141P3）。下一自主时点compressed叶/Forward pose再惯性/完整Grounded Base/Root/Feet/属性，截图0、性能暂停。
