@@ -3250,6 +3250,16 @@
 
   - 完成/Gate：`target/bf144/403/summary.json`通过。六实际root全部40非注释pose节点/37边闭合，266主/22 Stop子状态更新；Stand160/左右Forward Plant各9次cached weight与自产资格/入口×状态权重精确，另外10方向候选全240 cached0不冒作已执行。五个有效CurveValues引脚1覆盖结构体默认0已保留，缺node/叶边拒绝并恢复；三回调与原状态事件入口、typed两Plant三枝mesh旋转/scale false/weight1/CurveOverride、240空TurnSlot全记录。四段后继依赖完整：正确SKM的Stand/Frame4/21 prepared叶与帧换算→Idle/单叶曲线/归一→Plant层骨遮罩/mesh→Stop/Main普通混合/Standing惯性资格。旧Stand抽样缺mesh身份不借用；Turn PlayRate未观察明确留边界，未默填默认；事件Slot/父组副作用和完整pose数值未假称已自主生产。9299身份旧9267全保持、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib不变，256（115P2/141P3），无新D。下一按首依赖取三时点原prepared叶/精确帧换算，再完整Base/Slot/Root/Feet/属性，截图0、性能暂停。开始19:16:00；预估结束19:41:00；实际结束19:24:52；实耗532秒；偏差-968秒；结果实际Standing/Stop完整pose依赖审计Gate通过，未将工作表冒充pose等价。
 
+
+- [x] BF144.404 U07自然Stand/Forward Plant三原mesh叶与精确帧时点：依赖.403完整实际pose闭包，实际正权重叶仅Stand frame0和WalkForward左右Plant frame4/21；从源GetExplicitTime→SamplingFrameRate.AsSeconds→float返回独立生成time，实际actor时点只oracle。用现有SequencePoseProbe原SKM_Als/prepare_compressed采样两资产三时点，全79骨/曲线及mode/mesh身份明示，生成160+9+9实际资格所需source叶输入；非活动cached权重不当执行。Gate：源帧率/字段有效值与C++换算合同、三独立time精确native actor、三原mesh prepared pose完整和错误mesh/时点最小合同、无用中间配置移除/identity；不回填target/角色最终pose，不把原生数据抽取当独立codec或完整Base等价。开始：2026-10-24 19:26:00 +0800；预估结束：2026-10-24 19:41:00 +0800。估时依据：.400单叶267秒/.403闭包532秒；此项两资产3时点，15分钟含两原native、帧率精确/数据域自测与身份，Idle/Plant运算后继。仅审计不改生产/reader/转换器/原资产，截图0、性能暂停。
+  - 19:26 活动摘要：.403提交9f26c05d/9299身份，256（115P2/141P3）；source evaluator明确AsSeconds(ExplicitFrame)返回float，实际Stand0/Left0.13333334028720856/Right0.699999988079071只oracle。先用原帧率生成请求并取正确mesh数据，旧无mesh Stand样本不替代。
+
+
+  - 19:28 source/static闭环：三实际evaluator的无绑定有效ExplicitFrame=0/4/21由引脚/typed Node字段取出；源FFrameRate.AsSeconds整数double→GetExplicitTime float生成0/0.13333334028720856/0.699999988079071，与actor三oracle精确，请求不读actor时点。原两资产native26.967/25.950秒返回正确SKM_Als/animation_pose/compressed、三79骨237唯一TQS/曲线、共用有效79骨parent序；160+9+9资格引用178/14062输入骨行齐。错误mesh/时点/raw mode/缺骨四合同均拒绝；去硬编码生成、改为源字段生成后两原请求字节不变，旧无mesh Stand数据未借用。9299旧身份全核中，256（115P2/141P3）；此为source数据准备，不宣称独立codec或完整pose，下一Idle曲线/Plant归一与三枝mesh layer→Stop/Main。截图0、性能暂停。
+
+
+  - 完成/Gate：`target/bf144/404/summary.json`通过。原typed字段/引脚、无动态绑定取有效ExplicitFrame0/4/21；源AsSeconds整数double→float得到三个时点，全部等actor oracle且不以oracle生成请求。两资产原native26.967/25.950秒、正确SKM79/animation_pose/compressed采样三pose237唯一骨行、共同有效parent序；178实际输入引用/14062骨行齐，Stand160/左右Plant9+9。错误mesh/时点/raw/缺骨四合同拒绝；帧生成由硬编码改为源字段后请求字节保持，旧无mesh Stand数据未借用。9325身份旧9299全保持，114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib不变，256（115P2/141P3），无新D。只关闭源数据与时点，不把原生抽取当独立codec、Idle/Plant运算或完整pose等价；下一Idle曲线/空TurnSlot与Plant单叶归一、三枝mesh层→Stop/Main/Grounded Base/Slot/Root/Feet/属性。截图0、性能暂停。开始19:26:00；预估结束19:41:00；实际结束19:29:15；实耗195秒；偏差-705秒；结果三原mesh叶/精确帧时点Gate通过。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
@@ -5235,3 +5245,5 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.402当前边界：106 Details惯性后pose/8374骨212曲线、请求去除/恢复与空窗无信号消融/9267身份通过，256（115P2/141P3）。下一Standing三主状态和Stop实际子图，再完整Grounded Base/Root/Feet/属性；截图0、性能暂停。
 
   - BF144.403当前边界：六root40节点37边/266+22状态资格、Stand160和Plant9+9实际叶、五pin覆盖/两layer/副作用工作表与9299身份通过，256（115P2/141P3）。下一三原mesh叶/帧换算→Idle/Plant/Stop/Main Base，完整Root/Feet/属性未闭；截图0、性能暂停。
+
+  - BF144.404当前边界：三原SKM prepared叶237骨/178输入引用与自主frame时点、四负控制/9325身份通过，256（115P2/141P3）。下一Idle曲线/Plant归一与三枝mesh层，再完整Stop/Main/Base/Root/Feet/属性；截图0、性能暂停。
