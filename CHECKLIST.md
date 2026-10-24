@@ -3290,6 +3290,16 @@
 
   - 完成/Gate：`target/bf144/407/summary.json`通过。18 Stop/240 Standing普通pose全由自主子pose和ordered stack生成，214主直传、26主/4子转场；2370全骨TQS+168曲线原native精确，输入/输出/空子机资格齐。五批原native约31秒各成功；首恢复set遍历重排曲线控制号的审计错误已定位：稳定键排序，仅末批以新文件重跑30.994秒，原记录保留、240主/18子pose字节与排序前一致；稳定原生全过后再做去归一/颠倒pose两消融，分别首Standing20/root及pelvis失败，字节恢复后全2370/168精确。删临时早检脚本避免重复步骤。9451身份旧9392全保持、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib不变，256（115P2/141P3），无新D。仅源普通状态pose完整，最终Standing惯性请求/skip-cache转发与Grounded封装、实际角色/target最终pose尚未闭合；下一按该请求资格→Grounded Base/Transition Slot→Layering/Root/Feet/属性。截图0、性能暂停。开始19:40:21；预估结束20:00:21；实际结束19:47:05；实耗404秒；偏差-796秒；结果完整普通Stop/Main pose生产Gate通过。
 
+
+- [x] BF144.408 U07自然Standing最终惯性请求域与Grounded Base包装：依赖.407完整240普通Standing pose、.402 Details请求与.393缓存上下文、.388 Grounded实际compiled目录；先完整追Standing d631节点到Root输出的pose封装和所有可达惯性请求来源（主FSM/Turn槽/Details skipped-cache转发），不能仅因本机无inertial edge就推断透传。再沿Grounded实际Standing路径核Update/Evaluate/curve包装，独立生成可供主Transition Slot的240源Base；如果发现未闭请求源/参数先明确分依赖，不用角色Root或目标Base回填。Gate：fresh message scope/缓存转发/Slot合同、240资格与默认输入、最终惯性原生240全pose校准或明确source透明证明、Grounded封装和必要反例/identity；完整Slot/Layering/Root/Feet/属性后继。开始：2026-10-24 19:47:22 +0800；预估结束：2026-10-24 20:12:22 +0800。估时依据：.402惯性348秒/.407普通pose404秒，当前多跨cache scope与Grounded linked边/曲线包装，25分钟含源请求闭包/原生整段和消融身份；若参数/额外状态超当前域则先拆完整依赖项。仅审计不改生产/reader/转换器/资产，截图0、性能暂停。
+  - 19:47 活动摘要：.407提交26b26ad1/9451身份，256（115P2/141P3）。主三状态exit均standard、Turn槽全空，但Details两请求仍需按实际上下文/skip-cache验证能否转到Standing；首做真实source消息与Grounded root闭包，不提前给最终Base通过结论。
+
+
+  - 19:52 source/static与整段惯性闭环：两Details请求22/122处，Details/Movement缓存各仅1正上下文，skip stacks0；主实际exit全standard，Grounded初始化及240均Standing/weight1/无栈，九AnimBP+actor无直接惯性请求。检查槽按group共享map（不能只凭Turn空槽），原Transition队列调用classic动态montage→FMontageBlendSettings构造Standard，无惯性入/出；零view无Turn队列沿.405。原Standing d631/property_Inertialization_1与Grounded f877/默认Inertialization在240自主pose输入下native26.486/25.979秒、37920骨及全部曲线精确透传；错误复制Details请求仅22/23/122/123改变，恢复240字段精确。source root链/Linked Standing Input/实际Standing缓存闭合，PoseStanding1以及PoseGrounded/FootLeftIk/FootRightIk1按层后原pin加入，每键去除合同拒绝；主Grounded唯一消费者正是Transition Slot.Source。9451旧身份核中，256（115P2/141P3）；源240 Base已生成，仍有父参数与完整Root反馈、Slot/Layering/Feet/attributes及target对照边界。截图0、性能暂停。
+
+
+  - 完成/Gate：`target/bf144/408/summary.json`通过。source完整请求域：主三状态standard、Grounded240稳定Standing/weight1无栈；Details两请求处两cache均1实际context无skip，不向外转发；蓝图无直接请求，槽group共享map经classic Transition动态montage的Standard构造/入出路径证明无请求，零view Turn队列不触发。两个原惯性节点240自主输入共37920骨/全部曲线native精确透传，错误转发只改变22/23/122/123，恢复整240字段精确；native26.486/25.979秒。Standing/Grounded原root链、Linked Standing Input/Standing缓存/源曲线四pin1闭合，主Grounded唯一直接消费者Transition Slot.Source；四键去除各失败，形成240源Grounded Base。9479身份旧9451全不变、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib保持，256（115P2/141P3），无新D。该source Base仍显式消费原父参数，不等于完整反馈或实际角色/target最终pose；下一完整Transition Slot→Locomotion/Layering→Head/Rig/Root及Feet/attributes/独立反馈，截图0、性能暂停。开始19:47:22；预估结束20:12:22；实际结束19:53:45；实耗383秒；偏差-1117秒；结果Standing/Grounded最终惯性请求域与完整source Base包装Gate通过。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
@@ -5283,3 +5293,5 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.406当前边界：双Plant18状态pose/1422骨36曲线/独立mask与root权重、两因素消融恢复/9392身份通过，256（115P2/141P3）。下一Stop/Main普通pose与Standing惯性，再完整Base/Root/Feet/属性；截图0、性能暂停。
 
   - BF144.407当前边界：18 Stop/240 Main普通pose、2370骨168曲线全native/两消融恢复/稳定编号修复/9451身份通过，256（115P2/141P3）。下一Standing惯性请求资格/Grounded Base，再完整Slot/Root/Feet/属性；截图0、性能暂停。
+
+  - BF144.408当前边界：完整240 source Grounded Base、两原惯性37920骨/曲线透传与错误转发反例/四曲线包装/9479身份通过，256（115P2/141P3）。下一主Transition Slot完整pose→Locomotion/Layering/Root，独立反馈/Feet/属性及target最终比较仍开；截图0、性能暂停。
