@@ -2710,6 +2710,13 @@
 
   - 完成/Gate：`target/bf144/343/summary.json`通过；完整251入口/Default wrapper15→Overlay16父链与Layering4传递、fresh12源节点/五参数绑定/两reroute/六叶已核。惯性active0/pending0、暖0一次0.2请求，源输出/缓存251全等；Idle251 rootweight.75/rate1，五evaluator更新12/6/4/44/223，三固定帧0/1/2。旧88观察逐值同而后163原时钟/原叶资格未冒用；新观察去除完整历史同、源码字节恢复同target重编全部251观察恢复。6519身份（旧6473不变/恢复binary SHA）通过。完整原Overlay/自然反馈不在本Gate，下一原251时钟+正确mesh叶，再组合/Layering；无新编号，255（115P2/140P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始10:51:43；预估结束11:11:43；实际结束10:58:48；实际用时425秒；偏差-775秒；结果全251入口/精确输入缺口Gate通过。
 
+- [x] BF144.344 U07当前251 Overlay原同步时钟与正确mesh原叶：依赖.343全251真实类/权重/叶/参数需求，fresh重提Default源图与Idle/Default_Poses源叶，在SKM_Als required bones上执行251步Secondary sole-leader .75及weight1控制，原时钟驱动原Idle姿势、固定帧0/1/2原姿势供给后继。Gate：完整251原时钟/压缩/mesh身份、旧88时钟连续/实际公共clock重放与D201因素控制、固定原叶/时间/全部骨curve、0target pose回填、必要算序消融源码字节恢复同target重编/identity；不合成完整Overlay、不把共同参数当自然原反馈。开始：2026-10-24 10:59:02 +0800；预估结束：2026-10-24 11:19:02 +0800。估时依据：.343全入口约7分钟、旧.228叶/clock约15分钟、.339正确mesh原叶/数值约6分钟；已有原生clock/mesh与frozen公开重放，按20分钟含全251新尾/循环与两叶核验，不扩组合。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 10:59 活动摘要：5b6bfe30完成全251入口需求，6519身份、255（115P2/140P3）；需独立clock推动Idle全251与Default三固定帧，原反馈五参数/Overlay组合另后继。
+
+  - 11:02 source/static闭环：fresh保存的AnimGraph/Overlay/EventGraph及资产字段精确（编译临时图GUID随机不作source字段），正确SKM原Default三帧237骨与Idle251/19829骨供给，原time0/float1/30/2/30已核。原.75/1控制clock/pose全同，旧88 clock字段全同；245/251时钟不同、首index6、循环81/161/241，公共目标重放全251同；仅改direct source秒数控制全251 native同，去控制index6失败，源码字节恢复同target重编恢复。Default新旧域仅三骨8 R double/3 F32差，Idle旧88源时点所有pose同，T/S/curve/骨名parent同。完整Overlay组合/反馈仍后继，下一身份，255（115P2/140P3），截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/344/summary.json`通过；fresh Default保存pose/Event图和两源叶字段/正确SKM身份已核，Default原三帧237骨、原时钟Idle251/19829骨供给后继，0target pose/time补值。旧88 clock字段逐值同，.75与1控制clock/pose全同；245时钟差首index6、循环81/161/241，公共目标tick251实际精确与direct秒累加251 native精确，消融首6失败并源码字节恢复同target重编完整251恢复。旧Skeleton域Default三骨8 R double/3 F32差、Idle旧88姿势全同，其他T/S/curves/names/parents同。6560身份（旧6519不变/恢复clock binary SHA）通过。D201补充全251证据，无新编号，255（115P2/140P3）；完整Overlay组合/Layering/原Root反馈与Rig后继，生产/reader/转换器/原资产未改，截图0、性能暂停。开始10:59:02；预估结束11:19:02；实际结束11:02:43；实际用时221秒；偏差-979秒；结果完整原clock/正确mesh叶Gate通过。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D257 / P3 — Transition正向终止采样遗漏源section末端缓冲。
@@ -4133,6 +4140,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - BF144.228 Default Overlay Idle补充：actual加载11+前缀77共88次为根同步组唯一成员、权重0.75、长度2.6666667461395264/rate1/无marker，首零步长保留；原生0.75与1权重控制时钟和全部pose相同。index6起82步秒数不等，首source0.20000000298023224、target0.19999998807907104；public SourceSyncPlayerTick逐步精确重放当前88步，仅去秒数↔phase往返、按fresh AdvanceTime直接累计则88步精确匹配native。原生88份Idle姿态按源时钟保留，未将时钟差算作新差异或宣称可见故障；证据`target/bf144/228/clock-check.json`、`clock-restored.jsonl`与`original-overlay-leaf-inputs.json`。生产未修。
 
+  - BF144.344完整当前Overlay Idle补充：扩为暖11+当前240的251步，根唯一成员.75/rate1/同mesh，.75与1控制全部clock/pose精确；245步时点不等，首index6与旧88一致，source循环81/161/241均覆盖。公共tick精确重放target251，direct source秒累加精确匹配native251，去控制首index6失败并源码字节恢复同target重编恢复；无新编号或可见故障升级，证据`target/bf144/344/clock-check.json`、`clock-restoration-check.json`及`idle-source.json`。
+
 - [ ] BF144-D202 / P2 — 同步组使用稳定同分排序，改变不同速率播放器的leader、播放时钟和自动退出时点。
   - Source：fresh `AnimationAsset.cpp:121–124`按FAnimTickRecord的LeaderScore调用原生Sort；`IntroSort.h:60–82`的小集合选择排序不保留同分输入顺序。当前4个Land组播放器均CanBeLeader，普通Land速率1，Light/Heavy Additive分别1.75/1.5；同分排序会改变实际推进速率及新加入leader的初始时间。
   - Target：`sync_group_phase.rs:573–594`在CanBeLeader同分时按source_order升序固定先到者，与本批原生2–4成员排序不同。actual main同步出口使用这一顺序选择leader，其他播放器随后按其长度比例取时。
@@ -4322,6 +4331,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.341当前边界：当前240 PostLocomotion无活动copy与Layering Locomotion缓存/720实际读取原供给闭合；源150顶图声明9 use本3实际覆盖，后需Base Poses/Overlay原输入，再Layering/Head/Rig及自然反馈，255（115P2/140P3），截图0、性能暂停。
   - BF144.342当前边界：当前240原Base Poses/18960骨在共同反馈权重下供给，150 native/生产重放/消融恢复通过；原反馈权重循环仍开，下一完整Overlay原入口/叶/时钟/组合，再Layering/Head/Rig/自然反馈，255（115P2/140P3），截图0、性能暂停。
   - BF144.343当前边界：全251实际Default入口/惯性/缓存与六叶五绑定已核，6519身份，255（115P2/140P3）。下一原251 Idle clock与正确mesh原叶，后完整Overlay/Layering/Root反馈；截图0、性能暂停。
+  - BF144.344当前边界：原251 Idle时钟/正确mesh原叶与三固定帧已供给，D201245错时仍未修，6560身份、255（115P2/140P3）。下一全251 Overlay参数/组合，再Layering/Root原反馈；截图0、性能暂停。
 
 - [x] BF144-U06 — Rig初始全局数据已于.245归D242/P3。最初.244发现71骨365个double差、默认240仅FootHeight double变化；.245保持全部原生算法，仅换初始数据即在受控半转产生约180°的float足旋转/实际Setter写回差，并在同source厘米算法的5个骨长舍入边界经同原生IK核产生13/15个float关节点差，分别隔离D163算法与D165单位舍入。数据移除/源码字节恢复及同target重编恢复通过，native数学读出移除/同package恢复亦通过；默认动作自然可达性未证，不因关闭U06声明无差异或修复。证据`target/bf144/245/summary.json`、`native-check.json`、`writeback.jsonl`、`restoration-check.json`；原.244记录保留。
   - BF144.136 follower记录重建补充：near-zero候选无有效end时记录leader移到最后一项；下一普通帧恢复正常leader，`AnimSync::Finalize`使follower记录失效。`BlendSpace.cpp:784–787`按已存归一化时间乘当前样本长度重建；目标此前保留秒数。18帧33个previous差最大约59.6ns，全部精确等于`(旧position/旧duration)*当前duration`；仅补这一步后4032帧所有previous也逐值一致，当前采样位置和姿态保持。证据`target/bf144/136/roundtrip-check.json`、`before-roundtrip-all-analysis.json`、`all-analysis.json`。
