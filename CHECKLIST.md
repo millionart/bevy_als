@@ -3382,6 +3382,16 @@
 
   - 完成/Gate：`target/bf144/412/summary.json`通过。自然零view当前Head域原6 pose节点/五边与真实主Layering→Head→ControlRig.Source直接边覆盖，LookForward time.5/alpha1/root-space false全部240实际资格齐；原355正确SKM prepared Look+单叶归一匹配身份/域复用。自主完整Layering Base经原mesh Apply源核，240/18960骨TQS及全部曲线与原Head whole-native（26.693秒）和实际角色RigSource双重逐值精确，原HeadBase/最终RigSource只oracle未填模型。去最后outer归一13155骨失败/curves保持，源码和240pose字节恢复后两Gate再过。9993身份旧9963全保持、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib不变，256（115P2/141P3），无新D。当前自然零view Head完整producer闭合，非零view整体反馈/完整Rig Root/Feet/attributes及target最终对照未闭；下一完整ControlRig在该自主源pose上按真实外部/预热历史执行。截图0、性能暂停。开始20:57:58；预估结束21:17:58；实际结束21:01:58；实耗240秒；偏差-960秒；结果自然Head→实际RigSource完整pose Gate通过。source-porting1.14升级只复用已有流程并服从用户项目纪律，不迁移清单结构或启动生产修复。
 
+
+- [x] BF144.413 U07自然完整ControlRig输入/初始化/外部历史资格与Root重放：依赖.412自主完整240 RigSource和.358–.373旧Rig定义/执行/外部合同，沿当前原角色实际initialization+每帧Rig执行 trace、GetControlRigInput/外部变量/物理query/Delta与骨架初态证明输入历史。匹配身份/域的原工具和执行核复用，旧受控后缀或target侧query不得冒充自然source；先建立完整实际历史manifest及最小重放能力，再在自主pose上执行原Rig全链并对最终Root/mesh；缺字段/历史先明示必要前置，不从最终Root反填。Gate：source真实入口/全单元与初始化完整、自然所有240执行及外部/query/clock对应、必要原Rig整体重放与Root实际消费者/消融恢复/identity；独立物理和父反馈、Feet/custom attributes/target残差未证明处保持开。开始：2026-10-24 21:02:12 +0800；预估结束：2026-10-24 21:37:12 +0800。估时依据：.359外部manifest和.366–.373连续Rig旧闭环已封、.412完整输入240秒，本项自然初态/查询新域与全Rig重放，35分钟含合同匹配/缺口/原生或已有工具Gate；如历史能力缺失按事实拆必要前置不缩完整Root目标。仅审计不改生产/转换器/原资产，必要读取工具前置遵用户规则另登记；截图0、性能暂停。
+  - 21:02 活动摘要：.412提交bda518f6/9993身份，256（115P2/141P3）。当前240 RigSource已精确实际source边界，下一实际Rig求解/初始化与外部历史；源trace本身的输入时点也要资格，不把GetControlRigInput后getter重算当Rig消费。截图0、性能暂停。
+
+  - 21:08 source/static与完整Root/mesh重放：既有RigNodeHistoryProbe可连续实例保留状态，当前源初始化一次delta0/driver240、RigInput只读寄存器394（VM无writer）、floor实际1500×1500×50/-50cm与mesh-world时点齐；每帧从typed fields以17位数重建RigInput，避免ExportText六位舍入，仅注入RigInput、不注入脚/骨盆计算输出。自主完整Head240+显式source初始RigSource经原Rig241次，19039 Root骨TQS/所有曲线及240×12外部变量精确实际角色；五个初始scalar缺numeric字段只能文本核对，保留该证据限度。初始mesh尚reference、driver末端FinalizePoseEvaluationResult再NormalizeRotations，匹配源合同补此发布阶段后全部18960mesh骨TQS精确；原未归一13131driver骨差不是新产品差异。正在去初始化原生消融/恢复；独立Rig各单元producer迁移/物理和父反馈、非零view与target最终残差仍开。256（115P2/141P3）；截图0、性能暂停。
+
+
+  - 完成/Gate：`target/bf144/413/summary.json`通过。源实际单次delta0初始化/240执行与RigInput只读、typed精确17位导入、source flat floor/mesh-world/Delta历史资格齐；在自主完整Head240上运行原ControlRig，含初始化241共19039 Root骨TQS/全部曲线精确真实主Root，240×12外部变量逐值精确；初始化五scalar仅ExportText可核，未宣称其numeric直接取证。mesh初始reference/末端NormalizeRotations source合同补齐后240/18960mesh骨TQS亦精确。去零delta初始重放，全部240输入/输出/曲线/world/外部变量不变，故最终流程删除额外初始化步骤；同reader最终240重跑25.938秒精确原带初始化后缀，source/产物字节恢复与请求重建通过。去末端归一13131mesh骨失败，保留该必需一步。10021身份旧9993全不变，114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib未改，256（115P2/141P3），无新D。本项闭合自然源域的原Rig整体执行到真实Root/mesh观察，尚未把原VM输出冒充独立单元数学producer；独立Feet/反馈/物理、Ragdolling其它域/custom attributes、target整体残差及非零view仍开。截图0、性能暂停。开始21:02:12；预估结束21:37:12；实际结束21:12:01；实耗589秒；偏差-1511秒；结果当前完整原Rig重放Gate通过，后继独立Rig数学生产者迁入自然域。
+
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
