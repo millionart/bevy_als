@@ -3510,7 +3510,30 @@
   - .420完成/Gate：`target/bf144/420/summary.json`通过。完整目标240前态/输入公开核480侧全字段重放精确；源/目标scalar锁量956步精确，22差全部由prior曲线历史恢复。6实际foot-limit经原生共同输入与64矩阵端点证明source/native和current/public各自一致；只换Atan使6Final/6 actual RigInput旋转改变，只换源degree系数使4Final/4 actual输入改变，位置/锁量/目标/前态不变。两个因素移除控制各返回精确actual current，源码字节恢复同target重编全部240消费者产物byte同，新增D259/P3与D260/P3并记旧测试漏检。10545身份旧10475保持、114 ALS/184生产Rust/冻结rlib/转换器/原资产未改，reader必要扩展已在.420b独立Gate/提交；累计258（115P2/143P3）。此项完成当前反馈入口与首实际数值cause闭环，relative/final乘法精度和extra Normalize仍真实待证，目标全Root、外部父状态、非零完整Root/custom attributes继续开；不声称视觉故障或全Root恢复。开始22:06:36；预估结束22:41:36；实际结束22:37:05；实耗1829秒（含420a/420b必要依赖，未重置）；偏差-271秒；结果跨侧Feet实际输入/首两独立cause Gate通过。截图0、性能暂停。
 
 
+- [x] BF144.421 U07 FootLock共同输入的world quat精度/额外归一剩余因素：依赖.420 native13+当前delta6/64矩阵和实际consumer重放，fresh核源double LockRotationWorldSpace×目标逆→FQuat4f降级，以及末FQuat4f offset升double乘LockWorld无Normalize；目标全F32乘法和额外Normalize分别按当前实际输入逐因子隔离。先确定是否已证D的同cause扩consumer或独立未移植合同，不因小数值差合并无依据；必要common native新输入只复用现reader，不重复扩同能力。Gate：剩余三因素独立输入/实际consumer与最小正负控制、源原生真值、单因恢复/遗漏消融及源码字节恢复同target重编/identity，明确所有六限位总差未完全归因处。自然FootTarget pose来源/完整Root upstream、外界状态/非零view/attributes仍保留后继，继续整个ALS系统审计不修生产。开始：2026-10-24 22:37:37 +0800；预估结束：2026-10-24 23:07:37 +0800。估时依据：.420原生/observer必要前置已齐，当前三个具体数值分支与64组合端点已校准，30分钟含共同输入边界、actual RigInput consumer和恢复；不重复跑原全source Rig，也不把一项可见性结论冒作全系统无差异。仅审计不改生产/转换器/原资产，截图0、性能暂停。
+  - 22:37 活动摘要：.420提交1dcedcbc/10545身份，258（115P2/143P3），D259/D260仅登记未修。当前余relative float product单因2份源投影、末乘F32单因6份和extra Normalize单因1份，矩阵中source/current上下文敏感性不同，必须独立确认而非沿用组合数字。截图0、性能暂停。
+
+
+  - 22:49 .421 source/static与三剩余因素闭环：当前相同offset/lock的6原生double products精确独立源核，投影5份异于current F32；复用420b原相同lock/target的relative原生值，投影6份不同。保留runtime坐标/算序仅提F64，6份全部投影回native，排除轴与算序混因。实际相同before-foot前态仅修relative精度有1Lock缓存差而Final/RigInput不变；仅修末乘精度5Lock/2Final/2 actual输入差；仅移除额外Normalize有1Lock/Final/actual输入差，首frame172/right lock_amount1。source FQuat world字段与限位末无Normalize/Final混合另Normalize的阶段事实齐，分别新增D262/P3（两个world乘法提前F32同源）和D261/P3（多余阶段），不并入D259/260。三因素移除均回精确current、源码字节恢复同target重编240完整产物byte同，未用Atan副本删除而current行为保持。当前累计260（115P2/145P3）、10545身份核中，生产/reader/转换器/原资产不改；完整target采样pose/Root上游、外部父状态/连续反馈、非零view/attributes后继。截图0、性能暂停。
+
+
+  - .421完成/Gate：`target/bf144/421/summary.json`通过。6实际相同current offset/lock原生double product及已封relative原生值确认F32投影差5/6；同runtime坐标/算序只提F64全部投影精确native。source/target世界字段精度事实和限位末raw/Final另归一阶段已核。仅修relative当前1缓存差/无Final声明；仅修末乘5Lock/2Final/2RigInput；仅去extra Normalize1Lock/Final/RigInput。三受控因素移除各回actual current，源码字节恢复同target重编240完整产物byte同，unused helper去除不改current。新增D261/P3、D262/P3与source-target consumer/漏检记录，累计260（115P2/145P3）；10606身份旧10545保持、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib不变，未修产品。当前足限位剩余因子闭合并未恢复完整source-target Root，target FootTarget采样pose/Root上游、外部父输入与非零完整Root/custom attributes仍开。开始22:37:37；预估结束23:07:37；实际结束22:49:35；实耗718秒；偏差-1082秒；结果当前world quaternion精度/归一两独立cause Gate通过。截图0、性能暂停。
+
+
 ### 已确认差异（仅登记，未实施修复）
+
+- [ ] BF144-D262 / P3 — Foot Lock世界四元数中间乘法提前降为F32，改变限位缓存与实际Rig输入。
+  - Source：fresh `AlsFeetState.h:18–28`的TargetRotationWorldSpace/LockRotationWorldSpace为FQuat double，`AlsAnimationInstance.cpp:1562–1574`先double相对乘法再降FQuat4f取twist，末段将FQuat4f offset升double乘原LockWorld。local/FinalRotation降F32发生在各自消费阶段，不能反推世界乘法也应F32。
+  - Target：`src/als/state/foot_ik.rs:194–206,580–584`世界字段为Quat F32，relative和最终offset×lock两个乘法直接在F32执行；这是精度阶段差，与D259的Atan、D260的系数、D261的末Normalize分别有独立对照。
+  - 原生/同输入：6次实际当前offset与lock完全固定，旧通用native rotation product直接确认double结果，投影后5份不同于当前F32 product；原相同lock/target的native relative投影6份不同。保留目标坐标/算序、只提升runtime运算为F64即6份全投影精确native，排除了轴转换/算序混因。单换relative精度当前轨迹仅1锁缓存差，未声称Final变化；单换末乘精度产生5锁缓存/2Final/2 actual RigInput rotation变化。
+  - 消费/漏检：首末乘Final消费者frame172/right，前态/目标/锁量/所有位置及Atan/系数/Normalize均保持；数值见`target/bf144/421/native-check.json`、`consumers-check.json`、`final-product.json`。旧锁测试用同F32公开helper自生期望，未从原生double world乘法到F32实际consumer验证。三因子移除各回当前，源码字节恢复同target重编全部240产物byte同；生产未修，整体连续world/Root恢复仍未证。
+
+- [ ] BF144-D261 / P3 — Foot Lock限位后额外归一化世界锁旋转，改变源保留的数值状态。
+  - Source：fresh `AlsAnimationInstance.cpp:1571`直接写`FQuat{OffsetRotation} * LockRotationWorldSpace`，该位置无Normalize；最终旋转混合在此前1519–1520另有明确Normalize，阶段不能合并。源原生foot_lock_rotation与普通rotation_product保留raw double输出，已用当前相同输入校准。
+  - Target：`src/als/state/foot_ik.rs:584`在同一次限位末尾无条件normalize product，`foot_ik_apply.rs:529–539`随后再次混合并归一化Final。只删除前一次Normalize、保留F32乘法/系统Atan/角度系数/目标/前态，独立改变当前frame172/right的LockRotation、FinalRotation和actual RigInput rotation各1份。
+  - 实际consumer：同帧lock_amount=1，当前Rig q为(−0.5872513651847839,0.6107494831085205,−0.38707616925239563,0.36372095346450806)，单因素无额外Normalize为(−0.5872514247894287,0.6107495427131653,−0.3870762288570404,0.36372098326683044)。这是精确数值阶段差，不宣称肉眼动作异常或全部源Root已恢复。
+  - 证据/漏检：`target/bf144/421/consumers-check.json`、`no-normalize.json`及`controls-check.json`；旧foot-limit测试只检查普通角度与归一化期望，没有将源世界锁缓存的raw乘法与后续Final阶段分开。移除该受控因素回到current精确，源码字节恢复同target重编240产物byte同，其他相对/末乘精度因素保持独立；生产未修。
+
 
 - [ ] BF144-D260 / P3 — Foot Lock旋转限位的弧度转角度系数没有保留源float计算阶段。
   - Source：fresh `AlsAnimationInstance.cpp:1560–1574`将FQuat4f.GetTwistAngle结果交给`FMath::RadiansToDegrees(float)`；`UnrealMathUtility.h:869`按float常数`180.f / UE_PI`计算，系数57.2957763671875。该float角度随后裁到±40°并构建FQuat4f偏移。
