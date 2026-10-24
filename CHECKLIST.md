@@ -3240,6 +3240,16 @@
 
   - 完成/Gate：`target/bf144/402/summary.json`通过。原Details a346/runtime Inertialization节点无bone/curve filter/profile/tag，两活动窗各53帧、两请求22/122/0.1；fresh源重入清两历史/状态，恒定组件旋转和未附着Actor路径限定当前local空间。原native26.525秒消费自产pose/请求/delta，生成106惯性后pose共8374骨/212曲线；只22/23/122/123四帧/316骨行改变，去请求完全等原输入，恢复全部106pose/curve字段精确。跨空窗保留历史在本例也全同（请求前已有两帧新历史），作为无信号消融，不推论reset可普遍移除；未新增适配状态或reader分支。单native请求合并，删combine脚本和三中间请求后请求/106输出字节不变。9267身份旧9241全保持，114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib不变，256（115P2/141P3），无新D。该source原生producer不是实际角色惯性专用观察或target parity；下一Standing三主状态/实际Stop子状态pose闭包再完整Grounded Base/Slot/Layering/Root/Feet/属性。截图0、性能暂停。开始19:09:00；预估结束19:29:00；实际结束19:14:48；实耗348秒；偏差-852秒；结果自然Details惯性source生产Gate通过，无需工具扩展。
 
+
+- [x] BF144.403 U07自然Standing三主状态/实际Stop子图完整pose依赖：依赖.391/.392主Standing与Stop子机自产状态/权重、.402自产Details惯性后pose；仅沿自然Idle/Move/Stop主root与实际进入的Stop Entry/Plant子状态递归原pose节点、缓存和原leaf/config，建立所有有效pose/曲线/骨mask/alpha/时钟依赖工作表，明确已自产与首未闭输入，不能以native角色子pose直接回填。先复用身份不变compiled/source提取，缺合同才原工具读取；不预开Rotate/Pivot/Lock未访问域或已完成target任务。Gate：实际状态资格+完整root-to-leaf闭包、source节点/字段/资产身份映射与无遗漏自测、下一项按依赖清晰拆分/identity；本项是完整三状态依赖审计，未生产的leaf/运算明确留开，不把工作表当完整pose等价。开始：2026-10-24 19:16:00 +0800；预估结束：2026-10-24 19:41:00 +0800。估时依据：.388七机目录/.400三状态12节点267秒，当前增主Idle/Move/Stop和Stop实际Entry/Plant双侧含缓存/per-bone/curve输入，25分钟含闭包/资格/缺口和身份，具体数值生产后继按依赖单列。仅审计不改生产/转换器/资产/reader，截图0、性能暂停。
+  - 19:16 活动摘要：.402提交22ca7ddc/9267身份，256（115P2/141P3）。Details原pose已能由自主参数/时点生产，剩主Standing/Stop组合依赖；先按自产state实际更新集合提取各root全闭包，确认Idle叶及Stop骨mask/曲线输入，不用角色source子pose绕过缺producer。
+
+
+  - 19:23 source/static闭环：六实际root共40非注释节点/37 pose边全部可达（13 evaluator含10零方向候选、2层骨混合、4 ModifyCurve、4枚举、3回调、4 Details cache等），独立状态资格266主/22 Stop子更新。实际Stand160次/time0、左PlantForward9次/time0.13333334028720856、右9次/time0.699999988079071的cached weight均等自产状态权重×入口，另10叶240全0；时点目前仅oracle，不当自主帧换算。五个CurveValues引脚真实1覆盖Node结构默认0，缺node/叶边合同拒绝；回调InitializeTurnInPlace/RefreshTurnInPlace/RefreshDynamicTransitions及状态事件入口都记录，事件后继Slot/父组副作用不假称已自主重放。两Plant typed字段明确三侧枝/mesh rotation true、scale false、weight1/CurveOverride；Idle TurnSlot240源权重1/槽0。首缺Stand/Plant正确SKM原prepared数据，旧Stand样本缺mesh身份不复用；随后frame换算/曲线/单叶归一→Plant mask/mesh→Stop/Main组合及Standing惯性资格。Turn PlayRate不在既有角色观察，已读default1/sole queued-turn writes但不默填实际值；该binding和Idle曲线合同列清后继边界。9267身份核中，256（115P2/141P3），截图0、性能暂停。
+
+
+  - 完成/Gate：`target/bf144/403/summary.json`通过。六实际root全部40非注释pose节点/37边闭合，266主/22 Stop子状态更新；Stand160/左右Forward Plant各9次cached weight与自产资格/入口×状态权重精确，另外10方向候选全240 cached0不冒作已执行。五个有效CurveValues引脚1覆盖结构体默认0已保留，缺node/叶边拒绝并恢复；三回调与原状态事件入口、typed两Plant三枝mesh旋转/scale false/weight1/CurveOverride、240空TurnSlot全记录。四段后继依赖完整：正确SKM的Stand/Frame4/21 prepared叶与帧换算→Idle/单叶曲线/归一→Plant层骨遮罩/mesh→Stop/Main普通混合/Standing惯性资格。旧Stand抽样缺mesh身份不借用；Turn PlayRate未观察明确留边界，未默填默认；事件Slot/父组副作用和完整pose数值未假称已自主生产。9299身份旧9267全保持、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib不变，256（115P2/141P3），无新D。下一按首依赖取三时点原prepared叶/精确帧换算，再完整Base/Slot/Root/Feet/属性，截图0、性能暂停。开始19:16:00；预估结束19:41:00；实际结束19:24:52；实耗532秒；偏差-968秒；结果实际Standing/Stop完整pose依赖审计Gate通过，未将工作表冒充pose等价。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
@@ -5223,3 +5233,5 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.401当前边界：106 Details惯性前pose/3792加性+632普通转场骨/16曲线、两消融字节恢复和9241身份通过，256（115P2/141P3）。下一Details原0.1惯性/相关性历史，再Standing-Grounded Base/完整Root/Feet/属性，截图0、性能暂停。
 
   - BF144.402当前边界：106 Details惯性后pose/8374骨212曲线、请求去除/恢复与空窗无信号消融/9267身份通过，256（115P2/141P3）。下一Standing三主状态和Stop实际子图，再完整Grounded Base/Root/Feet/属性；截图0、性能暂停。
+
+  - BF144.403当前边界：六root40节点37边/266+22状态资格、Stand160和Plant9+9实际叶、五pin覆盖/两layer/副作用工作表与9299身份通过，256（115P2/141P3）。下一三原mesh叶/帧换算→Idle/Plant/Stop/Main Base，完整Root/Feet/属性未闭；截图0、性能暂停。
