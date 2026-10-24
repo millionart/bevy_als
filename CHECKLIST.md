@@ -3320,6 +3320,19 @@
 
   - 完成/Gate：`target/bf144/410/summary.json`通过。真实Slot→Locomotion Grounded缓存/状态→外层惯性/InitializeLean→空Post槽→Layering Locomotion Input八边完整；240主Grounded权重1/InAir子0/无栈，初始化同域。源alias绑定完整查明，两个真实Grounded出口都含LocomotionMode=InAir必要条件，241 Grounded父输入使false，不借bJumped默认；该父mode仍显式输入。原callback只Update重置Lean、无pose改写，惯性请求沿.408域为空，Post槽全240 source1/slot0。原Locomotion节点native26.705秒、240/18960骨及全部曲线精确透传，完整source Layering Base生成；绕过Slot损88帧首65/去实际输入边合同拒绝，无额外状态/曲线适配。9541身份旧9516全不变、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib保持，256（115P2/141P3），无新D。下一将真实完整Base接既有Layering prior/overlay源分支，再Head/Rig/Root/Feet/attributes和独立反馈；未把本透明路由当完整Layering或target pose验收。截图0、性能暂停。开始19:58:43；预估结束20:18:43；实际结束20:04:14；实耗331秒；偏差-869秒；结果完整source Slot→Layering Base路由生产Gate通过。
 
+
+- [ ] BF144.411 U07自然完整Layering source pose接入真实Locomotion Base：依赖.410完整240 source Base、.384真实prior层参数/资格及.346–.350旧源Layering节点闭环；先逐项复核旧模型的输入域/真实当前节点与自然prior身份，复用匹配部分，仅补真实240 Base与仍缺原overlay/参数producer。目标是沿实际Overlay Input/六section/Spine/组合骨混合与曲线完成source Layering输出，不把旧受控后缀或target提供的中间pose当自然源。Gate：当次 source-current 真实路由/所有消费者输入表、依赖身份和适用性、完整240 source层姿态对原native单位或实际角色边界、必要Base因素/运算消融恢复/identity；若多个未闭输入需按完整闭包拆独立前置，不能降低完整Layering目标。开始：2026-10-24 20:04:31 +0800；预估结束：2026-10-24 20:39:31 +0800。估时依据：旧六Apply/两层骨/Spine工作已封存，.384自然prior及.410完整Base通过；本项35分钟含旧输入复用资格、当前自然数据链/原生核和消融，若发现旧产物不能复用则明确拆先决项并自动继续。仅审计不改生产/reader/转换器/资产，截图0、性能暂停。
+  - 20:04 活动摘要：.410提交78d8e93e/9541身份，256（115P2/141P3）；首检查.384自然prior与旧Layering source模型的Base/Overlay/pose来源，目标完整Layering source输出；已有精确核不重写，旧域不同的地方保留失败边界，不凭旧Gate冒充当前自然链。
+
+
+- [x] BF144.411a U07自然Default Overlay原叶/clock/参数前置：.411源复审证明.345旧Overlay使用受控PoseState反馈（包含非零InAir/预测alpha），不能直接复用产物；先复用相同source图和正确SKM Default_Poses frame0/1/2数据，按自然Pose/Gait/InAir参数、Idle常量0.75加性资格与Secondary Motion单组自产clock生成真实240 Overlay输入，actor叶时点/权重仅oracle。Gate：12节点源参数/有效alpha和实际资格、独立Idle时钟/正确原叶数据、完整Default Overlay source pose及主Overlay惯性请求域/必要原生数值控制、消融恢复/identity。该前置保留.411完整Layering目标和20:04:31起点，不缩小其验收；若需其它叶域另按依赖明确拆分，先本项。开始：2026-10-24 20:05:36 +0800；预估结束：2026-10-24 20:25:36 +0800。估时依据：.400/.404单叶约3–5分钟、.402惯性348秒，Default六叶12节点但自然仅Standing frame0+Idle持续，20分钟含时钟/参数/原生输入和identity；旧数学核复用不修改。截图0、性能暂停。
+
+
+  - 20:14 前置source/static闭环：.345旧受控Overlay不可直接复用，但图/正确SKM Default_Poses三帧数据和精确核身份相同可用；自然PoseState真实walking动态、InAir/Crouch0，单Secondary Motion Idle由start0/rate1/delta自产clock，240 actor时点全精确、0.75更新。自然12节点输出240 pose（首stance0用原SKM RefPose、frame0/1 evaluator有效更新154/106，未更新正cached不当执行）；240全18960加性骨inner/outer与30组去重全2370父混合骨native精确。主Overlay图BlendOptions0.2初始pending风险已追：初始化main/default update/eval counter0证明首次遍历，源请求在首次history前消费清空，当前无OverlayMode setter/仅Changed事件重链，后续无请求；原主惯性含该初始请求+240输入native25.928秒精确透传。去outer normalize首0/pelvis失败，脚本/240产物字节恢复后所有单位及惯性再过。9541旧身份核中，256（115P2/141P3）；.411父完整Layering目标/20:04:31起点保持，前置提交后立即接自然Base/Overlay和prior层权重，不借旧受控中间pose。截图0、性能暂停。
+
+
+  - 完成/Gate：`target/bf144/411a/summary.json`通过。自然Default12节点按真实Pose/Gait、InAir/Crouch0与原0.75加性生成240 source Overlay；单成员Idle组start0/rate1自行推进，240实际clock精确，正确SKM compressed Idle/已封存原Default三叶，首stance0 RefPose域明确。原生单位18960加性inner/outer骨、2370去重父混合骨全部精确；原主Overlay惯性含初始0.2请求和240后续，18960骨/曲线精确透传，初始请求空history忽略/初始化counter0及无relink生命周期源码齐。有效evaluator154/106更新与原权重精确，正cached保留不当执行。去outer normalize首0/pelvis失败，源码及240产物字节恢复后全过。9609身份旧9541全保持、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib不变，256（115P2/141P3），无新D。PoseState仍显式source父输入，完整反馈未闭；.411父目标与原开始/ETA不重置，现立即恢复完整Layering Base/Overlay/层权重组合。截图0、性能暂停。开始20:05:36；预估结束20:25:36；实际结束20:15:30；实耗594秒；偏差-606秒；结果自然Overlay必要前置Gate通过，未复用旧受控pose。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
