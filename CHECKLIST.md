@@ -3372,6 +3372,16 @@
 
   - 完成/Gate：target/bf144/411-migrated/411/summary.json通过。完整自然source Layering接入修正后的真实Locomotion Base和411a自然Default Overlay，按prior源权重/实际节点生成240输出；原角色Head Base只作oracle，全部18960骨TQS及曲线包逐值精确，无中间pose回填。首次整体Gate暴露旧400以BS叶替整个Movement缓存，7410骨/106曲线包失败；按fresh源链有限复开八项、补411b五consumer/Lean并修审计工具隐式融合精度、411c全后继迁移后整体恢复。各原算子旧输入证明保留，新输入逐项Gate单独提交；结构覆盖断言与全角色边界防止再次局部绿而链路缺项。原部分权重Spine继续用原节点求值，无新通用核，必要section/arm/曲线消融保持失败边界。9963身份旧9660全保持，生产/reader/转换器/原资产/冻结rlib不改，256（115P2/141P3），不是产品新增D。仍有显式Pose/Layer prior、物理/montage输入和完整自反馈、Head/Rig/Root/Feet/attributes与target最终对照；下一自然Head完整source Apply→RigSource/Root，不宣称整体goal完成，截图0、性能暂停。开始20:04:31；预估结束20:39:31；实际结束20:57:04；实耗3153秒；偏差+1053秒（在+20分钟容忍内），结果完整Layering整体Gate通过；拆411a/411b/411c先决项，未重置父开始时点。估时教训：首次全图整体边界必须早做，已有节点目录不等于consumer闭合，未来同类先覆盖root-to-cache再复用局部核。
 
+
+- [x] BF144.412 U07自然完整Head→实际RigSource pose：依赖.411完整自然Layering Root与.355/.380已验Look叶/混合、.356/.381源mesh Apply核；fresh核Head原root-to-input闭包和当前240 source参数/样本域，身份与覆盖匹配的旧数据/精确核直接复用。将自主完整Layering作为Base，源Look/additive和alpha按实际消费时点产生完整Head Root，再沿主图真实直接边到RigSource，原角色边界只oracle，不回填Base。Gate：当前自然Head全输入/曲线/初始化资格、全部240×79 TQS与曲线对实际RigSource及必要whole-native/消融恢复/身份；完整Rig/Root、独立父反馈/Feet/attributes与target最终比较继续开。开始：2026-10-24 20:57:58 +0800；预估结束：2026-10-24 21:17:58 +0800。估时依据：.409 Slot252秒/.408封装383秒，现Head仅6节点、自然零view单Look但有归一/mesh空间链，20分钟含source域核对/完整原生及真实角色边界和消融；不因旧Head单位绿跳过整体。仅审计不改生产/reader/转换器/原资产，截图0、性能暂停。
+  - 20:57 活动摘要：上一goal轮完整迁移/Layering整体闭环提交e3d0348d，属实际进展；当前工作区干净/9963身份、256（115P2/141P3）。source-porting更新1.14于20:57:58+0800采时，已补读共享升级/领域合同，用户AGENTS每项审计Gate/提交/只读与必要reader授权优先，保持现有Checklist结构；当前只审计，不启动产品修复，截图0、性能暂停。
+
+
+  - 21:00 source/static与真实RigSource闭环：当前自然240 Head参数唯一域pitch0/yawAmount.5/LookForward weight1 time.5/alpha1/root-space false，原355正确SKM prepared Look与单叶归一身份/域匹配直接复用；六源pose节点五边全覆盖，实际Layering.View Input→Head→ControlRig.Source直接边齐。自主完整Layering Base经原mesh Apply核产240 Head，18960骨TQS及全部曲线同时与原Head模板whole-native（26.693秒）及真实角色RigSource精确，未读原HeadBase作为模型输入。去Apply最后outer归一13155骨失败而curve保持，源码/240产物字节恢复后两对照全过。9963旧身份全核中，256（115P2/141P3）；这是自然零view Head完整producer，不宣称完整Rig/Root、非零view整体反馈或target等价，下一真实完整Rig外部/预热历史与Root。截图0、性能暂停。
+
+
+  - 完成/Gate：`target/bf144/412/summary.json`通过。自然零view当前Head域原6 pose节点/五边与真实主Layering→Head→ControlRig.Source直接边覆盖，LookForward time.5/alpha1/root-space false全部240实际资格齐；原355正确SKM prepared Look+单叶归一匹配身份/域复用。自主完整Layering Base经原mesh Apply源核，240/18960骨TQS及全部曲线与原Head whole-native（26.693秒）和实际角色RigSource双重逐值精确，原HeadBase/最终RigSource只oracle未填模型。去最后outer归一13155骨失败/curves保持，源码和240pose字节恢复后两Gate再过。9993身份旧9963全保持、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib不变，256（115P2/141P3），无新D。当前自然零view Head完整producer闭合，非零view整体反馈/完整Rig Root/Feet/attributes及target最终对照未闭；下一完整ControlRig在该自主源pose上按真实外部/预热历史执行。截图0、性能暂停。开始20:57:58；预估结束21:17:58；实际结束21:01:58；实耗240秒；偏差-960秒；结果自然Head→实际RigSource完整pose Gate通过。source-porting1.14升级只复用已有流程并服从用户项目纪律，不迁移清单结构或启动生产修复。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
