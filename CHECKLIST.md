@@ -2632,9 +2632,22 @@
 
   - 完成/Gate：`target/bf144/332/summary.json`通过；实际240 FSM→受控endpoint→后惯性输入全同/context一致，240原生pose/18960骨及curve全f64精确。fresh source无过滤惯性/三curve=1/RefreshGrounded OnUpdate→InitializeGrounded OnBecomeRelevant→Root已核；240最终原Root及实际槽source/caller交接全供给、0target补值。缺原post反例拒绝，源脚本字节恢复同入口两个240表字节相同；5954身份（旧5922不变）通过。仍仅共同无请求条件域，48活动槽/Locomotion落地与暖态、完整自然反馈及上游残差/旧域迁移开。无新编号，254（115P2/139P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始09:45:47；预估结束10:00:47；实际结束09:50:38；实际用时291秒；偏差-609秒；结果源Grounded最终输入Gate通过，下一完整48槽源时钟与数据。
 
+- [x] BF144.333 U07完整Transition停止蒙太奇源时钟/自然混出资格：依赖.331实际48活动61–108与.332原Base240，fresh核ALS排队/播放原参数与UE动态montage的UpdateWeight→Advance/自然停止，保留完整活动48及后12步，重取原时钟/权重/播放状态。比较同actual参数/首段与新增尾32，根因先归已证D118或另有fresh链再登记；只资格原采样时间/权重，不拿target clip_time填source。Gate：源请求/序列/length/执行阶段、60步原生及actual生命周期/必要最小恢复控制、旧16声明身份独立、源clock供给及消融/恢复/identity；48 mesh pose/完整slot数值独立后置。开始：2026-10-24 09:50:48 +0800；预估结束：2026-10-24 10:10:48 +0800。估时依据：.21416步时钟资格约14分钟，.332240原生/Root约5分钟；新增自然混出/结束边界需fresh代码，按20分钟核60步与独立控制，不扩加性求解。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 09:51 活动摘要：ca682e35完成原Grounded最终Base，5954身份、254（115P2/139P3）。实际单CrouchingStop48帧，clip长2.3333333、rate1.5/start.2、混入/出.2，包含自然尾段；旧16未触及结束，不预设尾差同因或生命周期已等价。
+  - 09:59 新差异实时登记：共同末前单步与正确actual构造/同length控制通过，确认D257/P3（section EndOffset）及实际103–108采样消费，原数据双时点14T/73R F32改变。当前255（115P2/140P3），不是D118多步累积或D121配置时长；完整原时钟/消融/身份仍进行，截图0、性能暂停。
+
+  - 10:02 source/static闭环：60源步/48活动与actual自然混出103、失效109一致，旧16源帧逐字段保持；public CrouchingStop60状态字段重放exact，原位置差54（末前36/末端持有18）、权重8（旧4/新尾4）。只位置累加恢复全部42末前时点，另加独立EndOffset恢复60位置，D118与D257已分离；同起点单步red失败/offset-only精确恢复，零delta/普通步不变。实际sampler另有旧配置clamp，固定该层后actual末位2.333333015与source2.333283186在同prepared/SKM数据T14/R73 F32改变；首控制误用通用短配置构造及raw播放时点，已按actual构造/严格同length/实际采样时点纠正并通过。删除EndOffset控制失去恢复且原播放/普通控制保持，源码字节恢复同binary重编全部60/单步表精确。当前255（115P2/140P3），身份核查中；48完整源delta/slot数值仍后置，截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/333/summary.json`通过；60原生步/48活动61–108、自然stop103/失效109与actual一致，旧16源帧全字段保持，public CrouchingStop60状态字段exact重放。位置差54/权重8：位置累加恢复42末前，追加独立EndOffset恢复60位置；新D257/P3以同起点单步red、仅EndOffset恢复、零/普通控制及实际103–108采样证明，固定旧时长clamp后同prepared/SKM数据T14/R73 F32改变，scale/curve同。D118补首段4/尾段4权重差；不将末端新因并入反算。EndOffset消融失去恢复但原当前/普通控制保持，源码字节恢复同binary重编全部单步/60表精确；6007身份（旧5954不变）通过。首诊断构造/采样时长混用已按actual参数纠正且严格断言，非修生产。当前255（115P2/140P3），生产/reader/转换器/原资产未改，48完整源delta/slot、Locomotion落地/暖惯性与完整Root反馈/上游/旧域迁移仍开，截图0、性能暂停。开始09:50:48；预估结束10:10:48；实际结束10:03:57；实际用时789秒；偏差-411秒；结果源clock/新差异Gate通过，完整等价仍未证明。
+
 ### 已确认差异（仅登记，未实施修复）
 
-
+- [ ] BF144-D257 / P3 — Transition正向终止采样遗漏源section末端缓冲。
+  - Source：fresh `AnimMontage.cpp:2712–2747`在正向到达无后续section末端时置bPlaying=false，并将Position设为`CurrentSectionEndTime - UE_KINDA_SMALL_NUMBER / 2`；本次动态montage为单序列/loop1，ALS `AlsAnimationInstance.cpp:1789–1792`传入触发0及原start/rate，原生末位为2.3332831859588623秒。
+  - Target：`stop_link.rs:253–260`把clip_time钳到完整duration2.3333332538604736；`stop_link.rs:626–636`交给`standing_source.rs:53–79`采样，该层仅再按配置时长截为2.3333330154418945，没有source section EndOffset。实际103–108帧均消费该末尾时点。
+  - 最小反例/隔离：两端同起点2.2999989986419678、同delta0.03333333507180214、rate1.5与完整length2.3333332538604736，只推进一步，public目标位置仍完整末端，native为length减5e−5；只加源EndOffset后raw位置及保留原配置clamp的采样时点都精确恢复。零delta与普通首步控制保持。此独立于D118多步elapsed反算，也固定了D121/既有配置截断而不把它并入新因；首控制误用通用构造的短配置，改按actual CrouchingStop公开构造并严格断言相同length后验证。
+  - 实际consumer：在相同prepared compressed/SKM源数据上，仅切换source末位与actual采样时点，14平移/73旋转骨行的F32值改变，scale与curve相同；固定数据隔离D224。尚未声称完整槽最终Root或默认世界可见幅度已恢复。
+  - 漏检/Gate：旧.214仅核前16活动步，未到自然section终点；目标`stop_link.rs:1119–1125`测试把精确duration当终点oracle。当前原样最小测试明确失败，独立native单步/pose双时点与仅EndOffset恢复见`target/bf144/333/focus-check.json`、`check_original_end.report.json`，本项仅登记、生产未修；完整60步、单步控制/消融/同binary恢复及6007身份已封存，见`target/bf144/333/summary.json`。
 
 - [ ] BF144-D256 / P3 — 普通Speed标量直接按米制float量化，未保留源厘米float的舍入阶段。
   - Source：fresh `AlsCharacter.cpp:1375–1386`先对世界FVector double厘米速度求Size2D，再UE_REAL_TO_FLOAT存Speed；`AlsAnimationInstance.cpp:699–700`直接复制该float厘米标量。原生现成scaled_distance以第三轴0执行相同平方和/平方根，同时返回double与float，120样本中的40个实际source速度精确恢复原记录Speed。
@@ -3450,6 +3463,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - BF144.214 Stop前缀补充：fresh原CrouchingRight动态montage同0.2秒混入/起点、rate1.5、16个1/30秒步长，当前61–76实际实例有11个position与4个weight低位差，源position逐帧累加、AlphaBlend累加AlphaLerp；target仍由elapsed反算。首个位置差在65帧，source0.45000004768、target0.44999998808；62帧权重source0.25925925374、target0.25925928354。原长度精确一致，排除D121/D167；归入相同D118，不另编号，不宣称本前缀触及混出/动作结束。原source时钟单列保留供原姿态采样，未以target时钟回填。证据`214/clock.native.json`、`clock-check.json`。
 
+  - BF144.333完整停止过渡补充：当前CrouchingStop60步/48活动，source与target均103混出/109失效，保留这一生命周期通过边界；末前42步的36处位置差只恢复递增位置即归零，首16/新尾各4权重差沿source AlphaLerp/remaining-time与target反算fraction分离。末端持有18步的额外位置差另为D257，不能把54位置差全归本项；叠加两独立位置规则才恢复完整60时点。原48源采样clock独立保存，完整pose/slot尚后置。证据`target/bf144/333/clock-check.json`、`source-clock.json`与`summary.json`。
+
 - [ ] BF144-D119 / P2 — GetUp停止与共槽混合读取上一帧Roll状态和权重。
   - Source：fresh `AlsCharacter_Actions.cpp:90–100`成功Montage_Play后立即置Rolling；`AnimInstance.cpp:2767–2772`同步停止同组旧montage，随后同一次UpdateMontage更新所有权重再求槽姿态。Roll原生BlendIn为0.1秒，已有GetUp混出保留原Cubic曲线并缩短时长。
   - Target：`get_up.rs:255–258,301–322,352–354`在PrePhysics前检查roll.active并读取roll.pose/weight，却没有排在`advance_rolls`之后；`roll_drive.rs:1912–1916,2094–2111`到PrePhysics后的bridge才写当前roll槽数据。旧GetUp与新Roll因而使用不同帧的数据。
@@ -4226,6 +4241,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.330当前边界：当前Grounded直接212帧无额外姿态/curve改变；混合28帧公共重放全精确，共同输入已确认D177 slerp与D232数值空间影响，34curve差均由输入携带。仍保留Standing/Crouch上游原数据/数值余差、外层Root/自然反馈与旧域迁移，不宣称全量等价。当前254（115P2/139P3），截图0、性能暂停。
   - BF144.331当前边界：完整下游240真实观察已核：后Grounded无请求、Transition48活动（新增原数值未验尾32）、Locomotion5 Land转场/235直接与暖态0.6/0.1请求；源240后Grounded→48槽→落地/暖惯性→完整Root依次补，不冒用旧77。当前254（115P2/139P3），截图0、性能暂停。
   - BF144.332当前边界：240最终Grounded原Root/18960骨与槽输入交接已由原生后惯性及三curve写回闭合；下一48活动Transition源时钟/正确mesh加性及完整槽输出，再Locomotion落地/暖态和自然反馈。当前254（115P2/139P3），截图0、性能暂停。
+  - BF144.333当前边界：完整60源Transition时钟/48活动资格已闭，新D257末section缓冲与实际采样影响已证，D118尾时钟/权重补充；下一48正确mesh prepared加性与完整槽数值，再Locomotion落地/暖态/Root、上游和旧域迁移。当前255（115P2/140P3），截图0、性能暂停。
 
 - [x] BF144-U06 — Rig初始全局数据已于.245归D242/P3。最初.244发现71骨365个double差、默认240仅FootHeight double变化；.245保持全部原生算法，仅换初始数据即在受控半转产生约180°的float足旋转/实际Setter写回差，并在同source厘米算法的5个骨长舍入边界经同原生IK核产生13/15个float关节点差，分别隔离D163算法与D165单位舍入。数据移除/源码字节恢复及同target重编恢复通过，native数学读出移除/同package恢复亦通过；默认动作自然可达性未证，不因关闭U06声明无差异或修复。证据`target/bf144/245/summary.json`、`native-check.json`、`writeback.jsonl`、`restoration-check.json`；原.244记录保留。
   - BF144.136 follower记录重建补充：near-zero候选无有效end时记录leader移到最后一项；下一普通帧恢复正常leader，`AnimSync::Finalize`使follower记录失效。`BlendSpace.cpp:784–787`按已存归一化时间乘当前样本长度重建；目标此前保留秒数。18帧33个previous差最大约59.6ns，全部精确等于`(旧position/旧duration)*当前duration`；仅补这一步后4032帧所有previous也逐值一致，当前采样位置和姿态保持。证据`target/bf144/136/roundtrip-check.json`、`before-roundtrip-all-analysis.json`、`all-analysis.json`。
