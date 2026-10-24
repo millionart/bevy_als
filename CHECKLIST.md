@@ -3059,6 +3059,13 @@
 
   - 完成/Gate：`target/bf144/380/summary.json`通过；非零160原Look/247实际叶，Forward81/Down28/Up1唯一时点正确SKM compressed重取，fresh三个mesh additive/StandRef0及BS空perbone/manual/profile、权重插值0配置核验；轴数组按index保持。HeadPitch归一分段/float权重与动态HeadYawAmount时间160全原生精确，三叶source数学单1/多2归一组合12640 TQS/空curve与真实HeadAdditive全double同；去第二归一丢6138行，源码/输出字节恢复。target只读缓存正确Pose/pose pin后叶/reference/difference/Look全取，全部旧.379行为同；247实际child采样time精确YawAmount，Look输出graph timestamp另语义不误判。当前public scalar_mult/add/norm160/12640TQS精确、回调passthrough同。跨侧因实际Head输入差及尚未隔离的数据/数学因素仍12000骨行余差，只作完整inventory不自动归因或新D。8321身份（旧8247不变）通过，256（115P2/141P3）；下一原Head Base/Apply/最终Root及D258 pose consumer和受控因素隔离，自然Feet/Root属性继续。截图0、性能暂停。开始15:12:20；预估结束15:47:20；实际结束15:22:30；实际用时610秒；偏差-1489秒；结果非零原Look完整叶/BlendSpace Additive与current重放Gate通过。
 
+- [x] BF144.381 U07非零160原Head Base/Apply与最终Head→Rig Source：依赖.380原Look Additive12640源独立重算，fresh核ApplyMeshSpaceAdditive的source alpha/root-space配置、hierarchy/component/local转换及原linked View Input passthrough，显式使用原自然Head Base作本单元输入重算160最终Head，并与原RigSource/HeadBase原交接比；current实际Base/Additive/Output公开算子重放全160。Gate：原Head Base来源/所有者/曲线和alpha完整、source独立Apply12640骨/curve native精确、current公开Apply/实际Root同、必要数学/生产者消融字节恢复同target/身份；不称上游自然Layering Base已独立重算。D258实际骨骼consumer若本项可复用新correct mesh采样与共同Base控制则直接闭合，否则按原采样因素拆后继，不吞跨侧12000余差。自然Feet/Root attributes和完整Root反馈保留。开始：2026-10-24 15:23:00 +0800；预估结束：2026-10-24 15:53:00 +0800。估时依据：.356240原Head Apply约6分钟、.348 meshAdditive原层约8分钟，现源完整160输入/原数值核与目标node缓存齐，按30分钟含非零/新姿态/必要controlled consumer首边界，禁止拿上游观测Base称整Root模型。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 15:23 活动摘要：ae84431f/8321身份已提交，256（115P2/141P3）。原Look源/current各自数学闭合，跨侧余差待因子；先终端Head单元同输入/同算法与原交接，再D258 pose/剩余自然链。
+
+  - 15:28 source/static/native后摘要：原自然Head Base显式作为单元输入、Additive用.380独立三叶模型，source component0/local2 norm算法160/12640 TQS与原RigSource double精确，curves160继承Base；非独立自然Layering预测声明保留。current实际Base/Additive/Output public Apply160/12800骨行全TQS/presence/timestamp精确，HeadApply→Root→RigSource交接和曲线同。fresh alpha1/root-spacefalse/identity ScaleBias无clamp/interp绑定同；去source最后norm在frame0拒绝，脚本/160输出字节恢复。D258取最小public半转frame20的实际time0.53829652071/0.46170347929，正确mesh Forward2采样同Base/叶/reference/权重/所有source数学，仅动态time变化，正侧精确原RigSource；whole native Apply两样本158骨行全double精确，63骨行F32改变但不泛称可见，head/neck局部角差约10.4054°/6.1324°。同采样time消融无差被assert拒绝，脚本/控制数据字节恢复；D258consumer扩展已记录，产品未修、不新增D。source上游自然Base和跨侧12000余差隔离后继，Feet/Root属性仍开，256（115P2/141P3），截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/381/summary.json`通过；原自然Head Base作明确单元输入、.380独立Look Additive模型，source alpha1/rootspacefalse/component0/local2算子160/12640原RigSource TQS double精确，160曲线承Base，Apply改变12476源骨行；current真实public Apply160/12800骨行与presence/timestamp精确、HeadApply/Root/RigSource和curve交接同。fresh原Head配置绑定/identity mapping无LODclamp/interp核，去末norm frame0拒绝并脚本/输出字节恢复。D258最小40半转frame20实际YawTime0.53829652071/0.46170347929的正确mesh Forward两采样，经同BS/同actual source Base/权重/源Apply，正侧精确原RigSource；2份whole native输出158骨行double精确，只改time63骨行F32不同（不泛称可见），head/neck本地旋转约10.4054°/6.1324°；同time消融无差被拒、脚本/控制数据字节恢复，已补D258 consumer，未修或新加编号。8374身份（旧8321不变）通过，256（115P2/141P3）。上游自然Layering Base仅已观察输入，跨侧12000余差需受控因素/输入隔离，不能称完整Root模型；后自然Feet/Root属性等继续。截图0、性能暂停。开始15:23:00；预估结束15:53:00；实际结束15:29:43；实际用时403秒；偏差-1396秒；结果非零最终Head单元与D258实际骨骼consumer Gate通过。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
@@ -3069,6 +3076,8 @@
   - 漏检/隔离：旧.67纯Head/±180 YawSpeed矩阵没有走controller规范化→runtime符号转换→Head分支；本项已先有限复开.67该输入边界。与D04冻结角色的secondary/primary旋转算法、D163脚部Euler/quat分支不同，本次owner倍率1、普通第三人称、同一Head公共核已证相等，仅View输入表示不同。只登记，不改生产或放宽阈值；最小40源/目标完整历史、160实输入/公共核与源共同角控制见`target/bf144/379/minimal-check.json`、`kernel-check.json`、`same-input-check.json`。
 
 
+
+  - BF144.381实际骨骼consumer：最小public半转frame20源HeadYawAmount=0.5382965207099915、当前错侧=0.46170347929000854；正确SKM compressed Forward叶两时点各自经源BS归一和源Head Apply，固定同一actual source Head Base、mesh/reference/alpha1/所有数学，source正侧输出精确原RigSource。两份whole native Apply共158骨行与独立模型double精确，只切换time使63骨行F32改变（含极小尾数），head/neck_01/spine_03/pelvis本地四元数相对角差分别约10.4054°/6.1324°/1.5605°/0.7661°。去time因素两侧同采样即无差、脚本/数据字节恢复；这关闭该源同输入单元的实际姿态consumer，不宣称所有63骨可见或完整target最终世界姿态已恢复。见`target/bf144/381/d258-native-check.json`、`d258-restore-check.json`。
 
 - [ ] BF144-D257 / P3 — Transition正向终止采样遗漏源section末端缓冲。
   - Source：fresh `AnimMontage.cpp:2712–2747`在正向到达无后续section末端时置bPlaying=false，并将Position设为`CurrentSectionEndTime - UE_KINDA_SMALL_NUMBER / 2`；本次动态montage为单序列/loop1，ALS `AlsAnimationInstance.cpp:1789–1792`传入触发0及原start/rate，原生末位为2.3332831859588623秒。
@@ -4991,3 +5000,4 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.378当前边界：public非零Down-Up/yaw180的160真实source/target历史、动态HeadYawAmount原Look时钟/观察输入控制与8156身份通过，255（115P2/140P3）。40实际pitch输入差/71Head余差未归因，下一实际输入公共核+native共同实角，再原Down-Up/最终Head与Root属性/Feet；截图0、性能暂停。
   - BF144.379当前边界：真实160 Head双侧公共核/原生共同角、最小40 public半转反例与单因/消融恢复/8247身份，新增D258/P3，累计256（115P2/141P3）。.67审计有限复开已收口，D258生产未修；下一原Down-Up/动态Yaw叶→最终Head及其它自然Feet/Root属性，截图0、性能暂停。
   - BF144.380当前边界：非零160原Look247child/12640 native TQS与current公共混合/动态时钟、6138归一消融恢复/8321身份通过，256（115P2/141P3）。跨侧12000骨行余差未因子隔离，下一原Head Base/Apply与D258最终骨骼consumer，Feet/Root属性仍开；截图0、性能暂停。
+  - BF144.381当前边界：非零160原HeadApply12640/native与current12800公共重放、D258同Base双时点whole-native姿态consumer/两消融恢复及8374身份通过，256（115P2/141P3）。自然上游Base和跨侧余差、Feet/Root属性未闭；截图0、性能暂停。
