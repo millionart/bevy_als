@@ -3210,6 +3210,16 @@
 
   - 完成/Gate：`target/bf144/399/summary.json`通过。原native group在相同自主输入上捕获106实际Forward姿态/191 compressed子叶（4资产）/79骨；剥离新增mesh身份/pose观察后，旧240clock/markers/样本字段全部精确，截图0。fresh source非additive/无mirror/无per-bone smoothing，本地混合核按原float权重、double/FMA和NEON归一独立复算8374外层骨TQS、8374 inner及212曲线全native精确，未输入角色Base或target pose。去多叶第二归一使3788外层骨行失败而inner/curve保持；原脚本字节与106pose产物字节恢复、重跑全过。包装复制旧检查文件名失败已保留/修正，finally恢复后最终结果重新通过，不用失败产物；native49.469秒成功。9168身份旧9138全不变、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib保持，256（115P2/141P3），未新D。仅关闭自主时点的source Forward BS单元，未关闭Details/Standing惯性、完整Base/Slot/Layering/Root/Feet/attributes和target跨侧数据/运算差；下一沿实际Walk/RunStartFromWalk/Run原节点及.394自产时钟生成Details输入，再惯性。性能暂停。开始18:51:00；预估结束19:21:00；实际结束18:55:40；实耗280秒；偏差-1520秒；结果原compressed叶与独立Forward混合Gate通过。
 
+
+- [x] BF144.400 U07自然Details实际三状态pose输入闭包：依赖.394自产Details选择/权重/RunStartFromWalk clock与.399自主Forward BS姿态；只沿自然Walk/RunStartFromWalk/Run实际compiled roots追原pose节点/缓存/加性或per-bone输入，把.399合法Movement producer与.394自产起步时点接入原资产读取，先生成各状态pose所需原叶数据与完整输入合同。原getter/曲线/骨mask若未独立则显式列依赖，不以native最终状态pose代供；最终Details惯性/混合另独立Gate。Gate：三状态source递归闭包、实际正权重叶/时钟资格和逐值source叶姿态、可复用输入工作表/消融恢复/identity；其它未访问Pivot/RunStart不展开。开始：2026-10-24 18:56:00 +0800；预估结束：2026-10-24 19:26:00 +0800。估时依据：.394实际三状态/4起步序列且Forward sole正方向已证，.399原叶/混合280秒；本项只关闭三root消费者与原Forward起步叶/时点，按30分钟含缺口定位与原生叶/消融/身份，不将惯性整个pose纳入超60分钟任务。仅审计不改生产/转换器/资产/reader，截图0、性能暂停。
+  - 18:56 活动摘要：.399提交b72e0410/9168身份，256（115P2/141P3）；先复用.388/.394身份不变compiled三root和自产时钟，对原Movement缓存与起步Forward叶建立完整pose输入表，再单独核惯性，完整Grounded Base/Slot/Layering/Root/Feet/属性继续开。
+
+
+  - 18:59 source/static闭环：三实际root递归12节点：Walk/Run直接Use Movement；RunStartFromWalk以原Movement为Base、方向MultiWay为Additive，Alpha1无绑定覆盖。四方向仅Forward正且归一1沿.394已证；48实际起步更新使用22自主clock（含完成尾部clamp1），原SequencePoseProbe native44.024秒生成SKM79骨/22 compressed叶1738骨行，复用映射48/3792骨行，无曲线、所有scale delta0；fresh AAT_LocalSpaceBase/Lean Pose ref frame0身份齐。106 Details更新的Movement source pose全部来自.399，起步时点只.394自产；缺Movement20/缺Acceleration22/去Start更新22三个控制均拒绝，恢复原数据全过。此source原生叶数据不是独立codec复算或完整Details Apply/inertial pose等价，9168旧身份全核中，256（115P2/141P3），截图0、性能暂停。下一局部ApplyAdditive/普通state pose混合，再独立惯性，不预开Pivot等零访问状态。
+
+
+  - 完成/Gate：`target/bf144/400/summary.json`通过。三实际状态12节点source闭包：Walk/Run直接Movement cache；RunStartFromWalk=Movement+方向MultiWay局部ApplyAdditive/Alpha1、绑定为空。纯Forward方向沿已证父输入归一1，.394自产48次起步时点共22唯一，native44.024秒原compressed/SKM79骨产1738唯一骨行、映射3792实际骨行；无曲线、所有delta scale0，AAT_LocalSpaceBase/Lean Pose原参考frame0明确，原叶与参考资产身份保持。106 Details更新全有.399自产Movement pose，未用角色最终Base；缺Movement20/Acceleration22/Start更新22的三消融合同均拒绝、原数据恢复通过。9190身份旧9168全不变、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib保持，256（115P2/141P3），无新D。此为source原生叶数据与完整pose输入表，不声称独立codec、Details Apply/普通blend/inertial或完整角色等价；下一实际局部ApplyAdditive和普通state pose，再惯性及Grounded Base/Slot/Layering/Root/Feet/属性。截图0、性能暂停。开始18:56:00；预估结束19:26:00；实际结束19:00:27；实耗267秒；偏差-1533秒；结果三状态pose输入闭包Gate通过；同类单叶输入表后续可按约5分钟校准，涉及数值核另估。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
@@ -5187,3 +5197,5 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.398当前边界：240帧533原同步时点由自主轴/rate/更新生产、四反例/全字段恢复与9138身份通过，256（115P2/141P3）。下一自主时点compressed叶/Forward pose再惯性/完整Grounded Base/Root/Feet/属性，截图0、性能暂停。
 
   - BF144.399当前边界：106姿态191 compressed子叶/8374+8374骨及212曲线、自主时钟保持/3788消融恢复/9168身份通过，256（115P2/141P3）。下一Details原Walk/RunStartFromWalk/Run pose输入与惯性，再完整Grounded Base/Root/Feet/属性；截图0、性能暂停。
+
+  - BF144.400当前边界：三root12节点/106Movement输入与48起步22原compressed时点1738骨行、三缺输入消融/9190身份通过，256（115P2/141P3）。下一Details局部ApplyAdditive/普通pose再惯性/完整Base/Root/Feet/属性，截图0、性能暂停。
