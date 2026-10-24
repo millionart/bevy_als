@@ -2974,6 +2974,13 @@
 
   - 完成/Gate：`target/bf144/369/summary.json`通过；fresh源500 pole projection/direction/target/current独立FK/常量/本身连续历史native double全等，含新尾326；source/target14参数stage无后写，current500 geometry/damper全参数与状态精确，当前pole F32差仍202。全部490有效IK观察pole换独立结果后完整输入文件字节同，同target新编数学输出全490字节同、后续weighted490交接同，.368完整消费模型链保持。去历史丢498状态（新尾326、首ordinal2/86），源码字节恢复同target重编500全字节恢复。7742身份（旧7700不变）通过，无新D，255（115P2/140P3）；pelvis/foot spring与trace仍待独立，原自然反馈/attributes/Down-Up继续，.292/.293受控非零Gate不复开。截图0、性能暂停。开始13:44:00；预估结束14:04:00；实际结束13:48:53；实际用时293秒；偏差-906秒；结果完整500独立pole与490消费者Gate通过。
 
+- [x] BF144.370 U07完整251独立pelvis target/spring/writer状态：依赖.369 pole生成闭环和.364 pelvis消费，fresh核源VM脚偏移minimum→clamp→前权重/float Target→SpringInterpV2→后权重/float外部writer以及首delta0/初始化，基于两trace消费标量重算target与251本身spring历史，不逐帧注入native Simulated/State；核公开Result/Velocity/Simulated与writer全部native值及target真实251调用。Gate：251 target及spring公开值/writer native精确、current完整args/state重放精确、source writer替代.364观察值后502 remaining locals和.365 FK/后继身份精确，必要状态消融字节恢复同target重编/identity。脚trace结果本批仍为真实外部输入，foot spring/trace独立后继；不宣称自然反馈完成或修既证D165。开始：2026-10-24 13:49:10 +0800；预估结束：2026-10-24 14:14:10 +0800。估时依据：旧.279骨盆V2约21分钟，现完整251输入/源f32公开输出/通用unit核和writer消费者齐，按25分钟含初始state source事实与全量替换验证/最小消融恢复。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 13:49 活动摘要：d88c3459/7742身份已提交，255（115P2/140P3）。pole已从源FK/自己的历史独立生成，当前去掉pelvis writer观察值依赖；trace/foot spring和原自然Root反馈等继续开。
+
+  - 13:54 source/static闭环：源两trace标量→min/clamp/前权重/float Target→V2自有Simulated/State→后权重/float writer251全部native精确；753公开Result/Velocity/Simulated同，首delta0 previousValid仍false、其余250true，当前251完整args/private state重放同。12个spring参数无后写，fresh Simulated0+FFloatSpringState头文件默认0/0/false已核；完整独立writer替换后502 remaining locals及251全FK输出各自字节同，.369独立pole与.368完整消费链交接保持。去source history丢244 writer/状态（新尾163，首ordinal7），字节恢复同target重编251全字节恢复。当前source/current writer物理F32差138为叠加结果，不新增原因；trace仍真实观察输入，下一foot spring/effector，再trace与自然Root反馈。255（115P2/140P3），截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/370/summary.json`通过；源251 min/clamp/前权重/float target与自有spring Simulated/State连续历史、753公开Result/Velocity/Simulated及251后权重/float writer全native精确；初始delta0 valid仍false，其余250true。fresh work初始0与FFloatSpringState头文件0/0/false构造、12参数无后写、当前251全部public/private args精确。把251观察writer换独立值，同target新编的502 remaining local与全部251FK输出字节精确既证版本，.369 pole/.368完整消费交接保持。去source历史丢244状态/writer（新尾163，首ordinal7），源码字节恢复同target重编251字节同。7791身份（旧7742不变）通过，无新D，255（115P2/140P3）；trace仍观察输入，foot spring/effector与trace独立生成、原自然Root反馈/attributes/Down-Up后继。.292/.293受控非零Gate保留。截图0、性能暂停。开始13:49:10；预估结束14:14:10；实际结束13:55:38；实际用时388秒；偏差-1111秒；结果完整251独立pelvis spring/writer及实际消费者Gate通过。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D257 / P3 — Transition正向终止采样遗漏源section末端缓冲。
@@ -4886,3 +4893,4 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.367当前边界：500腿1000 local/native与current重放、Slerp消融恢复/7637身份通过，255（115P2/140P3）；新尾四骨586已闭模型，feet326后继。下一完整足rotation/Setter，再上游state和原自然Root反馈；截图0、性能暂停。
   - BF144.368当前边界：500足/完整19829 source Rig local+251curve与current差表、原生构造/三种消融恢复/7700身份通过，255（115P2/140P3）。当前1372差仍未修，下一独立上游trace/spring/pole与自然Root反馈/attributes/Down-Up及非零hand/spine域；截图0、性能暂停。
   - BF144.369当前边界：500独立pole几何/目标/连续state、490IK与weighted交接/历史消融恢复、7742身份通过，255（115P2/140P3）。下一pelvis/foot spring与trace独立生成，再原自然Root反馈/attributes/Down-Up；.292/.293受控非零Gate保留，截图0、性能暂停。
+  - BF144.370当前边界：251独立pelvis target/spring/writer、753公开值/502local+全FK消费者与历史消融恢复、7791身份通过，255（115P2/140P3）。下一500 foot spring/effector与trace独立生成，再原自然Root反馈/attributes/Down-Up；截图0、性能暂停。
