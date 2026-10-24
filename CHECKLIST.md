@@ -3392,6 +3392,21 @@
   - 完成/Gate：`target/bf144/413/summary.json`通过。源实际单次delta0初始化/240执行与RigInput只读、typed精确17位导入、source flat floor/mesh-world/Delta历史资格齐；在自主完整Head240上运行原ControlRig，含初始化241共19039 Root骨TQS/全部曲线精确真实主Root，240×12外部变量逐值精确；初始化五scalar仅ExportText可核，未宣称其numeric直接取证。mesh初始reference/末端NormalizeRotations source合同补齐后240/18960mesh骨TQS亦精确。去零delta初始重放，全部240输入/输出/曲线/world/外部变量不变，故最终流程删除额外初始化步骤；同reader最终240重跑25.938秒精确原带初始化后缀，source/产物字节恢复与请求重建通过。去末端归一13131mesh骨失败，保留该必需一步。10021身份旧9993全不变，114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib未改，256（115P2/141P3），无新D。本项闭合自然源域的原Rig整体执行到真实Root/mesh观察，尚未把原VM输出冒充独立单元数学producer；独立Feet/反馈/物理、Ragdolling其它域/custom attributes、target整体残差及非零view仍开。截图0、性能暂停。开始21:02:12；预估结束21:37:12；实际结束21:12:01；实耗589秒；偏差-1511秒；结果当前完整原Rig重放Gate通过，后继独立Rig数学生产者迁入自然域。
 
 
+- [ ] BF144.414 U07自然Rig独立producer迁移入口/FK与inactive输入：依赖.413自然240自主Head→原Rig完整真实Root/mesh和.365/.373已闭共同输入域的独立FK/零分支核；fresh核当前源Rig程序输入/初始层级/每帧真实query与外部写者顺序，以自然240独立动画输入和实际RigInput为唯一显式外界输入，重新生成FK及spine/hands inactive必要值并对原VM读取点，不把after work输出回填为producer。先列独立求解剩余输入闭包，腿IK/trace/pelvis/foot弹簧若需新域作为明确依赖子项后继。Gate：240逐帧完整字段归属/实际消费，所有FK骨/transform与inactive输入精确native、必要生成者遗漏/时点消融和字节恢复/identity；闭合仅本输入与FK域，不替独立全Rig/自然Feet父反馈/target整体。开始：2026-10-24 21:12:14 +0800；预估结束：2026-10-24 21:42:14 +0800。估时依据：.365 FK旧连续域及.373输入因果闭环各约十分钟量级，现自然240整Rig oracle已齐，30分钟核producer迁移入口/首次重算与必要消融；不重跑旧共同输入充覆盖，也不泛化非零view。仅审计不改生产/reader/转换器/原资产，截图0、性能暂停。
+  - 21:12 活动摘要：.413提交91eed043/10021身份，256（115P2/141P3）。原Rig240完整实际Root已精确，但显式RigInput/mesh-world父反馈与数学单元仍需独立链；本项先输入流/FK与inactive，不预开未有source依据的其它模块。截图0、性能暂停。
+
+
+  - 21:13 依赖发现：旧.365 FK明确消费source_writer_cm（原.370独立pelvis spring→.372独立trace），不能直接把新work_after.PelvisOffset作为自然FK producer。当前native原VM31/40 trace与86/91、116/121各239次，spring54全部240次；先补自然trace→pelvis spring必要依赖.414a，父项尚不启动FK/腿runtime。旧共同域251/500/490计数不能套新240/478执行域。
+
+- [x] BF144.414a U07自然240独立foot trace→pelvis spring前置：fresh沿当前VM31/40查询→48 float min→50 double clamp→52/54/57 spring及float writer链，复用.372精确flat-floor数学和.370源spring核，以.413实际RigInput/自主Head曲线/world/Delta与源literal/初态生成478查询及240骨盆状态，native work/externals仅oracle。Gate：自然执行/skip/weight域与所有trace、spring公开/私有状态及writer精确原VM；必要源数学/输入移除和源码字节恢复同target重编/identity。不改query/float阶段适配生产，不以原VM after字段回填独立producer。开始：2026-10-24 21:13:15 +0800；预估结束：2026-10-24 21:38:15 +0800。估时依据：.370/.372同类源spring/trace已有完整核，当前flat-floor/yaw-only/scale1域已资格，25分钟迁自然478/240、复用原始literal/初态和消融；无需完整cargo或新reader。父.414计时保留，若依赖导致超时按规则复盘。仅审计，截图0、性能暂停。
+
+
+  - 21:17 .414a source/static与数学闭环：源typed RigInput/自主Head曲线/world/原floor独立生成478次query位置/normal/offset，全部精确原VM读取及external宽化值；由这478个独立offset生成240连续pelvis min/混合float-double/clamp/弹簧/float writer，公开Result/Velocity/Simulated与writer全精确，PrevTarget/Valid按fresh GenericSpringInterp和FFloatSpringState构造/正Delta推导，private Velocity由源赋值等于已验公开Velocity。原record对FFloatSpringState无UPROPERTY数值，保留“非直接private内存比对”限度。floor高度+.25使首query −.15→+.1失败，移除连续history在ordinal1 Result −.009975567→−.15失败；源码字节恢复/同target重编各478/240结果byte同。删未被消费的query请求导出步骤后trace结果byte同，等待10021身份核。父FK未启动。256（115P2/141P3）；截图0、性能暂停。
+
+
+  - .414a完成/Gate：`target/bf144/414a/summary.json`通过。自然478query独立geometry/normal/offset全部原VM/external精确，240连续pelvis mixed float/double阶段/公开spring/float writer全部精确；依旧完整保留私有状态按source推导、无直接反射内存比对的限定。独立writer不再由after work回填，可交FK。floor+.25与移除history两最小失败明确，源码字节恢复同target重编分别478/240结果byte同；无用query导出步骤删除且结果byte同。10068身份旧10021全不变，114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib保持，256（115P2/141P3）、无新D。截图0、性能暂停。开始21:13:15；预估结束21:38:15；实际结束21:17:57；实耗282秒；偏差-1218秒；结果自然trace→pelvis spring独立producer Gate通过，父.414继续输入/FK/inactive。
+
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
