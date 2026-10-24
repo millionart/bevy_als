@@ -2967,6 +2967,13 @@
 
   - 完成/Gate：`target/bf144/368/summary.json`通过；500足unit/normal/cache与最终local TQS native double精确，current完整持久state/args/final F32全500精确，10zero/12write/478Equals早退，旧174全部source/current值同。1000原生Rotator/500Quaternion构造精确；新186/128审计helper合并sin/cos导致的单unit double差已用源Neon独立FMath事实校准C sin/cos，移除分离重现该反例（最终local受Equals保护），不新增产品D。移除Equals丢478 local、去足producer在ordinal6/foot_l被拒绝，删除不必要构造mode信号不变，源码字节恢复同target重编全500及拼合summary字节同。完整79骨×251=19829 source local TQS/251 curves native double全等，current仍1372骨行差（R1254/T1010，新尾922），生产未修。7700身份（旧7637不变）通过，255（115P2/140P3）。此仅显式共同target输入且部分source writer/effector/pole为真实消费观察的Rig模型，独立上游trace/spring/pole生成、原自然Root反馈/attributes/Down-Up与非零hand/spine域仍开。截图0、性能暂停。开始13:32:20；预估结束14:07:20；实际结束13:43:01；实际用时641秒；偏差-1458秒；结果完整500足/全251Rig消费模型Gate通过。
 
+- [x] BF144.369 U07全251 pole投影/目标与独立连续状态：依赖.365独立源FK和.368消费模型，fresh核TryCalculatePoleVector/VM方向偏移/平滑初始化与Delta语义，将500实际调用的projection/direction/target/current从本帧独立FK与常量重算，连续状态仅从首次调用开始，不用native逐帧state回填；核source/native全部值及current真实500参数/公开unit重放。Gate：源500 projection/direction/target/current native double精确、新尾326覆盖、source计算pole替代原观察输入后完整有效腿解/下游消费身份不变，必要history或算子消融字节恢复同target重编/identity。pelvis writer仍暂为观察输入，trace/spring后继；不扩大已证.292非零spine与.293非零hand受控Gate，待闭的是自然反馈域而非因同名复开。开始：2026-10-24 13:44:00 +0800；预估结束：2026-10-24 14:04:00 +0800。估时依据：.284旧174独立pole约21分钟，现完整251源FK/实际ABI齐且通用pole核已有，按20分钟含新500连续状态、实际消费者替换与消融恢复。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 13:44 活动摘要：fa3a95b2/7700身份已提交且工作区干净，255（115P2/140P3）；上一轮六批有效进展。新完整Rig消费模型已闭，剩余source观察pole/effector/writer生成链按依赖逐个换独立模型；.292/.293受控非零Gate保留，原自然反馈/attributes/Down-Up仍开。
+
+  - 13:47 source/static闭环：源TryCalculatePoleVector/方向40cm/float半衰期/首次初始化→本帧Delta独立推进，500 projection/direction/target/current均native double精确，新尾326；当前500公开geometry+damper完整参数/历史重放精确，当前pole F32仍202差。14个真实输入/输出寄存器核无后写，首帧两skip不读作输出。490原观察pole全部换独立结果后完整输入序列字节同，同target新编数学consumer输出490全字节同、weighted handoff490同；去source history丢498 current（新尾326，首ordinal2/86），源码字节恢复同target重编500全字节恢复。pelvis writer/effector仍观察，后spring/trace和自然Root反馈，.292/.293不复开。255（115P2/140P3），截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/369/summary.json`通过；fresh源500 pole projection/direction/target/current独立FK/常量/本身连续历史native double全等，含新尾326；source/target14参数stage无后写，current500 geometry/damper全参数与状态精确，当前pole F32差仍202。全部490有效IK观察pole换独立结果后完整输入文件字节同，同target新编数学输出全490字节同、后续weighted490交接同，.368完整消费模型链保持。去历史丢498状态（新尾326、首ordinal2/86），源码字节恢复同target重编500全字节恢复。7742身份（旧7700不变）通过，无新D，255（115P2/140P3）；pelvis/foot spring与trace仍待独立，原自然反馈/attributes/Down-Up继续，.292/.293受控非零Gate不复开。截图0、性能暂停。开始13:44:00；预估结束14:04:00；实际结束13:48:53；实际用时293秒；偏差-906秒；结果完整500独立pole与490消费者Gate通过。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D257 / P3 — Transition正向终止采样遗漏源section末端缓冲。
@@ -4878,3 +4885,4 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.366当前边界：490有效腿/326新尾源IK位置980/实际与primary-only1960 quat、980独立骨长/消融恢复和7608身份通过，255（115P2/140P3）；D247/D248补实际secondary1新尾F32消费者。下一完整weighted/local及footRotation，再上游state/原自然Root反馈；截图0、性能暂停。
   - BF144.367当前边界：500腿1000 local/native与current重放、Slerp消融恢复/7637身份通过，255（115P2/140P3）；新尾四骨586已闭模型，feet326后继。下一完整足rotation/Setter，再上游state和原自然Root反馈；截图0、性能暂停。
   - BF144.368当前边界：500足/完整19829 source Rig local+251curve与current差表、原生构造/三种消融恢复/7700身份通过，255（115P2/140P3）。当前1372差仍未修，下一独立上游trace/spring/pole与自然Root反馈/attributes/Down-Up及非零hand/spine域；截图0、性能暂停。
+  - BF144.369当前边界：500独立pole几何/目标/连续state、490IK与weighted交接/历史消融恢复、7742身份通过，255（115P2/140P3）。下一pelvis/foot spring与trace独立生成，再原自然Root反馈/attributes/Down-Up；.292/.293受控非零Gate保留，截图0、性能暂停。
