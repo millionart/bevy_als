@@ -3211,7 +3211,7 @@
   - 完成/Gate：`target/bf144/399/summary.json`通过。原native group在相同自主输入上捕获106实际Forward姿态/191 compressed子叶（4资产）/79骨；剥离新增mesh身份/pose观察后，旧240clock/markers/样本字段全部精确，截图0。fresh source非additive/无mirror/无per-bone smoothing，本地混合核按原float权重、double/FMA和NEON归一独立复算8374外层骨TQS、8374 inner及212曲线全native精确，未输入角色Base或target pose。去多叶第二归一使3788外层骨行失败而inner/curve保持；原脚本字节与106pose产物字节恢复、重跑全过。包装复制旧检查文件名失败已保留/修正，finally恢复后最终结果重新通过，不用失败产物；native49.469秒成功。9168身份旧9138全不变、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib保持，256（115P2/141P3），未新D。仅关闭自主时点的source Forward BS单元，未关闭Details/Standing惯性、完整Base/Slot/Layering/Root/Feet/attributes和target跨侧数据/运算差；下一沿实际Walk/RunStartFromWalk/Run原节点及.394自产时钟生成Details输入，再惯性。性能暂停。开始18:51:00；预估结束19:21:00；实际结束18:55:40；实耗280秒；偏差-1520秒；结果原compressed叶与独立Forward混合Gate通过。
 
 
-- [ ] BF144.400 U07自然Details实际三状态pose输入闭包：依赖.394自产Details选择/权重/RunStartFromWalk clock与.399自主Forward BS姿态；只沿自然Walk/RunStartFromWalk/Run实际compiled roots追原pose节点/缓存/加性或per-bone输入，把.399合法Movement producer与.394自产起步时点接入原资产读取，先生成各状态pose所需原叶数据与完整输入合同。原getter/曲线/骨mask若未独立则显式列依赖，不以native最终状态pose代供；最终Details惯性/混合另独立Gate。Gate：三状态source递归闭包、实际正权重叶/时钟资格和逐值source叶姿态、可复用输入工作表/消融恢复/identity；其它未访问Pivot/RunStart不展开。开始：2026-10-24 18:56:00 +0800；预估结束：2026-10-24 19:26:00 +0800。估时依据：.394实际三状态/4起步序列且Forward sole正方向已证，.399原叶/混合280秒；本项只关闭三root消费者与原Forward起步叶/时点，按30分钟含缺口定位与原生叶/消融/身份，不将惯性整个pose纳入超60分钟任务。仅审计不改生产/转换器/资产/reader，截图0、性能暂停。
+- [x] BF144.400 U07自然Details实际三状态pose输入闭包：依赖.394自产Details选择/权重/RunStartFromWalk clock与.399自主Forward BS姿态；只沿自然Walk/RunStartFromWalk/Run实际compiled roots追原pose节点/缓存/加性或per-bone输入，把.399合法Movement producer与.394自产起步时点接入原资产读取，先生成各状态pose所需原叶数据与完整输入合同。原getter/曲线/骨mask若未独立则显式列依赖，不以native最终状态pose代供；最终Details惯性/混合另独立Gate。Gate：三状态source递归闭包、实际正权重叶/时钟资格和逐值source叶姿态、可复用输入工作表/消融恢复/identity；其它未访问Pivot/RunStart不展开。开始：2026-10-24 18:56:00 +0800；预估结束：2026-10-24 19:26:00 +0800。估时依据：.394实际三状态/4起步序列且Forward sole正方向已证，.399原叶/混合280秒；本项只关闭三root消费者与原Forward起步叶/时点，按30分钟含缺口定位与原生叶/消融/身份，不将惯性整个pose纳入超60分钟任务。仅审计不改生产/转换器/资产/reader，截图0、性能暂停。
   - 18:56 活动摘要：.399提交b72e0410/9168身份，256（115P2/141P3）；先复用.388/.394身份不变compiled三root和自产时钟，对原Movement缓存与起步Forward叶建立完整pose输入表，再单独核惯性，完整Grounded Base/Slot/Layering/Root/Feet/属性继续开。
 
 
@@ -3347,6 +3347,9 @@
 
 
   - 完成/Gate：`target/bf144/411b/summary.json`通过。source完整Movement缓存106pose包含方向MultiWay归一、RotationYawOffset、Lean原BS/带clamp+interp的Local Apply与PoseMoving，原五consumer真实边/缺任一合同拒绝；旧BS叶代整体全106失败。Lean240源刷新/0.2半衰与106 actual样本权重精确，原106 BS/212子叶/8374骨精确；动态alpha后全部8374 Apply骨精确。审计190核partial隐式融合造成1ULP已以fresh源分阶段运算定位，同C++仅-ffp-contract=off新本地库纠正；移除设置同target复现首26/56，构建脚本字节恢复同target重编后106产物字节/8374控制恢复。9660身份旧9609全不变，含新数学库SHA206dd13923b95b66dc724281f4ad5eac3e3686ef798a3a5a4f8c197d11a61a8a；114 ALS/184生产Rust/reader/转换器/原资产/旧审计库/冻结rlib保持，256（115P2/141P3），不是产品新增D。迁移已独立登记.411c，全量后继在新目录依赖顺序重生成；复开.400/.401/.402/.406/.407/.408/.409/.410尚未重新通过，不勾回。父.411完整Layering目标及开始/ETA不变，接续迁移/整体真实Head Base Gate，截图0、性能暂停。开始20:22:10；预估结束20:47:10；实际结束20:35:15；实耗785秒；偏差-715秒；结果完整Movement纠正前置core Gate通过，原迁移部分转明确.411c不授权跳过。
+
+
+  - 20:36 迁移.400 Gate：`target/bf144/411c/400-check.json`通过，106 Details输入全部引用.411b完整Movement缓存，五consumer覆盖/8374 Lean Apply原生Gate已提交；48起步原叶/时点保持，旧BS叶捷径移除。只重新关闭.400输入完整性，原source/native记录不改，其余复开条目仍待自身新输入Gate；完整整体Layering仍未通过。身份沿.411b已封9660不变，最终迁移另全封存；截图0、性能暂停。
 
 ### 已确认差异（仅登记，未实施修复）
 
