@@ -3281,7 +3281,7 @@
   - 完成/Gate：`target/bf144/406/summary.json`通过。原三branch/depth0与79 parent链独立得左右各8骨，source曲线LinkedBones全空、原typed mesh/root-space/scale/weight/Override字段齐；18自主Details Base+Forward单叶经既有源精确数学核产完整Plant layer，1422骨TQS/36曲线与原native模板精确，全mask及update[1,1]/root modifier[1,0]精确。native26.701/25.940秒；删ik/VB root只改对应两骨，去mesh运算首Left64/pelvis失败，源码/18输出字节恢复后全过；层后FootLock1去写失败，未提前改顺序，删无消费控制计算不改信号。9392身份旧9357全保持、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib不变，256（115P2/141P3），无新D。仅源Plant状态单位闭合，不宣称角色/target完整pose或custom attributes；下一Stop Entry/Plant子机→Standing Idle/Move/Stop普通pose和Standing惯性资格→Grounded Base/Slot/Layering/Root/Feet/属性。截图0、性能暂停。开始19:35:53；预估结束20:00:53；实际结束19:40:10；实耗257秒；偏差-1243秒；结果双Plant完整mesh layer+层后曲线生产Gate通过，无需新核或工具扩展。
 
 
-- [ ] BF144.407 U07自然Stop子机与Standing主机完整普通pose：依赖.406双Plant/.405 Idle/.402 Details源pose、.392 Stop/.391 Main自产ordered stack；按原StateMachine EvaluateState/EvaluateTransitionStandardBlendInternal时序合成18 Stop更新和240主Standing pose，Entry/Move消费同帧Details，Idle源pose，活动栈只在完整栈后归一一次，空栈直传。原生全骨同输入普通混合及所有曲线校准，源时点/权重/子pose不得读取角色最终pose或目标姿态。Gate：更新/求值集合和缓存资格、全部18/240 pose覆盖与所有实际转场全骨native、必要顺序/归一/curve消融字节恢复/identity；Standing惯性请求资格和Grounded封装后继，不预先把两个Details请求当主惯性请求。开始：2026-10-24 19:40:21 +0800；预估结束：2026-10-24 20:00:21 +0800。估时依据：.401普通pose395秒/.406全Plant257秒，复用精确混合核和原无profile默认分支，主26栈/子4栈全79骨控制需分若干原请求，20分钟含资格、数值/曲线和消融身份；若转场中间栈出现超当前合同则按source细分，不改scope。仅审计不改生产/reader/转换器/资产，截图0、性能暂停。
+- [x] BF144.407 U07自然Stop子机与Standing主机完整普通pose：依赖.406双Plant/.405 Idle/.402 Details源pose、.392 Stop/.391 Main自产ordered stack；按原StateMachine EvaluateState/EvaluateTransitionStandardBlendInternal时序合成18 Stop更新和240主Standing pose，Entry/Move消费同帧Details，Idle源pose，活动栈只在完整栈后归一一次，空栈直传。原生全骨同输入普通混合及所有曲线校准，源时点/权重/子pose不得读取角色最终pose或目标姿态。Gate：更新/求值集合和缓存资格、全部18/240 pose覆盖与所有实际转场全骨native、必要顺序/归一/curve消融字节恢复/identity；Standing惯性请求资格和Grounded封装后继，不预先把两个Details请求当主惯性请求。开始：2026-10-24 19:40:21 +0800；预估结束：2026-10-24 20:00:21 +0800。估时依据：.401普通pose395秒/.406全Plant257秒，复用精确混合核和原无profile默认分支，主26栈/子4栈全79骨控制需分若干原请求，20分钟含资格、数值/曲线和消融身份；若转场中间栈出现超当前合同则按source细分，不改scope。仅审计不改生产/reader/转换器/资产，截图0、性能暂停。
   - 19:40 活动摘要：.406提交1a7b4d64/9392身份，256（115P2/141P3）；全部主状态pose输入已可自主生产，现只复算Stop/Main普通混合，保留Standing惯性和Grounded之外Slot/Root/Feet/属性边界。
 
 
@@ -3356,6 +3356,8 @@
   - 20:40 迁移.402 Gate：新完整Details惯性前pose进入原节点，native25.943秒，106惯性后pose/8374骨/424曲线值完整生成；两请求仅22/23/122/123改变，去请求透传与恢复106字段精确（target/bf144/411-migrated/402/native-check.json）。源请求/窗口未改，曲线新增PoseMoving/RotationYawOffset来源正确；只关闭402，下一406依赖现可启动。阶段20:39:25–20:40:02沿411c窗口通过，无新D，截图0、性能暂停。
 
   - 20:42 迁移.406 Gate：新Details惯性后Base进入左右Plant，原节点native25.944/25.931秒，18完整Plant layer/1422骨/72曲线值及独立mask、update/root权重全部精确（target/bf144/411-migrated/406/native-check.json）。层后FootLock1顺序保持，旧原始记录未改，重新关闭该输入域后才启动407；阶段20:41:56–20:42:52沿411c窗口通过，无新D、截图0、性能暂停。
+
+  - 20:46 迁移.407 Gate：修正后的18 Stop/240 Main普通pose全量重算，五新native批次30.971/30.973/30.969/30.972/25.936秒，2370骨TQS及全部228曲线合同精确（target/bf144/411-migrated/407/native-check.json）。每骨控制携带曲线键覆盖，避免因新曲线增加批次；214直传/26主栈/4子栈资格保持。阶段20:43:10–20:46:03通过，重新关闭407后才启动408，截图0、性能暂停，无产品新D。
 
 ### 已确认差异（仅登记，未实施修复）
 
