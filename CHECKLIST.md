@@ -3520,7 +3520,7 @@
   - .421完成/Gate：`target/bf144/421/summary.json`通过。6实际相同current offset/lock原生double product及已封relative原生值确认F32投影差5/6；同runtime坐标/算序只提F64全部投影精确native。source/target世界字段精度事实和限位末raw/Final另归一阶段已核。仅修relative当前1缓存差/无Final声明；仅修末乘5Lock/2Final/2RigInput；仅去extra Normalize1Lock/Final/RigInput。三受控因素移除各回actual current，源码字节恢复同target重编240完整产物byte同，unused helper去除不改current。新增D261/P3、D262/P3与source-target consumer/漏检记录，累计260（115P2/145P3）；10606身份旧10545保持、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib不变，未修产品。当前足限位剩余因子闭合并未恢复完整source-target Root，target FootTarget采样pose/Root上游、外部父输入与非零完整Root/custom attributes仍开。开始22:37:37；预估结束23:07:37；实际结束22:49:35；实耗718秒；偏差-1082秒；结果当前world quaternion精度/归一两独立cause Gate通过。截图0、性能暂停。
 
 
-- [ ] BF144.422 U07自然FootTarget采样→上一Root骨姿态/世界传播的跨侧因子：依赖.421足锁同输入算法因子、.420a真实目标matrix/target骨变换、.418源prior socket与.417全source Root，fresh沿目标AnimationGraph pose写骨/TransformHelper/armature父级/目标骨选择，对两侧真实FootTarget世界值重算本侧source链与target链，再锁首个不同的local bone/ancestor pose或component/world输入。仅按当前依赖递归至实际root/clip数据与写入阶段，不把480世界目标差异统一归物理或既有D。Gate：240目标采样正确实际prior Root/骨选项/时钟/完整TQS传递合同、源/目标同输入分离首输入/数据/空间或propagation因素及实际consumer、必要新观察最小前置/消融恢复/identity；全部原Root数值差仍需逐原因，不因本单元通过宣称100%。开始：2026-10-24 22:50:04 +0800；预估结束：2026-10-24 23:25:04 +0800。估时依据：.418源采样341秒、.420a目标只读观测276秒，现两侧全Root与actual target骨世界记录齐，35分钟用于目标pose→骨传播/真实prior对应与首因子，必要数据缺口source事实拆前置而不猜。仅审计不改生产/reader/转换器/原资产，截图0、性能暂停。
+- [x] BF144.422 U07自然FootTarget采样→上一Root骨姿态/世界传播的跨侧因子：依赖.421足锁同输入算法因子、.420a真实目标matrix/target骨变换、.418源prior socket与.417全source Root，fresh沿目标AnimationGraph pose写骨/TransformHelper/armature父级/目标骨选择，对两侧真实FootTarget世界值重算本侧source链与target链，再锁首个不同的local bone/ancestor pose或component/world输入。仅按当前依赖递归至实际root/clip数据与写入阶段，不把480世界目标差异统一归物理或既有D。Gate：240目标采样正确实际prior Root/骨选项/时钟/完整TQS传递合同、源/目标同输入分离首输入/数据/空间或propagation因素及实际consumer、必要新观察最小前置/消融恢复/identity；全部原Root数值差仍需逐原因，不因本单元通过宣称100%。开始：2026-10-24 22:50:04 +0800；预估结束：2026-10-24 23:25:04 +0800。估时依据：.418源采样341秒、.420a目标只读观测276秒，现两侧全Root与actual target骨世界记录齐，35分钟用于目标pose→骨传播/真实prior对应与首因子，必要数据缺口source事实拆前置而不猜。仅审计不改生产/reader/转换器/原资产，截图0、性能暂停。
   - 22:49 活动摘要：.421提交0b2b3ede/10606身份，260（115P2/145P3）。足锁同输入数学差异已登记D259–D262未修，当前remaining不是把世界目标数值直接对比当算法差，而是采样实际Root/父级/骨空间来源；外部父状态、非零完整Root和attributes继续保留全系统目标。截图0、性能暂停。
 
 
@@ -3533,6 +3533,12 @@
 
 
   - .422a完成/Gate：`target/bf144/422a/summary.json`通过。两个actual Main GUID HeadBase/LayeringLocomotionInput各240 pose/curve/current-update证据齐，420a全部旧行为/矩阵精确；同binary关闭/源码置空观察保留全部旧数据而schema拒绝，源码字节恢复同target重编全部新旧字段精确恢复，3非法pose/身份/更新反例拒绝。10636身份旧10606保持、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib均未改，260（115P2/145P3），无新D。仅数值观察，不称功能整体等价或visible Playground；父422继续首marker上游producer。开始23:05:28；预估结束23:25:28；实际结束23:09:39；实耗251秒；偏差-949秒；结果必要两上游pose观察Gate通过。截图0、性能暂停。
+
+
+  - 23:24 .422真实Head数据因子至RigInput收口：422a提交fd3af738提供实际HeadBase/LocomotionInput，两边界首markerT相同而Head后有微位移，sourceHead不改markerT。旧383 Forward time.5 original delta身份/数据域匹配，固定本natural240 HeadBase+生产Apply/skeleton，原delta全240输出逐值精确actual。reference-only只换已证Stand raw0，共478下一脚target baseline matrix精确，数据因子使60target T/464Q、27Final T/204Q与27/204 actualRigInput T/Q改变；source compressed delta组合控制使480 markerT保持Base，组合不全归D224或称整个Root恢复。按同source raw参考cause扩D235，不新增D。父骨/Root上的marker位置保持、Ragdoll full-weight归一规则逐帧核对；actor/avatar分段合并329Y尾差控制拒绝，代码字节恢复同target重编478matrix byte同。参考因素撤销保consumer调用即完整Feet/RigInput byte回original，源码字节恢复同target重编240控制产物byte同；unused根向下计算删除而行为不变。10636身份核中，260（115P2/145P3），无生产/reader/转换器/资产改动；上游local pose/state/clock及common-heading外部输入、全Root矩阵/非零view/attributes后继。截图0、性能暂停。
+
+
+  - .422完成/Gate：`target/bf144/422/summary.json`通过。目标239普通帧×2实际FootTarget matrices从prior Root/原始local pose/actor-avatar分段全精确，首pending帧不冒普通反馈；source source核四输入组合478 baseline精确，local pose/world两输入组独立不同，绝对heading90°域差按311合同保留而非报错。422a两实际缓存定位首marker T变化在Head；固定actual240 HeadBase/生产operator与matching time.5原delta全Head精确。单source raw参考因素（D235）经下一target T60/Q464→Final T27/Q204→actual RigInput T27/Q204，原Root marker传递/归一规则全核；source compressed delta组合控制480marker T保持Base，未把组合当单D224或全Root恢复。采样合并祖先最小反例失败、删除unused根下行计算不改行为；参考因素移除保算子/consumer调用全byte回original，源码字节恢复同target重编240/478产物byte同。10717身份旧10636保持、114ALS/184生产Rust/reader/转换器/资产/冻结rlib均不变；260（115P2/145P3），本项无新D，仅D235消费者扩展。下一actual Locomotion/HeadBase残差来源、共同heading/world父输入、全Root连续因子及非零view/attributes保持开。开始22:50:04；预估结束23:25:04；实际结束23:26:21；实耗2177秒（含422a必要依赖未重置）；偏差+77秒；结果当前prior Root采样与首Head数据输入cause Gate通过，未触20分钟复盘阈值。截图0、性能暂停。
 
 
 ### 已确认差异（仅登记，未实施修复）
@@ -5450,6 +5456,9 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.303 Down/Up Stand参考扩展：fresh完整raw Stand0/真实mesh的79骨逐值投影，固定三Head实际绝对sample、Skeleton、时点与公共mesh差分，52次实际调用每次73骨delta变化；Forward/Down/Up的16个scale源compressed差均归零，T/R尚不等，不能把错误绝对数据被错误参考抵消的现象当恢复。物理只撤reference替换、保留原operator时52调用control都精确回到original；字节恢复同target重编后完整28帧及控制输出恢复，归已有同一强制raw base合同，不声称compressed delta全恢复。证据 `target/bf144/303/reference-check.json`、`reference-residual-check.json`、`reference-removed-check.json`、`restoration-check.json`。
 
   - BF144.383非零Look消费者扩展：当前160轨迹247实际Forward/Down/Up差分调用19513骨公开重放精确，fresh Stand raw0与三叶110个实际时点raw absolute→mesh/delta8690骨全native double同。仅换raw参考/仅换raw绝对/两者均改变全部247调用；reference-only将scale余差3952归零，T/R对原raw仍17007/17873，both raw仍15972/17862，均不称compressed恢复。参考因素消融247调用回原输出，另741控制不变，源码字节恢复同target重编988输出字节同。只延伸本项强制raw参考生产合同，数据路径D224与数值D232余差保独立，不相加或新增编号。证据`target/bf144/383/matrix-check.json`、`restore-check.json`。
+
+  - BF144.422自然FootTarget/Feet消费者扩展：新actual HeadBase/LocomotionInput各240被动pose证据证明首marker位置变化由Head输入delta产生，原Rig到Root的marker传递及quat归一规则逐值核验。固定本自然240 actual HeadBase/公共mesh Apply/skeleton/Forward time.5，原delta精确重放全部Head输出；仅换已证Stand raw0参考输入，下一帧原实际478脚target基线matrix精确，参考因素使60 target位置/464旋转、27 Final位置/204 Final旋转及对应27/204 actual RigInput字段改变。source compressed delta组合控制让480 marker平移保持Base，与源Head无marker位移合同一致，但该组合不全归单一D224或宣称整个Root恢复。强制撤参考因素而保留算子/consumer调用回actual original，源码字节恢复同target重编全输出恢复；证据`target/bf144/422/head-check.json`及恢复报告。这里仅扩本项实际消费者，不新增编号，局部pose前驱数据/clock/state和世界物理余差仍开。
+
 
 - [ ] BF144-D236 / P3 — Feet无效时仍刷新FeetCrossing，丢失源保留值并改变Movement规则。
   - Source：fresh `AlsAnimationInstance.cpp:1251–1268`在pending update将FeetState.bValid清为false；`1297–1305`的RefreshFeet先检查bValid，无效直接return，因此FeetCrossingAmount保留上次有效值。原Standing Movement T16规则同时检查HipsDirectionLockAmount≤−.5与FeetCrossingAmount≤0，已从fresh图及真实条件图核对。
