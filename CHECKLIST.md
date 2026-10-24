@@ -2932,6 +2932,13 @@
 
   - 完成/Gate：`target/bf144/363/summary.json`通过；fresh CR定义与既证source全部值同、9 pose mutator sites核验，源251 identity spine/502零权重hand与当前240/480调用参数同，相关输入register只有调用前writer（202←20/361←138/376←145）故after work可证调用输入。71骨17821行原local TQS保留且current同、8实际writer2008行分区完整，全部新后缀922差仅写者。fresh函数元数据推参数位置、当前所有传播flags true/local或global/非initial核验；FootRootBone初始None占位由Construction153设置为ik_foot_root，251源外部/240实际值同，未误判。移除pelvis writer在ordinal7失败、源码字节恢复全19829分区表byte同。7507最终稳定身份（旧7483不变）通过。只关闭保留分区，不将数值因子全归因；后pelvis/foot-root/六腿数学和自然feedback继续。无新D，255（115P2/140P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始13:01:10；预估结束13:21:10；实际结束13:09:37；实际用时507秒；偏差-693秒；结果完整251真实写者/保留合同Gate通过。
 
+- [x] BF144.364 U07完整251 pelvis/foot-root数值与新增后缀归因：依赖.363写者分区，fresh核SetScale/SetTranslation/Hierarchy local-global/ALS pelvis offset消费及源VM输入stage，复用已校准源数学核，对全部251共同实际Rig输入独立求source pelvis与foot-root local TQS，并以当前公开setter重放核实际输出；新增163后缀10 pelvis差必须由单因素source writer控制说明，六腿912另后继，不用旧88样本覆盖新尾。Gate：502 source local TQS native double精确、真实输入与全部writer参数/单位/skip分支、当前输出与source writer单因素恢复、最小数学或writer消融字节恢复同target重编/identity。source writer若仅从native读出须明确限定为消费边界，不宣称独立spring/trace闭包。开始：2026-10-24 13:15:00 +0800；预估结束：2026-10-24 13:45:00 +0800。估时依据：.291余骨模型约17分钟、.363全251写者约8分钟；现完整新输入/源native与已有通用数学核齐，按30分钟覆盖全量局部数值和新尾单因，必要新增spring独立资格另拆。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 13:15 活动摘要：4b626241/7507身份已提交且工作区干净，255（115P2/140P3）。当前新尾922差中pelvis10、六腿912；先闭pelvis/foot-root消费数学，原自然Root反馈与腿数值保持开。
+
+  - 13:16 source/static闭环：完整251 source pelvis getter与写入Value阶段精确，double乘法→float PelvisOffset窄化已核，warm33实际寄存器重建调用与driver720原call对照；同一源数学核502 pelvis/foot-root local TQS native double精确，current公开setter502 actual输出精确。当前pelvis30平移差（新尾10）仅换native writer物理米值均恢复，R/S无差；writer来自真实source输出，独立spring/trace上游仍开，不能称单位一个因素已解释全部状态。先做writer控制消融/恢复，再封身份；六腿新尾912及自然Root反馈保持。255（115P2/140P3），截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/364/summary.json`通过；全部251源pelvis getter/Value/float窄化阶段、driver720实际call与warm33实际working参数闭合，502 source pelvis/foot-root local TQS native double精确，502 current公开setter actual输出精确；前88全部模型/实际值与旧.291同。完整current pelvis30平移差含新尾10，source writer单因素控制全部251 F32恢复；仅证实际writer消费边界，writer读自native外部值，不假称spring/trace独立预测或新根因。去控制丢30恢复（新尾10），源码字节恢复同target重编后全251输出字节同；当前最小合同仍失败，生产未修。7540身份（旧7507不变），255（115P2/140P3），六腿新尾912/上游state与原自然Root feedback继续，截图0、性能暂停。开始13:15:00；预估结束13:45:00；实际结束13:18:00；实际用时180秒；偏差-1619秒；结果完整251余二骨消费数学与source writer控制Gate通过。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D257 / P3 — Transition正向终止采样遗漏源section末端缓冲。
@@ -4836,3 +4843,4 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 实际反例：warm Land0.1秒请求后的prefix1，elapsed0.10000000894069672≥max0.10000000149011612，当前节点末态虽inactive，输出仍改变27份rotation，并把原输入缺失的PoseInAir加入为0；native同输入在这一步骨骼和curve存在性全等于输入。独立原source数据80步也只在warm首Land/prefix0修正，不延续到prefix1。
   - 控制/漏检：最小source terminal-copy合同对当前实际记录稳定FAIL；仅将该结束帧的Apply结果按源顺序换回同帧输入，pose/curve presence恢复，其他76观察帧原样保持。此为数据反事实控制，未称生产或实际runtime修复。旧惯性测试侧重中段数值/最终停止，容差和零值查找漏了到期帧的末尾单位化与缺失curve键。与D193欠时残留、D190/D191门槛及D195旋转差分不同；未宣称可见故障。证据`target/bf144/223/terminal-check.json`、`same-input.native.json`、`terminal-current-contract.report.json`和`terminal-source-order-control.json`，只登记。
   - BF144.340完整当前历史补充：使用正确mesh原暖2 Fall/首Land与原FSM240形成243步，源请求仅改变首Land和当前0，当前1在elapsed达duration时已精确copy输入及曲线存在性，后239均透传；目标该到期帧仍改变旋转并补缺失PoseInAir=0。原生同输入无请求对照、显式request_duration/schema及源请求移除/字节恢复通过，未用target暖pose冒source，也不把其他组合残差归本项。证据`target/bf144/340/native-check.json`、`terminal-check.json`、`summary.json`。
+  - BF144.364当前边界：完整251 pelvis/foot-root502 source与current重放、pelvis30含新尾10 writer消费控制/消融恢复、7540身份通过，255（115P2/140P3）。下一六腿新尾912与上游独立trace/spring，后原自然Root feedback/attributes/Down-Up；截图0、性能暂停。
