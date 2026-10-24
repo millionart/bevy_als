@@ -3310,6 +3310,16 @@
 
   - 完成/Gate：`target/bf144/409/summary.json`通过。原单蒙太奇mesh-space additive/total≤1/Base1/无profile合同明确，Slot累加仅inner归一、无ApplyMesh outer。自主240 Grounded Base与原88已校actor montage输入/正确SKM叶经精确mesh核产完整Slot；现有原SlotProbe分左右120帧（26.438/25.948秒），18960骨TQS、全部曲线、position/weight/slot输入全精确，88非零/152透传均通过。加outer normalize6558骨失败，错用local6417骨失败而clock/curve保持；原脚本与240pose字节恢复后全过，无reader/新数学核扩展。9516身份旧9479全保持、114 ALS/184生产Rust/转换器/reader/原资产/冻结rlib不变，256（115P2/141P3），无新D。此source完整Slot消费显式原montage参数/时钟，尚未关闭回调自主producer/完整父反馈或角色target最终pose；下一真实Slot输出→Locomotion/Layering→Head/Rig/Root，Feet/attributes继续开。截图0、性能暂停。开始19:54:18；预估结束20:19:18；实际结束19:58:30；实耗252秒；偏差-1248秒；结果完整自然Transition Slot source pose Gate通过。
 
+
+- [x] BF144.410 U07自然Slot→Locomotion→Layering Base真实路由与封装：依赖.409完整source Slot以及.388/.390同身份实际AnimBP目录，沿主Slot输出实际consumer与Locomotion当前Grounded路径、最终Layering输入追全部pose/曲线封装与缓存，不把名称相同cache或未访问action分支并入已通过。先核source实际状态/入口权重/可能inertial或curve节点，再生成可供Layering的240完整source Base；未闭父参数/惯性请求/动作状态需显式列依赖，不用原生最终Base回填。Gate：fresh source路由闭包和实际240资格、source运算/透传合同与必要原生校准、最小曲线/路由消融恢复/identity；后继Layering源姿态链与Root/Feet/属性、独立反馈继续。开始：2026-10-24 19:58:43 +0800；预估结束：2026-10-24 20:18:43 +0800。估时依据：.403闭包532秒/.408路由与两原惯性383秒，当前复用原Slot产物但Locomotion含两FSM及中间cache，20分钟含静态资格和必要原生单位校准，不提前假设透明。仅审计不改生产/reader/转换器/资产，截图0、性能暂停。
+  - 19:58 活动摘要：.409提交dfa42fa9/9516身份，256（115P2/141P3）；先从真实Transition Slot唯一输出consumer和Locomotion root倒推实际路由，不继续只做孤立叶单位；完整source Base现已跨Standing/Grounded/Slot，下一Layering入口。
+
+
+  - 20:03 source/static与完整路由闭环：真实主Slot→Locomotion Grounded Input→Grounded cache/当前Grounded state→外层惯性/InitializeLean→PostLocomotion空槽→Layering Locomotion Input八条边逐一断言；初始化及240实际Grounded/weight1/InAir子0/无栈，Post槽source1/slot0。补核alias真实绑定（不凭名称）：Grounded属于In Air Alias，两出口均要求父LocomotionMode=InAir（一个AND bJumped），241 Grounded父输入让两规则恒false；父mode仍显式边界。InitializeLean仅Update期重置Lean，无Evaluate pose改写；.408已闭请求域没有新增请求。原Locomotion惯性240自主Slot输入native26.705秒、18960骨/全部曲线精确透传，形成Layering Base；错误绕过Slot损88帧首65，去真实Layering边拒绝。9516旧身份核中，256（115P2/141P3）；下一完整Layering当前prior/overlay与source Base→Head/Rig/Root，独立反馈/Feet/attributes继续开。截图0、性能暂停。
+
+
+  - 完成/Gate：`target/bf144/410/summary.json`通过。真实Slot→Locomotion Grounded缓存/状态→外层惯性/InitializeLean→空Post槽→Layering Locomotion Input八边完整；240主Grounded权重1/InAir子0/无栈，初始化同域。源alias绑定完整查明，两个真实Grounded出口都含LocomotionMode=InAir必要条件，241 Grounded父输入使false，不借bJumped默认；该父mode仍显式输入。原callback只Update重置Lean、无pose改写，惯性请求沿.408域为空，Post槽全240 source1/slot0。原Locomotion节点native26.705秒、240/18960骨及全部曲线精确透传，完整source Layering Base生成；绕过Slot损88帧首65/去实际输入边合同拒绝，无额外状态/曲线适配。9541身份旧9516全不变、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib保持，256（115P2/141P3），无新D。下一将真实完整Base接既有Layering prior/overlay源分支，再Head/Rig/Root/Feet/attributes和独立反馈；未把本透明路由当完整Layering或target pose验收。截图0、性能暂停。开始19:58:43；预估结束20:18:43；实际结束20:04:14；实耗331秒；偏差-869秒；结果完整source Slot→Layering Base路由生产Gate通过。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
@@ -5307,3 +5317,5 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.408当前边界：完整240 source Grounded Base、两原惯性37920骨/曲线透传与错误转发反例/四曲线包装/9479身份通过，256（115P2/141P3）。下一主Transition Slot完整pose→Locomotion/Layering/Root，独立反馈/Feet/属性及target最终比较仍开；截图0、性能暂停。
 
   - BF144.409当前边界：完整240 Slot/18960骨曲线clock全native、88mesh加性152透传、两消融字节恢复/9516身份通过，256（115P2/141P3）。下一真实Locomotion/Layering/Root及独立反馈/Feet/属性，完整target角色pose未闭；截图0、性能暂停。
+
+  - BF144.410当前边界：240 source Layering Base/18960骨曲线、八真实边/alias出口域/Slot绕过反例/9541身份通过，256（115P2/141P3）。下一Layering完整source pose→Head/Rig/Root，独立反馈/Feet/属性未闭；截图0、性能暂停。
