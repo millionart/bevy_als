@@ -3631,6 +3631,16 @@
   - Gate完成：matched240四边界完整TQS/curve矩阵及候选player/标量已封口，reference238有效/2未求值；首20 stride/rate producer以76 native点、106双侧公共核、数据与算序两消融及源码bytes恢复同target重编通过。身份11310/前11247不变，114源ALS、184生产Rust及冻结库/reader/转换器/原资产均不变；累计260（115P2/145P3），D121/D206仅扩consumer。候选clock与物理速度未具共同输入/当帧资格，按首缺口拆后继，不得把938 presence/100 position或大批TQS余差直接登记成缺陷。证据`target/bf144/432/manifest-check.json`、`curve-check.json`、`controls-check.json`、`summary.json`；截图0、性能暂停。
   - 时间/拆分：开始2026-10-25 02:21:44 +0800；预估结束2026-10-25 02:56:44 +0800；实际结束2026-10-25 02:44:14 +0800，耗时1350秒、提前749秒。本项manifest/首producer Gate完成；物理共同速度/投影前置及实际player更新/clock phase分别后继，完整Root/非零view/attributes目标保留，未实施修复。
 
+- [x] BF144.433 U07共同Forward输入域速度producer与采样阶段：依赖.432完整240标量/pose manifest及首20 stride/rate差，fresh从本地source核Locomotion.Speed的实际velocity、float阶段、scale与刷新phase，再核matched240 target actual_motion/provider两份速度及actor变换。先固定共同物理向量验证算法，再分别解释实际速度/单位/投影贡献；完整读取D151/D256等既有合同后决定归并，不能把不同物理轨迹直接当算法差。Gate：240速度/变换/phase输入表、同输入source/native或已校准核与target公共核、最小单因/必要消融及源码bytes恢复同target重编/identity；确缺物理生产/每player更新字段时按source前置拆分，不用本项关闭clock/Root/非零view/attributes。开始：2026-10-25 02:44:48 +0800；预估结束：2026-10-25 03:19:48 +0800。估时依据：.432共同域manifest/曲线首闭包1350秒、.431域定位1619秒；现有240 actor/parent/target记录及既有.312/.313核，35分钟以同向量速度生产和真实phase核对为独立闭环。仅审计，生产/reader/转换器/原资产不改；截图0、性能暂停。
+  - 活动摘要：.432已以a7f305a4提交，11310身份与260（115P2/145P3）保持；工作树无生产改动。当前真实speed差尚未因子分离，后续clock资格与全Root仍打开；本项仅沿首速度producer闭包，不扩相邻模块。
+
+  - 02:50 source/static闭环：fresh源世界Size2D→cm float→动画直接复制与target局部投影helper/provider已核；新增只读body Transform后，归一加载起点的旧完整240记录精确，当前velocity/body/provider/动画消费phase240和源actor/movement/Standing callback Speed240均对齐。原生720 actual-source/common-cm/common-m长度全精确；公共helper用实际root Transform的GlobalTransform提取rotation重放target240全等，94局部投影标量差归D151、4 cm-float阶段差归D256。源实际cm Speed的runtime投影与target当前93帧不等，统一target同向量source速度核后仍92帧不等，是不同实际物理输入，不能冒作D151/D256或clock漏移植。初版“actor quat保持初值”断言被20个微小变化否定，已保留失败报告并改为逐帧实际Transform，未登记生产Bug。下一只做必要消融/恢复/identity，真实physics producer后继；截图0、性能暂停。
+
+  - 02:54 Gate工具修正：继承.432身份表时，一个新增`source_code:ALS/Private/...`键缺`Source/`前缀，旧resolver报文件不存在；并非hash变化或生产故障。保留.432所有sealed产物和digest，在当前resolver按既有Source-prefixed/ALS-relative格式确定性解析，两个实际源文件别名自测通过后重跑11310全量身份；失败脚本/report与前缀迁移保留于本项证据，后续模板继承此读取规则。
+
+  - Gate完成：720 fresh native长度、源/target240速度与phase交接、94局部投影/4厘米float因子、82旋转读取负例及完整观察移除/字节恢复同target重编通过；11381身份/前11310全部不变，114源ALS/184生产Rust/冻结库/reader/转换器/原资产均未改。D151/D256仅扩既有消费者，累计260（115P2/145P3），未新增编号或生产修复。证据`target/bf144/433/input-check.json`、`speed-check.json`、`controls-check.json`、`summary.json`；实际物理输入/速度生产、每player当帧资格与clock phase、完整Root/非零view/attributes仍开，截图0、性能暂停。
+  - 时间/拆分：开始2026-10-25 02:44:48 +0800；预估结束2026-10-25 03:19:48 +0800；实际结束2026-10-25 02:55:40 +0800，耗时652秒、提前1447秒。本项共同向量速度producer/采样phase Gate完成，物理向量/运动计划/位置回算闭包及player更新资格拆后继；.432与本项已复用既有原生核，后续同类估时据实际1350/652秒下调重复读取成本，未知物理闭包仍按真实递归规模单独估时。
+
 
 
 ### 已确认差异（仅登记，未实施修复）
@@ -3689,6 +3699,8 @@ BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法
   - 最小反例/因素：共同runtime世界向量约(1.3333333731,0,5.8281856e−8)m/s，源厘米float为133.33334350585938，runtime投影1.3333334922790527；直接米制float为1.3333333730697632。只去掉中间厘米float阶段便回到target值，保留该阶段即恢复原生Speed合同。源/目标向量、单位物理量及原生长度算子均锁同；D151局部投影造成的额外31项偏差单独保留。
   - 边界/漏检：当前确认标量生产与provider输入合同，不声称九项均改变某个FSM或可见pose，也未将其与不同物理速度的原历史混配。此前测试多使用0/整数厘米速度或直接以target scalar为期望，没有同向量、同原生长度的厘米float与米float分步对照。证据`target/bf144/312/native-check.json`、`length.native.json`和`target/bf144/311/speed.json`；仅登记，生产未修。
   - BF144.313 实际graph消费者补充：先隔离D151，在同一world长度cohort上仅替换为已原生核验的cm-float Speed，9个scalar差异进入3 stride、7 playrate、10 asset-clock和35 pose帧；14帧RigInput也随下游pose/curve改变。物理/body transform/模式/FSM各40全同，T/R/S通道行差325/702/4，最大原始通道分量差为约1.19e−7/4.17e−7/1.19e−7。三producer每帧值均对原生scalar oracle；控制移除/源码字节恢复同target重编全历史精确。仅扩大本项影响证据，未新增根因、可见故障结论或source-target完整Root恢复。证据`target/bf144/313/consumer-check.json`、`controls-check.json`与恢复报告。
+
+  - BF144.433 matched240补充：720 fresh原生长度中actual-source-cm/common-target-cm/common-target-m各240，源实际Speed/公共world核/共同向量厘米float逐份精确。固定target实际世界向量，先cm float再投影与直接米float有4份不同，移除该中间float阶段后四信号全部消失，其它数学字段保持；源码bytes恢复同target重编完整240 byte精确。源实际Speed runtime投影与target局部speed有93份不等，即使对target向量统一source Speed生产核仍92份不等，属于不同物理速度输入，不能把93/92计作本项同输入反例。证据`target/bf144/433/speed-factor-rows.json`、`speed-check.json`、`controls-check.json`，未新增编号、未修生产或宣称整Root恢复。
 
 - [ ] BF144-D255 / P3 — 地面制动向量乘法提前按F32舍入，改变共同输入的制动速度。
   - Source：fresh `CharacterMovementComponent.cpp:4377–4432`以FVector double执行RevAccel×float dt后加回Velocity；`Vector.h:2058–2073`给出实际GetSafeNormal。原生有效标准CharacterMovement的受控制动核15样本已核，12原实际输入的纯制动向量与独立模型逐值相同；此核不tick世界、不执行位置回算，也无动画root motion。
@@ -4739,6 +4751,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 漏检：旧旋转测试只用yaw且仅比较速度误差容差，未检查严格布尔阈值或倾斜输入；初版诊断误把Gameplay Grounded当作Standing Idle，已补实际状态等待并排除该前置失败。证据`68/checked_initial/`、`68/final/`及`bf144_animation_phase68_speed_uses_world_plane`、`bf144_animation_phase68_motion_inputs`；未改生产或放宽阈值。
   - BF144.311 普通Forward yaw的实际provider补充：完整world/actor逻辑/mesh基推导与fresh CDO相符后，公开spawn的40自然Forward输入中，冻结公共helper逐值重放全部actual horizontal_speed与provider speed；31帧即使纯yaw也因局部forward/right投影的F32舍入而偏离同帧世界水平长度。首输入actual/provider0.6666665673、同世界向量长度0.6666666269；只移除world-length因素丢31信号，字节恢复同target重编全复现。这里没有新阈值/可见故障结论；世界物理D253/D254、共同制动D255和额外9个厘米float标量候选保持独立。证据`target/bf144/311/speed-check.json`、`speed.json`与恢复报告；生产未修，未重开原已完Gate。
   - BF144.313 实际graph传播补充：在真实Forward 40步中仅将horizontal_speed改成同帧world长度，全部物理位置/速度/body basis/模式与FSM逐值保持；31 scalar差异继续进入10 stride、28 playrate、34 asset-clock及36 pose帧，T/R/S通道行变化1225/2369/17。移除诊断producer控制回到原baseline，源码字节恢复同binary重编完整cohort一致；这些是已知因素的实际传播，未宣称肉眼可见或source pose已恢复。证据`target/bf144/313/consumer-check.json`、`controls-check.json`、`restore-check.json`。
+
+  - BF144.433 matched240消费者补充：实际root Transform逐帧只读记录后，冻结公共helper经同一GlobalTransform.rotation提取重放240份actual/provider speed全部精确；若直接使用local quat，82份重放失败，已排除错误旋转读取。相同实际target世界向量改用world水平长度，94份scalar改变；720原生三域长度确认world核240份相同，源Speed240来自world XY double长度转cm float。物理移除world控制丢94信号、其它字段保持，源码bytes恢复同target重编240 byte精确，观察字段移除/恢复的完整旧240与新240也分别精确。这里只扩同输入producer证据，不称本次跑了world-only闭环姿态控制；物理输入余差仍后继。证据`target/bf144/433/speed-check.json`、`controls-check.json`、`summary.json`，生产未改。
 
 - [ ] BF144-D152 / P2 — 地面预测复用物理形体，遗漏源胶囊组件的查询尺寸。
   - Source：fresh `AlsAnimationInstance.cpp:785–789,1166–1188`从CapsuleComponent读取scaled radius/half-height，再用Identity旋转构建独立查询胶囊；`CapsuleComponent.h:201–211`半径取水平两轴较小值、半高取竖直尺度。这不同于D11所述物理形体的水平大轴规则。
