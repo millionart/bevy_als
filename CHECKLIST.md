@@ -3575,13 +3575,23 @@
   - 完成/Gate：`target/bf144/426/summary.json`通过。四原/Idle-data首两帧的20个public层全部79骨Q与actual缓存逐值精确，4680当前组件/局部产品由source Geometry API及独立顺序模型全部double精确；runtime公式完整推导源basis到WX→Z→Y，普通数值与source-space模型相等，signed-zero bit边界由最小source-basis计算保留。只改F32累加顺序，2638产品/1258源分量、原/Idle-data各首帧HeadBase67/66骨与29/27最终源分量有单因信号；同函数wide=false/true对照3662产品仍不同，精度与顺序独立。新增D263/P3，261（115P2/146P3）；最小current原生合同稳定失败，source-order控制匹配，旧同glam/1e−6期待漏检。移除唯一F32顺序factor，四组HeadBase回original/266最终骨变化全消，current与source64控制保持；源码bytes恢复同target重编12输出/4680记录byte同。删basis包装虽数值全同但2394零符号位差被拒，保留最小需要并删仅诊断的重复runtime实现；不称zero位差造成当前动作故障。10933身份旧10883保持、114ALS/184生产Rust/reader/转换器/资产/冻结rlib不变；没有生产修复或当前F64 Layered路径宣称。下一partial与Normalize层内余差及完整240 Layering、Move/Stop、共同world输入、全Root/非零view/attributes继续开，未称全系统无差异。开始2026-10-25 00:04:24；预估结束00:39:24；实际结束00:24:05；实耗1181秒；偏差-919秒；结果首层内乘法单因及D263记录Gate通过。截图0、性能暂停。
 
 
+  - 00:31 有限复开分类：fresh回读D163的.283普通FK消费者与其source_multiply实现，症状为D263重复编号；二者共享同一UE VectorQuaternionMultiply2、同一local basis和逐项累加顺序，当前层化F32只是新增consumer，目标backend分组不同不构成新的source算法。旧Gate漏检是仅检索差异标题，未覆盖D163正文已有的普通Quaternion/FK扩展。仅取消本项“新增D263”的分类结论；20层/4680原生乘法、消融恢复/10933身份数值Gate保持，原sealed证据不重写。必要复核由.427a先闭合，再继续.427数值Gate；不修改生产或扩大相邻模块。
+
+
+  - 00:37 复开收口：.427a用原D163函数对旧174与当前4680原生产品共4854份逐double精确、当前F32 source模型与旧公式投影精确，确认只新增Layering消费者。D263撤回并入D163，canonical标题补普通Pose范围以免只查标题再次漏读正文；active回260（115P2/145P3）。原10933 sealed全部保持，新的10952身份与migration覆盖原“新增D263”的分类；.426数学/消融证据不失效，分类有限复开结束。本次分类复核开始00:31:19，预估结束00:41:19，实际结束00:37:25，实耗366秒，偏差-234秒；无生产修改、截图0、性能暂停。
+
+- [x] BF144.427a U07乘法差异编号去重：依赖.426分类有限复开，按fresh D163/.283 source_multiply与当前.426源公式、原生相同输入与consumer链核同根因，撤回D263并将完整当前证据迁入D163。Gate：旧174与当前4680产品重用同一中性公式且native精确、active编号计数/撤回说明、sealed历史保留/最小分类迁移manifest/identity；不重开.283数学Gate或重跑未改production/runtime。开始：2026-10-25 00:31:19 +0800；预估结束：2026-10-25 00:41:19 +0800。估时依据：两个源函数和原生矩阵均已存在，只有公式/归属与计数复核，10分钟含identity；不是实现或额外性能/截图验收。
+
+
+  - 完成/Gate：`target/bf144/427a/summary.json`通过。直接提取旧.283 D163 source_multiply与当前.426 source_product，两函数在旧174/当前4680共4854原生产品上使用同一源公式，所有double和当前F32投影精确；证明D263为重复编号而非新source算法。D263正文证据迁入D163，保留撤回ID说明，canonical标题补普通Pose；active260（115P2/145P3），.426仅分类复开后重新勾选。历史sealed产物全部不改，migration明确只覆盖其new-D/count分类；10952身份旧10933保持，114ALS/184生产Rust/reader/转换器/资产/冻结rlib不变。旧Gate漏检边界为只查标题而未看完整条目/consumer扩展，本次同源函数断言固定该漏检；未复开.283数学Gate。开始2026-10-25 00:31:19；预估结束00:41:19；实际结束00:37:25；实耗366秒；偏差-234秒；结果分类迁移Gate通过，继续原.427归一化审计而不缩目标。截图0、性能暂停。
+
+- [ ] BF144.427 U07首Idle层内Normalize/partial余差：依赖.426实际20层/4680产品及D163（原D263已去重）、.425完整source核，从当前glam lerp内部N/外部组件N/local还原N的真实输入开始，fresh核源FQuat Normalize、VectorDot4/reciprocal-sqrt与partial FastLerp，保留乘法顺序/次数/权重并隔离数学方法与精度。先逐次校准原F32中间值和完整actual HeadBase，再用既有Geometry原生GetNormalized及已证源核作同输入对照；没有当前原生能力缺口不新增reader选项。Gate：四原/Idle-data首两帧完整79骨旋转及所有实际Normalize输入、native/source模型精确、首余差单因/必要消融源码bytes恢复同target重编/identity；D232/D238/D163保持独立，完整Root/后续240历史/世界输入不因局部Gate关闭。开始：2026-10-25 00:25:59 +0800；预估结束：2026-10-25 01:00:59 +0800。估时依据：.425连续源核602秒、.426新primitive和basis表示闭包1181秒；本项复用源N与Geometry接口但要捕获glam内部N，35分钟覆盖一个明确Normalize/partial单因闭包，必要新依赖按实际source事实登记。仅审计不改生产/reader/转换器/原资产；截图0、性能暂停。
+  - 00:25 活动摘要：上一goal轮为progress，完成.425/.426并提交8775a1b9、b4a2029a，新增D263，261（115P2/146P3）/10933身份。工作树干净、权威进程检查无遗留夹具/native；当前只沿实际层内余差继续，不复开已完成项，不扩旁支。
+  - 00:37 分类依赖已过Gate：.427a确认原D263与D163同根因并完成撤回，active260（115P2/145P3）/10952身份；本项数值输入/公开20层回放保持。已捕获2884个实际N输入，glam内部lerp/外部N/local N全复现current缓存，原生N取证尚未启动。继续原开始00:25:59/预估01:00:59窗口，不因必要去重依赖重置计时；截图0、性能暂停。
+
 ### 已确认差异（仅登记，未实施修复）
 
-- [ ] BF144-D263 / P3 — Mesh层化四元数乘法未保留源坐标基下的逐项累加顺序。
-  - Source：fresh `UnrealMathNeon.h:2318–2337`的VectorQuaternionMultiply2先W项、再依次累加X/Y/Z项，`AnimationRuntime.cpp:1949–1954,1968–1977`在组件父乘与还原local时实际消费。既有local quaternion basis为runtime `[-x,-z,-y,w]`，完整代入后runtime x必须按`((aw*bx+ax*bw)-az*by)+ay*bz`求值；直接runtime公式与source-space产品转换在4680原生同输入中全部精确。
-  - Target：`mesh_space_layered_blend.rs:80–86,149–153`调用glam Quat乘法；glam0.32.1 `f32/neon/quat.rs:794–833`先分别形成WX与YZ两对，再相加。该变化在current F32数据/坐标/权重/Normalize次数保持时即可隔离，不能只归D232的早投影、D238额外归一化或D251的Euler构造。
-  - 最小反例/consumer：实际首Idle、第一pelvis层source mesh乘法、upperarm_l/runtime y当前0.06716374307870865；只改为源顺序、保持F32得0.06716373562812805，与相同输入原生F64投影相同。4680真实产品中2638变化、1258源分量恢复；完整20层原F32旋转数组逐值等实际public输出，在固定actual输入的公开五层重放中，单因素使原/source-Idle-data两域各首帧HeadBase的67/66旋转骨改变，并恢复同叶完整source链29/27最终分量。未在生产世界施加修复，不称所有骨或Root恢复。
-  - 独立性/漏检：源顺序的runtime直接推导与source空间模型全4680产品/12完整控制包普通数值精确同，源空间表示的符号零位须由最小basis转换保留，未将删包装后的2394位差静默忽略；same-runtime F64 glam控制仍与原生760产品double不同、52投影不同，说明保double宽度不足以消去算法顺序，该控制不冒充生产层化F64路径。旧`source_stop_nodes.rs:662–681`用同glam乘法自生期待且容差1e−6，.267只控制Normalize/端点；当前最小原生合同已稳定失败。单因消融后266最终骨变化归零，源码bytes恢复同target重编全部12输出/4680记录byte同；`target/bf144/426/products-check.json`、`controls-check.json`及.426完成摘要。仅登记，生产未修。
+BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法累加顺序是D163已由.283记录的同一Quaternion组合根因的新consumer。旧D163原函数逐值恢复旧174及当前4680原生double产品，当前F32源顺序模型也与该既有公式投影精确。证据及消费者细节已合并D163；.426 sealed数值产物保持，但其“新增D263/累计261”分类已被.427a migration覆盖。当前累计260（115P2/145P3），本编号不再使用。
 
 - [ ] BF144-D262 / P3 — Foot Lock世界四元数中间乘法提前降为F32，改变限位缓存与实际Rig输入。
   - Source：fresh `AlsFeetState.h:18–28`的TargetRotationWorldSpace/LockRotationWorldSpace为FQuat double，`AlsAnimationInstance.cpp:1562–1574`先double相对乘法再降FQuat4f取twist，末段将FQuat4f offset升double乘原LockWorld。local/FinalRotation降F32发生在各自消费阶段，不能反推世界乘法也应F32。
@@ -4751,13 +4761,16 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 棱边补充：两个Arch02诊断射线仅改用同一Parry核的源厘米/Core坐标即选回native面56/231，确认米制float变换输入会改变近边资格；默认50/80cm完整Rig在其中一处实际选面50而源为231，法线进入足旋转输入，源输出恢复及1cm内点控制通过。完整Rig最终16组12PASS/4FAIL，四个失败均恢复；旋转/弹簧算法及最终姿态验收另项继续。
   - 漏检/范围：旧测试核对命中位置或大平面的法线，未覆盖共享边附近的候选接受与距离收紧。证据`74/visits.typed.native.json`、`74/expanded_full.native.json`及`74/final/`。原五条长射线映射实际Rig距离后会被坡度门槛拒绝，不把这些raw法线差异重复计作运动缺陷；早期远处缩放夹具的11µm位置干扰已用逐顶点完全相同的输入排除，未作生产缺陷或阈值调整。
 
-- [ ] BF144-D163 / P3 — 足旋转在Euler半转边界未保持源计算分支，角度表示差异进入限位与最终脚骨。
+- [ ] BF144-D163 / P3 — Euler半转分支与四元数组合算序未保持源合同，影响足旋转和普通Pose。
   - Source：fresh `AlsRigUnit_ApplyFootOffsetRotation.cpp:49–97` 将当前/目标转到小腿空间，降为float Euler后用包含当前动画角度的区间约束；`UnrealMath.cpp:691–718` 的double Rotator保留±180°分支。900个精确输入的原生转换和实际参考骨架连乘均已核验；source不是把两个半转表示统一规范后再约束。
   - Target：`control_rig_math.rs:33–52` 的等价代数在有符号零处可选相反Roll端点；`control_rig_units.rs:268–278` 的目标坐标四元数组合又可因double舍入跨过Roll/Yaw半转分支。`constrained_angle:38–51` 随后使用不同的当前端点扩展区间，使微小表示/舍入差异成为大角度输出差异。两条数值路径不能简化成单改一个Euler符号即可全部修复。
   - 反例：采用真实ALS初始calf/foot参考旋转，受控post-IK半转姿态的源当前Euler为约(0,180,180)；左脚目标Roll177.4759°在源区间保留，目标区间却裁为0。完整角色使用实际30°坡面查询及float FootTarget输入，最终左/右脚分别偏离177.4759°/130.7921°；仅以原生合同结果替换本次旋转输出，两个实际SetRotation消费者恢复。八个单元反例失败，16个±0.0001°邻域控制及5720次一般单元步骤通过。
   - 边界与漏检：反例控制了IK后的有效旋转输入，不是默认动作自然触发证据；TwoBoneIK数学已在.78–79核对，.80的启动/站立方向/转向瞄准/蹲姿矩阵未触发，其他动作与历史仍未证明。旧足旋转测试使用相同target Euler/Quaternion helper构造期望，覆盖的是普通角度、参考缓存和法线状态，没有原生半转分支或组合后的数值边界。证据`76/math.native.json`、`76/products1.native.json`至`products6.native.json`、`bf144_animation_phase76_half_turn_reference_candidates`、`bf144_animation_phase76_full_half_turn_weighted_consumers`。未修改生产实现或转换规则。
 
   - BF144.283同一Quaternion组合算序的普通FK消费者：同native pelvis getter与thigh local共174乘法输入，当前目标坐标乘法141个raw double不同，保留源坐标累加顺序174全部恢复（F32投影全同）。固定源cm/cross-FMA/NEON后仅恢复该乘法顺序，IK前174个native calf global位置由115 double余差变为全等；改回当前乘法丢115恢复，源码字节恢复同target重编后完整矩阵精确。是本项已记录组合舍入路径的新普通姿态消费者，不新增编号或宣称这里触发Euler半转大角差。证据`target/bf144/283/factors-check.json`、`products.native.json`、`controls-check.json`与`summary.json`，生产未改。
+
+  - BF144.426/.427a层化新consumer（原D263撤回并入）：fresh `UnrealMathNeon.h:2318–2337`与source `AnimationRuntime.cpp:1949–1977`在父组件乘法/local还原中使用W→X→Y→Z逐项累加，既有basis `[-x,-z,-y,w]`完整代入后runtime x为`((aw*bx+ax*bw)-az*by)+ay*bz`；`mesh_space_layered_blend.rs:80–86,149–153`调用glam0.32.1 `f32/neon/quat.rs:794–833`的WX/YZ两对相加。同一旧.283 source_multiply逐值恢复旧174与当前4680原生double产品，当前F32源顺序模型与旧公式投影精确，证明仅新增consumer，不能因F32/F64 backend或原标题聚焦Euler而重复编号。当前20层79骨Q全部等actual缓存；首pelvis/upperarm_l y当前0.06716374307870865，保持当前F32、权重和N次数只改累加顺序得0.06716373562812805，与原生同输入投影相同。2638产品改变/1258源分量恢复，固定actual输入的公开五层重放在原/Idle-data域各首帧改变HeadBase67/66骨、恢复同叶source链29/27最终分量，不称全Root恢复或已施加生产修复。
+  - 本consumer独立性/恢复：same-runtime F64 glam控制仍760 raw产品/52投影不同，仅为算法独立性控制，不宣称生产Layering为F64。最小current原生合同稳定失败，旧同glam/1e−6期待漏检；只移除F32顺序因子使四控制包回original、266最终骨变化全消，源码bytes恢复同target重编12输出/4680记录byte同。直接runtime推导普通数值全同，删basis包装会改变2394重复记录/控制分量的符号零位，故保最小source-space计算；未声称零符号位已造成当前动作故障。`target/bf144/426/products-check.json`、`controls-check.json`与`target/bf144/427a/equivalence.json`，sealed历史不重写，差异累计回260（115P2/145P3）。
 
 - [ ] BF144-D164 / P3 — TwoBoneIK在距离退化边界跨过源判断分支，改变膝／肘的求解方向。
   - Source：fresh `TwoBoneIK.cpp:84–94`在double厘米距离小于1e−4时才回退到X轴，否则按目标方向归一化；后续弯曲平面和余弦定理直接消费该方向。288组边界输入由原生`SolveBasicTwoBoneIK`逐值确认，包含相等／不等骨长、原点偏移及共线pole。
