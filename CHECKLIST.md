@@ -3301,7 +3301,7 @@
   - 完成/Gate：`target/bf144/408/summary.json`通过。source完整请求域：主三状态standard、Grounded240稳定Standing/weight1无栈；Details两请求处两cache均1实际context无skip，不向外转发；蓝图无直接请求，槽group共享map经classic Transition动态montage的Standard构造/入出路径证明无请求，零view Turn队列不触发。两个原惯性节点240自主输入共37920骨/全部曲线native精确透传，错误转发只改变22/23/122/123，恢复整240字段精确；native26.486/25.979秒。Standing/Grounded原root链、Linked Standing Input/Standing缓存/源曲线四pin1闭合，主Grounded唯一直接消费者Transition Slot.Source；四键去除各失败，形成240源Grounded Base。9479身份旧9451全不变、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib保持，256（115P2/141P3），无新D。该source Base仍显式消费原父参数，不等于完整反馈或实际角色/target最终pose；下一完整Transition Slot→Locomotion/Layering→Head/Rig/Root及Feet/attributes/独立反馈，截图0、性能暂停。开始19:47:22；预估结束20:12:22；实际结束19:53:45；实耗383秒；偏差-1117秒；结果Standing/Grounded最终惯性请求域与完整source Base包装Gate通过。
 
 
-- [ ] BF144.409 U07自然Transition Slot完整source pose：依赖.408完整240 Grounded Base、.386原88蒙太奇输入/两Stop叶数据与.387已校时钟/权重域；沿真实主Transition Slot源码的Base、additive类型/权重/累加/曲线/归一化次序生成240原Slot输出，非零88帧不能只做alpha或叶数据闭环。优先复用现有SlotProbe与精确数学核，源montage实际时点/输入本项仍为已校原输入，完整回调→montage自主producer/最终反馈边界明确；不回填角色Slot或target pose。Gate：fresh source Slot算序与数据域、完整88非零/152透传及79骨/曲线对whole-native、必要归一/权重/curve消融恢复/identity；之后接实际Locomotion/Layering→Root。开始：2026-10-24 19:54:18 +0800；预估结束：2026-10-24 20:19:18 +0800。估时依据：.387动态montage输入377秒/.408 Base383秒，旧完整Slot/加性核已存在但88帧可能有mode/normalize差，25分钟含原生全pose校准与消融身份；缺工具能力按source先拆前置，不凭类型名选择mesh/local。仅审计不改生产/reader/转换器/原资产，截图0、性能暂停。
+- [x] BF144.409 U07自然Transition Slot完整source pose：依赖.408完整240 Grounded Base、.386原88蒙太奇输入/两Stop叶数据与.387已校时钟/权重域；沿真实主Transition Slot源码的Base、additive类型/权重/累加/曲线/归一化次序生成240原Slot输出，非零88帧不能只做alpha或叶数据闭环。优先复用现有SlotProbe与精确数学核，源montage实际时点/输入本项仍为已校原输入，完整回调→montage自主producer/最终反馈边界明确；不回填角色Slot或target pose。Gate：fresh source Slot算序与数据域、完整88非零/152透传及79骨/曲线对whole-native、必要归一/权重/curve消融恢复/identity；之后接实际Locomotion/Layering→Root。开始：2026-10-24 19:54:18 +0800；预估结束：2026-10-24 20:19:18 +0800。估时依据：.387动态montage输入377秒/.408 Base383秒，旧完整Slot/加性核已存在但88帧可能有mode/normalize差，25分钟含原生全pose校准与消融身份；缺工具能力按source先拆前置，不凭类型名选择mesh/local。仅审计不改生产/reader/转换器/原资产，截图0、性能暂停。
   - 19:54 活动摘要：.408已提交88a6f4dd/9479身份、当前工作区干净，256（115P2/141P3）。首核两Stop真实additive类型和Slot原混合规则，消费自主Base及已校源montage输入；完整Slot尚未验收，截图0、性能暂停。
 
 
@@ -3360,6 +3360,8 @@
   - 20:46 迁移.407 Gate：修正后的18 Stop/240 Main普通pose全量重算，五新native批次30.971/30.973/30.969/30.972/25.936秒，2370骨TQS及全部228曲线合同精确（target/bf144/411-migrated/407/native-check.json）。每骨控制携带曲线键覆盖，避免因新曲线增加批次；214直传/26主栈/4子栈资格保持。阶段20:43:10–20:46:03通过，重新关闭407后才启动408，截图0、性能暂停，无产品新D。
 
   - 20:47 迁移.408 Gate：新完整Main240输入经两个原惯性节点native25.940/25.947秒，37920骨与所有新曲线精确透传；错误复制Details请求仍只改变22/23/122/123，恢复240字段精确。原source请求域/四root曲线包装合同不变，新Grounded Base已生成（target/bf144/411-migrated/408/native-check.json）；阶段20:46:20–20:47:23通过，重新关闭408后才启动409，无新D，截图0、性能暂停。
+
+  - 20:48 迁移.409 Gate：修正后的完整Grounded Base重新进入原Transition Slot，左右native25.929/25.934秒，240/18960骨、全部曲线、montage position/weight/slot字段全精确；88 mesh加性/152透传均齐（target/bf144/411-migrated/409/native-check.json）。原蒙太奇参数/时钟仍显式source输入，不回填最终pose；阶段20:47:35–20:48:35通过，重新关闭409后才启动410，无新D、截图0、性能暂停。
 
 ### 已确认差异（仅登记，未实施修复）
 
