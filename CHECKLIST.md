@@ -516,6 +516,10 @@
   - 07:15 source/consumer摘要：fresh三组ALS算法、SpringMath/InvExpApprox及Head配置、主/linked初值、Head Alpha与GetControlRigInput绑定均已核对；当前bIgnoreBaseRotation=True，源SaveBaseLocation和目标snapshot筛选均关闭相对基座旋转，未把禁用路径猜测列为缺陷。±180°处YawSpeed大值两侧同源公式，排除候选。19个阈值、24个scaled/unscaled/zero时钟、8个实际Spine输入发布、6个完整角色view/倾斜/owner-zero/Roll锁存，共57组PASS；头部角度与独立公式最大差仍在原1e−4度合同内，未放宽阈值。Rig局部基为(x,z,y)，yaw取反已核对到实际发布值；完整Rig运算后置。当前未发现新增差异，继续精简夹具后做身份Gate。
   - 07:16 完成摘要：删除夹具无用Option分支并把五次等待更新精简为一次，同target重编后57组全部PASS，所有记录值与精简前逐行相同。4份原生读取、9份ALS/5份UE/16份目标闭包及116份基线source、160份生产Rust、累积原始/Build资产、reader/启动器库身份PASS，证据`67/summary.json`、`67/final/`。没有新增或复开缺陷，累计仍147项；实耗19分17秒。直接公式与已核验输入链能完成本批，无需扩展原生读取器或生产算法。截图0、性能暂停，完整155图与公共Playground仍后置；下一项核对Layering/Pose与Locomotion通用输入。
 
+  - 2026-10-24 15:08 有限复开：.379新public look yaw180原生40步证实View输入规范化根因，source GetNormalized/NormalizeAxis把−180映为+180，而target character_turn_angle_degrees先wrap后取负给−180，Head首次向相反一侧。旧57组只核纯Head同输入、YawSpeed及一般view/owner/base消费者，没有覆盖public controller→canonical view→Head switching完整半转入口；仅复开这个View输入生产边界，不重做已证Head核/Spine与其它旧Gate。D258仅登记，生产未修；.379负责最小反例、共同实角和消融闭合后收回本条完成状态。
+
+  - 2026-10-24 15:11 有限复开收口：.379以原生同实角160、public直接半转40/两侧实际输入公共核、仅+180因素/移除/源码字节同target恢复及8247身份完成View输入规范化审计，D258/P3登记未修。恢复本条审计完成标记，不表示产品对齐；此前纯Head/Spine/普通view已证范围保持。
+
 - [x] BF144.68 Layering/Pose与Locomotion通用输入：依赖BF144.67记录Gate，核对RefreshLayering/RefreshPose和RefreshLocomotionOnGameThread的曲线默认值、权重、actor/mesh变换、速度/加速度/输入方向及pending语义，并追到当前生成图的直接读者。Grounded/Standing/Crouching/InAir算法、Feet查询和动作/通知分批后置；只因直接源链路扩展必要消费者。Gate：fresh主/linked图、配置和C++合同、关键边界及完整角色消费者、最小消融和身份记录。开始：2026-10-15 07:18 +08:00；预估结束：2026-10-15 07:58 +08:00；实际结束：2026-10-15 08:12:10 +08:00；偏差：+14分10秒；结果：审计记录Gate PASS，新增D150/D151两项P3，未修复。估时依据：本批约230行源算法，target共享provider/curve投影已在.65–.67完成生命周期和部分输入核对；参照.67实耗19分17秒，保留actor动作输入与真实图消费的核验空间。
   - 07:18 活动摘要：.67已提交，57组全部PASS且无新增差异。当前继续曲线状态与通用运动输入，先核对source逐字段用途，再进入最小反例；已有147项未修复问题不重复编号，截图0、性能暂停。
   - 07:41 source/consumer摘要：源GetMaxBrakingDeceleration在Custom/Falling/None选择不同于Walking的值，provider却始终发布GroundedDynamics。fresh Locomotion T19/T20均为Inertialization；实际Jump后Grounded写帧停留、权重0，因此未把空中字段差直接计数。沿直接consumer扩到High Mantle的0.2秒Hermite混入、Grounded Refresh与Standing Lean绑定；Custom第2帧dot(V,A)<0、slot权重0.074074且Grounded仍更新，目标lean=0.053087、源=0.023253，仅恢复braking=0即通过，确认D150/P3。实际Lean输入缓存等于当帧值，BS输出骨骼角差0.013047rad；正点积控制姿态逐值相同。独立运行的最终整姿态存在基础步态相位差，未用它冒充隔离证据。继续Layering/Pose字段及普通运动输入核验。
@@ -3041,7 +3045,23 @@
 
   - 完成/Gate：`target/bf144/378/summary.json`通过；public控制器/target look_delta160帧上下±60和yaw±170/180全默认图/Root成功，source actual pitch40/yaw60非零，source绑定/possess/nominal-before角和完整View/Head捕获。target无direct View组件或动画输入写，去public look后160输入角0/Head140帧改变，actor观察关闭全部旧行为精确（loading origin单独正规化），source关闭pose观察160行为同。原Source两阶段25280骨行/target三阶段37920源骨行及curves齐；新fresh原Head PitchAngle/YawAmount和teleport绑定同，160 Look player与每个sample/cached时间精确Head.YawAmount，.5只属旧零yaw域，不复开已限定Gate。实际pitch源60与target60.0000038147等40帧输入差，Head初比71帧余差尚未共同输入隔离，故无新根因；8156身份（旧8098不变）通过，255（115P2/140P3）。下一各自Head实输入重放、native同target实角控制及Down-Up叶/动态yaw采样→最终Head原pose；Feet/Root属性继续。截图0、性能暂停。开始14:54:00；预估结束15:24:00；实际结束15:01:37；实际用时457秒；偏差-1342秒；结果非零公共视角/实际输入与全pose域资格Gate通过，71余差保留后继。
 
+- [x] BF144.379 U07非零160 Head实际输入核与180共同实角隔离：依赖.378 public视角资格/40pitch输入差及71Head余差，fresh核head writer/原回调使用的view/body yaw与rate/初始化/half-life，最小补target before-evaluate实际scalar输入投影（只读），分别用各自真实输入重放公开Head核与source原生全状态；再让真实source controller消费target实际视角序列作为同输入控制，区分输入degree/radian累计/±180分支与算法算序。Gate：target160真实head输入/public核与source160原生算法或首明确余因、native共同视角控制前后与实际状态精确、最小输入/算法控制及字节恢复同target/身份；未隔离前不改新D，按根因与已有D04/D163等核查归并。原Look动态采样/Down-Up叶和最终Head pose下一依赖，Feet/Root属性继续保留。开始：2026-10-24 15:02:00 +0800；预估结束：2026-10-24 15:37:00 +0800。估时依据：.302实际pitch同输入原生控制约14分钟，.378160公共轨迹约8分钟；本项增加yaw180连续状态及source/target实际量化隔离，按35分钟核完整160并保首余界，不将不同输入的71余差全归单因。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 15:02 活动摘要：3df52ccf/8156身份已提交，255（115P2/140P3）；非零源/target初比71Head不同，实际角度与弧度转换尚未锁同。继续同真实consumer输入隔离，源Head时间动态YawAmount事实保留，原Look pose闭包后继。
+
+  - 15:10 source/static/native闭环：target新增真实head scalar输入投影/160轨迹与.378全旧行为同；source/target各自真实输入公开核共320六状态全部精确，JSON整0/浮0假差已用typed数值比较消除。源消费target实角的native160除120–139把−180规范+180外全部view/body输入相同，40后续Head残差从120起；只替这20个ViewYaw、其余输入/算法/连续状态不改，160全字段恢复源控制。最小静止零view20→一次public180的40步原生/当前对照排除累计误差，sourceView+180/target−180，首Head+13.7867431641/−13.7867431641。确认D258/P3并已按fresh因果有限复开.67输入规范边界，旧Head核/Spine不扩；去+180控制丢40帧匹配，源码字节恢复同target重编160输出字节同，当前最小语义FAIL。原nominal71余差含40pitch量化输入和归零残差，未全归新D。当前256（115P2/141P3）；最后身份/记录Gate通过后收回.67审计完成状态，D258保持未修。截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/379/summary.json`通过；target补只读实际Head scalar/before-eval160并与.378全旧字段精确，两侧各自实际输入公开Head核320六状态全部精确。native source消费target实际角160，前120输入/状态全同，120–139的−180被源GetNormalized规范+180，Head40帧余差起于120；只改这20个输入为+180，160全部六状态恢复该native控制，去因素丢40、源码字节恢复同target重编160输出字节同。独立直接public yaw180最小40步排除累计误差，sourceView+180/target−180与首Head±13.7867431640625，当前语义合同明确FAIL。D258/P3确认，256（115P2/141P3），.67仅View输入规范生产者有限复开/漏检复盘已完成收口，旧核不扩；D04冻结角色/脚Euler D163不同根因不合并。8247身份（旧8156不变），生产/reader/转换器/资产未改。原nominal71余差其余由真实pitch/归零输入差说明，未都并入D258。下一原Down-Up叶/动态Yaw采样与最终Head pose、D258骨骼consumer，Feet/Root属性等继续，截图0、性能暂停。开始15:02:00；预估结束15:37:00；实际结束15:11:35；实际用时575秒；偏差-1524秒；结果真实Head输入隔离/新D258最小反例与单因控制Gate通过。
+
 ### 已确认差异（仅登记，未实施修复）
+
+- [ ] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
+  - Source：fresh `AlsCharacter.cpp:1248–1255`对真实local controller的ViewRotation执行GetNormalized；`Rotator.h:690–717`的NormalizeAxis将−180和+180均映到+180。随后`AlsAnimationInstance.cpp:387–396`生成ViewState.YawAngle，`601–603`将+180限到+175进入同一Head临界弹簧。
+  - Target：`ab_als_provider.rs:300–304`将View角交给`turn_layer.rs:360–362`，该helper用`-wrap_angle_degrees(view-body)`；wrap自身在`turn_in_place.rs:42–51`保留(−180,180]，取负后却给Head发布−180。Source基础方向符号已由共同±170控制确认，不是应整体反转yaw；问题限于精确半转的规范化顺序。
+  - 最小反例：两侧真实静止Standing/ViewDirection/第三人称，前20帧零view，frame20只发送public yaw180（target仅look_delta，未写view组件/图/速度）；body yaw/rate均0，source实际ViewYaw=+180、target实际consumer=−180。源Head首步Yaw=+13.7867431640625，目标−13.7867431640625，冻结公开Head核各自实际输入完全重现。`target/bf144/379/current-halfturn-contract.json`当前语义明确失败。
+  - 单因/完整consumer：public160帧Down-Up/±170/180历史中，源以target真实角作controller控制后仅120–139的−180输入被源规范为+180，余所有view/body输入相同；40帧Head状态残差从120开始。仅把这20个Head输入改+180、不改任何Head算法/其余输入或连续状态，160帧六字段全部恢复该原生控制，见`halfturn-control-check.json`。原nominal71余差中其它数值来自实际pitch等输入差，未都并入本项。原Look显式采样时间消费Head.YawAmount，最终骨骼pose幅度另后继核验，不宣称已恢复。
+  - 漏检/隔离：旧.67纯Head/±180 YawSpeed矩阵没有走controller规范化→runtime符号转换→Head分支；本项已先有限复开.67该输入边界。与D04冻结角色的secondary/primary旋转算法、D163脚部Euler/quat分支不同，本次owner倍率1、普通第三人称、同一Head公共核已证相等，仅View输入表示不同。只登记，不改生产或放宽阈值；最小40源/目标完整历史、160实输入/公共核与源共同角控制见`target/bf144/379/minimal-check.json`、`kernel-check.json`、`same-input-check.json`。
+
+
 
 - [ ] BF144-D257 / P3 — Transition正向终止采样遗漏源section末端缓冲。
   - Source：fresh `AnimMontage.cpp:2712–2747`在正向到达无后续section末端时置bPlaying=false，并将Position设为`CurrentSectionEndTime - UE_KINDA_SMALL_NUMBER / 2`；本次动态montage为单序列/loop1，ALS `AlsAnimationInstance.cpp:1789–1792`传入触发0及原start/rate，原生末位为2.3332831859588623秒。
@@ -4962,3 +4982,4 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.376当前边界：源View/Head两组241包完整、自然240旧行为/移除/恢复同包精确及schema4反例，8068身份（仅3reader迁移）通过，255（115P2/140P3）。下一用新状态做自然Head/View/Feet算法与Down-Up180/Root属性闭包；截图0、性能暂停。
   - BF144.377当前边界：自然0view源1440字段/两侧480 Head公开核与真实初始化/输入反例恢复、8098身份通过，255（115P2/140P3）。下一直接public Down-Up180非零控制器历史，不用零域代替；Feet/Root属性仍开，截图0、性能暂停。
   - BF144.378当前边界：public非零Down-Up/yaw180的160真实source/target历史、动态HeadYawAmount原Look时钟/观察输入控制与8156身份通过，255（115P2/140P3）。40实际pitch输入差/71Head余差未归因，下一实际输入公共核+native共同实角，再原Down-Up/最终Head与Root属性/Feet；截图0、性能暂停。
+  - BF144.379当前边界：真实160 Head双侧公共核/原生共同角、最小40 public半转反例与单因/消融恢复/8247身份，新增D258/P3，累计256（115P2/141P3）。.67审计有限复开已收口，D258生产未修；下一原Down-Up/动态Yaw叶→最终Head及其它自然Feet/Root属性，截图0、性能暂停。
