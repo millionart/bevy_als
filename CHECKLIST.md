@@ -3472,7 +3472,7 @@
   - .419完成/Gate：`target/bf144/419/summary.json`通过。独立prior socket/Root曲线与源默认状态生成完整480侧5760字段、1200顶层字段及1200 actual RigInput Feet字段，对原生全逐值精确；source minimax SinCos/Atan2及float角度系数按fresh本地实现保留，11/16次thigh/foot约束均实触发。四消融history/thigh/foot/systemAtan分别156/18/18/18帧失败，源码字节恢复同target重编240完整产物byte同，删unused helper/变量。自主五Feet字段替入完整RigInput后原Rig240重放45.344秒，全部18960TQS/curves/外部/生命周期精确实际源及独立全Root模型。AIS FootLock allow/90/40与fresh原CS teleport50cm已核，当前静态基底/no-relative/Grounded/yaw-only/scale1及位移域明示。10401身份旧10333保持、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib未改，256（115P2/141P3）、无新D。完整当前source Feet producer闭合；moving smooth/mode/mesh-world/6其它RigInput/部分图状态仍显式父输入，target跨侧余差/非零view/attributes未闭。开始21:57:07；预估结束22:37:07；实际结束22:06:06；实耗539秒；偏差-1861秒；结果自然完整Feet→真实Rig消费Gate通过。截图0、性能暂停。
 
 
-- [ ] BF144.420 U07自然source/target Feet实际反馈因子与完整Root余差入口：依赖.419完整独立source Feet/实际Rig反馈、.374–.375新自然两侧实际记录及.417完整source Root，fresh核目标foot sampling/lock/constraints/provider消费入口，比较两侧真实目标/状态/实际RigInput的输入、坐标/F32阶段、curve历史和生命周期；逐侧用自身实际输入重放公开核，再以共同输入分离首次违反源合同的边界。旧已证D只按fresh同cause/consumer归并；未归因余差保持未闭，不因整体Root数值多就重复新增编号。Gate：当前自然240两侧Feet完整可观察合同/精确输入域、同输入最小消费者与对照、首不同字段source-target因果或明确必需观测缺口、必要observer/因素消融与字节恢复同target重编/identity。source完整Root已证数据复用，不再重跑旧原Rig充进展；完整target Root因子、非零view及attributes范围保持后继。开始：2026-10-24 22:06:36 +0800；预估结束：2026-10-24 22:41:36 +0800。估时依据：.419源完整Feet539秒、.375自然consumer约六分钟，本项目标actual观察/公开核与首因子，同有冻结rlib与被动工具可复用，35分钟覆盖source/target域资格和必要最小新观察，不能把仅源重建精确当跨侧无差异。仅审计不改生产/转换器/原资产，截图0、性能暂停。
+- [x] BF144.420 U07自然source/target Feet实际反馈因子与完整Root余差入口：依赖.419完整独立source Feet/实际Rig反馈、.374–.375新自然两侧实际记录及.417完整source Root，fresh核目标foot sampling/lock/constraints/provider消费入口，比较两侧真实目标/状态/实际RigInput的输入、坐标/F32阶段、curve历史和生命周期；逐侧用自身实际输入重放公开核，再以共同输入分离首次违反源合同的边界。旧已证D只按fresh同cause/consumer归并；未归因余差保持未闭，不因整体Root数值多就重复新增编号。Gate：当前自然240两侧Feet完整可观察合同/精确输入域、同输入最小消费者与对照、首不同字段source-target因果或明确必需观测缺口、必要observer/因素消融与字节恢复同target重编/identity。source完整Root已证数据复用，不再重跑旧原Rig充进展；完整target Root因子、非零view及attributes范围保持后继。开始：2026-10-24 22:06:36 +0800；预估结束：2026-10-24 22:41:36 +0800。估时依据：.419源完整Feet539秒、.375自然consumer约六分钟，本项目标actual观察/公开核与首因子，同有冻结rlib与被动工具可复用，35分钟覆盖source/target域资格和必要最小新观察，不能把仅源重建精确当跨侧无差异。仅审计不改生产/转换器/原资产，截图0、性能暂停。
   - 22:06 活动摘要：.419提交ad3ff726/10401身份，256（115P2/141P3）。上一goal轮完整source采样和Feet state/真实Rig反馈已闭，属progress；当前无活跃旧进程，先核target既有自然record是否包含完整FootLock状态与采样phase，缺哪项才补哪项。截图0、性能暂停。
 
 
@@ -3504,7 +3504,26 @@
   - .420b完成/Gate：`target/bf144/420b/summary.json`通过。新增GeometryQueryProbe可选34行foot_lock_rotation，直接源API保留double差/FQuat4f twist/F32限位轴角/末double乘法，不额外Normalize；6实际+7边界原生输出齐，旧reader缺能力稳定拒绝/5非法输出自测过，4非法native输入code7拒绝无产物。源码字节去分支同arm64 package重建旧全部输出精确（TopologyVersion按已证transient别名关系），新schema失败；恢复源码字节同包重建13新值及旧字段全精确恢复。10475身份：旧10431仅reader源码/包源码/DLL三键及工具README一键有限迁移，其余10427/114ALS/184生产Rust/冻结rlib/转换器/原资产保持。新增focused工具测试随reader提交，候选判断回父420，仍256（115P2/141P3）、无新产品D。截图0、性能暂停。开始22:18:30；预估结束22:53:30；实际结束22:27:11；实耗521秒；偏差-1579秒；结果必要原生共同输入数值能力通过，生产算法未修。
 
 
+  - 22:35 .420跨侧首次确认收口：source/target own-input lock amount956侧步全精确，22差由仅source prior锁曲线历史478全部恢复，不新增标量D。420a完整240 target before-foot记录使冻结公开helper+wrapper480侧全字段精确actual；矩阵/quat二次重构夹具误差已剔除。298 active-lock侧样本中6次实际限位，64组合矩阵source端逐值native、current端逐值公开helper。独立只换UE float minimax Atan，6份Lock/Final/实际RigInput rotation改变；只换UE float180/PI系数，5Lock/4Final/4实际RigInput改变，其他前态/目标/位置/锁量保持。额外6个当前deltaF32原生输入验证source twist，双因素移除控制各精确回当前，源码字节恢复同target重编全部240消费者产物byte同。按fresh source与actual链新增D259/P3和D260/P3，累计258（115P2/143P3）。这两项不吞relative quat/final product的F32精度及extra Normalize其它候选；source SinCos在此6域投影无差不立D。完整target Root/连续world反馈未恢复，仍需后续因子；仅数值传播不称可见故障。旧reader必要能力.420b提交53018843/10475身份，当前父10475身份封存中；截图0、性能暂停。
+
+
+  - .420完成/Gate：`target/bf144/420/summary.json`通过。完整目标240前态/输入公开核480侧全字段重放精确；源/目标scalar锁量956步精确，22差全部由prior曲线历史恢复。6实际foot-limit经原生共同输入与64矩阵端点证明source/native和current/public各自一致；只换Atan使6Final/6 actual RigInput旋转改变，只换源degree系数使4Final/4 actual输入改变，位置/锁量/目标/前态不变。两个因素移除控制各返回精确actual current，源码字节恢复同target重编全部240消费者产物byte同，新增D259/P3与D260/P3并记旧测试漏检。10545身份旧10475保持、114 ALS/184生产Rust/冻结rlib/转换器/原资产未改，reader必要扩展已在.420b独立Gate/提交；累计258（115P2/143P3）。此项完成当前反馈入口与首实际数值cause闭环，relative/final乘法精度和extra Normalize仍真实待证，目标全Root、外部父状态、非零完整Root/custom attributes继续开；不声称视觉故障或全Root恢复。开始22:06:36；预估结束22:41:36；实际结束22:37:05；实耗1829秒（含420a/420b必要依赖，未重置）；偏差-271秒；结果跨侧Feet实际输入/首两独立cause Gate通过。截图0、性能暂停。
+
+
 ### 已确认差异（仅登记，未实施修复）
+
+- [ ] BF144-D260 / P3 — Foot Lock旋转限位的弧度转角度系数没有保留源float计算阶段。
+  - Source：fresh `AlsAnimationInstance.cpp:1560–1574`将FQuat4f.GetTwistAngle结果交给`FMath::RadiansToDegrees(float)`；`UnrealMathUtility.h:869`按float常数`180.f / UE_PI`计算，系数57.2957763671875。该float角度随后裁到±40°并构建FQuat4f偏移。
+  - Target：`src/als/state/foot_ik.rs:581`直接调用Rust f32.to_degrees，其系数57.295780181884765，相差一个float ULP。与D259的Atan算法不同，这里固定同一角弧度和同一相对四元数，仅角度换算阶段不同。
+  - 实际consumer：自然240真实记录的6次foot-limit事件中，只把目标当前角度换算改为源系数，5份锁旋转/4份FinalRotation改变，并继续进入4份actual组件空间RigInput rotation；其余target/current目标、锁量、位置、前态与全部算法保持。首frame23/right 当前Rig输入z=−0.10808248072862625，单因素为−0.10808247327804565；这是精确数值差，不宣称肉眼故障或完整Root已恢复。
+  - 证据/漏检：`target/bf144/420/findings-check.json`、`delta.native.json`、`matrix.json`、`consumer-coefficient.json`；原生13共同输入与新增6个当前delta输入确认source浮点角度合同，32/64因素矩阵端点精确实际公开helper。旧foot-limit测试使用相同to_radians/to_degrees构造期望并以1e−6容差检查普通40°端点，未覆盖source原生系数与这批自然输入。单因移除/源码字节恢复同target重编验证另见本项consumer恢复记录；生产未修，其他相对/末乘精度及额外归一因素仍开。
+
+- [ ] BF144-D259 / P3 — Foot Lock旋转限位使用系统Atan2，遗漏源float minimax角度算法。
+  - Source：fresh `AlsAnimationInstance.cpp:1560–1574`先double锁定×目标逆再降FQuat4f，`GetTwistAngle`经`FGenericPlatformMath::Atan2(float)`；本地`GenericPlatformMath.cpp:33–76`明确使用7系数minimax，随后源float Unwind/角限位与轴角写回锁世界旋转。
+  - Target：`src/als/state/foot_ik.rs:581`使用f32.atan2系统函数。固定目标自身当前F32相对四元数、角度系数、偏移构造、末乘和Normalize后，仅换源minimax即可改变同一次限位；与D163的Rig Euler半转分支、D260的角度系数不同。
+  - 实际consumer：当前自然记录298个active-lock侧样本中6次限位实际触发；用原相同目标前态只替换Atan，6份LockRotation/FinalRotation及6份actual组件空间RigInput rotation改变。首frame23/right 当前Rig输入z=−0.10808248072862625，单Atan为−0.10808239132165909；全部位置、锁量、目标pose和前态保持。原生相同current delta6样本确认源twist，与源模型逐值一致，未把敏感性单独当根因，也未宣称全Root/可见故障恢复。
+  - 证据/漏检：`target/bf144/420/native-limit-check.json`、`delta.native.json`、`findings-check.json`、`consumer-atan.json`与两个端点全匹配矩阵。旧rotation-limit单元仅用目标自身90°/40°端点和宽容差，没有原生float Atan中间值；源reader缺该字段的失败先证明，再新增最小optional probe并完成旧输出兼容、非法输入、同arm64包删除/恢复Gate。单因消费者移除控制退回当前，源码字节恢复同target重编输出恢复；生产未修，完整连续反馈影响/其它数值因素仍未闭。
+
 
 - [ ] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
   - Source：fresh `AlsCharacter.cpp:1248–1255`对真实local controller的ViewRotation执行GetNormalized；`Rotator.h:690–717`的NormalizeAxis将−180和+180均映到+180。随后`AlsAnimationInstance.cpp:387–396`生成ViewState.YawAngle，`601–603`将+180限到+175进入同一Head临界弹簧。
