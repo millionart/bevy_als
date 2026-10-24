@@ -3964,6 +3964,14 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
     {
         static FAnimInstanceProxy& Proxy(UAnimInstance* Instance) { return *GetProxyOnGameThreadStatic<FAnimInstanceProxy>(Instance); }
     };
+    struct FProxyAccess : FAnimInstanceProxy
+    {
+        static const TArray<FMontageEvaluationState>& Montages(const FAnimInstanceProxy& Proxy)
+        {
+            const auto Getter = static_cast<const TArray<FMontageEvaluationState>& (FAnimInstanceProxy::*)() const>(&FProxyAccess::GetMontageEvaluationData);
+            return (Proxy.*Getter)();
+        }
+    };
     struct FSlotAccess : FAnimNode_Slot
     {
         static const FSlotNodeWeightInfo& Weights(const FAnimNode_Slot& Node) { return Node.*&FSlotAccess::WeightData; }
@@ -4053,6 +4061,54 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
             {
                 TSharedRef<FJsonObject> ChildRow = MakeShared<FJsonObject>();
                 const FAnimInstanceProxy& ChildProxy = FInstanceAccess::Proxy(Child);
+                if (Child == Main)
+                {
+                    TArray<TSharedPtr<FJsonValue>> Montages;
+                    for (const FMontageEvaluationState& Eval : FProxyAccess::Montages(ChildProxy))
+                    {
+                        const UAnimMontage* Montage = Eval.Montage.Get();
+                        if (Montage == nullptr) { continue; }
+                        TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>();
+                        Row->SetNumberField(TEXT("position"), Eval.MontagePosition);
+                        Row->SetNumberField(TEXT("previous_position"), Eval.DeltaTimeRecord.GetPrevious());
+                        Row->SetNumberField(TEXT("delta"), Eval.DeltaTimeRecord.Delta);
+                        Row->SetNumberField(TEXT("blend_alpha"), Eval.BlendInfo.GetAlpha());
+                        Row->SetNumberField(TEXT("blend_value"), Eval.BlendInfo.GetBlendedValue());
+                        Row->SetNumberField(TEXT("blend_start_alpha"), Eval.BlendStartAlpha);
+                        Row->SetNumberField(TEXT("blend_time"), Eval.BlendInfo.GetBlendTime());
+                        Row->SetNumberField(TEXT("blend_time_remaining"), Eval.BlendInfo.GetBlendTimeRemaining());
+                        Row->SetNumberField(TEXT("blend_begin_value"), Eval.BlendInfo.GetBeginValue());
+                        Row->SetNumberField(TEXT("blend_desired_value"), Eval.BlendInfo.GetDesiredValue());
+                        Row->SetNumberField(TEXT("blend_option"), static_cast<int32>(Eval.BlendInfo.GetBlendOption()));
+                        Row->SetNumberField(TEXT("play_length"), Montage->GetPlayLength());
+                        Row->SetBoolField(TEXT("is_playing"), Eval.bIsPlaying);
+                        Row->SetBoolField(TEXT("is_active"), Eval.bIsActive);
+                        Row->SetStringField(TEXT("active_blend_profile"), ObjectPath(Eval.ActiveBlendProfile));
+                        TArray<TSharedPtr<FJsonValue>> Tracks;
+                        for (const FSlotAnimationTrack& Track : Montage->SlotAnimTracks)
+                        {
+                            TSharedRef<FJsonObject> TrackRow = MakeShared<FJsonObject>();
+                            TrackRow->SetStringField(TEXT("slot_name"), Track.SlotName.ToString());
+                            TArray<TSharedPtr<FJsonValue>> Segments;
+                            for (const FAnimSegment& Segment : Track.AnimTrack.AnimSegments)
+                            {
+                                TSharedRef<FJsonObject> SegmentRow = MakeShared<FJsonObject>();
+                                SegmentRow->SetStringField(TEXT("sequence"), ObjectPath(Segment.GetAnimReference()));
+                                SegmentRow->SetNumberField(TEXT("track_start"), Segment.StartPos);
+                                SegmentRow->SetNumberField(TEXT("source_start"), Segment.AnimStartTime);
+                                SegmentRow->SetNumberField(TEXT("source_end"), Segment.AnimEndTime);
+                                SegmentRow->SetNumberField(TEXT("play_rate"), Segment.AnimPlayRate);
+                                SegmentRow->SetNumberField(TEXT("loop_count"), Segment.LoopingCount);
+                                Segments.Add(MakeShared<FJsonValueObject>(SegmentRow));
+                            }
+                            TrackRow->SetArrayField(TEXT("segments"), Segments);
+                            Tracks.Add(MakeShared<FJsonValueObject>(TrackRow));
+                        }
+                        Row->SetArrayField(TEXT("tracks"), Tracks);
+                        Montages.Add(MakeShared<FJsonValueObject>(Row));
+                    }
+                    ChildRow->SetArrayField(TEXT("montage_evaluation"), Montages);
+                }
                 ChildRow->SetStringField(TEXT("class"), Child->GetClass()->GetPathName());
                 ChildRow->SetBoolField(TEXT("main"), Child == Main);
                 TArray<TSharedPtr<FJsonValue>> Machines, Players, LayeredBlends, Slots;
