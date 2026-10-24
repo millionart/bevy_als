@@ -3625,6 +3625,14 @@
   - 完成/Gate：`target/bf144/431/summary.json`通过。实际负值首producer为Standing RightForward BS2b，原生正确SKM/prepared compressed验证移动两sample为−1/−0.9999999403953552、静态Right Pose两参考为默认0，目标四point域精确同源；首20帧BS输出等−stride F32而非未加权−1。源原历史Move Forward且Actor/view UE yaw0，原target出生yaw0/Vec2X是朝−Z时向右世界+X，所选Right资产曲线合法，不能报漏移植。311源basis对应runtime actor yaw−90；angle-only实验保Vec2X会变世界+Z且继续Right，按已读motion输入映射改为yaw−90/Vec2Y保同一世界+X后，实际转Forward、240 Loco LayerLegs值/Legs参数全同source，106差全消。F32微小离轴分量不称全物理/pose/clock恢复。撤意图编码回angle-only全部240、撤完整basis/input映射回原全部240；源码bytes恢复同matched target重编全240精确，无速度/曲线/pose注入。最初把BS混合值当叶常量、debug F32字符串未回F32的检查假设均被拒并按源四sample修正，不作为产品缺陷；syntax失败也未充证据。11247身份旧11171保持、114ALS/184生产Rust/reader/转换器/资产/冻结rlib不变，active260（115P2/145P3），无新D。下一将其余local pose/状态/clock与同输入Layering残差迁入共同actor/view/世界运动意图域，保留原条件历史；world父输入/全Root/非零view/attributes仍开，不改产品avatar.PI或猜复开311。开始2026-10-25 01:53:55；预估结束02:28:55；实际结束02:20:54；实耗1619秒；偏差-481秒；结果LayerLegs疑点按原合法资产/不同输入域关闭，未宣称全系统无差异。截图0、性能暂停。
 
 
+- [x] BF144.432 U07共同输入域240状态/时钟与local pose残差：依赖.431正确actor/view/world意图的matched240与原完整source历史，fresh核当前Forward分支、gait/速度/stride输入和实际播放器时间/marker域，再逐段比较Loco/Overlay/reference/HeadBase的完整TQS/curve；先区分真实参数/状态/clock生产差与已证算法/资产差，不沿原Right条件历史直接套源Forward参数。旧条件产物保持，必要当前入口字段只按source已证缺口补。Gate：共同输入映射/实际world/frame资格、完整240差异manifest与首不等producer、最小同输入native或既有精确source核、必要消融源码bytes恢复同target重编/identity；世界物理/整Root/非零view/attributes仍后继，不因本地结果缩总目标。开始：2026-10-25 02:21:44 +0800；预估结束：2026-10-25 02:56:44 +0800。估时依据：.431域定位和两自然控制1619秒、.429已有完整pose/参数观察；本项不再改初始输入，仅对齐源Forward历史并锁首参数/状态/clock差，35分钟形成完整矩阵及首闭包，未闭按source必要依赖另拆。仅审计，生产/reader/转换器/原资产不改；截图0、性能暂停。
+  - 02:21 活动摘要：上一goal轮为progress，6a128443以source六原资产及自然basis/输入控制排除106 Legs疑点，active260（115P2/145P3）/11247身份。工作树干净无遗留进程；原/angle-only/matched域明确隔离，本项只用matched比较源Forward，不能把微小F32侧向速度当全部物理共同输入已证。
+  - 02:41 source/static闭环：matched240的Loco/Overlay/HeadBase骨骼与curve残差、Standing标量及候选player记录已生成；首stride/rate差在20。fresh两stride原键及76个原生source-time值，源逐层Lerp全精确；同源键/输入的公共Hermite有15点残差，进入106实际源回调后stride仅21/121两帧差1ULP、rate106均相同，扩既有D206而非新增。目标公共曲线/rate原样重放106全精确，精确键单因改变18 stride/18 rate，属既有D121；换到源自身速度后源核106 stride/rate均精确，但实际速度/投影生产仍待核。缓存player weight没有当帧资格证明，938候选presence不等与100候选clock不等均不能称移植缺陷。下一只做必要消融/恢复与身份封口，再拆资格/物理输入首缺口；生产不改，截图0、性能暂停。
+  - Gate完成：matched240四边界完整TQS/curve矩阵及候选player/标量已封口，reference238有效/2未求值；首20 stride/rate producer以76 native点、106双侧公共核、数据与算序两消融及源码bytes恢复同target重编通过。身份11310/前11247不变，114源ALS、184生产Rust及冻结库/reader/转换器/原资产均不变；累计260（115P2/145P3），D121/D206仅扩consumer。候选clock与物理速度未具共同输入/当帧资格，按首缺口拆后继，不得把938 presence/100 position或大批TQS余差直接登记成缺陷。证据`target/bf144/432/manifest-check.json`、`curve-check.json`、`controls-check.json`、`summary.json`；截图0、性能暂停。
+  - 时间/拆分：开始2026-10-25 02:21:44 +0800；预估结束2026-10-25 02:56:44 +0800；实际结束2026-10-25 02:44:14 +0800，耗时1350秒、提前749秒。本项manifest/首producer Gate完成；物理共同速度/投影前置及实际player更新/clock phase分别后继，完整Root/非零view/attributes目标保留，未实施修复。
+
+
+
 ### 已确认差异（仅登记，未实施修复）
 
 BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法累加顺序是D163已由.283记录的同一Quaternion组合根因的新consumer。旧D163原函数逐值恢复旧174及当前4680原生double产品，当前F32源顺序模型也与该既有公式投影精确。证据及消费者细节已合并D163；.426 sealed数值产物保持，但其“新增D263/累计261”分类已被.427a migration覆盖。当前累计260（115P2/145P3），本编号不再使用。
@@ -4528,6 +4536,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - BF144.159普通站蹲补充：实际8条1920帧的CF恢复采用当次读取的精确CF_Als_StanceChange键及81个原生float锚点，和D206合用后状态权重全部逐值恢复；入口额度独立D222另控，不把源curve恢复当作入口修复。证据`target/bf144/159/curve-keys.native.json`、`curve-native-check.json`、`final-check.json`。
 
+  - BF144.432共同Forward输入域补充：fresh两原曲线键/76原生source-time采样；当前106活跃回调的stride/rate由公共sampler和standing_play_rate逐值重建。同一目标speed/权重/算序，仅将六位舍入键换为独立离线精确换算数据，18 stride及18 rate改变，首20 stride从0.6495429873466492变0.6495451927185059。源实际stride为0.6495453715324402，尚余实际speed及算序因素，不能把精确数据控制称整反馈已恢复。精确键移除后36项信号全消失、其余cohort不变，源码bytes恢复同target重编后182包字节一致。证据`target/bf144/432/curve-check.json`、`controls-check.json`、`summary.json`；仅扩既有D121，不修生产。
+
 - [ ] BF144-D122 / P2 — GetUp槽遗漏montage自身的11条曲线。
   - Source：fresh两套GetUp montage的原生RawCurveData包含FootLeft/RightIk、FootLeft/RightLock、LayerArmLeft/Right、LayerHead/Legs/Pelvis/Spine、ViewBlock；sequence另有PoseCrouching和PoseGrounded。`AnimInstanceProxy.cpp:1968–1978`先采样AnimTrack，再EvaluateCurveData并Combine montage曲线。
   - Target：`get_up.rs:130–146,270–280`仅加载、采样sequence的GraphClip和AlsCurves；目标glTF的ALS_float_curves只含上述两条sequence曲线，没有montage曲线数据或组合步骤。
@@ -5171,6 +5181,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.144实际惯性消费者补充：专用站蹲动画转入移动的普通Custom混合有188帧权重微差，最大约1.19e−7；合用既有精确源曲线值控制后消除，状态、结束时点及请求原本即匹配。原惯性节点后的左脚196帧分量改变，最大约1.19e−7；此批不另拆D121键值精度与D206求值顺序的份额，也不据此宣称可见故障。证据`target/bf144/144/current-full-analysis.json`、`target/bf144/144/curves-full-analysis.json`、`target/bf144/144/consumer-check.json`。
 
   - BF144.159实际moving Grounded补充：入口额度先恢复后，当前Custom计算仍保留447帧权重差；当次81个源Bezier锚点逐值匹配原生，按原锚点回放后1920帧状态/权重全部一致。数据精度D121与计算顺序本批合用，不重新拆份；8个遗漏尾更新独立归D204。证据`target/bf144/159/model-check.json`、`curve-native-check.json`、`final-check.json`。
+
+  - BF144.432 stride消费者补充：相同精确source键/相同cm float时点，`als_curves.rs:314–349`展开Hermite与fresh源逐层Lerp比较，76原生点中15不等，源顺序76全精确；用源实际106回调speed/gait时，stride仅21/121两帧由0.9927310347557068恢复0.9927310943603516，rate106本来即相等。这里固定精确source键，不是.155相同runtime舍入键/输入的零信号消融域；不将两次输入域混为相同反例。物理删除源算序后15点/两帧失败恢复，源码bytes恢复、同target重编后全部182包精确。仍只证明曲线及stride消费者，未证明当前自然target rate/clock/姿态因该项改变或可见故障，实际速度producer尚后继；证据`target/bf144/432/stride-values.native.json`、`curve-check.json`、`controls-check.json`，合并既有求值顺序根因、无新编号。
 
 - [ ] BF144-D207 / P2 — 别名转场在旧混合结束后丢失具体前态，剩余混合直接采用目标姿态。
   - Source：fresh原生Grounded编译退出规则将Standing/Crouching作为具体PreviousState；`AnimNode_StateMachine::TransitionToState`保存当前实际状态，旧混合被移除后剩余混合仍从该具体前态取pose和权重。
