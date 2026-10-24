@@ -2717,6 +2717,15 @@
 
   - 完成/Gate：`target/bf144/344/summary.json`通过；fresh Default保存pose/Event图和两源叶字段/正确SKM身份已核，Default原三帧237骨、原时钟Idle251/19829骨供给后继，0target pose/time补值。旧88 clock字段逐值同，.75与1控制clock/pose全同；245时钟差首index6、循环81/161/241，公共目标tick251实际精确与direct秒累加251 native精确，消融首6失败并源码字节恢复同target重编完整251恢复。旧Skeleton域Default三骨8 R double/3 F32差、Idle旧88姿势全同，其他T/S/curves/names/parents同。6560身份（旧6519不变/恢复clock binary SHA）通过。D201补充全251证据，无新编号，255（115P2/140P3）；完整Overlay组合/Layering/原Root反馈与Rig后继，生产/reader/转换器/原资产未改，截图0、性能暂停。开始10:59:02；预估结束11:19:02；实际结束11:02:43；实际用时221秒；偏差-979秒；结果完整原clock/正确mesh叶Gate通过。
 
+- [x] BF144.345 U07当前251 Default Overlay原参数与组合：依赖.343完整源边/五参数绑定和.344原251 Idle/三固定原帧，fresh核TwoWay clamp/interp、Multi归一化与ApplyAdditive .75执行；在明确共同当前raw参数条件下独立求source alpha/history、按source叶/算法生成251原Default根及交接，不能用target pose/有效alpha回填。Gate：fresh源图/算法/正确mesh零权重参考姿态、251实际访问/原参数与原根/全骨curve、native所需Two/Multi/Apply数值与明确消融、源码字节恢复同入口重建/identity；自然原反馈循环和完整Layering仍后继。开始：2026-10-24 11:02:55 +0800；预估结束：2026-10-24 11:32:55 +0800。估时依据：旧.229参数/原组合约18分钟、.342原Base组合约6分钟；当前251新权重集及source模型/控制复用，按30分钟纳入全251新分支/原生控制/消融，不扩完整Layering。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 11:02 活动摘要：5f16e576完成原251时钟/原叶，6560身份、255（115P2/140P3）。本项只把当前五共同raw参数的source Overlay组合闭合，原整体反馈参数尚未证明，不升级Root等价。
+
+  - 11:06 source/static闭环：fresh源TwoWay/clamp/FInterp、Multi与Apply合同已核；308原alpha由raw参数独立复算与actual有效值同（251步/五参数共同条件）。正确mesh参考79骨fresh与旧253全同，原251/19829骨及curve已按原时钟/原叶生成，零权重warm0一份、直接Two297分支；Multi212单/28双。当前原/目标曲线值/存在性均同，T17585/R17991/S4016余差未全部归因。去Multi/Apply最终normalize分别18749/13302 double骨及3214/9 F32变化，原生144混合/33Apply控制与必要源码恢复中；一次reference错误flags、一次native错误Asset均按报告更正并保留排除，未改reader或生产。观察关闭旧251同，恢复同target重编中；255（115P2/140P3），截图0、性能暂停。
+
+  - 11:08 Gate前后摘要：正确mesh共同raw域251原Overlay/19829骨、308alpha、全curve与源Two/Multi/Apply闭环。144混合/33加成native f64全同；公开目标父Pose799输出全精确，zero参考单独核。去Apply最终normalize使warm0/pelvis native失败，源码字节恢复原251表byte同/33控制恢复；观察去除旧251同、源码字节恢复同target重编全观察恢复。main1→wrapper15→Overlay16→惯性1→Layering4原传递251已单独输出，初始无历史请求忽略；0target pose/曲线/有效alpha回填。actual姿势余差仍T17585/R17991/S4016、curve0，未经独立因素归尽，不新增编号或认完整Root等价。下一identity，255（115P2/140P3），截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/345/summary.json`通过；共同当前raw参数下308 source有效alpha、251原Default根/19829骨（零权重暖0参考、Two297直通、Multi212单/28双）与原惯性/Layering缓存交接251供给，0target pose/curve/有效alpha补值。144 Two/Multi及33Apply native f64全同，公开target799父Pose输出逐值重放全同。去Apply末归一化使warm0/pelvis native失败，源码字节恢复同入口重建全251原表byte同/33控制恢复；观察去除旧251全同、源码字节恢复同target重编全251观察恢复。6650身份（旧6560不变/两个binary SHA）通过。实际组合T17585/R17991/S4016余差未归尽、curve值/存在0差，原反馈权重尚未资格，完整Layering/Root自然反馈后继；无新编号，255（115P2/140P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始11:02:55；预估结束11:32:55；实际结束11:08:43；实际用时348秒；偏差-1452秒；结果共同参数原Overlay组合/交接Gate通过。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D257 / P3 — Transition正向终止采样遗漏源section末端缓冲。
@@ -4332,6 +4341,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.342当前边界：当前240原Base Poses/18960骨在共同反馈权重下供给，150 native/生产重放/消融恢复通过；原反馈权重循环仍开，下一完整Overlay原入口/叶/时钟/组合，再Layering/Head/Rig/自然反馈，255（115P2/140P3），截图0、性能暂停。
   - BF144.343当前边界：全251实际Default入口/惯性/缓存与六叶五绑定已核，6519身份，255（115P2/140P3）。下一原251 Idle clock与正确mesh原叶，后完整Overlay/Layering/Root反馈；截图0、性能暂停。
   - BF144.344当前边界：原251 Idle时钟/正确mesh原叶与三固定帧已供给，D201245错时仍未修，6560身份、255（115P2/140P3）。下一全251 Overlay参数/组合，再Layering/Root原反馈；截图0、性能暂停。
+  - BF144.345当前边界：全251原Default Overlay共同参数组合/交接已闭，177 native/799 target重放与消融恢复、6650身份通过，255（115P2/140P3）。下一完整240 Layering动态/section/最终组合，原Root自然反馈仍开；截图0、性能暂停。
 
 - [x] BF144-U06 — Rig初始全局数据已于.245归D242/P3。最初.244发现71骨365个double差、默认240仅FootHeight double变化；.245保持全部原生算法，仅换初始数据即在受控半转产生约180°的float足旋转/实际Setter写回差，并在同source厘米算法的5个骨长舍入边界经同原生IK核产生13/15个float关节点差，分别隔离D163算法与D165单位舍入。数据移除/源码字节恢复及同target重编恢复通过，native数学读出移除/同package恢复亦通过；默认动作自然可达性未证，不因关闭U06声明无差异或修复。证据`target/bf144/245/summary.json`、`native-check.json`、`writeback.jsonl`、`restoration-check.json`；原.244记录保留。
   - BF144.136 follower记录重建补充：near-zero候选无有效end时记录leader移到最后一项；下一普通帧恢复正常leader，`AnimSync::Finalize`使follower记录失效。`BlendSpace.cpp:784–787`按已存归一化时间乘当前样本长度重建；目标此前保留秒数。18帧33个previous差最大约59.6ns，全部精确等于`(旧position/旧duration)*当前duration`；仅补这一步后4032帧所有previous也逐值一致，当前采样位置和姿态保持。证据`target/bf144/136/roundtrip-check.json`、`before-roundtrip-all-analysis.json`、`all-analysis.json`。
