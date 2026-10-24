@@ -14,6 +14,7 @@ param(
     [string]$RigNodeHistoryProbe,
     [string]$CharacterAnimationProbe,
     [string]$CharacterBrakingProbe,
+    [string]$CharacterVelocityProbe,
     [string]$AnimationAttributeProbe,
     [string]$SlotProbe,
     [string]$BlendProfileProbe,
@@ -306,6 +307,10 @@ $arguments = @(
 if ($CharacterBrakingProbe) {
     $probePath = (Resolve-Path -LiteralPath $CharacterBrakingProbe -ErrorAction Stop).Path
     $arguments += "-CharacterBrakingProbe=$probePath"
+}
+if ($CharacterVelocityProbe) {
+    $probePath = (Resolve-Path -LiteralPath $CharacterVelocityProbe -ErrorAction Stop).Path
+    $arguments += "-CharacterVelocityProbe=$probePath"
 }
 if ($BlendSpaceProbe) {
     $probePath = (Resolve-Path -LiteralPath $BlendSpaceProbe -ErrorAction Stop).Path

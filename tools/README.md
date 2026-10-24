@@ -41,6 +41,8 @@
 
 `CharacterBrakingProbe`在临时原生ACharacter的有效Movement上调用UE原`ApplyVelocityBraking`，仅作受控数值核，不tick世界。请求`samples`每项包含`name`、double厘米速度`velocity_cm_s: {x,y,z}`及float参数`delta_seconds`、`friction`、`braking_deceleration_cm_s2`、`friction_factor`、`braking_substep_seconds`；全部必须为有限JSON数值，delta绝对值不超过0.25秒，其余负值由源方法自身处理。回显实际输入、前后速度、有效性和无root motion；`test_character_braking_probe.py`检查schema。纯核输出不代替自然角色运动或位置回算历史。
 
+`CharacterVelocityProbe`复用同一原生组件与输入合同，在Walking模式调用UE原`CalcVelocity`（非fluid），额外要求double向量`acceleration_cm_s2`与float参数`max_speed_cm_s`、`max_acceleration_cm_s2`、`min_analog_speed_cm_s`、`analog_input_modifier`。输出实际getter值、加速度、mode和前后速度；`test_character_velocity_probe.py`检查schema及八个无效包反例。此核不tick世界、不移动角色，不替代ALS覆写的移动基座旋转或末端位置差分；静态基座下ALS `CalcVelocity`委托该Engine算法，可用于共同输入的pre-move速度控制。
+
 角色请求可选`force_raw_data`布尔值：在world创建前，以带tag的`ECVF_SetByTemp`覆盖原生`a.ForceEvalRawData`，函数退出时`Unset`还原旧值/flags，输出`raw_data_control`记录施加阶段与恢复结果。true只在源raw模型有效时强制raw；false关闭强制，不保证compressed；省略时不写CVar。`test_character_raw_mode_control.py`核对控制与恢复，不能用`SetWithCurrentPriority`隐式替换Constructor优先级。
 
 `SequencePoseProbe`可用`animation_pose: true`与`raw_additive_pose: true`读取有效加性sequence的原生raw delta；工具设置实际RequiredBones raw标志后调用GetAnimationPose，并输出`required_bones_raw`。可同时准备compressed数据以排除偶然raw回退，但不得混用`raw_absolute_pose`或绝对FK `capture_source_stages`。`test_raw_additive_pose_probe.py`检查模式、真实标志与完整骨序；绝对pose不能代替该delta。

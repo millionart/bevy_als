@@ -3898,7 +3898,7 @@ TSharedPtr<FJsonObject> CaptureRigPoseTransferProbe(UObject* Asset, const FStrin
     return Result;
 }
 
-TSharedPtr<FJsonObject> CaptureCharacterBrakingProbe(const FString& RequestPath)
+TSharedPtr<FJsonObject> CaptureCharacterMovementKernelProbe(const FString& RequestPath, bool bCalculateVelocity)
 {
     FString Text;
     TSharedPtr<FJsonObject> Request;
@@ -3906,11 +3906,16 @@ TSharedPtr<FJsonObject> CaptureCharacterBrakingProbe(const FString& RequestPath)
     if (!FFileHelper::LoadFileToString(Text, *RequestPath) ||
         !FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Request) ||
         !Request->TryGetArrayField(TEXT("samples"), Samples) || Samples->IsEmpty() || Samples->Num() > 256) { return nullptr; }
-    struct FBrakingAccess : UCharacterMovementComponent
+    struct FMovementKernelAccess : UCharacterMovementComponent
     {
+        static void Configure(UCharacterMovementComponent& Movement, const FVector& InputAcceleration, float AnalogModifier)
+        {
+            Movement.*&FMovementKernelAccess::Acceleration = InputAcceleration;
+            Movement.*&FMovementKernelAccess::AnalogInputModifier = AnalogModifier;
+        }
         static void Apply(UCharacterMovementComponent& Movement, float Delta, float Friction, float Deceleration)
         {
-            (Movement.*&FBrakingAccess::ApplyVelocityBraking)(Delta, Friction, Deceleration);
+            (Movement.*&FMovementKernelAccess::ApplyVelocityBraking)(Delta, Friction, Deceleration);
         }
     };
     UWorld::InitializationValues Settings;
@@ -3936,7 +3941,9 @@ TSharedPtr<FJsonObject> CaptureCharacterBrakingProbe(const FString& RequestPath)
         TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>();
         Row->SetStringField(TEXT("name"), Name);
         TArray<float> Inputs;
-        for (const TCHAR* Key : {TEXT("delta_seconds"), TEXT("friction"), TEXT("braking_deceleration_cm_s2"), TEXT("friction_factor"), TEXT("braking_substep_seconds")})
+        TArray<const TCHAR*> Keys{TEXT("delta_seconds"), TEXT("friction"), TEXT("braking_deceleration_cm_s2"), TEXT("friction_factor"), TEXT("braking_substep_seconds")};
+        if (bCalculateVelocity) { Keys.Append({TEXT("max_speed_cm_s"), TEXT("max_acceleration_cm_s2"), TEXT("min_analog_speed_cm_s"), TEXT("analog_input_modifier")}); }
+        for (const TCHAR* Key : Keys)
         {
             double Value;
             if (!(*Sample)->HasTypedField<EJson::Number>(Key) || !(*Sample)->TryGetNumberField(Key, Value) || !FMath::IsFinite(static_cast<float>(Value))) { return nullptr; }
@@ -3947,17 +3954,38 @@ TSharedPtr<FJsonObject> CaptureCharacterBrakingProbe(const FString& RequestPath)
         Movement->Velocity = FVector(X, Y, Z);
         Movement->BrakingFrictionFactor = Inputs[3];
         Movement->BrakingSubStepTime = Inputs[4];
+        if (bCalculateVelocity)
+        {
+            const TSharedPtr<FJsonObject>* Acceleration = nullptr;
+            double AX, AY, AZ;
+            if (!(*Sample)->TryGetObjectField(TEXT("acceleration_cm_s2"), Acceleration) ||
+                !(*Acceleration)->HasTypedField<EJson::Number>(TEXT("x")) || !(*Acceleration)->HasTypedField<EJson::Number>(TEXT("y")) || !(*Acceleration)->HasTypedField<EJson::Number>(TEXT("z")) ||
+                !(*Acceleration)->TryGetNumberField(TEXT("x"), AX) || !(*Acceleration)->TryGetNumberField(TEXT("y"), AY) || !(*Acceleration)->TryGetNumberField(TEXT("z"), AZ) ||
+                !FMath::IsFinite(AX) || !FMath::IsFinite(AY) || !FMath::IsFinite(AZ)) { return nullptr; }
+            Movement->MovementMode = MOVE_Walking;
+            Movement->MaxWalkSpeed = Inputs[5];
+            Movement->MaxAcceleration = Inputs[6];
+            Movement->MinAnalogWalkSpeed = Inputs[7];
+            FMovementKernelAccess::Configure(*Movement, FVector(AX, AY, AZ), Inputs[8]);
+            Row->SetObjectField(TEXT("acceleration_cm_s2"), CaptureVector(Movement->GetCurrentAcceleration()));
+            Row->SetNumberField(TEXT("actual_max_speed_cm_s"), Movement->GetMaxSpeed());
+            Row->SetNumberField(TEXT("actual_max_acceleration_cm_s2"), Movement->GetMaxAcceleration());
+            Row->SetNumberField(TEXT("actual_min_analog_speed_cm_s"), Movement->GetMinAnalogSpeed());
+            Row->SetNumberField(TEXT("actual_analog_input_modifier"), Movement->GetAnalogInputModifier());
+            Row->SetStringField(TEXT("movement_mode_name"), UEnum::GetValueAsString(Movement->MovementMode.GetValue()));
+        }
         Row->SetObjectField(TEXT("before_velocity_cm_s"), CaptureVector(Movement->Velocity));
         Row->SetBoolField(TEXT("has_valid_data_before"), Movement->HasValidData());
-        FBrakingAccess::Apply(*Movement, Inputs[0], Inputs[1], Inputs[2]);
+        if (bCalculateVelocity) { Movement->CalcVelocity(Inputs[0], Inputs[1], false, Inputs[2]); }
+        else { FMovementKernelAccess::Apply(*Movement, Inputs[0], Inputs[1], Inputs[2]); }
         if (Movement->Velocity.ContainsNaN() || !Movement->HasValidData()) { return nullptr; }
         Row->SetBoolField(TEXT("has_valid_data_after"), Movement->HasValidData());
         Row->SetObjectField(TEXT("after_velocity_cm_s"), CaptureVector(Movement->Velocity));
         Rows.Add(MakeShared<FJsonValueObject>(Row));
-        UE_LOG(LogAlsGraphSourceReader, Display, TEXT("Source character braking sample %d/%d captured."), Rows.Num(), Samples->Num());
+        UE_LOG(LogAlsGraphSourceReader, Display, TEXT("Source character movement kernel sample %d/%d captured."), Rows.Num(), Samples->Num());
     }
     TSharedRef<FJsonObject> Probe = MakeShared<FJsonObject>();
-    Probe->SetStringField(TEXT("format"), TEXT("ue_character_braking_probe_v1"));
+    Probe->SetStringField(TEXT("format"), bCalculateVelocity ? TEXT("ue_character_velocity_probe_v1") : TEXT("ue_character_braking_probe_v1"));
     Probe->SetStringField(TEXT("character_class"), ObjectPath(Character->GetClass()));
     Probe->SetStringField(TEXT("movement_class"), ObjectPath(Movement->GetClass()));
     Probe->SetBoolField(TEXT("movement_registered"), Movement->IsRegistered());
@@ -6807,9 +6835,16 @@ int32 UAlsGraphSourceReaderCommandlet::Main(const FString& Params)
     FString CharacterBrakingProbePath;
     if (FParse::Value(*Params, TEXT("CharacterBrakingProbe="), CharacterBrakingProbePath))
     {
-        const TSharedPtr<FJsonObject> Probe = CaptureCharacterBrakingProbe(CharacterBrakingProbePath);
+        const TSharedPtr<FJsonObject> Probe = CaptureCharacterMovementKernelProbe(CharacterBrakingProbePath, false);
         if (!Probe.IsValid()) { return 7; }
         Root->SetObjectField(TEXT("character_braking_probe"), Probe.ToSharedRef());
+    }
+    FString CharacterVelocityProbePath;
+    if (FParse::Value(*Params, TEXT("CharacterVelocityProbe="), CharacterVelocityProbePath))
+    {
+        const TSharedPtr<FJsonObject> Probe = CaptureCharacterMovementKernelProbe(CharacterVelocityProbePath, true);
+        if (!Probe.IsValid()) { return 7; }
+        Root->SetObjectField(TEXT("character_velocity_probe"), Probe.ToSharedRef());
     }
     if (FParse::Value(*Params, TEXT("CharacterAnimationProbe="), CharacterAnimationProbePath))
     {
