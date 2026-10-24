@@ -2576,6 +2576,13 @@
 
   - 完成/Gate：`target/bf144/324/summary.json`通过；fresh Crouch主roots/curve及后惯性过滤RotationYawSpeed/reset/forward配置保持，完整240新增观察无扰动。223主/后惯性/linked、265根引用0缺口，244 actual state输入为Move105/Stop17/Idle122；21普通转场含Idle→Move5、Move→Stop2、QuickFeetBlend Stop→Idle14，Rotate未访问。223后惯性无请求/active且pose/curve透传，linked实际owner唯一且源/outer/input/cache精确。三观察消融、源码字节恢复同target重编全240观察精确；5620身份（旧5579不变，含恢复binary SHA）通过。当前仅Move105源数组就绪，Stop17 Layered及Idle122正确mesh源叶未供给，主FSM/后惯性/外层Root原数值另验；无新编号，254（115P2/139P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始08:58:08；预估结束09:28:08；实际结束09:01:37；实际用时209秒；偏差-1591秒；结果通过，下一按明确Idle/Stop前置继续。
 
+- [x] BF144.325 U07当前蹲姿Idle/Stop正确mesh原始输入：依赖.324真实244状态根与.318 Stop Base17，fresh核Idle零帧叶/slot/曲线和Stop Layered实际两层输入/权重/骨mask，在SKM域补原Idle并重算当前17 Stop分层结果。Gate：source具体资产/时钟/容器、实际cache/context和源层输入身份、完整原生TQS/curve对照、139缺失状态输入0target回填、必要消融字节恢复/身份；主Crouch21转场与223后惯性另验，不复用旧Skeleton最终数组。开始：2026-10-24 09:02:13 +0800；预估结束：2026-10-24 09:32:13 +0800。估时依据：.205原Layered核约24分钟，.316 mesh辅助重取约20分钟；现原算法和mesh Base已具备，30分钟补Idle1叶/Stop17及原生完整对照，不扩主FSM。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 09:02 活动摘要：afb565fd后树干净，5620身份、254（115P2/139P3）。上一轮.319–.324均形成证据提交，属进展。当前Move105原数组已备；Idle122需要同一零时点mesh源叶，Stop17需正确mesh Base与两层固定源pose经Layered，先核实际层资产再重取。
+
+  - 09:05 source/static闭环：fresh实际Stop两层均A_Als_Crouch_Walk_Pose零帧、权重1，Idle为独立Crouch Pose零帧；当前17 Stop原生/1343骨全部f64 TQS/curve/mask及root modifier精确。正确SKM Idle1叶已复用到122实际输入，加17 Stop与105已备Move，244源state数组/19276骨0target回填齐备。完整对比旧条件域：Idle仅3骨旋转变化（1行F32），Stop48旋转行变化（7行F32），其余T/S/curve不变；旧记录保留，未冒称其整体下游已迁移。移除mesh合同与Stop源赋值均拒绝，源字节恢复244完整数组字节相同；身份核查中，21主转场/223后惯性数值仍开，截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/325/summary.json`通过；当前17 Stop正确mesh原输入经Layered与native1343骨全部f64 TQS/curve/mask/root modifier精确，SKM Idle零时点原叶已补。共244 source state数组/19276骨（Move105、Stop17、Idle122）齐备，新增139输入/10981骨0target回填。对旧条件域完整diff：Idle3旋转骨行/1 F32，Stop48旋转骨行/7 F32，T/S/curve保持；旧Skeleton记录及历史声明保留，后续使用当前mesh数组。缺mesh/缺Stop源均拒绝，源脚本字节恢复244完整数组相同；5656身份（旧5620不变）通过。21主转场/223主输出与后惯性/完整Root仍开，无产品新因，254（115P2/139P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始09:02:13；预估结束09:32:13；实际结束09:06:05；实际用时232秒；偏差-1568秒；结果通过，下一主FSM数值与旧域下游迁移依源分开继续。
+
 ### 已确认差异（仅登记，未实施修复）
 
 
@@ -4160,6 +4167,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.322当前边界：当前240的主Move45与双惯性90实际观察已校准，210一次0.1秒请求且不active已识别，source重入reset/90原生结果仍需独立验证；不把target透传等同source。当前254（115P2/139P3），截图0、性能暂停。
   - BF144.323当前边界：当前45 Standing最终源pose已由双惯性90原生/7110骨闭合，210一次请求/reset和故意保留history反例证实；Crouch主/Stop、外层stance/Locomotion、旧mesh下游迁移及完整Root反馈仍开。当前254（115P2/139P3），截图0、性能暂停。
   - BF144.324当前边界：当前223 Crouch主/后惯性/linked实际历史已核，244状态根中Move105源已备，缺Stop17 Layered与Idle122正确mesh原叶；21主转场/223后惯性原数值后置，再接外层Grounded/Locomotion及完整Root反馈。当前254（115P2/139P3），截图0、性能暂停。
+  - BF144.325当前边界：当前244 Crouch state原输入/19276骨已由正确mesh Idle与17完整Layered补齐，原生1343骨全精确；21主转场/223主输出、后惯性/linked及Grounded/Locomotion/完整Root继续开，旧Skeleton历史只保其声明条件不冒当前证据。当前254（115P2/139P3），截图0、性能暂停。
 
 - [x] BF144-U06 — Rig初始全局数据已于.245归D242/P3。最初.244发现71骨365个double差、默认240仅FootHeight double变化；.245保持全部原生算法，仅换初始数据即在受控半转产生约180°的float足旋转/实际Setter写回差，并在同source厘米算法的5个骨长舍入边界经同原生IK核产生13/15个float关节点差，分别隔离D163算法与D165单位舍入。数据移除/源码字节恢复及同target重编恢复通过，native数学读出移除/同package恢复亦通过；默认动作自然可达性未证，不因关闭U06声明无差异或修复。证据`target/bf144/245/summary.json`、`native-check.json`、`writeback.jsonl`、`restoration-check.json`；原.244记录保留。
   - BF144.136 follower记录重建补充：near-zero候选无有效end时记录leader移到最后一项；下一普通帧恢复正常leader，`AnimSync::Finalize`使follower记录失效。`BlendSpace.cpp:784–787`按已存归一化时间乘当前样本长度重建；目标此前保留秒数。18帧33个previous差最大约59.6ns，全部精确等于`(旧position/旧duration)*当前duration`；仅补这一步后4032帧所有previous也逐值一致，当前采样位置和姿态保持。证据`target/bf144/136/roundtrip-check.json`、`before-roundtrip-all-analysis.json`、`all-analysis.json`。
