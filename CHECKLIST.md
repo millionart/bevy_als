@@ -2860,6 +2860,17 @@
 
   - 完成/Gate：`target/bf144/357/summary.json`通过；fresh Head→Rig Source/pose+curve传递/local/Bool启用/GetControlRigInput与CR源VM合同核验，现有contract/target编译过。当前240 Head3→Rig1输入逐值同，target短名CR_Als对应源资产路径（首全路径断言错误已按编码修正且最终版重跑），11绑定存在/12外部名/165指令/405寄存器/79骨/entry匹配，init1/执行153/world true全240。原Rig Input240/18960骨无target回填，六负控制及owner消融源码字节恢复同入口原表byte同；观察源码恢复同target重编两轮每case/frame/warm全精确。7264身份（旧7217不变/恢复binary SHA）通过。此只关闭入口与definition计数边界，原Rig内部/全definition值/外部查询及原自然反馈/custom attributes后继，不重开已证U06。无新编号，255（115P2/140P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始12:08:07；预估结束12:28:07；实际结束12:14:02；实际用时355秒；偏差-845秒；结果完整当前原Head→Rig Input Gate通过。
 
+- [x] BF144.358 U07当前240完整live Rig definition与输入生命周期：依赖.357入口/当前VM计数，fresh CR原生CDO/asset层级与GetControlRigInput源码事实、只读导出实际loaded definition，PostUpdate在InputSet后/Evaluate前取组件/发布11字段，再与当帧执行后只读RigInput寄存器核对2640消费；逐字段比完整definition并按既证D242签名隔离initial-global差。Gate：fresh源/CDO/全部definition值与实际loaded/存盘身份、完整240旧history无扰动/字段只读writer证据/帧次序/源投影，必要观察/字段或比较器消融源码字节恢复同target重编/identity；不改源/产物，不复开已关闭U06，未知差异有fresh因果才新编号，whole Rig原求解/自然反馈后继。开始：2026-10-24 12:14:24 +0800；预估结束：2026-10-24 12:34:24 +0800。估时依据：旧.244全部definition/输入含reader修补约25分钟、.357入口约6分钟；现CDO能力/比较器/只读observer齐，按20分钟新全240字段/当前definition分类/消融，不扩原足部求解。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 12:14 活动摘要：54c78927完成原Rig Input240/18960骨及当前165/405/79计数边界，7264身份、255（115P2/140P3）；本项核完整值/输入生命周期，旧U06归D242已闭，仅按当次签名校准，不把计数或共同投影当自然反馈等价。
+
+  - 12:17 source/static闭环：fresh CR CDO=asset层级，完整loaded definition与存盘program精确，source→live仅365 initial_global差且每path/value与既证D242签名完全同，其余bones/curves/externals/geometry/program/tolerance全部值精确，不复开U06。当前240 pre-InputSet→发布→post消费2640字段全同，register394无writer、graph_frame前后+1；源flag/scalar投影0错，11字段distinct[1,1,1,181,1,1,3,134,133,133,132]。首次inputs检查错误并发早于definition产物被FileNotFound拒绝，已改顺序完整重跑通过；此为执行依赖修正非生产问题。definition负控制与观察恢复中，原自然feedback仍开，255（115P2/140P3），截图0、性能暂停。
+
+  - 12:18 控制/恢复摘要：definition比较器对非global寄存器和+0→−0两最小扰动均拒绝，live快照字节恢复后完整365既证签名分类重跑；输入检查对发布Bool错位和graph_frame次序扰动均拒绝，records快照字节恢复后2640全字段重跑0错。观察安装/记录/definition导出去除实际240运行过，源码字节恢复同target重编过、恢复运行中。无未知definition差，不把既证D242当新项；自然Rig外部查询/完整反馈仍开，255（115P2/140P3），截图0、性能暂停。
+
+  - 12:20 Gate后摘要：新增InputSet后/Evaluate前只读捕获、definition元数据导出去除后，全部旧240/warm/metadata精确；源码字节恢复同target重编后完整live definition与2640新记录两轮恢复同。源CDO/asset一致，全部definition除既证365 D242签名外同、loaded=stored；四definition/输入负控制及快照字节恢复/完整重跑均过。下一identity/提交后外部查询/状态与原240 Rig求值输入历史，不把当前共同投影当原自然反馈。255（115P2/140P3），截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/358/summary.json`通过；fresh CDO=asset层级、source全部definition与live按值/符号零比较，仅365 initial_global差且每path/value与既证D242签名同，其余全部段精确，live=stored，无未知新差/U06复开。完整240 InputSet后/Evaluate前组件/发布→post消费2640字段0错，RigInput register394无writer、帧前后+1；source当前标量/flag投影和foot F32提升0错。definition非global寄存器/符号零、输入发布Bool/帧次序四负控制均拒绝，快照字节恢复完整重跑过。观察安装/字段/definition去除旧240/warm/metadata同，源码字节恢复同target重编全部观察/definition恢复。7311身份（旧7264不变/恢复binary SHA）通过。首次依赖输出并发FileNotFound已顺序重跑通过，无生产改动；当前生命周期不代原自然反馈或whole Rig。后外部state/query、原Rig连续历史和主Root/custom attributes/Down-Up余差。255（115P2/140P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始12:14:24；预估结束12:34:24；实际结束12:21:09；实际用时405秒；偏差-795秒；结果完整definition/2640输入生命周期Gate通过。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D257 / P3 — Transition正向终止采样遗漏源section末端缓冲。
@@ -4488,6 +4499,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.355当前边界：原当前Head Forward additive240/18960骨、正确mesh原采样/wholeBS和单叶/回调240/480、消融恢复/7175身份通过，255（115P2/140P3）。下一Head Apply/Root，再后续及Down-Up/自然反馈/custom attributes/Rig；截图0、性能暂停。
   - BF144.356当前边界：原Head Root240/18960骨、whole native/当前240 public重放及三边界消融恢复、7217身份通过，255（115P2/140P3）。下一Head Root下游实际main/Ragdolling/Rig入口，后自然反馈/custom attributes/Down-Up和余差；截图0、性能暂停。
   - BF144.357当前边界：原Rig Input240/18960骨、当前直接边/VM计数/绑定和消融恢复、7264身份通过，255（115P2/140P3）。下一完整loaded definition/GetControlRigInput生命周期，再外部查询/原Rig/自然反馈/custom attributes及余差；截图0、性能暂停。
+  - BF144.358当前边界：当前完整live definition仅既证D242365签名差、2640输入生命周期与四负控制/观察消融恢复、7311身份通过，255（115P2/140P3）。下一Rig state/query/clock连续输入历史，再原Rig/自然Root反馈/custom attributes/Down-Up和余差；截图0、性能暂停。
 
 - [x] BF144-U06 — Rig初始全局数据已于.245归D242/P3。最初.244发现71骨365个double差、默认240仅FootHeight double变化；.245保持全部原生算法，仅换初始数据即在受控半转产生约180°的float足旋转/实际Setter写回差，并在同source厘米算法的5个骨长舍入边界经同原生IK核产生13/15个float关节点差，分别隔离D163算法与D165单位舍入。数据移除/源码字节恢复及同target重编恢复通过，native数学读出移除/同package恢复亦通过；默认动作自然可达性未证，不因关闭U06声明无差异或修复。证据`target/bf144/245/summary.json`、`native-check.json`、`writeback.jsonl`、`restoration-check.json`；原.244记录保留。
   - BF144.136 follower记录重建补充：near-zero候选无有效end时记录leader移到最后一项；下一普通帧恢复正常leader，`AnimSync::Finalize`使follower记录失效。`BlendSpace.cpp:784–787`按已存归一化时间乘当前样本长度重建；目标此前保留秒数。18帧33个previous差最大约59.6ns，全部精确等于`(旧position/旧duration)*当前duration`；仅补这一步后4032帧所有previous也逐值一致，当前采样位置和姿态保持。证据`target/bf144/136/roundtrip-check.json`、`before-roundtrip-all-analysis.json`、`all-analysis.json`。
