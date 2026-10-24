@@ -4024,7 +4024,7 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
     const auto CaptureState = [](UAnimInstance* Instance)
     {
         TArray<TSharedPtr<FJsonValue>> Fields;
-        for (const TCHAR* Name : {TEXT("Settings"), TEXT("Character"), TEXT("PoseState"), TEXT("FeetState"), TEXT("SpineState"), TEXT("GroundedState"), TEXT("LocomotionState"), TEXT("LocomotionMode"), TEXT("Stance"), TEXT("MovementBase"), TEXT("InAirState"), TEXT("LayeringState"), TEXT("bPendingUpdate"), TEXT("DeltaTimeWithoutTimeDilation")})
+        for (const TCHAR* Name : {TEXT("Settings"), TEXT("Character"), TEXT("PoseState"), TEXT("ViewState"), TEXT("HeadState"), TEXT("FeetState"), TEXT("SpineState"), TEXT("GroundedState"), TEXT("LocomotionState"), TEXT("LocomotionMode"), TEXT("Stance"), TEXT("MovementBase"), TEXT("InAirState"), TEXT("LayeringState"), TEXT("bPendingUpdate"), TEXT("DeltaTimeWithoutTimeDilation")})
         {
             const FProperty* Property = Instance->GetClass()->FindPropertyByName(FName(Name));
             if (Property == nullptr) { continue; }

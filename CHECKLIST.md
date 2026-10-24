@@ -3016,6 +3016,17 @@
 
   - 完成/Gate及拆分：`target/bf144/375/summary.json`通过；source自然239刷新Pose1195/Layering4780/mesh478/gait1912全部priorRoot精确，after Getter2160字段由本身状态精确推导，实际Rig速度混合480同beforeGetter、220个Forward afterGetter不同。误相位在frame20即失败，源码/报告字节恢复。target只读actor/before-evaluate240与原.374及关闭观察全行为精确（loading origin独立正规化），2640组件→发布→Rig字段、Layering4780/mesh478/Feet曲线478/Spine+Feet valid480/普通velocity478+initdefault2精确。8031身份（旧7983不变）通过，无新D，255（115P2/140P3）。完成范围为可观察的Layering/Pose/Feet关键输入、Getter消费与target发布；source当前CaptureState未含ViewState/HeadState，完整Head/View及Feet深算法明确拆成必要reader只读观察后继，未将本项勾选解释为已覆盖它们，也不以两侧不同物理值冒算法反例。Down-Up/180与Root属性后继。截图0、性能暂停。开始14:29:00；预估结束14:59:00；实际结束14:34:58；实际用时358秒；偏差-1441秒；结果可观察自然反馈/消费合同Gate通过，完整Head/View明确拆分继续。
 
+- [x] BF144.376 U07原自然ViewState/HeadState只读证据能力：依赖.375明确捕获缺口，fresh主AlsAnimationInstance.h证实ViewState/HeadState已有UPROPERTY且由linked Head回调到父实例；仅扩native reader CaptureState字段白名单及必要schema断言，不改source资产/生成图/状态算法，原自然240请求不变。Gate：新两结构每帧/注册完整字段与source声明一致、所有旧原自然240行为字段/pose/getter/实例输出剔新增字段后精确、源字节移除→同package重编旧记录恢复与最终字节恢复同包新记录精确；focused schema非法/遗漏控制、reader三身份有限迁移与其余8031全部不变。新自然算法/Down-Up轨迹后继，不用观察能力本身当功能等价。开始：2026-10-24 14:36:00 +0800；预估结束：2026-10-24 15:06:00 +0800。估时依据：.302 typed reader观察约14分钟、.315 native mesh能力约19分钟；本项仅2UPROPERTY已有捕获路径，按30分钟含三轮同包编译/原240兼容/最小消融与身份迁移。仅允许必要reader与focused工具测试，生产/转换器/原资产不改，截图0、性能暂停。
+  - 14:36 活动摘要：4d90721b/8031身份已提交，255（115P2/140P3）；source头文件主实例两个字段确实存在，旧CaptureState名单遗漏。先补最小只读能力再继续完整Head/View/Feet阶段，不向外部引擎写任何内容。
+
+  - 14:38 构建诊断：首用旧通用BuildPlugin触发arm64+x64 PCH，监控仅外层stdout/stderr，144秒后因120秒无新外层日志结束（exit137）；已核本任务子进程清理，未使用该包。读取原生内部日志证明停在双架构PCH，改复用仓库.276已有arm64与内部UBA日志进展路径的host构建范式，限定2 actions继续同一source两字段观察任务，不盲重复原调用；仍在14:36→15:06估时内。
+
+  - 14:42 source能力首Gate：added原自然240/注册241份View/Head结构完整、所有旧行为/pose/curve/getter/实例字段剔两组后精确原.374；focused schema4遗漏反例通过。首消融尝试复用HostProject增量编译，BuildPlugin成功后已清理HostProject，复制阶段即失败、未启动UBT或native，finally源码已恢复。按真实包目录改回已成功的arm64同package打包范式，保留失败报告，不冒增量成功证据；仍在14:36→15:06估时内。
+
+  - 14:46 source能力/消融恢复闭环：新241 View/Head结构与源头字段集完整，old240去新增两组后全部行为精确；移除名单→arm64同包重编/运行，旧240全字段精确且新schema拒绝；恢复源码字节→arm64同包重编/运行，added/restored全部新旧240记录精确（只规范TempWorld别名），源码/包源码字节同。focused schema4缺组/字段/数值反例通过，旧记录480缺组失败证据保留。移除未成功的增量构建脚本，仅保失败报告与实际复盘，最终流程用已有arm64内部日志watchdog打包入口；首双架构watchdog失败不作二进制证据。后仅迁移reader源/包源/dylib三身份，其余旧8031键必须不变，生产/引擎/资产未改，截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/376/summary.json`通过；reader仅CaptureState白名单增加主实例既有ViewState/HeadState两名，241初始化/普通包按本地头文件两组各6字段完整；旧480缺组最小检查失败，focused schema4非法遗漏拒绝。新增观察原自然240所有旧字段/pose/curve/getter/实例精确；名单移除源码→arm64同包重编运行，旧240全部同且新schema失败；最终源码字节恢复→arm64同包重编运行，added/restored全部新旧记录同（仅TempWorld别名正规化），workspace/包源码字节同。首双架构PCH外层无进展超时144秒已记录，后换已有arm64+内部日志进展范式成功；HostProject被打包清理的增量尝试在复制阶段失败并finally恢复，未作二进制证据，最终无增量方案。8068身份通过，旧8031仅reader源/包源/dylib三迁移，余8028不变；生产184Rust/ALS114/rlib/转换器/原资产不变，无新产品D，255（115P2/140P3）。新观察支持后续自然Head/View/Feet及Down-Up180，不等于算法已对齐。截图0、性能暂停。开始14:36:00；预估结束15:06:00；实际结束14:48:04；实际用时724秒；偏差-1075秒；结果源View/Head只读能力/三轮原生消融恢复Gate通过。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D257 / P3 — Transition正向终止采样遗漏源section末端缓冲。
@@ -4934,3 +4945,4 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.373当前边界：251spine/502hand输入独立推导、12454因果连接与19829 local/251curve全模型、两遗漏反例/恢复及7928身份通过，255（115P2/140P3）。共同target-input Rig因果模型已闭，原自然反馈/Root attributes/Down-Up/180等仍开；截图0、性能暂停。
   - BF144.374当前边界：新真实自然source/默认target240完整原Root历史、1195/478 priorcurve反馈、重复/被动观察和currentcurve负控制/7983身份通过，255（115P2/140P3）。下一自然Layering/Feet/Head/Rig消费阶段与完整反馈/Root attributes/Down-Up/180；截图0、性能暂停。
   - BF144.375当前边界：自然source priorLayer/Pose/Getter/实际before消费和target2640 Rig字段/关键输入、观察消融/8031身份通过，255（115P2/140P3）。source缺ViewState/HeadState只读捕获，完整Head/View/Feet深算法拆后继；Down-Up/180和Root属性仍开，截图0、性能暂停。
+  - BF144.376当前边界：源View/Head两组241包完整、自然240旧行为/移除/恢复同包精确及schema4反例，8068身份（仅3reader迁移）通过，255（115P2/140P3）。下一用新状态做自然Head/View/Feet算法与Down-Up180/Root属性闭包；截图0、性能暂停。
