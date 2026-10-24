@@ -102,3 +102,5 @@ BlendList请求可选`two_way: {child, property}`，从当前AnimBP CDO复制指
 同批删除六个早期 Interchange API 试验脚本、没有消费者的 `probe_scene2.py`，以及反复改写旧 Playground parity 文件的 `patch_parity_ron.py`、`test_lighting_only.py`。实际导出器、原始资产、生成图、归档证据和本地配置保留。
 
 `RigNodeHistoryProbe` 的 frame 可选 `mesh_to_world` 使用 `translation_cm[3]`、`rotation[4]`、`scale[3]`；提供时在同一 mesh 的本帧 Node.Update/Evaluate 前通过公开 SetComponentToWorld 设置缓存，保留原 quaternion 数值，不经过普通 SetWorldTransform 的 Rotator 往返，省略时保持当前变换（旧请求始终为identity）。提供字段的帧导出实际 `mesh_to_world`，执行事件另导出 `rig_to_world`，必须同时核对组件与真正的执行上下文，不能只检查请求值或pose。`tools/tests/test_rig_node_world_transform.py` 保留缺字段、未更新组件与未更新上下文的反例；无字段请求的旧输出合同保持。
+
+`GeometryQueryProbe` 的可选 `foot_lock_rotation` 数值样本消费 `rotation_xyzw`、目标 `target_rotation_xyzw` 和 `[0,180]` 的 `limit_degrees`。它按源脚锁末段保留 double quaternion 差、FQuat4f twist/角度/轴角与最终 double 乘法，不额外归一化。`tests/test_foot_lock_rotation_probe.py` 校验必需输出和非法 schema；旧样本不含该字段时不进入新增分支。

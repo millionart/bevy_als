@@ -1003,6 +1003,40 @@ TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
             if (!ReadArray(*Input, TEXT("euler_degrees"), Euler, 3)) { return nullptr; }
             Sample->SetObjectField(TEXT("rotation_from_euler"), CaptureQuaternion(FRotator(Euler[0], Euler[1], Euler[2]).Quaternion()));
         }
+        if ((*Input)->HasField(TEXT("foot_lock_rotation")))
+        {
+            const TSharedPtr<FJsonObject>* Limit = nullptr;
+            TArray<double> TargetValues;
+            double LimitDegrees;
+            if (!(*Input)->TryGetObjectField(TEXT("foot_lock_rotation"), Limit)
+                || !ReadArray(*Limit, TEXT("target_rotation_xyzw"), TargetValues, 4)
+                || !(*Limit)->HasTypedField<EJson::Number>(TEXT("limit_degrees"))
+                || !(*Limit)->TryGetNumberField(TEXT("limit_degrees"), LimitDegrees)
+                || !FMath::IsFinite(static_cast<float>(LimitDegrees)) || LimitDegrees < 0.0 || LimitDegrees > 180.0) { return nullptr; }
+            const FQuat Target(TargetValues[0], TargetValues[1], TargetValues[2], TargetValues[3]);
+            if (!Target.IsNormalized()) { return nullptr; }
+            const FQuat Relative = Rotation * Target.Inverse();
+            const FQuat4f RelativeFloat(Relative);
+            const float TwistRadians = RelativeFloat.GetTwistAngle(FVector3f::UpVector);
+            const float TwistDegrees = FMath::RadiansToDegrees(TwistRadians);
+            const float AngleLimit = static_cast<float>(LimitDegrees);
+            const float ClampedDegrees = FMath::Clamp(TwistDegrees, -AngleLimit, AngleLimit);
+            const bool bLimited = FMath::Abs(TwistDegrees) > AngleLimit + UE_KINDA_SMALL_NUMBER;
+            const FQuat4f Offset = bLimited
+                ? FQuat4f(FVector3f::UpVector, FMath::DegreesToRadians(ClampedDegrees - TwistDegrees))
+                : FQuat4f::Identity;
+            const FQuat Final = bLimited ? FQuat(Offset) * Rotation : Rotation;
+            TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+            Value->SetObjectField(TEXT("relative_rotation"), CaptureQuaternion(Relative));
+            Value->SetObjectField(TEXT("relative_rotation_float"), CaptureQuaternion(FQuat(RelativeFloat)));
+            Value->SetNumberField(TEXT("twist_radians"), TwistRadians);
+            Value->SetNumberField(TEXT("twist_degrees"), TwistDegrees);
+            Value->SetNumberField(TEXT("clamped_degrees"), ClampedDegrees);
+            Value->SetBoolField(TEXT("limited"), bLimited);
+            Value->SetObjectField(TEXT("offset_rotation_float"), CaptureQuaternion(FQuat(Offset)));
+            Value->SetObjectField(TEXT("final_rotation"), CaptureQuaternion(Final));
+            Sample->SetObjectField(TEXT("foot_lock_rotation"), Value);
+        }
         if ((*Input)->HasField(TEXT("scaled_distance")))
         {
             const TSharedPtr<FJsonObject>* Distance = nullptr;

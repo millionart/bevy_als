@@ -3487,6 +3487,23 @@
   - .420a完成/Gate：`target/bf144/420a/summary.json`通过。目标公开Feet完整cache/基底、actual FootLockInput/telemetry与mesh/pelvis/所选target变换的240 before-foot包和240 before-evaluate包齐；未绕私有生命周期。旧375原有240行为字段/轨迹经loading-origin归一逐值精确；同binary关闭phase与源码移除注册不改变旧/新非phase字段，源码字节恢复同target重编后所有240新phase字段也精确恢复。三类missing/wrong-phase schema反例拒绝；截图0、性能暂停，仅数值夹具不称visible Playground验收。10431身份旧10401保持、114 ALS/184 Rust/生产库/reader/转换器/原资产不变，256（115P2/141P3）、无新D。开始22:08:15；预估结束22:33:15；实际结束22:12:51；实耗276秒；偏差-1224秒；结果必要目标完整观察能力Gate通过；父.420直接继续自身actual输入公开核/首次cause闭环。
 
 
+  - 22:18 .420 target自身重放与共同输入候选：用420a实际before-foot全缓存/输入/目标/matrix及冻结公开refresh_foot_lock与constraint核，480侧全部字段精确actual before-evaluate。夹具先误把已分解target.rotation重建GlobalTransform再取rotation，435处尾差；直接消费实际记录quat后余frame124一处，由原matrix恢复后全消失，均非产品差异。source/target共同实际foot-limit输入298次active-lock样本，6次实际旋转限位有源投影与当前输出差，首次frame23/right；source原已在419校准全状态，但新共同输入尚缺native float GetTwistAngle/SinCos/最终world锁旋转确认，故只保候选不增D。当前reader GeometryQuery有double quaternion product等但无float twist/FootLock角约束输出；为判别source精度/atan/constructor/额外normalize因素需要最小原生共同输入算子，登记.420b必要工具前置，source相邻未证链不展开。256（115P2/141P3），截图0、性能暂停。
+
+- [x] BF144.420b U07原生FootLock旋转限位共同输入数值能力：源ConstrainFootLock末段1560–1574的double差→FQuat4f GetTwistAngle→float角约束→FQuat4f轴角→double world乘法已证明是420当前6次consumer的实际依赖；现有GeometryQueryProbe缺该算子，不以Rust模型自身当native truth。仅扩通用数值probe字段，有限normalized quat/limit输入，输出source relative double/F32 twist/角/限位开关/offset/final quat及中间因素；原样调用本地UE FMath API并按source算序，不改源工程/资产。Gate：focused schema/self-test和非法输入拒绝、6实际+边界共同输入原生值、旧Geometry样本无新字段时完整保持、新增分支移除/源码字节恢复同arm64 package重建全新/旧结果精确，reader3身份有限迁移及其余旧10431键保持。此项只工具证据，不确认产品D；父420时间保留，必要超时按剩余工作复盘。开始：2026-10-24 22:18:30 +0800；预估结束：2026-10-24 22:53:30 +0800。估时依据：既有reader数值扩展通常15–25分钟，当前单个源末段及通用Geometry入口约40行、三个构建/Native controls，35分钟包括负schema/原输出被动/消融恢复与迁移。用户AGENTS必要reader补齐授权优先于source-porting只计划默认；仅改项目reader/对应测试与工具文档，生产/转换器/原资产保持，截图0、性能暂停。
+
+
+  - 22:22 .420b新增数值能力首Gate：旧reader在同13请求正常退出但focused schema拒缺新字段，5输出非法self-test过。新增仅34行可选Geometry分支，直接UE FQuat/FQuat4f.GetTwistAngle/FMath float clamp/轴角与double乘法，finite/normalized/limit0..180边界。arm64包限流2构建通过，新13实际+边界源数值齐；去新增输出后旧文档唯一差是RigHierarchy.TopologyVersion transient值，fresh RigHierarchy.h:4784–4785及cpp:1221–1227证明为拓扑缓存版本，按相等关系别名化后全部旧字段精确，其他字段变化self-test仍拒绝。生产/ALS原工程/转换器/原资产未改，四非法native输入与新增分支移除/恢复同包重建后继，候选6次尚不登记D。截图0、性能暂停。
+
+
+  - 22:24 .420b能力负控制进展：四非法请求（非单位目标quat、负limit、>180limit、字符串limit）原生均code7拒绝且固定watchdog报告完整；移除新增C++分支按reader-before源码字节同arm64包限流构建成功，正运行同13请求旧输出/缺字段控制，随后finally恢复源码并同包再编。全旧字段兼容只允许已证transient TopologyVersion别名，不忽略其它字段；6实际共同输入源模型已匹配native float角与最终f64 quat投影，仍待父项完全单因归属和consumer控制后登记产品D。身份迁移预期仅reader源码/包源码/动态库三键加工具README一键，新focused测试独立纳入，其他10427旧键须全保持。截图0、性能暂停。
+
+
+  - 22:26 .420b消融/恢复闭环：四非法native输入全code7，无错误产物；源码字节移除34行可选分支，同arm64包重建后旧13请求完整旧输出保持且新schema拒绝。finally恢复reader-final源码字节、同包再编35.85秒，13新native数值和全部旧字段恢复精确（仅已证TopologyVersion别名关系），focused5输出反例/拓扑其他字段变化反例过。6共同实际输入源模型对native twist/final投影全精确，parent420原因因素尚未最终归属，不在工具前置新增D。10431身份正核；预期reader3键+README1键有限迁移，其余10427旧键/114ALS/184Rust/冻结rlib必须不变。截图0、性能暂停。
+
+
+  - .420b完成/Gate：`target/bf144/420b/summary.json`通过。新增GeometryQueryProbe可选34行foot_lock_rotation，直接源API保留double差/FQuat4f twist/F32限位轴角/末double乘法，不额外Normalize；6实际+7边界原生输出齐，旧reader缺能力稳定拒绝/5非法输出自测过，4非法native输入code7拒绝无产物。源码字节去分支同arm64 package重建旧全部输出精确（TopologyVersion按已证transient别名关系），新schema失败；恢复源码字节同包重建13新值及旧字段全精确恢复。10475身份：旧10431仅reader源码/包源码/DLL三键及工具README一键有限迁移，其余10427/114ALS/184生产Rust/冻结rlib/转换器/原资产保持。新增focused工具测试随reader提交，候选判断回父420，仍256（115P2/141P3）、无新产品D。截图0、性能暂停。开始22:18:30；预估结束22:53:30；实际结束22:27:11；实耗521秒；偏差-1579秒；结果必要原生共同输入数值能力通过，生产算法未修。
+
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
