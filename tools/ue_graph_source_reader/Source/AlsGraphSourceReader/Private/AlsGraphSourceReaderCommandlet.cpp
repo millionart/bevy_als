@@ -3966,11 +3966,18 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
     };
     struct FProxyAccess : FAnimInstanceProxy
     {
+        static int32 ReadIndex(const FAnimInstanceProxy& Proxy) { return (Proxy.*&FProxyAccess::GetBufferReadIndex)(); }
+        static float MachineWeight(const FAnimInstanceProxy& Proxy, int32 NodeIndex) { return (Proxy.*&FProxyAccess::GetInstanceMachineWeight)(NodeIndex); }
+        static float StateWeight(const FAnimInstanceProxy& Proxy, int32 NodeIndex, int32 StateIndex) { return (Proxy.*&FProxyAccess::GetInstanceStateWeight)(NodeIndex, StateIndex); }
         static const TArray<FMontageEvaluationState>& Montages(const FAnimInstanceProxy& Proxy)
         {
             const auto Getter = static_cast<const TArray<FMontageEvaluationState>& (FAnimInstanceProxy::*)() const>(&FProxyAccess::GetMontageEvaluationData);
             return (Proxy.*Getter)();
         }
+    };
+    struct FMachineAccess : FAnimNode_StateMachine
+    {
+        static const TArray<FAnimationActiveTransitionEntry>& Transitions(const FAnimNode_StateMachine& Machine) { return Machine.*&FMachineAccess::ActiveTransitionArray; }
     };
     struct FSlotAccess : FAnimNode_Slot
     {
@@ -4036,7 +4043,7 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
     const auto CaptureState = [](UAnimInstance* Instance)
     {
         TArray<TSharedPtr<FJsonValue>> Fields;
-        for (const TCHAR* Name : {TEXT("Settings"), TEXT("Character"), TEXT("PoseState"), TEXT("ViewState"), TEXT("HeadState"), TEXT("FeetState"), TEXT("SpineState"), TEXT("GroundedState"), TEXT("LocomotionState"), TEXT("LocomotionMode"), TEXT("Stance"), TEXT("MovementBase"), TEXT("InAirState"), TEXT("LayeringState"), TEXT("bPendingUpdate"), TEXT("DeltaTimeWithoutTimeDilation")})
+        for (const TCHAR* Name : {TEXT("Settings"), TEXT("Character"), TEXT("PoseState"), TEXT("ViewState"), TEXT("HeadState"), TEXT("Gait"), TEXT("GroundedEntryMode"), TEXT("StandingState"), TEXT("RotateInPlaceState"), TEXT("FeetState"), TEXT("SpineState"), TEXT("GroundedState"), TEXT("LocomotionState"), TEXT("LocomotionMode"), TEXT("Stance"), TEXT("MovementBase"), TEXT("InAirState"), TEXT("LayeringState"), TEXT("bPendingUpdate"), TEXT("DeltaTimeWithoutTimeDilation")})
         {
             const FProperty* Property = Instance->GetClass()->FindPropertyByName(FName(Name));
             if (Property == nullptr) { continue; }
@@ -4111,6 +4118,7 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
                 }
                 ChildRow->SetStringField(TEXT("class"), Child->GetClass()->GetPathName());
                 ChildRow->SetBoolField(TEXT("main"), Child == Main);
+                ChildRow->SetNumberField(TEXT("weight_read_buffer_index"), FProxyAccess::ReadIndex(ChildProxy));
                 TArray<TSharedPtr<FJsonValue>> Machines, Players, LayeredBlends, Slots;
                 if (const IAnimClassInterface* ChildInterface = IAnimClassInterface::GetFromClass(Child->GetClass()))
                 {
@@ -4192,6 +4200,42 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
                         MachineRow->SetStringField(TEXT("state"), Machine->GetCurrentStateName().ToString());
                         MachineRow->SetNumberField(TEXT("state_index"), Machine->GetCurrentState());
                         MachineRow->SetNumberField(TEXT("elapsed"), Machine->GetCurrentStateElapsedTime());
+                        const int32 NodeIndex = ChildInterface->GetAnimNodeProperties().Num() - 1 - ChildInterface->GetAnimNodeProperties().IndexOfByKey(Property);
+                        MachineRow->SetNumberField(TEXT("node_index"), NodeIndex);
+                        MachineRow->SetNumberField(TEXT("machine_class_index"), Machine->StateMachineIndexInClass);
+                        MachineRow->SetNumberField(TEXT("recorded_machine_weight"), FProxyAccess::MachineWeight(ChildProxy, NodeIndex));
+                        const FBakedAnimationStateMachine& Description = ChildInterface->GetBakedStateMachines()[Machine->StateMachineIndexInClass];
+                        TArray<TSharedPtr<FJsonValue>> StateWeights;
+                        for (int32 StateIndex = 0; StateIndex < Description.States.Num(); ++StateIndex)
+                        {
+                            TSharedRef<FJsonObject> Weight = MakeShared<FJsonObject>();
+                            Weight->SetNumberField(TEXT("index"), StateIndex);
+                            Weight->SetStringField(TEXT("name"), Description.States[StateIndex].StateName.ToString());
+                            Weight->SetNumberField(TEXT("recorded_weight"), FProxyAccess::StateWeight(ChildProxy, NodeIndex, StateIndex));
+                            Weight->SetNumberField(TEXT("current_weight"), Machine->GetStateWeight(StateIndex));
+                            StateWeights.Add(MakeShared<FJsonValueObject>(Weight));
+                        }
+                        MachineRow->SetArrayField(TEXT("state_weights"), StateWeights);
+                        TArray<TSharedPtr<FJsonValue>> Transitions;
+                        for (const FAnimationActiveTransitionEntry& Transition : FMachineAccess::Transitions(*Machine))
+                        {
+                            TSharedRef<FJsonObject> Entry = MakeShared<FJsonObject>();
+                            Entry->SetNumberField(TEXT("previous_state"), Transition.PreviousState);
+                            Entry->SetNumberField(TEXT("next_state"), Transition.NextState);
+                            Entry->SetNumberField(TEXT("elapsed"), Transition.ElapsedTime);
+                            Entry->SetNumberField(TEXT("alpha"), Transition.Alpha);
+                            Entry->SetNumberField(TEXT("crossfade_duration"), Transition.CrossfadeDuration);
+                            Entry->SetNumberField(TEXT("logic_type"), static_cast<int32>(Transition.LogicType));
+                            Entry->SetNumberField(TEXT("blend_option"), static_cast<int32>(Transition.BlendOption));
+                            Entry->SetBoolField(TEXT("active"), Transition.bActive);
+                            Entry->SetStringField(TEXT("blend_profile"), ObjectPath(Transition.BlendProfile));
+                            Entry->SetNumberField(TEXT("cached_pose_bone_count"), Transition.InputPose.Num());
+                            TArray<TSharedPtr<FJsonValue>> SourceIndices;
+                            for (int32 Index : Transition.SourceTransitionIndices) { SourceIndices.Add(MakeShared<FJsonValueNumber>(Index)); }
+                            Entry->SetArrayField(TEXT("source_transition_indices"), SourceIndices);
+                            Transitions.Add(MakeShared<FJsonValueObject>(Entry));
+                        }
+                        MachineRow->SetArrayField(TEXT("active_transitions"), Transitions);
                         Machines.Add(MakeShared<FJsonValueObject>(MachineRow));
                     }
                 }
@@ -4628,6 +4672,7 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
             const TSharedRef<FJsonObject> MovementBefore = CaptureMovement();
             const TSharedPtr<FJsonObject> GetterBefore = CaptureGetter(Instance);
             if (!GetterBefore.IsValid()) { return nullptr; }
+            const TArray<TSharedPtr<FJsonValue>> InstancesBefore = CaptureInstances(Mesh, Instance);
             const double SavedDelta = FApp::GetDeltaTime();
             FApp::SetDeltaTime(Delta);
             ON_SCOPE_EXIT { FApp::SetDeltaTime(SavedDelta); };
@@ -4660,6 +4705,7 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
             if (!GetterAfter.IsValid()) { return nullptr; }
             Row->SetObjectField(TEXT("getter_after_tick"), GetterAfter.ToSharedRef());
             Row->SetArrayField(TEXT("source_state_after_tick"), CaptureState(Instance));
+            Row->SetArrayField(TEXT("instances_before_tick"), InstancesBefore);
             TSharedRef<FJsonObject> Variables = MakeShared<FJsonObject>();
             for (const FRigVMExternalVariable& Variable : Rig->GetExternalVariables())
             {
