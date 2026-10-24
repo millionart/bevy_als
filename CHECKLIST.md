@@ -2703,6 +2703,13 @@
 
   - 完成/Gate：`target/bf144/342/summary.json`通过；完整240 Base实际30权重集、Stand45/Crouch223、212单叶/28双叶/缓存全匹配，正确mesh原两叶158骨（与独立Crouch capture同、旧域三骨6 R double/2 F32差）供给原240/18960骨，0target pose补值。30×5骨150 native f64全精确，当前公共Pose生产240/18960骨逐值重放，实际Layering owner/save交接240一致。去双叶第二normalize使2/ik_foot_l原生反例失败，源码字节恢复240原表同/150控制恢复；观察消融/源码字节恢复同target重编完整240精确。6473身份（旧6395不变，含两个恢复binary SHA）通过。actual组合T15479/R8821/S3441未归尽，权重仍是共同PoseState条件、原完整Root反馈未资格；Overlay/完整Layering/Head/Rig/自然反馈与旧域迁移后继。无新编号，255（115P2/140P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始10:45:50；预估结束11:05:50；实际结束10:51:23；实际用时333秒；偏差-867秒；结果共同参数原Base供给Gate通过。
 
+- [x] BF144.343 U07当前Overlay完整251步入口/活动与原叶需求：依赖.341 Layering Overlay Input源边与.342当前Base源数组，沿主AB012331fb→c110a89c惯性→Layering Overlay save、当前真实Default子图，复用route/leaf/parent/group只读观察，完整暖11+当前240校准后核source类/节点/权重/时钟/请求历史。Gate：fresh Root/Default图与source叶/绑定、实际linked/owner/请求/全251访问集、必要原叶/原clock/原参数闭包或精确缺口、0target pose回填、必要观察消融源码字节恢复同target重编/identity；不拿旧88同名记录替新251、不预算完整Overlay或自然反馈。开始：2026-10-24 10:51:43 +0800；预估结束：2026-10-24 11:11:43 +0800。估时依据：.341两个观察入口约6分钟、旧.227/.228当前类/叶/时钟资格约15分钟；现12节点源闭包已具，按20分钟核完整251与新后缀需求，不扩其他未激活Overlay。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 10:51 活动摘要：1a66d262完成原Base240/共享权重，6473身份、255（115P2/140P3）。当前完整Layering缺Overlay原输入，先从真实类/活动及原时钟需求界定；旧88源时钟D201与已有混合因子不代表后163步已过。
+
+  - 10:57 source/static闭环：fresh主AB/Default与12节点叶/绑定/两透明reroute闭合。全251旧字段精确，实际main1→Default wrapper15→Overlay16→Layering4已证；缓存/惯性源输出251同，active0、pending0，暖0仅一次0.2请求。Idle251单Secondary成员rootweight.75/rate1；五固定evaluator更新12/6/4/44/223（原帧0/1/2），父Multi241、InAir251、Prediction12、Walking45。旧88观察去新owner字段后全同；新增163步原生clock和正确mesh三固定帧/Idle原时点未资格，原完整反馈权重仍开，不能当Overlay已闭。下一观察消融/源码字节恢复同target重编、身份，255（115P2/140P3），截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/343/summary.json`通过；完整251入口/Default wrapper15→Overlay16父链与Layering4传递、fresh12源节点/五参数绑定/两reroute/六叶已核。惯性active0/pending0、暖0一次0.2请求，源输出/缓存251全等；Idle251 rootweight.75/rate1，五evaluator更新12/6/4/44/223，三固定帧0/1/2。旧88观察逐值同而后163原时钟/原叶资格未冒用；新观察去除完整历史同、源码字节恢复同target重编全部251观察恢复。6519身份（旧6473不变/恢复binary SHA）通过。完整原Overlay/自然反馈不在本Gate，下一原251时钟+正确mesh叶，再组合/Layering；无新编号，255（115P2/140P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始10:51:43；预估结束11:11:43；实际结束10:58:48；实际用时425秒；偏差-775秒；结果全251入口/精确输入缺口Gate通过。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D257 / P3 — Transition正向终止采样遗漏源section末端缓冲。
@@ -4314,6 +4321,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.340当前边界：原暖3+主240的243步惯性/240最终Locomotion Root已通过原生请求对照与过滤/终止，现第1到期差保留D240；下一完整主AB后槽/Layering/Head/Rig及自然反馈与上游/旧域迁移，不宣称生产等价，255（115P2/140P3），截图0、性能暂停。
   - BF144.341当前边界：当前240 PostLocomotion无活动copy与Layering Locomotion缓存/720实际读取原供给闭合；源150顶图声明9 use本3实际覆盖，后需Base Poses/Overlay原输入，再Layering/Head/Rig及自然反馈，255（115P2/140P3），截图0、性能暂停。
   - BF144.342当前边界：当前240原Base Poses/18960骨在共同反馈权重下供给，150 native/生产重放/消融恢复通过；原反馈权重循环仍开，下一完整Overlay原入口/叶/时钟/组合，再Layering/Head/Rig/自然反馈，255（115P2/140P3），截图0、性能暂停。
+  - BF144.343当前边界：全251实际Default入口/惯性/缓存与六叶五绑定已核，6519身份，255（115P2/140P3）。下一原251 Idle clock与正确mesh原叶，后完整Overlay/Layering/Root反馈；截图0、性能暂停。
 
 - [x] BF144-U06 — Rig初始全局数据已于.245归D242/P3。最初.244发现71骨365个double差、默认240仅FootHeight double变化；.245保持全部原生算法，仅换初始数据即在受控半转产生约180°的float足旋转/实际Setter写回差，并在同source厘米算法的5个骨长舍入边界经同原生IK核产生13/15个float关节点差，分别隔离D163算法与D165单位舍入。数据移除/源码字节恢复及同target重编恢复通过，native数学读出移除/同package恢复亦通过；默认动作自然可达性未证，不因关闭U06声明无差异或修复。证据`target/bf144/245/summary.json`、`native-check.json`、`writeback.jsonl`、`restoration-check.json`；原.244记录保留。
   - BF144.136 follower记录重建补充：near-zero候选无有效end时记录leader移到最后一项；下一普通帧恢复正常leader，`AnimSync::Finalize`使follower记录失效。`BlendSpace.cpp:784–787`按已存归一化时间乘当前样本长度重建；目标此前保留秒数。18帧33个previous差最大约59.6ns，全部精确等于`(旧position/旧duration)*当前duration`；仅补这一步后4032帧所有previous也逐值一致，当前采样位置和姿态保持。证据`target/bf144/136/roundtrip-check.json`、`before-roundtrip-all-analysis.json`、`all-analysis.json`。
