@@ -3231,7 +3231,7 @@
   - 完成/Gate：`target/bf144/401/summary.json`通过。自产.399/.400输入/.394状态栈经方向MultiWay单叶归一、Local Apply Alpha1及普通state混合，形成48起步state与106 Details惯性前pose；源普通FSM内部累加不归一、栈后最终1次，直接state保持原pose。原GeometryQuery全部3792加性骨inner及node outer、原BlendProfile default无profile同分支632转场骨TQS全部double精确；8帧FootPlanted/PoseGait共16曲线值也原生精确。原native local26.707秒、blend31.011/25.947秒、curve25.966秒；去方向归一首22/root失败、去FSM最终归一首44/root失败，source/106pose/原请求全部字节恢复后重算全过。9241身份旧9190全保持、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib不变，256（115P2/141P3），无新D；该源单位校准不是target或角色完整pose验收，也未把inertial请求当已应用。下一Details实际0.1秒请求/pose历史和非相关空窗，再Standing-Grounded Base/Slot/Layering/Root/Feet/属性；截图0、性能暂停。开始19:01:00；预估结束19:21:00；实际结束19:07:35；实耗395秒；偏差-805秒；结果Details局部Apply/普通state pose生产Gate通过，原生全部骨直接控制比旧局部抽样更完整且无需工具扩展。
 
 
-- [ ] BF144.402 U07自然Details惯性请求/历史与原生pose生产：依赖.401自产106惯性前pose及.394自主状态栈/两次0.1秒请求，沿原Details专属Inertialization节点a346c3af、bResetOnBecomingRelevant/缓存调度/实际delta追历史与非活动空窗。复用原InertializationProbe 79骨/曲线接口，先证实际node_property与默认过滤/重入语义，独立输入产生106源惯性后pose；不输入角色原生惯性输出、不借另一Standing节点或target结果校准。Gate：fresh源资格/phase合同、正确两请求/初始化和空窗的原生全pose生产、最小历史/请求消融恢复和identity；若probe无法表达真实Update/Evaluate空窗先记录并以必要最小前置补齐，不猜连续帧等价。完整Standing/Grounded Base/Root后继，截图0、性能暂停。开始：2026-10-24 19:09:00 +0800；预估结束：2026-10-24 19:29:00 +0800。估时依据：.401真实106pose生产395秒、既有.103/.173全骨惯性工具/历史边界已封存；本项20分钟含真实节点/空窗映射、原生生成/反例和身份，不含完整target惯性数值归因。仅审计不改生产/转换器/原资产，必要观察前置按用户规则另列。
+- [x] BF144.402 U07自然Details惯性请求/历史与原生pose生产：依赖.401自产106惯性前pose及.394自主状态栈/两次0.1秒请求，沿原Details专属Inertialization节点a346c3af、bResetOnBecomingRelevant/缓存调度/实际delta追历史与非活动空窗。复用原InertializationProbe 79骨/曲线接口，先证实际node_property与默认过滤/重入语义，独立输入产生106源惯性后pose；不输入角色原生惯性输出、不借另一Standing节点或target结果校准。Gate：fresh源资格/phase合同、正确两请求/初始化和空窗的原生全pose生产、最小历史/请求消融恢复和identity；若probe无法表达真实Update/Evaluate空窗先记录并以必要最小前置补齐，不猜连续帧等价。完整Standing/Grounded Base/Root后继，截图0、性能暂停。开始：2026-10-24 19:09:00 +0800；预估结束：2026-10-24 19:29:00 +0800。估时依据：.401真实106pose生产395秒、既有.103/.173全骨惯性工具/历史边界已封存；本项20分钟含真实节点/空窗映射、原生生成/反例和身份，不含完整target惯性数值归因。仅审计不改生产/转换器/原资产，必要观察前置按用户规则另列。
   - 19:09 活动摘要：上一goal轮为实际进展（.396–.401六项单独提交，最新ec5e8429），现工作区干净/9241身份；256（115P2/141P3）。已辨Details节点a346与Standing节点d631，只有Standing过滤RotationYawSpeed；本项核Details实际runtime属性和bResetOnBecomingRelevant，再用自主pose/请求/资格生产原惯性，不将另一节点过滤套入本节点。
 
 
@@ -3352,6 +3352,8 @@
   - 20:36 迁移.400 Gate：`target/bf144/411c/400-check.json`通过，106 Details输入全部引用.411b完整Movement缓存，五consumer覆盖/8374 Lean Apply原生Gate已提交；48起步原叶/时点保持，旧BS叶捷径移除。只重新关闭.400输入完整性，原source/native记录不改，其余复开条目仍待自身新输入Gate；完整整体Layering仍未通过。身份沿.411b已封9660不变，最终迁移另全封存；截图0、性能暂停。
 
   - 20:39 迁移.401 Gate：新完整Movement Base生成106 Details惯性前pose、48起步state；新原生local26.710秒/blend30.962与25.949秒，3792加性inner+outer骨及632普通转场骨全double精确（target/bf144/411-migrated/401/native-check.json）。本次重新关闭该输入域，原同输入算法结论和旧报告保留，其余复开项仍待新输入Gate；沿411c窗口20:32:20–20:57:20，实际本阶段20:37:03–20:39:09通过，无新D、截图0、性能暂停。
+
+  - 20:40 迁移.402 Gate：新完整Details惯性前pose进入原节点，native25.943秒，106惯性后pose/8374骨/424曲线值完整生成；两请求仅22/23/122/123改变，去请求透传与恢复106字段精确（target/bf144/411-migrated/402/native-check.json）。源请求/窗口未改，曲线新增PoseMoving/RotationYawOffset来源正确；只关闭402，下一406依赖现可启动。阶段20:39:25–20:40:02沿411c窗口通过，无新D，截图0、性能暂停。
 
 ### 已确认差异（仅登记，未实施修复）
 
