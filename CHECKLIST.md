@@ -3270,6 +3270,16 @@
 
   - 完成/Gate：`target/bf144/405/summary.json`通过。主CDF Turn PlayRate1/QueuedSettings空、九AnimBP+actor共58 setter无Turn写，模块sole PlayRate writers仅排队函数，241零Yaw≤实际45°门槛先返回；当前PlayRate1由source生命周期推导，不用未记录字段或新增观察。Idle原Stand TQS透传，三Lock/Allow值1与RotationYawSpeed显式零键按源ModifyCurve/空TurnSlot合同形成；去写/去零键拒绝，零输入换rate0/1/99无差因此不新增额外rate状态。Plant原Forward单子归一两族158骨原native26.440秒全部double精确；去归一首Left/root失败，源码/全部三pose族/原请求字节恢复后全过。160 Idle/18 Plant输入齐，FootLock覆盖未提前到layer前。9357身份旧9325全不变、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib保持，256（115P2/141P3），无新D。下一两Plant三枝mesh layer+layer后曲线→Stop/Main普通pose/Standing惯性资格/完整Base/Slot/Root/Feet/属性；本项未宣称Plant最终pose或target整体等价，截图0、性能暂停。开始19:29:28；预估结束19:49:28；实际结束19:35:28；实耗360秒；偏差-840秒；结果Idle曲线/Plant单方向输入生产Gate通过，.403未观察Turn参数域以source证明闭合且无需reader扩展。
 
+
+- [x] BF144.406 U07自然双Plant三枝mesh层与layer后曲线生产：依赖.402自主Details pose、.405原Forward单叶输入及.403 typed layer合同，沿thigh/ik_foot/VB foot三侧分支(depth0)、mesh-space rotation true/scale false/CurveOverride/weight1完整生成左右9+9实际Plant状态pose，之后再写对应FootLock1。复用原LayeredBoneBlendProbe和已验精确骨混合核，先fresh核原mask/mesh变换/归一/曲线消费与probe是否表达本节点，不改依赖。Gate：79骨mask与实际18组输入/flags一致、source模型全骨/曲线对whole-native、必要mask/归一/曲线算序消融字节恢复/identity；完整Stop/Main/Grounded Base后继，未验证的custom attributes不借零样本宣称通过。开始：2026-10-24 19:35:53 +0800；预估结束：2026-10-24 20:00:53 +0800。估时依据：.401局部Apply395秒/.405单叶360秒、旧层骨混合数值核与全pose probe已存在，本次两侧三枝与动态Details18组，25分钟含fresh mask语义/全骨数值及消融身份；若缺工具字段先拆必要前置，不凭猜测改mask。仅审计不改生产/reader/转换器/原资产，截图0、性能暂停。
+  - 19:35 活动摘要：上一goal轮完成.402–.405四项独立提交，属实际进展；当前ea51dfad/9357身份且工作区干净，256（115P2/141P3）。先读原Layered probe和既有精确算法，保持层后FootLock算序，再自产双Plant状态，下一Stop/Main组合；截图0、性能暂停。
+
+
+  - 19:39 source/static与全骨闭环：左右三branch root/depth0由原LayerSetup及79 parent链独立生成各8骨，未读native mask；source曲线元数据LinkedBones全空，typed mesh rotation true/root-space false/scale false/weight1/Override。18动态Details Base+原Forward单叶输入经既有精确层骨核独立产1422骨TQS/36曲线，全与原native模板节点精确，全部mask、update[1,1]/root modifier[1,0]也精确；native26.701/25.940秒。删除ik/VB两个root只使两对应骨改变，去mesh运算改局部替换首Left64/pelvis失败；恢复脚本/18pose字节后全1422/36再过。层后锁曲线1仍在末端，去写失败；删除一段无消费的控制计算信号不变。9357旧身份全核中，256（115P2/141P3）；本项关闭source Plant状态pose单位，不假称角色/target最终pose或attributes支持，下一Stop/Main普通组合及Standing惯性资格。截图0、性能暂停。
+
+
+  - 完成/Gate：`target/bf144/406/summary.json`通过。原三branch/depth0与79 parent链独立得左右各8骨，source曲线LinkedBones全空、原typed mesh/root-space/scale/weight/Override字段齐；18自主Details Base+Forward单叶经既有源精确数学核产完整Plant layer，1422骨TQS/36曲线与原native模板精确，全mask及update[1,1]/root modifier[1,0]精确。native26.701/25.940秒；删ik/VB root只改对应两骨，去mesh运算首Left64/pelvis失败，源码/18输出字节恢复后全过；层后FootLock1去写失败，未提前改顺序，删无消费控制计算不改信号。9392身份旧9357全保持、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib不变，256（115P2/141P3），无新D。仅源Plant状态单位闭合，不宣称角色/target完整pose或custom attributes；下一Stop Entry/Plant子机→Standing Idle/Move/Stop普通pose和Standing惯性资格→Grounded Base/Slot/Layering/Root/Feet/属性。截图0、性能暂停。开始19:35:53；预估结束20:00:53；实际结束19:40:10；实耗257秒；偏差-1243秒；结果双Plant完整mesh layer+层后曲线生产Gate通过，无需新核或工具扩展。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
@@ -5259,3 +5269,5 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.404当前边界：三原SKM prepared叶237骨/178输入引用与自主frame时点、四负控制/9325身份通过，256（115P2/141P3）。下一Idle曲线/Plant归一与三枝mesh层，再完整Stop/Main/Base/Root/Feet/属性；截图0、性能暂停。
 
   - BF144.405当前边界：Idle参数生命周期/四曲线键及160输入、两Plant158骨native/归一消融字节恢复/9357身份通过，256（115P2/141P3）。下一两Plant三枝mesh layer和曲线→Stop/Main/完整Base/Root/Feet/属性；截图0、性能暂停。
+
+  - BF144.406当前边界：双Plant18状态pose/1422骨36曲线/独立mask与root权重、两因素消融恢复/9392身份通过，256（115P2/141P3）。下一Stop/Main普通pose与Standing惯性，再完整Base/Root/Feet/属性；截图0、性能暂停。
