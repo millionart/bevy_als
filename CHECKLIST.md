@@ -3291,7 +3291,7 @@
   - 完成/Gate：`target/bf144/407/summary.json`通过。18 Stop/240 Standing普通pose全由自主子pose和ordered stack生成，214主直传、26主/4子转场；2370全骨TQS+168曲线原native精确，输入/输出/空子机资格齐。五批原native约31秒各成功；首恢复set遍历重排曲线控制号的审计错误已定位：稳定键排序，仅末批以新文件重跑30.994秒，原记录保留、240主/18子pose字节与排序前一致；稳定原生全过后再做去归一/颠倒pose两消融，分别首Standing20/root及pelvis失败，字节恢复后全2370/168精确。删临时早检脚本避免重复步骤。9451身份旧9392全保持、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib不变，256（115P2/141P3），无新D。仅源普通状态pose完整，最终Standing惯性请求/skip-cache转发与Grounded封装、实际角色/target最终pose尚未闭合；下一按该请求资格→Grounded Base/Transition Slot→Layering/Root/Feet/属性。截图0、性能暂停。开始19:40:21；预估结束20:00:21；实际结束19:47:05；实耗404秒；偏差-796秒；结果完整普通Stop/Main pose生产Gate通过。
 
 
-- [ ] BF144.408 U07自然Standing最终惯性请求域与Grounded Base包装：依赖.407完整240普通Standing pose、.402 Details请求与.393缓存上下文、.388 Grounded实际compiled目录；先完整追Standing d631节点到Root输出的pose封装和所有可达惯性请求来源（主FSM/Turn槽/Details skipped-cache转发），不能仅因本机无inertial edge就推断透传。再沿Grounded实际Standing路径核Update/Evaluate/curve包装，独立生成可供主Transition Slot的240源Base；如果发现未闭请求源/参数先明确分依赖，不用角色Root或目标Base回填。Gate：fresh message scope/缓存转发/Slot合同、240资格与默认输入、最终惯性原生240全pose校准或明确source透明证明、Grounded封装和必要反例/identity；完整Slot/Layering/Root/Feet/属性后继。开始：2026-10-24 19:47:22 +0800；预估结束：2026-10-24 20:12:22 +0800。估时依据：.402惯性348秒/.407普通pose404秒，当前多跨cache scope与Grounded linked边/曲线包装，25分钟含源请求闭包/原生整段和消融身份；若参数/额外状态超当前域则先拆完整依赖项。仅审计不改生产/reader/转换器/资产，截图0、性能暂停。
+- [x] BF144.408 U07自然Standing最终惯性请求域与Grounded Base包装：依赖.407完整240普通Standing pose、.402 Details请求与.393缓存上下文、.388 Grounded实际compiled目录；先完整追Standing d631节点到Root输出的pose封装和所有可达惯性请求来源（主FSM/Turn槽/Details skipped-cache转发），不能仅因本机无inertial edge就推断透传。再沿Grounded实际Standing路径核Update/Evaluate/curve包装，独立生成可供主Transition Slot的240源Base；如果发现未闭请求源/参数先明确分依赖，不用角色Root或目标Base回填。Gate：fresh message scope/缓存转发/Slot合同、240资格与默认输入、最终惯性原生240全pose校准或明确source透明证明、Grounded封装和必要反例/identity；完整Slot/Layering/Root/Feet/属性后继。开始：2026-10-24 19:47:22 +0800；预估结束：2026-10-24 20:12:22 +0800。估时依据：.402惯性348秒/.407普通pose404秒，当前多跨cache scope与Grounded linked边/曲线包装，25分钟含源请求闭包/原生整段和消融身份；若参数/额外状态超当前域则先拆完整依赖项。仅审计不改生产/reader/转换器/资产，截图0、性能暂停。
   - 19:47 活动摘要：.407提交26b26ad1/9451身份，256（115P2/141P3）。主三状态exit均standard、Turn槽全空，但Details两请求仍需按实际上下文/skip-cache验证能否转到Standing；首做真实source消息与Grounded root闭包，不提前给最终Base通过结论。
 
 
@@ -3358,6 +3358,8 @@
   - 20:42 迁移.406 Gate：新Details惯性后Base进入左右Plant，原节点native25.944/25.931秒，18完整Plant layer/1422骨/72曲线值及独立mask、update/root权重全部精确（target/bf144/411-migrated/406/native-check.json）。层后FootLock1顺序保持，旧原始记录未改，重新关闭该输入域后才启动407；阶段20:41:56–20:42:52沿411c窗口通过，无新D、截图0、性能暂停。
 
   - 20:46 迁移.407 Gate：修正后的18 Stop/240 Main普通pose全量重算，五新native批次30.971/30.973/30.969/30.972/25.936秒，2370骨TQS及全部228曲线合同精确（target/bf144/411-migrated/407/native-check.json）。每骨控制携带曲线键覆盖，避免因新曲线增加批次；214直传/26主栈/4子栈资格保持。阶段20:43:10–20:46:03通过，重新关闭407后才启动408，截图0、性能暂停，无产品新D。
+
+  - 20:47 迁移.408 Gate：新完整Main240输入经两个原惯性节点native25.940/25.947秒，37920骨与所有新曲线精确透传；错误复制Details请求仍只改变22/23/122/123，恢复240字段精确。原source请求域/四root曲线包装合同不变，新Grounded Base已生成（target/bf144/411-migrated/408/native-check.json）；阶段20:46:20–20:47:23通过，重新关闭408后才启动409，无新D，截图0、性能暂停。
 
 ### 已确认差异（仅登记，未实施修复）
 
