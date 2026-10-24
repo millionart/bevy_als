@@ -3677,11 +3677,24 @@
   - Gate完成：`target/bf144/438/summary.json`通过；完整source240/native向量精确、当前240公共完整阶段精确、fresh29包及30方向原生观测/固定算法精度因素、首实际40plan消费者与完整零下游边界、必要消融/删除零信号变体/源码bytes恢复同两个target重编全部通过。11819身份/前11714不变，114源ALS/184生产Rust/reader/冻结库/引擎/转换器/原资产均未改；新增D265/P3，262（115P2/147P3）。完整source核已闭不代表target已同，剩20 cap/pre-clamp累积与4原配对参数边界、原始参数生产/整物理/Root/clock资格继续，截图0、性能暂停。
   - 时间/拆分：开始2026-10-25 04:16:00 +0800；预估结束2026-10-25 04:56:00 +0800；实际结束2026-10-25 04:36:49 +0800，耗时1249秒、提前1151秒。本项完整向量模型/29资格和首归一化根因完成，20 active cap连续累积因素独立后继，未通过边界均保留，完整目标不缩减。无生产修复。
 
+- [x] BF144.439 U01速度cap前连续转向/加速累积20残差：依赖.438 source完整240原生模型、25同参侧向资格及D265，fresh核source Velocity double跨转向摩擦/加速度加法/夹限保持的边界，对照target Vec3每次算子与state写回。固定normal/VelSize/参数分别做连续累积、各单操作舍入和夹限输入投影因素，不能把source-data替换冒充独立算法根因或重复D255/D265。Gate：20真实输入与全240阶段矩阵、完整source/native当前核重放、首可隔离根因/实际最小consumer或精确后继、必要消融/源码bytes恢复同target重编/identity；其它未同参数、独立原始参数生产/物理后反馈/Root/clock资格继续。开始：2026-10-25 04:38:00 +0800；预估结束：2026-10-25 05:18:00 +0800。估时依据：.438全向量/首归一consumer1249秒，当前完整source与29 native均已具但20跨阶段相消/夹限需连续因素矩阵，40分钟按full核/首最小consumer闭环；同源相等则排除、无独立信号不新建编号。生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 活动摘要：上一goal轮为progress，8a54ee1f新增D265/P3并保零下游边界，11819身份/262（115P2/147P3），树干净无遗留进程。当前20均active/cap，旧宽夹限对当前输入零恢复，主要差已在其前形成；本项从完整source240和真实producer逐段核，不按结果凑分支。
+  - 04:53 source/native/首consumer闭环：固定当前normal、size、参数，以六个算子舍入边界64组合重放全部active public输入；全保留F32精确current，20 cap中只去转向结果量化一项即恢复19，单去其它五边界零恢复。fresh20实际native全旧字段精确。原生精确乘积最小输入v=(1,0,0.75)m/s、a=(20,0,0)、friction5、dt0.031250014901161194，size1.25及normal(1,0,0)两端相等，friction/加速乘积全可精确表示；仅转向结果1.0390625186264515先量化为1.0390625，后续plan X current1.664062738418579而native1.6640628576278687。实际40只保该中间量，plan/delta匹配native，最终40body/动画仍相消，未称运动/可见恢复。另以二进制精确31.25ms/零前速的native Calc包装直接读40份夹限输入，20 raw向量全native，提前F32投影只改变25侧向，源夹限数学没改；同属中间Velocity过早量化，不另拆编号。确认D266/P3，263（115P2/148P3），不同于D255单个乘积及D265方向归一。下一消融/bytes恢复同target/identity；原始参数生产/全物理/Root/clock资格仍开，截图0、性能暂停。
+  - 05:00 消融/恢复闭环：强制恢复转向结果F32边界后19份native侧向恢复全失；matrix源码bytes恢复同target重编后完整64组合输出byte精确。实际40控制去保精度后plan/delta和全部旧字段回baseline，最终源码bytes恢复同target重编后所有控制字段恢复，最小native plan复过且最终运动零信号保留。保持全部source数学只换VelSize为target数值在20侧向零信号，不把本组强并D256。identity封存中，263（115P2/148P3），不修生产；已知因素全240组合/原始参数生产/完整physics、Root与clock资格仍开，截图0、性能暂停。
+  - Gate完成：`target/bf144/439/summary.json`通过；全active当前计划重放、20×64舍入矩阵、fresh20原生/精确乘积最小控制、40原生夹限输入包装、实际40plan消费者/全最终零信号、消融与源码bytes恢复同两个target重编全部通过。11893身份/前11819不变，114源ALS/184生产Rust/reader/冻结库/引擎/转换器/原资产均未改；新增D266/P3，263（115P2/148P3）。20侧向分别取得19转向结果/1夹限入口早量化的同源因素证据，不将该合同闭环冒充源/目标完整向量、物理或Root恢复；后继组合D255/D265/D266与输入数据、原始参数生产/全反馈、player clock资格和非零view/attributes仍开。截图0、性能暂停。
+  - 时间/拆分：开始2026-10-25 04:38:00 +0800；预估结束2026-10-25 05:18:00 +0800；实际结束2026-10-25 05:02:01 +0800，耗时1441秒、提前959秒。本项20 cap前连续累积/夹限入口合同及首独立根因完成，完整组合与动态反馈按下一依赖继续；没有缩减整体审计目标或实施生产修复。
+
 
 
 ### 已确认差异（仅登记，未实施修复）
 
-BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法累加顺序是D163已由.283记录的同一Quaternion组合根因的新consumer。旧D163原函数逐值恢复旧174及当前4680原生double产品，当前F32源顺序模型也与该既有公式投影精确。证据及消费者细节已合并D163；.426 sealed数值产物保持，但其“新增D263/累计261”分类已被.427a migration覆盖。撤回时累计260（115P2/145P3）；当前累计262（115P2/147P3），本编号不再使用。
+BF144-D263 已撤回（2026-10-25，BF144.427a去重）：.426的层化F32乘法累加顺序是D163已由.283记录的同一Quaternion组合根因的新consumer。旧D163原函数逐值恢复旧174及当前4680原生double产品，当前F32源顺序模型也与该既有公式投影精确。证据及消费者细节已合并D163；.426 sealed数值产物保持，但其“新增D263/累计261”分类已被.427a migration覆盖。撤回时累计260（115P2/145P3）；当前累计263（115P2/148P3），本编号不再使用。
+
+- [ ] BF144-D266 / P3 — 转向和加速的Velocity中间结果提前量化为F32，改变后续累积与夹限计划。
+  - Source：fresh `CalcVelocity:3920–3942`的Velocity为FVector double，转向摩擦结果继续以double参与Acceleration加法，再以同一double向量做GetClampedToMaxSize；`Vector.h:1903–1922`直到输出仍不先投影F32。Target `dynamics.rs:213–222`的next及加法结果均为Vec3，先在转向结束或夹限入口量化，后续运算无法恢复低位。与D255单个vector×scalar乘积早舍入不同，这里即使所有参与乘积都精确，跨阶段的中间结果量化仍会分叉。
+  - 原生独立反例：相同v=(1,0,0.75)、a=(20,0,0)m/s²、friction5、factor0、dt0.031250014901161194及cap3.75。两端速度标量1.25、轴向normal1与friction/加速的每个X乘积都精确相等；转向X原double为1.0390625186264515，当前先为1.0390625。当前public/实际plan X1.664062738418579，只保转向结果至下次加法便得native1.6640628576278687，保持D255产品及D265 normal输入不变，故不合并其编号。
+  - 真实数据/夹限入口：当前20 cap的六舍入边界64组合中，全当前边界重放所有active public；只取消转向结果边界即可恢复19个native侧向值，取消其它单边界均零恢复。剩25以完整原生source before-clamp double向量与其F32投影各经同一native夹限，只有后者丢侧向；二进制31.25ms/零前速包装保证Acceleration×dt精确还原指定输入，40个输入/原算法double输出均逐值复算，未将源数据替换冒作数学修改。同一中间量化根因覆盖转向后与非线性夹限前两边界，未另拆D。
+  - 实际计划消费者/限制：同公开角色原floor、共同初速和参数，保当前delta/dt/六子步，只去转向中间量化，实际plan与计划delta改变并恢复该native plan投影；当前40最终body/动画/pose/curve/clock/Rig全部相同，后续舍入相消，不能宣称整运动或可见恢复。旧Gate只看最终F32/单个乘积或夹限数学，漏了后续加法/nonlinear之前仍需保留的低位。证据`target/bf144/439/rounding.json`、`native-check.json`、`consumer-check.json`、`cap.native.json`、`clamp.native.json`；去保精度丢19恢复/实际40回baseline，源码bytes恢复同target重编全部矩阵/40控制精确，见`controls-check.json`。identity按当前项封口，生产未修。
 
 - [ ] BF144-D265 / P3 — 地面运动方向归一化提前使用F32，改变共同输入的计划侧向分量。
   - Source：fresh `CalcVelocity:3920–3923`的Acceleration.GetSafeNormal与`ApplyVelocityBraking:4403–4405`的Velocity.GetSafeNormal均为FVector double；`Vector.h:2058–2074`在double平方和/sqrt/倒数后逐分量乘回。Target `dynamics.rs:178–186`对Vec3执行F32 normalize_or_zero，再进入转向或反向制动向量。此为精度阶段差，不是D249同double的dot/乘倒数算序，也不套用D248的Quaternion ARM64 reciprocal估算。
