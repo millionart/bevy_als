@@ -3260,6 +3260,16 @@
 
   - 完成/Gate：`target/bf144/404/summary.json`通过。原typed字段/引脚、无动态绑定取有效ExplicitFrame0/4/21；源AsSeconds整数double→float得到三个时点，全部等actor oracle且不以oracle生成请求。两资产原native26.967/25.950秒、正确SKM79/animation_pose/compressed采样三pose237唯一骨行、共同有效parent序；178实际输入引用/14062骨行齐，Stand160/左右Plant9+9。错误mesh/时点/raw/缺骨四合同拒绝；帧生成由硬编码改为源字段后请求字节保持，旧无mesh Stand数据未借用。9325身份旧9299全保持，114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib不变，256（115P2/141P3），无新D。只关闭源数据与时点，不把原生抽取当独立codec、Idle/Plant运算或完整pose等价；下一Idle曲线/空TurnSlot与Plant单叶归一、三枝mesh层→Stop/Main/Grounded Base/Slot/Root/Feet/属性。截图0、性能暂停。开始19:26:00；预估结束19:41:00；实际结束19:29:15；实耗195秒；偏差-705秒；结果三原mesh叶/精确帧时点Gate通过。
 
+
+- [x] BF144.405 U07自然Idle曲线/空Turn槽与Plant单方向输入生产：依赖.404三原SKM叶、.403完整Node/pin/typed合同及.391/.392自产资格；Idle直接原Stand pose、按五有效引脚与源ModifyCurve语义产曲线，TurnSlot源透传；先fresh核Turn PlayRate默认/写入生命周期与实际零view域，未闭不得默填。Plant仅原Forward frame4/21经归一权重1和源MultiWay单叶最终归一，产供LayeredBoneBlend的两输入；FootLock覆盖在layer之后保留下一项，不移算序。Gate：Idle参数/曲线键合同、160 Idle/18 Plant输入、158骨单方向混合全native同输入精确、必要参数/归一/曲线消融恢复/identity；Plant层骨混合/主FSM/完整Base后继。开始：2026-10-24 19:29:28 +0800；预估结束：2026-10-24 19:49:28 +0800。估时依据：.404三叶195秒/.401全骨单位395秒；本项加Idle未观察参数生命周期、一次158骨原生混合，20分钟含源闭包/有效曲线键/消融与身份；缺参数读取若必须扩展则先拆必要前置。仅审计不改生产/reader/转换器/资产，截图0、性能暂停。
+  - 19:29 活动摘要：.404提交b8febd0f/9325身份，256（115P2/141P3）。先解Idle RotateYawSpeed×PlayRate的source参数域，再source曲线三1与零键；Plant方向Forward1已由实际原资格证明，只单子归一，层后FootLock覆盖不提前。完整Root/Feet/属性仍开。
+
+
+  - 19:34 source/static与数值闭环：主CDO Turn PlayRate1/QueuedSettings空，九实例BP+actor 58 setter节点无Turn直接写；source模块仅排队转身写PlayRate，241实际view yaw0≤真实45°阈值先返回，故当前默认1由生命周期推导而非观察默填，补闭.403该未观察参数域。Idle原Stand TQS透传、ModifyCurve五pin中的三Idle值1和RotationYawSpeed显式0齐；原0输入×rate0/1/99均无信号，不新增Turn状态机/适配参数。Plant原Forward pose经单子MultiWay归一，158骨原native26.440秒全部double精确；去归一首Left/root失败，source/三个pose族/原请求字节恢复后全过。去曲线写和去零键合同拒绝；FootLock修改坚持在layer之后，未提前应用。9325旧身份全核中，256（115P2/141P3）；下一两侧三枝mesh layer+曲线→Stop/Main/完整Base/Root/Feet/属性，截图0、性能暂停。
+
+
+  - 完成/Gate：`target/bf144/405/summary.json`通过。主CDF Turn PlayRate1/QueuedSettings空、九AnimBP+actor共58 setter无Turn写，模块sole PlayRate writers仅排队函数，241零Yaw≤实际45°门槛先返回；当前PlayRate1由source生命周期推导，不用未记录字段或新增观察。Idle原Stand TQS透传，三Lock/Allow值1与RotationYawSpeed显式零键按源ModifyCurve/空TurnSlot合同形成；去写/去零键拒绝，零输入换rate0/1/99无差因此不新增额外rate状态。Plant原Forward单子归一两族158骨原native26.440秒全部double精确；去归一首Left/root失败，源码/全部三pose族/原请求字节恢复后全过。160 Idle/18 Plant输入齐，FootLock覆盖未提前到layer前。9357身份旧9325全不变、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib保持，256（115P2/141P3），无新D。下一两Plant三枝mesh layer+layer后曲线→Stop/Main普通pose/Standing惯性资格/完整Base/Slot/Root/Feet/属性；本项未宣称Plant最终pose或target整体等价，截图0、性能暂停。开始19:29:28；预估结束19:49:28；实际结束19:35:28；实耗360秒；偏差-840秒；结果Idle曲线/Plant单方向输入生产Gate通过，.403未观察Turn参数域以source证明闭合且无需reader扩展。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
@@ -5247,3 +5257,5 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.403当前边界：六root40节点37边/266+22状态资格、Stand160和Plant9+9实际叶、五pin覆盖/两layer/副作用工作表与9299身份通过，256（115P2/141P3）。下一三原mesh叶/帧换算→Idle/Plant/Stop/Main Base，完整Root/Feet/属性未闭；截图0、性能暂停。
 
   - BF144.404当前边界：三原SKM prepared叶237骨/178输入引用与自主frame时点、四负控制/9325身份通过，256（115P2/141P3）。下一Idle曲线/Plant归一与三枝mesh层，再完整Stop/Main/Base/Root/Feet/属性；截图0、性能暂停。
+
+  - BF144.405当前边界：Idle参数生命周期/四曲线键及160输入、两Plant158骨native/归一消融字节恢复/9357身份通过，256（115P2/141P3）。下一两Plant三枝mesh layer和曲线→Stop/Main/完整Base/Root/Feet/属性；截图0、性能暂停。
