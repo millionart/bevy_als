@@ -2803,6 +2803,17 @@
 
   - 完成/Gate：`target/bf144/352/summary.json`通过；fresh mesh双臂/local arms配置和两段各4透明reroute源链已核（首直接编辑器ID检查失败已按真实透明链纠正）。当前240两mesh零支480输出精确Base且overlay未更新，Head→local Base及480原arm引用owner/frame/cache/实际source边过；local原240/18960骨native全TQS/curve与独立mask(25左/25右/29 base)/endpoint精确。目标240/19440骨选择与存在性重放同，移除选择首0/VB hand_l反例失败，源码字节恢复同入口全部恢复；源local旁路改变11993骨行。7011身份（旧6969不变）通过，复用.350已证同target恢复，无新增角色run。组合T17188/R17810/S3939、curve共享87/键集1仍未归尽，不新增因或宣原自然反馈。后finger/curve/Root自然反馈/custom attributes/Head/Rig。255（115P2/140P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始11:43:10；预估结束11:58:10；实际结束11:46:14；实际用时184秒；偏差-716秒；结果完整当前原arms/零支Gate通过。
 
+- [x] BF144.353 U07当前240原完整Layering Root曲线与finger：依赖.352原local arms240、.345原Overlay/ .341原Locomotion和.350真实Root，fresh核finger零支→ModifyCurve六slot零键→Curves Slot→Accumulate/Override→Root全部源边/参数，在完整240实际活动/槽与原输入owner校准后生成原Layering根/18960骨与全部curve stage。Gate：fresh源算法/字段/全部当前240观察、原pose/curve不回填、finger/槽当前状态与骨/时间保持、curves规则/键集与原完整240、必要stage/观察消融源码字节恢复同target重编/identity；共同参数Root仅本Layering，原主AB自然反馈/custom attributes/Head/Rig仍开。开始：2026-10-24 11:46:30 +0800；预估结束：2026-10-24 12:06:30 +0800。估时依据：旧.239完整Layering prefix含流式工具约20分钟、.350完整观察约6分钟；现全240原输入/工具已齐，按20分钟含全curve新尾/槽资格/原交接及消融恢复，不扩Head或完整自然反馈。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 11:46 活动摘要：28a76403完成全240原arms与480零mesh支，7011身份、255（115P2/140P3）；本项补当前Layering末端原曲线/骨Root，主AB完整自然反馈并不在已过范围。
+
+  - 11:48 source/static闭环：fresh finger/Base与curve链（两段透明reroute）、ModifyCurve Blend/alpha1/六零键、Curves Slot、Accumulate/Override量1已核；源算法Lerp、Union累加与CopyFrom Override当次重读。完整240旧全部case/frame/warm流式精确，fingers[0,0]输出body同、槽pose/context/montage0/无活动，所有曲线stage骨/时间保持。原Root240/曲线与输入producer交接准备中，流式工具六chunk/六异常格式self-test已过。仅此共同参数Layering，不代原主图自然反馈；255（115P2/140P3），截图0、性能暂停。
+
+  - 11:49 原Root/曲线Gate：全240原Layering Root/18960骨与960曲线stage已生成，body/Overlay/Locomotion/Root当前交接和owner均同已证观察，0target pose/curve回填。三curve stage各自旁路均改变240包；去六slot零键即同输入检查失败，源码字节恢复同入口两原表byte同。当前所有stage曲线值/键集合遵source规则，组合Root余T17188/R17810/S3939、共享curve87/键集1仍未全归因，首帧FootstepSoundBlock/SprintBlock/FootPlanted不同保留上游因，不新增编号。观察恢复同target重编中；共同参数完整Layering不等于完整主AB自然反馈/custom attributes，后继Head/View入口与原依赖。255（115P2/140P3），截图0、性能暂停。
+
+  - 11:51 Gate后摘要：同target恢复运行成功，流式逐每case/frame比较observed/restored和observed/无observer两轮全240及warm/metadata均精确；源码字节恢复/同target重编已证。原完整当前Layering240/18960骨/960曲线包与六slot零键消融恢复、输入owner交接闭环，组合余差仍保留，下一identity/提交后主AB Layering→Head/View入口/原依赖与自然反馈。主AB自然Root/custom attributes/Rig未验收，不将本共同参数Layering推为总体等价。255（115P2/140P3），截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/353/summary.json`通过；fresh finger/Base/透明链及ModifyCurve六slot零键/Curves Slot/Accumulate/Override/Root源算法闭合。完整240 finger零支/槽inactive及骨/时间保持，原body/Overlay/Locomotion实际交接owner精确；生成原完整Layering240/18960骨和960 curve stage，0target pose/curve补值。每curve stage旁路均改240包，去六零键同输入检查失败、源码字节恢复同入口原Root/curve两表byte同；观察消融/源码字节恢复同target重编后流式每case/frame/warm两轮全精确，stream自测过。7068身份（旧7011不变/恢复binary SHA）通过。组合T17188/R17810/S3939、curve共享87/键集1未全部归因；此仅当前共同参数完整Layering，主AB自然Root反馈/custom attributes/Head/Rig尚未资格，下一Layering→Head/View原入口。无新编号，255（115P2/140P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始11:46:30；预估结束12:06:30；实际结束11:52:08；实际用时338秒；偏差-862秒；结果完整当前原Layering Root共同参数Gate通过。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D257 / P3 — Transition正向终止采样遗漏源section末端缓冲。
@@ -4426,6 +4437,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.350当前边界：全240最终Layering Root连通7/8集合、权重/1440原use交接与消融恢复、6916身份通过，255（115P2/140P3）。下一pelvis/spine/head原分骨、local arms/零分支与curve链，再Root自然反馈/custom attributes/Head/Rig；截图0、性能暂停。
   - BF144.351当前边界：当前240原三body720 native/56880骨与720 target重放、独立mask/curve及消融恢复、6969身份通过，255（115P2/140P3）。下一mesh arm零支/local arms、finger/curve，再Root自然反馈/custom attributes/Head/Rig；截图0、性能暂停。
   - BF144.352当前边界：全240两mesh零支480及原local arms240/18960骨、独立mask/endpoint/curve与消融恢复、7011身份通过，255（115P2/140P3）。下一finger零支/curve完整Root，再Root自然反馈/custom attributes/Head/Rig；截图0、性能暂停。
+  - BF144.353当前边界：完整当前共同参数原Layering Root240/18960骨/960 curve stage、原输入交接及消融恢复、7068身份通过，255（115P2/140P3）。下一主AB Layering→Head/View原入口/依赖，再自然Root反馈/custom attributes/Head/Rig及余差；截图0、性能暂停。
 
 - [x] BF144-U06 — Rig初始全局数据已于.245归D242/P3。最初.244发现71骨365个double差、默认240仅FootHeight double变化；.245保持全部原生算法，仅换初始数据即在受控半转产生约180°的float足旋转/实际Setter写回差，并在同source厘米算法的5个骨长舍入边界经同原生IK核产生13/15个float关节点差，分别隔离D163算法与D165单位舍入。数据移除/源码字节恢复及同target重编恢复通过，native数学读出移除/同package恢复亦通过；默认动作自然可达性未证，不因关闭U06声明无差异或修复。证据`target/bf144/245/summary.json`、`native-check.json`、`writeback.jsonl`、`restoration-check.json`；原.244记录保留。
   - BF144.136 follower记录重建补充：near-zero候选无有效end时记录leader移到最后一项；下一普通帧恢复正常leader，`AnimSync::Finalize`使follower记录失效。`BlendSpace.cpp:784–787`按已存归一化时间乘当前样本长度重建；目标此前保留秒数。18帧33个previous差最大约59.6ns，全部精确等于`(旧position/旧duration)*当前duration`；仅补这一步后4032帧所有previous也逐值一致，当前采样位置和姿态保持。证据`target/bf144/136/roundtrip-check.json`、`before-roundtrip-all-analysis.json`、`all-analysis.json`。
