@@ -3271,7 +3271,7 @@
   - 完成/Gate：`target/bf144/405/summary.json`通过。主CDF Turn PlayRate1/QueuedSettings空、九AnimBP+actor共58 setter无Turn写，模块sole PlayRate writers仅排队函数，241零Yaw≤实际45°门槛先返回；当前PlayRate1由source生命周期推导，不用未记录字段或新增观察。Idle原Stand TQS透传，三Lock/Allow值1与RotationYawSpeed显式零键按源ModifyCurve/空TurnSlot合同形成；去写/去零键拒绝，零输入换rate0/1/99无差因此不新增额外rate状态。Plant原Forward单子归一两族158骨原native26.440秒全部double精确；去归一首Left/root失败，源码/全部三pose族/原请求字节恢复后全过。160 Idle/18 Plant输入齐，FootLock覆盖未提前到layer前。9357身份旧9325全不变、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib保持，256（115P2/141P3），无新D。下一两Plant三枝mesh layer+layer后曲线→Stop/Main普通pose/Standing惯性资格/完整Base/Slot/Root/Feet/属性；本项未宣称Plant最终pose或target整体等价，截图0、性能暂停。开始19:29:28；预估结束19:49:28；实际结束19:35:28；实耗360秒；偏差-840秒；结果Idle曲线/Plant单方向输入生产Gate通过，.403未观察Turn参数域以source证明闭合且无需reader扩展。
 
 
-- [ ] BF144.406 U07自然双Plant三枝mesh层与layer后曲线生产：依赖.402自主Details pose、.405原Forward单叶输入及.403 typed layer合同，沿thigh/ik_foot/VB foot三侧分支(depth0)、mesh-space rotation true/scale false/CurveOverride/weight1完整生成左右9+9实际Plant状态pose，之后再写对应FootLock1。复用原LayeredBoneBlendProbe和已验精确骨混合核，先fresh核原mask/mesh变换/归一/曲线消费与probe是否表达本节点，不改依赖。Gate：79骨mask与实际18组输入/flags一致、source模型全骨/曲线对whole-native、必要mask/归一/曲线算序消融字节恢复/identity；完整Stop/Main/Grounded Base后继，未验证的custom attributes不借零样本宣称通过。开始：2026-10-24 19:35:53 +0800；预估结束：2026-10-24 20:00:53 +0800。估时依据：.401局部Apply395秒/.405单叶360秒、旧层骨混合数值核与全pose probe已存在，本次两侧三枝与动态Details18组，25分钟含fresh mask语义/全骨数值及消融身份；若缺工具字段先拆必要前置，不凭猜测改mask。仅审计不改生产/reader/转换器/原资产，截图0、性能暂停。
+- [x] BF144.406 U07自然双Plant三枝mesh层与layer后曲线生产：依赖.402自主Details pose、.405原Forward单叶输入及.403 typed layer合同，沿thigh/ik_foot/VB foot三侧分支(depth0)、mesh-space rotation true/scale false/CurveOverride/weight1完整生成左右9+9实际Plant状态pose，之后再写对应FootLock1。复用原LayeredBoneBlendProbe和已验精确骨混合核，先fresh核原mask/mesh变换/归一/曲线消费与probe是否表达本节点，不改依赖。Gate：79骨mask与实际18组输入/flags一致、source模型全骨/曲线对whole-native、必要mask/归一/曲线算序消融字节恢复/identity；完整Stop/Main/Grounded Base后继，未验证的custom attributes不借零样本宣称通过。开始：2026-10-24 19:35:53 +0800；预估结束：2026-10-24 20:00:53 +0800。估时依据：.401局部Apply395秒/.405单叶360秒、旧层骨混合数值核与全pose probe已存在，本次两侧三枝与动态Details18组，25分钟含fresh mask语义/全骨数值及消融身份；若缺工具字段先拆必要前置，不凭猜测改mask。仅审计不改生产/reader/转换器/原资产，截图0、性能暂停。
   - 19:35 活动摘要：上一goal轮完成.402–.405四项独立提交，属实际进展；当前ea51dfad/9357身份且工作区干净，256（115P2/141P3）。先读原Layered probe和既有精确算法，保持层后FootLock算序，再自产双Plant状态，下一Stop/Main组合；截图0、性能暂停。
 
 
@@ -3354,6 +3354,8 @@
   - 20:39 迁移.401 Gate：新完整Movement Base生成106 Details惯性前pose、48起步state；新原生local26.710秒/blend30.962与25.949秒，3792加性inner+outer骨及632普通转场骨全double精确（target/bf144/411-migrated/401/native-check.json）。本次重新关闭该输入域，原同输入算法结论和旧报告保留，其余复开项仍待新输入Gate；沿411c窗口20:32:20–20:57:20，实际本阶段20:37:03–20:39:09通过，无新D、截图0、性能暂停。
 
   - 20:40 迁移.402 Gate：新完整Details惯性前pose进入原节点，native25.943秒，106惯性后pose/8374骨/424曲线值完整生成；两请求仅22/23/122/123改变，去请求透传与恢复106字段精确（target/bf144/411-migrated/402/native-check.json）。源请求/窗口未改，曲线新增PoseMoving/RotationYawOffset来源正确；只关闭402，下一406依赖现可启动。阶段20:39:25–20:40:02沿411c窗口通过，无新D，截图0、性能暂停。
+
+  - 20:42 迁移.406 Gate：新Details惯性后Base进入左右Plant，原节点native25.944/25.931秒，18完整Plant layer/1422骨/72曲线值及独立mask、update/root权重全部精确（target/bf144/411-migrated/406/native-check.json）。层后FootLock1顺序保持，旧原始记录未改，重新关闭该输入域后才启动407；阶段20:41:56–20:42:52沿411c窗口通过，无新D、截图0、性能暂停。
 
 ### 已确认差异（仅登记，未实施修复）
 
