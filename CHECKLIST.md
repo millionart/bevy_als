@@ -3446,6 +3446,16 @@
   - .417完成/Gate：`target/bf144/417/summary.json`通过。478独立末端rotation/源初始cache/continuous normal及setter消费精确，源Equals skip全478必要；独立pelvis/footroot与956腿local、478foot local/17046保持输入骨组成全240×79，Rig/真实mainRoot/mesh各18960 TQS及240curve包全部精确原角色。完整数学生产者因果连接已核，源最终pose未回填；主图真实Ragdolling默认输入路径和本无action/零flail域有静态与数值兜底，但父LocomotionAction未直接捕获的限定保留。去Equals478、去pelvis local归一212、遗漏foot producer三边界1434骨行各失败；源码字节恢复同target重编478/240结果byte同，完整拼装源码恢复全输出/报告byte同。删无用partial/slerp比较模式/helpers后保留行为不变。10282身份旧10218不变、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib均未改，256（115P2/141P3）、无新D。当前关闭显式source父RigInput/mesh-world/部分图状态下的完整自然数学生成；Feet父反馈/物理、target整体残差、非零view和custom attributes仍开，未宣称100%无差异。截图0、性能暂停。开始21:44:54；预估结束22:19:54；实际结束21:50:13；实耗319秒；偏差-1781秒；结果当前自然完整独立Rig→Root/mesh Gate通过。
 
 
+- [x] BF144.418 U07自然Feet父状态→RigInput完整反馈入口与源状态模型：依赖.417自主完整自然Root/mesh与.375实际before/after RigInput消费阶段，fresh从AlsAnimationInstance RefreshFeet/脚锁/移动基底/mesh bone读取与GetControlRigInput逐项列出位置/旋转/valid及pelvis系数的生产者、上一帧Root/当帧game-thread状态和回调相位；以已独立Root历史与公开运动/物理父输入生成可证明的完整Feet状态，不用after getter或native FeetState字段回填。先锁精确输入/可观察字段及必要能力缺口，再按source闭包拆锁定/基底/坐标/最终混合状态独立Gate，不将整Feet大函数一次估时超过60分钟。Gate：自然240完整Feet字段/实际RigInput相位输入manifest、最小可独立源状态闭环与native逐值/首次缺字段事实、必要相位/状态消融及恢复/identity。跨侧最终Root因子、非零view全Root/custom attributes保留后继，继续原全系统审计不修生产。开始：2026-10-24 21:50:46 +0800；预估结束：2026-10-24 22:20:46 +0800。估时依据：.375自然getter相位约六分钟，.417全Root319秒已给独立前帧pose；Feet有game-thread/worker与多段状态，先30分钟锁入口/第一独立单元和实际闭包，必要后继按剩余source事实拆分。仅审计不改生产/转换器/原资产；必要reader缺口先单列，截图0、性能暂停。
+  - 21:50 活动摘要：.417提交016c4be2/10282身份，256（115P2/141P3）。同显式父输入自然Root数学生成已全骨精确，当前首未闭是Feet父feedback，不能把Root重放或after-getter重算作源state producer。先fresh Feet闭包与实际消费时点。截图0、性能暂停。
+
+
+  - 21:56 .418 source/static闭环：上一goal轮完成.413–.417并提交016c4be2、真实全Root模型闭合，分类progress。source-porting1.15升级于21:51:13+0800采时后补读共享/领域合同，用户项目审计逐项Gate/摘要/提交、必要reader授权与既有清单结构继续优先，不迁移文档或启动产品修复。fresh Feet六函数1245–1576/两级字段全部归属已列，240实际RigInput valid/四final字段1200项精确FeetState，确认getter后的其它回调不能代替消费phase。独立前帧mesh经source组件FK/Normalize、socket world乘法与RTS_Component relative，480目标world T/Q、240 pelvis F32 quat及valid/became-valid演化全原生精确；首帧采用已证initial Root等于frame0 Root的显式初始化等价输入，239普通帧严格prior history，当前mesh-world仍外界输入。改当前pose代prior有480差（299target/181pelvis，首frame2），去组件归一和首帧过早valid均失败，源码字节恢复同target重编240输出byte同。目标采样/锁/约束合并在FootIkApplySet.UpdateInputs，源分GT/worker，结构本身不立D；完整脚锁量/捕获释放/基底和teleport/局部约束/最终FastLerp反馈按依赖后继。10282身份核中，256（115P2/141P3），截图0、性能暂停。
+
+
+  - .418完成/Gate：`target/bf144/418/summary.json`通过。完整source Feet六函数/所有字段/target归属与1200实际RigInput消费字段齐；自主prior mesh/socket重建480足world T/Q、240pelvis F32 quat和240有效性状态对原生全精确，239普通帧严格prior，首帧显式初始化等价pose域保留，不冒充未知startup buffer。当前mesh-world依旧source外部输入。当前pose替prior导致480差、去组件归一与过早valid失败，源码字节恢复同target重编240输出byte同；未改生产、reader、转换器、原资产或冻结rlib。10333身份旧10282全不变，114 ALS/184 Rust保持，256（115P2/141P3）、无新D。source-porting1.15升级仅补读并服从项目既有审计纪律。入口/首独立采样单元闭合，完整Feet锁定/捕获释放/基底teleport/约束与最终混合/RigInput反馈、target完整余差仍开，下一按此实际依赖继续。截图0、性能暂停。开始21:50:46；预估结束22:20:46；实际结束21:56:27；实耗341秒；偏差-1459秒；结果完整Feet输入manifest与独立采样入口Gate通过，不称完整Feet等价。
+
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
