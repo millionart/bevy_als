@@ -2597,6 +2597,13 @@
 
   - 完成/Gate：`target/bf144/327/summary.json`通过；223连续原后惯性/17617骨及curve全部native double精确，fresh三个源AnimBP核后惯性配置、PoseCrouching=1/OnUpdate及AB_Als→Grounded具名Crouching Input/cache连线。223原蹲姿最终根/223 linked cache/223 use refs按actual owner/context全供给、0target补值；缺原数组/错owner反例拒绝，源脚本字节恢复三个223完整表字节相同。5731身份（旧5694不变）通过；仅当前共同状态/无请求域，不冒充完整Grounded/source自然状态，旧域迁移及外层Root继续开。无新编号，254（115P2/139P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始09:11:26；预估结束09:26:26；实际结束09:15:34；实际用时248秒；偏差-652秒；结果通过，下一完整Grounded真实stack/Standing linked资格。
 
+- [x] BF144.328 U07完整240 Grounded真实stack/Standing linked输入资格：依赖.323 Standing45、.327 Crouch223及fresh Grounded/AB_Als连接，复用Grounded stack观察并仅补Standing具名linked/cache真实owner观察，完整比较同240旧字段，再沿实际普通/中断stack逐一对应source roots/alias和两端原输入。Gate：240真实stack/context/slot与source编译顺序/规则、Standing45 linked/cache0身份缺口或精确未闭项、两次交接原数组可用性、必要观察消融字节恢复同target重编/身份；原Grounded数值独立后置，不将同名alias placeholder作原输入。开始：2026-10-24 09:15:50 +0800；预估结束：2026-10-24 09:35:50 +0800。估时依据：.324三个观察器/244输入清点约3分30、.210旧77 stack闭包约6分钟；当前增加反向14帧交接和Standing具名连接，按20分钟核完整240，不先假定旧prefix算法足够。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 09:15 活动摘要：07e06bdc完成当前223 Crouch根/linked供给，5731身份、254（115P2/139P3）。同历史trace显示Standing/Crouching直接项与两种14帧普通交接共存，需实际stack而非压扁trace；先按fresh具名Standing pin推导observer数据ID，不新增生产分支。
+
+  - 09:21 source/static闭环：完整240旧字段按generation双射精确；Grounded212帧depth1/28帧depth2、268 stack项/324 root refs中296已更新pose、28 alias未更新且无pose。Standing45实际linked/owner及268原state输入（Standing45+Crouch223）全可用、0target补值，两个0.5秒Custom无profile源转场各14帧已核。两种源state实际均Root→ResetGroundedEntryMode(OnBecomeRelevant)→cache use，不能跳过回调误认直接pin；已删除多余递归遍历，单步合同与全部表信号相同，去此步拒绝并字节恢复268输入/45 cache。两个观察消融及源字节恢复同target重编全240精确。首观察器复制时误把pin写成Standinging，按fresh真实pin修复；未触发产品图错误，未新增编号。身份核查中，原Grounded数值/外层Root及旧域迁移仍开，截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/328/summary.json`通过；完整240 Grounded实际212 depth1/28 depth2、268栈项/324根引用及45 Standing linked/owner已核，所有旧字段精确。268正确mesh源输入（Standing45+Crouch223）0缺口，28 alias未更新且无pose，必须取前一栈原结果；两种0.5秒Custom无profile各14帧源规则/实际时钟保持，未访问特殊stance/Roll不展开。源state两条路径均经ResetGroundedEntryMode单步回调再cache，去递归抽象信号不变，去必需source步失败；字节恢复268输入/45cache全表相同。两观察消融/源字节恢复同target重编完整240精确；5779身份（旧5731不变，含恢复binary SHA）通过。首observer pin复制拼写及首直接cache假设已由fresh源失败证据修正，非产品新增。原Grounded数值及外层Root/旧域迁移仍开，254（115P2/139P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始09:15:50；预估结束09:35:50；实际结束09:22:28；实际用时398秒；偏差-802秒；结果通过，下一两次交接原数值。
+
 ### 已确认差异（仅登记，未实施修复）
 
 
@@ -4184,6 +4191,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.325当前边界：当前244 Crouch state原输入/19276骨已由正确mesh Idle与17完整Layered补齐，原生1343骨全精确；21主转场/223主输出、后惯性/linked及Grounded/Locomotion/完整Root继续开，旧Skeleton历史只保其声明条件不冒当前证据。当前254（115P2/139P3），截图0、性能暂停。
   - BF144.326当前边界：当前223 Crouch主源输出/17617骨、21转场126骨及143curve native控制闭合，profile消融/恢复过；后惯性223/linked原cache、Grounded/Locomotion与完整Root继续开。当前254（115P2/139P3），截图0、性能暂停。
   - BF144.327当前边界：当前223 Crouch最终根/17617骨经原生后惯性及具名linked/cache供给闭合，0target补值；下一完整Grounded的实际多stack及Standing linked身份，再外层Locomotion/Root/自然反馈，旧域迁移仍单独保留。当前254（115P2/139P3），截图0、性能暂停。
+  - BF144.328当前边界：完整240 Grounded实际stack及45 Standing linked资格已闭，268原state输入全备、28 alias明确不可消费；下一源Custom两次交接/完整Grounded数值，再外层Locomotion/Root与自然反馈，旧域迁移另保留。当前254（115P2/139P3），截图0、性能暂停。
 
 - [x] BF144-U06 — Rig初始全局数据已于.245归D242/P3。最初.244发现71骨365个double差、默认240仅FootHeight double变化；.245保持全部原生算法，仅换初始数据即在受控半转产生约180°的float足旋转/实际Setter写回差，并在同source厘米算法的5个骨长舍入边界经同原生IK核产生13/15个float关节点差，分别隔离D163算法与D165单位舍入。数据移除/源码字节恢复及同target重编恢复通过，native数学读出移除/同package恢复亦通过；默认动作自然可达性未证，不因关闭U06声明无差异或修复。证据`target/bf144/245/summary.json`、`native-check.json`、`writeback.jsonl`、`restoration-check.json`；原.244记录保留。
   - BF144.136 follower记录重建补充：near-zero候选无有效end时记录leader移到最后一项；下一普通帧恢复正常leader，`AnimSync::Finalize`使follower记录失效。`BlendSpace.cpp:784–787`按已存归一化时间乘当前样本长度重建；目标此前保留秒数。18帧33个previous差最大约59.6ns，全部精确等于`(旧position/旧duration)*当前duration`；仅补这一步后4032帧所有previous也逐值一致，当前采样位置和姿态保持。证据`target/bf144/136/roundtrip-check.json`、`before-roundtrip-all-analysis.json`、`all-analysis.json`。
