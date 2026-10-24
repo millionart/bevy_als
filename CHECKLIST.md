@@ -3088,6 +3088,14 @@
 
   - 完成/Gate：`target/bf144/384/summary.json`通过；fresh Layering/Main/Default图，含CachedPose owners的Root110节点/7层唯一compiled配置匹配，source绑定GetParent.LayeringState与target完整key边精确；240×22state5280、2160实际权重/1680relevance/1680mesh标志由prior Root独立推导全native同，错误current反馈frame1三层失败并脚本字节恢复。target组件→published5280/绑定1440/7层updated1680核，未直接读取内部weight不夸称同源。原Layering2个Base evaluator480及Default6叶1440实际compressed时钟/缓存权重保全；main compiled输入顺序确认index0为Locomotion，实际前置PostLocomotion Slot和Default→inertial双入口、Layering→HeadBase240对照完整。Slot实际权重/montage packet未观测是首未闭，已列明确后继，不因叶0或无动作推inactive；完整自然Base/Root/Feet/属性仍开。8530身份（旧8503不变），生产/reader/转换器/资产未改，256（115P2/141P3）。截图0、性能暂停。开始15:49:19；预估结束16:24:19；实际结束15:56:23；实际用时424秒；偏差-1676秒；结果自然Layering反馈/权重/递归入口Gate通过。
 
+- [x] BF144.385 U07自然Slot实际WeightData最小只读观测：依赖.384明确首未闭，fresh对照UE AnimNode_Slot::Update/Evaluate与FSlotNodeWeightInfo字段，仅扩CharacterAnimationProbe为已捕获实例逐个真实Slot输出property/slot_name/SlotNodeWeight/SourceWeight/TotalNodeWeight/bAlwaysUpdateSourcePose；不替换node、不写WeightData、不注入montage或pose。复跑同自然240，与.376全部旧行为精确，7个Layering slot与主PostLocomotion从实际消费值判分支；保留其它同主链slot，未更新/零cached状态不当evaluated证据。Gate：先最小schema缺失反例失败、native新240完整有限字段、旧字段全同、只读观测移除/同arm64 package重建/原240恢复和源码字节恢复、readers三身份键有限迁移及focused schema自测。旧完成项不因工具更新复开，生产/转换器/资产不改。开始：2026-10-24 15:57:00 +0800；预估结束：2026-10-24 16:32:00 +0800。估时依据：.376两字段reader扩展/arm64三次构建与原生240约14分钟，本项复用同package与getter模式，35分钟覆盖先失败schema、真实权重/全部旧轨迹精确、消融恢复/三键迁移；若Slot private字段读取不可合法用现有access pattern则回读UE再调整，不假造零值。仅审计，截图0、性能暂停。
+  - 15:57 活动摘要：f2a41978/8530身份已提交，256（115P2/141P3）。只补.384已证Slot观测缺口；自然Base/Root独立模型仍未完成，性能/截图约束持续。
+  - 16:00 source/native后摘要：新增真实WeightData只读访问+逐实例slots数组，arm64 package首构建37秒通过，原自然240新report完成；六种schema缺失/非有限控制拒绝。prune新slots后整个character_animation_probe与.376旧轨迹精确；整document中的asset_objects临时生成GUID随进程变化，非轨迹差异，已按旧Gate同样限定case/probe比较不放宽行为字段。fresh7个Layering slot与PostLocomotion均Slot/Total0、Curves/Post source1；其余身体slot source0可能未更新，不假称执行过。工具原all-slots0假设被实际主Transition88非零帧否证（65起、后第二段），不当产品D；已登记允许下一展开原Transition自然动态montage输入/消费者，当前先观测消融恢复与三身份有限迁移。截图0、性能暂停。
+  - 16:02 静态/原生边界补充：新schema完整2169实例包/2651 Slot条目，所有241初始化+普通帧的7 Layering与PostLocomotion为montage0，Curves/Post Source1，未更新身体slot Source0保持不当执行证明；主Transition仅65–108、165–208共88帧非零，其source始终1符合加性montage可保源权重，不套1−Slot。当前只读观测不改变旧probe全部行为/pose/curve/getter/instance；source移除构建中且有UBA持续进展，完成后同包恢复再identity，生产不改。
+  - 16:04 消融/恢复闭环：arm64同package三次build首37.907s/移除108.057s/恢复50.561s均成功；原生added31.583s、removed32.099s、restored47.594s全部完整240。去slots观察后全部旧probe轨迹精确.376，缺slots合同拒绝；源码字节恢复重编后的全部新slots/旧行为与added精确，2169实例/2651有限记录全恢复。无生产改动，最后身份只允许reader源码/package源码/DLL三键迁移，其余旧8530身份必须全保；下一自然Transition88帧实际montage输入与Overlay inertial闭包。截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/385/summary.json`通过；reader仅加只读Slot WeightData访问/实例slots数组，tracked schema6类缺失/非有限负控制通过，旧.376缺slots合同先失败。fresh自然240+初始化共2169实例包/2651 Slot条目，7 Layering与PostLocomotion所有Slot/Total0，Curves/Post Source1；未更新身体slot Source0不假称执行。主Transition65–108/165–208共88帧非零，Source1，不按1−Slot推源权重；列自然montage后继，不新D。added→prune全部旧probe轨迹同，移除观察同旧、缺合同拒，源码字节恢复同arm64包重编后全部新旧轨迹同；三build37.907/108.057/50.561秒、三native31.583/32.099/47.594秒均成功。8565身份，旧8530仅源码/package源码/DLL三键按已授权观测迁移、8527不变；source114/生产184/rlib/转换器/资产冻结，256（115P2/141P3）。完整自然Base/Root/Feet/属性仍开，下一Transition实际montage输入及Overlay inertial。截图0、性能暂停。开始15:57:00；预估结束16:32:00；实际结束16:06:15；实际用时555秒；偏差-1545秒；结果自然Slot只读观测/无行为改变/消融恢复Gate通过。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
@@ -5031,3 +5039,5 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.383当前边界：fresh三叶110实际raw时点/8690原native、247实际public19513骨与988参考/绝对控制、消融恢复/8503身份通过，D235扩非零consumer，256（115P2/141P3）。下一原自然Layering prior反馈/独立Base及完整Root/Feet/attributes；截图0、性能暂停。
 
   - BF144.384当前边界：自然240 prior层状态5280/实际权重2160/relevance1680、110节点/Default1440叶/双入口与反馈消融/8530身份通过，256（115P2/141P3）。首未闭为source自然Slot实际权重；后自然Overlay inertial/Locomotion独立Base和完整Root/Feet/属性，截图0、性能暂停。
+
+  - BF144.385当前边界：source自然Slot实际2651/2169实例、6类schema负控制/原240被动观察与消融恢复、8565身份通过，256（115P2/141P3）。7 Layering/PostLocomotion零条件已证，主Transition88非零须实际montage输入/姿态后继；自然Overlay inertial/Base/Root/Feet/属性仍开，截图0、性能暂停。

@@ -3964,6 +3964,10 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
     {
         static FAnimInstanceProxy& Proxy(UAnimInstance* Instance) { return *GetProxyOnGameThreadStatic<FAnimInstanceProxy>(Instance); }
     };
+    struct FSlotAccess : FAnimNode_Slot
+    {
+        static const FSlotNodeWeightInfo& Weights(const FAnimNode_Slot& Node) { return Node.*&FSlotAccess::WeightData; }
+    };
     struct FBlendSpaceAccess : FAnimNode_BlendSpacePlayerBase
     {
         static const TArray<FBlendSampleData>& Samples(const FAnimNode_BlendSpacePlayerBase& Node) { return Node.*&FBlendSpaceAccess::BlendSampleDataCache; }
@@ -4051,11 +4055,24 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
                 const FAnimInstanceProxy& ChildProxy = FInstanceAccess::Proxy(Child);
                 ChildRow->SetStringField(TEXT("class"), Child->GetClass()->GetPathName());
                 ChildRow->SetBoolField(TEXT("main"), Child == Main);
-                TArray<TSharedPtr<FJsonValue>> Machines, Players, LayeredBlends;
+                TArray<TSharedPtr<FJsonValue>> Machines, Players, LayeredBlends, Slots;
                 if (const IAnimClassInterface* ChildInterface = IAnimClassInterface::GetFromClass(Child->GetClass()))
                 {
                     for (const FStructProperty* Property : ChildInterface->GetAnimNodeProperties())
                     {
+                        if (Property->Struct == FAnimNode_Slot::StaticStruct())
+                        {
+                            const FAnimNode_Slot& Slot = *Property->ContainerPtrToValuePtr<FAnimNode_Slot>(Child);
+                            const FSlotNodeWeightInfo& Weights = FSlotAccess::Weights(Slot);
+                            TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+                            Value->SetStringField(TEXT("property"), Property->GetName());
+                            Value->SetStringField(TEXT("slot_name"), Slot.SlotName.ToString());
+                            Value->SetNumberField(TEXT("source_weight"), Weights.SourceWeight);
+                            Value->SetNumberField(TEXT("slot_node_weight"), Weights.SlotNodeWeight);
+                            Value->SetNumberField(TEXT("total_node_weight"), Weights.TotalNodeWeight);
+                            Value->SetBoolField(TEXT("always_update_source_pose"), Slot.bAlwaysUpdateSourcePose);
+                            Slots.Add(MakeShared<FJsonValueObject>(Value));
+                        }
                         if (Child->GetClass() == BaseProviderClass && Property->Struct == FAnimNode_LayeredBoneBlend::StaticStruct())
                         {
                             const FAnimNode_LayeredBoneBlend* Blend = Property->ContainerPtrToValuePtr<FAnimNode_LayeredBoneBlend>(Child);
@@ -4124,6 +4141,7 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
                 }
                 ChildRow->SetArrayField(TEXT("machines"), Machines);
                 ChildRow->SetArrayField(TEXT("asset_players"), Players);
+                ChildRow->SetArrayField(TEXT("slots"), Slots);
                 if (Child->GetClass() == BaseProviderClass) { ChildRow->SetArrayField(TEXT("layered_blends"), LayeredBlends); }
                 ChildRow->SetNumberField(TEXT("update_counter"), ChildProxy.GetUpdateCounter().Get());
                 ChildRow->SetNumberField(TEXT("evaluation_counter"), ChildProxy.GetEvaluationCounter().Get());
