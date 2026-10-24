@@ -3073,6 +3073,13 @@
 
   - 完成/Gate：`target/bf144/382/summary.json`通过；160源实际View/Head/动态采样输入与target全部同，native同输入Look12640 double TQS精确，当前public12640行精确；247叶/19513骨数据路径保完整inventory。原current余差T11253/R12000/S2560，换source compressed叶经current数学T201/R7524/S0；相同runtime-f32输入lift到源cm/basis原生6实际骨骼double校准通过，source/current数学仍T120/R7524/S0，原double输入投影因素T169/R0/S0，源归一阶段仅2旋转行、额外runtime norm反增至7558旋转余差；各控制非可相加/单因解释。去source数据恢复原余差，源码字节恢复同target重编后12640输出字节同。8444身份（旧8374不变），source114/生产184/rlib/reader/转换器/资产冻结，256（115P2/141P3），未新增D；绝对/参考生产因素保后继，完整自然Base/Root/Feet/属性仍未闭。截图0、性能暂停。开始15:30:20；预估结束16:05:20；实际结束15:42:46；实际用时746秒；偏差-1354秒；结果同输入数据/数学矩阵及首未闭边界Gate通过。
 
+- [x] BF144.383 U07非零Look实际absolute/raw-reference生产因素：依赖.382同实际输入数据/数学矩阵，fresh读取Stand raw frame0与Forward/Down/Up实际target时点raw absolute，保正确SKM和source压缩加性路径区分；复用.380实际全部Pose/pose缓存，按target参考边、绝对边、差分输出重放全部247叶。只换raw-reference、只换raw-absolute和两者控制隔离D235与D224/D232边界，不把raw还原声称compressed完整恢复；复用已有public difference/骨架和源double算法，必要原生校准/因素消融字节恢复。Gate：fresh source合同、247实际叶public重放精确、单因素输入保持和首未闭边界、身份与记录；不新增角色观察器/不修生产。通过后优先转原自然上游Layering Base→Root反馈，Feet/属性仍开。开始：2026-10-24 15:43:21 +0800；预估结束：2026-10-24 16:13:21 +0800。估时依据：.303三参考实际52调用约13分钟、.261两种difference16控制约12分钟，现160/247调用已缓存且数学核可复用，按30分钟覆盖fresh三资产实际时点/同输入因素/消融及身份；若源绝对数据路径另分支则只保精确后继，不混淆raw/compressed。仅审计，截图0、性能暂停。
+  - 15:43 活动摘要：6c82d3e5/8444身份已提交；256（115P2/141P3）。先完成已定位reference/absolute生产边界的非零实际时点覆盖，旧D235/224/232只扩已证consumer，不回开旧无关图。
+  - 15:46 source/static闭环：fresh UE GetBonePose_AdditiveMeshRotationOnly强制当前绝对raw并取Stand frame0 raw参考，再两端转mesh旋转/差分；source参考及三叶81/28/1实际时点raw完整姿态已取，正确SKM与raw模式逐份核。复用.380实际全部缓存，247个reference/evaluator0→absolute动态time→difference边与静态RON核，public差分19513骨行精确；四模式988控制已运行，参考因素消融同target进行，三叶raw additive独立native校准待闭。压缩加性路径和raw绝对/reference因素不混合，下一矩阵/消融恢复/身份后转自然上游Root。截图0、性能暂停。
+  - 15:47 native/因素后摘要：三叶110独立实际时点raw additive/8690骨与fresh absolute+Stand0经源double mesh差分全部精确；247实际public骨19513全精确。988同算子控制中reference-only/absolute-only/both各247调用有改变；只换raw参考使scale余差3952→0，但平移/旋转对raw仍17007/17873行，both raw仍15972/17862行，不能称单参考或raw路径完整恢复。参考因素移除247输出回到原差分，其余741模式保持，源码字节恢复同target重编988输出字节同。只扩D235非零实际consumer，不新增D；最后身份后转自然Layering/Root。截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/383/summary.json`通过；fresh Stand raw0+Forward81/Down28/Up1实际时点raw absolute与raw additive8690骨由source double mesh差分全精确；247实际cache边、reference采样0与absolute动态time、public差分19513骨行精确。四模式988控制均只换指定数据，reference-only清除3952 scale余差，T/R仍17007/17873，both raw仍15972/17862，压缩路径不称恢复。参考因素移除247回原输出，741无关模式同，源码字节恢复同target重编988输出字节同。D235非零实际consumer扩展，D224/D232与raw/compressed/math边界保留，未新编号。8503身份（旧8444不变），生产/reader/转换器/资产未改，256（115P2/141P3）；下一原自然Layering实际prior反馈与独立Base，再完整Root/Feet/attributes。截图0、性能暂停。开始15:43:21；预估结束16:13:21；实际结束15:48:47；实际用时326秒；偏差-1474秒；结果非零247参考/绝对生产因素Gate通过。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
@@ -4957,6 +4964,8 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
 
   - BF144.303 Down/Up Stand参考扩展：fresh完整raw Stand0/真实mesh的79骨逐值投影，固定三Head实际绝对sample、Skeleton、时点与公共mesh差分，52次实际调用每次73骨delta变化；Forward/Down/Up的16个scale源compressed差均归零，T/R尚不等，不能把错误绝对数据被错误参考抵消的现象当恢复。物理只撤reference替换、保留原operator时52调用control都精确回到original；字节恢复同target重编后完整28帧及控制输出恢复，归已有同一强制raw base合同，不声称compressed delta全恢复。证据 `target/bf144/303/reference-check.json`、`reference-residual-check.json`、`reference-removed-check.json`、`restoration-check.json`。
 
+  - BF144.383非零Look消费者扩展：当前160轨迹247实际Forward/Down/Up差分调用19513骨公开重放精确，fresh Stand raw0与三叶110个实际时点raw absolute→mesh/delta8690骨全native double同。仅换raw参考/仅换raw绝对/两者均改变全部247调用；reference-only将scale余差3952归零，T/R对原raw仍17007/17873，both raw仍15972/17862，均不称compressed恢复。参考因素消融247调用回原输出，另741控制不变，源码字节恢复同target重编988输出字节同。只延伸本项强制raw参考生产合同，数据路径D224与数值D232余差保独立，不相加或新增编号。证据`target/bf144/383/matrix-check.json`、`restore-check.json`。
+
 - [ ] BF144-D236 / P3 — Feet无效时仍刷新FeetCrossing，丢失源保留值并改变Movement规则。
   - Source：fresh `AlsAnimationInstance.cpp:1251–1268`在pending update将FeetState.bValid清为false；`1297–1305`的RefreshFeet先检查bValid，无效直接return，因此FeetCrossingAmount保留上次有效值。原Standing Movement T16规则同时检查HipsDirectionLockAmount≤−.5与FeetCrossingAmount≤0，已从fresh图及真实条件图核对。
   - Target：`ab_als_provider.rs:138–149,422–426`的source_pose_curve_inputs无条件把当前投影FeetCrossing clamp[0,1]并发布，不读取实际AlsFootLockState.valid/pending。图规则读取该公开字段，不能从后续foot IK是否运行补回源保留语义。
@@ -5010,3 +5019,5 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.381当前边界：非零160原HeadApply12640/native与current12800公共重放、D258同Base双时点whole-native姿态consumer/两消融恢复及8374身份通过，256（115P2/141P3）。自然上游Base和跨侧余差、Feet/Root属性未闭；截图0、性能暂停。
 
   - BF144.382当前边界：同实际输入160 source/current Look12640重放、数据/同f32数学因素矩阵、原生6骨数值控制/消融恢复及8444身份通过，256（115P2/141P3）。非零实际absolute/raw-reference生产因素后继，完整自然Layering/Root/Feet/属性仍开；截图0、性能暂停。
+
+  - BF144.383当前边界：fresh三叶110实际raw时点/8690原native、247实际public19513骨与988参考/绝对控制、消融恢复/8503身份通过，D235扩非零consumer，256（115P2/141P3）。下一原自然Layering prior反馈/独立Base及完整Root/Feet/attributes；截图0、性能暂停。
