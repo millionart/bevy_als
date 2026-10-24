@@ -2912,6 +2912,17 @@
 
   - 完成/Gate：`target/bf144/361/summary.json`通过；新spawn前只读before/after观察获取11 warm完整Rig Input/Output/final/12external/222working与query/world/actor阶段，全部旧warm/driver240/metadata被动精确，0图node/seed/初始pose控制。首before arena0/noPose/pending/无delta override或property，发布.033而初始化evaluate_players临时global0路径+after Absolute0证实际评估0，余10普通；query10、init1/首75步后153，五负控制拒绝。新11 pose/外部/寄存器/query/world/delta与旧live-clock独立读值精确同，无旧数组回填，去旧clock图层仍保真；frame1–11接driver12–251连续。源注册零phase与target首物理phase位置差、同world ordinal源普通delta/target零query差分别保留D243/D244边界，不混自然反馈。观察移除/源码字节恢复同target重编后两个独立完整240/warm/新metadata恢复精确；7445身份（旧7399不变/恢复binary SHA）通过。无新D，255（115P2/140P3），生产/reader/转换器/原资产未改，截图0、性能暂停。下一明确输入域的whole Rig连续对照与原自然反馈，不宣总体等价。开始12:42:30；预估结束13:07:30；实际结束12:52:39；实际用时609秒；偏差-891秒；结果当前warm11完整Rig ABI/阶段Gate通过。
 
+- [x] BF144.362 U07完整251共同实际输入Rig原生连续对照：依赖.361新warm11完整ABI和.359当前driver240，fresh核compiled主Rig source/pose adapter/同实例生命周期与源unit调用合同，将全部实际目标输入pose/RigInput/delta/world/受控geometry按坐标基转换作为显式共同输入，执行一个native Rig实例251连续step，核输入每分量、2640+121字段、全部19829骨/curve差异与初始/重建/trace边界。Gate：数据producer身份/frame1–251接缝/单位roundtrip、全251 actual输入与native before/externals/world/时钟/同Rig实例精确、完整after比较及最早未归因边界、schema负控制/必要帧序或输入消融恢复/identity。此明确为共同目标pose与外部输入的Rig算法差分，不称原自然AnimBP feedback；.356原Head pose和.360自然源warm不隐式混入。开始：2026-10-24 12:53:11 +0800；预估结束：2026-10-24 13:18:11 +0800。估时依据：旧.270 Rig88全骨差分含首reader扩展约25分钟、.359完整ABI约11分钟；现601步能力/mesh-to-world/新251身份齐，按25分钟全量输入与native输出/分类而非只查旧prefix，若新因隔离需求超出再独立拆后继。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 12:53 活动摘要：f0ffd469已闭当前warm11/接driver240，7445身份、255（115P2/140P3）；上轮新ABI/阶段证据与提交为进展。本项先完整同输入Rig native differential，避免把自然源warm+受控driver混合后称whole-system等价，主Root自然feedback仍开。
+
+  - 12:57 source/native闭环：完整251单native Rig实例/固定construction count、before pose198290分量与curve/2761 RigInput字段、251 mesh-to-world/实际Rig world/delta/zero首帧全精确；after curves251全同。完整19829骨行差1372（R1254/T1010/S0），warm28/driver1344，前88 native before+after与旧.270逐值精确且450差相同；新163后缀922骨行差不自动套旧结论。差骨仅pelvis+六腿，source真实修改8骨另ik_foot_root，余71骨保持源输入。hist/world schema自测12非法控制过；同输入仅移除world控制native中，后缀根因后继分写者隔离，不新增未证D因或自然feedback声明。255（115P2/140P3），截图0、性能暂停。
+
+  - 12:58 控制/范围摘要：原生仅移除逐帧mesh-to-world（其余before pose/curve/RigInput/delta全同）改变244帧/1708骨行，说明world链必要；原完整请求保持并按同native入口恢复运行中。分析器对首pose分量扰动与RigInput Bool错位拒绝，派生请求/packet字节恢复后251全差分表byte同，未改任何原始native导出。旧88 before/after精确同，后163仅七骨922余差需后继按写者/源math逐项闭合，不把旧腿模型结论直接外推，主自然feedback仍开。255（115P2/140P3），截图0、性能暂停。
+
+  - 13:00 Gate后摘要：世界输入消融后按同package/入口完整原请求重跑251，全部before/after TQS/curve/world/delta/lifecycle及RigInput精确恢复；仅跨进程Rig ID/cache版本不作为数值相等依据。输入分量/外部字段负控制与派生请求字节恢复完整差分表同，native/source原始导出不修改。完整1372余差中前88=450已身份对齐，后163=922仅pelvis/六腿待后继source writer模型隔离，不把当前common-target-input求解当自然source反馈。下一identity/提交后按真实写者闭包推进新后缀，255（115P2/140P3），截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/362/summary.json`通过；显式共同目标输入251（warm11+driver240）原生compiled Rig单实例/固定construction和zero首delta，native before198290 pose分量/curve、2761 RigInput、251 world精确，全部after curve251同。完整19829骨行差1372（R1254/T1010/S0），前88 native before/after与.270逐值同/450差，新增163后缀922差只在pelvis+六腿，真实写者另ik_foot_root共8骨，未自动归因或改新D号。hist/world schema12非法控制、pose分量/RigInput负控制拒绝，派生请求字节恢复全差分表同；仅去world改变244帧/1708骨，恢复原请求同package/入口251全部TQS/curve/world/delta/生命周期/RigInput精确。7483身份（旧7445不变）通过。此明确为共同目标pose/外部历史下的Rig算法对照，非原AnimBP自然反馈，后缀922写者因子/自然Root feedback仍开。255（115P2/140P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始12:53:11；预估结束13:18:11；实际结束13:00:57；实际用时466秒；偏差-1034秒；结果完整251Rig差分/精确新后缀边界Gate通过。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D257 / P3 — Transition正向终止采样遗漏源section末端缓冲。
@@ -4544,6 +4555,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.359当前边界：当前240 Rig ABI/480trace/10080call/222working/121world，quiet/capture诊断控制与源码恢复/7357身份通过，255（115P2/140P3）。下一warm11原pose/外部历史资格，后原Rig连续求解/自然Root反馈/custom attributes/Down-Up和余差；截图0、性能暂停。
   - BF144.360当前边界：非零源clock注册+原warm11真实主图/Rig source/root/反馈与重复/观察控制、7399身份通过，255（115P2/140P3）。当前warm前10 elapsed偏D243/首engine单次native回调已证，下一完整target warm ABI/输入阶段资格，再原连续Rig与自然Root反馈/custom attributes；截图0、性能暂停。
   - BF144.361当前边界：新当前target warm11完整Rig ABI/实际零query阶段、独立clock复核与连续frame1–251/消融恢复、7445身份通过，255（115P2/140P3）。下一明确common-input whole Rig连续原生对照与自然输入/反馈对应，再主Root attributes/Down-Up和余差；截图0、性能暂停。
+  - BF144.362当前边界：全251共同输入nativeRig/19829骨/2761字段/输入与world消融恢复、7483身份通过，255（115P2/140P3）。新增163后缀922余差仅pelvis+六腿，下一按真实写者/源数学隔离，不以此替自然Root反馈；截图0、性能暂停。
 
 - [x] BF144-U06 — Rig初始全局数据已于.245归D242/P3。最初.244发现71骨365个double差、默认240仅FootHeight double变化；.245保持全部原生算法，仅换初始数据即在受控半转产生约180°的float足旋转/实际Setter写回差，并在同source厘米算法的5个骨长舍入边界经同原生IK核产生13/15个float关节点差，分别隔离D163算法与D165单位舍入。数据移除/源码字节恢复及同target重编恢复通过，native数学读出移除/同package恢复亦通过；默认动作自然可达性未证，不因关闭U06声明无差异或修复。证据`target/bf144/245/summary.json`、`native-check.json`、`writeback.jsonl`、`restoration-check.json`；原.244记录保留。
   - BF144.136 follower记录重建补充：near-zero候选无有效end时记录leader移到最后一项；下一普通帧恢复正常leader，`AnimSync::Finalize`使follower记录失效。`BlendSpace.cpp:784–787`按已存归一化时间乘当前样本长度重建；目标此前保留秒数。18帧33个previous差最大约59.6ns，全部精确等于`(旧position/旧duration)*当前duration`；仅补这一步后4032帧所有previous也逐值一致，当前采样位置和姿态保持。证据`target/bf144/136/roundtrip-check.json`、`before-roundtrip-all-analysis.json`、`all-analysis.json`。
