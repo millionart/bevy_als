@@ -2995,6 +2995,13 @@
 
   - 完成/Gate：`target/bf144/372/summary.json`通过；500 source trace调用（10disabled/490enabled）加2首帧skip、curve≥1e−4/构造FootHeight/固定Z端点/source FMA world/原floor hit/normal与厘米float偏移独立生成，500工作值及外部widen结果全native精确；20参数无后写。yaw-only/scale1与原floorBox穿面域明确，490独立原生BoxRaycast输入、命中Z0/up normal/距离全精确，中心reference ray未作为foot hit。用独立trace替251 pelvis、500 foot、500 rotation原观察输入，同target新编三条输出各自字节同原native校准版本，.369独立pole/.368完整消费交接保持。交点高度+0.25cm首实际query立即反例（日志显示−31.204159→−30.954159cm），源码字节恢复同target重编500输出和490请求字节恢复。7899身份（旧7838不变）通过，无新D，255（115P2/140P3）。本项仅原flat floor共同目标输入域，不宣称自然source反馈或任意倾斜/碰撞体等价；下一inactive权重独立合成收口与原自然Root反馈/attributes/Down-Up，不复开旧受控Gate。截图0、性能暂停。开始14:04:20；预估结束14:44:20；实际结束14:14:37；实际用时617秒；偏差-1782秒；结果完整251独立Trace/所有状态消费者Gate通过。
 
+- [x] BF144.373 U07完整251 Rig因果输入合成与inactive分支来源：依赖.369–.372独立trace/pole/pelvis/foot生成和.368全骨消费模型，fresh核本次spine identity与hands零weight的VM输入生产者，从common RigInput/曲线和初始配置独立推导（不只读取after work），并汇合所有251状态/500两腿/输出模型，列清仍由native作oracle而非模型输入的字段。Gate：251spine/502hand权重独立值及实际输入精确、全部生成状态替换数据flow身份/19829 local与251曲线native一致、生产模型依赖不含native求值输出回填；必要一个输入控制/生成者遗漏消融与恢复/identity。仅关闭原flat-floor共同target输入域，不把此替自然Root反馈或复开.292/.293旧非零受控Gate；此后回到自然反馈/attributes/Down-Up未闭范围。开始：2026-10-24 14:15:00 +0800；预估结束：2026-10-24 14:35:00 +0800。估时依据：.363写者分区约8分钟/.368全模型合成约11分钟、上游生成.369–.372全闭；按20分钟补零分支直接生产者与最终数据flow合成/必要反例，禁止再重复旧88或猜测旁支。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 14:15 活动摘要：3fc149a5/7899身份已提交，255（115P2/140P3）。独立生成trace/pole/pelvis/foot均已替代中间观察值；还需把本次零/identity分支的产生原因与完整模型输入链明确收口，原自然反馈目标保持。
+
+  - 14:18 source/static闭环：fresh VM SpineYawAngle→零Euler→identity251、LayerArmLeft/Right与HandLeft/RightIk各Clamp01后float乘502权重，从共同输入/请求curve独立推导并同native/current；非零yaw和非零hand权重两输入控制拒绝，旧.292/.293不复开。独立trace/pelvis/foot/pole/有效IK/weighted/最终rotation共有12454值链接核对；合成以原始共同请求的79骨输入而非native before回填，19829 local TQS/251 curves全native精确，current1372差保留。删foot producer在ordinal6失败并恢复summary字节同。删首pole记录的消融暴露本批检查仅看490有效消费者漏掉zero-weight pole记录，补全500/2000状态输出覆盖后删记录被拒绝；派生输入与完整flow报告字节恢复，原生导出未改。这是审计Gate修正不新增产品D。flat-floor/yaw/scale1/common-input域边界继续明确，下一原自然Root反馈/attributes/Down-Up，255（115P2/140P3），截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/373/summary.json`通过；251 source identity spine与502手零weight由共同RigInput/请求曲线和fresh VM Clamp01/multiply直接推导，同native/current消费精确；非零yaw/hand两输入控制拒绝，.292/.293受控非零Gate保留。12454生成者→消费者数值连接覆盖独立trace/pelvis/foot/pole、FK/有效IK/weighted/最终rotation；原始请求pose/curves作输入重新拼合19829 local TQS/251 curves native全等，current仍1372行差（R1254/T1010，新尾922）。删foot producer ordinal6/foot_l被拒并源码/summary字节恢复；删首zero-weight pole记录暴露本批初版仅覆盖490有效消费者的Gate漏口，补全500/2000 pole输出后遗漏控制被拒，派生输入与flow报告字节恢复，原生导出未改。7928身份（旧7899不变）通过，无新产品D，255（115P2/140P3）。仅关闭原flat floor/yaw/scale1与本次共同target输入和inactive条件下的因果模型；下一原自然Root反馈/attributes/Down-Up/180与其他未观察域，不复开已证受控项。截图0、性能暂停。开始14:15:00；预估结束14:35:00；实际结束14:20:07；实际用时307秒；偏差-892秒；结果完整251因果输入链与全骨合成Gate通过。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D257 / P3 — Transition正向终止采样遗漏源section末端缓冲。
@@ -4910,3 +4917,4 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.370当前边界：251独立pelvis target/spring/writer、753公开值/502local+全FK消费者与历史消融恢复、7791身份通过，255（115P2/140P3）。下一500 foot spring/effector与trace独立生成，再原自然Root反馈/attributes/Down-Up；截图0、性能暂停。
   - BF144.371当前边界：500独立foot target/2500state/effector、490IK交接/历史消融与无用支删除、7838身份通过，255（115P2/140P3）。源pole/pelvis/foot生成链仅trace仍观察；下一trace/normal/offset独立，再原自然Root反馈/attributes/Down-Up；截图0、性能暂停。
   - BF144.372当前边界：500独立trace normal/offset/490原生floor query、251pelvis+500foot+500rotation交接/高度消融恢复与7899身份通过，255（115P2/140P3）。剩共同251 inactive权重独立合成收口及原自然Root反馈/attributes/Down-Up等域；截图0、性能暂停。
+  - BF144.373当前边界：251spine/502hand输入独立推导、12454因果连接与19829 local/251curve全模型、两遗漏反例/恢复及7928身份通过，255（115P2/140P3）。共同target-input Rig因果模型已闭，原自然反馈/Root attributes/Down-Up/180等仍开；截图0、性能暂停。
