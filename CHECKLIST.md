@@ -2939,6 +2939,13 @@
 
   - 完成/Gate：`target/bf144/364/summary.json`通过；全部251源pelvis getter/Value/float窄化阶段、driver720实际call与warm33实际working参数闭合，502 source pelvis/foot-root local TQS native double精确，502 current公开setter actual输出精确；前88全部模型/实际值与旧.291同。完整current pelvis30平移差含新尾10，source writer单因素控制全部251 F32恢复；仅证实际writer消费边界，writer读自native外部值，不假称spring/trace独立预测或新根因。去控制丢30恢复（新尾10），源码字节恢复同target重编后全251输出字节同；当前最小合同仍失败，生产未修。7540身份（旧7507不变），255（115P2/140P3），六腿新尾912/上游state与原自然Root feedback继续，截图0、性能暂停。开始13:15:00；预估结束13:45:00；实际结束13:18:00；实际用时180秒；偏差-1619秒；结果完整251余二骨消费数学与source writer控制Gate通过。
 
+- [x] BF144.365 U07完整251六腿前态/源FK与真实IK输入：依赖.364 pelvis消费模型，fresh核源VM pelvis→左右PoleVector/IK/foot rotation写者闭包，将251新共同输入的source厘米FK/pelvis writer独立重算至左右thigh/calf/foot，核所有native成功/实际global与current calls/skip权重，建立502腿的数值消费者输入；不把native读到的effector/pole中间结果称上游独立预测，不套旧88 source求解结果到新163。Gate：全251源FK/getter及502实际腿调用分区无遗漏、最新current公开重放/真实before globals、源模型对全部native可见输入精确，必要源数学移除/字节恢复同target重编/identity。后续完整IK位置/旋转/partial/write与足rotation仍按依赖关闭，目标新尾912余差继续开。开始：2026-10-24 13:18:30 +0800；预估结束：2026-10-24 13:48:30 +0800。估时依据：.283联合FK约29分钟、现.364全251 pelvis重放已复用成熟helper约3分钟；本项增加502腿真实输入/零支与源末端getter，按30分钟覆盖新尾，完整IK数学可独立后继。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 13:18 活动摘要：7f704005/7540身份已提交，255（115P2/140P3）。pelvis新尾10仅writer消费边界闭合；先源FK与完整腿调用资格，再下游IK/足rotation和上游trace/spring，自然Root反馈仍开。
+
+  - 13:20 source/static闭环：251实际分支首帧两腿未执行、其余500腿均source Pole成功；target after-work输入静态无后写证明/当前2400 call参数精确，10零权重/12partial/478full分区齐。current公开前置scale/spine/pelvis重放与driver1440 pre-Pole骨global同；源cm/既证数学+实际pelvis writer独立重算全部500 calf global native double精确（新尾326），current F32位置投影87差含新尾41。其余源thigh/foot TQS当前是独立模型，非额外native观察，完整腿IK/rotation/新尾912仍开；正在normalizer消融和字节恢复，255（115P2/140P3），截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/365/summary.json`通过；全251两腿分支500实际/2首帧skip、10零权重/12partial/478full与source实际指令序列核验，post-work各输入无后写/当前2400实际call参数全同；current公开前置三写者重放与driver1440 pre-Pole骨global精确。源厘米FK/既证数学/实际pelvis writer重算500 calf位置（新尾326）native double全等，current F32投影87差含新尾41。去source normalizer全部500丢精确、新尾326，源码字节恢复同target重编后全251输出字节恢复；未拿first-frame残留寄存器当调用，也未宣称独立thigh/foot全TQS原生观察或最终腿姿态等价。7570身份（旧7540不变），无新D，255（115P2/140P3）；后继完整IK位置/旋转/partial/write/footRotation、新尾912和上游状态/自然反馈。截图0、性能暂停。开始13:18:30；预估结束13:48:30；实际结束13:23:10；实际用时280秒；偏差-1519秒；结果完整251源FK与实际腿输入Gate通过。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D257 / P3 — Transition正向终止采样遗漏源section末端缓冲。
@@ -4844,3 +4851,4 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - 控制/漏检：最小source terminal-copy合同对当前实际记录稳定FAIL；仅将该结束帧的Apply结果按源顺序换回同帧输入，pose/curve presence恢复，其他76观察帧原样保持。此为数据反事实控制，未称生产或实际runtime修复。旧惯性测试侧重中段数值/最终停止，容差和零值查找漏了到期帧的末尾单位化与缺失curve键。与D193欠时残留、D190/D191门槛及D195旋转差分不同；未宣称可见故障。证据`target/bf144/223/terminal-check.json`、`same-input.native.json`、`terminal-current-contract.report.json`和`terminal-source-order-control.json`，只登记。
   - BF144.340完整当前历史补充：使用正确mesh原暖2 Fall/首Land与原FSM240形成243步，源请求仅改变首Land和当前0，当前1在elapsed达duration时已精确copy输入及曲线存在性，后239均透传；目标该到期帧仍改变旋转并补缺失PoseInAir=0。原生同输入无请求对照、显式request_duration/schema及源请求移除/字节恢复通过，未用target暖pose冒source，也不把其他组合残差归本项。证据`target/bf144/340/native-check.json`、`terminal-check.json`、`summary.json`。
   - BF144.364当前边界：完整251 pelvis/foot-root502 source与current重放、pelvis30含新尾10 writer消费控制/消融恢复、7540身份通过，255（115P2/140P3）。下一六腿新尾912与上游独立trace/spring，后原自然Root feedback/attributes/Down-Up；截图0、性能暂停。
+  - BF144.365当前边界：全251源FK/native calf500含新尾326、current2400调用/1440global及normalizer消融恢复、7570身份通过，255（115P2/140P3）。下一490有效腿IK位置/旋转，再partial/write/footRotation、上游状态与原自然feedback；截图0、性能暂停。
