@@ -79,7 +79,9 @@ BlendList请求可选`two_way: {child, property}`，从当前AnimBP CDO复制指
 
 该请求可选`follower_asset`：以相同初始时间和速率创建第二个播放器，两播放器使用同一`looping`设置，调用原生TickContext的`ConvertToFollower`和该资产的`TickAssetPlayer`，输出独立位置、previous和实际delta。另记录两资产的marker数量，以及两个同分FAnimTickRecord经原生Sort后的输入索引顺序；这项排序观测不运行完整同步组或模拟加入/退出。使用`sequence_clock_follower.request.json`和`test_sequence_clock_follower_probe.py`核对无marker follower的归一化取时、零步长/夹紧及同权重排序；未提供该字段时原单leader输出保持。
 
-`run_ue_source_reader.ps1 -SyncGroupClockProbe <request.json>` 通过UE公开FAnimSync执行单个同步组，成员为CanBeLeader。请求的`players`提供asset/start/rate及可选`looping`（默认false），`-Asset`须对应首项；每个sample提供name和steps，每步含delta_seconds及等长weights数组。权重为null表示该帧未更新，0表示实际提交零权重tick；两者保留不同的时钟/组历史。输出原生排序、leader、长度比例及每个播放器的位置/previous/delta。入口不执行完整AnimBP、姿态或世界。使用`sync_group_clock.request.json`和`test_sync_group_clock_probe.py`核对无marker空组、同分排序、成员加入/退出、零权重、零步长及夹紧；沿正常动画更新路径调用TickAssetPlayerInstances，该函数自行切换缓冲。
+`run_ue_source_reader.ps1 -SyncGroupClockProbe <request.json>` 通过UE公开FAnimSync执行单个同步组，成员为CanBeLeader。请求的`players`提供asset/start/rate及可选`looping`（默认false），`-Asset`须对应首项；每个sample提供name和steps，每步含delta_seconds及等长weights数组。权重为null表示该帧未更新，0表示实际提交零权重tick；两者保留不同的时钟/组历史。输出原生排序、leader、长度比例及每个播放器的位置/previous/delta。默认只采时钟，不执行完整AnimBP或世界。使用`sync_group_clock.request.json`和`test_sync_group_clock_probe.py`核对无marker空组、同分排序、成员加入/退出、零权重、零步长及夹紧；沿正常动画更新路径调用TickAssetPlayerInstances，该函数自行切换缓冲。
+
+开启组pose捕获时可选`mesh_asset`，按该SkeletalMesh建立RequiredBones；mesh必须与全部player共享Skeleton并包含其骨名。输出`required_bones_mesh`及每个player的`pose_mesh`，`test_sync_group_sample_poses.check_mesh_contract`核对实际容器。省略时保持Skeleton容器与旧输出；Skeleton/mesh骨名一致不能证明参考姿态求值相同。关闭pose时不能请求mesh，且该能力不代表完整角色AnimBP反馈。
 
 有marker的Sequence另输出原生精确marker名称/时刻，以及组的`marker_start`和`marker_end`（previous/next/alpha/valid）。Proxy持有实际AnimInstance及SkeletalMeshComponent owner，使跨marker时的原生trace路径可执行。使用`sync_marker_group.request.json`和`test_sync_marker_group_probe.py`核对六个循环Crouch Walk播放器的跨marker区间及follower位置；两套自测共同覆盖有/无marker入口。
 

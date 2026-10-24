@@ -2701,6 +2701,14 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
     if (Request->HasField(TEXT("capture_sample_poses")) &&
         (Request->TryGetField(TEXT("capture_sample_poses"))->Type != EJson::Boolean || !Request->TryGetBoolField(TEXT("capture_sample_poses"), bCaptureSamplePoses))) { return nullptr; }
     if (bCaptureSamplePoses && (!bCapturePose || !bPrepareCompressed)) { return nullptr; }
+    USkeletalMesh* PoseMesh = nullptr;
+    if (Request->HasField(TEXT("mesh_asset")))
+    {
+        FString MeshPath;
+        if (!bCapturePose || !Request->TryGetStringField(TEXT("mesh_asset"), MeshPath) || MeshPath.IsEmpty()) { return nullptr; }
+        PoseMesh = LoadObject<USkeletalMesh>(nullptr, *MeshPath);
+        if (PoseMesh == nullptr) { return nullptr; }
+    }
     TArray<FBoneContainer> RequiredBones;
     if (bCapturePose) { RequiredBones.SetNum(Players->Num()); }
     TArray<UAnimationAsset*> Assets;
@@ -2780,11 +2788,22 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
             }
             USkeleton* Skeleton = AnimationAsset->GetSkeleton();
             if (Skeleton == nullptr || Skeleton->GetReferenceSkeleton().GetNum() == 0) { return nullptr; }
+            if (PoseMesh != nullptr)
+            {
+                if (PoseMesh->GetSkeleton() != Skeleton) { return nullptr; }
+                for (int32 Index = 0; Index < Skeleton->GetReferenceSkeleton().GetNum(); ++Index)
+                {
+                    if (PoseMesh->GetRefSkeleton().FindBoneIndex(Skeleton->GetReferenceSkeleton().GetBoneName(Index)) == INDEX_NONE) { return nullptr; }
+                }
+            }
+            const FReferenceSkeleton& RequiredSkeleton = PoseMesh != nullptr ? PoseMesh->GetRefSkeleton() : Skeleton->GetReferenceSkeleton();
             TArray<FBoneIndexType> BoneIndices;
-            for (int32 Index = 0; Index < Skeleton->GetReferenceSkeleton().GetNum(); ++Index) { BoneIndices.Add(Index); }
-            RequiredBones[Assets.Num() - 1].InitializeTo(BoneIndices, UE::Anim::FCurveFilterSettings(), *Skeleton);
+            for (int32 Index = 0; Index < RequiredSkeleton.GetNum(); ++Index) { BoneIndices.Add(Index); }
+            UObject& RequiredAsset = PoseMesh != nullptr ? static_cast<UObject&>(*PoseMesh) : static_cast<UObject&>(*Skeleton);
+            RequiredBones[Assets.Num() - 1].InitializeTo(BoneIndices, UE::Anim::FCurveFilterSettings(), RequiredAsset);
             Info->SetStringField(TEXT("pose_skeleton"), ObjectPath(Skeleton));
             Info->SetNumberField(TEXT("pose_bone_count"), BoneIndices.Num());
+            if (PoseMesh != nullptr) { Info->SetStringField(TEXT("pose_mesh"), ObjectPath(RequiredBones[Assets.Num() - 1].GetSkeletalMeshAsset())); }
         }
         PlayerInfo.Add(MakeShared<FJsonValueObject>(Info));
     }
@@ -3032,6 +3051,7 @@ TSharedPtr<FJsonObject> CaptureSyncGroupClockProbe(UObject* Asset, const FString
     TSharedRef<FJsonObject> Result = MakeShared<FJsonObject>();
     Result->SetArrayField(TEXT("players"), PlayerInfo);
     Result->SetArrayField(TEXT("samples"), Rows);
+    if (PoseMesh != nullptr) { Result->SetStringField(TEXT("required_bones_mesh"), ObjectPath(PoseMesh)); }
     return Result;
 }
 
