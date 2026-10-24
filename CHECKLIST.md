@@ -3426,6 +3426,16 @@
   - .415完成/Gate：`target/bf144/415/summary.json`通过。478足部完整反射spring状态/位置和478 pole几何/连续damper均独立生成且逐值精确native，初始腿链source float逐段累加82.76873016357422cm对240外部与478入参全精确；956 effector/pole真实IK消费连接精确。自然域发现64次length clamp，旧受控域guard正确失败，fresh源Vector/InvSqrt/float半径合同补齐仅审计模型分支，源输出全部精确；未登记产品新D。移除clamp64位置、foot history476状态/474位置、pole history首2各失败；三次源码字节恢复同target重编478结果byte同，source阶段再验通过。10164身份旧10108保持、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib均未改，256（115P2/141P3）。尚需IK初始分段长度/全旋转及加权写回/末端footrotation/Root合成，Feet父反馈和target余差未闭，未宣称全系统无差异。截图0、性能暂停。开始21:26:55；预估结束22:01:55；实际结束21:33:28；实耗393秒；偏差-1707秒；结果自然足部/pole独立producer与IK消费输入Gate通过。
 
 
+- [x] BF144.416 U07自然478腿调用完整IK与加权写回：依赖.415自主effector/pole/初始链长度、.414自主FK及.366/.367旧源求解/加权核，fresh核source TwoBoneIKSimplePerItem完整骨长/坐标轴/权重/伸展/Quaternion与层级写回，对自然左右478调用重新产生source初始分段长度和求解全部位置/旋转，以原compiled native数学和实际最终骨骼consumer作oracle；不从native pre-weight四元数/after骨回填模型。Gate：实际478权重/分支/入参资格、必要同输入whole-native source IK控制、完整模型输出与加权写回/原实际消费者精确、必要数学/权重/写回消融及源码字节恢复同target重编/identity；若最终footrotation是显式后写者，先按源闭包登记依赖再完成骨输出Gate。独立父Feet反馈/target整体残差未闭处保持开。开始：2026-10-24 21:33:55 +0800；预估结束：2026-10-24 22:08:55 +0800。估时依据：.415自然478两种连续producer393秒、旧.366/.367已有源位置/quat/partial层级核；本项新自然域64clamp后的IK输入/可能不同weight与全部旋转，35分钟含source native整体控制及消融，必要末端依赖单列。仅审计不改生产/reader/转换器/原资产，截图0、性能暂停。
+  - 21:33 活动摘要：.415提交0e951968/10164身份，256（115P2/141P3）。当前独立source effector/pole到实际IK输入956连接精确；未知边界为initial per-segment lengths、global rotations/IK解/weighted setter及最终footrotation，沿这些证明闭包继续，不泛化非零view。截图0、性能暂停。
+
+
+  - 21:43 .416 source/static与完整腿写回：自然有效478权重全1、no-stretch、secondary1，初始两腿因FootTransformsValid false跳过；PoleVectorSpace实际Type=Bone/Name=None，无有效空间绑定，不能误假Type=None。以自主FK/effector/pole/显式RigInput旋转与raw initial globals推每段长度（B继承A当前scale），956 double距离及float写入全native精确；478 whole-native SolveBasicTwoBoneIK对956位置/956 quat逐值精确。独立求解globals经满权重relative writeback，956实际原Rig thigh/calf完整local TQS精确，首4骨skip保持。实际后写者100/130只foot，hands权重0，因此没有未核后写者混入此局部对照。删旧unused operator modes和本自然域无用partial/slerp分支，重编全478输出byte同；去求解Normalize或local Relative Normalize都首1-91失败，源码字节恢复同target重编全478结果byte同。两producer到实际消耗已核，foot最终rotation/全Root/Feet父反馈及target余差后继；旧partial.367 Gate保留其原域，未挪作本自然覆盖。10164身份核中，256（115P2/141P3）；截图0、性能暂停。
+
+
+  - .416完成/Gate：`target/bf144/416/summary.json`通过。自然478有效腿全weight1/no-stretch/secondary1与两初帧skip资格齐，source PoleVectorSpace是Bone/Name=None的无效引用而非Type=None。独立initial分段长度956 double/float值全native精确；478原compiled SolveBasicTwoBoneIK整体对照（26.814秒），956 joint/end位置与956 global quat逐值精确，478 triangle域。满权重relative writer的956 actual whole Rig thigh/calf完整local TQS精确，首4骨skip保持；actual后写者100/130只foot、hands零weight已独立证实。删未用operator modes和当前自然域unused partial路径，重编所有478结果byte同；移除solve Normalize或relative Normalize均首1-91失败，源码字节恢复同target重编两producer全部478结果byte同。10218身份旧10164保持、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib不变，256（115P2/141P3）、无新D。当前source FK旋转已进入独立求解和真实局部写回验证；foot末端rotation、全Rig/Root/mesh合成及Feet父反馈/target残差仍开。截图0、性能暂停。开始21:33:55；预估结束22:08:55；实际结束21:44:27；实耗632秒；偏差-1468秒；结果自然完整腿IK/大腿小腿写回Gate通过，非当前partial域沿用原.367限定不泛化。
+
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
