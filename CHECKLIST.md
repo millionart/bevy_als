@@ -2647,6 +2647,13 @@
 
   - 完成/Gate：`target/bf144/334/summary.json`通过；48原prepared mesh加性/3792骨、compressed/RotationOffsetMeshSpace/Stand frame0参考与无root motion、真实SKM合同齐备，0target补值；全48 Skeleton↔mesh骨/curve全等，旧16源Skeleton帧精确保持。独立actual时间控制的同源数据T493/R2910 F32骨行及14curve值改变，权重与平台数据因素未混入。缺mesh/错原时间拒绝，源字节恢复同入口48完整数组字节相同；6040身份（旧6007不变）通过。首旧请求路径断言已纠正并在原生调用终止后重跑，未运行中改写请求。完整240槽数值、Locomotion落地/暖惯性/自然反馈与上游/旧域迁移仍开；无新编号，255（115P2/140P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始10:05:33；预估结束10:25:33；实际结束10:11:15；实际用时342秒；偏差-858秒；结果完整原叶供给Gate通过，下一槽consumer。
 
+- [x] BF144.335 U07当前240 Transition槽完整原生数值：依赖.332原Base240/18960骨、.333原clock60/48有效及.334原prepared delta48/3792骨，用既有99688c67 compiled Slot模板运行完整240，独立mesh additive double核按source完整parent链/T/S/curve/末归一化复算。Gate：原Base/原delta/clock/模板身份与真实48活动、容器差已证无影响且完整79输入/parent吻合、全部240原生TQS/curve精确或明确根因/缺口、0target补值、必要数学消融字节恢复同target重编/身份；原Locomotion/自然反馈仍独立后继，不把槽供给作生产等价。开始：2026-10-24 10:11:30 +0800；预估结束：2026-10-24 10:31:30 +0800。估时依据：.215旧77槽含reader新增约18分钟、.334原48数据约6分钟；现模板/原独立数学和数据齐备，按20分钟核全240及新增混出尾，reader/生产不预改。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 10:11 活动摘要：b32bcc75完成原delta48，6040身份、255（115P2/140P3）。原240 Base及48 pose/weights已锁；SlotProbe按Skeleton初始化，而本叶全48两个容器已逐值相同，Base全79骨显式覆盖/parent同源，先用现能力不增mesh适配层。按完整240原source轨迹验槽，不混actual数据或旧77权重。
+
+  - 10:14 source/static闭环：compiled Transition/GroupGrounded槽完整240的192无活动/48活动、原Base/原delta/独立60时钟全部核，模型原f64 TQS/curve与native18960骨精确、0缺口/0target补值。源叶全48容器同值、完整79 Base覆盖和parent一致已证明，无需新reader分支。actual组合差按inactive/active分T13433/3461、R11143/3581、S3129/804、curve值34/43（presence0），仅记录未归尽，不据native源供给通过声称目标等价或新因。移除48源overlay拒绝，源脚本字节恢复同入口240完整数组相同；identity核查中，下一具名Locomotion原cache与Land/暖态/Root，255（115P2/140P3），截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/335/summary.json`通过；actual compiled Transition/GroupGrounded完整240（192无活动/48活动）按原Base240/delta48和独立60 clock求值，全部18960骨f64 TQS及curve与独立原mesh核精确。全48加性容器同值、Base显式79骨及parent同源，未增reader容器分支；输出context取actual槽记录。缺原overlay拒绝，源码字节恢复同入口完整240表字节同；6068身份（旧6040不变）通过。actual inactive/active组合差T13433/3461、R11143/3581、S3129/804、curve值34/43仍保留未归尽，不能以源供给PASS作目标等价；具名Locomotion原cache/Land/暖态/Root后继仍开。无新编号，255（115P2/140P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始10:11:30；预估结束10:31:30；实际结束10:14:45；实际用时195秒；偏差-1005秒；结果原槽数值供给Gate通过，下一具名缓存。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D257 / P3 — Transition正向终止采样遗漏源section末端缓冲。
@@ -4250,6 +4257,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.332当前边界：240最终Grounded原Root/18960骨与槽输入交接已由原生后惯性及三curve写回闭合；下一48活动Transition源时钟/正确mesh加性及完整槽输出，再Locomotion落地/暖态和自然反馈。当前254（115P2/139P3），截图0、性能暂停。
   - BF144.333当前边界：完整60源Transition时钟/48活动资格已闭，新D257末section缓冲与实际采样影响已证，D118尾时钟/权重补充；下一48正确mesh prepared加性与完整槽数值，再Locomotion落地/暖态/Root、上游和旧域迁移。当前255（115P2/140P3），截图0、性能暂停。
   - BF144.334当前边界：完整48原prepared加性/3792骨已在真实mesh域供给，Skeleton域同值且旧16保持，独立时间控制T493/R2910与14curve差已记录；下一240槽数值与具名Locomotion输入，再落地/暖惯性/Root与自然反馈，255（115P2/140P3），截图0、性能暂停。
+  - BF144.335当前边界：240完整原Transition槽/18960骨已与native全部double/curve精确，48活动与192copy供给闭合；actual组合差未归尽。下一Locomotion具名原cache、五Land/完整FSM/暖态惯性与Root反馈，255（115P2/140P3），截图0、性能暂停。
 
 - [x] BF144-U06 — Rig初始全局数据已于.245归D242/P3。最初.244发现71骨365个double差、默认240仅FootHeight double变化；.245保持全部原生算法，仅换初始数据即在受控半转产生约180°的float足旋转/实际Setter写回差，并在同source厘米算法的5个骨长舍入边界经同原生IK核产生13/15个float关节点差，分别隔离D163算法与D165单位舍入。数据移除/源码字节恢复及同target重编恢复通过，native数学读出移除/同package恢复亦通过；默认动作自然可达性未证，不因关闭U06声明无差异或修复。证据`target/bf144/245/summary.json`、`native-check.json`、`writeback.jsonl`、`restoration-check.json`；原.244记录保留。
   - BF144.136 follower记录重建补充：near-zero候选无有效end时记录leader移到最后一项；下一普通帧恢复正常leader，`AnimSync::Finalize`使follower记录失效。`BlendSpace.cpp:784–787`按已存归一化时间乘当前样本长度重建；目标此前保留秒数。18帧33个previous差最大约59.6ns，全部精确等于`(旧position/旧duration)*当前duration`；仅补这一步后4032帧所有previous也逐值一致，当前采样位置和姿态保持。证据`target/bf144/136/roundtrip-check.json`、`before-roundtrip-all-analysis.json`、`all-analysis.json`。
