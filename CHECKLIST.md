@@ -3140,6 +3140,13 @@
 
   - 完成/Gate：`target/bf144/391/summary.json`通过；主Standing模型仅从初始化Idle、compiled参数/规则、帧Delta、已验父组和incoming1入口合同生成，native权重/alpha/active栈不进模型。自身recorded历史驱动下一规则，自算构造时长/Blend完成门槛、Elapsed/Crossfade Hermite与权重/elapsed；240状态/elapsed/栈960字段、前后2400权重及26有效栈全native精确。incoming1由本自然外层Standing空栈/全权重和linked不缩权/纯透传入口限定，不宣称整个上游相关性生产独立。错用内部Blend alpha首21失败，不提交recorded首20失败并64/164漏Stop；源码字节与240输出恢复。8873身份旧8845全不变，source114/生产184/rlib/reader/转换器/资产冻结，256（115P2/141P3），未新D。后继只读定位Stop子机240 incoming等主Stop；Movement/Details简单相等仅218/222，额外缓存路径未闭，下一先Stop规则/入口/alpha独立，再其他相关性/嵌套FSM和Grounded Base/Slot/Layering/Root/Feet/属性。截图0、性能暂停。开始17:47:28；预估结束18:22:28；实际结束17:52:47；实际用时320秒；偏差-1780秒；结果主Standing历史权重/alpha独立生产Gate通过。
 
+- [x] BF144.392 U07自然Stop子FSM独立选择/alpha与零相关保留：依赖.391自主主Standing历史/Stop权重，fresh核主Stop state→Stop子FSM唯一pose入口、UE state update relevance/重新相关重置、子机四Entry规则及默认参数。以主模型自产Stop权重和已证父标量驱动子模型，自己生成Entry→Plant选择、active栈/alpha/elapsed/current权重和recorded零清/提交；source子机state/stack/weights只作oracle，不作输入。Gate：240前后子状态/elapsed/权重与栈全native精确、两次不同脚选择与停止更新/重新相关边界、去重置/零清或alpha必要消融恢复/身份；Movement Details/Movement额外cache路径后继，不直接套主Move权重。开始：2026-10-24 17:53:18 +0800；预估结束：2026-10-24 18:28:18 +0800。估时依据：.391主权重/alpha独立生产319秒，Stop四规则和单入口已源定位且incoming240同，35分钟含相关性门槛/保留与重入/compiled inverse-alpha/必要负控制及身份；不扩未证状态或生产修复。截图0、性能暂停。
+  - 17:53 活动摘要：047dd567/8873身份已提交，256（115P2/141P3）。Stop只有主Stop状态根直接连入，无额外多consumer缓存；source重相关依UpdateCounter重置。下一去掉子机native incoming/state/alpha供数，区分旧current保留与recorded零权重，不把cached残留判作仍在更新。
+  - 17:55 source/static闭环：子机输入仅.391主Stop自产权重/active状态、compiled四规则与已验父标量；oracle独立。主Stop状态根直接唯一连子FSM，source UpdateTransitionStates按parent states权重传Context；本域更新窗口64–72/164–172由主模型生成，未硬编码到模型。子机240状态/elapsed/relevance/栈1200字段、前后2400 recorded/1200 current权重、4有效栈全native精确；两次Entry独立选择Plant Left/Right，停止更新保留current state/elapsed但recorded清0。去重相关reset在164错脚，去零清在73错recorded；控制文本曾误匹配初始化行导致工具异常，限定else行并从通过native合同的干净基线重跑后，源码/输出字节恢复。子机既有target权重每次0，duration与.391已验source inverse-alpha端点合同一致；不称一般中断/多consumer相关性闭合。下一恢复/身份后核Movement Details/Movement额外cached路径；截图0、性能暂停。
+  - 17:56 后继source定位：fresh UE `AnimNode_SaveCachedPose.cpp:178–207`明确按calling context最大FinalBlendWeight选择一次更新，原Standing cached schedule先Movement Details再Movement。下一仅沿已证两cache全部UseCachedPose consumer、实际状态/过渡context与schedule形成incoming权重；不能把简单主Move权重或native观察最大值当独立producer，暂不新增D或复开旧cache调度合同。
+
+  - 完成/Gate：`target/bf144/392/summary.json`通过；Stop子机仅从.391主Stop自产权重/active状态、源compiled四规则和已验父组生成，无native子状态/alpha/stack供数。唯一Stop state-root入口、source relevance/reset/recorded清零合同核；自主窗口64–72/164–172、两次Entry选择Plant Left/Right。240状态/elapsed/incoming/栈1200字段、前后2400 recorded与1200 current权重、4有效栈全native精确；停更保旧current/elapsed、recorded归零。去重入reset在164错脚，去零清在73失败，修正控制脚本误匹配初始化后从干净已通过基线重跑，源码/240输出字节恢复。8902身份旧8873全不变，source114/生产184/rlib/reader/转换器/资产冻结，256（115P2/141P3），未新D。下一SaveCachedPose最大context/schedule与Movement Details/Movement consumer闭包，再其他子机及独立Grounded Base/Slot/Layering/Root/Feet/属性；不默认incoming=主Move，也不取native最大值回填。截图0、性能暂停。开始17:53:18；预估结束18:28:18；实际结束17:57:47；实际用时270秒；偏差-1830秒；结果Stop子FSM相关性/历史/alpha独立生产Gate通过。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
@@ -5101,3 +5108,5 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.390当前边界：14资产通知/9 AnimBP写生命周期、6720源规则/720实际条件公开逻辑、主Standing240连续选择/控制消融/8845身份通过，256（115P2/141P3）。历史Getter仍输入，下一独立相关性/alpha和nested FSM，再Grounded Base/Slot/Layering/Root/Feet/属性，截图0、性能暂停。
 
   - BF144.391当前边界：自然主Standing自有历史/alpha/current栈、240状态/2400权重/26栈精确、两消融恢复/8873身份通过，256（115P2/141P3）。下一Stop唯一权重入口/规则，Movement/Details额外缓存相关性另核，再Grounded Base/完整Root/Feet/属性；截图0、性能暂停。
+
+  - BF144.392当前边界：Stop子机240选择/elapsed/incoming/2400 recorded/1200 current/4栈独立精确、两相关性消融恢复/8902身份通过，256（115P2/141P3）。下一Movement Details/Movement cache最大context与调度，再Grounded Base/完整Root/Feet/属性，截图0、性能暂停。
