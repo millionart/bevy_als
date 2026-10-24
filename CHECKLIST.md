@@ -2726,6 +2726,17 @@
 
   - 完成/Gate：`target/bf144/345/summary.json`通过；共同当前raw参数下308 source有效alpha、251原Default根/19829骨（零权重暖0参考、Two297直通、Multi212单/28双）与原惯性/Layering缓存交接251供给，0target pose/curve/有效alpha补值。144 Two/Multi及33Apply native f64全同，公开target799父Pose输出逐值重放全同。去Apply末归一化使warm0/pelvis native失败，源码字节恢复同入口重建全251原表byte同/33控制恢复；观察去除旧251全同、源码字节恢复同target重编全251观察恢复。6650身份（旧6560不变/两个binary SHA）通过。实际组合T17585/R17991/S4016余差未归尽、curve值/存在0差，原反馈权重尚未资格，完整Layering/Root自然反馈后继；无新编号，255（115P2/140P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始11:02:55；预估结束11:32:55；实际结束11:08:43；实际用时348秒；偏差-1452秒；结果共同参数原Overlay组合/交接Gate通过。
 
+- [x] BF144.346 U07当前240 Layering原动态加成双缓存：依赖.341原Locomotion/完整cache240与.342正确mesh原Base共同参数240，fresh重提Layering双MakeDynamicAdditive/保存源边，独立源local/mesh差分与curve union生成完整480原缓存供给，actual输入owner/缓存/公开算法逐值校准。Gate：源fresh合同/240输入与实际owner、480×79原骨curve与native local/mesh控制、0target pose回填、必要父链/算序或观察消融源码字节恢复同target重编/identity；共同反馈权重与全原Root反馈边界明确，section/最终Layering后继。开始：2026-10-24 11:08:55 +0800；预估结束：2026-10-24 11:28:55 +0800。估时依据：旧.231双原动态约14分钟、.345完整组合约6分钟；已有原数学/reader与240两原输入，按20分钟含全240新尾/原生控制/消融，仅两缓存闭包。仅审计，生产/reader/转换器/原资产不改，截图0、性能暂停。
+  - 11:08 活动摘要：4803c33c完成全251共同参数原Overlay，6650身份、255（115P2/140P3）；先完整240两动态缓存，不预先扩section/最终Layering/Head，原完整反馈循环仍开。
+
+  - 11:11 source/static闭环：fresh两个MakeDynamicAdditive/save/use源边和单位/parent算序已核。完整240旧历史/warm精确，actual两输入key/owner4/Base空curve/Locomotion curve/缓存480与公开生产重放480全同；按原Base240+Locomotion240生成原480/37920骨，mesh/local平移和scale同，0target pose回填。曲线余差174共享值/176含presence/2keysets继承上游；骨余差meshT12143/R18232/S4785、localT12143/R17432/S4785未归尽（缺scale作为additive0已证），不新增因。144 native链/差分控制、mesh父链/观察消融与同target恢复中；255（115P2/140P3），截图0、性能暂停。
+
+  - 11:12 native Gate摘要：144 Geometry原生控制（72 mesh完整父链、72原差分归一化quat）全部f64精确，平移/scale复用已验证源差分合同，未冒称whole-node直接native运行。当前480公开目标输出重放已过；下一移除mesh父链验证必要边界并源码字节恢复同dylib重编/原480表恢复，再最终identity。255（115P2/140P3），截图0、性能暂停。
+
+  - 11:14 Gate后摘要：去mesh父链改变18459源骨行而local240全同；源码字节恢复并同dylib重编后原480/37920骨表与native request/expected均byte同，144 native控制再过。观察消融旧240+warm全同、源码字节恢复同target重编全部观察恢复。剩实际余差与原反馈权重仍开，本项仅双动态缓存已闭；下一identity/提交后六section入口，255（115P2/140P3），截图0、性能暂停。
+
+  - 完成/Gate：`target/bf144/346/summary.json`通过；fresh双MakeDynamic源边/算法已核，当前240输入key/owner4/save/旧240+warm全同，480公开目标差分输出逐值重放。原正确mesh Base240与原Locomotion240供给480/37920骨及curve，0target pose回填；144 native控制（72 mesh父链+72差分quat）全部f64同，平移/scale复用既证差分合同。移除mesh父链改变18459骨行、local240保持，源码字节恢复同dylib重编480原表/request/expected byte同、144控制再过；观察去除/源码字节恢复同target重编完整历史恢复。6711身份（旧6650不变/恢复fixture与dylib SHA）通过。实际余差继承上游与数值因素尚未归尽，原反馈权重和custom attributes/完整Layering后继；无新编号，255（115P2/140P3），生产/reader/转换器/原资产未改，截图0、性能暂停。开始11:08:55；预估结束11:28:55；实际结束11:15:33；实际用时398秒；偏差-802秒；结果共同参数原双动态缓存Gate通过。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D257 / P3 — Transition正向终止采样遗漏源section末端缓冲。
@@ -4342,6 +4353,7 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.343当前边界：全251实际Default入口/惯性/缓存与六叶五绑定已核，6519身份，255（115P2/140P3）。下一原251 Idle clock与正确mesh原叶，后完整Overlay/Layering/Root反馈；截图0、性能暂停。
   - BF144.344当前边界：原251 Idle时钟/正确mesh原叶与三固定帧已供给，D201245错时仍未修，6560身份、255（115P2/140P3）。下一全251 Overlay参数/组合，再Layering/Root原反馈；截图0、性能暂停。
   - BF144.345当前边界：全251原Default Overlay共同参数组合/交接已闭，177 native/799 target重放与消融恢复、6650身份通过，255（115P2/140P3）。下一完整240 Layering动态/section/最终组合，原Root自然反馈仍开；截图0、性能暂停。
+  - BF144.346当前边界：当前240原双动态缓存480/37920骨、144 native与480 target重放/消融恢复、6711身份通过，255（115P2/140P3）。下一六section Base/Apply/TwoWay/cache与最终Layering，再Root原反馈/custom attributes/Head/Rig；截图0、性能暂停。
 
 - [x] BF144-U06 — Rig初始全局数据已于.245归D242/P3。最初.244发现71骨365个double差、默认240仅FootHeight double变化；.245保持全部原生算法，仅换初始数据即在受控半转产生约180°的float足旋转/实际Setter写回差，并在同source厘米算法的5个骨长舍入边界经同原生IK核产生13/15个float关节点差，分别隔离D163算法与D165单位舍入。数据移除/源码字节恢复及同target重编恢复通过，native数学读出移除/同package恢复亦通过；默认动作自然可达性未证，不因关闭U06声明无差异或修复。证据`target/bf144/245/summary.json`、`native-check.json`、`writeback.jsonl`、`restoration-check.json`；原.244记录保留。
   - BF144.136 follower记录重建补充：near-zero候选无有效end时记录leader移到最后一项；下一普通帧恢复正常leader，`AnimSync::Finalize`使follower记录失效。`BlendSpace.cpp:784–787`按已存归一化时间乘当前样本长度重建；目标此前保留秒数。18帧33个previous差最大约59.6ns，全部精确等于`(旧position/旧duration)*当前duration`；仅补这一步后4032帧所有previous也逐值一致，当前采样位置和姿态保持。证据`target/bf144/136/roundtrip-check.json`、`before-roundtrip-all-analysis.json`、`all-analysis.json`。
