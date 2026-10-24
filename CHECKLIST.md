@@ -3280,6 +3280,16 @@
 
   - 完成/Gate：`target/bf144/406/summary.json`通过。原三branch/depth0与79 parent链独立得左右各8骨，source曲线LinkedBones全空、原typed mesh/root-space/scale/weight/Override字段齐；18自主Details Base+Forward单叶经既有源精确数学核产完整Plant layer，1422骨TQS/36曲线与原native模板精确，全mask及update[1,1]/root modifier[1,0]精确。native26.701/25.940秒；删ik/VB root只改对应两骨，去mesh运算首Left64/pelvis失败，源码/18输出字节恢复后全过；层后FootLock1去写失败，未提前改顺序，删无消费控制计算不改信号。9392身份旧9357全保持、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib不变，256（115P2/141P3），无新D。仅源Plant状态单位闭合，不宣称角色/target完整pose或custom attributes；下一Stop Entry/Plant子机→Standing Idle/Move/Stop普通pose和Standing惯性资格→Grounded Base/Slot/Layering/Root/Feet/属性。截图0、性能暂停。开始19:35:53；预估结束20:00:53；实际结束19:40:10；实耗257秒；偏差-1243秒；结果双Plant完整mesh layer+层后曲线生产Gate通过，无需新核或工具扩展。
 
+
+- [x] BF144.407 U07自然Stop子机与Standing主机完整普通pose：依赖.406双Plant/.405 Idle/.402 Details源pose、.392 Stop/.391 Main自产ordered stack；按原StateMachine EvaluateState/EvaluateTransitionStandardBlendInternal时序合成18 Stop更新和240主Standing pose，Entry/Move消费同帧Details，Idle源pose，活动栈只在完整栈后归一一次，空栈直传。原生全骨同输入普通混合及所有曲线校准，源时点/权重/子pose不得读取角色最终pose或目标姿态。Gate：更新/求值集合和缓存资格、全部18/240 pose覆盖与所有实际转场全骨native、必要顺序/归一/curve消融字节恢复/identity；Standing惯性请求资格和Grounded封装后继，不预先把两个Details请求当主惯性请求。开始：2026-10-24 19:40:21 +0800；预估结束：2026-10-24 20:00:21 +0800。估时依据：.401普通pose395秒/.406全Plant257秒，复用精确混合核和原无profile默认分支，主26栈/子4栈全79骨控制需分若干原请求，20分钟含资格、数值/曲线和消融身份；若转场中间栈出现超当前合同则按source细分，不改scope。仅审计不改生产/reader/转换器/资产，截图0、性能暂停。
+  - 19:40 活动摘要：.406提交1a7b4d64/9392身份，256（115P2/141P3）；全部主状态pose输入已可自主生产，现只复算Stop/Main普通混合，保留Standing惯性和Grounded之外Slot/Root/Feet/属性边界。
+
+
+  - 19:46 source/static与全骨闭环：18 Stop/240 Standing普通pose由自主子pose和.391/.392栈生成，214主帧直传/26主栈/4子栈，全部活动标准逻辑/无profile/单栈且在整栈后归一1次；2370转场骨TQS及168曲线原生全精确，五原请求31.738/30.982/30.969/30.971/30.973秒。去归一首Standing20/root失败、反转前后pose首Standing20/pelvis失败。首次恢复暴露审计脚本set曲线遍历导致编号跨进程重排，未当产品差异：按曲线名稳定排序，保留原始输出，只重跑末批30.994秒，稳定数据全过；240/18pose字节与排序前不变。重做两消融/源字节及全pose恢复后2370/168再过，删临时早检脚本不留重复步骤。9392旧身份核中，256（115P2/141P3）；完整Standing最终惯性/缓存转发资格及Grounded包装仍开，不把Details请求直接当主惯性请求。截图0、性能暂停。
+
+
+  - 完成/Gate：`target/bf144/407/summary.json`通过。18 Stop/240 Standing普通pose全由自主子pose和ordered stack生成，214主直传、26主/4子转场；2370全骨TQS+168曲线原native精确，输入/输出/空子机资格齐。五批原native约31秒各成功；首恢复set遍历重排曲线控制号的审计错误已定位：稳定键排序，仅末批以新文件重跑30.994秒，原记录保留、240主/18子pose字节与排序前一致；稳定原生全过后再做去归一/颠倒pose两消融，分别首Standing20/root及pelvis失败，字节恢复后全2370/168精确。删临时早检脚本避免重复步骤。9451身份旧9392全保持、114 ALS/184生产Rust/reader/转换器/原资产/冻结rlib不变，256（115P2/141P3），无新D。仅源普通状态pose完整，最终Standing惯性请求/skip-cache转发与Grounded封装、实际角色/target最终pose尚未闭合；下一按该请求资格→Grounded Base/Transition Slot→Layering/Root/Feet/属性。截图0、性能暂停。开始19:40:21；预估结束20:00:21；实际结束19:47:05；实耗404秒；偏差-796秒；结果完整普通Stop/Main pose生产Gate通过。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D258 / P3 — View半转在坐标符号转换后未保持源规范表示，Head选择相反初始转向。
@@ -5271,3 +5281,5 @@ BF144-D61 已撤销（2026-10-14底层source复核）：初版oracle误认为`FR
   - BF144.405当前边界：Idle参数生命周期/四曲线键及160输入、两Plant158骨native/归一消融字节恢复/9357身份通过，256（115P2/141P3）。下一两Plant三枝mesh layer和曲线→Stop/Main/完整Base/Root/Feet/属性；截图0、性能暂停。
 
   - BF144.406当前边界：双Plant18状态pose/1422骨36曲线/独立mask与root权重、两因素消融恢复/9392身份通过，256（115P2/141P3）。下一Stop/Main普通pose与Standing惯性，再完整Base/Root/Feet/属性；截图0、性能暂停。
+
+  - BF144.407当前边界：18 Stop/240 Main普通pose、2370骨168曲线全native/两消融恢复/稳定编号修复/9451身份通过，256（115P2/141P3）。下一Standing惯性请求资格/Grounded Base，再完整Slot/Root/Feet/属性；截图0、性能暂停。
