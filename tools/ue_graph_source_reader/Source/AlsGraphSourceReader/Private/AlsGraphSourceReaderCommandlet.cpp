@@ -11,6 +11,7 @@
 #include "Math/ControlRigMathLibrary.h"
 #include "AlphaBlend.h"
 #include "Curves/CurveFloat.h"
+#include "Curves/CurveVector.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimSync.h"
@@ -3495,12 +3496,30 @@ TSharedPtr<FJsonObject> CaptureBlendProfileProbe(UObject* Asset, const FString& 
         if (Profile == nullptr || Profile->Mode != EBlendProfileMode::WeightFactor || ModeValue == INDEX_NONE) { return nullptr; }
         const EAlphaBlendOption Mode = static_cast<EAlphaBlendOption>(ModeValue);
         UCurveFloat* CustomCurve = nullptr;
+        UObject* CurveSource = nullptr;
+        const FRichCurve* SampleCurve = nullptr;
+        int32 CurveAxis = INDEX_NONE;
+        if ((*Sample)->HasField(TEXT("custom_curve_axis")))
+        {
+            FString CurvePath;
+            double Axis;
+            if (Mode != EAlphaBlendOption::Linear || !(*Sample)->TryGetStringField(TEXT("custom_curve"), CurvePath) ||
+                !(*Sample)->HasTypedField<EJson::Number>(TEXT("custom_curve_axis")) || !(*Sample)->TryGetNumberField(TEXT("custom_curve_axis"), Axis) ||
+                !FMath::IsFinite(Axis) || Axis < 0 || Axis > 2 || Axis != FMath::FloorToDouble(Axis)) { return nullptr; }
+            UCurveVector* VectorCurve = LoadObject<UCurveVector>(nullptr, *CurvePath);
+            if (VectorCurve == nullptr) { return nullptr; }
+            CurveAxis = static_cast<int32>(Axis);
+            CurveSource = VectorCurve;
+            SampleCurve = &VectorCurve->FloatCurves[CurveAxis];
+        }
         if (Mode == EAlphaBlendOption::Custom)
         {
             FString CurvePath;
             if (!(*Sample)->TryGetStringField(TEXT("custom_curve"), CurvePath)) { return nullptr; }
             CustomCurve = LoadObject<UCurveFloat>(nullptr, *CurvePath);
             if (CustomCurve == nullptr) { return nullptr; }
+            CurveSource = CustomCurve;
+            SampleCurve = &CustomCurve->FloatCurve;
         }
         FAlphaBlend Blend;
         Blend.SetBlendTime(static_cast<float>(Duration));
@@ -3621,17 +3640,33 @@ TSharedPtr<FJsonObject> CaptureBlendProfileProbe(UObject* Asset, const FString& 
         }
         TSharedRef<FJsonObject> Row = MakeShared<FJsonObject>();
         Row->SetStringField(TEXT("name"), Name);
-        if (CustomCurve != nullptr)
+        if (SampleCurve != nullptr)
         {
-            Row->SetStringField(TEXT("custom_curve"), CustomCurve->GetPathName());
+            Row->SetStringField(TEXT("custom_curve"), CurveSource->GetPathName());
+            if (CurveAxis != INDEX_NONE)
+            {
+                Row->SetNumberField(TEXT("custom_curve_axis"), CurveAxis);
+                Row->SetStringField(TEXT("custom_curve_class"), ObjectPath(CurveSource->GetClass()));
+                Row->SetBoolField(TEXT("custom_curve_applied_to_blend"), false);
+                Row->SetNumberField(TEXT("custom_curve_pre_extrap"), static_cast<int32>(SampleCurve->PreInfinityExtrap));
+                Row->SetNumberField(TEXT("custom_curve_post_extrap"), static_cast<int32>(SampleCurve->PostInfinityExtrap));
+            }
             TArray<TSharedPtr<FJsonValue>> Keys;
-            for (const FRichCurveKey& Key : CustomCurve->FloatCurve.GetConstRefOfKeys())
+            for (const FRichCurveKey& Key : SampleCurve->GetConstRefOfKeys())
             {
                 TSharedRef<FJsonObject> Entry = MakeShared<FJsonObject>();
                 Entry->SetNumberField(TEXT("time"), Key.Time);
                 Entry->SetNumberField(TEXT("value"), Key.Value);
                 Entry->SetNumberField(TEXT("arrive_tangent"), Key.ArriveTangent);
                 Entry->SetNumberField(TEXT("leave_tangent"), Key.LeaveTangent);
+                if (CurveAxis != INDEX_NONE)
+                {
+                    Entry->SetNumberField(TEXT("interp_mode"), static_cast<int32>(Key.InterpMode));
+                    Entry->SetNumberField(TEXT("tangent_mode"), static_cast<int32>(Key.TangentMode));
+                    Entry->SetNumberField(TEXT("weight_mode"), static_cast<int32>(Key.TangentWeightMode));
+                    Entry->SetNumberField(TEXT("arrive_weight"), Key.ArriveTangentWeight);
+                    Entry->SetNumberField(TEXT("leave_weight"), Key.LeaveTangentWeight);
+                }
                 Keys.Add(MakeShared<FJsonValueObject>(Entry));
             }
             Row->SetArrayField(TEXT("custom_curve_keys"), Keys);
@@ -3639,7 +3674,7 @@ TSharedPtr<FJsonObject> CaptureBlendProfileProbe(UObject* Asset, const FString& 
         if ((*Sample)->HasField(TEXT("custom_curve_times")))
         {
             const TArray<TSharedPtr<FJsonValue>>* Times = nullptr;
-            if (CustomCurve == nullptr || !(*Sample)->TryGetArrayField(TEXT("custom_curve_times"), Times) || Times->IsEmpty() || Times->Num() > 600) { return nullptr; }
+            if (SampleCurve == nullptr || !(*Sample)->TryGetArrayField(TEXT("custom_curve_times"), Times) || Times->IsEmpty() || Times->Num() > 600) { return nullptr; }
             TArray<TSharedPtr<FJsonValue>> Values;
             for (const TSharedPtr<FJsonValue>& TimeValue : *Times)
             {
@@ -3648,7 +3683,7 @@ TSharedPtr<FJsonObject> CaptureBlendProfileProbe(UObject* Asset, const FString& 
                 const float NativeTime = static_cast<float>(Time);
                 TSharedRef<FJsonObject> CurveSample = MakeShared<FJsonObject>();
                 CurveSample->SetNumberField(TEXT("time"), NativeTime);
-                CurveSample->SetNumberField(TEXT("value"), CustomCurve->GetFloatValue(NativeTime));
+                CurveSample->SetNumberField(TEXT("value"), SampleCurve->Eval(NativeTime));
                 Values.Add(MakeShared<FJsonValueObject>(CurveSample));
             }
             Row->SetArrayField(TEXT("custom_curve_time_samples"), Values);
