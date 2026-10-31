@@ -20,19 +20,19 @@ if ($CaptureCount -lt 0 -or $CaptureIntervalSeconds -le 0 -or $MaxFrameP95Ms -le
 }
 
 $workspaceRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$evidenceRoot = [IO.Path]::GetFullPath((Join-Path $workspaceRoot "target/animation_visual"))
+$evidenceRoot = [IO.Path]::GetFullPath((Join-Path $workspaceRoot "docs/audit"))
 $candidate = if ($OutputDirectory) {
     [IO.Path]::GetFullPath((Join-Path $workspaceRoot $OutputDirectory))
 } else {
-    [IO.Path]::GetFullPath((Join-Path $evidenceRoot $Case))
+    [IO.Path]::GetFullPath((Join-Path $evidenceRoot "animation_visual/$Case"))
 }
 $rootPrefix = $evidenceRoot + [IO.Path]::DirectorySeparatorChar
 $comparison = if ($IsWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
 if (-not $candidate.StartsWith($rootPrefix, $comparison)) {
-    throw "OutputDirectory must stay under target/animation_visual."
+    throw "OutputDirectory must stay under docs/audit."
 }
 if (Test-Path -LiteralPath $candidate) {
-    Remove-Item -LiteralPath $candidate -Recurse -Force
+    throw "Evidence output directory already exists. Select a new OutputDirectory."
 }
 New-Item -ItemType Directory -Path $candidate -Force | Out-Null
 
@@ -77,7 +77,7 @@ try {
     } else {
         Remove-Item Env:ALS_MANUAL_INTEGRATION_FRAME_HITCH_SECS -ErrorAction SilentlyContinue
     }
-    $env:ALS_ANIMATION_VISUAL_EVIDENCE_DIR = $candidate
+    $env:ALS_ANIMATION_VISUAL_EVIDENCE_DIR = [IO.Path]::GetRelativePath($workspaceRoot, $candidate)
     $env:ALS_ANIMATION_VISUAL_CAPTURE_COUNT = $CaptureCount.ToString([Globalization.CultureInfo]::InvariantCulture)
     $env:ALS_ANIMATION_VISUAL_CAPTURE_INTERVAL_SECS = $CaptureIntervalSeconds.ToString([Globalization.CultureInfo]::InvariantCulture)
     $env:ALS_ANIMATION_VISUAL_MAX_FRAME_P95_MS = $MaxFrameP95Ms.ToString([Globalization.CultureInfo]::InvariantCulture)
@@ -99,7 +99,7 @@ try {
             frame_delta_seconds = if ($FrameDeltaSeconds -gt 0) { $FrameDeltaSeconds } else { $null }
             frame_hitch_seconds = if ($FrameHitchSeconds -gt 0) { $FrameHitchSeconds } else { $null }
             manual_exit_code = $manualExitCode
-            report_path = $reportPath
+            report_path = [IO.Path]::GetRelativePath($workspaceRoot, $reportPath)
             report_exists = Test-Path -LiteralPath $reportPath -PathType Leaf
             validation_exit_code = $null
             validation_scope = if ($FunctionalOnly) { "functional" } else { "full" }
