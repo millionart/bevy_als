@@ -1,0 +1,5 @@
+{
+  "gate": "PASS_OPTIONAL_FIELD_ONLY_AND_EXACT_NATIVE_RESTORATION",
+  "old_fields_entirely_unchanged": true,
+  "seven_new_stage_packets_restored_exact": true
+}

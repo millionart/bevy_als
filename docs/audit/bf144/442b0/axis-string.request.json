@@ -1,0 +1,20 @@
+{
+  "samples": [
+    {
+      "name": "forward",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "move_input": {
+        "yaw_degrees": 0,
+        "axes": [
+          "0",
+          1
+        ]
+      }
+    }
+  ]
+}

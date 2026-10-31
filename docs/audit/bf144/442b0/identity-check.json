@@ -1,0 +1,12 @@
+{
+  "gate": "PASS_EXPLICIT_DIAGNOSTIC_READER_IDENTITY_MIGRATION",
+  "base_current_identity_files": 396,
+  "unchanged_base_keys": 395,
+  "changed_base_key": "tools/ue_graph_source_reader/Source/AlsGraphSourceReader/Private/AlsGraphSourceReaderCommandlet.cpp",
+  "explicit_reader_package_and_documentation_migrations": 4,
+  "production_als_engine_converter_assets_and_six_libraries_unchanged": true,
+  "source_bytes_equal_rebuilt_package": true,
+  "new_test_sha256": "409d79d67dba6df85af74ccab57867b3e5d56e6587795d3c572b16542381a4e8",
+  "source_algorithm_reference_sha256": "4ace2c024b4c3c7ff6fb89b6f72eecdbc7c482f1720538880e78849bfb4db519",
+  "source_input_handler_sha256": "bcfacb62ffc48eb77937c4c9a74ac68d49d8b5a9d687374530c0e72f406cb833"
+}

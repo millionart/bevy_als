@@ -109,4 +109,6 @@ BlendList请求可选`two_way: {child, property}`，从当前AnimBP CDO复制指
 
 `RigNodeHistoryProbe` 的 frame 可选 `mesh_to_world` 使用 `translation_cm[3]`、`rotation[4]`、`scale[3]`；提供时在同一 mesh 的本帧 Node.Update/Evaluate 前通过公开 SetComponentToWorld 设置缓存，保留原 quaternion 数值，不经过普通 SetWorldTransform 的 Rotator 往返，省略时保持当前变换（旧请求始终为identity）。提供字段的帧导出实际 `mesh_to_world`，执行事件另导出 `rig_to_world`，必须同时核对组件与真正的执行上下文，不能只检查请求值或pose。`tools/tests/test_rig_node_world_transform.py` 保留缺字段、未更新组件与未更新上下文的反例；无字段请求的旧输出合同保持。
 
+`GeometryQueryProbe` 的可选 `move_input: {yaw_degrees, axes: [x,y]}` 按已核实的源输入算法，调用 Core FMath/FVector API，读取2D clamp、float角度/弧度与SinCos方向、double世界输入和CMC的`GetClampedToMaxSize(1)`阶段。它不调用角色输入事件、不创建或驱动角色，也不模拟相机选择；yaw与axes必须为有限JSON数字，yaw转float后也须有限。输出只在请求含该字段时新增，旧样本保持原样；用`tests/test_movement_input_math_probe.py --input <output.json>`或`--self-test`校验数值合同。
+
 `GeometryQueryProbe` 的可选 `foot_lock_rotation` 数值样本消费 `rotation_xyzw`、目标 `target_rotation_xyzw` 和 `[0,180]` 的 `limit_degrees`。它按源脚锁末段保留 double quaternion 差、FQuat4f twist/角度/轴角与最终 double 乘法，不额外归一化。`tests/test_foot_lock_rotation_probe.py` 校验必需输出和非法 schema；旧样本不含该字段时不进入新增分支。

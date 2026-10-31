@@ -1050,6 +1050,38 @@ TSharedPtr<FJsonObject> CaptureGeometryQueryProbe(const FString& RequestPath)
             Sample->SetNumberField(TEXT("scaled_distance"), Value);
             Sample->SetNumberField(TEXT("scaled_distance_float"), static_cast<float>(Value));
         }
+        if ((*Input)->HasField(TEXT("move_input")))
+        {
+            const TSharedPtr<FJsonObject>* Movement = nullptr;
+            const TArray<TSharedPtr<FJsonValue>>* AxisValues = nullptr;
+            TArray<double> Axes;
+            double Yaw;
+            if (!(*Input)->TryGetObjectField(TEXT("move_input"), Movement) ||
+                !(*Movement)->HasTypedField<EJson::Number>(TEXT("yaw_degrees")) || !(*Movement)->TryGetNumberField(TEXT("yaw_degrees"), Yaw) ||
+                !FMath::IsFinite(static_cast<float>(Yaw)) || !ReadArray(*Movement, TEXT("axes"), Axes, 2) ||
+                !(*Movement)->TryGetArrayField(TEXT("axes"), AxisValues) ||
+                (*AxisValues)[0]->Type != EJson::Number || (*AxisValues)[1]->Type != EJson::Number) { return nullptr; }
+            const float FloatYaw = static_cast<float>(Yaw);
+            const float Radians = FMath::DegreesToRadians(FloatYaw);
+            FVector2D ClampedAxes(Axes[0], Axes[1]);
+            const double MagnitudeSquared = ClampedAxes.SizeSquared();
+            if (MagnitudeSquared > 1.0) { ClampedAxes *= FMath::InvSqrt(MagnitudeSquared); }
+            float Sin, Cos;
+            FMath::SinCos(&Sin, &Cos, Radians);
+            const FVector Forward(Cos, Sin, 0.0f);
+            const FVector Right(-Sin, Cos, 0.0f);
+            const FVector WorldInput = Forward * ClampedAxes.Y + Right * ClampedAxes.X;
+            TSharedRef<FJsonObject> Value = MakeShared<FJsonObject>();
+            Value->SetNumberField(TEXT("yaw_degrees_float"), FloatYaw);
+            Value->SetNumberField(TEXT("yaw_radians_float"), Radians);
+            Value->SetNumberField(TEXT("clamped_x"), ClampedAxes.X);
+            Value->SetNumberField(TEXT("clamped_y"), ClampedAxes.Y);
+            Value->SetObjectField(TEXT("forward"), CaptureVector(Forward));
+            Value->SetObjectField(TEXT("right"), CaptureVector(Right));
+            Value->SetObjectField(TEXT("world_input"), CaptureVector(WorldInput));
+            Value->SetObjectField(TEXT("cmc_input"), CaptureVector(WorldInput.GetClampedToMaxSize(1.0f)));
+            Sample->SetObjectField(TEXT("move_input"), Value);
+        }
         if ((*Input)->HasField(TEXT("float_range_map")))
         {
             const TSharedPtr<FJsonObject>* Mapping = nullptr;

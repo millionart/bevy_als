@@ -1,0 +1,189 @@
+{
+  "native_source_move_input_samples": 7,
+  "precise_source_stage_contract": true,
+  "gate": "PASS_NATIVE_SOURCE_MOVE_INPUT_STAGES",
+  "source_stage_values": {
+    "forward": {
+      "yaw_degrees_float": 0,
+      "yaw_radians_float": 0,
+      "clamped_x": 0,
+      "clamped_y": 1,
+      "forward": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "right": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "world_input": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "cmc_input": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      }
+    },
+    "right": {
+      "yaw_degrees_float": 0,
+      "yaw_radians_float": 0,
+      "clamped_x": 1,
+      "clamped_y": 0,
+      "forward": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "right": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "world_input": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "cmc_input": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      }
+    },
+    "diagonal": {
+      "yaw_degrees_float": 0,
+      "yaw_radians_float": 0,
+      "clamped_x": 0.7071067811865475,
+      "clamped_y": 0.7071067811865475,
+      "forward": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "right": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "world_input": {
+        "x": 0.7071067811865475,
+        "y": 0.7071067811865475,
+        "z": 0
+      },
+      "cmc_input": {
+        "x": 0.7071067811865475,
+        "y": 0.7071067811865475,
+        "z": 0
+      }
+    },
+    "over": {
+      "yaw_degrees_float": 0,
+      "yaw_radians_float": 0,
+      "clamped_x": 1,
+      "clamped_y": 0,
+      "forward": {
+        "x": 1,
+        "y": 0,
+        "z": 0
+      },
+      "right": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "world_input": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "cmc_input": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      }
+    },
+    "zero": {
+      "yaw_degrees_float": 37,
+      "yaw_radians_float": 0.6457718014717102,
+      "clamped_x": 0,
+      "clamped_y": 0,
+      "forward": {
+        "x": 0.7986355423927307,
+        "y": 0.6018149852752686,
+        "z": 0
+      },
+      "right": {
+        "x": -0.6018149852752686,
+        "y": 0.7986355423927307,
+        "z": 0
+      },
+      "world_input": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "cmc_input": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    "yaw45": {
+      "yaw_degrees_float": 45,
+      "yaw_radians_float": 0.7853981852531433,
+      "clamped_x": 0,
+      "clamped_y": 1,
+      "forward": {
+        "x": 0.7071067094802856,
+        "y": 0.7071067690849304,
+        "z": 0
+      },
+      "right": {
+        "x": -0.7071067690849304,
+        "y": 0.7071067094802856,
+        "z": 0
+      },
+      "world_input": {
+        "x": 0.7071067094802856,
+        "y": 0.7071067690849304,
+        "z": 0
+      },
+      "cmc_input": {
+        "x": 0.7071067094802856,
+        "y": 0.7071067690849304,
+        "z": 0
+      }
+    },
+    "analog": {
+      "yaw_degrees_float": -60,
+      "yaw_radians_float": -1.0471975803375244,
+      "clamped_x": 0.2,
+      "clamped_y": 0.3,
+      "forward": {
+        "x": 0.4999999403953552,
+        "y": -0.866025447845459,
+        "z": 0
+      },
+      "right": {
+        "x": 0.866025447845459,
+        "y": 0.4999999403953552,
+        "z": 0
+      },
+      "world_input": {
+        "x": 0.3232050716876984,
+        "y": -0.15980764627456662,
+        "z": 0
+      },
+      "cmc_input": {
+        "x": 0.3232050716876984,
+        "y": -0.15980764627456662,
+        "z": 0
+      }
+    }
+  }
+}

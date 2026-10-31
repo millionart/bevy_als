@@ -1,0 +1,7 @@
+{
+  "attempt": "no-clamp-build",
+  "result": "compile rejected",
+  "reason": "Replacing the clamp branch with constant false triggered the existing unreachable-code error policy",
+  "correction": "Remove the clamp calculation and its unused magnitude variable instead of retaining unreachable code",
+  "native_gate_claimed_for_failed_build": false
+}
