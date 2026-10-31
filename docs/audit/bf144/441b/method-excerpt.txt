@@ -1,0 +1,31 @@
+impl HermiteCurve {
+    pub fn sample(&self, time: f32) -> f32 {
+        let Some(first) = self.keys.first() else {
+            return 0.0;
+        };
+        let Some(last) = self.keys.last() else {
+            return 0.0;
+        };
+        if time <= first.time {
+            return first.value;
+        }
+        if time >= last.time {
+            return last.value;
+        }
+        let upper = self.keys.partition_point(|key| key.time <= time);
+        let start = self.keys[upper - 1];
+        let end = self.keys[upper];
+        let duration = (end.time - start.time).max(f32::EPSILON);
+        let normalized = ((time - start.time) / duration).clamp(0.0, 1.0);
+        let normalized_squared = normalized * normalized;
+        let normalized_cubed = normalized_squared * normalized;
+        let h00 = 2.0 * normalized_cubed - 3.0 * normalized_squared + 1.0;
+        let h10 = normalized_cubed - 2.0 * normalized_squared + normalized;
+        let h01 = -2.0 * normalized_cubed + 3.0 * normalized_squared;
+        let h11 = normalized_cubed - normalized_squared;
+        h00 * start.value
+            + h10 * duration * start.leave_tangent
+            + h01 * end.value
+            + h11 * duration * end.arrive_tangent
+    }
+}

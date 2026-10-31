@@ -1,0 +1,37 @@
+{
+  "gate": "PASS_RAW_KEY_FIT_DATA_AND_NATIVE_UNIT_STAGE_DISTINCTIONS",
+  "unchanged_target_method_compiled_as_standalone_excerpt": true,
+  "full_target_runtime_or_deleted_rlib_equivalence_claimed": false,
+  "data_only_samples": [
+    {
+      "gait": 2.125,
+      "current_acceleration_si": 15.977025985717773,
+      "raw_key_only_acceleration_si": 15.97702693939209
+    },
+    {
+      "gait": 2.25,
+      "current_acceleration_si": 12.924788475036621,
+      "raw_key_only_acceleration_si": 12.924789428710938
+    }
+  ],
+  "unit_only_native_controls": [
+    {
+      "gait": 1.1131258010864258,
+      "same_native_lerp_alpha": 0.11312580108642578,
+      "native_cm_lerp": 1471.718505859375,
+      "native_si_lerp": 14.717185974121094,
+      "cm_lerp_then_si_f32": 14.717185020446777,
+      "unchanged_target_hermite_si": 14.717185974121094
+    },
+    {
+      "gait": 1.7916673421859741,
+      "same_native_lerp_alpha": 0.7916673421859741,
+      "native_cm_lerp": 1302.0831298828125,
+      "native_si_lerp": 13.020832061767578,
+      "cm_lerp_then_si_f32": 13.020831108093262,
+      "unchanged_target_hermite_si": 13.020832061767578
+    }
+  ],
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}

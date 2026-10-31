@@ -1,0 +1,6659 @@
+{
+  "gate": "PASS_NEW_SOURCE240_PARAMETERS_NATIVE_CURVES_FIT_AND_CONTINUITY",
+  "native_curve_samples_exact": 81,
+  "native_parameter_frames_exact": 240,
+  "movement_schema": {
+    "movement_snapshots": 481,
+    "continuous_before_after_fields_exact": true
+  },
+  "vector_schema": {
+    "axes": 3,
+    "exact_numeric_keys_modes_and_native_times": true
+  },
+  "schema_self_tests": {
+    "movement": {
+      "self_test": "PASS",
+      "invalid_movement_packets_and_requests_rejected": 12
+    },
+    "vector": {
+      "self_test": "PASS",
+      "invalid_vector_axis_contracts_rejected": 7
+    }
+  },
+  "fit": {
+    "native_leave_tangent_cm": -3642.3720703125,
+    "native_leave_tangent_si_f32": -36.42372131347656,
+    "fitted_from_fullprecision_native_samples_cm": [
+      -3642.3723958333335,
+      -0.0
+    ],
+    "fitted_leave_tangent_si_f32": -36.42372512817383,
+    "target_literal_si_f32": -36.42372512817383
+  },
+  "source_keys": [
+    [
+      {
+        "time": 0,
+        "value": 2000,
+        "arrive_tangent": 0,
+        "leave_tangent": 0,
+        "interp_mode": 0,
+        "tangent_mode": 0,
+        "weight_mode": 0,
+        "arrive_weight": 0,
+        "leave_weight": 0
+      },
+      {
+        "time": 1,
+        "value": 2000,
+        "arrive_tangent": 0,
+        "leave_tangent": 0,
+        "interp_mode": 0,
+        "tangent_mode": 0,
+        "weight_mode": 0,
+        "arrive_weight": 0,
+        "leave_weight": 0
+      },
+      {
+        "time": 2,
+        "value": 2000,
+        "arrive_tangent": 0,
+        "leave_tangent": -3642.3720703125,
+        "interp_mode": 2,
+        "tangent_mode": 2,
+        "weight_mode": 0,
+        "arrive_weight": 0,
+        "leave_weight": 0
+      },
+      {
+        "time": 3,
+        "value": 750,
+        "arrive_tangent": 0,
+        "leave_tangent": 0,
+        "interp_mode": 0,
+        "tangent_mode": 0,
+        "weight_mode": 0,
+        "arrive_weight": 0,
+        "leave_weight": 0
+      }
+    ],
+    [
+      {
+        "time": 0,
+        "value": 1500,
+        "arrive_tangent": 0,
+        "leave_tangent": 0,
+        "interp_mode": 0,
+        "tangent_mode": 0,
+        "weight_mode": 0,
+        "arrive_weight": 0,
+        "leave_weight": 0
+      },
+      {
+        "time": 1,
+        "value": 1500,
+        "arrive_tangent": 0,
+        "leave_tangent": 0,
+        "interp_mode": 0,
+        "tangent_mode": 0,
+        "weight_mode": 0,
+        "arrive_weight": 0,
+        "leave_weight": 0
+      },
+      {
+        "time": 2,
+        "value": 1250,
+        "arrive_tangent": 0,
+        "leave_tangent": 0,
+        "interp_mode": 0,
+        "tangent_mode": 0,
+        "weight_mode": 0,
+        "arrive_weight": 0,
+        "leave_weight": 0
+      },
+      {
+        "time": 3,
+        "value": 500,
+        "arrive_tangent": 0,
+        "leave_tangent": 0,
+        "interp_mode": 0,
+        "tangent_mode": 0,
+        "weight_mode": 0,
+        "arrive_weight": 0,
+        "leave_weight": 0
+      }
+    ],
+    [
+      {
+        "time": 0,
+        "value": 5,
+        "arrive_tangent": 0,
+        "leave_tangent": 0,
+        "interp_mode": 0,
+        "tangent_mode": 0,
+        "weight_mode": 0,
+        "arrive_weight": 0,
+        "leave_weight": 0
+      },
+      {
+        "time": 1,
+        "value": 5,
+        "arrive_tangent": 0,
+        "leave_tangent": 0,
+        "interp_mode": 0,
+        "tangent_mode": 0,
+        "weight_mode": 0,
+        "arrive_weight": 0,
+        "leave_weight": 0
+      },
+      {
+        "time": 2,
+        "value": 4,
+        "arrive_tangent": 0,
+        "leave_tangent": 0,
+        "interp_mode": 0,
+        "tangent_mode": 0,
+        "weight_mode": 0,
+        "arrive_weight": 0,
+        "leave_weight": 0
+      },
+      {
+        "time": 3,
+        "value": 0.5,
+        "arrive_tangent": 0,
+        "leave_tangent": 0,
+        "interp_mode": 0,
+        "tangent_mode": 0,
+        "weight_mode": 0,
+        "arrive_weight": 0,
+        "leave_weight": 0
+      }
+    ]
+  ],
+  "parameter_frames": [
+    {
+      "frame": 0,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 1,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 2,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 3,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 4,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 5,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 6,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 7,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 8,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 9,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 10,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 11,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 12,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 13,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 14,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 15,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 16,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 17,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 18,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 19,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 20,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 66.66667014360428,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 21,
+      "before_velocity_cm_s": {
+        "x": 66.66667014360428,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 133.33334055542946,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.3809524178504944,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1500.0,
+        5.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 22,
+      "before_velocity_cm_s": {
+        "x": 133.33334055542946,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 200.00001119077209,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.7619048357009888,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1500.0,
+        5.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 23,
+      "before_velocity_cm_s": {
+        "x": 200.00001119077209,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 266.66668199542914,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 1.1250001192092896,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1468.75,
+        4.875
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1468.75
+    },
+    {
+      "frame": 24,
+      "before_velocity_cm_s": {
+        "x": 266.66668199542914,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 333.33335289844405,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 1.4583334922790527,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1385.4166259765625,
+        4.541666507720947
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1385.4166259765625
+    },
+    {
+      "frame": 25,
+      "before_velocity_cm_s": {
+        "x": 333.33335289844405,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 1.7916667461395264,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1302.083251953125,
+        4.2083330154418945
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1302.083251953125
+    },
+    {
+      "frame": 26,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 27,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 28,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 29,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 30,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 31,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 32,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 374.9999999999996,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 33,
+      "before_velocity_cm_s": {
+        "x": 374.9999999999996,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 34,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 35,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 36,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 37,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 38,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 39,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 40,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 41,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 42,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 43,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 44,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 45,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 46,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 47,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 48,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 49,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 50,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 51,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 52,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 53,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 54,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 55,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 56,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 57,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 58,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 59,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 60,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 333.33333116024704,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 61,
+      "before_velocity_cm_s": {
+        "x": 333.33333116024704,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 289.93055383151255,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 1.7916667461395264,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1302.083251953125,
+        4.2083330154418945
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1302.083251953125
+    },
+    {
+      "frame": 62,
+      "before_velocity_cm_s": {
+        "x": 289.93055383151255,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 244.7193250738235,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 1.5746526718139648,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1356.3367919921875,
+        4.425347328186035
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1356.3367919921875
+    },
+    {
+      "frame": 63,
+      "before_velocity_cm_s": {
+        "x": 244.7193250738235,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 197.62429494835595,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 1.3485966920852661,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1412.850830078125,
+        4.651403427124023
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1412.850830078125
+    },
+    {
+      "frame": 64,
+      "before_velocity_cm_s": {
+        "x": 197.62429494835595,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 148.56697224007794,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 1.113121509552002,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1471.7196044921875,
+        4.886878490447998
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1471.7196044921875
+    },
+    {
+      "frame": 65,
+      "before_velocity_cm_s": {
+        "x": 148.56697224007794,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 98.56696963237545,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.8489541411399841,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1500.0,
+        5.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 66,
+      "before_velocity_cm_s": {
+        "x": 98.56696963237545,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 48.56696702467124,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.5632398128509521,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1500.0,
+        5.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 67,
+      "before_velocity_cm_s": {
+        "x": 48.56696702467124,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.27752551436424255,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1500.0,
+        5.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 68,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 69,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 70,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 71,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 72,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 73,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 74,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 75,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 76,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 77,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 78,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 79,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 80,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 81,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 82,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 83,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 84,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 85,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 86,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 87,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 88,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 89,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 90,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 91,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 92,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 93,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 94,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 95,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 96,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 97,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 98,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 99,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 100,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 101,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 102,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 103,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 104,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 105,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 106,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 107,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 108,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 109,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 110,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 111,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 112,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 113,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 114,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 115,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 116,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 117,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 118,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 119,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 120,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 66.66667014360334,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 121,
+      "before_velocity_cm_s": {
+        "x": 66.66667014360334,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 133.33334055543028,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.3809524178504944,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1500.0,
+        5.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 122,
+      "before_velocity_cm_s": {
+        "x": 133.33334055543028,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 200.00001119077123,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.7619048357009888,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1500.0,
+        5.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 123,
+      "before_velocity_cm_s": {
+        "x": 200.00001119077123,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 266.6666819954283,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 1.1250001192092896,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1468.75,
+        4.875
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1468.75
+    },
+    {
+      "frame": 124,
+      "before_velocity_cm_s": {
+        "x": 266.6666819954283,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 333.3333528984437,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 1.4583334922790527,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1385.4166259765625,
+        4.541666507720947
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1385.4166259765625
+    },
+    {
+      "frame": 125,
+      "before_velocity_cm_s": {
+        "x": 333.3333528984437,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 1.7916667461395264,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1302.083251953125,
+        4.2083330154418945
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1302.083251953125
+    },
+    {
+      "frame": 126,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 127,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 128,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 129,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 130,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 131,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 132,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 133,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 134,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 135,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 136,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 137,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 138,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 139,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 140,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 141,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 142,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 143,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 144,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 145,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 146,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 147,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 148,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 149,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 150,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 151,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 152,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 153,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 154,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 155,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 156,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 157,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 158,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 159,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 2000,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 160,
+      "before_velocity_cm_s": {
+        "x": 375,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 333.33333116024704,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 2.0,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1250.0,
+        4.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1250
+    },
+    {
+      "frame": 161,
+      "before_velocity_cm_s": {
+        "x": 333.33333116024704,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 289.93055383151255,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 1.7916667461395264,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1302.083251953125,
+        4.2083330154418945
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1302.083251953125
+    },
+    {
+      "frame": 162,
+      "before_velocity_cm_s": {
+        "x": 289.93055383151255,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 244.7193250738235,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 1.5746526718139648,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1356.3367919921875,
+        4.425347328186035
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1356.3367919921875
+    },
+    {
+      "frame": 163,
+      "before_velocity_cm_s": {
+        "x": 244.7193250738235,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 197.62429494835595,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 1.3485966920852661,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1412.850830078125,
+        4.651403427124023
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1412.850830078125
+    },
+    {
+      "frame": 164,
+      "before_velocity_cm_s": {
+        "x": 197.62429494835595,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 148.56697224007624,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 1.113121509552002,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1471.7196044921875,
+        4.886878490447998
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1471.7196044921875
+    },
+    {
+      "frame": 165,
+      "before_velocity_cm_s": {
+        "x": 148.56697224007624,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 98.56696963237545,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.8489541411399841,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1500.0,
+        5.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 166,
+      "before_velocity_cm_s": {
+        "x": 98.56696963237545,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 48.56696702467465,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.5632398128509521,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1500.0,
+        5.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 167,
+      "before_velocity_cm_s": {
+        "x": 48.56696702467465,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.27752551436424255,
+      "curve_values_cm_s2_and_friction": [
+        2000.0,
+        1500.0,
+        5.0
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 168,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 169,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 170,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 171,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 172,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 173,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 174,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 175,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 176,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 177,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 178,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 179,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 180,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 181,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 182,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 183,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 184,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 185,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 186,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 187,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 188,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 189,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 190,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 191,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 192,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 193,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 194,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 195,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 196,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 197,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 198,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 199,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 200,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 201,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 202,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 203,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 204,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 205,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 206,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 207,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 208,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 209,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 210,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 211,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 212,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 213,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 214,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 215,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 216,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 217,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 218,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 219,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 220,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 221,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 222,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 223,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 224,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 225,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 226,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 227,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 228,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 229,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 230,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 231,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 232,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 233,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 234,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 235,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 236,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 237,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 238,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    },
+    {
+      "frame": 239,
+      "before_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "after_velocity_cm_s": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "gait_amount": 0.0,
+      "curve_values_cm_s2_and_friction": [
+        2000,
+        1500,
+        5
+      ],
+      "cached_max_acceleration_cm_s2": 2000,
+      "applied_acceleration_cm_s2": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "native_anim_max_acceleration_cm_s2": 2000,
+      "native_anim_braking_cm_s2": 1500
+    }
+  ],
+  "source_runtime": "new controlled diagnostic source world; not a recovery of the deleted prior Root or target240 traces",
+  "old12018_identity_files": "missing",
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}
