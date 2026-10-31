@@ -1,0 +1,7 @@
+{
+  "original_manual_playground_sha256": "e31547dfd6fd94cc8cb571c1d1ced35cd6791e64a49546fc31f7802dff38a3b7",
+  "movement_input_selection_source": "AlsCharacterExample.Input_OnMove and PlayerController.GetPlayerViewPoint; target locomotion_drive_system",
+  "observer_fields_added": "actual PlayerViewYaw, current camera yaw, effective input, direction recomputation, camera after PostUpdate",
+  "source_parameter_or_direction_data_injected": false,
+  "original_scene_retained": true
+}
