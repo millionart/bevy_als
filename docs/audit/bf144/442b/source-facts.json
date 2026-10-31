@@ -1,0 +1,84 @@
+[
+  {
+    "key": "source:Source/ALS/Public/Utility/AlsVector.h",
+    "sha256": "4ace2c024b4c3c7ff6fb89b6f72eecdbc7c482f1720538880e78849bfb4db519",
+    "ranges": [
+      {
+        "start": 114,
+        "end": 158,
+        "text": "inline FVector2D UAlsVector::ClampMagnitude012D(const FVector2D Vector)\n{\n\tconst auto MagnitudeSquared{Vector.SizeSquared()};\n\n\tif (MagnitudeSquared <= 1.0f)\n\t{\n\t\treturn Vector;\n\t}\n\n\tconst auto Scale{FMath::InvSqrt(MagnitudeSquared)};\n\n\treturn {Vector.X * Scale, Vector.Y * Scale};\n}\n\ninline FVector2D UAlsVector::RadianToDirection(const float Radian)\n{\n\tfloat Sin, Cos;\n\tFMath::SinCos(&Sin, &Cos, Radian);\n\n\treturn {Cos, Sin};\n}\n\ninline FVector UAlsVector::RadianToDirectionXY(const float Radian)\n{\n\tfloat Sin, Cos;\n\tFMath::SinCos(&Sin, &Cos, Radian);\n\n\treturn {Cos, Sin, 0.0f};\n}\n\ninline FVector2D UAlsVector::AngleToDirection(const float Angle)\n{\n\treturn RadianToDirection(FMath::DegreesToRadians(Angle));\n}\n\ninline FVector UAlsVector::AngleToDirectionXY(const float Angle)\n{\n\treturn RadianToDirectionXY(FMath::DegreesToRadians(Angle));\n}\n\ninline double UAlsVector::DirectionToAngle(FVector2D Direction)\n{\n\treturn FMath::RadiansToDegrees(FMath::Atan2(Direction.Y, Direction.X));\n}\n"
+      }
+    ]
+  },
+  {
+    "key": "source:Source/ALSExtras/Private/AlsCharacterExample.cpp",
+    "sha256": "bcfacb62ffc48eb77937c4c9a74ac68d49d8b5a9d687374530c0e72f406cb833",
+    "ranges": [
+      {
+        "start": 141,
+        "end": 158,
+        "text": "void AAlsCharacterExample::Input_OnMove(const FInputActionValue& ActionValue)\n{\n\tconst auto Value{UAlsVector::ClampMagnitude012D(ActionValue.Get<FVector2D>())};\n\n\tauto ViewRotation{GetViewState().Rotation};\n\n\tif (IsValid(GetController()))\n\t{\n\t\t// Use exact camera rotation instead of target rotation whenever possible.\n\n\t\tFVector ViewLocation;\n\t\tGetController()->GetPlayerViewPoint(ViewLocation, ViewRotation);\n\t}\n\n\tconst auto ForwardDirection{UAlsVector::AngleToDirectionXY(UE_REAL_TO_FLOAT(ViewRotation.Yaw))};\n\tconst auto RightDirection{UAlsVector::PerpendicularCounterClockwiseXY(ForwardDirection)};\n\n\tAddMovementInput(ForwardDirection * Value.Y + RightDirection * Value.X);"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Core/Public/Math/UnrealMathUtility.h",
+    "sha256": "5de791d27c8980841817894c1d16751570360c7ad3c811e780f4ef25fe39ec66",
+    "ranges": [
+      {
+        "start": 129,
+        "end": 153,
+        "text": "#define UE_PI \t\t\t\t\t(3.1415926535897932f)\t/* Extra digits if needed: 3.1415926535897932384626433832795f */\n#define UE_SMALL_NUMBER\t\t\t(1.e-8f)\n#define UE_KINDA_SMALL_NUMBER\t(1.e-4f)\n#define UE_BIG_NUMBER\t\t\t(3.4e+38f)\n#define UE_EULERS_NUMBER\t\t(2.71828182845904523536f)\n#define UE_GOLDEN_RATIO\t\t\t(1.6180339887498948482045868343656381f)\t/* Also known as divine proportion, golden mean, or golden section - related to the Fibonacci Sequence = (1 + sqrt(5)) / 2 */\n#define UE_FLOAT_NON_FRACTIONAL (8388608.f) /* All single-precision floating point numbers greater than or equal to this have no fractional value. */\n\n\n#define UE_DOUBLE_PI\t\t\t\t\t(3.141592653589793238462643383279502884197169399)\n#define UE_DOUBLE_SMALL_NUMBER\t\t\t(1.e-8)\n#define UE_DOUBLE_KINDA_SMALL_NUMBER\t(1.e-4)\n#define UE_DOUBLE_BIG_NUMBER\t\t\t(3.4e+38)\n#define UE_DOUBLE_EULERS_NUMBER\t\t\t(2.7182818284590452353602874713526624977572)\n#define UE_DOUBLE_GOLDEN_RATIO\t\t\t(1.6180339887498948482045868343656381)\t/* Also known as divine proportion, golden mean, or golden section - related to the Fibonacci Sequence = (1 + sqrt(5)) / 2 */\n#define UE_DOUBLE_NON_FRACTIONAL\t\t(4503599627370496.0) /* All double-precision floating point numbers greater than or equal to this have no fractional value. 2^52 */\n\n// Copied from float.h\n#define UE_MAX_FLT 3.402823466e+38F\n\n// Aux constants.\n#define UE_INV_PI\t\t\t(0.31830988618f)\n#define UE_HALF_PI\t\t\t(1.57079632679f)\n#define UE_TWO_PI\t\t\t(6.28318530717f)\n#define UE_PI_SQUARED\t\t(9.86960440108f)"
+      },
+      {
+        "start": 760,
+        "end": 798,
+        "text": "\tstatic constexpr inline void SinCos(std::decay_t<T>* ScalarSin, std::decay_t<T>* ScalarCos, T  Value )\n\t{\n\t\t// Map Value to y in [-pi,pi], x = 2*pi*quotient + remainder.\n\t\tT quotient = (UE_INV_PI*0.5f)*Value;\n\t\tif (Value >= 0.0f)\n\t\t{\n\t\t\tquotient = (T)((int64)(quotient + 0.5f));\n\t\t}\n\t\telse\n\t\t{\n\t\t\tquotient = (T)((int64)(quotient - 0.5f));\n\t\t}\n\t\tT y = Value - UE_TWO_PI * quotient;\n\n\t\t// Map y to [-pi/2,pi/2] with sin(y) = sin(Value).\n\t\tT sign;\n\t\tif (y > UE_HALF_PI)\n\t\t{\n\t\t\ty = UE_PI - y;\n\t\t\tsign = -1.0f;\n\t\t}\n\t\telse if (y < -UE_HALF_PI)\n\t\t{\n\t\t\ty = -UE_PI - y;\n\t\t\tsign = -1.0f;\n\t\t}\n\t\telse\n\t\t{\n\t\t\tsign = +1.0f;\n\t\t}\n\n\t\tT y2 = y * y;\n\n\t\t// 11-degree minimax approximation\n\t\t*ScalarSin = ( ( ( ( (-2.3889859e-08f * y2 + 2.7525562e-06f) * y2 - 0.00019840874f ) * y2 + 0.0083333310f ) * y2 - 0.16666667f ) * y2 + 1.0f ) * y;\n\n\t\t// 10-degree minimax approximation\n\t\tT p = ( ( ( ( -2.6051615e-07f * y2 + 2.4760495e-05f ) * y2 - 0.0013888378f ) * y2 + 0.041666638f ) * y2 - 0.5f ) * y2 + 1.0f;\n\t\t*ScalarCos = sign*p;"
+      }
+    ]
+  },
+  {
+    "key": "Engine/Source/Runtime/Core/Public/Math/Vector.h",
+    "sha256": "7d4cd34ca16daa42ff0f75ba0f0bbc9a22babf338a8426ad836a03766702c567",
+    "ranges": [
+      {
+        "start": 1903,
+        "end": 1923,
+        "text": "template<typename T>\ninline TVector<T> TVector<T>::GetClampedToMaxSize(T MaxSize) const\n{\n    if (MaxSize < UE_KINDA_SMALL_NUMBER)\n    {\n        return ZeroVector;\n    }\n\n    const T VSq = SizeSquared();\n    if (VSq > FMath::Square(MaxSize))\n    {\n        const T Scale = MaxSize * FMath::InvSqrt(VSq);\n        return TVector<T>(X*Scale, Y*Scale, Z*Scale);\n    }\n    else\n    {\n        return *this;\n    }\t\n}\n\ntemplate<typename T>"
+      }
+    ]
+  },
+  {
+    "key": "tools/import/coordinate_basis.py",
+    "sha256": "cdb545e870644e1756b210f9bede438dc6d9b3bd918638b07be5bce9e7d894d9",
+    "ranges": [
+      {
+        "start": 1,
+        "end": 45,
+        "text": "import argparse\nimport math\n\n\nSOURCE_LENGTH_TO_RUNTIME_SCALE = 0.01\n\n\ndef source_point_to_runtime(values):\n    return [\n        values[0] * SOURCE_LENGTH_TO_RUNTIME_SCALE,\n        values[2] * SOURCE_LENGTH_TO_RUNTIME_SCALE,\n        values[1] * SOURCE_LENGTH_TO_RUNTIME_SCALE,\n    ]\n\n\ndef runtime_point_to_source(values):\n    return [\n        values[0] / SOURCE_LENGTH_TO_RUNTIME_SCALE,\n        values[2] / SOURCE_LENGTH_TO_RUNTIME_SCALE,\n        values[1] / SOURCE_LENGTH_TO_RUNTIME_SCALE,\n    ]\n\n\ndef source_direction_to_runtime(values):\n    return [values[0], values[2], values[1]]\n\n\ndef runtime_direction_to_source(values):\n    return [values[0], values[2], values[1]]\n\n\ndef source_heading_yaw_degrees_to_runtime(value):\n    return -float(value)\n\n\ndef runtime_heading_yaw_degrees_to_source(value):\n    return -float(value)\n\n\ndef source_rotation_to_runtime(values):\n    return [-values[0], -values[2], -values[1], values[3]]\n\n\ndef runtime_rotation_to_source(values):\n    return [-values[0], -values[2], -values[1], values[3]]"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/movement/motion.rs",
+    "sha256": "7c980f50430fbbd5fdea582e946f686f52f931de4b649a4217870fe5bf810c2a",
+    "ranges": [
+      {
+        "start": 204,
+        "end": 216,
+        "text": "pub fn view_relative_move_axes(move_dir: Vec2, view_yaw: f32) -> Vec2 {\n    let (sin, cos) = view_yaw.sin_cos();\n    Vec2::new(\n        cos * move_dir.x - sin * move_dir.y,\n        sin * move_dir.x + cos * move_dir.y,\n    )\n}\n\npub fn view_relative_move_direction(move_dir: Vec2, view_yaw: f32) -> Vec3 {\n    let axes = view_relative_move_axes(move_dir, view_yaw);\n    Vec3::new(axes.x, 0.0, -axes.y).normalize_or_zero()\n}\n"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/movement/dynamics.rs",
+    "sha256": "c4012c45ae1cafc2ef5e7839907cb995ef0d2e7187ff3eb109aaa6e45159765b",
+    "ranges": [
+      {
+        "start": 156,
+        "end": 190,
+        "text": "pub fn grounded_velocity_step_with_braking_friction(\n    velocity: Vec3,\n    desired_motion: Vec3,\n    max_speed: f32,\n    dynamics: GroundedDynamics,\n    min_analog_walk_speed: f32,\n    braking_friction_factor: f32,\n    braking_substep_time: f32,\n    delta_seconds: f32,\n) -> Vec3 {\n    let horizontal_velocity = Vec3::new(velocity.x, 0.0, velocity.z);\n    let desired_horizontal = Vec3::new(desired_motion.x, 0.0, desired_motion.z);\n    let desired_amount = desired_horizontal.length().min(1.0);\n    let speed = horizontal_velocity.length();\n    let delta_seconds = delta_seconds.max(0.0);\n    if delta_seconds < MIN_MOVEMENT_DELTA_SECONDS { return horizontal_velocity; }\n    let acceleration = desired_horizontal.clamp_length_max(1.0) * dynamics.acceleration.max(0.0);\n    let has_acceleration = acceleration != Vec3::ZERO;\n    let analog_modifier = if has_acceleration && dynamics.acceleration > MAX_ACCELERATION_MIN_FOR_ANALOG_MODIFIER { desired_amount } else { 0.0 };\n    let target_speed = analog_target_speed(max_speed, analog_modifier, min_analog_walk_speed);\n    let overspeed = horizontal_velocity.length_squared() > target_speed * target_speed * MAX_SPEED_SQUARED_RATIO;\n    let acceleration_direction = if acceleration.length_squared() < PHYSICAL_VECTOR_MIN_LENGTH_SQUARED {\n        Vec3::ZERO\n    } else {\n        acceleration.normalize_or_zero()\n    };\n    let mut next = horizontal_velocity;\n    if !has_acceleration || overspeed {\n        let friction = dynamics.ground_friction.max(0.0) * braking_friction_factor.max(0.0);\n        let deceleration = dynamics.braking_deceleration.max(0.0);\n        if friction > 0.0 || deceleration > 0.0 {\n            let reverse_acceleration = -horizontal_velocity.normalize_or_zero() * deceleration;\n            let mut remaining = delta_seconds;\n            let max_step = braking_substep_time.clamp(1.0 / 75.0, 1.0 / 20.0);\n            while remaining >= MIN_MOVEMENT_DELTA_SECONDS {"
+      }
+    ]
+  }
+]

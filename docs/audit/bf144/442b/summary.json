@@ -1,0 +1,179 @@
+{
+  "gate": "PASS_NATIVE317_INPUT_PRODUCERS_THREE_BOUNDARIES_AND_BYTE_RESTORATION",
+  "native_source_angle_clamp_trig_world_and_cmc_stages_exact": 317,
+  "shared_operator_cases": 77,
+  "actual_input_camera_cases": 240,
+  "same_angle_trig_raw_difference_cases": 43,
+  "same_native_vector_extra_norm_minimum": {
+    "actual_consumers": null,
+    "common_radian_runtime_yaw": -0.7853981852531433,
+    "current_public_plan": [
+      0.4714045822620392,
+      0.0,
+      0.4714045822620392
+    ],
+    "current_target_cached_acceleration": [
+      14.142136573791504,
+      0.0,
+      14.142136573791504
+    ],
+    "independent_full_source_cmc_double": [
+      0.7071067094802856,
+      0.0,
+      0.7071067690849304
+    ],
+    "name": "45:1",
+    "native_cmc_projected": [
+      0.7071067094802856,
+      0.0,
+      0.7071067690849304
+    ],
+    "native_input_public_plan": [
+      0.471404492855072,
+      0.0,
+      0.4714045524597168
+    ],
+    "native_raw_projected": [
+      0.7071067094802856,
+      0.0,
+      0.7071067690849304
+    ],
+    "native_trig_raw_f32_with_source_clamp": [
+      0.7071067094802856,
+      0.0,
+      0.7071067690849304
+    ],
+    "no_extra_norm_public_plan": [
+      0.471404492855072,
+      0.0,
+      0.4714045524597168
+    ],
+    "physical_protocol_current": [
+      0.7071068286895752,
+      0.0,
+      0.7071068286895752
+    ],
+    "physical_protocol_current_cmc": [
+      0.7071068286895752,
+      0.0,
+      0.7071068286895752
+    ],
+    "physical_protocol_runtime_yaw": -2.356194496154785,
+    "same_native_input_cached_acceleration": [
+      14.142133712768555,
+      0.0,
+      14.142135620117188
+    ],
+    "same_raw_extra_norm_cached_acceleration": [
+      14.142135620117188,
+      0.0,
+      14.142136573791504
+    ],
+    "same_raw_extra_norm_double_projected": [
+      0.7071067690849304,
+      0.0,
+      0.7071068286895752
+    ],
+    "same_raw_extra_norm_public_plan": [
+      0.4714045524597168,
+      0.0,
+      0.4714045822620392
+    ],
+    "same_raw_normalized": [
+      0.7071067690849304,
+      0.0,
+      0.7071068286895752
+    ],
+    "same_raw_normalized_cmc": [
+      0.7071067690849304,
+      0.0,
+      0.7071068286895752
+    ],
+    "same_raw_without_extra_norm_cmc": [
+      0.7071067094802856,
+      0.0,
+      0.7071067690849304
+    ],
+    "shared_current": [
+      0.7071068286895752,
+      0.0,
+      0.7071068286895752
+    ],
+    "shared_current_cmc": [
+      0.7071068286895752,
+      0.0,
+      0.7071068286895752
+    ],
+    "source": {
+      "clamped_x": 0,
+      "clamped_y": 1,
+      "cmc_input": {
+        "x": 0.7071067094802856,
+        "y": 0.7071067690849304,
+        "z": 0
+      },
+      "forward": {
+        "x": 0.7071067094802856,
+        "y": 0.7071067690849304,
+        "z": 0
+      },
+      "right": {
+        "x": -0.7071067690849304,
+        "y": 0.7071067094802856,
+        "z": 0
+      },
+      "world_input": {
+        "x": 0.7071067094802856,
+        "y": 0.7071067690849304,
+        "z": 0
+      },
+      "yaw_degrees_float": 45,
+      "yaw_radians_float": 0.7853981852531433
+    },
+    "source_input": {
+      "axes": [
+        0,
+        1
+      ],
+      "yaw_degrees": 45
+    },
+    "source_minimax_pair": [
+      0.7071067690849304,
+      0.7071067094802856
+    ],
+    "source_producer_all_stages_native_exact": true,
+    "standard_trig_raw_with_source_clamp": [
+      0.7071067690849304,
+      0.0,
+      0.7071067690849304
+    ],
+    "standard_trig_without_extra_norm_public_plan": [
+      0.4714045524597168,
+      0.0,
+      0.4714045524597168
+    ]
+  },
+  "actual_physical_protocol_direction_difference_frames": [
+    21,
+    22
+  ],
+  "actual_public_plan_angular_difference_frames": [
+    22
+  ],
+  "actual_plan_other_frame_cancels": [
+    21
+  ],
+  "three_ablations_have_expected_failed_or_lost_signals": true,
+  "source_bytes_restored_same_target_recompiled_complete317_bytes_exact": true,
+  "remaining_after_removing_extra_norm_source_diagonal_clamp_input_width": "known D266; identical wide clamp changes only projected input",
+  "live_body_feedback_or_full_root_recovery_claimed": false,
+  "parent442_cold_and_no_camera_fallback_lifecycles": "unverified",
+  "new_differences": [
+    "D269/P3",
+    "D270/P3",
+    "D271/P3"
+  ],
+  "confirmed_active_differences": 268,
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}

@@ -1,0 +1,53 @@
+{
+  "gate": "PASS_KNOWN_D266_INPUT_STATE_PRECISION_AT_INPUT_CMC_CLAMP",
+  "cases": [
+    {
+      "name": "60:3",
+      "original_double_input": [
+        -0.2588191184052155,
+        0,
+        0.9659258152980659
+      ],
+      "early_f32_input": [
+        -0.2588191330432892,
+        0.0,
+        0.9659258127212524
+      ],
+      "same_wide_clamp_original": [
+        -0.2588191032409668,
+        0.0,
+        0.9659258127212524
+      ],
+      "same_wide_clamp_projected": [
+        -0.2588191330432892,
+        0.0,
+        0.9659258127212524
+      ]
+    },
+    {
+      "name": "-60:3",
+      "original_double_input": [
+        0.9659258152980659,
+        0,
+        -0.2588191184052155
+      ],
+      "early_f32_input": [
+        0.9659258127212524,
+        0.0,
+        -0.2588191330432892
+      ],
+      "same_wide_clamp_original": [
+        0.9659258127212524,
+        0.0,
+        -0.2588191032409668
+      ],
+      "same_wide_clamp_projected": [
+        0.9659258127212524,
+        0.0,
+        -0.2588191330432892
+      ]
+    }
+  ],
+  "same_double_clamp_algorithm_held": true,
+  "full_target_operator_or_world_feedback_recovery_claimed": false
+}

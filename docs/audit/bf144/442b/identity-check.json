@@ -1,0 +1,9 @@
+{
+  "gate": "PASS_DIRECTION_INPUT_SOURCE_AND_LIBRARY_IDENTITIES",
+  "current_base_files_unchanged": 396,
+  "reader_migration_from_442b0_respected": true,
+  "same_six_actual_libraries_unchanged": true,
+  "source_fact_units": 7,
+  "matrix_final_source_sha256": "91cf18b5ebcf53e319d1cf1589e2115b90a50d80cbac71ce1435dada40b54fe1",
+  "matrix_source_bytes_restored": true
+}
