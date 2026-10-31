@@ -1,0 +1,26 @@
+{
+  "target_game/play/deps/libbevy-3f57af887873d0e5.rlib": {
+    "sha256": "f3fb19e4248af1b03b78147af00dcdd98d672a7adef9771fb7d57d475fd9907a",
+    "bytes": 43296
+  },
+  "target_game/play/deps/libbevy_als-270e35f3aeb4cff1.rlib": {
+    "sha256": "17dfd231f2d8186765c379b622d727df559de2a9050b665f12bdb0ac2d2c3606",
+    "bytes": 185792272
+  },
+  "target_game/play/deps/libavian3d-1c19543b594f285b.rlib": {
+    "sha256": "b895ca843536957bf027950c25abee03f56e0048bd6c84f6886ce2a586fbf772",
+    "bytes": 58203264
+  },
+  "target_game/play/deps/libbevy_tnua-a06315be21315ca5.rlib": {
+    "sha256": "ba6b6e499c3771d4826d81586455f5a1ad1b2a8f947aa45d6f6da13b142c6eda",
+    "bytes": 2433192
+  },
+  "target_game/play/deps/libbevy_animation_graph-e0b7092ecacf7117.rlib": {
+    "sha256": "d0583d0b65066552949cd057059d1cfee78b5bcc5777cc9419eee69d1a9bfb8a",
+    "bytes": 226976
+  },
+  "target_game/play/deps/libserde_json-a998c55209bc4613.rlib": {
+    "sha256": "2a332915e985e130cafba2e4dbe75e56f8ea146cf7d1ae9f18529afa2c985610",
+    "bytes": 2660776
+  }
+}

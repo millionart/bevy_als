@@ -1,0 +1,58 @@
+{
+  "gate": "PASS_INDEPENDENT_SOURCE_TARGET240_PARAMETERS_AND_ACTUAL_PLAN_CONSUMERS",
+  "source_actual_actor_parameter_frames": 240,
+  "target_actual_original_playground_parameter_frames": 240,
+  "source_target_own_parameter_difference_counts": [
+    0,
+    13,
+    14
+  ],
+  "own_trajectories_or_world_origins_equal_claimed": false,
+  "target_public_gait_dynamics_plan_and_steps_all240_exact": true,
+  "source_order_only_current_plan_frames": [
+    124
+  ],
+  "curve_unit_stage_only_current_plan_frames": [
+    63
+  ],
+  "raw_key_only_current_plan_frames": [],
+  "expanded_key_controls_changed": 2,
+  "native_same_vector_lengths": 240,
+  "native_gait_range_controls": 720,
+  "length_stage_only_gait_rows": 1,
+  "mapping_units_only_gait_rows": 77,
+  "combined_common_gait_difference_rows": 76,
+  "current_vertical_component_gait_signal": 0,
+  "current_cached_acceleration_and_profile_difference_signal": 0,
+  "startup_scope": "functional",
+  "startup_full_performance_pass": false,
+  "previous12018_identity_chain": "missing; current source396 and rebuilt six libraries separately bound",
+  "identity": {
+    "gate": "PASS_CURRENT_SOURCE_IDENTITIES_UNCHANGED_AND_REBUILT_READER_BOUND",
+    "current_files": 396,
+    "als_source_files": 114,
+    "target_rust_files": 184,
+    "converter_files": 84,
+    "all_current_source_inputs_unchanged": true,
+    "reader_source_equals_package": true,
+    "reader_dylib_sha256": "6a1232ac5c741b1fe2a14fcb6e063cad8e2e6f69350542343e74a88102f92bbf",
+    "previous12018_identity_chain": "missing; not revalidated",
+    "full_target_game_or_frozen_rlib": "rebuilt and separately bound; previous ignored seal not claimed"
+  },
+  "controls": {
+    "gate": "PASS_THREE_PARAMETER_FACTOR_ABLATIONS_AND_SAME_TARGET_BYTE_RESTORATION",
+    "unit_stage_removal_loses_frame63_signal": true,
+    "key_control_removal_loses_two_controls_and_preserves_unit_signal": true,
+    "source_order_removal_loses_frame124_signal_and_preserves_native_endpoint": true,
+    "final_source_bytes_restored": true,
+    "same_target_recompiled": true,
+    "complete240_outputs_and_controls_restored_byte_exact": true
+  },
+  "remaining": [
+    "Original source/target physical displacement and velocity feedback under declared common world/input conditions",
+    "Actual target desired-motion direction producer before current common-vector plan controls",
+    "Continuous complete Root and remaining clock/relevance/nonzero-view/custom-attribute closure"
+  ],
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}

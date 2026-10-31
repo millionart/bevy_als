@@ -1,0 +1,12 @@
+{
+  "gate": "PASS_CURRENT_SOURCE_IDENTITIES_UNCHANGED_AND_REBUILT_READER_BOUND",
+  "current_files": 396,
+  "als_source_files": 114,
+  "target_rust_files": 184,
+  "converter_files": 84,
+  "all_current_source_inputs_unchanged": true,
+  "reader_source_equals_package": true,
+  "reader_dylib_sha256": "6a1232ac5c741b1fe2a14fcb6e063cad8e2e6f69350542343e74a88102f92bbf",
+  "previous12018_identity_chain": "missing; not revalidated",
+  "full_target_game_or_frozen_rlib": "rebuilt and separately bound; previous ignored seal not claimed"
+}

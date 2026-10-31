@@ -1,0 +1,9 @@
+{
+  "gate": "PASS_THREE_PARAMETER_FACTOR_ABLATIONS_AND_SAME_TARGET_BYTE_RESTORATION",
+  "unit_stage_removal_loses_frame63_signal": true,
+  "key_control_removal_loses_two_controls_and_preserves_unit_signal": true,
+  "source_order_removal_loses_frame124_signal_and_preserves_native_endpoint": true,
+  "final_source_bytes_restored": true,
+  "same_target_recompiled": true,
+  "complete240_outputs_and_controls_restored_byte_exact": true
+}
