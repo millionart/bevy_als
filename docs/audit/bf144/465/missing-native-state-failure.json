@@ -1,0 +1,7 @@
+{
+  "gate": "REJECTED_MISSING_UNREFLECTED_NATIVE_FFLOATSPRINGSTATE",
+  "original_reader_fields": [],
+  "first_failure": "FFloatSpringState fields are empty; dynamic previous target, velocity and validity cannot be inferred from reflection",
+  "process_exit_code": 1,
+  "resolution": "BF144.465a strict opt-in actual native state getter"
+}
