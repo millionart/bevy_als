@@ -1,0 +1,6 @@
+{
+  "gate": "PASS_COMPLETE_LEGACY240_CHARACTER_PROBE_EXACT",
+  "current_report": "legacy.native.json.gz",
+  "old_report": "docs/audit/bf144/445a/legacy.native.json.gz",
+  "complete_character_probe_exact": true
+}

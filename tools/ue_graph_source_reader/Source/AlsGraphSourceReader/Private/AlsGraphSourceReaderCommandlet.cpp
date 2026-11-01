@@ -4485,7 +4485,20 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
         bool bDynamicBase;
         if (!CaseValue->TryGetObject(Case) || !(*Case)->TryGetStringField(TEXT("name"), Name) || Name.IsEmpty() ||
             !(*Case)->TryGetBoolField(TEXT("dynamic_base"), bDynamicBase) || !(*Case)->TryGetNumberField(TEXT("spawn_height_cm"), Height) || !FMath::IsFinite(Height) || Height <= 0 ||
-            !(*Case)->TryGetArrayField(TEXT("frames"), Frames) || Frames->IsEmpty() || Frames->Num() > 240) { return nullptr; }
+            !(*Case)->TryGetArrayField(TEXT("frames"), Frames) || Frames->IsEmpty() || Frames->Num() > 318) { return nullptr; }
+        FVector2D SpawnXY = FVector2D::ZeroVector;
+        double SpawnYaw = 0;
+        if ((*Case)->HasField(TEXT("spawn_xy_cm")))
+        {
+            const TArray<TSharedPtr<FJsonValue>>* XY = nullptr;
+            if (!(*Case)->TryGetArrayField(TEXT("spawn_xy_cm"), XY) || XY->Num() != 2 ||
+                (*XY)[0]->Type != EJson::Number || (*XY)[1]->Type != EJson::Number) { return nullptr; }
+            SpawnXY = FVector2D((*XY)[0]->AsNumber(), (*XY)[1]->AsNumber());
+            if (!FMath::IsFinite(SpawnXY.X) || !FMath::IsFinite(SpawnXY.Y)) { return nullptr; }
+        }
+        if ((*Case)->HasField(TEXT("spawn_yaw_degrees")) &&
+            (!(*Case)->HasTypedField<EJson::Number>(TEXT("spawn_yaw_degrees")) ||
+                !(*Case)->TryGetNumberField(TEXT("spawn_yaw_degrees"), SpawnYaw) || !FMath::IsFinite(SpawnYaw))) { return nullptr; }
         bool bLocalController = false;
         if ((*Case)->HasField(TEXT("local_controller")) &&
             (!(*Case)->TryGetBoolField(TEXT("local_controller"), bLocalController) || (*Case)->TryGetField(TEXT("local_controller"))->Type != EJson::Boolean)) { return nullptr; }
@@ -4513,7 +4526,7 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
         Floor->AddInstanceComponent(Box);
         Box->SetMobility(bDynamicBase ? EComponentMobility::Movable : EComponentMobility::Static);
         Box->SetBoxExtent(FVector(1500, 1500, 50));
-        Box->SetWorldLocation(FVector(0, 0, -50));
+        Box->SetWorldLocation(FVector(SpawnXY.X, SpawnXY.Y, -50));
         Box->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
         Box->SetCollisionResponseToAllChannels(ECR_Block);
         Box->GetBodySetup()->CollisionTraceFlag = CTF_UseSimpleAsComplex;
@@ -4598,7 +4611,7 @@ TSharedPtr<FJsonObject> CaptureCharacterAnimationProbe(UObject* Asset, const FSt
                 ObservedRootNode = Root;
             });
         }
-        ACharacter* Character = World->SpawnActor<ACharacter>(Class, FVector(0, 0, Height), FRotator::ZeroRotator, Spawn);
+        ACharacter* Character = World->SpawnActor<ACharacter>(Class, FVector(SpawnXY.X, SpawnXY.Y, Height), FRotator(0, SpawnYaw, 0), Spawn);
         if (Character == nullptr) { return nullptr; }
         AGameModeBase* ControllerGameMode = nullptr;
         APlayerController* Controller = nullptr;

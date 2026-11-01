@@ -1,0 +1,5 @@
+{
+  "expected_rejection": "Initial yaw no longer matches the requested source pose",
+  "stderr": "Traceback (most recent call last):\n  File \"docs/audit/bf144/446b/check.py\", line 43, in <module>\n    result=validate(data)\n           ^^^^^^^^^^^^^^\n  File \"docs/audit/bf144/446b/check.py\", line 29, in validate\n    assert f32(control['yaw'])==f32(request['spawn_yaw_degrees'])\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n",
+  "independent_floor_witness": "ablation-witnesses.json"
+}

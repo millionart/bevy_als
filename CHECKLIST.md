@@ -3840,6 +3840,13 @@
   - .446a时间/复盘：开始2026-11-01 16:59:46 +0800；预估结束17:19:46；实际结束17:32:16，实耗32:30、偏差+12:30，在20分钟容差内，结果PASS实际输入资格。首估20分钟少计avatar归属/serde-tag纠正和源零初始化阶段复盘，避免误报首帧丢时钟；纯构建/场景仍热路径，后续初态任务应先核Source init快照/计数语义与组件归属，再以本次约33分钟估，不把思考/诊断时间排除。父完整目标不变。
   - 父.446 17:32:16 轮1末复盘/轮2：已耗32:30，源零初始化候选经fresh实际tick排除，剩余已证source frame cap240及固定XY/yaw阻止318相同外部输入史，不能继续用旧请求推断Root。回读source spawn/box/帧验证路径后，独立拆.b最小只读fixture能力（318 cap、可选XY/yaw及同域floor平移）和后继.c实际完整前缀复验；不改生产或重写原native记录。父轮2开始2026-11-01 17:32:16 +0800；按原40分钟×1.5预估结束18:32:16，恰60分钟且已有独立子Gate，子项过即推进，不占满窗口。完整Root/非零view/attributes原总体目标保留，271不变，截图0/性能暂停。
 
+- [x] BF144.446b U07长历史/非零初态原生fixture前置：依赖.a已提交aa0dc147的319查询/318正步与真实TQS，最小扩现CharacterAnimationProbe上限240→318、可选typed spawn_xy_cm与spawn_yaw_degrees；源平面随XY同移以保留既有局部floor域，不改原资产/运动算法/图。Gate：旧318请求拒绝/旧pose字段未消费的直接反例、318原生与远离旧floor的XY/yaw控制、非法上限/尺寸/类型拒绝、必要数据/guard消融、源码bytes恢复同包重编/旧240全character probe精确兼容、reader身份显式迁移与Git证据；不把能力Gate当全部source/target初态逐值或全Root等价。开始2026-11-01 17:33:43 +0800；预估结束17:53:43。依据.445a只读能力16:19、三轮native包热构建38–42秒和native26–39秒，本次增加两个source fixture输入但已有完整319 target数据，估20分钟覆盖能力/边界/消融/旧兼容；父轮2至18:32:16保留，后继.c才核完整318输入史。271不变、截图0/性能暂停。
+
+  - .446b 17:43 baseline能力闭环：旧318请求实际code7，旧远处pose请求虽成功但actor仍原点/identity，两个缺口已封存。扩展后原生318+2正常退出；实际初态(-1500,-1500,91.9999957085)cm/约−45°与远处(4200,-3100,92.15)cm/90°被读取，全部320普通帧均Walking且floor有效。319超限、XY维数1、字符串yaw各实际拒7，3输出负fixture拒；非零yaw仅核native float投影，不冒称source/target quat位模式全等。下一消融保留XY但去yaw/floor平移和typed guard，分别检出orientation/floor/type边界，再按源码SHA恢复同native package重编及旧240兼容；271保持，生产/原资产未修，截图0/性能暂停。
+
+  - .446b Gate完成：`docs/audit/bf144/446b/summary.json` PASS_BOUNDED318_NATIVE_HISTORY_AND_OPTIONAL_INITIAL_POSE_WITH_LEGACY_COMPATIBILITY。旧318实际拒7/旧非零pose忽略已有原始反例；新318+远处控制2步全部Walking/floor有效，319超限/维数1/字符串yaw baseline与restored各拒7，3输出负fixture拒。消融保留XY但orientation回identity、远处actor无floor/Falling，去typed guard使字符串接受0，三独立实际读数保留。源码gzip字节/SHA恢复同native package热构建后完整318+2 character probe精确；旧240整个character probe精确兼容。396身份显式迁移reader一项、其余395及六库不变，六原生报告gzip解压SHA/67份Git证据封存。新增0、271保持，未声称source/target全部参数或quat位模式匹配；父完整318历史/Root需.c继续，截图0/性能暂停。
+  - .446b时间/复盘：开始2026-11-01 17:33:43 +0800；预估结束17:53:43；实际结束17:56:38，实耗22:55、偏差+02:55，在20分钟容差内，结果PASS读取能力。旧能力两次真实读取、三轮包热构建约38秒、318读数31–37秒、六非法请求每次26–32秒和无损封存构成主要固定成本；后续同类以约23分钟估并保留完整旧包兼容，不用减少非法边界来赶估时。父轮2至18:32:16仍有效，下一复用已封存318 source数据，不盲目重复native运行。
+
 ### 已确认差异（仅登记，未实施修复）
 
 - [ ] BF144-D274 / P3 — 从含旋转的仿射矩阵重提scale，改变源保存scale及实际floor尺寸。

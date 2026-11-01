@@ -1,0 +1,14 @@
+{
+  "target_report": "docs/audit/bf144/446/runtime-restored/parameters.json",
+  "zero_initialization_query_excluded": true,
+  "positive_frames": 318,
+  "source_point_cm": [
+    -1500.0,
+    -1500.0,
+    91.99999570846558
+  ],
+  "source_yaw_degrees_from_stored_forward": -44.99999765034577,
+  "coordinate_basis": "source X=runtime X; source Y=runtime Z; source Z=runtime Y; directions have no length scaling",
+  "control_yaw_formula": "source_degrees=-runtime_radians*180/pi-90",
+  "full_bitwise_quaternion_or_all_parameters_equivalence_claimed": false
+}

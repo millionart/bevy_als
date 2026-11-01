@@ -1,0 +1,44 @@
+{
+  "ablated-bad-yaw.native.json": {
+    "raw_bytes": 111735003,
+    "raw_sha256": "214f00cfe74bf6ff10d114029f362bafe34f6c11d8f0ec4bef29af44d835d0a4",
+    "gzip_bytes": 8904335,
+    "gzip_sha256": "71aa73a7ca751ad73281c9737bbbd214113cf07d7c2ee07925c84eae072746fd",
+    "round_trip_byte_exact": true
+  },
+  "ablated.native.json": {
+    "raw_bytes": 111734999,
+    "raw_sha256": "46210335a221693e6079f872663db3e8a4fad6c55b611a97a2272984cea4e675",
+    "gzip_bytes": 8904315,
+    "gzip_sha256": "2e57d11e74b8d1ad8422ad44d35d94afb457a8e50065ad406e8400da59175d27",
+    "round_trip_byte_exact": true
+  },
+  "baseline.native.json": {
+    "raw_bytes": 111360713,
+    "raw_sha256": "6a39ae35e50e63d9eaca4d16575a76dc121339394b7fce81c573b2aec22e7591",
+    "gzip_bytes": 8823920,
+    "gzip_sha256": "84715228a91358fdcd205390655196613042086b0f55d4ce5ac4be95443d0650",
+    "round_trip_byte_exact": true
+  },
+  "before-pose.native.json": {
+    "raw_bytes": 10785335,
+    "raw_sha256": "7137a131a2de27f4c867b064d8313e2ba0b5b0ed40c4ec111895ee648be0ad78",
+    "gzip_bytes": 397849,
+    "gzip_sha256": "2244483d5cd8886107e6b3538d923dafb65dcf422a4ed8506beebb899f8b7451",
+    "round_trip_byte_exact": true
+  },
+  "legacy.native.json": {
+    "raw_bytes": 82017798,
+    "raw_sha256": "78b43d2b5e7852761624f51ed0b98a3d13e8c0b9ef3cc4134af972a1c624e926",
+    "gzip_bytes": 6670666,
+    "gzip_sha256": "b191da3b51cba9276a6934165595ad9a23cca1f080409df959083b9bd8f84bda",
+    "round_trip_byte_exact": true
+  },
+  "restored.native.json": {
+    "raw_bytes": 111360721,
+    "raw_sha256": "d4b00487616904028471bece2ce22249055ebb4918f663a4cc4fd5be34523849",
+    "gzip_bytes": 8823901,
+    "gzip_sha256": "d9872b64cf8049d8da111e6057bbaa7a22c9ce2401df7738e5f45b4a84683464",
+    "round_trip_byte_exact": true
+  }
+}

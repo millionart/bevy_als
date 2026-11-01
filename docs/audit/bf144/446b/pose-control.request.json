@@ -1,0 +1,28 @@
+{
+  "gravity_cm_s2": -981,
+  "initial_engine_frame": 100,
+  "capture_asset_player_ticks": true,
+  "cases": [
+    {
+      "name": "far-shifted-floor-and-quarter-turn",
+      "dynamic_base": false,
+      "local_controller": true,
+      "spawn_height_cm": 92.15,
+      "spawn_xy_cm": [
+        4200,
+        -3100
+      ],
+      "spawn_yaw_degrees": 90,
+      "frames": [
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true
+        },
+        {
+          "delta_seconds": 0.03333333507180214,
+          "rendered": true
+        }
+      ]
+    }
+  ]
+}

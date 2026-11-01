@@ -1,0 +1,24 @@
+{
+  "gate": "PASS_BOUNDED318_NATIVE_HISTORY_AND_OPTIONAL_INITIAL_POSE_WITH_LEGACY_COMPATIBILITY",
+  "counts": {
+    "actual_history_frames": 318,
+    "shifted_floor_control_frames": 2,
+    "nonzero_initial_positions_and_yaws_verified": true,
+    "all_actual_frames_walking": true
+  },
+  "old_318_request_rejected": true,
+  "old_initial_pose_ignored": true,
+  "invalid_limit_xy_and_yaw_rejected": true,
+  "negative_output_fixtures_rejected": 3,
+  "yaw_floor_shift_and_typed_guard_ablations_rejected": true,
+  "source_bytes_restored": true,
+  "same_native_package_rebuilt": true,
+  "complete_new_character_probe_restored_exact": true,
+  "old240_complete_character_probe_exact": true,
+  "exact_source_target_quaternion_bits_or_all_parameters_matched_claimed": false,
+  "full_source_target_history_or_root_equivalence_claimed": false,
+  "new_differences": [],
+  "total_confirmed_differences": 271,
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}
