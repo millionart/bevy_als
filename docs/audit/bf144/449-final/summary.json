@@ -1,0 +1,47 @@
+{
+  "gate": "PASS_ACTUAL_FIRST_ROOT_HEIGHT_INPUT_AUDIT_WITH_RECORDED_FLOAT_UNIT_FACTOR",
+  "children": {
+    "449a": {
+      "gate": "PASS_ACTUAL_IDLE_LEAF_PUBLIC_SAMPLER_AND_FRESH_SOURCE_UNIT_ENDPOINTS",
+      "files": 62,
+      "summary_sha256": "f1acef3927973db5f1d3f92c131ebf55ed41f67d456047e22b499229e60abf95",
+      "manifest_sha256": "86ab758c90df569a4d6d70aacd60e6be96762c04f1ed5fc8a5db31ec7c68a2d5"
+    },
+    "449b": {
+      "gate": "PASS_SINGLE_HEIGHT_FLOAT_EXPORT_UNIT_FACTOR_AND_ACTUAL_ROOT_CONSUMERS",
+      "files": 63,
+      "summary_sha256": "15645a8cf9ae686fb7823cc7735a1b9add7212db10129d94885f8a5e9a732d42",
+      "manifest_sha256": "6b13ef81b6cab19fb880fd956939a47c59a2c178c9c7906b0b28453564046bc3"
+    }
+  },
+  "verified_git_child_evidence_files": 125,
+  "verified_fresh_source_evidence_files": 14,
+  "verified_git_evidence_files": 139,
+  "negative_child_scope_and_hash_cases_rejected": 3,
+  "actual_updated_idle_leaf_records": 239,
+  "actual_public_sample_bone_rows": 18881,
+  "baseprovider_first_positive_rows": 98,
+  "source_raw_and_compressed_first_height_equal": true,
+  "source_physical_height": 0.9675060510635376,
+  "target_float_exported_height": 0.9675059914588928,
+  "only_idle_pelvis_y_replaced_in_diagnostic_clone": true,
+  "actual_first_root_y_recovered": true,
+  "route_factor_removed_returns_original_height": true,
+  "once_guard_removal_rejected": true,
+  "finite_423_classification_reopen_closed": true,
+  "new_differences": [
+    "BF144-D275"
+  ],
+  "total_confirmed_differences": 272,
+  "priority_counts": {
+    "P2": 116,
+    "P3": 156
+  },
+  "production_or_original_asset_fixed": false,
+  "all_trajectory_clock_or_pose_differences_attributed": false,
+  "full_root_or_als_equivalence_claimed": false,
+  "next_direct_boundary": "Remaining actual five-boundary bone/curve residuals, including Head additive and Rig inputs; do not assign them all to D224 or D275",
+  "screenshots": 0,
+  "performance_acceptance": "paused",
+  "render_gpu_pass_acceptance": "excluded under explicit peripheral scope"
+}
