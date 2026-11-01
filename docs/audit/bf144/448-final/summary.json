@@ -1,0 +1,56 @@
+{
+  "gate": "PASS_ACTUAL_ROOT_BOUNDARY_AND_CURRENT_ATTRIBUTE_AUDIT_WITH_OPEN_BONE_RESIDUALS",
+  "children": {
+    "448a": {
+      "gate": "PASS_NATIVE318_FIVE_ROOT_POSE_BOUNDARIES_WITH_CURRENT_ATTRIBUTE_AND_LEGACY_CONTROLS",
+      "files": 39,
+      "summary_sha256": "29ce11fe2c43774b826fbe29cfcdf57da76a547990ae704082c00607a89e6008",
+      "manifest_sha256": "9b1a94298a79f35c5c98f0a205e82ac068b26d0b2215b91564131e0e8b355989"
+    },
+    "448b": {
+      "gate": "PASS_ACTUAL319_FIVE_POSE_BOUNDARIES_AND_ROOT_OUTPUT_READONLY_ENTRY",
+      "files": 64,
+      "summary_sha256": "c97c3828d5dfa3fbe8b24248570af31c235c943a883f49808c700436f83bb96f",
+      "manifest_sha256": "7875aa595bd74615b2df056a72a10867939fe227ed1adab767f6d9785a4756e2"
+    },
+    "448c": {
+      "gate": "PASS_FIVE_POSE_RESIDUAL_INVENTORY_WITH_ACTUAL_SCENE_TARGET_PREREQUISITE",
+      "files": 25,
+      "summary_sha256": "8f7a982eef91f9be6a2489f1102e75bc668360fd638b49d814e3c273a141da0d",
+      "manifest_sha256": "3510dba1819cac45759bfaf728311096273d291679aa08f15b6fa014af6ebea8"
+    },
+    "448d": {
+      "gate": "PASS_ACTUAL_SCENE_TARGET_QUALIFICATION_AND_EXTRA_SCALE_CANDIDATE_REJECTION",
+      "files": 60,
+      "summary_sha256": "12132fe9170bef8359ef1e88ec2b045b40be8d433deb77b7e1b2d0fe3ab4fc9d",
+      "manifest_sha256": "e083e48a631c9bf6a9aae2be2d1744d0097d51a0df6a76a035854da3bc4a25ee"
+    }
+  },
+  "verified_git_evidence_files": 188,
+  "negative_child_scope_and_hash_cases_rejected": 3,
+  "native_actual_positive_frames": 318,
+  "target_actual_queries_per_phase": 319,
+  "root_boundary_pairs": 1590,
+  "source_target_bone_pairs": 125610,
+  "native_five_current_boundaries_custom_attributes_empty": true,
+  "target_attribute_absence_only_type_fact": true,
+  "source_raw_root_and_mesh_finalize_stages_separate": true,
+  "default_target_root_equals_root_cache": true,
+  "optional_bone_channels_preserved": true,
+  "extra_scene_root_nonidentity_pose_rows": 44,
+  "extra_scene_root_actual_target_count_zero_all319": true,
+  "extra_scene_root_scale_shrink_candidate_rejected_for_current_apply_chain": true,
+  "new_differences": [],
+  "total_confirmed_differences": 271,
+  "priority_counts": {
+    "P2": 116,
+    "P3": 155
+  },
+  "production_or_source_assets_fixed": false,
+  "all_trajectory_clock_or_pose_differences_attributed": false,
+  "full_root_or_als_equivalence_claimed": false,
+  "next_direct_boundary": "Attribute first actual skeletal Root residual through BaseProviderInput pelvis Y, then actual Head additive and Rig inputs using fresh same-leaf source contracts",
+  "screenshots": 0,
+  "performance_acceptance": "paused",
+  "render_gpu_pass_acceptance": "excluded under explicit peripheral scope"
+}
