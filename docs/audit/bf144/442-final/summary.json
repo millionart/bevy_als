@@ -1,0 +1,61 @@
+{
+  "gate": "PASS_SCOPED_INPUT_DIRECTION_AUDIT_WITH_RECORDED_DIFFERENCES",
+  "children": {
+    "442": {
+      "gate": "PASS_VIEW_SELECTION_PHASE_AND_ACTUAL240_DIRECTION_REPLAY",
+      "files": 39,
+      "summary_sha256": "515c480cf17a081b9e326c236bffbac07c211bdd6b432d65ef1675578fb4c442",
+      "manifest_sha256": "9e88c7d49b992b06eb2db89621779505f5540a638c304d8dc6c1834370425808"
+    },
+    "442b0": {
+      "gate": "PASS_READ_ONLY_NATIVE_MOVE_INPUT_MATH_CAPABILITY",
+      "files": 65,
+      "summary_sha256": "cc91e24558a8324d8cbab119e0b15552810cb674cd6d95c958b3203bbce2d9b5",
+      "manifest_sha256": "b2532c9d98d34a5f7f2a6d7079e153523dca3b8602f5469c9848a6766f7a2249"
+    },
+    "442b": {
+      "gate": "PASS_NATIVE317_INPUT_PRODUCERS_THREE_BOUNDARIES_AND_BYTE_RESTORATION",
+      "files": 60,
+      "summary_sha256": "7bd401367cf41627fbc778e3c5f70509f12c9c15a4a9fb6ac81fc05a29428d68",
+      "manifest_sha256": "24f5748ad769e1ba05d5fba47e08203a5749978af7e57577a0a1c653cfdafb6d"
+    },
+    "442c0": {
+      "gate": "PASS_OPTIONAL_NATIVE_PLAYER_VIEW_CAPTURE_AND_LEGACY240_COMPATIBILITY",
+      "files": 59,
+      "summary_sha256": "c22eec7fb6a23c9db9ba7349e030c446ea9000a69c354aaa66405ba532eb5d68",
+      "manifest_sha256": "aab34f7561f06387cf1d62128c8a18505a3d7f731c8c219bb5d52450668c87be"
+    },
+    "442c1": {
+      "gate": "PASS_REAL_PLAYGROUND_NATURAL_AND_CONTROLLED_VIEW_LIFECYCLE_AND_RESTORATION",
+      "files": 59,
+      "summary_sha256": "514b1695d3730902cf0cab9ba6e0ff4c7e203beae283e226674bc55a44e31722",
+      "manifest_sha256": "9a6bb4b5e6e4a62e560fa073e5e40ba7b26af369810799f7fa2bf06b5681cb6f"
+    },
+    "442c2": {
+      "gate": "PASS_COLD_FALLBACK_SELECTOR_CONTRACT_AND_BYTE_RESTORATION",
+      "files": 31,
+      "summary_sha256": "af733d8746b399f55c0e56f8e7480f350ad50e97b19f4d2c35855401883015cc",
+      "manifest_sha256": "1c0d6c1b766c655e9bb87483dbaf46c5bf4d01fafda9b6d3babc36b329e03105"
+    }
+  },
+  "verified_git_evidence_files": 313,
+  "negative_child_status_and_hash_cases_rejected": 3,
+  "new_differences": [
+    "BF144-D269",
+    "BF144-D270",
+    "BF144-D271",
+    "BF144-D272"
+  ],
+  "differences_fixed": false,
+  "total_confirmed_differences": 269,
+  "priority_counts": {
+    "P2": 116,
+    "P3": 153
+  },
+  "full_als_equivalence_claimed": false,
+  "native_source_warm_lifecycle_claimed": false,
+  "natural_nonzero_cold_input_claimed": false,
+  "full_world_feedback_claimed": false,
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}
