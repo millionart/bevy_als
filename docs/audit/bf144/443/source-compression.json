@@ -1,0 +1,8 @@
+{
+  "raw_sha256": "ba9a257bfa94b3c3258ffab262f8511191f3c91d8df4924c711418fd6a40e0ec",
+  "raw_bytes": 82017794,
+  "gzip_sha256": "812a3a8e069b43ae77c863ef21654b507a8cdeb750be8e654741b3d9f0937e68",
+  "gzip_bytes": 6670672,
+  "source_stage_projection_exact": true,
+  "raw_complete_animation_retained": true
+}

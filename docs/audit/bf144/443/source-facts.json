@@ -1,0 +1,109 @@
+[
+  {
+    "key": "source:ALS/Private/AlsCharacterMovementComponent.cpp",
+    "sha256": "e37d349bc41a5de208cbdd1799c32741cf84aa5bddfe5580906c50f2a6360dda",
+    "excerpts": [
+      {
+        "start": 392,
+        "end": 438,
+        "text": "\t\tconst FFindFloorResult OldFloor = CurrentFloor;\n\n\t\tRestorePreAdditiveRootMotionVelocity();\n\n\t\t// Ensure velocity is horizontal.\n\t\tMaintainHorizontalGroundVelocity();\n\t\tconst FVector OldVelocity = Velocity;\n\t\tAcceleration = FVector::VectorPlaneProject(Acceleration, -GetGravityDirection());\n\n\t\tstatic const auto* EnsureAlwaysEnabledConsoleVariable{\n\t\t\tIConsoleManager::Get().FindConsoleVariable(TEXT(\"p.LedgeMovement.ApplyDirectMove\"))\n\t\t};\n\t\tcheck(EnsureAlwaysEnabledConsoleVariable != nullptr)\n\n\t\t// Apply acceleration\n\t\tconst bool bSkipForLedgeMove = bTriedLedgeMove && EnsureAlwaysEnabledConsoleVariable->GetBool();\n\t\tif( !HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity() && !bSkipForLedgeMove )\n\t\t{\n\t\t\tCalcVelocity(timeTick, GroundFriction, false, GetMaxBrakingDeceleration());\n\t\t\t// devCode(ensureMsgf(!Velocity.ContainsNaN(), TEXT(\"PhysWalking: Velocity contains NaN after CalcVelocity (%s)\\n%s\"), *GetPathNameSafe(this), *Velocity.ToString()));\n\t\t}\n\n\t\tApplyRootMotionToVelocity(timeTick);\n\t\t// devCode(ensureMsgf(!Velocity.ContainsNaN(), TEXT(\"PhysWalking: Velocity contains NaN after Root Motion application (%s)\\n%s\"), *GetPathNameSafe(this), *Velocity.ToString()));\n\n\t\tif (MovementMode != StartingMovementMode || CustomMovementMode != StartingCustomMovementMode)\n\t\t{\n\t\t\t// Root motion could have taken us out of our current mode\n\t\t\t// No movement has taken place this movement tick so we pass on full time/past iteration count\n\t\t\tStartNewPhysics(remainingTime+timeTick, Iterations-1);\n\t\t\treturn;\n\t\t}\n\n\t\t// Compute move parameters\n\t\tconst FVector MoveVelocity = Velocity;\n\t\tconst FVector Delta = timeTick * MoveVelocity;\n\t\tconst bool bZeroDelta = Delta.IsNearlyZero();\n\t\tFStepDownResult StepDownResult;\n\n\t\tif ( bZeroDelta )\n\t\t{\n\t\t\tremainingTime = 0.f;\n\t\t}\n\t\telse\n\t\t{\n\t\t\t// try to move forward\n\t\t\tMoveAlongFloor(MoveVelocity, timeTick, &StepDownResult);"
+      },
+      {
+        "start": 565,
+        "end": 581,
+        "text": "\t\tif (IsMovingOnGround())\n\t\t{\n\t\t\t// Make velocity reflect actual move\n\t\t\tif( !bJustTeleported && !HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity() && timeTick >= MIN_TICK_TIME)\n\t\t\t{\n\t\t\t\t// TODO Start of custom ALS code block.\n\n\t\t\t\tPrePenetrationAdjustmentVelocity = MoveVelocity;\n\t\t\t\tbPrePenetrationAdjustmentVelocityValid = true;\n\n\t\t\t\t// TODO End of custom ALS code block.\n\n\t\t\t\t// TODO-RootMotionSource: Allow this to happen during partial override Velocity, but only set allowed axes?\n\t\t\t\tVelocity = (UpdatedComponent->GetComponentLocation() - OldLocation) / timeTick;\n\t\t\t\tMaintainHorizontalGroundVelocity();\n\t\t\t}\n\t\t}"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/playable_character.rs",
+    "sha256": "aabe57eae249b14c8951a14f34fac1f5bbd68f87d432e706341cd0fe669e9f8b",
+    "excerpts": [
+      {
+        "start": 25,
+        "end": 36,
+        "text": "pub struct AlsPlayableCharacterPlugin;\n\nimpl Plugin for AlsPlayableCharacterPlugin {\n    fn build(&self, app: &mut App) {\n        app.add_plugins((\n            PhysicsPlugins::new(PostUpdate).with_collision_hooks::<RagdollCollisionHooks>(),\n            TnuaAvian3dPlugin::new(Update),\n            TnuaControllerPlugin::<AlsControlScheme>::new(Update),\n            EnhancedInputPlugin,\n            AlsInputPlugin,\n            AlsInputRequestPlugin,\n            AlsAimPlugin,"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/movement/source_physics_timing.rs",
+    "sha256": "dd64728fead8ca2425fb62581b547afc45a9f5aa41e78b14c34d1465d7c97f9a",
+    "excerpts": [
+      {
+        "start": 14,
+        "end": 14,
+        "text": "pub const SOURCE_MAX_PHYSICS_DELTA: Duration = Duration::from_nanos(33_333_333);"
+      },
+      {
+        "start": 35,
+        "end": 79,
+        "text": "    fn build(&self, app: &mut App) {\n        app.init_resource::<SourcePhysicsClockRestore>()\n            .configure_sets(\n                PostUpdate,\n                (\n                    SourcePhysicsTimingSet::Clamp\n                        .after(AnimationGraphSet::PrePhysics)\n                        .before(PhysicsSystems::First),\n                    SourcePhysicsTimingSet::Restore\n                        .after(PhysicsSystems::Last)\n                        .before(crate::extensions::post_physics_animation::PostPhysicsAnimationSet::Inputs)\n                        .before(AnimationGraphSet::PostPhysics),\n                ),\n            )\n            .add_systems(\n                PostUpdate,\n                (clamp_source_physics_delta, enable_character_full_frame)\n                    .chain()\n                    .in_set(SourcePhysicsTimingSet::Clamp),\n            )\n            .add_systems(\n                PostUpdate,\n                (disable_character_full_frame, restore_source_physics_delta)\n                    .chain()\n                    .in_set(SourcePhysicsTimingSet::Restore),\n            )\n            .add_systems(\n                PhysicsSchedule,\n                integrate_character_velocity\n                    .in_set(IntegrationSystems::UpdateVelocityIncrements)\n                    .after(avian3d::dynamics::integrator::pre_process_velocity_increments),\n            )\n            .add_systems(\n                SubstepSchedule,\n                record_character_velocity\n                    .before(IntegrationSystems::Velocity),\n            )\n            .add_systems(\n                SubstepSchedule,\n                integrate_character_position\n                    .in_set(IntegrationSystems::Position)\n                    .after(avian3d::dynamics::integrator::integrate_positions),\n            );\n    }\n}"
+      },
+      {
+        "start": 101,
+        "end": 154,
+        "text": "fn source_physics_delta(delta: Duration) -> Duration {\n    delta.min(SOURCE_MAX_PHYSICS_DELTA)\n}\n\nfn clamp_source_physics_delta(\n    mut restore: ResMut<SourcePhysicsClockRestore>,\n    mut clock: ResMut<Time>,\n) {\n    let previous = clock.clone();\n    let mut capped = previous.clone();\n    capped.advance_by(source_physics_delta(previous.delta()));\n    restore.previous = Some(previous);\n    *clock = capped;\n}\n\nfn restore_source_physics_delta(\n    mut restore: ResMut<SourcePhysicsClockRestore>,\n    mut clock: ResMut<Time>,\n) {\n    let Some(previous) = restore.previous.take() else {\n        return;\n    };\n    *clock = previous;\n}\n\nfn enable_character_full_frame(\n    frame_time: Res<Time<Virtual>>,\n    mut commands: Commands,\n    characters: Query<(Entity, &LocomotionState, &RigidBody, Option<&AlsNotifyLocomotionAction>,\n        Option<&crate::als::dynamics::AlsMovementBaseDynamicsState>, &crate::als::character::AlsCmcAdapterRuntime),\n        (With<AlsCharacter>, Without<CustomPositionIntegration>)>,\n) {\n    for (entity, locomotion, body, action, base, runtime) in &characters {\n        if frame_time.delta() <= SOURCE_MAX_PHYSICS_DELTA\n            && !(*locomotion == LocomotionState::Grounded && runtime.simulation_substeps > 1\n                && runtime.grounded_movement_delta.is_some() && runtime.grounded_move_start.is_none()) {\n            continue;\n        }\n        if base.is_some_and(|base| base.entity.is_some() && base.support_velocity.length_squared() > 0.0) {\n            continue;\n        }\n        if *body == RigidBody::Dynamic && action != Some(&AlsNotifyLocomotionAction::Ragdolling)\n            && matches!(*locomotion, LocomotionState::Grounded | LocomotionState::Air) {\n            commands.entity(entity).insert((CustomPositionIntegration, SourceCharacterFullFrame::default()));\n        }\n    }\n}\n\nfn disable_character_full_frame(\n    mut commands: Commands,\n    characters: Query<Entity, With<SourceCharacterFullFrame>>,\n) {\n    for entity in &characters {\n        commands.entity(entity).remove::<(CustomPositionIntegration, SourceCharacterFullFrame)>();"
+      },
+      {
+        "start": 164,
+        "end": 193,
+        "text": "fn integrate_character_position(\n    frame_time: Res<Time<Virtual>>,\n    physics_time: Res<Time<Physics>>,\n    substeps: Res<SubstepCount>,\n    spatial: SpatialQuery,\n    candidates: Query<(Option<&CollisionLayers>, Has<Sensor>, Option<&ColliderOf>, Option<&AlsCollisionLayerOwnership>)>,\n    mut characters: Query<(Entity, &mut SolverBody, &Position, &Collider, &LocomotionState,\n        Option<&AlsNotifyLocomotionAction>, &RigidBody, Option<&crate::als::dynamics::AlsMovementBaseDynamicsState>,\n        Option<&SourceCharacterFullFrame>, Has<CustomPositionIntegration>,\n        &mut crate::als::character::AlsCmcAdapterRuntime), With<AlsCharacter>>,\n) {\n    let frame_step = frame_time.delta_secs() / substeps.0 as f32;\n    let extra_step = (frame_time.delta_secs() - physics_time.delta_secs()) / substeps.0 as f32;\n    for (entity, mut body, position, collider, locomotion, action, rigid_body, base, full_frame, custom_position, mut runtime) in &mut characters {\n        let movement = if let Some(frame) = full_frame {\n            if *locomotion == LocomotionState::Grounded && runtime.grounded_move_start.is_none()\n                && let Some(delta) = runtime.grounded_movement_delta {\n                delta / substeps.0 as f32 + Vec3::Y * body.linear_velocity.y * frame_step\n            } else if *locomotion == LocomotionState::Air {\n                (frame.velocity_before_step + body.linear_velocity) * 0.5 * frame_step\n            } else { body.linear_velocity * frame_step }\n        } else if !custom_position && *rigid_body == RigidBody::Dynamic\n            && *locomotion == LocomotionState::Grounded\n            && action != Some(&AlsNotifyLocomotionAction::Ragdolling)\n            && base.is_some_and(|base| base.entity.is_some() && base.support_velocity.length_squared() > 0.0) {\n            let relative_velocity = crate::als::dynamics::locomotion_velocity(body.linear_velocity, *locomotion, base);\n            if runtime.grounded_move_start.is_none() && let Some(delta) = runtime.grounded_movement_delta {\n                (delta - base.unwrap().support_velocity * frame_time.delta_secs()\n                    - relative_velocity * physics_time.delta_secs()).with_y(0.0) / substeps.0 as f32\n                    + Vec3::Y * relative_velocity.y * extra_step"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/movement/motion.rs",
+    "sha256": "7c980f50430fbbd5fdea582e946f686f52f931de4b649a4217870fe5bf810c2a",
+    "excerpts": [
+      {
+        "start": 2673,
+        "end": 2694,
+        "text": "}\n\nfn snapshot_actual_velocity_system(\n    time: Res<Time<avian3d::prelude::Physics>>,\n    mut characters: Query<(&mut LinearVelocity, &mut AlsActualVelocity, Option<&Position>, &mut AlsCmcAdapterRuntime,\n        &LocomotionState, Option<&mut crate::als::dynamics::AlsMovementBaseDynamicsState>), With<AlsCharacter>>,\n) {\n    for (mut velocity, mut actual, position, mut runtime, locomotion, mut base) in &mut characters {\n        if let Some(collision_velocity) = runtime.grounded_collision_velocity.take() {\n            velocity.0 = collision_velocity;\n        } else if let Some(start) = runtime.grounded_move_start\n            && let Some(position) = position\n            && runtime.simulation_delta_seconds > 0.0 {\n            let support = base.as_deref().filter(|base| base.entity.is_some())\n                .map_or(Vec3::ZERO, |base| base.support_velocity.with_y(0.0));\n            let relative = (position.0 - start - support * time.delta_secs()) / runtime.simulation_delta_seconds;\n            velocity.x = relative.x + support.x;\n            velocity.z = relative.z + support.z;\n        }\n        if *locomotion != LocomotionState::Grounded\n            && let Some(base) = base.as_deref_mut() {\n            *base = default();"
+      },
+      {
+        "start": 3746,
+        "end": 3768,
+        "text": "        }\n        let half = if *stance == Stance::Crouching { params.crouch.crouched_capsule_half_height } else { params.crouch.standing_capsule_half_height } * scale.y;\n        let radius = params.crouch.standing_capsule_radius * scale.x.min(scale.z);\n        if root_motion_active { runtime.simulation_delta_seconds = time.delta_secs(); }\n        let next_velocity = velocity.0 + motor.lin.boost + motor.lin.acceleration * delta_seconds;\n        let delta = runtime.grounded_movement_delta\n            .unwrap_or(next_velocity * delta_seconds).with_y(0.0);\n        if delta_seconds < crate::als::movement_constants::MIN_MOVEMENT_DELTA_SECONDS {\n            runtime.grounded_collision_velocity = Some((velocity.0 + motor.lin.boost).with_y(0.0));\n            if delta.length_squared() <= f32::EPSILON {\n                motor.lin.boost = -velocity.0;\n                motor.lin.acceleration = -gravity.value;\n                *margin = SpeculativeMargin::ZERO;\n                continue;\n            }\n        }\n        if runtime.simulation_substeps > 1 && runtime.grounded_movement_delta.is_some()\n            && let (Some(base), Some(dynamics)) = (base.as_deref_mut(), dynamics) {\n            let initial = position.0;\n            let mut current_transform = *transform;\n            current_transform.translation = initial;\n            let max_speed = crate::als::dynamics::max_allowed_speed(params, *stance, *rotation_mode,\n                max_allowed_gait.0, base.relative_velocity, view_yaw.0);"
+      },
+      {
+        "start": 3815,
+        "end": 3828,
+        "text": "        let center = position.0;\n        let Some((advanced, remaining, next_y)) = grounded_movement_transaction(&spatial_query, capsule,\n            center, transform.rotation, half, radius, delta, &params.cmc, *loco, entity, &candidates, &step_permissions) else { continue };\n        runtime.grounded_move_start = Some(center);\n        let world_position = next_y.filter(|height| *height > center.y).map_or(advanced, |height| advanced.with_y(height));\n        transform.translation = parent_world.map_or(world_position, |parent| parent.affine().inverse().transform_point3(world_position));\n        commands.entity(entity).insert(Position(world_position));\n        let remaining_velocity = remaining.unwrap_or(delta) / time.delta_secs();\n        motor.lin.boost.x = remaining_velocity.x - velocity.x;\n        motor.lin.boost.z = remaining_velocity.z - velocity.z;\n        motor.lin.acceleration.x = 0.0;\n        motor.lin.acceleration.z = 0.0;\n        if next_y.is_none() { continue; }\n        motor.lin.boost.y = -velocity.y;"
+      }
+    ]
+  },
+  {
+    "key": "src/als/character/movement/dynamics.rs",
+    "sha256": "c4012c45ae1cafc2ef5e7839907cb995ef0d2e7187ff3eb109aaa6e45159765b",
+    "excerpts": [
+      {
+        "start": 560,
+        "end": 585,
+        "text": "        let (next, simulation_substeps, displacement) = simulate_grounded_motion_with_braking_friction(\n            current,\n            desired_motion,\n            max_speed,\n            dynamics.0,\n            &params.cmc,\n            braking_friction_factor,\n            delta_seconds,\n        );\n        cmc_runtime.simulation_delta_seconds = delta_seconds;\n        cmc_runtime.simulation_substeps = simulation_substeps;\n        cmc_runtime.grounded_movement_delta = Some(displacement + support_velocity * time.delta_secs());\n        let analog_modifier = if dynamics.0.acceleration > MAX_ACCELERATION_MIN_FOR_ANALOG_MODIFIER { desired_motion.length().min(1.0) } else { 0.0 };\n        cmc_runtime.min_analog_speed_applied = desired_motion.with_y(0.0) != Vec3::ZERO && dynamics.0.acceleration > 0.0\n            && max_speed * analog_modifier < params.cmc.min_analog_walk_speed;\n        let motor_boost = next - current;\n        motor.lin.boost.x = next.x + support_velocity.x - world_velocity.x;\n        motor.lin.boost.z = next.z + support_velocity.z - world_velocity.z;\n        let base_state = AlsMovementBaseDynamicsState {\n            entity: base_entity,\n            world_velocity,\n            support_velocity,\n            relative_velocity: current,\n            motor_boost,\n            pre_collision_velocity: Some(next),\n        };"
+      }
+    ]
+  },
+  {
+    "key": "dependency:avian3d-0.7.0/src/dynamics/integrator/mod.rs",
+    "sha256": "87166e91ce8070de271d42fe92a62eb9038197c72aaa58b2cb556fe0f12ec187",
+    "excerpts": [
+      {
+        "start": 502,
+        "end": 523,
+        "text": "/// Integrates the positions of bodies based on their velocities and the time step.\npub fn integrate_positions(\n    mut solver_bodies: Query<&mut SolverBody, Without<CustomPositionIntegration>>,\n    time: Res<Time>,\n    mut diagnostics: ResMut<SolverDiagnostics>,\n) {\n    let start = crate::utils::Instant::now();\n\n    let delta_secs = time.delta_seconds_adjusted();\n\n    solver_bodies.par_iter_mut().for_each(|body| {\n        let SolverBody {\n            linear_velocity,\n            angular_velocity,\n            delta_position,\n            delta_rotation,\n            ..\n        } = body.into_inner();\n\n        *delta_position += *linear_velocity * delta_secs;\n        #[cfg(feature = \"2d\")]\n        {"
+      }
+    ]
+  },
+  {
+    "key": "dependency:avian3d-0.7.0/src/dynamics/solver/solver_body/plugin.rs",
+    "sha256": "3a468e2eef7cedfd75978902033f989e35f614522d9ea87e4018fd35d4a6e853",
+    "excerpts": [
+      {
+        "start": 263,
+        "end": 291,
+        "text": "fn writeback_solver_bodies(\n    mut query: Query<(\n        &SolverBody,\n        &mut Position,\n        &mut Rotation,\n        &ComputedCenterOfMass,\n        &mut LinearVelocity,\n        &mut AngularVelocity,\n    )>,\n    mut diagnostics: ResMut<SolverDiagnostics>,\n) {\n    let start = bevy::platform::time::Instant::now();\n\n    query.par_iter_mut().for_each(\n        |(solver_body, mut pos, mut rot, com, mut lin_vel, mut ang_vel)| {\n            // Write back the position and rotation deltas,\n            // rotating the body around its center of mass.\n            let old_world_com = *rot * com.0;\n            *rot = (solver_body.delta_rotation * *rot).fast_renormalize();\n            let new_world_com = *rot * com.0;\n            pos.0 += solver_body.delta_position + old_world_com - new_world_com;\n\n            // Write back velocities.\n            lin_vel.0 = solver_body.linear_velocity;\n            ang_vel.0 = solver_body.angular_velocity;\n        },\n    );\n\n    diagnostics.finalize += start.elapsed();"
+      }
+    ]
+  }
+]

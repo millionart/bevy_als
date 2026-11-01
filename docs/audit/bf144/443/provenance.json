@@ -1,0 +1,13 @@
+{
+  "original_manual_playground_sha256": "e31547dfd6fd94cc8cb571c1d1ced35cd6791e64a49546fc31f7802dff38a3b7",
+  "baseline_observer": "docs/audit/bf144/442/observer.rs",
+  "readonly_added": [
+    "after Tnua Motors body position and velocity",
+    "Last body position and velocity",
+    "actual physics and substep clocks, count, gravity"
+  ],
+  "source_data_injected": false,
+  "original_scene_retained": true,
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}

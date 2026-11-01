@@ -1,0 +1,6 @@
+{
+  "old_ready240_fields_exact": true,
+  "new_vertical_motor_correction_rows": 89,
+  "initial_schema_assumption_rejected": "All position components remain unchanged across motors",
+  "horizontal_components_unchanged": true
+}
