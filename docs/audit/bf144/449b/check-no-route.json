@@ -1,0 +1,23 @@
+{
+  "gate": "PASS_SINGLE_HEIGHT_UNIT_FACTOR_ACTUAL_CONSUMERS",
+  "routed": false,
+  "counts": {
+    "actual_leaf_records": 239,
+    "baseprovider_first_positive_rows": 98,
+    "first_root_y": 0.9675059914588928,
+    "height": 0.9675059914588928
+  },
+  "public_sample_only_one_y_changed": true,
+  "other_input_and_clock_parameters_exact": true,
+  "camera_entity_refs_compared_by_unique_role": true,
+  "negative_fixtures_rejected": [
+    "wrong-route",
+    "wrong-height",
+    "repeated-application",
+    "changed-input"
+  ],
+  "new_difference_pending_final_gate": true,
+  "full_root_or_als_equivalence_claimed": false,
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}

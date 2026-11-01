@@ -1,0 +1,34 @@
+{
+  "gate": "PASS_SINGLE_HEIGHT_FLOAT_EXPORT_UNIT_FACTOR_AND_ACTUAL_ROOT_CONSUMERS",
+  "same_source_height_raw_and_compressed_cm": 96.75060272216797,
+  "target_export_float_coefficient": 0.009999999776482582,
+  "target_original_height": 0.9675059914588928,
+  "source_physical_unit_projection": 0.9675060510635376,
+  "public_source_data_only_pelvis_y_changed": true,
+  "only_idle_caller_routes_to_clone": true,
+  "head_reference_handle_unchanged": true,
+  "actual_leaf_records_restored": 239,
+  "first98_actual_baseprovider_heights_recovered": true,
+  "first_actual_root_pelvis_y_recovered": true,
+  "other_input_clock_and_physics_fields_exact": true,
+  "camera_process_local_id_compared_by_unique_role": true,
+  "no_route_control_returns_original_height": true,
+  "once_guard_ablation_rejected": true,
+  "source_bytes_restored": true,
+  "fixture_recompiled_against_same_target_six_libraries": true,
+  "restored_all_controlled_arrays_and_check_exact": true,
+  "negative_fixtures_rejected": 4,
+  "recorded_difference": "BF144-D275",
+  "new_differences": [
+    "BF144-D275"
+  ],
+  "total_confirmed_differences": 272,
+  "priority_counts": {
+    "P2": 116,
+    "P3": 156
+  },
+  "production_reader_converter_or_original_asset_fixed": false,
+  "full_root_or_als_equivalence_claimed": false,
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}
