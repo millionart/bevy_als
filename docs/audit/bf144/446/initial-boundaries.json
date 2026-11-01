@@ -1,0 +1,15 @@
+{
+  "avatar_qualification": "Read the same outer avatar entity used by the provider, not the animation player entity",
+  "initial_checker_failure": "LocomotionState serializes enum variants while its source getter returns gameplay tags",
+  "checker_correction": "Use the actual LocomotionState.as_str mapping before comparing the root tag",
+  "production_changed": false,
+  "screenshots": 0,
+  "performance_acceptance": "paused",
+  "original_initial_checker_process_report_preserved": false,
+  "reproducible_original_failure_witness": {
+    "serialized_locomotion": "Grounded",
+    "source_tag": "Als.LocomotionMode.Grounded",
+    "old_check": "Direct equality without LocomotionState.as_str mapping",
+    "raw_input": "runtime-baseline/parameters.json"
+  }
+}

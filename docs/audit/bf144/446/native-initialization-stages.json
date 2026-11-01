@@ -1,0 +1,53 @@
+{
+  "source": "docs/audit/bf144/445a/restored.native.json.gz",
+  "initial_world_seconds": 0,
+  "initial_update_counter": 0,
+  "initial_evaluation_counter": 0,
+  "initial_idle": {
+    "property": "AnimGraphNode_SequencePlayer",
+    "node_type": "/Script/Engine.AnimNode_SequencePlayer",
+    "asset": "/ALS/ALS/Animations/Base/A_Als_Idle.A_Als_Idle",
+    "current_asset_time": 0,
+    "cached_blend_weight": 0.75,
+    "sync_read_buffer_tick_present": true,
+    "sync_read_buffer_tick_matches": 1,
+    "tick_group": "Secondary Motion",
+    "tick_weight": 0.75,
+    "tick_evaluator": false,
+    "tick_previous_valid": true,
+    "tick_previous": 0,
+    "tick_delta": 0,
+    "tick_accumulator": 0,
+    "required_bones_valid": true,
+    "node_guid": "95e7e1d3-44eb-9b93-3f7f-ba8a92e9cc0e",
+    "pose_mode_at_observation": "compressed"
+  },
+  "initial_pending": {
+    "name": "bPendingUpdate",
+    "value": "True"
+  },
+  "first_world_idle": {
+    "property": "AnimGraphNode_SequencePlayer",
+    "node_type": "/Script/Engine.AnimNode_SequencePlayer",
+    "asset": "/ALS/ALS/Animations/Base/A_Als_Idle.A_Als_Idle",
+    "current_asset_time": 0.03333333507180214,
+    "cached_blend_weight": 0.75,
+    "sync_read_buffer_tick_present": true,
+    "sync_read_buffer_tick_matches": 1,
+    "tick_group": "Secondary Motion",
+    "tick_weight": 0.75,
+    "tick_evaluator": false,
+    "tick_previous_valid": true,
+    "tick_previous": 0,
+    "tick_delta": 0.03333333507180214,
+    "tick_accumulator": 0.03333333507180214,
+    "required_bones_valid": true,
+    "node_guid": "95e7e1d3-44eb-9b93-3f7f-ba8a92e9cc0e",
+    "pose_mode_at_observation": "compressed"
+  },
+  "first_world_delta": 0.03333333507180214,
+  "zero_initialization_is_source_behavior": true,
+  "first_world_tick_and_initialization_compared_as_same_stage": false,
+  "pending_difference_already_registered": "BF144-D149",
+  "new_difference": false
+}

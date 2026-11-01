@@ -1,0 +1,81 @@
+{
+  "gate": "PASS_ACTUAL_STARTUP_INPUT_MANIFEST_WITH_NATIVE_REPLAY_CAPABILITY_GAPS",
+  "animation_queries": 319,
+  "cold_queries": 79,
+  "positive_target_queries": 318,
+  "cold_mode": "Grounded",
+  "cold_actual_gait": "Als.Gait.Walking",
+  "cold_desired_gait": "Als.Gait.Running",
+  "cold_effective_and_desired_motion_zero": true,
+  "cold_root_quaternion_unchanged": true,
+  "cold_raw_view_yaw_radians": -0.7853982448577881,
+  "initial_actor_world_tqs": {
+    "actor_world_rotation": [
+      0.0,
+      -0.3826834559440613,
+      0.0,
+      0.9238795042037964
+    ],
+    "actor_world_scale": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "actor_world_translation": [
+      -15.0,
+      0.9199999570846558,
+      -15.0
+    ]
+  },
+  "initial_avatar_world_tqs": {
+    "avatar_world_rotation": [
+      0.0,
+      0.9238795638084412,
+      0.0,
+      0.3826834559440613
+    ],
+    "avatar_world_scale": [
+      0.9999999403953552,
+      1.0,
+      0.9999999403953552
+    ],
+    "avatar_world_translation": [
+      -15.0,
+      -5.960464477539063e-08,
+      -15.0
+    ]
+  },
+  "initial_source_actor_tqs": {
+    "translation": {
+      "x": 0,
+      "y": 0,
+      "z": 92.15
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "scale": {
+      "x": 1,
+      "y": 1,
+      "z": 1
+    }
+  },
+  "native_initial_actor_source_yaw_degrees": 0,
+  "target_forward_projected_into_source_basis": [
+    0.7071068030891894,
+    -0.7071067450934194,
+    0.0
+  ],
+  "target_initial_source_basis_yaw_from_stored_quaternion_degrees": -44.99999765034577,
+  "source_replay_frame_limit": 240,
+  "required_positive_frames": 318,
+  "native_current_entry_accepts_zero_delta": false,
+  "native_current_entry_accepts_actor_xy_or_yaw": false,
+  "simply_prepending_79_zero_input_frames_is_sufficient": false,
+  "matched_full_history_claimed": false,
+  "new_differences": [],
+  "total_confirmed_differences": 271
+}
