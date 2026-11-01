@@ -5230,6 +5230,10 @@ TSharedPtr<FJsonObject> CaptureRigNodeHistoryProbe(UObject* Asset, const FString
                 !(*Frame)->TryGetObjectField(TEXT("variables"), Variables) || !(*Frame)->HasField(TEXT("pose")) ||
                 !ReadVector(*Frame, TEXT("reference_ray_start_cm"), Start) || !ReadVector(*Frame, TEXT("reference_ray_end_cm"), End)) { return nullptr; }
             bCaptureWorld = (*Frame)->HasField(TEXT("mesh_to_world"));
+            bool bReferenceRayVmSpace = false;
+            if (((*Frame)->HasField(TEXT("reference_ray_vm_space")) &&
+                (!(*Frame)->HasTypedField<EJson::Boolean>(TEXT("reference_ray_vm_space")) || !(*Frame)->TryGetBoolField(TEXT("reference_ray_vm_space"), bReferenceRayVmSpace))) ||
+                (bReferenceRayVmSpace && !bCaptureWorld)) { return nullptr; }
             if (bCaptureWorld)
             {
                 const TSharedPtr<FJsonObject>* Transform = nullptr;
@@ -5271,11 +5275,21 @@ TSharedPtr<FJsonObject> CaptureRigNodeHistoryProbe(UObject* Asset, const FString
             Row->SetNumberField(TEXT("forward_events"), Forward);
             Row->SetNumberField(TEXT("construction_events"), Constructed);
             FHitResult Hit;
-            const bool bHit = World->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, FCollisionQueryParams(NAME_None, true, Owner));
+            const auto& RigContext = Rig->GetRigVMExtendedExecuteContext().GetPublicData<>();
+            const FVector WorldStart = bReferenceRayVmSpace ? RigContext.ToWorldSpace(Start) : Start;
+            const FVector WorldEnd = bReferenceRayVmSpace ? RigContext.ToWorldSpace(End) : End;
+            const bool bHit = World->LineTraceSingleByChannel(Hit, WorldStart, WorldEnd, ECC_Visibility, FCollisionQueryParams(NAME_None, true, Owner));
             TSharedRef<FJsonObject> Query = MakeShared<FJsonObject>();
             Query->SetBoolField(TEXT("blocking_hit"), bHit && Hit.bBlockingHit);
             Query->SetObjectField(TEXT("impact_point_cm"), CaptureVector(Hit.ImpactPoint));
             Query->SetObjectField(TEXT("impact_normal"), CaptureVector(Hit.ImpactNormal));
+            if (bReferenceRayVmSpace)
+            {
+                Query->SetObjectField(TEXT("world_start_cm"), CaptureVector(WorldStart));
+                Query->SetObjectField(TEXT("world_end_cm"), CaptureVector(WorldEnd));
+                Query->SetObjectField(TEXT("vm_impact_point_cm"), CaptureVector(RigContext.ToVMSpace(Hit.ImpactPoint)));
+                Query->SetObjectField(TEXT("vm_impact_normal"), CaptureVector(RigContext.GetToWorldSpaceTransform().InverseTransformVector(Hit.ImpactNormal)));
+            }
             Row->SetObjectField(TEXT("reference_query_after_forward"), Query);
             TSharedRef<FJsonObject> VariablesAfter = MakeShared<FJsonObject>();
             for (const FRigVMExternalVariable& Variable : Rig->GetExternalVariables())

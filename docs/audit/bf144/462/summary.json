@@ -1,0 +1,68 @@
+{
+  "gate": "PASS_NATIVE_VM_SPACE_REFERENCE_QUERY_CAPABILITY_AND_COMPLETE_SOURCE_OUTPUT_COMPATIBILITY",
+  "actual_source_queries": 636,
+  "additional_initial_references": 2,
+  "source_actual_offset_cm_f32_and_normal_exact": 636,
+  "complete_old_source_pose_externals_execution_clock_and_work_values_qualified": 638,
+  "cache_instance_hash_only_canonicalized_by_fresh_ue_pointer_hash_semantics": true,
+  "cache_index_invalidation_and_numeric_negative_controls_rejected": true,
+  "vm_to_world_removal_loses_all638_hits_with_rig_outputs_unchanged": true,
+  "missing_world_guard_ablation_accepts_invalid_request": true,
+  "strict_type_and_missing_world_rejected_in_final_package": true,
+  "whole_legacy_rig_default_character_and_three_axis_curve_vector_compatible": true,
+  "source_bytes_restored_full_package_rebuilt_terminal_and_project_package_sha_exact": true,
+  "complete636_world_and_vm_query_rows_exact_after_restore": true,
+  "reader_migration": "docs/audit/bf144/462/reader-migration.json",
+  "other395_and_six_libraries_unchanged": true,
+  "source_internal_query_hook_claimed": false,
+  "reference_query_after_forward_in_same_static_world": true,
+  "no_target_hit_injection": true,
+  "external_source_files": [
+    {
+      "path": "docs/audit/bf144/460/common-rig.native.json.gz",
+      "bytes": 21248561,
+      "sha256": "455d3bc14cbd21b8215b98b181ca0446c6efa1e173ee39df4193a2e4f3615d6e"
+    },
+    {
+      "path": "docs/audit/bf144/460/request.json",
+      "bytes": 11273085,
+      "sha256": "c05e080117bbc6189308d5e2a09be54f028a7b40c2153e93e0ea348a46978d2a"
+    },
+    {
+      "path": "docs/audit/bf144/461/inputs.json",
+      "bytes": 1032087,
+      "sha256": "8b4e65913a4c5cca019d82595c9307edc772b2754b5294580a883b117b10d646"
+    },
+    {
+      "path": "docs/audit/bf144/457/default.native.json.gz",
+      "bytes": 9620886,
+      "sha256": "829c490c845e7da29c7b02fce38ab743230375400155cdbcd8b80b344328a685"
+    },
+    {
+      "path": "docs/audit/bf144/457/default.request.json",
+      "bytes": 145036,
+      "sha256": "09ee312d3797714dfe356eb54a42b63b8cdc59dcddf132e1958ef69fbe0a8afa"
+    },
+    {
+      "path": "docs/audit/bf144/441b/curves.native.json",
+      "bytes": 198719,
+      "sha256": "4b11e842693ad10a5e9ad576b3e185d86602a25107d53a1a652ae41a4bb57c6d"
+    },
+    {
+      "path": "docs/audit/bf144/441b/curves.request.json",
+      "bytes": 4198,
+      "sha256": "98f6b163e8583e510e6d91f9c9b37540581df41c9691e14acbf7b77ab846a5e6"
+    },
+    {
+      "path": "docs/audit/bf144/457/reader-migration.json",
+      "bytes": 291,
+      "sha256": "5ce9123ab0344c4b35be6f133981b295c3756137b80fb0fda91db0b0984ce064"
+    }
+  ],
+  "new_differences": [],
+  "confirmed_difference_count": 272,
+  "production_engine_converter_assets_unchanged": true,
+  "next_boundary": "Use qualified actual source local inputs and native context ray/hit outputs to separate current query precision and source centimeter float offset from known normal factor, then full continuous Rig outputs",
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}

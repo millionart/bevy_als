@@ -1,0 +1,9 @@
+{
+  "attempted_asset": "/ALS/ALS/Character/AB_Als.AB_Als",
+  "required_asset": "/ALS/ALS/Character/B_Als_Character.B_Als_Character",
+  "request": "docs/audit/bf144/457/default.request.json",
+  "rejected_process_exit_code": 7,
+  "reason": "CharacterAnimationProbe requires the character Blueprint rather than the animation Blueprint",
+  "old_known_working_call": "docs/audit/bf144/457/run.ps1",
+  "wrong_entry_result_not_accepted": true
+}

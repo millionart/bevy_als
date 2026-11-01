@@ -1,0 +1,7 @@
+{
+  "gate": "PASS_INSTANCE_HASH_ONLY_CANONICALIZATION_WITH_CACHE_INDEX_INVALIDATION_AND_NUMERIC_COUNTEREXAMPLES",
+  "valid_instance_hash_change_only_accepted": true,
+  "changed_index_rejected": true,
+  "invalid_cache_minus_one_change_rejected": true,
+  "changed_numeric_register_rejected": true
+}
