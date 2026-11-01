@@ -1,0 +1,159 @@
+{
+  "gate": "PASS_ALL318_HEAD_FOUR_DOMAIN_NATIVE_AND_CURRENT_MATRIX",
+  "matched_frames": 318,
+  "domains": 4,
+  "domain_outputs_per_system": 1272,
+  "bone_outputs_per_system": 100488,
+  "native_ss_full_actual_pose_and_curve_frames_exact": 318,
+  "current_cc_actual_frames_exact": 318,
+  "summaries": {
+    "cc": {
+      "native_to_actual_source": {
+        "translation": 22995,
+        "rotation_raw": 23893,
+        "rotation_aligned": 23893,
+        "scale": 8239
+      },
+      "current_to_actual_source": {
+        "translation": 22995,
+        "rotation_raw": 23894,
+        "rotation_aligned": 23894,
+        "scale": 8239
+      },
+      "same_domain_native_to_current": {
+        "translation": 0,
+        "rotation_raw": 23032,
+        "rotation_aligned": 23032,
+        "scale": 0
+      }
+    },
+    "sc": {
+      "native_to_actual_source": {
+        "translation": 22164,
+        "rotation_raw": 23807,
+        "rotation_aligned": 23807,
+        "scale": 5088
+      },
+      "current_to_actual_source": {
+        "translation": 22164,
+        "rotation_raw": 23861,
+        "rotation_aligned": 23861,
+        "scale": 5088
+      },
+      "same_domain_native_to_current": {
+        "translation": 2564,
+        "rotation_raw": 23539,
+        "rotation_aligned": 23539,
+        "scale": 1487
+      }
+    },
+    "cs": {
+      "native_to_actual_source": {
+        "translation": 22602,
+        "rotation_raw": 23887,
+        "rotation_aligned": 23887,
+        "scale": 8223
+      },
+      "current_to_actual_source": {
+        "translation": 22602,
+        "rotation_raw": 23888,
+        "rotation_aligned": 23888,
+        "scale": 8223
+      },
+      "same_domain_native_to_current": {
+        "translation": 48,
+        "rotation_raw": 22757,
+        "rotation_aligned": 22757,
+        "scale": 0
+      }
+    },
+    "ss": {
+      "native_to_actual_source": {
+        "translation": 0,
+        "rotation_raw": 0,
+        "rotation_aligned": 0,
+        "scale": 0
+      },
+      "current_to_actual_source": {
+        "translation": 403,
+        "rotation_raw": 22719,
+        "rotation_aligned": 22719,
+        "scale": 0
+      },
+      "same_domain_native_to_current": {
+        "translation": 403,
+        "rotation_raw": 22719,
+        "rotation_aligned": 22719,
+        "scale": 0
+      }
+    }
+  },
+  "factor_effects": {
+    "native": {
+      "cc-sc": {
+        "translation": 22598,
+        "rotation_raw": 23835,
+        "rotation_aligned": 23835,
+        "scale": 8226
+      },
+      "cc-cs": {
+        "translation": 22164,
+        "rotation_raw": 23657,
+        "rotation_aligned": 23657,
+        "scale": 5088
+      },
+      "sc-ss": {
+        "translation": 22164,
+        "rotation_raw": 23807,
+        "rotation_aligned": 23807,
+        "scale": 5088
+      },
+      "cs-ss": {
+        "translation": 22602,
+        "rotation_raw": 23887,
+        "rotation_aligned": 23887,
+        "scale": 8223
+      }
+    },
+    "current": {
+      "cc-sc": {
+        "translation": 22595,
+        "rotation_raw": 23095,
+        "rotation_aligned": 23095,
+        "scale": 8222
+      },
+      "cc-cs": {
+        "translation": 22164,
+        "rotation_raw": 23528,
+        "rotation_aligned": 23528,
+        "scale": 5088
+      },
+      "sc-ss": {
+        "translation": 22164,
+        "rotation_raw": 23540,
+        "rotation_aligned": 23540,
+        "scale": 5088
+      },
+      "cs-ss": {
+        "translation": 22602,
+        "rotation_raw": 23580,
+        "rotation_aligned": 23580,
+        "scale": 8223
+      }
+    }
+  },
+  "source_curves_held_common": true,
+  "current_extra_scene_node_not_counted_as_source_bone": true,
+  "additive_none_scale_native_boundary_semantic_identity_zero": true,
+  "numerical_operator_residuals_remaining": true,
+  "new_differences": [],
+  "negative_fixtures_rejected": [
+    "missing-domain",
+    "duplicated-domain",
+    "wrong-alpha",
+    "wrong-bone-map"
+  ],
+  "full_root_or_als_equivalence_claimed": false,
+  "screenshots": 0,
+  "performance_acceptance": "paused"
+}
